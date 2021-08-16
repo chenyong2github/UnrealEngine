@@ -42,10 +42,23 @@ inline bool operator!=(const FVTPhysicalSpaceDescription& Lhs, const FVTPhysical
 	return !operator==(Lhs, Rhs);
 }
 
+inline uint32 GetTypeHash(const FVTPhysicalSpaceDescription& Desc)
+{
+	uint32 Hash = GetTypeHash(Desc.TileSize);
+	Hash = HashCombine(Hash, GetTypeHash(Desc.Dimensions));
+	Hash = HashCombine(Hash, GetTypeHash(Desc.NumLayers));
+	Hash = HashCombine(Hash, GetTypeHash(Desc.bContinuousUpdate));
+	for (int32 Layer = 0; Layer < Desc.NumLayers; ++Layer)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Desc.Format[Layer]));
+	}
+	return Hash;
+}
+
 class FVirtualTexturePhysicalSpace final : public FRenderResource
 {
 public:
-	FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID);
+	FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID, int32 InTileWidthHeight, bool bInEnableResidencyMipMapBias);
 	virtual ~FVirtualTexturePhysicalSpace();
 
 	inline const FVTPhysicalSpaceDescription& GetDescription() const { return Description; }
@@ -102,7 +115,7 @@ public:
 	/** Get frame at which residency tracking last saw over-subscription. */
 	inline uint32 GetLastFrameOversubscribed() const { return LastFrameOversubscribed; }
 	/** Draw residency graph on screen. */
-	void DrawResidencyGraph(class FCanvas* Canvas, FBox2D CanvasPosition);
+	void DrawResidencyGraph(class FCanvas* Canvas, FBox2D CanvasPosition, bool bDrawKey);
 
 private:
 	FVTPhysicalSpaceDescription Description;
@@ -116,8 +129,6 @@ private:
 	uint32 TextureSizeInTiles;
 	uint32 NumRefs;
 	uint16 ID;
-	
-	bool bGpuTextureLimit; // True if the physical size was limited by the maximum GPU texture size
 	
 	bool bEnableResidencyMipMapBias;
 	float ResidencyMipMapBias;

@@ -121,6 +121,15 @@ namespace VirtualTextureScalability
 		ECVF_Scalability
 	);
 
+	static TAutoConsoleVariable<int32> CVarVTSplitPhysicalPoolSize(
+		TEXT("r.VT.SplitPhysicalPoolSize"),
+		0,
+		TEXT("Create multiple physical pools per format to keep pools at this maximum size in tiles.")
+		TEXT("A value of 64 tiles will force 16bit page tables. This can be a page table memory optimization for large physical pools.")
+		TEXT("Defaults to 0 (off)."),
+		ECVF_RenderThreadSafe
+	);
+
 	static TAutoConsoleVariable<int32> CVarVTEnableAnisotropy(
 		TEXT("r.VT.AnisotropicFiltering"),
 		0,
@@ -255,8 +264,20 @@ namespace VirtualTextureScalability
 		return GroupIndex < NumScalabilityGroups ? GTileCountBiases[GroupIndex] : 0;
 	}
 
+	int32 GetSplitPhysicalPoolSize()
+	{
+		return FMath::Max(CVarVTSplitPhysicalPoolSize.GetValueOnRenderThread(), 0);
+	}
+
 	uint32 GetPageFreeThreshold()
 	{
 		return FMath::Max(CVarVTPageFreeThreshold.GetValueOnRenderThread(), 0);
+	}
+	
+	uint32 GetPhysicalPoolSettingsHash()
+	{
+		uint32 Hash = GetTypeHash(GPoolSizeScales);
+		Hash = HashCombine(Hash, GetSplitPhysicalPoolSize());
+		return Hash;
 	}
 }

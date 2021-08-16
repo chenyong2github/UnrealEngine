@@ -19,6 +19,7 @@
 #include "VT/UniqueRequestList.h"
 #include "VT/VirtualTextureFeedback.h"
 #include "VT/VirtualTexturePhysicalSpace.h"
+#include "VT/VirtualTexturePoolConfig.h"
 #include "VT/VirtualTextureScalability.h"
 #include "VT/VirtualTextureSpace.h"
 
@@ -758,19 +759,132 @@ void FVirtualTextureSystem::ReleaseSpace(FVirtualTextureSpace* Space)
 	}
 }
 
+/** 
+ * Description of additional settings to use when initializing a physical space. 
+ * This is filed by GetPoolInitDescription() based on the requested space description and the current config settings.
+ */
+struct FVTPhysicalSpaceInitDescription
+{
+	int32 TileWidthHeight = 0;
+	int32 PoolCount = 1;
+	bool bEnableResidencyMipBias = false;
+};
+
+void GetPoolInitDescription(FVTPhysicalSpaceDescription const& InDesc, FVTPhysicalSpaceInitDescription& OutInitDescription)
+{
+	// Find matching config from ini file
+	FVirtualTextureSpacePoolConfig Config;
+	UVirtualTexturePoolConfig const* PoolConfig = GetDefault<UVirtualTexturePoolConfig>();
+	PoolConfig->FindPoolConfig(InDesc.Format, InDesc.NumLayers, InDesc.TileSize, Config);
+	int32 SizeInMegabyte = Config.SizeInMegabyte;
+
+	// Adjust found config for scaling.
+	const float Scale = Config.bAllowSizeScale ? VirtualTextureScalability::GetPoolSizeScale(Config.ScalabilityGroup) : 1.f;
+	SizeInMegabyte = (int32)(Scale * (float)SizeInMegabyte);
+	if (Scale < 1.f && Config.MinScaledSizeInMegabyte > 0)
+	{
+		SizeInMegabyte = FMath::Max(SizeInMegabyte, Config.MinScaledSizeInMegabyte);
+	}
+	if (Scale > 1.f && Config.MaxScaledSizeInMegabyte > 0)
+	{
+		SizeInMegabyte = FMath::Min(SizeInMegabyte, Config.MaxScaledSizeInMegabyte);
+	}
+	const int32 PoolSizeInBytes = SizeInMegabyte * 1024u * 1024u;
+
+	// Get size of a single tile.
+	const FPixelFormatInfo& FormatInfo = GPixelFormats[InDesc.Format[0]];
+	check(InDesc.TileSize % FormatInfo.BlockSizeX == 0);
+	check(InDesc.TileSize % FormatInfo.BlockSizeY == 0);
+	SIZE_T TileSizeBytes = 0;
+	for (int32 Layer = 0; Layer < InDesc.NumLayers; ++Layer)
+	{
+		TileSizeBytes += CalculateImageBytes(InDesc.TileSize, InDesc.TileSize, 0, InDesc.Format[Layer]);
+	}
+
+	// Calculate final size in tiles.
+	// Loop to find matching pool count if necessary.
+	int32 TileWidthHeight = 0;
+	int32 PoolCount = 1;
+	while (1)
+	{
+		const uint32 MaxTiles = FMath::Max((uint32)(PoolSizeInBytes / (PoolCount * TileSizeBytes)), 1u);
+
+		TileWidthHeight = FMath::FloorToInt(FMath::Sqrt((float)MaxTiles));
+
+		if (TileWidthHeight * InDesc.TileSize > GetMax2DTextureDimension())
+		{
+			// A good option to support extremely large caches would be to allow additional slices in an array here for caches...
+			// Just try to use the maximum texture size for now
+			TileWidthHeight = GetMax2DTextureDimension() / InDesc.TileSize;
+			break;
+		}
+
+		const int32 SplitPhysicalPoolSize = VirtualTextureScalability::GetSplitPhysicalPoolSize();
+		if (SplitPhysicalPoolSize <= 0 || TileWidthHeight <= SplitPhysicalPoolSize)
+		{
+			break;
+		}
+
+		PoolCount++;
+	}
+
+	OutInitDescription.TileWidthHeight = TileWidthHeight;
+	OutInitDescription.PoolCount = PoolCount;
+	OutInitDescription.bEnableResidencyMipBias = Config.bEnableResidencyMipMapBias;
+}
+
+/** Cached version of GetPoolInitDescription() to avoid regularly repeating the heavy work in that function. */
+void GetPoolInitDescription_Cached(FVTPhysicalSpaceDescription const& InDesc, FVTPhysicalSpaceInitDescription& OutInitDescription)
+{
+	check(IsInRenderingThread());
+	static TMap<FVTPhysicalSpaceDescription, FVTPhysicalSpaceInitDescription> Map;
+
+	// Invalidate the cache if any relevant CVar settings change.
+	static uint32 PhysicalPoolSettingsHash = VirtualTextureScalability::GetPhysicalPoolSettingsHash();
+	if (PhysicalPoolSettingsHash != VirtualTextureScalability::GetPhysicalPoolSettingsHash())
+	{
+		Map.Reset();
+	}
+
+	FVTPhysicalSpaceInitDescription* InitDescriptionPtr = Map.Find(InDesc);
+	if (InitDescriptionPtr == nullptr)
+	{
+		GetPoolInitDescription(InDesc, OutInitDescription);
+		Map.Add(InDesc, OutInitDescription);
+	}
+	else
+	{
+		OutInitDescription = *InitDescriptionPtr;
+	}
+}
+
 FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc)
 {
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
 
+	// Find matching pools.
+	// We support multiple matching pools to allow for 16bit page table memory optimization.
+	TArray<int32, TInlineAllocator<8>> Matching;
 	for (int32 i = 0; i < PhysicalSpaces.Num(); ++i)
 	{
 		FVirtualTexturePhysicalSpace* PhysicalSpace = PhysicalSpaces[i];
 		if (PhysicalSpace && PhysicalSpace->GetDescription() == InDesc)
 		{
-			return PhysicalSpace;
+			Matching.Add(i);
 		}
 	}
 
+	FVTPhysicalSpaceInitDescription InitDescription;
+	GetPoolInitDescription_Cached(InDesc, InitDescription);
+
+	if (InitDescription.PoolCount <= Matching.Num())
+	{
+		// Randomly select from any pools that exist.
+		int32 RandomIndex = FMath::RandHelper(Matching.Num());
+		return PhysicalSpaces[Matching[RandomIndex]];
+	}
+	
+	// Not reached maximum matching pool count yet so create a new pool.
 	uint32 ID = PhysicalSpaces.Num();
 	check(ID <= 0x0fff);
 
@@ -788,11 +902,12 @@ FVirtualTexturePhysicalSpace* FVirtualTextureSystem::AcquirePhysicalSpace(const 
 		PhysicalSpaces.AddZeroed();
 	}
 
-	FVirtualTexturePhysicalSpace* PhysicalSpace = new FVirtualTexturePhysicalSpace(InDesc, ID);
+	FVirtualTexturePhysicalSpace* PhysicalSpace = new FVirtualTexturePhysicalSpace(InDesc, ID, InitDescription.TileWidthHeight, InitDescription.bEnableResidencyMipBias);
 	PhysicalSpaces[ID] = PhysicalSpace;
 
 	INC_MEMORY_STAT_BY(STAT_TotalPhysicalMemory, PhysicalSpace->GetSizeInBytes());
 	BeginInitResource(PhysicalSpace);
+
 	return PhysicalSpace;
 }
 
@@ -2400,11 +2515,11 @@ void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerControlle
 		return;
 	}
 
-	const FIntPoint GraphSize(400, 200);
+	const FIntPoint GraphSize(250, 125);
 	const FIntPoint BorderSize(25, 25);
 	const FIntPoint GraphWithBorderSize = GraphSize + BorderSize * 2;
 
-	const FIntPoint CanvasSize = InCanvas->Canvas->GetParentCanvasSize();
+	const FIntPoint CanvasSize = FIntPoint(InCanvas->ClipX, InCanvas->ClipY);
 	const int32 NumGraphsInRow = FMath::Max(CanvasSize.X / GraphWithBorderSize.X, 1);
 	const int32 CanvasOffsetY = 90;
 
@@ -2428,16 +2543,12 @@ void FVirtualTextureSystem::DrawResidencyHud(UCanvas* InCanvas, APlayerControlle
 				break;
 			}
 
-			PhysicalSpace->DrawResidencyGraph(InCanvas->Canvas, CanvasPosition);
+			const bool bDrawKey = GraphIndex == 0;
+			PhysicalSpace->DrawResidencyGraph(InCanvas->Canvas, CanvasPosition, bDrawKey);
 
 			GraphIndex++;
 		}
 	}
-
-	// Key with same colors as used by FVirtualTexturePhysicalSpace::DrawResidencyGraph()
-	InCanvas->Canvas->DrawShadowedString(25, 320, TEXT("MipMap Bias"), GEngine->GetSmallFont(), FLinearColor(0.1f, 0.8f, 0.1f));
-	InCanvas->Canvas->DrawShadowedString(125, 320, TEXT("Page Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.1f, 0.1f));
-	InCanvas->Canvas->DrawShadowedString(225, 320, TEXT("LockedPage Residency"), GEngine->GetSmallFont(), FLinearColor(0.8f, 0.8f, 0.1f));
 }
 
 #endif // !UE_BUILD_SHIPPING
