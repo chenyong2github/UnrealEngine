@@ -75,6 +75,12 @@ struct FHairGroupDesc
 	UPROPERTY()
 	bool bSupportVoxelization_Override = 0;
 
+	/** When enabled, Length Scale allow to scale the length of the hair. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, interp, Category = "Groom", meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0", SliderExponent = 1, editcondition = "HairLengthScale_Override"))
+	float HairLengthScale = 1.f;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
+	bool HairLengthScale_Override = false;
+
 	/** Force a specific LOD index */
 	UPROPERTY()
 	int32 LODForcedIndex = -1;

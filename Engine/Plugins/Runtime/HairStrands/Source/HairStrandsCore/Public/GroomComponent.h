@@ -159,6 +159,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void SetEnableSimulation(bool bInEnableSimulation);
 
+	/* Accessor function for changing hair length scale from blueprint/sequencer */
+	UFUNCTION(BlueprintCallable, Category = "Groom")
+	void SetHairLengthScale(float Scale);
+
 	void SetStableRasterization(bool bEnable);
 	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding, const bool bUpdateSimulation = true);
 	void SetHairRootScale(float Scale);

@@ -256,6 +256,7 @@ public:
 			float HairRadius = 0;
 			float HairRootScale = 0;
 			float HairTipScale = 0;
+			float HairLengthScale = 0;
 			float HairLength = 0;
 			float HairDensity = 0;
 			bool bUseStableRasterization = false;

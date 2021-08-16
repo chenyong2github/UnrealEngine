@@ -1537,6 +1537,15 @@ void UGroomComponent::SetUseCards(bool InbUseCards)
 	UpdateHairGroupsDescAndInvalidateRenderState();
 }
 
+void UGroomComponent::SetHairLengthScale(float InLengthScale)
+{
+	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
+	{
+		HairDesc.HairWidth = InLengthScale;
+	}
+	//UpdateHairGroupsDescAndInvalidateRenderState();
+}
+
 void UGroomComponent::SetForcedLOD(int32 LODIndex)
 {
 	if (GroomAsset)
@@ -2442,10 +2451,20 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						}
 					}
 				}
-			}
 
-			// The strands GroomCache needs the Strands.DeformedResource, but the guides GroomCache also needs it for the HairTangentPass
-			bNeedDynamicResources = bNeedDynamicResources || HairGroupInstance->Debug.GroomCacheType != EGroomCacheType::None;
+				// If length scale override is enabled, the group will potentially be scaled, which will modified the strands position. 
+				// For this reason we need to allocate deformed resources
+				if (GroomGroupsDesc[GroupIt].HairLengthScale_Override)
+				{
+					bNeedDynamicResources = true;
+				}
+
+				// The strands GroomCache needs the Strands.DeformedResource, but the guides GroomCache also needs it for the HairTangentPass
+				if (HairGroupInstance->Debug.GroomCacheType != EGroomCacheType::None)
+				{
+					bNeedDynamicResources = true;
+				}
+			}
 
 			#if RHI_RAYTRACING
 			if (IsHairRayTracingEnabled() && HairGroupInstance->Strands.Modifier.bUseHairRaytracingGeometry)
@@ -3199,6 +3218,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	const bool bIsBindingCompatible = UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable);
 	const bool bEnableSolverChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairSimulationSolver, bEnableSimulation);
 	const bool bGroomCacheChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomComponent, GroomCache);
+	const bool bEnableLengthScaleChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairLengthScale);
 	if (!bIsBindingCompatible || !UGroomBindingAsset::IsBindingAssetValid(BindingAsset, false, bValidationEnable))
 	{
 		BindingAsset = nullptr;
@@ -3207,6 +3227,23 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	if (GroomAsset && !GroomAsset->IsValid())
 	{
 		GroomAsset = nullptr;
+	}
+
+	// HairLengthScale_Override does not generate an edit event (only HairLengthScale does), so we manually go through 
+	// all the groups to check if there is a need for reallocating the resources
+	bool bEnableLengthScaleOverrideChanged = false;
+	if (bEnableLengthScaleChanged && GroomAsset && !bAssetChanged)
+	{
+		for (const FHairGroupInstance* Instance : HairGroupInstances)
+		{
+			const FHairGroupDesc GroupDesc = GetGroomGroupsDesc(GroomAsset, this, Instance->Debug.GroupIndex);
+			const bool bRecreate = Instance->Strands.DeformedResource == nullptr && GroupDesc.HairLengthScale_Override;
+			if (bRecreate)
+			{
+				bEnableLengthScaleOverrideChanged = true;
+				break;
+			}
+		}
 	}
 
 	bool bIsEventProcess = false;
@@ -3234,7 +3271,7 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	#endif
 
-	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
+	const bool bRecreateResources = bAssetChanged || bBindingAssetChanged || bGroomCacheChanged || bEnableLengthScaleOverrideChanged || PropertyThatChanged == nullptr || bSourceSkeletalMeshChanged || bRayTracingGeometryChanged || bEnableSolverChanged;
 	if (bRecreateResources)
 	{
 		// Release the resources before Super::PostEditChangeProperty so that they get
@@ -3278,7 +3315,8 @@ void UGroomComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairRaytracingRadiusScale) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, LODBias) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bUseStableRasterization) ||
-		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bScatterSceneLighting))
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, bScatterSceneLighting) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupDesc, HairLengthScale))
 	{
 		UpdateHairGroupsDescAndInvalidateRenderState();
 		bIsEventProcess = true;
