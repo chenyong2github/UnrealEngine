@@ -29,13 +29,13 @@ struct FOptimus_ShaderParameterBinding
 	GENERATED_BODY()
 	
 	UPROPERTY()
-	TObjectPtr<const UOptimusNode> ValueNode;
+	TObjectPtr<const UOptimusNode> ValueNode = nullptr;
 	
 	UPROPERTY()
-	int32 KernelIndex;
+	int32 KernelIndex = INDEX_NONE;
 	
 	UPROPERTY()
-	int32 ParameterIndex;
+	int32 ParameterIndex = INDEX_NONE;
 };
 
 

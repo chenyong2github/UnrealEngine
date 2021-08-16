@@ -78,7 +78,7 @@ struct FOptimusDataType
 	bool bHasCustomPinColor = false;
 
 	UPROPERTY()
-	FLinearColor CustomPinColor;
+	FLinearColor CustomPinColor = FLinearColor::Black;
 	
 	UPROPERTY()
 	EOptimusDataTypeUsageFlags UsageFlags = EOptimusDataTypeUsageFlags::None;
