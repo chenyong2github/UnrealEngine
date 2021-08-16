@@ -107,9 +107,7 @@ void ComposeSamplePS(
 	{
 		const uint LocalOffset = NodeDesc.Offset + SampleIt;
 		const uint2 Coord = uint2(LocalOffset % Resolution, LocalOffset / Resolution);
-		const float4 LightingSample = HairLightingSampleBuffer.Load(uint3(Coord,0));
-		const float4 EmissiveSample = HairStrands.HairEmissiveTexture.Load(uint3(Coord, 0));
-		LocalAccColor += LightingSample.rgb + EmissiveSample.rgb;
+		LocalAccColor += HairLightingSampleBuffer.Load(uint3(Coord, 0));
 	}
 	OutColor.rgb = LocalAccColor * Volumetric.a + Volumetric.rgb;
 

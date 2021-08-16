@@ -200,14 +200,14 @@ static void AddHairVisibilityComposeSamplePass(
 	FRDGTextureRef& OutColorTexture,
 	FRDGTextureRef& OutDepthTexture)
 {
-	check(VisibilityData.SampleLightingBuffer);
+	check(VisibilityData.SampleLightingTexture);
 	const bool bDOFEnable = HairDOFDepthTexture != nullptr ? 1 : 0;
 
 	TRDGUniformBufferRef<FFogUniformParameters> FogBuffer = CreateFogUniformBuffer(GraphBuilder, View);
 
 	FHairVisibilityComposeSamplePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityComposeSamplePS::FParameters>();
 	Parameters->bComposeDofDepth = bDOFEnable ? 1 : 0;
-	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingBuffer;
+	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingTexture;
 	Parameters->HairDOFDepthTexture = bDOFEnable ? HairDOFDepthTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	Parameters->OutputResolution = OutColorTexture->Desc.Extent;
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
@@ -270,7 +270,7 @@ static FRDGTextureRef AddHairDOFDepthPass(
 	const FRDGTextureRef& InColorTexture,
 	const FRDGTextureRef& InDepthTexture)
 {
-	check(VisibilityData.SampleLightingBuffer);
+	check(VisibilityData.SampleLightingTexture);
 	FIntPoint OutputResolution = InColorTexture->Desc.Extent;
 
 	FRDGTextureRef OutDOFDepthTexture = nullptr;
@@ -281,7 +281,7 @@ static FRDGTextureRef AddHairDOFDepthPass(
 
 	FHairDOFDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairDOFDepthPS::FParameters>();
 	Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
-	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingBuffer;
+	Parameters->HairLightingSampleBuffer = VisibilityData.SampleLightingTexture;
 	Parameters->SceneColorTexture = InColorTexture;
 	Parameters->SceneDepthTexture = InDepthTexture;
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;

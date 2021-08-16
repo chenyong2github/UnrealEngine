@@ -417,8 +417,8 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	TShaderMapRef<FHairEnvironmentLightingVS> VertexShader(View.ShaderMap);
 	TShaderMapRef<FHairEnvironmentLightingPS> PixelShader(View.ShaderMap, PermutationVector);
 
-	check(VisibilityData.SampleLightingBuffer);
-	ParametersPS->RenderTargets[0] = FRenderTargetBinding(VisibilityData.SampleLightingBuffer, ERenderTargetLoadAction::ELoad);
+	check(VisibilityData.SampleLightingTexture);
+	ParametersPS->RenderTargets[0] = FRenderTargetBinding(VisibilityData.SampleLightingTexture, ERenderTargetLoadAction::ELoad);
 
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("HairEnvLightingPS(%s)", LightingType == EHairLightingSourceType::SceneColor ? TEXT("SceneScatter") : (LightingType == EHairLightingSourceType::Lumen ? TEXT("Lumen") : TEXT("ReflectionProbe")) ),

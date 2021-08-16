@@ -24,14 +24,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 	SHADER_PARAMETER(float, HairDualScatteringRoughnessOverride)						// Override the roughness used for dual scattering (for hack/test purpose only)
 	SHADER_PARAMETER(FIntPoint, HairSampleViewportResolution)							// Maximum viewport resolution of the sample space
 	SHADER_PARAMETER(uint32, bHairTileValid)											// True if tile data are valid
-	SHADER_PARAMETER(uint32, bHasEmissive)												// True if emissive is enabled
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, HairCoverageTexture)					// Hair pixel's coverage
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthTexture)						// Depth texture containing only hair depth (not strongly typed for legacy shader code reason)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthClosestHZBTexture)				// HZB closest depth texture containing only hair depth (not strongly typed for legacy shader code reason)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairOnlyDepthFurthestHZBTexture)			// HZB furthest depth texture containing only hair depth (not strongly typed for legacy shader code reason)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HairSampleOffset)						// Offset & count, for accessing pixel's samples, based on screen pixel position
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, HairSampleCount)						// Total count of hair sample, in sample space
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, HairEmissiveTexture)				// Emissive texture
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPackedHairSample>, HairSampleData)// Sample data (coverage, tangent, base color, ...), in sample space // HAIRSTRANDS_TODO: change this to be a uint4 so that we don't have to include the type for generated contant buffer
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairSampleCoords)					// Screen pixel coordinate of each sample, in sample space
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairTileData)						// Tile coords (RG16F)
@@ -77,7 +75,6 @@ struct FHairStrandsVisibilityData
 	FRDGTextureRef CoverageTexture = nullptr;
 	FRDGTextureRef ViewHairCountTexture = nullptr;
 	FRDGTextureRef ViewHairCountUintTexture = nullptr;
-	FRDGTextureRef EmissiveTexture = nullptr;
 	FRDGTextureRef HairOnlyDepthTexture = nullptr;
 
 	FRDGTextureRef HairOnlyDepthClosestHZBTexture = nullptr;
@@ -103,7 +100,7 @@ struct FHairStrandsVisibilityData
 	// Allocated conservatively
 	// User indirect dispatch for accumulating contribution
 	FIntPoint SampleLightingViewportResolution;
-	FRDGTextureRef SampleLightingBuffer = nullptr;
+	FRDGTextureRef SampleLightingTexture = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////
