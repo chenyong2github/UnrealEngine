@@ -37,6 +37,8 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 
 		// Edit Commands
 		TSharedPtr< FUICommandInfo > DeleteBranch;
+		TSharedPtr< FUICommandInfo > Hide;
+		TSharedPtr< FUICommandInfo > Unhide;
 		
 		// Generate Commands
 		TSharedPtr< FUICommandInfo > GenerateAsset;

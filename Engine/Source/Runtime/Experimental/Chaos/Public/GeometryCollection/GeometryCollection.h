@@ -230,6 +230,9 @@ public:
 	FORCEINLINE void ClearFlags(int32 Element, int32 InFlags) { TManagedArray<int32>& Status = StatusFlags; Status[Element] = Status[Element] & ~InFlags; }
 	FORCEINLINE bool HasFlags(int32 Element, int32 InFlags) const { const TManagedArray<int32>& Status = StatusFlags; return (Status[Element] & InFlags) != 0; }
 
+	/** Return true if the Element contains any visible faces. */
+	bool IsVisible(int32 Element) const;
+
 	/** Connection of leaf geometry */
 	TArray<TArray<int32>> ConnectionGraph();
 
