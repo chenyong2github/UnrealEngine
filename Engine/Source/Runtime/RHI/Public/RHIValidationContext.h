@@ -60,7 +60,7 @@ public:
 	{
 		for (const FRHITransition* Transition : Transitions)
 		{
-			Tracker->AddOps(Transition->PendingAcquires);
+			Tracker->AddOps(Transition->PendingAliases);
 		}
 
 		for (const FRHITransition* Transition : Transitions)
@@ -90,7 +90,7 @@ public:
 
 		for (const FRHITransition* Transition : Transitions)
 		{
-			Tracker->AddOps(Transition->PendingDiscards);
+			Tracker->AddOps(Transition->PendingAliasingOverlaps);
 		}
 
 		RHIContext->RHIEndTransitions(Transitions);
@@ -378,7 +378,7 @@ public:
 
 		for (const FRHITransition* Transition : Transitions)
 		{
-			Tracker->AddOps(Transition->PendingAcquires);
+			Tracker->AddOps(Transition->PendingAliases);
 		}
 
 		for (const FRHITransition* Transition : Transitions)
@@ -410,7 +410,7 @@ public:
 
 		for (const FRHITransition* Transition : Transitions)
 		{
-			Tracker->AddOps(Transition->PendingDiscards);
+			Tracker->AddOps(Transition->PendingAliasingOverlaps);
 		}
 
 		RHIContext->RHIEndTransitions(Transitions);

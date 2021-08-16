@@ -2300,8 +2300,8 @@ private:
 
 	RHIValidation::FOperationsList PendingSignals;
 	RHIValidation::FOperationsList PendingWaits;
-	RHIValidation::FOperationsList PendingAcquires;
-	RHIValidation::FOperationsList PendingDiscards;
+	RHIValidation::FOperationsList PendingAliases;
+	RHIValidation::FOperationsList PendingAliasingOverlaps;
 	RHIValidation::FOperationsList PendingOperationsBegin;
 	RHIValidation::FOperationsList PendingOperationsEnd;
 #endif

@@ -214,11 +214,11 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 		}
 	}
 
-	TArray<FOperation> SignalOps, WaitOps, AcquireOps, DiscardOps, BeginOps, EndOps;
+	TArray<FOperation> SignalOps, WaitOps, AliasingOps, AliasingOverlapOps, BeginOps, EndOps;
 	SignalOps .Reserve(Fences.Num());
 	WaitOps   .Reserve(Fences.Num());
-	AcquireOps.Reserve(CreateInfo.AliasingInfos.Num());
-	DiscardOps.Reserve(CreateInfo.AliasingInfos.Num());
+	AliasingOps.Reserve(CreateInfo.AliasingInfos.Num());
+	AliasingOverlapOps.Reserve(CreateInfo.AliasingInfos.Num());
 	BeginOps  .Reserve(CreateInfo.TransitionInfos.Num());
 	EndOps    .Reserve(CreateInfo.TransitionInfos.Num());
 
@@ -255,7 +255,7 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 			checkf(Resource->TransientState.bTransient, TEXT("Acquiring resource %s which is not transient. Only transient resources can be acquired."), Resource->GetDebugName());
 			checkf(SrcPipelines == ERHIPipeline::Graphics, TEXT("Acquiring a transient resource (%s) must begin on the graphics pipe."), Resource->GetDebugName());
 
-			AcquireOps.Emplace(FOperation::AcquireTransientResource(Resource, nullptr));
+			AliasingOps.Emplace(FOperation::AcquireTransientResource(Resource, nullptr));
 
 			for (const FRHITransientAliasingOverlap& Overlap : Info.Overlaps)
 			{
@@ -272,7 +272,7 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 
 				checkf(ResourceBefore, TEXT("Null resource provided as an aliasing overlap of %s"), Resource->GetDebugName());
 
-				AcquireOps.Emplace(FOperation::AliasingOverlap(ResourceBefore, Resource, nullptr));
+				AliasingOverlapOps.Emplace(FOperation::AliasingOverlap(ResourceBefore, Resource, nullptr));
 			}
 		}
 		else
@@ -281,7 +281,7 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 			checkf(Resource->TransientState.bTransient, TEXT("Discarding resource %s which is not transient. Only transient resources can be discarded."), Resource->GetDebugName());
 			checkf(DstPipelines == ERHIPipeline::Graphics, TEXT("Discarding a transient resource (%s) must end on the graphics pipe."), Resource->GetDebugName());
 
-			DiscardOps.Emplace(FOperation::DiscardTransientResource(Resource, nullptr));
+			AliasingOps.Emplace(FOperation::DiscardTransientResource(Resource, nullptr));
 		}
 	}
 
@@ -328,22 +328,20 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 	{
 		void* Backtrace = CaptureBacktrace();
 
-		for (FOperation& Op : AcquireOps)
+		for (FOperation& Op : AliasingOps)
 		{
 			switch (Op.Type)
 			{
 			case EOpType::AcquireTransient:
 				Op.Data_AcquireTransient.CreateBacktrace = Backtrace;
 				break;
-			case EOpType::AliasingOverlap:
-				Op.Data_AliasingOverlap.CreateBacktrace = Backtrace;
+			case EOpType::DiscardTransient:
+				Op.Data_DiscardTransient.CreateBacktrace = Backtrace;
 				break;
-			default:
-				checkNoEntry();
 			}
 		}
 
-		for (FOperation& Op : DiscardOps) { Op.Data_DiscardTransient.CreateBacktrace = Backtrace; }
+		for (FOperation& Op : AliasingOverlapOps) { Op.Data_AliasingOverlap.CreateBacktrace = Backtrace; }
 		for (FOperation& Op : BeginOps) { Op.Data_BeginTransition.CreateBacktrace = Backtrace; }
 		for (FOperation& Op : EndOps) { Op.Data_EndTransition.CreateBacktrace = Backtrace; }
 	}
@@ -355,8 +353,8 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 
 	Transition->PendingSignals.Operations = MoveTemp(SignalOps);
 	Transition->PendingWaits.Operations = MoveTemp(WaitOps);
-	Transition->PendingAcquires.Operations = MoveTemp(AcquireOps);
-	Transition->PendingDiscards.Operations = MoveTemp(DiscardOps);
+	Transition->PendingAliases.Operations = MoveTemp(AliasingOps);
+	Transition->PendingAliasingOverlaps.Operations = MoveTemp(AliasingOverlapOps);
 	Transition->PendingOperationsBegin.Operations = MoveTemp(BeginOps);
 	Transition->PendingOperationsEnd.Operations = MoveTemp(EndOps);
 
@@ -1090,7 +1088,7 @@ namespace RHIValidation
 
 		if (Resource->TransientState.bTransient)
 		{
-			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired(), *GetReasonString_TransitionWithoutAcquire(Resource));
+			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired() || (Resource->TransientState.IsDiscarded() && TargetState.Access == ERHIAccess::Discard), *GetReasonString_TransitionWithoutAcquire(Resource));
 		}
 
 		// Check we're not already transitioning
@@ -1154,7 +1152,7 @@ namespace RHIValidation
 
 		if (Resource->TransientState.bTransient)
 		{
-			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired(), *GetReasonString_TransitionWithoutAcquire(Resource));
+			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired() || (Resource->TransientState.IsDiscarded() && TargetState.Access == ERHIAccess::Discard), *GetReasonString_TransitionWithoutAcquire(Resource));
 		}
 
 		// Check that the end matches the begin.
@@ -1509,12 +1507,12 @@ FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
 	check(bReleased);
 }
 
-FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
 	check(!bFrozen);
 	checkf(!EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_Transient), TEXT("Attempted to create transient texture %s using legacy TexCreate_Transient flag."), InDebugName);
 
-	FRHITransientTexture* TransientTexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName);
+	FRHITransientTexture* TransientTexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName, InPassIndex);
 
 	if (!TransientTexture)
 	{
@@ -1549,12 +1547,12 @@ FRHITransientTexture* FValidationTransientResourceAllocator::CreateTexture(const
 	return TransientTexture;
 }
 
-FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)
+FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex)
 {
 	check(!bFrozen);
 	checkf(!EnumHasAnyFlags(InCreateInfo.Usage, BUF_Transient), TEXT("Attempted to create transient buffer %s using legacy BUF_Transient flag."), InDebugName);
 
-	FRHITransientBuffer* TransientBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName);
+	FRHITransientBuffer* TransientBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName, InPassIndex);
 
 	if (!TransientBuffer)
 	{
@@ -1582,11 +1580,11 @@ FRHITransientBuffer* FValidationTransientResourceAllocator::CreateBuffer(const F
 	return TransientBuffer;
 }
 
-void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientTexture* InTransientTexture)
+void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientTexture* InTransientTexture, uint32 InPassIndex)
 {
 	check(!bFrozen);
 
-	RHIAllocator->DeallocateMemory(InTransientTexture);
+	RHIAllocator->DeallocateMemory(InTransientTexture, InPassIndex);
 
 	// Mark memory as freed
 	FAllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InTransientTexture->GetRHI());
@@ -1594,11 +1592,11 @@ void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientTextur
 	ResourceData->bMemoryAllocated = false;
 }
 
-void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InTransientBuffer)
+void FValidationTransientResourceAllocator::DeallocateMemory(FRHITransientBuffer* InTransientBuffer, uint32 InPassIndex)
 {
 	check(!bFrozen);
 
-	RHIAllocator->DeallocateMemory(InTransientBuffer);
+	RHIAllocator->DeallocateMemory(InTransientBuffer, InPassIndex);
 
 	// Mark memory as freed
 	FAllocatedResourceData* ResourceData = AllocatedResourceMap.Find(InTransientBuffer->GetRHI());

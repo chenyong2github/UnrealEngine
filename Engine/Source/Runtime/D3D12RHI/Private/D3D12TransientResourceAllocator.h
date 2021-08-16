@@ -46,10 +46,10 @@ public:
 	FD3D12TransientResourceAllocator(FD3D12TransientResourceSystem& InParentSystem);
 
 	//! IRHITransientResourceAllocator Overrides
-	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
-	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName) override;
-	void DeallocateMemory(FRHITransientTexture* InTexture) override;
-	void DeallocateMemory(FRHITransientBuffer* InBuffer) override;
+	FRHITransientTexture* CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override;
+	FRHITransientBuffer* CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName, uint32 InPassIndex) override;
+	void DeallocateMemory(FRHITransientTexture* InTexture, uint32 InPassIndex) override;
+	void DeallocateMemory(FRHITransientBuffer* InBuffer, uint32 InPassIndex) override;
 	void Freeze(FRHICommandListImmediate& RHICmdList) override;
 
 private:

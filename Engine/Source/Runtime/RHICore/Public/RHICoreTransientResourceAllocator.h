@@ -569,6 +569,7 @@ public:
 	FRHITransientTexture* CreateTexture(
 		const FRHITextureCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
+		uint32 PassIndex,
 		uint64 TextureSize,
 		uint32 TextureAlignment,
 		FCreateTextureFunction CreateTextureFunction);
@@ -583,20 +584,21 @@ public:
 	FRHITransientBuffer* CreateBuffer(
 		const FRHIBufferCreateInfo& CreateInfo,
 		const TCHAR* DebugName,
+		uint32 PassIndex,
 		uint32 BufferSize,
 		uint32 BufferAlignment,
 		FCreateBufferFunction CreateBufferFunction);
 
 	// Deallocates a texture from its parent heap. Provide the current platform fence value used to update the heap.
-	FORCEINLINE void DeallocateMemory(FRHITransientTexture* Texture)
+	FORCEINLINE void DeallocateMemory(FRHITransientTexture* Texture, uint32 PassIndex)
 	{
-		DeallocateMemoryInternal(Texture, TextureStats);
+		DeallocateMemoryInternal(Texture, PassIndex, TextureStats);
 	}
 
 	// Deallocates a buffer from its parent heap. Provide the current platform fence value used to update the heap.
-	FORCEINLINE void DeallocateMemory(FRHITransientBuffer* Buffer)
+	FORCEINLINE void DeallocateMemory(FRHITransientBuffer* Buffer, uint32 PassIndex)
 	{
-		DeallocateMemoryInternal(Buffer, BufferStats);
+		DeallocateMemoryInternal(Buffer, PassIndex, BufferStats);
 	}
 
 	// Called to signify all allocations have completed. Forfeits all resources / heaps back to the parent system.
@@ -619,9 +621,9 @@ private:
 
 	FRHITransientHeapAllocation Allocate(FMemoryStats& StatsToUpdate, uint64 Size, uint32 Alignment, ERHITransientHeapFlags ResourceHeapFlags);
 
-	void DeallocateMemoryInternal(FRHITransientResource* InResource, FMemoryStats& StatsToUpdate);
+	void DeallocateMemoryInternal(FRHITransientResource* InResource, uint32 PassIndex, FMemoryStats& StatsToUpdate);
 
-	void InitResource(FRHITransientResource* TransientResource, const FRHITransientHeapAllocation& Allocation, const TCHAR* Name);
+	void InitResource(FRHITransientResource* TransientResource, uint32 PassIndex, const FRHITransientHeapAllocation& Allocation, const TCHAR* Name);
 
 	FRHITransientResourceSystem& ParentSystem;
 
