@@ -1155,8 +1155,6 @@ bool FAssetThumbnailPool::LoadThumbnail(TSharedRef<FThumbnailInfo> ThumbnailInfo
 					);
 				}
 
-				// Since this was rendered, add it to the list of thumbnails that can be rendered in real-time
-				RealTimeThumbnails.AddUnique(ThumbnailInfo);
 				return true;
 			}
 		}
