@@ -10,6 +10,16 @@
 class UAssetImportData;
 
 /**
+ * Whether Run() will block the thread until completed, or whether it will run on a background thread, not blocking the calling thread.
+ */
+UENUM()
+enum class ENeuralNetworkSynchronousMode : uint8
+{
+	Synchronous, /* UNeuralNetwork::Run() will block the thread until the network evaluation (i.e., forward pass) has finished. */
+	Asynchronous /* UNeuralNetwork::Run() will initialize a forward pass request on a background thread, not blocking the thread that called it. The user should register to UNeuralNetwork's delegate to know when the forward pass has finished. */
+};
+
+/**
  * UNeuralNetwork is UE's representation for deep learning and neural network models. It supports the industry standard ONNX model format.
  * All major frameworks (PyTorch, TensorFlow, MXNet, Caffe2, etc.) provide converters to ONNX.
  *
@@ -113,8 +123,8 @@ public:
 
 	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
-	 * SetInputFromTensorCopy() or GetInputDataPointerMutable(), or their multi-input analogs.
-	 * Its output results can be retrieved with GetOutputTensor() or GetOutputNameIndexMap().
+	 * SetInputFromArrayCopy() or GetInputDataPointerMutable().
+	 * Its output results can be retrieved with GetOutputTensor() or GetOutputTensors().
 	 * @param GPUSynchronousMode Whether it should block the thread until the UNeuralNetwork has fully run.
 	 */
 	void Run();
