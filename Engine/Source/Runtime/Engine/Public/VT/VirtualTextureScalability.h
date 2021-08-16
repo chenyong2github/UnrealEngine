@@ -18,7 +18,6 @@ namespace VirtualTextureScalability
 	ENGINE_API int32 GetRuntimeVirtualTextureSizeBias();
 	/** Is HW Anisotropic filtering enabled for VT */
 	ENGINE_API bool IsAnisotropicFilteringEnabled();
-
 	/**
 	 * Get maximum anisotropy when virtual texture sampling. 
 	 * This is also clamped per virtual texture according to the tile border size.
@@ -28,6 +27,11 @@ namespace VirtualTextureScalability
 	ENGINE_API float GetPoolSizeScale(uint32 GroupIndex);
 	/** Get resolution bias for runtime virtual textures. */
 	ENGINE_API int32 GetRuntimeVirtualTextureSizeBias(uint32 GroupIndex);
+	/** Get maximum size in tiles for physical pools before we split them. */
+	ENGINE_API int32 GetSplitPhysicalPoolSize();
 	/** Get the number of frames a page must be unused, before it's considered free */
 	ENGINE_API uint32 GetPageFreeThreshold();
+
+	/** Get a unique hash of all state affecting physical pool allocation.*/
+	ENGINE_API uint32 GetPhysicalPoolSettingsHash();
 }

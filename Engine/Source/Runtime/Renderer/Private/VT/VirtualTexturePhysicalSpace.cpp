@@ -46,12 +46,12 @@ static TAutoConsoleVariable<float> CVarVTResidencyAdjustmentRate(
 	ECVF_RenderThreadSafe);
 
 
-FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID)
+FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpaceDescription& InDesc, uint16 InID, int32 InTileWidthHeight, bool bInEnableResidencyMipMapBias)
 	: Description(InDesc)
+	, TextureSizeInTiles(InTileWidthHeight)
 	, NumRefs(0u)
 	, ID(InID)
-	, bGpuTextureLimit(false)
-	, bEnableResidencyMipMapBias(true)
+	, bEnableResidencyMipMapBias(bInEnableResidencyMipMapBias)
 	, ResidencyMipMapBias(0.0f)
 	, LastFrameOversubscribed(0)
 #if !UE_BUILD_SHIPPING
@@ -61,33 +61,6 @@ FVirtualTexturePhysicalSpace::FVirtualTexturePhysicalSpace(const FVTPhysicalSpac
 	, HistoryIndex(0)
 #endif
 {
-	// Find matching physical pool
-	FVirtualTextureSpacePoolConfig Config;
-	UVirtualTexturePoolConfig const* PoolConfig = GetDefault<UVirtualTexturePoolConfig>();
-	PoolConfig->FindPoolConfig(InDesc.Format, InDesc.NumLayers, InDesc.TileSize, Config);
-	const uint32 PoolSizeInBytes = Config.SizeInMegabyte * 1024u * 1024u;
-
-	const FPixelFormatInfo& FormatInfo = GPixelFormats[InDesc.Format[0]];
-	check(InDesc.TileSize % FormatInfo.BlockSizeX == 0);
-	check(InDesc.TileSize % FormatInfo.BlockSizeY == 0);
-	SIZE_T TileSizeBytes = 0;
-	for (int32 Layer = 0; Layer < InDesc.NumLayers; ++Layer)
-	{
-		TileSizeBytes += CalculateImageBytes(InDesc.TileSize, InDesc.TileSize, 0, InDesc.Format[Layer]);
-	}
-	const uint32 MaxTiles = FMath::Max((uint32)(PoolSizeInBytes / TileSizeBytes), 1u);
-	TextureSizeInTiles = FMath::FloorToInt(FMath::Sqrt((float)MaxTiles));
-	
-	if (TextureSizeInTiles * InDesc.TileSize > GetMax2DTextureDimension())
-	{
-		// A good option to support extremely large caches would be to allow additional slices in an array here for caches...
-		// Just try to use the maximum texture size for now
-		TextureSizeInTiles = GetMax2DTextureDimension() / InDesc.TileSize;
-		bGpuTextureLimit = true;
-	}
-
-	bEnableResidencyMipMapBias = Config.bEnableResidencyMipMapBias;
-
 	Pool.Initialize(GetNumTiles());
 
 	// Initialize this resource FeatureLevel, so it gets re-created on FeatureLevel changes
@@ -249,12 +222,14 @@ void FVirtualTexturePhysicalSpace::UpdateResidencyTracking(uint32 Frame)
 #endif
 }
 
-void FVirtualTexturePhysicalSpace::DrawResidencyGraph(FCanvas* Canvas, FBox2D CanvasPosition)
+void FVirtualTexturePhysicalSpace::DrawResidencyGraph(FCanvas* Canvas, FBox2D CanvasPosition, bool bDrawKey)
 {
 	// Note that this is called on game thread and reads the history values written on the render thread.
 	// But it should be safe and any race condition will only lead to a slightly incorrect graph.
 
 #if !UE_BUILD_SHIPPING
+	const int32 BorderSize = 10;
+
 	const FLinearColor BackgroundColor(0.0f, 0.0f, 0.0f, 0.7f);
 	const FLinearColor GraphBorderColor(0.1f, 0.1f, 0.1f);
 	const FLinearColor GraphResidencyColor(0.8f, 0.1f, 0.1f);
@@ -265,10 +240,15 @@ void FVirtualTexturePhysicalSpace::DrawResidencyGraph(FCanvas* Canvas, FBox2D Ca
 	BackgroundTile.BlendMode = SE_BLEND_AlphaBlend;
 	Canvas->DrawItem(BackgroundTile);
 
-	const int32 BorderSize = 10;
-
-	FString Title = FString::Printf(TEXT("%s (%dMB)"), *FormatString, GetSizeInBytes() / (1024 * 1024));
+	const FString Title = FString::Printf(TEXT("%s (%dPages, %dMB)"), *FormatString, Pool.GetNumPages(), GetSizeInBytes() / (1024 * 1024));
 	Canvas->DrawShadowedString(CanvasPosition.Min.X + BorderSize, CanvasPosition.Min.Y, *Title, GEngine->GetSmallFont(), FLinearColor::White);
+
+	if (bDrawKey)
+	{
+		Canvas->DrawShadowedString(CanvasPosition.Min.X, CanvasPosition.Max.Y + 10, TEXT("Page Residency"), GEngine->GetSmallFont(), GraphResidencyColor);
+		Canvas->DrawShadowedString(CanvasPosition.Min.X + 100, CanvasPosition.Max.Y + 10, TEXT("MipMap Bias"), GEngine->GetSmallFont(), GraphMipMapBiasColor);
+		Canvas->DrawShadowedString(CanvasPosition.Min.X + 180, CanvasPosition.Max.Y + 10, TEXT("LockedPage Residency"), GEngine->GetSmallFont(), GraphLockedPageColor);
+	}
 
 	CanvasPosition.Min += FVector2D(BorderSize, BorderSize);
 	CanvasPosition.Max -= FVector2D(BorderSize, BorderSize);
