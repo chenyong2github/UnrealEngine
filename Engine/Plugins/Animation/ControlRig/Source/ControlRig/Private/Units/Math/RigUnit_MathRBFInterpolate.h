@@ -119,7 +119,7 @@ protected:
 		float SmoothingAngle,
 		bool bNormalizeOutput,
 		FVector TwistAxis,
-		TArray<float, TMemStackAllocator<>>& Weights
+		TArray<float>& Weights
 	);
 
 	static uint64 HashTargets(const TArrayView<const FQuat>& Targets);
@@ -160,7 +160,7 @@ protected:
 		ERBFKernelType SmoothingFunction,
 		float SmoothingRadius,
 		bool bNormalizeOutput,
-		TArray<float, TMemStackAllocator<>>& Weights
+		TArray<float>& Weights
 	);
 
 	static uint64 HashTargets(const TArrayView<const FVector>& Targets);
