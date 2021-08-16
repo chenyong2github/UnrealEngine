@@ -30,6 +30,7 @@ class SMultiLineEditableTextBox;
 class UEdGraphNode_Documentation;
 class UK2Node_Variable;
 class FSubobjectEditorTreeNode;
+class SSuggestionTextBox;
 
 /**
  * Variable network replication options.
@@ -756,9 +757,11 @@ protected:
 	bool IsAddImportEntryButtonEnabled() const;
 	FReply OnAddImportEntryButtonClicked();
 	void HandleImportEntryTextCommitted(const FText& NewLabel, ETextCommit::Type CommitType);
+	void OnShowingImportSuggestions(const FString& InputText, TArray<FString>& OutSuggestions);
 
 private:
-	TSharedPtr<SEditableTextBox> ImportEntryTextBox;
+	TSet<FString> AvailableNamespaces;
+	TSharedPtr<SSuggestionTextBox> ImportEntryTextBox;
 };
 
 /** Blueprint Interface List Details */
