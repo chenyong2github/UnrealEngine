@@ -23,7 +23,7 @@ FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, F
 	}
 
 	ERHIFeatureLevel::Type FeatureLevel = ViewInfo->GetFeatureLevel();
-	InstanceCullingContext = FInstanceCullingContext(FeatureLevel, InstanceCullingManager, ViewIds, bUsingStereo ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal);
+	InstanceCullingContext = FInstanceCullingContext(FeatureLevel, InstanceCullingManager, ViewIds, nullptr, bUsingStereo ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal);
 	bDynamicInstancing = IsDynamicInstancingEnabled(FeatureLevel);
 
 	InstanceFactor = static_cast<uint32>(ViewIds.Num());

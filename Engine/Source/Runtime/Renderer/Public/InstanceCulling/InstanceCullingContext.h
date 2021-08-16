@@ -63,10 +63,16 @@ public:
 
 	FInstanceCullingContext() {}
 
+	/**
+	 * Create an instance culling context to process draw commands that can be culled using GPU-Scene.
+	 * @param InPrevHZB if non-null enables HZB-occlusion culling for the context (if r.InstanceCulling.OcclusionCull is enabled),
+	 *                  NOTE: only one PrevHZB target is allowed accross all passes currently, so either must be atlased or otherwise the same.
+	 */
 	RENDERER_API FInstanceCullingContext(
 		ERHIFeatureLevel::Type FeatureLevel,
 		FInstanceCullingManager* InInstanceCullingManager, 
 		TArrayView<const int32> InViewIds, 
+		const TRefCountPtr<IPooledRenderTarget>& InPrevHZB,
 		EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal, 
 		bool bInDrawOnlyVSMInvalidatingGeometry = false, 
 		EBatchProcessingMode InSingleInstanceProcessingMode = EBatchProcessingMode::UnCulled
@@ -159,6 +165,7 @@ public:
 	FInstanceCullingManager* InstanceCullingManager = nullptr;
 	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 	TArray<int32, TInlineAllocator<6>/*, SceneRenderingAllocator*/> ViewIds;
+	TRefCountPtr<IPooledRenderTarget> PrevHZB = nullptr;
 	bool bIsEnabled = false;
 	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
 	bool bDrawOnlyVSMInvalidatingGeometry = false;

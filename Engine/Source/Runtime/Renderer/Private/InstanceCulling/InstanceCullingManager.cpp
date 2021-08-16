@@ -39,6 +39,7 @@ int32 FInstanceCullingManager::RegisterView(const FViewInfo& ViewInfo)
 	Params.ViewRect = ViewInfo.ViewRect;
 	// TODO: faking this here (not needed for culling, until we start involving multi-view and HZB)
 	Params.RasterContextSize = ViewInfo.ViewRect.Size();
+	Params.HZBTestViewRect = ViewInfo.PrevViewInfo.ViewRect;
 	return RegisterView(Params);
 }
 

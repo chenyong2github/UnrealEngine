@@ -19,6 +19,13 @@ static TAutoConsoleVariable<int32> CVarCullInstances(
 	TEXT("CullInstances."),
 	ECVF_RenderThreadSafe);
 
+static int32 GOcclusionCullInstances = 0;
+static FAutoConsoleVariableRef CVarOcclusionCullInstances(
+	TEXT("r.InstanceCulling.OcclusionCull"),
+	GOcclusionCullInstances,
+	TEXT("Whether to do per instance occlusion culling for GPU instance culling."),
+	ECVF_RenderThreadSafe);
+
 IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(InstanceCullingUbSlot);
 IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FInstanceCullingGlobalUniforms, "InstanceCulling", InstanceCullingUbSlot);
 
@@ -68,10 +75,11 @@ uint32 FInstanceCullingContext::GetInstanceIdBufferStride(ERHIFeatureLevel::Type
 	}
 }
 
-FInstanceCullingContext::FInstanceCullingContext(ERHIFeatureLevel::Type InFeatureLevel, FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry, EBatchProcessingMode InSingleInstanceProcessingMode) :
+FInstanceCullingContext::FInstanceCullingContext(ERHIFeatureLevel::Type InFeatureLevel, FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, const TRefCountPtr<IPooledRenderTarget>& InPrevHZB, enum EInstanceCullingMode InInstanceCullingMode, bool bInDrawOnlyVSMInvalidatingGeometry, EBatchProcessingMode InSingleInstanceProcessingMode) :
 	InstanceCullingManager(InInstanceCullingManager),
 	FeatureLevel(InFeatureLevel),
 	ViewIds(InViewIds),
+	PrevHZB(InPrevHZB),
 	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled()),
 	InstanceCullingMode(InInstanceCullingMode),
 	bDrawOnlyVSMInvalidatingGeometry(bInDrawOnlyVSMInvalidatingGeometry),
@@ -170,6 +178,7 @@ public:
 	class FOutputCommandIdDim : SHADER_PERMUTATION_BOOL("OUTPUT_COMMAND_IDS");
 	class FSingleInstanceModeDim : SHADER_PERMUTATION_BOOL("SINGLE_INSTANCE_MODE");
 	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
+	class FOcclusionCullInstancesDim : SHADER_PERMUTATION_BOOL("OCCLUSION_CULL_INSTANCES");
 	class FStereoModeDim : SHADER_PERMUTATION_BOOL("STEREO_CULLING_MODE");
 	// This permutation should be used for all debug output etc that adds overhead not wanted in production. 
 	// Individual debug features should be controlled by dynamic switches rather than adding more permutations.
@@ -177,7 +186,7 @@ public:
 	class FDebugModeDim : SHADER_PERMUTATION_BOOL("DEBUG_MODE");
 	class FBatchedDim : SHADER_PERMUTATION_BOOL("ENABLE_BATCH_MODE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FSingleInstanceModeDim, FCullInstancesDim, FStereoModeDim, FDebugModeDim, FBatchedDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FSingleInstanceModeDim, FCullInstancesDim, FOcclusionCullInstancesDim, FStereoModeDim, FDebugModeDim, FBatchedDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -227,6 +236,10 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, DrawCommandIdsBufferOut)
 
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, DrawIndirectArgsBufferOut)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+		SHADER_PARAMETER(FVector2D, HZBSize)
 
 		SHADER_PARAMETER(uint32, NumViewIds)
 		SHADER_PARAMETER(uint32, NumCullingViews)
@@ -285,6 +298,10 @@ public:
 	int32 TotalIndirectArgs = 0;
 	int32 TotalViewIds = 0;
 
+	// Single Previous frame HZB which is shared among all batched contexts, thus only one is allowed (but the same can be used in multiple passes). (Needs atlas or bindless to expand(.
+	FRDGTextureRef PrevHZB = nullptr;
+
+
 	bool bProcessed = false;
 
 	void ProcessBatched(TStaticArray<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FParameters*, static_cast<uint32>(EBatchProcessingMode::Num)> PassParameters);
@@ -322,6 +339,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		return;
 	}
 
+	const bool bOcclusionCullInstances = PrevHZB.IsValid() && GOcclusionCullInstances > 0;
 	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
 	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive())
 	{
@@ -335,6 +353,17 @@ void FInstanceCullingContext::BuildRenderingCommands(
 			Results.UniformBuffer = DeferredContext->UniformBuffer;
 			DeferredContext->Batches.Add(FBatchItem{ this, InstanceCullingDrawParams, DynamicInstanceIdOffset, DynamicInstanceIdNum });
 
+			// Set HZB texture for the merged batches
+			if (bOcclusionCullInstances)
+			{
+				// Verify that each batch contains the same HZB if not null as we only support one
+				check(DeferredContext->PrevHZB == nullptr || DeferredContext->PrevHZB == GraphBuilder.RegisterExternalTexture(PrevHZB));
+
+				if (DeferredContext->PrevHZB == nullptr)
+				{
+					DeferredContext->PrevHZB = GraphBuilder.RegisterExternalTexture(PrevHZB);
+				}
+			}
 
 			// Accumulate the totals so the deferred processing can pre-size the arrays
 			for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
@@ -414,6 +443,13 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	PassParametersTmp.DrawIndirectArgsBufferOut = GraphBuilder.CreateUAV(DrawIndirectArgsRDG, PF_R32_UINT, ERDGUnorderedAccessViewFlags::SkipBarrier);
 	PassParametersTmp.InstanceIdOffsetBuffer = GraphBuilder.CreateSRV(InstanceIdOffsetBufferRDG, PF_R32_UINT);
 
+	if (bOcclusionCullInstances)
+	{
+		PassParametersTmp.HZBTexture = GraphBuilder.RegisterExternalTexture(PrevHZB);
+		PassParametersTmp.HZBSize = PassParametersTmp.HZBTexture->Desc.Extent;
+		PassParametersTmp.HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+	}
+
 	for (uint32 Mode = 0U; Mode < uint32(EBatchProcessingMode::Num); ++Mode)
 	{
 		FInstanceProcessingGPULoadBalancer* LoadBalancer = LoadBalancers[Mode];
@@ -433,6 +469,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FSingleInstanceModeDim>(EBatchProcessingMode(Mode) == EBatchProcessingMode::UnCulled);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances && EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled);
+			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOcclusionCullInstancesDim>(bOcclusionCullInstances);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FDebugModeDim>(bUseDebugMode);
 			PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FBatchedDim>(false);
@@ -563,7 +600,15 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 		PassParameters[Mode]->LoadBalancerParameters.NumBatches = LoadBalancers[Mode]->GetBatches().Num();
 		PassParameters[Mode]->LoadBalancerParameters.NumItems = LoadBalancers[Mode]->GetItems().Num();
 		PassParameters[Mode]->NumCullingViews = InstanceCullingManager->GetCullingViews().Num();
+
+		const bool bOcclusionCullInstances = PrevHZB != nullptr && GOcclusionCullInstances > 0;
+		if (bOcclusionCullInstances)
+		{
+			PassParameters[Mode]->HZBTexture = PrevHZB;
+			PassParameters[Mode]->HZBSize = PrevHZB->Desc.Extent;
+			PassParameters[Mode]->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
 	}
+}
 }
 
 template <typename DataType>
@@ -722,10 +767,20 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 		PassParameters[Mode]->LoadBalancerParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
 		PassParameters[Mode]->CurrentBatchProcessingMode = Mode;
 
+		const bool bOcclusionCullInstances = GOcclusionCullInstances > 0;
+		if (bOcclusionCullInstances)
+		{
+			// Fill with a placeholder as AddPass expects HZBTexture to be valid. ProcessBatched will fill with real HZB textures.
+			PassParameters[Mode]->HZBTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			PassParameters[Mode]->HZBSize = PassParameters[Mode]->HZBTexture->Desc.Extent;
+			PassParameters[Mode]->HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+		}
+
 		FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FBatchedDim>(true);
 		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FSingleInstanceModeDim>(EBatchProcessingMode(Mode) == EBatchProcessingMode::UnCulled);
 		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances && EBatchProcessingMode(Mode) != EBatchProcessingMode::UnCulled);
+		PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOcclusionCullInstancesDim>(bOcclusionCullInstances);
 
 		auto ComputeShader = ShaderMap->GetShader<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs>(PermutationVector);
 

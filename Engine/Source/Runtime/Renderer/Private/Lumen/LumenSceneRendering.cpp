@@ -1978,7 +1978,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 			TUniquePtr<FInstanceCullingContext> InstanceCullingContext;
 			if (Scene->GPUScene.IsEnabled())
 			{
-				InstanceCullingContext = MakeUnique<FInstanceCullingContext>(View.GetFeatureLevel(), nullptr, TArrayView<const int32>(&View.GPUSceneViewId, 1));
+				InstanceCullingContext = MakeUnique<FInstanceCullingContext>(View.GetFeatureLevel(), nullptr, TArrayView<const int32>(&View.GPUSceneViewId, 1), nullptr);
 				
 				int32 MaxInstances = 0;
 				int32 VisibleMeshDrawCommandsNum = 0;

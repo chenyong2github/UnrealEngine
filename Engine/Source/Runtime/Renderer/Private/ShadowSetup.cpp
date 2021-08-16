@@ -2148,7 +2148,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 	ShadowDepthPass.DispatchPassSetup(
 		Renderer.Scene,
 		*ShadowDepthView,
-		FInstanceCullingContext(Renderer.FeatureLevel, &InstanceCullingManager, ViewIds, EInstanceCullingMode::Normal, false, SingleInstanceProcessingMode),
+		FInstanceCullingContext(Renderer.FeatureLevel, &InstanceCullingManager, ViewIds, nullptr, EInstanceCullingMode::Normal, false, SingleInstanceProcessingMode),
 		EMeshPass::Num,
 		FExclusiveDepthStencil::DepthNop_StencilNop,
 		MeshPassProcessor,
