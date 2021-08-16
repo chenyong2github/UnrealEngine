@@ -178,10 +178,9 @@ float GetRaytracingMaxNormalBias()
 void FDeferredShadingSceneRenderer::PrepareRayTracingShadows(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Declare all RayGen shaders that require material closest hit shaders to be bound
+	// Ray tracing shadows shaders should be properly configured even if r.RayTracing.Shadows is 0 because lights can have raytracing shadows enabled independently of that CVar
 
-	static auto CVarRayTracingShadows = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing.Shadows"));
-
-	const bool bRayTracingShadows = ShouldRenderRayTracingEffect(CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0);
+	const bool bRayTracingShadows = ShouldRenderRayTracingEffect(true);
 
 	if (!bRayTracingShadows)
 	{

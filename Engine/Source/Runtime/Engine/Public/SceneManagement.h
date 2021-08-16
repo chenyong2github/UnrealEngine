@@ -1144,7 +1144,7 @@ public:
 	uint8 bWantsStaticShadowing:1;
 	uint8 bHasStaticLighting:1;
 	uint8 bCastVolumetricShadow:1;
-	uint8 bCastRayTracedShadow:1;
+	TEnumAsByte<ECastRayTracedShadow::Type> CastRayTracedShadow;
 	uint8 bAffectReflection:1;
 	uint8 bAffectGlobalIllumination:1;
 	uint8 bTransmission:1;
@@ -1506,7 +1506,7 @@ public:
 	inline bool CastsTranslucentShadows() const { return bCastTranslucentShadows; }
 	inline bool CastsVolumetricShadow() const { return bCastVolumetricShadow; }
 	inline bool CastsHairStrandsDeepShadow() const { return bCastHairStrandsDeepShadow; }
-	inline bool CastsRaytracedShadow() const { return bCastRaytracedShadow; }
+	inline TEnumAsByte<ECastRayTracedShadow::Type> CastsRaytracedShadow() const { return CastRaytracedShadow; }
 	inline bool AffectReflection() const { return bAffectReflection; }
 	inline bool AffectGlobalIllumination() const { return bAffectGlobalIllumination; }
 	inline bool CastsShadowsFromCinematicObjectsOnly() const { return bCastShadowsFromCinematicObjectsOnly; }
@@ -1707,7 +1707,7 @@ protected:
 	const uint8 bForceCachedShadowsForMovablePrimitives : 1;
 
 	/** Whether the light shadows are computed with shadow-mapping or ray-tracing (when available). */
-	const uint8 bCastRaytracedShadow : 1;
+	const TEnumAsByte<ECastRayTracedShadow::Type> CastRaytracedShadow;
 
 	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
 	const uint8 bAffectReflection : 1;

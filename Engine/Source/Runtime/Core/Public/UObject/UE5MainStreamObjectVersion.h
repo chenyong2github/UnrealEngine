@@ -169,6 +169,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Introduce RigVM Memory Class Object
 		RigVMMemoryStorageObject,
 
+		// Ray tracing shadows have three states now (Disabled, Use Project Settings, Enabled)
+		RayTracedShadowsType,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -84,8 +84,11 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	uint32 bCastDeepShadow : 1;
 
 	/** Whether the light shadows are computed with shadow-mapping or ray-tracing (when available). */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, meta = (DisplayName = "Cast Ray Tracing Shadows"), AdvancedDisplay)
-	uint32 bCastRaytracedShadow : 1;
+	UPROPERTY()
+	uint32 bCastRaytracedShadow_DEPRECATED : 1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, meta = (DisplayName = "Cast Ray Traced Shadows"), AdvancedDisplay)
+	TEnumAsByte<ECastRayTracedShadow::Type> CastRaytracedShadow;
 
 	/** Whether the light affects objects in reflections, when ray-traced reflection is enabled. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (DisplayName = "Affect Ray Tracing Reflections"))
@@ -154,8 +157,11 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetAffectGlobalIllumination(bool bNewValue);
 
-	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light", meta = (DeprecatedFunction, DeprecationMessage = "ULightComponentBase::SetCastRaytracedShadow is deprecated. Use ULightComponentBase::SetCastRaytracedShadows instead."))
 	void SetCastRaytracedShadow(bool bNewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
+	void SetCastRaytracedShadows(ECastRayTracedShadow::Type bNewValue);
 
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Light")
 	void SetSamplesPerPixel(int NewValue);

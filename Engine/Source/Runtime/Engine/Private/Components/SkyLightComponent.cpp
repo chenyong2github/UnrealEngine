@@ -20,6 +20,7 @@
 #include "ShaderCompiler.h"
 #include "Components/BillboardComponent.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "Modules/ModuleManager.h"
 #include "Internationalization/Text.h"
 #include "CoreGlobals.h"
@@ -197,7 +198,7 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, bWantsStaticShadowing(InLightComponent->Mobility == EComponentMobility::Stationary)
 	, bHasStaticLighting(InLightComponent->HasStaticLighting())
 	, bCastVolumetricShadow(InLightComponent->bCastVolumetricShadow)
-	, bCastRayTracedShadow(InLightComponent->bCastRaytracedShadow)
+	, CastRayTracedShadow(InLightComponent->CastRaytracedShadow)
 	, bAffectReflection(InLightComponent->bAffectReflection)
 	, bAffectGlobalIllumination(InLightComponent->bAffectGlobalIllumination)
 	, bTransmission(InLightComponent->bTransmission)
@@ -275,7 +276,7 @@ USkyLightComponent::USkyLightComponent(const FObjectInitializer& ObjectInitializ
 	AverageBrightness = 1.0f;
 	BlendDestinationAverageBrightness = 1.0f;
 	bCastVolumetricShadow = true;
-	bCastRaytracedShadow = false;
+	CastRaytracedShadow = ECastRayTracedShadow::UseProjectSetting;
 	bAffectReflection = true;
 	bAffectGlobalIllumination = true;
 	SamplesPerPixel = 4;
@@ -1088,6 +1089,7 @@ void USkyLightComponent::RecaptureSky()
 void USkyLightComponent::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	Super::Serialize(Ar);
 
@@ -1096,6 +1098,12 @@ void USkyLightComponent::Serialize(FArchive& Ar)
 	{
 		FSHVectorRGB3 DummyIrradianceEnvironmentMap;
 		Ar << DummyIrradianceEnvironmentMap;
+	}
+
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::RayTracedShadowsType))
+	{
+		// Skylight is not driven by r.raytracing.shadows but if it was enabled before, it should be enabled now independently of the project setting
+		CastRaytracedShadow = bCastRaytracedShadow_DEPRECATED == 0 ? ECastRayTracedShadow::Disabled : ECastRayTracedShadow::Enabled;
 	}
 }
 
