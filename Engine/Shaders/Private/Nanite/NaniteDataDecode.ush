@@ -68,8 +68,9 @@
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA			0x1
 #define RENDER_FLAG_FORCE_HW_RASTER				0x2
 #define RENDER_FLAG_PRIMITIVE_SHADER			0x4
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS	0x8
-#define RENDER_FLAG_REVERSE_CULLING				0x10
+#define RENDER_FLAG_MESH_SHADER					0x8
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS	0x10
+#define RENDER_FLAG_REVERSE_CULLING				0x20
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS					0x1
@@ -86,15 +87,11 @@
 uint GetHWClusterCounterIndex(uint InRenderFlags)
 {
 // Ensure rasterizer uses compile time constants.
-#ifdef NANITE_PRIM_SHADER
-	#if NANITE_PRIM_SHADER
-		return 4;
-	#else
-		return 5;
-	#endif
+#ifdef NANITE_HW_COUNTER_INDEX
+	return NANITE_HW_COUNTER_INDEX;
 #else
 	// Other passes use a uniform branch to minimize permutations.
-	return (InRenderFlags & RENDER_FLAG_PRIMITIVE_SHADER) ? 4 : 5;
+	return CondMask(InRenderFlags & (RENDER_FLAG_MESH_SHADER | RENDER_FLAG_PRIMITIVE_SHADER), 4u, 5u);
 #endif
 }
 
