@@ -28,8 +28,9 @@ DECLARE_GPU_STAT_NAMED(NaniteClusterCull, TEXT("Nanite Cluster Cull"));
 #define RENDER_FLAG_HAVE_PREV_DRAW_DATA				0x1
 #define RENDER_FLAG_FORCE_HW_RASTER					0x2
 #define RENDER_FLAG_PRIMITIVE_SHADER				0x4
-#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x8
-#define RENDER_FLAG_REVERSE_CULLING					0x10
+#define RENDER_FLAG_MESH_SHADER						0x8
+#define RENDER_FLAG_OUTPUT_STREAMING_REQUESTS		0x10
+#define RENDER_FLAG_REVERSE_CULLING					0x20
 
 // Only available with the DEBUG_FLAGS permutation active.
 #define DEBUG_FLAG_WRITE_STATS						0x1
@@ -777,8 +778,10 @@ class FHWRasterizeVS : public FNaniteShader
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		const bool bIsPrimitiveShader = PermutationVector.Get<FPrimShaderDim>();
 		
-		if (PermutationVector.Get<FPrimShaderDim>())
+		if (bIsPrimitiveShader)
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexToPrimitiveShader);
 		}
@@ -786,6 +789,8 @@ class FHWRasterizeVS : public FNaniteShader
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_VertexUseAutoCulling);
 		}
+
+		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), bIsPrimitiveShader ? 4 : 5); // Mesh and primitive shaders use an index of 4 instead of 5
 
 		if (PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::NVAtomics) ||
 			PermutationVector.Get<FRasterTechniqueDim>() == int32(Nanite::ERasterTechnique::AMDAtomicsD3D11) ||
@@ -884,6 +889,7 @@ class FHWRasterizeMS : public FNaniteShader
 		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
 
 		OutEnvironment.SetDefine(TEXT("NANITE_MESH_SHADER"), 1);
+		OutEnvironment.SetDefine(TEXT("NANITE_HW_COUNTER_INDEX"), 4); // Mesh and primitive shaders use an index of 4 instead of 5
 
 		const uint32 MSThreadGroupSize = FDataDrivenShaderPlatformInfo::GetMaxMeshShaderThreadGroupSize(Parameters.Platform);
 		check(MSThreadGroupSize == 128 || MSThreadGroupSize == 256);
@@ -1103,7 +1109,11 @@ FCullingContext InitCullingContext(
 		CullingContext.RenderFlags |= RENDER_FLAG_FORCE_HW_RASTER;
 	}
 
-	if (UsePrimitiveShader() || UseMeshShader())
+	if (UseMeshShader())
+	{
+		CullingContext.RenderFlags |= RENDER_FLAG_MESH_SHADER;
+	}
+	else if (UsePrimitiveShader())
 	{
 		CullingContext.RenderFlags |= RENDER_FLAG_PRIMITIVE_SHADER;
 	}

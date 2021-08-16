@@ -596,7 +596,8 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 struct PrimitiveAttributes
 {
-	nointerpolation uint2 ClusterAndTriangleIndex : TEXCOORD6;
+	// Use uint4 to prevent compiler from erroneously packing per-vertex and per-prim attributes together
+	nointerpolation uint4 ClusterAndTriangleIndex : TEXCOORD6;
 };
 
 #if MESHSHADER
@@ -606,8 +607,8 @@ void HWRasterizeMS(
 	uint GroupThreadID : SV_GroupThreadID,
 	uint GroupID : SV_GroupID,
 	MESH_SHADER_VERTEX_EXPORT(VSOut, 256),
-	MESH_SHADER_PRIMITIVE_EXPORT(PrimitiveAttributes, 128),
-	MESH_SHADER_TRIANGLE_EXPORT(128)
+	MESH_SHADER_TRIANGLE_EXPORT(128),
+	MESH_SHADER_PRIMITIVE_EXPORT(PrimitiveAttributes, 128)
 )
 {
 	uint VisibleIndex = GroupID;
@@ -639,7 +640,7 @@ void HWRasterizeMS(
 		MESH_SHADER_WRITE_TRIANGLE(TriangleIndex, TriangleIndices);
 
 		PrimitiveAttributes Attributes;
-		Attributes.ClusterAndTriangleIndex = uint2(VisibleIndex, TriangleIndex);
+		Attributes.ClusterAndTriangleIndex = uint4(VisibleIndex, TriangleIndex, 0, 0);
 		MESH_SHADER_WRITE_PRIMITIVE(TriangleIndex, Attributes);
 	}
 
