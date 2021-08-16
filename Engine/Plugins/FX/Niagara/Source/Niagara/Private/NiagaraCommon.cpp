@@ -1397,9 +1397,9 @@ void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScr
 		{
 			if (Script->GetLatestSource())
 			{
-			Script->GetLatestSource()->CleanUpOldAndInitializeNewRapidIterationParameters(*Emitter, Script->GetUsage(), Script->GetUsageId(), ParameterStoreToPrepare);
+				Script->GetLatestSource()->CleanUpOldAndInitializeNewRapidIterationParameters(*Emitter, Script->GetUsage(), Script->GetUsageId(), ParameterStoreToPrepare);
+			}
 		}
-	}
 	}
 
 	// Copy parameters for dependencies.
@@ -1511,7 +1511,8 @@ const FString FNiagaraCompileOptions::GpuScriptDefine = TEXT("GPUComputeSim");
 FSynchronizeWithParameterDefinitionsArgs::FSynchronizeWithParameterDefinitionsArgs()
 	: SpecificDefinitionsUniqueIds(TArray<FGuid>())
 	, SpecificDestScriptVarIds(TArray<FGuid>())
-	, bForceSynchronizeDefinitions(false)
+	, bForceGatherDefinitions(false)
+	, bForceSynchronizeParameters(false)
 	, bSubscribeAllNameMatchParameters(false)
 	, AdditionalOldToNewNames()
 {
