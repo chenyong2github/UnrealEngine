@@ -74,9 +74,6 @@ static FAutoConsoleVariableRef CVarHairStrandsSortHairSampleByDepth(TEXT("r.Hair
 static int32 GHairStrandsHairCountToTransmittance = 0;
 static FAutoConsoleVariableRef CVarHairStrandsHairCountToTransmittance(TEXT("r.HairStrands.Visibility.UseCoverageMappping"), GHairStrandsHairCountToTransmittance, TEXT("Use hair count to coverage transfer function."));
 
-static int32 GHairStrandsVisibility_OutputEmissiveData = 0;
-static FAutoConsoleVariableRef CVarHairStrandsVisibility_OutputEmissiveData(TEXT("r.HairStrands.Visibility.Emissive"), GHairStrandsVisibility_OutputEmissiveData, TEXT("Enable emissive data during the material pass."));
-
 static int32 GHairStrandsDebugPPLL = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(TEXT("r.HairStrands.Visibility.PPLL.Debug"), GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
 
@@ -319,6 +316,16 @@ class FHairLightSampleClearPS : public FGlobalShader
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
+	static EPixelFormat GetHairLightSampleFormat()
+	{
+		EPixelFormat Format = PF_FloatRGBA;
+		if (GHairStrandsLightSampleFormat > 0 && GPixelFormats[PF_FloatR11G11B10].Supported)
+		{
+			Format = PF_FloatR11G11B10;
+		}
+		return Format;
+	}
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -346,11 +353,7 @@ static FRDGTextureRef AddClearLightSamplePass(
 	const uint32 MaxNodeCount,
 	const FRDGTextureRef NodeCounter)
 {	
-	EPixelFormat Format = PF_FloatRGBA;
-	if (GHairStrandsLightSampleFormat > 0 && GPixelFormats[PF_FloatR11G11B10].Supported)
-	{
-		Format = PF_FloatR11G11B10;
-	}
+	const EPixelFormat Format = FHairLightSampleClearPS::GetHairLightSampleFormat();
 
 	const uint32 SampleTextureResolution = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(MaxNodeCount)));
 	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(FIntPoint(SampleTextureResolution, SampleTextureResolution), Format, FClearValueBinding::Black, TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable);
@@ -432,12 +435,6 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FHairMaterialVS, TEXT("/Engine/Private/HairStra
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-
-static bool IsHairStrandsEmissiveEnable()
-{
-	return GHairStrandsVisibility_OutputEmissiveData > 0;
-}
-
 class FHairMaterialShaderElementData : public FMeshMaterialShaderElementData
 {
 public:
@@ -482,8 +479,12 @@ public:
 	{
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		const bool bPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Parameters.Platform);
-		OutEnvironment.SetDefine(TEXT("HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT"), (IsHairStrandsEmissiveEnable() || bPlatformRequireRenderTarget) ? 1 : 0);
+		const bool bHasEmissiveConnected = Parameters.MaterialParameters.bHasEmissiveColorConnected;
+		OutEnvironment.SetDefine(TEXT("HAIR_MATERIAL_EMISSIVE_OUTPUT"), (bHasEmissiveConnected || bPlatformRequireRenderTarget) ? 1 : 0);
 		OutEnvironment.SetDefine(TEXT("HAIRSTRANDS_HAS_NORMAL_CONNECTED"), Parameters.MaterialParameters.bHasNormalConnected ? 1 : 0);
+
+		const EPixelFormat Format = FHairLightSampleClearPS::GetHairLightSampleFormat();
+		OutEnvironment.SetRenderTargetOutputFormat(0, Format);
 	}
 
 	void GetShaderBindings(
@@ -689,7 +690,6 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVisibilityMaterialPassUniformParameters, )
 	SHADER_PARAMETER(uint32, MaxSampleCount)
 	SHADER_PARAMETER(uint32, NodeGroupSize)
 	SHADER_PARAMETER(uint32, bUpdateSampleCoverage)
-	SHADER_PARAMETER(uint32, bOutputEmissive)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, NodeIndex)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TotalNodeCounter)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, NodeCoord)
@@ -764,7 +764,7 @@ struct FMaterialPassOutput
 	static const EPixelFormat VelocityFormat = PF_G16R16;
 	FRDGBufferRef NodeData = nullptr;
 	FRDGBufferRef NodeVelocity = nullptr;
-	FRDGTextureRef EmissiveTexture = nullptr;
+	FRDGTextureRef SampleLightingTexture = nullptr;
 };
 
 static FMaterialPassOutput AddHairMaterialPass(
@@ -787,66 +787,84 @@ static FMaterialPassOutput AddHairMaterialPass(
 	const uint32 MaxNodeCount = CompactNodeVis->Desc.NumElements;
 
 	FMaterialPassOutput Output;
-	Output.NodeData		= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeData), MaxNodeCount), TEXT("Hair.CompactNodeData"));
-	Output.NodeVelocity = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, CompactNodeVis->Desc.NumElements), TEXT("Hair.CompactNodeVelocity"));
+	Output.NodeData				 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(HairStrandsVisibilityInternal::NodeData), MaxNodeCount), TEXT("Hair.CompactNodeData"));
+	Output.NodeVelocity			 = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, CompactNodeVis->Desc.NumElements), TEXT("Hair.CompactNodeVelocity"));
+	Output.SampleLightingTexture = AddClearLightSamplePass(GraphBuilder, ViewInfo, MaxNodeCount, CompactNodeCounter);
 
 	const uint32 ResolutionDim = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(MaxNodeCount)));
 	const FIntPoint Resolution(ResolutionDim, ResolutionDim);
 
-	const bool bOutputEmissive = IsHairStrandsEmissiveEnable();
-	const bool bIsPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Scene->GetShaderPlatform()) || GRHIRequiresRenderTargetForPixelShaderUAVs;
-
-	// Add resources reference to the pass parameters, in order to get the resource lifetime extended to this pass
-	FVisibilityMaterialPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassParameters>();
-
+	enum class EHairMaterialPassFilter : uint8
 	{
-		FVisibilityMaterialPassUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassUniformParameters>();
+		All,
+		EmissiveOnly,
+		NonEmissiveOnly
+	};
 
-		UniformParameters->bUpdateSampleCoverage = bUpdateSampleCoverage ? 1 : 0;
-		UniformParameters->bOutputEmissive = bOutputEmissive ? 1 : 0;
-		UniformParameters->MaxResolution = Resolution;
-		UniformParameters->NodeGroupSize = NodeGroupSize;
-		UniformParameters->MaxSampleCount = MaxNodeCount;
-		UniformParameters->TotalNodeCounter = CompactNodeCounter;
-		UniformParameters->NodeIndex = CompactNodeIndex;
-		UniformParameters->NodeVis = GraphBuilder.CreateSRV(CompactNodeVis);
-		UniformParameters->NodeCoord = GraphBuilder.CreateSRV(CompactNodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
-		UniformParameters->IndirectArgs = GraphBuilder.CreateSRV(IndirectArgBuffer);
-		UniformParameters->OutNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeData));
-		UniformParameters->OutNodeVelocity = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeVelocity, FMaterialPassOutput::VelocityFormat));
+	const ERHIFeatureLevel::Type FeatureLevel = ViewInfo->FeatureLevel;
 
-		PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+	// Find among the mesh batch, if any of them emit emissive data
+	bool bHasEmissiveMaterial = false;
+	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
+	{
+		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
+		{
+			const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
+			if (MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected())
+			{
+				bHasEmissiveMaterial = true;
+				break;
+			}
+		}
 	}
 
+	// Generic material pass dispatch
+	auto MaterialPass = [&](FRDGTextureRef RenderTarget, EHairMaterialPassFilter Filter)
 	{
-		const bool bEnableMSAA = false;
-		SetUpViewHairRenderInfo(*ViewInfo, bEnableMSAA, ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo, ViewInfo->CachedViewUniformShaderParameters->HairRenderInfoBits, ViewInfo->CachedViewUniformShaderParameters->HairComponents);
-		PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
-	}
-
-	// For debug purpose only
-	if (bOutputEmissive)
-	{
-		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable);
-		Output.EmissiveTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("Hair.MaterialEmissiveOutput"));
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(Output.EmissiveTexture, ERenderTargetLoadAction::EClear, 0);
-		
-	}
-	else if (bIsPlatformRequireRenderTarget)
-	{
-		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(Resolution, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_RenderTargetable);
-		FRDGTextureRef OutDummyTexture0 = GraphBuilder.CreateTexture(OutputDesc, TEXT("Hair.MaterialDummyOutput"));
-		PassParameters->RenderTargets[0] = FRenderTargetBinding(OutDummyTexture0, ERenderTargetLoadAction::EClear, 0);
-	}
-	
-
-	AddSimpleMeshPass(GraphBuilder, PassParameters, Scene, *ViewInfo, &InstanceCullingManager, RDG_EVENT_NAME("HairStrandsMaterialPass"), FIntRect(0, 0, Resolution.X, Resolution.Y),
-		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage, bOutputEmissive](FDynamicPassMeshDrawListContext* ShadowContext)
-	{
-		FMeshPassProcessorRenderState DrawRenderState;
+		// Add resources reference to the pass parameters, in order to get the resource lifetime extended to this pass
+		FVisibilityMaterialPassParameters* PassParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassParameters>();
 
 		{
-			if (bOutputEmissive)
+			FVisibilityMaterialPassUniformParameters* UniformParameters = GraphBuilder.AllocParameters<FVisibilityMaterialPassUniformParameters>();
+
+			UniformParameters->bUpdateSampleCoverage = bUpdateSampleCoverage ? 1 : 0;
+			UniformParameters->MaxResolution = Resolution;
+			UniformParameters->NodeGroupSize = NodeGroupSize;
+			UniformParameters->MaxSampleCount = MaxNodeCount;
+			UniformParameters->TotalNodeCounter = CompactNodeCounter;
+			UniformParameters->NodeIndex = CompactNodeIndex;
+			UniformParameters->NodeVis = GraphBuilder.CreateSRV(CompactNodeVis);
+			UniformParameters->NodeCoord = GraphBuilder.CreateSRV(CompactNodeCoord, FHairStrandsVisibilityData::NodeCoordFormat);
+			UniformParameters->IndirectArgs = GraphBuilder.CreateSRV(IndirectArgBuffer);
+			UniformParameters->OutNodeData = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeData));
+			UniformParameters->OutNodeVelocity = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(Output.NodeVelocity, FMaterialPassOutput::VelocityFormat));
+
+			PassParameters->UniformBuffer = GraphBuilder.CreateUniformBuffer(UniformParameters);
+		}
+
+		{
+			const bool bEnableMSAA = false;
+			SetUpViewHairRenderInfo(*ViewInfo, bEnableMSAA, ViewInfo->CachedViewUniformShaderParameters->HairRenderInfo, ViewInfo->CachedViewUniformShaderParameters->HairRenderInfoBits, ViewInfo->CachedViewUniformShaderParameters->HairComponents);
+			PassParameters->View = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*ViewInfo->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+		}
+
+		if (RenderTarget)
+		{
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(RenderTarget, ERenderTargetLoadAction::EClear, 0);
+		}
+
+		AddSimpleMeshPass(
+			GraphBuilder, 
+			PassParameters, 
+			Scene, 
+			*ViewInfo, 
+			&InstanceCullingManager, 
+			RDG_EVENT_NAME("HairStrandsMaterialPass(Emissive=%s)", Filter == EHairMaterialPassFilter::All ? TEXT("On/Off") : (Filter == EHairMaterialPassFilter::EmissiveOnly ? TEXT("On") : TEXT("Off"))),
+			FIntRect(0, 0, Resolution.X, Resolution.Y),
+		[PassParameters, Scene = Scene, ViewInfo, &MacroGroupDatas, MaxNodeCount, Resolution, NodeGroupSize, bUpdateSampleCoverage, Filter, FeatureLevel](FDynamicPassMeshDrawListContext* ShadowContext)
+		{
+			FMeshPassProcessorRenderState DrawRenderState;
+			if (Filter == EHairMaterialPassFilter::All || Filter == EHairMaterialPassFilter::EmissiveOnly)
 			{
 				DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_Zero>::GetRHI());
 			}
@@ -863,11 +881,42 @@ static FMaterialPassOutput AddHairMaterialPass(
 				{
 					const FMeshBatch& MeshBatch = *PrimitiveInfo.Mesh;
 					const uint64 BatchElementMask = ~0ull;
-					MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
+					bool bIsCompatible = true;
+					if (Filter != EHairMaterialPassFilter::All)
+					{
+						const bool bHasEmissive = MeshBatch.MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel).HasEmissiveColorConnected();
+						bIsCompatible = (bHasEmissive && Filter == EHairMaterialPassFilter::EmissiveOnly) || (!bHasEmissive && Filter == EHairMaterialPassFilter::NonEmissiveOnly);
+					}
+
+					if (bIsCompatible)
+					{
+						MeshProcessor.AddMeshBatch(MeshBatch, BatchElementMask, PrimitiveInfo.PrimitiveSceneProxy, -1, MacroGroupData.MacroGroupId, PrimitiveInfo.MaterialId);
+					}
 				}
 			}
-		}
-	});
+		});
+	};
+
+
+	const bool bIsPlatformRequireRenderTarget = IsPlatformRequiringRenderTargetForMaterialPass(Scene->GetShaderPlatform()) || GRHIRequiresRenderTargetForPixelShaderUAVs;
+
+	// Output:
+	// 1. Single pass: when the platform require an RT as output, render both emissive & non-emissive in a single pass
+	// 2. Two passes : one pass for emissive material with an RT, one pass for regular/non-emissive material without an RT
+	// 3. Single pass: when there is no emissive material, and platform does not require an RT
+	if (bIsPlatformRequireRenderTarget)
+	{
+		MaterialPass(Output.SampleLightingTexture, EHairMaterialPassFilter::All);
+	}
+	else if (bHasEmissiveMaterial)
+	{
+		MaterialPass(Output.SampleLightingTexture, EHairMaterialPassFilter::EmissiveOnly);
+		MaterialPass(nullptr, EHairMaterialPassFilter::NonEmissiveOnly);
+	}
+	else
+	{
+		MaterialPass(nullptr, EHairMaterialPassFilter::NonEmissiveOnly);
+	}
 
 	return Output;
 }
@@ -3102,11 +3151,8 @@ void RenderHairStrandsVisibilityBuffer(
 
 						CompactNodeData = PassOutput.NodeData;
 
-						// Allocate buffer for storing all the light samples
-						FRDGTextureRef SampleLightingBuffer = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);
-						VisibilityData.SampleLightingViewportResolution = SampleLightingBuffer->Desc.Extent;
-
-						VisibilityData.SampleLightingBuffer = SampleLightingBuffer;
+						VisibilityData.SampleLightingViewportResolution = PassOutput.SampleLightingTexture->Desc.Extent;
+						VisibilityData.SampleLightingTexture = PassOutput.SampleLightingTexture;
 						VisibilityData.NodeIndex = CompactNodeIndex;
 						VisibilityData.CoverageTexture = CoverageTexture;
 						VisibilityData.HairOnlyDepthTexture = HairOnlyDepthTexture;
@@ -3115,7 +3161,6 @@ void RenderHairStrandsVisibilityBuffer(
 						VisibilityData.NodeIndirectArg = IndirectArgsBuffer;
 						VisibilityData.NodeCount = NodeCounter;
 						VisibilityData.ResolveMaskTexture = ResolveMaskTexture;	
-						VisibilityData.EmissiveTexture = PassOutput.EmissiveTexture;
 					}
 
 					// For fully covered pixels, write: 
@@ -3225,7 +3270,6 @@ void RenderHairStrandsVisibilityBuffer(
 					FRDGBufferRef CompactNodeCoord;
 					FRDGBufferRef IndirectArgsBuffer;
 					FRDGTextureRef ResolveMaskTexture = nullptr;
-					FRDGTextureRef EmissiveTexture = nullptr;
 					AddHairVisibilityPrimitiveIdCompactionPass(
 						false, // bUsePPLL
 						GraphBuilder,
@@ -3285,23 +3329,19 @@ void RenderHairStrandsVisibilityBuffer(
 						}
 
 						CompactNodeData = PassOutput.NodeData;
-						EmissiveTexture = PassOutput.EmissiveTexture;
+
+						VisibilityData.SampleLightingViewportResolution = PassOutput .SampleLightingTexture->Desc.Extent;
+						VisibilityData.SampleLightingTexture			= PassOutput.SampleLightingTexture;
 					}
 
-					// Allocate buffer for storing all the light samples
-					FRDGTextureRef SampleLightingBuffer = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);
-					VisibilityData.SampleLightingViewportResolution = SampleLightingBuffer->Desc.Extent;
-
-					 VisibilityData.SampleLightingBuffer	= SampleLightingBuffer;
-					 VisibilityData.NodeIndex				= CompactNodeIndex;
-					 VisibilityData.CoverageTexture			= CoverageTexture;
-					 VisibilityData.HairOnlyDepthTexture	= HairOnlyDepthTexture;
-					 VisibilityData.NodeData				= CompactNodeData;
-					 VisibilityData.NodeCoord				= CompactNodeCoord;
-					 VisibilityData.NodeIndirectArg			= IndirectArgsBuffer;
-					 VisibilityData.NodeCount				= NodeCounter;
-					 VisibilityData.ResolveMaskTexture		= ResolveMaskTexture;
-					 VisibilityData.EmissiveTexture			= EmissiveTexture;
+					VisibilityData.NodeIndex			= CompactNodeIndex;
+					VisibilityData.CoverageTexture		= CoverageTexture;
+					VisibilityData.HairOnlyDepthTexture	= HairOnlyDepthTexture;
+					VisibilityData.NodeData				= CompactNodeData;
+					VisibilityData.NodeCoord			= CompactNodeCoord;
+					VisibilityData.NodeIndirectArg		= IndirectArgsBuffer;
+					VisibilityData.NodeCount			= NodeCounter;
+					VisibilityData.ResolveMaskTexture	= ResolveMaskTexture;
 
 					// View transmittance depth test needs to happen before the scene depth is patched with the hair depth (for fully-covered-by-hair pixels)
 					if (ViewTransmittance.HairCountTexture)
@@ -3435,9 +3475,8 @@ void RenderHairStrandsVisibilityBuffer(
 					HairOnlyDepthTexture);
 
 				// Allocate buffer for storing all the light samples
-				FRDGTextureRef SampleLightingBuffer = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);
-				VisibilityData.SampleLightingViewportResolution = SampleLightingBuffer->Desc.Extent;
-				VisibilityData.SampleLightingBuffer = SampleLightingBuffer;
+				VisibilityData.SampleLightingTexture = AddClearLightSamplePass(GraphBuilder, &View, VisibilityData.MaxNodeCount, NodeCounter);
+				VisibilityData.SampleLightingViewportResolution = VisibilityData.SampleLightingTexture->Desc.Extent;
 
 			#if WITH_EDITOR
 				// Extract texture for debug visualization

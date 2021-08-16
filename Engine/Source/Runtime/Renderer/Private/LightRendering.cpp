@@ -2499,7 +2499,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		}
 
 		const FHairStrandsVisibilityData& HairVisibilityData = View.HairStrandsViewData.VisibilityData;
-		if (!HairVisibilityData.SampleLightingBuffer)
+		if (!HairVisibilityData.SampleLightingTexture)
 		{
 			return;
 		}
@@ -2507,7 +2507,7 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 		FRenderLightForHairParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightForHairParameters>();
 		GetRenderLightParameters(
 			View,
-			HairVisibilityData.SampleLightingBuffer, 
+			HairVisibilityData.SampleLightingTexture, 
 			nullptr, 
 			SceneTexturesUniformBuffer, 
 			HairStrands::BindHairStrandsViewUniformParameters(View), 

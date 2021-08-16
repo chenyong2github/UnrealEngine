@@ -24,17 +24,6 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
 		Parameters->MaxSamplePerPixelCount = In->MaxSampleCount;
 
-		if (In->EmissiveTexture)
-		{
-			Parameters->HairEmissiveTexture = In->EmissiveTexture;
-			Parameters->bHasEmissive = 1u;
-		}
-		else
-		{
-			Parameters->HairEmissiveTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
-			Parameters->bHasEmissive = 0u;
-			
-		}
 		if (In->TileData.IsValid())
 		{
 			Parameters->HairTileData = In->TileData.TileDataSRV;
@@ -82,8 +71,6 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 		Parameters->HairSampleCoords = DummyBufferRG16SRV;
 		Parameters->HairSampleData	 = GraphBuilder.CreateSRV(DummyNodeBuffer);
 		Parameters->HairSampleViewportResolution = FIntPoint(0, 0);
-		Parameters->HairEmissiveTexture = BlackTexture;
-		Parameters->bHasEmissive = 0u;
 		Parameters->MaxSamplePerPixelCount = 0u;
 
 		Parameters->HairTileData = DummyBufferR32SRV;

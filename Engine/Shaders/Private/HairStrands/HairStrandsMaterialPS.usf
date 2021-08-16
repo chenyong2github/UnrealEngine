@@ -7,7 +7,7 @@ void Main(
 	, in uint2 Resolution : DISPATCH_RESOLUTION
 	, in uint TotalNodeCount : DISPATCH_NODE_COUNT
 	, in uint InPrimitiveId : PRIMITIVE_ID
-	#if HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT
+	#if HAIR_MATERIAL_EMISSIVE_OUTPUT
 	, out float4 OutColor0 : SV_Target0
 	#endif
 	)
@@ -50,15 +50,8 @@ void Main(
 		}
 	}
 
-	#if HAIR_MATERIAL_DEBUG_OR_EMISSIVE_OUTPUT
-	if (MaterialPassParameters.bOutputEmissive > 0)
-	{
-		OutColor0 = float4(Emissive,1);
-	}
-	else
-	{	
-		OutColor0 = bIsValid ? float4(0, 1, 0, 1) : float4(1, 0, 0, 1);
-	}
+	#if HAIR_MATERIAL_EMISSIVE_OUTPUT
+	OutColor0 = float4(Emissive, 1);
 	#endif
 }
 
