@@ -998,7 +998,7 @@ namespace Audio
 				if (!IsMasterSubmixType(SubmixToLoad))
 				{
 					LoadSoundSubmix(*SubmixToLoad);
-					InitSoundfieldAndEndpointDataForSubmix(*SubmixToLoad, GetSubmixInstance(SubmixToLoad).Pin(), false);
+					InitSoundfieldAndEndpointDataForSubmix(*SubmixToLoad, GetSubmixInstance(SubmixToLoad).Pin(), true);
 				}
 			}
 			bSubmixRegistrationDisabled = false;

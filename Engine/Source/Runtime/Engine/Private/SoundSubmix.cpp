@@ -844,7 +844,7 @@ void USoundfieldSubmix::SanitizeLinks()
 	}
 
 	// If this submix is now incompatible with the parent submix, disconnect it.
-	if (!SubmixUtils::AreSubmixFormatsCompatible(this, ParentSubmix))
+	if (ParentSubmix && !SubmixUtils::AreSubmixFormatsCompatible(this, ParentSubmix))
 	{
 		ParentSubmix->ChildSubmixes.RemoveSwap(this);
 		ParentSubmix->Modify();
@@ -872,6 +872,12 @@ void USoundfieldSubmix::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(USoundfieldSubmix, SoundfieldEncodingFormat))
 		{
 			bShouldSanitizeLinks = true;
+			
+			FAudioDeviceManager* AudioDeviceManager = FAudioDeviceManager::Get();
+			if (AudioDeviceManager)
+			{
+				AudioDeviceManager->InitSoundSubmixes();
+			}
 		}
 	}
 
