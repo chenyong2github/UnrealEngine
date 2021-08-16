@@ -616,6 +616,11 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	FString RayTracingExports;
 
 	bool bEnable16BitTypes = false;
+	if (Language == ELanguage::SM6)
+	{
+		// 16bit types are SM6.2 whereas Language == ELanguage::SM6 is SM6.6, so their support at runtime is guarented.
+		bEnable16BitTypes = Input.Environment.CompilerFlags.Contains(CFLAG_AllowRealTypes);
+	}
 
 	if (bIsRayTracingShader)
 	{
