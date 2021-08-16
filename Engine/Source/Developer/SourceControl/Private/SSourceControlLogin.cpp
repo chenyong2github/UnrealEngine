@@ -79,7 +79,6 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 					]
 					+SVerticalBox::Slot()
 					.AutoHeight()
-					.Padding(FMargin(0.0f, 0.0f, 16.0f, 0.0f))
 					[
 						SNew(STextBlock)
 						.Visibility(this, &SSourceControlLogin::GetDisabledTextVisibility)
