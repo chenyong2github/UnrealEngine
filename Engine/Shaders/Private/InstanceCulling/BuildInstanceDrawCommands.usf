@@ -192,6 +192,24 @@ bool IsInstanceVisible(FInstanceSceneData InstanceData, uint ViewIdIndex)
 		float4x4 LocalToClip = mul(LocalToTranslatedWorld, NaniteView.TranslatedWorldToClip);
 
 		FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, bNearClip, false);
+
+#if OCCLUSION_CULL_INSTANCES
+		BRANCH
+		if (Cull.bIsVisible)
+		{
+			float4x4 LocalToPrevTranslatedWorld = InstanceData.LocalToWorld;
+			LocalToPrevTranslatedWorld[3].xyz += NaniteView.PrevPreViewTranslation.xyz;
+			float4x4 LocalToPrevClip = mul(LocalToPrevTranslatedWorld, NaniteView.PrevTranslatedWorldToClip);
+			FFrustumCullData PrevCull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToPrevClip, bNearClip, false);
+			BRANCH
+			if ((PrevCull.bIsVisible || PrevCull.bFrustumSideCulled) && !PrevCull.bCrossesNearPlane)
+			{
+				FScreenRect PrevRect = GetScreenRect( NaniteView.HZBTestViewRect, PrevCull, 4 );
+				Cull.bIsVisible = IsVisibleHZB( PrevRect, true );
+			}
+		}
+#endif
+
 		return Cull.bIsVisible;
 	}
 #endif // CULL_INSTANCES
