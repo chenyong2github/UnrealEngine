@@ -54,13 +54,13 @@ bool FSyncPattern::DoesPatternMatch(const TArray<FName>& TestMarkerNames)
 int32 FBlendSpaceUtilities::GetHighestWeightSample(const TArray<struct FBlendSampleData> &SampleDataList)
 {
 	int32 HighestWeightIndex = 0;
-	float HighestWeight = SampleDataList[HighestWeightIndex].GetWeight();
+	float HighestWeight = SampleDataList[HighestWeightIndex].GetClampedWeight();
 	for (int32 I = 1; I < SampleDataList.Num(); I++)
 	{
-		if (SampleDataList[I].GetWeight() > HighestWeight)
+		if (SampleDataList[I].GetClampedWeight() > HighestWeight)
 		{
 			HighestWeightIndex = I;
-			HighestWeight = SampleDataList[I].GetWeight();
+			HighestWeight = SampleDataList[I].GetClampedWeight();
 		}
 	}
 	return HighestWeightIndex;
@@ -74,11 +74,11 @@ int32 FBlendSpaceUtilities::GetHighestWeightMarkerSyncSample(const TArray<struct
 	for (int32 I = 0; I < SampleDataList.Num(); I++)
 	{
 		const FBlendSampleData& SampleData = SampleDataList[I];
-		if (SampleData.GetWeight() > HighestWeight &&
+		if (SampleData.GetClampedWeight() > HighestWeight &&
 			BlendSamples[SampleData.SampleDataIndex].Animation->AuthoredSyncMarkers.Num() > 0)
 		{
 			HighestWeightIndex = I;
-			HighestWeight = SampleData.GetWeight();
+			HighestWeight = SampleData.GetClampedWeight();
 		}
 	}
 	return HighestWeightIndex;

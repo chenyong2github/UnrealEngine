@@ -696,7 +696,7 @@ void FBlendSampleData::NormalizeDataWeight(TArray<FBlendSampleData>& SampleDataL
 	{
 		checkf(SampleDataList[PoseIndex].PerBoneBlendData.Num() == NumBones, TEXT("Attempted to normalise a blend sample list, but the samples have differing numbers of bones."));
 
-		TotalSum += SampleDataList[PoseIndex].GetWeight();
+		TotalSum += SampleDataList[PoseIndex].TotalWeight;
 
 		if (SampleDataList[PoseIndex].PerBoneBlendData.Num() > 0)
 		{

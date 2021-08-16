@@ -504,7 +504,7 @@ void FAnimationRuntime::BlendTwoPosesTogetherPerBone(const FAnimationPoseData& S
 template <int32 TRANSFORM_BLEND_MODE>
 void BlendPosePerBone(const TArray<FBoneIndexType>& RequiredBoneIndices, const TArray<int32>& PerBoneIndices, const FBlendSampleData& BlendSampleDataCache, FTransformArrayA2& ResultAtoms, const FTransformArrayA2& SourceAtoms)
 {
-	const float BlendWeight = BlendSampleDataCache.GetWeight();
+	const float BlendWeight = BlendSampleDataCache.GetClampedWeight();
 	for (int32 i = 0; i < RequiredBoneIndices.Num(); ++i)
 	{
 		const int32 BoneIndex = RequiredBoneIndices[i];
@@ -523,7 +523,7 @@ void BlendPosePerBone(const TArray<FBoneIndexType>& RequiredBoneIndices, const T
 template <int32 TRANSFORM_BLEND_MODE>
 void BlendPosePerBone(const TArray<int32>& PerBoneIndices, const FBlendSampleData& BlendSampleDataCache, FCompactPose& ResultPose, const FCompactPose& SourcePose)
 {
-	const float BlendWeight = BlendSampleDataCache.GetWeight();
+	const float BlendWeight = BlendSampleDataCache.GetClampedWeight();
 	for (FCompactPoseBoneIndex BoneIndex : SourcePose.ForEachBoneIndex())
 	{
 		const int32 PerBoneIndex = PerBoneIndices[BoneIndex.GetInt()];
