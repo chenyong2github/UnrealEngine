@@ -591,7 +591,14 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 				break;
 
 			case FGeometryCollection::ESimulationTypes::FST_Rigid:
-				TextColor = FSlateColor::UseForeground();
+				if (GeometryCollectionPtr->IsVisible(GetBoneIndex()))
+				{ 
+					TextColor = FSlateColor::UseForeground();
+				}
+				else
+				{
+					TextColor = FLinearColor{0.1f, 0.1f, 0.1f, 1.f};
+				}
 				break;
 
 			case FGeometryCollection::ESimulationTypes::FST_Clustered:

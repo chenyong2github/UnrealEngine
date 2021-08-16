@@ -563,6 +563,8 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 	else if (PaletteIndex == TEXT("Edit"))
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.DeleteBranch);
+		ToolbarBuilder.AddToolBarButton(Commands.Hide);
+		ToolbarBuilder.AddToolBarButton(Commands.Unhide);
 	}
 	else if (PaletteIndex == TEXT("Cluster"))
 	{

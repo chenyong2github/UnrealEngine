@@ -177,6 +177,8 @@ namespace Chaos
 
 	bool FStaticMeshCacheAdapter::InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache, float InTime)
 	{
+		ensure(IsInGameThreadContext());
+
 #if WITH_CHAOS
 
 		if(Cast<UStaticMeshComponent>(InComponent) && InComponent->GetBodyInstance() && InComponent->GetBodyInstance()->ActorHandle)

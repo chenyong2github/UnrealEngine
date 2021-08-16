@@ -99,6 +99,139 @@ void UFractureToolDeleteBranch::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 
 
 
+FText UFractureToolHide::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolHide", "Hide"));
+}
+
+FText UFractureToolHide::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolHideTooltip", "Set all geometry in selected branch to invisible."));
+}
+
+FSlateIcon UFractureToolHide::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.Hide");
+}
+
+void UFractureToolHide::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Hide", "Hide", "Set all geometry in selected branch to invisible.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->Hide = UICommandInfo;
+}
+
+void UFractureToolHide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+			UGeometryCollection* FracturedGeometryCollection = Context.GetFracturedGeometryCollection();
+
+			Context.ConvertSelectionToRigidNodes();
+
+			const TManagedArray<int32>&	TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
+			const TManagedArray<int32>&	FaceStart = GeometryCollection->FaceStart;
+			const TManagedArray<int32>&	FaceCount = GeometryCollection->FaceCount;
+			TManagedArray<bool>& Visible = GeometryCollection->Visible;
+
+
+			const TArray<int32>& Selection = Context.GetSelection();
+			for (int32 Idx : Selection)
+			{
+				// Iterate the faces in the geometry of this rigid node and set invisible.
+				if (TransformToGeometryIndex[Idx] > INDEX_NONE)
+				{
+					int32 CurrFace = FaceStart[TransformToGeometryIndex[Idx]];
+					for (int32 FaceOffset = 0; FaceOffset < FaceCount[TransformToGeometryIndex[Idx]]; ++FaceOffset)
+					{
+						Visible[CurrFace + FaceOffset] = false;
+					}
+				}
+			}
+
+			Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
+			Context.GetGeometryCollectionComponent()->MarkRenderDynamicDataDirty();
+			Refresh(Context, Toolkit, true);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
+}
+
+
+
+FText UFractureToolUnhide::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolUnhide", "Hide"));
+}
+
+FText UFractureToolUnhide::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolUnhideTooltip", "Set all geometry in selected branch to visible."));
+}
+
+FSlateIcon UFractureToolUnhide::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.Unhide");
+}
+
+void UFractureToolUnhide::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Unhide", "Unhide", "Set all geometry in selected branch to visible.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->Unhide = UICommandInfo;
+}
+
+void UFractureToolUnhide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			FGeometryCollection* GeometryCollection = Context.GetGeometryCollection().Get();
+			UGeometryCollection* FracturedGeometryCollection = Context.GetFracturedGeometryCollection();
+
+			Context.ConvertSelectionToRigidNodes();
+
+			const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
+			const TManagedArray<int32>& FaceStart = GeometryCollection->FaceStart;
+			const TManagedArray<int32>& FaceCount = GeometryCollection->FaceCount;
+			TManagedArray<bool>& Visible = GeometryCollection->Visible;
+
+
+			const TArray<int32>& Selection = Context.GetSelection();
+			for (int32 Idx : Selection)
+			{
+				// Iterate the faces in the geometry of this rigid node and set invisible.
+				if (TransformToGeometryIndex[Idx] > INDEX_NONE)
+				{
+					int32 CurrFace = FaceStart[TransformToGeometryIndex[Idx]];
+					for (int32 FaceOffset = 0; FaceOffset < FaceCount[TransformToGeometryIndex[Idx]]; ++FaceOffset)
+					{
+						Visible[CurrFace + FaceOffset] = true;
+					}
+				}
+			}
+
+			Context.GetGeometryCollectionComponent()->MarkRenderStateDirty();
+			Context.GetGeometryCollectionComponent()->MarkRenderDynamicDataDirty();
+			Refresh(Context, Toolkit, true);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
+}
+
+
 FText UFractureToolValidate::GetDisplayText() const
 {
 	return FText(NSLOCTEXT("FractureToolEditingOps", "FractureToolValidate", "Validate"));

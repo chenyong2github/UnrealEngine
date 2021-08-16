@@ -1242,6 +1242,29 @@ bool FGeometryCollection::SetNumUVLayers(int32 NumLayers)
 	return true;
 }
 
+bool FGeometryCollection::IsVisible(int32 Element) const
+{
+	if (!IsRigid(Element))
+	{
+		return false;
+	}
+
+	if (TransformToGeometryIndex[Element] > INDEX_NONE)
+	{
+		int32 CurrFace = FaceStart[TransformToGeometryIndex[Element]];
+		for (int32 FaceOffset = 0; FaceOffset < FaceCount[TransformToGeometryIndex[Element]]; ++FaceOffset)
+		{
+			if (Visible[CurrFace + FaceOffset])
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;;
+}
+
+
 FGeometryCollection* FGeometryCollection::NewGeometryCollection(const TArray<float>& RawVertexArray, const TArray<int32>& RawIndicesArray, bool ReverseVertexOrder)
 {
 
