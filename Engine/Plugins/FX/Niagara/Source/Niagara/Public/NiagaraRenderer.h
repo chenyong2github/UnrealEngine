@@ -70,7 +70,7 @@ struct FParticleRenderData
 /**
 * Base class for Niagara System renderers.
 */
-class FNiagaraRenderer
+class NIAGARA_API FNiagaraRenderer
 {
 public:
 
@@ -116,17 +116,17 @@ public:
 	FORCEINLINE static FRHIShaderResourceView* GetSrvOrDefaultUInt(FGlobalDynamicReadBuffer::FAllocation& Allocation) { return Allocation.IsValid() ? (FRHIShaderResourceView*)Allocation.SRV : GetDummyUIntBuffer(); }
 	FORCEINLINE static FRHIShaderResourceView* GetSrvOrDefaultInt(FGlobalDynamicReadBuffer::FAllocation& Allocation) { return Allocation.IsValid() ? (FRHIShaderResourceView*)Allocation.SRV : GetDummyIntBuffer(); }
 
-	NIAGARA_API static FRHIShaderResourceView* GetDummyFloatBuffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyFloat2Buffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyFloat4Buffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyWhiteColorBuffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyIntBuffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyUIntBuffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyUInt4Buffer();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyTextureReadBuffer3D();
-	NIAGARA_API static FRHIShaderResourceView* GetDummyHalfBuffer();
+	static FRHIShaderResourceView* GetDummyFloatBuffer();
+	static FRHIShaderResourceView* GetDummyFloat2Buffer();
+	static FRHIShaderResourceView* GetDummyFloat4Buffer();
+	static FRHIShaderResourceView* GetDummyWhiteColorBuffer();
+	static FRHIShaderResourceView* GetDummyIntBuffer();
+	static FRHIShaderResourceView* GetDummyUIntBuffer();
+	static FRHIShaderResourceView* GetDummyUInt4Buffer();
+	static FRHIShaderResourceView* GetDummyTextureReadBuffer2D();
+	static FRHIShaderResourceView* GetDummyTextureReadBuffer2DArray();
+	static FRHIShaderResourceView* GetDummyTextureReadBuffer3D();
+	static FRHIShaderResourceView* GetDummyHalfBuffer();
 
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 

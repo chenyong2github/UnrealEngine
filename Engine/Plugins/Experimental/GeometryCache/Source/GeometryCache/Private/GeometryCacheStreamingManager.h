@@ -60,7 +60,7 @@ struct IGeometryCacheStreamingManager : public IStreamingManager
 	 * this may be useful when the component has seeked etc.*/
 	virtual void PrefetchData(UGeometryCacheComponent* CacheComponent) = 0;
 
-	/** Returns true if this is a streaming Sound Source that is managed by the streaming manager. */
+	/** Returns true if this is a streaming component that is managed by the streaming manager. */
 	virtual bool IsManagedComponent(const UGeometryCacheComponent* CacheComponent) const = 0;
 
 	/**
