@@ -911,6 +911,11 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[7], { ParticleHandles[6],ParticleHandles[1] }));
 		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[8], { ParticleHandles[7],ParticleHandles[0] }));
 
+		// Storage for positions for particles 0, 1, 6 for testing assumptions
+		FVector Ref0;
+		FVector Ref1;
+		FVector Ref6;
+
 		for (int Frame = 1; Frame < 10; Frame++)
 		{
 			UnitTest.Advance();
@@ -935,10 +940,7 @@ namespace GeometryCollectionTest
 			EXPECT_NE(ParticleHandles[5]->InvM(), 0); // dynamic rigid
 			EXPECT_NE(ParticleHandles[6]->InvM(), 0); // dynamic cluster
 
-			// Storage for positions for particles 0, 1, 6 for testing assumptions
-			FVector Ref0;
-			FVector Ref1; 
-			FVector Ref6;
+
 
 			if (!bValidInitialState && Frame == 1)
 			{
