@@ -1178,7 +1178,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 		{
 			do
 			{
-				TArray<URigVMPin*> SourcePins = Pin->GetLinkedSourcePins(false);
+				TArray<URigVMPin*> SourcePins = SourcePin->GetLinkedSourcePins(false);
 				if(SourcePins.Num() > 0)
 				{
 					SourcePin = SourcePins[0];
