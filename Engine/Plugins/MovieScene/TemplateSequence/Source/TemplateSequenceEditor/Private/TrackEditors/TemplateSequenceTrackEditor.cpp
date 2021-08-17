@@ -15,6 +15,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "ICollectionManager.h"
 #include "IContentBrowserSingleton.h"
+#include "LevelSequence.h"
 #include "Misc/ConfigCacheIni.h"
 #include "MovieSceneCommonHelpers.h"
 #include "MovieSceneTimeHelpers.h"
@@ -48,6 +49,11 @@ TSharedRef<ISequencerTrackEditor> FTemplateSequenceTrackEditor::CreateTrackEdito
 bool FTemplateSequenceTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
 {
 	return Type == UTemplateSequenceTrack::StaticClass();
+}
+
+bool FTemplateSequenceTrackEditor::SupportsSequence(UMovieSceneSequence* InSequence) const
+{
+	return InSequence && InSequence->IsA(ULevelSequence::StaticClass());
 }
 
 void FTemplateSequenceTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
