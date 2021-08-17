@@ -156,7 +156,12 @@ public:
 	/** Callback when property changed for one of the source settings */
 	void OnPropertyChanged(FGuid EntryGuid, const FPropertyChangedEvent& PropertyChangedEvent);
 
-	TArray<FGuid> GetDisplayableSources() const;
+	/**
+	 * Get all sources that can be displayed in the UI's source list.
+	 * @param bIncludeVirtualSources Whether or not to include virtual sources in the returned list, since virtual sources are not displayed in the source list.
+	 * @return the list of displayable sources.
+	 */
+	TArray<FGuid> GetDisplayableSources(bool bIncludeVirtualSources = false) const;
 
 	FLiveLinkSubjectTimeSyncData GetTimeSyncData(FLiveLinkSubjectName SubjectName);
 
