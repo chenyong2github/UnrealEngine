@@ -865,7 +865,7 @@ static FORCEINLINE bool IsInRenderingOrRHIThread()
 
 void FRHICommandListExecutor::ExecuteList(FRHICommandListBase& CmdList)
 {
-	LLM_SCOPE(ELLMTag::RHIMisc);
+	LLM_SCOPE_BYNAME(TEXT("FRHICommandListExecutorExecuteList"));
 
 	check(&CmdList != &GetImmediateCommandList() && (GRHISupportsParallelRHIExecute || IsInRenderingOrRHIThread()));
 
