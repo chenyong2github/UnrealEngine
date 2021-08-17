@@ -3114,6 +3114,21 @@ EGroomBindingType UGroomAsset::GetBindingType(int32 GroupIndex, int32 LODIndex) 
 	return HairGroupsLOD[GroupIndex].LODs[LODIndex].BindingType;
 }
 
+bool UGroomAsset::IsVisible(int32 GroupIndex, int32 LODIndex) const
+{
+	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num())
+	{
+		return false;
+	}
+
+	if (LODIndex < 0 || LODIndex >= HairGroupsLOD[GroupIndex].LODs.Num())
+	{
+		return false;
+	}
+
+	return HairGroupsLOD[GroupIndex].LODs[LODIndex].bVisible;
+}
+
 bool UGroomAsset::IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const 
 {
 	if (GroupIndex < 0 || GroupIndex >= HairGroupsLOD.Num() || !IsHairStrandsSimulationEnable())
