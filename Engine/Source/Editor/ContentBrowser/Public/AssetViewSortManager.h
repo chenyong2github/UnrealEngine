@@ -9,7 +9,7 @@
 
 class FAssetViewItem;
 
-class FAssetViewSortManager
+class CONTENTBROWSER_API FAssetViewSortManager
 {
 public:
 	/** Constructor */
