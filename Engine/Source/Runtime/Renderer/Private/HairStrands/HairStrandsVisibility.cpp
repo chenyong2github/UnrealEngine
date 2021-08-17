@@ -973,6 +973,11 @@ static void AddHairVelocityPass(
 	if (!bWriteOutVelocity)
 		return;
 
+	if (!HasBeenProduced(OutVelocityTexture))
+	{
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutVelocityTexture), 0.f);
+	}
+
 	const FIntPoint Resolution = OutVelocityTexture->Desc.Extent;
 	{
 		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R8_UINT, FClearValueBinding::None, TexCreate_UAV);
