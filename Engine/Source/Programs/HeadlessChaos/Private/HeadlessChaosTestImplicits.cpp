@@ -547,11 +547,11 @@ namespace ChaosTest {
 		
 		// Note: tapered cylinders always return normals parallel to the endcap planes when calculating for points near/on the body,
 		// very much like a normal cylinder. The slant is ignored. 
-		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, 1 / 3., 1 / 3.)),  FVec3(0, 1, 0));
-		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(1 / 3., 0, 1 / 3.)),  FVec3(1, 0, 0)); 
-		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, -1 / 3., 1 / 3.)), FVec3(0, -1, 0)); 
-		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(-1 / 3., 0, 1 / 3.)), FVec3(-1, 0, 0)); 
-		EXPECT_VECTOR_NEAR(SubjectCone.Normal(FVec3(1 / 3., 1 / 3., 1 / 2.)), FVec3(0.707, 0.707, 0), 0.001); 
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, 1 / 2., 1 / 2.)),  FVec3(0, 1, 0));
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(1 / 2., 0, 1 / 2.)),  FVec3(1, 0, 0)); 
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, -1 / 2., 1 / 2.)), FVec3(0, -1, 0)); 
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(-1 / 2., 0, 1 / 2.)), FVec3(-1, 0, 0)); 
+		EXPECT_VECTOR_NEAR(SubjectCone.Normal(FVec3(1 / 2., 1 / 2., 1 / 2.)), FVec3(0.707, 0.707, 0), 0.001); 
 
 		// outside normals
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, 0, -1 / 2.)), FVec3(0, 0, -1));

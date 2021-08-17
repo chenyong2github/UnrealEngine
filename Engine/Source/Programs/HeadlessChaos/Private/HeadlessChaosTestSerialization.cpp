@@ -522,8 +522,14 @@ namespace ChaosTest
 			EXPECT_EQ(SerializedGeomData.Scale, OriginalGeomData.Scale);
 			EXPECT_EQ(SerializedGeomData.NumRows, OriginalGeomData.NumRows);
 			EXPECT_EQ(SerializedGeomData.NumCols, OriginalGeomData.NumCols);
+#if UE_LARGE_WORLD_COORDINATES_DISABLED 
 			EXPECT_EQ(SerializedGeomData.Range, OriginalGeomData.Range);
 			EXPECT_EQ(SerializedGeomData.HeightPerUnit, OriginalGeomData.HeightPerUnit);
+#else
+			// LWC-TODO : this is required for now as LWC mode serialize in floats causing some slight difference when reading back 
+			EXPECT_TRUE(FMath::Abs(SerializedGeomData.Range - OriginalGeomData.Range) < SMALL_NUMBER);
+			EXPECT_TRUE(FMath::Abs(SerializedGeomData.HeightPerUnit - OriginalGeomData.HeightPerUnit) < SMALL_NUMBER);
+#endif
 			EXPECT_EQ(SerializedGeomData.Heights.Num(), OriginalGeomData.Heights.Num());
 			EXPECT_EQ(SerializedGeomData.MaterialIndices.Num(), OriginalGeomData.MaterialIndices.Num());
 
