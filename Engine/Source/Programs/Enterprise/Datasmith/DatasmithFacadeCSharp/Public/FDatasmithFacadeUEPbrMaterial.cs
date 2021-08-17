@@ -73,11 +73,6 @@ public class FDatasmithFacadeUEPbrMaterial : FDatasmithFacadeBaseMaterial {
     return ret;
   }
 
-  public FDatasmithFacadeExpressionInput GetWorldDisplacement() {
-    FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement(swigCPtr), true);
-    return ret;
-  }
-
   public FDatasmithFacadeExpressionInput GetRefraction() {
     FDatasmithFacadeExpressionInput ret = new FDatasmithFacadeExpressionInput(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeUEPbrMaterial_GetRefraction(swigCPtr), true);
     return ret;

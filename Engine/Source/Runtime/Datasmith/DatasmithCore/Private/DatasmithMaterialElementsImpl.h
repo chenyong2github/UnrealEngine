@@ -672,7 +672,6 @@ public:
 	virtual IDatasmithExpressionInput& GetEmissiveColor() override { return *EmissiveColor.Edit(); }
 	virtual IDatasmithExpressionInput& GetOpacity() override { return *Opacity.Edit(); }
 	virtual IDatasmithExpressionInput& GetNormal() override { return *Normal.Edit(); }
-	virtual IDatasmithExpressionInput& GetWorldDisplacement() override { return *WorldDisplacement.Edit(); }
 	virtual IDatasmithExpressionInput& GetRefraction() override { return *Refraction.Edit(); }
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() override { return *AmbientOcclusion.Edit(); }
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() override { return *MaterialAttributes.Edit(); }

@@ -544,7 +544,6 @@ enum class EScanlineMaterialMaps
 	Bump,
 	Reflection,
 	Refraction,
-	Displacement
 };
 
 void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene > DatasmithScene, TSharedPtr< IDatasmithMaterialElement >& MaterialElement, Mtl* Material)
@@ -558,14 +557,12 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 	bool bMaskTexEnable = true;
 	bool bGlossyTexEnable = true;
 	bool bBumpTexEnable = true;
-	bool bDisplaceTexEnable = true;
 
 	float DiffuseTexAmount = 0.f;
 	float ReflectanceTexAmount = 0.f;
 	float MaskTexAmount = 0.f;
 	float GlossyTexAmount = 0.f;
 	float BumpTexAmount = 0.f;
-	float DisplaceTexAmount = 0.f;
 
 	bool bUseSelfIllumColor = true;
 
@@ -610,11 +607,6 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 				{
 					bBumpTexEnable = false;
 				}
-
-				if (ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Displacement) == nullptr)
-				{
-					bDisplaceTexEnable = false;
-				}
 			}
 
 			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("mapEnables")) == 0)
@@ -643,11 +635,6 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 				{
 					bBumpTexEnable = false;
 				}
-
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Displacement) == 0)
-				{
-					bDisplaceTexEnable = false;
-				}
 			}
 
 			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("mapAmounts")) == 0)
@@ -657,7 +644,6 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 				GlossyTexAmount = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Glossiness);
 				MaskTexAmount = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Opacity);
 				BumpTexAmount = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Bump);
-				DisplaceTexAmount = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Displacement);
 			}
 
 			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("SpecularLevel")) == 0)
@@ -700,10 +686,6 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 				if (bBumpTexEnable == true)
 				{
 					MaterialShader->SetBumpAmount( ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), 8) );
-				}
-				if (bDisplaceTexEnable == true)
-				{
-					MaterialShader->SetDisplace( 0.1f * ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime(), 11) );
 				}
 			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("ior")) == 0)
@@ -798,12 +780,6 @@ void FDatasmithMaxMatWriter::ExportStandardMaterial(TSharedRef< IDatasmithScene 
 					{
 						DumpTexture(DatasmithScene, MaterialShader->GetBumpComp(), LocalTex, DATASMITH_BUMPTEXNAME, DATASMITH_BUMPTEXNAME, false, true);
 					}
-				}
-				if (bDisplaceTexEnable == true && DisplaceTexAmount > 0)
-				{
-					Texmap* LocalTex = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime(), (int)EScanlineMaterialMaps::Displacement);
-					DumpTexture(DatasmithScene, MaterialShader->GetDisplaceComp(), LocalTex, DATASMITH_DISPLACETEXNAME, DATASMITH_DISPLACETEXNAME, false, true);
-					MaterialShader->SetDisplaceSubDivision(4.0);
 				}
 			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("selfillumMap")) == 0 && bUseSelfIllumColor == true && SelfIllumTex != nullptr)

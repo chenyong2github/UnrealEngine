@@ -1413,203 +1413,185 @@ void FDatasmithSceneXmlReader::ParseMaterial(FXmlNode* InNode, TSharedPtr< IData
 				FString Texture;
 				FDatasmithTextureSampler TextureSampler;
 				FLinearColor Color;
-
-				if (ShaderNodes[j]->GetTag() == DATASMITH_DIFFUSETEXNAME)
+				const FString& NodeTag = ShaderNodes[j]->GetTag();
+				if (NodeTag == DATASMITH_DIFFUSETEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetDiffuseTexture(*Texture);
 					ShaderElement->SetDiffTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DIFFUSECOLNAME)
+				else if (NodeTag == DATASMITH_DIFFUSECOLNAME)
 				{
 					ParseColor(ShaderNodes[j], Color);
 					ShaderElement->SetDiffuseColor(Color);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DIFFUSECOMPNAME)
+				else if (NodeTag == DATASMITH_DIFFUSECOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetDiffuseComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_REFLETEXNAME)
+				else if (NodeTag == DATASMITH_REFLETEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetReflectanceTexture(*Texture);
 					ShaderElement->SetRefleTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_REFLECOLNAME)
+				else if (NodeTag == DATASMITH_REFLECOLNAME)
 				{
 					ParseColor(ShaderNodes[j], Color);
 					ShaderElement->SetReflectanceColor(Color);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_REFLECOMPNAME)
+				else if (NodeTag == DATASMITH_REFLECOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetRefleComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_ROUGHNESSTEXNAME)
+				else if (NodeTag == DATASMITH_ROUGHNESSTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetRoughnessTexture(*Texture);
 					ShaderElement->SetRoughTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_ROUGHNESSVALUENAME)
+				else if (NodeTag == DATASMITH_ROUGHNESSVALUENAME)
 				{
 					ShaderElement->SetRoughness(fmax(0.02, ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value")))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_ROUGHNESSCOMPNAME)
+				else if (NodeTag == DATASMITH_ROUGHNESSCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetRoughnessComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_BUMPVALUENAME)
+				else if (NodeTag == DATASMITH_BUMPVALUENAME)
 				{
 					ShaderElement->SetBumpAmount(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_BUMPTEXNAME)
+				else if (NodeTag == DATASMITH_BUMPTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetBumpTexture(*Texture);
 					ShaderElement->SetBumpTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_NORMALTEXNAME)
+				else if (NodeTag == DATASMITH_NORMALTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetNormalTexture(*Texture);
 					ShaderElement->SetNormalTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_NORMALCOMPNAME)
+				else if (NodeTag == DATASMITH_NORMALCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetNormalComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_TRANSPTEXNAME)
+				else if (NodeTag == DATASMITH_TRANSPTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetTransparencyTexture(*Texture);
 					ShaderElement->SetTransTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_TRANSPCOMPNAME)
+				else if (NodeTag == DATASMITH_TRANSPCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetTransComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_CLIPTEXNAME)
+				else if (NodeTag == DATASMITH_CLIPTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetMaskTexture(*Texture);
 					ShaderElement->SetMaskTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_CLIPCOMPNAME)
+				else if (NodeTag == DATASMITH_CLIPCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetMaskComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_TRANSPCOLNAME)
+				else if (NodeTag == DATASMITH_TRANSPCOLNAME)
 				{
 					ParseColor(ShaderNodes[j], Color);
 					ShaderElement->SetTransparencyColor(Color);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_IORVALUENAME)
+				else if (NodeTag == DATASMITH_IORVALUENAME)
 				{
 					ShaderElement->SetIOR(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_IORKVALUENAME)
+				else if (NodeTag == DATASMITH_IORKVALUENAME)
 				{
 					ShaderElement->SetIORk(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_REFRAIORVALUENAME)
+				else if (NodeTag == DATASMITH_REFRAIORVALUENAME)
 				{
 					ShaderElement->SetIORRefra(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_TWOSIDEDVALUENAME)
+				else if (NodeTag == DATASMITH_TWOSIDEDVALUENAME)
 				{
 					ShaderElement->SetTwoSided(ValueFromString<bool>(ShaderNodes[j]->GetAttribute(TEXT("enabled"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DISPLACETEXNAME)
-				{
-					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
-					ShaderElement->SetDisplaceTexture(*Texture);
-					ShaderElement->SetDisplaceTextureSampler(TextureSampler);
-				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DISPLACEVALNAME)
-				{
-					ShaderElement->SetDisplace(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
-				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DISPLACECOMPNAME)
-				{
-					ParseComp(ShaderNodes[j], ShaderElement->GetDisplaceComp());
-				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DISPLACESUBNAME)
-				{
-					ShaderElement->SetDisplaceSubDivision(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
-				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_METALTEXNAME)
+				else if (NodeTag == DATASMITH_METALTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetMetalTexture(*Texture);
 					ShaderElement->SetMetalTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_METALVALUENAME)
+				else if (NodeTag == DATASMITH_METALVALUENAME)
 				{
 					ShaderElement->SetMetal(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_METALCOMPNAME)
+				else if (NodeTag == DATASMITH_METALCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetMetalComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITTEXNAME)
+				else if (NodeTag == DATASMITH_EMITTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetEmitTexture(*Texture);
 					ShaderElement->SetEmitTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITVALUENAME)
+				else if (NodeTag == DATASMITH_EMITVALUENAME)
 				{
 					ShaderElement->SetEmitPower(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITCOMPNAME)
+				else if (NodeTag == DATASMITH_EMITCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetEmitComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITTEMPNAME)
+				else if (NodeTag == DATASMITH_EMITTEMPNAME)
 				{
 					ShaderElement->SetEmitTemperature(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITCOLNAME)
+				else if (NodeTag == DATASMITH_EMITCOLNAME)
 				{
 					ParseColor(ShaderNodes[j], Color);
 					ShaderElement->SetEmitColor(Color);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_EMITONLYVALUENAME)
+				else if (NodeTag == DATASMITH_EMITONLYVALUENAME)
 				{
 					ShaderElement->SetLightOnly(ValueFromString<bool>(ShaderNodes[j]->GetAttribute(TEXT("enabled"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_WEIGHTTEXNAME)
+				else if (NodeTag == DATASMITH_WEIGHTTEXNAME)
 				{
 					ParseTexture(ShaderNodes[j], Texture, TextureSampler);
 					ShaderElement->SetWeightTexture(*Texture);
 					ShaderElement->SetWeightTextureSampler(TextureSampler);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_WEIGHTCOLNAME)
+				else if (NodeTag == DATASMITH_WEIGHTCOLNAME)
 				{
 					ParseColor(ShaderNodes[j], Color);
 					ShaderElement->SetWeightColor(Color);
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_WEIGHTCOMPNAME)
+				else if (NodeTag == DATASMITH_WEIGHTCOMPNAME)
 				{
 					ParseComp(ShaderNodes[j], ShaderElement->GetWeightComp());
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_WEIGHTVALUENAME)
+				else if (NodeTag == DATASMITH_WEIGHTVALUENAME)
 				{
 					ShaderElement->SetWeightValue(ValueFromString<double>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_BLENDMODE)
+				else if (NodeTag == DATASMITH_BLENDMODE)
 				{
 					ShaderElement->SetBlendMode((EDatasmithBlendMode)ValueFromString<int32>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_STACKLAYER)
+				else if (NodeTag == DATASMITH_STACKLAYER)
 				{
 					ShaderElement->SetIsStackedLayer(ValueFromString<bool>(ShaderNodes[j]->GetAttribute(TEXT("enabled"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_DYNAMICEMISSIVE)
+				else if (NodeTag == DATASMITH_DYNAMICEMISSIVE)
 				{
 					ShaderElement->SetUseEmissiveForDynamicAreaLighting(ValueFromString<bool>(ShaderNodes[j]->GetAttribute(TEXT("enabled"))));
 				}
-				else if (ShaderNodes[j]->GetTag() == DATASMITH_SHADERUSAGE)
+				else if (NodeTag == DATASMITH_SHADERUSAGE)
 				{
 					ShaderElement->SetShaderUsage((EDatasmithShaderUsage)ValueFromString<int32>(ShaderNodes[j]->GetAttribute(TEXT("value"))));
 				}
@@ -1930,7 +1912,6 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 	TryConnectMaterialInput(OutElement->GetEmissiveColor());
 	TryConnectMaterialInput(OutElement->GetOpacity());
 	TryConnectMaterialInput(OutElement->GetNormal());
-	TryConnectMaterialInput(OutElement->GetWorldDisplacement());
 	TryConnectMaterialInput(OutElement->GetRefraction());
 	TryConnectMaterialInput(OutElement->GetAmbientOcclusion());
 	TryConnectMaterialInput(OutElement->GetMaterialAttributes());

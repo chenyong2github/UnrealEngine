@@ -1191,16 +1191,6 @@ void FDatasmithSceneXmlWriterImpl::WriteShaderElement(const TSharedPtr< IDatasmi
 		WriteBool(Archive, Indent + 1, DATASMITH_TWOSIDEDVALUENAME, ShaderElement->GetTwoSided());
 	}
 
-	if (ShaderElement->GetDisplace() > 0)
-	{
-		WriteValue(Archive, Indent + 1, DATASMITH_DISPLACEVALNAME, (float)ShaderElement->GetDisplace());
-	}
-
-	if (ShaderElement->GetDisplaceSubDivision() > 0)
-	{
-		WriteValue(Archive, Indent + 1, DATASMITH_DISPLACESUBNAME, (float)ShaderElement->GetDisplaceSubDivision());
-	}
-
 	if (ShaderElement->GetMetal() > 0)
 	{
 		WriteValue(Archive, Indent + 1, DATASMITH_METALVALUENAME, (float)ShaderElement->GetMetal());
@@ -1223,7 +1213,6 @@ void FDatasmithSceneXmlWriterImpl::WriteShaderElement(const TSharedPtr< IDatasmi
 	WriteCompTex(ShaderElement->GetBumpComp(), Archive, Indent + 1);
 	WriteCompTex(ShaderElement->GetTransComp(), Archive, Indent + 1);
 	WriteCompTex(ShaderElement->GetMaskComp(), Archive, Indent + 1);
-	WriteCompTex(ShaderElement->GetDisplaceComp(), Archive, Indent + 1);
 	WriteCompTex(ShaderElement->GetMetalComp(), Archive, Indent + 1);
 	WriteCompTex(ShaderElement->GetEmitComp(), Archive, Indent + 1);
 	WriteCompTex(ShaderElement->GetWeightComp(), Archive, Indent + 1);
@@ -1428,7 +1417,6 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialElement( const TSharedRef< 
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetEmissiveColor(), Archive, Indent + 1 );
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetOpacity(), Archive, Indent + 1 );
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetNormal(), Archive, Indent + 1 );
-	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetWorldDisplacement(), Archive, Indent + 1 );
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetRefraction(), Archive, Indent + 1 );
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetAmbientOcclusion(), Archive, Indent + 1 );
 	WriteUEPbrMaterialExpressionInput( MaterialElement, MaterialElement->GetMaterialAttributes(), Archive, Indent + 1 );

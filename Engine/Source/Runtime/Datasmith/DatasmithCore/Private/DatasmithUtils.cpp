@@ -1036,7 +1036,6 @@ namespace DatasmithSceneUtilsImpl
 			ParseExpressionElement(MaterialElement->GetRefraction().GetExpression());
 			ParseExpressionElement(MaterialElement->GetAmbientOcclusion().GetExpression());
 			ParseExpressionElement(MaterialElement->GetOpacity().GetExpression());
-			ParseExpressionElement(MaterialElement->GetWorldDisplacement().GetExpression());
 
 			if ( MaterialElement->GetUseMaterialAttributes() )
 			{
@@ -1091,7 +1090,6 @@ namespace DatasmithSceneUtilsImpl
 					ScanCompositeTexture( Shader->GetBumpComp().Get() );
 					ScanCompositeTexture( Shader->GetTransComp().Get() );
 					ScanCompositeTexture( Shader->GetMaskComp().Get() );
-					ScanCompositeTexture( Shader->GetDisplaceComp().Get() );
 					ScanCompositeTexture( Shader->GetMetalComp().Get() );
 					ScanCompositeTexture( Shader->GetEmitComp().Get() );
 					ScanCompositeTexture( Shader->GetWeightComp().Get() );

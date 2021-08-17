@@ -841,7 +841,7 @@ class DATASMITHCORE_API IDatasmithShaderElement : public IDatasmithElement
 public:
 	/**
 	 * Realistic fresnel creates a pretty more complex node tree based on the actual fresnel equation.
-	 * If this param is not enabled an aproximation will be used.
+	 * If this param is not enabled an approximation will be used.
 	 *
 	 * It has no effect if bDisableReflectionFresnel is set to true.
 	*/
@@ -1053,103 +1053,70 @@ public:
 	/** Set the opacity mask compound map */
 	virtual void SetMaskComp(const TSharedPtr<IDatasmithCompositeTexture>& Value) = 0;
 
-	/** Get the displacement filename */
-	virtual const TCHAR* GetDisplaceTexture() const = 0;
-
-	/** Set the displacement filename */
-	virtual void SetDisplaceTexture(const TCHAR* Value) = 0;
-
-	/** Get the displacement UV coordinates */
-	virtual FDatasmithTextureSampler GetDisplaceTextureSampler() const = 0;
-
-	/** Set the displacement UV coordinates */
-	virtual void SetDisplaceTextureSampler(FDatasmithTextureSampler Value) = 0;
-
-	/** Get the displacement value in centimeters */
-	virtual double GetDisplace() const = 0;
-
-	/** Set the displacement value in centimeters */
-	virtual void SetDisplace(double Value) = 0;
-
-	/** Get the displacement subdivision multiplier */
-	virtual double GetDisplaceSubDivision() const = 0;
-
-	/** Set the displacement subdivision multiplier */
-	virtual void SetDisplaceSubDivision(double Value) = 0;
-
-	/** Get the displacement compound map */
-	virtual TSharedPtr<IDatasmithCompositeTexture>& GetDisplaceComp() = 0;
-
-	/** Get the displacement compound map */
-	virtual const TSharedPtr<IDatasmithCompositeTexture>& GetDisplaceComp() const = 0;
-
-	/** Set the displacement compound map */
-	virtual void SetDisplaceComp(const TSharedPtr<IDatasmithCompositeTexture>& Value) = 0;
-
 	/** Get the metalness value */
 	virtual double GetMetal() const = 0;
 
 	/** Set the metalness value */
 	virtual void SetMetal(double Value) = 0;
 
-	/** Get the diffuse filename */
+	/** Get the metalness filename */
 	virtual const TCHAR* GetMetalTexture() const = 0;
 
-	/** Set the diffuse filename */
+	/** Set the metalness filename */
 	virtual void SetMetalTexture(const TCHAR* Value) = 0;
 
-	/** Get the diffuse UV coordinates */
+	/** Get the metalness UV coordinates */
 	virtual FDatasmithTextureSampler GetMetalTextureSampler() const = 0;
 
-	/** Set the diffuse UV coordinates */
+	/** Set the metalness UV coordinates */
 	virtual void SetMetalTextureSampler(FDatasmithTextureSampler Value) = 0;
 
-	/** Get the diffuse compound map */
+	/** Get the metalness compound map */
 	virtual TSharedPtr<IDatasmithCompositeTexture>& GetMetalComp() = 0;
 
-	/** Get the diffuse compound map */
+	/** Get the metalness compound map */
 	virtual const TSharedPtr<IDatasmithCompositeTexture>& GetMetalComp() const = 0;
 
-	/** Set the diffuse compound map */
+	/** Set the metalness compound map */
 	virtual void SetMetalComp(const TSharedPtr<IDatasmithCompositeTexture>& Value) = 0;
 
-	/** Get the emmitance color in linear space */
+	/** Get the emittance color in linear space */
 	virtual FLinearColor GetEmitColor() const = 0;
 
-	/** Set the emmitance color in linear space */
+	/** Set the emittance color in linear space */
 	virtual void SetEmitColor(FLinearColor Value) = 0;
 
-	/** Get the emmitance filename */
+	/** Get the emittance filename */
 	virtual const TCHAR* GetEmitTexture() const = 0;
 
-	/** Set the emmitance filename */
+	/** Set the emittance filename */
 	virtual void SetEmitTexture(const TCHAR* Value) = 0;
 
-	/** Get the emmitance UV coordinates */
+	/** Get the emittance UV coordinates */
 	virtual FDatasmithTextureSampler GetEmitTextureSampler() const = 0;
 
-	/** Set the emmitance UV coordinates */
+	/** Set the emittance UV coordinates */
 	virtual void SetEmitTextureSampler(FDatasmithTextureSampler Value) = 0;
 
-	/** Get the emmitance temperature color */
+	/** Get the emittance temperature color */
 	virtual double GetEmitTemperature() const = 0;
 
-	/** Set the emmitance temperature color */
+	/** Set the emittance temperature color */
 	virtual void SetEmitTemperature(double Value) = 0;
 
-	/** Get the emmitance power in lumens */
+	/** Get the emittance power in lumens */
 	virtual double GetEmitPower() const = 0;
 
-	/** Set the emmitance power in lumens */
+	/** Set the emittance power in lumens */
 	virtual void SetEmitPower(double Value) = 0;
 
-	/** Get the emmitance compound map */
+	/** Get the emittance compound map */
 	virtual TSharedPtr<IDatasmithCompositeTexture>& GetEmitComp() = 0;
-	/** Get the emmitance compound map */
 
+	/** Get the emittance compound map */
 	virtual const TSharedPtr<IDatasmithCompositeTexture>& GetEmitComp() const = 0;
 
-	/** Set the emmitance compound map */
+	/** Set the emittance compound map */
 	virtual void SetEmitComp(const TSharedPtr<IDatasmithCompositeTexture>& Value) = 0;
 
 

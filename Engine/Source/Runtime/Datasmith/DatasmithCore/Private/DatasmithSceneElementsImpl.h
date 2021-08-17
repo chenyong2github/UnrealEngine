@@ -109,13 +109,13 @@ public:
 
 	virtual FVector GetTranslation() const override { return Translation.Get(Store); }
 	virtual void SetTranslation(float InX, float InY, float InZ, bool bKeepChildrenRelative) override { SetTranslation( FVector( InX, InY, InZ ), bKeepChildrenRelative ); }
-	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative) override 
-	{ 
+	virtual void SetTranslation(const FVector& Value, bool bKeepChildrenRelative) override
+	{
 		if (bKeepChildrenRelative)
 		{
 			ConvertChildsToRelative();
 		}
-		SetInternalTranslation(Value); 
+		SetInternalTranslation(Value);
 		if (bKeepChildrenRelative)
 		{
 			ConvertChildsToWorld();
@@ -130,7 +130,7 @@ public:
 		{
 			ConvertChildsToRelative();
 		}
-		SetInternalScale(Value); 
+		SetInternalScale(Value);
 		if (bKeepChildrenRelative)
 		{
 			ConvertChildsToWorld();
@@ -139,13 +139,13 @@ public:
 
 	virtual FQuat GetRotation() const override { return Rotation; }
 	virtual void SetRotation(float InX, float InY, float InZ, float InW, bool bKeepChildrenRelative) override { SetRotation( FQuat( InX, InY, InZ, InW ), bKeepChildrenRelative ); }
-	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative) override 
-	{ 
+	virtual void SetRotation(const FQuat& Value, bool bKeepChildrenRelative) override
+	{
 		if (bKeepChildrenRelative)
 		{
 			ConvertChildsToRelative();
 		}
-		SetInternalRotation(Value); 
+		SetInternalRotation(Value);
 		if (bKeepChildrenRelative)
 		{
 			ConvertChildsToWorld();
@@ -1176,22 +1176,6 @@ public:
 	virtual TSharedPtr<IDatasmithCompositeTexture>& GetMaskComp() override { return MaskComp; }
 	virtual const TSharedPtr<IDatasmithCompositeTexture>& GetMaskComp() const override { return MaskComp; }
 	virtual void SetMaskComp(const TSharedPtr<IDatasmithCompositeTexture>& InValue) override { MaskComp = InValue; }
-
-	virtual const TCHAR* GetDisplaceTexture() const override { return *DisplaceTexture; }
-	virtual void SetDisplaceTexture(const TCHAR* InValue) override { DisplaceTexture = InValue; }
-
-	virtual FDatasmithTextureSampler GetDisplaceTextureSampler() const override { return DisplaceSampler; }
-	virtual void SetDisplaceTextureSampler(FDatasmithTextureSampler InValue) override { DisplaceSampler = InValue; }
-
-	virtual double GetDisplace() const override { return Displace; }
-	virtual void SetDisplace(double InValue) override { Displace = InValue; }
-
-	virtual double GetDisplaceSubDivision() const override { return DisplaceSubDivision; }
-	virtual void SetDisplaceSubDivision(double InValue) override { DisplaceSubDivision = InValue; }
-
-	virtual TSharedPtr<IDatasmithCompositeTexture>& GetDisplaceComp() override { return DisplaceComp; }
-	virtual const TSharedPtr<IDatasmithCompositeTexture>& GetDisplaceComp() const override { return DisplaceComp; }
-	virtual void SetDisplaceComp(const TSharedPtr<IDatasmithCompositeTexture>& InValue) override { DisplaceComp = InValue; }
 
 	virtual double GetMetal() const override { return Metal; }
 	virtual void SetMetal(double InValue) override { Metal = InValue; }

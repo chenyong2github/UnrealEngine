@@ -129,7 +129,6 @@ void FDatasmithMaxMatWriter::ExportCoronaMaterial(TSharedRef< IDatasmithScene > 
 	bool bGlossyTexEnable = true;
 	bool bBumpTexEnable = true;
 	bool bOpacityTexEnable = true;
-	bool bDisplaceTexEnable = true;
 
 	float DiffuseTexAmount = 0.f;
 	float ReflectanceTexAmount = 0.f;
@@ -214,13 +213,6 @@ void FDatasmithMaxMatWriter::ExportCoronaMaterial(TSharedRef< IDatasmithScene > 
 			{
 				BumpAmount = ParamBlock2->GetFloat(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmapDisplace")) == 0)
-			{
-				if (ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime()) == NULL)
-				{
-					bDisplaceTexEnable = false;
-				}
-			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmapOnDiffuse")) == 0)
 			{
 				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
@@ -270,13 +262,6 @@ void FDatasmithMaxMatWriter::ExportCoronaMaterial(TSharedRef< IDatasmithScene > 
 				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
 				{
 					bBumpTexEnable = false;
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmapOnDisplacement")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
-				{
-					bDisplaceTexEnable = false;
 				}
 			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmapOnOpacity")) == 0)
@@ -526,16 +511,6 @@ void FDatasmithMaxMatWriter::ExportCoronaMaterial(TSharedRef< IDatasmithScene > 
 					{
 						DumpTexture(DatasmithScene, MaterialShader->GetBumpComp(), LocalTex, DATASMITH_BUMPTEXNAME, DATASMITH_BUMPTEXNAME, false, true);
 					}
-				}
-			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("texmapDisplace")) == 0 && bDisplaceTexEnable)
-			{
-				Texmap* LocalTex = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
-				if (LocalTex)
-				{
-					DumpTexture(DatasmithScene, MaterialShader->GetDisplaceComp(), LocalTex, DATASMITH_DISPLACETEXNAME, DATASMITH_DISPLACETEXNAME, false, true);
-					MaterialShader->SetDisplace(10.f);
-					MaterialShader->SetDisplaceSubDivision(4.0);
 				}
 			}
 		}
