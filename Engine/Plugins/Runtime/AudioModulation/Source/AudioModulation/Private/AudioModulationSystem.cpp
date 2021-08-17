@@ -460,7 +460,7 @@ namespace AudioModulation
 				{
 					if (LastStatus != CurrentStatus)
 					{
-						UE_LOG(LogAudioModulation, Log, TEXT("Audio modulation mix '%s' stopped."), *Pair.Value.GetName());
+						UE_LOG(LogAudioModulation, Verbose, TEXT("Audio modulation mix '%s' stopped."), *Pair.Value.GetName());
 					}
 					StoppedMixIds.Add(Pair.Key);
 				}
