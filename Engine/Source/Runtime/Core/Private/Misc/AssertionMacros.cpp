@@ -491,7 +491,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const FFailureInfo& Info, const TCHAR* M
 			SCOPE_LOG_TIME_IN_SECONDS(*SendNewReportMessage, nullptr)
 #endif
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_USE_REPORT_ENSURE
 			FScopeLock Lock(&GetFailDebugCriticalSection());
 
 			ReportEnsure(ErrorMsg, Info.ProgramCounter);
