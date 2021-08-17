@@ -690,7 +690,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 		RegisterControlRigDelegates(CompToAdd, CRParamSection);
 	}
 
-	CRParamSection->ReconstructChannelProxy(true);
+	CRParamSection->ReconstructChannelProxy();
 
 	TArray<FRigControlElement*> SortedControls;
 	CRParamSection->GetControlRig()->GetControlsInOrder(SortedControls);

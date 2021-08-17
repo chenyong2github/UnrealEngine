@@ -195,11 +195,6 @@ protected:
 	/*Integer Curves*/
 	UPROPERTY()
 	TArray<FIntegerParameterNameAndCurve> IntegerParameterNamesAndCurves;
-private:
-	/** Copy of Mask for controls, checked when reconstructing*/
-	TArray<bool> OldControlsMask;
-
-
 
 public:
 
@@ -232,7 +227,7 @@ public:
 	void SetControlsMask(const TArray<bool>& InMask)
 	{
 		ControlsMask = InMask;
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	void SetControlsMask(int32 Index, bool Val)
@@ -241,14 +236,13 @@ public:
 		{
 			ControlsMask[Index] = Val;
 		}
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	void FillControlsMask(bool Val)
 	{
 		ControlsMask.Init(Val, ControlsMask.Num());
-		ReconstructChannelProxy(true);
-
+		ReconstructChannelProxy();
 	}
 
 	/**
@@ -265,7 +259,7 @@ public:
 	void SetTransformMask(FMovieSceneTransformMask NewMask)
 	{
 		TransformMask = NewMask;
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 public:
@@ -343,7 +337,7 @@ public:
 	 static FMovieSceneInterrogationKey GetVectorInterrogationKey();
 	 static FMovieSceneInterrogationKey GetTransformInterrogationKey();
 
-	virtual void ReconstructChannelProxy(bool bForce ) override;
+	virtual void ReconstructChannelProxy() override;
 
 protected:
 

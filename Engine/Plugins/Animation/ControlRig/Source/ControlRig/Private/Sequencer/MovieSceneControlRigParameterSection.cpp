@@ -787,7 +787,7 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 	{
 		SetControlRig(Track->GetControlRig());
 	}
-	ReconstructChannelProxy(true);
+	ReconstructChannelProxy();
 }
 
 void UMovieSceneControlRigParameterSection::PostLoad()
@@ -908,7 +908,7 @@ void UMovieSceneControlRigParameterSection::AddScalarParameter(FName InParameter
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -931,7 +931,7 @@ void UMovieSceneControlRigParameterSection::AddBoolParameter(FName InParameterNa
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -953,7 +953,7 @@ void UMovieSceneControlRigParameterSection::AddEnumParameter(FName InParameterNa
 		ExistingChannel->SetEnum(Enum);
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -975,7 +975,7 @@ void UMovieSceneControlRigParameterSection::AddIntegerParameter(FName InParamete
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -1000,7 +1000,7 @@ void UMovieSceneControlRigParameterSection::AddVector2DParameter(FName InParamet
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -1028,7 +1028,7 @@ void UMovieSceneControlRigParameterSection::AddVectorParameter(FName InParameter
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -1057,7 +1057,7 @@ void UMovieSceneControlRigParameterSection::AddColorParameter(FName InParameterN
 		}
 		if (bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
@@ -1105,144 +1105,199 @@ void UMovieSceneControlRigParameterSection::AddTransformParameter(FName InParame
 		}
 		if(bReconstructChannel)
 		{
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 		}
 	}
 }
 
 
-void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
+void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
-	if(bForce || ControlsMask!= OldControlsMask)
+	ControlChannelMap.Empty();
+	// Need to create the channels in sorted orders
+	if (ControlRig)
 	{
-		ControlChannelMap.Empty();
-		OldControlsMask = ControlsMask;
-		// Need to create the channels in sorted orders
-		if (ControlRig)
+		TArray<FRigControlElement*> SortedControls;
+		ControlRig->GetControlsInOrder(SortedControls);
+		if (ControlsMask.Num() != SortedControls.Num())
 		{
-			TArray<FRigControlElement*> SortedControls;
-			ControlRig->GetControlsInOrder(SortedControls);
-			if (ControlsMask.Num() != SortedControls.Num())
+			TArray<bool> OnArray;
+			OnArray.Init(true, ControlRig->AvailableControls().Num());
+			SetControlsMask(OnArray);
+		}
+			
+		int32 ControlIndex = 0; 
+		int32 TotalIndex = 0; 
+		int32 FloatChannelIndex = 0;
+		int32 BoolChannelIndex = 0;
+		int32 EnumChannelIndex = 0;
+		int32 IntegerChannelIndex = 0;
+		const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
+		const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
+		const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
+			
+		for (FRigControlElement* ControlElement : SortedControls)
+		{
+			if (!ControlElement->Settings.bAnimatable)
 			{
-				TArray<bool> OnArray;
-				OnArray.Init(true, ControlRig->AvailableControls().Num());
-				SetControlsMask(OnArray);
-				OldControlsMask = ControlsMask;
+				continue;
 			}
-			
-			int32 ControlIndex = 0; 
-			int32 TotalIndex = 0; 
-			int32 FloatChannelIndex = 0;
-			int32 BoolChannelIndex = 0;
-			int32 EnumChannelIndex = 0;
-			int32 IntegerChannelIndex = 0;
-			const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
-			const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
-			const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
-			
-			for (FRigControlElement* ControlElement : SortedControls)
-			{
-				if (!ControlElement->Settings.bAnimatable)
-				{
-					continue;
-				}
 
-				FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
-				FName ParentControlName = NAME_None;
-				if(ParentControlElement)
-				{
-					ParentControlName = ParentControlElement->GetName();
-				}
+			FRigControlElement* ParentControlElement = Cast<FRigControlElement>(ControlRig->GetHierarchy()->GetFirstParent(ControlElement));
+			FName ParentControlName = NAME_None;
+			if(ParentControlElement)
+			{
+				ParentControlName = ParentControlElement->GetName();
+			}
 #if WITH_EDITOR
 
-				switch (ControlElement->Settings.ControlType)
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Float:
+			{
+				for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
 				{
-				case ERigControlType::Float:
-				{
-					for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+					if (ControlElement->GetName() == Scalar.ParameterName)
 					{
-						if (ControlElement->GetName() == Scalar.ParameterName)
-						{
-							bool bEnabled = ControlsMask[ControlIndex];
+						bool bEnabled = ControlsMask[ControlIndex];
 
-							FText Group;
-							if(ParentControlElement)
+						FText Group;
+						if(ParentControlElement)
+						{
+							switch(ParentControlElement->Settings.ControlType)
 							{
-								switch(ParentControlElement->Settings.ControlType)
+								case ERigControlType::Position:
+								case ERigControlType::Scale:
+								case ERigControlType::Rotator:
+								case ERigControlType::Transform:
+								case ERigControlType::EulerTransform:
+								case ERigControlType::TransformNoScale:
 								{
-									case ERigControlType::Position:
-									case ERigControlType::Scale:
-									case ERigControlType::Rotator:
-									case ERigControlType::Transform:
-									case ERigControlType::EulerTransform:
-									case ERigControlType::TransformNoScale:
-									{
-										Group = FText::FromName(ParentControlElement->GetDisplayName());
-										break;
-									}
+									Group = FText::FromName(ParentControlElement->GetDisplayName());
+									break;
 								}
 							}
+						}
 
-							if (Group.IsEmpty())
+						if (Group.IsEmpty())
+						{
+							ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+							Group = FText::FromName(ControlElement->GetDisplayName());
+							ControlIndex++;  //up the index only if no parent
+						}
+						else
+						{
+							FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
+							if (pChannelIndex)
+							{
+								ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex,pChannelIndex->ControlIndex));
+							}
+							else
 							{
 								ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-								Group = FText::FromName(ControlElement->GetDisplayName());
-								ControlIndex++;  //up the index only if no parent
+
+							}
+						}
+
+						FParameterFloatChannelEditorData EditorData(ControlRig, Scalar.ParameterName, bEnabled, Group, TotalIndex);
+						EditorData.MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
+						Channels.Add(Scalar.ParameterCurve, EditorData.MetaData, EditorData.ExternalValues);
+						FloatChannelIndex += 1;
+						TotalIndex += 1;
+						break;
+					}
+				}
+				break;
+			}
+			case ERigControlType::Bool:
+			{
+				for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Bool.ParameterName)
+					{
+						bool bEnabled = ControlsMask[ControlIndex];
+
+						FText Group;
+						if(ParentControlElement)
+						{
+							switch(ParentControlElement->Settings.ControlType)
+							{
+								case ERigControlType::Position:
+								case ERigControlType::Scale:
+								case ERigControlType::Rotator:
+								case ERigControlType::Transform:
+								case ERigControlType::EulerTransform:
+								case ERigControlType::TransformNoScale:
+								{
+									Group = FText::FromName(ParentControlElement->GetDisplayName());
+									break;
+								}
+							}
+						}
+
+						if (Group.IsEmpty())
+						{
+							ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex, INDEX_NONE,BoolChannelTypeName));
+							Group = FText::FromName(ControlElement->GetDisplayName());
+							ControlIndex++;  //up the index only if no parent
+						}
+						else
+						{
+							FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
+							if (pChannelIndex)
+							{
+								ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex,pChannelIndex->ControlIndex,BoolChannelTypeName));
 							}
 							else
 							{
-								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
-								if (pChannelIndex)
-								{
-									ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex,pChannelIndex->ControlIndex));
-								}
-								else
-								{
-									ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-
-								}
+								ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex,INDEX_NONE, BoolChannelTypeName));
 							}
-
-							FParameterFloatChannelEditorData EditorData(ControlRig, Scalar.ParameterName, bEnabled, Group, TotalIndex);
-							EditorData.MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
-							Channels.Add(Scalar.ParameterCurve, EditorData.MetaData, EditorData.ExternalValues);
-							FloatChannelIndex += 1;
-							TotalIndex += 1;
-							break;
 						}
+
+						FMovieSceneChannelMetaData MetaData(Bool.ParameterName, Group, Group, bEnabled);
+						MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
+						MetaData.SortOrder = TotalIndex++;
+						BoolChannelIndex += 1;
+						// Prevent single channels from collapsing to the track node
+						MetaData.bCanCollapseToTrack = false;
+						Channels.Add(Bool.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+						break;
 					}
-					break;
 				}
-				case ERigControlType::Bool:
+				break;
+			}
+			case ERigControlType::Integer:
+			{
+				if (ControlElement->Settings.ControlEnum)
 				{
-					for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+					for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
 					{
-						if (ControlElement->GetName() == Bool.ParameterName)
+						if (ControlElement->GetName() == Enum.ParameterName)
 						{
 							bool bEnabled = ControlsMask[ControlIndex];
 
 							FText Group;
-							if(ParentControlElement)
+							if (ParentControlElement)
 							{
-								switch(ParentControlElement->Settings.ControlType)
+								switch (ParentControlElement->Settings.ControlType)
 								{
-									case ERigControlType::Position:
-									case ERigControlType::Scale:
-									case ERigControlType::Rotator:
-									case ERigControlType::Transform:
-									case ERigControlType::EulerTransform:
-									case ERigControlType::TransformNoScale:
-									{
-										Group = FText::FromName(ParentControlElement->GetDisplayName());
-										break;
-									}
+								case ERigControlType::Position:
+								case ERigControlType::Scale:
+								case ERigControlType::Rotator:
+								case ERigControlType::Transform:
+								case ERigControlType::EulerTransform:
+								case ERigControlType::TransformNoScale:
+								{
+									Group = FText::FromName(ParentControlElement->GetDisplayName());
+									break;
+								}
 								}
 							}
 
 							if (Group.IsEmpty())
 							{
-								ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex, INDEX_NONE,BoolChannelTypeName));
+								ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex,INDEX_NONE, EnumChannelTypeName));
 								Group = FText::FromName(ControlElement->GetDisplayName());
 								ControlIndex++;  //up the index only if no parent
 							}
@@ -1251,431 +1306,371 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy(bool bForce)
 								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
 								if (pChannelIndex)
 								{
-									ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex,pChannelIndex->ControlIndex,BoolChannelTypeName));
+									ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex, pChannelIndex->ControlIndex, EnumChannelTypeName));
 								}
 								else
 								{
-									ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex,INDEX_NONE, BoolChannelTypeName));
+									ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex, INDEX_NONE, EnumChannelTypeName));
 								}
 							}
 
-							FMovieSceneChannelMetaData MetaData(Bool.ParameterName, Group, Group, bEnabled);
+							FMovieSceneChannelMetaData MetaData(Enum.ParameterName, Group, Group, bEnabled);
 							MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
+							EnumChannelIndex += 1;
 							MetaData.SortOrder = TotalIndex++;
-							BoolChannelIndex += 1;
 							// Prevent single channels from collapsing to the track node
 							MetaData.bCanCollapseToTrack = false;
-							Channels.Add(Bool.ParameterCurve, MetaData, TMovieSceneExternalValue<bool>());
+							Channels.Add(Enum.ParameterCurve, MetaData, TMovieSceneExternalValue<uint8>());
 							break;
 						}
 					}
-					break;
 				}
-				case ERigControlType::Integer:
+				else
 				{
-					if (ControlElement->Settings.ControlEnum)
+					for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
 					{
-						for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
+						if (ControlElement->GetName() == Integer.ParameterName)
 						{
-							if (ControlElement->GetName() == Enum.ParameterName)
+							bool bEnabled = ControlsMask[ControlIndex];
+
+							FText Group;
+							if (ParentControlElement)
 							{
-								bool bEnabled = ControlsMask[ControlIndex];
-
-								FText Group;
-								if (ParentControlElement)
+								switch (ParentControlElement->Settings.ControlType)
 								{
-									switch (ParentControlElement->Settings.ControlType)
-									{
-									case ERigControlType::Position:
-									case ERigControlType::Scale:
-									case ERigControlType::Rotator:
-									case ERigControlType::Transform:
-									case ERigControlType::EulerTransform:
-									case ERigControlType::TransformNoScale:
-									{
-										Group = FText::FromName(ParentControlElement->GetDisplayName());
-										break;
-									}
-									}
+								case ERigControlType::Position:
+								case ERigControlType::Scale:
+								case ERigControlType::Rotator:
+								case ERigControlType::Transform:
+								case ERigControlType::EulerTransform:
+								case ERigControlType::TransformNoScale:
+								{
+									Group = FText::FromName(ParentControlElement->GetDisplayName());
+									break;
 								}
-
-								if (Group.IsEmpty())
-								{
-									ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex,INDEX_NONE, EnumChannelTypeName));
-									Group = FText::FromName(ControlElement->GetDisplayName());
-									ControlIndex++;  //up the index only if no parent
-								}
-								else
-								{
-									FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
-									if (pChannelIndex)
-									{
-										ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex, pChannelIndex->ControlIndex, EnumChannelTypeName));
-									}
-									else
-									{
-										ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex, INDEX_NONE, EnumChannelTypeName));
-									}
-								}
-
-								FMovieSceneChannelMetaData MetaData(Enum.ParameterName, Group, Group, bEnabled);
-								MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
-								EnumChannelIndex += 1;
-								MetaData.SortOrder = TotalIndex++;
-								// Prevent single channels from collapsing to the track node
-								MetaData.bCanCollapseToTrack = false;
-								Channels.Add(Enum.ParameterCurve, MetaData, TMovieSceneExternalValue<uint8>());
-								break;
-							}
-						}
-					}
-					else
-					{
-						for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
-						{
-							if (ControlElement->GetName() == Integer.ParameterName)
-							{
-								bool bEnabled = ControlsMask[ControlIndex];
-
-								FText Group;
-								if (ParentControlElement)
-								{
-									switch (ParentControlElement->Settings.ControlType)
-									{
-									case ERigControlType::Position:
-									case ERigControlType::Scale:
-									case ERigControlType::Rotator:
-									case ERigControlType::Transform:
-									case ERigControlType::EulerTransform:
-									case ERigControlType::TransformNoScale:
-									{
-										Group = FText::FromName(ParentControlElement->GetDisplayName());
-										break;
-									}
-									}
-								}
-								if (Group.IsEmpty())
-								{
-									ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex,INDEX_NONE,IntegerChannelTypeName));
-									Group = FText::FromName(ControlElement->GetDisplayName());
-									ControlIndex++;  //up the index only if no parent
-								}
-								else
-								{
-									FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
-									if (pChannelIndex)
-									{
-										ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex, pChannelIndex->ControlIndex,IntegerChannelTypeName));
-									}
-									else
-									{
-										ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex, INDEX_NONE, IntegerChannelTypeName));
-									}
-								}
-
-								FMovieSceneChannelMetaData MetaData(Integer.ParameterName, Group, Group, bEnabled);
-								MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
-								IntegerChannelIndex += 1;
-								MetaData.SortOrder = TotalIndex++;
-								// Prevent single channels from collapsing to the track node
-								MetaData.bCanCollapseToTrack = false;
-								Channels.Add(Integer.ParameterCurve, MetaData, TMovieSceneExternalValue<int32>());
-								break;
-							}
-						}
-
-					}
-					break;
-				}
-				case ERigControlType::Vector2D:
-				{
-					for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Vector2D.ParameterName)
-						{
-							ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-							bool bEnabled = ControlsMask[ControlIndex++];
-							FText Group = FText::FromName(ControlElement->GetDisplayName());
-							FParameterVectorChannelEditorData EditorData(ControlRig, Vector2D.ParameterName, bEnabled, Group, TotalIndex, 2);
-							Channels.Add(Vector2D.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
-							Channels.Add(Vector2D.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
-							FloatChannelIndex += 2;
-							TotalIndex += 2;
-							break;
-						}
-					}
-					break;
-				}
-				case ERigControlType::Position:
-				case ERigControlType::Scale:
-				case ERigControlType::Rotator:
-				{
-					for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Vector.ParameterName)
-						{
-							if (ControlElement->Settings.ControlType == ERigControlType::Scale)
-							{
-								if (BlendType == EMovieSceneBlendType::Additive)
-								{
-									Vector.XCurve.SetDefault(0.0f);
-									Vector.YCurve.SetDefault(0.0f);
-									Vector.ZCurve.SetDefault(0.0f);
-								}
-								else
-								{
-									Vector.XCurve.SetDefault(1.0f);
-									Vector.YCurve.SetDefault(1.0f);
-									Vector.ZCurve.SetDefault(1.0f);
 								}
 							}
-							ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-							bool bEnabled = ControlsMask[ControlIndex++];
-							FText Group = FText::FromName(ControlElement->GetDisplayName());
-							FParameterVectorChannelEditorData EditorData(ControlRig, Vector.ParameterName, bEnabled, Group, TotalIndex, 3);
-							Channels.Add(Vector.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
-							Channels.Add(Vector.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
-							Channels.Add(Vector.ZCurve, EditorData.MetaData[2], EditorData.ExternalValues[2]);
-							FloatChannelIndex += 3;
-							TotalIndex += 3;
-							break;
-						}
-					}
-					break;
-				}
-
-				case ERigControlType::TransformNoScale:
-				case ERigControlType::Transform:
-				case ERigControlType::EulerTransform:
-				{
-					for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Transform.ParameterName)
-						{
-							ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-							bool bEnabled = ControlsMask[ControlIndex++];
-							FText Group = FText::FromName(ControlElement->GetDisplayName());
-
-							FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group, 
-								TotalIndex);
-
-							Channels.Add(Transform.Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
-							Channels.Add(Transform.Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
-							Channels.Add(Transform.Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
-
-							Channels.Add(Transform.Rotation[0], EditorData.MetaData[3], EditorData.ExternalValues[3]);
-							Channels.Add(Transform.Rotation[1], EditorData.MetaData[4], EditorData.ExternalValues[4]);
-							Channels.Add(Transform.Rotation[2], EditorData.MetaData[5], EditorData.ExternalValues[5]);
-
-							if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
-								ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+							if (Group.IsEmpty())
 							{
-								if (BlendType == EMovieSceneBlendType::Additive)
-								{
-									Transform.Scale[0].SetDefault(0.0f);
-									Transform.Scale[1].SetDefault(0.0f);
-									Transform.Scale[2].SetDefault(0.0f);
-								}
-								else
-								{
-									Transform.Scale[0].SetDefault(1.0f);
-									Transform.Scale[1].SetDefault(1.0f);
-									Transform.Scale[2].SetDefault(1.0f);
-								}
-								Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
-								Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
-								Channels.Add(Transform.Scale[2], EditorData.MetaData[8], EditorData.ExternalValues[8]);
-								FloatChannelIndex += 9;
-								TotalIndex += 9;
-
+								ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex,INDEX_NONE,IntegerChannelTypeName));
+								Group = FText::FromName(ControlElement->GetDisplayName());
+								ControlIndex++;  //up the index only if no parent
 							}
 							else
 							{
-								FloatChannelIndex += 6;
-								TotalIndex += 6;
-
-							}
-							break;
-						}
-					}
-				}
-				default:
-					break;
-				}
-#else
-				switch (ControlElement->Settings.ControlType)
-				{
-				case ERigControlType::Float:
-				{
-					for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Scalar.ParameterName)
-						{
-							ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex,FloatChannelIndex));
-							Channels.Add(Scalar.ParameterCurve);
-							FloatChannelIndex += 1;
-							TotalIndex += 1;
-							ControlIndex++;
-							break;
-						}
-					}
-					break;
-				}
-				case ERigControlType::Bool:
-				{
-					for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Bool.ParameterName)
-						{
-							ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex));
-							Channels.Add(Bool.ParameterCurve);
-							BoolChannelIndex += 1;
-							TotalIndex += 1;
-							ControlIndex++;
-							break;
-						}
-					}
-					break;
-				}
-				case ERigControlType::Integer:
-				{
-					if (ControlElement->Settings.ControlEnum)
-					{
-						for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
-						{
-							if (ControlElement->GetName() == Enum.ParameterName)
-							{
-								ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex));
-								Channels.Add(Enum.ParameterCurve);
-								EnumChannelIndex += 1;
-								TotalIndex += 1;
-								ControlIndex++;
-								break;
-							}
-						}
-					}
-					else
-					{
-						for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
-						{
-							if (ControlElement->GetName() == Integer.ParameterName)
-							{
-								ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex));
-								Channels.Add(Integer.ParameterCurve);
-								IntegerChannelIndex += 1;
-								TotalIndex += 1;
-								ControlIndex++;
-								break;
-							}
-						}
-					}
-					break;
-				}
-				case ERigControlType::Vector2D:
-				{
-					for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Vector2D.ParameterName)
-						{
-							ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-							Channels.Add(Vector2D.XCurve);
-							Channels.Add(Vector2D.YCurve);
-							FloatChannelIndex += 2;
-							TotalIndex += 2;
-							ControlIndex++;
-							break;
-						}
-					}
-					break;
-				}
-				case ERigControlType::Position:
-				case ERigControlType::Scale:
-				case ERigControlType::Rotator:
-				{
-					for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Vector.ParameterName)
-						{
-							ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
-							Channels.Add(Vector.XCurve);
-							Channels.Add(Vector.YCurve);
-							Channels.Add(Vector.ZCurve);
-							FloatChannelIndex += 3;
-							TotalIndex += 3;
-							ControlIndex++;
-							break;
-						}
-					}
-					break;
-				}
-				/*
-				for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
-				{
-					Channels.Add(Color.RedCurve);
-					Channels.Add(Color.GreenCurve);
-					Channels.Add(Color.BlueCurve);
-					Channels.Add(Color.AlphaCurve);
-					break
-				}
-				*/
-				case ERigControlType::TransformNoScale:
-				case ERigControlType::Transform:
-				case ERigControlType::EulerTransform:
-				{
-					for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
-					{
-						if (ControlElement->GetName() == Transform.ParameterName)
-						{
-							ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex,FloatChannelIndex));
-							Channels.Add(Transform.Translation[0]);
-							Channels.Add(Transform.Translation[1]);
-							Channels.Add(Transform.Translation[2]);
-
-							Channels.Add(Transform.Rotation[0]);
-							Channels.Add(Transform.Rotation[1]);
-							Channels.Add(Transform.Rotation[2]);
-
-							if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
-							{
-								Channels.Add(Transform.Scale[0]);
-								Channels.Add(Transform.Scale[1]);
-								Channels.Add(Transform.Scale[2]);
-								FloatChannelIndex += 9;
-								TotalIndex += 9;
-							}
-							else
-							{
-								FloatChannelIndex += 6;
-								TotalIndex += 6;
+								FChannelMapInfo* pChannelIndex = ControlChannelMap.Find(ParentControlName);
+								if (pChannelIndex)
+								{
+									ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex, pChannelIndex->ControlIndex,IntegerChannelTypeName));
+								}
+								else
+								{
+									ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex, INDEX_NONE, IntegerChannelTypeName));
+								}
 							}
 
-							ControlIndex++;
+							FMovieSceneChannelMetaData MetaData(Integer.ParameterName, Group, Group, bEnabled);
+							MetaData.DisplayText = FText::FromName(ControlElement->GetDisplayName());
+							IntegerChannelIndex += 1;
+							MetaData.SortOrder = TotalIndex++;
+							// Prevent single channels from collapsing to the track node
+							MetaData.bCanCollapseToTrack = false;
+							Channels.Add(Integer.ParameterCurve, MetaData, TMovieSceneExternalValue<int32>());
 							break;
 						}
 					}
-					break;
+
 				}
-				}
-#endif
+				break;
 			}
-		
-#if WITH_EDITOR
-			FMovieSceneChannelMetaData      MetaData;
-			MetaData.SetIdentifiers("Weight", NSLOCTEXT("MovieSceneTransformSection", "Weight", "Weight"));
-			MetaData.bEnabled = EnumHasAllFlags(TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight);
-			MetaData.SortOrder = TotalIndex++;
-			MetaData.bCanCollapseToTrack = false;
-			TMovieSceneExternalValue<float> ExVal;
-			Channels.Add(Weight, MetaData, ExVal);
-#else
-			Channels.Add(Weight);
+			case ERigControlType::Vector2D:
+			{
+				for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Vector2D.ParameterName)
+					{
+						ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						bool bEnabled = ControlsMask[ControlIndex++];
+						FText Group = FText::FromName(ControlElement->GetDisplayName());
+						FParameterVectorChannelEditorData EditorData(ControlRig, Vector2D.ParameterName, bEnabled, Group, TotalIndex, 2);
+						Channels.Add(Vector2D.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
+						Channels.Add(Vector2D.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
+						FloatChannelIndex += 2;
+						TotalIndex += 2;
+						break;
+					}
+				}
+				break;
+			}
+			case ERigControlType::Position:
+			case ERigControlType::Scale:
+			case ERigControlType::Rotator:
+			{
+				for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Vector.ParameterName)
+					{
+						if (ControlElement->Settings.ControlType == ERigControlType::Scale)
+						{
+							if (BlendType == EMovieSceneBlendType::Additive)
+							{
+								Vector.XCurve.SetDefault(0.0f);
+								Vector.YCurve.SetDefault(0.0f);
+								Vector.ZCurve.SetDefault(0.0f);
+							}
+							else
+							{
+								Vector.XCurve.SetDefault(1.0f);
+								Vector.YCurve.SetDefault(1.0f);
+								Vector.ZCurve.SetDefault(1.0f);
+							}
+						}
+						ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						bool bEnabled = ControlsMask[ControlIndex++];
+						FText Group = FText::FromName(ControlElement->GetDisplayName());
+						FParameterVectorChannelEditorData EditorData(ControlRig, Vector.ParameterName, bEnabled, Group, TotalIndex, 3);
+						Channels.Add(Vector.XCurve, EditorData.MetaData[0], EditorData.ExternalValues[0]);
+						Channels.Add(Vector.YCurve, EditorData.MetaData[1], EditorData.ExternalValues[1]);
+						Channels.Add(Vector.ZCurve, EditorData.MetaData[2], EditorData.ExternalValues[2]);
+						FloatChannelIndex += 3;
+						TotalIndex += 3;
+						break;
+					}
+				}
+				break;
+			}
 
+			case ERigControlType::TransformNoScale:
+			case ERigControlType::Transform:
+			case ERigControlType::EulerTransform:
+			{
+				for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Transform.ParameterName)
+					{
+						ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						bool bEnabled = ControlsMask[ControlIndex++];
+						FText Group = FText::FromName(ControlElement->GetDisplayName());
+
+						FParameterTransformChannelEditorData EditorData(ControlRig, Transform.ParameterName, bEnabled, TransformMask.GetChannels(), Group, 
+							TotalIndex);
+
+						Channels.Add(Transform.Translation[0], EditorData.MetaData[0], EditorData.ExternalValues[0]);
+						Channels.Add(Transform.Translation[1], EditorData.MetaData[1], EditorData.ExternalValues[1]);
+						Channels.Add(Transform.Translation[2], EditorData.MetaData[2], EditorData.ExternalValues[2]);
+
+						Channels.Add(Transform.Rotation[0], EditorData.MetaData[3], EditorData.ExternalValues[3]);
+						Channels.Add(Transform.Rotation[1], EditorData.MetaData[4], EditorData.ExternalValues[4]);
+						Channels.Add(Transform.Rotation[2], EditorData.MetaData[5], EditorData.ExternalValues[5]);
+
+						if (ControlElement->Settings.ControlType == ERigControlType::Transform ||
+							ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+						{
+							if (BlendType == EMovieSceneBlendType::Additive)
+							{
+								Transform.Scale[0].SetDefault(0.0f);
+								Transform.Scale[1].SetDefault(0.0f);
+								Transform.Scale[2].SetDefault(0.0f);
+							}
+							else
+							{
+								Transform.Scale[0].SetDefault(1.0f);
+								Transform.Scale[1].SetDefault(1.0f);
+								Transform.Scale[2].SetDefault(1.0f);
+							}
+							Channels.Add(Transform.Scale[0], EditorData.MetaData[6], EditorData.ExternalValues[6]);
+							Channels.Add(Transform.Scale[1], EditorData.MetaData[7], EditorData.ExternalValues[7]);
+							Channels.Add(Transform.Scale[2], EditorData.MetaData[8], EditorData.ExternalValues[8]);
+							FloatChannelIndex += 9;
+							TotalIndex += 9;
+
+						}
+						else
+						{
+							FloatChannelIndex += 6;
+							TotalIndex += 6;
+
+						}
+						break;
+					}
+				}
+			}
+			default:
+				break;
+			}
+#else
+			switch (ControlElement->Settings.ControlType)
+			{
+			case ERigControlType::Float:
+			{
+				for (FScalarParameterNameAndCurve& Scalar : GetScalarParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Scalar.ParameterName)
+					{
+						ControlChannelMap.Add(Scalar.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex,FloatChannelIndex));
+						Channels.Add(Scalar.ParameterCurve);
+						FloatChannelIndex += 1;
+						TotalIndex += 1;
+						ControlIndex++;
+						break;
+					}
+				}
+				break;
+			}
+			case ERigControlType::Bool:
+			{
+				for (FBoolParameterNameAndCurve& Bool : GetBoolParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Bool.ParameterName)
+					{
+						ControlChannelMap.Add(Bool.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, BoolChannelIndex));
+						Channels.Add(Bool.ParameterCurve);
+						BoolChannelIndex += 1;
+						TotalIndex += 1;
+						ControlIndex++;
+						break;
+					}
+				}
+				break;
+			}
+			case ERigControlType::Integer:
+			{
+				if (ControlElement->Settings.ControlEnum)
+				{
+					for (FEnumParameterNameAndCurve& Enum : GetEnumParameterNamesAndCurves())
+					{
+						if (ControlElement->GetName() == Enum.ParameterName)
+						{
+							ControlChannelMap.Add(Enum.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, EnumChannelIndex));
+							Channels.Add(Enum.ParameterCurve);
+							EnumChannelIndex += 1;
+							TotalIndex += 1;
+							ControlIndex++;
+							break;
+						}
+					}
+				}
+				else
+				{
+					for (FIntegerParameterNameAndCurve& Integer : GetIntegerParameterNamesAndCurves())
+					{
+						if (ControlElement->GetName() == Integer.ParameterName)
+						{
+							ControlChannelMap.Add(Integer.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, IntegerChannelIndex));
+							Channels.Add(Integer.ParameterCurve);
+							IntegerChannelIndex += 1;
+							TotalIndex += 1;
+							ControlIndex++;
+							break;
+						}
+					}
+				}
+				break;
+			}
+			case ERigControlType::Vector2D:
+			{
+				for (FVector2DParameterNameAndCurves& Vector2D : GetVector2DParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Vector2D.ParameterName)
+					{
+						ControlChannelMap.Add(Vector2D.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						Channels.Add(Vector2D.XCurve);
+						Channels.Add(Vector2D.YCurve);
+						FloatChannelIndex += 2;
+						TotalIndex += 2;
+						ControlIndex++;
+						break;
+					}
+				}
+				break;
+			}
+			case ERigControlType::Position:
+			case ERigControlType::Scale:
+			case ERigControlType::Rotator:
+			{
+				for (FVectorParameterNameAndCurves& Vector : GetVectorParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Vector.ParameterName)
+					{
+						ControlChannelMap.Add(Vector.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex, FloatChannelIndex));
+						Channels.Add(Vector.XCurve);
+						Channels.Add(Vector.YCurve);
+						Channels.Add(Vector.ZCurve);
+						FloatChannelIndex += 3;
+						TotalIndex += 3;
+						ControlIndex++;
+						break;
+					}
+				}
+				break;
+			}
+			/*
+			for (FColorParameterNameAndCurves& Color : GetColorParameterNamesAndCurves())
+			{
+				Channels.Add(Color.RedCurve);
+				Channels.Add(Color.GreenCurve);
+				Channels.Add(Color.BlueCurve);
+				Channels.Add(Color.AlphaCurve);
+				break
+			}
+			*/
+			case ERigControlType::TransformNoScale:
+			case ERigControlType::Transform:
+			case ERigControlType::EulerTransform:
+			{
+				for (FTransformParameterNameAndCurves& Transform : GetTransformParameterNamesAndCurves())
+				{
+					if (ControlElement->GetName() == Transform.ParameterName)
+					{
+						ControlChannelMap.Add(Transform.ParameterName, FChannelMapInfo(ControlIndex, TotalIndex,FloatChannelIndex));
+						Channels.Add(Transform.Translation[0]);
+						Channels.Add(Transform.Translation[1]);
+						Channels.Add(Transform.Translation[2]);
+
+						Channels.Add(Transform.Rotation[0]);
+						Channels.Add(Transform.Rotation[1]);
+						Channels.Add(Transform.Rotation[2]);
+
+						if (ControlElement->Settings.ControlType == ERigControlType::Transform || ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
+						{
+							Channels.Add(Transform.Scale[0]);
+							Channels.Add(Transform.Scale[1]);
+							Channels.Add(Transform.Scale[2]);
+							FloatChannelIndex += 9;
+							TotalIndex += 9;
+						}
+						else
+						{
+							FloatChannelIndex += 6;
+							TotalIndex += 6;
+						}
+
+						ControlIndex++;
+						break;
+					}
+				}
+				break;
+			}
+			}
 #endif
 		}
+		
+#if WITH_EDITOR
+		FMovieSceneChannelMetaData      MetaData;
+		MetaData.SetIdentifiers("Weight", NSLOCTEXT("MovieSceneTransformSection", "Weight", "Weight"));
+		MetaData.bEnabled = EnumHasAllFlags(TransformMask.GetChannels(), EMovieSceneTransformChannel::Weight);
+		MetaData.SortOrder = TotalIndex++;
+		MetaData.bCanCollapseToTrack = false;
+		TMovieSceneExternalValue<float> ExVal;
+		Channels.Add(Weight, MetaData, ExVal);
+#else
+		Channels.Add(Weight);
 
-
-		ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+#endif
 	}
+
+
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 }
 
 FMovieSceneInterrogationKey UMovieSceneControlRigParameterSection::GetFloatInterrogationKey()
@@ -1866,7 +1861,7 @@ void UMovieSceneControlRigParameterSection::RecreateWithThisControlRig(UControlR
 			break;
 		}
 	}
-	ReconstructChannelProxy(true);
+	ReconstructChannelProxy();
 }
 
 void UMovieSceneControlRigParameterSection::SetControlRig(UControlRig* InControlRig)
@@ -2268,7 +2263,7 @@ void UMovieSceneControlRigParameterSection::AddEnumParameterKey(FName InParamete
 		const int32 NewIndex = EnumParameterNamesAndCurves.Add(FEnumParameterNameAndCurve(InParameterName));
 		ExistingChannel = &EnumParameterNamesAndCurves[NewIndex].ParameterCurve;
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingChannel->GetData().UpdateOrAddKey(InTime, InValue);
@@ -2296,7 +2291,7 @@ void UMovieSceneControlRigParameterSection::AddIntegerParameterKey(FName InParam
 		const int32 NewIndex = IntegerParameterNamesAndCurves.Add(FIntegerParameterNameAndCurve(InParameterName));
 		ExistingChannel = &IntegerParameterNamesAndCurves[NewIndex].ParameterCurve;
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingChannel->GetData().UpdateOrAddKey(InTime, InValue);
@@ -2314,7 +2309,7 @@ bool UMovieSceneControlRigParameterSection::RemoveEnumParameter(FName InParamete
 		if (EnumParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			EnumParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -2328,7 +2323,7 @@ bool UMovieSceneControlRigParameterSection::RemoveIntegerParameter(FName InParam
 		if (IntegerParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			IntegerParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
