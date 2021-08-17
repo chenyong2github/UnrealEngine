@@ -2253,8 +2253,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 						const uint32 EffectiveLODIt = FMath::Clamp(LODIt, 0, SkelLODCount - 1);
 						const bool bSupportSkinCache = ParentSkelMeshComponent->IsSkinCacheAllowed(EffectiveLODIt);
 						const EGroomBindingType BindingType = GroomAsset->GetBindingType(GroupIt, LODIt);
+						const bool bIsVisible = GroomAsset->IsVisible(GroupIt, LODIt);
 
-						if (BindingType == EGroomBindingType::Skinning && !bSupportSkinCache)
+						if (BindingType == EGroomBindingType::Skinning && !bSupportSkinCache && bIsVisible)
 						{
 							UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Groom asset (Group:%d/%d) is set to use Skinning at LOD %d/%d while the parent skel. mesh does not support skin. cache at this LOD - Groom:%s - Skel.Mesh:%s"),
 								GroupIt,

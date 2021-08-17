@@ -537,6 +537,7 @@ public:
 
 	EGroomGeometryType GetGeometryType(int32 GroupIndex, int32 LODIndex) const;
 	EGroomBindingType GetBindingType(int32 GroupIndex, int32 LODIndex) const;
+	bool IsVisible(int32 GroupIndex, int32 LODIndex) const;
 	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const;
 	bool IsSimulationEnable() const;
 	bool IsGlobalInterpolationEnable(int32 GroupIndex, int32 LODIndex) const;
