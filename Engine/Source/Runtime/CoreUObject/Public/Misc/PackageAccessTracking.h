@@ -14,15 +14,17 @@ class ITargetPlatform;
 #define UE_WITH_PACKAGE_ACCESS_TRACKING UE_WITH_OBJECT_HANDLE_TRACKING
 
 #if UE_WITH_PACKAGE_ACCESS_TRACKING
-#define UE_TRACK_REFERENCING_PACKAGE_SCOPED_PLATFORM(TargetPlatform) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(TargetPlatform);
 #define UE_TRACK_REFERENCING_PACKAGE_SCOPED(Package, OpName) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(Package, OpName);
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED_SCOPED(TrackerName, OpName) TOptional<PackageAccessTracking_Private::FPackageAccessRefScope> TrackerName; FName TrackerName##_OpName(OpName);
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED(TrackerName, Package) if (TrackerName) TrackerName->SetPackageName(Package->GetFName()); else TrackerName.Emplace(Package->GetFName(), TrackerName##_OpName);
+#define UE_TRACK_REFERENCING_PLATFORM_SCOPED(TargetPlatform) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(TargetPlatform);
+#define UE_TRACK_REFERENCING_OPNAME_SCOPED(OpName) PackageAccessTracking_Private::FPackageAccessRefScope ANONYMOUS_VARIABLE(PackageAccessTracker_)(OpName);
 #else
-#define UE_TRACK_REFERENCING_PACKAGE_SCOPED_PLATFORM(TargetPlatform)
 #define UE_TRACK_REFERENCING_PACKAGE_SCOPED(Package, OpName)
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED_SCOPED(TrackerName, OpName)
 #define UE_TRACK_REFERENCING_PACKAGE_DELAYED(TrackerName, Package)
+#define UE_TRACK_REFERENCING_PLATFORM_SCOPED(TargetPlatform)
+#define UE_TRACK_REFERENCING_OPNAME_SCOPED(OpName)
 #endif //UE_WITH_PACKAGE_ACCESS_TRACKING
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -48,6 +50,7 @@ namespace PackageAccessTracking_Private
 	public:
 		COREUOBJECT_API FPackageAccessRefScope(FName InPackageName, FName InOpName, const ITargetPlatform* InTargetPlatform = nullptr);
 		COREUOBJECT_API FPackageAccessRefScope(const UPackage* InPackage, FName InOpName);
+		COREUOBJECT_API FPackageAccessRefScope(FName InOpName);
 		COREUOBJECT_API FPackageAccessRefScope(const ITargetPlatform* InTargetPlatform);
 
 		COREUOBJECT_API ~FPackageAccessRefScope();

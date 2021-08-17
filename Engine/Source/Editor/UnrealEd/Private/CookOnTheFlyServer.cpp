@@ -4451,7 +4451,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 		if (Context.bPlatformSetupSuccessful)
 		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(GEditorSavePackage);
-			UE_TRACK_REFERENCING_PACKAGE_SCOPED_PLATFORM(TargetPlatform);
+			UE_TRACK_REFERENCING_PLATFORM_SCOPED(TargetPlatform);
 
 			try
 			{
