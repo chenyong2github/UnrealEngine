@@ -104,7 +104,7 @@ public:
 	TBasePlayerControllerIterator(class UWorld* InWorld)
 		: Iter(InWorld->GetPlayerControllerIterator())
 	{
-		check(!LocalOnly || InWorld->GetNetMode() != NM_Client);	// You should only iterate on non local player controllers if you are the server
+		check(LocalOnly || InWorld->GetNetMode() != NM_Client);	// You should only iterate on non local player controllers if you are the server
 		AdvanceCurrent();
 	}
 
