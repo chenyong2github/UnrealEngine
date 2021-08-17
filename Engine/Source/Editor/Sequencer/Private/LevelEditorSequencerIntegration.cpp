@@ -247,7 +247,7 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 	UpdateDetails(bForceRefresh);
 }
 
-void RenameSpawnableRecursive(FSequencer* Sequencer, UMovieScene* MovieScene, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, AActor* ChangedActor)
+void RenameBindingRecursive(FSequencer* Sequencer, UMovieScene* MovieScene, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, AActor* ChangedActor)
 {
 	check(MovieScene);
 
@@ -263,6 +263,22 @@ void RenameSpawnableRecursive(FSequencer* Sequencer, UMovieScene* MovieScene, FM
 			{
 				MovieScene->Modify();
 				MovieScene->GetSpawnable(Index).SetName(ChangedActor->GetActorLabel());
+			}
+		}
+	}
+	for (int32 Index = 0; Index < MovieScene->GetPossessableCount(); ++Index)
+	{
+		FGuid ThisGuid = MovieScene->GetPossessable(Index).GetGuid();
+
+		// If there is only one binding, set the name of the possessable
+		TArrayView<TWeakObjectPtr<>> BoundObjects = Sequencer->FindBoundObjects(ThisGuid, SequenceID);
+		if (BoundObjects.Num() == 1)
+		{
+			AActor* Actor = Cast<AActor>(BoundObjects[0].Get());
+			if (Actor && Actor == ChangedActor)
+			{
+				MovieScene->Modify();
+				MovieScene->GetPossessable(Index).SetName(ChangedActor->GetActorLabel());
 			}
 		}
 	}
@@ -282,7 +298,7 @@ void RenameSpawnableRecursive(FSequencer* Sequencer, UMovieScene* MovieScene, FM
 
 					if (SubMovieScene)
 					{
-						RenameSpawnableRecursive(Sequencer, SubMovieScene, ChildID, Hierarchy, ChangedActor);
+						RenameBindingRecursive(Sequencer, SubMovieScene, ChildID, Hierarchy, ChangedActor);
 					}
 				}
 			}
@@ -305,7 +321,7 @@ void FLevelEditorSequencerIntegration::OnActorLabelChanged(AActor* ChangedActor)
 
 			if (MovieScene)
 			{
-				RenameSpawnableRecursive(Pinned.Get(), MovieScene, MovieSceneSequenceID::Root, Hierarchy, ChangedActor);
+				RenameBindingRecursive(Pinned.Get(), MovieScene, MovieSceneSequenceID::Root, Hierarchy, ChangedActor);
 			}
 		}
 	}
