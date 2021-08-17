@@ -34,7 +34,7 @@ void ReportInteractiveEnsure(const TCHAR* InMessage)
 {
 	GEnsureShowsCRC = true;
 
-#if PLATFORM_DESKTOP
+#if PLATFORM_USE_REPORT_ENSURE
 	GLog->PanicFlushThreadedLogs();
 	ReportEnsure(InMessage, nullptr);
 #endif
