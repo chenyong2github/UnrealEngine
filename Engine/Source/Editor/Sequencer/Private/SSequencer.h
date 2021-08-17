@@ -614,6 +614,9 @@ public:
 	/** This adds the specified path to the selection set to be restored the next time the tree view is refreshed. */
 	void AddAdditionalPathToSelectionSet(const FString& Path) { AdditionalSelectionsToAdd.Add(Path); }
 
+	/** Request to rename the given node path. */
+	void RequestRenameNode(const FString& Path) { NodePathToRename = Path; }
+
 	/** Applies dynamic sequencer customizations to this editor. */
 	void ApplySequencerCustomizations(const TArray<FSequencerCustomizationInfo>& Customizations);
 
@@ -767,6 +770,8 @@ private:
 	 * and the selection list is restored.
 	*/
 	TArray<FString> AdditionalSelectionsToAdd;
+
+	FString NodePathToRename;
 
 	TSharedPtr<SWidget> TickResolutionOverlay;
 

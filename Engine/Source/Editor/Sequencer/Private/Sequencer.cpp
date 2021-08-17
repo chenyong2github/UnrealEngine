@@ -11023,6 +11023,8 @@ void FSequencer::OnAddFolder()
 	// set, which will cause the newly created node to be selected when the selection is restored post-refresh.
 	SequencerWidget->AddAdditionalPathToSelectionSet(NewNodePath);
 
+	SequencerWidget->RequestRenameNode(NewNodePath);
+
 	NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemAdded );
 }
 

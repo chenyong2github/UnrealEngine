@@ -2966,6 +2966,23 @@ void SSequencer::UpdateLayoutTree()
 
 		AdditionalSelectionsToAdd.Empty();
 
+		if (!NodePathToRename.IsEmpty())
+		{
+			for (TSharedRef<FSequencerDisplayNode> Node : Sequencer->GetNodeTree()->GetAllNodes())
+			{
+				if (Node->GetPathName() == NodePathToRename)
+				{
+					GEditor->GetTimerManager()->SetTimerForNextTick([Node]()
+					{
+						Node->OnRenameRequested().Broadcast();
+					}
+					);
+					break;
+				}
+			}
+			NodePathToRename.Empty();
+		}
+
 		if (Sequencer->GetFocusedMovieSceneSequence())
 		{
 			bool bAnyChanged = false;
