@@ -1233,6 +1233,71 @@ namespace ChaosTest {
 			});
 	}
 
+	GTEST_TEST(AllTraits, RewindTest_RewindBeforeSleep)
+	{
+		// Rewind to before an object was put to sleep and see that the Active view is valid
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				int32 ExpectedSleepFrame = INDEX_NONE;
+				const int32 ResimStartFrame = 0;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, 11, ResimStartFrame);
+				Helper->ProcessInputsFunc = [&ExpectedSleepFrame, ResimStartFrame, Proxy, RewindData = Solver->GetRewindData(), Solver](const int32 PhysicsStep, bool bIsResimming)
+				{
+					if(PhysicsStep == 5)
+					{
+						Proxy->GetPhysicsThreadAPI()->SetV(FVec3(0, 0, 0));
+						Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Sleeping);
+					}
+
+					//before sleep the active view contains the particle, after we put it to sleep the active view is empty
+					EXPECT_EQ(Solver->GetParticles().GetActiveParticlesView().Num(), PhysicsStep < 5 ? 1 : 0);
+				};
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				Particle.SetV(FVec3(0, 0, 1));
+
+				for (int Step = 0; Step <= 32; ++Step)
+				{
+					TickSolverHelper(Solver);
+				}
+
+			});
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_RewindBeforeAwake)
+	{
+		// Rewind to before an object was made awake and confirm that the active view is valid
+		// This test rewinds to step 3 because it ensures there's no PushData which may fixup the view. Need to make sure it's fixed regardless of push data
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				int32 ExpectedSleepFrame = INDEX_NONE;
+				const int32 ResimStartFrame = 3;
+				FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, 13, ResimStartFrame);
+				Helper->ProcessInputsFunc = [&ExpectedSleepFrame, ResimStartFrame, Proxy, RewindData = Solver->GetRewindData(), Solver](const int32 PhysicsStep, bool bIsResimming)
+				{
+					if (PhysicsStep == 12)
+					{
+						Proxy->GetPhysicsThreadAPI()->SetV(FVec3(0, 0, 1));
+						Proxy->GetPhysicsThreadAPI()->SetObjectState(EObjectStateType::Dynamic);
+					}
+
+					//before wake up the active view was empty, after we wake it up the view contains the particle
+					EXPECT_EQ(Solver->GetParticles().GetActiveParticlesView().Num(), PhysicsStep < 12 ? 0 : 1);
+				};
+
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+				Particle.SetObjectState(EObjectStateType::Sleeping);
+
+				for (int Step = 0; Step <= 32; ++Step)
+				{
+					TickSolverHelper(Solver);
+				}
+
+			});
+	}
+
 	GTEST_TEST(AllTraits, RewindTest_RecordForcesInSimCallback)
 	{
 		//Makes sure that we record the forces applied during sim callback

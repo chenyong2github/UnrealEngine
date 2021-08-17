@@ -122,30 +122,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 
 			if(auto NewData = ParticleData.FindDynamicMisc(Manager,DataIdx))
 			{
-				Evolution.SetParticleObjectState(RigidHandle, NewData->ObjectState());
-				Evolution.SetParticleSleepType(RigidHandle, NewData->SleepType());
-
-				if (RigidHandle->Disabled() != NewData->Disabled())
-				{
-					if (NewData->Disabled())
-					{
-						Evolution.DisableParticle(Handle);
-					}
-					else
-					{
-						Evolution.EnableParticle(Handle, nullptr);
-					}
-				}
-
-				RigidHandle->SetDynamicMisc(*NewData);
-
-				if(NewData->ObjectState() != EObjectStateType::Dynamic)
-				{
-					//this is needed because changing object state on external thread means we want to snap position to where the particle was at that time (on the external thread)
-					//for that to work we need to ensure the snap results (which we just got) are passed properly into the results manager
-					Evolution.GetParticles().MarkTransientDirtyParticle(RigidHandle);
-				}
-				
+				RigidHandle->SetDynamicMisc(*NewData, Evolution);				
 			}
 		}
 
