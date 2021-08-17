@@ -880,7 +880,8 @@ bool SLiveLinkClientPanel::CanRemoveSource()
 
 bool SLiveLinkClientPanel::HasSource() const
 {
-	return Client->GetDisplayableSources().Num() > 0;
+	constexpr bool bIncludeVirtualSources = true;
+	return Client->GetDisplayableSources(bIncludeVirtualSources).Num() > 0;
 }
 
 void SLiveLinkClientPanel::HandleRemoveAllSources()

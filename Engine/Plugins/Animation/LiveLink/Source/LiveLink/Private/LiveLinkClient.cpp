@@ -1336,7 +1336,7 @@ FSimpleMulticastDelegate& FLiveLinkClient::OnLiveLinkTicked()
 	return OnLiveLinkTickedDelegate;
 }
 
-TArray<FGuid> FLiveLinkClient::GetDisplayableSources() const
+TArray<FGuid> FLiveLinkClient::GetDisplayableSources(bool bIncludeVirtualSources) const
 {
 	TArray<FGuid> Results;
 
@@ -1345,7 +1345,7 @@ TArray<FGuid> FLiveLinkClient::GetDisplayableSources() const
 
 	for (const FLiveLinkCollectionSourceItem& Data : PresetSources)
 	{
-		if (Data.Source->CanBeDisplayedInUI())
+		if (Data.Source->CanBeDisplayedInUI() || (bIncludeVirtualSources && Data.IsVirtualSource()))
 		{
 			Results.Add(Data.Guid);
 		}
