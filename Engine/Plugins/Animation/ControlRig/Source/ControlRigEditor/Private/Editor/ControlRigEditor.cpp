@@ -218,6 +218,9 @@ FControlRigEditor::~FControlRigEditor()
 	ClearDetailObject();
 
 	UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+
+	ControlRigEditorClosedDelegate.Broadcast(this, RigBlueprint);
+
 	if (RigBlueprint)
 	{
 		// clear editor related data from the debugged control rig instance 

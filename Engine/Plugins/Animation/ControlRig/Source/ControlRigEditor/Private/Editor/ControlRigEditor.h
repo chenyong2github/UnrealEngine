@@ -29,6 +29,9 @@ class SBorder;
 class USkeletalMesh;
 class FStructOnScope;
 class UToolMenu;
+class FControlRigEditor;
+
+DECLARE_MULTICAST_DELEGATE_TwoParams(FControlRigEditorClosed, const FControlRigEditor*, UControlRigBlueprint*);
 
 UENUM()
 enum class EControlRigEditorEventQueue : uint8
@@ -91,6 +94,12 @@ public:
 	virtual UBlueprint* GetBlueprintObj() const override;
 
 	int32 GetRigHierarchyTabCount() const { return RigHierarchyTabCount; }
+
+	FControlRigEditorClosed& OnControlRigEditorClosed() { return ControlRigEditorClosedDelegate; }
+
+private:
+
+	FControlRigEditorClosed ControlRigEditorClosedDelegate;
 
 public:
 	// IToolkit Interface

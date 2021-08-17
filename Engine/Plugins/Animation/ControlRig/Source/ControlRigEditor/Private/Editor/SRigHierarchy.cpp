@@ -288,18 +288,7 @@ void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type I
 
 SRigHierarchy::~SRigHierarchy()
 {
-	if (ControlRigEditor.IsValid())
-	{
-		ControlRigEditor.Pin()->GetKeyDownDelegate().Unbind();
-		ControlRigEditor.Pin()->OnGetViewportContextMenu().Unbind();
-		ControlRigEditor.Pin()->OnViewportContextMenuCommands().Unbind();
-	}
-
-	if (ControlRigBlueprint.IsValid())
-	{
-		ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
-		ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
-	}
+	OnEditorClose();
 }
 
 void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor)
@@ -465,7 +454,32 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		});
 		ControlRigEditor.Pin()->OnGetViewportContextMenu().BindSP(this, &SRigHierarchy::GetOrCreateContextMenu);
 		ControlRigEditor.Pin()->OnViewportContextMenuCommands().BindSP(this, &SRigHierarchy::GetContextMenuCommands);
+		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigHierarchy::OnControlRigEditorClose);
 	}
+}
+
+void SRigHierarchy::OnEditorClose()
+{
+	if (ControlRigEditor.IsValid())
+	{
+		ControlRigEditor.Pin()->GetKeyDownDelegate().Unbind();
+		ControlRigEditor.Pin()->OnGetViewportContextMenu().Unbind();
+		ControlRigEditor.Pin()->OnViewportContextMenuCommands().Unbind();
+	}
+
+	if (ControlRigBlueprint.IsValid())
+	{
+		ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
+		ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
+	}
+	
+	ControlRigEditor.Reset();
+	ControlRigBlueprint.Reset();
+}
+
+void SRigHierarchy::OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
+{
+	OnEditorClose();
 }
 
 void SRigHierarchy::BindCommands()
