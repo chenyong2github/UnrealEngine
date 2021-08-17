@@ -630,7 +630,7 @@ public:
 	inline bool IsRayTracingFarField() const { return bRayTracingFarField; }
 	inline int32 GetRayTracingGroupId() const { return RayTracingGroupId; }
 	inline uint8 GetRayTracingGroupCullingPriority() const { return RayTracingGroupCullingPriority; }
-	inline bool IsVisibleInPrimaryRayPass() const
+	inline bool IsVisibleInRaster() const
 	{
 		return !(IsRayTracingFarField() && (!IsDrawnInGame() || GetScene().IsEditorScene()));
 	}

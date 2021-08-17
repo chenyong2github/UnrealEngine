@@ -148,7 +148,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 			.UseVolumetricLightmap(bHasPrecomputedVolumetricLightmap)
 			.NaniteResourceID(NaniteResourceID)
 			.NaniteHierarchyOffset(NaniteHierarchyOffset)
-			.VisibleInPrimaryRayPass(Proxy->IsVisibleInPrimaryRayPass())
+			.VisibleInRaster(Proxy->IsVisibleInRaster())
 		.Build()
 	);
 }
