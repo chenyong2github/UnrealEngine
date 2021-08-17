@@ -36,8 +36,8 @@ enum class EContentType
 class FZenHttpRequest
 {
 public:
-	FZenHttpRequest(const TCHAR* InDomain, bool bInLogErrors);
-	~FZenHttpRequest();
+	DERIVEDDATACACHE_API FZenHttpRequest(const TCHAR* InDomain, bool bInLogErrors);
+	DERIVEDDATACACHE_API ~FZenHttpRequest();
 
 	/**
 		* Resets all options on the request except those that should always be set.
@@ -76,7 +76,7 @@ public:
 		* @param Buffer Data to upload
 		* @return Result of the request
 		*/
-	Result PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType);
+	DERIVEDDATACACHE_API Result PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType);
 
 	/**
 		* Download an url into a buffer using the request.
@@ -85,7 +85,7 @@ public:
 		* downloaded data will be stored in an internal buffer and accessed via GetResponseAsString
 		* @return Result of the request
 		*/
-	Result PerformBlockingDownload(const TCHAR* Uri, TArray<uint8>* Buffer);
+	DERIVEDDATACACHE_API Result PerformBlockingDownload(const TCHAR* Uri, TArray<uint8>* Buffer);
 
 	/**
 		* Download an url into a buffer using the request.
@@ -93,21 +93,21 @@ public:
 		* @param OutPackage Package instance which will receive the data
 		* @result Request success/failure status
 		*/
-	Result PerformBlockingDownload(const TCHAR* Uri, FCbPackage& OutPackage);
+	DERIVEDDATACACHE_API Result PerformBlockingDownload(const TCHAR* Uri, FCbPackage& OutPackage);
 
 	/**
 		* Query an url using the request. Queries can use either "Head" or "Delete" verbs.
 		* @param Uri Url to use.
 		* @return Result of the request
 		*/
-	Result PerformBlockingHead(const TCHAR* Uri);
+	DERIVEDDATACACHE_API Result PerformBlockingHead(const TCHAR* Uri);
 
 	/**
 		* Query an url using the request. Queries can use either "Head" or "Delete" verbs.
 		* @param Uri Url to use.
 		* @return Result of the request
 		*/
-	Result PerformBlockingDelete(const TCHAR* Uri);
+	DERIVEDDATACACHE_API Result PerformBlockingDelete(const TCHAR* Uri);
 
 	/**
 		* Returns the response buffer as a string. Note that is the request is performed
@@ -171,21 +171,21 @@ private:
   * 
   * Intended to be used with \ref FScopedRequestPtr which handles lifetime management transparently
   */
-struct FRequestPool
+struct FZenHttpRequestPool
 {
-	explicit FRequestPool(const TCHAR* InServiceUrl);
-	~FRequestPool();
+	DERIVEDDATACACHE_API explicit FZenHttpRequestPool(const TCHAR* InServiceUrl);
+	DERIVEDDATACACHE_API ~FZenHttpRequestPool();
 
 	/** Block until a request is free. Once a request has been returned it is
 	  * "owned by the caller and need to release it to the pool when work has been completed.
 	  * @return Usable request instance.
 	  */
-	FZenHttpRequest* WaitForFreeRequest();
+	DERIVEDDATACACHE_API FZenHttpRequest* WaitForFreeRequest();
 
 	/** Release request to the pool.
 	  * @param Request Request that should be freed. Note that any buffer owned by the request can now be reset.
 	  */
-	void ReleaseRequestToPool(FZenHttpRequest* Request);
+	DERIVEDDATACACHE_API void ReleaseRequestToPool(FZenHttpRequest* Request);
 
 private:
 	struct FEntry
@@ -200,16 +200,16 @@ private:
 /**
   * Utility class to manage requesting and releasing requests from the \ref FRequestPool.
   */
-struct FScopedRequestPtr
+struct FZenScopedRequestPtr
 {
 public:
-	FScopedRequestPtr(FRequestPool* InPool)
+	FZenScopedRequestPtr(FZenHttpRequestPool* InPool)
 	:	Request(InPool->WaitForFreeRequest())
 	,	Pool(InPool)
 	{
 	}
 
-	~FScopedRequestPtr()
+	~FZenScopedRequestPtr()
 	{
 		Pool->ReleaseRequestToPool(Request);
 	}
@@ -228,8 +228,8 @@ public:
 	}
 
 private:
-	FZenHttpRequest*	Request;
-	FRequestPool*		Pool;
+	FZenHttpRequest*		Request;
+	FZenHttpRequestPool*	Pool;
 };
 
 } // namespace UE::Zen

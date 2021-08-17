@@ -39,7 +39,7 @@ FZenDerivedDataBackend::FZenDerivedDataBackend(
 {
 	if (IsServiceReady())
 	{
-		RequestPool = MakeUnique<Zen::FRequestPool>(InServiceUrl);
+		RequestPool = MakeUnique<Zen::FZenHttpRequestPool>(InServiceUrl);
 		bIsUsable = true;
 	}
 	bCacheRecordEndpointEnabled = false;
@@ -54,7 +54,6 @@ FString FZenDerivedDataBackend::GetName() const
 {
 	return Domain;
 }
-
 
 bool FZenDerivedDataBackend::IsServiceReady()
 {
@@ -109,7 +108,7 @@ bool FZenDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		Zen::FScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		Zen::FZenHttpRequest::Result Result = Request->PerformBlockingHead(*Uri);
 		ResponseCode = Request->GetResponseCode();
 
@@ -181,7 +180,7 @@ FZenDerivedDataBackend::GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) con
 	EGetResult GetResult = EGetResult::NotFound;
 	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
 	{
-		Zen::FScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
 			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDownload(Uri, OutData);
@@ -204,6 +203,7 @@ FZenDerivedDataBackend::GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) con
 	{
 		OutData->Reset();
 	}
+
 	return GetResult;
 }
 
@@ -218,7 +218,7 @@ FZenDerivedDataBackend::GetZenData(const FCacheKey& CacheKey, ECachePolicy Cache
 	EGetResult GetResult = EGetResult::NotFound;
 	for (uint32 Attempts = 0; Attempts < MaxAttempts; ++Attempts)
 	{
-		Zen::FScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
 			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDownload(QueryUri.ToString(), OutPackage);
@@ -277,7 +277,7 @@ FZenDerivedDataBackend::PutZenData(const TCHAR* Uri, const FCompositeBuffer& InD
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		Zen::FScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
 			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingPut(Uri, InData, ContentType);
@@ -399,7 +399,7 @@ void FZenDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTrans
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	while (ResponseCode == 0 && ++Attempts < MaxAttempts)
 	{
-		Zen::FScopedRequestPtr Request(RequestPool.Get());
+		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request)
 		{
 			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDelete(*Uri);
