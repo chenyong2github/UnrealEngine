@@ -34,33 +34,12 @@ UPlacementBrushToolBase* UPlacementModeLassoSelectToolBuilder::FactoryToolInstan
 void UPlacementModeLassoSelectTool::OnBeginDrag(const FRay& Ray)
 {
 	Super::OnBeginDrag(Ray);
-
-	ElementsFromDrag.Reset();
 	GetToolManager()->BeginUndoTransaction(NSLOCTEXT("AssetPlacementEdMode", "BrushSelect", "Select Elements"));
 }
 
 void UPlacementModeLassoSelectTool::OnEndDrag(const FRay& Ray)
 {
-	if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
-	{
-		UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
-		if (SelectionSet && ElementsFromDrag)
-		{
-			const bool bSelectElements = !bCtrlToggle;
-			if (bSelectElements)
-			{
-				SelectionSet->SelectElements(ElementsFromDrag.ToSharedRef(), PlacementModeLassoToolInternal::SelectionOptions);
-			}
-			else
-			{
-				SelectionSet->DeselectElements(ElementsFromDrag.ToSharedRef(), PlacementModeLassoToolInternal::SelectionOptions);
-			}
-		}
-	}
-
 	GetToolManager()->EndUndoTransaction();
-	ElementsFromDrag.Reset();
-
 	Super::OnEndDrag(Ray);
 }
 
@@ -71,13 +50,21 @@ void UPlacementModeLassoSelectTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	FTypedElementListRef HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
-	if (ElementsFromDrag)
+	if (IAssetEditorContextInterface* AssetEditorContext = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
 	{
-		ElementsFromDrag->Append(HitElements);
-	}
-	else
-	{
-		ElementsFromDrag = HitElements;
+		UTypedElementSelectionSet* SelectionSet = AssetEditorContext->GetMutableSelectionSet();
+		if (SelectionSet)
+		{
+			FTypedElementListRef HitElements = GetElementsInBrushRadius(LastDeviceInputRay);
+			const bool bSelectElements = !bCtrlToggle;
+			if (bSelectElements)
+			{
+				SelectionSet->SelectElements(HitElements, PlacementModeLassoToolInternal::SelectionOptions);
+			}
+			else
+			{
+				SelectionSet->DeselectElements(HitElements, PlacementModeLassoToolInternal::SelectionOptions);
+			}
+		}
 	}
 }
