@@ -1005,20 +1005,20 @@ void FSequencerObjectBindingNode::SetDisplayName(const FText& NewDisplayName)
 		FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(GetObjectBinding());
 		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(GetObjectBinding());
 
-		if (Spawnable)
+		// If there is only one binding, set the name of the bound actor
+		TArrayView<TWeakObjectPtr<>> Objects = GetSequencer().FindObjectsInCurrentSequence(GetObjectBinding());
+		if (Objects.Num() == 1)
 		{
-			TArrayView<TWeakObjectPtr<>> Objects = GetSequencer().FindObjectsInCurrentSequence(GetObjectBinding());
-			// If there is only one binding, set the name of the bound actor
-			if (Objects.Num() == 1)
+			if (AActor* Actor = Cast<AActor>(Objects[0].Get()))
 			{
-				AActor* Actor = Cast<AActor>(Objects[0].Get());
 				Actor->SetActorLabel(NewDisplayName.ToString());
 			}
-			else
-			{
-				// Otherwise set our display name
-				Spawnable->SetName(NewDisplayName.ToString());
-			}
+		}
+
+		if (Spawnable)
+		{
+			// Otherwise set our display name
+			Spawnable->SetName(NewDisplayName.ToString());
 		}
 		else if (Possessable)
 		{
