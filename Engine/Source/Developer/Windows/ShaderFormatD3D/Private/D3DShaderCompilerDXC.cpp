@@ -673,7 +673,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	const TCHAR* ValidatorVersion = nullptr; // Whatever default validator chosen by DXC
 
-	const bool bKeepDebugInfo = Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo);
+	const bool bGenerateSymbols = Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols);
+	const bool bSymbolsBasedOnSource = Input.Environment.CompilerFlags.Contains(CFLAG_AllowUniqueSymbols);
 
 	FDxcArguments Args
 	(
@@ -683,7 +684,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		Input.DumpDebugInfoPath,
 		Filename,
 		bEnable16BitTypes,
-		bKeepDebugInfo,
+		bGenerateSymbols,
+		bSymbolsBasedOnSource,
 		DXCFlags,
 		AutoBindingSpace,
 		ValidatorVersion

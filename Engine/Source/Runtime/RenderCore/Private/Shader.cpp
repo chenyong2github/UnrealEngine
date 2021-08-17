@@ -1432,8 +1432,12 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 	}
 
 	{
-		KeyString += ShouldKeepShaderDebugInfo(ShaderFormatName) ? TEXT("_NoStrip") : TEXT("");
-		KeyString += ShouldAllowUniqueDebugInfo(ShaderFormatName) ? TEXT("_FullDbg") : TEXT("");
+		// Extra data (names, etc)
+		KeyString += ShouldEnableExtraShaderData(ShaderFormatName) ? TEXT("_ExtraData") : TEXT("");
+		// Symbols
+		KeyString += ShouldGenerateShaderSymbols(ShaderFormatName) ? TEXT("_Symbols") : TEXT("");
+		// Are symbols based on source or results
+		KeyString += ShouldAllowUniqueShaderSymbols(ShaderFormatName) ? TEXT("_FullDbg") : TEXT("");
 	}
 
 	{

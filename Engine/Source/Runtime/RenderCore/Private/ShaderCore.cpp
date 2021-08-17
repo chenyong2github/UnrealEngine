@@ -381,11 +381,12 @@ public:
 		: SettingName(InSettingName)
 		, SettingCVar(!bPlatformOnly ? IConsoleManager::Get().FindConsoleVariable(InSettingName) : nullptr)
 	{
+		check(SettingCVar || bPlatformOnly);
 	}
 
 	bool IsEnabled(FName ShaderFormat) const
 	{
-		return  IsShaderCompilerConfigEnabledForPlatform(SettingCVar, SettingName, ShaderFormat);
+		return IsShaderCompilerConfigEnabledForPlatform(SettingCVar, SettingName, ShaderFormat);
 	}
 
 	bool GetString(FString& OutString, FName ShaderFormat) const
@@ -394,31 +395,27 @@ public:
 	}
 };
 
-bool ShouldKeepShaderDebugInfo(FName ShaderFormat)
+bool ShouldGenerateShaderSymbols(FName ShaderFormat)
 {
-	static const FShaderSymbolSettingHelper GenerateSymbols(TEXT("r.Shaders.KeepDebugInfo"));
-	static const FShaderSymbolSettingHelper PrepareExportedSymbols(TEXT("r.Shaders.PrepareExportedDebugInfo"), true);
-	return GenerateSymbols.IsEnabled(ShaderFormat) || PrepareExportedSymbols.IsEnabled(ShaderFormat);
+	static const FShaderSymbolSettingHelper Symbols(TEXT("r.Shaders.Symbols"));
+	static const FShaderSymbolSettingHelper GenerateSymbols(TEXT("r.Shaders.GenerateSymbols"), true);
+	return Symbols.IsEnabled(ShaderFormat) || GenerateSymbols.IsEnabled(ShaderFormat);
 }
 
-bool ShouldKeepShaderDebugInfo(EShaderPlatform ShaderPlatform)
+bool ShouldWriteShaderSymbols(FName ShaderFormat)
 {
-	return ShouldKeepShaderDebugInfo(LegacyShaderPlatformToShaderFormat(ShaderPlatform));
+	static const FShaderSymbolSettingHelper Symbols(TEXT("r.Shaders.Symbols"));
+	static const FShaderSymbolSettingHelper WriteSymbols(TEXT("r.Shaders.WriteSymbols"), true);
+	return Symbols.IsEnabled(ShaderFormat) || WriteSymbols.IsEnabled(ShaderFormat);
 }
 
-bool ShouldExportShaderDebugInfo(FName ShaderFormat)
+bool ShouldAllowUniqueShaderSymbols(FName ShaderFormat)
 {
-	static const FShaderSymbolSettingHelper ExportSymbols(TEXT("r.Shaders.ExportDebugInfo"));
-	static const FShaderSymbolSettingHelper GenerateSymbols(TEXT("r.Shaders.KeepDebugInfo"));
-	return ExportSymbols.IsEnabled(ShaderFormat) || GenerateSymbols.IsEnabled(ShaderFormat);
+	static const FShaderSymbolSettingHelper AllowUniqueSymbols(TEXT("r.Shaders.AllowUniqueSymbols"));
+	return AllowUniqueSymbols.IsEnabled(ShaderFormat);
 }
 
-bool ShouldExportShaderDebugInfo(EShaderPlatform ShaderPlatform)
-{
-	return ShouldExportShaderDebugInfo(LegacyShaderPlatformToShaderFormat(ShaderPlatform));
-}
-
-bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat)
+bool GetShaderSymbolPathOverride(FString& OutPathOverride, FName ShaderFormat)
 {
 	static const FShaderSymbolSettingHelper SymbolPathOverride(TEXT("r.Shaders.SymbolPathOverride"));
 	if (SymbolPathOverride.GetString(OutPathOverride, ShaderFormat))
@@ -437,10 +434,16 @@ bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat
 	return false;
 }
 
-bool ShouldExportShaderDebugInfoAsZip(FName ShaderFormat)
+bool ShouldWriteShaderSymbolsAsZip(FName ShaderFormat)
 {
-	static const FShaderSymbolSettingHelper ExportSymbolsZip(TEXT("r.Shaders.ExportDebugInfo.Zip"));
-	return ExportSymbolsZip.IsEnabled(ShaderFormat);
+	static const FShaderSymbolSettingHelper WriteSymbolsZip(TEXT("r.Shaders.WriteSymbols.Zip"));
+	return WriteSymbolsZip.IsEnabled(ShaderFormat);
+}
+
+bool ShouldEnableExtraShaderData(FName ShaderFormat)
+{
+	static const FShaderSymbolSettingHelper ExtraData(TEXT("r.Shaders.ExtraData"));
+	return ExtraData.IsEnabled(ShaderFormat);
 }
 
 #ifndef UE_ALLOW_SHADER_COMPILING
@@ -478,13 +481,6 @@ bool AllowGlobalShaderLoad()
 	// Commandlets and dedicated servers don't load global shaders (the cook commandlet will load for the necessary target platform(s) later).
 	return !bNoShaderCompile && !IsRunningDedicatedServer() && (!IsRunningCommandlet() || IsAllowCommandletRendering());
 
-}
-
-
-bool ShouldAllowUniqueDebugInfo(FName ShaderFormat)
-{
-	static const FShaderSymbolSettingHelper AllowUniqueDebugInfo(TEXT("r.Shaders.AllowUniqueDebugInfo"));
-	return AllowUniqueDebugInfo.IsEnabled(ShaderFormat);
 }
 
 bool FShaderParameterMap::FindParameterAllocation(const TCHAR* ParameterName,uint16& OutBufferIndex,uint16& OutBaseIndex,uint16& OutSize) const

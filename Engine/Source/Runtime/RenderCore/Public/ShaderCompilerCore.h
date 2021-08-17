@@ -24,21 +24,28 @@ const int32 ShaderCompileWorkerSingleJobHeader = 'S';
 // this is for the protocol, not the data.
 const int32 ShaderCompileWorkerPipelineJobHeader = 'P';
 
-/** Returns true if debug information should be kept for a given platform. */
-extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);
-extern RENDERCORE_API bool ShouldKeepShaderDebugInfo(FName ShaderFormat);
+/** Returns true if shader symbols should be kept for a given platform. */
+extern RENDERCORE_API bool ShouldGenerateShaderSymbols(FName ShaderFormat);
 
-/** Returns true if debug information should be exported to separate files for a given platform . */
-extern RENDERCORE_API bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
-extern RENDERCORE_API bool ShouldExportShaderDebugInfo(FName ShaderFormat);
+/** Returns true if shader symbols should be exported to separate files for a given platform. */
+extern RENDERCORE_API bool ShouldWriteShaderSymbols(FName ShaderFormat);
 
-extern RENDERCORE_API bool GetShaderDebugInfoPathOverride(FString& OutPathOverride, FName ShaderFormat);
-
-/** Returns true if shader symbols should be exported to a single zip file for a given platform. */
-extern RENDERCORE_API bool ShouldExportShaderDebugInfoAsZip(FName ShaderFormat);
+/** Returns true if the shader symbol path is overriden and OutPathOverride contains the override path. */
+extern RENDERCORE_API bool GetShaderSymbolPathOverride(FString& OutPathOverride, FName ShaderFormat);
 
 /** Returns true if (external) shader symbols should be specific to each shader rather than be de-duplicated. */
-extern RENDERCORE_API bool ShouldAllowUniqueDebugInfo(FName ShaderFormat);
+extern RENDERCORE_API bool ShouldAllowUniqueShaderSymbols(FName ShaderFormat);
+
+/** Returns true if shaders should be combined into a single zip file instead of individual files. */
+extern RENDERCORE_API bool ShouldWriteShaderSymbolsAsZip(FName ShaderFormat);
+
+/** Returns true if the user wants more runtime shader data (names, extra info) */
+extern RENDERCORE_API bool ShouldEnableExtraShaderData(FName Platform);
+
+UE_DEPRECATED(5.0, "ShouldGenerateShaderSymbols should be called to determine if symbols (debug data) should be generated")
+bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);
+UE_DEPRECATED(5.0, "ShouldWriteShaderSymbols should be called to determine if symbols (debug data) should be written")
+bool ShouldExportShaderDebugInfo(EShaderPlatform Platform);
 
 /** Returns true is shader compiling is allowed */
 extern RENDERCORE_API bool AllowShaderCompiling();
@@ -58,10 +65,13 @@ enum ECompilerFlags
 	CFLAG_StandardOptimization,
 	// Always optimize, even when CFLAG_Debug is set. Required for some complex shaders and features.
 	CFLAG_ForceOptimization,
+	// Shader should generate symbols for debugging.
+	CFLAG_GenerateSymbols,
+	CFLAG_KeepDebugInfo UE_DEPRECATED(5.0, "CFLAG_GenerateSymbols should be used to signal if debug data needs to be generated") = CFLAG_GenerateSymbols,
 	// Shader should insert debug/name info at the risk of generating non-deterministic libraries
-	CFLAG_KeepDebugInfo,
-	// Allows the (external) debug info to be specific to each shader rather than trying to deduplicate.
-	CFLAG_AllowUniqueDebugInfo,
+	CFLAG_ExtraShaderData,
+	// Allows the (external) symbols to be specific to each shader rather than trying to deduplicate.
+	CFLAG_AllowUniqueSymbols,
 	CFLAG_NoFastMath,
 	// Explicitly enforce zero initialization on shader platforms that may omit it.
 	CFLAG_ZeroInitialise,

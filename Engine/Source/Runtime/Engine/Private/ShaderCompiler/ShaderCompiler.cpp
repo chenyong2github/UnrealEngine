@@ -825,49 +825,58 @@ static FAutoConsoleVariableRef CVarForceAllCoresForShaderCompiling(
 	TEXT("Improves shader throughput but for big projects it can make the machine run OOM")
 );
 
-static TAutoConsoleVariable<int32> CVarKeepShaderDebugData(
-	TEXT("r.Shaders.KeepDebugInfo"),
+static TAutoConsoleVariable<int32> CVarShadersSymbols(
+	TEXT("r.Shaders.Symbols"),
 	0,
-	TEXT("Whether to keep shader reflection and debug data from shader bytecode, default is to strip.  When using graphical debuggers like Nsight it can be useful to enable this on startup.")
-	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	TEXT("Enables debugging of shaders in platform specific graphics debuggers. This will generate and write shader symbols.\n")
+	TEXT("This enables the behavior of both r.Shaders.GenerateSymbols and r.Shaders.WriteSymbols.\n")
+	TEXT("Enables shader debugging features that require shaders to be recompiled. This compiles shaders with symbols and also includes extra runtime information like shader names. When using graphical debuggers it can be useful to enable this on startup.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarPrepareExportedDebugInfo(
-	TEXT("r.Shaders.PrepareExportedDebugInfo"),
+static TAutoConsoleVariable<int32> CVarShadersGenerateSymbols(
+	TEXT("r.Shaders.GenerateSymbols"),
 	0,
-	TEXT("For platforms that work on exported shader debug info, this should be set to keep shader reflection and debug data from shader bytecode, default is to strip.")
-	TEXT("For these platforms, r.Shaders.KeepDebugInfo has the same behavior but will also export the debug info.")
-	TEXT("This will only be read from the platform Engine.ini, under the [ShaderCompiler] section."),
+	TEXT("Enables generation of data for shader debugging when compiling shaders. This explicitly does not write any shader symbols to disk.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarExportShaderDebugData(
-	TEXT("r.Shaders.ExportDebugInfo"),
+static TAutoConsoleVariable<int32> CVarShadersWriteSymbols(
+	TEXT("r.Shaders.WriteSymbols"),
 	0,
-	TEXT("Whether to export the shader reflection and debug data from shader bytecode as separate files.")
-	TEXT("r.Shaders.KeepDebugInfo must be enabled and r.DumpShaderDebugInfo will enable this cvar.")
-	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	TEXT("Enables writing shader symbols to disk for platforms that support that. This explicitly does not enable generation of shader symbols.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<FString> CVarShadersSymbolPathOverride(
 	TEXT("r.Shaders.SymbolPathOverride"),
 	"",
 	TEXT("Override output location of shader symbols. If the path contains the text '{Platform}', that will be replaced with the shader platform string.\n")
-	TEXT("Empty: use default location Saved/ShaderSymbols/{Platform}"),
+	TEXT("Empty: use default location Saved/ShaderSymbols/{Platform}\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarAllowUniqueDebugInfo(
-	TEXT("r.Shaders.AllowUniqueDebugInfo"),
+	TEXT("r.Shaders.AllowUniqueSymbols"),
 	0,
-	TEXT("Whether to allow (exported) shader debug info to be unique per shader.\n")
-	TEXT("Enabling this can cause a drastic increase in debug data, enable only if absolutely necessary.\n")
-	TEXT("For some platforms this cvar can be overriden in the Engine.ini, under the [ShaderCompiler] section."),
+	TEXT("When enabled, this tells supported shader compilers to generate symbols based on source files.\n")
+	TEXT("Enabling this can cause a drastic increase in the number of symbol files, enable only if absolutely necessary.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarExportShaderDebugInfoZip(
-	TEXT("r.Shaders.ExportDebugInfo.Zip"),
+static TAutoConsoleVariable<int32> CVarShadersWriteSymbolsZip(
+	TEXT("r.Shaders.WriteSymbols.Zip"),
 	0,
 	TEXT(" 0: Export as loose files.\n")
 	TEXT(" 1: Export as an uncompressed archive.\n"),
+	ECVF_ReadOnly);
+
+static TAutoConsoleVariable<int32> CVarShadersEnableExtraData(
+	TEXT("r.Shaders.ExtraData"),
+	0,
+	TEXT("Enables generation of extra shader data that can be used at runtime. This includes shader names and other platform specific data.\n")
+	TEXT("This can add bloat to compiled shaders and can prevent shaders from being deduplicated.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarOptimizeShaders(
@@ -5154,14 +5163,22 @@ void GlobalBeginCompileShader(
 		}
 	}
 
-	if (ShouldKeepShaderDebugInfo(ShaderFormatName))
+	// Extra data (names, etc)
+	if (ShouldEnableExtraShaderData(ShaderFormatName))
 	{
-		Input.Environment.CompilerFlags.Add(CFLAG_KeepDebugInfo);
+		Input.Environment.CompilerFlags.Add(CFLAG_ExtraShaderData);
 	}
 
-	if (ShouldAllowUniqueDebugInfo(ShaderFormatName))
+	// Symbols
+	if (ShouldGenerateShaderSymbols(ShaderFormatName))
 	{
-		Input.Environment.CompilerFlags.Add(CFLAG_AllowUniqueDebugInfo);
+		Input.Environment.CompilerFlags.Add(CFLAG_GenerateSymbols);
+	}
+
+	// Are symbols based on source or results
+	if (ShouldAllowUniqueShaderSymbols(ShaderFormatName))
+	{
+		Input.Environment.CompilerFlags.Add(CFLAG_AllowUniqueSymbols);
 	}
 
 	if (CVarShaderFastMath.GetValueOnAnyThread() == 0)

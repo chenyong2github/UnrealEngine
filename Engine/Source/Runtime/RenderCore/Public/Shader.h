@@ -352,6 +352,8 @@ public:
 
 	RENDERCORE_API void Serialize(FArchive& Ar, bool bLoadedByCookedMaterial);
 #if WITH_EDITORONLY_DATA
+	RENDERCORE_API void NotifyShadersCompiled(FName FormatName);
+	UE_DEPRECATED(5.0, "NotifyShadersCompiled should be called")
 	RENDERCORE_API void NotifyShadersCooked(const ITargetPlatform* TargetPlatform);
 #endif // WITH_EDITORONLY_DATA
 
