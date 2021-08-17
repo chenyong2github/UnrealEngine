@@ -147,7 +147,7 @@ static FTextureBuildSettings ReadBuildSettingsFromCompactBinary(const FCbObjectV
 	ReadCbField(Object["VirtualTextureBorderSize"], BuildSettings.VirtualTextureBorderSize);
 	BuildSettings.bVirtualTextureEnableCompressZlib = Object["bVirtualTextureEnableCompressZlib"].AsBool(BuildSettings.bVirtualTextureEnableCompressZlib);
 	BuildSettings.bVirtualTextureEnableCompressCrunch = Object["bVirtualTextureEnableCompressCrunch"].AsBool(BuildSettings.bVirtualTextureEnableCompressCrunch);
-	BuildSettings.bHasEditorOnlyData = Object["bHasEditorOnlyData"].AsBool(BuildSettings.bHasEditorOnlyData);
+	BuildSettings.FastTextureEncode = (ETextureFastEncode) Object["FastTextureEncode"].AsUInt8((uint8)BuildSettings.FastTextureEncode);
 	return BuildSettings;
 }
 

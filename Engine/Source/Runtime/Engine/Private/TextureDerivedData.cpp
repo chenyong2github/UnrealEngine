@@ -170,7 +170,7 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 	//Settings.CompressionQuality
 
 	//note : LossyCompressionAmount and CompressionQuality are not put in DDC key
-	// 	   same for bHasEditorOnlyData
+	// 	   same for FastTextureEncode
 	// it is up to textureformats that use them to put them in
 }
 
@@ -357,6 +357,97 @@ static void FinalizeBuildSettingsForLayer(const UTexture& Texture, int32 LayerIn
 	}
 }
 
+static ETextureFastEncode GetDesiredFastTextureEncode(	const ITargetPlatform& CurrentPlatform )
+{
+	static uint32 CachedFastTextureEncodeOption = 0; // 0 = not checked, 1 = no , 2 = yes + high bits are the value
+	
+	if ( CachedFastTextureEncodeOption == 0 )
+	{
+		// check for command line options
+		
+		FString FastTextureEncodeMode;
+		if ( FParse::Value(FCommandLine::Get(), TEXT("fasttextureencode="), FastTextureEncodeMode) )
+		{
+			ETextureFastEncode FastTextureEncodeOption;
+
+			// FString operator== is case insensitive
+			if ( FastTextureEncodeMode == "0" || FastTextureEncodeMode == "off" )
+			{
+				FastTextureEncodeOption = ETextureFastEncode::Off;				
+			}
+			else if ( FastTextureEncodeMode == "1" || FastTextureEncodeMode == "on" )
+			{
+				FastTextureEncodeOption = ETextureFastEncode::TryOffEncodeFast;				
+			}
+			else if ( FastTextureEncodeMode == "2" || FastTextureEncodeMode == "forced" )
+			{
+				FastTextureEncodeOption = ETextureFastEncode::Forced;				
+			}
+			else
+			{
+				FastTextureEncodeOption = ETextureFastEncode::TryOffEncodeFast;		
+				UE_LOG(LogTexture, Warning, TEXT("Unrecognized fasttextureencode mode %s"), *FastTextureEncodeMode);
+			}
+		
+			CachedFastTextureEncodeOption = 2 | ((uint32)FastTextureEncodeOption<<8);
+		}
+		else if ( FCString::Strifind(FCommandLine::Get(), TEXT("-fasttextureencode")) != NULL )
+		{
+			CachedFastTextureEncodeOption = 2 | ((uint32)ETextureFastEncode::TryOffEncodeFast<<8);
+		}
+		else
+		{
+			// no option on command line
+			// store 1 so we don't check here again
+			CachedFastTextureEncodeOption = 1;
+		}
+	}
+
+	if ( CachedFastTextureEncodeOption >= 2 )
+	{
+		// have CachedFastTextureEncodeOption
+		return (ETextureFastEncode)(CachedFastTextureEncodeOption>>8);
+	}
+	else
+	{
+		check( CachedFastTextureEncodeOption == 1 );
+		// no option specified, default behavior :
+
+		#if 1
+
+		// control by is target platform "with editor" ?
+		
+		// can't store this in CachedFastTextureEncodeOption if it depends on CurrentPlatform
+		//	because we can get called multiple times for different platform in cook/ddc operations
+
+		// this is the old behavior
+		
+		if ( CurrentPlatform.HasEditorOnlyData() )
+			return ETextureFastEncode::TryOffEncodeFast;
+		else
+			return ETextureFastEncode::Off;
+
+		#else
+
+		// control by is in interactive editor (not cook / ddc fill commandlets)
+
+		// does not depend on currentplatform so we could store in CachedFastTextureEncodeOption
+
+		// @todo Oodle consider to changing to this behavior
+
+		if ( GIsEditor && ! IsRunningCommandlet() )
+		{
+			return ETextureFastEncode::TryOffEncodeFast;
+		}
+		else
+		{
+			return ETextureFastEncode::Off;
+		}
+
+		#endif
+	}
+}
+
 /**
  * Sets texture build settings.
  * @param Texture - The texture for which to build compressor settings.
@@ -521,7 +612,7 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bVirtualTextureEnableCompressCrunch = false;
 	}
 
-	OutBuildSettings.bHasEditorOnlyData = CurrentPlatform.HasEditorOnlyData();
+	OutBuildSettings.FastTextureEncode = GetDesiredFastTextureEncode( CurrentPlatform );
 
 	// By default, initialize settings for layer0
 	FinalizeBuildSettingsForLayer(Texture, 0, OutBuildSettings);
@@ -755,11 +846,11 @@ void FTexturePlatformData::Cache(
 	bool bAsync = EnumHasAnyFlags(Flags, ETextureCacheFlags::Async);
 	GetTextureDerivedDataKey(InTexture, InSettingsPerLayer, DerivedDataKey);
 
-	if (!bForceRebuild && InSettingsPerLayer[0].bHasEditorOnlyData)
+	if (!bForceRebuild && InSettingsPerLayer[0].FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
 	{
 		// If we are running in the Editor, generate a shipping derived data key, which can be used to load
 		// a texture cooked for the shipping build from the cache, if available.
-		// Specifically, FTextureBuildSettings::bHasEditorOnlyData controls the usage of Oodle RDO when building textures.
+		// Specifically, FTextureBuildSettings::FastTextureEncode controls the usage of Oodle RDO when building textures.
 		// In cases when an RDO-processed texture is present in the cache, we can use it instead of building or loading a non-RDO texture.
 		const int32 NumLayers = InTexture.Source.GetNumLayers();
 		TArray<FTextureBuildSettings> ShippingBuildSettingsPerLayer;
@@ -767,7 +858,7 @@ void FTexturePlatformData::Cache(
 		for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
 		{
 			ShippingBuildSettingsPerLayer[LayerIndex] = InSettingsPerLayer[LayerIndex];
-			ShippingBuildSettingsPerLayer[LayerIndex].bHasEditorOnlyData = false;
+			ShippingBuildSettingsPerLayer[LayerIndex].FastTextureEncode = ETextureFastEncode::Off;
 		}
 		GetTextureDerivedDataKey(InTexture, ShippingBuildSettingsPerLayer.GetData(), ShippingDerivedDataKey);
 	}
