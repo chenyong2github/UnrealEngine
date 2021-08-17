@@ -2296,7 +2296,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		RegisteredMeshComponent = ValidatedMeshComponent;
 		AddTickPrerequisiteComponent(ValidatedMeshComponent);
 		bUseAttachParentBound = true;
-		LocalBindingAsset = bHasNeedBindingData ? BindingAsset : nullptr;
+		if (bHasNeedBindingData)
+		{
+			LocalBindingAsset = BindingAsset;
+		}
 	}
 
 	// Update requirement based on binding asset availability
