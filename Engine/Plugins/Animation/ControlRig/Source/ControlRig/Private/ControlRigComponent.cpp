@@ -1511,7 +1511,7 @@ void UControlRigComponent::HandleControlRigPreSetupEvent(UControlRig* InControlR
 
 		if (USkeletalMeshComponent* Component = Cast< USkeletalMeshComponent>(MappedElement.SceneComponent))
 		{
-			ComponentsToTick.Add(Component);
+			ComponentsToTick.AddUnique(Component);
 		}
 	}
 
