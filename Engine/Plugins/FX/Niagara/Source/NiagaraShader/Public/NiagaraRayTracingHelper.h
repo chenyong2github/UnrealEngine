@@ -26,12 +26,16 @@ struct FNiagaraRayData : public FBasicRayData
 struct FNiagaraRayTracingPayload
 {
 	float HitT;
-
 	uint32 PrimitiveIndex;
 	uint32 InstanceIndex;
 	float Barycentrics[2];
+	float WorldPosition[3];
+	float WorldNormal[3];
+};
 
-	uint32 InstanceID;
+struct FNiagaraRayTracingResult
+{
+	float HitT;
 
 	float WorldPosition[3];
 	float WorldNormal[3];
@@ -75,7 +79,7 @@ class NIAGARASHADER_API FNiagaraRayTracingHelper
 		/** Hash table. 
 		 PrimIdHashTable is the main hash table that maps GPUSceneInstanceIndex to and Index we can use to store Collision Groups inside HashToCollisionGroups.
 */
-		FRWBufferStructured PrimIdHashTable;
+		FRWBuffer PrimIdHashTable;
 		uint32 HashTableSize = 0;
 		FRWBuffer HashToCollisionGroups;
 

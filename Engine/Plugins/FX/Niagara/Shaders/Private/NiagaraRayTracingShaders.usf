@@ -7,10 +7,11 @@
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
 #include "NiagaraRayTracingCommon.ush"
 #include "/Engine/Private/HashTable.ush"
+#include "/Engine/Private/RayTracing/VFXTraceRay.ush"
 
 RaytracingAccelerationStructure               TLAS;
 StructuredBuffer<FNiagaraRayData>               Rays;
-RWStructuredBuffer<FNiagaraRayTracingPayload> CollisionOutput;
+RWStructuredBuffer<FNiagaraRayTracingResult> CollisionOutput;
 
 #if NIAGARA_RAYTRACE_FAKE_INDIRECT
 Buffer<uint>                                  RayTraceCounts;
@@ -70,16 +71,17 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES; // don't run anyhit shader
 
-	FNiagaraRayTracingPayload Payload = (FNiagaraRayTracingPayload)0;
+	FVFXTracePayload Payload = (FVFXTracePayload) 0;
 	uint RayCollisionGroup = InputRay.CollisionGroup;
+
 	if (RayCollisionGroup != -1)
 	{
 		uint NumCasts = 0;
 		LOOP
 		while (NumCasts++ <= MaxRetraces)
 		{
-			Payload = (FNiagaraRayTracingPayload)0;
-			TraceRay(
+			Payload = (FVFXTracePayload)0;
+			VFX_TRACE_RAY(
 				TLAS,   // AccelerationStructure
 				RayFlags,
 				RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
@@ -110,7 +112,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 	else
 	{
-		TraceRay(
+		VFX_TRACE_RAY(
 			TLAS,   // AccelerationStructure
 			RayFlags,
 			RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
@@ -123,14 +125,10 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 
 	CollisionOutput[RayIndex].HitT = Payload.HitT;
-	if (CollisionOutput[RayIndex].IsHit())
+	if (Payload.IsHit())
 	{
 		CollisionOutput[RayIndex].WorldPosition = Payload.WorldPosition;
 		CollisionOutput[RayIndex].WorldNormal = Payload.WorldNormal;
-
-		CollisionOutput[RayIndex].PrimitiveIndex = Payload.PrimitiveIndex;
-		CollisionOutput[RayIndex].InstanceIndex = Payload.InstanceIndex;
-		CollisionOutput[RayIndex].InstanceID = Payload.InstanceID;
 	}
 }
 
@@ -142,29 +140,13 @@ float3 GetBarycentricPosition(FDefaultAttributes Attributes, FTriangleBaseAttrib
 }
 
 RAY_TRACING_ENTRY_CLOSEST_HIT(NiagaraCollisionRayTraceCH,
-	FNiagaraRayTracingPayload, Payload,
+	FVFXTracePayload, Payload,
 	FDefaultAttributes, Attributes)
 {
-	Payload.HitT = RayTCurrent();
-
-	const int Primitive = GetInstanceUserData();
-	Payload.PrimitiveIndex = Primitive;
-
-	const int PrimitiveInstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
-	Payload.InstanceIndex = PrimitiveInstanceIndex;
-
-	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
-	float3 LocalPosition = GetBarycentricPosition(Attributes, Tri);
-	float3 LocalEdges[2] = { Tri.LocalPositions[1] - Tri.LocalPositions[0], Tri.LocalPositions[2] - Tri.LocalPositions[0] };
-	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
-	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
-
-	Payload.WorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
-	//Payload.WorldPosition = mul(float4(LocalPosition, 1.0f), ObjectToWorld4x3()).xyz;
-	Payload.WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
+	InitVFXTracePayloadFromHitShader(Attributes, Payload);
 }
 
-RAY_TRACING_ENTRY_MISS(NiagaraCollisionRayTraceMiss, FNiagaraRayTracingPayload, Payload)
+RAY_TRACING_ENTRY_MISS(NiagaraCollisionRayTraceMiss, FVFXTracePayload, Payload)
 {
 	Payload.SetMiss();
 }

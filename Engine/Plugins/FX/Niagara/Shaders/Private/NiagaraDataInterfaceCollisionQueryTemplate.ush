@@ -4,7 +4,7 @@
 bool											RayTracingEnabled_{ParameterName};
 uint                                            MaxRayTraceCount_{ParameterName};
 RWStructuredBuffer<FNiagaraRayData>               RWRayRequests_{ParameterName};
-StructuredBuffer<FNiagaraRayTracingPayload>     IntersectionResults_{ParameterName};
+StructuredBuffer<FNiagaraRayTracingResult>     IntersectionResults_{ParameterName};
 RWBuffer<uint>                                  RWRayTraceCounts_{ParameterName};
 #endif
 

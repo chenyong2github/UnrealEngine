@@ -14,11 +14,17 @@ struct FNiagaraRayData : FBasicRayData
 	uint CollisionGroup;
 };
 
+struct FNiagaraRayTracingPayload : FVFXTracePayload
+{
+
+};
+
 // payload structure for Niagara ray traces
-struct FNiagaraRayTracingPayload : FDefaultPayload
+struct FNiagaraRayTracingResult : FMinimalPayload
 {
 	float3 WorldPosition;
 	float3 WorldNormal;
 };
+
 
 #endif // NIAGARA_USE_RAYTRACING
