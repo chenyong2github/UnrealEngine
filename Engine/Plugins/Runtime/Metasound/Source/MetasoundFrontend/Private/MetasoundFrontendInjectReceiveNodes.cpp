@@ -115,18 +115,12 @@ namespace Metasound
 
 			TUniquePtr<INode> CreateReceiveNodeForDataType(const FGuid& InID, const FVertexKey& InVertexKey, const FName& InDataType)
 			{
-				const EMetasoundFrontendClassType Type = EMetasoundFrontendClassType::External;
-				const FNodeClassName& ClassName = ReceiveNodeInfo::GetClassNameForDataType(InDataType);
-				const int32 MajorVersion = ReceiveNodeInfo::GetCurrentMajorVersion();
-				const int32 MinorVersion = ReceiveNodeInfo::GetCurrentMinorVersion();
-
-				FNodeRegistryKey ReceiveNodeRegistryKey = NodeRegistryKey::CreateKey(Type, ClassName.GetFullName().ToString(), MajorVersion, MinorVersion);
 				FNodeInitData ReceiveNodeInitData 
 				{ 
 					FString::Format(TEXT("ReceiveInject_{0}"), { InVertexKey }),
 					InID
 				};
-				return FMetasoundFrontendRegistryContainer::Get()->CreateNode(ReceiveNodeRegistryKey, MoveTemp(ReceiveNodeInitData));
+				return FMetasoundFrontendRegistryContainer::Get()->CreateReceiveNode(InDataType, MoveTemp(ReceiveNodeInitData));
 			}
 		}
 

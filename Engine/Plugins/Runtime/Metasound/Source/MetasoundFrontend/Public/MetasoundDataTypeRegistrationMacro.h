@@ -423,6 +423,11 @@ namespace Metasound
 					return MakeUnique<TGetVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
 				}
 
+				virtual TUniquePtr<INode> CreateReceiveNode(FReceiveNodeConstructorParams&& InParams) const override
+				{
+					return MakeUnique<TReceiveNode<TDataType>>(InParams);
+				}
+
 				virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const override
 				{
 					// Only attempt to create proxy if the `UClassToUse` is not void.

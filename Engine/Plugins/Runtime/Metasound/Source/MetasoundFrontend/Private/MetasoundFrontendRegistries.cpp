@@ -417,6 +417,8 @@ namespace Metasound
 				TUniquePtr<Metasound::INode> CreateInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) override;
 				TUniquePtr<Metasound::INode> CreateVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams) override;
 				TUniquePtr<Metasound::INode> CreateOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) override;
+				TUniquePtr<Metasound::INode> CreateReceiveNode(const FName& InVariableType, FReceiveNodeConstructorParams&& InParams) override;
+
 				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultNodeConstructorParams&&) const override;
 				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultLiteralNodeConstructorParams&&) const override;
 				virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const override;
@@ -540,6 +542,20 @@ namespace Metasound
 				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
 				{
 					return Entry->CreateOutputNode(MoveTemp(InParams));
+				}
+				else
+				{
+					return nullptr;
+				}
+			}
+
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateReceiveNode(const FName& InDataType, Metasound::FReceiveNodeConstructorParams&& InParams)
+			{
+				const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find data type [Name:%s]"), *InDataType.ToString()))
+				{
+					return Entry->CreateReceiveNode(MoveTemp(InParams));
 				}
 				else
 				{
