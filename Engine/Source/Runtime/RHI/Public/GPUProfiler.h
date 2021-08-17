@@ -293,15 +293,20 @@ struct RHI_API FGPUProfiler
 	{
 	}
 
-	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0)
+	void RegisterGPUWork(uint32 NumDraws, uint32 NumPrimitives, uint32 NumVertices)
 	{
 		if (bTrackingEvents && CurrentEventNode)
 		{
 			check(IsInRenderingThread() || IsInRHIThread());
-			CurrentEventNode->NumDraws++;
+			CurrentEventNode->NumDraws += NumDraws;
 			CurrentEventNode->NumPrimitives += NumPrimitives;
 			CurrentEventNode->NumVertices += NumVertices;
 		}
+	}
+
+	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0)
+	{
+		RegisterGPUWork(1, NumPrimitives, NumVertices);
 	}
 
 	void RegisterGPUDispatch(FIntVector GroupCount)

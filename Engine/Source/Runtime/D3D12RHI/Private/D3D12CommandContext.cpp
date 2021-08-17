@@ -329,6 +329,8 @@ void FD3D12CommandContext::OpenCommandList()
 
 	bIsDoingQuery = false;
 
+	numPrimitives = 0;
+	numVertices = 0;
 	numDraws = 0;
 	numDispatches = 0;
 	numClears = 0;
@@ -476,8 +478,6 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 	{
 		FD3D12Device* Device = ParentAdapter->GetDevice(GPUIndex);
 
-		bTrackingEvents |= bIsDefaultContext && Device->GetGPUProfiler().bTrackingEvents;
-
 #if D3D12_SUBMISSION_GAP_RECORDER
 		if (GEnableGapRecorder && !GTriggerGPUProfile)
 		{
@@ -525,6 +525,8 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 
 		Device->GetDefaultBufferAllocator().BeginFrame();
 		Device->GetTextureAllocator().BeginFrame();
+
+		bTrackingEvents |= bIsDefaultContext && Device->GetGPUProfiler().bTrackingEvents;
 
 #if D3D12_RHI_RAYTRACING
 		Device->GetRayTracingCompactionRequestHandler()->Update(*ContextAtIndex);
@@ -764,6 +766,14 @@ class FD3D12CommandContextContainer : public IRHICommandContextContainer
 	FD3D12CommandContextRedirector* CmdContextRedirector;
 	FRHIGPUMask GPUMask;
 
+	struct FStats
+	{
+		uint32 NumDraws = 0;
+		uint32 NumPrimitives = 0;
+		uint32 NumVertices = 0;
+
+	} StatsPerGPU[MAX_NUM_GPUS];
+
 	TArray<FD3D12CommandListHandle> CommandLists;
 
 public:
@@ -835,6 +845,10 @@ public:
 
 		if (CmdContext)
 		{
+			StatsPerGPU[0].NumDraws = CmdContext->numDraws;
+			StatsPerGPU[0].NumPrimitives = CmdContext->numPrimitives;
+			StatsPerGPU[0].NumVertices = CmdContext->numVertices;
+
 			CmdContext->Finish(CommandLists);
 			CmdContext->GetParentDevice()->ReleaseCommandContext(CmdContext);
 			CmdContext = nullptr;
@@ -845,6 +859,11 @@ public:
 			for (uint32 GPUIndex : GPUMask)
 			{
 				CmdContext = CmdContextRedirector->GetContext(GPUIndex);
+
+				StatsPerGPU[GPUIndex].NumDraws = CmdContext->numDraws;
+				StatsPerGPU[GPUIndex].NumPrimitives = CmdContext->numPrimitives;
+				StatsPerGPU[GPUIndex].NumVertices = CmdContext->numVertices;
+
 				CmdContext->Finish(CommandLists);
 				CmdContext->GetParentDevice()->ReleaseCommandContext(CmdContext);
 				CmdContext = nullptr;
@@ -892,6 +911,8 @@ public:
 		{
 			FD3D12Device* Device = Adapter->GetDevice(GPUIndex);
 			check(Device);
+
+			Device->GetGPUProfiler().RegisterGPUWork(StatsPerGPU[GPUIndex].NumDraws, StatsPerGPU[GPUIndex].NumPrimitives, StatsPerGPU[GPUIndex].NumVertices);
 
 			if (Index == (Num - 1))
 			{
