@@ -560,8 +560,6 @@ void UEditorEngine::EndPlayMap()
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	// reset PIE multiplier to none
-	GAsyncLoadingTimeLimitPIEMultiplier = 1.0f;
 }
 
 void UEditorEngine::CleanupPIEOnlineSessions(TArray<FName> OnlineIdentifiers)
