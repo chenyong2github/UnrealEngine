@@ -14,6 +14,7 @@
 
 #include "Subsystems/GameInstanceSubsystem.h"
 #include "Subsystems/SubsystemCollection.h"
+#include "GameFramework/OnlineReplStructs.h"
 
 #if WITH_EDITOR
 #include "Settings/LevelEditorPlaySettings.h"
@@ -309,17 +310,33 @@ public:
 	 * @return whether the player was successfully removed. Removal is not allowed while connected to a server.
 	 */
 	virtual bool			RemoveLocalPlayer(ULocalPlayer * ExistingPlayer);
-
+	
+	/** Returns number of fully registered local players */
 	int32					GetNumLocalPlayers() const;
+
+	/** Returns the local player at a certain index, or null if not found */
 	ULocalPlayer*			GetLocalPlayerByIndex(const int32 Index) const;
-	APlayerController*		GetFirstLocalPlayerController(const UWorld* World = nullptr) const;
-	ULocalPlayer*			FindLocalPlayerFromControllerId(const int32 ControllerId) const;
-	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(FUniqueNetIdPtr UniqueNetId) const;
-	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(const FUniqueNetId& UniqueNetId) const;
+
+	/** Returns the first local player, will not be null during normal gameplay */
 	ULocalPlayer*			GetFirstGamePlayer() const;
 
+	/** Returns the player controller assigned to the first local player. If World is specified it will search within that specific world */
+	APlayerController*		GetFirstLocalPlayerController(const UWorld* World = nullptr) const;
+
+	/** Returns the local player assigned to a physical Controller Id, or null if not found */
+	ULocalPlayer*			FindLocalPlayerFromControllerId(const int32 ControllerId) const;
+
+	/** Returns the local player that has been assigned the specific unique net id */
+	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(FUniqueNetIdPtr UniqueNetId) const;
+	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(const FUniqueNetId& UniqueNetId) const;
+	ULocalPlayer*			FindLocalPlayerFromUniqueNetId(const FUniqueNetIdRepl& UniqueNetId) const;
+
+	/** Returns const iterator for searching list of local players */
 	TArray<ULocalPlayer*>::TConstIterator	GetLocalPlayerIterator() const;
+
+	/** Returns reference to entire local player list */
 	const TArray<ULocalPlayer*> &			GetLocalPlayers() const;
+
 	/**
 	 * Get the primary player controller on this machine (others are splitscreen children)
 	 * (must have valid player state)

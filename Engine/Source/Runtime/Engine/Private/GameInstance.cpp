@@ -866,7 +866,8 @@ ULocalPlayer* UGameInstance::GetLocalPlayerByIndex(const int32 Index) const
 
 APlayerController* UGameInstance::GetFirstLocalPlayerController(const UWorld* World) const
 {
-	if (World == nullptr)
+	// Use the consistent local players order if possible
+	if (World == nullptr || World == GetWorld())
 	{
 		for (ULocalPlayer* Player : LocalPlayers)
 		{
@@ -973,6 +974,16 @@ ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(const FUniqueNetId& 
 }
 
 ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(FUniqueNetIdPtr UniqueNetId) const
+{
+	if (!UniqueNetId.IsValid())
+	{
+		return nullptr;
+	}
+
+	return FindLocalPlayerFromUniqueNetId(*UniqueNetId);
+}
+
+ULocalPlayer* UGameInstance::FindLocalPlayerFromUniqueNetId(const FUniqueNetIdRepl& UniqueNetId) const
 {
 	if (!UniqueNetId.IsValid())
 	{

@@ -139,55 +139,126 @@ class ENGINE_API UGameplayStatics : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject"))
 	static class UGameInstance* GetGameInstance(const UObject* WorldContextObject);
 
-	/** Returns the player controller at the specified player index */
+	/**
+	 * Returns the number of active player states, there is one player state for every connected player even if they are a remote client.
+	 * Indexes up to this can be use as PlayerStateIndex parameters for other functions.
+	 */
+	UFUNCTION(BlueprintPure, Category="Game", meta = (WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
+	static int32 GetNumPlayerStates(const UObject* WorldContextObject);
+
+	/**
+	 * Returns the player state at the given index in the game state's PlayerArray. 
+	 * This will work on both the client and server and the index will be consistent.
+	 * After initial replication, all clients and the server will have access to PlayerStates for all connected players.
+	 *
+	 * @param PlayerStateIndex	Index into the game state's PlayerArray
+	 */
+	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
+	static class APlayerState* GetPlayerState(const UObject* WorldContextObject, int32 PlayerStateIndex);
+
+	/**
+	 * Returns the player state that matches the passed in online id, or null for an invalid one.
+	 * This will work on both the client and server for local and remote players.
+	 *
+	 * @param UniqueId	The player's unique net/online id
+	 */
+	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
+	static class APlayerState* GetPlayerStateFromUniqueNetId(const UObject* WorldContextObject, const FUniqueNetIdRepl& UniqueId);
+
+	/**
+	 * Returns the total number of available player controllers, including remote players when called on a server.
+	 * Indexes up to this can be used as PlayerIndex parameters for the following functions.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
+	static int32 GetNumPlayerControllers(const UObject* WorldContextObject);
+
+	/**
+	 * Returns the number of fully initialized local players, this will be 0 on dedicated servers.
+	 * Indexes up to this can be used as PlayerIndex parameters for the following functions, and you are guaranteed to get a local player controller.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
+	static int32 GetNumLocalPlayerControllers(const UObject* WorldContextObject);
+
+	/** 
+	 * Returns the player controller found while iterating through the local and available remote player controllers.
+	 * On a network client, this will only include local players as remote player controllers are not available.
+	 * The index will be consistent as long as no new players join or leave, but it will not be the same across different clients and servers.
+	 *
+	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
+	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
 	static class APlayerController* GetPlayerController(const UObject* WorldContextObject, int32 PlayerIndex);
 
-	/** Returns the player controller that has the given controller ID */
-	UFUNCTION(BlueprintPure, Category = "Game", meta = (WorldContext = "WorldContextObject", UnsafeDuringActorConstruction = "true"))
-	static class APlayerController* GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID);
-
-	/** Returns the player pawn at the specified player index */
+	/**
+	 * Returns the pawn for the player controller at the specified player index.
+	 * This will not include pawns of remote clients with no available player controller, you can use the player states list for that.
+	 *
+	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
+	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
 	static class APawn* GetPlayerPawn(const UObject* WorldContextObject, int32 PlayerIndex);
 
-	/** Returns the player character (NULL if the player pawn doesn't exist OR is not a character) at the specified player index */
+	/**
+	 * Returns the pawn for the player controller at the specified player index, will return null if the pawn is not a character.
+	 * This will not include characters of remote clients with no available player controller, you can iterate the PlayerStates list for that.
+	 *
+	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
+	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
 	static class ACharacter* GetPlayerCharacter(const UObject* WorldContextObject, int32 PlayerIndex);
 
-	/** Returns the player's camera manager for the specified player index */
+	/**
+	 * Returns the camera manager for the Player Controller at the specified player index.
+	 * This will not include remote clients with no player controller.
+	 *
+	 * @param PlayerIndex	Index in the player controller list, starting first with local players and then available remote ones
+	 */
 	UFUNCTION(BlueprintPure, Category="Game", meta=(WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
 	static class APlayerCameraManager* GetPlayerCameraManager(const UObject* WorldContextObject, int32 PlayerIndex);
 
-	/** Create a new player for this game.  
-	 *  @param ControllerId             The ID of the controller that the should control the newly created player.  A value of -1 specifies to use the next available ID
-	 *  @param bSpawnPlayerController   Whether a player controller should be spawned immediately for this player. If false a player controller will not be created automatically until transition to the next map.
-	 *  @return                         The created player controller if one is created. 
+	/** 
+	 * Returns the player controller with the specified physical controller ID. This only works for local players.
+	 *
+	 * @param ControllerID	Physical controller ID, the same value returned from Get Player Controller ID
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game", meta=(WorldContext="WorldContextObject", AdvancedDisplay="2", UnsafeDuringActorConstruction="true"))
+	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller From ID", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
+	static class APlayerController* GetPlayerControllerFromID(const UObject* WorldContextObject, int32 ControllerID);
+
+	/** 
+	 * Create a new local player for this game, for cases like local multiplayer.
+	 *
+	 * @param ControllerId             The ID of the physical controller that the should control the newly created player. A value of -1 specifies to use the next available ID
+	 * @param bSpawnPlayerController   Whether a player controller should be spawned immediately for this player. If false a player controller will not be created automatically until transition to the next map.
+	 * @return                         The created player controller if one is created.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Game", meta = (DisplayName="Create Local Player", WorldContext = "WorldContextObject", AdvancedDisplay = "2", UnsafeDuringActorConstruction = "true"))
 	static class APlayerController* CreatePlayer(const UObject* WorldContextObject, int32 ControllerId = -1, bool bSpawnPlayerController = true);
 
-	/** Removes a player from this game.  
-	 *  @param Player			The player controller of the player to be removed
-	 *  @param bDestroyPawn		Whether the controlled pawn should be deleted as well
+	/** 
+	 * Removes a local player from this game.
+	 *
+	 * @param Player			The player controller of the player to be removed
+	 * @param bDestroyPawn		Whether the controlled pawn should be deleted as well
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game", meta=(UnsafeDuringActorConstruction="true"))
+	UFUNCTION(BlueprintCallable, Category = "Game", meta = (DisplayName="Remove Local Player", UnsafeDuringActorConstruction = "true"))
 	static void RemovePlayer(APlayerController* Player, bool bDestroyPawn);
 
-	/** 
-	* Gets what controller ID a Player is using
-	* @param Player		The player controller of the player to get the ID of
-	* @return			The ID of the passed in player. -1 if there is no controller for the passed in player
-	*/
-	UFUNCTION(BlueprintPure, Category="Game", meta=(UnsafeDuringActorConstruction="true"))
+	/**
+	 * Gets what physical controller ID a player is using. This only works for local player controllers.
+	 *
+	 * @param Player	The player controller of the player to get the ID of
+	 * @return			The ID of the passed in player. -1 if there is no physical controller assigned to the passed in player
+	 */
+	UFUNCTION(BlueprintPure, Category="Game", meta=(DisplayName="Get Local Player Controller ID", UnsafeDuringActorConstruction="true"))
 	static int32 GetPlayerControllerID(APlayerController* Player);
 
-	/** 
-	 * Sets what controller ID a Player should be using
+	/**
+	 * Sets what physical controller ID a player should be using. This only works for local player controllers.
+	 *
 	 * @param Player			The player controller of the player to change the controller ID of
 	 * @param ControllerId		The controller ID to assign to this player
 	 */
-	UFUNCTION(BlueprintCallable, Category="Game", meta=(UnsafeDuringActorConstruction="true"))
+	UFUNCTION(BlueprintCallable, Category="Game", meta=(DisplayName="Set Local Player Controller ID",UnsafeDuringActorConstruction="true"))
 	static void SetPlayerControllerID(APlayerController* Player, int32 ControllerId);
 
 	// --- Level Streaming functions ------------------------

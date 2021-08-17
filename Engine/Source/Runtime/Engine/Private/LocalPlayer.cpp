@@ -1618,6 +1618,19 @@ UGameInstance* ULocalPlayer::GetGameInstance() const
 	return ViewportClient ? ViewportClient->GetGameInstance() : nullptr;
 }
 
+int32 ULocalPlayer::GetIndexInGameInstance() const
+{
+	int32 FoundIndex = INDEX_NONE;
+	UGameInstance* GameInstance = GetGameInstance();
+	if (GameInstance)
+	{
+		const TArray<ULocalPlayer*>& LocalPlayers = GameInstance->GetLocalPlayers();
+		LocalPlayers.Find(const_cast<ULocalPlayer*>(this), FoundIndex);
+	}
+
+	return FoundIndex;
+}
+
 void ULocalPlayer::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	ULocalPlayer* This = CastChecked<ULocalPlayer>(InThis);
