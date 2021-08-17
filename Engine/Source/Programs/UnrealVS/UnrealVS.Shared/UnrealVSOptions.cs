@@ -50,7 +50,7 @@ namespace UnrealVS
 		[Category("Unreal.P4")]
 		[DisplayName("Reconcile Extensions")]
 		[Description("Reconcile will attempt to resolve these extensions (including wildcards)")]
-		public string ReconcileExtensions { get; set; } = "c*;h*;ini";
+		public string ReconcileExtensions { get; set; } = "c*;h*;ini;uproject;uplugin";
 
 		protected override void OnApply(PageApplyEventArgs e)
 		{

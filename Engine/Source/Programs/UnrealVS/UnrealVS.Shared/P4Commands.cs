@@ -526,7 +526,9 @@ namespace UnrealVS
 			{
 				"c*",
 				"h*",
-				"ini"
+				"ini",
+				"uproject",
+				"uplugin"
 			};
 
 			string[] Extensions = UnrealVSPackage.Instance.OptionsPage.ReconcileExtensions.Split(';');
@@ -540,14 +542,14 @@ namespace UnrealVS
 			string ReconcileDepotPaths = "";
 			string Preview = "-n";
 
-			if (Stream.Length < 1)
+			if (string.IsNullOrWhiteSpace(P4WorkingDirectory))
 			{
 				PullWorkingDirectory(bPullWorkingDirectoryOn);
 			}
 
 			foreach (string Ext in Extensions)
 			{
-				ReconcileDepotPaths += Stream + "/...." + Ext + " ";
+				ReconcileDepotPaths += P4WorkingDirectory + Path.DirectorySeparatorChar + "...." + Ext + " ";
 			}
 
 			if (UnrealVSPackage.Instance.OptionsPage.AllowReconcileToMarkForEdit)
