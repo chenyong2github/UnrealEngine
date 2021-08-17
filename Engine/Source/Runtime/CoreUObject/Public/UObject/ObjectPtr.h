@@ -39,6 +39,9 @@
 template <typename T>
 struct TObjectPtr;
 
+/**
+ * FObjectPtr is the basic, minimally typed version of TObjectPtr
+ */
 struct FObjectPtr
 {
 public:
@@ -80,9 +83,6 @@ public:
 		return ResolveObjectHandleClass(Handle);
 	}
 
-	// @TODO: OBJPTR: Garbage collector interaction (for Rob's requested feature to make incremental
-	//		 reachability analysis possible) could be hard coded here and not conditionally
-	//		 compiled out.
 	FObjectPtr(FObjectPtr&&) = default;
 	FObjectPtr(const FObjectPtr&) = default;
 	FObjectPtr& operator=(FObjectPtr&&) = default;
@@ -90,9 +90,6 @@ public:
 
 	FObjectPtr& operator=(UObject* Other)
 	{
-		// @TODO: OBJPTR: Garbage collector interaction (for Rob's requested feature to make incremental
-		//		 reachability analysis possible) could be hard coded here and not conditionally
-		//		 compiled out.
 		Handle = MakeObjectHandle(Other);
 		return *this;
 	}
@@ -100,18 +97,12 @@ public:
 	UE_OBJPTR_DEPRECATED(5.0, "Assignment with incomplete type pointer is deprecated.  Please update this code to use MakeObjectPtrUnsafe.")
 	FObjectPtr& operator=(void* IncompleteOther)
 	{
-		// @TODO: OBJPTR: Garbage collector interaction (for Rob's requested feature to make incremental
-		//		 reachability analysis possible) could be hard coded here and not conditionally
-		//		 compiled out.
 		Handle = MakeObjectHandle(reinterpret_cast<UObject*>(IncompleteOther));
 		return *this;
 	}
 
 	FObjectPtr& operator=(TYPE_OF_NULLPTR)
 	{
-		// @TODO: OBJPTR: Garbage collector interaction (for Rob's requested feature to make incremental
-		//		 reachability analysis possible) could be hard coded here and not conditionally
-		//		 compiled out.
 		Handle = MakeObjectHandle(nullptr);
 		return *this;
 	}
@@ -119,17 +110,11 @@ public:
 	FORCEINLINE bool operator==(FObjectPtr Other) const { return (Handle == Other.Handle); }
 	FORCEINLINE bool operator!=(FObjectPtr Other) const { return (Handle != Other.Handle); }
 
-	// @TODO: OBJPTR: ToTObjectPtr will be removed in the future when a proper casting layer is added
 	UE_OBJPTR_DEPRECATED(5.0, "Use of ToTObjectPtr is unsafe and is deprecated.")
 	FORCEINLINE TObjectPtr<UObject>& ToTObjectPtr();
 	UE_OBJPTR_DEPRECATED(5.0, "Use of ToTObjectPtr is unsafe and is deprecated.")
 	FORCEINLINE const TObjectPtr<UObject>& ToTObjectPtr() const;
 
-	// @TODO: OBJPTR: The presence of this conversion operator triggers a bug in MSVC where implicit conversion of the
-	//			derived TObjectPtr type to UObject* results in a compile error saying that the conversion  operator is
-	//			in a private base class.  That shouldn't matter as the derived TObjectPtr type has its own templated
-	//			conversion operator.  This issue does not come up in clang compiled builds.
-	//FORCEINLINE operator UObject*() const { return Get();  }
 	FORCEINLINE UObject* operator->() const { return Get(); }
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
@@ -172,7 +157,6 @@ protected:
 private:
 	friend FORCEINLINE uint32 GetTypeHash(const FObjectPtr& Object)
 	{
-		// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
 		Object.Get();
 		return GetTypeHash(Object.Handle);
 	}
@@ -195,6 +179,18 @@ namespace ObjectPtr_Private
 	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other);
 };
 
+/**
+ * TObjectPtr is a type of pointer to a UObject that is meant to function as a drop-in replacement for raw pointer
+ * member properties. It is size equivalent to a 64-bit pointer and supports access tracking and optional lazy load
+ * behavior in editor builds. It stores either the address to the referenced object or (in editor builds) an index in
+ * the object handle table that describes a referenced object that hasn't been loaded yet. It is serialized
+ * identically to a raw pointer to a UObject. When resolved, its participation in garbage collection is identical to a
+ * raw pointer to a UObject.
+ *
+ * This is useful for automatic replacement of raw pointers to support advanced cook-time dependency tracking and
+ * editor-time lazy load use cases. See UnrealObjectPtrTool for tooling to automatically replace raw pointer members
+ * with FObjectPtr/TObjectPtr members instead.
+ */
 template <typename T>
 struct TObjectPtr : private FObjectPtr
 {

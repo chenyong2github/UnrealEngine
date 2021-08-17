@@ -395,11 +395,6 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 		return nullptr;
 	}
 
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	// @TODO: OBJPTR: Do we need something equivalent for handling circular dependencies during lazy load?
-	//DeferPotentialCircularImport(Index);
-#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-
 	ResolveObjectRefClass(ObjectRef, LoadFlags);
 
 	UPackage* TargetPackage = FindOrLoadPackage(ObjectRef.PackageName, LoadFlags);
@@ -413,10 +408,6 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 	FObjectPathId::ResolvedNameContainerType ResolvedNames;
 	ObjectRef.ObjectPath.Resolve(ResolvedNames);
 
-	// @TODO: OBJPTR: This seems like a silly way to find objects in a hierarchy, investigate better options.
-	//		 Normal import resolving walks up the outer hierarchy and each outer can have a resolved
-	//		 result cached avoiding any further walking up the hierarchy. Is that something that
-	//		 could/should be emulated here?
 	UObject* CurrentObject = TargetPackage;
 	for (int32 ObjectPathIndex = 0; ObjectPathIndex < ResolvedNames.Num(); ++ObjectPathIndex)
 	{
