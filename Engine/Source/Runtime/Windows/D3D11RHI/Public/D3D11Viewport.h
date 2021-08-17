@@ -17,25 +17,18 @@
 #endif
 
 /** A D3D event query resource. */
-class D3D11RHI_API FD3D11EventQuery : public FRenderResource
+class D3D11RHI_API FD3D11EventQuery
 {
 public:
 
 	/** Initialization constructor. */
-	FD3D11EventQuery(class FD3D11DynamicRHI* InD3DRHI):
-		D3DRHI(InD3DRHI)
-	{
-	}
+	FD3D11EventQuery(class FD3D11DynamicRHI* InD3DRHI);
 
 	/** Issues an event for the query to poll. */
 	void IssueEvent();
 
 	/** Waits for the event query to finish. */
 	void WaitForCompletion();
-
-	// FRenderResource interface.
-	virtual void InitDynamicRHI() override;
-	virtual void ReleaseDynamicRHI() override;
 
 private:
 	FD3D11DynamicRHI* D3DRHI;

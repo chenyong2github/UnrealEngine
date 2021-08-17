@@ -256,7 +256,12 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	// @todo: For Slate viewports, it doesn't make sense to post WM_PAINT messages (we swallow those.)
 	::PostMessageW( WindowHandle, WM_PAINT, 0, 0 );
 
-	BeginInitResource(&FrameSyncEvent);
+	ENQUEUE_RENDER_COMMAND(FD3D11Viewport)(
+		[this](FRHICommandListImmediate& RHICmdList)
+	{
+		// Initialize the query by issuing an initial event.
+		FrameSyncEvent.IssueEvent();
+	});	
 }
 
 // When a window has moved or resized we need to check whether it is on a HDR monitor or not. Set the correct color space of the monitor

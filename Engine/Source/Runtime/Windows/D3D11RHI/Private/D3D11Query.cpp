@@ -385,19 +385,13 @@ void FD3D11EventQuery::WaitForCompletion()
 	{};
 }
 
-void FD3D11EventQuery::InitDynamicRHI()
+FD3D11EventQuery::FD3D11EventQuery(class FD3D11DynamicRHI* InD3DRHI):
+	D3DRHI(InD3DRHI)
 {
 	D3D11_QUERY_DESC QueryDesc;
 	QueryDesc.Query = D3D11_QUERY_EVENT;
 	QueryDesc.MiscFlags = 0;
 	VERIFYD3D11RESULT_EX(D3DRHI->GetDevice()->CreateQuery(&QueryDesc,Query.GetInitReference()), D3DRHI->GetDevice());
-
-	// Initialize the query by issuing an initial event.
-	IssueEvent();
-}
-void FD3D11EventQuery::ReleaseDynamicRHI()
-{
-	Query = NULL;
 }
 
 /*=============================================================================
