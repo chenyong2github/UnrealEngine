@@ -31,4 +31,7 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 bool TryFetchKeyAndDependencies(IPackageStoreWriter* PackageStore, FName PackageName, const ITargetPlatform* TargetPlatform,
 	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage);
 
+/** Return whether iterative cook is enabled for the given packagename, based on used-class whitelist/blacklist. */
+bool IsIterativeEnabled(FName PackageName);
+
 }
