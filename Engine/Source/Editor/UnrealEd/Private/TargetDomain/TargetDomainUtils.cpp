@@ -9,6 +9,7 @@
 #include "EditorDomain/EditorDomainUtils.h"
 #include "IO/IoHash.h"
 #include "IO/PackageStoreWriter.h"
+#include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -229,4 +230,38 @@ bool TryFetchKeyAndDependencies(IPackageStoreWriter* PackageStore, FName Package
 	return true;
 }
 
+bool IsIterativeEnabled(FName PackageName)
+{
+	IAssetRegistry* AssetRegistry = IAssetRegistry::Get();
+	if (!AssetRegistry)
+	{
+		return false;
+	}
+	TOptional<FAssetPackageData> PackageDataOpt = AssetRegistry->GetAssetPackageDataCopy(PackageName);
+	if (!PackageDataOpt)
+	{
+		return false;
+	}
+	FAssetPackageData& PackageData = *PackageDataOpt;
+
+	UE::EditorDomain::FClassDigestMap& ClassDigests = UE::EditorDomain::GetClassDigests();
+	FReadScopeLock ClassDigestsScopeLock(ClassDigests.Lock);
+	for (FName ClassName : PackageData.ImportedClasses)
+	{
+		UE::EditorDomain::FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
+		if (!ExistingData)
+		{
+			// All whitelisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,
+			// it is not whitelisted
+			return false;
+		}
+		if (!ExistingData->bTargetIterativeEnabled)
+		{
+			return false;
+		}
+	}
+	return true;
 }
+
+} // namespace UE::TargetDomain
+

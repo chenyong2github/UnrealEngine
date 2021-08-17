@@ -40,13 +40,19 @@ public:
 
 	static IPackageResourceManager* SetPackageResourceManager()
 	{
-		bool bEditorDomainEnabled = false;
 		if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
 		{
+			bool bEditorDomainEnabled = true;
 			GConfig->GetBool(TEXT("EditorDomain"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni);
 			if (GConfig->GetBool(TEXT("CookSettings"), TEXT("EditorDomainEnabled"), bEditorDomainEnabled, GEditorIni))
 			{
 				UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
+			}
+			bool bTargetDomainEnabled = true;
+			GConfig->GetBool(TEXT("TargetDomain"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
+			if (bEditorDomainEnabled || bTargetDomainEnabled)
+			{
+				UE::EditorDomain::UtilsInitialize();
 			}
 			if (bEditorDomainEnabled)
 			{
@@ -158,15 +164,15 @@ bool FEditorDomain::TryFindOrAddPackageSource(const FPackagePath& PackagePath, T
 
 	FString ErrorMessage;
 	FPackageDigest PackageDigest;
-	bool bIsBlacklisted;
-	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, bIsBlacklisted, ErrorMessage);
+	bool bEditorDomainEnabledForPackage;
+	EPackageDigestResult Result = GetPackageDigest(*AssetRegistry, PackageName, PackageDigest, bEditorDomainEnabledForPackage, ErrorMessage);
 	switch (Result)
 	{
 	case EPackageDigestResult::Success:
 		PackageSource = new FPackageSource();
 		PackageSource->Digest = PackageDigest;
 		OutSource = PackageSource;
-		if (!bEditorDomainReadEnabled || bIsBlacklisted)
+		if (!bEditorDomainReadEnabled || !bEditorDomainEnabledForPackage)
 		{
 			PackageSource->Source = EPackageSource::Workspace;
 		}

@@ -4920,7 +4920,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		bPreloadingEnabled = true;
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
-	GConfig->GetBool(TEXT("CookSettings"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
+	GConfig->GetBool(TEXT("TargetDomain"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
 	GConfig->GetBool(TEXT("CookSettings"), TEXT("ExploreSoftReferencesOnStart"), bExploreSoftReferencesOnStart, GEditorIni);
 
 	{
