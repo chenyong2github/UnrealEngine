@@ -95,13 +95,16 @@ private:
 		/** Delegate to fire **/
 		FTickerDelegate Delegate;
 
+		static const uint64 DefaultState = 0;
+		static const uint64 RemovedState = 1;
 		// The element can be in 4 states: "idle", "executing", "idle and removed" and "executing and removed"
 		// Often right after `RemoveTicket()` call resources that are used by the delegate are destroyed. We must ensure that 
 		// these resources are not accessed by the delegate after `RemoveTicket()` returns.
 		// `State` is used to remove the element safely, if removal happens in the middle of the delegate execution, removal will not return
 		// until the execution is finished.
-		enum EState : uint8 { Idle, Executing, Removed };
-		std::atomic<uint8> State{ Idle };
+		// `State` constists of two 32 bits parts: lower part is 1 if the delegate is removed, otherwise it's 0. the higher part contains thread id if the
+		// delegate being executed, otherwise it's 0
+		std::atomic<uint64> State{ DefaultState };
 
 		/** Default ctor is only required to implement CurrentElement handling without making it a pointer. */
 		CORE_API FElement();

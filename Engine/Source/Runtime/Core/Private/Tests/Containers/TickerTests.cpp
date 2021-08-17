@@ -136,6 +136,13 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 		verify(RemoveTickerTask.Wait(FTimespan::FromSeconds(0.1)));
 	}
 
+	{	// a delegate removal from inside the delegate execution (used to be a deadlock)
+		FTSTicker Ticker;
+		FTSTicker::FDelegateHandle DelegateHandle;
+		DelegateHandle = Ticker.AddTicker(nullptr, 0.0f, [&DelegateHandle](float) { FTSTicker::RemoveTicker(DelegateHandle); return true; });
+		Ticker.Tick(0.0f);
+	}
+
 	// multithreaded stress test
 	{
 		using namespace UE::Tasks;
