@@ -57,7 +57,7 @@ static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("
 FString FGroomBindingBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2d");
+	return TEXT("2e");
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////

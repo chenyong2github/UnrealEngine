@@ -4,10 +4,6 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 
-#ifndef CLEAR_COMPRESSION
-#define CLEAR_COMPRESSION 1
-#endif
-
 void FHairStrandsInterpolationDatas::SetNum(const uint32 NumCurves)
 {
 	PointsSimCurvesVertexWeights.SetNum(NumCurves);
@@ -187,21 +183,11 @@ void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
 
 	if (Ar.IsSaving())
 	{
-		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Interpolation.SetBulkDataFlags(BulkFlags);
 		Interpolation0.SetBulkDataFlags(BulkFlags);
 		Interpolation1.SetBulkDataFlags(BulkFlags);
 		SimRootPointIndex.SetBulkDataFlags(BulkFlags);
-
-		#if CLEAR_COMPRESSION
-		if (Ar.IsCooking())
-		{
-			Interpolation.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			Interpolation0.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			Interpolation1.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			SimRootPointIndex.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-		}
-		#endif
 	}
 
 	Ar << Flags;
@@ -248,23 +234,12 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	// but only when we explicitly take action to load it
 	if (Ar.IsSaving())
 	{
-		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload | BULKDATA_SerializeCompressed;
+		const uint32 BulkFlags = BULKDATA_Force_NOT_InlinePayload;
 		Positions.SetBulkDataFlags(BulkFlags);
 		Attributes0.SetBulkDataFlags(BulkFlags);
 		Attributes1.SetBulkDataFlags(BulkFlags);
 		Materials.SetBulkDataFlags(BulkFlags);
 		CurveOffsets.SetBulkDataFlags(BulkFlags);
-
-		#if CLEAR_COMPRESSION
-		if (Ar.IsCooking())
-		{
-			Positions.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			Attributes0.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			Attributes1.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			Materials.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-			CurveOffsets.ClearBulkDataFlags(BULKDATA_SerializeCompressed);
-		}
-		#endif
 	}
 
 	if (!!(Flags & DataFlags_HasData))
