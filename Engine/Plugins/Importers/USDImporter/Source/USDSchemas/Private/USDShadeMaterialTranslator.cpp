@@ -102,8 +102,11 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 	}
 	else if ( Context->MaterialToPrimvarToUVIndex && Context->AssetCache )
 	{
-		// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
-		Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) = Context->MaterialToPrimvarToUVIndex->FindRef( Context->AssetCache->GetPrimForAsset( ConvertedMaterial ) );
+		if ( TMap<FString, int32>* PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex->Find( Context->AssetCache->GetPrimForAsset( ConvertedMaterial ) ) )
+		{
+			// Copy the Material -> Primvar -> UV index mapping from the cached material prim path to this prim path
+			Context->MaterialToPrimvarToUVIndex->FindOrAdd( PrimPath.GetString() ) = *PrimvarToUVIndex;
+		}
 	}
 
 	if ( ConvertedMaterial )
