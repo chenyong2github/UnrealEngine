@@ -51,7 +51,7 @@ struct FPackageFileSummary
 	int32		Tag;
 
 private:
-	/* UE4 file version */
+	/* UE file version */
 	int32		FileVersionUE;
 	/* Licensee file version */
 	int32		FileVersionLicenseeUE;
