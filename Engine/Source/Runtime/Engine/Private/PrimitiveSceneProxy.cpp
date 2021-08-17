@@ -427,7 +427,7 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				.NumInstanceSceneDataEntries(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetNumInstanceSceneDataEntries() : 0)
 				.InstancePayloadDataOffset(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataOffset() : INDEX_NONE)
 				.InstancePayloadDataStride(PrimitiveSceneInfo ? PrimitiveSceneInfo->GetInstancePayloadDataStride() : 0)
-				.VisibleInPrimaryRayPass(IsVisibleInPrimaryRayPass())
+				.VisibleInRaster(IsVisibleInRaster())
 			.Build();
 
 		if (UniformBuffer.GetReference())
