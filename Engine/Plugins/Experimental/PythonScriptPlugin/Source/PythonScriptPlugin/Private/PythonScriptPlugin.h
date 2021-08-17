@@ -6,6 +6,7 @@
 #include "IPythonScriptPlugin.h"
 #include "PyUtil.h"
 #include "PyPtr.h"
+#include "Containers/Ticker.h"
 #include "Misc/CoreMisc.h"
 #include "HAL/IConsoleManager.h"
 #include "Framework/Commands/InputChord.h"

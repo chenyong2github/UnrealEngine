@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/Ticker.h"
 #include "Misc/Guid.h"
 #include "CollectionManagerTypes.h"
 #include "ICollectionManager.h"

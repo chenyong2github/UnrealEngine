@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "InputCoreTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Interface.h"
 #include "BaseSequencerAnimTool.generated.h"

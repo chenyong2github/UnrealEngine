@@ -6,9 +6,11 @@
 #include "CanvasItem.h"
 #include "CanvasTypes.h"
 #include "LevelEditor.h"
+#include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EditorModeManager.h"
 #include "Tools/MotionTrailOptions.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrailEditorMode"
 
