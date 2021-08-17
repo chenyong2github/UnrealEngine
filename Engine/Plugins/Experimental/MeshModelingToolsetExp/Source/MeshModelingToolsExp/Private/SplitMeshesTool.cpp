@@ -117,7 +117,7 @@ void USplitMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 			FTransform3d SourceTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[ti]);
 			FDynamicMesh3 SourceMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[ti], true);
-			FString AssetName = TargetActor->GetName();
+			FString AssetName = TargetActor->GetActorNameOrLabel();
 
 			FCreateMeshObjectParams BaseMeshObjectParams;
 			BaseMeshObjectParams.TargetWorld = TargetWorld;

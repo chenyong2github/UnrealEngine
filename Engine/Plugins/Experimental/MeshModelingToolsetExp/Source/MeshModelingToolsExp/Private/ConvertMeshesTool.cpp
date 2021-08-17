@@ -90,7 +90,11 @@ void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 		TArray<AActor*> NewSelectedActors;
 		TSet<AActor*> DeleteActors;
+		TArray<FCreateMeshObjectParams> NewMeshObjects;
 
+		// Accumulate info for new mesh objects. Do not immediately create them because then
+		// the new Actors will get a unique-name incremented suffix, because the convert-from
+		// Actors still exist.
 		for (int32 k = 0; k < Targets.Num(); ++k)
 		{
 			AActor* TargetActor = UE::ToolTarget::GetTargetActor(Targets[k]);
@@ -99,7 +103,7 @@ void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 			FTransform SourceTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Targets[k]);
 			FDynamicMesh3 SourceMesh = UE::ToolTarget::GetDynamicMeshCopy(Targets[k], true);
-			FString AssetName = TargetActor->GetName();
+			FString AssetName = TargetActor->GetActorNameOrLabel();
 			FComponentMaterialSet Materials = UE::ToolTarget::GetMaterialSet(Targets[0]);
 			const FComponentMaterialSet* TransferMaterials = (BasicProperties->bTransferMaterials) ? &Materials : nullptr;
 
@@ -113,17 +117,24 @@ void UConvertMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 			}
 			NewMeshObjectParams.SetMesh(MoveTemp(SourceMesh));
 
+			NewMeshObjects.Add(MoveTemp(NewMeshObjectParams));
+		}
+
+		// delete all the existing Actors we want to get rid of
+		for (AActor* DeleteActor : DeleteActors)
+		{
+			DeleteActor->Destroy();
+		}
+
+		// spawn new mesh objects
+		for (FCreateMeshObjectParams& NewMeshObjectParams : NewMeshObjects)
+		{
 			OutputTypeProperties->ConfigureCreateMeshObjectParams(NewMeshObjectParams);
 			FCreateMeshObjectResult Result = UE::Modeling::CreateMeshObject(GetToolManager(), MoveTemp(NewMeshObjectParams));
 			if (Result.IsOK())
 			{
 				NewSelectedActors.Add(Result.NewActor);
 			}
-		}
-
-		for (AActor* DeleteActor : DeleteActors)
-		{
-			DeleteActor->Destroy();
 		}
 
 		ToolSelectionUtil::SetNewActorSelection(GetToolManager(), NewSelectedActors);
