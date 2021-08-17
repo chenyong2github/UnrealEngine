@@ -10,6 +10,7 @@
 
 UFileMediaOutput::UFileMediaOutput()
 	: Super()
+	, bInvertAlpha(true)
 {
 	FilePath.Path = FPaths::Combine(*FPaths::ProjectSavedDir(), *FString("MediaOutput"));
 }
@@ -86,7 +87,8 @@ EMediaCaptureConversionOperation UFileMediaOutput::GetConversionOperation(EMedia
 		EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnAnyThread());
 		if ((PropagateAlpha == EAlphaChannelMode::AllowThroughTonemapper) || (InSourceType == EMediaCaptureSourceType::RENDER_TARGET))
 		{
-			return EMediaCaptureConversionOperation::INVERT_ALPHA;
+			return bInvertAlpha ? EMediaCaptureConversionOperation::INVERT_ALPHA :
+				EMediaCaptureConversionOperation::NONE;
 		}
 		else
 		{

@@ -61,6 +61,10 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Media", meta=(EditCondition="bOverridePixelFormat"))
 	EFileMediaOutputPixelFormat DesiredPixelFormat;
 
+	/** Invert the alpha for formats that support alpha. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Media")
+	bool bInvertAlpha;
+
 	//~ UMediaOutput interface
 public:
 	virtual bool Validate(FString& FailureReason) const override;
