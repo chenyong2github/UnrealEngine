@@ -1400,14 +1400,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 	// Update subsystems.
 	{
 		// This assumes that UObject::StaticTick only calls ProcessAsyncLoading.
-		float AsyncLoadingTimeLimit = GAsyncLoadingTimeLimit;
-
-		if (PlayWorld)
-		{
-			AsyncLoadingTimeLimit *= GAsyncLoadingTimeLimitPIEMultiplier;
-		}
-
-		StaticTick(DeltaSeconds, !!GAsyncLoadingUseFullTimeLimit, AsyncLoadingTimeLimit / 1000.f);
+		StaticTick(DeltaSeconds, !!GAsyncLoadingUseFullTimeLimit, GAsyncLoadingTimeLimit / 1000.f);
 	}
 
 	FEngineAnalytics::Tick(DeltaSeconds);
