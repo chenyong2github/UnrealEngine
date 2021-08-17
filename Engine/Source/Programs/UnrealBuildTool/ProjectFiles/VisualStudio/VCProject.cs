@@ -926,7 +926,7 @@ namespace UnrealBuildTool
 				{
 					continue;
 				}
-				if (!IsValidProjectPlatformAndConfiguration(Combination.ProjectTarget, (UnrealTargetPlatform)Combination.Platform, Combination.Configuration, PlatformProjectGenerators))
+				if (Combination.ProjectTarget != null && !IsValidProjectPlatformAndConfiguration(Combination.ProjectTarget, (UnrealTargetPlatform)Combination.Platform, Combination.Configuration, PlatformProjectGenerators))
 				{
 					continue;
 				}
