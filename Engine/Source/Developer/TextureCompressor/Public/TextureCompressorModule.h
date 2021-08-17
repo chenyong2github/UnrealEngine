@@ -63,6 +63,13 @@ struct FColorAdjustmentParameters
 	}
 };
 
+enum class ETextureFastEncode : uint8
+{
+	Off = 0,   // Fast Cook Off  (use slow cook)
+	TryOffEncodeFast  = 1,   // Fast Cook On when needed, but prefer to fetch slow cook if possible
+	Forced = 2 // Fast Cook On Forced (do not try to fetch slow cook)
+};
+
 /**
  * Texture build settings.
  */
@@ -175,8 +182,8 @@ struct FTextureBuildSettings
 	uint32 bVirtualTextureEnableCompressZlib : 1;
 	/** Is crunch compression enabled */
 	uint32 bVirtualTextureEnableCompressCrunch : 1;
-	/** Is Target Platform Editor */
-	uint32 bHasEditorOnlyData : 1;
+	/** Should faster cook option be used */
+	ETextureFastEncode FastTextureEncode;
 
 	/** Default settings. */
 	FTextureBuildSettings()
@@ -231,7 +238,7 @@ struct FTextureBuildSettings
 		, VirtualTextureBorderSize(0)
 		, bVirtualTextureEnableCompressZlib(false)
 		, bVirtualTextureEnableCompressCrunch(false)
-		, bHasEditorOnlyData(false)
+		, FastTextureEncode(ETextureFastEncode::Off)
 	{
 	}
 

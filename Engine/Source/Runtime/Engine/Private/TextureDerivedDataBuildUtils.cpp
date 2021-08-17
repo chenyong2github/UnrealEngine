@@ -150,7 +150,10 @@ static void WriteBuildSettings(FCbWriter& Writer, const FTextureBuildSettings& B
 	WriteCbFieldWithDefault(Writer, "VirtualTextureBorderSize", BuildSettings.VirtualTextureBorderSize, DefaultSettings.VirtualTextureBorderSize);
 	WriteCbFieldWithDefault<bool>(Writer, "bVirtualTextureEnableCompressZlib", BuildSettings.bVirtualTextureEnableCompressZlib, DefaultSettings.bVirtualTextureEnableCompressZlib);
 	WriteCbFieldWithDefault<bool>(Writer, "bVirtualTextureEnableCompressCrunch", BuildSettings.bVirtualTextureEnableCompressCrunch, DefaultSettings.bVirtualTextureEnableCompressCrunch);
-	WriteCbFieldWithDefault(Writer, "bHasEditorOnlyData", BuildSettings.bHasEditorOnlyData, DefaultSettings.bHasEditorOnlyData);
+	// FastTextureEncode trinary field is changed to binary on/off
+	WriteCbFieldWithDefault<uint8>(Writer, "FastTextureEncode", 
+		(BuildSettings.FastTextureEncode == ETextureFastEncode::Off) ? (uint8)ETextureFastEncode::Off : (uint8)ETextureFastEncode::Forced,
+		(DefaultSettings.FastTextureEncode == ETextureFastEncode::Off) ? (uint8)ETextureFastEncode::Off : (uint8)ETextureFastEncode::Forced);
 
 	Writer.EndObject();
 }

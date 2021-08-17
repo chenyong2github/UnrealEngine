@@ -1052,10 +1052,10 @@ public:
 
 		FBuildDefinition Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, Settings, bUseCompositeTexture);
 
-		if (!EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild) && Settings.bHasEditorOnlyData)
+		if (!EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild) && Settings.FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
 		{
 			FTextureBuildSettings ShippingSettings = Settings;
-			ShippingSettings.bHasEditorOnlyData = false;
+			ShippingSettings.FastTextureEncode = ETextureFastEncode::Off;
 			FBuildDefinition ShippingDefinition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, ShippingSettings, bUseCompositeTexture);
 			BuildSession.Get().Build(ShippingDefinition, EBuildPolicy::Cache, *Owner,
 				[this, Definition = MoveTemp(Definition), Flags](FBuildCompleteParams&& Params)

@@ -78,13 +78,13 @@ The INI settings block looks like :
 
 [TextureFormatOodleSettings]
 bForceAllBC23ToBC7=False
-bForceRDOOff_Editor=False
-bForceRDOOff_NoEditor=False
+bForceRDOOff_FastEncode=False
+bForceRDOOff_NoFastEncode=False
 bDebugColor=False
 DefaultRDOLambda=30
 GlobalLambdaMultiplier=1.0
-CompressEffortLevel_NoEditor=High
-CompressEffortLevel_Editor=Normal
+EncodeEffortLevel_NoFastEncode=High
+EncodeEffortLevel_FastEncode=Normal
 
 The sense of the bools is set so that all-false is default behavior.
 
@@ -93,8 +93,8 @@ TextureFormatDXT+TextureFormatISPC , just with Oodle Texture RDO encoding.
 
 The behavior of the options is :
 
-CompressEffortLevel_NoEditor :
-CompressEffortLevel_Editor :
+EncodeEffortLevel_NoFastEncode :
+EncodeEffortLevel_FastEncode :
 
 Sets how much time Oodle should spend finding good results. Values are
 from the OodleTex_EncodeEffortLevel enum - Default, Low, Normal, High.
@@ -111,12 +111,12 @@ for textures with alpha.  If you turn on this option, the BC3 will change to BC7
 
 It is off by default to make default behavior match the old encoders.
 
-bForceRDOOff_Editor :
-bForceRDOOff_NoEditor :
+bForceRDOOff_FastEncode :
+bForceRDOOff_NoFastEncode :
 
 Force Oodle Texture to use non-RDO encoding.  This sets lambda to 0 for all encodes.
 (this is different than setting DefaultRDOLambda=0 because it also applies to textures
-that have per-texture lambda overrides set). When EditorOnly data is present _Editor
+that have per-texture lambda overrides set). When EditorOnly data is present _FastEncode
 is used to facilitate iteration times.
 
 bDebugColor :
@@ -363,10 +363,10 @@ public:
 
 	FTextureFormatOodleConfig() :
 		bForceAllBC23ToBC7(false),
-		bForceRDOOff_NoEditor(true),
-		bForceRDOOff_Editor(true),
-		CompressEffortLevel_NoEditor(OodleTex_EncodeEffortLevel_High),
-		CompressEffortLevel_Editor(OodleTex_EncodeEffortLevel_Normal),
+		bForceRDOOff_NoFastEncode(true),
+		bForceRDOOff_FastEncode(true),
+		EncodeEffortLevel_NoFastEncode(OodleTex_EncodeEffortLevel_High),
+		EncodeEffortLevel_FastEncode(OodleTex_EncodeEffortLevel_Normal),
 		RDOUniversalTiling(OodleTex_RDO_UniversalTiling_Disable),
 		bDebugColor(false),
 		DefaultRDOLambda(OodleTex_RDOLagrangeLambda_Default),
@@ -449,10 +449,10 @@ public:
 		if (!GConfig->DoesSectionExist(OODLETEXTURE_INI_SECTION, GEngineIni))
 		{
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
-			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
-			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_NoEditor"), EffortLevelToString(CompressEffortLevel_NoEditor), GEngineIni);
-			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("CompressEffortLevel_Editor"), EffortLevelToString(CompressEffortLevel_Editor), GEngineIni);
+			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_NoFastEncode"), bForceRDOOff_NoFastEncode, GEngineIni);
+			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bForceRDOOff_FastEncode"), bForceRDOOff_FastEncode, GEngineIni);
+			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("EncodeEffortLevel_NoFastEncode"), EffortLevelToString(EncodeEffortLevel_NoFastEncode), GEngineIni);
+			GConfig->SetString(OODLETEXTURE_INI_SECTION, TEXT("EncodeEffortLevel_FastEncode"), EffortLevelToString(EncodeEffortLevel_FastEncode), GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 			GConfig->SetBool(OODLETEXTURE_INI_SECTION, TEXT("bDebugDump"), bDebugDump, GEngineIni);
 			GConfig->SetInt(OODLETEXTURE_INI_SECTION, TEXT("LogVerbosity"), LogVerbosity, GEngineIni);
@@ -472,8 +472,8 @@ public:
 		
 		// Class config variables
 		GConfig->GetBool(IniSection, TEXT("bForceAllBC23ToBC7"), bForceAllBC23ToBC7, GEngineIni);
-		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_NoEditor"), bForceRDOOff_NoEditor, GEngineIni);
-		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_Editor"), bForceRDOOff_Editor, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_NoFastEncode"), bForceRDOOff_NoFastEncode, GEngineIni);
+		GConfig->GetBool(IniSection, TEXT("bForceRDOOff_FastEncode"), bForceRDOOff_FastEncode, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugColor"), bDebugColor, GEngineIni);
 		GConfig->GetBool(IniSection, TEXT("bDebugDump"), LocalDebugConfig.bDebugDump, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("LogVerbosity"), LocalDebugConfig.LogVerbosity, GEngineIni);
@@ -481,8 +481,8 @@ public:
 		GConfig->GetInt(IniSection, TEXT("DefaultRDOLambda"), DefaultRDOLambda, GEngineIni);
 		GConfig->GetInt(IniSection, TEXT("RDOUniversalTiling"), (int32&)RDOUniversalTiling, GEngineIni);
 
-		EffortLevelFromConfig(IniSection, TEXT("CompressEffortLevel_NoEditor"), CompressEffortLevel_NoEditor);
-		EffortLevelFromConfig(IniSection, TEXT("CompressEffortLevel_Editor"), CompressEffortLevel_Editor);
+		EffortLevelFromConfig(IniSection, TEXT("EncodeEffortLevel_NoFastEncode"), EncodeEffortLevel_NoFastEncode);
+		EffortLevelFromConfig(IniSection, TEXT("EncodeEffortLevel_FastEncode"), EncodeEffortLevel_FastEncode);
 
 		// sanitize config values :
 		DefaultRDOLambda = FMath::Clamp(DefaultRDOLambda,0,100);
@@ -501,8 +501,8 @@ public:
 
 		UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle Texture %s init {cook RDO %s %s, Editor RDO %s %s} with DefaultRDOLambda=%d, RDOUniversalTiling=%d"),
 			TEXT(OodleTextureVersion),
-			bForceRDOOff_NoEditor ? TEXT("Off") : TEXT("On"), EffortLevelToString(CompressEffortLevel_NoEditor),
-			bForceRDOOff_Editor ? TEXT("Off") : TEXT("On"), EffortLevelToString(CompressEffortLevel_Editor),
+			bForceRDOOff_NoFastEncode ? TEXT("Off") : TEXT("On"), EffortLevelToString(EncodeEffortLevel_NoFastEncode),
+			bForceRDOOff_FastEncode ? TEXT("Off") : TEXT("On"), EffortLevelToString(EncodeEffortLevel_FastEncode),
 			DefaultRDOLambda,
 			(int32)RDOUniversalTiling
 			);
@@ -685,14 +685,14 @@ public:
 		RDOLambda = FMath::Clamp(RDOLambda,0,100);
 
 		// ini option to force non-RDO encoding :
-		bool bForceRDOOff = InBuildSettings.bHasEditorOnlyData ? bForceRDOOff_Editor : bForceRDOOff_NoEditor;
+		bool bForceRDOOff = (InBuildSettings.FastTextureEncode != ETextureFastEncode::Off) ? bForceRDOOff_FastEncode : bForceRDOOff_NoFastEncode;
 		if ( bForceRDOOff )
 		{
 			RDOLambda = 0;
 		}
 			
 		// "Normal" is medium quality/speed
-		OodleTex_EncodeEffortLevel EffortLevel = InBuildSettings.bHasEditorOnlyData ? CompressEffortLevel_Editor : CompressEffortLevel_NoEditor;
+		OodleTex_EncodeEffortLevel EffortLevel = (InBuildSettings.FastTextureEncode != ETextureFastEncode::Off) ? EncodeEffortLevel_FastEncode : EncodeEffortLevel_NoFastEncode;
 		// EffortLevel might be set to faster modes for previewing vs cooking or something
 		//	but I don't see people setting that per-Texture or in lod groups or any of that
 		//  it's more about cook mode (fast vs final bake)	
@@ -716,10 +716,10 @@ public:
 private:
 	// the sense of these bools is set so that default behavior = all false
 	bool bForceAllBC23ToBC7; // change BC2 & 3 (aka DXT3 and DXT5) to BC7 
-	bool bForceRDOOff_NoEditor; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
-	bool bForceRDOOff_Editor; // bForceRDOOff in Editor
-	OodleTex_EncodeEffortLevel CompressEffortLevel_NoEditor; // how much time to spend encoding to get higher quality 
-	OodleTex_EncodeEffortLevel CompressEffortLevel_Editor; // CompressEffortLevel in Editor
+	bool bForceRDOOff_NoFastEncode; // use Oodle Texture but without RDO ; for debugging/testing , use LossyCompresionAmount to do this per-Texture
+	bool bForceRDOOff_FastEncode; // bForceRDOOff in Editor
+	OodleTex_EncodeEffortLevel EncodeEffortLevel_NoFastEncode; // how much time to spend encoding to get higher quality 
+	OodleTex_EncodeEffortLevel EncodeEffortLevel_FastEncode; // EncodeEffortLevel in Editor
 	OodleTex_RDO_UniversalTiling RDOUniversalTiling; // whether to use universal tiling, and at what block size.
 	bool bDebugColor; // color textures by their BCN, for data discovery
 	// if no lambda is set on Texture or lodgroup, fall through to this global default :
@@ -889,6 +889,7 @@ public:
 		}
 		
 		FName TextureFormatName = InBuildSettings.TextureFormatName;
+		bool bIsVT = InBuildSettings.bVirtualStreamable;
 
 		// LogVerbosity 0 : never
 		// LogVerbosity 1 : only large mips
@@ -897,9 +898,11 @@ public:
 
 		if ( GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity >= 2 || (GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity && bIsLargeMip) )
 		{
-			UE_LOG(LogTextureFormatOodle, Display, TEXT("%s encode %i x %i x %i to format %s (Oodle %s) lambda=%i effort=%i "), \
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("%s encode %i x %i x %i to format %s%s (Oodle %s) lambda=%i effort=%i "), \
 				RDOLambda ? TEXT("RDO") : TEXT("non-RDO"), InImage.SizeX, InImage.SizeY, InImage.NumSlices, 
-				*TextureFormatName.ToString(), *FString(OodleTex_BC_GetName(OodleBCN)),
+				*TextureFormatName.ToString(),
+				bIsVT ? TEXT(" VT") : TEXT(""),
+				*FString(OodleTex_BC_GetName(OodleBCN)),
 				RDOLambda, (int)EffortLevel);
 		}
 
@@ -1102,7 +1105,6 @@ public:
 		//	see also VirtualTextureDataBuilder.cpp UsesTaskGraph
 		//const bool bVTDisableInternalThreading = false; // false = DO use internal threads on VT
 		const bool bVTDisableInternalThreading = true; // true = DO NOT use internal threads on VT
-		bool bIsVT = InBuildSettings.bVirtualStreamable;
 
 		if (bIsVT && bVTDisableInternalThreading)
 		{
