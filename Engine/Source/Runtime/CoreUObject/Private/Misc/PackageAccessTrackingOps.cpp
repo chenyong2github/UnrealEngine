@@ -8,4 +8,7 @@ FName PackageAccessTrackingOps::NAME_PreLoad(TEXT("PreLoad"));
 FName PackageAccessTrackingOps::NAME_PostLoad(TEXT("PostLoad"));
 FName PackageAccessTrackingOps::NAME_Save(TEXT("Save"));
 FName PackageAccessTrackingOps::NAME_CreateDefaultObject(TEXT("CreateDefaultObject"));
+FName PackageAccessTrackingOps::NAME_ResetContext(TEXT("ResetContext"));
+FName PackageAccessTrackingOps::NAME_NoAccessExpected(TEXT("NoAccessExpected"));
+
 #endif // UE_WITH_OBJECT_HANDLE_TRACKING

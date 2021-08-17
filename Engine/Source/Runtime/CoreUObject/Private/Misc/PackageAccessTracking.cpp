@@ -45,8 +45,16 @@ FTrackedData::FTrackedData(FTrackedData& DirectData, FTrackedData* OuterAccumula
 		// The accumulated OpName is the most recent non-empty OpName
 		OpName = !DirectData.OpName.IsNone() ? DirectData.OpName : OuterAccumulatedData->OpName;
 
-		// The accumulated BuildOpName is the most recent non-empty BuildOpName
-		BuildOpName = !DirectData.BuildOpName.IsNone() ? DirectData.BuildOpName : OuterAccumulatedData->BuildOpName;
+		// The accumulated BuildOpName is by default the most recent non-empty BuildOpName
+		// ResetContext ops set it back to none
+		if (OpName == PackageAccessTrackingOps::NAME_ResetContext)
+		{
+			BuildOpName = NAME_None;
+		}
+		else
+		{
+			BuildOpName = !DirectData.BuildOpName.IsNone() ? DirectData.BuildOpName : OuterAccumulatedData->BuildOpName;
+		}
 
 		// The accumulated TargetPlatform is the most recent non-empty TargetPlatform
 		TargetPlatform = DirectData.TargetPlatform ? DirectData.TargetPlatform : OuterAccumulatedData->TargetPlatform;
@@ -70,6 +78,11 @@ FPackageAccessRefScope::FPackageAccessRefScope(FName InPackageName, FName InOpNa
 
 FPackageAccessRefScope::FPackageAccessRefScope(const UPackage* InPackage, FName InOpName)
 	: FPackageAccessRefScope(InPackage->GetFName(), InOpName, nullptr)
+{
+}
+
+FPackageAccessRefScope::FPackageAccessRefScope(FName InOpName)
+	: FPackageAccessRefScope(NAME_None, InOpName, nullptr)
 {
 }
 

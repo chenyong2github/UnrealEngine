@@ -70,6 +70,12 @@ void FPackageBuildDependencyTracker::StaticOnObjectHandleRead(UObject* ReadObjec
 				FName Referenced = ReadObject->GetOutermost()->GetFName();
 				if (Referencer != Referenced)
 				{
+					if (AccumulatedScopeData->OpName == PackageAccessTrackingOps::NAME_NoAccessExpected)
+					{
+						UE_LOG(LogPackageBuildDependencyTracker, Warning, TEXT("Object %s is referencing object %s inside of a NAME_NoAccessExpected scope. Programmer should narrow the scope or debug the reference."),
+							*Referencer.ToString(), *Referenced.ToString());
+					}
+
 					FBuildDependencyAccessData AccessData{ Referenced, AccumulatedScopeData->TargetPlatform };
 					FScopeLock RecordsScopeLock(&Singleton.RecordsLock);
 					if (Referencer == Singleton.LastReferencer)
