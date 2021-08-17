@@ -4,6 +4,7 @@
 
 #include "OptimusCoreNotify.h"
 #include "OptimusDataType.h"
+#include "Templates/SubclassOf.h"
 
 #include "CoreMinimal.h"
 

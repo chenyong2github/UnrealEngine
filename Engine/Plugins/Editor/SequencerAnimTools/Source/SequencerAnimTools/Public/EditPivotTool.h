@@ -9,6 +9,7 @@
 #include "InteractiveToolBuilder.h"
 #include "MultiSelectionTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandInfo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "BaseSequencerAnimTool.h"

@@ -13,6 +13,7 @@
 #include "IDetailsView.h"
 #include "IDetailRootObjectCustomization.h"
 #include "PropertyEditorModule.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"

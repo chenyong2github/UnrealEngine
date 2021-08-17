@@ -15,9 +15,10 @@
 #include "HitProxies.h"
 #include "Misc/Guid.h"
 
-
-
+class FEditorViewportClient;
+class FPrimitiveDrawInterface;
 class UMotionTrailEditorMode;
+
 namespace UE
 {
 namespace SequencerAnimTools

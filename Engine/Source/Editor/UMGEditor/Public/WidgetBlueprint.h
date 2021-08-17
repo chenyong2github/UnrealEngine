@@ -16,6 +16,7 @@
 class FCompilerResultsLog;
 class UEdGraph;
 class UMovieScene;
+class UTexture2D;
 class UUserWidget;
 class UWidget;
 class UWidgetAnimation;

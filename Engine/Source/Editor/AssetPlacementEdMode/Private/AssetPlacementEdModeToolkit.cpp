@@ -4,6 +4,7 @@
 
 #include "IDetailsView.h"
 #include "SAssetPlacementPalette.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Toolkits/AssetEditorModeUILayer.h"

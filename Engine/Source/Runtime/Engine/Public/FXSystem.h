@@ -18,6 +18,8 @@ struct FGPUSpriteResourceData;
 class FGPUSpriteResources;
 struct FParticleEmitterInstance;
 class FRHIUniformBuffer;
+class FScene;
+class FSceneInterface;
 class UVectorFieldComponent;
 class FGlobalDistanceFieldParameterData;
 

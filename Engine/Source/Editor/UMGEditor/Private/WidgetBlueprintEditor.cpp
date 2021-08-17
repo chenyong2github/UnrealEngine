@@ -43,6 +43,7 @@
 #include "Components/CanvasPanel.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Kismet2/CompilerResultsLog.h"
+#include "HAL/FileManager.h"
 #include "IMessageLogListing.h"
 #include "WidgetGraphSchema.h"
 

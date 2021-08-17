@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "IRewindDebugger.h"
 #include "BindableProperty.h"
+#include "Containers/Ticker.h"
 #include "UObject/WeakObjectPtr.h"
 
 class USkeletalMeshComponent;

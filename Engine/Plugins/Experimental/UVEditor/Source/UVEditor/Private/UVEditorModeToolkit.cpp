@@ -7,10 +7,12 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxDefs.h"
 #include "IDetailsView.h"
+#include "Modules/ModuleManager.h"
 #include "Tools/UEdMode.h"
 #include "UVEditorBackgroundPreview.h"
 #include "UVEditorCommands.h"
 #include "UVEditorMode.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
 

@@ -25,6 +25,7 @@
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
+#include "Modules/ModuleManager.h"
 #include "ControlRig.h"
 #include "ControlRigSequencerEditorLibrary.h"
 #include "LevelSequence.h"
