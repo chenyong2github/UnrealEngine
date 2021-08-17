@@ -223,8 +223,6 @@ FD3D11Viewport::~FD3D11Viewport()
 	}
 #endif
 
-	FrameSyncEvent.ReleaseResource();
-
 	D3DRHI->Viewports.Remove(this);
 }
 
