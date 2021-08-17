@@ -183,9 +183,9 @@ namespace
 			}
 			FText BlueprintName = FText::FromString(BlueprintObj->GetName());
 
-			for (const FEdGraphPinReference& PinRef : BlueprintObj->WatchedPins)
-			{
-				if (UEdGraphPin* Pin = PinRef.Get())
+			FKismetDebugUtilities::ForeachPinWatch(
+				BlueprintObj.Get(),
+				[BlueprintObj, BlueprintName](UEdGraphPin* Pin)
 				{
 					FText GraphName = FText::FromString(Pin->GetOwningNode()->GetGraph()->GetName());
 					FText NodeName = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
@@ -210,7 +210,7 @@ namespace
 						)
 					);
 				}
-			}
+			);
 		}
 	}
 
@@ -842,55 +842,56 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 			}
 
 			// We have a valid instance, iterate over all the watched pins and create rows for them
-			for (const FEdGraphPinReference& PinRef : BlueprintObj->WatchedPins)
-			{
-				UEdGraphPin* Pin = PinRef.Get();
-
-				FText GraphName = FText::FromString(Pin->GetOwningNode()->GetGraph()->GetName());
-				FText NodeName = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
-
-				TSharedPtr<FPropertyInstanceInfo> DebugInfo;
-				const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, BlueprintObj, BlueprintInstance, Pin);
-
-				if (WatchStatus != FKismetDebugUtilities::EWTR_Valid)
+			FKismetDebugUtilities::ForeachPinWatch(
+				BlueprintObj,
+				[BlueprintObj, BlueprintInstance, BlueprintName](UEdGraphPin* Pin)
 				{
-					const UEdGraphSchema* Schema = Pin->GetOwningNode()->GetSchema();
-					DebugInfo->DisplayName = Schema->GetPinDisplayName(Pin);
-					DebugInfo->Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
+					FText GraphName = FText::FromString(Pin->GetOwningNode()->GetGraph()->GetName());
+					FText NodeName = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
 
-					switch (WatchStatus)
+					TSharedPtr<FPropertyInstanceInfo> DebugInfo;
+					const FKismetDebugUtilities::EWatchTextResult WatchStatus = FKismetDebugUtilities::GetDebugInfo(DebugInfo, BlueprintObj, BlueprintInstance, Pin);
+
+					if (WatchStatus != FKismetDebugUtilities::EWTR_Valid)
 					{
-					case FKismetDebugUtilities::EWTR_NotInScope:
-						DebugInfo->Value = LOCTEXT("NotInScope", "(not in scope)");
-						break;
+						const UEdGraphSchema* Schema = Pin->GetOwningNode()->GetSchema();
+						DebugInfo->DisplayName = Schema->GetPinDisplayName(Pin);
+						DebugInfo->Type = UEdGraphSchema_K2::TypeToText(Pin->PinType);
 
-					case FKismetDebugUtilities::EWTR_NoProperty:
-						DebugInfo->Value = LOCTEXT("NoDebugData", "(no debug data)");
-						break;
+						switch (WatchStatus)
+						{
+						case FKismetDebugUtilities::EWTR_NotInScope:
+							DebugInfo->Value = LOCTEXT("NotInScope", "(not in scope)");
+							break;
 
-					case FKismetDebugUtilities::EWTR_NoDebugObject:
-						DebugInfo->Value = LOCTEXT("NoDebugObject", "(no debug object)");
-						break;
+						case FKismetDebugUtilities::EWTR_NoProperty:
+							DebugInfo->Value = LOCTEXT("NoDebugData", "(no debug data)");
+							break;
 
-					default:
-						// do nothing
-						break;
+						case FKismetDebugUtilities::EWTR_NoDebugObject:
+							DebugInfo->Value = LOCTEXT("NoDebugObject", "(no debug object)");
+							break;
+
+						default:
+							// do nothing
+							break;
+						}
 					}
-				}
 
-				Private_InstanceWatchSource.Add(
-					MakeShared<FWatchRow>(
-						BlueprintObj,
-						Pin->GetOwningNode(),
-						Pin,
-						BlueprintInstance,
-						BlueprintName,
-						GraphName,
-						NodeName,
-						*DebugInfo
-						)
-				);
-			}
+					Private_InstanceWatchSource.Add(
+						MakeShared<FWatchRow>(
+							BlueprintObj,
+							Pin->GetOwningNode(),
+							Pin,
+							BlueprintInstance,
+							BlueprintName,
+							GraphName,
+							NodeName,
+							*DebugInfo
+							)
+					);
+				}
+			);
 		}
 
 		// Notify subscribers:

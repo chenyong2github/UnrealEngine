@@ -100,7 +100,7 @@ void UK2Node::PostLoad()
 			{
 				if (UEdGraphPin* NewPin = UEdGraphPin::FindPinCreatedFromDeprecatedPin(WatchedPin))
 				{
-					BP->WatchedPins.Add(NewPin);
+					FKismetDebugUtilities::AddPinWatch(BP, NewPin);
 				}
 
 				BP->DeprecatedPinWatches.RemoveAt(WatchIdx);
@@ -1019,15 +1019,10 @@ void UK2Node::ReconstructSinglePin(UEdGraphPin* NewPin, UEdGraphPin* OldPin, ERe
 		}
 	}
 
-	// Update the blueprints watched pins as the old pin will be going the way of the dodo
-	for (int32 WatchIndex = 0; WatchIndex < Blueprint->WatchedPins.Num(); ++WatchIndex)
+	// if OldPin has a watch, swap the watch for NewPin
+	if(FKismetDebugUtilities::RemovePinWatch(Blueprint, OldPin))
 	{
-		UEdGraphPin* WatchedPin = Blueprint->WatchedPins[WatchIndex].Get();
-		if( WatchedPin == OldPin )
-		{
-			WatchedPin = NewPin;
-			break;
-		}
+		FKismetDebugUtilities::AddPinWatch(Blueprint, NewPin);
 	}
 }
 

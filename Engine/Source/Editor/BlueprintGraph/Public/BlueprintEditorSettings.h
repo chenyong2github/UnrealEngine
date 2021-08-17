@@ -21,6 +21,7 @@ enum ESaveOnCompile
 
 /** Blueprint Editor settings that are different for each
 *	blueprint.
+*	See FKismetDebugUtilities for helper functions
 */
 USTRUCT()
 struct BLUEPRINTGRAPH_API FPerBlueprintSettings 
@@ -29,6 +30,22 @@ struct BLUEPRINTGRAPH_API FPerBlueprintSettings
 	
 	UPROPERTY()
 	TArray<FBlueprintBreakpoint> Breakpoints;
+
+	UPROPERTY()
+	TArray<FEdGraphPinReference> WatchedPins;
+
+	bool operator==(const FPerBlueprintSettings& Other) const
+	{
+		return Breakpoints == Other.Breakpoints && WatchedPins == Other.WatchedPins;
+	}
+};
+
+template<> struct TStructOpsTypeTraits<FPerBlueprintSettings> : public TStructOpsTypeTraitsBase2<FPerBlueprintSettings>
+{
+	enum
+	{
+		WithIdenticalViaEquality = true
+	};
 };
 
 UCLASS(config=EditorPerProjectUserSettings)

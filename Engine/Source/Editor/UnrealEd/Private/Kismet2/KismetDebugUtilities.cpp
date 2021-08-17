@@ -784,21 +784,34 @@ bool FKismetDebugUtilities::IsSingleStepping()
 		|| Data.TargetGraphStackDepth != INDEX_NONE; 
 }
 
-TArray<FBlueprintBreakpoint>* FKismetDebugUtilities::GetBreakpoints(const UBlueprint* Blueprint)
+FPerBlueprintSettings* FKismetDebugUtilities::GetPerBlueprintSettings(const UBlueprint* Blueprint)
 {
 	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 	check(Settings);
-	
-	FPerBlueprintSettings* Found = Settings->PerBlueprintSettings.Find(Blueprint->GetPathName());
-	if(Found)
-	{
-		check(!Found->Breakpoints.IsEmpty());
-		return &Found->Breakpoints;
-	}
-	return nullptr;
+	return Settings->PerBlueprintSettings.Find(Blueprint->GetPathName());
 }
 
-void FKismetDebugUtilities::SaveBreakpoints()
+TArray<FBlueprintBreakpoint>* FKismetDebugUtilities::GetBreakpoints(const UBlueprint* Blueprint)
+{
+	FPerBlueprintSettings* Settings = GetPerBlueprintSettings(Blueprint);
+
+	// return nullptr if there's no breakpoints associated w/ this blueprint
+	return (!Settings || Settings->Breakpoints.IsEmpty()) ?
+		nullptr :
+		&Settings->Breakpoints;
+}
+
+TArray<FEdGraphPinReference>* FKismetDebugUtilities::GetWatchedPins(const UBlueprint* Blueprint)
+{
+	FPerBlueprintSettings* Settings = GetPerBlueprintSettings(Blueprint);
+
+	// return nullptr if there's no breakpoints associated w/ this blueprint
+	return (!Settings || Settings->WatchedPins.IsEmpty()) ?
+		nullptr :
+		&Settings->WatchedPins;
+}
+
+void FKismetDebugUtilities::SaveBlueprintEditorSettings()
 {
 	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 	check(Settings);
@@ -819,6 +832,48 @@ void FKismetDebugUtilities::CleanupBreakpoints(const UBlueprint* Blueprint)
 			return false;
 		}
 	);
+}
+
+void FKismetDebugUtilities::CleanupWatches(const UBlueprint* Blueprint)
+{
+	RemovePinWatchesByPredicate(
+		Blueprint,
+		[Blueprint](const UEdGraphPin* Pin)->bool
+		{
+			if(Pin)
+			{
+				if(UEdGraphNode* Node = Pin->GetOwningNode())
+				{
+					if(UEdGraph* Graph = Node->GetGraph())
+					{
+						TArray<UEdGraph*> BPGraphs;
+						Blueprint->GetAllGraphs(BPGraphs);
+						if(BPGraphs.Contains(Graph))
+						{
+							return false;
+						}
+					}
+				}
+			}
+			return true;
+		}
+	);
+}
+
+void FKismetDebugUtilities::RemoveEmptySettings(const FString& BlueprintPath)
+{
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	if(FPerBlueprintSettings *PerBlueprintSettings =
+		Settings->PerBlueprintSettings.Find(BlueprintPath))
+	{
+		// if all settings data is default, we can remove it from the map
+		if(*PerBlueprintSettings == FPerBlueprintSettings())
+		{
+			Settings->PerBlueprintSettings.Remove(BlueprintPath);
+		}
+		SaveBlueprintEditorSettings();
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -869,7 +924,7 @@ void FKismetDebugUtilities::SetBreakpointEnabled(FBlueprintBreakpoint& Breakpoin
 
 	Breakpoint.bEnabled = bIsEnabled;
 	SetBreakpointInternal(Breakpoint, Breakpoint.bEnabled);
-	SaveBreakpoints();
+	SaveBlueprintEditorSettings();
 }
 
 // Set or clear the enabled flag for the breakpoint
@@ -1033,7 +1088,7 @@ void FKismetDebugUtilities::CreateBreakpoint(const UBlueprint* Blueprint, UEdGra
 	BlueprintSettings.Breakpoints.Emplace();
 	SetBreakpointEnabled(BlueprintSettings.Breakpoints.Top(), bIsEnabled);
 	SetBreakpointLocation(BlueprintSettings.Breakpoints.Top(), Node);
-	SaveBreakpoints();
+	SaveBlueprintEditorSettings();
 }
 
 void FKismetDebugUtilities::ForeachBreakpoint(const UBlueprint* Blueprint,
@@ -1070,7 +1125,7 @@ void FKismetDebugUtilities::RemoveBreakpointsByPredicate(const UBlueprint* Bluep
 				// keeps the ini file clean by removing empty arrays
 				ClearBreakpoints(Blueprint);
 			}
-			SaveBreakpoints();
+			SaveBlueprintEditorSettings();
 		}
 	}
 }
@@ -1182,19 +1237,22 @@ void FKismetDebugUtilities::ClearBreakpoints(const UBlueprint* Blueprint)
 
 
 void FKismetDebugUtilities::ClearBreakpointsForPath(const FString& BlueprintPath)
-{
+{	
 	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
 	check(Settings);
-
-	FPerBlueprintSettings Collection;
-	if (Settings->PerBlueprintSettings.RemoveAndCopyValue(BlueprintPath, Collection))
+	if(FPerBlueprintSettings *PerBlueprintSettings =
+		Settings->PerBlueprintSettings.Find(BlueprintPath))
 	{
-		for(FBlueprintBreakpoint& Breakpoint : Collection.Breakpoints)
+		for(FBlueprintBreakpoint& Breakpoint : PerBlueprintSettings->Breakpoints)
 		{
 			// notify debugger that the breakpont has been removed
 			SetBreakpointLocation(Breakpoint, nullptr);	
 		}
-		SaveBreakpoints();
+		PerBlueprintSettings->Breakpoints.Empty();
+		
+		RemoveEmptySettings(BlueprintPath);
+        
+		SaveBlueprintEditorSettings();
 	}
 }
 
@@ -1249,43 +1307,139 @@ bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGr
 
 bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	return Blueprint->WatchedPins.Contains(const_cast<UEdGraphPin*>(Pin));
+	if(TArray<FEdGraphPinReference>* WatchedPins = GetWatchedPins(Blueprint))
+	{
+		return WatchedPins->Contains(const_cast<UEdGraphPin*>(Pin));
+	}
+	return false;
 }
 
-void FKismetDebugUtilities::RemovePinWatch(UBlueprint* Blueprint, const UEdGraphPin* Pin)
+bool FKismetDebugUtilities::RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	UEdGraphPin* NonConstPin = const_cast<UEdGraphPin*>(Pin);
-	Blueprint->WatchedPins.Remove(NonConstPin);
-	Blueprint->MarkPackageDirty();
-	Blueprint->PostEditChange();
-	WatchedPinsListChangedEvent.Broadcast(Blueprint);
+	return RemovePinWatchesByPredicate(
+		Blueprint,
+		[Pin](const UEdGraphPin* Other)
+		{
+			return Pin->PinId == Other->PinId;
+		}
+	);
 }
 
-void FKismetDebugUtilities::TogglePinWatch(UBlueprint* Blueprint, const UEdGraphPin* Pin)
+void FKismetDebugUtilities::AddPinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	int32 ExistingWatchIndex = Blueprint->WatchedPins.Find(const_cast<UEdGraphPin*>(Pin));
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	FPerBlueprintSettings &BlueprintSettings = Settings->PerBlueprintSettings.FindOrAdd(Blueprint->GetPathName());
+
+	// ensure that this node doesn't already contain a breakpoint
+	checkSlow(!BlueprintSettings.WatchedPins.ContainsByPredicate(
+		[Pin](const FEdGraphPinReference& Other)
+		{
+			return Other == Pin;
+		}
+	));
+	
+	BlueprintSettings.WatchedPins.Add(Pin);
+	SaveBlueprintEditorSettings();
+	WatchedPinsListChangedEvent.Broadcast(const_cast<UBlueprint*>(Blueprint));
+}
+
+
+void FKismetDebugUtilities::TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
+{
+	int32 ExistingWatchIndex = INDEX_NONE;
+	
+	if(TArray<FEdGraphPinReference>* WatchedPins = GetWatchedPins(Blueprint))
+	{
+		ExistingWatchIndex = WatchedPins->Find(const_cast<UEdGraphPin*>(Pin));
+	}
 
 	if (ExistingWatchIndex != INDEX_NONE)
 	{
-		FKismetDebugUtilities::RemovePinWatch(Blueprint, Pin);
+		RemovePinWatch(Blueprint, Pin);
 	}
 	else
 	{
-		Blueprint->WatchedPins.Add(const_cast<UEdGraphPin*>(Pin));
-		Blueprint->MarkPackageDirty();
-		Blueprint->PostEditChange();
+		AddPinWatch(Blueprint, Pin);
 	}
-
-	WatchedPinsListChangedEvent.Broadcast(Blueprint);
 }
 
-void FKismetDebugUtilities::ClearPinWatches(UBlueprint* Blueprint)
+void FKismetDebugUtilities::ClearPinWatches(const UBlueprint* Blueprint)
 {
-	Blueprint->WatchedPins.Empty();
-	Blueprint->MarkPackageDirty();
-	Blueprint->PostEditChange();
+	UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
+	check(Settings);
+	if(FPerBlueprintSettings *PerBlueprintSettings =
+		Settings->PerBlueprintSettings.Find(Blueprint->GetPathName()))
+	{
+		PerBlueprintSettings->WatchedPins.Empty();
+		
+		RemoveEmptySettings(Blueprint->GetPathName());
+        		
+        SaveBlueprintEditorSettings();
+        WatchedPinsListChangedEvent.Broadcast(const_cast<UBlueprint*>(Blueprint));
+	}
+}
 
-	WatchedPinsListChangedEvent.Broadcast(Blueprint);
+bool FKismetDebugUtilities::BlueprintHasPinWatches(const UBlueprint* Blueprint)
+{
+	return GetWatchedPins(Blueprint) != nullptr;
+}
+
+void FKismetDebugUtilities::ForeachPinWatch(const UBlueprint* Blueprint, TFunctionRef<void(UEdGraphPin*)> Task)
+{
+	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	{
+		for(FEdGraphPinReference& PinRef : *Pins)
+		{
+			if(UEdGraphPin* Pin = PinRef.Get())
+			{
+				Task(Pin);
+			}
+		}
+	}
+}
+
+bool FKismetDebugUtilities::RemovePinWatchesByPredicate(const UBlueprint* Blueprint,
+	const TFunctionRef<bool(const UEdGraphPin*)> Predicate)
+{
+	auto ModifiedPedicate = [Predicate](FEdGraphPinReference& PinRef)
+	{
+		UEdGraphPin* Pin = PinRef.Get();
+		return Pin && Predicate(Pin);
+	};
+	
+	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	{
+		if(Pins->RemoveAllSwap(ModifiedPedicate, false))
+		{
+			if(Pins->IsEmpty())
+			{
+				// keeps the ini file clean by removing empty arrays
+				ClearPinWatches(Blueprint);
+			}
+			SaveBlueprintEditorSettings();
+			WatchedPinsListChangedEvent.Broadcast(const_cast<UBlueprint*>(Blueprint));
+			return true;
+		}
+	}
+	return false;
+}
+
+UEdGraphPin* FKismetDebugUtilities::FindPinWatchByPredicate(const UBlueprint* Blueprint,
+	const TFunctionRef<bool(const UEdGraphPin*)> Predicate)
+{
+	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	{
+		for(FEdGraphPinReference& PinRef : *Pins)
+		{
+			UEdGraphPin* Pin = PinRef.Get();
+			if(Pin && Predicate(Pin))
+			{
+				return Pin;
+			}
+		}
+	}
+	return nullptr;
 }
 
 // Gets the watched tooltip for a specified site

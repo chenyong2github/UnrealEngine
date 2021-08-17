@@ -951,10 +951,13 @@ public:
 				// Create children for each watch
 				if(IsDebugLineTypeActive(DLT_Watch))
 				{
-					for (FEdGraphPinReference WatchedPin : ParentBP->WatchedPins)
-					{
-						EnsureChildIsAdded(OutChildren, FWatchLineItem(WatchedPin.Get(), ParentObject));
-					}
+					FKismetDebugUtilities::ForeachPinWatch(
+						ParentBP,
+						[this, &OutChildren, ParentObject](UEdGraphPin* WatchedPin)
+						{
+							EnsureChildIsAdded(OutChildren, FWatchLineItem(WatchedPin, ParentObject));
+						}
+					);
 				}
 
 				// It could also have active latent behaviors
@@ -1058,7 +1061,7 @@ protected:
 	{
 		if (UBlueprint* BP = Cast<UBlueprint>(ObjectRef.Get()))
 		{
-			if (BP->WatchedPins.Num() > 0)
+			if (FKismetDebugUtilities::BlueprintHasPinWatches(BP))
 			{
 				FUIAction ClearAllWatches(
 					FExecuteAction::CreateStatic( &FDebuggingActionCallbacks::ClearWatches, BP )

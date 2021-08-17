@@ -29,6 +29,7 @@
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
+#include "Kismet2/KismetDebugUtilities.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "ControlRigBlueprintUtils.h"
 #include "Settings/ControlRigSettings.h"
@@ -2891,11 +2892,14 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 								{
 									if (ModelPin->RequiresWatch())
 									{
-										WatchedPins.AddUnique(EdPin);
+										if (!FKismetDebugUtilities::IsPinBeingWatched(this, EdPin))
+										{
+											FKismetDebugUtilities::AddPinWatch(this, EdPin);
+										}
 									}
 									else
 									{
-										WatchedPins.Remove(EdPin);
+										FKismetDebugUtilities::RemovePinWatch(this, EdPin);
 									}
 
 									if(InNotifType == ERigVMGraphNotifType::PinWatchedChanged)

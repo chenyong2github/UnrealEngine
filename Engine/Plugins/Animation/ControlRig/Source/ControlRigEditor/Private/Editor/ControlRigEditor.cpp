@@ -92,6 +92,7 @@
 #include "ControlRigContextMenuContext.h"
 #include "Types/ISlateMetaData.h"
 #include "ControlRigGraphDetails.h"
+#include "Kismet2/KismetDebugUtilities.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -3950,39 +3951,43 @@ void FControlRigEditor::UpdateStaleWatchedPins()
 	}
 
 	TSet<UEdGraphPin*> AllPins;
+	uint16 WatchCount;
 
 	// Find all unique pins being watched
-	for (const FEdGraphPinReference& PinRef : ControlRigBP->WatchedPins)
-	{
-		UEdGraphPin* Pin = PinRef.Get();
-		if (Pin == nullptr)
+	FKismetDebugUtilities::ForeachPinWatch(
+		ControlRigBP,
+		[&AllPins, &WatchCount](UEdGraphPin* Pin)
 		{
-			continue;
-		}
+			++WatchCount;
+			if (Pin == nullptr)
+			{
+				return; // ~continue
+			}
 
-		UEdGraphNode* OwningNode = Pin->GetOwningNode();
-		// during node reconstruction, dead pins get moved to the transient 
-		// package (so just in case this blueprint got saved with dead pin watches)
-		if (OwningNode == nullptr)
-		{
-			continue;
-		}
+			UEdGraphNode* OwningNode = Pin->GetOwningNode();
+			// during node reconstruction, dead pins get moved to the transient 
+			// package (so just in case this blueprint got saved with dead pin watches)
+			if (OwningNode == nullptr)
+			{
+				return; // ~continue
+			}
 
-		if (!OwningNode->Pins.Contains(Pin))
-		{
-			continue;
-		}
+			if (!OwningNode->Pins.Contains(Pin))
+			{
+				return; // ~continue
+			}
 
-		AllPins.Add(Pin);
-	}
+			AllPins.Add(Pin);
+		}
+	);
 
 	// Refresh watched pins with unique pins (throw away null or duplicate watches)
-	if (ControlRigBP->WatchedPins.Num() != AllPins.Num())
+	if (WatchCount != AllPins.Num())
 	{
 		ControlRigBP->Status = BS_Dirty;
 	}
 
-	ControlRigBP->WatchedPins.Empty();
+	FKismetDebugUtilities::ClearPinWatches(ControlRigBP);
 
 	TArray<URigVMGraph*> Models = ControlRigBP->GetAllModels();
 	for (URigVMGraph* Model : Models)
@@ -4001,7 +4006,7 @@ void FControlRigEditor::UpdateStaleWatchedPins()
 	}
 	for (UEdGraphPin* Pin : AllPins)
 	{
-		ControlRigBP->WatchedPins.Add(Pin);
+		FKismetDebugUtilities::AddPinWatch(ControlRigBP, Pin);
 		UEdGraph* EdGraph = Pin->GetOwningNode()->GetGraph();
 		ControlRigBP->GetController(EdGraph)->SetPinIsWatched(Pin->GetName(), true, false);
 	}

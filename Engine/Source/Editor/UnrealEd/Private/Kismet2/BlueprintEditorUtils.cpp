@@ -7548,39 +7548,43 @@ void FBlueprintEditorUtils::UpdateTransactionalFlags(UBlueprint* Blueprint)
 void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 {
 	TSet<UEdGraphPin*> AllPins;
-
+	uint16 WatchCount;
+	
 	// Find all unique pins being watched
-	for (const FEdGraphPinReference& PinRef : Blueprint->WatchedPins)
-	{
-		UEdGraphPin* Pin = PinRef.Get();
-		if (Pin == nullptr)
+	FKismetDebugUtilities::ForeachPinWatch(
+		Blueprint,
+		[&AllPins, &WatchCount](UEdGraphPin* Pin)
 		{
-			continue;
-		}
+			++WatchCount;
+			if (Pin == nullptr)
+			{
+				return; // ~continue
+			}
 
-		UEdGraphNode* OwningNode = Pin->GetOwningNode();
-		// during node reconstruction, dead pins get moved to the transient 
-		// package (so just in case this blueprint got saved with dead pin watches)
-		if (OwningNode == nullptr)
-		{
-			continue;
-		}
+			UEdGraphNode* OwningNode = Pin->GetOwningNode();
+			// during node reconstruction, dead pins get moved to the transient 
+			// package (so just in case this blueprint got saved with dead pin watches)
+			if (OwningNode == nullptr)
+			{
+				return; // ~continue
+			}
 
-		if (!OwningNode->Pins.Contains(Pin))
-		{
-			continue;
+			if (!OwningNode->Pins.Contains(Pin))
+			{
+				return; // ~continue
+			}
+
+			AllPins.Add(Pin);
 		}
-		
-		AllPins.Add(Pin);
-	}
+	);
 
 	// Refresh watched pins with unique pins (throw away null or duplicate watches)
-	if (Blueprint->WatchedPins.Num() != AllPins.Num())
+	if (WatchCount != AllPins.Num())
 	{
-		Blueprint->WatchedPins.Empty();
+		FKismetDebugUtilities::ClearPinWatches(Blueprint);
 		for (UEdGraphPin* Pin : AllPins)
 		{
-			Blueprint->WatchedPins.Add(Pin);
+			FKismetDebugUtilities::AddPinWatch(Blueprint, Pin);
 		}
 
 		Blueprint->Status = BS_Dirty;

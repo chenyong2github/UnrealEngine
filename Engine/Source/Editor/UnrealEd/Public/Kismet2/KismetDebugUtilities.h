@@ -288,9 +288,32 @@ public:
 
 	static bool CanWatchPin(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
 	static bool IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static void TogglePinWatch(UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static void RemovePinWatch(UBlueprint* Blueprint, const UEdGraphPin* Pin);
-	static void ClearPinWatches(UBlueprint* Blueprint);
+	static void TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static bool RemovePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static void AddPinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin);
+	static void ClearPinWatches(const UBlueprint* Blueprint);
+	static bool BlueprintHasPinWatches(const UBlueprint* Blueprint);
+
+	/**
+	* Performs a task on every breakpoint in the provided blueprint
+	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* @param Task function to be called on every element
+	*/
+	static void ForeachPinWatch(const UBlueprint* Blueprint, TFunctionRef<void(UEdGraphPin*)> Task);
+
+	/**
+	* Removes any breakpoint that matches the provided predicate
+	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* @param Predicate function that returns true if a breakpoint should be removed
+	*/
+	static bool RemovePinWatchesByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const UEdGraphPin*)> Predicate);
+
+	/**
+	* Returns the first breakpoint that matches the provided predicate or nullptr if nothing matched
+	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* @param Predicate function that returns true for the found breakpoint
+	*/
+	static UEdGraphPin* FindPinWatchByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const UEdGraphPin*)> Predicate);
 
 	enum EWatchTextResult
 	{
@@ -341,16 +364,25 @@ protected:
 	* @return	EWTR_Valid if the debug data could be found, otherwise an appropriate error code
 	*/
 	static EWatchTextResult FindDebuggingData(UBlueprint* Blueprint, UObject* ActiveObject, const UEdGraphPin* WatchPin, FProperty*& OutProperty, void*& OutData, void*& OutDelta, UObject*& OutParent, TArray<UObject*>& SeenObjects, bool* bOutIsDirectPtr = nullptr);
-	
+
+	/**	Retrieve the user settings associated with a blueprint.
+	*	returns null if the blueprint has default settings (no breakpoints and no watches) */
+	static struct FPerBlueprintSettings* GetPerBlueprintSettings(const UBlueprint* Blueprint);
 
 	/**	Retrieve the Array of breakpoints associated with a blueprint.
 	*	returns null if there are no breakpoints associated with this blueprint */
 	static TArray<FBlueprintBreakpoint>* GetBreakpoints(const UBlueprint* Blueprint);
+
+	/**	Retrieve the Array of breakpoints associated with a blueprint.
+	*	returns null if there are no breakpoints associated with this blueprint */
+	static TArray<FEdGraphPinReference>* GetWatchedPins(const UBlueprint* Blueprint);
 	
 	/** Save any modifications made to breakpoints */
-	static void SaveBreakpoints();
+	static void SaveBlueprintEditorSettings();
 
 	static void CleanupBreakpoints(const UBlueprint* Blueprint);
+	static void CleanupWatches(const UBlueprint* Blueprint);
+	static void RemoveEmptySettings(const FString& BlueprintPath);
 private:
 	FKismetDebugUtilities() {}
 };

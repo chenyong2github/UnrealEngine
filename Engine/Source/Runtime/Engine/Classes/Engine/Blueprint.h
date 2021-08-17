@@ -638,11 +638,13 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UPROPERTY()
 	TArray<FBPEditorBookmarkNode> BookmarkNodes;
 
+	// moved to FPerBlueprintSettings
 	UPROPERTY()
 	TArray<TObjectPtr<class UDEPRECATED_Breakpoint>> Breakpoints_DEPRECATED;
 
+	// moved to FPerBlueprintSettings
 	UPROPERTY()
-	TArray<FEdGraphPinReference> WatchedPins;
+	TArray<FEdGraphPinReference> WatchedPins_DEPRECATED;
 
 	UPROPERTY()
 	TArray<TObjectPtr<class UEdGraphPin_Deprecated>> DeprecatedPinWatches;
