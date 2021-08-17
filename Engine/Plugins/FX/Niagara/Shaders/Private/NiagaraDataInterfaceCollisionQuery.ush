@@ -217,7 +217,7 @@ void NDICollisionQuery_CreateAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBu
 	}
 }
 
-void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingPayload> IntersectionResults, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingResult> IntersectionResults, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
 {
 	Out_CollisionValid = false;
 	Out_CollisionDistance = 0.0f;
@@ -226,7 +226,7 @@ void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer
 
 	if (In_PreviousFrameQueryID >= 0 && uint(In_PreviousFrameQueryID) < MaxRayTraceCount)
 	{
-		FNiagaraRayTracingPayload HitResult = IntersectionResults[In_PreviousFrameQueryID];
+		FNiagaraRayTracingResult HitResult = IntersectionResults[In_PreviousFrameQueryID];
 
 		Out_CollisionValid = HitResult.IsHit();
 		if (Out_CollisionValid)

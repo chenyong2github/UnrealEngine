@@ -180,7 +180,7 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 
 			RayTraceIntersections.Initialize(
 				TEXT("NiagaraRayTraceIntersections"),
-				sizeof(FNiagaraRayTracingPayload),
+				sizeof(FNiagaraRayTracingResult),
 				MaxRayTraceCount,
 				BUF_Static,
 				false /*bUseUavCounter*/,

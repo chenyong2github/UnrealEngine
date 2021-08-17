@@ -23,9 +23,9 @@ uint MurmurMix( uint Hash )
 }
 
 // Linear probing hash table
-StructuredBuffer< uint >	HashTable;
-RWStructuredBuffer< uint >	RWHashTable;
-uint						HashTableSize;
+Buffer< uint >		HashTable;
+RWBuffer< uint >	RWHashTable;
+uint			HashTableSize;
 
 // Returns true if key is added for the first time.
 // Index output is the hash table bucket this key is stored in.
@@ -34,10 +34,17 @@ bool HashTableAdd( uint Key, out uint Index )
 	// Zero is reserved as invalid
 	Key++;
 
+	uint NumLoops = 0;
 	LOOP
 	[allow_uav_condition]
-	for( Index = MurmurMix( Key );; Index++ )
+	for(Index = MurmurMix(Key); ; Index++ )
 	{
+		//Belt and braces safety code to prevent inf loops if tables are malformed.
+		if(++NumLoops > HashTableSize)
+		{
+			break;
+		}
+
 		//Index &= HashTableSize - 1;
 		Index = Index % HashTableSize;
 
@@ -69,10 +76,17 @@ bool HashTableFind( uint Key, out uint Index )
 	// Zero is reserved as invalid
 	Key++;
 
+	uint NumLoops = 0;
 	LOOP
 	[allow_uav_condition]
 	for( Index = MurmurMix( Key );; Index++ )
 	{
+		//Belt and braces safety code to prevent inf loops if tables are malformed.
+		if (++NumLoops > HashTableSize)
+		{
+			break;
+		}
+
 		//Index &= HashTableSize - 1;
 		Index = Index % HashTableSize;
 

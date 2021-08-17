@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraRayTracingHelper.h"
+#include "NiagaraShader.h"
 
 #if RHI_RAYTRACING
 
@@ -20,7 +21,7 @@ class FNiagaraUpdateCollisionGroupMapCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FNiagaraUpdateCollisionGroupMapCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<UINT>, RWHashTable)		
+		SHADER_PARAMETER_UAV(Buffer<UINT>, RWHashTable)		
 		SHADER_PARAMETER(uint32, HashTableSize)
 		SHADER_PARAMETER_UAV(Buffer<UINT>, RWHashToCollisionGroups)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, NewPrimIdCollisionGroupPairs)
@@ -61,12 +62,12 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FGPUSceneParameters, GPUSceneParameters)
-		SHADER_PARAMETER_SRV(StructuredBuffer<UINT>, HashTable)
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<UINT>,RWHashTable)
+		SHADER_PARAMETER_SRV(Buffer<UINT>, HashTable)
+		SHADER_PARAMETER_UAV(Buffer<UINT>, RWHashTable)
 		SHADER_PARAMETER(uint32, HashTableSize)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
-		SHADER_PARAMETER_SRV(StructuredBuffer<FNiagaraRayData>, Rays)
-		SHADER_PARAMETER_UAV(RWStructuredBuffer<FNiagaraRayTracingPayload>, CollisionOutput)
+		SHADER_PARAMETER_SRV(Buffer<FNiagaraRayData>, Rays)
+		SHADER_PARAMETER_UAV(Buffer<FNiagaraRayTracingResult>, CollisionOutput)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, RayTraceCounts)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashToCollisionGroups)
 		SHADER_PARAMETER(uint32, MaxRetraces)
@@ -298,14 +299,7 @@ void FNiagaraRayTracingHelper::UpdateCollisionGroupMap(FRHICommandList& RHICmdLi
 			HashTableSize = AllocInstances;
 
 			PrimIdHashTable.Release();
-			PrimIdHashTable.Initialize(
-				TEXT("NiagaraPrimIdHashTable"),
-				sizeof(uint32),
-				AllocInstances,
-				BUF_Static,
-				false /*bUseUavCounter*/,
-				false /*bAppendBuffer*/,
-				ERHIAccess::UAVCompute);
+			PrimIdHashTable.Initialize(TEXT("NiagaraPrimIdHashTable"), sizeof(uint32), AllocInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
 
 			HashToCollisionGroups.Release();
 			HashToCollisionGroups.Initialize(TEXT("NiagaraPrimIdHashToCollisionGroups"), sizeof(uint32), AllocInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
@@ -314,9 +308,11 @@ void FNiagaraRayTracingHelper::UpdateCollisionGroupMap(FRHICommandList& RHICmdLi
 		RHICmdList.Transition(FRHITransitionInfo(PrimIdHashTable.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 		RHICmdList.Transition(FRHITransitionInfo(HashToCollisionGroups.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
 
-		//First we have to clear the buffers. Can probably do this better.
-		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, PrimIdHashTable, 0);
-		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, HashToCollisionGroups, INDEX_NONE);
+ 		//First we have to clear the buffers. Can probably do this better.
+ 		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, PrimIdHashTable, 0);
+ 		RHICmdList.Transition(FRHITransitionInfo(PrimIdHashTable.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+ 		NiagaraFillGPUIntBuffer(RHICmdList, FeatureLevel, HashToCollisionGroups, INDEX_NONE);
+ 		RHICmdList.Transition(FRHITransitionInfo(HashToCollisionGroups.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 
 		TShaderMapRef<FNiagaraUpdateCollisionGroupMapCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 		FRHIComputeShader* ShaderRHI = ComputeShader.GetComputeShader();

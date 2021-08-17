@@ -1776,7 +1776,7 @@ void UNiagaraFunctionLibrary::InitVectorVMFastPathOps()
 
 void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, UPrimitiveComponent* Primitive, int32 CollisionGroup)
 {
-#if WITH_RAYTRACING
+#if RHI_RAYTRACING
 	if(UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		if(FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
@@ -1795,7 +1795,7 @@ void UNiagaraFunctionLibrary::SetComponentNiagaraGPURayTracedCollisionGroup(UObj
 
 void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, AActor* Actor, int32 CollisionGroup)
 {
-#if WITH_RAYTRACING
+#if RHI_RAYTRACING
 	if (Actor == nullptr)
 	{
 		return;
@@ -1822,7 +1822,7 @@ void UNiagaraFunctionLibrary::SetActorNiagaraGPURayTracedCollisionGroup(UObject*
 
 int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject)
 {
-#if WITH_RAYTRACING
+#if RHI_RAYTRACING
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
@@ -1842,7 +1842,7 @@ int32 UNiagaraFunctionLibrary::AcquireNiagaraGPURayTracedCollisionGroup(UObject*
 
 void UNiagaraFunctionLibrary::ReleaseNiagaraGPURayTracedCollisionGroup(UObject* WorldContextObject, int32 CollisionGroup)
 {
-#if WITH_RAYTRACING
+#if RHI_RAYTRACING
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
 		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))

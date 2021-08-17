@@ -119,6 +119,14 @@ struct FDefaultPayload : FIntersectionPayload
 	uint   InstanceID; // Value of FRayTracingGeometryInstance::UserData. Undefined on miss.
 };
 
+struct FVFXTracePayload : FIntersectionPayload
+{
+	void SetWorldNormal(float3 InNormal) { WorldNormal = InNormal; }
+
+	float3 WorldPosition;
+	float3 WorldNormal;
+};
+
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_INVALID   0xFFFFFFFF
 #define RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS  0xFFFFFFFE
 

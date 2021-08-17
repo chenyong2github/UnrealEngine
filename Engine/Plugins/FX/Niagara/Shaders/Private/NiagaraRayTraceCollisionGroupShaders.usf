@@ -21,8 +21,10 @@ void UpdatePrimIdToCollisionGroupMap(uint Index : SV_DispatchThreadID)
 		//TODO: Handle failures.
 		if (PrimId != -1)
 		{
-			HashTableAdd(PrimId, CollisionGroupIdIndex);
-			RWHashToCollisionGroups[CollisionGroupIdIndex] = CollisionGroupId;
+			if(HashTableAdd(PrimId, CollisionGroupIdIndex))
+			{
+				RWHashToCollisionGroups[CollisionGroupIdIndex] = CollisionGroupId;
+			}
 		}
 	}
 }
