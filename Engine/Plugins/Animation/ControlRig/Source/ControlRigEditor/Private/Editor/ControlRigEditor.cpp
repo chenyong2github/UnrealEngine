@@ -2522,11 +2522,13 @@ bool FControlRigEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
 		}
 		case NodeSectionID::LOCAL_VARIABLE:
 		{
-			const URigVMGraph* Graph = GetFocusedModel();
-			const URigVMGraph* ParentGraph = Graph->GetParentGraph();				
-			if (ParentGraph && ParentGraph->IsA<URigVMFunctionLibrary>())
+			if(const URigVMGraph* Graph = GetFocusedModel())
 			{
-				return true;
+				const URigVMGraph* ParentGraph = Graph->GetParentGraph();				
+				if (ParentGraph && ParentGraph->IsA<URigVMFunctionLibrary>())
+				{
+					return true;
+				}
 			}
 		}
 		default:
