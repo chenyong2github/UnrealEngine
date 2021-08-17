@@ -27,7 +27,4 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 
 	constexpr static TCHAR ToolName[] = TEXT("LassoSelectTool");
-
-private:
-	FTypedElementListPtr ElementsFromDrag;
 };

@@ -22,6 +22,8 @@
 #include "Modes/PlacementModeSubsystem.h"
 #include "ActorFactories/ActorFactory.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "Tools/AssetEditorContextInterface.h"
+#include "ContextObjectStore.h"
 
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {	
@@ -265,55 +267,60 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 {
 	FTypedElementListRef ElementHandles = UTypedElementRegistry::GetInstance()->CreateElementList();
 
-	// We need the 2D device screen space position to test against hit proxies.
-	if (!DragPos.bHas2D)
+	const UTypedElementSelectionSet* SelectionSet = nullptr;
+	if (IAssetEditorContextInterface* AssetEditorAPI = GetToolManager()->GetContextObjectStore()->FindContext<IAssetEditorContextInterface>())
+	{
+		SelectionSet = AssetEditorAPI->GetSelectionSet();
+	}
+
+	if (!SelectionSet)
 	{
 		return ElementHandles;
 	}
 
-	FViewport* Viewport = GetToolManager()->GetContextQueriesAPI()->GetFocusedViewport();
-	if (!Viewport)
+	FCollisionQueryParams QueryParams(TEXT("PlacementBrushTool"), SCENE_QUERY_STAT_ONLY(EdMode_PlacementTrace), true);
+	QueryParams.bReturnFaceIndex = false;
+	TArray<FHitResult> Hits;
+	FCollisionShape BrushSphere;
+	BrushSphere.SetSphere(LastBrushStamp.Radius);
+
+	const FVector TraceStart(LastWorldRay.Origin);
+	const FVector TraceEnd(LastWorldRay.Origin + LastWorldRay.Direction * HALF_WORLD_MAX);
+
+	GetToolManager()->GetWorld()->SweepMultiByObjectType(Hits, TraceStart, TraceEnd, FQuat::Identity,
+		FCollisionObjectQueryParams(FCollisionObjectQueryParams::InitType::AllObjects), BrushSphere, QueryParams);
+
+	for (const FHitResult& Hit : Hits)
 	{
-		return ElementHandles;
-	}
-
-	FToolBuilderState SelectionState;
-	GetToolManager()->GetContextQueriesAPI()->GetCurrentSelectionState(SelectionState);
-	if (!SelectionState.TypedElementSelectionSet.IsValid())
-	{
-		return ElementHandles;
-	}
-	UTypedElementSelectionSet* SelectionSet = SelectionState.TypedElementSelectionSet.Get();
-
-	// Convert brush radius to screen space and gather hit elements within the brush radius.
-	int32 HalfBrushRadius = FMath::CeilToFloat((LastBrushStamp.Radius * LastBrushStampWorldToPixelScale) / 2.0f);
-	FIntRect AreaToCheck;
-	FIntPoint ViewportSize = Viewport->GetSizeXY();
-	AreaToCheck.Min.X = FMath::Max<int32>(0, DragPos.ScreenPosition.X - HalfBrushRadius);
-	AreaToCheck.Min.Y = FMath::Max<int32>(0, DragPos.ScreenPosition.Y - HalfBrushRadius);
-	AreaToCheck.Max.X = FMath::Min<int32>(ViewportSize.X, DragPos.ScreenPosition.X + HalfBrushRadius);
-	AreaToCheck.Max.Y = FMath::Min<int32>(ViewportSize.Y, DragPos.ScreenPosition.Y + HalfBrushRadius);
-
-	// Get the raw hit proxies within the rect
-	FTypedElementListRef HitElementHandles = UTypedElementRegistry::GetInstance()->CreateElementList();
-	Viewport->GetElementHandlesInRect(AreaToCheck, HitElementHandles);
-
-	// Work out which elements to actually select in the viewport, and also verify that we're actually intersecting with the sphere from the brush in world space.
-	FBoxSphereBounds WorldBrushSphereBounds(FSphere(LastBrushStamp.WorldPosition, LastBrushStamp.Radius));
-	HitElementHandles->ForEachElementHandle([SelectionSet, ElementHandles, &WorldBrushSphereBounds](const FTypedElementHandle& HitHandle)
-	{
-		FTypedElementHandle ResolvedHandle = SelectionSet->GetSelectionElement(HitHandle, ETypedElementSelectionMethod::Primary);
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterface = SelectionSet->GetElementList()->GetElement<UTypedElementWorldInterface>(ResolvedHandle))
+		if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Hit.GetComponent()))
 		{
-			FBoxSphereBounds ElementBounds;
-			WorldInterface.GetBounds(ElementBounds);
-			if (ElementBounds.SpheresIntersect(ElementBounds, WorldBrushSphereBounds))
+			FTypedElementHandle StaticMeshObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(ISMComponent->GetStaticMesh());
+			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(StaticMeshObjectHandle))
 			{
-				ElementHandles->Add(MoveTemp(ResolvedHandle));
+				continue;
+			}
+
+			TArray<int32> OverlappingInstances = ISMComponent->GetInstancesOverlappingSphere(LastBrushStamp.WorldPosition, LastBrushStamp.Radius);
+			ElementHandles->Reserve(OverlappingInstances.Num());
+			for (const int32& InstanceIdx : OverlappingInstances)
+			{
+				if (FTypedElementHandle SMInstanceHandle = UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(ISMComponent, InstanceIdx))
+				{
+					ElementHandles->Add(MoveTemp(SMInstanceHandle));
+				}
 			}
 		}
-		return true;
-	});
+		else
+		{
+			FTypedElementHandle PrimarySelectionHandle = SelectionSet->GetSelectionElement(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Hit.GetComponent()), ETypedElementSelectionMethod::Primary);
+			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(PrimarySelectionHandle))
+			{
+				continue;
+			}
+
+			ElementHandles->Add(MoveTemp(PrimarySelectionHandle));
+		}
+	}
 
 	return ElementHandles;
 }
