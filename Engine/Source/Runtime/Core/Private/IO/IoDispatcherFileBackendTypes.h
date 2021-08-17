@@ -131,7 +131,7 @@ struct FFileIoStoreReadRequest
 	int32 Priority = 0;
 	uint64 CreationTime;	// Potentially used to circuit break request ordering optimizations when outstanding requests have been delayed too long
 	FFileIoStoreBlockScatter ImmediateScatter;
-	bool bIsCacheable = false;
+	uint32 BytesUsed = 0;
 	bool bFailed = false;
 	bool bCancelled = false;
 	EQueueStatus QueueStatus = QueueStatus_NotInQueue;
