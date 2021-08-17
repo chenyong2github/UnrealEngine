@@ -92,7 +92,7 @@ Buffer<uint>							InOccludedInstancesArgs;
 RWStructuredBuffer<FInstanceDraw>		OutOccludedInstances;
 RWBuffer<uint>							OutOccludedInstancesArgs;
 RWByteAddressBuffer						OutMainAndPostNodesAndClusterBatches;
-RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
+RWStructuredBuffer<FQueueState>			OutQueueState;
 
 #if DEBUG_FLAGS
 RWStructuredBuffer<FStats>				OutStatsBuffer;
@@ -266,9 +266,9 @@ void InstanceCull(
 			if( bIsVisible && !bWasOccluded )
 			{
 				uint NodeOffset = 0;
-				uint PersistentStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
-				WaveInterlockedAddScalar_( OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NodeWriteOffset, 1, NodeOffset );
-				WaveInterlockedAddScalar(  OutMainAndPostPassPersistentStates[ PersistentStateIndex ].NodeCount, 1 );
+				uint QueueStateIndex = ( CULLING_PASS == CULLING_PASS_OCCLUSION_POST );
+				WaveInterlockedAddScalar_( OutQueueState[ 0 ].PassState[ QueueStateIndex ].NodeWriteOffset, 1, NodeOffset );
+				WaveInterlockedAddScalar(  OutQueueState[ 0 ].PassState[ QueueStateIndex ].NodeCount, 1 );
 
 #if DEBUG_FLAGS
 				if (DebugFlags & DEBUG_FLAG_WRITE_STATS)
@@ -523,8 +523,8 @@ void InstanceCullVSM(
 		if( VisibleMipsMask )
 		{
 			uint NumNodes = countbits( VisibleMipsMask );
-			WaveInterlockedAdd_( OutMainAndPostPassPersistentStates[0].NodeWriteOffset, NumNodes, NodeOffset );
-			WaveInterlockedAdd(  OutMainAndPostPassPersistentStates[0].NodeCount, NumNodes );
+			WaveInterlockedAdd_( OutQueueState[0].PassState[0].NodeWriteOffset, NumNodes, NodeOffset );
+			WaveInterlockedAdd(  OutQueueState[0].PassState[0].NodeCount, NumNodes );
 
 	#if DEBUG_FLAGS
 			if (DebugFlags & DEBUG_FLAG_WRITE_STATS)

@@ -57,7 +57,7 @@ FAutoConsoleVariableRef CVarNaniteMaxNodes(
 	ECVF_ReadOnly
 );
 
-int32 GNaniteMaxCandidateClusters = 8 * 1048576;
+int32 GNaniteMaxCandidateClusters = 16 * 1048576;
 FAutoConsoleVariableRef CVarNaniteMaxCandidateClusters(
 	TEXT("r.Nanite.MaxCandidateClusters"),
 	GNaniteMaxCandidateClusters,
