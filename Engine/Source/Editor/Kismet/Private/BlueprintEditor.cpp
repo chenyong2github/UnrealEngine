@@ -3991,7 +3991,8 @@ bool FBlueprintEditor::HasAnyDisabledBreakpoints() const
 
 bool FBlueprintEditor::HasAnyWatches() const
 {
-	return GetBlueprintObj() && GetBlueprintObj()->WatchedPins.Num() > 0;
+	const UBlueprint* Blueprint = GetBlueprintObj();;
+	return Blueprint && FKismetDebugUtilities::BlueprintHasPinWatches(Blueprint);
 }
 
 // Jumps to a hyperlinked node, pin, or graph, if it belongs to this blueprint

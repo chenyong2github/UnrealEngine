@@ -7115,7 +7115,7 @@ void UEdGraphSchema_K2::RecombinePin(UEdGraphPin* Pin) const
 		}
 
 		GraphNode->Pins.Remove(SubPin);
-		Blueprint->WatchedPins.Remove(SubPin);
+		FKismetDebugUtilities::RemovePinWatch(Blueprint, SubPin);
 	}
 
 	if (Pin->Direction == EGPD_Input)

@@ -7,6 +7,7 @@
 #include "EdGraphSchema_K2.h"
 #include "K2Node_CallFunction.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Kismet2/KismetDebugUtilities.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FKismetNodeInfoContext
@@ -86,23 +87,26 @@ FKismetNodeInfoContext::FKismetNodeInfoContext(UEdGraph* SourceGraph)
 		}
 
 		// Covert the watched pin array into a set
-		for (auto WatchedPinIt = SourceBlueprint->WatchedPins.CreateConstIterator(); WatchedPinIt; ++WatchedPinIt)
-		{
-			UEdGraphPin* WatchedPin = WatchedPinIt->Get();
-			if (!ensure(WatchedPin))
-			{
-				continue;
-			}
+		FKismetDebugUtilities::ForeachPinWatch(
+			SourceBlueprint,
+			[&WatchedPinSet = WatchedPinSet, &WatchedNodeSet = WatchedNodeSet]
+				(UEdGraphPin* WatchedPin)
+				{
+					if (!ensure(WatchedPin))
+					{
+						return; // ~continue
+					}
 
-			UEdGraphNode* OwningNode = WatchedPin->GetOuter();
-			if (!ensure(OwningNode != NULL)) // shouldn't happen, but just in case a dead pin was added to the WatchedPins array
-			{
-				continue;
-			}
-			check(OwningNode == WatchedPin->GetOwningNode());
+					UEdGraphNode* OwningNode = WatchedPin->GetOuter();
+					if (!ensure(OwningNode != NULL)) // shouldn't happen, but just in case a dead pin was added to the WatchedPins array
+					{
+						return; // ~continue
+					}
+					check(OwningNode == WatchedPin->GetOwningNode());
 
-			WatchedPinSet.Add(WatchedPin);
-			WatchedNodeSet.Add(OwningNode);
-		}
+					WatchedPinSet.Add(WatchedPin);
+					WatchedNodeSet.Add(OwningNode);
+				}
+		);
 	}
 }
