@@ -7,8 +7,14 @@
 THIRD_PARTY_INCLUDES_START
 UE_PUSH_MACRO("TEXT")
 #undef TEXT
+#if PLATFORM_WINDOWS
+#include "Windows/PreWindowsApi.h"
+#endif
 #include <grpcpp/grpcpp.h>
 #include "build/bazel/remote/execution/v2/remote_execution.grpc.pb.h"
+#if PLATFORM_WINDOWS
+#include "Windows/PostWindowsApi.h"
+#endif
 UE_POP_MACRO("TEXT");
 THIRD_PARTY_INCLUDES_END
 
