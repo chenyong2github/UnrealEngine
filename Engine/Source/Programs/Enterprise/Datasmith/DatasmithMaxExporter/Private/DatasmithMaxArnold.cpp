@@ -87,8 +87,8 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterialCoat(TSharedRef< IDatasmithSc
 		// Loop through all the defined parameters therein
 		for (int i = 0; i < ParamBlockDesc->count; i++)
 		{
-			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];			
-			
+			const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
+
 			if (FCString::Stricmp(ParamDefinition.int_name, TEXT("coat_map_on")) == 0)
 			{
 				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
@@ -188,7 +188,7 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 	bool bEmittanceMapOn = true, bEmittanceColorMapOn = true;
 	bool bRoughnessInverted = true;
 	bool bThinWalled = true;
-	bool bBumpmapOn = true, bDisplaceMapOn = true, bCutoutMapOn = true;
+	bool bBumpmapOn = true, bCutoutMapOn = true;
 
 	float DiffuseWeight = 0, Roughness = 0, Metalness = 0, Ior = 0;
 	float Transparency = 0;
@@ -202,7 +202,7 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 	Texmap* ReflectivityMap = NULL, *RoughnessMap = NULL, *MetalnessMap = NULL, *ReflectionColorMap = NULL;
 	Texmap* TransparencyMap = NULL, *TransparencyColorMap = NULL;
 	Texmap* EmittanceMap = NULL, *EmittanceColorMap = NULL;
-	Texmap* BumpMap = NULL, *DisplaceMap = NULL, *CutoutMap = NULL;
+	Texmap* BumpMap = NULL, *CutoutMap = NULL;
 
 	int MaterialMode = 0; //0 means simple, just metalness, 1 means specular + metalness
 
@@ -323,13 +323,6 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 					bBumpmapOn = false;
 				}
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("displacement_map_on")) == 0)
-			{
-				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
-				{
-					bDisplaceMapOn = false;
-				}
-			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("cutout_map_on")) == 0)
 			{
 				if (ParamBlock2->GetInt(ParamDefinition.ID, GetCOREInterface()->GetTime()) == 0)
@@ -337,7 +330,6 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 					bCutoutMapOn = false;
 				}
 			}
-
 
 			// float values
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("base_weight")) == 0)
@@ -448,10 +440,6 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 			{
 				BumpMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
 			}
-			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("displacement_map")) == 0)
-			{
-				DisplaceMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
-			}
 			else if (FCString::Stricmp(ParamDefinition.int_name, TEXT("cutout_map")) == 0)
 			{
 				CutoutMap = ParamBlock2->GetTexmap(ParamDefinition.ID, GetCOREInterface()->GetTime());
@@ -460,12 +448,12 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 
 		ParamBlock2->ReleaseDesc();
 	}
-	
+
 	ExportPhysicalMaterialProperty(DatasmithScene, DiffuseColorMap, bDiffuseColorMapOn, DiffuseWeightMap, bDiffuseWeightMapOn, DiffuseColor, DiffuseWeight, MaterialShader->GetDiffuseComp(), DATASMITH_DIFFUSETEXNAME, DATASMITH_DIFFUSECOLNAME, false, false);
 	ExportPhysicalMaterialProperty(DatasmithScene, TransparencyColorMap, bTransparencyColorMapOn, TransparencyMap, bTransparencyMapOn, TransparencyColor, Transparency, MaterialShader->GetTransComp(), DATASMITH_TRANSPTEXNAME, DATASMITH_TRANSPCOLNAME, false, false);
 	ExportPhysicalMaterialProperty(DatasmithScene, EmittanceColorMap, bEmittanceColorMapOn, EmittanceMap, bEmittanceMapOn, EmittanceColor, EmittanceMultiplier, MaterialShader->GetEmitComp(), DATASMITH_EMITTEXNAME, DATASMITH_EMITCOLNAME, false, false);
 	ExportPhysicalMaterialProperty(DatasmithScene, CutoutMap, bCutoutMapOn, NULL, NULL, BMM_Color_fl(0.0, 0.0, 0.0, 0.0), 1.0, MaterialShader->GetMaskComp(), DATASMITH_CLIPTEXNAME, DATASMITH_CLIPTEXNAME, false, true);
-	
+
 	if (MetalnessMap != NULL && bMetalnessMapOn)
 	{
 		ExportPhysicalMaterialProperty(DatasmithScene, MetalnessMap, bMetalnessMapOn, NULL, false, BMM_Color_fl(0.0, 0.0, 0.0, 0.0), Metalness, MaterialShader->GetMetalComp(), DATASMITH_METALTEXNAME, DATASMITH_METALTEXNAME, false, true);
@@ -516,13 +504,6 @@ void FDatasmithMaxMatWriter::ExportPhysicalMaterial(TSharedRef< IDatasmithScene 
 		{
 			ExportPhysicalMaterialProperty(DatasmithScene, BumpMap, bBumpmapOn, NULL, NULL, BMM_Color_fl(0.0, 0.0, 0.0, 0.0), 1.0, MaterialShader->GetBumpComp(), DATASMITH_BUMPTEXNAME, DATASMITH_BUMPTEXNAME, false, true);
 		}
-	}
-
-	if (DisplaceMap != NULL && bDisplaceMapOn == true)
-	{
-		ExportPhysicalMaterialProperty(DatasmithScene, DisplaceMap, bDisplaceMapOn, NULL, NULL, BMM_Color_fl(0.0, 0.0, 0.0, 0.0), 1.0, MaterialShader->GetDisplaceComp(), DATASMITH_DISPLACETEXNAME, DATASMITH_DISPLACETEXNAME, false, true);
-		MaterialShader->SetDisplace(10.0f);
-		MaterialShader->SetDisplaceSubDivision(4);
 	}
 
 	MaterialShader->SetIOR(Ior);

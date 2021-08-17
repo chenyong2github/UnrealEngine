@@ -65,7 +65,7 @@ struct FCombinedAnimBlock
 	// Returns the combined, min start time for all blocks we have
 	float GetStartSeconds()
 	{
- 		float MinStartTime = FLT_MAX;
+		float MinStartTime = FLT_MAX;
 
 		for (const auto& Pair : NodeNameToBlock)
 		{
@@ -1081,7 +1081,6 @@ TSharedPtr<IDatasmithTextureElement> CreateTextureElement(IDatasmithMasterMateri
 		TextureModeEntry(TEXT("TexTransparent"), EDatasmithTextureMode::Other),
 		TextureModeEntry(TEXT("TexScatter"), EDatasmithTextureMode::Other),
 		TextureModeEntry(TEXT("TexRoughness"), EDatasmithTextureMode::Other),
-		TextureModeEntry(TEXT("TexDisplacement"), EDatasmithTextureMode::Displace),
 		TextureModeEntry(TEXT("TexFresnel"), EDatasmithTextureMode::Other),
 		TextureModeEntry(TEXT("TexRotation"), EDatasmithTextureMode::Other),
 		TextureModeEntry(TEXT("TexIndexOfRefraction"), EDatasmithTextureMode::Other),

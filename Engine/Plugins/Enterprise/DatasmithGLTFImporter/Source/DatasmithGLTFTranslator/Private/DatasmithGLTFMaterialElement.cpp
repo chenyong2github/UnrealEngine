@@ -56,7 +56,6 @@ void FDatasmithGLTFMaterialElement::Finalize()
 	ConnectInput(Opacity, MaterialExpressions, MaterialElement->GetOpacity());
 	ConnectInput(Refraction, MaterialExpressions, MaterialElement->GetRefraction());
 	ConnectInput(Normal, MaterialExpressions, MaterialElement->GetNormal());
-	ConnectInput(WorldDisplacement, MaterialExpressions, MaterialElement->GetWorldDisplacement());
 	ConnectInput(AmbientOcclusion, MaterialExpressions, MaterialElement->GetAmbientOcclusion());
 
 	bIsFinal = true;

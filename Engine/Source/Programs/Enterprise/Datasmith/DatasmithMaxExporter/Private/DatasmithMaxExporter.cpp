@@ -225,7 +225,6 @@ namespace DatasmithMaxExporterUtils
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetBumpComp(), UVChannels);
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetTransComp(), UVChannels);
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetMaskComp(), UVChannels);
-			RemapUVChannelsForCompositeTexture(ShaderElement->GetDisplaceComp(), UVChannels);
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetMetalComp(), UVChannels);
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetEmitComp(), UVChannels);
 			RemapUVChannelsForCompositeTexture(ShaderElement->GetWeightComp(), UVChannels);

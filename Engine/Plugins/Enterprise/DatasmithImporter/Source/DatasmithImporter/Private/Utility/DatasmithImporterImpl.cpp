@@ -280,10 +280,6 @@ void FDatasmithImporterImpl::SetTexturesMode( FDatasmithImportContext& ImportCon
 					{
 						TextureElement->SetTextureMode(EDatasmithTextureMode::Specular);
 					}
-					else if ( FCString::Strlen( ShaderElement->GetDisplaceTexture() ) > 0 && ShaderElement->GetDisplaceTexture() == TextureName)
-					{
-						TextureElement->SetTextureMode(EDatasmithTextureMode::Displace);
-					}
 					else if ( FCString::Strlen( ShaderElement->GetNormalTexture() ) > 0 && ShaderElement->GetNormalTexture() == TextureName)
 					{
 						if (!ShaderElement->GetNormalTextureSampler().bInvert)
@@ -570,7 +566,7 @@ UActorComponent* FDatasmithImporterImpl::PublicizeComponent(UActorComponent& Sou
 		if ( &SourceComponent != DestinationComponent )
 		{
 			CopyObject( SourceComponent, *DestinationComponent, ReusableBuffer );
-	
+
 			if ( DestinationComponent->GetFName() != SourceComponent.GetFName() )
 			{
 				DestinationComponent->Rename( *SourceComponent.GetName() );
@@ -607,14 +603,14 @@ USceneComponent* FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImport
 	}
 	else
 	{
-	
+
 		if ( !DestinationComponent )
 		{
-			// Improvement suggestion. We should build a cache in finalize scene components (It could be done in O(n*k)). 
+			// Improvement suggestion. We should build a cache in finalize scene components (It could be done in O(n*k)).
 			// Currently this can be highly inefficient on the first import of a dataprep scene where some actors would have a absurd amount components.
 			//  O(n^2*k) where n is the number of components on the actor and k is the avergage lenght of a datasmith ID (we need to hash the string representing the ID to convert it to a FName).
-			// 
-			// Look at components of the actor, we might find the scene component we are looking for. 
+			//
+			// Look at components of the actor, we might find the scene component we are looking for.
 			for ( UActorComponent* Component : DestinationActor.GetInstanceComponents() )
 			{
 				if ( Component && Component->IsA( SourceComponent.GetClass() ) )
@@ -651,7 +647,7 @@ USceneComponent* FDatasmithImporterImpl::FinalizeSceneComponent(FDatasmithImport
 		if ( Child && Child->GetOuter() == SourceComponent.GetOuter() )
 		{
 			if ( USceneComponent* DestinationChild = FinalizeSceneComponent( ImportContext, *Child, DestinationActor, AttachParentForChildren, ReferencesToRemap, ReusableBuffer, ComponentsToApplyMigratedTemplate))
-			{ 
+			{
 				if ( AttachParentForChildren )
 				{
 					DestinationChild->AttachToComponent(AttachParentForChildren, FAttachmentTransformRules::KeepRelativeTransform);

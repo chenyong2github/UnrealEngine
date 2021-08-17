@@ -614,9 +614,6 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetNormal")]
   public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetNormal(global::System.Runtime.InteropServices.HandleRef jarg1);
 
-  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement")]
-  public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement(global::System.Runtime.InteropServices.HandleRef jarg1);
-
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetRefraction")]
   public static extern global::System.IntPtr FDatasmithFacadeUEPbrMaterial_GetRefraction(global::System.Runtime.InteropServices.HandleRef jarg1);
 

@@ -1837,18 +1837,6 @@ SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetNormal(voi
 }
 
 
-SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetWorldDisplacement(void * jarg1) {
-  void * jresult ;
-  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
-  SwigValueWrapper< FDatasmithFacadeExpressionInput > result;
-  
-  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
-  result = ((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetWorldDisplacement();
-  jresult = new FDatasmithFacadeExpressionInput((const FDatasmithFacadeExpressionInput &)result); 
-  return jresult;
-}
-
-
 SWIGEXPORT void * SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetRefraction(void * jarg1) {
   void * jresult ;
   FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;

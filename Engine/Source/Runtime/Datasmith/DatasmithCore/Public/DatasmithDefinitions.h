@@ -161,7 +161,7 @@ enum class EDatasmithTextureMode : uint8
 	Specular,
 	Normal,
 	NormalGreenInv,
-	Displace,
+	UNUSED_Displace,
 	Other,
 	Bump,
 	Ies
@@ -597,11 +597,6 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_IORVALUENAME					TEXT("IOR")
 #define DATASMITH_IORKVALUENAME					TEXT("IORk")
 #define DATASMITH_REFRAIORVALUENAME				TEXT("IORRefraction")
-
-#define DATASMITH_DISPLACETEXNAME				TEXT("Displace")
-#define DATASMITH_DISPLACEVALNAME				TEXT("Displaceval")
-#define DATASMITH_DISPLACECOMPNAME				TEXT("Displacecomp")
-#define DATASMITH_DISPLACESUBNAME				TEXT("DisplaceSubdivisionval")
 
 #define DATASMITH_METALTEXNAME					TEXT("Metal")
 #define DATASMITH_METALVALUENAME				TEXT("Metalval")

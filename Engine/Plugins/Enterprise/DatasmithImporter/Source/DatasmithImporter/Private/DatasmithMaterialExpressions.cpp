@@ -2129,7 +2129,6 @@ void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Pack
 	UTexture* EmissiveTexture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, ShaderElement->GetEmitTexture() );
 	UTexture* RefraTexture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, ShaderElement->GetTransparencyTexture() );
 	UTexture* MaskTexture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, ShaderElement->GetMaskTexture() );
-	UTexture* DisplaceTexture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, ShaderElement->GetDisplaceTexture() );
 	UTexture* MetalTexture = FDatasmithImporterUtils::FindAsset< UTexture >( AssetsContext, ShaderElement->GetMetalTexture() );
 
 	// roughness
@@ -2433,15 +2432,6 @@ void FDatasmithMaterialExpressions::CreateDatasmithMaterialHelper(UPackage* Pack
 	}
 
 	ModulateNormalAmount(UnrealMaterial, ShaderElement->GetBumpAmount());
-
-	// Displace mapping. #jira UE-113727
-// 	if (AddCompExpression(ShaderElement->GetDisplaceComp(), UnrealMaterial, EDatasmithTextureSlot::DISPLACE, AssetsContext) == nullptr)
-// 	{
-// 		if (DisplaceTexture != nullptr)
-// 		{
-// 			AddTextureExpression(DisplaceTexture, ShaderElement->GetDisplaceTextureSampler(), 0.0, 0.0, UnrealMaterial, EDatasmithTextureSlot::DISPLACE);
-// 		}
-// 	}
 }
 
 UMaterialExpressionMaterialFunctionCall* FDatasmithMaterialExpressions::BlendFunctions(UMaterial* UnrealMaterial, const FDatasmithAssetsImportContext& AssetsContext,
@@ -3164,7 +3154,6 @@ void FDatasmithMaterialExpressions::CreateUEPbrMaterialGraph(const TSharedPtr< I
 	}
 
 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetNormal().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::NORMAL ), MaterialElement->GetNormal().GetOutputIndex() );
-// #jira UE-113727 // 	ConnectExpression( MaterialElement.ToSharedRef(), MaterialExpressions, MaterialElement->GetWorldDisplacement().GetExpression(), GetMaterialOrFunctionSlot( UnrealMaterialOrFunction, EDatasmithTextureSlot::DISPLACE ), MaterialElement->GetWorldDisplacement().GetOutputIndex() );
 
 	// Connect expressions to any UMaterialExpressionCustomOutput since these aren't part of the predefined material outputs
 	for ( int32 ExpressionIndex = 0; ExpressionIndex < MaterialElement->GetExpressionsCount(); ++ExpressionIndex )

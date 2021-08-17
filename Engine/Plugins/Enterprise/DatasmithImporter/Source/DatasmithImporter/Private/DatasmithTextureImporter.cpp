@@ -234,10 +234,6 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 		TextureFact->CompressionSettings = TC_Normalmap;
 		TextureFact->bFlipNormalMapGreenChannel = true;
 		break;
-	case EDatasmithTextureMode::Displace:
-		TextureFact->CompressionSettings = TC_Displacementmap;
-		TextureFact->LODGroup = TEXTUREGROUP_World;
-		break;
 	}
 
 	const EDatasmithColorSpace DatasmithColorSpace = TextureElement->GetSRGB();
@@ -301,7 +297,7 @@ UTexture* FDatasmithTextureImporter::CreateTexture(const TSharedPtr<IDatasmithTe
 		{
 			bUpdateResource |= Texture2D->AddressX != (TextureAddress)TextureElement->GetTextureAddressX();
 			Texture2D->AddressX = (TextureAddress)TextureElement->GetTextureAddressX();
-			
+
 			bUpdateResource |= Texture2D->AddressY != (TextureAddress)TextureElement->GetTextureAddressY();
 			Texture2D->AddressY = (TextureAddress)TextureElement->GetTextureAddressY();
 		}
@@ -470,10 +466,6 @@ bool UDatasmithTexturePipeline::ExecutePreImportPipeline(UInterchangeBaseNodeCon
 		LODGroup = TEXTUREGROUP_WorldNormalMap;
 		CompressionSettings = TC_Normalmap;
 		bFlipNormalMapGreenChannel = true;
-		break;
-	case EDatasmithTextureMode::Displace:
-		LODGroup = TEXTUREGROUP_World;
-		CompressionSettings = TC_Displacementmap;
 		break;
 	}
 

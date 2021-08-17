@@ -356,12 +356,6 @@ FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetNormal() const
 	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetNormal(), UEPbrMaterial );
 }
 
-FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetWorldDisplacement() const
-{
-	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();
-	return FDatasmithFacadeExpressionInput( &UEPbrMaterial->GetWorldDisplacement(), UEPbrMaterial );
-}
-
 FDatasmithFacadeExpressionInput FDatasmithFacadeUEPbrMaterial::GetRefraction() const
 {
 	TSharedPtr<IDatasmithUEPbrMaterialElement> UEPbrMaterial = GetDatasmithUEPbrMaterialElement();

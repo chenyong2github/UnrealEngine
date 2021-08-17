@@ -84,7 +84,7 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 		{
 			IParamBlock2* ParamBlock2 = Material.GetParamBlockByID((short)j);
 			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-			
+
 			for (int i = 0; i < ParamBlockDesc->count; i++)
 			{
 				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
@@ -302,7 +302,7 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 		{
 			IParamBlock2* ParamBlock2 = Material.GetParamBlockByID((short)j);
 			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-			
+
 			for (int i = 0; i < ParamBlockDesc->count; i++)
 			{
 				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
@@ -342,7 +342,7 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 		{
 			IParamBlock2* ParamBlock2 = Material.GetParamBlockByID((short)j);
 			ParamBlockDesc2* ParamBlockDesc = ParamBlock2->GetDesc();
-			
+
 			for (int i = 0; i < ParamBlockDesc->count; i++)
 			{
 				const ParamDef& ParamDefinition = ParamBlockDesc->paramdefs[i];
@@ -367,7 +367,7 @@ namespace DatasmithMaxVRayMaterialsToUEPbrImpl
 			DatasmithMaxTexmapParser::FMapParameter MaterialBlendParameter;
 			FLinearColor MixColor;
 		};
-		
+
 		Mtl* BaseMaterial = nullptr;
 		static const int32 MaximumNumberOfCoat = 10;
 		FVRayCoatMaterialProperties CoatedMaterials[MaximumNumberOfCoat];
@@ -487,7 +487,7 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 	}
 
 	IDatasmithMaterialExpressionGeneric* ReflectionIntensityExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionGeneric >();
-	
+
 	if ( VRayMaterialProperties.bReflectionFresnel )
 	{
 		ReflectionIntensityExpression->SetExpressionName( TEXT("Desaturation") );
@@ -558,23 +558,6 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 		}
 
 		ConvertState.bCanBake = true;
-	}
-	
-	// Displacement
-	{
-		ConvertState.DefaultTextureMode = EDatasmithTextureMode::Displace;
-
-		IDatasmithMaterialExpression* DisplacementExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue( this, VRayMaterialProperties.DisplacementMap, TEXT("Displacement Map"), TOptional< FLinearColor >(), TOptional< float >() );
-
-		if ( DisplacementExpression )
-		{
-			DisplacementExpression->ConnectExpression( PbrMaterialElement->GetWorldDisplacement() );
-		}
-
-		if ( DisplacementExpression )
-		{
-			DisplacementExpression->SetName( TEXT("Displacement Map") );
-		}
 	}
 
 	ConvertState.DefaultTextureMode = EDatasmithTextureMode::Specular; // At this point, all maps are considered specular maps
@@ -650,7 +633,7 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 		DiffuseLerpExpression->ConnectExpression( PbrMaterialElement->GetBaseColor() );
 
 		IDatasmithMaterialExpression* ReflectionIOR = nullptr;
-		
+
 		{
 			TGuardValue< bool > SetIsMonoChannel( ConvertState.bIsMonoChannel, true );
 
@@ -757,7 +740,7 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 	}
 	else
 	{
-		
+
 		MetallicExpression = ReflectionIntensityExpression;
 	}
 
@@ -765,7 +748,7 @@ void FDatasmithMaxVRayMaterialsToUEPbr::Convert( TSharedRef< IDatasmithScene > D
 	{
 		MetallicExpression->ConnectExpression( PbrMaterialElement->GetMetallic() );
 	}
-	
+
 	// UE Specular
 	if ( MetallicExpression )
 	{
@@ -899,7 +882,7 @@ void FDatasmithMaxVRay2SidedMaterialsToUEPbr::Convert( TSharedRef<IDatasmithScen
 			if ( MaterialElement )
 			{
 				MaterialElement->SetName( Material->GetName().data() ); // Name it with the main material not the front material
-				
+
 				if ( MaterialElement->IsA( EDatasmithElementType::UEPbrMaterial ) )
 				{
 					TSharedRef< IDatasmithUEPbrMaterialElement > UEPbrMaterialElement = StaticCastSharedRef< IDatasmithUEPbrMaterialElement >( MaterialElement.ToSharedRef() );
@@ -1028,9 +1011,9 @@ void FDatasmithMaxVRayBlendMaterialToUEPbr::Convert( TSharedRef<IDatasmithScene>
 
 			IDatasmithMaterialExpression* AlphaExpression = FDatasmithMaxTexmapToUEPbrUtils::MapOrValue(this, CoatedMaterial.MaterialBlendParameter, TEXT("MixAmount"),
 				CoatedMaterial.MixColor, TOptional< float >());
-				
+
 			//AlphaExpression is nullptr only when there is no mask and the mask weight is ~100% so we add scalar 0 instead.
-			if(!AlphaExpression) 
+			if(!AlphaExpression)
 			{
 				IDatasmithMaterialExpressionScalar* WeightExpression = PbrMaterialElement->AddMaterialExpression< IDatasmithMaterialExpressionScalar >();
 				WeightExpression->SetName(TEXT("MixAmount"));

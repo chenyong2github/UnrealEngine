@@ -219,7 +219,6 @@ public:
 	virtual IDatasmithExpressionInput& GetEmissiveColor() = 0;
 	virtual IDatasmithExpressionInput& GetOpacity() = 0;
 	virtual IDatasmithExpressionInput& GetNormal() = 0;
-	virtual IDatasmithExpressionInput& GetWorldDisplacement() = 0;
 	virtual IDatasmithExpressionInput& GetRefraction() = 0;
 	virtual IDatasmithExpressionInput& GetAmbientOcclusion() = 0;
 	virtual IDatasmithExpressionInput& GetMaterialAttributes() = 0;
