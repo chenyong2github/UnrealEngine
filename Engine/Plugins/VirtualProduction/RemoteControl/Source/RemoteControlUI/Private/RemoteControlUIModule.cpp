@@ -221,13 +221,7 @@ bool FRemoteControlUIModule::CanToggleExposeProperty(TSharedPtr<IPropertyHandle>
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		if (Handle)
-		{
-			if (!ShouldDisplayExposeIcon(Handle.ToSharedRef()))
-			{
-				return true;
-			}
-		}
+		return Handle && ShouldDisplayExposeIcon(Handle.ToSharedRef());
 	}
 
 	return false;

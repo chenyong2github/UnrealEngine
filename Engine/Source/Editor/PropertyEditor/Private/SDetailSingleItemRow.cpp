@@ -1107,9 +1107,14 @@ void SDetailSingleItemRow::CreateGlobalExtensionWidgets(TArray<FPropertyRowExten
 	FOnGenerateGlobalRowExtensionArgs Args;
 	Args.OwnerTreeNode = OwnerTreeNode;
 
+	
 	if (Customization->HasPropertyNode())
 	{
 		Args.PropertyHandle = PropertyEditorHelpers::GetPropertyHandle(Customization->GetPropertyNode().ToSharedRef(), nullptr, nullptr);
+	}
+	else if (WidgetRow.GetPropertyHandles().Num() && WidgetRow.GetPropertyHandles()[0] && WidgetRow.GetPropertyHandles()[0]->IsValidHandle())
+	{
+		Args.PropertyHandle = WidgetRow.GetPropertyHandles()[0];
 	}
 
 	PropertyEditorModule.GetGlobalRowExtensionDelegate().Broadcast(Args, OutExtensions);
