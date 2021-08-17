@@ -201,6 +201,11 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 	];
 
 	CreateRigCurveList();
+
+	if(ControlRigEditor.IsValid())
+	{
+		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigCurveContainer::OnControlRigEditorClose);
+	}
 }
 
 SRigCurveContainer::~SRigCurveContainer()
@@ -208,15 +213,7 @@ SRigCurveContainer::~SRigCurveContainer()
 	// Make sure we don't get called on editor exit if we've already been shut down.
 	GEditor->OnEditorClose().RemoveAll(this);
 
-	if (ControlRigEditor.IsValid())
-	{
-		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
-		if (ControlRigBlueprint.IsValid())
-		{
-			ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
-			ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
-		}
-	}
+	OnEditorClose();
 }
 
 FReply SRigCurveContainer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -316,8 +313,23 @@ TSharedPtr<SWidget> SRigCurveContainer::OnGetContextMenuContent() const
 
 void SRigCurveContainer::OnEditorClose()
 {
+	if (ControlRigEditor.IsValid())
+	{
+		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
+		if (ControlRigBlueprint.IsValid())
+		{
+			ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
+			ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
+		}
+	}
+
 	ControlRigBlueprint.Reset();
 	ControlRigEditor.Reset();
+}
+
+void SRigCurveContainer::OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
+{
+	OnEditorClose();
 }
 
 void SRigCurveContainer::OnRenameClicked()
@@ -377,6 +389,12 @@ void SRigCurveContainer::CreateNewNameEntry(const FText& CommittedText, ETextCom
 
 void SRigCurveContainer::CreateRigCurveList( const FString& SearchText )
 {
+	if(bIsChangingRigHierarchy)
+	{
+		return;
+	}
+	TGuardValue<bool> GuardReentry(bIsChangingRigHierarchy, true);
+
 	if(!ControlRigBlueprint.IsValid())
 	{
 		return;
