@@ -173,12 +173,6 @@ bool FRewindData::RewindToFrame(int32 Frame)
 	{
 		FGeometryParticleHandle* PTParticle = DirtyParticleInfo.GetPTParticle();
 
-		if(DirtyParticleInfo.InitializedOnStep > Frame)
-		{
-			//hasn't initialized yet, so disable
-			Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetPTParticle());
-		}
-
 		//rewind is about to start, all particles should be in sync at this point
 		ensure(PTParticle->SyncState() == ESyncState::InSync);
 
@@ -193,7 +187,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 			RewindNoSave(PTParticle->CastToKinematicParticle(), History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
 			RewindNoSave(PTParticle->CastToKinematicParticle(), History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
 			RewindNoSave(PTParticle->CastToRigidParticle(), History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
-			RewindNoSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data); });
+			RewindNoSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
 			RewindNoSave(PTParticle->CastToRigidParticle(), History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
 		}
 		else
@@ -205,7 +199,7 @@ bool FRewindData::RewindToFrame(int32 Frame)
 			bAnyChange |= RewindAndSave(PTParticle->CastToKinematicParticle(), History.Velocities, [](auto Particle, const auto& Data) {Particle->SetVelocities(Data); });
 			bAnyChange |= RewindAndSave(PTParticle->CastToKinematicParticle(), History.KinematicTarget, [](auto Particle, const auto& Data) {Particle->SetKinematicTarget(Data); });
 			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.Dynamics, [](auto Particle, const auto& Data) {Particle->SetDynamics(Data); });
-			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data); });
+			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.DynamicsMisc, [Evolution = Solver->GetEvolution()](auto Particle, const auto& Data) {Particle->SetDynamicMisc(Data, *Evolution); });
 			bAnyChange |= RewindAndSave(PTParticle->CastToRigidParticle(), History.MassProps, [](auto Particle, const auto& Data) {Particle->SetMassProps(Data); });
 
 			if (bAnyChange)
@@ -216,6 +210,14 @@ bool FRewindData::RewindToFrame(int32 Frame)
 				Solver->GetEvolution()->GetParticles().MarkTransientDirtyParticle(DirtyParticleInfo.GetPTParticle());
 
 				DirtyParticleInfo.DirtyDynamics = INDEX_NONE;	//make sure to undo this as we want to record it again during resim
+		}
+
+		if (DirtyParticleInfo.InitializedOnStep > Frame)
+		{
+			//hasn't initialized yet, so disable
+			//must do this after rewind because SetDynamicsMisc will re-enable
+			//(the disable is a temp way to ignore objects not spawned yet, they weren't really disabled which is why it gets re-enabled)
+			Solver->GetEvolution()->DisableParticle(DirtyParticleInfo.GetPTParticle());
 		}
 	}
 
