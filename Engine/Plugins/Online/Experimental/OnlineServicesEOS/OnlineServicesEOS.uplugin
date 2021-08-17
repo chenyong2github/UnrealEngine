@@ -27,10 +27,6 @@
 		{
 			"Name": "OnlineServices",
 			"Enabled": true
-		},
-		{
-			"Name": "EOSShared",
-			"Enabled": true
 		}
 	]
 }
