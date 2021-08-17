@@ -449,7 +449,7 @@ namespace UE::Zen {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	FRequestPool::FRequestPool(const TCHAR* InServiceUrl)
+	FZenHttpRequestPool::FZenHttpRequestPool(const TCHAR* InServiceUrl)
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
@@ -458,7 +458,7 @@ namespace UE::Zen {
 		}
 	}
 
-	FRequestPool::~FRequestPool()
+	FZenHttpRequestPool::~FZenHttpRequestPool()
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
@@ -473,7 +473,7 @@ namespace UE::Zen {
 		* "owned by the caller and need to release it to the pool when work has been completed.
 		* @return Usable request instance.
 		*/
-	FZenHttpRequest* FRequestPool::WaitForFreeRequest()
+	FZenHttpRequest* FZenHttpRequestPool::WaitForFreeRequest()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_WaitForConnPool);
 		while (true)
@@ -497,7 +497,7 @@ namespace UE::Zen {
 		* Release request to the pool.
 		* @param Request Request that should be freed. Note that any buffer owened by the request can now be reset.
 		*/
-	void FRequestPool::ReleaseRequestToPool(FZenHttpRequest* Request)
+	void FZenHttpRequestPool::ReleaseRequestToPool(FZenHttpRequest* Request)
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{

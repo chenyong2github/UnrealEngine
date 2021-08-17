@@ -29,7 +29,7 @@ struct FIoHash;
 
 namespace UE::Zen {
 	enum class EContentType;
-	struct FRequestPool;
+	struct FZenHttpRequestPool;
 }
 
 namespace UE::DerivedData {
@@ -159,7 +159,7 @@ private:
 	FString Domain;
 	FString Namespace;
 	mutable FDerivedDataCacheUsageStats UsageStats;
-	TUniquePtr<UE::Zen::FRequestPool> RequestPool;
+	TUniquePtr<UE::Zen::FZenHttpRequestPool> RequestPool;
 	bool bIsUsable = false;
 	uint32 FailedLoginAttempts = 0;
 	uint32 MaxAttempts = 4;
