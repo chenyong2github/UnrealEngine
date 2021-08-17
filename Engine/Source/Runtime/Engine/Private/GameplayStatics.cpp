@@ -31,6 +31,8 @@
 #include "Sound/SoundBase.h"
 #include "Sound/DialogueWave.h"
 #include "GameFramework/SaveGame.h"
+#include "GameFramework/GameStateBase.h"
+#include "GameFramework/PlayerState.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Components/DecalComponent.h"
 #include "Components/ForceFeedbackComponent.h"
@@ -208,21 +210,123 @@ class UGameInstance* UGameplayStatics::GetGameInstance(const UObject* WorldConte
 	return World ? World->GetGameInstance() : nullptr;
 }
 
-class APlayerController* UGameplayStatics::GetPlayerController(const UObject* WorldContextObject, int32 PlayerIndex ) 
+int32 UGameplayStatics::GetNumPlayerStates(const UObject* WorldContextObject)
+{
+	AGameStateBase* GameState = GetGameState(WorldContextObject);
+
+	if (GameState)
+	{
+		return GameState->PlayerArray.Num();
+	}
+
+	return 0;
+}
+
+class APlayerState* UGameplayStatics::GetPlayerState(const UObject* WorldContextObject, int32 PlayerStateIndex)
+{
+	AGameStateBase* GameState = GetGameState(WorldContextObject);
+
+	if (GameState && GameState->PlayerArray.IsValidIndex(PlayerStateIndex))
+	{
+		return GameState->PlayerArray[PlayerStateIndex];
+	}
+
+	return nullptr;
+}
+
+class APlayerState* UGameplayStatics::GetPlayerStateFromUniqueNetId(const UObject* WorldContextObject, const FUniqueNetIdRepl& UniqueId)
+{
+	AGameStateBase* GameState = GetGameState(WorldContextObject);
+
+	if (GameState)
+	{
+		return GameState->GetPlayerStateFromUniqueNetId(UniqueId);
+	}
+
+	return nullptr;
+}
+
+int32 UGameplayStatics::GetNumPlayerControllers(const UObject* WorldContextObject)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
-		uint32 Index = 0;
-		for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+		return World->GetNumPlayerControllers();
+	}
+	return 0;
+}
+
+int32 UGameplayStatics::GetNumLocalPlayerControllers(const UObject* WorldContextObject)
+{
+	int32 Count = 0;
+	UGameInstance* GameInstance = GetGameInstance(WorldContextObject);
+
+	// We only want Local Players that have valid player controllers
+	if (GameInstance)
+	{
+		const TArray<ULocalPlayer*>& LocalPlayers = GameInstance->GetLocalPlayers();
+		for (ULocalPlayer* LocalPlayer : LocalPlayers)
 		{
-			APlayerController* PlayerController = Iterator->Get();
-			if (Index == PlayerIndex)
+			if (APlayerController* PC = LocalPlayer->PlayerController)
 			{
-				return PlayerController;
+				Count++;
 			}
-			Index++;
 		}
 	}
+	return Count;
+}
+
+class APlayerController* UGameplayStatics::GetPlayerController(const UObject* WorldContextObject, int32 PlayerIndex) 
+{
+	// The order for the player controller iterator is not consistent across map transfer/etc so we don't want to use that index
+	// 99% of the time people pass in index 0 and want the primary local player controller
+	// After we've finished iterating the local player controllers, iterate the GameState list to find remote ones in a consistent order
+
+	int32 Index = 0;
+	UGameInstance* GameInstance = GetGameInstance(WorldContextObject);
+	if (GameInstance)
+	{		
+		const TArray<ULocalPlayer*>& LocalPlayers = GameInstance->GetLocalPlayers();
+		for (ULocalPlayer* LocalPlayer : LocalPlayers)
+		{
+			// Only count local players with an actual PC as part of the indexing
+			if (APlayerController* PC = LocalPlayer->PlayerController)
+			{
+				if (Index == PlayerIndex)
+				{
+					return PC;
+				}
+				Index++;
+			}
+		}
+	}
+
+	AGameStateBase* GameState = GetGameState(WorldContextObject);
+	if (GameState)
+	{
+		for (APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			// Only count valid player controllers that we skipped over in the last list
+			APlayerController* PC = PlayerState->GetPlayerController();
+			if (PC && !PC->GetLocalPlayer())
+			{
+				if (Index == PlayerIndex)
+				{
+					return PC;
+				}
+				Index++;
+			}
+		}
+	}
+
+	// Fallback case for weird world contexts with no game instance or state, only support index 0
+	if (PlayerIndex == 0)
+	{
+		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
+		{
+			return World->GetFirstPlayerController();
+		}
+	}
+
 	return nullptr;
 }
 

@@ -283,6 +283,13 @@ public:
 	UGameInstance* GetGameInstance() const;
 
 	/**
+	 * Returns the index of this player in the Game instances local players array
+	 *
+	 * @return Index in array, will be >= 0 if this is a fully registered player
+	 */
+	int32 GetIndexInGameInstance() const;
+
+	/**
 	 * Get a Subsystem of specified type
 	 */
 	ULocalPlayerSubsystem* GetSubsystemBase(TSubclassOf<ULocalPlayerSubsystem> SubsystemClass) const
@@ -391,7 +398,7 @@ public:
 	virtual void SendSplitJoin(TArray<FString>& Options);
 	
 	/**
-	 * Change the ControllerId for this player; if the specified ControllerId is already taken by another player, changes the ControllerId
+	 * Change the physical ControllerId for this player; if the specified ControllerId is already taken by another player, changes the ControllerId
 	 * for the other player to the ControllerId currently in use by this player.
 	 *
 	 * @param	NewControllerId		the ControllerId to assign to this player.
@@ -399,7 +406,7 @@ public:
 	virtual void SetControllerId(int32 NewControllerId);
 
 	/**
-	 * Returns the controller ID for the player
+	 * Returns the physical controller ID for the player
 	 */
 	int32 GetControllerId() const { return ControllerId; }
 

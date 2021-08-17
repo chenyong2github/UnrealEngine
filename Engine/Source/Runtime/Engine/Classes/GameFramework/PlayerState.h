@@ -223,12 +223,20 @@ public:
 	//~ End AActor Interface
 
 	/** Return the pawn controlled by this Player State. */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
 	APawn* GetPawn() const { return PawnPrivate; }
 
 	/** Convenience helper to return a cast version of the pawn controlled by this Player State. */
 	template<class T>
 	T* GetPawn() const { return Cast<T>(PawnPrivate); }
 
+	/** Returns the AI or player controller that created this player state, or null for remote clients */
+	class AController* GetOwningController() const;
+
+	/** Return the player controller that created this player state, or null for remote clients */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
+	class APlayerController* GetPlayerController() const;
+	
 	/** Called by Controller when its PlayerState is initially replicated. */
 	virtual void ClientInitialize(class AController* C);
 
@@ -265,12 +273,6 @@ public:
 
 	/** set the player name to S */
 	virtual void SetOldPlayerName(const FString& S);
-
-	/** 
-	 * Associate an online unique id with this player
-	 * @param InUniqueId the unique id associated with this player
-	 */
-	virtual void SetUniqueId(const FUniqueNetIdPtr& InUniqueId);
 
 	/** 
 	 * Register a player with the online subsystem
@@ -428,9 +430,23 @@ public:
 		return UniqueId;
 	}
 
+	/** Gets the online unique id for a player. If a player is logged in this will be consistent across all clients and servers. */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState", meta = (DisplayName = "Get Unique Net Id"))
+	FUniqueNetIdRepl BP_GetUniqueId() const;
+
+	/**
+	 * Associate an online unique id with this player
+	 * @param InUniqueId the unique id associated with this player
+	 */
+	virtual void SetUniqueId(const FUniqueNetIdPtr& InUniqueId);
+
 	/** Sets the value of UniqueId without causing other side effects to this instance. */
 	void SetUniqueId(const FUniqueNetIdRepl& NewUniqueId);
 	void SetUniqueId(FUniqueNetIdRepl&& NewUniqueId);
+
+	/** Called on both the client and server when unique ID has been modified */
+	virtual void OnSetUniqueId();
+
 	//~ End Methods for Replicated Members.
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 };

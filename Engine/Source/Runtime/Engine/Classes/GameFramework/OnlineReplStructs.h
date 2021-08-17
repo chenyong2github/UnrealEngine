@@ -20,7 +20,7 @@ class FJsonValue;
  * Makes sure that the opaque aspects of FUniqueNetId are properly handled/serialized 
  * over network RPC and actor replication
  */
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, DisplayName = "Unique Net Id")
 struct FUniqueNetIdRepl : public FUniqueNetIdWrapper
 {
 	GENERATED_USTRUCT_BODY()

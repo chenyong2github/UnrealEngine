@@ -207,8 +207,8 @@ void APlayerState::PostInitializeComponents()
 		return;
 	}
 
-	AController* OwningController = Cast<AController>(GetOwner());
-	if (OwningController != NULL)
+	AController* OwningController = GetOwningController();
+	if (OwningController != nullptr)
 	{
 		SetIsABot(Cast<APlayerController>(OwningController) == nullptr);
 	}
@@ -217,6 +217,16 @@ void APlayerState::PostInitializeComponents()
 	{
 		SetStartTime(GameStateBase->GetPlayerStartTime(OwningController));
 	}
+}
+
+class AController* APlayerState::GetOwningController() const
+{
+	return Cast<AController>(GetOwner());
+}
+
+class APlayerController* APlayerState::GetPlayerController() const
+{
+	return Cast<APlayerController>(GetOwner());
 }
 
 void APlayerState::ClientInitialize(AController* C)
@@ -378,17 +388,12 @@ void APlayerState::OnRep_PlayerId()
 
 void APlayerState::OnRep_UniqueId()
 {
+	// First notify it's changed
+	OnSetUniqueId();
+
 	// Register player with session
 	RegisterPlayerWithSession(false);
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void APlayerState::SetUniqueId(const FUniqueNetIdPtr& InUniqueId)
-{
-	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
-	UniqueId.SetUniqueNetId(InUniqueId);
-}
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void APlayerState::RegisterPlayerWithSession(bool bWasFromInvite)
 {
@@ -522,15 +527,35 @@ void APlayerState::SetStartTime(const int32 NewStartTime)
 	StartTime = NewStartTime;
 }
 
+FUniqueNetIdRepl APlayerState::BP_GetUniqueId() const
+{
+	return GetUniqueId();
+}
+
+void APlayerState::SetUniqueId(const FUniqueNetIdPtr& InUniqueId)
+{
+	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
+	UniqueId.SetUniqueNetId(InUniqueId);
+	OnSetUniqueId();
+}
+
 void APlayerState::SetUniqueId(const FUniqueNetIdRepl& NewUniqueId)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
 	UniqueId = NewUniqueId;
+	OnSetUniqueId();
 }
 
 void APlayerState::SetUniqueId(FUniqueNetIdRepl&& NewUniqueId)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
 	UniqueId = MoveTemp(NewUniqueId);
+	OnSetUniqueId();
 }
+
+void APlayerState::OnSetUniqueId()
+{
+
+}
+
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
