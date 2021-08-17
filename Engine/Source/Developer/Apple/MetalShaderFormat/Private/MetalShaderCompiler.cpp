@@ -258,7 +258,7 @@ void BuildMetalShaderOutput(
 	FMetalCodeHeader Header;
 	Header.CompileFlags = (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Debug) ? (1 << CFLAG_Debug) : 0);
 	Header.CompileFlags |= (bNoFastMath ? (1 << CFLAG_NoFastMath) : 0);
-	Header.CompileFlags |= (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo) ? (1 << CFLAG_KeepDebugInfo) : 0);
+	Header.CompileFlags |= (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData) ? (1 << CFLAG_ExtraShaderData) : 0);
 	Header.CompileFlags |= (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ZeroInitialise) ? (1 <<  CFLAG_ZeroInitialise) : 0);
 	Header.CompileFlags |= (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_BoundsChecking) ? (1 << CFLAG_BoundsChecking) : 0);
 	Header.CompileFlags |= (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Archive) ? (1 << CFLAG_Archive) : 0);
@@ -533,7 +533,7 @@ void BuildMetalShaderOutput(
 	}
 
 	FString MetalCode = FString(USFSource);
-	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo) || ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Debug))
+	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData) || ShaderInput.Environment.CompilerFlags.Contains(CFLAG_Debug))
 	{
 		MetalCode.InsertAt(0, FString::Printf(TEXT("// %s\n"), *CCHeader.Name));
 		Header.ShaderName = CCHeader.Name;
@@ -581,7 +581,7 @@ void BuildMetalShaderOutput(
 	{
 		// TODO technically should probably check the version of the metal compiler to make sure it's recent enough to support -MO.
         FString DebugInfo = TEXT("");
-		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 		{
 			DebugInfo = TEXT("-gline-tables-only -MO");
 		}
@@ -774,7 +774,7 @@ void BuildMetalShaderOutput(
 				ShaderOutput.ShaderCode.AddOptionalData('u', (const uint8*)&DebugCode.UncompressedSize, sizeof(DebugCode.UncompressedSize));
 			}
 			
-			if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+			if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 			{
 				// store data we can pickup later with ShaderCode.FindOptionalData(FShaderCodeName::Key), could be removed for shipping
 				ShaderOutput.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*ShaderInput.GenerateShaderName()));

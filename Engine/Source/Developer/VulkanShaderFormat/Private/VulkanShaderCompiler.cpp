@@ -1488,7 +1488,7 @@ static void BuildShaderOutput(
 	FVulkanShaderHeader NEWHeader(FVulkanShaderHeader::EZero);
 	ConvertToNEWHeader(OLDHeader, BindingTable, Spirv, NEWEntryTypes, ShaderInput, CCHeader, ShaderOutput.ParameterMap, NEWHeader);
 
-	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+	if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 	{
 		NEWHeader.DebugName = ShaderInput.GenerateShaderName();
 	}
@@ -2352,7 +2352,7 @@ static bool CompileWithShaderConductor(
 	// Build shader output and binding table
 	Output.bSucceeded = BuildShaderOutputFromSpirv(CompilerContext, Spirv, Input, Output, BindingTable, EntryPointName, bStripReflect, bIsRayTracingShader, bDebugDump);
 
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 	{
 		Output.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*Input.GenerateShaderName()));
 	}

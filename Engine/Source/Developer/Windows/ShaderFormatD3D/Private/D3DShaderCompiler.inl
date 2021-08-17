@@ -25,7 +25,8 @@ public:
 		const FString& InDumpDebugInfoPath,	// Optional, empty when not dumping shader debug info
 		const FString& InBaseFilename,
 		bool bInEnable16BitTypes,
-		bool bKeepDebugInfo,
+		bool bGenerateSymbols,
+		bool bSymbolsBasedOnSource,
 		uint32 D3DCompileFlags,
 		uint32 AutoBindingSpace,
 		const TCHAR* InOptValidatorVersion
@@ -129,7 +130,7 @@ public:
 		if (D3DCompileFlags & D3DCOMPILE_DEBUG)
 		{
 			D3DCompileFlags &= ~D3DCOMPILE_DEBUG;
-			bKeepDebugInfo = true;
+			bGenerateSymbols = true;
 		}
 
 		if (bEnable16BitTypes)
@@ -145,11 +146,18 @@ public:
 			ExtraArguments.Add(FString(InOptValidatorVersion));
 		}
 
-		ExtraArguments.Add(L"/Zss");
-		ExtraArguments.Add(L"/Qembed_debug");
-		ExtraArguments.Add(L"/Zi");
-		ExtraArguments.Add(L"/Fd");
-		ExtraArguments.Add(L".\\");
+		if (bGenerateSymbols)
+		{
+			// -Zsb Compute Shader Hash considering only output binary
+			// -Zss Compute Shader Hash considering source information
+			ExtraArguments.Add(bSymbolsBasedOnSource ? L"/Zss" : L"/Zsb");
+
+			ExtraArguments.Add(L"/Qembed_debug");
+			ExtraArguments.Add(L"/Zi");
+
+			ExtraArguments.Add(L"/Fd");
+			ExtraArguments.Add(L".\\");
+		}
 
 		// Reflection will be removed later, otherwise the disassembly won't contain variables
 		//ExtraArguments.Add(L"/Qstrip_reflect");
@@ -557,7 +565,7 @@ inline void GenerateFinalOutput(TRefCountPtr<TBlob>& CompressedData,
 		}
 	}
 
-	if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 	{
 		Output.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*Input.GenerateShaderName()));
 	}

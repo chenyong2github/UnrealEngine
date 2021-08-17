@@ -161,7 +161,11 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 
 		if (Ar.IsCooking())
 		{
-			Code->NotifyShadersCooked(Ar.CookingTarget());
+			const FName ShaderFormat = LegacyShaderPlatformToShaderFormat(ShaderPlatform);
+			if (ShaderFormat != NAME_None)
+			{
+				Code->NotifyShadersCompiled(ShaderFormat);
+			}
 		}
 
 		if (bShareCode)

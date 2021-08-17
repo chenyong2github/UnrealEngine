@@ -111,7 +111,14 @@ public:
 	 * Called when a shader resource is cooked, so the shader format can perform platform-specific operations on the debug data.
 	 * Does nothing on platforms that make no use of the platform debug data.
 	 */
-	virtual void NotifyShaderCooked(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const { }
+	virtual void NotifyShaderCompiled(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const { }
+
+	UE_DEPRECATED(5.0, "NotifyShaderCompiled should be called")
+	virtual void NotifyShaderCooked(const TConstArrayView<uint8>& PlatformDebugData, FName Format) const
+	{
+		NotifyShaderCompiled(PlatformDebugData, Format);
+	}
+
 
 	/**
 	 * Appends shader key text to the provided key string for use in DDC unique key construction.

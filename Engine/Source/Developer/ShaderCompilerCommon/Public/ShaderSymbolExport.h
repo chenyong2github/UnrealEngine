@@ -48,7 +48,7 @@ inline FShaderSymbolExport::FShaderSymbolExport(FName InShaderFormat)
 
 inline void FShaderSymbolExport::Initialize()
 {
-	const bool bSymbolsEnabled = ShouldExportShaderDebugInfo(ShaderFormat);
+	const bool bSymbolsEnabled = ShouldWriteShaderSymbols(ShaderFormat);
 	const bool bForceSymbols = FParse::Value(FCommandLine::Get(), TEXT("-ShaderSymbolsExport="), ExportPath);
 
 	if (bSymbolsEnabled || bForceSymbols)
@@ -56,7 +56,7 @@ inline void FShaderSymbolExport::Initialize()
 		// if no command line path is provided, look to the cvar first
 		if (ExportPath.IsEmpty())
 		{
-			if (GetShaderDebugInfoPathOverride(ExportPath, ShaderFormat))
+			if (GetShaderSymbolPathOverride(ExportPath, ShaderFormat))
 			{
 				ExportPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForWrite(*ExportPath);
 			}
@@ -79,7 +79,7 @@ inline void FShaderSymbolExport::Initialize()
 		else
 		{
 			// Check if the export mode is to an uncompressed archive or loose files.
-			bool bExportAsZip = ShouldExportShaderDebugInfoAsZip(ShaderFormat);
+			bool bExportAsZip = ShouldWriteShaderSymbolsAsZip(ShaderFormat);
 			if (bExportAsZip || FParse::Param(FCommandLine::Get(), TEXT("ShaderSymbolsExportZip")))
 			{
 				FString SingleFilePath = ExportPath / TEXT("ShaderSymbols.zip");

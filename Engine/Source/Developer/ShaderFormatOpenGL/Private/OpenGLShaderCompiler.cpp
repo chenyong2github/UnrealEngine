@@ -995,7 +995,7 @@ void FOpenGLFrontend::BuildShaderOutput(
 			ShaderOutput.OptionalFinalShaderSource = FString(GlslCodeOriginal.GetData());
 		}
 
-		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+		if (ShaderInput.Environment.CompilerFlags.Contains(CFLAG_ExtraShaderData))
 		{
 			ShaderOutput.ShaderCode.AddOptionalData(FShaderCodeName::Key, TCHAR_TO_UTF8(*ShaderInput.GenerateShaderName()));
 		}

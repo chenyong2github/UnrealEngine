@@ -304,29 +304,34 @@ void FShaderMapResourceCode::Serialize(FArchive& Ar, bool bLoadedByCookedMateria
 }
 
 #if WITH_EDITORONLY_DATA
-void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPlatform)
+void FShaderMapResourceCode::NotifyShadersCompiled(FName FormatName)
 {
 #if WITH_ENGINE
 	// Notify the platform shader format that this particular shader is being used in the cook.
 	// We discard this data in cooked builds unless Ar.CookingTarget()->HasEditorOnlyData() is true.
-	check(TargetPlatform);
 	if (PlatformDebugData.Num())
 	{
-		TArray<FName> ShaderFormatNames;
-		TargetPlatform->GetAllTargetedShaderFormats(ShaderFormatNames);
-		for (FName FormatName : ShaderFormatNames)
+		if (const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName))
 		{
-			const IShaderFormat* ShaderFormat = GetTargetPlatformManagerRef().FindShaderFormat(FormatName);
-			if (ShaderFormat)
+			for (const TArray<uint8>& Entry : PlatformDebugData)
 			{
-				for (const auto& Entry : PlatformDebugData)
-				{
-					ShaderFormat->NotifyShaderCooked(Entry, FormatName);
-				}
+				ShaderFormat->NotifyShaderCompiled(Entry, FormatName);
 			}
 		}
 	}
 #endif // WITH_ENGINE
+}
+
+void FShaderMapResourceCode::NotifyShadersCooked(const ITargetPlatform* TargetPlatform)
+{
+#if WITH_ENGINE
+	TArray<FName> ShaderFormatNames;
+	TargetPlatform->GetAllTargetedShaderFormats(ShaderFormatNames);
+	for (FName FormatName : ShaderFormatNames)
+	{
+		NotifyShadersCompiled(FormatName);
+	}
+#endif
 }
 #endif // WITH_EDITORONLY_DATA
 

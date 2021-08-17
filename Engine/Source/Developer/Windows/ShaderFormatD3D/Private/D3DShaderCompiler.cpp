@@ -956,7 +956,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		{
 			TRefCountPtr<ID3DBlob> CompressedData;
 
-			if (Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo))
+			if (Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols))
 			{
 				CompressedData = Shader;
 			}
@@ -1143,10 +1143,14 @@ void CompileD3DShader(const FShaderCompilerInput& Input, FShaderCompilerOutput& 
 		// Unpack uniform matrices as row-major to match the CPU layout.
 		| D3DCOMPILE_PACK_MATRIX_ROW_MAJOR;
 
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols))
+	{
+		CompileFlags |= D3DCOMPILE_DEBUG;
+	}
+
 	if (Input.Environment.CompilerFlags.Contains(CFLAG_Debug)) 
 	{
-		//add the debug flags
-		CompileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+		CompileFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
 	}
 	else
 	{
