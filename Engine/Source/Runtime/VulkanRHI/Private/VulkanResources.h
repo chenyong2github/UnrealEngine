@@ -1135,8 +1135,14 @@ public:
 
 protected:
 	VkBufferUsageFlags BufferUsageFlags;
-	uint32 NumBuffers;
-	uint32 DynamicBufferIndex;
+	uint8 NumBuffers;
+	uint8 DynamicBufferIndex;
+	enum class ELockStatus : uint8
+	{
+		Unlocked,
+		Locked,
+		PersistentMapping,
+	} LockStatus;
 
 	enum
 	{
