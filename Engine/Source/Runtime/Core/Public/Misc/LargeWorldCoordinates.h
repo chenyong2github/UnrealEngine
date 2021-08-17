@@ -4,7 +4,7 @@
 
 // Use float based world coordinates throughout. Note: This is unsupported!
 #ifndef UE_LARGE_WORLD_COORDINATES_DISABLED
-#define UE_LARGE_WORLD_COORDINATES_DISABLED 1
+#define UE_LARGE_WORLD_COORDINATES_DISABLED 0
 #endif
 
 // Forward declaration of LWC supported core types
