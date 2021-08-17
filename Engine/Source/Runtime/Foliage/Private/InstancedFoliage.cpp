@@ -1418,6 +1418,7 @@ void FFoliageStaticMesh::CreateNewComponent(const UFoliageType* InSettings)
 
 	AInstancedFoliageActor* IFA = GetIFA();
 	UFoliageInstancedStaticMeshComponent* FoliageComponent = NewObject<UFoliageInstancedStaticMeshComponent>(IFA, ComponentClass, NAME_None, RF_Transactional);
+	IFA->AddInstanceComponent(FoliageComponent);
 	
 	check(FoliageType_InstancedStaticMesh);
 
