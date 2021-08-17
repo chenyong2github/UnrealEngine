@@ -52,8 +52,7 @@ void UMovieSceneParameterSection::Serialize(FArchive& Ar)
 
 	if (Ar.IsLoading())
 	{
-		//Don't force if transacting, since it may not be a channel creation/deletion change
-		ReconstructChannelProxy(!Ar.IsTransacting());
+		ReconstructChannelProxy();
 	}
 }
 
@@ -61,13 +60,12 @@ void UMovieSceneParameterSection::PostEditImport()
 {
 	Super::PostEditImport();
 
-	ReconstructChannelProxy(true);
+	ReconstructChannelProxy();
 }
 
 
-void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
+void UMovieSceneParameterSection::ReconstructChannelProxy()
 {
-
 	FMovieSceneChannelProxyData Channels;
 
 #if WITH_EDITOR
@@ -224,7 +222,6 @@ void UMovieSceneParameterSection::ReconstructChannelProxy(bool bForce)
 #endif
 
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
-	
 }
 
 void UMovieSceneParameterSection::AddScalarParameterKey( FName InParameterName, FFrameNumber InTime, float InValue )
@@ -243,7 +240,7 @@ void UMovieSceneParameterSection::AddScalarParameterKey( FName InParameterName, 
 		const int32 NewIndex = ScalarParameterNamesAndCurves.Add( FScalarParameterNameAndCurve( InParameterName ) );
 		ExistingChannel = &ScalarParameterNamesAndCurves[NewIndex].ParameterCurve;
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingChannel->AddCubicKey(InTime, InValue);
@@ -270,7 +267,7 @@ void UMovieSceneParameterSection::AddBoolParameterKey(FName InParameterName, FFr
 		const int32 NewIndex = BoolParameterNamesAndCurves.Add(FBoolParameterNameAndCurve(InParameterName));
 		ExistingChannel = &BoolParameterNamesAndCurves[NewIndex].ParameterCurve;
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingChannel->GetData().UpdateOrAddKey(InTime, InValue);
@@ -298,7 +295,7 @@ void UMovieSceneParameterSection::AddVector2DParameterKey(FName InParameterName,
 		int32 NewIndex = Vector2DParameterNamesAndCurves.Add(FVector2DParameterNameAndCurves(InParameterName));
 		ExistingCurves = &Vector2DParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingCurves->XCurve.AddCubicKey(InTime, InValue.X);
@@ -326,7 +323,7 @@ void UMovieSceneParameterSection::AddVectorParameterKey( FName InParameterName, 
 		int32 NewIndex = VectorParameterNamesAndCurves.Add( FVectorParameterNameAndCurves( InParameterName ) );
 		ExistingCurves = &VectorParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingCurves->XCurve.AddCubicKey(InTime, InValue.X);
@@ -355,7 +352,7 @@ void UMovieSceneParameterSection::AddColorParameterKey( FName InParameterName, F
 		int32 NewIndex = ColorParameterNamesAndCurves.Add( FColorParameterNameAndCurves( InParameterName ) );
 		ExistingCurves = &ColorParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 
 	ExistingCurves->RedCurve.AddCubicKey(   InTime, InValue.R );
@@ -385,7 +382,7 @@ void UMovieSceneParameterSection::AddTransformParameterKey(FName InParameterName
 		int32 NewIndex = TransformParameterNamesAndCurves.Add(FTransformParameterNameAndCurves(InParameterName));
 		ExistingCurves = &TransformParameterNamesAndCurves[NewIndex];
 
-		ReconstructChannelProxy(true);
+		ReconstructChannelProxy();
 	}
 	FVector Translation = InValue.GetTranslation();
 	FRotator Rotator = InValue.GetRotation().Rotator();
@@ -415,7 +412,7 @@ bool UMovieSceneParameterSection::RemoveScalarParameter( FName InParameterName )
 		if ( ScalarParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			ScalarParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -429,7 +426,7 @@ bool UMovieSceneParameterSection::RemoveBoolParameter(FName InParameterName)
 		if (BoolParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			BoolParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -443,7 +440,7 @@ bool UMovieSceneParameterSection::RemoveVector2DParameter(FName InParameterName)
 		if (Vector2DParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			Vector2DParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -457,7 +454,7 @@ bool UMovieSceneParameterSection::RemoveVectorParameter( FName InParameterName )
 		if ( VectorParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			VectorParameterNamesAndCurves.RemoveAt( i );
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -471,7 +468,7 @@ bool UMovieSceneParameterSection::RemoveColorParameter( FName InParameterName )
 		if ( ColorParameterNamesAndCurves[i].ParameterName == InParameterName )
 		{
 			ColorParameterNamesAndCurves.RemoveAt( i );
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}
@@ -485,7 +482,7 @@ bool UMovieSceneParameterSection::RemoveTransformParameter(FName InParameterName
 		if (TransformParameterNamesAndCurves[i].ParameterName == InParameterName)
 		{
 			TransformParameterNamesAndCurves.RemoveAt(i);
-			ReconstructChannelProxy(true);
+			ReconstructChannelProxy();
 			return true;
 		}
 	}

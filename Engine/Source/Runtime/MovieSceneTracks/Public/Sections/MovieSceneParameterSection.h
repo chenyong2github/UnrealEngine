@@ -423,7 +423,7 @@ protected:
 	//~ UMovieSceneSection interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
-	virtual void ReconstructChannelProxy(bool bForce);
+	virtual void ReconstructChannelProxy();
 
 protected:
 	/** The bool parameter names and their associated curves. */
