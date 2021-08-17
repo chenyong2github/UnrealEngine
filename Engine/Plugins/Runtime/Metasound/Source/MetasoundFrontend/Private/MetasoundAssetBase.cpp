@@ -545,7 +545,7 @@ TSet<Metasound::FVertexKey> FMetasoundAssetBase::GetNonTransmittableInputVertice
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	check(IsInGameThread());
+	check(IsInGameThread() || IsInAudioThread());
 
 	TSet<FVertexKey> NonTransmittableInputVertices;
 
