@@ -1830,6 +1830,8 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 	uint32 VertexCount = StateCache.GetVertexCountAndIncrementStat(NumPrimitives);
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 	numDraws++;
+	numPrimitives += NumPrimitives * NumInstances;
+	numVertices += VertexCount * NumInstances;
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, VertexCount * NumInstances);
@@ -1947,6 +1949,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 	numDraws++;
+	numPrimitives += NumPrimitives * NumInstances;
+	numVertices += NumVertices * NumInstances;
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(NumPrimitives * NumInstances, NumVertices * NumInstances);
