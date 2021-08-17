@@ -406,13 +406,7 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 	TUniquePtr<FFrontendGraph> FrontendGraph = FFrontendGraphBuilder::CreateGraph(*Doc);
 	if (FrontendGraph.IsValid())
 	{
-		auto GetVertexName = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
-
-		TSet<FVertexKey> VerticesToSkip;
-		FMetasoundFrontendArchetype Archetype;
-		GetArchetype(Archetype);
-		Algo::Transform(Archetype.Interface.Inputs, VerticesToSkip, GetVertexName);
-
+		TSet<FVertexKey> VerticesToSkip = GetNonTransmittableInputVertices(*Doc);
 		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetasoundInstanceTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
 		if (!bSuccessfullyInjectedReceiveNodes)
 		{
@@ -544,6 +538,44 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 	}
 
 	return SendInfos;
+}
+
+TSet<Metasound::FVertexKey> FMetasoundAssetBase::GetNonTransmittableInputVertices(const FMetasoundFrontendDocument& InDoc) const
+{
+	using namespace Metasound;
+	using namespace Metasound::Frontend;
+
+	check(IsInGameThread());
+
+	TSet<FVertexKey> NonTransmittableInputVertices;
+
+	auto GetVertexKey = [](const FMetasoundFrontendClassVertex& InVertex) { return InVertex.Name; };
+
+	// Do not transmit vertices defined in archetype. Those are already accounted
+	// for by owning object.
+	FMetasoundFrontendArchetype Archetype;
+	GetArchetype(Archetype);
+	Algo::Transform(Archetype.Interface.Inputs, NonTransmittableInputVertices, GetVertexKey);
+
+
+	// Do not transmit vertices which are not transmittable. Async communication 
+	// is not supported without transmission.
+	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+	check(nullptr != Registry);
+
+	auto IsNotTransmittable = [&Registry](const FMetasoundFrontendClassVertex& InVertex) -> bool
+	{	
+		FDataTypeRegistryInfo Info;
+		if (Registry->GetInfoForDataType(InVertex.TypeName, Info))
+		{
+			return !Info.bIsTransmittable;
+		}
+		return true;
+	};
+
+	Algo::TransformIf(InDoc.RootGraph.Interface.Inputs, NonTransmittableInputVertices, IsNotTransmittable, GetVertexKey);
+
+	return NonTransmittableInputVertices;
 }
 
 TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const

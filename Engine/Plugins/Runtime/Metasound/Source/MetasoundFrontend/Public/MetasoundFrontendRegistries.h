@@ -36,6 +36,7 @@ namespace Metasound
 	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
 	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 	using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
+	using FReceiveNodeConstructorParams = FNodeInitData;
 
 	using FIterateMetasoundFrontendClassFunction = TFunctionRef<void(const FMetasoundFrontendClass&)>;
 
@@ -266,6 +267,9 @@ namespace Metasound
 			
 			/** Create a variable node */
 			virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&&) const = 0;
+
+			/** Create a recevie node. */
+			virtual TUniquePtr<INode> CreateReceiveNode(FReceiveNodeConstructorParams&&) const = 0;
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
@@ -504,6 +508,7 @@ public:
 	virtual TUniquePtr<Metasound::INode> CreateInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) = 0;
 	virtual TUniquePtr<Metasound::INode> CreateVariableNode(const FName& InVariableType, Metasound::FVariableNodeConstructorParams&& InParams) = 0;
 	virtual TUniquePtr<Metasound::INode> CreateOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) = 0;
+	virtual TUniquePtr<Metasound::INode> CreateReceiveNode(const FName& InVariableType, Metasound::FReceiveNodeConstructorParams&& InParams) = 0;
 
 	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultNodeConstructorParams&&) const = 0;
 	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultLiteralNodeConstructorParams&&) const = 0;
