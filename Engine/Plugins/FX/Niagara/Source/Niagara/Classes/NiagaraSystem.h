@@ -256,6 +256,7 @@ struct FNiagaraSystemCompileRequest
 	
 	bool bIsValid = true;
 	bool bForced = false;
+	bool bAllScriptsSynchronized = false;
 
 	float CombinedCompileTime = 0.0f;
 };
