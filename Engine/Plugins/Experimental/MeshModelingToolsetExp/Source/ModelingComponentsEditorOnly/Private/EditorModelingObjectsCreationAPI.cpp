@@ -22,6 +22,7 @@
 #include "Engine/Polys.h"
 #include "Model.h"
 #include "BSPOps.h"		// in UnrealEd
+#include "Editor/EditorEngine.h"		// for FActorLabelUtilities
 
 #include "DynamicMeshActor.h"
 #include "Components/DynamicMeshComponent.h"
@@ -174,6 +175,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateVolume(FCreateM
 	}
 
 	NewVolumeActor->SetActorTransform(CreateMeshParams.Transform);
+	FActorLabelUtilities::SetActorLabelUnique(NewVolumeActor, CreateMeshParams.BaseName);
 	NewVolumeActor->PostEditChange();
 	
 	// emit result
@@ -224,6 +226,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateDynamicMeshActo
 	}
 
 	NewActor->SetActorTransform(CreateMeshParams.Transform);
+	FActorLabelUtilities::SetActorLabelUnique(NewActor, CreateMeshParams.BaseName);
 
 	// set materials
 	TArray<UMaterialInterface*> ComponentMaterials = FilterMaterials(CreateMeshParams.Materials);
@@ -308,7 +311,7 @@ FCreateMeshObjectResult UEditorModelingObjectsCreationAPI::CreateStaticMeshAsset
 	FActorSpawnParameters SpawnInfo;
 	// @todo nothing here is specific to AStaticMeshActor...could we pass in a CDO and clone it instead of using SpawnActor?
 	AStaticMeshActor* StaticMeshActor = CreateMeshParams.TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnInfo);
-	StaticMeshActor->SetActorLabel(*CreateMeshParams.BaseName);
+	FActorLabelUtilities::SetActorLabelUnique(StaticMeshActor, CreateMeshParams.BaseName);
 	UStaticMeshComponent* StaticMeshComponent = StaticMeshActor->GetStaticMeshComponent();
 
 	// set the mesh

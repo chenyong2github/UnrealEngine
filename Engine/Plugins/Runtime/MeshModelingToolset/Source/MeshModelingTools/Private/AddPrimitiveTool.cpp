@@ -601,7 +601,7 @@ void UAddArrowPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 UAddSpherePrimitiveTool::UAddSpherePrimitiveTool(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.SetDefaultSubobjectClass<UProceduralSphereToolProperties>(TEXT("ShapeSettings")))
 {
-	AssetName = TEXT("ASphere");
+	AssetName = TEXT("Sphere");
 	SetToolDisplayName(LOCTEXT("SphereToolName", "Create Spheres"));
 }
 
