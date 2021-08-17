@@ -348,7 +348,7 @@ static void AddHairVisibilityFastResolveMaskPass(
 		OutDepthTexture,
 		ERenderTargetLoadAction::ELoad,
 		ERenderTargetLoadAction::ELoad,
-		FExclusiveDepthStencil::DepthNop_StencilWrite);
+		FExclusiveDepthStencil::DepthRead_StencilWrite);
 
 	TShaderMapRef<FHairVisibilityFastResolveMaskPS> PixelShader(View.ShaderMap);
 	InternalCommonDrawPass(
