@@ -1185,7 +1185,7 @@ TArray<FName> AActor::GetDataLayerNames() const
 
 TArray<const UDataLayer*> AActor::GetDataLayerObjects() const
 {
-	return GetDataLayerObjects(GetWorld()->GetWorldDataLayers());
+	return GetWorld() ? GetDataLayerObjects(GetWorld()->GetWorldDataLayers()) : TArray<const UDataLayer*>();
 }
 
 TArray<const UDataLayer*> AActor::GetDataLayerObjects(const AWorldDataLayers* WorldDataLayers) const
