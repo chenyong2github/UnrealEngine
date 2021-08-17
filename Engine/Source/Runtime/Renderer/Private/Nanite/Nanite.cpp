@@ -211,7 +211,7 @@ class FCalculateStatsCS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FNaniteStats>, OutStatsBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, OutClusterStatsArgs)
 
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FPersistentState >, MainAndPostPassPersistentStates)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FQueueState >, QueueState)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, MainPassRasterizeArgsSWHW)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, PostPassRasterizeArgsSWHW)
 	END_SHADER_PARAMETER_STRUCT()
@@ -410,7 +410,7 @@ void ExtractStats(
 			PassParameters->OutStatsBuffer = GraphBuilder.CreateUAV(CullingContext.StatsBuffer);
 			PassParameters->OutClusterStatsArgs = GraphBuilder.CreateUAV(ClusterStatsArgs);
 
-			PassParameters->MainAndPostPassPersistentStates = GraphBuilder.CreateSRV(CullingContext.MainAndPostPassPersistentStates);
+			PassParameters->QueueState = GraphBuilder.CreateSRV(CullingContext.QueueState);
 			PassParameters->MainPassRasterizeArgsSWHW = GraphBuilder.CreateSRV(CullingContext.MainRasterizeArgsSWHW);
 
 			if( CullingContext.bTwoPassOcclusion )

@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "../ShaderPrintCommon.ush"
 
-#include "NaniteDataDecode.ush"
+#include "Culling.ush"
 
 #ifndef VIRTUAL_TEXTURE_TARGET
 #define VIRTUAL_TEXTURE_TARGET 0
@@ -11,7 +11,7 @@
 
 uint PackedClusterSize;
 
-StructuredBuffer<FPersistentState>	MainAndPostPassPersistentStates;
+StructuredBuffer<FQueueState>		QueueState;
 Buffer<uint>						MainPassRasterizeArgsSWHW;
 Buffer<uint>						PostPassRasterizeArgsSWHW;
 
@@ -392,10 +392,10 @@ void CalculateStats()
 	OutClusterStatsArgs[2] = 1;
 
 	// Other stuff that needs to happen only once
-	OutStatsBuffer[0].NumMainVisitedNodes		= MainAndPostPassPersistentStates[0].NodeWriteOffset;
-	OutStatsBuffer[0].NumMainCandidateClusters	= MainAndPostPassPersistentStates[0].ClusterWriteOffset;
-	OutStatsBuffer[0].NumPostVisitedNodes		= MainAndPostPassPersistentStates[1].NodeWriteOffset;
-	OutStatsBuffer[0].NumPostCandidateClusters	= MainAndPostPassPersistentStates[1].ClusterWriteOffset;
+	OutStatsBuffer[0].NumMainVisitedNodes		= QueueState[0].PassState[0].NodeWriteOffset;
+	OutStatsBuffer[0].NumMainCandidateClusters	= QueueState[0].PassState[0].ClusterWriteOffset;
+	OutStatsBuffer[0].NumPostVisitedNodes		= QueueState[0].PassState[1].NodeWriteOffset;
+	OutStatsBuffer[0].NumPostCandidateClusters	= QueueState[0].PassState[1].ClusterWriteOffset;
 }
 
 groupshared uint GroupNumTris;

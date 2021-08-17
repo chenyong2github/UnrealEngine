@@ -21,6 +21,22 @@
 
 uint MaxCandidateClusters;
 
+struct FQueuePassState
+{
+	uint	ClusterBatchReadOffset;	// Offset in batches
+	uint	ClusterWriteOffset;		// Offset in individual clusters
+	uint	NodeReadOffset;
+	uint	NodeWriteOffset;
+	int		NodeCount;				// Can temporarily be conservatively higher
+};
+
+struct FQueueState
+{
+	uint			TotalClusters;
+	FQueuePassState PassState[2];
+};
+
+
 struct FCandidateNode
 {
 	uint	Flags;
@@ -38,27 +54,27 @@ uint GetMaxClusterBatches()						{ return MaxCandidateClusters / PERSISTENT_CLUS
 uint GetClusterBatchesOffset()					{ return 0u; }
 uint GetCandidateNodesOffset()					{ return GetMaxClusterBatches() * 4u; }
 uint GetNodesAndBatchesOffset(bool bPostPass)	{ return bPostPass ? (GetCandidateNodesOffset() + MaxNodes * GetCandidateNodeSize(false)) : 0u; }
-uint GetCandidateClusterOffset(bool bPostPass)	{ return bPostPass ? MaxCandidateClusters * GetCandidateClusterSize() : 0u; }
+uint GetCandidateClusterOffset()				{ return 0u; }
 
-FVisibleCluster LoadCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, bool bPostPass)
+FVisibleCluster LoadCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex)
 {
 	checkSlow(ClusterIndex < MaxCandidateClusters);
-	uint4 RawData = uint4(CandidateClusters.Load2(GetCandidateClusterOffset(bPostPass) + ClusterIndex * GetCandidateClusterSize()), 0u, 0u);
+	uint4 RawData = uint4(CandidateClusters.Load2(GetCandidateClusterOffset() + ClusterIndex * GetCandidateClusterSize()), 0u, 0u);
 	return UnpackVisibleCluster(RawData, false);
 }
 
 // CandidateClusters must be globallycoherent here, otherwise DXC will make buffer access non-globallycoherent when targeting SM6.6.
-void StoreCandidateClusterCoherentNoCheck(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster, bool bPostPass)
+void StoreCandidateClusterCoherentNoCheck(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
 {
 	uint4 RawData = PackVisibleCluster(ClusterIndex, VisibleCluster, false);
-	CandidateClusters.Store2(GetCandidateClusterOffset(bPostPass) + ClusterIndex * GetCandidateClusterSize(), RawData.xy);
+	CandidateClusters.Store2(GetCandidateClusterOffset() + ClusterIndex * GetCandidateClusterSize(), RawData.xy);
 }
 
 // CandidateClusters must be globallycoherent here, otherwise DXC will make buffer access non-globallycoherent when targeting SM6.6.
-void StoreCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster, bool bPostPass)
+void StoreCandidateClusterCoherent(globallycoherent RWCoherentByteAddressBuffer CandidateClusters, uint ClusterIndex, FVisibleCluster VisibleCluster)
 {
 	checkSlow(ClusterIndex < MaxCandidateClusters);
-	StoreCandidateClusterCoherentNoCheck(CandidateClusters, ClusterIndex, VisibleCluster, bPostPass);
+	StoreCandidateClusterCoherentNoCheck(CandidateClusters, ClusterIndex, VisibleCluster);
 }
 
 void StoreVisibleCluster(RWByteAddressBuffer VisibleClusters, uint ClusterIdx, FVisibleCluster VisibleCluster, bool bHasPageData = false)

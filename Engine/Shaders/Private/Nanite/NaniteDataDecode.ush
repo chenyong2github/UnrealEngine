@@ -141,15 +141,6 @@ struct FStats
 	uint NumTotalViews;
 };
 
-struct FPersistentState
-{
-	uint	ClusterBatchReadOffset;	// Offset in batches
-	uint	ClusterWriteOffset;		// Offset in individual clusters
-	uint	NodeReadOffset;
-	uint	NodeWriteOffset;
-	int		NodeCount;				// Can temporarily be conservatively higher
-};
-
 struct FVisibleCluster
 {
 	uint	Flags;

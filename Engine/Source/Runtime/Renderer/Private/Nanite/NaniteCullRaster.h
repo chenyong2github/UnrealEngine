@@ -93,7 +93,7 @@ struct FCullingContext
 	FRDGBufferRef	SafeMainRasterizeArgsSWHW;
 	FRDGBufferRef	SafePostRasterizeArgsSWHW;
 
-	FRDGBufferRef	MainAndPostPassPersistentStates;
+	FRDGBufferRef	QueueState;
 	FRDGBufferRef	VisibleClustersSWHW;
 	FRDGBufferRef	OccludedInstances;
 	FRDGBufferRef	OccludedInstancesArgs;

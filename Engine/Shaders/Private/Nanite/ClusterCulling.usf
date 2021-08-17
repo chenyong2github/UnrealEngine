@@ -38,13 +38,13 @@ RWStructuredBuffer<uint> OutDynamicCasterFlags;
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 static const bool bIsPostPass = true;
-static const uint PersistentStateIndex = 1;
+static const uint QueueStateIndex = 1;
 groupshared uint3 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
 uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0); }
 void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xyz; }
 #else
 static const bool bIsPostPass = false;
-static const uint PersistentStateIndex = 0;
+static const uint QueueStateIndex = 0;
 groupshared uint2 GroupNodeData[MAX_BVH_NODES_PER_GROUP];
 uint4 GetGroupNodeData(uint NodeIndex)				{ return uint4(GroupNodeData[NodeIndex], 0, 0); }
 void SetGroupNodeData(uint NodeIndex, uint4 Data)	{ GroupNodeData[NodeIndex] = Data.xy; }
@@ -63,7 +63,7 @@ StructuredBuffer< uint2 >	InTotalPrevDrawClusters;
 
 RWStructuredBuffer<FStreamingRequest>	OutStreamingRequests;			// First entry holds count
 
-globallycoherent RWCoherentStructuredBuffer(FPersistentState)	MainAndPostPassPersistentStates;
+globallycoherent RWCoherentStructuredBuffer(FQueueState)		QueueState;
 globallycoherent RWCoherentByteAddressBuffer					MainAndPostNodesAndClusterBatches;
 globallycoherent RWCoherentByteAddressBuffer					MainAndPostCandididateClusters;
 
@@ -559,14 +559,15 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 		else
 		{
-			uint OccludedClusterOffset = 0;
-			WaveInterlockedAddScalar_( MainAndPostPassPersistentStates[1].ClusterWriteOffset, 1, OccludedClusterOffset );
-
-			if( OccludedClusterOffset < MaxCandidateClusters )
+			uint ClusterIndex = 0;
+			WaveInterlockedAddScalar_(QueueState[0].TotalClusters, 1, ClusterIndex);
+			if (ClusterIndex < MaxCandidateClusters)
 			{
-				VisibleCluster.Flags = ( bUseHWRaster ? CULLING_FLAG_USE_HW : 0u );
-				
-				StoreCandidateClusterCoherent(MainAndPostCandididateClusters, OccludedClusterOffset, VisibleCluster, true);
+				uint OccludedClusterOffset = 0;
+				WaveInterlockedAddScalar_(QueueState[0].PassState[1].ClusterWriteOffset, 1, OccludedClusterOffset);
+				VisibleCluster.Flags = (bUseHWRaster ? CULLING_FLAG_USE_HW : 0u);
+
+				StoreCandidateClusterCoherent(MainAndPostCandididateClusters, (MaxCandidateClusters - 1) - OccludedClusterOffset, VisibleCluster);
 
 				DeviceMemoryBarrier();
 				const uint BatchIndex = OccludedClusterOffset / PERSISTENT_CLUSTER_CULLING_GROUP_SIZE;
@@ -726,8 +727,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 
 	if (GroupIndex == 0)
 	{
-		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeWriteOffset, GroupNumCandidateNodes, GroupCandidateNodesOffset);
-		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, (int)GroupNumCandidateNodes);	// NodeCount needs to be conservative, so child count is added before the actual children.
+		InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeWriteOffset, GroupNumCandidateNodes, GroupCandidateNodesOffset);
+		InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeCount, (int)GroupNumCandidateNodes);	// NodeCount needs to be conservative, so child count is added before the actual children.
 	}
 
 	AllMemoryBarrierWithGroupSync();
@@ -754,25 +755,37 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 	// Continue with remaining independent work
 	if( bOutputChild && HierarchyNodeSlice.bLeaf )
 	{
-		const uint NumChildren = HierarchyNodeSlice.NumChildren;
+		uint NumClusters = HierarchyNodeSlice.NumChildren;
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN || CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+		// Allocate main and post pass candidates from opposite ends of the buffer
+		// Check shared counter first to make sure there is room, so we don't have to worry about main and post stomping each other
+		uint ClusterIndex = 0;
+		WaveInterlockedAdd_(QueueState[0].TotalClusters, NumClusters, ClusterIndex);
+		
+		// Trim any clusters above MaxCandidateClusters
+		const uint ClusterIndexEnd = min(ClusterIndex + NumClusters, MaxCandidateClusters);
+		NumClusters = (uint)max((int)ClusterIndexEnd - (int)ClusterIndex, 0);
+#endif
 
 		uint CandidateClustersOffset = 0;
-		WaveInterlockedAdd_( MainAndPostPassPersistentStates[PersistentStateIndex].ClusterWriteOffset, NumChildren, CandidateClustersOffset );
-		
+		WaveInterlockedAdd_(QueueState[0].PassState[QueueStateIndex].ClusterWriteOffset, NumClusters, CandidateClustersOffset);
+
 		FVisibleCluster CandidateCluster;
 		CandidateCluster.Flags = CandidateNode.Flags | CULLING_FLAG_TEST_LOD;
 		CandidateCluster.ViewId = CandidateNode.ViewId;
 		CandidateCluster.InstanceId = CandidateNode.InstanceId;
 		CandidateCluster.PageIndex = HierarchyNodeSlice.ChildStartReference >> MAX_CLUSTERS_PER_PAGE_BITS;
-		
-		const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & MAX_CLUSTERS_PER_PAGE_MASK;		
+
+		const uint BaseClusterIndex = HierarchyNodeSlice.ChildStartReference & MAX_CLUSTERS_PER_PAGE_MASK;
 		const uint StartIndex = CandidateClustersOffset;
-		const uint EndIndex = min(CandidateClustersOffset + NumChildren, MaxCandidateClusters);
+		const uint EndIndex = min(CandidateClustersOffset + NumClusters, MaxCandidateClusters);
 
 		for (uint Index = StartIndex; Index < EndIndex; Index++)
 		{
 			CandidateCluster.ClusterIndex = BaseClusterIndex + (Index - StartIndex);
-			StoreCandidateClusterCoherentNoCheck(MainAndPostCandididateClusters, Index, CandidateCluster, bIsPostPass);	//TODO: NoCheck to fix issue compilation issue with FXC
+			const uint StoreIndex = bIsPostPass ? (MaxCandidateClusters - 1 - Index) : Index;
+			StoreCandidateClusterCoherentNoCheck(MainAndPostCandididateClusters, StoreIndex, CandidateCluster);	//TODO: NoCheck to fix issue compilation issue with FXC
 		}
 
 		DeviceMemoryBarrier();
@@ -793,7 +806,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 	if (GroupIndex == 0)
 	{
 		// Done writing clusters/nodes for current pass. Subtract us from NodeCount.
-		InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount, -(int)BatchSize);
+		InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeCount, -(int)BatchSize);
 	}
 
 	if( bVisible && !bWasOccluded && HierarchyNodeSlice.bLeaf )
@@ -805,8 +818,8 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 	if( ChildIndex == 0 && GroupOccludedBitmask[LocalNodeIndex] )
 	{
 		uint OccludedNodesOffset;
-		WaveInterlockedAddScalar_( MainAndPostPassPersistentStates[1].NodeWriteOffset, 1, OccludedNodesOffset );
-		WaveInterlockedAddScalar( MainAndPostPassPersistentStates[1].NodeCount, 1 );
+		WaveInterlockedAddScalar_( QueueState[0].PassState[1].NodeWriteOffset, 1, OccludedNodesOffset );
+		WaveInterlockedAddScalar( QueueState[0].PassState[1].NodeCount, 1 );
 
 		if(OccludedNodesOffset < MaxNodes)
 		{
@@ -828,7 +841,8 @@ void ProcessClusterBatch(uint BatchStartIndex, uint BatchSize, uint GroupIndex)
 	
 	if (GroupIndex < BatchSize)
 	{
-		FVisibleCluster VisibleCluster = LoadCandidateClusterCoherent(MainAndPostCandididateClusters, CandidateIndex, bIsPostPass);
+		const uint LoadIndex = bIsPostPass ? (MaxCandidateClusters - 1 - CandidateIndex) : CandidateIndex;
+		FVisibleCluster VisibleCluster = LoadCandidateClusterCoherent(MainAndPostCandididateClusters, LoadIndex);
 		ClusterCull(VisibleCluster, VisibleCluster.InstanceId);
 	}
 	
@@ -902,7 +916,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 				// No more data in current batch. Grab a new batch.
 				if (GroupIndex == 0)
 				{
-					InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].NodeReadOffset, MAX_BVH_NODES_PER_GROUP, GroupNodeBatchStartIndex);
+					InterlockedAdd(QueueState[0].PassState[QueueStateIndex].NodeReadOffset, MAX_BVH_NODES_PER_GROUP, GroupNodeBatchStartIndex);
 				}
 				GroupMemoryBarrierWithGroupSync();
 
@@ -958,7 +972,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 		{
 			if (GroupIndex == 0)
 			{
-				InterlockedAdd(MainAndPostPassPersistentStates[PersistentStateIndex].ClusterBatchReadOffset, 1, GroupClusterBatchStartIndex);
+				InterlockedAdd(QueueState[0].PassState[QueueStateIndex].ClusterBatchReadOffset, 1, GroupClusterBatchStartIndex);
 			}
 			GroupMemoryBarrierWithGroupSync();
 			ClusterBatchStartIndex = GroupClusterBatchStartIndex;
@@ -969,7 +983,7 @@ void PersistentClusterCull(uint GroupIndex : SV_GroupIndex)
 
 		if (GroupIndex == 0)
 		{
-			GroupNodeCount = MainAndPostPassPersistentStates[PersistentStateIndex].NodeCount;
+			GroupNodeCount = QueueState[0].PassState[QueueStateIndex].NodeCount;
 			GroupClusterBatchReadySize = LoadClusterBatchCoherent(MainAndPostNodesAndClusterBatches, ClusterBatchStartIndex, bIsPostPass);
 		}
 		GroupMemoryBarrierWithGroupSync();
@@ -1092,7 +1106,7 @@ void InitCandidateNodes(uint GroupIndex : SV_GroupIndex, uint3 GroupId : SV_Grou
 
 RWBuffer< uint > OutOccludedInstancesArgs;
 
-RWStructuredBuffer<FPersistentState>	OutMainAndPostPassPersistentStates;
+RWStructuredBuffer<FQueueState>			OutQueueState;
 RWStructuredBuffer< uint2 >				InOutTotalPrevDrawClusters;
 RWBuffer< uint >						InOutMainPassRasterizeArgsSWHW;
 RWBuffer< uint >						InOutPostPassRasterizeArgsSWHW;
@@ -1104,13 +1118,14 @@ void InitArgs()
 
 	uint2 DrawnClusterCounts = 0;
 
+	OutQueueState[0].TotalClusters = 0;
 	for (uint i = 0; i < 2; i++)
 	{
-		OutMainAndPostPassPersistentStates[i].ClusterBatchReadOffset	= 0;
-		OutMainAndPostPassPersistentStates[i].ClusterWriteOffset		= 0;
-		OutMainAndPostPassPersistentStates[i].NodeReadOffset			= 0;
-		OutMainAndPostPassPersistentStates[i].NodeWriteOffset			= 0;
-		OutMainAndPostPassPersistentStates[i].NodeCount					= 0;
+		OutQueueState[0].PassState[i].ClusterBatchReadOffset	= 0;
+		OutQueueState[0].PassState[i].ClusterWriteOffset		= 0;
+		OutQueueState[0].PassState[i].NodeReadOffset			= 0;
+		OutQueueState[0].PassState[i].NodeWriteOffset			= 0;
+		OutQueueState[0].PassState[i].NodeCount					= 0;
 	}
 
 	DrawnClusterCounts += uint2(InOutMainPassRasterizeArgsSWHW[0], InOutMainPassRasterizeArgsSWHW[HWClusterCounterIndex]);
