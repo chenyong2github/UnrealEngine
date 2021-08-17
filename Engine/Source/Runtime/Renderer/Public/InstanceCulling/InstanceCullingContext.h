@@ -81,6 +81,8 @@ public:
 
 	static RENDERER_API const TRDGUniformBufferRef<FInstanceCullingGlobalUniforms> CreateDummyInstanceCullingUniformBuffer(FRDGBuilder& GraphBuilder);
 
+	static bool IsOcclusionCullingEnabled();
+
 	struct FBatchItem
 	{
 		const FInstanceCullingContext* Context = nullptr;
