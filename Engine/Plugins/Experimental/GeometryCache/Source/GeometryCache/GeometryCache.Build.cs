@@ -17,7 +17,9 @@ public class GeometryCache : ModuleRules
 				"SlateCore",
                 "InputCore",
                 "RenderCore",
-                "RHI"
+                "RHI",
+                "Niagara",
+                "NiagaraCore"
 			}
 		);
 
@@ -28,6 +30,7 @@ public class GeometryCache : ModuleRules
             PublicIncludePathModuleNames.Add("GeometryCacheEd");
             DynamicallyLoadedModuleNames.Add("GeometryCacheEd");
             PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
+            PrivateDependencyModuleNames.Add("UnrealEd");
         }        
 	}
 }

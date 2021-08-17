@@ -6,6 +6,7 @@
 #endif // WITH_EDITOR
 #include "GeometryCacheStreamingManager.h"
 #include "CodecV1.h"
+#include "NiagaraGeometryCacheRendererProperties.h"
 
 IMPLEMENT_MODULE(FGeometryCacheModule, GeometryCache)
 
@@ -18,6 +19,8 @@ void FGeometryCacheModule::StartupModule()
 	IGeometryCacheStreamingManager::Register();
 
 	FCodecV1Decoder::InitLUT();
+
+	UNiagaraGeometryCacheRendererProperties::InitCDOPropertiesAfterModuleStartup();
 }
 
 void FGeometryCacheModule::ShutdownModule()
