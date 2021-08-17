@@ -429,7 +429,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRDGBuilder& GraphBuilder, FRDGTex
 				// Extract furthest HZB texture.
 				if (View.ViewState)
 				{
-					if (IsNaniteEnabled())
+					if (IsNaniteEnabled() || FInstanceCullingContext::IsOcclusionCullingEnabled())
 					{
 						GraphBuilder.QueueTextureExtraction(FurthestHZBTexture, &View.ViewState->PrevFrameViewInfo.HZB);
 					}

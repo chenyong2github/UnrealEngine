@@ -87,6 +87,13 @@ FInstanceCullingContext::FInstanceCullingContext(ERHIFeatureLevel::Type InFeatur
 {
 }
 
+
+bool FInstanceCullingContext::IsOcclusionCullingEnabled()
+{
+	return GOcclusionCullInstances != 0;
+}
+
+
 FInstanceCullingContext::~FInstanceCullingContext()
 {
 	for (auto& LoadBalancer : LoadBalancers)
@@ -339,7 +346,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 		return;
 	}
 
-	const bool bOcclusionCullInstances = PrevHZB.IsValid() && GOcclusionCullInstances > 0;
+	const bool bOcclusionCullInstances = PrevHZB.IsValid() && IsOcclusionCullingEnabled();
 	const uint32 InstanceIdBufferSize = TotalInstances * ViewIds.Num();
 	if (InstanceCullingDrawParams && InstanceCullingManager && InstanceCullingManager->IsDeferredCullingActive())
 	{
@@ -601,7 +608,7 @@ void FInstanceCullingDeferredContext::ProcessBatched(TStaticArray<FBuildInstance
 		PassParameters[Mode]->LoadBalancerParameters.NumItems = LoadBalancers[Mode]->GetItems().Num();
 		PassParameters[Mode]->NumCullingViews = InstanceCullingManager->GetCullingViews().Num();
 
-		const bool bOcclusionCullInstances = PrevHZB != nullptr && GOcclusionCullInstances > 0;
+		const bool bOcclusionCullInstances = PrevHZB != nullptr && FInstanceCullingContext::IsOcclusionCullingEnabled();
 		if (bOcclusionCullInstances)
 		{
 			PassParameters[Mode]->HZBTexture = PrevHZB;
@@ -767,7 +774,7 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 		PassParameters[Mode]->LoadBalancerParameters.ItemBuffer = GraphBuilder.CreateSRV(ItemBuffer);
 		PassParameters[Mode]->CurrentBatchProcessingMode = Mode;
 
-		const bool bOcclusionCullInstances = GOcclusionCullInstances > 0;
+		const bool bOcclusionCullInstances = FInstanceCullingContext::IsOcclusionCullingEnabled();
 		if (bOcclusionCullInstances)
 		{
 			// Fill with a placeholder as AddPass expects HZBTexture to be valid. ProcessBatched will fill with real HZB textures.

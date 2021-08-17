@@ -3527,14 +3527,10 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 			}
 			const bool bDrawOnlyVSMInvalidatingGeometry = ViewFamily.EngineShowFlags.DrawOnlyVSMInvalidatingGeo != 0;
 
-			FDepthPassInfo DepthPassInfo = GetDepthPassInfo(Scene);
-			const bool bIsEarlyDepthComplete = (DepthPassInfo.EarlyZPassMode == DDM_AllOpaque || DepthPassInfo.EarlyZPassMode == DDM_AllOpaqueNoVelocity);
-			TRefCountPtr<IPooledRenderTarget> PrevHZB = !bIsEarlyDepthComplete ? View.PrevViewInfo.NaniteHZB : View.PrevViewInfo.HZB;
-
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
-				FInstanceCullingContext(FeatureLevel, &InstanceCullingManager, ViewIds, PrevHZB, InstanceCullingMode, bDrawOnlyVSMInvalidatingGeometry),
+				FInstanceCullingContext(FeatureLevel, &InstanceCullingManager, ViewIds, View.PrevViewInfo.HZB, InstanceCullingMode, bDrawOnlyVSMInvalidatingGeometry),
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,
