@@ -1213,8 +1213,6 @@ uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList)
 {
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
-	FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
 	// Default fallback key
 	uint64 SortKey = MeshPipelineState.BoundShaderState.PixelShaderIndex;
@@ -1223,6 +1221,8 @@ uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList)
 
 	if (GRHISupportsPipelineStateSortKey)
 	{
+		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 		FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::DoNothing);
 		if (PipelineState)
 		{
