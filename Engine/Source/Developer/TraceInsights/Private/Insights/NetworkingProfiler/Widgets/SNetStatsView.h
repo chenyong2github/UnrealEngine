@@ -175,7 +175,7 @@ protected:
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Grouping
 
-	void CreateGroups();
+	void CreateSortedGroups();
 	void CreateGroupByOptionsSources();
 
 	void GroupBy_OnSelectionChanged(TSharedPtr<ENetEventGroupingMode> NewGroupingMode, ESelectInfo::Type SelectInfo);
@@ -195,7 +195,7 @@ protected:
 	void CreateSortings();
 
 	void UpdateCurrentSortingByColumn();
-	void SortTreeNodes();
+	void SortTreeChildNodes();
 	void SortTreeNodesRec(FNetEventNode& Node, const Insights::ITableCellValueSorter& Sorter);
 
 	EColumnSortMode::Type GetSortModeForColumn(const FName ColumnId) const;
