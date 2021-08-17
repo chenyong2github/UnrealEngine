@@ -586,20 +586,21 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	MenuBuilder.EndSection();
 	
 	return SAssignNew(ExposeComboButton, SComboButton)
-	.Visibility_Lambda([this]() { return this->bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
-	.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
-	.ForegroundColor(FSlateColor::UseForeground())
-	.CollapseMenuOnParentFocus(true)
-	.ButtonContent()
-	[
-		SNew(STextBlock)
-		.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-		.Text(LOCTEXT("ExposeButtonLabel", "Expose"))
-	]
-	.MenuContent()
-	[
-		MenuBuilder.MakeWidget()
-	];
+		.Visibility_Lambda([this]() { return this->bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
+		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ForegroundColor(FSlateColor::UseForeground())
+		.CollapseMenuOnParentFocus(true)
+		.ContentPadding(FMargin(10.0f, 0.f))
+		.ButtonContent()
+		[
+			SNew(STextBlock)
+			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+			.Text(LOCTEXT("ExposeButtonLabel", "Expose"))
+		]
+		.MenuContent()
+		[
+			MenuBuilder.MakeWidget()
+		];
 }
 
 TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
