@@ -360,6 +360,7 @@ void AISMPartitionActor::CreateComponent(const FISMComponentDescriptor& Componen
 	ComponentData.Component->bSelectable = true;
 	ComponentData.Component->bHasPerInstanceHitProxies = true;
 	ComponentData.RegisterDelegates();
+	AddInstanceComponent(ComponentData.Component);
 
 	ComponentData.Component->SetupAttachment(RootComponent);
 
