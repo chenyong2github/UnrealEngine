@@ -2588,7 +2588,7 @@ bool UNiagaraSystem::QueryCompileComplete(bool bWait, bool bDoPost, bool bDoNotA
 			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec (time since issued), %f sec (combined shader worker time)."),
 				*GetFullName(), ElapsedWallTime, CompileRequest.CombinedCompileTime);
 		}
-		else
+		else if (CompileRequest.bAllScriptsSynchronized == false)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("Compiling System %s took %f sec, no shader worker used."), *GetFullName(), ElapsedWallTime);
 		}
@@ -2929,6 +2929,7 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 	// We might be able to just complete compilation right now if nothing needed compilation.
 	if (ScriptsNeedingCompile.Num() == 0)
 	{
+		ActiveCompilation.bAllScriptsSynchronized = true;
 		PollForCompilationComplete();
 	}
 
