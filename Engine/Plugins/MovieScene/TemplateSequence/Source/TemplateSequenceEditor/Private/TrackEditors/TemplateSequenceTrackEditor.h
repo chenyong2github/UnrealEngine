@@ -25,6 +25,7 @@ public:
 public:
 	// ISequencerTrackEditor interface
 	virtual bool SupportsType(TSubclassOf<class UMovieSceneTrack> TrackClass) const override;
+	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
 	virtual void BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass) override;
 	TSharedPtr<SWidget> BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params) override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
