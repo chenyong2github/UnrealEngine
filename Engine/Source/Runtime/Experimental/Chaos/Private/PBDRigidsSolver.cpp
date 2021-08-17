@@ -208,10 +208,6 @@ FAutoConsoleVariableRef CVarChaosSolverJointNumIterationsAtMaxSolverStiffness(TE
 int32 ChaosVisualDebuggerEnable = 1;
 FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
 
-bool bDisableParticleDeletion = false;
-FAutoConsoleVariableRef CVarDisableParticleDeletion(TEXT("p.Chaos.Solver.DisableParticleDeletion"), bDisableParticleDeletion, TEXT("Only ever use when debugging the particle clean up, this introduces a massive memory leak."));
-
-
 namespace Chaos
 {
 
@@ -232,11 +228,6 @@ namespace Chaos
 
 		void DoWork()
 		{
-			// WARNING
-			// Only ever use DisableParticleDeletion when debugging the particle clean up. 
-			// This introduces a massive memory leak.
-			MSolver->GetParticles().SetDisableParticleDeletion(bDisableParticleDeletion);
-
 			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
 			MSolver->StartingSceneSimulation();
