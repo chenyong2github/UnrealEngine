@@ -227,7 +227,10 @@ void* FOpenGLDynamicRHI::LockBuffer_BottomOfPipe(FRHICommandListImmediate& RHICm
 			return Staging;
 		}
 	}
-	return (void*)Buffer->Lock(Offset, Size, LockMode == EResourceLockMode::RLM_ReadOnly, Buffer->IsDynamic());
+
+	const bool bReadOnly = (LockMode == EResourceLockMode::RLM_ReadOnly);
+	const bool bDiscard = !bReadOnly; // Always use 'orphaning' on write as buffer could be in use by GPU atm
+	return (void*)Buffer->Lock(Offset, Size, bReadOnly, bDiscard);
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(void*);
 }
 
