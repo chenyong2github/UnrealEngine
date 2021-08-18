@@ -18,7 +18,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 #include <Windows.h>
 #else
 #include <unistd.h>
-#if defined(__MACH__)
+#if defined(__MACH__) || defined(__PROSPERO__)
 #include <pthread.h>
 #else
 #include <sys/syscall.h>
@@ -26,9 +26,14 @@ NNI_THIRD_PARTY_INCLUDES_START
 #endif
 #include "core/platform/ort_mutex.h"
 
-#if __FreeBSD__
+#ifdef __PROSPERO__
+#include <kernel.h>
+#endif
+
+#if __FreeBSD__ && !defined(__PROSPERO__)
 #include <sys/thr.h>  // Use thr_self() syscall under FreeBSD to get thread id
 #endif
+
 NNI_THIRD_PARTY_INCLUDES_END
 
 namespace onnxruntime {
@@ -176,6 +181,9 @@ static minutes InitLocaltimeOffset(const time_point<system_clock>& epoch) noexce
 #ifdef _WIN32
   localtime_s(&local_tm, &system_time_t);
   gmtime_s(&utc_tm, &system_time_t);
+#elif defined(__PROSPERO__)
+  localtime_s(&system_time_t, &local_tm);
+  gmtime_s(&system_time_t, &utc_tm);
 #else
   localtime_r(&system_time_t, &local_tm);
   gmtime_r(&system_time_t, &utc_tm);
@@ -216,6 +224,10 @@ unsigned int GetThreadId() {
   uint64_t tid64;
   pthread_threadid_np(NULL, &tid64);
   return static_cast<unsigned int>(tid64);
+#elif __PROSPERO__
+  uint64_t tid64;
+  tid64 = scePthreadGetthreadid();
+  return static_cast<unsigned int>(tid64);
 #elif __FreeBSD__
   long tid;
   thr_self(&tid);
@@ -232,6 +244,8 @@ unsigned int GetProcessId() {
 #ifdef _WIN32
   return static_cast<unsigned int>(GetCurrentProcessId());
 #elif defined(__MACH__)
+  return static_cast<unsigned int>(getpid());
+#elif __PROSPERO__
   return static_cast<unsigned int>(getpid());
 #else
   return static_cast<unsigned int>(syscall(SYS_getpid));

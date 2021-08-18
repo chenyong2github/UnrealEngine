@@ -1,3 +1,4 @@
+#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -144,3 +145,5 @@ Status OptimizerExecutionFrame::CreateNodeOutputMLValueImpl(OrtValue& ort_value,
 }
 
 }  // namespace onnxruntime
+
+#endif // ORT_MINIMAL_BUILD

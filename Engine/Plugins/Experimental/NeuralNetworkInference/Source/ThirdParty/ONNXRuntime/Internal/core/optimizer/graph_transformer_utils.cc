@@ -1,3 +1,4 @@
+#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -216,3 +217,5 @@ std::vector<std::unique_ptr<GraphTransformer>> GenerateTransformers(TransformerL
 
 }  // namespace optimizer_utils
 }  // namespace onnxruntime
+
+#endif // ORT_MINIMAL_BUILD

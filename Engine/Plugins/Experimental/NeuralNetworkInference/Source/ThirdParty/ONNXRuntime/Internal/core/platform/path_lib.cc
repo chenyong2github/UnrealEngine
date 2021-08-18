@@ -24,6 +24,11 @@
 #include <PathCch.h>
 #pragma comment(lib, "PathCch.lib")
 #endif
+
+#elif defined(__PROSPERO__)
+#include <stdlib.h>
+#include <sys/stat.h>
+
 #else
 #include <libgen.h>
 #include <stdlib.h>
@@ -123,15 +128,56 @@ using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
 
 common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
                                       std::basic_string<ORTCHAR_T>& output) {
-  MallocdStringPtr s{strdup(input.c_str())};
-  output = dirname(s.get());
-  return Status::OK();
+#ifndef __PROSPERO__
+	MallocdStringPtr s{ strdup(input.c_str()) };
+	output = dirname(s.get());
+	return Status::OK();
+#else
+	/*
+	auto GetDirName = [](const std::basic_string<ORTCHAR_T>& path)
+	{
+		int32_t idx = -1;
+		idx = path.find_last_of("/\\");
+		return path.substr(0, idx);
+	};
+
+	output = GetDirName(input);
+	*/
+
+	FString IntputFString = FString(input.c_str());
+	FString DirPath = FPaths::GetPath(IntputFString);
+	output = std::string(TCHAR_TO_UTF8(*DirPath));
+	return Status::OK();
+
+#endif
 }
 
 std::string GetLastComponent(const std::string& input) {
-  MallocdStringPtr s{strdup(input.c_str())};
-  std::string ret = basename(s.get());
-  return ret;
+
+#ifndef __PROSPERO__
+
+	MallocdStringPtr s{ strdup(input.c_str()) };
+	std::string ret = basename(s.get());
+	return ret;
+
+#else
+	/*
+	auto GetBasename = [](const std::string& path)
+	{
+		int32_t idx = -1;
+		idx = path.find_last_of("/\\");
+		return path.substr(idx + 1);
+	};
+
+	return GetBasename(input);
+	*/
+
+	FString IntputFString = FString(input.c_str());
+	FString BaseName = FPaths::GetCleanFilename(IntputFString);
+	std::string RetVal = std::string(TCHAR_TO_UTF8(*BaseName));
+	return RetVal;
+
+#endif
 }
 
 }  // namespace onnxruntime
