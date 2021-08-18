@@ -22,6 +22,9 @@ class SRewindDebugger : public SCompoundWidget
 public:
 	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, float, bool )
 	DECLARE_DELEGATE_OneParam( FOnDebugTargetChanged, TSharedPtr<FString> )
+	DECLARE_DELEGATE_OneParam( FOnComponentDoubleClicked, TSharedPtr<FDebugObjectInfo> )
+	DECLARE_DELEGATE_OneParam( FOnComponentSelectionChanged, TSharedPtr<FDebugObjectInfo> )
+	DECLARE_DELEGATE_RetVal( TSharedPtr<SWidget>, FBuildComponentContextMenu )
 
 	SLATE_BEGIN_ARGS(SRewindDebugger) { }
 		SLATE_ARGUMENT( TArray< TSharedPtr< FDebugObjectInfo > >*, DebugComponents );
@@ -29,7 +32,10 @@ public:
 		SLATE_ARGUMENT(TBindablePropertyInitializer<double>, TraceTime);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<float>, RecordingDuration);
 		SLATE_ATTRIBUTE(float, ScrubTime);
-		SLATE_EVENT(FOnScrubPositionChanged, OnScrubPositionChanged);
+		SLATE_EVENT( FOnScrubPositionChanged, OnScrubPositionChanged);
+		SLATE_EVENT( FBuildComponentContextMenu, BuildComponentContextMenu );
+		SLATE_EVENT( FOnComponentDoubleClicked, OnComponentDoubleClicked );
+		SLATE_EVENT( FOnComponentSelectionChanged, OnComponentSelectionChanged );
 	SLATE_END_ARGS()
 	
 public:
@@ -58,6 +64,8 @@ private:
 	TAttribute<float> ScrubTimeAttribute;
 	TAttribute<bool> TrackScrubbingAttribute;
 	FOnScrubPositionChanged OnScrubPositionChanged;
+	FBuildComponentContextMenu BuildComponentContextMenu;
+	FOnComponentSelectionChanged OnComponentSelectionChanged;
 
 	// debug actor selector
 	TSharedRef<SWidget> MakeSelectActorMenu();
@@ -77,8 +85,10 @@ private:
 	// component tree view
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
 	TSharedPtr<FDebugObjectInfo> SelectedComponent;
-    void OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
+    void ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
+	
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
+	TSharedPtr<SWidget> OnContextMenuOpening();
 
 	// Debug View Tabs
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args, FName ViewName);

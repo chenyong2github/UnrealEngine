@@ -2,16 +2,12 @@
 
 #include "SRewindDebugger.h"
 #include "ActorPickerMode.h"
-#include "Async/Future.h"
-#include "Components/SkeletalMeshComponent.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Insights/IUnrealInsightsModule.h"
-#include "IGameplayInsightsModule.h"
-#include "ISettingsModule.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
 #include "RewindDebuggerStyle.h"
@@ -27,11 +23,11 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "IRewindDebuggerViewCreator.h"
 #include "RewindDebuggerViewCreators.h"
+#include "IRewindDebuggerDoubleClickHandler.h"
 
 #define LOCTEXT_NAMESPACE "SRewindDebugger"
 
@@ -190,6 +186,8 @@ TSharedRef<SWidget> SRewindDebugger::MakeSelectActorMenu()
 void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandList> CommandList, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow)
 {
 	OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
+	OnComponentSelectionChanged = InArgs._OnComponentSelectionChanged;
+	BuildComponentContextMenu = InArgs._BuildComponentContextMenu;
 	ScrubTimeAttribute = InArgs._ScrubTime;
 	DebugComponents = InArgs._DebugComponents;
 	TraceTime.Initialize(InArgs._TraceTime);
@@ -239,7 +237,9 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 
 	ComponentTreeView =	SNew(SRewindDebuggerComponentTree)
 				.DebugComponents(InArgs._DebugComponents)
-				.OnSelectionChanged(this, &SRewindDebugger::OnComponentSelectionChanged);
+				.OnMouseButtonDoubleClick(InArgs._OnComponentDoubleClicked)
+				.OnContextMenuOpening(this, &SRewindDebugger::OnContextMenuOpening)
+				.OnSelectionChanged(this, &SRewindDebugger::ComponentSelectionChanged);
 
 
 	TraceTime.OnPropertyChanged = TraceTime.OnPropertyChanged.CreateRaw(this, &SRewindDebugger::TraceTimeChanged);
@@ -263,7 +263,6 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 
 	TSharedPtr<FTabManager::FStack> MainTabStack = FTabManager::NewStack();
 
-	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
 	FRewindDebuggerViewCreators::EnumerateCreators([this, MainTabStack](const IRewindDebuggerViewCreator* Creator)
 		{
 			FName TabName = Creator->GetName();
@@ -499,7 +498,6 @@ void SRewindDebugger::OnPinnedTabClosed(TSharedRef<SDockTab> Tab)
 	FSlateIcon TabIcon;
 	FText TabLabel;
 
-	IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
 	if (const IRewindDebuggerViewCreator* Creator = FRewindDebuggerViewCreators::GetCreator(TabName))
 	{
 		TabIcon = Creator->GetIcon();
@@ -570,7 +568,6 @@ void SRewindDebugger::CreateDebugViews()
 	if (SelectedComponent.IsValid())
 	{
 		IUnrealInsightsModule &UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-		IGameplayInsightsModule& GameplayInsightsModule = FModuleManager::LoadModuleChecked<IGameplayInsightsModule>("GameplayInsights");
 		TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule.GetAnalysisSession();
 
 		FRewindDebuggerViewCreators::CreateDebugViews(SelectedComponent->ObjectId, TraceTime.Get(), *Session, DebugViews);
@@ -611,12 +608,19 @@ void SRewindDebugger::CreateDebugTabs()
 	}
 }
 
-void SRewindDebugger::OnComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
+void SRewindDebugger::ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo)
 {
 	SelectedComponent = SelectedItem;
 
+	OnComponentSelectionChanged.ExecuteIfBound(SelectedItem);
+
 	CreateDebugViews();
 	CreateDebugTabs();
+}
+
+TSharedPtr<SWidget> SRewindDebugger::OnContextMenuOpening()
+{
+	return BuildComponentContextMenu.Execute();
 }
 
 FReply SRewindDebugger::OnSelectActorClicked()

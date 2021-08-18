@@ -9,6 +9,7 @@ public class RewindDebuggerInterface : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreUObject",
 				"SlateCore",
 			}
 		);

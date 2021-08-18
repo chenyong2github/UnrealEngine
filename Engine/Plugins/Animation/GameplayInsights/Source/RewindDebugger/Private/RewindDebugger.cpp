@@ -8,12 +8,13 @@
 #include "Insights/IUnrealInsightsModule.h"
 #include "Modules/ModuleManager.h"
 #include "ObjectTrace.h"
-#include "TraceServices/ITraceServicesModule.h"
 #include "TraceServices/Model/Frames.h"
-#include "LevelEditor.h"
 #include "SLevelViewport.h"
 #include "IRewindDebuggerExtension.h"
-
+#include "IRewindDebuggerDoubleClickHandler.h"
+#include "Animation/AnimBlueprint.h"
+#include "Animation/AnimBlueprintGeneratedClass.h"
+#include "ToolMenus.h"
 
 FRewindDebugger* FRewindDebugger::InternalInstance = nullptr;
 
@@ -78,7 +79,6 @@ FRewindDebugger::~FRewindDebugger()
 	FEditorDelegates::SingleStepPIE.RemoveAll(this);
 
 	FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
-
 }
 
 void FRewindDebugger::Initialize() 
@@ -607,8 +607,11 @@ void FRewindDebugger::Tick(float DeltaTime)
 			// if you select a debug target before you start recording, update component list when it becomes valid
 			RefreshDebugComponents();
 		}
+		
+		const IAnimationProvider* AnimationProvider = Session->ReadProvider<IAnimationProvider>("AnimationProvider");
+		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
 
-		if (const IAnimationProvider* AnimationProvider = Session->ReadProvider<IAnimationProvider>("AnimationProvider"))
+		if (AnimationProvider && GameplayProvider)
 		{
 			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
 			UWorld* World = GetWorldToVisualize();
@@ -702,6 +705,125 @@ void FRewindDebugger::Tick(float DeltaTime)
 									// calling this here, even on meshes which have no recorded data makes meshes with a MasterPoseComponent attach properly during replay
 									// longer term solution: we should be recording those meshes
 									MeshComponent->ApplyEditedComponentSpaceTransforms();
+
+									// update debug info for attached Animation Blueprint editors
+									if (UAnimBlueprintGeneratedClass* InstanceClass = Cast<UAnimBlueprintGeneratedClass>(MeshComponent->GetAnimClass()))
+									{
+										if(UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(InstanceClass->ClassGeneratedBy))
+										{
+											UAnimInstance* AnimInstance = MeshComponent->GetAnimInstance();
+											if(AnimInstance && AnimBlueprint->IsObjectBeingDebugged(AnimInstance))
+											{
+												uint64 Id = FObjectTrace::GetObjectId(AnimInstance);
+												const int32 NodeCount = InstanceClass->GetAnimNodeProperties().Num();
+							
+												AnimationProvider->ReadAnimGraphTimeline(Id, [this, Id, InstanceClass, AnimationProvider, GameplayProvider, Frame, NodeCount](const IAnimationProvider::AnimGraphTimeline& InGraphTimeline)
+												{
+													FAnimBlueprintDebugData& DebugData = InstanceClass->GetAnimBlueprintDebugData();
+													DebugData.ResetNodeVisitSites();
+							
+													InGraphTimeline.EnumerateEvents(Frame.StartTime, Frame.EndTime, [this, Id, AnimationProvider, GameplayProvider, &DebugData, NodeCount](double InGraphStartTime, double InGraphEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
+													{
+														// Basic verification - check node count is the same
+														// @TODO: could add some form of node hash/CRC to the class to improve this
+														if(InMessage.NodeCount == NodeCount)
+														{
+															// Check for an update phase (which contains weights)
+															if(InMessage.Phase == EAnimGraphPhase::Update)
+															{
+																AnimationProvider->ReadAnimNodesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::AnimNodesTimeline& InNodesTimeline)
+																{
+																	InNodesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeMessage& InMessage)
+																	{
+																		DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+							
+																AnimationProvider->ReadStateMachinesTimeline(Id, [InGraphStartTime, InGraphEndTime, &DebugData](const IAnimationProvider::StateMachinesTimeline& InStateMachinesTimeline)
+																{
+																	InStateMachinesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimStateMachineMessage& InMessage)
+																	{
+																		DebugData.RecordStateData(InMessage.StateMachineIndex, InMessage.StateIndex, InMessage.StateWeight, InMessage.ElapsedTime);
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+							
+																AnimationProvider->ReadAnimSequencePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::AnimSequencePlayersTimeline& InSequencePlayersTimeline)
+																{
+																	InSequencePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSequencePlayerMessage& InMessage)
+																	{
+																		DebugData.RecordSequencePlayer(InMessage.NodeId, InMessage.Position, InMessage.Length, InMessage.FrameCounter);
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+							
+																AnimationProvider->ReadAnimBlendSpacePlayersTimeline(Id, [InGraphStartTime, InGraphEndTime, GameplayProvider, &DebugData](const IAnimationProvider::BlendSpacePlayersTimeline& InBlendSpacePlayersTimeline)
+																{
+																	InBlendSpacePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [GameplayProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FBlendSpacePlayerMessage& InMessage)
+																	{
+																		UBlendSpace* BlendSpace = nullptr;
+																		const FObjectInfo* BlendSpaceInfo = GameplayProvider->FindObjectInfo(InMessage.BlendSpaceId);
+																		if(BlendSpaceInfo)
+																		{
+																			BlendSpace = TSoftObjectPtr<UBlendSpace>(FSoftObjectPath(BlendSpaceInfo->PathName)).LoadSynchronous();
+																		}
+							
+																		DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpace, FVector(InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ), FVector(InMessage.FilteredPositionX, InMessage.FilteredPositionY, InMessage.FilteredPositionZ));
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+							
+																AnimationProvider->ReadAnimSyncTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimSyncTimeline& InAnimSyncTimeline)
+																{
+																	InAnimSyncTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSyncMessage& InMessage)
+																	{
+																		const TCHAR* GroupName = AnimationProvider->GetName(InMessage.GroupNameId);
+																		if(GroupName)
+																		{
+																			DebugData.RecordNodeSync(InMessage.SourceNodeId, FName(GroupName));
+																		}
+																
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+															}
+							
+															// Some traces come from both update and evaluate phases
+															if(InMessage.Phase == EAnimGraphPhase::Update || InMessage.Phase == EAnimGraphPhase::Evaluate)
+															{
+																AnimationProvider->ReadAnimAttributesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimAttributeTimeline& InAnimAttributeTimeline)
+																{
+																	InAnimAttributeTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimAttributeMessage& InMessage)
+																	{
+																		const TCHAR* AttributeName = AnimationProvider->GetName(InMessage.AttributeNameId);
+																		if(AttributeName)
+																		{
+																			DebugData.RecordNodeAttribute(InMessage.TargetNodeId, InMessage.SourceNodeId, FName(AttributeName));
+																		}
+																
+																		return TraceServices::EEventEnumerate::Continue;
+																	});
+																});
+															}
+							
+															// Anim node values can come from all phases
+															AnimationProvider->ReadAnimNodeValuesTimeline(Id, [InGraphStartTime, InGraphEndTime, AnimationProvider, &DebugData](const IAnimationProvider::AnimNodeValuesTimeline& InNodeValuesTimeline)
+															{
+																InNodeValuesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [AnimationProvider, &DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimNodeValueMessage& InMessage)
+																{
+																	FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
+																	DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
+																	return TraceServices::EEventEnumerate::Continue;
+																});
+															});
+														}
+														return TraceServices::EEventEnumerate::Continue;
+													});
+												});
+											}
+										}	
+									}
 								}
 							}
 						}
@@ -718,3 +840,81 @@ void FRewindDebugger::Tick(float DeltaTime)
 		);
 	}
 }
+
+void FRewindDebugger::ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedObject)
+{
+	SelectedComponent = SelectedObject;
+}
+
+void FRewindDebugger::ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> SelectedObject)
+{
+	if (!SelectedObject.IsValid())
+	{
+		return;
+	}
+	
+	SelectedComponent = SelectedObject;
+	
+	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	static const FName HandlerFeatureName = IRewindDebuggerDoubleClickHandler::ModularFeatureName;
+		
+	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+	
+		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+		const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedObject->ObjectId);
+		uint64 ClassId = ObjectInfo.ClassId;
+		bool bHandled = false;
+		
+		const int32 NumExtensions = ModularFeatures.GetModularFeatureImplementationCount(HandlerFeatureName);
+
+		// iterate up the class hierarchy, looking for a registered double click handler, until we find the one that succeeeds that is most specific to the type of this object
+		while (ClassId != 0 && !bHandled)
+		{
+			const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
+		
+			for (int32 ExtensionIndex = 0; ExtensionIndex < NumExtensions; ++ExtensionIndex)
+			{
+				IRewindDebuggerDoubleClickHandler* Handler = static_cast<IRewindDebuggerDoubleClickHandler*>(ModularFeatures.GetModularFeatureImplementation(HandlerFeatureName, ExtensionIndex));
+				if (Handler->GetTargetTypeName() == ClassInfo.Name)
+				{
+					if (Handler->HandleDoubleClick(this))
+					{
+						bHandled = true;
+						break;
+					}
+				}
+			}
+		
+			ClassId = ClassInfo.SuperId;
+		}
+	}
+}
+
+TSharedPtr<SWidget> FRewindDebugger::BuildComponentContextMenu()
+{
+	UComponentContextMenuContext* MenuContext = NewObject<UComponentContextMenuContext>();
+	MenuContext->SelectedObject = SelectedComponent;
+
+	if (SelectedComponent.IsValid())
+	{
+		// build a list of class hierarchy names to make it easier for extensions to enable menu entries by type
+		if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
+		{
+			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session);
+	
+			const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
+			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(SelectedComponent->ObjectId);
+			uint64 ClassId = ObjectInfo.ClassId;
+			while (ClassId != 0)
+			{
+				const FClassInfo& ClassInfo = GameplayProvider->GetClassInfo(ClassId);
+				MenuContext->TypeHierarchy.Add(ClassInfo.Name);
+				ClassId = ClassInfo.SuperId;
+			}
+		}
+	}
+
+	return UToolMenus::Get()->GenerateWidget("RewindDebugger.ComponentContextMenu", FToolMenuContext(MenuContext));
+ }

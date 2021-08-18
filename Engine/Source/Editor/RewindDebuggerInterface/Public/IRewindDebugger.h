@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "IRewindDebugger.generated.h"
 
 // IRewindDebugger
 //
@@ -25,6 +26,15 @@ struct FDebugObjectInfo
 	TArray<TSharedPtr<FDebugObjectInfo>> Children;
 };
 
+UCLASS()
+class REWINDDEBUGGERINTERFACE_API UComponentContextMenuContext : public UObject
+{
+	GENERATED_BODY()
+public:
+	TSharedPtr<FDebugObjectInfo> SelectedObject;
+	TArray<FName> TypeHierarchy;
+};
+
 class REWINDDEBUGGERINTERFACE_API IRewindDebugger
 {
 public:
@@ -43,6 +53,9 @@ public:
 
 	// get a list of all components of the selected target actor (with the actor as the first element in the list)
 	virtual TArray<TSharedPtr<FDebugObjectInfo>>& GetDebugComponents() = 0;
+	
+	// returns the currently selected debug component
+	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const = 0;
 
 	// get posiotion of the selected target actor (returns true if position is valid)
 	virtual bool GetTargetActorPosition(FVector& OutPosition) const = 0;

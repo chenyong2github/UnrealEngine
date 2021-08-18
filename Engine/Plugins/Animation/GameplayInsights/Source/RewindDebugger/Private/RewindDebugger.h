@@ -7,12 +7,15 @@
 #include "Containers/Ticker.h"
 #include "UObject/WeakObjectPtr.h"
 
+class FMenuBuilder;
 class USkeletalMeshComponent;
 
 namespace TraceServices
 {
 	class IAnalysisSession;
 }
+
+class SWidget;
 
 // Singleton class that handles the logic for the Rewind Debugger
 // handles:
@@ -35,6 +38,7 @@ public:
 	virtual bool IsRecording() const override { return bRecording; }
 	virtual bool IsPIESimulating() const override { return bPIESimulating; }
 	virtual double GetRecordingDuration() const override { return RecordingDuration.Get(); }
+	virtual TSharedPtr<FDebugObjectInfo> GetSelectedComponent() const override { return SelectedComponent; }
 
 	// create singleton instance
 	static void Initialize();
@@ -89,6 +93,10 @@ public:
 
 	DECLARE_DELEGATE(FOnComponentListChanged)
 	void OnComponentListChanged(const FOnComponentListChanged& ComponentListChangedCallback);
+	
+	void ComponentDoubleClicked(TSharedPtr<FDebugObjectInfo> SelectedObject);
+	void ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedObject);
+	TSharedPtr<SWidget> BuildComponentContextMenu();
 
 	DECLARE_DELEGATE_OneParam( FOnTrackCursor, bool)
 	void OnTrackCursor(const FOnTrackCursor& TrackCursorCallback);
@@ -139,6 +147,7 @@ private:
 	static FRewindDebugger* InternalInstance;
 
 	TArray<TSharedPtr<FDebugObjectInfo>> DebugComponents;
+	TSharedPtr<FDebugObjectInfo> SelectedComponent;
 
 	struct FMeshComponentResetData
 	{
