@@ -20,6 +20,7 @@ namespace String
  */
 CORE_API int32 HexToBytes(FAnsiStringView Hex, uint8* OutBytes);
 CORE_API int32 HexToBytes(FWideStringView Hex, uint8* OutBytes);
+CORE_API int32 HexToBytes(FUtf8StringView Hex, uint8* OutBytes);
 
 }
 }

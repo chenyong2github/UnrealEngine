@@ -152,13 +152,8 @@ inline uint32 GetTypeHash(const FIoHash& Hash)
 	return *reinterpret_cast<const uint32*>(Hash.GetBytes());
 }
 
-inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FIoHash& Hash)
-{
-	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
-	return Builder;
-}
-
-inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const FIoHash& Hash)
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FIoHash& Hash)
 {
 	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
 	return Builder;

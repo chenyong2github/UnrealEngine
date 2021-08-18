@@ -39,5 +39,10 @@ int32 HexToBytes(FWideStringView Hex, uint8* OutBytes)
 	return HexToBytesImpl<WIDECHAR>(Hex, OutBytes);
 }
 
+int32 HexToBytes(FUtf8StringView Hex, uint8* OutBytes)
+{
+	return HexToBytesImpl<UTF8CHAR>(Hex, OutBytes);
+}
+
 }
 }
