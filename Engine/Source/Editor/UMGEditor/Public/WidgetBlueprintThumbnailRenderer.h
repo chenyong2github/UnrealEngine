@@ -9,19 +9,29 @@
 class FCanvas;
 class FRenderTarget;
 class UTextureRenderTarget2D;
+class FWidgetBlueprintThumbnailPool;
 
 UCLASS()
 class UMGEDITOR_API UWidgetBlueprintThumbnailRenderer : public UDefaultSizedThumbnailRenderer
 {
 	GENERATED_BODY()
 
+	UWidgetBlueprintThumbnailRenderer();
+	virtual ~UWidgetBlueprintThumbnailRenderer();
+
 	//~ Begin UThumbnailRenderer Object
 	bool CanVisualizeAsset(UObject* Object) override;
 	void Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily) override;
+	//~ End UThumbnailRenderer Object
 
 private:
+	void OnBlueprintUnloaded(UBlueprint* Blueprint);
 
-	UPROPERTY(Transient)
-	TObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
+private:
+	struct FWidgetBlueprintThumbnailPoolDeleter
+	{
+		void operator()(FWidgetBlueprintThumbnailPool* Pointer);
+	};
 
+	TUniquePtr<FWidgetBlueprintThumbnailPool, FWidgetBlueprintThumbnailPoolDeleter> ThumbnailPool;
 };
