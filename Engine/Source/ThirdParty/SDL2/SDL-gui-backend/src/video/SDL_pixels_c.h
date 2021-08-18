@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -36,6 +36,8 @@ extern SDL_BlitMap *SDL_AllocBlitMap(void);
 extern void SDL_InvalidateMap(SDL_BlitMap * map);
 extern int SDL_MapSurface(SDL_Surface * src, SDL_Surface * dst);
 extern void SDL_FreeBlitMap(SDL_BlitMap * map);
+
+extern void SDL_InvalidateAllBlitMap(SDL_Surface *surface);
 
 /* Miscellaneous functions */
 extern void SDL_DitherColors(SDL_Color * colors, int bpp);

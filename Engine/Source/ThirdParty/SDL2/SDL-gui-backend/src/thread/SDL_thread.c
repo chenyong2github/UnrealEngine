@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -22,7 +22,6 @@
 
 /* System independent thread management routines for SDL */
 
-#include "SDL_assert.h"
 #include "SDL_thread.h"
 #include "SDL_thread_c.h"
 #include "SDL_systhread.h"
@@ -83,7 +82,7 @@ SDL_TLSSet(SDL_TLSID id, const void *value, void (SDLCALL *destructor)(void *))
     return 0;
 }
 
-static void
+void
 SDL_TLSCleanup()
 {
     SDL_TLSData *storage;
@@ -142,10 +141,10 @@ SDL_Generic_GetTLSData(void)
         }
         SDL_AtomicUnlock(&tls_lock);
     }
-#endif /* SDL_THREADS_DISABLED */
-
     SDL_MemoryBarrierAcquire();
     SDL_LockMutex(SDL_generic_TLS_mutex);
+#endif /* SDL_THREADS_DISABLED */
+
     for (entry = SDL_generic_TLS; entry; entry = entry->next) {
         if (entry->thread == thread) {
             storage = entry->storage;

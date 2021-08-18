@@ -313,11 +313,10 @@ bool FLinuxPlatformApplicationMisc::InitSDL()
 		SDL_version RunTimeSDLVersion;
 		SDL_VERSION(&CompileTimeSDLVersion);
 		SDL_GetVersion(&RunTimeSDLVersion);
-		int SdlRevisionNum = SDL_GetRevisionNumber();
 		FString SdlRevision = UTF8_TO_TCHAR(SDL_GetRevision());
-		UE_LOG(LogInit, Log, TEXT("Initialized SDL %d.%d.%d revision: %d (%s) (compiled against %d.%d.%d)"),
+		UE_LOG(LogInit, Log, TEXT("Initialized SDL %d.%d.%d revision: %s (compiled against %d.%d.%d)"),
 			RunTimeSDLVersion.major, RunTimeSDLVersion.minor, RunTimeSDLVersion.patch,
-			SdlRevisionNum, *SdlRevision,
+			*SdlRevision,
 			CompileTimeSDLVersion.major, CompileTimeSDLVersion.minor, CompileTimeSDLVersion.patch
 			);
 

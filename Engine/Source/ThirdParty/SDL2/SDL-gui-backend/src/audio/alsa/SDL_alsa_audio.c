@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -32,7 +32,6 @@
 #include <signal.h>             /* For kill() */
 #include <string.h>
 
-#include "SDL_assert.h"
 #include "SDL_timer.h"
 #include "SDL_audio.h"
 #include "../SDL_audio_c.h"
@@ -224,7 +223,17 @@ LoadALSALibrary(void)
 #endif /* SDL_AUDIO_DRIVER_ALSA_DYNAMIC */
 
 /* EG BEGIN */
-#ifndef SDL_WITH_EPIC_EXTENSIONS
+#ifdef SDL_WITH_EPIC_EXTENSIONS
+
+static const char *
+get_audio_device(void *handle, const int channels)
+{
+    // Issues with device https://udn.unrealengine.com/questions/398444/view.html
+    return "default";
+}
+
+#else
+
 static const char *
 get_audio_device(void *handle, const int channels)
 {
@@ -248,6 +257,7 @@ get_audio_device(void *handle, const int channels)
 
     return "default";
 }
+
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 
@@ -545,14 +555,7 @@ ALSA_OpenDevice(_THIS, void *handle, const char *devname, int iscapture)
     /* Open the audio device */
     /* Name of device should depend on # channels in spec */
     status = ALSA_snd_pcm_open(&pcm_handle,
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-                // Issues with device https://udn.unrealengine.com/questions/398444/view.html
-                "default",
-#else
                 get_audio_device(handle, this->spec.channels),
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
                 iscapture ? SND_PCM_STREAM_CAPTURE : SND_PCM_STREAM_PLAYBACK,
                 SND_PCM_NONBLOCK);
 
@@ -776,7 +779,11 @@ add_device(const int iscapture, const char *name, void *hint, ALSA_Device **pSee
         return;
     }
 
-    SDL_AddAudioDevice(iscapture, desc, handle);
+    /* Note that spec is NULL, because we are required to open the device before
+     * acquiring the mix format, making this information inaccessible at
+     * enumeration time
+     */
+    SDL_AddAudioDevice(iscapture, desc, NULL, handle);
     if (hint)
         free(desc);
     dev->name = handle;

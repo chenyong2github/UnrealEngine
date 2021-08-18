@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,7 +30,6 @@
 #if SDL_VIDEO_VULKAN && SDL_VIDEO_DRIVER_VIVANTE
 
 #include "SDL_vivantevideo.h"
-#include "SDL_assert.h"
 
 #include "SDL_loadso.h"
 #include "SDL_vivantevulkan.h"
