@@ -20,6 +20,7 @@ LOCAL_SRC_FILES := \
 	$(wildcard $(LOCAL_PATH)/src/audio/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/audio/android/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/audio/dummy/*.c) \
+	$(wildcard $(LOCAL_PATH)/src/audio/aaudio/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/audio/openslES/*.c) \
 	$(LOCAL_PATH)/src/atomic/SDL_atomic.c.arm \
 	$(LOCAL_PATH)/src/atomic/SDL_spinlock.c.arm \
@@ -35,6 +36,10 @@ LOCAL_SRC_FILES := \
 	$(wildcard $(LOCAL_PATH)/src/joystick/hidapi/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/joystick/virtual/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/loadso/dlopen/*.c) \
+	$(wildcard $(LOCAL_PATH)/src/locale/*.c) \
+	$(wildcard $(LOCAL_PATH)/src/locale/android/*.c) \
+	$(wildcard $(LOCAL_PATH)/src/misc/*.c) \
+	$(wildcard $(LOCAL_PATH)/src/misc/android/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/power/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/power/android/*.c) \
 	$(wildcard $(LOCAL_PATH)/src/filesystem/android/*.c) \

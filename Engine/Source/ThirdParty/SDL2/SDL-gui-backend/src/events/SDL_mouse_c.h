@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -118,7 +118,6 @@ typedef struct
     SDL_bool initiate_window_drag; /* Used to initiate the window drag in the hit-test area */
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
-
 } SDL_Mouse;
 
 

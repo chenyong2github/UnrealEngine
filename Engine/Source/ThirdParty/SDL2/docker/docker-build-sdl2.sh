@@ -14,7 +14,8 @@
 
 if [ $UID -eq 0 ]; then
   # Centos 7
-  yum install -y cmake make gcc-c++
+  yum install -y epel-release
+  yum install -y cmake3 make gcc-c++
   yum install -y libXcursor-devel libXinerama-devel libxi-dev libXrandr-devel libXScrnSaver-devel libXi-devel mesa-libGL-devel mesa-libEGL-devel pulseaudio-libs-devel wayland-protocols-devel wayland-devel libxkbcommon-devel mesa-libwayland-egl-devel alsa-lib-devel libudev-devel
 
   # Create non-privileged user and workspace
@@ -56,7 +57,7 @@ BuildWithOptions()
 	fi
 
 	set -x
-	cmake $Options ${SDL_DIR}
+	cmake3 $Options ${SDL_DIR}
 	set +x
 
 	make -j${CORES}

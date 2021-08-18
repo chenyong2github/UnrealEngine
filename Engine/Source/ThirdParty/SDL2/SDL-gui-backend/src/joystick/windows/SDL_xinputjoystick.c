@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2021 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,7 +24,6 @@
 
 #if SDL_JOYSTICK_XINPUT
 
-#include "SDL_assert.h"
 #include "SDL_hints.h"
 #include "SDL_timer.h"
 #include "SDL_windowsjoystick_c.h"
@@ -64,6 +63,13 @@ int
 SDL_XINPUT_JoystickInit(void)
 {
     s_bXInputEnabled = SDL_GetHintBoolean(SDL_HINT_XINPUT_ENABLED, SDL_TRUE);
+
+#ifdef SDL_JOYSTICK_RAWINPUT
+    if (RAWINPUT_IsEnabled()) {
+        /* The raw input driver handles more than 4 controllers, so prefer that when available */
+        s_bXInputEnabled = SDL_FALSE;
+    }
+#endif
 
     if (s_bXInputEnabled && WIN_LoadXInputDLL() < 0) {
         s_bXInputEnabled = SDL_FALSE;  /* oh well. */
@@ -155,6 +161,7 @@ GuessXInputDevice(Uint8 userid, Uint16 *pVID, Uint16 *pPID, Uint16 *pVersion)
                     *pVID = (Uint16)rdi.hid.dwVendorId;
                     *pPID = (Uint16)rdi.hid.dwProductId;
                     *pVersion = (Uint16)rdi.hid.dwVersionNumber;
+                    SDL_free(devices);
                     return;
                 }
             }
@@ -163,7 +170,7 @@ GuessXInputDevice(Uint8 userid, Uint16 *pVID, Uint16 *pPID, Uint16 *pVersion)
 
     for (i = 0; i < device_count; i++) {
         RID_DEVICE_INFO rdi;
-        char devName[128];
+        char devName[MAX_PATH];
         UINT rdiSize = sizeof(rdi);
         UINT nameSize = SDL_arraysize(devName);
 
@@ -201,12 +208,13 @@ GuessXInputDevice(Uint8 userid, Uint16 *pVID, Uint16 *pPID, Uint16 *pVersion)
                     SDL_free(s_arrXInputDevicePath[userid]);
                 }
                 s_arrXInputDevicePath[userid] = SDL_strdup(devName);
+                SDL_free(devices);
                 return;
             }
         }
     }
     SDL_free(devices);
-#endif  /* ifndef __WINRT__ */
+#endif  /* !__WINRT__ */
 
     /* The device wasn't in the raw HID device list, it's probably Bluetooth */
     *pVID = 0x045e; /* Microsoft */
@@ -285,7 +293,8 @@ AddXInputDevice(Uint8 userid, BYTE SubType, JoyStick_DeviceData **pContext)
     }
 
 #ifdef SDL_JOYSTICK_HIDAPI
-    if (HIDAPI_IsDevicePresent(vendor, product, version, pNewJoystick->joystickname)) {
+    /* Since we're guessing about the VID/PID, use a hard-coded VID/PID to represent XInput */
+    if (HIDAPI_IsDevicePresent(USB_VENDOR_MICROSOFT, USB_PRODUCT_XBOX_ONE_XINPUT_CONTROLLER, version, pNewJoystick->joystickname)) {
         /* The HIDAPI driver is taking care of this device */
         SDL_free(pNewJoystick);
         return;
@@ -293,7 +302,7 @@ AddXInputDevice(Uint8 userid, BYTE SubType, JoyStick_DeviceData **pContext)
 #endif
 
 #ifdef SDL_JOYSTICK_RAWINPUT
-    if (RAWINPUT_IsDevicePresent(vendor, product, version)) {
+    if (RAWINPUT_IsDevicePresent(vendor, product, version, pNewJoystick->joystickname)) {
         /* The RAWINPUT driver is taking care of this device */
         SDL_free(pNewJoystick);
         return;
