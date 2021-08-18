@@ -44,6 +44,12 @@ public:
 	/** The friendly display name for this parameter. */
 	FText GetParameterDisplayName() const { return FText::FromString(ParamDisplayName); }
 
+	/** Gets the tooltip for this parameter. */
+	FText GetParameterTooltip() const { return ParamTooltip; }
+
+	/** Sets the tooltip for this parameter. */
+	void SetParameterTooltip(const FText& NewTooltip) { ParamTooltip = NewTooltip; }
+
 	/** The keu used for the parameter map. */
 	const FString& GetParameterKey() const { return ParamKey; }
 
@@ -89,6 +95,9 @@ private:
 	/** The display name only for the UI. */
 	FString ParamDisplayName;
 	
+	/** The tooltip to display in the UI */
+	FText ParamTooltip;
+
 	/** The proper title (key) of this parameter. */
 	FString ParamKey;
 };
@@ -192,6 +201,8 @@ public:
 		else
 		{
 			NumberValue = InDefaultValue;
+			GetOrAddCustomParameterValueText();
+			UpdateCustomParameterValueText(FString::SanitizeFloat(static_cast<float>(NumberValue)));
 		}
 	}
 

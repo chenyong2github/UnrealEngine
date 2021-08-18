@@ -28,18 +28,23 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleStartScene(class IDispl
 {
 	check(IsInGameThread());
 
+	if (!IsEasyBlendRenderingEnabled())
+	{
+		if (!bEasyBlendInitializeOnce)
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend initialization : current UE render device not supported"));
+			bEasyBlendInitializeOnce = true;
+		}
+
+		return false;
+	}
+
 	if (bInitializeOnce)
 	{
 		return false;
 	}
 
 	bInitializeOnce = true;
-
-	if (!IsEasyBlendRenderingEnabled())
-	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("An error occurred during EasyBlend initialization : current UE render device not supported"));
-		return false;
-	}
 
 	// The game side of the nDisplay has been initialized by the nDisplay Game Manager already
 	// so we can extend it by our projection related functionality/components/etc.

@@ -131,10 +131,10 @@ void FTextureShareInterface::SetSyncPolicySettings(const FTextureShareSyncPolicy
 {
 	ShareCoreAPI().SetSyncPolicySettings(ETextureShareProcess::Client, InSyncPolicySettings);
 }
-bool FTextureShareInterface::CreateTextureShare(const TCHAR* ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType)
+bool FTextureShareInterface::CreateTextureShare(const TCHAR* ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, float SyncWaitTime)
 {
 	TSharedPtr<ITextureShareItem> ShareItem;
-	return ShareCoreAPI().CreateTextureShareItem(FString(ShareName), Process, SyncMode, DeviceType, ShareItem);
+	return ShareCoreAPI().CreateTextureShareItem(FString(ShareName), Process, SyncMode, DeviceType, ShareItem, SyncWaitTime);
 }
 
 bool FTextureShareInterface::ReleaseTextureShare(const TCHAR* ShareName)

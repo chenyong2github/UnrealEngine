@@ -56,13 +56,25 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Cluster API
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	/** Returns true if current node is a master computer in a cluster. */
+	/** Returns true if current node is a master node in a cluster. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is master node"), Category = "NDisplay|Cluster")
 	virtual bool IsMaster() const = 0;
 	
-	/** Returns true if current node is a slave computer in a cluster. */
+	/** Returns true if current node is a slave node in a cluster. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is slave node"), Category = "NDisplay|Cluster")
 	virtual bool IsSlave() const = 0;
+
+	/** Returns true if current node is a backup node in a cluster. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Is backup node"), Category = "NDisplay|Cluster")
+	virtual bool IsBackup() const = 0;
+
+	/** Returns the role of the current cluster node. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cluster role"), Category = "NDisplay|Cluster")
+	virtual EDisplayClusterNodeRole GetClusterRole() const = 0;
+
+	/** Returns the role of the current cluster node. */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get cluster node IDs"), Category = "NDisplay|Cluster")
+	virtual void GetNodeIds(TArray<FString>& OutNodeIds) const = 0;
 
 	/** Returns cluster node name of the current application instance. */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get node ID"), Category = "NDisplay|Cluster")

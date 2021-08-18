@@ -67,9 +67,29 @@ bool UDisplayClusterBlueprintAPIImpl::IsMaster() const
 
 bool UDisplayClusterBlueprintAPIImpl::IsSlave() const
 {
-	const bool bIsSlave = !IsMaster();
+	const bool bIsSlave = IDisplayCluster::Get().GetClusterMgr()->IsSlave();
 	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("IsSlave - %s"), *DisplayClusterTypesConverter::template ToString(bIsSlave));
 	return bIsSlave;
+}
+
+bool UDisplayClusterBlueprintAPIImpl::IsBackup() const
+{
+	const bool bIsBackup = IDisplayCluster::Get().GetClusterMgr()->IsBackup();
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("IsBackup - %s"), *DisplayClusterTypesConverter::template ToString(bIsBackup));
+	return bIsBackup;
+}
+
+EDisplayClusterNodeRole UDisplayClusterBlueprintAPIImpl::GetClusterRole() const
+{
+	const EDisplayClusterNodeRole ClusterRole = IDisplayCluster::Get().GetClusterMgr()->GetClusterRole();
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("GetClusterRole - %d"), static_cast<int32>(ClusterRole));
+	return ClusterRole;
+}
+
+void UDisplayClusterBlueprintAPIImpl::GetNodeIds(TArray<FString>& OutNodeIds) const
+{
+	UE_LOG(LogDisplayClusterBlueprint, Verbose, TEXT("GetNodeIds"));
+	IDisplayCluster::Get().GetClusterMgr()->GetNodeIds(OutNodeIds);
 }
 
 FString UDisplayClusterBlueprintAPIImpl::GetNodeId() const

@@ -7,6 +7,7 @@
 
 class FDisplayClusterViewportManager;
 class FDisplayClusterViewportManagerProxy;
+class FDisplayClusterViewportPostProcessOutputRemap;
 struct FDisplayClusterConfigurationPostprocess;
 
 /**
@@ -16,10 +17,7 @@ struct FDisplayClusterConfigurationPostprocess;
 class FDisplayClusterViewportPostProcessManager
 {
 public:
-	FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager)
-		: ViewportManager(InViewportManager)
-	{}
-
+	FDisplayClusterViewportPostProcessManager(FDisplayClusterViewportManager& InViewportManager);
 	virtual ~FDisplayClusterViewportPostProcessManager() = default;
 
 public:
@@ -41,6 +39,9 @@ public:
 
 	// Send data to render thread
 	void FinalizeNewFrame();
+
+	TSharedPtr<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe>& GetOutputRemap()
+	{ return OutputRemap; }
 
 public:
 	bool CreatePostprocess(const FString& InPostprocessId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
@@ -71,4 +72,5 @@ private:
 	TArray<TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe>> PostprocessProxy;
 
 	FDisplayClusterViewportManager& ViewportManager;
+	TSharedPtr<FDisplayClusterViewportPostProcessOutputRemap, ESPMode::ThreadSafe> OutputRemap;
 };

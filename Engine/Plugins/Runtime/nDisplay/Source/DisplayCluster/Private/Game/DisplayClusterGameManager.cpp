@@ -71,21 +71,25 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
 	FScopeLock Lock(&InternalsSyncScope);
 
-	check(InWorld);
-	check(ConfigData);
+	check(InWorld && ConfigData);
 
 	CurrentWorld = InWorld;
 
 	// Find the first DCRA instance that matches to the specified configuration
 	ADisplayClusterRootActor* RootActor = FindRootActor(InWorld, ConfigData);
 
-	// If no proper DCRA found,
-	// 1. Detect spawn location and rotation
-	// 2. Try to spawn a blueprint from a corresponding asset
-	// 3. If the asset not found, spawn an empty DCRA instance and initialize it with specified configuration data.
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Cluster)
 	{
-		if (!RootActor)
+		// If a corresponding DCRA instance was found, overwrite its settings
+		if (RootActor)
+		{
+			RootActor->OverrideFromConfig(ConfigData);
+		}
+		// If no proper DCRA found,
+		// 1. Detect spawn location and rotation
+		// 2. Try to spawn a blueprint from a corresponding asset
+		// 3. If the asset not found, spawn an empty DCRA instance and initialize it with specified configuration data.
+		else
 		{
 			// 1. Detect spawn location and rotation
 			FVector  StartLocation = FVector::ZeroVector;
@@ -99,7 +103,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 				StartRotation = (*It)->GetActorRotation();
 			}
 
-			// 2. Spawn the DCRA PB from a corresponding asset
+			// 2. Spawn the DCRA BP from a corresponding asset
 			UObject* ActorToSpawn = Cast<UObject>(StaticLoadObject(UObject::StaticClass(), NULL, *ConfigData->Info.AssetPath));
 			if (ActorToSpawn)
 			{
@@ -107,8 +111,12 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 				UClass* ClassToSpawn = ActorToSpawn->StaticClass();
 				if (ClassToSpawn && GeneratedBP)
 				{
+					// Spawn an asset
 					AActor* NewActor = CurrentWorld->SpawnActor<AActor>(GeneratedBP->GeneratedClass, StartLocation, StartRotation, FActorSpawnParameters());
 					RootActor = Cast<ADisplayClusterRootActor>(NewActor);
+
+					// Override actor settings in case the config file contains some updates
+					RootActor->OverrideFromConfig(ConfigData);
 				}
 			}
 

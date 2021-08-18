@@ -20,7 +20,7 @@ class UTextureShareAPIImpl
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Create TextureShare"), Category = "TextureShare")
-	virtual bool CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer = true) override;
+	virtual bool CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer = true, float SyncWaitTime = 0.03f) override;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Delete TextureShare"), Category = "TextureShare")
 	virtual bool ReleaseTextureShare(const FString ShareName) override;

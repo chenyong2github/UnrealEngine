@@ -176,7 +176,7 @@ FDisplayClusterConfigurationProjection::FDisplayClusterConfigurationProjection()
 
 FDisplayClusterConfigurationPostprocess::FDisplayClusterConfigurationPostprocess()
 {
-	Type = TEXT("OutputRemap");
+	
 }
 
 const float UDisplayClusterConfigurationViewport::ViewportMinimumSize = 1.0f;

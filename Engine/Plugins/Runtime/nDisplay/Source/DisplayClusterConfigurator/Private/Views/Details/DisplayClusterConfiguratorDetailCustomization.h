@@ -212,6 +212,7 @@ protected:
 protected:
 	UObject* EditingObject;
 	TWeakPtr<IPropertyUtilities> PropertyUtilities;
+	bool bMultipleObjectsSelected = false;
 };
 
 /**

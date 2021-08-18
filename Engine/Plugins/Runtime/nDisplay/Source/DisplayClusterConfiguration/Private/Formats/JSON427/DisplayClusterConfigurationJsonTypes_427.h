@@ -405,6 +405,25 @@ public:
 };
 
 USTRUCT()
+struct FDisplayClusterConfigurationFramePostProcess_OutputRemap_427
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY()
+	bool bEnable = false;
+
+	UPROPERTY()
+	FString DataSource;
+
+	UPROPERTY()
+	FString StaticMeshAsset;
+
+	UPROPERTY()
+	FString ExternalFile;
+};
+
+USTRUCT()
 struct FDisplayClusterConfigurationJsonClusterNode_427
 {
 	GENERATED_BODY()
@@ -427,6 +446,9 @@ public:
 
 	UPROPERTY()
 	TMap<FString, FDisplayClusterConfigurationJsonViewport_427> Viewports;
+
+	UPROPERTY()
+	FDisplayClusterConfigurationFramePostProcess_OutputRemap_427 OutputRemap;
 };
 
 USTRUCT()

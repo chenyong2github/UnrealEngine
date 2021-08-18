@@ -36,9 +36,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual void ClearCache() override;
 
-	virtual bool IsSlave() const override final
+	virtual EDisplayClusterNodeRole GetClusterRole() const override
 	{
-		return false;
+		return EDisplayClusterNodeRole::Master;
 	}
 
 protected:

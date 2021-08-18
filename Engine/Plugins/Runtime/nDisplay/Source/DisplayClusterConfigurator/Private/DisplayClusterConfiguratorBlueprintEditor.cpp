@@ -226,6 +226,26 @@ void FDisplayClusterConfiguratorBlueprintEditor::PostRedo(bool bSuccess)
 	}
 }
 
+void FDisplayClusterConfiguratorBlueprintEditor::RefreshEditors(ERefreshBlueprintEditorReason::Type Reason)
+{
+	FBlueprintEditor::RefreshEditors(Reason);
+	
+	if (ViewportTabContent.IsValid())
+	{
+		TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> RefreshFunc =
+			[this](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+			{
+				if (Entity.IsValid())
+				{
+					TSharedRef<SDisplayClusterConfiguratorSCSEditorViewport> Viewport = StaticCastSharedRef<SDisplayClusterConfiguratorSCSEditorViewport>(Entity->AsWidget());
+					Viewport->RequestRefresh();
+				}
+			};
+
+		ViewportTabContent->PerformActionOnViewports(RefreshFunc);
+	}
+}
+
 UDisplayClusterConfigurationData* FDisplayClusterConfiguratorBlueprintEditor::GetEditorData() const
 {
 	if (!LoadedBlueprint.IsValid() || !LoadedBlueprint->GeneratedClass)
@@ -628,176 +648,22 @@ bool FDisplayClusterConfiguratorBlueprintEditor::CanExportConfig() const
 bool FDisplayClusterConfiguratorBlueprintEditor::SaveToFile(const FString& InFilePath)
 {
 	UDisplayClusterConfiguratorEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UDisplayClusterConfiguratorEditorSubsystem>();
-	UDisplayClusterConfigurationData* Data = GetEditorData();
-
-	if (EditorSubsystem && Data)
+	if (EditorSubsystem && LoadedBlueprint.IsValid())
 	{
-		// Components to export
-		TArray<UDisplayClusterCameraComponent*> CameraComponents;
-		TArray<UDisplayClusterScreenComponent*> ScreenComponents;
-		TArray<USceneComponent*>  XformComponents;
-		// Auxiliary map for building hierarchy
-		TMap<UActorComponent*, FString> ParentComponentsMap;
+		LoadedBlueprint->PrepareConfigForExport();
 
-		// Extract CDO cameras (no screens in the CDO)
-		if (ADisplayClusterRootActor* CDO = GetDefaultRootActor())
+		if (UDisplayClusterConfigurationData* Data = GetEditorData())
 		{
-			// Make sure the 'Scene' object is there. Otherwise instantiate it.
-			const EObjectFlags CommonFlags = RF_Public | RF_Transactional;
-			if (Data->Scene == nullptr)
+			// Finally, store data to the file
+			if (EditorSubsystem->SaveConfig(Data, InFilePath))
 			{
-				Data->Scene = NewObject<UDisplayClusterConfigurationScene>(
-					Data,
-					UDisplayClusterConfigurationScene::StaticClass(),
-					NAME_None,
-					Data->IsTemplate() ? RF_ArchetypeObject | CommonFlags : CommonFlags);
+				LoadedBlueprint->SetConfigPath(Data->PathToConfig);
+				return true;
 			}
-
-			// Get list of cameras
-			CDO->GetComponents<UDisplayClusterCameraComponent>(CameraComponents);
-		}
-
-		// Extract BP components
-		if (LoadedBlueprint.IsValid() && LoadedBlueprint->GeneratedClass.Get() != nullptr)
-		{
-			const TArray<USCS_Node*>& Nodes = LoadedBlueprint->SimpleConstructionScript->GetAllNodes();
-			for (const USCS_Node* const Node : Nodes)
-			{
-				// Fill ID info for all descendants
-				GatherParentComponentsInfo(Node, ParentComponentsMap);
-
-				// Cameras
-				if (Node->ComponentClass->IsChildOf(UDisplayClusterCameraComponent::StaticClass()))
-				{
-					UDisplayClusterCameraComponent* ComponentTemplate = CastChecked<UDisplayClusterCameraComponent>(Node->GetActualComponentTemplate(CastChecked<UBlueprintGeneratedClass>(LoadedBlueprint->GeneratedClass)));
-					CameraComponents.Add(ComponentTemplate);
-				}
-				// Screens
-				else if (Node->ComponentClass->IsChildOf(UDisplayClusterScreenComponent::StaticClass()))
-				{
-					UDisplayClusterScreenComponent* ComponentTemplate = CastChecked<UDisplayClusterScreenComponent>(Node->GetActualComponentTemplate(CastChecked<UBlueprintGeneratedClass>(LoadedBlueprint->GeneratedClass)));
-					ScreenComponents.Add(ComponentTemplate);
-				}
-				// All other components will be exported as Xforms
-				else if (Node->ComponentClass->IsChildOf(USceneComponent::StaticClass()))
-				{
-					USceneComponent* ComponentTemplate = CastChecked<USceneComponent>(Node->GetActualComponentTemplate(CastChecked<UBlueprintGeneratedClass>(LoadedBlueprint->GeneratedClass)));
-					XformComponents.Add(ComponentTemplate);
-				}
-			}
-		}
-
-		// Save asset path
-		Data->Info.AssetPath = LoadedBlueprint->GetPathName();
-
-		// Prepare the target containers
-		Data->Scene->Cameras.Empty(CameraComponents.Num());
-		Data->Scene->Screens.Empty(ScreenComponents.Num());
-		Data->Scene->Xforms.Empty(XformComponents.Num());
-
-		// Export cameras
-		for (const UDisplayClusterCameraComponent* const CfgComp : CameraComponents)
-		{
-			UDisplayClusterConfigurationSceneComponentCamera* SceneComp = NewObject<UDisplayClusterConfigurationSceneComponentCamera>(Data->Scene, CfgComp->GetFName());
-
-			// Save the properties
-			SceneComp->bSwapEyes = CfgComp->GetSwapEyes();
-			SceneComp->InterpupillaryDistance = CfgComp->GetInterpupillaryDistance();
-			// Safe to cast -- values match.
-			SceneComp->StereoOffset = (EDisplayClusterConfigurationEyeStereoOffset)CfgComp->GetStereoOffset();
-
-			FString* ParentId = ParentComponentsMap.Find(CfgComp);
-			SceneComp->ParentId = (ParentId ? *ParentId : FString());
-			SceneComp->Location = CfgComp->GetRelativeLocation();
-			SceneComp->Rotation = CfgComp->GetRelativeRotation();
-
-			// Store the object
-			Data->Scene->Cameras.Emplace(GetObjectNameFromSCSNode(SceneComp), SceneComp);
-		}
-
-		// Export screens
-		for (const UDisplayClusterScreenComponent* const CfgComp : ScreenComponents)
-		{
-			UDisplayClusterConfigurationSceneComponentScreen* SceneComp = NewObject<UDisplayClusterConfigurationSceneComponentScreen>(Data->Scene, CfgComp->GetFName());
-
-			// Save the properties
-			FString* ParentId = ParentComponentsMap.Find(CfgComp);
-			SceneComp->ParentId = (ParentId ? *ParentId : FString());
-			SceneComp->Location = CfgComp->GetRelativeLocation();
-			SceneComp->Rotation = CfgComp->GetRelativeRotation();
-
-			const FVector RelativeCompScale = CfgComp->GetRelativeScale3D();
-			SceneComp->Size = FVector2D(RelativeCompScale.Y, RelativeCompScale.Z);
-
-			// Store the object
-			Data->Scene->Screens.Emplace(GetObjectNameFromSCSNode(SceneComp), SceneComp);
-		}
-
-		// Export xforms
-		for (const USceneComponent* const CfgComp : XformComponents)
-		{
-			UDisplayClusterConfigurationSceneComponentXform* SceneComp = NewObject<UDisplayClusterConfigurationSceneComponentXform>(Data->Scene, CfgComp->GetFName());
-
-			// Save the properties
-			FString* ParentId = ParentComponentsMap.Find(CfgComp);
-			SceneComp->ParentId = (ParentId ? *ParentId : FString());
-			SceneComp->Location = CfgComp->GetRelativeLocation();
-			SceneComp->Rotation = CfgComp->GetRelativeRotation();
-
-			// Store the object
-			Data->Scene->Xforms.Emplace(GetObjectNameFromSCSNode(SceneComp), SceneComp);
-		}
-
-		// Finally, store data to the file
-		if (EditorSubsystem->SaveConfig(Data, InFilePath))
-		{
-			LoadedBlueprint->SetConfigPath(Data->PathToConfig);
-			return true;
 		}
 	}
 
 	return false;
-}
-
-FString FDisplayClusterConfiguratorBlueprintEditor::GetObjectNameFromSCSNode(const UObject* const Object) const
-{
-	FString OutCompName;
-
-	if (Object)
-	{
-		OutCompName = Object->GetName();
-		OutCompName.RemoveFromEnd(TEXT("_GEN_VARIABLE"));
-	}
-
-	return OutCompName;
-}
-
-void FDisplayClusterConfiguratorBlueprintEditor::GatherParentComponentsInfo(const USCS_Node* const InNode, TMap<UActorComponent*, FString>& OutParentsMap) const
-{
-	if (LoadedBlueprint.IsValid() && LoadedBlueprint->GeneratedClass.Get() != nullptr)
-	{
-		if (InNode && InNode->ComponentClass->IsChildOf(UActorComponent::StaticClass()))
-		{
-			// Save current node to the map
-			UActorComponent* ParentNode = InNode->GetActualComponentTemplate(CastChecked<UBlueprintGeneratedClass>(LoadedBlueprint->GeneratedClass));
-			if (!OutParentsMap.Contains(ParentNode))
-			{
-				OutParentsMap.Emplace(ParentNode);
-			}
-
-			// Now iterate through the children nodes
-			for (USCS_Node* ChildNode : InNode->ChildNodes)
-			{
-				UActorComponent* ChildComponentTemplate = CastChecked<UActorComponent>(ChildNode->GetActualComponentTemplate(CastChecked<UBlueprintGeneratedClass>(LoadedBlueprint->GeneratedClass)));
-				if (ChildComponentTemplate)
-				{
-					OutParentsMap.Emplace(ChildComponentTemplate, GetObjectNameFromSCSNode(InNode->ComponentTemplate));
-				}
-
-				GatherParentComponentsInfo(ChildNode, OutParentsMap);
-			}
-		}
-	}
 }
 
 bool FDisplayClusterConfiguratorBlueprintEditor::SaveWithOpenFileDialog()

@@ -41,6 +41,12 @@
 
 void FDisplayClusterConfiguratorProjectionCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	if (bMultipleObjectsSelected)
+	{
+		// Do not currently support multiple objects being edited.
+		return;
+	}
+	
 	FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeHeader(InPropertyHandle, InHeaderRow, CustomizationUtils);
 	CustomOption = MakeShared<FString>("Custom");
 
@@ -60,6 +66,12 @@ void FDisplayClusterConfiguratorProjectionCustomization::CustomizeHeader(TShared
 
 void FDisplayClusterConfiguratorProjectionCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	if (bMultipleObjectsSelected)
+	{
+		// Do not currently support multiple objects being edited.
+		return;
+	}
+	
 	FDisplayClusterConfiguratorPolymorphicEntityCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
 
 	// Hide properties 
@@ -126,7 +138,7 @@ void FDisplayClusterConfiguratorProjectionCustomization::AddProjectionPolicyRow(
 	ChildBuilder->AddCustomRow(TypeHandle->GetPropertyDisplayName())
 	.NameContent()
 	[
-		TypeHandle->CreatePropertyNameWidget()
+		TypeHandle->CreatePropertyNameWidget(FText::GetEmpty(), LOCTEXT("ProjectionPolicyTypeTooltip", "Type of Projection Policy"))
 	]
 	.ValueContent()
 	[
@@ -358,13 +370,17 @@ void FDisplayClusterConfiguratorProjectionCustomization::BuildParametersForPolic
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateSimplePolicy(UDisplayClusterBlueprint* Blueprint)
 {
-	CustomPolicyParameters.Add(MakeShared<FPolicyParameterInfoComponentCombo>(
+	TSharedPtr<FPolicyParameterInfoComponentCombo> ScreenCombo = MakeShared<FPolicyParameterInfoComponentCombo>(
 		"Screen",
 		DisplayClusterProjectionStrings::cfg::simple::Screen,
 		Blueprint,
 		ConfigurationViewportPtr.Get(),
 		ParametersHandle,
-		TArray<TSubclassOf<UActorComponent>>{ UDisplayClusterScreenComponent::StaticClass() }));
+		TArray<TSubclassOf<UActorComponent>>{ UDisplayClusterScreenComponent::StaticClass() });
+
+	ScreenCombo->SetParameterTooltip(LOCTEXT("SimplePolicyScreenTooltip", "Target Screen or Display"));
+
+	CustomPolicyParameters.Add(ScreenCombo);
 }
 
 void FDisplayClusterConfiguratorProjectionCustomization::CreateCameraPolicy(UDisplayClusterBlueprint* Blueprint)

@@ -34,6 +34,7 @@ namespace TextureShareItem
 
 		virtual bool SetTextureGPUIndex(const FString& TextureName, uint32 GPUIndex) override;
 		virtual bool SetDefaultGPUIndex(uint32 GPUIndex) override;
+		virtual void SetSyncWaitTime(float InSyncWaitTime) override;
 
 		virtual bool IsLocalTextureUsed(const FString& TextureName) const override
 			{ return IsTextureUsed(true, TextureName); }
@@ -132,6 +133,7 @@ namespace TextureShareItem
 		FSharedResource*           SharedResource = nullptr;
 		bool                       bIsSessionStarted = false;
 		bool                       bRemoteConnectionValid = false;
+		float                      SyncWaitTime = 0.03f;
 
 	private:
 		mutable FCriticalSection FrameLockGuard;

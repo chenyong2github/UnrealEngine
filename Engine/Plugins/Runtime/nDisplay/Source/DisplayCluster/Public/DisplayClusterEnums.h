@@ -19,6 +19,18 @@ enum class EDisplayClusterOperationMode : uint8
 	Disabled
 };
 
+/**
+ * Display cluster node role
+ */
+UENUM(BlueprintType)
+enum class EDisplayClusterNodeRole : uint8
+{
+	None = 0,
+	Master,
+	Slave,
+	Backup,
+};
+
 
 /**
  * Display cluster synchronization groups

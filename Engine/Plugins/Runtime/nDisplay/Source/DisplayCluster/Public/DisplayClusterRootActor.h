@@ -51,7 +51,20 @@ public:
 	~ADisplayClusterRootActor();
 
 public:
+
+	/**
+	 * Initialializes the instance with specified config data
+	 *
+	 * @param ConfigData - Configuration data
+	 */
 	void InitializeFromConfig(UDisplayClusterConfigurationData* ConfigData);
+
+	/**
+	 * Cherry picking settings from a specified config data
+	 *
+	 * @param ConfigData - Configuration data
+	 */
+	void OverrideFromConfig(UDisplayClusterConfigurationData* ConfigData);
 
 	/**
 	 * Update or create the config data object. The config sub object is only instantiated once.

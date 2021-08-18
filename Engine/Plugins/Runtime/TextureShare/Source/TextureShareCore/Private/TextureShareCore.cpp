@@ -94,7 +94,7 @@ bool FTextureShareCoreModule::GetTextureShareItem(const FString& InShareName, TS
 }
 
 // Create shared resource object
-bool FTextureShareCoreModule::CreateTextureShareItem(const FString& InShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, TSharedPtr<ITextureShareItem>& OutShareObject)
+bool FTextureShareCoreModule::CreateTextureShareItem(const FString& InShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, TSharedPtr<ITextureShareItem>& OutShareObject, float SyncWaitTime)
 {
 	if (IsShareNameEmpty(InShareName))
 	{
@@ -144,6 +144,9 @@ bool FTextureShareCoreModule::CreateTextureShareItem(const FString& InShareName,
 			UE_LOG(LogTextureShareCore, Error, TEXT("CreateTextureShare: Failed initialize Texture share '%s'"), *InShareName);
 			return false;
 		}
+
+		// set sync wait time
+		Resource->SetSyncWaitTime(SyncWaitTime);
 
 		// Save created object ptr
 		TSharedPtr<ITextureShareItem> NewShareObject = MakeShareable(Resource);

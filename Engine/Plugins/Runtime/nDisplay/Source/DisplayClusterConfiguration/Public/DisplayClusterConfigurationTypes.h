@@ -10,6 +10,7 @@
 #include "DisplayClusterConfigurationTypes_Base.h"
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_Viewport.h"
+#include "DisplayClusterConfigurationTypes_OutputRemap.h"
 
 #include "DisplayClusterConfigurationVersion.h"
 
@@ -314,6 +315,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Window"))
 	FDisplayClusterConfigurationRectangle WindowRect;
 
+	/** Output remapping settings for the selected cluster node */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Output Remapping"))
+	FDisplayClusterConfigurationFramePostProcess_OutputRemap OutputRemap;
+
 #if WITH_EDITORONLY_DATA
 	/** Locks the application window aspect ratio for easier resizing */
 	UPROPERTY(EditAnywhere, Category = "Configuration")
@@ -509,7 +514,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Advanced)
 	FDisplayClusterConfigurationInfo Info;
 
-	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced)
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Transient, Category = Advanced)
 	UDisplayClusterConfigurationScene* Scene;
 
 	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Instanced, Category = Advanced, meta = (DisplayThumbnail = false, ShowInnerProperties))

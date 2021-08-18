@@ -52,9 +52,9 @@ public:
 	 *
 	 * @return True if the success
 	 */
-	virtual bool CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process = ETextureShareProcess::Server) = 0;
+	virtual bool CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process = ETextureShareProcess::Server, float SyncWaitTime = 0.03f) = 0;
 
-	/**
+	/** 
 	 * Delete TextureShare object
 	 *
 	 * @param ShareName - Unique share name (case insensitive)
