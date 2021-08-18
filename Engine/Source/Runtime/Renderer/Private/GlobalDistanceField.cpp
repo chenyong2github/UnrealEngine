@@ -1252,7 +1252,6 @@ class FComposeObjectsIntoPagesCS : public FGlobalShader
 		SHADER_PARAMETER(float, ClipmapVoxelExtent)
 		SHADER_PARAMETER(float, InfluenceRadius)
 		SHADER_PARAMETER(float, InfluenceRadiusSq)
-		SHADER_PARAMETER(uint32, NumSceneObjects)
 		SHADER_PARAMETER(FIntVector, CullGridResolution)
 		SHADER_PARAMETER(FIntVector, GlobalDistanceFieldScrollOffset)
 		SHADER_PARAMETER(FVector3f, GlobalDistanceFieldInvPageAtlasSize)

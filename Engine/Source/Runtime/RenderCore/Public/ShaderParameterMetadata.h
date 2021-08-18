@@ -125,7 +125,10 @@ public:
 
 	/** Shader binding name of the uniform buffer that contains the root shader parameters. */
 	static constexpr const TCHAR* kRootUniformBufferBindingName = TEXT("_RootShaderParameters");
-	
+
+	/** Shader binding name of the uniform buffer that contains the root shader parameters. */
+	static constexpr int32 kRootCBufferBindingIndex = 0;
+
 	/** A member of a shader parameter structure. */
 	class RENDERCORE_API FMember
 	{

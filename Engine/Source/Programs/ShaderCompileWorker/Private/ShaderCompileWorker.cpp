@@ -396,6 +396,32 @@ private:
 			return CharName;
 		};
 
+		// Array of string used as const ANSICHAR* during compilation process.
+		TArray<TUniquePtr<TArray<ANSICHAR>>> AllocatedAnsiStrings;
+		auto DeserializeConstANSICHAR = [&AllocatedAnsiStrings](FArchive& Archive)
+		{
+			FString Name;
+			Archive << Name;
+
+			const ANSICHAR* CharName = nullptr;
+			if (Name.Len() != 0)
+			{
+				if (AllocatedAnsiStrings.GetSlack() == 0)
+				{
+					AllocatedAnsiStrings.Reserve(AllocatedAnsiStrings.Num() + 1024);
+				}
+
+				TArray<ANSICHAR> AnsiString;
+				AnsiString.SetNumZeroed(Name.Len() + 1);
+				ANSICHAR* Dest = &AnsiString[0];
+				FCStringAnsi::Strcpy(Dest, Name.Len() + 1, TCHAR_TO_ANSI(*Name));
+
+				AllocatedAnsiStrings.Add(MakeUnique<TArray<ANSICHAR>>(AnsiString));
+				CharName = &(*AllocatedAnsiStrings.Last())[0];
+			}
+			return CharName;
+		};
+
 		// Shared inputs
 		TMap<FString, FThreadSafeSharedStringPtr> ExternalIncludes;
 		{
@@ -441,6 +467,7 @@ private:
 				const TCHAR* StructTypeName;
 				const TCHAR* ShaderVariableName;
 				FShaderParametersMetadata::EUseCase UseCase;
+				const ANSICHAR* StructFileName;
 				int32 StructFileLine;
 				uint32 Size;
 				int32 MemberCount;
@@ -449,6 +476,7 @@ private:
 				StructTypeName = DeserializeConstTCHAR(InputFile);
 				ShaderVariableName = DeserializeConstTCHAR(InputFile);
 				InputFile << UseCase;
+				StructFileName = DeserializeConstANSICHAR(InputFile);
 				InputFile << StructFileLine;
 				InputFile << Size;
 				InputFile << MemberCount;
@@ -515,7 +543,7 @@ private:
 					/* InStructTypeName = */ StructTypeName,
 					/* InShaderVariableName = */ ShaderVariableName,
 					/* InStaticSlotName = */ nullptr,
-					/* InFileName = */ nullptr,
+					StructFileName,
 					StructFileLine,
 					Size,
 					Members,

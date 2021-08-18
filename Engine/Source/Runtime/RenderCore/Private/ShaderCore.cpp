@@ -1446,6 +1446,12 @@ void SerializeUniformBufferInfo(FShaderSaveArchive& Ar, const TMap<const TCHAR*,
 	}
 }
 
+FString MakeInjectedShaderCodeBlock(const TCHAR* BlockName, const FString& CodeToInject)
+{
+	return FString::Printf(TEXT("#line 1 \"%s\"\n%s"), BlockName, *CodeToInject);
+}
+
+
 FString FShaderCompilerError::GetShaderSourceFilePath() const
 {
 	if (IFileManager::Get().FileExists(*ErrorVirtualFilePath))
@@ -1566,6 +1572,7 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 	Ar << Input.SourceFilePrefix;
 	Ar << Input.VirtualSourceFilePath;
 	Ar << Input.EntryPointName;
+	Ar << Input.ShaderName;
 	Ar << Input.bSkipPreprocessedCache;
 	Ar << Input.bCompilingForShaderPipeline;
 	Ar << Input.bGenerateDirectCompileFile;

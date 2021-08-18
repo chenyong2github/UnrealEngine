@@ -1223,6 +1223,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 			FString StructTypeName = Struct->GetStructTypeName();
 			FString ShaderVariableName = Struct->GetShaderVariableName();
 			uint8 UseCase = uint8(Struct->GetUseCase());
+			FString StructFileName = FString(ANSI_TO_TCHAR(Struct->GetFileName()));
 			int32 StructFileLine = Struct->GetFileLine();
 			uint32 Size = Struct->GetSize();
 			int32 MemberCount = Struct->GetMembers().Num();
@@ -1233,6 +1234,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 			TransferFile << StructTypeName;
 			TransferFile << ShaderVariableName;
 			TransferFile << UseCase;
+			TransferFile << StructFileName;
 			TransferFile << StructFileLine;
 			TransferFile << Size;
 			TransferFile << MemberCount;
@@ -4955,6 +4957,7 @@ void GlobalBeginCompileShader(
 	Input.DebugDescription = DebugDescription;
 	Input.DebugExtension = DebugExtension;
 	Input.RootParametersStructure = ShaderType->GetRootParametersMetadata();
+	Input.ShaderName = ShaderType->GetName();
 
 	// Verify FShaderCompilerInput's file paths are consistent. 
 	#if DO_CHECK

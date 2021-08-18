@@ -919,6 +919,10 @@ extern void GenerateReferencedUniformBuffers(
 /** Records information about all the uniform buffer layouts referenced by UniformBufferEntries. */
 extern RENDERCORE_API void SerializeUniformBufferInfo(class FShaderSaveArchive& Ar, const TMap<const TCHAR*,FCachedUniformBufferDeclaration>& UniformBufferEntries);
 
+/** Create a block of source code to be injected in the preprocessed shader code. The Block will be put into a #line directive
+ * to show up in case shader compilation failures happen in this code block.
+ */
+FString RENDERCORE_API MakeInjectedShaderCodeBlock(const TCHAR* BlockName, const FString& CodeToInject);
 
 
 /**
