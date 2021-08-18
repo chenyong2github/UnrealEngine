@@ -46,7 +46,7 @@ public:
 	virtual ~IFileCacheHandle() {};
 
 	/** Return size of underlying file cache in bytes. */
-	CORE_API static uint32 GetFileCacheSize();
+	CORE_API static int64 GetFileCacheSize();
 
 	/**
 	 * Read a byte range form the file. This can be a high-throughput operation and done lots of times for small reads.
