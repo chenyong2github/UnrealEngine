@@ -118,7 +118,8 @@ private:
 		NotFound,
 		Corrupted
 	};
-	EGetResult GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) const;
+	EGetResult GetZenData(FStringView Uri, TArray64<uint8>& OutData) const;
+	EGetResult GetZenData(FStringView Uri, TArray<uint8>* OutData) const;
 
 	// TODO: need ability to specify content type
 	FDerivedDataBackendInterface::EPutStatus PutZenData(const TCHAR* Uri, const FCompositeBuffer& InData, Zen::EContentType ContentType);

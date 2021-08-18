@@ -22,7 +22,7 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
-#include "Serialization/MemoryReader.h"
+#include "Serialization/LargeMemoryReader.h"
 
 namespace UE::Zen {
 
@@ -123,7 +123,7 @@ namespace UE::Zen {
 		return PerformBlocking(Uri, RequestVerb::Put, ContentLength);
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDownload(const TCHAR* Uri, TArray<uint8>* Buffer)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer)
 	{
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		WriteDataBufferPtr = Buffer;
@@ -136,7 +136,7 @@ namespace UE::Zen {
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
 		OutPackage.Reset();
 		// TODO: When PackageBytes can be written in segments directly, set the WritePtr to the OutPackage and use that
-		TArray<uint8> PackageBytes;
+		TArray64<uint8> PackageBytes;
 		WriteDataBufferPtr = &PackageBytes;
 		Result LocalResult = PerformBlocking(Uri, RequestVerb::Get, 0u);
 		if (IsSuccessCode(ResponseCode))
@@ -147,7 +147,7 @@ namespace UE::Zen {
 			}
 			else
 			{
-				FMemoryReader PackageLoader(PackageBytes);
+				FLargeMemoryReader PackageLoader(PackageBytes.GetData(), PackageBytes.Num());
 				bResponseFormatValid = OutPackage.TryLoad(PackageLoader);
 			}
 		}
@@ -169,7 +169,7 @@ namespace UE::Zen {
 		return PerformBlocking(Uri, RequestVerb::Delete, 0u);
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(const TCHAR* Uri, RequestVerb Verb, uint32 ContentLength)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength)
 	{
 		static const char* CommonHeaders[] = {
 			"User-Agent: UE",
@@ -179,7 +179,7 @@ namespace UE::Zen {
 		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_CurlPerform);
 
 		// Setup request options
-		FString Url = FString::Printf(TEXT("%s/%s"), *Domain, Uri);
+		FString Url = FString::Printf(TEXT("%s/%s"), *Domain, *FString(Uri));
 		curl_easy_setopt(Curl, CURLOPT_URL, TCHAR_TO_ANSI(*Url));
 
 		// Setup response header buffer. If caller has not setup a response data buffer, use internal.
@@ -216,7 +216,7 @@ namespace UE::Zen {
 			bRedirected = (ResponseCode >= 300 && ResponseCode < 400);
 		}
 
-		LogResult(CurlResult, Uri, Verb);
+		LogResult(CurlResult, *FString(Uri), Verb);
 
 		// Clean up
 		curl_slist_free_all(CurlHeaders);
@@ -303,7 +303,7 @@ namespace UE::Zen {
 		}
 	}
 
-	FString FZenHttpRequest::GetAnsiBufferAsString(const TArray<uint8>& Buffer)
+	FString FZenHttpRequest::GetAnsiBufferAsString(const TArray64<uint8>& Buffer)
 	{
 		// Content is NOT null-terminated; we need to specify lengths here
 		FUTF8ToTCHAR TCHARData(reinterpret_cast<const ANSICHAR*>(Buffer.GetData()), Buffer.Num());
@@ -371,7 +371,7 @@ namespace UE::Zen {
 	{
 		FZenHttpRequest* Request = static_cast<FZenHttpRequest*>(UserData);
 		const size_t WriteSize = SizeInBlocks * BlockSizeInBytes;
-		TArray<uint8>* WriteHeaderBufferPtr = Request->WriteHeaderBufferPtr;
+		TArray64<uint8>* WriteHeaderBufferPtr = Request->WriteHeaderBufferPtr;
 		if (WriteHeaderBufferPtr && WriteSize > 0)
 		{
 			const size_t CurrentBufferLength = WriteHeaderBufferPtr->Num();
@@ -393,7 +393,7 @@ namespace UE::Zen {
 	{
 		FZenHttpRequest* Request = static_cast<FZenHttpRequest*>(UserData);
 		const size_t WriteSize = SizeInBlocks * BlockSizeInBytes;
-		TArray<uint8>* WriteDataBufferPtr = Request->WriteDataBufferPtr;
+		TArray64<uint8>* WriteDataBufferPtr = Request->WriteDataBufferPtr;
 
 		if (WriteDataBufferPtr && WriteSize > 0)
 		{
@@ -468,11 +468,13 @@ namespace UE::Zen {
 		}
 	}
 
-	/**
-		* Block until a request is free. Once a request has been returned it is
-		* "owned by the caller and need to release it to the pool when work has been completed.
-		* @return Usable request instance.
-		*/
+	/** Block until a request is free
+	  * 
+	  * Once a request has been returned it is owned by the caller and 
+	  * it needs to release it to the pool when work has been completed
+	  * 
+	  * @return Usable request instance.
+	  */
 	FZenHttpRequest* FZenHttpRequestPool::WaitForFreeRequest()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_WaitForConnPool);
@@ -494,9 +496,9 @@ namespace UE::Zen {
 	}
 
 	/**
-		* Release request to the pool.
-		* @param Request Request that should be freed. Note that any buffer owened by the request can now be reset.
-		*/
+	  * Release request to the pool.
+	  * @param Request Request that should be freed. Note that any buffer owned by the request can now be reset.
+	  */
 	void FZenHttpRequestPool::ReleaseRequestToPool(FZenHttpRequest* Request)
 	{
 		for (uint8 i = 0; i < Pool.Num(); ++i)
