@@ -356,10 +356,10 @@ void InjectShadowedLocalLightPS(
 			float ShadowFactor = 1.0f;
 
 			bool IsPointLight = LightData.bRadialLight && !LightData.bSpotLight;
-			
+	
 #if ENABLE_SHADOW_COMPUTATION
 			if (CombinedAttenuation > 0)
-			{
+			{			
 				bool bUnused = false;
 				ShadowFactor = ComputeVolumeShadowing(WorldPosition, IsPointLight, LightData.bSpotLight, bUnused);
 

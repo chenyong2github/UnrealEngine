@@ -72,6 +72,11 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 		FVector4 ShadowmapMinMaxValue;
 		ShaderParams.WorldToShadowMatrix = ShadowInfo->GetWorldToShadowMatrix(ShaderParams.ShadowmapMinMax);
 	}
+	else
+	{
+		ShaderParams.WorldToShadowMatrix = FMatrix::Identity;
+		ShaderParams.ShadowmapMinMax = FVector4(1.0f);
+	}
 
 	// default to ignore the plane
 	FVector4 Planes[2] = { FVector4(0, 0, 0, -1), FVector4(0, 0, 0, -1) };
@@ -130,6 +135,7 @@ static auto GetVolumeShadowingShaderParametersGlobal = [](
 	else
 	{
 		ShadowDepthTextureResource = SystemTextures.Black;
+		ShaderParams.DepthBiasParameters = FVector(1.0f);
 	}
 	check(ShadowDepthTextureResource)
 		ShaderParams.ShadowDepthTexture = ShadowDepthTextureResource;

@@ -284,6 +284,14 @@ static TAutoConsoleVariable<int32> CVarClipmapUseConservativeCulling(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarForceOnlyVirtualShadowMaps(
+	TEXT("r.Shadow.Virtual.ForceOnlyVirtualShadowMaps"),
+	0,
+	TEXT("If enabled, disallow creation of conventional non-virtual shadow maps for any lights that get a virtual shadow map.\n")
+	TEXT("This can improve performance and save memory, but any geometric primitives that cannot be rendered into the virtual shadow map will not cast shadows."),
+	ECVF_RenderThreadSafe
+);
+
 
 CSV_DECLARE_CATEGORY_EXTERN(LightCount);
 
@@ -3708,66 +3716,70 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 				}
 				
-				for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
+				// If using *only* virtual shadow maps via forced CVar, skip creation of the non-virtual shadow map
+				if (!bNeedsVirtualShadowMap || CVarForceOnlyVirtualShadowMaps.GetValueOnRenderThread() == 0)
 				{
-					// Create the projected shadow info.
-					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-
-					ProjectedShadowInfo->SetupWholeSceneProjection(
-						LightSceneInfo,
-						NULL,
-						ProjectedShadowInitializer,
-						SizeX,
-						SizeY,
-						SizeX,
-						SizeY,
-						ShadowBorder
-						);
-
-					ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
-					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-
-					MemStackProjectedShadows.Add(ProjectedShadowInfo);
-
-					// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
-					if (bNeedsVirtualShadowMap)
+					for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
 					{
-						ProjectedShadowInfo->bNaniteGeometry = false;
-					}
+						// Create the projected shadow info.
+						FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
 
-					bool bContainsNaniteSubjects = false;
+						ProjectedShadowInfo->SetupWholeSceneProjection(
+							LightSceneInfo,
+							NULL,
+							ProjectedShadowInitializer,
+							SizeX,
+							SizeY,
+							SizeX,
+							SizeY,
+							ShadowBorder
+							);
 
-					// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling should be used
-					if (!ProjectedShadowInfo->bRayTracedDistanceField)
-					{
-						bool bCastCachedShadowFromMovablePrimitives = GCachedShadowsCastFromMovablePrimitives || LightSceneInfo->Proxy->GetForceCachedShadowsForMovablePrimitives();
-						if (CacheMode[CacheModeIndex] != SDCM_StaticPrimitivesOnly 
-							&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
+						ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
+						ProjectedShadowInfo->FadeAlphas = FadeAlphas;
+
+						MemStackProjectedShadows.Add(ProjectedShadowInfo);
+
+						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+						if (bNeedsVirtualShadowMap)
 						{
-							// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+							ProjectedShadowInfo->bNaniteGeometry = false;
 						}
+
+						bool bContainsNaniteSubjects = false;
+
+						// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling should be used
+						if (!ProjectedShadowInfo->bRayTracedDistanceField)
+						{
+							bool bCastCachedShadowFromMovablePrimitives = GCachedShadowsCastFromMovablePrimitives || LightSceneInfo->Proxy->GetForceCachedShadowsForMovablePrimitives();
+							if (CacheMode[CacheModeIndex] != SDCM_StaticPrimitivesOnly 
+								&& (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly || bCastCachedShadowFromMovablePrimitives))
+							{
+								// Add all the shadow casting primitives affected by the light to the shadow's subject primitive list.
+								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+							}
 						
-						if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
-						{
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+							if (CacheMode[CacheModeIndex] != SDCM_MovablePrimitivesOnly)
+							{
+								AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(), ProjectedShadowInfo, bContainsNaniteSubjects);
+							}
 						}
-					}
 
-					bool bRenderShadow = true;
+						bool bRenderShadow = true;
 					
-					if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly)
-					{
-						const bool bHasStaticPrimitives = ProjectedShadowInfo->HasSubjectPrims() || bContainsNaniteSubjects;
-						bRenderShadow = bHasStaticPrimitives;
-						FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(ProjectedShadowInfo->GetLightSceneInfo().Id);
-						CachedShadowMapData.bCachedShadowMapHasPrimitives = bHasStaticPrimitives;
-						CachedShadowMapData.bCachedShadowMapHasNaniteGeometry = ProjectedShadowInfo->bNaniteGeometry;
-					}
+						if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly)
+						{
+							const bool bHasStaticPrimitives = ProjectedShadowInfo->HasSubjectPrims() || bContainsNaniteSubjects;
+							bRenderShadow = bHasStaticPrimitives;
+							FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(ProjectedShadowInfo->GetLightSceneInfo().Id);
+							CachedShadowMapData.bCachedShadowMapHasPrimitives = bHasStaticPrimitives;
+							CachedShadowMapData.bCachedShadowMapHasNaniteGeometry = ProjectedShadowInfo->bNaniteGeometry;
+						}
 
-					if (bRenderShadow)
-					{
-						VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
+						if (bRenderShadow)
+						{
+							VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
+						}
 					}
 				}
 			}
@@ -4654,158 +4666,161 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			float MaxNonFarCascadeDistance = 0.0f;
 
-			// todo: this code can be simplified by computing all the distances in one place - avoiding some redundant work and complexity
-			for (int32 Index = 0; Index < ProjectionCount; Index++)
+
+			if (!bNeedsVirtualShadowMap || CVarForceOnlyVirtualShadowMaps.GetValueOnRenderThread() == 0)
 			{
-				FWholeSceneProjectedShadowInitializer ProjectedShadowInitializer;
-
-				int32 LocalIndex = Index;
-
-				// Indexing like this puts the ray traced shadow cascade last (might not be needed)
-				if(bExtraDistanceFieldCascade && LocalIndex + 1 == ProjectionCount)
+				for (int32 Index = 0; Index < ProjectionCount; Index++)
 				{
-					LocalIndex = INDEX_NONE;
-				}
+					FWholeSceneProjectedShadowInitializer ProjectedShadowInitializer;
 
-				if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
-				{
-					if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade)
+					int32 LocalIndex = Index;
+
+					// Indexing like this puts the ray traced shadow cascade last (might not be needed)
+					if(bExtraDistanceFieldCascade && LocalIndex + 1 == ProjectionCount)
 					{
-						MaxNonFarCascadeDistance = FMath::Max(MaxNonFarCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
-					}
-					uint32 ShadowBorder = NeedsUnatlasedCSMDepthsWorkaround( FeatureLevel ) ? 0 : SHADOW_BORDER;
-					
-					const int32 MaxCSMResolution = GetCachedScalabilityCVars().MaxCSMShadowResolution;
-					const int32 MinCSMResolution = 32;
-					FIntPoint ShadowBufferResolution = FIntPoint( FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeX ) - ShadowBorder * 2,
-														          FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeY ) - ShadowBorder * 2 );
-
-					int32 NumShadowMaps = 1;
-					EShadowDepthCacheMode CacheMode[2] = { SDCM_Uncached, SDCM_Uncached };
-
-					if (!View.bIsSceneCapture && !ProjectedShadowInitializer.bRayTracedDistanceField)
-					{
-						ComputeViewDependentWholeSceneShadowCacheModes(
-							&LightSceneInfo,
-							ViewFamily.CurrentRealTime,
-							Scene,
-							ProjectedShadowInitializer,
-							ShadowBufferResolution,
-							NumCSMCachesUpdatedThisFrame,
-							NumShadowMaps,
-							CacheMode);
+						LocalIndex = INDEX_NONE;
 					}
 
-					for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
+					if (LightSceneInfo.Proxy->GetViewDependentWholeSceneProjectedShadowInitializer(View, LocalIndex, LightSceneInfo.IsPrecomputedLightingValid(), ProjectedShadowInitializer))
 					{
-						// Create the projected shadow info.
-						FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-						ProjectedShadowInfo->SetupWholeSceneProjection(
-							&LightSceneInfo,
-							&View,
-							ProjectedShadowInitializer,
-							ShadowBufferResolution.X,
-							ShadowBufferResolution.Y,
-							ShadowBufferResolution.X,
-							ShadowBufferResolution.Y,
-							ShadowBorder
-						);
-						ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-						ProjectedShadowInfo->ProjectionIndex = Index;
-						ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
-
-						MemStackProjectedShadows.Add(ProjectedShadowInfo);
-						VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
-						ShadowInfos.Add(ProjectedShadowInfo);
-
-						if (bNeedsVirtualShadowMap && !ProjectedShadowInitializer.bRayTracedDistanceField)
+						if (!ProjectedShadowInitializer.CascadeSettings.bFarShadowCascade)
 						{
-							// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
-							ProjectedShadowInfo->bNaniteGeometry = false;
+							MaxNonFarCascadeDistance = FMath::Max(MaxNonFarCascadeDistance, ProjectedShadowInitializer.CascadeSettings.SplitFar);
+						}
+						uint32 ShadowBorder = NeedsUnatlasedCSMDepthsWorkaround( FeatureLevel ) ? 0 : SHADOW_BORDER;
+					
+						const int32 MaxCSMResolution = GetCachedScalabilityCVars().MaxCSMShadowResolution;
+						const int32 MinCSMResolution = 32;
+						FIntPoint ShadowBufferResolution = FIntPoint( FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeX ) - ShadowBorder * 2,
+																	  FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeY ) - ShadowBorder * 2 );
+
+						int32 NumShadowMaps = 1;
+						EShadowDepthCacheMode CacheMode[2] = { SDCM_Uncached, SDCM_Uncached };
+
+						if (!View.bIsSceneCapture && !ProjectedShadowInitializer.bRayTracedDistanceField)
+						{
+							ComputeViewDependentWholeSceneShadowCacheModes(
+								&LightSceneInfo,
+								ViewFamily.CurrentRealTime,
+								Scene,
+								ProjectedShadowInitializer,
+								ShadowBufferResolution,
+								NumCSMCachesUpdatedThisFrame,
+								NumShadowMaps,
+								CacheMode);
 						}
 
-						// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
-						if (!ProjectedShadowInfo->bRayTracedDistanceField)
+						for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
 						{
-							ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
+							// Create the projected shadow info.
+							FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
+							ProjectedShadowInfo->SetupWholeSceneProjection(
+								&LightSceneInfo,
+								&View,
+								ProjectedShadowInitializer,
+								ShadowBufferResolution.X,
+								ShadowBufferResolution.Y,
+								ShadowBufferResolution.X,
+								ShadowBufferResolution.Y,
+								ShadowBorder
+							);
+							ProjectedShadowInfo->FadeAlphas = FadeAlphas;
+							ProjectedShadowInfo->ProjectionIndex = Index;
+							ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 
-							if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly || CacheMode[CacheModeIndex] == SDCM_CSMScrolling)
+							MemStackProjectedShadows.Add(ProjectedShadowInfo);
+							VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
+							ShadowInfos.Add(ProjectedShadowInfo);
+
+							if (bNeedsVirtualShadowMap && !ProjectedShadowInitializer.bRayTracedDistanceField)
 							{
-								FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(LightSceneInfo.Id, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex);
+								// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
+								ProjectedShadowInfo->bNaniteGeometry = false;
+							}
 
-								if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly)
+							// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
+							if (!ProjectedShadowInfo->bRayTracedDistanceField)
+							{
+								ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
+
+								if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly || CacheMode[CacheModeIndex] == SDCM_CSMScrolling)
 								{
-									CachedShadowMapData.MaxSubjectZ = ProjectedShadowInfo->MaxSubjectZ;
-									CachedShadowMapData.MinSubjectZ = ProjectedShadowInfo->MinSubjectZ;
-									CachedShadowMapData.PreShadowTranslation = ProjectedShadowInfo->PreShadowTranslation;
-								}
-								else // CacheMode[CacheModeIndex] == SDCM_CSMScrolling
-								{
-									const FVector FaceDirection(1, 0, 0);
-									FVector	XAxis, YAxis;
-									FaceDirection.FindBestAxisVectors(XAxis, YAxis);
-									const FMatrix WorldToLight = ProjectedShadowInitializer.WorldToLight * FBasisVectorMatrix(-XAxis, YAxis, FaceDirection.GetSafeNormal(), FVector::ZeroVector);
-									const FMatrix LightToWorld = WorldToLight.InverseFast();
+									FCachedShadowMapData& CachedShadowMapData = Scene->GetCachedShadowMapDataRef(LightSceneInfo.Id, ProjectedShadowInfo->CascadeSettings.ShadowSplitIndex);
 
-									FVector UpVector = LightToWorld.TransformVector(FVector(0.0f, 1.0f, 0.0f));
-									FVector RightVector = LightToWorld.TransformVector(FVector(1.0f, 0.0f, 0.0f));
-
-									// Projected the centers to the light coordinate, recalculate the projected center because the ProjectedShadowInfo's PreShadowTranslation was modified
-									FVector ProjectedCurrentCenter = WorldToLight.TransformPosition(-ProjectedShadowInfo->PreShadowTranslation);
-									FVector ProjectedCachedCenter = WorldToLight.TransformPosition(-CachedShadowMapData.PreShadowTranslation);
-									FVector ProjectedCenterVector = ProjectedCachedCenter - ProjectedCurrentCenter;
-
-									ProjectedShadowInfo->CSMScrollingZOffset = ProjectedCenterVector.Z;
-
-									FVector2D BorderScale = FVector2D(float(ProjectedShadowInfo->ResolutionX + 2 * ProjectedShadowInfo->BorderSize) / ProjectedShadowInfo->ResolutionX, float(ProjectedShadowInfo->ResolutionY + 2 * ProjectedShadowInfo->BorderSize) / ProjectedShadowInfo->ResolutionY);
-									FVector2D CurrentRadius = ProjectedShadowInitializer.SubjectBounds.SphereRadius * BorderScale;
-									FVector2D CachedRadius = CachedShadowMapData.Initializer.SubjectBounds.SphereRadius * BorderScale;
-
-									FBox CurrentViewport = FBox(FVector(-CurrentRadius.X, -CurrentRadius.Y, 0.0f), FVector(CurrentRadius.X, CurrentRadius.Y, 0.0f));
-									FBox CachedViewport = FBox(FVector(ProjectedCenterVector.X - CachedRadius.X, ProjectedCenterVector.Y - CachedRadius.Y, 0.0f), FVector(ProjectedCenterVector.X + CachedRadius.X, ProjectedCenterVector.Y + CachedRadius.Y, 0.0f));
-
-									FBox OverlappedViewport = CurrentViewport.Overlap(CachedViewport);
-
-									float CachedViewportWidth = CachedViewport.Max.X - CachedViewport.Min.X;
-									float CachedViewportHeight = CachedViewport.Max.Y - CachedViewport.Min.Y;
-									ProjectedShadowInfo->OverlappedUVOnCachedShadowMap = FVector4((OverlappedViewport.Min.X - CachedViewport.Min.X) / CachedViewportWidth
-										, (CachedViewport.Max.Y - OverlappedViewport.Max.Y) / CachedViewportHeight
-										, (OverlappedViewport.Max.X - CachedViewport.Min.X) / CachedViewportWidth
-										, (CachedViewport.Max.Y - OverlappedViewport.Min.Y) / CachedViewportHeight);
-
-									float CurrentViewportWidth = CurrentViewport.Max.X - CurrentViewport.Min.X;
-									float CurrentViewportHeight = CurrentViewport.Max.Y - CurrentViewport.Min.Y;
-									ProjectedShadowInfo->OverlappedUVOnCurrentShadowMap = FVector4((OverlappedViewport.Min.X - CurrentViewport.Min.X) / CurrentViewportWidth
-										, (CurrentViewport.Max.Y - OverlappedViewport.Max.Y) / CurrentViewportHeight
-										, (OverlappedViewport.Max.X - CurrentViewport.Min.X) / CurrentViewportWidth
-										, (CurrentViewport.Max.Y - OverlappedViewport.Min.Y) / CurrentViewportHeight);
-
-									TArray<FPlane, TInlineAllocator<4>>& ExtraCullingPlanes = ProjectedShadowInfo->CSMScrollingExtraCullingPlanes;
-
-									ExtraCullingPlanes.Empty();
-
-									//Top
-									if (CurrentViewport.Max.Y > OverlappedViewport.Max.Y)
+									if (CacheMode[CacheModeIndex] == SDCM_StaticPrimitivesOnly)
 									{
-										ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(0.0f, OverlappedViewport.Max.Y, 0.0f)), -UpVector));
+										CachedShadowMapData.MaxSubjectZ = ProjectedShadowInfo->MaxSubjectZ;
+										CachedShadowMapData.MinSubjectZ = ProjectedShadowInfo->MinSubjectZ;
+										CachedShadowMapData.PreShadowTranslation = ProjectedShadowInfo->PreShadowTranslation;
 									}
-
-									//Bottom
-									if (CurrentViewport.Min.Y < OverlappedViewport.Min.Y)
+									else // CacheMode[CacheModeIndex] == SDCM_CSMScrolling
 									{
-										ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(0.0f, OverlappedViewport.Min.Y, 0.0f)), UpVector));
-									}
+										const FVector FaceDirection(1, 0, 0);
+										FVector	XAxis, YAxis;
+										FaceDirection.FindBestAxisVectors(XAxis, YAxis);
+										const FMatrix WorldToLight = ProjectedShadowInitializer.WorldToLight * FBasisVectorMatrix(-XAxis, YAxis, FaceDirection.GetSafeNormal(), FVector::ZeroVector);
+										const FMatrix LightToWorld = WorldToLight.InverseFast();
 
-									//Left
-									if (CurrentViewport.Min.X < OverlappedViewport.Min.X)
-									{
-										ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(OverlappedViewport.Min.X, 0.0f, 0.0f)), RightVector));
-									}
+										FVector UpVector = LightToWorld.TransformVector(FVector(0.0f, 1.0f, 0.0f));
+										FVector RightVector = LightToWorld.TransformVector(FVector(1.0f, 0.0f, 0.0f));
 
-									//Right
-									if (CurrentViewport.Max.X > OverlappedViewport.Max.X)
-									{
-										ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(OverlappedViewport.Max.X, 0.0f, 0.0f)), -RightVector));
+										// Projected the centers to the light coordinate, recalculate the projected center because the ProjectedShadowInfo's PreShadowTranslation was modified
+										FVector ProjectedCurrentCenter = WorldToLight.TransformPosition(-ProjectedShadowInfo->PreShadowTranslation);
+										FVector ProjectedCachedCenter = WorldToLight.TransformPosition(-CachedShadowMapData.PreShadowTranslation);
+										FVector ProjectedCenterVector = ProjectedCachedCenter - ProjectedCurrentCenter;
+
+										ProjectedShadowInfo->CSMScrollingZOffset = ProjectedCenterVector.Z;
+
+										FVector2D BorderScale = FVector2D(float(ProjectedShadowInfo->ResolutionX + 2 * ProjectedShadowInfo->BorderSize) / ProjectedShadowInfo->ResolutionX, float(ProjectedShadowInfo->ResolutionY + 2 * ProjectedShadowInfo->BorderSize) / ProjectedShadowInfo->ResolutionY);
+										FVector2D CurrentRadius = ProjectedShadowInitializer.SubjectBounds.SphereRadius * BorderScale;
+										FVector2D CachedRadius = CachedShadowMapData.Initializer.SubjectBounds.SphereRadius * BorderScale;
+
+										FBox CurrentViewport = FBox(FVector(-CurrentRadius.X, -CurrentRadius.Y, 0.0f), FVector(CurrentRadius.X, CurrentRadius.Y, 0.0f));
+										FBox CachedViewport = FBox(FVector(ProjectedCenterVector.X - CachedRadius.X, ProjectedCenterVector.Y - CachedRadius.Y, 0.0f), FVector(ProjectedCenterVector.X + CachedRadius.X, ProjectedCenterVector.Y + CachedRadius.Y, 0.0f));
+
+										FBox OverlappedViewport = CurrentViewport.Overlap(CachedViewport);
+
+										float CachedViewportWidth = CachedViewport.Max.X - CachedViewport.Min.X;
+										float CachedViewportHeight = CachedViewport.Max.Y - CachedViewport.Min.Y;
+										ProjectedShadowInfo->OverlappedUVOnCachedShadowMap = FVector4((OverlappedViewport.Min.X - CachedViewport.Min.X) / CachedViewportWidth
+											, (CachedViewport.Max.Y - OverlappedViewport.Max.Y) / CachedViewportHeight
+											, (OverlappedViewport.Max.X - CachedViewport.Min.X) / CachedViewportWidth
+											, (CachedViewport.Max.Y - OverlappedViewport.Min.Y) / CachedViewportHeight);
+
+										float CurrentViewportWidth = CurrentViewport.Max.X - CurrentViewport.Min.X;
+										float CurrentViewportHeight = CurrentViewport.Max.Y - CurrentViewport.Min.Y;
+										ProjectedShadowInfo->OverlappedUVOnCurrentShadowMap = FVector4((OverlappedViewport.Min.X - CurrentViewport.Min.X) / CurrentViewportWidth
+											, (CurrentViewport.Max.Y - OverlappedViewport.Max.Y) / CurrentViewportHeight
+											, (OverlappedViewport.Max.X - CurrentViewport.Min.X) / CurrentViewportWidth
+											, (CurrentViewport.Max.Y - OverlappedViewport.Min.Y) / CurrentViewportHeight);
+
+										TArray<FPlane, TInlineAllocator<4>>& ExtraCullingPlanes = ProjectedShadowInfo->CSMScrollingExtraCullingPlanes;
+
+										ExtraCullingPlanes.Empty();
+
+										//Top
+										if (CurrentViewport.Max.Y > OverlappedViewport.Max.Y)
+										{
+											ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(0.0f, OverlappedViewport.Max.Y, 0.0f)), -UpVector));
+										}
+
+										//Bottom
+										if (CurrentViewport.Min.Y < OverlappedViewport.Min.Y)
+										{
+											ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(0.0f, OverlappedViewport.Min.Y, 0.0f)), UpVector));
+										}
+
+										//Left
+										if (CurrentViewport.Min.X < OverlappedViewport.Min.X)
+										{
+											ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(OverlappedViewport.Min.X, 0.0f, 0.0f)), RightVector));
+										}
+
+										//Right
+										if (CurrentViewport.Max.X > OverlappedViewport.Max.X)
+										{
+											ExtraCullingPlanes.Add(FPlane(LightToWorld.TransformPosition(ProjectedCurrentCenter + FVector(OverlappedViewport.Max.X, 0.0f, 0.0f)), -RightVector));
+										}
 									}
 								}
 							}
@@ -4842,6 +4857,9 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);
 				}
+
+				// NOTE: If there are multiple camera views this will simply be associated with "one of them"
+				VisibleLightInfo.VirtualShadowMapId = VirtualShadowMapClipmap->GetVirtualShadowMap(0)->ID;
 			}
 		}
 	}

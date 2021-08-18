@@ -7,6 +7,9 @@
 #ifndef VIRTUAL_SHADOW_MAP
 	#define VIRTUAL_SHADOW_MAP 0
 #endif
+#ifndef DENSE_SHADOW_MAP
+	#define DENSE_SHADOW_MAP 0
+#endif
 
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
@@ -131,10 +134,16 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 						bVSMValid = VirtualShadowMapSample.bValid;
 						ShadowMaskRay.ShadowFactor = VirtualShadowMapSample.ShadowFactor;
-						ShadowMaskRay.bShadowFactorComplete = VirtualShadowMapSample.bValid && ShadowMaskRay.ShadowFactor < 0.01f;
+						
+						// If there's also a dense shadow map present we need to sample both (unless the VSM determines we are fully shadowed anyways)
+						ShadowMaskRay.bShadowFactorComplete = ShadowMaskRay.ShadowFactor < 0.01f;
+						#if !DENSE_SHADOW_MAP
+						ShadowMaskRay.bShadowFactorComplete = ShadowMaskRay.bShadowFactorComplete || VirtualShadowMapSample.bValid;
+						#endif
 					}
 					#endif
 
+					#if DENSE_SHADOW_MAP
 					if (!ShadowMaskRay.bShadowFactorComplete)
 					{
 						float3 WorldPositionForShadowing = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, 1.0f);
@@ -169,6 +178,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 						}
 						#endif
 					}
+					#endif
 				}
 			}
 		}

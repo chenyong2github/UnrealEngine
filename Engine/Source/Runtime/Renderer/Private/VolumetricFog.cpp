@@ -408,13 +408,18 @@ void GetVolumeShadowingShaderParameters(
 {
 	//@todo DynamicGI: remove duplication with FVolumeShadowingParameters
 
-	if (bDynamicallyShadowed)
+	if (bDynamicallyShadowed && ShadowMap != nullptr)
 	{
 		FVector4 ShadowmapMinMaxValue;
 		FMatrix WorldToShadowMatrixValue = ShadowMap->GetWorldToShadowMatrix(ShadowmapMinMaxValue);
 
 		OutParameters.WorldToShadowMatrix = WorldToShadowMatrixValue;
 		OutParameters.ShadowmapMinMax = ShadowmapMinMaxValue;
+	}
+	else
+	{
+		OutParameters.WorldToShadowMatrix = FMatrix::Identity;
+		OutParameters.ShadowmapMinMax = FVector(1.0f);
 	}
 
 	// default to ignore the plane
@@ -456,11 +461,11 @@ void GetVolumeShadowingShaderParameters(
 	
 	ELightComponentType LightType = (ELightComponentType)LightSceneInfo->Proxy->GetLightType();
 
-	if (bDynamicallyShadowed)
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
+	OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	if (bDynamicallyShadowed && ShadowMap)
 	{
 		OutParameters.DepthBiasParameters = FVector4(ShadowMap->GetShaderDepthBias(), ShadowMap->GetShaderSlopeDepthBias(), ShadowMap->GetShaderMaxSlopeDepthBias(), 1.0f / (ShadowMap->MaxSubjectZ - ShadowMap->MinSubjectZ));
-
-		const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 
 		FRDGTexture* ShadowDepthTextureResource = nullptr;
 		if (LightType == LightType_Point || LightType == LightType_Rect)
@@ -473,7 +478,12 @@ void GetVolumeShadowingShaderParameters(
 		}
 
 		OutParameters.ShadowDepthTexture = ShadowDepthTextureResource;
-		OutParameters.ShadowDepthTextureSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	}
+	else
+	{
+		OutParameters.DepthBiasParameters = FVector(1.0f);
+		OutParameters.ShadowDepthTexture = SystemTextures.Black;
+
 	}
 
 	GetOnePassPointShadowProjectionParameters(GraphBuilder, bDynamicallyShadowed && (LightType == LightType_Point || LightType == LightType_Rect) ? ShadowMap : NULL, OutParameters.OnePassPointShadowProjection);
@@ -509,7 +519,7 @@ const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FVisibl
 	return nullptr;
 }
 
-bool LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(const FLightSceneInfo* LightSceneInfo, const FVisibleLightInfo& VisibleLightInfo)
+bool LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, const FVisibleLightInfo& VisibleLightInfo)
 {
 	const FLightSceneProxy* LightProxy = LightSceneInfo->Proxy;
 
@@ -521,8 +531,9 @@ bool LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(const FLightSce
 	{
 		const FStaticShadowDepthMap* StaticShadowDepthMap = LightProxy->GetStaticShadowDepthMap();
 		const bool bStaticallyShadowed = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI;
+		const bool bHasVirtualShadowMap = VisibleLightInfo.GetVirtualShadowMapId( &View ) != INDEX_NONE;
 
-		return GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo) != NULL || bStaticallyShadowed;
+		return GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo) != NULL || bStaticallyShadowed || bHasVirtualShadowMap;
 	}
 
 	return false;
@@ -648,7 +659,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 		const FLightSceneInfoCompact& LightSceneInfoCompact = *LightIt;
 		const FLightSceneInfo* LightSceneInfo = LightSceneInfoCompact.LightSceneInfo;
 
-		bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]);
+		bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, VisibleLightInfos[LightSceneInfo->Id]);
 		bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions 
 			&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
 
@@ -695,16 +706,18 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 
 					const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
 					const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;
-					const bool bUseVSM = VirtualShadowMapArray.IsAllocated();
-
+					
 					const FSphere LightBounds = LightSceneInfo->Proxy->GetBoundingSphere();
 					const FIntPoint VolumeZBounds = CalculateVolumetricFogBoundsForLight(LightBounds, View, VolumetricFogGridSize, GridZParams);
 
 					if (VolumeZBounds.X < VolumeZBounds.Y)
 					{
-						bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(LightSceneInfo, VisibleLightInfo);
+						bool bIsShadowed = LightNeedsSeparateInjectionIntoVolumetricFogForOpaqueShadow(View, LightSceneInfo, VisibleLightInfo);
 						bool bUsesLightFunction = ViewFamily.EngineShowFlags.LightFunctions 
 							&& CheckForLightFunction(LightSceneInfo) && LightNeedsSeparateInjectionIntoVolumetricFogForLightFunction(LightSceneInfo);
+
+						int32 VirtualShadowMapId = VisibleLightInfo.GetVirtualShadowMapId( &View );
+						const bool bUseVSM = bIsShadowed && VirtualShadowMapArray.IsAllocated() && VirtualShadowMapId != INDEX_NONE;
 
 						FRDGTextureRef LightFunctionTexture = PassParameters->LightFunctionAtlasTexture;
 						FMatrix LightFunctionMatrix = FMatrix::Identity;
@@ -750,8 +763,6 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-						int32 VirtualShadowMapId = VisibleLightInfo.GetVirtualShadowMapId( &View );
 
 						PixelShader->SetParameters(RHICmdList, View, IntegrationData, LightSceneInfo, FogInfo, ProjectedShadowInfo, bDynamicallyShadowed, VirtualShadowMapId,
 							LightFunctionMatrix, LightFunctionTexture, LightFunctionAtlasTileMinMaxUvBound);
