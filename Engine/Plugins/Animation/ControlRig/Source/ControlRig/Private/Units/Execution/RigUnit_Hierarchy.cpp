@@ -435,6 +435,32 @@ FRigUnit_PoseGetTransform_Execute()
 	}
 }
 
+FRigUnit_PoseGetTransformArray_Execute()
+{
+	// set up defaults
+	Valid = false;
+	Transforms.Reset();
+
+	Valid = true;
+
+	Transforms.SetNum(Pose.Num());
+
+	if(Space == EBoneGetterSetterMode::GlobalSpace)
+	{
+		for(int32 Index=0; Index<Pose.Num(); Index++)
+		{
+			Transforms[Index] = Pose[Index].GlobalTransform;
+		}
+	}
+	else
+	{
+		for(int32 Index=0; Index<Pose.Num(); Index++)
+		{
+			Transforms[Index] = Pose[Index].LocalTransform;
+		}
+	}
+}
+
 FRigUnit_PoseGetCurve_Execute()
 {
 	if (Context.State == EControlRigState::Init)
