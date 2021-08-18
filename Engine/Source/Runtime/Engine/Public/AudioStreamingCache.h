@@ -36,9 +36,6 @@ public:
 
 		FChunkKey(const FChunkKey& Other);
 
-		// used when flushing the cache miss log
-		FChunkKey(FName InSoundWaveName, uint32 InChunkIndex);
-
 		FChunkKey(
 			  const FSoundWaveProxyPtr& InSoundWave
 			, uint32 InChunkIndex
@@ -51,7 +48,7 @@ public:
 
 
 	private:
-		mutable FSoundWaveProxyPtr SoundWaveProxyPtr{ nullptr };
+		mutable TWeakPtr<FSoundWaveProxy, ESPMode::ThreadSafe> SoundWaveProxyWeakPtr;
 
 	public:
 		mutable FName SoundWaveName = FName(); // mutable for GetTypeHash()
@@ -65,7 +62,7 @@ public:
 		inline bool operator==(const FChunkKey& Other) const;
 
 		bool IsChunkStale();
-		bool IsSoundWaveValid() const { return SoundWaveProxyPtr.IsValid(); }
+		bool IsSoundWaveValid() const { return SoundWaveProxyWeakPtr.IsValid(); }
 		// Forward FSoundWaveProxy interface
 		ESoundWaveLoadingBehavior GetLoadingBehavior() const;
 		FStreamedAudioChunk& GetChunk(uint32 InChunkIndex) const;
@@ -78,6 +75,31 @@ public:
 		friend uint32 GetTypeHash(const FChunkKey& InChunkKey)
 		{
 			return HashCombine(InChunkKey.SoundWaveName.GetNumber(), InChunkKey.ChunkIndex);
+		}
+	};
+
+	struct FCacheMissEntry
+	{
+	public:
+		// ctor
+		FCacheMissEntry(FName InSoundWaveName, uint32 InChunkIndex)
+			: SoundWaveName(InSoundWaveName)
+			, ChunkIndex(InChunkIndex)
+		{}
+
+		inline bool operator==(const FCacheMissEntry& Other) const
+		{
+			return (SoundWaveName == Other.SoundWaveName) && (ChunkIndex == Other.ChunkIndex);
+		}
+
+		FName SoundWaveName;
+
+		uint32 ChunkIndex;
+
+		/** Hash function */
+		friend uint32 GetTypeHash(const FCacheMissEntry& InCacheMissEntry)
+		{
+			return HashCombine(InCacheMissEntry.SoundWaveName.GetNumber(), InCacheMissEntry.ChunkIndex);
 		}
 	};
 
