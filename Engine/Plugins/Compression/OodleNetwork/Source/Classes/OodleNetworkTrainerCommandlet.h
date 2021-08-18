@@ -70,6 +70,10 @@ public:
 	UPROPERTY(config)
 	bool bCompressionTest;
 
+	/** Whether or not to write oodle version 5 dictionaries for back compat */
+	UPROPERTY(config)
+	bool bWriteV5Dictionaries;
+
 	/** Size of the hash table to use for the dictionary */
 	UPROPERTY(config)
 	int32 HashTableSize;
@@ -207,6 +211,9 @@ private:
 
 	/** Whether or not compression testing should be performed after dictionary generation (uses up some of the packets) */
 	bool bCompressionTest;
+
+	/** Whether or not to write oodle version 5 dictionaries for back compat */
+	bool bWriteV5Dictionaries;
 
 	/** Size of the hash table to use for the dictionary */
 	int32 HashTableSize;

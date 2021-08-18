@@ -366,11 +366,12 @@ FOodleNetworkDictionaryArchive::FOodleNetworkDictionaryArchive(FArchive& InInner
 	}
 }
 
-void FOodleNetworkDictionaryArchive::SetDictionaryHeaderValues(int32 InHashTableSize)
+void FOodleNetworkDictionaryArchive::SetDictionaryHeaderValues(int32 InHashTableSize, uint32 InWritingOodleVersion)
 {
 	check(IsSaving());
 
 	Header.HashTableSize = InHashTableSize;
+	Header.OodleMajorHeaderVersion = InWritingOodleVersion;
 }
 
 void FOodleNetworkDictionaryArchive::SerializeHeader()

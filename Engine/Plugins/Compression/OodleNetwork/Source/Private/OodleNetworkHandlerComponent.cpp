@@ -603,7 +603,7 @@ void OodleNetworkHandlerComponent::InitializeDictionary(FString FilePath, TShare
 				uint32 CompressorStateSize = OodleNetwork1UDP_State_Size();
 				OodleNetwork1UDP_State* CompressorState = (OodleNetwork1UDP_State*)FMemory::Malloc(CompressorStateSize);
 
-				OO_BOOL UncompactOk = OodleNetwork1UDP_State_Uncompact(CompressorState, (OodleNetwork1UDP_StateCompacted*)CompactCompressorState);
+				OO_BOOL UncompactOk = OodleNetwork1UDP_State_Uncompact_ForVersion(CompressorState, (OodleNetwork1UDP_StateCompacted*)CompactCompressorState, BoundArc.Header.OodleMajorHeaderVersion);
 				if ( ! UncompactOk )
 				{
 					UE_LOG(OodleNetworkHandlerComponentLog, Error, TEXT("OodleNetwork1UDP_State_Uncompact failed!"));

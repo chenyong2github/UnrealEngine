@@ -426,8 +426,10 @@ public:
 	 * Sets dictionary header values, that should be set prior to serializing the header to file
 	 *
 	 * @param InHashTableSize	The HashTableSize to set in the header
+	 * @param InWritingOodleVersion	The compatibility version we are writing.
+	 * 
 	 */
-	void SetDictionaryHeaderValues(int32 InHashTableSize);
+	void SetDictionaryHeaderValues(int32 InHashTableSize, uint32 InWritingOodleVersion);
 
 	/**
 	 * Serializes initial basic header values
