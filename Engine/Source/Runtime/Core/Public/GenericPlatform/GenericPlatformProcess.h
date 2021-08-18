@@ -516,7 +516,7 @@ struct CORE_API FGenericPlatformProcess
 	/** Sleep this thread for Seconds.  0.0 means release the current time slice to let other threads get some attention. */
 	static void SleepNoStats( float Seconds );
 	/** Sleep this thread infinitely. */
-	static void SleepInfinite();
+	[[noreturn]] static void SleepInfinite();
 	/** Yield this thread so another may run for a while. */
 	static void YieldThread();
 
