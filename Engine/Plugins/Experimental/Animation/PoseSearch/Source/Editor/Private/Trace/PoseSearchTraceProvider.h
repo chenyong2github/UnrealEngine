@@ -15,6 +15,7 @@ namespace UE { namespace PoseSearch {
 struct FTraceMessage
 {
 	uint64 AnimInstanceId;
+	uint64 SkeletalMeshComponentId;
 	int32 NodeId;
 	uint16 FrameCounter;
 };

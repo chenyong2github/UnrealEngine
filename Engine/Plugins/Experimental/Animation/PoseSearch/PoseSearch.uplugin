@@ -26,5 +26,14 @@
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PreDefault"
 		}
+	],
+	"Plugins": [
+		{
+			"Name": "GameplayInsights",
+			"Enabled": true,
+			"WhitelistTargets": [
+				"Editor"
+			]
+		}
 	]
 }

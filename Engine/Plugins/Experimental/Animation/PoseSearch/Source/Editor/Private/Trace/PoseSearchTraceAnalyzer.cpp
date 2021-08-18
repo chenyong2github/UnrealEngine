@@ -33,6 +33,7 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 	const double Time = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
 	const uint16 FrameCounter = EventData.GetValue<uint16>("FrameCounter");
 	const uint64 AnimInstanceId = EventData.GetValue<uint64>("AnimInstanceId");
+	const uint64 SkeletalMeshComponentId = EventData.GetValue<uint64>("SkeletalMeshComponentId");
 	const int32 NodeId = EventData.GetValue<int32>("NodeId");
 
 	switch (RouteId)
@@ -60,6 +61,7 @@ bool FTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				// Common data
 				Message.NodeId = NodeId;
 				Message.AnimInstanceId = AnimInstanceId;
+				Message.SkeletalMeshComponentId = SkeletalMeshComponentId;
 				Message.FrameCounter = FrameCounter;
 
 				TraceProvider.AppendMotionMatchingState(Message, Time);

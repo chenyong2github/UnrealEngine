@@ -603,26 +603,41 @@ private:
 
 enum class EDebugDrawFlags : uint32
 {
-	None			= 0,
-	DrawQuery		= 1 << 0,
-	DrawSearchIndex = 1 << 1,
-	DrawBest        = 1 << 2,
-	DrawAll		    = MAX_uint32
+	None			    = 0,
+
+	/** Draw the entire search index */
+	DrawSearchIndex     = 1 << 0,
+
+	/** Draw pose features for each pose vector */
+	IncludePose         = 1 << 1,
+
+	/** Draw trajectory features for each pose vector */
+	IncludeTrajectory   = 1 << 2,
+
+	/** Draw all pose vector features */
+	IncludeAllFeatures  = IncludePose | IncludeTrajectory,
 };
 ENUM_CLASS_FLAGS(EDebugDrawFlags);
 
-struct FDebugDrawParams
+struct POSESEARCH_API FDebugDrawParams
 {
 	const UWorld* World = nullptr;
 	const UPoseSearchDatabase* Database = nullptr;
 	const UPoseSearchSequenceMetaData* SequenceMetaData = nullptr;
-	EDebugDrawFlags Flags = EDebugDrawFlags::None;
+	EDebugDrawFlags Flags = EDebugDrawFlags::IncludeAllFeatures;
 	float DefaultLifeTime = 5.0f;
 	FTransform RootTransform = FTransform::Identity;
-	int32 HighlightPoseIdx = -1;
-	TArrayView<const float> Query;
 
-	bool CanDraw () const;
+	/** If set, draw the corresponding pose from the search index */
+	int32 PoseIdx = INDEX_NONE;
+
+	/** If set, draw using this uniform color instead of feature-based coloring */
+	const FLinearColor* Color = nullptr;
+
+	/** If set, interpret the buffer as a pose vector and draw it */
+	TArrayView<const float> PoseVector;
+
+	bool CanDraw() const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
 };

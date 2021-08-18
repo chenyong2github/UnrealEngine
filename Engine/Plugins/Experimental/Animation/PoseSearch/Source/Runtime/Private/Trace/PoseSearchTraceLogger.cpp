@@ -12,6 +12,7 @@ UE_TRACE_EVENT_BEGIN(PoseSearch, MotionMatchingState)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint16, FrameCounter)
 	UE_TRACE_EVENT_FIELD(uint64, AnimInstanceId)
+	UE_TRACE_EVENT_FIELD(uint64, SkeletalMeshComponentId)
 	UE_TRACE_EVENT_FIELD(int32, NodeId)
 	UE_TRACE_EVENT_FIELD(float, ElapsedPoseJumpTime)
 	UE_TRACE_EVENT_FIELD(uint32, Flags)
@@ -53,11 +54,13 @@ void FTraceMotionMatchingState::Output(const FAnimationBaseContext& InContext, c
 
 	UObject* AnimInstance = InContext.AnimInstanceProxy->GetAnimInstanceObject();
 	TRACE_OBJECT(AnimInstance);
+	UObject* SkeletalMeshComponent = AnimInstance->GetOuter();
 
 	UE_TRACE_LOG(PoseSearch, MotionMatchingState, PoseSearchChannel)
 		<< MotionMatchingState.Cycle(FPlatformTime::Cycles64())
 		<< MotionMatchingState.FrameCounter(FObjectTrace::GetObjectWorldTickCounter(AnimInstance))
 		<< MotionMatchingState.AnimInstanceId(FObjectTrace::GetObjectId(AnimInstance))
+		<< MotionMatchingState.SkeletalMeshComponentId(FObjectTrace::GetObjectId(SkeletalMeshComponent))
 		<< MotionMatchingState.NodeId(InContext.GetCurrentNodeId())
 		<< MotionMatchingState.ElapsedPoseJumpTime(State.ElapsedPoseJumpTime)
 		// Cast to uint32 for event message

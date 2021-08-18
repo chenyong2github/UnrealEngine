@@ -23,6 +23,7 @@ public class PoseSearchEditor : ModuleRules
 				"TraceAnalysis",
 				"TraceServices",
 				"TraceInsights",
+				"GameplayInsights",
 				
 				// UI 
 				"PropertyEditor",
