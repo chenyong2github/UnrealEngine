@@ -636,13 +636,16 @@ bool FOodleNetworkDictionaryGenerator::InitGenerator()
 	TrialGenerations = CDO->TrialGenerations;
 	bNoTrials = CDO->bNoTrials;
 	bCompressionTest = CDO->bCompressionTest;
+	bWriteV5Dictionaries = CDO->bWriteV5Dictionaries;
 
 	// Commandline overrides
 	FParse::Value(FCommandLine::Get(), TEXT("-HashTableSize="), HashTableSize);
 	FParse::Value(FCommandLine::Get(), TEXT("-DictionarySize="), DictionarySize);
 	FParse::Value(FCommandLine::Get(), TEXT("-DictionaryTrials="), DictionaryTrials);
 	FParse::Value(FCommandLine::Get(), TEXT("-TrialRandomness="), TrialRandomness);
-	FParse::Value(FCommandLine::Get(), TEXT("-TrialGenerations="), TrialGenerations);
+	FParse::Value(FCommandLine::Get(), TEXT("-TrialGenerations="), TrialGenerations);	
+	FParse::Bool(FCommandLine::Get(), TEXT("-WriteV5Dictionaries="), bWriteV5Dictionaries);
+
 	bNoTrials = FParse::Param(FCommandLine::Get(), TEXT("NoTrials"));
 	bCompressionTest = FParse::Param(FCommandLine::Get(), TEXT("CompressionTest"));
 
@@ -710,6 +713,8 @@ bool FOodleNetworkDictionaryGenerator::InitGenerator()
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- TrialRandomness: %i"), TrialRandomness);
 		UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- TrialGenerations: %i"), TrialGenerations);
 	}
+
+	UE_LOG(OodleNetworkHandlerComponentLog, Log, TEXT("- WriteDictionaryVersion: %i"), bWriteV5Dictionaries ? 5 : OODLE2NET_VERSION_MAJOR);
 
 
 
@@ -1004,8 +1009,19 @@ bool FOodleNetworkDictionaryGenerator::GenerateAndWriteDictionary()
 	// Now compact the dictionary and initial state data, in preparation for writing to file
 	const SSIZE_T CompactState_Size = OodleNetwork1UDP_StateCompacted_MaxSize();
 	OodleNetwork1UDP_StateCompacted* CompactCompressorState = (OodleNetwork1UDP_StateCompacted*)FMemory::Malloc(CompactState_Size);
-	SSIZE_T CompactCompressorStateBytes = OodleNetwork1UDP_State_Compact(CompactCompressorState, CompressorState);
 
+	uint32 CompactWriteVersion = 0;
+	SSIZE_T CompactCompressorStateBytes = 0;
+	if (bWriteV5Dictionaries)
+	{
+		CompactCompressorStateBytes  = OodleNetwork1UDP_State_Compact_ForVersion(CompactCompressorState, CompressorState, 5);
+		CompactWriteVersion = 5;
+	}
+	else
+	{
+		CompactCompressorStateBytes = OodleNetwork1UDP_State_Compact(CompactCompressorState, CompressorState);
+		CompactWriteVersion = OODLE2NET_VERSION_MAJOR;
+	}
 
 	// Now write to the final file
 	FArchive* OutArc = IFileManager::Get().CreateFileWriter(*OutputDictionaryFile);
@@ -1017,7 +1033,7 @@ bool FOodleNetworkDictionaryGenerator::GenerateAndWriteDictionary()
 		{
 			FOodleNetworkDictionaryArchive OutputFile(*OutArc);
 
-			OutputFile.SetDictionaryHeaderValues(HashTableSize);
+			OutputFile.SetDictionaryHeaderValues(HashTableSize, CompactWriteVersion);
 			OutputFile.SerializeHeader();
 
 			bSuccess = !OutputFile.IsError();
