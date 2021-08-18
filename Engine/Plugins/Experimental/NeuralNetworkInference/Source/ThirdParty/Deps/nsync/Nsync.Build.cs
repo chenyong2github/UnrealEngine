@@ -23,9 +23,7 @@ public class Nsync : ModuleRules
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
 			string[] LibFileNames = new string[] {
 				"libnsync_cpp",
-				"libnsync",
-				"libnsync_test",
-				"libnsync_test_cpp"
+				"libnsync"
 			};
 			foreach (string LibFileName in LibFileNames)
 			{
