@@ -398,7 +398,7 @@ public:
 	 * @param Usage The resource usage mask.
 	 * @param Format The Pixel format to reinterpret the resource as.
 	 */
-	void SetShaderBuffer(mtlpp::FunctionType const FunctionType, FAGXBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown);
+	void SetShaderBuffer(mtlpp::FunctionType const FunctionType, FAGXBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger const Index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
 	
 	/*
 	 * Set an FAGXBufferData to the specified shader frequency at the given bind point index.
@@ -408,7 +408,7 @@ public:
 	 * @param Index The index to modify.
 	 * @param Format The pixel format to reinterpret the resource as.
 	 */
-	void SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format = PF_Unknown);
+	void SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format = PF_Unknown, NSUInteger const ElementRowPitch = 0);
 	
 	/*
 	 * Set bytes to the specified shader frequency at the given bind point index.
@@ -521,10 +521,34 @@ private:
         NSUInteger Offsets[ML_MaxBuffers];
 		/** The usage mask for the bound resource or 0 */
 		mtlpp::ResourceUsage Usage[ML_MaxBuffers];
-		/** The bound buffer lengths */
-		uint32 Lengths[(ML_MaxBuffers*2) + (ML_MaxTextures*2)];
+		/** The bound buffer constants */
+		struct FSizeConstants
+		{
+			union
+			{
+				uint32 	Length;
+				uint32 	Swizzle;
+			};
+			uint32 Format;
+			uint32 ElementRowPitch;
+		};
+		FSizeConstants Lengths[ML_MaxBuffers + ML_MaxTextures];
         /** A bitmask for which buffers were bound by the application where a bit value of 1 is bound and 0 is unbound. */
         uint32 Bound;
+        
+public:
+        void SetBufferMetaData(NSUInteger Index, NSUInteger Length, NSUInteger Format, NSUInteger ElementRowPitch)
+        {
+			Lengths[Index].Length = Length;
+			Lengths[Index].Format = Format;
+			Lengths[Index].ElementRowPitch = ElementRowPitch;
+        }
+        void SetTextureSwizzle(NSUInteger Index, uint8 (&Swizzle)[4])
+        {
+			FMemory::Memcpy(&Lengths[ML_MaxBuffers + Index].Swizzle, Swizzle, sizeof(Swizzle));
+			Lengths[ML_MaxBuffers + Index].Format = 0;
+			Lengths[ML_MaxBuffers + Index].ElementRowPitch = 0;
+        }
 	};
 	
 #pragma mark - Private Member Variables -
