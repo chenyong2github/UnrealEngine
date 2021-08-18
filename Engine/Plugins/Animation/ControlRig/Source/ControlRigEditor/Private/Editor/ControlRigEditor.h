@@ -130,6 +130,9 @@ public:
 
 	virtual FReply OnSpawnGraphNodeByShortcut(FInputChord InChord, const FVector2D& InPosition, UEdGraph* InGraph) override;
 
+	// Control Rig BP does not use regular BP function libraries, no need to load them.
+	virtual bool ShouldLoadBPLibrariesFromAssetRegistry() override { return false; }
+
 	// FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
