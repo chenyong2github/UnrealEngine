@@ -8,6 +8,7 @@
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Serialization/ArchiveSerializedPropertyChain.h"
+#include "Util/PropertyUtil.h"
 
 bool FBaseClassDefaultArchive::ShouldSkipProperty(const FProperty* InProperty) const
 {
@@ -51,21 +52,20 @@ bool FBaseClassDefaultArchive::IsPropertyReferenceToSubobjectOrClassDefaults(con
 	}
 
 	const FArchiveSerializedPropertyChain* PropertyChain = GetSerializedPropertyChain();
-	const void* ContainerPtr = GetSerializedObject();
-	for (int32 i = 0; PropertyChain && i < PropertyChain->GetNumProperties(); ++i)
+	void* ContainerPtr = GetSerializedObject();
+	const bool bIsUnsupported = SnapshotUtil::Property::FollowPropertyChainUntilPredicateIsTrue(ContainerPtr, PropertyChain, InProperty, [this, ObjectProperty](void* LeafValuePtr)
 	{
-		ContainerPtr = PropertyChain->GetPropertyFromRoot(i)->ContainerPtrToValuePtr<void>(ContainerPtr);
-	}
-
-	const void* LeafValuePtr = InProperty->ContainerPtrToValuePtr<void>(ContainerPtr);
-	if (const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr))
-	{
-		const bool bIsClassDefault = ContainedPtr->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject);
-		const bool bIsPointingToDefaultSubobject = ContainedPtr->HasAnyFlags(RF_DefaultSubObject);
-		const bool bIsPointingToSelf = ContainedPtr == GetSerializedObject();
-		const bool bIsPointingToSubobject = ContainedPtr->IsIn(GetSerializedObject());
-		return bIsClassDefault || bIsPointingToDefaultSubobject || bIsPointingToSelf || bIsPointingToSubobject;
-	}
+		if (const UObject* ContainedPtr = ObjectProperty->GetObjectPropertyValue(LeafValuePtr))
+		{
+			const bool bIsClassDefault = ContainedPtr->HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject);
+			const bool bIsPointingToDefaultSubobject = ContainedPtr->HasAnyFlags(RF_DefaultSubObject);
+			const bool bIsPointingToSelf = ContainedPtr == GetSerializedObject();
+			const bool bIsPointingToSubobject = ContainedPtr->IsIn(GetSerializedObject());
+			return bIsClassDefault || bIsPointingToDefaultSubobject || bIsPointingToSelf || bIsPointingToSubobject;
+		}
 	
-	return false;
+		return false;
+	});
+
+	return bIsUnsupported;
 }

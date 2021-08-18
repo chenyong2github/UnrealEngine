@@ -5,6 +5,7 @@ const cp = require('child_process');
 
 const root = path.resolve(__dirname, '..');
 const server = path.join(root, 'Server');
+const client = path.join(root, 'Client');
 
 function execute(command, cwd, description, output) {
   return new Promise((resolve, reject) => {
@@ -37,7 +38,7 @@ async function build() {
   try {
     const build = path.join(server, 'build');
     const installed = path.join(build, 'version.txt');
-    const pkgPath = path.join(root, 'package.json');
+    const pkgPath = path.join(root, '_package.json');
 
     if (!fs.existsSync(pkgPath)) {
       console.log("ERROR: Failed to build WebApp - Can't find package.json")
@@ -46,7 +47,7 @@ async function build() {
 
     const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
     if (!pkg || !pkg.version) {
-		console.log("ERROR: Failed to build WebApp - Can't parse package.json")
+      console.log("ERROR: Failed to build WebApp - Can't parse package.json")
       return false;
     }
 
@@ -57,6 +58,24 @@ async function build() {
         return true;
     }
 
+    for (const folder of [root, client, server]) {
+      for (const filename of ['package.json', 'package-lock.json']) {
+        const source = path.join(folder, `_${filename}`);
+        const target = path.join(folder, filename);
+        if (!fs.existsSync(source))
+          continue;
+
+        if (fs.existsSync(target))
+          fs.unlinkSync(target);
+
+        fs.copyFileSync(source, target);
+        const stat = fs.statSync(target);
+
+        // Remove readonly flag set by perforce
+        fs.chmodSync(target, stat.mode | 0o600);
+      }
+    }
+    
     console.log('Installing dependencies');
     await execute('npm install', root, 'Install dependencies');
 	

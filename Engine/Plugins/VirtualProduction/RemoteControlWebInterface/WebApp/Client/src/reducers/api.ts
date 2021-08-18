@@ -180,6 +180,25 @@ export const _api = {
     function: (objectPath: string, functionName: string, parameters: Record<string, any> = {}): Promise<any> => {
       const body = { objectPath, functionName, parameters };
       return _api.proxy.put('/remote/object/call', body);
+    },
+    property: {
+      get: (objectPath: string, propertyName: string) => {
+        const body = { 
+          objectPath,
+          propertyName,
+          access: 'READ_ACCESS',
+        };
+        return _api.proxy.put('/remote/object/property', body);        
+      },
+      set: (objectPath: string, propertyName: string, propertyValue: any) => {
+        const body = { 
+          objectPath,
+          propertyName,
+          propertyValue: { [propertyName]: propertyValue },
+          access: 'WRITE_ACCESS',
+        };
+        return _api.proxy.put('/remote/object/property', body);        
+      }
     }
   }
 };

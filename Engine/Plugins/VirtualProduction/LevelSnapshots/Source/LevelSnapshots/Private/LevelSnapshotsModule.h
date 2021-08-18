@@ -45,7 +45,12 @@ public:
 	IPropertyComparer::EPropertyComparison ShouldConsiderPropertyEqual(const FPropertyComparerArray& Comparers, const FPropertyComparisonParams& Params) const;
 
 	TSharedPtr<ICustomObjectSnapshotSerializer> GetCustomSerializerForClass(UClass* Class) const;
-	
+
+
+	virtual void AddCanTakeSnapshotDelegate(FName DelegateName, FCanTakeSnapshot Delegate) override;
+	virtual void RemoveCanTakeSnapshotDelegate(FName DelegateName) override;
+	virtual bool CanTakeSnapshot(const FPreTakeSnapshotEventData& Event) const override;
+
 private:
 
 	struct FCustomSerializer
@@ -65,5 +70,7 @@ private:
 	TSet<const FProperty*> WhitelistedProperties;
 	/* Forbid these properties even when the default behaviour would include them. */
 	TSet<const FProperty*> BlacklistedProperties;
-	
+
+	/** Map of named delegates for confirming that a level snapshot is possible. */
+	TMap<FName,FCanTakeSnapshot> CanTakeSnapshotDelegates;
 };

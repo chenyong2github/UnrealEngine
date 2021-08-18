@@ -45,6 +45,7 @@ class DeviceQtHandler(QtCore.QObject):
 class Device(QtCore.QObject):
 
     add_device_dialog = None # falls back to the default AddDeviceDialog as specified in device_widget_base
+    device_widget = None
 
     csettings = {
         'is_recording_device': Setting(
@@ -308,6 +309,12 @@ class Device(QtCore.QObject):
 
     def process_file(self, device_path, output_path):
         pass
+
+    def device_widget_registered(self, device_widget):
+        ''' Called when the device's widget is registered
+            You could connect to its signals here.
+        '''
+        self.device_widget = device_widget
 
     @staticmethod
     def new_device_recording(device_name, device_type, timecode_in):

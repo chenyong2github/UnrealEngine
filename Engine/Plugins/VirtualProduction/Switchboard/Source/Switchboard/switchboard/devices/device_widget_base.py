@@ -46,18 +46,42 @@ class DeviceWidget(QtWidgets.QWidget):
         self.device_hash = device_hash
         self.icons = icons
 
+        # Status Label
         self.status_icon = QtWidgets.QLabel()
+        self.status_icon.setGeometry(0, 0, 11, 1)
+        pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
+        self.status_icon.setPixmap(pixmap)
+        self.status_icon.resize(pixmap.width(), pixmap.height())
+
+        # Device icon
         self.device_icon = QtWidgets.QLabel()
+        self.device_icon.setGeometry(0, 0, 40, 40)
+        pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
+        self.device_icon.setPixmap(pixmap)
+        self.device_icon.resize(pixmap.width(), pixmap.height())
+        self.device_icon.setMinimumSize(QtCore.QSize(60, 40))
+        self.device_icon.setAlignment(QtCore.Qt.AlignCenter)
 
         self.name_validator = None
+
+        # Device name
         self.name_line_edit = FramelessQLineEdit()
         self.name_line_edit.textChanged[str].connect(self.on_name_changed)
         self.name_line_edit.editingFinished.connect(self.on_name_edited)
 
+        self.name_line_edit.setText(name)
+        self.name_line_edit.setFont(QtGui.QFont("Roboto", 14, QtGui.QFont.Bold))
+        self.name_line_edit.setMaximumSize(QtCore.QSize(150, 40))
+        # 20 + 11 + 60 + 150
+
+        # IP Address Label
         self.ip_address_line_edit = FramelessQLineEdit()
         self.ip_address_line_edit.setFont(QtGui.QFont("Roboto", 10))
         self.ip_address_line_edit.setValidator(ip_validator)
         self.ip_address_line_edit.editingFinished.connect(self.on_ip_address_edited)
+        self.ip_address_line_edit.setText(ip_address)
+        self.ip_address_line_edit.setAlignment(QtCore.Qt.AlignCenter)
+        self.ip_address_line_edit.setMaximumSize(QtCore.QSize(100, 40))
 
         # Create a widget where the body of the item will go
         # This is made to allow the edit buttons to sit "outside" of the item
@@ -67,45 +91,19 @@ class DeviceWidget(QtWidgets.QWidget):
         self.setLayout(self.edit_layout)
         self.edit_layout.addWidget(self.widget)
 
-        # Main layout where the contents of the item will love
+        # Main layout where the contents of the item will live
         self.layout = QtWidgets.QHBoxLayout()
         self.layout.setContentsMargins(20, 2, 20, 2)
         self.layout.setSpacing(2)
         self.widget.setLayout(self.layout)
 
-        self.layout.addWidget(self.status_icon)
-        self.layout.addWidget(self.device_icon)
-        self.layout.addWidget(self.name_line_edit)
-        self.layout.addWidget(self.ip_address_line_edit)
+        self.add_widget_to_layout(self.status_icon)
+        self.add_widget_to_layout(self.device_icon)
+        self.add_widget_to_layout(self.name_line_edit)
+        self.add_widget_to_layout(self.ip_address_line_edit)
 
         spacer = QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
-        self.layout.addItem(spacer)
-
-        # Status Label
-        self.status_icon.setGeometry(0, 0, 11, 1)
-        pixmap = QtGui.QPixmap(f":/icons/images/status_blank_disabled.png")
-        self.status_icon.setPixmap(pixmap)
-        self.status_icon.resize(pixmap.width(), pixmap.height())
-
-        # Device Label
-        self.device_icon.setGeometry(0, 0, 40, 40)
-
-        pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
-        self.device_icon.setPixmap(pixmap)
-        self.device_icon.resize(pixmap.width(), pixmap.height())
-        self.device_icon.setMinimumSize(QtCore.QSize(60, 40))
-        self.device_icon.setAlignment(QtCore.Qt.AlignCenter)
-
-        # Name Label
-        self.name_line_edit.setText(name)
-        self.name_line_edit.setFont(QtGui.QFont("Roboto", 14, QtGui.QFont.Bold))
-        self.name_line_edit.setMaximumSize(QtCore.QSize(150, 40))
-        # 20 + 11 + 60 + 150
-
-        # IP Address Label
-        self.ip_address_line_edit.setText(ip_address)
-        self.ip_address_line_edit.setAlignment(QtCore.Qt.AlignCenter)
-        self.ip_address_line_edit.setMaximumSize(QtCore.QSize(100, 40))
+        self.add_item_to_layout(spacer)
 
         # Store previous status for efficiency
         #self.previous_status = DeviceStatus.DISCONNECTED
@@ -121,6 +119,16 @@ class DeviceWidget(QtWidgets.QWidget):
         self._add_control_buttons()
 
         self.help_tool_tip = QtWidgets.QToolTip()
+
+    def add_widget_to_layout(self, widget):
+        ''' Adds a widget to the layout '''
+
+        self.layout.addWidget(widget)
+
+    def add_item_to_layout(self, item):
+        ''' Adds an item to the layout '''
+
+        self.layout.addItem(item)
 
     def can_sync(self):
         return False
@@ -246,7 +254,7 @@ class DeviceWidget(QtWidgets.QWidget):
     def add_control_button(self, *args, **kwargs):
         button = sb_widgets.ControlQPushButton.create(*args, **kwargs)
         self.control_buttons.append(button)
-        self.layout.addWidget(button)
+        self.add_widget_to_layout(button)
 
         return button
 

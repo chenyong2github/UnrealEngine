@@ -12,11 +12,6 @@ class UActorComponent;
 class LEVELSNAPSHOTS_API FSnapshotRestorability
 {
 	friend FLevelSnapshotsModule;
-	/**
-	 * Performance optimisation for IsRestorableProperty. Set by FLevelSnapshotsModule.
-	 * Using cached module halves execution time of IsRestorableProperty.
-	 */
-	static FLevelSnapshotsModule* Module;
 	
 public:
 
