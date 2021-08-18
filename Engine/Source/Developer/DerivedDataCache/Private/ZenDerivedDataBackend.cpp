@@ -58,7 +58,7 @@ FString FZenDerivedDataBackend::GetName() const
 bool FZenDerivedDataBackend::IsServiceReady()
 {
 	Zen::FZenHttpRequest Request(*Domain, false);
-	Zen::FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"), nullptr);
+	Zen::FZenHttpRequest::Result Result = Request.PerformBlockingDownload(TEXT("health/ready"_SV), nullptr);
 	
 	if (Result == Zen::FZenHttpRequest::Result::Success && Zen::IsSuccessCode(Request.GetResponseCode()))
 	{
@@ -147,7 +147,7 @@ bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>&
 
 	double StartTime = FPlatformTime::Seconds();
 
-	EGetResult Result = GetZenData(*MakeLegacyZenKey(CacheKey), &OutData);
+	EGetResult Result = GetZenData(MakeLegacyZenKey(CacheKey), &OutData);
 	if (Result != EGetResult::Success)
 	{
 		switch (Result)
@@ -174,7 +174,27 @@ bool FZenDerivedDataBackend::GetCachedData(const TCHAR* CacheKey, TArray<uint8>&
 }
 
 FZenDerivedDataBackend::EGetResult
-FZenDerivedDataBackend::GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) const
+FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray<uint8>* OutData) const
+{
+	TArray64<uint8> TempArray;
+
+	EGetResult Result = GetZenData(Uri, TempArray);
+
+	if (Result == EGetResult::Success)
+	{
+		if (OutData)
+		{
+			check(TempArray.Num() <= UINT32_MAX);
+
+			*OutData = TempArray;
+		}
+	}
+
+	return Result;
+}
+
+FZenDerivedDataBackend::EGetResult
+FZenDerivedDataBackend::GetZenData(FStringView Uri, TArray64<uint8>& OutData) const
 {
 	// Retry request until we get an accepted response or exhaust allowed number of attempts.
 	EGetResult GetResult = EGetResult::NotFound;
@@ -183,7 +203,7 @@ FZenDerivedDataBackend::GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) con
 		Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 		if (Request.IsValid())
 		{
-			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDownload(Uri, OutData);
+			Zen::FZenHttpRequest::Result Result = Request->PerformBlockingDownload(Uri, &OutData);
 			int64 ResponseCode = Request->GetResponseCode();
 
 			// Request was successful, make sure we got all the expected data.
@@ -199,10 +219,7 @@ FZenDerivedDataBackend::GetZenData(const TCHAR* Uri, TArray<uint8>* OutData) con
 		}
 	}
 
-	if (OutData)
-	{
-		OutData->Reset();
-	}
+	OutData.Reset();
 
 	return GetResult;
 }
@@ -586,8 +603,8 @@ void FZenDerivedDataBackend::GetPayload(
 			AppendZenUri(Key.CacheKey, Key.Id, QueryUri);
 			AppendPolicyQueryString(Policy, QueryUri);
 
-			TArray<uint8> PayloadData;
-			EGetResult GetResult = GetZenData(QueryUri.ToString(), &PayloadData);
+			TArray64<uint8> PayloadData;
+			EGetResult GetResult = GetZenData(QueryUri, PayloadData);
 			FCompressedBuffer CompressedBuffer;
 			if (GetResult == EGetResult::Success)
 			{

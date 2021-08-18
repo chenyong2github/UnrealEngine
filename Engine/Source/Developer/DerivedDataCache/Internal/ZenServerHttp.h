@@ -6,8 +6,10 @@
 
 #include "Containers/StaticArray.h"
 #include "Containers/UnrealString.h"
+#include "Memory/MemoryFwd.h"
 
 class FCompositeBuffer;
+class FCbObjectView;
 class FCbPackage;
 
 #if UE_WITH_ZEN
@@ -79,13 +81,13 @@ public:
 	DERIVEDDATACACHE_API Result PerformBlockingPut(const TCHAR* Uri, const FCompositeBuffer& Buffer, EContentType ContentType);
 
 	/**
-		* Download an url into a buffer using the request.
-		* @param Uri Url to use.
-		* @param Buffer Optional buffer where data should be downloaded to. If this is null then 
-		* downloaded data will be stored in an internal buffer and accessed via GetResponseAsString
-		* @return Result of the request
-		*/
-	DERIVEDDATACACHE_API Result PerformBlockingDownload(const TCHAR* Uri, TArray<uint8>* Buffer);
+	* Download an url into a buffer using the request.
+	* @param Uri Url to use.
+	* @param Buffer Optional buffer where data should be downloaded to. If this is null then
+	* downloaded data will be stored in an internal buffer and accessed via GetResponseAsString
+	* @return Result of the request
+	*/
+	DERIVEDDATACACHE_API Result PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer);
 
 	/**
 		* Download an url into a buffer using the request.
@@ -128,12 +130,12 @@ private:
 	bool					bResponseFormatValid = false;
 
 	const FCompositeBuffer*	ReadDataView = nullptr;
-	TArray<uint8>*			WriteDataBufferPtr = nullptr;
+	TArray64<uint8>*		WriteDataBufferPtr = nullptr;
 	FCbPackage*				WriteDataPackage = nullptr;
-	TArray<uint8>*			WriteHeaderBufferPtr = nullptr;
+	TArray64<uint8>*		WriteHeaderBufferPtr = nullptr;
 
-	TArray<uint8>			ResponseHeader;
-	TArray<uint8>			ResponseBuffer;
+	TArray64<uint8>			ResponseHeader;
+	TArray64<uint8>			ResponseBuffer;
 	TArray<FString>			Headers;
 	FString					Domain;
 
@@ -158,9 +160,9 @@ private:
 		* @param Buffer Optional buffer to directly receive the result of the request.
 		* If unset the response body will be stored in the request.
 		*/
-	Result PerformBlocking(const TCHAR* Uri, RequestVerb Verb, uint32 ContentLength);
+	Result PerformBlocking(FStringView Uri, RequestVerb Verb, uint32 ContentLength);
 
-	static FString GetAnsiBufferAsString(const TArray<uint8>& Buffer);
+	static FString GetAnsiBufferAsString(const TArray64<uint8>& Buffer);
 
 	struct FStatics;
 };
