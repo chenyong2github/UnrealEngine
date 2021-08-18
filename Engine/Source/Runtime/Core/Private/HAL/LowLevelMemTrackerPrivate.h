@@ -77,9 +77,11 @@ namespace LLMPrivate
 		ELLMTag GetContainingEnum() const;
 		ETagReferenceSource GetReferenceSource() const;
 		int32 GetIndex() const;
+		bool IsReportable() const;
 
 		void SetParent(const FTagData* InParent);
 		void SetIndex(int32 InIndex);
+		void SetIsReportable(bool bInReportable);
 		void SetFinishConstructed();
 
 		// These functions are normally invalid - these properties should be immutable - but are called for EnumTags during bootstrapping
@@ -108,6 +110,7 @@ namespace LLMPrivate
 		bool bIsFinishConstructed;
 		bool bParentIsName;
 		bool bHasEnumTag;
+		bool bIsReportable;
 	};
 
 	// TagData container types that use FLLMAllocator
