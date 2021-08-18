@@ -40,7 +40,9 @@ extern RENDERCORE_API bool ShouldAllowUniqueShaderSymbols(FName ShaderFormat);
 extern RENDERCORE_API bool ShouldWriteShaderSymbolsAsZip(FName ShaderFormat);
 
 /** Returns true if the user wants more runtime shader data (names, extra info) */
-extern RENDERCORE_API bool ShouldEnableExtraShaderData(FName Platform);
+extern RENDERCORE_API bool ShouldEnableExtraShaderData(FName ShaderFormat);
+
+extern RENDERCORE_API bool ShouldOptimizeShaders(FName ShaderFormat);
 
 UE_DEPRECATED(5.0, "ShouldGenerateShaderSymbols should be called to determine if symbols (debug data) should be generated")
 bool ShouldKeepShaderDebugInfo(EShaderPlatform Platform);

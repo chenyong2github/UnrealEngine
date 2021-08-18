@@ -882,7 +882,8 @@ static TAutoConsoleVariable<int32> CVarShadersEnableExtraData(
 static TAutoConsoleVariable<int32> CVarOptimizeShaders(
 	TEXT("r.Shaders.Optimize"),
 	1,
-	TEXT("Whether to optimize shaders.  When using graphical debuggers like Nsight it can be useful to disable this on startup."),
+	TEXT("Whether to optimize shaders.  When using graphical debuggers like Nsight it can be useful to disable this on startup.\n")
+	TEXT("This setting can be overriden in any Engine.ini under the [ShaderCompiler] section."),
 	ECVF_ReadOnly);
 
 static TAutoConsoleVariable<int32> CVarShaderFastMath(
@@ -5156,8 +5157,7 @@ void GlobalBeginCompileShader(
 		// Check if the compile environment explicitly wants to force optimization
 		const bool bForceOptimization = Input.Environment.CompilerFlags.Contains(CFLAG_ForceOptimization);
 
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.Optimize"));
-		if (!bForceOptimization && CVar && CVar->GetInt() == 0)
+		if (!bForceOptimization && !ShouldOptimizeShaders(ShaderFormatName))
 		{
 			Input.Environment.CompilerFlags.Add(CFLAG_Debug);
 		}
