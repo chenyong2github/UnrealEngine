@@ -1339,7 +1339,7 @@ bool FFeatureVectorReader::GetVector(FPoseSearchFeatureDesc Element, FVector* Ou
 
 bool FDebugDrawParams::CanDraw() const
 {
-	if (!World || !EnumHasAnyFlags(Flags, EDebugDrawFlags::DrawAll))
+	if (!World)
 	{
 		return false;
 	}
@@ -2094,7 +2094,8 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 		if (Reader.GetPosition(Feature, &TrajectoryPos))
 		{	
 			Feature.Type = EPoseSearchFeatureType::Position;
-			FLinearColor LinearColor = GetColorForFeature(Feature, Reader.GetLayout());
+
+			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 			FColor Color = LinearColor.ToFColor(true);
 
 			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
@@ -2109,7 +2110,8 @@ static void DrawTrajectoryFeatures(const FDebugDrawParams& DrawParams, const FFe
 		if (Reader.GetLinearVelocity(Feature, &TrajectoryVel))
 		{
 			Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-			FLinearColor LinearColor = GetColorForFeature(Feature, Reader.GetLayout());
+			
+			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 			FColor Color = LinearColor.ToFColor(true);
 
 			TrajectoryVel *= DrawDebugVelocityScale;
@@ -2148,26 +2150,30 @@ static void DrawPoseFeatures(const FDebugDrawParams& DrawParams, const FFeatureV
 			Feature.SchemaBoneIdx = SchemaBoneIdx;
 
 			FVector BonePos;
-			bool bHaveBonePos = Reader.GetPosition(Feature, &BonePos);
+			const bool bHaveBonePos = Reader.GetPosition(Feature, &BonePos);
 			if (bHaveBonePos)
 			{
 				Feature.Type = EPoseSearchFeatureType::Position;
-				FLinearColor Color = GetColorForFeature(Feature, Reader.GetLayout());
+				
+				FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+				FColor Color = LinearColor.ToFColor(true);
 
 				BonePos = DrawParams.RootTransform.TransformPosition(BonePos);
-				DrawDebugSphere(DrawParams.World, BonePos, DrawDebugSphereSize, DrawDebugSphereSegments, Color.ToFColor(true), false, LifeTime, DepthPriority, DrawDebugSphereLineThickness);
+				DrawDebugSphere(DrawParams.World, BonePos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, false, LifeTime, DepthPriority, DrawDebugSphereLineThickness);
 			}
 
 			FVector BoneVel;
 			if (bHaveBonePos && Reader.GetLinearVelocity(Feature, &BoneVel))
 			{
 				Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-				FLinearColor Color = GetColorForFeature(Feature, Reader.GetLayout());
+				
+				FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+				FColor Color = LinearColor.ToFColor(true);
 
 				BoneVel *= DrawDebugVelocityScale;
 				BoneVel = DrawParams.RootTransform.TransformVector(BoneVel);
 				FVector BoneVelDirection = BoneVel.GetSafeNormal();
-				DrawDebugDirectionalArrow(DrawParams.World, BonePos + BoneVelDirection * DrawDebugSphereSize, BonePos + BoneVel, DrawDebugArrowSize, Color.ToFColor(true), false, LifeTime, DepthPriority, DrawDebugLineThickness);
+				DrawDebugDirectionalArrow(DrawParams.World, BonePos + BoneVelDirection * DrawDebugSphereSize, BonePos + BoneVel, DrawDebugArrowSize, Color, false, LifeTime, DepthPriority, DrawDebugLineThickness);
 			}
 		}
 	}
@@ -2175,18 +2181,36 @@ static void DrawPoseFeatures(const FDebugDrawParams& DrawParams, const FFeatureV
 
 static void DrawFeatureVector(const FDebugDrawParams& DrawParams, const FFeatureVectorReader& Reader)
 {
-	DrawPoseFeatures(DrawParams, Reader);
-	DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Time);
-	DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Distance);
+	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::IncludePose))
+	{
+		DrawPoseFeatures(DrawParams, Reader);
+	}
+
+	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::IncludeTrajectory))
+	{
+		DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Time);
+        DrawTrajectoryFeatures(DrawParams, Reader, EPoseSearchFeatureDomain::Distance);
+	}
 }
 
-static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
+static void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector)
 {
-	if (!DrawParams.CanDraw())
+	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
+	check(Schema)
+
+	if (PoseVector.Num() != Schema->Layout.NumFloats)
 	{
 		return;
 	}
 
+	FFeatureVectorReader Reader;
+	Reader.Init(&Schema->Layout);
+	Reader.SetValues(PoseVector);
+	DrawFeatureVector(DrawParams, Reader);
+}
+
+static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
+{
 	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
 	const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
 	check(Schema);
@@ -2195,61 +2219,37 @@ static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 	FFeatureVectorReader Reader;
 	Reader.Init(&Schema->Layout);
 
-	int32 LastPoseIdx = SearchIndex->NumPoses;
-	int32 StartPoseIdx = 0;
-	if (!(DrawParams.Flags & EDebugDrawFlags::DrawSearchIndex))
-	{
-		StartPoseIdx = DrawParams.HighlightPoseIdx;
-		LastPoseIdx = StartPoseIdx + 1;
-	}
-
-	if (StartPoseIdx < 0)
-	{
-		return;
-	}
+	const int32 LastPoseIdx = SearchIndex->NumPoses;
 
 	TArray<float> PoseVector;
-	for (int32 PoseIdx = StartPoseIdx; PoseIdx != LastPoseIdx; ++PoseIdx)
+	for (int32 PoseIdx = 0; PoseIdx != LastPoseIdx; ++PoseIdx)
 	{
 		PoseVector = SearchIndex->GetPoseValues(PoseIdx);
 		SearchIndex->InverseNormalize(PoseVector);
 		Reader.SetValues(PoseVector);
-
 		DrawFeatureVector(DrawParams, Reader);
 	}
-}
-
-static void DrawQuery(const FDebugDrawParams& DrawParams)
-{
-	if (!DrawParams.CanDraw())
-	{
-		return;
-	}
-
-	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
-	check(Schema);
-
-	if (DrawParams.Query.Num() != Schema->Layout.NumFloats)
-	{
-		return;
-	}
-
-	FFeatureVectorReader Reader;
-	Reader.Init(&Schema->Layout);
-	Reader.SetValues(DrawParams.Query);
-	DrawFeatureVector(DrawParams, Reader);
 }
 
 void Draw(const FDebugDrawParams& DebugDrawParams)
 {
 	if (DebugDrawParams.CanDraw())
 	{
-		if (EnumHasAnyFlags(DebugDrawParams.Flags, EDebugDrawFlags::DrawQuery))
+		if (DebugDrawParams.PoseIdx != INDEX_NONE)
 		{
-			DrawQuery(DebugDrawParams);
-		}
+			const FPoseSearchIndex* SearchIndex = DebugDrawParams.GetSearchIndex();
+			check(SearchIndex);
 
-		if (EnumHasAnyFlags(DebugDrawParams.Flags, EDebugDrawFlags::DrawSearchIndex | EDebugDrawFlags::DrawBest))
+			TArray<float> PoseVector;
+			PoseVector = SearchIndex->GetPoseValues(DebugDrawParams.PoseIdx);
+			SearchIndex->InverseNormalize(PoseVector);
+			DrawFeatureVector(DebugDrawParams, PoseVector);
+		}
+		if (!DebugDrawParams.PoseVector.IsEmpty())
+		{
+			DrawFeatureVector(DebugDrawParams, DebugDrawParams.PoseVector);
+		}
+		if (EnumHasAnyFlags(DebugDrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
 		{
 			DrawSearchIndex(DebugDrawParams);
 		}
@@ -2967,8 +2967,8 @@ FSearchResult Search(const UAnimSequenceBase* Sequence, TArrayView<const float> 
 
 	// Do debug visualization
 	DebugDrawParams.SequenceMetaData = MetaData;
-	DebugDrawParams.Query = Query;
-	DebugDrawParams.HighlightPoseIdx = Result.PoseIdx;
+	DebugDrawParams.PoseVector = Query;
+	DebugDrawParams.PoseIdx = Result.PoseIdx;
 	Draw(DebugDrawParams);
 
 	return Result;
@@ -3003,8 +3003,8 @@ FDbSearchResult Search(const UPoseSearchDatabase* Database, TArrayView<const flo
 
 	// Do debug visualization
 	DebugDrawParams.Database = Database;
-	DebugDrawParams.Query = Query;
-	DebugDrawParams.HighlightPoseIdx = Result.PoseIdx;
+	DebugDrawParams.PoseVector = Query;
+	DebugDrawParams.PoseIdx = Result.PoseIdx;
 	Draw(DebugDrawParams);
 
 	return Result;

@@ -55,6 +55,11 @@ struct POSESEARCH_API FTraceMotionMatchingState
 	/** Node Id of the motion matching node associated with this message */
 	int32 NodeId = 0;
 
+	/** Skeletal Mesh Component Id, outer class of the AnimInstance.
+	 *  Used for retrieval of traced root transforms from the animation provider.
+	 */
+	uint64 SkeletalMeshComponentId = 0;
+
 	/** Output the current state info to the logger */
 	static void Output(const FAnimationBaseContext& InContext, const FTraceMotionMatchingState& State);
 	
