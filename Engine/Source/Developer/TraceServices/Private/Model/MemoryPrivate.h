@@ -68,7 +68,8 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	TMap<FMemoryTagId, FMemoryTagInfo> TagDescs;
+	TMap<FMemoryTagId, FMemoryTagInfo*> TagDescs;
+	TPagedArray<FMemoryTagInfo> TagDescsPool;
 	TMap<FMemoryTrackerId, FMemoryTrackerInfo> TrackerDescs;
 	TArray<FTrackerData> Trackers;
 	uint32 TagsSerial;
