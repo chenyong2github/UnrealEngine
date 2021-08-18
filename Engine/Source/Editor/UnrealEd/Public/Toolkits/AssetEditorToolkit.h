@@ -142,7 +142,6 @@ public:
 	virtual bool CloseWindow() override;
 	virtual bool IsPrimaryEditor() const override { return true; };
 	virtual void InvokeTab(const FTabId& TabId) override;
-	virtual FName GetToolbarTabId() const override { return ToolbarTabId; }
 	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override;
 	virtual void RemoveEditingAsset(UObject* Asset) override;
@@ -357,9 +356,6 @@ protected:
 	virtual void CreateEditorModeManager() override;
 
 private:
-	/** Spawns the toolbar tab */
-	TSharedRef<SDockTab> SpawnTab_Toolbar(const FSpawnTabArgs& Args);
-
 	// Callback for persisting the Asset Editor's layout.
 	void HandleTabManagerPersistLayout( const TSharedRef<FTabManager::FLayout>& LayoutToSave )
 	{
@@ -445,7 +441,4 @@ private:
 
 	/** Whether the buttons on the default toolbar use small icons */
 	bool bIsToolbarUsingSmallIcons;
-
-	/**	The tab ids for all the tabs used */
-	static const FName ToolbarTabId;
 };

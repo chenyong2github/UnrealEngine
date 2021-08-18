@@ -34,7 +34,6 @@ public:
 		return true;
 	}
 	virtual void InvokeTab(const FTabId& TabId) override {}
-	virtual FName GetToolbarTabId() const override;
 	virtual TSharedPtr<FTabManager> GetAssociatedTabManager() override;
 	virtual double GetLastActivationTime() override
 	{
