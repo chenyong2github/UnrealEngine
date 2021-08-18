@@ -72,6 +72,9 @@ struct CONTROLRIGSPLINE_API FControlRigSpline
 
 	virtual ~FControlRigSpline() {}
 
+	FControlRigSpline(const FControlRigSpline& InOther);
+	FControlRigSpline& operator =(const FControlRigSpline& InOther);
+
 	TSharedPtr<FControlRigSplineImpl> SplineData;
 
 	/**
