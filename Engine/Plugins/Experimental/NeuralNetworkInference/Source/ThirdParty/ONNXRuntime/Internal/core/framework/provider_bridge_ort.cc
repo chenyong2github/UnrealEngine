@@ -1,3 +1,5 @@
+#ifndef ORT_MINIMAL_BUILD 
+
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -759,3 +761,5 @@ ORT_API_STATUS_IMPL(OrtSessionOptionsAppendExecutionProvider_OpenVINO, _In_ OrtS
   options->provider_factories.push_back(factory);
   return nullptr;
 }
+
+#endif // ORT_MINIMAL_BUILD

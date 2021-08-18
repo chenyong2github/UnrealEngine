@@ -941,9 +941,17 @@ void RunInParallelSection(ThreadPoolParallelSection &ps,
   // loops to execute from the current parallel section.
   const auto worker_fn = [&ps](unsigned my_idx) {
     while (ps.active) {
-      if (!ps.current_loop) {
-        onnxruntime::concurrency::SpinPause();
-      } else {
+
+#ifdef __PROSPERO__
+		if ((void*)ps.current_loop == nullptr) {
+			onnxruntime::concurrency::SpinPause();
+		}
+#else
+		if (!ps.current_loop) {
+			onnxruntime::concurrency::SpinPause();
+		}
+#endif
+		else {
         ps.workers_in_loop++;
         ThreadPoolLoop *work_item = ps.current_loop;
         if (work_item && my_idx < work_item->threads_needed) {

@@ -86,6 +86,8 @@ inline std::basic_string<T> GetCurrentTimeString() {
 
 #ifdef _WIN32
   ORT_ENFORCE(localtime_s(&local_tm, &in_time_t) == 0);
+#elif __PROSPERO__
+  localtime_s(&in_time_t, &local_tm);
 #else
   localtime_r(&in_time_t, &local_tm);
 #endif

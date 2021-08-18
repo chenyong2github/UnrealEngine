@@ -1,3 +1,4 @@
+#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -72,3 +73,5 @@ bool EliminateDropout::SatisfyCondition(const Graph& graph, const Node& node, co
 }
 
 }  // namespace onnxruntime
+
+#endif // ORT_MINIMAL_BUILD

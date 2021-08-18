@@ -50,8 +50,12 @@ EXTERN_C IMAGE_DOS_HEADER __ImageBase;
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+
+#ifndef __PROSPERO__
 #include <dlfcn.h>
 #include <ftw.h>
+#endif
+
 #include <string.h>
 #include <thread>
 #include <utility>  // for std::forward
@@ -532,7 +536,7 @@ class UnrealEngineEnv : public Env {
   }
 
 
-#ifdef PLATFORM_WIN64
+#if defined(PLATFORM_WIN64) or defined(__PROSPERO__)
 
 	Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
     	return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows.");
@@ -559,7 +563,12 @@ class UnrealEngineEnv : public Env {
 		return Status::OK();
 	}
 
+#ifdef __PROSPERO__
+	static const long page_size = PAGE_SIZE;
+#else
 	static const long page_size = sysconf(_SC_PAGESIZE);
+#endif
+
 	const FileOffsetType offset_to_page = offset % static_cast<FileOffsetType>(page_size);
 	const size_t mapped_length = length + offset_to_page;
 	const FileOffsetType mapped_offset = offset - offset_to_page;
@@ -786,7 +795,12 @@ class UnrealEngineEnv : public Env {
 
 #else
 	
-	MallocdStringPtr canonical_path_cstr{ realpath(path.c_str(), nullptr) };
+#ifdef __PROSPERO__
+	  MallocdStringPtr canonical_path_cstr{ strdup(path.c_str()) };
+#else
+	  MallocdStringPtr canonical_path_cstr{ realpath(path.c_str(), nullptr) };
+#endif
+
 	if (!canonical_path_cstr) {
 		return ReportSystemError("realpath", path);
 	}

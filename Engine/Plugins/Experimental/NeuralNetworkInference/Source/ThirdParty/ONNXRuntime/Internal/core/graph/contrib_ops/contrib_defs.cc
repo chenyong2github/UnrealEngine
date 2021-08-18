@@ -1,3 +1,5 @@
+#ifndef ORT_MINIMAL_BUILD 
+
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -2376,3 +2378,5 @@ It's an extension of Gelu. It takes the sum of input A and bias input B as the i
 }
 }  // namespace contrib
 }  // namespace onnxruntime
+
+#endif // ORT_MINIMAL_BUILD

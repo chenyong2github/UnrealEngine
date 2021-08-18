@@ -1,3 +1,4 @@
+#ifndef ORT_MINIMAL_BUILD 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
 
@@ -691,3 +692,5 @@ bool AttentionFusion::FuseSubGraph(Node& layer_norm, const Node& add_after_layer
 }
 
 }  // namespace onnxruntime
+
+#endif // ORT_MINIMAL_BUILD
