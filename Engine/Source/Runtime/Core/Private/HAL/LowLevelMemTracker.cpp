@@ -1286,6 +1286,11 @@ void FLowLevelMemTracker::BootstrapTagDatas()
 		}
 		LLM_ENUM_GENERIC_TAGS(REGISTER_ELLMTAG);
 #undef REGISTER_ELLMTAG
+
+		// The CustomName tag is an adapter for connecting LLM_SCOPE_BYNAME tags with platforms that used the ELLMTag-based reporting.
+		// We want to hide this procedural tags in systems that use FName-based reporting; if it is displayed it confusingly just displays 
+		// a sum of every LLM_SCOPE_BYNAME tag.
+		TagDataEnumMap[static_cast<int32>(ELLMTag::CustomName)]->SetIsReportable(false);
 	}
 }
 
@@ -2621,7 +2626,9 @@ namespace LLMPrivate
 	}
 
 	FTagData::FTagData(FName InName, FName InDisplayName, FName InParentName, FName InStatName, FName InSummaryStatName, bool bInHasEnumTag, ELLMTag InEnumTag, ETagReferenceSource InReferenceSource)
-		: Name(InName), DisplayName(InDisplayName), ParentName(InParentName), StatName(InStatName), SummaryStatName(InSummaryStatName), EnumTag(InEnumTag), ReferenceSource(InReferenceSource), bIsFinishConstructed(false), bParentIsName(true), bHasEnumTag(bInHasEnumTag)
+		: Name(InName), DisplayName(InDisplayName), ParentName(InParentName), StatName(InStatName)
+		, SummaryStatName(InSummaryStatName), EnumTag(InEnumTag), ReferenceSource(InReferenceSource)
+		, bIsFinishConstructed(false), bParentIsName(true), bHasEnumTag(bInHasEnumTag), bIsReportable(true)
 	{
 	}
 
@@ -2745,6 +2752,11 @@ namespace LLMPrivate
 		return Index;
 	}
 
+	bool FTagData::IsReportable() const
+	{
+		return bIsReportable;
+	}
+
 	void FTagData::SetParent(const FTagData* InParent)
 	{
 		if (bParentIsName)
@@ -2789,6 +2801,11 @@ namespace LLMPrivate
 	void FTagData::SetIndex(int32 InIndex)
 	{
 		Index = InIndex;
+	}
+
+	void FTagData::SetIsReportable(bool bInIsReportable)
+	{
+		bIsReportable = bInIsReportable;
 	}
 
 	bool FTagData::IsUsedAsDisplayParent() const
@@ -3228,6 +3245,10 @@ namespace LLMPrivate
 		for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
 		{
 			const FTagData* TagData = It.Key;
+			if (!TagData->IsReportable())
+			{
+				continue;
+			}
 			if (OverrideUntaggedTagData && TagData->GetName() == TagName_Untagged)
 			{
 				// Handled separately by OverrideUntaggedTagData
@@ -3718,6 +3739,10 @@ namespace LLMPrivate
 		for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
 		{
 			const FTagData* TagData = It.Key;
+			if (!TagData->IsReportable())
+			{
+				continue;
+			}
 			if (TagData->GetName() == TagName_Untagged)
 			{
 				continue; // Handled by OverrideUntaggedName
@@ -3897,6 +3922,10 @@ namespace LLMPrivate
 		for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
 		{
 			const FTagData* TagData = It.Key;
+			if (!TagData->IsReportable())
+			{
+				continue;
+			}
 			if (OverrideUntaggedTagData != nullptr && TagData->GetName() == TagName_Untagged)
 			{
 				continue; // Handled by OverrideUntaggedTagData
@@ -3936,6 +3965,10 @@ namespace LLMPrivate
 		for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
 		{
 			const FTagData* TagData = It.Key;
+			if (!TagData->IsReportable())
+			{
+				continue;
+			}
 			if (OverrideUntaggedTagData && TagData->GetName() == TagName_Untagged)
 			{
 				continue; // Handled by OverrideUntaggedTagData
@@ -4008,6 +4041,10 @@ namespace LLMPrivate
 		for (const TPair<const FTagData*, FTrackerTagSizeData>& It : TagSizes)
 		{
 			const FTagData* TagData = It.Key;
+			if (!TagData->IsReportable())
+			{
+				continue;
+			}
 			if (OverrideUntaggedTagData && TagData->GetName() == TagName_Untagged)
 			{
 				// Handled separately by OverrideUntaggedTagData
