@@ -88,6 +88,9 @@ public:
 	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
+	Metasound::Frontend::FDataTypeRegistryInfo GetPinDataTypeInfo(const UEdGraphPin& InPin) const;
+
+	TSet<FString> GetDisallowedPinClassNames(const UEdGraphPin& InPin) const;
 
 	virtual FMetasoundFrontendClassName GetClassName() const { return FMetasoundFrontendClassName(); }
 	virtual FGuid GetNodeID() const { return FGuid(); }

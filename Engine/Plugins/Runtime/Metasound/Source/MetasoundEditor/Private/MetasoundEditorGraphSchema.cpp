@@ -27,6 +27,7 @@
 #include "MetasoundFrontendNodesCategories.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
+#include "MetasoundLiteral.h"
 #include "MetasoundStandardNodesCategories.h"
 #include "ScopedTransaction.h"
 #include "Styling/SlateStyleRegistry.h"
@@ -876,6 +877,46 @@ bool UMetasoundEditorGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGrap
 	return true;
 }
 
+void UMetasoundEditorGraphSchema::TrySetDefaultObject(UEdGraphPin& Pin, UObject* NewDefaultObject, bool bInMarkAsModified) const
+{
+	using namespace Metasound::Editor;
+
+	if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin.GetOwningNode()))
+	{
+		if (Node->GetPinDataTypeInfo(Pin).PreferredLiteralType == Metasound::ELiteralType::UObjectProxy)
+		{
+			TrySetDefaultValue(Pin, NewDefaultObject ? NewDefaultObject->GetPathName() : FString(), bInMarkAsModified);
+			return;
+		}
+	}
+
+	Super::TrySetDefaultObject(Pin, NewDefaultObject, bInMarkAsModified);
+}
+
+void UMetasoundEditorGraphSchema::TrySetDefaultValue(UEdGraphPin& Pin, const FString& InNewDefaultValue, bool bInMarkAsModified) const
+{
+	if (UMetasoundEditorGraphNode* Node = Cast<UMetasoundEditorGraphNode>(Pin.GetOwningNode()))
+	{
+		if (Node->GetPinDataTypeInfo(Pin).PreferredLiteralType == Metasound::ELiteralType::UObjectProxy)
+		{
+			FSoftObjectPath Path = InNewDefaultValue;
+			const TSet<FString> DisallowedClassNames = Node->GetDisallowedPinClassNames(Pin);
+			if (UObject* Object = Path.TryLoad())
+			{
+				if (UClass* Class = Object->GetClass())
+				{
+					if (DisallowedClassNames.Contains(Class->GetName()))
+					{
+						return;
+					}
+				}
+			}
+		}
+	}
+
+	return Super::TrySetDefaultValue(Pin, InNewDefaultValue, bInMarkAsModified);
+}
+
 bool UMetasoundEditorGraphSchema::ShouldHidePinDefaultValue(UEdGraphPin* Pin) const
 {
 	// TODO: Determine if should be hidden from doc data
@@ -1035,6 +1076,9 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 	MetaSound.Modify();
 	Graph->Modify();
 
+	FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&MetaSound);
+	check(MetaSoundAsset);
+
 	for (const FAssetData& DroppedAsset : Assets)
 	{
 		if (UObject* DroppedObject = DroppedAsset.GetAsset())
@@ -1045,15 +1089,19 @@ void UMetasoundEditorGraphSchema::DroppedAssetsOnGraph(const TArray<FAssetData>&
 				continue;
 			}
 
-			// This may not be necessary as dropping an asset on the graph may load it, thus triggering the registration from the MetaSoundAssetSubsystem.
+			if (MetaSoundAsset->AddingReferenceCausesLoop(FSoftObjectPath(DroppedAsset.ObjectPath)))
+			{
+				continue;
+			}
+
+			// This may not be necessary as dropping an asset on the graph may load it, thus triggering the registration from the MetaSoundAssetManager.
 			const FNodeClassInfo ClassInfo = DroppedMetaSoundAsset->GetAssetClassInfo();
 			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(ClassInfo);
 			if (ensure(IsValidNodeRegistryKey(RegistryKey)))
 			{
-				if (!FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered(RegistryKey))
-				{
-					DroppedMetaSoundAsset->RegisterGraphWithFrontend();
-				}
+				FMetaSoundAssetRegistrationOptions RegOptions;
+				RegOptions.bForceReregister = false;
+				DroppedMetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 			}
 
 			const FMetasoundFrontendClassName ClassName = DroppedMetaSoundAsset->GetAssetClassInfo().ClassName;
@@ -1178,14 +1226,14 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 	using namespace Metasound::Editor::SchemaPrivate;
 	using namespace Metasound::Frontend;
 
-	const UMetaSoundAssetSubsystem& AssetSubsystem = UMetaSoundAssetSubsystem::Get();
+	const IMetaSoundAssetManager& AssetManager = IMetaSoundAssetManager::GetChecked();
 	FMetasoundAssetBase* ParentAsset = nullptr;
 	if (InGraphHandle->IsValid())
 	{
 		FMetasoundFrontendClassMetadata AssetMetadata = InGraphHandle->GetGraphMetadata();
 		AssetMetadata.SetType(EMetasoundFrontendClassType::External);
 		const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(AssetMetadata);
-		ParentAsset = AssetSubsystem.FindAssetFromKey(RegistryKey);
+		ParentAsset = AssetManager.FindAssetFromKey(RegistryKey);
 	}
 
 	const bool bIncludeDeprecated = static_cast<bool>(EnableDeprecatedMetaSoundNodeClassCreationCVar);
@@ -1211,10 +1259,10 @@ void UMetasoundEditorGraphSchema::GetFunctionActions(FGraphActionMenuBuilder& Ac
 		if (ParentAsset)
 		{
 			const FNodeRegistryKey RegistryKey = NodeRegistryKey::CreateKey(FrontendClass.Metadata);
-			Path = AssetSubsystem.FindObjectPathFromKey(RegistryKey);
+			Path = AssetManager.FindObjectPathFromKey(RegistryKey);
 			if (Path)
 			{
-				if (ParentAsset->AddingReferenceCausesLoop(*Path, AssetSubsystem))
+				if (ParentAsset->AddingReferenceCausesLoop(*Path))
 				{
 					continue;
 				}

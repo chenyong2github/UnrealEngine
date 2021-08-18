@@ -16,19 +16,12 @@ class UAssetManager;
 
 /** The subsystem in charge of the MetaSound asset registry */
 UCLASS()
-class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem, public IMetaSoundAssetInterface
+class METASOUNDENGINE_API UMetaSoundAssetSubsystem : public UEngineSubsystem, public IMetaSoundAssetManager
 {
 	GENERATED_BODY()
 
 public:
 	virtual void Initialize(FSubsystemCollectionBase& InCollection) override;
-	virtual void Deinitialize() override;
-
-	static UMetaSoundAssetSubsystem& Get()
-	{
-		check(GEngine);
-		return *GEngine->GetEngineSubsystem<UMetaSoundAssetSubsystem>();
-	}
 
 	void AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend = true);
 	void AddOrUpdateAsset(const FAssetData& InAssetData, bool bInRegisterWithFrontend = true);

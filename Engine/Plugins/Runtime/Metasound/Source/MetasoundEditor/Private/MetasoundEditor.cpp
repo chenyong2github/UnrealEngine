@@ -323,9 +323,8 @@ namespace Metasound
 
 			Metasound = ObjectToEdit;
 
-			const bool bAutoUpdate = true;
-			const bool bClearUpdateNotes = false;
-			FGraphBuilder::ValidateGraph(*Metasound, bAutoUpdate, bClearUpdateNotes);
+			FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
+			FGraphBuilder::ValidateGraph(*Metasound);
 
 			GEditor->RegisterForUndo(this);
 
@@ -388,8 +387,6 @@ namespace Metasound
 
 			ExtendToolbar();
 			RegenerateMenusAndToolbars();
-
-			FGraphBuilder::ValidateGraph(*Metasound, false /* bAutoUpdate */);
 		}
 
 		UObject* FEditor::GetMetasoundObject() const
@@ -810,10 +807,15 @@ namespace Metasound
 		{
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
-				if (!FGraphBuilder::ValidateGraph(*Metasound, false /* bAutoUpdate */))
+				if (!FGraphBuilder::ValidateGraph(*Metasound))
 				{
 					return;
 				}
+
+				// Even though the MetaSoundSource will attempt to register via InitResources
+				// later in this execution (and deeper in the stack), this call forces
+				// re-registering to make sure everything is up-to-date.
+				FGraphBuilder::RegisterGraphWithFrontend(*Metasound);
 
 				// Set the send to the audio bus that is used for analyzing the metasound output
 				check(GEditor);
@@ -1336,7 +1338,7 @@ namespace Metasound
 				}
 			}
 
-			Metasound::Editor::FGraphBuilder::RegisterGraphWithFrontend(Graph->GetMetasoundChecked());
+			FGraphBuilder::RegisterGraphWithFrontend(Graph->GetMetasoundChecked());
 		}
 
 		void FEditor::DeleteSelected()
@@ -1606,9 +1608,9 @@ namespace Metasound
 					LookupMetadata.SetClassName(ExternalNode->GetClassName());
 					LookupMetadata.SetType(EMetasoundFrontendClassType::External);
 					const FNodeRegistryKey PastedRegistryKey = NodeRegistryKey::CreateKey(LookupMetadata);
-					if (const FSoftObjectPath* AssetPath = UMetaSoundAssetSubsystem::Get().FindObjectPathFromKey(PastedRegistryKey))
+					if (const FSoftObjectPath* AssetPath = IMetaSoundAssetManager::GetChecked().FindObjectPathFromKey(PastedRegistryKey))
 					{
-						if (MetasoundAsset->AddingReferenceCausesLoop(*AssetPath, UMetaSoundAssetSubsystem::Get()))
+						if (MetasoundAsset->AddingReferenceCausesLoop(*AssetPath))
 						{
 							FMetasoundFrontendClass MetaSoundClass;
 							FMetasoundFrontendRegistryContainer::Get()->FindFrontendClassFromRegistered(PastedRegistryKey, MetaSoundClass);

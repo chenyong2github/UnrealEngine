@@ -11,7 +11,7 @@
 #include "UObject/Object.h"
 
 
-class IMetaSoundAssetInterface;
+class IMetaSoundAssetManager;
 
 namespace Metasound
 {
@@ -379,7 +379,7 @@ namespace Metasound
 
 			bool DiffAgainstRegistryInterface(FClassInterfaceUpdates& OutInterfaceUpdates, bool bInUseHighestMinorVersion) const override;
 
-			bool CanAutoUpdate(const IMetaSoundAssetInterface& AssetInterface, FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const override;
+			bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const override;
 			FNodeHandle ReplaceWithVersion(const FMetasoundFrontendVersionNumber& InNewVersion) override;
 			FMetasoundFrontendVersionNumber FindHighestVersionInRegistry() const override;
 			FMetasoundFrontendVersionNumber FindHighestMinorVersionInRegistry() const override;

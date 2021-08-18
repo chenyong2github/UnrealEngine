@@ -19,6 +19,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
+#include "MetasoundLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundUObjectRegistry.h"
 #include "ScopedTransaction.h"
@@ -271,72 +272,81 @@ void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
 	}
 }
 
-FString UMetasoundEditorGraphNode::GetPinMetaData(FName InPinName, FName InKey)
+Metasound::Frontend::FDataTypeRegistryInfo UMetasoundEditorGraphNode::GetPinDataTypeInfo(const UEdGraphPin& InPin) const
 {
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
+	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+	if (!ensure(Registry))
+	{
+		return FDataTypeRegistryInfo();
+	}
+
+	Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
+	FConstInputHandle Handle = FGraphBuilder::GetConstInputHandleFromPin(&InPin);
+	if (!ensure(Registry->GetInfoForDataType(Handle->GetDataType(), DataTypeInfo)))
+	{
+		return FDataTypeRegistryInfo();
+	}
+
+	return DataTypeInfo;
+}
+
+TSet<FString> UMetasoundEditorGraphNode::GetDisallowedPinClassNames(const UEdGraphPin& InPin) const
+{
+	using namespace Metasound::Editor;
+	using namespace Metasound::Frontend;
+
+	const FDataTypeRegistryInfo DataTypeInfo = GetPinDataTypeInfo(InPin);
+	if (DataTypeInfo.PreferredLiteralType != Metasound::ELiteralType::UObjectProxy)
+	{
+		return { };
+	}
+
+	UClass* ProxyGenClass = DataTypeInfo.ProxyGeneratorClass;
+	if (!ProxyGenClass)
+	{
+		return { };
+	}
+
+	TSet<FString> DisallowedClasses;
+	const FName ClassName = ProxyGenClass->GetFName();
+	for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+	{
+		UClass* Class = *ClassIt;
+		if (!Class->IsNative())
+		{
+			continue;
+		}
+
+		if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
+		{
+			continue;
+		}
+
+		if (ClassIt->GetFName() == ClassName)
+		{
+			continue;
+		}
+
+		if (Class->IsChildOf(ProxyGenClass))
+		{
+			DisallowedClasses.Add(ClassIt->GetName());
+		}
+	}
+
+	return DisallowedClasses;
+}
+
+FString UMetasoundEditorGraphNode::GetPinMetaData(FName InPinName, FName InKey)
+{
 	if (InKey == "DisallowedClasses")
 	{
 		if (UEdGraphPin* Pin = FindPin(InPinName, EGPD_Input))
 		{
-			FInputHandle Handle = FGraphBuilder::GetInputHandleFromPin(Pin);
-
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (!ensure(Registry))
-			{
-				return FString();
-			}
-
-			Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
-			if (!ensure(Registry->GetInfoForDataType(Handle->GetDataType(), DataTypeInfo)))
-			{
-				return FString();
-			}
-
-			const EMetasoundFrontendLiteralType LiteralType = GetMetasoundFrontendLiteralType(DataTypeInfo.PreferredLiteralType);
-			if (LiteralType != EMetasoundFrontendLiteralType::UObject && LiteralType != EMetasoundFrontendLiteralType::UObjectArray)
-			{
-				return FString();
-			}
-
-			UClass* ProxyGenClass = DataTypeInfo.ProxyGeneratorClass;
-			if (!ProxyGenClass)
-			{
-				return FString();
-			}
-
-			FString DisallowedClasses;
-			const FName ClassName = ProxyGenClass->GetFName();
-			for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
-			{
-				UClass* Class = *ClassIt;
-				if (!Class->IsNative())
-				{
-					continue;
-				}
-
-				if (Class->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists))
-				{
-					continue;
-				}
-
-				if (ClassIt->GetFName() == ClassName)
-				{
-					continue;
-				}
-
-				if (Class->IsChildOf(ProxyGenClass))
-				{
-					if (!DisallowedClasses.IsEmpty())
-					{
-						DisallowedClasses += TEXT(",");
-					}
-					DisallowedClasses += *ClassIt->GetName();
-				}
-			}
-
-			return DisallowedClasses;
+			TSet<FString> DisallowedClasses = GetDisallowedPinClassNames(*Pin);
+			return FString::Join(DisallowedClasses.Array(), TEXT(","));
 		}
 
 		return FString();
@@ -578,7 +588,7 @@ bool UMetasoundEditorGraphExternalNode::CanAutoUpdate() const
 {
 	using namespace Metasound::Frontend;
 
-	return GetConstNodeHandle()->CanAutoUpdate(UMetaSoundAssetSubsystem::Get());
+	return GetConstNodeHandle()->CanAutoUpdate();
 }
 
 UMetasoundEditorGraphExternalNode* UMetasoundEditorGraphExternalNode::UpdateToVersion(const FMetasoundFrontendVersionNumber& InNewVersion, bool bInPropagateErrorMessages)
@@ -757,19 +767,19 @@ bool UMetasoundEditorGraphExternalNode::Validate(Metasound::Editor::FGraphNodeVa
 		if (Pin->Direction == EGPD_Input)
 		{
 			FInputHandle Input = FGraphBuilder::GetInputHandleFromPin(Pin);
-			bWasRemoved |= InterfaceUpdates.RemovedInputs.ContainsByPredicate([&](const FMetasoundFrontendClassInput& ClassInput)
+			bWasRemoved |= InterfaceUpdates.RemovedInputs.ContainsByPredicate([&](const FMetasoundFrontendClassInput* ClassInput)
 			{
-				return Input->GetName() == ClassInput.Name && Input->GetDataType() == ClassInput.TypeName;
+				return Input->GetName() == ClassInput->Name && Input->GetDataType() == ClassInput->TypeName;
 			});
 		}
 
 		if (Pin->Direction == EGPD_Output)
 		{
 			FOutputHandle Output = FGraphBuilder::GetOutputHandleFromPin(Pin);
-			bWasRemoved |= InterfaceUpdates.RemovedOutputs.ContainsByPredicate([&](const FMetasoundFrontendClassOutput& ClassOutput)
-				{
-					return Output->GetName() == ClassOutput.Name && Output->GetDataType() == ClassOutput.TypeName;
-				});
+			bWasRemoved |= InterfaceUpdates.RemovedOutputs.ContainsByPredicate([&](const FMetasoundFrontendClassOutput* ClassOutput)
+			{
+				return Output->GetName() == ClassOutput->Name && Output->GetDataType() == ClassOutput->TypeName;
+			});
 		}
 
 		if (Pin->bOrphanedPin != bWasRemoved)

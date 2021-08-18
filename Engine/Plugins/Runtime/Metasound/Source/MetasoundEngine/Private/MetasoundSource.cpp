@@ -112,7 +112,6 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 		{
 			case EMetasoundSourceAudioFormat::Mono:
 			{
-				NumChannels = 1;
 				// TODO: utilize latest version `MetasoudnSourceMono`
 				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceMono::GetVersion()).Transform(GetDocumentHandle());
 			}
@@ -120,7 +119,6 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 			case EMetasoundSourceAudioFormat::Stereo:
 			{
-				NumChannels = 2;
 				bDidModifyDocument = Metasound::Frontend::FMatchRootGraphToArchetype(Metasound::Engine::MetasoundSourceStereo::GetVersion()).Transform(GetDocumentHandle());
 			}
 			break;
@@ -134,11 +132,46 @@ void UMetaSoundSource::PostEditChangeProperty(FPropertyChangedEvent& InEvent)
 
 		if (bDidModifyDocument)
 		{
+			ConformObjectDataToArchetype();
+
+			// Use the editor form of register to ensure other editors'
+			// MetaSounds are auto-updated if they are referencing this graph.
+			if (Graph)
+			{
+				Graph->RegisterGraphWithFrontend();
+			}
 			MarkMetasoundDocumentDirty();
 		}
 	}
 }
 #endif // WITH_EDITOR
+
+bool UMetaSoundSource::ConformObjectDataToArchetype()
+{
+	const FMetasoundFrontendVersion& ArchetypeVersion = GetDocumentHandle()->GetArchetypeVersion();
+	if (ArchetypeVersion == Metasound::Engine::MetasoundSourceMono::GetVersion())
+	{
+		if (OutputFormat != EMetasoundSourceAudioFormat::Mono || NumChannels != 1)
+		{
+			OutputFormat = EMetasoundSourceAudioFormat::Mono;
+			NumChannels = 1;
+			return true;
+		}
+	}
+
+	if (ArchetypeVersion == Metasound::Engine::MetasoundSourceStereo::GetVersion())
+	{
+		if (OutputFormat != EMetasoundSourceAudioFormat::Stereo || NumChannels != 2)
+		{
+			OutputFormat = EMetasoundSourceAudioFormat::Stereo;
+			NumChannels = 2;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 
 void UMetaSoundSource::BeginDestroy()
 {
@@ -156,6 +189,16 @@ void UMetaSoundSource::Serialize(FArchive& InArchive)
 {
 	Super::Serialize(InArchive);
 	Metasound::SerializeToArchive(*this, InArchive);
+}
+
+void UMetaSoundSource::SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys)
+{
+	ReferencedAssetClassKeys = MoveTemp(InKeys);
+}
+
+TSet<UObject*>& UMetaSoundSource::GetReferencedAssetClassCache()
+{
+	return ReferenceAssetClassCache;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -193,6 +236,16 @@ void UMetaSoundSource::SetRegistryAssetClassInfo(const Metasound::Frontend::FNod
 }
 #endif // WITH_EDITORONLY_DATA
 
+void UMetaSoundSource::InitResources()
+{
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::AddOrUpdateAsset);
+
+	FMetaSoundAssetRegistrationOptions RegOptions;
+	RegOptions.bForceReregister = false;
+	RegOptions.bRegisterDependencies = true;
+	RegisterGraphWithFrontend(RegOptions);
+}
+
 Metasound::Frontend::FNodeClassInfo UMetaSoundSource::GetAssetClassInfo() const
 {
 	return { GetDocumentChecked().RootGraph, *GetPathName() };
@@ -228,7 +281,7 @@ ISoundGeneratorPtr UMetaSoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	using namespace Metasound::Frontend;
 	using namespace Metasound::Engine;
 
-	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(MetaSoundSource::CreateSoundGenerator);
+	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundSource::CreateSoundGenerator);
 
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
@@ -280,10 +333,10 @@ Metasound::FOperatorSettings UMetaSoundSource::GetOperatorSettings(Metasound::FS
 const TArray<FMetasoundFrontendVersion>& UMetaSoundSource::GetSupportedArchetypeVersions() const 
 {
 	static const TArray<FMetasoundFrontendVersion> Supported(
-		{
-			Metasound::Engine::MetasoundSourceMono::GetVersion(),
-			Metasound::Engine::MetasoundSourceStereo::GetVersion()
-		});
+	{
+		Metasound::Engine::MetasoundSourceMono::GetVersion(),
+		Metasound::Engine::MetasoundSourceStereo::GetVersion()
+	});
 
 	return Supported;
 }
@@ -301,6 +354,7 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 	{
 		DeviceHandle = World->GetAudioDevice();
 	}
+
 	if (!DeviceHandle.IsValid())
 	{
 		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())

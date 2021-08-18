@@ -37,9 +37,39 @@ namespace Metasound
 	} // namespace AssetTags
 } // namespace Metasound
 
-class METASOUNDFRONTEND_API IMetaSoundAssetInterface
+struct METASOUNDFRONTEND_API FMetaSoundAssetRegistrationOptions
 {
+	// If true, forces a re-register of this class (and all class dependencies
+	// if the following option 'bRegisterDependencies' is enabled).
+	bool bForceReregister = true;
+
+	// If true, recursively attempts to register dependencies.
+	bool bRegisterDependencies = false;
+
+	// Attempt to auto-update (only runs if class not registered or set to force re-register)
+	bool bAutoUpdate = true;
+
+	// Attempt to rebuild referenced class keys (only run if class not registered or set to force re-register)
+	bool bRebuildReferencedAssetClassKeys = true;
+};
+
+class METASOUNDFRONTEND_API IMetaSoundAssetManager
+{
+	static IMetaSoundAssetManager* Instance;
+
 public:
+	static void Set(IMetaSoundAssetManager& InInterface)
+	{
+		check(!Instance);
+		Instance = &InInterface;
+	}
+
+	static IMetaSoundAssetManager& GetChecked()
+	{
+		check(Instance);
+		return *Instance;
+	}
+
 	virtual bool CanAutoUpdate(const FMetasoundFrontendClassName& InClassName) const = 0;
 	virtual FMetasoundAssetBase* FindAssetFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
 	virtual const FSoftObjectPath* FindObjectPathFromKey(const Metasound::Frontend::FNodeRegistryKey& InRegistryKey) const = 0;
@@ -85,12 +115,16 @@ public:
 	virtual void SetRegistryAssetClassInfo(const Metasound::Frontend::FNodeClassInfo& InClassInfo) = 0;
 #endif // WITH_EDITORONLY_DATA
 
+	// Called when the archetype is changed, presenting the opportunity for
+	// any reflected object data to be updated based on the new archetype.
+	// Returns whether or not any edits were made.
+	virtual bool ConformObjectDataToArchetype() = 0;
+
 	// Registers the root graph of the given asset with the MetaSound Frontend.
-	void RegisterGraphWithFrontend();
+	void RegisterGraphWithFrontend(FMetaSoundAssetRegistrationOptions InRegistrationOptions = FMetaSoundAssetRegistrationOptions());
 
 	// Unregisters the root graph of the given asset with the MetaSound Frontend.
 	void UnregisterGraphWithFrontend();
-
 
 	// Sets/overwrites the root class metadata
 	virtual void SetMetadata(FMetasoundFrontendClassMetadata& InMetadata);
@@ -111,22 +145,29 @@ public:
 	// Gets the asset class info.
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const = 0;
 
+	// Returns all the class keys of this asset's referenced assets
+	virtual const TSet<FString>& GetReferencedAssetClassKeys() const = 0;
 
-	virtual TSet<FSoftObjectPath>& GetReferencedAssets() = 0;
-	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const = 0;
+	// Returns set of cached class references required by this class
+	// to persist during the duration of this class being registered.
+	// TODO: May no longer be needed, but leaving for now to avoid
+	// potential edge cases with GC/UObject references.  Could potentially
+	// move to cook only and making auto-update optional (to avoid large
+	// MetaSound patches caused by references being updated).
+	virtual TSet<UObject*>& GetReferencedAssetClassCache() = 0;
 
+	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath) const;
 	void ConvertFromPreset();
-
-	void RebuildReferencedAssets(const IMetaSoundAssetInterface& InAssetInterface);
-
-	bool AddingReferenceCausesLoop(const FSoftObjectPath& InReferencePath, const IMetaSoundAssetInterface& InAssetInterface) const;
-	bool ContainReferenceLoop(const IMetaSoundAssetInterface& IMetaSoundAssetInterface) const;
+	TArray<FMetasoundAssetBase*> FindOrLoadReferencedAssets() const;
+	bool IsRegistered() const;
+	void RebuildReferencedAssetClassKeys();
 
 	// Imports data from a JSON string directly
 	bool ImportFromJSON(const FString& InJSON);
 
 	// Imports the asset from a JSON file at provided path
 	bool ImportFromJSONAsset(const FString& InAbsolutePath);
+
 
 	// Returns handle for the root metasound graph of this asset.
 	Metasound::Frontend::FDocumentHandle GetDocumentHandle();
@@ -145,12 +186,9 @@ public:
 	FMetasoundFrontendDocument& GetDocumentChecked();
 	const FMetasoundFrontendDocument& GetDocumentChecked() const;
 
-	// This must be called on UObject::PostLoad, as well as in this asset's UFactory, to fix up the root document based on the most recent version of the archetype.
 	void ConformDocumentToArchetype();
-
-	bool AutoUpdate(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInUpdateReferencedAssets = true);
-
-	bool VersionAsset(const IMetaSoundAssetInterface& InAssetInterface, bool bInMarkDirty, bool bInVersionReferencedAssets = true);
+	bool AutoUpdate(bool bInMarkDirty = false);
+	bool VersionAsset();
 
 	// Calls the outermost package and marks it dirty.
 	bool MarkMetasoundDocumentDirty() const;
@@ -165,13 +203,13 @@ public:
 	virtual TUniquePtr<Metasound::IGraph> BuildMetasoundDocument() const;
 
 protected:
+	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) = 0;
 
 	TArray<FSendInfoAndVertexName> GetSendInfos(uint64 InInstanceID) const;
 
 #if WITH_EDITORONLY_DATA
 	FText GetDisplayName(FString&& InTypeName) const;
 #endif // WITH_EDITORONLY_DATA
-
 
 	// Returns an access pointer to the document.
 	virtual Metasound::Frontend::FDocumentAccessPtr GetDocument() = 0;

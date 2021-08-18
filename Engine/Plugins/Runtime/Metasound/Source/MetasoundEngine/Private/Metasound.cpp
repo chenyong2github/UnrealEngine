@@ -12,6 +12,7 @@
 #include "MetasoundFrontendController.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundGenerator.h"
 #include "MetasoundInstanceTransmitter.h"
@@ -114,6 +115,16 @@ Metasound::Frontend::FNodeClassInfo UMetaSound::GetAssetClassInfo() const
 	return { GetDocumentChecked().RootGraph, *GetPathName() };
 }
 
+void UMetaSound::SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys)
+{
+	ReferencedAssetClassKeys = MoveTemp(InKeys);
+}
+
+TSet<UObject*>& UMetaSound::GetReferencedAssetClassCache()
+{
+	return ReferenceAssetClassCache;
+}
+
 const FMetasoundFrontendVersion& UMetaSound::GetDefaultArchetypeVersion() const
 {
 	static const FMetasoundFrontendVersion DefaultArchetypeVersion = Metasound::Engine::MetasoundV1_0::GetVersion();
@@ -129,5 +140,4 @@ const TArray<FMetasoundFrontendVersion>& UMetaSound::GetSupportedArchetypeVersio
 
 	return Supported;
 }
-
 #undef LOCTEXT_NAMESPACE // MetaSound

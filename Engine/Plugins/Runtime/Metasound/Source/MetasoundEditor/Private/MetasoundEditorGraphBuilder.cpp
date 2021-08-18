@@ -114,8 +114,6 @@ namespace Metasound
 			check(MetaSoundAsset);
 
 			Frontend::FNodeHandle NodeHandle = MetaSoundAsset->GetRootGraphHandle()->AddNode(InMetadata);
-			MetaSoundAsset->RebuildReferencedAssets(UMetaSoundAssetSubsystem::Get());
-
 			return AddExternalNode(InMetaSound, NodeHandle, InLocation, bInSelectNewNode);
 		}
 
@@ -146,7 +144,7 @@ namespace Metasound
 			return NewGraphNode;
 		}
 
-		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bInAutoUpdate, bool bInClearUpdateNotes)
+		bool FGraphBuilder::ValidateGraph(UObject& InMetaSound, bool bInClearUpdateNotes)
 		{
 			using namespace Frontend;
 			using namespace GraphBuilderPrivate;
@@ -166,37 +164,27 @@ namespace Metasound
 
 			FGraphValidationResults Results;
 
-			auto ValidateGraphInteral = [&]()
-			{
-				Graph.ValidateInternal(Results, bInClearUpdateNotes);
-				for (const FGraphNodeValidationResult& Result : Results.GetResults())
-				{
-					if (GraphEditor.IsValid())
-					{
-						check(Result.Node);
-						GraphEditor->RefreshNode(*Result.Node);
-					}
-				}
+			bool bMarkDirty = false;
 
-				InMetaSound.MarkPackageDirty();
-			};
-
-			if (bInAutoUpdate)
+			Graph.ValidateInternal(Results, bInClearUpdateNotes);
+			for (const FGraphNodeValidationResult& Result : Results.GetResults())
 			{
-				if (MetaSoundAsset->AutoUpdate(UMetaSoundAssetSubsystem::Get(), true /* bMarkDirty*/, true /* bUpdateReferencedAssets*/))
+				bMarkDirty |= Result.bIsDirty;
+				if (GraphEditor.IsValid())
 				{
-					SynchronizeGraph(InMetaSound);
-					ValidateGraphInteral();
+					check(Result.Node);
+					GraphEditor->RefreshNode(*Result.Node);
 				}
-			}
-			else
-			{
-				ValidateGraphInteral();
 			}
 
 			if (MetaSoundEditor.IsValid())
 			{
 				MetaSoundEditor->RefreshInterface();
+			}
+
+			if (bMarkDirty)
+			{
+				InMetaSound.MarkPackageDirty();
 			}
 
 			return Results.IsValid();
@@ -633,8 +621,6 @@ namespace Metasound
 					ExternalNode->SetNodeID(NewNode->GetID());
 
 					NodeHandle = NewNode;
-
-					MetaSoundAsset->RebuildReferencedAssets(UMetaSoundAssetSubsystem::Get());
 				}
 			}
 
@@ -858,9 +844,13 @@ namespace Metasound
 			Metadata.SetAutoUpdateManagesInterface(true);
 			PresetGraphHandle->SetGraphMetadata(Metadata);
 
+			FGraphBuilder::RegisterGraphWithFrontend(InMetaSoundReferenced);
+
 			const FMetasoundAssetBase* ReferencedAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSoundReferenced);
 			check(ReferencedAsset);
+
 			FRebuildPresetRootGraph(ReferencedAsset->GetDocumentHandle()).Transform(PresetAsset->GetDocumentHandle());
+			PresetAsset->ConformObjectDataToArchetype();
 		}
 
 		void FGraphBuilder::DeleteVariableNodeHandle(UMetasoundEditorGraphVariable& InVariable)
@@ -962,15 +952,6 @@ namespace Metasound
 			{
 				SynchronizeGraph(Graph->GetMetasoundChecked());
 			}
-			// SynchronizeGraph calls rebuild references, but it needs to be
-			// called to remove the given reference irrespective of error state.
-			else
-			{
-				FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&Graph->GetMetasoundChecked());
-				check(MetaSoundAsset);
-
-				MetaSoundAsset->RebuildReferencedAssets(UMetaSoundAssetSubsystem::Get());
-			}
 
 			return bSuccess;
 		}
@@ -1039,16 +1020,23 @@ namespace Metasound
 			FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&InMetaSound);
 			check(MetaSoundAsset);
 
-			MetaSoundAsset->RegisterGraphWithFrontend();
+			FMetaSoundAssetRegistrationOptions RegOptions;
+			RegOptions.bForceReregister = true;
+			RegOptions.bRegisterDependencies = true;
+			MetaSoundAsset->RegisterGraphWithFrontend(RegOptions);
 
 			if (GEditor)
 			{
 				TArray<UObject*> EditedAssets = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->GetAllEditedAssets();
 				for (UObject* Asset : EditedAssets)
 				{
-					if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
+					if (Asset != &InMetaSound)
 					{
-						ValidateGraph(*Asset, true /* bAutoUpdate */);
+						if (FMetasoundAssetBase* EditedMetasound = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Asset))
+						{
+							EditedMetasound->RegisterGraphWithFrontend(RegOptions);
+							ValidateGraph(*Asset);
+						}
 					}
 				}
 			}
@@ -1071,7 +1059,7 @@ namespace Metasound
 				{
 					if (Asset != &InMetaSound && IMetasoundUObjectRegistry::Get().IsRegisteredClass(Asset))
 					{
-						ValidateGraph(*Asset, true /* bAutoUpdate */);
+						ValidateGraph(*Asset);
 					}
 				}
 			}
@@ -1431,8 +1419,6 @@ namespace Metasound
 
 			// Synchronize connections.
 			bIsEditorGraphDirty |= SynchronizeConnections(InMetaSound);
-
-			MetaSoundAsset->RebuildReferencedAssets(UMetaSoundAssetSubsystem::Get());
 			return bIsEditorGraphDirty;
 		}
 
