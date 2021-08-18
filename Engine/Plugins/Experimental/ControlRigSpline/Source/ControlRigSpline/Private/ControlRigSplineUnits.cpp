@@ -13,6 +13,9 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 		case EControlRigState::Init:
 		case EControlRigState::Update:
 		{
+			// reset the spline
+			Spline = FControlRigSpline();
+				
 			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
 			Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment, Compression, Stretch);
 			break;

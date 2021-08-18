@@ -2,6 +2,17 @@
 
 #include "ControlRigSplineTypes.h"
 
+FControlRigSpline::FControlRigSpline(const FControlRigSpline& InOther)
+{
+	SplineData = InOther.SplineData;
+}
+
+FControlRigSpline& FControlRigSpline::operator=(const FControlRigSpline& InOther)
+{
+	SplineData = InOther.SplineData;
+	return *this;
+}
+
 void FControlRigSpline::SetControlPoints(const TArrayView<const FVector>& InPoints, const ESplineType SplineMode, const int32 SamplesPerSegment, const float Compression, const float Stretch)
 {
 	const int32 ControlPointsCount = InPoints.Num();
