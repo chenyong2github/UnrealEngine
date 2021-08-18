@@ -84,6 +84,7 @@ public:
 	void Reset()
 	{
 		VertexIndices.Empty();
+		bMaxVertexIndex32Bits = false;
 		MorphDeltas.Empty();
 		MaximumValuePerMorph.Empty();
 		MinimumValuePerMorph.Empty();
@@ -98,6 +99,7 @@ protected:
 
 	// Transient data used while creating the vertex buffers, gets deleted as soon as VB gets initialized.
 	TArray<uint32> VertexIndices;
+	bool bMaxVertexIndex32Bits = false;
 	// Transient data used while creating the vertex buffers, gets deleted as soon as VB gets initialized.
 	TArray<FMorphDelta> MorphDeltas;
 

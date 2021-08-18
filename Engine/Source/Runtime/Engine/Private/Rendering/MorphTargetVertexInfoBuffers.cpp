@@ -11,17 +11,31 @@ void FMorphTargetVertexInfoBuffers::InitRHI()
 
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("VertexIndicesVB"));
-		VertexIndicesVB = RHICreateBuffer(VertexIndices.GetAllocatedSize(), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		void* VertexIndicesVBData = RHILockBuffer(VertexIndicesVB, 0, VertexIndices.GetAllocatedSize(), RLM_WriteOnly);
-		FMemory::ParallelMemcpy(VertexIndicesVBData, VertexIndices.GetData(), VertexIndices.GetAllocatedSize(), EMemcpyCachePolicy::StoreUncached);
-		RHIUnlockBuffer(VertexIndicesVB);
-		VertexIndicesSRV = RHICreateShaderResourceView(VertexIndicesVB, 4, PF_R32_UINT);
+		if (bMaxVertexIndex32Bits)
+		{
+			VertexIndicesVB = RHICreateBuffer(VertexIndices.Num() * sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+			void* VertexIndicesVBData = RHILockBuffer(VertexIndicesVB, 0, VertexIndicesVB->GetSize(), RLM_WriteOnly);
+			FMemory::ParallelMemcpy(VertexIndicesVBData, VertexIndices.GetData(), VertexIndices.Num() * sizeof(uint32), EMemcpyCachePolicy::StoreUncached);
+			RHIUnlockBuffer(VertexIndicesVB);
+			VertexIndicesSRV = RHICreateShaderResourceView(VertexIndicesVB, sizeof(uint32), PF_R32_UINT);
+		}
+		else
+		{
+			VertexIndicesVB = RHICreateBuffer(VertexIndices.Num() * sizeof(uint16), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+			uint16* VertexIndicesVBData = (uint16*)RHILockBuffer(VertexIndicesVB, 0, VertexIndicesVB->GetSize(), RLM_WriteOnly);
+			for (int32 i = 0; i < VertexIndices.Num(); ++i)
+			{
+				VertexIndicesVBData[i] = (uint16)VertexIndices[i];
+			}
+			RHIUnlockBuffer(VertexIndicesVB);
+			VertexIndicesSRV = RHICreateShaderResourceView(VertexIndicesVB, sizeof(uint16), PF_R16_UINT);
+		}
 	}
 	{
 		FRHIResourceCreateInfo CreateInfo(TEXT("MorphDeltasVB"));
-		MorphDeltasVB = RHICreateBuffer(MorphDeltas.GetAllocatedSize(), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		void* MorphDeltasVBData = RHILockBuffer(MorphDeltasVB, 0, MorphDeltas.GetAllocatedSize(), RLM_WriteOnly);
-		FMemory::ParallelMemcpy(MorphDeltasVBData, MorphDeltas.GetData(), MorphDeltas.GetAllocatedSize(), EMemcpyCachePolicy::StoreUncached);
+		MorphDeltasVB = RHICreateBuffer(MorphDeltas.Num() * MorphDeltas.GetTypeSize(), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		void* MorphDeltasVBData = RHILockBuffer(MorphDeltasVB, 0, MorphDeltasVB->GetSize(), RLM_WriteOnly);
+		FMemory::ParallelMemcpy(MorphDeltasVBData, MorphDeltas.GetData(), MorphDeltas.Num() * MorphDeltas.GetTypeSize(), EMemcpyCachePolicy::StoreUncached);
 		RHIUnlockBuffer(MorphDeltasVB);
 		MorphDeltasSRV = RHICreateShaderResourceView(MorphDeltasVB, 2, PF_R16F);
 	}
