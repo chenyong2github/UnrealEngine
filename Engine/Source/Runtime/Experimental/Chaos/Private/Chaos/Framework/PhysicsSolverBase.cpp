@@ -227,11 +227,6 @@ namespace Chaos
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
 		InSolver.MarkShuttingDown();
 		{
-#if PHYSICS_THREAD_CONTEXT
-			// Must use physics thread context, as we are about to execute physics thread API from the game thread in single threaded mode.
-			FPhysicsThreadContextScope PhysicsThreadContext(/*InParentIsPhysicsThreadContext=*/true);
-#endif
-
 			InSolver.AdvanceAndDispatch_External(0);	//flush any pending commands are executed (for example unregister object)
 		}
 
