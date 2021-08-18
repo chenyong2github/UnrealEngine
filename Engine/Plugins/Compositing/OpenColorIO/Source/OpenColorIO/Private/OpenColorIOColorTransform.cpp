@@ -234,7 +234,7 @@ void UOpenColorIOColorTransform::CacheResourceTextures()
 #if !PLATFORM_EXCEPTIONS_DISABLED
 			catch (OCIO_NAMESPACE::Exception& exception)
 			{
-				UE_LOG(LogOpenColorIO, Error, TEXT("Failed to cache 3dLUT for color transform %s. Error message: %s."), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
+				UE_LOG(LogOpenColorIO, Log, TEXT("Failed to cache 3dLUT for color transform %s. Error message: %s."), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
 			}
 #endif
 		}
@@ -413,7 +413,7 @@ bool UOpenColorIOColorTransform::UpdateShaderInfo(FString& OutShaderCodeHash, FS
 #if !PLATFORM_EXCEPTIONS_DISABLED
 		catch (OCIO_NAMESPACE::Exception& exception)
 		{
-			UE_LOG(LogOpenColorIO, Error, TEXT("Failed to fetch shader info for color transform %s. Error message: %s."), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
+			UE_LOG(LogOpenColorIO, Log, TEXT("Failed to fetch shader info for color transform %s. Error message: %s."), *GetTransformFriendlyName(), StringCast<TCHAR>(exception.what()).Get());
 		}
 #endif
 	}

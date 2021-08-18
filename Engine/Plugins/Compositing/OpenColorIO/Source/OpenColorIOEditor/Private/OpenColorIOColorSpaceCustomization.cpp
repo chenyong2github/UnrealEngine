@@ -110,14 +110,20 @@ bool FOpenColorIOColorSpaceCustomization::LoadConfigurationFile(const FFilePath&
 #endif
 	{
 		FString FullPath;
-		if (!FPaths::IsRelative(InFilePath.FilePath))
+		FString ConfigurationFilePath = InFilePath.FilePath;
+		if (ConfigurationFilePath.Contains(TEXT("{Engine}")))
 		{
-			FullPath = InFilePath.FilePath;
+			ConfigurationFilePath = FPaths::ConvertRelativePathToFull(ConfigurationFilePath.Replace(TEXT("{Engine}"), *FPaths::EngineDir()));
+		}    
+
+		if (!FPaths::IsRelative(ConfigurationFilePath))
+		{
+			FullPath = ConfigurationFilePath;
 		}
 		else
 		{
 			const FString AbsoluteGameDir = FPaths::ConvertRelativePathToFull(FPaths::ProjectDir());
-			FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, InFilePath.FilePath));
+			FullPath = FPaths::ConvertRelativePathToFull(FPaths::Combine(AbsoluteGameDir, ConfigurationFilePath));
 		}
 
 		CachedConfigFile = OCIO_NAMESPACE::Config::CreateFromFile(StringCast<ANSICHAR>(*FullPath).Get());
