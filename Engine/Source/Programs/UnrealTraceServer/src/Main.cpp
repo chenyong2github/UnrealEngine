@@ -92,7 +92,7 @@ static FStoreService* StartStore(const char* StoreDir)
 	FStoreService::FDesc Desc;
 	Desc.StoreDir = StoreDir;
 	Desc.StorePort = 1989;
-	Desc.RecorderPort = 1980;
+	Desc.RecorderPort = 1981;
 	return FStoreService::Create(Desc);
 }
 
