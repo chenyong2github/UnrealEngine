@@ -307,6 +307,12 @@ private:
 
 	TArray<FName> GetDefaultPathsToExpand() const;
 
+	/** Tell the tree that the LastExpandedPath set should be refreshed */
+	void DirtyLastExpandedPaths();
+
+	/** Update the LastExpandedPath if required */
+	void UpdateLastExpandedPathsIfDirty();
+
 protected:
 	/** A helper class to manage PreventTreeItemChangedDelegateCount by incrementing it when constructed (on the stack) and decrementing when destroyed */
 	class FScopedPreventTreeItemChangedDelegate
@@ -381,6 +387,8 @@ protected:
 	TSharedPtr<FBlacklistPaths> CustomFolderBlacklist;
 
 private:
+	/** Used to track if the list of last expanded path should be updated */
+	bool bLastExpandedPathsDirty = false;
 
 	/** The paths that were last reported by OnPathExpanded event. Used in preserving expansion when filtering folders */
 	TSet<FName> LastExpandedPaths;
