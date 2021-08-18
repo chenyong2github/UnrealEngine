@@ -292,9 +292,6 @@ namespace Metasound
 				return FString();
 			};
 
-			TArray<const UClass*> AllowedClasses;
-			AllowedClasses.Add(ProxyGenClass.Get());
-
 			auto FilterAsset = [InProxyGenClass = ProxyGenClass](const FAssetData& InAsset)
 			{
 				if (InProxyGenClass.IsValid())
@@ -312,16 +309,16 @@ namespace Metasound
 			};
 
 			return SNew(SObjectPropertyEntryBox)
-				.ObjectPath_Lambda(GetAssetPath)
-				.AllowedClass(ProxyGenClass.Get())
-				.OnShouldSetAsset_Lambda(ValidateAsset)
-				.OnShouldFilterAsset_Lambda(FilterAsset)
-				.PropertyHandle(PropertyHandle)
 				.AllowClear(true)
-				.DisplayUseSelected(true)
+				.AllowedClass(ProxyGenClass.Get())
 				.DisplayBrowse(true)
 				.DisplayThumbnail(true)
-				.NewAssetFactories(PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses(AllowedClasses));
+				.DisplayUseSelected(true)
+				.NewAssetFactories(PropertyCustomizationHelpers::GetNewAssetFactoriesForClasses({ ProxyGenClass.Get() }))
+				.ObjectPath_Lambda(GetAssetPath)
+				.OnShouldFilterAsset_Lambda(FilterAsset)
+				.OnShouldSetAsset_Lambda(ValidateAsset)
+				.PropertyHandle(PropertyHandle);
 		}
 
 		TSharedRef<SWidget> FMetasoundInputArrayDetailCustomizationBase::CreateNameWidget(TSharedPtr<IPropertyHandle> StructPropertyHandle) const

@@ -60,8 +60,8 @@ namespace Metasound
 			static TSharedPtr<FEditor> GetEditorForMetasound(const UObject& MetaSound);
 			static TSharedPtr<FEditor> GetEditorForGraph(const UEdGraph& EdGraph);
 
-			// Validates MetaSound and optionally performs AutoUpdate logic in Frontend with any additional logic required to refresh editor & respective editor object state.
-			static bool ValidateGraph(UObject& InMetaSound, bool bAutoUpdate = true, bool bInClearUpdateNotes = false);
+			// Validates MetaSound graph.
+			static bool ValidateGraph(UObject& InMetaSound, bool bInClearUpdateNotes = false);
 
 			// Wraps RegisterGraphWithFrontend logic in Frontend with any additional logic required to refresh editor & respective editor object state.
 			static void RegisterGraphWithFrontend(UObject& InMetaSound);

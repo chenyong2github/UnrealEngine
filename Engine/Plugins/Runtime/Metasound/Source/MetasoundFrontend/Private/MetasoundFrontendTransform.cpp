@@ -384,12 +384,9 @@ namespace Metasound
 
 		bool FAutoUpdateRootGraph::Transform(FDocumentHandle InDocument) const
 		{
-			check(Asset);
-			check(AssetInterface);
-
 			bool bDidEdit = false;
 
-			FDocumentHandle PresetReferenceDocument = IDocumentController::GetInvalidHandle();
+			FMetasoundAssetBase* PresetReferencedMetaSoundAsset = nullptr;
 			TArray<TPair<FNodeHandle, FMetasoundFrontendVersionNumber>> NodesToUpdate;
 
 			FGraphHandle RootGraph = InDocument->GetRootGraph();
@@ -397,7 +394,7 @@ namespace Metasound
 			{
 				using namespace Metasound::Frontend;
 				FClassInterfaceUpdates InterfaceUpdates;
-				if (!NodeHandle->CanAutoUpdate(*AssetInterface, &InterfaceUpdates))
+				if (!NodeHandle->CanAutoUpdate(&InterfaceUpdates))
 				{
 					return;
 				}
@@ -420,10 +417,9 @@ namespace Metasound
 					if (ensure(ClassMetadata.GetType() == EMetasoundFrontendClassType::External))
 					{
 						const FNodeRegistryKey RegistryKey = FMetasoundFrontendRegistryContainer::Get()->GetRegistryKey(ClassMetadata);
-						FMetasoundAssetBase* ReferencedMetaSoundAsset = AssetInterface->FindAssetFromKey(RegistryKey);
-						if (ReferencedMetaSoundAsset)
+						PresetReferencedMetaSoundAsset = IMetaSoundAssetManager::GetChecked().FindAssetFromKey(RegistryKey);
+						if (PresetReferencedMetaSoundAsset)
 						{
-							PresetReferenceDocument = ReferencedMetaSoundAsset->GetDocumentHandle();
 							return;
 						}
 					}
@@ -432,9 +428,10 @@ namespace Metasound
 				NodesToUpdate.Add(TPair<FNodeHandle, FMetasoundFrontendVersionNumber>(NodeHandle, UpdateVersion));
 			}, EMetasoundFrontendClassType::External);
 
-			if (PresetReferenceDocument->IsValid())
+			if (PresetReferencedMetaSoundAsset)
 			{
-				bDidEdit |= FRebuildPresetRootGraph(PresetReferenceDocument).Transform(InDocument);
+				bDidEdit |= FRebuildPresetRootGraph(PresetReferencedMetaSoundAsset->GetDocumentHandle()).Transform(InDocument);
+				bDidEdit |= PresetReferencedMetaSoundAsset->ConformObjectDataToArchetype();
 			}
 			else
 			{
@@ -452,7 +449,6 @@ namespace Metasound
 			}
 
 			InDocument->SynchronizeDependencies();
-
 			return bDidEdit;
 		}
 
@@ -474,6 +470,10 @@ namespace Metasound
 			{
 				return false;
 			}
+
+			// 2. Run transform to ensure preset matches reference archetype
+			const FMetasoundFrontendVersion& RefArchetypeVersion = ReferencedDocument->GetArchetypeVersion();
+			FMatchRootGraphToArchetype(RefArchetypeVersion).Transform(InDocument);
 
 			using FDefaultKey = TPair<FString, FName>;
 			struct FDefaultInputValue
@@ -522,11 +522,6 @@ namespace Metasound
 			}, EMetasoundFrontendClassType::Output);
 
 			RootGraphHandle->ClearGraph();
-			const FMetasoundFrontendVersion& RefArchetype = ReferencedDocument->GetArchetypeVersion();
-// 			if (!ensure(IsArchetypeSupported(RefArchetype)))
-// 			{
-// 				return false;
-// 			}
 
 			// 2. Set initial locations of 3 columns (inputs, reference node, and outputs)
 			const TArray<FConstNodeHandle> ReferencedInputs = ReferencedGraphHandle->GetConstInputNodes();
@@ -673,9 +668,6 @@ namespace Metasound
 				});
 			},
 			EMetasoundFrontendClassType::Output);
-
-			// 5. Run transform to set to match archetype (marking inputs/outputs as required that were copied over)
-			FMatchRootGraphToArchetype(RefArchetype).Transform(InDocument);
 
 			return true;
 		}

@@ -53,13 +53,13 @@ namespace Metasound
 				Info.ClassName = ReceiveNodeInfo::GetClassNameForDataType(GetMetasoundDataTypeName<TDataType>());
 				Info.MajorVersion = ReceiveNodeInfo::GetCurrentMajorVersion();
 				Info.MinorVersion = ReceiveNodeInfo::GetCurrentMinorVersion();
-				Info.DisplayName = FText::Format(LOCTEXT("Metasound_ReceiveNodeDisplayNameFormat", "Receive {0}"), FText::FromName(GetMetasoundDataTypeName<TDataType>()));
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_ReceiveNodeDisplayNameFormat", "Receive {0}"), GetMetasoundDataTypeDisplayText<TDataType>());
 				Info.Description = LOCTEXT("Metasound_ReceiveNodeDescription", "Receives data from a send node with the same name.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_TransmissionNodeCategory", "Transmission") };
-				Info.Keywords = { LOCTEXT("Metasound_ReceiveKeyword", "Receive"), FText::FromName(GetMetasoundDataTypeName<TDataType>()) };
+				Info.Keywords = { };
 
 				return Info;
 			};

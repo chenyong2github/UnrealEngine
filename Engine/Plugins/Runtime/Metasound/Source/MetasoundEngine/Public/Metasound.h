@@ -30,7 +30,7 @@ public:
 	virtual bool NeedsLoadForEditorGame() const override { return false; }
 
 	virtual bool Synchronize() { return false; }
-	virtual bool Validate(bool bInAutoUpdate, bool bInClearUpdateNotes) { return false; }
+	virtual bool Validate(bool bInClearUpdateNotes) { return false; }
 	virtual void RegisterGraphWithFrontend() { }
 };
 
@@ -53,7 +53,7 @@ namespace Metasound
 	{
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
-			if (MetaSoundGraph->Validate(false /* bAutoUpdate */, false /* bClearUpdateNotes */))
+			if (MetaSoundGraph->Validate(false /* bClearUpdateNotes */))
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
 			}
@@ -82,9 +82,8 @@ namespace Metasound
 #if WITH_EDITORONLY_DATA
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
-			const bool bAutoUpdate = false;
 			const bool bClearUpdateNotes = true;
-			const bool bIsValid = MetaSoundGraph->Validate(bAutoUpdate, bClearUpdateNotes);
+			const bool bIsValid = MetaSoundGraph->Validate(bClearUpdateNotes);
 			if (bIsValid)
 			{
 				MetaSoundGraph->RegisterGraphWithFrontend();
@@ -98,12 +97,7 @@ namespace Metasound
 	{
 		if (InArchive.IsLoading())
 		{
-			const bool bUpdateReferences = false;
-			const bool bMarkDirty = false;
-
-			UMetaSoundAssetSubsystem& AssetSubsystem = UMetaSoundAssetSubsystem::Get();
-			InMetaSound.VersionAsset(AssetSubsystem, bMarkDirty, bUpdateReferences);
-			InMetaSound.AutoUpdate(AssetSubsystem, bMarkDirty, bUpdateReferences);
+			InMetaSound.VersionAsset();
 		}
 	}
 
@@ -171,7 +165,10 @@ public:
 	UMetaSound(const FObjectInitializer& ObjectInitializer);
 
 	UPROPERTY()
-	TSet<FSoftObjectPath> ReferencedAssets;
+	TSet<FString> ReferencedAssetClassKeys;
+
+	UPROPERTY(Transient)
+	TSet<UObject*> ReferenceAssetClassCache;
 
 	UPROPERTY(AssetRegistrySearchable)
 	FGuid AssetClassID;
@@ -229,20 +226,19 @@ public:
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void Serialize(FArchive& InArchive) override;
 
-	virtual TSet<FSoftObjectPath>& GetReferencedAssets() override
-	{
-		return ReferencedAssets;
-	}
-
-	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const override
-	{
-		return ReferencedAssets;
-	}
+	virtual TSet<UObject*>& GetReferencedAssetClassCache() override;
 
 	// Returns Asset Metadata associated with this MetaSound
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
 	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
+
+	virtual bool ConformObjectDataToArchetype() override { return false; }
+
+	virtual const TSet<FString>& GetReferencedAssetClassKeys() const override
+	{
+		return ReferencedAssetClassKeys;
+	}
 
 	UObject* GetOwningAsset() override
 	{
@@ -258,6 +254,7 @@ public:
 	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
 
 protected:
+	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
 
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{

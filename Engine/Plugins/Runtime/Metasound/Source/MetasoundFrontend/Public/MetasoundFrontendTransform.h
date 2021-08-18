@@ -84,17 +84,9 @@ namespace Metasound
 		class METASOUNDFRONTEND_API FAutoUpdateRootGraph : public IDocumentTransform
 		{
 		public:
-			FAutoUpdateRootGraph(FMetasoundAssetBase& InAsset, const IMetaSoundAssetInterface& InAssetInterface)
-				: Asset(&InAsset)
-				, AssetInterface(&InAssetInterface)
-			{
-			}
+			FAutoUpdateRootGraph() = default;
 
 			bool Transform(FDocumentHandle InDocument) const override;
-
-		private:
-			FMetasoundAssetBase* Asset = nullptr;
-			const IMetaSoundAssetInterface* AssetInterface = nullptr;
 		};
 
 		/** Synchronizes the document's root graph's display name with that of the asset. */

@@ -7,6 +7,7 @@
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundRouter.h"
@@ -43,7 +44,10 @@ protected:
 	FMetasoundFrontendDocument RootMetasoundDocument;
 
 	UPROPERTY()
-	TSet<FSoftObjectPath> ReferencedAssets;
+	TSet<FString> ReferencedAssetClassKeys;
+
+	UPROPERTY(Transient)
+	TSet<UObject*> ReferenceAssetClassCache;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -125,24 +129,23 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InEvent) override;
 #endif // WITH_EDITOR
 
+	virtual const TSet<FString>& GetReferencedAssetClassKeys() const override
+	{
+		return ReferencedAssetClassKeys;
+	}
+
 	virtual void BeginDestroy() override;
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void Serialize(FArchive& Ar) override;
 
-	virtual TSet<FSoftObjectPath>& GetReferencedAssets() override
-	{
-		return ReferencedAssets;
-	}
-
-	virtual const TSet<FSoftObjectPath>& GetReferencedAssets() const override
-	{
-		return ReferencedAssets;
-	}
+	virtual TSet<UObject*>& GetReferencedAssetClassCache() override;
 
 	// Returns Asset Metadata associated with this MetaSoundSource
 	virtual Metasound::Frontend::FNodeClassInfo GetAssetClassInfo() const override;
 
 	virtual const FMetasoundFrontendVersion& GetDefaultArchetypeVersion() const override;
+
+	virtual bool ConformObjectDataToArchetype() override;
 
 	UObject* GetOwningAsset() override
 	{
@@ -153,6 +156,8 @@ public:
 	{
 		return this;
 	}
+
+	virtual void InitResources() override;
 
 	virtual bool IsPlayable() const override;
 	virtual bool SupportsSubtitles() const override;
@@ -165,6 +170,8 @@ public:
 
 
 protected:
+	virtual void SetReferencedAssetClassKeys(TSet<Metasound::Frontend::FNodeRegistryKey>&& InKeys) override;
+
 	Metasound::Frontend::FDocumentAccessPtr GetDocument() override
 	{
 		using namespace Metasound::Frontend;

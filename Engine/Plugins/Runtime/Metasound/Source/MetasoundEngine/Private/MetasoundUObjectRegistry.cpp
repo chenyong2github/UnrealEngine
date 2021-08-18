@@ -76,6 +76,7 @@ namespace Metasound
 
 void UMetaSoundAssetSubsystem::Initialize(FSubsystemCollectionBase& InCollection)
 {
+	IMetaSoundAssetManager::Set(*this);
 	FCoreDelegates::OnPostEngineInit.AddUObject(this, &UMetaSoundAssetSubsystem::PostEngineInit);
 }
 
@@ -106,7 +107,7 @@ void UMetaSoundAssetSubsystem::PostInitAssetScan()
 	AssetManager.SearchAssetRegistryPaths(MetaSoundAssets, Rules);
 	for (const FAssetData& AssetData : MetaSoundAssets)
 	{
-		AddOrUpdateAsset(AssetData);
+		AddOrUpdateAsset(AssetData, false /* bRegisterWithFrontend */);
 	}
 
 	Rules.AssetBaseClass = UMetaSoundSource::StaticClass();
@@ -114,12 +115,8 @@ void UMetaSoundAssetSubsystem::PostInitAssetScan()
 	AssetManager.SearchAssetRegistryPaths(MetaSoundSourceAssets, Rules);
 	for (const FAssetData& AssetData : MetaSoundSourceAssets)
 	{
-		AddOrUpdateAsset(AssetData);
+		AddOrUpdateAsset(AssetData, false /* bRegisterWithFrontend */);
 	}
-}
-
-void UMetaSoundAssetSubsystem::Deinitialize()
-{
 }
 
 void UMetaSoundAssetSubsystem::AddOrUpdateAsset(UObject& InObject, bool bInRegisterWithFrontend)
@@ -149,14 +146,11 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData, b
 	using namespace Metasound::AssetSubsystemPrivate;
 	using namespace Metasound::Frontend;
 
-	// TODO: Set to false for builds once registering without loading asset is supported.
-	static const bool bLoadRequiredToRegisterAssetClasses = true;
-
 	METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(UMetaSoundAssetSubsystem::AddOrUpdateAsset);
 
 	FNodeClassInfo ClassInfo;
 	bool bClassInfoFound = GetAssetClassInfo(InAssetData, ClassInfo);
-	if (!bClassInfoFound || bLoadRequiredToRegisterAssetClasses || bInRegisterWithFrontend)
+	if (!bClassInfoFound || bInRegisterWithFrontend)
 	{
 		UObject* Object = nullptr;
 
@@ -167,7 +161,7 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData, b
 		}
 		else
 		{
-			if (!bLoadRequiredToRegisterAssetClasses)
+			if (!bInRegisterWithFrontend)
 			{
 				UE_LOG(LogMetaSound, Warning,
 					TEXT("Failed to find serialized MetaSound asset registry data for asset '%s'. "
@@ -177,7 +171,7 @@ void UMetaSoundAssetSubsystem::AddOrUpdateAsset(const FAssetData& InAssetData, b
 			Object = Path.TryLoad();
 		}
 
-		if (ensure(Object))
+		if (Object)
 		{
 			AddOrUpdateAsset(*Object, bInRegisterWithFrontend);
 			return;

@@ -14,6 +14,7 @@
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
+#include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
@@ -65,13 +66,25 @@ namespace Metasound
 
 		void FMetasoundDetailCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailLayout)
 		{
+			using namespace Metasound;
 			using namespace Metasound::Editor;
+			using namespace Metasound::Frontend;
 
 			EMetasoundActiveDetailView DetailsView = EMetasoundActiveDetailView::Metasound;
 			if (const UMetasoundEditorSettings* EditorSettings = GetDefault<UMetasoundEditorSettings>())
 			{
 				DetailsView = EditorSettings->DetailView;
 			}
+
+			// Currently only support modifying a single MetaSound at a time (Multiple MetaSound editting will be covered by separate tool)
+			TArray<TWeakObjectPtr<UObject>> Objects;
+			DetailLayout.GetObjectsBeingCustomized(Objects);
+			if (Objects.Num() > 1)
+			{
+				return;
+			}
+
+			TWeakObjectPtr<UMetaSoundSource> MetaSoundSource = Cast<UMetaSoundSource>(Objects[0].Get());
 
 			switch (DetailsView)
 			{
@@ -95,6 +108,41 @@ namespace Metasound
 					TSharedPtr<IPropertyHandle> DescHandle = DetailLayout.GetProperty(DescPropertyPath);
 					TSharedPtr<IPropertyHandle> MajorVersionHandle = DetailLayout.GetProperty(MajorVersionPropertyPath);
 					TSharedPtr<IPropertyHandle> MinorVersionHandle = DetailLayout.GetProperty(MinorVersionPropertyPath);
+
+					// Invalid for UMetaSounds
+					TSharedPtr<IPropertyHandle> OutputFormat = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(UMetaSoundSource, OutputFormat));
+					if (OutputFormat.IsValid())
+					{
+						TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create([InSource = MetaSoundSource]()
+						{
+							if (const FMetasoundAssetBase* MetaSoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Cast<UObject>(InSource)))
+							{
+								FConstGraphHandle GraphHandle = MetaSoundAsset->GetRootGraphHandle();
+								return GraphHandle->GetGraphStyle().bIsGraphEditable;
+							}
+
+							return false;
+						});
+
+						TSharedRef<SWidget> OutputFormatValueWidget = OutputFormat->CreatePropertyValueWidget();
+						OutputFormatValueWidget->SetEnabled(IsEnabledAttribute);
+
+						static const FText OutputFormatName = LOCTEXT("MetasoundOutputFormatPropertyName", "Output Format");
+						GeneralCategoryBuilder.AddCustomRow(OutputFormatName)
+// 						.EditCondition(
+// 						{
+// 						}), nullptr)
+						.NameContent()
+						[
+							OutputFormat->CreatePropertyNameWidget()
+						]
+						.ValueContent()
+						[
+							OutputFormatValueWidget
+						];
+
+						OutputFormat->MarkHiddenByCustomization();
+					}
 
 					GeneralCategoryBuilder.AddProperty(AuthorHandle);
 					GeneralCategoryBuilder.AddProperty(DescHandle);

@@ -52,16 +52,16 @@ namespace Metasound
 				const FString& InputName = GetSendInputName();
 				FNodeClassMetadata Info;
 
-				Info.ClassName = {TEXT("Send"), GetMetasoundDataTypeName<TDataType>(), TEXT("")};
+				Info.ClassName = { "Send", GetMetasoundDataTypeName<TDataType>(), FName() };
 				Info.MajorVersion = 1;
 				Info.MinorVersion = 0;
-				Info.DisplayName = FText::Format(LOCTEXT("Metasound_SendNodeDisplayNameFormat", "Send {0}"), FText::FromName(GetMetasoundDataTypeName<TDataType>()));
+				Info.DisplayName = FText::Format(LOCTEXT("Metasound_SendNodeDisplayNameFormat", "Send {0}"), GetMetasoundDataTypeDisplayText<TDataType>());
 				Info.Description = LOCTEXT("Metasound_SendNodeDescription", "Sends data from a send node with the same name.");
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = DeclareVertexInterface();
 				Info.CategoryHierarchy = { LOCTEXT("Metasound_TransmissionNodeCategory", "Transmission") };
-				Info.Keywords = { LOCTEXT("Metasound_SendKeyword", "Send"), FText::FromName(GetMetasoundDataTypeName<TDataType>()) };
+				Info.Keywords = { };
 
 				return Info;
 			};

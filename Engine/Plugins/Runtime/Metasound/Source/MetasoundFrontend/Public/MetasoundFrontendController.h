@@ -11,7 +11,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundGraph.h"
 
-class IMetaSoundAssetInterface;
+class IMetaSoundAssetManager;
 
 /* Metasound Controllers and Handles provide a object oriented interface for  manipulating Metasound Documents. 
  *
@@ -90,10 +90,11 @@ namespace Metasound
 		  * when querying if a node's class has been updated */
 		struct FClassInterfaceUpdates
 		{
-			TArray<FMetasoundFrontendClassInput> AddedInputs;
-			TArray<FMetasoundFrontendClassOutput> AddedOutputs;
-			TArray<FMetasoundFrontendClassInput> RemovedInputs;
-			TArray<FMetasoundFrontendClassOutput> RemovedOutputs;
+
+			TArray<const FMetasoundFrontendClassInput*> AddedInputs;
+			TArray<const FMetasoundFrontendClassOutput*> AddedOutputs;
+			TArray<const FMetasoundFrontendClassInput*> RemovedInputs;
+			TArray<const FMetasoundFrontendClassOutput*> RemovedOutputs;
 
 			bool ContainsRemovedMembers() const
 			{
@@ -109,6 +110,9 @@ namespace Metasound
 			{
 				return ContainsRemovedMembers() || ContainsAddedMembers();
 			}
+
+			// Cached copy of registry class potentially referenced by added members
+			FMetasoundFrontendClass RegistryClass;
 		};
 
 
@@ -436,7 +440,7 @@ namespace Metasound
 			  * has undergone minor revision or the interface has changed, but
 			  * no higher major revision is available. Optionally provide
 			  * interface updates to be populate with any information regarding interface updates. */
-			virtual bool CanAutoUpdate(const IMetaSoundAssetInterface& AssetInterface, FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const = 0;
+			virtual bool CanAutoUpdate(FClassInterfaceUpdates* OutInterfaceUpdates = nullptr) const = 0;
 
 			/** Description of the given node. */
 			virtual const FText& GetDescription() const = 0;
