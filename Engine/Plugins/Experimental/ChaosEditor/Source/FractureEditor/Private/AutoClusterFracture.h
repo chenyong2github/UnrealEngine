@@ -20,6 +20,8 @@ enum class EFractureAutoClusterMode : uint8
 
 	/** Distance */
 	Distance UMETA(DisplayName = "Distance"),
+
+	Voronoi UMETA(DisplayName = "Voronoi"),
 };
 
 /** Performs clustering of the currently selected geometry collection bones */

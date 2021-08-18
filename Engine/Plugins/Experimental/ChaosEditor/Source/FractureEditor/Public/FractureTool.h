@@ -70,6 +70,8 @@ protected:
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 	static void Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit);
 	static void SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit);
+	static void ClearProximity(FGeometryCollection* GeometryCollection);
+	static void GenerateProximityIfNecessary(FGeometryCollection* GeometryCollection);
 
 
 protected:
