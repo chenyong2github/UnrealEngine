@@ -115,7 +115,7 @@ namespace HordeServer
 		/// <summary>
 		/// Max number of concurrent leases per agent
 		/// </summary>
-		public int MaxConcurrentLeasesPerAgent { get; set; } = 2;
+		public int MaxConcurrentLeasesPerAgent { get; set; } = 1;
 	}
 
 	/// <summary>
