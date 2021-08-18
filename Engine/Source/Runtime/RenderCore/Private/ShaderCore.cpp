@@ -446,6 +446,12 @@ bool ShouldEnableExtraShaderData(FName ShaderFormat)
 	return ExtraData.IsEnabled(ShaderFormat);
 }
 
+bool ShouldOptimizeShaders(FName ShaderFormat)
+{
+	static const FShaderSymbolSettingHelper Optimize(TEXT("r.Shaders.Optimize"));
+	return Optimize.IsEnabled(ShaderFormat);
+}
+
 #ifndef UE_ALLOW_SHADER_COMPILING
 // is shader compiling allowed at all? (set to 0 in a cooked editor .Target.cs if the target has no shaders available)
 #define UE_ALLOW_SHADER_COMPILING 1
