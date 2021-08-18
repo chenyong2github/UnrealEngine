@@ -404,6 +404,41 @@ struct CONTROLRIG_API FRigUnit_PoseGetTransform : public FRigUnit_HierarchyBase
 };
 
 /**
+* Returns the hierarchy's pose transform
+*/
+USTRUCT(meta=(DisplayName="Get Pose Cache Transform Array", Keywords="Hierarchy,Pose,State", Varying))
+struct CONTROLRIG_API FRigUnit_PoseGetTransformArray : public FRigUnit_HierarchyBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_PoseGetTransformArray()
+	{
+		Pose = FRigPose();
+		Space = EBoneGetterSetterMode::GlobalSpace;
+		Valid = false;
+		Transforms.Reset();
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigPose Pose;
+
+	/**
+	* Defines if the transform should be retrieved in local or global space
+	*/ 
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	UPROPERTY(meta = (Output))
+	bool Valid;
+	
+	UPROPERTY(meta = (Output))
+	TArray<FTransform> Transforms;
+};
+
+/**
 * Returns the hierarchy's pose curve value
 */
 USTRUCT(meta=(DisplayName="Get Pose Cache Curve", Keywords="Hierarchy,Pose,State", Varying))
