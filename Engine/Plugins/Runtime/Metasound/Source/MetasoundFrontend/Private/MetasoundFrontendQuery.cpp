@@ -523,15 +523,15 @@ namespace Metasound
 
 				if (Step.IsValid())
 				{
-					auto FilterFunc = [&](const FFrontendQueryEntry* Entry)
-					{
-						return (nullptr != Entry) && Step->Filter(*Entry);
-					};
-
-					int32 NumRemoved = InOutResult.FilterSelection(FilterFunc);
-					if (NumRemoved > 0)
+					if (InOutResult.GetSelection().Num() > 0)
 					{
 						ResultState = EResultModificationState::Modified;
+						auto FilterFunc = [&](const FFrontendQueryEntry* Entry)
+						{
+							return (nullptr != Entry) && Step->Filter(*Entry);
+						};
+
+						InOutResult.FilterSelection(FilterFunc);
 					}
 				}
 
