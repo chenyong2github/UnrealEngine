@@ -134,6 +134,7 @@ UNiagaraEmitter::UNiagaraEmitter(const FObjectInitializer& Initializer)
 , bCombineEventSpawn(false)
 , MaxDeltaTimePerTick(0.125)
 , bLimitDeltaTime(true)
+, MaxGPUParticlesSpawnPerFrame(0)
 #if WITH_EDITORONLY_DATA
 , bBakeOutRapidIteration(true)
 , ThumbnailImageOutOfDate(true)
