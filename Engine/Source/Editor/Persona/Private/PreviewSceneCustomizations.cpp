@@ -66,6 +66,14 @@ FPreviewSceneDescriptionCustomization::~FPreviewSceneDescriptionCustomization()
 		FactoryToUse->RemoveFromRoot();
 		FactoryToUse = nullptr;
 	}
+
+	if (const TSharedPtr<IPersonaToolkit> Toolkit = PersonaToolkit.Pin())
+	{
+		if (UAnimBlueprint* AnimBlueprint = Toolkit->GetAnimBlueprint())
+		{
+			AnimBlueprint->OnCompiled().RemoveAll(this);
+		}
+	}
 }
 
 void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -463,6 +471,12 @@ void FPreviewSceneDescriptionCustomization::CustomizeDetails(IDetailLayoutBuilde
 		DetailBuilder.HideProperty(SkeletalMeshProperty);
 		DetailBuilder.HideProperty(AdditionalMeshesProperty);
 	}
+
+	TSharedPtr<IPersonaToolkit> Toolkit = PersonaToolkit.Pin();
+	if (Toolkit && Toolkit->GetAnimBlueprint())
+	{
+		Toolkit->GetAnimBlueprint()->OnCompiled().AddSP(this, &FPreviewSceneDescriptionCustomization::HandleAnimBlueprintCompiled);
+	}
 }
 
 EVisibility FPreviewSceneDescriptionCustomization::GetSaveButtonVisibility(TSharedRef<IPropertyHandle> InAdditionalMeshesProperty) const
@@ -569,11 +583,7 @@ void FPreviewSceneDescriptionCustomization::OnComboSelectionChanged(TSharedPtr<F
 
 void FPreviewSceneDescriptionCustomization::HandlePreviewControllerPropertyChanged()
 {
-	TSharedPtr<FAnimationEditorPreviewScene> PreviewScenePtr = PreviewScene.Pin();
-	UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScenePtr->GetPreviewSceneDescription();
-	
-	PersonaPreviewSceneDescription->PreviewControllerInstance->UninitializeView(PersonaPreviewSceneDescription, PreviewScenePtr.Get());
-	PersonaPreviewSceneDescription->PreviewControllerInstance->InitializeView(PersonaPreviewSceneDescription, PreviewScenePtr.Get());
+	ReinitializePreviewController();
 }
 
 void FPreviewSceneDescriptionCustomization::HandleMeshChanged(const FAssetData& InAssetData)   
@@ -623,6 +633,20 @@ void FPreviewSceneDescriptionCustomization::HandleUseCustomAnimBPCheckedStateCha
 ECheckBoxState FPreviewSceneDescriptionCustomization::HandleUseCustomAnimBPIsChecked() const
 {
 	return GetDefault<UPersonaOptions>()->bAllowPreviewMeshCollectionsToUseCustomAnimBP? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FPreviewSceneDescriptionCustomization::HandleAnimBlueprintCompiled(UBlueprint*)
+{
+	ReinitializePreviewController();
+}
+
+void FPreviewSceneDescriptionCustomization::ReinitializePreviewController()
+{
+	TSharedPtr<FAnimationEditorPreviewScene> PreviewScenePtr = PreviewScene.Pin();
+	UPersonaPreviewSceneDescription* PersonaPreviewSceneDescription = PreviewScenePtr->GetPreviewSceneDescription();
+	
+	PersonaPreviewSceneDescription->PreviewControllerInstance->UninitializeView(PersonaPreviewSceneDescription, PreviewScenePtr.Get());
+	PersonaPreviewSceneDescription->PreviewControllerInstance->InitializeView(PersonaPreviewSceneDescription, PreviewScenePtr.Get());
 }
 
 bool FPreviewSceneDescriptionCustomization::GetReplaceVisibility(TSharedPtr<IPropertyHandle> PropertyHandle) const
