@@ -770,21 +770,32 @@ void UGeometryCollectionComponent::RegisterForEvents()
 {
 	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions)
 	{
-		if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
-		{
-			EventDispatcher->RegisterForCollisionEvents(this, this);
 #if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateCollisionData(true);
-#endif
-		}
+		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
+		if (Solver)
+		{
+			if (bNotifyCollisions || BodyInstance.bNotifyRigidBodyCollision)
+			{
+				EventDispatcher->RegisterForCollisionEvents(this, this);
 
-		if (bNotifyBreaks)
-		{
-			EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
-#if INCLUDE_CHAOS
-			GetWorld()->GetPhysicsScene()->GetSolver()->SetGenerateBreakingData(true);
-#endif
+				Solver->EnqueueCommandImmediate([Solver]()
+					{
+						Solver->SetGenerateCollisionData(true);
+					});
+			}
+
+			if (bNotifyBreaks)
+			{
+				EventDispatcher->RegisterForBreakEvents(this, &DispatchGeometryCollectionBreakEvent);
+
+				Solver->EnqueueCommandImmediate([Solver]()
+					{
+						Solver->SetGenerateBreakingData(true);
+					});
+
+			}
 		}
+#endif
 	}
 }
 
