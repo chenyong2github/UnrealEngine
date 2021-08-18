@@ -7,7 +7,7 @@
 #endif
 
 #if !defined(TS_VERSION_MINOR)
-#	define TS_VERSION_MINOR		2
+#	define TS_VERSION_MINOR		3
 #endif
 
 /* vim: set noexpandtab : */
