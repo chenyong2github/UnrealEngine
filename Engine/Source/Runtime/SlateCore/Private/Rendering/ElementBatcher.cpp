@@ -1208,6 +1208,38 @@ void FSlateElementBatcher::AddTextElement(const FSlateDrawElement& DrawElement)
 	}
 }
 
+/**
+ * Determines if the 2x2 matrix represents a rotation that will keep an axis-aligned rect
+ * axis-aligned (i.e. a rotation of 90-degree increments). This allows both "proper rotations"
+ * (those without a reflection) and "improper rotations" (rotations combined with a reflection
+ * over a single axis).
+ */
+static bool IsAxisAlignedRotation(const FMatrix2x2& Matrix)
+{
+	constexpr float Tolerance = KINDA_SMALL_NUMBER;
+
+	float A, B, C, D;
+	Matrix.GetMatrix(A, B, C, D);
+
+	// The 90- and 270-degree rotation matrices have zeroes on the main diagonal e.g.
+	// [0 n]
+	// [n 0] with n = 1 or -1
+	if (FMath::IsNearlyZero(A, Tolerance) && FMath::IsNearlyZero(D, Tolerance))
+	{
+		return FMath::IsNearlyEqual(1.0f, FMath::Abs(B), Tolerance) && FMath::IsNearlyEqual(1.0f, FMath::Abs(C), Tolerance);
+	}
+
+	// The 0- and 180-degree rotation matrices have zeroes on the secondary diagonal e.g.
+	// [n 0]
+	// [0 n] with n = 1 or -1
+	if (FMath::IsNearlyZero(B, Tolerance) && FMath::IsNearlyZero(C, Tolerance))
+	{
+		return FMath::IsNearlyEqual(1.0f, FMath::Abs(A), Tolerance) && FMath::IsNearlyEqual(1.0f, FMath::Abs(D), Tolerance);
+	}
+
+	return false;
+}
+
 template<ESlateVertexRounding Rounding>
 void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawElement )
 {
@@ -1292,20 +1324,21 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 		{
 			const FSlateClippingState* ClippingState = ResolveClippingState(DrawElement);
 
-			if (ClippingState && ClippingState->ScissorRect.IsSet() && ClippingState->ScissorRect->IsAxisAligned() && RenderTransform.GetMatrix().IsIdentity())
+			if (ClippingState && ClippingState->ScissorRect.IsSet() && ClippingState->ScissorRect->IsAxisAligned() && IsAxisAlignedRotation(RenderTransform.GetMatrix()))
 			{
-				// Non-render transformed box;
+				// Non-render transformed box or rotation is axis-aligned at 90-degree increments
 				const FSlateRect ScissorRectBox = ClippingState->ScissorRect->GetBoundingBox();
 
+				// We know that this will be axis-aligned because the scissor rect is axis-aligned and we already
+				// checked that the render transform is axis-aligned as well
 				const FSlateRect LocalClipBoundingBox = TransformRect(RenderTransform.Inverse(), ScissorRectBox);
 				BuildContext.LocalClipBoundingBoxLeft = LocalClipBoundingBox.Left;
 				BuildContext.LocalClipBoundingBoxRight = LocalClipBoundingBox.Right - (BuildContext.bForceEllipsis ? OverflowGlyphSequence->GetMeasuredWidth() : 0);
 
-				const float TransformOffset = RenderTransform.GetTranslation().X - DrawElement.GetPosition().X;
-
-				if (OverflowGlyphSequence && BuildContext.LocalClipBoundingBoxLeft <= 0 && BuildContext.LocalClipBoundingBoxRight > ShapedGlyphSequence->GetMeasuredWidth() + TransformOffset)
+				// In checks below, ignore floating-point differences caused by transforming and untransforming the clip rect
+				if (OverflowGlyphSequence && FMath::FloorToInt(BuildContext.LocalClipBoundingBoxLeft) <= 0 && FMath::CeilToInt(BuildContext.LocalClipBoundingBoxRight) >= ShapedGlyphSequence->GetMeasuredWidth())
 				{
-					// Override overflow if the text is smaller than the clipping rect and wont be clipped
+					// Override overflow if the text is smaller than (or is the same size as) the clipping rect and wont be clipped
 					BuildContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
 				}
 				else if(!OverflowGlyphSequence)
@@ -1315,7 +1348,7 @@ void FSlateElementBatcher::AddShapedTextElement( const FSlateDrawElement& DrawEl
 			}
 			else
 			{
-				// Overflow not supported on non-identity transforms
+				// Overflow not supported on non-identity transforms (except for 90-degree rotations)
 				BuildContext.OverflowDirection = ETextOverflowDirection::NoOverflow;
 			}
 		}
