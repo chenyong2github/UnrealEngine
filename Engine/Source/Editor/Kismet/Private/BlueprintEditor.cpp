@@ -1856,7 +1856,7 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 	if (InitBlueprints.Num() == 1)
 	{
 		// Load blueprint libraries
-		if (!bShouldOpenInDefaultsMode)
+		if (!bShouldOpenInDefaultsMode && ShouldLoadBPLibrariesFromAssetRegistry())
 		{
 			LoadLibrariesFromAssetRegistry();
 		}

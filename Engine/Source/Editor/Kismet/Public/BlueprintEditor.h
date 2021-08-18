@@ -493,6 +493,9 @@ public:
 	// Should be called when initializing any editor built off this foundation
 	void CommonInitialization(const TArray<UBlueprint*>& InitBlueprints, bool bShouldOpenInDefaultsMode);
 
+	// Other types of BP editors that don't use BP VM/function libs can choose to not load BP function libraries, for example: Control Rig Blueprints
+	virtual bool ShouldLoadBPLibrariesFromAssetRegistry() { return true; }
+
 	// Should be called when initializing an editor that has a blueprint, after layout (tab spawning) is done
 	void PostLayoutBlueprintEditorInitialization();
 
