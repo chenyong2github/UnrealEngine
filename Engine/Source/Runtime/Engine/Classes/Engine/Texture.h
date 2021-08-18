@@ -343,10 +343,6 @@ struct FTextureSource
 		FMipAllocation() = default;
 		/** Take a read only FSharedBuffer, will allocate a new buffer and copy from this if Read/Write access is requested */
 		FMipAllocation(FSharedBuffer SrcData);
-		/** Allocate a new buffer and copy from the source data */
-		FMipAllocation(const void* SrcData, int64 DataLength);
-		/** Lock the bulkdata and use it's memory buffer */
-		FMipAllocation(FByteBulkData& BulkData);
 
 		// Do not actually do anything for copy constructor or assignments, this is required for as long as
 		// we need to support the old bulkdata code path (although previously storing these allocations as
@@ -382,9 +378,19 @@ struct FTextureSource
 	private:
 		void CreateReadWriteBuffer(const void* SrcData, int64 DataLength);
 
-		FSharedBuffer		ReadOnlyReference;
-		TUniquePtr<uint8[]>	ReadWriteBuffer;
-		uint8* BulkDataPtr{ nullptr };
+		struct FDeleterFree
+		{
+			void operator()(uint8* Ptr) const
+			{
+				if (Ptr)
+				{
+					FMemory::Free(Ptr);
+				}
+			}
+		};
+
+		FSharedBuffer					ReadOnlyReference;
+		TUniquePtr<uint8, FDeleterFree>	ReadWriteBuffer;
 	};
 
 	/** Structure that encapsulates the decompressed texture data and can be accessed per mip */

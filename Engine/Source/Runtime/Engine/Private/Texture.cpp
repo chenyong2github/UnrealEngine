@@ -2289,19 +2289,6 @@ FTextureSource::FMipAllocation::FMipAllocation(FSharedBuffer SrcData)
 {
 }
 
-FTextureSource::FMipAllocation::FMipAllocation(const void* SrcData, int64 DataLength)
-{
-	CreateReadWriteBuffer(SrcData, DataLength);
-}
-
-FTextureSource::FMipAllocation::FMipAllocation(FByteBulkData& BulkData)
-{
-	// Note that we DO NOT unlock the bulkdata via FMipAllocation as some areas of code keep the lock open for longer
-	// than the memory buffer is actually used.
-	BulkDataPtr = (uint8*)BulkData.Lock(LOCK_READ_WRITE);
-	ReadOnlyReference = FSharedBuffer::MakeView(BulkDataPtr, BulkData.GetBulkDataSize());
-}
-
 FTextureSource::FMipAllocation::FMipAllocation(FTextureSource::FMipAllocation&& Other)
 {
 	*this = MoveTemp(Other);
@@ -2312,9 +2299,6 @@ FTextureSource::FMipAllocation& FTextureSource::FMipAllocation::operator =(FText
 	ReadOnlyReference = MoveTemp(Other.ReadOnlyReference);
 	ReadWriteBuffer = MoveTemp(Other.ReadWriteBuffer);
 
-	BulkDataPtr = Other.BulkDataPtr;
-	Other.BulkDataPtr = nullptr;
-
 	return *this;
 }
 
@@ -2322,17 +2306,11 @@ void FTextureSource::FMipAllocation::Reset()
 {
 	ReadOnlyReference.Reset();
 	ReadWriteBuffer = nullptr;
-	BulkDataPtr = nullptr;
 }
 
 uint8* FTextureSource::FMipAllocation::GetDataReadWrite()
 {
-	if (BulkDataPtr != nullptr)
-	{
-		return BulkDataPtr;
-	}
-
-	if (ReadWriteBuffer == nullptr)
+	if (!ReadWriteBuffer.IsValid())
 	{
 		CreateReadWriteBuffer(ReadOnlyReference.GetData(), ReadOnlyReference.GetSize());
 	}
@@ -2342,8 +2320,7 @@ uint8* FTextureSource::FMipAllocation::GetDataReadWrite()
 
 FSharedBuffer FTextureSource::FMipAllocation::Release()
 {
-	check(BulkDataPtr == nullptr); // Should not be called if we are using old bulkdata
-	if (ReadWriteBuffer != nullptr)
+	if (ReadWriteBuffer.IsValid())
 	{
 		const int64 DataSize = ReadOnlyReference.GetSize();
 		ReadOnlyReference.Reset();
@@ -2357,7 +2334,7 @@ FSharedBuffer FTextureSource::FMipAllocation::Release()
 
 void FTextureSource::FMipAllocation::CreateReadWriteBuffer(const void* SrcData, int64 DataLength)
 {
-	ReadWriteBuffer = MakeUnique<uint8[]>(DataLength);
+	ReadWriteBuffer = TUniquePtr<uint8, FDeleterFree>((uint8*)FMemory::Malloc(DataLength));
 	FMemory::Memcpy(ReadWriteBuffer.Get(), SrcData, DataLength);
 
 	ReadOnlyReference = FSharedBuffer::MakeView(ReadWriteBuffer.Get(), DataLength);
