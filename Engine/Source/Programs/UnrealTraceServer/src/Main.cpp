@@ -188,6 +188,8 @@ static const int32		GIpcSize					= 4 << 10;
 static const wchar_t*	GQuitEventName				= L"Local\\UnrealTraceEvent";
 static const wchar_t*	GBegunEventName				= L"Local\\UnrealTraceEventBegun";
 static int				MainDaemon(int, char**);
+void					AddToSystemTray(FStoreService&);
+void					RemoveFromSystemTray();
 
 ////////////////////////////////////////////////////////////////////////////////
 static int CreateExitCode(uint32 Id)
@@ -377,10 +379,15 @@ static int MainDaemon(int ArgC, char** ArgV)
 		}
 	}
 
+	// To clearly indicate to users that we are around we'll add an icon to the
+	// system tray.
+	AddToSystemTray(*StoreService);
+
 	// Wait to be told to resign.
 	WaitForSingleObject(QuitEvent, INFINITE);
 
 	// Clean up. We are done here.
+	RemoveFromSystemTray();
 	delete StoreService;
 	return 0;
 }

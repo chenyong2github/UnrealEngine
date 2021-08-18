@@ -67,6 +67,7 @@
 #	include <Shlobj.h>
 #	include <shellapi.h>
 #	pragma comment(lib, "Shell32.lib")
+#	pragma comment(lib, "User32.lib")
 #endif
 
 #include "Asio.h"
