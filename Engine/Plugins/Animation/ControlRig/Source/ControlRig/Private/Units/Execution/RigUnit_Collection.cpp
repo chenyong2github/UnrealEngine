@@ -212,6 +212,70 @@ FRigUnit_CollectionGetItems_Execute()
 	Items = Collection.GetKeys();
 }
 
+FRigUnit_CollectionGetParentIndices_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	if(Context.Hierarchy == nullptr)
+	{
+		ParentIndices.Reset();
+		return;
+	}
+	
+	ParentIndices.SetNumUninitialized(Collection.Num());
+
+	for(int32 Index=0;Index<Collection.Num();Index++)
+	{
+		ParentIndices[Index] = INDEX_NONE;
+
+		const int32 ItemIndex = Context.Hierarchy->GetIndex(Collection[Index]);
+		if(ItemIndex == INDEX_NONE)
+		{
+			continue;;
+		}
+
+		switch(Collection[Index].Type)
+		{
+			case ERigElementType::Curve:
+			{
+				continue;
+			}
+			case ERigElementType::Bone:
+			{
+				ParentIndices[Index] = Context.Hierarchy->GetFirstParent(ItemIndex);
+				break;
+			}
+			default:
+			{
+				if(const FRigBaseElement* ChildElement = Context.Hierarchy->Get(ItemIndex))
+				{
+					TArray<int32> ItemParents = Context.Hierarchy->GetParents(ItemIndex);
+					for(int32 ParentIndex = 0; ParentIndex < ItemParents.Num(); ParentIndex++)
+					{
+						const FRigElementWeight Weight = Context.Hierarchy->GetParentWeight(ChildElement, ParentIndex, false);
+						if(!Weight.IsAlmostZero())
+						{
+							ParentIndices[Index] = ItemParents[ParentIndex];
+						}
+					}
+				}
+				break;
+			}
+		}
+
+		if(ParentIndices[Index] != INDEX_NONE)
+		{
+			int32 ParentIndex = ParentIndices[Index];
+			ParentIndices[Index] = INDEX_NONE;
+
+			while(ParentIndices[Index] == INDEX_NONE && ParentIndex != INDEX_NONE)
+			{
+				ParentIndices[Index] = Collection.GetKeys().Find(Context.Hierarchy->GetKey(ParentIndex));
+				ParentIndex = Context.Hierarchy->GetFirstParent(ParentIndex);
+			}
+		}
+	}
+}
 
 FRigUnit_CollectionUnion_Execute()
 {

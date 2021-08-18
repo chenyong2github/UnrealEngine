@@ -228,6 +228,32 @@ struct CONTROLRIG_API FRigUnit_CollectionGetItems : public FRigUnit_CollectionBa
 };
 
 /**
+ * Returns an array of relative parent indices for each item. Several options here
+ * a) If an item has multiple parents the major parent (based on the weights) will be returned.
+ * b) If an item has a parent that's not part of the collection INDEX_NONE will be returned.
+ * c) If an item has a parent that's not part of the collection, but a grand parent is we'll use that index instead.
+ */
+USTRUCT(meta = (DisplayName = "Get Parent Indices", Keywords = "Collection,Array", Varying))
+struct CONTROLRIG_API FRigUnit_CollectionGetParentIndices : public FRigUnit_CollectionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_CollectionGetParentIndices()
+	{
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Collection;
+
+	UPROPERTY(meta = (Output))
+	TArray<int32> ParentIndices;
+};
+
+
+/**
  * Returns the union of two provided collections
  * (the combination of all items from both A and B).
  */

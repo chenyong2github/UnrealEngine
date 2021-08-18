@@ -37,6 +37,62 @@ FRigUnit_MathTransformMakeAbsolute_Execute()
 	Global.NormalizeRotation();
 }
 
+FRigUnit_MathTransformAccumulateArray_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if(Transforms.Num() == 0)
+	{
+		return;
+	}
+
+	if(ParentIndices.Num() > 0 && ParentIndices.Num() != Transforms.Num())
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("If the indices are specified their num (%d) has to match the transforms (%d)."), ParentIndices.Num(), Transforms.Num());
+		return;
+	}
+
+	if(TargetSpace == EBoneGetterSetterMode::LocalSpace)
+	{
+		if(ParentIndices.IsEmpty())
+		{
+			for(int32 Index=Transforms.Num()-1; Index>=0;Index--)
+			{
+				const FTransform& ParentTransform = (Index == 0) ? Root : Transforms[Index - 1];
+				Transforms[Index] = Transforms[Index].GetRelativeTransform(ParentTransform);
+			}
+		}
+		else
+		{
+			for(int32 Index=Transforms.Num()-1; Index>=0;Index--)
+			{
+				const int32 ParentIndex = ParentIndices[Index];
+				const FTransform& ParentTransform = (ParentIndex == INDEX_NONE || ParentIndex >= Index) ? Root : Transforms[ParentIndex];
+				Transforms[Index] = Transforms[Index].GetRelativeTransform(ParentTransform);
+			}
+		}
+	}
+	else
+	{
+		if(ParentIndices.IsEmpty())
+		{
+			for(int32 Index=0; Index<Transforms.Num(); Index++)
+			{
+				const FTransform& ParentTransform = (Index == 0) ? Root : Transforms[Index - 1];
+				Transforms[Index] = Transforms[Index] * ParentTransform;
+			}
+		}
+		else
+		{
+			for(int32 Index=0; Index<Transforms.Num(); Index++)
+			{
+				const int32 ParentIndex = ParentIndices[Index];
+				const FTransform& ParentTransform = (ParentIndex == INDEX_NONE || ParentIndex >= Index) ? Root : Transforms[ParentIndex];
+				Transforms[Index] = Transforms[Index] * ParentTransform;
+			}
+		}
+	}
+}
+
 FRigUnit_MathTransformInverse_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

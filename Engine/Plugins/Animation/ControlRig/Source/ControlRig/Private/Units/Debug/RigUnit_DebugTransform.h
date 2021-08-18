@@ -208,3 +208,53 @@ struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutable : public FRigUnit_Debu
 	UPROPERTY(transient)
 	FRigUnit_DebugTransformArrayMutable_WorkData WorkData;
 };
+
+/**
+* Given a transform array, will draw a point, axis, or a box in the viewport
+*/
+USTRUCT(meta=(DisplayName="Draw Transform Array"))
+struct CONTROLRIG_API FRigUnit_DebugTransformArrayMutableItemSpace : public FRigUnit_DebugBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_DebugTransformArrayMutableItemSpace()
+	{
+		WorldOffset = FTransform::Identity;
+		Mode = ERigUnitDebugTransformMode::Axes;
+		Color = FLinearColor::White;
+		Thickness = 0.f;
+		Scale = 10.f;
+		Space = FRigElementKey(NAME_None, ERigElementType::Bone);
+		bEnabled = true;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	TArray<FTransform> Transforms;
+
+	UPROPERTY(meta = (Input))
+	TArray<int32> ParentIndices;
+
+	UPROPERTY(meta = (Input))
+	ERigUnitDebugTransformMode Mode;
+
+	UPROPERTY(meta = (Input))
+	FLinearColor Color;
+
+	UPROPERTY(meta = (Input))
+	float Thickness;
+
+	UPROPERTY(meta = (Input))
+	float Scale;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKey Space;
+
+	UPROPERTY(meta = (Input))
+	FTransform WorldOffset;
+
+	UPROPERTY(meta = (Input, Constant))
+	bool bEnabled;
+};

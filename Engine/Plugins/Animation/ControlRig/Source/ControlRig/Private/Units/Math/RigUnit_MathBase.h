@@ -10,3 +10,9 @@ struct CONTROLRIG_API FRigUnit_MathBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
+
+USTRUCT(meta=(Abstract, NodeColor = "0.05 0.25 0.05"))
+struct CONTROLRIG_API FRigUnit_MathMutableBase : public FRigUnitMutable
+{
+	GENERATED_BODY()
+};

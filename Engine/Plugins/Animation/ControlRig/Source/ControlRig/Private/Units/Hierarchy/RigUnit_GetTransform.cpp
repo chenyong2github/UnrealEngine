@@ -79,3 +79,21 @@ FRigUnit_GetTransform_Execute()
 		}
 	}
 }
+
+FRigUnit_GetTransformArray_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	if(CachedIndex.Num() != Items.Num())
+	{
+		CachedIndex.Reset();
+		CachedIndex.SetNum(Items.Num());
+	}
+
+	Transforms.SetNum(Items.Num());
+	for(int32 Index=0;Index<Items.Num();Index++)
+	{
+		FRigUnit_GetTransform::StaticExecute(RigVMExecuteContext, Items[Index], Space, bInitial, Transforms[Index], CachedIndex[Index], Context);
+
+	}
+}

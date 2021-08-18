@@ -261,3 +261,65 @@ struct FRigUnit_SetScale : public FRigUnitMutable
 	UPROPERTY()
 	FCachedRigElement CachedIndex;
 };
+
+/**
+ * SetTransformArray is used to set an array of transforms on the hierarchy.
+ * 
+ * Note: For Controls when setting the initial transform this node
+ * actually sets the Control's offset transform and resets the local
+ * values to (0, 0, 0).
+ */
+USTRUCT(meta=(DisplayName="Set Transform Array", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="SetBoneTransform,SetControlTransform,SetInitialTransform,SetSpaceTransform", NodeColor="0, 0.364706, 1.0", Varying))
+struct CONTROLRIG_API FRigUnit_SetTransformArray : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetTransformArray()
+		: Items()
+		, Space(EBoneGetterSetterMode::GlobalSpace)
+		, bInitial(false)
+		, Transforms()
+		, Weight(1.f)
+		, bPropagateToChildren(true)
+		, CachedIndex()
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The item to set the transform for
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Items;
+
+	/**
+	 * Defines if the transform should be set in local or global space
+	 */ 
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode Space;
+
+	/**
+	 * Defines if the transform should be set as current (false) or initial (true).
+	 * Initial transforms for bones and other elements in the hierarchy represent the reference pose's value.
+	 */ 
+	UPROPERTY(meta = (Input))
+	bool bInitial;
+
+	// The new transform of the given item
+	UPROPERTY(meta=(Input))
+	TArray<FTransform> Transforms;
+
+	// Defines how much the change will be applied
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	float Weight;
+
+	// If set to true children of affected items in the hierarchy
+	// will follow the transform change - otherwise only the parent will move.
+	UPROPERTY(meta=(Input))
+	bool bPropagateToChildren;
+
+	// Used to cache the internally
+	UPROPERTY()
+	TArray<FCachedRigElement> CachedIndex;
+};
