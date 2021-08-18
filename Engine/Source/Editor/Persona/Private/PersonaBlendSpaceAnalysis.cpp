@@ -33,9 +33,12 @@ FVector BlendSpaceAnalysis::GetAxisFromTM(const FTransform& TM, EAnalysisLinearA
 {
 	switch (Axis)
 	{
-	case EAnalysisLinearAxis::X: return TM.TransformVectorNoScale(FVector(1, 0, 0));
-	case EAnalysisLinearAxis::Y: return TM.TransformVectorNoScale(FVector(0, 1, 0));
-	case EAnalysisLinearAxis::Z: return TM.TransformVectorNoScale(FVector(0, 0, 1));
+	case EAnalysisLinearAxis::PlusX: return TM.TransformVectorNoScale(FVector(1, 0, 0));
+	case EAnalysisLinearAxis::PlusY: return TM.TransformVectorNoScale(FVector(0, 1, 0));
+	case EAnalysisLinearAxis::PlusZ: return TM.TransformVectorNoScale(FVector(0, 0, 1));
+	case EAnalysisLinearAxis::MinusX: return TM.TransformVectorNoScale(FVector(-1, 0, 0));
+	case EAnalysisLinearAxis::MinusY: return TM.TransformVectorNoScale(FVector(0, -1, 0));
+	case EAnalysisLinearAxis::MinusZ: return TM.TransformVectorNoScale(FVector(0, 0, -1));
 	}
 	return FVector(0, 0, 0);
 }

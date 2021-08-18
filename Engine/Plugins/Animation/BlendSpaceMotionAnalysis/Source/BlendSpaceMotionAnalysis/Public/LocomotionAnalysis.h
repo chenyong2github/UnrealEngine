@@ -43,11 +43,11 @@ public:
 
 	/** World or bone/socket axis that specifies the character's facing direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-	EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::Y;
+	EAnalysisLinearAxis CharacterFacingAxis = EAnalysisLinearAxis::PlusY;
 
 	/** World or bone/socket axis that specifies the character's up direction */
 	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-	EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::Z;
+	EAnalysisLinearAxis CharacterUpAxis = EAnalysisLinearAxis::PlusZ;
 };
 
 //======================================================================================================================
