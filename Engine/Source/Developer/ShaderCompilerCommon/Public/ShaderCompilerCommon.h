@@ -43,40 +43,99 @@ extern SHADERCOMPILERCOMMON_API void BuildResourceTableTokenStream(
 // Finds the number of used uniform buffers in a resource map
 extern SHADERCOMPILERCOMMON_API int16 GetNumUniformBuffersUsed(const FShaderCompilerResourceTable& InSRT);
 
-
 /** Validates and moves all the shader loose data parameter defined in the root scope of the shader into the root uniform buffer. */
 class SHADERCOMPILERCOMMON_API FShaderParameterParser
 {
 public:
+	struct FParsedShaderParameter
+	{
+	public:
+		/** Original information about the member. */
+		const FShaderParametersMetadata::FMember* Member = nullptr;
+
+		/** Information found about the member when parsing the preprocessed code. */
+		FString ParsedType;
+		FString ParsedArraySize;
+
+		/** Offset the member should be in the constant buffer. */
+		int32 ConstantBufferOffset = 0;
+
+		/* Returns whether the shader parameter has been found when parsing. */
+		bool IsFound() const
+		{
+			return !ParsedType.IsEmpty();
+		}
+
+		/** Returns whether the shader parameter is bindable to the shader parameter structure. */
+		bool IsBindable() const
+		{
+			return Member != nullptr;
+		}
+
+	private:
+		int32 ParsedPragmaLineoffset = 0;
+		int32 ParsedLineOffset = 0;
+
+		friend class FShaderParameterParser;
+	};
+
+	/** Parses the preprocessed shader code and move the parameters into root constant buffer */
 	bool ParseAndMoveShaderParametersToRootConstantBuffer(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput,
 		FString& PreprocessedShaderSource,
 		const TCHAR* ConstantBufferType);
 
+	/** Gets parsing information from a parameter binding name. */
+	const FParsedShaderParameter& FindParameterInfos(const FString& ParameterName) const
+	{
+		return ParsedParameters.FindChecked(ParameterName);
+	}
+
+	/** Validates the shader parameter in code is compatible with the shader parameter structure. */
+	void ValidateShaderParameterType(
+		const FShaderCompilerInput& CompilerInput,
+		const TCHAR* ShaderBindingName,
+		const FParsedShaderParameter& ParsedParameter,
+		int32 BoundSize,
+		FShaderCompilerOutput& CompilerOutput) const;
+
+	/** Validates shader parameter map is compatible with the shader parameter structure. */
 	void ValidateShaderParameterTypes(
 		const FShaderCompilerInput& CompilerInput,
 		FShaderCompilerOutput& CompilerOutput) const;
 
-private:
-	struct FParsedShaderParameter
+	/** Gets file and line of the parameter in the shader source code. */
+	void GetParameterFileAndLine(const FParsedShaderParameter& ParsedParameter, FString& OutFile, FString& OutLine) const
 	{
-		FString Type;
-		int32 PragamLineoffset;
-		int32 LineOffset;
+		return ExtractFileAndLine(ParsedParameter.ParsedPragmaLineoffset, ParsedParameter.ParsedLineOffset, OutFile, OutLine);
+	}
 
-		bool IsFound() const
-		{
-			return !Type.IsEmpty();
-		}
-	};
-
+private:
 	void ExtractFileAndLine(int32 PragamLineoffset, int32 LineOffset, FString& OutFile, FString& OutLine) const;
 
 	FString OriginalParsedShader;
 
 	TMap<FString, FParsedShaderParameter> ParsedParameters;
 };
+
+/** Adds a note to CompilerOutput.Error about where the shader parameter structure is on C++ side. */
+extern SHADERCOMPILERCOMMON_API void AddNoteToDisplayShaderParameterStructureOnCppSide(
+	const FShaderParametersMetadata* ParametersStructure,
+	FShaderCompilerOutput& CompilerOutput);
+
+/** Adds a note to CompilerOutput.Error about where the shader parameter is on C++ side. */
+extern SHADERCOMPILERCOMMON_API void AddNoteToDisplayShaderParameterMemberOnCppSide(
+	const FShaderCompilerInput& CompilerInput,
+	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter,
+	FShaderCompilerOutput& CompilerOutput);
+
+/** Adds an error to CompilerOutput.Error about a shader parameters that could not be bound. */
+extern SHADERCOMPILERCOMMON_API void AddUnboundShaderParameterError(
+	const FShaderCompilerInput& CompilerInput,
+	const FShaderParameterParser& ShaderParameterParser,
+	const FString& ParameterBindingName,
+	FShaderCompilerOutput& CompilerOutput);
 
 // The cross compiler doesn't yet support struct initializers needed to construct static structs for uniform buffers
 // Replace all uniform buffer struct member references (View.WorldToClip) with a flattened name that removes the struct dependency (View_WorldToClip)

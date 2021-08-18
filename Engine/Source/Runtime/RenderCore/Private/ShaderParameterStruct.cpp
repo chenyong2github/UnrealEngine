@@ -253,7 +253,33 @@ void FShaderParameterBindings::BindForLegacyShaderParameters(const FShader* Shad
 	BindingContext.PermutationId = PermutationId;
 	BindingContext.Bindings = this;
 	BindingContext.ParametersMap = &ParametersMap;
-	BindingContext.bUseRootShaderParameters = false;
+
+	// When using a stable root constant buffer, can submit all shader parameters in one RHISetShaderParameter()
+	{
+		const TCHAR* ShaderBindingName = FShaderParametersMetadata::kRootUniformBufferBindingName;
+		BindingContext.bUseRootShaderParameters = ParametersMap.ContainsParameterAllocation(ShaderBindingName);
+
+		if (BindingContext.bUseRootShaderParameters)
+		{
+			const FParameterAllocation& Allocation = ParametersMap.ParameterMap.FindChecked(ShaderBindingName);
+
+			check(int32(Allocation.BufferIndex) == FShaderParametersMetadata::kRootCBufferBindingIndex);
+			check(uint32(Allocation.BaseIndex + Allocation.Size) <= StructMetaData.GetSize());
+			check(Allocation.Type == EShaderParameterType::LooseData);
+
+			FShaderParameterBindings::FParameter Parameter;
+			Parameter.BufferIndex = Allocation.BufferIndex;
+			Parameter.BaseIndex = Allocation.BaseIndex;
+			Parameter.ByteOffset = Allocation.BaseIndex;
+			Parameter.ByteSize = Allocation.Size;
+
+			Parameters.Add(Parameter);
+
+			BindingContext.ShaderGlobalScopeBindings.Add(ShaderBindingName, StructMetaData.GetStructTypeName());
+			Allocation.bBound = true;
+		}
+	}
+
 	BindingContext.Bind(
 		StructMetaData,
 		/* MemberPrefix = */ TEXT(""),

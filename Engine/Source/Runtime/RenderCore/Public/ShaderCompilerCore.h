@@ -16,7 +16,7 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 14;
+const int32 ShaderCompileWorkerInputVersion = 15;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 const int32 ShaderCompileWorkerOutputVersion = 7;
 // this is for the protocol, not the data.
@@ -173,6 +173,7 @@ struct FShaderCompilerInput
 	FString SourceFilePrefix;
 	FString VirtualSourceFilePath;
 	FString EntryPointName;
+	FString ShaderName;
 
 	// Skips the preprocessor and instead loads the usf file directly
 	bool bSkipPreprocessedCache;

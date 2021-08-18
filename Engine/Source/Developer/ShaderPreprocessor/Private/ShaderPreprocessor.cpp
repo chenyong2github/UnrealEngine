@@ -200,10 +200,13 @@ static void DumpShaderDefinesAsCommentedCode(const FShaderCompilerInput& ShaderI
 	Definitions.GetKeys(/* out */ Keys);
 	Keys.Sort();
 
+	FString Defines;
 	for (const FString& Key : Keys)
 	{
-		*OutDefines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
+		Defines += FString::Printf(TEXT("// #define %s %s\n"), *Key, *Definitions[Key]);
 	}
+
+	*OutDefines = MakeInjectedShaderCodeBlock(TEXT("DumpShaderDefinesAsCommentedCode"), Defines);
 }
 
 //////////////////////////////////////////////////////////////////////////
