@@ -38,11 +38,6 @@ bool UAssetEditor::CloseWindow()
 	return true;
 }
 
-FName UAssetEditor::GetToolbarTabId() const
-{
-	return ToolkitInstance->GetToolbarTabId();
-}
-
 TSharedPtr<class FTabManager> UAssetEditor::GetAssociatedTabManager()
 {
 	return ToolkitInstance->GetAssociatedTabManager();

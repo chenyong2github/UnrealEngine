@@ -79,12 +79,6 @@ bool SMiniCurveEditor::CloseWindow()
 	return true;
 }
 
-FName SMiniCurveEditor::GetToolbarTabId() const
-{
-	//@TODO: This editor should probably derive from FAssetEditorToolkit instead!
-	return NAME_None;
-}
-
 TSharedPtr<class FTabManager> SMiniCurveEditor::GetAssociatedTabManager()
 {
 	//@TODO: This editor should probably derive from FAssetEditorToolkit instead!

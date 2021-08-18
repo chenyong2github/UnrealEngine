@@ -42,8 +42,6 @@ TWeakPtr< IToolkitHost > FAssetEditorToolkit::PreviousWorldCentricToolkitHostFor
 TSharedPtr<FExtensibilityManager> FAssetEditorToolkit::SharedMenuExtensibilityManager;
 TSharedPtr<FExtensibilityManager> FAssetEditorToolkit::SharedToolBarExtensibilityManager;
 
-const FName FAssetEditorToolkit::ToolbarTabId( TEXT( "AssetEditorToolkit_Toolbar" ) );
-
 const FName FAssetEditorToolkit::DefaultAssetEditorToolBarName("AssetEditor.DefaultToolBar");
 
 FAssetEditorToolkit::FAssetEditorToolkit()
@@ -327,7 +325,6 @@ void FAssetEditorToolkit::RegisterTabSpawners(const TSharedRef<class FTabManager
 
 void FAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
-	InTabManager->UnregisterTabSpawner( ToolbarTabId );
 	InTabManager->ClearLocalWorkspaceMenuCategories();
 }
 
@@ -917,29 +914,6 @@ bool FAssetEditorToolkit::ShouldPromptForNewFilesOnReload(const UObject& Editing
 {
 	return true;
 }
-
-TSharedRef<SDockTab> FAssetEditorToolkit::SpawnTab_Toolbar( const FSpawnTabArgs& Args )
-{
-	check( Args.GetTabId() == ToolbarTabId );
-
-	TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		.Label( NSLOCTEXT("AssetEditorToolkit", "Toolbar_TabTitle", "Toolbar") )
-		.ShouldAutosize(true)
-		[
-			SAssignNew(ToolbarWidgetContent, SBorder)
-			.Padding(0)
-			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		];
-
-	if (Toolbar.IsValid())
-	{
-		ToolbarWidgetContent->SetContent(Toolbar.ToSharedRef());
-	}
-
-	return DockTab;
-}
-
-
 
 void FAssetEditorToolkit::FillDefaultFileMenuCommands(FToolMenuSection& InSection)
 {
