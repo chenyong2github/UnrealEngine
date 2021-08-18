@@ -767,14 +767,39 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 
 			TBitArray<TInlineAllocator<8>> CulledTextures(true, Graph->Textures.Num());
 
-			const auto CheckFilterName = [this](const FString& InName)
+			const auto IsPacketCulled = [&](const FResourcePacket& Packet)
 			{
-				return FilterText.IsEmpty() || InName.Contains(FilterText);
-			};
+				if (Packet.bCulled)
+				{
+					return true;
+				}
 
-			const auto CheckFilterSize = [this](uint64 InSizeInBytes)
-			{
-				return FilterSize <= 0.0f || InSizeInBytes >= uint64(FilterSize * 1024.0f * 1024.0f);
+				if (Packet.bTransient && !ShowTransient())
+				{
+					return true;
+				}
+
+				if (Packet.bExternal && !ShowExternal())
+				{
+					return true;
+				}
+
+				if (!Packet.bTransient && !Packet.bExternal && !ShowPooled())
+				{
+					return true;
+				}
+
+				if (FilterSize > 0.0f && Packet.SizeInBytes < uint64(FilterSize * 1024.0f * 1024.0f))
+				{
+					return true;
+				}
+
+				if (!FilterText.IsEmpty() && !Packet.Name.Contains(FilterText))
+				{
+					return true;
+				}
+
+				return false;
 			};
 
 			if (ShowTextures())
@@ -783,7 +808,7 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 				{
 					FTexturePacket& Texture = Graph->Textures[TextureIndex];
 
-					const bool bCulled = Texture.bCulled || !CheckFilterName(Texture.Name) || !CheckFilterSize(Texture.SizeInBytes);
+					const bool bCulled = IsPacketCulled(Texture);
 					CulledTextures[TextureIndex] = bCulled;
 
 					if (bCulled)
@@ -810,7 +835,7 @@ void FRenderGraphTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Build
 				{
 					FBufferPacket& Buffer = Graph->Buffers[BufferIndex];
 
-					const bool bCulled = Buffer.bCulled || !CheckFilterName(Buffer.Name) || !CheckFilterSize(Buffer.SizeInBytes);
+					const bool bCulled = IsPacketCulled(Buffer);
 					CulledBuffers[BufferIndex] = bCulled;
 
 					if (bCulled)
@@ -1167,38 +1192,20 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 	{
 		MenuBuilder.AddMenuEntry
 		(
-			LOCTEXT("ShowAlls", "Show All"),
-			LOCTEXT("ShowAlls_Tooltip", "Show All resources in the lifetime view."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateLambda([this]()
-				{
-					ResourceShow = EResourceShow::All;
-					SetDirtyFlag();
-				}),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return ResourceShow == EResourceShow::All; })
-			),
-			NAME_None,
-			EUserInterfaceActionType::RadioButton
-		);
-
-		MenuBuilder.AddMenuEntry
-		(
 			LOCTEXT("ShowTextures", "Show Textures"),
 			LOCTEXT("ShowTextures_Tooltip", "Show Texture resources in the lifetime view."),
 			FSlateIcon(),
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
-					ResourceShow = EResourceShow::Textures;
+					ResourceShow ^= EResourceShow::Textures;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return ResourceShow == EResourceShow::Textures; })
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Textures); })
 			),
 			NAME_None,
-			EUserInterfaceActionType::RadioButton
+			EUserInterfaceActionType::ToggleButton
 		);
 
 		MenuBuilder.AddMenuEntry
@@ -1209,18 +1216,72 @@ void FRenderGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(
 				FExecuteAction::CreateLambda([this]()
 				{
-					ResourceShow = EResourceShow::Buffers;
+					ResourceShow ^= EResourceShow::Buffers;
 					SetDirtyFlag();
 				}),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateLambda([this]() { return ResourceShow == EResourceShow::Buffers; })
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Buffers); })
 			),
 			NAME_None,
-			EUserInterfaceActionType::RadioButton
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ShowTransient", "Show Transient"),
+			LOCTEXT("ShowTransient_Tooltip", "Show transient resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::Transient;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Transient); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ShowExternal", "Show External"),
+			LOCTEXT("ShowExternal_Tooltip", "Show external resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::External;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::External); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+		
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("ShowPooled", "Show Pooled"),
+			LOCTEXT("ShowPooled_Tooltip", "Show pooled resources in the lifetime view."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([this]()
+				{
+					ResourceShow ^= EResourceShow::Pooled;
+					SetDirtyFlag();
+				}),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]() { return EnumHasAnyFlags(ResourceShow, EResourceShow::Pooled); })
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
 		);
 	}
 	MenuBuilder.EndSection();
-	
+
 	MenuBuilder.BeginSection("Sort", LOCTEXT("SortMenuHeader", "Track Sort By"));
 	{
 		MenuBuilder.AddMenuEntry
