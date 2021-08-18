@@ -1399,7 +1399,7 @@ void FAGXCommandEncoder::SetVisibilityResultMode(mtlpp::VisibilityResultMode con
 	
 #pragma mark - Public Shader Resource Mutators -
 
-void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FAGXBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format)
+void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType, FAGXBuffer const& Buffer, NSUInteger const Offset, NSUInteger const Length, NSUInteger index, mtlpp::ResourceUsage const Usage, EPixelFormat const Format, NSUInteger const ElementRowPitch)
 {
 	check(index < ML_MaxBuffers);
     if(GetAGXDeviceContext().SupportsFeature(EAGXFeaturesSetBufferOffset) && Buffer && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)) && ShaderBuffers[uint32(FunctionType)].Buffers[index] == Buffer)
@@ -1409,8 +1409,8 @@ void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType,
 			FenceResource(Buffer);
 		}
 		SetShaderBufferOffset(FunctionType, Offset, Length, index);
-		ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GAGXBufferFormats[Format].DataFormat;
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GAGXBufferFormats[Format].DataFormat, ElementRowPitch);
 	}
     else
     {
@@ -1426,8 +1426,7 @@ void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType,
 		ShaderBuffers[uint32(FunctionType)].Bytes[index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[index] = Offset;
 		ShaderBuffers[uint32(FunctionType)].Usage[index] = Usage;
-		ShaderBuffers[uint32(FunctionType)].Lengths[index*2] = Length;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GAGXBufferFormats[Format].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GAGXBufferFormats[Format].DataFormat, ElementRowPitch);
 		
 		SetShaderBufferInternal(FunctionType, index);
     }
@@ -1438,7 +1437,7 @@ void FAGXCommandEncoder::SetShaderBuffer(mtlpp::FunctionType const FunctionType,
 	}
 }
 
-void FAGXCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format)
+void FAGXCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, FAGXBufferData* Data, NSUInteger const Offset, NSUInteger const Index, EPixelFormat const Format, NSUInteger const ElementRowPitch)
 {
 	check(Index < ML_MaxBuffers);
 	
@@ -1455,8 +1454,7 @@ void FAGXCommandEncoder::SetShaderData(mtlpp::FunctionType const FunctionType, F
 	ShaderBuffers[uint32(FunctionType)].Bytes[Index] = Data;
 	ShaderBuffers[uint32(FunctionType)].Offsets[Index] = Offset;
 	ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
-	ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = Data ? (Data->Len - Offset) : 0;
-	ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GAGXBufferFormats[Format].DataFormat;
+	ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, Data ? (Data->Len - Offset) : 0, GAGXBufferFormats[Format].DataFormat, ElementRowPitch);
 	
 	SetShaderBufferInternal(FunctionType, Index);
 }
@@ -1504,8 +1502,7 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
 		ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage::Read;
-		ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = Length;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GAGXBufferFormats[PF_Unknown].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, Length, GAGXBufferFormats[PF_Unknown].DataFormat, 0);
 	}
 	else
 	{
@@ -1515,8 +1512,7 @@ void FAGXCommandEncoder::SetShaderBytes(mtlpp::FunctionType const FunctionType, 
 		ShaderBuffers[uint32(FunctionType)].Bytes[Index] = nil;
 		ShaderBuffers[uint32(FunctionType)].Offsets[Index] = 0;
 		ShaderBuffers[uint32(FunctionType)].Usage[Index] = mtlpp::ResourceUsage(0);
-		ShaderBuffers[uint32(FunctionType)].Lengths[Index*2] = 0;
-		ShaderBuffers[uint32(FunctionType)].Lengths[(Index*2)+1] = GAGXBufferFormats[PF_Unknown].DataFormat;
+		ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(Index, 0, GAGXBufferFormats[PF_Unknown].DataFormat, 0);
 	}
 	
 	SetShaderBufferInternal(FunctionType, Index);
@@ -1528,8 +1524,7 @@ void FAGXCommandEncoder::SetShaderBufferOffset(mtlpp::FunctionType FunctionType,
     checkf(ShaderBuffers[uint32(FunctionType)].Buffers[index] && (ShaderBuffers[uint32(FunctionType)].Bound & (1 << index)), TEXT("Buffer must already be bound"));
 	check(GetAGXDeviceContext().SupportsFeature(EAGXFeaturesSetBufferOffset));
 	ShaderBuffers[uint32(FunctionType)].Offsets[index] = Offset;
-	ShaderBuffers[uint32(FunctionType)].Lengths[index*2] = Length;
-	ShaderBuffers[uint32(FunctionType)].Lengths[(index*2)+1] = GAGXBufferFormats[PF_Unknown].DataFormat;
+	ShaderBuffers[uint32(FunctionType)].SetBufferMetaData(index, Length, GAGXBufferFormats[PF_Unknown].DataFormat, 0);
 	switch (FunctionType)
 	{
 		case mtlpp::FunctionType::Vertex:
@@ -1595,8 +1590,7 @@ void FAGXCommandEncoder::SetShaderTexture(mtlpp::FunctionType FunctionType, FAGX
 		{
 			Swizzle[0] = Swizzle[1] = Swizzle[2] = Swizzle[3] = 1;
 		}
-		FMemory::Memcpy(&ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)], Swizzle, sizeof(Swizzle));
-		ShaderBuffers[uint32(FunctionType)].Lengths[(ML_MaxBuffers*2)+(index*2)+1] = 0;
+		ShaderBuffers[uint32(FunctionType)].SetTextureSwizzle(index, Swizzle);
 		TextureBindingHistory.Add(ns::AutoReleased<FAGXTexture>(Texture));
 	}
 }

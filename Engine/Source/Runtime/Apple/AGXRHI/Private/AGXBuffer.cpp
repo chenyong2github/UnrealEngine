@@ -1164,8 +1164,14 @@ uint32 FAGXBufferPoolPolicyData::GetPoolBucketSize(uint32 Bucket)
 FAGXBuffer FAGXBufferPoolPolicyData::CreateResource(CreationArguments Args)
 {
 	uint32 BufferSize = GetPoolBucketSize(GetPoolBucketIndex(Args));
-	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BufferSize, mtlpp::ResourceOptions(BUFFER_CACHE_MODE | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift)))));
-	FAGXBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(BufferSize, FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions(BUFFER_CACHE_MODE | mtlpp::ResourceOptions::HazardTrackingModeUntracked | ((NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift))))), true);
+	
+	NSUInteger CpuCacheMode = (NSUInteger)Args.CpuCacheMode << mtlpp::ResourceCpuCacheModeShift;
+	NSUInteger StorageMode = (NSUInteger)Args.Storage << mtlpp::ResourceStorageModeShift;
+	mtlpp::ResourceOptions ResourceOptions = FAGXCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions(CpuCacheMode | StorageMode | mtlpp::ResourceOptions::HazardTrackingModeUntracked));
+	
+	METAL_GPUPROFILE(FAGXScopedCPUStats CPUStat(FString::Printf(TEXT("AllocBuffer: %llu, %llu"), BufferSize, ResourceOptions)));
+	FAGXBuffer NewBuf(MTLPP_VALIDATE(mtlpp::Device, GMtlppDevice, AGXSafeGetRuntimeDebuggingLevel() >= EAGXDebugLevelValidation, NewBuffer(BufferSize, ResourceOptions), true));
+
 #if STATS || ENABLE_LOW_LEVEL_MEM_TRACKER
 	AGXLLM::LogAllocBuffer(NewBuf);
 #endif
@@ -1626,13 +1632,9 @@ void FAGXResourceHeap::ReleaseBuffer(FAGXBuffer& Buffer)
 			}
 	#endif
 			case mtlpp::StorageMode::Private:
-			{
-				Buffers[AllocPrivate].ReleasePooledResource(Buffer);
-				break;
-			}
 			case mtlpp::StorageMode::Shared:
 			{
-				Buffers[AllocShared].ReleasePooledResource(Buffer);
+				Buffers[(NSUInteger)StorageMode].ReleasePooledResource(Buffer);
 				break;
 			}
 			default:
