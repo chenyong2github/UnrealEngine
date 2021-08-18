@@ -1843,6 +1843,12 @@ struct SLATECORE_API FDockTabStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Appearance)
 	FSlateColor ForegroundForegroundColor;
 	FDockTabStyle& SetForegroundForegroundColor( const FSlateColor& InForegroundForegroundColor ){ ForegroundForegroundColor = InForegroundForegroundColor; return *this; }
+
+	/** The padding applied to the border around the tab icon */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Appearance)
+	float IconBorderPadding;
+	FDockTabStyle& SetIconBorderPadding(const float InIconBorderPadding) { IconBorderPadding = InIconBorderPadding; return *this; }
+
 };
 
 

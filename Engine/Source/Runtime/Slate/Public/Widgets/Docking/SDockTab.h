@@ -365,6 +365,9 @@ protected:
 	/** @return the size the tab icon should be */
 	TOptional<FVector2D> GetTabIconSize() const;
 
+	/** @return the padding for the tab icon border */
+	FMargin GetTabIconBorderPadding() const;
+
 private:
 	/** Activates the tab in its tab well */
 	EActiveTimerReturnType TriggerActivateTab( double InCurrentTime, float InDeltaTime );

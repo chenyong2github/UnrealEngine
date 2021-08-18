@@ -619,7 +619,7 @@ void SDockTab::Construct( const FArguments& InArgs )
 				[
 					SNew(SBorder)
 					// Don't allow active tab overlay to absorb mouse clicks
-					.Padding(1.0f)
+					.Padding(this, &SDockTab::GetTabIconBorderPadding)
 					.Visibility(EVisibility::HitTestInvisible)
 					// Overlay for color-coded tab effect
 					.BorderImage(this, &SDockTab::GetColorOverlayImageBrush)
@@ -772,6 +772,11 @@ FMargin SDockTab::GetTabPadding() const
 	return NewPadding;
 }
 
+FMargin SDockTab::GetTabIconBorderPadding() const
+{
+	return FMargin(GetCurrentStyle().IconBorderPadding);
+}
+
 const FSlateBrush* SDockTab::GetColorOverlayImageBrush() const
 {
 	if (this->TabColorScale.Get().A > 0.0f)
@@ -788,7 +793,21 @@ EVisibility SDockTab::GetActiveTabIndicatorVisibility() const
 
 FSlateColor SDockTab::GetTabColor() const
 {
-	return TabColorScale.Get();
+	FLinearColor BaseColor = TabColorScale.Get();
+	
+	FSlateColor FinalColor;
+
+	// 50% Black Icon if the tab is active, slightly dimmed to 60% black otherwise
+	if (this->IsForeground() || this->IsHovered())
+	{
+		FinalColor = BaseColor.CopyWithNewOpacity(0.5);
+	}
+	else
+	{
+		FinalColor = BaseColor.CopyWithNewOpacity(0.4);
+	}
+
+	return FinalColor;
 }
 
 

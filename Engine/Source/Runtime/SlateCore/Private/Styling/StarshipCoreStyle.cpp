@@ -1576,23 +1576,23 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		FDockTabStyle()
 		.SetCloseButtonStyle(CloseButton)
 		.SetNormalBrush(FSlateNoResource())
-		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Panel))
+		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel.GetSpecifiedColor().CopyWithNewOpacity(0.8))) // Panel + 20% Black
 		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel))
-
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
 		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Panel))
 		.SetTabWellBrush(FSlateColorBrush(FStyleColors::Background))
 		.SetFlashColor(TabFlashColor)
 
-		.SetTabPadding(FMargin(10.f, 3.f, 10.f, 4.f))
-		.SetOverlapWidth(0.0f)
+		.SetTabPadding(FMargin(4.f, 3.f, 10.f, 4.f))
+		.SetOverlapWidth(-2.0f) // Negative Overlap Width to add space between tabs
 
 		.SetNormalForegroundColor(FStyleColors::Foreground)
-		.SetActiveForegroundColor(FStyleColors::ForegroundHover)
-		.SetForegroundForegroundColor(FStyleColors::Foreground)
-		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetActiveForegroundColor(FStyleColors::White)
+		.SetForegroundForegroundColor(FStyleColors::White)
+		.SetHoveredForegroundColor(FStyleColors::White)
 		.SetTabTextStyle(NormalText);
+
 
 	// Panel Tab
 	Style->Set("Docking.Tab", MinorTabStyle);
@@ -1601,23 +1601,24 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 	Style->Set("Docking.MajorTab", FDockTabStyle()
 		.SetCloseButtonStyle(CloseButton)
 		.SetNormalBrush(FSlateNoResource())
-		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Hover", 4.0f / 20.0f, FStyleColors::Panel))
+		.SetHoveredBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel.GetSpecifiedColor().CopyWithNewOpacity(0.8))) // Panel + 20% Black
 		.SetForegroundBrush(BOX_BRUSH("/Starship/Docking/DockTab_Foreground", 4.0f / 20.0f, FStyleColors::Panel))
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
-		.SetColorOverlayIconBrush(FSlateNoResource())
+		.SetColorOverlayIconBrush(FSlateRoundedBoxBrush(FStyleColors::Foreground, 4.f))
 		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
 		.SetTabWellBrush(FSlateColorBrush(FStyleColors::Background))
 
-		.SetTabPadding(FMargin(10.f, 7.f, 10.f, 8.f))
-		.SetOverlapWidth(0.f)
+		.SetTabPadding(FMargin(4.f, 7.f, 10.f, 8.f))
+		.SetOverlapWidth(-2.0f) // Negative Overlap Width to add space between tabs
 		.SetFlashColor(TabFlashColor)
 
 		.SetNormalForegroundColor(FStyleColors::Foreground)
-		.SetActiveForegroundColor(FStyleColors::ForegroundHover)
-		.SetForegroundForegroundColor(FStyleColors::Foreground)
-		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetActiveForegroundColor(FStyleColors::White)
+		.SetForegroundForegroundColor(FStyleColors::White)
+		.SetHoveredForegroundColor(FStyleColors::White)
 		.SetTabTextStyle(NormalText)
+		.SetIconBorderPadding(4.f)
 	);
 
 	Style->Set("Docking.Tab.ContentAreaBrush", new FSlateNoResource());
