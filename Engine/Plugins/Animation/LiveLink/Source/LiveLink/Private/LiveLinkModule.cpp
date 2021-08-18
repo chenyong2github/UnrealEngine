@@ -64,7 +64,7 @@ void FLiveLinkModule::OnEngineLoopInitComplete()
 {
 	if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
 	{
-		Preset->ApplyToClient();
+		Preset->ApplyToClientLatent();
 	}
 }
 

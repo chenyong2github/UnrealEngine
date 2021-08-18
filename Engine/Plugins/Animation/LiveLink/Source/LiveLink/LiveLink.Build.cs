@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"MessageLog",
+					"UnrealEd",
 				});
 			}
 		}
