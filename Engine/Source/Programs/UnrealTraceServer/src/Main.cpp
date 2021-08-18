@@ -121,7 +121,7 @@ public:
 ////////////////////////////////////////////////////////////////////////////////
 void FInstanceInfo::Set()
 {
-	Version = 1;
+	Version = CurrentVersion;
 #if TS_USING(TS_PLATFORM_WINDOWS)
 	Pid = GetCurrentProcessId();
 #elif TS_USING(TS_PLATFORM_LINUX) || TS_USING(TS_PLATFORM_MAC)
