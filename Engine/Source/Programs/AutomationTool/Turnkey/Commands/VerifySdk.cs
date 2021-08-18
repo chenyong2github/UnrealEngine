@@ -23,7 +23,7 @@ namespace Turnkey.Commands
 			bool bForceSdkInstall = TurnkeyUtils.ParseParam("ForceSdkInstall", CommandOptions);
 			bool bForceDeviceInstall = TurnkeyUtils.ParseParam("ForceDeviceInstall", CommandOptions);
 			bool bUpdateIfNeeded = bForceSdkInstall || bForceDeviceInstall || TurnkeyUtils.ParseParam("UpdateIfNeeded", CommandOptions);
-			string DeviceString = TurnkeyUtils.ParseParamValue("Device", null, CommandOptions);
+			bool bSkipPlatformCheck = TurnkeyUtils.ParseParam("SkipPlatform", CommandOptions);
 
 			List<UnrealTargetPlatform> PlatformsToCheck;
 			List<DeviceInfo> DevicesToCheck;
@@ -36,7 +36,7 @@ namespace Turnkey.Commands
 				TurnkeyUtils.Log("Devices were requested, but none of them were found. Since -platforms was not specified, exiting command...");
 			}
 
-			if (PlatformsToCheck.Count == 0)
+			if (PlatformsToCheck.Count == 0 && !bSkipPlatformCheck)
 			{
 				TurnkeyUtils.Log("Platform(s) and/or device(s) needed for VerifySdk command. Check parameters or selections.");
 				return;
