@@ -4,14 +4,9 @@
 
 #include "ILiveLinkClient.h"
 #include "ILiveLinkModule.h"
-#include "LiveLinkMessages.h"
-#include "LiveLinkMessageBusFinder.h"
 #include "LiveLinkMessageBusDiscoveryManager.h"
+#include "LiveLinkMessageBusFinder.h"
 #include "Widgets/Layout/SBox.h"
-
-#include "Features/IModularFeatures.h"
-#include "MessageEndpointBuilder.h"
-#include "Misc/App.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkMessageBusSourceEditor"
 
@@ -20,6 +15,14 @@ namespace ProviderPollUI
 	const FName TypeColumnName(TEXT("Type"));
 	const FName MachineColumnName(TEXT("Machine"));
 };
+
+namespace
+{
+	bool operator==(const FProviderPollResult& LHS, const FProviderPollResult& RHS)
+	{
+		return LHS.Name == RHS.Name && LHS.MachineName == RHS.MachineName;
+	}
+}
 
 class SProviderPollRow : public SMultiColumnTableRow<FProviderPollResultPtr>
 {
@@ -74,9 +77,7 @@ SLiveLinkMessageBusSourceFactory::~SLiveLinkMessageBusSourceFactory()
 
 void SLiveLinkMessageBusSourceFactory::Construct(const FArguments& Args)
 {
-	//LastTickTime = 0.0;
 	OnSourceSelected = Args._OnSourceSelected;
-	LastUIUpdateSeconds = 0;
 
 	ILiveLinkModule::Get().GetMessageBusDiscoveryManager().AddDiscoveryMessageRequest();
 
@@ -90,8 +91,8 @@ void SLiveLinkMessageBusSourceFactory::Construct(const FArguments& Args)
 			.HeightOverride(200)
 			.WidthOverride(200)
 			[
-				SAssignNew(ListView, SListView<FProviderPollResultPtr>)
-				.ListItemsSource(&PollData)
+				SAssignNew(ListView, SListView<TSharedPtr<FLiveLinkSource>>)
+				.ListItemsSource(&Sources)
 				.SelectionMode(ESelectionMode::SingleToggle)
 				.OnGenerateRow(this, &SLiveLinkMessageBusSourceFactory::MakeSourceListViewWidget)
 				.OnSelectionChanged(this, &SLiveLinkMessageBusSourceFactory::OnSourceListSelectionChanged)
@@ -116,11 +117,30 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 	{
 		PollData.Reset();
 		PollData.Append(ILiveLinkModule::Get().GetMessageBusDiscoveryManager().GetDiscoveryResults());
-		PollData.StableSort([](const FProviderPollResultPtr& LHS, const FProviderPollResultPtr& RHS)
+		
+		Sources.RemoveAllSwap([this](TSharedPtr<FLiveLinkSource> Source)
 		{
-			if (LHS.IsValid() && RHS.IsValid())
+			return FApp::GetCurrentTime() - Source->LastTimeSincePong > SecondsBeforeSourcesDisappear;
+		});
+		
+		for (const FProviderPollResultPtr& PollResult : PollData)
+		{
+			TSharedPtr<FLiveLinkSource>* FoundSource = Sources.FindByPredicate([&PollResult](const TSharedPtr<FLiveLinkSource> Source){ return Source && PollResult && *Source->PollResult == *PollResult;});
+			if (FoundSource && *FoundSource)
 			{
-				return LHS->Name.Compare(RHS->Name) <= 0;
+				(*FoundSource)->LastTimeSincePong = FApp::GetCurrentTime();
+			}
+			else
+			{
+				Sources.Add(MakeShared<FLiveLinkSource>(PollResult));
+			}
+		}
+
+		Sources.StableSort([](const TSharedPtr<FLiveLinkSource>& LHS, const TSharedPtr<FLiveLinkSource>& RHS)
+		{
+			if (LHS.IsValid() && RHS.IsValid() && LHS->PollResult.IsValid() && RHS->PollResult.IsValid())
+			{
+				return LHS->PollResult->Name.Compare(RHS->PollResult->Name) <= 0;
 			}
 			return true;
 		});
@@ -130,14 +150,14 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 	}
 }
 
-TSharedRef<ITableRow> SLiveLinkMessageBusSourceFactory::MakeSourceListViewWidget(FProviderPollResultPtr PollResult, const TSharedRef<STableViewBase>& OwnerTable) const
+TSharedRef<ITableRow> SLiveLinkMessageBusSourceFactory::MakeSourceListViewWidget(TSharedPtr<FLiveLinkSource> Source, const TSharedRef<STableViewBase>& OwnerTable) const
 {
-	return SNew(SProviderPollRow, OwnerTable).PollResultPtr(PollResult);
+	return SNew(SProviderPollRow, OwnerTable).PollResultPtr(Source->PollResult);
 }
 
-void SLiveLinkMessageBusSourceFactory::OnSourceListSelectionChanged(FProviderPollResultPtr PollResult, ESelectInfo::Type SelectionType)
+void SLiveLinkMessageBusSourceFactory::OnSourceListSelectionChanged(TSharedPtr<FLiveLinkSource> Source, ESelectInfo::Type SelectionType)
 {
-	SelectedResult = PollResult;
+	SelectedResult = Source->PollResult;
 	OnSourceSelected.ExecuteIfBound(SelectedResult);
 }
 
