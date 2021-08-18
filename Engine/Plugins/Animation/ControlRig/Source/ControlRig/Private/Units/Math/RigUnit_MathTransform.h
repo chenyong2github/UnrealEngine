@@ -13,6 +13,12 @@ struct CONTROLRIG_API FRigUnit_MathTransformBase : public FRigUnit_MathBase
 	GENERATED_BODY()
 };
 
+USTRUCT(meta=(Abstract, Category="Math|Transform", MenuDescSuffix="(Transform)"))
+struct CONTROLRIG_API FRigUnit_MathTransformMutableBase : public FRigUnit_MathMutableBase
+{
+	GENERATED_BODY()
+};
+
 USTRUCT(meta=(Abstract))
 struct CONTROLRIG_API FRigUnit_MathTransformUnaryOp : public FRigUnit_MathTransformBase
 {
@@ -159,6 +165,48 @@ struct CONTROLRIG_API FRigUnit_MathTransformMakeAbsolute : public FRigUnit_MathT
 
 	UPROPERTY(meta = (Output))
 	FTransform Global;
+};
+
+/**
+* Treats the provided transforms as a chain with global / local transforms, and
+* projects each transform into the target space. Optionally you can provide
+* a custom parent indices array, with which you can represent more than just chains.
+*/
+USTRUCT(meta=(DisplayName="Accumulate Transform Array", Keywords="Local,Global,Absolute,Array"))
+struct CONTROLRIG_API FRigUnit_MathTransformAccumulateArray : public FRigUnit_MathTransformMutableBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathTransformAccumulateArray()
+	{
+		TargetSpace = EBoneGetterSetterMode::GlobalSpace;
+		Root = FTransform::Identity;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input, Output))
+	TArray<FTransform> Transforms;
+
+	/**
+	* Defines the space to project to
+	*/ 
+	UPROPERTY(meta = (Input))
+	EBoneGetterSetterMode TargetSpace;
+
+	/**
+	 * Provides the parent transform for the root
+	 */
+	UPROPERTY(meta=(Input))
+	FTransform Root;
+
+	/**
+	 * If this array is the same size as the transforms array the indices will be used
+	 * to look up each transform's parent. They are expected to be in order.
+	 */
+	UPROPERTY(meta=(Input))
+	TArray<int32> ParentIndices;
 };
 
 /**

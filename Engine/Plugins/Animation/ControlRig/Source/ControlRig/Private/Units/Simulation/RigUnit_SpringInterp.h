@@ -17,7 +17,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	FRigUnit_SpringInterp()
 	{
 		bUseCurrentInput = false;
-		Current = Target = Velocity = Result = 0.0f;
+		Current = Target = Velocity = Result = SimulatedResult = 0.0f;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
 		TargetVelocityAmount = 0.0f;
@@ -90,6 +90,9 @@ struct CONTROLRIG_API FRigUnit_SpringInterp : public FRigUnit_SimBase
 	float Velocity;
 
 	UPROPERTY()
+	float SimulatedResult;
+
+	UPROPERTY()
 	FFloatSpringState SpringState;
 };
 
@@ -104,7 +107,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	FRigUnit_SpringInterpVector()
 	{
 		bUseCurrentInput = false;
-		Current = Target = Velocity = Result = FVector::ZeroVector;
+		Current = Target = Velocity = Result = SimulatedResult = FVector::ZeroVector;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
 		TargetVelocityAmount = 0.0f;
@@ -177,6 +180,9 @@ struct CONTROLRIG_API FRigUnit_SpringInterpVector : public FRigUnit_SimBase
 	FVector Velocity;
 
 	UPROPERTY()
+	FVector SimulatedResult;
+
+	UPROPERTY()
 	FVectorSpringState SpringState;
 };
 
@@ -191,7 +197,7 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	FRigUnit_SpringInterpQuaternion()
 	{
 		bUseCurrentInput = false;
-		Current = Target = Result = FQuat::Identity;
+		Current = Target = Result = SimulatedResult = FQuat::Identity;
 		AngularVelocity = FVector::ZeroVector;
 		Strength = 4.0f;
 		CriticalDamping = 1.0f;
@@ -263,6 +269,9 @@ struct CONTROLRIG_API FRigUnit_SpringInterpQuaternion : public FRigUnit_SimBase
 	/** Angular velocity */
 	UPROPERTY(meta = (Output))
 	FVector AngularVelocity;
+
+	UPROPERTY(meta=(Output))
+	FQuat SimulatedResult;
 
 	UPROPERTY()
 	FQuaternionSpringState SpringState;

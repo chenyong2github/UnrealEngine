@@ -157,3 +157,26 @@ FRigUnit_SetScale_Execute()
 	Transform.SetScale3D(Scale);
 	FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Item, Space, false, Transform, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
 }
+
+
+FRigUnit_SetTransformArray_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	if(CachedIndex.Num() != Items.Num())
+	{
+		CachedIndex.Reset();
+		CachedIndex.SetNum(Items.Num());
+	}
+
+	if(Transforms.Num() != Items.Num())
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("The number of transforms (%d) doesn't match the size of the collection (%d)."), Transforms.Num(), Items.Num());
+		return;
+	}
+
+	for(int32 Index=0;Index<Items.Num();Index++)
+	{
+		FRigUnit_SetTransform::StaticExecute(RigVMExecuteContext, Items[Index], Space, bInitial, Transforms[Index], Weight, bPropagateToChildren, CachedIndex[Index], ExecuteContext, Context);
+	}
+}

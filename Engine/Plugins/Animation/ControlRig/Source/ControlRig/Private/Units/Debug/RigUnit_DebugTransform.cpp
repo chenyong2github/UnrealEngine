@@ -152,3 +152,50 @@ FRigUnit_DebugTransformArrayMutable_Execute()
 		}
 	}
 }
+
+FRigUnit_DebugTransformArrayMutableItemSpace_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if (Context.State == EControlRigState::Init)
+	{
+		return;
+	}
+
+	if (Context.DrawInterface == nullptr || !bEnabled || Transforms.Num() == 0)
+	{
+		return;
+	}
+
+	for(const FTransform& Transform : Transforms)
+	{
+		FRigUnit_DebugTransformMutableItemSpace::StaticExecute(
+			RigVMExecuteContext, 
+			Transform,
+			Mode,
+			Color,
+			Thickness,
+			Scale,
+			Space, 
+			WorldOffset, 
+			bEnabled,
+			ExecuteContext, 
+			Context);
+	}
+
+	if(ParentIndices.Num() == Transforms.Num())
+	{
+		for(int32 Index = 0; Index < ParentIndices.Num(); Index++)
+		{
+			if(Transforms.IsValidIndex(ParentIndices[Index]))
+			{
+				Context.DrawInterface->DrawLine(
+					WorldOffset,
+					Transforms[Index].GetTranslation(),
+					Transforms[ParentIndices[Index]].GetTranslation(),
+					Color,
+					Thickness
+				);
+			}
+		}
+	}
+}
