@@ -878,7 +878,7 @@ void SLiveLinkClientPanelToolbar::OnImportPreset(const FAssetData& InPreset)
 	if (ImportedPreset)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ImportPreset_Transaction", "Import LiveLink Preset"));
-		ImportedPreset->ApplyToClient();
+		ImportedPreset->ApplyToClientLatent();
 	}
 	LiveLinkPreset = ImportedPreset;
 }
@@ -895,7 +895,7 @@ FReply SLiveLinkClientPanelToolbar::OnRevertChanges()
 	ULiveLinkPreset* CurrentPreset = LiveLinkPreset.Get();
 	if (CurrentPreset)
 	{
-		CurrentPreset->ApplyToClient();
+		CurrentPreset->ApplyToClientLatent();
 	}
 
 	return FReply::Handled();
@@ -905,5 +905,6 @@ bool SLiveLinkClientPanelToolbar::HasLoadedLiveLinkPreset() const
 {
 	return LiveLinkPreset.IsValid();
 }
+
 
 #undef LOCTEXT_NAMESPACE
