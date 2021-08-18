@@ -1281,6 +1281,14 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 						continue;
 					}
 
+					// the UClass must be alive for the details view to access it
+					// this ensure can fail if VM memory is not updated immediately after compile
+					// because of deferred copy
+					if(!ensure(!Memory->GetClass()->IsPendingKill()))
+					{
+						continue;
+					}
+
 					if(Memory->GetClass()->GetOuter() == GetTransientPackage())
 					{
 						continue;
