@@ -97,6 +97,8 @@ public:
 		Hand,
 	};
 
+	enum class EEventNavigationType { AnyLevel, SameLevel };
+
 public:
 	/** Default constructor. */
 	SPacketContentView();
@@ -151,9 +153,11 @@ public:
 	void DisableFilterEventType();
 
 	FReply FindFirstEvent();
-	FReply FindPreviousEvent();
-	FReply FindNextEvent();
+	FReply FindPreviousEvent(EEventNavigationType NavigationType);
+	FReply FindNextEvent(EEventNavigationType NavigationType);
 	FReply FindLastEvent();
+	FReply FindPreviousLevel();
+	FReply FindNextLevel();
 
 private:
 	FReply FindPreviousPacket_OnClicked();
@@ -203,6 +207,8 @@ private:
 
 	void OnSelectedEventChanged();
 	void SelectHoveredEvent();
+
+	void AdjustForSplitContent();
 
 private:
 	TSharedPtr<SNetworkingProfilerWindow> ProfilerWindow;
