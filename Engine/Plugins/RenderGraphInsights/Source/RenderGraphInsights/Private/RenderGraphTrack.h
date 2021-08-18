@@ -254,21 +254,20 @@ private:
 	uint32 GetTextureColor(const FTexturePacket& Texture, uint64 MaxSizeInBytes) const;
 	uint32 GetBufferColor(const FBufferPacket& Buffer, uint64 MaxSizeInBytes) const;
 
-	bool ShowTextures() const
-	{
-		return EnumHasAnyFlags(ResourceShow, EResourceShow::Textures);
-	}
-
-	bool ShowBuffers() const
-	{
-		return EnumHasAnyFlags(ResourceShow, EResourceShow::Buffers);
-	}
+	bool ShowTextures() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Textures); }
+	bool ShowBuffers() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Buffers); }
+	bool ShowTransient() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Transient); }
+	bool ShowExternal() const	{ return EnumHasAnyFlags(ResourceShow, EResourceShow::External); }
+	bool ShowPooled() const		{ return EnumHasAnyFlags(ResourceShow, EResourceShow::Pooled);}
 
 	enum class EResourceShow
 	{
-		Textures = 1 << 0,
-		Buffers  = 1 << 1,
-		All = Textures | Buffers
+		Textures		= 1 << 0,
+		Buffers			= 1 << 1,
+		Transient		= 1 << 2,
+		External		= 1 << 3,
+		Pooled			= 1 << 4,
+		All				= Textures | Buffers | Transient | External | Pooled
 	};
 	FRIEND_ENUM_CLASS_FLAGS(FRenderGraphTrack::EResourceShow);
 
