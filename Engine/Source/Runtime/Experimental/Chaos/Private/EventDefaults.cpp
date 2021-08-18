@@ -31,7 +31,10 @@ namespace Chaos
 		(const Chaos::FPBDRigidsSolver* Solver, FCollisionEventData& CollisionEventData)
 		{
 			check(Solver);
+
+#if PHYSICS_THREAD_CONTEXT
 			ensure(IsInPhysicsThreadContext());
+#endif
 
 			SCOPE_CYCLE_COUNTER(STAT_GatherCollisionEvent);
 
