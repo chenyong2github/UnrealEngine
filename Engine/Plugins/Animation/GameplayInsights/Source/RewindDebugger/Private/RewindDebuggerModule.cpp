@@ -1,24 +1,22 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RewindDebuggerModule.h"
-#include "Containers/Ticker.h"
-#include "Editor.h"
-#include "Engine/Engine.h"
+
+
 #include "Engine/Selection.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Docking/LayoutExtender.h"
 #include "IAnimationBlueprintEditorModule.h"
-#include "LevelEditorMenuContext.h"
 #include "Modules/ModuleManager.h"
 #include "RewindDebugger.h"
 #include "RewindDebuggerStyle.h"
 #include "RewindDebuggerCommands.h"
 #include "SRewindDebugger.h"
-#include "SSCSEditorMenuContext.h"
-#include "ToolMenus.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "AnimInstanceHelpers.h"
+#include "PropertyTraceMenu.h"
 
 #define LOCTEXT_NAMESPACE "RewindDebuggerModule"
 
@@ -102,7 +100,10 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 								.RecordingDuration(DebuggerInstance->GetRecordingDurationProperty())
 								.DebugComponents(&DebuggerInstance->GetDebugComponents())
 								.TraceTime(DebuggerInstance->GetTraceTimeProperty())
-								.OnScrubPositionChanged(SRewindDebugger::FOnScrubPositionChanged::CreateRaw(DebuggerInstance,&FRewindDebugger::ScrubToTime))
+								.OnScrubPositionChanged_Raw(DebuggerInstance,&FRewindDebugger::ScrubToTime)
+								.OnComponentDoubleClicked_Raw(DebuggerInstance, &FRewindDebugger::ComponentDoubleClicked)
+								.OnComponentSelectionChanged_Raw(DebuggerInstance, &FRewindDebugger::ComponentSelectionChanged)
+								.BuildComponentContextMenu_Raw(DebuggerInstance, &FRewindDebugger::BuildComponentContextMenu)
 								.ScrubTime_Lambda([]() { return FRewindDebugger::Instance()->GetScrubTime(); });
 
 	DebuggerInstance->OnTrackCursor(FRewindDebugger::FOnTrackCursor::CreateSP(RewindDebuggerWidget.Get(), &SRewindDebugger::TrackCursor));
@@ -112,6 +113,8 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 
 	return MajorTab;
 }
+
+static FAnimInstanceDoubleClickHandler AnimInstanceDoubleClickHandler;
 
 void FRewindDebuggerModule::StartupModule()
 {
@@ -127,11 +130,16 @@ void FRewindDebuggerModule::StartupModule()
 
 
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
+	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &AnimInstanceDoubleClickHandler);
+
+	FPropertyTraceMenu::Register();
+	FAnimInstanceMenu::Register();
 }
 
 void FRewindDebuggerModule::ShutdownModule()
 {
 	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
+	IModularFeatures::Get().UnregisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &AnimInstanceDoubleClickHandler);
 
 	FRewindDebuggerCommands::Unregister();
 	FRewindDebuggerStyle::Shutdown();

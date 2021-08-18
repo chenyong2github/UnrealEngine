@@ -11,14 +11,15 @@
 class SRewindDebuggerComponentTree : public SCompoundWidget
 {
 	using FOnSelectionChanged = typename STreeView<TSharedPtr<FDebugObjectInfo>>::FOnSelectionChanged;
-
+	using FOnMouseButtonDoubleClick = typename STreeView<TSharedPtr<FDebugObjectInfo>>::FOnMouseButtonDoubleClick;
+	
 public:
 	SLATE_BEGIN_ARGS(SRewindDebuggerComponentTree) { }
 		SLATE_ARGUMENT( TArray< TSharedPtr< FDebugObjectInfo > >*, DebugComponents );
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
+		SLATE_EVENT( FOnMouseButtonDoubleClick, OnMouseButtonDoubleClick )
+		SLATE_EVENT( FOnContextMenuOpening, OnContextMenuOpening )
 	SLATE_END_ARGS()
-	
-public:
 
 	/**
 	* Default constructor.
@@ -34,8 +35,6 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	void Refresh();
-
-	TSharedPtr<SWidget> ComponentTreeOnContextMenuOpening();
 
 private:
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
