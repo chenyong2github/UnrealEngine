@@ -532,7 +532,7 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 	{
 		const bool bIsLeafmostItem = PathItemIndex == PathItemList.Num() - 1;
 
-		const FString FolderNameStr = PathItemList[PathItemIndex];
+		const FString& FolderNameStr = PathItemList[PathItemIndex];
 		const FName FolderName = *FolderNameStr;
 		FPathViews::Append(CurrentPathStr, FolderNameStr);
 
@@ -1225,23 +1225,7 @@ void SPathView::TreeExpansionChanged( TSharedPtr< FTreeItem > TreeItem, bool bIs
 {
 	if ( ShouldAllowTreeItemChangedDelegate() )
 	{
-		TSet<TSharedPtr<FTreeItem>> ExpandedItemSet;
-		TreeViewPtr->GetExpandedItems(ExpandedItemSet);
-		const TArray<TSharedPtr<FTreeItem>> ExpandedItems = ExpandedItemSet.Array();
-
-		LastExpandedPaths.Empty();
-		for (int32 ItemIdx = 0; ItemIdx < ExpandedItems.Num(); ++ItemIdx)
-		{
-			const TSharedPtr<FTreeItem> Item = ExpandedItems[ItemIdx];
-			if ( !ensure(Item.IsValid()) )
-			{
-				// All items must exist
-				continue;
-			}
-
-			// Keep track of the last paths that we broadcasted for expansion reasons when filtering
-			LastExpandedPaths.Add(Item->GetItem().GetInvariantPath());
-		}
+		DirtyLastExpandedPaths();
 
 		if (!bIsExpanded)
 		{
@@ -1290,6 +1274,9 @@ FText SPathView::GetHighlightText() const
 
 void SPathView::Populate(const bool bIsRefreshingFilter)
 {
+	// Update the list of expanded path before removing the items
+	UpdateLastExpandedPathsIfDirty();
+
 	const bool bFilteringByText = !SearchBoxFolderFilter->GetRawFilterText().IsEmpty();
 
 	// Batch the selection changed event
@@ -1934,6 +1921,35 @@ TArray<FName> SPathView::GetDefaultPathsToExpand() const
 	}
 
 	return VirtualPaths;
+}
+
+void SPathView::DirtyLastExpandedPaths()
+{
+	bLastExpandedPathsDirty = true;
+}
+
+void SPathView::UpdateLastExpandedPathsIfDirty()
+{
+	if (bLastExpandedPathsDirty)
+	{
+		TSet<TSharedPtr<FTreeItem>> ExpandedItemSet;
+		TreeViewPtr->GetExpandedItems(ExpandedItemSet);
+
+		LastExpandedPaths.Empty(ExpandedItemSet.Num());
+		for (const TSharedPtr<FTreeItem>& Item : ExpandedItemSet)
+		{
+			if (!ensure(Item.IsValid()))
+			{
+				// All items must exist
+				continue;
+			}
+
+			// Keep track of the last paths that we broadcasted for expansion reasons when filtering
+			LastExpandedPaths.Add(Item->GetItem().GetInvariantPath());
+		}
+
+		bLastExpandedPathsDirty = false;
+	}
 }
 
 void SFavoritePathView::Construct(const FArguments& InArgs)
