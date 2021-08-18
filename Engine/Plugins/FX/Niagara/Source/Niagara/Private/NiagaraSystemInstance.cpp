@@ -110,6 +110,10 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, bLODDistanceIsOverridden(false)
 	, bPooled(bInPooled)
 	, CachedDeltaSeconds(0.0f)
+	, TimeSinceLastForceUpdateTransform(0.0f)
+	, FixedBounds_GT(EForceInit::ForceInit)
+	, FixedBounds_CNC(EForceInit::ForceInit)
+	, LocalBounds(EForceInit::ForceInit)
 	, RequestedExecutionState(ENiagaraExecutionState::Complete)
 	, ActualExecutionState(ENiagaraExecutionState::Complete)
 	, FeatureLevel(GMaxRHIFeatureLevel)
@@ -704,6 +708,10 @@ void FNiagaraSystemInstance::Complete(bool bExternalCompletion)
 void FNiagaraSystemInstance::OnPooledReuse(UWorld& NewWorld)
 {
 	World = &NewWorld;
+
+	FixedBounds_GT.Init();
+	FixedBounds_CNC.Init();
+
 	for (auto&& Emitter : Emitters)
 	{
 		Emitter->OnPooledReuse();
@@ -2197,6 +2205,7 @@ void FNiagaraSystemInstance::Tick_GameThread(float DeltaSeconds)
 	}
 
 	CachedDeltaSeconds = DeltaSeconds;
+	FixedBounds_CNC = FixedBounds_GT;
 
 	TickInstanceParameters_GameThread(DeltaSeconds);
 
@@ -2311,7 +2320,11 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	}
 
 	// Update local bounds
-	if ( System->bFixedBounds )
+	if ( FixedBounds_CNC.IsValid )
+	{
+		LocalBounds = FixedBounds_CNC;
+	}
+	else if ( System->bFixedBounds )
 	{
 		LocalBounds = System->GetFixedBounds();
 	}
@@ -2514,6 +2527,53 @@ TConstArrayView<FNiagaraEmitterExecutionIndex> FNiagaraSystemInstance::GetEmitte
 		}
 	}
 	return MakeArrayView<FNiagaraEmitterExecutionIndex>(nullptr, 0);
+}
+
+FBox FNiagaraSystemInstance::GetSystemFixedBounds() const
+{
+	if (FixedBounds_GT.IsValid)
+	{
+		return FixedBounds_GT;
+	}
+	else
+	{
+		const UNiagaraSystem* NiagaraSystem = GetSystem();
+		if (NiagaraSystem && NiagaraSystem->bFixedBounds)
+		{
+			return NiagaraSystem->GetFixedBounds();
+		}
+	}
+	return FBox(EForceInit::ForceInit);
+}
+
+void FNiagaraSystemInstance::SetEmitterFixedBounds(FName EmitterName, const FBox& InLocalBounds)
+{
+	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		if ( Emitter->GetEmitterHandle().GetName() == EmitterName )
+		{
+			Emitter->SetFixedBounds(InLocalBounds);
+			return;
+		}
+	}
+
+	// Failed to find emitter
+	UE_LOG(LogNiagara, Warning, TEXT("SetEmitterFixedBounds: Failed to find Emitter(%s) System(%s) Component(%s)"), *EmitterName.ToString(), *GetNameSafe(Asset.Get()), *GetFullNameSafe(AttachComponent.Get()));
+}
+
+FBox FNiagaraSystemInstance::GetEmitterFixedBounds(FName EmitterName) const
+{
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& Emitter : Emitters)
+	{
+		if (Emitter->GetEmitterHandle().GetName() == EmitterName)
+		{
+			return Emitter->GetFixedBounds();
+		}
+	}
+
+	// Failed to find emitter
+	UE_LOG(LogNiagara, Warning, TEXT("GetEmitterFixedBounds: Failed to find Emitter(%s) System(%s) Component(%s)"), *EmitterName.ToString(), *GetNameSafe(Asset.Get()), *GetFullNameSafe(AttachComponent.Get()));
+	return FBox(EForceInit::ForceInit);
 }
 
 FNiagaraEmitterInstance* FNiagaraSystemInstance::GetEmitterByID(FGuid InID)

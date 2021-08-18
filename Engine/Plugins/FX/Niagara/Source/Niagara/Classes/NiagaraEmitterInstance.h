@@ -147,6 +147,8 @@ public:
 	}
 
 	void SetSystemFixedBoundsOverride(FBox SystemFixedBounds);
+	FORCEINLINE void SetFixedBounds(const FBox& InLocalBounds) { FixedBounds_GT = InLocalBounds; }
+	FBox GetFixedBounds() const;
 
 	UObject* FindBinding(const FNiagaraVariable& InVariable) const;
 	UNiagaraDataInterface* FindDataInterface(const FNiagaraVariable& InVariable) const;
@@ -198,9 +200,13 @@ private:
 	/* Emitter bounds */
 	FBox CachedBounds;
 
+	/** Optional user specified bounds. */
+	FBox FixedBounds_GT;
+	FBox FixedBounds_CNC;
+
 	/** Cached fixed bounds of the parent system which override this Emitter Instances bounds if set. Whenever we initialize the owning SystemInstance we will reconstruct this
 	 ** EmitterInstance and the cached bounds will be unset. */
-	TOptional<FBox> CachedSystemFixedBounds;
+	FBox CachedSystemFixedBounds;
 
 	FNiagaraSystemInstanceID OwnerSystemInstanceID;
 
