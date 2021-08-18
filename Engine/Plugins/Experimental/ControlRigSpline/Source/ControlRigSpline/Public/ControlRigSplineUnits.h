@@ -346,7 +346,32 @@ struct CONTROLRIGSPLINE_API FRigUnit_FitSplineCurveToChain : public FRigUnit_Hig
 	 * The curve to align
 	 */
 	UPROPERTY(meta = (Input, Output))
+	FControlRigSpline Spline;	
+};
+
+USTRUCT(meta = (DisplayName = "Closest Parameter From Spline", Category = "Control Rig"))
+struct CONTROLRIGSPLINE_API FRigUnit_ClosestParameterFromControlRigSpline : public FRigUnit_ControlRigSplineBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_ClosestParameterFromControlRigSpline()
+	{
+		Position = FVector::ZeroVector;
+		U = 0.f;
+	}
+
+	/** Execute logic for this rig unit */
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
 	FControlRigSpline Spline;
 
+	UPROPERTY(meta = (Input))
+	FVector Position;
+
+	UPROPERTY(meta = (Output))
+	float U;
 	
 };
+

@@ -674,3 +674,66 @@ FRigUnit_FitSplineCurveToChain_Execute()
 	Spline.SetControlPoints(NewPointsView, Spline.SplineData->SplineMode, Spline.SplineData->SamplesPerSegment, Spline.SplineData->Compression, Spline.SplineData->Stretch);
 }
 
+FRigUnit_ClosestParameterFromControlRigSpline_Execute()
+{
+	if (!Spline.SplineData.IsValid())
+	{
+		return;
+	}
+	
+	switch (Context.State)
+	{
+		case EControlRigState::Init:
+		case EControlRigState::Update:
+		{
+				const int32 SampleCount = Spline.SplineData->SamplesArray.Num();
+
+				auto DistanceToSegment = [&](int32 Index0, int32 Index1, float& OutParam) -> float
+				{
+					const int32 MaxIndex = Spline.SplineData->SamplesArray.Num()-1;
+					const FVector& P0 = Spline.SplineData->SamplesArray[Index0];
+					const FVector& P1 = Spline.SplineData->SamplesArray[Index1];
+
+					const FVector V = P1 - P0;
+					const FVector U = P0 - Position;
+					const float T = - U.Dot(V) / V.Dot(V);
+					if (T > 0 && T < 1)
+					{
+						OutParam = (1-T)*(Index0/(float)MaxIndex) + T*(Index1/(float)MaxIndex);
+						return U.Cross(V).Length() / V.Length();
+					}
+
+					const float D0 = FVector::Distance(P0, Position);
+					const float D1 = FVector::Distance(P1, Position);
+					if (D0 < D1)
+					{
+						OutParam = Index0/(float)MaxIndex;
+						return D0;
+					}
+
+					OutParam = Index1/(float)MaxIndex;
+					return D1;
+				};
+
+				float ClosestDistance = TNumericLimits<float>::Max();
+				for (int32 i=1; i<SampleCount; ++i)
+				{
+					float Param;
+					float Distance = DistanceToSegment(i-1, i, Param);
+
+					if (Distance < ClosestDistance)
+					{
+						ClosestDistance = Distance;
+						U = Param;
+					}
+				}				
+				
+			break;
+		}
+		default:
+		{
+			checkNoEntry(); // Execute is only defined for Init and Update
+			break;
+		}
+	}
+}
