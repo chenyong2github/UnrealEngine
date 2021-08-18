@@ -10,4 +10,6 @@
 #	define TS_VERSION_MINOR		4
 #endif
 
+#define TS_ICON_ID				493
+
 /* vim: set noexpandtab : */
