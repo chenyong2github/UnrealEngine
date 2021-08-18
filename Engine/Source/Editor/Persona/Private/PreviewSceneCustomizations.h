@@ -82,6 +82,12 @@ private:
 
 	ECheckBoxState HandleUseCustomAnimBPIsChecked() const;
 
+	// Called when the anim blueprint being edited is compiled.
+	void HandleAnimBlueprintCompiled(UBlueprint* Blueprint);
+
+	// Reinitialize the preview controller in the preview scene.
+	void ReinitializePreviewController();
+
 #if CHAOS_SIMULATION_DETAIL_VIEW_FACTORY_SELECTOR
 	// Make the widget of each item in the preview cloth factory combo box
 	TSharedRef<SWidget> MakeClothingSimulationFactoryWidget(TSharedPtr<TSubclassOf<class UClothingSimulationFactory>> Item) const;
