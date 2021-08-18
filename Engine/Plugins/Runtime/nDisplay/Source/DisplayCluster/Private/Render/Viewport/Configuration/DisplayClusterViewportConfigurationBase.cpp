@@ -5,10 +5,10 @@
 #include "Render/Viewport/DisplayClusterViewport.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessManager.h"
+#include "Render/Viewport/Postprocess/DisplayClusterViewportPostProcessOutputRemap.h"
 
 #include "DisplayClusterViewportConfigurationHelpers.h"
 #include "DisplayClusterConfigurationTypes.h"
-
 ///////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportConfigurationBase
 ///////////////////////////////////////////////////////////////////
@@ -109,6 +109,31 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 				else
 				{
 					PPManager->CreatePostprocess(It.Key, &It.Value);
+				}
+			}
+
+			// Update OutputRemap PP
+			{
+				const struct FDisplayClusterConfigurationFramePostProcess_OutputRemap& OutputRemapCfg = ClusterNode->OutputRemap;
+				if (OutputRemapCfg.bEnable)
+				{
+					switch (OutputRemapCfg.DataSource)
+					{
+					case EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::StaticMesh:
+						PPManager->GetOutputRemap()->UpdateConfiguration_StaticMesh(OutputRemapCfg.StaticMesh);
+						break;
+
+					case EDisplayClusterConfigurationFramePostProcess_OutputRemapSource::ExternalFile:
+						PPManager->GetOutputRemap()->UpdateConfiguration_ExternalFile(OutputRemapCfg.ExternalFile);
+						break;
+
+					default:
+						PPManager->GetOutputRemap()->UpdateConfiguration_Disabled();
+					}
+				}
+				else
+				{
+					PPManager->GetOutputRemap()->UpdateConfiguration_Disabled();
 				}
 			}
 		}

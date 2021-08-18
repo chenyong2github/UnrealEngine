@@ -44,6 +44,7 @@ public:
 	//~ Begin FEditorUndoClient interface
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
+	virtual void RefreshEditors(ERefreshBlueprintEditorReason::Type Reason) override;
 	//~ End FEditorUndoClient interface
 
 	virtual void SelectObjects(TArray<UObject*>& InSelectedObjects, bool bFullRefresh = false);
@@ -207,12 +208,6 @@ private:
 	void OnFocusChanged(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget);
 
 	void BindCommands();
-
-	/** Returns normal component name. We get component name from a SCS component template which has _GEN_VARIABLE postfix. */
-	FString GetObjectNameFromSCSNode(const UObject* const Object) const;
-
-	/** Auxiliary recursive function that builds child-parentId components map */
-	void GatherParentComponentsInfo(const USCS_Node* const InNode, TMap<UActorComponent*, FString>& OutParentsMap) const;
 
 private:
 	TSharedPtr<FDisplayClusterConfiguratorViewOutputMapping> ViewOutputMapping;

@@ -33,9 +33,9 @@ void UTextureShareAPIImpl::SetSyncPolicySettings(const FTextureShareBPSyncPolicy
 }
 
 
-bool UTextureShareAPIImpl::CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer)
+bool UTextureShareAPIImpl::CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer, float SyncWaitTime)
 {
-	return GetAPI().CreateShare(ShareName, *SyncMode, bIsServer ? ETextureShareProcess::Server : ETextureShareProcess::Client);
+	return GetAPI().CreateShare(ShareName, *SyncMode, bIsServer ? ETextureShareProcess::Server : ETextureShareProcess::Client, SyncWaitTime);
 }
 
 bool UTextureShareAPIImpl::ReleaseTextureShare(const FString ShareName)

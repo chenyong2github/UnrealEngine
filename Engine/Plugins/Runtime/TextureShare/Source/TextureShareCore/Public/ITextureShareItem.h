@@ -43,6 +43,9 @@ public:
 	virtual bool SetTextureGPUIndex(const FString& TextureName, uint32 GPUIndex) = 0;
 	virtual bool SetDefaultGPUIndex(uint32 GPUIndex) = 0;
 
+	/* Sync wait time */
+	virtual void SetSyncWaitTime(float InSyncWaitTime) = 0;
+
 	virtual bool GetRemoteTextureDesc(const FString& TextureName, FTextureShareSurfaceDesc& OutSharedTextureDesc) const = 0;
 
 	/** Session scope */

@@ -11,6 +11,42 @@
 //*************************************************************************
 //* FDisaplyClusterMeshComponentProxyData
 //*************************************************************************
+void FDisplayClusterRender_MeshComponentProxyData::ImplInitializeMesh(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int InUVChromakeyIndex)
+{
+	if (InStaticMesh.bAllowCPUAccess == false)
+	{
+		UE_LOG(LogDisplayClusterRender, Warning, TEXT("If packaging this project, static mesh '%s' requires its AllowCPUAccess flag to be enabled."), *InStaticMesh.GetName());
+#if !WITH_EDITOR
+		// Can't access to cooked data from CPU without this flag
+		return;
+#endif
+	}
+
+	const FStaticMeshLODResources& SrcMeshResource = InStaticMesh.GetLODForExport(0);
+
+	const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
+	const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
+	const FRawStaticIndexBuffer& IndexBuffer = SrcMeshResource.IndexBuffer;
+
+	NumTriangles = IndexBuffer.GetNumIndices() / 3; // Now by default no triangle strip supported
+	NumVertices = VertexBuffer.GetNumVertices();
+
+	uint32 UVBaseIndex = 0;
+	uint32 UVChromakeyIndex = (InUVChromakeyIndex < SrcMeshResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
+
+	IndexBuffer.GetCopy(IndexData);
+
+	VertexData.AddZeroed(NumVertices);
+	for (uint32 i = 0; i < NumVertices; i++)
+	{
+		VertexData[i].Position = VertexPosition.VertexPosition(i);
+		VertexData[i].UV = VertexBuffer.GetVertexUV(i, UVBaseIndex);
+		VertexData[i].UV_Chromakey = VertexBuffer.GetVertexUV(i, UVChromakeyIndex);
+	}
+
+	UpdateData(InDataFunc);
+}
+
 FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMeshComponent& InMeshComponent, const int InUVChromakeyIndex)
 {
 	check(IsInGameThread());
@@ -18,30 +54,15 @@ FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponen
 	UStaticMesh* StaticMesh = InMeshComponent.GetStaticMesh();
 	if (StaticMesh)
 	{
-		const FStaticMeshLODResources& SrcMeshResource = StaticMesh->GetLODForExport(0);
-
-		const FPositionVertexBuffer& VertexPosition = SrcMeshResource.VertexBuffers.PositionVertexBuffer;
-		const FStaticMeshVertexBuffer& VertexBuffer = SrcMeshResource.VertexBuffers.StaticMeshVertexBuffer;
-		const FRawStaticIndexBuffer& IndexBuffer = SrcMeshResource.IndexBuffer;
-
-		NumTriangles = IndexBuffer.GetNumIndices() / 3; // Now by default no triangle strip supported
-		NumVertices = VertexBuffer.GetNumVertices();
-
-		uint32 UVBaseIndex = 0;
-		uint32 UVChromakeyIndex = (InUVChromakeyIndex < SrcMeshResource.GetNumTexCoords()) ? InUVChromakeyIndex : 0;
-
-		IndexBuffer.GetCopy(IndexData);
-
-		VertexData.AddZeroed(NumVertices);
-		for (uint32 i = 0; i < NumVertices; i++)
-		{
-			VertexData[i].Position = VertexPosition.VertexPosition(i);
-			VertexData[i].UV = VertexBuffer.GetVertexUV(i, UVBaseIndex);
-			VertexData[i].UV_Chromakey = VertexBuffer.GetVertexUV(i, UVChromakeyIndex);
-		}
-
-		UpdateData(InDataFunc);
+		ImplInitializeMesh(InDataFunc, *StaticMesh, InUVChromakeyIndex);
 	}
+}
+
+FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const UStaticMesh& InStaticMesh, const int InUVChromakeyIndex)
+{
+	check(IsInGameThread());
+
+	ImplInitializeMesh(InDataFunc, InStaticMesh, InUVChromakeyIndex);
 }
 
 FDisplayClusterRender_MeshComponentProxyData::FDisplayClusterRender_MeshComponentProxyData(const FDisplayClusterRender_MeshComponentProxyDataFunc InDataFunc, const FDisplayClusterRender_MeshGeometry& InMeshGeometry)

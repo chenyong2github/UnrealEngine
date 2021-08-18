@@ -9,6 +9,8 @@
 #include "Network/Protocol/IDisplayClusterProtocolClusterSync.h"
 #include "Network/Protocol/IDisplayClusterProtocolRenderSync.h"
 
+#include "DisplayClusterEnums.h"
+
 
 /**
  * Node controller interface
@@ -33,11 +35,8 @@ public:
 	virtual void ClearCache()
 	{ }
 
-	/** Check if this is master controller */
-	virtual bool IsMaster() const = 0;
-
-	/** Check if this is slave controller */
-	virtual bool IsSlave() const = 0;
+	/** Returns cluster role of the controller */
+	virtual EDisplayClusterNodeRole GetClusterRole() const = 0;
 
 	/** Return node ID */
 	virtual FString GetNodeId() const = 0;

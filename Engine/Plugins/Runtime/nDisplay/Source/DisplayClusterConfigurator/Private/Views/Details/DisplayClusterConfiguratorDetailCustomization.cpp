@@ -566,6 +566,7 @@ void FDisplayClusterConfiguratorTypeCustomization::CustomizeHeader(TSharedRef<IP
 	if (OuterObjects.Num())
 	{
 		EditingObject = OuterObjects[0];
+		bMultipleObjectsSelected = OuterObjects.Num() > 1;
 	}
 }
 
@@ -779,7 +780,7 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddRenderSyncPoli
 	ChildBuilder->AddCustomRow(TypeHandle->GetPropertyDisplayName())
 	.NameContent()
 	[
-		TypeHandle->CreatePropertyNameWidget()
+		TypeHandle->CreatePropertyNameWidget(FText::GetEmpty(), LOCTEXT("RenderSyncPolicyToolTip", "Specify your nDisplay Render Sync Policy"))
 	]
 	.ValueContent()
 	[
@@ -789,7 +790,6 @@ void FDisplayClusterConfiguratorRenderSyncPolicyCustomization::AddRenderSyncPoli
 		.OnSelectionChanged(this, &FDisplayClusterConfiguratorRenderSyncPolicyCustomization::OnRenderSyncPolicySelected)
 		.ContentPadding(2)
 		.MaxListHeight(200.0f)
-		.ToolTipText(LOCTEXT("RenderSyncPolicyToolTip", "Specify your nDisplay Render Sync Policy"))
 		.Content()
 		[
 			SNew(STextBlock)
@@ -1118,7 +1118,7 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::AddInputSyncPolicy
 	ChildBuilder->AddCustomRow(TypeHandle->GetPropertyDisplayName())
 	.NameContent()
 	[
-		TypeHandle->CreatePropertyNameWidget()
+		TypeHandle->CreatePropertyNameWidget(FText::GetEmpty(), LOCTEXT("InputSyncPolicyTooltip", "Specify your nDisplay Input Sync Policy"))
 	]
 	.ValueContent()
 	[
@@ -1128,7 +1128,6 @@ void FDisplayClusterConfiguratorInputSyncPolicyCustomization::AddInputSyncPolicy
 		.OnSelectionChanged(this, &FDisplayClusterConfiguratorInputSyncPolicyCustomization::OnInputSyncPolicySelected)
 		.ContentPadding(2)
 		.MaxListHeight(200.0f)
-		.ToolTipText(LOCTEXT("InputSyncPolicyTooltip", "Specify your nDisplay Input Sync Policy"))
 		.Content()
 		[
 			SNew(STextBlock)

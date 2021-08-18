@@ -5,6 +5,8 @@
 #include "Engine/Blueprint.h"
 #include "DisplayClusterBlueprint.generated.h"
 
+class USCS_Node;
+class UActorComponent;
 
 UCLASS(BlueprintType, DisplayName = "nDisplay Blueprint")
 class DISPLAYCLUSTER_API UDisplayClusterBlueprint : public UBlueprint
@@ -42,6 +44,9 @@ public:
 
 	const FString& GetConfigPath() const;
 	void SetConfigPath(const FString& InPath);
+
+	/** Configure the config with needed blueprint data for an export. */
+	void PrepareConfigForExport();
 	
 public:
 	// Holds the last saved config export. In the AssetRegistry to allow parsing without loading.
@@ -49,9 +54,17 @@ public:
 	FString ConfigExport;
 
 private:
-
 	//** Updates the ConfigExport property. Called when saving the asset.
 	void UpdateConfigExportProperty();
+
+	/** Returns normal component name. We get component name from a SCS component template which has _GEN_VARIABLE postfix. */
+	FString GetObjectNameFromSCSNode(const UObject* const Object) const;
+
+	/** Auxiliary recursive function that builds child-parentId components map */
+	void GatherParentComponentsInfo(const USCS_Node* const InNode, TMap<UActorComponent*, FString>& OutParentsMap) const;
+
+	/** Auxiliary function to remove invalid pairs from the TMap containers in the config*/
+	void CleanupConfigMaps(UDisplayClusterConfigurationData* Data) const;
 
 protected:
 	UPROPERTY()

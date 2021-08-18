@@ -135,6 +135,62 @@ void ADisplayClusterRootActor::InitializeFromConfig(UDisplayClusterConfiguration
 	}
 }
 
+void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationData* ConfigData)
+{
+	check(ConfigData);
+	check(ConfigData->Scene);
+	check(ConfigData->Cluster);
+
+	// Override base types and structures
+	CurrentConfigData->Meta = ConfigData->Meta;
+	CurrentConfigData->Info = ConfigData->Info;
+	CurrentConfigData->CustomParameters = ConfigData->CustomParameters;
+	CurrentConfigData->Diagnostics = ConfigData->Diagnostics;
+	CurrentConfigData->bFollowLocalPlayerCamera = ConfigData->bFollowLocalPlayerCamera;
+	CurrentConfigData->bExitOnEsc = ConfigData->bExitOnEsc;
+
+	// Override Scene but without changing its name
+	{
+		FName SceneName = NAME_None;
+
+		if (CurrentConfigData->Scene)
+		{
+			SceneName = CurrentConfigData->Scene->GetFName();
+
+			const FName DeadName = MakeUniqueObjectName(CurrentConfigData, UDisplayClusterConfigurationScene::StaticClass(), "DEAD_DisplayClusterConfigurationScene");
+			CurrentConfigData->Scene->Rename(*DeadName.ToString());
+		}
+
+		CurrentConfigData->Scene = DuplicateObject(ConfigData->Scene, CurrentConfigData, SceneName);
+	}
+
+	// Override Cluster but without changing its name
+	{
+		FName ClusterName = NAME_None;
+
+		if (CurrentConfigData->Cluster)
+		{
+			ClusterName = CurrentConfigData->Cluster->GetFName();
+
+			const FName DeadName = MakeUniqueObjectName(CurrentConfigData, UDisplayClusterConfigurationCluster::StaticClass(), "DEAD_DisplayClusterConfigurationCluster");
+			CurrentConfigData->Cluster->Rename(*DeadName.ToString());
+		}
+
+		CurrentConfigData->Cluster = DuplicateObject(ConfigData->Cluster, CurrentConfigData, ClusterName);
+	}
+
+	// There is no sense to call BuildHierarchy because it works for non-BP root actors.
+	// On the other hand, OverwriteFromConfig method is called for BP root actors only by nature.
+
+	// And update preview stuff in Editor
+#if WITH_EDITOR
+	if (GIsEditor && GetWorld())
+	{
+		UpdatePreviewComponents();
+	}
+#endif
+}
+
 UDisplayClusterConfigurationViewport* ADisplayClusterRootActor::GetViewportConfiguration(const FString& ClusterNodeID, const FString& ViewportID)
 {
 	if (CurrentConfigData)
@@ -425,16 +481,6 @@ void ADisplayClusterRootActor::InitializeRootActor()
 			UpdatePreviewComponents();
 #endif
 			return;
-		}
-		
-		IPDisplayClusterConfigManager* const ConfigMgr = (GDisplayCluster ? GDisplayCluster->GetPrivateConfigMgr() : nullptr);
-		if (ConfigMgr)
-		{
-			UDisplayClusterConfigurationData* ConfigData = ConfigMgr->GetConfig();
-			if (ConfigData)
-			{
-				InitializeFromConfig(ConfigData);
-			}
 		}
 	}
 #if WITH_EDITOR

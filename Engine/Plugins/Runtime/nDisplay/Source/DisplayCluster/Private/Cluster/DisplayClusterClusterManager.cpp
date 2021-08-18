@@ -78,8 +78,8 @@ bool FDisplayClusterClusterManager::StartSession(UDisplayClusterConfigurationDat
 		return false;
 	}
 
-	// Save nodes amount
-	NodesAmount = ConfigData->Cluster->Nodes.Num();
+	// Save node IDs
+	ConfigData->Cluster->Nodes.GenerateKeyArray(ClusterNodeIds);
 
 	// Instantiate node controller
 	Controller = CreateController();
@@ -113,7 +113,7 @@ void FDisplayClusterClusterManager::EndSession()
 		}
 	}
 
-	NodesAmount = 0;
+	ClusterNodeIds.Reset();
 	ClusterNodeId.Empty();
 }
 
@@ -216,12 +216,32 @@ IDisplayClusterNodeController* FDisplayClusterClusterManager::GetController() co
 
 bool FDisplayClusterClusterManager::IsMaster() const
 {
-	return Controller ? Controller->IsMaster() : false;
+	FScopeLock Lock(&InternalsSyncScope);
+	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Master : false;
 }
 
 bool FDisplayClusterClusterManager::IsSlave() const
 {
-	return Controller ? Controller->IsSlave() : false;
+	FScopeLock Lock(&InternalsSyncScope);
+	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Slave : false;
+}
+
+bool FDisplayClusterClusterManager::IsBackup() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return Controller ? Controller->GetClusterRole() == EDisplayClusterNodeRole::Backup : false;
+}
+
+EDisplayClusterNodeRole FDisplayClusterClusterManager::GetClusterRole() const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	return Controller ? Controller->GetClusterRole() : EDisplayClusterNodeRole::None;
+}
+
+void FDisplayClusterClusterManager::GetNodeIds(TArray<FString>& OutNodeIds) const
+{
+	FScopeLock Lock(&InternalsSyncScope);
+	OutNodeIds = ClusterNodeIds;
 }
 
 void FDisplayClusterClusterManager::RegisterSyncObject(IDisplayClusterClusterSyncObject* SyncObj, EDisplayClusterSyncGroup SyncGroup)

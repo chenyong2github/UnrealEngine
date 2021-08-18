@@ -21,7 +21,7 @@ public:
 	TEXTURE_SHARE_SDK_API static void SetSyncPolicySettings(const FTextureShareSyncPolicySettings& InSyncPolicySettings);
 
 	// Create shared resource object
-	TEXTURE_SHARE_SDK_API static bool CreateTextureShare(const TCHAR* ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType);
+	TEXTURE_SHARE_SDK_API static bool CreateTextureShare(const TCHAR* ShareName, ETextureShareProcess Process, FTextureShareSyncPolicy SyncMode, ETextureShareDevice DeviceType, float SyncWaitTime = 0.03);
 	TEXTURE_SHARE_SDK_API static bool ReleaseTextureShare(const TCHAR* ShareName);
 
 	TEXTURE_SHARE_SDK_API static bool IsValid(const TCHAR* ShareName);

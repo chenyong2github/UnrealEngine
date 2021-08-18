@@ -126,14 +126,14 @@ ETextureShareDevice FTextureShareModule::GetTextureShareDeviceType() const
 	return ETextureShareDevice::Undefined;
 };
 
-bool FTextureShareModule::CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process)
+bool FTextureShareModule::CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process, float SyncWaitTime)
 {
 	FScopeLock lock(&DataGuard);
 
 	TSharedPtr<ITextureShareItem> ShareItem;
 	ETextureShareDevice ShareDevice = GetTextureShareDeviceType();
 
-	return ShareCoreAPI.CreateTextureShareItem(ShareName, Process, SyncMode, ShareDevice, ShareItem);
+	return ShareCoreAPI.CreateTextureShareItem(ShareName, Process, SyncMode, ShareDevice, ShareItem, SyncWaitTime);
 }
 
 bool FTextureShareModule::ReleaseShare(const FString& ShareName)
@@ -165,6 +165,7 @@ void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBu
 
 	if (ViewFamily.Views.Num() > 0)
 	{
+	{
 		EStereoscopicPass StereoscopicPass = ViewFamily.Views[0]->StereoPass;
 		// Send SceneContext callback for all registered shares:
 		for (auto& It : TextureShareSceneContextCallback)
@@ -176,12 +177,14 @@ void FTextureShareModule::OnResolvedSceneColor_RenderThread(FRDGBuilder& GraphBu
 		}
 	}
 }
+}
 
 void FTextureShareModule::OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, class FSceneViewFamily& ViewFamily)
 {
 	FScopeLock lock(&DataGuard);
 	
 	if (ViewFamily.Views.Num() > 0)
+	{
 	{
 		EStereoscopicPass StereoscopicPass = ViewFamily.Views[0]->StereoPass;
 		// Send PostRender callback for all registered shares:
@@ -193,6 +196,7 @@ void FTextureShareModule::OnPostRenderViewFamily_RenderThread(FRHICommandListImm
 			}
 		}
 	}
+}
 }
 
 bool FTextureShareModule::RegisterTexture(const TSharedPtr<ITextureShareItem>& ShareItem, const FString& InTextureName, const FIntPoint& InSize, EPixelFormat InFormat, ETextureShareSurfaceOp OperationType)

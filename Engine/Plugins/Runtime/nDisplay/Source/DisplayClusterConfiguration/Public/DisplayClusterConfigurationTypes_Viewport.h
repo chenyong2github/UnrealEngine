@@ -152,7 +152,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "View Origin"))
 	FString Camera;
 
-	/** Selection of a Projection Policy */
+	/** Specify your Projection Policy Settings */
 	UPROPERTY(EditDefaultsOnly, Category = "Configuration")
 	FDisplayClusterConfigurationProjection ProjectionPolicy;
 
@@ -170,7 +170,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationRectangle Region;
 
-	/** Viewports can overlap, allow and sets Viewport overlaping order priority */
+	/** Allows Viewports to overlap and sets Viewport overlapping order priority */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	int OverlapOrder = 0;
 

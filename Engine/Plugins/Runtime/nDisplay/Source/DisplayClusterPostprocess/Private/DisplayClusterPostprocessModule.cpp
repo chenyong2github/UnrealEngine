@@ -5,8 +5,6 @@
 #include "DisplayClusterPostprocessLog.h"
 #include "DisplayClusterPostprocessStrings.h"
 
-#include "PostProcess/OutputRemap/DisplayClusterPostprocessOutputRemapFactory.h"
-
 #if PLATFORM_WINDOWS
 #include "PostProcess/Windows/DisplayClusterPostprocessTextureShare.h"
 #include "PostProcess/Windows/DisplayClusterPostprocessDX12CrossGPU.h"
@@ -19,10 +17,6 @@
 FDisplayClusterPostprocessModule::FDisplayClusterPostprocessModule()
 {
 	TSharedPtr<IDisplayClusterPostProcessFactory> Postprocess;
-
-	// Output Remap
-	Postprocess = MakeShared<FDisplayClusterPostprocessOutputRemapFactory>();
-	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::postprocess::OutputRemap, Postprocess);
 
 #if PLATFORM_WINDOWS
 	// Texture Share

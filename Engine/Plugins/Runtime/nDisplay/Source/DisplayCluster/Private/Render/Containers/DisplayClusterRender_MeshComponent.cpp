@@ -102,6 +102,17 @@ void FDisplayClusterRender_MeshComponent::UpdateDefferedRef()
 	ImplUpdateMeshComponentProxyData(MeshComponentProxy, NewProxyData);
 }
 
+void FDisplayClusterRender_MeshComponent::UpdateDeffered(const UStaticMesh* InStaticMesh)
+{
+	FDisplayClusterRender_MeshComponentProxyData* NewProxyData = nullptr;
+	if (InStaticMesh)
+	{
+		NewProxyData = new FDisplayClusterRender_MeshComponentProxyData(DataFunc, *InStaticMesh);
+	}
+
+	ImplUpdateMeshComponentProxyData(MeshComponentProxy, NewProxyData);
+}
+
 void FDisplayClusterRender_MeshComponent::UpdateDeffered(const FDisplayClusterRender_MeshGeometry& InMeshGeometry)
 {
 	check(IsInGameThread());

@@ -34,7 +34,7 @@ public:
 	 * @return True if the success
 	 */
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Create TextureShare"), Category = "TextureShare")
-	virtual bool CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer = true) = 0;
+	virtual bool CreateTextureShare(const FString ShareName, FTextureShareBPSyncPolicy SyncMode, bool bIsServer = true, float SyncWaitTime = 0.03f) = 0;
 
 	/**
 	 * Release exist textureshare object

@@ -26,7 +26,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// TextureShare
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual bool CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process = ETextureShareProcess::Server) override;
+	virtual bool CreateShare(const FString& ShareName, const FTextureShareSyncPolicy& SyncMode, ETextureShareProcess Process = ETextureShareProcess::Server, float SyncWaitTime = 0.03f) override;
 	virtual bool ReleaseShare(const FString& ShareName) override;
 	virtual bool GetShare(const FString& ShareName, TSharedPtr<ITextureShareItem>& OutShareItem) const override;
 
