@@ -297,15 +297,22 @@ bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArr
 	
 	if (LightShadowData.LightVolumetricShadowSceneinfo0 && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id]);
+		const FVisibleLightInfo& Light0 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id];
+		LightShadowData.ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(Light0);	
+		// NOTE: This will be an arbitrary clipmap if multiple exist, but this is similar to the CSM select above,
+		// which also does not take multiple views into account.
+		LightShadowData.VirtualShadowMapId0 = Light0.VirtualShadowMapId;
 	}
 	if (LightShadowData.LightVolumetricShadowSceneinfo1 && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo1 = GetFirstWholeSceneShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id]);
+		const FVisibleLightInfo& Light1 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id];
+		LightShadowData.ProjectedShadowInfo1 = GetFirstWholeSceneShadowMap(Light1);
+		LightShadowData.VirtualShadowMapId1 = Light1.VirtualShadowMapId;
 	}
 
 	return CVarSkyAtmosphereSampleLightShadowmap.GetValueOnRenderThread() > 0 &&
-		(LightShadowData.ProjectedShadowInfo0 || LightShadowData.ProjectedShadowInfo1);
+		(LightShadowData.ProjectedShadowInfo0 || LightShadowData.ProjectedShadowInfo1 ||
+		LightShadowData.VirtualShadowMapId0 != INDEX_NONE || LightShadowData.VirtualShadowMapId1 != INDEX_NONE);
 }
 void GetSkyAtmosphereLightsUniformBuffers(
 	FRDGBuilder& GraphBuilder,
@@ -1540,20 +1547,6 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, LightShadowShaderParams0UniformBuffer, LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, bShouldSampleOpaqueShadow, UniformBuffer_SingleFrame);
 
-		// Find virtual shadow maps associated with our chosen lights and view, if any
-		int VirtualShadowMapId0 = INDEX_NONE;
-		int VirtualShadowMapId1 = INDEX_NONE;
-		if (LightShadowData.LightVolumetricShadowSceneinfo0)
-		{
-			const FVisibleLightInfo& Light0 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id];
-			VirtualShadowMapId0 = Light0.GetVirtualShadowMapId(&View);
-		}
-		if (LightShadowData.LightVolumetricShadowSceneinfo1)
-		{
-			const FVisibleLightInfo& Light1 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id];
-			VirtualShadowMapId1 = Light1.GetVirtualShadowMapId(&View);
-		}
-
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);
@@ -1588,8 +1581,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
 			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
-			PassParameters->VirtualShadowMapId0 = VirtualShadowMapId0;
-			PassParameters->VirtualShadowMapId1 = VirtualShadowMapId1;
+			PassParameters->VirtualShadowMapId0 = LightShadowData.VirtualShadowMapId0;
+			PassParameters->VirtualShadowMapId1 = LightShadowData.VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
@@ -1633,8 +1626,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
 			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
-			PassParameters->VirtualShadowMapId0 = VirtualShadowMapId0;
-			PassParameters->VirtualShadowMapId1 = VirtualShadowMapId1;
+			PassParameters->VirtualShadowMapId0 = LightShadowData.VirtualShadowMapId0;
+			PassParameters->VirtualShadowMapId1 = LightShadowData.VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
@@ -1882,17 +1875,8 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 
 		GetSkyAtmosphereLightsUniformBuffers(GraphBuilder, SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
-
-		if (LightShadowData.LightVolumetricShadowSceneinfo0)
-		{
-			const FVisibleLightInfo& Light0 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id];
-			SkyRC.VirtualShadowMapId0 = Light0.GetVirtualShadowMapId(&View);
-		}
-		if (LightShadowData.LightVolumetricShadowSceneinfo1)
-		{
-			const FVisibleLightInfo& Light1 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id];
-			SkyRC.VirtualShadowMapId1 = Light1.GetVirtualShadowMapId(&View);
-		}
+		SkyRC.VirtualShadowMapId0 = LightShadowData.VirtualShadowMapId0;
+		SkyRC.VirtualShadowMapId1 = LightShadowData.VirtualShadowMapId1;
 
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);

@@ -249,7 +249,7 @@ enum class ELumenLightType
 
 struct FLumenShadowSetup
 {
-	const FProjectedShadowInfo* VirtualShadowMap;
+	int32 VirtualShadowMapId;
 	const FProjectedShadowInfo* DenseShadowMap;
 };
 

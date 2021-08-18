@@ -2316,13 +2316,20 @@ bool FSceneRenderer::RenderVolumetricCloud(
 				if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0 && ProjectedShadowInfo0)
 				{
 					SetVolumeShadowingShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0, ViewInfo, AtmosphericLight0Info, ProjectedShadowInfo0, INDEX_NONE);
-					CloudRC.VirtualShadowMapId0 = VisibleLightInfos[AtmosphericLight0Info->Id].GetVirtualShadowMapId(&ViewInfo);
 				}
 				else
 				{
 					SetVolumeShadowingDefaultShaderParameters(GraphBuilder, CloudRC.LightShadowShaderParams0);
+				}
+				if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0)
+				{
+					CloudRC.VirtualShadowMapId0 = VisibleLightInfos[AtmosphericLight0Info->Id].GetVirtualShadowMapId(&ViewInfo);
+				}
+				else
+				{
 					CloudRC.VirtualShadowMapId0 = INDEX_NONE;
 				}
+
 				// Cannot nest a global buffer into another one and we are limited to only one PassUniformBuffer on PassDrawRenderState.
 				//TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer = TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0>::CreateUniformBufferImmediate(LightShadowShaderParams0, UniformBuffer_SingleFrame);
 

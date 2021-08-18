@@ -193,8 +193,13 @@ public:
 	 */
 	TSharedPtr<FVirtualShadowMapClipmap> FindShadowClipmapForView(const FViewInfo* View) const;
 
-	int32 VirtualShadowMapId = INDEX_NONE;
+	/**
+	* Prefer this to direct access of the VirtualShadowMapId member when a view is known.
+	* For directional lights this will attempt to find a clipmap associated with the given view,
+	* while the VirtualShadowMapId variable will simply be an arbitrary one of them if multiple exist.
+	*/
 	int32 GetVirtualShadowMapId( const FViewInfo* View ) const;
+	int32 VirtualShadowMapId = INDEX_NONE;	
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)

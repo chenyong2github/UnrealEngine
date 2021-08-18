@@ -292,14 +292,16 @@ class FLumenDirectLightingSampleShadowMapCS : public FGlobalShader
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
 		SHADER_PARAMETER(float, VirtualShadowMapSurfaceBias)
 		SHADER_PARAMETER(int32, VirtualShadowMapId)
+		SHADER_PARAMETER(uint32, SampleDenseShadowMap)
 		SHADER_PARAMETER(uint32, ForceShadowMaps)
 		SHADER_PARAMETER(uint32, ForceOffscreenShadowing)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicallyShadowed : SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FVirtualShadowMap : SHADER_PERMUTATION_BOOL("VIRTUAL_SHADOW_MAP");
+	class FDenseShadowMap : SHADER_PERMUTATION_BOOL("DENSE_SHADOW_MAP");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
-	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FVirtualShadowMap>;
+	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FVirtualShadowMap, FDenseShadowMap>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -530,10 +532,10 @@ void CullMeshSDFsForLightCards(
 		LightTileIntersectionParameters);
 }
 
-FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLightInfo)
+FLumenShadowSetup GetShadowForLumenDirectLighting(const FViewInfo& View, FVisibleLightInfo& VisibleLightInfo)
 {
 	FLumenShadowSetup ShadowSetup;
-	ShadowSetup.VirtualShadowMap = nullptr;
+	ShadowSetup.VirtualShadowMapId = Lumen::UseVirtualShadowMaps() ? VisibleLightInfo.GetVirtualShadowMapId(&View) : INDEX_NONE;
 	ShadowSetup.DenseShadowMap = nullptr;
 
 	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
@@ -543,11 +545,7 @@ FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLigh
 			&& ProjectedShadowInfo->bWholeSceneShadow 
 			&& !ProjectedShadowInfo->bRayTracedDistanceField)
 		{
-			if (ProjectedShadowInfo->HasVirtualShadowMap())
-			{
-				ShadowSetup.VirtualShadowMap = ProjectedShadowInfo;
-			}
-			else if (ProjectedShadowInfo->bAllocated)
+			if (ProjectedShadowInfo->bAllocated)
 			{
 				ShadowSetup.DenseShadowMap = ProjectedShadowInfo;
 			}
@@ -719,32 +717,15 @@ void SampleShadowMap(
 	check(bShadowed);
 
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LumenLight.LightSceneInfo->Id];
-	FLumenShadowSetup ShadowSetup = GetShadowForLumenDirectLighting(VisibleLightInfo);
+	FLumenShadowSetup ShadowSetup = GetShadowForLumenDirectLighting(View, VisibleLightInfo);
 
-	const bool bDynamicallyShadowed = ShadowSetup.DenseShadowMap != nullptr;
-
-	int32 VirtualShadowMapId = -1;
-	if (bDynamicallyShadowed
-		&& Lumen::UseVirtualShadowMaps()
-		&& VirtualShadowMapArray.IsAllocated())
-	{
-		if (LumenLight.Type == ELumenLightType::Directional)
-		{
-			VirtualShadowMapId = VisibleLightInfo.VirtualShadowMapClipmaps[0]->GetVirtualShadowMap()->ID;
-		}
-		else if (ShadowSetup.VirtualShadowMap)
-		{
-			VirtualShadowMapId = ShadowSetup.VirtualShadowMap->VirtualShadowMaps[0]->ID;
-		}
-	}
-
-	const bool bUseVirtualShadowMap = VirtualShadowMapId >= 0;
+	const bool bUseVirtualShadowMap = ShadowSetup.VirtualShadowMapId != INDEX_NONE;
 	if (!bUseVirtualShadowMap)
 	{
 		// Fallback to a complete shadow map
-		ShadowSetup.VirtualShadowMap = nullptr;
 		ShadowSetup.DenseShadowMap = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
 	}
+	const bool bUseDenseShadowMap = ShadowSetup.DenseShadowMap != nullptr;
 
 	FLumenDirectLightingSampleShadowMapCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenDirectLightingSampleShadowMapCS::FParameters>();
 	{
@@ -765,10 +746,10 @@ void SampleShadowMap(
 			LumenLight.LightSceneInfo,
 			ShadowSetup.DenseShadowMap,
 			0,
-			bDynamicallyShadowed,
+			bUseDenseShadowMap,
 			PassParameters->VolumeShadowingShaderParameters);
 		
-		PassParameters->VirtualShadowMapId = VirtualShadowMapId;
+		PassParameters->VirtualShadowMapId = ShadowSetup.VirtualShadowMapId;
 		if (bUseVirtualShadowMap)
 		{
 			PassParameters->VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
@@ -786,8 +767,9 @@ void SampleShadowMap(
 
 	FLumenDirectLightingSampleShadowMapCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FLightType>(LumenLight.Type);
-	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bDynamicallyShadowed);
 	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FVirtualShadowMap>(bUseVirtualShadowMap);
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDynamicallyShadowed>(bUseDenseShadowMap);
+	PermutationVector.Set<FLumenDirectLightingSampleShadowMapCS::FDenseShadowMap>(bUseDenseShadowMap);
 	TShaderRef<FLumenDirectLightingSampleShadowMapCS> ComputeShader = View.ShaderMap->GetShader<FLumenDirectLightingSampleShadowMapCS>(PermutationVector);
 
 	FComputeShaderUtils::AddPass(
