@@ -28,7 +28,7 @@ void SDockingTabWell::Construct( const FArguments& InArgs )
 	ChildBeingDraggedOffset = 0.0f;
 	TabGrabOffsetFraction = FVector2D::ZeroVector;
 		
-	SeparatorBrush = FAppStyle::Get().GetBrush("Docking.Tab.InactiveTabSeparator");
+	SeparatorBrush = nullptr; // No separater between tabs
 
 	// We need a valid parent here. TabPanels must exist in a SDockingNode
 	check( InArgs._ParentStackNode.Get().IsValid() );

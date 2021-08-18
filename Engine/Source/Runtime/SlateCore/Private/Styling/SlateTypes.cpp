@@ -623,6 +623,7 @@ FDockTabStyle::FDockTabStyle()
 	, HoveredForegroundColor(FSlateColor::UseForeground())
 	, ActiveForegroundColor(FSlateColor::UseForeground())
 	, ForegroundForegroundColor(FSlateColor::UseForeground())
+	, IconBorderPadding(1.f)
 {
 }
 
