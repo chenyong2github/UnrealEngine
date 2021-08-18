@@ -48,7 +48,7 @@ void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
 			{
 				Transform.SetRotation(FQuat::Identity);
 			}
-			TransformGizmo->SetNewGizmoTransform(Transform);
+			TransformGizmo->ReinitializeGizmoTransform(Transform);
 		}
 	}
 }
