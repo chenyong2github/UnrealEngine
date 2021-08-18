@@ -483,7 +483,9 @@ void UControlRig::InstantiateVMFromCDO()
 		if (VM && CDO && CDO->VM)
 		{
 			// reference the literal memory + byte code
-			VM->CopyFrom(CDO->VM, true, true);
+			// only defer if called from worker thread,
+			// which should be unlikely
+			VM->CopyFrom(CDO->VM, !IsInGameThread(), true);
 		}
 		else
 		{
