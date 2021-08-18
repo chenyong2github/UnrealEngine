@@ -178,6 +178,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	bool IsDynamicArray() const;
 
+	// Returns true if this data type is referenced counted
+	UFUNCTION(BlueprintCallable, Category = RigVMPin)
+	bool IsReferenceCountedContainer() const { return IsDynamicArray(); }
+
 	// Returns the index of the Pin within the node / parent Pin
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	int32 GetPinIndex() const;

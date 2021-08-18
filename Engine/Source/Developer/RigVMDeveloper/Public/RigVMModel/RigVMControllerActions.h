@@ -1585,3 +1585,35 @@ public:
 	UPROPERTY()
 	TObjectPtr<UObject> CPPTypeObject;
 };
+
+/**
+* An action adding a array node to the graph.
+*/
+USTRUCT()
+struct FRigVMAddArrayNodeAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+
+	FRigVMAddArrayNodeAction();
+	FRigVMAddArrayNodeAction(URigVMArrayNode* InNode);
+	virtual ~FRigVMAddArrayNodeAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	ERigVMOpCode OpCode;
+	
+	UPROPERTY()
+	FString CPPType;
+
+	UPROPERTY()
+	FString CPPTypeObjectPath;
+
+	UPROPERTY()
+	FVector2D Position;
+
+	UPROPERTY()
+	FString NodePath;
+};

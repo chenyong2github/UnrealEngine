@@ -10,6 +10,8 @@
 #include "Logging/TokenizedMessage.h"
 #include "RigVMExecuteContext.generated.h"
 
+struct FRigVMExecuteContext;
+
 USTRUCT()
 struct RIGVM_API FRigVMSlice
 {
@@ -164,7 +166,7 @@ struct RIGVM_API FRigVMRuntimeSettings
 	/*
 	 * The function to use for logging anything from the VM to the host
 	 */
-	TFunction<void(EMessageSeverity::Type,int32,const FString&)> LogFunction = nullptr;
+	TFunction<void(EMessageSeverity::Type,const FRigVMExecuteContext*,const FString&)> LogFunction = nullptr;
 };
 
 /**
@@ -269,7 +271,7 @@ struct RIGVM_API FRigVMExecuteContext
 	{
 		if(RuntimeSettings.LogFunction)
 		{
-			RuntimeSettings.LogFunction(InSeverity, InstructionIndex, InMessage);
+			RuntimeSettings.LogFunction(InSeverity, this, InMessage);
 		}
 		else
 		{

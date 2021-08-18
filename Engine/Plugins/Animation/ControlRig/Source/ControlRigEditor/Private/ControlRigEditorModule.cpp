@@ -54,6 +54,7 @@
 #include "Graph/NodeSpawners/ControlRigPrototypeNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigEnumNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigFunctionRefNodeSpawner.h"
+#include "Graph/NodeSpawners/ControlRigArrayNodeSpawner.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "Graph/ControlRigGraphNode.h"
@@ -1141,6 +1142,21 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		LOCTEXT("SelectSpawnerCategory", "Execution"),
 		LOCTEXT("SelectSpawnerTooltip", "Adds a new 'select' node to the graph"));
 	ActionRegistrar.AddBlueprintAction(ActionKey, SelectNodeSpawner);
+
+	const int32 FirstArrayOpCode = (int32)ERigVMOpCode::FirstArrayOpCode; 
+	const int32 LastArrayOpCode = (int32)ERigVMOpCode::LastArrayOpCode;
+	for(int32 OpCodeIndex = FirstArrayOpCode; OpCodeIndex <= LastArrayOpCode; OpCodeIndex++)
+	{
+		ERigVMOpCode OpCode = (ERigVMOpCode)OpCodeIndex;
+		FString OpCodeString = URigVMArrayNode::GetNodeTitle(OpCode);
+
+		UBlueprintNodeSpawner* ArrayNodeSpawner = UControlRigArrayNodeSpawner::CreateGeneric(
+			OpCode,
+			FText::FromString(OpCodeString),
+			LOCTEXT("ArraySpawnerCategory", "Array"),
+			FText::FromString(FString::Printf(TEXT("Adds a new '%s' node to the graph"), *OpCodeString)));
+		ActionRegistrar.AddBlueprintAction(ActionKey, ArrayNodeSpawner);
+	}
 
 	for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 	{

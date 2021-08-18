@@ -206,6 +206,28 @@ struct CONTROLRIG_API FRigUnit_CollectionItems : public FRigUnit_CollectionBase
 };
 
 /**
+* Returns a collection provided a specific list of items.
+*/
+USTRUCT(meta = (DisplayName = "Get Items", Keywords = "Collection,Array", Varying))
+struct CONTROLRIG_API FRigUnit_CollectionGetItems : public FRigUnit_CollectionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_CollectionGetItems()
+	{
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Collection;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Items;
+};
+
+/**
  * Returns the union of two provided collections
  * (the combination of all items from both A and B).
  */

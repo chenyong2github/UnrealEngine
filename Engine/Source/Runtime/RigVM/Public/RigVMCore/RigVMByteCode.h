@@ -99,7 +99,7 @@ enum class ERigVMOpCode : uint8
 	Exit, // exit the execution loop
 	BeginBlock, // begins a new memory slice / block
 	EndBlock, // ends the last memory slice / block
-	ArrayReset, // reads and returns the size of an array (unary op, in out array)
+	ArrayReset, // clears an array and resets its content
 	ArrayGetNum, // reads and returns the size of an array (binary op, in array, out int32) 
 	ArraySetNum, // resizes an array (binary op, in out array, in int32)
 	ArrayGetAtIndex, // returns an array element by index (ternary op, in array, in int32, out element)  
@@ -111,7 +111,13 @@ enum class ERigVMOpCode : uint8
 	ArrayAppend, // appends an array to another (binary op, in out array, in array)
 	ArrayClone, // clones an array (binary op, in array, out array)
 	ArrayIterator, // iterates over an array (senary op, in array, out element, out index, out count, out ratio, out continue)
-	Invalid
+	ArrayUnion, // merges two arrays while avoiding duplicates (binary op, in out array, in other array)
+	ArrayDifference, // returns a new array containing elements only found in one array (ternary op, in array, in array, out result)
+	ArrayIntersection, // returns a new array containing elements found in both of the input arrays (ternary op, in array, in array, out result)
+	ArrayReverse, // returns the reverse of the input array (unary op, in out array)
+	Invalid,
+	FirstArrayOpCode = ArrayReset,
+	LastArrayOpCode = ArrayReverse,
 };
 
 // Base class for all VM operations
@@ -185,7 +191,8 @@ struct RIGVM_API FRigVMUnaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpForwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::JumpBackwardIf) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ChangeType) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReset)
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReset) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayReverse)
 		);
 	}
 
@@ -223,7 +230,8 @@ struct RIGVM_API FRigVMBinaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetNum) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAppend) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayClone) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayRemove)
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayRemove) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayUnion)
 		);
 	}
 
@@ -262,7 +270,9 @@ struct RIGVM_API FRigVMTernaryOp : public FRigVMBaseOp
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayAdd) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayGetAtIndex) ||
 			uint8(InOpCode) == uint8(ERigVMOpCode::ArraySetAtIndex) ||
-			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayInsert)
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayInsert) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayDifference) ||
+			uint8(InOpCode) == uint8(ERigVMOpCode::ArrayIntersection)
 		);
 	}
 
@@ -455,6 +465,15 @@ public:
 		, CopyType(ERigVMCopyType::Default)
 #endif
 	{
+	}
+
+	bool IsValid() const
+	{
+		return
+			Source.IsValid() &&
+			Target.IsValid() &&
+			(Source != Target) &&
+			(Target.GetMemoryType() != ERigVMMemoryType::Literal);
 	}
 
 	FRigVMOperand Source;
@@ -850,7 +869,19 @@ public:
 
 	// adds an array iterator operator
 	uint64 AddArrayIteratorOp(FRigVMOperand InArrayArg, FRigVMOperand InElementArg, FRigVMOperand InIndexArg, FRigVMOperand InCountArg, FRigVMOperand InRatioArg, FRigVMOperand InContinueArg);
+
+	// adds an array union operator
+	uint64 AddArrayUnionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg);
 	
+	// adds an array difference operator
+	uint64 AddArrayDifferenceOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg);
+	
+	// adds an array intersection operator
+	uint64 AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg);
+	
+	// adds an array reverse operator
+	uint64 AddArrayReverseOp(FRigVMOperand InArrayArg);
+
 	// returns an instruction array for iterating over all operators
 	FORCEINLINE FRigVMInstructionArray GetInstructions() const
 	{

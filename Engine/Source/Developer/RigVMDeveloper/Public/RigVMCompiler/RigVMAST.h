@@ -28,6 +28,7 @@ class FRigVMExitExprAST;
 class FRigVMBranchExprAST;
 class FRigVMIfExprAST;
 class FRigVMSelectExprAST;
+class FRigVMArrayExprAST;
 
 class URigVMPin;
 class URigVMLink;
@@ -65,6 +66,7 @@ public:
 		Branch,
 		If,
 		Select,
+		Array,
 		Invalid
 	};
 
@@ -422,6 +424,17 @@ FORCEINLINE const FRigVMSelectExprAST* FRigVMExprAST::To() const
 	return (const FRigVMSelectExprAST*)this;
 }
 
+// specialized cast for type checking
+// for a Array / FRigVMArrayExprAST expression
+// will raise if types are not compatible
+// @return this expression cast to FRigVMArrayExprAST 
+template<>
+FORCEINLINE const FRigVMArrayExprAST* FRigVMExprAST::To() const
+{
+	ensure(IsA(EType::Array));
+	return (const FRigVMArrayExprAST*)this;
+}
+
 /*
  * An abstract syntax tree block expression represents a sequence
  * of child expressions to be executed in order.
@@ -497,6 +510,7 @@ public:
 	URigVMNode* GetNode() const { return GetProxy().GetSubjectChecked<URigVMNode>(); }
 
 	virtual bool IsConstant() const override;
+	const FRigVMVarExprAST* FindVarWithPinName(const FName& InPinName) const;
 
 protected:
 
@@ -578,8 +592,6 @@ public:
 	{
 		return InType == EType::CallExtern;
 	};
-
-	const FRigVMVarExprAST* FindVarWithPinName(const FName& InPinName) const;
 
 protected:
 
@@ -1053,7 +1065,7 @@ private:
 /*
  * An abstract syntax tree select expression represents a branch point for
  * selecting between multiple values.
- * In C++ the branch is is the definition: switch case
+ * In C++ the select is the definition: switch case
  */
 class RIGVMDEVELOPER_API FRigVMSelectExprAST : public FRigVMNodeExprAST
 {
@@ -1086,11 +1098,45 @@ protected:
 		: FRigVMNodeExprAST(EType::Select, InProxy)
 	{}
 
+private:
+
+	friend class FRigVMParserAST;
+};
+
+/*
+* An abstract syntax tree array expression that can be used to represent
+* any array operation, such as Add, GetNum etc
+* In C++ the array op is the definition: Value[Index] etc
+*/
+class RIGVMDEVELOPER_API FRigVMArrayExprAST : public FRigVMNodeExprAST
+{
+public:
+
+	// virtual destructor
+	virtual ~FRigVMArrayExprAST() {}
+
+	// disable copy constructor
+	FRigVMArrayExprAST(const FRigVMEntryExprAST&) = delete;
+
+	// overload of the type checking mechanism
+	virtual bool IsA(EType InType) const override
+	{
+		return InType == EType::Array;
+	};
+
+protected:
+
+	// default constructor (protected so that only parser can access it)
+	FRigVMArrayExprAST(const FRigVMASTProxy& InProxy)
+		: FRigVMNodeExprAST(EType::Array, InProxy)
+	{
+	}
 
 private:
 
 	friend class FRigVMParserAST;
 };
+
 
 /*
  * The settings to apply during the parse of the abstract syntax tree.

@@ -163,7 +163,7 @@ bool UControlRigRerouteNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFi
 			}
 			for (UEdGraphPin* Pin : Filter.Context.Pins)
 			{
-				if (Pin->PinType.ContainerType != EPinContainerType::None)
+				if (Pin->PinType.ContainerType != EPinContainerType::None && Pin->PinType.ContainerType != EPinContainerType::Array)
 				{
 					return true;
 				}

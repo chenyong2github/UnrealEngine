@@ -670,6 +670,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 	if (ControlRigLog != nullptr)
 	{
 		ControlRigLog->Reset();
+		UpdateVMSettings();
 	}
 #endif
 
@@ -1110,19 +1111,38 @@ void UControlRig::SetVM(URigVM* NewVM)
 		{
 			NewVM->ExecutionReachedExit().AddUObject(this, &UControlRig::HandleExecutionReachedExit);
 		}
-
-		// setup array handling and error reporting on the VM
-#if WITH_EDITOR
-		VMRuntimeSettings.LogFunction = [this](EMessageSeverity::Type InSeverity, int32 InInstructionIndex, const FString& Message)
-		{
-			LogOnce(InSeverity, InInstructionIndex, Message);
-		};
-#endif
-		NewVM->SetRuntimeSettings(VMRuntimeSettings);
-
 	}
 
 	VM = NewVM;
+
+	UpdateVMSettings();
+}
+
+void UControlRig::UpdateVMSettings()
+{
+	if(VM)
+	{
+#if WITH_EDITOR
+
+		// setup array handling and error reporting on the VM
+		VMRuntimeSettings.LogFunction = [this](EMessageSeverity::Type InSeverity, const FRigVMExecuteContext* InContext, const FString& Message)
+		{
+			check(InContext);
+
+			if(ControlRigLog)
+			{
+				ControlRigLog->Report(InSeverity, InContext->FunctionName, InContext->InstructionIndex, Message);
+			}
+			else
+			{
+				LogOnce(InSeverity, InContext->InstructionIndex, Message);
+			}
+		};
+		
+#endif
+		
+		VM->SetRuntimeSettings(VMRuntimeSettings);
+	}
 }
 
 URigVM* UControlRig::GetVM()

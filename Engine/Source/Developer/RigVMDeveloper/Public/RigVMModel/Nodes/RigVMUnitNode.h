@@ -25,6 +25,7 @@ public:
 	virtual bool IsDefinedAsConstant() const override;
 	virtual bool IsDefinedAsVarying() const override;
 	virtual FName GetEventName() const override;
+	virtual bool IsLoopNode() const override;
 
 	bool IsDeprecated() const;
 	FString GetDeprecatedMetadata() const;
@@ -33,9 +34,6 @@ public:
 	// (the struct declaring the RIGVM_METHOD)
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)
 	UScriptStruct* GetScriptStruct() const;
-
-	// return true if this node is a loop node
-	bool IsLoopNode() const;
 
 	// Returns the name of the declared RIGVM_METHOD
 	UFUNCTION(BlueprintCallable, Category = RigVMUnitNode)

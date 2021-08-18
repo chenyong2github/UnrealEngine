@@ -212,5 +212,6 @@ private:
 	friend class UControlRigIfNodeSpawner;
 	friend class UControlRigSelectNodeSpawner;
 	friend class UControlRigUnitNodeSpawner;
+	friend class UControlRigArrayNodeSpawner;
 };
 

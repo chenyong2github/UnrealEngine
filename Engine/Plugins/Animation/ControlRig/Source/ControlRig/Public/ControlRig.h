@@ -267,6 +267,9 @@ public:
 	/** Set the VM, and bind its commands */
 	void SetVM(URigVM* VM);
 
+	/** Update the settings such as array bound and log facilities */
+	void UpdateVMSettings();
+
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	URigVM* GetVM();
 

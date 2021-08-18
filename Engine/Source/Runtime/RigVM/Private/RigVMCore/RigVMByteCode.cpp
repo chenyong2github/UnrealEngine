@@ -324,6 +324,7 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			case ERigVMOpCode::ArrayReset:
+			case ERigVMOpCode::ArrayReverse:
 			{
 				FRigVMUnaryOp Op = GetOpAt<FRigVMUnaryOp>(Instruction.ByteCodeIndex);
 				Ar << Op;
@@ -364,6 +365,7 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 			case ERigVMOpCode::ArrayAppend:
 			case ERigVMOpCode::ArrayClone:
 			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayUnion:
 			{
 				FRigVMBinaryOp Op = GetOpAt<FRigVMBinaryOp>(Instruction.ByteCodeIndex);
 				Ar << Op;
@@ -373,6 +375,8 @@ void FRigVMByteCode::Save(FArchive& Ar) const
 			case ERigVMOpCode::ArrayGetAtIndex:
 			case ERigVMOpCode::ArraySetAtIndex:
 			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
 			{
 				FRigVMTernaryOp Op = GetOpAt<FRigVMTernaryOp>(Instruction.ByteCodeIndex);
 				Ar << Op;
@@ -538,6 +542,7 @@ void FRigVMByteCode::Load(FArchive& Ar)
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			case ERigVMOpCode::ArrayReset:
+			case ERigVMOpCode::ArrayReverse:
 			{
 				FRigVMUnaryOp Op;
 				Ar << Op;
@@ -581,6 +586,7 @@ void FRigVMByteCode::Load(FArchive& Ar)
 			case ERigVMOpCode::ArrayAppend:
 			case ERigVMOpCode::ArrayClone:
 			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayUnion:
 			{
 				FRigVMBinaryOp Op;
 				Ar << Op;
@@ -591,6 +597,8 @@ void FRigVMByteCode::Load(FArchive& Ar)
 			case ERigVMOpCode::ArrayGetAtIndex:
 			case ERigVMOpCode::ArraySetAtIndex:
 			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
 			{
 				FRigVMTernaryOp Op;
 				Ar << Op;
@@ -807,6 +815,7 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		case ERigVMOpCode::Increment:
 		case ERigVMOpCode::Decrement:
 		case ERigVMOpCode::ArrayReset:
+		case ERigVMOpCode::ArrayReverse:
 		{
 			return (uint64)sizeof(FRigVMUnaryOp);
 		}
@@ -846,6 +855,7 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		case ERigVMOpCode::ArrayAppend:
 		case ERigVMOpCode::ArrayClone:
 		case ERigVMOpCode::ArrayRemove:
+		case ERigVMOpCode::ArrayUnion:
 		{
 			return (uint64)sizeof(FRigVMBinaryOp);
 		}
@@ -853,6 +863,8 @@ uint64 FRigVMByteCode::GetOpNumBytesAt(uint64 InByteCodeIndex, bool bIncludeOper
 		case ERigVMOpCode::ArrayGetAtIndex:
 		case ERigVMOpCode::ArraySetAtIndex:
 		case ERigVMOpCode::ArrayInsert:
+		case ERigVMOpCode::ArrayDifference:
+		case ERigVMOpCode::ArrayIntersection:
 		{				
 			return (uint64)sizeof(FRigVMTernaryOp);
 		}
@@ -912,6 +924,7 @@ uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOper
 uint64 FRigVMByteCode::AddCopyOp(const FRigVMOperand& InSource, const FRigVMOperand& InTarget)
 {
 	check(InTarget.GetMemoryType() != ERigVMMemoryType::Literal);
+	check(InSource != InTarget);
 
 	FRigVMCopyOp Op(InSource, InTarget);
 	return AddOp(Op);
@@ -1082,7 +1095,7 @@ FString FRigVMByteCode::DumpToText() const
 					for (const FRigVMOperand& Operand : Operands)
 					{
 						FString OperandContent;
-						FRigVMOperand::StaticStruct()->ExportText(OperandContent, &Operand, nullptr, nullptr, PPF_None, nullptr);
+						FRigVMOperand::StaticStruct()->ExportText(OperandContent, &Operand, &Operand, nullptr, PPF_None, nullptr);
 						OperandsContent.Add(FString::Printf(TEXT("\t%s"), *OperandContent));
 					}
 
@@ -1094,10 +1107,10 @@ FString FRigVMByteCode::DumpToText() const
 			{
 				const FRigVMCopyOp& Op = GetOpAt<FRigVMCopyOp>(Instruction.ByteCodeIndex);
 				FString SourceContent;
-				FRigVMOperand::StaticStruct()->ExportText(SourceContent, &Op.Source, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(SourceContent, &Op.Source, &Op.Source, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Source %s"), *SourceContent);
 				FString TargetContent;
-				FRigVMOperand::StaticStruct()->ExportText(TargetContent, &Op.Source, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(TargetContent, &Op.Target, &Op.Target, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Target %s"), *TargetContent);
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 				Line += FString::Printf(TEXT(", NumBytes %d"), (int32)Op.NumBytes);
@@ -1110,10 +1123,11 @@ FString FRigVMByteCode::DumpToText() const
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			case ERigVMOpCode::ArrayReset:
+			case ERigVMOpCode::ArrayReverse:
 			{
 				const FRigVMUnaryOp& Op = GetOpAt<FRigVMUnaryOp>(Instruction.ByteCodeIndex);
 				FString ArgContent;
-				FRigVMOperand::StaticStruct()->ExportText(ArgContent, &Op.Arg, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgContent, &Op.Arg, &Op.Arg, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Source %s"), *ArgContent);
 				break;
 			}
@@ -1122,13 +1136,13 @@ FString FRigVMByteCode::DumpToText() const
 			{
 				const FRigVMComparisonOp& Op = GetOpAt<FRigVMComparisonOp>(Instruction.ByteCodeIndex);
 				FString AContent;
-				FRigVMOperand::StaticStruct()->ExportText(AContent, &Op.A, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(AContent, &Op.A, &Op.A, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", A %s"), *AContent);
 				FString BContent;
-				FRigVMOperand::StaticStruct()->ExportText(BContent, &Op.B, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(BContent, &Op.B, &Op.B, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", B %s"), *BContent);
 				FString ResultContent;
-				FRigVMOperand::StaticStruct()->ExportText(ResultContent, &Op.Result, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ResultContent, &Op.Result, &Op.Result, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Result %s"), *ResultContent);
 				break;
 			}
@@ -1147,7 +1161,7 @@ FString FRigVMByteCode::DumpToText() const
 				const FRigVMJumpIfOp& Op = GetOpAt<FRigVMJumpIfOp>(Instruction.ByteCodeIndex);
 				Line += FString::Printf(TEXT(", InstructionIndex %d"), (int32)Op.InstructionIndex);
 				FString ArgContent;
-				FRigVMOperand::StaticStruct()->ExportText(ArgContent, &Op.Arg, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgContent, &Op.Arg, &Op.Arg, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", Source %s"), *ArgContent);
 				Line += FString::Printf(TEXT(", Condition %d"), (int32)(Op.Condition ? 0 : 1));
 				break;
@@ -1162,11 +1176,12 @@ FString FRigVMByteCode::DumpToText() const
 			case ERigVMOpCode::ArrayAppend:
 			case ERigVMOpCode::ArrayClone:
 			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayUnion:
 			{
 				const FRigVMBinaryOp& Op = GetOpAt<FRigVMBinaryOp>(Instruction.ByteCodeIndex);
 				FString ArgA, ArgB;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
 				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
 				break;
@@ -1175,12 +1190,14 @@ FString FRigVMByteCode::DumpToText() const
 			case ERigVMOpCode::ArrayGetAtIndex:
 			case ERigVMOpCode::ArraySetAtIndex:
 			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
 			{
 				const FRigVMTernaryOp& Op = GetOpAt<FRigVMTernaryOp>(Instruction.ByteCodeIndex);
 				FString ArgA, ArgB, ArgC;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
 				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
 				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
@@ -1190,10 +1207,10 @@ FString FRigVMByteCode::DumpToText() const
 			{
 				const FRigVMQuaternaryOp& Op = GetOpAt<FRigVMQuaternaryOp>(Instruction.ByteCodeIndex);
 				FString ArgA, ArgB, ArgC, ArgD;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, &Op.ArgD, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
 				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
 				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
@@ -1204,12 +1221,12 @@ FString FRigVMByteCode::DumpToText() const
 			{
 				const FRigVMSenaryOp& Op = GetOpAt<FRigVMSenaryOp>(Instruction.ByteCodeIndex);
 				FString ArgA, ArgB, ArgC, ArgD, ArgE, ArgF;
-				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgE, &Op.ArgE, nullptr, nullptr, PPF_None, nullptr);
-				FRigVMOperand::StaticStruct()->ExportText(ArgF, &Op.ArgF, nullptr, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgA, &Op.ArgA, &Op.ArgA, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgB, &Op.ArgB, &Op.ArgB, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgC, &Op.ArgC, &Op.ArgC, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgD, &Op.ArgD, &Op.ArgD, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgE, &Op.ArgE, &Op.ArgE, nullptr, PPF_None, nullptr);
+				FRigVMOperand::StaticStruct()->ExportText(ArgF, &Op.ArgF, &Op.ArgF, nullptr, PPF_None, nullptr);
 				Line += FString::Printf(TEXT(", ArgA %s"), *ArgA);
 				Line += FString::Printf(TEXT(", ArgB %s"), *ArgB);
 				Line += FString::Printf(TEXT(", ArgC %s"), *ArgC);
@@ -1311,6 +1328,26 @@ uint64 FRigVMByteCode::AddArrayIteratorOp(FRigVMOperand InArrayArg, FRigVMOperan
 	return AddOp(FRigVMSenaryOp(ERigVMOpCode::ArrayIterator, InArrayArg, InElementArg, InIndexArg, InCountArg, InRatioArg, InContinueArg));
 }
 
+uint64 FRigVMByteCode::AddArrayUnionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg)
+{
+	return AddOp(FRigVMBinaryOp(ERigVMOpCode::ArrayUnion, InArrayArg, InOtherArrayArg));
+}
+	
+uint64 FRigVMByteCode::AddArrayDifferenceOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg)
+{
+	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayDifference, InArrayArg, InOtherArrayArg, InResultArrayArg));
+}
+	
+uint64 FRigVMByteCode::AddArrayIntersectionOp(FRigVMOperand InArrayArg, FRigVMOperand InOtherArrayArg, FRigVMOperand InResultArrayArg)
+{
+	return AddOp(FRigVMTernaryOp(ERigVMOpCode::ArrayIntersection, InArrayArg, InOtherArrayArg, InResultArrayArg));
+}
+	
+uint64 FRigVMByteCode::AddArrayReverseOp(FRigVMOperand InArrayArg)
+{
+	return AddOp(FRigVMUnaryOp(ERigVMOpCode::ArrayReverse, InArrayArg));
+}
+
 uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 {
 	switch (InOpCode)
@@ -1395,6 +1432,7 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		case ERigVMOpCode::Increment:
 		case ERigVMOpCode::Decrement:
 		case ERigVMOpCode::ArrayReset:
+		case ERigVMOpCode::ArrayReverse:
 		{
 			static const uint64 Alignment = FRigVMUnaryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;
@@ -1440,6 +1478,7 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		case ERigVMOpCode::ArrayAppend:
 		case ERigVMOpCode::ArrayClone:
 		case ERigVMOpCode::ArrayRemove:
+		case ERigVMOpCode::ArrayUnion:
 		{
 			static const uint64 Alignment = FRigVMBinaryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;
@@ -1448,6 +1487,8 @@ uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 		case ERigVMOpCode::ArrayGetAtIndex:
 		case ERigVMOpCode::ArraySetAtIndex:
 		case ERigVMOpCode::ArrayInsert:
+		case ERigVMOpCode::ArrayDifference:
+		case ERigVMOpCode::ArrayIntersection:
 		{				
 			static const uint64 Alignment = FRigVMTernaryOp::StaticStruct()->GetCppStructOps()->GetAlignment();
 			return Alignment;

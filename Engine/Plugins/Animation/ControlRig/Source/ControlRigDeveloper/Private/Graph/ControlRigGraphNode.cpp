@@ -653,6 +653,7 @@ bool UControlRigGraphNode::ShowPaletteIconOnNode() const
 			ModelNode->IsA<URigVMFunctionReturnNode>() ||
 			ModelNode->IsA<URigVMFunctionReferenceNode>() ||
 			ModelNode->IsA<URigVMCollapseNode>() ||
+			ModelNode->IsLoopNode() ||
 			Cast<URigVMUnitNode>(ModelNode) != nullptr;
 	}
 	return false;
@@ -666,6 +667,7 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
 	static FSlateIcon EventIcon("EditorStyle", "GraphEditor.Event_16x");
 	static FSlateIcon EntryReturnIcon("EditorStyle", "GraphEditor.Default_16x");
 	static FSlateIcon CollapsedNodeIcon("EditorStyle", "GraphEditor.SubGraph_16x");
+	static FSlateIcon ArrayNodeIteratorIcon("EditorStyle", "GraphEditor.Macro.ForEach_16x");
 
 	if (URigVMNode* ModelNode = GetModelNode())
 	{
@@ -688,6 +690,14 @@ FSlateIcon UControlRigGraphNode::GetIconAndTint(FLinearColor& OutColor) const
             ModelNode->IsA<URigVMFunctionReturnNode>())
 		{
 			return EntryReturnIcon;
+		}
+
+		if (URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(ModelNode))
+		{
+			if(ArrayNode->IsLoopNode())
+			{
+				return ArrayNodeIteratorIcon;
+			}
 		}
 
 		if (URigVMUnitNode *UnitNode = Cast<URigVMUnitNode>(ModelNode))

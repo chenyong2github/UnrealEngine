@@ -205,6 +205,14 @@ FRigUnit_CollectionItems_Execute()
 	}
 }
 
+FRigUnit_CollectionGetItems_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	Items = Collection.GetKeys();
+}
+
+
 FRigUnit_CollectionUnion_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()

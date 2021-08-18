@@ -384,13 +384,15 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	for(ERigVMMemoryType MemoryType : MemoryTypes)
 	{
+		UPackage* Package = InGraph->GetOutermost();
+
 		TArray<FRigVMPropertyDescription>* Properties = WorkData.PropertyDescriptions.Find(MemoryType);
 		if(Properties == nullptr)
 		{
+			URigVMMemoryStorageGeneratorClass::RemoveStorageClass(Package, MemoryType);
 			continue;
 		}
 
-		UPackage* Package = InGraph->GetOutermost();
 		URigVMMemoryStorageGeneratorClass::CreateStorageClass(Package, MemoryType, *Properties);
 	}
 
@@ -569,6 +571,11 @@ void URigVMCompiler::TraverseExpression(const FRigVMExprAST* InExpr, FRigVMCompi
 			TraverseSelect(InExpr->To<FRigVMSelectExprAST>(), WorkData);
 			break;
 		}
+		case FRigVMExprAST::EType::Array:
+		{
+			TraverseArray(InExpr->To<FRigVMArrayExprAST>(), WorkData);
+			break;
+		}
 		default:
 		{
 			ensure(false);
@@ -613,7 +620,7 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 		{
 			if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
 			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(ChildExpr->To<FRigVMVarExprAST>()));
+				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr)));
 			}
 			else
 			{
@@ -666,11 +673,11 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		{
 			if (ChildExpr->GetType() == FRigVMExprAST::EType::CachedValue)
 			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr()));
+				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr())));
 			}
 			else if (ChildExpr->IsA(FRigVMExprAST::EType::Var))
 			{
-				Operands.Add(WorkData.ExprToOperand.FindChecked(ChildExpr->To<FRigVMVarExprAST>()));
+				Operands.Add(WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ChildExpr->To<FRigVMVarExprAST>())));
 			}
 			else
 			{
@@ -853,12 +860,18 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 		checkNoEntry();
 	}
 
-	FRigVMOperand Source = WorkData.ExprToOperand.FindChecked(SourceExpr);
+	FRigVMOperand Source = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(SourceExpr));
 
 	if (!WorkData.bSetupMemory)
 	{
 		const FRigVMVarExprAST* TargetExpr = InExpr->GetFirstParentOfType(FRigVMVarExprAST::EType::Var)->To<FRigVMVarExprAST>();
+		TargetExpr = GetSourceVarExpr(TargetExpr);
+		
 		FRigVMOperand Target = WorkData.ExprToOperand.FindChecked(TargetExpr);
+		if(Target == Source)
+		{
+			return;
+		}
 
 		// if this is a copy - we should check if operands need offsets
 		if (InExpr->GetType() == FRigVMExprAST::EType::Copy)
@@ -935,30 +948,34 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 			Local::SetupRegisterOffset(WorkData.VM, InExpr->GetTargetPin(), Target, TargetExpr, false, WorkData);
 		}
 
-		WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
-		int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
-
-		if (Settings.SetupNodeInstructionIndex)
+		FRigVMCopyOp CopyOp = WorkData.VM->GetCopyOpForOperands(Source, Target);
+		if(CopyOp.IsValid())
 		{
-			if (Source.GetMemoryType() == ERigVMMemoryType::External)
+			WorkData.VM->GetByteCode().AddCopyOp(CopyOp);
+
+			int32 InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			if (Settings.SetupNodeInstructionIndex)
 			{
-				if (URigVMPin* SourcePin = InExpr->GetSourcePin())
+				if (Source.GetMemoryType() == ERigVMMemoryType::External)
 				{
-					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
+					if (URigVMPin* SourcePin = InExpr->GetSourcePin())
 					{
-						const FRigVMCallstack Callstack = SourceExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
-						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+						if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
+						{
+							const FRigVMCallstack Callstack = SourceExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
+							WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+						}
 					}
 				}
-			}
-			if (Target.GetMemoryType() == ERigVMMemoryType::External)
-			{
-				if (URigVMPin* TargetPin = InExpr->GetTargetPin())
+				if (Target.GetMemoryType() == ERigVMMemoryType::External)
 				{
-					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+					if (URigVMPin* TargetPin = InExpr->GetTargetPin())
 					{
-						const FRigVMCallstack Callstack = TargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
-						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+						if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
+						{
+							const FRigVMCallstack Callstack = TargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack();
+							WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+						}
 					}
 				}
 			}
@@ -1265,7 +1282,7 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 		TraverseExpression(CaseExpressions[CaseIndex], WorkData);
 
 		// add copy op to copy the result
-		FRigVMOperand& CaseOperand = WorkData.ExprToOperand.FindChecked(CaseExpressions[CaseIndex]);
+		FRigVMOperand& CaseOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CaseExpressions[CaseIndex]));
 		WorkData.VM->GetByteCode().AddCopyOp(WorkData.VM->GetCopyOpForOperands(CaseOperand, ResultOperand));
 		if (Settings.SetupNodeInstructionIndex)
 		{
@@ -1290,6 +1307,325 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 	{
 		int32 NumInstructionsToEnd = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstructions[CaseIndex];
 		WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpOp>(JumpToEndBytes[CaseIndex]).InstructionIndex = NumInstructionsToEnd;
+	}
+}
+
+void URigVMCompiler::TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
+{
+	URigVMArrayNode* ArrayNode = Cast<URigVMArrayNode>(InExpr->GetNode());
+	check(ArrayNode);
+	
+	if (WorkData.bSetupMemory)
+	{
+		TraverseChildren(InExpr, WorkData);
+	}
+	else
+	{
+		const FRigVMCallstack Callstack = InExpr->GetProxy().GetCallstack();
+
+		static const FName ExecuteName = FRigVMStruct::ExecuteName;
+		static const FName ArrayName = *URigVMArrayNode::ArrayName;
+		static const FName NumName = *URigVMArrayNode::NumName;
+		static const FName IndexName = *URigVMArrayNode::IndexName;
+		static const FName ElementName = *URigVMArrayNode::ElementName;
+		static const FName SuccessName = *URigVMArrayNode::SuccessName;
+		static const FName OtherName = *URigVMArrayNode::OtherName;
+		static const FName CloneName = *URigVMArrayNode::CloneName;
+		static const FName CountName = *URigVMArrayNode::CountName;
+		static const FName RatioName = *URigVMArrayNode::RatioName;
+		static const FName ResultName = *URigVMArrayNode::ResultName;
+		static const FName ContinueName = *URigVMArrayNode::ContinueName;
+		static const FName CompletedName = *URigVMArrayNode::CompletedName;
+
+		const ERigVMOpCode OpCode = ArrayNode->GetOpCode();
+		switch(OpCode)
+		{
+			case ERigVMOpCode::ArrayReset:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				WorkData.VM->GetByteCode().AddArrayResetOp(ArrayOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayGetNum:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& NumOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				WorkData.VM->GetByteCode().AddArrayGetNumOp(ArrayOperand, NumOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArraySetNum:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& NumOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArraySetNumOp(ArrayOperand, NumOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayGetAtIndex:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayGetAtIndexOp(ArrayOperand, IndexOperand, ElementOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArraySetAtIndex:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(3)));
+				WorkData.VM->GetByteCode().AddArraySetAtIndexOp(ArrayOperand, IndexOperand, ElementOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayAdd:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(3)));
+				WorkData.VM->GetByteCode().AddArrayAddOp(ArrayOperand, ElementOperand, IndexOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayInsert:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(3)));
+				WorkData.VM->GetByteCode().AddArrayInsertOp(ArrayOperand, IndexOperand, ElementOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayRemove:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayRemoveOp(ArrayOperand, IndexOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayFind:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				const FRigVMOperand& SuccessOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(3)));
+				WorkData.VM->GetByteCode().AddArrayFindOp(ArrayOperand, ElementOperand, IndexOperand, SuccessOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayAppend:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& OtherOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayAppendOp(ArrayOperand, OtherOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayClone:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& CloneOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				WorkData.VM->GetByteCode().AddArrayCloneOp(ArrayOperand, CloneOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayIterator:
+			{
+				const FRigVMExprAST* ExecuteExpr = InExpr->ChildAt(0);
+				const FRigVMExprAST* ArrayExpr = InExpr->ChildAt(1);
+				const FRigVMExprAST* ElementExpr = InExpr->ChildAt(2);
+				const FRigVMExprAST* IndexExpr = InExpr->ChildAt(3);
+				const FRigVMExprAST* CountExpr = InExpr->ChildAt(4);
+				const FRigVMExprAST* RatioExpr = InExpr->ChildAt(5);
+				const FRigVMExprAST* ContinueExpr = InExpr->ChildAt(6);
+				const FRigVMExprAST* CompletedExpr = InExpr->ChildAt(7);
+				const FRigVMOperand& ExecuteOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ExecuteExpr));
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ArrayExpr));
+				const FRigVMOperand& ElementOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ElementExpr));
+				const FRigVMOperand& IndexOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(IndexExpr));
+				const FRigVMOperand& CountOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CountExpr));
+				const FRigVMOperand& RatioOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(RatioExpr));
+				const FRigVMOperand& ContinueOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(ContinueExpr));
+				const FRigVMOperand& CompletedOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(CompletedExpr));
+
+				WorkData.ExprToSkip.AddUnique(ExecuteExpr);
+				WorkData.ExprToSkip.AddUnique(CompletedExpr);
+
+				// traverse the input array
+				TraverseExpression(ArrayExpr, WorkData);
+
+				// zero the index
+				WorkData.VM->GetByteCode().AddZeroOp(IndexOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// add the iterator
+				WorkData.VM->GetByteCode().AddArrayIteratorOp(ArrayOperand, ElementOperand, IndexOperand, CountOperand, RatioOperand, ContinueOperand);
+				const int32 IteratorInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// jump to the end of the loop
+				const uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 0, ContinueOperand, false);
+				const int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// begin the block
+				WorkData.VM->GetByteCode().AddBeginBlockOp(CountOperand, IndexOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// traverse the per iteration instructions
+				WorkData.ExprToSkip.Remove(ExecuteExpr);
+				TraverseExpression(ExecuteExpr, WorkData);
+
+				// end the block
+				WorkData.VM->GetByteCode().AddEndBlockOp();
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// increment index per loop iteration
+				WorkData.VM->GetByteCode().AddIncrementOp(IndexOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+
+				}
+
+				// jump backwards instruction (to the beginning of the iterator)
+				const int32 JumpToStartInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
+				WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpBackward, JumpToStartInstruction - IteratorInstruction);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+
+				// fix up the first jump instruction
+				const int32 InstructionsToEnd = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstruction;
+				WorkData.VM->GetByteCode().GetOpAt<FRigVMJumpIfOp>(JumpToEndByte).InstructionIndex = InstructionsToEnd;
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+					
+				WorkData.ExprToSkip.Remove(CompletedExpr);
+				TraverseExpression(CompletedExpr, WorkData);
+				break;
+			}
+			case ERigVMOpCode::ArrayUnion:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& OtherOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayUnionOp(ArrayOperand, OtherOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayDifference:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& OtherOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& ResultOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayDifferenceOp(ArrayOperand, OtherOperand, ResultOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayIntersection:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(0)));
+				const FRigVMOperand& OtherOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				const FRigVMOperand& ResultOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(2)));
+				WorkData.VM->GetByteCode().AddArrayIntersectionOp(ArrayOperand, OtherOperand, ResultOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			case ERigVMOpCode::ArrayReverse:
+			{
+				TraverseChildren(InExpr, WorkData);
+				const FRigVMOperand& ArrayOperand = WorkData.ExprToOperand.FindChecked(GetSourceVarExpr(InExpr->ChildAt(1)));
+				WorkData.VM->GetByteCode().AddArrayReverseOp(ArrayOperand);
+				if (Settings.SetupNodeInstructionIndex)
+				{
+					WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, Callstack.GetCallPath(), Callstack.GetStack());
+				}
+				break;
+			}
+			default:
+			{
+				checkNoEntry();
+				break;
+			}
+		}
 	}
 }
 
@@ -1340,6 +1676,11 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 			case FRigVMExprAST::EType::Select:
 			{
 				Callstack = InExpr->To<FRigVMSelectExprAST>()->GetProxy().GetCallstack();
+				break;
+			}
+			case FRigVMExprAST::EType::Array:
+			{
+				Callstack = InExpr->To<FRigVMArrayExprAST>()->GetProxy().GetCallstack();
 				break;
 			}
 		}
@@ -1475,11 +1816,20 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 
 	if (InVarExpr != nullptr && !bIsDebugValue)
 	{
-		if (InVarExpr->IsA(FRigVMExprAST::ExternalVar) && !bIsDebugValue)
+		if (InVarExpr->IsA(FRigVMExprAST::ExternalVar))
 		{
 			URigVMPin::FPinOverride PinOverride(InVarExpr->GetProxy(), InVarExpr->GetParser()->GetPinOverrides());
 			FString VariablePath = InPin->GetBoundVariablePath(PinOverride);
 			return FString::Printf(TEXT("%sVariable::%s%s"), *Prefix, *VariablePath, *Suffix);
+		}
+
+		// for IO array pins we'll walk left and use that pin hash instead
+		if(const FRigVMVarExprAST* SourceVarExpr = GetSourceVarExpr(InVarExpr))
+		{
+			if(SourceVarExpr != InVarExpr)
+			{
+				return GetPinHash(SourceVarExpr->GetPin(), SourceVarExpr, bIsDebugValue);
+			}
 		}
 
 		bIsExecutePin = InPin->IsExecuteContext();
@@ -1599,6 +1949,56 @@ FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAS
 	}
 
 	return FString::Printf(TEXT("%s%s%s"), *Prefix, *InPin->GetPinPath(bUseFullNodePath), *Suffix);
+}
+
+const FRigVMVarExprAST* URigVMCompiler::GetSourceVarExpr(const FRigVMExprAST* InExpr)
+{
+	if(InExpr)
+	{
+		if(InExpr->IsA(FRigVMExprAST::EType::CachedValue))
+		{
+			return GetSourceVarExpr(InExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr());
+		}
+
+		if(InExpr->IsA(FRigVMExprAST::EType::Var))
+		{
+			const FRigVMVarExprAST* VarExpr = InExpr->To<FRigVMVarExprAST>();
+			
+			if(VarExpr->GetPin()->IsReferenceCountedContainer() &&
+				((VarExpr->GetPin()->GetDirection() == ERigVMPinDirection::Input) || (VarExpr->GetPin()->GetDirection() == ERigVMPinDirection::IO)))
+			{
+				// if this is a variable setter we cannot follow the source var
+				if(VarExpr->GetPin()->GetDirection() == ERigVMPinDirection::Input)
+				{
+					if(VarExpr->GetPin()->GetNode()->IsA<URigVMVariableNode>())
+					{
+						return VarExpr;
+					}
+				}
+				
+				if(const FRigVMExprAST* AssignExpr = VarExpr->GetFirstChildOfType(FRigVMExprAST::EType::Assign))
+				{
+					// don't follow a copy assignment
+					if(AssignExpr->IsA(FRigVMExprAST::EType::Copy))
+					{
+						return VarExpr;
+					}
+					
+					if(const FRigVMExprAST* CachedValueExpr = VarExpr->GetFirstChildOfType(FRigVMExprAST::EType::CachedValue))
+					{
+						return GetSourceVarExpr(CachedValueExpr->To<FRigVMCachedValueExprAST>()->GetVarExpr());
+					}
+					else if(const FRigVMExprAST* ChildExpr = VarExpr->GetFirstChildOfType(FRigVMExprAST::EType::Var))
+					{
+						return GetSourceVarExpr(ChildExpr->To<FRigVMVarExprAST>());
+					}
+				}
+			}
+			return VarExpr;
+		}
+	}
+
+	return nullptr;
 }
 
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
@@ -1867,6 +2267,11 @@ uint16 URigVMCompiler::GetElementSizeFromCPPType(const FString& InCPPType, UScri
 
 FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue)
 {
+	if(!bIsDebugValue)
+	{
+		InVarExpr = GetSourceVarExpr(InVarExpr);
+	}
+	
 	if (!bIsDebugValue)
 	{
 		FRigVMOperand const* ExistingOperand = WorkData.ExprToOperand.Find(InVarExpr);
@@ -2347,6 +2752,7 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 		{
 			JoinedDefaultValue.Empty();
 		}
+	
 		Operand = WorkData.AddProperty(MemoryType, RegisterName, CPPType, Pin->GetCPPTypeObject(), JoinedDefaultValue);
 		
 #endif

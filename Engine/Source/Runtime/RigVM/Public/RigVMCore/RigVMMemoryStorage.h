@@ -246,6 +246,15 @@ public:
 		const TArray<FRigVMPropertyDescription>& InProperties,
 		const TArray<FRigVMPropertyPathDescription>& InPropertyPaths = TArray<FRigVMPropertyPathDescription>());
 
+	/**
+	 * Removes an existing storage class
+	 * @param InOuter The package or the outer object of this class
+	 * @param InMemoryType The memory type to use for this class (affects class name)
+	 */
+	static bool RemoveStorageClass(
+		UObject* InOuter,
+		ERigVMMemoryType InMemoryType);
+
 	// Returns the type of memory of this class (literal, work, etc)
 	ERigVMMemoryType GetMemoryType() const { return MemoryType; }
 

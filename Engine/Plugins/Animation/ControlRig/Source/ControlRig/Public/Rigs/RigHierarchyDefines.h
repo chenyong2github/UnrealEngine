@@ -1414,6 +1414,11 @@ struct CONTROLRIG_API FRigElementKeyCollection
 	{
 		return Keys[InIndex];
 	}
+
+	FORCEINLINE const TArray<FRigElementKey>& GetKeys() const
+	{
+		return Keys;
+	}
 	   
 	FORCEINLINE TArray<FRigElementKey>::RangedForIteratorType      begin() { return Keys.begin(); }
 	FORCEINLINE TArray<FRigElementKey>::RangedForConstIteratorType begin() const { return Keys.begin(); }
