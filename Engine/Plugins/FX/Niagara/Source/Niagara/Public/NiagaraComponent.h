@@ -333,6 +333,46 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Get Tick Behavior"))
 	ENiagaraTickBehavior GetTickBehavior() const { return TickBehavior; }
 
+	/**
+	Sets the fixed bounds for the system instance, this overrides all other bounds.
+	The box is expected to be in local space not world space.
+	A default uninitialized box will clear the fixed bounds and revert back to system fixed / dynamic bounds.
+	*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void SetSystemFixedBounds(FBox LocalBounds);
+
+	/**
+	Gets the fixed bounds for the system instance.
+	This will return the user set fixed bounds if set, or the systems fixed bounds if set.
+	Note: The returned box may be invalid if no fixed bounds exist
+	*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	FBox GetSystemFixedBounds() const;
+
+	/** Clear any previously set fixed bounds for the system instance. */
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void ClearSystemFixedBounds();
+
+	/**
+	Sets the fixed bounds for an emitter instance, this overrides all other bounds.
+	The box is expected to be in local space not world space.
+	A default uninitialized box will clear the fixed bounds and revert back to emitter fixed / dynamic bounds.
+	*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void SetEmitterFixedBounds(FName EmitterName, FBox LocalBounds);
+
+	/**
+	Gets the fixed bounds for an emitter instance.
+	This will return the user set fixed bounds if set, or the emitters fixed bounds if set.
+	Note: The returned box may be invalid if no fixed bounds exist
+	*/
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	FBox GetEmitterFixedBounds(FName EmitterName) const;
+
+	/** Clear any previously set fixed bounds for the emitter instance. */
+	UFUNCTION(BlueprintCallable, Category = Niagara)
+	void ClearEmitterFixedBounds(FName EmitterName);
+
 	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DisplayName = "Set Random Seed Offset"))
 	void SetRandomSeedOffset(int32 NewRandomSeedOffset);
 

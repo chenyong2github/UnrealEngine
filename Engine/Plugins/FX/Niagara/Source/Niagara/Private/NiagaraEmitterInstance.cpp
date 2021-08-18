@@ -120,9 +120,11 @@ struct FNiagaraEditorOnlyCycleTimer
 //////////////////////////////////////////////////////////////////////////
 
 FNiagaraEmitterInstance::FNiagaraEmitterInstance(FNiagaraSystemInstance* InParentSystemInstance)
-: CachedBounds(ForceInit)
-, CachedSystemFixedBounds()
-, ParentSystemInstance(InParentSystemInstance)
+	: CachedBounds(ForceInit)
+	, FixedBounds_GT(ForceInit)
+	, FixedBounds_CNC(ForceInit)
+	, CachedSystemFixedBounds(ForceInit)
+	, ParentSystemInstance(InParentSystemInstance)
 {
 	ParticleDataSet = new FNiagaraDataSet();
 
@@ -573,6 +575,9 @@ void FNiagaraEmitterInstance::OnPooledReuse()
 	// Ensure we kill any existing particles and mark our buffers for reset
 	bResetPending = true;
 	TotalSpawnedParticles = 0;
+
+	FixedBounds_GT.Init();
+	FixedBounds_CNC.Init();
 }
 
 void FNiagaraEmitterInstance::SetParticleComponentActive(FObjectKey ComponentKey, int32 ParticleID) const
@@ -1019,9 +1024,13 @@ void FNiagaraEmitterInstance::PostTick()
 	}
 
 	CachedBounds.Init();
-	if (CachedSystemFixedBounds.IsSet())
+	if (FixedBounds_CNC.IsValid)
 	{
-		CachedBounds = CachedSystemFixedBounds.GetValue();
+		CachedBounds = FixedBounds_CNC;
+	}
+	else if (CachedSystemFixedBounds.IsValid)
+	{
+		CachedBounds = CachedSystemFixedBounds;
 	}
 	else if (CachedEmitter->bFixedBounds || CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 	{
@@ -1134,6 +1143,8 @@ void FNiagaraEmitterInstance::PreTick()
 	FScopeCycleCounter SystemStatCounter(CachedEmitter->GetStatID(true, true));
 #endif
 
+	FixedBounds_CNC = FixedBounds_GT;
+
 	checkSlow(ParticleDataSet);
 	FNiagaraDataSet& Data = *ParticleDataSet;
 
@@ -1224,6 +1235,19 @@ bool FNiagaraEmitterInstance::WaitForDebugInfo()
 void FNiagaraEmitterInstance::SetSystemFixedBoundsOverride(FBox SystemFixedBounds)
 {
 	CachedSystemFixedBounds = SystemFixedBounds;
+}
+
+FBox FNiagaraEmitterInstance::GetFixedBounds() const
+{
+	if ( FixedBounds_GT.IsValid )
+	{
+		return FixedBounds_GT;
+	}
+	else if ( CachedEmitter && CachedEmitter->bFixedBounds)
+	{
+		return CachedEmitter->FixedBounds;
+	}
+	return FBox(EForceInit::ForceInit);
 }
 
 static int32 GbTriggerCrash = 0;

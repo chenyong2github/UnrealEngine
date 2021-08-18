@@ -494,6 +494,56 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 	}
 }
 
+void UNiagaraComponent::SetSystemFixedBounds(FBox LocalBounds)
+{
+	if ( SystemInstanceController.IsValid() )
+	{
+		SystemInstanceController->SetSystemFixedBounds(LocalBounds);
+	}
+}
+
+FBox UNiagaraComponent::GetSystemFixedBounds() const
+{
+	if (SystemInstanceController.IsValid())
+	{
+		return SystemInstanceController->GetSystemFixedBounds();
+	}
+	return FBox(EForceInit::ForceInit);
+}
+
+void UNiagaraComponent::ClearSystemFixedBounds()
+{
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->SetSystemFixedBounds(FBox(EForceInit::ForceInit));
+	}
+}
+
+void UNiagaraComponent::SetEmitterFixedBounds(FName EmitterName, FBox LocalBounds)
+{
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->SetEmitterFixedBounds(EmitterName, LocalBounds);
+	}
+}
+
+FBox UNiagaraComponent::GetEmitterFixedBounds(FName EmitterName) const
+{
+	if (SystemInstanceController.IsValid())
+	{
+		return SystemInstanceController->GetEmitterFixedBounds(EmitterName);
+	}
+	return FBox(EForceInit::ForceInit);
+}
+
+void UNiagaraComponent::ClearEmitterFixedBounds(FName EmitterName)
+{
+	if (SystemInstanceController.IsValid())
+	{
+		SystemInstanceController->SetEmitterFixedBounds(EmitterName, FBox(EForceInit::ForceInit));
+	}
+}
+
 void UNiagaraComponent::ReleaseToPool()
 {
 	// A component may be marked pending kill before the owner has it's reference set to null.

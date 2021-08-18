@@ -233,6 +233,11 @@ public:
 	FORCEINLINE const FBox& GetLocalBounds() const { return LocalBounds;  }
 	TConstArrayView<FNiagaraEmitterExecutionIndex> GetEmitterExecutionOrder() const;
 
+	FORCEINLINE void SetSystemFixedBounds(const FBox& InLocalBounds) { FixedBounds_GT = InLocalBounds; }
+	FBox GetSystemFixedBounds() const;
+	void SetEmitterFixedBounds(FName EmitterName, const FBox& InLocalBounds);
+	FBox GetEmitterFixedBounds(FName EmitterName) const;
+
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
 	FORCEINLINE bool IsSolo() const { return bSolo; }
@@ -535,6 +540,10 @@ private:
 
 	/** Time since we last forced a bounds update. */
 	float TimeSinceLastForceUpdateTransform;
+
+	/** Optional user specified bounds. */
+	FBox FixedBounds_GT;
+	FBox FixedBounds_CNC;
 
 	/** Current calculated local bounds. */
 	FBox LocalBounds;
