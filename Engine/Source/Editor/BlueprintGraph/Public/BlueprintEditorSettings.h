@@ -130,6 +130,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Workflow)
 	bool bEnableTypePromotion;
 
+	/** If a pin type is within this blacklist, then it will never be marked as a possible promotable function. */
+	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	TSet<FName> TypePromotionPinBlacklist;
+
 // Experimental
 public:
 	/** Whether to enable namespace filtering features in the Blueprint editor */

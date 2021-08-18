@@ -522,12 +522,42 @@ void FTypePromotion::AddOpFunction(FName OpName, UFunction* Function)
 	OperatorTable.FindOrAdd(OpName).Add(Function);
 }
 
+static bool HasBlackListedPinType(const UFunction* Function)
+{
+	const TSet<FName>& Blacklist = GetDefault<UBlueprintEditorSettings>()->TypePromotionPinBlacklist;
+
+	check(Function);
+	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+
+	// For each property in the func, see if the pin type is on the blacklist 
+	for (TFieldIterator<FProperty> PropIt(Function); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	{
+		const FProperty* Param = *PropIt;
+		FEdGraphPinType ParamType;
+		if (Schema->ConvertPropertyToPinType(Param, /* out */ ParamType))
+		{
+			if (Blacklist.Contains(ParamType.PinCategory))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool FTypePromotion::IsPromotableFunction(const UFunction* Function)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FTypePromotion::IsPromotableFunction);
+
 	// Ensure that we don't have an invalid OpName as well for extra safety when this function 
 	// is called outside of this class, not during the OpTable creation process
 	FName OpName = GetOpNameFromFunction(Function);
-	return Function && Function->HasAnyFunctionFlags(FUNC_BlueprintPure) && Function->GetReturnProperty() && OpName != OperatorNames::NoOp;
+	return Function &&
+		Function->HasAnyFunctionFlags(FUNC_BlueprintPure) &&
+		Function->GetReturnProperty() &&
+		OpName != OperatorNames::NoOp && 
+		!HasBlackListedPinType(Function);
 }
 
 bool FTypePromotion::IsOperatorSpawnerRegistered(UFunction const* const Func)
