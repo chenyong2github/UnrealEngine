@@ -57,11 +57,11 @@ public:
 	 * If bUpdatePicker is true, the input picker reference will be updated so that its properties match those of the found handler
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	ULensDistortionModelHandlerBase* FindDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker = true) const;
+	ULensDistortionModelHandlerBase* FindDistortionModelHandler(UPARAM(ref)FDistortionHandlerPicker& DistortionHandlerPicker, bool bUpdatePicker = true) const;
 
 	/** Return the handler associated with the input distortion source, if one exists that also matches the input model. If none exist, create a new handler and return it. */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")
-	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass);
+	ULensDistortionModelHandlerBase* FindOrCreateDistortionModelHandler(UPARAM(ref)FDistortionHandlerPicker& DistortionHandlerPicker, const TSubclassOf<ULensModel> LensModelClass);
 
 	/** Disassociate the input handler from the input camera component in the subsystem's handler map */
 	UFUNCTION(BlueprintCallable, Category = "Lens Distortion")

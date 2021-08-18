@@ -7,7 +7,7 @@
 #include "LiveLinkVRPNSourceFactory.generated.h"
 
 UCLASS()
-class ULiveLinkVRPNSourceFactory : public ULiveLinkSourceFactory
+class LIVELINKVRPN_API ULiveLinkVRPNSourceFactory : public ULiveLinkSourceFactory
 {
 public:
 	GENERATED_BODY()

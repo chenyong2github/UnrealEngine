@@ -35,6 +35,10 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject interface
 
+protected:
+	/** Verify base transform and apply nodal offset on top of everything else done in tick */
+	void OnPostActorTick(UWorld* World, ELevelTick TickType, float DeltaSeconds);
+
 private:
 	/** If TargetCameraComponent is not set, initialize it to the first CineCameraComponent on the same actor as this component */
 	void InitDefaultCamera();
@@ -44,6 +48,9 @@ private:
 
 	/** Register a new lens distortion handler with the camera calibration subsystem using the selected lens file */
 	void CreateDistortionHandlerForLensFile();
+
+	/** Evaluate the input LensFile and apply the nodal offset to the input camera's transform */
+	void ApplyNodalOffset(ULensFile* SelectedLensFile, UCineCameraComponent* CineCameraComponent);
 
 protected:
 	/** The CineCameraComponent on which to apply the post-process distortion effect */
@@ -66,6 +73,14 @@ protected:
 	UPROPERTY()
 	float OriginalFocalLength = 35.0f;
 
+	/** Original camera rotation to reset before/after applying nodal offset */
+	UPROPERTY()
+	FRotator OriginalCameraRotation;
+
+	/** Original camera location to reset before/after applying nodal offset */
+	UPROPERTY()
+	FVector OriginalCameraLocation;
+
 	/** Cached MID last applied to the target camera */
 	UPROPERTY()
 	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
@@ -79,8 +94,12 @@ protected:
 	 * Enabling this will create a new distortion source and automatically set this component to use it
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Default")
-	bool bEvaluateLensFileForDistortion;
-	
+	bool bEvaluateLensFileForDistortion = false;
+
+	/** Whether to apply nodal offset to the target camera */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Default", meta = (EditCondition = "bEvaluateLensFileForDistortion"))
+	bool bApplyNodalOffset = true;
+
 	/** Lens File used to drive distortion with current camera settings */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Default", meta = (EditCondition="bEvaluateLensFileForDistortion"))
 	FLensFilePicker LensFilePicker;
@@ -100,4 +119,11 @@ protected:
 	/** Unique identifier representing the source of distortion data */
 	UPROPERTY(DuplicateTransient)
 	FGuid DistortionProducerID;
+
+private:
+	/** Cached rotation, used to track changes to the camera transform, which impacts the original rotation used by nodal offset */
+	FRotator LastRotation;
+
+	/** Cached location, used to track changes to the camera transform, which impacts the original location used by nodal offset */
+	FVector LastLocation;
 };

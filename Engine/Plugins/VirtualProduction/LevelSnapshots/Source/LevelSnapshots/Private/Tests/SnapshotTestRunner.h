@@ -21,6 +21,7 @@ public:
 	static FName DefaultSnapshotId;
 
 	FSnapshotTestRunner();
+	~FSnapshotTestRunner();
 
 	FSnapshotTestRunner& ModifyWorld(TFunction<void(UWorld*)> Callback);
 	

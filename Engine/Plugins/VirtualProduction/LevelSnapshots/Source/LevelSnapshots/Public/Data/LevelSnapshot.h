@@ -23,7 +23,7 @@ public:
 	/* Applies this snapshot to the given world. We assume the world matches. SelectionSet specifies which properties to roll back. */
 	void ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet);
 	/* Captures the current state of the given world. */
-	void SnapshotWorld(UWorld* TargetWorld);
+	bool SnapshotWorld(UWorld* TargetWorld);
 
 	
 

@@ -14,7 +14,7 @@ rem Let's check if it is a modern nodejs
 node -e "process.exit( process.versions.node.split('.')[0] );"
 echo Found Node.js version %errorlevel% (%node%)
 
-if %errorlevel% LSS 8 (
+if %errorlevel% LSS 14 (
   echo ERROR: installed node.js version is too old, please install latest nodejs from https://nodejs.org/en/download/
   exit 1
 )

@@ -16,14 +16,14 @@ struct CAMERACALIBRATIONCORE_API FDistortionHandlerPicker
 
 public:
 	/** CineCameraComponent with which the desired distortion handler is associated */
-	UPROPERTY(Transient)
+	UPROPERTY(BlueprintReadWrite, Category = "Distortion", Transient)
 	UCineCameraComponent* TargetCameraComponent = nullptr;
 
 	/** UObject that produces the distortion state for the desired distortion handler */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Distortion")
 	FGuid DistortionProducerID;
 
 	/** Display name of the desired distortion handler */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Distortion")
 	FString HandlerDisplayName;
 };

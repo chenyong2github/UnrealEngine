@@ -679,6 +679,12 @@ class SwitchboardDialog(QtCore.QObject):
         except:
             pass
 
+        try:
+            device = self.device_manager.device_with_hash(device_widget.device_hash)
+            device.device_widget_registered(device_widget)
+        except:
+            LOGGER.error(f'Could not find device with hash {device_widget.device_hash} when registering its widget')
+
     def on_all_plugin_devices_connect_toggled(self, plugin_name, button_state):
         devices = self.device_manager.devices_of_type(plugin_name)
         self.set_device_connection_state(devices, button_state)

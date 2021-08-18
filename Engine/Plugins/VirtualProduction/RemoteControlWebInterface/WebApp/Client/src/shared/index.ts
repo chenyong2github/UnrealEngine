@@ -26,14 +26,12 @@ export interface ColorProperty {
   R: number;
   G: number;
   B: number;
-  A: number;
 }
 
 export interface VectorProperty {
   X: number;
   Y: number;
   Z: number;
-  W?: number;
 }
 
 export interface RotatorProperty {
@@ -52,7 +50,6 @@ export type IHsvColor = {
   h: number;
   s: number;
   v: number;
-  a: number;
 };
 
 export interface IFunctionParameter {

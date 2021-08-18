@@ -8,7 +8,7 @@ FName FBaseLensTable::GetFriendlyPointName(ELensDataCategory InCategory)
 	switch (InCategory)
 	{
 		case ELensDataCategory::Zoom: return TEXT("Focal Length Point");
-		case ELensDataCategory::Distortion: return TEXT("Distorsion Point");
+		case ELensDataCategory::Distortion: return TEXT("Distortion Point");
 		case ELensDataCategory::ImageCenter: return TEXT("Image Center Point");
 		case ELensDataCategory::STMap: return TEXT("ST Map Point");
 		case ELensDataCategory::NodalOffset: return TEXT("Nodal Offset Point");

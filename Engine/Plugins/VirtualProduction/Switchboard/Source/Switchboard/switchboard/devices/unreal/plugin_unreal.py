@@ -636,6 +636,7 @@ class DeviceUnreal(Device):
             # for installed/vanilla engine we directly call p4 to sync the project itself.
             sync_tool = "p4"
             sync_args = f"-c{workspace} sync {CONFIG.P4_PROJECT_PATH.get_value()}/...@{project_cl}"
+            self.inflight_project_cl = project_cl
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool, 
