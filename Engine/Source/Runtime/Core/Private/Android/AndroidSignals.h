@@ -114,10 +114,7 @@ private:
 	{
 		ForwardingThreadID = FPlatformTLS::GetCurrentThreadId();
 		FPlatformAtomics::AtomicStore(&SignalThreadStatus, (int32)ESignalThreadStatus::Ready);
-		while (true)
-		{
-			FPlatformProcess::SleepInfinite();
-		}
+		FPlatformProcess::SleepInfinite();
 		return nullptr;
 	}
 

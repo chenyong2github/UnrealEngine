@@ -357,7 +357,10 @@ void FGenericPlatformProcess::SleepNoStats( float Seconds )
 void FGenericPlatformProcess::SleepInfinite()
 {
 	// stop this thread forever
-	pause();
+	while (true)
+	{
+		pause();
+	}
 }
 
 void FGenericPlatformProcess::YieldThread()

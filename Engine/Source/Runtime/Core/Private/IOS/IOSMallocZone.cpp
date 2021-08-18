@@ -190,9 +190,7 @@ bool FIOSMallocCrashHandler::IsOnCrashedThread( void )
 	}
 	else
 	{
-		do {
-			FPlatformProcess::SleepInfinite();
-		} while (true);
+		FPlatformProcess::SleepInfinite();
 		return false;
 	}
 }

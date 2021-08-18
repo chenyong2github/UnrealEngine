@@ -86,7 +86,10 @@ void FHoloLensProcess::SleepNoStats(float Seconds)
 
 void FHoloLensProcess::SleepInfinite()
 {
-	::Sleep(INFINITE);
+	while (true)
+	{
+		::Sleep(INFINITE);
+	}
 }
 
 void FHoloLensProcess::YieldThread()

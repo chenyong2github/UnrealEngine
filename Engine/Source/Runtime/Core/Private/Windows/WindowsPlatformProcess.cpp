@@ -1369,8 +1369,10 @@ void FWindowsPlatformProcess::SleepNoStats(float Seconds)
 
 void FWindowsPlatformProcess::SleepInfinite()
 {
-	check(FPlatformProcess::SupportsMultithreading());
-	::Sleep(INFINITE);
+	while (true)
+	{
+		::Sleep(INFINITE);
+	}
 }
 
 void FWindowsPlatformProcess::YieldThread()
