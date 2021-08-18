@@ -15,7 +15,7 @@ struct CONTROLRIG_API FRigUnit_RandomFloat : public FRigUnit_MathBase
 
 	FRigUnit_RandomFloat()
 	{
-		Seed = LastSeed = 217;
+		Seed = BaseSeed = LastSeed = 217;
 		Minimum = Result = LastResult = 0.f;
 		Maximum = 1.f;
 		Duration = 0.f;
@@ -48,6 +48,9 @@ struct CONTROLRIG_API FRigUnit_RandomFloat : public FRigUnit_MathBase
 	int32 LastSeed;
 
 	UPROPERTY()
+	int32 BaseSeed;
+
+	UPROPERTY()
 	float TimeLeft;
 };
 
@@ -61,7 +64,7 @@ struct CONTROLRIG_API FRigUnit_RandomVector: public FRigUnit_MathBase
 
 	FRigUnit_RandomVector()
 	{
-		Seed = LastSeed = 217;
+		Seed = BaseSeed = LastSeed = 217;
 		Minimum = 0.f;
 		Maximum = 1.f;
 		Duration = 0.f;
@@ -93,6 +96,9 @@ struct CONTROLRIG_API FRigUnit_RandomVector: public FRigUnit_MathBase
 
 	UPROPERTY()
 	int32 LastSeed;
+
+	UPROPERTY()
+	int32 BaseSeed;
 
 	UPROPERTY()
 	float TimeLeft;
