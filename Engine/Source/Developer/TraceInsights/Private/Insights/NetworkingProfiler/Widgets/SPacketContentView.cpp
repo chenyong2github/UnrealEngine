@@ -207,7 +207,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("FindPreviousEventToolTip", "Previous Event"))
 				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindPreviousEvent)
+				.OnClicked(this, &SPacketContentView::FindPreviousEvent, EEventNavigationType::AnyLevel)
 				.Content()
 				[
 					SNew(SImage)
@@ -222,7 +222,7 @@ void SPacketContentView::Construct(const FArguments& InArgs, TSharedPtr<SNetwork
 				SNew(SButton)
 				.ToolTipText(LOCTEXT("FindNextEventToolTip", "Next Event"))
 				.ContentPadding(0.0f)
-				.OnClicked(this, &SPacketContentView::FindNextEvent)
+				.OnClicked(this, &SPacketContentView::FindNextEvent, EEventNavigationType::AnyLevel)
 				.Content()
 				[
 					SNew(SImage)
@@ -409,7 +409,7 @@ FReply SPacketContentView::FindFirstEvent()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindPreviousEvent()
+FReply SPacketContentView::FindPreviousEvent(EEventNavigationType NavigationType)
 {
 	if (!SelectedEvent.IsValid())
 	{
@@ -424,8 +424,27 @@ FReply SPacketContentView::FindPreviousEvent()
 		{
 			if (EventIndex > 0)
 			{
-				SelectedEvent.Set(FilteredDrawState->Events[EventIndex - 1]);
-				OnSelectedEventChanged();
+				switch (NavigationType)
+				{
+				case EEventNavigationType::AnyLevel:
+					SelectedEvent.Set(FilteredDrawState->Events[EventIndex - 1]);
+					OnSelectedEventChanged();
+					break;
+				case EEventNavigationType::SameLevel:
+					for (int32 PrevEventIndex = EventIndex - 1; PrevEventIndex >= 0; --PrevEventIndex)
+					{
+						const FNetworkPacketEvent& PrevEvent = FilteredDrawState->Events[PrevEventIndex];
+						if (Event.Level == PrevEvent.Level)
+						{
+							SelectedEvent.Set(FilteredDrawState->Events[PrevEventIndex]);
+							OnSelectedEventChanged();
+							break;
+						}
+					}
+					break;
+				default:
+					break;
+				}
 				break;
 			}
 		}
@@ -446,7 +465,7 @@ FReply SPacketContentView::FindPreviousEvent()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SPacketContentView::FindNextEvent()
+FReply SPacketContentView::FindNextEvent(EEventNavigationType NavigationType)
 {
 	if (!SelectedEvent.IsValid())
 	{
@@ -461,8 +480,27 @@ FReply SPacketContentView::FindNextEvent()
 		{
 			if (EventIndex < EventCount - 1)
 			{
-				SelectedEvent.Set(FilteredDrawState->Events[EventIndex + 1]);
-				OnSelectedEventChanged();
+				switch (NavigationType)
+				{
+				case EEventNavigationType::AnyLevel:
+					SelectedEvent.Set(FilteredDrawState->Events[EventIndex + 1]);
+					OnSelectedEventChanged();
+					break;
+				case EEventNavigationType::SameLevel:
+					for (int32 NextEventIndex = EventIndex + 1; NextEventIndex <= EventCount - 1; ++NextEventIndex)
+					{
+						const FNetworkPacketEvent& NextEvent = FilteredDrawState->Events[NextEventIndex];
+						if (Event.Level == NextEvent.Level)
+						{
+							SelectedEvent.Set(FilteredDrawState->Events[NextEventIndex]);
+							OnSelectedEventChanged();
+							break;
+						}
+					}
+					break;
+				default:
+					break;
+				}
 				break;
 			}
 		}
@@ -492,6 +530,76 @@ FReply SPacketContentView::FindLastEvent()
 		BringEventIntoView(SelectedEvent);
 	}
 
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketContentView::FindPreviousLevel()
+{
+	if (!SelectedEvent.IsValid())
+	{
+		return FindFirstEvent();
+	}
+
+	const int32 EventCount = FilteredDrawState->Events.Num();
+	for (int32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
+	{
+		const FNetworkPacketEvent& Event = FilteredDrawState->Events[EventIndex];
+		if (Event.Equals(SelectedEvent.Event))
+		{
+			for (int32 PrevEventIndex = EventIndex - 1; PrevEventIndex > 0; --PrevEventIndex)
+			{
+				const FNetworkPacketEvent& PrevEvent = FilteredDrawState->Events[PrevEventIndex];
+				if (PrevEvent.Level < Event.Level &&
+					PrevEvent.BitOffset <= Event.BitOffset &&
+					PrevEvent.BitSize + PrevEvent.BitOffset >= Event.BitSize + Event.BitOffset)
+				{
+					SelectedEvent.Set(FilteredDrawState->Events[PrevEventIndex]);
+					OnSelectedEventChanged();
+					break;
+				}
+			}
+			break;
+		}
+	}
+
+	BringEventIntoView(SelectedEvent);
+	return FReply::Handled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SPacketContentView::FindNextLevel()
+{
+	if (!SelectedEvent.IsValid())
+	{
+		return FindLastEvent();
+	}
+
+	const int32 EventCount = FilteredDrawState->Events.Num();
+	for (int32 EventIndex = 0; EventIndex < EventCount; ++EventIndex)
+	{
+		const FNetworkPacketEvent& Event = FilteredDrawState->Events[EventIndex];
+		if (Event.Equals(SelectedEvent.Event))
+		{
+			for (int32 NextEventIndex = EventIndex + 1; NextEventIndex < EventCount; ++NextEventIndex)
+			{
+				const FNetworkPacketEvent& NextEvent = FilteredDrawState->Events[NextEventIndex];
+				if (NextEvent.Level > Event.Level &&
+					NextEvent.BitOffset >= Event.BitOffset &&
+					NextEvent.BitSize + NextEvent.BitOffset <= Event.BitSize + Event.BitOffset)
+				{
+					SelectedEvent.Set(FilteredDrawState->Events[NextEventIndex]);
+					OnSelectedEventChanged();
+					break;
+				}
+			}
+			break;
+		}
+	}
+
+	BringEventIntoView(SelectedEvent);
 	return FReply::Handled();
 }
 
@@ -601,6 +709,7 @@ void SPacketContentView::Tick(const FGeometry& AllottedGeometry, const double In
 	{
 		bIsStateDirty = false;
 		UpdateState();
+		AdjustForSplitContent();
 	}
 
 	Tooltip.Update();
@@ -1332,9 +1441,21 @@ FReply SPacketContentView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 		{
 			FindFirstEvent();
 		}
+		else if (InKeyEvent.GetModifierKeys().IsControlDown() ||
+				 InKeyEvent.GetModifierKeys().IsCommandDown())
+		{
+			if (ProfilerWindow.IsValid())
+			{
+				const TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+				if (PacketView.IsValid())
+				{
+					PacketView->SelectPreviousPacket();
+				}
+			}
+		}
 		else
 		{
-			FindPreviousEvent();
+			FindPreviousEvent(EEventNavigationType::SameLevel);
 		}
 		return FReply::Handled();
 	}
@@ -1344,10 +1465,44 @@ FReply SPacketContentView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEven
 		{
 			FindLastEvent();
 		}
+		else if (InKeyEvent.GetModifierKeys().IsControlDown() ||
+				 InKeyEvent.GetModifierKeys().IsCommandDown())
+		{
+			if (ProfilerWindow.IsValid())
+			{
+				const TSharedPtr<SPacketView> PacketView = ProfilerWindow->GetPacketView();
+				if (PacketView.IsValid())
+				{
+					PacketView->SelectNextPacket();
+				}
+			}
+		}
 		else
 		{
-			FindNextEvent();
+			FindNextEvent(EEventNavigationType::SameLevel);
 		}
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Up)
+	{
+		FindPreviousLevel();
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Down)
+	{
+		FindNextLevel();
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Equals ||
+			 InKeyEvent.GetKey() == EKeys::Add)
+	{
+		ZoomHorizontally(1.0f, MousePosition.X);
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Hyphen ||
+			 InKeyEvent.GetKey() == EKeys::Subtract)
+	{
+		ZoomHorizontally(-1.0f, MousePosition.X);
 		return FReply::Handled();
 	}
 
@@ -1428,6 +1583,25 @@ void SPacketContentView::BringEventIntoView(const FNetworkPacketEventRef& EventR
 		const float X1 = ViewportX.GetPosForValue(static_cast<double>(EventRef.Event.BitOffset));
 		const float X2 = ViewportX.GetPosForValue(static_cast<double>(EventRef.Event.BitOffset + SelectedEvent.Event.BitSize));
 		BringIntoView(X1, X2);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SPacketContentView::AdjustForSplitContent()
+{
+	if (FilteredDrawState->Events.Num() > 0)
+	{
+		FAxisViewportDouble& ViewportX = Viewport.GetHorizontalAxisViewport();
+		const FNetworkPacketEvent& LastEvent = FilteredDrawState->Events.Last();
+		const uint32 LastBit = LastEvent.BitOffset + LastEvent.BitSize;
+		if (LastBit > PacketBitSize)
+		{
+			PacketBitSize = LastBit;
+			ViewportX.SetMinMaxValueInterval(0.0, static_cast<double>(PacketBitSize));
+			ViewportX.CenterOnValueInterval(0.0, static_cast<double>(PacketBitSize));
+			UpdateHorizontalScrollBar();
+		}
 	}
 }
 
