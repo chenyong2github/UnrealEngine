@@ -154,13 +154,8 @@ inline uint32 GetTypeHash(const FBlake3Hash& Hash)
 	return *reinterpret_cast<const uint32*>(Hash.GetBytes());
 }
 
-inline FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, const FBlake3Hash& Hash)
-{
-	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
-	return Builder;
-}
-
-inline FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, const FBlake3Hash& Hash)
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FBlake3Hash& Hash)
 {
 	UE::String::BytesToHexLower(Hash.GetBytes(), Builder);
 	return Builder;
