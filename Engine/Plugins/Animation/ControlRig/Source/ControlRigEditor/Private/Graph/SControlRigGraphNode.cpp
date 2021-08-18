@@ -335,33 +335,37 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 
 				if(PinInfo.bIsContainer)
 				{
-					// make sure to minimize the width of the label
-					FirstSlot->SetAutoWidth();
-					
-					// add array plus button
-					SlotLayout->AddSlot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-                    .Padding(PinWidgetSidePadding, TopPadding, MyEmptySidePadding, 0.f)
-					[
-						SNew(SButton)
-						.ContentPadding(0.0f)
-						.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-						.OnClicked(this, &SControlRigGraphNode::HandleAddArrayElement, PinInfo.ModelPinPath)
-						.IsEnabled(this, &SGraphNode::IsNodeEditable)
-						.Cursor(EMouseCursor::Default)
-						.ToolTipText(LOCTEXT("AddArrayElement", "Add Array Element"))
+					URigVMPin* ModelPin = ModelNode->GetGraph()->FindPin(PinInfo.ModelPinPath);
+					if(ModelPin && ModelPin->GetSourceLinks().Num() == 0)
+					{
+						// make sure to minimize the width of the label
+						FirstSlot->SetAutoWidth();
+						
+						// add array plus button
+						SlotLayout->AddSlot()
+						.AutoWidth()
+						.HAlign(HAlign_Left)
+						.Padding(PinWidgetSidePadding, TopPadding, MyEmptySidePadding, 0.f)
 						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
+							SNew(SButton)
+							.ContentPadding(0.0f)
+							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.OnClicked(this, &SControlRigGraphNode::HandleAddArrayElement, PinInfo.ModelPinPath)
+							.IsEnabled(this, &SGraphNode::IsNodeEditable)
+							.Cursor(EMouseCursor::Default)
+							.ToolTipText(LOCTEXT("AddArrayElement", "Add Array Element"))
 							[
-								SNew(SImage)
-								.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SImage)
+									.Image(FEditorStyle::GetBrush(TEXT("Icons.PlusCircle")))
+								]
 							]
-						]
-					];
+						];
+					}
 				}
 			}
 			// io pins

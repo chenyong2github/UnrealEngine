@@ -431,6 +431,7 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			case ERigVMOpCode::ArrayReset:
+			case ERigVMOpCode::ArrayReverse:
 			{
 				const FRigVMUnaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMUnaryOp>(ByteCodeInstruction);
 				CheckOperandValidity(Op.Arg);
@@ -466,6 +467,7 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 			case ERigVMOpCode::ArrayAppend:
 			case ERigVMOpCode::ArrayClone:
 			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayUnion:
 			{
 				const FRigVMBinaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMBinaryOp>(ByteCodeInstruction);
 				CheckOperandValidity(Op.ArgA);
@@ -476,6 +478,8 @@ bool URigVM::ValidateAllOperandsDuringLoad()
 			case ERigVMOpCode::ArrayGetAtIndex:
 			case ERigVMOpCode::ArraySetAtIndex:
 			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
 			{
 				const FRigVMTernaryOp& Op = ByteCodeStorage.GetOpAt<FRigVMTernaryOp>(ByteCodeInstruction);
 				CheckOperandValidity(Op.ArgA);
@@ -1131,6 +1135,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 			case ERigVMOpCode::Increment:
 			case ERigVMOpCode::Decrement:
 			case ERigVMOpCode::ArrayReset:
+			case ERigVMOpCode::ArrayReverse:
 			{
 				const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instructions[InstructionIndex]);
 				CacheSingleMemoryHandle(Op.Arg);
@@ -1202,6 +1207,7 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 			case ERigVMOpCode::ArrayAppend:
 			case ERigVMOpCode::ArrayClone:
 			case ERigVMOpCode::ArrayRemove:
+			case ERigVMOpCode::ArrayUnion:
 			{
 				const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instructions[InstructionIndex]);
 				CacheSingleMemoryHandle(Op.ArgA);
@@ -1213,6 +1219,8 @@ void URigVM::CacheMemoryHandlesIfRequired(TArrayView<URigVMMemoryStorage*> InMem
 			case ERigVMOpCode::ArrayGetAtIndex:
 			case ERigVMOpCode::ArraySetAtIndex:
 			case ERigVMOpCode::ArrayInsert:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
 			{
 				const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instructions[InstructionIndex]);
 				CacheSingleMemoryHandle(Op.ArgA);
@@ -1783,6 +1791,11 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 			case ERigVMOpCode::ArrayAdd:
 			case ERigVMOpCode::ArrayFind:
 			case ERigVMOpCode::ArrayIterator:
+			case ERigVMOpCode::ArrayUnion:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
+			case ERigVMOpCode::ArrayReverse:
+
 			{
 				break;
 			}
@@ -2377,7 +2390,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
 				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
 				ArrayHelper.Resize(0);
-#endif	
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.Arg, ArrayHandle);
+				}
+#endif
+
 				Context.InstructionIndex++;
 				break;
 			}
@@ -2388,6 +2408,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
 				int32& Count = (*((int32*)CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1].GetData()));
 				Count = ArrayHelper.Num();
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+				}
 #endif	
 				Context.InstructionIndex++;
 				break;
@@ -2401,6 +2428,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				if(Context.IsValidArraySize(Count))
 				{
 					ArrayHelper.Resize(Count);
+				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
 				}
 #endif
 				Context.InstructionIndex++;
@@ -2433,6 +2467,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 						}
 					}
 				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+				}
 #endif
 				Context.InstructionIndex++;
 				break;
@@ -2447,17 +2488,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				FScriptArrayHelper ArrayHelper(ArrayProperty, ArrayHandle.GetData());
 				FScriptArrayHelper ClonedArrayHelper(ClonedArrayProperty, ClonedArrayHandle.GetData());
 
-				ClonedArrayHelper.Resize(ArrayHelper.Num());
-				if(ArrayHelper.Num() > 0)
+				CopyArray(ClonedArrayHelper, ClonedArrayHandle, ArrayHelper, ArrayHandle);
+					
+				if(DebugMemoryStorageObject->Num() > 0)
 				{
-					const FProperty* TargetProperty = ClonedArrayProperty->Inner;
-					const FProperty* SourceProperty = ArrayProperty->Inner;
-					for(int32 ElementIndex = 0; ElementIndex < ArrayHelper.Num(); ElementIndex++)
-					{
-						uint8* TargetMemory = ClonedArrayHelper.GetRawPtr(ElementIndex);
-						const uint8* SourceMemory = ArrayHelper.GetRawPtr(ElementIndex);
-						URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
-					}
+					const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, ClonedArrayHandle);
 				}
 #endif
 				Context.InstructionIndex++;
@@ -2477,6 +2514,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					const uint8* SourceMemory = ArrayHelper.GetRawPtr(Index);
 					URigVMMemoryStorage::CopyProperty(ElementHandle.GetProperty(), TargetMemory, ArrayProperty->Inner, SourceMemory);
 				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]);
+				}
 #endif
 				Context.InstructionIndex++;
 				break;
@@ -2494,6 +2539,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					uint8* TargetMemory = ArrayHelper.GetRawPtr(Index);
 					const uint8* SourceMemory = ElementHandle.GetData();
 					URigVMMemoryStorage::CopyProperty(ArrayProperty->Inner, TargetMemory, ElementHandle.GetProperty(), SourceMemory);
+				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]);
 				}
 #endif
 				Context.InstructionIndex++;
@@ -2516,6 +2569,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					const uint8* SourceMemory = ElementHandle.GetData();
 					URigVMMemoryStorage::CopyProperty(ArrayProperty->Inner, TargetMemory, ElementHandle.GetProperty(), SourceMemory);
 				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]);
+				}
 #endif
 				Context.InstructionIndex++;
 				break;
@@ -2530,6 +2591,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				if(Context.IsValidArrayIndex(Index, ArrayHelper.Num()))
 				{
 					ArrayHelper.RemoveValues(Index, 1);
+				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
 				}
 #endif
 				Context.InstructionIndex++;
@@ -2554,6 +2622,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				else
 				{
 					Index = INDEX_NONE;
+				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]);
 				}
 #endif
 				Context.InstructionIndex++;
@@ -2596,6 +2672,15 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 					static const TCHAR IncompatibleTypes[] = TEXT("Array('%s') doesn't support searching for element('%$s').");
 					Context.Logf(EMessageSeverity::Error, IncompatibleTypes, *PropertyB->GetCPPType(), *PropertyA->GetCPPType());
 				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMQuaternaryOp& Op = ByteCode.GetOpAt<FRigVMQuaternaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle);
+					CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]);
+					CopyOperandForDebuggingIfNeeded(Op.ArgD, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3]);
+				}
 #endif
 				Context.InstructionIndex++;
 				break;
@@ -2623,9 +2708,205 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				else
 				{
 					Ratio = float(Index) / float(Count - 1);
+
+					uint8* TargetMemory = ElementHandle.GetData();
+					const uint8* SourceMemory = ArrayHelper.GetRawPtr(Index);
+					URigVMMemoryStorage::CopyProperty(ElementHandle.GetProperty(), TargetMemory, ArrayProperty->Inner, SourceMemory);
+
+					if(DebugMemoryStorageObject->Num() > 0)
+					{
+						const FRigVMSenaryOp& Op = ByteCode.GetOpAt<FRigVMSenaryOp>(Instruction);
+						CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandle); // array
+						CopyOperandForDebuggingIfNeeded(Op.ArgD, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 3]); // count
+
+						Context.BeginSlice(Count, Index);
+						CopyOperandForDebuggingIfNeeded(Op.ArgB, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]); // element
+						CopyOperandForDebuggingIfNeeded(Op.ArgC, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]); // index
+						CopyOperandForDebuggingIfNeeded(Op.ArgE, CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 4]); // ratio
+						Context.EndSlice();
+					}
 				}
 
 #endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayUnion:
+			case ERigVMOpCode::ArrayDifference:
+			case ERigVMOpCode::ArrayIntersection:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandleA = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FRigVMMemoryHandle& ArrayHandleB = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 1]; 					
+				FScriptArrayHelper ArrayHelperA(CastFieldChecked<FArrayProperty>(ArrayHandleA.GetProperty()), ArrayHandleA.GetData());
+				FScriptArrayHelper ArrayHelperB(CastFieldChecked<FArrayProperty>(ArrayHandleB.GetProperty()), ArrayHandleB.GetData());
+				const FArrayProperty* ArrayPropertyA = CastFieldChecked<FArrayProperty>(ArrayHandleA.GetProperty());
+				const FArrayProperty* ArrayPropertyB = CastFieldChecked<FArrayProperty>(ArrayHandleB.GetProperty());
+				const FProperty* ElementPropertyA = ArrayPropertyA->Inner;
+				const FProperty* ElementPropertyB = ArrayPropertyB->Inner;
+
+				TMap<uint32, int32> HashA, HashB;
+				HashA.Reserve(ArrayHelperA.Num());
+				HashB.Reserve(ArrayHelperB.Num());
+
+				for(int32 Index = 0; Index < ArrayHelperA.Num(); Index++)
+				{
+					const uint32 HashValue = ElementPropertyA->GetValueTypeHash(ArrayHelperA.GetRawPtr(Index));
+					if(!HashA.Contains(HashValue))
+					{
+						HashA.Add(HashValue, Index);
+					}
+				}
+				for(int32 Index = 0; Index < ArrayHelperB.Num(); Index++)
+				{
+					const uint32 HashValue = ElementPropertyB->GetValueTypeHash(ArrayHelperB.GetRawPtr(Index));
+					if(!HashB.Contains(HashValue))
+					{
+						HashB.Add(HashValue, Index);
+					}
+				}
+
+				if(Instruction.OpCode == ERigVMOpCode::ArrayUnion)
+				{
+					// copy the complete array to a temp storage
+					TArray<uint8, TAlignedHeapAllocator<16>> TempStorage;
+					const int32 NumElementsA = ArrayHelperA.Num();
+					TempStorage.AddZeroed(NumElementsA * ElementPropertyA->GetSize());
+					uint8* TempMemory = TempStorage.GetData();
+					for(int32 Index = 0; Index < NumElementsA; Index++)
+					{
+						ElementPropertyA->InitializeValue(TempMemory);
+						ElementPropertyA->CopyCompleteValue(TempMemory, ArrayHelperA.GetRawPtr(Index));
+						TempMemory += ElementPropertyA->GetSize();
+					}
+
+					ArrayHelperA.Resize(0);
+
+					for(const TPair<uint32, int32>& Pair : HashA)
+					{
+						int32 AddedIndex = ArrayHelperA.AddValue();
+						TempMemory = TempStorage.GetData() + Pair.Value * ElementPropertyA->GetSize();
+						
+						URigVMMemoryStorage::CopyProperty(
+							ElementPropertyA,
+							ArrayHelperA.GetRawPtr(AddedIndex),
+							ElementPropertyA,
+							TempMemory
+						);
+					}
+
+					TempMemory = TempStorage.GetData();
+					for(int32 Index = 0; Index < NumElementsA; Index++)
+					{
+						ElementPropertyA->DestroyValue(TempMemory);
+						TempMemory += ElementPropertyA->GetSize();
+					}
+
+					for(const TPair<uint32, int32>& Pair : HashB)
+					{
+						if(!HashA.Contains(Pair.Key))
+						{
+							int32 AddedIndex = ArrayHelperA.AddValue();
+							
+							URigVMMemoryStorage::CopyProperty(
+								ElementPropertyA,
+								ArrayHelperA.GetRawPtr(AddedIndex),
+								ElementPropertyB,
+								ArrayHelperB.GetRawPtr(Pair.Value)
+							);
+						}
+					}
+					
+					if(DebugMemoryStorageObject->Num() > 0)
+					{
+						const FRigVMBinaryOp& Op = ByteCode.GetOpAt<FRigVMBinaryOp>(Instruction);
+						CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandleA);
+						CopyOperandForDebuggingIfNeeded(Op.ArgB, ArrayHandleB);
+					}
+				}
+				else
+				{
+					FRigVMMemoryHandle& ResultArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex] + 2]; 					
+					FScriptArrayHelper ResultArrayHelper(CastFieldChecked<FArrayProperty>(ResultArrayHandle.GetProperty()), ResultArrayHandle.GetData());
+					const FArrayProperty* ResultArrayProperty = CastFieldChecked<FArrayProperty>(ResultArrayHandle.GetProperty());
+					const FProperty* ResultElementProperty = ResultArrayProperty->Inner;
+
+					ResultArrayHelper.Resize(0);
+					
+					if(Instruction.OpCode == ERigVMOpCode::ArrayDifference)
+					{
+						for(const TPair<uint32, int32>& Pair : HashA)
+						{
+							if(!HashB.Contains(Pair.Key))
+							{
+								int32 AddedIndex = ResultArrayHelper.AddValue();
+								URigVMMemoryStorage::CopyProperty(
+									ResultElementProperty,
+									ResultArrayHelper.GetRawPtr(AddedIndex),
+									ElementPropertyA,
+									ArrayHelperA.GetRawPtr(Pair.Value)
+								);
+							}
+						}
+						for(const TPair<uint32, int32>& Pair : HashB)
+						{
+							if(!HashA.Contains(Pair.Key))
+							{
+								int32 AddedIndex = ResultArrayHelper.AddValue();
+								URigVMMemoryStorage::CopyProperty(
+									ResultElementProperty,
+									ResultArrayHelper.GetRawPtr(AddedIndex),
+									ElementPropertyB,
+									ArrayHelperB.GetRawPtr(Pair.Value)
+								);
+							}
+						}
+					}
+					else // intersection
+					{
+						for(const TPair<uint32, int32>& Pair : HashA)
+						{
+							if(HashB.Contains(Pair.Key))
+							{
+								int32 AddedIndex = ResultArrayHelper.AddValue();
+								URigVMMemoryStorage::CopyProperty(
+									ResultElementProperty,
+									ResultArrayHelper.GetRawPtr(AddedIndex),
+									ElementPropertyA,
+									ArrayHelperA.GetRawPtr(Pair.Value)
+								);
+							}
+						}
+					}
+
+					if(DebugMemoryStorageObject->Num() > 0)
+					{
+						const FRigVMTernaryOp& Op = ByteCode.GetOpAt<FRigVMTernaryOp>(Instruction);
+						CopyOperandForDebuggingIfNeeded(Op.ArgA, ArrayHandleA);
+						CopyOperandForDebuggingIfNeeded(Op.ArgB, ArrayHandleB);
+						CopyOperandForDebuggingIfNeeded(Op.ArgC, ResultArrayHandle);
+					}
+				}
+#endif
+				Context.InstructionIndex++;
+				break;
+			}
+			case ERigVMOpCode::ArrayReverse:
+			{
+#if !UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+				FRigVMMemoryHandle& ArrayHandle = CachedMemoryHandles[FirstHandleForInstruction[Context.InstructionIndex]]; 					
+				FScriptArrayHelper ArrayHelper(CastFieldChecked<FArrayProperty>(ArrayHandle.GetProperty()), ArrayHandle.GetData());
+				for(int32 A=0, B=ArrayHelper.Num()-1; A<B; A++, B--)
+				{
+					ArrayHelper.SwapValues(A, B);
+				}
+
+				if(DebugMemoryStorageObject->Num() > 0)
+				{
+					const FRigVMUnaryOp& Op = ByteCode.GetOpAt<FRigVMUnaryOp>(Instruction);
+					CopyOperandForDebuggingIfNeeded(Op.Arg, ArrayHandle);
+				}
+#endif	
 				Context.InstructionIndex++;
 				break;
 			}
@@ -3371,6 +3652,26 @@ void URigVM::RefreshExternalPropertyPaths()
 			ExternalPropertyPaths[PropertyPathIndex] = FRigVMPropertyPath(
 				ExternalVariables[PropertyIndex].Property,
 				ExternalPropertyPathDescriptions[PropertyPathIndex].SegmentPath);
+		}
+	}
+}
+
+void URigVM::CopyArray(FScriptArrayHelper& TargetHelper, FRigVMMemoryHandle& TargetHandle,
+	FScriptArrayHelper& SourceHelper, FRigVMMemoryHandle& SourceHandle)
+{
+	const FArrayProperty* TargetArrayProperty = CastFieldChecked<FArrayProperty>(TargetHandle.GetProperty());
+	const FArrayProperty* SourceArrayProperty = CastFieldChecked<FArrayProperty>(SourceHandle.GetProperty());
+
+	TargetHelper.Resize(SourceHelper.Num());
+	if(SourceHelper.Num() > 0)
+	{
+		const FProperty* TargetProperty = TargetArrayProperty->Inner;
+		const FProperty* SourceProperty = SourceArrayProperty->Inner;
+		for(int32 ElementIndex = 0; ElementIndex < SourceHelper.Num(); ElementIndex++)
+		{
+			uint8* TargetMemory = TargetHelper.GetRawPtr(ElementIndex);
+			const uint8* SourceMemory = SourceHelper.GetRawPtr(ElementIndex);
+			URigVMMemoryStorage::CopyProperty(TargetProperty, TargetMemory, SourceProperty, SourceMemory);
 		}
 	}
 }

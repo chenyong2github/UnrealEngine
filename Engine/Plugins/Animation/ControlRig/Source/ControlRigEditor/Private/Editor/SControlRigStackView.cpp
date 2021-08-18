@@ -526,6 +526,22 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 					case ERigVMOpCode::BeginBlock:
 					case ERigVMOpCode::EndBlock:
 					case ERigVMOpCode::ChangeType:
+					case ERigVMOpCode::ArrayReset:
+					case ERigVMOpCode::ArrayGetNum: 
+					case ERigVMOpCode::ArraySetNum:
+					case ERigVMOpCode::ArrayGetAtIndex:  
+					case ERigVMOpCode::ArraySetAtIndex:
+					case ERigVMOpCode::ArrayAdd:
+					case ERigVMOpCode::ArrayInsert:
+					case ERigVMOpCode::ArrayRemove:
+					case ERigVMOpCode::ArrayFind:
+					case ERigVMOpCode::ArrayAppend:
+					case ERigVMOpCode::ArrayClone:
+					case ERigVMOpCode::ArrayIterator:
+					case ERigVMOpCode::ArrayUnion:
+					case ERigVMOpCode::ArrayDifference:
+					case ERigVMOpCode::ArrayIntersection:
+					case ERigVMOpCode::ArrayReverse:
 					{
 						const FText OpCodeText = StaticEnum<ERigVMOpCode>()->GetDisplayNameTextByValue((int32)Instructions[InstructionIndex].OpCode);
 						if(Node)

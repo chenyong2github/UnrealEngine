@@ -849,6 +849,7 @@ private:
 	UScriptStruct* GetScripStructForOperand(const FRigVMOperand& InOperand) const;
 #else
 	void RefreshExternalPropertyPaths();
+	static void CopyArray(FScriptArrayHelper& TargetHelper, FRigVMMemoryHandle& TargetHandle, FScriptArrayHelper& SourceHelper, FRigVMMemoryHandle& SourceHandle);
 #endif
 	
 	TMap<FRigVMOperand, TArray<FRigVMOperand>> OperandToDebugRegisters;

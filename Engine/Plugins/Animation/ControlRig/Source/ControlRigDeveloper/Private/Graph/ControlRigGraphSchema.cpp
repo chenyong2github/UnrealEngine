@@ -622,7 +622,7 @@ bool UControlRigGraphSchema::SupportsPinType(TWeakPtr<const FEdGraphSchemaAction
 bool UControlRigGraphSchema::SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction,
 	const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const
 {
-	return ContainerType == EPinContainerType::None;
+	return ContainerType == EPinContainerType::None || ContainerType == EPinContainerType::Array;
 }
 
 void UControlRigGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSendsNodeNotifcation) const

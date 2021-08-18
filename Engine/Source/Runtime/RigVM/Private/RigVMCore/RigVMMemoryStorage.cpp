@@ -327,6 +327,26 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	return Class;
 }
 
+bool URigVMMemoryStorageGeneratorClass::RemoveStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType)
+{
+	check(InOuter);
+	UPackage* Package = InOuter->GetOutermost();
+
+	const FString ClassName = GetClassName(InMemoryType);
+
+	// if there's an old class - remove it from the package and mark it to destroy
+	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
+	if(OldClass)
+	{
+		OldClass->RemoveFromRoot();
+		OldClass->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		OldClass->MarkPendingKill();
+		return true;
+	}
+
+	return false;
+}
+
 FRigVMMemoryStatistics URigVMMemoryStorageGeneratorClass::GetStatistics() const
 {
 	FRigVMMemoryStatistics Statistics;

@@ -160,6 +160,7 @@ private:
 	friend class UControlRigPrototypeNodeSpawner;
 	friend class UControlRigEnumNodeSpawner;
 	friend class UControlRigFunctionRefNodeSpawner;
+	friend class UControlRigArrayNodeSpawner;
 
 #endif
 	friend class UControlRigGraphNode;

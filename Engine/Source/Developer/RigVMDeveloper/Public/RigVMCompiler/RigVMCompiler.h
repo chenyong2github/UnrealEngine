@@ -130,6 +130,11 @@ public:
 	static UScriptStruct* GetScriptStructForCPPType(const FString& InCPPType);
 	static FString GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue = false);
 
+	// follows assignment expressions to find the source ref counted containers
+	// since ref counted containers are not copied for assignments.
+	// this is currently only used for arrays.
+	static const FRigVMVarExprAST* GetSourceVarExpr(const FRigVMExprAST* InExpr);
+
 #if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
 	
 	void CreateDebugRegister(URigVMPin* InPin, URigVM* OutVM, TMap<FString, FRigVMOperand>* OutOperands, TSharedPtr<FRigVMParserAST> InRuntimeAST);
@@ -163,6 +168,7 @@ private:
 	void TraverseBranch(const FRigVMBranchExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 	void TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 	void TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
+	void TraverseArray(const FRigVMArrayExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
 	void InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigVMCompilerWorkData& WorkData);
 
