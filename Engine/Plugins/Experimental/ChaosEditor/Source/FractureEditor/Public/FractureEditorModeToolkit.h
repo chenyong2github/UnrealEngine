@@ -132,10 +132,6 @@ public:
 	FReply OnModalClicked();
 	bool CanExecuteModal() const;
 
-	// Filter callbacks
-	FReply ResetHistogramSelection();
-	bool CanResetFilter() const;
-
 	static void GetSelectedGeometryCollectionComponents(TSet<UGeometryCollectionComponent*>& GeomCompSelection);
 
 	static void AddAdditionalAttributesIfRequired(UGeometryCollection* GeometryCollectionObject);
