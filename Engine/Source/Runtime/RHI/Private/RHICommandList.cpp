@@ -2713,6 +2713,11 @@ void FDynamicRHI::RHIReadSurfaceFloatData_RenderThread(class FRHICommandListImme
 
 void FRHICommandListImmediate::UpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture)
 {
+	if (TextureRef == nullptr)
+	{
+		return;
+	}
+
 	EnqueueLambda([TextureRef, NewTexture](auto&)
 	{
 		TextureRef->SetReferencedTexture(NewTexture);
