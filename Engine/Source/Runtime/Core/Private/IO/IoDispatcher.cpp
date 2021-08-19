@@ -1027,6 +1027,16 @@ FIoRequest::UpdatePriority(uint32 NewPriority)
 	Impl->Dispatcher.Reprioritize(Impl);
 }
 
+void
+FIoRequest::Release()
+{
+	if (Impl)
+	{
+		Impl->ReleaseRef();
+		Impl = nullptr;
+	}
+}
+
 FIoChunkId CreateExternalFileChunkId(const FStringView Filename)
 {
 	check(Filename.Len() > 0);

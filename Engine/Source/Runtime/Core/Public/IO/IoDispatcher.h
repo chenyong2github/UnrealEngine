@@ -824,6 +824,7 @@ public:
 	CORE_API TIoStatusOr<FIoBuffer>			GetResult();
 	CORE_API void							Cancel();
 	CORE_API void							UpdatePriority(uint32 NewPriority);
+	CORE_API void							Release();
 
 private:
 	FIoRequestImpl* Impl = nullptr;
