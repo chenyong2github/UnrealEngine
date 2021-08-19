@@ -36,7 +36,12 @@ FMorphTargetDelta* UMorphTarget::GetMorphTargetDelta(int32 LODIndex, int32& OutN
 bool UMorphTarget::HasDataForLOD(int32 LODIndex) 
 {
 	// If we have an entry for this LOD, and it has verts
+#if WITH_EDITOR
 	return (MorphLODModels.IsValidIndex(LODIndex) && MorphLODModels[LODIndex].Vertices.Num() > 0);
+#else
+	// Morph target's vertices array could have been emptied after render data is created, so check NumVertices instead
+	return (MorphLODModels.IsValidIndex(LODIndex) && MorphLODModels[LODIndex].NumVertices > 0);
+#endif
 }
 
 bool UMorphTarget::HasValidData() const
@@ -52,11 +57,11 @@ bool UMorphTarget::HasValidData() const
 	return false;
 }
 
-void UMorphTarget::DiscardCPUBuffers()
+void UMorphTarget::DiscardVertexData()
 {
 	for (FMorphTargetLODModel& Model : MorphLODModels)
 	{
-		Model.DiscardCPUBuffers();
+		Model.DiscardVertexData();
 	}
 }
 
@@ -116,6 +121,7 @@ void UMorphTarget::PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const
 
 	// remove array slack
 	MorphModel.Vertices.Shrink();
+	MorphModel.NumVertices = MorphModel.Vertices.Num();
 }
 
 void UMorphTarget::RemoveEmptyMorphTargets()
