@@ -3996,8 +3996,8 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 
 		Set("ClassIcon.K2Node_CallFunction",	new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
 		Set("ClassIcon.K2Node_FunctionEntry",	new IMAGE_BRUSH_SVG("Starship/Blueprints/icon_Blueprint_Function", Icon16x16));
-		Set("ClassIcon.K2Node_CustomEvent",		new IMAGE_BRUSH_SVG("Starship/GraphEditors/Event", Icon16x16));
-		Set("ClassIcon.K2Node_Event",			new IMAGE_BRUSH_SVG("Starship/GraphEditors/Event", Icon16x16));
+		Set("ClassIcon.K2Node_CustomEvent",		new IMAGE_BRUSH_SVG("Starship/Common/Event", Icon16x16));
+		Set("ClassIcon.K2Node_Event",			new IMAGE_BRUSH_SVG("Starship/Common/Event", Icon16x16));
 		Set("ClassIcon.K2Node_Variable",		new IMAGE_BRUSH_SVG("Starship/GraphEditors/Node", Icon16x16, FLinearColor::White));
 		Set("ClassIcon.K2Node_VariableGet",		new IMAGE_BRUSH_SVG("Starship/GraphEditors/VarGet", Icon16x16, FLinearColor::White));
 		Set("ClassIcon.K2Node_VariableSet",		new IMAGE_BRUSH_SVG("Starship/GraphEditors/VarSet", Icon16x16, FLinearColor::White));
@@ -4029,8 +4029,8 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "GraphEditor.Rule_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/Rule", Icon16x16 ) );
 		Set( "GraphEditor.State_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/State", Icon16x16 ) );
 		Set( "GraphEditor.StateMachine_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/StateMachine", Icon16x16 ) );
-		Set( "GraphEditor.Event_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/Event", Icon16x16 ) );
-		Set( "GraphEditor.CustomEvent_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/Event", Icon16x16 ) );
+		Set( "GraphEditor.Event_16x", new IMAGE_BRUSH_SVG( "Starship/Common/Event", Icon16x16 ) );
+		Set( "GraphEditor.CustomEvent_16x", new IMAGE_BRUSH_SVG( "Starship/Common/Event", Icon16x16 ) );
 		Set( "GraphEditor.CallInEditorEvent_16x", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/CallInEditorEvent", Icon16x16 ) );
 		Set( "GraphEditor.Timeline_16x", new IMAGE_BRUSH_SVG("Starship/Common/Timecode", Icon16x16));
 		Set( "GraphEditor.Comment_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Comment", Icon16x16));
@@ -4052,7 +4052,7 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "GraphEditor.Select_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Select", Icon16x16));
 		Set( "GraphEditor.Cast_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Cast", Icon16x16));
 
-		Set( "GraphEditor.Macro.Loop_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Loop", Icon16x16));
+		Set( "GraphEditor.Macro.Loop_16x", new IMAGE_BRUSH_SVG("Starship/Common/Loop", Icon16x16));
 		Set( "GraphEditor.Macro.Gate_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/Gate", Icon16x16));
 		Set( "GraphEditor.Macro.DoN_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/DoN", Icon16x16));
 		Set( "GraphEditor.Macro.DoOnce_16x", new IMAGE_BRUSH_SVG("Starship/GraphEditors/DoOnce", Icon16x16));
@@ -4077,7 +4077,7 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 		Set( "GraphEditor.StructGlyph", new IMAGE_BRUSH_SVG( "Starship/Common/Struct", Icon22x22, FLinearColor::White) );
 
 		// Find In Blueprints
-		Set( "GraphEditor.FIB_Event", new IMAGE_BRUSH_SVG( "Starship/GraphEditors/Event", Icon22x22, FLinearColor::White) );
+		Set( "GraphEditor.FIB_Event", new IMAGE_BRUSH_SVG( "Starship/Common/Event", Icon22x22, FLinearColor::White) );
 
 		Set( "GraphEditor.GetSequenceBinding", new IMAGE_BRUSH_SVG("Starship/GraphEditors/GetSequenceBinding", Icon16x16));
 
@@ -4145,12 +4145,17 @@ void FStarshipEditorStyle::FStyle::SetupGraphEditorStyles()
 
 		// Timeline Editor
 		{
-			Set( "TimelineEditor.AddFloatTrack", new IMAGE_BRUSH( "Icons/icon_TrackAddFloat_36x24px", Icon36x24 ) );
-			Set( "TimelineEditor.AddVectorTrack", new IMAGE_BRUSH( "Icons/icon_TrackAddVector_36x24px", Icon36x24 ) );
-			Set( "TimelineEditor.AddEventTrack", new IMAGE_BRUSH( "Icons/icon_TrackAddEvent_36x24px", Icon36x24 ) );
-			Set( "TimelineEditor.AddColorTrack", new IMAGE_BRUSH( "Icons/icon_TrackAddColor_36x24px", Icon36x24 ) );
-			Set( "TimelineEditor.AddCurveAssetTrack", new IMAGE_BRUSH( "Icons/icon_TrackAddCurve_36x24px", Icon36x24 ) );
-			Set( "TimelineEditor.DeleteTrack", new IMAGE_BRUSH( "Icons/icon_TrackDelete_36x24px", Icon36x24 ) );
+			Set( "TimelineEditor.AddFloatTrack", new IMAGE_BRUSH_SVG( "Starship/TimelineEditor/TrackTypeFloat", Icon16x16) );
+			Set( "TimelineEditor.AddVectorTrack", new IMAGE_BRUSH_SVG( "Starship/TimelineEditor/TrackTypeVector", Icon16x16) );
+			Set( "TimelineEditor.AddEventTrack", new IMAGE_BRUSH_SVG( "Starship/Common/Event", Icon16x16) );
+			Set( "TimelineEditor.AddColorTrack", new IMAGE_BRUSH_SVG( "Starship/TimelineEditor/TrackTypeColor", Icon16x16) );
+			Set( "TimelineEditor.AddCurveAssetTrack", new IMAGE_BRUSH_SVG("Starship/TimelineEditor/TrackTypeCurve", Icon16x16));
+			Set( "TimelineEditor.DeleteTrack", new IMAGE_BRUSH_SVG( "Icons/icon_TrackDelete_36x24px", Icon36x24 ) );
+			Set("TimelineEditor.AutoPlay", new IMAGE_BRUSH_SVG("Starship/TimelineEditor/TimelineAutoPlay", Icon20x20));
+			Set("TimelineEditor.IgnoreTimeDilation", new IMAGE_BRUSH_SVG("Starship/TimelineEditor/TimelineIgnoreTimeDilation", Icon20x20));
+			Set("TimelineEditor.Replicated", new IMAGE_BRUSH_SVG("Starship/TimelineEditor/TimelineReplicated", Icon20x20));
+			Set("TimelineEditor.UseLastKeyframe", new IMAGE_BRUSH_SVG("Starship/TimelineEditor/TimelineUseLastKeyframe", Icon20x20));
+			Set("TimelineEditor.Loop", new IMAGE_BRUSH_SVG("Starship/Common/Loop", Icon20x20));
 
 			Set("TimelineEditor.TrackRowSubtleHighlight", FTableRowStyle(NormalTableRowStyle)
 				.SetActiveBrush(FSlateColorBrush(FStyleColors::Panel))

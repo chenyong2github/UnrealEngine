@@ -289,7 +289,7 @@ private:
 	/** Used by list view to create a track widget from the track item struct */
 	TSharedRef<ITableRow> MakeTrackWidget( TSharedPtr<FTimelineEdTrack> Track, const TSharedRef<STableViewBase>& OwnerTable );
 	/** Add a new track to the timeline */
-	FReply CreateNewTrack(FTTTrackBase::ETrackType Type );
+	void CreateNewTrack(FTTTrackBase::ETrackType Type );
 
 	/** Checks if the user can delete the selected tracks */
 	bool CanDeleteSelectedTracks() const;
@@ -333,7 +333,7 @@ private:
 	bool IsCurveAssetSelected() const;
 
 	/** Create new track from curve asset */
-	FReply CreateNewTrackFromAsset();
+	void CreateNewTrackFromAsset();
 
 	/** Callback when a track item is scrolled into view */
 	void OnItemScrolledIntoView( TSharedPtr<FTimelineEdTrack> InTrackNode, const TSharedPtr<ITableRow>& InWidget );
@@ -351,5 +351,7 @@ private:
 
 	void SetSizeScaleValue(float NewValue);
 	float GetSizeScaleValue() const;
+
+	TSharedRef<SWidget> MakeAddButton();
 };
 
