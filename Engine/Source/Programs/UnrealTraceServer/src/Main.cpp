@@ -285,12 +285,18 @@ static int MainFork(int ArgC, char** ArgV)
 			return Result_Ok;
 		}
 
-		// Kill the other instance. If no quit event was found then we shall
-		// assume that another new store instance beat us to it.
+		// Kill the other instance.
 		int KillRet = MainKillImpl(0, nullptr, InstanceInfo);
-		if (KillRet == Result_NoQuitEvent || KillRet == Result_Ok)
+		if (KillRet == Result_NoQuitEvent)
 		{
+			// If no quit event was found then we shall assume that another new
+			// store instance beat us to it.
 			return Result_Ok;
+		}
+
+		if (KillRet != Result_Ok)
+		{
+			return KillRet;
 		}
 	}
 
