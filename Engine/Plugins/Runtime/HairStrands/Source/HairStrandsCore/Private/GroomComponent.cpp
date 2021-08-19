@@ -1559,9 +1559,9 @@ void UGroomComponent::SetHairLengthScale(float InLengthScale)
 {
 	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
 	{
-		HairDesc.HairWidth = InLengthScale;
+		HairDesc.HairLengthScale = InLengthScale;
 	}
-	//UpdateHairGroupsDescAndInvalidateRenderState();
+	UpdateHairGroupsDescAndInvalidateRenderState(false);
 }
 
 void UGroomComponent::SetForcedLOD(int32 LODIndex)
@@ -1671,7 +1671,7 @@ void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
 	}
 }
 
-void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState()
+void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalid)
 {
 	UpdateHairGroupsDesc();
 
@@ -1684,7 +1684,10 @@ void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState()
 #endif// #if WITH_EDITORONLY_DATA
 		++GroupIndex;
 	}
-	MarkRenderStateDirty();
+	if (bInvalid)
+	{
+		MarkRenderStateDirty();
+	}
 }
 
 FPrimitiveSceneProxy* UGroomComponent::CreateSceneProxy()
