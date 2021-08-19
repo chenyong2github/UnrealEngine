@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-
 #include "K2Node_BaseAsyncTask.h"
 #include "EdGraph/EdGraphPin.h"
 #include "UObject/UnrealType.h"
@@ -143,7 +142,7 @@ void UK2Node_BaseAsyncTask::AllocateDefaultPins()
 				UEdGraphPin* Pin = CreatePin(EGPD_Output, NAME_None, Param->GetFName());
 				K2Schema->ConvertPropertyToPinType(Param, /*out*/ Pin->PinType);
 
-				Pin->PinToolTip = Param->GetToolTipText().ToString();
+				UK2Node_CallFunction::GeneratePinTooltipFromFunction(*Pin, DelegateSignatureFunction);
 			}
 		}
 	}
