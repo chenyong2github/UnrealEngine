@@ -6,8 +6,6 @@
 #include "FractureEditorCommands.h"
 #include "FractureToolContext.h"
 
-#include "AutoClusterFracture.h"
-
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
@@ -75,44 +73,37 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 
 			int32 StartTransformCount = GeometryCollection->Transform.Num();
 
-			if (AutoClusterSettings->AutoClusterMode < EFractureAutoClusterMode::Voronoi)
+			for (const int32 ClusterIndex : Context.GetSelection())
 			{
-				UAutoClusterFractureCommand::ClusterChildBonesOfASingleMesh(Context.GetGeometryCollectionComponent(), AutoClusterSettings->AutoClusterMode, AutoClusterSettings->SiteCount);
-			}
-			else
-			{
-				for (const int32 ClusterIndex : Context.GetSelection())
+				FVoronoiPartitioner VoronoiPartition(GeometryCollection, ClusterIndex);
+				VoronoiPartition.KMeansPartition(AutoClusterSettings->SiteCount);
+
+				if (AutoClusterSettings->bEnforceConnectivity)
 				{
-					FVoronoiPartitioner VoronoiPartition(GeometryCollection, ClusterIndex);
-					VoronoiPartition.KMeansPartition(AutoClusterSettings->SiteCount);
-
-					if (AutoClusterSettings->bEnforceConnectivity)
-					{
-						GenerateProximityIfNecessary(GeometryCollection);
-						VoronoiPartition.SplitDisconnectedPartitions(GeometryCollection);
-					}
-					
-					int32 PartitionCount = VoronoiPartition.GetPartitionCount();
-					int32 NewClusterIndexStart = GeometryCollection->AddElements(PartitionCount, FGeometryCollection::TransformGroup);
-
-					for (int32 Index = 0; Index < PartitionCount; ++Index)
-					{
-						
-						TArray<int32> NewCluster = VoronoiPartition.GetPartition(Index);
-
-						int32 NewClusterIndex = NewClusterIndexStart + Index;
-						GeometryCollection->Parent[NewClusterIndex] = ClusterIndex;
-						GeometryCollection->Children[ClusterIndex].Add(NewClusterIndex);
-						GeometryCollection->BoneName[NewClusterIndex] = "ClusterBone";
-						GeometryCollection->Children[NewClusterIndex] = TSet<int32>(NewCluster);
-						GeometryCollection->SimulationType[NewClusterIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
-						GeometryCollection->Transform[NewClusterIndex] = FTransform::Identity;
-						GeometryCollectionAlgo::ParentTransforms(GeometryCollection, NewClusterIndex, NewCluster);
-					}
-					FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, ClusterIndex);
-					FGeometryCollectionClusteringUtility::RecursivelyUpdateChildBoneNames(ClusterIndex, GeometryCollection->Children, GeometryCollection->BoneName);
-					FGeometryCollectionClusteringUtility::ValidateResults(GeometryCollection);
+					GenerateProximityIfNecessary(GeometryCollection);
+					VoronoiPartition.SplitDisconnectedPartitions(GeometryCollection);
 				}
+					
+				int32 PartitionCount = VoronoiPartition.GetPartitionCount();
+				int32 NewClusterIndexStart = GeometryCollection->AddElements(PartitionCount, FGeometryCollection::TransformGroup);
+
+				for (int32 Index = 0; Index < PartitionCount; ++Index)
+				{
+						
+					TArray<int32> NewCluster = VoronoiPartition.GetPartition(Index);
+
+					int32 NewClusterIndex = NewClusterIndexStart + Index;
+					GeometryCollection->Parent[NewClusterIndex] = ClusterIndex;
+					GeometryCollection->Children[ClusterIndex].Add(NewClusterIndex);
+					GeometryCollection->BoneName[NewClusterIndex] = "ClusterBone";
+					GeometryCollection->Children[NewClusterIndex] = TSet<int32>(NewCluster);
+					GeometryCollection->SimulationType[NewClusterIndex] = FGeometryCollection::ESimulationTypes::FST_Clustered;
+					GeometryCollection->Transform[NewClusterIndex] = FTransform::Identity;
+					GeometryCollectionAlgo::ParentTransforms(GeometryCollection, NewClusterIndex, NewCluster);
+				}
+				FGeometryCollectionClusteringUtility::UpdateHierarchyLevelOfChildren(GeometryCollection, ClusterIndex);
+				FGeometryCollectionClusteringUtility::RecursivelyUpdateChildBoneNames(ClusterIndex, GeometryCollection->Children, GeometryCollection->BoneName);
+				FGeometryCollectionClusteringUtility::ValidateResults(GeometryCollection);
 			}
 
 			Context.GenerateGuids(StartTransformCount);
