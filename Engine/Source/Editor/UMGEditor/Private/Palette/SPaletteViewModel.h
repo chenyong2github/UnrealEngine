@@ -28,6 +28,11 @@ public:
 	/** @param OutStrings - Returns an array of strings used for filtering/searching this item. */
 	virtual void GetFilterStrings(TArray<FString>& OutStrings) const = 0;
 
+	virtual bool HasFilteredChildTemplates() const
+	{
+		return false;
+	}
+
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) = 0;
 
 	virtual void GetChildren(TArray< TSharedPtr<FWidgetViewModel> >& OutChildren)
@@ -102,6 +107,18 @@ public:
 		// it's widgets filtered out, so return an empty filter string.
 	}
 
+	virtual bool HasFilteredChildTemplates() const override
+	{
+		for (const TSharedPtr<FWidgetViewModel>& Child : Children)
+		{
+			if (Child && Child->HasFilteredChildTemplates())
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) override;
 
 	virtual void GetChildren(TArray< TSharedPtr<FWidgetViewModel> >& OutChildren) override;
@@ -129,7 +146,7 @@ public:
 	/** Remove the widget template to the list of favorites */
 	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
 
-	void SetSearchText(const FText& inSearchText) { SearchText = inSearchText; }
+	virtual void SetSearchText(const FText& InSearchText) { SearchText = InSearchText; }
 	FText GetSearchText() const { return SearchText; }
 
 protected:

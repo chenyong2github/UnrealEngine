@@ -1639,6 +1639,7 @@ void SAssetTileItem::Construct( const FArguments& InArgs )
 		.IsSelected(InArgs._IsSelected)
 		);
 
+	bShowType = InArgs._ShowType;
 	AssetThumbnail = InArgs._AssetThumbnail;
 	ItemWidth = InArgs._ItemWidth;
 	ThumbnailPadding = IsFolder() ? InArgs._ThumbnailPadding + 5.0f : InArgs._ThumbnailPadding;
@@ -1865,7 +1866,7 @@ FOptionalSize SAssetTileItem::GetThumbnailBoxSize() const
 
 EVisibility SAssetTileItem::GetAssetClassLabelVisibility() const
 {
-	if(!IsFolder())
+	if(!IsFolder() && bShowType)
 	{
 		FOptionalSize ThumbSize = GetThumbnailBoxSize();
 		if (ThumbSize.IsSet())
@@ -1950,8 +1951,8 @@ void SAssetTileItem::InitializeAssetNameHeights()
 			const static FName SmallFontName("ContentBrowser.AssetTileViewNameFontSmall");
 			FSlateFontInfo Font = FEditorStyle::GetFontStyle(SmallFontName);
 			TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			float MaxHeight = FontMeasureService->GetMaxCharacterHeight(Font);
-			AssetNameHeights[(int32)EThumbnailSize::Small] = MaxHeight * 2;
+			SmallFontHeight = FontMeasureService->GetMaxCharacterHeight(Font);
+			AssetNameHeights[(int32)EThumbnailSize::Small] = SmallFontHeight * 2 ;
 		}
 
 
@@ -1959,10 +1960,10 @@ void SAssetTileItem::InitializeAssetNameHeights()
 			const static FName SmallFontName("ContentBrowser.AssetTileViewNameFont");
 			FSlateFontInfo Font = FEditorStyle::GetFontStyle(SmallFontName);
 			TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-			float MaxHeight = FontMeasureService->GetMaxCharacterHeight(Font);
-			AssetNameHeights[(int32)EThumbnailSize::Medium] = MaxHeight * 3;
-			AssetNameHeights[(int32)EThumbnailSize::Large] = MaxHeight * 4;
-			AssetNameHeights[(int32)EThumbnailSize::Huge] = MaxHeight * 5;
+			RegularFontHeight = FontMeasureService->GetMaxCharacterHeight(Font);
+			AssetNameHeights[(int32)EThumbnailSize::Medium] = RegularFontHeight * 3;
+			AssetNameHeights[(int32)EThumbnailSize::Large] = RegularFontHeight * 4;
+			AssetNameHeights[(int32)EThumbnailSize::Huge] = RegularFontHeight * 5;
 		}
 
 		bInitializedHeights = true;
@@ -1971,6 +1972,8 @@ void SAssetTileItem::InitializeAssetNameHeights()
 }
 
 float SAssetTileItem::AssetNameHeights[(int32)EThumbnailSize::MAX];
+float SAssetTileItem::RegularFontHeight(0);
+float SAssetTileItem::SmallFontHeight(0);
 
 ///////////////////////////////
 // SAssetColumnItem

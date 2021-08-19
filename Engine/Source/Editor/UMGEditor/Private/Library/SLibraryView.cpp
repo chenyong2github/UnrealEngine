@@ -9,12 +9,11 @@
 #include "Editor.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "SAssetView.h"
 
 #if WITH_EDITOR
 	#include "EditorStyleSet.h"
 #endif // WITH_EDITOR
-
-
 
 #include "DragDrop/WidgetTemplateDragDropOp.h"
 
@@ -26,11 +25,11 @@
 #include "Widgets/Input/SCheckBox.h"
 
 #include "Settings/ContentBrowserSettings.h"
+#include "IContentBrowserSingleton.h"
 #include "WidgetBlueprintEditorUtils.h"
 
-
-
 #include "UMGEditorProjectSettings.h"
+#include "SLibraryView.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -119,6 +118,73 @@ FReply SLibraryViewItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry,
 	return WidgetViewModel->Template->OnDoubleClicked();
 };
 
+TSharedRef<SWidget> SLibraryView::ConstructViewOptions()
+{
+	FMenuBuilder ViewOptions(true, nullptr);
+
+	{
+		ViewOptions.BeginSection("AssetViewType", LOCTEXT("ViewTypeHeading", "View Type"));
+		ViewOptions.AddMenuEntry(
+			LOCTEXT("TileViewOption", "Tiles"),
+			LOCTEXT("TileViewOptionToolTip", "View assets as tiles in a grid."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SLibraryView::SetCurrentViewTypeFromMenu, EAssetViewType::Tile),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SLibraryView::IsCurrentViewType, EAssetViewType::Tile)
+			),
+			"TileView",
+			EUserInterfaceActionType::RadioButton
+		);
+
+		ViewOptions.AddMenuEntry(
+			LOCTEXT("ListViewOption", "List"),
+			LOCTEXT("ListViewOptionToolTip", "View assets in a list with thumbnails."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SLibraryView::SetCurrentViewTypeFromMenu, EAssetViewType::List),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &SLibraryView::IsCurrentViewType, EAssetViewType::List)
+			),
+			"ListView",
+			EUserInterfaceActionType::RadioButton
+		);
+		ViewOptions.EndSection();
+	}
+
+	{
+		ViewOptions.BeginSection("AssetThumbnails", LOCTEXT("ThumbnailsHeading", "Thumbnails"));
+
+		auto CreateThumbnailSizeSubMenu = [this](FMenuBuilder& SubMenu)
+		{
+			for (int32 EnumValue = (int32)EThumbnailSize::Tiny; EnumValue < (int32)EThumbnailSize::MAX; ++EnumValue)
+			{
+				SubMenu.AddMenuEntry(
+					SAssetView::ThumbnailSizeToDisplayName((EThumbnailSize)EnumValue),
+					FText::GetEmpty(),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SLibraryView::OnThumbnailSizeChanged, (EThumbnailSize)EnumValue),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateSP(this, &SLibraryView::IsThumbnailSizeChecked, (EThumbnailSize)EnumValue)
+					),
+					NAME_None,
+					EUserInterfaceActionType::RadioButton
+				);
+			}
+		};
+
+		ViewOptions.AddSubMenu(
+			LOCTEXT("ThumbnailSize", "Thumbnail Size"),
+			LOCTEXT("ThumbnailSizeToolTip", "Adjust the size of thumbnails."),
+			FNewMenuDelegate::CreateLambda(CreateThumbnailSizeSubMenu)
+		);
+		ViewOptions.EndSection();
+	}
+
+	return ViewOptions.MakeWidget();
+}
+
 void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 {
 	BlueprintEditor = InBlueprintEditor;
@@ -130,10 +196,10 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 	LibraryViewModel->OnUpdating.AddRaw(this, &SLibraryView::OnViewModelUpdating);
 	LibraryViewModel->OnUpdated.AddRaw(this, &SLibraryView::OnViewModelUpdated);
 
-	WidgetFilter = MakeShareable(new WidgetViewModelTextFilter(
-		WidgetViewModelTextFilter::FItemToStringArray::CreateSP(this, &SLibraryView::GetWidgetFilterStrings)));
+	WidgetFilter = MakeShared<WidgetViewModelDelegateFilter>(
+		WidgetViewModelDelegateFilter::FPredicate::CreateSP(this, &SLibraryView::HandleFilterWidgetView));
 
-	FilterHandler = MakeShareable(new LibraryFilterHandler());
+	FilterHandler = MakeShared<LibraryFilterHandler>();
 	FilterHandler->SetFilter(WidgetFilter.Get());
 	FilterHandler->SetRootItems(&(LibraryViewModel->GetWidgetViewModels()), &TreeWidgetViewModels);
 	FilterHandler->SetGetChildrenDelegate(LibraryFilterHandler::FOnGetChildren::CreateRaw(this, &SLibraryView::OnGetChildren));
@@ -145,10 +211,9 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 		.OnGetChildren(FilterHandler.ToSharedRef(), &LibraryFilterHandler::OnGetFilteredChildren)
 		.OnSelectionChanged(this, &SLibraryView::WidgetLibrary_OnSelectionChanged)
 		.TreeItemsSource(&TreeWidgetViewModels);
-		
 
 	FilterHandler->SetTreeView(WidgetTemplatesView.Get());
-
+	
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -157,9 +222,35 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 		.Padding(4)
 		.AutoHeight()
 		[
-			SAssignNew(SearchBoxPtr, SSearchBox)
-			.HintText(LOCTEXT("SearchTemplates", "Search Library"))
-			.OnTextChanged(this, &SLibraryView::OnSearchChanged)
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0f)
+			.VAlign(VAlign_Center)
+			[
+				SAssignNew(SearchBoxPtr, SSearchBox)
+				.HintText(LOCTEXT("SearchTemplates", "Search Library"))
+				.OnTextChanged(this, &SLibraryView::OnSearchChanged)
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2, 0, 0, 0)
+			[
+				SNew(SComboButton)
+				.ContentPadding(0)
+				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+				.HasDownArrow(false)
+				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ViewOptions")))
+				.ButtonContent()
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FAppStyle::Get().GetBrush("Icons.Settings"))
+				]
+				.MenuContent()
+				[
+					ConstructViewOptions()
+				]
+			]
 		]
 
 		+ SVerticalBox::Slot()
@@ -178,6 +269,8 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 	];
 
 	bRefreshRequested = true;
+	LastViewType = EAssetViewType::Type::Tile;
+	LastThumbnailSize = EThumbnailSize::Small;
 
 	LibraryViewModel->Update();
 	LoadItemExpansion();
@@ -204,8 +297,6 @@ void SLibraryView::OnSearchChanged(const FText& InFilterText)
 {
 	bRefreshRequested = true;
 	FilterHandler->SetIsEnabled(!InFilterText.IsEmpty());
-	WidgetFilter->SetRawFilterText(InFilterText);
-	SearchBoxPtr->SetError(WidgetFilter->GetFilterErrorText());
 	LibraryViewModel->SetSearchText(InFilterText);
 }
 
@@ -287,6 +378,43 @@ void SLibraryView::SaveItemExpansion()
 	}
 }
 
+bool SLibraryView::HandleFilterWidgetView(TSharedPtr<FWidgetViewModel> WidgetViewModel)
+{
+	return WidgetViewModel->HasFilteredChildTemplates();
+}
+
+void SLibraryView::SetCurrentViewTypeFromMenu(EAssetViewType::Type ViewType)
+{
+	LastViewType = ViewType;
+
+	for (TSharedPtr<FWidgetViewModel>& ViewModel : LibraryViewModel->GetWidgetTemplateListViewModels())
+	{
+		TSharedPtr<FWidgetTemplateListViewModel> TemplateListViewModel = StaticCastSharedPtr<FWidgetTemplateListViewModel>(ViewModel);
+		TemplateListViewModel->SetViewType(ViewType);
+	}
+}
+
+bool SLibraryView::IsCurrentViewType(EAssetViewType::Type ViewType)
+{
+	return LastViewType == ViewType;
+}
+
+void SLibraryView::OnThumbnailSizeChanged(EThumbnailSize ThumbnailSize)
+{
+	LastThumbnailSize = ThumbnailSize;
+
+	for (TSharedPtr<FWidgetViewModel>& ViewModel : LibraryViewModel->GetWidgetTemplateListViewModels())
+	{
+		TSharedPtr<FWidgetTemplateListViewModel> TemplateListViewModel = StaticCastSharedPtr<FWidgetTemplateListViewModel>(ViewModel);
+		TemplateListViewModel->SetThumbnailSize(ThumbnailSize);
+	}
+}
+
+bool SLibraryView::IsThumbnailSizeChecked(EThumbnailSize ThumbnailSize)
+{
+	return LastThumbnailSize == ThumbnailSize;
+}
+
 void SLibraryView::OnGetChildren(TSharedPtr<FWidgetViewModel> Item, TArray< TSharedPtr<FWidgetViewModel> >& Children)
 {
 	return Item->GetChildren(Children);
@@ -328,11 +456,6 @@ void SLibraryView::Tick(const FGeometry& AllottedGeometry, const double InCurren
 		bRefreshRequested = false;
 		FilterHandler->RefreshAndFilterTree();
 	}
-}
-
-void SLibraryView::GetWidgetFilterStrings(TSharedPtr<FWidgetViewModel> WidgetViewModel, TArray<FString>& OutStrings)
-{
-	WidgetViewModel->GetFilterStrings(OutStrings);
 }
 
 #undef LOCTEXT_NAMESPACE

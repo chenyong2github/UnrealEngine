@@ -25,6 +25,7 @@
 #include "Settings/WidgetDesignerSettings.h"
 #include "UMGEditorProjectSettings.h"
 #include "WidgetPaletteFavorites.h"
+#include "SLibraryViewModel.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -75,6 +76,17 @@ void FLibraryViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* Widg
 	Favorites->Remove(WidgetTemplateViewModel->GetName().ToString());
 }
 
+void FLibraryViewModel::SetSearchText(const FText& InSearchText)
+{
+	FFavortiesViewModel::SetSearchText(InSearchText);
+
+	for (TSharedPtr<FWidgetViewModel>& WidgetTemplateListViewModel : WidgetTemplateListViewModels)
+	{
+		TSharedPtr<FWidgetTemplateListViewModel> WidgetLibrary = StaticCastSharedPtr<FWidgetTemplateListViewModel>(WidgetTemplateListViewModel);
+		WidgetLibrary->SetSearchText(InSearchText);
+	}
+}
+
 void FLibraryViewModel::Update()
 {
 	if (bRebuildRequested)
@@ -85,7 +97,6 @@ void FLibraryViewModel::Update()
 		OnUpdated.Broadcast();
 	}
 }
-
 
 UWidgetBlueprint* FLibraryViewModel::GetBlueprint() const
 {
@@ -103,6 +114,7 @@ void FLibraryViewModel::BuildWidgetList()
 	// Clear the current list of view models and categories
 	WidgetViewModels.Reset();
 	WidgetTemplateCategories.Reset();
+	WidgetTemplateListViewModels.Reset();
 
 	// Generate a list of templates
 	BuildClassWidgetList();
@@ -121,11 +133,12 @@ void FLibraryViewModel::BuildWidgetList()
 		TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
 		Header->GroupName = FText::FromString(Entry.Key);
 
-
-		TSharedPtr<FWidgetTemplateListViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateListViewModel());
-		TemplateViewModel->Templates = Entry.Value;
+		TSharedPtr<FWidgetTemplateListViewModel> TemplateViewModel = MakeShared<FWidgetTemplateListViewModel>();
+		TemplateViewModel->ConstructListView(Entry.Value);
 		Header->Children.Add(TemplateViewModel);
+		WidgetTemplateListViewModels.Add(TemplateViewModel);
 
+		// @TODO: DarenC - Reference for when implementing favorites system
 		//for ( auto& Template : Entry.Value )
 		//{
 		//	TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
@@ -428,10 +441,71 @@ void FLibraryViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAsse
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
-
 FWidgetTemplateListViewModel::FWidgetTemplateListViewModel()
 {
+}
+
+void FWidgetTemplateListViewModel::ConstructListView(TArray<TSharedPtr<FWidgetTemplate>> InTemplates)
+{
+	Templates = InTemplates;
+
+	if (!TemplatesFilter)
+	{
+		// Generate filter text
+		bool bHasFilters = false;
+		TStringBuilder<2048> FilterString;
+		for (TSharedPtr<FWidgetTemplate> Template : Templates)
+		{
+			if (TSharedPtr<FWidgetTemplateClass> TemplateClass = StaticCastSharedPtr<FWidgetTemplateClass>(Template))
+			{
+				TWeakObjectPtr<UClass> WidgetClass = TemplateClass->GetWidgetClass();
+				FName TemplateName = WidgetClass.IsValid() ? WidgetClass->GetFName() : TemplateClass->GetWidgetAssetData().AssetName;
+				FString TemplateString = TemplateName.ToString();
+
+				if (!TemplateString.IsEmpty())
+				{
+					TemplateString.RemoveFromEnd(TEXT("_C"));
+					FilterString += bHasFilters ? "|+" : "+";
+					FilterString += TemplateString;
+					bHasFilters = true;
+				}
+			}
+		}
+
+		WidgetTextFilter = MakeShared<FFrontendFilter_Text>();
+		WidgetTextFilter->SetActive(true);
+		WidgetTextFilter->SetIncludeClassName(true);
+		WidgetTextFilter->SetRawFilterText(FText::FromString(FilterString.ToString()));
+		CachedLowercaseWidgetFilter = WidgetTextFilter->GetRawFilterText().ToString().ToLower();
+
+		SearchFilter = MakeShared<FFrontendFilter_Text>();
+		SearchFilter->SetActive(false);
+
+		TemplatesFilter = MakeShared<FAssetFilterCollectionType>();
+		TemplatesFilter->Add(WidgetTextFilter);
+		TemplatesFilter->Add(SearchFilter);
+	}
+
+	if (!AssetViewPtr)
+	{
+		FARFilter WidgetTemplateFilter;
+		WidgetTemplateFilter.ClassNames.Add(UClass::StaticClass()->GetFName());
+		WidgetTemplateFilter.ClassNames.Add(UWidgetBlueprint::StaticClass()->GetFName());
+
+		AssetViewPtr = SNew(SAssetView)
+			.InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAssets | EContentBrowserItemCategoryFilter::IncludeClasses)
+			.InitialBackendFilter(WidgetTemplateFilter)
+			.InitialThumbnailSize(EThumbnailSize::Small)
+			.FrontendFilters(TemplatesFilter)
+			.ForceShowEngineContent(true)
+			.ForceShowPluginContent(true)
+			.ShowTypeInTileView(false)
+			.ShowViewOptions(false)
+			.HighlightedText(this, &FWidgetTemplateListViewModel::GetSearchText)
+			;
+	}
+
+	AssetViewPtr->RequestSlowFullListRefresh();
 }
 
 FText FWidgetTemplateListViewModel::GetName() const
@@ -448,62 +522,59 @@ void FWidgetTemplateListViewModel::GetFilterStrings(TArray<FString>& OutStrings)
 {
 }
 
+bool FWidgetTemplateListViewModel::HasFilteredChildTemplates() const
+{
+	FText SearchText = SearchFilter->GetRawFilterText();
+	return SearchText.IsEmpty() || CachedLowercaseWidgetFilter.Contains(SearchText.ToString().ToLower());
+}
+
 TSharedRef<ITableRow> FWidgetTemplateListViewModel::BuildRow(const TSharedRef<STableViewBase>& OwnerTable)
 {
-	// @TODO: DarenC - Temp construct on demand. Move to construct earlier?
-	if (!TemplatesFilter)
-	{
-		// Generate filter text
-		bool bHasFilters = false;
-		TStringBuilder<2048> FilterString; 
-		for (TSharedPtr<FWidgetTemplate> Template : Templates)
-		{
-			if (TSharedPtr<FWidgetTemplateClass> TemplateClass = StaticCastSharedPtr<FWidgetTemplateClass>(Template))
-			{
-				TWeakObjectPtr<UClass> WidgetClass = TemplateClass->GetWidgetClass();
-				if (WidgetClass.IsValid())
-				{
-					FString TemplateName = WidgetClass->GetFName().ToString();
-					if (!TemplateName.IsEmpty())
-					{
-						TemplateName.RemoveFromEnd(TEXT("_C"));
-						FilterString += bHasFilters ? "|+" : "+";
-						FilterString += TemplateName;
-						bHasFilters = true;
-					}
-				}
-			}
-		}
-
-		TSharedPtr<FFrontendFilter_Text> WidgetTextFilter = MakeShared<FFrontendFilter_Text>();
-		WidgetTextFilter->SetActive(true);
-		WidgetTextFilter->SetIncludeClassName(true);
-		WidgetTextFilter->SetRawFilterText(FText::FromString(FilterString.ToString()));
-
-		TemplatesFilter = MakeShared<FAssetFilterCollectionType>();
-		TemplatesFilter->Add(WidgetTextFilter);
-	}
-
-	if (!AssetViewPtr)
-	{
-		FARFilter WidgetTemplateFilter;
-		WidgetTemplateFilter.ClassNames.Add(UClass::StaticClass()->GetFName());
-		WidgetTemplateFilter.ClassNames.Add(UWidgetBlueprint::StaticClass()->GetFName());
-
-		AssetViewPtr = SNew(SAssetView)
-			.InitialCategoryFilter(EContentBrowserItemCategoryFilter::IncludeAssets | EContentBrowserItemCategoryFilter::IncludeClasses)
-			.InitialBackendFilter(WidgetTemplateFilter)
-			.FrontendFilters(TemplatesFilter)
-			.ForceShowEngineContent(true)
-			.ForceShowPluginContent(true)
-			;
-	}
-	AssetViewPtr->RequestSlowFullListRefresh();
-
 	return SNew(STableRow<TSharedPtr<FWidgetViewModel>>, OwnerTable)
 		.Padding(2.0f)
-		//.OnDragDetected(this, &FWidgetTemplateViewModel::OnDraggingWidgetTemplateItem)
+		.ShowSelection(false)
+		.ShowWires(false)
+		.Style(FEditorStyle::Get(), "UMGEditor.LibraryView")
 		[
 			AssetViewPtr.ToSharedRef()
 		];
 }
+
+void FWidgetTemplateListViewModel::SetViewType(EAssetViewType::Type ViewType)
+{
+	if (AssetViewPtr)
+	{
+		AssetViewPtr->SetCurrentViewType(ViewType);
+	}
+}
+
+void FWidgetTemplateListViewModel::SetThumbnailSize(EThumbnailSize ThumbnailSize)
+{
+	if (AssetViewPtr)
+	{
+		AssetViewPtr->SetCurrentThumbnailSize(ThumbnailSize);
+	}
+}
+
+void FWidgetTemplateListViewModel::SetSearchText(const FText& InSearchText)
+{
+	if (SearchFilter && AssetViewPtr)
+	{
+		SearchFilter->SetActive(!InSearchText.IsEmpty());
+		SearchFilter->SetRawFilterText(InSearchText);
+
+		AssetViewPtr->SetUserSearching(!InSearchText.IsEmpty());
+	}
+}
+
+FText FWidgetTemplateListViewModel::GetSearchText() const
+{
+	if (SearchFilter)
+	{
+		return SearchFilter->GetRawFilterText();
+	}
+
+	return FText::GetEmpty();
+}
+
+#undef LOCTEXT_NAMESPACE

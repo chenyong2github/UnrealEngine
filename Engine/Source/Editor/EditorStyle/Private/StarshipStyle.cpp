@@ -7597,6 +7597,20 @@ void FStarshipEditorStyle::FStyle::SetupUMGEditorStyles()
 		.SetSelectedTextColor(InvertedForeground)
 	);
 
+	Set("UMGEditor.LibraryView", FTableRowStyle()
+		.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetSelectorFocusedBrush(FSlateNoResource())
+		.SetActiveBrush(FSlateNoResource())
+		.SetActiveHoveredBrush(FSlateNoResource())
+		.SetInactiveBrush(FSlateNoResource())
+		.SetInactiveHoveredBrush(FSlateNoResource())
+		.SetTextColor(DefaultForeground)
+		.SetSelectedTextColor(InvertedForeground)
+	);
+
 	// Style of the favorite toggle
 	const FCheckBoxStyle UMGEditorFavoriteToggleStyle = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
