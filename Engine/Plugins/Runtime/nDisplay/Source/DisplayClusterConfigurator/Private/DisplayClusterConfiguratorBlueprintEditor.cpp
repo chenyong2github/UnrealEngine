@@ -44,7 +44,8 @@
 #include "EditorViewportTabContent.h"
 #include "ISCSEditorUICustomization.h"
 #include "SBlueprintEditorToolbar.h"
-#include "SCSEditorExtensionContext.h"
+#include "SubobjectEditorExtensionContext.h"
+#include "SubobjectEditorExtensionContext.h"
 #include "SKismetInspector.h"
 #include "SSCSEditor.h"
 #include "ToolMenu.h"
@@ -1271,9 +1272,9 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 	auto PerformComboAddClass = [=](TSubclassOf<UActorComponent> ComponentClass, EComponentCreateAction::Type ComponentCreateAction,
 		UObject* AssetOverride) -> UActorComponent*
 	{
-		if (USCSEditorExtensionContext* SCSEditorExtensionContext = Cast<USCSEditorExtensionContext>(ExtensionContext.Get()))
+		if (USubobjectEditorExtensionContext* SubobjectEditorExtensionContext = Cast<USubobjectEditorExtensionContext>(ExtensionContext.Get()))
 		{
-			if (const TSharedPtr<SSubobjectEditor> SubobjectEditor = SCSEditorExtensionContext->GetSubobjectEditor().Pin())
+			if (const TSharedPtr<SSubobjectEditor> SubobjectEditor = SubobjectEditorExtensionContext->GetSubobjectEditor().Pin())
 			{
 				UClass* NewClass = ComponentClass;
 
@@ -1355,11 +1356,11 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 			.OnComponentClassSelected(FComponentClassSelected::CreateLambda(PerformComboAddClass))
 			.Visibility_Lambda([this, ExtensionContext]
 			{
-				if(USCSEditorExtensionContext* SCSEditorExtensionContext = Cast<USCSEditorExtensionContext>(ExtensionContext.Get()))
+				if(USubobjectEditorExtensionContext* SubobjectEditorExtensionContext = Cast<USubobjectEditorExtensionContext>(ExtensionContext.Get()))
 				{
-					if (SCSEditorExtensionContext->GetSubobjectEditor().IsValid())
+					if (SubobjectEditorExtensionContext->GetSubobjectEditor().IsValid())
 					{
-						if (const ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(SCSEditorExtensionContext->GetSubobjectEditor().Pin()->GetObjectContext()))
+						if (const ADisplayClusterRootActor* RootActor = Cast<ADisplayClusterRootActor>(SubobjectEditorExtensionContext->GetSubobjectEditor().Pin()->GetObjectContext()))
 						{
 							// Check that this context is for our root actor and that we are editing just the CDO.
 							// Without this we could show up for unrelated blueprints or in the level editor when selecting our actor.

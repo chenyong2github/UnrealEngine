@@ -10,7 +10,8 @@ class SSubobjectEditor;
 class SSubobjectInstanceEditor;
 class SSubobjectBlueprintEditor;
 
-// #TODO_BH Rename this file to Subobject Extension context
+class UE_DEPRECATED(5.0, "USCSEditorExtensionContext has been deprecated, use USubobjectEditorExtensionContext instead.") USCSEditorExtensionContext;
+
 UCLASS()
 class KISMET_API USCSEditorExtensionContext : public UObject
 {

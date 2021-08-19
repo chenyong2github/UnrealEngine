@@ -9,7 +9,7 @@
 class SSCSEditor;
 class SSubobjectEditor;
 
-// #TODO_BH Rename this for subobject editor menu context
+class UE_DEPRECATED(5.0, "USSCSEditorMenuContext has been deprecated, use USubobjectEditorMenuContext instead.") USSCSEditorMenuContext;
 UCLASS()
 class KISMET_API USSCSEditorMenuContext : public UObject
 {

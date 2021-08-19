@@ -7,7 +7,7 @@
 #include "GraphEditorActions.h"
 #include "Editor/EditorEngine.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
-#include "SCSEditorExtensionContext.h"	// #TODO_BH Rename this to subobject (this one will break VK, for sure)
+#include "SubobjectEditorExtensionContext.h"
 #include "ToolMenus.h"
 #include "PropertyPath.h"
 
@@ -68,7 +68,7 @@ void SSubobjectBlueprintEditor::Construct(const FArguments& InArgs)
 
 	FMenuBuilder EditBlueprintMenuBuilder = CreateMenuBuilder();
 
-	USCSEditorExtensionContext* ExtensionContext = NewObject<USCSEditorExtensionContext>();
+	USubobjectEditorExtensionContext* ExtensionContext = NewObject<USubobjectEditorExtensionContext>();
 	ExtensionContext->SubobjectEditor = SharedThis(this);
 	ExtensionContext->AddToRoot();
 

@@ -28,7 +28,7 @@
 #include "ToolMenus.h"
 #include "LevelEditorMenuContext.h"
 #include "Engine/Selection.h"
-#include "SSCSEditorMenuContext.h"
+#include "SubobjectEditorMenuContext.h"
 #include "GameplayInsightsStyle.h"
 #include "SSubobjectInstanceEditor.h"
 
@@ -381,7 +381,7 @@ void FGameplayInsightsModule::RegisterMenus()
 		{
 			if (FObjectPropertyTrace::IsEnabled())
 			{
-				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				USubobjectEditorMenuContext* ContextObject = InContext.FindContext<USubobjectEditorMenuContext>();
 				TSharedPtr<SSubobjectEditor> SubobjectEditor = ContextObject ? ContextObject->SubobjectEditor.Pin() : nullptr;
 
 				if (SubobjectEditor.IsValid() && StaticCastSharedPtr<SSubobjectInstanceEditor>(SubobjectEditor))
@@ -407,7 +407,7 @@ void FGameplayInsightsModule::RegisterMenus()
 		{
 			if (FObjectPropertyTrace::IsEnabled())
 			{
-				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				USubobjectEditorMenuContext* ContextObject = InContext.FindContext<USubobjectEditorMenuContext>();
 				if (ContextObject && ContextObject->SubobjectEditor.IsValid() && StaticCastSharedPtr<SSubobjectInstanceEditor>(ContextObject->SubobjectEditor.Pin()))
 				{
 					TSharedPtr<SSubobjectEditor> SubobjectEditor = ContextObject->SubobjectEditor.Pin();
@@ -422,7 +422,7 @@ void FGameplayInsightsModule::RegisterMenus()
 		});
 		Action.GetActionCheckState = FToolMenuGetActionCheckState::CreateLambda([&GetCheckState](const FToolMenuContext& InContext)
 		{
-			USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+			USubobjectEditorMenuContext* ContextObject = InContext.FindContext<USubobjectEditorMenuContext>();
 			if (ContextObject && StaticCastSharedPtr<SSubobjectInstanceEditor>(ContextObject->SubobjectEditor.Pin()))
 			{
 				TSharedPtr<SSubobjectEditor> SubobjectEditor = ContextObject->SubobjectEditor.Pin();
@@ -439,7 +439,7 @@ void FGameplayInsightsModule::RegisterMenus()
 		{
 			if (FObjectPropertyTrace::IsEnabled())
 			{
-				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				USubobjectEditorMenuContext* ContextObject = InContext.FindContext<USubobjectEditorMenuContext>();
 				if (ContextObject && ContextObject->SubobjectEditor.IsValid() && StaticCastSharedPtr<SSubobjectInstanceEditor>(ContextObject->SubobjectEditor.Pin()))
 				{
 					return true;

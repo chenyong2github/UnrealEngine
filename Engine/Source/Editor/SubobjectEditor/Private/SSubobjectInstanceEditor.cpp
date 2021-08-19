@@ -7,7 +7,7 @@
 #include "GraphEditorActions.h"
 #include "Editor/EditorEngine.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
-#include "SCSEditorExtensionContext.h"	// #TODO_BH Rename this to subobject
+#include "SubobjectEditorExtensionContext.h"
 
 #include "Styling/SlateIconFinder.h"
 #include "SlateOptMacros.h"
@@ -60,7 +60,7 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	FMenuBuilder EditBlueprintMenuBuilder = CreateMenuBuilder();
 
 	// Extension context for new boi
-	USCSEditorExtensionContext* ExtensionContext = NewObject<USCSEditorExtensionContext>();
+	USubobjectEditorExtensionContext* ExtensionContext = NewObject<USubobjectEditorExtensionContext>();
 	ExtensionContext->SubobjectEditor = SharedThis(this);
 	ExtensionContext->AddToRoot();
 
