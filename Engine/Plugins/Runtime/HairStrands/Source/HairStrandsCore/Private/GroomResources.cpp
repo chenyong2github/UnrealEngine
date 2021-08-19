@@ -1337,22 +1337,25 @@ void FHairCardsInterpolationResource::InternalRelease()
 // 4 triangles per hair vertex => 12 vertices per hair vertex
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairStrandsBulkData& InData) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
-	PositionBuffer(), VertexCount(InData.GetNumPoints()*12)  
+	PositionBuffer(), VertexCount(InData.GetNumPoints()*12), bOwnPositionBuffer(true)
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairCardsBulkData& InData) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
-	PositionBuffer(), VertexCount(InData.GetNumVertices())
+	PositionBuffer(), VertexCount(InData.GetNumVertices()), bOwnPositionBuffer(false)
 {}
 
 FHairStrandsRaytracingResource::FHairStrandsRaytracingResource(const FHairMeshesBulkData& InData) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred),
-	PositionBuffer(), VertexCount(InData.GetNumVertices())
+	PositionBuffer(), VertexCount(InData.GetNumVertices()), bOwnPositionBuffer(false)
 {}
 
 void FHairStrandsRaytracingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
-	InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("Hair.StrandsRaytracing_PositionBuffer"), EHairResourceUsageType::Dynamic);
+	if (bOwnPositionBuffer)
+	{
+		InternalCreateVertexBufferRDG<FHairStrandsRaytracingFormat>(GraphBuilder, VertexCount, PositionBuffer, TEXT("Hair.StrandsRaytracing_PositionBuffer"), EHairResourceUsageType::Dynamic);
+	}
 }
 
 void FHairStrandsRaytracingResource::InternalRelease()

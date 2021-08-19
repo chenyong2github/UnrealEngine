@@ -1425,7 +1425,7 @@ static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 	FRayTracingGeometry* OutRayTracingGeometry)
 {
 	FRayTracingGeometryInitializer Initializer;
-	static const FName DebugName("HairCards");
+	static const FName DebugName("HairMeshes");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
 	Initializer.IndexBuffer = RestResource->IndexBuffer.IndexBufferRHI;
