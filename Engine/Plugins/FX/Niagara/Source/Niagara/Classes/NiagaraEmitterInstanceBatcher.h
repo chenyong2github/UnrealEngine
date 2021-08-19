@@ -114,7 +114,7 @@ public:
 	 */
 	bool AddSortedGPUSimulation(FNiagaraGPUSortInfo& SortInfo);
 
-	const FGlobalDistanceFieldParameterData& GetGlobalDistanceFieldParameters() const { return GlobalDistanceFieldParams; }
+	const FGlobalDistanceFieldParameterData* GetGlobalDistanceFieldParameters() const;
 
 	void SetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
 	void UnsetDataInterfaceParameters(FRHICommandList& RHICmdList, const FNiagaraGPUSystemTick& Tick, const FNiagaraComputeInstanceData& InstanceData, const FNiagaraShaderRef& ComputeShader, const FNiagaraSimStageData& SimStageData) const;
@@ -242,7 +242,7 @@ private:
 
 	uint32 FramesBeforeTickFlush = 0;
 
-	FGlobalDistanceFieldParameterData GlobalDistanceFieldParams;
+	TConstArrayView<FViewInfo> CurrentPassViews;
 
 	/** A buffer of list sizes used by UpdateFreeIDBuffers to allow overlapping several dispatches. */
 	FRWBuffer FreeIDListSizesBuffer;

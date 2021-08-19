@@ -1711,12 +1711,17 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 			};
 #endif
 
+			CurrentPassViews = Views;
+
 			FRHIUniformBuffer* ViewUniformBuffer = GetReferenceViewUniformBuffer(Views);
 
 			// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
 			ExecuteTicks(RHICmdList, ViewUniformBuffer, ENiagaraGpuComputeTickStage::PostOpaqueRender);
 
 			FinishDispatches();
+
+			// Clear CurrentPassViews
+			CurrentPassViews = TConstArrayView<FViewInfo>();
 
 			ProcessDebugReadbacks(RHICmdList, false);
 		}
@@ -1822,9 +1827,6 @@ void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, TConstA
 	}
 
 	LLM_SCOPE(ELLMTag::Niagara);
-
-	const FGlobalDistanceFieldParameterData* ViewGlobalDistanceFieldParams = GetReferenceGlobalDistanceFieldData(Views);
-	GlobalDistanceFieldParams = ViewGlobalDistanceFieldParams ? *ViewGlobalDistanceFieldParams : FGlobalDistanceFieldParameterData();
 }
 
 void NiagaraEmitterInstanceBatcher::OnDestroy()
@@ -1846,6 +1848,12 @@ bool NiagaraEmitterInstanceBatcher::AddSortedGPUSimulation(FNiagaraGPUSortInfo& 
 	{
 		return false;
 	}
+}
+
+const FGlobalDistanceFieldParameterData* NiagaraEmitterInstanceBatcher::GetGlobalDistanceFieldParameters() const
+{ 
+	check(CurrentPassViews.Num() > 0); 
+	return &CurrentPassViews[0].GlobalDistanceFieldInfo.ParameterData; 
 }
 
 void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
