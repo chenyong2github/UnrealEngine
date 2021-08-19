@@ -470,7 +470,7 @@ private:
 	TSharedPtr<FDisplayClusterConfiguratorSCSEditorViewportClient> ViewportClient;
 };
 
-void SDisplayClusterConfiguratorSCSEditorViewport::Construct(const FArguments& InArgs)
+void SDisplayClusterConfiguratorSCSEditorViewport::Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs)
 {
 	bIsActiveTimerRegistered = false;
 
@@ -478,7 +478,7 @@ void SDisplayClusterConfiguratorSCSEditorViewport::Construct(const FArguments& I
 	BlueprintEditorPtr = InArgs._BlueprintEditor;
 	OwnerTab = InArgs._OwningTab;
 	
-	SAssetEditorViewport::Construct(SAssetEditorViewport::FArguments(), FAssetEditorViewportConstructionArgs());
+	SAssetEditorViewport::Construct(SAssetEditorViewport::FArguments(), InViewportConstructionArgs);
 
 	// Restore last used feature level
 	if (ViewportClient.IsValid())

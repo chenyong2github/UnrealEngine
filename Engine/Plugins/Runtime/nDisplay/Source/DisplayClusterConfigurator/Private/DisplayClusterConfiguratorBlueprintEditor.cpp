@@ -45,7 +45,6 @@
 #include "ISCSEditorUICustomization.h"
 #include "SBlueprintEditorToolbar.h"
 #include "SubobjectEditorExtensionContext.h"
-#include "SubobjectEditorExtensionContext.h"
 #include "SKismetInspector.h"
 #include "SSCSEditor.h"
 #include "ToolMenu.h"
@@ -149,8 +148,6 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 	
 	RegisterMenus();
 	
-	TSharedRef<FApplicationMode> ConfigurationMode = MakeShared<FDisplayClusterConfiguratorEditorConfigurationMode>(Editor);
-	
 	{
 		const bool bCreateDefaultStandaloneMenu = true;
 		const bool bCreateDefaultToolbar = true;
@@ -166,6 +163,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::InitDisplayClusterBlueprintEdit
 		);
 	}
 
+	TSharedRef<FApplicationMode> ConfigurationMode = MakeShared<FDisplayClusterConfiguratorEditorConfigurationMode>(Editor);
 	AddApplicationMode(ConfigurationMode->GetModeName(), ConfigurationMode);
 	
 	const TArray<UBlueprint*> Blueprints{ Blueprint };
@@ -1249,7 +1247,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::CreateDCSCSEditors()
 
 	ViewportTabContent->Initialize([this](const FAssetEditorViewportConstructionArgs InArgs)
 	{
-		return SNew(SDisplayClusterConfiguratorSCSEditorViewport)
+		return SNew(SDisplayClusterConfiguratorSCSEditorViewport, InArgs)
 			.BlueprintEditor(SharedThis(this))
 			.OwningTab(ViewportTab);
 	}, ViewportTab.ToSharedRef(), LayoutId);

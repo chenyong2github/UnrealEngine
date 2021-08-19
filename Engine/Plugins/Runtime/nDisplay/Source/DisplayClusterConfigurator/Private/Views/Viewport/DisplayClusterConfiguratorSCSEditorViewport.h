@@ -15,7 +15,7 @@ class SDisplayClusterConfiguratorSCSEditorViewport : public SAssetEditorViewport
 		SLATE_ARGUMENT(TSharedPtr<SDockTab>, OwningTab)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
 
 	~SDisplayClusterConfiguratorSCSEditorViewport();
 	
