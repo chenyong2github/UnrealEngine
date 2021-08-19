@@ -82,6 +82,9 @@ struct FSkelMeshSection
 
 	/** This section will cast shadow */
 	bool bCastShadow;
+	
+	/** If true, this section will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
+	bool bVisibleInRayTracing;
 
 	/** This is set for old 'duplicate' sections that need to get removed on load */
 	bool bLegacyClothingSection_DEPRECATED;
@@ -157,6 +160,7 @@ struct FSkelMeshSection
 		, bRecomputeTangent(false)
 		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, bLegacyClothingSection_DEPRECATED(false)
 		, CorrespondClothSectionIndex_DEPRECATED(-1)
 		, BaseVertexIndex(0)
@@ -238,6 +242,9 @@ struct FSkelMeshSourceSectionUserData
 	/** This section will cast shadow */
 	bool bCastShadow;
 
+	/** If true, this section will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
+	bool bVisibleInRayTracing;
+
 	// INDEX_NONE if not set
 	int16 CorrespondClothAssetIndex;
 
@@ -266,6 +273,7 @@ struct FSkelMeshSourceSectionUserData
 		: bRecomputeTangent(false)
 		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, CorrespondClothAssetIndex(INDEX_NONE)
 		, bDisabled(false)
 		, GenerateUpToLodIndex(INDEX_NONE)
@@ -287,6 +295,7 @@ struct FSkelMeshSourceSectionUserData
 			//If the UserSectionData do not exist add it and copy from the section data
 			UserSectionData = &UserSectionsData.Add(Section.OriginalDataSectionIndex);
 			UserSectionData->bCastShadow = Section.bCastShadow;
+			UserSectionData->bVisibleInRayTracing = Section.bVisibleInRayTracing;			
 			UserSectionData->bDisabled = Section.bDisabled;
 			UserSectionData->bRecomputeTangent = Section.bRecomputeTangent;
 			UserSectionData->RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;

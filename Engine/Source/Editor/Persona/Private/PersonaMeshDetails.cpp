@@ -145,6 +145,7 @@ void SetSkelMeshSourceSectionUserData(FSkeletalMeshLODModel& LODModel, const int
 	FSkelMeshSourceSectionUserData& SourceSectionUserData = LODModel.UserSectionsData.FindOrAdd(OriginalSectionIndex);
 	SourceSectionUserData.bDisabled = LODModel.Sections[SectionIndex].bDisabled;
 	SourceSectionUserData.bCastShadow = LODModel.Sections[SectionIndex].bCastShadow;
+	SourceSectionUserData.bVisibleInRayTracing = LODModel.Sections[SectionIndex].bVisibleInRayTracing;
 	SourceSectionUserData.bRecomputeTangent = LODModel.Sections[SectionIndex].bRecomputeTangent;
 	SourceSectionUserData.RecomputeTangentsVertexMaskChannel = LODModel.Sections[SectionIndex].RecomputeTangentsVertexMaskChannel;
 	SourceSectionUserData.GenerateUpToLodIndex = LODModel.Sections[SectionIndex].GenerateUpToLodIndex;
@@ -1943,6 +1944,7 @@ void FPersonaMeshDetails::OnCopySectionList(int32 LODIndex)
 				JSonSection->SetBoolField(TEXT("RecomputeTangent"), ModelSection.bRecomputeTangent);
 				JSonSection->SetNumberField(TEXT("RecomputeTangentsVertexMaskChannel"), static_cast<uint8>(ModelSection.RecomputeTangentsVertexMaskChannel));
 				JSonSection->SetBoolField(TEXT("CastShadow"), ModelSection.bCastShadow);
+				JSonSection->SetBoolField(TEXT("VisibleInRayTracing"), ModelSection.bVisibleInRayTracing);
 				JSonSection->SetNumberField(TEXT("GenerateUpToLodIndex"), ModelSection.GenerateUpToLodIndex);
 				JSonSection->SetNumberField(TEXT("ChunkedParentSectionIndex"), ModelSection.ChunkedParentSectionIndex);
 				JSonSection->SetStringField(TEXT("ClothingData.AssetGuid"), ModelSection.ClothingData.AssetGuid.ToString(EGuidFormats::Digits));
@@ -2027,6 +2029,7 @@ void FPersonaMeshDetails::OnPasteSectionList(int32 LODIndex)
 							ModelSection.RecomputeTangentsVertexMaskChannel = static_cast<ESkinVertexColorChannel>((uint8)(Value & 0xFF));
 						}
 						(*JSonSection)->TryGetBoolField(TEXT("CastShadow"), ModelSection.bCastShadow);
+						(*JSonSection)->TryGetBoolField(TEXT("VisibleInRayTracing"), ModelSection.bVisibleInRayTracing);
 						if ((*JSonSection)->TryGetNumberField(TEXT("GenerateUpToLodIndex"), Value))
 						{
 							ModelSection.GenerateUpToLodIndex = (int8)Value;
@@ -2077,6 +2080,7 @@ void FPersonaMeshDetails::OnCopySectionItem(int32 LODIndex, int32 SectionIndex)
 				RootJsonObject->SetBoolField(TEXT("RecomputeTangent"), ModelSection.bRecomputeTangent);
 				RootJsonObject->SetNumberField(TEXT("RecomputeTangentsVertexMaskChannel"), static_cast<uint8>(ModelSection.RecomputeTangentsVertexMaskChannel));
 				RootJsonObject->SetBoolField(TEXT("CastShadow"), ModelSection.bCastShadow);
+				RootJsonObject->SetBoolField(TEXT("VisibleInRayTracing"), ModelSection.bVisibleInRayTracing);
 				RootJsonObject->SetNumberField(TEXT("GenerateUpToLodIndex"), ModelSection.GenerateUpToLodIndex);
 				RootJsonObject->SetNumberField(TEXT("ChunkedParentSectionIndex"), ModelSection.ChunkedParentSectionIndex);
 				RootJsonObject->SetStringField(TEXT("ClothingData.AssetGuid"), ModelSection.ClothingData.AssetGuid.ToString(EGuidFormats::Digits));
@@ -2156,6 +2160,7 @@ void FPersonaMeshDetails::OnPasteSectionItem(int32 LODIndex, int32 SectionIndex)
 						ModelSection.RecomputeTangentsVertexMaskChannel = static_cast<ESkinVertexColorChannel>((uint8) (Value & 0xFF));
 					}
 					RootJsonObject->TryGetBoolField(TEXT("CastShadow"), ModelSection.bCastShadow);
+					RootJsonObject->TryGetBoolField(TEXT("VisibleInRayTracing"), ModelSection.bVisibleInRayTracing);
 					if (RootJsonObject->TryGetNumberField(TEXT("GenerateUpToLodIndex"), Value))
 					{
 						ModelSection.GenerateUpToLodIndex = (int8)Value;
@@ -4636,6 +4641,26 @@ TSharedRef<SWidget> FPersonaMeshDetails::OnGenerateCustomSectionWidgetsForSectio
 			]
 		]
 	];
+
+	SectionWidget->AddSlot()
+	.AutoHeight()
+	.Padding(0, 2, 0, 0)
+	[
+		SNew(SHorizontalBox)
+		+SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(2, 0, 2, 0)
+		[
+			SNew(SCheckBox)
+			.IsChecked(this, &FPersonaMeshDetails::IsSectionVisibleInRayTracingEnabled, LODIndex, SectionIndex)
+			.OnCheckStateChanged(this, &FPersonaMeshDetails::OnSectionVisibleInRayTracingChanged, LODIndex, SectionIndex)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Text(LOCTEXT("Visible In RayTracing", "Visible In RayTracing"))
+			]
+		]
+	];
 	return SectionWidget;
 }
 
@@ -5180,6 +5205,77 @@ void FPersonaMeshDetails::OnSectionShadowCastingChanged(ECheckBoxState NewState,
 		const FScopedTransaction Transaction(LOCTEXT("PersonaClearSectionShadowCastingFlag", "Persona editor: Clear Shadow Casting For Section"));
 		Mesh->Modify();
 		UpdatePolygonGroupCastShadow(false);
+	}
+}
+
+ECheckBoxState FPersonaMeshDetails::IsSectionVisibleInRayTracingEnabled(int32 LODIndex, int32 SectionIndex) const
+{
+	ECheckBoxState State = ECheckBoxState::Unchecked;
+	const USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
+	if (Mesh == nullptr)
+		return State;
+
+	check(Mesh->GetImportedModel());
+
+	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+		return State;
+
+	const FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
+
+	if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		return State;
+
+	const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+	State = Section.bVisibleInRayTracing ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	return State;
+}
+
+void FPersonaMeshDetails::OnSectionVisibleInRayTracingChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex)
+{
+	ECheckBoxState State = ECheckBoxState::Unchecked;
+	USkeletalMesh* Mesh = GetPersonaToolkit()->GetMesh();
+	if (Mesh == nullptr)
+		return;
+
+	check(Mesh->GetImportedModel());
+
+	if (!Mesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+		return;
+
+	FSkeletalMeshLODModel& LODModel = Mesh->GetImportedModel()->LODModels[LODIndex];
+
+	if (!LODModel.Sections.IsValidIndex(SectionIndex))
+		return;
+
+	FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+
+	//Update Original PolygonGroup
+	auto UpdatePolygonGroupVisibleInRayTracing = [&Mesh, &LODModel, &Section, &SectionIndex](bool bVisibleInRayTracing)
+	{
+		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
+		{
+			FScopedSkeletalMeshPostEditChange ScopedPostEditChange(Mesh);
+			Section.bVisibleInRayTracing = bVisibleInRayTracing;
+			//We change only the parent chunk data
+			check(Section.ChunkedParentSectionIndex == INDEX_NONE);
+
+			//The post edit change will kick a build
+			SetSkelMeshSourceSectionUserData(LODModel, SectionIndex, Section.OriginalDataSectionIndex);
+		}
+	};
+
+	if (NewState == ECheckBoxState::Checked)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("PersonaSetSectionVisibleInRayTracingFlag", "Persona editor: Set Visible In RayTracing For Section"));
+		Mesh->Modify();
+		UpdatePolygonGroupVisibleInRayTracing(true);
+	}
+	else if (NewState == ECheckBoxState::Unchecked)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("PersonaClearSectionVisibleInRayTracinggFlag", "Persona editor: Clear Visible In RayTracing For Section"));
+		Mesh->Modify();
+		UpdatePolygonGroupVisibleInRayTracing(false);
 	}
 }
 

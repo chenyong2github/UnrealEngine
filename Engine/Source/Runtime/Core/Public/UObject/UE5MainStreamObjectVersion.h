@@ -172,6 +172,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Ray tracing shadows have three states now (Disabled, Use Project Settings, Enabled)
 		RayTracedShadowsType,
 
+		// Add bVisibleInRayTracing flag to Skeletal Mesh Sections
+		SkelMeshSectionVisibleInRayTracingFlagAdded,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

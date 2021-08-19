@@ -305,6 +305,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID); // Also used by FSoftSkinVertex serializer
 	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
 	Ar.UsingCustomVersion(FOverlappingVerticesCustomVersion::GUID);
 
@@ -384,6 +385,16 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 	else
 	{
 		S.bCastShadow = true;
+	}
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkelMeshSectionVisibleInRayTracingFlagAdded)
+	{
+		Ar << S.bVisibleInRayTracing;
+	}
+	else
+	{
+		// default is to be visible in ray tracing - which is consistent with behaviour before adding this member
+		S.bVisibleInRayTracing = true;
 	}
 
 	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) >= FSkeletalMeshCustomVersion::CombineSectionWithChunk)
@@ -534,6 +545,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSection& S)
 // Serialization.
 FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 {
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID); 
 
 	FStripDataFlags StripFlags(Ar);
@@ -556,6 +568,17 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshSourceSectionUserData& S)
 	}
 
 	Ar << S.bCastShadow;
+
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkelMeshSectionVisibleInRayTracingFlagAdded)
+	{
+		Ar << S.bVisibleInRayTracing;
+	}
+	else
+	{
+		// default is to be visible in ray tracing - which is consistent with behaviour before adding this member
+		S.bVisibleInRayTracing = true;
+	}
+
 	Ar << S.bDisabled;
 	Ar << S.GenerateUpToLodIndex;
 	Ar << S.CorrespondClothAssetIndex;
@@ -1082,6 +1105,7 @@ void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSe
 		FSkelMeshSection& Section = Sections[SectionIndex];
 		FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
 		Section.bCastShadow					= SectionUserData.bCastShadow;
+		Section.bVisibleInRayTracing		= SectionUserData.bVisibleInRayTracing;
 		Section.bRecomputeTangent			= SectionUserData.bRecomputeTangent;
 		Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
 		Section.bDisabled					= SectionUserData.bDisabled;
@@ -1106,6 +1130,7 @@ void FSkeletalMeshLODModel::SyncronizeUserSectionsDataArray(bool bResetNonUsedSe
 			}
 			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
 			SectionUserData.bCastShadow = Section.bCastShadow;
+			SectionUserData.bVisibleInRayTracing = Section.bVisibleInRayTracing;
 			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
 			SectionUserData.RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			SectionUserData.bDisabled = Section.bDisabled;
@@ -1173,6 +1198,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(Section.OriginalDataSectionIndex);
 			Section.bDisabled = SectionUserData.bDisabled;
 			Section.bCastShadow = SectionUserData.bCastShadow;
+			Section.bVisibleInRayTracing = SectionUserData.bVisibleInRayTracing;
 			Section.bRecomputeTangent = SectionUserData.bRecomputeTangent;
 			Section.RecomputeTangentsVertexMaskChannel = SectionUserData.RecomputeTangentsVertexMaskChannel;
 			Section.GenerateUpToLodIndex = SectionUserData.GenerateUpToLodIndex;
@@ -1187,6 +1213,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 			FSkelMeshSourceSectionUserData& SectionUserData = UserSectionsData.FindOrAdd(OriginalIndex);
 			SectionUserData.bDisabled = Section.bDisabled;
 			SectionUserData.bCastShadow = Section.bCastShadow;
+			SectionUserData.bVisibleInRayTracing = Section.bVisibleInRayTracing;
 			SectionUserData.bRecomputeTangent = Section.bRecomputeTangent;
 			SectionUserData.RecomputeTangentsVertexMaskChannel = Section.RecomputeTangentsVertexMaskChannel;
 			SectionUserData.GenerateUpToLodIndex = Section.GenerateUpToLodIndex;

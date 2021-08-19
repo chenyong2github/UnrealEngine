@@ -12,6 +12,7 @@
 #include "PlatformInfo.h"
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "GPUSkinCache.h"
 
 #if WITH_EDITOR
@@ -74,6 +75,7 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 {
 	const uint8 DuplicatedVertices = 1;
 	
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRecomputeTangentCustomVersion::GUID);
 
 	// DuplicatedVerticesBuffer is used only for SkinCache and Editor features which is SM5 only
@@ -99,6 +101,15 @@ FArchive& operator<<(FArchive& Ar, FSkelMeshRenderSection& S)
 		S.RecomputeTangentsVertexMaskChannel = ESkinVertexColorChannel::None;
 	}
 	Ar << S.bCastShadow;
+	if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) >= FUE5MainStreamObjectVersion::SkelMeshSectionVisibleInRayTracingFlagAdded)
+	{
+		Ar << S.bVisibleInRayTracing;
+	}
+	else
+	{
+		// default is to be visible in ray tracing - which is consistent with behaviour before adding this member
+		S.bVisibleInRayTracing = true;
+	}
 	Ar << S.BaseVertexIndex;
 	Ar << S.ClothMappingData;
 	Ar << S.BoneMap;
@@ -366,6 +377,7 @@ void FSkeletalMeshLODRenderData::BuildFromLODModel(const FSkeletalMeshLODModel* 
 		NewRenderSection.bRecomputeTangent = ModelSection.bRecomputeTangent;
 		NewRenderSection.RecomputeTangentsVertexMaskChannel = ModelSection.RecomputeTangentsVertexMaskChannel;
 		NewRenderSection.bCastShadow = ModelSection.bCastShadow;
+		NewRenderSection.bVisibleInRayTracing = ModelSection.bVisibleInRayTracing;
 		NewRenderSection.BaseVertexIndex = ModelSection.BaseVertexIndex;
 		NewRenderSection.ClothMappingData = ModelSection.ClothMappingData;
 		NewRenderSection.BoneMap = ModelSection.BoneMap;

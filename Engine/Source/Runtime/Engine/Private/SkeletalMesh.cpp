@@ -906,6 +906,7 @@ void USkeletalMesh::InitResources()
 					const FSkelMeshSourceSectionUserData& SectionUserData = ImportLODModel.UserSectionsData.FindChecked(ImportSection.OriginalDataSectionIndex);
 					bool bImportDataInSync = SectionUserData.bDisabled == ImportSection.bDisabled &&
 						SectionUserData.bCastShadow == ImportSection.bCastShadow &&
+						SectionUserData.bVisibleInRayTracing == ImportSection.bVisibleInRayTracing &&
 						SectionUserData.bRecomputeTangent == ImportSection.bRecomputeTangent &&
 						SectionUserData.RecomputeTangentsVertexMaskChannel == ImportSection.RecomputeTangentsVertexMaskChannel;
 					//Check the cloth only for parent section, since chunked section should not have cloth
@@ -920,6 +921,7 @@ void USkeletalMesh::InitResources()
 					const FSkelMeshRenderSection& RenderSection = RenderLODModel.RenderSections[SectionIndex];
 					bool bRenderDataInSync = SectionUserData.bDisabled == RenderSection.bDisabled &&
 						SectionUserData.bCastShadow == RenderSection.bCastShadow &&
+						SectionUserData.bVisibleInRayTracing == RenderSection.bVisibleInRayTracing &&
 						SectionUserData.bRecomputeTangent == RenderSection.bRecomputeTangent &&
 						SectionUserData.RecomputeTangentsVertexMaskChannel == RenderSection.RecomputeTangentsVertexMaskChannel &&
 						SectionUserData.CorrespondClothAssetIndex == RenderSection.CorrespondClothAssetIndex &&
@@ -6453,7 +6455,7 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 					FRayTracingGeometrySegment Segment;
 					Segment.FirstPrimitive = Section.BaseIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
-					Segment.bEnabled = !MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) && !Section.bDisabled;
+					Segment.bEnabled = !MeshObject->IsMaterialHidden(LODIndex, SectionElementInfo.UseMaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;
 					GeometrySections.Add(Segment);
 				}
 
