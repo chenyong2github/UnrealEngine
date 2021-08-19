@@ -179,7 +179,7 @@ void FRewindDebugger::OnPIEStopped(bool bSimulating)
 	SetCurrentScrubTime(0);
 }
 
-bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& ComponentList)
+bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& ComponentList, bool bAddController)
 {
 	TSharedPtr<const TraceServices::IAnalysisSession> Session = UnrealInsightsModule->GetAnalysisSession();
 	TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
@@ -193,25 +193,46 @@ bool FRewindDebugger::UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDe
 	{
 		// todo: filter components based on creation/destruction frame, and the current scrubbing time (so dynamically created and destroyed components won't add up)
 
-		const FObjectInfo* ObjectInfo = &InObjectInfo;
-		if (ObjectInfo->OuterId == ParentId)
+		if (InObjectInfo.OuterId == ParentId)
 		{
-			int32 FoundIndex = ComponentList.FindLastByPredicate([ObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == ObjectInfo->Name; });
+			const int32 FoundIndex = ComponentList.FindLastByPredicate([&InObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == InObjectInfo.Name; });
 
 			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == InObjectInfo.Name)
 			{
-				ComponentList[FoundIndex]->ObjectId = ObjectInfo->Id; // there is an issue with skeletal mesh components changing ids
-				bChanged = bChanged || UpdateComponentList(ObjectInfo->Id, ComponentList[FoundIndex]->Children);
+				ComponentList[FoundIndex]->ObjectId = InObjectInfo.Id; // there is an issue with skeletal mesh components changing ids
+				bChanged = bChanged || UpdateComponentList(InObjectInfo.Id, ComponentList[FoundIndex]->Children);
 			}
 			else
 			{
 				bChanged = true;
-				ComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectInfo->Id,InObjectInfo.Name));
-				UpdateComponentList(ObjectInfo->Id, ComponentList.Last()->Children);
+				ComponentList.Add(MakeShared<FDebugObjectInfo>(InObjectInfo.Id,InObjectInfo.Name));
+				UpdateComponentList(InObjectInfo.Id, ComponentList.Last()->Children);
 			}
 		}
 	});
 
+	// add controller and it's component hierarchy if one is attached
+	if (bAddController)
+	{
+		if (uint64 ControllerId = GameplayProvider->FindPossessingController(ParentId, CurrentTraceTime()))
+		{
+			const FObjectInfo& ObjectInfo = GameplayProvider->GetObjectInfo(ControllerId);
+			const int32 FoundIndex = ComponentList.FindLastByPredicate([ObjectInfo](const TSharedPtr<FDebugObjectInfo>& Info) { return Info->ObjectName == ObjectInfo.Name; });
+
+			if (FoundIndex >= 0 && ComponentList[FoundIndex]->ObjectName == ObjectInfo.Name)
+			{
+				ComponentList[FoundIndex]->ObjectId = ObjectInfo.Id;
+				bChanged = bChanged || UpdateComponentList(ObjectInfo.Id, ComponentList[FoundIndex]->Children);
+			}
+			else
+			{
+				bChanged = true;
+				ComponentList.Add(MakeShared<FDebugObjectInfo>(ObjectInfo.Id,ObjectInfo.Name));
+				UpdateComponentList(ObjectInfo.Id, ComponentList.Last()->Children);
+			}
+		}
+	}
+	
 	return bChanged;
 }
 
@@ -282,7 +303,7 @@ void FRewindDebugger::RefreshDebugComponents()
 
 			if (TargetActorId != 0 && DebugComponents.Num() > 0)
 			{
-				bChanged = bChanged || UpdateComponentList(TargetActorId, DebugComponents[0]->Children);
+				bChanged = bChanged || UpdateComponentList(TargetActorId, DebugComponents[0]->Children, true);
 			}
 
 			if (bChanged)

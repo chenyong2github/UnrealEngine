@@ -44,6 +44,12 @@ UE_TRACE_EVENT_BEGIN(Object, ObjectEvent)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Event)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(Object, PawnPossess)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
+	UE_TRACE_EVENT_FIELD(uint64, ControllerId)
+	UE_TRACE_EVENT_FIELD(uint64, PawnId)
+UE_TRACE_EVENT_END()
+
 UE_TRACE_EVENT_BEGIN(Object, World)
 	UE_TRACE_EVENT_FIELD(uint64, Id)
 	UE_TRACE_EVENT_FIELD(int32, PIEInstanceId)
@@ -400,6 +406,26 @@ void FObjectTrace::OutputObjectEvent(const UObject* InObject, const TCHAR* InEve
 		<< ObjectEvent.Cycle(FPlatformTime::Cycles64())
 		<< ObjectEvent.Id(GetObjectId(InObject))
 		<< ObjectEvent.Event(InEvent);
+}
+
+void FObjectTrace::OutputPawnPossess(const UObject* InController, const UObject* InPawn)
+{
+	bool bChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(ObjectChannel);
+	if (!bChannelEnabled || InController == nullptr)
+	{
+		return;
+	}
+
+	TRACE_OBJECT(InController);
+	if (InPawn)
+	{
+		TRACE_OBJECT(InPawn);
+	}
+	
+	UE_TRACE_LOG(Object, PawnPossess, ObjectChannel)
+		<< PawnPossess.Cycle(FPlatformTime::Cycles64())
+		<< PawnPossess.ControllerId(GetObjectId(InController))
+		<< PawnPossess.PawnId(GetObjectId(InPawn));
 }
 
 void FObjectTrace::OutputWorld(const UWorld* InWorld)

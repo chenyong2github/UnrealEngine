@@ -124,5 +124,6 @@ public:
 	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const = 0;
 	virtual const RecordingInfoTimeline* GetRecordingInfo(uint32 RecordingId) const = 0; 
 	virtual void ReadViewTimeline(TFunctionRef<void(const ViewTimeline&)> Callback) const = 0;
+	virtual uint64 FindPossessingController(uint64 Pawn, double Time) const = 0;
 };
 

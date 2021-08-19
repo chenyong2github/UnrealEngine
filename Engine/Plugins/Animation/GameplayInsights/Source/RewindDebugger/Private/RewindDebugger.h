@@ -113,7 +113,7 @@ private:
 	void OnPIESingleStepped(bool bSimulating);
 
 
-	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList);
+	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList, bool bAddController = false);
 	void SetCurrentScrubTime(float Time);
 	void UpdateTraceTime();
 

@@ -19,6 +19,7 @@ void FGameplayAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Class, "Object", "Class");
 	Builder.RouteEvent(RouteId_Object, "Object", "Object");
 	Builder.RouteEvent(RouteId_ObjectEvent, "Object", "ObjectEvent");
+	Builder.RouteEvent(RouteId_PawnPossess, "Object", "PawnPossess");
 	Builder.RouteEvent(RouteId_World, "Object", "World");
 	Builder.RouteEvent(RouteId_View, "Object", "View");
 	Builder.RouteEvent(RouteId_ClassPropertyStringId, "Object", "ClassPropertyStringId");
@@ -100,6 +101,14 @@ bool FGameplayAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		uint64 Id = EventData.GetValue<uint64>("Id");
 		FString Event = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Event", Context);
 		GameplayProvider.AppendObjectEvent(Id, Context.EventTime.AsSeconds(Cycle), *Event);
+		break;
+	}
+	case RouteId_PawnPossess:
+	{
+		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
+		uint64 ControllerId = EventData.GetValue<uint64>("ControllerId");
+		uint64 PawnId = EventData.GetValue<uint64>("PawnId");
+		GameplayProvider.AppendPawnPossess(ControllerId, PawnId, Context.EventTime.AsSeconds(Cycle));
 		break;
 	}
 	case RouteId_View:

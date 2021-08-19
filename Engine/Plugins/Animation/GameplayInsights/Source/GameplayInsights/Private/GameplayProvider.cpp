@@ -2,6 +2,8 @@
 
 #include "GameplayProvider.h"
 
+#include "Model/AsyncEnumerateTask.h"
+
 FName FGameplayProvider::ProviderName("GameplayProvider");
 
 #define LOCTEXT_NAMESPACE "GameplayProvider"
@@ -9,6 +11,7 @@ FName FGameplayProvider::ProviderName("GameplayProvider");
 FGameplayProvider::FGameplayProvider(TraceServices::IAnalysisSession& InSession)
 	: Session(InSession)
 	, EndPlayEvent(nullptr)
+	, PawnPossession(InSession.GetLinearAllocator())
 	, bHasAnyData(false)
 	, bHasObjectProperties(false)
 {
@@ -314,6 +317,42 @@ void FGameplayProvider::AppendObjectEvent(uint64 InObjectId, double InTime, cons
 	Timeline->AppendEvent(InTime, Message);
 
 	Session.UpdateDurationSeconds(InTime);
+}
+
+void FGameplayProvider::AppendPawnPossess(uint64 InControllerId, uint64 InPawnId, double InTime)
+{
+	Session.WriteAccessCheck();
+	bHasAnyData = true;
+
+	// End any active controller attachment interval for this controller
+	if (const uint64 *FoundIndex = ActivePawnPossession.Find(InControllerId))
+	{
+		PawnPossession.EndEvent(*FoundIndex, InTime);
+		ActivePawnPossession.Remove(InControllerId);
+	}
+	
+	if (InPawnId)
+	{
+		FPawnPossessMessage Message;
+		Message.ControllerId = InControllerId;
+		Message.PawnId = InPawnId;
+		ActivePawnPossession.Add(InControllerId, PawnPossession.AppendBeginEvent(InTime, Message));
+	}
+}
+
+uint64 FGameplayProvider::FindPossessingController(uint64 PawnId, double Time) const
+{
+	uint64 ControllerId = 0;
+	PawnPossession.EnumerateEvents(Time,Time,[&ControllerId, PawnId](double StartTime,double EndTime, const FPawnPossessMessage Message)
+	{
+		if (Message.PawnId == PawnId)
+		{
+			ControllerId = Message.ControllerId;
+			return TraceServices::EEventEnumerate::Stop;
+		}
+		return TraceServices::EEventEnumerate::Continue;
+	});
+	return ControllerId;
 }
 
 void FGameplayProvider::ReadViewTimeline(TFunctionRef<void(const IGameplayProvider::ViewTimeline&)> Callback) const

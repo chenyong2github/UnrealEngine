@@ -46,6 +46,9 @@ public:
 
 	/** Add an object event message */
 	void AppendObjectEvent(uint64 InObjectId, double InTime, const TCHAR* InEvent);
+	
+	/** Add a Controller Attach message */
+	void AppendPawnPossess(uint64 InControllerId, uint64 InPawnId, double InTime);
 
 	/** Add a view message */
 	void AppendView(uint64 InObjectId, double InTime, const FVector& InPosition, const FRotator& InRotation, float InFov, float InAspectRatio);
@@ -74,6 +77,9 @@ public:
 	/** Check whether we have any object property data */
 	bool HasObjectProperties() const;
 
+	/** Search PawnPossession timeline to find the Controller Object Id for a Pawn (or 0 if none)*/
+	virtual uint64 FindPossessingController(uint64 Pawn, double Time) const override;
+
 private:
 	TraceServices::IAnalysisSession& Session;
 
@@ -98,6 +104,12 @@ private:
 	/** Map from object Ids to timeline index */
 	TMap<uint64, uint32> ObjectIdToEventTimelines;
 	TMap<uint64, uint32> ObjectIdToPropertiesStorage;
+
+	struct FPawnPossessMessage
+	{
+		uint64 ControllerId = 0;
+		uint64 PawnId = 0;
+	};
 
 	struct FObjectPropertiesStorage
 	{
@@ -127,6 +139,12 @@ private:
 
 	/** Map of RecordingInfo Timelines by RecordingId - Each timeline is a mapping from Gameplay Elapsed time to Profiler Elapsed Time for one recording session */
 	TMap<uint32, TSharedRef<TraceServices::TPointTimeline<FRecordingInfoMessage>>> Recordings;
+
+	// Timeline containing intervals where a controller is attached to a pawn
+	TraceServices::TIntervalTimeline<FPawnPossessMessage> PawnPossession;
+
+	// map from controller id to index in the PawnPossession timeline, for lookup when ending events
+	TMap<uint64, uint64> ActivePawnPossession;
 
 	/** Whether we have any data */
 	bool bHasAnyData;
