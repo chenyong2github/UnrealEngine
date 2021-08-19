@@ -85,7 +85,7 @@ namespace LiveLinkPresetUtils
 			{
 				if (WorldContext.WorldType == EWorldType::Game)
 				{
-					return World;
+					return WorldContext.World();
 				}
 			}
 		}
