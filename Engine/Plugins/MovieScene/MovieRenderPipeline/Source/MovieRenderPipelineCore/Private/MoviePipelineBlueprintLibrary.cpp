@@ -894,7 +894,7 @@ void UMoviePipelineBlueprintLibrary::ResolveFilenameFormatArguments(const FStrin
 	int32 DuplicateIndex = 2;
 	while (true)
 	{
-		OutMergedFormatArgs.FilenameArguments.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
+		NamedArgs.Add(TEXT("file_dup"), FString::Printf(TEXT("_(%d)"), DuplicateIndex));
 
 		// Re-resolve the format string now that we've reassigned frame_dup to a number.
 		ThisTry = FString::Format(*InFormatString, NamedArgs) + Extension;
