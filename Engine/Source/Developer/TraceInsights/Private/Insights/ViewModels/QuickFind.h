@@ -41,6 +41,16 @@ private:
 	FOnFindNextEvent OnFindNextEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnFindPreviousEvent
+public:
+	/** The event to execute when the user selects the "Find Previous" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnFindPreviousEvent);
+	FOnFindPreviousEvent& GetOnFindPreviousEvent() { return OnFindPreviousEvent; }
+
+private:
+	FOnFindPreviousEvent OnFindPreviousEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	TSharedPtr<FFilterConfigurator> FilterConfigurator;
