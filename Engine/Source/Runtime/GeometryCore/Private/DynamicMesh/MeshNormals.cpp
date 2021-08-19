@@ -348,6 +348,7 @@ void FMeshNormals::SmoothVertexNormals(FDynamicMesh3& Mesh, int32 SmoothingRound
 					{
 						SmoothedNormal += (FVector3d)Mesh.GetVertexNormal(nbrvid);
 					});
+					Normalize(SmoothedNormal);
 					SmoothedNormals[vid] = Lerp((FVector3d)Mesh.GetVertexNormal(vid), SmoothedNormal, SmoothingAlpha);
 					Normalize(SmoothedNormals[vid]);
 				}
