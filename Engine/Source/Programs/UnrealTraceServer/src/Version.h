@@ -7,7 +7,7 @@
 #endif
 
 #if !defined(TS_VERSION_MINOR)
-#	define TS_VERSION_MINOR		4
+#	define TS_VERSION_MINOR		5
 #endif
 
 #define TS_ICON_ID				493
