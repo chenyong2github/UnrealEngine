@@ -50,16 +50,16 @@ static constexpr bool IsUniformType(const ECbFieldType Type)
 	}
 }
 
-/** Append the payload from the compact binary value to the array and return its type. */
+/** Append the value from the compact binary value to the array and return its type. */
 static inline ECbFieldType AppendCompactBinary(const FCbFieldView& Value, TArray64<uint8>& OutData)
 {
 	struct FCopy : public FCbFieldView
 	{
 		using FCbFieldView::GetType;
-		using FCbFieldView::GetPayloadView;
+		using FCbFieldView::GetValueView;
 	};
 	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
-	const FMemoryView SourceView = ValueCopy.GetPayloadView();
+	const FMemoryView SourceView = ValueCopy.GetValueView();
 	const int64 TargetOffset = OutData.AddUninitialized(SourceView.GetSize());
 	MakeMemoryView(OutData).RightChop(TargetOffset).CopyFrom(SourceView);
 	return ValueCopy.GetType();
@@ -263,27 +263,27 @@ void FCbWriter::EndObject()
 	const uint64 Count = States.Last().Count;
 	States.Pop();
 
-	// Calculate the offset of the payload.
+	// Calculate the offset of the value.
 	const FState& State = States.Last();
-	int64 PayloadOffset = State.Offset + 1;
+	int64 ValueOffset = State.Offset + 1;
 	if ((State.Flags & EStateFlags::Name) == EStateFlags::Name)
 	{
 		uint32 NameLenByteCount;
-		const uint64 NameLen = ReadVarUInt(Data.GetData() + PayloadOffset, NameLenByteCount);
-		PayloadOffset += NameLen + NameLenByteCount;
+		const uint64 NameLen = ReadVarUInt(Data.GetData() + ValueOffset, NameLenByteCount);
+		ValueOffset += NameLen + NameLenByteCount;
 	}
 
 	// Remove redundant field types for uniform objects.
 	if (bUniform && Count > 1)
 	{
-		MakeFieldsUniform(PayloadOffset, Data.Num());
+		MakeFieldsUniform(ValueOffset, Data.Num());
 	}
 
 	// Insert the object size.
-	const uint64 Size = uint64(Data.Num() - PayloadOffset);
+	const uint64 Size = uint64(Data.Num() - ValueOffset);
 	const uint32 SizeByteCount = MeasureVarUInt(Size);
-	Data.InsertUninitialized(PayloadOffset, SizeByteCount);
-	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
+	Data.InsertUninitialized(ValueOffset, SizeByteCount);
+	WriteVarUInt(Size, Data.GetData() + ValueOffset);
 
 	EndField(bUniform ? ECbFieldType::UniformObject : ECbFieldType::Object);
 }
@@ -316,29 +316,29 @@ void FCbWriter::EndArray()
 	const uint64 Count = States.Last().Count;
 	States.Pop();
 
-	// Calculate the offset of the payload.
+	// Calculate the offset of the value.
 	const FState& State = States.Last();
-	int64 PayloadOffset = State.Offset + 1;
+	int64 ValueOffset = State.Offset + 1;
 	if ((State.Flags & EStateFlags::Name) == EStateFlags::Name)
 	{
 		uint32 NameLenByteCount;
-		const uint64 NameLen = ReadVarUInt(Data.GetData() + PayloadOffset, NameLenByteCount);
-		PayloadOffset += NameLen + NameLenByteCount;
+		const uint64 NameLen = ReadVarUInt(Data.GetData() + ValueOffset, NameLenByteCount);
+		ValueOffset += NameLen + NameLenByteCount;
 	}
 
 	// Remove redundant field types for uniform arrays.
 	if (bUniform && Count > 1)
 	{
-		MakeFieldsUniform(PayloadOffset, Data.Num());
+		MakeFieldsUniform(ValueOffset, Data.Num());
 	}
 
 	// Insert the array size and field count.
 	const uint32 CountByteCount = MeasureVarUInt(Count);
-	const uint64 Size = uint64(Data.Num() - PayloadOffset) + CountByteCount;
+	const uint64 Size = uint64(Data.Num() - ValueOffset) + CountByteCount;
 	const uint32 SizeByteCount = MeasureVarUInt(Size);
-	Data.InsertUninitialized(PayloadOffset, SizeByteCount + CountByteCount);
-	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
-	WriteVarUInt(Count, Data.GetData() + PayloadOffset + SizeByteCount);
+	Data.InsertUninitialized(ValueOffset, SizeByteCount + CountByteCount);
+	WriteVarUInt(Size, Data.GetData() + ValueOffset);
+	WriteVarUInt(Count, Data.GetData() + ValueOffset + SizeByteCount);
 
 	EndField(bUniform ? ECbFieldType::UniformArray : ECbFieldType::Array);
 }
@@ -581,9 +581,9 @@ void FCbWriter::AddCustom(const uint64 TypeId, const FMemoryView Value)
 	const uint32 TypeByteCount = MeasureVarUInt(TypeId);
 	const uint64 Size = TypeByteCount + Value.GetSize();
 	const uint32 SizeByteCount = MeasureVarUInt(Size);
-	const int64 PayloadOffset = Data.AddUninitialized(SizeByteCount + TypeByteCount);
-	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
-	WriteVarUInt(TypeId, Data.GetData() + PayloadOffset + SizeByteCount);
+	const int64 ValueOffset = Data.AddUninitialized(SizeByteCount + TypeByteCount);
+	WriteVarUInt(Size, Data.GetData() + ValueOffset);
+	WriteVarUInt(TypeId, Data.GetData() + ValueOffset + SizeByteCount);
 	Data.Append(static_cast<const uint8*>(Value.GetData()), Value.GetSize());
 	EndField(ECbFieldType::CustomById);
 }
@@ -601,9 +601,9 @@ void FCbWriter::AddCustom(const FUtf8StringView TypeName, const FMemoryView Valu
 	const uint64 Size = TypeNameLenByteCount + TypeNameLen + Value.GetSize();
 	const uint32 SizeByteCount = MeasureVarUInt(Size);
 
-	const int64 PayloadOffset = Data.AddUninitialized(SizeByteCount + TypeNameLenByteCount);
-	WriteVarUInt(Size, Data.GetData() + PayloadOffset);
-	WriteVarUInt(TypeNameLen, Data.GetData() + PayloadOffset + SizeByteCount);
+	const int64 ValueOffset = Data.AddUninitialized(SizeByteCount + TypeNameLenByteCount);
+	WriteVarUInt(Size, Data.GetData() + ValueOffset);
+	WriteVarUInt(TypeNameLen, Data.GetData() + ValueOffset + SizeByteCount);
 	Data.Append(reinterpret_cast<const uint8*>(TypeName.GetData()), TypeNameLen);
 	Data.Append(static_cast<const uint8*>(Value.GetData()), Value.GetSize());
 

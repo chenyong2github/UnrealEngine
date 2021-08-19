@@ -127,30 +127,30 @@ static void ValidateCbFloat64(FMemoryView& View, ECbValidateMode Mode, ECbValida
 }
 
 /**
- * Validate and read a fixed-size payload from the view.
+ * Validate and read a fixed-size value from the view.
  *
- * Modifies the view to start at the end of the payload, and adds error flags if applicable.
+ * Modifies the view to start at the end of the value, and adds error flags if applicable.
  */
-static FMemoryView ValidateCbFixedPayload(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, uint64 Size)
+static FMemoryView ValidateCbFixedValue(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, uint64 Size)
 {
-	const FMemoryView Payload = View.Left(Size);
+	const FMemoryView Value = View.Left(Size);
 	View += Size;
-	if (Payload.GetSize() < Size)
+	if (Value.GetSize() < Size)
 	{
 		AddError(Error, ECbValidateError::OutOfBounds);
 	}
-	return Payload;
+	return Value;
 };
 
 /**
- * Validate and read a payload from the view where the view begins with the payload size.
+ * Validate and read a value from the view where the view begins with the value size.
  *
- * Modifies the view to start at the end of the payload, and adds error flags if applicable.
+ * Modifies the view to start at the end of the value, and adds error flags if applicable.
  */
-static FMemoryView ValidateCbDynamicPayload(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
+static FMemoryView ValidateCbDynamicValue(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
 	const uint64 ValueSize = ValidateCbUInt(View, Mode, Error);
-	return ValidateCbFixedPayload(View, Mode, Error, ValueSize);
+	return ValidateCbFixedValue(View, Mode, Error, ValueSize);
 }
 
 /**
@@ -160,9 +160,8 @@ static FMemoryView ValidateCbDynamicPayload(FMemoryView& View, ECbValidateMode M
  */
 static FUtf8StringView ValidateCbString(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	const FMemoryView Payload = ValidateCbDynamicPayload(View, Mode, Error);
-	const FUtf8StringView Value(static_cast<const UTF8CHAR*>(Payload.GetData()), static_cast<int32>(Payload.GetSize()));
-	return Value;
+	const FMemoryView Value = ValidateCbDynamicValue(View, Mode, Error);
+	return FUtf8StringView(static_cast<const UTF8CHAR*>(Value.GetData()), static_cast<int32>(Value.GetSize()));
 }
 
 static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error, ECbFieldType ExternalType);
@@ -329,7 +328,7 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 		ValidateCbArray(View, Mode, Error, FCbFieldType::GetType(Type));
 		break;
 	case ECbFieldType::Binary:
-		ValidateCbDynamicPayload(View, Mode, Error);
+		ValidateCbDynamicValue(View, Mode, Error);
 		break;
 	case ECbFieldType::String:
 		ValidateCbString(View, Mode, Error);
@@ -341,7 +340,7 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 		ValidateCbUInt(View, Mode, Error);
 		break;
 	case ECbFieldType::Float32:
-		ValidateCbFixedPayload(View, Mode, Error, 4);
+		ValidateCbFixedValue(View, Mode, Error, 4);
 		break;
 	case ECbFieldType::Float64:
 		ValidateCbFloat64(View, Mode, Error);
@@ -349,27 +348,27 @@ static FCbFieldView ValidateCbField(FMemoryView& View, ECbValidateMode Mode, ECb
 	case ECbFieldType::ObjectAttachment:
 	case ECbFieldType::BinaryAttachment:
 	case ECbFieldType::Hash:
-		ValidateCbFixedPayload(View, Mode, Error, 20);
+		ValidateCbFixedValue(View, Mode, Error, 20);
 		break;
 	case ECbFieldType::Uuid:
-		ValidateCbFixedPayload(View, Mode, Error, 16);
+		ValidateCbFixedValue(View, Mode, Error, 16);
 		break;
 	case ECbFieldType::DateTime:
 	case ECbFieldType::TimeSpan:
-		ValidateCbFixedPayload(View, Mode, Error, 8);
+		ValidateCbFixedValue(View, Mode, Error, 8);
 		break;
 	case ECbFieldType::ObjectId:
-		ValidateCbFixedPayload(View, Mode, Error, 12);
+		ValidateCbFixedValue(View, Mode, Error, 12);
 		break;
 	case ECbFieldType::CustomById:
 	{
-		FMemoryView Value = ValidateCbDynamicPayload(View, Mode, Error);
+		FMemoryView Value = ValidateCbDynamicValue(View, Mode, Error);
 		ValidateCbUInt(Value, Mode, Error);
 		break;
 	}
 	case ECbFieldType::CustomByName:
 	{
-		FMemoryView Value = ValidateCbDynamicPayload(View, Mode, Error);
+		FMemoryView Value = ValidateCbDynamicValue(View, Mode, Error);
 		const FUtf8StringView TypeName = ValidateCbString(Value, Mode, Error);
 		if (TypeName.IsEmpty() && !EnumHasAnyFlags(Error, ECbValidateError::OutOfBounds))
 		{
