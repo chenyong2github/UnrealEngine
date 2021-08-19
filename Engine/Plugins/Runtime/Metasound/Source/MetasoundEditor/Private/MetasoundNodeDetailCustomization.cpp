@@ -150,7 +150,7 @@ namespace Metasound
 				TSharedPtr<IPropertyHandle> ValueProperty = StructPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FMetasoundEditorGraphInputIntRef, Value));
 				if (ValueProperty.IsValid())
 				{
-					TSharedPtr<const IEnumDataTypeInterface> EnumInterface = Registry->GetEnumInterfaceForDataType(DataTypeName);
+					TSharedPtr<const IEnumDataTypeInterface> EnumInterface = IDataTypeRegistry::Get().GetEnumInterfaceForDataType(DataTypeName);
 
 					// Not an enum, so just display as underlying type (int32)
 					if (!EnumInterface.IsValid())
@@ -828,7 +828,7 @@ namespace Metasound
 			InDefaultPropertyHandle->SetInstanceMetaData(VariableCustomizationPrivate::DataTypeNameIdentifier, TypeNameString);
 
 			FDataTypeRegistryInfo DataTypeInfo;
-			if (!ensure(Registry->GetInfoForDataType(TypeName, DataTypeInfo)))
+			if (!ensure(IDataTypeRegistry::Get().GetDataTypeInfo(TypeName, DataTypeInfo)))
 			{
 				return;
 			}
@@ -975,7 +975,7 @@ namespace Metasound
 			InDefaultPropertyHandle->SetInstanceMetaData(VariableCustomizationPrivate::DataTypeNameIdentifier, TypeNameString);
 
 			FDataTypeRegistryInfo DataTypeInfo;
-			if (!ensure(Registry->GetInfoForDataType(TypeName, DataTypeInfo)))
+			if (!ensure(IDataTypeRegistry::Get().GetDataTypeInfo(TypeName, DataTypeInfo)))
 			{
 				return;
 			}

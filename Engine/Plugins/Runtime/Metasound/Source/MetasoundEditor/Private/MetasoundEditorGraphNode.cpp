@@ -17,6 +17,7 @@
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundLiteral.h"
@@ -277,18 +278,11 @@ Metasound::Frontend::FDataTypeRegistryInfo UMetasoundEditorGraphNode::GetPinData
 	using namespace Metasound::Editor;
 	using namespace Metasound::Frontend;
 
-	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-	if (!ensure(Registry))
-	{
-		return FDataTypeRegistryInfo();
-	}
+ 	Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
 
-	Metasound::Frontend::FDataTypeRegistryInfo DataTypeInfo;
 	FConstInputHandle Handle = FGraphBuilder::GetConstInputHandleFromPin(&InPin);
-	if (!ensure(Registry->GetInfoForDataType(Handle->GetDataType(), DataTypeInfo)))
-	{
-		return FDataTypeRegistryInfo();
-	}
+	ensure(IDataTypeRegistry::Get().GetDataTypeInfo(Handle->GetDataType(), DataTypeInfo));
+
 
 	return DataTypeInfo;
 }

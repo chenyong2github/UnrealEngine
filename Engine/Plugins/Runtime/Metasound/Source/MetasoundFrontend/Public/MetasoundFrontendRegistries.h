@@ -36,7 +36,6 @@ namespace Metasound
 	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
 	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 	using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-	using FReceiveNodeConstructorParams = FNodeInitData;
 
 	using FIterateMetasoundFrontendClassFunction = TFunctionRef<void(const FMetasoundFrontendClass&)>;
 
@@ -144,144 +143,8 @@ namespace Metasound
 			virtual bool IsNative() const = 0;
 		};
 
-		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
-		 * MetaSound data type.
-		 */
-		struct FDataTypeRegistryInfo
-		{
-			// The name of the data type.
-			FName DataTypeName;
 
-			// The preferred constructor argument type for creating instances of the data type.
-			ELiteralType PreferredLiteralType = ELiteralType::Invalid;
 
-			// Constructor argument support in TDataTypeLiteralFactory<TDataType>;
-			bool bIsDefaultParsable = false;
-			bool bIsBoolParsable = false;
-			bool bIsIntParsable = false;
-			bool bIsFloatParsable = false;
-			bool bIsStringParsable = false;
-			bool bIsProxyParsable = false;
-			bool bIsDefaultArrayParsable = false;
-			bool bIsBoolArrayParsable = false;
-			bool bIsIntArrayParsable = false;
-			bool bIsFloatArrayParsable = false;
-			bool bIsStringArrayParsable = false;
-			bool bIsProxyArrayParsable = false;
-
-			// Is an TEnum wrapped enum
-			bool bIsEnum = false;
-
-			// Determines whether the type can be used with send/receive transmitters
-			bool bIsTransmittable = false;
-
-			// If this datatype was registered with a specific UClass to use to filter with, that will be used here:
-			UClass* ProxyGeneratorClass = nullptr;
-
-			FORCEINLINE bool IsArrayType() const
-			{
-				return bIsDefaultArrayParsable
-				|| bIsBoolArrayParsable
-				|| bIsIntArrayParsable
-				|| bIsFloatArrayParsable
-				|| bIsStringArrayParsable
-				|| bIsProxyArrayParsable;
-			}
-		};
-
-		/** Interface for metadata of a registered MetaSound enum type. */
-		struct METASOUNDFRONTEND_API IEnumDataTypeInterface
-		{
-			using FGenericInt32Entry = TEnumEntry<int32>;
-
-			virtual ~IEnumDataTypeInterface() = default;
-
-			virtual const TArray<FGenericInt32Entry>& GetAllEntries() const = 0;
-			virtual FName GetNamespace() const = 0;
-			virtual int32 GetDefaultValue() const = 0;
-
-			template<typename Predicate>
-			TOptional<FGenericInt32Entry> FindEntryBy(Predicate Pred) const
-			{
-				TArray<FGenericInt32Entry> Entries = GetAllEntries();
-				if (FGenericInt32Entry* Found = Entries.FindByPredicate(Pred))
-				{
-					return *Found;
-				}
-				return {};
-			}
-			TOptional<FGenericInt32Entry> FindByValue(int32 InEnumValue) const
-			{
-				return FindEntryBy([InEnumValue](const FGenericInt32Entry& i) -> bool { return i.Value == InEnumValue; });
-			}
-			TOptional<FGenericInt32Entry> FindByName(FName InEnumName) const
-			{
-				return FindEntryBy([InEnumName](const FGenericInt32Entry& i) -> bool { return i.Name == InEnumName; });
-			}
-			TOptional<FName> ToName(int32 InEnumValue) const
-			{
-				if(TOptional<FGenericInt32Entry> Result = FindByValue(InEnumValue))
-				{
-					return Result->Name;
-				}
-				return {};
-			}
-			TOptional<int32> ToValue(FName InName) const
-			{
-				if (TOptional<FGenericInt32Entry> Result = FindByName(InName))
-				{
-					return Result->Value;
-				}
-				return {};
-			}
-		};
-
-		/** Registry entry interface for a MetaSound data type. */
-		class IDataTypeRegistryEntry
-		{
-		public:
-			virtual ~IDataTypeRegistryEntry() = default;
-
-			/** Return the FDataTypeRegistryInfo for the data type */
-			virtual const FDataTypeRegistryInfo& GetDataTypeInfo() const = 0;
-
-			/** Return the enum interface for the data type. If the data type does
-			 * not support an enum interface, the returned pointer should be invalid.
-			 */
-			virtual TSharedPtr<const IEnumDataTypeInterface> GetEnumInterface() const = 0;
-
-			/** Return an FMetasoundFrontenClass representing an input node of the data type. */
-			virtual const FMetasoundFrontendClass& GetFrontendInputClass() const = 0;
-
-			/** Return an FMetasoundFrontenClass representing a variable node of the data type. */
-			virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const = 0;
-
-			/** Return an FMetasoundFrontenClass representing an output node of the data type. */
-			virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const = 0;
-
-			/** Create an input node */
-			virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&&) const = 0;
-
-			/** Create an output node */
-			virtual TUniquePtr<INode> CreateOutputNode(FOutputNodeConstructorParams&&) const = 0;
-			
-			/** Create a variable node */
-			virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&&) const = 0;
-
-			/** Create a recevie node. */
-			virtual TUniquePtr<INode> CreateReceiveNode(FReceiveNodeConstructorParams&&) const = 0;
-
-			/** Create a proxy from a UObject. If this data type does not support
-			 * UObject proxies, return a nullptr. */
-			virtual Audio::IProxyDataPtr CreateProxy(UObject*) const = 0;
-
-			/** Create a data channel for transmission. If this data type does not
-			 * support transmission, return a nullptr. */
-			virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FOperatorSettings&) const = 0;
-
-			/** Clone this registry entry. */
-			virtual TUniquePtr<IDataTypeRegistryEntry> Clone() const = 0;
-		};
 
 		struct METASOUNDFRONTEND_API FConverterNodeRegistryKey
 		{
@@ -396,9 +259,6 @@ public:
 	using FNodeRegistryKey = Metasound::Frontend::FNodeRegistryKey;
 	using FNodeClassMetadata = Metasound::FNodeClassMetadata;
 
-	using FDataTypeRegistryInfo = Metasound::Frontend::FDataTypeRegistryInfo;
-	using IEnumDataTypeInterface = Metasound::Frontend::IEnumDataTypeInterface;
-
 	static FMetasoundFrontendRegistryContainer* Get();
 	static void ShutdownMetasoundFrontend();
 
@@ -428,45 +288,6 @@ public:
 
 	/** Perform function for each registry transaction since a given transaction ID. */
 	virtual void ForEachNodeRegistryTransactionSince(Metasound::Frontend::FRegistryTransactionID InSince, Metasound::Frontend::FRegistryTransactionID* OutCurrentRegistryTransactionID, TFunctionRef<void(const Metasound::Frontend::FNodeRegistryTransaction&)> InFunc) const = 0;
-
-	/** Register a data type
-	 * @param InName - Name of data type.
-	 * @param InEntry - TUniquePtr to data type registry entry.
-	 *
-	 * @return True on success, false on failure.
-	 */
-	virtual bool RegisterDataType(const FName& InName, TUniquePtr<Metasound::Frontend::IDataTypeRegistryEntry>&& InEntry) = 0;
-
-	// Return any data types that can be used as a metasound input type or output type.
-	virtual TArray<FName> GetAllValidDataTypes() = 0;
-
-	// Get info about a specific data type (what kind of literals we can use, etc.)
-	// @returns false if InDataType wasn't found in the registry. 
-	virtual bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo) = 0;
-
-	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
-	virtual Metasound::ELiteralType GetDesiredLiteralTypeForDataType(FName InDataType) const = 0;
-
-	// Get whether we can build a literal of this specific type for InDataType.
-	virtual bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralType InLiteralType) const = 0;
-
-	template<typename ArgType>
-	bool DoesDataTypeSupportLiteralType(FName InDataType) const
-	{
-		return DoesDataTypeSupportLiteralType(InDataType, Metasound::TLiteralTypeInfo<ArgType>::GetLiteralArgTypeEnum());
-	}
-
-	virtual UClass* GetLiteralUClassForDataType(FName InDataType) const = 0;
-	virtual Metasound::FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) = 0;
-	virtual Metasound::FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) = 0;
-
-	// Return the enum interface for a data type. If the data type does not have 
-	// an enum interface, returns a nullptr.
-	virtual TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> GetEnumInterfaceForDataType(FName InDataType) const = 0;
-
-	// Create a data channel for a data type. If the data type cannot be used in
-	// a data channel, return a nullptr.
-	virtual TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InOperatorSettings) const = 0;
 
 
 	/** Register an external node with the frontend.
@@ -504,11 +325,6 @@ public:
 	virtual bool FindVariableNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) = 0;
 	virtual bool FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) = 0;
 
-	// Create a new instance of a C++ implemented node from the registry.
-	virtual TUniquePtr<Metasound::INode> CreateInputNode(const FName& InInputType, Metasound::FInputNodeConstructorParams&& InParams) = 0;
-	virtual TUniquePtr<Metasound::INode> CreateVariableNode(const FName& InVariableType, Metasound::FVariableNodeConstructorParams&& InParams) = 0;
-	virtual TUniquePtr<Metasound::INode> CreateOutputNode(const FName& InOutputType, Metasound::FOutputNodeConstructorParams&& InParams) = 0;
-	virtual TUniquePtr<Metasound::INode> CreateReceiveNode(const FName& InVariableType, Metasound::FReceiveNodeConstructorParams&& InParams) = 0;
 
 	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultNodeConstructorParams&&) const = 0;
 	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultLiteralNodeConstructorParams&&) const = 0;

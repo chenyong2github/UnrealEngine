@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundLog.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 
 FString LexToString(Metasound::FLiteral::FNone InValue)
@@ -483,15 +484,17 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
 
-	FLiteral Literal = FLiteral::CreateInvalid();
 
-	const bool bIsTypeSupported = DoesDataTypeSupportLiteralType(InMetasoundDataTypeName, Type);
+	FLiteral Literal = FLiteral::CreateInvalid();
+	const IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
+
+	const bool bIsTypeSupported = DataTypeRegistry.IsLiteralTypeSupported(InMetasoundDataTypeName, Type);
 
 	if (!bIsTypeSupported)
 	{
 		UE_LOG(LogMetaSound, Error, TEXT("Reverting to default literal type for data type. Failed to create supported Metasound::FLiteral for data type [Name:%s] with FMetasoundFrontendLiteral [Literal:%s]"), *InMetasoundDataTypeName.ToString(), *ToString());
 
-		Literal = GetDefaultParamForDataType(InMetasoundDataTypeName);
+		Literal = DataTypeRegistry.CreateDefaultLiteral(InMetasoundDataTypeName);
 	}
 	else if (EMetasoundFrontendLiteralType::UObject == Type)
 	{
@@ -499,22 +502,14 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 		{
 			// UObject proxies must go through the registry. The registry contains the information
 			// needed to convert UObjects to proxies. 
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (ensure(Registry))
-			{
-				Literal = Registry->CreateLiteralFromUObject(InMetasoundDataTypeName, AsUObject[0]);
-			}
+			Literal = DataTypeRegistry.CreateLiteralFromUObject(InMetasoundDataTypeName, AsUObject[0]);
 		}
 	}
 	else if (EMetasoundFrontendLiteralType::UObjectArray == Type)
 	{
 		// UObject proxies must go through the registry. The registry contains the information
 		// needed to convert UObjects to proxies. 
-		FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-		if (ensure(Registry))
-		{
-			Literal = Registry->CreateLiteralFromUObjectArray(InMetasoundDataTypeName, AsUObject);
-		}
+		Literal = DataTypeRegistry.CreateLiteralFromUObjectArray(InMetasoundDataTypeName, AsUObject);
 	}
 	else 
 	{
@@ -524,7 +519,7 @@ Metasound::FLiteral FMetasoundFrontendLiteral::ToLiteral(const FName& InMetasoun
 
 	// The support for the data type should be the same whether we pass in an
 	// Metasound::ELiteralType or a EMetasoundFrontendLiteralType
-	check(bIsTypeSupported == DoesDataTypeSupportLiteralType(InMetasoundDataTypeName, Literal.GetType()));
+	check(bIsTypeSupported == DataTypeRegistry.IsLiteralTypeSupported(InMetasoundDataTypeName, Literal.GetType()));
 
 	return Literal;
 }
@@ -678,34 +673,6 @@ namespace Metasound
 		{
 			static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::Invalid) == static_cast<uint8>(ELiteralType::Invalid), "Possible literal type enum mismatch");
 			return static_cast<ELiteralType>(InLiteralType);
-		}
-
-		bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundFrontendLiteralType InFrontendLiteralType)
-		{
-			ELiteralType CoreLiteralType = GetMetasoundLiteralType(InFrontendLiteralType);
-			return DoesDataTypeSupportLiteralType(InDataType, CoreLiteralType);
-		}
-
-		bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralType InLiteralType)
-		{
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (ensure(Registry))
-			{
-				return Registry->DoesDataTypeSupportLiteralType(InDataType, InLiteralType);
-			}
-			return false;
-		}
-
-		Metasound::FLiteral GetDefaultParamForDataType(FName InDataType)
-		{
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-			if (ensure(Registry))
-			{
-				ELiteralType DesiredArgType = Registry->GetDesiredLiteralTypeForDataType(InDataType);
-
-				return FLiteral::GetDefaultForType(DesiredArgType);
-			}
-			return FLiteral::CreateInvalid();
 		}
 	}
 }

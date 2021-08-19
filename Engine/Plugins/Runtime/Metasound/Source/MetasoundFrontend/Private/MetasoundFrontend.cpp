@@ -136,16 +136,6 @@ namespace Metasound
 			return OutClass;
 		}
 
-		TArray<FName> GetAllAvailableDataTypes()
-		{
-			return FMetasoundFrontendRegistryContainer::Get()->GetAllValidDataTypes();
-		}
-
-		bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo)
-		{
-			return FMetasoundFrontendRegistryContainer::Get()->GetInfoForDataType(InDataType, OutInfo);
-		}
-
 		bool ImportJSONToMetasound(const FString& InJSON, FMetasoundFrontendDocument& OutMetasoundDocument)
 		{
 			TArray<uint8> ReadBuffer;

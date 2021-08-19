@@ -120,7 +120,7 @@ namespace Metasound
 					FString::Format(TEXT("ReceiveInject_{0}"), { InVertexKey }),
 					InID
 				};
-				return FMetasoundFrontendRegistryContainer::Get()->CreateReceiveNode(InDataType, MoveTemp(ReceiveNodeInitData));
+				return IDataTypeRegistry::Get().CreateReceiveNode(InDataType, ReceiveNodeInitData);
 			}
 		}
 

@@ -2,6 +2,7 @@
 
 #include "MetasoundRouter.h"
 
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundOperatorInterface.h"
 #include "CoreMinimal.h"
@@ -279,15 +280,10 @@ namespace Metasound
 			const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
 			
 			// This is the first time we're seeing this, add it to the map.
-			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-
-			if (ensure(nullptr != Registry))
+			DataChannel = Metasound::Frontend::IDataTypeRegistry::Get().CreateDataChannel(InDataTypeName, InOperatorSettings);
+			if (DataChannel.IsValid())
 			{
-				DataChannel = Registry->CreateDataChannelForDataType(InDataTypeName, InOperatorSettings);
-				if (DataChannel.IsValid())
-				{
-					DataChannelMap.Add(ChannelKey, DataChannel.ToSharedRef());
-				}
+				DataChannelMap.Add(ChannelKey, DataChannel.ToSharedRef());
 			}
 		}
 

@@ -20,7 +20,6 @@
 #include "MetasoundInstanceTransmitter.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundLog.h"
-#include "MetasoundReceiveNode.h"
 #include "MetasoundTrace.h"
 #include "StructSerializer.h"
 #include "UObject/MetaData.h"
@@ -601,13 +600,12 @@ TSet<Metasound::FVertexKey> FMetasoundAssetBase::GetNonTransmittableInputVertice
 
 	// Do not transmit vertices which are not transmittable. Async communication 
 	// is not supported without transmission.
-	FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
-	check(nullptr != Registry);
+	const IDataTypeRegistry& Registry = IDataTypeRegistry::Get();
 
 	auto IsNotTransmittable = [&Registry](const FMetasoundFrontendClassVertex& InVertex) -> bool
 	{	
 		FDataTypeRegistryInfo Info;
-		if (Registry->GetInfoForDataType(InVertex.TypeName, Info))
+		if (Registry.GetDataTypeInfo(InVertex.TypeName, Info))
 		{
 			return !Info.bIsTransmittable;
 		}
@@ -651,11 +649,13 @@ TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
 
 	auto IsDataTypeTransmittable = [&](const FString& InVertexName)
 	{
+		using namespace Metasound::Frontend;
+
 		Frontend::FConstClassInputAccessPtr ClassInputPtr = RootGraph->FindClassInputWithName(InVertexName);
 		if (const FMetasoundFrontendClassInput* ClassInput = ClassInputPtr.Get())
 		{
 			Frontend::FDataTypeRegistryInfo TypeInfo;
-			if (Frontend::GetTraitsForDataType(ClassInput->TypeName, TypeInfo))
+			if (IDataTypeRegistry::Get().GetDataTypeInfo(ClassInput->TypeName, TypeInfo))
 			{
 				if (TypeInfo.bIsTransmittable)
 				{

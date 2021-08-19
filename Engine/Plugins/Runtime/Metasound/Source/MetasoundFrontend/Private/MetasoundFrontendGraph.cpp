@@ -8,6 +8,7 @@
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundGraph.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
@@ -160,15 +161,18 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateInputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, const FMetasoundFrontendClassInput& InOwningGraphClassInput)
 	{
+		using namespace Metasound::Frontend;
+
 		const FMetasoundFrontendLiteral* FrontendLiteral = FindInputLiteralForInputNode(InNode, InClass, InOwningGraphClassInput);
 
 		if (nullptr != FrontendLiteral)
 		{
 			if (ensure(InNode.Interface.Inputs.Num() == 1))
 			{
+				IDataTypeRegistry& DataTypeRegistry = IDataTypeRegistry::Get();
 				const FMetasoundFrontendVertex& InputVertex = InNode.Interface.Inputs[0];
 
-				const bool IsLiteralParsableByDataType = Frontend::DoesDataTypeSupportLiteralType(InputVertex.TypeName, FrontendLiteral->GetType());
+				const bool IsLiteralParsableByDataType = DataTypeRegistry.IsLiteralTypeSupported(InputVertex.TypeName, FrontendLiteral->GetType());
 
 				if (IsLiteralParsableByDataType)
 				{
@@ -182,8 +186,7 @@ namespace Metasound
 						MoveTemp(Literal)
 					};
 
-					// TODO: create input node using external class definition
-					return FMetasoundFrontendRegistryContainer::Get()->CreateInputNode(InputVertex.TypeName, MoveTemp(InitParams));
+					return DataTypeRegistry.CreateInputNode(InputVertex.TypeName, MoveTemp(InitParams));
 				}
 				else
 				{
@@ -201,6 +204,8 @@ namespace Metasound
 
 	TUniquePtr<INode> FFrontendGraphBuilder::CreateOutputNode(const FMetasoundFrontendNode& InNode, const FMetasoundFrontendClass& InClass, FBuildGraphContext& InGraphContext)
 	{
+		using namespace Metasound::Frontend;
+
 		check(InClass.Metadata.GetType() == EMetasoundFrontendClassType::Output);
 		check(InNode.ClassID == InClass.ID);
 
@@ -224,8 +229,7 @@ namespace Metasound
 				}
 			}
 
-			// TODO: create output node using external class definition
-			return FMetasoundFrontendRegistryContainer::Get()->CreateOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
+			return IDataTypeRegistry::Get().CreateOutputNode(OutputVertex.TypeName, MoveTemp(InitParams));
 		}
 		return TUniquePtr<INode>(nullptr);
 	}
@@ -522,6 +526,8 @@ namespace Metasound
 
 	void FFrontendGraphBuilder::AddDefaultInputVariables(FBuildGraphContext& InGraphContext)
 	{
+		using namespace Metasound::Frontend;
+
 		using FIterator = FDefaultInputByIDMap::TIterator;
 
 		for (FDefaultInputByIDMap::ElementType& Pair : InGraphContext.DefaultInputs)
@@ -531,7 +537,7 @@ namespace Metasound
 
 			// 1. Construct and add the default variable to the graph
 			{
-				TUniquePtr<const INode> DefaultVariable = FMetasoundFrontendRegistryContainer::Get()->CreateVariableNode(VariableData.TypeName, MoveTemp(VariableData.InitParams));
+				TUniquePtr<const INode> DefaultVariable = IDataTypeRegistry::Get().CreateVariableNode(VariableData.TypeName, MoveTemp(VariableData.InitParams));
 				InGraphContext.Graph->AddNode(VariableNodeID, TSharedPtr<const INode>(DefaultVariable.Release()));
 			}
 
