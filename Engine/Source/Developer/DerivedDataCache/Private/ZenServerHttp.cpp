@@ -23,6 +23,7 @@
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/LargeMemoryReader.h"
+#include "Serialization/LargeMemoryWriter.h"
 
 namespace UE::Zen {
 
@@ -39,7 +40,7 @@ namespace UE::Zen {
 		static size_t StaticSeekFn(void* UserData, curl_off_t Offset, int Origin);
 	};
 
-	FZenHttpRequest::FZenHttpRequest(const TCHAR* InDomain, bool bInLogErrors)
+	FZenHttpRequest::FZenHttpRequest(FStringView InDomain, bool bInLogErrors)
 		: bLogErrors(bInLogErrors)
 		, Domain(InDomain)
 	{
@@ -123,6 +124,33 @@ namespace UE::Zen {
 		return PerformBlocking(Uri, RequestVerb::Put, ContentLength);
 	}
 
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPost(FStringView Uri, FCbObjectView Obj)
+	{
+		FLargeMemoryWriter Out;
+		Obj.CopyTo(Out);
+
+		return PerformBlockingPost(Uri, Out.GetView());
+	}
+
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingPost(FStringView Uri, FMemoryView Payload)
+	{
+		uint64 ContentLength = 0u;
+
+		curl_easy_setopt(Curl, CURLOPT_POST, 1L);
+		curl_easy_setopt(Curl, CURLOPT_INFILESIZE, Payload.GetSize());
+		curl_easy_setopt(Curl, CURLOPT_READDATA, this);
+		curl_easy_setopt(Curl, CURLOPT_READFUNCTION, &FZenHttpRequest::FStatics::StaticReadFn);
+
+		// TODO: proper Content-Type: header
+
+		ContentLength = Payload.GetSize();
+
+		FCompositeBuffer Buffer(FSharedBuffer::MakeView(FMemoryView{ reinterpret_cast<const uint8*>(Payload.GetData()), Payload.GetSize() }));
+		ReadDataView = &Buffer;
+
+		return PerformBlocking(Uri, RequestVerb::Post, ContentLength);
+	}
+
 	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDownload(FStringView Uri, TArray64<uint8>* Buffer)
 	{
 		curl_easy_setopt(Curl, CURLOPT_HTTPGET, 1L);
@@ -154,14 +182,14 @@ namespace UE::Zen {
 		return LocalResult;
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingHead(const TCHAR* Uri)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingHead(FStringView Uri)
 	{
 		curl_easy_setopt(Curl, CURLOPT_NOBODY, 1L);
 
 		return PerformBlocking(Uri, RequestVerb::Head, 0u);
 	}
 
-	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDelete(const TCHAR* Uri)
+	FZenHttpRequest::Result FZenHttpRequest::PerformBlockingDelete(const FStringView Uri)
 	{
 		curl_easy_setopt(Curl, CURLOPT_POST, 1L);
 		curl_easy_setopt(Curl, CURLOPT_CUSTOMREQUEST, "DELETE");
@@ -176,7 +204,7 @@ namespace UE::Zen {
 			nullptr
 		};
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_CurlPerform);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ZenHttp_CurlPerform);
 
 		// Setup request options
 		FString Url = FString::Printf(TEXT("%s/%s"), *Domain, *FString(Uri));
@@ -224,6 +252,30 @@ namespace UE::Zen {
 		return CurlResult == CURLE_OK ? Result::Success : Result::Failed;
 	}
 
+	/**
+	 * Attempts to find the header from the response. Returns false if header is not present.
+	 */
+	bool FZenHttpRequest::GetHeader(const ANSICHAR* Header, FString& OutValue) const
+	{
+		check(CurlResult != CURL_LAST);  // Cannot query headers before request is sent
+
+		const ANSICHAR* HeadersBuffer = (const ANSICHAR*)ResponseHeader.GetData();
+		size_t HeaderLen = strlen(Header);
+
+		// Find the header key in the (ANSI) response buffer. If not found we can exist immediately
+		if (const ANSICHAR* Found = strstr(HeadersBuffer, Header))
+		{
+			const ANSICHAR* Linebreak = strchr(Found, '\r');
+			const ANSICHAR* ValueStart = Found + HeaderLen + 2; //colon and space
+			const size_t ValueSize = Linebreak - ValueStart;
+			FUTF8ToTCHAR TCHARData(ValueStart, ValueSize);
+			OutValue = FString(TCHARData.Length(), TCHARData.Get());
+			return true;
+		}
+		return false;
+	}
+
+
 	void FZenHttpRequest::LogResult(long InResult, const TCHAR* Uri, RequestVerb Verb) const
 	{
 		CURLcode Result = (CURLcode) InResult;
@@ -233,17 +285,17 @@ namespace UE::Zen {
 			const TCHAR* VerbStr = nullptr;
 			FString AdditionalInfo;
 
-			const bool Is400 = (ResponseCode >= 400) && (ResponseCode <= 499);
+			const bool Is404 = (ResponseCode == 404);
 			const bool Is200 = (ResponseCode >= 200) && (ResponseCode <= 299);
 
 			switch (Verb)
 			{
 			case RequestVerb::Head:
-				bSuccess = Is400 || Is200;
+				bSuccess = Is200 || Is404;
 				VerbStr = TEXT("querying");
 				break;
 			case RequestVerb::Get:
-				bSuccess = Is400 || Is200;
+				bSuccess = Is200 || Is404;
 				VerbStr = TEXT("fetching");
 				AdditionalInfo = FString::Printf(TEXT("Received: %d bytes."), BytesReceived);
 				break;
@@ -257,7 +309,7 @@ namespace UE::Zen {
 				VerbStr = TEXT("posting");
 				break;
 			case RequestVerb::Delete:
-				bSuccess = Is200;
+				bSuccess = Is200 || Is404;
 				VerbStr = TEXT("deleting");
 				break;
 			}
@@ -267,7 +319,7 @@ namespace UE::Zen {
 				UE_LOG(
 					LogDerivedDataCache,
 					Verbose,
-					TEXT("Finished %s HTTP cache entry (response %d) from %s. %s"),
+					TEXT("Finished %s zen data (response %d) from %s. %s"),
 					VerbStr,
 					ResponseCode,
 					Uri,
@@ -283,7 +335,7 @@ namespace UE::Zen {
 				UE_LOG(
 					LogDerivedDataCache,
 					Error,
-					TEXT("Failed %s HTTP cache entry (response %d) from %s. Response: %s"),
+					TEXT("Failed %s zen data (response %d) from %s. Response: %s"),
 					VerbStr,
 					ResponseCode,
 					Uri,
@@ -449,11 +501,13 @@ namespace UE::Zen {
 
 	//////////////////////////////////////////////////////////////////////////
 
-	FZenHttpRequestPool::FZenHttpRequestPool(const TCHAR* InServiceUrl)
+	FZenHttpRequestPool::FZenHttpRequestPool(FStringView InServiceUrl, uint32 PoolEntryCount)
 	{
+		Pool.SetNum(PoolEntryCount);
+
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
-			Pool[i].Usage = 0u;
+			Pool[i].IsAllocated = 0u;
 			Pool[i].Request = new FZenHttpRequest(InServiceUrl, true);
 		}
 	}
@@ -463,7 +517,8 @@ namespace UE::Zen {
 		for (uint8 i = 0; i < Pool.Num(); ++i)
 		{
 			// No requests should be in use by now.
-			check(Pool[i].Usage.Load(EMemoryOrder::Relaxed) == 0u);
+			check(Pool[i].IsAllocated.load(std::memory_order_relaxed) == 0u);
+
 			delete Pool[i].Request;
 		}
 	}
@@ -477,20 +532,23 @@ namespace UE::Zen {
 	  */
 	FZenHttpRequest* FZenHttpRequestPool::WaitForFreeRequest()
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ZenDDC_WaitForConnPool);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ZenHttp_WaitForConnPool);
+
 		while (true)
 		{
 			for (uint8 i = 0; i < Pool.Num(); ++i)
 			{
-				if (!Pool[i].Usage.Load(EMemoryOrder::Relaxed))
+				if (!Pool[i].IsAllocated.load(std::memory_order_relaxed))
 				{
 					uint8 Expected = 0u;
-					if (Pool[i].Usage.CompareExchange(Expected, 1u))
+					if (Pool[i].IsAllocated.compare_exchange_strong(Expected, 1u))
 					{
 						return Pool[i].Request;
 					}
 				}
 			}
+
+			// This should use a better mechanism like condition variables / events
 			FPlatformProcess::Sleep(UE_ZENDDC_BACKEND_WAIT_INTERVAL);
 		}
 	}
@@ -507,7 +565,7 @@ namespace UE::Zen {
 			{
 				Request->Reset();
 				uint8 Expected = 1u;
-				Pool[i].Usage.CompareExchange(Expected, 0u);
+				Pool[i].IsAllocated.compare_exchange_strong(Expected, 0u);
 				return;
 			}
 		}
