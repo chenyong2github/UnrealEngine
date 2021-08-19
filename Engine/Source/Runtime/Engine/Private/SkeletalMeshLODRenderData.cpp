@@ -249,7 +249,7 @@ void FSkeletalMeshLODRenderData::InitResources(bool bNeedsVertexColors, int32 LO
 			{
 				// A CPU copy of the morph deltas has been made so it is safe to 
 				// discard the original data.  Keep CPU buffers when in the editor.
-				MorphTarget->DiscardCPUBuffers();
+				MorphTarget->DiscardVertexData();
 			}
 #endif
 		}

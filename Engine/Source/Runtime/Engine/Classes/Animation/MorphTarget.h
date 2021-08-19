@@ -53,6 +53,9 @@ struct FMorphTargetLODModel
 	/** vertex data for a single LOD morph mesh */
 	TArray<FMorphTargetDelta> Vertices;
 
+	/** Number of elements in Vertices array. This property is set at runtime and is not serialized. */
+	int32 NumVertices;
+
 	/** number of original verts in the base mesh */
 	int32 NumBaseMeshVerts;
 	
@@ -66,7 +69,8 @@ struct FMorphTargetLODModel
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
 	FMorphTargetLODModel()
-		: NumBaseMeshVerts(0)
+		: NumVertices(0)
+		, NumBaseMeshVerts(0)
 		, bGeneratedByEngine(false)
 	{ }
 
@@ -94,12 +98,16 @@ struct FMorphTargetLODModel
 			}
 		}
 
+		// Cache Vertices array size, no need to serialize CachedNumVertices value.
+		M.NumVertices = M.Vertices.Num();
+
 		return Ar;
 	}
 
 	void Reset()
 	{
 		Vertices.Reset();
+		NumVertices = 0;
 		NumBaseMeshVerts = 0;
 		SectionIndices.Reset();
 		// since engine cleared it, we mark as engine generated
@@ -107,10 +115,12 @@ struct FMorphTargetLODModel
 		bGeneratedByEngine = true;
 	}
 
-	void DiscardCPUBuffers()
+	void DiscardVertexData()
 	{
+		// Vertices array can be discarded after render data is initialized and if CPU data is no longer required,
+		// but cache the array size so that UMorphTarget::HasValidData() can still query if morph target is valid. 
+		NumVertices = Vertices.Num();
 		Vertices.Empty();
-		SectionIndices.Empty();
 	}
 };
 
@@ -139,7 +149,7 @@ public:
 	ENGINE_API bool HasValidData() const;
 
 	/** Discard CPU Buffers after render resources have been created. */
-	ENGINE_API void DiscardCPUBuffers();
+	ENGINE_API void DiscardVertexData();
 
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */
