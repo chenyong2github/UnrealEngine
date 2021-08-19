@@ -174,73 +174,73 @@ bool FCbSaveTest::RunTest(const FString& Parameters)
 
 	// Field
 	{
-		const uint8 Payload[] = { uint8(ECbFieldType::IntegerPositive), 42 };
-		TestSave(TEXT("Field"), FCbField(FCbFieldView(Payload), FSharedBuffer()), MakeMemoryView(Payload));
+		const uint8 Value[] = { uint8(ECbFieldType::IntegerPositive), 42 };
+		TestSave(TEXT("Field"), FCbField(FCbFieldView(Value), FSharedBuffer()), MakeMemoryView(Value));
 	}
 	{
-		const uint8 Payload[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'A', 42 };
-		TestSave(TEXT("Field, Name"), FCbField(FCbFieldView(Payload), FSharedBuffer()), MakeMemoryView(Payload));
+		const uint8 Value[] = { uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'A', 42 };
+		TestSave(TEXT("Field, Name"), FCbField(FCbFieldView(Value), FSharedBuffer()), MakeMemoryView(Value));
 	}
 	{
-		const uint8 Payload[] = { 42 };
-		TestSave(TEXT("Field, NoType"), FCbField(FCbFieldView(Payload, ECbFieldType::IntegerPositive), FSharedBuffer()),
+		const uint8 Value[] = { 42 };
+		TestSave(TEXT("Field, NoType"), FCbField(FCbFieldView(Value, ECbFieldType::IntegerPositive), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::IntegerPositive), 42 }));
 	}
 	{
-		const uint8 Payload[] = { 1, 'I', 42 };
-		TestSave(TEXT("Field, NoType, Name"), FCbField(FCbFieldView(Payload, ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), FSharedBuffer()),
+		const uint8 Value[] = { 1, 'I', 42 };
+		TestSave(TEXT("Field, NoType, Name"), FCbField(FCbFieldView(Value, ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::IntegerPositive | ECbFieldType::HasFieldName), 1, 'I', 42 }));
 	}
 
 	// Array
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array"), FCbArray(FCbArrayView(Payload), FSharedBuffer()),
-			MakeMemoryView(Payload));
+		const uint8 Value[] = { uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 };
+		TestSave(TEXT("Array"), FCbArray(FCbArrayView(Value), FSharedBuffer()),
+			MakeMemoryView(Value));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, Name"), FCbArray(FCbArrayView(Payload), FSharedBuffer()),
+		const uint8 Value[] = { uint8(ECbFieldType::UniformArray | ECbFieldType::HasFieldName), 1, 'A', 5, 3, IntType, 1, 2, 3 };
+		TestSave(TEXT("Array, Name"), FCbArray(FCbArrayView(Value), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, NoType"), FCbArray(FCbArrayView(Payload, ECbFieldType::UniformArray), FSharedBuffer()),
+		const uint8 Value[] = { 5, 3, IntType, 1, 2, 3 };
+		TestSave(TEXT("Array, NoType"), FCbArray(FCbArrayView(Value, ECbFieldType::UniformArray), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
-		TestSave(TEXT("Array, NoType, Name"), FCbArray(FCbArrayView(Payload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName), FSharedBuffer()),
+		const uint8 Value[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
+		TestSave(TEXT("Array, NoType, Name"), FCbArray(FCbArrayView(Value, ECbFieldType::UniformArray | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformArray), 5, 3, IntType, 1, 2, 3 }));
 	}
 
 	// Object
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object"), FCbObject(FCbObjectView(Payload), FSharedBuffer()),
-			MakeMemoryView(Payload));
+		const uint8 Value[] = { uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		TestSave(TEXT("Object"), FCbObject(FCbObjectView(Value), FSharedBuffer()),
+			MakeMemoryView(Value));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { uint8(ECbFieldType::UniformObject | ECbFieldType::HasFieldName), 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, Name"), FCbObject(FCbObjectView(Payload), FSharedBuffer()),
+		const uint8 Value[] = { uint8(ECbFieldType::UniformObject | ECbFieldType::HasFieldName), 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		TestSave(TEXT("Object, Name"), FCbObject(FCbObjectView(Value), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, NoType"), FCbObject(FCbObjectView(Payload, ECbFieldType::UniformObject), FSharedBuffer()),
+		const uint8 Value[] = { 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		TestSave(TEXT("Object, NoType"), FCbObject(FCbObjectView(Value, ECbFieldType::UniformObject), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		TestSave(TEXT("Object, NoType, Name"), FCbObject(FCbObjectView(Payload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName), FSharedBuffer()),
+		const uint8 Value[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		TestSave(TEXT("Object, NoType, Name"), FCbObject(FCbObjectView(Value, ECbFieldType::UniformObject | ECbFieldType::HasFieldName), FSharedBuffer()),
 			MakeMemoryView<uint8>({ uint8(ECbFieldType::UniformObject), 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 }));
 	}
 

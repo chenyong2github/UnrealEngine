@@ -131,14 +131,14 @@ bool TryMeasureCompactBinary(FMemoryView View, ECbFieldType& OutType, uint64& Ou
 		}
 		else
 		{
-			uint32 PayloadSizeByteCount = MeasureVarUInt(View.GetData());
-			if (View.GetSize() < PayloadSizeByteCount)
+			uint32 ValueSizeByteCount = MeasureVarUInt(View.GetData());
+			if (View.GetSize() < ValueSizeByteCount)
 			{
-				OutSize = Size + PayloadSizeByteCount;
+				OutSize = Size + ValueSizeByteCount;
 				return false;
 			}
-			const uint64 PayloadSize = ReadVarUInt(View.GetData(), PayloadSizeByteCount);
-			OutSize = Size + PayloadSize + PayloadSizeByteCount;
+			const uint64 ValueSize = ReadVarUInt(View.GetData(), ValueSizeByteCount);
+			OutSize = Size + ValueSize + ValueSizeByteCount;
 			return true;
 		}
 	case ECbFieldType::IntegerPositive:

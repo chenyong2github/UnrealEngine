@@ -16,9 +16,9 @@
  * This file declares a compact binary data format that is compatible with JSON and only slightly
  * more expressive. The format is designed to achieve fairly small encoded sizes while also being
  * efficient to read both sequentially and through random access. An atom of data in this compact
- * binary format is called a field, which can be an object, array, byte string, character string,
- * integer, floating point value, boolean, null, uuid, date/time, time span, or a hash digest for
- * referencing blobs or compact binary data that are stored externally.
+ * binary format is called a field, which can be: an object, an array, a byte string, a character
+ * string, or one of several scalar types including integer, floating point, boolean, null, hash,
+ * uuid, date/time, time span, object identifier, or attachment reference.
  *
  * An object is a collection of name-field pairs, and an array is a collection of fields. Encoded
  * objects and arrays are both written such that they may be interpreted as a field that can then
@@ -93,116 +93,116 @@ enum class ECbFieldType : uint8
 	/** A field type that does not occur in a valid object. */
 	None                             = 0x00,
 
-	/** Null. Payload is empty. */
+	/** Null. Value is empty. */
 	Null                             = 0x01,
 
 	/**
 	 * Object is an array of fields with unique non-empty names.
 	 *
-	 * Payload is a VarUInt byte count for the encoded fields followed by the fields.
+	 * Value is a VarUInt byte count for the encoded fields, followed by the fields.
 	 */
 	Object                           = 0x02,
 	/**
 	 * UniformObject is an array of fields with the same field types and unique non-empty names.
 	 *
-	 * Payload is a VarUInt byte count for the encoded fields followed by the fields.
+	 * Value is a VarUInt byte count for the encoded fields, followed by the field type, followed
+	 * by the fields encoded with no type.
 	 */
 	UniformObject                    = 0x03,
 
 	/**
 	 * Array is an array of fields with no name that may be of different types.
 	 *
-	 * Payload is a VarUInt byte count, followed by a VarUInt item count, followed by the fields.
+	 * Value is a VarUInt byte count, followed by a VarUInt field count, followed by the fields.
 	 */
 	Array                            = 0x04,
 	/**
 	 * UniformArray is an array of fields with no name and with the same field type.
 	 *
-	 * Payload is a VarUInt byte count, followed by a VarUInt item count, followed by field type,
-	 * followed by the fields without their field type.
+	 * Value is a VarUInt byte count, followed by a VarUInt field count, followed by the field type,
+	 * followed by the fields encoded with no type.
 	 */
 	UniformArray                     = 0x05,
 
-	/** Binary. Payload is a VarUInt byte count followed by the data. */
+	/** Binary. Value is a VarUInt byte count followed by the data. */
 	Binary                           = 0x06,
 
-	/** String in UTF-8. Payload is a VarUInt byte count then an unterminated UTF-8 string. */
+	/** String in UTF-8. Value is a VarUInt byte count then an unterminated UTF-8 string. */
 	String                           = 0x07,
 
 	/**
 	 * Non-negative integer with the range of a 64-bit unsigned integer.
 	 *
-	 * Payload is the value encoded as a VarUInt.
+	 * Value is the value encoded as a VarUInt.
 	 */
 	IntegerPositive                  = 0x08,
 	/**
 	 * Negative integer with the range of a 64-bit signed integer.
 	 *
-	 * Payload is the ones' complement of the value encoded as a VarUInt.
+	 * Value is the ones' complement of the value encoded as a VarUInt.
 	 */
 	IntegerNegative                  = 0x09,
 
-	/** Single precision float. Payload is one big endian IEEE 754 binary32 float. */
+	/** Single precision float. Value is one big endian IEEE 754 binary32 float. */
 	Float32                          = 0x0a,
-	/** Double precision float. Payload is one big endian IEEE 754 binary64 float. */
+	/** Double precision float. Value is one big endian IEEE 754 binary64 float. */
 	Float64                          = 0x0b,
 
-	/** Boolean false value. Payload is empty. */
+	/** Boolean false value. Value is empty. */
 	BoolFalse                        = 0x0c,
-	/** Boolean true value. Payload is empty. */
+	/** Boolean true value. Value is empty. */
 	BoolTrue                         = 0x0d,
 
 	/**
 	 * ObjectAttachment is a reference to a compact binary object attachment stored externally.
 	 *
-	 * Payload is a 160-bit hash digest of the referenced compact binary object data.
+	 * Value is a 160-bit hash digest of the referenced compact binary object data.
 	 */
-	ObjectAttachment          = 0x0e,
+	ObjectAttachment                 = 0x0e,
 	/**
 	 * BinaryAttachment is a reference to a binary attachment stored externally.
 	 *
-	 * Payload is a 160-bit hash digest of the referenced binary data.
+	 * Value is a 160-bit hash digest of the referenced binary data.
 	 */
 	BinaryAttachment                 = 0x0f,
 
-	/** Hash. Payload is a 160-bit hash digest. */
+	/** Hash. Value is a 160-bit hash digest. */
 	Hash                             = 0x10,
-	/** UUID/GUID. Payload is a 128-bit UUID as defined by RFC 4122. */
+	/** UUID/GUID. Value is a 128-bit UUID as defined by RFC 4122. */
 	Uuid                             = 0x11,
 
 	/**
 	 * Date and time between 0001-01-01 00:00:00.0000000 and 9999-12-31 23:59:59.9999999.
 	 *
-	 * Payload is a big endian int64 count of 100ns ticks since 0001-01-01 00:00:00.0000000.
+	 * Value is a big endian int64 count of 100ns ticks since 0001-01-01 00:00:00.0000000.
 	 */
 	DateTime                         = 0x12,
 	/**
 	 * Difference between two date/time values.
 	 *
-	 * Payload is a big endian int64 count of 100ns ticks in the span, and may be negative.
+	 * Value is a big endian int64 count of 100ns ticks in the span, and may be negative.
 	 */
 	TimeSpan                         = 0x13,
 
 	/**
 	 * ObjectId is an opaque object identifier. See FCbObjectId.
 	 *
-	 * Payload is a 12-byte object identifier.
+	 * Value is a 12-byte object identifier.
 	 */
 	ObjectId                         = 0x14,
 
 	/**
-	 * CustomById identifies the sub-type of its payload by an integer identifier.
+	 * CustomById identifies the sub-type of its value by an integer identifier.
 	 *
-	 * Payload is a VarUInt byte count of the sub-type identifier and the sub-type payload, followed
-	 * by a VarUInt of the sub-type identifier then the payload of the sub-type.
+	 * Value is a VarUInt byte count, followed by a VarUInt encoding of the sub-type identifier,
+	 * followed by the value of the sub-type.
 	 */
 	CustomById                       = 0x1e,
 	/**
-	 * CustomByType identifies the sub-type of its payload by a string identifier.
+	 * CustomByType identifies the sub-type of its value by a string identifier.
 	 *
-	 * Payload is a VarUInt byte count of the sub-type identifier and the sub-type payload, followed
-	 * by a VarUInt byte count of the unterminated sub-type identifier, then the sub-type identifier
-	 * without termination, then the payload of the sub-type.
+	 * Value is a VarUInt byte count, followed by a String encoding of the sub-type identifier,
+	 * followed by the value of the sub-type.
 	 */
 	CustomByName                     = 0x1f,
 
@@ -211,13 +211,13 @@ enum class ECbFieldType : uint8
 
 	/**
 	 * A transient flag which indicates that the object or array containing this field has stored
-	 * the field type before the payload and name. Non-uniform objects and fields will set this.
+	 * the field type before the value and name. Non-uniform objects and fields will set this.
 	 *
-	 * Note: Since the flag must never be serialized, this bit may be repurposed in the future.
+	 * Note: Since the flag must never be serialized, this bit may be re-purposed in the future.
 	 */
 	HasFieldType                     = 0x40,
 
-	/** A persisted flag which indicates that the field has a name stored before the payload. */
+	/** A persisted flag which indicates that the field has a name stored before the value. */
 	HasFieldName                     = 0x80,
 };
 
@@ -362,7 +362,7 @@ public:
 	template <typename OtherFieldType>
 	constexpr inline bool Equals(const TCbFieldIterator<OtherFieldType>& Other) const
 	{
-		return FieldType::GetPayload() == Other.OtherFieldType::GetPayload() && FieldsEnd == Other.FieldsEnd;
+		return FieldType::GetValueData() == Other.OtherFieldType::GetValueData() && FieldsEnd == Other.FieldsEnd;
 	}
 
 	template <typename OtherFieldType>
@@ -414,7 +414,7 @@ protected:
 	/** Construct a field range that contains exactly one field. */
 	constexpr inline explicit TCbFieldIterator(FieldType InField)
 		: FieldType(MoveTemp(InField))
-		, FieldsEnd(FieldType::GetPayloadEnd())
+		, FieldsEnd(FieldType::GetValueEnd())
 	{
 	}
 
@@ -422,7 +422,7 @@ protected:
 	 * Construct a field range from the first field and a pointer to the end of the last field.
 	 *
 	 * @param InField The first field, or the default field if there are no fields.
-	 * @param InFieldsEnd A pointer to the end of the payload of the last field, or null.
+	 * @param InFieldsEnd A pointer to the end of the value of the last field, or null.
 	 */
 	constexpr inline TCbFieldIterator(FieldType&& InField, const void* InFieldsEnd)
 		: FieldType(MoveTemp(InField))
@@ -561,9 +561,9 @@ struct FCbCustomByName
  * the first byte, and includes the HasFieldName flag for a field in an object. The field name is
  * encoded in a variable-length unsigned integer of its size in bytes, for named fields, followed
  * by that many bytes of the UTF-8 encoding of the name with no null terminator. The remainder of
- * the field is the payload and is described in the field type enum. Every field must be uniquely
+ * the field is the value which is described in the field type enum. Every field must be uniquely
  * addressable when encoded, which means a zero-byte field is not permitted, and only arises in a
- * uniform array of fields with no payload, where the answer is to encode as a non-uniform array.
+ * uniform array of fields with no value, where the answer is to encode as a non-uniform array.
  *
  * This type only provides a view into memory and does not perform any memory management itself.
  * Use FCbField to hold a reference to the underlying memory when necessary.
@@ -585,7 +585,7 @@ public:
 	/** Returns the name of the field if it has a name, otherwise an empty view. */
 	constexpr inline FUtf8StringView GetName() const
 	{
-		return FUtf8StringView(static_cast<const UTF8CHAR*>(Payload) - NameLen, NameLen);
+		return FUtf8StringView(static_cast<const UTF8CHAR*>(Value) - NameLen, NameLen);
 	}
 
 	/** Access the field as an object. Defaults to an empty object on error. */
@@ -776,11 +776,11 @@ protected:
 	/** Returns a view of the field, including the type and name when present. */
 	CORE_API FMemoryView GetView() const;
 
-	/** Returns a view of the name and value payload, which excludes the type. */
+	/** Returns a view of the name and value, which excludes the type. */
 	CORE_API FMemoryView GetViewNoType() const;
 
-	/** Returns a view of the value payload, which excludes the type and name. */
-	inline FMemoryView GetPayloadView() const { return MakeMemoryView(Payload, GetPayloadSize()); }
+	/** Returns a view of the value, which excludes the type and name. */
+	inline FMemoryView GetValueView() const { return MakeMemoryView(Value, GetValueSize()); }
 
 	/** Returns the type of the field excluding flags. */
 	constexpr inline ECbFieldType GetType() const { return FCbFieldType::GetType(TypeWithFlags); }
@@ -788,14 +788,14 @@ protected:
 	/** Returns the type of the field including flags. */
 	constexpr inline ECbFieldType GetTypeWithFlags() const { return TypeWithFlags; }
 
-	/** Returns the start of the value payload. */
-	constexpr inline const void* GetPayload() const { return Payload; }
+	/** Returns the start of the value. */
+	constexpr inline const void* GetValueData() const { return Value; }
 
-	/** Returns the end of the value payload. */
-	inline const void* GetPayloadEnd() const { return static_cast<const uint8*>(Payload) + GetPayloadSize(); }
+	/** Returns the end of the value. */
+	inline const void* GetValueEnd() const { return static_cast<const uint8*>(Value) + GetValueSize(); }
 
-	/** Returns the size of the value payload in bytes, which is the field excluding the type and name. */
-	CORE_API uint64 GetPayloadSize() const;
+	/** Returns the size of the value in bytes, which is the field excluding the type and name. */
+	CORE_API uint64 GetValueSize() const;
 
 	/** Assign a field from a pointer to its data and an optional externally-provided type. */
 	inline void Assign(const void* InData, const ECbFieldType InType)
@@ -843,10 +843,10 @@ private:
 	ECbFieldType TypeWithFlags = ECbFieldType::None;
 	/** The error (if any) that occurred on the last field access. */
 	ECbFieldError Error = ECbFieldError::None;
-	/** The number of bytes for the name stored before the payload. */
+	/** The number of bytes for the name stored before the value. */
 	uint32 NameLen = 0;
-	/** The value payload, which also points to the end of the name. */
-	const void* Payload = nullptr;
+	/** The value, which also points to the end of the name. */
+	const void* Value = nullptr;
 };
 
 /**

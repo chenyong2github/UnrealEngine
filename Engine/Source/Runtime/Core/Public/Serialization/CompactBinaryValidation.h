@@ -88,15 +88,15 @@ enum class ECbValidateError : uint32
 
 	// Mode: Format
 
-	/** A name or string payload is not valid UTF-8. */
+	/** A name or string value is not valid UTF-8. */
 	InvalidString           = 1 << 5,
-	/** A size or integer payload can be encoded in fewer bytes. */
+	/** A size or integer value can be encoded in fewer bytes. */
 	InvalidInteger          = 1 << 6,
-	/** A float64 payload can be encoded as a float32 without loss of precision. */
+	/** A float64 value can be encoded as a float32 without loss of precision. */
 	InvalidFloat            = 1 << 7,
 	/** An object has the same type for every field but is not uniform. */
 	NonUniformObject        = 1 << 8,
-	/** An array has the same type for every field and non-empty payloads but is not uniform. */
+	/** An array has the same type for every field and non-empty values but is not uniform. */
 	NonUniformArray         = 1 << 9,
 
 	// Mode: Padding

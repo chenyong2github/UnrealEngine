@@ -125,9 +125,9 @@ protected:
 	}
 
 	template <ECbFieldType FieldType, typename T = TCbFieldValueType<FieldType>, typename AccessorsType = TCbFieldTypeAccessors<FieldType>>
-	void TestFieldNoClone(const TCHAR* What, TArrayView<const uint8> Payload, T ExpectedValue = T(), T DefaultValue = T(), ECbFieldError ExpectedError = ECbFieldError::None, const AccessorsType& Accessors = AccessorsType())
+	void TestFieldNoClone(const TCHAR* What, TArrayView<const uint8> Value, T ExpectedValue = T(), T DefaultValue = T(), ECbFieldError ExpectedError = ECbFieldError::None, const AccessorsType& Accessors = AccessorsType())
 	{
-		FCbFieldView Field(Payload.GetData(), FieldType);
+		FCbFieldView Field(Value.GetData(), FieldType);
 		TestFieldNoClone<FieldType>(What, Field, ExpectedValue, DefaultValue, ExpectedError, Accessors);
 	}
 
@@ -141,10 +141,10 @@ protected:
 	}
 
 	template <ECbFieldType FieldType, typename T = TCbFieldValueType<FieldType>, typename AccessorsType = TCbFieldTypeAccessors<FieldType>>
-	void TestField(const TCHAR* What, TArrayView<const uint8> Payload, T ExpectedValue = T(), T DefaultValue = T(), ECbFieldError ExpectedError = ECbFieldError::None, const AccessorsType& Accessors = AccessorsType())
+	void TestField(const TCHAR* What, TArrayView<const uint8> Value, T ExpectedValue = T(), T DefaultValue = T(), ECbFieldError ExpectedError = ECbFieldError::None, const AccessorsType& Accessors = AccessorsType())
 	{
-		FCbFieldView Field(Payload.GetData(), FieldType);
-		TestEqual(FString::Printf(TEXT("FCbFieldView::GetSize(%s)"), What), Field.GetSize(), uint64(Payload.Num() + !FCbFieldType::HasFieldType(FieldType)));
+		FCbFieldView Field(Value.GetData(), FieldType);
+		TestEqual(FString::Printf(TEXT("FCbFieldView::GetSize(%s)"), What), Field.GetSize(), uint64(Value.Num() + !FCbFieldType::HasFieldType(FieldType)));
 		TestTrue(FString::Printf(TEXT("FCbFieldView::HasValue(%s)"), What), Field.HasValue());
 		TestFalse(FString::Printf(TEXT("FCbFieldView::HasError(%s) == false"), What), Field.HasError());
 		TestEqual(FString::Printf(TEXT("FCbFieldView::GetError(%s) == None"), What), Field.GetError(), ECbFieldError::None);
@@ -158,9 +158,9 @@ protected:
 	}
 
 	template <ECbFieldType FieldType, typename T = TCbFieldValueType<FieldType>, typename AccessorsType = TCbFieldTypeAccessors<FieldType>>
-	void TestFieldError(const TCHAR* What, TArrayView<const uint8> Payload, ECbFieldError ExpectedError, T ExpectedValue = T(), const AccessorsType& Accessors = AccessorsType())
+	void TestFieldError(const TCHAR* What, TArrayView<const uint8> Value, ECbFieldError ExpectedError, T ExpectedValue = T(), const AccessorsType& Accessors = AccessorsType())
 	{
-		FCbFieldView Field(Payload.GetData(), FieldType);
+		FCbFieldView Field(Value.GetData(), FieldType);
 		TestFieldError<FieldType>(What, Field, ExpectedError, ExpectedValue, Accessors);
 	}
 };
@@ -300,9 +300,9 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 	static_assert(!std::is_convertible<FCbFieldView, FCbObjectView>::value, "Invalid conversion to FCbObjectView");
 	static_assert(!std::is_assignable<FCbObjectView, const FCbFieldView&>::value, "Invalid assignment for FCbObjectView");
 
-	auto TestIntObject = [this](const FCbObjectView& Object, int32 ExpectedNum, uint64 ExpectedPayloadSize)
+	auto TestIntObject = [this](const FCbObjectView& Object, int32 ExpectedNum, uint64 ExpectedValueSize)
 	{
-		TestEqual(TEXT("FCbFieldView(Object)::AsObjectView().GetSize()"), Object.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
+		TestEqual(TEXT("FCbFieldView(Object)::AsObjectView().GetSize()"), Object.GetSize(), ExpectedValueSize + sizeof(ECbFieldType));
 
 		int32 ActualNum = 0;
 		for (FCbFieldViewIterator It = Object.CreateViewIterator(); It; ++It)
@@ -361,12 +361,12 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 	// Test FCbFieldView(Object, NotEmpty)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 12, IntType, 1, 'A', 1, IntType, 1, 'B', 2, IntType, 1, 'C', 3 };
-		FCbFieldView Field(Payload, ECbFieldType::Object);
-		TestField<ECbFieldType::Object>(TEXT("Object, NotEmpty"), Field, FCbObjectView(Payload, ECbFieldType::Object));
+		const uint8 Value[] = { 12, IntType, 1, 'A', 1, IntType, 1, 'B', 2, IntType, 1, 'C', 3 };
+		FCbFieldView Field(Value, ECbFieldType::Object);
+		TestField<ECbFieldType::Object>(TEXT("Object, NotEmpty"), Field, FCbObjectView(Value, ECbFieldType::Object));
 		FCbObject Object = FCbObject::Clone(Field.AsObjectView());
-		TestIntObject(Object, 3, sizeof(Payload));
-		TestIntObject(Field.AsObjectView(), 3, sizeof(Payload));
+		TestIntObject(Object, 3, sizeof(Value));
+		TestIntObject(Field.AsObjectView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbObjectView::Equals()"), Object.Equals(Field.AsObjectView()));
 		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView("B"_ASV).AsInt32(), 2);
 		TestEqual(TEXT("FCbObjectView::Find()"), Object.FindView("b"_ASV).AsInt32(4), 4);
@@ -379,12 +379,12 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 	// Test FCbFieldView(UniformObject, NotEmpty)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::HasFieldName | ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		FCbFieldView Field(Payload, ECbFieldType::UniformObject);
-		TestField<ECbFieldType::UniformObject>(TEXT("UniformObject, NotEmpty"), Field, FCbObjectView(Payload, ECbFieldType::UniformObject));
+		const uint8 Value[] = { 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		FCbFieldView Field(Value, ECbFieldType::UniformObject);
+		TestField<ECbFieldType::UniformObject>(TEXT("UniformObject, NotEmpty"), Field, FCbObjectView(Value, ECbFieldType::UniformObject));
 		FCbObject Object = FCbObject::Clone(Field.AsObjectView());
-		TestIntObject(Object, 3, sizeof(Payload));
-		TestIntObject(Field.AsObjectView(), 3, sizeof(Payload));
+		TestIntObject(Object, 3, sizeof(Value));
+		TestIntObject(Field.AsObjectView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbObjectView(Uniform)::Equals()"), Object.Equals(Field.AsObjectView()));
 		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.FindView("B"_ASV).AsInt32(), 2);
 		TestEqual(TEXT("FCbObjectView(Uniform)::Find()"), Object.Find("B"_ASV).AsInt32(), 2);
@@ -400,18 +400,18 @@ bool FCbFieldObjectTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbObject::AsField()"), Object.GetOuterBuffer() == Object.AsField().AsObject().GetOuterBuffer());
 
 		// Equals
-		const uint8 NamedPayload[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
-		FCbFieldView NamedField(NamedPayload, ECbFieldType::UniformObject | ECbFieldType::HasFieldName);
+		const uint8 NamedValue[] = { 1, 'O', 10, IntType, 1, 'A', 1, 1, 'B', 2, 1, 'C', 3 };
+		FCbFieldView NamedField(NamedValue, ECbFieldType::UniformObject | ECbFieldType::HasFieldName);
 		TestTrue(TEXT("FCbObjectView::Equals()"), Field.AsObjectView().Equals(NamedField.AsObjectView()));
 		TestTrue(TEXT("FCbObjectView::AsFieldView().Equals()"), Field.Equals(Field.AsObjectView().AsFieldView()));
 		TestTrue(TEXT("FCbObjectView::AsFieldView().Equals()"), NamedField.Equals(NamedField.AsObjectView().AsFieldView()));
 
 		// CopyTo
-		uint8 CopyBytes[sizeof(Payload) + 1];
+		uint8 CopyBytes[sizeof(Value) + 1];
 		Field.AsObjectView().CopyTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbObjectView(NoType)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
+		TestTrue(TEXT("FCbObjectView(NoType)::CopyTo()"), MakeMemoryView(Value).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 		NamedField.AsObjectView().CopyTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbObjectView(NoType, Name)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
+		TestTrue(TEXT("FCbObjectView(NoType, Name)::CopyTo()"), MakeMemoryView(Value).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 
 		// TryGetView
 		FMemoryView View;
@@ -518,9 +518,9 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 	static_assert(!std::is_convertible<FCbFieldView, FCbArrayView>::value, "Invalid conversion to FCbArrayView");
 	static_assert(!std::is_assignable<FCbArrayView, const FCbFieldView&>::value, "Invalid assignment for FCbArrayView");
 
-	auto TestIntArray = [this](FCbArrayView Array, int32 ExpectedNum, uint64 ExpectedPayloadSize)
+	auto TestIntArray = [this](FCbArrayView Array, int32 ExpectedNum, uint64 ExpectedValueSize)
 	{
-		TestEqual(TEXT("FCbFieldView(Array)::AsArrayView().GetSize()"), Array.GetSize(), ExpectedPayloadSize + sizeof(ECbFieldType));
+		TestEqual(TEXT("FCbFieldView(Array)::AsArrayView().GetSize()"), Array.GetSize(), ExpectedValueSize + sizeof(ECbFieldType));
 		TestEqual(TEXT("FCbFieldView(Array)::AsArrayView().Num()"), Array.Num(), uint64(ExpectedNum));
 
 		int32 ActualNum = 0;
@@ -572,41 +572,41 @@ bool FCbFieldArrayTest::RunTest(const FString& Parameters)
 	// Test FCbFieldView(Array, NotEmpty)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 7, 3, IntType, 1, IntType, 2, IntType, 3 };
-		FCbFieldView Field(Payload, ECbFieldType::Array);
-		TestField<ECbFieldType::Array>(TEXT("Array, NotEmpty"), Field, FCbArrayView(Payload, ECbFieldType::Array));
+		const uint8 Value[] = { 7, 3, IntType, 1, IntType, 2, IntType, 3 };
+		FCbFieldView Field(Value, ECbFieldType::Array);
+		TestField<ECbFieldType::Array>(TEXT("Array, NotEmpty"), Field, FCbArrayView(Value, ECbFieldType::Array));
 		FCbArray Array = FCbArray::Clone(Field.AsArrayView());
-		TestIntArray(Array, 3, sizeof(Payload));
-		TestIntArray(Field.AsArrayView(), 3, sizeof(Payload));
+		TestIntArray(Array, 3, sizeof(Value));
+		TestIntArray(Field.AsArrayView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbArrayView::Equals()"), Array.Equals(Field.AsArrayView()));
 	}
 
 	// Test FCbFieldView(UniformArray)
 	{
 		constexpr uint8 IntType = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { 5, 3, IntType, 1, 2, 3 };
-		FCbFieldView Field(Payload, ECbFieldType::UniformArray);
-		TestField<ECbFieldType::UniformArray>(TEXT("UniformArray"), Field, FCbArrayView(Payload, ECbFieldType::UniformArray));
+		const uint8 Value[] = { 5, 3, IntType, 1, 2, 3 };
+		FCbFieldView Field(Value, ECbFieldType::UniformArray);
+		TestField<ECbFieldType::UniformArray>(TEXT("UniformArray"), Field, FCbArrayView(Value, ECbFieldType::UniformArray));
 		FCbArray Array = FCbArray::Clone(Field.AsArrayView());
-		TestIntArray(Array, 3, sizeof(Payload));
-		TestIntArray(Field.AsArrayView(), 3, sizeof(Payload));
+		TestIntArray(Array, 3, sizeof(Value));
+		TestIntArray(Field.AsArrayView(), 3, sizeof(Value));
 		TestTrue(TEXT("FCbArrayView(Uniform)::Equals()"), Array.Equals(Field.AsArrayView()));
 
 		TestTrue(TEXT("FCbArray::AsField()"), Array.GetOuterBuffer() == Array.AsField().AsArray().GetOuterBuffer());
 
 		// Equals
-		const uint8 NamedPayload[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
-		FCbFieldView NamedField(NamedPayload, ECbFieldType::UniformArray | ECbFieldType::HasFieldName);
+		const uint8 NamedValue[] = { 1, 'A', 5, 3, IntType, 1, 2, 3 };
+		FCbFieldView NamedField(NamedValue, ECbFieldType::UniformArray | ECbFieldType::HasFieldName);
 		TestTrue(TEXT("FCbArrayView::Equals()"), Field.AsArrayView().Equals(NamedField.AsArrayView()));
 		TestTrue(TEXT("FCbArrayView::AsFieldView().Equals()"), Field.Equals(Field.AsArrayView().AsFieldView()));
 		TestTrue(TEXT("FCbArrayView::AsFieldView().Equals()"), NamedField.Equals(NamedField.AsArrayView().AsFieldView()));
 
 		// CopyTo
-		uint8 CopyBytes[sizeof(Payload) + 1];
+		uint8 CopyBytes[sizeof(Value) + 1];
 		Field.AsArrayView().CopyTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbArrayView(NoType)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
+		TestTrue(TEXT("FCbArrayView(NoType)::CopyTo()"), MakeMemoryView(Value).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 		NamedField.AsArrayView().CopyTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbArrayView(NoType, Name)::CopyTo()"), MakeMemoryView(Payload).EqualBytes(MakeMemoryView(CopyBytes) + 1));
+		TestTrue(TEXT("FCbArrayView(NoType, Name)::CopyTo()"), MakeMemoryView(Value).EqualBytes(MakeMemoryView(CopyBytes) + 1));
 
 		// TryGetView
 		FMemoryView View;
@@ -715,9 +715,9 @@ bool FCbFieldBinaryTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(Binary, Value)
 	{
-		const uint8 Payload[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		FCbFieldView FieldView(Payload, ECbFieldType::Binary);
-		TestFieldNoClone<ECbFieldType::Binary>(TEXT("Binary, Value, View"), FieldView, MakeMemoryView(Payload + 1, 3));
+		const uint8 Value[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		FCbFieldView FieldView(Value, ECbFieldType::Binary);
+		TestFieldNoClone<ECbFieldType::Binary>(TEXT("Binary, Value, View"), FieldView, MakeMemoryView(Value + 1, 3));
 
 		FCbField Field = FCbField::Clone(FieldView);
 		Field.AsBinary();
@@ -747,15 +747,15 @@ bool FCbFieldStringTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(String, Value)
 	{
-		const uint8 Payload[] = { 3, 'A', 'B', 'C' }; // Size: 3, Data: ABC
-		TestField<ECbFieldType::String>(TEXT("String, Value"), Payload, FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(Payload) + 1, 3));
+		const uint8 Value[] = { 3, 'A', 'B', 'C' }; // Size: 3, Data: ABC
+		TestField<ECbFieldType::String>(TEXT("String, Value"), Value, FUtf8StringView(reinterpret_cast<const UTF8CHAR*>(Value) + 1, 3));
 	}
 
 	// Test FCbFieldView(String, OutOfRangeSize)
 	{
-		uint8 Payload[9];
-		WriteVarUInt(uint64(1) << 31, Payload);
-		TestFieldError<ECbFieldType::String>(TEXT("String, OutOfRangeSize"), Payload, ECbFieldError::RangeError, "ABC"_U8SV);
+		uint8 Value[9];
+		WriteVarUInt(uint64(1) << 31, Value);
+		TestFieldError<ECbFieldType::String>(TEXT("String, OutOfRangeSize"), Value, ECbFieldError::RangeError, "ABC"_U8SV);
 	}
 
 	// Test FCbFieldView(None) as String
@@ -808,12 +808,12 @@ protected:
 
 	void TestIntegerField(ECbFieldType FieldType, EIntType ExpectedMask, uint64 Magnitude)
 	{
-		uint8 Payload[9];
+		uint8 Value[9];
 		const bool Negative = bool(uint8(FieldType) & 1);
-		WriteVarUInt(Magnitude - Negative, Payload);
+		WriteVarUInt(Magnitude - Negative, Value);
 		constexpr uint64 DefaultValue = 8;
 		const uint64 ExpectedValue = Negative ? uint64(-int64(Magnitude)) : Magnitude;
-		FCbFieldView Field(Payload, FieldType);
+		FCbFieldView Field(Value, FieldType);
 		TestField<ECbFieldType::IntegerNegative>(TEXT("Int8"), Field, int8(EnumHasAnyFlags(ExpectedMask, EIntType::Int8) ? ExpectedValue : DefaultValue),
 			int8(DefaultValue), EnumHasAnyFlags(ExpectedMask, EIntType::Int8) ? ECbFieldError::None : ECbFieldError::RangeError, TCbIntegerAccessors<int8, &FCbFieldView::AsInt8>());
 		TestField<ECbFieldType::IntegerNegative>(TEXT("Int16"), Field, int16(EnumHasAnyFlags(ExpectedMask, EIntType::Int16) ? ExpectedValue : DefaultValue),
@@ -881,99 +881,99 @@ bool FCbFieldFloatTest::RunTest(const FString& Parameters)
 {
 	// Test FCbFieldView(Float, 32-bit)
 	{
-		const uint8 Payload[] = { 0xc0, 0x12, 0x34, 0x56 }; // -2.28444433f
-		TestField<ECbFieldType::Float32>(TEXT("Float32"), Payload, -2.28444433f);
+		const uint8 Value[] = { 0xc0, 0x12, 0x34, 0x56 }; // -2.28444433f
+		TestField<ECbFieldType::Float32>(TEXT("Float32"), Value, -2.28444433f);
 
-		FCbFieldView Field(Payload, ECbFieldType::Float32);
+		FCbFieldView Field(Value, ECbFieldType::Float32);
 		TestField<ECbFieldType::Float64>(TEXT("Float32, AsDouble"), Field, -2.28444433);
 	}
 
 	// Test FCbFieldView(Float, 64-bit)
 	{
-		const uint8 Payload[] = { 0xc1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef }; // -631475.76888888876
-		TestField<ECbFieldType::Float64>(TEXT("Float64"), Payload, -631475.76888888876);
+		const uint8 Value[] = { 0xc1, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef }; // -631475.76888888876
+		TestField<ECbFieldType::Float64>(TEXT("Float64"), Value, -631475.76888888876);
 
-		FCbFieldView Field(Payload, ECbFieldType::Float64);
+		FCbFieldView Field(Value, ECbFieldType::Float64);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Float64, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 	}
 
 	// Test FCbFieldView(Integer+, MaxBinary32) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 24) - 1, Payload); // 16,777,215
-		FCbFieldView Field(Payload, ECbFieldType::IntegerPositive);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 24) - 1, Value); // 16,777,215
+		FCbFieldView Field(Value, ECbFieldType::IntegerPositive);
 		TestField<ECbFieldType::Float32>(TEXT("Integer+, MaxBinary32, AsFloat"), Field, 16'777'215.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer+, MaxBinary32, AsDouble"), Field, 16'777'215.0);
 	}
 
 	// Test FCbFieldView(Integer+, MaxBinary32+1) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt(uint64(1) << 24, Payload); // 16,777,216
-		FCbFieldView Field(Payload, ECbFieldType::IntegerPositive);
+		uint8 Value[9];
+		WriteVarUInt(uint64(1) << 24, Value); // 16,777,216
+		FCbFieldView Field(Value, ECbFieldType::IntegerPositive);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer+, MaxBinary32+1, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer+, MaxBinary32+1, AsDouble"), Field, 16'777'216.0);
 	}
 
 	// Test FCbFieldView(Integer+, MaxBinary64) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 53) - 1, Payload); // 9,007,199,254,740,991
-		FCbFieldView Field(Payload, ECbFieldType::IntegerPositive);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 53) - 1, Value); // 9,007,199,254,740,991
+		FCbFieldView Field(Value, ECbFieldType::IntegerPositive);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer+, MaxBinary64, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer+, MaxBinary64, AsDouble"), Field, 9'007'199'254'740'991.0);
 	}
 
 	// Test FCbFieldView(Integer+, MaxBinary64+1) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt(uint64(1) << 53, Payload); // 9,007,199,254,740,992
-		FCbFieldView Field(Payload, ECbFieldType::IntegerPositive);
+		uint8 Value[9];
+		WriteVarUInt(uint64(1) << 53, Value); // 9,007,199,254,740,992
+		FCbFieldView Field(Value, ECbFieldType::IntegerPositive);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer+, MaxBinary64+1, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestFieldError<ECbFieldType::Float64>(TEXT("Integer+, MaxBinary64+1, AsDouble"), Field, ECbFieldError::RangeError, 8.0);
 	}
 
 	// Test FCbFieldView(Integer+, MaxUInt64) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt(uint64(-1), Payload); // Max uint64
-		FCbFieldView Field(Payload, ECbFieldType::IntegerPositive);
+		uint8 Value[9];
+		WriteVarUInt(uint64(-1), Value); // Max uint64
+		FCbFieldView Field(Value, ECbFieldType::IntegerPositive);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer+, MaxUInt64, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestFieldError<ECbFieldType::Float64>(TEXT("Integer+, MaxUInt64, AsDouble"), Field, ECbFieldError::RangeError, 8.0);
 	}
 
 	// Test FCbFieldView(Integer-, MaxBinary32) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 24) - 2, Payload); // -16,777,215
-		FCbFieldView Field(Payload, ECbFieldType::IntegerNegative);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 24) - 2, Value); // -16,777,215
+		FCbFieldView Field(Value, ECbFieldType::IntegerNegative);
 		TestField<ECbFieldType::Float32>(TEXT("Integer-, MaxBinary32, AsFloat"), Field, -16'777'215.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer-, MaxBinary32, AsDouble"), Field, -16'777'215.0);
 	}
 
 	// Test FCbFieldView(Integer-, MaxBinary32+1) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 24) - 1, Payload); // -16,777,216
-		FCbFieldView Field(Payload, ECbFieldType::IntegerNegative);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 24) - 1, Value); // -16,777,216
+		FCbFieldView Field(Value, ECbFieldType::IntegerNegative);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer-, MaxBinary32+1, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer-, MaxBinary32+1, AsDouble"), Field, -16'777'216.0);
 	}
 
 	// Test FCbFieldView(Integer-, MaxBinary64) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 53) - 2, Payload); // -9,007,199,254,740,991
-		FCbFieldView Field(Payload, ECbFieldType::IntegerNegative);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 53) - 2, Value); // -9,007,199,254,740,991
+		FCbFieldView Field(Value, ECbFieldType::IntegerNegative);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer-, MaxBinary64, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestField<ECbFieldType::Float64>(TEXT("Integer-, MaxBinary64, AsDouble"), Field, -9'007'199'254'740'991.0);
 	}
 
 	// Test FCbFieldView(Integer-, MaxBinary64+1) as Float
 	{
-		uint8 Payload[9];
-		WriteVarUInt((uint64(1) << 53) - 1, Payload); // -9,007,199,254,740,992
-		FCbFieldView Field(Payload, ECbFieldType::IntegerNegative);
+		uint8 Value[9];
+		WriteVarUInt((uint64(1) << 53) - 1, Value); // -9,007,199,254,740,992
+		FCbFieldView Field(Value, ECbFieldType::IntegerNegative);
 		TestFieldError<ECbFieldType::Float32>(TEXT("Integer-, MaxBinary64+1, AsFloat"), Field, ECbFieldError::RangeError, 8.0f);
 		TestFieldError<ECbFieldType::Float64>(TEXT("Integer-, MaxBinary64+1, AsDouble"), Field, ECbFieldError::RangeError, 8.0);
 	}
@@ -1127,8 +1127,8 @@ bool FCbFieldDateTimeTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(DateTime, Zero) as FDateTime
 	{
-		const uint8 Payload[] = {0, 0, 0, 0, 0, 0, 0, 0};
-		FCbFieldView Field(Payload, ECbFieldType::DateTime);
+		const uint8 Value[] = {0, 0, 0, 0, 0, 0, 0, 0};
+		FCbFieldView Field(Value, ECbFieldType::DateTime);
 		TestEqual(TEXT("FCbFieldView()::AsDateTime()"), Field.AsDateTime(), FDateTime(0));
 	}
 
@@ -1154,8 +1154,8 @@ bool FCbFieldTimeSpanTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(TimeSpan, Zero) as FTimeSpan
 	{
-		const uint8 Payload[] = {0, 0, 0, 0, 0, 0, 0, 0};
-		FCbFieldView Field(Payload, ECbFieldType::TimeSpan);
+		const uint8 Value[] = {0, 0, 0, 0, 0, 0, 0, 0};
+		FCbFieldView Field(Value, ECbFieldType::TimeSpan);
 		TestEqual(TEXT("FCbFieldView()::AsTimeSpan()"), Field.AsTimeSpan(), FTimespan(0));
 	}
 
@@ -1182,8 +1182,8 @@ bool FCbFieldObjectIdTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(ObjectId, Zero) as FCbObjectId
 	{
-		const uint8 Payload[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-		FCbFieldView Field(Payload, ECbFieldType::ObjectId);
+		const uint8 Value[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+		FCbFieldView Field(Value, ECbFieldType::ObjectId);
 		TestEqual(TEXT("FCbFieldView(ObjectId, Zero)::AsObjectId()"), Field.AsObjectId(), FCbObjectId());
 	}
 
@@ -1214,34 +1214,34 @@ bool FCbFieldCustomByIdTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(CustomById, MinId, Empty)
 	{
-		const uint8 Payload[] = {1, 0};
-		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty"), Payload, FCbCustomById{0});
-		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty, View"), Payload, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByIdAccessor(0));
-		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty, InvalidId"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(MAX_uint64));
+		const uint8 Value[] = {1, 0};
+		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty"), Value, FCbCustomById{0});
+		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty, View"), Value, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByIdAccessor(0));
+		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Empty, InvalidId"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(MAX_uint64));
 	}
 
 	// Test FCbFieldView(CustomById, MinId, Value)
 	{
-		const uint8 Payload[] = {5, 0, 1, 2, 3, 4};
-		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value"), Payload, FCbCustomById{0, MakeMemoryView(Payload).Right(4)});
-		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value, View"), Payload, MakeMemoryView(Payload).Right(4), FMemoryView(), ECbFieldError::None, FCustomByIdAccessor(0));
-		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value, InvalidId"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(MAX_uint64));
+		const uint8 Value[] = {5, 0, 1, 2, 3, 4};
+		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value"), Value, FCbCustomById{0, MakeMemoryView(Value).Right(4)});
+		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value, View"), Value, MakeMemoryView(Value).Right(4), FMemoryView(), ECbFieldError::None, FCustomByIdAccessor(0));
+		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MinId, Value, InvalidId"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(MAX_uint64));
 	}
 
 	// Test FCbFieldView(CustomById, MaxId, Empty)
 	{
-		const uint8 Payload[] = {9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
-		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty"), Payload, FCbCustomById{MAX_uint64});
-		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty, View"), Payload, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByIdAccessor(MAX_uint64));
-		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty, InvalidId"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(0));
+		const uint8 Value[] = {9, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty"), Value, FCbCustomById{MAX_uint64});
+		TestField<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty, View"), Value, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByIdAccessor(MAX_uint64));
+		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Empty, InvalidId"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(0));
 	}
 
 	// Test FCbFieldView(CustomById, MaxId, Value)
 	{
-		const uint8 Payload[] = {13, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1, 2, 3, 4};
-		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value"), Payload, FCbCustomById{MAX_uint64, MakeMemoryView(Payload).Right(4)});
-		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value, View"), Payload, MakeMemoryView(Payload).Right(4), FMemoryView(), ECbFieldError::None, FCustomByIdAccessor(MAX_uint64));
-		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value, InvalidId"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(0));
+		const uint8 Value[] = {13, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 1, 2, 3, 4};
+		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value"), Value, FCbCustomById{MAX_uint64, MakeMemoryView(Value).Right(4)});
+		TestFieldNoClone<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value, View"), Value, MakeMemoryView(Value).Right(4), FMemoryView(), ECbFieldError::None, FCustomByIdAccessor(MAX_uint64));
+		TestFieldError<ECbFieldType::CustomById>(TEXT("CustomById, MaxId, Value, InvalidId"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByIdAccessor(0));
 	}
 
 	// Test FCbFieldView(None) as CustomById
@@ -1272,18 +1272,18 @@ bool FCbFieldCustomByNameTest::RunTest(const FString& Parameters)
 
 	// Test FCbFieldView(CustomByName, ABC, Empty)
 	{
-		const uint8 Payload[] = {4, 3, 'A', 'B', 'C'};
-		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty"), Payload, FCbCustomByName{"ABC"_U8SV});
-		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, View"), Payload, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, InvalidCase"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
+		const uint8 Value[] = {4, 3, 'A', 'B', 'C'};
+		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty"), Value, FCbCustomByName{"ABC"_U8SV});
+		TestField<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, View"), Value, FMemoryView(), MakeMemoryView<uint8>({1, 2, 3}), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Empty, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
 	}
 
 	// Test FCbFieldView(CustomByName, ABC, Value)
 	{
-		const uint8 Payload[] = {8, 3, 'A', 'B', 'C', 1, 2, 3, 4};
-		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value"), Payload, FCbCustomByName{"ABC"_U8SV, MakeMemoryView(Payload).Right(4)});
-		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, View"), Payload, MakeMemoryView(Payload).Right(4), FMemoryView(), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
-		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, InvalidCase"), Payload, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
+		const uint8 Value[] = {8, 3, 'A', 'B', 'C', 1, 2, 3, 4};
+		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value"), Value, FCbCustomByName{"ABC"_U8SV, MakeMemoryView(Value).Right(4)});
+		TestFieldNoClone<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, View"), Value, MakeMemoryView(Value).Right(4), FMemoryView(), ECbFieldError::None, FCustomByNameAccessor("ABC"_U8SV));
+		TestFieldError<ECbFieldType::CustomByName>(TEXT("CustomByName, MinId, Value, InvalidCase"), Value, ECbFieldError::RangeError, MakeMemoryView<uint8>({1, 2, 3}), FCustomByNameAccessor("abc"_U8SV));
 	}
 
 	// Test FCbFieldView(None) as CustomByName
@@ -1507,8 +1507,8 @@ bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 
 	// Test Field w/ Type from Shared Buffer
 	{
-		const uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		FSharedBuffer ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const uint8 Value[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		FSharedBuffer ViewBuffer = FSharedBuffer::MakeView(MakeMemoryView(Value));
 		FSharedBuffer OwnedBuffer = FSharedBuffer::Clone(ViewBuffer);
 
 		FCbField View(ViewBuffer);
@@ -1552,20 +1552,20 @@ bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 
 	// Test Field w/ Type
 	{
-		const uint8 Payload[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		const FCbFieldView Field(Payload);
+		const uint8 Value[] = { uint8(ECbFieldType::Binary), 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		const FCbFieldView Field(Value);
 
-		FCbField VoidView = FCbField::MakeView(Payload);
-		FCbField VoidClone = FCbField::Clone(Payload);
+		FCbField VoidView = FCbField::MakeView(Value);
+		FCbField VoidClone = FCbField::Clone(Value);
 		FCbField FieldView = FCbField::MakeView(Field);
 		FCbField FieldClone = FCbField::Clone(Field);
 		FCbField FieldViewClone = FCbField::Clone(FieldView);
 
-		TestEqual(TEXT("FCbField::MakeView(Void)"), VoidView.AsBinaryView(), MakeMemoryView(Payload).Right(3));
-		TestNotEqual(TEXT("FCbField::Clone(Void)"), VoidClone.AsBinaryView(), MakeMemoryView(Payload).Right(3));
+		TestEqual(TEXT("FCbField::MakeView(Void)"), VoidView.AsBinaryView(), MakeMemoryView(Value).Right(3));
+		TestNotEqual(TEXT("FCbField::Clone(Void)"), VoidClone.AsBinaryView(), MakeMemoryView(Value).Right(3));
 		TestTrue(TEXT("FCbField::Clone(Void)->EqualBytes"), VoidClone.AsBinaryView().EqualBytes(VoidView.AsBinaryView()));
-		TestEqual(TEXT("FCbField::MakeView(Field)"), FieldView.AsBinaryView(), MakeMemoryView(Payload).Right(3));
-		TestNotEqual(TEXT("FCbField::Clone(Field)"), FieldClone.AsBinaryView(), MakeMemoryView(Payload).Right(3));
+		TestEqual(TEXT("FCbField::MakeView(Field)"), FieldView.AsBinaryView(), MakeMemoryView(Value).Right(3));
+		TestNotEqual(TEXT("FCbField::Clone(Field)"), FieldClone.AsBinaryView(), MakeMemoryView(Value).Right(3));
 		TestTrue(TEXT("FCbField::Clone(Field)->EqualBytes"), FieldClone.AsBinaryView().EqualBytes(VoidView.AsBinaryView()));
 		TestNotEqual(TEXT("FCbField::Clone(FieldView)"), FieldViewClone.AsBinaryView(), FieldView.AsBinaryView());
 		TestTrue(TEXT("FCbField::Clone(FieldView)->EqualBytes"), FieldViewClone.AsBinaryView().EqualBytes(VoidView.AsBinaryView()));
@@ -1579,14 +1579,14 @@ bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 
 	// Test Field w/o Type
 	{
-		const uint8 Payload[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
-		const FCbFieldView Field(Payload, ECbFieldType::Binary);
+		const uint8 Value[] = { 3, 4, 5, 6 }; // Size: 3, Data: 4/5/6
+		const FCbFieldView Field(Value, ECbFieldType::Binary);
 
 		FCbField FieldView = FCbField::MakeView(Field);
 		FCbField FieldClone = FCbField::Clone(Field);
 		FCbField FieldViewClone = FCbField::Clone(FieldView);
 
-		TestEqual(TEXT("FCbField::MakeView(Field, NoType)"), FieldView.AsBinaryView(), MakeMemoryView(Payload).Right(3));
+		TestEqual(TEXT("FCbField::MakeView(Field, NoType)"), FieldView.AsBinaryView(), MakeMemoryView(Value).Right(3));
 		TestTrue(TEXT("FCbField::Clone(Field, NoType)"), FieldClone.AsBinaryView().EqualBytes(FieldView.AsBinaryView()));
 		TestTrue(TEXT("FCbField::Clone(FieldView, NoType)"), FieldViewClone.AsBinaryView().EqualBytes(FieldView.AsBinaryView()));
 
@@ -1595,7 +1595,7 @@ bool FCbFieldBufferTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbField::Clone(FieldView, NoType).IsOwned()"), FieldViewClone.IsOwned());
 
 		FieldView.MakeOwned();
-		TestTrue(TEXT("FCbField::MakeView(NoType).MakeOwned()"), FieldView.AsBinaryView().EqualBytes(MakeMemoryView(Payload).Right(3)));
+		TestTrue(TEXT("FCbField::MakeView(NoType).MakeOwned()"), FieldView.AsBinaryView().EqualBytes(MakeMemoryView(Value).Right(3)));
 		TestTrue(TEXT("FCbField::MakeView(NoType).MakeOwned().IsOwned()"), FieldView.IsOwned());
 	}
 
@@ -1696,9 +1696,9 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 	// Test FCbField[View]Iterator(Range)
 	{
 		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { T, 0, T, 1, T, 2, T, 3 };
+		const uint8 Value[] = { T, 0, T, 1, T, 2, T, 3 };
 
-		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Value));
 		const FSharedBuffer Clone = FSharedBuffer::Clone(View);
 
 		const FMemoryView EmptyView;
@@ -1711,8 +1711,8 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbFieldIterator::GetRangeHash()"), FieldIt.GetRangeHash(), FBlake3::HashBuffer(View));
 
 		FMemoryView RangeView;
-		TestTrue(TEXT("FCbFieldViewIterator::TryGetRangeView()"), FieldViewIt.TryGetRangeView(RangeView) && RangeView == MakeMemoryView(Payload));
-		TestTrue(TEXT("FCbFieldIterator::TryGetRangeView()"), FieldIt.TryGetRangeView(RangeView) && RangeView == MakeMemoryView(Payload));
+		TestTrue(TEXT("FCbFieldViewIterator::TryGetRangeView()"), FieldViewIt.TryGetRangeView(RangeView) && RangeView == MakeMemoryView(Value));
+		TestTrue(TEXT("FCbFieldIterator::TryGetRangeView()"), FieldIt.TryGetRangeView(RangeView) && RangeView == MakeMemoryView(Value));
 
 		TestEqual(TEXT("FCbFieldIterator::CloneRange(EmptyViewIt)"), GetCount(FCbFieldIterator::CloneRange(FCbFieldViewIterator())), 0);
 		TestEqual(TEXT("FCbFieldIterator::CloneRange(EmptyIt)"), GetCount(FCbFieldIterator::CloneRange(FCbFieldIterator())), 0);
@@ -1727,7 +1727,7 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(BufferNullL)"), GetCount(FCbFieldIterator::MakeRange(NullBuffer)), 0);
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(BufferNullR)"), GetCount(FCbFieldIterator::MakeRange(FSharedBuffer(NullBuffer))), 0);
 
-		TestEqual(TEXT("FCbFieldViewIterator::MakeRange(BufferView)"), GetCount(FCbFieldViewIterator::MakeRange(MakeMemoryView(Payload))), 4);
+		TestEqual(TEXT("FCbFieldViewIterator::MakeRange(BufferView)"), GetCount(FCbFieldViewIterator::MakeRange(MakeMemoryView(Value))), 4);
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(BufferCloneL)"), GetCount(FCbFieldIterator::MakeRange(Clone)), 4);
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(BufferCloneR)"), GetCount(FCbFieldIterator::MakeRange(FSharedBuffer(Clone))), 4);
 
@@ -1742,11 +1742,11 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 		TestEqual(TEXT("FCbFieldViewIterator(FieldItR)"), GetCount(FCbFieldViewIterator(FCbFieldIterator(FieldIt))), 4);
 
 		// Uniform
-		const uint8 UniformPayload[] = { 0, 1, 2, 3 };
-		const FCbFieldViewIterator UniformFieldViewIt = FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformPayload), ECbFieldType::IntegerPositive);
+		const uint8 UniformValue[] = { 0, 1, 2, 3 };
+		const FCbFieldViewIterator UniformFieldViewIt = FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformValue), ECbFieldType::IntegerPositive);
 		TestEqual(TEXT("FCbFieldViewIterator::MakeRange(Uniform).GetRangeHash()"), UniformFieldViewIt.GetRangeHash(), FieldViewIt.GetRangeHash());
 		TestFalse(TEXT("FCbFieldViewIterator::MakeRange(Uniform).TryGetRangeView()"), UniformFieldViewIt.TryGetRangeView(RangeView));
-		const FSharedBuffer UniformView = FSharedBuffer::MakeView(MakeMemoryView(UniformPayload));
+		const FSharedBuffer UniformView = FSharedBuffer::MakeView(MakeMemoryView(UniformValue));
 		const FCbFieldIterator UniformFieldIt = FCbFieldIterator::MakeRange(UniformView, ECbFieldType::IntegerPositive);
 		TestEqual(TEXT("FCbFieldIterator::MakeRange(Uniform).GetRangeHash()"), UniformFieldIt.GetRangeHash(), FieldViewIt.GetRangeHash());
 		TestFalse(TEXT("FCbFieldIterator::MakeRange(Uniform).TryGetRangeView()"), UniformFieldIt.TryGetRangeView(RangeView));
@@ -1762,32 +1762,32 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 		TestTrue(TEXT("FCbFieldViewIterator::Equals(Uniform, OtherType)"), UniformFieldViewIt.Equals(UniformFieldIt));
 		TestTrue(TEXT("FCbFieldIterator::Equals(Uniform, Self)"), UniformFieldIt.Equals(AsConst(UniformFieldIt)));
 		TestTrue(TEXT("FCbFieldIterator::Equals(Uniform, OtherType)"), UniformFieldIt.Equals(UniformFieldViewIt));
-		TestFalse(TEXT("FCbFieldViewIterator::Equals(SamePayload, DifferentEnd)"),
-			FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformPayload), ECbFieldType::IntegerPositive)
-				.Equals(FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformPayload).LeftChop(1), ECbFieldType::IntegerPositive)));
-		TestFalse(TEXT("FCbFieldViewIterator::Equals(DifferentPayload, SameEnd)"),
-			FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformPayload), ECbFieldType::IntegerPositive)
-				.Equals(FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformPayload).RightChop(1), ECbFieldType::IntegerPositive)));
+		TestFalse(TEXT("FCbFieldViewIterator::Equals(SameValue, DifferentEnd)"),
+			FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformValue), ECbFieldType::IntegerPositive)
+				.Equals(FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformValue).LeftChop(1), ECbFieldType::IntegerPositive)));
+		TestFalse(TEXT("FCbFieldViewIterator::Equals(DifferentValue, SameEnd)"),
+			FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformValue), ECbFieldType::IntegerPositive)
+				.Equals(FCbFieldViewIterator::MakeRange(MakeMemoryView(UniformValue).RightChop(1), ECbFieldType::IntegerPositive)));
 
 		// CopyRangeTo
-		uint8 CopyBytes[sizeof(Payload)];
+		uint8 CopyBytes[sizeof(Value)];
 		FieldViewIt.CopyRangeTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbFieldViewIterator::MakeRange().CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Payload)));
+		TestTrue(TEXT("FCbFieldViewIterator::MakeRange().CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Value)));
 		FieldIt.CopyRangeTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbFieldIterator::MakeRange().CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Payload)));
+		TestTrue(TEXT("FCbFieldIterator::MakeRange().CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Value)));
 		UniformFieldViewIt.CopyRangeTo(MakeMemoryView(CopyBytes));
-		TestTrue(TEXT("FCbFieldViewIterator::MakeRange(Uniform).CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Payload)));
+		TestTrue(TEXT("FCbFieldViewIterator::MakeRange(Uniform).CopyRangeTo()"), MakeMemoryView(CopyBytes).EqualBytes(MakeMemoryView(Value)));
 
 		// MakeRangeOwned
 		FCbFieldIterator OwnedFromView = UniformFieldIt;
 		OwnedFromView.MakeRangeOwned();
-		TestTrue(TEXT("FCbFieldIterator::MakeRangeOwned(View)"), OwnedFromView.TryGetRangeView(RangeView) && RangeView.EqualBytes(MakeMemoryView(Payload)));
+		TestTrue(TEXT("FCbFieldIterator::MakeRangeOwned(View)"), OwnedFromView.TryGetRangeView(RangeView) && RangeView.EqualBytes(MakeMemoryView(Value)));
 		FCbFieldIterator OwnedFromOwned = OwnedFromView;
 		OwnedFromOwned.MakeRangeOwned();
 		TestEqual(TEXT("FCbFieldIterator::MakeRangeOwned(Owned)"), OwnedFromOwned, OwnedFromView);
 
 		// These lines are expected to assert when uncommented.
-		//const FSharedBuffer ShortView = FSharedBuffer::MakeView(MakeMemoryView(Payload).LeftChop(2));
+		//const FSharedBuffer ShortView = FSharedBuffer::MakeView(MakeMemoryView(Value).LeftChop(2));
 		//TestEqual(TEXT("FCbFieldIterator::MakeRangeView(FieldIt, InvalidBufferL)"), GetCount(FCbFieldIterator::MakeRangeView(FCbFieldViewIterator::MakeRange(*View), ShortView)), 4);
 		//TestEqual(TEXT("FCbFieldIterator::MakeRangeView(FieldIt, InvalidBufferR)"), GetCount(FCbFieldIterator::MakeRangeView(FCbFieldViewIterator::MakeRange(*View), FSharedBuffer(ShortView))), 4);
 	}
@@ -1795,12 +1795,12 @@ bool FCbFieldBufferIteratorTest::RunTest(const FString& Parameters)
 	// Test FCbField[View]Iterator(Scalar)
 	{
 		constexpr uint8 T = uint8(ECbFieldType::IntegerPositive);
-		const uint8 Payload[] = { T, 0 };
+		const uint8 Value[] = { T, 0 };
 
-		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Payload));
+		const FSharedBuffer View = FSharedBuffer::MakeView(MakeMemoryView(Value));
 		const FSharedBuffer Clone = FSharedBuffer::Clone(View);
 
-		const FCbFieldView FieldView(Payload);
+		const FCbFieldView FieldView(Value);
 		const FCbField Field(View);
 
 		TestEqual(TEXT("FCbFieldViewIterator::MakeSingle(FieldViewL)"), GetCount(FCbFieldViewIterator::MakeSingle(FieldView)), 1);
