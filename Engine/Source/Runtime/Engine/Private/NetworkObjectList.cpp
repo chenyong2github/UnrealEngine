@@ -123,7 +123,7 @@ void FNetworkObjectList::Remove(AActor* const Actor)
 	{
 		UNetConnection* Connection = (*ConnectionIt).Get();
 
-		if (Connection == nullptr || Connection->State == USOCK_Closed)
+		if (Connection == nullptr || Connection->GetConnectionState() == USOCK_Closed)
 		{
 			ConnectionIt.RemoveCurrent();
 			continue;
@@ -178,7 +178,7 @@ void FNetworkObjectList::MarkDormant(AActor* const Actor, UNetConnection* const 
 	// Clean up DormantConnections list (remove possible GC'd connections)
 	for (auto ConnectionIt = NetworkObjectInfo->DormantConnections.CreateIterator(); ConnectionIt; ++ConnectionIt)
 	{
-		if ((*ConnectionIt).Get() == nullptr || (*ConnectionIt).Get()->State == USOCK_Closed)
+		if ((*ConnectionIt).Get() == nullptr || (*ConnectionIt).Get()->GetConnectionState() == USOCK_Closed)
 		{
 			ConnectionIt.RemoveCurrent();
 		}

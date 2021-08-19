@@ -119,10 +119,7 @@ FString UWebSocketConnection::LowLevelDescribe()
 		TEXT(" remote=%s local=%s state: %s"),
 		*WebSocket->RemoteEndPoint(true),
 		*WebSocket->LocalEndPoint(true),
-		State == USOCK_Pending ? TEXT("Pending")
-		: State == USOCK_Open ? TEXT("Open")
-		: State == USOCK_Closed ? TEXT("Closed")
-		: TEXT("Invalid")
+		LexToString(GetConnectionState())
 		);
 }
 

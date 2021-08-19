@@ -93,6 +93,12 @@
 /** Trace that a new connection has been created */
 #define UE_NET_TRACE_CONNECTION_CREATED(...) UE_NET_TRACE_INTERNAL_CONNECTION_CREATED(__VA_ARGS__)
 
+/** Trace that the state of this connection has been set */
+#define UE_NET_TRACE_CONNECTION_STATE_UPDATED(...) UE_NET_TRACE_INTERNAL_CONNECTION_STATE_UPDATED(__VA_ARGS__)
+
+/** Trace additional information about the given connection */
+#define UE_NET_TRACE_CONNECTION_UPDATED(...) UE_NET_TRACE_INTERNAL_CONNECTION_UPDATED(__VA_ARGS__)
+
 /** That that a connection has been closed */
 #define UE_NET_TRACE_CONNECTION_CLOSED(...) UE_NET_TRACE_INTERNAL_CONNECTION_CLOSED(__VA_ARGS__)
 
@@ -107,6 +113,9 @@
 
 /** Trace that the session has ended */
 #define UE_NET_TRACE_END_SESSION(GameInstanceId) UE_NET_TRACE_INTERNAL_END_SESSION(GameInstanceId)
+
+/** Trace additional information about the given game instance */
+#define UE_NET_TRACE_UPDATE_INSTANCE(...) UE_NET_TRACE_INTERNAL_UPDATE_INSTANCE(__VA_ARGS__)
 
 #else
 
@@ -135,6 +144,8 @@
 #define UE_NET_TRACE_NETHANDLE_CREATED(...)
 #define UE_NET_TRACE_NETHANDLE_DESTROYED(...)
 #define UE_NET_TRACE_CONNECTION_CREATED(...)
+#define UE_NET_TRACE_CONNECTION_STATE_UPDATED(...)
+#define UE_NET_TRACE_CONNECTION_UPDATED(...)
 #define UE_NET_TRACE_CONNECTION_CLOSED(...)
 #define UE_NET_TRACE_PACKET_DROPPED(...)
 #define UE_NET_TRACE_NAMED_OBJECT_SCOPE(...)
@@ -145,5 +156,7 @@
 #define UE_NET_TRACE_PACKET_RECV(...)
 
 #define UE_NET_TRACE_END_SESSION(...)
+
+#define UE_NET_TRACE_UPDATE_INSTANCE(...)
 
 #endif // UE_NET_TRACE_ENABLED

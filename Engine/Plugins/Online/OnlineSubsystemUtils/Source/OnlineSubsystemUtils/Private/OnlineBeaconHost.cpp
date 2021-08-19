@@ -298,10 +298,10 @@ void AOnlineBeaconHost::DisconnectClient(AOnlineBeaconClient* ClientActor)
 			*GetNameSafe(ClientActor), 
 			*GetNameSafe(Connection), 
 			Connection ? *GetNameSafe(Connection->Driver) : TEXT("null"),
-			Connection ? Connection->State : -1);
+			Connection ? Connection->GetConnectionState() : -1);
 
 		// Closing the connection will start the chain of events leading to the removal from lists and destruction of the actor
-		if (Connection && Connection->State != USOCK_Closed)
+		if (Connection && Connection->GetConnectionState() != USOCK_Closed)
 		{
 			Connection->FlushNet(true);
 			Connection->Close();
@@ -338,7 +338,7 @@ void AOnlineBeaconHost::SendWelcomeControlMessage(UNetConnection* Connection)
 {
 	if (Connection)
 	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
+		if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
 		{
 			Connection->Challenge = FString::Printf(TEXT("%08X"), FPlatformTime::Cycles());
 			FNetControlMessage<NMT_BeaconWelcome>::Send(Connection);
@@ -360,7 +360,7 @@ void AOnlineBeaconHost::SendWelcomeControlMessage(const FEncryptionKeyResponse& 
 	UNetConnection* Connection = WeakConnection.Get();
 	if (Connection)
 	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
+		if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{

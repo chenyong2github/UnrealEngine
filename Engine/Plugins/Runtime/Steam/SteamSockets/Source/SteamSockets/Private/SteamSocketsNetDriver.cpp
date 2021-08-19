@@ -403,7 +403,7 @@ class ISocketSubsystem* USteamSocketsNetDriver::GetSocketSubsystem()
 
 bool USteamSocketsNetDriver::IsNetResourceValid(void)
 {
-	return Socket != nullptr && (!ServerConnection || (ServerConnection && ServerConnection->State == USOCK_Open));
+	return Socket != nullptr && (!ServerConnection || (ServerConnection && ServerConnection->GetConnectionState() == USOCK_Open));
 }
 
 bool USteamSocketsNetDriver::ArePacketHandlersDisabled() const
@@ -543,7 +543,7 @@ void USteamSocketsNetDriver::OnConnectionUpdated(SteamSocketHandles SocketHandle
 		UNetConnection* SocketConnection = (ServerConnection) ? ToRawPtr(ServerConnection) : FindClientConnectionForHandle(SocketHandle);
 		if (SocketConnection)
 		{
-			SocketConnection->State = USOCK_Open;
+			SocketConnection->SetConnectionState(USOCK_Open);
 		}
 
 		UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Connection established with user with socket id: %u"), SocketHandle);
@@ -566,7 +566,7 @@ void USteamSocketsNetDriver::OnConnectionDisconnected(SteamSocketHandles SocketH
 	UNetConnection* SocketConnection = ServerConnection ? ToRawPtr(ServerConnection) : FindClientConnectionForHandle(SocketHandle);
 	if (SocketConnection)
 	{
-		SocketConnection->State = USOCK_Closed;
+		SocketConnection->SetConnectionState(USOCK_Closed);
 	}
 
 	UE_LOG(LogNet, Verbose, TEXT("SteamSockets: Connection dropped with user with socket id: %u"), SocketHandle);

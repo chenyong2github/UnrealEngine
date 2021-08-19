@@ -426,7 +426,7 @@ void UClientUnitTest::NotifyProcessLog(TWeakPtr<FUnitTestProcess> InProcess, con
 		{
 			UNetConnection* UnitConn = (MinClient != nullptr ? MinClient->GetConn() : nullptr);
 
-			if (!bTriggerredInitialConnect && (UnitConn == nullptr || UnitConn->State == EConnectionState::USOCK_Pending))
+			if (!bTriggerredInitialConnect && (UnitConn == nullptr || UnitConn->GetConnectionState() == EConnectionState::USOCK_Pending))
 			{
 				if (ServerReadyLogs->ContainsByPredicate(SearchInLogLine))
 				{

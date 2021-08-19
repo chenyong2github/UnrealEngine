@@ -141,7 +141,7 @@ int64 UChannel::Close(EChannelCloseReason Reason)
 
 	int64 NumBits = 0;
 
-	if ( !Closing && ( Connection->State == USOCK_Open || Connection->State == USOCK_Pending ) && !SentClosingBunch)
+	if ( !Closing && ( Connection->GetConnectionState() == USOCK_Open || Connection->GetConnectionState() == USOCK_Pending ) && !SentClosingBunch)
 	{
 		if ( ChIndex == 0 )
 		{
@@ -1499,7 +1499,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 	}
 
 	// Process the packet
-	while (!Bunch.AtEnd() && Connection != NULL && Connection->State != USOCK_Closed) // if the connection got closed, we don't care about the rest
+	while (!Bunch.AtEnd() && Connection != NULL && Connection->GetConnectionState() != USOCK_Closed) // if the connection got closed, we don't care about the rest
 	{
 		uint8 MessageType = 0;
 		Bunch << MessageType;
@@ -1705,7 +1705,7 @@ void UControlChannel::QueueMessage(const FOutBunch* Bunch)
 		// we're out of room in our extra buffer as well, so kill the connection
 		UE_LOG(LogNet, Log, TEXT("Overflowed control channel message queue, disconnecting client"));
 		// intentionally directly setting State as the messaging in Close() is not going to work in this case
-		Connection->State = USOCK_Closed;
+		Connection->SetConnectionState(USOCK_Closed);
 	}
 	else
 	{
@@ -1828,7 +1828,7 @@ int64 UControlChannel::SendDestructionInfo(FActorDestructionInfo* DestructionInf
 	checkf(Connection && Connection->PackageMap, TEXT("SendDestructionInfo requires a valid connection and package map: %s"), *Describe());
 	checkf(DestructionInfo, TEXT("SendDestructionInfo was passed an invalid desctruction info: %s"), *Describe());
 
-	if (!Closing && (Connection->State == USOCK_Open || Connection->State == USOCK_Pending))
+	if (!Closing && (Connection->GetConnectionState() == USOCK_Open || Connection->GetConnectionState() == USOCK_Pending))
 	{
 		// Outer must be valid to call PackageMap->WriteObject. In the case of streaming out levels, this can go null out of from underneath us. In that case, just skip the destruct info.
 		// We assume that if server unloads a level that clients will to and this will implicitly destroy all actors in it, so not worried about leaking actors client side here.
@@ -2397,7 +2397,7 @@ int64 UActorChannel::SetChannelActorForDestroy( FActorDestructionInfo *DestructI
 
 	if
 	(	!Closing
-	&&	(Connection->State==USOCK_Open || Connection->State==USOCK_Pending) )
+	&&	(Connection->GetConnectionState()==USOCK_Open || Connection->GetConnectionState()==USOCK_Pending) )
 	{
 		// Outer must be valid to call PackageMap->WriteObject. In the case of streaming out levels, this can go null out of from underneath us. In that case, just skip the destruct info.
 		// We assume that if server unloads a level that clients will to and this will implicitly destroy all actors in it, so not worried about leaking actors client side here.
@@ -2805,7 +2805,7 @@ void UActorChannel::ProcessBunch( FInBunch & Bunch )
 	// ----------------------------------------------
 	//	Read chunks of actor content
 	// ----------------------------------------------
-	while ( !Bunch.AtEnd() && Connection != NULL && Connection->State != USOCK_Closed )
+	while ( !Bunch.AtEnd() && Connection != NULL && Connection->GetConnectionState() != USOCK_Closed )
 	{
 		FNetBitReader Reader( Bunch.PackageMap, 0 );
 

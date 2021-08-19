@@ -52,6 +52,9 @@ private:
 		{}
 
 		uint32 GetIndex() const { return GameInstance.GameInstanceIndex; }
+		bool IsInstanceNameSet() const { return GameInstance.InstanceName != nullptr; }
+		const TCHAR* GetInstanceName() const { return GameInstance.InstanceName; }
+		bool IsServer() const { return GameInstance.bIsServer; }
 		FText GetText() const;
 		FText GetTooltipText() const;
 
@@ -66,6 +69,10 @@ private:
 		{}
 
 		uint32 GetIndex() const { return Connection.ConnectionIndex; }
+		bool IsConnectionNameSet() const { return Connection.Name != nullptr; }
+		bool IsConnectionAddressSet() const { return Connection.AddressString != nullptr; }
+		const TCHAR* GetConnectionName() const { return Connection.Name; }
+		const TCHAR* GetConnectionAddress() const { return Connection.AddressString; }
 		FText GetText() const;
 		FText GetTooltipText() const;
 

@@ -47,10 +47,31 @@ UE_TRACE_EVENT_BEGIN(NetTrace, ConnectionCreatedEvent)
 	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
 UE_TRACE_EVENT_END()
 
+UE_TRACE_EVENT_BEGIN(NetTrace, ConnectionStateUpdatedEvent)
+	UE_TRACE_EVENT_FIELD(uint16, ConnectionId)
+	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+	UE_TRACE_EVENT_FIELD(uint8, ConnectionStateValue)
+UE_TRACE_EVENT_END()
+
+// Provides additional information about connection after it is created
+UE_TRACE_EVENT_BEGIN(NetTrace, ConnectionUpdatedEvent)
+	UE_TRACE_EVENT_FIELD(uint16, ConnectionId)
+	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Address)
+UE_TRACE_EVENT_END()
+
 // Add close reason?
 UE_TRACE_EVENT_BEGIN(NetTrace, ConnectionClosedEvent)
 	UE_TRACE_EVENT_FIELD(uint16, ConnectionId)
 	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+UE_TRACE_EVENT_END()
+
+// Provides additional information about game instance
+UE_TRACE_EVENT_BEGIN(NetTrace, InstanceUpdatedEvent)
+	UE_TRACE_EVENT_FIELD(uint8, GameInstanceId)
+	UE_TRACE_EVENT_FIELD(bool, bIsServer)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
 UE_TRACE_EVENT_END()
 
 // rename 
@@ -90,6 +111,14 @@ void FNetTraceReporter::ReportInitEvent(uint32 NetTraceVersion)
 		<< InitEvent.Timestamp(FPlatformTime::Cycles64())
 		<< InitEvent.NetTraceVersion(NetTraceVersion)
 		<< InitEvent.NetTraceReporterVersion(NetTraceReporterVersion);
+}
+
+void FNetTraceReporter::ReportInstanceUpdated(uint32 GameInstanceId, bool bIsServer, const TCHAR* Name)
+{
+	UE_TRACE_LOG(NetTrace, InstanceUpdatedEvent, NetChannel)
+		<< InstanceUpdatedEvent.GameInstanceId(GameInstanceId)
+		<< InstanceUpdatedEvent.bIsServer(bIsServer)
+		<< InstanceUpdatedEvent.Name(Name);
 }
 
 void FNetTraceReporter::ReportInstanceDestroyed(uint32 GameInstanceId)
@@ -232,6 +261,23 @@ void FNetTraceReporter::ReportConnectionCreated(uint32 GameInstanceId, uint32 Co
 	UE_TRACE_LOG(NetTrace, ConnectionCreatedEvent, NetChannel)
 		<< ConnectionCreatedEvent.ConnectionId(ConnectionId)
 		<< ConnectionCreatedEvent.GameInstanceId(GameInstanceId);
+}
+
+void FNetTraceReporter::ReportConnectionStateUpdated(uint32 GameInstanceId, uint32 ConnectionId, uint8 ConnectionStateValue)
+{
+	UE_TRACE_LOG(NetTrace, ConnectionStateUpdatedEvent, NetChannel)
+		<< ConnectionStateUpdatedEvent.ConnectionId(ConnectionId)
+		<< ConnectionStateUpdatedEvent.GameInstanceId(GameInstanceId)
+		<< ConnectionStateUpdatedEvent.ConnectionStateValue(ConnectionStateValue);
+}
+
+void FNetTraceReporter::ReportConnectionUpdated(uint32 GameInstanceId, uint32 ConnectionId, const TCHAR* AddressString, const TCHAR* OwningActor)
+{
+	UE_TRACE_LOG(NetTrace, ConnectionUpdatedEvent, NetChannel)
+		<< ConnectionUpdatedEvent.GameInstanceId(GameInstanceId)
+		<< ConnectionUpdatedEvent.ConnectionId(ConnectionId)
+		<< ConnectionUpdatedEvent.Name(OwningActor)
+		<< ConnectionUpdatedEvent.Address(AddressString);
 }
 
 void FNetTraceReporter::ReportConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId)

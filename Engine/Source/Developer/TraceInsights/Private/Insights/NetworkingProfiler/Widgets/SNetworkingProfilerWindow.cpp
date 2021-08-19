@@ -757,7 +757,15 @@ FReply SNetworkingProfilerWindow::OnDrop(const FGeometry& MyGeometry, const FDra
 
 FText SNetworkingProfilerWindow::FGameInstanceItem::GetText() const
 {
-	return FText::Format(LOCTEXT("GameInstanceItemFmt", "Game Instance {0}"), FText::AsNumber(GetIndex()));
+	if (IsInstanceNameSet())
+	{
+		return FText::Format(LOCTEXT("GameInstanceItemFmt0", "{0} Game Instance {1} [{2}]"), FText::FromString(GetInstanceName()), FText::AsNumber(GetIndex()),
+			IsServer() ? FText::FromString("Server") : FText::FromString("Client"));
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("GameInstanceItemFmt1", "Game Instance {0}"), FText::AsNumber(GetIndex()));
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -771,13 +779,29 @@ FText SNetworkingProfilerWindow::FGameInstanceItem::GetTooltipText() const
 
 FText SNetworkingProfilerWindow::FConnectionItem::GetText() const
 {
-	if (!Connection.Name)
+	if (IsConnectionNameSet())
 	{
-		return FText::Format(LOCTEXT("ConnectionItemFmt1", "Connection {0}"), FText::AsNumber(GetIndex()));
+		if (IsConnectionAddressSet())
+		{
+			return FText::Format(LOCTEXT("ConnectionItemFmt3", "Connection {0} ({1}) to {2}"), FText::AsNumber(GetIndex()), FText::FromString(GetConnectionName()),
+				FText::FromString(GetConnectionAddress()));
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("ConnectionItemFmt4", "Connection {0} ({1})"), FText::AsNumber(GetIndex()), FText::FromString(GetConnectionName()));
+		}
 	}
 	else
 	{
-		return FText::Format(LOCTEXT("ConnectionItemFmt2", "Connection {0} ({1})"), FText::AsNumber(GetIndex()), FText::FromString(Connection.Name));
+		if (IsConnectionAddressSet())
+		{
+			return FText::Format(LOCTEXT("ConnectionItemFmt1", "Connection {0} to {1}"), FText::AsNumber(GetIndex()),
+				FText::FromString(GetConnectionAddress()));
+		}
+		else
+		{
+			return FText::Format(LOCTEXT("ConnectionItemFmt2", "Connection {0}"), FText::AsNumber(GetIndex()));
+		}
 	}
 }
 

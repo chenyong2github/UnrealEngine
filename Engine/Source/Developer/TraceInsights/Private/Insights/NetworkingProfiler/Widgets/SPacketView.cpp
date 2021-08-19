@@ -711,15 +711,25 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			int NumLines;
 			FString Text;
 			uint32 UnusedBits = HoveredSample.Sample->LargestPacket.TotalSizeInBytes * 8 - HoveredSample.Sample->LargestPacket.ContentSizeInBits;
+			TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+			uint64 EngineFrameNumber = 0;
+			if (Session.IsValid())
+			{
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+				const TraceServices::IFrameProvider& FrameProvider = TraceServices::ReadFrameProvider(*Session.Get());
+				EngineFrameNumber = FrameProvider.GetFrameNumberForTimestamp(ETraceFrameType::TraceFrameType_Game, HoveredSample.Sample->LargestPacket.TimeStamp);
+			}
 			if (HoveredSample.Sample->NumPackets == 1)
 			{
-				NumLines = 6;
+				NumLines = 8;
 				Text = FString::Format(TEXT("Packet Index: {0}\n"
 											"Sequence Number: {1}\n"
 											"Content Size: {2} bits\n"
 											"Total Size: {3} bytes ({4} unused bits)\n"
 											"Timestamp: {5}\n"
-											"Status: {6}"),
+											"Status: {6}\n"
+											"Connection State: {7}\n"
+											"Engine Frame Number: {8}"),
 					{
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.Index).ToString(),
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.SequenceNumber).ToString(),
@@ -727,12 +737,16 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),
 						FText::AsNumber(UnusedBits).ToString(),
 						TimeUtils::FormatTimeHMS(HoveredSample.Sample->LargestPacket.TimeStamp, Precision),
-						::StatusToString(HoveredSample.Sample->LargestPacket.Status)
+						::StatusToString(HoveredSample.Sample->LargestPacket.Status),
+						LexToString(HoveredSample.Sample->LargestPacket.ConnectionState),
+						EngineFrameNumber > 0 ?
+						FText::AsNumber(EngineFrameNumber).ToString() :
+						TEXT("N/A")
 					});
 			}
 			else
 			{
-				NumLines = 9;
+				NumLines = 11;
 				Text = FString::Format(TEXT("{0} network packets\n"
 											"({1})\n"
 											"Largest Packet\n"
@@ -741,7 +755,9 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 											"    Content Size: {4} bits\n"
 											"    Total Size: {5} bytes ({6} unused bits)\n"
 											"    Timestamp: {7}\n"
-											"    Status: {8}"),
+											"    Status: {8}\n"
+											"    Connection State: {9}\n"
+											"    Engine Frame Number: {10}"),
 					{
 						HoveredSample.Sample->NumPackets,
 						::AggregatedStatusToString(HoveredSample.Sample->AggregatedStatus),
@@ -751,7 +767,11 @@ int32 SPacketView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 						FText::AsNumber(HoveredSample.Sample->LargestPacket.TotalSizeInBytes).ToString(),
 						FText::AsNumber(UnusedBits).ToString(),
 						TimeUtils::FormatTimeHMS(HoveredSample.Sample->LargestPacket.TimeStamp, Precision),
-						::StatusToString(HoveredSample.Sample->LargestPacket.Status)
+						::StatusToString(HoveredSample.Sample->LargestPacket.Status),
+						LexToString(HoveredSample.Sample->LargestPacket.ConnectionState),
+						EngineFrameNumber > 0 ?
+						FText::AsNumber(EngineFrameNumber).ToString() :
+						TEXT("N/A")
 					});
 			}
 
@@ -1303,6 +1323,36 @@ FReply SPacketView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		else
 		{
 			SelectNextPacket();
+		}
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Equals ||
+			 InKeyEvent.GetKey() == EKeys::Add)
+	{
+		if (InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+			const float ScaleY = ViewportY.GetScale() * 1.25f;
+			ViewportY.SetScale(ScaleY);
+		}
+		else
+		{
+			ZoomHorizontally(1.0f, MousePosition.X);
+		}
+		return FReply::Handled();
+	}
+	else if (InKeyEvent.GetKey() == EKeys::Hyphen ||
+			 InKeyEvent.GetKey() == EKeys::Subtract)
+	{
+		if (InKeyEvent.GetModifierKeys().IsShiftDown())
+		{
+			FAxisViewportDouble& ViewportY = Viewport.GetVerticalAxisViewport();
+			const float ScaleY = ViewportY.GetScale() * 0.8f;
+			ViewportY.SetScale(ScaleY);
+		}
+		else
+		{
+			ZoomHorizontally(-1.0f, MousePosition.X);
 		}
 		return FReply::Handled();
 	}

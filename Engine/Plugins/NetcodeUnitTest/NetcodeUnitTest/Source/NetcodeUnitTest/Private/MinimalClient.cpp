@@ -588,7 +588,7 @@ void UMinimalClient::ResetConnTimeout(float Duration)
 {
 	UNetDriver* UnitDriver = (UnitConn != nullptr ? ToRawPtr(UnitConn->Driver) : nullptr);
 
-	if (UnitDriver != nullptr && UnitConn->State != USOCK_Closed)
+	if (UnitDriver != nullptr && UnitConn->GetConnectionState() != USOCK_Closed)
 	{
 		// @todo #JohnBHack: This is a slightly hacky way of setting the timeout to a large value, which will be overridden by newly
 		//				received packets, making it unsuitable for most situations (except crashes - but that could still be subject

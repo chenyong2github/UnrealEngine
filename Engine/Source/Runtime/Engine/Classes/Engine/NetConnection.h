@@ -73,6 +73,7 @@ enum EConnectionState
 	USOCK_Pending	= 2, // Connection is awaiting connection.
 	USOCK_Open      = 3, // Connection is open.
 };
+ENGINE_API const TCHAR* LexToString(const EConnectionState Value);
 
 // 
 // Security event types used for UE_SECURITY_LOG
@@ -377,7 +378,11 @@ public:
 public:
 	// Connection information.
 
+	UE_DEPRECATED(5.0, "EConnectionState State will be made private. Use GetConnectionState and SetConnectionState to access State instead.")
 	EConnectionState	State;					// State this connection is in.
+
+	ENGINE_API const EConnectionState GetConnectionState() const;
+	ENGINE_API void SetConnectionState(EConnectionState ConnectionState);
 	
 	uint32 bPendingDestroy:1;    // when true, playercontroller or beaconclient is being destroyed
 
@@ -1349,6 +1354,11 @@ protected:
 
 	/** This is called whenever a connection has passed the relative time to be considered timed out. */
 	ENGINE_API virtual void HandleConnectionTimeout(const FString& Error);
+
+	/**
+	 * Notification that information about this connection may have been updated
+	 */
+	ENGINE_API void NotifyConnectionUpdated();
 
 private:
 	/**

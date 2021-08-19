@@ -27,6 +27,7 @@ struct FNetworkPacket
 	uint32 ContentSizeInBits;
 	uint32 TotalSizeInBytes;
 	double TimeStamp;
+	TraceServices::ENetProfilerConnectionState ConnectionState;
 	TraceServices::ENetProfilerDeliveryStatus Status;
 
 	FNetworkPacket()
@@ -35,6 +36,7 @@ struct FNetworkPacket
 		, ContentSizeInBits(0)
 		, TotalSizeInBytes(0)
 		, TimeStamp(std::numeric_limits<double>::infinity())
+		, ConnectionState(TraceServices::ENetProfilerConnectionState::USOCK_Invalid)
 		, Status(TraceServices::ENetProfilerDeliveryStatus::Unknown)
 	{}
 

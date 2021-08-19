@@ -62,7 +62,7 @@ class UNetConnection* AOnlineBeaconClient::GetNetConnection() const
 
 bool AOnlineBeaconClient::DestroyNetworkActorHandled()
 {
-	if (BeaconConnection && BeaconConnection->State != USOCK_Closed)
+	if (BeaconConnection && BeaconConnection->GetConnectionState() != USOCK_Closed)
 	{
 		// This will be cleaned up in ~2 sec by UNetConnection Tick
 		BeaconConnection->bPendingDestroy = true;
@@ -204,7 +204,7 @@ void AOnlineBeaconClient::Tick(float DeltaTime)
 		// Monitor for close bunches sent by the server which close down the connection in UChannel::Cleanup
 		// See similar code in UWorld::TickNetClient
 		if (((ConnectionState == EBeaconConnectionState::Pending) || (ConnectionState == EBeaconConnectionState::Open)) &&
-			(NetDriver->ServerConnection->State == USOCK_Closed))
+			(NetDriver->ServerConnection->GetConnectionState() == USOCK_Closed))
 		{
 			UE_LOG(LogBeacon, Verbose, TEXT("Client beacon (%s) socket has closed, triggering failure."), *GetName());
 			OnFailure();
@@ -268,7 +268,7 @@ void AOnlineBeaconClient::OnFailure()
 void AOnlineBeaconClient::ClientOnConnected_Implementation()
 {
 	SetConnectionState(EBeaconConnectionState::Open);
-	BeaconConnection->State = USOCK_Open;
+	BeaconConnection->SetConnectionState(USOCK_Open);
 
 	SetRole(ROLE_Authority);
 	SetReplicates(true);
@@ -444,7 +444,7 @@ void AOnlineBeaconClient::FinalizeEncryptedConnection(const FEncryptionKeyRespon
 	UNetConnection* Connection = WeakConnection.Get();
 	if (Connection)
 	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
+		if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{

@@ -252,7 +252,7 @@ void UIpConnection::Tick(float DeltaSeconds)
 		ResolutionState = EAddressResolutionState::Done;
 
 		// Host name resolution just now failed.
-		State = USOCK_Closed;
+		SetConnectionState(USOCK_Closed);
 		Close();
 	}
 
@@ -646,9 +646,6 @@ FString UIpConnection::LowLevelDescribe()
 		(RemoteAddr.IsValid() ? *RemoteAddr->ToString(true) : TEXT("nullptr")),
 		*LocalAddr->ToString(true),
 		(PlayerId.IsValid() ? *PlayerId->ToDebugString() : TEXT("nullptr")),
-			State==USOCK_Pending	?	TEXT("Pending")
-		:	State==USOCK_Open		?	TEXT("Open")
-		:	State==USOCK_Closed		?	TEXT("Closed")
-		:								TEXT("Invalid")
+		LexToString(GetConnectionState())
 	);
 }

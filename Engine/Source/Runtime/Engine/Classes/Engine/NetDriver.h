@@ -1723,6 +1723,9 @@ protected:
 	/** Stream of random numbers to be used by this instance of UNetDriver */
 	FRandomStream UpdateDelayRandomStream;
 
+	/** Creates a trace event that updates the name and properties of the associated Game Instance */
+	void NotifyGameInstanceUpdated();
+
 private:
 
 	ENGINE_API virtual ECreateReplicationChangelistMgrFlags GetCreateReplicationChangelistMgrFlags() const;

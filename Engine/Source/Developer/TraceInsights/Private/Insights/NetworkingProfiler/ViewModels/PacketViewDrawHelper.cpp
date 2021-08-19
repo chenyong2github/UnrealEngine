@@ -40,6 +40,7 @@ void FNetworkPacketAggregatedSample::AddPacket(const int32 PacketIndex, const Tr
 		LargestPacket.TotalSizeInBytes = Packet.TotalPacketSizeInBytes;
 		LargestPacket.TimeStamp = TimeStamp;
 		LargestPacket.Status = Packet.DeliveryStatus;
+		LargestPacket.ConnectionState = Packet.ConnectionState;
 	}
 
 	switch (AggregatedStatus)

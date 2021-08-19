@@ -71,7 +71,7 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override
 	{
-		State = Parent->State;
+		SetConnectionState(Parent->GetConnectionState());
 	}
 
 	virtual void HandleClientPlayer(class APlayerController* PC, class UNetConnection* NetConnection) override;

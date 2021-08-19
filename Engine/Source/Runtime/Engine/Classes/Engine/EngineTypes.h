@@ -1046,6 +1046,8 @@ namespace EWorldType
 	};
 }
 
+const TCHAR* LexToString(const EWorldType::Type Value);
+
 /** Describes what parts of level streaming should be forcibly handled immediately */
 enum class EFlushLevelStreamingType : uint8
 {

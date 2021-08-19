@@ -184,7 +184,7 @@ bool APlayerController::DestroyNetworkActorHandled()
 	UNetConnection* C = Cast<UNetConnection>(Player);
 	if (C)
 	{
-		if (C->Channels[0] && C->State != USOCK_Closed)
+		if (C->Channels[0] && C->GetConnectionState() != USOCK_Closed)
 		{
 			C->bPendingDestroy = true;
 			C->Channels[0]->Close(EChannelCloseReason::Destroyed);

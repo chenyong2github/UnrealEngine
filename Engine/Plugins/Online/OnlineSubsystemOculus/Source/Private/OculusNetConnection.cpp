@@ -84,7 +84,7 @@ void UOculusNetConnection::LowLevelSend(void* Data, int32 CountBits, FOutPacketT
 
 	// Do not send packets over a closed connection
 	// This can unintentionally re-open the connection
-	if (State == EConnectionState::USOCK_Closed && ovr_Net_IsConnected(PeerID))
+	if (GetConnectionState() == EConnectionState::USOCK_Closed && ovr_Net_IsConnected(PeerID))
 	{
 		return;
 	}
@@ -147,7 +147,7 @@ void UOculusNetConnection::FinishDestroy()
 		return;
 	}
 	// Keep track if it's this call that is closing the connection before cleanup is called
-	const bool bIsClosingOpenConnection = State != EConnectionState::USOCK_Closed;
+	const bool bIsClosingOpenConnection = GetConnectionState() != EConnectionState::USOCK_Closed;
 	UNetConnection::FinishDestroy();
 
 	// If this connection was open, then close it

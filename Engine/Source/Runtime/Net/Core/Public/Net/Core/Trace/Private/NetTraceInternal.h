@@ -148,6 +148,9 @@ struct FNetTrace
 	/** Trace end of session for a GameInstance */
 	NETCORE_API static void TraceEndSession(uint32 GameInstanceId);
 
+	/** Trace that information about the current GameInstance has been updated */
+	NETCORE_API static void TraceInstanceUpdated(uint32 GameInstanceId, bool bIsServer, const TCHAR* Name);
+
 	/** Get the current trace verbosity */
 	inline static uint32 GetTraceVerbosity() { return GNetTraceRuntimeVerbosity; }
 	
@@ -217,6 +220,12 @@ struct FNetTrace
 
 	/** Trace that we have added a new connection for the given GameInstanceId */
 	NETCORE_API static void TraceConnectionCreated(uint32 GameInstanceId, uint32 ConnectionId);
+
+	/** Trace that the Connection State the given connection has been set */
+	NETCORE_API static void TraceConnectionStateUpdated(uint32 GameInstanceId, uint32 ConnectionId, uint8 ConnectionStateValue);
+
+	/** Trace additional information related to the given connection */
+	NETCORE_API static void TraceConnectionUpdated(uint32 GameInstanceId, uint32 ConnectionId, const TCHAR* AddressString, const TCHAR* OwningActor);
 
 	/** Trace that we have removed a connection for the given GameInstanceId */
 	NETCORE_API static void TraceConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId);
@@ -546,11 +555,14 @@ void FNetTraceCollector::Reset()
 #define UE_NET_TRACE_INTERNAL_NETHANDLE_CREATED(Handle, DebugName, ProtocolId, OwnerId) FNetTrace::TraceObjectCreated(Handle.GetReplicationSystemId(), Handle.GetIndex(), DebugName, ProtocolId, OwnerId)
 #define UE_NET_TRACE_INTERNAL_NETHANDLE_DESTROYED(Handle) FNetTrace::TraceObjectDestroyed(Handle.GetReplicationSystemId(), Handle.GetIndex())
 #define UE_NET_TRACE_INTERNAL_CONNECTION_CREATED(...) FNetTrace::TraceConnectionCreated(__VA_ARGS__)
+#define UE_NET_TRACE_INTERNAL_CONNECTION_STATE_UPDATED(...) FNetTrace::TraceConnectionStateUpdated(__VA_ARGS__)
+#define UE_NET_TRACE_INTERNAL_CONNECTION_UPDATED(...) FNetTrace::TraceConnectionUpdated(__VA_ARGS__)
 #define UE_NET_TRACE_INTERNAL_CONNECTION_CLOSED(...) FNetTrace::TraceConnectionClosed(__VA_ARGS__)
 #define UE_NET_TRACE_INTERNAL_PACKET_DROPPED(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacketDropped(__VA_ARGS__))
 #define UE_NET_TRACE_INTERNAL_PACKET_SEND(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacket(__VA_ARGS__, ENetTracePacketType::Outgoing))
 #define UE_NET_TRACE_INTERNAL_PACKET_RECV(...) UE_NET_TRACE_DO_IF(GNetTraceRuntimeVerbosity, FNetTrace::TracePacket(__VA_ARGS__, ENetTracePacketType::Incoming))
 
 #define UE_NET_TRACE_INTERNAL_END_SESSION(GameInstanceId) FNetTrace::TraceEndSession(GameInstanceId);
+#define UE_NET_TRACE_INTERNAL_UPDATE_INSTANCE(...) FNetTrace::TraceInstanceUpdated(__VA_ARGS__)
 					
 #endif // UE_NET_TRACE_ENABLED
