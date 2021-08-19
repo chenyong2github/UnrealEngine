@@ -338,7 +338,12 @@ void SEnvironmentLightingViewer::Tick(const FGeometry& AllottedGeometry, const d
 
 	for (int i = NumDetailsView; i < ENVLIGHT_MAX_DETAILSVIEWS; ++i)
 	{
-		DetailsViews[i]->SetObject(nullptr);
+		// If the details view selection is already empty, don't call SetObject again.  Calling SetObject
+		// otherwise closes any active color picker (UE-121571).
+		if (DetailsViews[i]->GetSelectedObjects().Num() > 0)
+		{
+			DetailsViews[i]->SetObject(nullptr);
+		}
 	}
 }
 
