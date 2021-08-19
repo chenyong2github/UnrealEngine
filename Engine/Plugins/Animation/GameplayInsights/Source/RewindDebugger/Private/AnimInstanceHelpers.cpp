@@ -72,7 +72,7 @@ FName FAnimInstanceDoubleClickHandler::GetTargetTypeName() const
 
 void FAnimInstanceMenu::Register()
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("RewindDebugger.ComponentContextMenu");
+	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.ComponentContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("Blueprint");
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("DebugAnimInstanceEntry", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{

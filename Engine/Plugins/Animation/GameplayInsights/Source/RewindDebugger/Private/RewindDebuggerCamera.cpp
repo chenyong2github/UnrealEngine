@@ -19,7 +19,11 @@
 FRewindDebuggerCamera::FRewindDebuggerCamera()
 	: LastPositionValid(false)
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("RewindDebugger.MainMenu");
+}
+
+void FRewindDebuggerCamera::Initialize()
+{
+	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.MainMenu");
 
 	Menu->AddSection("Camera Mode", LOCTEXT("Camera Mode","Camera Mode"));
 	Menu->AddMenuEntry("Camera Mode",
