@@ -177,7 +177,30 @@ bool UDetailsView::GetIsPropertyVisible(const FPropertyAndParent& PropertyAndPar
 	{
 		return true;
 	}
-	if (CategoriesToShow.Contains(FObjectEditorUtils::GetCategoryFName(&PropertyAndParent.Property)))
+
+	const FProperty* Property = PropertyAndParent.ParentProperties.Num() > 0 ? PropertyAndParent.ParentProperties.Last() : &PropertyAndParent.Property;
+
+	// Check against the parent property name
+	if (PropertiesToShow.Contains(Property->GetFName()))
+	{
+		return true;
+	}
+
+	// get the topmost parent's category name if the property has one
+	const FString CategoryString = FObjectEditorUtils::GetCategoryFName(Property).ToString();
+	FString SubcategoryString = CategoryString;
+	
+	int32 SubcategoryStart;
+	if (CategoryString.FindChar(TEXT('|'), SubcategoryStart))
+	{
+		SubcategoryString = CategoryString.Left(SubcategoryStart);
+	}
+
+	if (CategoriesToShow.ContainsByPredicate([&CategoryString, &SubcategoryString](const FName& Element)
+		{
+			FString ElementString = Element.ToString();
+			return CategoryString == ElementString || SubcategoryString == ElementString;
+		}))
 	{
 		return true;
 	}

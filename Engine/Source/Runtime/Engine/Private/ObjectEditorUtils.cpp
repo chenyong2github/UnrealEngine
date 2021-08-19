@@ -67,10 +67,20 @@ namespace FObjectEditorUtils
 	FName GetCategoryFName( const FField* InField )
 	{
 		static const FName CategoryKey(TEXT("Category"));
-		if (InField && InField->HasMetaData(CategoryKey))
+
+		const FField* CurrentField = InField;
+		FString CategoryString;
+		while (CurrentField != nullptr && CategoryString.IsEmpty())
 		{
-			return FName(*InField->GetMetaData(CategoryKey));
+			CategoryString = CurrentField->GetMetaData(CategoryKey);
+			CurrentField = CurrentField->GetOwner<FField>();
+		} 
+
+		if (!CategoryString.IsEmpty())
+		{
+			return FName(*CategoryString);
 		}
+
 		return NAME_None;
 	}
 
