@@ -43,6 +43,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginMeshSpaceDeformerTool;
 	TSharedPtr<FUICommandInfo> BeginTransformMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginEditPivotTool;
+	TSharedPtr<FUICommandInfo> BeginAddPivotActorTool;
 	TSharedPtr<FUICommandInfo> BeginBakeTransformTool;
 	TSharedPtr<FUICommandInfo> BeginCombineMeshesTool;
 	TSharedPtr<FUICommandInfo> BeginDuplicateMeshesTool;
