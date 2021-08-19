@@ -103,11 +103,13 @@ int32 FZenFileSystemManifest::Generate()
 					{
 						FStringView RelativePath = InnerFileNameOrDirectory;
 						RelativePath.RightChopInline(LocalDirectory.Len() + 1);
+						FString ClientPath = FPaths::Combine(ClientDirectory, RelativePath.GetData());
+						const FIoChunkId FileChunkId = CreateExternalFileChunkId(ClientPath);
 
 						AddManifestEntry(
-							CreateExternalFileChunkId(0, Entries.Num() + 1),
+							FileChunkId,
 							FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
-							FPaths::Combine(ClientDirectory, RelativePath.GetData()));
+							MoveTemp(ClientPath));
 					}
 
 					return true;
@@ -170,10 +172,11 @@ const FZenFileSystemManifest::FManifestEntry& FZenFileSystemManifest::CreateMani
 		FPaths::MakePathRelativeTo(ServerRelativeDirectory, *FPaths::RootDir());
 		ServerRelativeDirectory = TEXT("/") + ServerRelativeDirectory;
 
-		return AddManifestEntry(
-			CreateExternalFileChunkId(0, Entries.Num() + 1),
-			FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData()),
-			FPaths::Combine(ClientDirectory, RelativePath.GetData()));
+		FString ServerPath = FPaths::Combine(ServerRelativeDirectory, RelativePath.GetData());
+		FString ClientPath = FPaths::Combine(ClientDirectory, RelativePath.GetData());
+		const FIoChunkId FileChunkId = CreateExternalFileChunkId(ClientPath);
+
+		return AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
 	};
 
 	if (Filename.StartsWith(CookedEngineDirectory))

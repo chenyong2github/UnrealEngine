@@ -51,20 +51,25 @@ FStorageServerFileSystemTOC::FDirectory* FStorageServerFileSystemTOC::AddDirecto
 	return Directory;
 }
 
-void FStorageServerFileSystemTOC::AddFile(FStringView PathView, int32 Index)
+void FStorageServerFileSystemTOC::AddFile(const FIoChunkId& FileChunkId, FStringView PathView)
 {
 	FWriteScopeLock _(TocLock);
 
-	FString Path(PathView);
-	FilePathToIndexMap.Add(Path, Index);
-	FileIndexToPathMap.Add(Index, Path);
-	FString DirectoryPath = FPaths::GetPath(Path);
+	const int32 FileIndex = Files.Num();
+	
+	FFile& NewFile = Files.AddDefaulted_GetRef();
+	NewFile.FileChunkId = FileChunkId;
+	NewFile.FilePath = PathView;
+	
+	FilePathToIndexMap.Add(NewFile.FilePath, FileIndex);
+	
+	FString DirectoryPath = FPaths::GetPath(NewFile.FilePath);
 	FDirectory* Directory = Directories.FindRef(DirectoryPath);
 	if (!Directory)
 	{
 		Directory = AddDirectoriesRecursive(DirectoryPath);
 	}
-	Directory->Files.Add(Index);
+	Directory->Files.Add(FileIndex);
 }
 
 bool FStorageServerFileSystemTOC::FileExists(const FString& Path)
@@ -79,13 +84,17 @@ bool FStorageServerFileSystemTOC::DirectoryExists(const FString& Path)
 	return Directories.Contains(Path);
 }
 
-int32* FStorageServerFileSystemTOC::FindFileIndex(const FString& Path)
+const FIoChunkId* FStorageServerFileSystemTOC::GetFileChunkId(const FString& Path)
 {
 	FReadScopeLock _(TocLock);
-	return FilePathToIndexMap.Find(Path);
+	if (const int32* FileIndex = FilePathToIndexMap.Find(Path))
+	{
+		return &Files[*FileIndex].FileChunkId;
+	}
+	return nullptr;
 }
 
-bool FStorageServerFileSystemTOC::IterateDirectory(const FString& Path, TFunctionRef<bool(int32, const TCHAR*)> Callback)
+bool FStorageServerFileSystemTOC::IterateDirectory(const FString& Path, TFunctionRef<bool(const FIoChunkId&, const TCHAR*)> Callback)
 {
 	UE_LOG(LogStorageServerPlatformFile, Verbose, TEXT("IterateDirectory '%s'"), *Path);
 
@@ -98,15 +107,15 @@ bool FStorageServerFileSystemTOC::IterateDirectory(const FString& Path, TFunctio
 	}
 	for (int32 FileIndex : Directory->Files)
 	{
-		const FString* FindFilePath = FileIndexToPathMap.Find(FileIndex);
-		if (FindFilePath && !Callback(FileIndex, **FindFilePath))
+		const FFile& File = Files[FileIndex];
+		if (!Callback(File.FileChunkId, *File.FilePath))
 		{
 			return false;
 		}
 	}
 	for (const FString& ChildDirectoryPath : Directory->Directories)
 	{
-		if (!Callback(-1, *ChildDirectoryPath))
+		if (!Callback(FIoChunkId(), *ChildDirectoryPath))
 		{
 			return false;
 		}
@@ -122,8 +131,8 @@ class FStorageServerFileHandle
 		BufferSize = 64 << 10
 	};
 	FStorageServerPlatformFile& Owner;
+	FIoChunkId FileChunkId;
 	FString Filename;
-	int32 FileIndex;
 	int64 FilePos = 0;
 	int64 FileSize = -1;
 	int64 BufferStart = -1;
@@ -131,10 +140,10 @@ class FStorageServerFileHandle
 	uint8 Buffer[BufferSize];
 
 public:
-	FStorageServerFileHandle(FStorageServerPlatformFile& InOwner, const TCHAR* InFilename, int32 InFileIndex)
+	FStorageServerFileHandle(FStorageServerPlatformFile& InOwner, FIoChunkId InFileChunkId, const TCHAR* InFilename)
 		: Owner(InOwner)
+		, FileChunkId(InFileChunkId)
 		, Filename(InFilename)
-		, FileIndex(InFileIndex)
 	{
 	}
 
@@ -146,7 +155,7 @@ public:
 	{
 		if (FileSize < 0)
 		{
-			FFileStatData FileStatData = Owner.SendGetStatDataMessage(FileIndex);
+			const FFileStatData FileStatData = Owner.SendGetStatDataMessage(FileChunkId);
 			if (FileStatData.bIsValid)
 			{
 				FileSize = FileStatData.FileSize;
@@ -185,7 +194,7 @@ public:
 
 		if (BytesToRead > BufferSize)
 		{
-			int64 BytesRead = Owner.SendReadMessage(Destination, FileIndex, FilePos, BytesToRead);
+			const int64 BytesRead = Owner.SendReadMessage(Destination, FileChunkId, FilePos, BytesToRead);
 			if (BytesRead == BytesToRead)
 			{
 				FilePos += BytesRead;
@@ -195,7 +204,7 @@ public:
 
 		if (FilePos < BufferStart || BufferEnd < FilePos + BytesToRead)
 		{
-			int64 BytesRead = Owner.SendReadMessage(Buffer, FileIndex, FilePos, BufferSize);
+			const int64 BytesRead = Owner.SendReadMessage(Buffer, FileChunkId, FilePos, BufferSize);
 			BufferStart = FilePos;
 			BufferEnd = BufferStart + BytesRead;
 		}
@@ -322,10 +331,9 @@ FDateTime FStorageServerPlatformFile::GetTimeStamp(const TCHAR* Filename)
 	TStringBuilder<1024> StorageServerFilename;
 	if (MakeStorageServerPath(Filename, StorageServerFilename))
 	{
-		int32* FindFileIndex = ServerToc.FindFileIndex(*StorageServerFilename);
-		if (FindFileIndex)
+		if (const FIoChunkId* FileChunkId = ServerToc.GetFileChunkId(*StorageServerFilename))
 		{
-			FFileStatData FileStatData = SendGetStatDataMessage(*FindFileIndex);
+			const FFileStatData FileStatData = SendGetStatDataMessage(*FileChunkId);
 			check(FileStatData.bIsValid);
 			return FileStatData.ModificationTime;
 		}
@@ -338,10 +346,9 @@ FDateTime FStorageServerPlatformFile::GetAccessTimeStamp(const TCHAR* Filename)
 	TStringBuilder<1024> StorageServerFilename;
 	if (MakeStorageServerPath(Filename, StorageServerFilename))
 	{
-		int32* FindFileIndex = ServerToc.FindFileIndex(*StorageServerFilename);
-		if (FindFileIndex)
+		if (const FIoChunkId* FileChunkId = ServerToc.GetFileChunkId(*StorageServerFilename))
 		{
-			FFileStatData FileStatData = SendGetStatDataMessage(*FindFileIndex);
+			const FFileStatData FileStatData = SendGetStatDataMessage(*FileChunkId);
 			check(FileStatData.bIsValid);
 			return FileStatData.AccessTime;
 		}
@@ -354,10 +361,9 @@ int64 FStorageServerPlatformFile::FileSize(const TCHAR* Filename)
 	TStringBuilder<1024> StorageServerFilename;
 	if (MakeStorageServerPath(Filename, StorageServerFilename))
 	{
-		int32* FindFileIndex = ServerToc.FindFileIndex(*StorageServerFilename);
-		if (FindFileIndex)
+		if (const FIoChunkId* FileChunkId = ServerToc.GetFileChunkId(*StorageServerFilename))
 		{
-			FFileStatData FileStatData = SendGetStatDataMessage(*FindFileIndex);
+			const FFileStatData FileStatData = SendGetStatDataMessage(*FileChunkId);
 			check(FileStatData.bIsValid);
 			return FileStatData.FileSize;
 		}
@@ -380,10 +386,9 @@ FFileStatData FStorageServerPlatformFile::GetStatData(const TCHAR* FilenameOrDir
 	TStringBuilder<1024> StorageServerFilenameOrDirectory;
 	if (MakeStorageServerPath(FilenameOrDirectory, StorageServerFilenameOrDirectory))
 	{
-		int32* FindFileIndex = ServerToc.FindFileIndex(*StorageServerFilenameOrDirectory);
-		if (FindFileIndex)
+		if (const FIoChunkId* FileChunkId = ServerToc.GetFileChunkId(*StorageServerFilenameOrDirectory))
 		{
-			return SendGetStatDataMessage(*FindFileIndex);
+			return SendGetStatDataMessage(*FileChunkId);
 		}
 		else if (ServerToc.DirectoryExists(*StorageServerFilenameOrDirectory))
 		{
@@ -399,9 +404,9 @@ FFileStatData FStorageServerPlatformFile::GetStatData(const TCHAR* FilenameOrDir
 	return LowerLevel->GetStatData(FilenameOrDirectory);
 }
 
-IFileHandle* FStorageServerPlatformFile::InternalOpenFile(int32 FileIndex, const TCHAR* LocalFilename)
+IFileHandle* FStorageServerPlatformFile::InternalOpenFile(const FIoChunkId& FileChunkId, const TCHAR* LocalFilename)
 {
-	return new FStorageServerFileHandle(*this, LocalFilename, FileIndex);
+	return new FStorageServerFileHandle(*this, FileChunkId, LocalFilename);
 }
 
 IFileHandle* FStorageServerPlatformFile::OpenRead(const TCHAR* Filename, bool bAllowWrite)
@@ -409,10 +414,9 @@ IFileHandle* FStorageServerPlatformFile::OpenRead(const TCHAR* Filename, bool bA
 	TStringBuilder<1024> StorageServerFilename;
 	if (MakeStorageServerPath(Filename, StorageServerFilename))
 	{
-		int32* FindFileIndex = ServerToc.FindFileIndex(*StorageServerFilename);
-		if (FindFileIndex)
+		if (const FIoChunkId* FileChunkId = ServerToc.GetFileChunkId(*StorageServerFilename))
 		{
-			return InternalOpenFile(*FindFileIndex, Filename);
+			return InternalOpenFile(*FileChunkId, Filename);
 		}
 	}
 	return LowerLevel->OpenRead(Filename, bAllowWrite);
@@ -424,12 +428,13 @@ bool FStorageServerPlatformFile::IterateDirectory(const TCHAR* Directory, IPlatf
 	bool bResult = false;
 	if (MakeStorageServerPath(Directory, StorageServerDirectory) && ServerToc.DirectoryExists(*StorageServerDirectory))
 	{
-		bResult |= ServerToc.IterateDirectory(*StorageServerDirectory, [this, &Visitor](int32 FileIndex, const TCHAR* FilenameOrDirectory)
+		bResult |= ServerToc.IterateDirectory(*StorageServerDirectory, [this, &Visitor](const FIoChunkId& FileChunkId, const TCHAR* FilenameOrDirectory)
 		{
 			TStringBuilder<1024> LocalPath;
 			bool bConverted = MakeLocalPath(FilenameOrDirectory, LocalPath);
 			check(bConverted);
-			return Visitor.Visit(*LocalPath, FileIndex < 0);
+			const bool bDirectory = !FileChunkId.IsValid();
+			return Visitor.Visit(*LocalPath, bDirectory);
 		});
 	}
 	else
@@ -445,15 +450,15 @@ bool FStorageServerPlatformFile::IterateDirectoryStat(const TCHAR* Directory, FD
 	bool bResult = false;
 	if (MakeStorageServerPath(Directory, StorageServerDirectory) && ServerToc.DirectoryExists(*StorageServerDirectory))
 	{
-		bResult |= ServerToc.IterateDirectory(*StorageServerDirectory, [this, &Visitor](int32 FileIndex, const TCHAR* ServerFilenameOrDirectory)
+		bResult |= ServerToc.IterateDirectory(*StorageServerDirectory, [this, &Visitor](const FIoChunkId& FileChunkId, const TCHAR* ServerFilenameOrDirectory)
 		{
 			TStringBuilder<1024> LocalPath;
 			bool bConverted = MakeLocalPath(ServerFilenameOrDirectory, LocalPath);
 			check(bConverted);
 			FFileStatData FileStatData;
-			if (FileIndex >= 0)
+			if (FileChunkId.IsValid())
 			{
-				FileStatData = SendGetStatDataMessage(FileIndex);
+				FileStatData = SendGetStatDataMessage(FileChunkId);
 				check(FileStatData.bIsValid);
 			}
 			else
@@ -517,8 +522,7 @@ bool FStorageServerPlatformFile::MoveFile(const TCHAR* To, const TCHAR* From)
 	TStringBuilder<1024> StorageServerFrom;
 	if (MakeStorageServerPath(From, StorageServerFrom))
 	{
-		int32* FindFromFileIndex = ServerToc.FindFileIndex(*StorageServerFrom);
-		if (FindFromFileIndex)
+		if (const FIoChunkId* FromFileChunkId = ServerToc.GetFileChunkId(*StorageServerFrom))
 		{
 			TUniquePtr<IFileHandle> ToFile(LowerLevel->OpenWrite(To, false, false));
 			if (!ToFile)
@@ -526,7 +530,7 @@ bool FStorageServerPlatformFile::MoveFile(const TCHAR* To, const TCHAR* From)
 				return false;
 			}
 
-			TUniquePtr<IFileHandle> FromFile(InternalOpenFile(*FindFromFileIndex, *StorageServerFrom));
+			TUniquePtr<IFileHandle> FromFile(InternalOpenFile(*FromFileChunkId, *StorageServerFrom));
 			if (!FromFile)
 			{
 				return false;
@@ -657,16 +661,16 @@ bool FStorageServerPlatformFile::SendGetFileListMessage()
 	
 	Connection->FileManifestRequest([&](FIoChunkId Id, FStringView Path)
 	{
-		ServerToc.AddFile(Path, FileIndexFromChunkId(Id));
+		ServerToc.AddFile(Id, Path);
 	});
 
 	return true;
 }
 
-FFileStatData FStorageServerPlatformFile::SendGetStatDataMessage(int32 FileIndex)
+FFileStatData FStorageServerPlatformFile::SendGetStatDataMessage(const FIoChunkId& FileChunkId)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerPlatformFileGetStatData);
-	int64 FileSize = Connection->FileSizeRequest(FileIndex);
+	const int64 FileSize = Connection->ChunkSizeRequest(FileChunkId);
 	if (FileSize < 0)
 	{
 		return FFileStatData();
@@ -679,11 +683,11 @@ FFileStatData FStorageServerPlatformFile::SendGetStatDataMessage(int32 FileIndex
 	return FFileStatData(CreationTime, AccessTime, ModificationTime, FileSize, false, true);
 }
 
-int64 FStorageServerPlatformFile::SendReadMessage(uint8* Destination, int32 FileIndex, int64 Offset, int64 BytesToRead)
+int64 FStorageServerPlatformFile::SendReadMessage(uint8* Destination, const FIoChunkId& FileChunkId, int64 Offset, int64 BytesToRead)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerPlatformFileRead);
 	int64 BytesRead = 0;
-	Connection->ReadFileRequest(FileIndex, Offset, BytesToRead, [Destination, &BytesRead](FStorageServerResponse& Response)
+	Connection->ReadChunkRequest(FileChunkId, Offset, BytesToRead, [Destination, &BytesRead](FStorageServerResponse& Response)
 	{
 		BytesRead = Response.TotalSize();
 		Response.Serialize(Destination, Response.TotalSize());
@@ -714,7 +718,7 @@ void FStorageServerPlatformFile::OnCookOnTheFlyMessage(const UE::Cook::FCookOnTh
 			for (int32 Idx = 0, Num = Filenames.Num(); Idx < Num; ++Idx)
 			{
 				UE_LOG(LogCookOnTheFly, Verbose, TEXT("Adding file '%s'"), *Filenames[Idx]);
-				ServerToc.AddFile(Filenames[Idx], FileIndexFromChunkId(ChunkIds[Idx]));
+				ServerToc.AddFile(ChunkIds[Idx], Filenames[Idx]);
 			}
 
 			break;
