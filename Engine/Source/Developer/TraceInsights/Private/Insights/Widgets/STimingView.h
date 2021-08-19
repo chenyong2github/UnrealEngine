@@ -446,6 +446,7 @@ protected:
 	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const;
 	
 	void FindNextEvent();
+	void FindPrevEvent();
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */

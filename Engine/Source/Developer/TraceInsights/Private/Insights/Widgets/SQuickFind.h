@@ -53,7 +53,9 @@ public:
 private:
 	void InitCommandList();
 
-	FReply FindNext_Onclicked();
+	FReply FindNext_OnClicked();
+
+	FReply FindPrevious_OnClicked();
 
 	FReply Cancel_OnClicked();
 

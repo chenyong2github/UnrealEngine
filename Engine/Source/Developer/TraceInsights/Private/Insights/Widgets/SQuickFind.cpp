@@ -70,7 +70,7 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.Padding(0.0f, 5.0f, 0.0f, 5.0f)
-		.HAlign(EHorizontalAlignment::HAlign_Right)
+		.HAlign(EHorizontalAlignment::HAlign_Left)
 		.VAlign(EVerticalAlignment::VAlign_Bottom)
 		[
 			SNew(SHorizontalBox)
@@ -82,9 +82,21 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 			.Padding(1.0f)
 			[
 				SNew(SButton)
+				.Text(LOCTEXT("FindPrev", "Find Previous"))
+				.ToolTipText(LOCTEXT("FindNextDesc", "Find the previous occurence that matches the search criteria."))
+				.OnClicked(this, &SQuickFind::FindPrevious_OnClicked)
+			]
+
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(1.0f)
+			[
+				SNew(SButton)
 				.Text(LOCTEXT("FindNext", "Find Next"))
 				.ToolTipText(LOCTEXT("FindNextDesc", "Find the next occurence that matches the search criteria."))
-				.OnClicked(this, &SQuickFind::FindNext_Onclicked)
+				.OnClicked(this, &SQuickFind::FindNext_OnClicked)
 			]
 		]
 	];
@@ -117,10 +129,18 @@ END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SQuickFind::FindNext_Onclicked()
+FReply SQuickFind::FindNext_OnClicked()
 {
 	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
 	QuickFindViewModel->GetOnFindNextEvent().Broadcast();
+
+	return FReply::Handled();
+}////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FReply SQuickFind::FindPrevious_OnClicked()
+{
+	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
+	QuickFindViewModel->GetOnFindPreviousEvent().Broadcast();
 
 	return FReply::Handled();
 }
@@ -169,6 +189,11 @@ TSharedRef<SDockTab> SQuickFind::SpawnTab(const FSpawnTabArgs& Args)
 {
 	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab);
+
+	if (!PendingWidget.IsValid())
+	{
+		return DockTab;
+	}
 
 	DockTab->SetContent(PendingWidget.ToSharedRef());
 	PendingWidget->SetParentTab(DockTab);

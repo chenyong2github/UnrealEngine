@@ -4199,6 +4199,7 @@ void STimingView::QuickFind_Execute()
 
 		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
 		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
+		QuickFindVm->GetOnFindPreviousEvent().AddSP(this, &STimingView::FindPrevEvent);
 	}
 
 	SQuickFind::CreateAndOpenQuickFilterWidget(QuickFindVm);
@@ -4299,6 +4300,48 @@ void STimingView::FindNextEvent()
 				ensure(FoundEvent->GetStartTime() < BestMatchEvent->GetStartTime());
 			}
 			BestMatchEvent = FoundEvent;
+		}
+	}
+
+	if (BestMatchEvent)
+	{
+		SelectedEvent = BestMatchEvent;
+		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+		OnSelectedTimingEventChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::FindPrevEvent()
+{
+	TSharedPtr<const ITimingEvent> BestMatchEvent;
+	double StartTime = SelectedEvent.IsValid() ? SelectedEvent->GetStartTime() : std::numeric_limits<double>::max();
+
+	auto EventFilter = [StartTime](double EventStartTime, double EventEndTime, uint32 EventDepth)
+	{
+		return EventStartTime < StartTime;
+	};
+	FTimingEventSearchParameters Params(std::numeric_limits<double>::lowest(), StartTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter);
+	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
+	Params.SearchDirection = FTimingEventSearchParameters::ESearchDirection::Backward;
+
+	for (auto& Entry : AllTracks)
+	{
+		if (!Entry.Value->IsVisible())
+		{
+			continue;
+		}
+
+		Params.StartTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::lowest();
+
+		TSharedPtr<const ITimingEvent> FoundEvent = Entry.Value->SearchEvent(Params);
+		if (FoundEvent.IsValid())
+		{
+			if (!BestMatchEvent.IsValid() || BestMatchEvent->GetStartTime() < FoundEvent->GetStartTime())
+			{
+				BestMatchEvent = FoundEvent;
+			}
 		}
 	}
 
