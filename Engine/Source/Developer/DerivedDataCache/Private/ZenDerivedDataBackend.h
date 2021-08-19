@@ -6,7 +6,8 @@
 
 #include "ZenServerInterface.h"
 
-// Macro for whether to enable the S3 backend. libcurl is not currently available on Mac.
+// Macro for whether to enable the Zen DDC backend. libcurl is not currently available on Mac.
+
 #if UE_WITH_ZEN
 #	define WITH_ZEN_DDC_BACKEND 1
 #else

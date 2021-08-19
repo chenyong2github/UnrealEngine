@@ -38,13 +38,13 @@ enum class EContentType
 class FZenHttpRequest
 {
 public:
-	DERIVEDDATACACHE_API FZenHttpRequest(const TCHAR* InDomain, bool bInLogErrors);
+	DERIVEDDATACACHE_API FZenHttpRequest(FStringView InDomain, bool bInLogErrors);
 	DERIVEDDATACACHE_API ~FZenHttpRequest();
 
 	/**
-		* Resets all options on the request except those that should always be set.
-		*/
-	void Reset();
+	  * Resets all options on the request except those that should always be set.
+	  */
+	DERIVEDDATACACHE_API void Reset();
 
 	/** Returns the HTTP response code.*/
 	inline const int GetResponseCode() const
@@ -102,14 +102,17 @@ public:
 		* @param Uri Url to use.
 		* @return Result of the request
 		*/
-	DERIVEDDATACACHE_API Result PerformBlockingHead(const TCHAR* Uri);
+	DERIVEDDATACACHE_API Result PerformBlockingHead(FStringView Uri);
 
 	/**
 		* Query an url using the request. Queries can use either "Head" or "Delete" verbs.
 		* @param Uri Url to use.
 		* @return Result of the request
 		*/
-	DERIVEDDATACACHE_API Result PerformBlockingDelete(const TCHAR* Uri);
+	DERIVEDDATACACHE_API Result PerformBlockingDelete(FStringView Uri);
+
+	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FCbObjectView Obj);
+	DERIVEDDATACACHE_API Result PerformBlockingPost(FStringView Uri, FMemoryView Payload);
 
 	/**
 		* Returns the response buffer as a string. Note that is the request is performed
@@ -119,6 +122,17 @@ public:
 	{
 		return GetAnsiBufferAsString(ResponseBuffer);
 	}
+
+	/**
+	  * Returns the response buffer. Note that is the request is performed
+	  * with an external buffer as target buffer this will be empty.
+	  */
+	const TArray64<uint8>& GetResponseBuffer() const
+	{
+		return ResponseBuffer;
+	}
+
+	DERIVEDDATACACHE_API bool GetHeader(const ANSICHAR* Header, FString& OutValue) const;
 
 private:
 	void* /* CURL */		Curl = nullptr;
@@ -175,7 +189,7 @@ private:
   */
 struct FZenHttpRequestPool
 {
-	DERIVEDDATACACHE_API explicit FZenHttpRequestPool(const TCHAR* InServiceUrl);
+	DERIVEDDATACACHE_API explicit FZenHttpRequestPool(FStringView InServiceUrl, uint32 PoolEntryCount = 16);
 	DERIVEDDATACACHE_API ~FZenHttpRequestPool();
 
 	/** Block until a request is free. Once a request has been returned it is
@@ -192,11 +206,11 @@ struct FZenHttpRequestPool
 private:
 	struct FEntry
 	{
-		TAtomic<uint8> Usage;
+		std::atomic<uint8> IsAllocated;
 		FZenHttpRequest* Request;
 	};
 
-	TStaticArray<FEntry, 16> Pool;
+	TArray<FEntry> Pool;
 };
 
 /**

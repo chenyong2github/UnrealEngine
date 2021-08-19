@@ -15,7 +15,8 @@ public class IoStoreUtilities : ModuleRules
             "CoreUObject",
             "Projects",
             "AssetRegistry",
-            "RenderCore",
+			"DerivedDataCache",
+			"RenderCore",
 			"libcurl",
         });
         PrivateDependencyModuleNames.Add("PakFile");
