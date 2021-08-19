@@ -2977,5 +2977,622 @@ export type GetDeviceReservationResponse = {
 export type UpdateLeaseRequest = {
 	/** Mark this lease as aborted */
 	aborted?: boolean
+
+}
+
+/** Server settings */
+export type GetServerSettingsResponse = {
+
+	/** The number of live server setting updates */
+	numServerUpdates?: number;
+
+	globalConfigPath: string;
+
+	/** The server settings on local storage */
+	userServerSettingsPath:string;
+
+	/** MongoDB connection string */
+	databaseConnectionString?: string;
+
+	/** MongoDB database name */
+	databaseName: string;
+
+	/** The claim type for administrators */
+	adminClaimType: string;
+
+	/** Value of the claim type for administrators */
+	adminClaimValue: string;
+
+	/** Optional certificate to trust in order to access the database (eg. AWS cert for TLS) */
+	databasePublicCert?: string;
+
+	/** Access the database in read-only mode (avoids creating indices or updating content)
+		Useful for debugging a local instance of HordeServer against a production database. */
+	databaseReadOnlyMode: boolean;
+
+	/** Optional PFX certificate to use for encryting agent SSL traffic. This can be a self-signed certificate, as long as it's trusted by agents.	*/
+	serverPrivateCert?: string;
+
+	/** Issuer for tokens from the auth provider */	
+	oidcAuthority?: string;
+
+	/** Client id for the OIDC authority */
+	oidcClientId?: string;
+
+	/** Optional redirect url provided to OIDC login */
+	oidcSigninRedirect?: string;
+
+	/** Name of the issuer in bearer tokens from the server*/
+	jwtIssuer?: string;
+
+	/** Secret key used to sign JWTs. This setting is typically only used for development. In prod, a unique secret key will be generated and stored in the DB for each unique server instance.*/
+	jwtSecret?: string;
+
+	/** Length of time before JWT tokens expire, in hourse*/
+	jwtExpiryTimeHours: number;
+
+	/** Disable authentication for debugging purposes*/
+	disableAuth: boolean;
+
+	/** Whether to enable Cors, generally for development purposes*/
+	corsEnabled: boolean;
+
+	/** Allowed Cors origin */
+	corsOrigin: string;
+
+	/** Whether to enable a schedule in test data (false by default for development builds)*/
+	enableScheduleInTestData: boolean;
+
+	/** Interval between rebuilding the schedule queue with a DB query.*/
+	schedulePollingInterval: any;
+
+	/** Interval between polling for new jobs*/
+	noResourceBackOffTime: any;
+
+	/** Interval between attempting to assign agents to take on jobs*/
+	initiateJobBackOffTime: any;
+
+	/** Interval between scheduling jobs when an unknown error occurs*/
+	unknownErrorBackOffTime: any;
+
+	/** Config for connecting to Redis server(s).
+		Setting it to null will disable Redis use and connection
+		See format at https://stackexchange.github.io/StackExchange.Redis/Configuration.html */
+	redisConnectionConfig?: string
+
+	/** Type of write cache to use in log service, currently Supported: "InMemory" or "Redis" */
+	logServiceWriteCacheType: string
+
+	/** Provider Type, currently Supported: "S3" or "FileSystem" */
+	externalStorageProviderType: any
+
+	/** Local log/artifact storage directory, if using type filesystem */
+	localLogsDir: string;
+
+	/** Local blob storage directory, if using type filesystem */
+	localBlobsDir: string;
+
+	/** Local artifact storage directory, if using type filesystem */
+	localArtifactsDir: string;
+
+	/** S3 bucket region for logfile storage */
+	s3BucketRegion: string;
+
+	/** Arn to assume for s3.  "Basic", "AssumeRole", "AssumeRoleWebIdentity" only */
+	s3CredentialType: string;
+
+	/** S3 Client username (used in Basic auth type only) */
+	s3ClientKeyId: string;
+
+	/** S3 client password (used in Basic auth type only) */
+	s3ClientSecret: string;
+
+	/** Arn to assume for s3 */
+	s3AssumeArn: string;
+
+	/** S3 log bucket name */
+	s3LogBucketName: string;
+
+	/** S3 artifact bucket name */
+	s3ArtifactBucketName: string;
+
+	/** When using a relay storage provider, specifies the remote server to use */
+	logRelayServer?: string;
+
+	/** Authentication token for using a relay server */
+	logRelayBearerToken?: string;
+
+	/** Whether to log json to stdout */
+	logJsonToStdOut: boolean;
+
+	/** Which fleet manager service to use */
+	fleetManager: any;
+
+	/** Whether to run scheduled jobs. Not wanted for development. */
+	disableSchedules: boolean;
+
+	/** Timezone for evaluating schedules */
+	scheduleTimeZone?: string;
+
+	/** Token for interacting with Slack */
+	slackToken?: string;
+
+	/** Token for opening a socket to slack */
+	slackSocketToken?: string;
+
+	/** Channel to send stream notification update failures to */
+	updateStreamsNotificationChannel?: string;
+
+	/** URI to the SmtpServer to use for sending email notifications */
+	smtpServer?: string;
+
+	/** The email address to send email notifications from */
+	emailSenderAddress?: string;
+
+	/** The name for the sender when sending email notifications */
+	emailSenderName?: string;
+
+	/** The p4 bridge service username */
+	p4BridgeServiceUsername?: string;
+
+	/** The p4 bridge service password */
+	p4BridgeServicePassword?: string;
+
+	/** Whether the p4 bridge service account can impersonate other users */
+	p4BridgeCanImpersonate: boolean;
+
+	/** Set the minimum size of the global thread pool
+		This value has been found in need of tweaking to avoid timeouts with the Redis client during bursts
+		of traffic. Default is 16 for .NET Core CLR. The correct value is dependent on the traffic the Horde Server
+		is receiving. For Epic's internal deployment, this is set to 40. */
+	globalThreadPoolMinSize?: number;
+
+	/** Path to the root config file */
+	configPath?: string;
+
+	/** Lazily computed timezone value */
+	timeZoneInfo: any;
+
+}
+
+export type UpdateServerSettingsRequest = {
+
+	settings: Record<string, string | boolean | number>;
+}
+
+export type ServerUpdateResponse = {
+
+	errors: string[];
+
+	restartRequired: boolean;
+
+}
+
+
+// Config
+
+/// References a project configuration
+export type ProjectConfigRef = {
+
+	/// Unique id for the project
+	id: string;
+
+	/// Config path for the project		
+	path: string;
+}
+
+/// How frequently the maintence window repeats
+export enum ScheduledDowntimeFrequency {
+	/// Once
+	Once,
+
+	/// Every day
+	Daily,
+
+	/// Every week
+	Weekly
+}
+
+
+/// Settings for the maintenance window
+export type ScheduledDowntime = {
+
+	/// Start time
+	dateTimeOffset: any;
+
+	/// Finish time
+	finishTime: any;
+
+	/// Frequency that the window repeats\
+	frequency: ScheduledDowntimeFrequency;
+}
+
+
+
+/// User notice
+export type Notice = {
+
+	/// Unique id for this notice
+	id: string;
+
+	/// Start time to display this message
+	startTime?: Date | string;
+
+	/// Finish time to display this message
+	finishTime?: Date | string;
+
+	/// Message to display
+	message: string;
+}
+
+/// Path to a platform and stream to use for syncing AutoSDK
+export type AutoSdkWorkspace = {
+
+	/// Name of this workspace
+	name?: string;
+
+	/// The agent properties to check (eg. "OSFamily=Windows")
+	properties: string[];
+
+	/// Username for logging in to the server
+	userName?: string;
+
+	/// Stream to use
+	stream?: string;
+}
+
+
+/// Information about an individual Perforce server
+export type PerforceServer = {
+
+	/// The server and port. The server may be a DNS entry with multiple records, in which case it will be actively load balanced.
+	serverAndPort: string;
+
+	/// Whether to query the healthcheck address under each server
+	healthCheck?: boolean;
+
+	/// Whether to resolve the DNS entries and load balance between different hosts
+	resolveDns?: boolean;
+
+	/// Maximum number of simultaneous conforms on this server
+	maxConformCount: number;
+
+	/// List of properties for an agent to be eligable to use this server
+	properties?: string[];
+}
+
+
+/// Credentials for a Perforce user
+export type PerforceCredentials = {
+	/// The username
+	userName: string;
+
+	/// Password for the user
+	password: string;
+}
+
+
+/// Information about a cluster of Perforce servers. 
+export type PerforceCluster = {
+
+	/// The default cluster name
+	defaultName?: string;
+
+	/// Name of the cluster
+	name: string;
+
+	/// Username for Horde to log in to this server
+	serviceAccount: string;
+
+	/// Whether the service account can impersonate other users
+	canImpersonate: boolean;
+
+	/// List of servers
+	servers: PerforceServer[];
+
+	/// List of server credentials
+	credentials: PerforceCredentials[];
+
+	/// List of autosdk streams
+	autoSdk: AutoSdkWorkspace[];
+
+}
+
+
+/// Configuration for storage system
+export type StorageConfig = {
+
+	/// List of storage namespaces
+	namespaces: NamespaceConfig[];
+}
+
+/// Configuration for a storage namespace
+export type NamespaceConfig = {
+
+	/// Identifier for this namespace
+	id: string;
+
+	/// Buckets within this namespace
+	buckets: BucketConfig[];
+
+	/// Access control for this namespace
+	//UpdateAclRequest? Acl { get; set; }
+}
+
+/// Configuration for a bucket
+export type BucketConfig = {
+	/// Identifier for the bucket
+	id: string;
+}
+
+/** Global configuration */
+export type GlobalConfig = {
+
+	/// List of projects
+	projects: ProjectConfigRef[];
+
+	/// Manually added status messages
+	notices?: Notice[];
+
+	/// List of scheduled downtime
+	downtime?: ScheduledDowntime[];
+
+	/// List of Perforce clusters
+	perforceClusters: PerforceCluster[];
+
+	/// Maximum number of conforms to run at once
+	maxConformCount?: number;
+
+	/// List of storage namespaces
+	storage?: StorageConfig;
+
+	/// Access control list
+	// public UpdateAclRequest ? Acl { get; set; }
+}
+
+
+export type CreateProjectCategoryRequest = {
+	/// <summary>
+	/// Name of this category
+	/// </summary>
+
+	name: string;
+
+	/// <summary>
+	/// Index of the row to display this category on
+	/// </summary>
+	row: number;
+
+	/// <summary>
+	/// Whether to show this category on the nav menu
+	/// </summary>
+	showOnNavMenu: boolean;
+
+	/// <summary>
+	/// Patterns for stream names to include
+	/// </summary>
+	includePatterns: string[];
+
+	/// <summary>
+	/// Patterns for stream names to exclude
+	/// </summary>
+	excludePatterns: string[];
+
+}
+
+
+// Project Config
+/// Stores configuration for a project
+export type ProjectConfig = {
+
+	/// Name for the new project
+	name: string;
+
+	/// Path to the project logo
+	logo?: string;
+
+	/// Categories to include in this project
+	categories: CreateProjectCategoryRequest[];
+
+	/// List of streams
+	streams: StreamConfigRef[];
+
+	/// Acl entries
+	// public UpdateAclRequest? Acl { get; set; }
+}
+
+
+/// <summary>
+/// Reference to configuration for a stream
+/// </summary>
+export type StreamConfigRef = {
+
+	/// <summary>
+	/// Unique id for the stream
+	/// </summary>
+	id: string;
+
+	/// <summary>
+	/// Path to the configuration file
+	/// </summary>
+	path: string;
+}
+
+
+
+export type CreateAgentTypeRequest = {
+	/// <summary>
+	/// Pool of agents to use for this agent type
+	/// </summary>
+	pool: string;
+
+	/// <summary>
+	/// Name of the workspace to sync
+	/// </summary>
+	workspace?: string;
+
+	/// <summary>
+	/// Path to the temporary storage dir
+	/// </summary>
+	tempStorageDir?: string;
+
+	/// <summary>
+	/// Environment variables to be set when executing the job
+	/// </summary>
+	environment?: Record<string, string>;
+}
+
+
+/// Information about a workspace type
+export type CreateWorkspaceTypeRequest = {
+
+	/// <summary>
+	/// Name of the Perforce server cluster to use
+	/// </summary>
+	cluster?: string;
+
+	/// <summary>
+	/// The Perforce server and port (eg. perforce:1666)
+	/// </summary>
+	serverAndPort?: string;
+
+	/// <summary>
+	/// User to log into Perforce with (defaults to buildmachine)
+	/// </summary>
+	userName?: string;
+
+	/// <summary>
+	/// Password to use to log into the workspace
+	/// </summary>
+	password?: string;
+
+	/// <summary>
+	/// Identifier to distinguish this workspace from other workspaces. Defaults to the workspace type name.
+	/// </summary>
+	identifier?: string;
+
+	/// <summary>
+	/// Override for the stream to sync
+	/// </summary>
+	stream?: string;
+
+	/// <summary>
+	/// Custom view for the workspace
+	/// </summary>
+	view?: string[];
+
+	/// <summary>
+	/// Whether to use an incrementally synced workspace
+	/// </summary>
+	incremental: boolean;
+}
+
+
+/// Config for a stream
+export type StreamConfig = {
+
+	/// <summary>
+	/// Name of the stream
+	/// </summary>
+	name: string;
+
+	/// <summary>
+	/// The perforce cluster containing the stream
+	/// </summary>
+	clusterName?: string;
+
+	/// <summary>
+	/// Order for this stream
+	/// </summary>
+	order?: number;
+
+	/// Notification channel for all jobs in this stream
+	notificationChannel?: string;
+
+	/// Notification channel filter for this template. Can be Success|Failure|Warnings
+	notificationChannelFilter?: string;
+
+	/// <summary>
+	/// Channel to post issue triage notifications
+	/// </summary>
+	triageChannel?: string;
+
+	/// <summary>
+	/// Default template for running preflights
+	/// </summary>
+	defaultPreflightTemplate?: string;
+
+	/// Default template for running preflights
+	defaultPreflight?: DefaultPreflightRequest;
+
+	/// <summary>
+	/// List of tabs to show for the new stream
+	/// </summary>
+	tabs: any[]/*CreateStreamTabRequest[]*/;
+
+	/// <summary>
+	/// Map of agent name to type
+	/// </summary>
+	agentTypes: Record<string, CreateAgentTypeRequest>;
+
+	/// <summary>
+	/// Map of workspace name to type
+	/// </summary>
+	workspaceTypes: Record<string, CreateWorkspaceTypeRequest>;
+
+	/// <summary>
+	/// List of templates to create
+	/// </summary>
+	templates: any[];
+
+	/// <summary>
+	/// Custom permissions for this object
+	/// </summary>
+	// public UpdateAclRequest ? Acl { get; set; }
+
+	/// <summary>
+	/// Pause stream builds until specified date
+	/// </summary>
+	/// public DateTime ? PausedUntil { get; set; }
+
+	/// <summary>
+	/// Reason for pausing builds of the stream
+	/// </summary>
+	// public string ? PauseComment { get; set; }
+}
+
+/// Parameters to update server settings
+export type UpdateGlobalConfigRequest = {
+
+	/// Delta updates for global config
+	globalsJson?: string;
+
+	/// projects json
+	projectsJson?:Record<string, string>;
+
+	/// streams json
+	streamsJson?:Record<string, string>;
+
+	/// default pool name
+	defaultPoolName?: string;
+
+	/// Delta updates for server settings from dashboard
+	serverSettingJson?: string;
+
+	/// Base64 encoded project logo
+	projectLogo?: string;
+
+}
+
+export type GetServerInfoResponse = {
+
+	/// Server version info
+	serverVersion: string;
+
+	/// The operating system server is hosted on
+	osDescription: string;
+
+	/// whether the server is running in single instance mode
+	singleInstance: boolean;
 }
 

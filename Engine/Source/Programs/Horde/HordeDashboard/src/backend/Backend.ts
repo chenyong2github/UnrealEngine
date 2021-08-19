@@ -3,7 +3,7 @@
 import { configure } from "mobx";
 import { isNumber } from 'util';
 import templateCache from '../backend/TemplateCache';
-import { AgentData, ArtifactData, BatchUpdatePoolRequest, ChangeSummaryData, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, GetArtifactZipRequest, GetUserResponse, GetGraphResponse, GetIssueStreamResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetSoftwareResponse, GetSubscriptionResponse, IssueData, IssueQuery, JobData, JobQuery, LeaseData, LogData, LogLineData, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, SessionData, StreamData, TemplateData, TestData, UpdateAgentRequest, UpdateIssueRequest, UpdateJobRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, GetUtilizationTelemetryResponse, TabType, GetJobsTabResponse, JobsTabColumnType, GetPerforceServerStatusResponse, GetDeviceResponse, GetDevicePlatformResponse, CreateDeviceResponse, CreateDeviceRequest, UpdateDeviceRequest, GetDevicePoolResponse, GetDeviceReservationResponse, UsersQuery, LeaseOutcome, UpdateLeaseRequest } from './Api';
+import { AgentData, ArtifactData, BatchUpdatePoolRequest, ChangeSummaryData, CreateDeviceRequest, CreateDeviceResponse, CreateJobRequest, CreateJobResponse, CreatePoolRequest, CreateSoftwareResponse, CreateSubscriptionRequest, CreateSubscriptionResponse, DashboardPreference, EventData, GetArtifactZipRequest, GetDevicePlatformResponse, GetDevicePoolResponse, GetDeviceReservationResponse, GetDeviceResponse, GetGraphResponse, GetIssueStreamResponse, GetJobsTabResponse, GetJobStepRefResponse, GetJobStepTraceResponse, GetJobTimingResponse, GetLogEventResponse, GetNotificationResponse, GetPerforceServerStatusResponse, GetServerInfoResponse, GetServerSettingsResponse, GetSoftwareResponse, GetSubscriptionResponse, GetUserResponse, GetUtilizationTelemetryResponse, GlobalConfig, IssueData, IssueQuery, JobData, JobQuery, JobsTabColumnType, LeaseData, LogData, LogLineData, PerforceCluster, PoolData, ProjectData, ScheduleData, ScheduleQuery, SearchLogFileResponse, ServerUpdateResponse, SessionData, StreamData, TabType, TemplateData, TestData, UpdateAgentRequest, UpdateDeviceRequest, UpdateGlobalConfigRequest, UpdateIssueRequest, UpdateJobRequest, UpdateLeaseRequest, UpdateNotificationsRequest, UpdatePoolRequest, UpdateServerSettingsRequest, UpdateStepRequest, UpdateStepResponse, UpdateUserRequest, UsersQuery } from './Api';
 import dashboard from './Dashboard';
 import { ChallengeStatus, Fetch } from './Fetch';
 import graphCache, { GraphQuery } from './GraphCache';
@@ -125,24 +125,24 @@ export class Backend {
                 this.backend.get(`/api/v1/agents/${agentId}/leases/${leaseId}`).then((response) => {
                     resolve(response.data as LeaseData);
                 }).catch(reason => { reject(reason); });
-            });    
+            });
         }
 
         return new Promise<LeaseData>((resolve, reject) => {
             this.backend.get(`/api/v1/leases/${leaseId}`).then((response) => {
                 resolve(response.data as LeaseData);
             }).catch(reason => { reject(reason); });
-        });    
+        });
 
     }
 
-    getLeases(agentId: string, index: number, count: number, includeBatches?:boolean): Promise<LeaseData[]> {
+    getLeases(agentId: string, index: number, count: number, includeBatches?: boolean): Promise<LeaseData[]> {
         const params: string[] = [];
         params.push("Index=" + index);
         params.push("Count=" + count);
         const paramString = params.join("&");
         return new Promise<LeaseData[]>((resolve, reject) => {
-            this.backend.get(`/api/v1/agents/${agentId}/leases?${paramString}`).then( async (response) => {
+            this.backend.get(`/api/v1/agents/${agentId}/leases?${paramString}`).then(async (response) => {
                 const leases = response.data as LeaseData[];
                 leases.forEach(function (lease) {
                     lease.startTime = new Date(Date.parse(lease.startTime as string));
@@ -159,18 +159,18 @@ export class Backend {
                 // get batch states
                 if (includeBatches) {
 
-                    const jobIds:Set<string> = new Set();
+                    const jobIds: Set<string> = new Set();
                     leases.filter(lease => lease.jobId && lease.batchId).forEach(lease => jobIds.add(lease.jobId));
                     if (jobIds.size) {
-                        const jobs = await this.getJobsByIds(Array.from(jobIds), {filter:"id,batches"});
+                        const jobs = await this.getJobsByIds(Array.from(jobIds), { filter: "id,batches" });
 
                         leases.forEach(lease => {
                             const job = jobs.find(j => lease.jobId === j.id);
                             if (job) {
-                                lease.batch = job.batches?.find(b => lease.batchId === b.id );
+                                lease.batch = job.batches?.find(b => lease.batchId === b.id);
                             }
                         });
-                    }    
+                    }
                 }
 
                 resolve(leases);
@@ -789,10 +789,10 @@ export class Backend {
         query = query ?? {};
 
         return new Promise<GetUserResponse[]>((resolve, reject) => {
-            this.backend.get("/api/v1/users",{
+            this.backend.get("/api/v1/users", {
                 params: query as any
             }).then((response) => {
-                resolve(response.data as GetUserResponse[] );
+                resolve(response.data as GetUserResponse[]);
             }).catch(reason => reject(reason));
         });
 
@@ -889,7 +889,7 @@ export class Backend {
 
     }
 
-    getIssueEvents(issueId: number, jobId?: string, logIds?: string[], count?:number): Promise<GetLogEventResponse[]> {
+    getIssueEvents(issueId: number, jobId?: string, logIds?: string[], count?: number): Promise<GetLogEventResponse[]> {
 
         if (logIds && logIds.length) {
             jobId = undefined;
@@ -1003,6 +1003,18 @@ export class Backend {
 
     }
 
+    downloadAgentZip() {
+        try {
+            const url = `${this.serverUrl}/api/v1/agentsoftware/latest/download`;
+            const link = document.createElement('a');
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+        } catch (reason) {
+            console.error(reason);
+        }
+    }
+
     updateJobStep(jobId: string, batchId: string, stepId: string, request: UpdateStepRequest): Promise<UpdateStepResponse> {
         return new Promise<UpdateStepResponse>((resolve, reject) => {
             this.backend.put(`api/v1/jobs/${jobId}/batches/${batchId}/steps/${stepId}`, request).then((value) => {
@@ -1107,7 +1119,7 @@ export class Backend {
                 reject(reason);
             });
         });
-        
+
     }
 
     getDevices(): Promise<GetDeviceResponse[]> {
@@ -1118,7 +1130,7 @@ export class Backend {
             }).catch(reason => {
                 reject(reason);
             });
-        });        
+        });
     }
 
     addDevice(request: CreateDeviceRequest): Promise<CreateDeviceResponse> {
@@ -1128,7 +1140,7 @@ export class Backend {
             }).catch(reason => {
                 reject(reason);
             });
-        });        
+        });
     }
 
     checkoutDevice(deviceId: string, checkout:boolean): Promise<void> {
@@ -1149,17 +1161,17 @@ export class Backend {
             }).catch(reason => {
                 reject(reason);
             });
-        });        
+        });
     }
 
-    updateLease(leaseId: string, update:UpdateLeaseRequest): Promise<void> {
+    updateLease(leaseId: string, update: UpdateLeaseRequest): Promise<void> {
         return new Promise<void>((resolve, reject) => {
             this.backend.put(`/api/v1/leases/${leaseId}`, update).then(() => {
                 resolve();
             }).catch(reason => {
                 reject(reason);
             });
-        });        
+        });
     }
 
 
@@ -1170,7 +1182,7 @@ export class Backend {
             }).catch(reason => {
                 reject(reason);
             });
-        });        
+        });
     }
 
     getDevicePlatforms(): Promise<GetDevicePlatformResponse[]> {
@@ -1182,7 +1194,7 @@ export class Backend {
                 reject(reason);
             });
         });
-        
+
     }
 
     getDevicePools(): Promise<GetDevicePoolResponse[]> {
@@ -1194,7 +1206,7 @@ export class Backend {
                 reject(reason);
             });
         });
-        
+
     }
 
     getDeviceReservations(): Promise<GetDeviceReservationResponse[]> {
@@ -1206,13 +1218,54 @@ export class Backend {
                 reject(reason);
             });
         });
-        
+
     }
 
-    getServerVersion():Promise<string> {
-        return new Promise<string>((resolve, reject) => {
-            this.backend.get(`/api/v1/server/version`).then((value) => {
-                resolve(value.data as string);
+    getServerSettings(): Promise<GetServerSettingsResponse> {
+        return new Promise<GetServerSettingsResponse>((resolve, reject) => {
+            this.backend.get(`/api/v1/config/serversettings`).then((value) => {
+                resolve(value.data as GetServerSettingsResponse);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+    }
+
+    updateServerSettings(request: UpdateServerSettingsRequest): Promise< ServerUpdateResponse> {
+        return new Promise<ServerUpdateResponse>((resolve, reject) => {
+            this.backend.put(`/api/v1/config/serversettings`, request).then((value) => {
+                resolve(value.data as ServerUpdateResponse);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+    }
+
+    getGlobalConfig(): Promise<GlobalConfig> {
+        return new Promise<GlobalConfig>((resolve, reject) => {
+            this.backend.get(`/api/v1/config/global`).then((value) => {
+                resolve(value.data as GlobalConfig);
+            }).catch(reason => {
+                reject(reason);
+            });
+        });        
+    }
+
+    // updates global configuation
+    updateGlobalConfig(request: UpdateGlobalConfigRequest): Promise<void> {
+        return new Promise<void>((resolve, reject) => {
+            this.backend.put(`/api/v1/config/global`, request).then(() => {
+                resolve();
+            }).catch(reason => {
+                reject(reason);
+            });
+        });
+    }
+
+    getServerInfo(): Promise<GetServerInfoResponse> {
+        return new Promise<GetServerInfoResponse>((resolve, reject) => {
+            this.backend.get(`/api/v1/server/info`).then((value) => {
+                resolve(value.data as GetServerInfoResponse);
             }).catch(reason => {
                 reject(reason);
             });
@@ -1240,7 +1293,7 @@ export class Backend {
     async serverLogout(redirect: string) {
         try {
             this.backend.logout = true;
-            await this.backend.get("/api/v1/dashboard/logout");            
+            await this.backend.get("/api/v1/dashboard/logout");
             window.location.assign(redirect);
 
         } catch (err) {
@@ -1285,7 +1338,7 @@ export class Backend {
                 return;
             }
 
-            this.serverVersion = await this.getServerVersion();
+            this.serverInfo = await this.getServerInfo();
 
             await dashboard.update();
 
@@ -1311,7 +1364,7 @@ export class Backend {
     updateID?: any;
     logout: boolean = false;
 
-    serverVersion:string = "";
+    serverInfo: GetServerInfoResponse = {serverVersion: "0", osDescription: "Unknown", singleInstance: false};
 
 
     private backend: Fetch;

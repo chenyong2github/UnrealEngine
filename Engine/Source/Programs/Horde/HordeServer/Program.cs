@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -146,16 +147,19 @@ namespace HordeServer
 
 			IConfiguration Config = new ConfigurationBuilder()
 				.SetBasePath(AppDir.FullName)
-				.AddJsonFile("appsettings.json", optional: false)
-				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true)
+				.AddJsonFile("appsettings.json", optional: false) 
+				.AddJsonFile("appsettings.Build.json", optional: true) // specific settings for builds (installer/dockerfile)
+				.AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT")}.json", optional: true) // environment variable overrides, also used in k8s setups with Helm
 				.AddJsonFile("appsettings.User.json", optional: true)
-				.AddJsonFile(UserConfigFile.FullName, optional: true)
+				.AddJsonFile(UserConfigFile.FullName, optional: true, reloadOnChange: true)
 				.AddEnvironmentVariables()
 				.AddCommandLine(Args)
 				.Build();
 
 			ServerSettings HordeSettings = new ServerSettings();
 			Config.GetSection("Horde").Bind(HordeSettings);
+
+			InitializeDefaults(HordeSettings);
 
 			DirectoryReference LogDir = AppDir;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -280,6 +284,28 @@ namespace HordeServer
 				}
 			}
 			return DirectoryReference.Combine(GetAppDir(), "Data");
+		}
+
+		static void InitializeDefaults(ServerSettings Settings)
+		{
+			if (Settings.SingleInstance)
+			{
+				FileReference GlobalConfig = FileReference.Combine(Program.DataDir, "Config/globals.json");
+
+				if (!FileReference.Exists(UserConfigFile))
+				{
+					DirectoryReference.CreateDirectory(UserConfigFile.Directory);
+					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"configPath\" : \"{GlobalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\"}}}}");
+				}
+				
+				if (!FileReference.Exists(GlobalConfig))
+				{
+					DirectoryReference.CreateDirectory(GlobalConfig.Directory);
+					FileReference.WriteAllText(GlobalConfig, "{}");
+				}
+
+			}
+
 		}
 	}
 }

@@ -253,15 +253,15 @@ namespace HordeServer
 
 		public IConfiguration Configuration { get; }
 
-		ServerSettings Settings { get; set; } = new ServerSettings();
-
-		// This method gets called by the runtime. Use this method to add services to the container.
+		// This method gets called *multiple times* by the runtime. Use this method to add services to the container.
 		public void ConfigureServices(IServiceCollection Services)
 		{
-			IConfigurationSection ConfigSection = Configuration.GetSection("Horde");
-			Services.AddOptions<ServerSettings>().Configure(Options => ConfigSection.Bind(Options)).ValidateDataAnnotations();
+			// IOptionsMonitor pattern for live updating of configuration settings
+			Services.Configure<ServerSettings>(Configuration.GetSection("Horde"));
 
-			ConfigSection.Bind(Settings);
+			// Settings used for configuring services
+			ServerSettings Settings = new ServerSettings();
+			Configuration.GetSection("Horde").Bind(Settings);			
 
 			if (Settings.GlobalThreadPoolMinSize != null)
 			{
@@ -350,13 +350,14 @@ namespace HordeServer
 			}
 
 			Services.AddSingleton<AclService>();
-			Services.AddSingleton<AgentService>();
+			Services.AddSingleton<AgentService>();			
 			Services.AddSingleton<AgentSoftwareService>();
 			Services.AddSingleton<ArtifactService>();
 			Services.AddSingleton<ConsistencyService>();
 			Services.AddSingleton<RequestTrackerService>();
 			Services.AddSingleton<CredentialService>();
 			Services.AddSingleton<DatabaseService>();
+			Services.AddSingleton<ConfigService>();
 			Services.AddSingleton<IDogStatsd>(ctx =>
 			{
 				string? DatadogAgentHost = Environment.GetEnvironmentVariable("DD_AGENT_HOST");
@@ -572,6 +573,12 @@ namespace HordeServer
 				Config.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, $"{Assembly.GetExecutingAssembly().GetName().Name}.xml"));
 			});
 
+			DirectoryReference DashboardDir = DirectoryReference.Combine(Program.AppDir, "DashboardApp");
+			if (DirectoryReference.Exists(DashboardDir)) 
+			{
+				Services.AddSpaStaticFiles(Config => {Config.RootPath = "DashboardApp";});
+			}
+
 			ConfigureMongoDbClient();
 
 			OnAddHealthChecks(Services);
@@ -719,7 +726,7 @@ namespace HordeServer
 		}
 
 		// This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
-		public void Configure(IApplicationBuilder App, IWebHostEnvironment Env, Microsoft.Extensions.Hosting.IHostApplicationLifetime Lifetime)
+		public static void Configure(IApplicationBuilder App, IWebHostEnvironment Env, Microsoft.Extensions.Hosting.IHostApplicationLifetime Lifetime, IOptions<ServerSettings> Settings)
 		{
 			App.UseForwardedHeaders();
 
@@ -728,7 +735,7 @@ namespace HordeServer
 				App.UseDeveloperExceptionPage();
 			}
 
-			if (Settings.CorsEnabled)
+			if (Settings.Value.CorsEnabled)
 			{
 				App.UseCors("CorsPolicy");
 			}
@@ -762,6 +769,14 @@ namespace HordeServer
 
 			App.UseDefaultFiles();
 			App.UseStaticFiles();
+
+			DirectoryReference DashboardDir = DirectoryReference.Combine(Program.AppDir, "DashboardApp");
+
+			if (DirectoryReference.Exists(DashboardDir)) 
+			{
+				App.UseSpaStaticFiles();
+			}
+						
 			App.UseRouting();
 
 			App.UseAuthentication();
@@ -788,7 +803,15 @@ namespace HordeServer
 				Endpoints.MapControllers();
 			});
 
-			if (Settings.OpenBrowser && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+			if (DirectoryReference.Exists(DashboardDir)) 
+			{
+				App.UseSpa(Spa =>
+				{ 
+					Spa.Options.SourcePath = "DashboardApp";        
+				});
+			}
+
+			if (Settings.Value.OpenBrowser && RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
 				Lifetime.ApplicationStarted.Register(() => LaunchBrowser(App));
 			}
