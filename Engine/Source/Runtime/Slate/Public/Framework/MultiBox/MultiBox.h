@@ -191,6 +191,7 @@ public:
 	* @param	bSearchable		The searchable state to set
 	*/
 	void SetSearchable(bool bSearchable);
+
 	/**
 	* Gets the searchable state of this block
 	*
@@ -523,6 +524,7 @@ class SLATE_API SMultiBlockBaseWidget
 {
 
 public:
+	TSharedPtr<const FMultiBlock> GetBlock() const { return MultiBlock; }
 
 	/** IMultiBlockBaseWidget interface */
 	virtual TSharedRef< SWidget > AsWidget() override;
@@ -806,6 +808,19 @@ private:
 		bool IsValid() const { return BlockName != NAME_None && BlockType != EMultiBlockType::None && PreviewBlock.IsValid() && InsertIndex != INDEX_NONE; }
 	};
 
+	/** Contains information about sub-menu block widgets that were pulled and flatten in the parent menu to enable searching the entire menu tree from the top. */
+	struct FFlattenSearchableBlockInfo
+	{
+		/** The block widget searchable text along with its ancestor menu searchable texts. Ex. ["Menu_X", "Sub_Menu_Y", "BlockText"] */
+		TArray<FText> SearchableTextHierarchyComponents;
+
+		/** The flatten widget wrapping the block widget that was built for the associated block. The flatten widget adds a 'hierarchy tip' widget to indicate the real location of this item in the hierarchy. */
+		TSharedPtr<SWidget> Widget;
+
+		/** Whether the hierarchy tip widget is visible in the flatten search result. This tip let the user know the real location of this item in the hierarchy. */
+		EVisibility HierarchyTipVisibility = EVisibility::Collapsed;
+	};
+
 	/** The MultiBox we're associated with */
 	TSharedPtr< FMultiBox > MultiBox;
 
@@ -821,8 +836,17 @@ private:
 	/** A preview of a block being dragged inside this box */
 	FDraggedMultiBlockPreview DragPreview;
 
-	/* The multibox widgets that are contained, linked to their display text */
-	TMap<TSharedPtr<SWidget>, FText > MultiBoxWidgets;
+	/** The multibox widgets that are contained, linked to their searchable text hierarchies. */
+	TMap<TSharedPtr<SWidget>, TArray<FText>> MultiBoxWidgets;
+
+	/** The set of searchable blocks found in this multibox sub-menus that were collected and flatten in this multibox to support recursively searching this multibox hierarchy. */
+	TMap<TSharedPtr<const FMultiBlock>, TSharedPtr<FFlattenSearchableBlockInfo>> FlattenSearchableBlocks;
+
+	/** The set of searchable blocks widgets that were added from the list of flatten blocks collecteto display search results from this multibox hierarchy. */
+	TMap<TSharedPtr<SWidget>, TSharedPtr<FFlattenSearchableBlockInfo>> FlattenSearchableWidgets;
+
+	/** The list of visible hierarchy tips text (associated with flatten search widgets) in the search result. This is used to group sub-items matching the searched text and avoid showing the same tip several times. */
+	TSet<FString> VisibleFlattenHierarchyTips;
 
 	/* The search widget to be displayed at the top of the multibox */
 	TSharedPtr<SSearchBox> SearchTextWidget;

@@ -118,6 +118,7 @@ public:
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
 
+	bool IsSubMenu() const { return bIsSubMenu; }
 
 private:
 
@@ -201,6 +202,14 @@ public:
 	 */
 	void Construct( const FArguments& InArgs );
 
+	/**
+	 * Called to create content for a pull-down or sub-menu window when it's summoned by the user
+	 *
+	 * @return	The widget content for the new menu
+	 */
+	TSharedRef< SWidget > MakeNewMenuWidget() const;
+
+
 protected:
 	/** Struct for creating menu entry widgets */
 	struct FMenuEntryBuildParams
@@ -273,12 +282,6 @@ protected:
 	//virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 	// End of SWidget interface
 
-	/**
-	 * Called to create content for a pull-down or sub-menu window when it's summoned by the user
-	 *
-	 * @return	The widget content for the new menu
-	 */
-	TSharedRef< SWidget > MakeNewMenuWidget() const;
 
 	/**
 	 * Called to get the appropriate border for Buttons on Menu Bars based on whether or not submenu is open
