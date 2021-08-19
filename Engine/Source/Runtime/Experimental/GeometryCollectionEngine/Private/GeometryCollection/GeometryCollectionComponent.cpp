@@ -980,10 +980,7 @@ void UGeometryCollectionComponent::PostEditChangeChainProperty(FPropertyChangedC
 
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, bShowBoneColors))
 	{
-		FScopedColorEdit EditBoneColor = EditBoneSelection();
-		EditBoneColor.SetShowBoneColors(bShowBoneColors);
-		MarkRenderStateDirty();
-		MarkRenderDynamicDataDirty();
+		FScopedColorEdit EditBoneColor(this, true /*bForceUpdate*/); // the property has already changed; this will trigger the color update + render state updates
 	}
 }
 #endif
