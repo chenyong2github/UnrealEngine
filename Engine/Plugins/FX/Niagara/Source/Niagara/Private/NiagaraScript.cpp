@@ -1111,6 +1111,10 @@ void UNiagaraScript::ComputeVMCompilationId_EmitterShared(FNiagaraVMExecutableDa
 	// Gather additional variables from renderers
 	for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
 	{
+		// Because we currently generate the CompilationId during PostLoad (as a part of AreScriptAndSourceSynchronized)
+		// we need to ensure that the RendererProperties have done their PostLoad.
+		RendererProperty->ConditionalPostLoad();
+
 		if (RendererProperty->GetCurrentSourceMode() != InSourceMode)
 			continue;
 
