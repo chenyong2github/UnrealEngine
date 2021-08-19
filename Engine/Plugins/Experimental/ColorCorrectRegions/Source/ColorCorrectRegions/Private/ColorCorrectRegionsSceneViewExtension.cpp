@@ -4,6 +4,7 @@
 #include "RHI.h"
 #include "SceneView.h"
 #include "PostProcess/PostProcessing.h"
+#include "ColorCorrectRegionsModule.h"
 #include "ColorCorrectRegionsSubsystem.h"
 #include "ColorCorrectRegionsPostProcessMaterial.h"
 #include "ScreenPass.h"
@@ -169,7 +170,23 @@ namespace
 	{
 		TArray<FVector> Points;
 		Points.Reserve(6);
-		CalculatePlaneAABBIntersectionPoints(InView.ViewFrustum.Planes[4], InBoxCenter, InBoxExtents, Points);
+		static bool bNotifiedOfClippingPlaneError = false;
+
+		if (InView.bHasNearClippingPlane)
+		{
+			CalculatePlaneAABBIntersectionPoints(InView.NearClippingPlane, InBoxCenter, InBoxExtents, Points);
+		}
+		// Previously last plane was near clipping plane.
+		else if (InView.ViewFrustum.Planes.Num() == 5)
+		{
+			CalculatePlaneAABBIntersectionPoints(InView.ViewFrustum.Planes[4], InBoxCenter, InBoxExtents, Points);
+		}
+		else if (!bNotifiedOfClippingPlaneError)
+		{
+			bNotifiedOfClippingPlaneError = true;
+			UE_LOG(ColorCorrectRegions, Error, TEXT("Couldn't find a correct near clipping plane in View Frustrum"));
+		}
+
 		if (Points.Num() == 0)
 		{
 			return;

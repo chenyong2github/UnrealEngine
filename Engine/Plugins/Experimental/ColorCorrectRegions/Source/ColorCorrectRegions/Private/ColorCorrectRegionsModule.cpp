@@ -22,4 +22,4 @@ void FColorCorrectRegionsModule::ShutdownModule()
 #undef LOCTEXT_NAMESPACE
 	
 IMPLEMENT_MODULE(FColorCorrectRegionsModule, ColorCorrectRegions);
-DEFINE_LOG_CATEGORY(ColorCorrectRegionsLogOutput);
+DEFINE_LOG_CATEGORY(ColorCorrectRegions);
