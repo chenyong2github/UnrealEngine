@@ -60,6 +60,8 @@ void FRayTracingDebugVisualizationMenuCommands::CreateRayTracingDebugVisualizati
 		RayTracingDebugModeNames.Add(LOCTEXT("Performance", "Performance"));
 	}
 
+	RayTracingDebugModeNames.Add(LOCTEXT("Triangles", "Triangles"));
+
 	for ( int32 RayTracingDebugIndex = 0; RayTracingDebugIndex < RayTracingDebugModeNames.Num(); ++RayTracingDebugIndex)
 	{
 		const FText CommandNameText = RayTracingDebugModeNames[RayTracingDebugIndex];
