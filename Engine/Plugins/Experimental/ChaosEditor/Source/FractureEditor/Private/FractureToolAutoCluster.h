@@ -3,9 +3,24 @@
 #pragma once
 
 #include "FractureTool.h"
-#include "AutoClusterFracture.h"
 
 #include "FractureToolAutoCluster.generated.h"
+
+
+UENUM()
+enum class EFractureAutoClusterMode : uint8
+{
+	/** Overlapping bounding box*/
+	BoundingBox UMETA(DisplayName = "Bounding Box"),
+
+	/** GC connectivity */
+	Proximity UMETA(DisplayName = "Proximity"),
+
+	/** Distance */
+	Distance UMETA(DisplayName = "Distance"),
+
+	Voronoi UMETA(DisplayName = "Voronoi"),
+};
 
 
 UCLASS(DisplayName = "Auto Cluster", Category = "FractureTools")
@@ -16,12 +31,11 @@ public:
 
 	UFractureAutoClusterSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-		, AutoClusterMode(EFractureAutoClusterMode::BoundingBox)
 		, SiteCount(10)
 	{}
 
-	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Mode"))
-	EFractureAutoClusterMode AutoClusterMode;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Simplified interface now only supports Voronoi clustering."))
+	EFractureAutoClusterMode AutoClusterMode_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Cluster Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
 	uint32 SiteCount=1;
