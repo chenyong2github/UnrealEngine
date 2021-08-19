@@ -10,7 +10,7 @@
 /* FModelUnitTester static public functions
  *****************************************************************************/
 
-void FModelUnitTester::GlobalTest(const FString& InModelsDirectory)
+void FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory)
 {
 #ifdef WITH_FULL_NNI_SUPPORT
 	// Model load, accuracy, and speed test
@@ -22,7 +22,7 @@ void FModelUnitTester::GlobalTest(const FString& InModelsDirectory)
 		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530}, {0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821}});
 	const TArray<int32> CPURepetitions({ 1000, 1000,  50, 1000 });
 	const TArray<int32> GPURepetitions({ 1000, 1000, 100, 1000 });
-	ModelLoadAccuracyAndSpeedTests(InModelsDirectory, ModelNames, InputArrayValues, CPUGroundTruths, GPUGroundTruths, CPURepetitions, GPURepetitions);
+	ModelLoadAccuracyAndSpeedTests(InProjectContentDir, InModelZooRelativeDirectory, ModelNames, InputArrayValues, CPUGroundTruths, GPUGroundTruths, CPURepetitions, GPURepetitions);
 #else
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- FModelUnitTester test skipped (only if WITH_FULL_NNI_SUPPORT)."));
 #endif //WITH_FULL_NNI_SUPPORT
@@ -33,9 +33,12 @@ void FModelUnitTester::GlobalTest(const FString& InModelsDirectory)
 /* FModelUnitTester static private functions
  *****************************************************************************/
 
-void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InModelsDirectory, const TArray<FString>& InModelNames, const TArray<float>& InInputArrayValues,
-	const TArray<TArray<double>>& InCPUGroundTruths, const TArray<TArray<double>>& InGPUGroundTruths, const TArray<int32>& InCPURepetitions, const TArray<int32>& InGPURepetitions)
+void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const TArray<FString>& InModelNames,
+	const TArray<float>& InInputArrayValues, const TArray<TArray<double>>& InCPUGroundTruths, const TArray<TArray<double>>& InGPUGroundTruths, const TArray<int32>& InCPURepetitions,
+	const TArray<int32>& InGPURepetitions)
 {
+	const FString ModelZooDirectory = InProjectContentDir / InModelZooRelativeDirectory;
+
 	// Test OTXT/UAsset accuracy
 	for (int32 ModelIndex = 0; ModelIndex < InModelNames.Num(); ++ModelIndex)
 	{
@@ -44,7 +47,7 @@ void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InModelsDir
 		const TArray<double>& GPUGroundTruths = InGPUGroundTruths[ModelIndex];
 
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %s - Network Uasset Load and Run"), *ModelName);
-		const FString UAssetModelFilePath = GetUAssetModelFilePath(ModelName);
+		const FString UAssetModelFilePath = GetUAssetModelFilePath(ModelName, InModelZooRelativeDirectory);
 		UNeuralNetwork* Network = NetworkUassetLoadTest(UAssetModelFilePath);
 		if (!Network)
 		{
@@ -70,13 +73,13 @@ void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InModelsDir
 #if WITH_EDITOR
 		for (int32 ONNXOrORTIndex = 0; ONNXOrORTIndex < 2; ++ONNXOrORTIndex)
 		{
-			const FString ModelFilePath = (ONNXOrORTIndex % 2 == 0 ? GetONNXModelFilePath(InModelsDirectory, ModelName) : GetORTModelFilePath(InModelsDirectory, ModelName));
+			const FString ModelFilePath = (ONNXOrORTIndex % 2 == 0 ? GetONNXModelFilePath(ModelZooDirectory, ModelName) : GetORTModelFilePath(ModelZooDirectory, ModelName));
 			const FString ModelType = (ONNXOrORTIndex % 2 == 0 ? TEXT("ONNX") : TEXT("ORT"));
 if (ONNXOrORTIndex == 1)
 {
 	break;
 }
-			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- %s - Network %s Load and Run"), *ModelName, *ModelType);
+			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- %s - Network %s Load and Run - %s"), *ModelName, *ModelType, *ModelFilePath);
 			ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 		}
 #else
@@ -89,24 +92,24 @@ if (ONNXOrORTIndex == 1)
 	{
 		const FString& ModelName = InModelNames[ModelIndex];
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %s - Network UAsset Speed Profiling"), *ModelName);
-		const FString UAssetModelFilePath = GetUAssetModelFilePath(ModelName);
+		const FString UAssetModelFilePath = GetUAssetModelFilePath(ModelName, InModelZooRelativeDirectory);
 		ModelSpeedTest(UAssetModelFilePath, InCPURepetitions[ModelIndex], InGPURepetitions[ModelIndex]);
 	}
 }
 
-FString FModelUnitTester::GetONNXModelFilePath(const FString& InModelsDirectory, const FString& InModelName)
+FString FModelUnitTester::GetONNXModelFilePath(const FString& ModelZooDirectory, const FString& InModelName)
 {
-	return /*FPaths::ConvertRelativePathToFull*/(/*InModelsDirectory*/ TEXT("Models/") / InModelName + TEXT("/") + InModelName + TEXT(".onnx")); // E.g., InModelsDirectory + TEXT("ExampleNetworkReadable/ExampleNetworkReadable.onnx")
+	return /*FPaths::ConvertRelativePathToFull*/(ModelZooDirectory / InModelName + TEXT("/") + InModelName + TEXT(".onnx")); // E.g., ModelZooDirectory / TEXT("ExampleNetworkReadable/ExampleNetworkReadable.onnx")
 }
 
-FString FModelUnitTester::GetORTModelFilePath(const FString& InModelsDirectory, const FString& InModelName)
+FString FModelUnitTester::GetORTModelFilePath(const FString& ModelZooDirectory, const FString& InModelName)
 {
-	return /*FPaths::ConvertRelativePathToFull*/(/*InModelsDirectory*/ TEXT("Models/") / InModelName + TEXT("/") + InModelName + TEXT(".ort")); // E.g., InModelsDirectory + TEXT("ExampleNetworkReadable/ExampleNetworkReadable.ort")
+	return /*FPaths::ConvertRelativePathToFull*/(ModelZooDirectory / InModelName + TEXT("/") + InModelName + TEXT(".ort")); // E.g., ModelZooDirectory / TEXT("ExampleNetworkReadable/ExampleNetworkReadable.ort")
 }
 
-FString FModelUnitTester::GetUAssetModelFilePath(const FString& InModelName)
+FString FModelUnitTester::GetUAssetModelFilePath(const FString& InModelName, const FString& InModelZooRelativeDirectory)
 {
-	return InModelName + TEXT("'/Game/Models/") + InModelName + TEXT("/") + InModelName + TEXT(".") + InModelName + TEXT("'"); // ExampleNetworkReadable'/Game/Models/ExampleNetworkReadable/ExampleNetworkReadable.ExampleNetworkReadable'
+	return InModelName + TEXT("'/Game/") + InModelZooRelativeDirectory / InModelName + TEXT("/") + InModelName + TEXT(".") + InModelName + TEXT("'"); // E.g., '/Game/[MODEL_ZOO_DIR]/ExampleNetworkReadable/ExampleNetworkReadable.ExampleNetworkReadable'
 }
 
 UNeuralNetwork* FModelUnitTester::NetworkUassetLoadTest(const FString& InUassetPath)
@@ -135,7 +138,7 @@ UNeuralNetwork* FModelUnitTester::NetworkONNXOrORTLoadTest(const FString& InMode
 		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr."));
 		return nullptr;
 	}
-	if (!Network->Load(FPaths::ProjectContentDir() / InModelFilePath))
+	if (!Network->Load(InModelFilePath))
 	{
 		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from ONNX file disk location: %s"), *InModelFilePath);
 		return nullptr;

@@ -12,7 +12,9 @@
 
 void UNeuralNetworkInferenceQA::UnitTesting()
 {
-	const FString ModelsDirectory = FPaths::ProjectContentDir() / TEXT("Models/");
-	const FString UnitTestingDirectory = FPaths::ProjectContentDir() / TEXT("UnitTesting/");
-	FUnitTester::GlobalTest(UnitTestingDirectory, ModelsDirectory);
+	const FString ProjectContentDir = FPaths::ProjectContentDir();
+	const FString MachineLearningTestsRelativeDirectory = TEXT("Tests/MachineLearning/");
+	const FString ModelZooRelativeDirectory = MachineLearningTestsRelativeDirectory / TEXT("Models/"); // Eg "Tests/MachineLearning/Models/"
+	const FString UnitTestRelativeDirectory = MachineLearningTestsRelativeDirectory / TEXT("UnitTests/"); // Eg "Tests/MachineLearning/UnitTests/"
+	FUnitTester::GlobalTest(ProjectContentDir, ModelZooRelativeDirectory, UnitTestRelativeDirectory);
 }

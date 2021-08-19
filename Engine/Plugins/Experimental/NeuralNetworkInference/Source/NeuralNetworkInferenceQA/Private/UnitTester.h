@@ -10,5 +10,5 @@ public:
 	/**
 	 * Main unit tester function.
 	 */
-	static void GlobalTest(const FString& InGroundTruthDirectory, const FString& InModelsDirectory);
+	static void GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const FString& InUnitTestRelativeDirectory);
 };

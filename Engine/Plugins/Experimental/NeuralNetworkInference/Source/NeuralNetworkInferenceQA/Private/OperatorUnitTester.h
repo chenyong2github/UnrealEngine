@@ -8,7 +8,7 @@
 class FOperatorUnitTester
 {
 public:
-	static void GlobalTest(const FString& InGroundTruthDirectory);
+	static void GlobalTest(const FString& InProjectContentDir, const FString& InUnitTestRelativeDirectory);
 
 private:
 	static void CreateRandomArraysOfFixedSeedAndDefinedSizes(TMap<int32, TArray<float>>& InOutInputTensorData, TMap<int32, TArray<float>>& InOutInputTensorDataSmall,
