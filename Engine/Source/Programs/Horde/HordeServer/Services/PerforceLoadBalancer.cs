@@ -259,23 +259,49 @@ namespace HordeServer.Services
 		public async Task<IPerforceServer?> SelectServerAsync(PerforceCluster Cluster, HashSet<string>? Properties)
 		{
 			// Find all the valid servers for this agent
-			HashSet<string> ValidServers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+			List<PerforceServer> ValidServers = new List<PerforceServer>();
 			if (Properties != null)
 			{
-				ValidServers.UnionWith(Cluster.Servers.Where(x => x.Properties != null && x.Properties.Count > 0 && x.Properties.All(y => Properties.Contains(y))).Select(x => x.ServerAndPort));
+				ValidServers.AddRange(Cluster.Servers.Where(x => x.Properties != null && x.Properties.Count > 0 && x.Properties.All(y => Properties.Contains(y))));
 			}
 			if (ValidServers.Count == 0)
 			{
-				ValidServers.UnionWith(Cluster.Servers.Where(x => x.Properties == null || x.Properties.Count == 0).Select(x => x.ServerAndPort));
+				ValidServers.AddRange(Cluster.Servers.Where(x => x.Properties == null || x.Properties.Count == 0));
 			}
 
-			// Find all the matching servers
+			HashSet<string> ValidServerNames = new HashSet<string>(ValidServers.Select(x => x.ServerAndPort), StringComparer.OrdinalIgnoreCase);
+
+			// Find all the matching servers.
 			PerforceServerList ServerList = await GetServerListAsync();
-			List<PerforceServerEntry> Candidates = ServerList.Servers.Where(x => x.Cluster == Cluster.Name && x.Status == PerforceServerStatus.Healthy && ValidServers.Contains(x.BaseServerAndPort)).ToList();
+
+			List<PerforceServerEntry> Candidates = ServerList.Servers.Where(x => x.Cluster == Cluster.Name && ValidServerNames.Contains(x.BaseServerAndPort)).ToList();
+			if (Candidates.Count == 0)
+			{
+				foreach (PerforceServer ValidServer in ValidServers)
+				{
+					Logger.LogDebug("Fetching server info for {ServerAndPort}", ValidServer.ServerAndPort);
+					await UpdateServerAsync(Cluster, ValidServer, Candidates);
+				}
+				if (Candidates.Count == 0)
+				{
+					Logger.LogWarning("Unable to resolve any Perforce servers from valid list");
+					return null; 
+				}
+			}
+
+			// Remove any servers that are unhealthy
+			if (Candidates.Any(x => x.Status == PerforceServerStatus.Healthy))
+			{
+				Candidates.RemoveAll(x => x.Status != PerforceServerStatus.Healthy);
+			}
+			else
+			{
+				Candidates.RemoveAll(x => x.Status != PerforceServerStatus.Unknown);
+			}
 
 			if (Candidates.Count == 0)
 			{
-				Logger.LogDebug("Unable to find Perforce server from cluster {ClusterName} matching {ValidServers}", Cluster.Name, String.Join(", ", ValidServers));
+				Logger.LogWarning("Unable to find any healthy Perforce server in cluster {ClusterName}", Cluster.Name);
 				return null;
 			}
 

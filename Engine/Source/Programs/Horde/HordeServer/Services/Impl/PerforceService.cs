@@ -118,16 +118,22 @@ namespace HordeServer.Services
 			return Server;
 		}
 
-		static P4.Repository CreateConnection(IPerforceServer Server, string UserName, string Ticket)
+		static P4.Repository CreateConnection(IPerforceServer Server, string? UserName, string? Ticket)
 		{
 			P4.Repository Repository = new P4.Repository(new P4.Server(new P4.ServerAddress(Server.ServerAndPort)));
 			try
 			{
 				P4.Connection Connection = Repository.Connection;
-				Connection.UserName = UserName;
+				if (UserName != null)
+				{
+					Connection.UserName = UserName;
+				}
 
 				P4.Options Options = new P4.Options();
-				Options["Ticket"] = Ticket;
+				if (Ticket != null)
+				{
+					Options["Ticket"] = Ticket;
+				}
 
 				// connect to the server
 				if (!Connection.Connect(Options))
@@ -156,12 +162,17 @@ namespace HordeServer.Services
 				return CreateConnection(Server, Settings.P4BridgeServiceUsername, Settings.P4BridgeServicePassword);
 			}
 
-			PerforceCredentials? Credentials = Cluster.Credentials.FirstOrDefault(x => x.UserName.Equals(Cluster.ServiceAccount, StringComparison.OrdinalIgnoreCase));
-			if (Credentials == null)
+			string? UserName = null;
+			string? Password = null;
+			if (Cluster.ServiceAccount != null)
 			{
-				throw new Exception($"No credentials defined for {Cluster.ServiceAccount} on {Cluster.Name}");
+				PerforceCredentials? Credentials = Cluster.Credentials.FirstOrDefault(x => x.UserName.Equals(Cluster.ServiceAccount, StringComparison.OrdinalIgnoreCase));
+				if (Credentials == null)
+				{
+					throw new Exception($"No credentials defined for {Cluster.ServiceAccount} on {Cluster.Name}");
+				}
 			}
-			return CreateConnection(Server, Credentials.UserName, Credentials.Password);
+			return CreateConnection(Server, UserName, Password);
 		}
 
 		async Task<CachedTicketInfo> GetImpersonateCredential(PerforceCluster Cluster, string ImpersonateUser)
@@ -313,9 +324,9 @@ namespace HordeServer.Services
 
 		}
 
-		static string GetClientName(string ServiceUserName, string Stream, bool ReadOnly, bool CreateChange, string? Username = null)
+		static string GetClientName(string? ServiceUserName, string Stream, bool ReadOnly, bool CreateChange, string? Username = null)
 		{
-			string ClientName = $"horde-p4bridge-{Dns.GetHostName()}-{ServiceUserName}-{Stream.Replace("/", "+", StringComparison.OrdinalIgnoreCase)}";
+			string ClientName = $"horde-p4bridge-{Dns.GetHostName()}-{ServiceUserName ?? "default"}-{Stream.Replace("/", "+", StringComparison.OrdinalIgnoreCase)}";
 
 			if (!ReadOnly)
 			{
@@ -336,7 +347,7 @@ namespace HordeServer.Services
 
 		}
 
-		static P4.Client GetOrCreateClient(string ServiceUserName, P4.Repository Repository, string? Stream, string? Username = null, bool ReadOnly = true, bool CreateChange = false, int? ClientFromChange = null, bool UseClientFromChange = false, bool UsePortFromChange = false)
+		static P4.Client GetOrCreateClient(string? ServiceUserName, P4.Repository Repository, string? Stream, string? Username = null, bool ReadOnly = true, bool CreateChange = false, int? ClientFromChange = null, bool UseClientFromChange = false, bool UsePortFromChange = false)
 		{
 			P4.Client? Client = null;
 			P4.Changelist? Changelist = null;

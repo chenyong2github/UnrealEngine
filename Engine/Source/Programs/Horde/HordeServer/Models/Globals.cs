@@ -269,9 +269,9 @@ namespace HordeServer.Models
 		public string Name { get; set; } = null!;
 
 		/// <summary>
-		/// Username for Horde to log in to this server
+		/// Username for Horde to log in to this server. Will use the default user if not set.
 		/// </summary>
-		public string ServiceAccount { get; set; } = "buildmachine";
+		public string? ServiceAccount { get; set; }
 
 		/// <summary>
 		/// Whether the service account can impersonate other users
@@ -397,9 +397,14 @@ namespace HordeServer.Models
 
 		static List<PerforceCluster> GetDefaultClusters()
 		{
+			PerforceServer Server = new PerforceServer();
+			Server.ServerAndPort = Perforce.P4.P4Server.Get("P4PORT") ?? "perforce:1666";
+
 			PerforceCluster Cluster = new PerforceCluster();
 			Cluster.Name = "Default";
-			Cluster.Servers.Add(new PerforceServer { ServerAndPort = "perforce:1666", Properties = new List<string> { "HordeServer=1" } });
+			Cluster.CanImpersonate = false;
+			Cluster.Servers.Add(Server);
+
 			return new List<PerforceCluster> { Cluster };
 		}
 	}
