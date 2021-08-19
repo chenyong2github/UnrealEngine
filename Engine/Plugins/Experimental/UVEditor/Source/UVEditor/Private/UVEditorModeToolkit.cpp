@@ -20,6 +20,46 @@
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 
+namespace UVEditorModeToolkitLocals
+{
+	/** 
+	 * Support for undoing a tool start in such a way that we go back to the mode's default
+	 * tool on undo.
+	 */
+	class FUVEditorBeginToolChange : public FToolCommandChange
+	{
+	public:
+		virtual void Apply(UObject* Object) override
+		{
+			// Do nothing, since we don't allow a re-do back into a tool
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
+			// Don't really need the check for default tool since we theoretically shouldn't
+			// be issuing this transaction for starting the default tool, but still...
+			if (Mode && !Mode->IsDefaultToolActive())
+			{
+				Mode->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Cancel);
+				Mode->ActivateDefaultTool();
+			}
+		}
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			// To not be expired, we must be in some non-default tool.
+			UUVEditorMode* Mode = Cast<UUVEditorMode>(Object);
+			return !(Mode && Mode->GetInteractiveToolsContext()->ToolManager->HasAnyActiveTool() && !Mode->IsDefaultToolActive());
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("FUVEditorBeginToolChange");
+		}
+	};
+}
+
 FUVEditorModeToolkit::FUVEditorModeToolkit()
 {
 	// Construct the panel that we will give in GetInlineContent().
@@ -127,11 +167,18 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 {
 	FModeToolkit::Init(InitToolkitHost, InOwningMode);	
 
+	UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	check(UVEditorMode);
+
+	// Currently, there's no EToolChangeTrackingMode that reverts back to a default tool on undo (if we add that
+	// support, the tool manager will need to be aware of the default tool). So, we instead opt to do our own management
+	// of tool start transactions. See FUVEditorModeToolkit::OnToolStarted for how we issue the transactions.
+	UVEditorMode->GetInteractiveToolsContext()->ToolManager->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
+
 	// Build the tool palette
 	const FUVEditorCommands& CommandInfos = FUVEditorCommands::Get();
 	TSharedRef<FUICommandList> CommandList = GetToolkitCommands();
-	check(OwningEditorMode.IsValid());
-	FUniformToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization(OwningEditorMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
+	FUniformToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization(UVEditorMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
 	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 
 	// TODO: Add more tools here
@@ -163,7 +210,6 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 		CustomizeDetailsViewArgs(BackgroundDetailsViewArgs);		// allow subclass to customize arguments
 
 		BackgroundDetailsView = PropertyEditorModule.CreateDetailView(BackgroundDetailsViewArgs);
-		UUVEditorMode* UVEditorMode = Cast<UUVEditorMode>(OwningEditorMode.Get());
 		BackgroundDetailsContainer->SetContent(BackgroundDetailsView.ToSharedRef());
 	}
 	
@@ -285,10 +331,18 @@ void FUVEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInte
 
 	if (GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept())
 	{
+		// Add the accept/cancel overlay
 		GetToolkitHost()->AddViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
 	}
 	
-
+	// Issue a tool start transaction unless we are starting the default tool, because we can't
+	// undo or revert out of the default tool.
+	UUVEditorMode* Mode = Cast<UUVEditorMode>(GetScriptableEditorMode());
+	if (!Mode->IsDefaultToolActive())
+	{
+		Mode->GetInteractiveToolsContext()->GetTransactionAPI()->AppendChange(
+			Mode, MakeUnique<UVEditorModeToolkitLocals::FUVEditorBeginToolChange>(), LOCTEXT("ActivateTool", "Activate Tool"));
+	}
 }
 
 void FUVEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)

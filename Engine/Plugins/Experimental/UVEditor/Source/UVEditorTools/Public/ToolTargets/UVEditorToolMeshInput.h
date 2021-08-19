@@ -16,6 +16,7 @@ class UMaterialInterface;
 class UMeshOpPreviewWithBackgroundCompute;
 class UMeshElementsVisualizer;
 PREDECLARE_GEOMETRY(class FDynamicMesh3);
+PREDECLARE_GEOMETRY(class FDynamicMeshChange);
 
 /**
  * A package of the needed information for an asset being operated on by a
@@ -77,6 +78,15 @@ public:
 	 */
 	UPROPERTY()
 	TObjectPtr<UMeshElementsVisualizer> WireframeDisplay = nullptr;
+
+	/**
+	 * Helper delegate that allows undo/redo transactions to notify the active tool that the input
+	 * object was modified. This is helpful for allowing transactions performed in one tool invocation
+	 * to properly be reverted/applied during a different (default) tool invocation, since the new
+	 * tool invocation can listen to this delegate and update relevant structures on broadcast.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUndoRedo, bool bRevert);
+	FOnUndoRedo OnUndoRedo;
 
 	// Additional needed information
 	TObjectPtr<UObject> OriginalAsset = nullptr;
@@ -161,6 +171,12 @@ public:
 	 * Updates the other meshes using the UV overlay in the live preview.
 	 */
 	void UpdateAllFromAppliedPreview(const TArray<int32>* ChangedElementIDs = nullptr, const TArray<int32>* ChangedConnectivityTids = nullptr, const TArray<int32>* FastRenderUpdateTids = nullptr);
+
+	/**
+	 * Uses the stored triangles/vertices in the mesh change to update everything from the canonical unwrap. 
+	 * Assumes the change has already been applied to the canonical unwrap.
+	 */
+	void UpdateFromCanonicalUnwrapUsingMeshChange(const UE::Geometry::FDynamicMeshChange& UnwrapCanonicalMeshChange);
 
 	// UToolTarget
 	virtual bool IsValid() const override;

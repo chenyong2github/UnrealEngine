@@ -19,6 +19,53 @@ using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshSelectionMechanic"
 
+namespace MeshSelectionMechanicLocals
+{
+	/**
+	 * Class that can be used to apply/revert selection changes. Expects that the mesh selection
+	 * mechanic is the associated UObject that is passed to Apply/Revert.
+	 */
+	class FMeshSelectionMechanicSelectionChange : public FToolCommandChange
+	{
+	public:
+		FMeshSelectionMechanicSelectionChange(const FDynamicMeshSelection& OldSelection,
+			const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChangedIn)
+			: Before(OldSelection)
+			, After(NewSelection)
+			, bBroadcastOnSelectionChanged(bBroadcastOnSelectionChangedIn)
+		{
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
+			if (Mechanic)
+			{
+				Mechanic->SetSelection(After, bBroadcastOnSelectionChanged, false);
+			}
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UMeshSelectionMechanic* Mechanic = Cast<UMeshSelectionMechanic>(Object);
+			if (Mechanic)
+			{
+				Mechanic->SetSelection(Before, bBroadcastOnSelectionChanged, false);
+			}
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange");
+		}
+
+	protected:
+		FDynamicMeshSelection Before;
+		FDynamicMeshSelection After;
+		bool bBroadcastOnSelectionChanged;
+	};
+}
+
 void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
@@ -37,6 +84,16 @@ void UMeshSelectionMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PointSet->SetPointMaterial(ToolSetupUtil::GetDefaultPointComponentMaterial(
 		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 
+	// Add default selection change emitter if one was not provided.
+	if (!EmitSelectionChange)
+	{
+		EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
+		{
+			GetParentTool()->GetToolManager()->EmitObjectChange(this, 
+				MakeUnique<MeshSelectionMechanicLocals::FMeshSelectionMechanicSelectionChange>(OldSelection, NewSelection, bBroadcastOnSelectionChanged),
+				LOCTEXT("SelectionChangeMessage", "Selection Change"));
+		};
+	}
 }
 
 void UMeshSelectionMechanic::SetWorld(UWorld* World)
@@ -98,10 +155,23 @@ const FDynamicMeshSelection& UMeshSelectionMechanic::GetCurrentSelection() const
 
 void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection, bool bBroadcast, bool bEmitChange)
 {
+	FDynamicMeshSelection OriginalSelection = CurrentSelection;
 	CurrentSelection = Selection;
 
-	if (MeshSpatials[CurrentSelectionIndex]->GetMesh() != Selection.Mesh)
+	// Adjust the mesh in which the selection lives
+	if (CurrentSelection.Mesh == nullptr)
 	{
+		// We're actually clearing the selection
+		if (!ensure(CurrentSelection.SelectedIDs.IsEmpty()))
+		{
+			CurrentSelection.SelectedIDs.Empty();
+		}
+		CurrentSelectionIndex = IndexConstants::InvalidID;
+	}
+	else if (CurrentSelectionIndex == IndexConstants::InvalidID 
+		|| MeshSpatials[CurrentSelectionIndex]->GetMesh() != Selection.Mesh)
+	{
+		CurrentSelectionIndex = IndexConstants::InvalidID;
 		for (int32 i = 0; i < MeshSpatials.Num(); ++i)
 		{
 			if (MeshSpatials[i]->GetMesh() == Selection.Mesh)
@@ -110,16 +180,20 @@ void UMeshSelectionMechanic::SetSelection(const FDynamicMeshSelection& Selection
 				break;
 			}
 		}
+		ensure(CurrentSelectionIndex != IndexConstants::InvalidID);
 	}
 
 	UpdateCentroid();
 	RebuildDrawnElements(FTransform(CurrentSelectionCentroid));
 
+	if (bEmitChange && OriginalSelection != CurrentSelection)
+	{
+		EmitSelectionChange(OriginalSelection, CurrentSelection, bBroadcast);
+	}
 	if (bBroadcast)
 	{
 		OnSelectionChanged.Broadcast();
 	}
-	// TODO: Undo/redo
 }
 
 void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransform)
@@ -127,6 +201,11 @@ void UMeshSelectionMechanic::RebuildDrawnElements(const FTransform& StartTransfo
 	LineSet->Clear();
 	PointSet->Clear();
 	PreviewGeometryActor->SetActorTransform(StartTransform);
+
+	if (CurrentSelectionIndex == IndexConstants::InvalidID)
+	{
+		return;
+	}
 
 	// For us to end up with the StartTransform, we have to invert it, but only after applying
 	// the mesh transform to begin with.
@@ -210,10 +289,21 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		}
 		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
 	}
+
+	CentroidTimestamp = CurrentSelection.Mesh->GetShapeTimestamp();
 }
 
 FVector3d UMeshSelectionMechanic::GetCurrentSelectionCentroid()
 {
+	if (!CurrentSelection.Mesh)
+	{
+		return FVector3d(0);
+	}
+	else if (CurrentSelection.Mesh->GetShapeTimestamp() != CentroidTimestamp)
+	{
+		UpdateCentroid();
+	}
+
 	return CurrentSelectionCentroid;
 }
 
@@ -264,7 +354,9 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 	for (int32 i = 0; i < MeshSpatials.Num(); ++i)
 	{
 		//Short circuit the loop if we're in multiselect mode, to save us from testing things we aren't allowed to select
-		if (InMultiSelectMode() && !CurrentSelection.SelectedIDs.IsEmpty() && i != CurrentSelectionIndex) 
+		if (InMultiSelectMode() && !CurrentSelection.IsEmpty() 
+			&& CurrentSelectionIndex != IndexConstants::InvalidID 
+			&& i != CurrentSelectionIndex)
 		{
 			continue;
 		}
@@ -279,6 +371,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			// It should be okay to reassign this. If we're in multiselect, and it misses a hit, this just won't happen and selection won't be altered.
 			CurrentSelection.Mesh = MeshSpatials[i]->GetMesh();
+			CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyTimestamp();
 			CurrentSelectionIndex = i;
 			break;
 		}
@@ -369,10 +462,11 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		}
 	}
 
-	if (!(OriginalSelection == CurrentSelection))
+	if (OriginalSelection != CurrentSelection)
 	{
 		UpdateCentroid();
-		RebuildDrawnElements(FTransform(CurrentSelectionCentroid));
+		RebuildDrawnElements(FTransform(GetCurrentSelectionCentroid()));
+		EmitSelectionChange(OriginalSelection, CurrentSelection, true);
 		OnSelectionChanged.Broadcast();
 	}
 }

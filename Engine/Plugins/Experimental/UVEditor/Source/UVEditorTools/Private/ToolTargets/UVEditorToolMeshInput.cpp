@@ -4,6 +4,8 @@
 
 #include "Drawing/MeshElementsVisualizer.h" // for wireframe display
 #include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h" // FDynamicMeshChange
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "MeshOpPreviewHelpers.h"
 #include "ModelingToolTargetUtil.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
@@ -382,4 +384,22 @@ void UUVEditorToolMeshInput::UpdateOtherUnwrap(const FDynamicMesh3& SourceUnwrap
 	const FDynamicMeshUVOverlay* SourceOverlay = SourceUnwrapMesh.Attributes()->PrimaryUV();
 	FDynamicMeshUVOverlay* DestOverlay = DestUnwrapMesh.Attributes()->PrimaryUV();
 	CopyMeshOverlay(*SourceOverlay, *DestOverlay, ChangedVids, ChangedConnectivityTids);
+}
+
+void UUVEditorToolMeshInput::UpdateFromCanonicalUnwrapUsingMeshChange(const FDynamicMeshChange& UnwrapCanonicalMeshChange)
+{
+	// Note that we know that no triangles were created or destroyed since the UV editor
+	// does not allow that (it would break the mesh mappings). Otherwise we would need to
+	// combine original and final tris here.
+	TArray<int32> ChangedTids;
+	UnwrapCanonicalMeshChange.GetSavedTriangleList(ChangedTids, true);
+
+	TArray<int32> ChangedVids;
+	TriangleToVertexIDs(UnwrapCanonical.Get(), ChangedTids, ChangedVids);
+
+	TSet<int32> RenderUpdateTidsSet;
+	VertexToTriangleOneRing(UnwrapCanonical.Get(), ChangedVids, RenderUpdateTidsSet);
+	TArray<int32> RenderUpdateTids = RenderUpdateTidsSet.Array();
+
+	UpdateAllFromUnwrapCanonical(&ChangedVids, &ChangedTids, &RenderUpdateTids);
 }

@@ -4,6 +4,7 @@
 
 #include "BaseGizmos/TransformGizmo.h"
 #include "ContextObjectStore.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "Drawing/LineSetComponent.h"
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Drawing/PreviewGeometryActor.h"
@@ -15,13 +16,222 @@
 #include "Selection/MeshSelectionMechanic.h"
 #include "Selection/DynamicMeshSelection.h"
 #include "ToolSetupUtil.h"
-#include "UVToolContextObjects.h"
 
 #include "ToolTargetManager.h"
 
 #define LOCTEXT_NAMESPACE "UUVSelectTool"
 
 using namespace UE::Geometry;
+
+namespace UVSelectToolLocals
+{
+	/**
+	 * An undo/redo object for selection changes that, instead of operating directly on a selection
+	 * mechanic, instead operates on a context object that tools can use to route the request
+	 * to the current selection mechanic. This is valuable because we want the selection changes
+	 * to be undoable in different invocations of the tool, and the selection mechanic pointer
+	 * will not stay the same. However, the context object will stay the same, and we can register
+	 * to its delegate on each invocation.
+	 */
+	class FSelectionChange : public FToolCommandChange
+	{
+	public:
+		/**
+		 * @param bBroadcastOnSelectionChangedIn Whether the change in selection should broadcast
+		 *   OnSelectionChanged, which updates gizmo, etc.
+		 * @param GizmoBeforeIn Only relevant if bBroadcastOnSelectionChangedIn is true. In that case,
+		 *   the gizmo gets reset on the way forward to the current selection, which means we have to
+		 *   reset it to the old orientation on the way back (otherwise a rotated gizmo would end up
+		 *   losing its rotation on undo).
+		 */
+		FSelectionChange(const FDynamicMeshSelection& SelectionBeforeIn,
+			const FDynamicMeshSelection& SelectionAfterIn,
+			bool bBroadcastOnSelectionChangedIn,
+			const FTransform& GizmoBeforeIn)
+			: SelectionBefore(SelectionBeforeIn)
+			, SelectionAfter(SelectionAfterIn)
+			, bBroadcastOnSelectionChanged(bBroadcastOnSelectionChangedIn)
+			, GizmoBefore(GizmoBeforeIn)
+		{
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
+			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
+			{
+				ChangeRouter->CurrentSelectTool->SetSelection(SelectionAfter, bBroadcastOnSelectionChanged);
+			}
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
+			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
+			{
+				ChangeRouter->CurrentSelectTool->SetSelection(SelectionBefore, bBroadcastOnSelectionChanged);
+				if (bBroadcastOnSelectionChanged)
+				{
+					ChangeRouter->CurrentSelectTool->SetGizmoTransform(GizmoBefore);
+				}
+			}
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("UVSelectToolLocals::FSelectionChange");
+		}
+
+	protected:
+		FDynamicMeshSelection SelectionBefore;
+		FDynamicMeshSelection SelectionAfter;
+		bool bBroadcastOnSelectionChanged;
+		FTransform GizmoBefore;
+	};
+
+	/**
+	 * A change that allows another change to be injected into it even after it is placed in the undo
+	 * stack.
+	 * NOTE: Remove this if we merge Transform into Select tool and choose not to store/restore
+	 * selecitons in the Select tool.
+	 */
+	class FSpeculativeSelectionChange : public FToolCommandChange
+	{
+	public:
+		FSpeculativeSelectionChange(TSharedPtr<TUniquePtr<FToolCommandChange>> PointerToContentIn)
+			: PointerToContent(PointerToContentIn)
+		{
+		}
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			return !PointerToContent->IsValid();
+		}
+
+		virtual void Apply(UObject* Object) override
+		{
+			if (*PointerToContent)
+			{
+				(*PointerToContent)->Apply(Object);
+			}
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			if (*PointerToContent)
+			{
+				(*PointerToContent)->Revert(Object);
+			}
+		}
+
+		virtual FString ToString() const override
+		{
+			return TEXT("UVSelectToolLocals::FSpeculativeSelectionChange");
+		}
+
+		TSharedPtr<TUniquePtr<FToolCommandChange>> PointerToContent;
+	};
+
+	/**
+	 * A change similar to the one emitted by EmitChangeApi->EmitToolIndependentUnwrapCanonicalChange,
+	 * but which updates the Select tool's gizmo in a way that preserves the rotational component
+	 * (which would be lost if we just updated the gizmo from the current selection on undo/redo).
+	 * 
+	 * There is some built-in change tracking for the gizmo component in our transform gizmo, but 
+	 * due to the order in which changes get emitted, there is not a good way to make sure that we
+	 * update the selection mechanic (which needs to know the gizmo transform) at the correct time
+	 * relative to those built-in changes. So, those built-in changes are actually wasted on us,
+	 * but it was not easy to deactivate them because the change emitter is linked to the transform
+	 * proxy...
+	 *
+	 * Expects UUVSelectToolChangeRouter to be the passed-in object
+	 */
+	class  FGizmoMeshChange : public FToolCommandChange
+	{
+	public:
+		FGizmoMeshChange(UUVEditorToolMeshInput* UVToolInputObjectIn,
+			TUniquePtr<UE::Geometry::FDynamicMeshChange> UnwrapCanonicalMeshChangeIn,
+			const FTransform& GizmoBeforeIn, const FTransform& GizmoAfterIn)
+
+			: UVToolInputObject(UVToolInputObjectIn)
+			, UnwrapCanonicalMeshChange(MoveTemp(UnwrapCanonicalMeshChangeIn))
+			, GizmoBefore(GizmoBeforeIn)
+			, GizmoAfter(GizmoAfterIn)
+		{
+			ensure(UVToolInputObjectIn);
+			ensure(UnwrapCanonicalMeshChange);
+		};
+
+		virtual void Apply(UObject* Object) override
+		{
+			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), false);
+			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
+			
+			// This is a little wasteful because we're going to reset the gizmo transform, 
+			// but it updates the AABBTree for us.
+			UVToolInputObject->OnUndoRedo.Broadcast(false);
+
+			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
+			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
+			{
+				ChangeRouter->CurrentSelectTool->SetGizmoTransform(GizmoAfter);
+			}
+
+		}
+
+		virtual void Revert(UObject* Object) override
+		{
+			UnwrapCanonicalMeshChange->Apply(UVToolInputObject->UnwrapCanonical.Get(), true);
+			UVToolInputObject->UpdateFromCanonicalUnwrapUsingMeshChange(*UnwrapCanonicalMeshChange);
+			
+			// This is a little wasteful because we're going to reset the gizmo transform, 
+			// but it updates the AABBTree for us.
+			UVToolInputObject->OnUndoRedo.Broadcast(false);
+
+			UUVSelectToolChangeRouter* ChangeRouter = Cast<UUVSelectToolChangeRouter>(Object);
+			if (ensure(ChangeRouter) && ChangeRouter->CurrentSelectTool.IsValid())
+			{
+				ChangeRouter->CurrentSelectTool->SetGizmoTransform(GizmoBefore);
+			}
+		}
+
+		virtual bool HasExpired(UObject* Object) const override
+		{
+			return !(UVToolInputObject.IsValid() && UnwrapCanonicalMeshChange);
+		}
+
+
+		virtual FString ToString() const override
+		{
+			return TEXT("UVSelectToolLocals::FGizmoMeshChange");
+		}
+
+	protected:
+		TWeakObjectPtr<UUVEditorToolMeshInput> UVToolInputObject;
+		TUniquePtr<UE::Geometry::FDynamicMeshChange> UnwrapCanonicalMeshChange;
+		FTransform GizmoBefore;
+		FTransform GizmoAfter;
+	};
+}
+
+void UUVSelectToolSpeculativeChangeAPI::EmitSpeculativeChange(UObject* TargetObject, 
+	UUVToolEmitChangeAPI* EmitChangeAPI, const FText& TransactionName)
+{
+	ContentOfLastSpeculativeChange = MakeShared<TUniquePtr<FToolCommandChange>>();
+
+	EmitChangeAPI->EmitToolIndependentChange(TargetObject, 
+		MakeUnique<UVSelectToolLocals::FSpeculativeSelectionChange>(ContentOfLastSpeculativeChange), 
+		TransactionName);
+}
+
+void UUVSelectToolSpeculativeChangeAPI::InsertIntoLastSpeculativeChange(TUniquePtr<FToolCommandChange> ChangeToInsert)
+{
+	if (ContentOfLastSpeculativeChange)
+	{
+		*ContentOfLastSpeculativeChange = MoveTemp(ChangeToInsert);
+	}
+}
+
 
 /*
  * ToolBuilder
@@ -60,15 +270,35 @@ void UUVSelectTool::Setup()
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
 
+	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
+	EmitChangeAPI = ContextStore->FindContext<UUVToolEmitChangeAPI>();
+
 	SelectionMechanic = NewObject<UMeshSelectionMechanic>();
 	SelectionMechanic->Setup(this);
 	SelectionMechanic->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UUVSelectTool::OnSelectionChanged);
 
+	// Make it so that our selection mechanic creates undo/redo transactions that go to a selection
+	// change router, which we use to route to the current selection mechanic on each tool invocation.
+	ChangeRouter = ContextStore->FindContext<UUVSelectToolChangeRouter>();
+	if (!ChangeRouter)
+	{
+		ChangeRouter = NewObject<UUVSelectToolChangeRouter>();
+		ContextStore->AddContextObject(ChangeRouter);
+	}
+	ChangeRouter->CurrentSelectTool = this;
+
+	SelectionMechanic->EmitSelectionChange = [this](const FDynamicMeshSelection& OldSelection,
+		const FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChangedIn)
+	{
+		EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FSelectionChange>(
+			OldSelection, NewSelection, bBroadcastOnSelectionChangedIn, TransformGizmo->GetGizmoTransform()), 
+			LOCTEXT("SelectionChangeMessage", "Selection Change"));
+	};
+
 	ConfigureSelectionModeFromControls();
 
 	// Retrieve cached AABB tree storage, or else set it up
-	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	UUVToolAABBTreeStorage* TreeStore = ContextStore->FindContext<UUVToolAABBTreeStorage>();
 	if (!TreeStore)
 	{
@@ -105,6 +335,37 @@ void UUVSelectTool::Setup()
 	if (SelectionStore)
 	{
 		SelectionMechanic->SetSelection(*SelectionStore->Selection);
+	}
+	if (!SelectionMechanic->GetCurrentSelection().IsEmpty() && !SelectionMechanic->GetCurrentSelection().MatchesTimestamp())
+	{
+		// If we have an expired selection, then there must have been some tool that changed the
+		// topology. We need to clear the selection in an undoable way, but that clear actually
+		// needs to happen before the last invocation shutdown to be in the proper sequence in the 
+		// undo stack.
+		FDynamicMeshSelection NewSelection;
+		UUVSelectToolSpeculativeChangeAPI* SpeculativeChangeAPI = ContextStore->FindContext<UUVSelectToolSpeculativeChangeAPI>();
+		if (SpeculativeChangeAPI && SpeculativeChangeAPI->HasSpeculativeChange())
+		{
+			SpeculativeChangeAPI->InsertIntoLastSpeculativeChange(MakeUnique<UVSelectToolLocals::FSelectionChange>(
+				SelectionMechanic->GetCurrentSelection(), NewSelection, false, FTransform()));
+		}
+
+		SelectionMechanic->SetSelection(NewSelection, false, false);
+	}
+
+	// Make sure that if we receive undo/redo events on the meshes, we update the tree structures
+	// and the selection mechanic drawn elements. Note that we mainly have to worry about this
+	// because the select tool is the default UV editor tool, and as such it can receive undo
+	// transactions from other tools and from other select tool invocations. Other tools typically
+	// only need to worry about their own transactions, since we undo other tool invocations before
+	// we get to unrelated transactions, and we can't redo out of the default tool.
+	for (int32 i = 0; i < Targets.Num(); ++i)
+	{
+		Targets[i]->OnUndoRedo.AddWeakLambda(this, [this, i](bool bRevert) {
+			AABBTrees[i]->Build();
+			UpdateGizmo();
+			SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());
+			});
 	}
 
 	// Gizmo setup
@@ -143,6 +404,8 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())
 	{
+		// TODO: It's not clear whether storing our selection is the right choice in the long run,
+		// though we currently need it while the gizmo transformation is a separate tool... 
 		UUVToolMeshSelection* SelectionStore = ContextStore->FindContext<UUVToolMeshSelection>();
 		if (!SelectionStore)
 		{
@@ -150,10 +413,38 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 			ContextStore->AddContextObject(SelectionStore);
 		}
 		*SelectionStore->Selection = SelectionMechanic->GetCurrentSelection();
+
+		// We update the topology timestamp here because the timestamps may have divereged due
+		// to our undo/redo change implementation sometimes incrementing the topology timestamp
+		// even when the topology hasn't changed.
+		// TODO: Check whether we still need this once we use FMeshVertexChange instead of FDynamicMeshChange
+		SelectionStore->Selection->TopologyTimestamp = SelectionStore->Selection->Mesh->GetTopologyTimestamp();
+
+		// Don't issue a transaciton if we're cancelling (currently only possible via undo out
+		// of the "Transform" tool). Otherwise, issue a speculative change so that we can clear
+		// the selection if the mesh topology turns out to have changed by the time we run again.
+		if (ShutdownType != EToolShutdownType::Cancel)
+		{
+			UUVSelectToolSpeculativeChangeAPI* SpeculativeChangeAPI = ContextStore->FindContext<UUVSelectToolSpeculativeChangeAPI>();
+			if (!SpeculativeChangeAPI)
+			{
+				SpeculativeChangeAPI = NewObject<UUVSelectToolSpeculativeChangeAPI>();
+				ContextStore->AddContextObject(SpeculativeChangeAPI);
+			}
+			SpeculativeChangeAPI->EmitSpeculativeChange(ChangeRouter, EmitChangeAPI,
+				LOCTEXT("SpeculativeSlectionChangeName", "End Select Tool"));
+		}
 	}
 	else
 	{
 		ContextStore->RemoveContextObjectsOfType<UUVToolMeshSelection>();
+	}
+
+	ChangeRouter->CurrentSelectTool = nullptr;
+
+	for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
+	{
+		Target->OnUndoRedo.RemoveAll(this);
 	}
 
 	Settings->SaveProperties(this);
@@ -168,6 +459,20 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 
 	// Calls shutdown on gizmo and destroys it.
 	GetToolManager()->GetPairedGizmoManager()->DestroyAllGizmosByOwner(this);
+
+	EmitChangeAPI = nullptr;
+	ChangeRouter = nullptr;
+}
+
+void UUVSelectTool::SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged)
+{
+	SelectionMechanic->SetSelection(NewSelection, bBroadcastOnSelectionChanged, false);
+}
+
+void UUVSelectTool::SetGizmoTransform(const FTransform& NewTransform)
+{
+	TransformGizmo->ReinitializeGizmoTransform(NewTransform);
+	SelectionMechanic->RebuildDrawnElements(NewTransform);
 }
 
 void UUVSelectTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
@@ -182,11 +487,6 @@ void UUVSelectTool::UpdateGizmo()
 	if (!Selection.IsEmpty())
 	{
 		FVector3d Centroid = SelectionMechanic->GetCurrentSelectionCentroid();
-
-		// TODO: We should either make it so that transparent materials don't affect the rendering
-		// of the gizmo component, or else we should pass in some depth offset into the component.
-		// For now we hack it by raising the gizmo a little off the plane manually.
-		Centroid += FVector3d::ZAxisVector * KINDA_SMALL_NUMBER;
 
 		TransformGizmo->ReinitializeGizmoTransform(FTransform((FVector)Centroid));
 	}
@@ -377,6 +677,8 @@ void UUVSelectTool::SetGizmoEnabled(bool bEnabledIn)
 
 void UUVSelectTool::GizmoTransformStarted(UTransformProxy* Proxy)
 {
+	bInDrag = true;
+
 	InitialGizmoFrame = FFrame3d(TransformGizmo->ActiveTarget->GetTransform());
 	MovingVertOriginalPositions.SetNum(MovingVids.Num());
 	const FDynamicMesh3* Mesh = Targets[SelectionTargetIndex]->UnwrapCanonical.Get();
@@ -390,6 +692,14 @@ void UUVSelectTool::GizmoTransformStarted(UTransformProxy* Proxy)
 
 void UUVSelectTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Transform)
 {
+	// This function gets called both during drag and on undo/redo. This might have been ok if
+	// undo/redo also called GizmoTransformStarted/GizmoTransformEnded, but they don't, which
+	// means the two types of events operate quite differently. We just ignore any non-drag calls.
+	if (!bInDrag)
+	{
+		return;
+	}
+
 	FTransform DeltaTransform = Transform.GetRelativeTransform(InitialGizmoFrame.ToFTransform());
 
 	if (!DeltaTransform.GetTranslation().IsNearlyZero() || !DeltaTransform.GetRotation().IsIdentity() || Transform.GetScale3D() != FVector::One())
@@ -401,10 +711,16 @@ void UUVSelectTool::GizmoTransformChanged(UTransformProxy* Proxy, FTransform Tra
 
 void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 {
-	// TODO: Add undo support
-	//FDynamicMeshChangeTracker ChangeTracker(Targets[SelectionTargetIndex]->UnwrapPreview->PreviewMesh->GetMesh());
-	//ChangeTracker.BeginChange();
-	//ChangeTracker.SaveTriangles(MovingVids, true);
+	bInDrag = false;
+
+	// Set things up for undo.
+	// TODO: We should really use FMeshVertexChange instead of FDynamicMeshChange because we don't
+	// need to alter the mesh topology. However we currently don't have a way to apply a FMeshVertexChange
+	// directly to a dynamic mesh pointer, only via UDynamicMesh. We should change things here once
+	// that ability exists.
+	FDynamicMeshChangeTracker ChangeTracker(Targets[SelectionTargetIndex]->UnwrapCanonical.Get());
+	ChangeTracker.BeginChange();
+	ChangeTracker.SaveTriangles(SelectedTids, true);
 
 	// One final attempt to apply transforms if OnTick hasn't happened yet
 	ApplyGizmoTransform();
@@ -423,6 +739,14 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	{
 		AABBTrees[SelectionTargetIndex]->Build();
 	}
+
+	const FText TransactionName(LOCTEXT("DragCompleteTransactionName", "Move Items"));
+	EmitChangeAPI->BeginUndoTransaction(TransactionName);
+	EmitChangeAPI->EmitToolIndependentChange(ChangeRouter, MakeUnique<UVSelectToolLocals::FGizmoMeshChange>(
+		Targets[SelectionTargetIndex], ChangeTracker.EndChange(), 
+		InitialGizmoFrame.ToFTransform(), TransformGizmo->GetGizmoTransform()),
+		TransactionName);
+	EmitChangeAPI->EndUndoTransaction();
 
 	TransformGizmo->SetNewChildScale(FVector::One());
 	SelectionMechanic->RebuildDrawnElements(TransformGizmo->GetGizmoTransform());

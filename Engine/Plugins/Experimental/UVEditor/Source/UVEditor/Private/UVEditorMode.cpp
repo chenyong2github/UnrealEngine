@@ -38,6 +38,8 @@ namespace UVEditorModeLocals
 	// TODO: This is temporary. We need to be able to configure the layer we look at,
 	// and ideally show multiple layers at a time.
 	const int32 UVLayerIndex = 0;	
+
+	const FString DefaultToolIdentifier = TEXT("UVSelectTool");
 }
 
 const FToolTargetTypeRequirements& UUVEditorMode::GetToolTargetRequirements()
@@ -101,9 +103,13 @@ void UUVEditorMode::CreateToolkit()
 
 void UUVEditorMode::ActivateDefaultTool()
 {
-	ToolsContext->StartTool(TEXT("UVSelectTool"));
+	ToolsContext->StartTool(UVEditorModeLocals::DefaultToolIdentifier);
 }
 
+bool UUVEditorMode::IsDefaultToolActive()
+{
+	return ToolsContext->IsToolActive(EToolSide::Mouse, UVEditorModeLocals::DefaultToolIdentifier);
+}
 
 void UUVEditorMode::BindCommands()
 {
