@@ -33,15 +33,22 @@ namespace HordeServer.Controllers
 	[Route("[controller]")]
 	public class ServerController : ControllerBase
 	{
+
+		/// <summary>
+		/// Settings for the server
+		/// </summary>
+		IOptionsMonitor<ServerSettings> Settings;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ServerController()
+		public ServerController(IOptionsMonitor<ServerSettings> Settings)
 		{
+			this.Settings = Settings;
 		}
-
+		
 		/// <summary>
-		/// Force a reset on the database
+		/// Get server version
 		/// </summary>
 		[HttpGet]
 		[Route("/api/v1/server/version")]
@@ -49,6 +56,17 @@ namespace HordeServer.Controllers
 		{
 			FileVersionInfo FileVersionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetExecutingAssembly().Location);
 			return Ok(FileVersionInfo.ProductVersion);
+		}		
+
+		/// <summary>
+		/// Get server information
+		/// </summary>
+		[HttpGet]
+		[Route("/api/v1/server/info")]
+		[ProducesResponseType(typeof(GetServerInfoResponse), 200)]
+		public ActionResult<GetServerInfoResponse> GetServerInfo()
+		{
+			return new GetServerInfoResponse(this.Settings.CurrentValue.SingleInstance);
 		}
 	}
 }

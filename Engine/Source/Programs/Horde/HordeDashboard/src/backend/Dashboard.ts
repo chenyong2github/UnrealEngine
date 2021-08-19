@@ -309,6 +309,10 @@ export class Dashboard {
 
     }
 
+    setServerSettingsChanged(value: boolean | undefined) {
+        this.serverSettingsChanged = value ?? false;
+        this.setUpdated();
+    }
 
     @observable
     updated: number = 0;
@@ -350,6 +354,8 @@ export class Dashboard {
     
 
     requestLogout = false;
+
+    serverSettingsChanged: boolean = false;
 
     private data: GetUserResponse = { id: "", name: "", enableIssueNotifications: false, enableExperimentalFeatures: false, claims: [], pinnedJobIds: [], dashboardSettings: { preferences: new Map() } };
 

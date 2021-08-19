@@ -8,19 +8,24 @@ using HordeServer.Models;
 using HordeServer.Notifications;
 using HordeServer.Utilities;
 using Microsoft.AspNetCore.StaticFiles;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection;
+
+using PoolId = HordeServer.Utilities.StringId<HordeServer.Models.IPool>;
+using System.Globalization;
 
 namespace HordeServer.Services
 {
@@ -61,14 +66,25 @@ namespace HordeServer.Services
 		IPerforceService PerforceService;
 
 		/// <summary>
+		/// Load balancer instance
+		/// </summary>
+		private PerforceLoadBalancer PerforceLoadBalancer;
+
+
+		/// <summary>
 		/// Instance of the notification service
 		/// </summary>
 		INotificationService NotificationService;
 
 		/// <summary>
+		/// Singleton instance of the pool service
+		/// </summary>
+		private readonly PoolService PoolService;
+
+		/// <summary>
 		/// The server settings
 		/// </summary>
-		ServerSettings Settings;
+		IOptionsMonitor<ServerSettings> Settings;
 
 		/// <summary>
 		/// Logging device
@@ -80,21 +96,28 @@ namespace HordeServer.Services
 		/// </summary>
 		/// <param name="DatabaseService"></param>
 		/// <param name="PerforceService"></param>
+		/// <param name="PerforceLoadBalancer"></param>
 		/// <param name="ProjectService"></param>
 		/// <param name="StreamService"></param>
 		/// <param name="NotificationService"></param>
+		/// <param name="PoolService"></param>
 		/// <param name="Settings"></param>
 		/// <param name="Logger"></param>
-		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
+		public ConfigService(DatabaseService DatabaseService, IPerforceService PerforceService, ProjectService ProjectService, StreamService StreamService, INotificationService NotificationService,  PoolService PoolService, PerforceLoadBalancer PerforceLoadBalancer, IOptionsMonitor<ServerSettings> Settings, ILogger<ConfigService> Logger)
 			: base(DatabaseService, new ObjectId("5ff60549e7632b15e64ac2f7"), Logger)
 		{
 			this.DatabaseService = DatabaseService;
 			this.PerforceService = PerforceService;
+			this.PerforceLoadBalancer = PerforceLoadBalancer;
 			this.ProjectService = ProjectService;
 			this.StreamService = StreamService;
 			this.NotificationService = NotificationService;
-			this.Settings = Settings.CurrentValue;
+			this.PoolService = PoolService;
+			this.Settings = Settings;
 			this.Logger = Logger;
+
+			// This will trigger if the local Horde.json user configuration is changed
+			this.Settings.OnChange(OnUserConfigUpdated);
 		}
 
 		GlobalConfig? CachedGlobalConfig;
@@ -420,12 +443,374 @@ namespace HordeServer.Services
 		/// <inheritdoc/>
 		protected override async Task<DateTime> TickLeaderAsync(CancellationToken StoppingToken)
 		{
-			if (Settings.ConfigPath != null)
+
+			Uri? ConfigUri = null;
+			
+			if (Path.IsPathRooted(Settings.CurrentValue.ConfigPath) && !Settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
 			{
-				Uri ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), Settings.ConfigPath);
+				// absolute path to config
+				ConfigUri = new Uri(Settings.CurrentValue.ConfigPath);					
+			}
+			else if (Settings.CurrentValue.ConfigPath != null)
+			{
+				// relative (development) or perforce path
+				ConfigUri = CombinePaths(new Uri(FileReference.Combine(Program.AppDir, "_").FullName), Settings.CurrentValue.ConfigPath);				
+			}
+
+			if (ConfigUri != null)
+			{
 				await UpdateConfigAsync(ConfigUri);
 			}
+		
 			return DateTime.UtcNow + TimeSpan.FromMinutes(1.0);
 		}
+
+		//
+		// On premises configuration handling (aka Horde.json settings, though needs to have perforce global config handled too, checkout/modify/submit)
+		//
+
+		/// <summary>
+		/// Update the global configuration
+		/// </summary>
+		/// <param name="Request"></param>
+		/// <returns></returns>
+		public async Task<bool> UpdateGlobalConfig(UpdateGlobalConfigRequest Request)
+		{
+			if (Settings.CurrentValue.ConfigPath == null || !Path.IsPathRooted(Settings.CurrentValue.ConfigPath) || Settings.CurrentValue.ConfigPath.StartsWith("//", StringComparison.Ordinal))
+			{
+				throw new Exception($"Global config path must be rooted for service updates.  (Perforce paths are not currently supported for live updates), {Settings.CurrentValue.ConfigPath}");
+			}
+			
+			FileReference GlobalConfigFile = new FileReference(Settings.CurrentValue.ConfigPath);
+			DirectoryReference GlobalConfigDirectory = GlobalConfigFile.Directory;
+
+			// make sure the directory exists
+			if (!DirectoryReference.Exists(GlobalConfigDirectory))
+			{
+				DirectoryReference.CreateDirectory(GlobalConfigDirectory);
+			}
+
+			bool ConfigDirty = false;
+
+			// projects
+			if (Request.ProjectsJson != null)
+			{
+				ConfigDirty = true;
+
+				// write out the projects
+				foreach (KeyValuePair<string, string> Project in Request.ProjectsJson)
+				{
+					FileReference.WriteAllText(FileReference.Combine(GlobalConfigDirectory, Project.Key), Project.Value);
+
+					if (Request.ProjectLogo != null)
+					{
+						Byte[] bytes = Convert.FromBase64String(Request.ProjectLogo);
+						FileReference.WriteAllBytes(FileReference.Combine(GlobalConfigDirectory, Project.Key.Replace(".json", ".png", StringComparison.OrdinalIgnoreCase)), bytes);
+					}
+				}
+
+			}
+
+			// streams
+			if (Request.StreamsJson != null)
+			{
+				ConfigDirty = true;
+
+				// write out the streams
+				foreach (KeyValuePair<string, string> Stream in Request.StreamsJson)
+				{
+					FileReference.WriteAllText(FileReference.Combine(GlobalConfigDirectory, Stream.Key), Stream.Value);
+				}
+			}
+
+			// update global config path
+			if (!string.IsNullOrEmpty(Request.GlobalsJson))
+			{
+				ConfigDirty = true;
+
+				FileReference.WriteAllText(GlobalConfigFile, Request.GlobalsJson);
+			}
+
+			if (ConfigDirty == true)
+			{				
+				await UpdateConfigAsync(new Uri("file://" + GlobalConfigFile.ToString()));
+
+				// wait for the perforce clusters to be picked up, this ticks at a minute and might be nice to be able to explicitly update this
+				// the PerforceLoadBalancer has an ElectedTick member and no TickNow method
+				// In any event, this delay helps initial feel as cluster will be available shortly after it
+				int WaitSec = 15;				
+				DateTime Start = DateTime.UtcNow;
+				do
+				{
+					await Task.Delay(1000);
+
+					List<IPerforceServer> Servers = await PerforceLoadBalancer.GetServersAsync();
+					if (Servers.Count > 0)
+					{
+						break;
+					}
+				}
+				while ((DateTime.UtcNow - Start).TotalSeconds < WaitSec);
+
+			}
+
+			// create the default pool 
+			if (Request.DefaultPoolName != null)
+			{
+				PoolId PoolIdValue = PoolId.Sanitize(Request.DefaultPoolName);
+
+				IPool? Pool = await PoolService.GetPoolAsync(PoolIdValue);
+				if (Pool == null)
+				{
+					await PoolService.CreatePoolAsync(Request.DefaultPoolName, Properties: new Dictionary<string, string>() { ["Color"] = "0" });
+				}
+			}
+
+			return true;
+
+		}
+
+		/// <summary>
+		/// Update the server settings
+		/// </summary>
+		/// <param name="Request"></param>
+		/// <returns></returns>
+		public async Task<ServerUpdateResponse> UpdateServerSettings(UpdateServerSettingsRequest Request)
+		{
+
+			ServerUpdateResponse Response = new ServerUpdateResponse();
+
+			Dictionary<string, object> NewUserSettings = new Dictionary<string, object>();
+
+			try
+			{
+
+				if (Request.Settings == null || Request.Settings.Count == 0)
+				{
+					return Response;
+				}
+
+				if (UserConfigUpdated != null)
+				{
+					Response.Errors.Add("User configuation already being updated");
+					return Response;
+				}
+
+				// Load the current user configuration
+				IConfiguration Config = new ConfigurationBuilder()
+					.AddJsonFile(Program.UserConfigFile.FullName, optional: true)
+					.Build();
+
+				ServerSettings UserSettings = new ServerSettings();
+				Config.GetSection("Horde").Bind(UserSettings);
+
+				// Figure out current and new settings
+				HashSet<string> UserProps = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+				if (FileReference.Exists(Program.UserConfigFile))
+				{
+					byte[] Data = await FileReference.ReadAllBytesAsync(Program.UserConfigFile);
+
+					JsonDocument Document = JsonDocument.Parse(Data);
+					JsonElement HordeElement;
+
+					if (Document.RootElement.TryGetProperty("Horde", out HordeElement))
+					{
+						foreach (JsonProperty Property in HordeElement.EnumerateObject())
+						{
+							UserProps.Add(Property.Name);
+						}
+					}
+				}
+
+				foreach (string Name in Request.Settings.Keys)
+				{
+					UserProps.Add(Name);
+				}
+
+				// Apply the changes from the request
+				foreach (KeyValuePair<string, object> Pair in Request.Settings)
+				{
+					PropertyInfo? Property = UserSettings.GetType().GetProperty(Pair.Key, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+					if (Property == null)
+					{
+						Response.Errors.Add($"Horde configuration property {Pair.Key} does not exist when reading server settings");
+						Logger.LogError(Response.Errors.Last());
+						continue;
+					}
+
+					if (Property.SetMethod == null)
+					{
+						Response.Errors.Add($"Horde configuration property {Pair.Key} does not have a set method");
+						Logger.LogError(Response.Errors.Last());
+						continue;
+					}
+
+					// explicit setting removal
+					if (Pair.Value == null)
+					{
+						UserProps.Remove(Pair.Key);
+						continue;
+					}					
+
+
+					JsonElement Element = (JsonElement)Pair.Value;
+
+					object? Value = null;
+
+					switch (Element.ValueKind)
+					{
+						case JsonValueKind.True:
+							Value = true;
+							break;
+						case JsonValueKind.False:
+							Value = false;
+							break;
+						case JsonValueKind.Number:
+							Value = Element.GetDouble();
+							break;
+						case JsonValueKind.String:
+							Value = Element.GetString();
+							break;
+					}
+
+					// unable to map type
+					if (Value == null)
+					{
+						Response.Errors.Add($"Unable to map type for Property {Property.Name}");
+						continue;
+					}					
+
+					// handle common conversions
+					if (Property.GetType() != Value.GetType())
+					{
+						try
+						{
+							Value =	Convert.ChangeType(Value, Property.PropertyType, CultureInfo.CurrentCulture);						
+						}
+						catch (Exception Ex)
+						{
+							Response.Errors.Add($"Property {Property.Name} raised exception during conversion, {Ex.Message}");
+							continue;							
+						}
+						
+						if (Value == null)
+						{
+							Response.Errors.Add($"Property {Property.Name} had null value on conversion");
+							continue;							
+						}
+					}
+					else 
+					{
+						Response.Errors.Add($"Property {Property.Name} is not assignable to {Value.ToString()}");
+						continue;
+					}
+					
+
+					//  Set the value, providing some validation
+					try
+					{
+						Property.SetMethod.Invoke(UserSettings, new object[] { Value });
+					}
+					catch (Exception Ex)
+					{
+						Response.Errors.Add($"Exception updating property {Pair.Key}, {Ex.Message}");
+					}
+					
+				}
+
+				// Construct the new user settings
+				foreach (string Name in UserProps)
+				{
+					PropertyInfo? Property = UserSettings.GetType().GetProperty(Name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+					if (Property == null)
+					{
+						Response.Errors.Add($"Horde configuration property {Name} does not exist when writing server settings");
+						Logger.LogError(Response.Errors.Last());
+
+						continue;
+					}
+
+					if (Property.GetMethod == null)
+					{
+						Response.Errors.Add($"Horde configuration property {Name} does not have a get method");
+						Logger.LogError(Response.Errors.Last());
+						continue;
+					}
+
+					object? Result = Property.GetMethod.Invoke(UserSettings, null);
+
+					if (Result == null)
+					{
+						Response.Errors.Add($"Horde configuration property {Name} was null while writing and should have already been filtered out");
+						Logger.LogError(Response.Errors.Last());
+						continue;
+					}
+
+					NewUserSettings.Add(Property.Name, Result);
+
+				}
+			}
+			catch (Exception Ex)
+			{
+				Response.Errors.Add($"Exception while updating settings: {Ex.Message}");
+				Logger.LogError("{0}: {1}", Response.Errors.Last(), Ex.StackTrace ?? "");
+			}
+
+			if (Response.Errors.Count != 0)
+			{
+				return Response;
+			}
+
+			Dictionary<string, object> NewLocalSettings = new Dictionary<string, object>();
+			NewLocalSettings["Horde"] = NewUserSettings;
+
+			try
+			{
+				UserConfigUpdated = new TaskCompletionSource<bool>();
+
+				// This will trigger a setting update as the user config json is set to reload on change
+				try
+				{
+					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true }));
+				}
+				catch (Exception Ex)
+				{
+					Response.Errors.Add($"Unable to serialize json settings to {Program.UserConfigFile.ToString()}, {Ex.Message}");
+					Logger.LogError("Unable to serialize json settings to {0}, {1} : {2}", Program.UserConfigFile.ToString(), Ex.Message, Ex.StackTrace ?? "");
+				}
+
+				if (Response.Errors.Count == 0)
+				{
+					if (await Task.WhenAny(UserConfigUpdated.Task, Task.Delay(5000)) != UserConfigUpdated.Task)
+					{
+						Response.Errors.Add("Server update timed out while awaiting write");
+						Logger.LogError("Server update timed out after writing config");
+					}
+				}
+
+			}
+			finally
+			{
+				UserConfigUpdated = null;
+			}
+
+			return Response;
+
+		}
+		void OnUserConfigUpdated(ServerSettings Settings, string Name)
+		{
+			NumUserConfigUpdates++;
+			UserConfigUpdated?.SetResult(true);
+		}
+
+		private TaskCompletionSource<bool>? UserConfigUpdated;
+
+		/// <summary>
+		/// The number of server configuration updates that have been made while the server is running
+		/// This is used to detect whether server may need to be restarted
+		/// </summary>
+		public int NumUserConfigUpdates { get; private set; } = 0;
+
 	}
 }
