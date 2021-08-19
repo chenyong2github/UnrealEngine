@@ -66,12 +66,16 @@ public:
 private:
 	TArray<struct FPlatformIconInfo> IconNames;
 	TArray<struct FPlatformIconInfo> LaunchImageNames;
+	TArray<struct FPlatformIconInfo> TvOSImageNames;
 
 	const FString EngineInfoPath;
 	const FString GameInfoPath;
 
 	const FString EngineGraphicsPath;
 	const FString GameGraphicsPath;
+
+	const FString TVOSEngineGraphicsPath;
+	const FString TVOSGameGraphicsPath;
 
 	IDetailLayoutBuilder* SavedLayoutBuilder;
 
@@ -120,7 +124,7 @@ private:
 	void CopySetupFilesIntoProject();
 
 	// Builds an image row
-	void BuildImageRow(class IDetailLayoutBuilder& DetailLayout, class IDetailCategoryBuilder& Category, const struct FPlatformIconInfo& Info, const FVector2D& MaxDisplaySize);
+	void BuildImageRow(class IDetailLayoutBuilder& DetailLayout, class IDetailCategoryBuilder& Category, const struct FPlatformIconInfo& Info, const FVector2D& MaxDisplaySize, bool bIsTVOS = false);
 
 	// Install the provision
  	FReply OnInstallProvisionClicked();
