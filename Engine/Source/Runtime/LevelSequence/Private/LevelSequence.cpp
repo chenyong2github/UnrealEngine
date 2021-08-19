@@ -253,6 +253,8 @@ void ULevelSequence::PostLoad()
 		// Remove the binding for the director blueprint recompilation and re-add it to be sure there is only one entry in the list
 		DirectorBlueprint->OnCompiled().RemoveAll(this);
 		DirectorBlueprint->OnCompiled().AddUObject(this, &ULevelSequence::OnDirectorRecompiled);
+
+		DirectorBlueprint->Rename(*GetDirectorBlueprintName());
 	}
 
 	TSet<FGuid> InvalidSpawnables;
@@ -318,7 +320,7 @@ bool ULevelSequence::Rename(const TCHAR* NewName, UObject* NewOuter, ERenameFlag
 #if WITH_EDITOR
 	if (DirectorBlueprint)
 	{
-		DirectorBlueprint->Rename(*DirectorBlueprint->GetName(), this, Flags);
+		DirectorBlueprint->Rename(*GetDirectorBlueprintName(), this, Flags);
 	}
 #endif
 
@@ -452,6 +454,11 @@ void ULevelSequence::UnbindInvalidObjects(const FGuid& ObjectId, UObject* InCont
 UBlueprint* ULevelSequence::GetDirectorBlueprint() const
 {
 	return DirectorBlueprint;
+}
+
+FString ULevelSequence::GetDirectorBlueprintName() const
+{
+	return GetDisplayName().ToString() + " (Director BP)";
 }
 
 void ULevelSequence::SetDirectorBlueprint(UBlueprint* NewDirectorBlueprint)
