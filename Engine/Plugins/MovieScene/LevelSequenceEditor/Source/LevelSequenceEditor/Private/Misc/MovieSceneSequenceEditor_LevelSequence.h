@@ -32,8 +32,7 @@ struct FMovieSceneSequenceEditor_LevelSequence : FMovieSceneSequenceEditor
 
 		ULevelSequence* LevelSequence = CastChecked<ULevelSequence>(InSequence);
 
-		FName BlueprintName = "SequenceDirector";
-		Blueprint = FKismetEditorUtilities::CreateBlueprint(ULevelSequenceDirector::StaticClass(), InSequence, BlueprintName, BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
+		Blueprint = FKismetEditorUtilities::CreateBlueprint(ULevelSequenceDirector::StaticClass(), InSequence, FName(*LevelSequence->GetDirectorBlueprintName()), BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass());
 		Blueprint->ClearFlags(RF_Standalone);
 
 		LevelSequence->SetDirectorBlueprint(Blueprint);

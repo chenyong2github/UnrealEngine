@@ -92,6 +92,8 @@ public:
 	 */
 	UBlueprint* GetDirectorBlueprint() const;
 
+	FString GetDirectorBlueprintName() const;
+
 protected:
 
 	virtual FGuid CreatePossessable(UObject* ObjectToPossess) override;
