@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(ColorCorrectRegionsLogOutput, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(ColorCorrectRegions, Log, All);
 
 class FColorCorrectRegionsModule : public IModuleInterface
 {
