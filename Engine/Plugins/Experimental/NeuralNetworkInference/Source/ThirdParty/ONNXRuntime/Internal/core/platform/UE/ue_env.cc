@@ -536,10 +536,10 @@ class UnrealEngineEnv : public Env {
   }
 
 
-#if defined(PLATFORM_WIN64) or defined(__PROSPERO__)
+#if defined(PLATFORM_WIN64) || defined(__PROSPERO__)
 
 	Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
-    	return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows.");
+    	return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows or PS5.");
   	}
 
 #else 
