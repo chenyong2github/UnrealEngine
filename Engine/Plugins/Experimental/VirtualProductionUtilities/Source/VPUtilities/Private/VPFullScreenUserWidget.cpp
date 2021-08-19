@@ -53,6 +53,75 @@ namespace
 			return EVisibility::SelfHitTestInvisible;
 		}
 	}
+
+	namespace VPFullScreenUserWidgetPrivate
+	{
+		/**
+		 * Class made to handle world cleanup and hide/cleanup active UserWidget to avoid touching public headers
+		 */
+		class FWorldCleanupListener
+		{
+		public:
+
+			static FWorldCleanupListener* Get()
+			{
+				static FWorldCleanupListener Instance;
+				return &Instance;
+			}
+
+			/** Disallow Copying / Moving */
+			UE_NONCOPYABLE(FWorldCleanupListener);
+
+			~FWorldCleanupListener()
+			{
+				FWorldDelegates::OnWorldCleanup.RemoveAll(this);
+			}
+
+			void AddWidget(UVPFullScreenUserWidget* InWidget)
+			{
+				WidgetsToHide.AddUnique(InWidget);
+			}
+
+			void RemoveWidget(UVPFullScreenUserWidget* InWidget)
+			{
+				WidgetsToHide.RemoveSingleSwap(InWidget, false);
+			}
+
+		private:
+
+			FWorldCleanupListener()
+			{
+				FWorldDelegates::OnWorldCleanup.AddRaw(this, &FWorldCleanupListener::OnWorldCleanup);
+			}
+
+			void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources)
+			{
+				for (auto WeakWidgetIter = WidgetsToHide.CreateIterator(); WeakWidgetIter; ++WeakWidgetIter)
+				{
+					TWeakObjectPtr<UVPFullScreenUserWidget>& WeakWidget = *WeakWidgetIter;
+					if (UVPFullScreenUserWidget* Widget = WeakWidget.Get())
+					{
+						if (Widget->IsDisplayed()
+							&& Widget->GetWidget()
+							&& (Widget->GetWidget()->GetWorld() == InWorld))
+						{
+							//Remove first since Hide removes object from the list
+							WeakWidgetIter.RemoveCurrent();
+							Widget->Hide();
+						}
+					}
+					else
+					{
+						WeakWidgetIter.RemoveCurrent();
+					}
+				}
+			}
+
+		private:
+
+			TArray<TWeakObjectPtr<UVPFullScreenUserWidget>> WidgetsToHide;
+		};
+	}
 }
 
 
@@ -645,6 +714,8 @@ bool UVPFullScreenUserWidget::Display(UWorld* InWorld)
 		{
 			FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UVPFullScreenUserWidget::OnLevelRemovedFromWorld);
 
+			VPFullScreenUserWidgetPrivate::FWorldCleanupListener::Get()->AddWidget(this);
+
 			// If we are using Composure as our output, then send the WidgetRenderTarget to each one
 			if (CurrentDisplayType == EVPWidgetDisplayType::Composure)
 			{
@@ -690,6 +761,8 @@ void UVPFullScreenUserWidget::Hide()
 	{
 		ReleaseWidget();
 		FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+
+		VPFullScreenUserWidgetPrivate::FWorldCleanupListener::Get()->RemoveWidget(this);
 
 		if (CurrentDisplayType == EVPWidgetDisplayType::Viewport)
 		{
