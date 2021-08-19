@@ -2145,7 +2145,7 @@ void FObjectReplicator::UpdateUnmappedObjects(bool & bOutHasMoreUnmapped)
 		return;
 	}
 
-	if (Connection->State == USOCK_Closed)
+	if (Connection->GetConnectionState() == USOCK_Closed)
 	{
 		UE_LOG(LogNet, Verbose, TEXT("FObjectReplicator::UpdateUnmappedObjects: Connection->State == USOCK_Closed"));
 		return;

@@ -37,11 +37,14 @@ void FNetTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_PacketEvent, "NetTrace", "PacketEvent");
 	Builder.RouteEvent(RouteId_PacketDroppedEvent, "NetTrace", "PacketDroppedEvent");
 	Builder.RouteEvent(RouteId_ConnectionCreatedEvent, "NetTrace", "ConnectionCreatedEvent");
+	Builder.RouteEvent(RouteId_ConnectionUpdatedEvent, "NetTrace", "ConnectionUpdatedEvent");
 	// Add some default event types that we use for generic type events to make it easier to extend
 	// ConnectionAdded/Removed connections state /name etc?
 	Builder.RouteEvent(RouteId_ConnectionClosedEvent, "NetTrace", "ConnectionClosedEvent");
 	Builder.RouteEvent(RouteId_ObjectCreatedEvent, "NetTrace", "ObjectCreatedEvent");
 	Builder.RouteEvent(RouteId_ObjectDestroyedEvent, "NetTrace", "ObjectDestroyedEvent");
+	Builder.RouteEvent(RouteId_ConnectionStateUpdatedEvent, "NetTrace", "ConnectionStateUpdatedEvent");
+	Builder.RouteEvent(RouteId_InstanceUpdatedEvent, "NetTrace", "InstanceUpdatedEvent");
 
 	// Default names
 	{
@@ -141,7 +144,19 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 
 		case RouteId_ConnectionCreatedEvent:
 		{
-			HandleConnectionCretedEvent(Context, EventData);
+			HandleConnectionCreatedEvent(Context, EventData);
+		}
+		break;
+
+		case RouteId_ConnectionStateUpdatedEvent:
+		{
+			HandleConnectionStateUpdatedEvent(Context, EventData);
+		}
+		break;
+
+		case RouteId_ConnectionUpdatedEvent:
+		{
+			HandleConnectionUpdatedEvent(Context, EventData);
 		}
 		break;
 
@@ -160,6 +175,12 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCont
 		case RouteId_ObjectDestroyedEvent:
 		{
 			HandleObjectDestroyedEvent(Context, EventData);
+		}
+		break;
+		
+		case RouteId_InstanceUpdatedEvent:
+		{
+			HandleGameInstanceUpdatedEvent(Context, EventData);
 		}
 		break;
 	}
@@ -456,6 +477,7 @@ void FNetTraceAnalyzer::HandlePacketEvent(const FOnEventContext& Context, const 
 	Packet.TimeStamp = GetLastTimestamp();
 	Packet.SequenceNumber = SequenceNumber;
 	Packet.DeliveryStatus = ENetProfilerDeliveryStatus::Unknown;
+	Packet.ConnectionState = ConnectionState->ConnectionState;
 
 	Packet.ContentSizeInBits = PacketBits;
 	Packet.TotalPacketSizeInBytes = (Packet.ContentSizeInBits + 7u) >> 3u;
@@ -491,7 +513,7 @@ void FNetTraceAnalyzer::HandlePacketDroppedEvent(const FOnEventContext& Context,
 	NetProfilerProvider.EditPacketDeliveryStatus(ConnectionState->ConnectionIndex, ENetProfilerConnectionMode(PacketType), SequenceNumber, ENetProfilerDeliveryStatus::Dropped);
 }
 
-void FNetTraceAnalyzer::HandleConnectionCretedEvent(const FOnEventContext& Context, const FEventData& EventData)
+void FNetTraceAnalyzer::HandleConnectionCreatedEvent(const FOnEventContext& Context, const FEventData& EventData)
 {
 	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
 	const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
@@ -513,6 +535,47 @@ void FNetTraceAnalyzer::HandleConnectionCretedEvent(const FOnEventContext& Conte
 
 	ConnectionState->CurrentPacketBitOffset[ENetProfilerConnectionMode::Outgoing] = 0U;
 	ConnectionState->CurrentPacketBitOffset[ENetProfilerConnectionMode::Incoming] = 0U;
+}
+
+void FNetTraceAnalyzer::HandleConnectionStateUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData)
+{
+	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
+	const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
+	const uint8 ConnectionStateValue = EventData.GetValue<uint8>("ConnectionStateValue");
+
+	TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
+
+	if (TSharedRef<FNetTraceConnectionState>* ConnectionState = GameInstanceState->ActiveConnections.Find(ConnectionId))
+	{
+		(*ConnectionState)->ConnectionState = ENetProfilerConnectionState(ConnectionStateValue);
+	}
+}
+
+void FNetTraceAnalyzer::HandleConnectionUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData)
+{
+	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
+	const uint16 ConnectionId = EventData.GetValue<uint16>("ConnectionId");
+	FString Name;
+	EventData.GetString("Name", Name);
+	FString AddressString;
+	EventData.GetString("Address", AddressString);
+
+	TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
+	
+	if (TSharedRef<FNetTraceConnectionState>* ConnectionState = GameInstanceState->ActiveConnections.Find(ConnectionId))
+	{
+		if (FNetProfilerConnectionInternal* Connection = NetProfilerProvider.EditConnection((*ConnectionState)->ConnectionIndex))
+		{
+			Connection->Connection.Name = Session.StoreString(Name);
+			Connection->Connection.AddressString = Session.StoreString(AddressString);
+		}
+	}
+	else
+	{
+		// Incomplete trace?  Ignore?
+		UE_LOG(LogNetTrace, Warning, TEXT("Connection %d is missing"), ConnectionId);
+	}
+
 }
 
 void FNetTraceAnalyzer::HandleConnectionClosedEvent(const FOnEventContext& Context, const FEventData& EventData)
@@ -648,6 +711,22 @@ FNetTraceAnalyzer::FNetTraceConnectionState* FNetTraceAnalyzer::GetActiveConnect
 	}
 		
 	return nullptr;
+}
+
+void FNetTraceAnalyzer::HandleGameInstanceUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData)
+{
+	const uint8 GameInstanceId = EventData.GetValue<uint8>("GameInstanceId");
+	const bool bIsServer = EventData.GetValue<bool>("bIsServer");
+	FString InstanceName;
+	EventData.GetString("Name", InstanceName);
+
+	TSharedRef<FNetTraceGameInstanceState> GameInstanceState = GetOrCreateActiveGameInstanceState(GameInstanceId);
+
+	if (FNetProfilerGameInstanceInternal* InternalGameInstance = NetProfilerProvider.EditGameInstance(GameInstanceState->GameInstanceIndex))
+	{
+		InternalGameInstance->Instance.bIsServer = bIsServer;
+		InternalGameInstance->Instance.InstanceName = Session.StoreString(InstanceName);
+	}
 }
 
 } // namespace TraceServices

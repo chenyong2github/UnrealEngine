@@ -121,7 +121,6 @@ private:
 	void HandleMarker(const FOnEventContext& Context, FThreadState& ThreadState, const FTimingMarker& Marker);
 	void HandleCustomStatEvent(const FOnEventContext& Context, bool bIsFloat);
 	void HandleEventEvent(const FOnEventContext& Context);
-	uint32 GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const;
 	void Flush(FStatSeriesInstance& StatSeries);
 	void FlushIfNewFrame(FStatSeriesInstance& StatSeries, uint32 FrameNumber);
 	void FlushAtEndOfCapture(FStatSeriesInstance& StatSeries, uint32 CaptureEndFrame);

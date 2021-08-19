@@ -18,7 +18,10 @@ struct FNetTraceReporter
 	static void ReportObjectCreated(uint32 GameInstanceId, uint32 NetObjectId, FNetDebugNameId NameId, uint64 TypeIdentifier, uint32 OwnerId);
 	static void ReportObjectDestroyed(uint32 GameInstanceId, uint32 NetObjectId);
 	static void ReportConnectionCreated(uint32 GameInstanceId, uint32 ConnectionId);
+	static void ReportConnectionStateUpdated(uint32 GameInstanceId, uint32 ConnectionId, uint8 ConnectionStateValue);
+	static void ReportConnectionUpdated(uint32 GameInstanceId, uint32 ConnectionId, const TCHAR* AddressString, const TCHAR* OwningActor);
 	static void ReportConnectionClosed(uint32 GameInstanceId, uint32 ConnectionId);
+	static void ReportInstanceUpdated(uint32 GameInstanceId, bool bIsServer, const TCHAR* Name);
 	static void ReportInstanceDestroyed(uint32 GameInstanceId);
 };
 

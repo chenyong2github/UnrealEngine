@@ -231,7 +231,7 @@ protected:
 
 	FEOSVoiceChatWeakPtr CreateWeakThis();
 
-	friend const TCHAR* LexToString(EConnectionState State);
+	friend const TCHAR* LexToString(FEOSVoiceChat::EConnectionState State);
 };
 
 #endif // WITH_EOS_RTC

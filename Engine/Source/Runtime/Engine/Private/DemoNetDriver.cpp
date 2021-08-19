@@ -1093,13 +1093,13 @@ bool UDemoNetDriver::ContinueListen(FURL& ListenURL)
 
 bool UDemoNetDriver::IsRecording() const
 {
-	return ClientConnections.Num() > 0 && ClientConnections[0] != nullptr && ClientConnections[0]->State != USOCK_Closed;
+	return ClientConnections.Num() > 0 && ClientConnections[0] != nullptr && ClientConnections[0]->GetConnectionState() != USOCK_Closed;
 }
 
 bool UDemoNetDriver::IsPlaying() const
 {
 	// ServerConnection may be deleted / recreated during checkpoint loading.
-	return IsLoadingCheckpoint() || (ServerConnection != nullptr && ServerConnection->State != USOCK_Closed);
+	return IsLoadingCheckpoint() || (ServerConnection != nullptr && ServerConnection->GetConnectionState() != USOCK_Closed);
 }
 
 bool UDemoNetDriver::IsServer() const
@@ -1388,7 +1388,7 @@ void UDemoNetDriver::StopDemo()
 		// flush out any pending network traffic
 		ServerConnection->FlushNet();
 
-		ServerConnection->State = USOCK_Closed;
+		ServerConnection->SetConnectionState(USOCK_Closed);
 		ServerConnection->Close();
 	}
 
@@ -2353,7 +2353,7 @@ bool UDemoNetDriver::ProcessPacket(const uint8* Data, int32 Count)
 		ServerConnection->ReceivedRawPacket(const_cast<uint8*>(Data), Count);
 	}
 
-	if (ServerConnection == nullptr || ServerConnection->State == USOCK_Closed)
+	if (ServerConnection == nullptr || ServerConnection->GetConnectionState() == USOCK_Closed)
 	{
 		// Something we received resulted in the demo being stopped
 		UE_LOG(LogDemo, Error, TEXT("UDemoNetDriver::ProcessPacket: ReceivedRawPacket closed connection"));
@@ -4526,7 +4526,7 @@ void UDemoNetDriver::RestoreConnectionPostScrub(APlayerController* PC, UNetConne
 	NetConnection->LastReceiveTime = GetElapsedTime();
 	NetConnection->LastReceiveRealtime = FPlatformTime::Seconds();
 	NetConnection->LastGoodPacketRealtime = FPlatformTime::Seconds();
-	NetConnection->State = USOCK_Open;
+	NetConnection->SetConnectionState(USOCK_Open);
 	NetConnection->PlayerController = PC;
 	NetConnection->OwningActor = PC;
 }

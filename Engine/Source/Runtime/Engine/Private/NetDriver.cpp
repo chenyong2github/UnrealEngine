@@ -489,6 +489,8 @@ void UNetDriver::PostInitProperties()
 
 		LoadChannelDefinitions();
 	}
+
+	NotifyGameInstanceUpdated();
 }
 
 void UNetDriver::PostReloadConfig(FProperty* PropertyToLoad)
@@ -536,6 +538,17 @@ void UNetDriver::LoadChannelDefinitions()
 
 		ensureMsgf(IsKnownChannelName(NAME_Control), TEXT("Control channel type is not properly defined."));
 	}
+}
+
+void UNetDriver::NotifyGameInstanceUpdated()
+{
+#if UE_NET_TRACE_ENABLED
+	if (GetWorld() && GetWorld()->WorldType)
+	{
+		FString InstanceName = FString::Printf(TEXT("%s (%s)"), *GetNameSafe(GetWorld()->GetGameInstance()), LexToString(GetWorld()->WorldType.GetValue()));
+		UE_NET_TRACE_UPDATE_INSTANCE(GetUniqueID(), IsServer(), *InstanceName);
+	}
+#endif
 }
 
 void UNetDriver::AssertValid()
@@ -1900,7 +1913,7 @@ void UNetDriver::TickDispatch( float DeltaTime )
 			{
 				UNetConnection* CurConn = ClientConnections[ConnIdx];
 
-				if (CurConn->State == USOCK_Closed)
+				if (CurConn->GetConnectionState() == USOCK_Closed)
 				{
 					CurConn->CleanUp();
 				}
@@ -2059,7 +2072,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 	}
 
 	// Prevent RPC calls to closed connections
-	if (Connection->State == USOCK_Closed)
+	if (Connection->GetConnectionState() == USOCK_Closed)
 	{
 		DEBUG_REMOTEFUNCTION(TEXT("Attempting to call RPC on a closed connection. Not calling %s::%s"), *GetNameSafe(Actor), *GetNameSafe(Function));
 		return;
@@ -2817,7 +2830,7 @@ bool UNetDriver::HandleNetFloodCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		Ar.Logf(TEXT("Flooding connection 0 with control messages"));
 
-		for (int32 i = 0; i < 256 && TestConn->State == USOCK_Open; i++)
+		for (int32 i = 0; i < 256 && TestConn->GetConnectionState() == USOCK_Open; i++)
 		{
 			FNetControlMessage<NMT_Netspeed>::Send(TestConn, TestConn->CurrentNetSpeed);
 			TestConn->FlushNet();
@@ -3633,7 +3646,7 @@ UChildConnection* UNetDriver::CreateChild(UNetConnection* Parent)
 	auto Child = NewObject<UChildConnection>();
 	Child->Driver = this;
 	Child->URL = FURL();
-	Child->State = Parent->State;
+	Child->SetConnectionState(Parent->GetConnectionState());
 	Child->URL.Host = Parent->URL.Host;
 	Child->Parent = Parent;
 	Child->PackageMap = Parent->PackageMap;
@@ -4128,14 +4141,14 @@ int32 UNetDriver::ServerReplicateActors_PrepConnections( const float DeltaSecond
 	{
 		UNetConnection* Connection = ClientConnections[ConnIdx];
 		check( Connection );
-		check( Connection->State == USOCK_Pending || Connection->State == USOCK_Open || Connection->State == USOCK_Closed );
+		check( Connection->GetConnectionState() == USOCK_Pending || Connection->GetConnectionState() == USOCK_Open || Connection->GetConnectionState() == USOCK_Closed );
 		checkSlow( Connection->GetUChildConnection() == NULL );
 
 		// Handle not ready channels.
 		//@note: we cannot add Connection->IsNetReady(0) here to check for saturation, as if that's the case we still want to figure out the list of relevant actors
 		//			to reset their NetUpdateTime so that they will get sent as soon as the connection is no longer saturated
 		AActor* OwningActor = Connection->OwningActor;
-		if ( OwningActor != NULL && Connection->State == USOCK_Open && ( Connection->Driver->GetElapsedTime() - Connection->LastReceiveTime < 1.5 ) )
+		if ( OwningActor != NULL && Connection->GetConnectionState() == USOCK_Open && ( Connection->Driver->GetElapsedTime() - Connection->LastReceiveTime < 1.5 ) )
 		{
 			check( World == OwningActor->GetWorld() );
 
@@ -5660,6 +5673,8 @@ void UNetDriver::SetWorld(class UWorld* InWorld)
 		RegisterTickEvents(InWorld);
 
 		GetNetworkObjectList().AddInitialObjects(InWorld, this);
+
+		NotifyGameInstanceUpdated();
 	}
 
 	if (ReplicationDriver)
@@ -5805,6 +5820,8 @@ void UNetDriver::SetReplicationDriver(UReplicationDriver* NewReplicationDriver)
 		ReplicationDriver->InitForNetDriver(this);
 		ReplicationDriver->InitializeActorsInWorld( GetWorld() );
 	}
+
+	NotifyGameInstanceUpdated();
 }
 
 UNetConnection* UNetDriver::GetConnectionById(uint32 ConnectionId) const

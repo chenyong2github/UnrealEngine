@@ -437,7 +437,7 @@ void UWorld::TickNetClient( float DeltaSeconds )
 
 	// If our net driver has lost connection to the server,
 	// and there isn't a PendingNetGame, throw a network failure error.
-	if( NetDriver->ServerConnection->State == USOCK_Closed )
+	if( NetDriver->ServerConnection->GetConnectionState() == USOCK_Closed )
 	{
 		if (GEngine->PendingNetGameFromWorld(this) == nullptr)
 		{
@@ -1462,7 +1462,7 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 	bool bDoingActorTicks = 
 		(TickType!=LEVELTICK_TimeOnly)
 		&&	!bIsPaused
-		&&	(!NetDriver || !NetDriver->ServerConnection || NetDriver->ServerConnection->State==USOCK_Open);
+		&&	(!NetDriver || !NetDriver->ServerConnection || NetDriver->ServerConnection->GetConnectionState()==USOCK_Open);
 
 	FLatentActionManager& CurrentLatentActionManager = GetLatentActionManager();
 

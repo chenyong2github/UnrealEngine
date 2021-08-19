@@ -333,7 +333,7 @@ void ULocalPlayer::SendSplitJoin(TArray<FString>& Options)
 		NetDriver = World->GetNetDriver();
 	}
 
-	if (World == NULL || NetDriver == NULL || NetDriver->ServerConnection == NULL || NetDriver->ServerConnection->State != USOCK_Open)
+	if (World == NULL || NetDriver == NULL || NetDriver->ServerConnection == NULL || NetDriver->ServerConnection->GetConnectionState() != USOCK_Open)
 	{
 		UE_LOG(LogPlayerManagement, Warning, TEXT("SendSplitJoin(): Not connected to a server"));
 	}

@@ -656,4 +656,38 @@ FVector FRepMovement::RebaseOntoZeroOrigin(const FVector& Location, const UActor
 	return RebaseOntoZeroOrigin(Location, WorldContextActorComponent->GetWorld()->OriginLocation);
 }
 
+const TCHAR* LexToString(const EWorldType::Type Value)
+{
+	switch (Value)
+	{
+	case EWorldType::Type::Editor:
+		return TEXT("Editor");
+		break;
+	case EWorldType::Type::EditorPreview:
+		return TEXT("EditorPreview");
+		break;
+	case EWorldType::Type::Game:
+		return TEXT("Game");
+		break;
+	case EWorldType::Type::GamePreview:
+		return TEXT("GamePreview");
+		break;
+	case EWorldType::Type::GameRPC:
+		return TEXT("GameRPC");
+		break;
+	case EWorldType::Type::Inactive:
+		return TEXT("Inactive");
+		break;
+	case EWorldType::Type::PIE:
+		return TEXT("PIE");
+		break;
+	case EWorldType::Type::None:
+		return TEXT("None");
+		break;
+	default:
+		return TEXT("Unknown");
+		break;
+	}
+}
+
 /// @endcond

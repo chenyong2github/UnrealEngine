@@ -369,7 +369,7 @@ void UPendingNetGame::FinalizeEncryptedConnection(const FEncryptionKeyResponse& 
 	UNetConnection* Connection = WeakConnection.Get();
 	if (Connection)
 	{
-		if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
+		if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
 		{
 			if (Response.Response == EEncryptionResponse::Success)
 			{
@@ -426,7 +426,7 @@ void UPendingNetGame::SetEncryptionKey(const FEncryptionKeyResponse& Response)
 		UNetConnection* const Connection = NetDriver->ServerConnection;
 		if (Connection)
 		{
-			if (Connection->State != USOCK_Invalid && Connection->State != USOCK_Closed && Connection->Driver)
+			if (Connection->GetConnectionState() != USOCK_Invalid && Connection->GetConnectionState() != USOCK_Closed && Connection->Driver)
 			{
 				if (Response.Response == EEncryptionResponse::Success)
 				{
@@ -474,7 +474,7 @@ void UPendingNetGame::Tick( float DeltaTime )
 	//-V:NetDriver<<:522
 
 	// Handle timed out or failed connection.
-	if (NetDriver->ServerConnection->State == USOCK_Closed && ConnectionError == TEXT(""))
+	if (NetDriver->ServerConnection->GetConnectionState() == USOCK_Closed && ConnectionError == TEXT(""))
 	{
 		ConnectionError = NSLOCTEXT("Engine", "ConnectionFailed", "Your connection to the host has been lost.").ToString();
 		return;

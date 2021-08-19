@@ -147,7 +147,7 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	{
 		RenderThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "RenderThreadId");
 		RHIThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context, "RHIThreadId");
-		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureStartFrame = FrameProvider.GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		bEnableCounts = EventData.GetValue<bool>("EnableCounts");
 		FString FileName = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("FileName", Context);
 		const TCHAR* StoredFileName = Session.StoreString(*FileName);
@@ -156,7 +156,7 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	}
 	case RouteId_EndCapture:
 	{
-		uint32 CaptureEndFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureEndFrame = FrameProvider.GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		for (FStatSeriesInstance* StatSeries : StatSeriesInstanceArray)
 		{
 			FlushAtEndOfCapture(*StatSeries, CaptureEndFrame);
@@ -341,7 +341,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 	}
 
 	double Timestamp = Context.EventTime.AsSeconds(Marker.Cycle);
-	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Timestamp);
+	uint32 FrameNumber = FrameProvider.GetFrameNumberForTimestamp(ThreadState.FrameType, Timestamp);
 	if (Marker.bIsBegin)
 	{
 		ThreadState.MarkerStack.Push(Marker);
@@ -391,7 +391,7 @@ void FCsvProfilerAnalyzer::HandleCustomStatEvent(const FOnEventContext& Context,
 	FThreadState& ThreadState = GetThreadState(ThreadId);
 	FStatSeriesInstance& StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), bIsFloat ? CsvStatSeriesType_CustomStatFloat : CsvStatSeriesType_CustomStatInt, ThreadState);
 	ECsvOpType OpType = static_cast<ECsvOpType>(Context.EventData.GetValue<uint8>("OpType"));
-	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Context.EventData.GetValue<uint64>("Cycle")));
+	uint32 FrameNumber = FrameProvider.GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Context.EventData.GetValue<uint64>("Cycle")));
 	if (bIsFloat)
 	{
 		float Value = Context.EventData.GetValue<float>("Value");
@@ -409,7 +409,7 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 	uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
 	FThreadState& ThreadState = GetThreadState(ThreadId);
 	uint64 Cycle = Context.EventData.GetValue<uint64>("Cycle");
-	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Cycle));
+	uint32 FrameNumber = FrameProvider.GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Cycle));
 	FString EventText = FTraceAnalyzerUtils::LegacyAttachmentString<TCHAR>("Text", Context);
 	int32 CategoryIndex = Context.EventData.GetValue<int32>("CategoryIndex");
 	if (CategoryIndex > 0)
@@ -417,25 +417,6 @@ void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 		EventText = FString(CategoryMap[CategoryIndex]) + TEXT("/") + EventText;
 	}
 	CsvProfilerProvider.AddEvent(FrameNumber, Session.StoreString(*EventText));
-}
-
-uint32 FCsvProfilerAnalyzer::GetFrameNumberForTimestamp(ETraceFrameType FrameType, double Timestamp) const
-{
-	const TArray64<double>& FrameStartTimes = FrameProvider.GetFrameStartTimes(FrameType);
-
-	if (FrameStartTimes.Num() == 0 || Timestamp < FrameStartTimes[0])
-	{
-		return 0;
-	}
-	else if (Timestamp >= FrameStartTimes.Last())
-	{
-		return FrameStartTimes.Num();
-	}
-	else
-	{
-		uint32 Index = static_cast<uint32>(Algo::LowerBound(FrameStartTimes, Timestamp));
-		return Index + 1;
-	}
 }
 
 void FCsvProfilerAnalyzer::Flush(FStatSeriesInstance& StatSeries)

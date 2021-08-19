@@ -74,6 +74,7 @@ void FNetTrace::SetTraceVerbosity(uint32 Verbosity)
 	if (!GetTraceVerbosity() && NewVerbosity)
 	{
 		UE::Trace::ToggleChannel(TEXT("NetChannel"), true);
+		UE::Trace::ToggleChannel(TEXT("FrameChannel"), true);
 
 		FNetTraceInternal::Reporter::ReportInitEvent(FNetTraceInternal::NetTraceVersion);
 	}
@@ -96,6 +97,14 @@ void FNetTrace::TraceEndSession(uint32 GameInstanceId)
 	if (GNetTraceRuntimeVerbosity)
 	{
 		FNetTraceInternal::Reporter::ReportInstanceDestroyed(GameInstanceId);
+	}
+}
+
+void FNetTrace::TraceInstanceUpdated(uint32 GameInstanceId, bool bIsServer, const TCHAR* Name)
+{
+	if (GNetTraceRuntimeVerbosity)
+	{
+		FNetTraceInternal::Reporter::ReportInstanceUpdated(GameInstanceId, bIsServer, Name);
 	}
 }
 
@@ -454,6 +463,22 @@ void FNetTrace::TraceConnectionCreated(uint32 GameInstanceId, uint32 ConnectionI
 	if (GNetTraceRuntimeVerbosity)
 	{
 		FNetTraceInternal::Reporter::ReportConnectionCreated(GameInstanceId, ConnectionId);
+	}
+}
+
+void FNetTrace::TraceConnectionStateUpdated(uint32 GameInstanceId, uint32 ConnectionId, uint8 ConnectionStateValue)
+{
+	if (GNetTraceRuntimeVerbosity)
+	{
+		FNetTraceInternal::Reporter::ReportConnectionStateUpdated(GameInstanceId, ConnectionId, ConnectionStateValue);
+	}
+}
+
+void FNetTrace::TraceConnectionUpdated(uint32 GameInstanceId, uint32 ConnectionId, const TCHAR* AddressString, const TCHAR* OwningActor)
+{
+	if (GNetTraceRuntimeVerbosity)
+	{
+		FNetTraceInternal::Reporter::ReportConnectionUpdated(GameInstanceId, ConnectionId, AddressString, OwningActor);
 	}
 }
 

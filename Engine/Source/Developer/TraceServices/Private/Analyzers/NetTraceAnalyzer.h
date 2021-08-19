@@ -31,9 +31,12 @@ private:
 		RouteId_PacketEvent,
 		RouteId_PacketDroppedEvent,
 		RouteId_ConnectionCreatedEvent,
+		RouteId_ConnectionUpdatedEvent,
 		RouteId_ConnectionClosedEvent,
 		RouteId_ObjectCreatedEvent,
 		RouteId_ObjectDestroyedEvent,
+		RouteId_ConnectionStateUpdatedEvent,
+		RouteId_InstanceUpdatedEvent,
 	};
 
 	// This must be kept in sync with Event types in NetTrace.h
@@ -79,6 +82,8 @@ private:
 		TArray<FNetProfilerContentEvent> BunchEvents[ENetProfilerConnectionMode::Count];
 
 		TArray<FBunchInfo> BunchInfos[ENetProfilerConnectionMode::Count];
+		
+		ENetProfilerConnectionState ConnectionState;
 	};
 
 	struct FNetTraceActiveObjectState
@@ -112,10 +117,14 @@ private:
 	void HandlePacketEvent(const FOnEventContext& Context, const FEventData& EventData);	
 	void HandlePacketContentEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandlePacketDroppedEvent(const FOnEventContext& Context, const FEventData& EventData);
-	void HandleConnectionCretedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleConnectionStateUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleConnectionCreatedEvent(const FOnEventContext& Context, const FEventData& EventData);
+	void HandleConnectionUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandleConnectionClosedEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandleObjectCreatedEvent(const FOnEventContext& Context, const FEventData& EventData);
 	void HandleObjectDestroyedEvent(const FOnEventContext& Context, const FEventData& EventData);
+
+	void HandleGameInstanceUpdatedEvent(const FOnEventContext& Context, const FEventData& EventData);
 
 	void AddEvent(TPagedArray<FNetProfilerContentEvent>& Events, const FNetProfilerContentEvent& Event, uint32 Offset, uint32 LevelOffset);
 	void AddEvent(TPagedArray<FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex, FNetProfilerBunchInfo Info);
