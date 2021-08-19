@@ -7,6 +7,8 @@
 #include "VideoEncoderFactory.h"
 #include "VideoEncoderInputImpl.h"
 
+#include "HAL/Event.h"
+
 namespace AVEncoder
 {
     class FVideoEncoderNVENC_H264 : public FVideoEncoder

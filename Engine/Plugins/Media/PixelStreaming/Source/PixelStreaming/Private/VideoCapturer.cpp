@@ -3,6 +3,7 @@
 #include "VideoCapturer.h"
 #include "Utils.h"
 
+#include "Engine/Engine.h"
 #include "CommonRenderResources.h"
 #include "GlobalShader.h"
 #include "HAL/PlatformTime.h"
@@ -15,9 +16,7 @@
 #include "RHIStaticStates.h"
 #include "ScreenRendering.h"
 
-#if PLATFORM_LINUX
 #include "CudaModule.h"
-#endif
 
 #include "VulkanRHIPrivate.h"
 
