@@ -955,6 +955,11 @@ void UChaosVehicleMovementComponent::SetUseAutomaticGears(bool bUseAuto)
 	TransmissionType = bUseAuto ? Chaos::ETransmissionType::Automatic : Chaos::ETransmissionType::Manual;
 }
 
+void UChaosVehicleMovementComponent::SetRequiresControllerForInputs(bool bRequiresController)
+{
+	bRequiresControllerForInputs = bRequiresController;
+}
+
 // Data access
 
 int32 UChaosVehicleMovementComponent::GetCurrentGear() const
