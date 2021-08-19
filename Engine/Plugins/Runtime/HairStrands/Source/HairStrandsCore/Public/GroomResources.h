@@ -412,6 +412,7 @@ struct FHairStrandsRaytracingResource : public FHairCommonResource
 	FRDGExternalBuffer PositionBuffer;
 	FRayTracingGeometry RayTracingGeometry;
 	uint32 VertexCount = 0;
+	bool bOwnPositionBuffer = false;
 	bool bIsRTGeometryInitialized = false;
 };
 #endif

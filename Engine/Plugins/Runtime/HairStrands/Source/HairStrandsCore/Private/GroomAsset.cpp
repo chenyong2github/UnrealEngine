@@ -2849,7 +2849,6 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateCardsRaytracingResources(ui
 		if (LOD.RaytracingResource == nullptr)
 		{
 			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData);
-			BeginInitResource(LOD.RaytracingResource);
 		}
 		return LOD.RaytracingResource;
 	}
@@ -2867,7 +2866,6 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateMeshesRaytracingResources(u
 		if (LOD.RaytracingResource == nullptr)
 		{
 			LOD.RaytracingResource = new FHairStrandsRaytracingResource(LOD.BulkData);
-			BeginInitResource(LOD.RaytracingResource);
 		}
 		return LOD.RaytracingResource;
 	}
@@ -2884,7 +2882,6 @@ FHairStrandsRaytracingResource* UGroomAsset::AllocateStrandsRaytracingResources(
 		if (GroupData.Strands.RaytracingResource == nullptr)
 		{
 			GroupData.Strands.RaytracingResource = new FHairStrandsRaytracingResource(GroupData.Strands.BulkData);
-			BeginInitResource(GroupData.Strands.RaytracingResource);
 		}
 		return GroupData.Strands.RaytracingResource;
 	}
