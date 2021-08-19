@@ -668,7 +668,11 @@ static int MainDaemon(int ArgC, char** ArgV)
 	}
 
 	// Wait to be told to resign.
-	sem_wait(QuitSem);
+	do
+	{
+		sem_wait(QuitSem);
+	}
+	while (errno == EINTR);
 
 	// Clean up. We are done here.
 	delete StoreService;
