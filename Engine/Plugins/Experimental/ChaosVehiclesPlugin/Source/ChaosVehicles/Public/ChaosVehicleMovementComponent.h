@@ -1000,6 +1000,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
 	void SetUseAutomaticGears(bool bUseAuto);
 
+	/** Set the flag that determines whether a controller is required to set control inputs */
+	UFUNCTION(BlueprintCallable, Category="Game|Components|ChaosVehicleMovement")
+	void SetRequiresControllerForInputs(bool bRequiresController);
+
 	/** Get current gear */
 	UFUNCTION(BlueprintCallable, Category = "Game|Components|ChaosVehicleMovement")
 	int32 GetCurrentGear() const;
