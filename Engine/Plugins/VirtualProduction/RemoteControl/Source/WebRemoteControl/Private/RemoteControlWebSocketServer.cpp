@@ -123,6 +123,7 @@ void FRCWebSocketServer::Stop()
 	if (TickerHandle.IsValid())
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+		TickerHandle.Reset();
 	}
 	Router.Reset();
 	Server.Reset();
