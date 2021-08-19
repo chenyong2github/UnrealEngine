@@ -10,30 +10,19 @@
 #include "Misc/Guid.h"
 #include "Misc/Timespan.h"
 #include "Serialization/Archive.h"
+#include "Serialization/CompactBinaryValue.h"
 #include "Serialization/VarInt.h"
 #include "String/BytesToHex.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace CompactBinaryPrivate
+namespace UE::CompactBinary::Private
 {
 
 static constexpr const uint8 GEmptyObjectValue[] = { uint8(ECbFieldType::Object), 0x00 };
 static constexpr const uint8 GEmptyArrayValue[] = { uint8(ECbFieldType::Array), 0x01, 0x00 };
 
-template <typename T>
-static constexpr FORCEINLINE T ReadUnaligned(const void* const Memory)
-{
-#if PLATFORM_SUPPORTS_UNALIGNED_LOADS
-	return *static_cast<const T*>(Memory);
-#else
-	T Value;
-	FMemory::Memcpy(&Value, Memory, sizeof(Value));
-	return Value;
-#endif
-}
-
-}
+} // UE::CompactBinary::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -82,16 +71,6 @@ FCbObjectId::FCbObjectId(const FMemoryView ObjectId)
 	FMemory::Memcpy(Bytes, ObjectId.GetData(), sizeof(Bytes));
 }
 
-void FCbObjectId::ToString(FAnsiStringBuilderBase& Builder) const
-{
-	UE::String::BytesToHexLower(Bytes, Builder);
-}
-
-void FCbObjectId::ToString(FWideStringBuilderBase& Builder) const
-{
-	UE::String::BytesToHexLower(Bytes, Builder);
-}
-
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbFieldView::FCbFieldView(const void* const Data, ECbFieldType Type)
@@ -137,14 +116,10 @@ FCbArrayView FCbFieldView::AsArrayView()
 
 FMemoryView FCbFieldView::AsBinaryView(const FMemoryView Default)
 {
-	if (FCbFieldType::IsBinary(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsBinary(Accessor.GetType()))
 	{
-		const uint8* const ValueBytes = static_cast<const uint8*>(Value);
-		uint32 ValueSizeByteCount;
-		const uint64 ValueSize = ReadVarUInt(ValueBytes, ValueSizeByteCount);
-
 		Error = ECbFieldError::None;
-		return MakeMemoryView(ValueBytes + ValueSizeByteCount, ValueSize);
+		return Accessor.AsBinary();
 	}
 	else
 	{
@@ -155,20 +130,9 @@ FMemoryView FCbFieldView::AsBinaryView(const FMemoryView Default)
 
 FUtf8StringView FCbFieldView::AsString(const FUtf8StringView Default)
 {
-	if (FCbFieldType::IsString(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsString(Accessor.GetType()))
 	{
-		const UTF8CHAR* const ValueChars = static_cast<const UTF8CHAR*>(Value);
-		uint32 ValueSizeByteCount;
-		const uint64 ValueSize = ReadVarUInt(ValueChars, ValueSizeByteCount);
-
-		if (ValueSize >= (uint64(1) << 31))
-		{
-			Error = ECbFieldError::RangeError;
-			return Default;
-		}
-
-		Error = ECbFieldError::None;
-		return FUtf8StringView(ValueChars + ValueSizeByteCount, int32(ValueSize));
+		return Accessor.AsString(&Error, Default);
 	}
 	else
 	{
@@ -177,23 +141,11 @@ FUtf8StringView FCbFieldView::AsString(const FUtf8StringView Default)
 	}
 }
 
-uint64 FCbFieldView::AsInteger(const uint64 Default, const FIntegerParams Params)
+uint64 FCbFieldView::AsInteger(const uint64 Default, const UE::CompactBinary::Private::FIntegerParams Params)
 {
-	if (FCbFieldType::IsInteger(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsInteger(Accessor.GetType()))
 	{
-		// A shift of a 64-bit value by 64 is undefined so shift by one less because magnitude is never zero.
-		const uint64 OutOfRangeMask = uint64(-2) << (Params.MagnitudeBits - 1);
-		const uint64 IsNegative = uint8(TypeWithFlags) & 1;
-
-		uint32 MagnitudeByteCount;
-		const uint64 Magnitude = ReadVarUInt(Value, MagnitudeByteCount);
-		const uint64 IntValue = Magnitude ^ -int64(IsNegative);
-
-		const uint64 IsInRange = (!(Magnitude & OutOfRangeMask)) & ((!IsNegative) | Params.IsSigned);
-		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
-
-		const uint64 UseValueMask = -int64(IsInRange);
-		return (IntValue & UseValueMask) | (Default & ~UseValueMask);
+		return Accessor.AsInteger(Params, &Error, Default);
 	}
 	else
 	{
@@ -204,16 +156,16 @@ uint64 FCbFieldView::AsInteger(const uint64 Default, const FIntegerParams Params
 
 float FCbFieldView::AsFloat(const float Default)
 {
-	switch (GetType())
+	switch (FCbValue Accessor = GetValue(); Accessor.GetType())
 	{
 	case ECbFieldType::IntegerPositive:
 	case ECbFieldType::IntegerNegative:
 	{
-		const uint64 IsNegative = uint8(TypeWithFlags) & 1;
+		const uint64 IsNegative = uint8(Accessor.GetType()) & 1;
 		constexpr uint64 OutOfRangeMask = ~((uint64(1) << /*FLT_MANT_DIG*/ 24) - 1);
 
 		uint32 MagnitudeByteCount;
-		const int64 Magnitude = ReadVarUInt(Value, MagnitudeByteCount) + IsNegative;
+		const int64 Magnitude = ReadVarUInt(Accessor.GetData(), MagnitudeByteCount) + IsNegative;
 		const uint64 IsInRange = !(Magnitude & OutOfRangeMask);
 		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
 		return IsInRange ? float(IsNegative ? -Magnitude : Magnitude) : Default;
@@ -221,8 +173,7 @@ float FCbFieldView::AsFloat(const float Default)
 	case ECbFieldType::Float32:
 	{
 		Error = ECbFieldError::None;
-		const uint32 FloatValue = NETWORK_ORDER32(CompactBinaryPrivate::ReadUnaligned<uint32>(Value));
-		return reinterpret_cast<const float&>(FloatValue);
+		return Accessor.AsFloat32();
 	}
 	case ECbFieldType::Float64:
 		Error = ECbFieldError::RangeError;
@@ -235,16 +186,16 @@ float FCbFieldView::AsFloat(const float Default)
 
 double FCbFieldView::AsDouble(const double Default)
 {
-	switch (GetType())
+	switch (FCbValue Accessor = GetValue(); Accessor.GetType())
 	{
 	case ECbFieldType::IntegerPositive:
 	case ECbFieldType::IntegerNegative:
 	{
-		const uint64 IsNegative = uint8(TypeWithFlags) & 1;
+		const uint64 IsNegative = uint8(Accessor.GetType()) & 1;
 		constexpr uint64 OutOfRangeMask = ~((uint64(1) << /*DBL_MANT_DIG*/ 53) - 1);
 
 		uint32 MagnitudeByteCount;
-		const int64 Magnitude = ReadVarUInt(Value, MagnitudeByteCount) + IsNegative;
+		const int64 Magnitude = ReadVarUInt(Accessor.GetData(), MagnitudeByteCount) + IsNegative;
 		const uint64 IsInRange = !(Magnitude & OutOfRangeMask);
 		Error = IsInRange ? ECbFieldError::None : ECbFieldError::RangeError;
 		return IsInRange ? double(IsNegative ? -Magnitude : Magnitude) : Default;
@@ -252,14 +203,12 @@ double FCbFieldView::AsDouble(const double Default)
 	case ECbFieldType::Float32:
 	{
 		Error = ECbFieldError::None;
-		const uint32 FloatValue = NETWORK_ORDER32(CompactBinaryPrivate::ReadUnaligned<uint32>(Value));
-		return reinterpret_cast<const float&>(FloatValue);
+		return Accessor.AsFloat32();
 	}
 	case ECbFieldType::Float64:
 	{
 		Error = ECbFieldError::None;
-		const uint64 FloatValue = NETWORK_ORDER64(CompactBinaryPrivate::ReadUnaligned<uint64>(Value));
-		return reinterpret_cast<const double&>(FloatValue);
+		return Accessor.AsFloat64();
 	}
 	default:
 		Error = ECbFieldError::TypeError;
@@ -269,18 +218,18 @@ double FCbFieldView::AsDouble(const double Default)
 
 bool FCbFieldView::AsBool(const bool bDefault)
 {
-	const ECbFieldType LocalTypeWithFlags = TypeWithFlags;
-	const bool bIsBool = FCbFieldType::IsBool(LocalTypeWithFlags);
+	FCbValue Accessor = GetValue();
+	const bool bIsBool = FCbFieldType::IsBool(Accessor.GetType());
 	Error = bIsBool ? ECbFieldError::None : ECbFieldError::TypeError;
-	return (uint8(bIsBool) & uint8(LocalTypeWithFlags) & 1) | ((!bIsBool) & bDefault);
+	return (uint8(bIsBool) & Accessor.AsBool()) | ((!bIsBool) & bDefault);
 }
 
 FIoHash FCbFieldView::AsObjectAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsObjectAttachment(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsObjectAttachment(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Value));
+		return Accessor.AsObjectAttachment();
 	}
 	else
 	{
@@ -291,10 +240,10 @@ FIoHash FCbFieldView::AsObjectAttachment(const FIoHash& Default)
 
 FIoHash FCbFieldView::AsBinaryAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsBinaryAttachment(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsBinaryAttachment(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Value));
+		return Accessor.AsBinaryAttachment();
 	}
 	else
 	{
@@ -305,10 +254,10 @@ FIoHash FCbFieldView::AsBinaryAttachment(const FIoHash& Default)
 
 FIoHash FCbFieldView::AsAttachment(const FIoHash& Default)
 {
-	if (FCbFieldType::IsAttachment(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsAttachment(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Value));
+		return Accessor.AsAttachment();
 	}
 	else
 	{
@@ -319,10 +268,10 @@ FIoHash FCbFieldView::AsAttachment(const FIoHash& Default)
 
 FIoHash FCbFieldView::AsHash(const FIoHash& Default)
 {
-	if (FCbFieldType::IsHash(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsHash(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return FIoHash(*static_cast<const FIoHash::ByteArray*>(Value));
+		return Accessor.AsHash();
 	}
 	else
 	{
@@ -338,16 +287,10 @@ FGuid FCbFieldView::AsUuid()
 
 FGuid FCbFieldView::AsUuid(const FGuid& Default)
 {
-	if (FCbFieldType::IsUuid(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsUuid(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		FGuid UuidValue;
-		FMemory::Memcpy(&UuidValue, Value, sizeof(FGuid));
-		UuidValue.A = NETWORK_ORDER32(UuidValue.A);
-		UuidValue.B = NETWORK_ORDER32(UuidValue.B);
-		UuidValue.C = NETWORK_ORDER32(UuidValue.C);
-		UuidValue.D = NETWORK_ORDER32(UuidValue.D);
-		return UuidValue;
+		return Accessor.AsUuid();
 	}
 	else
 	{
@@ -358,10 +301,10 @@ FGuid FCbFieldView::AsUuid(const FGuid& Default)
 
 int64 FCbFieldView::AsDateTimeTicks(const int64 Default)
 {
-	if (FCbFieldType::IsDateTime(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsDateTime(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return NETWORK_ORDER64(CompactBinaryPrivate::ReadUnaligned<int64>(Value));
+		return Accessor.AsDateTimeTicks();
 	}
 	else
 	{
@@ -382,10 +325,10 @@ FDateTime FCbFieldView::AsDateTime(FDateTime Default)
 
 int64 FCbFieldView::AsTimeSpanTicks(const int64 Default)
 {
-	if (FCbFieldType::IsTimeSpan(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsTimeSpan(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return NETWORK_ORDER64(CompactBinaryPrivate::ReadUnaligned<int64>(Value));
+		return Accessor.AsTimeSpanTicks();
 	}
 	else
 	{
@@ -407,10 +350,10 @@ FTimespan FCbFieldView::AsTimeSpan(FTimespan Default)
 FCbObjectId FCbFieldView::AsObjectId(const FCbObjectId& Default)
 {
 	static_assert(sizeof(FCbObjectId) == 12, "FCbObjectId is expected to be 12 bytes.");
-	if (FCbFieldType::IsObjectId(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsObjectId(Accessor.GetType()))
 	{
 		Error = ECbFieldError::None;
-		return FCbObjectId(MakeMemoryView(Value, sizeof(FCbObjectId)));
+		return Accessor.AsObjectId();
 	}
 	else
 	{
@@ -421,19 +364,10 @@ FCbObjectId FCbFieldView::AsObjectId(const FCbObjectId& Default)
 
 FCbCustomById FCbFieldView::AsCustomById(FCbCustomById Default)
 {
-	if (FCbFieldType::IsCustomById(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsCustomById(Accessor.GetType()))
 	{
-		const uint8* ValueBytes = static_cast<const uint8*>(Value);
-		uint32 ValueSizeByteCount;
-		const uint64 ValueSize = ReadVarUInt(ValueBytes, ValueSizeByteCount);
-		ValueBytes += ValueSizeByteCount;
-
-		FCbCustomById CustomValue;
-		uint32 TypeIdByteCount;
-		CustomValue.Id = ReadVarUInt(ValueBytes, TypeIdByteCount);
-		CustomValue.Data = MakeMemoryView(ValueBytes + TypeIdByteCount, ValueSize - TypeIdByteCount);
 		Error = ECbFieldError::None;
-		return CustomValue;
+		return Accessor.AsCustomById();
 	}
 	else
 	{
@@ -444,24 +378,10 @@ FCbCustomById FCbFieldView::AsCustomById(FCbCustomById Default)
 
 FCbCustomByName FCbFieldView::AsCustomByName(FCbCustomByName Default)
 {
-	if (FCbFieldType::IsCustomByName(TypeWithFlags))
+	if (FCbValue Accessor = GetValue(); FCbFieldType::IsCustomByName(Accessor.GetType()))
 	{
-		const uint8* ValueBytes = static_cast<const uint8*>(Value);
-		uint32 ValueSizeByteCount;
-		const uint64 ValueSize = ReadVarUInt(ValueBytes, ValueSizeByteCount);
-		ValueBytes += ValueSizeByteCount;
-
-		uint32 TypeNameLenByteCount;
-		const uint64 TypeNameLen = ReadVarUInt(ValueBytes, TypeNameLenByteCount);
-		ValueBytes += TypeNameLenByteCount;
-
-		FCbCustomByName CustomValue;
-		CustomValue.Name = FUtf8StringView(
-			reinterpret_cast<const UTF8CHAR*>(ValueBytes),
-			static_cast<FUtf8StringView::SizeType>(TypeNameLen));
-		CustomValue.Data = MakeMemoryView(ValueBytes + TypeNameLen, ValueSize - TypeNameLen - TypeNameLenByteCount);
 		Error = ECbFieldError::None;
-		return CustomValue;
+		return Accessor.AsCustomByName();
 	}
 	else
 	{
@@ -658,7 +578,7 @@ FCbFieldViewIterator FCbFieldView::CreateViewIterator() const
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbArrayView::FCbArrayView()
-	: FCbFieldView(CompactBinaryPrivate::GEmptyArrayValue)
+	: FCbFieldView(UE::CompactBinary::Private::GEmptyArrayValue)
 {
 }
 
@@ -717,7 +637,7 @@ void FCbArrayView::CopyTo(FArchive& Ar) const
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 FCbObjectView::FCbObjectView()
-	: FCbFieldView(CompactBinaryPrivate::GEmptyObjectValue)
+	: FCbFieldView(UE::CompactBinary::Private::GEmptyObjectValue)
 {
 }
 
@@ -747,7 +667,7 @@ FCbFieldView FCbObjectView::FindViewIgnoreCase(const FUtf8StringView Name) const
 
 FCbObjectView::operator bool() const
 {
-	return GetSize() > sizeof(CompactBinaryPrivate::GEmptyObjectValue);
+	return GetSize() > sizeof(UE::CompactBinary::Private::GEmptyObjectValue);
 }
 
 uint64 FCbObjectView::GetSize() const
