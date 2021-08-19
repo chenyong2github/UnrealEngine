@@ -1588,9 +1588,9 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		.SetOverlapWidth(-2.0f) // Negative Overlap Width to add space between tabs
 
 		.SetNormalForegroundColor(FStyleColors::Foreground)
-		.SetActiveForegroundColor(FStyleColors::White)
-		.SetForegroundForegroundColor(FStyleColors::White)
-		.SetHoveredForegroundColor(FStyleColors::White)
+		.SetActiveForegroundColor(FStyleColors::ForegroundHover)
+		.SetForegroundForegroundColor(FStyleColors::Foreground)
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetTabTextStyle(NormalText);
 
 
