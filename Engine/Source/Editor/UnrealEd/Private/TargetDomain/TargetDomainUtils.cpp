@@ -251,8 +251,8 @@ bool IsIterativeEnabled(FName PackageName)
 		UE::EditorDomain::FClassDigestData* ExistingData = ClassDigests.Map.Find(ClassName);
 		if (!ExistingData)
 		{
-			// All whitelisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,
-			// it is not whitelisted
+			// All allowlisted classes are added to ClassDigests at startup, so if the class is not in ClassDigests,
+			// it is not allowlisted
 			return false;
 		}
 		if (!ExistingData->bTargetIterativeEnabled)

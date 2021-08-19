@@ -40,9 +40,9 @@ struct FClassDigestData
 {
 	FBlake3Hash SchemaHash;
 	bool bNative = false;
-	/** EditorDomainEnabled whitelists everything and uses only a blacklist, so defaults to true. */
+	/** EditorDomainEnabled allows everything and uses only a blocklist, so defaults to true. */
 	bool bEditorDomainEnabled = true;
-	/** bTargetIterativeEnabled uses a whitelist (with a blacklist override), so defaults to false. */
+	/** bTargetIterativeEnabled uses an allowlist (with a blocklist override), so defaults to false. */
 	bool bTargetIterativeEnabled = false;
 };
 
