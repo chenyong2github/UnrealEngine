@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "FindPolygonsAlgorithm.h"
+#include "Polygroups/PolygroupsGenerator.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "Util/IndexUtil.h"
@@ -15,14 +15,14 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-FFindPolygonsAlgorithm::FFindPolygonsAlgorithm(FDynamicMesh3* MeshIn)
+FPolygroupsGenerator::FPolygroupsGenerator(FDynamicMesh3* MeshIn)
 {
 	Mesh = MeshIn;
 }
 
 
 
-bool FFindPolygonsAlgorithm::FindPolygonsFromUVIslands()
+bool FPolygroupsGenerator::FindPolygroupsFromUVIslands()
 {
 	const FDynamicMeshUVOverlay* UV = Mesh->Attributes()->GetUVLayer(0);
 
@@ -35,18 +35,24 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromUVIslands()
 	int32 NumComponents = Components.Num();
 	for (int32 ci = 0; ci < NumComponents; ++ci)
 	{
-		FoundPolygons.Add(Components.GetComponent(ci).Indices);
+		FoundPolygroups.Add(Components.GetComponent(ci).Indices);
 	}
 
-	PostProcessPolygons(false);
-	SetGroupsFromPolygons();
+	if (bApplyPostProcessing)
+	{
+		PostProcessPolygroups(false);
+	}
+	if (bCopyToMesh)
+	{
+		CopyPolygroupsToMesh();
+	}
 
-	return (FoundPolygons.Num() > 0);
+	return (FoundPolygroups.Num() > 0);
 }
 
 
 
-bool FFindPolygonsAlgorithm::FindPolygonsFromConnectedTris()
+bool FPolygroupsGenerator::FindPolygroupsFromConnectedTris()
 {
 
 	FMeshConnectedComponents Components(Mesh);
@@ -60,18 +66,24 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromConnectedTris()
 	int32 NumComponents = Components.Num();
 	for (int32 ci = 0; ci < NumComponents; ++ci)
 	{
-		FoundPolygons.Add(Components.GetComponent(ci).Indices);
+		FoundPolygroups.Add(Components.GetComponent(ci).Indices);
 	}
 
-	PostProcessPolygons(false);
-	SetGroupsFromPolygons();
+	if (bApplyPostProcessing)
+	{
+		PostProcessPolygroups(false);
+	}
+	if (bCopyToMesh)
+	{
+		CopyPolygroupsToMesh();
+	}
 
-	return (FoundPolygons.Num() > 0);
+	return (FoundPolygroups.Num() > 0);
 }
 
 
 
-bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
+bool FPolygroupsGenerator::FindPolygroupsFromFaceNormals(double DotTolerance)
 {
 	DotTolerance = 1.0 - DotTolerance;
 
@@ -92,8 +104,8 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 			continue;
 		}
 
-		TArray<int> Polygon;
-		Polygon.Add(TriID);
+		TArray<int> Polygroup;
+		Polygroup.Add(TriID);
 		DoneTriangle[TriID] = true;
 
 		Stack.SetNum(0);
@@ -110,7 +122,7 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 					double Dot = Normals[CurTri].Dot(Normals[NbrTris[j]]);
 					if (Dot > DotTolerance)
 					{
-						Polygon.Add(NbrTris[j]);
+						Polygroup.Add(NbrTris[j]);
 						Stack.Add(NbrTris[j]);
 						DoneTriangle[NbrTris[j]] = true;
 					}
@@ -118,13 +130,19 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFaceNormals(double DotTolerance)
 			}
 		}
 
-		FoundPolygons.Add(Polygon);
+		FoundPolygroups.Add(Polygroup);
 	}
 
-	PostProcessPolygons(true);
-	SetGroupsFromPolygons();
+	if (bApplyPostProcessing)
+	{
+		PostProcessPolygroups(true);
+	}
+	if (bCopyToMesh)
+	{
+		CopyPolygroupsToMesh();
+	}
 
-	return (FoundPolygons.Num() > 0);
+	return (FoundPolygroups.Num() > 0);
 }
 
 
@@ -189,7 +207,7 @@ public:
 
 
 
-bool FFindPolygonsAlgorithm::FindPolygonsFromFurthestPointSampling(int32 NumPoints, EWeightingType WeightingType, FVector3d WeightingCoeffs)
+bool FPolygroupsGenerator::FindPolygroupsFromFurthestPointSampling(int32 NumPoints, EWeightingType WeightingType, FVector3d WeightingCoeffs)
 {
 	NumPoints = FMath::Min(NumPoints, Mesh->VertexCount());
 
@@ -294,7 +312,7 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFurthestPointSampling(int32 NumPoin
 	{
 		if (TriSets[k].Num() > 0)
 		{
-			FoundPolygons.Add(MoveTemp(TriSets[k]));
+			FoundPolygroups.Add(MoveTemp(TriSets[k]));
 		}
 	}
 	
@@ -304,37 +322,43 @@ bool FFindPolygonsAlgorithm::FindPolygonsFromFurthestPointSampling(int32 NumPoin
 		FailedComponents.FindConnectedTriangles(FailedSet);
 		for (FMeshConnectedComponents::FComponent& Component : FailedComponents)
 		{
-			FoundPolygons.Add(Component.Indices);
+			FoundPolygroups.Add(Component.Indices);
 		}
 	}
 
-	PostProcessPolygons(true);
-	SetGroupsFromPolygons();
+	if (bApplyPostProcessing)
+	{
+		PostProcessPolygroups(true);
+	}
+	if (bCopyToMesh)
+	{
+		CopyPolygroupsToMesh();
+	}
 
-	return (FoundPolygons.Num() > 0);
+	return (FoundPolygroups.Num() > 0);
 }
 
 
 
 
-void FFindPolygonsAlgorithm::PostProcessPolygons(bool bApplyMerging)
+void FPolygroupsGenerator::PostProcessPolygroups(bool bApplyMerging)
 {
 	if (bApplyMerging && MinGroupSize > 1)
 	{
-		OptimizePolygons();
+		OptimizePolygroups();
 	}
 }
 
 
-void FFindPolygonsAlgorithm::OptimizePolygons()
+void FPolygroupsGenerator::OptimizePolygroups()
 {
 	FMeshRegionGraph RegionGraph;
-	RegionGraph.BuildFromTriangleSets(*Mesh, FoundPolygons, [&](int32 SetIdx) { return SetIdx; });
+	RegionGraph.BuildFromTriangleSets(*Mesh, FoundPolygroups, [&](int32 SetIdx) { return SetIdx; });
 	bool bMerged = RegionGraph.MergeSmallRegions(MinGroupSize-1, [&](int32 A, int32 B) { return RegionGraph.GetRegionTriCount(A) > RegionGraph.GetRegionTriCount(B); });
 	bool bSwapped = RegionGraph.OptimizeBorders();
 	if (bMerged || bSwapped)
 	{
-		FoundPolygons.Reset();
+		FoundPolygroups.Reset();
 
 		int32 N = RegionGraph.MaxRegionIndex();
 		for (int32 k = 0; k < N; ++k)
@@ -342,7 +366,7 @@ void FFindPolygonsAlgorithm::OptimizePolygons()
 			if (RegionGraph.IsRegion(k))
 			{
 				const TArray<int32>& Tris = RegionGraph.GetRegionTris(k);
-				FoundPolygons.Add(Tris);
+				FoundPolygroups.Add(Tris);
 			}
 		}
 	}
@@ -351,40 +375,22 @@ void FFindPolygonsAlgorithm::OptimizePolygons()
 
 
 
-void FFindPolygonsAlgorithm::SetGroupsFromPolygons()
+void FPolygroupsGenerator::CopyPolygroupsToMesh()
 {
 	Mesh->EnableTriangleGroups(0);
 
-	// set groups from polygons
-	int NumPolygons = FoundPolygons.Num();
-	PolygonTags.SetNum(NumPolygons);
-	PolygonNormals.SetNum(NumPolygons);
+	// set groups from Polygroups
+	int NumPolygroups = FoundPolygroups.Num();
+
 	// can be parallel for
-	for (int PolyIdx = 0; PolyIdx < NumPolygons; PolyIdx++)
+	for (int PolyIdx = 0; PolyIdx < NumPolygroups; PolyIdx++)
 	{
-		const TArray<int>& Polygon = FoundPolygons[PolyIdx];
-		FVector3d AccumNormal(0, 0, 0);
-		int NumTriangles = Polygon.Num();
+		const TArray<int>& Polygroup = FoundPolygroups[PolyIdx];
+		int NumTriangles = Polygroup.Num();
 		for (int k = 0; k < NumTriangles; ++k)
 		{
-			Mesh->SetTriangleGroup(Polygon[k], (PolyIdx + 1));
-			AccumNormal += Mesh->GetTriArea(k) * Mesh->GetTriNormal(Polygon[k]);
+			Mesh->SetTriangleGroup(Polygroup[k], (PolyIdx + 1));
 		}
-		PolygonTags[PolyIdx] = (PolyIdx + 1);
-
-		// find a normal if the average failed
-		UE::Geometry::Normalize(AccumNormal);
-		int SubIdx = 0;
-		while (AccumNormal.Length() < 0.9 && SubIdx < NumTriangles)
-		{
-			AccumNormal = Mesh->GetTriNormal(Polygon[SubIdx++]);
-		}
-		if (AccumNormal.Length() < 0.9)
-		{
-			AccumNormal = FVector3d::UnitY();
-		}
-
-		PolygonNormals[PolyIdx] = AccumNormal;
 	}
 }
 
@@ -392,14 +398,16 @@ void FFindPolygonsAlgorithm::SetGroupsFromPolygons()
 
 
 
-bool FFindPolygonsAlgorithm::FindPolygonEdges()
+bool FPolygroupsGenerator::FindPolygroupEdges()
 {
+	PolygroupEdges.Reset();
+
 	for (int eid : Mesh->EdgeIndicesItr())
 	{
 		if (Mesh->IsGroupBoundaryEdge(eid))
 		{
-			PolygonEdges.Add(eid);
+			PolygroupEdges.Add(eid);
 		}
 	}
-	return (PolygonEdges.Num() > 0);
+	return (PolygroupEdges.Num() > 0);
 }

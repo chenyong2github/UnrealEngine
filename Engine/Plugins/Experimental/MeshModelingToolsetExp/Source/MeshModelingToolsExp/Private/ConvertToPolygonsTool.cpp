@@ -19,7 +19,7 @@
 #include "Polygroups/PolygroupUtil.h"
 #include "Util/ColorConstants.h"
 
-#include "FindPolygonsAlgorithm.h"
+#include "Polygroups/PolygroupsGenerator.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -42,10 +42,15 @@ public:
 	EConvertToPolygonsMode ConversionMode = EConvertToPolygonsMode::FaceNormalDeviation;
 	double AngleTolerance = 0.1f;
 	int32 NumPoints = 10;
-	FFindPolygonsAlgorithm::EWeightingType WeightingType = FFindPolygonsAlgorithm::EWeightingType::None;
+	FPolygroupsGenerator::EWeightingType WeightingType = FPolygroupsGenerator::EWeightingType::None;
 	FVector3d WeightingCoeffs = FVector3d::One();
 	int32 MinGroupSize = 2;
 	bool bCalculateNormals = false;
+
+	// input mesh
+	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	// result
+	FPolygroupsGenerator Generator;
 
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
@@ -62,37 +67,37 @@ public:
 			return;
 		}
 
-		Polygons = FFindPolygonsAlgorithm(ResultMesh.Get());
-		Polygons.MinGroupSize = MinGroupSize;
+		Generator = FPolygroupsGenerator(ResultMesh.Get());
+		Generator.MinGroupSize = MinGroupSize;
 
 		switch (ConversionMode)
 		{
 		case EConvertToPolygonsMode::FromUVIslands:
 		{
-			Polygons.FindPolygonsFromUVIslands();
+			Generator.FindPolygroupsFromUVIslands();
 			break;
 		}
 		case EConvertToPolygonsMode::FromConnectedTris:
 		{
-			Polygons.FindPolygonsFromConnectedTris();
+			Generator.FindPolygroupsFromConnectedTris();
 			break;
 		}
 		case EConvertToPolygonsMode::FaceNormalDeviation:
 		{
 			double DotTolerance = 1.0 - FMathd::Cos(AngleTolerance * FMathd::DegToRad);
-			Polygons.FindPolygonsFromFaceNormals(DotTolerance);
+			Generator.FindPolygroupsFromFaceNormals(DotTolerance);
 			break;
 		}
 		case EConvertToPolygonsMode::FromFurthestPointSampling:
 		{
-			Polygons.FindPolygonsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs);
+			Generator.FindPolygroupsFromFurthestPointSampling(NumPoints, WeightingType, WeightingCoeffs);
 			break;
 		}
 		default:
 			check(0);
 		}
 
-		Polygons.FindPolygonEdges();
+		Generator.FindPolygroupEdges();
 
 		if (bCalculateNormals && ConversionMode == EConvertToPolygonsMode::FaceNormalDeviation)
 		{
@@ -105,7 +110,7 @@ public:
 			NormalOverlay->ClearElements();
 
 			FDynamicMeshEditor Editor(ResultMesh.Get());
-			for (const TArray<int>& Polygon : Polygons.FoundPolygons)
+			for (const TArray<int>& Polygon : Generator.FoundPolygroups)
 			{
 				FVector3f Normal = (FVector3f)ResultMesh->GetTriNormal(Polygon[0]);
 				Editor.SetTriangleNormals(Polygon, Normal);
@@ -123,9 +128,7 @@ public:
 		ResultTransform = (UE::Geometry::FTransform3d)Transform;
 	}
 
-	
-	FFindPolygonsAlgorithm Polygons;
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+
 };
 
 TUniquePtr<FDynamicMeshOperator> UConvertToPolygonsOperatorFactory::MakeNewOperator()
@@ -195,7 +198,7 @@ void UConvertToPolygonsTool::Setup()
 		PreviewCompute->OnOpCompleted.AddLambda([this](const FDynamicMeshOperator* MeshOp) 
 		{ 
 			const FConvertToPolygonsOp*  ConvertToPolygonsOp = static_cast<const FConvertToPolygonsOp*>(MeshOp);
-			this->PolygonEdges = ConvertToPolygonsOp->Polygons.PolygonEdges;
+			this->PolygonEdges = ConvertToPolygonsOp->Generator.PolygroupEdges;
 			UpdateVisualization();
 		});
 
@@ -229,7 +232,7 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.ConversionMode    = Settings->ConversionMode;
 	ConvertToPolygonsOp.AngleTolerance    = Settings->AngleTolerance;
 	ConvertToPolygonsOp.NumPoints = Settings->NumPoints;
-	ConvertToPolygonsOp.WeightingType = (Settings->bNormalWeighted) ? FFindPolygonsAlgorithm::EWeightingType::NormalDeviation : FFindPolygonsAlgorithm::EWeightingType::None;
+	ConvertToPolygonsOp.WeightingType = (Settings->bNormalWeighted) ? FPolygroupsGenerator::EWeightingType::NormalDeviation : FPolygroupsGenerator::EWeightingType::None;
 	ConvertToPolygonsOp.WeightingCoeffs = FVector3d(Settings->NormalWeighting, 1.0, 1.0);
 	ConvertToPolygonsOp.MinGroupSize = Settings->MinGroupSize;
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
