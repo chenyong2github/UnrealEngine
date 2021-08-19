@@ -31,7 +31,11 @@ enum class EEXRCompressionFormat : uint8
 	/** Good compression quality for grainy images. Lossless.*/
 	PIZ,
 	/** Good compression quality for images with low amounts of noise. Lossless. */
-	ZIP
+	ZIP,
+	/** Lossy DCT-based compression for RGB channels. Alpha and other channels are uncompressed. More efficient than DWAB for partial buffer access on read in 3rd party tools. */
+	DWAA,
+	/** Similar to DWAA but goes in blocks of 256 scanlines instead of 32. More efficient disk space and faster to decode than DWAA. */
+	DWAB
 };
 
 #if WITH_UNREALEXR
@@ -48,6 +52,9 @@ public:
 	/** Compression method used for the resulting EXR files. */
 	EEXRCompressionFormat Compression;
 
+	/** When using a lossy compression format, what is the base-error (CompressionLevel/100000) */
+	int32 CompressionLevel;
+
 	/** A function to invoke on the game thread when the task has completed */
 	TFunction<void(bool)> OnCompleted;
 	
@@ -57,7 +64,7 @@ public:
 	int32 Height;
 
 	/** A set of key/value pairs to write into the exr file as metadata. */
-	TMap<FString, FString> FileMetadata;
+	TMap<FString, FStringFormatArg> FileMetadata;
 
 	/** The image data to write. Supports multiple layers of different bitdepths. */
 	TArray<TUniquePtr<FImagePixelData>> Layers;
@@ -71,6 +78,7 @@ public:
 	FEXRImageWriteTask()
 		: bOverwriteFile(true)
 		, Compression(EEXRCompressionFormat::PIZ)
+		, CompressionLevel(45)
 		, OverscanPercentage(0.0f)
 	{}
 
