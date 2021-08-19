@@ -102,6 +102,7 @@ enum class EMovieSceneServerClientMask : uint8
 ENUM_CLASS_FLAGS(EMovieSceneServerClientMask)
 
 MOVIESCENE_API DECLARE_LOG_CATEGORY_EXTERN(LogMovieScene, Log, All);
+MOVIESCENE_API DECLARE_LOG_CATEGORY_EXTERN(LogMovieSceneECS, Log, All);
 DECLARE_STATS_GROUP(TEXT("Movie Scene Evaluation"), STATGROUP_MovieSceneEval, STATCAT_Advanced);
 
 MOVIESCENE_API FFrameRate GetLegacyConversionFrameRate();

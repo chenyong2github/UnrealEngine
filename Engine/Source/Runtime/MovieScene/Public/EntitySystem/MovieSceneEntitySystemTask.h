@@ -1097,7 +1097,7 @@ struct TEntityTaskBase
 
 	void Run(TaskImpl& TaskImplInstance)
 	{
-		UE_LOG(LogMovieScene, VeryVerbose, TEXT("Running entity task the following components: %s"), *FilteredTask.GetComponents().ToString(EntityManager));
+		UE_LOG(LogMovieSceneECS, VeryVerbose, TEXT("Running entity task the following components: %s"), *FilteredTask.GetComponents().ToString(EntityManager));
 
 		PreTask(&TaskImplInstance);
 
@@ -1211,7 +1211,7 @@ struct TEntityAllocationTaskBase
 
 	void Run(TaskImpl& TaskImplInstance)
 	{
-		UE_LOG(LogMovieScene, VeryVerbose, TEXT("Running entity task the following components: %s"), *ComponentFilter.GetComponents().ToString(EntityManager));
+		UE_LOG(LogMovieSceneECS, VeryVerbose, TEXT("Running entity task the following components: %s"), *ComponentFilter.GetComponents().ToString(EntityManager));
 
 		PreTask(&TaskImplInstance);
 

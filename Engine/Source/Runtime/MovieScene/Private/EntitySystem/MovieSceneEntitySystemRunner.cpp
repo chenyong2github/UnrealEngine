@@ -122,7 +122,7 @@ void FMovieSceneEntitySystemRunner::Update(const FMovieSceneContext& Context, FI
 {
 	if (UpdateQueue.Num() > 0)
 	{
-		UE_LOG(LogMovieScene, Warning, TEXT("Updates are already queued! This will run those updates as well, which might not be what's intended."));
+		UE_LOG(LogMovieSceneECS, Warning, TEXT("Updates are already queued! This will run those updates as well, which might not be what's intended."));
 	}
 
 	// Queue our one update and flush immediately.
@@ -144,7 +144,7 @@ void FMovieSceneEntitySystemRunner::Flush()
 
 	if (!Linker->StartEvaluation(*this))
 	{
-		UE_LOG(LogMovieScene, Error, TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point"));
+		UE_LOG(LogMovieSceneECS, Error, TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point"));
 		return;
 	}
 
