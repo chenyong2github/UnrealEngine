@@ -169,7 +169,7 @@ void FVPUtilitiesEditorModule::InitializeOSCServer()
 	}
 	else
 	{
-		OSCServer.Reset(UOSCManager::CreateOSCServer(ServerAddress, ServerPort, false, true, FString()));
+		OSCServer.Reset(UOSCManager::CreateOSCServer(ServerAddress, ServerPort, false, true, FString(), GetTransientPackage()));
 		
 #if WITH_EDITOR
 		// Allow it to tick in editor, so that messages are parsed.

@@ -5,7 +5,7 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IRemoteControlProtocolModule.h"
 #include "OSCManager.h"
-#include "RemoteControlProtocolOSC.h"
+#include "RemoteControlProtocolOSC.h" 
 #include "UObject/UnrealType.h"
 
 void FRemoteControlOSCServerSettings::InitOSCServer()
@@ -15,7 +15,9 @@ void FRemoteControlOSCServerSettings::InitOSCServer()
 	if (FIPv4Endpoint::Parse(ServerAddress, OSCServerEndpoint))
 	{
 		const FString ServerName = FString::Printf(TEXT("FRemoteControlProtocolOSC_Server_%s"), *ServerAddress);
-		OSCServer = TStrongObjectPtr<UOSCServer>(UOSCManager::CreateOSCServer(OSCServerEndpoint.Address.ToString(), OSCServerEndpoint.Port, true, true, ServerName, nullptr));
+		const bool bMulticastLoopback = OSCServerEndpoint.Address.IsMulticastAddress();
+		constexpr bool bStartListening = true;
+		OSCServer = TStrongObjectPtr<UOSCServer>(UOSCManager::CreateOSCServer(OSCServerEndpoint.Address.ToString(), OSCServerEndpoint.Port, bMulticastLoopback, bStartListening, ServerName, GetTransientPackage()));
 		if (OSCServer.IsValid())
 		{
 #if WITH_EDITOR
