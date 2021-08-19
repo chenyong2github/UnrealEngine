@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Containers/StringView.h"
+#include "IO/IoDispatcher.h"
 
 #if !UE_BUILD_SHIPPING
 
@@ -22,11 +23,11 @@ class FStorageServerFileSystemTOC
 {
 public:
 	~FStorageServerFileSystemTOC();
-	void AddFile(FStringView Path, int32 Index);
+	void AddFile(const FIoChunkId& FileChunkId, FStringView Path);
 	bool FileExists(const FString& Path);
 	bool DirectoryExists(const FString& Path);
-	int32* FindFileIndex(const FString& Path);
-	bool IterateDirectory(const FString& Path, TFunctionRef<bool(int32, const TCHAR*)> Callback);
+	const FIoChunkId* GetFileChunkId(const FString& Path);
+	bool IterateDirectory(const FString& Path, TFunctionRef<bool(const FIoChunkId&, const TCHAR*)> Callback);
 
 private:
 	struct FDirectory
@@ -35,12 +36,18 @@ private:
 		TArray<int32> Files;
 	};
 
+	struct FFile
+	{
+		FIoChunkId FileChunkId;
+		FString FilePath;
+	};
+
 	FDirectory* AddDirectoriesRecursive(const FString& DirectoryPath);
 
 	FDirectory Root;
 	TMap<FString, FDirectory*> Directories;
-	TMap<int32, FString> FileIndexToPathMap;
 	TMap<FString, int32> FilePathToIndexMap;
+	TArray<FFile> Files;
 	FRWLock TocLock;
 };
 
@@ -92,10 +99,10 @@ private:
 
 	bool MakeStorageServerPath(const TCHAR* LocalFilenameOrDirectory, FStringBuilderBase& OutPath) const;
 	bool MakeLocalPath(const TCHAR* ServerFilenameOrDirectory, FStringBuilderBase& OutPath) const;
-	IFileHandle* InternalOpenFile(int32 FileIndex, const TCHAR* LocalFilename);
+	IFileHandle* InternalOpenFile(const FIoChunkId& FileChunkId, const TCHAR* LocalFilename);
 	bool SendGetFileListMessage();
-	FFileStatData SendGetStatDataMessage(int32 FileIndex);
-	int64 SendReadMessage(uint8* Destination, int32 FileIndex, int64 Offset, int64 BytesToRead);
+	FFileStatData SendGetStatDataMessage(const FIoChunkId& FileChunkId);
+	int64 SendReadMessage(uint8* Destination, const FIoChunkId& FileChunkId, int64 Offset, int64 BytesToRead);
 #if WITH_COTF
 	void OnCookOnTheFlyMessage(const UE::Cook::FCookOnTheFlyMessage& Message);
 #endif

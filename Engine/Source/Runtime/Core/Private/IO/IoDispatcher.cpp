@@ -19,9 +19,9 @@
 #include "Containers/Ticker.h"
 #include "IO/IoDispatcherBackend.h"
 #include "IO/IoDispatcherFileBackendTypes.h"
+#include "Hash/Blake3.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
-
 
 const FIoChunkId FIoChunkId::InvalidChunkId = FIoChunkId::CreateEmptyId();
 
@@ -1027,3 +1027,32 @@ FIoRequest::UpdatePriority(uint32 NewPriority)
 	Impl->Dispatcher.Reprioritize(Impl);
 }
 
+FIoChunkId CreateExternalFileChunkId(const FStringView Filename)
+{
+	check(Filename.Len() > 0);
+
+	TArray<TCHAR, TInlineAllocator<FName::StringBufferSize>> Buffer;
+	Buffer.SetNum(Filename.Len());
+
+	for (int32 Idx = 0, Len = Filename.Len(); Idx < Len; Idx++)
+	{
+		TCHAR Char = TChar<TCHAR>::ToLower(Filename[Idx]);
+		if (Char == TEXT('\\'))
+		{
+			Char = TEXT('/');
+		}
+
+		Buffer[Idx] = Char;
+	}
+
+	const FBlake3Hash Hash = FBlake3::HashBuffer(FMemoryView(Buffer.GetData(), Buffer.Num() * Buffer.GetTypeSize()));
+
+	uint8 Id[12] = {0};
+	FMemory::Memcpy(Id, Hash.GetBytes(), 11);
+	Id[11] = uint8(EIoChunkType::ExternalFile);
+
+	FIoChunkId ChunkId;
+	ChunkId.Set(Id, sizeof(Id));
+
+	return ChunkId;
+}
