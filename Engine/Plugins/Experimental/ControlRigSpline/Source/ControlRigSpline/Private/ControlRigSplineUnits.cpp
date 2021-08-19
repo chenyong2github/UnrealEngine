@@ -15,6 +15,12 @@ FRigUnit_ControlRigSplineFromPoints_Execute()
 		{
 			// reset the spline
 			Spline = FControlRigSpline();
+
+			if (Points.Num() < 4)
+			{
+				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Cannot create a spline with less than 4 points (%d received)."), Points.Num());
+				return;
+			}
 				
 			const TArrayView<const FVector> PointsView(Points.GetData(), Points.Num());
 			Spline.SetControlPoints(PointsView, SplineMode, SamplesPerSegment, Compression, Stretch);
@@ -641,6 +647,12 @@ FRigUnit_FitSplineCurveToChain_Execute()
 
 	if (Context.State == EControlRigState::Init)
 	{
+		return;
+	}
+
+	if (Items.Num() < 4)
+	{
+		UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Cannot create a spline with less than 4 points (%d received)."), Items.Num());
 		return;
 	}
 
