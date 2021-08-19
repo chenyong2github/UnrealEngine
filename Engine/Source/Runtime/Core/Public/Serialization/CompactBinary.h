@@ -10,6 +10,7 @@
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
 #include "Misc/EnumClassFlags.h"
+#include "String/BytesToHex.h"
 #include "Templates/IsTriviallyDestructible.h"
 
 /**
@@ -71,6 +72,7 @@ class FCbFieldView;
 class FCbFieldViewIterator;
 class FCbObjectId;
 class FCbObjectView;
+class FCbValue;
 struct FDateTime;
 struct FGuid;
 struct FTimespan;
@@ -479,10 +481,6 @@ public:
 	/** Construct an ObjectId from a view of 12 bytes. */
 	CORE_API explicit FCbObjectId(FMemoryView ObjectId);
 
-	/** Convert the ObjectId to a 24-character hex string. */
-	CORE_API void ToString(FAnsiStringBuilderBase& Builder) const;
-	CORE_API void ToString(FWideStringBuilderBase& Builder) const;
-
 	/** Returns a reference to the raw byte array for the ObjectId. */
 	inline const ByteArray& GetBytes() const { return Bytes; }
 	inline operator const ByteArray&() const { return Bytes; }
@@ -519,10 +517,11 @@ inline uint32 GetTypeHash(const FCbObjectId& Id)
 	return *reinterpret_cast<const uint32*>(&Id);
 }
 
+/** Convert the ObjectId to a 24-character hex string. */
 template <typename CharType>
 inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCbObjectId& Id)
 {
-	Id.ToString(Builder);
+	UE::String::BytesToHexLower(Id.GetBytes(), Builder);
 	return Builder;
 }
 
@@ -545,6 +544,32 @@ struct FCbCustomByName
 	/** A view of the value. Lifetime is tied to the field that the value is associated with. */
 	FMemoryView Data;
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace UE::CompactBinary::Private
+{
+
+/** Parameters for converting to an integer. */
+struct FIntegerParams
+{
+	/** Whether the output type has a sign bit. */
+	uint32 IsSigned : 1;
+	/** Bits of magnitude. (7 for int8) */
+	uint32 MagnitudeBits : 31;
+};
+
+/** Make integer params for the given integer type. */
+template <typename IntType>
+static constexpr inline FIntegerParams MakeIntegerParams()
+{
+	FIntegerParams Params;
+	Params.IsSigned = IntType(-1) < IntType(0);
+	Params.MagnitudeBits = 8 * sizeof(IntType) - Params.IsSigned;
+	return Params;
+}
+
+} // UE::CompactBinary::Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -582,11 +607,17 @@ public:
 	 */
 	CORE_API explicit FCbFieldView(const void* Data, ECbFieldType Type = ECbFieldType::HasFieldType);
 
+	/** Construct a field from a value, without access to the name. */
+	inline explicit FCbFieldView(const FCbValue& Value);
+
 	/** Returns the name of the field if it has a name, otherwise an empty view. */
 	constexpr inline FUtf8StringView GetName() const
 	{
 		return FUtf8StringView(static_cast<const UTF8CHAR*>(Value) - NameLen, NameLen);
 	}
+
+	/** Returns the value for unchecked access. Prefer the typed accessors below. */
+	inline FCbValue GetValue() const;
 
 	/** Access the field as an object. Defaults to an empty object on error. */
 	CORE_API FCbObjectView AsObjectView();
@@ -806,25 +837,6 @@ protected:
 	}
 
 private:
-	/** Parameters for converting to an integer. */
-	struct FIntegerParams
-	{
-		/** Whether the output type has a sign bit. */
-		uint32 IsSigned : 1;
-		/** Bits of magnitude. (7 for int8) */
-		uint32 MagnitudeBits : 31;
-	};
-
-	/** Make integer params for the given integer type. */
-	template <typename IntType>
-	static constexpr inline FIntegerParams MakeIntegerParams()
-	{
-		FIntegerParams Params;
-		Params.IsSigned = IntType(-1) < IntType(0);
-		Params.MagnitudeBits = 8 * sizeof(IntType) - Params.IsSigned;
-		return Params;
-	}
-
 	/**
 	 * Access the field as the given integer type.
 	 *
@@ -833,10 +845,10 @@ private:
 	template <typename IntType>
 	inline IntType AsInteger(IntType Default)
 	{
-		return IntType(AsInteger(uint64(Default), MakeIntegerParams<IntType>()));
+		return IntType(AsInteger(uint64(Default), UE::CompactBinary::Private::MakeIntegerParams<IntType>()));
 	}
 
-	CORE_API uint64 AsInteger(uint64 Default, FIntegerParams Params);
+	CORE_API uint64 AsInteger(uint64 Default, UE::CompactBinary::Private::FIntegerParams Params);
 
 private:
 	/** The field type, with the transient HasFieldType flag if the field contains its type. */
