@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "HordeAgent": {
+      "commandName": "Project",
+      "commandLineArgs": "service run",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
