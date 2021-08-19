@@ -61,10 +61,19 @@ namespace HordeServer.Services
 		/// <summary>
 		/// Gets the definition of a stream
 		/// </summary>
-		/// <param name="ClusterName"></param>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
 		/// <param name="StreamName">The stream name</param>
 		/// <returns></returns>
 		public Task<IStreamView> GetStreamViewAsync(string ClusterName, string StreamName);
+
+		/// <summary>
+		/// Gets the state of all files in a stream
+		/// </summary>
+		/// <param name="ClusterName">Name of the Perforce cluster</param>
+		/// <param name="StreamName">The stream name</param>
+		/// <param name="Change">The changelist to query</param>
+		/// <returns></returns>
+		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change);
 
 		/// <summary>
 		/// Create a new changelist by submitting the given file
@@ -117,9 +126,10 @@ namespace HordeServer.Services
 		/// Gets the latest change for a particular stream
 		/// </summary>
 		/// <param name="ClusterName">Name of the Perforce cluster</param>
+		/// <param name="StreamName">The stream to query</param>
 		/// <param name="ChangeNumber">Change numbers to query</param>
 		/// <returns>Commit details</returns>
-		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber);
+		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber);
 
 		/// <summary>
 		/// Gets the latest change for a particular stream

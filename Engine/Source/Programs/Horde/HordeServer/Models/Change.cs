@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeServer.Api;
 using HordeServer.Utilities;
 using MongoDB.Bson;
@@ -75,6 +76,61 @@ namespace HordeServer.Models
 	}
 
 	/// <summary>
+	/// Modified file in a changelist
+	/// </summary>
+	public class ChangeFile
+	{
+		/// <summary>
+		/// Path to the file
+		/// </summary>
+		public string Path { get; set; }
+
+		/// <summary>
+		/// Path to the file within the depot
+		/// </summary>
+		public string DepotPath { get; set; }
+
+		/// <summary>
+		/// Revision of the file. A value of -1 indicates that the file was deleted.
+		/// </summary>
+		public int Revision { get; set; }
+
+		/// <summary>
+		/// Length of the file
+		/// </summary>
+		public long Length { get; set; }
+
+		/// <summary>
+		/// MD5 digest of the file
+		/// </summary>
+		public Md5Hash Digest { get; set; }
+
+		/// <summary>
+		/// The file type
+		/// </summary>
+		public string Type { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Path"></param>
+		/// <param name="DepotPath"></param>
+		/// <param name="Revision"></param>
+		/// <param name="Length"></param>
+		/// <param name="Digest"></param>
+		/// <param name="Type"></param>
+		public ChangeFile(string Path, string DepotPath, int Revision, long Length, Md5Hash Digest, string Type)
+		{
+			this.Path = Path;
+			this.DepotPath = DepotPath;
+			this.Revision = Revision;
+			this.Length = Length;
+			this.Digest = Digest;
+			this.Type = Type;
+		}
+	}
+
+	/// <summary>
 	/// Information about a commit
 	/// </summary>
 	[DebuggerDisplay("{Number}: {Description}")]
@@ -126,7 +182,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// List of files that were modified, relative to the stream base
 		/// </summary>
-		public List<string> Files { get; set; }
+		public List<ChangeFile> Files { get; set; }
 
 		/// <summary>
 		/// Date that the change was submitted
@@ -153,7 +209,7 @@ namespace HordeServer.Models
 		/// <param name="Description">Changelist description</param>
 		/// <param name="Files">List of files modified, relative to the stream base</param>
 		/// <param name="Date">Date that the change was submitted</param>
-		public ChangeDetails(int Number, string Author, string Path, string Description, List<string> Files, DateTime Date)
+		public ChangeDetails(int Number, string Author, string Path, string Description, List<ChangeFile> Files, DateTime Date)
 		{
 			this.Number = Number;
 			this.Author = Author;
@@ -172,9 +228,9 @@ namespace HordeServer.Models
 			ChangeContentFlags Scope = 0;
 
 			// Check whether the files are code or content
-			foreach (string File in Files)
+			foreach (ChangeFile File in Files)
 			{
-				if (CodeExtensions.Any(Extension => File.EndsWith(Extension, StringComparison.OrdinalIgnoreCase)))
+				if (CodeExtensions.Any(Extension => File.Path.EndsWith(Extension, StringComparison.OrdinalIgnoreCase)))
 				{
 					Scope |= ChangeContentFlags.ContainsCode;
 				}

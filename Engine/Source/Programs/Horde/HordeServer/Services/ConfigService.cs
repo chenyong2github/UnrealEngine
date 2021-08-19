@@ -428,8 +428,11 @@ namespace HordeServer.Services
 					List<FileSummary> Files = await PerforceService.FindFilesAsync(ConfigPath.Host, new[] { FileName });
 					Change = Files[0].Change;
 
-					ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(ConfigPath.Host, Change);
-					(Author, Description) = (Details.Author, Details.Description);
+					List<ChangeSummary> Changes = await PerforceService.GetChangesAsync(ConfigPath.Host, Change, 1);
+					if (Changes.Count > 0 && Changes[0].Number == Change)
+					{
+						(Author, Description) = (Changes[0].Author, Changes[0].Description);
+					}
 				}
 				catch (Exception Ex2)
 				{

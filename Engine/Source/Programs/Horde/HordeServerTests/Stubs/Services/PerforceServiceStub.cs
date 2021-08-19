@@ -14,6 +14,19 @@ using StreamId = HordeServer.Utilities.StringId<HordeServer.Models.IStream>;
 
 namespace HordeServerTests.Stubs.Services
 {
+	static class PerforceExtensions
+	{
+		public static ChangeFile CreateChangeFile(string Path)
+		{
+			return new ChangeFile(Path, null!, 0, 0, EpicGames.Core.Md5Hash.Zero, null!);
+		}
+
+		public static void Add(this List<ChangeFile> Files, string Path)
+		{
+			Files.Add(CreateChangeFile(Path));
+		}
+	}
+
 	class PerforceServiceStub : IPerforceService
 	{
 		class ChangeComparer : IComparer<int>
@@ -31,7 +44,7 @@ namespace HordeServerTests.Stubs.Services
 				StreamChanges = new SortedDictionary<int, ChangeDetails>(new ChangeComparer());
 				Changes[StreamName] = StreamChanges;
 			}
-			StreamChanges.Add(Number, new ChangeDetails(Number, Author, null!, Description, Files.ToList(), DateTime.Now));
+			StreamChanges.Add(Number, new ChangeDetails(Number, Author, null!, Description, Files.Select(x => PerforceExtensions.CreateChangeFile(x)).ToList(), DateTime.Now));
 		}
 
 		public Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, string StreamName, int? MinChange, int? MaxChange, int NumResults, string? ImpersonateUser)
@@ -90,7 +103,7 @@ namespace HordeServerTests.Stubs.Services
 			{
 				foreach (ChangeDetails Details in StreamChanges.Values)
 				{
-					if (Details.Number <= Change && Details.Files.Any(x => x.EndsWith(".h") || x.EndsWith(".cpp")))
+					if (Details.Number <= Change && Details.Files.Any(x => x.Path.EndsWith(".h") || x.Path.EndsWith(".cpp")))
 					{
 						CodeChange = Details.Number;
 						break;
@@ -103,7 +116,7 @@ namespace HordeServerTests.Stubs.Services
 
 		public Task<int> CreateNewChangeAsync(string ClusterName, string StreamName, string Path)
 		{
-			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, "", null!, "", new List<string> { Path }, DateTime.Now);
+			ChangeDetails NewChange = new ChangeDetails(Changes[StreamName].First().Key + 1, "", null!, "", new List<ChangeFile> { PerforceExtensions.CreateChangeFile(Path) }, DateTime.Now);
 			Changes[StreamName].Add(NewChange.Number, NewChange);
 			return Task.FromResult(NewChange.Number);
 		}
@@ -149,6 +162,16 @@ namespace HordeServerTests.Stubs.Services
 		}
 
 		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change)
+		{
+			throw new NotImplementedException();
+		}
+
+		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber)
 		{
 			throw new NotImplementedException();
 		}
