@@ -43,7 +43,7 @@ public:
 /**
  * Mechanic for selecting elements of a dynamic mesh.
  * 
- * TODO: Not finished. Needs undo/redo, currently only selects connected components or unoccluded edges.
+ * TODO: Currently only able to select unoccluded elements.
  */
 UCLASS()
 class MODELINGCOMPONENTS_API UMeshSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget
@@ -91,6 +91,16 @@ public:
 
 	EMeshSelectionMechanicMode SelectionMode;
 
+	/**
+	 * Function to use for emitting selection change events. If not set, Setup() will attach a version that
+	 * uses EmitObjectChange() on the tool manager to emit a change that operates on this mechanic.
+	 * @param bBroadcastOnSelectionChanged Indicates whether the SetSelection call that asked to issue the
+	 *   transaction was also requested to broadcast the OnSelectionChanged delegate. If so, the transaction
+	 *   should probably do the same on revert/apply.
+	 */ 
+	TUniqueFunction<void(const FDynamicMeshSelection& OldSelection, const FDynamicMeshSelection& NewSelection, 
+		bool bBroadcastOnSelectionChanged)> EmitSelectionChange;
+
 protected:
 
 	bool InMultiSelectMode() const { return bShiftToggle; }
@@ -108,7 +118,7 @@ protected:
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> MeshSpatials;
 	TArray<FTransform> MeshTransforms;
 	FDynamicMeshSelection CurrentSelection;
-	int32 CurrentSelectionIndex;
+	int32 CurrentSelectionIndex = IndexConstants::InvalidID;
 	FViewCameraState CameraState;
 
 	FColor LineColor = FColor::Yellow;
@@ -119,9 +129,11 @@ protected:
 
 	float LineThickness = 3;
 	float PointThickness = 6;
-	float DepthBias = 0.3;
+	// TODO: This should probably be lower, but we have to lower the depth bias elsewhere first.
+	float DepthBias = 5;
 
 	FVector3d CurrentSelectionCentroid;
+	int32 CentroidTimestamp = -1;
 	void UpdateCentroid();
 };
 

@@ -6,23 +6,28 @@
 
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "FrameTypes.h"
+#include "GeometryBase.h"
 #include "InteractiveTool.h"
-//#include "InteractiveToolChange.h"
 #include "InteractiveToolBuilder.h"
 #include "TargetInterfaces/UVUnwrapDynamicMesh.h"
+#include "UVToolContextObjects.h"
 
 #include "UVSelectTool.generated.h"
 
+PREDECLARE_GEOMETRY(class FDynamicMeshSelection);
 class APreviewGeometryActor;
+class FToolCommandChange;
 class ULineSetComponent;
 class UMeshSelectionMechanic;
 class UToolTargetManager;
 class UTransformGizmo;
 class UTransformProxy;
 class UUVEditorMode;
+class UUVSelectToolChangeRouter;
 class UUVToolStateObjectStore;
 class UPreviewMesh;
 class UUVEditorToolMeshInput;
+class UUVToolEmitChangeAPI;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVSelectToolBuilder : public UInteractiveToolBuilder
@@ -93,6 +98,10 @@ public:
 		Targets = TargetsIn;
 	}
 
+	// Used by undo/redo changes to update the tool state
+	void SetSelection(const UE::Geometry::FDynamicMeshSelection& NewSelection, bool bBroadcastOnSelectionChanged);
+	void SetGizmoTransform(const FTransform& NewTransform);
+
 	// UInteractiveTool
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -129,18 +138,25 @@ protected:
 	TObjectPtr<UMeshSelectionMechanic> SelectionMechanic = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 
 	TArray<TSharedPtr<FDynamicMeshAABBTree3>> AABBTrees;
 
 	UPROPERTY()
-	APreviewGeometryActor* LivePreviewGeometryActor = nullptr;
+	TObjectPtr<APreviewGeometryActor> LivePreviewGeometryActor = nullptr;
 
 	UPROPERTY()
-	ULineSetComponent* LivePreviewLineSet = nullptr;
+	TObjectPtr<ULineSetComponent> LivePreviewLineSet = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UUVToolEmitChangeAPI> EmitChangeAPI = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UUVSelectToolChangeRouter> ChangeRouter = nullptr;
 
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	FTransform UnappliedGizmoTransform;
+	bool bInDrag = false;
 	bool bGizmoTransformNeedsApplication = false;
 
 	TArray<int32> MovingVids;
@@ -153,27 +169,51 @@ protected:
 	bool bGizmoEnabled = false;
 };
 
-///**
-// * Wraps a FDynamicMeshChange.
-// */
-//class UVEDITORTOOLS_API FUVSelectToolChange : public FToolCommandChange
-//{
-//public:
-//	FUVSelectToolChange(TUniquePtr<FDynamicMeshChange> MeshChangeIn)
-//		: MeshChange(MoveTemp(MeshChangeIn))
-//	{};
-//
-//	virtual void Apply(UObject* Object) override;
-//	virtual void Revert(UObject* Object) override;
-//	//virtual bool HasExpired(UObject* Object) const override
-//	//{
-//	//	return Cast<UGroupEdgeInsertionTool>(Object)->CurrentChangeStamp != ChangeStamp;
-//	//}
-//	virtual FString ToString() const override
-//	{
-//		return TEXT("FUVSelectToolChange");
-//	}
-//
-//protected:
-//	TUniquePtr<FDynamicMeshChange> MeshChange;
-//};
+/**
+ * A helper context object that we can use as the target of undo/redo events to apply them
+ * to the current invocation of the select tool (which may have different gizmo/selection
+ * pointers than those that were around when the change was emitted).
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVSelectToolChangeRouter : public UUVToolContextObject
+{
+	GENERATED_BODY()
+public:
+
+	TWeakObjectPtr<UUVSelectTool> CurrentSelectTool = nullptr;
+};
+
+/**
+ * A helper context object that allows us to inject an undo transaction back in time, which gets
+ * used to deal with the fact that our stored selection may become invalidated by an intervening
+ * tool, and needs to be cleared in an undoable transaction before that tool runs.
+ * 
+ * NOTE: It seems likely (especially after "Transform" is no longer a separate tool from "Select")
+ * that we may just decide not to try to store a selection on tool shutdown. In that case we will
+ * delete this class.
+ */
+UCLASS()
+class UVEDITORTOOLS_API UUVSelectToolSpeculativeChangeAPI : public UUVToolContextObject
+{
+	GENERATED_BODY()
+public:
+
+	/** 
+	 * Emits a tool-independent change that does nothing unless a subsequent InsertIntoLastSpeculativeChange
+	 * call injects a change.
+	 */
+	void EmitSpeculativeChange(UObject* TargetObject, UUVToolEmitChangeAPI* EmitChangeAPI, const FText& TransactionName);
+
+	bool HasSpeculativeChange()
+	{
+		return ContentOfLastSpeculativeChange.IsValid();
+	}
+
+	/**
+	 * Inserts a change into the place marked by the last EmitSpeculativeChange call.
+	 */
+	void InsertIntoLastSpeculativeChange(TUniquePtr<FToolCommandChange> ChangeToInsert);
+
+protected:
+	TSharedPtr<TUniquePtr<FToolCommandChange>> ContentOfLastSpeculativeChange;
+};

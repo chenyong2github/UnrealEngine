@@ -2,12 +2,17 @@
 
 #include "UVEditorLayoutTool.h"
 
+#include "ContextObjectStore.h"
+#include "DynamicMesh/DynamicMesh3.h"
+#include "DynamicMesh/DynamicMeshChangeTracker.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
 #include "ParameterizationOps/UVLayoutOp.h"
 #include "Properties/UVLayoutProperties.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
+#include "UVToolContextObjects.h"
 
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UUVSelectTool"
 
@@ -77,9 +82,26 @@ void UUVEditorLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
+		UUVToolEmitChangeAPI* ChangeAPI = GetToolManager()->GetContextObjectStore()->FindContext<UUVToolEmitChangeAPI>();
+
 		for (TObjectPtr<UUVEditorToolMeshInput> Target : Targets)
 		{
+			// Set things up for undo. 
+			// TODO: It's not entirely clear whether it would be safe to use a FMeshVertexChange instead... It seems like
+			// when bAllowFlips is true, we would end up with changes to the tris of the unwrap. Also, if we stick to saving
+			// all the tris and verts, should we consider using the new dynamic mesh serialization?
+			FDynamicMeshChangeTracker ChangeTracker(Target->UnwrapCanonical.Get());
+			ChangeTracker.BeginChange();
+			
+			for (int32 Tid : Target->UnwrapCanonical->TriangleIndicesItr())
+			{
+				ChangeTracker.SaveTriangle(Tid, true);
+			}
+
+			// TODO: Again, it's not clear whether we need to update the entire triangle topology...
 			Target->UpdateCanonicalFromPreviews();
+
+			ChangeAPI->EmitToolIndependentUnwrapCanonicalChange(Target, ChangeTracker.EndChange(), LOCTEXT("ApplyLayoutTool", "Layout Tool"));
 		}
 	}
 	else

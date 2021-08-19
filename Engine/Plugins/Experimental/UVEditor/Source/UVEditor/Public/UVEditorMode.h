@@ -75,6 +75,8 @@ public:
 	// it to later get (accidentally) more entangled with mode internals. At the same time, we're not
 	// sure whether we want to make the UEdMode one public. So this is the minimal-impact tweak.
 	virtual void ActivateDefaultTool() override;
+	// This is currently not part of the base class at all... Should it be?
+	virtual bool IsDefaultToolActive();
 
 	// We don't actually override MouseEnter, etc, because things get forwarded to the input
 	// router via FEditorModeTools, and we don't have any additional input handling to do at the mode level.

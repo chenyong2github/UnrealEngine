@@ -326,6 +326,12 @@ void FUVEditorToolkit::PostInitAssetEditor()
 	LivePreviewAPI->Initialize(LivePreviewScene->GetWorld(), LivePreviewInputRouter);
 	ContextStore->AddContextObject(LivePreviewAPI);
 
+	// It is debatable where the undo/redo api should get initialized, but this seems like a 
+	// reasonable place since we're setting up other things for the mode for the first time.
+	UUVToolEmitChangeAPI* EmitChangeAPI = NewObject<UUVToolEmitChangeAPI>();
+	EmitChangeAPI->Initialize(EditorModeManager->GetInteractiveToolsContext()->ToolManager);
+	ContextStore->AddContextObject(EmitChangeAPI);
+
 	// Initialize mode state.
 	TArray<TObjectPtr<UObject>> ObjectsToEdit;
 	OwningAssetEditor->GetObjectsToEdit(ObjectsToEdit);
