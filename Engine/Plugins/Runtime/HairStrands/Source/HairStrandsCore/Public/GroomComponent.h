@@ -91,7 +91,7 @@ public:
 
 	/** Update Group Description */
 	void UpdateHairGroupsDesc();
-	void UpdateHairGroupsDescAndInvalidateRenderState();
+	void UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalidate=true);
 
 	/** Update simulated groups */
 	void UpdateSimulatedGroups();
