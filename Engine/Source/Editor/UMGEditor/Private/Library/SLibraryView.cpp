@@ -7,6 +7,7 @@
 #include "UObject/UObjectIterator.h"
 #include "WidgetBlueprint.h"
 #include "Editor.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "SAssetView.h"
