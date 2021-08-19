@@ -419,6 +419,7 @@ bool FGeometryCollectionClusteringUtility::ContainsMultipleRootBones(FGeometryCo
 void FGeometryCollectionClusteringUtility::GetRootBones(const FGeometryCollection* GeometryCollection, TArray<int32>& RootBonesOut)
 {
 	check(GeometryCollection);
+	checkSlow(RootBonesOut.Num() == 0);
 	const TManagedArray<int32>& Parents = GeometryCollection->Parent;
 
 	// never assume the root bone is always index 0 in the particle group
@@ -426,7 +427,7 @@ void FGeometryCollectionClusteringUtility::GetRootBones(const FGeometryCollectio
 	{
 		if (Parents[i] == FGeometryCollection::Invalid)
 		{
-			RootBonesOut.AddUnique(i);
+			RootBonesOut.Add(i);
 		}
 	}
 }
