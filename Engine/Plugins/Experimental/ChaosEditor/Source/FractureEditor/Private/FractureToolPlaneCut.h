@@ -19,14 +19,9 @@ public:
 		: Super(ObjInit)
 		, NumberPlanarCuts(1) {}
 
-	/** Number of Clusters - Cluster Voronoi Method */
-	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1"))
+	/** Number of Cutting Planes */
+	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1", EditCondition = "bCanCutWithMultiplePlanes"))
 	int32 NumberPlanarCuts;
-
-	/** Actor to be used for voronoi bounds or plane cutting  */
-	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Reference Actor"))
-	TLazyObjectPtr<AActor> ReferenceActor;
-
 };
 
 
@@ -42,6 +37,7 @@ public:
 	virtual FText GetDisplayText() const override;
 	virtual FText GetTooltipText() const override;
 	virtual FSlateIcon GetToolIcon() const override;
+	virtual void SelectedBonesChanged() override;
 
 	void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI) override;
 
@@ -52,10 +48,16 @@ public:
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
+	virtual void Setup() override;
+	virtual void Shutdown() override;
+
 private:
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFracturePlaneCutSettings> PlaneCutSettings;
+
+	UPROPERTY(EditAnywhere, Category = Uniform)
+	TObjectPtr<UFractureTransformGizmoSettings> GizmoSettings;
 
 	void GenerateSliceTransforms(const FFractureToolContext& Context, TArray<FTransform>& CuttingPlaneTransforms);
 
