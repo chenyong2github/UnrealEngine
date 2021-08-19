@@ -8,7 +8,10 @@ namespace UnrealBuildTool.Rules
 		{
 			bEnableUndefinedIdentifierWarnings = false;
 
-			PublicDefinitions.Add("TINYSPLINE_FLOAT_PRECISION=1");
+			if (Target.bLWCDisabled)
+			{
+				PublicDefinitions.Add("TINYSPLINE_FLOAT_PRECISION=1");
+			}
 			PrivateIncludePaths.Add("ControlRigSpline/ThirdParty/TinySpline");
 
 			PublicDependencyModuleNames.AddRange(

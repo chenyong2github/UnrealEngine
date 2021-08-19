@@ -2155,7 +2155,12 @@ namespace UnrealBuildTool
 		{
 			get { return Inner.bCompileISPC && GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	// LWC_TODO: Temporarily disable ISPC when LWC is turned on. To be removed when double support is added to ISPC.
 		}
-
+		
+		public bool bLWCDisabled 
+		{
+			get { return GlobalDefinitions.Contains("UE_LARGE_WORLD_COORDINATES_DISABLED=1"); }	
+		}
+		
 		public bool bCompilePython
 		{
 			get { return Inner.bCompilePython; }
