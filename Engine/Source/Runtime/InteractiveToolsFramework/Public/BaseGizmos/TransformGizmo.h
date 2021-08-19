@@ -361,6 +361,14 @@ public:
 	virtual void SetVisibility(bool bVisible);
 
 	/**
+	 * @return true if Gizmo is visible
+	 */
+	virtual bool IsVisible()
+	{
+		return !GizmoActor->IsHidden();
+	}
+
+	/**
 	 * If true, then when using world frame, Axis and Plane translation snap to the world grid via the ContextQueriesAPI (in PositionSnapFunction)
 	 */
 	UPROPERTY()
