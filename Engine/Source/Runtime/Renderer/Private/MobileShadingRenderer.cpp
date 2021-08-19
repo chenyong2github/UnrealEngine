@@ -792,6 +792,8 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 
 	FRDGTextureRef ViewFamilyTexture = TryCreateViewFamilyTexture(GraphBuilder, ViewFamily);
+
+	const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
 	
 	if (bIsFullDepthPrepassEnabled)
 	{
@@ -814,6 +816,10 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		if (bRequiresAmbientOcclusionPass)
 		{
 			RenderAmbientOcclusion(GraphBuilder, SceneTextures.Depth.Resolve, SceneTextures.ScreenSpaceAO);
+		}
+		else
+		{
+			SceneTextures.ScreenSpaceAO = SystemTextures.White;
 		}
 	}
 

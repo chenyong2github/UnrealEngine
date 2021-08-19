@@ -18,6 +18,7 @@
 #include "FramePro/FrameProProfiler.h"
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 #include "Engine/SubsurfaceProfile.h"
+#include "SceneTextures.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarMobileDisableVertexFog(
@@ -205,11 +206,8 @@ void SetupMobileBasePassUniformParameters(
 	FRDGTextureRef AmbientOcclusionTexture = SystemTextures.White;
 	if (BasePass == EMobileBasePass::Opaque)
 	{
-		FRDGTextureRef LastFrameScreenSpaceAO = TryRegisterExternalTexture(GraphBuilder, View.PrevViewInfo.MobileAmbientOcclusion); 
-		if (LastFrameScreenSpaceAO)
-		{
-			AmbientOcclusionTexture = LastFrameScreenSpaceAO;
-		}
+		const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
+		AmbientOcclusionTexture = SceneTextures.ScreenSpaceAO;
 	}
 
 	BasePassParameters.AmbientOcclusionTexture = AmbientOcclusionTexture;
