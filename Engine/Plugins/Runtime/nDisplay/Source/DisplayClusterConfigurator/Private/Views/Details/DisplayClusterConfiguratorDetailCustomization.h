@@ -458,6 +458,8 @@ protected:
 private:
 	TSharedPtr<FDisplayClusterConfiguratorNodeSelection> NodeSelection;
 	FDisplayClusterConfiguratorNodeSelection::EOperationMode Mode = FDisplayClusterConfiguratorNodeSelection::EOperationMode::Viewports;
+
+	bool bIsDefaultDetailsDisplay = false;
 };
 
 
