@@ -190,7 +190,7 @@ namespace HordeServer.Commits.Impl
 		/// <returns></returns>
 		async Task AddCommitAsync(IStream Stream, int Number)
 		{
-			ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(Stream.ClusterName, Number);
+			ChangeDetails Details = await PerforceService.GetChangeDetailsAsync(Stream.ClusterName, Stream.Name, Number);
 
 			IUser Author = await UserCollection.FindOrAddUserByLoginAsync(Details.Author);
 			int? OriginalChange = ParseRobomergeSource(Details.Description);

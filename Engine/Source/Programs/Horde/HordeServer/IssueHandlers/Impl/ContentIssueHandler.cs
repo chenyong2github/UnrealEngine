@@ -90,7 +90,7 @@ namespace HordeServer.IssueHandlers.Impl
 			{
 				if (Suspect.ContainsContent)
 				{
-					if (Suspect.Details.Files.Any(x => Fingerprint.Keys.Any(y => x.Contains(y, StringComparison.OrdinalIgnoreCase))))
+					if (Suspect.Details.Files.Any(x => Fingerprint.Keys.Any(y => x.Path.Contains(y, StringComparison.OrdinalIgnoreCase))))
 					{
 						Suspect.Rank += 20;
 					}

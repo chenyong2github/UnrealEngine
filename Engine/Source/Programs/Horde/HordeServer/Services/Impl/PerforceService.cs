@@ -1,26 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using HordeServer.Models;
-using System.Linq;
+using HordeServer.Utilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
-using System.Net;
-using System.Text;
-using System.Threading.Tasks;
-using System.IO;
-
-using P4 = Perforce.P4;
-using Microsoft.Extensions.Options;
-using System.Runtime.InteropServices;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Diagnostics.CodeAnalysis;
-using HordeServer.Utilities;
+using System.Globalization;
+using System.IO;
+using System.Linq;
+using System.Net;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 
 namespace HordeServer.Services
 {
+	using P4 = Perforce.P4;
+
 	static class PerforceExtensions
 	{
 		static FieldInfo Field = typeof(P4.Changelist).GetField("_baseForm", BindingFlags.Instance | BindingFlags.NonPublic)!;
@@ -550,6 +551,81 @@ namespace HordeServer.Services
 			}
 		}
 
+		static int GetSyncRevision(string Path, P4.FileAction HeadAction, int HeadRev)
+		{
+			switch (HeadAction)
+			{
+				case P4.FileAction.None:
+				case P4.FileAction.Add:
+				case P4.FileAction.Branch:
+				case P4.FileAction.MoveAdd:
+				case P4.FileAction.Edit:
+				case P4.FileAction.Integrate:
+					return HeadRev;
+				case P4.FileAction.Delete:
+				case P4.FileAction.MoveDelete:
+					return -1;
+				default:
+					throw new Exception($"Unrecognized P4 file change type '{HeadAction}' for file {Path}#{HeadRev}");
+			}
+		}
+
+		/// <summary>
+		/// Creates a <see cref="ChangeFile"/> from a <see cref="P4.FileMetaData"/>
+		/// </summary>
+		/// <param name="RelativePath"></param>
+		/// <param name="MetaData"></param>
+		/// <returns></returns>
+		static ChangeFile CreateChangeFile(string RelativePath, P4.FileMetaData MetaData)
+		{
+			int Revision = GetSyncRevision(MetaData.DepotPath.Path, MetaData.HeadAction, MetaData.HeadRev);
+			return new ChangeFile(RelativePath, MetaData.DepotPath.Path, Revision, MetaData.FileSize, Md5Hash.Parse(MetaData.Digest ?? String.Empty), MetaData.HeadType.ToString());
+		}
+
+		/// <summary>
+		/// Creates a <see cref="ChangeFile"/> from a <see cref="P4.FileMetaData"/>
+		/// </summary>
+		/// <param name="RelativePath"></param>
+		/// <param name="MetaData"></param>
+		/// <returns></returns>
+		static ChangeFile CreateChangeFile(string RelativePath, P4.ShelvedFile MetaData)
+		{
+			int Revision = GetSyncRevision(MetaData.Path.Path, MetaData.Action, MetaData.Revision);
+			return new ChangeFile(RelativePath, MetaData.Path.Path, Revision, MetaData.Size, Md5Hash.Parse(MetaData.Digest ?? String.Empty), MetaData.Type.ToString());
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<ChangeFile>> GetStreamSnapshotAsync(string ClusterName, string StreamName, int Change)
+		{
+			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
+			using (P4.Repository Repository = await GetConnection(Cluster, Stream: StreamName))
+			{
+				P4.FileSpec FileSpec = new P4.FileSpec(new P4.DepotPath($"//UE5/Main/Engine/Build/..."), new P4.ChangelistIdVersion(Change));
+				Repository.Connection.Client.SyncFiles(new P4.SyncFilesCmdOptions(P4.SyncFilesCmdFlags.ServerOnly | P4.SyncFilesCmdFlags.Quiet), FileSpec);
+
+				string ClientPrefix = $"//{Repository.Connection.Client.Name}/";
+				P4.FileSpec StatSpec = new P4.FileSpec(new P4.ClientPath($"{ClientPrefix}..."));
+
+				IList<P4.FileMetaData> Files = Repository.GetFileMetaData(new P4.GetFileMetaDataCmdOptions(P4.GetFileMetadataCmdFlags.Synced | P4.GetFileMetadataCmdFlags.LocalPath | P4.GetFileMetadataCmdFlags.FileSize, null, null, 0, null, null, null), StatSpec);
+
+				List<ChangeFile> Results = new List<ChangeFile>();
+				foreach (P4.FileMetaData File in Files)
+				{
+					string RelativePath = File.ClientPath.Path;
+					if (RelativePath.StartsWith(ClientPrefix, StringComparison.OrdinalIgnoreCase))
+					{
+						RelativePath = RelativePath.Substring(ClientPrefix.Length);
+					}
+					else
+					{
+						throw new Exception($"Client path does not start with client name: {RelativePath}");
+					}
+					Results.Add(CreateChangeFile(RelativePath, File));
+				}
+				return Results;
+			}
+		}
+
 		/// <inheritdoc/>
 		public async Task<List<ChangeSummary>> GetChangesAsync(string ClusterName, int? MinChange, int MaxResults)
 		{
@@ -610,7 +686,7 @@ namespace HordeServer.Services
 		}
 
 		/// <inheritdoc/>
-		public async Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, int ChangeNumber)
+		public async Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber)
 		{
 			PerforceCluster Cluster = await GetClusterAsync(ClusterName);
 			using (P4.Repository Repository = await GetConnection(Cluster, NoClient: true))
@@ -642,14 +718,18 @@ namespace HordeServer.Services
 
 					P4.TaggedObject TaggedObject = Result.TaggedOutput[0];
 					{
-						List<string> Files = new List<string>();
+						List<ChangeFile> Files = new List<ChangeFile>();
 
 						P4.Changelist Change = new P4.Changelist();
 						Change.FromChangeCmdTaggedOutput(TaggedObject, true, Offset, DSTMismatch);
 
 						foreach (P4.FileMetaData DescribeFile in Change.Files)
 						{
-							Files.Add(DescribeFile.DepotPath.Path);
+							string? RelativePath;
+							if (TryGetStreamRelativePath(DescribeFile.DepotPath.Path, StreamName, out RelativePath))
+							{
+								Files.Add(CreateChangeFile(RelativePath, DescribeFile));
+							}
 						}
 
 						return new ChangeDetails(Change.Id, Change.OwnerName, Change.GetPath(), Change.Description, Files, Change.ModifiedDate);
@@ -697,7 +777,7 @@ namespace HordeServer.Services
 
 					foreach (P4.TaggedObject TaggedObject in Result.TaggedOutput)
 					{
-						List<string> Files = new List<string>();
+						List<ChangeFile> Files = new List<ChangeFile>();
 
 						P4.Changelist Change = new P4.Changelist();
 						Change.FromChangeCmdTaggedOutput(TaggedObject, true, Offset, DSTMismatch);
@@ -707,7 +787,7 @@ namespace HordeServer.Services
 							string? RelativePath;
 							if (TryGetStreamRelativePath(DescribeFile.DepotPath.Path, StreamName, out RelativePath))
 							{
-								Files.Add(RelativePath);
+								Files.Add(CreateChangeFile(RelativePath, DescribeFile));
 							}
 						}
 
@@ -718,7 +798,7 @@ namespace HordeServer.Services
 								string? RelativePath;
 								if (TryGetStreamRelativePath(ShelvedFile.Path.ToString(), StreamName, out RelativePath))
 								{
-									Files.Add(RelativePath);
+									Files.Add(CreateChangeFile(RelativePath, ShelvedFile));
 								}
 							}
 

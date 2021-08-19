@@ -78,12 +78,12 @@ namespace HordeServer.IssueHandlers
 		{
 			this.Details = Details;
 
-			foreach (string Path in Details.Files)
+			foreach (ChangeFile File in Details.Files)
 			{
-				int Idx = Path.LastIndexOf('.');
+				int Idx = File.Path.LastIndexOf('.');
 				if (Idx != -1)
 				{
-					StringView Extension = new StringView(Path, Idx);
+					StringView Extension = new StringView(File.Path, Idx);
 					if (CodeExtensions.Contains(Extension))
 					{
 						ContainsCode = true;
@@ -107,9 +107,9 @@ namespace HordeServer.IssueHandlers
 		/// <returns>True if the change modifies the given file</returns>
 		public bool ModifiesFile(string FileToCheck)
 		{
-			foreach (string File in Details.Files)
+			foreach (ChangeFile File in Details.Files)
 			{
-				if (File.EndsWith(FileToCheck, StringComparison.OrdinalIgnoreCase) && (File.Length == FileToCheck.Length || File[File.Length - FileToCheck.Length - 1] == '/'))
+				if (File.Path.EndsWith(FileToCheck, StringComparison.OrdinalIgnoreCase) && (File.Length == FileToCheck.Length || File.Path[File.Path.Length - FileToCheck.Length - 1] == '/'))
 				{
 					return true;
 				}

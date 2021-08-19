@@ -93,7 +93,7 @@ namespace HordeServer.Api
 			this.Number = ChangeDetails.Number;
 			this.Author = ChangeDetails.Author;
 			this.Description = ChangeDetails.Description;
-			this.Files = ChangeDetails.Files;
+			this.Files = ChangeDetails.Files.ConvertAll(x => x.Path);
 		}
 	}
 }
