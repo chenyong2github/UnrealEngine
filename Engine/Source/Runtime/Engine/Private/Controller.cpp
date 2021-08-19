@@ -23,6 +23,7 @@
 #include "Engine/Canvas.h"
 
 #include "GameFramework/PlayerState.h"
+#include "ObjectTrace.h"
 
 DEFINE_LOG_CATEGORY(LogController);
 DEFINE_LOG_CATEGORY(LogPath);
@@ -334,6 +335,8 @@ void AController::Possess(APawn* InPawn)
 		OnNewPawn.Broadcast(NewPawn);
 		OnPossessedPawnChanged.Broadcast(bNotificationRequired ? nullptr : CurrentPawn, NewPawn);
 	}
+	
+	TRACE_PAWN_POSSESS(this, InPawn); 
 }
 
 void AController::OnPossess(APawn* InPawn)
@@ -386,6 +389,8 @@ void AController::UnPossess()
 		OnNewPawn.Broadcast(NewPawn);
 		OnPossessedPawnChanged.Broadcast(CurrentPawn, NewPawn);
 	}
+	
+	TRACE_PAWN_POSSESS(this, (APawn*)nullptr) 
 }
 
 void AController::OnUnPossess()

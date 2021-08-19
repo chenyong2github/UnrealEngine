@@ -60,6 +60,9 @@ struct FObjectTrace
 
 	/** Helper function to output an object event */
 	ENGINE_API static void OutputObjectEvent(const UObject* InObject, const TCHAR* InEvent);
+	
+	/** Helper function to output controller attach event */
+	ENGINE_API static void OutputPawnPossess(const UObject* InController, const UObject* InPawn);
 
 	/** Helper function to get an object ID from a UObject */
 	ENGINE_API static uint64 GetObjectId(const UObject* InObject);
@@ -107,10 +110,16 @@ struct FObjectTrace
 #define TRACE_OBJECT_EVENT(Object, Event) \
 	if(CAN_TRACE_OBJECT(Object)) { UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event); }
 
+#define TRACE_PAWN_POSSESS(Controller, Pawn)\
+	if(CAN_TRACE_OBJECT(Controller) && (Pawn==nullptr || (CAN_TRACE_OBJECT(Pawn)))) FObjectTrace::OutputPawnPossess(Controller, Pawn);
+
 #else
 
 #define TRACE_OBJECT_EVENT(Object, Event) \
 	UNCONDITIONAL_TRACE_OBJECT_EVENT(Object, Event);
+	
+#define TRACE_PAWN_POSSESS(Controller, Pawn)\
+	FObjectTrace::OutputPawnPossess(Controller, Pawn);
 
 #endif
 	
@@ -120,12 +129,14 @@ struct FObjectTrace
 #define TRACE_WORLD(World) \
 	FObjectTrace::OutputWorld(World);
 
+
 #else
 
 #define TRACE_CLASS(Class)
 #define TRACE_OBJECT(Object)
 #define TRACE_OBJECT_EVENT(Object, Event)
 #define TRACE_WORLD(World)
+#define TRACE_PAWN_POSSESS(Controller, Pawn)
 #define TRACE_VIEW(Player, View)
 
 #endif

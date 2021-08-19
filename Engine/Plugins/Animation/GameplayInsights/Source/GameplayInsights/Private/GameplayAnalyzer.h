@@ -23,6 +23,7 @@ private:
 		RouteId_Class,
 		RouteId_Object,
 		RouteId_ObjectEvent,
+		RouteId_PawnPossess,
 		RouteId_View,
 		RouteId_ClassPropertyStringId,
 		RouteId_ClassProperty,
