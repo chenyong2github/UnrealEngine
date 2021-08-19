@@ -290,7 +290,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	// load saved layout if it exists
 	Layout = FLayoutSaveRestore::LoadFromConfig(GEditorLayoutIni, Layout);
 
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("RewindDebugger.MainMenu");
+	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.MainMenu");
 
 	FToolMenuSection& Section = Menu->AddSection("ViewsSection", LOCTEXT("Views", "Views"));
 

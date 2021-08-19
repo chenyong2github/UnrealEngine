@@ -24,6 +24,7 @@ public:
 
 	FRewindDebuggerCamera();
 	virtual ~FRewindDebuggerCamera() {};
+	void Initialize();
 
 	virtual void Update(float DeltaTime, IRewindDebugger* RewindDebugger) override;
 

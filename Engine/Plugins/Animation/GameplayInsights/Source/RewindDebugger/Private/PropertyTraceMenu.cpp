@@ -10,7 +10,7 @@
 
 void FPropertyTraceMenu::Register()
 {
-	UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("RewindDebugger.ComponentContextMenu");
+	UToolMenu* Menu = UToolMenus::Get()->FindMenu("RewindDebugger.ComponentContextMenu");
 	FToolMenuSection& Section = Menu->FindOrAddSection("Object");
 	FToolMenuEntry& Entry = Section.AddDynamicEntry("AssetManagerEditorViewCommands", FNewToolMenuSectionDelegate::CreateLambda([](FToolMenuSection& InSection)
 	{

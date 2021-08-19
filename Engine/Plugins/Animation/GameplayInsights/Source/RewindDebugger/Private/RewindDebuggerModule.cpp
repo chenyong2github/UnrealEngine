@@ -17,6 +17,7 @@
 #include "WorkspaceMenuStructureModule.h"
 #include "AnimInstanceHelpers.h"
 #include "PropertyTraceMenu.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "RewindDebuggerModule"
 
@@ -28,7 +29,7 @@ TSharedRef<SDockTab> FRewindDebuggerModule::SpawnRewindDebuggerTab(const FSpawnT
 	{
 		FRewindDebugger::Initialize();
 	}
-
+	
 	const TSharedRef<SDockTab> MajorTab = SNew(SDockTab)
 		.TabRole(ETabRole::NomadTab);
 
@@ -118,6 +119,9 @@ static FAnimInstanceDoubleClickHandler AnimInstanceDoubleClickHandler;
 
 void FRewindDebuggerModule::StartupModule()
 {
+	UToolMenus::Get()->RegisterMenu("RewindDebugger.MainMenu");
+	UToolMenus::Get()->RegisterMenu("RewindDebugger.ComponentContextMenu");
+
 	FRewindDebuggerStyle::Initialize();
 	FRewindDebuggerCommands::Register();
 
@@ -129,6 +133,7 @@ void FRewindDebuggerModule::StartupModule()
 		.SetTooltipText(LOCTEXT("TooltipText", "Opens Rewind Debugger."));
 
 
+	RewindDebuggerCameraExtension.Initialize();
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerExtension::ModularFeatureName, &RewindDebuggerCameraExtension);
 	IModularFeatures::Get().RegisterModularFeature(IRewindDebuggerDoubleClickHandler::ModularFeatureName, &AnimInstanceDoubleClickHandler);
 
