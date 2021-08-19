@@ -97,6 +97,8 @@ static const FName SCS_ColumnName_Mobility( "Mobility" );
 
 static const FName SCS_ContextMenuName( "Kismet.SCSEditorContextMenu" );
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 //////////////////////////////////////////////////////////////////////////
 // SSCSEditorDragDropTree
 void SSCSEditorDragDropTree::Construct( const FArguments& InArgs )
@@ -7319,5 +7321,7 @@ TSubclassOf<UActorComponent> SSCSEditor::GetComponentTypeFilterToApply() const
 	}
 	return ComponentType;
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

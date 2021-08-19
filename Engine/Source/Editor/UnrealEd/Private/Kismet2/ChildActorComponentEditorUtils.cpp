@@ -5,6 +5,7 @@
 #include "ToolMenus.h"
 #include "SSCSEditor.h"
 #include "SSCSEditorMenuContext.h"
+#include "SubobjectEditorMenuContext.h"
 #include "SSubobjectEditor.h"
 
 #define LOCTEXT_NAMESPACE "ChildActorComponentEditorUtils"
@@ -187,7 +188,7 @@ void FChildActorComponentEditorUtils::FillComponentContextMenuOptions(UToolMenu*
 	FToolMenuSection& Section = Menu->AddSection("ChildActorComponent", LOCTEXT("ChildActorComponentHeading", "Child Actor Component"));
 	{
 		TWeakPtr<SSubobjectEditor> WeakEditorPtr;
-		if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
+		if (USubobjectEditorMenuContext* MenuContext = Menu->FindContext<USubobjectEditorMenuContext>())
 		{
 			WeakEditorPtr = MenuContext->SubobjectEditor;
 		}
@@ -224,7 +225,7 @@ void FChildActorComponentEditorUtils::FillChildActorContextMenuOptions(UToolMenu
 	FToolMenuSection& Section = Menu->AddSection("ChildActor", LOCTEXT("ChildActorHeading", "Child Actor"));
 	{
 		TWeakPtr<SSubobjectEditor> WeakEditorPtr;
-		if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
+		if (USubobjectEditorMenuContext* MenuContext = Menu->FindContext<USubobjectEditorMenuContext>())
 		{
 			WeakEditorPtr = MenuContext->SubobjectEditor;
 		}

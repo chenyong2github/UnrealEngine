@@ -15,7 +15,7 @@
 #include "GraphEditorActions.h"
 #include "Editor/EditorEngine.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
-#include "SCSEditorExtensionContext.h"	// #TODO_BH Rename this to subobject (this one will break VK, for sure)
+#include "SubobjectEditorMenuContext.h"
 #include "SSCSEditorMenuContext.h"		// #TODO_BH Rename this to subobject
 #include "Toolkits/ToolkitManager.h"
 #include "BlueprintEditor.h"
@@ -131,7 +131,7 @@ namespace SubobjectEditorUtils
 		FToolMenuSection& Section = Menu->AddSection("ChildActor", LOCTEXT("ChildActorHeading", "Child Actor"));
 		{
 			TWeakPtr<SSubobjectEditor> WeakEditorPtr;
-			if (USSCSEditorMenuContext* MenuContext = Menu->FindContext<USSCSEditorMenuContext>())
+			if (USubobjectEditorMenuContext* MenuContext = Menu->FindContext<USubobjectEditorMenuContext>())
 			{
 				WeakEditorPtr = MenuContext->SubobjectEditor;
 			}
@@ -2960,7 +2960,7 @@ void SSubobjectEditor::RegisterContextMenu()
 		UToolMenu* Menu = ToolMenus->RegisterMenu(SubobjectTree_ContextMenuName);
 		Menu->AddDynamicSection("SCSEditorDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
-			USSCSEditorMenuContext* ContextObject = InMenu->FindContext<USSCSEditorMenuContext>();
+			USubobjectEditorMenuContext* ContextObject = InMenu->FindContext<USubobjectEditorMenuContext>();
 			if (ContextObject && ContextObject->SubobjectEditor.IsValid())
 			{
 				ContextObject->SubobjectEditor.Pin()->PopulateContextMenu(InMenu);
@@ -2976,7 +2976,7 @@ TSharedPtr<SWidget> SSubobjectEditor::CreateContextMenu()
 	if (SelectedItems.Num() > 0 || CanPasteNodes())
 	{
 		RegisterContextMenu();
-		USSCSEditorMenuContext* ContextObject = NewObject<USSCSEditorMenuContext>();
+		USubobjectEditorMenuContext* ContextObject = NewObject<USubobjectEditorMenuContext>();
 		ContextObject->SubobjectEditor = SharedThis(this);
 		FToolMenuContext ToolMenuContext(CommandList, TSharedPtr<FExtender>(), ContextObject);
 		return UToolMenus::Get()->GenerateWidget(SubobjectTree_ContextMenuName, ToolMenuContext);
