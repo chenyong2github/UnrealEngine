@@ -89,7 +89,7 @@ TOptional<FResolvedProperty> FPropertyRegistry::ResolveProperty(UObject* Object,
 	TSharedPtr<FTrackInstancePropertyBindings> SlowBindings = MakeShared<FTrackInstancePropertyBindings>(PropertyBinding.PropertyName, PropertyBinding.PropertyPath.ToString());
 	if (SlowBindings->GetProperty(*Object) == nullptr)
 	{
-		UE_LOG(LogMovieScene, Warning, TEXT("Unable to resolve property '%s' from '%s' instance '%s'"), *PropertyBinding.PropertyPath.ToString(), *Object->GetClass()->GetName(), *Object->GetName());
+		UE_LOG(LogMovieSceneECS, Warning, TEXT("Unable to resolve property '%s' from '%s' instance '%s'"), *PropertyBinding.PropertyPath.ToString(), *Object->GetClass()->GetName(), *Object->GetName());
 		return TOptional<FResolvedProperty>();
 	}
 

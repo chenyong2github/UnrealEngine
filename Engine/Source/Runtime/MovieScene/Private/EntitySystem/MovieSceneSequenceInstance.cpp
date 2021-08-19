@@ -308,7 +308,7 @@ void FSequenceInstance::DestroyImmediately(UMovieSceneEntitySystemLinker* Linker
 {
 	if (!Ledger.IsEmpty())
 	{
-		UE_LOG(LogMovieScene, Verbose, TEXT("Instance being destroyed without first having been finished by calling Finish()"));
+		UE_LOG(LogMovieSceneECS, Verbose, TEXT("Instance being destroyed without first having been finished by calling Finish()"));
 		Ledger.UnlinkEverything(Linker);
 	}
 

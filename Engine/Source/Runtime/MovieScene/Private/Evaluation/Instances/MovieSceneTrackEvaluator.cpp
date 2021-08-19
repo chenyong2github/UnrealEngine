@@ -67,7 +67,7 @@ FMovieSceneTrackEvaluator::~FMovieSceneTrackEvaluator()
 	const bool bHasFinished = (GExitPurge || ThisFrameMetaData.ActiveEntities.Num() == 0);
 	if (!bHasFinished)
 	{
-		UE_LOG(LogMovieScene, Verbose, TEXT("Evaluator instance being torn down without calling Finish (ThisFrameMetaData has data)"));
+		UE_LOG(LogMovieSceneECS, Verbose, TEXT("Evaluator instance being torn down without calling Finish (ThisFrameMetaData has data)"));
 	}
 }
 

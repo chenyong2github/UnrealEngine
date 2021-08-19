@@ -11,6 +11,7 @@
 #include "EntitySystem/BuiltInComponentTypes.h"
 
 DEFINE_LOG_CATEGORY(LogMovieScene);
+DEFINE_LOG_CATEGORY(LogMovieSceneECS);
 
 TAutoConsoleVariable<FString> CVarLegacyConversionFrameRate(
 	TEXT("MovieScene.LegacyConversionFrameRate"),

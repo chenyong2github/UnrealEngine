@@ -95,10 +95,10 @@ FFrameTime FMovieSceneTimeController_ExternalClock::OnRequestCurrentTime(const F
 	FFrameTime StartTime = StartTimeIfPlaying->ConvertTo(InCurrentTime.Rate);
 	FFrameTime NewTime   = StartTime + CurrentSequenceTimeSeconds * InCurrentTime.Rate;
 
-
-	UE_LOG(LogMovieScene, VeryVerbose, TEXT("TimeController Clock tick: Clock Start Time: %f, Clock Now: %f, Dilation Offset: %f, Sequence Start Time: frame %d, subframe %f, Sequence Offset Seconds: %f, Sequence Now: frame %d, subframe %f"),
+#if !NO_LOGGING
+	UE_LOG(LogMovieScene, VeryVerbose, TEXT("TimeController Clock Start Time: %f, Clock Now: %f, Dilation Offset: %f, Sequence Start Time: frame %d, subframe %f, Sequence Offset Seconds: %f, Sequence Now: frame %d, subframe %f"),
 		StartedTime, CurrentTime, AccumulatedDilation, StartTime.FrameNumber.Value, StartTime.GetSubFrame(), CurrentSequenceTimeSeconds, NewTime.FrameNumber.Value, NewTime.GetSubFrame());
-
+#endif
 
 	return NewTime;
 }

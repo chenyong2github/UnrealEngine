@@ -202,7 +202,7 @@ bool UMovieSceneEntitySystemLinker::StartEvaluation(FMovieSceneEntitySystemRunne
 		return true;
 	}
 		
-	UE_LOG(LogMovieScene, Warning, TEXT("Can't start a new evaluation: the active runner is not in a re-entrancy window."));
+	UE_LOG(LogMovieSceneECS, Warning, TEXT("Can't start a new evaluation: the active runner is not in a re-entrancy window."));
 	return false;
 }
 

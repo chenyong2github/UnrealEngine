@@ -357,7 +357,7 @@ void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSy
 
 	Linker->EntityManager.IncrementSystemSerial();
 
-	UE_LOG(LogMovieScene, Verbose, TEXT("Running moviescene system for phase %d: %s"), (int32)Phase, *GetName());
+	UE_LOG(LogMovieSceneECS, Verbose, TEXT("Running moviescene system for phase %d: %s"), (int32)Phase, *GetName());
 	OnRun(InPrerequisites, Subsequents);
 }
 

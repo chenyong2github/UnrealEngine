@@ -1066,7 +1066,14 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 
 #if !NO_LOGGING
 	FQualifiedFrameTime CurrentTime = GetCurrentTime();
-	UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *MovieSceneSequence->GetName(), CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
+	FString    SequenceName = MovieSceneSequence->GetName();
+
+	AActor* Actor = GetTypedOuter<AActor>();
+	if (Actor && Actor->GetWorld()->GetNetMode() == NM_Client)
+	{
+		SequenceName += FString::Printf(TEXT(" (client %d)"), GPlayInEditorID - 1);
+	}
+	UE_LOG(LogMovieScene, VeryVerbose, TEXT("Evaluating sequence %s at frame %d, subframe %f (%f fps)."), *SequenceName, CurrentTime.Time.FrameNumber.Value, CurrentTime.Time.GetSubFrame(), CurrentTime.Rate.AsDecimal());
 #endif
 
 	// Once we have updated we must no longer skip updates
