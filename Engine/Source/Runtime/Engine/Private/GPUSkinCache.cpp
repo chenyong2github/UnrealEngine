@@ -1777,7 +1777,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				Segment.NumPrimitives = Section.NumTriangles;
 
 				// TODO: If we are at a dropped LOD, route material index through the LODMaterialMap in the LODInfo struct.
-				Segment.bEnabled = !SkinCacheEntry->GPUSkin->IsMaterialHidden(LODIndex, Section.MaterialIndex) && !Section.bDisabled;
+				Segment.bEnabled = !SkinCacheEntry->GPUSkin->IsMaterialHidden(LODIndex, Section.MaterialIndex) && !Section.bDisabled && Section.bVisibleInRayTracing;
 				Initializer.Segments.Add(Segment);
 			}
 

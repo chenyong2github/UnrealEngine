@@ -3799,6 +3799,7 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 							const FSkelMeshSection& ExistSection = ExistLODModel.Sections[ExistSectionIndex];
 							//We found a match, restore the data
 							NewSection.bCastShadow = ExistSection.bCastShadow;
+							NewSection.bVisibleInRayTracing = ExistSection.bVisibleInRayTracing;
 							NewSection.bRecomputeTangent = ExistSection.bRecomputeTangent;
 							NewSection.RecomputeTangentsVertexMaskChannel = ExistSection.RecomputeTangentsVertexMaskChannel;
 							NewSection.bDisabled = ExistSection.bDisabled;
@@ -3811,6 +3812,7 @@ void UnFbx::FFbxImporter::InsertNewLODToBaseSkeletalMesh(USkeletalMesh* InSkelet
 								FSkelMeshSourceSectionUserData& UserSectionData = NewLODModel.UserSectionsData.FindOrAdd(ParentOriginalSectionIndex);
 								UserSectionData.bDisabled = NewSection.bDisabled;
 								UserSectionData.bCastShadow = NewSection.bCastShadow;
+								UserSectionData.bVisibleInRayTracing = NewSection.bVisibleInRayTracing;
 								UserSectionData.bRecomputeTangent = NewSection.bRecomputeTangent;					
 								UserSectionData.RecomputeTangentsVertexMaskChannel = NewSection.RecomputeTangentsVertexMaskChannel;
 								UserSectionData.GenerateUpToLodIndex = NewSection.GenerateUpToLodIndex;
@@ -4223,6 +4225,7 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 					{
 						//Set the value and exit
 						ImportedSection.bCastShadow = ExistingSection.bCastShadow;
+						ImportedSection.bVisibleInRayTracing = ExistingSection.bVisibleInRayTracing;
 						ImportedSection.bRecomputeTangent = ExistingSection.bRecomputeTangent;
 						ImportedSection.RecomputeTangentsVertexMaskChannel = ExistingSection.RecomputeTangentsVertexMaskChannel;
 						break;
@@ -4232,6 +4235,7 @@ bool UnFbx::FFbxImporter::ImportSkeletalMeshLOD(USkeletalMesh* InSkeletalMesh, U
 				{
 					//Set the value and exit
 					ImportedSection.bCastShadow = ExistingSection.bCastShadow;
+					ImportedSection.bVisibleInRayTracing = ExistingSection.bVisibleInRayTracing;
 					ImportedSection.bRecomputeTangent = ExistingSection.bRecomputeTangent;
 					ImportedSection.RecomputeTangentsVertexMaskChannel = ExistingSection.RecomputeTangentsVertexMaskChannel;
 					break;

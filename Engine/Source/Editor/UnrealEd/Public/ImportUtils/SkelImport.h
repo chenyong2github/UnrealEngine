@@ -22,9 +22,10 @@ class FSkeletalMeshLODModel;
 
 struct FExistingMeshLodSectionData
 {
-	FExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbRecomputeTangents, ESkinVertexColorChannel InRecomputeTangentsVertexMaskChannel, int32 InGenerateUpTo, bool InbDisabled)
+	FExistingMeshLodSectionData(FName InImportedMaterialSlotName, bool InbCastShadow, bool InbVisibleInRayTracing, bool InbRecomputeTangents, ESkinVertexColorChannel InRecomputeTangentsVertexMaskChannel, int32 InGenerateUpTo, bool InbDisabled)
 	: ImportedMaterialSlotName(InImportedMaterialSlotName)
 	, bCastShadow(InbCastShadow)
+	, bVisibleInRayTracing(InbVisibleInRayTracing)
 	, bRecomputeTangents(InbRecomputeTangents)
 	, RecomputeTangentsVertexMaskChannel(InRecomputeTangentsVertexMaskChannel)
 	, GenerateUpTo(InGenerateUpTo)
@@ -32,6 +33,7 @@ struct FExistingMeshLodSectionData
 	{}
 	FName ImportedMaterialSlotName;
 	bool bCastShadow;
+	bool bVisibleInRayTracing;
 	bool bRecomputeTangents;
 	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
 	int32 GenerateUpTo;

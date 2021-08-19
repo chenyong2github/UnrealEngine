@@ -260,6 +260,7 @@ void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sourc
 						OriginalMatched[OriginalSectionIndex] = true;
 						OriginalSection.bDisabled = ReduceSection.bDisabled;
 						OriginalSection.bCastShadow = ReduceSection.bCastShadow;
+						OriginalSection.bVisibleInRayTracing = ReduceSection.bVisibleInRayTracing;
 						OriginalSection.bRecomputeTangent = ReduceSection.bRecomputeTangent;
 						OriginalSection.RecomputeTangentsVertexMaskChannel = ReduceSection.RecomputeTangentsVertexMaskChannel;
 						OriginalSection.GenerateUpToLodIndex = ReduceSection.GenerateUpToLodIndex;
@@ -279,6 +280,7 @@ void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sourc
 				{
 					OriginalSection.bDisabled = ReduceUserSectionData->bDisabled;
 					OriginalSection.bCastShadow = ReduceUserSectionData->bCastShadow;
+					OriginalSection.bVisibleInRayTracing = ReduceUserSectionData->bVisibleInRayTracing;
 					OriginalSection.bRecomputeTangent = ReduceUserSectionData->bRecomputeTangent;
 					OriginalSection.RecomputeTangentsVertexMaskChannel = ReduceUserSectionData->RecomputeTangentsVertexMaskChannel;
 					OriginalSection.GenerateUpToLodIndex = ReduceUserSectionData->GenerateUpToLodIndex;
@@ -295,6 +297,7 @@ void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sourc
 	{
 		int32 SectionMaterialIndex = CurrentSection.MaterialIndex;
 		bool SectionCastShadow = CurrentSection.bCastShadow;
+		bool SectionVisibleInRayTracing = CurrentSection.bVisibleInRayTracing;
 		bool SectionRecomputeTangents = CurrentSection.bRecomputeTangent;
 		ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel = CurrentSection.RecomputeTangentsVertexMaskChannel;
 		int32 GenerateUpTo = CurrentSection.GenerateUpToLodIndex;
@@ -303,7 +306,7 @@ void SkeletalMesUtilsImpl::SaveSkeletalMeshLODModelSections(USkeletalMesh* Sourc
 		//Save all the sections, even the chunked sections
 		if (ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData.IsValidIndex(SectionMaterialIndex))
 		{
-			ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData[LodIndex].Emplace(ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData[SectionMaterialIndex], SectionCastShadow, SectionRecomputeTangents, RecomputeTangentsVertexMaskChannel, GenerateUpTo, bDisabled);
+			ExistingMeshDataPtr->ExistingImportMeshLodSectionMaterialData[LodIndex].Emplace(ExistingMeshDataPtr->ExistingImportMaterialOriginalNameData[SectionMaterialIndex], SectionCastShadow, SectionVisibleInRayTracing, SectionRecomputeTangents, RecomputeTangentsVertexMaskChannel, GenerateUpTo, bDisabled);
 		}
 	}
 }
@@ -1086,6 +1089,7 @@ void SkeletalMesUtilsImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<c
 
 			//We have a match put back the data
 			NewSection.bCastShadow = MeshData->ExistingImportMeshLodSectionMaterialData[LodIndex][ExistSectionIndex].bCastShadow;
+			NewSection.bVisibleInRayTracing = MeshData->ExistingImportMeshLodSectionMaterialData[LodIndex][ExistSectionIndex].bVisibleInRayTracing;
 			NewSection.bRecomputeTangent = MeshData->ExistingImportMeshLodSectionMaterialData[LodIndex][ExistSectionIndex].bRecomputeTangents;
 			NewSection.RecomputeTangentsVertexMaskChannel = MeshData->ExistingImportMeshLodSectionMaterialData[LodIndex][ExistSectionIndex].RecomputeTangentsVertexMaskChannel;
 			NewSection.GenerateUpToLodIndex = MeshData->ExistingImportMeshLodSectionMaterialData[LodIndex][ExistSectionIndex].GenerateUpTo;
@@ -1098,6 +1102,7 @@ void SkeletalMesUtilsImpl::RestoreMaterialNameWorkflowSection(const TSharedPtr<c
 				FSkelMeshSourceSectionUserData& UserSectionData = SkeletalMeshLodModel.UserSectionsData.FindOrAdd(ParentOriginalSectionIndex);
 				UserSectionData.bDisabled = NewSection.bDisabled;
 				UserSectionData.bCastShadow = NewSection.bCastShadow;
+				UserSectionData.bVisibleInRayTracing = NewSection.bVisibleInRayTracing;
 				UserSectionData.bRecomputeTangent = NewSection.bRecomputeTangent;
 				UserSectionData.RecomputeTangentsVertexMaskChannel = NewSection.RecomputeTangentsVertexMaskChannel;
 				UserSectionData.GenerateUpToLodIndex = NewSection.GenerateUpToLodIndex;

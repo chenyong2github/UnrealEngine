@@ -37,6 +37,9 @@ struct FSkelMeshRenderSection
 	/** This section will cast shadow */
 	bool bCastShadow;
 
+	/** If true, this section will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
+	bool bVisibleInRayTracing;
+
 	/** Which channel for masking the recompute tangents */
 	ESkinVertexColorChannel RecomputeTangentsVertexMaskChannel;
 
@@ -74,6 +77,7 @@ struct FSkelMeshRenderSection
 		, NumTriangles(0)
 		, bRecomputeTangent(false)
 		, bCastShadow(true)
+		, bVisibleInRayTracing(true)
 		, RecomputeTangentsVertexMaskChannel(ESkinVertexColorChannel::None)
 		, BaseVertexIndex(0)
 		, NumVertices(0)

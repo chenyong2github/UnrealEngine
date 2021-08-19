@@ -512,7 +512,7 @@ private:
 	* Handler for check box display based on whether the material has shadow casting enabled
 	*
 	* @param LODIndex	The LODIndex we want to change
-	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
+	* @param SectionIndex	The SectionIndex we change the ShadowCasting flag
 	*/
 	ECheckBoxState IsSectionShadowCastingEnabled(int32 LODIndex, int32 SectionIndex) const;
 
@@ -520,9 +520,25 @@ private:
 	* Handler for changing shadow casting status on a section
 	*
 	* @param LODIndex	The LODIndex we want to change
-	* @param SectionIndex	The SectionIndex we change the RecomputeTangent
+	* @param SectionIndex	The SectionIndex we change the ShadowCasting flag
 	*/
 	void OnSectionShadowCastingChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex);
+
+	/**
+	* Handler for check box display based on whether the material has VisibleInRayTracing enabled
+	*
+	* @param LODIndex	The LODIndex we want to change
+	* @param SectionIndex	The SectionIndex we change the VisibleInRayTracing flag
+	*/
+	ECheckBoxState IsSectionVisibleInRayTracingEnabled(int32 LODIndex, int32 SectionIndex) const;
+
+	/**
+	* Handler for changing VisibleInRayTracing status on a section
+	*
+	* @param LODIndex	The LODIndex we want to change
+	* @param SectionIndex	The SectionIndex we change the VisibleInRayTracing flag
+	*/
+	void OnSectionVisibleInRayTracingChanged(ECheckBoxState NewState, int32 LODIndex, int32 SectionIndex);
 
 	/**
 	* Handler for selecting which vertex color to mask the blending of recomputing tangents

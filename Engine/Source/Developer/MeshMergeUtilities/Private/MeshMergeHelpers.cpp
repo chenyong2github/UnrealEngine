@@ -141,6 +141,11 @@ void FMeshMergeHelpers::ExtractSections(const USkeletalMeshComponent* Component,
 			SectionInfo.EnabledProperties.Add(GET_MEMBER_NAME_CHECKED(FSkelMeshSection, bCastShadow));
 		}
 
+		if (MeshSection.bVisibleInRayTracing)
+		{
+			SectionInfo.EnabledProperties.Add(GET_MEMBER_NAME_CHECKED(FSkelMeshSection, bVisibleInRayTracing));
+		}
+
 		if (MeshSection.bRecomputeTangent)
 		{
 			SectionInfo.EnabledProperties.Add(GET_MEMBER_NAME_CHECKED(FSkelMeshSection, bRecomputeTangent));

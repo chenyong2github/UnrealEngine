@@ -93,7 +93,7 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 								Segment.MaxVertices = Section.GetNumVertices();
 								Segment.FirstPrimitive = Section.BaseIndex / 3;
 								Segment.NumPrimitives = Section.NumTriangles;
-								Segment.bEnabled = !Section.bDisabled;
+								Segment.bEnabled = !Section.bDisabled && Section.bVisibleInRayTracing;
 								GeometrySections.Add(Segment);
 							}
 							Initializer.Segments = GeometrySections;
