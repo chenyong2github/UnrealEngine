@@ -184,14 +184,14 @@ EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, b
 
 EMeshResult FDynamicMesh3::GetVtxContiguousTriangles(int VertexID, TArray<int>& TrianglesOut, TArray<int>& SpanLengths, TArray<bool>& IsLoop) const
 {
+	TrianglesOut.Reset();
+	SpanLengths.Reset();
+	IsLoop.Reset();
+
 	if (!ensure(IsVertex(VertexID)))
 	{
 		return EMeshResult::Failed_NotAVertex;
 	}
-
-	TrianglesOut.Reset();
-	SpanLengths.Reset();
-	IsLoop.Reset();
 
 	int NumEdges = VertexEdgeLists.GetCount(VertexID);
 	if (NumEdges == 0)
