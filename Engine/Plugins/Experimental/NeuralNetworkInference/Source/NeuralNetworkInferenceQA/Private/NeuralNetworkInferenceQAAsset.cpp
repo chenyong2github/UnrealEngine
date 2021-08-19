@@ -219,7 +219,7 @@ const FString UNeuralNetworkInferenceQAAsset_FileName = TEXT("NeuralNetworkInfer
 UNeuralNetworkInferenceQAAsset* UNeuralNetworkInferenceQAAsset::Load(const FString& InNeuralNetworkInferenceQAAssetParentDirectoryName, const FString& InNeuralNetworkInferenceQAAssetName)
 {
 	// Load NeuralNetworkInferenceQAAsset from disk
-	const FString FilePath = UNeuralNetworkInferenceQAAsset_FileName + TEXT("'/Game/") + InNeuralNetworkInferenceQAAssetParentDirectoryName + TEXT("/") + UNeuralNetworkInferenceQAAsset_FileName + TEXT(".") + UNeuralNetworkInferenceQAAsset_FileName + TEXT("'"); // "NeuralNetworkInferenceQAAsset'/Game/UnitTesting/NeuralNetworkInferenceQAAsset.NeuralNetworkInferenceQAAsset'"
+	const FString FilePath = UNeuralNetworkInferenceQAAsset_FileName + TEXT("'/Game/") / InNeuralNetworkInferenceQAAssetParentDirectoryName / UNeuralNetworkInferenceQAAsset_FileName + TEXT(".") + UNeuralNetworkInferenceQAAsset_FileName + TEXT("'"); // "NeuralNetworkInferenceQAAsset'/Game/[UNIT_TEST_DIR]/NeuralNetworkInferenceQAAsset.NeuralNetworkInferenceQAAsset'"
 	UNeuralNetworkInferenceQAAsset* NeuralNetworkInferenceQAAsset = LoadObject<UNeuralNetworkInferenceQAAsset>((UObject*)GetTransientPackage(), *FilePath);
 	// Warning if it does not exist yet
 	if (!NeuralNetworkInferenceQAAsset)

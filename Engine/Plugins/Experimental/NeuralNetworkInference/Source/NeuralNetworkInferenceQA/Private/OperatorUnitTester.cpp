@@ -14,12 +14,13 @@
 /* FOperatorUnitTester static public functions
  *****************************************************************************/
 
-void FOperatorUnitTester::GlobalTest(const FString& InGroundTruthDirectory)
+void FOperatorUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InUnitTestRelativeDirectory)
 {
+	const FString UnitTestDirectory = InProjectContentDir / InUnitTestRelativeDirectory;
 	const float ZeroThreshold = 0.f;
 	const float FloatThreshold = 5e-7;
 	const float RelaxedFloatThreshold = 5e-6;
-	const float VeryRelaxedFloatThreshold = 2e-5;
+	const float VeryRelaxedFloatThreshold = 4e-5;
 	const float VeryVeryRelaxedFloatThreshold = 2e-4;
 	const float SuperRelaxedFloatThreshold = 1.5e-3;
 	// Input arrays
@@ -139,7 +140,7 @@ void FOperatorUnitTester::GlobalTest(const FString& InGroundTruthDirectory)
 		TEXT("FRoundOperator"), TEXT("FSigmoidOperator"), TEXT("FSignOperator"), TEXT("FSinOperator"), TEXT("FSinhOperator"), TEXT("FSqrtOperator"), TEXT("FSqueezeOperator"), TEXT("FSubOperator"), 
 		TEXT("FTanOperator"), TEXT("FTanhOperator") });
 	// Creating NeuralNetworkInferenceQAAsset
-	UNeuralNetworkInferenceQAAsset* NeuralNetworkInferenceQAAsset = UNeuralNetworkInferenceQAAsset::Load(TEXT("UnitTesting"), TEXT("NeuralNetworkInferenceQAAsset"));
+	UNeuralNetworkInferenceQAAsset* NeuralNetworkInferenceQAAsset = UNeuralNetworkInferenceQAAsset::Load(InUnitTestRelativeDirectory, TEXT("NeuralNetworkInferenceQAAsset"));
 	if (!NeuralNetworkInferenceQAAsset)
 	{
 		ensureMsgf(false, TEXT("NeuralNetworkInferenceQAAsset could not be loaded!"));
@@ -150,51 +151,51 @@ void FOperatorUnitTester::GlobalTest(const FString& InGroundTruthDirectory)
 	// Per operator testing (checking false if errors occur)
 	const int32 OperatorTotal = OperatorNames.Num(); // 164;
 	int32 OperatorCounter = 0;
-	FOperatorTester::TestElementWiseOperator<FAbsOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAbsOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FAcosOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAcosOperator"), ElementWiseTensorsTiny, VeryVeryRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FAddOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAddOperator"), MultidirectionalTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FAsinOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAsinOperator"), ElementWiseTensorsTiny, VeryVeryRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FAtanOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAtanOperator"), ElementWiseTensors, VeryVeryRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestBatchNormalizationOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, InputTensorDataPos, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FCeilOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCeilOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestConvOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestConvTransposeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FCosOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCosOperator"), ElementWiseTensors, VeryRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FCoshOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCoshOperator"), ElementWiseTensorsSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FDivOperator>(NeuralNetworkInferenceQAAsset, TEXT("FDivOperator"), MultidirectionalTensors, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FExpOperator>(NeuralNetworkInferenceQAAsset, TEXT("FExpOperator"), ElementWiseTensorsSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FFloorOperator>(NeuralNetworkInferenceQAAsset, TEXT("FFloorOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FAbsOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAbsOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FAcosOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAcosOperator"), ElementWiseTensorsTiny, VeryVeryRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FAddOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAddOperator"), MultidirectionalTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FAsinOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAsinOperator"), ElementWiseTensorsTiny, VeryVeryRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FAtanOperator>(NeuralNetworkInferenceQAAsset, TEXT("FAtanOperator"), ElementWiseTensors, VeryVeryRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestBatchNormalizationOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, InputTensorDataPos, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FCeilOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCeilOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestConvOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestConvTransposeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FCosOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCosOperator"), ElementWiseTensors, VeryRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FCoshOperator>(NeuralNetworkInferenceQAAsset, TEXT("FCoshOperator"), ElementWiseTensorsSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FDivOperator>(NeuralNetworkInferenceQAAsset, TEXT("FDivOperator"), MultidirectionalTensors, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FExpOperator>(NeuralNetworkInferenceQAAsset, TEXT("FExpOperator"), ElementWiseTensorsSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FFloorOperator>(NeuralNetworkInferenceQAAsset, TEXT("FFloorOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
 	//UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FGather"), ++OperatorCounter, OperatorTotal);
 	//{
 	//	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Not implemented (yet)"));
 	//}
-	FOperatorTester::TestGemmOperator(NeuralNetworkInferenceQAAsset, InputTensorData, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWise1AttributeOperator<FLeakyReluOperator>(NeuralNetworkInferenceQAAsset, TEXT("FLeakyReluOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FLogOperator>(NeuralNetworkInferenceQAAsset, TEXT("FLogOperator"), ElementWiseTensors, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FMulOperator>(NeuralNetworkInferenceQAAsset, TEXT("FMulOperator"), MultidirectionalTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FNegOperator>(NeuralNetworkInferenceQAAsset, TEXT("FNegOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FPowOperator>(NeuralNetworkInferenceQAAsset, TEXT("FPowOperator"), MultidirectionalTensors, RelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FReciprocalOperator>(NeuralNetworkInferenceQAAsset, TEXT("FReciprocalOperator"), ElementWiseTensors, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestGemmOperator(NeuralNetworkInferenceQAAsset, InputTensorData, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWise1AttributeOperator<FLeakyReluOperator>(NeuralNetworkInferenceQAAsset, TEXT("FLeakyReluOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FLogOperator>(NeuralNetworkInferenceQAAsset, TEXT("FLogOperator"), ElementWiseTensors, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FMulOperator>(NeuralNetworkInferenceQAAsset, TEXT("FMulOperator"), MultidirectionalTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FNegOperator>(NeuralNetworkInferenceQAAsset, TEXT("FNegOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FPowOperator>(NeuralNetworkInferenceQAAsset, TEXT("FPowOperator"), MultidirectionalTensors, RelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FReciprocalOperator>(NeuralNetworkInferenceQAAsset, TEXT("FReciprocalOperator"), ElementWiseTensors, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
 	//UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FReduceSum"), ++OperatorCounter, OperatorTotal);
 	//{
 	//	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Not implemented (yet)"));
 	//}
-	FOperatorTester::TestElementWiseOperator<FReluOperator>(NeuralNetworkInferenceQAAsset, TEXT("FReluOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestReshapeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataPos, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FRoundOperator>(NeuralNetworkInferenceQAAsset, TEXT("FRoundOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FReluOperator>(NeuralNetworkInferenceQAAsset, TEXT("FReluOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestReshapeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataPos, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FRoundOperator>(NeuralNetworkInferenceQAAsset, TEXT("FRoundOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
 	//UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FShape"), ++OperatorCounter, OperatorTotal);
 	//{
 	//	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Not implemented (yet)"));
 	//}
-	FOperatorTester::TestElementWiseOperator<FSigmoidOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSigmoidOperator"), ElementWiseTensors, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FSignOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSignOperator"), ElementWiseTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FSinOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSinOperator"), ElementWiseTensors, VeryRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FSinhOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSinhOperator"), ElementWiseTensorsSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FSqrtOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSqrtOperator"), ElementWiseTensors, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestSqueezeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataPos, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FSubOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSubOperator"), MultidirectionalTensors, ZeroThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FTanOperator>(NeuralNetworkInferenceQAAsset, TEXT("FTanOperator"), ElementWiseTensors, SuperRelaxedFloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
-	FOperatorTester::TestElementWiseOperator<FTanhOperator>(NeuralNetworkInferenceQAAsset, TEXT("FTanhOperator"), ElementWiseTensorsSmall, FloatThreshold, InGroundTruthDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FSigmoidOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSigmoidOperator"), ElementWiseTensors, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FSignOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSignOperator"), ElementWiseTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FSinOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSinOperator"), ElementWiseTensors, VeryRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FSinhOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSinhOperator"), ElementWiseTensorsSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FSqrtOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSqrtOperator"), ElementWiseTensors, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestSqueezeOperator(NeuralNetworkInferenceQAAsset, InputTensorData, InputTensorDataPos, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestMultiDirectionalBroadcastingOperator<FSubOperator>(NeuralNetworkInferenceQAAsset, TEXT("FSubOperator"), MultidirectionalTensors, ZeroThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FTanOperator>(NeuralNetworkInferenceQAAsset, TEXT("FTanOperator"), ElementWiseTensors, SuperRelaxedFloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
+	FOperatorTester::TestElementWiseOperator<FTanhOperator>(NeuralNetworkInferenceQAAsset, TEXT("FTanhOperator"), ElementWiseTensorsSmall, FloatThreshold, UnitTestDirectory, ++OperatorCounter, OperatorTotal);
 	//UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d/%d FUnsqueeze"), ++OperatorCounter, OperatorTotal);
 	//{
 	//	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Not implemented (yet)"));
@@ -203,7 +204,7 @@ void FOperatorUnitTester::GlobalTest(const FString& InGroundTruthDirectory)
 	ensureMsgf(OperatorTotal == OperatorCounter, TEXT("New or missing operators found, OperatorTotal == OperatorCounter failed (%d != %d)"), OperatorTotal, OperatorCounter);
 
 	// Test against GT saved on disk - Only saving a unique UAsset file with all results from all operators
-	if (!NeuralNetworkInferenceQAAsset->CompareNewVsPreviousTests(InGroundTruthDirectory))
+	if (!NeuralNetworkInferenceQAAsset->CompareNewVsPreviousTests(UnitTestDirectory))
 	{
 		// Saving NeuralNetworkInferenceQAAsset
 		ensureMsgf(NeuralNetworkInferenceQAAsset->Save(), TEXT("NeuralNetworkInferenceQAAsset->Save() failed."));
