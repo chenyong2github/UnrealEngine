@@ -158,11 +158,12 @@ float4 DebugRayTracingMaterial(RayDesc Ray)
 struct FRayTracingDebugPayload : FMinimalPayload
 {
 	uint InstanceHash;
+	uint TriangleHash;
 };
 
 float4 DebugRayTracingInstance(RayDesc Ray)
 {
-	float4 Result = (float4)0;
+	float4 Result = float4(0, 0, 0, 1);
 
 	FRayTracingDebugPayload Payload = (FRayTracingDebugPayload)0;
 	Payload.SetMiss();
@@ -179,8 +180,16 @@ float4 DebugRayTracingInstance(RayDesc Ray)
 
 	if (Payload.IsHit())
 	{
-		Result.rgb = IntToColor(Payload.InstanceHash);
-		Result.a = 1;
+		switch (VisualizationMode)
+		{
+		default:
+		case RAY_TRACING_DEBUG_VIZ_INSTANCES:
+			Result.rgb = IntToColor(Payload.InstanceHash);
+			break;
+		case RAY_TRACING_DEBUG_VIZ_TRIANGLES:
+			Result.rgb = IntToColor(Payload.TriangleHash);
+			break;
+		}
 	}
 
 	return Result;
@@ -196,7 +205,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 
 	float4 Result = (float4)0;
 
-	if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES)
+	if (VisualizationMode == RAY_TRACING_DEBUG_VIZ_INSTANCES || VisualizationMode == RAY_TRACING_DEBUG_VIZ_TRIANGLES)
 	{
 		Result = DebugRayTracingInstance(Ray);
 	}
@@ -235,4 +244,5 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(RayTracingDebugMainCHS,
 			Payload.InstanceHash += MurmurMix(asuint(Mat[i][j]));
 		}
 	}
+	Payload.TriangleHash = MurmurMix(Payload.InstanceHash + PrimitiveIndex());
 }
