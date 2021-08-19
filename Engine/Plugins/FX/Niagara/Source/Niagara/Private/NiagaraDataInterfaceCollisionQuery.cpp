@@ -1028,7 +1028,17 @@ public:
 		if (GlobalDistanceFieldParameters.IsBound())
 		{
 			check(Context.Batcher);
-			GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, Context.Batcher->GetGlobalDistanceFieldParameters());
+			const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData = Context.Batcher->GetGlobalDistanceFieldParameters();
+
+			if (GlobalDistanceFieldParameterData)
+			{
+				GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, *GlobalDistanceFieldParameterData);
+			}
+			else
+			{
+				GlobalDistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, FGlobalDistanceFieldParameterData());
+			}
+			
 		}
 
 #if RHI_RAYTRACING
