@@ -149,8 +149,7 @@ FTSTicker::FElement::FElement(double InFireTime, float InDelayTime, const FTicke
 
 bool FTSTicker::FElement::Fire(float DeltaTime)
 {
-	check(Delegate.IsBound());
-	return Delegate.Execute(DeltaTime);
+	return Delegate.IsBound() && Delegate.Execute(DeltaTime);
 }
 
 FTSTickerObjectBase::FTSTickerObjectBase(float InDelay, FTSTicker& InTicker)
