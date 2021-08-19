@@ -17,7 +17,7 @@
 /* FUnitTester static public functions
  *****************************************************************************/
 
-void FUnitTester::GlobalTest(const FString& InGroundTruthDirectory, const FString& InModelsDirectory)
+void FUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const FString& InUnitTestRelativeDirectory)
 {
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
@@ -25,19 +25,19 @@ void FUnitTester::GlobalTest(const FString& InGroundTruthDirectory, const FStrin
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("----- Starting UnitTesting() ----------------------------------------------------------------------------------------------------"));
 
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------- 1. Model Unit Testing (Legacy)"));
-	FLegacyModelUnitTester::GlobalTest(InModelsDirectory);
+	FLegacyModelUnitTester::GlobalTest(InProjectContentDir, InModelZooRelativeDirectory);
 
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------- 2. Model Unit Testing"));
-	FModelUnitTester::GlobalTest(InModelsDirectory);
+	FModelUnitTester::GlobalTest(InProjectContentDir, InModelZooRelativeDirectory);
 
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------- 3. Operator Unit Testing"));
-	FOperatorUnitTester::GlobalTest(InGroundTruthDirectory);
+	FOperatorUnitTester::GlobalTest(InProjectContentDir, InUnitTestRelativeDirectory);
 
 // #if WITH_EDITOR
 // #ifdef PLATFORM_WIN64
@@ -45,7 +45,7 @@ void FUnitTester::GlobalTest(const FString& InGroundTruthDirectory, const FStrin
 // 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 // 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 // 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------- 4. ONNX Runtime DLL Unit Testing (Deprecated)"));
-// 	FONNXRuntimeDLLTester::GlobalTest(InModelsDirectory);
+// 	FONNXRuntimeDLLTester::GlobalTest(InProjectContentDir, InModelZooRelativeDirectory);
 // #endif //PLATFORM_WIN64
 // #endif //WITH_EDITOR
 
