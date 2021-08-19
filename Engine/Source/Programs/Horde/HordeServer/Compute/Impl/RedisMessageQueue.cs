@@ -30,9 +30,16 @@ namespace HordeServer.Compute.Impl
 		/// Waits for a message to be available on the given channel
 		/// </summary>
 		/// <param name="ChannelId">The channel to read from</param>
+		/// <returns>True if a message was available, false otherwise</returns>
+		Task<List<T>> ReadMessagesAsync(string ChannelId);
+
+		/// <summary>
+		/// Waits for a message to be available on the given channel
+		/// </summary>
+		/// <param name="ChannelId">The channel to read from</param>
 		/// <param name="CancellationToken">May be signalled to stop the wait, without throwing an exception</param>
 		/// <returns>True if a message was available, false otherwise</returns>
-		Task<List<T>> ReadAsync(string ChannelId, CancellationToken CancellationToken);
+		Task<List<T>> WaitForMessagesAsync(string ChannelId, CancellationToken CancellationToken);
 	}
 
 	/// <summary>
@@ -122,7 +129,15 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<T>> ReadAsync(string ChannelId, CancellationToken CancellationToken)
+		public async Task<List<T>> ReadMessagesAsync(string ChannelId)
+		{
+			List<T> Messages = new List<T>();
+			await ReadMessagesAsync(GetChannel(ChannelId), Messages);
+			return Messages;
+		}
+
+		/// <inheritdoc/>
+		public async Task<List<T>> WaitForMessagesAsync(string ChannelId, CancellationToken CancellationToken)
 		{
 			List<T> Messages = new List<T>();
 

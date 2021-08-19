@@ -100,7 +100,7 @@ namespace HordeServer.Compute.Impl
 		/// <inheritdoc/>
 		public ObjectId? LeaseId
 		{
-			get => new ObjectId(LeaseIdBytes);
+			get => (LeaseIdBytes == null)? (ObjectId?)null : new ObjectId(LeaseIdBytes);
 			set => LeaseIdBytes = value?.ToByteArray();
 		}
 
@@ -123,7 +123,7 @@ namespace HordeServer.Compute.Impl
 	{
 		public MessageDescriptor Descriptor => ComputeTaskMessage.Descriptor;
 
-		public NamespaceId NamespaceId { get; } = new NamespaceId("default");
+		public static NamespaceId DefaultNamespaceId { get; } = new NamespaceId("default");
 
 		ITaskScheduler<ComputeTaskInfo> TaskScheduler;
 		RedisMessageQueue<ComputeTaskStatus> MessageQueue;
@@ -137,7 +137,7 @@ namespace HordeServer.Compute.Impl
 		/// <param name="Logger">The logger instance</param>
 		public ComputeService(IDatabase Redis, IObjectCollection ObjectCollection, ILogger<ComputeService> Logger)
 		{
-			this.TaskScheduler = new RedisTaskScheduler<ComputeTaskInfo>(Redis, ObjectCollection, NamespaceId, "compute/tasks/");
+			this.TaskScheduler = new RedisTaskScheduler<ComputeTaskInfo>(Redis, ObjectCollection, DefaultNamespaceId, "compute/tasks/");
 			this.MessageQueue = new RedisMessageQueue<ComputeTaskStatus>(Redis, "compute/messages/");
 			this.Logger = Logger;
 		}
@@ -168,7 +168,7 @@ namespace HordeServer.Compute.Impl
 			{
 				ComputeTaskMessage ComputeTask = new ComputeTaskMessage();
 				ComputeTask.ChannelId = Entry.Item.ChannelId.ToString();
-				ComputeTask.NamespaceId = NamespaceId.ToString();
+				ComputeTask.NamespaceId = DefaultNamespaceId.ToString();
 				ComputeTask.RequirementsHash = Entry.RequirementsHash;
 				ComputeTask.TaskHash = Entry.Item.TaskHash;
 
@@ -188,9 +188,15 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ChannelId ChannelId, CancellationToken CancellationToken)
+		public async Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ChannelId ChannelId)
 		{
-			List<ComputeTaskStatus> Messages = await MessageQueue.ReadAsync(ChannelId.ToString(), CancellationToken);
+			List<ComputeTaskStatus> Messages = await MessageQueue.ReadMessagesAsync(ChannelId.ToString());
+			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
+		}
+
+		public async Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ChannelId ChannelId, CancellationToken CancellationToken)
+		{
+			List<ComputeTaskStatus> Messages = await MessageQueue.WaitForMessagesAsync(ChannelId.ToString(), CancellationToken);
 			return Messages.ConvertAll<IComputeTaskStatus>(x => x);
 		}
 
@@ -253,7 +259,7 @@ namespace HordeServer.Compute.Impl
 					MoveNextTask = MoveNextAndCancel(RequestStream, CancellationSource);
 					while (!CancellationSource.IsCancellationRequested)
 					{
-						List<IComputeTaskStatus> Updates = await ComputeService.GetTaskUpdatesAsync(ChannelId, CancellationSource.Token);
+						List<IComputeTaskStatus> Updates = await ComputeService.WaitForTaskUpdatesAsync(ChannelId, CancellationSource.Token);
 						foreach (IComputeTaskStatus Update in Updates)
 						{
 							GetTaskUpdatesRpcResponse Response = new GetTaskUpdatesRpcResponse();
