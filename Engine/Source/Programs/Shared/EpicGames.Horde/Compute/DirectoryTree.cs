@@ -44,6 +44,18 @@ namespace EpicGames.Horde.Compute
 		public IoHash Hash { get; set; }
 
 		/// <summary>
+		/// Size of the file
+		/// </summary>
+		[CbField("s")]
+		public long Size { get; set; }
+
+		/// <summary>
+		/// The file attributes
+		/// </summary>
+		[CbField("a")]
+		public int Attributes { get; set; }
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		private FileNode()
@@ -53,10 +65,12 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileNode(Utf8String Name, IoHash Hash)
+		public FileNode(Utf8String Name, IoHash Hash, long Size, int Attributes)
 		{
 			this.Name = Name;
 			this.Hash = Hash;
+			this.Size = Size;
+			this.Attributes = Attributes;
 		}
 	}
 
@@ -78,6 +92,12 @@ namespace EpicGames.Horde.Compute
 		public IoHash Hash { get; set; }
 
 		/// <summary>
+		/// Total size of the items in this directory
+		/// </summary>
+		[CbField("s")]
+		public long Size { get; set; }
+
+		/// <summary>
 		/// Private constructor for serialization
 		/// </summary>
 		private DirectoryNode()
@@ -87,10 +107,11 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryNode(Utf8String Name, IoHash Hash)
+		public DirectoryNode(Utf8String Name, IoHash Hash, long Size)
 		{
 			this.Name = Name;
 			this.Hash = Hash;
+			this.Size = Size;
 		}
 	}
 }

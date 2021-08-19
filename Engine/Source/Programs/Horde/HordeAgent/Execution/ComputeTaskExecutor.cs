@@ -237,13 +237,14 @@ namespace HordeAgent
 			await Task.WhenAll(Tasks);
 		}
 
-		Task<IoHash> PutOutput(string NamespaceId, DirectoryReference BaseDir, IEnumerable<FileReference> Files)
+		async Task<IoHash> PutOutput(string NamespaceId, DirectoryReference BaseDir, IEnumerable<FileReference> Files)
 		{
 			List<FileReference> SortedFiles = Files.OrderBy(x => x.FullName, StringComparer.Ordinal).ToList();
-			return PutDirectoryTree(NamespaceId, BaseDir.FullName.Length, SortedFiles, 0, SortedFiles.Count);
+			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDir.FullName.Length, SortedFiles, 0, SortedFiles.Count);
+			return Hash;
 		}
 
-		async Task<IoHash> PutDirectoryTree(string NamespaceId, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
+		async Task<(DirectoryTree, IoHash)> PutDirectoryTree(string NamespaceId, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
 		{
 			List<Task<FileNode>> Files = new List<Task<FileNode>>();
 			List<Task<DirectoryNode>> Trees = new List<Task<DirectoryNode>>();
@@ -281,19 +282,20 @@ namespace HordeAgent
 			DirectoryTree Tree = new DirectoryTree();
 			Tree.Files.AddRange(await Task.WhenAll(Files));
 			Tree.Directories.AddRange(await Task.WhenAll(Trees));
-			return await BlobStore.PutObjectAsync(NamespaceId, Tree);
+			return (Tree, await BlobStore.PutObjectAsync(NamespaceId, Tree));
 		}
 
 		async Task<DirectoryNode> CreateDirectoryNode(string NamespaceId, string Name, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
 		{
-			IoHash Hash = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
-			return new DirectoryNode(Name, Hash);
+			(DirectoryTree Tree, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
+			return new DirectoryNode(Name, Hash, Tree.Files.Sum(x => x.Size) + Tree.Directories.Sum(x => x.Size));
 		}
 
 		async Task<FileNode> CreateFileNode(string NamespaceId, string Name, FileReference File)
 		{
-			IoHash Hash = await BlobStore.PutBlobAsync(NamespaceId, await FileReference.ReadAllBytesAsync(File));
-			return new FileNode(Name, Hash);
+			byte[] Data = await FileReference.ReadAllBytesAsync(File);
+			IoHash Hash = await BlobStore.PutBlobAsync(NamespaceId, Data);
+			return new FileNode(Name, Hash, Data.Length, (int)FileReference.GetAttributes(File));
 		}
 
 		/// <summary>

@@ -91,14 +91,15 @@ namespace HordeAgent.Commands
 		[CommandLine("-LogLevel")]
 		public string LogLevelStr = "debug";
 
-		static IoHash CreateSandbox(DirectoryInfo BaseDirInfo, Dictionary<IoHash, byte[]> UploadList)
+		static (DirectoryTree, IoHash) CreateSandbox(DirectoryInfo BaseDirInfo, Dictionary<IoHash, byte[]> UploadList)
 		{
 			DirectoryTree Tree = new DirectoryTree();
 
 			foreach (DirectoryInfo SubDirInfo in BaseDirInfo.EnumerateDirectories())
 			{
-				IoHash SubDirHash = CreateSandbox(SubDirInfo, UploadList);
-				Tree.Directories.Add(new DirectoryNode(SubDirInfo.Name, SubDirHash));
+				(DirectoryTree SubTree, IoHash SubDirHash) = CreateSandbox(SubDirInfo, UploadList);
+				long Size = SubTree.Files.Sum(x => x.Size) + SubTree.Directories.Sum(x => x.Size);
+				Tree.Directories.Add(new DirectoryNode(SubDirInfo.Name, SubDirHash, Size));
 			}
 			Tree.Directories.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
@@ -107,11 +108,11 @@ namespace HordeAgent.Commands
 				byte[] Data = File.ReadAllBytes(FileInfo.FullName);
 				IoHash Hash = IoHash.Compute(Data);
 				UploadList[Hash] = Data;
-				Tree.Files.Add(new FileNode(FileInfo.Name, Hash));
+				Tree.Files.Add(new FileNode(FileInfo.Name, Hash, FileInfo.Length, (int)FileInfo.Attributes));
 			}
 			Tree.Files.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 
-			return AddCbObject(UploadList, Tree);
+			return (Tree, AddCbObject(UploadList, Tree));
 		}
 
 		/// <inheritdoc/>
@@ -170,7 +171,7 @@ namespace HordeAgent.Commands
 				}
 
 				Dictionary<IoHash, byte[]> Blobs = new Dictionary<IoHash, byte[]>();
-				IoHash SandboxHash = CreateSandbox(InputDir.ToDirectoryInfo(), Blobs);
+				(_, IoHash SandboxHash) = CreateSandbox(InputDir.ToDirectoryInfo(), Blobs);
 
 				ComputeTask Task = new ComputeTask(JsonComputeTask.Executable, JsonComputeTask.Arguments.ConvertAll<Utf8String>(x => x), JsonComputeTask.WorkingDirectory, SandboxHash);
 				Task.EnvVars = JsonComputeTask.EnvVars.ToDictionary(x => (Utf8String)x.Key, x => (Utf8String)x.Value);

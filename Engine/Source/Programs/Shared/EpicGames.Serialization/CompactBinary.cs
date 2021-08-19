@@ -793,7 +793,15 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Access the field as an int64. Returns the provided default on error.
 		/// </summary>
-		public long AsInt64(long Default = 0)
+		public long AsInt64()
+		{
+			return AsInt64(0);
+		}
+
+		/// <summary>
+		/// Access the field as an int64. Returns the provided default on error.
+		/// </summary>
+		public long AsInt64(long Default)
 		{
 			return (long)AsInteger((ulong)Default, 63, true);
 		}
