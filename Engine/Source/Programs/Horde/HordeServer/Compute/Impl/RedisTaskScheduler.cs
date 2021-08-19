@@ -181,7 +181,9 @@ namespace HordeServer.Compute.Impl
 			ITransaction Transaction = Redis.CreateTransaction();
 			Transaction.AddCondition(Condition.KeyExists(GetQueueKey(RequirementsHash)));
 			_ = Transaction.SetAddAsync(QueueIndex, RequirementsHash);
-			await Transaction.ExecuteAsync(CommandFlags.FireAndForget);
+			await Transaction.ExecuteAsync();
+
+			await Redis.PublishAsync(NewQueueChannel, RequirementsHash);
 		}
 
 		/// <summary>
@@ -204,7 +206,9 @@ namespace HordeServer.Compute.Impl
 		public async Task EnqueueAsync(T Item, IoHash RequirementsHash)
 		{
 			RedisList<T> List = GetQueue(RequirementsHash);
-			if (await Redis.ListRightPushAsync(List, Item) == 1)
+
+			long NewLength = await Redis.ListRightPushAsync(List, Item);
+			if (NewLength == 1)
 			{
 				await AddQueueToIndexAsync(RequirementsHash);
 			}
@@ -218,7 +222,9 @@ namespace HordeServer.Compute.Impl
 		public async Task RequeueAsync(T Item, IoHash RequirementsHash)
 		{
 			RedisList<T> Queue = GetQueue(RequirementsHash);
-			if (await Redis.ListLeftPushAsync(Queue, Item) == 1)
+
+			long NewLength = await Redis.ListLeftPushAsync(Queue, Item);
+			if (NewLength == 1)
 			{
 				await AddQueueToIndexAsync(RequirementsHash);
 			}
@@ -490,172 +496,5 @@ namespace HordeServer.Compute.Impl
 			}
 			return Requirements;
 		}
-
-#if false
-		class QueueStats
-		{
-			QueueKey Key;
-			double Score;
-			int Length;
-		}
-
-		interface IQueueIndex
-		{
-			public IReadOnlyList<QueueKey> Keys { get; }
-
-			public async Task AddAsync(QueueKey Key);
-
-			public async Task RemoveAsync(QueueKey Key);
-		}
-#if false
-
-
-		DatabaseService DatabaseService;
-		IObjectCollection ObjectCollection;
-		IDatabase Redis;
-		RedisKey BaseKey;
-		RedisSortedSet<QueueKey> Index;
-		RedisChannel<QueueKey> NewQueueChannel;
-		List<Listener> Listeners = new List<Listener>();
-		IMemoryCache RequirementsCache = new MemoryCache(new MemoryCacheOptions());
-		List<QueueKey> CachedQueues = new List<QueueKey>();
-		Task? UpdateQueuesTask;
-		BackgroundTick? BackgroundTick;
-		ILogger Logger;
-
-		public RedisTaskScheduler(DatabaseService DatabaseService, IObjectCollection ObjectCollection, IDatabase Redis, RedisKey BaseKey, ILogger<RedisTaskScheduler<T>> Logger)
-		{
-			this.DatabaseService = DatabaseService;
-			this.ObjectCollection = ObjectCollection;
-			this.Redis = Redis;
-			this.BaseKey = BaseKey;
-			this.Index = new RedisSortedSet<QueueKey>(BaseKey.Append("index"));
-			this.NewQueueChannel = new RedisChannel<QueueKey>(BaseKey.Append("new_queues").ToString());
-			this.Logger = Logger;
-
-			UpdateQueuesTask = Task.Run(() => CheckNewQueues());
-		}
-
-		public async Task StopAsync()
-		{
-			if (UpdateQueuesTask != null)
-			{
-				NewQueues.Writer.TryComplete();
-				await UpdateQueuesTask;
-			}
-		}
-
-		public void Dispose()
-		{
-			StopAsync().Wait();
-			BackgroundTick?.Dispose();
-			RequirementsCache.Dispose();
-		}
-
-		RedisList<T> GetQueue(QueueKey QueueKey)
-		{
-			return new RedisList<T>(QueueKey.GetKey(BaseKey));
-		}
-
-
-		/// <inheritdoc/>
-		public async Task EnqueueAsync(TaskSchedulerEntry<T> Entry, bool AtFront = false)
-		{
-			if (!await TryAssignToLocalListenerAsync(Entry))
-			{
-				await AddToSharedQueue(Entry, AtFront);
-			}
-		}
-
-		async Task<bool> TryAssignToLocalListenerAsync(TaskSchedulerEntry<T> Entry)
-		{
-			// Get the requirements for this entry
-			Requirements? Requirements = await GetRequirementsAsync(Entry.NamespaceId, Entry.RequirementsHash);
-			if (Requirements == null)
-			{
-				throw new Exception($"Unable to find requirements with hash {Entry.RequirementsHash}");
-			}
-
-			// Find a local listener that can execute the work
-			for (; ; )
-			{
-				Listener? Listener;
-				lock (Listeners)
-				{
-					Listener = Listeners.FirstOrDefault(x => !x.CompletionSource.Task.IsCompleted && CheckRequirements(x.Agent, Requirements));
-				}
-
-				if (Listener == null)
-				{
-					return false;
-				}
-				else if (Listener.CompletionSource.TrySetResult(Entry))
-				{
-					return true;
-				}
-			}
-		}
-
-		private async Task AddToSharedQueue(TaskSchedulerEntry<T> Entry, bool AtFront)
-		{
-			// TODO: check if there's already something listening
-
-			QueueKey QueueKey = new QueueKey(Entry);
-			RedisList<T> Queue = new RedisList<T>(QueueKey.GetKey(BaseKey));
-
-			// Insert the item in to the appropriate queue
-			long NewLength;
-			if (AtFront)
-			{
-				NewLength = await Redis.ListLeftPushAsync(Queue, Entry.TaskData);
-			}
-			else
-			{
-				NewLength = await Redis.ListRightPushAsync(Queue, Entry.TaskData);
-			}
-
-			// Check if this was a new queue; if so, we need to add a new entry to the index for it, and notify other pods
-			if (NewLength == 1)
-			{
-				await Redis.SortedSetAddAsync(Index, QueueKey, DateTime.UtcNow.Ticks);
-				await Redis.PublishAsync(NewQueueChannel, QueueKey);
-			}
-		}
-
-
-		static bool CheckRequirements(IAgent Agent, Requirements Requirements)
-		{
-			_ = Agent;
-			_ = Requirements;
-			// TODO: check requirements
-			// TODO: cache requirements
-			return true;
-		}
-
-		List<QueueKey> ModifyCachedQueues(Action<List<QueueKey>> Action)
-		{
-			for (; ; )
-			{
-				List<QueueKey> QueueKeys = CachedQueues;
-				if(TryModifyCachedQueueKeys(QueueKeys, Action))
-				{
-					return QueueKeys;
-				}
-			}
-		}
-
-		bool TryModifyCachedQueueKeys(List<QueueKey> InitialQueues, Action<List<QueueKey>> Action)
-		{
-			if (CachedQueues == InitialQueues)
-			{
-				List<QueueKey> NewQueues = new List<QueueKey>(InitialQueues);
-				Action(NewQueues);
-				return Interlocked.CompareExchange(ref CachedQueues, NewQueues, InitialQueues) == InitialQueues;
-			}
-			return false;
-		}
-
-#endif
-#endif
 	}
 }

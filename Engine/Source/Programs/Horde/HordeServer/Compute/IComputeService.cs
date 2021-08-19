@@ -10,6 +10,7 @@ using Microsoft.Extensions.Hosting;
 using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,14 +23,15 @@ namespace HordeServer.Compute
 	/// <summary>
 	/// Unused, except for ChannelId alias.
 	/// </summary>
-	interface IComputeChannel
+	[SuppressMessage("Design", "CA1040:Avoid empty interfaces")]
+	public interface IComputeChannel
 	{
 	}
 
 	/// <summary>
 	/// Status of a compute task
 	/// </summary>
-	interface IComputeTaskStatus
+	public interface IComputeTaskStatus
 	{
 		/// <summary>
 		/// The input hash
@@ -65,7 +67,7 @@ namespace HordeServer.Compute
 	/// <summary>
 	/// Interface for the compute service
 	/// </summary>
-	interface IComputeService : INewTaskSource
+	public interface IComputeService : INewTaskSource
 	{
 		/// <summary>
 		/// Post tasks to be executed to a channel
@@ -78,12 +80,19 @@ namespace HordeServer.Compute
 		Task AddTasksAsync(NamespaceId NamespaceId, IoHash RequirementsHash, List<IoHash> TaskHashes, ChannelId ChannelId);
 
 		/// <summary>
+		/// Dequeue completed items from a queue and return immediately
+		/// </summary>
+		/// <param name="ChannelId">Queue to remove items from</param>
+		/// <returns>List of status updates</returns>
+		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ChannelId ChannelId);
+
+		/// <summary>
 		/// Dequeue completed items from a queue
 		/// </summary>
 		/// <param name="ChannelId">Queue to remove items from</param>
 		/// <param name="CancellationToken">Cancellation token to stop waiting for items</param>
 		/// <returns>List of status updates</returns>
-		Task<List<IComputeTaskStatus>> GetTaskUpdatesAsync(ChannelId ChannelId, CancellationToken CancellationToken);
+		Task<List<IComputeTaskStatus>> WaitForTaskUpdatesAsync(ChannelId ChannelId, CancellationToken CancellationToken);
 	}
 
 	/// <summary>
