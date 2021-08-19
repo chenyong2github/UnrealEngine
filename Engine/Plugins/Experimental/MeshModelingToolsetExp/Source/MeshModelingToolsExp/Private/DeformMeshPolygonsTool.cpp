@@ -5,7 +5,6 @@
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
-#include "FindPolygonsAlgorithm.h"
 #include "InteractiveToolManager.h"
 #include "Intersection/IntersectionUtil.h"
 #include "DynamicMesh/MeshNormals.h"

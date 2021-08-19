@@ -1,0 +1,107 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "DynamicMesh/DynamicMesh3.h"
+
+using UE::Geometry::FDynamicMesh3;
+
+namespace UE
+{
+namespace Geometry
+{
+
+/**
+ * FPolygroupsGenerator generates (face/tri/poly)groups for an input mesh based on the geometry and attributes of the input mesh.
+ * The various FindPolygroupsFromX() are the driving functions, each performs the full computation. 
+ */
+class DYNAMICMESH_API FPolygroupsGenerator
+{
+public:
+
+	FPolygroupsGenerator() {}
+	FPolygroupsGenerator(FDynamicMesh3* MeshIn);
+
+	// 
+	// Input parameters
+	//
+
+	// source mesh
+	FDynamicMesh3* Mesh = nullptr;
+
+	// if true, then groups will be post-processed to optimize them, based on parmeters below
+	bool bApplyPostProcessing = true;
+
+	// if > 1, groups with a triangle count smaller than this will be merged with a neighbouring group
+	int32 MinGroupSize = 0;
+
+	// if true, after groups are computed they will be copied to the output mesh
+	bool bCopyToMesh = true;
+
+	//
+	// Outputs
+	//
+
+	// lists of triangle IDs, each list defines a polygroup/polygon
+	TArray<TArray<int>> FoundPolygroups;
+
+	// list of edge IDs of mesh edges that are on polygroup borders
+	TArray<int> PolygroupEdges;
+
+
+	/**
+	 * Find Polygroups by randomly picking initial seed triangles and then flood-filling outwards,
+	 * stopping when the opening angle at an edge is larger than the angle defined by the DotTolerance.
+	 */
+	bool FindPolygroupsFromFaceNormals(double DotTolerance = 0.0001);
+
+	/**
+	 * Find Polygroups based on UV Islands, ie each UV Island becomes a Polygroup
+	 */
+	bool FindPolygroupsFromUVIslands();
+
+	/**
+	 * Find Polygroups based on mesh connectivity, ie each connected-component becomes a Polygroup
+	 */
+	bool FindPolygroupsFromConnectedTris();
+
+	/**
+	 * Weight potions for algorithms below
+	 */
+	enum class EWeightingType
+	{
+		None,
+		NormalDeviation
+	};
+
+	/**
+	 * Incrementally compute approximate-geodesic-based furthest-point sampling of the mesh until NumPoints
+	 * samples have been found, then compute local geodesic patches (eg approximate surface voronoi diagaram).
+	 * Optionally weight geodesic-distance computation, which will produce different patch shapes.
+	 */
+	bool FindPolygroupsFromFurthestPointSampling(int32 NumPoints, EWeightingType WeightingType, FVector3d WeightingCoeffs = FVector3d::One());
+
+
+	/**
+	* Copy the computed Polygroups to the input Mesh. Will be automatically called by the 
+	* FindPolygroupsFromX() functions above if bCopyToMesh=true
+	*/
+	void CopyPolygroupsToMesh();
+
+
+	/**
+	 * Initialize the PolygroupEdges output member by finding all the mesh edges that are on polygroup borders.
+	 * Requires that polygroups have been computed and copied to the mesh
+	 */
+	bool FindPolygroupEdges();
+
+
+protected:
+	void PostProcessPolygroups(bool bApplyMerging);
+	void OptimizePolygroups();
+};
+
+
+}	// end namespace Geometry
+}	// end namespace UE
