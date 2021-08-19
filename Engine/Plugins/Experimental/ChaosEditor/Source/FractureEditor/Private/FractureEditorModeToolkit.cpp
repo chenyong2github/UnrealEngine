@@ -104,7 +104,7 @@ FFractureViewSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	ViewCategory.AddProperty(LevelProperty)
 	.CustomWidget()
 	.NameContent()
-	.HAlign(HAlign_Right)
+	.HAlign(HAlign_Left)
 	[
 		SNew(STextBlock)
 		.TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
