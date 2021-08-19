@@ -320,6 +320,19 @@ static int MainFork(int ArgC, char** ArgV)
 	}
 
 #if TS_USING(TS_BUILD_DEBUG)
+	static bool volatile bShouldExit = false;
+	while (true)
+	{
+		Sleep(500);
+
+		if (bShouldExit)
+		{
+			FWinHandle QuitEvent = CreateEventW(nullptr, TRUE, FALSE, GQuitEventName);
+			SetEvent(QuitEvent);
+			break;
+		}
+	}
+
 	DaemonThread.join();
 #else
 	CloseHandle(ProcessInfo.hProcess);
