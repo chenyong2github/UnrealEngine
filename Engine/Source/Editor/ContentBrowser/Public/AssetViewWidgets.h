@@ -42,20 +42,6 @@ DECLARE_DELEGATE_OneParam( FOnItemDestroyed, const TSharedPtr<FAssetViewItem>& /
 class SAssetListItem;
 class SAssetTileItem;
 
-enum class EThumbnailSize : uint8
-{
-	Tiny = 0,
-	Small,
-	Medium,
-	Large,
-	Huge,
-
-	// Not a size
-	MAX
-};
-
-
-
 namespace FAssetViewModeUtils 
 {
 	FReply OnViewModeKeyDown( const TSet< TSharedPtr<FAssetViewItem> >& SelectedItems, const FKeyEvent& InKeyEvent );
@@ -474,6 +460,7 @@ public:
 		, _CurrentThumbnailSize(EThumbnailSize::Medium)
 		, _ItemWidth(16)
 		, _ShouldAllowToolTip(true)
+		, _ShowType(true)
 		, _ThumbnailEditMode(false)
 	{}
 
@@ -515,6 +502,9 @@ public:
 
 		/** If false, the tooltip will not be displayed */
 		SLATE_ATTRIBUTE( bool, ShouldAllowToolTip )
+
+		/** If false, will not show type */
+		SLATE_ARGUMENT( bool, ShowType )
 
 		/** The string in the title to highlight (used when searching by string) */
 		SLATE_ATTRIBUTE( FText, HighlightText )
@@ -562,6 +552,11 @@ public:
 
 	/** Get the border image to display */
 	virtual const FSlateBrush* GetBorderImage() const;
+
+	static void InitializeAssetNameHeights();
+	static float GetRegularFontHeight() { return RegularFontHeight; }
+	static float GetSmallFontHeight() { return SmallFontHeight; }
+
 protected:
 	/** SAssetViewItem interface */
 	virtual float GetNameTextWrapWidth() const override { return LastGeometry.GetLocalSize().X - 15.f; }
@@ -594,9 +589,10 @@ protected:
 
 	int32 GetGenericThumbnailSize() const;
 
-	static void InitializeAssetNameHeights();
-
 private:
+	/** If false, the tooltip will not be displayed */
+	bool bShowType;
+
 	/** The handle to the thumbnail that this item is rendering */
 	TSharedPtr<FAssetThumbnail> AssetThumbnail;
 
@@ -605,6 +601,12 @@ private:
 
 	/** Max name height for each thumbnail size */
 	static float AssetNameHeights[(int32)EThumbnailSize::MAX];
+
+	/** Regular thumbnail font size */
+	static float RegularFontHeight;
+
+	/** Small thumbnail font size */
+	static float SmallFontHeight;
 
 	/** The padding allotted for the thumbnail */
 	float ThumbnailPadding;

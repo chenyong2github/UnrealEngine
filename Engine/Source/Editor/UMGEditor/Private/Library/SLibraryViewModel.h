@@ -22,15 +22,23 @@ class FWidgetTemplateListViewModel : public FWidgetViewModel
 public:
 	FWidgetTemplateListViewModel();
 
+	/** Builds list view for given templates */
+	void ConstructListView(TArray<TSharedPtr<FWidgetTemplate>> InTemplates);
+
+	//~ Begin FWidgetViewModel Interface
 	virtual FText GetName() const override;
-
 	virtual bool IsTemplate() const override;
-
 	virtual void GetFilterStrings(TArray<FString>& OutStrings) const override;
-
+	virtual bool HasFilteredChildTemplates() const override;
 	virtual TSharedRef<ITableRow> BuildRow(const TSharedRef<STableViewBase>& OwnerTable) override;
+	//~ End FWidgetViewModel Interface
 
-	// FReply OnDraggingWidgetTemplateItem(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+	void SetViewType(EAssetViewType::Type ViewType);
+
+	void SetThumbnailSize(EThumbnailSize ThumbnailSize);
+
+	void SetSearchText(const FText& InSearchText);
+	FText GetSearchText() const;
 
 	TArray<TSharedPtr<FWidgetTemplate>> Templates;
 	TSharedPtr<FAssetFilterCollectionType> TemplatesFilter;
@@ -38,6 +46,15 @@ private:
 
 	/** The asset view widget */
 	TSharedPtr<SAssetView> AssetViewPtr;
+
+	/** Filter we use to narrow down the libary to select widgets asset view */
+	TSharedPtr<class FFrontendFilter_Text> WidgetTextFilter;
+
+	/** Filter we forward our search text to for the asset view */
+	TSharedPtr<class FFrontendFilter_Text> SearchFilter;
+
+	/** Lowercase string used by widget text filter */
+	FString CachedLowercaseWidgetFilter;
 };
 
 class FLibraryViewModel : public FFavortiesViewModel
@@ -60,14 +77,15 @@ public:
 	/** Returns true if the view model needs to be updated */
 	bool NeedUpdate() const { return bRebuildRequested; }
 	   
-	/** Add the widget template to the list of favorites */
+	//~ Begin FFavortiesViewModel Interface
 	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
-
-	/** Remove the widget template to the list of favorites */
 	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
+	virtual void SetSearchText(const FText& InSearchText) override;
+	//~ End FFavortiesViewModel Interface
 
 	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
+	ViewModelsArray& GetWidgetTemplateListViewModels() { return WidgetTemplateListViewModels; }
 
 	/** Fires before the view model is updated */
 	FOnUpdating OnUpdating;
@@ -109,6 +127,9 @@ private:
 
 	/** The source root view models for the tree. */
 	ViewModelsArray WidgetViewModels;
+
+	/** Widget template list view models associated with each root. */
+	ViewModelsArray WidgetTemplateListViewModels;
 	   
 	/** Controls rebuilding the list of spawnable widgets */
 	bool bRebuildRequested;

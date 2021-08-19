@@ -6,9 +6,10 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "WidgetBlueprintEditor.h"
-#include "Misc/TextFilter.h"
+#include "Misc/DelegateFilter.h"
 #include "Widgets/Views/STreeView.h"
 #include "Framework/Views/TreeFilterHandler.h"
+#include "IContentBrowserSingleton.h"
 
 class FWidgetTemplate;
 class UWidgetBlueprint;
@@ -72,7 +73,7 @@ private:
 class SLibraryView : public SCompoundWidget
 {
 public:
-	typedef TTextFilter<TSharedPtr<FWidgetViewModel>> WidgetViewModelTextFilter;
+	typedef TDelegateFilter<TSharedPtr<FWidgetViewModel>> WidgetViewModelDelegateFilter;
 
 public:
 	SLATE_BEGIN_ARGS( SLibraryView ){}
@@ -83,9 +84,6 @@ public:
 	
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
-	/** Gets the text currently displayed in the search box. */
-	FText GetSearchText() const;
-
 	/** On Selected template widget changed in Library view */
 	void WidgetLibrary_OnSelectionChanged(TSharedPtr<FWidgetViewModel> SelectedItem, ESelectInfo::Type SelectInfo);
 
@@ -93,6 +91,9 @@ public:
 	TSharedPtr<FWidgetTemplate> GetSelectedTemplateWidget() const;
 
 private:
+
+	/** Builds settings menu. */
+	TSharedRef<SWidget> ConstructViewOptions();
 
 	void OnGetChildren(TSharedPtr<FWidgetViewModel> Item, TArray< TSharedPtr<FWidgetViewModel> >& Children);
 	TSharedRef<ITableRow> OnGenerateWidgetTemplateItem(TSharedPtr<FWidgetViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -110,8 +111,20 @@ private:
 	/** Save the expansion state for the TreeView */
 	void SaveItemExpansion();
 
-	/** Gets an array of strings used for filtering/searching the specified widget. */
-	void GetWidgetFilterStrings(TSharedPtr<FWidgetViewModel> WidgetViewModel, TArray<FString>& OutStrings);
+	/** Callback to determine if a particular library view passes filtering */
+	bool HandleFilterWidgetView(TSharedPtr<FWidgetViewModel> WidgetViewModel);
+
+	/** Callback to set library asset view type */
+	void SetCurrentViewTypeFromMenu(EAssetViewType::Type ViewType);
+
+	/** Callback to determine library asset view type */
+	bool IsCurrentViewType(EAssetViewType::Type ViewType);
+
+	/** Callback to set library asset thumbnail size */
+	void OnThumbnailSizeChanged(EThumbnailSize InThumbnailSize);
+
+	/** Callback to determine library asset thumbnail size */
+	bool IsThumbnailSizeChecked(EThumbnailSize InThumbnailSize);
 
 	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
 	TSharedPtr<FLibraryViewModel> LibraryViewModel;
@@ -130,7 +143,7 @@ private:
 	TSharedPtr<class SSearchBox> SearchBoxPtr;
 
 	/** The filter instance which is used by the TreeFilterHandler to filter the TreeView. */
-	TSharedPtr<WidgetViewModelTextFilter> WidgetFilter;
+	TSharedPtr<WidgetViewModelDelegateFilter> WidgetFilter;
 
 	/** Expended Items in the Tree view */
 	TSet<TSharedPtr<FWidgetViewModel>> ExpandedItems;
@@ -140,4 +153,11 @@ private:
 
 	/** Are editor widgets supported. */
 	bool bAllowEditorWidget;
+
+	/** Last view type set by user */
+	EAssetViewType::Type LastViewType;
+
+	/** Last view type set by user */
+	EThumbnailSize LastThumbnailSize;
+
 };

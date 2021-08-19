@@ -27,6 +27,17 @@ namespace EThumbnailLabel
 	};
 };
 
+enum class EThumbnailSize : uint8
+{
+	Tiny = 0,
+	Small,
+	Medium,
+	Large,
+	Huge,
+
+	// Not a size
+	MAX
+};
 
 /** A struct containing details about how the asset thumbnail should behave */
 struct FAssetThumbnailConfig

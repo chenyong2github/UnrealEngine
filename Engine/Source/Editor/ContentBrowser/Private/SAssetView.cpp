@@ -79,7 +79,7 @@ namespace
 }
 
 
-static FText ThumbnailSizeToDisplayName(EThumbnailSize InSize)
+FText SAssetView::ThumbnailSizeToDisplayName(EThumbnailSize InSize)
 {
 	switch (InSize)
 	{
@@ -206,7 +206,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	// Listen for when view settings are changed
 	UContentBrowserSettings::OnSettingChanged().AddSP(this, &SAssetView::HandleSettingChanged);
 
-	ThumbnailSize = EThumbnailSize::Medium;
+	ThumbnailSize = InArgs._InitialThumbnailSize;
 
 	// Get desktop metrics
 	FDisplayMetrics DisplayMetrics;
@@ -228,7 +228,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	TileViewThumbnailSize = 150;
 	TileViewThumbnailPadding = 9;
 
-	TileViewNameHeight = 100;
+	TileViewNameHeight = 50;
 
 	MinThumbnailScale = 0.2f * ThumbnailScaleRangeScalar;
 	MaxThumbnailScale = 1.9f * ThumbnailScaleRangeScalar;
@@ -254,6 +254,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	bShowPathInColumnView = InArgs._ShowPathInColumnView;
 	bShowTypeInColumnView = InArgs._ShowTypeInColumnView;
 	bSortByPathInColumnView = bShowPathInColumnView & InArgs._SortByPathInColumnView;
+	bShowTypeInTileView = InArgs._ShowTypeInTileView;
 	bForceShowEngineContent = InArgs._ForceShowEngineContent;
 	bForceShowPluginContent = InArgs._ForceShowPluginContent;
 
@@ -2631,7 +2632,7 @@ void SAssetView::PopulateViewButtonMenu(UToolMenu* Menu)
 			{
 				SizeSection.AddMenuEntry(
 					NAME_None,
-					ThumbnailSizeToDisplayName((EThumbnailSize)EnumValue),
+					SAssetView::ThumbnailSizeToDisplayName((EThumbnailSize)EnumValue),
 					FText::GetEmpty(),
 					FSlateIcon(),
 					FUIAction(
@@ -3012,6 +3013,11 @@ void SAssetView::SetCurrentViewType(EAssetViewType::Type NewType)
 	}
 }
 
+void SAssetView::SetCurrentThumbnailSize(EThumbnailSize NewThumbnailSize)
+{
+	OnThumbnailSizeChanged(NewThumbnailSize);
+}
+
 void SAssetView::SetCurrentViewTypeFromMenu(EAssetViewType::Type NewType)
 {
 	if (NewType != CurrentViewType)
@@ -3298,7 +3304,8 @@ TSharedRef<ITableRow> SAssetView::MakeTileViewWidget(TSharedPtr<FAssetViewItem> 
 			.OnIsAssetValidForCustomToolTip(OnIsAssetValidForCustomToolTip)
 			.OnGetCustomAssetToolTip(OnGetCustomAssetToolTip)
 			.OnVisualizeAssetToolTip( OnVisualizeAssetToolTip )
-			.OnAssetToolTipClosing( OnAssetToolTipClosing );
+			.OnAssetToolTipClosing( OnAssetToolTipClosing )
+			.ShowType(bShowTypeInTileView);
 
 		TableRowWidget->SetContent(Item);
 
@@ -3882,7 +3889,6 @@ void SAssetView::ToggleThumbnailEditMode()
 	bThumbnailEditMode = !bThumbnailEditMode;
 }
 
-
 void SAssetView::OnThumbnailSizeChanged(EThumbnailSize NewThumbnailSize)
 {
 	ThumbnailSize = NewThumbnailSize;
@@ -3927,6 +3933,32 @@ bool SAssetView::IsThumbnailScalingAllowed() const
 	return GetCurrentViewType() != EAssetViewType::Column;
 }
 
+float SAssetView::GetTileViewTypeNameHeight() const
+{
+	float TypeNameHeight = 0;
+
+	if (bShowTypeInTileView)
+	{
+		TypeNameHeight = 50;
+	}
+	else
+	{
+		if (ThumbnailSize == EThumbnailSize::Small)
+		{
+			TypeNameHeight = 25;
+		}
+		else if (ThumbnailSize > EThumbnailSize::Small)
+		{
+			TypeNameHeight = -25;
+		}
+		else
+		{
+			TypeNameHeight = -40;
+		}
+	}
+	return TypeNameHeight;
+}
+
 float SAssetView::GetListViewItemHeight() const
 {
 	return (ListViewThumbnailSize + ListViewThumbnailPadding * 2) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale());
@@ -3934,7 +3966,7 @@ float SAssetView::GetListViewItemHeight() const
 
 float SAssetView::GetTileViewItemHeight() const
 {
-	return (TileViewNameHeight * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale())) + GetTileViewItemBaseHeight() * FillScale;
+	return ((TileViewNameHeight + GetTileViewTypeNameHeight()) * FMath::Lerp(MinThumbnailScale, MaxThumbnailScale, GetThumbnailScale())) + GetTileViewItemBaseHeight() * FillScale;
 }
 
 float SAssetView::GetTileViewItemBaseHeight() const

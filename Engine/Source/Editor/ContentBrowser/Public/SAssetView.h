@@ -46,8 +46,6 @@ DECLARE_DELEGATE(FOnSearchOptionChanged);
 /** Fires whenever asset view options menu is being opened, gives chance for external code to set additional context */
 DECLARE_DELEGATE_OneParam(FOnExtendAssetViewOptionsMenuContext, FToolMenuContext&);
 
-enum class EThumbnailSize : uint8;
-
 /**
  * A widget to display a list of filtered assets
  */
@@ -59,6 +57,7 @@ public:
 		, _ThumbnailLabel( EThumbnailLabel::ClassName )
 		, _AllowThumbnailHintLabel(true)
 		, _InitialViewType(EAssetViewType::Tile)
+		, _InitialThumbnailSize(EThumbnailSize::Medium)
 		, _ShowBottomToolbar(true)
 		, _ShowViewOptions(true)
 		, _AllowThumbnailEditMode(false)
@@ -78,6 +77,7 @@ public:
 		, _ShowPathInColumnView(false)
 		, _ShowTypeInColumnView(true)
 		, _SortByPathInColumnView(false)
+		, _ShowTypeInTileView(true)
 		, _ForceShowEngineContent(false)
 		, _ForceShowPluginContent(false)
 		{}
@@ -147,6 +147,10 @@ public:
 
 		/** The initial view type */
 		SLATE_ARGUMENT( EAssetViewType::Type, InitialViewType )
+
+		/** Initial thumbnail size */
+		SLATE_ARGUMENT( EThumbnailSize, InitialThumbnailSize )
+
 		/** Should the toolbar indicating number of selected assets, mode switch buttons, etc... be shown? */
 		SLATE_ARGUMENT( bool, ShowBottomToolbar )
 
@@ -203,6 +207,9 @@ public:
 
 		/** Sort by path in the column view. Only works if the initial view type is Column */
 		SLATE_ARGUMENT(bool, SortByPathInColumnView)
+		
+		/** Should show Type in column view if true */
+		SLATE_ARGUMENT(bool, ShowTypeInTileView)
 
 		/** Should always show engine content */
 		SLATE_ARGUMENT(bool, ForceShowEngineContent)
@@ -353,8 +360,17 @@ public:
 	/** Handler for when the view combo button is clicked */
 	TSharedRef<SWidget> GetViewButtonContent();
 
+	/** Sets the view type and updates lists accordingly */
+	void SetCurrentViewType(EAssetViewType::Type NewType);
+
+	/** Sets the thumbnail size and updates lists accordingly */
+	void SetCurrentThumbnailSize(EThumbnailSize NewThumbnailSize);
+
 	/** Gets the text for the asset count label */
 	FText GetAssetCountText() const;
+
+	/** Gets text name for given thumbnail */
+	static FText ThumbnailSizeToDisplayName(EThumbnailSize InSize);
 
 private:
 
@@ -568,9 +584,6 @@ private:
 	/** @return true when we are organizing folders into virtual locations */
 	bool IsOrganizingFolders() const;
 
-	/** Sets the view type and updates lists accordingly */
-	void SetCurrentViewType(EAssetViewType::Type NewType);
-
 	/** Sets the view type and forcibly dismisses all currently open context menus */
 	void SetCurrentViewTypeFromMenu(EAssetViewType::Type NewType);
 
@@ -686,6 +699,9 @@ private:
 
 	/** Gets the current thumbnail size enum */
 	EThumbnailSize GetThumbnailSize() const { return ThumbnailSize; }
+
+	/** Gets the spacing dedicated to support type names */
+	float GetTileViewTypeNameHeight() const;
 
 	/** Gets the scaled item height for the list view */
 	float GetListViewItemHeight() const;
@@ -1002,6 +1018,9 @@ private:
 
 	/** If true, it sorts by path and then name */
 	bool bSortByPathInColumnView;
+
+	/** If true, it will show type in the tile view */
+	bool bShowTypeInTileView;
 
 	/** If true, engine content is always shown */
 	bool bForceShowEngineContent;
