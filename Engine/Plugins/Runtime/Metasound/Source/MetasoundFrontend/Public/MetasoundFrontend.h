@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundGraph.h"
-#include "MetasoundFrontendRegistries.h"
-#include "MetasoundFrontendDocument.h"
+
 #include "MetasoundBuilderInterface.h"
+#include "MetasoundGraph.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
+#include "MetasoundFrontendDocument.h"
+#include "MetasoundFrontendRegistries.h"
 
 // Forward Declarations
 class FMetasoundAssetBase;
@@ -76,21 +78,6 @@ namespace Metasound
 
 			return GenerateClassDescription<NodeType>(InitData);
 		}
-
-
-		template<typename DataType>
-		FName GetDataTypeName()
-		{
-			static FName DataTypeName = FName(TDataReferenceTypeInfo<DataType>::TypeName);
-			return DataTypeName;
-		}
-
-		// Returns a list of all available data types.
-		METASOUNDFRONTEND_API TArray<FName> GetAllAvailableDataTypes();
-
-		// outputs the traits for a given data type.
-		// returns false if InDataType couldn't be found.
-		METASOUNDFRONTEND_API bool GetTraitsForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
 		// Takes a JSON string and deserializes it into a Metasound document struct.
 		// @returns false if the file couldn't be found or parsed into a document.

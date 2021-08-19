@@ -18,6 +18,7 @@
 #include "MetasoundEditorGraphValidation.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundEditorSettings.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendQuery.h"
 #include "MetasoundFrontendQuerySteps.h"
 #include "MetasoundFrontendRegistries.h"
@@ -483,10 +484,7 @@ namespace Metasound
 					bool bObjectFound = false;
 					if (!InInputPin.DefaultValue.IsEmpty())
 					{
-						FMetasoundFrontendRegistryContainer* FrontendRegistry = FMetasoundFrontendRegistryContainer::Get();
-						check(FrontendRegistry);
-
-						if (UClass* Class = FrontendRegistry->GetLiteralUClassForDataType(TypeName))
+						if (UClass* Class = IDataTypeRegistry::Get().GetUClassForDataType(TypeName))
 						{
 							FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 
@@ -1555,7 +1553,8 @@ namespace Metasound
 			}
 
 			FMetasoundFrontendLiteral DefaultLiteral;
-			DefaultLiteral.SetFromLiteral(Frontend::GetDefaultParamForDataType(InputHandle->GetDataType()));
+			DefaultLiteral.SetFromLiteral(IDataTypeRegistry::Get().CreateDefaultLiteral(InputHandle->GetDataType()));
+
 			InPin.DefaultValue = DefaultLiteral.ToString();
 			return OldValue != InPin.DefaultValue;
 		}

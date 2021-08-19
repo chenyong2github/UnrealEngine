@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraph/EdGraphPin.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendLiteral.h"
 #include "MetasoundFrontendRegistries.h"
 #include "Modules/ModuleInterface.h"

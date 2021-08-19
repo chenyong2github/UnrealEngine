@@ -2927,7 +2927,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
-				return FRegistry::Get()->GetDesiredLiteralTypeForDataType(Desc->TypeName);
+				return IDataTypeRegistry::Get().GetDesiredLiteralType(Desc->TypeName);
 			}
 			return ELiteralType::Invalid;
 		}
@@ -2937,7 +2937,7 @@ namespace Metasound
 		{
 			if (const FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithName(InInputName))
 			{
-				return FRegistry::Get()->GetLiteralUClassForDataType(Desc->TypeName);
+				return IDataTypeRegistry::Get().GetUClassForDataType(Desc->TypeName);
 			}
 			return nullptr;
 		}
@@ -2955,7 +2955,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithVertexID(InVertexID))
 			{
-				if (ensure(DoesDataTypeSupportLiteralType(Desc->TypeName, InLiteral.GetType())))
+				if (ensure(IDataTypeRegistry::Get().IsLiteralTypeSupported(Desc->TypeName, InLiteral.GetType())))
 				{
 					Desc->DefaultLiteral = InLiteral;
 					return true;
@@ -2973,7 +2973,7 @@ namespace Metasound
 		{
 			if (FMetasoundFrontendClassInput* Desc = FindInputDescriptionWithVertexID(InVertexID))
 			{
-				Metasound::FLiteral Literal = Frontend::GetDefaultParamForDataType(Desc->TypeName);
+				Metasound::FLiteral Literal = IDataTypeRegistry::Get().CreateDefaultLiteral(Desc->TypeName);
 				Desc->DefaultLiteral.SetFromLiteral(Literal);
 				return Desc->DefaultLiteral.IsValid();
 			}

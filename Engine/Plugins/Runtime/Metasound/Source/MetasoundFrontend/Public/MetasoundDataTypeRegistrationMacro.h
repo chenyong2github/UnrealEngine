@@ -423,7 +423,7 @@ namespace Metasound
 					return MakeUnique<TGetVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
 				}
 
-				virtual TUniquePtr<INode> CreateReceiveNode(FReceiveNodeConstructorParams&& InParams) const override
+				virtual TUniquePtr<INode> CreateReceiveNode(const FNodeInitData& InParams) const override
 				{
 					return MakeUnique<TReceiveNode<TDataType>>(InParams);
 				}
@@ -470,7 +470,7 @@ namespace Metasound
 				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
 			};
 
-			bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(GetMetasoundDataTypeName<TDataType>(), MakeUnique<FDataTypeRegistryEntry>());
+			bool bSucceeded = Frontend::IDataTypeRegistry::Get().RegisterDataType(MakeUnique<FDataTypeRegistryEntry>());
 			ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), *GetMetasoundDataTypeString<TDataType>());
 
 			if (bSucceeded)

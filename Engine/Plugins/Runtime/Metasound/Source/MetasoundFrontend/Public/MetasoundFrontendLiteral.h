@@ -128,16 +128,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		// Returns true if the data type can be constructed using the literal type.
-		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, EMetasoundFrontendLiteralType InLiteralType);
-
-		// Returns true if the data type can be constructed using the literal type.
-		METASOUNDFRONTEND_API bool DoesDataTypeSupportLiteralType(FName InDataType, ELiteralType InLiteralType);
-
-		// Returns the defaulted version of a literal param for the given data type.
-		// @Returns an invalid init param if the data type couldn't be found.
-		METASOUNDFRONTEND_API FLiteral GetDefaultParamForDataType(FName InDataType);
-
 		// Convenience function to convert Metasound::ELiteralType to EMetasoundFrontendLiteralType.
 		METASOUNDFRONTEND_API EMetasoundFrontendLiteralType GetMetasoundFrontendLiteralType(ELiteralType InLiteralType);
 

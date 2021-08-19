@@ -3,6 +3,7 @@
 #include "SMetasoundEnumPin.h"
 #include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "ScopedTransaction.h"
 
 void SMetasoundEnumPin::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
@@ -36,7 +37,7 @@ SMetasoundEnumPin::FindEnumInterfaceFromPin(UEdGraphPin* InPin)
 	if (Inputs.Num() > 0)
 	{
 		FName DataType = Inputs[0]->GetDataType();
-		return FMetasoundFrontendRegistryContainer::Get()->GetEnumInterfaceForDataType(DataType);
+		return Metasound::Frontend::IDataTypeRegistry::Get().GetEnumInterfaceForDataType(DataType);
 	}
 	return nullptr;
 }
