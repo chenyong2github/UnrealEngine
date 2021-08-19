@@ -165,6 +165,13 @@ void UDynamicMeshComponentToolTarget::CommitDynamicMeshChange(TUniquePtr<FToolCo
 	UDynamicMesh* DynamicMesh = GetDynamicMeshContainer();
 	DynamicMesh->Modify();
 	GUndo->StoreUndo(DynamicMesh, MoveTemp(Change));
+
+	// Invalidate any cached MeshDescription. 
+	if (bHaveMeshDescription)
+	{
+		ConvertedMeshDescription = nullptr;
+		bHaveMeshDescription = false;
+	}
 }
 
 
