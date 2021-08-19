@@ -590,6 +590,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		bool bAnySegmentsCastShadow = false;
 		bool bAnySegmentsDecal = false;
 		bool bTwoSided = false;
+		bool bIsSky = false;
 
 		uint64 InstancingKey() const
 		{
@@ -599,6 +600,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 			Key ^= bAnySegmentsCastShadow ? 0x1ull << 41 : 0x0;
 			Key ^= bAnySegmentsDecal ? 0x1ull << 42 : 0x0;
 			Key ^= bTwoSided ? 0x1ull << 43 : 0x0;
+			Key ^= bIsSky ? 0x1ull << 44 : 0x0;
 			return Key ^ reinterpret_cast<uint64>(RayTracingGeometryRHI);
 		}
 	};
@@ -837,6 +839,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 									RelevantPrimitive.bAnySegmentsCastShadow |= RayTracingMeshCommand.bCastRayTracedShadows;
 									RelevantPrimitive.bAnySegmentsDecal |= RayTracingMeshCommand.bDecal;
 									RelevantPrimitive.bTwoSided |= RayTracingMeshCommand.bTwoSided;
+									RelevantPrimitive.bIsSky |= RayTracingMeshCommand.bIsSky;
 								}
 								else
 								{
@@ -1229,7 +1232,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 					continue; // skip dynamic primitives and other 
 				}
 
-				if (GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
+				if ((GRayTracingExcludeDecals && RelevantPrimitive.bAnySegmentsDecal)
+					|| RelevantPrimitive.bIsSky)
 				{
 					continue;
 				}

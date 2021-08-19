@@ -1961,6 +1961,7 @@ public:
 	bool bCastRayTracedShadows = true;
 	bool bOpaque = true;
 	bool bDecal = false;
+	bool bIsSky = false;
 	bool bIsTranslucent = false;
 	bool bTwoSided = false;
 
