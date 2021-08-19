@@ -156,14 +156,17 @@ public:
 	/** Build a Face Dual Graph for a triangle mesh */
 	static void MakeFaceDualGraphForMesh(FDynamicMesh3* Mesh, FMeshFaceDualGraph& FaceGraph)
 	{
+		// if not true, code below needs updating
+		check(Mesh->IsCompactT());
+
 		for (int32 tid : Mesh->TriangleIndicesItr())
 		{
 			FVector3d Normal, Centroid;
 			double Area;
 			Mesh->GetTriInfo(tid, Normal, Area, Centroid);
 
-			int32 newvid = FaceGraph.AppendVertex(Centroid, Normal, Area);
-			check(newvid == tid);
+			int32 newid = FaceGraph.AppendVertex(Centroid, Normal, Area);
+			check(newid == tid);
 		}
 
 		for (int32 tid : Mesh->TriangleIndicesItr())
