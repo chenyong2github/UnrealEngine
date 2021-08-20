@@ -17,11 +17,12 @@ void STabDrawer::SetCurrentSize(float InSize)
 	CurrentSize = FMath::Clamp(InSize, MinDrawerSize, TargetDrawerSize);
 }
 
-void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab, ETabDrawerOpenDirection InOpenDirection)
+void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab, TWeakPtr<SWidget> InTabButton, ETabDrawerOpenDirection InOpenDirection)
 {
 	OpenDirection = InOpenDirection;
 
 	ForTab = InTab;
+	TabButton = InTabButton;
 	OpenCloseAnimation = FCurveSequence(0.0f, 0.15f, ECurveEaseFunction::QuadOut);
 
 	CurrentSize = 0;
@@ -44,6 +45,18 @@ void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab,
 	BackgroundBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.DrawerBackground");
 	ShadowBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.DrawerShadow");
 	BorderBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.Border");
+	if (OpenDirection == ETabDrawerOpenDirection::Left)
+	{
+		BorderSquareEdgeBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.Border_SquareLeft");
+	}
+	else if (OpenDirection == ETabDrawerOpenDirection::Right)
+	{
+		BorderSquareEdgeBrush = FAppStyle::Get().GetBrush("Docking.Sidebar.Border_SquareRight");
+	}
+	else
+	{
+		BorderSquareEdgeBrush = BorderBrush;
+	}
 
 	FSlateApplication::Get().OnFocusChanging().AddSP(this, &STabDrawer::OnGlobalFocusChanging);
 
@@ -240,19 +253,26 @@ int32 STabDrawer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 	const FGeometry RenderTransformedChildGeometry = GetRenderTransformedGeometry(AllottedGeometry);
 	const FGeometry ResizeHandleGeometry = GetResizeHandleGeometry(AllottedGeometry);
 
-	FPaintGeometry OffsetPaintGeom;
+	const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
+	FVector2D ContentsLocalOrigin;
+	FVector2D ContentsLocalSize;
 	if (OpenDirection == ETabDrawerOpenDirection::Left)
 	{
-		OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0.0f, ShadowOffset.Y), FVector2D(TargetDrawerSize, AllottedGeometry.GetLocalSize().Y - (ShadowOffset.Y * 2)));
+		ContentsLocalOrigin = FVector2D(0.0f, ShadowOffset.Y);
+		ContentsLocalSize = FVector2D(TargetDrawerSize, LocalSize.Y - (ShadowOffset.Y * 2));
 	}
 	else if (OpenDirection == ETabDrawerOpenDirection::Right)
 	{
-		OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(TargetDrawerSize, AllottedGeometry.GetLocalSize().Y - (ShadowOffset.Y * 2)));
+		ContentsLocalOrigin = ShadowOffset;
+		ContentsLocalSize = FVector2D(TargetDrawerSize, LocalSize.Y - (ShadowOffset.Y * 2));
 	}
 	else
 	{
-		OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ShadowOffset, FVector2D(AllottedGeometry.GetLocalSize().X - (ShadowOffset.X * 2), TargetDrawerSize));
+		ContentsLocalOrigin = ShadowOffset;
+		ContentsLocalSize = FVector2D(LocalSize.X - (ShadowOffset.X * 2), TargetDrawerSize);
 	}
+
+	const FPaintGeometry OffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalOrigin, ContentsLocalSize);
 
 	// Draw the resize handle
 	if (bIsResizing || bIsResizeHandleHovered)
@@ -288,14 +308,106 @@ int32 STabDrawer::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeome
 
 	int32 OutLayerId = SCompoundWidget::OnPaint(Args, RenderTransformedChildGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled);
 
+	TSharedPtr<SWidget> TabButtonSP = TabButton.Pin();
+
 	// Top border
-	FSlateDrawElement::MakeBox(
-		OutDrawElements,
-		OutLayerId,
-		OffsetPaintGeom,
-		BorderBrush,
-		ESlateDrawEffect::None,
-		BorderBrush->GetTint(InWidgetStyle));
+	if (OpenDirection == ETabDrawerOpenDirection::Bottom || TabButtonSP == nullptr)
+	{
+		// When opened from the bottom, draw the full border.
+		// Cutting out the "notch" for the corresponding tab is only supported in left/right orientations.
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId,
+			OffsetPaintGeom,
+			BorderBrush,
+			ESlateDrawEffect::None,
+			BorderBrush->GetTint(InWidgetStyle));
+	}
+	else
+	{
+		// Example of how border box is drawn with the tab notch cut out on the right side
+		// (OpenDirection == ETabDrawerOpenDirection::Right)
+		//
+		//                    + - - - - - - +
+		//                    : /---------\ :
+		// ClipAboveTabButton : |         | : 
+		//                    : |         | :
+		//            TabTopY + - - - - - - +
+		//                    : |           :  |
+		// ClipAtTabButton    : |           :  |  (right edge outside clip is clipped off)
+		//                    : |           :  |
+		//         TabBottomY + - - - - - - +
+		//                    : |         | :
+		// ClipBelowTabButton : |         | :
+		//                    : \---------/ :
+		//                    + - - - - - - +
+		//                                  <-->
+		//                              NotchOffset
+		//
+		// Originally, I tried making the middle clip region thinner (to clip out the notch)
+		// while keeping the geometry identical, but this looks worse when the tab notch needs to
+		// be at the top or bottom, since the top/bottom edge of the border wouldn't extend all the
+		// way to the edge.
+		const FGeometry TabButtonGeometry = TabButtonSP->GetPaintSpaceGeometry();
+
+		// Compute the top/bottom of the tab in our local space.
+		const float BorderWidth = BorderBrush->OutlineSettings.Width;
+		const float TabTopY = RenderTransformedChildGeometry.AbsoluteToLocal(TabButtonGeometry.GetAbsolutePositionAtCoordinates(FVector2D::ZeroVector)).Y + 0.5f * BorderWidth;
+		const float TabBottomY = RenderTransformedChildGeometry.AbsoluteToLocal(TabButtonGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector)).Y - 0.5f * BorderWidth;
+
+		// Create the geometry for the notched portion, where one edge extends past the clipping rect.
+		const FVector2D NotchOffsetSize(TabButtonGeometry.GetLocalSize().X, 0.0f);
+		const FVector2D NotchOffsetTranslate = OpenDirection == ETabDrawerOpenDirection::Left ? -NotchOffsetSize : FVector2D::ZeroVector;
+		const FPaintGeometry NotchOffsetPaintGeom = RenderTransformedChildGeometry.ToPaintGeometry(ContentsLocalOrigin + NotchOffsetTranslate, ContentsLocalSize + NotchOffsetSize);
+
+		// Split the border box into three clipping zones.
+		const FPaintGeometry ClipAboveTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, 0), FVector2D(LocalSize.X, TabTopY));
+		const FPaintGeometry ClipAtTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, TabTopY), FVector2D(LocalSize.X, TabBottomY - TabTopY));
+		const FPaintGeometry ClipBelowTabButton = RenderTransformedChildGeometry.ToPaintGeometry(FVector2D(0, TabBottomY), FVector2D(LocalSize.X, LocalSize.Y - TabBottomY));
+
+		// If the tab button touches a corner on the edge of the border, switch the brush to
+		// draw that corner squared-off. When a tab is near the very top or bottom of its sidebar,
+		// this makes the outline look slightly nicer and more connected.
+		const int32 UpperCornerIndex = OpenDirection == ETabDrawerOpenDirection::Left ? 0 : 1;
+		const int32 LowerCornerIndex = OpenDirection == ETabDrawerOpenDirection::Left ? 3 : 2;
+		const bool bTabTouchesUpperCorner = TabTopY < ShadowOffset.Y + BorderBrush->OutlineSettings.CornerRadii[UpperCornerIndex];
+		const bool bTabTouchesLowerCorner = TabBottomY > LocalSize.Y - ShadowOffset.Y - BorderBrush->OutlineSettings.CornerRadii[LowerCornerIndex];
+		const FSlateBrush* AboveTabBrush = bTabTouchesUpperCorner ? BorderSquareEdgeBrush : BorderBrush;
+		const FSlateBrush* BelowTabBrush = bTabTouchesLowerCorner ? BorderSquareEdgeBrush : BorderBrush;
+
+		// Draw portion above the tab
+		OutDrawElements.PushClip(FSlateClippingZone(ClipAboveTabButton));
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId,
+			OffsetPaintGeom,
+			AboveTabBrush,
+			ESlateDrawEffect::None,
+			AboveTabBrush->GetTint(InWidgetStyle));
+		OutDrawElements.PopClip();
+
+		// Draw "notched" portion next to the tab
+		OutDrawElements.PushClip(FSlateClippingZone(ClipAtTabButton));
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId,
+			NotchOffsetPaintGeom,
+			BorderSquareEdgeBrush,
+			ESlateDrawEffect::None,
+			BorderSquareEdgeBrush->GetTint(InWidgetStyle));
+		OutDrawElements.PopClip();
+
+		// Draw portion below the tab
+		OutDrawElements.PushClip(FSlateClippingZone(ClipBelowTabButton));
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			OutLayerId,
+			OffsetPaintGeom,
+			BelowTabBrush,
+			ESlateDrawEffect::None,
+			BelowTabBrush->GetTint(InWidgetStyle));
+		OutDrawElements.PopClip();
+	}
 
 	return OutLayerId+1;
 

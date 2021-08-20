@@ -54,7 +54,7 @@ public:
 		TextLayoutCache->SetTextOverflowPolicy(InArgs._OverflowPolicy.IsSet() ? InArgs._OverflowPolicy : TextStyle.OverflowPolicy);
 	}
 
-	int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
 		// We're going to figure out the bounds of the corresponding horizontal text, and then rotate it into a vertical orientation.
 		const FVector2D LocalSize = AllottedGeometry.GetLocalSize();
@@ -155,25 +155,15 @@ public:
 			.HeightOverride(Size.X)
 			.Clipping(EWidgetClipping::ClipToBounds)
 			[
-				SAssignNew(MainButton, SButton)
-				.ToolTip(ForTab->GetToolTip() ? ForTab->GetToolTip() : TAttribute<TSharedPtr<IToolTip>>())
-				.ToolTipText(ForTab->GetToolTip() ? TAttribute<FText>() : ForTab->GetTabLabel())
-				.ContentPadding(FMargin(0.0f, DockTabStyle->TabPadding.Top, 0.0f, DockTabStyle->TabPadding.Bottom))
-				.OnClicked_Lambda([this](){OnDrawerButtonClicked.ExecuteIfBound(Tab.ToSharedRef()); return FReply::Handled(); })
-				.ForegroundColor(FSlateColor::UseForeground())
+				SNew(SOverlay)
+				+ SOverlay::Slot()
 				[
-					SNew(SOverlay)
-					+ SOverlay::Slot()
-					.HAlign(Location == ESidebarLocation::Left ? HAlign_Left : HAlign_Right)
-					[
-						SAssignNew(OpenIndicator, SComplexGradient)
-						.DesiredSizeOverride(FVector2D(1.0f, 1.0f))
-						.GradientColors(GradientStops)
-						.Orientation(EOrientation::Orient_Horizontal)
-					]
-					+ SOverlay::Slot()
-					.VAlign(VAlign_Fill)
-					.HAlign(HAlign_Center)
+					SAssignNew(MainButton, SButton)
+					.ToolTip(ForTab->GetToolTip() ? ForTab->GetToolTip() : TAttribute<TSharedPtr<IToolTip>>())
+					.ToolTipText(ForTab->GetToolTip() ? TAttribute<FText>() : ForTab->GetTabLabel())
+					.ContentPadding(FMargin(0.0f, DockTabStyle->TabPadding.Top, 0.0f, DockTabStyle->TabPadding.Right))
+					.OnClicked_Lambda([this](){OnDrawerButtonClicked.ExecuteIfBound(Tab.ToSharedRef()); return FReply::Handled(); })
+					.ForegroundColor(FSlateColor::UseForeground())
 					[
 						SNew(SVerticalBox)
 						+ SVerticalBox::Slot()
@@ -192,6 +182,7 @@ public:
 						+ SVerticalBox::Slot()
 						.Padding(0.0f, 5.0f, 0.0f, 0.0f)
 						.FillHeight(1.0f)
+						.HAlign(HAlign_Center)
 						[
 							SAssignNew(Label, STabDrawerTextBlock)
 								.TextStyle(&DockTabStyle->TabTextStyle)
@@ -200,6 +191,19 @@ public:
 								.Clipping(EWidgetClipping::ClipToBounds)
 						]
 					]
+				]
+				+ SOverlay::Slot()
+				[
+					SAssignNew(OpenBorder, SBorder)
+					.Visibility(EVisibility::HitTestInvisible)
+				]
+				+ SOverlay::Slot()
+				.HAlign(Location == ESidebarLocation::Left ? HAlign_Left : HAlign_Right)
+				[
+					SAssignNew(OpenIndicator, SComplexGradient)
+					.DesiredSizeOverride(FVector2D(1.0f, 1.0f))
+					.GradientColors(GradientStops)
+					.Orientation(EOrientation::Orient_Horizontal)
 				]
 			]
 		];
@@ -230,11 +234,24 @@ public:
 		{
 			// this button is the one with the tab that is actually opened so show the opened indicator
 			OpenIndicator->SetVisibility(EVisibility::HitTestInvisible);
+			OpenBorder->SetVisibility(EVisibility::HitTestInvisible);
 			MainButton->SetButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Docking.SidebarButton.Opened"));
+
+			switch (Location)
+			{
+			case ESidebarLocation::Left:
+				OpenBorder->SetBorderImage(FAppStyle::Get().GetBrush("Docking.Sidebar.Border_SquareRight"));
+				break;
+			case ESidebarLocation::Right:
+			default:
+				OpenBorder->SetBorderImage(FAppStyle::Get().GetBrush("Docking.Sidebar.Border_SquareLeft"));
+				break;
+			}
 		}
 		else
 		{
 			OpenIndicator->SetVisibility(EVisibility::Collapsed);
+			OpenBorder->SetVisibility(EVisibility::Collapsed);
 			MainButton->SetButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Docking.SidebarButton.Closed"));
 		}
 	}
@@ -276,6 +293,10 @@ public:
 		{
 			return DockTabStyle->ActiveForegroundColor;
 		}
+		else if (IsHovered())
+		{
+			return DockTabStyle->HoveredForegroundColor;
+		}
 
 		return FSlateColor::UseStyle();
 	}
@@ -284,6 +305,7 @@ private:
 	TSharedPtr<SDockTab> Tab;
 	TSharedPtr<STabDrawerTextBlock> Label;
 	TSharedPtr<SWidget> OpenIndicator;
+	TSharedPtr<SBorder> OpenBorder;
 	TSharedPtr<SButton> MainButton;
 	FOnGetContent OnGetContextMenuContent;
 	FOnTabDrawerButtonClicked OnDrawerButtonClicked;
@@ -308,7 +330,11 @@ void STabSidebar::Construct(const FArguments& InArgs)
 	FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &STabSidebar::OnActiveTabChanged));
 
 	ChildSlot
-	.Padding(2.0f,0.0f)
+	.Padding(FMargin(
+		Location == ESidebarLocation::Right ? 2.0f : 0.0f,
+		0.0f,
+		Location == ESidebarLocation::Left ? 2.0f : 0.0f,
+		0.0f))
 	[
 		SNew(SBorder)
 		.Padding(0.0f)
@@ -652,7 +678,7 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 
 		const FVector2D ShadowOffset(8, 8);
 
-		const float DPIScale = MyWindow->GetDPIScaleFactor();
+		const float WindowScale = FSlateApplication::Get().GetApplicationScale() * MyWindow->GetDPIScaleFactor();
 
 		const float TopOffset = ((ChildSlot.GetPadding().Top + MyGeometry.GetAbsolutePosition().Y) - WindowGeometry.GetAbsolutePosition().Y);
 
@@ -660,9 +686,9 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 
 		FMargin SlotPadding(
 			Location == ESidebarLocation::Left ? MinDrawerSize : 0.0f,
-			TopOffset / DPIScale - ShadowOffset.Y,
+			TopOffset / WindowScale - ShadowOffset.Y,
 			Location == ESidebarLocation::Right ? MinDrawerSize : 0.0f,
-			BottomOffset / DPIScale - ShadowOffset.Y
+			BottomOffset / WindowScale - ShadowOffset.Y
 		);
 
 		const float MaxPct = .5f;
@@ -674,8 +700,14 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 
 		const float TargetDrawerSize = (MyWindow->GetSizeInScreen().X * TargetDrawerSizePct) / MyWindow->GetDPIScaleFactor();
 
+		const TPair<TSharedRef<SDockTab>, TSharedRef<STabDrawerButton>>* TabEntry = Tabs.FindByPredicate(
+			[ForTab](auto TabPair) {
+				return TabPair.Key == ForTab;
+			});
+		const TWeakPtr<SWidget> TabButton = TabEntry ? TWeakPtr<SWidget>(TabEntry->Value) : nullptr;
+
 		TSharedRef<STabDrawer> NewDrawer =
-			SNew(STabDrawer, ForTab, Location == ESidebarLocation::Left ? ETabDrawerOpenDirection::Left : ETabDrawerOpenDirection::Right)
+			SNew(STabDrawer, ForTab, TabButton, Location == ESidebarLocation::Left ? ETabDrawerOpenDirection::Left : ETabDrawerOpenDirection::Right)
 			.MinDrawerSize(MinDrawerSize)
 			.TargetDrawerSize(TargetDrawerSize)
 			.MaxDrawerSize(MaxDrawerSize)
