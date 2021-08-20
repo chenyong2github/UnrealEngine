@@ -393,6 +393,18 @@ namespace PropertyCustomizationHelpers
 		return IDocumentation::Get()->CreateAnchor(DocLink, FString(), DocExcerptName);
 	}
 
+	TSharedRef<SWidget> MakeSaveButton(FSimpleDelegate OnSaveClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled)
+	{
+		return
+			SNew(SPropertyEditorButton)
+			.Text(LOCTEXT("SaveButtonLabel", "Save"))
+			.ToolTipText(OptionalToolTipText.Get().IsEmpty() ? LOCTEXT("SaveButtonTooltipText", "Save the currently selected asset.") : OptionalToolTipText)
+			.Image(FEditorStyle::GetBrush("Icons.Save"))
+			.OnClickAction(OnSaveClicked)
+			.IsEnabled(IsEnabled)
+			.IsFocusable(false);
+	}
+
 	FBoolProperty* GetEditConditionProperty(const FProperty* InProperty, bool& bNegate)
 	{
 		FBoolProperty* EditConditionProperty = NULL;
