@@ -76,6 +76,9 @@ enum class EBuildStatus : uint32
 	CacheStore      = 1 << 7,
 	/** Valid build output was stored in the cache. */
 	CacheStoreHit   = 1 << 8,
+
+	/** The cache key was calculated. */
+	CacheKey        = 1 << 9,
 };
 
 ENUM_CLASS_FLAGS(EBuildStatus);
