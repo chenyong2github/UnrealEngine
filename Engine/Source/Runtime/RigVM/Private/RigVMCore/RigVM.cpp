@@ -1900,11 +1900,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 
 	NumExecutions++;
 
+#if WITH_EDITOR
 	uint64 StartCycles = 0;
 	if(Context.RuntimeSettings.bEnableProfiling)
 	{
 		StartCycles = FPlatformTime::Cycles64();
 	}
+#endif
 
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
