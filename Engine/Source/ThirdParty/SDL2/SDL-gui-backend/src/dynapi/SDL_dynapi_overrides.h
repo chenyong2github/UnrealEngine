@@ -635,11 +635,6 @@
 #define SDL_Vulkan_GetInstanceExtensions SDL_Vulkan_GetInstanceExtensions_REAL
 #define SDL_Vulkan_CreateSurface SDL_Vulkan_CreateSurface_REAL
 #define SDL_Vulkan_GetDrawableSize SDL_Vulkan_GetDrawableSize_REAL
-
-/* EG BEGIN */
-#define SDL_Vulkan_GetRequiredInstanceExtensions SDL_Vulkan_GetRequiredInstanceExtensions_REAL
-/* EG END */
-
 #define SDL_LockJoysticks SDL_LockJoysticks_REAL
 #define SDL_UnlockJoysticks SDL_UnlockJoysticks_REAL
 #define SDL_GetMemoryFunctions SDL_GetMemoryFunctions_REAL
@@ -820,3 +815,9 @@
 #define SDL_GameControllerSendEffect SDL_GameControllerSendEffect_REAL
 #define SDL_JoystickSendEffect SDL_JoystickSendEffect_REAL
 #define SDL_GameControllerGetSensorDataRate SDL_GameControllerGetSensorDataRate_REAL
+
+/* EG BEGIN */
+#define SDL_Vulkan_GetRequiredInstanceExtensions SDL_Vulkan_GetRequiredInstanceExtensions_REAL
+#define SDL_ConfineCursor SDL_ConfineCursor_REAL
+/* EG END */
+

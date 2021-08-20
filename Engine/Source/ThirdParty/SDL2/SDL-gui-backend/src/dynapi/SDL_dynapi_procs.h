@@ -885,6 +885,7 @@ SDL_DYNAPI_PROC(float,SDL_GameControllerGetSensorDataRate,(SDL_GameController *a
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
 SDL_DYNAPI_PROC(char**,SDL_Vulkan_GetRequiredInstanceExtensions,(unsigned int* a),(a),return)
+SDL_DYNAPI_PROC(SDL_bool,SDL_ConfineCursor,(SDL_Window *a, const SDL_Rect *b),(a, b),return)
 #endif /* SDL_WITH_EPIC_EXTENSIONS */
 /* EG END */
 

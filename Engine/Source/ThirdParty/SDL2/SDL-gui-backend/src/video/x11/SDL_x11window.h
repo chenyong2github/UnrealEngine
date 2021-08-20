@@ -121,8 +121,6 @@ extern int X11_FlashWindow(_THIS, SDL_Window * window, SDL_FlashOperation operat
 
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
-extern int X11_SetKeyboardGrab(_THIS, SDL_Window * window, SDL_bool enable);
-
 #if SDL_VIDEO_DRIVER_X11_XFIXES
 extern SDL_bool X11_ConfineCursor(_THIS, SDL_Window * window, const SDL_Rect * rect, int flags);
 extern void X11_DestroyPointerBarrier(_THIS, SDL_Window * window);

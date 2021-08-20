@@ -1395,16 +1395,6 @@ extern DECLSPEC int SDLCALL SDL_SetWindowInputFocus(SDL_Window * window);
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
 /**
- *  \brief Grabs the keyboard input for a particular window.
- *
- *  \param window The window that should grab the keyboard
- *
- *  \return 0 on success, or -1 otherwise.
- *  \sa SDL_RaiseWindow()
- */
-extern DECLSPEC int SDLCALL SDL_SetKeyboardGrab(SDL_Window * window, SDL_bool enable);
-
-/**
  *  \brief Confines the cursor in the specified rect area.
  * 
  *  \param window The window that will be associated with the barrier. If NULL ALL 

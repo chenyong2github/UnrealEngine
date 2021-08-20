@@ -2834,18 +2834,6 @@ SDL_SetWindowMouseGrab(SDL_Window * window, SDL_bool grabbed)
 
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
-int
-SDL_SetKeyboardGrab(SDL_Window * window, SDL_bool enable)
-{
-    CHECK_WINDOW_MAGIC(window, -1);
-
-    if (!_this->SetKeyboardGrab) {
-        return SDL_Unsupported();
-    }
-
-    return _this->SetKeyboardGrab(_this, window, enable);
-}
-
 SDL_bool
 SDL_ConfineCursor(SDL_Window * window, const SDL_Rect * rect)
 {

@@ -1060,26 +1060,6 @@ X11_SetWindowOpacity(_THIS, SDL_Window * window, float opacity)
     return 0;
 }
 
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-int
-X11_SetKeyboardGrab(_THIS, SDL_Window * window, SDL_bool enable)
-{
-    SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
-    Display *display = data->videodata->display;
-
-    if(enable) {
-        X11_XGrabKeyboard(display, data->xwindow, True, GrabModeAsync,
-                          GrabModeAsync, CurrentTime);
-    } else {
-        X11_XUngrabKeyboard(display, CurrentTime);
-    }
-    X11_XFlush(display);
-    return 0;
-}
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
-/* EG END */
-
 int 
 X11_SetWindowModalFor(_THIS, SDL_Window * modal_window, SDL_Window * parent_window) {
     SDL_WindowData *data = (SDL_WindowData *) modal_window->driverdata;
