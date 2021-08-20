@@ -70,24 +70,48 @@ RWBuffer<uint> DrawIndirectArgsBufferOut;
 #define USES_PACKED_INSTANCE_DATA (FEATURE_LEVEL == FEATURE_LEVEL_ES3_1 && VF_SUPPORTS_PRIMITIVE_SCENE_DATA)
 
 #if USES_PACKED_INSTANCE_DATA
-
 float4 PackLightmapData(float4 LightmapUVScaleBias, float4 ShadowmapUVScaleBias)
 {
-	float4 Ret;
-	Ret.x = asfloat(PackUnorm2x16(LightmapUVScaleBias.xy));
-	Ret.y = asfloat(PackSnorm2x16(LightmapUVScaleBias.zw));
-	Ret.z = asfloat(PackUnorm2x16(ShadowmapUVScaleBias.xy));
-	Ret.w = asfloat(PackSnorm2x16(ShadowmapUVScaleBias.zw));
-	return Ret;
+	float4 Result;
+	Result.x = asfloat(PackUnorm2x16(LightmapUVScaleBias.xy));
+	Result.y = asfloat(PackSnorm2x16(LightmapUVScaleBias.zw));
+	Result.z = asfloat(PackUnorm2x16(ShadowmapUVScaleBias.xy));
+	Result.w = asfloat(PackSnorm2x16(ShadowmapUVScaleBias.zw));
+	return Result;
+}
+
+float2 PackLocalBoundsCenter(float3 Center)
+{
+	float2 Result = 0;
+	// uses 21 bits for each component, rounded to a 1 unit
+	const int3 Range = ((1u << 20u) - 1u);
+	const int3 Clamped = clamp(int3(round(Center)), -Range, Range);
+	const uint3 BiasClamped = uint3(Clamped + Range);
+	Result.x = asfloat((BiasClamped.x << 11u) | ((BiasClamped.z >> 0u) &  ((1u<<11u)-1u)));
+	Result.y = asfloat((BiasClamped.y << 11u) | ((BiasClamped.z >> 11u) & ((1u<<10u)-1u)));
+	return Result;
+}
+
+float2 PackLocalBoundsExtent(float3 Extent)
+{
+	float2 Result = 0;
+	// uses 21 bits for each component, rounded to a 1 unit
+	const uint3 Range = ((1u << 21u) - 1u);
+	const uint3 Clamped = min(uint3(round(Extent)), Range);
+	Result.x = asfloat((Clamped.x << 11u) | ((Clamped.z >> 0u) &  ((1u<<11u)-1u)));
+	Result.y = asfloat((Clamped.y << 11u) | ((Clamped.z >> 11u) & ((1u<<10u)-1u)));
+	return Result;
 }
 
 void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData InstanceData, uint ViewIdIndex)
 {
 	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 	
+	float InstanceAuxData1 = 0;
+	float4 InstanceAuxData4 = 0;
+#if ALLOW_STATIC_LIGHTING 
 	float4 LightMapUVScaleBias = float4(1,1,0,0);
 	float4 ShadowMapUVScaleBias = float4(1,1,0,0);
-
 	// FIXME: need LODIndex to compute correct LightmapDataIndex
 	uint LightmapDataIndex = PrimitiveData.LightmapDataIndex; // + LODIndex;
 	if (LightmapDataIndex < GPUSceneNumLightmapDataItems)
@@ -105,8 +129,13 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 		// avoid passing invalid lightmap data index into gfx shaders?
 		LightmapDataIndex = 0;
 	}
-
-	float4 PackedLightmapData = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
+	InstanceAuxData4 = PackLightmapData(LightMapUVScaleBias, ShadowMapUVScaleBias);
+	InstanceAuxData1 = asfloat(LightmapDataIndex);
+#else
+	InstanceAuxData4.xy = PackLocalBoundsCenter(InstanceData.LocalBoundsCenter);
+	InstanceAuxData4.zw = PackLocalBoundsExtent(InstanceData.LocalBoundsExtent);
+	InstanceAuxData1 = 0; // TODO: pack something useful here 
+#endif // ALLOW_STATIC_LIGHTING
 
 	const uint PackedPrimitiveFlags = ((PrimitiveData.Flags & 0xffff) | (InstanceData.Flags << 16u));
 
@@ -118,14 +147,14 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	float4 InstanceTransform3 = InstanceData.LocalToWorld[2];
 	
 	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
-	InstanceTransform2.w = asfloat(LightmapDataIndex); // TODO: pack something useful here 
+	InstanceTransform2.w = InstanceAuxData1; 
 	InstanceTransform3.w = InstanceData.PerInstanceRandom;
 		
 	InstanceIdsBufferOutMobile[Offset*5 + 0] = InstanceOriginAndId;
 	InstanceIdsBufferOutMobile[Offset*5 + 1] = InstanceTransform1;
 	InstanceIdsBufferOutMobile[Offset*5 + 2] = InstanceTransform2;
 	InstanceIdsBufferOutMobile[Offset*5 + 3] = InstanceTransform3;
-	InstanceIdsBufferOutMobile[Offset*5 + 4] = PackedLightmapData;
+	InstanceIdsBufferOutMobile[Offset*5 + 4] = InstanceAuxData4;
 }
 #endif
 
