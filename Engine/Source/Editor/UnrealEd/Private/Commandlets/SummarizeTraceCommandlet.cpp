@@ -1274,14 +1274,14 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	// load the stats file to know which event name and statistic name to generate in the telementry csv
 	// the telemetry csv is ingested completely, so this just whitelists specific data elements we want to track
 	TMultiMap<FString, StatisticDefinition> NameToDefinitionMap;
-	FString GlobalStatisticsFileName = FPaths::RootDir() / TEXT("Engine") / TEXT("Build") / TEXT("IterationProfileStats.csv");
+	FString GlobalStatisticsFileName = FPaths::RootDir() / TEXT("Engine") / TEXT("Build") / TEXT("EditorPerfStats.csv");
 	if (FPaths::FileExists(GlobalStatisticsFileName))
 	{
 		UE_LOG(LogSummarizeTrace, Display, TEXT("Loading global statistics from %s"), *GlobalStatisticsFileName);
 		bool bCSVOk = StatisticDefinition::LoadFromCSV(GlobalStatisticsFileName, NameToDefinitionMap);
 		check(bCSVOk);
 	}
-	FString ProjectStatisticsFileName = FPaths::ProjectDir() / TEXT("Build") / TEXT("IterationProfileStats.csv");
+	FString ProjectStatisticsFileName = FPaths::ProjectDir() / TEXT("Build") / TEXT("EditorPerfStats.csv");
 	if (FPaths::FileExists(ProjectStatisticsFileName))
 	{
 		UE_LOG(LogSummarizeTrace, Display, TEXT("Loading project statistics from %s"), *ProjectStatisticsFileName);
