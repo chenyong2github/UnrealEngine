@@ -98,8 +98,7 @@ namespace HordeAgent.Commands
 			foreach (DirectoryInfo SubDirInfo in BaseDirInfo.EnumerateDirectories())
 			{
 				(DirectoryTree SubTree, IoHash SubDirHash) = CreateSandbox(SubDirInfo, UploadList);
-				long Size = SubTree.Files.Sum(x => x.Size) + SubTree.Directories.Sum(x => x.Size);
-				Tree.Directories.Add(new DirectoryNode(SubDirInfo.Name, SubDirHash, Size));
+				Tree.Directories.Add(new DirectoryNode(SubDirInfo.Name, SubDirHash));
 			}
 			Tree.Directories.SortBy(x => x.Name, Utf8StringComparer.Ordinal);
 

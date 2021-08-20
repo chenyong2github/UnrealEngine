@@ -287,8 +287,8 @@ namespace HordeAgent
 
 		async Task<DirectoryNode> CreateDirectoryNode(string NamespaceId, string Name, int BaseDirLen, List<FileReference> SortedFiles, int MinIdx, int MaxIdx)
 		{
-			(DirectoryTree Tree, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
-			return new DirectoryNode(Name, Hash, Tree.Files.Sum(x => x.Size) + Tree.Directories.Sum(x => x.Size));
+			(_, IoHash Hash) = await PutDirectoryTree(NamespaceId, BaseDirLen, SortedFiles, MinIdx, MaxIdx);
+			return new DirectoryNode(Name, Hash);
 		}
 
 		async Task<FileNode> CreateFileNode(string NamespaceId, string Name, FileReference File)
