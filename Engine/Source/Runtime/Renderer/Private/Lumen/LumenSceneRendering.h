@@ -70,6 +70,14 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	const FSceneView* InViewIfDynamicMeshCommand,
 	FMeshPassDrawListContext* InDrawListContext);
 
+namespace Lumen
+{
+	inline bool HasPrimitiveNaniteMeshBatches(const FPrimitiveSceneProxy* Proxy)
+	{
+		return Proxy && Proxy->ShouldRenderInMainPass() && Proxy->AffectsDynamicIndirectLighting();
+	}
+};
+
 extern void SetupLumenCardSceneParameters(FRDGBuilder& GraphBuilder, const FScene* Scene, FLumenCardScene& OutParameters);
 extern void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList);
 
