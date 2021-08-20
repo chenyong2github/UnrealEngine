@@ -530,8 +530,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	UNROLL
 	for (int CoordinateIndex = 0; CoordinateIndex * 2 + 1 < NUM_TEX_COORD_INTERPOLATORS; ++CoordinateIndex)
 	{
-		Interpolants.TexCoords[CoordinateIndex].xy = CustomizedUVs[CoordinateIndex * 2];
-		Interpolants.TexCoords[CoordinateIndex].wz = CustomizedUVs[CoordinateIndex * 2 + 1];
+		// This temporary works around a shader compiler bug
+		uint CoordinateIndexOffset = CoordinateIndex * 2;
+		Interpolants.TexCoords[CoordinateIndex].xy = CustomizedUVs[CoordinateIndexOffset];
+		Interpolants.TexCoords[CoordinateIndex].wz = CustomizedUVs[CoordinateIndexOffset + 1];
 	}
 	#if NUM_TEX_COORD_INTERPOLATORS & 1
 		Interpolants.TexCoords[NUM_TEX_COORD_INTERPOLATORS / 2].xy = CustomizedUVs[NUM_TEX_COORD_INTERPOLATORS - 1];
