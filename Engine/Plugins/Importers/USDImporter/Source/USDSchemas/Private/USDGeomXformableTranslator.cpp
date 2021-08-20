@@ -16,13 +16,10 @@
 
 #include "Components/SceneComponent.h"
 #include "Components/StaticMeshComponent.h"
-#include "Engine/RendererSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/World.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Modules/ModuleManager.h"
 #include "StaticMeshAttributes.h"
-#include "Widgets/Notifications/SNotificationList.h"
 
 #include "UsdWrappers/SdfPath.h"
 #include "UsdWrappers/UsdGeomXformable.h"
@@ -468,8 +465,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 		}
 		else
 		{
-			const bool bUsesRaytracing = GetDefault<URendererSettings>()->bEnableRayTracing;
-
 			const int32 MaxVertices = 500000;
 			int32 NumMaxExpectedMaterialSlots = 0;
 			int32 NumVertices = 0;
@@ -486,31 +481,6 @@ bool FUsdGeomXformableTranslator::CollapsesChildren( ECollapsingType CollapsingT
 
 					if ( NumVertices > MaxVertices )
 					{
-						bCollapsesChildren = false;
-						break;
-					}
-				}
-
-				if ( bUsesRaytracing )
-				{
-					// We can't generate a mesh with more than 255 material slots as raytracing expects the material index to be uint8
-					std::vector<pxr::UsdGeomSubset> GeomSubsets = pxr::UsdShadeMaterialBindingAPI( ChildPrim.Get() ).GetMaterialBindSubsets();
-					NumMaxExpectedMaterialSlots += FMath::Max<int32>(1, GeomSubsets.size() + 1); // +1 because we may create an additional slot if it's not properly partitioned
-					if ( NumMaxExpectedMaterialSlots > 255 )
-					{
-						static bool bShowedRaytracingWarning = false;
-						if ( !bShowedRaytracingWarning )
-						{
-							FNotificationInfo ErrorToast( NSLOCTEXT( "USDXformableTranslator", "USDRaytracingToast", "USD mesh collapsing will be capped.\nSee the Output Log for details." ) );
-							ErrorToast.ExpireDuration = 5.0f;
-							ErrorToast.bFireAndForget = true;
-							ErrorToast.Image = FCoreStyle::Get().GetBrush( TEXT( "MessageLog.Warning" ) );
-							FSlateNotificationManager::Get().AddNotification( ErrorToast );
-
-							FUsdLogManager::LogMessage( EMessageSeverity::Warning, NSLOCTEXT("USDXformableTranslator", "USDRaytracingWarning", "Mesh collapsing will be capped to generating meshes with at most 255 material slots, as it is required for Raytracing. Meshes could be collapsed further if Raytracing were disabled.") );
-							bShowedRaytracingWarning = true;
-						}
-
 						bCollapsesChildren = false;
 						break;
 					}
