@@ -610,45 +610,28 @@ FIndex3i FDynamicMesh3::GetTriNeighbourTris(int tID) const
 }
 
 
-void FDynamicMesh3::GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const
-{
-	checkSlow(VertexRefCounts.IsValid(VertexID));
-	if (VertexRefCounts.IsValid(VertexID))
-	{
-		VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
-		{
-			FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
-			if (EdgePair.A != InvalidID)
-			{
-				TrianglesOut.Add(EdgePair.A);
-			}
-			if (EdgePair.B != InvalidID)
-			{
-				TrianglesOut.Add(EdgePair.B);
-			}
-		});
-	}
-}
-
-
 void FDynamicMesh3::EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const
 {
 	checkSlow(VertexRefCounts.IsValid(VertexID));
-	if (VertexRefCounts.IsValid(VertexID))
+	if (!IsVertex(VertexID))
 	{
-		VertexEdgeLists.Enumerate(VertexID, [&](int32 EdgeID)
-		{
-			FIndex2i EdgePair = GetOrderedOneRingEdgeTris(VertexID, EdgeID);
-			if (EdgePair.A != InvalidID)
-			{
-				ApplyFunc(EdgePair.A);
-			}
-			if (EdgePair.B != InvalidID)
-			{
-				ApplyFunc(EdgePair.B);
-			}
-		});
+		return;
 	}
+
+	VertexEdgeLists.Enumerate(VertexID, [&](int32 eid)
+	{
+		const FEdge Edge = Edges[eid];
+		const int vOther = Edge.Vert.A == VertexID ? Edge.Vert.B : Edge.Vert.A;
+		if (TriHasSequentialVertices(Edge.Tri[0], VertexID, vOther))
+		{
+			ApplyFunc(Edge.Tri[0]);
+		}
+		const int et1 = Edge.Tri[1];
+		if (Edge.Tri[1] != InvalidID && TriHasSequentialVertices(Edge.Tri[1], VertexID, vOther))
+		{
+			ApplyFunc(Edge.Tri[1]);
+		}
+	});
 }
 
 
@@ -965,10 +948,8 @@ bool FDynamicMesh3::CheckValidity(FValidityOptions ValidityOptions, EValidityChe
 			CheckOrFailF(IsEdge(edge));
 		}
 
-		TArray<int> vTris, vTris2;
-		GetVtxTriangles(vID, vTris, false);
-		GetVtxTriangles(vID, vTris2, true);
-		CheckOrFailF(vTris.Num() == vTris2.Num());
+		TArray<int> vTris;
+		GetVtxTriangles(vID, vTris);
 		//System.Console.WriteLine(string.Format("{0} {1} {2}", vID, vTris.Count, GetVtxEdges(vID).Count));
 		if (ValidityOptions.bAllowNonManifoldVertices)
 		{

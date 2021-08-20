@@ -892,7 +892,7 @@ bool UE::Geometry::EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<con
 				return false;
 			}
 			TArray<int> TrianglesOut;
-			Mesh->GetVertexOneRingTriangles(OutPathVertices.Last(), TrianglesOut);
+			Mesh->GetVtxTriangles(OutPathVertices.Last(), TrianglesOut);
 
 			check(TrianglesOut.Num());
 			CurrentSeedTriID = TrianglesOut[0];

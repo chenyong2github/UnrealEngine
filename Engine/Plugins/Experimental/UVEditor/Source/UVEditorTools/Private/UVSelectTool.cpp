@@ -593,7 +593,7 @@ void UUVSelectTool::OnSelectionChanged()
 					}
 
 					TArray<int> TidOneRing;
-					Selection.Mesh->GetVertexOneRingTriangles(EdgeVids[i], TidOneRing);
+					Selection.Mesh->GetVtxTriangles(EdgeVids[i], TidOneRing);
 					for (int32 Tid : TidOneRing)
 					{
 						if (!TidSet.Contains(Tid))
@@ -616,7 +616,7 @@ void UUVSelectTool::OnSelectionChanged()
 				}
 
 				TArray<int> TidOneRing;
-				Selection.Mesh->GetVertexOneRingTriangles(Vid, TidOneRing);
+				Selection.Mesh->GetVtxTriangles(Vid, TidOneRing);
 				for (int32 Tid : TidOneRing)
 				{
 					if (!TidSet.Contains(Tid))

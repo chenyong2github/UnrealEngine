@@ -621,7 +621,7 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 		}
 
 		TArray<int> tris;
-		GetVtxTriangles(vID, tris, true);
+		GetVtxTriangles(vID, tris);
 		for (int tID : tris)
 		{
 			EMeshResult result = RemoveTriangle(tID, false, bPreserveManifold);
