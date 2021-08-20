@@ -396,6 +396,7 @@ void FBuildJob::CreateContext()
 		Function->Configure(*Context);
 		BuildPolicy = Context->GetBuildPolicy();
 		EnumAddFlags(BuildStatus, ShouldExportBuild() ? EBuildStatus::BuildTryExport : EBuildStatus::None);
+		EnumAddFlags(BuildStatus, EBuildStatus::CacheKey);
 	}
 
 	// Populate the scheduler params with the information that is available now.
@@ -739,7 +740,7 @@ void FBuildJob::EnterExecuteLocal()
 	{
 		if (!EnumHasAnyFlags(BuildPolicy, EBuildPolicy::BuildRemote))
 		{
-			return CompleteWithError(TEXT("Failed because build policy does not allow local or remote execution."_SV));
+			return AdvanceToState(EBuildJobState::Complete);
 		}
 		else if (EnumHasAnyFlags(BuildStatus, EBuildStatus::BuildTryRemote))
 		{
