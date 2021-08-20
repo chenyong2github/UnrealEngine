@@ -434,13 +434,14 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 				return;
 			}
 
+			Status = BS_Dirty;
 			PropagateHierarchyFromBPToInstances(true, true);
 			HierarchyContainer.OnElementChanged.Broadcast(&HierarchyContainer, FRigElementKey());
 
 			// make sure the bone name list is up 2 date for the editor graph
-	for (UEdGraph* Graph : UbergraphPages)
-	{
-		UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+			for (UEdGraph* Graph : UbergraphPages)
+			{
+				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
 				if (RigGraph == nullptr)
 				{
 					continue;
@@ -448,7 +449,7 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 				RigGraph->CacheNameLists(&HierarchyContainer, &DrawContainer);
 			}
 
-			RequestAutoVMRecompilation();
+			RequestAutoVMRecompilation(); 
 			MarkPackageDirty();
 		}
 
