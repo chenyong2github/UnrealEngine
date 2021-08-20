@@ -572,11 +572,11 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 		{
 			MeshElement->SetMaterial(*GlobalMaterialsUsed[i]->GetDatasmithId(), (int32)i);
 		}
-	}
 
 #if DUMP_GEOMETRY
-	DumpMeshElement(*MeshElement);
+        DumpMeshElement(*MeshElement);
 #endif
+	}
 
 	return MeshElement;
 }

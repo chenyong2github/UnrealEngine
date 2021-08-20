@@ -41,20 +41,19 @@ class FTaskCalledFromEventLoop
   private:
 	static GSErrCode DoTasks(GSHandle ParamHandle);
 	static GSErrCode DoTasksCallBack(GSHandle ParamHandle, GSPtr OutResultData, bool bSilentMode);
-	static void		 DeleteParamHandle(GSHandle ParamHandle);
 };
 
 // Template class for function
 template < typename Functor > class TFunctorCalledFromEventLoop : public FTaskCalledFromEventLoop
 {
   public:
-    // Constructor
+	// Constructor
 	TFunctorCalledFromEventLoop(Functor InFunctor)
 		: TheFunctor(InFunctor)
 	{
 	}
 
-    // Execute the functor
+	// Execute the functor
 	virtual void Run() override { TheFunctor(); }
 
   private:

@@ -104,9 +104,6 @@
     <ClCompile Include="..\..\Private\Utils\Pasteboard.cpp">
       <Filter>Private\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp">
-      <Filter>Private\Utils</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp">
       <Filter>Private\Utils</Filter>
     </ClCompile>
@@ -235,9 +232,6 @@
     <ClInclude Include="..\..\Private\Utils\Pasteboard.h">
       <Filter>Private\Utils</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\Private\Utils\SceneValidator.h">
-      <Filter>Private\Utils</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h">
       <Filter>Private\Utils</Filter>
     </ClInclude>
@@ -299,5 +293,8 @@
     <None Include="..\..\Resources\RINT\fr.lproj\DatasmithARCHICADExporter.grc">
       <Filter>Resources</Filter>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="$(ACSDKPATH)\Support\Lib\Win\ACAP_STATD.lib" />
   </ItemGroup>
 </Project>

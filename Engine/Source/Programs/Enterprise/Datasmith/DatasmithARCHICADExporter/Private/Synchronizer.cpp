@@ -3,7 +3,9 @@
 #include "Synchronizer.h"
 #include "MaterialsDatabase.h"
 #include "Commander.h"
-#include "Utils/SceneValidator.h"
+#ifdef DEBUG
+#include "ISceneValidator.h"
+#endif
 #include "Utils/TimeStat.h"
 #include "Utils/Error.h"
 #include "Utils/CurrentOS.h"
@@ -492,10 +494,16 @@ void FSynchronizer::DumpAndValidate()
 	{
 		FTimeStat DumpAndValidateStart;
 		DumpScene(SyncDatabase->GetScene());
-		FSceneValidator Validator(SyncDatabase->GetScene());
-		Validator.CheckElementsName();
-		Validator.CheckDependances();
-		Validator.PrintReports(FSceneValidator::kVerbose);
+        TSharedRef< Validator::ISceneValidator > Validator = Validator::ISceneValidator::CreateForScene(SyncDatabase->GetScene());
+		Validator->CheckElementsName();
+		Validator->CheckDependances();
+        Validator->CheckTexturesFiles();
+        Validator->CheckMeshFiles();
+		FString Reports = Validator->GetReports(Validator::ISceneValidator::kVerbose);
+        if (!Reports.IsEmpty())
+        {
+            UE_AC_TraceF("%s", TCHAR_TO_UTF8(*Reports));
+        }
 		FTimeStat DumpAndValidateEnd;
 		DumpAndValidateEnd.PrintDiff("FSynchronizer::DumpAndValidate", DumpAndValidateStart);
 	}
