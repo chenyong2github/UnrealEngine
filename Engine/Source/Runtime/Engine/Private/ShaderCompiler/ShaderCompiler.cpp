@@ -1146,12 +1146,10 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 
 	// Convert all the source directory paths to absolute, since SCW might be in a different directory to the editor executable
 	TMap<FString, FString> ShaderSourceDirectoryMappings = AllShaderSourceDirectoryMappings();
-	if (!bUseRelativePaths)
+	for(TPair<FString, FString>& Pair : ShaderSourceDirectoryMappings)
 	{
-		for(TPair<FString, FString>& Pair : ShaderSourceDirectoryMappings)
-		{
-			Pair.Value = FPaths::ConvertRelativePathToFull(Pair.Value);
-		}
+		// enforce relative paths when bUseRelativePaths=true
+		Pair.Value = bUseRelativePaths ? FPaths::CreateStandardFilename(Pair.Value) : FPaths::ConvertRelativePathToFull(Pair.Value);
 	}
 	TransferFile << ShaderSourceDirectoryMappings;
 

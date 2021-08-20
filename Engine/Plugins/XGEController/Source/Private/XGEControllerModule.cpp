@@ -477,7 +477,17 @@ void FXGEControllerModule::WriteOutThreadProc()
 
 				Writer << Task->ID;
 				Writer << Task->CommandData.Command;
-				Writer << Task->CommandData.CommandArgs;
+
+				const FString InputFileName = FPaths::GetCleanFilename(Task->CommandData.InputFileName);
+				const FString OutputFileName = FPaths::GetCleanFilename(Task->CommandData.OutputFileName);
+				FString WorkerParameters = FString::Printf(TEXT("\"%s/\" %d 0 \"%s\" \"%s\" -xge_int %s"),
+					*Task->CommandData.WorkingDirectory,
+					Task->CommandData.DispatcherPID,
+					*InputFileName,
+					*OutputFileName,
+					*Task->CommandData.ExtraCommandArgs);
+
+				Writer << WorkerParameters;
 				*reinterpret_cast<uint32*>(WriteBuffer.GetData()) = WriteBuffer.Num() - sizeof(uint32);
 
 				// Move the tasks to the dispatched tasks map before launching it
