@@ -10,7 +10,7 @@
 class UAssetImportData;
 
 /**
- * Whether Run() will block the thread until completed, or whether it will run on a background thread, not blocking the calling thread.
+ * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
  */
 UENUM()
 enum class ENeuralNetworkSynchronousMode : uint8
@@ -148,6 +148,13 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	ENeuralDeviceType OutputDeviceType;
+	
+	/**
+	 * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
+	 * See ENeuralNetworkSynchronousMode for more details.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	ENeuralNetworkSynchronousMode SynchronousMode;
 
 	/**
 	 * Original model file path from which this UNeuralNetwork was loaded from.

@@ -232,6 +232,7 @@ UNeuralNetwork::UNeuralNetwork()
 	: DeviceType(ENeuralDeviceType::CPU)
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
+	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
 	, bIsLoaded(false)
 {
 }
@@ -473,10 +474,21 @@ void UNeuralNetwork::Run()
 	}
 
 	// Run UNeuralNetwork
-	const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-	Impl->Session->Run(Ort::RunOptions{ nullptr },
-		InputTensors.GetTensorNames(), InputTensors.GetONNXRuntimeTensors(), InputTensors.GetNumberTensors(),
-		OutputTensors.GetTensorNames(), OutputTensors.GetONNXRuntimeTensors(), OutputTensors.GetNumberTensors());
+	if (SynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
+	{
+		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
+		Impl->Session->Run(Ort::RunOptions{ nullptr },
+			InputTensors.GetTensorNames(), InputTensors.GetONNXRuntimeTensors(), InputTensors.GetNumberTensors(),
+			OutputTensors.GetTensorNames(), OutputTensors.GetONNXRuntimeTensors(), OutputTensors.GetNumberTensors());
+	}
+	else if (SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): SynchronousMode = %d not implemented yet. Use SynchronousMode = Synchronous."), (int32)SynchronousMode);
+	}
+	else
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown SynchronousMode = %d."), (int32)SynchronousMode);
+	}
 
 #else
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet."));
