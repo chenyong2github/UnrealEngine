@@ -1131,18 +1131,23 @@ void FNiagaraTypeDefinition::PostSerialize(const FArchive& Ar)
 UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(const FString& DIClassName)
 {
 	UClass* DIClass = nullptr;
-	for (const FNiagaraTypeDefinition& Def : Get().RegisteredTypes)
 	{
-		if (Def.IsDataInterface())
+		FNiagaraTypeRegistry& Registry = Get();
+		FReadScopeLock Lock(Registry.RegisteredTypesLock);
+		for (const FNiagaraTypeDefinition& Def : Registry.RegisteredTypes)
 		{
-			UClass* FoundDIClass = Def.GetClass();
-			if (FoundDIClass && (FoundDIClass->GetName() == DIClassName || FoundDIClass->GetFullName() == DIClassName))
+			if (Def.IsDataInterface())
 			{
-				DIClass = FoundDIClass;
-				break;
+				UClass* FoundDIClass = Def.GetClass();
+				if (FoundDIClass && (FoundDIClass->GetName() == DIClassName || FoundDIClass->GetFullName() == DIClassName))
+				{
+					DIClass = FoundDIClass;
+					break;
+				}
 			}
 		}
 	}
+
 	// Consider the possibility of a redirector pointing to a new location..
 	if (DIClass == nullptr)
 	{
@@ -1172,6 +1177,7 @@ UNiagaraDataInterfaceBase* FNiagaraTypeRegistry::GetDefaultDataInterfaceByName(c
 // have invalid types.  But, for now I think it would be an error to unload a type without having the variables that dependend on it also getting deleted.
 void FNiagaraTypeRegistry::AddReferencedObjects(FReferenceCollector& Collector)
 {
+	FReadScopeLock Lock(RegisteredTypesLock);
 	for (FNiagaraTypeDefinition& RegisteredType : RegisteredTypes)
 	{
 		Collector.AddReferencedObject(RegisteredType.ClassStructOrEnum);
