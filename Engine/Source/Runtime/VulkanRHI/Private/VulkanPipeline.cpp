@@ -1022,6 +1022,14 @@ FArchive& operator << (FArchive& Ar, FGfxPipelineDesc& Entry)
 	}
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	uint8 ShadingRate = static_cast<uint8>(Entry.ShadingRate);
+	uint8 Combiner = static_cast<uint8>(Entry.Combiner);
+	
+	Ar << ShadingRate;
+	Ar << Combiner;
+#endif
+
 	Ar << Entry.UseAlphaToCoverage;
 
 	return Ar;
@@ -1051,7 +1059,18 @@ FVulkanPSOKey FGfxPipelineDesc::CreateKey2() const
 	return Result;
 }
 
-
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+// Map Unreal VRS combiner operation enums to Vulkan enums.
+static const TMap<uint8, VkFragmentShadingRateCombinerOpKHR> FragmentCombinerOpMap
+{
+	{ VRSRB_Passthrough,	VK_FRAGMENT_SHADING_RATE_COMBINER_OP_KEEP_KHR },
+	{ VRSRB_Override,	VK_FRAGMENT_SHADING_RATE_COMBINER_OP_REPLACE_KHR },
+	{ VRSRB_Min,			VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MIN_KHR },
+	{ VRSRB_Max,			VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MAX_KHR },
+	{ VRSRB_Sum,			VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MAX_KHR },		// No concept of Sum in Vulkan - fall back to max.
+	// @todo: Add "VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MUL_KHR"?
+};
+#endif
 
 bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], VkPipeline* Pipeline)
 {
@@ -1191,6 +1210,23 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	DynamicStatesEnabled[DynamicState.dynamicStateCount++] = VK_DYNAMIC_STATE_DEPTH_BOUNDS;
 
 	PipelineInfo.pDynamicState = &DynamicState;
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	const VkExtent2D FragmentSize = Device->GetBestMatchedShadingRateExtents(PSO->Desc.ShadingRate);
+	VkFragmentShadingRateCombinerOpKHR PipelineToPrimitiveCombinerOperation = FragmentCombinerOpMap[(uint8)PSO->Desc.Combiner];
+
+	VkPipelineFragmentShadingRateStateCreateInfoKHR PipelineFragmentShadingRate;
+
+	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled)
+	{
+		ZeroVulkanStruct(PipelineFragmentShadingRate, VK_STRUCTURE_TYPE_PIPELINE_FRAGMENT_SHADING_RATE_STATE_CREATE_INFO_KHR);
+		PipelineFragmentShadingRate.fragmentSize = FragmentSize;
+		PipelineFragmentShadingRate.combinerOps[0] = PipelineToPrimitiveCombinerOperation;
+		PipelineFragmentShadingRate.combinerOps[1] = VK_FRAGMENT_SHADING_RATE_COMBINER_OP_MAX_KHR;		// @todo: This needs to be specified too.
+
+		PipelineInfo.pNext = (void*)&PipelineFragmentShadingRate;
+	}
+#endif
 
 	VkResult Result = VK_ERROR_INITIALIZATION_FAILED;
 	double BeginTime = FPlatformTime::Seconds();
@@ -1565,6 +1601,14 @@ void FVulkanPipelineStateCacheManager::CreateGfxEntry(const FGraphicsPipelineSta
 
 	FVulkanRenderTargetLayout RTLayout(PSOInitializer);
 	OutGfxEntry->RenderTargets.ReadFrom(RTLayout);
+
+	// Shading rate:
+	OutGfxEntry->ShadingRate = PSOInitializer.ShadingRate;
+	OutGfxEntry->Combiner = EVRSRateCombiner::VRSRB_Max;		// @todo: This needs to be specified twice; from pipeline-to-primitive, and from primitive-to-attachment. 
+																// We don't have per-primitive VRS so that should just be hard-coded to "passthrough" until this is supported; but we should expose 
+																// this setting in the material properies, especially since there's some materials that don't play nicely with 
+																// shading rates other than 1x1, in which case we'll want to use VRSRB_Min to override e.g. the attachment shading rate.
+																// For now, just locked to "max".
 }
 
 

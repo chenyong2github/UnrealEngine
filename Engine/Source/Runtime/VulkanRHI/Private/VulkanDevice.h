@@ -286,8 +286,10 @@ public:
 	{
 		return FragmentShadingRateProperties;
 	}
-#endif
 
+	VkExtent2D GetBestMatchedShadingRateExtents(EVRSShadingRate Rate) const;
+#endif
+	
 #if VULKAN_SUPPORTS_MULTIVIEW
 	inline const VkPhysicalDeviceMultiviewFeatures& GetMultiviewFeatures() const
 	{

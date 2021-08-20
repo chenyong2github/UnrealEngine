@@ -181,6 +181,12 @@ void FVulkanLinuxPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<con
 
 #if VULKAN_SUPPORTS_RENDERPASS2
 	OutExtensions.Add(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME);
+
+	// Fragment shading rate depends on renderpass2.
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+#endif
+
 #endif
 
 	if (GGPUCrashDebuggingEnabled)
