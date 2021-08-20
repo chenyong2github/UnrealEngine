@@ -27,18 +27,54 @@ class DYNAMICMESH_API FPatchBasedMeshUVGenerator
 public:
 
 	//
-	// Parameters for island merging
+	// Parameters for patch generation (ComputeInitialMeshPatches)
+	//
+	int32 TargetPatchCount = 100;
+	bool bNormalWeightedPatches = true;
+	double PatchNormalWeight = 1.0;
+	int32 MinPatchSize = 2;
+
+	//
+	// Parameters for island merging (ComputeIslandsByRegionMerging)
 	//
 	double MergingThreshold = 1.5;
 	double CompactnessThreshold = 9999999.0;		// effectively disabled as it usually is not a good idea
 	double MaxNormalDeviationDeg = 45.0;
 
 	//
-	// ExpMap parameters
+	// ExpMap parameters (ComputeUVsFromTriangleSets)
 	//
 	int32 NormalSmoothingRounds = 0;
 	double NormalSmoothingAlpha = 0.25;
 
+	//
+	// Packing parameters (used in AutoComputeUVs)
+	//
+	bool bAutoAlignPatches = true;
+	bool bAutoPack = true;
+	int32 PackingTextureResolution = 512;
+	float PackingGutterWidth = 1.0f;
+
+
+	/**
+	 * Top-level driver function, automatically computes UVs on the given TargetMesh and stores in the
+	 * given TargetUVOverlay, using the steps below, based on the parameters above
+	 * @return result information, which may include warnings/etc
+	 */
+	FGeometryResult AutoComputeUVs(
+		FDynamicMesh3& TargetMesh,
+		FDynamicMeshUVOverlay& TargetUVOverlay,
+		FProgressCancel* Progress = nullptr);
+
+	/**
+	 * Compute a decomposition of TargetMesh into many small patches (driven by TargetPatchCount).
+	 * @param InitialComponentsOut returned decomposition into triangle sets
+	 * @return true on success
+	 */
+	bool ComputeInitialMeshPatches(
+		FDynamicMesh3& TargetMesh,
+		FMeshConnectedComponents& InitialComponentsOut,
+		FProgressCancel* Progress = nullptr);
 
 	/**
 	 * Incrementally combine existing mesh patches into larger patches that meet the various criteria defined

@@ -122,6 +122,17 @@ struct FGeometryResult
 	inline void SetSuccess(bool bSuccess, FProgressCancel* Progress = nullptr );
 
 	/**
+	 * Set state of the Result to Failure, and append a FGeometryError with the given ErrorMessage and ResultCode
+	 */
+	inline void SetFailed(FText ErrorMessage, int ResultCode = 0);
+
+	/**
+	 * Test if the given Progress has been cancelled, if so, set the Result to Cancelled 
+	 * @return true if cancelled, false if not cancelled
+	 */
+	inline bool CheckAndSetCancelled( FProgressCancel* Progress );
+
+	/**
 	 * Append an Error to the result
 	 */
 	void AddError(FGeometryError Error) 
@@ -234,4 +245,22 @@ void UE::Geometry::FGeometryResult::SetSuccess(bool bSuccess, FProgressCancel* P
 	{
 		Result = (bSuccess) ? EGeometryResultType::Success : EGeometryResultType::Failure;
 	}
+}
+
+
+void UE::Geometry::FGeometryResult::SetFailed(FText ErrorMessage, int ResultCode)
+{
+	Result = EGeometryResultType::Failure;
+	Errors.Add(FGeometryError(ResultCode, ErrorMessage));
+}
+
+
+bool UE::Geometry::FGeometryResult::CheckAndSetCancelled(FProgressCancel* Progress)
+{
+	if (Progress && Progress->Cancelled())
+	{
+		Result = EGeometryResultType::Cancelled;
+		return true;
+	}
+	return false;
 }

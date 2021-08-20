@@ -274,6 +274,83 @@ void FMeshConnectedComponents::SortByCount(bool bLargestFirst)
 
 
 
+
+bool FMeshConnectedComponents::InitializeFromTriangleComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs)
+{
+	Components.Reset();
+	Components.Reserve(ComponentLists.Num());
+	for (const TArray<int32>& ComponentList : ComponentLists)
+	{
+		// skip any empty lists
+		if (ComponentList.Num() == 0)
+		{
+			continue;
+		}
+
+		FComponent* Component = new FComponent();
+		Component->Indices.Append(ComponentList);
+
+		if (bValidateIDs)
+		{
+			for (int32 tid : Component->Indices)
+			{
+				if (Mesh->IsTriangle(tid) == false)
+				{
+					return false;
+				}
+			}
+		}
+
+		Components.Add(Component);
+	}
+
+	return true;
+}
+
+
+bool FMeshConnectedComponents::InitializeFromTriangleComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs)
+{
+	Components.Reset();
+	Components.Reserve(ComponentLists.Num());
+	for (TArray<int32>& ComponentList : ComponentLists)
+	{
+		// skip any empty lists
+		if (ComponentList.Num() == 0)
+		{
+			continue;
+		}
+
+		FComponent* Component = new FComponent();
+		if (bMoveSubLists)
+		{
+			Component->Indices = MoveTemp(ComponentList);
+		}
+		else
+		{
+			Component->Indices.Append(ComponentList);
+		}
+
+		if (bValidateIDs)
+		{
+			for (int32 tid : Component->Indices)
+			{
+				if (Mesh->IsTriangle(tid) == false)
+				{
+					return false;
+				}
+			}
+		}
+
+		Components.Add(Component);
+	}
+
+	return true;
+}
+
+
+
+
+
 void FMeshConnectedComponents::GrowToConnectedTriangles(const FDynamicMesh3* Mesh,
 	const TArray<int>& InputROI, TArray<int>& ResultROI,
 	TArray<int32>* QueueBuffer, 
