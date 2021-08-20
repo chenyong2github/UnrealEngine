@@ -94,4 +94,25 @@ namespace PropertyInfoViewStyle
 		TSharedPtr<SButton> ExpanderArrow;
 		TAttribute<bool> HasChildren;
 	};
+
+	/**
+	 * allows you to highlight any arbitrary text based widget.
+	 * See FTraceStackChildItem::GenerateValueWidget (SKismetDebuggingView.cpp)
+	 * for an example.
+	 *
+	 * note: the text in Content must be scaled, positioned, etc exactly
+	 * the same as a standard STextBlock would be in order for the highlight
+	 * to match up properly
+	 */
+	class UNREALED_API STextHighlightOverlay : public SCompoundWidget
+	{
+	public:
+		SLATE_BEGIN_ARGS(STextHighlightOverlay) {}
+			SLATE_DEFAULT_SLOT( FArguments, Content )
+			SLATE_ATTRIBUTE(FText, FullText)
+			SLATE_ATTRIBUTE(FText, HighlightText)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs);
+	};
 }

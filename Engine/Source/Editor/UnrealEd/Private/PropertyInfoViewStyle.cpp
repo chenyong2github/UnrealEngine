@@ -1,7 +1,10 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PropertyInfoViewStyle.h"
+
+#include "EditorStyleSet.h"
 #include "Math/Color.h"
+#include "Widgets/Text/STextBlock.h"
 
 namespace PropertyInfoViewStyle
 {
@@ -230,5 +233,30 @@ namespace PropertyInfoViewStyle
 		}
 
 		return FReply::Handled();
+	}
+
+	void STextHighlightOverlay::Construct(const FArguments& InArgs)
+	{
+		static FSlateBrush HighlightShape = FSlateBrush(*FEditorStyle::Get().GetBrush("TextBlock.HighlightShape"));
+		HighlightShape.TintColor = FLinearColor(0.f, 0.47f, 1.f, .3f);
+		
+		// uses overlay to create the highlight so that the text widget can be a button,
+		// hyperlink, textblock, etc
+		ChildSlot
+		[
+			SNew(SOverlay)
+				+SOverlay::Slot()
+				[
+					SNew(STextBlock)
+						.Text(InArgs._FullText)
+						.ColorAndOpacity(FLinearColor::Transparent)
+						.HighlightShape(&HighlightShape)
+						.HighlightText(InArgs._HighlightText)
+				]
+				+SOverlay::Slot()
+				[
+					InArgs._Content.Widget
+				]
+		];
 	}
 }
