@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlidingWindow.h"
+#include "DSP/Dsp.h"
 
 namespace Audio
 {
@@ -85,8 +85,7 @@ namespace Audio
 	protected:
 		EPeakMode::Type EnvMode;
 		int32 MeanWindowSize;
-		int32 MeanHopSize;
-		TSlidingBuffer<float> SumBuffer;
+		int32 MeanHopSize;		
 		TArray<float> ScratchBuffer;
 		float SampleRate;
 		float AttackTimeMsec;
