@@ -21,9 +21,12 @@ using MongoDB.Bson.Serialization.Attributes;
 using System.Collections.Concurrent;
 using System.Globalization;
 using Microsoft.Extensions.Hosting;
+using EpicGames.Perforce.Managed;
 
 namespace HordeServer.Commits.Impl
 {
+	using P4 = Perforce.P4;
+	using NamespaceId = StringId<INamespace>;
 	using StreamId = StringId<IStream>;
 
 	/// <summary>
@@ -49,7 +52,10 @@ namespace HordeServer.Commits.Impl
 			public List<StreamReplicationState> Streams { get; set; } = new List<StreamReplicationState>();
 		}
 
+		NamespaceId NamespaceId { get; } = new NamespaceId("default");
+
 		ICommitCollection CommitCollection;
+		IObjectCollection ObjectCollection;
 		IStreamCollection StreamCollection;
 		IPerforceService PerforceService;
 		IUserCollection UserCollection;
@@ -61,9 +67,10 @@ namespace HordeServer.Commits.Impl
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(ICommitCollection CommitCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, DatabaseService DatabaseService, ILogger<CommitService> Logger)
+		public CommitService(ICommitCollection CommitCollection, IObjectCollection ObjectCollection, IStreamCollection StreamCollection, IPerforceService PerforceService, IUserCollection UserCollection, DatabaseService DatabaseService, ILogger<CommitService> Logger)
 		{
 			this.CommitCollection = CommitCollection;
+			this.ObjectCollection = ObjectCollection;
 			this.StreamCollection = StreamCollection;
 			this.PerforceService = PerforceService;
 			this.UserCollection = UserCollection;
@@ -255,5 +262,234 @@ namespace HordeServer.Commits.Impl
 				return null;
 			}
 		}
+
+		#region Snapshot generation
+
+		/// <summary>
+		/// Number of files to query at a time before recursing down the tree
+		/// </summary>
+		const int BatchSize = 16384;
+
+		/// <summary>
+		/// Creates a snapshot of the repository at a particular changelist
+		/// </summary>
+		/// <param name="Repository">The Perforce repository to mirror</param>
+		/// <param name="Stream">Name of the stream to be mirrored</param>
+		/// <param name="Change">Changelist to replicate</param>
+		/// <param name="Comparison">Comparison to use for names</param>
+		Task CreateSnapshotAsync(P4.Repository Repository, string Stream, int Change, StringComparison Comparison)
+		{
+			// Get the stream spec
+			P4.Stream StreamSpec = Repository.GetStream($"{Stream}@{Change}", new P4.Options { { "-v", "" } });
+			ViewMap ViewMap = new ViewMap(StreamSpec.View);
+			return CreateSnapshotAsync(Repository, ViewMap, Change, Comparison);
+		}
+
+		/// <summary>
+		/// Creates a snapshot of a stream at a particular changelist
+		/// </summary>
+		/// <param name="Repository">The Perforce repository to mirror</param>
+		/// <param name="View">View for the stream</param>
+		/// <param name="Change">Changelist to replicate</param>
+		/// <param name="Comparison">Comparison to use for names</param>
+		async Task<StreamTreeRef> CreateSnapshotAsync(P4.Repository Repository, ViewMap View, int Change, StringComparison Comparison)
+		{
+			// In order to optimize for the common case where we're adding multiple files to the same directory, we keep an open list of
+			// StreamTreeBuilder objects down to the last modified node. Whenever we need to move to a different node, we write the 
+			// previous path to the object store.
+			List<StreamTreeBuilder> TreePath = new List<StreamTreeBuilder>();
+			TreePath.Add(new StreamTreeBuilder());
+
+			// Generate a snapshot using all the root paths
+			List<string> RootPaths = View.GetRootPaths(Comparison);
+			foreach (string RootPath in RootPaths)
+			{
+				ViewMap FilteredView = new ViewMap();
+				foreach (ViewMapEntry Entry in View.Entries)
+				{
+					if (Entry.SourcePrefix.StartsWith(RootPath, Comparison))
+					{
+						FilteredView.Entries.Add(Entry);
+					}
+				}
+				await AddDepotDirToSnapshotAsync(Repository, RootPath, Change, FilteredView, Comparison, TreePath);
+			}
+
+			// Write the root tree
+			return await EncodeTreeAsync(TreePath[0]);
+		}
+
+		/// <summary>
+		/// Adds all files under a directory in the depot to a snapshot
+		/// </summary>
+		/// <param name="Repository">The perforce repository</param>
+		/// <param name="DepotDir">Depot directory to recurse through, with a trailing slash</param>
+		/// <param name="Change">Changelist number to capture</param>
+		/// <param name="View">View for the stream</param>
+		/// <param name="Comparison">Comparison type to use for names</param>
+		/// <param name="TreePath">The last computed path through the tree</param>
+		async Task AddDepotDirToSnapshotAsync(P4.Repository Repository, string DepotDir, int Change, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath)
+		{
+			if (View.MayMatchAnyFilesInSubDirectory(DepotDir, Comparison))
+			{
+				P4.GetFileMetaDataCmdOptions Options = new P4.GetFileMetaDataCmdOptions(P4.GetFileMetadataCmdFlags.FileSize, null, null, BatchSize, null, null, null);
+				IList<P4.FileMetaData> Files = Repository.GetFileMetaData(Options, P4.FileSpec.DepotSpec($"{DepotDir}...", new P4.ChangelistIdVersion(Change)));
+				if (Files != null && Files.Count < BatchSize)
+				{
+					await AddDepotFilesToSnapshotAsync(Files, View, Comparison, TreePath);
+					return;
+				}
+
+				IList<string> Dirs = Repository.GetDepotDirs(new P4.GetDepotDirsCmdOptions(P4.GetDepotDirsCmdFlags.None, null), $"{DepotDir}*@{Change}");
+				foreach (string Dir in Dirs)
+				{
+					await AddDepotDirToSnapshotAsync(Repository, Dir + "/", Change, View, Comparison, TreePath);
+				}
+			}
+
+			if (View.MayMatchAnyFilesInDirectory(DepotDir, Comparison))
+			{
+				P4.GetFileMetaDataCmdOptions Options = new P4.GetFileMetaDataCmdOptions(P4.GetFileMetadataCmdFlags.FileSize, null, null, -1, null, null, null);
+				IList<P4.FileMetaData> Files = Repository.GetFileMetaData(Options, P4.FileSpec.DepotSpec($"{DepotDir}*", new P4.ChangelistIdVersion(Change)));
+				await AddDepotFilesToSnapshotAsync(Files, View, Comparison, TreePath);
+			}
+		}
+
+		/// <summary>
+		/// Adds a set of files in the depot to a snapshot
+		/// </summary>
+		/// <param name="Files">The files to add</param>
+		/// <param name="View">View for the stream</param>
+		/// <param name="Comparison">Comparison type to use for names</param>
+		/// <param name="TreePath">The last computed path through the tree</param>
+		async Task AddDepotFilesToSnapshotAsync(IList<P4.FileMetaData>? Files, ViewMap View, StringComparison Comparison, List<StreamTreeBuilder> TreePath)
+		{
+			if (Files != null)
+			{
+				foreach (P4.FileMetaData File in Files)
+				{
+					if (File.Digest != null)
+					{
+						string? TargetFile;
+						if (View.TryMapFile(File.DepotPath.Path, Comparison, out TargetFile))
+						{
+							await AddFileAsync(TargetFile, File, TreePath);
+						}
+					}
+				}
+			}
+		}
+
+		/// <summary>
+		/// Adds a single depot file to a snapshot
+		/// </summary>
+		/// <param name="Path">The stream path for the file</param>
+		/// <param name="MetaData">The file metadata</param>
+		/// <param name="TreePath">The last computed path through the tree</param>
+		async Task AddFileAsync(string Path, P4.FileMetaData MetaData, List<StreamTreeBuilder> TreePath)
+		{
+			string[] Segments = Path.Split('/');
+
+			StreamTreeBuilder Node = TreePath[0];
+			for (int Idx = 0; Idx < Segments.Length - 1; Idx++)
+			{
+				Utf8String Segment = Segments[Idx];
+
+				StreamTreeBuilder NextNode = await GetChildTreeBuilder(Node, Segment);
+				if (Idx + 1 < TreePath.Count && TreePath[Idx + 1] != NextNode)
+				{
+					await CollapseTreeAsync(Node, TreePath[Idx + 1]);
+				}
+				if (Idx + 1 >= TreePath.Count)
+				{
+					TreePath.Add(NextNode);
+				}
+
+				Node = NextNode;
+			}
+
+			StreamFile File = new StreamFile(MetaData.DepotPath.Path, MetaData.FileSize, new FileContentId(Md5Hash.Parse(MetaData.Digest), MetaData.HeadType.ToString()), MetaData.HeadRev);
+			Node.NameToFile[Segments[Segments.Length - 1]] = File;
+		}
+
+		/// <summary>
+		/// Gets a child tree builder for a particular node, deserializing an existing tree from the object store if necessary
+		/// </summary>
+		/// <param name="Node">The parent node</param>
+		/// <param name="Name">Name of the child tree</param>
+		/// <returns>The child tree, or a new one if it doesn't exist</returns>
+		async Task<StreamTreeBuilder> GetChildTreeBuilder(StreamTreeBuilder Node, Utf8String Name)
+		{
+			StreamTreeBuilder? NextNode;
+			if (!Node.NameToTreeBuilder.TryGetValue(Name, out NextNode))
+			{
+				StreamTreeRef? NextRef;
+				if (Node.NameToTree.TryGetValue(Name, out NextRef))
+				{
+					NextNode = await ExpandTreeAsync(Node, Name, NextRef);
+				}
+				else
+				{
+					NextNode = new StreamTreeBuilder();
+				}
+				Node.NameToTreeBuilder.Add(Name, NextNode);
+			}
+			return NextNode;
+		}
+
+		/// <summary>
+		/// Expands one level of the tree that has previously been serialized to the object store
+		/// </summary>
+		/// <param name="Parent">The parent node in the tree</param>
+		/// <param name="Name">Name of the </param>
+		/// <param name="ChildRef"></param>
+		/// <returns></returns>
+		async Task<StreamTreeBuilder> ExpandTreeAsync(StreamTreeBuilder Parent, Utf8String Name, StreamTreeRef ChildRef)
+		{
+			CbObject Object = await ObjectCollection.GetRequiredObjectAsync(NamespaceId, ChildRef.Hash);
+			StreamTreeBuilder Node = new StreamTreeBuilder(new StreamTree(Object, ChildRef.Path));
+			Parent.NameToTree.Remove(Name);
+			return Node;
+		}
+
+		/// <summary>
+		/// Collapse a subtree under a given child
+		/// </summary>
+		/// <param name="Parent"></param>
+		/// <param name="Child"></param>
+		/// <returns></returns>
+		async Task CollapseTreeAsync(StreamTreeBuilder Parent, StreamTreeBuilder Child)
+		{
+			foreach ((Utf8String Name, StreamTreeBuilder Node) in Parent.NameToTreeBuilder)
+			{
+				if (Node == Child)
+				{
+					StreamTreeRef ChildRef = await EncodeTreeAsync(Child);
+					Parent.NameToTreeBuilder.Remove(Name);
+					Parent.NameToTree.Add(Name, ChildRef);
+					break;
+				}
+			}
+		}
+
+		/// <summary>
+		/// Writes a subtree to the object store
+		/// </summary>
+		/// <param name="TreeBuilder">Root of the tree to write</param>
+		/// <returns>New tree reference for the serialized tree</returns>
+		async Task<StreamTreeRef> EncodeTreeAsync(StreamTreeBuilder TreeBuilder)
+		{
+			Dictionary<IoHash, CbObject> Objects = new Dictionary<IoHash, CbObject>();
+			StreamTreeRef Ref = TreeBuilder.Encode(Objects);
+
+			foreach ((IoHash Hash, CbObject Object) in Objects)
+			{
+				await ObjectCollection.AddAsync(NamespaceId, Hash, Object);
+			}
+
+			return Ref;
+		}
+
+		#endregion
 	}
 }
