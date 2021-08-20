@@ -323,11 +323,14 @@ bool UClothingAssetCommon::BindToSkeletalMesh(
 		}
 	}
 
-	ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderIndices);
+	const ClothingMeshUtils::ClothMeshDesc TargetMesh(RenderPositions, RenderNormals, RenderIndices);
 
-	ClothingMeshUtils::ClothMeshDesc SourceMesh(
+	TArray<FVector3f> RecomputedVertexNormals;
+	ClothLodData.PhysicalMeshData.ComputeFaceAveragedVertexNormals(RecomputedVertexNormals);
+
+	const ClothingMeshUtils::ClothMeshDesc SourceMesh(
 		ClothLodData.PhysicalMeshData.Vertices, 
-		ClothLodData.PhysicalMeshData.Normals, 
+		RecomputedVertexNormals,
 		ClothLodData.PhysicalMeshData.Indices);
 
 	TArray<float> MaxEdgeLength;

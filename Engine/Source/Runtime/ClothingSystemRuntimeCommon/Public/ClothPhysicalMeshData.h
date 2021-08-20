@@ -49,6 +49,10 @@ struct CLOTHINGSYSTEMRUNTIMECOMMON_API FClothPhysicalMeshData
 	/** Recalculate the long range attachment tethers. */
 	void CalculateTethers(bool bUseEuclideanDistance, bool bUseGeodesicDistance);
 
+	/** Compute vertex normals as unweighted average of incident face normals. If all incident triangles are degenerate,
+	    the vertex normal is assigned a value of FVector3f::XAxisVector. */
+	void ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const;
+
 	/** Retrieve whether a vertex weight array has already been registered. */
 	template<typename T>
 	bool HasWeightMap(const T Target) const { return WeightMaps.Contains((uint32)Target); }

@@ -268,3 +268,41 @@ void FClothPhysicalMeshData::CalculateTethers(bool bUseEuclideanDistance, bool b
 		}
 	}
 }
+
+
+void FClothPhysicalMeshData::ComputeFaceAveragedVertexNormals(TArray<FVector3f>& OutNormals) const
+{
+	OutNormals.Init(FVector3f{ 0.f, 0.f, 0.f }, Vertices.Num());
+
+	const int32 NumTris = Indices.Num() / 3;
+	for (int32 TID = 0; TID < NumTris; ++TID)
+	{
+		const uint32 VA = Indices[3 * TID + 0];
+		const uint32 VB = Indices[3 * TID + 1];
+		const uint32 VC = Indices[3 * TID + 2];
+		const FVector3f& PA = Vertices[VA];
+		const FVector3f& PB = Vertices[VB];
+		const FVector3f& PC = Vertices[VC];
+
+		FVector3f Normal = FVector3f::CrossProduct(PC - PA, PB - PA);
+		if (!Normal.Normalize())
+		{
+			// skip contributions from degenerate triangles
+			continue;
+		}
+
+		OutNormals[VA] += Normal;
+		OutNormals[VB] += Normal;
+		OutNormals[VC] += Normal;
+	}
+
+	for (int32 VertexID = 0; VertexID < OutNormals.Num(); ++VertexID )
+	{
+		FVector3f& N = OutNormals[VertexID];
+		if (!N.Normalize())
+		{
+			N = FVector3f::XAxisVector;
+		}
+	}
+}
+
