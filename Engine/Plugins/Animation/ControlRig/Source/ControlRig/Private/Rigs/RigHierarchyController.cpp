@@ -1525,7 +1525,7 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 
 	InElementToAdd->SubIndex = Hierarchy->Num(InElementToAdd->Key.Type);
 	InElementToAdd->Index = Hierarchy->Elements.Add(InElementToAdd);
-	Hierarchy->ElementsPerType[(int32)InElementToAdd->GetKey().Type].Add(InElementToAdd);
+	Hierarchy->ElementsPerType[URigHierarchy::RigElementTypeToFlatIndex(InElementToAdd->GetKey().Type)].Add(InElementToAdd);
 
 	Hierarchy->IndexLookup.Add(InElementToAdd->Key, InElementToAdd->Index);
 	Hierarchy->TopologyVersion++;
@@ -1603,7 +1603,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	// if this is a transform element - make sure to allow dependents to store their global transforms
 	if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(InElement))
 	{
-		TArray<FRigTransformElement::FElementToDirty> PreviousElementsToDirty = TransformElement->ElementsToDirty; 
+		FRigTransformElement::FElementsToDirtyArray PreviousElementsToDirty = TransformElement->ElementsToDirty; 
 		for(const FRigTransformElement::FElementToDirty& ElementToDirty : PreviousElementsToDirty)
 		{
 			if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(ElementToDirty.Element))
@@ -1630,7 +1630,7 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	const int32 NumElementsRemoved = Hierarchy->Elements.Remove(InElement);
 	ensure(NumElementsRemoved == 1);
 
-	const int32 NumTypeElementsRemoved = Hierarchy->ElementsPerType[(int32)InElement->GetKey().Type].Remove(InElement);
+	const int32 NumTypeElementsRemoved = Hierarchy->ElementsPerType[URigHierarchy::RigElementTypeToFlatIndex(InElement->GetKey().Type)].Remove(InElement);
 	ensure(NumTypeElementsRemoved == 1);
 
 	const int32 NumLookupsRemoved = Hierarchy->IndexLookup.Remove(InElement->Key);
@@ -2183,7 +2183,7 @@ bool URigHierarchyController::RemoveAllParents(FRigBaseElement* InChild, bool bM
 	{
 		bool bSuccess = true;
 
-		TArray<FRigElementParentConstraint> ParentConstraints = MultiParentElement->ParentConstraints;
+		FRigElementParentConstraintArray ParentConstraints = MultiParentElement->ParentConstraints;
 		for(const FRigElementParentConstraint& ParentConstraint : ParentConstraints)
 		{
 			if(!RemoveParent(MultiParentElement, ParentConstraint.ParentElement, bMaintainGlobalTransform))

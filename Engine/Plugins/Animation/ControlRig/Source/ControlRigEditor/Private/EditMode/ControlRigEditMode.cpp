@@ -652,7 +652,7 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 			{
 				const FTransform Transform = Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
 
-				TArray<FRigBaseElement*> Parents = Hierarchy->GetParents(TransformElement);
+				FRigBaseElementParentArray Parents = Hierarchy->GetParents(TransformElement);
 				for(FRigBaseElement* ParentElement : Parents)
 				{
 					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(ParentElement))

@@ -200,9 +200,17 @@ void URigVMMemoryStorageGeneratorClass::PostLoad()
 	RefreshPropertyPaths();
 }
 
-FString URigVMMemoryStorageGeneratorClass::GetClassName(ERigVMMemoryType InMemoryType)
+const FString& URigVMMemoryStorageGeneratorClass::GetClassName(ERigVMMemoryType InMemoryType)
 {
-	return TEXT("RigVMMemory_") + StaticEnum<ERigVMMemoryType>()->GetDisplayNameTextByValue((int64)InMemoryType).ToString();
+	static TArray<FString> ClassNames;
+	if(ClassNames.IsEmpty())
+	{
+		for(int32 MemoryTypeIndex=0;MemoryTypeIndex<(int32)ERigVMMemoryType::Invalid;MemoryTypeIndex++)
+		{
+			ClassNames.Add(TEXT("RigVMMemory_") + StaticEnum<ERigVMMemoryType>()->GetDisplayNameTextByValue((int64)MemoryTypeIndex).ToString());
+		}
+	}
+	return ClassNames[(int32)InMemoryType];
 }
 
 URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType)
@@ -227,7 +235,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::GetStorage
 	}
 	while (Outer);
 
-	const FString ClassName = GetClassName(InMemoryType);
+	const FString& ClassName = GetClassName(InMemoryType);
 
 	for(UObject* PotentialClassContainer : PotentialClassContainers)
 	{
@@ -251,7 +259,7 @@ URigVMMemoryStorageGeneratorClass* URigVMMemoryStorageGeneratorClass::CreateStor
 	UPackage* Package = InOuter->GetOutermost();
 	UClass *SuperClass = URigVMMemoryStorage::StaticClass();
 
-	const FString ClassName = GetClassName(InMemoryType);
+	const FString& ClassName = GetClassName(InMemoryType);
 
 	// if there's an old class - remove it from the package and mark it to destroy
 	URigVMMemoryStorageGeneratorClass* OldClass = FindObject<URigVMMemoryStorageGeneratorClass>(Package, *ClassName);
