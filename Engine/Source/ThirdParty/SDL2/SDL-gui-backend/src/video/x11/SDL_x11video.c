@@ -274,7 +274,6 @@ X11_CreateDevice(int devindex)
 
 /* EG BEGIN */
 #ifdef SDL_WITH_EPIC_EXTENSIONS
-    device->SetKeyboardGrab = X11_SetKeyboardGrab;
     device->ConfineCursor = X11_ConfineCursor;
     //device->VK_LoadLibrary = X11_VK_LoadLibrary;
     //device->VK_UnloadLibrary = X11_VK_UnloadLibrary;
