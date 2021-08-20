@@ -3,10 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Paths.h"
+
 #include "AssetData.h"
-#include "Misc/AssetRegistryInterface.h"
 #include "AssetRegistryState.h"
+#include "Misc/AssetRegistryInterface.h"
+#include "Misc/Paths.h"
+#include "Templates/UniquePtr.h"
 #include "UObject/UObjectHash.h"
 
 class FSandboxPlatformFile;
@@ -40,9 +42,9 @@ public:
 	const ITargetPlatform* GetTargetPlatform() const { return TargetPlatform; }
 
 	/** 
-	 * Loads asset registry from a previous run that is used for iterative or DLC cooking
+	 * Sets asset registry from a previous run that is used for iterative or DLC cooking
 	 */
-	bool LoadPreviousAssetRegistry(const FString& Filename);
+	void SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& PreviousState);
 	
 	/**
 	 * Options when computing the differences between current and previous state.

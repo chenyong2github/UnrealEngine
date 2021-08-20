@@ -4,9 +4,11 @@
 
 #include "Containers/StringView.h"
 #include "IO/IoDispatcher.h"
+#include "Misc/DateTime.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/CompactBinary.h"
 
+class FAssetRegistryState;
 class IPackageStoreWriter;
 struct FPackageStoreEntryResource;
 
@@ -125,6 +127,27 @@ class ICookedPackageWriter : public IPackageWriter
 public:
 	virtual ~ICookedPackageWriter() = default;
 
+	struct FCookCapabilities
+	{
+		/** Whether this writer implements -diffonly and -linkerdiff. */
+		bool bDiffModeSupported = false;
+		/** Whether this writer implements the IPackageWriter interface and can be passed to SavePackage. */
+		bool bSavePackageSupported = true;
+	};
+
+	/** Return cook capabilities/settings this PackageWriter has/requires
+	  */
+	virtual FCookCapabilities GetCookCapabilities() const
+	{
+		return FCookCapabilities();
+	}
+
+	/** Return the timestamp of the previous cook, or FDateTime::MaxValue to indicate previous cook should be assumed newer than any other cook data. */
+	virtual FDateTime GetPreviousCookTime() const
+	{
+		return FDateTime::MaxValue();
+	}
+
 	struct FCookInfo
 	{
 		enum ECookMode
@@ -134,6 +157,8 @@ public:
 		};
 
 		ECookMode CookMode = CookByTheBookMode;
+		bool bCleanBuild = true;
+		bool bIterateSharedBuild = false;
 	};
 
 	/** Signal the start of a cooking pass
@@ -162,7 +187,7 @@ public:
 	};
 
 	/**
-	 * Returns a list of cooked package(s).
+	 * Appends list of cooked package(s) to the given output array.
 	 */
 	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) = 0;
 
@@ -173,9 +198,23 @@ public:
 	virtual FCbObject GetTargetDomainDependencies(FName PackageName) = 0;
 
 	/**
-	 * Remove cooked package(s) that has been modified since the last cook.
+	 * Remove the given cooked package(s) from storage; they have been modified since the last cook.
 	 */
 	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) = 0;
+
+	/**
+	 * Remove all cooked packages from storage.
+	 */
+	virtual void RemoveCookedPackages() = 0;
+
+	/**
+	 * If a previous-version AssetRegistryState was allocated during GetCookedPackages, drop the reference to it
+	 * and return it to the caller who takes responsibility for deleting it.
+	 */
+	virtual FAssetRegistryState* ReleasePreviousAssetRegistry()
+	{
+		return nullptr;
+	}
 
 	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
 	virtual IPackageStoreWriter* AsPackageStoreWriter()

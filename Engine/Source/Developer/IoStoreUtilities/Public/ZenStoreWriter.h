@@ -28,8 +28,7 @@ class FZenStoreWriter
 public:
 	IOSTOREUTILITIES_API FZenStoreWriter(	const FString& OutputPath, 
 											const FString& MetadataDirectoryPath, 
-											const ITargetPlatform* TargetPlatform, 
-											bool IsCleanBuild);
+											const ITargetPlatform* TargetPlatform);
 
 	IOSTOREUTILITIES_API ~FZenStoreWriter();
 
@@ -58,6 +57,7 @@ public:
 	IOSTOREUTILITIES_API virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override;
 	IOSTOREUTILITIES_API virtual FCbObject GetTargetDomainDependencies(FName PackageName) override;
 	IOSTOREUTILITIES_API virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
+	IOSTOREUTILITIES_API virtual void RemoveCookedPackages() override;
 
 private:
 	void CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader);
@@ -128,4 +128,6 @@ private:
 	ICookedPackageWriter::FCookInfo::ECookMode CookMode;
 
 	FZenStats							ZenStats;
+
+	bool								bInitialized;
 };

@@ -118,7 +118,7 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 	PackageWriters.Reserve(Platforms.Num());
 	for (const ITargetPlatform* TargetPlatform : Platforms)
 	{
-		PackageWriters.Add(COTFS.GetPackageWriter(FName(*TargetPlatform->PlatformName())));
+		PackageWriters.Add(&COTFS.FindOrCreatePackageWriter(TargetPlatform));
 	}
 }
 

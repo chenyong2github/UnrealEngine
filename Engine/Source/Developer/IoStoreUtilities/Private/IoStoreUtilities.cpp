@@ -4057,9 +4057,10 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 	}
 
 	FString MetaDataOutputPath = FPaths::Combine(CookedOutputPath, FApp::GetProjectName(), TEXT("Metadata"));
-	TUniquePtr<FZenStoreWriter> ZenStoreWriter = MakeUnique<FZenStoreWriter>(CookedOutputPath, MetaDataOutputPath, TargetPlatform, true);
+	TUniquePtr<FZenStoreWriter> ZenStoreWriter = MakeUnique<FZenStoreWriter>(CookedOutputPath, MetaDataOutputPath, TargetPlatform);
 	
 	ICookedPackageWriter::FCookInfo CookInfo;
+	CookInfo.bCleanBuild = true;
 	ZenStoreWriter->BeginCook(CookInfo);
 	int32 LocalPackageIndex = 0;
 	TArray<FPackageInfo> PackagesArray;

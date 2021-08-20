@@ -5,9 +5,7 @@
 #include "HAL/PlatformTime.h"
 #include "Math/NumericLimits.h"
 
-namespace UE
-{
-namespace Cook
+namespace UE::Cook
 {
 
 	FCookerTimer::FCookerTimer(const float& InTimeSlice, bool bInIsRealtimeMode, int InMaxNumPackagesToSave)
@@ -79,5 +77,22 @@ namespace Cook
 	{
 		FPlatformTLS::SetTlsValue(SchedulerThreadTlsSlot, bValue ? (void*)0x1 : (void*)0x0);
 	}
-}
+
+	FCookSavePackageContext::FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,
+		ICookedPackageWriter* InPackageWriter, bool bInForceLegacyOffsets, FStringView InWriterDebugName)
+		: SaveContext(InTargetPlatform, InPackageWriter->GetCookCapabilities().bSavePackageSupported ? InPackageWriter : nullptr, bInForceLegacyOffsets)
+		, WriterDebugName(InWriterDebugName)
+		, PackageWriter(InPackageWriter)
+	{
+		PackageWriterCapabilities = InPackageWriter->GetCookCapabilities();
+	}
+
+	FCookSavePackageContext::~FCookSavePackageContext()
+	{
+		// SaveContext destructor deletes the PackageWriter, so if we passed our writer into SaveContext, we do not delete it
+		if (!SaveContext.PackageWriter)
+		{
+			delete PackageWriter;
+		}
+	}
 }

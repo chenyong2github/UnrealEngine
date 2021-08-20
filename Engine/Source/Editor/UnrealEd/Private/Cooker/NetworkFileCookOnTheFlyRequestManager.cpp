@@ -47,7 +47,7 @@ public:
 private:
 	bool OnNewConnection(const FString& VersionInfo, const FString& PlatformName)
 	{
-		return CookOnTheFlyServer.AddPlatform(FName(*PlatformName));
+		return CookOnTheFlyServer.AddPlatform(FName(*PlatformName)) != nullptr;
 	}
 
 	void OnGetPrecookedList(const FString& PlatformName, TMap<FString, FDateTime>& PrecookedFileList)

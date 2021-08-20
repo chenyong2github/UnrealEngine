@@ -164,14 +164,13 @@ namespace UE::Cook
 	struct FCookSavePackageContext
 	{
 		FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,
-			ICookedPackageWriter* InPackageWriter, bool bInForceLegacyOffsets)
-			: SaveContext(InTargetPlatform, InPackageWriter, bInForceLegacyOffsets)
-			, PackageWriter(InPackageWriter)
-		{
-		}
-		// Note the SaveContext takes responsibility for deleting PackageWriter
+			ICookedPackageWriter* InPackageWriter, bool bInForceLegacyOffsets, FStringView InWriterDebugName);
+		~FCookSavePackageContext();
+
 		FSavePackageContext SaveContext;
+		FString WriterDebugName;
 		ICookedPackageWriter* PackageWriter;
+		ICookedPackageWriter::FCookCapabilities PackageWriterCapabilities;
 	};
 
 	/* Thread Local Storage access to identify which thread is the SchedulerThread for cooking. */
@@ -230,3 +229,5 @@ public:
 };
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
+const FString& GetDevelopmentAssetRegistryFilename();
+#define REMAPPED_PLUGINS TEXT("RemappedPlugins")

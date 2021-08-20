@@ -80,8 +80,8 @@ public:
 
 	IOSTOREUTILITIES_API virtual bool WriteAdditionalFile(const FAdditionalFileInfo& Info, const FIoBuffer& FileData) override { return false; }
 
-	IOSTOREUTILITIES_API virtual void BeginCook(const FCookInfo& Info);
-	IOSTOREUTILITIES_API virtual void EndCook();
+	IOSTOREUTILITIES_API virtual void BeginCook(const FCookInfo& Info) override;
+	IOSTOREUTILITIES_API virtual void EndCook() override;
 
 	virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>)>&& Callback) override
 	{
@@ -98,13 +98,16 @@ public:
 	virtual void Flush() override
 	{ }
 
-	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages)
+	virtual void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override
 	{ }
 
 	virtual FCbObject GetTargetDomainDependencies(FName PackageName) override
 	{ return FCbObject(); }
 
-	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove)
+	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override
+	{ }
+
+	virtual void RemoveCookedPackages() override
 	{ }
 
 private:

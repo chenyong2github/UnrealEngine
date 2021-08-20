@@ -50,8 +50,7 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 	FStringView InOplogId, 
 	FStringView ServerRoot,
 	FStringView EngineRoot,
-	FStringView ProjectRoot,
-	bool		IsCleanBuild)
+	FStringView ProjectRoot)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ZenStoreHttp_Initialize);
 
@@ -105,81 +104,70 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 		}
 	}
 
-	// Establish oplog
-
-	{
-		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
-
-		TStringBuilder<128> OplogUri;
-		OplogUri << "/prj/" << InProjectId << "/oplog/" << InOplogId;
-
-		OplogPath = OplogUri;
-
-		if (IsCleanBuild)
-		{
-			UE_LOG(LogZenStore, Display, TEXT("Deleting oplog '%s'/'%s' if it exists"), *FString(InProjectId), *FString(InOplogId));
-			Request->PerformBlockingDelete(OplogUri);
-			Request->Reset();
-		}
-
-		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogUri, &GetBuffer);
-		FCbObjectView OplogInfo;
-
-		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
-		{
-			UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' already exists"), *FString(InProjectId), *FString(InOplogId));
-
-			OplogInfo = FCbObjectView(GetBuffer.GetData());
-		}
-		else
-		{
-			FMemoryView Payload;
-
-			Request->Reset();
-			Res = Request->PerformBlockingPost(OplogUri, Payload);
-
-			if (Res != Zen::FZenHttpRequest::Result::Success)
-			{
-				UE_LOG(LogZenStore, Error, TEXT("Zen oplog '%s'/'%s' creation FAILED"), *FString(InProjectId), *FString(InOplogId));
-
-				// TODO: how to recover / handle this?
-			}
-			else if (Request->GetResponseCode() == 201)
-			{
-				UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' created"), *FString(InProjectId), *FString(InOplogId));
-			}
-			else
-			{
-				UE_LOG(LogZenStore, Warning, TEXT("Zen oplog '%s'/'%s' creation returned success but not HTTP 201"), *FString(InProjectId), *FString(InOplogId));
-			}
-
-			// Issue another GET to retrieve information
-
-			GetBuffer.Reset();
-			Request->Reset();
-			Res = Request->PerformBlockingDownload(OplogUri, &GetBuffer);
-
-			if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
-			{
-				OplogInfo = FCbObjectView(GetBuffer.GetData());
-			}
-		}
-
-		TempDirPath = FUTF8ToTCHAR(OplogInfo["tempdir"].AsString());
-	}
-
-	{
-		TStringBuilder<128> OplogUri;
-		OplogUri << "/prj/" << InProjectId << "/oplog/" << InOplogId << "/new";
-
-		OplogNewEntryPath = OplogUri;
-	}
-
-	OplogPrepNewEntryPath = TStringBuilder<128>().AppendAnsi("/prj/").Append(InProjectId).AppendAnsi("/oplog/").Append(InOplogId).AppendAnsi("/prep");
+	OplogPath = WriteToString<128>("/prj/", InProjectId, "/oplog/", InOplogId);
+	OplogNewEntryPath = WriteToString<128>("/prj/", InProjectId, "/oplog/", InOplogId, "/new");
+	OplogPrepNewEntryPath = WriteToString<128>("/prj/", InProjectId, "/oplog/", InOplogId, "/prep");
 
 	bAllowRead = true;
 	bAllowEdit = true;
+}
+
+void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild)
+{
+	UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
+
+	if (bCleanBuild)
+	{
+		UE_LOG(LogZenStore, Display, TEXT("Deleting oplog '%s'/'%s' if it exists"), *FString(InProjectId), *FString(InOplogId));
+		Request->PerformBlockingDelete(OplogPath);
+		Request->Reset();
+	}
+
+	TArray64<uint8> GetBuffer;
+	UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
+	FCbObjectView OplogInfo;
+
+	if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
+	{
+		UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' already exists"), *FString(InProjectId), *FString(InOplogId));
+
+		OplogInfo = FCbObjectView(GetBuffer.GetData());
+	}
+	else
+	{
+		FMemoryView Payload;
+
+		Request->Reset();
+		Res = Request->PerformBlockingPost(OplogPath, Payload);
+
+		if (Res != Zen::FZenHttpRequest::Result::Success)
+		{
+			UE_LOG(LogZenStore, Error, TEXT("Zen oplog '%s'/'%s' creation FAILED"), *FString(InProjectId), *FString(InOplogId));
+
+			// TODO: how to recover / handle this?
+		}
+		else if (Request->GetResponseCode() == 201)
+		{
+			UE_LOG(LogZenStore, Display, TEXT("Zen oplog '%s'/'%s' created"), *FString(InProjectId), *FString(InOplogId));
+		}
+		else
+		{
+			UE_LOG(LogZenStore, Warning, TEXT("Zen oplog '%s'/'%s' creation returned success but not HTTP 201"), *FString(InProjectId), *FString(InOplogId));
+		}
+
+		// Issue another GET to retrieve information
+
+		GetBuffer.Reset();
+		Request->Reset();
+		Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
+
+		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
+		{
+			OplogInfo = FCbObjectView(GetBuffer.GetData());
+		}
+	}
+
+	TempDirPath = FUTF8ToTCHAR(OplogInfo["tempdir"].AsString());
 }
 
 void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringView InOplogId)
@@ -193,10 +181,8 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 	{
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
-		TStringBuilder<128> ProjectUri;
-		ProjectUri << "/prj/" << InProjectId;
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(ProjectUri, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(WriteToString<128>("/prj/", InProjectId), &GetBuffer);
 
 		// TODO: how to handle failure here? This is probably the most likely point of failure
 		// if the service is not up or not responding
@@ -212,13 +198,10 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 	{
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
-		TStringBuilder<128> OplogUri;
-		OplogUri << "/prj/" << InProjectId << "/oplog/" << InOplogId;
-
-		OplogPath = OplogUri;
+		OplogPath = WriteToString<128>("/prj/", InProjectId, "/oplog/", InOplogId);
 
 		TArray64<uint8> GetBuffer;
-		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogUri, &GetBuffer);
+		UE::Zen::FZenHttpRequest::Result Res = Request->PerformBlockingDownload(OplogPath, &GetBuffer);
 
 		if (Res != Zen::FZenHttpRequest::Result::Success || Request->GetResponseCode() != 200)
 		{
@@ -575,8 +558,11 @@ void FZenStoreHttpClient::Initialize(
 	FStringView InOplogId,
 	FStringView ServerRoot,
 	FStringView EngineRoot,
-	FStringView ProjectRoot,
-	bool		IsCleanBuild)
+	FStringView ProjectRoot)
+{
+}
+
+void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild)
 {
 }
 

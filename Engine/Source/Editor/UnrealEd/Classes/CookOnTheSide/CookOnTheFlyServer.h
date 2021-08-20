@@ -214,7 +214,6 @@ private:
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
 	TUniquePtr<FAsyncIODelete> AsyncIODelete; // Helper for deleting the old cook directory asynchronously
 	FString DefaultAsyncIODeletePlatformName; // Default platform name to be used by GetAsyncIODelete()
-	bool bIsInitializingSandbox = false; // stop recursion into callbacks when we are initializing sandbox
 	bool bIsSavingPackage = false; // used to stop recursive mark package dirty functions
 	bool bSaveAsyncAllowed = false; // True if and only if command line options and all other restrictions allow the use of SAVE_Async
 	/** Set to true during CookOnTheFly if a plugin is calling RequestPackage and we should therefore not make assumptions about when platforms are done cooking */
@@ -246,11 +245,6 @@ private:
 	int32 LastCookedPackagesCount = 0;
 	double LastProgressDisplayTime = 0;
 	double LastDiagnosticsDisplayTime = 0;
-
-	FName ConvertCookedPathToUncookedPath(
-		const FString& SandboxRootDir, const FString& RelativeRootDir,
-		const FString& SandboxProjectDir, const FString& RelativeProjectDir,
-		const FString& CookedPath, FString& OutUncookedPath) const;
 
 	/** Get dependencies for package */
 	const TArray<FName>& GetFullPackageDependencies(const FName& PackageName) const;
@@ -518,6 +512,8 @@ public:
 	UE_DEPRECATED(4.25, "Use version that takes const ITargetPlatform* instead")
 	void ClearPlatformCookedData(const FString& PlatformName);
 
+	/** Clear all in-process flags that indicate packages have been cooked for the given platforms. */
+	void ResetCookResults(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 
 	/**
 	* Recompile any global shader changes 
@@ -799,14 +795,9 @@ private:
 		UE::Cook::FPackageData* ReportingPackageData = nullptr);
 
 	/**
-	* Initialize the sandbox for @param TargetPlatforms
+	* Initialize the sandbox for a new cook session with @param TargetPlatforms
 	*/
-	void InitializeSandbox(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
-
-	/**
-	* Initialize the package store
-	*/
-	void InitializePackageStore(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
+	void BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 
 	/**
 	* Finalize the package store
@@ -953,20 +944,11 @@ private:
 	*/
 	FString GetSandboxDirectory( const FString& PlatformName ) const;
 
-	/* Delete the sandbox directory (asynchronously) for the given platform in preparation for a clean cook */
-	void DeleteSandboxDirectory(const FString& PlatformName);
-
 	/** If not already done, set the default platform name to be used by GetAsyncIODelete(). */
 	void TrySetDefaultAsyncIODeletePlatform(const FString& PlatformName);
 
 	/* Create the delete-old-cooked-directory helper.*/
 	FAsyncIODelete& GetAsyncIODelete();
-
-	/* Create the delete-old-cooked-directory helper. PlatformName tells it where to create its temp directory. AsyncDeleteDirectory is DeleteSandboxDirectory internal use only and should otherwise be set to nullptr. */
-	FAsyncIODelete& GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory = nullptr);
-
-	/** Get the directory that should be used for AsyncDeletes based on the given platform. SandboxDirectory is DeleteSandboxDirectory internal use only and should otherwise be set to nullptr. */
-	FString GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory = nullptr) const;
 
 	bool IsCookingDLC() const;
 
@@ -1044,26 +1026,10 @@ private:
 	FString GetOutputDirectoryOverride() const;
 
 	/**
-	* Populate the cooked packages list from the on disk content using time stamps and dependencies to figure out if they are ok
-	* delete any local content which is out of date
-	* 
-	* @param Platforms to process
-	*/
-	void PopulateCookedPackagesFromDisk(const TArrayView<const ITargetPlatform* const>& Platforms);
-	
-	/**
-	 * Populate cooked packages from meta data available in the package store.
+	 * Populate cooked packages from the PackageWriter's previous manifest and assetregistry of cooked output.
+	 * Delete any out of date packages from the PackageWriter's manifest.
 	 */
-	void PopulateCookedPackagesFromPackageStore(const TArrayView<const ITargetPlatform* const>& Platforms);
-
-	/**
-	* Searches the disk for all the cooked files in the sandbox path provided
-	* Returns a map of the uncooked file path matches to the cooked file path for each package which exists
-	*
-	* @param UncookedpathToCookedPath out Map of the uncooked path matched with the cooked package which exists
-	* @param SandboxRootDir root dir to search for cooked packages in
-	*/
-	void GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir);
+	void PopulateCookedPackages(const TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 
 	/** Loads the platform-independent asset registry for use by the cooker */
 	void GenerateAssetRegistry();
@@ -1110,8 +1076,11 @@ private:
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 
-	ICookedPackageWriter* GetPackageWriter(const FName& PlatformName) const;
-	UE::Cook::FCookSavePackageContext* GetSavePackageContext(const ITargetPlatform* TargetPlatform) const;
+	ICookedPackageWriter& FindOrCreatePackageWriter(const ITargetPlatform* TargetPlatform);
+	void FindOrCreateSaveContexts(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+	UE::Cook::FCookSavePackageContext& FindOrCreateSaveContext(const ITargetPlatform* TargetPlatform);
+	/** Allocate a new FCookSavePackageContext and ICookedPackageWriter for the given platform. */
+	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform) const;
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
