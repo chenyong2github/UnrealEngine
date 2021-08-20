@@ -53,6 +53,34 @@ namespace HordeServer.Storage
 	}
 
 	/// <summary>
+	/// Exeception thrown when an object is not found
+	/// </summary>
+	public class CbObjectNotFoundException : Exception
+	{
+		/// <summary>
+		/// Namespace of the missing object
+		/// </summary>
+		public NamespaceId NsId { get; }
+
+		/// <summary>
+		/// Hash of the missing object
+		/// </summary>
+		public IoHash Hash { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="NsId"></param>
+		/// <param name="Hash"></param>
+		public CbObjectNotFoundException(NamespaceId NsId, IoHash Hash)
+			: base($"Missing object {Hash} in {NsId}")
+		{
+			this.NsId = NsId;
+			this.Hash = Hash;
+		}
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="IObjectCollection"/>
 	/// </summary>
 	public static class ObjectCollectionExtensions
@@ -76,6 +104,23 @@ namespace HordeServer.Storage
 		/// <summary>
 		/// Gets a typed object from the store
 		/// </summary>
+		/// <param name="ObjectCollection"></param>
+		/// <param name="NsId"></param>
+		/// <param name="Hash"></param>
+		/// <returns></returns>
+		public static async Task<CbObject> GetRequiredObjectAsync(this IObjectCollection ObjectCollection, NamespaceId NsId, IoHash Hash)
+		{
+			CbObject? Object = await ObjectCollection.GetAsync(NsId, Hash);
+			if (Object == null)
+			{
+				throw new CbObjectNotFoundException(NsId, Hash);
+			}
+			return Object;
+		}
+
+		/// <summary>
+		/// Gets a typed object from the store
+		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="ObjectCollection"></param>
 		/// <param name="NsId"></param>
@@ -87,6 +132,24 @@ namespace HordeServer.Storage
 			if (Object == null)
 			{
 				return null;
+			}
+			return CbSerializer.Deserialize<T>(Object.AsField());
+		}
+
+		/// <summary>
+		/// Gets a typed object from the store
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="ObjectCollection"></param>
+		/// <param name="NsId"></param>
+		/// <param name="Hash"></param>
+		/// <returns></returns>
+		public static async Task<T> GetRequiredObjectAsync<T>(this IObjectCollection ObjectCollection, NamespaceId NsId, IoHash Hash) where T : class
+		{
+			CbObject? Object = await ObjectCollection.GetAsync(NsId, Hash);
+			if (Object == null)
+			{
+				throw new CbObjectNotFoundException(NsId, Hash);
 			}
 			return CbSerializer.Deserialize<T>(Object.AsField());
 		}
