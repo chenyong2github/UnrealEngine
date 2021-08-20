@@ -700,7 +700,7 @@ TSharedRef<SWidget> UCameraLensDistortionAlgoCheckerboard::BuildCalibrationDevic
 			.Text(LOCTEXT("Spawn", "Spawn"))
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ButtonColorAndOpacity(FLinearColor::Transparent)
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 			.OnClicked_Lambda([&]() -> FReply
 			{
 				const FCameraCalibrationStepsController* StepsController = GetStepsController();

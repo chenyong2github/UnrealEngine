@@ -1048,9 +1048,12 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWi
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons()
 {
+	const float ButtonPadding = 3.0f;
+
 	return SNew(SVerticalBox)
 
 		+ SVerticalBox::Slot() // Row manipulation
+		.AutoHeight()
 		[
 			SNew(SHorizontalBox)
 
@@ -1075,6 +1078,8 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 			.MaxDesiredHeight(0.5 * FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		]
 		+ SVerticalBox::Slot() // Apply To Calibrator
+		.AutoHeight()
+		.Padding(0, ButtonPadding)
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("ApplyToCalibrator", "Apply To Calibrator"))
@@ -1088,6 +1093,8 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 			})
 		]
 		+ SVerticalBox::Slot() // Apply To Camera Parent
+		.AutoHeight()
+		.Padding(0, ButtonPadding)
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("ApplyToTrackingOrigin", "Apply To Camera Parent"))
@@ -1101,18 +1108,20 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 			})
 		]
 		+ SVerticalBox::Slot() // Apply To Calibrator Parent
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("ApplyToCalibratorParent", "Apply To Calibrator Parent"))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked_Lambda([&]() -> FReply
-				{
+		.AutoHeight()
+		.Padding(0, ButtonPadding)
+		[
+			SNew(SButton)
+			.Text(LOCTEXT("ApplyToCalibratorParent", "Apply To Calibrator Parent"))
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Lambda([&]() -> FReply
+			{
 				FScopedTransaction Transaction(LOCTEXT("ApplyNodalOffsetToCalibratorParent", "Applying Nodal Offset to Calibrator Parent"));
-					ApplyNodalOffsetToCalibratorParent();
-					return FReply::Handled();
-				})
-			]
+				ApplyNodalOffsetToCalibratorParent();
+				return FReply::Handled();
+			})
+		]
 		;
 }
 
