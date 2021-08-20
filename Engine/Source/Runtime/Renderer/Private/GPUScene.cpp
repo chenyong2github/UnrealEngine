@@ -1724,7 +1724,7 @@ void FGPUSceneCompactInstanceData::Init(const FGPUScenePrimitiveCollector* Primi
 	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
 	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&DynamicPrimitiveId;
-	PackedLightmapData		= FVector4(0); // FIXME
+	InstanceAuxData			= FVector4(0);
 }
 
 void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
@@ -1739,5 +1739,5 @@ void FGPUSceneCompactInstanceData::Init(const FScene* Scene, int32 PrimitiveId)
 	InstanceTransform2		= LocalToWorld.GetScaledAxis(EAxis::Y);
 	InstanceTransform3		= LocalToWorld.GetScaledAxis(EAxis::Z);
 	InstanceOriginAndId.W	= *(float*)&PrimitiveId;
-	PackedLightmapData		= FVector4(0); // FIXME
+	InstanceAuxData			= FVector4(0);
 }

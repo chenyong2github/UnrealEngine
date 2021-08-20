@@ -490,7 +490,34 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint InstanceIdOffset, uint Dr
 	return Intermediates;
 }
 #elif (VF_USE_PRIMITIVE_SCENE_DATA == 2)
-FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 InstanceOrigin, float4 InstanceTransform1, float4 InstanceTransform2, float4 InstanceTransform3, float4 PackedLightmapData)
+// Must match PackLocalBoundsCenter and PackLocalBoundsExtent
+float3 UnpackLocalBoundsCenter(float2 PackedCenter)
+{
+	float3 Result = 0;
+	// uses 21 bits for each component, rounded to a 1 unit
+	const uint SPLIT_MASK = (1u << 11u) - 1u;
+	const float CenterBias = (1u << 20u) - 1u;
+	uint p0 = asuint(PackedCenter.x);
+	uint p1 = asuint(PackedCenter.y);
+	Result.x = float(p0 >> 11u) - CenterBias;
+	Result.y = float(p1 >> 11u) - CenterBias;
+	Result.z = float((p0 & SPLIT_MASK) | ((p1 & SPLIT_MASK) << 11u)) - CenterBias;
+	return Result;
+}
+float3 UnpackLocalBoundsExtent(float2 PackedExtent)
+{
+	float3 Result = 0;
+	// uses 21 bits for each component, rounded to a 1 unit
+	const uint SPLIT_MASK = (1u << 11u) - 1u;
+	uint p0 = asuint(PackedExtent.x);
+	uint p1 = asuint(PackedExtent.y);
+	Result.x = float(p0 >> 11u);
+	Result.y = float(p1 >> 11u);
+	Result.z = float((p0 & SPLIT_MASK) | ((p1 & SPLIT_MASK) << 11u));
+	return Result;
+}
+
+FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 InstanceOrigin, float4 InstanceTransform1, float4 InstanceTransform2, float4 InstanceTransform3, float4 InstanceAuxData)
 {
 	// TODO: pack important primitive and instance flags here
 	const uint PrimitiveFlags = asuint(InstanceTransform1.w);
@@ -510,12 +537,6 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	#if USES_PER_INSTANCE_RANDOM
 	InstanceData.PerInstanceRandom = InstanceTransform3.w;
 	#endif
-	
-	InstanceData.LightMapAndShadowMapUVBias = float4(
-		UnpackSnorm2x16(asuint(PackedLightmapData.y)), 
-		UnpackSnorm2x16(asuint(PackedLightmapData.w)));
-	
-	const uint LightmapDataIndex = asuint(InstanceTransform2.w);
 	
 	float3 Scale2;
 	Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
@@ -552,8 +573,21 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	Intermediates.Primitive.InvNonUniformScale		= Intermediates.InstanceData.InvNonUniformScale;
 	Intermediates.Primitive.WorldToLocal			= Intermediates.InstanceData.WorldToLocal;
 	Intermediates.Primitive.NonUniformScale			= Intermediates.InstanceData.NonUniformScale;
-	Intermediates.Primitive.LightmapDataIndex		= LightmapDataIndex;
 
+#if ALLOW_STATIC_LIGHTING 
+	Intermediates.Primitive.LightmapDataIndex = asuint(InstanceTransform2.w);
+	InstanceData.LightMapAndShadowMapUVBias = float4(
+		UnpackSnorm2x16(asuint(InstanceAuxData.y)), 
+		UnpackSnorm2x16(asuint(InstanceAuxData.w)));
+#else
+	InstanceData.LocalBoundsCenter = UnpackLocalBoundsCenter(InstanceAuxData.xy);
+	InstanceData.LocalBoundsExtent = UnpackLocalBoundsExtent(InstanceAuxData.zw);
+	Intermediates.Primitive.LocalObjectBoundsMin = InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent; 
+	Intermediates.Primitive.LocalObjectBoundsMax = InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent; 
+	Intermediates.Primitive.ObjectWorldPositionAndRadius.xyz = mul(float4(InstanceData.LocalBoundsCenter.xyz, 0.0f), InstanceData.LocalToWorld).xyz;
+	Intermediates.Primitive.ObjectWorldPositionAndRadius.w = length(InstanceData.LocalBoundsExtent * InstanceData.NonUniformScale.xyz);
+#endif
+	
 	return Intermediates; 
 }
 #else

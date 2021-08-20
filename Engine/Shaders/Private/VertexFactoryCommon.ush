@@ -28,7 +28,7 @@
 		float4 InstanceTransform1 : ATTRIBUTE9; \
 		float4 InstanceTransform2 : ATTRIBUTE10; \
 		float4 InstanceTransform3 : ATTRIBUTE11; \
-		float4 PackedLightmapData : ATTRIBUTE12; \
+		float4 InstanceAuxData : ATTRIBUTE12; \
 		uint DrawInstanceId : SV_InstanceID;
 
 	#define VF_GPUSCENE_GET_INTERMEDIATES(VFInput) \
@@ -38,13 +38,13 @@
 			VFInput.InstanceTransform1, \
 			VFInput.InstanceTransform2, \
 			VFInput.InstanceTransform3, \
-			VFInput.PackedLightmapData)
+			VFInput.InstanceAuxData)
 
 	#define VF_GPUSCENE_GET_LIGHTMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
-		float4(UnpackUnorm2x16(asuint(VFInput.PackedLightmapData.x)), UnpackSnorm2x16(asuint(VFInput.PackedLightmapData.y)))
+		float4(UnpackUnorm2x16(asuint(VFInput.InstanceAuxData.x)), UnpackSnorm2x16(asuint(VFInput.InstanceAuxData.y)))
 	
 	#define VF_GPUSCENE_GET_SHADOWMAP_UV_SCALE_BIAS(VFInput, LightmapDataIndex) \
-		float4(UnpackUnorm2x16(asuint(VFInput.PackedLightmapData.z)), UnpackSnorm2x16(asuint(VFInput.PackedLightmapData.w)))
+		float4(UnpackUnorm2x16(asuint(VFInput.InstanceAuxData.z)), UnpackSnorm2x16(asuint(VFInput.InstanceAuxData.w)))
 
 #else
 	#define VF_GPUSCENE_DECLARE_INPUT_BLOCK(Attr0) 

@@ -391,7 +391,7 @@ struct FGPUSceneCompactInstanceData
 	FVector4 InstanceTransform1;
 	FVector4 InstanceTransform2;
 	FVector4 InstanceTransform3;
-	FVector4 PackedLightmapData;
+	FVector4 InstanceAuxData;
 
 	void Init(const FGPUScenePrimitiveCollector* PrimitiveCollector, int32 PrimitiveId);
 	void Init(const FScene* Scene, int32 PrimitiveId);
