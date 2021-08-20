@@ -36,10 +36,9 @@ fi
 
 # Assemble the common arguments to pass to the `docker buildx build` command
 args=(
-	--build-arg 'BASEIMAGE=nvidia/cudagl:11.1.1-devel-ubuntu18.04'
+	--build-arg 'BASEIMAGE=nvidia/opengl:1.0-glvnd-devel-ubuntu18.04'
 	--build-arg "GIT_REPO=${GIT_REPO}"
 	--build-arg "GIT_BRANCH=${GIT_BRANCH}"
-	--build-arg 'BUILD_DDC=true'
 	--secret id=username,src=username.txt
 	--secret id=password,src=password.txt
 	--progress=plain
@@ -65,8 +64,6 @@ docker build -t 'ghcr.io/epicgames/unreal-engine:runtime-pixel-streaming' ./runt
 echo '[build.sh] Building the `unreal-engine` image for Unreal Engine release' "${UNREAL_ENGINE_RELEASE}..."
 docker buildx build \
 	-t "ghcr.io/epicgames/unreal-engine:dev-${UNREAL_ENGINE_RELEASE}" \
-	--build-arg 'EXCLUDE_DEBUG=0' \
-	--build-arg 'EXCLUDE_TEMPLATES=0' \
 	"${args[@]}" \
 	./dev
 
@@ -74,10 +71,8 @@ docker buildx build \
 echo '[build.sh] Building the `unreal-engine` image for Unreal Engine release' "${UNREAL_ENGINE_RELEASE}..."
 docker buildx build \
 	-t "ghcr.io/epicgames/unreal-engine:dev-slim-${UNREAL_ENGINE_RELEASE}" \
-	--build-arg 'EXCLUDE_DEBUG=1' \
-	--build-arg 'EXCLUDE_TEMPLATES=1' \
 	"${args[@]}" \
-	./dev
+	./dev-slim
 
 # Build the container image for the Pixel Streaming signalling server, which pulls files from our other images
 docker build \

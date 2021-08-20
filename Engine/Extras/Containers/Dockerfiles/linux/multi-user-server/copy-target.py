@@ -82,7 +82,8 @@ target = Utility.parseJson(join(args.EngineDir, 'Binaries', args.Platform, '{}.t
 dependencies = itertools.chain.from_iterable([target['BuildProducts'] + target['RuntimeDependencies']])
 dependencies = [d for d in dependencies if d['Type'] != 'SymbolFile']
 for dependency in dependencies:
-	copier.copy(dependency['Path'])
+	if '$(EngineDir)/Content/Slate' not in dependency['Path']:
+		copier.copy(dependency['Path'])
 
 # If the target is a program then copy any configuration files
 # (This is particularly important for UnrealMultiUserServer since it uses `DefaultEngine.ini` to enable the plugins it needs)
