@@ -1205,12 +1205,10 @@ namespace Gauntlet
 				if (JsonTestPassResults.InProcess > 0)
 				{
 					// The test pass did not run completely
-					Log.Verbose("Found Uncompleted tests: {0}", JsonTestPassResults.InProcess);
-					bool HasTimeout = false;
+					Log.Verbose("Found in-process tests: {0}", JsonTestPassResults.InProcess);
 					// Get any critical error and push it to json report and resave it.
 					if (RoleResults != null)
 					{
-						HasTimeout = RoleResults.Where(R => R.ProcessResult == UnrealProcessResult.TimeOut).Any();
 						UnrealLog.CallstackMessage FatalError = null;
 						foreach (UnrealRoleResult Result in RoleResults)
 						{
@@ -1230,6 +1228,12 @@ namespace Gauntlet
 							}
 						}
 					}
+				}
+				if (JsonTestPassResults.NotRun > 0)
+				{
+					// The test pass did not run at all
+					Log.Verbose("Found not-run tests: {0}", JsonTestPassResults.NotRun);
+					bool HasTimeout = RoleResults != null && RoleResults.Where(R => R.ProcessResult == UnrealProcessResult.TimeOut).Any();
 					if (GetConfiguration().ResumeOnCriticalFailure && !HasTimeout)
 					{
 						if (Retries < MaxRetries)

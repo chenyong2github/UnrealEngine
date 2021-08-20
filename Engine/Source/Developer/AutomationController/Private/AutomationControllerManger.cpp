@@ -126,9 +126,13 @@ void FAutomatedTestPassResults::UpdateTestResultStatus(const IAutomationReportPt
 		NotRun--;
 		InProcess++;
 		break;
-	default:
+	case EAutomationState::NotRun:
 		NotRun++;
 		InProcess--;
+		break;
+	case EAutomationState::NotEnoughParticipants:
+		// Those never get to be set as InProcess
+		NotRun--;
 		break;
 	}
 }
@@ -762,6 +766,7 @@ void FAutomationControllerManager::ExecuteNextTask( int32 ClusterIndex, OUT bool
 				TestResults.AddEvent(FAutomationEvent(EAutomationEventType::Warning, FString::Printf(TEXT("Needed %d devices to participate, Only had %d available."), CurrentTest->GetNumParticipantsRequired(), DeviceClusterManager.GetNumDevicesInCluster(ClusterIndex))));
 
 				CurrentTest->SetResults(ClusterIndex, CurrentTestPass, TestResults);
+				CollectTestResults(CurrentTest, TestResults);
 				DeviceClusterManager.ResetAllDevicesRunningTest(ClusterIndex, CurrentTest);
 			}
 		}
