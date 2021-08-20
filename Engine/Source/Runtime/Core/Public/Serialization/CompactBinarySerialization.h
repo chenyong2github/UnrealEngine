@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Memory/MemoryView.h"
 #include "Memory/SharedBuffer.h"
 #include "Serialization/CompactBinary.h"
@@ -73,5 +74,9 @@ CORE_API void SaveCompactBinary(FArchive& Ar, const FCbObjectView& Object);
 CORE_API FArchive& operator<<(FArchive& Ar, FCbField& Field);
 CORE_API FArchive& operator<<(FArchive& Ar, FCbArray& Array);
 CORE_API FArchive& operator<<(FArchive& Ar, FCbObject& Object);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+CORE_API void CompactBinaryToJson(const FCbObjectView& Object, FUtf8StringBuilderBase& Builder);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
