@@ -13,6 +13,7 @@
 
 class FMenuBuilder;
 namespace TraceServices { class IAnalysisSession; };
+namespace Insights { class FFilterConfigurator; }
 
 class FTimingEventSearchParameters;
 class FTimingTrackViewport;
@@ -261,6 +262,8 @@ public:
 	void SetParentTrack(TWeakPtr<FBaseTimingTrack> InTrack) { ParentTrack = InTrack; }
 	TWeakPtr<FBaseTimingTrack> GetParentTrack() const { return ParentTrack; }
 	bool IsChildTrack() const { return ParentTrack.IsValid(); }
+
+	virtual void SetFilterConfigurator(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator) {}
 
 	// Returns number of text lines needed to display the debug string.
 	//TODO: virtual int GetDebugStringLineCount() const { return 0; }

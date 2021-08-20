@@ -162,6 +162,8 @@ public:
 
 	int32 GetDepthAt(double Time) const;
 
+	virtual void SetFilterConfigurator(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator);
+
 protected:
 	virtual bool HasCustomFilter() const override;
 

@@ -4200,6 +4200,8 @@ void STimingView::QuickFind_Execute()
 		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
 		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
 		QuickFindVm->GetOnFindPreviousEvent().AddSP(this, &STimingView::FindPrevEvent);
+		QuickFindVm->GetOnFilterAllEvent().AddSP(this, &STimingView::FilterAllTracks);
+		QuickFindVm->GetOnClearFiltersEvent().AddSP(this, &STimingView::ClearFilters);
 	}
 
 	SQuickFind::CreateAndOpenQuickFilterWidget(QuickFindVm);
@@ -4350,6 +4352,26 @@ void STimingView::FindPrevEvent()
 		SelectedEvent = BestMatchEvent;
 		BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
 		OnSelectedTimingEventChanged();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::FilterAllTracks()
+{
+	for (auto& Entry : AllTracks)
+	{
+		Entry.Value->SetFilterConfigurator(QuickFindVm->GetFilterConfigurator());
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ClearFilters()
+{
+	for (auto& Entry : AllTracks)
+	{
+		Entry.Value->SetFilterConfigurator(nullptr);
 	}
 }
 

@@ -1637,4 +1637,20 @@ int32 FThreadTimingTrack::GetDepthAt(double Time) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FThreadTimingTrack::SetFilterConfigurator(TSharedPtr<Insights::FFilterConfigurator> InFilterConfigurator)
+{
+	if (InFilterConfigurator.IsValid())
+	{
+		FilterConfigurator = MakeShared<Insights::FFilterConfigurator>(*InFilterConfigurator);
+	}
+	else
+	{
+		FilterConfigurator.Reset();
+	}
+
+	SetDirtyFlag();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE
