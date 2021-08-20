@@ -15,7 +15,6 @@ namespace Audio
 		: EnvMode(EPeakMode::Peak)
 		, MeanWindowSize(DefaultWindowSize)
 		, MeanHopSize(DefaultHopSize)
-		, SumBuffer(DefaultWindowSize, DefaultHopSize)
 		, SampleRate(44100.0f)
 		, AttackTimeMsec(0.0f)
 		, AttackTimeSamples(0.0f)
@@ -32,9 +31,9 @@ namespace Audio
 		const EPeakMode::Type InMode,
 		const bool bInIsAnalog,
 		const int32 InWindowSizeForMean,
-		const int32 InHopSizeForMean) : SumBuffer(InWindowSizeForMean, InHopSizeForMean)
+		const int32 InHopSizeForMean)		
 	{
-		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, bInIsAnalog,InWindowSizeForMean, InHopSizeForMean);
+		Init(InSampleRate, InAttackTimeMsec, InReleaseTimeMSec, InMode, bInIsAnalog, InWindowSizeForMean, InHopSizeForMean);
 	}
 
 	FEnvelopeFollower::~FEnvelopeFollower()
@@ -49,16 +48,23 @@ namespace Audio
 		const int32 InWindowSizeForMean,
 		const int32 InHopSizeForMean)
 	{
+		check(InWindowSizeForMean > 0);
+		check(InHopSizeForMean > 0);
+		check(InWindowSizeForMean > InHopSizeForMean);
+
 		SampleRate = InSampleRate;
 
 		bIsAnalog = bInIsAnalog;
 		EnvMode = InMode;
 
-		SumBuffer = TSlidingBuffer<float>(InWindowSizeForMean, InHopSizeForMean);
+		MeanWindowSize = InWindowSizeForMean;
+		MeanHopSize = InHopSizeForMean;
 
 		// Set the attack and release times using the default values
 		SetAttackTime(InAttackTimeMsec);
 		SetReleaseTime(InReleaseTimeMSec);
+
+		ScratchBuffer.SetNum(InWindowSizeForMean);
 	}
 
 	void FEnvelopeFollower::Reset()
@@ -105,23 +111,31 @@ namespace Audio
 		// MS/RMS
 		if (EnvMode == EPeakMode::MeanSquared || EnvMode == EPeakMode::RootMeanSquared)
 		{
-			TAutoSlidingWindow<float> SlidingWindow(SumBuffer, TArrayView<const float>(InAudioBuffer, InNumSamples), ScratchBuffer, false);
-
-			for (auto& Window : SlidingWindow)
+			TCircularAudioBuffer<float> SumBuffer(MeanWindowSize);
+			int32 SampleIndex = 0;
+			// This loop iterates per-window, not per-sample
+			while (SampleIndex < InNumSamples)
 			{
-				float CurrentMean;
+				// Get a new Window
+				const int32 SamplesToCopy = MeanHopSize < (InNumSamples - SampleIndex) ? MeanHopSize : (InNumSamples - SampleIndex);
+				SumBuffer.Push(InAudioBuffer + SampleIndex, SamplesToCopy);
+				float* CurrentWindow = ScratchBuffer.GetData();
+				SumBuffer.Pop(CurrentWindow, SamplesToCopy);
 				
-				ArrayMeanSquared(Window, CurrentMean);
-
+				// Calculate MS/RMS
+				float CurrentMean;
+				ArrayMeanSquared(TArrayView<float>(CurrentWindow, SamplesToCopy), CurrentMean);
 				if (EnvMode == EPeakMode::RootMeanSquared)
 				{
 					CurrentMean = FMath::Sqrt(CurrentMean);
 				}
 
-				for (int j = 0; j < MeanWindowSize; ++j)
+				// Use MS/RMS to drive envelope following
+				for (int i = 0; i < SamplesToCopy; ++i)
 				{
 					ProcessAudioNonClamped(CurrentMean);
 				}
+				SampleIndex += SamplesToCopy;
 			}
 		}
 		// Peak mode
@@ -140,24 +154,31 @@ namespace Audio
 		// MS/RMS
 		if (EnvMode == EPeakMode::MeanSquared || EnvMode == EPeakMode::RootMeanSquared)
 		{
-			TAutoSlidingWindow<float> SlidingWindow(SumBuffer, TArrayView<const float>(InAudioBuffer, InNumSamples), ScratchBuffer, false);
-
+			TCircularAudioBuffer<float> SumBuffer(MeanWindowSize);
 			int32 SampleIndex = 0;
-			for (auto& Window : SlidingWindow)
+			// This loop iterates per-window, not per-sample
+			while (SampleIndex < InNumSamples)
 			{
-				float CurrentMean;
-				ArrayMeanSquared(Window, CurrentMean);
+				// Get a new Window
+				const int32 SamplesToCopy = MeanHopSize < (InNumSamples - SampleIndex) ? MeanHopSize : (InNumSamples - SampleIndex);
+				SumBuffer.Push(InAudioBuffer + SampleIndex, SamplesToCopy);
+				float* CurrentWindow = ScratchBuffer.GetData();
+				SumBuffer.Pop(CurrentWindow, MeanWindowSize);
 
+				// Calculate MS/RMS
+				float CurrentMean;
+				ArrayMeanSquared(TArrayView<float>(CurrentWindow, SamplesToCopy), CurrentMean);
 				if (EnvMode == EPeakMode::RootMeanSquared)
 				{
 					CurrentMean = FMath::Sqrt(CurrentMean);
 				}
 
-				for (int j = 0; j < MeanWindowSize; ++j)
+				// Use MS/RMS to drive envelope following
+				for (int i = 0; i < SamplesToCopy; ++i)
 				{
-					OutAudioBuffer[SampleIndex] = ProcessAudioNonClamped(CurrentMean);
-					++SampleIndex;
+					OutAudioBuffer[SampleIndex + i] = ProcessAudioNonClamped(CurrentMean);
 				}
+				SampleIndex += SamplesToCopy;
 			}
 		}
 		// Peak
