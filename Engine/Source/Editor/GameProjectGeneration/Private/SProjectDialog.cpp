@@ -510,6 +510,14 @@ TSharedRef<SWidget> SProjectDialog::MakeNewProjectDialogButtons()
 			SNew(SGetSuggestedIDEWidget)
 			.VisibilityOverride(this, &SProjectDialog::GetSuggestedIDEButtonVisibility)
 		]
+		+ SHorizontalBox::Slot()
+		.Padding(8.0f, 0.0f, 8.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		.AutoWidth()
+		[
+			SNew(SGetDisableIDEWidget)
+			.Visibility(this, &SProjectDialog::GetDisableIDEButtonVisibility)
+		]
 		+SHorizontalBox::Slot()
 		.Padding(8.0f, 0.0f, 8.0f, 0.0f)
 		.VAlign(VAlign_Center)
@@ -1850,6 +1858,17 @@ EVisibility SProjectDialog::GetSuggestedIDEButtonVisibility() const
 	return IsCompilerRequired() && !FSourceCodeNavigation::IsCompilerAvailable() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
+// Allow disabling of the current IDE for platforms that dont require an IDE to run the Editor/Engine
+EVisibility SProjectDialog::GetDisableIDEButtonVisibility() const
+{
+	if (GetSuggestedIDEButtonVisibility() == EVisibility::Visible && !IsIDERequired())
+	{
+		return EVisibility::Visible;
+	}
+
+	return EVisibility::Collapsed;
+}
+
 const FSlateBrush* SProjectDialog::GetSelectedTemplatePreviewImage() const
 {
 	TSharedPtr<FSlateBrush> PreviewImage = GetSelectedTemplateProperty(&FTemplateItem::PreviewImage);
@@ -1922,6 +1941,15 @@ bool SProjectDialog::IsCompilerRequired() const
 	return false;
 }
 
+// Linux does not require an IDE to be setup to compile things
+bool SProjectDialog::IsIDERequired() const
+{
+#if PLATFORM_LINUX
+	return false;
+#endif
+	return true;
+}
+
 EVisibility SProjectDialog::GetProjectSettingsVisibility() const
 {
 	const TArray<ETemplateSetting>& HiddenSettings = GetSelectedTemplateProperty(&FTemplateItem::HiddenSettings);
@@ -1985,7 +2013,15 @@ void SProjectDialog::UpdateProjectFileValidity()
 				if (!FSourceCodeNavigation::IsCompilerAvailable())
 				{
 					bLastGlobalValidityCheckSuccessful = false;
-					LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFound", "No compiler was found. In order to use a C++ template, you must first install {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
+
+					if (IsIDERequired())
+					{
+						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFound", "No compiler was found. In order to use a C++ template, you must first install {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
+					}
+					else
+					{
+						LastGlobalValidityErrorText = FText::Format(LOCTEXT("NoCompilerFound", "In order to use a C++ template, you must first install or disable {0}."), FSourceCodeNavigation::GetSuggestedSourceCodeIDE());
+					}
 				}
 				else if (!FDesktopPlatformModule::Get()->IsUnrealBuildToolAvailable())
 				{

@@ -77,6 +77,8 @@ private:
 	/** Returns true if we have a code template selected */
 	bool IsCompilerRequired() const;
 
+	bool IsIDERequired() const;
+
 	EVisibility GetProjectSettingsVisibility() const;
 
 	/** Get a visibility of the class types display. If the string is empty this return Collapsed otherwise it will return Visible */
@@ -90,6 +92,8 @@ private:
 	EVisibility GetCreateButtonVisibility() const;
 
 	EVisibility GetSuggestedIDEButtonVisibility() const;
+
+	EVisibility GetDisableIDEButtonVisibility() const;
 
 	/** Accessor for the project name text */
 	FText GetCurrentProjectFileName() const;
