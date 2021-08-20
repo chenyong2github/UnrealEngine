@@ -57,7 +57,7 @@ class STabDrawer : public SCompoundWidget
 	SLATE_END_ARGS()
 
 	~STabDrawer();
-	void Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab, ETabDrawerOpenDirection InOpenDirection);
+	void Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab, TWeakPtr<SWidget> InTabButton, ETabDrawerOpenDirection InOpenDirection);
 
 	/** Sets the current size of the drawer, ignoring any open/close animation */
 	void SetCurrentSize(float InSize);
@@ -98,12 +98,14 @@ private:
 	FOnDrawerClosed OnDrawerClosed;
 	TSharedPtr<FActiveTimerHandle> OpenCloseTimer;
 	TSharedPtr<SDockTab> ForTab;
+	TWeakPtr<SWidget> TabButton;
 	FThrottleRequest ResizeThrottleHandle;
 	FThrottleRequest AnimationThrottle;
 	FCurveSequence OpenCloseAnimation;
 	const FSlateBrush* BackgroundBrush;
 	const FSlateBrush* ShadowBrush;
-	const FSlateBrush* BorderBrush;
+	const FSlateBrush* BorderBrush; // border with all corners rounded
+	const FSlateBrush* BorderSquareEdgeBrush; // border with corners squared on one edge depending on open direction
 	const FSplitterStyle* SplitterStyle;
 	FVector2D ShadowOffset;
 	float ExpanderSize;

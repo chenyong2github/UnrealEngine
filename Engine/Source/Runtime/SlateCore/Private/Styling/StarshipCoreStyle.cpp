@@ -1630,8 +1630,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 	FButtonStyle SidebarTabButtonOpened =
 		FButtonStyle(NoBorder)
-		.SetNormal(MinorTabStyle.ForegroundBrush)
-		.SetHovered(MinorTabStyle.ForegroundBrush)
+		.SetNormal(FSlateColorBrush(FStyleColors::Panel))
+		.SetHovered(FSlateColorBrush(FStyleColors::Panel))
 		.SetNormalForeground(MinorTabStyle.NormalForegroundColor)
 		.SetPressedForeground(MinorTabStyle.NormalForegroundColor)
 		.SetHoveredForeground(MinorTabStyle.HoveredForegroundColor);
@@ -1639,8 +1639,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 	FButtonStyle SidebarTabButtonClosed =
 		FButtonStyle(NoBorder)
-		.SetNormal(MinorTabStyle.NormalBrush)
-		.SetHovered(MinorTabStyle.HoveredBrush)
+		.SetNormal(FSlateNoResource())
+		.SetHovered(FSlateColorBrush(FStyleColors::Panel))
 		.SetNormalForeground(MinorTabStyle.NormalForegroundColor)
 		.SetPressedForeground(MinorTabStyle.NormalForegroundColor)
 		.SetHoveredForeground(MinorTabStyle.HoveredForegroundColor);
@@ -1651,8 +1651,16 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 	Style->Set("Docking.Sidebar.DrawerShadow", new BOX_BRUSH("/Starship/Docking/drawer-shadow", FMargin(8.f /64.f), FLinearColor(0.f, 0.f, 0.f, 1.f)));
 	Style->Set("Docking.Sidebar.DrawerBackground", new FSlateColorBrush(FStyleColors::Panel));
-	Style->Set("Docking.Sidebar.Background", new FSlateColorBrush(FStyleColors::Recessed));
-	Style->Set("Docking.Sidebar.Border", new FSlateRoundedBoxBrush(FSlateColor(FLinearColor::Transparent), 5.0f, FStyleColors::Hover, 1.0f) );
+	Style->Set("Docking.Sidebar.Background", new FSlateColorBrush(FStyleColors::Background));
+
+	// Create the regular border brush with all corners rounded and variants with certain corners squared.
+	{
+		const float CornerRadius = 5.0f;
+		const float BorderWidth = 1.0f;
+		Style->Set("Docking.Sidebar.Border", new FSlateRoundedBoxBrush(FStyleColors::Transparent, CornerRadius, FStyleColors::Hover, BorderWidth));
+		Style->Set("Docking.Sidebar.Border_SquareLeft", new FSlateRoundedBoxBrush(FStyleColors::Transparent, FVector4(0.0f, CornerRadius, CornerRadius, 0.0f), FStyleColors::Hover, BorderWidth));
+		Style->Set("Docking.Sidebar.Border_SquareRight", new FSlateRoundedBoxBrush(FStyleColors::Transparent, FVector4(CornerRadius, 0.0f, 0.0f, CornerRadius), FStyleColors::Hover, BorderWidth));
+	}
 
 	// Dock Cross
 	Style->Set("Docking.Cross.DockLeft", new IMAGE_BRUSH("/Docking/OuterDockingIndicator", FVector2D(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f)));
