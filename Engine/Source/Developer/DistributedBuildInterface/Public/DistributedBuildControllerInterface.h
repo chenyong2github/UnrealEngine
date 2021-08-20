@@ -15,9 +15,10 @@ struct FDistributedBuildTaskResult
 struct FTaskCommandData
 {	
 	FString Command;
-	FString CommandArgs;
+	FString WorkingDirectory;
 	FString InputFileName;
 	FString OutputFileName;
+	FString ExtraCommandArgs;
 	uint32 DispatcherPID = 0;
 	TArray<FString> Dependencies;
 };

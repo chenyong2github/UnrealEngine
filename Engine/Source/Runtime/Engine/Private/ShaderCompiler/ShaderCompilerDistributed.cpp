@@ -73,17 +73,6 @@ void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJob
 	FString OutputFilePath = BaseFilePath + TEXT(".out");
 
 	const FString WorkingDirectory = FPaths::GetPath(InputFilePath);
-	const FString InputFileName = FPaths::GetCleanFilename(InputFilePath);
-	const FString OutputFileName = FPaths::GetCleanFilename(OutputFilePath);
-
-	const FString WorkerParameters = FString::Printf(TEXT("\"%s/\" %d 0 \"%s\" \"%s\" -xge_int %s%s"),
-		*WorkingDirectory,
-		Manager->ProcessId,
-		*InputFileName,
-		*OutputFileName,
-		*FCommandLine::GetSubprocessCommandline(),
-		GIsBuildMachine ? TEXT(" -buildmachine") : TEXT("")
-	);
 
 	// Serialize the jobs to the input file
 	FArchive* InputFileAr = IFileManager::Get().CreateFileWriter(*InputFilePath, FILEWRITE_EvenIfReadOnly | FILEWRITE_NoFail);
@@ -95,10 +84,11 @@ void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJob
 
 	FTaskCommandData TaskCommandData;
 	TaskCommandData.Command = Manager->ShaderCompileWorkerName;
-	TaskCommandData.CommandArgs = WorkerParameters;
+	TaskCommandData.WorkingDirectory = WorkingDirectory;
+	TaskCommandData.DispatcherPID = Manager->ProcessId;
 	TaskCommandData.InputFileName = InputFilePath;
 	TaskCommandData.OutputFileName = OutputFilePath;
-	TaskCommandData.DispatcherPID = Manager->ProcessId;
+	TaskCommandData.ExtraCommandArgs = FString::Printf(TEXT("%s%s"), *FCommandLine::GetSubprocessCommandline(), GIsBuildMachine ? TEXT(" -buildmachine") : TEXT(""));
 	TaskCommandData.Dependencies = GetDependencyFilesForJobs(JobsToSerialize);
 	
 	DispatchedTasks.Add(
