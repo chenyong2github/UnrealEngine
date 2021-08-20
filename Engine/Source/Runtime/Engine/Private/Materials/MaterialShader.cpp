@@ -1804,13 +1804,6 @@ void FMaterialShaderMap::Compile(
 	ShaderMapId = InShaderMapId;
 	bIsPersistent = Material->IsPersistent();
 
-	// Setup the material compilation environment.
-	/*{
-		FShaderParametersMetadata* UniformBufferStruct = NewContent->MaterialCompilationOutput.UniformExpressionSet.CreateBufferStruct();
-		Material->SetupMaterialEnvironment(InPlatform, *UniformBufferStruct, InMaterialCompilationOutput.UniformExpressionSet, *MaterialEnvironment);
-		delete UniformBufferStruct;
-	}*/
-
 #if ALLOW_SHADERMAP_DEBUG_DATA && WITH_EDITOR
 	// Store the material name for debugging purposes.
 	// Note: Material instances with static parameters will have the same FriendlyName for their shader maps!
@@ -2901,6 +2894,15 @@ void FMaterialShaderMap::InitalizeForODSC(EShaderPlatform TargetShaderPlatform, 
 	GetResourceCode();
 }
 #endif // WITH_EDITOR
+
+void FMaterialShaderMap::PostFinalizeContent()
+{
+	UniformBufferLayout.SafeRelease();
+	if (GetContent())
+	{
+		UniformBufferLayout = RHICreateUniformBufferLayout(GetUniformExpressionSet().GetUniformBufferLayoutInitializer());
+	}
+}
 
 #if WITH_EDITOR
 void FMaterialShaderMap::GetOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes) const

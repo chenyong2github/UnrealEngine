@@ -567,7 +567,13 @@ public:
 	* @return The new uniform buffer.
 	*/
 	// FlushType: Thread safe, but varies depending on the RHI
-	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation) = 0;
+	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation) = 0;
+
+	UE_DEPRECATED(5.0, "Use Layout pointers instead")
+	virtual FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+	{
+		return RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
+	}
 
 	virtual void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents) = 0;
 
@@ -1516,9 +1522,21 @@ FORCEINLINE TRefCountPtr<FRHIRayTracingPipelineState> RHICreateRayTracingPipelin
 }
 #endif //RHI_RAYTRACING
 
-FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
+FORCEINLINE FUniformBufferLayoutRHIRef RHICreateUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer)
+{
+	LLM_SCOPE(ELLMTag::RHIMisc);
+	return new FRHIUniformBufferLayout(Initializer);
+}
+
+FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
 {
 	return GDynamicRHI->RHICreateUniformBuffer(Contents, Layout, Usage, Validation);
+}
+
+UE_DEPRECATED(5.0, "Use Layout pointers instead")
+FORCEINLINE FUniformBufferRHIRef RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation = EUniformBufferValidation::ValidateResources)
+{
+	return GDynamicRHI->RHICreateUniformBuffer(Contents, &Layout, Usage, Validation);
 }
 
 FORCEINLINE void RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRHI, const void* Contents)

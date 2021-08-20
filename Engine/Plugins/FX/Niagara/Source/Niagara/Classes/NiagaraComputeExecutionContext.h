@@ -11,12 +11,13 @@ class FNiagaraGPUSystemTick;
 struct FNiagaraComputeInstanceData;
 struct FNiagaraComputeExecutionContext;
 
-class FNiagaraRHIUniformBufferLayout : public FRHIResource
+class FNiagaraRHIUniformBufferLayout : public FRHIUniformBufferLayout
 {
 public:
-	explicit FNiagaraRHIUniformBufferLayout(const TCHAR* LayoutName) : FRHIResource(RRT_None), UBLayout(LayoutName) { }
-
-	FRHIUniformBufferLayout UBLayout;
+	explicit FNiagaraRHIUniformBufferLayout(const TCHAR* LayoutName, uint32 ConstantBufferSize)
+		: FRHIUniformBufferLayout(FRHIUniformBufferLayoutInitializer(LayoutName, ConstantBufferSize))
+	{
+	}
 };
 
 struct FNiagaraSimStageData

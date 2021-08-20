@@ -148,6 +148,7 @@ public:
 
 	static void BeginTrackingResource(FRHIResource* InResource);
 	static void EndTrackingResource(FRHIResource* InResource);
+	static void StartTrackingAllResources();
 	static void StopTrackingAllResources();
 #endif
 
@@ -792,34 +793,52 @@ public:
 // Enabling this requires -norhithread to work correctly since FRHIResource lifetime is managed by both the RT and RHIThread
 #define VALIDATE_UNIFORM_BUFFER_LIFETIME 0
 
-/** The layout of a uniform buffer in memory. */
-struct FRHIUniformBufferLayout
+/** Data structure to store information about resource parameter in a shader parameter structure. */
+struct FRHIUniformBufferResource
 {
-public:
-	static const uint16 kInvalidOffset = TNumericLimits<uint16>::Max();
+	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferResource, RHI_API, NonVirtual);
 
-	/** Data structure to store information about resource parameter in a shader parameter structure. */
-	struct FResourceParameter
+	/** Byte offset to each resource in the uniform buffer memory. */
+	LAYOUT_FIELD(uint16, MemberOffset);
+
+	/** Type of the member that allow (). */
+	LAYOUT_FIELD(EUniformBufferBaseType, MemberType);
+};
+
+inline FArchive& operator<<(FArchive& Ar, FRHIUniformBufferResource& Ref)
+{
+	uint8 Type = (uint8)Ref.MemberType;
+	Ar << Ref.MemberOffset;
+	Ar << Type;
+	Ref.MemberType = (EUniformBufferBaseType)Type;
+	return Ar;
+}
+
+/** Compare two uniform buffer layout resources. */
+inline bool operator==(const FRHIUniformBufferResource& A, const FRHIUniformBufferResource& B)
+{
+	return A.MemberOffset == B.MemberOffset
+		&& A.MemberType == B.MemberType;
+}
+
+static constexpr uint16 kUniformBufferInvalidOffset = TNumericLimits<uint16>::Max();
+
+/** Initializer for the layout of a uniform buffer in memory. */
+struct FRHIUniformBufferLayoutInitializer
+{
+	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer, RHI_API, NonVirtual);
+
+	FRHIUniformBufferLayoutInitializer() = default;
+
+	explicit FRHIUniformBufferLayoutInitializer(const TCHAR * InName)
+		: Name(InName)
+	{}
+	explicit FRHIUniformBufferLayoutInitializer(const TCHAR * InName, uint32 InConstantBufferSize)
+		: Name(InName)
+		, ConstantBufferSize(InConstantBufferSize)
 	{
-		DECLARE_EXPORTED_TYPE_LAYOUT(FResourceParameter, RHI_API, NonVirtual);
-	public:
-		friend inline FArchive& operator<<(FArchive& Ar, FResourceParameter& Ref)
-		{
-			uint8 Type = (uint8)Ref.MemberType;
-			Ar << Ref.MemberOffset;
-			Ar << Type;
-			Ref.MemberType = (EUniformBufferBaseType)Type;
-			return Ar;
-		}
-
-		/** Byte offset to each resource in the uniform buffer memory. */
-		LAYOUT_FIELD(uint16, MemberOffset);
-		/** Type of the member that allow (). */
-		LAYOUT_FIELD(EUniformBufferBaseType, MemberType);
-	};
-
-	DECLARE_EXPORTED_TYPE_LAYOUT(FRHIUniformBufferLayout, RHI_API, NonVirtual);
-public:
+		ComputeHash();
+	}
 
 	inline uint32 GetHash() const
 	{
@@ -859,20 +878,7 @@ public:
 		Hash = TmpHash;
 	}
 
-	FRHIUniformBufferLayout() = default;
-
-	explicit FRHIUniformBufferLayout(const TCHAR* InName)
-		: Name(InName)
-	{}
-
-#if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
-	~FRHIUniformBufferLayout()
-	{
-		check(NumUsesForDebugging == 0 || IsEngineExitRequested());
-	}
-#endif
-
-	void CopyFrom(const FRHIUniformBufferLayout& Source)
+	void CopyFrom(const FRHIUniformBufferLayoutInitializer& Source)
 	{
 		ConstantBufferSize = Source.ConstantBufferSize;
 		StaticSlot = Source.StaticSlot;
@@ -889,7 +895,7 @@ public:
 
 	bool HasRenderTargets() const
 	{
-		return RenderTargetsOffset != kInvalidOffset;
+		return RenderTargetsOffset != kUniformBufferInvalidOffset;
 	}
 
 	bool HasExternalOutputs() const
@@ -902,7 +908,7 @@ public:
 		return IsUniformBufferStaticSlotValid(StaticSlot);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayout& Ref)
+	friend FArchive& operator<<(FArchive& Ar, FRHIUniformBufferLayoutInitializer& Ref)
 	{
 		Ar << Ref.ConstantBufferSize;
 		Ar << Ref.StaticSlot;
@@ -920,56 +926,51 @@ public:
 		return Ar;
 	}
 
+private:
+	// for debugging / error message
+	LAYOUT_FIELD(FMemoryImageString, Name);
+
+public:
+	/** The list of all resource inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, Resources);
+
+	/** The list of all RDG resource references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphResources);
+
+	/** The list of all RDG texture references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphTextures);
+
+	/** The list of all RDG buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphBuffers);
+
+	/** The list of all RDG uniform buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, GraphUniformBuffers);
+
+	/** The list of all non-RDG uniform buffer references inlined into the shader parameter structure. */
+	LAYOUT_FIELD(TMemoryImageArray<FRHIUniformBufferResource>, UniformBuffers);
+
+private:
+	LAYOUT_FIELD_INITIALIZED(uint32, Hash, 0);
+
+public:
 	/** The size of the constant buffer in bytes. */
 	LAYOUT_FIELD_INITIALIZED(uint32, ConstantBufferSize, 0);
+
+	/** The render target binding slots offset, if it exists. */
+	LAYOUT_FIELD_INITIALIZED(uint16, RenderTargetsOffset, kUniformBufferInvalidOffset);
 
 	/** The static slot (if applicable). */
 	LAYOUT_FIELD_INITIALIZED(FUniformBufferStaticSlot, StaticSlot, MAX_UNIFORM_BUFFER_STATIC_SLOTS);
 
-	/** The render target binding slots offset, if it exists. */
-	LAYOUT_FIELD_INITIALIZED(uint16, RenderTargetsOffset, kInvalidOffset);
-
-	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
-	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
-
 	/** The binding flags describing how this resource can be bound to the RHI. */
 	LAYOUT_FIELD_INITIALIZED(EUniformBufferBindingFlags, BindingFlags, EUniformBufferBindingFlags::Shader);
 
-	/** The list of all resource inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, Resources);
-
-	/** The list of all RDG resource references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphResources);
-
-	/** The list of all RDG texture references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphTextures);
-
-	/** The list of all RDG buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphBuffers);
-
-	/** The list of all RDG uniform buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, GraphUniformBuffers);
-
-	/** The list of all non-RDG uniform buffer references inlined into the shader parameter structure. */
-	LAYOUT_FIELD(TMemoryImageArray<FResourceParameter>, UniformBuffers);
-
-	LAYOUT_MUTABLE_FIELD_INITIALIZED(int32, NumUsesForDebugging, 0);
-
-private:
-	// for debugging / error message
-	LAYOUT_FIELD(FMemoryImageString, Name);
-	LAYOUT_FIELD_INITIALIZED(uint32, Hash, 0);
+	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
+	LAYOUT_FIELD_INITIALIZED(bool, bHasNonGraphOutputs, false);
 };
 
-/** Compare two uniform buffer layouts. */
-inline bool operator==(const FRHIUniformBufferLayout::FResourceParameter& A, const FRHIUniformBufferLayout::FResourceParameter& B)
-{
-	return A.MemberOffset == B.MemberOffset
-		&& A.MemberType == B.MemberType;
-}
-
-/** Compare two uniform buffer layouts. */
-inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBufferLayout& B)
+/** Compare two uniform buffer layout initializers. */
+inline bool operator==(const FRHIUniformBufferLayoutInitializer& A, const FRHIUniformBufferLayoutInitializer& B)
 {
 	return A.ConstantBufferSize == B.ConstantBufferSize
 		&& A.StaticSlot == B.StaticSlot
@@ -977,32 +978,106 @@ inline bool operator==(const FRHIUniformBufferLayout& A, const FRHIUniformBuffer
 		&& A.Resources == B.Resources;
 }
 
+/** The layout of a uniform buffer in memory. */
+struct FRHIUniformBufferLayout : public FRHIResource
+{
+	FRHIUniformBufferLayout() = delete;
+
+	explicit FRHIUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer)
+		: FRHIResource(RRT_UniformBufferLayout)
+		, Name(Initializer.GetDebugName())
+		, Resources(Initializer.Resources)
+		, GraphResources(Initializer.GraphResources)
+		, GraphTextures(Initializer.GraphTextures)
+		, GraphBuffers(Initializer.GraphBuffers)
+		, GraphUniformBuffers(Initializer.GraphUniformBuffers)
+		, UniformBuffers(Initializer.UniformBuffers)
+		, Hash(Initializer.GetHash())
+		, ConstantBufferSize(Initializer.ConstantBufferSize)
+		, RenderTargetsOffset(Initializer.RenderTargetsOffset)
+		, StaticSlot(Initializer.StaticSlot)
+		, BindingFlags(Initializer.BindingFlags)
+		, bHasNonGraphOutputs(Initializer.bHasNonGraphOutputs)
+	{}
+
+	inline const FString& GetDebugName() const
+	{
+		return Name;
+	}
+
+	inline uint32 GetHash() const
+	{
+		checkSlow(Hash != 0);
+		return Hash;
+	}
+
+	inline bool HasRenderTargets() const
+	{
+		return RenderTargetsOffset != kUniformBufferInvalidOffset;
+	}
+
+	inline bool HasExternalOutputs() const
+	{
+		return bHasNonGraphOutputs;
+	}
+
+	inline bool HasStaticSlot() const
+	{
+		return IsUniformBufferStaticSlotValid(StaticSlot);
+	}
+
+	const FString Name;
+
+	/** The list of all resource inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> Resources;
+
+	/** The list of all RDG resource references inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> GraphResources;
+
+	/** The list of all RDG texture references inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> GraphTextures;
+
+	/** The list of all RDG buffer references inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> GraphBuffers;
+
+	/** The list of all RDG uniform buffer references inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> GraphUniformBuffers;
+
+	/** The list of all non-RDG uniform buffer references inlined into the shader parameter structure. */
+	const TArray<FRHIUniformBufferResource> UniformBuffers;
+
+	const uint32 Hash;
+
+	/** The size of the constant buffer in bytes. */
+	const uint32 ConstantBufferSize;
+
+	/** The render target binding slots offset, if it exists. */
+	const uint16 RenderTargetsOffset;
+
+	/** The static slot (if applicable). */
+	const FUniformBufferStaticSlot StaticSlot;
+
+	/** The binding flags describing how this resource can be bound to the RHI. */
+	const EUniformBufferBindingFlags BindingFlags;
+
+	/** Whether this layout may contain non-render-graph outputs (e.g. RHI UAVs). */
+	const bool bHasNonGraphOutputs;
+};
+
 class FRHIUniformBuffer : public FRHIResource
 #if ENABLE_RHI_VALIDATION
 	, public RHIValidation::FUniformBufferResource
 #endif
 {
 public:
-
 	FRHIUniformBuffer() = delete;
 
 	/** Initialization constructor. */
-	FRHIUniformBuffer(const FRHIUniformBufferLayout& InLayout)
+	FRHIUniformBuffer(const FRHIUniformBufferLayout* InLayout)
 	: FRHIResource(RRT_UniformBuffer)
-	, Layout(&InLayout)
-	, LayoutConstantBufferSize(InLayout.ConstantBufferSize)
+	, Layout(InLayout)
+	, LayoutConstantBufferSize(InLayout->ConstantBufferSize)
 	{}
-
-	FORCEINLINE_DEBUGGABLE uint32 AddRef() const
-	{
-#if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
-		if (GetRefCount() == 0)
-		{
-			Layout->NumUsesForDebugging++;
-		}
-#endif
-		return FRHIResource::AddRef();
-	}
 
 	FORCEINLINE_DEBUGGABLE uint32 Release() const
 	{
@@ -1016,10 +1091,6 @@ public:
 
 		if (NewRefCount == 0)
 		{
-#if VALIDATE_UNIFORM_BUFFER_LAYOUT_LIFETIME
-			LocalLayout->NumUsesForDebugging--;
-			check(LocalLayout->NumUsesForDebugging >= 0);
-#endif
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 			check(LocalNumMeshCommandReferencesForDebugging == 0 || IsEngineExitRequested());
 #endif
@@ -1035,11 +1106,7 @@ public:
 		return LayoutConstantBufferSize;
 	}
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
-
-	bool IsGlobal() const
-	{
-		return IsUniformBufferStaticSlotValid(Layout->StaticSlot);
-	}
+	const FRHIUniformBufferLayout* GetLayoutPtr() const { return Layout; }
 
 #if VALIDATE_UNIFORM_BUFFER_LIFETIME
 	mutable int32 NumMeshCommandReferencesForDebugging = 0;
@@ -1047,7 +1114,7 @@ public:
 
 private:
 	/** Layout of the uniform buffer. */
-	const FRHIUniformBufferLayout* Layout;
+	TRefCountPtr<const FRHIUniformBufferLayout> Layout;
 
 	uint32 LayoutConstantBufferSize;
 };
@@ -1783,6 +1850,7 @@ typedef TRefCountPtr<FRHIComputeShader> FComputeShaderRHIRef;
 typedef TRefCountPtr<FRHIRayTracingShader>          FRayTracingShaderRHIRef;
 typedef TRefCountPtr<FRHIComputeFence>	FComputeFenceRHIRef;
 typedef TRefCountPtr<FRHIBoundShaderState> FBoundShaderStateRHIRef;
+typedef TRefCountPtr<const FRHIUniformBufferLayout> FUniformBufferLayoutRHIRef;
 typedef TRefCountPtr<FRHIUniformBuffer> FUniformBufferRHIRef;
 typedef TRefCountPtr<FRHIBuffer> FBufferRHIRef;
 UE_DEPRECATED(5.0, "FIndexBufferRHIRef is deprecated, please use FBufferRHIRef.")      typedef FBufferRHIRef FIndexBufferRHIRef;

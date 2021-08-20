@@ -531,6 +531,9 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 
 	const uint32 StructSize = Align(NextMemberOffset, SHADER_PARAMETER_STRUCT_ALIGNMENT);
+
+	UniformBufferLayoutInitializer = FRHIUniformBufferLayoutInitializer(TEXT("Material"));
+
 	FShaderParametersMetadata* UniformBufferStruct = new FShaderParametersMetadata(
 		FShaderParametersMetadata::EUseCase::DataDrivenUniformBuffer,
 		EUniformBufferBindingFlags::Shader,
@@ -541,9 +544,10 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 		UE_LOG_SOURCE_FILE(__FILE__),
 		__LINE__,
 		StructSize,
-		Members);
+		Members,
+		false,
+		&UniformBufferLayoutInitializer);
 
-	UniformBufferLayout = UniformBufferStruct->GetLayout();
 	return UniformBufferStruct;
 }
 
@@ -694,11 +698,11 @@ void FUniformExpressionSet::GetTextureValue(int32 Index, const FMaterialRenderCo
 	}
 }
 
-void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, uint8* TempBuffer, int TempBufferSize) const
+void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, const FRHIUniformBufferLayout* UniformBufferLayout, uint8* TempBuffer, int TempBufferSize) const
 {
 	check(IsInParallelRenderingThread());
 
-	if (UniformBufferLayout.ConstantBufferSize > 0)
+	if (UniformBufferLayout->ConstantBufferSize > 0)
 	{
 		// stat disabled by default due to low-value/high-frequency
 		//QUICK_SCOPE_CYCLE_COUNTER(STAT_FUniformExpressionSet_FillUniformBuffer);
@@ -813,7 +817,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				NumPageTableIndirectionTextures++;
 			}
 	
-			check(UniformBufferLayout.Resources.Num() == 
+			check(UniformBufferLayout->Resources.Num() == 
 				UniformTextureParameters[(uint32)EMaterialTextureParameterType::Standard2D].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Cube].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num() * 2

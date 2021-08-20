@@ -72,7 +72,7 @@ FMaterialShader::FMaterialShader(const FMaterialShaderType::CompiledShaderInitia
 {
 #if WITH_EDITORONLY_DATA
 	check(!DebugDescription.IsEmpty());
-	DebugUniformExpressionUBLayout.CopyFrom(Initializer.UniformExpressionSet.GetUniformBufferLayout());
+	DebugUniformExpressionUBLayout.CopyFrom(Initializer.UniformExpressionSet.GetUniformBufferLayoutInitializer());
 #endif // WITH_EDITORONLY_DATA
 
 	// Bind the material uniform buffer parameter.
@@ -104,6 +104,18 @@ FRHIUniformBuffer* FMaterialShader::GetParameterCollectionBuffer(const FGuid& Id
 }
 
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING || !WITH_EDITOR)
+template<typename TLayout>
+static void DumpUB(const TLayout& Layout)
+{
+	UE_LOG(LogShaders, Warning, TEXT("Layout %s, Hash %08x"), *Layout.GetDebugName(), Layout.GetHash());
+	FString ResourcesString;
+	for (int32 Index = 0; Index < Layout.Resources.Num(); ++Index)
+	{
+		ResourcesString += FString::Printf(TEXT("%d "), (uint8)Layout.Resources[Index].MemberType);
+	}
+	UE_LOG(LogShaders, Warning, TEXT("Layout CB Size %d %d Resources: %s"), Layout.ConstantBufferSize, Layout.Resources.Num(), *ResourcesString);
+};
+
 void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial& Material, const FUniformExpressionCache* UniformExpressionCache) const
 {
 	// Validate that the shader is being used for a material that matches the uniform expression set the shader was compiled for.
@@ -119,16 +131,6 @@ void FMaterialShader::VerifyExpressionAndShaderMaps(const FMaterialRenderProxy* 
 		|| UniformExpressionCache->CachedUniformExpressionShaderMap != ShaderMap;
 	if (!bUniformExpressionSetMismatch)
 	{
-		auto DumpUB = [](const FRHIUniformBufferLayout& Layout)
-		{
-			UE_LOG(LogShaders, Warning, TEXT("Layout %s, Hash %08x"), *Layout.GetDebugName(), Layout.GetHash());
-			FString ResourcesString;
-			for (int32 Index = 0; Index < Layout.Resources.Num(); ++Index)
-			{
-				ResourcesString += FString::Printf(TEXT("%d "), (uint8)Layout.Resources[Index].MemberType);
-			}
-			UE_LOG(LogShaders, Warning, TEXT("Layout CB Size %d %d Resources: %s"), Layout.ConstantBufferSize, Layout.Resources.Num(), *ResourcesString);
-		};
 		if (UniformExpressionCache->LocalUniformBuffer.IsValid())
 		{
 			if (UniformExpressionCache->LocalUniformBuffer.BypassUniform)
@@ -441,7 +443,7 @@ bool FMaterialShader::Serialize(FArchive& Ar)
 		DebugUniformExpressionUBLayout.Resources.Reserve(ResourceOffsets.Num());
 		for (int32 i = 0; i < ResourceOffsets.Num(); i++)
 		{
-			DebugUniformExpressionUBLayout.Resources.Emplace(FRHIUniformBufferLayout::FResourceParameter{ ResourceOffsets[i], EUniformBufferBaseType(ResourceTypes[i]) });
+			DebugUniformExpressionUBLayout.Resources.Emplace(FRHIUniformBufferResource{ ResourceOffsets[i], EUniformBufferBaseType(ResourceTypes[i]) });
 		}
 		DebugUniformExpressionUBLayout.ComputeHash();
 #endif

@@ -933,7 +933,7 @@ public:
 	bool bStreamDraw;
 
 	/** Initialization constructor. */
-	FOpenGLUniformBuffer(const FRHIUniformBufferLayout& InLayout);
+	FOpenGLUniformBuffer(const FRHIUniformBufferLayout* InLayout);
 
 	void SetGLUniformBufferParams(GLuint InResource, uint32 InOffset, uint8* InPersistentlyMappedBuffer, uint32 InAllocatedSize, FOpenGLEUniformBufferDataRef InEmulatedBuffer, bool bInStreamDraw);
 

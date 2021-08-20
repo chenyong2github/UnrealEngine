@@ -239,7 +239,8 @@ public:
 		const int32 InFileLine,
 		uint32 InSize,
 		const TArray<FMember>& InMembers,
-		bool bForceCompleteInitialization = false);
+		bool bForceCompleteInitialization = false,
+		FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
 
 	virtual ~FShaderParametersMetadata();
 
@@ -272,10 +273,16 @@ public:
 
 	uint32 GetSize() const { return Size; }
 	EUseCase GetUseCase() const { return UseCase; }
-	const FRHIUniformBufferLayout& GetLayout() const 
-	{ 
-		check(bLayoutInitialized);
-		return Layout; 
+	inline bool IsLayoutInitialized() const { return Layout != nullptr; }
+	const FRHIUniformBufferLayout& GetLayout() const
+	{
+		check(IsLayoutInitialized());
+		return *Layout;
+	}
+	const FRHIUniformBufferLayout* GetLayoutPtr() const
+	{
+		check(IsLayoutInitialized());
+		return Layout;
 	}
 	const TArray<FMember>& GetMembers() const { return Members; }
 
@@ -300,7 +307,7 @@ public:
 	uint32 GetLayoutHash() const
 	{
 		check(UseCase == EUseCase::ShaderParameterStruct || UseCase == EUseCase::UniformBuffer);
-		check(bLayoutInitialized);
+		check(IsLayoutInitialized());
 		return LayoutHash;	
 	}
 
@@ -337,6 +344,8 @@ public:
 	}
 
 private:
+	const TCHAR* const LayoutName;
+
 	/** Name of the structure type in C++ and shader code. */
 	const TCHAR* const StructTypeName;
 
@@ -364,7 +373,7 @@ private:
 	const EUniformBufferBindingFlags BindingFlags;
 
 	/** Layout of all the resources in the shader parameter struct. */
-	FRHIUniformBufferLayout Layout;
+	FUniformBufferLayoutRHIRef Layout{};
 	
 	/** List of all members. */
 	TArray<FMember> Members;
@@ -372,14 +381,11 @@ private:
 	/** Shackle elements in global link list of globally named shader parameters. */
 	TLinkedList<FShaderParametersMetadata*> GlobalListLink;
 
-	/** Whether the layout is actually initialized yet or not. */
-	uint32 bLayoutInitialized : 1;
-
 	/** Hash about the entire memory layout of the structure. */
 	uint32 LayoutHash = 0;
 
 
-	void InitializeLayout();
+	void InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer = nullptr);
 
 	void AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const;
 

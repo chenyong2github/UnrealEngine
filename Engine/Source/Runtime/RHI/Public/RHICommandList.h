@@ -1766,7 +1766,7 @@ struct FComputedUniformBuffer
 struct FLocalUniformBufferWorkArea
 {
 	void* Contents;
-	const FRHIUniformBufferLayout* Layout;
+	FUniformBufferLayoutRHIRef Layout;
 	FComputedUniformBuffer* ComputedUniformBuffer;
 #if DO_CHECK || USING_CODE_ANALYSIS // the below variables are used in check(), which can be enabled in Shipping builds (see Build.h)
 	FRHICommandListBase* CheckCmdList;
@@ -1813,9 +1813,9 @@ FRHICOMMAND_MACRO(FRHICommandBuildLocalUniformBuffer)
 		FRHICommandListBase* CheckCmdList,
 		const void* Contents,
 		uint32 ContentsSize,
-		const FRHIUniformBufferLayout& Layout
+		const FRHIUniformBufferLayout* Layout
 		)
-		: WorkArea(CheckCmdList, Contents, ContentsSize, &Layout)
+		: WorkArea(CheckCmdList, Contents, ContentsSize, Layout)
 
 	{
 	}
@@ -2421,7 +2421,7 @@ public:
 		SetShaderUniformBuffer(Shader.GetReference(), BaseIndex, UniformBuffer);
 	}
 
-	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout& Layout)
+	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout* Layout)
 	{
 		FLocalUniformBuffer Result;
 		if (Bypass())
@@ -2435,6 +2435,12 @@ public:
 			Result.WorkArea = &Cmd->WorkArea;
 		}
 		return Result;
+	}
+
+	UE_DEPRECATED(5.0, "Use Layout pointers instead")
+	FORCEINLINE_DEBUGGABLE FLocalUniformBuffer BuildLocalUniformBuffer(const void* Contents, uint32 ContentsSize, const FRHIUniformBufferLayout& Layout)
+	{
+		return BuildLocalUniformBuffer(Contents, ContentsSize, &Layout);
 	}
 
 	template <typename TRHIShader>
@@ -4164,9 +4170,15 @@ public:
 		return RHICreateComputePipelineState(ComputeShader);
 	}
 
-	FORCEINLINE FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage)
+	FORCEINLINE FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage)
 	{
 		return RHICreateUniformBuffer(Contents, Layout, Usage);
+	}
+
+	UE_DEPRECATED(5.0, "Use Layout pointers instead")
+	FORCEINLINE FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage)
+	{
+		return RHICreateUniformBuffer(Contents, &Layout, Usage);
 	}
 	
 	FORCEINLINE FBufferRHIRef CreateAndLockIndexBuffer(uint32 Stride, uint32 Size, EBufferUsageFlags InUsage, ERHIAccess InResourceState, FRHIResourceCreateInfo& CreateInfo, void*& OutDataBuffer)

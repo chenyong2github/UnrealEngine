@@ -465,7 +465,7 @@ public:
 
 	void SetParameterCollections(const TArray<class UMaterialParameterCollection*>& Collections);
 
-	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, uint8* TempBuffer, int TempBufferSize) const;
+	ENGINE_API void FillUniformBuffer(const FMaterialRenderContext& MaterialRenderContext, const FUniformExpressionCache& UniformExpressionCache, const FRHIUniformBufferLayout* UniformBufferLayout, uint8* TempBuffer, int TempBufferSize) const;
 
 	// Get a combined hash of all referenced Texture2D's underlying RHI textures, going through TextureReferences. Can be used to tell if any texture has gone through texture streaming mip changes recently.
 	ENGINE_API uint32 GetReferencedTexture2DRHIHash(const FMaterialRenderContext& MaterialRenderContext) const;
@@ -475,9 +475,9 @@ public:
 		return UniformExternalTextureParameters.Num() > 0;
 	}
 
-	const FRHIUniformBufferLayout& GetUniformBufferLayout() const
+	const FRHIUniformBufferLayoutInitializer& GetUniformBufferLayoutInitializer() const
 	{
-		return UniformBufferLayout;
+		return UniformBufferLayoutInitializer;
 	}
 
 	inline const FMaterialVectorParameterInfo& GetVectorParameter(uint32 Index) const { return UniformVectorParameters[Index]; }
@@ -536,7 +536,7 @@ protected:
 	/** Ids of parameter collections referenced by the material that was translated. */
 	LAYOUT_FIELD(TMemoryImageArray<FGuid>, ParameterCollections);
 
-	LAYOUT_FIELD(FRHIUniformBufferLayout, UniformBufferLayout);
+	LAYOUT_FIELD(FRHIUniformBufferLayoutInitializer, UniformBufferLayoutInitializer);
 };
 
 /** Stores outputs from the material compile that need to be saved. */
@@ -1255,6 +1255,8 @@ public:
 	}
 
 	const FUniformExpressionSet& GetUniformExpressionSet() const { return GetContent()->MaterialCompilationOutput.UniformExpressionSet; }
+	const FRHIUniformBufferLayout* GetUniformBufferLayout() const { return UniformBufferLayout; }
+
 	int32 GetNumRefs() const { return NumRefs; }
 	int32 GetRefCount() const { return NumRefs; }
 
@@ -1277,6 +1279,9 @@ public:
 #if WITH_EDITOR
 	void InitalizeForODSC(EShaderPlatform TargetShaderPlatform, const FMaterialCompilationOutput& NewCompilationOutput);
 #endif
+
+protected:
+	void PostFinalizeContent() override;
 
 private:
 	/** 
@@ -1301,6 +1306,8 @@ private:
 	TRefCountPtr<FMaterialShaderMap> FinalizedClone;
 	TRefCountPtr<FSharedShaderCompilerEnvironment> PendingCompilerEnvironment;
 	TArray<TRefCountPtr<FMaterial>> CompilingMaterialDependencies;
+
+	FUniformBufferLayoutRHIRef UniformBufferLayout;
 
 #if ALLOW_SHADERMAP_DEBUG_DATA
 	float CompileTime;

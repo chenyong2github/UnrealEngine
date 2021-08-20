@@ -1520,6 +1520,7 @@ enum ERHIResourceType
 	RRT_ComputePipelineState,
 	RRT_RayTracingPipelineState,
 	RRT_BoundShaderState,
+	RRT_UniformBufferLayout,
 	RRT_UniformBuffer,
 	RRT_Buffer,
 	RRT_Texture,

@@ -227,21 +227,10 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 		}
 	}
 
-	GlobalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Global CBuffer"));
-	GlobalCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraGlobalParameters);
-	GlobalCBufferLayout->UBLayout.ComputeHash();
-
-	SystemCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU System CBuffer"));
-	SystemCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraSystemParameters);
-	SystemCBufferLayout->UBLayout.ComputeHash();
-
-	OwnerCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Owner CBuffer"));
-	OwnerCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraOwnerParameters);
-	OwnerCBufferLayout->UBLayout.ComputeHash();
-
-	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"));
-	EmitterCBufferLayout->UBLayout.ConstantBufferSize = sizeof(FNiagaraEmitterParameters);
-	EmitterCBufferLayout->UBLayout.ComputeHash();
+	GlobalCBufferLayout  = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Global CBuffer"),  sizeof(FNiagaraGlobalParameters));
+	SystemCBufferLayout  = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU System CBuffer"),  sizeof(FNiagaraSystemParameters));
+	OwnerCBufferLayout   = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Owner CBuffer"),   sizeof(FNiagaraOwnerParameters));
+	EmitterCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU Emitter CBuffer"), sizeof(FNiagaraEmitterParameters));
 
 #if RHI_RAYTRACING
 	RayTracingHelper.Reset(new FNiagaraRayTracingHelper(InShaderPlatform));
@@ -365,9 +354,9 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 
 	const FRHIUniformBufferLayout* SystemLayouts[FNiagaraGPUSystemTick::UBT_NumSystemTypes] =
 	{
-		&GlobalCBufferLayout->UBLayout,
-		&SystemCBufferLayout->UBLayout,
-		&OwnerCBufferLayout->UBLayout
+		GlobalCBufferLayout,
+		SystemCBufferLayout,
+		OwnerCBufferLayout
 	};
 
 	for (int32 InterpIt = 0; InterpIt < InterpScale; ++InterpIt)
@@ -380,7 +369,7 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 			{
 				BufferRef = RHICreateUniformBuffer(
 					Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) SystemTypeIt, nullptr, !InterpIt),
-					*SystemLayouts[SystemTypeIt],
+					SystemLayouts[SystemTypeIt],
 					((BoundParameterCounts[SystemTypeIt][InterpIt] > 1) || HasMultipleStages)
 						? EUniformBufferUsage::UniformBuffer_SingleFrame
 						: EUniformBufferUsage::UniformBuffer_SingleDraw);
@@ -397,8 +386,8 @@ void NiagaraEmitterInstanceBatcher::BuildConstantBuffers(FNiagaraGPUSystemTick& 
 
 				if (BoundParameterCounts[InstanceTypeIt][InterpIt])
 				{
-					FRHIUniformBufferLayout& Layout = InstanceTypeIt == FNiagaraGPUSystemTick::UBT_Emitter ? EmitterCBufferLayout->UBLayout : Instance.Context->ExternalCBufferLayout->UBLayout;
-					if (Layout.Resources.Num() > 0 || Layout.ConstantBufferSize > 0)
+					FRHIUniformBufferLayout* Layout = InstanceTypeIt == FNiagaraGPUSystemTick::UBT_Emitter ? EmitterCBufferLayout : Instance.Context->ExternalCBufferLayout;
+					if (Layout->Resources.Num() > 0 || Layout->ConstantBufferSize > 0)
 					{
 						BufferRef = RHICreateUniformBuffer(
 							Tick.GetUniformBufferSource((FNiagaraGPUSystemTick::EUniformBufferType) InstanceTypeIt, &Instance, !InterpIt),

@@ -52,8 +52,8 @@ DEFINE_STAT(STAT_RTAccelerationStructureMemory);
 DEFINE_STAT(STAT_StructuredBufferMemory);
 DEFINE_STAT(STAT_PixelBufferMemory);
 
-IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout);
-IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayout::FResourceParameter);
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferLayoutInitializer);
+IMPLEMENT_TYPE_LAYOUT(FRHIUniformBufferResource);
 
 #if !defined(RHIRESOURCE_NUM_FRAMES_TO_EXPIRE)
 	#define RHIRESOURCE_NUM_FRAMES_TO_EXPIRE 3
@@ -635,7 +635,7 @@ bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendS
 
 static FCriticalSection GRHIResourceTrackingCriticalSection;
 static TSet<FRHIResource*> GRHITrackedResources;
-static bool GRHITrackingResources = true;
+static bool GRHITrackingResources = false;
 
 void FRHIResource::BeginTrackingResource(FRHIResource* InResource)
 {
@@ -657,6 +657,11 @@ void FRHIResource::EndTrackingResource(FRHIResource* InResource)
 		GRHITrackedResources.Remove(InResource);
 		InResource->bBeingTracked = false;
 	}
+}
+
+void FRHIResource::StartTrackingAllResources()
+{
+	GRHITrackingResources = true;
 }
 
 void FRHIResource::StopTrackingAllResources()
@@ -699,6 +704,7 @@ static const FRHIResourceTypeName GRHIResourceTypeNames[] =
 	RHI_RESOURCE_TYPE_DEF(ComputePipelineState),
 	RHI_RESOURCE_TYPE_DEF(RayTracingPipelineState),
 	RHI_RESOURCE_TYPE_DEF(BoundShaderState),
+	RHI_RESOURCE_TYPE_DEF(UniformBufferLayout),
 	RHI_RESOURCE_TYPE_DEF(UniformBuffer),
 	RHI_RESOURCE_TYPE_DEF(Buffer),
 	RHI_RESOURCE_TYPE_DEF(Texture),
