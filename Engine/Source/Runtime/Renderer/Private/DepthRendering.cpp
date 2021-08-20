@@ -825,6 +825,30 @@ FMeshDrawCommandSortKey CalculateDepthPassMeshStaticSortKey(EBlendMode BlendMode
 	return SortKey;
 }
 
+void SetMobileDepthPassRenderState(const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, FMeshPassProcessorRenderState& DrawRenderState, const FMaterial& RESTRICT MaterialResource, bool bUsesDeferredShading)
+{
+	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
+		true, CF_DepthNearOrEqual,
+		true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+		// don't use masking as it has significant performance hit on Mali GPUs (T860MP2)
+		0x00, 0xff >::GetRHI());
+
+	uint8 StencilValue = 0;
+
+	uint8 ReceiveDecals = (PrimitiveSceneProxy && !PrimitiveSceneProxy->ReceivesDecals() ? 0x01 : 0x00);
+	StencilValue |= GET_STENCIL_BIT_MASK(RECEIVE_DECAL, ReceiveDecals);
+
+	if (bUsesDeferredShading)
+	{
+		// store into [1-3] bits
+		uint8 ShadingModel = MaterialResource.GetShadingModels().IsLit() ? MSM_DefaultLit : MSM_Unlit;
+		StencilValue |= GET_STENCIL_MOBILE_SM_MASK(ShadingModel);
+	}
+
+	DrawRenderState.SetStencilRef(StencilValue);
+}
+
 template<bool bPositionOnly>
 bool FDepthPassMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -865,6 +889,12 @@ bool FDepthPassMeshProcessor::Process(
 	if (!bDitheredLODFadingOutMaskPass)
 	{
 		SetDepthPassDitheredLODTransitionState(ViewIfDynamicMeshCommand, MeshBatch, StaticMeshId, DrawRenderState);
+	}
+
+	// Use StencilMask for DecalOutput on mobile
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
+	{
+		SetMobileDepthPassRenderState(PrimitiveSceneProxy, DrawRenderState, MaterialResource, IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel)));
 	}
 
 	FDepthOnlyShaderElementData ShaderElementData(0.0f);
