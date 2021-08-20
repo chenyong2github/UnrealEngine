@@ -567,8 +567,8 @@ namespace HordeServer
 
 			Services.AddControllers(Options =>
 			{
-				Options.InputFormatters.Insert(0, new CbInputFormatter());
-				Options.OutputFormatters.Insert(0, new CbOutputFormatter());
+				Options.InputFormatters.Add(new CbInputFormatter());
+				Options.OutputFormatters.Add(new CbOutputFormatter());
 			});
 
 			Services.AddSwaggerGen(Config =>
