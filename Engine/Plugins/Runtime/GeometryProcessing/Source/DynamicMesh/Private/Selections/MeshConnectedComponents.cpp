@@ -277,6 +277,20 @@ void FMeshConnectedComponents::SortByCount(bool bLargestFirst)
 
 bool FMeshConnectedComponents::InitializeFromTriangleComponents(const TArray<TArray<int32>>& ComponentLists, bool bValidateIDs)
 {
+	if (bValidateIDs)
+	{
+		for (const TArray<int32>& ComponentList : ComponentLists)
+		{
+			for (int32 tid : ComponentList)
+			{
+				if (Mesh->IsTriangle(tid) == false)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
 	Components.Reset();
 	Components.Reserve(ComponentLists.Num());
 	for (const TArray<int32>& ComponentList : ComponentLists)
@@ -289,18 +303,6 @@ bool FMeshConnectedComponents::InitializeFromTriangleComponents(const TArray<TAr
 
 		FComponent* Component = new FComponent();
 		Component->Indices.Append(ComponentList);
-
-		if (bValidateIDs)
-		{
-			for (int32 tid : Component->Indices)
-			{
-				if (Mesh->IsTriangle(tid) == false)
-				{
-					return false;
-				}
-			}
-		}
-
 		Components.Add(Component);
 	}
 
@@ -310,6 +312,20 @@ bool FMeshConnectedComponents::InitializeFromTriangleComponents(const TArray<TAr
 
 bool FMeshConnectedComponents::InitializeFromTriangleComponents(TArray<TArray<int32>>& ComponentLists, bool bMoveSubLists, bool bValidateIDs)
 {
+	if (bValidateIDs)
+	{
+		for (const TArray<int32>& ComponentList : ComponentLists)
+		{
+			for (int32 tid : ComponentList)
+			{
+				if (Mesh->IsTriangle(tid) == false)
+				{
+					return false;
+				}
+			}
+		}
+	}
+
 	Components.Reset();
 	Components.Reserve(ComponentLists.Num());
 	for (TArray<int32>& ComponentList : ComponentLists)
@@ -328,17 +344,6 @@ bool FMeshConnectedComponents::InitializeFromTriangleComponents(TArray<TArray<in
 		else
 		{
 			Component->Indices.Append(ComponentList);
-		}
-
-		if (bValidateIDs)
-		{
-			for (int32 tid : Component->Indices)
-			{
-				if (Mesh->IsTriangle(tid) == false)
-				{
-					return false;
-				}
-			}
 		}
 
 		Components.Add(Component);
