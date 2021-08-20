@@ -994,10 +994,13 @@ void FMobileSceneRenderer::RenderForward(FRDGBuilder& GraphBuilder, FRDGTextureR
 
 		UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
 
+		FMobileBasePassTextures MobileBasePassTextures{};
+		MobileBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
+
 		EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::CustomDepth;
 		FMobileRenderPassParameters* PassParameters = GraphBuilder.AllocParameters<FMobileRenderPassParameters>();
 		PassParameters->View = View.GetShaderParameters();
-		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode);
+		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode, MobileBasePassTextures);
 		PassParameters->RenderTargets = BasePassRenderTargets;
 		#if WITH_DEBUG_VIEW_MODES
 		if (ViewFamily.UseDebugViewPS())
@@ -1279,10 +1282,13 @@ void FMobileSceneRenderer::RenderDeferred(FRDGBuilder& GraphBuilder, const FSort
 
 		UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
 
+		FMobileBasePassTextures MobileBasePassTextures{};
+		MobileBasePassTextures.ScreenSpaceAO = SceneTextures.ScreenSpaceAO;
+
 		EMobileSceneTextureSetupMode SetupMode = EMobileSceneTextureSetupMode::CustomDepth;
 		auto* PassParameters = GraphBuilder.AllocParameters<FMobileRenderPassParameters>();
 		PassParameters->View = View.GetShaderParameters();
-		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode);
+		PassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, SetupMode, MobileBasePassTextures);
 		PassParameters->RenderTargets = BasePassRenderTargets;
 		#if WITH_DEBUG_VIEW_MODES
 		if (ViewFamily.UseDebugViewPS())

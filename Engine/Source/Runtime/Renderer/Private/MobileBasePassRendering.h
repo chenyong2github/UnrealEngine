@@ -25,6 +25,11 @@
 #include "SkyAtmosphereRendering.h"
 #include "RenderUtils.h"
 
+struct FMobileBasePassTextures
+{
+	FRDGTextureRef ScreenSpaceAO = nullptr;
+};
+
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
 	SHADER_PARAMETER(float, AmbientOcclusionStaticFraction)
 	SHADER_PARAMETER(FVector4, SSProfilesTextureSizeAndInvSize)
@@ -54,13 +59,15 @@ extern void SetupMobileBasePassUniformParameters(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
+	const FMobileBasePassTextures& MobileBasePassTextures,
 	FMobileBasePassUniformParameters& BasePassParameters);
 
 extern TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUniformBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
-	EMobileSceneTextureSetupMode SetupMode);
+	EMobileSceneTextureSetupMode SetupMode,
+	const FMobileBasePassTextures& MobileBasePassTextures = {});
 
 extern void SetupMobileDirectionalLightUniformParameters(
 	const FScene& Scene,
