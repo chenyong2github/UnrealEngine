@@ -14,6 +14,33 @@
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 
+void SGetDisableIDEWidget::Construct(const FArguments& InArgs)
+{
+	ChildSlot
+	[
+		CreateGetDisableIDEWidget()
+	];
+}
+
+TSharedRef<SWidget> SGetDisableIDEWidget::CreateGetDisableIDEWidget()
+{
+	return
+		SNew(SButton)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+		.TextStyle(FAppStyle::Get(), "DialogButtonText")
+		.Text(FText::Format(LOCTEXT("IDEDisableButton", "Disable {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
+		.OnClicked(this, &SGetDisableIDEWidget::OnDisableIDEClicked);
+}
+
+FReply SGetDisableIDEWidget::OnDisableIDEClicked()
+{
+	FSourceCodeNavigation::SetPreferredAccessor(TEXT("NullSourceCodeAccessor"));
+
+	return FReply::Handled();
+}
+
 TSharedPtr<SNotificationItem> SGetSuggestedIDEWidget::IDEDownloadNotification;
 
 void SGetSuggestedIDEWidget::Construct(const FArguments& InArgs)

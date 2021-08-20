@@ -1506,6 +1506,16 @@ void FSourceCodeNavigation::RemoveNavigationHandler(ISourceCodeNavigationHandler
 	SourceCodeNavigationHandlers.Remove(Handler);
 }
 
+void FSourceCodeNavigation::SetPreferredAccessor(const TCHAR* Name)
+{
+	GConfig->SetString(TEXT("/Script/SourceCodeAccess.SourceCodeAccessSettings"), TEXT("PreferredAccessor"), Name, GEngineIni);
+
+	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>(TEXT("SourceCodeAccess"));
+	SourceCodeAccessModule.SetAccessor(Name);
+
+	RefreshCompilerAvailability();
+}
+
 bool FSourceCodeNavigation::CanNavigateToClass(const UClass* InClass)
 {
 	if (!InClass)
@@ -1810,7 +1820,7 @@ FText FSourceCodeNavigation::GetSuggestedSourceCodeIDE(bool bShortIDEName)
 #elif PLATFORM_MAC
 	return LOCTEXT("SuggestedCodeIDE_Mac", "Xcode");
 #elif PLATFORM_LINUX
-	return LOCTEXT("SuggestedCodeIDE_Linux", "Visual Studio Code");
+	return LOCTEXT("SuggestedCodeIDE_Linux", "VS Code");
 #else
 	return LOCTEXT("SuggestedCodeIDE_Generic", "an IDE to edit source code");
 #endif

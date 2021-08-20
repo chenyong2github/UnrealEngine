@@ -47,3 +47,24 @@ private:
 	static TSharedPtr<class SNotificationItem> IDEDownloadNotification;
 
 };
+
+/**
+ * A button to disable requiring an IDE to be install 
+ * Only visible on platforms that dont require an IDE to compile code and when no IDE is available
+ */
+class SGetDisableIDEWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SGetDisableIDEWidget) {}
+	SLATE_END_ARGS()
+
+	/** Constructs this widget with InArgs */
+	void Construct(const FArguments& InArgs);
+	
+private:
+	/** Creates the appropriate widget to display for the platform */
+	TSharedRef<SWidget> CreateGetDisableIDEWidget();
+
+	/** Handler for when the disable button is clicked */
+	FReply OnDisableIDEClicked();
+};

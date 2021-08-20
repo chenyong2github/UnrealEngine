@@ -390,6 +390,9 @@ public:
 	/** Remove a navigation handler */
 	UNREALED_API static void RemoveNavigationHandler(ISourceCodeNavigationHandler* Handler);
 
+	/** Set a new preferred accessor and refresh compiler status */
+	UNREALED_API static void SetPreferredAccessor(const TCHAR* Name);
+
 private:
 
 	/** Critical section for locking access to the source file database. */
