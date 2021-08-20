@@ -35,7 +35,7 @@ public class Flite : ModuleRules
 		{
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-				return "Linux";
+				return "Unix";
 			}
 			else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 			{
@@ -84,6 +84,10 @@ public class Flite : ModuleRules
 			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, "ARM64", bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath, "x64", bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
 		}
-			PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
+		{
+			PublicAdditionalLibraries.Add(Path.Combine(FliteLibPath , Target.Architecture, bUseDebugLibs ? "Debug" : "Release", "libFlite.a"));
+		}
+		PublicDefinitions.Add("UE_FLITE_REQUIRES_WINDOWS_HEADERS=" + (bRequiresWindowsHeaders ? "1" : "0"));
 	}
 }

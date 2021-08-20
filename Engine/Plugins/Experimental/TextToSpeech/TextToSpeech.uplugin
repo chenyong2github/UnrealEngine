@@ -25,7 +25,9 @@
 				"Win64",
 				"Mac",
 				"Android",
-				"IOS"
+				"IOS",
+				"Linux",
+				"LinuxArm64"
 			],
 			"BlacklistTargets" :[
 				"Server"
