@@ -1840,6 +1840,8 @@ void FStarshipEditorStyle::FStyle::SetupLevelGeneralStyles()
 
 		Set("Level.LightingScenarioIcon16x", new IMAGE_BRUSH_SVG("Starship/AssetIcons/PointLight_16", Icon16x16));
 		Set("Level.LightingScenarioNotIcon16x", new IMAGE_BRUSH_SVG("Starship/Common/LightBulbOff", Icon16x16));
+		Set("Level.LightingScenarioIconSolid16x", new IMAGE_BRUSH_SVG("Starship/Common/LightBulbSolid", Icon16x16));
+		Set("Level.LightingScenarioNotIconSolid16x", new IMAGE_BRUSH_SVG("Starship/Common/LightBulbOffSolid", Icon16x16));
 		Set("Level.LockedIcon16x", new IMAGE_BRUSH("Icons/icon_locked_16px", Icon16x16));
 		Set("Level.LockedHighlightIcon16x", new IMAGE_BRUSH("Icons/icon_locked_highlight_16px", Icon16x16));
 		Set("Level.UnlockedIcon16x", new IMAGE_BRUSH("Icons/icon_levels_unlocked_16px", Icon16x16));
