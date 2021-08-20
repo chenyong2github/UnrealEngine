@@ -182,6 +182,8 @@ void FRigTransformElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement*
 	Pose = SourceTransform->Pose;
 
 	ElementsToDirty.Reset();
+	ElementsToDirty.Reserve(SourceTransform->ElementsToDirty.Num());
+	
 	for(int32 ElementToDirtyIndex = 0; ElementToDirtyIndex < SourceTransform->ElementsToDirty.Num(); ElementToDirtyIndex++)
 	{
 		const FElementToDirty& Source = SourceTransform->ElementsToDirty[ElementToDirtyIndex];
@@ -328,7 +330,9 @@ void FRigMultiParentElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElemen
 	const FRigMultiParentElement* Source = CastChecked<FRigMultiParentElement>(InOther);
 	Parent = Source->Parent;
 	ParentConstraints.Reset();
+	ParentConstraints.Reserve(Source->ParentConstraints.Num());
 	IndexLookup.Reset();
+	IndexLookup.Reserve(Source->IndexLookup.Num());
 
 	for(int32 ParentIndex = 0; ParentIndex < Source->ParentConstraints.Num(); ParentIndex++)
 	{

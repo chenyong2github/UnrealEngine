@@ -228,7 +228,7 @@ public:
 	virtual void PostLoad() override;
 
 	// Returns the name of a storage class for a given memory type. The name is unique within the package.
-	static FString GetClassName(ERigVMMemoryType InMemoryType);
+	static const FString& GetClassName(ERigVMMemoryType InMemoryType);
 
 	// Returns an existing class for a memory type within the package (or nullptr) 
 	static URigVMMemoryStorageGeneratorClass* GetStorageClass(UObject* InOuter, ERigVMMemoryType InMemoryType);

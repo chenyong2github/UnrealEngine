@@ -346,7 +346,7 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URig
 				InstructionZ.Positions.Add(P0);
 				InstructionZ.Positions.Add(PZ);
 
-				TArray<FRigBaseElement*> Parents = Hierarchy->GetParents(Child);
+				FRigBaseElementParentArray Parents = Hierarchy->GetParents(Child);
 				for (FRigBaseElement* Parent : Parents)
 				{
 					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(Parent))

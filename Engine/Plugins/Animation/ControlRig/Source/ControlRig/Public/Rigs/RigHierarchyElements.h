@@ -396,6 +396,12 @@ struct CONTROLRIG_API FRigCurrentAndInitialTransform
 	FRigLocalAndGlobalTransform Initial;
 };
 
+struct FRigBaseElement;
+//typedef TArray<FRigBaseElement*> FRigBaseElementChildrenArray;
+typedef TArray<FRigBaseElement*, TInlineAllocator<3>> FRigBaseElementChildrenArray;
+//typedef TArray<FRigBaseElement*> FRigBaseElementParentArray;
+typedef TArray<FRigBaseElement*, TInlineAllocator<1>> FRigBaseElementParentArray;
+
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigBaseElement
 {
@@ -409,6 +415,7 @@ public:
 	, SubIndex(INDEX_NONE)
 	, bSelected(false)
 	, TopologyVersion(0)
+	, OwnedInstances(0)
 	{}
 
 	virtual ~FRigBaseElement(){}
@@ -420,7 +427,7 @@ public:
 	};
 
 protected:
-	
+
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	FRigElementKey Key;
 
@@ -508,10 +515,13 @@ public:
 protected:
 
 	// helper function to be called as part of URigHierarchy::CopyHierarchy
-	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) {}
+	virtual void  CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) {}
 
 	mutable uint16 TopologyVersion;
-	mutable TArray<FRigBaseElement*> CachedChildren;
+	mutable FRigBaseElementChildrenArray CachedChildren;
+
+	// used for constructing / destructing the memory. typically == 1
+	int32 OwnedInstances;
 
 	friend class URigHierarchy;
 	friend class URigHierarchyController;
@@ -560,8 +570,10 @@ protected:
 		FRigTransformElement* Element;
 		int32 HierarchyDistance;
 	};
-	
-	TArray<FElementToDirty> ElementsToDirty;
+
+	//typedef TArray<FElementToDirty> FElementsToDirtyArray;
+	typedef TArray<FElementToDirty, TInlineAllocator<3>> FElementsToDirtyArray;  
+	FElementsToDirtyArray ElementsToDirty;
 
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
@@ -714,6 +726,9 @@ public:
 	}
 };
 
+//typedef TArray<FRigElementParentConstraint> FRigElementParentConstraintArray;
+typedef TArray<FRigElementParentConstraint, TInlineAllocator<1>> FRigElementParentConstraintArray;
+
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigMultiParentElement : public FRigTransformElement
 {
@@ -734,9 +749,9 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = RigElement)
 	FRigCurrentAndInitialTransform Parent;
 
-	TArray<FRigElementParentConstraint> ParentConstraints;
+	FRigElementParentConstraintArray ParentConstraints;
 	TMap<FRigElementKey, int32> IndexLookup;
-	
+
 protected:
 
 	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) override;

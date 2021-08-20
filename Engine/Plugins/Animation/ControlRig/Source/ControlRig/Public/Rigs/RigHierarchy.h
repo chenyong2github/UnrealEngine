@@ -1520,7 +1520,7 @@ public:
 	 * @param InElement The element to retrieve the children for
 	 * @return Returns the child elements
 	 */
-	const TArray<FRigBaseElement*>& GetChildren(const FRigBaseElement* InElement) const;
+	const FRigBaseElementChildrenArray& GetChildren(const FRigBaseElement* InElement) const;
 
 	/**
 	 * Returns the child elements of a given element
@@ -1528,7 +1528,7 @@ public:
 	 * @param bRecursive If set to true grand-children will also be returned etc
 	 * @return Returns the child elements
 	 */
-	TArray<FRigBaseElement*> GetChildren(const FRigBaseElement* InElement, bool bRecursive) const;
+	FRigBaseElementChildrenArray GetChildren(const FRigBaseElement* InElement, bool bRecursive) const;
 
 	/**
 	 * Returns the parent elements of a given element key
@@ -1553,7 +1553,7 @@ public:
 	 * @param bRecursive If set to true parents of parents will also be returned
 	 * @return Returns the parent elements
 	 */
-	TArray<FRigBaseElement*> GetParents(const FRigBaseElement* InElement, bool bRecursive = false) const;
+	FRigBaseElementParentArray GetParents(const FRigBaseElement* InElement, bool bRecursive = false) const;
 
 	/**
 	 * Returns the first parent element of a given element key
@@ -2311,7 +2311,12 @@ private:
 	/*
 	 * Helper function to create an element for a given type
 	 */
-	static FRigBaseElement* MakeElement(ERigElementType InElementType); 
+	static FRigBaseElement* MakeElement(ERigElementType InElementType, int32 InCount = 1, int32* OutStructureSize = nullptr); 
+
+	/*
+	* Helper function to create an element for a given type
+	*/
+	static void DestroyElement(FRigBaseElement*& InElement); 
 
 	/**
 	 * Marks all affected elements of a given element as dirty
@@ -2348,7 +2353,7 @@ private:
 	TMap<FRigElementKey, int32> IndexLookup;
 
 	// Static empty element array used for ref returns
-	static const TArray<FRigBaseElement*> EmptyElementArray;
+	static const FRigBaseElementChildrenArray EmptyElementArray;
 
 	///////////////////////////////////////////////
 	/// Undo redo related
@@ -2495,6 +2500,91 @@ protected:
 	TMap<FName, FRigPose> TracePoses;
 
 #endif
+
+	FORCEINLINE static int32 RigElementTypeToFlatIndex(ERigElementType InElementType)
+	{
+		switch(InElementType)
+		{
+			case ERigElementType::Bone:
+			{
+				return 0;
+			}
+			case ERigElementType::Null:
+			{
+				return 1;
+			}
+			case ERigElementType::Control:
+			{
+				return 2;
+			}
+			case ERigElementType::Curve:
+			{
+				return 3;
+			}
+			case ERigElementType::RigidBody:
+			{
+				return 4;
+			}
+			case ERigElementType::Socket:
+			{
+				return 5;
+			}
+			case ERigElementType::Last:
+			{
+				return 6;
+			}
+			case ERigElementType::All:
+			default:
+			{
+				checkNoEntry();
+				break;
+			}
+		}
+
+		return INDEX_NONE;
+	}
+
+	FORCEINLINE static ERigElementType FlatIndexToRigElementType(int32 InIndex)
+	{
+		switch(InIndex)
+		{
+			case 0:
+			{
+				return ERigElementType::Bone;
+			}
+			case 1:
+			{
+				return ERigElementType::Null;
+			}
+			case 2:
+			{
+				return ERigElementType::Control;
+			}
+			case 3:
+			{
+				return ERigElementType::Curve;
+			}
+			case 4:
+			{
+				return ERigElementType::RigidBody;
+			}
+			case 5:
+			{
+				return ERigElementType::Socket;
+			}
+			case 6:
+			{
+				return ERigElementType::Last;
+			}
+			default:
+			{
+				checkNoEntry();
+				break;
+			}
+		}
+
+		return ERigElementType::None;
+	}
 
 	friend class URigHierarchyController;
 	friend class UControlRig;

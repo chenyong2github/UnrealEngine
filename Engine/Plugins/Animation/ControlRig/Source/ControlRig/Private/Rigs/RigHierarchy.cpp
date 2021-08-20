@@ -79,7 +79,7 @@ FAutoConsoleCommandWithWorldAndArgs FCmdControlRigHierarchyTraceFrames
 // URigHierarchy
 ////////////////////////////////////////////////////////////////////////////////
 
-const TArray<FRigBaseElement*> URigHierarchy::EmptyElementArray;
+const FRigBaseElementChildrenArray URigHierarchy::EmptyElementArray;
 
 URigHierarchy::URigHierarchy()
 : TopologyVersion(0)
@@ -196,7 +196,7 @@ void URigHierarchy::Load(FArchive& Ar)
 
 		Element->SubIndex = Num(Key.Type);
 		Element->Index = Elements.Add(Element);
-		ElementsPerType[(int32)Key.Type].Add(Element);
+		ElementsPerType[RigElementTypeToFlatIndex(Key.Type)].Add(Element);
 		IndexLookup.Add(Key, Element->Index);
 		
 		Element->Load(Ar, this, FRigBaseElement::StaticData);
@@ -217,9 +217,9 @@ void URigHierarchy::Load(FArchive& Ar)
 		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(Elements[ElementIndex]))
 		{
 #if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION
-			TArray<FRigBaseElement*> CurrentParents = GetParents(TransformElement, false);
+			FRigBaseElementParentArray CurrentParents = GetParents(TransformElement, false);
 #else
-			TArray<FRigBaseElement*> CurrentParents = GetParents(TransformElement, true);
+			FRigBaseElementParentArray CurrentParents = GetParents(TransformElement, true);
 #endif
 			for (FRigBaseElement* CurrentParent : CurrentParents)
 			{
@@ -240,13 +240,14 @@ void URigHierarchy::Reset()
 	TopologyVersion = 0;
 	bEnableDirtyPropagation = true;
 
-	for(int32 ElementIndex=0; ElementIndex<Elements.Num(); ElementIndex++)
+	// walk in reverse since certain elements might not have been allocated themselves
+	for(int32 ElementIndex = Elements.Num() - 1; ElementIndex >= 0; ElementIndex--)
 	{
-		delete Elements[ElementIndex];
+		DestroyElement(Elements[ElementIndex]);
 	}
 	Elements.Reset();
 	ElementsPerType.Reset();
-	for(int32 TypeIndex=0;TypeIndex<(int32)ERigElementType::Last;TypeIndex++)
+	for(int32 TypeIndex=0;TypeIndex<RigElementTypeToFlatIndex(ERigElementType::Last);TypeIndex++)
 	{
 		ElementsPerType.Add(TArray<FRigBaseElement*>());
 	}
@@ -267,18 +268,51 @@ void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 	
 	Reset();
 
+	// Allocate the elements in batches to improve performance
+	TArray<uint8*> NewElementsPerType;
+	TArray<int32> StructureSizePerType;
+	for(int32 ElementTypeIndex = 0; ElementTypeIndex < InHierarchy->ElementsPerType.Num(); ElementTypeIndex++)
+	{
+		const ERigElementType ElementType = FlatIndexToRigElementType(ElementTypeIndex);
+		int32 StructureSize = 0;
+
+		const int32 Count = InHierarchy->ElementsPerType[ElementTypeIndex].Num();
+		if(Count)
+		{
+			FRigBaseElement* ElementMemory = MakeElement(ElementType, Count, &StructureSize);
+			NewElementsPerType.Add((uint8*)ElementMemory);
+		}
+		else
+		{
+			NewElementsPerType.Add(nullptr);
+		}
+
+		StructureSizePerType.Add(StructureSize);
+		ElementsPerType[ElementTypeIndex].Reserve(Count);
+	}
+
+	Elements.Reserve(InHierarchy->Elements.Num());
+	IndexLookup.Reserve(InHierarchy->IndexLookup.Num());
+	
 	for(int32 Index = 0; Index < InHierarchy->Num(); Index++)
 	{
 		FRigBaseElement* Source = InHierarchy->Get(Index);
 		const FRigElementKey& Key = Source->Key;
 
-		FRigBaseElement* Target = MakeElement(Key.Type);
+		const int32 ElementTypeIndex = RigElementTypeToFlatIndex(Key.Type);
+		
+		const int32 SubIndex = Num(Key.Type);
+
+		const int32 StructureSize = StructureSizePerType[ElementTypeIndex];
+		check(NewElementsPerType[ElementTypeIndex] != nullptr);
+		FRigBaseElement* Target = (FRigBaseElement*)&NewElementsPerType[ElementTypeIndex][StructureSize * SubIndex];
+		//FRigBaseElement* Target = MakeElement(Key.Type);
 		
 		Target->Key = Key;
-		Target->SubIndex = Num(Target->GetType());
+		Target->SubIndex = SubIndex;
 		Target->Index = Elements.Add(Target);
 
-		ElementsPerType[(int32)Key.Type].Add(Target);
+		ElementsPerType[ElementTypeIndex].Add(Target);
 		IndexLookup.Add(Key, Target->Index);
 
 		check(Source->Index == Index);
@@ -415,7 +449,7 @@ void URigHierarchy::ResetPoseToInitial(ERigElementType InTypeFilter)
 				const bool bFilteredOut = (!InElement->IsTypeOf(InTypeFilter)) || ResetPoseHasFilteredChildren[InElement->Index];
 				if(bFilteredOut)
 				{
-					const TArray<FRigBaseElement*> Parents = GetParents(InElement);
+					const FRigBaseElementParentArray Parents = GetParents(InElement);
 					for(const FRigBaseElement* Parent : Parents)
 					{
 						// only mark this up if the parent is not filtered out / 
@@ -513,7 +547,7 @@ void URigHierarchy::ResetCurveValues()
 
 int32 URigHierarchy::Num(ERigElementType InElementType) const
 {
-	return ElementsPerType[(int32)InElementType].Num();
+	return ElementsPerType[RigElementTypeToFlatIndex(InElementType)].Num();
 }
 
 TArray<FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
@@ -662,8 +696,8 @@ FName URigHierarchy::GetSafeNewName(const FString& InPotentialNewName, ERigEleme
 
 TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRecursive) const
 {
-	TArray<FRigBaseElement*> LocalChildren;
-	const TArray<FRigBaseElement*>* ChildrenPtr = nullptr;
+	FRigBaseElementChildrenArray LocalChildren;
+	const FRigBaseElementChildrenArray* ChildrenPtr = nullptr;
 	if(bRecursive)
 	{
 		LocalChildren = GetChildren(Find(InKey), true);
@@ -674,7 +708,7 @@ TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRe
 		ChildrenPtr = &GetChildren(Find(InKey));
 	}
 
-	const TArray<FRigBaseElement*>& Children = *ChildrenPtr;
+	const FRigBaseElementChildrenArray& Children = *ChildrenPtr;
 
 	TArray<FRigElementKey> Keys;
 	for(const FRigBaseElement* Child : Children)
@@ -686,8 +720,8 @@ TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRe
 
 TArray<int32> URigHierarchy::GetChildren(int32 InIndex, bool bRecursive) const
 {
-	TArray<FRigBaseElement*> LocalChildren;
-	const TArray<FRigBaseElement*>* ChildrenPtr = nullptr;
+	FRigBaseElementChildrenArray LocalChildren;
+	const FRigBaseElementChildrenArray* ChildrenPtr = nullptr;
 	if(bRecursive)
 	{
 		LocalChildren = GetChildren(Get(InIndex), true);
@@ -698,7 +732,7 @@ TArray<int32> URigHierarchy::GetChildren(int32 InIndex, bool bRecursive) const
 		ChildrenPtr = &GetChildren(Get(InIndex));
 	}
 
-	const TArray<FRigBaseElement*>& Children = *ChildrenPtr;
+	const FRigBaseElementChildrenArray& Children = *ChildrenPtr;
 
 	TArray<int32> Indices;
 	for(const FRigBaseElement* Child : Children)
@@ -708,7 +742,7 @@ TArray<int32> URigHierarchy::GetChildren(int32 InIndex, bool bRecursive) const
 	return Indices;
 }
 
-const TArray<FRigBaseElement*>& URigHierarchy::GetChildren(const FRigBaseElement* InElement) const
+const FRigBaseElementChildrenArray& URigHierarchy::GetChildren(const FRigBaseElement* InElement) const
 {
 	if(InElement)
 	{
@@ -718,10 +752,10 @@ const TArray<FRigBaseElement*>& URigHierarchy::GetChildren(const FRigBaseElement
 	return EmptyElementArray;
 }
 
-TArray<FRigBaseElement*> URigHierarchy::GetChildren(const FRigBaseElement* InElement, bool bRecursive) const
+FRigBaseElementChildrenArray URigHierarchy::GetChildren(const FRigBaseElement* InElement, bool bRecursive) const
 {
 	// call the non-recursive variation
-	TArray<FRigBaseElement*> Children = GetChildren(InElement);
+	FRigBaseElementChildrenArray Children = GetChildren(InElement);
 	
 	if(bRecursive)
 	{
@@ -736,7 +770,7 @@ TArray<FRigBaseElement*> URigHierarchy::GetChildren(const FRigBaseElement* InEle
 
 TArray<FRigElementKey> URigHierarchy::GetParents(FRigElementKey InKey, bool bRecursive) const
 {
-	const TArray<FRigBaseElement*>& Parents = GetParents(Find(InKey), bRecursive);
+	const FRigBaseElementParentArray& Parents = GetParents(Find(InKey), bRecursive);
 	TArray<FRigElementKey> Keys;
 	for(const FRigBaseElement* Parent : Parents)
 	{
@@ -747,7 +781,7 @@ TArray<FRigElementKey> URigHierarchy::GetParents(FRigElementKey InKey, bool bRec
 
 TArray<int32> URigHierarchy::GetParents(int32 InIndex, bool bRecursive) const
 {
-	const TArray<FRigBaseElement*>& Parents = GetParents(Get(InIndex), bRecursive);
+	const FRigBaseElementParentArray& Parents = GetParents(Get(InIndex), bRecursive);
 	TArray<int32> Indices;
 	for(const FRigBaseElement* Parent : Parents)
 	{
@@ -756,22 +790,23 @@ TArray<int32> URigHierarchy::GetParents(int32 InIndex, bool bRecursive) const
 	return Indices;
 }
 
-TArray<FRigBaseElement*> URigHierarchy::GetParents(const FRigBaseElement* InElement, bool bRecursive) const
+FRigBaseElementParentArray URigHierarchy::GetParents(const FRigBaseElement* InElement, bool bRecursive) const
 {
-	TArray<FRigBaseElement*> Parents;
+	FRigBaseElementParentArray Parents;
 
 	if(const FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InElement))
 	{
 		if(SingleParentElement->ParentElement)
 		{
-			Parents.AddUnique(SingleParentElement->ParentElement);
+			Parents.Add(SingleParentElement->ParentElement);
 		}
 	}
 	else if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InElement))
 	{
+		Parents.Reserve(MultiParentElement->ParentConstraints.Num());
 		for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
 		{
-			Parents.AddUnique(ParentConstraint.ParentElement);
+			Parents.Add(ParentConstraint.ParentElement);
 		}
 	}
 
@@ -780,7 +815,7 @@ TArray<FRigBaseElement*> URigHierarchy::GetParents(const FRigBaseElement* InElem
 		const int32 CurrentNumberParents = Parents.Num();
 		for(int32 ParentIndex = 0;ParentIndex < CurrentNumberParents; ParentIndex++)
 		{
-			const TArray<FRigBaseElement*> GrandParents = GetParents(Parents[ParentIndex], bRecursive);
+			const FRigBaseElementParentArray GrandParents = GetParents(Parents[ParentIndex], bRecursive);
 			for (FRigBaseElement* GrandParent : GrandParents)
 			{
 				Parents.AddUnique(GrandParent);
@@ -1169,7 +1204,7 @@ void URigHierarchy::Traverse(FRigBaseElement* InElement, bool bTowardsChildren,
 	{
 		if(bTowardsChildren)
 		{
-			const TArray<FRigBaseElement*>& Children = GetChildren(InElement);
+			const FRigBaseElementChildrenArray& Children = GetChildren(InElement);
 			for (FRigBaseElement* Child : Children)
 			{
 				Traverse(Child, true, PerElementFunction);
@@ -1177,7 +1212,7 @@ void URigHierarchy::Traverse(FRigBaseElement* InElement, bool bTowardsChildren,
 		}
 		else
 		{
-			TArray<FRigBaseElement*> Parents = GetParents(InElement);
+			FRigBaseElementParentArray Parents = GetParents(InElement);
 			for (FRigBaseElement* Parent : Parents)
 			{
 				Traverse(Parent, false, PerElementFunction);
@@ -1895,7 +1930,7 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 			FTransform OutputTransform = FTransform::Identity;
 
 			const bool bInitial = IsInitial(InTransformType);
-			const TArray<FRigElementParentConstraint>& ParentConstraints = MultiParentElement->ParentConstraints;
+			const FRigElementParentConstraintArray& ParentConstraints = MultiParentElement->ParentConstraints;
 
 			struct Local
 			{
@@ -2821,39 +2856,95 @@ void URigHierarchy::UpdateAllCachedChildren() const
 	}
 }
 
-FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType)
+FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType, int32 InCount, int32* OutStructureSize)
 {
+	check(InCount > 0);
+	
 	FRigBaseElement* Element = nullptr;
 	switch(InElementType)
 	{
 		case ERigElementType::Bone:
 		{
-			Element = new FRigBoneElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigBoneElement);
+			}
+			FRigBoneElement* Elements = (FRigBoneElement*)FMemory::Malloc(sizeof(FRigBoneElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigBoneElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		case ERigElementType::Null:
 		{
-			Element = new FRigNullElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigNullElement);
+			}
+			FRigNullElement* Elements = (FRigNullElement*)FMemory::Malloc(sizeof(FRigNullElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigNullElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		case ERigElementType::Control:
 		{
-			Element = new FRigControlElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigControlElement);
+			}
+			FRigControlElement* Elements = (FRigControlElement*)FMemory::Malloc(sizeof(FRigControlElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigControlElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		case ERigElementType::Curve:
 		{
-			Element = new FRigCurveElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigCurveElement);
+			}
+			FRigCurveElement* Elements = (FRigCurveElement*)FMemory::Malloc(sizeof(FRigCurveElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigCurveElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		case ERigElementType::RigidBody:
 		{
-			Element = new FRigRigidBodyElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigRigidBodyElement);
+			}
+			FRigRigidBodyElement* Elements = (FRigRigidBodyElement*)FMemory::Malloc(sizeof(FRigRigidBodyElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigRigidBodyElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		case ERigElementType::Socket:
 		{
-			Element = new FRigSocketElement();
+			if(OutStructureSize)
+			{
+				*OutStructureSize = sizeof(FRigSocketElement);
+			}
+			FRigSocketElement* Elements = (FRigSocketElement*)FMemory::Malloc(sizeof(FRigSocketElement) * InCount);
+			for(int32 Index=0;Index<InCount;Index++)
+			{
+				new(&Elements[Index]) FRigSocketElement(); 
+			} 
+			Element = Elements;
 			break;
 		}
 		default:
@@ -2861,7 +2952,89 @@ FRigBaseElement* URigHierarchy::MakeElement(ERigElementType InElementType)
 			ensure(false);
 		}
 	}
+
+	if(Element)
+	{
+		Element->OwnedInstances = InCount;
+	}
 	return Element;
+}
+
+void URigHierarchy::DestroyElement(FRigBaseElement*& InElement)
+{
+	check(InElement != nullptr);
+
+	if(InElement->OwnedInstances == 0)
+	{
+		return;
+	}
+
+	const int32 Count = InElement->OwnedInstances;
+	switch(InElement->GetType())
+	{
+		case ERigElementType::Bone:
+		{
+			FRigBoneElement* Elements = Cast<FRigBoneElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigBoneElement(); 
+			}
+			break;
+		}
+		case ERigElementType::Null:
+		{
+			FRigNullElement* Elements = Cast<FRigNullElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigNullElement(); 
+			}
+			break;
+		}
+		case ERigElementType::Control:
+		{
+			FRigControlElement* Elements = Cast<FRigControlElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigControlElement(); 
+			}
+			break;
+		}
+		case ERigElementType::Curve:
+		{
+			FRigCurveElement* Elements = Cast<FRigCurveElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigCurveElement(); 
+			}
+			break;
+		}
+		case ERigElementType::RigidBody:
+		{
+			FRigRigidBodyElement* Elements = Cast<FRigRigidBodyElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigRigidBodyElement(); 
+			}
+			break;
+		}
+		case ERigElementType::Socket:
+		{
+			FRigSocketElement* Elements = Cast<FRigSocketElement>(InElement);
+			for(int32 Index=0;Index<Count;Index++)
+			{
+				Elements[Index].~FRigSocketElement(); 
+			}
+			break;
+		}
+		default:
+		{
+			ensure(false);
+			return;
+		}
+	}
+
+	FMemory::Free(InElement);
+	InElement = nullptr;
 }
 
 #if URIGHIERARCHY_RECURSIVE_DIRTY_PROPAGATION

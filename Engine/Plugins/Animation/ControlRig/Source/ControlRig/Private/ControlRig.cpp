@@ -2755,7 +2755,7 @@ UControlRig::FPoseScope::FPoseScope(UControlRig* InControlRig)
 {
 	check(InControlRig);
 
-	CachedPose = InControlRig->GetHierarchy()->GetPose();
+	CachedPose = InControlRig->GetHierarchy()->GetPose(false, ERigElementType::Control, FRigElementKeyCollection());
 
 	ControlRig = InControlRig;
 }
