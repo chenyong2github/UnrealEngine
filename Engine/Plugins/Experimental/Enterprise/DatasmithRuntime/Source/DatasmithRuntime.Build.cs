@@ -18,6 +18,7 @@ public class DatasmithRuntime : ModuleRules
 				"DatasmithContent",
 				"DatasmithCore",
 				"DatasmithNativeTranslator",
+				"DatasmithGLTFTranslator",
 				"DatasmithTranslator",
 			}
 		);

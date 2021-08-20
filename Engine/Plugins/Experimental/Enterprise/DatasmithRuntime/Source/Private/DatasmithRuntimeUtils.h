@@ -6,6 +6,7 @@
 
 #include "SceneImporter.h"
 
+#include "DatasmithDefinitions.h"
 #include "DirectLinkCommon.h"
 
 #include "Engine/StaticMesh.h"
@@ -95,7 +96,8 @@ namespace DatasmithRuntime
 
 	extern void ImageReaderInitialize();
 
-	extern bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
+	extern bool GetTextureDataFromFile(const TCHAR* Filename, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
+	extern bool GetTextureDataFromBuffer(TArray<uint8>& Bytes, EDatasmithTextureFormat Format, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
 
 	class FAssetRegistry
 	{

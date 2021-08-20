@@ -195,6 +195,16 @@ namespace DatasmithRuntime
 					{
 						AddAsset(SceneElement->GetTexture(Index), TexturePrefix, EDataType::Texture);
 					}
+					else
+					{
+						EDatasmithTextureFormat TextureFormat;
+						uint32                  ByteCount;
+
+						if (TextureElement->GetData(ByteCount, TextureFormat) != nullptr && ByteCount > 0)
+						{
+							AddAsset(SceneElement->GetTexture(Index), TexturePrefix, EDataType::Texture);
+						}
+					}
 				}
 				// #ueent_datasmithruntime: Inform user resource file does not exist
 			}

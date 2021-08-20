@@ -54,24 +54,30 @@ FDatasmithGLTFImporter::FDatasmithGLTFImporter(TSharedRef<IDatasmithScene>& OutS
     : DatasmithScene(OutScene)
 	, GLTFReader(new GLTF::FFileReader())
     , GLTFAsset(new GLTF::FAsset())
-    , MeshFactory(new GLTF::FMeshFactory())
     , MaterialFactory(new GLTF::FMaterialFactory(new FGLTFMaterialElementFactory(), new FDatasmithGLTFTextureFactory()))
     , AnimationImporter(new FDatasmithGLTFAnimationImporter(LogMessages))
-	, ImportOptions(InOptions)
 {
+	if (InOptions)
+	{
+		bGenerateLightmapUVs = InOptions->bGenerateLightmapUVs;
+		ImportScale = InOptions->ImportScale;
+	}
 }
 
 FDatasmithGLTFImporter::~FDatasmithGLTFImporter() {}
 
 void FDatasmithGLTFImporter::SetImportOptions(UDatasmithGLTFImportOptions* InOptions)
 {
-	ImportOptions = InOptions;
+	if (InOptions)
+	{
+		bGenerateLightmapUVs = InOptions->bGenerateLightmapUVs;
+		ImportScale = InOptions->ImportScale;
+	}
 }
 
 const TArray<GLTF::FLogMessage>& FDatasmithGLTFImporter::GetLogMessages() const
 {
 	LogMessages.Append(GLTFReader->GetLogMessages());
-	LogMessages.Append(MeshFactory->GetLogMessages());
 	return LogMessages;
 }
 
@@ -149,7 +155,7 @@ TSharedPtr<IDatasmithActorElement> FDatasmithGLTFImporter::CreateLightActor(int3
 			check(Light.Range > 0.f);
 			if (Light.Range)
 			{
-				Point->SetAttenuationRadius(Light.Range * ImportOptions->ImportScale);
+				Point->SetAttenuationRadius(Light.Range * ImportScale);
 			}
 			LightElement = Point;
 		}
@@ -209,7 +215,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 			MD5.Update(MaterialHash.GetBytes(), MaterialHash.GetSize());
 		}
 
-		if (ImportOptions->bGenerateLightmapUVs)
+		if (bGenerateLightmapUVs)
 		{
 			MeshElement->SetLightmapSourceUV(0);
 			MeshElement->SetLightmapCoordinateIndex(-1);
@@ -219,7 +225,7 @@ TSharedPtr<IDatasmithMeshActorElement> FDatasmithGLTFImporter::CreateStaticMeshA
 			MeshElement->SetLightmapCoordinateIndex(0);
 		}
 
-		uint8 GenerateLightmapUVs = static_cast<uint8>(ImportOptions->bGenerateLightmapUVs);
+		uint8 GenerateLightmapUVs = static_cast<uint8>(bGenerateLightmapUVs);
 		MD5.Update(&GenerateLightmapUVs, 1);
 
 		FMD5Hash Result;
@@ -304,8 +310,7 @@ bool FDatasmithGLTFImporter::SendSceneToDatasmith()
 	}
 
 	// Setup importer
-	AnimationImporter->SetUniformScale(ImportOptions->ImportScale);
-	MeshFactory->SetUniformScale(ImportOptions->ImportScale);
+	AnimationImporter->SetUniformScale(ImportScale);
 
 	FDatasmithGLTFTextureFactory& TextureFactory     = static_cast<FDatasmithGLTFTextureFactory&>(MaterialFactory->GetTextureFactory());
 	FGLTFMaterialElementFactory&  ElementFactory     = static_cast<FGLTFMaterialElementFactory&>(MaterialFactory->GetMaterialElementFactory());
@@ -345,7 +350,13 @@ void FDatasmithGLTFImporter::GetGeometriesForMeshElementAndRelease(const TShared
 		FMeshDescription MeshDescription;
 		DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-		MeshFactory->FillMeshDescription(GLTFAsset->Meshes[MeshIndex], &MeshDescription);
+		GLTF::FMeshFactory LocalMeshFactory;
+		LocalMeshFactory.SetUniformScale(ImportScale);
+
+		LocalMeshFactory.FillMeshDescription(GLTFAsset->Meshes[MeshIndex], &MeshDescription);
+
+		LogMessages.Append(LocalMeshFactory.GetLogMessages());
+		LocalMeshFactory.CleanUp();
 
 		OutMeshDescriptions.Add(MoveTemp(MeshDescription));
 	}
@@ -358,13 +369,11 @@ const TArray<TSharedRef<IDatasmithLevelSequenceElement>>& FDatasmithGLTFImporter
 
 void FDatasmithGLTFImporter::UnloadScene()
 {
-	MeshFactory->CleanUp();
 	MaterialFactory->CleanUp();
 	GLTFAsset->Clear(8 * 1024, 512);
 
 	GLTFReader.Reset(new GLTF::FFileReader());
 	GLTFAsset.Reset(new GLTF::FAsset());
-	MeshFactory.Reset(new GLTF::FMeshFactory());
 	MaterialFactory.Reset(new GLTF::FMaterialFactory(new FGLTFMaterialElementFactory(), new FDatasmithGLTFTextureFactory()));
 }
 
@@ -386,7 +395,7 @@ void FDatasmithGLTFImporter::SetActorElementTransform(TSharedPtr<IDatasmithActor
 	}
 	ActorElement->SetScale(Transform.GetScale3D());
 
-	ActorElement->SetTranslation(Transform.GetTranslation() * MeshFactory->GetUniformScale());
+	ActorElement->SetTranslation(Transform.GetTranslation() * ImportScale);
 }
 
 void FDatasmithGLTFImporter::AddActorElementChild(TSharedPtr<IDatasmithActorElement> ActorElement, const TSharedPtr<IDatasmithActorElement>& ChildNodeActor)

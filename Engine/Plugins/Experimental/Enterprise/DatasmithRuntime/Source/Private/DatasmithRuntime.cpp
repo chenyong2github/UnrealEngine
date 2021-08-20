@@ -23,6 +23,11 @@
 
 #include "Misc/Paths.h"
 
+#ifdef ASSET_DEBUG
+#include "DatasmithSceneXmlWriter.h"
+#include "HAL/FileManager.h"
+#endif
+
 const FBoxSphereBounds DefaultBounds(FVector::ZeroVector, FVector(2000), 1000);
 const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 
@@ -309,9 +314,12 @@ bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 		FPlatformProcess::SleepNoStats(0.1f);
 	}
 
-	// Temporarily manually disable load of ifc, gltf, PlmXml, Rhino and wire files
+	// Temporarily manually allow only udatasmith and GLTF file formats
 	FString Extension = FPaths::GetExtension(FilePath);
-	if (!Extension.Equals(TEXT("udatasmith"), ESearchCase::IgnoreCase))
+	if (!(Extension.Equals(TEXT("udatasmith"), ESearchCase::IgnoreCase) ||
+		Extension.Equals(TEXT("gltf"), ESearchCase::IgnoreCase) ||
+		Extension.Equals(TEXT("glb"), ESearchCase::IgnoreCase)
+		))
 	{
 		UE_LOG(LogDatasmithRuntime, Log, TEXT("Extension %s is not supported."), *Extension);
 		return false;
@@ -386,6 +394,14 @@ namespace DatasmithRuntime
 		}
 
 		DirectLink::BuildIndexForScene(&SceneElement.Get());
+
+#ifdef ASSET_DEBUG
+		{
+			TUniquePtr<FArchive> DumpFile(IFileManager::Get().CreateFileWriter(TEXT("D:\\Temp\\gltf.scene")));
+			FDatasmithSceneXmlWriter DatasmithSceneXmlWriter;
+			DatasmithSceneXmlWriter.Serialize(SceneElement, *DumpFile);
+		}
+#endif
 
 		RuntimeActor->SceneElement = SceneElement;
 		RuntimeActor->Translator = Translator;

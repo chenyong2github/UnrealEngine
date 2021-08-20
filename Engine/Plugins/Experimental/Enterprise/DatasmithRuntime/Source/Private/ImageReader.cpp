@@ -60,7 +60,7 @@ namespace DatasmithRuntime
 #endif
 	}
 
-	bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
+	bool GetTextureDataInternal(FIBITMAP* Bitmap, FREE_IMAGE_FORMAT FileType, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
 
 #if WITH_FREEIMAGE_LIB
 	void GetBitmapPixelInfo(FIBITMAP* Bitmap, int32& BitsPerPixel, int32& ChannelCount)
@@ -204,25 +204,25 @@ namespace DatasmithRuntime
 		return x;
 	}
 
-	FIBITMAP* PyramidProcess(FIBITMAP* Grey, int32 Level /*= 1*/)
+	bool PyramidProcess(FIBITMAP* Grey, int32 Level /*= 1*/)
 	{
 		int32 Height = FreeImage_GetHeight(Grey);
 		int32 Width = FreeImage_GetWidth(Grey);
 
 		if (Height <= 8 || Width <= 8 || Level >3)
 		{
-			return nullptr;
+			return false;
 		}
 
 		FIBITMAP* GreyDown = FreeImage_Rescale(Grey, Width / 4, Height / 4, FREE_IMAGE_FILTER::FILTER_LANCZOS3);
-		FIBITMAP* Previous = PyramidProcess(GreyDown, Level + 1);
 
-		if (Previous == nullptr)
+		if (!PyramidProcess(GreyDown, Level + 1))
 		{
-			return Grey;
+			FreeImage_Unload(GreyDown);
+			return true;
 		}
 
-		FIBITMAP* GreyUp = FreeImage_Rescale(Previous, Width, Height, FREE_IMAGE_FILTER::FILTER_BICUBIC);
+		FIBITMAP* GreyUp = FreeImage_Rescale(GreyDown, Width, Height, FREE_IMAGE_FILTER::FILTER_BICUBIC);
 
 		for (int32 Index = 0; Index < Height; ++Index)
 		{
@@ -235,27 +235,21 @@ namespace DatasmithRuntime
 			}
 		}
 
-		return Grey;
+		FreeImage_Unload(GreyDown);
+		FreeImage_Unload(GreyUp);
+
+		return true;
 	}
 
 	FIBITMAP* ConvertToNormalMap(FIBITMAP* Bump, bool bIsHighRange)
 	{
 		int32 Height = FreeImage_GetHeight(Bump);
 		int32 Width = FreeImage_GetWidth(Bump);
-		FIBITMAP* Grey = FreeImage_ConvertToFloat(Bump);
+		FIBITMAP* GreyPyramid = FreeImage_ConvertToFloat(Bump);
 		FIBITMAP* Normal = FreeImage_ConvertToRGBAF(Bump);
 		FreeImage_Unload(Bump);
 
-		/*for (int32 Index = 0; Index < Height; ++Index)
-		{
-		float *Bits = (float *)FFreeImageWrapper::FreeImage_GetScanLine(Grey, Index);
-		for (int32 x = 0; x < Width; x++)
-		Bits[x] = (Bits[x] * Bits[x]);
-		}*/
-
-		FIBITMAP* GreyPyramid = PyramidProcess(Grey, 1);
-
-		if (!GreyPyramid)
+		if (!PyramidProcess(GreyPyramid, 1))
 		{
 			return nullptr;
 		}
@@ -696,13 +690,13 @@ namespace DatasmithRuntime
 		}
 	}
 
-	bool GetTextureData(const TCHAR* Source, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
+	bool GetTextureDataFromFile(const TCHAR* Filename, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
 
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-		if (!PlatformFile.FileExists(Source) || FString(Source).Len() < 3)
+		if (!PlatformFile.FileExists(Filename) || FString(Filename).Len() < 3)
 		{
 			return false;
 		}
@@ -711,7 +705,7 @@ namespace DatasmithRuntime
 
 		if ( !FFreeImageWrapper::IsValid() )
 		{
-			//if(!(FFileHelper::LoadFileToArray(OutImageData, Source) && OutImageData.Num() > 0))
+			//if(!(FFileHelper::LoadFileToArray(OutImageData, Filename) && OutImageData.Num() > 0))
 			//{
 			//	return EDSTextureUtilsError::FileReadIssue;
 			//}
@@ -724,12 +718,12 @@ namespace DatasmithRuntime
 		FREE_IMAGE_FORMAT FileType = FIF_UNKNOWN;
 
 		//check the file signature and deduce its format
-		FileType = FreeImage_GetFileType(TCHAR_TO_FICHAR(Source), 0);
+		FileType = FreeImage_GetFileType(TCHAR_TO_FICHAR(Filename), 0);
 
 		//if still unknown, try to guess the file format from the file extension
 		if (FileType == FIF_UNKNOWN)
 		{
-			FileType = FreeImage_GetFIFFromFilename(TCHAR_TO_FICHAR(Source));
+			FileType = FreeImage_GetFIFFromFilename(TCHAR_TO_FICHAR(Filename));
 		}
 
 		//if still unknown, return failure
@@ -745,7 +739,63 @@ namespace DatasmithRuntime
 		}
 
 		//pointer to the FinalImage, once loaded
-		FIBITMAP* Bitmap = FreeImage_Load(FileType, TCHAR_TO_FICHAR(Source), 0);
+		FIBITMAP* Bitmap = FreeImage_Load(FileType, TCHAR_TO_FICHAR(Filename), 0);
+
+		//if the FinalImage failed to load, return failure
+		if (!Bitmap)
+		{
+			return false;
+		}
+
+		return GetTextureDataInternal(Bitmap, FileType, Mode, MaxSize, bGenerateNormalMap, TextureData);
+	}
+
+	bool GetTextureDataFromBuffer(TArray<uint8>& Bytes, EDatasmithTextureFormat Format, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
+
+		FFreeImageWrapper::FreeImage_Initialise();
+
+		if ( !FFreeImageWrapper::IsValid() )
+		{
+			//if(!(FFileHelper::LoadFileToArray(OutImageData, Filename) && OutImageData.Num() > 0))
+			//{
+			//	return EDSTextureUtilsError::FileReadIssue;
+			//}
+
+			//return EDSTextureUtilsError::FreeImageNotFound;
+			return false;
+		}
+
+		// FinalImage format
+		FREE_IMAGE_FORMAT FileType = Format == EDatasmithTextureFormat::JPEG ? FIF_JPEG : FIF_PNG;
+
+		// check that the plugin has reading capabilities and load the file
+		if (!FreeImage_FIFSupportsReading(FileType))
+		{
+			return false;
+		}
+
+		FIMEMORY *MemoryBuffer = FreeImage_OpenMemory(Bytes.GetData(), Bytes.Num());
+
+		// Ensure the file types match
+		ensure(FreeImage_GetFileTypeFromMemory(MemoryBuffer, 0) == FileType);
+
+		// pointer to the FinalImage, once loaded
+		FIBITMAP *Bitmap = FreeImage_LoadFromMemory(FileType, MemoryBuffer, 0);
+
+		// Close the memory stream
+		FreeImage_CloseMemory(MemoryBuffer);
+
+		// Safe to free array now
+		Bytes.Empty();
+
+		return GetTextureDataInternal(Bitmap, FileType, Mode, MaxSize, bGenerateNormalMap, TextureData);
+	}
+
+	bool GetTextureDataInternal(FIBITMAP *Bitmap, FREE_IMAGE_FORMAT FileType, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
 
 		//if the FinalImage failed to load, return failure
 		if (!Bitmap)

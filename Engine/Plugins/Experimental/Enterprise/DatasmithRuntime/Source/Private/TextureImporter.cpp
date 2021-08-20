@@ -26,9 +26,9 @@ namespace DatasmithRuntime
 {
 	using FDataCleanupFunc = TFunction<void(uint8*, const FUpdateTextureRegion2D*)>;
 
-	bool GetTextureData(const TCHAR* Filename, FTextureData& TextureData)
+	bool GetTextureDataForIes(const TCHAR* Filename, FTextureData& TextureData)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureData);
+		TRACE_CPUPROFILER_EVENT_SCOPE(DatasmithRuntime::GetTextureDataForIes);
 
 		TArray<uint8> Buffer;
 		if (!(FFileHelper::LoadFileToArray(Buffer, Filename) && Buffer.Num() > 0))
@@ -276,12 +276,30 @@ namespace DatasmithRuntime
 
 		if (TextureElement->GetTextureMode() == EDatasmithTextureMode::Ies)
 		{
-			bSuccessfulLoad = GetTextureData(TextureElement->GetFile(), TextureData);
+			bSuccessfulLoad = GetTextureDataForIes(TextureElement->GetFile(), TextureData);
 		}
 		else
 		{
 			const bool bCreateNormal = ( TextureElement->GetTextureMode() == EDatasmithTextureMode::Bump );
-			bSuccessfulLoad = GetTextureData(TextureElement->GetFile(), EDSResizeTextureMode::NearestPowerOfTwo, GMaxTextureDimensions, bCreateNormal, TextureData);
+			bSuccessfulLoad = GetTextureDataFromFile(TextureElement->GetFile(), EDSResizeTextureMode::NearestPowerOfTwo, GMaxTextureDimensions, bCreateNormal, TextureData);
+
+			if (!bSuccessfulLoad)
+			{
+				EDatasmithTextureFormat TextureFormat;
+				uint32                  ByteCount;
+
+				const uint8* Bytes = TextureElement->GetData(ByteCount, TextureFormat);
+
+				if (Bytes != nullptr && ByteCount > 0)
+				{
+					TArray<uint8> ByteArray;
+					ByteArray.SetNumUninitialized(ByteCount);
+					FPlatformMemory::Memcpy(ByteArray.GetData(), Bytes, ByteCount);
+
+					bSuccessfulLoad = GetTextureDataFromBuffer(ByteArray, TextureFormat, EDSResizeTextureMode::NearestPowerOfTwo, GMaxTextureDimensions, bCreateNormal, TextureData);
+				}
+
+			}
 		}
 
 		if (!bSuccessfulLoad)
