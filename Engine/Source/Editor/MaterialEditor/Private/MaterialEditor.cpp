@@ -1121,7 +1121,13 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		RefreshExpressionPreviews(true);
 		RefreshPreviewViewport();
 		TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
-		MaterialDetailsView->SetObjects(SelectedObjects, true);
+
+		// Don't set directly on color structs since the color picker will do that for us
+		FStructProperty* StructProperty = CastField<FStructProperty>(PropertyChangedEvent.Property);
+		if (!StructProperty || StructProperty->Struct->GetFName() != "LinearColor")
+		{
+			MaterialDetailsView->SetObjects(SelectedObjects, true);
+		}
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
 	}
