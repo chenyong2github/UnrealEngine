@@ -498,6 +498,15 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	.Visibility(EVisibility::Visible)
 	.ToolTipText(LOCTEXT("NodeHitCountToolTip", "This number represents the hit count for a node.\nFor functions / collapse nodes it represents the sum of all hit counts of contained nodes.\n\nYou can enable / disable the display of the number in the Class Settings\n(Rig Graph Display Settings -> Show Node Run Counts)"));
 
+	SAssignNew(InstructionDurationTextBlockWidget, STextBlock)
+	.Margin(FMargin(2.0f, 2.0f, 2.0f, 1.0f))
+	.Text(this, &SControlRigGraphNode::GetInstructionDurationText)
+	.Font(IDetailLayoutBuilder::GetDetailFont())
+	.ColorAndOpacity(FLinearColor::White)
+	.ShadowColorAndOpacity(FLinearColor(0.1f, 0.1f, 0.1f, 1.f))
+	.Visibility(EVisibility::Visible)
+	.ToolTipText(LOCTEXT("NodeDurationToolTip", "This number represents the duration in microseconds for a node.\nFor functions / collapse nodes it represents the accumulated time of contained nodes.\n\nYou can enable / disable the display of the number in the Class Settings\n(VM Runtime Settings -> Enable Profiling)"));
+
 	EdGraphNode->GetNodeTitleDirtied().BindSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
 
 	LastHighDetailSize = FVector2D::ZeroVector;
@@ -654,6 +663,13 @@ void SControlRigGraphNode::AddPin(const TSharedRef<SGraphPin>& PinToAdd)
 
 const FSlateBrush * SControlRigGraphNode::GetNodeBodyBrush() const
 {
+	if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(GetNodeObj()))
+	{
+		if(RigNode->bEnableProfiling)
+		{
+			return FEditorStyle::GetBrush("Graph.Node.TintedBody");
+		}
+	}
 	return FEditorStyle::GetBrush("Graph.Node.Body");
 }
 
@@ -1002,20 +1018,41 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 
 		if(Blueprint.IsValid())
 		{
-			if(Blueprint->RigGraphDisplaySettings.bShowNodeRunCounts)
+			const bool bShowNodeCounts = Blueprint->RigGraphDisplaySettings.bShowNodeRunCounts;
+			const bool bEnableProfiling = Blueprint->VMRuntimeSettings.bEnableProfiling;
+			
+			if(bShowNodeCounts || bEnableProfiling)
 			{
 				if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 				{
-					const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy(), false);
-					if(Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound)
+					if(bShowNodeCounts)
 					{
-						const int32 VOffset = bSelected ? -2 : 2;
-						const FVector2D TextSize = InstructionCountTextBlockWidget->GetDesiredSize();
-						FOverlayWidgetInfo Info;
-						Info.OverlayOffset = FVector2D(WidgetSize.X - TextSize.X - 8.f, VOffset - TextSize.Y);
-						Info.Widget = InstructionCountTextBlockWidget;
-						Widgets.Add(Info);
+						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						if(Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound)
+						{
+							const int32 VOffset = bSelected ? -2 : 2;
+							const FVector2D TextSize = InstructionCountTextBlockWidget->GetDesiredSize();
+							FOverlayWidgetInfo Info;
+							Info.OverlayOffset = FVector2D(WidgetSize.X - TextSize.X - 8.f, VOffset - TextSize.Y);
+							Info.Widget = InstructionCountTextBlockWidget;
+							Widgets.Add(Info);
+						}
 					}
+
+					if(bEnableProfiling)
+					{
+						const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+						if(MicroSeconds >= 0.0)
+						{
+							const int32 VOffset = bSelected ? -2 : 2;
+							const FVector2D TextSize = InstructionDurationTextBlockWidget->GetDesiredSize();
+							FOverlayWidgetInfo Info;
+							Info.OverlayOffset = FVector2D(8.f, VOffset - TextSize.Y);
+							Info.Widget = InstructionDurationTextBlockWidget;
+							Widgets.Add(Info);
+						}
+					}
+					
 				}
 			}
 		}
@@ -1071,10 +1108,33 @@ FText SControlRigGraphNode::GetInstructionCountText() const
 			{
 				if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 				{
-					const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy(), true);
+					const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy());
 					if(Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound)
 					{
 						return FText::FromString(FString::FromInt(Count));
+					}
+				}
+			}
+		}
+	}
+
+	return FText();
+}
+
+FText SControlRigGraphNode::GetInstructionDurationText() const
+{
+	if(Blueprint.IsValid())
+	{
+		if(Blueprint->VMRuntimeSettings.bEnableProfiling)
+		{
+			if (ModelNode.IsValid())
+			{
+				if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+				{
+					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+					if(MicroSeconds >= 0)
+					{
+						return FText::FromString(FString::Printf(TEXT("%d µs"), (int32)MicroSeconds));
 					}
 				}
 			}

@@ -530,6 +530,9 @@ void UControlRigBlueprint::RecompileVM()
 	
 	bErrorsDuringCompilation = false;
 
+	RigGraphDisplaySettings.MinMicroSeconds = RigGraphDisplaySettings.LastMinMicroSeconds = DBL_MAX;
+	RigGraphDisplaySettings.MaxMicroSeconds = RigGraphDisplaySettings.LastMaxMicroSeconds = (double)INDEX_NONE;
+
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 	if (CDO->VM != nullptr)
@@ -1789,6 +1792,11 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 		else if (TransactionEvent.GetChangedProperties().Contains(TEXT("DrawContainer")))
 		{
 			PropagateDrawInstructionsFromBPToInstances();
+		}
+
+		else if (TransactionEvent.GetChangedProperties().Contains(TEXT("VMRuntimeSettings")))
+		{
+			PropagateRuntimeSettingsFromBPToInstances();
 		}
 	}
 }
@@ -3344,6 +3352,43 @@ void UControlRigBlueprint::PropagateDrawInstructionsFromBPToInstances()
 			continue;
 		}
 		RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
+	}
+}
+
+void UControlRigBlueprint::PropagateRuntimeSettingsFromBPToInstances()
+{
+	if (UClass* MyControlRigClass = GeneratedClass)
+	{
+		if (UControlRig* DefaultObject = Cast<UControlRig>(MyControlRigClass->GetDefaultObject(false)))
+		{
+			DefaultObject->VMRuntimeSettings = VMRuntimeSettings;
+
+			TArray<UObject*> ArchetypeInstances;
+			DefaultObject->GetArchetypeInstances(ArchetypeInstances);
+
+			for (UObject* ArchetypeInstance : ArchetypeInstances)
+			{
+				if (UControlRig* InstanceRig = Cast<UControlRig>(ArchetypeInstance))
+				{
+					InstanceRig->VMRuntimeSettings = VMRuntimeSettings;
+				}
+			}
+		}
+	}
+
+	TArray<UEdGraph*> EdGraphs;
+	GetAllGraphs(EdGraphs);
+
+	for (UEdGraph* Graph : EdGraphs)
+	{
+		TArray<UEdGraphNode*> Nodes = Graph->Nodes;
+		for (UEdGraphNode* Node : Nodes)
+		{
+			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(Node))
+			{
+				RigNode->ReconstructNode_Internal(true);
+			}
+		}
 	}
 }
 

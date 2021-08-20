@@ -41,6 +41,9 @@ UControlRigGraphNode::UControlRigGraphNode()
 , NodeTopologyVersion(INDEX_NONE)
 , CachedTitleColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 , CachedNodeColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
+#if WITH_EDITOR
+, bEnableProfiling(false)
+#endif
 {
 	bHasCompilerMessage = false;
 	ErrorType = (int32)EMessageSeverity::Info + 1;
@@ -180,6 +183,17 @@ void UControlRigGraphNode::ReconstructNode_Internal(bool bForce)
 			return;
 		}
 	}
+
+#if WITH_EDITOR
+	bEnableProfiling = false;
+	if(RigGraph)
+	{
+		if(UControlRigBlueprint* RigBlueprint = RigGraph->GetBlueprint())
+		{
+			bEnableProfiling = RigBlueprint->VMRuntimeSettings.bEnableProfiling;
+		}
+	}
+#endif
 
 	// Clear previously set messages
 	ErrorMsg.Reset();
@@ -368,6 +382,53 @@ int32 UControlRigGraphNode::GetInstructionIndex()
 		return RigGraph->GetInstructionIndex(this);
 	}
 	return INDEX_NONE;
+}
+
+FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
+{
+#if WITH_EDITOR
+	if(bEnableProfiling)
+	{
+		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter()))
+		{
+			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+			{
+				if(URigVMNode* ModelNode = GetModelNode())
+				{
+					const double MicroSeconds = ModelNode->GetInstructionMicroSeconds(DebuggedControlRig->GetVM(), FRigVMASTProxy());
+					if(MicroSeconds >= 0.0)
+					{
+						if(Blueprint->RigGraphDisplaySettings.bAutoDetermineRange)
+						{
+							if(MicroSeconds < Blueprint->RigGraphDisplaySettings.MinMicroSeconds)
+							{
+								Blueprint->RigGraphDisplaySettings.MinMicroSeconds = MicroSeconds;
+							}
+							if(MicroSeconds > Blueprint->RigGraphDisplaySettings.MaxMicroSeconds)
+							{
+								Blueprint->RigGraphDisplaySettings.MaxMicroSeconds = MicroSeconds;
+							}
+						}
+							
+						const double MinMicroSeconds = Blueprint->RigGraphDisplaySettings.LastMinMicroSeconds;
+						const double MaxMicroSeconds = Blueprint->RigGraphDisplaySettings.LastMaxMicroSeconds;
+						if(MaxMicroSeconds <= MinMicroSeconds)
+						{
+							return FLinearColor::Black;
+						}
+			
+						const FLinearColor& MinColor = Blueprint->RigGraphDisplaySettings.MinDurationColor;
+						const FLinearColor& MaxColor = Blueprint->RigGraphDisplaySettings.MaxDurationColor;
+
+						const double T = (MicroSeconds - MinMicroSeconds) / (MaxMicroSeconds - MinMicroSeconds);
+						return FMath::Lerp<FLinearColor>(MinColor, MaxColor, (float)T);
+					}
+				}
+			}
+		}
+	}
+#endif
+	return FLinearColor::Black;
 }
 
 void UControlRigGraphNode::AllocateDefaultPins()
@@ -641,6 +702,13 @@ FLinearColor UControlRigGraphNode::GetNodeTitleColor() const
 
 FLinearColor UControlRigGraphNode::GetNodeBodyTintColor() const
 {
+#if WITH_EDITOR
+	if(bEnableProfiling)
+	{
+		return GetNodeProfilingColor();
+	}
+#endif
+	
 	return CachedNodeColor * GetNodeOpacityColor();
 }
 

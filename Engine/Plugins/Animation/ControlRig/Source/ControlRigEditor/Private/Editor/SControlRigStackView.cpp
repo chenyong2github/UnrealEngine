@@ -131,6 +131,16 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
                 .Text(this, &SRigStackItem::GetVisitedCountText)
                 .Font(IDetailLayoutBuilder::GetDetailFont())
             ]
+
+			+ SHorizontalBox::Slot()
+			.MaxWidth(80.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Right)
+            [
+                SNew(STextBlock)
+                .Text(this, &SRigStackItem::GetDurationText)
+                .Font(IDetailLayoutBuilder::GetDetailFont())
+            ]
         ], OwnerTable);
 }
 
@@ -170,6 +180,31 @@ FText SRigStackItem::GetVisitedCountText() const
 						if(Count > 0)
 						{
 							return FText::FromString(FString::FromInt(Count));
+						}
+					}
+				}
+			}
+		}
+	}
+	return FText();
+}
+
+FText SRigStackItem::GetDurationText() const
+{
+	if(WeakStackEntry.IsValid() && WeakBlueprint.IsValid())
+	{
+		if(WeakBlueprint->VMRuntimeSettings.bEnableProfiling)
+		{
+			if(WeakStackEntry.Pin()->EntryType == ERigStackEntry::Operator)
+			{
+				if(UControlRig* ControlRig = Cast<UControlRig>(WeakBlueprint->GetObjectBeingDebugged()))
+				{
+					if(URigVM* VM = ControlRig->GetVM())
+					{
+						const double MicroSeconds = VM->GetInstructionMicroSeconds(WeakStackEntry.Pin()->InstructionIndex);
+						if(MicroSeconds > 0.0)
+						{
+							return FText::FromString(FString::Printf(TEXT("%d µs"), (int32)MicroSeconds));
 						}
 					}
 				}

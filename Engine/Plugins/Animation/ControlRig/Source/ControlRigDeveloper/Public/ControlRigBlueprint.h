@@ -112,6 +112,13 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 		: bShowNodeRunCounts(false)
 		, NodeRunLowerBound(1)
 		, NodeRunLimit(64)
+		, MinMicroSeconds(0.0)
+		, MaxMicroSeconds(1.0)
+		, bAutoDetermineRange(true)
+		, LastMinMicroSeconds(0.0)
+		, LastMaxMicroSeconds(1.0)
+		, MinDurationColor(FLinearColor::Green)
+		, MaxDurationColor(FLinearColor::Red)
 	{
 	}
 
@@ -136,6 +143,31 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 	// Note: The count limit doesn't apply to functions / collapse nodes.
 	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
 	int32 NodeRunLimit;
+
+	// The duration in microseconds of the fastest instruction / node
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings", transient, meta = (EditCondition = "!bAutoDetermineRange"))
+	double MinMicroSeconds;
+
+	// The duration in microseconds of the slowest instruction / node
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings", transient, meta = (EditCondition = "!bAutoDetermineRange"))
+	double MaxMicroSeconds;
+
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	bool bAutoDetermineRange;
+
+	UPROPERTY(transient)
+	double LastMinMicroSeconds;
+
+	UPROPERTY(transient)
+	double LastMaxMicroSeconds;
+
+	// The color of the fastest instruction / node
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	FLinearColor MinDurationColor;
+
+	// The color of the slowest instruction / node
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	FLinearColor MaxDurationColor;
 };
 
 USTRUCT()
@@ -503,6 +535,7 @@ public:
 	void PropagatePoseFromBPToInstances();
 	void PropagateHierarchyFromBPToInstances();
 	void PropagateDrawInstructionsFromBPToInstances();
+	void PropagateRuntimeSettingsFromBPToInstances();
 	void PropagatePropertyFromBPToInstances(FRigElementKey InRigElement, const FProperty* InProperty);
 	void PropagatePropertyFromInstanceToBP(FRigElementKey InRigElement, const FProperty* InProperty, UControlRig* InInstance);
 

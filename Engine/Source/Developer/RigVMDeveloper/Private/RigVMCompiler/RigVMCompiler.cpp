@@ -1635,58 +1635,61 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 	if (!WorkData.bSetupMemory)
 	{
 		FRigVMByteCode& ByteCode = WorkData.VM->GetByteCode();
-		FRigVMCallstack Callstack;
+		const FRigVMASTProxy* Proxy = nullptr;
 		switch (InExpr->GetType())
 		{
 			case FRigVMExprAST::EType::CallExtern:
 			{
-				Callstack = InExpr->To<FRigVMCallExternExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMCallExternExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::NoOp:
 			{
-				Callstack = InExpr->To<FRigVMNoOpExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMNoOpExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::Var:
 			{
-				Callstack = InExpr->To<FRigVMVarExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMVarExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::Literal:
 			{
-				Callstack = InExpr->To<FRigVMLiteralExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMLiteralExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::ExternalVar:
 			{
-				Callstack = InExpr->To<FRigVMExternalVarExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMExternalVarExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::Branch:
 			{
-				Callstack = InExpr->To<FRigVMBranchExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMBranchExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::If:
 			{
-				Callstack = InExpr->To<FRigVMIfExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMIfExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::Select:
 			{
-				Callstack = InExpr->To<FRigVMSelectExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMSelectExprAST>()->GetProxy();
 				break;
 			}
 			case FRigVMExprAST::EType::Array:
 			{
-				Callstack = InExpr->To<FRigVMArrayExprAST>()->GetProxy().GetCallstack();
+				Proxy = &InExpr->To<FRigVMArrayExprAST>()->GetProxy();
 				break;
 			}
 		}
 
-		if (Callstack.Num() > 0)
+		if(Proxy != nullptr)
 		{
+			const FRigVMCallstack& Callstack = Proxy->GetCallstack();
+			ensure(Callstack.Num() > 0);
+
 			// Look at previous instructions to get the last callstack
 			const TArray<UObject*>* PreviousCallstack = nullptr;
 			int32 PreviousIndex = ByteCode.GetNumInstructions()-1;
@@ -1756,40 +1759,50 @@ void URigVMCompiler::InitializeLocalVariables(const FRigVMExprAST* InExpr, FRigV
 								if (!bAlreadyCopied)
 								{
 									ByteCode.AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
+									if(Settings.SetupNodeInstructionIndex)
+									{
+										const int32 InstructionIndex = ByteCode.GetNumInstructions() - 1;
+										WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+									}
 								}	
 							}					
 						}
 					}
 				}
 			}
-		}
 
-		// We also need to initialize local variables of the root graph (after the entry instruction is inserted)
-		// If the parent of InExpr is an entry, initialize the root graph's local variables
-		if(InExpr->NumParents() > 0 && InExpr->ParentAt(0)->GetType() == FRigVMExprAST::Entry)
-		{
-			if (UObject* Subject = ByteCode.GetSubjectForInstruction(ByteCode.GetNumInstructions()-1))
+			// We also need to initialize local variables of the root graph (after the entry instruction is inserted)
+			// If the parent of InExpr is an entry, initialize the root graph's local variables
+			if(InExpr->NumParents() > 0 && InExpr->ParentAt(0)->GetType() == FRigVMExprAST::Entry)
 			{
-				URigVMNode* Node = Cast<URigVMNode>(Subject);
-				if (!Node)
+				if (UObject* Subject = ByteCode.GetSubjectForInstruction(ByteCode.GetNumInstructions()-1))
 				{
-					URigVMPin* Pin = Cast<URigVMPin>(Subject);
-					Node = Pin->GetNode();
-				}
-				if (Node)
-				{
-					for (FRigVMGraphVariableDescription Variable : Node->GetGraph()->LocalVariables)
+					URigVMNode* Node = Cast<URigVMNode>(Subject);
+					if (!Node)
 					{
-						FString TargetPath = FString::Printf(TEXT("LocalVariable::%s"), *Variable.Name.ToString());
-						FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::|%s::Const"), *Variable.Name.ToString());
-						FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
-						FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
-						if (SourcePtr && TargetPtr)
+						URigVMPin* Pin = Cast<URigVMPin>(Subject);
+						Node = Pin->GetNode();
+					}
+					if (Node)
+					{
+						for (FRigVMGraphVariableDescription Variable : Node->GetGraph()->LocalVariables)
 						{
-							const FRigVMOperand& Source = *SourcePtr;
-							const FRigVMOperand& Target = *TargetPtr;
-							ByteCode.AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
-						}					
+							FString TargetPath = FString::Printf(TEXT("LocalVariable::%s"), *Variable.Name.ToString());
+							FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::|%s::Const"), *Variable.Name.ToString());
+							FRigVMOperand* TargetPtr = WorkData.PinPathToOperand->Find(TargetPath);
+							FRigVMOperand* SourcePtr = WorkData.PinPathToOperand->Find(SourcePath);
+							if (SourcePtr && TargetPtr)
+							{
+								const FRigVMOperand& Source = *SourcePtr;
+								const FRigVMOperand& Target = *TargetPtr;
+								ByteCode.AddCopyOp(WorkData.VM->GetCopyOpForOperands(Source, Target));
+								if(Settings.SetupNodeInstructionIndex)
+								{
+									const int32 InstructionIndex = ByteCode.GetNumInstructions() - 1;
+									WorkData.VM->GetByteCode().SetSubject(InstructionIndex, Callstack.GetCallPath(), Callstack.GetStack());
+								}
+							}					
+						}
 					}
 				}
 			}

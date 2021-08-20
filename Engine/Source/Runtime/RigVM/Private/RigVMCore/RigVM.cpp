@@ -74,6 +74,7 @@ URigVM::URigVM()
 	, LiteralMemoryStorageObject(nullptr)
 	, DebugMemoryStorageObject(nullptr)
 	, ByteCodePtr(&ByteCodeStorage)
+	, NumExecutions(0)
 #if WITH_EDITOR
 	, DebugInfo(nullptr)
 	, HaltedAtBreakpoint(nullptr)
@@ -551,6 +552,7 @@ void URigVM::Reset()
 	InvalidateCachedMemory();
 	
 	OperandToDebugRegisters.Reset();
+	NumExecutions = 0;
 }
 
 void URigVM::Empty()
@@ -1860,6 +1862,15 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 		InstructionVisitedDuringLastRun.Reset();
 		InstructionVisitOrder.Reset();
 		InstructionVisitedDuringLastRun.SetNumZeroed(Instructions.Num());
+		InstructionCyclesDuringLastRun.Reset();
+		if(Context.RuntimeSettings.bEnableProfiling)
+		{
+			InstructionCyclesDuringLastRun.SetNumUninitialized(Instructions.Num());
+			for(int32 DurationIndex=0;DurationIndex<InstructionCyclesDuringLastRun.Num();DurationIndex++)
+			{
+				InstructionCyclesDuringLastRun[DurationIndex] = UINT64_MAX;
+			}
+		}
 	}
 #endif
 
@@ -1887,6 +1898,14 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	}
 #endif
 
+	NumExecutions++;
+
+	uint64 StartCycles = 0;
+	if(Context.RuntimeSettings.bEnableProfiling)
+	{
+		StartCycles = FPlatformTime::Cycles64();
+	}
+
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
 #if WITH_EDITOR
@@ -1894,9 +1913,11 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 		{
 			return true;
 		}
-		
+
+		const int32 CurrentInstructionIndex = Context.InstructionIndex;
 		InstructionVisitedDuringLastRun[Context.InstructionIndex]++;
 		InstructionVisitOrder.Add(Context.InstructionIndex);
+	
 #endif
 
 		const FRigVMInstruction& Instruction = Instructions[Context.InstructionIndex];
@@ -2916,6 +2937,24 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 				return false;
 			}
 		}
+
+#if WITH_EDITOR
+		if(Context.RuntimeSettings.bEnableProfiling && !InstructionVisitOrder.IsEmpty())
+		{
+			const uint64 EndCycles = FPlatformTime::Cycles64();
+			const uint64 Cycles = EndCycles - StartCycles;
+			if(InstructionCyclesDuringLastRun[CurrentInstructionIndex] == UINT64_MAX)
+			{
+				InstructionCyclesDuringLastRun[CurrentInstructionIndex] = Cycles;
+			}
+			else
+			{
+				InstructionCyclesDuringLastRun[CurrentInstructionIndex] += Cycles;
+			}
+
+			StartCycles = EndCycles;
+		}
+#endif
 	}
 
 #if WITH_EDITOR
