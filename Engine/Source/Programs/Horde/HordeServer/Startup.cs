@@ -565,7 +565,11 @@ namespace HordeServer
 
 			Services.AddMvc().AddJsonOptions(Options => ConfigureJsonSerializer(Options.JsonSerializerOptions));
 
-			Services.AddControllers();
+			Services.AddControllers(Options =>
+			{
+				Options.InputFormatters.Insert(0, new CbInputFormatter());
+				Options.OutputFormatters.Insert(0, new CbOutputFormatter());
+			});
 
 			Services.AddSwaggerGen(Config =>
 			{

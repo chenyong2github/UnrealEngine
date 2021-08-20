@@ -50,7 +50,7 @@ namespace HordeServer.Compute.Impl
 		[Route("/api/v1/compute/{ChannelId}")]
 		public async Task AddTasksAsync([FromRoute] string ChannelId, [FromBody] AddTasksRequest Request)
 		{
-			await ComputeService.AddTasksAsync(Impl.ComputeService.DefaultNamespaceId, IoHash.Parse(Request.RequirementsHash), Request.TaskHashes.ConvertAll(x => IoHash.Parse(x)), new ChannelId(ChannelId));
+			await ComputeService.AddTasksAsync(Impl.ComputeService.DefaultNamespaceId, Request.RequirementsHash, Request.TaskHashes, new ChannelId(ChannelId));
 		}
 
 		/// <summary>
@@ -80,10 +80,10 @@ namespace HordeServer.Compute.Impl
 			{
 				GetTaskUpdateResponse Update = new GetTaskUpdateResponse();
 
-				Update.TaskHash = Result.TaskHash.ToString();
+				Update.TaskHash = Result.TaskHash;
 				Update.Time = Result.Time;
 				Update.State = Result.State;
-				Update.ResultHash = Result.ResultHash?.ToString();
+				Update.ResultHash = Result.ResultHash;
 				Update.AgentId = Result.AgentId?.ToString();
 				Update.LeaseId = Result.LeaseId?.ToString();
 

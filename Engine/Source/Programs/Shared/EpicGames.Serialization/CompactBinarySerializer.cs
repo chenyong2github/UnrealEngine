@@ -177,6 +177,19 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Serialize an object
 		/// </summary>
+		/// <param name="Type">Type of the object to serialize</param>
+		/// <param name="Value"></param>
+		/// <returns></returns>
+		public static CbObject Serialize(Type Type, object Value)
+		{
+			CbWriter Writer = new CbWriter();
+			GetConverter(Type).WriteObject(Writer, Value);
+			return Writer.ToObject();
+		}
+
+		/// <summary>
+		/// Serialize an object
+		/// </summary>
 		/// <typeparam name="T"></typeparam>
 		/// <param name="Value"></param>
 		/// <returns></returns>
@@ -208,6 +221,17 @@ namespace EpicGames.Serialization
 		public static void Serialize<T>(CbWriter Writer, Utf8String Name, T Value)
 		{
 			GetConverter<T>().WriteNamed(Writer, Name, Value);
+		}
+
+		/// <summary>
+		/// Deserialize an object from a <see cref="CbObject"/>
+		/// </summary>
+		/// <param name="Field"></param>
+		/// <param name="Type">Type of the object to read</param>
+		/// <returns></returns>
+		public static object? Deserialize(CbField Field, Type Type)
+		{
+			return GetConverter(Type).ReadObject(Field);
 		}
 
 		/// <summary>
