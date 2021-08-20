@@ -97,9 +97,9 @@ bool UNeuralNetwork::FImpl::ConfigureMembers(const ENeuralDeviceType InDeviceTyp
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("Some error occurred."));
 			return false;
 		}
+		return true; // @todo: Remove this line when NNI_HLSL is working
 #else
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork: GPU mode only supported in Windows for now. Please, switch to CPU or to Windows."));
-		return false;
 
 		//SessionOptions->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_DISABLE_ALL); // ORT_ENABLE_ALL, ORT_ENABLE_EXTENDED, ORT_ENABLE_BASIC, ORT_DISABLE_ALL
 		//if (OrtSessionOptionsAppendExecutionProvider_NNI_HLSL(*SessionOptions, 0))
@@ -110,7 +110,7 @@ bool UNeuralNetwork::FImpl::ConfigureMembers(const ENeuralDeviceType InDeviceTyp
 #endif //PLATFORM_WIN64
 	}
 	// CPU
-	else
+	//else // @todo: Uncomment this line when NNI_HLSL is working
 	{
 #ifdef WITH_NNI_CPU_NOT_RECOMMENDED
 		// NNI CPU (Deprecated)
