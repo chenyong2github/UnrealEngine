@@ -2059,6 +2059,7 @@ protected:
 protected:
 	virtual const FTypeLayoutDesc& GetContentTypeDesc() const = 0;
 	virtual FShaderMapPointerTable* CreatePointerTable() const = 0;
+	virtual void PostFinalizeContent() { }
 
 private:
 #if WITH_EDITOR

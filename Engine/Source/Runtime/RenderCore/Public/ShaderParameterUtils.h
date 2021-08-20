@@ -604,8 +604,8 @@ inline void SetUniformBufferParameterImmediate(
 	checkSlow(Parameter.IsInitialized());
 	if(Parameter.IsBound())
 	{
-		const FRHIUniformBufferLayout& UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayout();
-		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout.ConstantBufferSize, UniformBufferLayout);
+		const FRHIUniformBufferLayout* UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayoutPtr();
+		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout->ConstantBufferSize, UniformBufferLayout);
 
 		RHICmdList.SetLocalShaderUniformBuffer(
 			Shader,
@@ -627,8 +627,8 @@ inline void SetUniformBufferParameterImmediate(
 	checkSlow(Parameter.IsInitialized());
 	if(Parameter.IsBound())
 	{
-		const FRHIUniformBufferLayout& UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayout();
-		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout.ConstantBufferSize, UniformBufferLayout);
+		const FRHIUniformBufferLayout* UniformBufferLayout = TBufferStruct::StaticStructMetadata.GetLayoutPtr();
+		FLocalUniformBuffer UniformBuffer = RHICmdList.BuildLocalUniformBuffer(&UniformBufferValue, UniformBufferLayout->ConstantBufferSize, UniformBufferLayout);
 
 		RHICmdList.SetLocalShaderUniformBuffer(
 			Shader,

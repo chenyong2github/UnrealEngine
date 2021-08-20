@@ -35,7 +35,7 @@ static void DoUpdateUniformBuffer(FAGXUniformBuffer* UB, const void* Contents)
     }
 }
 
-FUniformBufferRHIRef FAGXDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FAGXDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
     FAGXDeviceContext& DeviceContext = (FAGXDeviceContext&)GetAGXDeviceContext();
     FAGXFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();

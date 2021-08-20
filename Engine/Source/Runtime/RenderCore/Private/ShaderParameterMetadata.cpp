@@ -292,8 +292,10 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	const int32 InFileLine,
 	uint32 InSize,
 	const TArray<FMember>& InMembers,
-	bool bForceCompleteInitialization)
-	: StructTypeName(InStructTypeName)
+	bool bForceCompleteInitialization,
+	FRHIUniformBufferLayoutInitializer* OutLayoutInitializer)
+	: LayoutName(InLayoutName)
+	, StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
 	, StaticSlotName(InStaticSlotName)
 	, ShaderVariableHashedName(InShaderVariableName)
@@ -302,10 +304,8 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	, Size(InSize)
 	, UseCase(InUseCase)
 	, BindingFlags(InBindingFlags)
-	, Layout(InLayoutName)
 	, Members(InMembers)
 	, GlobalListLink(this)
-	, bLayoutInitialized(false)
 {
 	checkf(UseCase == EUseCase::UniformBuffer || !EnumHasAnyFlags(BindingFlags, EUniformBufferBindingFlags::Static), TEXT("Only uniform buffers can utilize the global binding flag."));
 
@@ -365,7 +365,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		// We cannot initialize the layout during global initialization, since we have to walk nested struct members.
 		// Structs created during global initialization will have bRegisterForAutoBinding==false, and are initialized during startup.
 		// Structs created at runtime with bRegisterForAutoBinding==true can be initialized now.
-		InitializeLayout();
+		InitializeLayout(OutLayoutInitializer);
 	}
 }
 
@@ -386,7 +386,7 @@ FShaderParametersMetadata::~FShaderParametersMetadata()
 		GetGlobalShaderVariableToStructMap().Remove(FName(ShaderVariableName, FNAME_Find));
 #endif
 
-		if (bLayoutInitialized)
+		if (IsLayoutInitialized())
 		{
 			GetLayoutHashStructMap().Remove(GetLayout().GetHash());
 		}
@@ -398,17 +398,20 @@ void FShaderParametersMetadata::InitializeAllUniformBufferStructs()
 {
 	for (TLinkedList<FShaderParametersMetadata*>::TIterator StructIt(FShaderParametersMetadata::GetStructList()); StructIt; StructIt.Next())
 	{
-		if (!StructIt->bLayoutInitialized)
+		if (!StructIt->IsLayoutInitialized())
 		{
 			StructIt->InitializeLayout();
 		}
 	}
 }
 
-void FShaderParametersMetadata::InitializeLayout()
+void FShaderParametersMetadata::InitializeLayout(FRHIUniformBufferLayoutInitializer* OutLayoutInitializer)
 {
-	check(!bLayoutInitialized);
-	Layout.ConstantBufferSize = Size;
+	check(!IsLayoutInitialized());
+
+	FRHIUniformBufferLayoutInitializer LocalLayoutInitializer(LayoutName);
+	FRHIUniformBufferLayoutInitializer& LayoutInitializer = OutLayoutInitializer ? *OutLayoutInitializer : LocalLayoutInitializer;
+	LayoutInitializer.ConstantBufferSize = Size;
 
 	if (StaticSlotName)
 	{
@@ -425,8 +428,8 @@ void FShaderParametersMetadata::InitializeLayout()
 			TEXT("Uniform buffer of type '%s' and shader name '%s' attempted to reference static slot '%s', but the slot could not be found in the registry."),
 			StructTypeName, ShaderVariableName, StaticSlotName);
 
-		Layout.StaticSlot = StaticSlot;
-		Layout.BindingFlags = BindingFlags;
+		LayoutInitializer.StaticSlot = StaticSlot;
+		LayoutInitializer.BindingFlags = BindingFlags;
 	}
 	else
 	{
@@ -619,42 +622,42 @@ void FShaderParametersMetadata::InitializeLayout()
 			for (uint32 ArrayElementId = 0; ArrayElementId < (bIsArray ? ArraySize : 1u); ArrayElementId++)
 			{
 				const uint32 AbsoluteMemberOffset = CurrentMember.GetOffset() + MemberStack[i].StructOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
-				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferLayout::FResourceParameter::MemberOffset) * 8)));
-				const FRHIUniformBufferLayout::FResourceParameter ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
+				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferResource::MemberOffset) * 8)));
+				const FRHIUniformBufferResource ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
 
-				Layout.Resources.Add(ResourceParameter);
+				LayoutInitializer.Resources.Add(ResourceParameter);
 
 				if (IsRDGTextureReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
 				{
-					Layout.GraphResources.Add(ResourceParameter);
-					Layout.GraphTextures.Add(ResourceParameter);
+					LayoutInitializer.GraphResources.Add(ResourceParameter);
+					LayoutInitializer.GraphTextures.Add(ResourceParameter);
 
 					if (BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
 					{
-						checkf(!Layout.HasRenderTargets(), TEXT("Shader parameter struct %s has multiple render target binding slots."), GetStructTypeName());
-						Layout.RenderTargetsOffset = ResourceParameter.MemberOffset;
+						checkf(!LayoutInitializer.HasRenderTargets(), TEXT("Shader parameter struct %s has multiple render target binding slots."), GetStructTypeName());
+						LayoutInitializer.RenderTargetsOffset = ResourceParameter.MemberOffset;
 					}
 				}
 				else if (IsRDGBufferReferenceShaderParameterType(BaseType))
 				{
-					Layout.GraphResources.Add(ResourceParameter);
-					Layout.GraphBuffers.Add(ResourceParameter);
+					LayoutInitializer.GraphResources.Add(ResourceParameter);
+					LayoutInitializer.GraphBuffers.Add(ResourceParameter);
 				}
 				else if (BaseType == UBMT_RDG_UNIFORM_BUFFER)
 				{
-					Layout.GraphResources.Add(ResourceParameter);
-					Layout.GraphUniformBuffers.Add(ResourceParameter);
+					LayoutInitializer.GraphResources.Add(ResourceParameter);
+					LayoutInitializer.GraphUniformBuffers.Add(ResourceParameter);
 				}
 				else if (BaseType == UBMT_REFERENCED_STRUCT)
 				{
-					Layout.UniformBuffers.Add(ResourceParameter);
+					LayoutInitializer.UniformBuffers.Add(ResourceParameter);
 				}
 			}
 		}
 
 		if (BaseType == UBMT_UAV)
 		{
-			Layout.bHasNonGraphOutputs = true;
+			LayoutInitializer.bHasNonGraphOutputs = true;
 		}
 		else if (BaseType == UBMT_REFERENCED_STRUCT || BaseType == UBMT_RDG_UNIFORM_BUFFER)
 		{
@@ -664,7 +667,7 @@ void FShaderParametersMetadata::InitializeLayout()
 				{
 					if (Member.GetBaseType() == UBMT_UAV)
 					{
-						Layout.bHasNonGraphOutputs = true;
+						LayoutInitializer.bHasNonGraphOutputs = true;
 					}
 				}
 			}
@@ -686,15 +689,15 @@ void FShaderParametersMetadata::InitializeLayout()
 	}
 
 	const auto ByMemberOffset = [](
-		const FRHIUniformBufferLayout::FResourceParameter& A,
-		const FRHIUniformBufferLayout::FResourceParameter& B)
+		const FRHIUniformBufferResource& A,
+		const FRHIUniformBufferResource& B)
 	{
 		return A.MemberOffset < B.MemberOffset;
 	};
 
 	const auto ByTypeThenMemberOffset = [](
-		const FRHIUniformBufferLayout::FResourceParameter& A,
-		const FRHIUniformBufferLayout::FResourceParameter& B)
+		const FRHIUniformBufferResource& A,
+		const FRHIUniformBufferResource& B)
 	{
 		if (A.MemberType == B.MemberType)
 		{
@@ -703,15 +706,15 @@ void FShaderParametersMetadata::InitializeLayout()
 		return A.MemberType < B.MemberType;
 	};
 
-	Layout.Resources.Sort(ByMemberOffset);
-	Layout.GraphResources.Sort(ByMemberOffset);
-	Layout.GraphTextures.Sort(ByTypeThenMemberOffset);
-	Layout.GraphBuffers.Sort(ByTypeThenMemberOffset);
-	Layout.GraphUniformBuffers.Sort(ByMemberOffset);
-	Layout.UniformBuffers.Sort(ByMemberOffset);
+	LayoutInitializer.Resources.Sort(ByMemberOffset);
+	LayoutInitializer.GraphResources.Sort(ByMemberOffset);
+	LayoutInitializer.GraphTextures.Sort(ByTypeThenMemberOffset);
+	LayoutInitializer.GraphBuffers.Sort(ByTypeThenMemberOffset);
+	LayoutInitializer.GraphUniformBuffers.Sort(ByMemberOffset);
+	LayoutInitializer.UniformBuffers.Sort(ByMemberOffset);
 
 	// Compute the hash of the RHI layout.
-	Layout.ComputeHash();
+	LayoutInitializer.ComputeHash();
 	
 	// Compute the hash about the entire layout of the structure.
 	{
@@ -745,7 +748,7 @@ void FShaderParametersMetadata::InitializeLayout()
 			}
 			else if (BaseType == UBMT_INCLUDED_STRUCT || BaseType == UBMT_NESTED_STRUCT)
 			{
-				if (!ChildStruct->bLayoutInitialized)
+				if (!ChildStruct->IsLayoutInitialized())
 				{
 					const_cast<FShaderParametersMetadata*>(ChildStruct)->InitializeLayout();
 				}
@@ -765,10 +768,10 @@ void FShaderParametersMetadata::InitializeLayout()
 
 	if (UseCase == EUseCase::UniformBuffer)
 	{
-		GetLayoutHashStructMap().Emplace(Layout.GetHash(), this);
+		GetLayoutHashStructMap().Emplace(LayoutInitializer.GetHash(), this);
 	}
 
-	bLayoutInitialized = true;
+	Layout = new FRHIUniformBufferLayout(LayoutInitializer);
 }
 
 void FShaderParametersMetadata::GetNestedStructs(TArray<const FShaderParametersMetadata*>& OutNestedStructs) const
@@ -795,7 +798,7 @@ void FShaderParametersMetadata::AddResourceTableEntries(TMap<FString, FResourceT
 	
 	FUniformBufferEntry UniformBufferEntry;
 	UniformBufferEntry.StaticSlotName = StaticSlotName;
-	UniformBufferEntry.LayoutHash = Layout.GetHash();
+	UniformBufferEntry.LayoutHash = GetLayout().GetHash();
 	UniformBufferEntry.BindingFlags = BindingFlags;
 	UniformBufferMap.Add(ShaderVariableName, UniformBufferEntry);
 }

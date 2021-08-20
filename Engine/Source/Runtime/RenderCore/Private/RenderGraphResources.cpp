@@ -168,8 +168,8 @@ void FRDGUniformBuffer::InitRHI()
 		EUniformBufferValidation::None;
 #endif
 
-	const FRDGParameterStruct PassParameters = GetParameters();
-	UniformBufferRHI = RHICreateUniformBuffer(PassParameters.GetContents(), PassParameters.GetLayout(), UniformBuffer_SingleFrame, Validation);
+	const FRDGParameterStruct& PassParameters = GetParameters();
+	UniformBufferRHI = RHICreateUniformBuffer(PassParameters.GetContents(), PassParameters.GetLayoutPtr(), UniformBuffer_SingleFrame, Validation);
 	ResourceRHI = UniformBufferRHI;
 }
 

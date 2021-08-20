@@ -35,7 +35,7 @@ static void DoUpdateUniformBuffer(FMetalUniformBuffer* UB, const void* Contents)
     }
 }
 
-FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FMetalDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
     FMetalDeviceContext& DeviceContext = (FMetalDeviceContext&)GetMetalDeviceContext();
     FMetalFrameAllocator* UniformAllocator = DeviceContext.GetUniformAllocator();

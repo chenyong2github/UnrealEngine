@@ -708,10 +708,7 @@ void FMaterialParameterCollectionInstanceResource::GameThread_Destroy()
 	);
 }
 
-FMaterialParameterCollectionInstanceResource::FMaterialParameterCollectionInstanceResource() :
-	UniformBufferLayout(TEXT("MaterialParameterCollectionInstanceResource"))
-{
-}
+FMaterialParameterCollectionInstanceResource::FMaterialParameterCollectionInstanceResource() = default;
 
 FMaterialParameterCollectionInstanceResource::~FMaterialParameterCollectionInstanceResource()
 {
@@ -726,18 +723,22 @@ void FMaterialParameterCollectionInstanceResource::UpdateContents(const FGuid& I
 	if (InId != FGuid() && Data.Num() > 0)
 	{
 		const uint32 NewSize = Data.GetTypeSize() * Data.Num();
-		check(UniformBufferLayout.Resources.Num() == 0);
+		check(UniformBufferLayout == nullptr || UniformBufferLayout->Resources.Num() == 0);
 
 		if (!bRecreateUniformBuffer && IsValidRef(UniformBuffer))
 		{
-			check(NewSize == UniformBufferLayout.ConstantBufferSize);
-			check(UniformBuffer->GetLayout() == UniformBufferLayout);
+			check(NewSize == UniformBufferLayout->ConstantBufferSize);
+			check(UniformBuffer->GetLayoutPtr() == UniformBufferLayout);
 			RHIUpdateUniformBuffer(UniformBuffer, Data.GetData());
 		}
 		else
 		{
-			UniformBufferLayout.ConstantBufferSize = NewSize;
-			UniformBufferLayout.ComputeHash();
+			FRHIUniformBufferLayoutInitializer UniformBufferLayoutInitializer(TEXT("MaterialParameterCollectionInstanceResource"));
+			UniformBufferLayoutInitializer.ConstantBufferSize = NewSize;
+			UniformBufferLayoutInitializer.ComputeHash();
+
+			UniformBufferLayout = RHICreateUniformBufferLayout(UniformBufferLayoutInitializer);
+
 			UniformBuffer = RHICreateUniformBuffer(Data.GetData(), UniformBufferLayout, UniformBuffer_MultiFrame);
 		}
 	}

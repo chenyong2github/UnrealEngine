@@ -60,6 +60,8 @@ void FShaderMapBase::AssignContent(TMemoryImageObject<FShaderMapContent> InConte
 
 	Content = InContent;
 	PointerTable = CreatePointerTable();
+
+	PostFinalizeContent();
 }
 
 void FShaderMapBase::AssignCopy(const FShaderMapBase& Source)
@@ -99,6 +101,7 @@ void FShaderMapBase::InitResource()
 		Resource = new FShaderMapResource_InlineCode(GetShaderPlatform(), Code);
 		BeginInitResource(Resource);
 	}
+	PostFinalizeContent();
 }
 
 void FShaderMapBase::FinalizeContent()
@@ -224,6 +227,7 @@ bool FShaderMapBase::Serialize(FArchive& Ar, bool bInlineShaderResources, bool b
 			{
 				Content.Freeze(PointerTable);
 			}
+			PostFinalizeContent();
 
 			NumFrozenShaders = Content.Object->GetNumShaders();
 			INC_DWORD_STAT_BY(STAT_Shaders_ShaderMemory, Content.FrozenSize);

@@ -92,7 +92,7 @@ static void UpdateUniformBufferHelper(FVulkanCommandListContext& Context, FVulka
 	}
 };
 
-FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout& InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation)
+FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUniformBufferLayout* InLayout, const void* Contents, EUniformBufferUsage InUsage, EUniformBufferValidation Validation)
 	: FRHIUniformBuffer(InLayout)
 	, Device(&Device) 
 	, Usage(InUsage)
@@ -104,10 +104,10 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 	// Verify the correctness of our thought pattern how the resources are delivered
 	//	- If we have at least one resource, we also expect ResourceOffset to have an offset
 	//	- Meaning, there is always a uniform buffer with a size specified larged than 0 bytes
-	check(InLayout.Resources.Num() > 0 || InLayout.ConstantBufferSize > 0);
+	check(InLayout->Resources.Num() > 0 || InLayout->ConstantBufferSize > 0);
 
 	// Setup resource table
-	const uint32 NumResources = InLayout.Resources.Num();
+	const uint32 NumResources = InLayout->Resources.Num();
 	if (NumResources > 0)
 	{
 		// Transfer the resource table to an internal resource-array
@@ -115,17 +115,17 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 		ResourceTable.AddZeroed(NumResources);
 		for (uint32 Index = 0; Index < NumResources; ++Index)
 		{
-			ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, InLayout.Resources[Index].MemberOffset, InLayout.Resources[Index].MemberType);
+			ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, InLayout->Resources[Index].MemberOffset, InLayout->Resources[Index].MemberType);
 		}
 	}
 
-	if (InLayout.ConstantBufferSize > 0)
+	if (InLayout->ConstantBufferSize > 0)
 	{
 		if (UseRingBuffer(InUsage))
 		{
 			FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 			FVulkanUniformBuffer* UniformBuffer = this;
-			int32 DataSize = InLayout.ConstantBufferSize;
+			int32 DataSize = InLayout->ConstantBufferSize;
 			
 			// make sure we allocate from RingBuffer on RHIT
 			const bool bCanAllocOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
@@ -152,7 +152,7 @@ FVulkanUniformBuffer::FVulkanUniformBuffer(FVulkanDevice& Device, const FRHIUnif
 		{
 			VulkanRHI::FMemoryManager& ResourceMgr = Device.GetMemoryManager();
 			// Set it directly as there is no previous one
-			ResourceMgr.AllocUniformBuffer(Allocation, InLayout.ConstantBufferSize, Contents);
+			ResourceMgr.AllocUniformBuffer(Allocation, InLayout->ConstantBufferSize, Contents);
 		}
 	}
 }
@@ -184,7 +184,7 @@ void FVulkanUniformBuffer::UpdateResourceTable(FRHIResource** Resources, int32 R
 }
 
 
-FUniformBufferRHIRef FVulkanDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FVulkanDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	LLM_SCOPE_VULKAN(ELLMTagVulkan::VulkanUniformBuffers);
 

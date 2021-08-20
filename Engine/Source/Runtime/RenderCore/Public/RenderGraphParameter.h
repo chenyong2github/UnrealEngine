@@ -214,7 +214,7 @@ class RENDERCORE_API FRDGParameterStruct
 public:
 	template <typename ParameterStructType>
 	explicit FRDGParameterStruct(const ParameterStructType* Parameters)
-		: FRDGParameterStruct(Parameters, &ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayout())
+		: FRDGParameterStruct(Parameters, ParameterStructType::FTypeInfo::GetStructMetadata()->GetLayoutPtr())
 	{}
 
 	explicit FRDGParameterStruct(const void* InContents, const FRHIUniformBufferLayout* InLayout)
@@ -229,6 +229,7 @@ public:
 
 	/** Returns the layout associated with this struct. */
 	const FRHIUniformBufferLayout& GetLayout() const { return *Layout; }
+	const FRHIUniformBufferLayout* GetLayoutPtr() const { return Layout; }
 
 	/** Helpful forwards from the layout. */
 	FORCEINLINE bool HasRenderTargets() const   { return Layout->HasRenderTargets(); }
@@ -277,7 +278,7 @@ public:
 	FRHIRenderPassInfo GetRenderPassInfo() const;
 
 private:
-	FRDGParameter GetParameterInternal(TArrayView<const FRHIUniformBufferLayout::FResourceParameter> Parameters, uint32 ParameterIndex) const
+	FRDGParameter GetParameterInternal(TArrayView<const FRHIUniformBufferResource> Parameters, uint32 ParameterIndex) const
 	{
 		checkf(ParameterIndex < static_cast<uint32>(Parameters.Num()), TEXT("Attempted to access RDG pass parameter outside of index for Layout '%s'"), *Layout->GetDebugName());
 		const EUniformBufferBaseType MemberType = Parameters[ParameterIndex].MemberType;
@@ -286,7 +287,7 @@ private:
 	}
 
 	const uint8* Contents;
-	const FRHIUniformBufferLayout* Layout;
+	FUniformBufferLayoutRHIRef Layout;
 
 	friend class FRDGPass;
 };

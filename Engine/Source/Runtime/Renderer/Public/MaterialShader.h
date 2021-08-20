@@ -148,6 +148,6 @@ private:
 
 protected:
 	LAYOUT_FIELD_EDITORONLY(FDebugUniformExpressionSet, DebugUniformExpressionSet);
-	LAYOUT_FIELD_EDITORONLY(FRHIUniformBufferLayout, DebugUniformExpressionUBLayout);
+	LAYOUT_FIELD_EDITORONLY(FRHIUniformBufferLayoutInitializer, DebugUniformExpressionUBLayout);
 	LAYOUT_FIELD_EDITORONLY(FMemoryImageString, DebugDescription);
 };

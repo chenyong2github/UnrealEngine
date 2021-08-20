@@ -164,17 +164,17 @@ static TRefCountPtr<ID3D11Buffer> CreateAndUpdatePooledUniformBuffer(
 	return UniformBufferResource;
 }
 
-FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	check(IsInRenderingThread() || IsInRHIThread());
 
 	if (Validation == EUniformBufferValidation::ValidateResources)
 	{
-		ValidateShaderParameterResourcesRHI(Contents, Layout);
+		ValidateShaderParameterResourcesRHI(Contents, *Layout);
 	}
 
 	FD3D11UniformBuffer* NewUniformBuffer = nullptr;
-	const uint32 NumBytes = Layout.ConstantBufferSize;
+	const uint32 NumBytes = Layout->ConstantBufferSize;
 	if (NumBytes > 0)
 	{
 		// Constant buffers must also be 16-byte aligned.
@@ -245,16 +245,15 @@ FUniformBufferRHIRef FD3D11DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		NewUniformBuffer = new FD3D11UniformBuffer(this, Layout, nullptr, FRingAllocation());
 	}
 
-	const TCHAR* LayoutName = *Layout.GetDebugName();
-	if (Layout.Resources.Num())
+	if (Layout->Resources.Num())
 	{
-		const int32 ResourceCount = Layout.Resources.Num();
+		const int32 ResourceCount = Layout->Resources.Num();
 		NewUniformBuffer->ResourceTable.Empty(ResourceCount);
 		NewUniformBuffer->ResourceTable.AddZeroed(ResourceCount);
 
 		for (int32 Index = 0; Index < ResourceCount; ++Index)
 		{
-			const auto ResourceParameter = Layout.Resources[Index];
+			const auto ResourceParameter = Layout->Resources[Index];
 			NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, ResourceParameter.MemberOffset, ResourceParameter.MemberType);
 		}
 	}

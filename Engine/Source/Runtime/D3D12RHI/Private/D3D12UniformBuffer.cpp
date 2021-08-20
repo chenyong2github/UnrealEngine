@@ -8,13 +8,13 @@
 #include "UniformBuffer.h"
 #include "ShaderParameterStruct.h"
 
-FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12UpdateUniformBufferTime);
 
 	if (Validation == EUniformBufferValidation::ValidateResources)
 	{
-		ValidateShaderParameterResourcesRHI(Contents, Layout);
+		ValidateShaderParameterResourcesRHI(Contents, *Layout);
 	}
 
 	//Note: This is not overly efficient in the mGPU case (we create two+ upload locations) but the CPU savings of having no extra indirection to the resource are worth
@@ -26,7 +26,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 		FD3D12UniformBuffer* NewUniformBuffer = new FD3D12UniformBuffer(Device, Layout, Usage);
 		check(nullptr != NewUniformBuffer);
 
-		const uint32 NumBytesActualData = Layout.ConstantBufferSize;
+		const uint32 NumBytesActualData = Layout->ConstantBufferSize;
 		if (NumBytesActualData > 0)
 		{
 			// Is this check really needed?
@@ -73,9 +73,9 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 
 	check(UniformBufferOut);
 
-	if (Layout.Resources.Num())
+	if (Layout->Resources.Num())
 	{
-		const int32 NumResources = Layout.Resources.Num();
+		const int32 NumResources = Layout->Resources.Num();
 
 		for (FD3D12UniformBuffer& CurrentBuffer : *UniformBufferOut)
 		{
@@ -83,7 +83,7 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 			CurrentBuffer.ResourceTable.AddZeroed(NumResources);
 			for (int32 Index = 0; Index < NumResources; ++Index)
 			{
-				CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
+				CurrentBuffer.ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
 			}
 		}
 	}

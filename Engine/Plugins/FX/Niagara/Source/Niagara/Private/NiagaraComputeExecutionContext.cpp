@@ -18,7 +18,7 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
 {
-	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
+	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"), 0);
 }
 
 FNiagaraComputeExecutionContext::~FNiagaraComputeExecutionContext()

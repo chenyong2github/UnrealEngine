@@ -375,7 +375,7 @@ static uint32 UniqueUniformBufferID()
 	return ++GUniqueUniformBufferID;
 }
 
-FOpenGLUniformBuffer::FOpenGLUniformBuffer(const FRHIUniformBufferLayout& InLayout)
+FOpenGLUniformBuffer::FOpenGLUniformBuffer(const FRHIUniformBufferLayout* InLayout)
 	: FRHIUniformBuffer(InLayout)
 	, Resource(0)
 	, Offset(0)
@@ -439,17 +439,17 @@ FOpenGLUniformBuffer::~FOpenGLUniformBuffer()
 }
 
 
-static void SetLayoutTable(FOpenGLUniformBuffer* NewUniformBuffer, const void* Contents,const FRHIUniformBufferLayout &Layout, EUniformBufferValidation Validation)
+static void SetLayoutTable(FOpenGLUniformBuffer* NewUniformBuffer, const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferValidation Validation)
 {
-	if (Layout.Resources.Num())
+	if (Layout->Resources.Num())
 	{
-		int32 NumResources = Layout.Resources.Num();
+		int32 NumResources = Layout->Resources.Num();
 		NewUniformBuffer->ResourceTable.Empty(NumResources);
 		NewUniformBuffer->ResourceTable.AddZeroed(NumResources);
 
 		for (int32 Index = 0; Index < NumResources; ++Index)
 		{
-			NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout.Resources[Index].MemberOffset, Layout.Resources[Index].MemberType);
+			NewUniformBuffer->ResourceTable[Index] = GetShaderParameterResourceRHI(Contents, Layout->Resources[Index].MemberOffset, Layout->Resources[Index].MemberType);
 		}
 	}
 }
@@ -497,21 +497,21 @@ void CopyDataToUniformBuffer(const bool bCanRunOnThisThread, FOpenGLUniformBuffe
 	}
 }
 
-static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	// This should really be synchronized, if there's a chance it'll be used from more than one buffer. Luckily, uniform buffers
 	// are only used for drawing/shader usage, not for loading resources or framebuffer blitting, so no synchronization primitives for now.
 
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
-	check(Layout.Resources.Num() > 0 || Layout.ConstantBufferSize > 0);
+	check(Layout->Resources.Num() > 0 || Layout->ConstantBufferSize > 0);
 
 	FOpenGLUniformBuffer* NewUniformBuffer = new FOpenGLUniformBuffer(Layout);
 
 	TFunction<void(void)> GLCreationFunc;
 
-	const uint32 BucketIndex = GetPoolBucketIndex(Layout.ConstantBufferSize);
+	const uint32 BucketIndex = GetPoolBucketIndex(Layout->ConstantBufferSize);
 	const uint32 SizeOfBufferToAllocate = UniformBufferSizeBuckets[BucketIndex];
-	const uint32 AllocatedSize = (SizeOfBufferToAllocate > 0) ? SizeOfBufferToAllocate : Layout.ConstantBufferSize;;
+	const uint32 AllocatedSize = (SizeOfBufferToAllocate > 0) ? SizeOfBufferToAllocate : Layout->ConstantBufferSize;;
 	
 	// EmulatedUniformDataRef will not be initialized on RHI thread. safe to use on RT thread.
 	FOpenGLEUniformBufferDataRef EmulatedUniformDataRef;
@@ -585,7 +585,7 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 
 	check(!GUseEmulatedUniformBuffers || (IsValidRef(EmulatedUniformDataRef) && (EmulatedUniformDataRef->Data.Num() * EmulatedUniformDataRef->Data.GetTypeSize() == AllocatedSize)));
 
-	CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer,Contents, Layout.ConstantBufferSize);
+	CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer,Contents, Layout->ConstantBufferSize);
 
 	// Initialize the resource table for this uniform buffer.
 	SetLayoutTable(NewUniformBuffer, Contents, Layout, Validation);
@@ -593,18 +593,18 @@ static FUniformBufferRHIRef CreateUniformBuffer(const void* Contents, const FRHI
 	return NewUniformBuffer;
 }	
 
-FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
+FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Contents, const FRHIUniformBufferLayout* Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation)
 {
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	// This should really be synchronized, if there's a chance it'll be used from more than one buffer. Luckily, uniform buffers
 	// are only used for drawing/shader usage, not for loading resources or framebuffer blitting, so no synchronization primitives for now.
 
 	// Explicitly check that the size is nonzero before allowing CreateBuffer to opaquely fail.
-	check(Layout.Resources.Num() > 0 || Layout.ConstantBufferSize > 0);
+	check(Layout->Resources.Num() > 0 || Layout->ConstantBufferSize > 0);
 
 	if (Validation == EUniformBufferValidation::ValidateResources)
 	{
-		ValidateShaderParameterResourcesRHI(Contents, Layout);
+		ValidateShaderParameterResourcesRHI(Contents, *Layout);
 	}
 
 	bool bStreamDraw = (Usage == UniformBuffer_SingleDraw || Usage == UniformBuffer_SingleFrame);
@@ -617,13 +617,13 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 	const bool bCanCreateOnThisThread = RHICmdList.Bypass() || (!IsRunningRHIInSeparateThread() && IsInRenderingThread()) || IsInRHIThread();
 
 	// If the uniform buffer contains constants, allocate a uniform buffer resource from GL.
-	if (Layout.ConstantBufferSize > 0)
+	if (Layout->ConstantBufferSize > 0)
 	{
 		uint32 SizeOfBufferToAllocate = 0;
 		if (IsPoolingEnabled())
 		{
 			// Find the appropriate bucket based on size
-			const uint32 BucketIndex = GetPoolBucketIndex(Layout.ConstantBufferSize);
+			const uint32 BucketIndex = GetPoolBucketIndex(Layout->ConstantBufferSize);
 			int StreamedIndex = bStreamDraw ? 1 : 0;
 
 			FPooledGLUniformBuffer FreeBufferEntry;
@@ -686,7 +686,7 @@ FUniformBufferRHIRef FOpenGLDynamicRHI::RHICreateUniformBuffer(const void* Conte
 	NewUniformBuffer->SetGLUniformBufferParams(AllocatedResource, OffsetInBuffer, PersistentlyMappedBuffer, AllocatedSize, EmulatedUniformDataRef, bStreamDraw);
 
 	check(!GUseEmulatedUniformBuffers || (IsValidRef(EmulatedUniformDataRef) && (EmulatedUniformDataRef->Data.Num() * EmulatedUniformDataRef->Data.GetTypeSize() == AllocatedSize)));
-	CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer, Contents, Layout.ConstantBufferSize);
+	CopyDataToUniformBuffer(bCanCreateOnThisThread, NewUniformBuffer, Contents, Layout->ConstantBufferSize);
 
 	// Initialize the resource table for this uniform buffer.
 	SetLayoutTable(NewUniformBuffer, Contents, Layout, Validation);

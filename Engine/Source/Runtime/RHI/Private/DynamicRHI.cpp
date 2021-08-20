@@ -219,6 +219,10 @@ void RHIInit(bool bHasEditorToken)
 {
 	if (!GDynamicRHI)
 	{
+#if RHI_WANT_RESOURCE_INFO
+		FRHIResource::StartTrackingAllResources();
+#endif
+
 		// read in any data driven shader platform info structures we can find
 		FGenericDataDrivenShaderPlatformInfo::Initialize();
 
