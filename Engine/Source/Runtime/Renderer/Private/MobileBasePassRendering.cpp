@@ -177,6 +177,7 @@ void SetupMobileBasePassUniformParameters(
 	const FViewInfo& View, 
 	EMobileBasePass BasePass,
 	EMobileSceneTextureSetupMode SetupMode,
+	const FMobileBasePassTextures& MobileBasePassTextures,
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(GraphBuilder, View, BasePassParameters.Fog);
@@ -204,10 +205,9 @@ void SetupMobileBasePassUniformParameters(
 	BasePassParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View), PF_A32B32G32R32F);
 
 	FRDGTextureRef AmbientOcclusionTexture = SystemTextures.White;
-	if (BasePass == EMobileBasePass::Opaque)
+	if (BasePass == EMobileBasePass::Opaque && MobileBasePassTextures.ScreenSpaceAO != nullptr)
 	{
-		const FSceneTextures& SceneTextures = FSceneTextures::Get(GraphBuilder);
-		AmbientOcclusionTexture = SceneTextures.ScreenSpaceAO;
+		AmbientOcclusionTexture = MobileBasePassTextures.ScreenSpaceAO;
 	}
 
 	BasePassParameters.AmbientOcclusionTexture = AmbientOcclusionTexture;
@@ -243,10 +243,11 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
-	EMobileSceneTextureSetupMode SetupMode)
+	EMobileSceneTextureSetupMode SetupMode,
+	const FMobileBasePassTextures& MobileBasePassTextures)
 {
 	FMobileBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassUniformParameters>();
-	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, SetupMode, *BasePassParameters);
+	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, SetupMode, MobileBasePassTextures, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 
