@@ -215,9 +215,9 @@ void FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TAr
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputArrayGPU = %s"), *FNeuralTensor(OutputArrayGPU, OutputSizes).ToString(MaxNumberElementsToDisplay));
 			ensureMsgf(false, TEXT("CPUGPUAvgL1NormDiff < 1e-7 failed."));
 		}
-		ensureMsgf(FMath::IsFinite(FastCPUAvgL1NormDiff) && FastCPUAvgL1NormDiff < 5, TEXT("FastCPUAvgL1NormDiff (%fe-7) < 5e-7 failed (~5 times the float precision).\nOutputArrayCPU = %s"),
+		ensureMsgf(FMath::IsFinite(FastCPUAvgL1NormDiff) && FastCPUAvgL1NormDiff < 30, TEXT("FastCPUAvgL1NormDiff (%fe-7) < 30e-7 failed (~30 times the float precision).\nOutputArrayCPU = %s"),
 			FastCPUAvgL1NormDiff, *FNeuralTensor(OutputArrayCPU, OutputSizes).ToString(MaxNumberElementsToDisplay));
-		ensureMsgf(FMath::IsFinite(FastGPUAvgL1NormDiff) && FastGPUAvgL1NormDiff < 5, TEXT("FastGPUAvgL1NormDiff (%fe-7) < 5e-7 failed (~5 times the float precision).\nOutputArrayGPU = %s"),
+		ensureMsgf(FMath::IsFinite(FastGPUAvgL1NormDiff) && FastGPUAvgL1NormDiff < 30, TEXT("FastGPUAvgL1NormDiff (%fe-7) < 30e-7 failed (~30 times the float precision).\nOutputArrayGPU = %s"),
 			FastGPUAvgL1NormDiff, *FNeuralTensor(OutputArrayGPU, OutputSizes).ToString(MaxNumberElementsToDisplay));
 	}
 }
