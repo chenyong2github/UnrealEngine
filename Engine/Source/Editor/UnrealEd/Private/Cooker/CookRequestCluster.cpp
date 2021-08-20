@@ -115,10 +115,10 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		FPaths::MakeStandardFilename(DLCPath);
 	}
 
-	PackageStores.Reserve(Platforms.Num());
+	PackageWriters.Reserve(Platforms.Num());
 	for (const ITargetPlatform* TargetPlatform : Platforms)
 	{
-		PackageStores.Add(COTFS.GetPackageStoreWriter(FName(*TargetPlatform->PlatformName())));
+		PackageWriters.Add(COTFS.GetPackageWriter(FName(*TargetPlatform->PlatformName())));
 	}
 }
 
@@ -405,12 +405,12 @@ void FRequestCluster::GetDependencies(FName PackageName, TArray<FName>& OutDepen
 		for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)
 		{
 			const ITargetPlatform* TargetPlatform = Platforms[PlatIndex];
-			IPackageStoreWriter* PackageStore = PackageStores[PlatIndex];
-			if (!PackageStore)
+			ICookedPackageWriter* PackageWriter = PackageWriters[PlatIndex];
+			if (!PackageWriter)
 			{
 				continue;
 			}
-			UE::TargetDomain::TryFetchKeyAndDependencies(PackageStore, PackageName, TargetPlatform, nullptr /* OutHash */, &BuildDependencies,
+			UE::TargetDomain::TryFetchKeyAndDependencies(PackageWriter, PackageName, TargetPlatform, nullptr /* OutHash */, &BuildDependencies,
 				&RuntimeDependencies, nullptr /* OutErrorMessage */);
 		}
 	}

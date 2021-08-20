@@ -4,7 +4,7 @@
 
 #include "Serialization/AsyncLoading2.h"
 #include "IO/PackageStore.h"
-#include "IO/PackageStoreWriter.h"
+#include "PackageStoreWriter.h"
 
 class FIoStoreWriterContext;
 class FIoStoreWriter;
@@ -59,6 +59,9 @@ private:
 	TUniquePtr<FZenServerInfo> ZenServerInfo;
 };
 
+/**
+ * A PackageWriter that saves cooked packages for use by IoStore, and stores them in loose files.
+ */
 class FFilePackageStoreWriter
 	: public IPackageStoreWriter
 {
@@ -71,7 +74,7 @@ public:
 	IOSTOREUTILITIES_API virtual void WriteBulkdata(const FBulkDataInfo& Info, const FIoBuffer& BulkData, const TArray<FFileRegion>& FileRegions) override;
 	IOSTOREUTILITIES_API virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) override
 	{
-		// Should not be called because IsLinkerAdditionalDataInSeparateArchive returned false
+		// Should not be called because bLinkerAdditionalDataInSeparateArchive is false
 		checkNoEntry();
 	}
 

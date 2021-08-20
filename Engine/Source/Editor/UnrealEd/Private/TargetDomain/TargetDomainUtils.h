@@ -5,7 +5,7 @@
 #include "Containers/Array.h"
 #include "UObject/NameTypes.h"
 
-class IPackageStoreWriter;
+class ICookedPackageWriter;
 class ITargetPlatform;
 class FCbObject;
 class FString;
@@ -28,7 +28,7 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
  * Read the oplog for the given packagename and fetch the dependencies and key out of it. Use the dependencies to calculate
  * the current key, and return the dependencies and key only if they key matches.
  */
-bool TryFetchKeyAndDependencies(IPackageStoreWriter* PackageStore, FName PackageName, const ITargetPlatform* TargetPlatform,
+bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageStore, FName PackageName, const ITargetPlatform* TargetPlatform,
 	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage);
 
 /** Return whether iterative cook is enabled for the given packagename, based on used-class allowlist/blocklist. */

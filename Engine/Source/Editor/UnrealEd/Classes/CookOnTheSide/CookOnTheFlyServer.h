@@ -26,7 +26,7 @@ class FDiffModeCookServerUtils;
 class FReferenceCollector;
 class FSavePackageContext;
 class IAssetRegistry;
-class IPackageStoreWriter;
+class ICookedPackageWriter;
 class IPlugin;
 class ITargetPlatform;
 struct FPackageNameCache;
@@ -117,6 +117,7 @@ namespace UE::Cook
 	class FSaveCookedPackageContext;
 	class ICookOnTheFlyRequestManager;
 	struct FCookerTimer;
+	struct FCookSavePackageContext;
 	struct FGeneratorPackage;
 	struct FPackageData;
 	struct FPackageDatas;
@@ -1109,8 +1110,8 @@ private:
 
 	uint32 FullLoadAndSave(uint32& CookedPackageCount);
 
-	IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) const;
-	FSavePackageContext* GetSavePackageContext(const ITargetPlatform* TargetPlatform) const;
+	ICookedPackageWriter* GetPackageWriter(const FName& PlatformName) const;
+	UE::Cook::FCookSavePackageContext* GetSavePackageContext(const ITargetPlatform* TargetPlatform) const;
 
 	uint32		StatLoadedPackageCount = 0;
 	uint32		StatSavedPackageCount = 0;
@@ -1145,7 +1146,7 @@ private:
 	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
 	TRingBuffer<UE::Cook::FRequestCluster> RequestClusters;
 
-	TArray<FSavePackageContext*> SavePackageContexts;
+	TArray<UE::Cook::FCookSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
 	TArray<UObject*> GCKeepObjects;
 	UE::Cook::FPackageData* SavingPackageData = nullptr;

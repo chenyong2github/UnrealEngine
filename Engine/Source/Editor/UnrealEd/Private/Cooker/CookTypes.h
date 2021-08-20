@@ -7,7 +7,9 @@
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
 #include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
+#include "Serialization/PackageWriter.h"
 #include "Templates/Function.h"
+#include "UObject/SavePackage.h"
 
 class FString;
 
@@ -53,9 +55,7 @@ template<typename KeyType, typename SetAllocator = FDefaultSetAllocator>
 class TFastPointerSet : public TSet<KeyType, TFastPointerSetKeyFuncs<KeyType>, SetAllocator>
 {};
 
-namespace UE
-{
-namespace Cook
+namespace UE::Cook
 {
 	struct FPackageData;
 	/** A function that is called when a requested package finishes cooking (when successful, failed, or skipped) */
@@ -160,11 +160,24 @@ namespace Cook
 		}
 	};
 
+	/** Context data passed into SavePackage for a given TargetPlatform. */
+	struct FCookSavePackageContext
+	{
+		FCookSavePackageContext(const ITargetPlatform* InTargetPlatform,
+			ICookedPackageWriter* InPackageWriter, bool bInForceLegacyOffsets)
+			: SaveContext(InTargetPlatform, InPackageWriter, bInForceLegacyOffsets)
+			, PackageWriter(InPackageWriter)
+		{
+		}
+		// Note the SaveContext takes responsibility for deleting PackageWriter
+		FSavePackageContext SaveContext;
+		ICookedPackageWriter* PackageWriter;
+	};
+
 	/* Thread Local Storage access to identify which thread is the SchedulerThread for cooking. */
 	void InitializeTls();
 	bool IsSchedulerThread();
 	void SetIsSchedulerThread(bool bValue);
-}
 }
 
 //////////////////////////////////////////////////////////////////////////

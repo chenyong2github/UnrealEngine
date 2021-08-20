@@ -63,12 +63,12 @@
 #include "Serialization/Formatters/BinaryArchiveFormatter.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 #include "Serialization/ArchiveUObjectFromStructuredArchive.h"
+#include "Serialization/PackageWriter.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/AsyncWorkSequence.h"
 #include "Misc/ScopeExit.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
-#include "IO/PackageStoreWriter.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -4162,7 +4162,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				SlowTask.EnterProgressFrame(1, NSLOCTEXT("Core", "SerializingBulkData", "Serializing bulk data"));
 
-				IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
+				IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 				FSavePackageOutputFileArray AdditionalOutputFiles;
 				auto WriteAdditionalFiles = [&](int64 LinkerSize) -> ESavePackageResult
 				{
@@ -4175,7 +4175,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						return SaveResult;
 					}
 
-					ESavePackageResult AppendAdditionalDataResult = SavePackageUtilities::AppendAdditionalData(*Linker.Get(), DataStartOffset, PackageStoreWriter);
+					ESavePackageResult AppendAdditionalDataResult = SavePackageUtilities::AppendAdditionalData(*Linker.Get(), DataStartOffset, SavePackageContext);
 					if (AppendAdditionalDataResult != ESavePackageResult::Success)
 					{
 						return AppendAdditionalDataResult;
@@ -4218,7 +4218,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					return ESavePackageResult::Success;
 				};
 			
-				bool bAdditionalFilesNeedLinkerSize = PackageStoreWriter ? PackageStoreWriter->IsAdditionalFilesNeedLinkerSize() : false;
+				bool bAdditionalFilesNeedLinkerSize = PackageWriter ? SavePackageContext->PackageWriterCapabilities.bAdditionalFilesNeedLinkerSize : false;
 				if (!bAdditionalFilesNeedLinkerSize)
 				{
 					ESavePackageResult AdditionalFilesResult = WriteAdditionalFiles(-1);
@@ -4246,7 +4246,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					{
 						return AdditionalFilesResult;
 					}
-					checkf(Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when IsAdditionalFilesNeedLinkerSize is true."));
+					checkf(Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when bAdditionalFilesNeedLinkerSize is true."));
 				}
 
 				// Save the import map.
@@ -4512,7 +4512,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							FLargeMemoryWriter* Writer = static_cast<FLargeMemoryWriter*>(Linker->Saver);
 							const int64 DataSize = Writer->TotalSize();
 
-							if (PackageStoreWriter)
+							if (PackageWriter)
 							{
 								checkf(AdditionalOutputFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not supported!"));
 
@@ -4534,7 +4534,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 								const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
 
-								IPackageStoreWriter::FPackageInfo PackageInfo;
+								IPackageWriter::FPackageInfo PackageInfo;
 								PackageInfo.PackageName = InOuter->GetFName();
 								PackageInfo.LooseFilePath = Filename;
 								PackageInfo.HeaderSize = HeaderSize;
@@ -4542,7 +4542,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
 								PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
 
-								PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
+								PackageWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
 							}
 							else if (IsEventDrivenLoaderEnabledInCookedBuilds() && Linker->IsCooking())
 							{
@@ -4584,7 +4584,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 #if WITH_EDITOR
 						else
 						{
-							checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported when diffing."));
+							checkf(!PackageWriter, TEXT("PackageWriter is not currently supported when diffing."));
 						}
 #endif
 						Linker->CloseAndDestroySaver();
@@ -4596,7 +4596,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					// Move the temporary file.
 					else
 					{
-						checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported with synchronous writes."));
+						checkf(!PackageWriter, TEXT("PackageWriter is not currently supported with synchronous writes."));
 						checkf(TempFilename.IsSet(), TEXT("The package should've been saved to a tmp file first!"));
 
 						// When saving in text format we will have two temp files, so we need to manually delete the non-textbased one
@@ -4804,7 +4804,7 @@ bool UPackage::SavePackage(UPackage* InOuter, UObject* Base, EObjectFlags TopLev
 
 FSavePackageContext::~FSavePackageContext()
 {
-	delete PackageStoreWriter;
+	delete PackageWriter;
 }
 
 #endif	// UE_WITH_SAVEPACKAGE

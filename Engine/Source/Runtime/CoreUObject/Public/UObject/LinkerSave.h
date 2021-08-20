@@ -75,7 +75,7 @@ public:
 
 	/**
 	 * Callback for arbitrary serializers to append data to the end of the ExportsArchive.
-	 * Some PackageStoreWriters used by SavePackage will write this data to a separate archive.
+	 * Some PackageWriters used by SavePackage will write this data to a separate archive.
 	 * 
 	 * @param ExportsArchive The archive containing the UObjects and structs, this is always this LinkerSave.
 	 * @param DataArchive The archive to which the data should be written. Might be this LinkerSave, or might be a separate archive.
