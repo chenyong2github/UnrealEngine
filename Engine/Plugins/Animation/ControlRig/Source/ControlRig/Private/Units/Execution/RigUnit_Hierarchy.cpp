@@ -215,75 +215,6 @@ FRigUnit_PoseGetDelta_Execute()
 	const float ScaleU = FMath::Abs(ScaleThreshold);
 	const float CurveU = FMath::Abs(CurveThreshold);
 
-	auto ArePoseElementsEqual = [
-		PositionU,
-		RotationU,
-		ScaleU,
-		CurveU,
-		Space
-		] (
-			const FRigPoseElement& A,
-			const FRigPoseElement& B
-		) -> bool
-	{
-		const FRigElementKey& KeyA = A.Index.GetKey();
-		const FRigElementKey& KeyB = B.Index.GetKey();
-		check(KeyA == KeyB);
-		
-		if(KeyA.Type == ERigElementType::Curve)
-		{
-			if(CurveU > SMALL_NUMBER)
-			{
-				return FMath::Abs(A.CurveValue - B.CurveValue) < CurveU;
-			}
-			return true;
-		}
-		
-		const FTransform& TransformA = (Space == EBoneGetterSetterMode::GlobalSpace) ? A.GlobalTransform : A.LocalTransform;
-		const FTransform& TransformB = (Space == EBoneGetterSetterMode::GlobalSpace) ? B.GlobalTransform : B.LocalTransform;
-		
-		if(PositionU > SMALL_NUMBER)
-		{
-			const FVector PositionA = TransformA.GetLocation();
-			const FVector PositionB = TransformB.GetLocation();
-			const FVector Delta = (PositionA - PositionB).GetAbs();
-			if( (Delta.X >= PositionU) ||
-				(Delta.Y >= PositionU) ||
-				(Delta.Z >= PositionU))
-			{
-				return false;
-			}
-		}
-
-		if(RotationU > SMALL_NUMBER)
-		{
-			const FVector RotationA = TransformA.GetRotation().Rotator().Euler();
-			const FVector RotationB = TransformB.GetRotation().Rotator().Euler();
-			const FVector Delta = (RotationA - RotationB).GetAbs();
-			if( (Delta.X >= RotationU) ||
-				(Delta.Y >= RotationU) ||
-				(Delta.Z >= RotationU))
-			{
-				return false;
-			}
-		}
-
-		if(ScaleU > SMALL_NUMBER)
-		{
-			const FVector ScaleA = TransformA.GetScale3D();
-			const FVector ScaleB = TransformB.GetScale3D();
-			const FVector Delta = (ScaleA - ScaleB).GetAbs();
-			if( (Delta.X >= ScaleU) ||
-				(Delta.Y >= ScaleU) ||
-				(Delta.Z >= ScaleU))
-			{
-				return false;
-			}
-		}
-
-		return true;
-	};
-
 	// if we should compare a sub set of things
 	if(!ItemsToCompare.IsEmpty())
 	{
@@ -314,7 +245,7 @@ FRigUnit_PoseGetDelta_Execute()
 			const FRigPoseElement& A = PoseA[IndexA];
 			const FRigPoseElement& B = PoseB[IndexB];
 
-			if(!ArePoseElementsEqual(A, B))
+			if(!ArePoseElementsEqual(A, B, Space, PositionU, RotationU, ScaleU, CurveU))
 			{
 				PosesAreEqual = false;
 				ItemsWithDelta.Add(Key);
@@ -339,7 +270,7 @@ FRigUnit_PoseGetDelta_Execute()
 				continue;
 			}
 
-			if(!ArePoseElementsEqual(A, B))
+			if(!ArePoseElementsEqual(A, B, Space, PositionU, RotationU, ScaleU, CurveU))
 			{
 				PosesAreEqual = false;
 				ItemsWithDelta.Add(KeyA);
@@ -370,7 +301,7 @@ FRigUnit_PoseGetDelta_Execute()
 
 			const FRigPoseElement& B = PoseB[IndexB];
 			
-			if(!ArePoseElementsEqual(A, B))
+			if(!ArePoseElementsEqual(A, B, Space, PositionU, RotationU, ScaleU, CurveU))
 			{
 				PosesAreEqual = false;
 				ItemsWithDelta.Add(KeyA);
@@ -397,6 +328,78 @@ FRigUnit_PoseGetDelta_Execute()
 			}
 		}
 	}
+}
+
+bool FRigUnit_PoseGetDelta::ArePoseElementsEqual(const FRigPoseElement& A, const FRigPoseElement& B,
+	EBoneGetterSetterMode Space, float PositionU, float RotationU, float ScaleU, float CurveU)
+{
+	const FRigElementKey& KeyA = A.Index.GetKey();
+	const FRigElementKey& KeyB = B.Index.GetKey();
+	check(KeyA == KeyB);
+		
+	if(KeyA.Type == ERigElementType::Curve)
+	{
+		return AreCurvesEqual(A.CurveValue, B.CurveValue, CurveU);
+	}
+
+	return AreTransformsEqual(
+		(Space == EBoneGetterSetterMode::GlobalSpace) ? A.GlobalTransform : A.LocalTransform,
+		(Space == EBoneGetterSetterMode::GlobalSpace) ? B.GlobalTransform : B.LocalTransform,
+		PositionU, RotationU, ScaleU);
+}
+
+bool FRigUnit_PoseGetDelta::AreTransformsEqual(const FTransform& A, const FTransform& B, float PositionU,
+	float RotationU, float ScaleU)
+{
+	if(PositionU > SMALL_NUMBER)
+	{
+		const FVector PositionA = A.GetLocation();
+		const FVector PositionB = B.GetLocation();
+		const FVector Delta = (PositionA - PositionB).GetAbs();
+		if( (Delta.X >= PositionU) ||
+			(Delta.Y >= PositionU) ||
+			(Delta.Z >= PositionU))
+		{
+			return false;
+		}
+	}
+
+	if(RotationU > SMALL_NUMBER)
+	{
+		const FVector RotationA = A.GetRotation().Rotator().Euler();
+		const FVector RotationB = B.GetRotation().Rotator().Euler();
+		const FVector Delta = (RotationA - RotationB).GetAbs();
+		if( (Delta.X >= RotationU) ||
+			(Delta.Y >= RotationU) ||
+			(Delta.Z >= RotationU))
+		{
+			return false;
+		}
+	}
+
+	if(ScaleU > SMALL_NUMBER)
+	{
+		const FVector ScaleA = A.GetScale3D();
+		const FVector ScaleB = B.GetScale3D();
+		const FVector Delta = (ScaleA - ScaleB).GetAbs();
+		if( (Delta.X >= ScaleU) ||
+			(Delta.Y >= ScaleU) ||
+			(Delta.Z >= ScaleU))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
+bool FRigUnit_PoseGetDelta::AreCurvesEqual(float A, float B, float CurveU)
+{
+	if(CurveU > SMALL_NUMBER)
+	{
+		return FMath::Abs(A - B) < CurveU;
+	}
+	return true;
 }
 
 FRigUnit_PoseGetTransform_Execute()
