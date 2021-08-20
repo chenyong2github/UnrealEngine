@@ -6,6 +6,7 @@
 #include "DynamicSubmesh3.h"
 #include "Sampling/NormalHistogram.h"
 
+#include "Polygroups/PolygroupsGenerator.h"
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
 #include "Parameterization/MeshRegionGraph.h"
@@ -15,6 +16,144 @@
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+
+
+#define LOCTEXT_NAMESPACE "PatchBasedMeshUVGenerator"
+
+
+
+FGeometryResult FPatchBasedMeshUVGenerator::AutoComputeUVs(
+	FDynamicMesh3& TargetMesh,
+	FDynamicMeshUVOverlay& TargetUVOverlay,
+	FProgressCancel* Progress)
+{
+	FGeometryResult ResultInfo = FGeometryResult(EGeometryResultType::InProgress);
+
+	// 
+	// Step 1: decompose the input mesh into small patches
+	//
+	FMeshConnectedComponents InitialPatches(&TargetMesh);
+	bool bPatchesOK = ComputeInitialMeshPatches(TargetMesh, InitialPatches, Progress);
+	if (!bPatchesOK)
+	{
+		ResultInfo.SetFailed(LOCTEXT("InitialPatchesFailed", "Failed to compute initial patch set"));
+		return ResultInfo;
+	}
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return ResultInfo;
+	}
+
+
+	// 
+	// Step 2: merge the small patches into bigger patches, which will become UV islands
+	//
+	TArray<TArray<int32>> UVIslandTriangleSets;
+	bool bIslandsOK = ComputeIslandsByRegionMerging(TargetMesh, TargetUVOverlay, InitialPatches, UVIslandTriangleSets, Progress);
+	if (!bIslandsOK)
+	{
+		ResultInfo.SetFailed(LOCTEXT("IslandMergingFailed", "Failed to merge UV islands"));
+		return ResultInfo;
+	}
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return ResultInfo;
+	}
+
+
+	// 
+	// Step 3: compute UVs for the UV islands
+	//
+	TArray<bool> bIslandUVsValid;
+	int32 NumSolvesFailed = ComputeUVsFromTriangleSets(TargetMesh, TargetUVOverlay, UVIslandTriangleSets, bIslandUVsValid, Progress);
+	if (NumSolvesFailed > 0)
+	{
+		ResultInfo.AddWarning(FGeometryWarning(0, LOCTEXT("PartialSolvesFailed", "Failed to compute UVs for some UV islands")));
+	}
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return ResultInfo;
+	}
+
+
+	FDynamicMeshUVEditor UVEditor(&TargetMesh, &TargetUVOverlay);
+
+	// 
+	// Step 4 (Optional): Rotate the UV islands to optimize their orientation, to (hopefully) improve packing
+	//
+	if (bAutoAlignPatches)
+	{
+		ParallelFor(UVIslandTriangleSets.Num(), [&](int32 k)
+		{
+			if (Progress && Progress->Cancelled())
+			{
+				return;
+			}
+			if (bIslandUVsValid[k])
+			{
+				UVEditor.AutoOrientUVArea(UVIslandTriangleSets[k]);
+			}
+		});
+	}
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return ResultInfo;
+	}
+
+
+	// 
+	// Step 5 (Optional): Automatically pack the UV islands into the unit UV rectangle
+	//
+	if (bAutoPack)
+	{
+		bool bPackingSuccess = UVEditor.QuickPack(PackingTextureResolution, PackingGutterWidth);
+		if (!bPackingSuccess)
+		{
+			ResultInfo.AddWarning(FGeometryWarning(0, LOCTEXT("IslandPackingFailed", "Failed to pack UV islands")));
+		}
+	}
+	if (ResultInfo.CheckAndSetCancelled(Progress))
+	{
+		return ResultInfo;
+	}
+
+	ResultInfo.SetSuccess();
+	return ResultInfo;
+}
+
+
+
+
+
+bool FPatchBasedMeshUVGenerator::ComputeInitialMeshPatches(
+	FDynamicMesh3& TargetMesh,
+	FMeshConnectedComponents& InitialComponentsOut,
+	FProgressCancel* Progress)
+{
+	FPolygroupsGenerator Generator(&TargetMesh);
+	Generator.bCopyToMesh = false;
+
+	Generator.MinGroupSize = this->MinPatchSize;
+	FPolygroupsGenerator::EWeightingType WeightType = (this->bNormalWeightedPatches) ?
+		FPolygroupsGenerator::EWeightingType::NormalDeviation : FPolygroupsGenerator::EWeightingType::None;
+	FVector3d GeneratorParams(this->PatchNormalWeight, 1.0, 1.0);
+	bool bOK = Generator.FindPolygroupsFromFurthestPointSampling(this->TargetPatchCount, WeightType, GeneratorParams);
+	if (!bOK)
+	{
+		return false;
+	}
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+	InitialComponentsOut.InitializeFromTriangleComponents(Generator.FoundPolygroups, true);
+
+	return true;
+}
+
+
+
+
 
 
 struct FUVAreaMetrics
@@ -476,3 +615,7 @@ int32 FPatchBasedMeshUVGenerator::ComputeUVsFromTriangleSets(
 
 	return NumFailed;
 }
+
+
+
+#undef LOCTEXT_NAMESPACE
