@@ -295,6 +295,22 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "ControlRig", meta = (DisplayName = "Set Bone Initial Transforms From Skeletal Mesh"))
 	void SetBoneInitialTransformsFromSkeletalMesh(USkeletalMesh* InSkeletalMesh);
 
+	/** When checked the rig will only run if any of the mapped inputs has changed */
+	UPROPERTY(EditAnywhere, Category = "Lazy Evaluation")
+	bool bEnableLazyEvaluation;
+
+	// The delta threshold for a translation / position difference. 0.0 disables position differences.
+	UPROPERTY(EditAnywhere, Category = "Lazy Evaluation", meta = (DisplayName = "Position Threshold"))
+	float LazyEvaluationPositionThreshold;
+
+	// The delta threshold for a rotation difference (in degrees). 0.0 disables rotation differences.
+	UPROPERTY(EditAnywhere, Category = "Lazy Evaluation", meta = (DisplayName = "Rotation Threshold"))
+	float LazyEvaluationRotationThreshold;
+
+	// The delta threshold for a scale difference. 0.0 disables scale differences.
+	UPROPERTY(EditAnywhere, Category = "Lazy Evaluation", meta = (DisplayName = "Scale Threshold"))
+	float LazyEvaluationScaleThreshold;
+
 	/** When checked the transforms are reset before a tick / update of the rig */
 	UPROPERTY(EditAnywhere, Category = "Animation")
 	bool bResetTransformBeforeTick;
@@ -638,6 +654,11 @@ private:
 
 	FControlRigComponentEvent ControlRigCreatedEvent;
 	bool bIsInsideInitializeBracket;
+	bool bNeedsEvaluation;
+
+	TArray<int32> InputElementIndices;
+	TArray<FTransform> InputTransforms;
+	TArray<FTransform> LastInputTransforms;
 
 	friend class FControlRigSceneProxy;
 };

@@ -351,6 +351,27 @@ struct CONTROLRIG_API FRigUnit_PoseGetDelta : public FRigUnit_HierarchyBase
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection ItemsWithDelta;
+
+	static bool ArePoseElementsEqual(
+		const FRigPoseElement& A,
+		const FRigPoseElement& B,
+		EBoneGetterSetterMode Space,
+		float PositionU,
+		float RotationU,
+		float ScaleU,
+		float CurveU);
+
+	static bool AreTransformsEqual(
+		const FTransform& A,
+		const FTransform& B,
+		float PositionU,
+		float RotationU,
+		float ScaleU);
+
+	static bool AreCurvesEqual(
+		float A,
+		float B,
+		float CurveU);
 };
 
 /**

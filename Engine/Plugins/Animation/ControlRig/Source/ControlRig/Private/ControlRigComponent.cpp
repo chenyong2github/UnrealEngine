@@ -2,6 +2,7 @@
 
 #include "ControlRigComponent.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
+#include "ControlRig/Private/Units/Execution/RigUnit_Hierarchy.h"
 
 #include "SkeletalDebugRendering.h"
 #include "Components/InstancedStaticMeshComponent.h"
@@ -56,6 +57,12 @@ UControlRigComponent::UControlRigComponent(const FObjectInitializer& ObjectIniti
 	bShowDebugDrawing = false;
 	bIsInsideInitializeBracket = false;
 	bWantsInitializeComponent = true;
+	
+	bEnableLazyEvaluation = false;
+	LazyEvaluationPositionThreshold = 0.1f;
+	LazyEvaluationRotationThreshold = 0.5f;
+	LazyEvaluationScaleThreshold = 0.01f;
+	bNeedsEvaluation = true;
 }
 
 #if WITH_EDITOR
@@ -367,27 +374,30 @@ void UControlRigComponent::Update(float DeltaTime)
 
 			TransferInputs();
 
-#if WITH_EDITOR
-			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
+			if(bNeedsEvaluation)
 			{
-				if(Hierarchy->IsTracingChanges())
+#if WITH_EDITOR
+				if(URigHierarchy* Hierarchy = CR->GetHierarchy())
 				{
-					Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::BeforeEvaluate"));
+					if(Hierarchy->IsTracingChanges())
+					{
+						Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::BeforeEvaluate"));
+					}
 				}
-			}
 #endif
 
-			CR->Evaluate_AnyThread();
+				CR->Evaluate_AnyThread();
 
 #if WITH_EDITOR
-			if(URigHierarchy* Hierarchy = CR->GetHierarchy())
-			{
-				if(Hierarchy->IsTracingChanges())
+				if(URigHierarchy* Hierarchy = CR->GetHierarchy())
 				{
-					Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::AfterEvaluate"));
+					if(Hierarchy->IsTracingChanges())
+					{
+						Hierarchy->StorePoseForTrace(TEXT("UControlRigComponent::AfterEvaluate"));
+					}
 				}
-			}
 #endif
+			}
 		} 
 
 		if (bShowDebugDrawing)
@@ -1283,8 +1293,12 @@ void UControlRigComponent::ValidateMappingData()
 
 void UControlRigComponent::TransferInputs()
 {
+	bNeedsEvaluation = true;
 	if (ControlRig)
 	{
+		InputElementIndices.Reset();
+		InputTransforms.Reset();
+		
 		for (FControlRigComponentMappedElement& MappedElement : MappedElements)
 		{
 			if (MappedElement.ElementIndex == INDEX_NONE || MappedElement.Direction == EControlRigComponentMapDirection::Output)
@@ -1323,8 +1337,47 @@ void UControlRigComponent::TransferInputs()
 			Transform = Transform * MappedElement.Offset;
 
 			ConvertTransformToRigSpace(Transform, MappedElement.Space);
-			ControlRig->GetHierarchy()->SetGlobalTransform(MappedElement.ElementIndex, Transform);
+
+			InputElementIndices.Add(MappedElement.ElementIndex);
+			InputTransforms.Add(Transform);
 		}
+
+		if(bEnableLazyEvaluation && InputTransforms.Num() > 0)
+		{
+			if(LastInputTransforms.Num() == InputTransforms.Num())
+			{
+				bNeedsEvaluation = false;
+
+				const float PositionU = FMath::Abs(LazyEvaluationPositionThreshold);
+				const float RotationU = FMath::Abs(LazyEvaluationRotationThreshold);
+				const float ScaleU = FMath::Abs(LazyEvaluationScaleThreshold);
+
+				for(int32 Index=0;Index<InputElementIndices.Num();Index++)
+				{
+					if(!FRigUnit_PoseGetDelta::AreTransformsEqual(
+						InputTransforms[Index],
+						LastInputTransforms[Index],
+						PositionU,
+						RotationU,
+						ScaleU))
+					{
+						bNeedsEvaluation = true;
+						break;
+					}
+				}
+			}
+
+			LastInputTransforms = InputTransforms;
+		}
+
+		if(bNeedsEvaluation)
+		{
+			for(int32 Index=0;Index<InputElementIndices.Num();Index++)
+			{
+				ControlRig->GetHierarchy()->SetGlobalTransform(InputElementIndices[Index], InputTransforms[Index]);
+			}
+		}
+
 #if WITH_EDITOR
 		if(URigHierarchy* Hierarchy = ControlRig->GetHierarchy())
 		{
