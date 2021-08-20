@@ -562,33 +562,15 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 		}
 	#endif
 
-		for (int32 MeshPass = 0; MeshPass < ENaniteMeshPass::Num; ++MeshPass)
+		auto PassBody = [](const int32 MeshPass, FPrimitiveSceneInfo* const PrimitiveSceneInfo, FPrimitiveSceneProxy* const Proxy, FMeshPassProcessor* const NaniteMeshProcessor, FNaniteDrawListContext& NaniteDrawListContext)
 		{
-			FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteMaterials[MeshPass]);
-
-			FMeshPassProcessor* NaniteMeshProcessor = nullptr;
-			switch (MeshPass)
-			{
-			case ENaniteMeshPass::BasePass:
-				NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
-				break;
-
-			case ENaniteMeshPass::LumenCardCapture:
-				NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext); // TODO: Should skip if !DoesPlatformSupportLumenGI()
-				break;
-
-			default:
-				check(false);
-			}
-			checkSlow(NaniteMeshProcessor);
-
 			int32 StaticMeshesCount = PrimitiveSceneInfo->StaticMeshes.Num();
 			for (int32 MeshIndex = 0; MeshIndex < StaticMeshesCount; ++MeshIndex)
 			{
 				FStaticMeshBatchRelevance& MeshRelevance = PrimitiveSceneInfo->StaticMeshRelevances[MeshIndex];
 				FStaticMeshBatch& Mesh = PrimitiveSceneInfo->StaticMeshes[MeshIndex];
 
-				if (MeshRelevance.bSupportsNaniteRendering)
+				if (MeshRelevance.bSupportsNaniteRendering && Mesh.bUseForMaterial)
 				{
 					uint64 BatchElementMask = ~0ull;
 					NaniteMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, Proxy);
@@ -605,9 +587,34 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 					PrimitiveSceneInfo->NaniteMaterialSlots[MeshPass][SectionIndex] = MaterialSlot;
 				}
 			}
+		};
+
+		// ENaniteMeshPass::BasePass
+		{
+			const int32 MeshPass = static_cast<int32>(ENaniteMeshPass::BasePass);
+
+			FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteMaterials[MeshPass]);
+			FMeshPassProcessor* NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
+
+			PassBody(MeshPass, PrimitiveSceneInfo, Proxy, NaniteMeshProcessor, NaniteDrawListContext);
 
 			NaniteMeshProcessor->~FMeshPassProcessor();
 		}
+
+		// ENaniteMeshPass::LumenCardCapture
+		if (Lumen::HasPrimitiveNaniteMeshBatches(Proxy) && DoesPlatformSupportLumenGI(GetFeatureLevelShaderPlatform(Scene->GetFeatureLevel())))
+		{
+			const int32 MeshPass = static_cast<int32>(ENaniteMeshPass::LumenCardCapture);
+
+			FNaniteDrawListContext NaniteDrawListContext(Scene->NaniteMaterials[MeshPass]);
+			FMeshPassProcessor* NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene, nullptr, &NaniteDrawListContext);
+
+			PassBody(MeshPass, PrimitiveSceneInfo, Proxy, NaniteMeshProcessor, NaniteDrawListContext);
+
+			NaniteMeshProcessor->~FMeshPassProcessor();
+		}
+
+		static_assert(ENaniteMeshPass::Num == 2, "Change BuildNaniteDrawCommands() to account for more Nanite mesh passes");
 	}
 }
 
