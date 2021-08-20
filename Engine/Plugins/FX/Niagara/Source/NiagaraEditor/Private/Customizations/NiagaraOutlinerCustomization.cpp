@@ -891,7 +891,7 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeWorldItem::GetHeaderWidget()
 				[
 					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
 					.ToolTipText(LOCTEXT("WorldHeaderTooltip_WorldType", "World Type"))
-					.Data(FText::FromString(ToString((EWorldType::Type)Data->WorldType)))
+					.Data(FText::FromString(LexToString((EWorldType::Type)Data->WorldType)))
 				];
 
 			Box->AddSlot()
