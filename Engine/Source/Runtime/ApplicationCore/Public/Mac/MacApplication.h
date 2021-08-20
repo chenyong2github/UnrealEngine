@@ -123,6 +123,7 @@ struct FMacScreen
 	FMacScreen(NSScreen* InScreen) : Screen([InScreen retain]), Frame(InScreen.frame), VisibleFrame(InScreen.visibleFrame), FramePixels(InScreen.frame), VisibleFramePixels(InScreen.visibleFrame) {}
 	~FMacScreen() { [Screen release]; }
 };
+typedef TSharedRef<FMacScreen, ESPMode::ThreadSafe> FMacScreenRef;
 
 /**
  * Mac-specific application implementation.
@@ -248,11 +249,9 @@ public:
 
 	static void UpdateScreensArray();
 
-	static const TArray<TSharedRef<FMacScreen>>& GetAllScreens() { return AllScreens; }
+	static FMacScreenRef FindScreenBySlatePosition(float X, float Y);
 
-	static TSharedRef<FMacScreen> FindScreenBySlatePosition(float X, float Y);
-
-	static TSharedRef<FMacScreen> FindScreenByCocoaPosition(float X, float Y);
+	static FMacScreenRef FindScreenByCocoaPosition(float X, float Y);
 
 	static FVector2D ConvertSlatePositionToCocoa(float X, float Y);
 
@@ -379,8 +378,6 @@ private:
 	TArray<TSharedRef<FMacWindow>> SlateWindowsToClose;
 
 	TArray<FCocoaWindow*> WindowsRequiringTextInvalidation;
-
-	static TArray<TSharedRef<FMacScreen>> AllScreens;
 
 	TSharedPtr<FMacTextInputMethodSystem> TextInputMethodSystem;
 
