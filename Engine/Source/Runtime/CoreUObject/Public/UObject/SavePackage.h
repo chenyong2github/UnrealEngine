@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 #include "Serialization/FileRegions.h"
+#include "Serialization/PackageWriter.h"
 #include "Misc/DateTime.h"
 #include "ObjectMacros.h"
 
@@ -21,7 +22,7 @@ class FPackagePath;
 class FSavePackageContext;
 class FArchiveDiffMap;
 class FOutputDevice;
-class IPackageStoreWriter;
+class IPackageWriter;
 
 /**
  * Struct to encapsulate arguments specific to saving one package
@@ -54,17 +55,22 @@ struct FSavePackageArgs
 class FSavePackageContext
 {
 public:
-	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageStoreWriter* InPackageStoreWriter, bool InbForceLegacyOffsets)
+	FSavePackageContext(const ITargetPlatform* InTargetPlatform, IPackageWriter* InPackageWriter, bool InbForceLegacyOffsets)
 	: TargetPlatform(InTargetPlatform)
-	, PackageStoreWriter(InPackageStoreWriter) 
+	, PackageWriter(InPackageWriter) 
 	, bForceLegacyOffsets(InbForceLegacyOffsets)
 	{
+		if (PackageWriter)
+		{
+			PackageWriterCapabilities = PackageWriter->GetCapabilities();
+		}
 	}
 
 	COREUOBJECT_API ~FSavePackageContext();
 
 	const ITargetPlatform* const TargetPlatform;
-	IPackageStoreWriter* const PackageStoreWriter;
+	IPackageWriter* const PackageWriter;
+	IPackageWriter::FCapabilities PackageWriterCapabilities;
 	const bool bForceLegacyOffsets;
 };
 

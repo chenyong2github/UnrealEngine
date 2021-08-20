@@ -2,7 +2,7 @@
 
 #include "SaveContext.h"
 
-#include "IO/PackageStoreWriter.h"
+#include "Serialization/PackageWriter.h"
 
 void FSaveContext::MarkUnsaveable(UObject* InObject)
 {
@@ -59,6 +59,12 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 
 bool FSaveContext::IsAdditionalFilesNeedLinkerSize() const
 {
-	IPackageStoreWriter* PackageStoreWriter = GetPackageStoreWriter();
-	return PackageStoreWriter ? PackageStoreWriter->IsAdditionalFilesNeedLinkerSize() : false;
+	if (SaveArgs.SavePackageContext && SaveArgs.SavePackageContext->PackageWriter)
+	{
+		return SaveArgs.SavePackageContext->PackageWriterCapabilities.bAdditionalFilesNeedLinkerSize;
+	}
+	else
+	{
+		return false;
+	}
 }

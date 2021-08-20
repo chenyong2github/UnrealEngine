@@ -23,6 +23,7 @@
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/Formatters/JsonArchiveOutputFormatter.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "Serialization/PackageWriter.h"
 #include "Serialization/PropertyLocalizationDataGathering.h"
 #include "Serialization/UnversionedPropertySerialization.h"
 #include "UObject/AsyncWorkSequence.h"
@@ -39,7 +40,6 @@
 #include "UObject/SavePackage/SavePackageUtilities.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
-#include "IO/PackageStoreWriter.h"
 
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -1628,7 +1628,7 @@ ESavePackageResult WriteExports(FStructuredArchive::FRecord& StructuredArchiveRo
 ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 {
 	FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
-	IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
+	IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 
 	if (SaveContext.IsCooking() && SaveContext.AdditionalFilesFromExports.Num() > 0)
 	{
@@ -1639,15 +1639,15 @@ ESavePackageResult WriteAdditionalExportFiles(FSaveContext& SaveContext)
 			const int64 Size = Writer.TotalSize();
 			SaveContext.TotalPackageSizeUncompressed += Size;
 
-			if (PackageStoreWriter)
+			if (PackageWriter)
 			{
-				IPackageStoreWriter::FAdditionalFileInfo FileInfo;
+				IPackageWriter::FAdditionalFileInfo FileInfo;
 				FileInfo.PackageName = SaveContext.GetPackage()->GetFName();
 				FileInfo.Filename = *Writer.GetArchiveName();
 
 				FIoBuffer FileData(FIoBuffer::Wrap, Writer.GetData(), Size);
 
-				const bool bWrittenToPackageStore = PackageStoreWriter->WriteAdditionalFile(FileInfo, FileData);
+				const bool bWrittenToPackageStore = PackageWriter->WriteAdditionalFile(FileInfo, FileData);
 				bWriteFileToDisk &= !bWrittenToPackageStore;
 			}
 
@@ -1774,7 +1774,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 	}
 
 	FSavePackageContext* SavePackageContext = SaveContext.GetSavePackageContext();
-	IPackageStoreWriter* PackageStoreWriter = SavePackageContext ? SavePackageContext->PackageStoreWriter : nullptr;
+	IPackageWriter* PackageWriter = SavePackageContext ? SavePackageContext->PackageWriter : nullptr;
 	if (SaveContext.IsSaveAsync())
 	{
 		FString PathToSave = SaveContext.GetFilename();
@@ -1825,7 +1825,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 
 			checkf(SaveContext.IsCooking() == false || SaveContext.AdditionalPackageFiles.IsEmpty(), TEXT("Saving additional output files during cooking is not currently supported! (%s)"), *PathToSave);
 
-			if (PackageStoreWriter)
+			if (PackageWriter)
 			{
 				FIoBuffer IoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), DataSize);
 
@@ -1842,7 +1842,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 
 				const int32 HeaderSize = Linker->Summary.TotalHeaderSize;
 
-				IPackageStoreWriter::FPackageInfo PackageInfo;
+				IPackageWriter::FPackageInfo PackageInfo;
 				PackageInfo.PackageName = SaveContext.GetPackage()->GetFName();
 				PackageInfo.LooseFilePath = SaveContext.GetFilename();
 				PackageInfo.HeaderSize = HeaderSize;
@@ -1850,7 +1850,7 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 				FPackageId PackageId = FPackageId::FromName(PackageInfo.PackageName);
 				PackageInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::ExportBundleData);
 
-				PackageStoreWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
+				PackageWriter->WritePackageData(PackageInfo, IoBuffer, Linker->FileRegions);
 			}
 			else
 			{
@@ -1879,12 +1879,12 @@ ESavePackageResult FinalizeFile(FStructuredArchive::FRecord& StructuredArchiveRo
 		}
 		else
 		{
-			checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported when diffing."));
+			checkf(!PackageWriter, TEXT("PackageWriter is not currently supported when diffing."));
 		}
 	}
 	else
 	{
-		checkf(!PackageStoreWriter, TEXT("PackageStoreWriter is not currently supported with synchronous writes."));
+		checkf(!PackageWriter, TEXT("PackageWriter is not currently supported with synchronous writes."));
 
 		// Destroy archives used for saving, closing file handle.
 		if (SaveContext.CloseLinkerArchives() == false)
@@ -2109,7 +2109,8 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 		}
 	}
 
-	if (!SaveContext.IsAdditionalFilesNeedLinkerSize())
+	bool bAdditionalFilesNeedLinkerSize = SaveContext.IsAdditionalFilesNeedLinkerSize();
+	if (!bAdditionalFilesNeedLinkerSize)
 	{
 		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, -1);
 		if (SaveContext.Result != ESavePackageResult::Success)
@@ -2129,14 +2130,14 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 	int32 PackageSize = SaveContext.Linker->Tell();
 	SaveContext.TotalPackageSizeUncompressed += PackageSize;
 
-	if (SaveContext.IsAdditionalFilesNeedLinkerSize())
+	if (bAdditionalFilesNeedLinkerSize)
 	{
 		SaveContext.Result = WriteAdditionalFiles(SaveContext, SlowTask, PackageSize);
 		if (SaveContext.Result != ESavePackageResult::Success)
 		{
 			return SaveContext.Result;
 		}
-		checkf(SaveContext.Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when IsAdditionalFilesNeedLinkerSize is true."));
+		checkf(SaveContext.Linker->Tell() == PackageSize, TEXT("The writing of additional files is not allowed to append to the LinkerSave when bAdditionalFilesNeedLinkerSize is true."));
 	}
 
 	for (const FSavePackageOutputFile& File : SaveContext.AdditionalPackageFiles)
@@ -2214,7 +2215,7 @@ ESavePackageResult WriteAdditionalFiles(FSaveContext& SaveContext, FScopedSlowTa
 		SaveContext.IsComputeHash(), SaveContext.AsyncWriteAndHashSequence, SaveContext.TotalPackageSizeUncompressed);
 
 	// Add any pending data blobs to the end of the file by invoking the callbacks
-	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.Linker.Get(), DataStartOffset, SaveContext.GetPackageStoreWriter());
+	ESavePackageResult Result = SavePackageUtilities::AppendAdditionalData(*SaveContext.Linker.Get(), DataStartOffset, SaveContext.GetSavePackageContext());
 	if (Result != ESavePackageResult::Success)
 	{
 		return Result;

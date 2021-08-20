@@ -233,7 +233,7 @@ FZenStoreWriter::FZenStoreWriter(
 	, OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, PackageStoreOptimizer(new FPackageStoreOptimizer())
-	, CookMode(IPackageStoreWriter::FCookInfo::CookByTheBookMode)
+	, CookMode(ICookedPackageWriter::FCookInfo::CookByTheBookMode)
 {
 	FString HostName = TEXT("localhost");
 	uint16 Port = 1337;
@@ -488,7 +488,7 @@ bool FZenStoreWriter::WriteAdditionalFile(const FAdditionalFileInfo& Info, const
 
 void FZenStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions)
 {
-	// Should not be called because IsLinkerAdditionalDataInSeparateArchive returned false
+	// Should not be called because bsLinkerAdditionalDataInSeparateArchive is false
 	checkNoEntry();
 }
 
@@ -496,7 +496,7 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 {
 	CookMode = Info.CookMode;
 
-	if (Info.CookMode == IPackageStoreWriter::FCookInfo::CookOnTheFlyMode)
+	if (Info.CookMode == ICookedPackageWriter::FCookInfo::CookOnTheFlyMode)
 	{
 		FCbPackage Pkg;
 		FCbWriter PackageObj;
@@ -730,7 +730,7 @@ FCbObject FZenStoreWriter::GetTargetDomainDependencies(FName PackageName)
 		return FCbObject();
 	}
 
-	const IPackageStoreWriter::FCookedPackageInfo& Info = CookedPackagesInfo[*Idx];
+	const ICookedPackageWriter::FCookedPackageInfo& Info = CookedPackagesInfo[*Idx];
 	TIoStatusOr<FIoBuffer> BufferResult = HttpClient->ReadOpLogAttachment(WriteToString<48>(Info.TargetDomainDependencies));
 	if (!BufferResult.IsOk())
 	{

@@ -6,8 +6,8 @@
 #include "IO/IoDispatcher.h"
 #include "Containers/Map.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/PackageWriter.h"
 #include "IO/PackageStore.h"
-#include "IO/PackageStoreWriter.h"
 #include "FilePackageStoreWriter.h"
 
 namespace UE {
@@ -20,9 +20,8 @@ class FCbPackage;
 class FCbWriter;
 
 /** 
- * Client for interfacing with Zen storage service
+ * A PackageStoreWriter that saves cooked packages for use by IoStore, and stores them in the Zen storage service.
  */
-
 class FZenStoreWriter
 	: public IPackageStoreWriter
 {
@@ -126,7 +125,7 @@ private:
 	class FZenStoreHttpQueue;
 	TUniquePtr<FZenStoreHttpQueue>		HttpQueue;
 	
-	IPackageStoreWriter::FCookInfo::ECookMode CookMode;
+	ICookedPackageWriter::FCookInfo::ECookMode CookMode;
 
 	FZenStats							ZenStats;
 };

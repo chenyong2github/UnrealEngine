@@ -7,29 +7,39 @@
 #include "Misc/SecureHash.h"
 #include "Serialization/CompactBinary.h"
 
+class IPackageStoreWriter;
 struct FPackageStoreEntryResource;
 
-class IPackageStoreWriter
+/** Interface for SavePackage to write packages to storage. */
+class IPackageWriter
 {
 public:
-	virtual ~IPackageStoreWriter() = default;
+	virtual ~IPackageWriter() = default;
 
 
-	// Properties of the PackageStoreWriter
-	/** Whether this writer needs BulkDatas to be written after the Linker's archive has finalized its size.
+	struct FCapabilities
+	{
+		/** Whether this writer needs BulkDatas to be written after the Linker's archive has finalized its size.
 
-		Some PackageStoreWriters need that behavior because they put the BulkDatas in a segment following
-		the exports in a Composite archive.
-	 */
-	virtual bool IsAdditionalFilesNeedLinkerSize() const { return false; }
-	/** Whether data stored in Linker.AdditionalDataToAppend should be serialized to a separate archive.
-	
-		If false, the data will be serialized to the end of the LinkerSave archive instead.
-	*/
-	virtual bool IsLinkerAdditionalDataInSeparateArchive() const { return false; }
+			Some PackageWriters need that behavior because they put the BulkDatas in a segment following
+			the exports in a Composite archive.
+		 */
+		bool bAdditionalFilesNeedLinkerSize = false;
+		/** Whether data stored in Linker.AdditionalDataToAppend should be serialized to a separate archive.
 
+			If false, the data will be serialized to the end of the LinkerSave archive instead.
+		*/
+		bool bLinkerAdditionalDataInSeparateArchive = false;
+	};
 
-	// Events the PackageStoreWriter receives
+	/** Return capabilities/settings this PackageWriter has/requires 
+	  */
+	virtual FCapabilities GetCapabilities() const
+	{
+		return FCapabilities();
+	}
+
+	// Events the PackageWriter receives
 	struct FBeginPackageInfo
 	{
 		FName	PackageName;
@@ -103,10 +113,17 @@ public:
 	};
 	/** Write separate data written by UObjects via FLinkerSave::AdditionalDataToAppend.
 
-		This function will not be called unless IsLinkerAdditionalDataInSeparateArchive returned true.
+		This function will not be called unless GetCapabilities().bLinkerAdditionalDataInSeparateArchive is true.
 		If that function is false, the data was inlined into the PackageData instead.
 	*/
 	virtual void WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo& Info, const FIoBuffer& Data, const TArray<FFileRegion>& FileRegions) = 0;
+};
+
+/** Interface for cooking that writes cooked packages to storage usable by the runtime game. */
+class ICookedPackageWriter : public IPackageWriter
+{
+public:
+	virtual ~ICookedPackageWriter() = default;
 
 	struct FCookInfo
 	{
@@ -129,29 +146,6 @@ public:
 	/** Signal the end of a cooking pass.
 	  */
 	virtual void EndCook() = 0;
-
-	/**
-	 * Returns all cooked package store entries.
-	 */
-	virtual void GetEntries(TFunction<void(TArrayView<const FPackageStoreEntryResource>)>&&) = 0;
-
-	/**
-	 * Package commit event arguments
-	 */
-	struct FCommitEventArgs
-	{
-		FName PlatformName;
-		FName PackageName;
-		int32 EntryIndex = INDEX_NONE;
-		TArrayView<const FPackageStoreEntryResource> Entries;
-		TArray<FAdditionalFileInfo> AdditionalFiles;
-	};
-
-	/**
-	 * Broadcasted after a package has been committed, i.e cooked.
-	 */
-	DECLARE_EVENT_OneParam(IPackageStoreWriter, FCommitEvent, const FCommitEventArgs&);
-	virtual FCommitEvent& OnCommit() = 0;
 
 	/**
 	 * Flush any outstanding writes.
@@ -182,17 +176,23 @@ public:
 	 * Remove cooked package(s) that has been modified since the last cook.
 	 */
 	virtual void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) = 0;
+
+	/** Downcast function for ICookedPackageWriters that implement the IPackageStoreWriter inherited interface. */
+	virtual IPackageStoreWriter* AsPackageStoreWriter()
+	{
+		return nullptr;
+	}
 };
 
-static inline const ANSICHAR* LexToString(IPackageStoreWriter::FBulkDataInfo::EType Value)
+static inline const ANSICHAR* LexToString(IPackageWriter::FBulkDataInfo::EType Value)
 {
 	switch (Value)
 	{
-	case IPackageStoreWriter::FBulkDataInfo::Standard:
+	case IPackageWriter::FBulkDataInfo::Standard:
 		return "Standard";
-	case IPackageStoreWriter::FBulkDataInfo::Mmap:
+	case IPackageWriter::FBulkDataInfo::Mmap:
 		return "Mmap";
-	case IPackageStoreWriter::FBulkDataInfo::Optional:
+	case IPackageWriter::FBulkDataInfo::Optional:
 		return "Optional";
 	}
 

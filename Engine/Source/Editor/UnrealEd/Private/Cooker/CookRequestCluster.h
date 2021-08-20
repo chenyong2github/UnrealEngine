@@ -98,7 +98,7 @@ private:
 	TArray<FRequest> Requests;
 	TArray<FName> RuntimeScratch;
 	TArray<const ITargetPlatform*> Platforms;
-	TArray<IPackageStoreWriter*> PackageStores;
+	TArray<ICookedPackageWriter*> PackageWriters;
 	FRequestClusterGraphData DependencyGraphData;
 	FString DLCPath;
 	FPackageDatas& PackageDatas;

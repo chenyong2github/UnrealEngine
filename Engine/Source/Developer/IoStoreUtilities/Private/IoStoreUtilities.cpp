@@ -3914,7 +3914,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 	struct FBulkDataInfo
 	{
 		FString FileName;
-		IPackageStoreWriter::FBulkDataInfo::EType BulkDataType;
+		IPackageWriter::FBulkDataInfo::EType BulkDataType;
 		TTuple<FIoStoreReader*, FIoChunkId> Chunk;
 	};
 
@@ -3999,15 +3999,15 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 							BulkDataInfo.Chunk = MakeTuple(Reader.Get(), ChunkInfo.Id);
 							if (ChunkType == EIoChunkType::OptionalBulkData)
 							{
-								BulkDataInfo.BulkDataType = IPackageStoreWriter::FBulkDataInfo::Optional;
+								BulkDataInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Optional;
 							}
 							else if (ChunkType == EIoChunkType::MemoryMappedBulkData)
 							{
-								BulkDataInfo.BulkDataType = IPackageStoreWriter::FBulkDataInfo::Mmap;
+								BulkDataInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Mmap;
 							}
 							else
 							{
-								BulkDataInfo.BulkDataType = IPackageStoreWriter::FBulkDataInfo::Standard;
+								BulkDataInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Standard;
 							}
 						}
 					}
@@ -4059,7 +4059,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 	FString MetaDataOutputPath = FPaths::Combine(CookedOutputPath, FApp::GetProjectName(), TEXT("Metadata"));
 	TUniquePtr<FZenStoreWriter> ZenStoreWriter = MakeUnique<FZenStoreWriter>(CookedOutputPath, MetaDataOutputPath, TargetPlatform, true);
 	
-	IPackageStoreWriter::FCookInfo CookInfo;
+	ICookedPackageWriter::FCookInfo CookInfo;
 	ZenStoreWriter->BeginCook(CookInfo);
 	int32 LocalPackageIndex = 0;
 	TArray<FPackageInfo> PackagesArray;
@@ -4069,12 +4069,12 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 	{
 		const FPackageInfo& PackageInfo = PackagesArray[Index];
 
-		IPackageStoreWriter::FBeginPackageInfo BeginPackageInfo;
+		IPackageWriter::FBeginPackageInfo BeginPackageInfo;
 		BeginPackageInfo.PackageName = PackageInfo.PackageName;
 
 		ZenStoreWriter->BeginPackage(BeginPackageInfo);
 
-		IPackageStoreWriter::FPackageInfo PackageStorePackageInfo;
+		IPackageWriter::FPackageInfo PackageStorePackageInfo;
 		PackageStorePackageInfo.PackageName = PackageInfo.PackageName;
 		PackageStorePackageInfo.LooseFilePath = PackageInfo.FileName;
 		PackageStorePackageInfo.ChunkId = PackageInfo.Chunk.Value;
@@ -4084,7 +4084,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 
 		for (const FBulkDataInfo& BulkDataInfo : PackageInfo.BulkData)
 		{
-			IPackageStoreWriter::FBulkDataInfo PackageStoreBulkDataInfo;
+			IPackageWriter::FBulkDataInfo PackageStoreBulkDataInfo;
 			PackageStoreBulkDataInfo.PackageName = PackageInfo.PackageName;
 			PackageStoreBulkDataInfo.LooseFilePath = BulkDataInfo.FileName;
 			PackageStoreBulkDataInfo.ChunkId = BulkDataInfo.Chunk.Value;
@@ -4093,7 +4093,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 			ZenStoreWriter->WriteBulkdata(PackageStoreBulkDataInfo, BulkDataBuffer, TArray<FFileRegion>());
 		}
 		
-		IPackageStoreWriter::FCommitPackageInfo CommitInfo;
+		IPackageWriter::FCommitPackageInfo CommitInfo;
 		CommitInfo.PackageName = PackageInfo.PackageName;
 		ZenStoreWriter->CommitPackage(CommitInfo);
 

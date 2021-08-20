@@ -8,11 +8,11 @@
 #include "Cooker/PackageBuildDependencyTracker.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "IO/IoHash.h"
-#include "IO/PackageStoreWriter.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
+#include "Serialization/PackageWriter.h"
 
 namespace UE::TargetDomain
 {
@@ -169,10 +169,10 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 }
 
 
-bool TryFetchKeyAndDependencies(IPackageStoreWriter* PackageStore, FName PackageName, const ITargetPlatform* TargetPlatform,
+bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName PackageName, const ITargetPlatform* TargetPlatform,
 	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage)
 {
-	FCbObject DependenciesObj = PackageStore->GetTargetDomainDependencies(PackageName);
+	FCbObject DependenciesObj = PackageWriter->GetTargetDomainDependencies(PackageName);
 	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
 	if (StoredKey.IsZero())
 	{

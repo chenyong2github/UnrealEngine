@@ -6,7 +6,7 @@
 #include "CookTypes.h"
 
 struct FODSCRequestPayload;
-class IPackageStoreWriter;
+class ICookedPackageWriter;
 
 namespace UE { namespace Cook
 {
@@ -119,7 +119,7 @@ public:
 	 *
 	 * @param PlatformName The platform name.
 	 */
-	virtual IPackageStoreWriter* GetPackageStoreWriter(const FName& PlatformName) = 0;
+	virtual ICookedPackageWriter* GetPackageWriter(const FName& PlatformName) = 0;
 
 	/**
 	 * A somewhat temporary event triggered when all pending packages has been cooked.

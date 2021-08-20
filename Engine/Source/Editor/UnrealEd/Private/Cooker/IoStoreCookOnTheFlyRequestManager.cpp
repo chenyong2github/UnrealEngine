@@ -5,7 +5,7 @@
 #include "CookOnTheFly.h"
 #include "Modules/ModuleManager.h"
 #include "Serialization/CookOnTheFlyPackageStore.h"
-#include "IO/PackageStoreWriter.h"
+#include "PackageStoreWriter.h"
 #include "ShaderCompiler.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/PackageName.h"
@@ -396,7 +396,7 @@ private:
 		FCriticalSection CriticalSection;
 		FName PlatformName;
 		FCookOnTheFlyPackageTracker PackageTracker;
-		IPackageStoreWriter* PackageStoreWriter = nullptr;
+		IPackageStoreWriter* PackageWriter = nullptr;
 	};
 
 	virtual bool Initialize() override
@@ -445,15 +445,16 @@ private:
 					TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(Client.PlatformName, MakeUnique<FPlatformContext>());
 					Context->PlatformName = Client.PlatformName;
 					
-					IPackageStoreWriter* PackageStoreWriter = CookOnTheFlyServer.GetPackageStoreWriter(Client.PlatformName);
-					Context->PackageStoreWriter = PackageStoreWriter;
+					IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(Client.PlatformName)->AsPackageStoreWriter();
+					check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
+					Context->PackageWriter = PackageWriter;
 					
-					PackageStoreWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries)
+					PackageWriter->GetEntries([&Context](TArrayView<const FPackageStoreEntryResource> Entries)
 					{
 						Context->PackageTracker.AddCompletedPackages(Entries);
 					});
 
-					PackageStoreWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
+					PackageWriter->OnCommit().AddRaw(this, &FIoStoreCookOnTheFlyRequestManager::OnPackageCooked);
 				}
 
 				return true;
@@ -520,7 +521,7 @@ private:
 		PackageStoreData.TotalFailedPackages	= FailedPackages.Num();
 		//PackageStoreData.FailedPackages			= FailedPackages;
 
-		Context.PackageStoreWriter->GetEntries([&CookedEntryIndices, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
+		Context.PackageWriter->GetEntries([&CookedEntryIndices, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
 		{
 			for (int32 EntryIndex : CookedEntryIndices)
 			{
@@ -597,7 +598,7 @@ private:
 			TArray<FString> Filenames;
 			TArray<FIoChunkId> ChunkIds;
 
-			for (const IPackageStoreWriter::FAdditionalFileInfo& FileInfo : EventArgs.AdditionalFiles)
+			for (const ICookedPackageWriter::FAdditionalFileInfo& FileInfo : EventArgs.AdditionalFiles)
 			{
 				UE_LOG(LogCookOnTheFly, Verbose, TEXT("Sending additional cooked file '%s'"), *FileInfo.Filename);
 				Filenames.Add(FileInfo.Filename);
@@ -731,7 +732,7 @@ private:
 				PackageStoreData.TotalFailedPackages = Context.PackageTracker.GetFailedPackages().Num();
 				PackageStoreData.FailedPackages = MoveTemp(CompletedPackages.FailedPackages);
 
-				Context.PackageStoreWriter->GetEntries([&CompletedPackages, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
+				Context.PackageWriter->GetEntries([&CompletedPackages, &PackageStoreData](TArrayView<const FPackageStoreEntryResource> Entries)
 				{
 					for (int32 EntryIndex : CompletedPackages.CookedEntryIndices)
 					{
