@@ -12,6 +12,7 @@
 #include "RigVMStatistics.h"
 #if WITH_EDITOR
 #include "RigVMDebugInfo.h"
+#include "HAL/PlatformTime.h"
 #endif
 #include "RigVM.generated.h"
 
@@ -290,6 +291,31 @@ public:
 			return InstructionVisitedDuringLastRun[InIndex];
 		}
 		return 0;
+	}
+
+	// Returns accumulated cycles spent in an instruction during the last run
+	// This requires bEnabledProfiling to be turned on in the runtime settings.
+	// If there is no information available this function returns UINT64_MAX.
+	FORCEINLINE uint64 GetInstructionCycles(int32 InIndex) const
+	{
+		if (InstructionCyclesDuringLastRun.IsValidIndex(InIndex))
+		{
+			return InstructionCyclesDuringLastRun[InIndex];
+		}
+		return UINT64_MAX;
+	}
+
+	// Returns accumulated duration of the instruction in microseconds during the last run
+	// Note: this requires bEnabledProfiling to be turned on in the runtime settings.
+	// If there is no information available this function returns -1.0.
+	FORCEINLINE double GetInstructionMicroSeconds(int32 InIndex) const
+	{
+		const uint64 Cycles = GetInstructionCycles(InIndex);
+		if(Cycles == UINT64_MAX)
+		{
+			return -1.0;
+		}
+		return double(Cycles) * FPlatformTime::GetSecondsPerCycle() * 1000.0 * 1000.0;
 	}
 
 	// Returns the order of all instructions during the last run
@@ -718,6 +744,8 @@ public:
 	void SetBreakpointAction(const ERigVMBreakpointAction& Action) { CurrentBreakpointAction = Action; }
 #endif
 
+	uint32 GetNumExecutions() const { return NumExecutions; }
+
 private:
 
 	void ResolveFunctionsIfRequired();
@@ -735,6 +763,9 @@ private:
 
 	UPROPERTY(transient)
 	FRigVMExecuteContext Context;
+
+	UPROPERTY(transient)
+	uint32 NumExecutions;
 
 #if WITH_EDITOR
 	FRigVMDebugInfo* DebugInfo;
@@ -788,8 +819,10 @@ private:
 	}
 	
 #if WITH_EDITOR
+
 	// stores the number of times each instruction was visited
 	TArray<int32> InstructionVisitedDuringLastRun;
+	TArray<uint64> InstructionCyclesDuringLastRun;
 	TArray<int32> InstructionVisitOrder;
 	
 	// Control Rig can run multiple events per evaluation, such as the Backward&Forward Solve Mode,

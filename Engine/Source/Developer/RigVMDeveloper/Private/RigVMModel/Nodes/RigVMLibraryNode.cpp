@@ -31,7 +31,7 @@ bool URigVMLibraryNode::IsDefinedAsVarying() const
 	return false;
 }
 
-TArray<int32> URigVMLibraryNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+TArray<int32> URigVMLibraryNode::GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy) const
 {
 	TArray<int32> Instructions;
 
@@ -53,6 +53,7 @@ TArray<int32> URigVMLibraryNode::GetInstructionsForVM(URigVM* InVM, const FRigVM
 	return Instructions;
 }
 
+/*
 int32 URigVMLibraryNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy, bool bConsolidatePerNode) const
 {
 	int32 Count = 0;
@@ -75,6 +76,7 @@ int32 URigVMLibraryNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMAS
 
 	return Count;
 }
+*/
 
 const TArray<URigVMNode*>& URigVMLibraryNode::GetContainedNodes() const
 {

@@ -153,6 +153,7 @@ public:
 
 protected:
 
+	FLinearColor GetNodeProfilingColor() const;
 	FLinearColor GetNodeOpacityColor() const;
 
 	/** Helper function for AllocateDefaultPins */
@@ -194,6 +195,10 @@ private:
 
 	FLinearColor CachedTitleColor;
 	FLinearColor CachedNodeColor;
+
+#if WITH_EDITOR
+	bool bEnableProfiling;
+#endif
 
 	TArray<URigVMPin*> ExecutePins;
 	TArray<URigVMPin*> InputOutputPins;

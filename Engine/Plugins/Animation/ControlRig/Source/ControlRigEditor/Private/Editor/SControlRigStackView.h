@@ -59,6 +59,7 @@ private:
 	FText GetLabelText() const;
 	FSlateFontInfo GetLabelFont() const;
 	FText GetVisitedCountText() const;
+	FText GetDurationText() const;
 };
 
 class SControlRigStackView : public SCompoundWidget

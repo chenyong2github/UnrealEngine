@@ -72,6 +72,7 @@ private:
 	void HandleNodeTitleDirtied();
 
 	FText GetInstructionCountText() const;
+	FText GetInstructionDurationText() const;
 
 private:
 
@@ -88,6 +89,7 @@ private:
 
 	TSharedPtr<SImage> VisualDebugIndicatorWidget;
 	TSharedPtr<STextBlock> InstructionCountTextBlockWidget;
+	TSharedPtr<STextBlock> InstructionDurationTextBlockWidget;
 
 	static const FSlateBrush* CachedImg_CR_Pin_Connected;
 	static const FSlateBrush* CachedImg_CR_Pin_Disconnected;

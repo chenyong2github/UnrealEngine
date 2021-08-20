@@ -9,8 +9,9 @@
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "ControlRigDefines.generated.h"
 
-#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
-	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
+#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+//#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
+//	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 USTRUCT()
 struct FControlRigExecuteContext : public FRigVMExecuteContext

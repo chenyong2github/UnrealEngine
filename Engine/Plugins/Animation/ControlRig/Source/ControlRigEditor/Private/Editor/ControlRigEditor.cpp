@@ -2827,6 +2827,32 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 				}
 			}
 		}
+
+		if(ControlRigBP->VMRuntimeSettings.bEnableProfiling)
+		{
+			if(ControlRigBP->RigGraphDisplaySettings.bAutoDetermineRange)
+			{
+				if(ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds < 0.0)
+				{
+					ControlRigBP->RigGraphDisplaySettings.LastMinMicroSeconds = ControlRigBP->RigGraphDisplaySettings.MinMicroSeconds; 
+					ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds = ControlRigBP->RigGraphDisplaySettings.MaxMicroSeconds;
+				}
+				else if(ControlRigBP->RigGraphDisplaySettings.MaxMicroSeconds >= 0.0)
+				{
+					const double T = 0.05;
+					ControlRigBP->RigGraphDisplaySettings.LastMinMicroSeconds = FMath::Lerp<double>(ControlRigBP->RigGraphDisplaySettings.LastMinMicroSeconds, ControlRigBP->RigGraphDisplaySettings.MinMicroSeconds, T); 
+					ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds = FMath::Lerp<double>(ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds, ControlRigBP->RigGraphDisplaySettings.MaxMicroSeconds, T); 
+				}
+
+				ControlRigBP->RigGraphDisplaySettings.MinMicroSeconds = DBL_MAX; 
+				ControlRigBP->RigGraphDisplaySettings.MaxMicroSeconds = (double)INDEX_NONE;
+			}
+			else
+			{
+				ControlRigBP->RigGraphDisplaySettings.LastMinMicroSeconds = ControlRigBP->RigGraphDisplaySettings.MinMicroSeconds; 
+				ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds = ControlRigBP->RigGraphDisplaySettings.MaxMicroSeconds;
+			}
+		}
 	}
 
 	UpdateGraphCompilerErrors();
@@ -4188,6 +4214,12 @@ void FControlRigEditor::OnFinishedChangingProperties(const FPropertyChangedEvent
 		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("VMCompileSettings"))
 		{
 			ControlRigBP->RecompileVM();
+			return;
+		}
+
+		if (PropertyChangedEvent.MemberProperty->GetNameCPP() == TEXT("VMRuntimeSettings"))
+		{
+			ControlRigBP->PropagateRuntimeSettingsFromBPToInstances();
 			return;
 		}
 

@@ -7,6 +7,10 @@
 
 const FString URigVMNode::NodeColorName = TEXT("NodeColor");
 
+#if WITH_EDITOR
+TArray<int32> URigVMNode::EmptyInstructionArray;
+#endif
+
 URigVMNode::URigVMNode()
 : UObject()
 , Position(FVector2D::ZeroVector)
@@ -14,6 +18,9 @@ URigVMNode::URigVMNode()
 , NodeColor(FLinearColor::White)
 , bHasBreakpoint(false)
 , bHaltedAtThisNode(false)
+#if WITH_EDITOR
+, ProfilingHash(0)
+#endif
 {
 
 }
@@ -446,7 +453,16 @@ void URigVMNode::GetLinkedNodesRecursive(URigVMPin* InPin, bool bLookForSources,
 	}
 }
 
-TArray<int32> URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+const TArray<int32>& URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+	if(const FProfilingCache* Cache = UpdateProfilingCacheIfNeeded(InVM, InProxy))
+	{
+		return Cache->Instructions;
+	}
+	return EmptyInstructionArray;
+}
+
+TArray<int32> URigVMNode::GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy) const
 {
 	TArray<int32> Instructions;
 
@@ -473,30 +489,88 @@ TArray<int32> URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProx
 	return Instructions;
 }
 
-int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy, bool bConsolidatePerNode) const
+int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy) const
 {
 #if WITH_EDITOR
 	if(InVM)
 	{
-		TArray<int32> Instructions = GetInstructionsForVM(InVM, InProxy);
-		if(Instructions.Num() > 0)
+		if(const FProfilingCache* Cache = UpdateProfilingCacheIfNeeded(InVM, InProxy))
 		{
-			int32 Count = 0;
-			for(int32 Instruction : Instructions)
-			{
-				const int32 CountPerInstruction = InVM->GetInstructionVisitedCount(Instruction);
-				if(bConsolidatePerNode)
-				{
-					Count = FMath::Max<int32>(Count, CountPerInstruction);
-				}
-				else
-				{
-					Count += CountPerInstruction;
-				}
-			}
-			return Count;
+			return Cache->VisitedCount;
 		}
 	}
 #endif
 	return 0;
 }
+
+double URigVMNode::GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+#if WITH_EDITOR
+	if(InVM)
+	{
+		if(const FProfilingCache* Cache = UpdateProfilingCacheIfNeeded(InVM, InProxy))
+		{
+			return Cache->MicroSeconds;
+		}
+	}
+#endif
+	return -1.0;
+}
+
+#if WITH_EDITOR
+
+const URigVMNode::FProfilingCache* URigVMNode::UpdateProfilingCacheIfNeeded(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+	if(InVM == nullptr)
+	{
+		return nullptr;
+	}
+	
+	const uint32 VMHash = HashCombine(GetTypeHash(InVM), GetTypeHash(InVM->GetNumExecutions()));
+	if(VMHash != ProfilingHash)
+	{
+		ProfilingCache.Reset();
+	}
+	ProfilingHash = VMHash;
+
+	const uint32 ProxyHash = InProxy.IsValid() ? GetTypeHash(InProxy) : GetTypeHash(this);
+
+	const TSharedPtr<FProfilingCache>* ExistingCache = ProfilingCache.Find(ProxyHash);
+	if(ExistingCache)
+	{
+		return ExistingCache->Get();
+	}
+
+	TSharedPtr<FProfilingCache> Cache(new FProfilingCache);
+
+	Cache->Instructions = GetInstructionsForVMImpl(InVM, InProxy);
+	Cache->VisitedCount = 0;
+	Cache->MicroSeconds = -1.0;
+
+	if(Cache->Instructions.Num() > 0)
+	{
+		for(const int32 Instruction : Cache->Instructions)
+		{
+			const int32 CountPerInstruction = InVM->GetInstructionVisitedCount(Instruction);
+			Cache->VisitedCount += CountPerInstruction;
+
+			const double MicroSecondsPerInstruction = InVM->GetInstructionMicroSeconds(Instruction);
+			if(MicroSecondsPerInstruction >= 0.0)
+			{
+				if(Cache->MicroSeconds < 0.0)
+				{
+					Cache->MicroSeconds = MicroSecondsPerInstruction;
+				}
+				else
+				{
+					Cache->MicroSeconds += MicroSecondsPerInstruction;
+				}
+			}
+		}
+	}
+
+	ProfilingCache.Add(ProxyHash, Cache);
+	return Cache.Get();;
+}
+
+#endif

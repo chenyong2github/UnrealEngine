@@ -189,10 +189,13 @@ public:
 	FName GetPreviousFName() const { return PreviousName; }
 
 	// Returns the indices of associated instructions for this node
-	virtual TArray<int32> GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
+	const TArray<int32>& GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
 
 	// Returns the number of visited / run instructions for this node
-	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy(), bool bConsolidatePerNode = false) const; 
+	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
+
+	// Returns the accumulated duration of all of instructions for this node 
+	double GetInstructionMicroSeconds(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const;
 
 	// return true if this node is a loop node
 	virtual bool IsLoopNode() const { return false; }
@@ -217,6 +220,7 @@ private:
 
 protected:
 
+	virtual TArray<int32> GetInstructionsForVMImpl(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
 	virtual FText GetToolTipTextForPin(const URigVMPin* InPin) const;
 	virtual bool AllowsLinksOn(const URigVMPin* InPin) const { return true; }
 
@@ -249,6 +253,19 @@ private:
 	UPROPERTY()
 	TArray<TObjectPtr<URigVMPin>> OrphanedPins;
 
+#if WITH_EDITOR
+	struct FProfilingCache
+	{
+		mutable int32 VisitedCount;
+		mutable double MicroSeconds;
+		mutable TArray<int32> Instructions;
+	};
+	const FProfilingCache* UpdateProfilingCacheIfNeeded(URigVM* InVM, const FRigVMASTProxy& InProxy) const;
+	mutable uint32 ProfilingHash;
+	mutable TMap<uint32, TSharedPtr<FProfilingCache>> ProfilingCache;
+	static TArray<int32> EmptyInstructionArray;
+#endif
+	
 	friend class URigVMController;
 	friend class URigVMGraph;
 	friend class URigVMPin;
