@@ -18,9 +18,9 @@ using namespace UE::Geometry;
 
 const FToolTargetTypeRequirements& UAddPivotActorToolBuilder::GetTargetRequirements() const
 {
-	static FToolTargetTypeRequirements TypeRequirements({
+	static FToolTargetTypeRequirements TypeRequirements(
 		UPrimitiveComponentBackedTarget::StaticClass()
-		});
+		);
 	return TypeRequirements;
 }
 
