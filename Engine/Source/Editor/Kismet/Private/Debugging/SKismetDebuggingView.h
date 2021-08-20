@@ -52,10 +52,13 @@ public:
 	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) { }
 
 	// Gather all of the children
-	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren) {}
+	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch = true) {}
 
 	// returns whether this tree node has children (used by drop down arrows)
 	virtual bool HasChildren();
+
+	// only line items inherriting from FLineItemWithChildren can have children
+	virtual bool CanHaveChildren() { return false; }
 
 	// @return The object that will act as a parent to more items in the tree, or NULL if this is a leaf node
 	virtual UObject* GetParentObject() { return NULL; }
@@ -81,11 +84,18 @@ public:
 
 	static bool IsDebugLineTypeActive(EDebugLineType Type);
 	static void OnDebugLineTypeActiveChanged(ECheckBoxState CheckState, EDebugLineType Type);
+
+	// updates bVisible and bParentsMatchSearch based on this node alone
+	void UpdateSearchFlags(bool bIsRootNode = false);
+
+	bool IsVisible();
+	bool DoParentsMatchSearch();
 protected:
+	TSharedPtr<SSearchBox> SearchBox;
 	
 	// Cannot create an instance of this class, it's just for use as a base class
-	FDebugLineItem(EDebugLineType InType)
-		: Type(InType)
+	FDebugLineItem(EDebugLineType InType, TSharedPtr<SSearchBox> InSearchBox)
+		: SearchBox(MoveTemp(InSearchBox)), Type(InType)
 	{
 	}
 
@@ -104,11 +114,16 @@ protected:
 
 	// @return The text to display in the value column, unless GenerateValueWidget is overridden
 	virtual FText GetDescription() const;
-private:
+protected:
 	// Type of action (poor mans RTTI for the tree, really only used to accelerate Compare checks)
 	EDebugLineType Type;
 
 	static uint16 ActiveTypeBitset;
+
+	// true if self or any recursive children match the search
+	bool bVisible = false;
+	// true if self or any recursive parents match the search
+	bool bParentsMatchSearch = false;
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -148,8 +163,11 @@ protected:
 	static TSharedRef<SHorizontalBox> GetDebugLineTypeToggle(FDebugLineItem::EDebugLineType Type, const FText& Text);
 	
 	TSharedPtr<SWidget> OnMakeContextMenu();
+
+	// called when SearchBox query is committed by the user
+	void OnSearchTextCommitted(const FText& Text, ETextCommit::Type);
 protected:
-	TSharedPtr< STreeView<FDebugTreeItemPtr> > DebugTreeView;
+	TSharedPtr<STreeView<FDebugTreeItemPtr>> DebugTreeView;
 	TMap<UObject*, FDebugTreeItemPtr> ObjectToTreeItemMap;
 	TArray<FDebugTreeItemPtr> RootTreeItems;
 
@@ -161,6 +179,10 @@ protected:
 	TSharedPtr< FTraceStackParentItem > TraceStackItem;
 	TSharedPtr< FBreakpointParentItem > BreakpointParentItem;
 
+	// Combo button for selecting which blueprint is being watched
 	TSharedPtr<SComboButton> DebugClassComboButton;
 	TWeakObjectPtr<UBlueprint> BlueprintToWatchPtr;
+
+	// Search Box for tree
+	TSharedPtr<SSearchBox> SearchBox;
 };
