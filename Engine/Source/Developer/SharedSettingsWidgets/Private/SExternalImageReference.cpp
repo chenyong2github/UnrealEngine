@@ -39,7 +39,10 @@ void SExternalImageReference::Construct(const FArguments& InArgs, const FString&
 	ImageReferenceConfig.MaxDisplayedImageDimensions = InArgs._MaxDisplaySize;
 	ImageReferenceConfig.OnGetPickerPath = InArgs._OnGetPickerPath;
 	ImageReferenceConfig.FileExtensions = InArgs._FileExtensions;
-
+	ImageReferenceConfig.GenerateImageVisibility = InArgs._GenerateImageVisibility;
+	ImageReferenceConfig.GenerateImageToolTipText = InArgs._GenerateImageToolTipText;
+	ImageReferenceConfig.OnGenerateImageClicked = InArgs._OnGenerateImageClicked;
+  
 	ChildSlot
 	[
 		IExternalImagePickerModule::Get().MakeEditorWidget(ImageReferenceConfig)

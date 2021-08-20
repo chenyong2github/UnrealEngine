@@ -27,9 +27,10 @@ public class IOSPlatformEditor : ModuleRules
 				"MaterialShaderQualitySettings",
 				"RenderCore",
                 "AudioSettingsEditor",
-                "GameProjectGeneration"
-            }
-        );
+                "GameProjectGeneration",
+				"FreeImage",
+			}
+		);
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
