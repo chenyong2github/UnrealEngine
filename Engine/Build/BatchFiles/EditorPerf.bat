@@ -1,1 +1,1 @@
-@call %~dp0RunUAT.bat BuildGraph -Script=Engine/Build/IterationProfile.xml -Target="Run Iteration Profile Tests" -set:Platforms=Win64 -append:Projects="AncientGame" -append:Projects="EngineTest" -append:Projects="ShooterGame" %*
+@call %~dp0RunUAT.bat BuildGraph -Script=Engine/Build/EditorPerf.xml -Target="Run EditorPerf Tests" -set:Platforms=Win64 -append:Projects="AncientGame" -append:Projects="EngineTest" -append:Projects="ShooterGame" %*
