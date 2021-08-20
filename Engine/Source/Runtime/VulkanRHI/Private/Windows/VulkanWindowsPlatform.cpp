@@ -242,8 +242,7 @@ void FVulkanWindowsPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	// Disabling as validation complains: Missing extension required by the device extension VK_KHR_fragment_shading_rate: VK_KHR_create_renderpass2
-	//OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
 #endif
 }
 

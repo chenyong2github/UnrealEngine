@@ -367,6 +367,9 @@ struct FGfxPipelineDesc
 
 	uint8 UseAlphaToCoverage;
 
+	EVRSShadingRate ShadingRate = EVRSShadingRate::VRSSR_1x1;
+	EVRSRateCombiner Combiner = EVRSRateCombiner::VRSRB_Passthrough;
+
 	bool operator==(const FGfxPipelineDesc& In) const
 	{
 		if (VertexInputKey != In.VertexInputKey)
@@ -449,6 +452,18 @@ struct FGfxPipelineDesc
 		{
 			return false;
 		}
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (ShadingRate != In.ShadingRate)
+		{
+			return false;
+		}
+		
+		if (Combiner != In.Combiner)
+		{
+			return false;
+		}
+#endif
 
 		return true;
 	}
