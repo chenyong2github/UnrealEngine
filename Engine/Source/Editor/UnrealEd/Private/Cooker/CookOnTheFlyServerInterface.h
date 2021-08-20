@@ -7,6 +7,7 @@
 
 struct FODSCRequestPayload;
 class ICookedPackageWriter;
+class ITargetPlatform;
 
 namespace UE { namespace Cook
 {
@@ -41,7 +42,7 @@ struct FRecompileShaderRequest
 	int32 ShaderPlatformToCompile = -1; // 
 	/** Materials to laod. */
 	TArray<FString> MaterialsToLoad;
-	/** On-deamnd shader compiler payload.  */
+	/** On-demand shader compiler payload.  */
 	TArray<FODSCRequestPayload> ShadersToRecompile;
 	/** Mesh materials, returned to the caller.  */
 	TArray<uint8>* MeshMaterialMaps = nullptr;
@@ -69,7 +70,7 @@ public:
 	 *
 	 * @param PlatformName The platform name.
 	 */
-	virtual bool AddPlatform(const FName& PlatformName) = 0;
+	virtual const ITargetPlatform* AddPlatform(const FName& PlatformName) = 0;
 
 	/**
 	 * Remove platform from the cook-on-the-fly session.
@@ -116,10 +117,8 @@ public:
 
 	/**
 	 * Returns the package store writer for the specified platform.
-	 *
-	 * @param PlatformName The platform name.
 	 */
-	virtual ICookedPackageWriter* GetPackageWriter(const FName& PlatformName) = 0;
+	virtual ICookedPackageWriter& GetPackageWriter(const ITargetPlatform* TargetPlatform) = 0;
 
 	/**
 	 * A somewhat temporary event triggered when all pending packages has been cooked.

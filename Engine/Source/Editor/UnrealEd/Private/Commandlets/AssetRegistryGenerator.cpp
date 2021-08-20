@@ -795,17 +795,16 @@ void FAssetRegistryGenerator::CleanManifestDirectories()
 	CleanTempPackagingDirectory(TargetPlatform->PlatformName());
 }
 
-bool FAssetRegistryGenerator::LoadPreviousAssetRegistry(const FString& Filename)
+void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& InPreviousState)
 {
-	// First try development asset registry
-	FArrayReader SerializedAssetData;
-
-	if (IFileManager::Get().FileExists(*Filename) && FFileHelper::LoadFileToArray(SerializedAssetData, *Filename))
+	if (InPreviousState)
 	{
-		return PreviousState.Load(SerializedAssetData);
+		PreviousState = MoveTemp(*InPreviousState);
 	}
-
-	return false;
+	else
+	{
+		PreviousState.Reset();
+	}
 }
 
 void FAssetRegistryGenerator::InjectEncryptionData(FAssetRegistryState& TargetState)

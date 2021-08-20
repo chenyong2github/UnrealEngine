@@ -25,6 +25,7 @@
 #include "Cooker/CookRequests.h"
 #include "Cooker/CookTypes.h"
 #include "Cooker/IoStoreCookOnTheFlyRequestManager.h"
+#include "Cooker/LooseCookedPackageWriter.h"
 #include "Cooker/NetworkFileCookOnTheFlyRequestManager.h"
 #include "Cooker/PackageNameCache.h"
 #include "Cooker/PackageTracker.h"
@@ -119,7 +120,6 @@
 #include "ZenStoreWriter.h"
 
 #define LOCTEXT_NAMESPACE "Cooker"
-#define REMAPPED_PLUGINS TEXT("RemappedPlugins")
 
 DEFINE_LOG_CATEGORY(LogCook);
 
@@ -186,59 +186,6 @@ const TCHAR* GeneratedPackageSubPath = TEXT("_Generated_");
 
 /* helper structs functions
  *****************************************************************************/
-
-class FPackageSearchVisitor : public IPlatformFile::FDirectoryVisitor
-{
-	TArray<FString>& FoundFiles;
-public:
-	FPackageSearchVisitor(TArray<FString>& InFoundFiles)
-		: FoundFiles(InFoundFiles)
-	{}
-	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-	{
-		if (bIsDirectory == false)
-		{
-			FString Filename(FilenameOrDirectory);
-			if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")))
-			{
-				FoundFiles.Add(Filename);
-			}
-		}
-		return true;
-	}
-};
-
-class FAdditionalPackageSearchVisitor: public IPlatformFile::FDirectoryVisitor
-{
-	TSet<FString>& FoundMapFilesNoExt;
-	TArray<FString>& FoundOtherFiles;
-public:
-	FAdditionalPackageSearchVisitor(TSet<FString>& InFoundMapFiles, TArray<FString>& InFoundOtherFiles)
-		: FoundMapFilesNoExt(InFoundMapFiles), FoundOtherFiles(InFoundOtherFiles)
-	{}
-	virtual bool Visit(const TCHAR* FilenameOrDirectory, bool bIsDirectory)
-	{
-		if (bIsDirectory == false)
-		{
-			FString Filename(FilenameOrDirectory);
-			if (Filename.EndsWith(TEXT(".uasset")) || Filename.EndsWith(TEXT(".umap")))
-			{
-				FoundMapFilesNoExt.Add(FPaths::SetExtension(Filename, ""));
-			}
-			else if ( Filename.EndsWith(TEXT(".uexp")) || Filename.EndsWith(TEXT(".ubulk")) )
-			{
-				FoundOtherFiles.Add(Filename);
-			}
-		}
-		return true;
-	}
-};
-
-const FString& GetAssetRegistryPath()
-{
-	static const FString AssetRegistryPath = FPaths::ProjectDir();
-	return AssetRegistryPath;
-}
 
 /**
  * Return the release asset registry filename for the release version supplied
@@ -337,24 +284,24 @@ public:
 		return Cooker.SandboxFile->GetSandboxDirectory();
 	}
 
-	virtual bool AddPlatform(const FName& PlatformName) override
+	virtual const ITargetPlatform* AddPlatform(const FName& PlatformName) override
 	{
+		const ITargetPlatform* Result;
 		{
 			UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(Cooker.PlatformManager->ReadLockPlatforms());
-			if (!Cooker.AddCookOnTheFlyPlatform(PlatformName))
+			Result = Cooker.AddCookOnTheFlyPlatform(PlatformName);
+			if (!Result)
 			{
 				UE_LOG(LogCook, Warning, TEXT("Trying to add invalid platform '%s' on the fly"), *PlatformName.ToString());
-				return false;
+				return nullptr;
 			}
 
 			Cooker.PlatformManager->AddRefCookOnTheFlyPlatform(PlatformName, Cooker);
 		}
 
-		Cooker.TrySetDefaultAsyncIODeletePlatform(PlatformName.ToString());
-
-		return true;
+		return Result;
 	}
-	
+
 	virtual void RemovePlatform(const FName& PlatformName) override
 	{
 		UE::Cook::FPlatformManager::FReadScopeLock PlatformScopeLock(Cooker.PlatformManager->ReadLockPlatforms());
@@ -466,20 +413,9 @@ public:
 		return true;
 	}
 
-	virtual ICookedPackageWriter* GetPackageWriter(const FName& PlatformName) override
+	virtual ICookedPackageWriter& GetPackageWriter(const ITargetPlatform* TargetPlatform) override
 	{
-		if (Cooker.CookOnTheFlyOptions.bZenStore)
-		{
-			for (UE::Cook::FCookSavePackageContext* Context : Cooker.SavePackageContexts)
-			{
-				if (FName(*Context->SaveContext.TargetPlatform->PlatformName()) == PlatformName)
-				{
-					return Context->PackageWriter;
-				}
-			}
-		}
-
-		return nullptr;
+		return Cooker.FindOrCreatePackageWriter(TargetPlatform);
 	}
 
 	DECLARE_DERIVED_EVENT(UCookOnTheFlyServer::FCookOnTheFlyServerInterface, UE::Cook::ICookOnTheFlyServer::FFlushEvent, FFlushEvent);
@@ -504,12 +440,9 @@ public:
 
 		UE_LOG(LogCook, Log, TEXT("Flushing..."));
 
-		if (Cooker.CookOnTheFlyOptions.bZenStore)
+		for (UE::Cook::FCookSavePackageContext* Context : Cooker.SavePackageContexts)
 		{
-			for (UE::Cook::FCookSavePackageContext* Context : Cooker.SavePackageContexts)
-			{
-				Context->PackageWriter->Flush();
-			}
+			Context->PackageWriter->Flush();
 		}
 
 		if (FlushEvent.IsBound())
@@ -572,7 +505,6 @@ UCookOnTheFlyServer::UCookOnTheFlyServer(const FObjectInitializer& ObjectInitial
 	CurrentCookMode(ECookMode::CookOnTheFly),
 	CookByTheBookOptions(nullptr),
 	CookFlags(ECookInitializationFlags::None),
-	bIsInitializingSandbox(false),
 	bIsSavingPackage(false),
 	AssetRegistry(nullptr),
 	PackageDatas(MakeUnique<UE::Cook::FPackageDatas>(*this))
@@ -686,7 +618,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 		for (ITargetPlatform* TargetPlatform : CookOnTheFlyOptions.TargetPlatforms)
 		{
 			AddCookOnTheFlyPlatform(FName(*TargetPlatform->PlatformName()));
-	}
+		}
 	}
 
 	UE_LOG(LogCook, Display, TEXT("Starting '%s' cook-on-the-fly server"),
@@ -724,6 +656,7 @@ const ITargetPlatform* UCookOnTheFlyServer::AddCookOnTheFlyPlatform(const FName&
 		// Platform has already been added by this function or by StartCookByTheBook
 		return PlatformData->TargetPlatform;
 	}
+	TrySetDefaultAsyncIODeletePlatform(PlatformData->TargetPlatform->PlatformName());
 
 	if (IsInGameThread())
 	{
@@ -791,7 +724,8 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 	TArrayView<ITargetPlatform* const> NewTargetPlatforms(&TargetPlatform,1);
 
 	RefreshPlatformAssetRegistries(NewTargetPlatforms);
-	InitializeSandbox(NewTargetPlatforms);
+	FindOrCreateSaveContexts(NewTargetPlatforms);
+	BeginCookSandbox(NewTargetPlatforms);
 	InitializeTargetPlatforms(NewTargetPlatforms);
 	InitializeShadersForCookOnTheFly(NewTargetPlatforms);
 
@@ -802,8 +736,7 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 	{
 		Generator->SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true);
 	}
-	InitializePackageStore(NewTargetPlatforms);
-	check(PlatformData->bIsSandboxInitialized); // This should have been set by InitializeSandbox, and it is what we use to determine whether a platform has been initialized
+	check(PlatformData->bIsSandboxInitialized); // This should have been set by BeginCookSandbox, and it is what we use to determine whether a platform has been initialized
 }
 
 void UCookOnTheFlyServer::OnTargetPlatformsInvalidated()
@@ -3200,6 +3133,7 @@ private: // Used only by UCookOnTheFlyServer, which has private access
 
 	// Per-platform data, only valid in PerPlatform callbacks
 	const ITargetPlatform* TargetPlatform = nullptr;
+	FCookSavePackageContext* CookContext = nullptr;
 	FSavePackageContext* SavePackageContext = nullptr;
 	ICookedPackageWriter* PackageWriter = nullptr;
 	FString PlatFilename;
@@ -4222,7 +4156,7 @@ public:
 			bool bCompatible = true;
 			for (UE::Cook::FCookSavePackageContext* SavePackageContext : SavePackageContexts)
 			{
-				if (SavePackageContext && SavePackageContext->PackageWriter)
+				if (!SavePackageContext->PackageWriterCapabilities.bDiffModeSupported)
 				{
 					bCompatible = false;
 					break;
@@ -4231,7 +4165,7 @@ public:
 			if (!bCompatible)
 			{
 				const TCHAR* CommandLineArg = IsRunningCookDiff() ? TEXT("-DIFFONLY") : TEXT("-LINKERDIFF");
-				UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but PackageWriter is also enabled and PackageWriter does not support %s."),
+				UE_LOG(LogCook, Fatal, TEXT("%s was enabled, but -iostore is also enabled and iostore PackageWriters do not support %s."),
 					CommandLineArg, CommandLineArg);
 				bDiffEnabled = false;
 				LinkerDiffMode = LDM_None;
@@ -4457,7 +4391,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 			{
 				if (DiffModeHelper->IsRunningCookDiff())
 				{
-					check(!Context.PackageWriter); // IsRunningCookDiff should have been disabled by DiffModeHelper if we have any PackageWriter
+					check(Context.CookContext->PackageWriterCapabilities.bDiffModeSupported); // IsRunningCookDiff should have been disabled by DiffModeHelper if we are using a PackageWriter
 					DiffModeHelper->ProcessPackage(Package);
 
 					// When looking for deterministic cook issues, first serialize the package to memory and do a simple diff with the existing package
@@ -4477,7 +4411,7 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FSaveCookedPackageContext&
 				}
 				else if (DiffModeHelper->IsRunningCookLinkerDiff())
 				{
-					check(!Context.PackageWriter); // IsRunningCookLinkerDiff should have been disabled by DiffModeHelper if we have any PackageWriter
+					check(Context.CookContext->PackageWriterCapabilities.bDiffModeSupported); // IsRunningCookDiff should have been disabled by DiffModeHelper if we are using a PackageWriter
 
 					Context.SavePackageResult = GEditor->Save(Package, Context.World, Context.FlagsToCook, *Context.PlatFilename,
 						GError, nullptr, Context.bEndianSwap, false, Context.SaveFlags, TargetPlatform,
@@ -4646,24 +4580,13 @@ void FSaveCookedPackageContext::SetupPlatform(const ITargetPlatform* InTargetPla
 		World->PersistentLevel->HandleLegacyMapBuildData();
 	}
 
-	FCookSavePackageContext* CookContext = COTFS.GetSavePackageContext(TargetPlatform);
-	if (CookContext)
-	{
-		SavePackageContext = &CookContext->SaveContext;
-		PackageWriter = CookContext->PackageWriter;
-	}
-	else
-	{
-		SavePackageContext = nullptr;
-		PackageWriter = nullptr;
-	}
-	if (PackageWriter)
-	{
-		ICookedPackageWriter::FBeginPackageInfo Info;
-		Info.PackageName = Package->GetFName();
+	CookContext = &COTFS.FindOrCreateSaveContext(TargetPlatform);
+	SavePackageContext = &CookContext->SaveContext;
+	PackageWriter = CookContext->PackageWriter;
+	ICookedPackageWriter::FBeginPackageInfo Info;
+	Info.PackageName = Package->GetFName();
 
-		PackageWriter->BeginPackage(Info);
-	}
+	PackageWriter->BeginPackage(Info);
 
 	// Indicate Setup was successful
 	bPlatformSetupSuccessful = true;
@@ -4675,7 +4598,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
-	if (bPlatformSetupSuccessful && PackageWriter)
+	if (bPlatformSetupSuccessful)
 	{
 		FAssetRegistryGenerator* Generator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
 		FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(Package->GetFName());
@@ -5834,118 +5757,6 @@ bool UCookOnTheFlyServer::SaveCurrentIniSettings(const ITargetPlatform* TargetPl
 
 }
 
-FName UCookOnTheFlyServer::ConvertCookedPathToUncookedPath(
-	const FString& SandboxRootDir, const FString& RelativeRootDir,
-	const FString& SandboxProjectDir, const FString& RelativeProjectDir,
-	const FString& CookedPath, FString& OutUncookedPath) const
-{
-	OutUncookedPath.Reset();
-
-	// Check for remapped plugins' cooked content
-	if (PluginsToRemap.Num() > 0 && CookedPath.Contains(REMAPPED_PLUGINS))
-	{
-		int32 RemappedIndex = CookedPath.Find(REMAPPED_PLUGINS);
-		check(RemappedIndex >= 0);
-		static uint32 RemappedPluginStrLen = FCString::Strlen(REMAPPED_PLUGINS);
-		// Snip everything up through the RemappedPlugins/ off so we can find the plugin it corresponds to
-		FString PluginPath = CookedPath.RightChop(RemappedIndex + RemappedPluginStrLen + 1);
-		// Find the plugin that owns this content
-		for (TSharedRef<IPlugin> Plugin : PluginsToRemap)
-		{
-			if (PluginPath.StartsWith(Plugin->GetName()))
-			{
-				OutUncookedPath = Plugin->GetContentDir();
-				static uint32 ContentStrLen = FCString::Strlen(TEXT("Content/"));
-				// Chop off the pluginName/Content since it's part of the full path
-				OutUncookedPath /= PluginPath.RightChop(Plugin->GetName().Len() + ContentStrLen);
-				break;
-			}
-		}
-
-		if (OutUncookedPath.Len() > 0)
-		{
-			return FName(*OutUncookedPath);
-		}
-		// Otherwise fall through to sandbox handling
-	}
-
-	auto BuildUncookedPath = 
-		[&OutUncookedPath](const FString& CookedPath, const FString& CookedRoot, const FString& UncookedRoot)
-	{
-		OutUncookedPath.AppendChars(*UncookedRoot, UncookedRoot.Len());
-		OutUncookedPath.AppendChars(*CookedPath + CookedRoot.Len(), CookedPath.Len() - CookedRoot.Len());
-	};
-
-	if (CookedPath.StartsWith(SandboxRootDir))
-	{
-		// Optimized CookedPath.StartsWith(SandboxProjectDir) that does not compare all of SandboxRootDir again
-		if (CookedPath.Len() >= SandboxProjectDir.Len() && 
-			0 == FCString::Strnicmp(
-				*CookedPath + SandboxRootDir.Len(),
-				*SandboxProjectDir + SandboxRootDir.Len(),
-				SandboxProjectDir.Len() - SandboxRootDir.Len()))
-		{
-			BuildUncookedPath(CookedPath, SandboxProjectDir, RelativeProjectDir);
-		}
-		else
-		{
-			BuildUncookedPath(CookedPath, SandboxRootDir, RelativeRootDir);
-		}
-	}
-	else
-	{
-		FString FullCookedFilename = FPaths::ConvertRelativePathToFull(CookedPath);
-		BuildUncookedPath(FullCookedFilename, SandboxRootDir, RelativeRootDir);
-	}
-
-	// Convert to a standard filename as required by FPackageNameCache where this path is used.
-	FPaths::MakeStandardFilename(OutUncookedPath);
-
-	return FName(*OutUncookedPath);
-}
-
-void UCookOnTheFlyServer::GetAllCookedFiles(TMap<FName, FName>& UncookedPathToCookedPath, const FString& SandboxRootDir)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::GetAllCookedFiles);
-
-	TArray<FString> CookedFiles;
-	{
-		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-		FPackageSearchVisitor PackageSearch(CookedFiles);
-		PlatformFile.IterateDirectoryRecursively(*SandboxRootDir, PackageSearch);
-	}
-
-	const FString SandboxProjectDir = FPaths::Combine(*SandboxRootDir, FApp::GetProjectName()) + TEXT("/");
-	const FString RelativeRootDir = FPaths::GetRelativePathToRoot();
-	const FString RelativeProjectDir = FPaths::ProjectDir();
-	FString UncookedFilename;
-	UncookedFilename.Reserve(1024);
-
-	for (const FString& CookedFile : CookedFiles)
-	{
-		const FName CookedFName(*CookedFile);
-		const FName UncookedFName = ConvertCookedPathToUncookedPath(
-			SandboxRootDir, RelativeRootDir,
-			SandboxProjectDir, RelativeProjectDir,
-			CookedFile, UncookedFilename);
-
-		UncookedPathToCookedPath.Add(UncookedFName, CookedFName);
-	}
-}
-
-void UCookOnTheFlyServer::DeleteSandboxDirectory(const FString& PlatformName)
-{
-	FString SandboxDirectory = GetSandboxDirectory(PlatformName);
-	FPaths::NormalizeDirectoryName(SandboxDirectory);
-	FString AsyncDeleteDirectory = GetAsyncDeleteDirectory(PlatformName, &SandboxDirectory);
-
-	FAsyncIODelete& LocalAsyncIODelete = GetAsyncIODelete(PlatformName, &AsyncDeleteDirectory);
-	LocalAsyncIODelete.DeleteDirectory(SandboxDirectory);
-
-	// UE_DEPRECATED(4.25, "Delete the old location for AsyncDeleteDirectory until all users have cooked at least once")
-	LocalAsyncIODelete.DeleteDirectory(SandboxDirectory + TEXT("AsyncDelete"));
-}
-
 void UCookOnTheFlyServer::TrySetDefaultAsyncIODeletePlatform(const FString& PlatformName)
 {
 	if (DefaultAsyncIODeletePlatformName.IsEmpty())
@@ -5956,284 +5767,27 @@ void UCookOnTheFlyServer::TrySetDefaultAsyncIODeletePlatform(const FString& Plat
 
 FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete()
 {
-	check(!DefaultAsyncIODeletePlatformName.IsEmpty());
-	return GetAsyncIODelete(DefaultAsyncIODeletePlatformName);
-}
-
-FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete(const FString& PlatformName, const FString* AsyncDeleteDirectory)
-{
-	FAsyncIODelete* AsyncIODeletePtr = AsyncIODelete.Get();
-	if (!AsyncIODeletePtr)
+	if (AsyncIODelete)
 	{
-		FString Buffer;
-		if (!AsyncDeleteDirectory)
-		{
-			Buffer = GetAsyncDeleteDirectory(PlatformName);
-			AsyncDeleteDirectory = &Buffer;
-		}
-		AsyncIODelete = MakeUnique<FAsyncIODelete>(*AsyncDeleteDirectory);
-		AsyncIODeletePtr = AsyncIODelete.Get();
+		return *AsyncIODelete;
 	}
-	// If we have already created the AsyncIODelete, we ignore the input PlatformName and use the existing AsyncIODelete initialized from whatever platform we used before
-	// The PlatformName is used only to construct a directory that we can be sure no other process is using (because a sandbox can only be cooked by one process at a time)
-	return *AsyncIODeletePtr;
-}
 
-FString UCookOnTheFlyServer::GetAsyncDeleteDirectory(const FString& PlatformName, const FString* SandboxDirectory) const
-{
+	// The PlatformName is used construct a directory that we can be sure no other process is using (because a sandbox can only be cooked by one process at a time)
 	// The TempRoot we will delete into is a sibling of the the Platform-specific sandbox directory, with name [PlatformDir]AsyncDelete
 	// Note that two UnrealEd-Cmd processes cooking to the same sandbox at the same time will therefore cause an error since FAsyncIODelete doesn't handle multiple processes sharing TempRoots.
 	// That simultaneous-cook behavior is also not supported in other assumptions throughout the cooker.
-	FString Buffer;
-	if (!SandboxDirectory)
-	{
-		// Avoid recalculating SandboxDirectory if caller supplied it, but if they didn't, calculate it here
-		Buffer = GetSandboxDirectory(PlatformName);
-		FPaths::NormalizeDirectoryName(Buffer);
-		SandboxDirectory = &Buffer;
-	}
-	return (*SandboxDirectory) + TEXT("_Del");
+	check(!DefaultAsyncIODeletePlatformName.IsEmpty());
+	FString DeleteDirectory = GetSandboxDirectory(DefaultAsyncIODeletePlatformName);
+	FPaths::NormalizeDirectoryName(DeleteDirectory);
+	DeleteDirectory += TEXT("_Del");
+
+	AsyncIODelete = MakeUnique<FAsyncIODelete>(DeleteDirectory);
+	return *AsyncIODelete;
 }
 
-void UCookOnTheFlyServer::PopulateCookedPackagesFromDisk(const TArrayView<const ITargetPlatform* const>& Platforms)
+void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatform* const> TargetPlatforms)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromDisk);
-
-	// See what files are out of date in the sandbox folder
-	for (int32 Index = 0; Index < Platforms.Num(); Index++)
-	{
-		TArray<FString> CookedPackagesToDelete;
-
-		const ITargetPlatform* Target = Platforms[Index];
-		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(Target);
-		FString SandboxPath = GetSandboxDirectory(Target->PlatformName());
-
-		FString EngineSandboxPath = SandboxFile->ConvertToSandboxPath(*FPaths::EngineDir()) + TEXT("/");
-		EngineSandboxPath.ReplaceInline(TEXT("[Platform]"), *Target->PlatformName());
-
-		FString GameSandboxPath = SandboxFile->ConvertToSandboxPath(*(FPaths::ProjectDir() + TEXT("a.txt")));
-		GameSandboxPath.ReplaceInline(TEXT("a.txt"), TEXT(""));
-		GameSandboxPath.ReplaceInline(TEXT("[Platform]"), *Target->PlatformName());
-
-		FString LocalGamePath = FPaths::ProjectDir();
-		if (FPaths::IsProjectFilePathSet())
-		{
-			LocalGamePath = FPaths::GetPath(FPaths::GetProjectFilePath()) + TEXT("/");
-		}
-
-		FString LocalEnginePath = FPaths::EngineDir();
-
-		// Registry generator already exists
-		FAssetRegistryGenerator* PlatformAssetRegistry = PlatformData->RegistryGenerator.Get();
-		check(PlatformAssetRegistry);
-
-		// Load the platform cooked asset registry file
-		const FString CookedAssetRegistry = FPaths::ProjectDir() / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
-		const FString SandboxCookedAssetRegistryFilename = ConvertToFullSandboxPath(*CookedAssetRegistry, true, Target->PlatformName());
-
-		bool bIsIterateSharedBuild = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
-
-		if (bIsIterateSharedBuild)
-		{
-			// see if the shared build is newer then the current cooked content in the local directory
-			FDateTime CurrentLocalCookedBuild = IFileManager::Get().GetTimeStamp(*SandboxCookedAssetRegistryFilename);
-
-			// iterate on the shared build if the option is set
-			FString SharedCookedAssetRegistry = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *Target->PlatformName(), TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
-
-			FDateTime CurrentIterativeCookedBuild = IFileManager::Get().GetTimeStamp(*SharedCookedAssetRegistry);
-
-			if ( (CurrentIterativeCookedBuild >= CurrentLocalCookedBuild) && 
-				(CurrentIterativeCookedBuild != FDateTime::MinValue()) )
-			{
-				// clean the sandbox
-				ClearPlatformCookedData(Target);
-
-				// SaveCurrentIniSettings(Target); // use this if we don't care about ini safty.
-				// copy the ini settings from the shared cooked build. 
-				const FString PlatformName = Target->PlatformName();
-				const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"), *PlatformName, TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
-				const FString SandboxCookedIniFile = ConvertToFullSandboxPath(*(FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt")), true).Replace(TEXT("[Platform]"), *PlatformName);
-
-				IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
-
-				bool bIniSettingsOutOfDate = IniSettingsOutOfDate(Target);
-				if (bIniSettingsOutOfDate && !IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
-				{
-					UE_LOG(LogCook, Display, TEXT("Shared iterative build ini settings out of date, not using shared cooked build"));
-				}
-				else
-				{
-					if (bIniSettingsOutOfDate)
-					{
-						UE_LOG(LogCook, Display, TEXT("Shared iterative build ini settings out of date, but we don't care"));
-					}
-
-					UE_LOG(LogCook, Display, TEXT("Shared iterative build is newer then local cooked build, iteratively cooking from shared build "));
-					PlatformAssetRegistry->LoadPreviousAssetRegistry(SharedCookedAssetRegistry);
-				}
-			}
-			else
-			{
-				UE_LOG(LogCook, Display, TEXT("Local cook is newer then shared cooked build, iterativly cooking from local build"));
-				PlatformAssetRegistry->LoadPreviousAssetRegistry(SandboxCookedAssetRegistryFilename);
-			}
-		}
-		else
-		{
-			PlatformAssetRegistry->LoadPreviousAssetRegistry(SandboxCookedAssetRegistryFilename);
-		}
-
-		// Get list of changed packages
-		TSet<FName> ModifiedPackages, NewPackages, RemovedPackages, IdenticalCookedPackages, IdenticalUncookedPackages;
-
-		// We recurse modifications up the reference chain because it is safer, if this ends up being a significant issue in some games we can add a command line flag
-		bool bRecurseModifications = true;
-		bool bRecurseScriptModifications = !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
-		PlatformAssetRegistry->ComputePackageDifferences(ModifiedPackages, NewPackages, RemovedPackages, IdenticalCookedPackages, IdenticalUncookedPackages, bRecurseModifications, bRecurseScriptModifications);
-
-		// check the files on disk 
-		TMap<FName, FName> UncookedPathToCookedPath;
-		// get all the on disk cooked files
-		GetAllCookedFiles(UncookedPathToCookedPath, SandboxPath);
-
-		const static FName NAME_DummyCookedFilename(TEXT("DummyCookedFilename")); // pls never name a package dummycookedfilename otherwise shit might go wonky
-		if (bIsIterateSharedBuild)
-		{
-			check(IFileManager::Get().FileExists(*NAME_DummyCookedFilename.ToString()) == false);
-
-			TSet<FName> ExistingPackages = ModifiedPackages;
-			ExistingPackages.Append(RemovedPackages);
-			ExistingPackages.Append(IdenticalCookedPackages);
-			ExistingPackages.Append(IdenticalUncookedPackages);
-
-			// if we are iterating of a shared build the cooked files might not exist in the cooked directory because we assume they are packaged in the pak file (which we don't want to extract)
-			for (FName PackageName : ExistingPackages)
-			{
-				FString Filename;
-				if (FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename))
-				{
-					UncookedPathToCookedPath.Add(FName(*Filename), NAME_DummyCookedFilename);
-				}
-			}
-		}
-
-		uint32 NumPackagesConsidered = UncookedPathToCookedPath.Num();
-		uint32 NumPackagesUnableToFindCookedPackageInfo = 0;
-		uint32 NumPackagesFileHashMismatch = 0;
-		uint32 NumPackagesKept = 0;
-		uint32 NumMarkedFailedSaveKept = 0;
-		uint32 NumPackagesRemoved = 0;
-
-		TArray<FName> KeptPackages;
-
-		for (const auto& CookedPaths : UncookedPathToCookedPath)
-		{
-			const FName CookedFile = CookedPaths.Value;
-			const FName UncookedFilename = CookedPaths.Key;
-			const FName* FoundPackageName = GetPackageNameCache().GetCachedPackageNameFromStandardFileName(UncookedFilename);
-			bool bShouldKeep = true;
-			const FName SourcePackageName = FoundPackageName ? *FoundPackageName : NAME_None;
-			if ( !FoundPackageName )
-			{
-				// Source file no longer exists
-				++NumPackagesRemoved;
-				bShouldKeep = false;
-			}
-			else
-			{
-				if (ModifiedPackages.Contains(SourcePackageName))
-				{
-					++NumPackagesFileHashMismatch;
-					bShouldKeep = false;
-				}
-				else if (NewPackages.Contains(SourcePackageName) || RemovedPackages.Contains(SourcePackageName))
-				{
-					++NumPackagesUnableToFindCookedPackageInfo;
-					bShouldKeep = false;
-				}
-				else if (IdenticalUncookedPackages.Contains(SourcePackageName))
-				{
-					// These are packages which failed to save the first time 
-					// most likely because they are editor only packages
-					bShouldKeep = false;
-				}
-			}
-
-			TArray<const ITargetPlatform*> PlatformsForPackage;
-			PlatformsForPackage.Add(Target);
-
-			if (bShouldKeep)
-			{
-				// Mark this package as cooked so that we don't unnecessarily try to cook it again
-				if (IdenticalCookedPackages.Contains(SourcePackageName))
-				{
-					UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(SourcePackageName);
-					if (PackageData)
-					{
-						PackageData->AddCookedPlatforms({ Target }, true /* bSucceeded */);
-						KeptPackages.Add(SourcePackageName);
-						++NumPackagesKept;
-					}
-				}
-			}
-			else
-			{
-				if (SourcePackageName != NAME_None && IsCookByTheBookMode()) // cook on the fly will requeue this package when it wants it 
-				{
-					// Force cook the modified file
-					ExternalRequests->EnqueueUnique(UE::Cook::FFilePlatformRequest(UncookedFilename, PlatformsForPackage));
-				}
-				if (CookedFile != NAME_DummyCookedFilename)
-				{
-					// delete the old package 
-					const FString CookedFullPath = FPaths::ConvertRelativePathToFull(CookedFile.ToString());
-					UE_LOG(LogCook, Verbose, TEXT("Deleting cooked package %s failed filehash test"), *CookedFullPath);
-					CookedPackagesToDelete.Add(CookedFullPath);
-				}
-				else
-				{
-					// the cooker should rebuild this package because it's not in the cooked package list
-					// the new package will have higher priority then the package in the original shared cooked build
-					const FString UncookedFilenameString = UncookedFilename.ToString();
-					UE_LOG(LogCook, Verbose, TEXT("Shared cooked build: Detected package is out of date %s"), *UncookedFilenameString);
-				}
-			}
-		}
-
-		// Register identical uncooked packages from previous run
-		for (FName UncookedPackage : IdenticalUncookedPackages)
-		{
-			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(UncookedPackage);
-			if (PackageData)
-			{
-				ensure(!PackageData->HasAnyCookedPlatforms({ Target }, /* bIncludeFailed */ false));
-				PackageData->AddCookedPlatforms({ Target }, false /* bSucceeded */);
-				KeptPackages.Add(UncookedPackage);
-				++NumMarkedFailedSaveKept;
-			}
-		}
-
-		PlatformAssetRegistry->UpdateKeptPackages(KeptPackages);
-
-		UE_LOG(LogCook, Display, TEXT("Iterative cooking summary for %s, \nConsidered: %d, \nFile Hash missmatch: %d, \nPackages Kept: %d, \nPackages failed save kept: %d, \nMissing Cooked Info(expected 0): %d"),
-			*Target->PlatformName(),
-			NumPackagesConsidered, NumPackagesFileHashMismatch,
-			NumPackagesKept, NumMarkedFailedSaveKept,
-			NumPackagesUnableToFindCookedPackageInfo);
-
-		auto DeletePackageLambda = [&CookedPackagesToDelete](int32 PackageIndex)
-		{
-			const FString& CookedFullPath = CookedPackagesToDelete[PackageIndex];
-			IFileManager::Get().Delete(*CookedFullPath, true, true, true);
-		};
-		ParallelFor(CookedPackagesToDelete.Num(), DeletePackageLambda);
-	}
-}
-
-void UCookOnTheFlyServer::PopulateCookedPackagesFromPackageStore(const TArrayView<const ITargetPlatform* const>& Platforms)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackagesFromPackgeStore);
+	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackages);
 
 	struct FPreviousAssetPackageData
 	{
@@ -6261,20 +5815,19 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromPackageStore(const TArrayVie
 		TMap<FName, const FAssetPackageData*> AssetPackageDataMap;
 	};
 
-	for (const ITargetPlatform* Platform : Platforms)
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
-		UE_LOG(LogCook, Display, TEXT("Populating cooked package(s) from package store on platform '%s'"), *Platform->PlatformName());
-		
-		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(Platform);
+		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
 		FAssetRegistryGenerator* PlatformAssetRegistry = PlatformData->RegistryGenerator.Get();
-		ICookedPackageWriter* PackageWriter = GetPackageWriter(FName(*Platform->PlatformName()));
-		
+		UE::Cook::FCookSavePackageContext& CookSavePackageContext = FindOrCreateSaveContext(TargetPlatform);
+		ICookedPackageWriter& PackageWriter = *CookSavePackageContext.PackageWriter;
 		check(PlatformData);
 		check(PlatformAssetRegistry);
-		check(PackageWriter);
+		UE_LOG(LogCook, Display, TEXT("Populating cooked package(s) from %s package store on platform '%s'"),
+			*CookSavePackageContext.WriterDebugName, *TargetPlatform->PlatformName());
 
 		TArray<ICookedPackageWriter::FCookedPackageInfo> CookedPackages;
-		PackageWriter->GetCookedPackages(CookedPackages);
+		PackageWriter.GetCookedPackages(CookedPackages);
 		
 		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), CookedPackages.Num());
 
@@ -6288,40 +5841,79 @@ void UCookOnTheFlyServer::PopulateCookedPackagesFromPackageStore(const TArrayVie
 		PlatformAssetRegistry->ComputePackageDifferences(Options, PreviousAssetPackageData.AssetPackageDataMap, Difference);
 
 		TArray<FName> PackagesToRemove;
-		PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num());
-		
-		for (const FName& ModifiedPackageName : Difference.ModifiedPackages)
+		PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num() + Difference.IdenticalUncookedPackages.Num());
+		for (FName PackageToRemove : Difference.ModifiedPackages)
 		{
-			PackagesToRemove.Add(ModifiedPackageName);
+			PackagesToRemove.Add(PackageToRemove);
 		}
-		
-		for (const FName& RemovedPackageName : Difference.RemovedPackages)
+		for (FName PackageToRemove : Difference.RemovedPackages)
 		{
-			PackagesToRemove.Add(RemovedPackageName );
+			PackagesToRemove.Add(PackageToRemove);
+		}
+		for (FName PackageToRemove : Difference.IdenticalUncookedPackages)
+		{
+			PackagesToRemove.Add(PackageToRemove);
 		}
 		
 		UE_LOG(LogCook, Display, TEXT("Keeping '%d' and removing '%d' cooked package(s)"), Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num());
 		
-		PackageWriter->RemoveCookedPackages(PackagesToRemove);
+		PackageWriter.RemoveCookedPackages(PackagesToRemove);
 		
 		TArray<FName> PackagesToKeep;
-		for (const FName& IdenticalPackageName : Difference.IdenticalCookedPackages)
+		for (const FName& IdenticalPackage : Difference.IdenticalCookedPackages)
 		{
-			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackageName);
+			// Mark this package as cooked so that we don't unnecessarily try to cook it again
+			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackage);
 			if (PackageData)
 			{
-				const bool bSucceded = true;
-				PackageData->AddCookedPlatforms({ Platform }, bSucceded);
-				PackagesToKeep.Add(IdenticalPackageName);
+				PackageData->AddCookedPlatforms({ TargetPlatform }, true /* bSucceeded */);
+				PackagesToKeep.Add(IdenticalPackage);
+			}
+		}
+		for (FName UncookedPackage : Difference.IdenticalUncookedPackages)
+		{
+			// Mark this failed-to-cook package as cooked so that we don't unnecessarily try to cook it again
+			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(UncookedPackage);
+			if (PackageData)
+			{
+				ensure(!PackageData->HasAnyCookedPlatforms({ TargetPlatform }, /* bIncludeFailed */ false));
+				PackageData->AddCookedPlatforms({ TargetPlatform }, false /* bSucceeded */);
+				PackagesToKeep.Add(UncookedPackage);
+			}
+		}
+		if (IsCookByTheBookMode())
+		{
+			for (const FName& RemovePackageName : Difference.ModifiedPackages)
+			{
+				// cook on the fly will requeue this package when it wants it, but for cook on the book we force cook the modified file
+				// so that the output set of packages is up to date (even if the user is currently cooking only a subset)
+				UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(RemovePackageName);
+				if (PackageData)
+				{
+					ExternalRequests->EnqueueUnique(UE::Cook::FFilePlatformRequest(PackageData->GetFileName(),
+						TConstArrayView<const ITargetPlatform*>{ TargetPlatform }));
+				}
 			}
 		}
 
-		PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep, [&PreviousAssetPackageData](const FName& PackageName, FAssetPackageData* Current)
+		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.ReleasePreviousAssetRegistry());
+		if (PreviousAssetRegistry)
 		{
-			const FAssetPackageData* Previous = PreviousAssetPackageData.AssetPackageDataMap.FindRef(PackageName);
-			Current->CookedHash = Previous->CookedHash;
-			Current->DiskSize = Previous->DiskSize;
-		});
+			// SetPreviousAssetRegistry is needed for UpdateKeptPackagesAssetData, which is called at the end
+			// of the cook for any packages that were kept from the previous cook and not cooked in this cook
+			PlatformAssetRegistry->SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry));
+			PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep);
+		}
+		else
+		{
+			// TODO: Implementation ReleasePreviousAssetRegistry for all PackageWriters and add an assertion here instead of handling null.
+			PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep, [&PreviousAssetPackageData](const FName& PackageName, FAssetPackageData* Current)
+				{
+					const FAssetPackageData* Previous = PreviousAssetPackageData.AssetPackageDataMap.FindRef(PackageName);
+					Current->CookedHash = Previous->CookedHash;
+					Current->DiskSize = Previous->DiskSize;
+				});
+		}
 	}
 }
 
@@ -7616,8 +7208,6 @@ void UCookOnTheFlyServer::CancelCookByTheBook()
 
 		CancelAllQueues();
 
-		ClearPackageStoreContexts();
-
 		CookByTheBookOptions->bRunning = false;
 		SandboxFile = nullptr;
 
@@ -7697,20 +7287,24 @@ void UCookOnTheFlyServer::ClearPlatformCookedData(const ITargetPlatform* TargetP
 	{
 		return;
 	}
+	ResetCookResults({ TargetPlatform });
 
-	// if we are going to clear the cooked packages it is conceivable that we will recook the packages which we just cooked 
-	// that means it's also conceivable that we will recook the same package which currently has an outstanding async write request
-	UPackage::WaitForAsyncFileWrites();
+	FindOrCreatePackageWriter(TargetPlatform).RemoveCookedPackages();
+}
 
+void UCookOnTheFlyServer::ResetCookResults(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+{
 	for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
 	{
-		PackageData->RemoveCookedPlatform(TargetPlatform);
+		PackageData->RemoveCookedPlatforms(TargetPlatforms);
 	}
 
 	TArray<FName> PackageNames;
-	PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, PackageNames);
-
-	DeleteSandboxDirectory(TargetPlatform->PlatformName());
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	{
+		PackageNames.Reset();
+		PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, PackageNames);
+	}
 }
 
 void UCookOnTheFlyServer::ClearPlatformCookedData(const FString& PlatformName)
@@ -7718,11 +7312,11 @@ void UCookOnTheFlyServer::ClearPlatformCookedData(const FString& PlatformName)
 	ClearPlatformCookedData(GetTargetPlatformManagerRef().FindTargetPlatform(PlatformName));
 }
 
-void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform( const ITargetPlatform* TargetPlatform )
+void UCookOnTheFlyServer::ClearCachedCookedPlatformDataForPlatform(const ITargetPlatform* TargetPlatform)
 {
 	if (TargetPlatform)
 	{
-		for ( TObjectIterator<UObject> It; It; ++It )
+		for (TObjectIterator<UObject> It; It; ++It)
 		{
 			It->ClearCachedCookedPlatformData(TargetPlatform);
 		}
@@ -7751,7 +7345,7 @@ void UCookOnTheFlyServer::CreateSandboxFile()
 	// but will not be used to actually write/read files so we can safely
 	// use [Platform] token in the sandbox directory name and then replace it
 	// with the actual platform name.
-	check( SandboxFile == nullptr );
+	check(SandboxFile == nullptr);
 	SandboxFile = FSandboxPlatformFile::Create(false);
 
 	// Output directory override.	
@@ -7761,7 +7355,7 @@ void UCookOnTheFlyServer::CreateSandboxFile()
 	SandboxFile->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *OutputDirectory));
 }
 
-void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatform* const>& TargetPlatforms)
+void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
 {
 #if OUTPUT_COOKTIMING
 	double CleanSandboxTime = 0.0;
@@ -7774,25 +7368,44 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			CreateSandboxFile();
 		}
 
-		// before we can delete any cooked files we need to make sure that we have finished writing them
-		UPackage::WaitForAsyncFileWrites();
-
-		// Skip markup of packages for reload during sandbox initialization.  TODO: Is this no longer required because it is no longer possible to load packages in this function?
-		bIsInitializingSandbox = true;
-		ON_SCOPE_EXIT
-		{
-			bIsInitializingSandbox = false;
-		};
-
-		TSet<const ITargetPlatform*> AlreadyInitializedPlatforms;
-		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> RefreshPlatforms;
 		const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
 		const bool bIsIterativeCook = IsCookFlagSet(ECookInitializationFlags::Iterative);
+		const bool bIsSharedIterativeCook = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
+		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
+		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> PopulatePlatforms;
 
-		for (const ITargetPlatform* Target : TargetPlatforms)
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
-			UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(Target);
-			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(Target); // needs to be executed for side effects even if non-iterative
+			UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
+			ICookedPackageWriter& PackageWriter = FindOrCreatePackageWriter(TargetPlatform);
+			bool bIterateSharedBuild = false;
+			if (bIsIterativeCook && bIsSharedIterativeCook && !PlatformData->bIsSandboxInitialized)
+			{
+				// see if the shared build is newer then the current cooked content in the local directory
+				FString SharedCookedAssetRegistry = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
+					*TargetPlatform->PlatformName(), TEXT("Metadata"), GetDevelopmentAssetRegistryFilename());
+				
+				FDateTime PreviousLocalCookedBuild = PackageWriter.GetPreviousCookTime();
+				FDateTime PreviousSharedCookedBuild = IFileManager::Get().GetTimeStamp(*SharedCookedAssetRegistry);
+				if (PreviousSharedCookedBuild != FDateTime::MinValue() &&
+					PreviousSharedCookedBuild >= PreviousLocalCookedBuild)
+				{
+					// copy the ini settings from the shared cooked build. 
+					const FString SharedCookedIniFile = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
+						*TargetPlatform->PlatformName(), TEXT("Metadata"), TEXT("CookedIniVersion.txt"));
+					FString SandboxCookedIniFile = FPaths::ProjectDir() / TEXT("Metadata") / TEXT("CookedIniVersion.txt");
+					SandboxCookedIniFile = ConvertToFullSandboxPath(*SandboxCookedIniFile, true);
+					SandboxCookedIniFile.ReplaceInline(TEXT("[Platform]"), *TargetPlatform->PlatformName());
+					IFileManager::Get().Copy(*SandboxCookedIniFile, *SharedCookedIniFile);
+					bIterateSharedBuild = true;
+					UE_LOG(LogCook, Display, TEXT("Shared iterative build is newer then local cooked build, iteratively cooking from shared build."));
+				}
+				else
+				{
+					UE_LOG(LogCook, Display, TEXT("Local cook is newer then shared cooked build, iteratively cooking from local build."));
+				}
+			}
+			const bool bIsIniSettingsOutOfDate = IniSettingsOutOfDate(TargetPlatform); // needs to be executed for side effects even if non-iterative
 
 			bool bShouldClearCookedContent = true;
 			if (bIsDiffOnly)
@@ -7804,19 +7417,18 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			{
 				if (!bIsIniSettingsOutOfDate)
 				{
-					// We have constructed the sandbox in an earlier cook in this process (e.g. in the editor) and should not clear it again
 					bShouldClearCookedContent = false;
 				}
 				else
 				{
 					if (!IsCookFlagSet(ECookInitializationFlags::IgnoreIniSettingsOutOfDate))
 					{
-						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *Target->PlatformName());
+						UE_LOG(LogCook, Display, TEXT("Cook invalidated for platform %s ini settings don't match from last cook, clearing all cooked content"), *TargetPlatform->PlatformName());
 						bShouldClearCookedContent = true;
 					}
 					else
 					{
-						UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set"), *Target->PlatformName());
+						UE_LOG(LogCook, Display, TEXT("Inisettings were out of date for platform %s but we are going with it anyway because IgnoreIniSettingsOutOfDate is set"), *TargetPlatform->PlatformName());
 						bShouldClearCookedContent = false;
 					}
 				}
@@ -7824,45 +7436,39 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 			else
 			{
 				// In non-iterative cooks we will be replacing every cooked package and so should wipe the cooked directory
-				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *Target->PlatformName());
+				UE_LOG(LogCook, Display, TEXT("Clearing all cooked content for platform %s"), *TargetPlatform->PlatformName());
 				bShouldClearCookedContent = true;
 			}
 
+			ICookedPackageWriter::FCookInfo CookInfo;
+			CookInfo.CookMode = IsCookOnTheFlyMode() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
+			CookInfo.bCleanBuild = false;
+			CookInfo.bIterateSharedBuild = bIterateSharedBuild && !bShouldClearCookedContent;
 			if (bShouldClearCookedContent)
 			{
-				ClearPlatformCookedData(Target);
-				SaveCurrentIniSettings(Target);
+				CookInfo.bCleanBuild = true;
+				ResetPlatforms.Add(TargetPlatform);
 			}
-			else
+			else if (!PlatformData->bIsSandboxInitialized)
 			{
-				RefreshPlatforms.Add(Target);
-				if (PlatformData->bIsSandboxInitialized)
+				ResetPlatforms.Add(TargetPlatform);
+				// Reset but don't populate if we are looking for deterministic cooking differences; start from an empty list of cooked packages
+				if (!bIsDiffOnly)
 				{
-					AlreadyInitializedPlatforms.Add(Target);
+					PopulatePlatforms.Add(TargetPlatform);
 				}
 			}
-
+			PackageWriter.BeginCook(CookInfo);
 			PlatformData->bIsSandboxInitialized = true;
 		}
 
-		// Don't populate platforms that were already initialized; we already populated them when we first initialized them
-		RefreshPlatforms.RemoveAllSwap([&AlreadyInitializedPlatforms](const ITargetPlatform* TargetPlatform)
+		if (ResetPlatforms.Num())
 		{
-			return AlreadyInitializedPlatforms.Contains(TargetPlatform);
-		});
-
-		if (RefreshPlatforms.Num() != 0)
+			ResetCookResults(ResetPlatforms);
+		}
+		if (PopulatePlatforms.Num())
 		{
-			for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
-			{
-				PackageData->RemoveCookedPlatforms(RefreshPlatforms);
-			}
-			// The asset registry makes populating cooked packages from disk fast, and populating is a performance benefit
-			// Don't populate however if we are looking for deterministic cooking differences; start from an empty list of cooked packages
-			if (!bIsDiffOnly && !IsUsingIoStore()) 
-			{
-				PopulateCookedPackagesFromDisk(RefreshPlatforms);
-			}
+			PopulateCookedPackages(PopulatePlatforms);
 		}
 	}
 
@@ -7877,8 +7483,13 @@ void UCookOnTheFlyServer::InitializeSandbox(const TArrayView<const ITargetPlatfo
 #endif
 }
 
-void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetPlatform* const>& TargetPlatforms)
+UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const ITargetPlatform* TargetPlatform) const
 {
+	if (SandboxFile == nullptr)
+	{
+		const_cast<UCookOnTheFlyServer&>(*this).CreateSandboxFile();
+	}
+
 	const FString RootPath = FPaths::RootDir();
 	const FString RootPathSandbox = ConvertToFullSandboxPath(*RootPath, true);
 
@@ -7888,59 +7499,39 @@ void UCookOnTheFlyServer::InitializePackageStore(const TArrayView<const ITargetP
 	const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
 	const bool bIsCleanBuild = !IsCookFlagSet(ECookInitializationFlags::Iterative);
 
-	SavePackageContexts.Reserve(TargetPlatforms.Num());
+	const FString PlatformString = TargetPlatform->PlatformName();
 
-	for (const ITargetPlatform* TargetPlatform: TargetPlatforms)
+	const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+	const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
+
+	ICookedPackageWriter* PackageWriter = nullptr;
+	FString MetadataDirectoryPath = ProjectPathSandbox / TEXT("Metadata");
+	MetadataDirectoryPath.ReplaceInline(TEXT("[Platform]"), *PlatformString);
+	FString WriterDebugName;
+	if (IsUsingZenStore())
 	{
-		const FString PlatformString = TargetPlatform->PlatformName();
+		PackageWriter = new FZenStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
+		WriterDebugName = TEXT("ZenStore");
+	}
+	else if (IsUsingIoStore())
+	{
+		PackageWriter = new FFilePackageStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
+		WriterDebugName = TEXT("IoStoreFileWriter");
+	}
+	else
+	{
+		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform,
+			const_cast<UCookOnTheFlyServer&>(*this).GetAsyncIODelete(), GetPackageNameCache(), PluginsToRemap);
+		WriterDebugName = TEXT("DirectoryWriter");
+	}
 
-		const FString ResolvedRootPath = RootPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
-		const FString ResolvedProjectPath = ProjectPathSandbox.Replace(TEXT("[Platform]"), *PlatformString);
-
-		ICookedPackageWriter* PackageWriter = nullptr;
-		if (IsUsingIoStore())
-		{
-			FString MetadataDirectoryPath = ProjectPathSandbox / TEXT("Metadata");
-			MetadataDirectoryPath.ReplaceInline(TEXT("[Platform]"), *PlatformString);
-
-			if (IsUsingZenStore())
-			{
-				PackageWriter = new FZenStoreWriter(	ResolvedRootPath, 
-															MetadataDirectoryPath, 
-															TargetPlatform, 
-															bIsCleanBuild);
-			}
-			else
-			{
-				PackageWriter = new FFilePackageStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
-			}
-		}
-
-		FConfigFile PlatformEngineIni;
-		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
+	FConfigFile PlatformEngineIni;
+	FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *TargetPlatform->IniPlatformName());
 		
-		bool bLegacyBulkDataOffsets = false;
-		PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
+	bool bLegacyBulkDataOffsets = false;
+	PlatformEngineIni.GetBool(TEXT("Core.System"), TEXT("LegacyBulkDataOffsets"), bLegacyBulkDataOffsets);
 
-		UE::Cook::FCookSavePackageContext* SavePackageContext 
-			= new UE::Cook::FCookSavePackageContext(TargetPlatform, PackageWriter, bLegacyBulkDataOffsets);
-		SavePackageContexts.Add(SavePackageContext);
-	}
-
-	if (IsUsingIoStore())
-	{
-		if (!bIsCleanBuild)
-		{
-			PopulateCookedPackagesFromPackageStore(TargetPlatforms);
-		}
-
-		for (const UE::Cook::FCookSavePackageContext* Context : SavePackageContexts)
-		{
-			ICookedPackageWriter::FCookInfo CookInfo;
-			CookInfo.CookMode = IsCookOnTheFlyMode() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
-			Context->PackageWriter->BeginCook(CookInfo);
-		}
-	}
+	return new UE::Cook::FCookSavePackageContext(TargetPlatform, PackageWriter, bLegacyBulkDataOffsets, WriterDebugName);
 }
 
 void UCookOnTheFlyServer::FinalizePackageStore()
@@ -7948,19 +7539,11 @@ void UCookOnTheFlyServer::FinalizePackageStore()
 	UE_SCOPED_HIERARCHICAL_COOKTIMER(FinalizePackageStore);
 
 	UE_LOG(LogCook, Display, TEXT("Finalize package store(s)..."));
-	for (UE::Cook::FCookSavePackageContext* PackageContext : SavePackageContexts)
+	for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 	{
-		if (PackageContext != nullptr)
-		{
-			if (PackageContext->PackageWriter != nullptr)
-			{
-				PackageContext->PackageWriter->EndCook();
-			}
-		}
+		FindOrCreatePackageWriter(TargetPlatform).EndCook();
 	}
 	UE_LOG(LogCook, Display, TEXT("Done finalizing package store(s)"));
-
-	ClearPackageStoreContexts();
 }
 
 void UCookOnTheFlyServer::ClearPackageStoreContexts()
@@ -8218,11 +7801,10 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		// If we changed the DLC State earlier on, we must clear out the package name cache
 		TermSandbox();
 	}
-
-	// This will either delete the sandbox or iteratively clean it
-	InitializeSandbox(TargetPlatforms);
+	
+	FindOrCreateSaveContexts(TargetPlatforms);
+	BeginCookSandbox(TargetPlatforms); // This will either delete the sandbox or iteratively clean it
 	InitializeTargetPlatforms(TargetPlatforms);
-	InitializePackageStore(TargetPlatforms);
 
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
 	{
@@ -8590,11 +8172,6 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 	// can't use this optimization while cooking in editor
 	check(IsCookingInEditor()==false);
 	check(IsCookByTheBookMode());
-
-	if (bIsInitializingSandbox)
-	{
-		return;
-	}
 
 	// if the package is already fully loaded then we are not going to mark it up anyway
 	if ( Package->IsFullyLoaded() )
@@ -9328,29 +8905,29 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	return Result;
 }
 
-ICookedPackageWriter* UCookOnTheFlyServer::GetPackageWriter(const FName& PlatformName) const
+ICookedPackageWriter& UCookOnTheFlyServer::FindOrCreatePackageWriter(const ITargetPlatform* TargetPlatform)
 {
-	for (const UE::Cook::FCookSavePackageContext* Context : SavePackageContexts)
-	{
-		if (FName(*Context->SaveContext.TargetPlatform->PlatformName()) == PlatformName)
-		{
-			return Context->PackageWriter;
-		}
-	}
-
-	return nullptr;
+	return *FindOrCreateSaveContext(TargetPlatform).PackageWriter;
 }
 
-UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::GetSavePackageContext(const ITargetPlatform* TargetPlatform) const
+void UCookOnTheFlyServer::FindOrCreateSaveContexts(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+{
+	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	{
+		FindOrCreateSaveContext(TargetPlatform);
+	}
+}
+
+UE::Cook::FCookSavePackageContext& UCookOnTheFlyServer::FindOrCreateSaveContext(const ITargetPlatform* TargetPlatform)
 {
 	for (UE::Cook::FCookSavePackageContext* Context : SavePackageContexts)
 	{
 		if (Context->SaveContext.TargetPlatform == TargetPlatform)
 		{
-			return Context;
+			return *Context;
 		}
 	}
-	return nullptr;
+	return *SavePackageContexts.Add_GetRef(CreateSaveContext(TargetPlatform));
 }
 
 

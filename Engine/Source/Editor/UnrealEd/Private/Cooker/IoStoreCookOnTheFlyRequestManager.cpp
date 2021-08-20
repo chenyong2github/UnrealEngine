@@ -438,14 +438,14 @@ private:
 
 		if (ConnectionStatus == UE::Cook::ECookOnTheFlyConnectionStatus::Connected)
 		{
-			if (CookOnTheFlyServer.AddPlatform(Client.PlatformName))
+			const ITargetPlatform* TargetPlatform = CookOnTheFlyServer.AddPlatform(Client.PlatformName);
+			if (TargetPlatform)
 			{
 				if (!PlatformContexts.Contains(Client.PlatformName))
 				{
 					TUniquePtr<FPlatformContext>& Context = PlatformContexts.Add(Client.PlatformName, MakeUnique<FPlatformContext>());
 					Context->PlatformName = Client.PlatformName;
-					
-					IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(Client.PlatformName)->AsPackageStoreWriter();
+					IPackageStoreWriter* PackageWriter = CookOnTheFlyServer.GetPackageWriter(TargetPlatform).AsPackageStoreWriter();
 					check(PackageWriter); // This class should not be used except when COTFS is using an IPackageStoreWriter
 					Context->PackageWriter = PackageWriter;
 					

@@ -227,13 +227,14 @@ private:
 FZenStoreWriter::FZenStoreWriter(
 	const FString& InOutputPath, 
 	const FString& InMetadataDirectoryPath, 
-	const ITargetPlatform* InTargetPlatform,
-	bool IsCleanBuild)
+	const ITargetPlatform* InTargetPlatform
+)
 	: TargetPlatform(*InTargetPlatform)
 	, OutputPath(InOutputPath)
 	, MetadataDirectoryPath(InMetadataDirectoryPath)
 	, PackageStoreOptimizer(new FPackageStoreOptimizer())
 	, CookMode(ICookedPackageWriter::FCookInfo::CookByTheBookMode)
+	, bInitialized(false)
 {
 	FString HostName = TEXT("localhost");
 	uint16 Port = 1337;
@@ -257,8 +258,7 @@ FZenStoreWriter::FZenStoreWriter(
 							OplogId, 
 							AbsServerRoot, 
 							AbsEngineDir, 
-							AbsProjectDir, 
-							IsCleanBuild);
+							AbsProjectDir );
 
 	PackageStoreOptimizer->Initialize(InTargetPlatform);
 
@@ -271,83 +271,6 @@ FZenStoreWriter::FZenStoreWriter(
 	ZenFileSystemManifest = MakeUnique<FZenFileSystemManifest>(TargetPlatform, OutputPath);
 	
 	HttpQueue = MakeUnique<FZenStoreHttpQueue>(*HttpClient);
-
-	if (!IsCleanBuild)
-	{
-		UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching oplog..."), *ProjectId, *OplogId);
-
-		TFuture<FIoStatus> FutureOplogStatus = HttpClient->GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
-		{
-			if (!OplogStatus.IsOk())
-			{
-				return OplogStatus.Status();
-			}
-			
-			FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
-			
-			if (Oplog["entries"])
-			{
-				for (FCbField& OplogEntry : Oplog["entries"].AsArray())
-				{
-					FCbObject OplogObj						= OplogEntry.AsObject();
-
-					if (OplogObj["package"])
-					{
-						FCbObject PackageObj				= OplogObj["package"].AsObject();
-
-						const FGuid PkgGuid					= PackageObj["guid"].AsUuid();
-						const FIoHash PkgHash				= PackageObj["data"].AsHash();
-						const int64	PkgDiskSize				= PackageObj["disksize"].AsUInt64();
-						FPackageStoreEntryResource Entry	= FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
-						const FName PackageName				= Entry.PackageName;
-						FIoHash DependenciesHash			= OplogObj["dependencies"].AsHash();
-						const int32 Index					= PackageStoreEntries.Num();
-
-						PackageStoreEntries.Add(MoveTemp(Entry));
-						CookedPackagesInfo.Add(FCookedPackageInfo { PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize, DependenciesHash });
-						PackageNameToIndex.Add(PackageName, Index);
-					}
-				}
-			}
-
-			return FIoStatus::Ok;
-		});
-
-		UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching file manifest..."), *ProjectId, *OplogId);
-
-		TIoStatusOr<FCbObject> FileStatus = HttpClient->GetFiles().Get();
-		if (FileStatus .IsOk())
-		{
-			FCbObject FilesObj = FileStatus.ConsumeValueOrDie();
-			for (FCbField& FileEntry : FilesObj["files"])
-			{
-				FCbObject FileObj	= FileEntry.AsObject();
-				FCbObjectId FileId	= FileObj["id"].AsObjectId();
-				FString ServerPath	= FString(FileObj["serverpath"].AsString());
-				FString ClientPath	= FString(FileObj["clientpath"].AsString());
-
-				FIoChunkId FileChunkId;
-				FileChunkId.Set(FileId.GetView());
-					
-				ZenFileSystemManifest->AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
-			}
-
-			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' files(s) from oplog '%s/%s'"), ZenFileSystemManifest->NumEntries(), *ProjectId, *OplogId);
-		}
-		else
-		{
-			UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch file(s) from oplog '%s/%s'"), *ProjectId, *OplogId);
-		}
-
-		if (FutureOplogStatus.Get().IsOk())
-		{
-			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' packges(s) from oplog '%s/%s'"), PackageStoreEntries.Num(), *ProjectId, *OplogId);
-		}
-		else
-		{
-			UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch oplog '%s/%s'"), *ProjectId, *OplogId);
-		}
-	}
 }
 
 FZenStoreWriter::~FZenStoreWriter()
@@ -495,6 +418,98 @@ void FZenStoreWriter::WriteLinkerAdditionalData(const FLinkerAdditionalDataInfo&
 void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 {
 	CookMode = Info.CookMode;
+
+	if (!bInitialized)
+	{
+		FString ProjectId = FApp::GetProjectName();
+		FString OplogId = TargetPlatform.PlatformName();
+		HttpClient->EstablishWritableOpLog(ProjectId, OplogId, Info.bCleanBuild);
+
+		if (!Info.bCleanBuild)
+		{
+			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching oplog..."), *ProjectId, *OplogId);
+
+			TFuture<FIoStatus> FutureOplogStatus = HttpClient->GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
+				{
+					if (!OplogStatus.IsOk())
+					{
+						return OplogStatus.Status();
+					}
+
+					FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
+
+					if (Oplog["entries"])
+					{
+						for (FCbField& OplogEntry : Oplog["entries"].AsArray())
+						{
+							FCbObject OplogObj = OplogEntry.AsObject();
+
+							if (OplogObj["package"])
+							{
+								FCbObject PackageObj = OplogObj["package"].AsObject();
+
+								const FGuid PkgGuid = PackageObj["guid"].AsUuid();
+								const FIoHash PkgHash = PackageObj["data"].AsHash();
+								const int64	PkgDiskSize = PackageObj["disksize"].AsUInt64();
+								FPackageStoreEntryResource Entry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
+								const FName PackageName = Entry.PackageName;
+								FIoHash DependenciesHash = OplogObj["dependencies"].AsHash();
+								const int32 Index = PackageStoreEntries.Num();
+
+								PackageStoreEntries.Add(MoveTemp(Entry));
+								CookedPackagesInfo.Add(FCookedPackageInfo{ PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize, DependenciesHash });
+								PackageNameToIndex.Add(PackageName, Index);
+							}
+						}
+					}
+
+					return FIoStatus::Ok;
+				});
+
+			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching file manifest..."), *ProjectId, *OplogId);
+
+			TIoStatusOr<FCbObject> FileStatus = HttpClient->GetFiles().Get();
+			if (FileStatus.IsOk())
+			{
+				FCbObject FilesObj = FileStatus.ConsumeValueOrDie();
+				for (FCbField& FileEntry : FilesObj["files"])
+				{
+					FCbObject FileObj = FileEntry.AsObject();
+					FCbObjectId FileId = FileObj["id"].AsObjectId();
+					FString ServerPath = FString(FileObj["serverpath"].AsString());
+					FString ClientPath = FString(FileObj["clientpath"].AsString());
+
+					FIoChunkId FileChunkId;
+					FileChunkId.Set(FileId.GetView());
+
+					ZenFileSystemManifest->AddManifestEntry(FileChunkId, MoveTemp(ServerPath), MoveTemp(ClientPath));
+				}
+
+				UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' files(s) from oplog '%s/%s'"), ZenFileSystemManifest->NumEntries(), *ProjectId, *OplogId);
+			}
+			else
+			{
+				UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch file(s) from oplog '%s/%s'"), *ProjectId, *OplogId);
+			}
+
+			if (FutureOplogStatus.Get().IsOk())
+			{
+				UE_LOG(LogZenStoreWriter, Display, TEXT("Fetched '%d' packges(s) from oplog '%s/%s'"), PackageStoreEntries.Num(), *ProjectId, *OplogId);
+			}
+			else
+			{
+				UE_LOG(LogZenStoreWriter, Warning, TEXT("Failed to fetch oplog '%s/%s'"), *ProjectId, *OplogId);
+			}
+		}
+		bInitialized = true;
+	}
+	else
+	{
+		if (Info.bCleanBuild)
+		{
+			RemoveCookedPackages();
+		}
+	}
 
 	if (Info.CookMode == ICookedPackageWriter::FCookInfo::CookOnTheFlyMode)
 	{
@@ -766,7 +781,7 @@ void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesT
 	
 	TArray<FPackageStoreEntryResource> PreviousPackageStoreEntries = MoveTemp(PackageStoreEntries);
 	TArray<FCookedPackageInfo> PreviousCookedPackageInfo = MoveTemp(CookedPackagesInfo);
-	PackageNameToIndex.Empty(false);
+	PackageNameToIndex.Empty();
 
 	if (NumPackagesToKeep > 0)
 	{
@@ -784,6 +799,13 @@ void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesT
 			PackageNameToIndex.Add(PackageName, EntryIndex++);
 		}
 	}
+}
+
+void FZenStoreWriter::RemoveCookedPackages()
+{
+	PackageStoreEntries.Empty();
+	CookedPackagesInfo.Empty();
+	PackageNameToIndex.Empty();
 }
 
 void FZenStoreWriter::CreateProjectMetaData(FCbPackage& Pkg, FCbWriter& PackageObj, bool bGenerateContainerHeader)

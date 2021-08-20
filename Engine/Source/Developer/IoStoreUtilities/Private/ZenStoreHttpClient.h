@@ -28,8 +28,8 @@ public:
 					FStringView InOplogId, 
 					FStringView ServerRoot, 
 					FStringView EngineRoot, 
-					FStringView ProjectRoot,
-					bool		IsCleanBuild);
+					FStringView ProjectRoot);
+	void EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild);
 
 	void InitializeReadOnly(FStringView InProjectId, FStringView InOplogId);
 
