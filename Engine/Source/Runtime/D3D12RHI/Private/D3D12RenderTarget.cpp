@@ -561,7 +561,7 @@ static uint32 ComputeBytesPerPixel(DXGI_FORMAT Format)
 	case DXGI_FORMAT_R32G8X24_TYPELESS:
 	case DXGI_FORMAT_D32_FLOAT_S8X24_UINT:
 	case DXGI_FORMAT_R32_FLOAT_X8X24_TYPELESS:
-		BytesPerPixel = 5;
+		BytesPerPixel = 8;
 		break;
 	case DXGI_FORMAT_R8_TYPELESS:
 	case DXGI_FORMAT_R8_UNORM:
