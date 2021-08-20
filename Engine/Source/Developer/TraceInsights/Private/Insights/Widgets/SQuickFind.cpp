@@ -98,6 +98,30 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 				.ToolTipText(LOCTEXT("FindNextDesc", "Find the next occurence that matches the search criteria."))
 				.OnClicked(this, &SQuickFind::FindNext_OnClicked)
 			]
+
+			+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(1.0f)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("FilterAll", "Filter All"))
+					.ToolTipText(LOCTEXT("FilterAllDesc", "Filter all the tracks using the the search criteria."))
+					.OnClicked(this, &SQuickFind::FilterAll_OnClicked)
+				]
+
+			+ SHorizontalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.AutoWidth()
+				.Padding(1.0f)
+				[
+					SNew(SButton)
+					.Text(LOCTEXT("ClearFilters", "Clear Filters"))
+					.ToolTipText(LOCTEXT("ClearFiltersDesc", "Clear all filters applied to the tracks."))
+					.OnClicked(this, &SQuickFind::ClearFilters_OnClicked)
+				]
 		]
 	];
 
@@ -122,7 +146,6 @@ void SQuickFind::Construct(const FArguments& InArgs, TSharedPtr<FQuickFind> InQu
 		];
 
 	QuickFindViewModel = InQuickFindViewModel;
-	OnViewModelDestroyedHandle = InQuickFindViewModel->GetFilterConfigurator()->GetOnDestroyedEvent().AddSP(this, &SQuickFind::RequestClose);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -147,23 +170,21 @@ FReply SQuickFind::FindPrevious_OnClicked()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FReply SQuickFind::Cancel_OnClicked()
+FReply SQuickFind::FilterAll_OnClicked()
 {
-	RequestClose();
+	QuickFindViewModel->GetFilterConfigurator()->GetRootNode()->ProcessFilter();
+	QuickFindViewModel->GetOnFilterAllEvent().Broadcast();
 
 	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SQuickFind::RequestClose()
+FReply SQuickFind::ClearFilters_OnClicked()
 {
-	TSharedPtr<SDockTab> ParentTabSharedPtr = ParentTab.Pin();
-	if (ParentTabSharedPtr.IsValid())
-	{
-		ParentTabSharedPtr->RequestCloseTab();
-		ParentTabSharedPtr.Reset();
-	}
+	QuickFindViewModel->GetOnClearFiltersEvent().Broadcast();
+
+	return FReply::Handled();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

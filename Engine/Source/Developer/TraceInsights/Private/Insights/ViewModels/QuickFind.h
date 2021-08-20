@@ -51,6 +51,26 @@ private:
 	FOnFindPreviousEvent OnFindPreviousEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnFilterAllEvent
+public:
+	/** The event to execute when the user selects the "Filter All" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnFilterAllEvent);
+	FOnFilterAllEvent& GetOnFilterAllEvent() { return OnFilterAllEvent; }
+
+private:
+	FOnFilterAllEvent OnFilterAllEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// OnClearAllFilters
+public:
+	/** The event to execute when the user selects the "Clear Filters" option. */
+	DECLARE_MULTICAST_DELEGATE(FOnClearFiltersEvent);
+	FOnClearFiltersEvent& GetOnClearFiltersEvent() { return OnClearFiltersEvent; }
+
+private:
+	FOnClearFiltersEvent OnClearFiltersEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 private:
 	TSharedPtr<FFilterConfigurator> FilterConfigurator;

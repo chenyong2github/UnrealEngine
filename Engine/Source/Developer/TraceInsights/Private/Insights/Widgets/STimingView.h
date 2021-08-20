@@ -447,6 +447,8 @@ protected:
 	
 	void FindNextEvent();
 	void FindPrevEvent();
+	void FilterAllTracks();
+	void ClearFilters();
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */

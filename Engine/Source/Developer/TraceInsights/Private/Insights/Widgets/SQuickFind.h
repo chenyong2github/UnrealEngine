@@ -44,8 +44,6 @@ public:
 	void SetParentTab(const TSharedPtr<SDockTab> InTab) { ParentTab = InTab; }
 	const TWeakPtr<SDockTab> GetParentTab() { return ParentTab; };
 
-	void RequestClose();
-
 	static void RegisterQuickFindTab();
 
 	static TSharedPtr<SQuickFind> CreateAndOpenQuickFilterWidget(TSharedPtr<FQuickFind> InQuickFindViewModel);
@@ -57,7 +55,9 @@ private:
 
 	FReply FindPrevious_OnClicked();
 
-	FReply Cancel_OnClicked();
+	FReply FilterAll_OnClicked();
+
+	FReply ClearFilters_OnClicked();
 
 	static TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
