@@ -50,7 +50,7 @@ namespace UnrealBuildTool
 				return true;
 			}
 
-			// Check the time stamp of the UnrealBuildTool.exe file.  If Unreal Build Tool was compiled more
+			// Check the time stamp of the UnrealBuildTool assembly.  If Unreal Build Tool was compiled more
 			// recently than the dynamically-compiled assembly, then we'll always recompile it.  This is
 			// because Unreal Build Tool's code may have changed in such a way that invalidate these
 			// previously-compiled assembly files.
