@@ -33,6 +33,7 @@
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 #include "StaticMeshResources.h"
+#include "TessellationRendering.h"
 #include "UObject/SoftObjectPath.h"
 
 #if WITH_EDITOR
@@ -498,7 +499,7 @@ namespace UsdGeomMeshTranslatorImpl
 		StaticMesh.CreateBodySetup();
 	}
 
-	bool BuildStaticMesh( UStaticMesh& StaticMesh, TArray<FMeshDescription>& LODIndexToMeshDescription )
+	bool BuildStaticMesh( UStaticMesh& StaticMesh, TArray<FMeshDescription*>& LODIndexToMeshDescription )
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::BuildStaticMesh );
 
@@ -508,6 +509,22 @@ namespace UsdGeomMeshTranslatorImpl
 		}
 
 #if WITH_EDITOR
+		// Enable adjacency buffer if we're using a material that requires it
+		for ( const FStaticMaterial& StaticMaterial : StaticMesh.GetStaticMaterials() )
+		{
+			if ( StaticMaterial.MaterialInterface )
+			{
+				if ( RequiresAdjacencyInformation( StaticMaterial.MaterialInterface, nullptr, GWorld->FeatureLevel ) )
+				{
+					for ( FStaticMeshSourceModel& SourceModel : StaticMesh.GetSourceModels() )
+					{
+						SourceModel.BuildSettings.bBuildAdjacencyBuffer = true;
+					}
+					break;
+				}
+			}
+		}
+
 		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
 		ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
 		check( RunningPlatform );
@@ -522,20 +539,20 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			FStaticMeshLODResources& LODResources = StaticMesh.GetRenderData()->LODResources[ LODIndex ];
 
-			FMeshDescription& MeshDescription = LODIndexToMeshDescription[ LODIndex ];
-			TVertexInstanceAttributesConstRef< FVector4 > MeshDescriptionColors = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>( MeshAttribute::VertexInstance::Color );
+			FMeshDescription* MeshDescription = LODIndexToMeshDescription[ LODIndex ];
+			TVertexInstanceAttributesConstRef< FVector4 > MeshDescriptionColors = MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector4>( MeshAttribute::VertexInstance::Color );
 
 			// Compute normals here if necessary because they're not going to be computed via the regular static mesh build pipeline at runtime
 			// (i.e. StaticMeshBuilder is not available at runtime)
 			// We need polygon info because ComputeTangentsAndNormals uses it to repair the invalid vertex normals/tangents
 			// Can't calculate just the required polygons as ComputeTangentsAndNormals is parallel and we can't guarantee thread-safe access patterns
-			FStaticMeshOperations::ComputePolygonTangentsAndNormals( MeshDescription );
-			FStaticMeshOperations::ComputeTangentsAndNormals( MeshDescription, EComputeNTBsFlags::UseMikkTSpace );
+			FStaticMeshOperations::ComputePolygonTangentsAndNormals( *MeshDescription );
+			FStaticMeshOperations::ComputeTangentsAndNormals( *MeshDescription, EComputeNTBsFlags::UseMikkTSpace );
 
 			// Manually set this as it seems the UStaticMesh only sets this whenever the mesh is serialized, which we won't do
 			LODResources.bHasColorVertexData = MeshDescriptionColors.GetNumElements() > 0;
 
-			StaticMesh.BuildFromMeshDescription( MeshDescription, LODResources );
+			StaticMesh.BuildFromMeshDescription( *MeshDescription, LODResources );
 		}
 
 #endif // WITH_EDITOR
@@ -546,7 +563,7 @@ namespace UsdGeomMeshTranslatorImpl
 		return true;
 	}
 
-	void PostBuildStaticMesh( UStaticMesh& StaticMesh, const TArray<FMeshDescription>& LODIndexToMeshDescription )
+	void PostBuildStaticMesh( UStaticMesh& StaticMesh, const TArray<FMeshDescription*>& LODIndexToMeshDescription )
 	{
 		// For runtime builds, the analogue for this stuff is already done from within BuildFromMeshDescriptions
 		TRACE_CPUPROFILER_EVENT_SCOPE( UsdGeomMeshTranslatorImpl::PostBuildStaticMesh );
@@ -563,7 +580,7 @@ namespace UsdGeomMeshTranslatorImpl
 		StaticMesh.ClearMeshDescriptions(); // Clear mesh descriptions to reduce memory usage, they are kept only in bulk data form
 #else
 		// Fetch the MeshDescription from the imported LODIndexToMeshDescription as StaticMesh.GetMeshDescription is editor-only
-		StaticMesh.GetRenderData()->Bounds = LODIndexToMeshDescription[ 0 ].GetBounds();
+		StaticMesh.GetRenderData()->Bounds = LODIndexToMeshDescription[ 0 ]->GetBounds();
 		StaticMesh.CalculateExtendedBounds();
 #endif // WITH_EDITOR
 	}
@@ -891,7 +908,14 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 	Then( ESchemaTranslationLaunchPolicy::Async,
 		[ this ]() mutable
 		{
-			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, LODIndexToMeshDescription ) )
+			TArray<FMeshDescription*> MeshDescriptionPtrs;
+			MeshDescriptionPtrs.Reserve( LODIndexToMeshDescription.Num() );
+			for ( FMeshDescription& MeshDescription : LODIndexToMeshDescription )
+			{
+				MeshDescriptionPtrs.Add( &MeshDescription );
+			}
+
+			if ( !UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, MeshDescriptionPtrs ) )
 			{
 				// Build failed, discard the mesh
 				StaticMesh = nullptr;
@@ -906,7 +930,14 @@ void FBuildStaticMeshTaskChain::SetupTasks()
 	Then( ESchemaTranslationLaunchPolicy::Sync,
 		[ this ]()
 		{
-			UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh, LODIndexToMeshDescription );
+			TArray<FMeshDescription*> MeshDescriptionPtrs;
+			MeshDescriptionPtrs.Reserve( LODIndexToMeshDescription.Num() );
+			for ( FMeshDescription& MeshDescription : LODIndexToMeshDescription )
+			{
+				MeshDescriptionPtrs.Add( &MeshDescription );
+			}
+
+			UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh, MeshDescriptionPtrs );
 
 			RecreateRenderStateContextPtr.Reset();
 
@@ -1117,6 +1148,39 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 					Context->bAllowInterpretingLODs,
 					Context->RenderContext
 				);
+
+#if WITH_EDITOR
+				// Enable adjacency buffer if we're using a material override that requires it.
+				// This is currently editor-only because UStaticMesh::BuildFromMeshDescription doesn't
+				// build the adjacency buffer anyway, and that's what we use to build at runtime.
+				// Possibly because StaticMesh.cpp can't use MeshBuilderCommon stuff, which is where
+				// ThirdPartyBuildOptimizationHelper.h is. That seems to be the procedure for building
+				// adjacency buffer indices.
+				// TODO: Whenever that is refactored, expand this to support detecting adjacency buffer rebuilds for
+				// material overrides at runtime
+				for ( UMaterialInterface* Material : StaticMeshComponent->OverrideMaterials )
+				{
+					if ( RequiresAdjacencyInformation( Material, nullptr, GWorld->FeatureLevel ) )
+					{
+						FStaticMeshComponentRecreateRenderStateContext RecreateContext{ StaticMesh };
+
+						TArray<FMeshDescription*> LODIndexToMeshDescriptionPtr;
+						TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
+						for ( int32 Index = 0; Index < SourceModels.Num(); ++Index )
+						{
+							SourceModels[Index].BuildSettings.bBuildAdjacencyBuffer = true;
+							LODIndexToMeshDescriptionPtr.Add( StaticMesh->GetMeshDescription( Index ) );
+						}
+
+						// Rebuild the mesh if we know we need adjacency buffer info
+						UsdGeomMeshTranslatorImpl::PreBuildStaticMesh( *StaticMesh );
+						UsdGeomMeshTranslatorImpl::BuildStaticMesh( *StaticMesh, LODIndexToMeshDescriptionPtr );
+						UsdGeomMeshTranslatorImpl::PostBuildStaticMesh( *StaticMesh, LODIndexToMeshDescriptionPtr );
+
+						break;
+					}
+				}
+#endif // WITH_EDITOR
 			}
 		}
 	}
