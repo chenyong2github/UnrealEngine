@@ -598,9 +598,6 @@ public:
 	/** @return the max valence of all vertices in the mesh */
 	int GetMaxVtxEdgeCount() const;
 
-	/** adds triangles touching VertexID to the TrianglesOut list */
-	void GetVertexOneRingTriangles(int VertexID, TArray<int>& TrianglesOut) const;
-
 	/** Get triangle vertices */
 	inline FIndex3i GetTriangle(int TriangleID) const
 	{
@@ -882,16 +879,13 @@ public:
 
 	/**
 	 * return # of triangles attached to vID, or -1 if invalid vertex
-	 * if bBruteForce = true, explicitly checks, which creates a list and is expensive
-	 * default is false, uses orientation, no memory allocation
 	 */
-	int GetVtxTriangleCount(int VertexID, bool bBruteForce = false) const;
+	int GetVtxTriangleCount(int VertexID) const;
 
 	/**
 	 * Get triangle one-ring at vertex.
-	 * bUseOrientation is more efficient but returns incorrect result if vertex is a bowtie
 	 */
-	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut, bool bUseOrientation) const;
+	EMeshResult GetVtxTriangles(int VertexID, TArray<int>& TrianglesOut) const;
 
 	/**
 	 * @return Triangle ID for a single triangle connected to VertexID, or InvalidID if VertexID does not exist or has no attached triangles
@@ -1404,8 +1398,8 @@ protected:
 
 	inline bool TriHasSequentialVertices(int TriangleID, int vA, int vB) const
 	{
-		int v0 = Triangles[TriangleID][0], v1 = Triangles[TriangleID][1], v2 = Triangles[TriangleID][2];
-		return ((v0 == vA && v1 == vB) || (v1 == vA && v2 == vB) || (v2 == vA && v0 == vB));
+		const FIndex3i& Tri = Triangles[TriangleID];
+		return ((Tri.A == vA && Tri.B == vB) || (Tri.B == vA && Tri.C == vB) || (Tri.C == vA && Tri.A == vB));
 	}
 
 	int FindTriangleEdge(int TriangleID, int vA, int vB) const;

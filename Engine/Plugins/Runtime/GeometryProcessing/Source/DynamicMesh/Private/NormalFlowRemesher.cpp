@@ -296,7 +296,7 @@ void FNormalFlowRemesher::TrackedFaceProjectionPass(double& MaxDistanceMoved, bo
 		TempPosBuffer[VertexIndex] = { 0.0, 0.0, 0.0 };
 
 		TArray<int> IncidentTriangles;
-		Mesh->GetVertexOneRingTriangles(VertexIndex, IncidentTriangles);
+		Mesh->GetVtxTriangles(VertexIndex, IncidentTriangles);
 
 		for (int TriID : IncidentTriangles)
 		{

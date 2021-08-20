@@ -90,36 +90,27 @@ void FDynamicMesh3::GetVtxNbrhood(int eID, int vID, int& vOther, int& oppV1, int
 }
 
 
-int FDynamicMesh3::GetVtxTriangleCount(int vID, bool bBruteForce) const
+int FDynamicMesh3::GetVtxTriangleCount(int vID) const
 {
-	if (bBruteForce)
-	{
-		TArray<int> vTriangles;
-		if (GetVtxTriangles(vID, vTriangles, false) != EMeshResult::Ok)
-		{
-			return -1;
-		}
-		return (int)vTriangles.Num();
-	}
-
 	if (!IsVertex(vID))
 	{
 		return -1;
 	}
 	int N = 0;
-	for (int eid : VertexEdgeLists.Values(vID))
+	VertexEdgeLists.Enumerate(vID, [&](int32 eid)
 	{
-		int vOther = GetOtherEdgeVertex(eid, vID);
 		const FEdge Edge = Edges[eid];
+		const int vOther = Edge.Vert.A == vID ? Edge.Vert.B : Edge.Vert.A;
 		if (TriHasSequentialVertices(Edge.Tri[0], vID, vOther))
 		{
 			N++;
 		}
+		const int et1 = Edge.Tri[1];
 		if (Edge.Tri[1] != InvalidID && TriHasSequentialVertices(Edge.Tri[1], vID, vOther))
 		{
 			N++;
 		}
-	}
+	});
 	return N;
 }
 
@@ -140,19 +131,19 @@ int FDynamicMesh3::GetVtxSingleTriangle(int VertexID) const
 }
 
 
-EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, bool bUseOrientation) const
+EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut) const
 {
 	if (!IsVertex(vID))
 	{
 		return EMeshResult::Failed_NotAVertex;
 	}
 
-	if (bUseOrientation)
+	if (VertexEdgeLists.GetCount(vID) > 20)
 	{
-		for (int eid : VertexEdgeLists.Values(vID))
+		VertexEdgeLists.Enumerate(vID, [&](int32 eid)
 		{
 			const FEdge Edge = Edges[eid];
-			const int vOther = GetOtherEdgeVertex(eid, vID);
+			const int vOther = Edge.Vert.A == vID ? Edge.Vert.B : Edge.Vert.A;
 			if (TriHasSequentialVertices(Edge.Tri[0], vID, vOther))
 			{
 				TrianglesOut.Add(Edge.Tri[0]);
@@ -162,12 +153,11 @@ EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, b
 			{
 				TrianglesOut.Add(Edge.Tri[1]);
 			}
-		}
+		});
 	}
 	else
 	{
-		// brute-force method
-		for (int eid : VertexEdgeLists.Values(vID))
+		VertexEdgeLists.Enumerate(vID, [&](int32 eid)
 		{
 			const FEdge Edge = Edges[eid];
 			TrianglesOut.AddUnique(Edge.Tri[0]);
@@ -175,7 +165,7 @@ EMeshResult FDynamicMesh3::GetVtxTriangles(int vID, TArray<int>& TrianglesOut, b
 			{
 				TrianglesOut.AddUnique(Edge.Tri[1]);
 			}
-		}
+		});
 	}
 	return EMeshResult::Ok;
 }
