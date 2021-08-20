@@ -87,7 +87,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 				[
 					SNew(SBorder) // Background color for title
 					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-					.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+					.BorderBackgroundColor(FLinearColor::White)
 					.VAlign(EVerticalAlignment::VAlign_Center)
 					[
 						SNew(SOverlay) 
@@ -96,8 +96,9 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 						[
 							SNew(STextBlock) // Title text
 							.Text(LOCTEXT("ViewportSettings", "Viewport Settings"))
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-							.ShadowOffset(FVector2D(1.0f, 1.0f))
+							.TransformPolicy(ETextTransformPolicy::ToUpper)
+							.Font(FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 						]
 					]
 				]
@@ -126,7 +127,7 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 				[
 					SNew(SBorder) // Background color of title
 					.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-					.BorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
+					.BorderBackgroundColor(FLinearColor::White)
 					.VAlign(EVerticalAlignment::VAlign_Center)
 					[
 						SNew(SOverlay) 
@@ -148,8 +149,9 @@ void SCameraCalibrationSteps::Construct(const FArguments& InArgs, TWeakPtr<FCame
 
 								return LOCTEXT("StepSettings", "Step");
 							})
-							.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-							.ShadowOffset(FVector2D(1.0f, 1.0f))
+							.TransformPolicy(ETextTransformPolicy::ToUpper)
+							.Font(FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.BoldFont")))
+							.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
 						]
 					]
 				]
