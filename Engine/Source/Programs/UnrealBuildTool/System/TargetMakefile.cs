@@ -382,13 +382,13 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Check to see if UnrealBuildTool.exe was compiled more recently than the makefile
+				// Check to see if UnrealBuildTool was compiled more recently than the makefile
 				DateTime UnrealBuildToolTimestamp = new FileInfo(Assembly.GetExecutingAssembly().Location).LastWriteTime;
 				if (MakefileInfo.LastWriteTime.CompareTo(UnrealBuildToolTimestamp) < 0)
 				{
-					// UnrealBuildTool.exe was compiled more recently than the makefile
-					Log.TraceLog("Makefile is older than UnrealBuildTool.exe, ignoring it");
-					ReasonNotLoaded = "UnrealBuildTool.exe is newer";
+					// UnrealBuildTool was compiled more recently than the makefile
+					Log.TraceLog("Makefile is older than UnrealBuildTool assembly, ignoring it");
+					ReasonNotLoaded = "UnrealBuildTool assembly is newer";
 					return null;
 				}
 

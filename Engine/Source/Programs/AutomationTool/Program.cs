@@ -247,7 +247,7 @@ namespace AutomationToolDriver
 					{"-Compile", "Force all script modules to be compiled"},
 					{"-IgnoreBuildRecords", "Ignore build record (.uatbuildrecord) files when determining if script modules are up to date" },
 					{"-UseLocalBuildStorage", @"Allows you to use local storage for your root build storage dir {default of P:\Builds {on PC} is changed to Engine\Saved\LocalBuilds}. Used for local testing."},
-					{"-WaitForDebugger", "Waits for a debugger to be attached, and breaks once debugger sucessfully attached."},
+					{"-WaitForDebugger", "Waits for a debugger to be attached, and breaks once debugger successfully attached."},
 					{"-BuildMachine", "" },
 					{"-WaitForUATMutex", "" }
 				}
