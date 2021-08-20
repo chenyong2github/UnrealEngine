@@ -819,88 +819,6 @@ void FLevelEditorSequencerIntegration::MakeBrowseToSelectedActorSubMenu(FMenuBui
 	}
 }
 
-static TSharedPtr<IDetailKeyframeHandler> GetKeyframeHandler(TWeakPtr<IDetailTreeNode> OwnerTreeNode)
-{
-	TSharedPtr<IDetailTreeNode> OwnerTreeNodePtr = OwnerTreeNode.Pin();
-	if (!OwnerTreeNodePtr.IsValid())
-	{
-		return TSharedPtr<IDetailKeyframeHandler>();
-	}
-
-	IDetailsView* DetailsView = OwnerTreeNodePtr->GetNodeDetailsView();
-	if (DetailsView == nullptr)
-	{
-		return TSharedPtr<IDetailKeyframeHandler>();
-	}
-
-	return DetailsView->GetKeyframeHandler();
-}
-
-static bool IsKeyframeButtonVisible(TWeakPtr<IDetailTreeNode> OwnerTreeNode, TSharedPtr<IPropertyHandle> PropertyHandle)
-{
-	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
-	if (!KeyframeHandler.IsValid() || !PropertyHandle.IsValid())
-	{
-		return false;
-	}
-
-	const UClass* ObjectClass = PropertyHandle->GetOuterBaseClass();
-	if (ObjectClass == nullptr)
-	{
-		return false;
-	}
-
-	return KeyframeHandler->IsPropertyKeyable(ObjectClass, *PropertyHandle);
-}
-
-static bool IsKeyframeButtonEnabled(TWeakPtr<IDetailTreeNode> OwnerTreeNode)
-{
-	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
-	if (!KeyframeHandler.IsValid())
-	{
-		return false;
-	}
-
-	return KeyframeHandler->IsPropertyKeyingEnabled();
-}
-
-static void OnAddKeyframeClicked(TWeakPtr<IDetailTreeNode> OwnerTreeNode, TSharedPtr<IPropertyHandle> PropertyHandle)
-{
-	TSharedPtr<IDetailKeyframeHandler> KeyframeHandler = GetKeyframeHandler(OwnerTreeNode);
-	if (!KeyframeHandler.IsValid() || !PropertyHandle.IsValid())
-	{
-		return;
-	}
-
-	KeyframeHandler->OnKeyPropertyClicked(*PropertyHandle);
-}
-
-
-static void RegisterDetailsExtensionHandler(const FOnGenerateGlobalRowExtensionArgs& Args, TArray<FPropertyRowExtensionButton>& OutExtensionButtons)
-{
-	// local copy for capturing in handlers below
-	TSharedPtr<IPropertyHandle> PropertyHandle = Args.PropertyHandle;
-	if (!PropertyHandle.IsValid())
-	{
-		return;
-	}
-
-	static FSlateIcon CreateKeyIcon(FAppStyle::Get().GetStyleSetName(), "Sequencer.AddKey.Details");
-
-	TWeakPtr<IDetailTreeNode> OwnerTreeNode = Args.OwnerTreeNode;
-
-	FPropertyRowExtensionButton& CreateKey = OutExtensionButtons.AddDefaulted_GetRef();
-	CreateKey.Icon = CreateKeyIcon;
-	CreateKey.Label = NSLOCTEXT("PropertyEditor", "CreateKey", "Create Key");
-	CreateKey.ToolTip = NSLOCTEXT("PropertyEditor", "CreateKeyToolTip", "Add a keyframe for this property.");
-	CreateKey.UIAction = FUIAction(
-		FExecuteAction::CreateStatic(&OnAddKeyframeClicked, OwnerTreeNode, PropertyHandle),
-		FCanExecuteAction::CreateStatic(&IsKeyframeButtonEnabled, OwnerTreeNode),
-		FGetActionCheckState(),
-		FIsActionButtonVisible::CreateStatic(&IsKeyframeButtonVisible, OwnerTreeNode, PropertyHandle)
-	);
-}
-
 void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorSequencerIntegrationOptions& Options)
 {
 	static FName DetailHandlerName("DetailHandler");
@@ -921,10 +839,9 @@ void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorS
 	}
 
 	FDelegateHandle OnPropertyEditorOpenedHandle = EditModule.OnPropertyEditorOpened().AddRaw(this, &FLevelEditorSequencerIntegration::OnPropertyEditorOpened);
-	FDelegateHandle OnGetGlobalRowExtensionHandle = EditModule.GetGlobalRowExtensionDelegate().AddStatic(&RegisterDetailsExtensionHandler);
 
 	auto DeactivateDetailKeyframeHandler =
-		[this, OnPropertyEditorOpenedHandle, OnGetGlobalRowExtensionHandle]()
+		[this, OnPropertyEditorOpenedHandle]()
 		{
 			FPropertyEditorModule* EditModulePtr = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
 			if (!EditModulePtr)
@@ -932,7 +849,6 @@ void FLevelEditorSequencerIntegration::ActivateDetailHandler(const FLevelEditorS
 				return;
 			}
 
-			EditModulePtr->GetGlobalRowExtensionDelegate().Remove(OnGetGlobalRowExtensionHandle);
 			EditModulePtr->OnPropertyEditorOpened().Remove(OnPropertyEditorOpenedHandle);
 
 			for (const FName& DetailsTabIdentifier : DetailsTabIdentifiers)
