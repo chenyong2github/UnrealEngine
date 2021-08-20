@@ -42,13 +42,19 @@ public class IntelTBB : ModuleRules
 				PublicDefinitions.Add("TBB_USE_DEBUG=1");
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb_debug.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc_debug.lib"));
-				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
+				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				{
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb_debug.dll"), Path.Combine(LibDirTBB, "tbb_debug.dll"));
+				}
 			}
 			else
 			{
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBB, "tbb.lib"));
 				PublicAdditionalLibraries.Add(Path.Combine(LibDirTBBMalloc, "tbbmalloc.lib"));
-				RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
+				if (Target.Platform != UnrealTargetPlatform.HoloLens)
+				{
+					RuntimeDependencies.Add(Path.Combine("$(TargetOutputDir)", "tbb.dll"), Path.Combine(IntelTBBBinaries, "tbb.dll"));
+				}
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
