@@ -239,7 +239,7 @@ uint8 FMovieRenderPipelineCoreModule::ParseMovieRenderData(const FString& InSequ
 	{
 		// Convert it to a soft object path and use that load to ensure it follows redirectors, etc.
 		FSoftObjectPath AssetPath = FSoftObjectPath(InSequenceAssetPath);
-		TargetSequence = CastChecked<ULevelSequence>(AssetPath.TryLoad());
+		TargetSequence = Cast<ULevelSequence>(AssetPath.TryLoad());
 
 		if (!TargetSequence)
 		{
