@@ -43,6 +43,15 @@ public:
 
 		/** Extensions that the image is allowed to have */
 		SLATE_ARGUMENT(TArray<FString>, Extensions)
+    
+		/** Whether to show the generate image button */
+		SLATE_ATTRIBUTE(EVisibility, GenerateImageVisibility)
+
+		/** Tooltip for Generate Image button */
+		SLATE_ARGUMENT(FText, GenerateImageToolTipText);
+
+		/** Delegate fired when an Generate Image button is pressed */
+		SLATE_ARGUMENT(FOnClicked, OnGenerateImageClicked)
 
 	SLATE_END_ARGS()
 
@@ -66,6 +75,9 @@ private:
 
 	/** Delegate invoked when the 'pick file' button is clicked */
 	FReply OnPickFile();
+    
+    /** Internal delegate invoked when the 'generate image' button is clicked, triggers supplied user delegate */
+    FReply OnGenerateImageClickedInternal(FOnClicked UserOnGenerateImageClicked);
 
 	/** Delegate to retrieve the image to display */
 	const FSlateBrush* GetImage() const;
@@ -95,6 +107,8 @@ private:
 	bool DiffersFromDefault() const;
 
 private:
+    TSharedPtr<SHorizontalBox> HorizontalBox;
+    
 	/** The brush we use to draw the splash */
 	TSharedPtr<FSlateDynamicImageBrush> ImageBrush;
 

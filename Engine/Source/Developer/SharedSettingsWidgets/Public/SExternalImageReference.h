@@ -35,6 +35,8 @@ class SHAREDSETTINGSWIDGETS_API SExternalImageReference : public SCompoundWidget
 		, _MaxDisplaySize(400.0f, 400.0f)
 		, _RequiredSize(-1, -1)
 		, _DeleteTargetWhenDefaultChosen(false)
+		, _GenerateImageVisibility(EVisibility::Hidden)
+		, _GenerateImageToolTipText(NSLOCTEXT("SExternalImageReference", "GenerateImage", "Generate Image"))
 		{}
 
 		/** The description of the file, used in error messages/notifications */
@@ -67,6 +69,15 @@ class SHAREDSETTINGSWIDGETS_API SExternalImageReference : public SCompoundWidget
 		/** If true, deletes the previous reference if the file extension changes */
 		SLATE_ARGUMENT(bool, DeletePreviousTargetWhenExtensionChanges)
 
+		/** Whether to show the generate image button */
+		SLATE_ATTRIBUTE(EVisibility, GenerateImageVisibility)
+
+		/** Tooltip for Generate Image button */
+		SLATE_ARGUMENT(FText, GenerateImageToolTipText);
+
+		/** Delegate fired when an Generate Image button is pressed */
+		SLATE_EVENT(FOnClicked, OnGenerateImageClicked)
+    
 	SLATE_END_ARGS()
 
 public:

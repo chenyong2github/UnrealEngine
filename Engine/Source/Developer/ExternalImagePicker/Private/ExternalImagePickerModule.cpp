@@ -23,7 +23,10 @@ public:
 			.MaxDisplayedImageDimensions(InConfiguration.MaxDisplayedImageDimensions)
 			.RequiresSpecificSize(InConfiguration.bRequiresSpecificSize)
 			.RequiredImageDimensions(InConfiguration.RequiredImageDimensions)
-			.Extensions(InConfiguration.FileExtensions);
+			.Extensions(InConfiguration.FileExtensions)
+			.GenerateImageVisibility(InConfiguration.GenerateImageVisibility)
+			.GenerateImageToolTipText(InConfiguration.GenerateImageToolTipText)
+			.OnGenerateImageClicked(InConfiguration.OnGenerateImageClicked);
 	}
 };
 

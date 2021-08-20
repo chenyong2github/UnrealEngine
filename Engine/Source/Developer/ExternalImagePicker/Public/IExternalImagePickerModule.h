@@ -55,6 +55,15 @@ struct FExternalImagePickerConfiguration
 
 	/** The image on disk that we will use if the target does not exist. */
 	TArray<FString> FileExtensions;
+    
+	/** Whether the button to generate a new image should be shown. */
+	TAttribute<EVisibility> GenerateImageVisibility;
+
+	/** Tooltip for Generate Image button */
+	FText GenerateImageToolTipText;
+
+	/** Delegate fired when an Generate Image button is pressed */
+	FOnClicked OnGenerateImageClicked;
 
 	/** A property handle to use if required */
 	TSharedPtr<class IPropertyHandle> PropertyHandle;

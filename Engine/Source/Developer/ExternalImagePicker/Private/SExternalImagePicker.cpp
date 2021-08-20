@@ -32,72 +32,90 @@ void SExternalImagePicker::Construct(const FArguments& InArgs)
 	MaxDisplayedImageDimensions = InArgs._MaxDisplayedImageDimensions;
 	bRequiresSpecificSize = InArgs._RequiresSpecificSize;
 	RequiredImageDimensions = InArgs._RequiredImageDimensions;
+	
+	TSharedPtr<SHorizontalBox> HorizontalBoxWidget = nullptr;
 
-	TSharedPtr<SHorizontalBox> HorizontalBox = nullptr;
-
-	ChildSlot
-	[
-		SNew(SVerticalBox)
-		+SVerticalBox::Slot()
-		[
-			SAssignNew(HorizontalBox, SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow"))
-				.Padding(4.0f)
-				.Content()
-				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
-					.Padding(0.0f)
-					.Content()
-					[
-						SNew(SBox)
-						.WidthOverride(this, &SExternalImagePicker::GetImageWidth)
-						.HeightOverride(this, &SExternalImagePicker::GetImageHeight)
+    ChildSlot
+           [
+               SNew(SVerticalBox)
+               +SVerticalBox::Slot()
+               [
+                   SAssignNew(HorizontalBoxWidget, SHorizontalBox)
+                   +SHorizontalBox::Slot()
+                   .AutoWidth()
+                   .VAlign(VAlign_Center)
+                   [
+                       SNew(SBorder)
+                       .BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.ThumbnailShadow"))
+                       .Padding(4.0f)
+                       .Content()
+                       [
+                           SNew(SBorder)
+                           .BorderImage(FEditorStyle::Get().GetBrush("ExternalImagePicker.BlankImage"))
+                           .Padding(0.0f)
+                           .Content()
+                           [
+                               SNew(SBox)
+                               .WidthOverride(this, &SExternalImagePicker::GetImageWidth)
+                               .HeightOverride(this, &SExternalImagePicker::GetImageHeight)
+                               [
+                                   SNew(SEnableBox)
+                                   [
+                                       SNew(SImage)
+                                       .Image(this, &SExternalImagePicker::GetImage)
+                                       .ToolTipText(this, &SExternalImagePicker::GetImageTooltip)
+                                   ]
+                               ]
+                           ]
+                       ]
+                   ]
+                   +SHorizontalBox::Slot()
+                   .AutoWidth()
+                   .Padding(2.0f)
+                   .VAlign(VAlign_Center)
+                   [
+                       SNew(SButton)
+                       .ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+                       .ToolTipText( LOCTEXT( "FileButtonToolTipText", "Choose a file from this computer") )
+                       .OnClicked( FOnClicked::CreateSP(this, &SExternalImagePicker::OnPickFile) )
+                       .ContentPadding( 2.0f )
+                       .ForegroundColor( FSlateColor::UseForeground() )
+                       .IsFocusable( false )
+                       [
+                           SNew( SImage )
+                           .Image( FEditorStyle::Get().GetBrush("ExternalImagePicker.PickImageButton") )
+                           .ColorAndOpacity( FSlateColor::UseForeground() )
+                       ]
+                   ]
+				   +SHorizontalBox::Slot()
+				  .AutoWidth()
+				  .Padding(2.0f)
+				  .VAlign(VAlign_Center)
+				   [
+					  SNew( SButton )
+						.Visibility(InArgs._GenerateImageVisibility)
+						.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+						.ToolTipText(InArgs._GenerateImageToolTipText )
+						.OnClicked(FOnClicked::CreateSP(this, &SExternalImagePicker::OnGenerateImageClickedInternal, InArgs._OnGenerateImageClicked))
+						.ContentPadding( 2.0f )
+						.ForegroundColor( FSlateColor::UseForeground() )
+						.IsFocusable( false )
 						[
-							SNew(SEnableBox)
-							[
-								SNew(SImage)
-								.Image(this, &SExternalImagePicker::GetImage)
-								.ToolTipText(this, &SExternalImagePicker::GetImageTooltip)
-							]
+							SNew( SImage )
+							.Image( FEditorStyle::Get().GetBrush("ExternalImagePicker.GenerateImageButton") )
+							.ColorAndOpacity( FSlateColor::UseForeground() )
 						]
 					]
-				]
-			]
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding(2.0f)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SButton)
-				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
-				.ToolTipText( LOCTEXT( "FileButtonToolTipText", "Choose a file from this computer") )
-				.OnClicked( FOnClicked::CreateSP(this, &SExternalImagePicker::OnPickFile) )
-				.ContentPadding( 2.0f )
-				.ForegroundColor( FSlateColor::UseForeground() )
-				.IsFocusable( false )
-				[
-					SNew( SImage )
-					.Image( FEditorStyle::Get().GetBrush("ExternalImagePicker.PickImageButton") )
-					.ColorAndOpacity( FSlateColor::UseForeground() )
-				]
-			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SAssignNew(ErrorHintWidget, SErrorText)
-		]
-	];
-
+               ]
+               +SVerticalBox::Slot()
+               .AutoHeight()
+               [
+                   SAssignNew(ErrorHintWidget, SErrorText)
+               ]
+           ];
 	if(HorizontalBox.IsValid() && DefaultImagePath.Len() > 0)
 	{
-		HorizontalBox->AddSlot()
+		HorizontalBoxWidget->AddSlot()
 			.AutoWidth()
 			.Padding(2.0f)
 			.VAlign(VAlign_Center)
@@ -265,22 +283,22 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
 		TSharedPtr<IImageWrapper> ImageWrappers[4] =
 		{ 
-			ImageWrapperModule.CreateImageWrapper( EImageFormat::PNG ),
-			ImageWrapperModule.CreateImageWrapper( EImageFormat::BMP ),
-			ImageWrapperModule.CreateImageWrapper( EImageFormat::ICO ),
-			ImageWrapperModule.CreateImageWrapper( EImageFormat::ICNS ),
+ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG),
+ImageWrapperModule.CreateImageWrapper(EImageFormat::BMP),
+ImageWrapperModule.CreateImageWrapper(EImageFormat::ICO),
+ImageWrapperModule.CreateImageWrapper(EImageFormat::ICNS),
 		};
 
-		for( auto ImageWrapper : ImageWrappers )
+		for (auto ImageWrapper : ImageWrappers)
 		{
-			if ( ImageWrapper.IsValid() && ImageWrapper->SetCompressed( RawFileData.GetData(), RawFileData.Num() ) )
-			{			
+			if (ImageWrapper.IsValid() && ImageWrapper->SetCompressed(RawFileData.GetData(), RawFileData.Num()))
+			{
 				TArray<uint8> RawData;
-				if (ImageWrapper->GetRaw( ERGBFormat::BGRA, 8, RawData))
+				if (ImageWrapper->GetRaw(ERGBFormat::BGRA, 8, RawData))
 				{
-					if ( FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource( *ImagePath, ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData ) )
+					if (FSlateApplication::Get().GetRenderer()->GenerateDynamicImageResource(*ImagePath, ImageWrapper->GetWidth(), ImageWrapper->GetHeight(), RawData))
 					{
-						Brush = MakeShareable(new FSlateDynamicImageBrush( *ImagePath, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight()) ) );
+						Brush = MakeShareable(new FSlateDynamicImageBrush(*ImagePath, FVector2D(ImageWrapper->GetWidth(), ImageWrapper->GetHeight())));
 						bSucceeded = true;
 						break;
 					}
@@ -288,7 +306,7 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 			}
 		}
 
-		if(!bSucceeded)
+		if (!bSucceeded)
 		{
 			UE_LOG(LogSlate, Log, TEXT("Only BGRA pngs, bmps or icos are supported in by External Image Picker"));
 			ErrorHintWidget->SetError(LOCTEXT("BadFormatHint", "Unsupported image format"));
@@ -305,14 +323,14 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 						FText::AsNumber((int32)Brush->ImageSize.Y),
 						FText::AsNumber(RequiredImageDimensions.X),
 						FText::AsNumber(RequiredImageDimensions.Y)
-						));
+					));
 				}
 			}
 		}
 	}
 	else
 	{
-		UE_LOG(LogSlate, Log, TEXT("Could not find file for image: %s"), *ImagePath );
+	UE_LOG(LogSlate, Log, TEXT("Could not find file for image: %s"), *ImagePath);
 	}
 
 	return Brush;
@@ -322,7 +340,7 @@ TSharedPtr< FSlateDynamicImageBrush > SExternalImagePicker::LoadImageAsBrush( co
 FReply SExternalImagePicker::OnPickFile()
 {
 	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-	if ( DesktopPlatform )
+	if (DesktopPlatform)
 	{
 		FText Title;
 		FString TitleExtensions;
@@ -359,6 +377,22 @@ FReply SExternalImagePicker::OnPickFile()
 		}
 	}
 
+	return FReply::Handled();
+}
+
+FReply SExternalImagePicker::OnGenerateImageClickedInternal(FOnClicked UserOnGenerateImageClicked)
+{
+	if (UserOnGenerateImageClicked.IsBound())
+	{
+		if (!UserOnGenerateImageClicked.Execute().IsEventHandled())
+		{
+			ErrorHintWidget->SetError(LOCTEXT("IconGenerationFailed", "Image generation failed"));
+		}
+		else
+		{
+			ApplyImage();
+		}
+	}
 	return FReply::Handled();
 }
 
