@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Common;
+using EpicGames.Serialization;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -16,14 +17,15 @@ namespace EpicGames.Horde.Compute
 	public class AddTasksRequest
 	{
 		/// <inheritdoc cref="AddTasksRpcRequest.RequirementsHash"/>
-		[Required]
-		public string RequirementsHash { get; set; } = String.Empty;
+		[Required, CbField("r")]
+		public IoHash RequirementsHash { get; set; }
 
 		/// <inheritdoc cref="AddTasksRpcRequest.TaskHashes"/>
-		[Required]
-		public List<string> TaskHashes { get; set; } = new List<string>();
+		[Required, CbField("t")]
+		public List<IoHash> TaskHashes { get; set; } = new List<IoHash>();
 
 		/// <inheritdoc cref="AddTasksRpcRequest.DoNotCache"/>
+		[CbField("nc")]
 		public bool DoNotCache { get; set; }
 	}
 
@@ -35,6 +37,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Task updates
 		/// </summary>
+		[CbField("u")]
 		public List<GetTaskUpdateResponse> Updates { get; set; } = new List<GetTaskUpdateResponse>();
 	}
 
@@ -44,21 +47,27 @@ namespace EpicGames.Horde.Compute
 	public class GetTaskUpdateResponse
 	{
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.TaskHash"/>
-		public string TaskHash { get; set; } = null!;
+		[CbField("h")]
+		public IoHash TaskHash { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.Time"/>
+		[CbField("t")]
 		public DateTime Time { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.State"/>
+		[CbField("s")]
 		public ComputeTaskState State { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.ResultHash"/>
-		public string? ResultHash { get; set; }
+		[CbField("r")]
+		public IoHash? ResultHash { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.AgentId"/>
+		[CbField("a")]
 		public string? AgentId { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.LeaseId"/>
+		[CbField("l")]
 		public string? LeaseId { get; set; }
 	}
 

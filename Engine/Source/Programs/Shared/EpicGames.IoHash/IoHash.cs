@@ -9,12 +9,15 @@ using System.Buffers.Binary;
 using System.Diagnostics.CodeAnalysis;
 using System.ComponentModel;
 using System.Globalization;
+using System.Text.Json.Serialization;
+using System.Text.Json;
 
 namespace EpicGames.Core
 {
 	/// <summary>
 	/// Struct representing a strongly typed IoHash value (a 20-byte Blake3 hash).
 	/// </summary>
+	[JsonConverter(typeof(IoHashJsonConverter))]
 	[TypeConverter(typeof(IoHashTypeConverter))]
 	public struct IoHash : IEquatable<IoHash>, IComparable<IoHash>
 	{
@@ -90,6 +93,16 @@ namespace EpicGames.Core
 			return new IoHash(StringUtils.ParseHexString(Text));
 		}
 
+		/// <summary>
+		/// Parses a digest from the given hex string
+		/// </summary>
+		/// <param name="Text"></param>
+		/// <returns></returns>
+		public static IoHash Parse(ReadOnlySpan<byte> Text)
+		{
+			return new IoHash(StringUtils.ParseHexString(Text));
+		}
+
 		/// <inheritdoc cref="IComparable{T}.CompareTo(T)"/>
 		public int CompareTo(IoHash Other)
 		{
@@ -115,6 +128,9 @@ namespace EpicGames.Core
 
 		/// <inheritdoc/>
 		public override int GetHashCode() => BinaryPrimitives.ReadInt32LittleEndian(Span);
+
+		/// <inheritdoc/>
+		public Utf8String ToUtf8String() => StringUtils.FormatUtf8HexString(Memory.Span);
 
 		/// <inheritdoc/>
 		public override string ToString() => StringUtils.FormatHexString(Memory.Span);
@@ -183,6 +199,18 @@ namespace EpicGames.Core
 		{
 			Writer.WriteFixedLengthBytes(Hash.Span);
 		}
+	}
+
+	/// <summary>
+	/// Type converter for IoHash to and from JSON
+	/// </summary>
+	sealed class IoHashJsonConverter : JsonConverter<IoHash>
+	{
+		/// <inheritdoc/>
+		public override IoHash Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => IoHash.Parse(Reader.ValueSpan);
+
+		/// <inheritdoc/>
+		public override void Write(Utf8JsonWriter Writer, IoHash Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.ToUtf8String().Span);
 	}
 
 	/// <summary>
