@@ -122,6 +122,7 @@ FNiagaraVariable INiagaraModule::Engine_Emitter_SpawnCountScale;
 FNiagaraVariable INiagaraModule::Engine_System_TickCount;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmittersAlive;
 FNiagaraVariable INiagaraModule::Engine_System_SignificanceIndex;
+FNiagaraVariable INiagaraModule::Engine_System_RandomSeed;
 FNiagaraVariable INiagaraModule::Engine_System_NumEmitters;
 FNiagaraVariable INiagaraModule::Engine_NumSystemInstances;
 
@@ -248,6 +249,7 @@ void INiagaraModule::StartupModule()
 	Engine_System_TickCount = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.TickCount"));
 	Engine_System_NumEmittersAlive = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmittersAlive"));
 	Engine_System_SignificanceIndex = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.SignificanceIndex"));
+	Engine_System_RandomSeed = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.RandomSeed"));
 	Engine_System_NumEmitters = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.System.NumEmitters"));
 	Engine_NumSystemInstances = FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Engine.NumSystemInstances"));
 
@@ -1375,7 +1377,6 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 {
 	static const FName NAME_NiagaraStructPadding0 = "Engine.System.PaddingInt32_0";
 	static const FName NAME_NiagaraStructPadding1 = "Engine.System.PaddingInt32_1";
-	static const FName NAME_NiagaraStructPadding2 = "Engine.System.PaddingInt32_2";
 
 	static const TArray<FNiagaraVariable> Variables =
 	{
@@ -1388,9 +1389,9 @@ const TArray<FNiagaraVariable>& FNiagaraSystemParameters::GetVariables()
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
 		SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
 		SYS_PARAM_ENGINE_SYSTEM_SIGNIFICANCE_INDEX,
+		SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED,
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding0),
 		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding1),
-		FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), NAME_NiagaraStructPadding2),
 	};
 
 	return Variables;

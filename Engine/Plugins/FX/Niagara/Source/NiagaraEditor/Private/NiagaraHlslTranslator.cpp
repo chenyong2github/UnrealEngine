@@ -1009,6 +1009,7 @@ static void ConvertFloatToHalf(const FNiagaraCompileOptions& InCompileOptions, T
 			SYS_PARAM_ENGINE_SYSTEM_AGE,
 			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS_ALIVE,
 			SYS_PARAM_ENGINE_SYSTEM_NUM_EMITTERS,
+			SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED,
 			SYS_PARAM_ENGINE_NUM_SYSTEM_INSTANCES,
 			SYS_PARAM_ENGINE_EMITTER_NUM_PARTICLES,
 			SYS_PARAM_ENGINE_EMITTER_SIMULATION_POSITION,
@@ -1611,6 +1612,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_EMITTER_TOTAL_SPAWNED_PARTICLES, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_EMITTER_RANDOM_SEED, nullptr, 0, OutputIdx, nullptr);
 				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED, nullptr, 0, OutputIdx, nullptr);
+				ParameterMapRegisterExternalConstantNamespaceVariable(SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED, nullptr, 0, OutputIdx, nullptr);
 			}
 		}
 
@@ -4143,7 +4145,8 @@ bool FHlslNiagaraTranslator::ShouldInterpolateParameter(const FNiagaraVariable& 
 		Parameter == SYS_PARAM_ENGINE_EMITTER_SPAWN_COUNT_SCALE ||
 		Parameter == SYS_PARAM_EMITTER_RANDOM_SEED ||
 		Parameter == SYS_PARAM_ENGINE_EMITTER_INSTANCE_SEED ||
-		Parameter == SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT)
+		Parameter == SYS_PARAM_ENGINE_SYSTEM_TICK_COUNT ||
+		Parameter == SYS_PARAM_ENGINE_SYSTEM_RANDOM_SEED)
 	{
 		return false;
 	}

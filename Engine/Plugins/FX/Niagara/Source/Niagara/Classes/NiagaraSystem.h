@@ -419,6 +419,9 @@ public:
 	FORCEINLINE float GetWarmupTickDelta()const { return WarmupTickDelta; }
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags)  const override;
 
+	FORCEINLINE bool NeedsDeterminism() const { return bDeterminism; }
+	FORCEINLINE int32 GetRandomSeed() const { return RandomSeed; }
+
 #if STATS
 	FNiagaraStatDatabase& GetStatData() { return StatDatabase; }
 #endif
@@ -767,6 +770,17 @@ protected:
 
 	UPROPERTY(EditAnywhere, Category = Performance, meta = (ToolTip = "Auto-deactivate system if all emitters are determined to not spawn particles again, regardless of lifetime."))
 	bool bAutoDeactivate;
+
+	/**
+	When disabled we will generate a RandomSeed per instance on reset which is not deterministic.
+	When enabled we will always use the RandomSeed from the system plus the components RandomSeedOffset, this allows for determinism but variance between components.
+	*/
+	UPROPERTY(EditAnywhere, Category = "Random")
+	bool bDeterminism = true;
+
+	/** Seed used for system script random number generator. */
+	UPROPERTY(EditAnywhere, Category = "Random", meta = (EditCondition = "bDeterminism"))
+	int32 RandomSeed = 0;
 
 	/** Warm up time in seconds. Used to calculate WarmupTickCount. Rounds down to the nearest multiple of WarmupTickDelta. */
 	UPROPERTY(EditAnywhere, Category = Warmup)

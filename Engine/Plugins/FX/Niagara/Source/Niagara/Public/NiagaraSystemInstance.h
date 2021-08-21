@@ -441,6 +441,9 @@ private:
 	/** The tick count of the System instance. */
 	int32 TickCount;
 
+	/** Random seed used for system simulation random number generation. */
+	int32 RandomSeed;
+
 	/** A system-wide offset to permute the deterministic random seed (allows for variance among multiple instances while still being deterministic) */
 	int32 RandomSeedOffset;
 

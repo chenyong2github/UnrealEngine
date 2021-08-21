@@ -96,6 +96,7 @@ FNiagaraSystemInstance::FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& 
 	, Age(0.0f)
 	, LastRenderTime(0.0f)
 	, TickCount(0)
+	, RandomSeed(0)
 	, RandomSeedOffset(0)
 	, LODDistance(0.0f)
 	, MaxLODDistance(FLT_MAX)
@@ -852,6 +853,10 @@ void FNiagaraSystemInstance::Reset(FNiagaraSystemInstance::EResetMode Mode)
 				SystemGpuComputeProxy->AddToBatcher(GetBatcher());
 			}
 
+			// Create new random seed
+			RandomSeed = GetSystem()->NeedsDeterminism() ? GetSystem()->GetRandomSeed() : FMath::Rand();
+
+			// Add instance to simulation
 			SystemSimulation->AddInstance(this);
 
 			UNiagaraSystem* System = GetSystem();
@@ -1898,6 +1903,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_GameThread(float DeltaSecond
 	CurrentSystemParameters.EngineLodDistance = GetLODDistance();
 	CurrentSystemParameters.EngineLodDistanceFraction = CurrentSystemParameters.EngineLodDistance / MaxLODDistance;
 	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
+	CurrentSystemParameters.RandomSeed = RandomSeed + RandomSeedOffset;
 
 	if (OverrideParameters)
 	{
@@ -1937,6 +1943,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 	CurrentSystemParameters.EngineEmitterCount = GatheredInstanceParameters.EmitterCount;
 	CurrentSystemParameters.EngineAliveEmitterCount = GatheredInstanceParameters.NumAlive;
 	CurrentSystemParameters.SignificanceIndex = SignificanceIndex;
+	CurrentSystemParameters.RandomSeed = RandomSeed + RandomSeedOffset;
 
 	FNiagaraGlobalParameters& CurrentGlobalParameter = GlobalParameters[ParameterIndex];
 	CurrentGlobalParameter.EngineDeltaTime = GatheredInstanceParameters.DeltaSeconds;
