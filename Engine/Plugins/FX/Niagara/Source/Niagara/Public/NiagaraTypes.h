@@ -1684,8 +1684,8 @@ struct alignas(16) FNiagaraSystemParameters
 	int32 EngineEmitterCount = 0;
 	int32 EngineAliveEmitterCount = 0;
 	int32 SignificanceIndex = 0;
+	int32 RandomSeed = 0;
 
-	int32 _Pad0;
 	int32 _Pad1;
 	int32 _Pad2;
 };
