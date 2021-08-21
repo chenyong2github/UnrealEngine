@@ -143,10 +143,7 @@ END_SHADER_PARAMETER_STRUCT()
 class FNaniteShader : public FGlobalShader
 {
 public:
-	FNaniteShader()
-	{
-	}
-
+	FNaniteShader() = default;
 	FNaniteShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 	: FGlobalShader(Initializer)
 	{

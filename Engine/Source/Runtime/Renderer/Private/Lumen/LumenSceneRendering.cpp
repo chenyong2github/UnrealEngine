@@ -570,7 +570,7 @@ FLumenCardNaniteMeshProcessor::FLumenCardNaniteMeshProcessor(
 {
 }
 
-using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMaterialVS, FLumenCardPS<true>>;
+using FLumenCardNanitePassShaders = TMeshProcessorShaders<FNaniteMultiViewMaterialVS, FLumenCardPS<true>>;
 
 void FLumenCardNaniteMeshProcessor::AddMeshBatch(
 	const FMeshBatch& RESTRICT MeshBatch,
@@ -613,7 +613,7 @@ bool FLumenCardNaniteMeshProcessor::TryAddMeshBatch(
 	check(BlendMode == BLEND_Opaque);
 	check(Material.GetMaterialDomain() == MD_Surface);
 
-	TShaderMapRef<FNaniteMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
+	TShaderMapRef<FNaniteMultiViewMaterialVS> VertexShader(GetGlobalShaderMap(FeatureLevel));
 
 	FLumenCardNanitePassShaders PassShaders;
 	PassShaders.VertexShader = VertexShader;

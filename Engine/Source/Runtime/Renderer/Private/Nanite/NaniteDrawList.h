@@ -86,31 +86,29 @@ void DrawNaniteMaterialPasses(
 	const uint32 TileCount,
 	const bool bParallelBuild,
 	const FParallelCommandListBindings& ParallelBindings,
-	TShaderMapRef<FNaniteMaterialVS> VertexShader,
+	TShaderMapRef<FNaniteIndirectMaterialVS> VertexShader,
 	FRHICommandListImmediate& RHICmdListImmediate,
 	FRHIBuffer* MaterialIndirectArgs,
 	TArray<FNaniteMaterialPassCommand, SceneRenderingAllocator>& MaterialPassCommands
 );
 
-void SubmitNaniteMaterialPassCommand(
-	const FMeshDrawCommand& MeshDrawCommand,
-	const float MaterialDepth,
-	const int32 MaterialSlot,
-	FRHIBuffer* MaterialIndirectArgs,
-	const TShaderMapRef<FNaniteMaterialVS>& VertexShader,
-	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
-	const uint32 InstanceFactor,
-	FRHICommandList& RHICmdList,
-	FMeshDrawCommandStateCache& StateCache,
-	uint32 InstanceBaseOffset
-);
-
-void SubmitNaniteMaterialPassCommand(
+void SubmitNaniteIndirectMaterial(
 	const FNaniteMaterialPassCommand& MaterialPassCommand,
-	const TShaderMapRef<FNaniteMaterialVS>& VertexShader,
+	const TShaderMapRef<FNaniteIndirectMaterialVS>& VertexShader,
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	const uint32 InstanceFactor,
 	FRHICommandList& RHICmdList,
 	FRHIBuffer* MaterialIndirectArgs,
 	FMeshDrawCommandStateCache& StateCache
+);
+
+void SubmitNaniteMultiViewMaterial(
+	const FMeshDrawCommand& MeshDrawCommand,
+	const float MaterialDepth,
+	const TShaderMapRef<FNaniteMultiViewMaterialVS>& VertexShader,
+	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
+	const uint32 InstanceFactor,
+	FRHICommandList& RHICmdList,
+	FMeshDrawCommandStateCache& StateCache,
+	uint32 InstanceBaseOffset
 );

@@ -1214,10 +1214,11 @@ uint64 FMeshDrawCommand::GetPipelineStateSortingKey(FRHICommandList& RHICmdList)
 	FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
 	const FGraphicsMinimalPipelineStateInitializer& MeshPipelineState = CachedPipelineId.GetPipelineState(GraphicsMinimalPipelineStateSet);
 
-	// Default fallback key
-	uint64 SortKey = MeshPipelineState.BoundShaderState.PixelShaderIndex;
-	SortKey = SortKey << 32llu;
-	SortKey |= MeshPipelineState.BoundShaderState.VertexShaderIndex;
+	// Default fallback sort key
+	uint64 SortKey = CachedPipelineId.GetId();
+	//MeshPipelineState.BoundShaderState.PixelShaderIndex;
+	//SortKey = SortKey << 32llu;
+	//SortKey |= MeshPipelineState.BoundShaderState.VertexShaderIndex;
 
 	if (GRHISupportsPipelineStateSortKey)
 	{
