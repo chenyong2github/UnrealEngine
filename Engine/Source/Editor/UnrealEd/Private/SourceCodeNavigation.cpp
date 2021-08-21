@@ -7,6 +7,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Async/AsyncWork.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/Class.h"
