@@ -1360,12 +1360,23 @@ static void UpdateHairAccelerationStructure(FRHICommandList& RHICmdList, FRayTra
 	RHICmdList.BuildAccelerationStructures(MakeArrayView(&Params, 1));
 }
 
-static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, uint32 RaytracingVertexCount, FBufferRHIRef& PositionBuffer, FRayTracingGeometry* OutRayTracingGeometry)
+static void BuildHairAccelerationStructure_Strands(
+	FRHICommandList& RHICmdList, 
+	uint32 RaytracingVertexCount, 
+	FBufferRHIRef& PositionBuffer, 
+	FRayTracingGeometry* OutRayTracingGeometry,
+	const FString& AssetDebugName,
+	uint32 LODIndex)
 {
 	FRayTracingGeometryInitializer Initializer;
-	static const FName DebugName("HairStrands");
+#if HAIR_RESOURCE_DEBUG_NAME
+	FString DebugName(TEXT("AS_HairStrands_LOD") + FString::FromInt(LODIndex) + TEXT("_") + AssetDebugName);
+	Initializer.DebugName = FName(DebugName);
+#else
+	static const FName DebugName("AS_HairStrands");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
+#endif
 	Initializer.IndexBuffer = nullptr;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
@@ -1388,12 +1399,19 @@ static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, 
 static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList, 	
 	FHairCardsRestResource* RestResource,
 	FHairCardsDeformedResource* DeformedResource,
-	FRayTracingGeometry* OutRayTracingGeometry)
+	FRayTracingGeometry* OutRayTracingGeometry,
+	const FString& AssetDebugName,
+	uint32 LODIndex)
 {
 	FRayTracingGeometryInitializer Initializer;
-	static const FName DebugName("HairCards");
+#if HAIR_RESOURCE_DEBUG_NAME
+	FString DebugName(TEXT("AS_HairCards_LOD") + FString::FromInt(LODIndex) + TEXT("_") + AssetDebugName);
+	Initializer.DebugName = FName(DebugName);
+#else
+	static const FName DebugName("AS_HairCards");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
+#endif
 	Initializer.IndexBuffer = RestResource->RestIndexBuffer.IndexBufferRHI;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
@@ -1422,12 +1440,19 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 	FHairMeshesRestResource* RestResource,
 	FHairMeshesDeformedResource* DeformedResource,
-	FRayTracingGeometry* OutRayTracingGeometry)
+	FRayTracingGeometry* OutRayTracingGeometry,
+	const FString& AssetDebugName,
+	uint32 LODIndex)
 {
 	FRayTracingGeometryInitializer Initializer;
-	static const FName DebugName("HairMeshes");
+#if HAIR_RESOURCE_DEBUG_NAME
+	FString DebugName(TEXT("AS_HairMeshes_LOD") + FString::FromInt(LODIndex) + TEXT("_") + AssetDebugName);
+	Initializer.DebugName = FName(DebugName);
+#else
+	static const FName DebugName("AS_HairMeshes");
 	static int32 DebugNumber = 0;
 	Initializer.DebugName = FName(DebugName, DebugNumber++);
+#endif
 	Initializer.IndexBuffer = RestResource->IndexBuffer.IndexBufferRHI;
 	Initializer.IndexBufferOffset = 0;
 	Initializer.GeometryType = RTGT_Triangles;
@@ -1877,6 +1902,8 @@ void ComputeHairStrandsInterpolation(
 				const bool bNeedBuild = !Instance->Strands.RenRaytracingResource->bIsRTGeometryInitialized;
 				if (bNeedBuild || bNeedUpdate)
 				{
+					const uint32 HairLODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
+
 					FRDGImportedBuffer Raytracing_PositionBuffer = Register(GraphBuilder, Instance->Strands.RenRaytracingResource->PositionBuffer, ERDGImportedBufferFlags::CreateViews);
 					AddGenerateRaytracingGeometryPass(
 						GraphBuilder,
@@ -1893,7 +1920,7 @@ void ComputeHairStrandsInterpolation(
 					GraphBuilder.AddPass(
 						RDG_EVENT_NAME("HairStrands::UpdateBLAS(Strands)"),
 						ERDGPassFlags::NeverCull,
-					[Instance, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
+					[Instance, HairLODIndex, bNeedUpdate](FRHICommandListImmediate& RHICmdList)
 					{
 						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
@@ -1901,7 +1928,7 @@ void ComputeHairStrandsInterpolation(
 						if (bLocalNeedBuild)
 						{
 							FBufferRHIRef PositionBuffer(Instance->Strands.RenRaytracingResource->PositionBuffer.Buffer->GetRHI());
-							BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry);
+							BuildHairAccelerationStructure_Strands(RHICmdList, Instance->Strands.RenRaytracingResource->VertexCount, PositionBuffer, &Instance->Strands.RenRaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, HairLODIndex);
 						}
 						else if (bNeedUpdate)
 						{
@@ -2031,7 +2058,7 @@ void ComputeHairStrandsInterpolation(
 						const bool bLocalNeedBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
 						if (bLocalNeedBuild)
 						{
-							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource, &LocalLOD.RaytracingResource->RayTracingGeometry);
+							BuildHairAccelerationStructure_Cards(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource, &LocalLOD.RaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, HairLODIndex);
 							LocalLOD.RaytracingResource->bIsRTGeometryInitialized = true;
 						}
 						else if (bNeedUpdate)
@@ -2095,7 +2122,7 @@ void ComputeHairStrandsInterpolation(
 						const bool bLocalNeedBuild = !LocalLOD.RaytracingResource->bIsRTGeometryInitialized;
 						if (bLocalNeedBuild)
 						{
-							BuildHairAccelerationStructure_Meshes(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry);
+							BuildHairAccelerationStructure_Meshes(RHICmdList, LocalLOD.RestResource, LocalLOD.DeformedResource,  &LocalLOD.RaytracingResource->RayTracingGeometry, Instance->Debug.GroomAssetName, HairLODIndex);
 						}
 						else if (bNeedUpdate)
 						{
