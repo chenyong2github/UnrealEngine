@@ -141,6 +141,21 @@ void FLocalLightSceneProxy::UpdateRadius(float ComponentRadius)
 
 	// Min to avoid div by 0 (NaN in InvRadius)
 	InvRadius = 1.0f / FMath::Max(0.00001f, ComponentRadius);
+}
 
-	bMobileMovablePointLightUniformBufferNeedsUpdate = true;
+bool FLocalLightSceneProxy::IsLocalLight() const
+{
+	return true;
+}
+
+void FLocalLightSceneProxy::UpdateMobileMovableLocalLightUniformBuffer(const FMobileMovablePointLightUniformShaderParameters& MobileMovableLocalLightUniformShaderParameters)
+{
+	if (MobileMovableLocalLightUniformBuffer == nullptr)
+	{
+		MobileMovableLocalLightUniformBuffer = TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters>::CreateUniformBufferImmediate(MobileMovableLocalLightUniformShaderParameters, UniformBuffer_MultiFrame);
+	}
+	else
+	{
+		MobileMovableLocalLightUniformBuffer.UpdateUniformBufferImmediate(MobileMovableLocalLightUniformShaderParameters);
+	}
 }

@@ -18,7 +18,7 @@
 #include "FramePro/FrameProProfiler.h"
 #include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 #include "Engine/SubsurfaceProfile.h"
-#include "SceneTextures.h"
+#include "LocalLightSceneProxy.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarMobileDisableVertexFog(
@@ -164,7 +164,8 @@ FMobileBasePassMovableLightInfo::FMobileBasePassMovableLightInfo(const FPrimitiv
 				
 			if (bIsValidLightType && LightProxy->IsMovable() && (LightProxy->GetLightingChannelMask() & InSceneProxy->GetLightingChannelMask()) != 0)
 			{
-				MovablePointLightUniformBuffer[NumMovablePointLights] = LightProxy->GetMobileMovablePointLightUniformBufferRHI();
+				check(LightProxy->IsLocalLight());
+				MovablePointLightUniformBuffer[NumMovablePointLights] = ((FLocalLightSceneProxy*)LightProxy)->GetMobileMovableLocalLightUniformBufferRHI();
 
 				NumMovablePointLights++;
 			}

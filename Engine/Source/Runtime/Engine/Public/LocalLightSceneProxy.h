@@ -53,6 +53,15 @@ public:
 
 	virtual bool GetPerObjectProjectedShadowInitializer(const FBoxSphereBounds& SubjectBounds, class FPerObjectProjectedShadowInitializer& OutInitializer) const override;
 
+	virtual bool IsLocalLight() const override;
+
+	FORCEINLINE FRHIUniformBuffer* GetMobileMovableLocalLightUniformBufferRHI() const
+	{
+		return MobileMovableLocalLightUniformBuffer.GetReference();
+	}
+
+	virtual void UpdateMobileMovableLocalLightUniformBuffer(const FMobileMovablePointLightUniformShaderParameters& MobileMovableLocalLightUniformShaderParameters);
+
 protected:
 
 	/** Updates the light scene info's radius from the component. */
@@ -60,4 +69,7 @@ protected:
 
 	float MaxDrawDistance;
 	float FadeRange;
+
+	/** The movable local light's uniform buffer for mobile. */
+	TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters> MobileMovableLocalLightUniformBuffer;
 };
