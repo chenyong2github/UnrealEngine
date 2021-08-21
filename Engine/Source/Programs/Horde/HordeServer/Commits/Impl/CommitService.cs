@@ -271,20 +271,6 @@ namespace HordeServer.Commits.Impl
 		const int BatchSize = 16384;
 
 		/// <summary>
-		/// Creates a snapshot of the repository at a particular changelist
-		/// </summary>
-		/// <param name="Repository">The Perforce repository to mirror</param>
-		/// <param name="Stream">Name of the stream to be mirrored</param>
-		/// <param name="Change">Changelist to replicate</param>
-		Task<StreamTreeRef> CreateTreeAsync(P4.Repository Repository, string Stream, int Change)
-		{
-			// Get the stream spec
-			P4.Stream StreamSpec = Repository.GetStream($"{Stream}@{Change}", new P4.Options { { "-v", "" } });
-			ViewMap View = new ViewMap(StreamSpec.View);
-			return CreateTreeAsync(Repository, View, Change);
-		}
-
-		/// <summary>
 		/// Creates a snapshot of a stream at a particular changelist
 		/// </summary>
 		/// <param name="Repository">The Perforce repository to mirror</param>
@@ -487,6 +473,19 @@ namespace HordeServer.Commits.Impl
 		#endregion
 
 		#region Misc tree manipulation
+
+		/// <summary>
+		/// Gets the view for a stream
+		/// </summary>
+		/// <param name="Repository">The Perforce repository to mirror</param>
+		/// <param name="Stream">Name of the stream to be mirrored</param>
+		/// <param name="Change">Changelist to replicate</param>
+		static ViewMap GetStreamView(P4.Repository Repository, string Stream, int Change)
+		{
+			// Get the stream spec
+			P4.Stream StreamSpec = Repository.GetStream($"{Stream}@{Change}", new P4.Options { { "-v", "" } });
+			return new ViewMap(StreamSpec.View);
+		}
 
 		/// <summary>
 		/// Gets a <see cref="StreamTreeBuilder"/> for a subtree with the given name
