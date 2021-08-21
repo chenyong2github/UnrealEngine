@@ -1286,40 +1286,18 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileMovablePointLightUniformShaderParame
 	SHADER_PARAMETER(FMatrix44f, SpotLightShadowWorldToShadowMatrix)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-/** Initializes the movable point light uniform shader parameters. */
-FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetMovablePointLightUniformShaderParameters(
-	const FVector4& LightPositionAndInvRadius,
-	const FVector4& LightColorAndFalloffExponent,
-	const FVector4& SpotLightDirectionAndSpecularScale,
-	const FVector4& SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
-	const FVector4& SpotLightShadowSharpenAndShadowFadeFraction,
-	const FVector4& SpotLightShadowmapMinMax,
-	const FMatrix& SpotLightShadowWorldToShadowMatrix
-)
-{
-	FMobileMovablePointLightUniformShaderParameters Result;
-	Result.LightPositionAndInvRadius = LightPositionAndInvRadius;
-	Result.LightColorAndFalloffExponent = LightColorAndFalloffExponent;
-	Result.SpotLightDirectionAndSpecularScale = SpotLightDirectionAndSpecularScale;
-	Result.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
-	Result.SpotLightShadowSharpenAndShadowFadeFraction = SpotLightShadowSharpenAndShadowFadeFraction;
-	Result.SpotLightShadowmapMinMax = SpotLightShadowmapMinMax;
-	Result.SpotLightShadowWorldToShadowMatrix = (FMatrix44f)SpotLightShadowWorldToShadowMatrix;
-
-	return Result;
-}
-
 FORCEINLINE FMobileMovablePointLightUniformShaderParameters GetDummyMovablePointLightUniformShaderParameters()
 {
-	return GetMovablePointLightUniformShaderParameters(
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FVector4(),
-		FMatrix()
-	);
+	FMobileMovablePointLightUniformShaderParameters Result;
+	Result.LightPositionAndInvRadius = FVector4();
+	Result.LightColorAndFalloffExponent = FVector4();
+	Result.SpotLightDirectionAndSpecularScale = FVector4();
+	Result.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4();
+	Result.SpotLightShadowSharpenAndShadowFadeFraction = FVector4();
+	Result.SpotLightShadowmapMinMax = FVector4();
+	Result.SpotLightShadowWorldToShadowMatrix = (FMatrix44f)FMatrix();
+
+	return Result;
 }
 
 /**
@@ -1377,6 +1355,7 @@ public:
 	virtual float GetSourceRadius() const { return 0.0f; }
 	virtual bool IsInverseSquared() const { return true; }
 	virtual bool IsRectLight() const { return false; }
+	virtual bool  IsLocalLight() const { return false; }
 	virtual bool HasSourceTexture() const { return false; }
 	virtual float GetLightSourceAngle() const { return 0.0f; }
 	virtual float GetShadowSourceAngleFactor() const { return 1.0f; }
@@ -1582,16 +1561,6 @@ public:
 	virtual FLinearColor GetCloudScatteredLuminanceScale() const { return FLinearColor::White; }
 	virtual bool GetUsePerPixelAtmosphereTransmittance() const { return false; }
 
-	FORCEINLINE void SetMobileMovablePointLightUniformBufferNeedsUpdate(bool bInMobileMovablePointLightUniformBufferNeedsUpdate)
-	{
-		bMobileMovablePointLightUniformBufferNeedsUpdate = bInMobileMovablePointLightUniformBufferNeedsUpdate;
-	}
-
-	FORCEINLINE FRHIUniformBuffer* GetMobileMovablePointLightUniformBufferRHI() const
-	{
-		return MobileMovablePointLightUniformBuffer.GetReference();
-	}
-
 protected:
 
 	friend class FScene;
@@ -1775,21 +1744,6 @@ protected:
 
 	/** Deep shadow layer distribution. */
 	float DeepShadowLayerDistribution;
-
-	/** If this is TRUE, the light's mobile movable point light uniform buffer needs to be updated before it can be used for mobile base pass rendering. */
-	bool bMobileMovablePointLightUniformBufferNeedsUpdate;
-
-	/** Cached ShouldBeRender for mobile, since if the ShouldBeRender is changed we have to update the movable point lights uniform buffer. */
-	bool bMobileMovablePointLightShouldBeRender;
-
-	/** Cached DynamicShadows show flag for mobile, since if the show flag is changed we have to update the movable point lights uniform buffer. */
-	bool bMobileMovablePointLightShouldCastShadow;
-
-	/** Cached the spotlight shadow map min and max value for mobile, since if the value is changed we have to update the movable point lights uniform buffer. */
-	FVector4 MobileMovablePointLightShadowmapMinMax;
-
-	/** The movable point light's uniform buffer for mobile. */
-	TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters> MobileMovablePointLightUniformBuffer;
 
 	/**
 	 * Updates the light proxy's cached transforms.

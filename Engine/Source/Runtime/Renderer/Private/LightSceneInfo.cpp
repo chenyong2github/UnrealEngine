@@ -9,6 +9,7 @@
 #include "SceneCore.h"
 #include "ScenePrivate.h"
 #include "DistanceFieldLightingShared.h"
+#include "LocalLightSceneProxy.h"
 
 int32 GWholeSceneShadowUnbuiltInteractionThreshold = 500;
 static FAutoConsoleVariableRef CVarWholeSceneShadowUnbuiltInteractionThreshold(
@@ -120,8 +121,9 @@ void FLightSceneInfo::AddToScene()
 
 			if (bIsValidLightTypeMobile)
 			{
-				Proxy->MobileMovablePointLightUniformBuffer = TUniformBufferRef<FMobileMovablePointLightUniformShaderParameters>::CreateUniformBufferImmediate(GetDummyMovablePointLightUniformShaderParameters(), UniformBuffer_MultiFrame);
-				Proxy->bMobileMovablePointLightUniformBufferNeedsUpdate = true;
+				check(Proxy->IsLocalLight());
+				FLocalLightSceneProxy* LocalLightSceneProxy = (FLocalLightSceneProxy*)Proxy;
+				LocalLightSceneProxy->UpdateMobileMovableLocalLightUniformBuffer(GetDummyMovablePointLightUniformShaderParameters());
 			}
 		}
 	}
@@ -243,7 +245,7 @@ FLightPrimitiveInteraction* FLightSceneInfo::GetDynamicInteractionStaticPrimitiv
 	return DynamicInteractionStaticPrimitiveList;
 }
 
-void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(const FSceneRenderer* SceneRenderer)
+void FLightSceneInfo::UpdateMobileMovableLocalLightUniformBuffer(const FSceneRenderer* SceneRenderer)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FLightSceneProxy_UpdateMobileMovablePointLightUniformBuffer);
 
@@ -258,13 +260,8 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 
 	checkSlow(MobileNumDynamicPointLights > 0 && SceneRenderer);
 
-	FVector4 LightPositionAndInvRadius;
-	FVector4 LightColorAndFalloffExponent;
-	FVector4 SpotLightDirectionAndSpecularScale;
-	FVector4 SpotLightAnglesAndSoftTransitionScaleAndLightShadowType;
-	FVector4 SpotLightShadowSharpenAndShadowFadeFraction;
-	FVector4 SpotLightShadowmapMinMax;
-	FMatrix SpotLightWorldToShadowMatrix;
+	check(Proxy->IsLocalLight());
+	FLocalLightSceneProxy* LocalLightSceneProxy = (FLocalLightSceneProxy*)Proxy;
 
 	bool bShouldBeRender = false;
 	bool bShouldCastShadow = false;
@@ -322,6 +319,8 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 		float SoftTransitionScale = 0.0f;
 		float ShadowFadeFraction = 0.0f;
 
+		FMobileMovablePointLightUniformShaderParameters MobileMovablePointLightUniformShaderParameters;
+
 		if (bShouldCastShadow)
 		{
 			FProjectedShadowInfo *ProjectedShadowInfo = SceneRenderer->VisibleLightInfos[Id].AllProjectedShadows.Last();
@@ -337,45 +336,20 @@ void FLightSceneInfo::ConditionalUpdateMobileMovablePointLightUniformBuffer(cons
 				ShadowFadeFraction = FMath::Max(ShadowFadeFraction, ProjectedShadowInfo->FadeAlphas[ViewIndex]);
 			}
 
-			SpotLightShadowSharpenAndShadowFadeFraction = FVector4(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
-			SpotLightWorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(SpotLightShadowmapMinMax);
+			MobileMovablePointLightUniformShaderParameters.SpotLightShadowSharpenAndShadowFadeFraction = FVector4(Proxy->GetShadowSharpen() * 7.0f + 1.0f, ShadowFadeFraction, ProjectedShadowInfo->GetShaderReceiverDepthBias(), 0.0f);
+			MobileMovablePointLightUniformShaderParameters.SpotLightShadowWorldToShadowMatrix = ProjectedShadowInfo->GetWorldToShadowMatrix(MobileMovablePointLightUniformShaderParameters.SpotLightShadowmapMinMax);
 		}
 		
-		LightPositionAndInvRadius = FVector4(LightParameters.Position, LightParameters.InvRadius);
-		LightColorAndFalloffExponent = FVector4(LightParameters.Color, LightParameters.FalloffExponent);
-		SpotLightDirectionAndSpecularScale = FVector4(LightParameters.Direction.X, LightParameters.Direction.Y, LightParameters.Direction.Z, Proxy->GetSpecularScale());
-		SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, SoftTransitionScale, LightShadowType);
+		MobileMovablePointLightUniformShaderParameters.LightPositionAndInvRadius = FVector4(LightParameters.Position, LightParameters.InvRadius);
+		MobileMovablePointLightUniformShaderParameters.LightColorAndFalloffExponent = FVector4(LightParameters.Color, LightParameters.FalloffExponent);
+		MobileMovablePointLightUniformShaderParameters.SpotLightDirectionAndSpecularScale = FVector4(LightParameters.Direction.X, LightParameters.Direction.Y, LightParameters.Direction.Z, Proxy->GetSpecularScale());
+		MobileMovablePointLightUniformShaderParameters.SpotLightAnglesAndSoftTransitionScaleAndLightShadowType = FVector4(LightParameters.SpotAngles.X, LightParameters.SpotAngles.Y, SoftTransitionScale, LightShadowType);
+
+		LocalLightSceneProxy->UpdateMobileMovableLocalLightUniformBuffer(MobileMovablePointLightUniformShaderParameters);
 	}
-
-	if (bShouldBeRender != Proxy->bMobileMovablePointLightShouldBeRender || 
-		bShouldCastShadow != Proxy->bMobileMovablePointLightShouldCastShadow ||
-		SpotLightShadowmapMinMax != Proxy->MobileMovablePointLightShadowmapMinMax)
+	else
 	{
-		Proxy->bMobileMovablePointLightUniformBufferNeedsUpdate = true;
-
-		Proxy->bMobileMovablePointLightShouldBeRender = bShouldBeRender;
-
-		Proxy->bMobileMovablePointLightShouldCastShadow = bShouldCastShadow;
-
-		Proxy->MobileMovablePointLightShadowmapMinMax = SpotLightShadowmapMinMax;
-	}
-
-	if (Proxy->bMobileMovablePointLightUniformBufferNeedsUpdate)
-	{
-		const FMobileMovablePointLightUniformShaderParameters MobileMovablePointLightUniformShaderParameters =
-			GetMovablePointLightUniformShaderParameters(
-				LightPositionAndInvRadius,
-				LightColorAndFalloffExponent,
-				SpotLightDirectionAndSpecularScale,
-				SpotLightAnglesAndSoftTransitionScaleAndLightShadowType,
-				SpotLightShadowSharpenAndShadowFadeFraction,
-				SpotLightShadowmapMinMax,
-				SpotLightWorldToShadowMatrix
-			);
-
-		Proxy->MobileMovablePointLightUniformBuffer.UpdateUniformBufferImmediate(MobileMovablePointLightUniformShaderParameters);
-
-		Proxy->bMobileMovablePointLightUniformBufferNeedsUpdate = false;
+		LocalLightSceneProxy->UpdateMobileMovableLocalLightUniformBuffer(GetDummyMovablePointLightUniformShaderParameters());
 	}
 }
 

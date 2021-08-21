@@ -340,8 +340,8 @@ public:
 		return (uint32)LightSceneInfo->Id;
 	}
 
-	// Update the mobile movable point light uniform buffer before it is used for mobile base pass rendering.
-	void ConditionalUpdateMobileMovablePointLightUniformBuffer(const class FSceneRenderer* SceneRenderer);
+	// Update the mobile movable local light uniform buffer before it is used for mobile base pass rendering.
+	void UpdateMobileMovableLocalLightUniformBuffer(const class FSceneRenderer* SceneRenderer);
 
 	bool ShouldRecordShadowSubjectsForMobile() const;
 };

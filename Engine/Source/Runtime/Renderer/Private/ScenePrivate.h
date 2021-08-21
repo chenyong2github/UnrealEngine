@@ -2897,9 +2897,6 @@ public:
 	int32 NumMobileStaticAndCSMLights_RenderThread;
 	int32 NumMobileMovableDirectionalLights_RenderThread;
 
-	/** Cached shadow atlas size for mobile, since if the resolution is changed we have to update the movable point lights uniform buffer. */
-	FIntPoint MobileWholeSceneShadowAtlasSize;
-
 	FSceneVelocityData VelocityData;
 
 	/** GPU Skinning cache, if enabled */
