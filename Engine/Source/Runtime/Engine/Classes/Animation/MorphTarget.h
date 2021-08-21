@@ -98,8 +98,11 @@ struct FMorphTargetLODModel
 			}
 		}
 
-		// Cache Vertices array size, no need to serialize CachedNumVertices value.
-		M.NumVertices = M.Vertices.Num();
+		// Cache Vertices array size, no need to serialize NumVertices value.
+		if (Ar.IsLoading())
+		{
+			M.NumVertices = M.Vertices.Num();
+		}
 
 		return Ar;
 	}
