@@ -405,9 +405,12 @@ void EmitEditorSelectionDepthPS(
 #endif
 
 float MaterialDepth;
+#if NANITE_MATERIAL_MULTIVIEW
+uint InstanceBaseOffset;
+#else
 uint MaterialSlot;
 uint TileRemapCount;
-uint InstanceBaseOffset;
+#endif
 
 struct FVertexFactoryInterpolantsVSToPS
 {
@@ -425,15 +428,19 @@ void FullScreenVS(
 
 )
 {
-	const bool bIndirect = Nanite.MaterialConfig.x != 0;
+#if NANITE_MATERIAL_MULTIVIEW
+	// Compile time constant to remove int mod ALU
+	const uint2 GridSize = uint2(1, 1);
+#else
+	// TODO: Avoid int mod ALU when calculating GridPos
 	const uint2 GridSize = Nanite.MaterialConfig.yz;
+#endif
 
 	Output = (FVertexFactoryInterpolantsVSToPS)0;
 
 	uint TileIndex = InstanceIndex;
 
-	BRANCH
-	if (bIndirect)
+#if !NANITE_MATERIAL_MULTIVIEW
 	{
 		const uint TargetTileCount = TileIndex + 1;
 
@@ -484,11 +491,11 @@ void FullScreenVS(
 
 		TileIndex = (RemapBin * 32u) + RemapBinBit;
 	}
+#endif
 
 	float4 RectScaleOffset = Nanite.RectScaleOffset;
 
-	BRANCH
-	if (Nanite.MultiViewEnabled > 0)
+#if NANITE_MATERIAL_MULTIVIEW
 	{
 		// Treat InstanceIndex for view indexing if multi view rendering is enabled
 		TileIndex = 0;
@@ -497,6 +504,7 @@ void FullScreenVS(
 		RectScaleOffset = Nanite.MultiViewRectScaleOffsets[ViewIndex];
 		Output.ViewIndex = ViewIndex;	
 	}
+#endif
 
 	float2 GridStep = float2(1.0, 1.0) / (float2)GridSize;
 	uint2  GridPos  = uint2(TileIndex % GridSize.x, TileIndex / GridSize.x);

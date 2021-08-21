@@ -8,7 +8,9 @@
 
 static constexpr uint32 NANITE_MAX_MATERIALS = 64;
 
-#define NANITE_MATERIAL_STENCIL 1
+// TODO: Until RHIs no longer set stencil ref to 0 on a PSO change, this optimization 
+// is actually worse (forces a context roll per unique material draw, back to back).
+#define NANITE_MATERIAL_STENCIL 0
 
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteMaterials, TEXT("Nanite Materials"));
 DECLARE_GPU_STAT_NAMED_EXTERN(NaniteDepth, TEXT("Nanite Depth"));
@@ -102,23 +104,19 @@ struct FNaniteMaterialPassCommand
 	uint64 SortKey = 0;
 };
 
-/** Vertex shader to draw a full screen quad at a specific depth that works on all platforms. */
-class FNaniteMaterialVS : public FNaniteShader
+class FNaniteMultiViewMaterialVS : public FNaniteShader
 {
-	DECLARE_GLOBAL_SHADER(FNaniteMaterialVS);
+	DECLARE_GLOBAL_SHADER(FNaniteMultiViewMaterialVS);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(float,   MaterialDepth)
-		SHADER_PARAMETER(uint32,  MaterialSlot)
-		SHADER_PARAMETER(uint32,  TileRemapCount)
 		SHADER_PARAMETER(uint32,  InstanceBaseOffset)
 	END_SHADER_PARAMETER_STRUCT()
 
-	FNaniteMaterialVS()
-	{
-	}
+	FNaniteMultiViewMaterialVS() = default;
 
-	FNaniteMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FNaniteShader(Initializer)
+	FNaniteMultiViewMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FNaniteShader(Initializer)
 	{
 		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
 		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
@@ -127,6 +125,66 @@ class FNaniteMaterialVS : public FNaniteShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NANITE_MATERIAL_MULTIVIEW"), 1);
+	}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FMeshPassProcessorRenderState& DrawRenderState,
+		const FMeshMaterialShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		ShaderBindings.Add(NaniteUniformBuffer, DrawRenderState.GetNaniteUniformBuffer());
+	}
+
+	void GetElementShaderBindings(
+		const FShaderMapPointerTable& PointerTable,
+		const FScene* Scene,
+		const FSceneView* ViewIfDynamicMeshCommand,
+		const FVertexFactory* VertexFactory,
+		const EVertexInputStreamType InputStreamType,
+		const FStaticFeatureLevel FeatureLevel,
+		const FPrimitiveSceneProxy* PrimitiveSceneProxy,
+		const FMeshBatch& MeshBatch,
+		const FMeshBatchElement& BatchElement,
+		const FMeshMaterialShaderElementData& ShaderElementData,
+		FMeshDrawSingleShaderBindings& ShaderBindings,
+		FVertexInputStreamArray& VertexStreams) const
+	{
+	}
+
+private:
+	LAYOUT_FIELD(FShaderParameter, MaterialDepth);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, NaniteUniformBuffer);
+};
+
+class FNaniteIndirectMaterialVS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FNaniteIndirectMaterialVS);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(float,   MaterialDepth)
+		SHADER_PARAMETER(uint32,  MaterialSlot)
+		SHADER_PARAMETER(uint32,  TileRemapCount)
+	END_SHADER_PARAMETER_STRUCT()
+
+	FNaniteIndirectMaterialVS() = default;
+
+	FNaniteIndirectMaterialVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FNaniteShader(Initializer)
+	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.PermutationId, Initializer.ParameterMap, false);
+		NaniteUniformBuffer.Bind(Initializer.ParameterMap, TEXT("Nanite"), SPF_Mandatory);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FNaniteShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("NANITE_MATERIAL_MULTIVIEW"), 0);
 	}
 
 	void GetShaderBindings(
