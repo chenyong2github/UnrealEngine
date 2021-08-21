@@ -339,6 +339,16 @@ public:
 		}
 	}
 
+	FORCEINLINE uint64 GetContextSortKey() const
+	{
+		return ContextSortKey;
+	}
+
+	FORCEINLINE void SetContextSortKey(uint64 InContextSortKey)
+	{
+		ContextSortKey = InContextSortKey;
+	}
+
 	FD3D12PipelineState& operator=(const FD3D12PipelineState& other) = delete;
 
 private:
@@ -356,6 +366,9 @@ protected:
 		CreationFailed,
 	};
 	volatile PSOInitState InitState;
+
+	// GRHISupportsPipelineStateSortKey
+	uint64 ContextSortKey = 0;
 };
 
 struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState

@@ -330,6 +330,9 @@ FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 	bShaderNeedsGlobalConstantBuffer[SF_Amplification] = GetAmplificationShader() && GetAmplificationShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Pixel] = GetPixelShader() && GetPixelShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Geometry] = GetGeometryShader() && GetGeometryShader()->ResourceCounts.bGlobalUniformBufferUsed;
+
+	// GRHISupportsPipelineStateSortKey
+	SetSortKey(InPipelineState->GetContextSortKey());
 }
 
 FD3D12GraphicsPipelineState::~FD3D12GraphicsPipelineState()
