@@ -9,6 +9,8 @@
 #include "GameplayTagContainer.h"
 #include "Misc/ConfigCacheIni.h"
 
+UE_DEFINE_GAMEPLAY_TAG(TAG_PlatformTrait_PlayInEditor, "Platform.Trait.PlayInEditor");
+
 UCommonUISettings::UCommonUISettings(const FObjectInitializer& Initializer)
 	: Super(Initializer)
 	, bAutoLoadData(true)
@@ -87,6 +89,13 @@ void UCommonUISettings::RebuildTraitContainer()
 	{
 		PlatformTraitContainer.AddTag(Trait);
 	}
+
+#if WITH_EDITOR
+	if (GIsEditor)
+	{
+		PlatformTraitContainer.AddTag(TAG_PlatformTrait_PlayInEditor);
+	}
+#endif
 }
 
 void UCommonUISettings::AutoLoadData()

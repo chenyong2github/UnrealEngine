@@ -12,9 +12,12 @@
 #include "CommonUIRichTextData.h"
 #include "CommonTextBlock.h"
 #include "GameplayTagContainer.h"
+#include "NativeGameplayTags.h"
 #include "CommonUISettings.generated.h"
 
 class UMaterial;
+
+COMMONUI_API UE_DECLARE_GAMEPLAY_TAG_EXTERN(TAG_PlatformTrait_PlayInEditor);
 
 UCLASS(config = Game, defaultconfig)
 class COMMONUI_API UCommonUISettings : public UObject
