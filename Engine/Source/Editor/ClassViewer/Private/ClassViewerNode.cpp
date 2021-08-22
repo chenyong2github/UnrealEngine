@@ -76,39 +76,6 @@ void FClassViewerNode::AddChild( TSharedPtr<FClassViewerNode> Child )
 	ChildrenList.Add(Child);
 }
 
-void FClassViewerNode::AddUniqueChild(TSharedPtr<FClassViewerNode> NewChild)
-{
-	check(NewChild.IsValid());
-	const UClass* NewChildClass = NewChild->Class.Get();
-	if (nullptr != NewChildClass)
-	{
-		for(int ChildIndex = 0; ChildIndex < ChildrenList.Num(); ++ChildIndex)
-		{
-			TSharedPtr<FClassViewerNode> OldChild = ChildrenList[ChildIndex];
-			if(OldChild.IsValid() && OldChild->Class == NewChildClass)
-			{
-				const bool bNewChildHasMoreInfo = NewChild->UnloadedBlueprintData.IsValid();
-				const bool bOldChildHasMoreInfo = OldChild->UnloadedBlueprintData.IsValid();
-				if(bNewChildHasMoreInfo && !bOldChildHasMoreInfo)
-				{
-					// make sure, that new child has all needed children
-					for(int OldChildIndex = 0; OldChildIndex < OldChild->ChildrenList.Num(); ++OldChildIndex)
-					{
-						NewChild->AddUniqueChild( OldChild->ChildrenList[OldChildIndex] );
-					}
-
-					// replace child
-					NewChild->ParentNode = AsShared();
-					ChildrenList[ChildIndex] = NewChild;
-				}
-				return;
-			}
-		}
-	}
-
-	AddChild(NewChild);
-}
-
 bool FClassViewerNode::IsRestricted() const
 {
 	return PropertyHandle.IsValid() && PropertyHandle->IsRestricted(*ClassName);
