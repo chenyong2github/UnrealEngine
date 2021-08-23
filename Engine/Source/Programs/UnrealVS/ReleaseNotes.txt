@@ -1,4 +1,4 @@
-1.72 (WIP)
+1.72
 * fixed exception when opening project missing a referenced configuration
 * added exceptions to guard against code UI code not being accessed on the UI thread
 
