@@ -446,12 +446,13 @@ int GetNumOfSamplesBasedOnQuality(float2 UV)
 	//1. Estimate the number of samples required to reach the target variance level
 	NumOfSamples = clamp((VariableVar / VARIANCE_LEVEL), BETA_LIMIT, BURLEY_NUM_SAMPLES);//View.GeneralPurposeTweak
 #endif
+	// The following two ad hoc design is not viable when we monitor the variance of control variates residual.
 	//1.1 If the luminance is too low, we should increase several number of samples to oberse the world for high lighting condition
-	NumOfSamples = lerp(NumOfSamples, max(LOW_LUMA_SAMPLE_COUNT, NumOfSamples), step(0.5, QualityMatrix.a));
+	// NumOfSamples = lerp(NumOfSamples, max(LOW_LUMA_SAMPLE_COUNT, NumOfSamples), step(0.5, QualityMatrix.a));
 
 	//2. Clamp down the number of samples when the gamma corrected luminance is too large
 	//   because it does not help to improve the quality, but degrade the performance.
-	NumOfSamples = lerp(NumOfSamples, HIGH_LUMA_SAMPLE_COUNT, step(3.2, QualityMatrix.a)); // 3.2 is an experimental value to have best quality.
+	// NumOfSamples = lerp(NumOfSamples, HIGH_LUMA_SAMPLE_COUNT, step(3.2, QualityMatrix.a)); // 3.2 is an experimental value to have best quality.
 
 	//3. Reduce the number of samples at the edge due to TAA (Flickering)
 #if 0
@@ -673,10 +674,14 @@ BurleySampleDiffuseNormal SampleSharedDiffuseNormal(float2 SampleGroupThreadId)
 
 // If we support independent samplers, use a point sampler as described below. But if they are not supported,
 // then default to the regular sampler which will cause artifacts, but is better than not compiling.
+// The bilinear sampler is required to reduce the variance overestimation with control variates. The point 
+// sampler works but with a little worse performance.
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SharedBurleyPointSampler SubsurfaceSampler1
+	#define SharedBurleyBilinearSampler SubsurfaceSampler3
 #else
 	#define SharedBurleyPointSampler SubsurfaceSampler0
+	#define SharedBurleyBilinearSampler SharedBurleyPointSampler
 #endif
 
 float3 GetBilateralNormal(float2 ClampedUV, float2 Extent)
@@ -1155,16 +1160,21 @@ float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 	float4 History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, BufferUV);
 #endif
 
+	// Use the bilinear jitter-corrected lighting as the control variable (Constant CV coefficient = 1.0) to remove the variance over-estimation
+	// of spatial features, like peach fuzz, inside subsurface scattering region.
+	float2 BufferUVJitter = (ScreenPosToViewportUV(View.TemporalAAJitter.xy)-float2(0.5, 0.5))* SubsurfaceInput0_UVViewportSize.xy;
+	float4 ControlVariable = Texture2DSampleLevel(SubsurfaceInput3_Texture, SharedBurleyBilinearSampler, BufferUV - BufferUVJitter, 0);//
+
 	// Calculate the illuminance
-	float NewSurfaceLuminance = Luminance(pow(SubsurfaceColor.rgb, 1 / 2.2));
+	float NewSurfaceLuminanceResidual = Luminance(pow(SubsurfaceColor.rgb, 1 / 2.2))- Luminance(pow(ControlVariable.rgb, 1 / 2.2));
 
-	NewHistory.a = (1 - WeightFinal) * History.a + WeightFinal * NewSurfaceLuminance;
+	NewHistory.a = (1 - WeightFinal) * History.a + WeightFinal * NewSurfaceLuminanceResidual;
 
-	float LumDelta = NewSurfaceLuminance - History.a;
+	float LumDelta = NewSurfaceLuminanceResidual - History.a;
 	NewHistory.b = (1 - WeightFinal)*History.b + WeightFinal * (1 - WeightFinal)*LumDelta*LumDelta;
 
 #if USE_TRUE_DISTRIBUTION_VAR
-	NewHistory.g = (1- WeightFinal)*NewHistory.g+WeightFinal * SubsurfaceColor.a;
+	NewHistory.g = (1- WeightFinal)*History.g+WeightFinal * SubsurfaceColor.a;
 #else
 	// Update the random variable variance
 	NewHistory.g = History.b*SubsurfaceColor.a;
@@ -1274,7 +1284,7 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 			uint2 TargetGridPos = Pos + uint2(i, j);
 			float2 LBufferUV = ConvertGridPos2UV(TargetGridPos);
 			// We perform quality variance thread-wise in the second pass
-			float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
+			float4 SurfaceColor = SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SharedBurleyBilinearSampler, LBufferUV);
 
 			// We have to check per pixel if this is a burley so that we don't overwrite separable pixels
 			uint SelectedProfile = GetSubsurfaceProfileId(LBufferUV, SubsurfaceInput0_Extent);
