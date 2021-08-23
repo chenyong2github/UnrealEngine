@@ -21,6 +21,7 @@
 #include "Engine/Texture2DDynamic.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureCubeArray.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -470,13 +471,14 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 
 	const bool bIsVolume = IsVolumeTexture();
-	const bool bIsArray2D = Is2DArrayTexture();
+	const bool bIsArray = IsArrayTexture();
 	const bool bIsCube = IsCubeTexture();
 
 	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
 	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
 	const uint32 SurfaceDepth = (uint32)Texture->GetSurfaceDepth();
-	const uint32 ArraySize = (uint32)Texture->GetSurfaceArraySize();
+	const uint32 NumSurfaces = (uint32)Texture->GetSurfaceArraySize();
+	const uint32 ArraySize = bIsCube ? (NumSurfaces / 6u) : NumSurfaces;
 
 	const uint32 ImportedWidth = FMath::Max<uint32>(SurfaceWidth, Texture->Source.GetSizeX());
 	const uint32 ImportedHeight =  FMath::Max<uint32>(SurfaceHeight, Texture->Source.GetSizeY());
@@ -514,6 +516,11 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	FNumberFormattingOptions Options;
 	Options.UseGrouping = false;
 
+	FText CubemapAdd;
+	if (bIsCube)
+	{
+		CubemapAdd = NSLOCTEXT("TextureEditor", "QuickInfo_PerCubeSide", "*6 (CubeMap)");
+	}
 
 	if (bIsVolume)
 	{
@@ -535,20 +542,14 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 			PreviewEffectiveTextureHeight *= (uint32)NumTilesY;
 		}
 	}
-	else if (bIsArray2D)
+	else if (bIsArray)
 	{
 		ImportedText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Imported_3x", "Imported: {0}x{1}*{2}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options), FText::AsNumber(ArraySize, &Options)));
-		CurrentText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}*{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(ArraySize, &Options)));
-		MaxInGameText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_3x", "Max In-Game: {0}x{1}*{2}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), FText::AsNumber(ArraySize, &Options)));
+		CurrentText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}{2}*{3}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), CubemapAdd, FText::AsNumber(ArraySize, &Options)));
+		MaxInGameText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_3x", "Max In-Game: {0}x{1}{2}*{3}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), CubemapAdd, FText::AsNumber(ArraySize, &Options)));
 	}
 	else
 	{
-	    FText CubemapAdd;
-	    if(bIsCube)
-	    {
-		    CubemapAdd = NSLOCTEXT("TextureEditor", "QuickInfo_PerCubeSide", "*6 (CubeMap)");
-	    }
-    
 	    ImportedText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Imported_2x", "Imported: {0}x{1}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options)));
 		CurrentText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_2x", "Displayed: {0}x{1}{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options ), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), CubemapAdd));
 		MaxInGameText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_2x", "Max In-Game: {0}x{1}{2}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), CubemapAdd));
@@ -1057,6 +1058,10 @@ int32 FTextureEditorToolkit::GetNumMips( ) const
 	{
 		return TextureCube->GetNumMips();
 	}
+	else if (const UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture))
+	{
+		return TextureCubeArray->GetNumMips();
+	}
 	else if (const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
 	{
 		return Texture2DArray->GetNumMips();
@@ -1107,6 +1112,10 @@ EPixelFormat FTextureEditorToolkit::GetPixelFormat() const
 	{
 		return Texture2DArray->GetPixelFormat();
 	}
+	else if (const UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture))
+	{
+		return TextureCubeArray->GetPixelFormat();
+	}
 	else if (const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture))
 	{
 		return VolumeTexture->GetPixelFormat();
@@ -1146,7 +1155,7 @@ TOptional<int32> FTextureEditorToolkit::GetMaxLayer() const
 
 bool FTextureEditorToolkit::IsCubeTexture( ) const
 {
-	return (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()));
+	return (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureCubeArray::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()));
 }
 
 bool FTextureEditorToolkit::IsVolumeTexture() const
@@ -1157,6 +1166,11 @@ bool FTextureEditorToolkit::IsVolumeTexture() const
 bool FTextureEditorToolkit::Is2DArrayTexture() const
 {
 	return (Texture->IsA(UTexture2DArray::StaticClass()) || Texture->IsA(UTextureRenderTarget2DArray::StaticClass()));
+}
+
+bool FTextureEditorToolkit::IsArrayTexture() const
+{
+	return Is2DArrayTexture() || Texture->IsA(UTextureCubeArray::StaticClass());
 }
 
 TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateMipMapLevelMenu()

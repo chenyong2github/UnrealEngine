@@ -408,11 +408,36 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 }
 
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5 // Cubemap arrays are not supported in SM4 feature level
-	MaterialFloat4 TextureCubeArraySampleLevel(TextureCubeArray Tex, SamplerState Sampler, float3 UV, float ArrayIndex, MaterialFloat Mip)
-	{
-		return Tex.SampleLevel(Sampler, float4(UV, ArrayIndex), Mip);
-	}
+MaterialFloat4 TextureCubeArraySample(TextureCubeArray Tex, SamplerState Sampler, float4 UV)
+{
+	return Tex.Sample(Sampler, UV);
+}
+
+MaterialFloat4 TextureCubeArraySampleLevel(TextureCubeArray Tex, SamplerState Sampler, float4 UV, MaterialFloat Mip)
+{
+	return Tex.SampleLevel(Sampler, UV, Mip);
+}
+
+MaterialFloat4 TextureCubeArraySampleBias(TextureCubeArray Tex, SamplerState Sampler, float4 UV, MaterialFloat MipBias)
+{
+#if USE_FORCE_TEXTURE_MIP
+	return Tex.SampleLevel(Sampler, UV, 0);
+#else
+	return Tex.SampleBias(Sampler, UV, MipBias);
 #endif
+}
+
+MaterialFloat4 TextureCubeArraySampleGrad(TextureCubeArray Tex, SamplerState Sampler, float4 UV, MaterialFloat3 DDX, MaterialFloat3 DDY)
+{
+	return Tex.SampleGrad(Sampler, UV, DDX, DDY);
+}
+
+// OVerload with explicit array parameter, used by some non-material shader code
+MaterialFloat4 TextureCubeArraySampleLevel(TextureCubeArray Tex, SamplerState Sampler, float3 UV, float ArrayIndex, MaterialFloat Mip)
+{
+	return TextureCubeArraySampleLevel(Tex, Sampler, float4(UV, ArrayIndex), Mip);
+}
+#endif // FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 
 // TANGENTTOWORLD0 is the first row of the tangent to world matrix, w might be needed for padding and is not used yet.
 // TANGENTTOWORLD2 is the last row of the tangent to world matrix, determinant of tangent basis in w

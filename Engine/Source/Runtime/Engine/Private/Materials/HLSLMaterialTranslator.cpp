@@ -2603,6 +2603,7 @@ const TCHAR* FHLSLMaterialTranslator::DescribeType(EMaterialValueType Type) cons
 	case MCT_Texture2D:				return TEXT("texture2D");
 	case MCT_TextureCube:			return TEXT("textureCube");
 	case MCT_Texture2DArray:		return TEXT("texture2DArray");
+	case MCT_TextureCubeArray:		return TEXT("textureCubeArray");
 	case MCT_VolumeTexture:			return TEXT("volumeTexture");
 	case MCT_StaticBool:			return TEXT("static bool");
 	case MCT_MaterialAttributes:	return TEXT("MaterialAttributes");
@@ -2628,6 +2629,7 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeString(EMaterialValueType Type) co
 	case MCT_Texture2D:				return TEXT("texture2D");
 	case MCT_TextureCube:			return TEXT("textureCube");
 	case MCT_Texture2DArray:		return TEXT("texture2DArray");
+	case MCT_TextureCubeArray:		return TEXT("textureCubeArray");
 	case MCT_VolumeTexture:			return TEXT("volumeTexture");
 	case MCT_StaticBool:			return TEXT("static bool");
 	case MCT_MaterialAttributes:	return TEXT("FMaterialAttributes");
@@ -2653,6 +2655,7 @@ const TCHAR* FHLSLMaterialTranslator::HLSLTypeStringDeriv(EMaterialValueType Typ
 	case MCT_Texture2D:				return TEXT("texture2D");
 	case MCT_TextureCube:			return TEXT("textureCube");
 	case MCT_Texture2DArray:		return TEXT("texture2DArray");
+	case MCT_TextureCubeArray:		return TEXT("textureCubeArray");
 	case MCT_VolumeTexture:			return TEXT("volumeTexture");
 	case MCT_StaticBool:			return TEXT("static bool");
 	case MCT_MaterialAttributes:	return TEXT("FMaterialAttributes");
@@ -3112,6 +3115,10 @@ int32 FHLSLMaterialTranslator::AccessUniformExpression(int32 Index)
 		case MCT_Texture2DArray:
 			TextureInputIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Array2D].AddUnique(TextureUniformExpression);
 			BaseName = TEXT("Texture2DArray");
+			break;
+		case MCT_TextureCubeArray:
+			TextureInputIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::ArrayCube].AddUnique(TextureUniformExpression);
+			BaseName = TEXT("TextureCubeArray");
 			break;
 		case MCT_VolumeTexture:
 			TextureInputIndex = UniformTextureExpressions[(uint32)EMaterialTextureParameterType::Volume].AddUnique(TextureUniformExpression);
@@ -5525,6 +5532,10 @@ int32 FHLSLMaterialTranslator::TextureSample(
 	{
 		TextureName = CoerceParameter(TextureIndex, MCT_Texture2DArray);
 	}
+	else if (TextureType == MCT_TextureCubeArray)
+	{
+		TextureName = CoerceParameter(TextureIndex, MCT_TextureCubeArray);
+	}
 	else if (TextureType == MCT_VolumeTexture)
 		{
 		TextureName = CoerceParameter(TextureIndex, MCT_VolumeTexture);
@@ -5597,9 +5608,22 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		}
 	}
 		
-	const EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
+	EMaterialValueType UVsType;
+	switch (TextureType)
+	{
+	case MCT_TextureCubeArray:
+		UVsType = MCT_Float4;
+		break;
+	case MCT_TextureCube:
+	case MCT_Texture2DArray:
+	case MCT_VolumeTexture:
+		UVsType = MCT_Float3;
+		break;
+	default:
+		UVsType = MCT_Float2;
+		break;
+	}
 	const EDerivativeStatus UvDerivativeStatus = GetDerivativeStatus(CoordinateIndex);
-	
 	if (RequiresManualViewMipBias)
 	{
 		if (MipValueMode == TMVM_Derivative)
@@ -5645,6 +5669,10 @@ int32 FHLSLMaterialTranslator::TextureSample(
 		{
 		TextureTypeName = TEXT("Texture2DArraySample");
 		}
+	else if (TextureType == MCT_TextureCubeArray)
+	{
+		TextureTypeName = TEXT("TextureCubeArraySample");
+	}
 	else if (TextureType == MCT_VolumeTexture)
 		{
 		TextureTypeName = TEXT("Texture3DSample");
@@ -9374,6 +9402,13 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 				InputParamDecl += InputNameStr;
 				InputParamDecl += TEXT("Sampler ");
 				break;
+			case MCT_TextureCubeArray:
+				InputParamDecl += TEXT("TextureCubeArray ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT(", SamplerState ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT("Sampler ");
+				break;
 			case MCT_TextureExternal:
 				InputParamDecl += TEXT("TextureExternal ");
 				InputParamDecl += InputNameStr;
@@ -9518,7 +9553,7 @@ int32 FHLSLMaterialTranslator::CustomExpression( class UMaterialExpressionCustom
 
 			CodeChunk += TEXT(",");
 			CodeChunk += *ParamCode;
-			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_Texture2DArray || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
+			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_TextureCubeArray || ParamType == MCT_Texture2DArray || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
 			{
 				CodeChunk += TEXT(",");
 				CodeChunk += *ParamCode;
