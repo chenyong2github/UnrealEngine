@@ -86,7 +86,8 @@ bool SupportsNaniteRendering(const FVertexFactory* RESTRICT VertexFactory, const
 		const FMaterial& Material = MaterialRenderProxy->GetIncompleteMaterialWithFallback(FeatureLevel);
 		const FMaterialShaderMap* ShaderMap = Material.GetRenderingThreadShaderMap();
 
-		return Material.GetBlendMode() == BLEND_Opaque &&
+		return (Material.IsUsedWithNanite() || Material.IsSpecialEngineMaterial()) && 
+			Material.GetBlendMode() == BLEND_Opaque &&
 			Material.GetMaterialDomain() == MD_Surface &&
 			!ShaderMap->UsesWorldPositionOffset();
 	}

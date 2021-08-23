@@ -237,11 +237,12 @@ public:
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 	{
 		bool bShouldCompile = 
-			DoesPlatformSupportNanite(Parameters.Platform) &&
+			(Parameters.MaterialParameters.bIsUsedWithNanite || Parameters.MaterialParameters.bIsSpecialEngineMaterial) &&
+			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
+			Parameters.MaterialParameters.BlendMode == BLEND_Opaque &&
 			Parameters.ShaderType->GetFrequency() == SF_Pixel &&
 			RHISupportsComputeShaders(Parameters.Platform) &&
-			Parameters.MaterialParameters.MaterialDomain == MD_Surface &&
-			Parameters.MaterialParameters.BlendMode == BLEND_Opaque;
+			DoesPlatformSupportNanite(Parameters.Platform);
 
 		return bShouldCompile;
 	}
@@ -396,6 +397,10 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 		if (MaterialSection.Material == nullptr)
 		{
 			MaterialSection.bHasNullMaterial = true;
+			MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+		}
+		else if (!MaterialSection.Material->CheckMaterialUsage_Concurrent(MATUSAGE_Nanite))
+		{
 			MaterialSection.Material = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 		else if (!Nanite::FSceneProxy::IsNaniteRenderable(MaterialRelevance))

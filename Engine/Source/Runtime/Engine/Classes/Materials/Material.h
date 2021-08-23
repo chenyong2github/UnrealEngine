@@ -743,6 +743,13 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
 	uint32 bUsedWithVirtualHeightfieldMesh : 1;
+	
+	/**
+	 * Indicates that the material and its instances can be used with Nanite meshes.
+	 * This will result in the shaders required to support Nanite geometries being compiled which will increase shader compile time and memory usage.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Usage)
+	uint32 bUsedWithNanite : 1;
 
 	/** 
 	 * Indicates that the material and its instances can be used with Slate UI and UMG
