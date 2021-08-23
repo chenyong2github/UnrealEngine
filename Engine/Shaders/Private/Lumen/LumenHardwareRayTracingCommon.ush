@@ -67,6 +67,7 @@ struct FRayTracedLightingContext
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 	bool bCullBackFacingTriangles;
+	bool bAcceptFirstHitAndEndSearch;
 	bool bCalculateHitVelocity;
 };
 
@@ -88,6 +89,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
 	Context.bHiResSurface = bHiResSurface;
 	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
+	Context.bAcceptFirstHitAndEndSearch = false;
 	Context.bCalculateHitVelocity = false;
 	return Context;
 }
@@ -171,6 +173,7 @@ bool TraceLumenMinimalRay(
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
 
 	TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
 
