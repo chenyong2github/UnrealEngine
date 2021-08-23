@@ -444,6 +444,15 @@ void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakOb
 	}
 }
 
+void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UTexture> Texture)
+{
+	if (OverrideParameters)
+	{
+		const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUTextureDef(), InVariableName);
+		OverrideParameters->SetUObject(Texture.Get(), VariableDesc);
+	}
+}
+
 void FNiagaraSystemInstanceController::SetVariable(FName InVariableName, TWeakObjectPtr<UTextureRenderTarget> TextureRenderTarget)
 {
 	if (OverrideParameters)
