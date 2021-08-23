@@ -81,6 +81,7 @@
 #include "Tracks/MovieSceneSubTrack.h"
 #include "Sections/MovieSceneCinematicShotSection.h"
 #include "MovieSceneObjectBindingIDCustomization.h"
+#include "MovieSceneObjectBindingID.h"
 #include "ISettingsModule.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
@@ -10619,22 +10620,7 @@ TArray<FMovieSceneSpawnable*> FSequencer::ConvertToSpawnableInternal(FGuid Posse
 			SpawnRegister->HandleConvertPossessableToSpawnable(FoundObject, *this, TransformData);
 			SpawnRegister->SetupDefaultsForSpawnable(nullptr, Spawnable->GetGuid(), TransformData, AsShared(), Settings);
 
-			TMap<FGuid, FGuid> OldGuidToNewGuidMap;
-			OldGuidToNewGuidMap.Add(PossessableGuid, Spawnable->GetGuid());
-			
-			// Fixup any section bindings
-			TArray<UMovieScene*> MovieScenesToUpdate;
-			MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
-			for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
-			{
-				for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
-				{
-					if (Section)
-					{
-						Section->OnBindingsUpdated(OldGuidToNewGuidMap);
-					}
-				}
-			}
+			UpdateBindingIDs(PossessableGuid, Spawnable->GetGuid());
 
 			ForceEvaluate();
 
@@ -10839,22 +10825,7 @@ FMovieScenePossessable* FSequencer::ConvertToPossessableInternal(FGuid Spawnable
 		static const FName SequencerActorTag(TEXT("SequencerActor"));
 		PossessedActor->Tags.Remove(SequencerActorTag);
 
-		TMap<FGuid, FGuid> OldGuidToNewGuidMap;
-		OldGuidToNewGuidMap.Add(OldSpawnableGuid, NewPossessableGuid);
-		
-		// Fixup any section bindings
-		TArray<UMovieScene*> MovieScenesToUpdate;
-		MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
-		for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
-		{
-			for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
-			{
-				if (Section)
-				{
-					Section->OnBindingsUpdated(OldGuidToNewGuidMap);
-				}
-			}
-		}
+		UpdateBindingIDs(OldSpawnableGuid, NewPossessableGuid);
 
 		GEditor->SelectActor(PossessedActor, false, true);
 
@@ -10864,7 +10835,34 @@ FMovieScenePossessable* FSequencer::ConvertToPossessableInternal(FGuid Spawnable
 	return Possessable;
 }
 
+void FSequencer::UpdateBindingIDs(FGuid OldGuid, FGuid NewGuid)
+{
+	TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID> OldFixedToNewFixedMap;
+	OldFixedToNewFixedMap.Add(UE::MovieScene::FFixedObjectBindingID(OldGuid, ActiveTemplateIDs.Top()), UE::MovieScene::FFixedObjectBindingID(NewGuid, ActiveTemplateIDs.Top()));
 
+	const FMovieSceneSequenceHierarchy* Hierarchy = CompiledDataManager->FindHierarchy(RootTemplateInstance.GetCompiledDataID());
+	if (!Hierarchy)
+	{
+		return;
+	}
+
+	for (const TTuple<FMovieSceneSequenceID, FMovieSceneSubSequenceData>& Pair : Hierarchy->AllSubSequenceData())
+	{
+		if (UMovieSceneSequence* Sequence = Pair.Value.GetSequence())
+		{
+			if (UMovieScene* MovieScene = Sequence->GetMovieScene())
+			{
+				for (UMovieSceneSection* Section : MovieScene->GetAllSections())
+				{
+					if (Section)
+					{
+						Section->OnBindingIDsUpdated(OldFixedToNewFixedMap, Pair.Key, Hierarchy, *this);
+					}
+				}
+			}
+		}
+	}
+}
 
 void FSequencer::OnLoadRecordedData()
 {
@@ -12279,18 +12277,9 @@ void FSequencer::FixActorReferences()
 		}
 	}
 
-	// Fixup any section bindings
-	TArray<UMovieScene*> MovieScenesToUpdate;
-	MovieSceneHelpers::GetDescendantMovieScenes(GetRootMovieSceneSequence(), MovieScenesToUpdate);
-	for (UMovieScene* MovieSceneToUpdate : MovieScenesToUpdate)
+	for (TPair<FGuid, FGuid> GuidPair : OldGuidToNewGuidMap)
 	{
-		for (UMovieSceneSection* Section : MovieSceneToUpdate->GetAllSections())
-		{
-			if (Section)
-			{
-				Section->OnBindingsUpdated(OldGuidToNewGuidMap);
-			}
-		}
+		UpdateBindingIDs(GuidPair.Key, GuidPair.Value);
 	}
 }
 

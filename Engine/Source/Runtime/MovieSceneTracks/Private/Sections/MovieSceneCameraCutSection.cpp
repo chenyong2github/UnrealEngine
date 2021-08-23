@@ -4,11 +4,12 @@
 
 #include "MovieScene.h"
 #include "Tracks/MovieSceneCameraCutTrack.h"
-#include "MovieScene.h"
+#include "MovieSceneSequenceID.h"
 #include "IMovieScenePlayer.h"
 #include "Camera/CameraComponent.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -35,13 +36,15 @@ UMovieSceneCameraCutSection::UMovieSceneCameraCutSection(const FObjectInitialize
 	SetBlendType(EMovieSceneBlendType::Absolute);
 }
 
-void UMovieSceneCameraCutSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap)
+void UMovieSceneCameraCutSection::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
 {
-	if (OldGuidToNewGuidMap.Contains(CameraBindingID.GetGuid()))
+	UE::MovieScene::FFixedObjectBindingID FixedBindingID = CameraBindingID.ResolveToFixed(LocalSequenceID, Player);
+
+	if (OldFixedToNewFixedMap.Contains(FixedBindingID))
 	{
 		Modify();
 
-		CameraBindingID.SetGuid(OldGuidToNewGuidMap[CameraBindingID.GetGuid()]);
+		CameraBindingID = OldFixedToNewFixedMap[FixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
 	}
 }
 
