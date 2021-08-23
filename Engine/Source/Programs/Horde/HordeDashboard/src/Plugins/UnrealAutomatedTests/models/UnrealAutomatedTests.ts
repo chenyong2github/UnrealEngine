@@ -6,6 +6,7 @@ export enum TestState {
     SuccessWithWarnings = "SuccessWithWarnings",
     NotRun = "NotRun",
     InProcess = "InProcess",
+    Unknown = "Unknown",
 }
 
 export enum EventType {
