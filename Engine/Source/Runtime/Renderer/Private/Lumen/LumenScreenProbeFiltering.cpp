@@ -500,7 +500,6 @@ void FilterScreenProbes(
 	{
 		FScreenProbeGatherTemporalState& ScreenProbeGatherWriteableState = View.ViewState->Lumen.ScreenProbeGatherState;
 		ScreenProbeGatherWriteableState.ProbeHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(CompositedScreenProbeRadiance);
-		ScreenProbeGatherWriteableState.HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition);
 	}
 
 	if (LumenScreenProbeGather::UseProbeSpatialFilter() && GLumenScreenProbeSpatialFilterHalfKernelSize > 0)
@@ -539,6 +538,7 @@ void FilterScreenProbes(
 		FScreenProbeGatherTemporalState& ScreenProbeGatherWriteableState = View.ViewState->Lumen.ScreenProbeGatherState;
 		ScreenProbeGatherWriteableState.ImportanceSamplingHistoryScreenProbeRadiance = GraphBuilder.ConvertToExternalTexture(ScreenProbeRadiance);
 		ScreenProbeGatherWriteableState.HistoryScreenProbeSceneDepth = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeSceneDepth);
+		ScreenProbeGatherWriteableState.HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.ConvertToExternalTexture(ScreenProbeParameters.ScreenProbeTranslatedWorldPosition);
 		ScreenProbeGatherWriteableState.ProbeHistoryViewRect = View.ViewRect;
 		ScreenProbeGatherWriteableState.ProbeHistoryScreenPositionScaleBias = View.GetScreenPositionScaleBias(GetSceneTextureExtent(), View.ViewRect);
 	}
