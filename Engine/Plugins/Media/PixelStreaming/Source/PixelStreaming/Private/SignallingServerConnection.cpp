@@ -104,23 +104,23 @@ void FSignallingServerConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FP
 
 bool FSignallingServerConnection::GetPlayerIdJson(const FJsonObjectPtr& Json, FPlayerId& OutPlayerId)
 {
-	// we support player id being sent as a string or a number
-
-	uint32 PlayerIdInt;
-	if(Json->TryGetNumberField(TEXT("playerId"), PlayerIdInt))
+	bool bSendAsInteger = PixelStreamingSettings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
+	if(bSendAsInteger)
 	{
-		OutPlayerId = ToPlayerId(PlayerIdInt);
-		return true;
+		uint32 PlayerIdInt;
+		if(Json->TryGetNumberField(TEXT("playerId"), PlayerIdInt))
+		{
+			OutPlayerId = ToPlayerId(PlayerIdInt);
+			return true;
+		}
 	}
 	else if(Json->TryGetStringField(TEXT("playerId"), OutPlayerId))
 	{
 		return true;
 	}
-	else
-	{
-		UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to extracted player id offer json: %s"), *ToString(Json));
-		return false;
-	}
+
+	UE_LOG(LogPixelStreamingSS, Error, TEXT("Failed to extracted player id offer json: %s"), *ToString(Json));
+	return false;
 }
 
 void FSignallingServerConnection::SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP)
