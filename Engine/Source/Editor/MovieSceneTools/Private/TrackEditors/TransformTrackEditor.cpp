@@ -422,7 +422,7 @@ void F3DTransformTrackEditor::BuildObjectBindingEditButtons(TSharedPtr<SHorizont
 		.Padding(4, 0, 0, 0)
 		[
 			SNew(SCheckBox)		
-                .Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
+				.Style( &FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBoxAlt"))
 				.Type(ESlateCheckBoxType::CheckBox)
 				.IsFocusable(false)
 				.Visibility(this, &F3DTransformTrackEditor::IsCameraVisible, ObjectGuid)
@@ -643,7 +643,7 @@ FText F3DTransformTrackEditor::GetLockCameraToolTip(FGuid ObjectGuid) const
 	return FText();
 }
 
-float UnwindChannel(const float& OldValue, float NewValue)
+double UnwindChannel(const double& OldValue, double NewValue)
 {
 	while( NewValue - OldValue > 180.0f )
 	{
@@ -716,11 +716,11 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 			bKeyZ = false;
 		}
 
-		FVector3f KeyVector = RecomposedTransform.Translation;
+		FVector KeyVector = RecomposedTransform.Translation;
 
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(0, KeyVector.X, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(1, KeyVector.Y, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(2, KeyVector.Z, bKeyZ));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(0, (double)KeyVector.X, bKeyX));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(1, (double)KeyVector.Y, bKeyY));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, (double)KeyVector.Z, bKeyZ));
 	}
 
 	// Set rotation keys/defaults
@@ -759,9 +759,9 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 
 		// Do we need to unwind re-composed rotations?
 		KeyRotator = UnwindRotator(CurrentTransform.Rotation, RecomposedTransform.Rotation);
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(3, KeyRotator.Roll, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(4, KeyRotator.Pitch, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(5, KeyRotator.Yaw, bKeyZ));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(3, (double)KeyRotator.Roll, bKeyX));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(4, (double)KeyRotator.Pitch, bKeyY));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(5, (double)KeyRotator.Yaw, bKeyZ));
 
 	}
 
@@ -796,10 +796,10 @@ void F3DTransformTrackEditor::GetTransformKeys( const TOptional<FTransformData>&
 			bKeyZ = false;
 		}
 
-		FVector3f KeyVector = RecomposedTransform.Scale;
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(6, KeyVector.X, bKeyX));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(7, KeyVector.Y, bKeyY));
-		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneFloatChannel>(8, KeyVector.Z, bKeyZ));
+		FVector KeyVector = RecomposedTransform.Scale;
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(6, (double)KeyVector.X, bKeyX));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(7, (double)KeyVector.Y, bKeyY));
+		OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(8, (double)KeyVector.Z, bKeyZ));
 	}
 }
 
@@ -989,11 +989,11 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 			for (TSharedPtr<IKeyArea> KeyArea : SectionsToKey[Index].KeyAreas)
 			{
 				FMovieSceneChannelHandle Handle  = KeyArea->GetChannel();
-				if (Handle.GetChannelTypeName() == FMovieSceneFloatChannel::StaticStruct()->GetFName() && Handle.GetChannelIndex() < 9)
+				if (Handle.GetChannelTypeName() == FMovieSceneDoubleChannel::StaticStruct()->GetFName() && Handle.GetChannelIndex() < 9)
 				{
-					FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(Handle.Get());
+					FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(Handle.Get());
 
-					float Value = RecomposedTransform[Handle.GetChannelIndex()];
+					double Value = RecomposedTransform[Handle.GetChannelIndex()];
 					AddKeyToChannel(Channel, KeyTime, Value, InSequencer.GetKeyInterpolation());
 				}
 				else
@@ -1005,15 +1005,15 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 	}
 }
 
-void AddUnwoundKey(FMovieSceneFloatChannel& Channel, FFrameNumber Time, float Value)
+void AddUnwoundKey(FMovieSceneDoubleChannel& Channel, FFrameNumber Time, double Value)
 {
 	int32 Index = Channel.AddLinearKey(Time, Value);
 
-	TArrayView<FMovieSceneFloatValue> Values = Channel.GetData().GetValues();
+	TArrayView<FMovieSceneDoubleValue> Values = Channel.GetData().GetValues();
 	if (Index >= 1)
 	{
-		const float PreviousValue = Values[Index - 1].Value;
-		float NewValue = Value;
+		const double PreviousValue = Values[Index - 1].Value;
+		double NewValue = Value;
 
 		while (NewValue - PreviousValue > 180.0f)
 		{
@@ -1083,17 +1083,17 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 		
 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 
-		TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+		TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 		// Set default translation and rotation
 		for (int32 Index = 0; Index < 6; ++Index)
 		{
-			FloatChannels[Index]->SetDefault(0.f);
+			DoubleChannels[Index]->SetDefault(0.f);
 		}
 		// Set default scale
 		for (int32 Index = 6; Index < 9; ++Index)
 		{
-			FloatChannels[Index]->SetDefault(1.f);
+			DoubleChannels[Index]->SetDefault(1.f);
 		}
 
 		TransformTrack->AddSection(*Section);
@@ -1175,7 +1175,7 @@ void F3DTransformTrackEditor::ImportAnimSequenceTransforms(const FAssetData& Ass
 				const FVector3f Rotation = TempKey.WoundRotation.Euler();
 				const FVector3f Scale = TempKey.Transform.GetScale3D();
 
-				TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+				TArrayView<FMovieSceneDoubleChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 				Channels[0]->AddLinearKey(KeyTime, Translation.X);
 				Channels[1]->AddLinearKey(KeyTime, Translation.Y);

@@ -8,19 +8,19 @@
 
 bool UMovieSceneNiagaraVectorParameterTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
-	return SectionClass == UMovieSceneVectorSection::StaticClass();
+	return SectionClass == UMovieSceneFloatVectorSection::StaticClass();
 }
 
 UMovieSceneSection* UMovieSceneNiagaraVectorParameterTrack::CreateNewSection()
 {
-	UMovieSceneVectorSection* VectorSection = NewObject<UMovieSceneVectorSection>(this, NAME_None, RF_Transactional);
+	UMovieSceneFloatVectorSection* VectorSection = NewObject<UMovieSceneFloatVectorSection>(this, NAME_None, RF_Transactional);
 	VectorSection->SetChannelsUsed(ChannelsUsed);
 	return VectorSection;
 }
 
 void UMovieSceneNiagaraVectorParameterTrack::SetSectionChannelDefaults(UMovieSceneSection* Section, const TArray<uint8>& DefaultValueData) const
 {
-	UMovieSceneVectorSection* VectorSection = Cast<UMovieSceneVectorSection>(Section);
+	UMovieSceneFloatVectorSection* VectorSection = Cast<UMovieSceneFloatVectorSection>(Section);
 	if (ensureMsgf(VectorSection != nullptr, TEXT("Section must be a color section.")) && ensureMsgf(DefaultValueData.Num() == sizeof(float) * VectorSection->GetChannelsUsed(), TEXT("DefaultValueData must be the correct vector type.")))
 	{
 		FMovieSceneChannelProxy& VectorChannelProxy = VectorSection->GetChannelProxy();
@@ -51,7 +51,7 @@ void UMovieSceneNiagaraVectorParameterTrack::SetSectionChannelDefaults(UMovieSce
 
 FMovieSceneEvalTemplatePtr UMovieSceneNiagaraVectorParameterTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
 {
-	const UMovieSceneVectorSection* VectorSection = Cast<UMovieSceneVectorSection>(&InSection);
+	const UMovieSceneFloatVectorSection* VectorSection = Cast<UMovieSceneFloatVectorSection>(&InSection);
 	if (VectorSection != nullptr)
 	{
 		TArray<FMovieSceneFloatChannel> ComponentChannels;

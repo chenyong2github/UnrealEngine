@@ -11,18 +11,18 @@
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 
-FName FVectorPropertyTrackEditor::XName( "X" );
-FName FVectorPropertyTrackEditor::YName( "Y" );
-FName FVectorPropertyTrackEditor::ZName( "Z" );
-FName FVectorPropertyTrackEditor::WName( "W" );
+FName FFloatVectorPropertyTrackEditor::XName( "X" );
+FName FFloatVectorPropertyTrackEditor::YName( "Y" );
+FName FFloatVectorPropertyTrackEditor::ZName( "Z" );
+FName FFloatVectorPropertyTrackEditor::WName( "W" );
 
 
-TSharedRef<ISequencerTrackEditor> FVectorPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
+TSharedRef<ISequencerTrackEditor> FFloatVectorPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
 {
-	return MakeShareable( new FVectorPropertyTrackEditor( InSequencer ) );
+	return MakeShareable( new FFloatVectorPropertyTrackEditor( InSequencer ) );
 }
 
-void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
+void FFloatVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
 {
 	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
 	if (!StructProp)
@@ -32,7 +32,11 @@ void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropert
 	FName StructName = StructProp->Struct->GetFName();
 
 	bool bIsVector2D = StructName == NAME_Vector2D;
-	bool bIsVector = StructName == NAME_Vector;
+	bool bIsVector = (StructName == NAME_Vector3f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+			|| StructName == NAME_Vector
+#endif
+			);
 	bool bIsVector4 = StructName == NAME_Vector4;
 
 	FVector4 VectorValues;
@@ -79,7 +83,7 @@ void FVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropert
 	}
 }
 
-void FVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneVectorTrack* NewTrack, FPropertyChangedParams PropertyChangedParams )
+void FFloatVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneFloatVectorTrack* NewTrack, FPropertyChangedParams PropertyChangedParams )
 {
 	FPropertyTrackEditor::InitializeNewTrack( NewTrack, PropertyChangedParams );
 	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
@@ -89,7 +93,11 @@ void FVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneVectorTrack* New
 	{
 		NewTrack->SetNumChannelsUsed( 2 );
 	}
-	if ( StructName == NAME_Vector )
+	if ( StructName == NAME_Vector3f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+			|| StructName == NAME_Vector 
+#endif
+			)
 	{
 		NewTrack->SetNumChannelsUsed( 3 );
 	}
@@ -99,7 +107,7 @@ void FVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneVectorTrack* New
 	}
 }
 
-void CopyInterpVectorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackVectorProp* MatineeVectorTrack, UMovieSceneVectorTrack* VectorTrack)
+void CopyInterpVectorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackVectorProp* MatineeVectorTrack, UMovieSceneFloatVectorTrack* VectorTrack)
 {
 	if (FMatineeImportTools::CopyInterpVectorTrack(MatineeVectorTrack, VectorTrack))
 	{
@@ -107,11 +115,11 @@ void CopyInterpVectorTrack(TSharedRef<ISequencer> Sequencer, UInterpTrackVectorP
 	}
 }
 
-bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
+bool FFloatVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
 	using namespace UE::MovieScene;
 
-	UMovieSceneVectorTrack* VectorTrack = Cast<UMovieSceneVectorTrack>(Track);
+	UMovieSceneFloatVectorTrack* VectorTrack = Cast<UMovieSceneFloatVectorTrack>(Track);
 
 	if (VectorTrack)
 	{
@@ -126,8 +134,8 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 		Interrogator.Update();
 
 		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
-		TArray<FIntermediateVector> InterrogatedValues;
-		Interrogator.QueryPropertyValues(ComponentTypes->Vector, InterrogationChannel, InterrogatedValues);
+		TArray<FFloatIntermediateVector> InterrogatedValues;
+		Interrogator.QueryPropertyValues(ComponentTypes->FloatVector, InterrogationChannel, InterrogatedValues);
 
 		switch (VectorTrack->GetNumChannelsUsed())
 		{
@@ -166,3 +174,102 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 
 	return false;
 }
+
+
+FName FDoubleVectorPropertyTrackEditor::XName( "X" );
+FName FDoubleVectorPropertyTrackEditor::YName( "Y" );
+FName FDoubleVectorPropertyTrackEditor::ZName( "Z" );
+FName FDoubleVectorPropertyTrackEditor::WName( "W" );
+
+
+TSharedRef<ISequencerTrackEditor> FDoubleVectorPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> InSequencer )
+{
+	return MakeShareable( new FDoubleVectorPropertyTrackEditor( InSequencer ) );
+}
+
+void FDoubleVectorPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FPropertyChangedParams& PropertyChangedParams, UMovieSceneSection* SectionToKey, FGeneratedTrackKeys& OutGeneratedKeys )
+{
+	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
+	if (!StructProp)
+	{
+		return;
+	}
+	FName StructName = StructProp->Struct->GetFName();
+
+	bool bIsVector = (StructName == NAME_Vector3d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+			|| StructName == NAME_Vector
+#endif
+			);
+	ensure(bIsVector);
+
+	FVector3d VectorValues = PropertyChangedParams.GetPropertyValue<FVector3d>();
+
+	FPropertyPath StructPath = PropertyChangedParams.StructPathToKey;
+	FName ChannelName = StructPath.GetNumProperties() != 0 ? StructPath.GetLeafMostProperty().Property->GetFName() : NAME_None;
+
+	const bool bKeyX = ChannelName == NAME_None || ChannelName == XName;
+	const bool bKeyY = ChannelName == NAME_None || ChannelName == YName;
+	const bool bKeyZ = ChannelName == NAME_None || ChannelName == ZName;
+
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(0, VectorValues.X, bKeyX));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(1, VectorValues.Y, bKeyY));
+	OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneDoubleChannel>(2, VectorValues.Z, bKeyZ));
+}
+
+void FDoubleVectorPropertyTrackEditor::InitializeNewTrack( UMovieSceneDoubleVectorTrack* NewTrack, FPropertyChangedParams PropertyChangedParams )
+{
+	FPropertyTrackEditor::InitializeNewTrack( NewTrack, PropertyChangedParams );
+	const FStructProperty* StructProp = CastField<const FStructProperty>( PropertyChangedParams.PropertyPath.GetLeafMostProperty().Property.Get() );
+	FName StructName = StructProp->Struct->GetFName();
+
+	if (StructName == NAME_Vector3d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+			|| StructName == NAME_Vector
+#endif
+			)
+	{
+		NewTrack->SetNumChannelsUsed( 3 );
+	}
+}
+
+bool FDoubleVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
+{
+	using namespace UE::MovieScene;
+
+	UMovieSceneDoubleVectorTrack* VectorTrack = Cast<UMovieSceneDoubleVectorTrack>(Track);
+
+	if (VectorTrack)
+	{
+		FSystemInterrogator Interrogator;
+
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
+
+		Interrogator.ImportTrack(VectorTrack, FInterrogationChannel::Default());
+		Interrogator.AddInterrogation(KeyTime);
+
+		Interrogator.Update();
+
+		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
+		TArray<FDoubleIntermediateVector> InterrogatedValues;
+		Interrogator.QueryPropertyValues(ComponentTypes->DoubleVector, InterrogatedValues);
+
+		switch (VectorTrack->GetNumChannelsUsed())
+		{
+		case 3:
+			{
+				FVector3d Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z);
+				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
+				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
+				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
+				GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Z, Weight);
+			}
+			break;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+

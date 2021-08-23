@@ -3,8 +3,8 @@
 #include "Systems/MovieScene3DTransformPropertySystem.h"
 
 #include "Systems/MovieScenePropertyInstantiator.h"
-#include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/DoubleChannelEvaluatorSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 
 #include "MovieSceneTracksComponentTypes.h"
 
@@ -17,8 +17,8 @@ UMovieScene3DTransformPropertySystem::UMovieScene3DTransformPropertySystem(const
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		DefineImplicitPrerequisite(UMovieScenePiecewiseFloatBlenderSystem::StaticClass(), GetClass());
-		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
 	}
 }
 

@@ -79,8 +79,14 @@ UMovieSceneTrackRecorder* FMovieScenePropertyTrackRecorderFactory::CreateTrackRe
 	case ESerializedPropertyType::FloatType:
 		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<float>(Binding));
 		break;
-	case ESerializedPropertyType::VectorType:
-		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector>(Binding));
+	case ESerializedPropertyType::DoubleType:
+		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<double>(Binding));
+		break;
+	case ESerializedPropertyType::Vector3fType:
+		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3f>(Binding));
+		break;
+	case ESerializedPropertyType::Vector3dType:
+		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3d>(Binding));
 		break;
 	case ESerializedPropertyType::ColorType:
 		TrackRecorder->PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FColor>(Binding));
@@ -122,11 +128,24 @@ void UMovieScenePropertyTrackRecorder::CreateTrackImpl()
  		}
  		else if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
  		{
- 			if (StructProperty->Struct->GetFName() == NAME_Vector)
+			// LWC_TODO: vector types
+			if (StructProperty->Struct->GetFName() == NAME_Vector3f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+					|| StructProperty->Struct->GetFName() == NAME_Vector
+#endif
+			   )
  			{
- 				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector>(Binding));
+ 				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3f>(Binding));
  			}
- 			else if (StructProperty->Struct->GetFName() == NAME_Color)
+			else if (StructProperty->Struct->GetFName() == NAME_Vector3d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+					|| StructProperty->Struct->GetFName() == NAME_Vector
+#endif
+			   )
+ 			{
+ 				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FVector3d>(Binding));
+ 			}
+			else if (StructProperty->Struct->GetFName() == NAME_Color)
  			{
 				PropertyRecorder = MakeShareable(new FMovieSceneTrackPropertyRecorder<FColor>(Binding));
  			}

@@ -15,7 +15,7 @@
 #include "Templates/Function.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
-struct FMovieSceneFloatChannel;
+struct FMovieSceneDoubleChannel;
 
 class AActor;
 class FMenuBuilder;
@@ -84,7 +84,7 @@ private:
 
 	/** Helper for AddKeyInternal to offset child track's keys */
 	template<typename ModifierFuncType>
-	void CompensateChildTrack(const TRange<FFrameNumber>& InAttachRange, TArrayView<FMovieSceneFloatChannel*> Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels,
+	void CompensateChildTrack(const TRange<FFrameNumber>& InAttachRange, TArrayView<FMovieSceneDoubleChannel*> Channels, TOptional<TArrayView<FMovieSceneDoubleChannel*>> ParentChannels,
 		const ITransformEvaluator& InParentTransformEval, const ITransformEvaluator& InChildTransformEval, ETransformPreserveType InPreserveType, ModifierFuncType InModifyTransform);
 
 	/** Delegate for AnimatablePropertyChanged in AddKey */

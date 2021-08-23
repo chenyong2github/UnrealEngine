@@ -8,6 +8,8 @@
 #include "Tracks/MovieSceneByteTrack.h"
 #include "Sections/MovieSceneEnumSection.h"
 #include "Tracks/MovieSceneEnumTrack.h"
+#include "Sections/MovieSceneDoubleSection.h"
+#include "Tracks/MovieSceneDoubleTrack.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Sections/MovieSceneColorSection.h"
@@ -347,13 +349,13 @@ void FMovieScenePropertyRecorder<FColor>::ReduceKeys(UMovieSceneSection* InSecti
 }
 
 template <>
-bool FMovieScenePropertyRecorder<FVector>::ShouldAddNewKey(const FVector& InNewValue) const
+bool FMovieScenePropertyRecorder<FVector3f>::ShouldAddNewKey(const FVector3f& InNewValue) const
 {
 	return true;
 }
 
 template <>
-UMovieSceneSection* FMovieScenePropertyRecorder<FVector>::AddSection(UObject* InObjectToRecord, UMovieScene* InMovieScene, const FGuid& InGuid, float InTime)
+UMovieSceneSection* FMovieScenePropertyRecorder<FVector3f>::AddSection(UObject* InObjectToRecord, UMovieScene* InMovieScene, const FGuid& InGuid, float InTime)
 {
 	if (!InObjectToRecord)
 	{
@@ -361,10 +363,10 @@ UMovieSceneSection* FMovieScenePropertyRecorder<FVector>::AddSection(UObject* In
 	}
 
 	FName TrackName = *Binding.GetPropertyPath();
-	UMovieSceneVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneVectorTrack>(InGuid, TrackName);
+	UMovieSceneFloatVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneFloatVectorTrack>(InGuid, TrackName);
 	if (!Track)
 	{
-		Track = InMovieScene->AddTrack<UMovieSceneVectorTrack>(InGuid);
+		Track = InMovieScene->AddTrack<UMovieSceneFloatVectorTrack>(InGuid);
 	}
 	else
 	{
@@ -376,7 +378,7 @@ UMovieSceneSection* FMovieScenePropertyRecorder<FVector>::AddSection(UObject* In
 		Track->SetNumChannelsUsed(3);
 		Track->SetPropertyNameAndPath(Binding.GetPropertyName(), Binding.GetPropertyPath());
 
-		UMovieSceneVectorSection* Section = Cast<UMovieSceneVectorSection>(Track->CreateNewSection());
+		UMovieSceneFloatVectorSection* Section = Cast<UMovieSceneFloatVectorSection>(Track->CreateNewSection());
 
 		FFrameRate   TickResolution  = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
 		FFrameNumber CurrentFrame    = (InTime * TickResolution).FloorToFrame();
@@ -405,7 +407,7 @@ UMovieSceneSection* FMovieScenePropertyRecorder<FVector>::AddSection(UObject* In
 }
 
 template <>
-void FMovieScenePropertyRecorder<FVector>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector>& InKey)
+void FMovieScenePropertyRecorder<FVector3f>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector3f>& InKey)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 	FloatChannels[0]->AddCubicKey(InKey.Time, InKey.Value.X);
@@ -414,7 +416,7 @@ void FMovieScenePropertyRecorder<FVector>::AddKeyToSection(UMovieSceneSection* I
 }
 
 template <>
-void FMovieScenePropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieScenePropertyRecorder<FVector3f>::ReduceKeys(UMovieSceneSection* InSection)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
@@ -424,8 +426,87 @@ void FMovieScenePropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* InSect
 	UE::MovieScene::Optimize(FloatChannels[2], Params);
 }
 
+template <>
+bool FMovieScenePropertyRecorder<FVector3d>::ShouldAddNewKey(const FVector3d& InNewValue) const
+{
+	return true;
+}
+
+template <>
+UMovieSceneSection* FMovieScenePropertyRecorder<FVector3d>::AddSection(UObject* InObjectToRecord, UMovieScene* InMovieScene, const FGuid& InGuid, float InTime)
+{
+	if (!InObjectToRecord)
+	{
+		return nullptr;
+	}
+
+	FName TrackName = *Binding.GetPropertyPath();
+	UMovieSceneDoubleVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneDoubleVectorTrack>(InGuid, TrackName);
+	if (!Track)
+	{
+		Track = InMovieScene->AddTrack<UMovieSceneDoubleVectorTrack>(InGuid);
+	}
+	else
+	{
+		Track->RemoveAllAnimationData();
+	}
+
+	if (Track)
+	{
+		Track->SetNumChannelsUsed(3);
+		Track->SetPropertyNameAndPath(Binding.GetPropertyName(), Binding.GetPropertyPath());
+
+		UMovieSceneDoubleVectorSection* Section = Cast<UMovieSceneDoubleVectorSection>(Track->CreateNewSection());
+
+		FFrameRate   TickResolution  = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
+		FFrameNumber CurrentFrame    = (InTime * TickResolution).FloorToFrame();
+
+		Section->SetRange(TRange<FFrameNumber>::Inclusive(CurrentFrame, CurrentFrame));
+
+		Section->TimecodeSource = SequenceRecorderUtils::GetTimecodeSource();
+
+		TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+
+		DoubleChannels[0]->SetDefault(PreviousValue.X);
+		DoubleChannels[0]->AddCubicKey(CurrentFrame, PreviousValue.X, RCTM_Break);
+
+		DoubleChannels[1]->SetDefault(PreviousValue.Y);
+		DoubleChannels[1]->AddCubicKey(CurrentFrame, PreviousValue.Y, RCTM_Break);
+
+		DoubleChannels[2]->SetDefault(PreviousValue.Z);
+		DoubleChannels[2]->AddCubicKey(CurrentFrame, PreviousValue.Z, RCTM_Break);
+
+		Track->AddSection(*Section);
+
+		return Section;
+	}
+
+	return nullptr;
+}
+
+template <>
+void FMovieScenePropertyRecorder<FVector3d>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector3d>& InKey)
+{
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	DoubleChannels[0]->AddCubicKey(InKey.Time, InKey.Value.X);
+	DoubleChannels[1]->AddCubicKey(InKey.Time, InKey.Value.Y);
+	DoubleChannels[2]->AddCubicKey(InKey.Time, InKey.Value.Z);
+}
+
+template <>
+void FMovieScenePropertyRecorder<FVector3d>::ReduceKeys(UMovieSceneSection* InSection)
+{
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+
+	FKeyDataOptimizationParams Params;
+	UE::MovieScene::Optimize(DoubleChannels[0], Params);
+	UE::MovieScene::Optimize(DoubleChannels[1], Params);
+	UE::MovieScene::Optimize(DoubleChannels[2], Params);
+}
+
 template class FMovieScenePropertyRecorder<bool>;
 template class FMovieScenePropertyRecorder<uint8>;
 template class FMovieScenePropertyRecorder<float>;
 template class FMovieScenePropertyRecorder<FColor>;
-template class FMovieScenePropertyRecorder<FVector>;
+template class FMovieScenePropertyRecorder<FVector3f>;
+template class FMovieScenePropertyRecorder<FVector3d>;

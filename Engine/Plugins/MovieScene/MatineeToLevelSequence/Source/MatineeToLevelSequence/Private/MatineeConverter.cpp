@@ -352,7 +352,7 @@ void FMatineeConverter::ConvertInterpGroup(UInterpGroup* Group, FGuid ObjectBind
 			UInterpTrackVectorProp* MatineeVectorTrack = StaticCast<UInterpTrackVectorProp*>(Track);
 			if (MatineeVectorTrack->GetNumKeyframes() != 0 && ObjectBindingGuid.IsValid())
 			{
-				UMovieSceneVectorTrack* VectorTrack = AddPropertyTrack<UMovieSceneVectorTrack>(MatineeVectorTrack->PropertyName, GroupActor, ObjectBindingGuid, NewSequence, NewMovieScene, NumWarnings, BoundObjectsToGuids);
+				UMovieSceneFloatVectorTrack* VectorTrack = AddPropertyTrack<UMovieSceneFloatVectorTrack>(MatineeVectorTrack->PropertyName, GroupActor, ObjectBindingGuid, NewSequence, NewMovieScene, NumWarnings, BoundObjectsToGuids);
 				if (VectorTrack)
 				{
 					VectorTrack->SetNumChannelsUsed(3);

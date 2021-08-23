@@ -8,6 +8,7 @@
 #if WITH_EDITOR
 
 #include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneEvent.h"
 #include "Channels/MovieSceneObjectPathChannel.h"
 #include "Channels/MovieSceneCameraShakeSourceTriggerChannel.h"
@@ -35,6 +36,11 @@ namespace MovieSceneClipboard
 	template<> inline FName GetKeyTypeName<FMovieSceneFloatValue>()
 	{
 		static FName Name("Float");
+		return Name;
+	}
+	template<> inline FName GetKeyTypeName<FMovieSceneDoubleValue>()
+	{
+		static FName Name("Double");
 		return Name;
 	}
 	template<> inline FName GetKeyTypeName<FName>()

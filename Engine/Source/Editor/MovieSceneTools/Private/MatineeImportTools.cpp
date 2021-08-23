@@ -107,6 +107,16 @@ ERichCurveTangentMode FMatineeImportTools::MatineeInterpolationToRichCurveTangen
 	}
 }
 
+
+void CleanupCurveKeys(FMovieSceneDoubleChannel* InChannel)
+{
+	FKeyDataOptimizationParams Params;
+	Params.bAutoSetInterpolation = true;
+
+	UE::MovieScene::Optimize(InChannel, Params);
+}
+
+
 void CleanupCurveKeys(FMovieSceneFloatChannel* InChannel)
 {
 	FKeyDataOptimizationParams Params;
@@ -140,6 +150,25 @@ void FMatineeImportTools::SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatVal
 	if (ChannelData.FindKey(Time) == INDEX_NONE)
 	{
 		FMovieSceneFloatValue NewKey(Value);
+
+		NewKey.InterpMode = MatineeInterpolationToRichCurveInterpolation( MatineeInterpMode );
+		NewKey.TangentMode = MatineeInterpolationToRichCurveTangent( MatineeInterpMode );
+		NewKey.Tangent.ArriveTangent = ArriveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.LeaveTangent = LeaveTangent / FrameRate.AsDecimal();
+		NewKey.Tangent.TangentWeightMode = WeightedMode;
+		NewKey.Tangent.ArriveTangentWeight = ArriveTangentWeight;
+		NewKey.Tangent.LeaveTangentWeight = LeaveTangentWeight;
+		ChannelData.AddKey( Time, NewKey );
+	}
+}
+
+
+void FMatineeImportTools::SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value, float ArriveTangent, float LeaveTangent, EInterpCurveMode MatineeInterpMode, FFrameRate FrameRate
+	, ERichCurveTangentWeightMode WeightedMode, float ArriveTangentWeight, float LeaveTangentWeight)
+{
+	if (ChannelData.FindKey(Time) == INDEX_NONE)
+	{
+		FMovieSceneDoubleValue NewKey(Value);
 
 		NewKey.InterpMode = MatineeInterpolationToRichCurveInterpolation( MatineeInterpMode );
 		NewKey.TangentMode = MatineeInterpolationToRichCurveTangent( MatineeInterpMode );
@@ -381,7 +410,7 @@ bool FMatineeImportTools::CopyInterpMaterialParamTrack(UInterpTrackVectorMateria
 	return bSectionCreated;
 }
 
-bool FMatineeImportTools::CopyInterpVectorTrack( UInterpTrackVectorProp* MatineeVectorTrack, UMovieSceneVectorTrack* VectorTrack )
+bool FMatineeImportTools::CopyInterpVectorTrack( UInterpTrackVectorProp* MatineeVectorTrack, UMovieSceneFloatVectorTrack* VectorTrack )
 {
 	const FScopedTransaction Transaction( NSLOCTEXT( "Sequencer", "PasteMatineeVectorTrack", "Paste Matinee Vector Track" ) );
 	bool bSectionCreated = false;
@@ -391,10 +420,10 @@ bool FMatineeImportTools::CopyInterpVectorTrack( UInterpTrackVectorProp* Matinee
 	FFrameRate   FrameRate    = VectorTrack->GetTypedOuter<UMovieScene>()->GetTickResolution();
 	FFrameNumber FirstKeyTime = (MatineeVectorTrack->GetKeyframeTime( 0 ) * FrameRate).RoundToFrame();
 
-	UMovieSceneVectorSection* Section = Cast<UMovieSceneVectorSection>( MovieSceneHelpers::FindSectionAtTime( VectorTrack->GetAllSections(), FirstKeyTime ) );
+	UMovieSceneFloatVectorSection* Section = Cast<UMovieSceneFloatVectorSection>( MovieSceneHelpers::FindSectionAtTime( VectorTrack->GetAllSections(), FirstKeyTime ) );
 	if ( Section == nullptr )
 	{
-		Section = Cast<UMovieSceneVectorSection>( VectorTrack->CreateNewSection() );
+		Section = Cast<UMovieSceneFloatVectorSection>( VectorTrack->CreateNewSection() );
 		VectorTrack->AddSection( *Section );
 		Section->SetRange(TRange<FFrameNumber>::All());
 		bSectionCreated = true;
@@ -610,18 +639,18 @@ bool FMatineeImportTools::CopyInterpMoveTrack( UInterpTrackMove* MoveTrack, UMov
 		Section->SetRange(TRange<FFrameNumber>::All());
 		bSectionCreated = true;
 
-		TArrayView<FMovieSceneFloatChannel*> FloatChannels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-		FloatChannels[6]->SetDefault(DefaultScale.X);
-		FloatChannels[7]->SetDefault(DefaultScale.Y);
-		FloatChannels[8]->SetDefault(DefaultScale.Z);
+		TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+		DoubleChannels[6]->SetDefault(DefaultScale.X);
+		DoubleChannels[7]->SetDefault(DefaultScale.Y);
+		DoubleChannels[8]->SetDefault(DefaultScale.Z);
 	}
 
 	if (Section->TryModify())
 	{
 		TRange<FFrameNumber> KeyRange = TRange<FFrameNumber>::Empty();
 
-		TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData[6] = {
+		TArrayView<FMovieSceneDoubleChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+		TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData[6] = {
 			Channels[0]->GetData(), Channels[1]->GetData(), Channels[2]->GetData(),
 			Channels[3]->GetData(), Channels[4]->GetData(), Channels[5]->GetData()
 		};

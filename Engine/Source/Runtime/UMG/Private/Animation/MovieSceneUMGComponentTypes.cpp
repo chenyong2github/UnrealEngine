@@ -1,11 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Animation/MovieSceneUMGComponentTypes.h"
-#include "EntitySystem/MovieSceneComponentRegistry.h"
-#include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
-#include "MovieSceneTracksComponentTypes.h"
+#include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
+#include "EntitySystem/MovieScenePropertyComponentHandler.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 
 #include "Components/Widget.h"
 
@@ -95,6 +96,7 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 	.AddComposite(BuiltInComponents->FloatResult[4], &FIntermediateWidgetTransform::ScaleY)
 	.AddComposite(BuiltInComponents->FloatResult[5], &FIntermediateWidgetTransform::ShearX)
 	.AddComposite(BuiltInComponents->FloatResult[6], &FIntermediateWidgetTransform::ShearY)
+	.SetBlenderSystem<UMovieScenePiecewiseFloatBlenderSystem>()
 	.SetCustomAccessors(&CustomWidgetTransformAccessors)
 	.Commit();
 }

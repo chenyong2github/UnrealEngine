@@ -12,9 +12,62 @@
  *****************************************************************************/
 
 #if WITH_EDITOR
-struct FVectorSectionEditorData
+template<typename ValueType>
+struct TVectorSectionEditorDataCompositeValue
 {
-	FVectorSectionEditorData(int32 NumChannels)
+	ValueType X, Y, Z, W;
+	TVectorSectionEditorDataCompositeValue() : X(0), Y(0), Z(0), W(0) {}
+	TVectorSectionEditorDataCompositeValue(ValueType InX, ValueType InY, ValueType InZ, ValueType InW)
+		: X(InX), Y(InY), Z(InZ), W(InW)
+	{}
+};
+
+template<typename ValueType>
+struct TVectorSectionEditorDataTraits;
+
+template<>
+struct TVectorSectionEditorDataTraits<float>
+{
+	using FCompositeValue = TVectorSectionEditorDataCompositeValue<float>;
+
+	static FCompositeValue GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
+	{
+		if (NumChannels == 2)
+		{
+			FVector2D Vector = Bindings.GetCurrentValue<FVector2D>(InObject);
+			return FCompositeValue(Vector.X, Vector.Y, 0.f, 0.f);
+		}
+		else if (NumChannels == 3)
+		{
+			FVector3f Vector = Bindings.GetCurrentValue<FVector3f>(InObject);
+			return FCompositeValue(Vector.X, Vector.Y, Vector.Z, 0.f);
+		}
+		else
+		{
+			ensure(NumChannels == 4);
+			FVector4 Vector = Bindings.GetCurrentValue<FVector4>(InObject);
+			return FCompositeValue(Vector.X, Vector.Y, Vector.Z, Vector.W);
+		}
+	}
+};
+
+template<>
+struct TVectorSectionEditorDataTraits<double>
+{
+	using FCompositeValue = TVectorSectionEditorDataCompositeValue<double>;
+
+	static FCompositeValue GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
+	{
+		ensure(NumChannels == 3);
+		FVector3d Vector = Bindings.GetCurrentValue<FVector3d>(InObject);
+		return FCompositeValue(Vector.X, Vector.Y, Vector.Z, 0.f);
+	}
+};
+
+template<typename ValueType>
+struct TVectorSectionEditorData
+{
+	TVectorSectionEditorData(int32 NumChannels)
 	{
 		MetaData[0].SetIdentifiers("Vector.X", FCommonChannelData::ChannelX);
 		MetaData[0].SortOrder = 0;
@@ -40,58 +93,44 @@ struct FVectorSectionEditorData
 		ExternalValues[2].OnGetExternalValue = [NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelZ(InObject, Bindings, NumChannels); };
 		ExternalValues[3].OnGetExternalValue = [NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelW(InObject, Bindings, NumChannels); };
 	}
-
-	static FVector4 GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
-	{
-		if (NumChannels == 2)
-		{
-			FVector2D Vector = Bindings.GetCurrentValue<FVector2D>(InObject);
-			return FVector4(Vector.X, Vector.Y, 0.f, 0.f);
-		}
-		else if (NumChannels == 3)
-		{
-			FVector Vector = Bindings.GetCurrentValue<FVector>(InObject);
-			return FVector4(Vector.X, Vector.Y, Vector.Z, 0.f);
-		}
-		else
-		{
-			return Bindings.GetCurrentValue<FVector4>(InObject);
-		}
-	}
 	
-	static TOptional<float> ExtractChannelX(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
+	static TOptional<ValueType> ExtractChannelX(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).X : TOptional<float>();
+		return Bindings ? TVectorSectionEditorDataTraits<ValueType>::GetPropertyValue(InObject, *Bindings, NumChannels).X : TOptional<ValueType>();
 	}
-	static TOptional<float> ExtractChannelY(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
+	static TOptional<ValueType> ExtractChannelY(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).Y : TOptional<float>();
+		return Bindings ? TVectorSectionEditorDataTraits<ValueType>::GetPropertyValue(InObject, *Bindings, NumChannels).Y : TOptional<ValueType>();
 	}
-	static TOptional<float> ExtractChannelZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
+	static TOptional<ValueType> ExtractChannelZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).Z : TOptional<float>();
+		return Bindings ? TVectorSectionEditorDataTraits<ValueType>::GetPropertyValue(InObject, *Bindings, NumChannels).Z : TOptional<ValueType>();
 	}
-	static TOptional<float> ExtractChannelW(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
+	static TOptional<ValueType> ExtractChannelW(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
-		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).W : TOptional<float>();
+		return Bindings ? TVectorSectionEditorDataTraits<ValueType>::GetPropertyValue(InObject, *Bindings, NumChannels).W : TOptional<ValueType>();
 	}
 
-	FMovieSceneChannelMetaData      MetaData[4];
-	TMovieSceneExternalValue<float> ExternalValues[4];
-
+	FMovieSceneChannelMetaData			MetaData[4];
+	TMovieSceneExternalValue<ValueType> ExternalValues[4];
 };
 #endif
 
-void FMovieSceneVectorKeyStructBase::PropagateChanges(const FPropertyChangedEvent& ChangeEvent)
+void FMovieSceneFloatVectorKeyStructBase::PropagateChanges(const FPropertyChangedEvent& ChangeEvent)
+{
+	KeyStructInterop.Apply(Time);
+}
+
+void FMovieSceneDoubleVectorKeyStructBase::PropagateChanges(const FPropertyChangedEvent& ChangeEvent)
 {
 	KeyStructInterop.Apply(Time);
 }
 
 
-/* UMovieSceneVectorSection structors
+/* UMovieSceneFloatVectorSection structors
  *****************************************************************************/
 
-UMovieSceneVectorSection::UMovieSceneVectorSection(const FObjectInitializer& ObjectInitializer)
+UMovieSceneFloatVectorSection::UMovieSceneFloatVectorSection(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	ChannelsUsed = 0;
@@ -106,7 +145,7 @@ UMovieSceneVectorSection::UMovieSceneVectorSection(const FObjectInitializer& Obj
 	BlendType = EMovieSceneBlendType::Absolute;
 }
 
-void UMovieSceneVectorSection::Serialize(FArchive& Ar)
+void UMovieSceneFloatVectorSection::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
 
@@ -116,14 +155,14 @@ void UMovieSceneVectorSection::Serialize(FArchive& Ar)
 	}
 }
 
-void UMovieSceneVectorSection::PostEditImport()
+void UMovieSceneFloatVectorSection::PostEditImport()
 {
 	Super::PostEditImport();
 
 	RecreateChannelProxy();
 }
 
-void UMovieSceneVectorSection::RecreateChannelProxy()
+void UMovieSceneFloatVectorSection::RecreateChannelProxy()
 {
 	FMovieSceneChannelProxyData Channels;
 
@@ -131,7 +170,7 @@ void UMovieSceneVectorSection::RecreateChannelProxy()
 
 #if WITH_EDITOR
 
-	const FVectorSectionEditorData EditorData(ChannelsUsed);
+	const TVectorSectionEditorData<float> EditorData(ChannelsUsed);
 	for (int32 Index = 0; Index < ChannelsUsed; ++Index)
 	{
 		Channels.Add(Curves[Index], EditorData.MetaData[Index], EditorData.ExternalValues[Index]);
@@ -149,7 +188,7 @@ void UMovieSceneVectorSection::RecreateChannelProxy()
 	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
 }
 
-TSharedPtr<FStructOnScope> UMovieSceneVectorSection::GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles)
+TSharedPtr<FStructOnScope> UMovieSceneFloatVectorSection::GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles)
 {
 	TSharedPtr<FStructOnScope> KeyStruct;
 	if (ChannelsUsed == 2)
@@ -158,7 +197,7 @@ TSharedPtr<FStructOnScope> UMovieSceneVectorSection::GetKeyStruct(TArrayView<con
 	}
 	else if (ChannelsUsed == 3)
 	{
-		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVectorKeyStruct::StaticStruct()));
+		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector3fKeyStruct::StaticStruct()));
 	}
 	else if (ChannelsUsed == 4)
 	{
@@ -167,7 +206,7 @@ TSharedPtr<FStructOnScope> UMovieSceneVectorSection::GetKeyStruct(TArrayView<con
 
 	if (KeyStruct.IsValid())
 	{
-		FMovieSceneVectorKeyStructBase* Struct = (FMovieSceneVectorKeyStructBase*)KeyStruct->GetStructMemory();
+		FMovieSceneFloatVectorKeyStructBase* Struct = (FMovieSceneFloatVectorKeyStructBase*)KeyStruct->GetStructMemory();
 		for (int32 Index = 0; Index < ChannelsUsed; ++Index)
 		{
 			Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(Index), Struct->GetPropertyChannelByIndex(Index), KeyHandles));
@@ -180,13 +219,13 @@ TSharedPtr<FStructOnScope> UMovieSceneVectorSection::GetKeyStruct(TArrayView<con
 	return KeyStruct;
 }
 
-bool UMovieSceneVectorSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+bool UMovieSceneFloatVectorSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
 	FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(*this, EffectiveRange, InMetaData, OutFieldBuilder);
 	return true;
 }
 
-void UMovieSceneVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+void UMovieSceneFloatVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	using namespace UE::MovieScene;
 
@@ -202,10 +241,117 @@ void UMovieSceneVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
-	FPropertyTrackEntityImportHelper(TracksComponents->Vector)
+	FPropertyTrackEntityImportHelper(TracksComponents->FloatVector)
 		.AddConditional(Components->FloatChannel[0], &Curves[0], ChannelsUsed > 0 && Curves[0].HasAnyData())
 		.AddConditional(Components->FloatChannel[1], &Curves[1], ChannelsUsed > 1 && Curves[1].HasAnyData())
 		.AddConditional(Components->FloatChannel[2], &Curves[2], ChannelsUsed > 2 && Curves[2].HasAnyData())
 		.AddConditional(Components->FloatChannel[3], &Curves[3], ChannelsUsed > 3 && Curves[3].HasAnyData())
+		.Commit(this, Params, OutImportedEntity);
+}
+
+/* UMovieSceneDoubleVectorSection structors
+ *****************************************************************************/
+
+UMovieSceneDoubleVectorSection::UMovieSceneDoubleVectorSection(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	ChannelsUsed = 0;
+	bSupportsInfiniteRange = true;
+	BlendType = EMovieSceneBlendType::Absolute;
+}
+
+void UMovieSceneDoubleVectorSection::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	if (Ar.IsLoading())
+	{
+		RecreateChannelProxy();
+	}
+}
+
+void UMovieSceneDoubleVectorSection::PostEditImport()
+{
+	Super::PostEditImport();
+
+	RecreateChannelProxy();
+}
+
+void UMovieSceneDoubleVectorSection::RecreateChannelProxy()
+{
+	FMovieSceneChannelProxyData Channels;
+
+	check(ChannelsUsed <= UE_ARRAY_COUNT(Curves));
+
+#if WITH_EDITOR
+
+	const TVectorSectionEditorData<double> EditorData(ChannelsUsed);
+	for (int32 Index = 0; Index < ChannelsUsed; ++Index)
+	{
+		Channels.Add(Curves[Index], EditorData.MetaData[Index], EditorData.ExternalValues[Index]);
+	}
+
+#else
+
+	for (int32 Index = 0; Index < ChannelsUsed; ++Index)
+	{
+		Channels.Add(Curves[Index]);
+	}
+
+#endif
+
+	ChannelProxy = MakeShared<FMovieSceneChannelProxy>(MoveTemp(Channels));
+}
+
+TSharedPtr<FStructOnScope> UMovieSceneDoubleVectorSection::GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles)
+{
+	TSharedPtr<FStructOnScope> KeyStruct;
+	if (ChannelsUsed == 3)
+	{
+		KeyStruct = MakeShareable(new FStructOnScope(FMovieSceneVector3dKeyStruct::StaticStruct()));
+	}
+
+	if (KeyStruct.IsValid())
+	{
+		FMovieSceneDoubleVectorKeyStructBase* Struct = (FMovieSceneDoubleVectorKeyStructBase*)KeyStruct->GetStructMemory();
+		for (int32 Index = 0; Index < ChannelsUsed; ++Index)
+		{
+			Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(Index), Struct->GetPropertyChannelByIndex(Index), KeyHandles));
+		}
+
+		Struct->KeyStructInterop.SetStartingValues();
+		Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);
+	}
+
+	return KeyStruct;
+}
+
+bool UMovieSceneDoubleVectorSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(*this, EffectiveRange, InMetaData, OutFieldBuilder);
+	return true;
+}
+
+void UMovieSceneDoubleVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (ChannelsUsed <= 0)
+	{
+		return;
+	}
+	else if (!Curves[0].HasAnyData() && !Curves[1].HasAnyData() && !Curves[2].HasAnyData() && !Curves[3].HasAnyData())
+	{
+		return;
+	}
+
+	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FPropertyTrackEntityImportHelper(TracksComponents->DoubleVector)
+		.AddConditional(Components->DoubleChannel[0], &Curves[0], ChannelsUsed > 0 && Curves[0].HasAnyData())
+		.AddConditional(Components->DoubleChannel[1], &Curves[1], ChannelsUsed > 1 && Curves[1].HasAnyData())
+		.AddConditional(Components->DoubleChannel[2], &Curves[2], ChannelsUsed > 2 && Curves[2].HasAnyData())
+		.AddConditional(Components->DoubleChannel[3], &Curves[3], ChannelsUsed > 3 && Curves[3].HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }

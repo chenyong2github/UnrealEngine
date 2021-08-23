@@ -7,8 +7,8 @@
 #include "Tracks/IMovieSceneTransformOrigin.h"
 #include "MovieSceneTracksComponentTypes.h"
 
-#include "Systems/FloatChannelEvaluatorSystem.h"
-#include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/DoubleChannelEvaluatorSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 
 #include "IMovieScenePlayer.h"
@@ -24,19 +24,19 @@ struct FAssignTransformOrigin
 	const TSparseArray<FTransform>* TransformOriginsByInstanceID;
 
 	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<FInstanceHandle> Instances, TRead<UObject*> BoundObjects,
-		TWriteOptional<float> LocationX, TWriteOptional<float> LocationY, TWriteOptional<float> LocationZ,
-		TWriteOptional<float> RotationX, TWriteOptional<float> RotationY, TWriteOptional<float> RotationZ,
-		TWriteOptional<FSourceFloatChannelFlags> FlagsLocationX, TWriteOptional<FSourceFloatChannelFlags> FlagsLocationY, TWriteOptional<FSourceFloatChannelFlags> FlagsLocationZ,
-		TWriteOptional<FSourceFloatChannelFlags> FlagsRotationX, TWriteOptional<FSourceFloatChannelFlags> FlagsRotationY, TWriteOptional<FSourceFloatChannelFlags> FlagsRotationZ)
+		TWriteOptional<double> LocationX, TWriteOptional<double> LocationY, TWriteOptional<double> LocationZ,
+		TWriteOptional<double> RotationX, TWriteOptional<double> RotationY, TWriteOptional<double> RotationZ,
+		TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationX, TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationY, TWriteOptional<FSourceDoubleChannelFlags> FlagsLocationZ,
+		TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationX, TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationY, TWriteOptional<FSourceDoubleChannelFlags> FlagsRotationZ)
 	{
 		TransformLocation(Instances, BoundObjects, LocationX, LocationY, LocationZ, RotationX, RotationY, RotationZ, FlagsLocationX, FlagsLocationY, FlagsLocationZ, FlagsRotationX, FlagsRotationY, FlagsRotationZ, Allocation->Num());
 	}
 
 	void TransformLocation(const FInstanceHandle* Instances, const UObject* const * BoundObjects,
-		float* OutLocationX, float* OutLocationY, float* OutLocationZ,
-		float* OutRotationX, float* OutRotationY, float* OutRotationZ,
-		FSourceFloatChannelFlags* OutFlagsLocationX, FSourceFloatChannelFlags* OutFlagsLocationY, FSourceFloatChannelFlags* OutFlagsLocationZ,
-		FSourceFloatChannelFlags* OutFlagsRotationX, FSourceFloatChannelFlags* OutFlagsRotationY, FSourceFloatChannelFlags* OutFlagsRotationZ,
+		double* OutLocationX, double* OutLocationY, double* OutLocationZ,
+		double* OutRotationX, double* OutRotationY, double* OutRotationZ,
+		FSourceDoubleChannelFlags* OutFlagsLocationX, FSourceDoubleChannelFlags* OutFlagsLocationY, FSourceDoubleChannelFlags* OutFlagsLocationZ,
+		FSourceDoubleChannelFlags* OutFlagsRotationX, FSourceDoubleChannelFlags* OutFlagsRotationY, FSourceDoubleChannelFlags* OutFlagsRotationZ,
 		int32 Num)
 	{
 		for (int32 Index = 0; Index < Num; ++Index)
@@ -95,22 +95,22 @@ UMovieSceneTransformOriginSystem::UMovieSceneTransformOriginSystem(const FObject
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		// This system relies upon anything that creates entities
-		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseFloatBlenderSystem::StaticClass());
+		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseDoubleBlenderSystem::StaticClass());
 		DefineImplicitPrerequisite(GetClass(), UMovieSceneComponentTransformSystem::StaticClass());
 
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[0]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[1]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[2]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[3]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[4]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatResult[5]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[0]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[1]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[2]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[3]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[4]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleResult[5]);
 
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[0]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[1]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[2]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[3]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[4]);
-		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->FloatChannelFlags[5]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[0]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[1]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[2]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[3]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[4]);
+		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->DoubleChannelFlags[5]);
 	}
 }
 
@@ -177,22 +177,22 @@ void UMovieSceneTransformOriginSystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->InstanceHandle)
 		.Read(BuiltInComponents->BoundObject)
-		.WriteOptional(BuiltInComponents->FloatResult[0])
-		.WriteOptional(BuiltInComponents->FloatResult[1])
-		.WriteOptional(BuiltInComponents->FloatResult[2])
-		.WriteOptional(BuiltInComponents->FloatResult[3])
-		.WriteOptional(BuiltInComponents->FloatResult[4])
-		.WriteOptional(BuiltInComponents->FloatResult[5])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[0])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[1])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[2])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[3])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[4])
-		.WriteOptional(BuiltInComponents->FloatChannelFlags[5])
+		.WriteOptional(BuiltInComponents->DoubleResult[0])
+		.WriteOptional(BuiltInComponents->DoubleResult[1])
+		.WriteOptional(BuiltInComponents->DoubleResult[2])
+		.WriteOptional(BuiltInComponents->DoubleResult[3])
+		.WriteOptional(BuiltInComponents->DoubleResult[4])
+		.WriteOptional(BuiltInComponents->DoubleResult[5])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[0])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[1])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[2])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[3])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[4])
+		.WriteOptional(BuiltInComponents->DoubleChannelFlags[5])
 		.CombineFilter(Filter)
-		// Must contain at least one float result
-		.FilterAny({ BuiltInComponents->FloatResult[0], BuiltInComponents->FloatResult[1], BuiltInComponents->FloatResult[2],
-			BuiltInComponents->FloatResult[3], BuiltInComponents->FloatResult[4], BuiltInComponents->FloatResult[5] })
+		// Must contain at least one double result
+		.FilterAny({ BuiltInComponents->DoubleResult[0], BuiltInComponents->DoubleResult[1], BuiltInComponents->DoubleResult[2],
+			BuiltInComponents->DoubleResult[3], BuiltInComponents->DoubleResult[4], BuiltInComponents->DoubleResult[5] })
 		.Dispatch_PerAllocation<FAssignTransformOrigin>(&Linker->EntityManager, InPrerequisites, &Subsequents, &TransformOriginsByInstanceID);
 	}
 }

@@ -5,16 +5,18 @@
 #include "EntitySystem/MovieSceneDecompositionQuery.h"
 #include "EntitySystem/MovieSceneEntitySystemTypes.h"
 #include "MovieSceneTracksComponentTypes.h"
+#include "Systems/DoubleChannelEvaluatorSystem.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
 #include "Systems/MovieScenePropertyInstantiator.h"
 
-UMovieSceneVectorPropertySystem::UMovieSceneVectorPropertySystem(const FObjectInitializer& ObjInit)
+UMovieSceneFloatVectorPropertySystem::UMovieSceneFloatVectorPropertySystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
 	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
 
-	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->Vector);
+	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->FloatVector);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -24,7 +26,28 @@ UMovieSceneVectorPropertySystem::UMovieSceneVectorPropertySystem(const FObjectIn
 	}
 }
 
-void UMovieSceneVectorPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UMovieSceneFloatVectorPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	Super::OnRun(InPrerequisites, Subsequents);
 }
+
+UMovieSceneDoubleVectorPropertySystem::UMovieSceneDoubleVectorPropertySystem(const FObjectInitializer& ObjInit)
+	: Super(ObjInit)
+{
+	SystemExclusionContext |= UE::MovieScene::EEntitySystemContext::Interrogation;
+
+	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->DoubleVector);
+
+	if (HasAnyFlags(RF_ClassDefaultObject))
+	{
+		// We need our floats correctly evaluated and blended, so we are downstream from those systems.
+		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UMovieScenePiecewiseDoubleBlenderSystem::StaticClass(), GetClass());
+	}
+}
+
+void UMovieSceneDoubleVectorPropertySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+{
+	Super::OnRun(InPrerequisites, Subsequents);
+}
+

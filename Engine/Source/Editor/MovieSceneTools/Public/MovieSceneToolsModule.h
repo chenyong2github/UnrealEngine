@@ -85,8 +85,10 @@ private:
 	FDelegateHandle BytePropertyTrackCreateEditorHandle;
 	FDelegateHandle ColorPropertyTrackCreateEditorHandle;
 	FDelegateHandle FloatPropertyTrackCreateEditorHandle;
+	FDelegateHandle DoublePropertyTrackCreateEditorHandle;
 	FDelegateHandle IntegerPropertyTrackCreateEditorHandle;
-	FDelegateHandle VectorPropertyTrackCreateEditorHandle;
+	FDelegateHandle FloatVectorPropertyTrackCreateEditorHandle;
+	FDelegateHandle DoubleVectorPropertyTrackCreateEditorHandle;
 	FDelegateHandle TransformPropertyTrackCreateEditorHandle;
 	FDelegateHandle EulerTransformPropertyTrackCreateEditorHandle;
 	FDelegateHandle VisibilityPropertyTrackCreateEditorHandle;

@@ -236,7 +236,7 @@ struct FGuidAndActor
 			}
 		}
 
-		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 		for (int32 Index = 0; Index < Frames.Num(); ++Index)
 		{
 			const FFrameNumber& Frame = Frames[Index];
@@ -297,7 +297,7 @@ struct FGuidAndActor
 
 			if (SnapSettings->bSnapPosition)
 			{
-				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[0]->GetData();
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[0]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.X);
 				ChannelData = Channels[1]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Y);
@@ -307,7 +307,7 @@ struct FGuidAndActor
 			if (SnapSettings->bSnapRotation)
 			{
 				//todo winding
-				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[3]->GetData();
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[3]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Yaw);
 				ChannelData = Channels[4]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Rotation.Pitch);
@@ -316,7 +316,7 @@ struct FGuidAndActor
 			}
 			if (SnapSettings->bSnapScale)
 			{
-				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[6]->GetData();
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[6]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);
 				ChannelData = Channels[7]->GetData();
 				MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Scale3D.X);

@@ -8,7 +8,7 @@
 #include "ISequencer.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
-#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
@@ -205,14 +205,14 @@ void FDefaultMovieSceneTransformTrailTool::BuildKeys()
 	Keys.Reset();
 
 	UMovieSceneSection* AbsoluteTransformSection = OwningTrail->GetSection();
-	TArrayView<FMovieSceneFloatChannel*> FloatChannels = AbsoluteTransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	FloatChannels = FloatChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = AbsoluteTransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	DoubleChannels = DoubleChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	for (int32 ChannelIdx = 0; ChannelIdx <= uint8(EMSTrailTransformChannel::MaxChannel); ChannelIdx++)
 	{
-		FMovieSceneFloatChannel* FloatChannel = FloatChannels[ChannelIdx];
-		for (int32 Idx = 0; Idx < FloatChannel->GetNumKeys(); Idx++)
+		FMovieSceneDoubleChannel* DoubleChannel = DoubleChannels[ChannelIdx];
+		for (int32 Idx = 0; Idx < DoubleChannel->GetNumKeys(); Idx++)
 		{
-			const FFrameNumber CurTime = FloatChannel->GetTimes()[Idx];
+			const FFrameNumber CurTime = DoubleChannel->GetTimes()[Idx];
 
 			if (!Keys.Contains(CurTime))
 			{
@@ -226,15 +226,15 @@ void FDefaultMovieSceneTransformTrailTool::BuildKeys()
 bool FDefaultMovieSceneTransformTrailTool::ShouldRebuildKeys()
 {
 	TMap<FFrameNumber, TSet<EMSTrailTransformChannel>> KeyTimes;
-	TArrayView<FMovieSceneFloatChannel*> FloatChannels = OwningTrail->GetSection()->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	FloatChannels = FloatChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = OwningTrail->GetSection()->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	DoubleChannels = DoubleChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 
 	for (uint8 ChannelIdx = 0; ChannelIdx <= uint8(EMSTrailTransformChannel::MaxChannel); ChannelIdx++)
 	{
-		FMovieSceneFloatChannel* FloatChannel = FloatChannels[ChannelIdx];
-		for (int32 Idx = 0; Idx < FloatChannel->GetNumKeys(); Idx++)
+		FMovieSceneDoubleChannel* DoubleChannel = DoubleChannels[ChannelIdx];
+		for (int32 Idx = 0; Idx < DoubleChannel->GetNumKeys(); Idx++)
 		{
-			const FFrameNumber CurTime = FloatChannel->GetTimes()[Idx];
+			const FFrameNumber CurTime = DoubleChannel->GetTimes()[Idx];
 			KeyTimes.FindOrAdd(CurTime).Add(EMSTrailTransformChannel(ChannelIdx));
 		}
 	}
@@ -254,7 +254,7 @@ bool FDefaultMovieSceneTransformTrailTool::ShouldRebuildKeys()
 		{
 			const EMSTrailTransformChannel TransformChannel = EMSTrailTransformChannel(ChannelIdx);
 			if ((!TimeKeyPair.Value.Contains(TransformChannel) && Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel)) ||
-				(Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel) && FloatChannels[uint8(TransformChannel)]->GetData().GetIndex(Keys[TimeKeyPair.Key]->IdxMap[TransformChannel]) == INDEX_NONE) ||
+				(Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel) && DoubleChannels[uint8(TransformChannel)]->GetData().GetIndex(Keys[TimeKeyPair.Key]->IdxMap[TransformChannel]) == INDEX_NONE) ||
 				(TimeKeyPair.Value.Contains(TransformChannel) && !Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel)))
 			{
 				return true;
@@ -322,7 +322,7 @@ FDefaultMovieSceneTransformTrailTool::FKeyInfo::FKeyInfo(const FFrameNumber InFr
 	, Section(InSection)
 	, OwningTrail(InOwningTrail)
 {
-	TArrayView<FMovieSceneFloatChannel*> Channels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	for (uint8 Idx = 0; Idx <= uint8(EMSTrailTransformChannel::MaxChannel); Idx++)
 	{
@@ -346,7 +346,7 @@ void  FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnKeyTransformChanged(UTra
 
 void FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragStart(UTransformProxy*)
 {
-	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	for (const TPair<EMSTrailTransformChannel, FKeyHandle>& ChannelHandlePair : IdxMap)
 	{
@@ -371,7 +371,7 @@ void FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragEnd(UTransformProxy*)
 void FDefaultMovieSceneTransformTrailTool::FKeyInfo::UpdateKeyTransform(EKeyUpdateType UpdateType, FTrajectoryCache* ParentTrajectoryCache)
 {
 	bDirty = false;
-	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	if (UpdateType == EKeyUpdateType::FromComponentDelta)
 	{

@@ -409,6 +409,7 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 		return nullptr;
 	}
 
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
 	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
 	const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
 	const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
@@ -422,7 +423,7 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 	for (const FMovieSceneChannelEntry& Entry : CurrentSectionToKey->GetChannelProxy().GetAllEntries())
 	{
 		const FName ChannelTypeName = Entry.GetChannelTypeName();
-		if (ChannelTypeName != FloatChannelTypeName && ChannelTypeName != BoolChannelTypeName
+		if (ChannelTypeName != DoubleChannelTypeName && ChannelTypeName != FloatChannelTypeName && ChannelTypeName != BoolChannelTypeName
 			&& ChannelTypeName != EnumChannelTypeName && ChannelTypeName != IntegerChannelTypeName)
 		{
 			continue;
@@ -454,10 +455,15 @@ TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChan
 						NodeAndChannel.NodeName = NodeName;
 						NodeAndChannels->Add(NodeAndChannel);
 					}
-					if (ChannelTypeName == FloatChannelTypeName)
+					if (ChannelTypeName == DoubleChannelTypeName)
+					{
+						FMovieSceneDoubleChannel* DoubleChannel = Channel.Cast<FMovieSceneDoubleChannel>().Get();
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].DoubleChannels.Add(DoubleChannel);
+					}
+					else if (ChannelTypeName == FloatChannelTypeName)
 					{
 						FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
-						(*NodeAndChannels)[NodeAndChannels->Num() - 1].Channels.Add(FloatChannel);
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].FloatChannels.Add(FloatChannel);
 					}
 					else if (ChannelTypeName == BoolChannelTypeName)
 					{

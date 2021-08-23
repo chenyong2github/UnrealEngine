@@ -205,56 +205,57 @@ struct F3DTransformChannelEditorData
 		return TOptional<FVector>();
 	}
 
-	static TOptional<float> ExtractTranslationX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractTranslationX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Translation = GetTranslation(InObject, Bindings);
-		return Translation.IsSet() ? Translation->X : TOptional<float>();
+		return Translation.IsSet() ? Translation->X : TOptional<double>();
 	}
-	static TOptional<float> ExtractTranslationY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractTranslationY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Translation = GetTranslation(InObject, Bindings);
-		return Translation.IsSet() ? Translation->Y : TOptional<float>();
+		return Translation.IsSet() ? Translation->Y : TOptional<double>();
 	}
-	static TOptional<float> ExtractTranslationZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractTranslationZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Translation = GetTranslation(InObject, Bindings);
-		return Translation.IsSet() ? Translation->Z : TOptional<float>();
+		return Translation.IsSet() ? Translation->Z : TOptional<double>();
 	}
 
-	static TOptional<float> ExtractRotationX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractRotationX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FRotator> Rotator = GetRotator(InObject, Bindings);
-		return Rotator.IsSet() ? Rotator->Roll : TOptional<float>();
+		return Rotator.IsSet() ? Rotator->Roll : TOptional<double>();
 	}
-	static TOptional<float> ExtractRotationY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractRotationY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FRotator> Rotator = GetRotator(InObject, Bindings);
-		return Rotator.IsSet() ? Rotator->Pitch : TOptional<float>();
+		return Rotator.IsSet() ? Rotator->Pitch : TOptional<double>();
 	}
-	static TOptional<float> ExtractRotationZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractRotationZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FRotator> Rotator = GetRotator(InObject, Bindings);
-		return Rotator.IsSet() ? Rotator->Yaw : TOptional<float>();
+		return Rotator.IsSet() ? Rotator->Yaw : TOptional<double>();
 	}
 
-	static TOptional<float> ExtractScaleX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractScaleX(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Scale = GetScale(InObject, Bindings);
-		return Scale.IsSet() ? Scale->X : TOptional<float>();
+		return Scale.IsSet() ? Scale->X : TOptional<double>();
 	}
-	static TOptional<float> ExtractScaleY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractScaleY(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Scale = GetScale(InObject, Bindings);
-		return Scale.IsSet() ? Scale->Y : TOptional<float>();
+		return Scale.IsSet() ? Scale->Y : TOptional<double>();
 	}
-	static TOptional<float> ExtractScaleZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
+	static TOptional<double> ExtractScaleZ(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		TOptional<FVector> Scale = GetScale(InObject, Bindings);
-		return Scale.IsSet() ? Scale->Z : TOptional<float>();
+		return Scale.IsSet() ? Scale->Z : TOptional<double>();
 	}
 
 	FMovieSceneChannelMetaData      MetaData[10];
-	TMovieSceneExternalValue<float> ExternalValues[10];
+	TMovieSceneExternalValue<double> ExternalValues[9];
+	TMovieSceneExternalValue<float> WeightExternalValue;
 };
 
 #endif // WITH_EDITOR
@@ -375,12 +376,12 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 		return;
 	}
 
-	TComponentTypeID<FSourceFloatChannel> RotationChannel[3];
+	TComponentTypeID<FSourceDoubleChannel> RotationChannel[3];
 	if (!bUseQuaternionInterpolation)
 	{
-		RotationChannel[0] = BuiltInComponentTypes->FloatChannel[3];
-		RotationChannel[1] = BuiltInComponentTypes->FloatChannel[4];
-		RotationChannel[2] = BuiltInComponentTypes->FloatChannel[5];
+		RotationChannel[0] = BuiltInComponentTypes->DoubleChannel[3];
+		RotationChannel[1] = BuiltInComponentTypes->DoubleChannel[4];
+		RotationChannel[2] = BuiltInComponentTypes->DoubleChannel[5];
 	}
 	else
 	{
@@ -391,16 +392,16 @@ void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, 
 
 	OutImportedEntity->AddBuilder(
 		InBaseBuilder
-		.AddConditional(BuiltInComponentTypes->FloatChannel[0], &Translation[0],          ActiveChannelsMask[0])
-		.AddConditional(BuiltInComponentTypes->FloatChannel[1], &Translation[1],          ActiveChannelsMask[1])
-		.AddConditional(BuiltInComponentTypes->FloatChannel[2], &Translation[2],          ActiveChannelsMask[2])
-		.AddConditional(RotationChannel[0],                     &Rotation[0],             ActiveChannelsMask[3])
-		.AddConditional(RotationChannel[1],                     &Rotation[1],             ActiveChannelsMask[4])
-		.AddConditional(RotationChannel[2],                     &Rotation[2],             ActiveChannelsMask[5])
-		.AddConditional(BuiltInComponentTypes->FloatChannel[6], &Scale[0],                ActiveChannelsMask[6])
-		.AddConditional(BuiltInComponentTypes->FloatChannel[7], &Scale[1],                ActiveChannelsMask[7])
-		.AddConditional(BuiltInComponentTypes->FloatChannel[8], &Scale[2],                ActiveChannelsMask[8])
-		.AddConditional(BuiltInComponentTypes->WeightChannel,   &ManualWeight,            EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData())
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[0], &Translation[0], ActiveChannelsMask[0])
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[1], &Translation[1], ActiveChannelsMask[1])
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[2], &Translation[2], ActiveChannelsMask[2])
+		.AddConditional(RotationChannel[0],                      &Rotation[0],    ActiveChannelsMask[3])
+		.AddConditional(RotationChannel[1],                      &Rotation[1],    ActiveChannelsMask[4])
+		.AddConditional(RotationChannel[2],                      &Rotation[2],    ActiveChannelsMask[5])
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[6], &Scale[0],       ActiveChannelsMask[6])
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[7], &Scale[1],       ActiveChannelsMask[7])
+		.AddConditional(BuiltInComponentTypes->DoubleChannel[8], &Scale[2],       ActiveChannelsMask[8])
+		.AddConditional(BuiltInComponentTypes->WeightChannel,    &ManualWeight,   EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData())
 		.AddTag(PropertyTag)
 	);
 }
@@ -520,7 +521,7 @@ EMovieSceneChannelProxyType UMovieScene3DTransformSection::CacheChannelProxy()
 	Channels.Add(Scale[0],       EditorData.MetaData[6], EditorData.ExternalValues[6]);
 	Channels.Add(Scale[1],       EditorData.MetaData[7], EditorData.ExternalValues[7]);
 	Channels.Add(Scale[2],       EditorData.MetaData[8], EditorData.ExternalValues[8]);
-	Channels.Add(ManualWeight,   EditorData.MetaData[9], EditorData.ExternalValues[9]);
+	Channels.Add(ManualWeight,   EditorData.MetaData[9], EditorData.WeightExternalValue);
 
 #else
 
@@ -551,24 +552,24 @@ TSharedPtr<FStructOnScope> UMovieScene3DTransformSection::GetKeyStruct(TArrayVie
 	FRotator StartingRotation;
 	FVector  StartingScale;
 
-	TArrayView<FMovieSceneFloatChannel* const> FloatChannels = ChannelProxy->GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel* const> DoubleChannels = ChannelProxy->GetChannels<FMovieSceneDoubleChannel>();
 
 	TOptional<TTuple<FKeyHandle, FFrameNumber>> LocationKeys[3] = {
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[0], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[1], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[2], KeyHandles)
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[0], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[1], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[2], KeyHandles)
 	};
 
 	TOptional<TTuple<FKeyHandle, FFrameNumber>> RotationKeys[3] = {
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[3], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[4], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[5], KeyHandles)
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[3], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[4], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[5], KeyHandles)
 	};
 
 	TOptional<TTuple<FKeyHandle, FFrameNumber>> ScaleKeys[3] = {
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[6], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[7], KeyHandles),
-		FMovieSceneChannelValueHelper::FindFirstKey(FloatChannels[8], KeyHandles)
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[6], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[7], KeyHandles),
+		FMovieSceneChannelValueHelper::FindFirstKey(DoubleChannels[8], KeyHandles)
 	};
 
 	const int32 AnyLocationKeys = Algo::AnyOf(LocationKeys);
@@ -581,17 +582,17 @@ TSharedPtr<FStructOnScope> UMovieScene3DTransformSection::GetKeyStruct(TArrayVie
 		TSharedRef<FStructOnScope> KeyStruct = MakeShareable(new FStructOnScope(FMovieScene3DTransformKeyStruct::StaticStruct()));
 		auto Struct = (FMovieScene3DTransformKeyStruct*)KeyStruct->GetStructMemory();
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(0), &Struct->Location.X,     LocationKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(1), &Struct->Location.Y,     LocationKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(2), &Struct->Location.Z,     LocationKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(0), &Struct->Location.X,     LocationKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(1), &Struct->Location.Y,     LocationKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(2), &Struct->Location.Z,     LocationKeys[2]));
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(3), &Struct->Rotation.Roll,  RotationKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(4), &Struct->Rotation.Pitch, RotationKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(5), &Struct->Rotation.Yaw,   RotationKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(3), &Struct->Rotation.Roll,  RotationKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(4), &Struct->Rotation.Pitch, RotationKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(5), &Struct->Rotation.Yaw,   RotationKeys[2]));
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(6), &Struct->Scale.X,        ScaleKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(7), &Struct->Scale.Y,        ScaleKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(8), &Struct->Scale.Z,        ScaleKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(6), &Struct->Scale.X,        ScaleKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(7), &Struct->Scale.Y,        ScaleKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(8), &Struct->Scale.Z,        ScaleKeys[2]));
 
 		Struct->KeyStructInterop.SetStartingValues();
 		Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);
@@ -603,9 +604,9 @@ TSharedPtr<FStructOnScope> UMovieScene3DTransformSection::GetKeyStruct(TArrayVie
 		TSharedRef<FStructOnScope> KeyStruct = MakeShareable(new FStructOnScope(FMovieScene3DLocationKeyStruct::StaticStruct()));
 		auto Struct = (FMovieScene3DLocationKeyStruct*)KeyStruct->GetStructMemory();
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(0), &Struct->Location.X,     LocationKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(1), &Struct->Location.Y,     LocationKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(2), &Struct->Location.Z,     LocationKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(0), &Struct->Location.X,     LocationKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(1), &Struct->Location.Y,     LocationKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(2), &Struct->Location.Z,     LocationKeys[2]));
 
 		Struct->KeyStructInterop.SetStartingValues();
 		Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);
@@ -617,9 +618,9 @@ TSharedPtr<FStructOnScope> UMovieScene3DTransformSection::GetKeyStruct(TArrayVie
 		TSharedRef<FStructOnScope> KeyStruct = MakeShareable(new FStructOnScope(FMovieScene3DRotationKeyStruct::StaticStruct()));
 		auto Struct = (FMovieScene3DRotationKeyStruct*)KeyStruct->GetStructMemory();
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(3), &Struct->Rotation.Roll,  RotationKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(4), &Struct->Rotation.Pitch, RotationKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(5), &Struct->Rotation.Yaw,   RotationKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(3), &Struct->Rotation.Roll,  RotationKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(4), &Struct->Rotation.Pitch, RotationKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(5), &Struct->Rotation.Yaw,   RotationKeys[2]));
 
 		Struct->KeyStructInterop.SetStartingValues();
 		Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);
@@ -631,9 +632,9 @@ TSharedPtr<FStructOnScope> UMovieScene3DTransformSection::GetKeyStruct(TArrayVie
 		TSharedRef<FStructOnScope> KeyStruct = MakeShareable(new FStructOnScope(FMovieScene3DScaleKeyStruct::StaticStruct()));
 		auto Struct = (FMovieScene3DScaleKeyStruct*)KeyStruct->GetStructMemory();
 
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(6), &Struct->Scale.X,        ScaleKeys[0]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(7), &Struct->Scale.Y,        ScaleKeys[1]));
-		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneFloatChannel>(8), &Struct->Scale.Z,        ScaleKeys[2]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(6), &Struct->Scale.X,        ScaleKeys[0]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(7), &Struct->Scale.Y,        ScaleKeys[1]));
+		Struct->KeyStructInterop.Add(FMovieSceneChannelValueHelper(ChannelProxy->MakeHandle<FMovieSceneDoubleChannel>(8), &Struct->Scale.Z,        ScaleKeys[2]));
 
 		Struct->KeyStructInterop.SetStartingValues();
 		Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);

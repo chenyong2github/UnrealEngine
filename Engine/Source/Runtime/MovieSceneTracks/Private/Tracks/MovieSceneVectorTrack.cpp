@@ -4,7 +4,7 @@
 #include "Sections/MovieSceneVectorSection.h"
 
 
-UMovieSceneVectorTrack::UMovieSceneVectorTrack( const FObjectInitializer& ObjectInitializer )
+UMovieSceneFloatVectorTrack::UMovieSceneFloatVectorTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
 {
 	NumChannelsUsed = 0;
@@ -12,14 +12,35 @@ UMovieSceneVectorTrack::UMovieSceneVectorTrack( const FObjectInitializer& Object
 }
 
 
-bool UMovieSceneVectorTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+bool UMovieSceneFloatVectorTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
-	return SectionClass == UMovieSceneVectorSection::StaticClass();
+	return SectionClass == UMovieSceneFloatVectorSection::StaticClass();
 }
 
-UMovieSceneSection* UMovieSceneVectorTrack::CreateNewSection()
+UMovieSceneSection* UMovieSceneFloatVectorTrack::CreateNewSection()
 {
-	UMovieSceneVectorSection* NewSection = NewObject<UMovieSceneVectorSection>(this, NAME_None, RF_Transactional);
+	UMovieSceneFloatVectorSection* NewSection = NewObject<UMovieSceneFloatVectorSection>(this, NAME_None, RF_Transactional);
+	NewSection->SetChannelsUsed(NumChannelsUsed);
+	return NewSection;
+}
+
+
+UMovieSceneDoubleVectorTrack::UMovieSceneDoubleVectorTrack( const FObjectInitializer& ObjectInitializer )
+	: Super( ObjectInitializer )
+{
+	NumChannelsUsed = 0;
+	SupportedBlendTypes = FMovieSceneBlendTypeField::All();
+}
+
+
+bool UMovieSceneDoubleVectorTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
+{
+	return SectionClass == UMovieSceneDoubleVectorSection::StaticClass();
+}
+
+UMovieSceneSection* UMovieSceneDoubleVectorTrack::CreateNewSection()
+{
+	UMovieSceneDoubleVectorSection* NewSection = NewObject<UMovieSceneDoubleVectorSection>(this, NAME_None, RF_Transactional);
 	NewSection->SetChannelsUsed(NumChannelsUsed);
 	return NewSection;
 }

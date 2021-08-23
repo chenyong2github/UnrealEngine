@@ -412,6 +412,7 @@ void FChannelCurveModel<ChannelType, ChannelValue, KeyType>::FixupCurve()
 }
 
 // Explicit template instantiation
+template class FChannelCurveModel<FMovieSceneDoubleChannel, FMovieSceneDoubleValue, double>;
 template class FChannelCurveModel<FMovieSceneFloatChannel, FMovieSceneFloatValue, float>;
 template class FChannelCurveModel<FMovieSceneIntegerChannel, int32, int32>;
 template class FChannelCurveModel<FMovieSceneBoolChannel, bool, bool>;

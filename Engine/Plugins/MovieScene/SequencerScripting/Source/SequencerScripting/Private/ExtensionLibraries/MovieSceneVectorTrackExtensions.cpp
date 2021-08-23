@@ -3,7 +3,7 @@
 #include "ExtensionLibraries/MovieSceneVectorTrackExtensions.h"
 #include "Tracks/MovieSceneVectorTrack.h"
 
-void UMovieSceneVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneVectorTrack* Track, int32 InNumChannelsUsed)
+void UMovieSceneFloatVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneFloatVectorTrack* Track, int32 InNumChannelsUsed)
 {
 	Track->Modify();
 
@@ -11,7 +11,21 @@ void UMovieSceneVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneVectorTrack
 }
 
 
-int32 UMovieSceneVectorTrackExtensions::GetNumChannelsUsed(UMovieSceneVectorTrack* Track)
+int32 UMovieSceneFloatVectorTrackExtensions::GetNumChannelsUsed(UMovieSceneFloatVectorTrack* Track)
 {
 	return Track->GetNumChannelsUsed();
 }
+
+void UMovieSceneDoubleVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneDoubleVectorTrack* Track, int32 InNumChannelsUsed)
+{
+	Track->Modify();
+
+	Track->SetNumChannelsUsed(InNumChannelsUsed);
+}
+
+
+int32 UMovieSceneDoubleVectorTrackExtensions::GetNumChannelsUsed(UMovieSceneDoubleVectorTrack* Track)
+{
+	return Track->GetNumChannelsUsed();
+}
+

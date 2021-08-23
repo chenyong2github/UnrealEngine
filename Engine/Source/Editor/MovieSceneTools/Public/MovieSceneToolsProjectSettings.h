@@ -7,6 +7,13 @@
 #include "UObject/Object.h"
 #include "MovieSceneToolsProjectSettings.generated.h"
 
+UENUM()
+enum class EMovieSceneToolsPropertyTrackType
+{
+	FloatTrack,
+	DoubleTrack
+};
+
 USTRUCT()
 struct FMovieSceneToolsPropertyTrackSettings
 {
@@ -33,6 +40,10 @@ struct FMovieSceneToolsFbxSettings
 	/** The property track setting to map to */
 	UPROPERTY(config, EditAnywhere, Category=TrackSettings)
 	FMovieSceneToolsPropertyTrackSettings PropertyPath;
+
+	/** Type of property track to map to */
+	UPROPERTY(config, EditAnywhere, Category=TrackSettings)
+	EMovieSceneToolsPropertyTrackType PropertyType = EMovieSceneToolsPropertyTrackType::FloatTrack;
 };
 
 // Settings for the level sequences

@@ -27,6 +27,7 @@ enum class FFBXControlRigTypeProxyEnum : uint8
 	Integer
 };
 
+struct FMovieSceneDoubleChannel;
 struct FMovieSceneFloatChannel;
 struct FMovieSceneBoolChannel;
 struct FMovieSceneIntegerChannel;
@@ -38,7 +39,8 @@ struct FFBXNodeAndChannels
 	UMovieSceneTrack* MovieSceneTrack;
 	FFBXControlRigTypeProxyEnum ControlType;
 	FString NodeName;
-	TArray< FMovieSceneFloatChannel*> Channels;
+	TArray< FMovieSceneDoubleChannel*> DoubleChannels;
+	TArray< FMovieSceneFloatChannel*> FloatChannels;
 	//will really only have one ever.
 	TArray< FMovieSceneBoolChannel*> BoolChannels;
 	TArray< FMovieSceneIntegerChannel*> IntegerChannels;

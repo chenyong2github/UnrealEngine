@@ -386,7 +386,7 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 
 	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*Params.PropertyDefinition);
 
-	UClass* BlenderClass = UMovieScenePiecewiseFloatBlenderSystem::StaticClass();
+	UClass* BlenderClass = Params.PropertyDefinition->BlenderSystemClass;
 
 	// Ensure contributors all have the necessary blend inputs and tags
 	for (auto ContributorIt = Contributors.CreateConstKeyIterator(Params.PropertyInfoIndex); ContributorIt; ++ContributorIt)
@@ -401,7 +401,10 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		}
 	}
 
-	check(BlenderClass);
+	if (!ensureMsgf(BlenderClass, TEXT("No default blender class specified on property, and no custom blender specified on entities. Falling back to float blender.")))
+	{
+		BlenderClass = UMovieScenePiecewiseFloatBlenderSystem::StaticClass();
+	}
 
 	UMovieSceneBlenderSystem* ExistingBlender = Params.PropertyInfo->Blender.Get();
 	if (ExistingBlender && BlenderClass != ExistingBlender->GetClass())

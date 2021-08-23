@@ -7,6 +7,7 @@
 #include "ISequencer.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
@@ -136,10 +137,10 @@ TRange<double> FMovieSceneTransformTrail::GetEffectiveSectionRange() const
 
 	TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
 
-	TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= uint8(EMSTrailTransformChannel::MaxChannel) + ChannelOffset; ChannelIdx++)
 	{
-		FMovieSceneFloatChannel* Channel = Channels[ChannelIdx];
+		FMovieSceneDoubleChannel* Channel = Channels[ChannelIdx];
 		EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 	}
 

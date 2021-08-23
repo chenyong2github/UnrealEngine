@@ -10,6 +10,7 @@
 #include "EulerTransform.h"
 #include "Styling/SlateColor.h"
 #include "EntitySystem/MovieSceneComponentDebug.h"
+#include "Misc/LargeWorldCoordinates.h"
 
 class USceneComponent;
 
@@ -19,27 +20,49 @@ namespace UE
 namespace MovieScene
 {
 
-
-
+struct FVectorPropertyMetaData
+{
+	uint8 NumChannels = 0;
+};
 
 /** Intermediate type for the vector property system that lets us store how many dimensions the vector should have */
-struct FIntermediateVector
+struct FFloatIntermediateVector
 {
 	float X, Y, Z, W;
 
-	FIntermediateVector()
+	FFloatIntermediateVector()
 		: X(0), Y(0), Z(0), W(0)
 	{}
 
-	FIntermediateVector(float InX, float InY)
+	FFloatIntermediateVector(float InX, float InY)
 		: X(InX), Y(InY), Z(0), W(0)
 	{}
 
-	FIntermediateVector(float InX, float InY, float InZ)
+	FFloatIntermediateVector(float InX, float InY, float InZ)
 		: X(InX), Y(InY), Z(InZ), W(0)
 	{}
 
-	FIntermediateVector(float InX, float InY, float InZ, float InW)
+	FFloatIntermediateVector(float InX, float InY, float InZ, float InW)
+		: X(InX), Y(InY), Z(InZ), W(InW)
+	{}
+};
+struct FDoubleIntermediateVector
+{
+	double X, Y, Z, W;
+
+	FDoubleIntermediateVector()
+		: X(0), Y(0), Z(0), W(0)
+	{}
+
+	FDoubleIntermediateVector(double InX, double InY)
+		: X(InX), Y(InY), Z(0), W(0)
+	{}
+
+	FDoubleIntermediateVector(double InX, double InY, double InZ)
+		: X(InX), Y(InY), Z(InZ), W(0)
+	{}
+
+	FDoubleIntermediateVector(double InX, double InY, double InZ, double InW)
 		: X(InX), Y(InY), Z(InZ), W(InW)
 	{}
 };
@@ -118,13 +141,15 @@ struct FIntermediateColor
 /** Intermediate type used for applying partially animated transforms. Saves us from repteatedly recomposing quaternions from euler angles */
 struct FIntermediate3DTransform
 {
-	float T_X, T_Y, T_Z, R_X, R_Y, R_Z, S_X, S_Y, S_Z;
+	// When LWC is enabled, translations are manipulated as doubles.
+	double T_X, T_Y, T_Z, R_X, R_Y, R_Z, S_X, S_Y, S_Z;
 
 	FIntermediate3DTransform()
-		: T_X(0.f), T_Y(0.f), T_Z(0.f), R_X(0.f), R_Y(0.f), R_Z(0.f), S_X(0.f), S_Y(0.f), S_Z(0.f)
+		: T_X(0.), T_Y(0.), T_Z(0.), R_X(0.), R_Y(0.), R_Z(0.), S_X(0.), S_Y(0.), S_Z(0.)
 	{}
 
-	FIntermediate3DTransform(float InT_X, float InT_Y, float InT_Z, float InR_X, float InR_Y, float InR_Z, float InS_X, float InS_Y, float InS_Z)
+	FIntermediate3DTransform(
+			double InT_X, double InT_Y, double InT_Z, double InR_X, double InR_Y, double InR_Z, double InS_X, double InS_Y, double InS_Z)
 		: T_X(InT_X), T_Y(InT_Y), T_Z(InT_Z), R_X(InR_X), R_Y(InR_Y), R_Z(InR_Z), S_X(InS_X), S_Y(InS_Y), S_Z(InS_Z)
 	{}
 
@@ -134,7 +159,7 @@ struct FIntermediate3DTransform
 		, S_X(InScale.X), S_Y(InScale.Y), S_Z(InScale.Z)
 	{}
 
-	float operator[](int32 Index) const
+	double operator[](int32 Index) const
 	{
 		check(Index >= 0 && Index < 9);
 		return (&T_X)[Index];
@@ -171,13 +196,15 @@ MOVIESCENETRACKS_API void ConvertOperationalProperty(const FColor& InColor, FInt
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FLinearColor& InColor, FIntermediateColor& OutIntermediate);
 MOVIESCENETRACKS_API void ConvertOperationalProperty(const FSlateColor& InColor, FIntermediateColor& OutIntermediate);
 
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector2D& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector4& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector2D& In, FIntermediateVector& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector& In, FIntermediateVector& Out);
-MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector4& In, FIntermediateVector& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector2D& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector3f& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FFloatIntermediateVector& InVector, FVector4& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector2D& In, FFloatIntermediateVector& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector3f& In, FFloatIntermediateVector& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector4& In, FFloatIntermediateVector& Out);
 
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FDoubleIntermediateVector& InVector, FVector3d& Out);
+MOVIESCENETRACKS_API void ConvertOperationalProperty(const FVector3d& In, FDoubleIntermediateVector& Out);
 
 } // namespace MovieScene
 } // namespace UE
