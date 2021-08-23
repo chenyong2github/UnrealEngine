@@ -860,11 +860,33 @@ bool FOpenXRHMD::FVulkanExtensions::GetVulkanDeviceExtensionsRequired(VkPhysical
 
 void FOpenXRHMD::GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData)
 {
-	MotionControllerData.DeviceName = GetSystemName();
+	MotionControllerData.DeviceName = NAME_None;
 	MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
 	MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
 	MotionControllerData.TrackingStatus = ETrackingStatus::NotTracked;
 	MotionControllerData.HandIndex = Hand;
+
+	TArray<int32> Devices;
+	if (EnumerateTrackedDevices(Devices, EXRTrackedDeviceType::Controller) && Devices.IsValidIndex((int32)Hand))
+	{
+		FReadScopeLock SessionLock(SessionHandleMutex);
+		if (Session)
+		{
+			XrInteractionProfileState Profile;
+			Profile.type = XR_TYPE_INTERACTION_PROFILE_STATE;
+			Profile.next = nullptr;
+			if (XR_SUCCEEDED(xrGetCurrentInteractionProfile(Session, GetTrackedDevicePath(Devices[(int32)Hand]), &Profile)) &&
+				Profile.interactionProfile != XR_NULL_PATH)
+			{
+				TArray<char> Path;
+				uint32 PathCount = 0;
+				XR_ENSURE(xrPathToString(Instance, Profile.interactionProfile, 0, &PathCount, nullptr));
+				Path.SetNum(PathCount);
+				XR_ENSURE(xrPathToString(Instance, Profile.interactionProfile, PathCount, &PathCount, Path.GetData()));
+				MotionControllerData.DeviceName = Path.GetData();
+			}
+		}
+	}
 
 	FName HandTrackerName("OpenXRHandTracking");
 	TArray<IHandTracker*> HandTrackers = IModularFeatures::Get().GetModularFeatureImplementations<IHandTracker>(IHandTracker::GetModularFeatureName());
