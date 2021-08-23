@@ -186,7 +186,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		if (bUpdateEditorCells)
 		{
 			UE_LOG(LogWorldPartitionBuilder, Display, TEXT("DataLayer load state changed refreshing editor cells"));
-			WorldPartition->RefreshLoadedEditorCells();
+			WorldPartition->RefreshLoadedEditorCells(false);
 		}
 	}
 		
@@ -228,7 +228,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 					BoundsToLoad.ExpandBy(IterativeCellOverlapSize);
 
 					UE_LOG(LogWorldPartitionBuilder, Verbose, TEXT("Loading Bounds: Min %s, Max %s"), *BoundsToLoad.Min.ToString(), *BoundsToLoad.Max.ToString());
-					WorldPartition->LoadEditorCells(BoundsToLoad);
+					WorldPartition->LoadEditorCells(BoundsToLoad, false);
 					LoadedBounds += BoundsToLoad;
 
 
@@ -239,7 +239,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 
 					if (FWorldPartitionHelpers::HasExceededMaxMemory())
 					{
-						WorldPartition->UnloadEditorCells(LoadedBounds);
+						WorldPartition->UnloadEditorCells(LoadedBounds, false);
 						// Reset Loaded Bounds
 						LoadedBounds.Init();
 
@@ -257,7 +257,7 @@ bool UWorldPartitionBuilder::Run(UWorld* World, FPackageSourceControlHelper& Pac
 		if (LoadingMode == ELoadingMode::EntireWorld)
 		{
 			BoundsToLoad += FBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
-			WorldPartition->LoadEditorCells(BoundsToLoad);
+			WorldPartition->LoadEditorCells(BoundsToLoad, false);
 		}
 
 		return RunInternal(World, BoundsToLoad, PackageHelper);

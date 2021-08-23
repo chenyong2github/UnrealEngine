@@ -127,7 +127,7 @@ bool UProceduralFoliageComponent::ExecuteSimulation(TArray<FDesiredFoliageInstan
 	{
 		FBox Bounds = GetBounds();
 		check(Bounds.IsValid);
-		WorldPartition->LoadEditorCells(Bounds);
+		WorldPartition->LoadEditorCells(Bounds, false);
 	}
 
 	FBodyInstance* BoundsBodyInstance = GetBoundsBodyInstance();

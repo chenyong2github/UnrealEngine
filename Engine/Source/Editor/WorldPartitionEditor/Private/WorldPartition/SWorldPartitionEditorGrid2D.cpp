@@ -160,14 +160,14 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 
 void SWorldPartitionEditorGrid2D::LoadSelectedCells()
 {
-	WorldPartition->LoadEditorCells(SelectBox);
+	WorldPartition->LoadEditorCells(SelectBox, true);
 	GEditor->RedrawLevelEditingViewports();
 	Refresh();
 }
 
 void SWorldPartitionEditorGrid2D::UnloadSelectedCells()
 {
-	WorldPartition->UnloadEditorCells(SelectBox);
+	WorldPartition->UnloadEditorCells(SelectBox, true);
 	GEditor->RedrawLevelEditingViewports();
 	Refresh();
 }

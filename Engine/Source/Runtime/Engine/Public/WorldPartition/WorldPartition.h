@@ -129,10 +129,10 @@ public:
 #if WITH_EDITOR
 	FName GetWorldPartitionEditorName();
 
-	void LoadEditorCells(const FBox& Box);
-	void UnloadEditorCells(const FBox& Box);
+	void LoadEditorCells(const FBox& Box, bool bIsFromUserChange);
+	void UnloadEditorCells(const FBox& Box, bool bIsFromUserChange);
 	bool AreEditorCellsLoaded(const FBox& Box);
-	bool RefreshLoadedEditorCells();
+	bool RefreshLoadedEditorCells(bool bIsFromUserChange);
 
 	// PIE/Game/Cook Methods
 	bool GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate = nullptr);
@@ -232,11 +232,11 @@ private:
 	void UnregisterDelegates();	
 
 #if WITH_EDITOR
-	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded);
+	void UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation);
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	bool ShouldActorBeLoadedByEditorCells(const FWorldPartitionActorDesc* ActorDesc) const;
-	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded);
+	bool UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange);
 
 	void ApplyActorTransform(AActor* Actor, const FTransform& InTransform);
 #endif

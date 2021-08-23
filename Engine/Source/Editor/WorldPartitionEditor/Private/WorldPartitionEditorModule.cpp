@@ -35,7 +35,7 @@ static void OnLoadSelectedWorldPartitionVolumes(TArray<TWeakObjectPtr<AActor>> V
 	for (TWeakObjectPtr<AActor> Actor: Volumes)
 	{
 		AWorldPartitionVolume* WorldPartitionVolume = CastChecked<AWorldPartitionVolume>(Actor.Get());
-		WorldPartitionVolume->LoadIntersectingCells();
+		WorldPartitionVolume->LoadIntersectingCells(true);
 	}
 }
 

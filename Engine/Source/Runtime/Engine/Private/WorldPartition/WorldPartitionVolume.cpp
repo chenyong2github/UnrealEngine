@@ -14,28 +14,20 @@ AWorldPartitionVolume::AWorldPartitionVolume(const FObjectInitializer& ObjectIni
 }
 
 #if WITH_EDITOR
-void AWorldPartitionVolume::LoadIntersectingCells()
+void AWorldPartitionVolume::LoadIntersectingCells(bool bIsFromUserChange)
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
-		WorldPartition->LoadEditorCells(GetIntersectingBounds());
+		WorldPartition->LoadEditorCells(GetStreamingBounds(), bIsFromUserChange);
 	}
 }
 
-void AWorldPartitionVolume::UnloadIntersectingCells()
+void AWorldPartitionVolume::UnloadIntersectingCells(bool bIsFromUserChange)
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
-		WorldPartition->UnloadEditorCells(GetIntersectingBounds());
+		WorldPartition->UnloadEditorCells(GetStreamingBounds(), bIsFromUserChange);
 	}
-}
-
-FBox AWorldPartitionVolume::GetIntersectingBounds() const
-{
-	FVector Origin;
-	FVector Extent;
-	GetActorBounds(false, Origin, Extent);
-	return FBox(Origin - Extent, Origin + Extent);
 }
 #endif
 

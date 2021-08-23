@@ -114,5 +114,6 @@ UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& O
 #if WITH_EDITOR
 	, Bounds(ForceInitToZero)
 	, bLoaded(false)
+	, bLoadedChangedByUserOperation(false)
 #endif
 {}
