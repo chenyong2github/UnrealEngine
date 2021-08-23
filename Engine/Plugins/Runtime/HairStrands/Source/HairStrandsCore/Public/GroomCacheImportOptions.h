@@ -15,6 +15,18 @@ struct HAIRSTRANDSCORE_API FGroomCacheImportSettings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache)
 	bool bImportGroomCache = true;
 
+	/** Starting index to start sampling the animation from */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sampling)
+	int32 FrameStart = 0;
+
+	/** Ending index to stop sampling the animation at */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sampling)
+	int32 FrameEnd = 0;
+
+	/** Skip empty (pre-roll) frames and start importing at the frame which actually contains data */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sampling, meta = (DisplayName = "Skip Empty Frames at Start of Groom Animation"))
+	bool bSkipEmptyFrames = false;
+
 	/** Import or re-import the groom asset from this file */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GroomCache)
 	bool bImportGroomAsset = true;

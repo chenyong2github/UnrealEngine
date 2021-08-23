@@ -120,8 +120,7 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			}
 		}
 
-		// GroomCache options are only shown if there's a valid groom animation
-		GroomCacheImportOptions->ImportSettings.bImportGroomCache = GroomCacheImportOptions->ImportSettings.bImportGroomCache && AnimInfo.IsValid();
+		FGroomCacheImporter::SetupImportSettings(GroomCacheImportOptions->ImportSettings, AnimInfo);
 
 		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
@@ -144,6 +143,8 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		}
 		ImportOptions->SaveConfig();
 	}
+
+	FGroomCacheImporter::ApplyImportSettings(GroomCacheImportOptions->ImportSettings, AnimInfo);
 
 	FScopedSlowTask Progress((float) 1, LOCTEXT("ImportHairAsset", "Importing hair asset..."), true);
 	Progress.MakeDialog(true);
@@ -191,9 +192,6 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 
 	if (GroomCacheImportOptions->ImportSettings.bImportGroomCache && GroomAssetForCache)
 	{
-		// Compute the duration as it is not known yet
-		AnimInfo.Duration = AnimInfo.NumFrames * AnimInfo.SecondsPerFrame;
-
 		TArray<UGroomCache*> GroomCaches = FGroomCacheImporter::ImportGroomCache(Filename, SelectedTranslator, AnimInfo, HairImportContext, GroomAssetForCache);
 
 		// Setup asset import data
