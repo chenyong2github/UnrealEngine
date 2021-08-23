@@ -10,12 +10,34 @@
 #include "MetasoundTrace.h"
 #include "MetasoundTrigger.h"
 
-#ifndef METASOUND_GENERATOR_BUILD_GRAPH_ASYNC
-#define METASOUND_GENERATOR_BUILD_GRAPH_ASYNC 0
-#endif
 
 namespace Metasound
 {
+	namespace ConsoleVariables
+	{
+		static bool bEnableAsyncMetaSoundGeneratorBuilder = true;
+	}
+}
+
+FAutoConsoleVariableRef CVarMetaSoundEnableAsyncGeneratorBuilder(
+	TEXT("au.MetaSound.EnableAsyncGeneratorBuilder"),
+	Metasound::ConsoleVariables::bEnableAsyncMetaSoundGeneratorBuilder,
+	TEXT("Enables async building of FMetaSoundGenerators\n")
+	TEXT("Default: true"),
+	ECVF_Default);
+
+
+namespace Metasound
+{
+	void FMetasoundGeneratorInitParams::Release()
+	{
+		Graph.Reset();
+		Environment = {};
+		MetaSoundName = {};
+		AudioOutputNames = {};
+		OnPlayInputName = {};
+		IsFinishedOutputName = {};
+	}
 
 	FAsyncMetaSoundBuilder::FAsyncMetaSoundBuilder(FMetasoundGenerator* InGenerator, FMetasoundGeneratorInitParams&& InInitParams, bool bInTriggerGenerator)
 		: Generator(InGenerator)
@@ -81,6 +103,8 @@ namespace Metasound
 			// Otherwise, generator will continually wait for a new generator.
 			Generator->SetPendingGraphBuildFailed();
 		}
+
+		InitParams.Release();
 	}
 
 	FMetasoundGenerator::FMetasoundGenerator(FMetasoundGeneratorInitParams&& InParams)
@@ -101,15 +125,19 @@ namespace Metasound
 
 		BuilderTask = MakeUnique<FBuilderTask>(this, MoveTemp(InParams), true /* bTriggerGenerator */);
 		
-#if METASOUND_GENERATOR_BUILD_GRAPH_ASYNC
-		BuilderTask->StartBackgroundTask(GBackgroundPriorityThreadPool);
-		
-#else
-		BuilderTask->StartSynchronousTask();
-		BuilderTask = nullptr;
-		UpdateGraphIfPending();
-		bIsWaitingForFirstGraph = false;
-#endif
+		if (Metasound::ConsoleVariables::bEnableAsyncMetaSoundGeneratorBuilder)
+		{
+			// Build operator asynchronously
+			BuilderTask->StartBackgroundTask(GBackgroundPriorityThreadPool);
+		}
+		else
+		{
+			// Build operator synchronously
+			BuilderTask->StartSynchronousTask();
+			BuilderTask = nullptr;
+			UpdateGraphIfPending();
+			bIsWaitingForFirstGraph = false;
+		}
 	}
 
 	FMetasoundGenerator::~FMetasoundGenerator()

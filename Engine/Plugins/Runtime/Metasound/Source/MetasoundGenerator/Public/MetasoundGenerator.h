@@ -16,7 +16,7 @@
 namespace Metasound
 {
 	// Struct needed for building the metasound graph
-	struct FMetasoundGeneratorInitParams
+	struct METASOUNDGENERATOR_API FMetasoundGeneratorInitParams
 	{
 		FOperatorSettings OperatorSettings;
 		TUniquePtr<IGraph> Graph;
@@ -25,6 +25,8 @@ namespace Metasound
 		TArray<FString> AudioOutputNames;
 		FString OnPlayInputName;
 		FString IsFinishedOutputName;
+
+		void Release();
 	};
 
 	struct FMetasoundGeneratorData

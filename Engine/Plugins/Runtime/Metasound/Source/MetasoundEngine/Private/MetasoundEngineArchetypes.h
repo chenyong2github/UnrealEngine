@@ -22,7 +22,7 @@ namespace Metasound
 			const FString& GetOnPlayInputName();
 			const FString& GetAudioOutputName();
 			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceHandleVariableName();
+			const FString& GetAudioDeviceIDVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 		}
@@ -34,7 +34,7 @@ namespace Metasound
 			const FString& GetOnPlayInputName();
 			const FString& GetAudioOutputName();
 			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceHandleVariableName();
+			const FString& GetAudioDeviceIDVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetGraphName();
@@ -47,7 +47,7 @@ namespace Metasound
 			const FString& GetOnPlayInputName();
 			const FString& GetAudioOutputName();
 			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceHandleVariableName();
+			const FString& GetAudioDeviceIDVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
@@ -62,7 +62,7 @@ namespace Metasound
 			const FString& GetLeftAudioOutputName();
 			const FString& GetRightAudioOutputName();
 			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceHandleVariableName();
+			const FString& GetAudioDeviceIDVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
@@ -74,7 +74,7 @@ namespace Metasound
 		{
 			const FString& GetOnPlayInputName();
 			const FString& GetIsFinishedOutputName();
-			const FString& GetAudioDeviceHandleVariableName();
+			const FString& GetAudioDeviceIDVariableName();
 			const FString& GetSoundUniqueIdName();
 			const FString& GetIsPreviewSoundName();
 			const FString& GetInstanceIDName();
