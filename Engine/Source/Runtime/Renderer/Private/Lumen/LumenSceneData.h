@@ -444,9 +444,12 @@ public:
 	void ForceEvictEntireCache();
 	bool EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<int32, SceneRenderingAllocator>& DirtyCards);
 
+	uint32 GetSurfaceCacheUpdateFrameIndex() const;
+	void IncrementSurfaceCacheUpdateFrameIndex();
+
 	const FLumenPageTableEntry& GetPageTableEntry(int32 PageTableIndex) const { return PageTable[PageTableIndex]; }
 	FLumenPageTableEntry& GetPageTableEntry(int32 PageTableIndex) { return PageTable[PageTableIndex]; }
-	FLumenPageTableEntry& MapSurfaceCachePage(FLumenSurfaceMipMap& MipMap, int32 PageTableIndex);
+	void MapSurfaceCachePage(const FLumenSurfaceMipMap& MipMap, int32 PageTableIndex);
 	int32 GetNumCardPages() const { return PageTable.Num(); }
 	FIntPoint GetPhysicalAtlasSize() const { return PhysicalAtlasSize; }
 	FIntPoint GetRadiosityAtlasSize() const;
@@ -465,6 +468,10 @@ private:
 	int32 AddMeshCardsFromBuildData(int32 PrimitiveGroupIndex, const FMatrix& LocalToWorld, const FMeshCardsBuildData& MeshCardsBuildData, float ResolutionScale);
 
 	void UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex);
+
+	// Frame index used to time-splice various surface cache update operations
+	// 0 is a special value, and means that surface contains default data
+	uint32 SurfaceCacheUpdateFrameIndex = 1;
 
 	// Virtual surface cache page table
 	FIntPoint PhysicalAtlasSize = FIntPoint(0, 0);

@@ -125,7 +125,7 @@ FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackAllocatorUAV(FRDGBu
 		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1),
 		TEXT("Lumen.DummyFeedbackAllocator"));
 
-	return GraphBuilder.CreateUAV(DummyBufferAllocator, PF_R32_UINT);
+	return GraphBuilder.CreateUAV(DummyBufferAllocator, ERDGUnorderedAccessViewFlags::SkipBarrier);
 }
 
 FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackUAV(FRDGBuilder& GraphBuilder) const
@@ -134,7 +134,7 @@ FRDGBufferUAVRef FLumenSurfaceCacheFeedback::GetDummyFeedbackUAV(FRDGBuilder& Gr
 		FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32) * Lumen::FeedbackBufferElementStride, 1),
 		TEXT("Lumen.DummyFeedback"));
 
-	return GraphBuilder.CreateUAV(DummyBuffer, PF_R32G32_UINT);
+	return GraphBuilder.CreateUAV(DummyBuffer, ERDGUnorderedAccessViewFlags::SkipBarrier);
 }
 
 // Setups FBuildFeedbackHashTableCS arguments to run one lane per feedback element

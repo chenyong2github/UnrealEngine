@@ -29,24 +29,30 @@ struct FLumenCardData
 	bool bVisible;
 };
 
+#if USE_LUMEN_CARD_DATA_BUFFER
+	StructuredBuffer<float4> LumenCardDataBuffer;	
+#else
+	#define LumenCardDataBuffer LumenCardScene.CardData
+#endif
+
 // Stride of a single cards's data in float4's, must match C++
 #define LUMEN_CARD_DATA_STRIDE 7
-#define LUMEN_CARD_PAGE_DATA_STRIDE 4
+#define LUMEN_CARD_PAGE_DATA_STRIDE 5
 
-void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> CardBuffer, inout FLumenCardData CardData)
+// Fetch from scene card buffer
+// Note: layout must match FLumenCardData in C++
+FLumenCardData GetLumenCardData(uint CardId)
 {
-	// Note: layout must match FLumenCardData in C++
-	// Relying on optimizer to remove unused loads
+	FLumenCardData CardData = (FLumenCardData)0;
 
-	CardData = (FLumenCardData)0;
-
-	float4 Vector0 = CardBuffer[BaseOffset + 0];
-	float4 Vector1 = CardBuffer[BaseOffset + 1];
-	float4 Vector2 = CardBuffer[BaseOffset + 2];
-	float4 Vector3 = CardBuffer[BaseOffset + 3];
-	float4 Vector4 = CardBuffer[BaseOffset + 4];
-	float4 Vector5 = CardBuffer[BaseOffset + 5];
-	float4 Vector6 = CardBuffer[BaseOffset + 6];
+	uint BaseOffset = CardId * LUMEN_CARD_DATA_STRIDE;
+	float4 Vector0 = LumenCardDataBuffer[BaseOffset + 0];
+	float4 Vector1 = LumenCardDataBuffer[BaseOffset + 1];
+	float4 Vector2 = LumenCardDataBuffer[BaseOffset + 2];
+	float4 Vector3 = LumenCardDataBuffer[BaseOffset + 3];
+	float4 Vector4 = LumenCardDataBuffer[BaseOffset + 4];
+	float4 Vector5 = LumenCardDataBuffer[BaseOffset + 5];
+	float4 Vector6 = LumenCardDataBuffer[BaseOffset + 6];
 
 	CardData.WorldToLocalRotation[0] = Vector0.xyz;
 	CardData.WorldToLocalRotation[1] = Vector1.xyz;
@@ -67,30 +73,6 @@ void GetLumenCardSharedDataInternal(uint BaseOffset, StructuredBuffer<float4> Ca
 
 	CardData.MeshCardsBoundsCenter = Vector5.xyz;
 	CardData.MeshCardsBoundsExtent = Vector6.xyz;
-}
-
-bool IsCardVisible(uint CardId)
-{
-	return LumenCardScene.CardData[CardId * LUMEN_CARD_DATA_STRIDE + 3].y > 0.0f;
-}
-
-// Fetch from scene card buffer
-FLumenCardData GetLumenCardData(uint CardId) 
-{
-	FLumenCardData CardData;
-	uint BaseOffset = CardId * LUMEN_CARD_DATA_STRIDE;
-	
-	GetLumenCardSharedDataInternal(BaseOffset, LumenCardScene.CardData, CardData);
-
-	return CardData;
-}
-
-FLumenCardData GetLumenCardData(uint CardId, StructuredBuffer<float4> CardBuffer) 
-{
-	FLumenCardData CardData;
-	uint BaseOffset = CardId * LUMEN_CARD_DATA_STRIDE;
-	
-	GetLumenCardSharedDataInternal(BaseOffset, CardBuffer, CardData);
 
 	return CardData;
 }
@@ -103,18 +85,29 @@ struct FLumenCardPageData
 	float4 PhysicalAtlasUVRect;
 	float2 CardUVTexelScale;
 	float2 PhysicalAtlasUVTexelScale;
+
+	uint LastDirectLightingUpdateFrameIndex;
+	uint LastIndirectLightingUpdateFrameIndex;
 };
 
-void GetLumenCardPageInternal(uint BaseOffset, StructuredBuffer<float4> CardPageBuffer, inout FLumenCardPageData CardPageData)
+RWStructuredBuffer<float4> RWLumenCardPageDataBuffer;
+#if USE_RW_LUMEN_CARD_PAGE_DATA_BUFFER
+	#define LumenCardPageDataBuffer RWLumenCardPageDataBuffer
+#else
+	#define LumenCardPageDataBuffer LumenCardScene.CardPageData
+#endif
+
+// Note: layout must match FLumenCardPageData in C++
+FLumenCardPageData GetLumenCardPageData(uint CardPageId)
 {
-	// Note: layout must match FLumenCardPageData in C++
+	FLumenCardPageData CardPageData = (FLumenCardPageData) 0;
 
-	CardPageData = (FLumenCardPageData) 0;
-
-	float4 Vector0 = CardPageBuffer[BaseOffset + 0];
-	float4 Vector1 = CardPageBuffer[BaseOffset + 1];
-	float4 Vector2 = CardPageBuffer[BaseOffset + 2];
-	float4 Vector3 = CardPageBuffer[BaseOffset + 3];
+	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
+	float4 Vector0 = LumenCardPageDataBuffer[BaseOffset + 0];
+	float4 Vector1 = LumenCardPageDataBuffer[BaseOffset + 1];
+	float4 Vector2 = LumenCardPageDataBuffer[BaseOffset + 2];
+	float4 Vector3 = LumenCardPageDataBuffer[BaseOffset + 3];
+	float4 Vector4 = LumenCardPageDataBuffer[BaseOffset + 4];
 
 	CardPageData.CardIndex = asuint(Vector0.x);
 	CardPageData.SizeInTexels = Vector0.zw;
@@ -122,78 +115,26 @@ void GetLumenCardPageInternal(uint BaseOffset, StructuredBuffer<float4> CardPage
 	CardPageData.PhysicalAtlasUVRect = Vector2;
 	CardPageData.CardUVTexelScale = Vector3.xy;
 	CardPageData.PhysicalAtlasUVTexelScale = Vector3.zw;
-}
 
-// Fetch from scene card buffer
-FLumenCardPageData GetLumenCardPageData(uint CardPageId)
-{
-	FLumenCardPageData CardPageData;
-	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
-
-	GetLumenCardPageInternal(BaseOffset, LumenCardScene.CardPageData, CardPageData);
+	CardPageData.LastDirectLightingUpdateFrameIndex = asuint(Vector4.x);
+	CardPageData.LastIndirectLightingUpdateFrameIndex = asuint(Vector4.y);
 
 	return CardPageData;
 }
 
-FLumenCardPageData GetLumenCardPageData(uint CardPageId, StructuredBuffer<float4> CardPageBuffer)
+// Store only card page update data
+void SetCardPageUpdateData(uint CardPageId, FLumenCardPageData CardPageData)
 {
-	FLumenCardPageData CardPageData;
+	// Note: layout must match FLumenCardPageData in C++
+
+	uint4 Vector4;
+	Vector4.x = CardPageData.LastDirectLightingUpdateFrameIndex;
+	Vector4.y = CardPageData.LastIndirectLightingUpdateFrameIndex;
+	Vector4.z = 0;
+	Vector4.w = 0;
+
 	uint BaseOffset = CardPageId * LUMEN_CARD_PAGE_DATA_STRIDE;
-
-	GetLumenCardPageInternal(BaseOffset, CardPageBuffer, CardPageData);
-
-	return CardPageData;
-}
-
-float3 TransformLocalToAxis(uint AxisIndex, float3 LocalPosition)
-{
-	// Local to Axis
-	// 0: xyz = x, y, z
-	// 1: xyz = z, y, -x
-	// 2: xyz = x, -z, y
-	// Note: must match C++ FCardRenderData::GetWorldToLocalRotation
-
-	float3 FacePosition = LocalPosition;
-
-	if (AxisIndex == 1)
-	{
-		FacePosition = float3(FacePosition.zy, -FacePosition.x);
-	}
-	else if (AxisIndex == 2)
-	{		
-		FacePosition = float3(FacePosition.x, -FacePosition.z, FacePosition.y);
-	}
-
-	return FacePosition;
-}
-
-float3 TransformFaceToLocal(uint FaceIndex, float3 FacePosition)
-{
-	if (FaceIndex & 1)
-	{
-		FacePosition.yz = -FacePosition.yz;
-	}
-
-	float3 LocalPosition = FacePosition;
-
-	// Axis to Local
-	// 0: xyz = x, y, z
-	// 1: xyz = -z, y, x
-	// 2: xyz = x, z, -y
-	// Note: must match C++ FCardRenderData::GetWorldToLocalRotation
-
-	uint AxisIndex = FaceIndex / 2;
-
-	if (AxisIndex == 1)
-	{
-		LocalPosition = float3(-FacePosition.z, FacePosition.y, FacePosition.x);
-	}
-	else if (AxisIndex == 2)
-	{		
-		LocalPosition = float3(FacePosition.x, FacePosition.z, -FacePosition.y);
-	}
-
-	return LocalPosition;
+	RWLumenCardPageDataBuffer[BaseOffset + 4] = asfloat(Vector4);
 }
 
 struct FCardVSToPS

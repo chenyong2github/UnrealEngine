@@ -81,11 +81,11 @@ FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheFreeze(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenSurfaceCacheForceUpdateFrame = -1;
-FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheForceUpdateFrame(
-	TEXT("r.LumenScene.SurfaceCache.ForceUpdateFrame"),
-	GLumenSurfaceCacheForceUpdateFrame,
-	TEXT("Keep updating the same subset of surface cache for debugging.\n"),
+int32 GLumenSurfaceCacheFreezeUpdateFrame = 0;
+FAutoConsoleVariableRef CVarLumenSceneSurfaceCacheFreezeUpdateFrame(
+	TEXT("r.LumenScene.SurfaceCache.FreezeUpdateFrame"),
+	GLumenSurfaceCacheFreezeUpdateFrame,
+	TEXT("Keep updating the same subset of surface cache for debugging and profiling.\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -113,11 +113,11 @@ FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneCardCaptureAtlasFactor = 4;
-FAutoConsoleVariableRef CVarLumenSceneCardCapturesAtlasFactor(
-	TEXT("r.LumenScene.SurfaceCache.CardCaptureAtlasFactor"),
-	GLumenSceneCardCaptureAtlasFactor,
-	TEXT("Controls the size of a transient card capture atlas."),
+int32 GLumenSceneCardCaptureFactor = 16;
+FAutoConsoleVariableRef CVarLumenSceneCardCaptureFactor(
+	TEXT("r.LumenScene.SurfaceCache.CardCaptureFactor"),
+	GLumenSceneCardCaptureFactor,
+	TEXT("Controls how much texels can be captured per frame. Texels = SurfaceCacheTexels / Factor."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -244,6 +244,11 @@ bool Lumen::IsSurfaceCacheFrozen()
 	return GLumenSurfaceCacheFreeze != 0;
 }
 
+bool Lumen::IsSurfaceCacheUpdateFrameFrozen()
+{
+	return GLumenSurfaceCacheFreezeUpdateFrame != 0;
+}
+
 namespace Lumen
 {
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
@@ -362,6 +367,23 @@ int32 GetMaxTileCapturesPerFrame()
 	}
 
 	return GetMaxLumenSceneCardCapturesPerFrame();
+}
+
+uint32 FLumenSceneData::GetSurfaceCacheUpdateFrameIndex() const
+{
+	return SurfaceCacheUpdateFrameIndex;
+}
+
+void FLumenSceneData::IncrementSurfaceCacheUpdateFrameIndex()
+{
+	if (!Lumen::IsSurfaceCacheUpdateFrameFrozen())
+	{
+		++SurfaceCacheUpdateFrameIndex;
+		if (SurfaceCacheUpdateFrameIndex == 0)
+		{
+			++SurfaceCacheUpdateFrameIndex;
+		}
+	}
 }
 
 DECLARE_GPU_STAT(LumenSceneUpdate);
@@ -1189,11 +1211,10 @@ float ComputeMaxCardUpdateDistanceFromCamera()
 	float MaxCardDistanceFromCamera = 0.0f;
 
 	// Max voxel clipmap extent
-	extern float GLumenSceneFirstClipmapWorldExtent;
 	extern int32 GLumenSceneClipmapResolution;
 	if (GetNumLumenVoxelClipmaps() > 0 && GLumenSceneClipmapResolution > 0)
 	{
-		const float LastClipmapExtent = GLumenSceneFirstClipmapWorldExtent * (float)(1 << (GetNumLumenVoxelClipmaps() - 1));
+		const float LastClipmapExtent = Lumen::GetFirstClipmapWorldExtent() * (float)(1 << (GetNumLumenVoxelClipmaps() - 1));
 		MaxCardDistanceFromCamera = LastClipmapExtent;
 	}
 
@@ -1278,27 +1299,32 @@ void ProcessLumenSurfaceCacheRequests(
 					for (int32 LocalPageIndex = 0; LocalPageIndex < MipMap.SizeInPagesX * MipMap.SizeInPagesY; ++LocalPageIndex)
 					{
 						const int32 PageIndex = MipMap.GetPageTableIndex(LocalPageIndex);
-						FLumenPageTableEntry& PageTableEntry = LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
-						ensure(PageTableEntry.IsMapped());
+						const FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
 
-						// Allocate space in temporary allocation atlas
-						FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
-						CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
-						ensure(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+						if (!PageTableEntry.IsMapped())
+						{
+							LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
+							check(PageTableEntry.IsMapped());
 
-						const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
+							// Allocate space in temporary allocation atlas
+							FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
+							CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
+							check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
 
-						CardPagesToRender.Add(FCardPageRenderData(
-							MainView,
-							Card,
-							PageTableEntry.CardUVRect,
-							CardCaptureAllocation.PhysicalAtlasRect,
-							PageTableEntry.PhysicalAtlasRect,
-							MeshCardsElement.PrimitiveGroupIndex,
-							Request.CardIndex,
-							PageIndex));
+							const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
 
-						LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+							CardPagesToRender.Add(FCardPageRenderData(
+								MainView,
+								Card,
+								PageTableEntry.CardUVRect,
+								CardCaptureAllocation.PhysicalAtlasRect,
+								PageTableEntry.PhysicalAtlasRect,
+								MeshCardsElement.PrimitiveGroupIndex,
+								Request.CardIndex,
+								PageIndex));
+
+							LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+						}
 					}
 
 					DirtyCards.Add(Request.CardIndex);
@@ -1357,29 +1383,34 @@ void ProcessLumenSurfaceCacheRequests(
 
 				FLumenSurfaceMipMap& MipMap = Card.GetMipMap(VirtualPageIndex.ResLevel);
 				const int32 PageIndex = MipMap.GetPageTableIndex(VirtualPageIndex.LocalPageIndex);
-				FLumenPageTableEntry& PageTableEntry = LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
-				ensure(PageTableEntry.IsMapped());
+				FLumenPageTableEntry& PageTableEntry = LumenSceneData.GetPageTableEntry(PageIndex);
 
-				// Allocate space in temporary allocation atlas
-				FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
-				CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
-				ensure(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
+				if (!PageTableEntry.IsMapped())
+				{
+					LumenSceneData.MapSurfaceCachePage(MipMap, PageIndex);
+					check(PageTableEntry.IsMapped());
 
-				const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
+					// Allocate space in temporary allocation atlas
+					FLumenSurfaceCacheAllocator::FAllocation CardCaptureAllocation;
+					CaptureAtlasAllocator.Allocate(PageTableEntry, CardCaptureAllocation);
+					check(CardCaptureAllocation.PhysicalPageCoord.X >= 0);
 
-				CardPagesToRender.Add(FCardPageRenderData(
-					MainView,
-					Card,
-					PageTableEntry.CardUVRect,
-					CardCaptureAllocation.PhysicalAtlasRect,
-					PageTableEntry.PhysicalAtlasRect,
-					MeshCardsElement.PrimitiveGroupIndex,
-					VirtualPageIndex.CardIndex,
-					PageIndex));
+					const FLumenMeshCards& MeshCardsElement = LumenSceneData.MeshCards[Card.MeshCardsIndex];
 
-				LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+					CardPagesToRender.Add(FCardPageRenderData(
+						MainView,
+						Card,
+						PageTableEntry.CardUVRect,
+						CardCaptureAllocation.PhysicalAtlasRect,
+						PageTableEntry.PhysicalAtlasRect,
+						MeshCardsElement.PrimitiveGroupIndex,
+						VirtualPageIndex.CardIndex,
+						PageIndex));
 
-				DirtyCards.Add(VirtualPageIndex.CardIndex);
+					LumenCardRenderer.NumCardTexelsToCapture += PageTableEntry.PhysicalAtlasRect.Area();
+
+					DirtyCards.Add(VirtualPageIndex.CardIndex);
+				}
 			}
 		}
 	}
@@ -1845,10 +1876,15 @@ END_SHADER_PARAMETER_STRUCT()
 
 FIntPoint FLumenSceneData::GetCardCaptureAtlasSizeInPages() const
 {
-	return FMath::DivideAndRoundUp<FIntPoint>(PhysicalAtlasSize, Lumen::PhysicalPageSize * FMath::Clamp(GLumenSceneCardCaptureAtlasFactor, 1, 16));
+	const float MultPerComponent = 1.0f / FMath::Sqrt(FMath::Clamp(GLumenSceneCardCaptureFactor, 1.0f, 1024.0f));
+
+	FIntPoint CaptureAtlasSizeInPages;
+	CaptureAtlasSizeInPages.X = FMath::DivideAndRoundUp<uint32>(PhysicalAtlasSize.X * MultPerComponent + 0.5f, Lumen::PhysicalPageSize);
+	CaptureAtlasSizeInPages.Y = FMath::DivideAndRoundUp<uint32>(PhysicalAtlasSize.Y * MultPerComponent + 0.5f, Lumen::PhysicalPageSize);
+	return CaptureAtlasSizeInPages;
 }
 
-FIntPoint FLumenSceneData::GetCardCaptureAtlasSize() const
+FIntPoint FLumenSceneData::GetCardCaptureAtlasSize() const 
 {
 	return GetCardCaptureAtlasSizeInPages() * Lumen::PhysicalPageSize;
 }
@@ -1888,55 +1924,6 @@ void AllocatedCardCaptureAtlas(FRDGBuilder& GraphBuilder, FIntPoint CardCaptureA
 			FClearValueBinding::DepthZero,
 			TexCreate_ShaderResource | TexCreate_DepthStencilTargetable | TexCreate_NoFastClear),
 		TEXT("Lumen.CardCaptureDepthStencilAtlas"));
-}
-
-void UploadCardPagesToRenderIndexBuffers(
-	FRDGBuilder& GraphBuilder,
-	const TArray<FCardPageRenderData, SceneRenderingAllocator>& CardPagesToRender,
-	FLumenCardRenderer& LumenCardRenderer)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(UploadCardPagesToRenderIndexBuffers);
-
-	{
-		if (CardPagesToRender.Num())
-		{
-			LumenCardRenderer.CardPagesToRenderIndexBuffer = GraphBuilder.CreateBuffer(
-				FRDGBufferDesc::CreateUploadDesc(sizeof(uint32), CardPagesToRender.Num()),
-				TEXT("Lumen.CardPagesToRenderIndexBuffer"));
-
-			FRDGUploadData<int32> CardPageIds(GraphBuilder, CardPagesToRender.Num());
-
-			for (int32 CardPageIndex = 0; CardPageIndex < CardPagesToRender.Num(); ++CardPageIndex)
-			{
-				CardPageIds[CardPageIndex] = CardPagesToRender[CardPageIndex].PageTableIndex;
-			}
-
-			GraphBuilder.QueueBufferUpload(LumenCardRenderer.CardPagesToRenderIndexBuffer, CardPageIds);
-		}
-		else
-		{
-			LumenCardRenderer.CardPagesToRenderIndexBuffer = GSystemTextures.GetDefaultBuffer(GraphBuilder, 4);
-		}
-	}
-
-	{
-		const uint32 NumHashMapUInt32 = FLumenCardRenderer::NumCardPagesToRenderHashMapBucketUInt32;
-		const uint32 NumHashMapBytes = 4 * NumHashMapUInt32;
-		const uint32 NumHashMapBuckets = 32 * NumHashMapUInt32;
-
-		LumenCardRenderer.CardPagesToRenderHashMap.Init(0, NumHashMapBuckets);
-
-		for (const FCardPageRenderData& CardPageRenderData : LumenCardRenderer.CardPagesToRender)
-		{
-			ensure(CardPageRenderData.PageTableIndex >= 0);
-			LumenCardRenderer.CardPagesToRenderHashMap[CardPageRenderData.PageTableIndex % NumHashMapBuckets] = 1;
-		}
-
-		LumenCardRenderer.CardPagesToRenderHashMapBuffer =
-			CreateUploadBuffer(GraphBuilder, TEXT("Lumen.CardPagesToRenderHashMapBuffer"),
-				sizeof(uint32), NumHashMapUInt32,
-				LumenCardRenderer.CardPagesToRenderHashMap.GetData(), NumHashMapBytes, ERDGInitialDataFlags::NoCopy);
-	}
 }
 
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
@@ -2367,14 +2354,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				}
 			}
 
-			UploadCardPagesToRenderIndexBuffers(GraphBuilder, CardPagesToRender, LumenCardRenderer);
-
 			UpdateLumenSurfaceCacheAtlas(GraphBuilder, View, CardPagesToRender, CardCaptureRectBufferSRV, CardCaptureAtlas);
-		}
-		else
-		{
-			// Create empty buffers if nothing gets rendered this frame
-			UploadCardPagesToRenderIndexBuffers(GraphBuilder, CardPagesToRender, LumenCardRenderer);
 		}
 
 		const float TimeElapsed = FPlatformTime::Seconds() - StartTime;

@@ -191,7 +191,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 	FRDGTextureRef OpacityAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.OpacityAtlas);
 	FRDGTextureRef NormalAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.NormalAtlas);
 	FRDGTextureRef EmissiveAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.EmissiveAtlas);
+	FRDGTextureRef DirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.DirectLightingAtlas);
 	FRDGTextureRef IndirectLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.IndirectLightingAtlas);
+	FRDGTextureRef FinalLightingAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.FinalLightingAtlas);
 
 	// Create rect buffer
 	FRDGBufferRef SurfaceCacheRectBuffer;
@@ -386,7 +388,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		}
 	}
 
-	// Clear indirect lighting before it will be used as an input to the radiosity pass
+	// Clear indirect lighting for newly captured cards (separate pass, as it can be downsampled)
 	if (Lumen::IsRadiosityEnabled())
 	{
 		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
@@ -394,7 +396,9 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 		PassParameters->RenderTargets[0] = FRenderTargetBinding(IndirectLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
 		PassParameters->PS.View = View.ViewUniformBuffer;
 
-		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>();
+		FClearLumenCardsPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(Lumen::IsRadiosityEnabled() ? 2 : 1);
+		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
 
 		FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,
 			View.ShaderMap,
@@ -413,12 +417,42 @@ void FDeferredShadingSceneRenderer::UpdateLumenSurfaceCacheAtlas(
 			Lumen::GetRadiosityDownsampleFactor());
 	}
 
+	// Clear lighting for newly captured cards
+	{
+		FClearLumenRectsParameters* PassParameters = GraphBuilder.AllocParameters<FClearLumenRectsParameters>();
+
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(DirectLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
+		PassParameters->RenderTargets[1] = FRenderTargetBinding(FinalLightingAtlas, ERenderTargetLoadAction::ENoAction, 0);
+		PassParameters->PS.View = View.ViewUniformBuffer;
+
+		FClearLumenCardsPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(2);
+		auto PixelShader = View.ShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
+
+		FPixelShaderUtils::AddRasterizeToRectsPass<FClearLumenCardsPS>(GraphBuilder,
+			View.ShaderMap,
+			RDG_EVENT_NAME("Clear Lighting"),
+			PixelShader,
+			PassParameters,
+			LumenSceneData.GetPhysicalAtlasSize(),
+			SurfaceCacheRectBufferSRV,
+			CardPagesToRender.Num(),
+			/*BlendState*/ nullptr,
+			/*RasterizerState*/ nullptr,
+			/*DepthStencilState*/ nullptr,
+			/*StencilRef*/ 0,
+			/*TextureSize*/ LumenSceneData.GetPhysicalAtlasSize(),
+			/*RectUVBufferSRV*/ CardCaptureRectBufferSRV);
+	}
+
 	LumenSceneData.DepthAtlas = GraphBuilder.ConvertToExternalTexture(DepthAtlas);
 	LumenSceneData.AlbedoAtlas = GraphBuilder.ConvertToExternalTexture(AlbedoAtlas);
 	LumenSceneData.OpacityAtlas = GraphBuilder.ConvertToExternalTexture(OpacityAtlas);
 	LumenSceneData.NormalAtlas = GraphBuilder.ConvertToExternalTexture(NormalAtlas);
 	LumenSceneData.EmissiveAtlas = GraphBuilder.ConvertToExternalTexture(EmissiveAtlas);
+	LumenSceneData.DirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(DirectLightingAtlas);
 	LumenSceneData.IndirectLightingAtlas = GraphBuilder.ConvertToExternalTexture(IndirectLightingAtlas);
+	LumenSceneData.FinalLightingAtlas = GraphBuilder.ConvertToExternalTexture(FinalLightingAtlas);
 }
 
 class FClearCompressedAtlasCS : public FGlobalShader

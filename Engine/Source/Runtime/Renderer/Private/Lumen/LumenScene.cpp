@@ -22,7 +22,7 @@ class FLumenCardPageGPUData
 {
 public:
 	// Must match usf
-	enum { DataStrideInFloat4s = 4 };
+	enum { DataStrideInFloat4s = 5 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
 
 	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, FVector2D InvPhysicalAtlasSize, FVector4* RESTRICT OutData)
@@ -44,7 +44,9 @@ public:
 		OutData[3].Z = InvPhysicalAtlasSize.X;
 		OutData[3].W = InvPhysicalAtlasSize.Y;
 
-		static_assert(DataStrideInFloat4s == 4, "Data stride doesn't match");
+		OutData[4] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}
 };
 
@@ -416,7 +418,6 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 		if (NumElementsToUpload > 0)
 		{
 			FLumenPageTableEntry NullPageTableEntry;
-
 			UploadBuffer.Init(NumElementsToUpload, FLumenCardPageGPUData::DataStrideInBytes, true, TEXT("Lumen.UploadBuffer"));
 
 			for (int32 PageIndex : PageTableIndicesToUpdateInBuffer)
@@ -1004,10 +1005,9 @@ void FLumenCard::GetSurfaceStats(const TSparseSpanArray<FLumenPageTableEntry>& P
 	}
 }
 
-FLumenPageTableEntry& FLumenSceneData::MapSurfaceCachePage(FLumenSurfaceMipMap& MipMap, int32 PageTableIndex)
+void FLumenSceneData::MapSurfaceCachePage(const FLumenSurfaceMipMap& MipMap, int32 PageTableIndex)
 {
 	FLumenPageTableEntry& PageTableEntry = PageTable[PageTableIndex];
-
 	if (!PageTableEntry.IsMapped())
 	{
 		FLumenSurfaceCacheAllocator::FAllocation Allocation;
@@ -1031,8 +1031,6 @@ FLumenPageTableEntry& FLumenSceneData::MapSurfaceCachePage(FLumenSurfaceMipMap& 
 
 		PageTableIndicesToUpdateInBuffer.Add(PageTableIndex);
 	}
-
-	return PageTableEntry;
 }
 
 void FLumenSceneData::UnmapSurfaceCachePage(bool bLocked, FLumenPageTableEntry& Page, int32 PageIndex)

@@ -6,7 +6,6 @@
 #include "../SceneTextureParameters.ush"
 
 #include "LumenCardCommon.ush"
-#include "LumenCardUpdate.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
 

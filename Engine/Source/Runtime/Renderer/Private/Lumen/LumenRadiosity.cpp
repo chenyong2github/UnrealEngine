@@ -120,14 +120,6 @@ FAutoConsoleVariableRef CVarRadiosityVoxelStepFactor(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-float GLumenSceneCardRadiosityUpdateFrequencyScale = 1.0f;
-FAutoConsoleVariableRef CVarLumenSceneCardRadiosityUpdateFrequencyScale(
-	TEXT("r.LumenScene.Radiosity.CardUpdateFrequencyScale"),
-	GLumenSceneCardRadiosityUpdateFrequencyScale,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GLumenRadiosityProbeRadiusScale = 1.5f;
 FAutoConsoleVariableRef CVarLumenRadiosityProbeRadiusScale(
 	TEXT("r.LumenScene.Radiosity.ProbeRadiusScale"),
@@ -140,14 +132,6 @@ int32 GLumenRadiosityComputeTraceBlocksScatter = 1;
 FAutoConsoleVariableRef CVarLumenRadiosityComputeTraceBlocksScatter(
 	TEXT("r.LumenScene.Radiosity.ComputeScatter"),
 	GLumenRadiosityComputeTraceBlocksScatter,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-int32 GLumenRadiosityTraceBlocksAllocationDivisor = 2;
-FAutoConsoleVariableRef CVarLumenRadiosityTraceBlocksAllocationDivisor(
-	TEXT("r.LumenScene.Radiosity.TraceBlocksAllocationDivisor"),
-	GLumenRadiosityTraceBlocksAllocationDivisor,
 	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
@@ -670,15 +654,15 @@ void RenderRadiosityComputeScatter(
 	const FLumenSceneData& LumenSceneData,
 	FRDGTextureRef RadiosityAtlas,
 	const FLumenCardTracingInputs& TracingInputs,
+	const FLumenCardUpdateContext& CardUpdateContext,
 	const FLumenCardScatterParameters& CardScatterParameters,
 	FGlobalShaderMap* GlobalShaderMap)
 {
 	const bool bUseIrradianceCache = GLumenRadiosityUseIrradianceCache != 0;
 
 	const int32 TraceBlockMaxSize = 2;
-	extern int32 GLumenSceneLightingForceFullUpdate;
-	const int32 Divisor = TraceBlockMaxSize * Lumen::GetRadiosityDownsampleFactor() * (GLumenSceneLightingForceFullUpdate ? 1 : GLumenRadiosityTraceBlocksAllocationDivisor);
-	const int32 NumTraceBlocksToAllocate = FMath::Max((LumenSceneData.GetPhysicalAtlasSize().X / Divisor) * (LumenSceneData.GetPhysicalAtlasSize().Y / Divisor), 1024);
+	const int32 Divisor = TraceBlockMaxSize * Lumen::GetRadiosityDownsampleFactor();
+	const int32 NumTraceBlocksToAllocate = FMath::Max((CardUpdateContext.UpdateAtlasSize.X / Divisor) * (CardUpdateContext.UpdateAtlasSize.Y / Divisor), 1024);
 	const FIntPoint RadiosityAtlasSize = LumenSceneData.GetRadiosityAtlasSize();
 
 	FRDGBufferRef CardTraceBlockAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CardTraceBlockAllocator"));
@@ -954,7 +938,8 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	FRDGBuilder& GraphBuilder, 
 	const FLumenCardTracingInputs& TracingInputs, 
 	FGlobalShaderMap* GlobalShaderMap, 
-	FRDGTextureRef RadiosityAtlas)
+	FRDGTextureRef RadiosityAtlas,
+	const FLumenCardUpdateContext& CardUpdateContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -979,9 +964,8 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			LumenSceneData,
 			LumenCardRenderer,
 			TracingInputs.LumenCardSceneUniformBuffer,
+			CardUpdateContext,
 			/*bBuildCardTiles*/ false,
-			Lumen::IsSurfaceCacheFrozen() ? ECullCardsMode::OperateOnEmptyList : ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
-			GLumenSceneCardRadiosityUpdateFrequencyScale,
 			FCullCardsShapeParameters(),
 			ECullCardsShapeType::None);
 
@@ -1004,6 +988,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 				LumenSceneData,
 				RadiosityAtlas,
 				TracingInputs,
+				CardUpdateContext,
 				VisibleCardScatterContext.CardPageParameters,
 				GlobalShaderMap);
 		}

@@ -51,13 +51,16 @@ struct FCardCaptureAtlas
 	FRDGTextureRef DepthStencil;
 };
 
-enum class ECullCardsMode
+class FLumenCardUpdateContext
 {
-	OperateOnCardPagesToRender,
-	OperateOnScene,
-	OperateOnSceneForceUpdateForCardPagesToRender,
-	OperateOnEmptyList,
-	MAX,
+public:
+	FRDGBufferRef CardPageIndexAllocator;
+	FRDGBufferRef CardPageIndexData;
+	FRDGBufferRef CardPageIndexIndirectArgs;
+
+	FIntPoint UpdateAtlasSize;
+	uint32 MaxUpdateTiles;
+	uint32 UpdateFactor;
 };
 
 enum class ECullCardsShapeType
@@ -81,9 +84,7 @@ public:
 	int32 MaxQuadCount = 0;
 	int32 MaxQuadsPerScatterInstance = 0;
 	int32 MaxCardTilesPerScatterInstance = 0;
-	int32 NumCardPagesToOperateOn = 0;
 	int32 MaxScatterInstanceCount = 0;
-	ECullCardsMode CardsCullMode;
 
 	FLumenCardScatterParameters CardPageParameters;
 	FLumenCardTileScatterParameters CardTileParameters;
@@ -94,9 +95,8 @@ public:
 		const FLumenSceneData& LumenSceneData,
 		const FLumenCardRenderer& LumenCardRenderer,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+		const FLumenCardUpdateContext& CardUpdateContext,
 		bool InBuildCardTiles,
-		ECullCardsMode InCardsCullMode,
-		float UpdateFrequencyScale,
 		FCullCardsShapeParameters ShapeParameters,
 		ECullCardsShapeType ShapeType);
 
@@ -106,9 +106,8 @@ public:
 		const FLumenSceneData& LumenSceneData,
 		const FLumenCardRenderer& LumenCardRenderer,
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+		const FLumenCardUpdateContext& CardUpdateContext,
 		bool InBuildCardTiles,
-		ECullCardsMode InCardsCullMode,
-		float UpdateFrequencyScale,
 		const TArray<FLumenCardScatterInstance, SceneRenderingAllocator>& ScatterInstances,
 		int32 InMaxScatterInstanceCount);
 };
@@ -228,7 +227,8 @@ class FClearLumenCardsPS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
 	END_SHADER_PARAMETER_STRUCT()
 
-	using FPermutationDomain = TShaderPermutationDomain<>;
+	class FNumTargets : SHADER_PERMUTATION_RANGE_INT("NUM_TARGETS", 1, 2);
+	using FPermutationDomain = TShaderPermutationDomain<FNumTargets>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -292,4 +292,12 @@ namespace Lumen
 		FRDGBuilder& GraphBuilder,
 		const FLumenCardTracingInputs& TracingInputs,
 		const FLumenCardScatterContext& VisibleCardScatterContext);
+
+	void UpdateCardPages(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		const FLumenSceneData& LumenSceneData,
+		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer,
+		FLumenCardUpdateContext& DirectLightingCardUpdateContext,
+		FLumenCardUpdateContext& IndirectLightingCardUpdateContext);
 };
