@@ -1415,6 +1415,11 @@ bool FMaterialResource::IsUsedWithAPEXCloth() const
 	return Material->bUsedWithClothing;
 }
 
+bool FMaterialResource::IsUsedWithNanite() const
+{
+	return Material->bUsedWithNanite;
+}
+
 bool FMaterialResource::IsTranslucencyAfterDOFEnabled() const 
 { 
 	return Material->TranslucencyPass == MTP_AfterDOF

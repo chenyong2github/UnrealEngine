@@ -1375,6 +1375,7 @@ bool UMaterial::GetUsageByFlag(EMaterialUsage Usage) const
 		case MATUSAGE_HairStrands: UsageValue = bUsedWithHairStrands; break;
 		case MATUSAGE_LidarPointCloud: UsageValue = bUsedWithLidarPointCloud; break;
 		case MATUSAGE_VirtualHeightfieldMesh: UsageValue = bUsedWithVirtualHeightfieldMesh; break;
+		case MATUSAGE_Nanite: UsageValue = bUsedWithNanite; break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageValue;
@@ -1522,6 +1523,10 @@ void UMaterial::SetUsageByFlag(EMaterialUsage Usage, bool NewValue)
 		{
 			bUsedWithVirtualHeightfieldMesh = NewValue; break;
 		}
+		case MATUSAGE_Nanite:
+		{
+			bUsedWithNanite = NewValue; break;
+		}
 		default: UE_LOG(LogMaterial, Fatal, TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 #if WITH_EDITOR
@@ -1553,6 +1558,7 @@ FString UMaterial::GetUsageName(EMaterialUsage Usage) const
 		case MATUSAGE_HairStrands: UsageName = TEXT("bUsedWithHairStrands"); break;
 		case MATUSAGE_LidarPointCloud: UsageName = TEXT("bUsedWithLidarPointCloud"); break;
 		case MATUSAGE_VirtualHeightfieldMesh: UsageName = TEXT("bUsedWithVirtualHeightfieldMesh"); break;
+		case MATUSAGE_Nanite: UsageName = TEXT("bUsedWithNanite"); break;
 		default: UE_LOG(LogMaterial, Fatal,TEXT("Unknown material usage: %u"), (int32)Usage);
 	};
 	return UsageName;
@@ -1609,24 +1615,6 @@ bool UMaterial::CheckMaterialUsage_Concurrent(EMaterialUsage Usage) const
 		}
 	}
 	return bUsageSetSuccessfully;
-}
-
-/** Returns true if the given usage flag controls support for a primitive type. */
-static bool IsPrimitiveTypeUsageFlag(EMaterialUsage Usage)
-{
-	return Usage == MATUSAGE_SkeletalMesh
-		|| Usage == MATUSAGE_ParticleSprites
-		|| Usage == MATUSAGE_BeamTrails
-		|| Usage == MATUSAGE_MeshParticles
-		|| Usage == MATUSAGE_NiagaraSprites
-		|| Usage == MATUSAGE_NiagaraRibbons
-		|| Usage == MATUSAGE_NiagaraMeshParticles
-		|| Usage == MATUSAGE_MorphTargets
-		|| Usage == MATUSAGE_SplineMesh
-		|| Usage == MATUSAGE_InstancedStaticMeshes
-		|| Usage == MATUSAGE_GeometryCollections
-		|| Usage == MATUSAGE_Clothing
-		|| Usage == MATUSAGE_GeometryCache;
 }
 
 bool UMaterial::NeedsSetMaterialUsage_Concurrent(bool &bOutHasUsage, EMaterialUsage Usage) const

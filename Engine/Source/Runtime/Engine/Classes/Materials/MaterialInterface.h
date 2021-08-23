@@ -62,6 +62,7 @@ enum EMaterialUsage
 	MATUSAGE_HairStrands,
 	MATUSAGE_LidarPointCloud,
 	MATUSAGE_VirtualHeightfieldMesh,
+	MATUSAGE_Nanite,
 
 	MATUSAGE_MAX,
 };
