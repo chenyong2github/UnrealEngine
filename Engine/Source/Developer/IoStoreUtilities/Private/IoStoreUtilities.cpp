@@ -407,10 +407,8 @@ public:
 			
 			Entry.ExportInfo = FPackageStoreExportInfo
 			{
-				FilePackageEntry.ExportBundlesSize,
 				FilePackageEntry.ExportCount,
-				FilePackageEntry.ExportBundleCount,
-				FilePackageEntry.LoadOrder
+				FilePackageEntry.ExportBundleCount
 			};
 			Entry.ImportedPackageIds = MakeArrayView<const FPackageId>(FilePackageEntry.ImportedPackages.Data(), FilePackageEntry.ImportedPackages.Num());
 
@@ -2855,8 +2853,6 @@ int32 Describe(
 	{
 		FPackageId PackageId;
 		FName PackageName;
-		uint64 Size = 0;
-		uint32 LoadOrder = uint32(-1);
 		uint32 PackageFlags = 0;
 		int32 NameCount = -1;
 		int32 ExportBundleCount = -1;
@@ -3012,10 +3008,8 @@ int32 Describe(
 				const FPackageId& PackageId = ContainerHeader.PackageIds[PackageIndex++];
 				FPackageDesc* PackageDesc = new FPackageDesc();
 				PackageDesc->PackageId = PackageId;
-				PackageDesc->Size = ContainerEntry.ExportBundlesSize;
 				PackageDesc->Exports.SetNum(ContainerEntry.ExportCount);
 				PackageDesc->ExportBundleCount = ContainerEntry.ExportBundleCount;
-				PackageDesc->LoadOrder = ContainerEntry.LoadOrder;
 				PackageDesc->ImportedPackageIds = TArrayView<FPackageId>(ContainerEntry.ImportedPackages.Data(), ContainerEntry.ImportedPackages.Num());
 				Job.Packages.Add(PackageDesc);
 				++TotalPackageCount;
@@ -3343,10 +3337,6 @@ int32 Describe(
 				}
 			}
 		}
-		Algo::Sort(OutputPackages, [](const FPackageDesc* A, const FPackageDesc* B)
-			{
-				return A->LoadOrder < B->LoadOrder;
-			});
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Generating report..."));
@@ -3447,8 +3437,6 @@ int32 Describe(
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("--------------------------------------------"));
 
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        PackageId: 0x%llX"), PackageDesc->PackageId.ValueForDebugging());
-			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t             Size: %lld"), PackageDesc->Size);
-			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        LoadOrder: %d"), PackageDesc->LoadOrder);
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t     PackageFlags: %X"), PackageDesc->PackageFlags);
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t        NameCount: %d"), PackageDesc->NameCount);
 			OutputOverride->Logf(ELogVerbosity::Display, TEXT("\t\t      ImportCount: %d"), PackageDesc->Imports.Num());
@@ -4046,9 +4034,7 @@ int32 Staged2Zen(const FString& BuildPath, const FKeyChain& KeyChain, const ITar
 				FPackageStoreEntryResource& PackageStoreEntryResource = FindPackageInfo->PackageStoreEntry;
 				PackageStoreEntryResource.PackageName = *FindPackageName;
 				PackageStoreEntryResource.ExportInfo.ExportBundleCount = StoreEntry->ExportBundleCount;
-				PackageStoreEntryResource.ExportInfo.ExportBundlesSize = StoreEntry->ExportBundlesSize;
 				PackageStoreEntryResource.ExportInfo.ExportCount = StoreEntry->ExportCount;
-				PackageStoreEntryResource.ExportInfo.LoadOrder = StoreEntry->LoadOrder;
 				PackageStoreEntryResource.ImportedPackageIds.SetNum(StoreEntry->ImportedPackages.Num());
 				FMemory::Memcpy(PackageStoreEntryResource.ImportedPackageIds.GetData(), StoreEntry->ImportedPackages.Data(), sizeof(FPackageId) * StoreEntry->ImportedPackages.Num());
 			}

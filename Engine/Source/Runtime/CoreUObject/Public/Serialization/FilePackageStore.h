@@ -38,11 +38,8 @@ public:
  */
 struct FFilePackageStoreEntry
 {
-	uint64 ExportBundlesSize;
 	int32 ExportCount;
 	int32 ExportBundleCount;
-	uint32 LoadOrder;
-	uint32 Pad;
 	TFilePackageStoreEntryCArrayView<FPackageId> ImportedPackages;
 	TFilePackageStoreEntryCArrayView<FSHAHash> ShaderMapHashes;
 };

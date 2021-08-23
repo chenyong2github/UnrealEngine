@@ -140,7 +140,6 @@ FPackageStorePackage* FPackageStoreOptimizer::CreatePackageFromPackageStoreHeade
 	FPackageStorePackage* Package = new FPackageStorePackage();
 	Package->Name = Name;
 	Package->Id = FPackageId::FromName(Name);
-	Package->LoadOrder = PackageStoreEntry.ExportInfo.LoadOrder;
 	
 	Package->SourceName = *RemapLocalizationPathIfNeeded(Name.ToString(), &Package->Region);
 
@@ -1688,10 +1687,8 @@ FPackageStoreEntryResource FPackageStoreOptimizer::CreatePackageStoreEntry(const
 	Result.PackageName = Package->Name;
 	Result.SourcePackageName = Package->SourceName;
 	Result.Region = FName(*Package->Region);
-	Result.ExportInfo.ExportBundlesSize = Package->HeaderSize + Package->ExportsSerialSize;
 	Result.ExportInfo.ExportCount = Package->Exports.Num();
 	Result.ExportInfo.ExportBundleCount = Package->GraphData.ExportBundles.Num();
-	Result.ExportInfo.LoadOrder = Package->GetLoadOrder();
 	Result.ImportedPackageIds = Package->ImportedPackageIds;
 	Result.ShaderMapHashes = Package->ShaderMapHashes.Array();
 	return Result;
@@ -1750,10 +1747,8 @@ FContainerHeader FPackageStoreOptimizer::CreateContainerHeader(const FIoContaine
 		
 		// StoreEntries
 		FPackageStoreExportInfo ExportInfo = Entry->ExportInfo;
-		int32 Pad = 0;
 		StoreTocArchive << ExportInfo; 
-		StoreTocArchive << Pad;
-
+		
 		// ImportedPackages
 		const TArray<FPackageId>& ImportedPackageIds = Entry->ImportedPackageIds;
 		SerializePackageEntryCArrayHeader(ImportedPackageIds.Num());
