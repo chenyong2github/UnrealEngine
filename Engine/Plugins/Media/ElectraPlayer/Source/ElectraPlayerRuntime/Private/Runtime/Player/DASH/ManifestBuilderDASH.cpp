@@ -25,6 +25,7 @@
 #include "Utilities/Utilities.h"
 #include "Utilities/TimeUtilities.h"
 #include "Utilities/ISO639-Map.h"
+#include "Utilities/UtilsMPEGAudio.h"
 
 #include "Player/DRM/DRMManager.h"
 
@@ -1544,20 +1545,14 @@ void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Pe
 					AudioChannelConfigurations.Append(MPDAdaptationSet->GetEssentialProperties());
 					for(int32 nACC=0, nACCMax=AudioChannelConfigurations.Num(); nACC<nACCMax; ++nACC)
 					{
-						if (AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfigurationLegacy))		// "urn:mpeg:dash:23003:3:audio_channel_configuration:2011"
+						if (AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfigurationLegacy) ||	// "urn:mpeg:dash:23003:3:audio_channel_configuration:2011"
+							AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfiguration))			// "urn:mpeg:mpegB:cicp:ChannelConfiguration"
 						{
 							// Value = channel config as per 23001-8:2013 table 8
-							int32 v = 0;
+							uint32 v = 0;
 							LexFromString(v, *AudioChannelConfigurations[nACC]->GetValue());
-							Representation->CodecInfo.SetNumberOfChannels(v);
-							break;
-						}
-						else if (AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfiguration))		// "urn:mpeg:mpegB:cicp:ChannelConfiguration"
-						{
-							// Value = channel config as per 23001-8:2013 table 8
-							int32 v = 0;
-							LexFromString(v, *AudioChannelConfigurations[nACC]->GetValue());
-							Representation->CodecInfo.SetNumberOfChannels(v);
+							Representation->CodecInfo.SetChannelConfiguration(v);
+							Representation->CodecInfo.SetNumberOfChannels(MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(v));
 							break;
 						}
 						else if (AudioChannelConfigurations[nACC]->GetSchemeIdUri().Equals(AudioChannelConfigurationDolby))	// "tag:dolby.com,2014:dash:audio_channel_configuration:2011"

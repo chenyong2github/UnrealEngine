@@ -193,9 +193,10 @@ int32 FAndroidJavaAACAudioDecoder::InitializeDecoder(const MPEG::FAACDecoderConf
 	}
 
 	// Create one
+	const uint8 NumChannelsForConfig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 7, 8, 0, 8, 0 };
 	JNIEnv*	JEnv = AndroidJavaEnv::GetJavaEnv();
 	jbyteArray  CSD			= MakeJavaByteArray(InParsedConfigurationRecord.GetCodecSpecificData().GetData(), InParsedConfigurationRecord.GetCodecSpecificData().Num());
-	int 		NumChannels = (int) InParsedConfigurationRecord.ChannelConfiguration;
+	int 		NumChannels = (int) InParsedConfigurationRecord.PSSignal == 1 ? 2 : NumChannelsForConfig[InParsedConfigurationRecord.ChannelConfiguration];
 	int			SampleRate  = (int)(InParsedConfigurationRecord.ExtSamplingFrequency ? InParsedConfigurationRecord.ExtSamplingFrequency : InParsedConfigurationRecord.SamplingRate);
 	int32 result = CallMethod<int>(CreateDecoderFN, NumChannels, SampleRate, CSD);
 	JEnv->DeleteLocalRef(CSD);

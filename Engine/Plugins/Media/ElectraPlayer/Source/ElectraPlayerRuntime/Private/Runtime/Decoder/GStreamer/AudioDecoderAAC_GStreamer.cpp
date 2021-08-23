@@ -33,6 +33,11 @@ void IAudioDecoderAAC::Shutdown()
 {
 }
 
+bool IAudioDecoderAAC::CanDecodeStream(const FStreamCodecInformation& InCodecInfo)
+{
+	return false;
+}
+
 IAudioDecoderAAC* IAudioDecoderAAC::Create()
 {
 	return nullptr;
