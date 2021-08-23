@@ -989,19 +989,25 @@ namespace SolidworksDatasmith.SwObjects
 			if (mat1.SpecularColor != mat2.SpecularColor) return false;
 			if (!Utility.IsSame(mat1.Transparency, mat2.Transparency)) return false;
 			if (!Utility.IsSame(mat1.Translucency, mat2.Translucency)) return false;
-			if (!Utility.IsSame(mat1.Width, mat2.Width)) return false;
-			if (!Utility.IsSame(mat1.Height, mat2.Height)) return false;
-			if (!Utility.IsSame(mat1.XPos, mat2.XPos)) return false;
-			if (!Utility.IsSame(mat1.YPos, mat2.YPos)) return false;
-			if (!Utility.IsSame(mat1.Rotation, mat2.Rotation)) return false;
-			if (!Utility.IsSame(mat1.CenterPoint, mat2.CenterPoint)) return false;
-			if (!Utility.IsSame(mat1.UDirection, mat2.UDirection)) return false;
-			if (!Utility.IsSame(mat1.VDirection, mat2.VDirection)) return false;
-			if (!Utility.IsSame(mat1.Direction1RotationAngle, mat2.Direction1RotationAngle)) return false;
-			if (!Utility.IsSame(mat1.Direction2RotationAngle, mat2.Direction2RotationAngle)) return false;
-			if (mat1.MirrorVertical != mat2.MirrorVertical) return false;
-			if (mat1.MirrorHorizontal != mat2.MirrorHorizontal) return false;
-			if (mat1.UVMappingType != mat2.UVMappingType) return false;
+
+			// Only take into account UV mapping differences if there are actual textures assigned
+			if (mat1.Texture.Length > 0 || mat1.BumpTextureFileName.Length > 0)
+			{
+				if (!Utility.IsSame(mat1.Width, mat2.Width)) return false;
+				if (!Utility.IsSame(mat1.Height, mat2.Height)) return false;
+				if (!Utility.IsSame(mat1.XPos, mat2.XPos)) return false;
+				if (!Utility.IsSame(mat1.YPos, mat2.YPos)) return false;
+				if (!Utility.IsSame(mat1.Rotation, mat2.Rotation)) return false;
+				if (!Utility.IsSame(mat1.CenterPoint, mat2.CenterPoint)) return false;
+				if (!Utility.IsSame(mat1.UDirection, mat2.UDirection)) return false;
+				if (!Utility.IsSame(mat1.VDirection, mat2.VDirection)) return false;
+				if (!Utility.IsSame(mat1.Direction1RotationAngle, mat2.Direction1RotationAngle)) return false;
+				if (!Utility.IsSame(mat1.Direction2RotationAngle, mat2.Direction2RotationAngle)) return false;
+				if (mat1.MirrorVertical != mat2.MirrorVertical) return false;
+				if (mat1.MirrorHorizontal != mat2.MirrorHorizontal) return false;
+				if (mat1.UVMappingType != mat2.UVMappingType) return false;
+			}
+
 			if (mat1.ProjectionReference != mat2.ProjectionReference) return false;
 			if (!Utility.IsSame(mat1.Diffuse, mat2.Diffuse)) return false;
 			if (mat1.BlurryReflections != mat2.BlurryReflections) return false;

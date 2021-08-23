@@ -76,7 +76,7 @@ namespace SolidworksDatasmith.Engine
         private HashSet<string> MeshNames = new HashSet<string>();
         private List<Tuple<SwLightweightMaterial, SwMaterial>> LightweightMaterials = new List<Tuple<SwLightweightMaterial, SwMaterial>>();
         private Dictionary<int, SwMaterial> SwIDToMat = new Dictionary<int, SwMaterial>();
-        private Dictionary<SwCamera, FDatasmithFacadeActorCamera> SwCamera2Datasmith = new Dictionary<SwCamera, FDatasmithFacadeActorCamera>();
+		private Dictionary<SwCamera, FDatasmithFacadeActorCamera> SwCamera2Datasmith = new Dictionary<SwCamera, FDatasmithFacadeActorCamera>();
         private SwScene Scene;
 
         private bool _useDirectLink = false;
@@ -129,8 +129,11 @@ namespace SolidworksDatasmith.Engine
             FDatasmithFacadeUEPbrMaterial dm = null;
             foreach (var mm in SwMat2Datasmith)
             {
-                if (SwMaterial.AreTheSame(mm.Key, mat, true))
+                if (SwMaterial.AreTheSame(mm.Key, mat, false))
+				{
+					SwIDToMat.Add(mat.ID, mm.Key);
                     return mm.Value;
+				}
             }
             if (addIfNotExisting)
             {
@@ -685,26 +688,26 @@ namespace SolidworksDatasmith.Engine
                 if (t.MaterialID >= 1)
                 {
                     bool found = false;
-                    if (t.MaterialID >= 0X000DEAD)
+
+					// Check for material remapping first (fixes duplicate materials)
+                    if (SwIDToMat.ContainsKey(t.MaterialID))
                     {
-                        if (SwIDToMat.ContainsKey(t.MaterialID))
+                        var mat = SwIDToMat[t.MaterialID];
+						matID = mat.ID;
+                        if (!Scene.AddedMaterials.Contains(matID))
                         {
-                            var mat = SwIDToMat[t.MaterialID];
-                            if (!Scene.AddedMaterials.Contains(t.MaterialID))
-                            {
-                                Scene.AddedMaterials.Add(t.MaterialID);
-                                DatasmithScene.AddMaterial(SwMat2Datasmith[mat]);
-                            }
-                            if (!MeshAddedMaterials.Contains(t.MaterialID))
-                            {
-                                MeshAddedMaterials.Add(t.MaterialID);
-                                RPCMeshElement.SetMaterial(mat.Name, t.MaterialID);
-                            }
-                            matID = t.MaterialID;
-                            found = true;
+                            Scene.AddedMaterials.Add(matID);
+                            DatasmithScene.AddMaterial(SwMat2Datasmith[mat]);
                         }
+                        if (!MeshAddedMaterials.Contains(matID))
+                        {
+                            MeshAddedMaterials.Add(matID);
+                            RPCMeshElement.SetMaterial(mat.Name, matID);
+                        }
+                        found = true;
                     }
-                    if (!found)
+
+					if (!found)
                     { 
                         if (Scene.SwMatID2Mat.ContainsKey(t.MaterialID))
                         {
