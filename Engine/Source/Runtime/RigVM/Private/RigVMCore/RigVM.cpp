@@ -1312,7 +1312,7 @@ void URigVM::RebuildByteCodeOnLoad()
 }
 
 #if WITH_EDITOR
-bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
+bool URigVM::ShouldHaltAtInstruction(const FName& InEventName, const uint16 InstructionIndex)
 {
 	FRigVMByteCode& ByteCode = GetByteCode();
 
@@ -1344,7 +1344,7 @@ bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
 						{
 							DebugInfo->SetCurrentActiveBreakpointCallstack(TArray<UObject*>(FullCallstack->GetData(), FullCallstack->Find((UObject*)Breakpoint->Subject)+1));
 						}
-						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject);
+						ExecutionHalted().Broadcast(Context.InstructionIndex, Breakpoint->Subject, InEventName);
 					}
 					return true;
 				}
@@ -1468,7 +1468,7 @@ bool URigVM::ShouldHaltAtInstruction(const uint16 InstructionIndex)
 
 				HaltedAtBreakpoint = NewBreakpoint;
 				HaltedAtBreakpointHit = DebugInfo->GetBreakpointHits(HaltedAtBreakpoint);
-				ExecutionHalted().Broadcast(Context.InstructionIndex, NewBreakpointNode);
+				ExecutionHalted().Broadcast(Context.InstructionIndex, NewBreakpointNode, InEventName);
 		
 				return true;
 			}
@@ -1911,7 +1911,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	while (Instructions.IsValidIndex(Context.InstructionIndex))
 	{
 #if WITH_EDITOR
-		if (DebugInfo && ShouldHaltAtInstruction(Context.InstructionIndex))
+		if (DebugInfo && ShouldHaltAtInstruction(InEntryName, Context.InstructionIndex))
 		{
 			return true;
 		}
@@ -2382,13 +2382,13 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			}
 			case ERigVMOpCode::Exit:
 			{
-				ExecutionReachedExit().Broadcast();
+				ExecutionReachedExit().Broadcast(InEntryName);
 #if WITH_EDITOR					
 				if (HaltedAtBreakpoint != nullptr)
 				{
 					HaltedAtBreakpoint = nullptr;
 					DebugInfo->SetCurrentActiveBreakpoint(nullptr);
-					ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
+					ExecutionHalted().Broadcast(INDEX_NONE, nullptr, InEntryName);
 				}
 #endif
 				return true;
@@ -2964,7 +2964,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	{
 		DebugInfo->SetCurrentActiveBreakpoint(nullptr);
 		HaltedAtBreakpoint = nullptr;
-		ExecutionHalted().Broadcast(INDEX_NONE, nullptr);
+		ExecutionHalted().Broadcast(INDEX_NONE, nullptr, InEntryName);
 	}
 #endif
 

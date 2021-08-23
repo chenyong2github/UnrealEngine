@@ -138,9 +138,9 @@ class RIGVM_API URigVM : public UObject
 public:
 
 	/** Bindable event for external objects to be notified when the VM reaches an Exit Operation */
-	DECLARE_EVENT(URigVM, FExecutionReachedExitEvent);
+	DECLARE_EVENT_OneParam(URigVM, FExecutionReachedExitEvent, const FName&);
 #if WITH_EDITOR
-	DECLARE_EVENT_TwoParams(URigVM, FExecutionHaltedEvent, int32, UObject*);
+	DECLARE_EVENT_ThreeParams(URigVM, FExecutionHaltedEvent, int32, UObject*, const FName&);
 #endif
 
 	URigVM();
@@ -773,7 +773,7 @@ private:
 	int32 HaltedAtBreakpointHit;
 	ERigVMBreakpointAction CurrentBreakpointAction;
 
-	bool ShouldHaltAtInstruction(const uint16 InstructionIndex);
+	bool ShouldHaltAtInstruction(const FName& InEventName, const uint16 InstructionIndex);
 #endif
 
 	UPROPERTY()

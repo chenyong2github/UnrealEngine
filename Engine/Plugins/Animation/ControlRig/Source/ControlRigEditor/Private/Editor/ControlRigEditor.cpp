@@ -2858,8 +2858,13 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 	UpdateGraphCompilerErrors();
 }
 
-void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNodeObject)
+void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNodeObject, const FName& InEntryName)
 {
+	if (HaltedAtNode == InNodeObject)
+	{
+		return;
+	}
+		
 	if (URigVMNode* InNode = Cast<URigVMNode>(InNodeObject))
 	{
 		if (HaltedAtNode != nullptr)
@@ -2886,6 +2891,13 @@ void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionI
 					}
 				}
 			}
+		}
+	}
+	else 
+	{
+		if (InEntryName == ControlRig->GetEventQueue().Last())
+		{
+			HaltedAtNode = nullptr;
 		}
 	}
 }
