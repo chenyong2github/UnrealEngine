@@ -62,6 +62,7 @@ protected:
 	TArray<Audio::FDelay> Delays;
 	TArray<float> FeedbackSamples;
 	FSourceEffectSimpleDelaySettings SettingsCopy;
+	bool bIsInit = true;
 };
 
 UCLASS(ClassGroup = AudioSourceEffect, meta = (BlueprintSpawnableComponent))
