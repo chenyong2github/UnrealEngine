@@ -176,8 +176,8 @@ namespace SolidworksDatasmith
 
 			//Setup callbacks
 			var bRet = iSwApp.SetAddinCallbackInfo(0, this, addinID);
-			bRet = iSwApp.AddFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocASSEMBLY);
-			bRet = iSwApp.AddFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocPART);
+			bRet = iSwApp.AddFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal Datamisth (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocASSEMBLY);
+			bRet = iSwApp.AddFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal Datamisth (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocPART);
 
 			#region Setup the Command Manager
 			iCmdMgr = iSwApp.GetCommandManager(cookie);

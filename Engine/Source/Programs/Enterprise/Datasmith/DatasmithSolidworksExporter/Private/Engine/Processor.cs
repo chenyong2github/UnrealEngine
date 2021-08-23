@@ -473,44 +473,42 @@ namespace SolidworksDatasmith.Engine
                             break;
 
                         case CommandType.ADD_METADATA:
-                            {
-                                var cmd = command as MetadataCommand;
-                                SwSingleton.FireProgressEvent("Adding Metadata for " + cmd.MetadataOwnerName);
-                                FDatasmithFacadeElement element = null;
-                                if (cmd.MDataType == MetadataCommand.MetadataType.Actor)
-                                {
-                                    if (processor.Component2DatasmithActor.ContainsKey(cmd.MetadataOwnerName))
-                                    {
-                                        element = processor.Component2DatasmithActor[cmd.MetadataOwnerName].Actor;
-                                    }
-                                }
-                                else if (cmd.MDataType == MetadataCommand.MetadataType.MeshActor)
-                                {
-                                    element = processor.MeshFactory.GetFacadeElement(cmd.MetadataOwnerName);
-                                }
+						{
+							var cmd = command as MetadataCommand;
+							SwSingleton.FireProgressEvent("Adding Metadata for " + cmd.MetadataOwnerName);
+							FDatasmithFacadeElement element = null;
+							if (cmd.MDataType == MetadataCommand.MetadataType.Actor)
+							{
+								if (processor.Component2DatasmithActor.ContainsKey(cmd.MetadataOwnerName))
+								{
+									element = processor.Component2DatasmithActor[cmd.MetadataOwnerName].Actor;
+								}
+							}
+							else if (cmd.MDataType == MetadataCommand.MetadataType.MeshActor)
+							{
+								element = processor.MeshFactory.GetFacadeElement(cmd.MetadataOwnerName);
+							}
 
-                                if (element != null)
-                                {
-                                    FDatasmithFacadeMetaData metaData = new FDatasmithFacadeMetaData("SolidWorks Document Metadata");
-                                    if (metaData == null)
-                                    {
-                                        break;
-                                    }
-                                    metaData.SetAssociatedElement(element);
-                                    foreach (var pair in cmd.MetadataPairs)
-                                    {
-                                        pair.WriteToDatasmithMetaData(metaData);
-                                    }
-                                    processor.DatasmithScene.AddMetaData(metaData);
-                                }
-                                //else // DEAD LOCK
-                                //{
-                                //    processor.AddCommand(command); // just put it back, as we can only add metadata to existing actor
-                                //}
-                            }
-                            break;
+							if (element != null)
+							{
+								FDatasmithFacadeMetaData MetaData = processor.DatasmithScene.GetMetaData(element);
 
-                        case CommandType.UPDATE_CAMERA:
+								if (MetaData == null)
+								{
+									MetaData = new FDatasmithFacadeMetaData("SolidWorks Document Metadata");
+									MetaData.SetAssociatedElement(element);
+									processor.DatasmithScene.AddMetaData(MetaData);
+								}
+
+								foreach (var pair in cmd.MetadataPairs)
+								{
+									pair.WriteToDatasmithMetaData(MetaData);
+								}
+							}
+						}
+						break;
+
+						case CommandType.UPDATE_CAMERA:
                             {
                                 // todo doesn't really update, keeps adding changed ones
                                 var cmd = command as CameraCommand;

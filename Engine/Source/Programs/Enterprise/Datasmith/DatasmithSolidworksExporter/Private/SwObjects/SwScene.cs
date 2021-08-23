@@ -29,8 +29,8 @@ namespace SolidworksDatasmith.SwObjects
 		public Dictionary<string, SwAssemblyDoc> Assemblies { get; set; } = new Dictionary<string, SwAssemblyDoc>();
 
 		// material mapper keeps track of which materials are being used by which entity
-		private Materials.MaterialMapper _materialMapper = new Materials.MaterialMapper();
-		public Materials.MaterialMapper MaterialMapper { get { return _materialMapper; } }
+		public Materials.MaterialMapper MaterialMapper { get; private set; } = new Materials.MaterialMapper();
+
 		private uint FaceCounter = 1;
 		public uint NewFaceID { get { return FaceCounter++; } }
 		private Dictionary<int, SwMaterial> _swMatID2Mat = new Dictionary<int, SwMaterial>();
@@ -196,7 +196,7 @@ namespace SolidworksDatasmith.SwObjects
 					{
 						SwSingleton.FireProgressEvent("Extracting Material " + Path.GetFileNameWithoutExtension(mm.FileName));
 
-						SwMaterial mat = _materialMapper.AddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.AddMaterial(mm, ext, IDoffset);
 
 						if (!_swMatID2Mat.ContainsKey(mat.ID))
 							_swMatID2Mat.Add(mat.ID, mat);
@@ -217,21 +217,21 @@ namespace SolidworksDatasmith.SwObjects
 							{
 								IModelDoc2 partModel = part as IModelDoc2;
 								var path = partModel.GetPathName();
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_PART, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_PART, path, mat);
 								continue;
 							}
 
 							if (user is IBody2 body)
 							{
 								string path = GetBodyPath(body, doc);
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_BODY, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_BODY, path, mat);
 								continue;
 							}
 
 							if (user is IFeature feat)
 							{
 								var path = GetFeaturePath(feat, doc);
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FEATURE, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FEATURE, path, mat);
 								continue;
 							}
 
@@ -243,13 +243,13 @@ namespace SolidworksDatasmith.SwObjects
 									SetFaceID(face, NewFaceID);
 									id = GetFaceID(face);
 								}
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FACE, id, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FACE, id, mat);
 								continue;
 							}
 
 							if (user is IComponent2 component)
 							{
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_COMPONENT, component.Name, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_COMPONENT, component.Name, mat);
 
 								var cmcmd = new ComponentMaterialCommand() { Material = mat, ComponentName = component.Name };
 								_processor.AddCommand(cmcmd);
@@ -282,7 +282,7 @@ namespace SolidworksDatasmith.SwObjects
 					int numUsers = mm.GetEntitiesCount();
 					if (numUsers > 0)
 					{
-						SwMaterial mat = _materialMapper.FindOrAddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.FindOrAddMaterial(mm, ext, IDoffset);
 
 						object[] users = mm.GetEntities();
 						foreach (var user in users)
@@ -861,7 +861,7 @@ namespace SolidworksDatasmith.SwObjects
 					// Materials here are ones which assigned to parts, ordered by hierarchy.
 					// Get the last one in the list as the prioritized override.
 					RenderMaterial partMaterial = swMaterials[swMaterials.Length - 1] as RenderMaterial;
-					SwMaterial swMaterial = _materialMapper.FindOrAddMaterial(partMaterial, Doc.Extension, GetMaterialOffset(Doc));
+					SwMaterial swMaterial = MaterialMapper.FindOrAddMaterial(partMaterial, Doc.Extension, GetMaterialOffset(Doc));
 					newNode.CommonConfig.SetMaterial(swMaterial);
 				}
 			}
@@ -995,7 +995,7 @@ namespace SolidworksDatasmith.SwObjects
 						int NumUsers = RenderMat.GetEntitiesCount();
 						if (NumUsers > 0)
 						{
-							SwMaterial SwMat = _materialMapper.FindOrAddMaterial(RenderMat, Ext, 0);
+							SwMaterial SwMat = MaterialMapper.FindOrAddMaterial(RenderMat, Ext, 0);
 
 							object[] Users = RenderMat.GetEntities();
 							foreach (var User in Users)
