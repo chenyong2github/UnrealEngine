@@ -106,6 +106,11 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
 constexpr uint32 GNumVoxelDirections = 6;
 constexpr uint32 GVisBufferTileSize = 4;
 
+float Lumen::GetFirstClipmapWorldExtent()
+{
+	return FMath::Max(GLumenSceneFirstClipmapWorldExtent, 1.0f);
+}
+
 uint32 GetClipmapResolutionXY()
 {
 	return FMath::Clamp<uint32>(GLumenSceneClipmapResolution, 1 << GLumenSceneVoxelLightingMaskDownsampleShift, 512);
@@ -141,7 +146,7 @@ int32 GetNumLumenVoxelClipmaps()
 
 FVector GetLumenVoxelClipmapExtent(int32 ClipmapIndex)
 {
-	const FVector FirstClipmapWorldExtent(GLumenSceneFirstClipmapWorldExtent, GLumenSceneFirstClipmapWorldExtent, GLumenSceneFirstClipmapWorldExtent / GLumenSceneClipmapZResolutionDivisor);
+	const FVector FirstClipmapWorldExtent(Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent(), Lumen::GetFirstClipmapWorldExtent() / GLumenSceneClipmapZResolutionDivisor);
 	const float ClipmapWorldScale = (float)(1 << ClipmapIndex);
 	return FirstClipmapWorldExtent * ClipmapWorldScale;
 }

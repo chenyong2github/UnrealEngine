@@ -24,6 +24,7 @@
 
 enum class ERayTracingPrimaryRaysFlag : uint32;
 
+class FLumenCardUpdateContext;
 class FSceneTextureParameters;
 class FDistanceFieldCulledObjectBufferParameters;
 class FTileIntersectionParameters;
@@ -54,25 +55,15 @@ class FLumenCardRenderer
 public:
 	TArray<FCardPageRenderData, SceneRenderingAllocator> CardPagesToRender;
 
-	FRDGBufferRef CardPagesToRenderIndexBuffer;
-
-	static const uint32 NumCardPagesToRenderHashMapBucketUInt32 = 4 * 1024;
-	// Indexed with CardPageId % NumCardPagesToRenderHashMapBuckets. Returns 1 bit if card tile is on the to render list
-	TBitArray<TInlineAllocator<NumCardPagesToRenderHashMapBucketUInt32 * 32>> CardPagesToRenderHashMap;
-	FRDGBufferRef CardPagesToRenderHashMapBuffer;
-
 	int32 NumCardTexelsToCapture;
 	FMeshCommandOneFrameArray MeshDrawCommands;
 	TArray<int32, SceneRenderingAllocator> MeshDrawPrimitiveIds;
 
 	void Reset()
 	{
-		CardPagesToRenderIndexBuffer = nullptr;
-		CardPagesToRenderHashMapBuffer = nullptr;
 		CardPagesToRender.Reset();
 		MeshDrawCommands.Reset();
 		MeshDrawPrimitiveIds.Reset();
-		CardPagesToRenderHashMap.Reset();
 		NumCardTexelsToCapture = 0;
 	}
 };
@@ -393,13 +384,14 @@ private:
 		FRDGBuilder& GraphBuilder,
 		const class FLumenCardTracingInputs& TracingInputs,
 		FGlobalShaderMap* GlobalShaderMap,
-		const FLumenCardScatterContext& VisibleCardScatterContext);
+		const FLumenCardUpdateContext& CardUpdateContext);
 	
 	void RenderRadiosityForLumenScene(
 		FRDGBuilder& GraphBuilder,
 		const class FLumenCardTracingInputs& TracingInputs,
 		FGlobalShaderMap* GlobalShaderMap,
-		FRDGTextureRef RadiosityAtlas);
+		FRDGTextureRef RadiosityAtlas,
+		const FLumenCardUpdateContext& CardUpdateContext);
 
 	void ClearLumenSurfaceCacheAtlas(
 		FRDGBuilder& GraphBuilder,

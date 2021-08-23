@@ -37,8 +37,6 @@ namespace Lumen
 	bool UseMeshSDFTracing();
 	float GetMaxTraceDistance();
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
-	int32 GetGlobalDFResolution();
-	float GetGlobalDFClipmapExtent();
 	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
 	bool ShouldVisualizeHardwareRayTracing();
@@ -46,12 +44,17 @@ namespace Lumen
 	bool UseVirtualShadowMaps();
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
 
+	int32 GetGlobalDFResolution();
+	float GetGlobalDFClipmapExtent();
+	float GetFirstClipmapWorldExtent();
+
 	bool IsRadiosityEnabled();
 	uint32 GetRadiosityDownsampleFactor();
 
 	// Surface cache
 	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 	bool IsSurfaceCacheFrozen();
+	bool IsSurfaceCacheUpdateFrameFrozen();
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();

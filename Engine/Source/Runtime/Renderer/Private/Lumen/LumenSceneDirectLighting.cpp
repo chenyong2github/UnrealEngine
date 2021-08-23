@@ -120,14 +120,6 @@ FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMapBias(
 	ECVF_RenderThreadSafe
 );
 
-float GLumenSceneCardDirectLightingUpdateFrequencyScale = .003f;
-FAutoConsoleVariableRef CVarLumenSceneCardDirectLightingUpdateFrequencyScale(
-	TEXT("r.LumenScene.DirectLighting.CardUpdateFrequencyScale"),
-	GLumenSceneCardDirectLightingUpdateFrequencyScale,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 bool Lumen::UseVirtualShadowMaps()
 {
 	return GLumenDirectLightingVirtualShadowMap != 0;
@@ -167,7 +159,9 @@ void ClearLumenSceneDirectLighting(
 		ERDGPassFlags::Raster,
 		[MaxAtlasSize = LumenSceneData.GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
 	{
-		auto PixelShader = GlobalShaderMap->GetShader<FClearLumenCardsPS>();
+		FClearLumenCardsPS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FClearLumenCardsPS::FNumTargets>(1);
+		auto PixelShader = GlobalShaderMap->GetShader<FClearLumenCardsPS>(PermutationVector);
 
 		DrawQuadsToAtlas(MaxAtlasSize, PixelShader, PassParameters, GlobalShaderMap, TStaticBlendState<>::GetRHI(), RHICmdList);
 	});
@@ -582,12 +576,6 @@ void SetupLumenLight(
 		check(LumenLight.Type != ELumenLightType::MAX);
 	}
 
-	// 2 bits per shadow mask texel
-	const int32 ShadowMaskTileSize = Lumen::CardTileSize;
-	const uint32 MaxShadowMaskX = FMath::DivideAndRoundUp(LumenSceneData.GetPhysicalAtlasSize().X, ShadowMaskTileSize);
-	const uint32 MaxShadowMaskY = FMath::DivideAndRoundUp(LumenSceneData.GetPhysicalAtlasSize().Y, ShadowMaskTileSize);
-	const uint32 MaxShadowMaskTiles = 4 * MaxShadowMaskX * MaxShadowMaskY;
-
 	if (LightSceneInfo->Proxy->CastsDynamicShadow())
 	{
 		LumenLight.ShadowMaskTilesOffset = LightIndexInBatch * ShadowMaskTilesStride;
@@ -864,7 +852,7 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 	FRDGBuilder& GraphBuilder,
 	const FLumenCardTracingInputs& TracingInputs,
 	FGlobalShaderMap* GlobalShaderMap,
-	const FLumenCardScatterContext& VisibleCardScatterContext)
+	const FLumenCardUpdateContext& CardUpdateContext)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -877,6 +865,19 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 		TRDGUniformBufferRef<FLumenCardScene> LumenCardSceneUniformBuffer = TracingInputs.LumenCardSceneUniformBuffer;
+
+		// Build the indirect args to write to the card faces we are going to update direct lighting for this frame
+		FLumenCardScatterContext VisibleCardScatterContext;
+		VisibleCardScatterContext.Build(
+			GraphBuilder,
+			View,
+			LumenSceneData,
+			LumenCardRenderer,
+			TracingInputs.LumenCardSceneUniformBuffer,
+			CardUpdateContext,
+			/*bBuildCardTiles*/ true,
+			FCullCardsShapeParameters(),
+			ECullCardsShapeType::None);
 
 		ClearLumenSceneDirectLighting(
 			View,
@@ -911,10 +912,10 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 
 		// 2 bits per shadow mask texel
 		const int32 ShadowMaskTileSize = Lumen::CardTileSize;
-		const uint32 MaxShadowMaskX = FMath::DivideAndRoundUp(LumenSceneData.GetPhysicalAtlasSize().X, ShadowMaskTileSize);
-		const uint32 MaxShadowMaskY = FMath::DivideAndRoundUp(LumenSceneData.GetPhysicalAtlasSize().Y, ShadowMaskTileSize);
+		const uint32 MaxShadowMaskX = FMath::DivideAndRoundUp(CardUpdateContext.UpdateAtlasSize.X, ShadowMaskTileSize);
+		const uint32 MaxShadowMaskY = FMath::DivideAndRoundUp(CardUpdateContext.UpdateAtlasSize.Y, ShadowMaskTileSize);
 		const uint32 ShadowMaskTilesStride = 4 * MaxShadowMaskX * MaxShadowMaskY;
-		const uint32 ShadowMaskTilesSize = LightBatchSize * ShadowMaskTilesStride;
+		const uint32 ShadowMaskTilesSize = FMath::Max(LightBatchSize * ShadowMaskTilesStride, 1024u);
 		FRDGBufferRef ShadowMaskTiles = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), ShadowMaskTilesSize), TEXT("Lumen.ShadowMaskTiles"));
 
 		// Batched light culling and drawing
@@ -985,9 +986,8 @@ void FDeferredShadingSceneRenderer::RenderDirectLightingForLumenScene(
 					LumenSceneData,
 					LumenCardRenderer,
 					LumenCardSceneUniformBuffer,
+					CardUpdateContext,
 					/*bBuildCardTiles*/ true,
-					Lumen::IsSurfaceCacheFrozen() ? ECullCardsMode::OperateOnEmptyList : ECullCardsMode::OperateOnSceneForceUpdateForCardPagesToRender,
-					GLumenSceneCardDirectLightingUpdateFrequencyScale,
 					CardScatterInstances,
 					LightBatchSize);
 
