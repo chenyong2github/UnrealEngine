@@ -1690,7 +1690,7 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 							UpdatedSceneInfos.Add(PrimitiveSceneInfo);
 						}
 
-						FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, true);
+						FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, EUpdateStaticMeshFlags::RasterCommands, true);
 					}
 				}
 

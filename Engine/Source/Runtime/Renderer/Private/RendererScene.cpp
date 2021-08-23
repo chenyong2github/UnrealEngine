@@ -735,7 +735,7 @@ static FAutoConsoleVariableSink CVarUpdateEarlyZPassModeSink(FConsoleCommandDele
 void FScene::UpdateDoLazyStaticMeshUpdate(FRHICommandListImmediate& CmdList)
 {
 	bool DoLazyStaticMeshUpdate = CVarDoLazyStaticMeshUpdate.GetValueOnRenderThread() && !GIsEditor && FApp::CanEverRender();
-	FPrimitiveSceneInfo::UpdateStaticMeshes(CmdList, this, Primitives, !DoLazyStaticMeshUpdate);
+	FPrimitiveSceneInfo::UpdateStaticMeshes(CmdList, this, Primitives, EUpdateStaticMeshFlags::AllCommands, !DoLazyStaticMeshUpdate);
 }
 
 void FScene::DumpMeshDrawCommandMemoryStats()
@@ -4899,7 +4899,7 @@ void UpdateStaticMeshesForMaterials(const TArray<const FMaterial*>& MaterialReso
 			for (auto& SceneInfos : UsedPrimitives)
 			{
 				TArray<FPrimitiveSceneInfo*>& SceneInfoArray = SceneInfos.Value;
-				FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, SceneInfos.Key, SceneInfoArray, false);
+				FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, SceneInfos.Key, SceneInfoArray, EUpdateStaticMeshFlags::AllCommands, false);
 			}
 		});
 }
