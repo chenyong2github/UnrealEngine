@@ -86,7 +86,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingShadowsLODTransitionEnd(
 
 static TAutoConsoleVariable<int32> CVarRayTracingShadowsAcceptFirstHit(
 	TEXT("r.RayTracing.Shadows.AcceptFirstHit"),
-	0,
+	1,
 	TEXT("Whether to allow shadow rays to terminate early, on first intersected primitive. This may result in worse denoising quality in some cases. (default = 0)"),
 	ECVF_RenderThreadSafe
 );
