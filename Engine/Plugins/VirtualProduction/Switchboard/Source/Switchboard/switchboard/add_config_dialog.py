@@ -447,7 +447,7 @@ class AddConfigDialog(QtWidgets.QDialog):
 
         # Not detecting Debug runs since it is not common and would increase detection time
         # At some point this might need UE6Editor added.
-        UEnames = ['UE4Editor', 'UE5Editor']
+        UEnames = ['UE4Editor', 'UnrealEditor']
 
         if sys.platform.startswith('win'):
             for UEname in UEnames:

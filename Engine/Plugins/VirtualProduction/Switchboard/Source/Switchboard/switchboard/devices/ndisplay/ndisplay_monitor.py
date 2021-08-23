@@ -491,7 +491,7 @@ class nDisplayMonitor(QAbstractTableModel):
 
     @QtCore.Slot()
     def btnFixExeFlags_clicked(self):
-        ''' Tries to force the correct UE4Editor.exe flags '''
+        ''' Tries to force the correct UnrealEditor.exe flags '''
         for devicedata in self.devicedatas.values():
             device = devicedata['device']
             data = devicedata['data']
