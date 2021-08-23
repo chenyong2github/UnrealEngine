@@ -713,11 +713,6 @@ void SVisualLogger::ResetData()
 		MainView->ResetData();
 	}
 
-	if (VisualLoggerFilters.IsValid() && ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bResetDataWithNewSession)
-	{
-		VisualLoggerFilters->ResetData();
-	}
-
 	if (LogsList.IsValid())
 	{
 		LogsList->ResetData();
