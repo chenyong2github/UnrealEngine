@@ -48,6 +48,7 @@ namespace Lumen
 	float GetGlobalDFClipmapExtent();
 	float GetFirstClipmapWorldExtent();
 
+	// Features
 	bool IsRadiosityEnabled();
 	uint32 GetRadiosityDownsampleFactor();
 
@@ -55,6 +56,9 @@ namespace Lumen
 	float GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
 	bool IsSurfaceCacheFrozen();
 	bool IsSurfaceCacheUpdateFrameFrozen();
+
+	// Software ray tracing
+	bool UseVoxelLighting();
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();
