@@ -68,6 +68,20 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingM
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarLumenHardwareRayTracingNormalBias(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.NormalBias"),
+	.1f,
+	TEXT("Bias along the shading normal, useful when the Ray Tracing geometry doesn't match the GBuffer (Nanite Proxy geometry)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingCullBackFacingTriangles(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.CullBackFacingTriangles"),
+	0,
+	TEXT("Whether to cull backfacing triangles during ray traversal.  Culling can introduce leaking, especially where biases are required (Nanite proxy geometry)"),
+	ECVF_RenderThreadSafe
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -127,6 +141,8 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 
 		// Constants
 		SHADER_PARAMETER(float, PullbackBias)
+		SHADER_PARAMETER(float, NormalBias)
+		SHADER_PARAMETER(uint32, CullBackFacingTriangles)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		// Radiance cache
@@ -162,6 +178,8 @@ class FLumenScreenProbeGatherHardwareRayTracingDeferredMaterialRGS : public FLum
 
 		// Constants
 		SHADER_PARAMETER(float, PullbackBias)
+		SHADER_PARAMETER(float, NormalBias)
+		SHADER_PARAMETER(uint32, CullBackFacingTriangles)
 
 		// Radiance cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
@@ -268,6 +286,8 @@ void RenderHardwareRayTracingScreenProbe(
 
 		// Constants
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
+		PassParameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
+		PassParameters->CullBackFacingTriangles = CVarLumenHardwareRayTracingCullBackFacingTriangles.GetValueOnRenderThread();
 
 		// Radiance cache arguments
 		FRGSRadianceCacheParameters* RGSRadianceCacheParameters = GraphBuilder.AllocParameters<FRGSRadianceCacheParameters>();
@@ -330,6 +350,8 @@ void RenderHardwareRayTracingScreenProbe(
 
 		// Constants
 		PassParameters->PullbackBias = Lumen::GetHardwareRayTracingPullbackBias();
+		PassParameters->NormalBias = CVarLumenHardwareRayTracingNormalBias.GetValueOnRenderThread();
+		PassParameters->CullBackFacingTriangles = CVarLumenHardwareRayTracingCullBackFacingTriangles.GetValueOnRenderThread();
 		PassParameters->MaxTranslucentSkipCount = CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Radiance cache arguments
