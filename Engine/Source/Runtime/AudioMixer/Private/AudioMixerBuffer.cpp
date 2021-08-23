@@ -153,10 +153,20 @@ namespace Audio
 
 		FSoundQualityInfo QualityInfo;
 
+		if (!SoundWave->ResourceData || !SoundWave->ResourceSize)
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to read compressed info of '%s' because there was no resource data or invalid resource size."), *ResourceName);
+			return false;
+		}
+
 		if (DecompressionState->ReadCompressedInfo(SoundWave->ResourceData, SoundWave->ResourceSize, &QualityInfo))
 		{
 			NumFrames = QualityInfo.SampleDataSize / (QualityInfo.NumChannels * sizeof(int16));
 			return true;
+		}
+		else
+		{
+			UE_LOG(LogAudioMixer, Warning, TEXT("Failed to read compressed info of '%s'."), *ResourceName);
 		}
 		return false;
 	}
