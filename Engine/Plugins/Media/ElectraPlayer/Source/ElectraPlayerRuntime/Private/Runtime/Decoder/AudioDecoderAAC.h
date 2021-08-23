@@ -42,6 +42,8 @@ namespace Electra
 		static bool Startup(const FSystemConfiguration& Config);
 		static void Shutdown();
 
+		static bool CanDecodeStream(const FStreamCodecInformation& InCodecInfo);
+
 		static IAudioDecoderAAC* Create();
 
 		virtual ~IAudioDecoderAAC() = default;

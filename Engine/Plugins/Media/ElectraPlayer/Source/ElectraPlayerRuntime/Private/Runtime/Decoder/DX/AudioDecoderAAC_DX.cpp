@@ -14,6 +14,7 @@
 #include "Utilities/UtilsMPEG.h"
 #include "Utilities/UtilsMPEGAudio.h"
 #include "Utilities/StringHelpers.h"
+#include "Utilities/AudioChannelMapper.h"
 
 #include "DecoderErrors_DX.h"
 
@@ -63,13 +64,11 @@ DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::ConvertOutput()"), STAT_ElectraPlayer
 
 
 #define AACDEC_PCM_SAMPLE_SIZE  2048
-#define AACDEC_MAX_CHANNELS		6
+#define AACDEC_MAX_CHANNELS		8
 
 
 namespace Electra
 {
-
-
 	/**
 	 * AAC audio decoder class implementation.
 	**/
@@ -78,6 +77,8 @@ namespace Electra
 	public:
 		static bool Startup(const IAudioDecoderAAC::FSystemConfiguration& InConfig);
 		static void Shutdown();
+
+		static bool CanDecodeStream(const FStreamCodecInformation& InCodecInfo);
 
 		FAudioDecoderAAC();
 		virtual ~FAudioDecoderAAC();
@@ -192,10 +193,13 @@ namespace Electra
 		FParamDict																BufferAcquireOptions;
 		FParamDict																OutputBufferSampleProperties;
 
+		FAudioChannelMapper														ChannelMapper;
+		static const uint8														NumChannelsForConfig[16];
 	public:
 		static FSystemConfiguration												SystemConfig;
 	};
 
+	const uint8								FAudioDecoderAAC::NumChannelsForConfig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 7, 8, 0, 8, 0 };
 	IAudioDecoderAAC::FSystemConfiguration	FAudioDecoderAAC::SystemConfig;
 
 
@@ -227,6 +231,11 @@ namespace Electra
 	void IAudioDecoderAAC::Shutdown()
 	{
 		FAudioDecoderAAC::Shutdown();
+	}
+
+	bool IAudioDecoderAAC::CanDecodeStream(const FStreamCodecInformation& InCodecInfo)
+	{
+		return FAudioDecoderAAC::CanDecodeStream(InCodecInfo);
 	}
 
 	IAudioDecoderAAC* IAudioDecoderAAC::Create()
@@ -264,6 +273,15 @@ namespace Electra
 	{
 	}
 
+
+	//-----------------------------------------------------------------------------
+	/**
+	 * Determines if this stream can be decoded based on its channel configuration.
+	 */
+	bool FAudioDecoderAAC::CanDecodeStream(const FStreamCodecInformation& InCodecInfo)
+	{
+		return InCodecInfo.GetChannelConfiguration() <= 6;
+	}
 
 
 	//-----------------------------------------------------------------------------
@@ -309,10 +327,7 @@ namespace Electra
 	{
 		check(Renderer);
 		FParamDict poolOpts;
-		// Assume LC-AAC with at most 6 channels and 16 bit decoded PCM samples. This is ok for HE-AAC as well which can at most be stereo.
-		uint32 frameSize = sizeof(int16) * AACDEC_MAX_CHANNELS * 1024;
-		static_assert(sizeof(int16) * AACDEC_MAX_CHANNELS * 1024 >= sizeof(int16) * 2 * 2048, "Sample pool size not correct!");
-
+		uint32 frameSize = sizeof(int16) * AACDEC_MAX_CHANNELS * AACDEC_PCM_SAMPLE_SIZE;
 		poolOpts.Set("max_buffer_size", FVariantValue((int64)frameSize));
 		//	poolOpts.Set("buffer_alignment", FVariantValue((int64) 32));
 		poolOpts.Set("num_buffers", FVariantValue((int64)8));
@@ -520,6 +535,7 @@ namespace Electra
 		TRefCountPtr<IMFMediaType>	MediaType;
 		HRESULT					res;
 
+		ChannelMapper.Reset();
 		if (!ConfigRecord.IsValid())
 		{
 			PostError(0, "No CSD to create audio decoder with", ERRCODE_INTERNAL_COULD_NOT_CREATE_DECODER);
@@ -536,7 +552,12 @@ namespace Electra
 		VERIFY_HR(MediaType->SetGUID(MF_MT_SUBTYPE, MEDIASUBTYPE_RAW_AAC1_Audio), "Failed to set input media audio type to RAW AAC", ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_AAC_SUBTYPE);
 		VERIFY_HR(MediaType->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, PayloadType), "Failed to set input media audio payload type", ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_AAC_SUBTYPE);
 		VERIFY_HR(MediaType->SetUINT32(MF_MT_AUDIO_SAMPLES_PER_SECOND, ConfigRecord->SamplingRate), FString::Printf(TEXT("Failed to set input audio sampling rate to %u"), ConfigRecord->SamplingRate), ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_SAMPLING_RATE);
-		VERIFY_HR(MediaType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, ConfigRecord->ChannelConfiguration), FString::Printf(TEXT("Failed to set input audio number of channels to %u"), ConfigRecord->ChannelConfiguration), ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_CHANNEL_COUNT);
+		// ConfigRecord->ChannelConfiguration is in the range 0-15.
+		check(ConfigRecord->ChannelConfiguration < 16);
+		if (NumChannelsForConfig[ConfigRecord->ChannelConfiguration])
+		{
+			VERIFY_HR(MediaType->SetUINT32(MF_MT_AUDIO_NUM_CHANNELS, NumChannelsForConfig[ConfigRecord->ChannelConfiguration]), FString::Printf(TEXT("Failed to set input audio number of channels for configuration %u"), ConfigRecord->ChannelConfiguration), ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_CHANNEL_COUNT);
+		}
 		VERIFY_HR(MediaType->SetBlob(MF_MT_USER_DATA, ConfigRecord->GetCodecSpecificData().GetData(), ConfigRecord->GetCodecSpecificData().Num()), "Failed to set input audio CSD", ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_AUDIO_CSD);
 		// Set input media type with decoder
 		VERIFY_HR(Decoder->SetInputType(0, MediaType, 0), "Failed to set audio decoder input type", ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_TYPE);
@@ -562,11 +583,10 @@ namespace Electra
 
 	bool FAudioDecoderAAC::SetDecoderOutputType()
 	{
-		TRefCountPtr<IMFMediaType> MediaType;
-		HRESULT res;
-
-		uint32 TypeIndex = 0;
-		while (SUCCEEDED(DecoderTransform->GetOutputAvailableType(0, TypeIndex++, MediaType.GetInitReference())))
+		TRefCountPtr<IMFMediaType>	MediaType;
+		HRESULT						res;
+		uint32						TypeIndex = 0;
+		while(SUCCEEDED(DecoderTransform->GetOutputAvailableType(0, TypeIndex++, MediaType.GetInitReference())))
 		{
 			GUID Subtype;
 			res = MediaType->GetGUID(MF_MT_SUBTYPE, &Subtype);
@@ -626,9 +646,9 @@ namespace Electra
 
 	bool FAudioDecoderAAC::Decode(int32& OutInputSizeConsumed, const void* InData, int32 InSize, int64 PTS, int64 Duration, bool bFlushOnly, bool bRender)
 	{
-		HRESULT				res;
+		HRESULT					res;
 		TRefCountPtr<IMFSample>	InputSample;
-		bool				bFlush = InData == nullptr;
+		bool					bFlush = InData == nullptr;
 
 		OutInputSizeConsumed = 0;
 		if (bFlush)
@@ -647,10 +667,10 @@ namespace Electra
 		{
 			// Create the input sample.
 			TRefCountPtr<IMFMediaBuffer>	InputSampleBuffer;
-			BYTE* pbNewBuffer = nullptr;
-			DWORD					dwMaxBufferSize = 0;
-			DWORD					dwSize = 0;
-			LONGLONG				llSampleTime = 0;
+			BYTE*							pbNewBuffer = nullptr;
+			DWORD							dwMaxBufferSize = 0;
+			DWORD							dwSize = 0;
+			LONGLONG						llSampleTime = 0;
 
 			SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_AudioAACDecode);
 			CSV_SCOPED_TIMING_STAT(ElectraPlayer, AudioAACDecode);
@@ -669,7 +689,7 @@ namespace Electra
 			VERIFY_HR(InputSample->SetSampleDuration(llSampleTime), "Failed to set audio decode intput sample duration", ERRCODE_INTERNAL_COULD_NOT_SET_INPUT_SAMPLE_DURATION);
 		}
 
-		while (!TerminateThreadEvent.IsSignaled())
+		while(!TerminateThreadEvent.IsSignaled())
 		{
 			if (FlushDecoderEvent.IsSignaled() && !bFlush)
 			{
@@ -686,7 +706,7 @@ namespace Electra
 				}
 			}
 
-			DWORD	dwStatus = 0;
+			DWORD dwStatus = 0;
 			CurrentDecoderOutputBuffer->PrepareForProcess();
 
 			{
@@ -745,13 +765,14 @@ namespace Electra
 				CurrentDecoderOutputBuffer.Reset();
 
 				TRefCountPtr<IMFMediaBuffer>	DecodedLinearOutputBuffer;
-				DWORD					dwBufferLen;
-				DWORD					dwMaxBufferLen;
-				BYTE* pDecompressedData = nullptr;
-				LONGLONG				llTimeStamp = 0;
-				WAVEFORMATEX			OutputWaveFormat;
-				WAVEFORMATEX* OutputWaveFormatPtr = nullptr;
-				UINT32					WaveFormatSize = 0;
+				DWORD							dwBufferLen;
+				DWORD							dwMaxBufferLen;
+				BYTE*							pDecompressedData = nullptr;
+				LONGLONG						llTimeStamp = 0;
+				WAVEFORMATEX					OutputWaveFormat;
+				WAVEFORMATEX*					OutputWaveFormatPtr = nullptr;
+				UINT32							WaveFormatSize = 0;
+				DWORD							ChannelMask = 0;
 
 				VERIFY_HR(DecodedOutputSample->GetSampleTime(&llTimeStamp), "Failed to get audio decoder output sample timestamp", ERRCODE_INTERNAL_COULD_NOT_GET_OUTPUT_SAMPLE_TIME);
 				VERIFY_HR(DecodedOutputSample->ConvertToContiguousBuffer(DecodedLinearOutputBuffer.GetInitReference()), "Failed to convert audio decoder output sample to contiguous buffer", ERRCODE_INTERNAL_COULD_NOT_MAKE_CONTIGUOUS_OUTPUT_BUFFER);
@@ -759,6 +780,10 @@ namespace Electra
 				VERIFY_HR(DecodedLinearOutputBuffer->Lock(&pDecompressedData, &dwMaxBufferLen, &dwBufferLen), "Failed to lock audio decoder output buffer", ERRCODE_INTERNAL_COULD_NOT_LOCK_OUTPUT_BUFFER)
 				VERIFY_HR(MFCreateWaveFormatExFromMFMediaType(CurrentOutputMediaType.GetReference(), &OutputWaveFormatPtr, &WaveFormatSize, MFWaveFormatExConvertFlag_Normal), "Failed to create audio decoder output buffer format info", ERRCODE_INTERNAL_COULD_NOT_CREATE_OUTPUT_BUFFER_FORMAT_INFO);
 				FMemory::Memcpy(&OutputWaveFormat, OutputWaveFormatPtr, sizeof(OutputWaveFormat));
+				if (OutputWaveFormatPtr->wFormatTag == WAVE_FORMAT_EXTENSIBLE)
+				{
+					ChannelMask = ((WAVEFORMATEXTENSIBLE*)OutputWaveFormatPtr)->dwChannelMask;
+				}
 				CoTaskMemFree(OutputWaveFormatPtr);
 				OutputWaveFormatPtr = nullptr;
 
@@ -770,8 +795,77 @@ namespace Electra
 				//int32 nSamplesProduced = dwBufferLen / (sizeof(float) * OutputWaveFormat.nChannels);
 				//const float *pPCMSamples = (const float *)pDecompressedData;
 
+				if (!ChannelMapper.IsInitialized())
+				{
+					bool bMapperOk = false;
+					if (ChannelMask == 0)
+					{
+						check(ConfigRecord.IsValid());
+						if (ConfigRecord->ChannelConfiguration == OutputWaveFormat.nChannels)
+						{
+							bMapperOk = ChannelMapper.Initialize(sizeof(int16), ConfigRecord->ChannelConfiguration);
+						}
+						else if (ConfigRecord->PSSignal == 1)
+						{
+							// Parametric stereo outputs as stereo
+							bMapperOk = ChannelMapper.Initialize(sizeof(int16), OutputWaveFormat.nChannels);
+						}
+						else
+						{
+							// For up to 6 channels the AAC channel configuration value lines up with the actual number
+							// of decoded channels albeit with a different layout. In absence of any better knowledge we
+							// just take the number of channels for the configuration value and hope the channels line up.
+							bMapperOk = ChannelMapper.Initialize(sizeof(int16), OutputWaveFormat.nChannels);
+						}
+					}
+					else
+					{
+						// The channel positions from MS are oddly named with "back left" and "side left" in that "back left" is
+						// what is traditionally "left surround" in 5.1 and "left surround side" in 7.1 with the additional 2 surround
+						// channels called "left surround rear".
+						// As long as the AAC decoder only decodes 6 channels and the two surrounds have the channel mask set as
+						// "SPEAKER_BACK_LEFT" and "SPEAKER_BACK_RIGHT" there's no ambiguity.
+						static FAudioChannelMapper::EChannelPosition ChannelPositions[] = {
+							FAudioChannelMapper::EChannelPosition::L,		// SPEAKER_FRONT_LEFT
+							FAudioChannelMapper::EChannelPosition::R,		// SPEAKER_FRONT_RIGHT
+							FAudioChannelMapper::EChannelPosition::C,		// SPEAKER_FRONT_CENTER
+							FAudioChannelMapper::EChannelPosition::LFE,		// SPEAKER_LOW_FREQUENCY
+							FAudioChannelMapper::EChannelPosition::Ls,		// SPEAKER_BACK_LEFT
+							FAudioChannelMapper::EChannelPosition::Rs,		// SPEAKER_BACK_RIGHT
+							FAudioChannelMapper::EChannelPosition::Lc,		// SPEAKER_FRONT_LEFT_OF_CENTER
+							FAudioChannelMapper::EChannelPosition::Rc,		// SPEAKER_FRONT_RIGHT_OF_CENTER
+							FAudioChannelMapper::EChannelPosition::Cs,		// SPEAKER_BACK_CENTER
+							FAudioChannelMapper::EChannelPosition::Lss,		// SPEAKER_SIDE_LEFT
+							FAudioChannelMapper::EChannelPosition::Rss,		// SPEAKER_SIDE_RIGHT
+							FAudioChannelMapper::EChannelPosition::Ts,		// SPEAKER_TOP_CENTER
+							FAudioChannelMapper::EChannelPosition::Lv,		// SPEAKER_TOP_FRONT_LEFT
+							FAudioChannelMapper::EChannelPosition::Cv,		// SPEAKER_TOP_FRONT_CENTER
+							FAudioChannelMapper::EChannelPosition::Rv,		// SPEAKER_TOP_FRONT_RIGHT
+							FAudioChannelMapper::EChannelPosition::Lvs,		// SPEAKER_TOP_BACK_LEFT
+							FAudioChannelMapper::EChannelPosition::Cvr,		// SPEAKER_TOP_BACK_CENTER
+							FAudioChannelMapper::EChannelPosition::Rvs		// SPEAKER_TOP_BACK_RIGHT
+						};
+						TArray<FAudioChannelMapper::FSourceLayout> Layout;
+						for(int32 i=0; i<UE_ARRAY_COUNT(ChannelPositions); ++i)
+						{
+							if ((ChannelMask & (1 << i)) != 0)
+							{
+								FAudioChannelMapper::FSourceLayout lo;
+								lo.ChannelPosition = ChannelPositions[i];
+								Layout.Emplace(MoveTemp(lo));
+							}
+						}
+						bMapperOk = ChannelMapper.Initialize(sizeof(int16), Layout);
+					}
+					if (!bMapperOk)
+					{
+						PostError(S_OK, "Failed to set up the output channel mapper", ERRCODE_INTERNAL_FAILED_TO_MAP_OUTPUT_CHANNELS, UEMEDIA_ERROR_INTERNAL);
+						return false;
+					}
+				}
+
 				// Get an sample block from the pool.
-				while (!TerminateThreadEvent.IsSignaled())
+				while(!TerminateThreadEvent.IsSignaled())
 				{
 					if (FlushDecoderEvent.IsSignaled() && !bFlush)
 					{
@@ -806,12 +900,12 @@ namespace Electra
 						if (dwBufferLen <= CurrentRenderOutputBufferSize)
 						{
 							void* CurrentRenderOutputBufferAddress = CurrentRenderOutputBuffer->GetBufferProperties().GetValue("address").GetPointer();
-							FMemory::Memcpy(CurrentRenderOutputBufferAddress, pPCMSamples, dwBufferLen);
+							ChannelMapper.MapChannels(CurrentRenderOutputBufferAddress, CurrentRenderOutputBufferSize, pPCMSamples, dwBufferLen, nSamplesProduced);
 
 							OutputBufferSampleProperties.Clear();
-							OutputBufferSampleProperties.Set("num_channels", FVariantValue((int64)OutputWaveFormat.nChannels));
+							OutputBufferSampleProperties.Set("num_channels", FVariantValue((int64)ChannelMapper.GetNumTargetChannels()));
 							OutputBufferSampleProperties.Set("sample_rate", FVariantValue((int64)OutputWaveFormat.nSamplesPerSec));
-							OutputBufferSampleProperties.Set("byte_size", FVariantValue((int64)dwBufferLen));
+							OutputBufferSampleProperties.Set("byte_size", FVariantValue((int64)(ChannelMapper.GetNumTargetChannels() * nSamplesProduced * sizeof(int16))));
 							OutputBufferSampleProperties.Set("duration", FVariantValue(OutputSampleDuration));
 							OutputBufferSampleProperties.Set("pts", FVariantValue(pts));
 							OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
@@ -917,7 +1011,7 @@ namespace Electra
 		bError = !CreateDecodedSamplePool();
 		check(!bError);
 
-		while (!TerminateThreadEvent.IsSignaled())
+		while(!TerminateThreadEvent.IsSignaled())
 		{
 			// If in background, wait until we get activated again.
 			if (!ApplicationRunningSignal.IsSignaled())
@@ -977,6 +1071,7 @@ namespace Electra
 					CurrentOutputMediaType = nullptr;
 					ConfigRecord = nullptr;
 					CurrentCodecData = nullptr;
+					ChannelMapper.Reset();
 				}
 
 				// Parse the CSD into a configuration record.
@@ -1029,7 +1124,7 @@ namespace Electra
 
 				// Loop until all data has been consumed.
 				bool bAllInputConsumed = false;
-				while (!bError && !bAllInputConsumed && !TerminateThreadEvent.IsSignaled() && !FlushDecoderEvent.IsSignaled())
+				while(!bError && !bAllInputConsumed && !TerminateThreadEvent.IsSignaled() && !FlushDecoderEvent.IsSignaled())
 				{
 					if (!pData->bIsDummyData)
 					{
@@ -1094,7 +1189,7 @@ namespace Electra
 							if (ConfigRecord.IsValid())
 							{
 								// Parameteric stereo results in stereo (2 channels).
-								NumChannels = ConfigRecord->PSSignal > 0 ? 2 : ConfigRecord->ChannelConfiguration;
+								NumChannels = ConfigRecord->PSSignal > 0 ? 2 : NumChannelsForConfig[ConfigRecord->ChannelConfiguration];
 								SampleRate = ConfigRecord->ExtSamplingFrequency ? ConfigRecord->ExtSamplingFrequency : ConfigRecord->SamplingRate;
 								SamplesPerBlock = ConfigRecord->SBRSignal > 0 ? 2048 : 1024;
 							}

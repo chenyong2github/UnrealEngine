@@ -141,6 +141,10 @@ bool FAdaptiveStreamingPlayer::CanDecodeStream(const FStreamCodecInformation& In
 		{
 			return false;
 		}
+		if (InStreamCodecInfo.GetCodec() == FStreamCodecInformation::ECodec::AAC)
+		{
+			return IAudioDecoderAAC::CanDecodeStream(InStreamCodecInfo);
+		}
 	}
 	else if (InStreamCodecInfo.IsSubtitleCodec())
 	{

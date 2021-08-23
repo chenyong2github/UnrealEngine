@@ -43,6 +43,10 @@ namespace Electra
 		};
 
 
+		namespace AACUtils
+		{
+			int32 GetNumberOfChannelsFromChannelConfiguration(uint32 InChannelConfiguration);
+		}
 
 
 	} // namespace MPEG

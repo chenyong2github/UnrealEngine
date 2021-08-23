@@ -9,6 +9,7 @@
 #include "Utilities/Utilities.h"
 #include "Utilities/UtilsMPEGAudio.h"
 #include "Utilities/StringHelpers.h"
+#include "Utilities/AudioChannelMapper.h"
 #include "DecoderErrors_Android.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
@@ -22,6 +23,21 @@ DECLARE_CYCLE_STAT(TEXT("FAudioDecoderAAC::ConvertOutput()"), STAT_ElectraPlayer
 namespace Electra
 {
 
+namespace AACDecoderChannelOutputMappingAndroid
+{
+	#define CP FAudioChannelMapper::EChannelPosition
+	static const CP _1[] = { CP::C };
+	static const CP _2[] = { CP::L, CP::R };
+	static const CP _3[] = { CP::L, CP::R, CP::C };
+	static const CP _4[] = { CP::L, CP::R, CP::C, CP::Cs };
+	static const CP _5[] = { CP::L, CP::R, CP::C, CP::Ls, CP::Rs };
+	static const CP _6[] = { CP::L, CP::R, CP::C, CP::LFE, CP::Ls, CP::Rs };
+	static const CP _7[] = { CP::L, CP::R, CP::C, CP::LFE, CP::Ls, CP::Rs, CP::Cs };
+	static const CP _8[] = { CP::L, CP::R, CP::C, CP::LFE, CP::Ls, CP::Rs, CP::Lsr, CP::Rsr };
+	static const CP * const Order[] = { _1, _2, _3, _4, _5, _6, _7, _8 };
+	#undef CP
+};
+
 
 /**
  * AAC audio decoder class implementation.
@@ -31,6 +47,8 @@ class FAudioDecoderAAC : public IAudioDecoderAAC, public FMediaThread
 public:
 	static bool Startup(const IAudioDecoderAAC::FSystemConfiguration& InConfig);
 	static void Shutdown();
+
+	static bool CanDecodeStream(const FStreamCodecInformation& InCodecInfo);
 
 	FAudioDecoderAAC();
 	virtual ~FAudioDecoderAAC();
@@ -103,10 +121,15 @@ private:
 	FParamDict																BufferAcquireOptions;
 	FParamDict																OutputBufferSampleProperties;
 
+	int32																	PCMBufferSize;
+	int16*																	PCMBuffer;
+	FAudioChannelMapper														ChannelMapper;
+	static const uint8														NumChannelsForConfig[16];
 public:
 	static FSystemConfiguration												SystemConfig;
 };
 
+const uint8								FAudioDecoderAAC::NumChannelsForConfig[16] = { 0, 1, 2, 3, 4, 5, 6, 7, 0, 0, 0, 7, 8, 0, 8, 0 };
 IAudioDecoderAAC::FSystemConfiguration	FAudioDecoderAAC::SystemConfig;
 
 
@@ -138,6 +161,11 @@ bool IAudioDecoderAAC::Startup(const IAudioDecoderAAC::FSystemConfiguration& InC
 void IAudioDecoderAAC::Shutdown()
 {
 	FAudioDecoderAAC::Shutdown();
+}
+
+bool IAudioDecoderAAC::CanDecodeStream(const FStreamCodecInformation& InCodecInfo)
+{
+	return FAudioDecoderAAC::CanDecodeStream(InCodecInfo);
 }
 
 IAudioDecoderAAC* IAudioDecoderAAC::Create()
@@ -176,6 +204,16 @@ void FAudioDecoderAAC::Shutdown()
 
 //-----------------------------------------------------------------------------
 /**
+ * Determines if this stream can be decoded based on its channel configuration.
+ */
+bool FAudioDecoderAAC::CanDecodeStream(const FStreamCodecInformation& InCodecInfo)
+{
+	return InCodecInfo.GetChannelConfiguration() != 0;
+}
+
+
+//-----------------------------------------------------------------------------
+/**
  * Constructor
  */
 FAudioDecoderAAC::FAudioDecoderAAC()
@@ -188,6 +226,8 @@ FAudioDecoderAAC::FAudioDecoderAAC()
 	, SessionServices(nullptr)
 	, bInDummyDecodeMode(false)
 	, CurrentOutputBuffer(nullptr)
+	, PCMBuffer(nullptr)
+	, PCMBufferSize(0)
 {
 }
 
@@ -226,11 +266,9 @@ bool FAudioDecoderAAC::CreateDecodedSamplePool()
 {
 	check(Renderer);
 	FParamDict poolOpts;
-	// Assume LC-AAC with at most 6 channels and 16 bit decoded PCM samples. This is ok for HE-AAC as well which can at most be stereo.
-	uint32 frameSize = sizeof(int16) * 6 * 1024;
-
-	poolOpts.Set("max_buffer_size",  FVariantValue((int64) frameSize));
-	poolOpts.Set("num_buffers",      FVariantValue((int64) 8));
+	uint32 frameSize = sizeof(int16) * 8 * 2048;
+	poolOpts.Set("max_buffer_size", FVariantValue((int64) frameSize));
+	poolOpts.Set("num_buffers",     FVariantValue((int64) 8));
 
 	UEMediaError Error = Renderer->CreateBufferPool(poolOpts);
 	check(Error == UEMEDIA_ERROR_OK);
@@ -648,18 +686,51 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 						PTS.SetFromMicroseconds(OutputBufferInfo.PresentationTimestamp);
 						bool bEOS = OutputBufferInfo.bIsEOS;
 
-						int32 CurrentRenderOutputBufferSize = (int32)CurrentOutputBuffer->GetBufferProperties().GetValue("size").GetInt64();
-						void* CurrentRenderOutputBufferAddress = CurrentOutputBuffer->GetBufferProperties().GetValue("address").GetPointer();
-						check(CurrentRenderOutputBufferSize >= OutputByteCount);
-						if (CurrentRenderOutputBufferSize >= OutputByteCount)
+						check(PCMBufferSize >= OutputByteCount);
+						if (PCMBufferSize >= OutputByteCount)
 						{
-							result = DecoderInstance->GetOutputBufferAndRelease(CurrentRenderOutputBufferAddress, CurrentRenderOutputBufferSize, OutputBufferInfo);
+							void* CopyBuffer = (void*)PCMBuffer;
+							result = DecoderInstance->GetOutputBufferAndRelease(CopyBuffer, PCMBufferSize, OutputBufferInfo);
 							if (result == 0)
 							{
+								if (!ChannelMapper.IsInitialized())
+								{
+									if (NumberOfChannels)
+									{
+										TArray<FAudioChannelMapper::FSourceLayout> Layout;
+										const FAudioChannelMapper::EChannelPosition* ChannelPositions = AACDecoderChannelOutputMappingAndroid::Order[NumberOfChannels - 1];
+										for(uint32 i=0; i<NumberOfChannels; ++i)
+										{
+											FAudioChannelMapper::FSourceLayout lo;
+											lo.ChannelPosition = ChannelPositions[i];
+											Layout.Emplace(MoveTemp(lo));
+										}
+										if (ChannelMapper.Initialize(sizeof(int16), Layout))
+										{
+											// Ok.
+										}
+										else
+										{
+											PostError(0, "Failed to initialize audio channel mapper", ERRCODE_INTERNAL_ANDROID_UNSUPPORTED_NUMBER_OF_AUDIO_CHANNELS);
+											return false;
+										}
+									}
+									else
+									{
+										PostError(0, "Bad number (0) of decoded audio channels", ERRCODE_INTERNAL_ANDROID_UNSUPPORTED_NUMBER_OF_AUDIO_CHANNELS);
+										return false;
+									}
+								}
+
+								int32 CurrentRenderOutputBufferSize = (int32)CurrentOutputBuffer->GetBufferProperties().GetValue("size").GetInt64();
+								void* CurrentRenderOutputBufferAddress = CurrentOutputBuffer->GetBufferProperties().GetValue("address").GetPointer();
+								int32 NumDecodedSamplesPerChannel = OutputByteCount / (sizeof(int16) * NumberOfChannels);
+								ChannelMapper.MapChannels(CurrentRenderOutputBufferAddress, CurrentRenderOutputBufferSize, PCMBuffer, OutputByteCount, NumDecodedSamplesPerChannel);
+
 								OutputBufferSampleProperties.Clear();
-								OutputBufferSampleProperties.Set("num_channels",  FVariantValue((int64) NumberOfChannels));
+								OutputBufferSampleProperties.Set("num_channels",  FVariantValue((int64) ChannelMapper.GetNumTargetChannels()));
 								OutputBufferSampleProperties.Set("sample_rate",   FVariantValue((int64) SamplingRate));
-								OutputBufferSampleProperties.Set("byte_size",     FVariantValue((int64) OutputByteCount));
+								OutputBufferSampleProperties.Set("byte_size",     FVariantValue((int64) (ChannelMapper.GetNumTargetChannels() * sizeof(int16) * NumDecodedSamplesPerChannel)));
 								OutputBufferSampleProperties.Set("duration",      FVariantValue(Duration));
 								OutputBufferSampleProperties.Set("pts",           FVariantValue(PTS));
 								OutputBufferSampleProperties.Set("discontinuity", FVariantValue((bool)bHaveDiscontinuity));
@@ -741,7 +812,7 @@ bool FAudioDecoderAAC::Decode(FAccessUnit* InAccessUnit)
 				if (ConfigRecord.IsValid())
 				{
 					// Parameteric stereo results in stereo (2 channels).
-					NumChannels = ConfigRecord->PSSignal > 0 ? 2 : ConfigRecord->ChannelConfiguration;
+					NumChannels = ConfigRecord->PSSignal > 0 ? 2 : NumChannelsForConfig[ConfigRecord->ChannelConfiguration];
 					SampleRate = ConfigRecord->ExtSamplingFrequency ? ConfigRecord->ExtSamplingFrequency : ConfigRecord->SamplingRate;
 					SamplesPerBlock = ConfigRecord->SBRSignal > 0 ? 2048 : 1024;
 				}
@@ -801,6 +872,9 @@ void FAudioDecoderAAC::WorkerThread()
 	bInDummyDecodeMode = false;
 	bHaveDiscontinuity = false;
 
+	PCMBufferSize = sizeof(int16) * 8 * 2048;
+	PCMBuffer = (int16*)FMemory::Malloc(PCMBufferSize);
+
 	bError = !CreateDecodedSamplePool();
 	check(!bError);
 
@@ -845,6 +919,7 @@ void FAudioDecoderAAC::WorkerThread()
 				ReturnUnusedOutputBuffer();
 				ConfigRecord.Reset();
 				CurrentCodecData.Reset();
+				ChannelMapper.Reset();
 			}
 
 			// Parse the CSD into a configuration record.
@@ -862,6 +937,17 @@ void FAudioDecoderAAC::WorkerThread()
 						CurrentCodecData.Reset();
 						PostError(0, "Failed to parse AAC configuration record", ERRCODE_INTERNAL_ANDROID_FAILED_TO_PARSE_CSD);
 						bError = true;
+					}
+					else
+					{
+						// Channel configuration must be specified. Internal CPE/SCE elements are not supported.
+						if (ConfigRecord->ChannelConfiguration == 0)
+						{
+							ConfigRecord.Reset();
+							CurrentCodecData.Reset();
+							PostError(0, "Unsupported AAC channel configuration", ERRCODE_INTERNAL_ANDROID_UNSUPPORTED_NUMBER_OF_AUDIO_CHANNELS);
+							bError = true;
+						}
 					}
 				}
 			}
@@ -934,6 +1020,7 @@ void FAudioDecoderAAC::WorkerThread()
 	// Flush any remaining input data.
 	AccessUnits.Flush();
 	AccessUnits.CapacitySet(0);
+	FMemory::Free(PCMBuffer);
 	}
 
 

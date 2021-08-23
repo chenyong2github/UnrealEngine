@@ -579,6 +579,9 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					si.SetStreamType(EStreamType::Audio);
 					si.SetCodec(FStreamCodecInformation::ECodec::AAC);
 					si.SetCodecSpecifierRFC6381(CodecList[nCodec]);
+					// For lack of knowledge pretend this is stereo.
+					si.SetChannelConfiguration(2);
+					si.SetNumberOfChannels(2);
 					bHasAudio = true;
 				}
 				else
@@ -649,6 +652,9 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				// For codec we assume standard LC-AAC
 				si.SetCodec(FStreamCodecInformation::ECodec::AAC);
 				si.SetCodecSpecifierRFC6381(TEXT("mp4a.40.2"));
+				// For lack of knowledge pretend this is stereo.
+				si.SetChannelConfiguration(2);
+				si.SetNumberOfChannels(2);
 				vs->StreamCodecInformationList.Push(si);
 				bHasAudio = true;
 			}

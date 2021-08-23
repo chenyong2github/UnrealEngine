@@ -6290,6 +6290,7 @@ private:
 						{
 							Track->CodecInformation.SetStreamType(EStreamType::Video);
 							Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::H264);
+							Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
 							Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 							if (Track->CodecSpecificDataAVC.GetNumberOfSPS() == 0)
 							{
@@ -6367,6 +6368,7 @@ private:
 						{
 							Track->CodecInformation.SetStreamType(EStreamType::Video);
 							Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::H265);
+							Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
 							Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 							if (Track->CodecSpecificDataHEVC.GetNumberOfSPS() == 0)
 							{
@@ -6450,6 +6452,7 @@ private:
 							{
 								Track->CodecInformation.SetStreamType(EStreamType::Audio);
 								Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::AAC);
+								Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
 								Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 
 								MPEG::FAACDecoderConfigurationRecord ConfigRecord;
@@ -6457,7 +6460,8 @@ private:
 								{
 									Track->CodecInformation.SetCodecSpecifierRFC6381(FString::Printf(TEXT("mp4a.40.%d"), ConfigRecord.ExtAOT ? ConfigRecord.ExtAOT : ConfigRecord.AOT));
 									Track->CodecInformation.SetSamplingRate(ConfigRecord.ExtSamplingFrequency ? ConfigRecord.ExtSamplingFrequency : ConfigRecord.SamplingRate);
-									Track->CodecInformation.SetNumberOfChannels((int32)ConfigRecord.ChannelConfiguration);
+									Track->CodecInformation.SetChannelConfiguration(ConfigRecord.ChannelConfiguration);
+									Track->CodecInformation.SetNumberOfChannels(MPEG::AACUtils::GetNumberOfChannelsFromChannelConfiguration(ConfigRecord.ChannelConfiguration));
 									// We assume that all platforms can decode PS (parametric stereo). As such we change the channel count from mono to stereo
 									// to convey the _decoded_ format, not the source format.
 									if (ConfigRecord.ChannelConfiguration == 1 && ConfigRecord.PSSignal > 0)
@@ -6521,6 +6525,7 @@ private:
 			Track->CodecSpecificDataRAW = SubtitleSampleEntry->GetRawBoxData();
 			Track->CodecInformation.SetStreamType(EStreamType::Subtitle);
 			Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::TX3G);
+			Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
 			Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 			Track->CodecInformation.SetCodecSpecifierRFC6381(TEXT("tx3g"));
 			Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(SubtitleSampleEntry->GetWidth(), SubtitleSampleEntry->GetHeight()));
@@ -6541,6 +6546,7 @@ private:
 			Track->CodecSpecificDataRAW = SubtitleSampleEntry->GetRawBoxData();
 			Track->CodecInformation.SetStreamType(EStreamType::Subtitle);
 			Track->CodecInformation.SetCodec(FStreamCodecInformation::ECodec::WebVTT);
+			Track->CodecInformation.SetCodecSpecificData(Track->CodecSpecificDataRAW);
 			Track->CodecInformation.SetStreamLanguageCode(Track->GetLanguage());
 			Track->CodecInformation.SetCodecSpecifierRFC6381(TEXT("wvtt"));
 			Track->CodecInformation.SetResolution(FStreamCodecInformation::FResolution(SubtitleSampleEntry->GetWidth(), SubtitleSampleEntry->GetHeight()));

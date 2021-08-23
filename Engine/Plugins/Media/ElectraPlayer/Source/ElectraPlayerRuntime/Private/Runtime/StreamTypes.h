@@ -449,6 +449,16 @@ namespace Electra
 			return StreamLanguageCode;
 		}
 
+		void SetCodecSpecificData(const TArray<uint8>& InCSD)
+		{
+			CSD = InCSD;
+		}
+
+		const TArray<uint8>& GetCodecSpecificData() const
+		{
+			return CSD;
+		}
+
 		FParamDict& GetExtras()
 		{
 			return Extras;
@@ -479,6 +489,7 @@ namespace Electra
 			AudioAccessibility = 0;
 			NumberOfAudioObjects = 0;
 			Extras.Clear();
+			CSD.Empty();
 		}
 
 		bool IsDifferentFromOtherVideo(const FStreamCodecInformation& Other) const
@@ -568,6 +579,7 @@ namespace Electra
 		int32			AudioAccessibility;			//!< Format specific audio accessibility
 		int32			NumberOfAudioObjects;		//!< Format specific number of audio objects
 		FParamDict		Extras;						//!< Additional details/properties, depending on playlist.
+		TArray<uint8>	CSD;						//!< Codec specific data, if available.
 	};
 
 
