@@ -1902,6 +1902,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 
 #if WITH_EDITOR
 	uint64 StartCycles = 0;
+	uint64 OverallCycles = 0;
 	if(Context.RuntimeSettings.bEnableProfiling)
 	{
 		StartCycles = FPlatformTime::Cycles64();
@@ -2382,6 +2383,9 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			}
 			case ERigVMOpCode::Exit:
 			{
+#if WITH_EDITOR
+				Context.LastExecutionMicroSeconds = OverallCycles * FPlatformTime::GetSecondsPerCycle() * 1000.0 * 1000.0;
+#endif
 				ExecutionReachedExit().Broadcast(InEntryName);
 #if WITH_EDITOR					
 				if (HaltedAtBreakpoint != nullptr)
@@ -2976,6 +2980,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 			}
 
 			StartCycles = EndCycles;
+			OverallCycles += Cycles;
 		}
 #endif
 	}

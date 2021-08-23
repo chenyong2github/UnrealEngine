@@ -114,6 +114,7 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 		, NodeRunLimit(64)
 		, MinMicroSeconds(0.0)
 		, MaxMicroSeconds(1.0)
+		, TotalMicroSeconds(0.0)
 		, bAutoDetermineRange(true)
 		, LastMinMicroSeconds(0.0)
 		, LastMaxMicroSeconds(1.0)
@@ -151,6 +152,10 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 	// The duration in microseconds of the slowest instruction / node
 	UPROPERTY(EditAnywhere, Category = "Graph Display Settings", transient, meta = (EditCondition = "!bAutoDetermineRange"))
 	double MaxMicroSeconds;
+
+	// The total duration of the last execution of the rig
+	UPROPERTY(VisibleAnywhere, Category = "Graph Display Settings", transient)
+	double TotalMicroSeconds;
 
 	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
 	bool bAutoDetermineRange;

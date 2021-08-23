@@ -192,7 +192,8 @@ struct RIGVM_API FRigVMExecuteContext
 		: EventName(NAME_None)
 		, FunctionName(NAME_None)
 		, InstructionIndex(0)
-		, RuntimeSettings() 
+		, RuntimeSettings()
+		, LastExecutionMicroSeconds() 
 	{
 		Reset();
 	}
@@ -346,4 +347,5 @@ struct RIGVM_API FRigVMExecuteContext
 	TArray<FRigVMExternalVariable> ExternalVariables;
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;
+	double LastExecutionMicroSeconds;
 };
