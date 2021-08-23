@@ -325,7 +325,7 @@ void UWorldPartition::OnEndPlay()
 {
 	check(IsMainWorldPartition());
 
-	FlushStreaming();
+	RuntimeHash->FlushStreaming();
 	RuntimeHash->OnEndPlay();
 
 	StreamingPolicy = nullptr;
@@ -1293,11 +1293,6 @@ void UWorldPartition::SavePerUserSettings()
 
 		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), EditorGridLastLoadedCells);
 	}
-}
-
-void UWorldPartition::FlushStreaming()
-{
-	RuntimeHash->FlushStreaming();
 }
 
 void UWorldPartition::GenerateHLOD(ISourceControlHelper* SourceControlHelper, bool bCreateActorsOnly)
