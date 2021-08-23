@@ -132,10 +132,10 @@ public:
 
 protected:
 	UPROPERTY()
-	UEdgeLoopInsertionProperties* Settings = nullptr;
+	TObjectPtr<UEdgeLoopInsertionProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UPolyEditActivityContext* ActivityContext;
+	TObjectPtr<UPolyEditActivityContext> ActivityContext;
 
 	bool bIsRunning = false;
 

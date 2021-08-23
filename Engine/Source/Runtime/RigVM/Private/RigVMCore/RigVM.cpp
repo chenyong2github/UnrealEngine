@@ -634,7 +634,7 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 	
 #else
 
-	auto CopyMemoryStorage = [](URigVMMemoryStorage*& TargetMemory, URigVMMemoryStorage* SourceMemory, UObject* Outer)
+	auto CopyMemoryStorage = [](TObjectPtr<URigVMMemoryStorage>& TargetMemory, URigVMMemoryStorage* SourceMemory, UObject* Outer)
 	{
 		if(SourceMemory != nullptr)
 		{

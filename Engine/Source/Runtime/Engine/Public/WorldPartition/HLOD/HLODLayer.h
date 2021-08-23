@@ -75,7 +75,7 @@ private:
 	TSubclassOf<UHLODBuilder> HLODBuilderClass;
 
 	UPROPERTY(VisibleAnywhere, Export, NoClear, Category=HLOD, meta = (EditInline, NoResetToDefault))
-	UHLODBuilderSettings* HLODBuilderSettings;
+	TObjectPtr<UHLODBuilderSettings> HLODBuilderSettings;
 
 	/** Whether HLOD actors generated for this layer will be always loaded */
 	UPROPERTY(EditAnywhere, Config, Category=HLOD)

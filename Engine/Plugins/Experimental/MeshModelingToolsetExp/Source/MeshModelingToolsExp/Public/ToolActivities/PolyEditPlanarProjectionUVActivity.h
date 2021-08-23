@@ -65,13 +65,13 @@ protected:
 	void ApplySetUVs();
 
 	UPROPERTY()
-	UPolyEditSetUVProperties* SetUVProperties;
+	TObjectPtr<UPolyEditSetUVProperties> SetUVProperties;
 
 	UPROPERTY()
-	UPolyEditPreviewMesh* EditPreview;
+	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
 	UPROPERTY()
-	UCollectSurfacePathMechanic* SurfacePathMechanic = nullptr;
+	TObjectPtr<UCollectSurfacePathMechanic> SurfacePathMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolyEditActivityContext> ActivityContext;

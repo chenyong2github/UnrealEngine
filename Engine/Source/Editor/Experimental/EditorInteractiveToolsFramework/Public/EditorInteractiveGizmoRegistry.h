@@ -46,7 +46,7 @@ protected:
 	FString CategoryName;
 
 	UPROPERTY()
-	UClass* BaseGizmoBuilderType;
+	TObjectPtr<UClass> BaseGizmoBuilderType;
 };
 
 UCLASS(Abstract)
@@ -137,5 +137,5 @@ private:
 
 	/** Current set of Gizmo Builders */
 	UPROPERTY()
-	TMap<EEditorGizmoCategory, UEditorGizmoRegistryCategoryEntry*> GizmoCategoryMap;
+	TMap<EEditorGizmoCategory, TObjectPtr<UEditorGizmoRegistryCategoryEntry>> GizmoCategoryMap;
 };

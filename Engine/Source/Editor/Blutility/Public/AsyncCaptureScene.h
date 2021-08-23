@@ -44,8 +44,8 @@ private:
 
 private:
 	UPROPERTY()
-	ASceneCapture2D* SceneCapture;
+	TObjectPtr<ASceneCapture2D> SceneCapture;
 
 	UPROPERTY()
-	UTextureRenderTarget2D* SceneCaptureRT;
+	TObjectPtr<UTextureRenderTarget2D> SceneCaptureRT;
 };

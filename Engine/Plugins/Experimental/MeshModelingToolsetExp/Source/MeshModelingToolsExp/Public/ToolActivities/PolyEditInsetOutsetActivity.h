@@ -79,7 +79,7 @@ public:
 	virtual void OnEndHover() override {}
 
 	UPROPERTY()
-	UPolyEditInsetOutsetProperties* Settings;
+	TObjectPtr<UPolyEditInsetOutsetProperties> Settings;
 
 protected:
 	void Clear();
@@ -90,10 +90,10 @@ protected:
 	bool bPreviewUpdatePending = false;
 
 	UPROPERTY()
-	UPolyEditPreviewMesh* EditPreview;
+	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
 	UPROPERTY()
-	USpatialCurveDistanceMechanic* CurveDistMechanic = nullptr;
+	TObjectPtr<USpatialCurveDistanceMechanic> CurveDistMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolyEditActivityContext> ActivityContext;
