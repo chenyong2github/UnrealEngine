@@ -349,21 +349,26 @@ Metasound::FMetasoundEnvironment UMetaSoundSource::CreateEnvironment() const
 
 	FMetasoundEnvironment Environment;
 	// Add audio device ID to environment.
-	FAudioDeviceHandle DeviceHandle;
+	Audio::FDeviceId AudioDeviceID = INDEX_NONE;
+
 	if (UWorld* World = GetWorld())
 	{
-		DeviceHandle = World->GetAudioDevice();
-	}
-
-	if (!DeviceHandle.IsValid())
-	{
-		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		FAudioDeviceHandle DeviceHandle = World->GetAudioDevice();
+		if (DeviceHandle.IsValid())
 		{
-			DeviceHandle = DeviceManager->GetMainAudioDeviceHandle();
+			AudioDeviceID = DeviceHandle.GetDeviceID();
 		}
 	}
 
-	Environment.SetValue<FAudioDeviceHandle>(MetasoundSource::GetAudioDeviceHandleVariableName(), DeviceHandle);
+	if (INDEX_NONE == AudioDeviceID)
+	{
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
+		{
+			AudioDeviceID = DeviceManager->GetMainAudioDeviceID();
+		}
+	}
+
+	Environment.SetValue<Audio::FDeviceId>(MetasoundSource::GetAudioDeviceIDVariableName(), AudioDeviceID);
 	Environment.SetValue<uint32>(MetasoundSource::GetSoundUniqueIdName(), GetUniqueID());
 
 	return Environment;

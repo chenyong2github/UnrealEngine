@@ -93,10 +93,10 @@ namespace Metasound
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceHandleVariableName()
+			const FString& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-				return AudioDeviceHandleVarName;
+				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				return AudioDeviceIDVarName;
 			}
 
 			const FString& GetSoundUniqueIdName()
@@ -149,12 +149,12 @@ namespace Metasound
 				Archetype.Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment 
-				FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-				AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
-				AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-				AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
+				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
+				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
 
-				Archetype.Interface.Environment.Add(AudioDeviceHandle);
+				Archetype.Interface.Environment.Add(AudioDeviceID);
 
 				return Archetype;
 			}
@@ -186,10 +186,10 @@ namespace Metasound
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceHandleVariableName()
+			const FString& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-				return AudioDeviceHandleVarName;
+				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				return AudioDeviceIDVarName;
 			}
 
 			const FString& GetSoundUniqueIdName()
@@ -247,12 +247,12 @@ namespace Metasound
 				Archetype.Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-				AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
-				AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-				AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
+				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
+				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
 
-				Archetype.Interface.Environment.Add(AudioDeviceHandle);
+				Archetype.Interface.Environment.Add(AudioDeviceID);
 
 				return Archetype;
 			}
@@ -284,10 +284,10 @@ namespace Metasound
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceHandleVariableName()
+			const FString& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-				return AudioDeviceHandleVarName;
+				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				return AudioDeviceIDVarName;
 			}
 
 			const FString& GetSoundUniqueIdName()
@@ -357,12 +357,12 @@ namespace Metasound
 				Archetype.Interface.Outputs.Add(GeneratedAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-				AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
-				AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-				AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
+				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
+				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
 
-				Archetype.Interface.Environment.Add(AudioDeviceHandle);
+				Archetype.Interface.Environment.Add(AudioDeviceID);
 
 				return Archetype;
 			}
@@ -462,10 +462,10 @@ namespace Metasound
 				return OnFinishedOutputName;
 			}
 
-			const FString& GetAudioDeviceHandleVariableName()
+			const FString& GetAudioDeviceIDVariableName()
 			{
-				static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
-				return AudioDeviceHandleVarName;
+				static const FString AudioDeviceIDVarName = TEXT("AudioDeviceID");
+				return AudioDeviceIDVarName;
 			}
 
 			const FString& GetSoundUniqueIdName()
@@ -550,11 +550,11 @@ namespace Metasound
 				Archetype.Interface.Outputs.Add(GeneratedRightAudio);
 
 				// Environment
-				FMetasoundFrontendEnvironmentVariable AudioDeviceHandle;
-				AudioDeviceHandle.Name = GetAudioDeviceHandleVariableName();
-				AudioDeviceHandle.Metadata.DisplayName = FText::FromString(AudioDeviceHandle.Name);
-				AudioDeviceHandle.Metadata.Description = LOCTEXT("AudioDeviceHandleToolTip", "Audio device handle");
-				Archetype.Interface.Environment.Add(AudioDeviceHandle);
+				FMetasoundFrontendEnvironmentVariable AudioDeviceID;
+				AudioDeviceID.Name = GetAudioDeviceIDVariableName();
+				AudioDeviceID.Metadata.DisplayName = FText::FromString(AudioDeviceID.Name);
+				AudioDeviceID.Metadata.Description = LOCTEXT("AudioDeviceIDToolTip", "Audio device handle");
+				Archetype.Interface.Environment.Add(AudioDeviceID);
 
 				return Archetype;
 			};
@@ -659,10 +659,10 @@ namespace Metasound
 				return CurrentMonoVersion::GetIsFinishedOutputName();
 			}
 
-			const FString& GetAudioDeviceHandleVariableName()
+			const FString& GetAudioDeviceIDVariableName()
 			{
-				check(CurrentMonoVersion::GetAudioDeviceHandleVariableName() == CurrentStereoVersion::GetAudioDeviceHandleVariableName());
-				return CurrentMonoVersion::GetAudioDeviceHandleVariableName();
+				check(CurrentMonoVersion::GetAudioDeviceIDVariableName() == CurrentStereoVersion::GetAudioDeviceIDVariableName());
+				return CurrentMonoVersion::GetAudioDeviceIDVariableName();
 			}
 
 			const FString& GetSoundUniqueIdName()
