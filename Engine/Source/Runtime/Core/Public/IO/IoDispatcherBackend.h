@@ -4,6 +4,7 @@
 
 #include "IoDispatcher.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "Misc/Optional.h"
 
 class FIoRequestImpl
 {
@@ -13,7 +14,6 @@ public:
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 	FIoChunkId ChunkId;
 	FIoReadOptions Options;
-	FIoBuffer IoBuffer;
 	int32 Priority = 0;
 
 	FIoRequestImpl(FIoDispatcherImpl& InDispatcher)
@@ -30,6 +30,18 @@ public:
 	void SetFailed()
 	{
 		bFailed = true;
+	}
+
+	bool HasBuffer() const
+	{
+		return Buffer.IsSet();
+	}
+
+	CORE_API void CreateBuffer(uint64 Size);
+
+	FIoBuffer& GetBuffer()
+	{
+		return Buffer.GetValue();
 	}
 
 private:
@@ -55,6 +67,7 @@ private:
 	FIoDispatcherImpl& Dispatcher;
 	struct IIoDispatcherBackend* Backend = nullptr;
 	FIoBatchImpl* Batch = nullptr;
+	TOptional<FIoBuffer> Buffer;
 	FIoReadCallback Callback;
 	TAtomic<uint32> RefCount{ 0 };
 	TAtomic<EIoErrorCode> ErrorCode{ EIoErrorCode::Unknown };

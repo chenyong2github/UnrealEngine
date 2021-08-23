@@ -449,7 +449,7 @@ private:
 				}
 				else
 				{
-					FPlatformAtomics::InterlockedAdd(&TotalLoaded, CompletedRequestsHead->IoBuffer.DataSize());
+					FPlatformAtomics::InterlockedAdd(&TotalLoaded, CompletedRequestsHead->GetBuffer().DataSize());
 					CompleteRequest(CompletedRequestsHead, EIoErrorCode::Ok);
 				}
 				CompletedRequestsHead->ReleaseRef();
@@ -494,7 +494,7 @@ private:
 			TIoStatusOr<FIoBuffer> Result;
 			if (Status == EIoErrorCode::Ok)
 			{
-				Result = Request->IoBuffer;
+				Result = Request->GetBuffer();
 			}
 			else
 			{
@@ -910,6 +910,20 @@ FIoBatch::IssueAndDispatchSubsequents(FGraphEventRef Event)
 
 //////////////////////////////////////////////////////////////////////////
 
+void FIoRequestImpl::CreateBuffer(uint64 Size)
+{
+	if (void* TargetVa = Options.GetTargetVa())
+	{
+		Buffer.Emplace(FIoBuffer::Wrap, TargetVa, Size);
+	}
+	else
+	{
+		LLM_SCOPE(InheritedLLMTag);
+		TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
+		Buffer.Emplace(Size);
+	}
+}
+
 void FIoRequestImpl::FreeRequest()
 {
 	Dispatcher.FreeRequest(this);
@@ -997,7 +1011,7 @@ FIoRequest::GetResult()
 	TIoStatusOr<FIoBuffer> Result;
 	if (Status.IsOk())
 	{
-		return Impl->IoBuffer;
+		return Impl->GetBuffer();
 	}
 	else
 	{

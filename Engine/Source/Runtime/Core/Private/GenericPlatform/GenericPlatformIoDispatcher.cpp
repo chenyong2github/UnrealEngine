@@ -96,21 +96,15 @@ bool FGenericFileIoStoreImpl::StartRequests(FFileIoStoreRequestQueue& RequestQue
 	}
 
 	uint8* Dest;
-	if (!NextRequest->ImmediateScatter.Request)
+	check(!NextRequest->ImmediateScatter.Request);
+	NextRequest->Buffer = BufferAllocator.AllocBuffer();
+	if (!NextRequest->Buffer)
 	{
-		NextRequest->Buffer = BufferAllocator.AllocBuffer();
-		if (!NextRequest->Buffer)
-		{
-			RequestQueue.Push(*NextRequest);
-			return false;
-		}
-		Dest = NextRequest->Buffer->Memory;
+		RequestQueue.Push(*NextRequest);
+		return false;
 	}
-	else
-	{
-		Dest = NextRequest->ImmediateScatter.Request->GetIoBuffer().Data() + NextRequest->ImmediateScatter.DstOffset;
-	}
-	
+	Dest = NextRequest->Buffer->Memory;
+
 	if (!BlockCache.Read(NextRequest))
 	{
 		IFileHandle* FileHandle = reinterpret_cast<IFileHandle*>(static_cast<UPTRINT>(NextRequest->FileHandle));

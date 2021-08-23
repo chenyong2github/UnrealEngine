@@ -128,18 +128,9 @@ bool FStorageServerIoDispatcherBackend::Resolve(FIoRequestImpl* Request)
 		TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerIoDispatcherReadChunk);
 		bool bSuccess = Connection.ReadChunkRequest(Request->ChunkId, Request->Options.GetOffset(), Request->Options.GetSize(), [&Request](FStorageServerResponse& Response)
 			{
-				if (void* TargetVa = Request->Options.GetTargetVa())
-				{
-					Request->IoBuffer = FIoBuffer(FIoBuffer::Wrap, TargetVa, Response.TotalSize());
-				}
-				else
-				{
-					LLM_SCOPE(ELLMTag::FileSystem);
-					TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
-					Request->IoBuffer = FIoBuffer(Response.TotalSize());
-				}
+				Request->CreateBuffer(Response.TotalSize());
 				TRACE_CPUPROFILER_EVENT_SCOPE(SerializeResponse);
-				Response.Serialize(Request->IoBuffer.Data(), Response.TotalSize());
+				Response.Serialize(Request->GetBuffer().Data(), Response.TotalSize());
 			});
 		if (!bSuccess)
 		{
@@ -298,18 +289,9 @@ void FStorageServerIoDispatcherBackend::FBatch::DoThreadedWork()
 		TRACE_CPUPROFILER_EVENT_SCOPE(StorageServerIoDispatcherReadChunk);
 		bool bSuccess = Owner.Connection.ReadChunkRequest(Request->ChunkId, Request->Options.GetOffset(), Request->Options.GetSize(), [&Request](FStorageServerResponse& Response)
 			{
-				if (void* TargetVa = Request->Options.GetTargetVa())
-				{
-					Request->IoBuffer = FIoBuffer(FIoBuffer::Wrap, TargetVa, Response.TotalSize());
-				}
-				else
-				{
-					LLM_SCOPE(ELLMTag::FileSystem);
-					TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
-					Request->IoBuffer = FIoBuffer(Response.TotalSize());
-				}
+				Request->CreateBuffer(Response.TotalSize());
 				TRACE_CPUPROFILER_EVENT_SCOPE(SerializeResponse);
-				Response.Serialize(Request->IoBuffer.Data(), Response.TotalSize());
+				Response.Serialize(Request->GetBuffer().Data(), Response.TotalSize());
 			});
 		if (!bSuccess)
 		{

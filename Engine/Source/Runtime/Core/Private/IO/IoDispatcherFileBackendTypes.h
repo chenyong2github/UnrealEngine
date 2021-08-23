@@ -818,10 +818,22 @@ public:
 		return DispatcherRequest->Priority;
 	}
 
-	FIoBuffer& GetIoBuffer()
+	bool HasBuffer() const
 	{
 		check(DispatcherRequest);
-		return DispatcherRequest->IoBuffer;
+		return DispatcherRequest->HasBuffer();
+	}
+
+	void CreateBuffer(uint64 Size)
+	{
+		check(DispatcherRequest);
+		DispatcherRequest->CreateBuffer(Size);
+	}
+
+	FIoBuffer& GetBuffer()
+	{
+		check(DispatcherRequest);
+		return DispatcherRequest->GetBuffer();
 	}
 
 	void AddReadRequestLink(FFileIoStoreReadRequestLink* ReadRequestLink);
