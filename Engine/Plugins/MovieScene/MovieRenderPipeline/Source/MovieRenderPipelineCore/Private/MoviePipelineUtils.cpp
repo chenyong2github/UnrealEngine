@@ -235,8 +235,8 @@ namespace MoviePipeline
 				else
 				{
 					Node->Section->SetRange(Node->OriginalShotSectionRange);
-					Node->Section->SetIsLocked(Node->bOriginalShotSectionIsLocked);
 					Node->Section->SetIsActive(Node->bOriginalShotSectionIsActive);
+					Node->Section->SetIsLocked(Node->bOriginalShotSectionIsLocked);
 					Node->Section->MarkAsChanged();
 				}
 			}
@@ -273,11 +273,11 @@ namespace MoviePipeline
 				if (!bInSave)
 				{
 					Node->MovieScene->SetPlaybackRange(Node->OriginalMovieScenePlaybackRange);
+					Node->MovieScene->SetEvaluationType(Node->EvaluationType);
 #if WITH_EDITOR
 					Node->MovieScene->SetReadOnly(Node->bOriginalMovieSceneReadOnly);
 					Node->MovieScene->SetPlaybackRangeLocked(Node->bOriginalMovieScenePlaybackRangeLocked);
 #endif
-					Node->MovieScene->SetEvaluationType(Node->EvaluationType);
 					Node->MovieScene->MarkAsChanged();
 
 					if (UPackage* OwningPackage = Node->MovieScene->GetTypedOuter<UPackage>())
