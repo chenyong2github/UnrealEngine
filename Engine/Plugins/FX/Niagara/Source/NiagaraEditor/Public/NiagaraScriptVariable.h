@@ -123,12 +123,12 @@ private:
 	UPROPERTY()
 	bool bIsStaticSwitch;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bSubscribedToParameterDefinitions;
 
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	FGuid ChangeId;
 
-	UPROPERTY()
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	bool bOverrideParameterDefinitionsDefaultValue;
 }; 
