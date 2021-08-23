@@ -135,6 +135,11 @@ namespace HordeAgent
 			// Check if there's a matching command
 			Type? CommandType = null;
 			CommandAttribute? CommandAttribute = null;
+
+			string[] DefaultArgs = new string[] { "Service", "Run" };
+;			Type? DefaultCommandType = null;
+			CommandAttribute? DefaultCommandAttribute = null;
+
 			foreach ((CommandAttribute Attribute, Type Type) in Commands.OrderBy(x => x.Item1.Names.Length))
 			{
 				if (MatchCommand(Args, Attribute))
@@ -142,6 +147,13 @@ namespace HordeAgent
 					CommandType = Type;
 					CommandAttribute = Attribute;
 				}
+
+				if (MatchCommand(DefaultArgs, Attribute))
+				{
+					DefaultCommandType = Type;
+					DefaultCommandAttribute = Attribute;
+				}
+
 			}
 
 			// Check if there are any commands specified on the command line.
@@ -156,7 +168,7 @@ namespace HordeAgent
 					PrintCommands(Commands.Select(x => x.Item1), Logger);
 					return 1;
 				}
-				else
+				else if (Args.Length > 0 && Args[0].Equals("-Help", StringComparison.OrdinalIgnoreCase))
 				{
 					Logger.LogInformation("HordeAgent");
 					Logger.LogInformation("");
@@ -172,6 +184,17 @@ namespace HordeAgent
 					Logger.LogInformation("");
 					Logger.LogInformation("Specify \"Command -Help\" for command-specific help");
 					return 0;
+				}
+				else
+				{
+					CommandType = DefaultCommandType;
+					CommandAttribute = DefaultCommandAttribute;
+
+					if (CommandType == null || CommandAttribute == null)
+					{
+						Logger.LogError("Invalid default command");
+						return 1;
+					}
 				}
 			}
 
