@@ -496,7 +496,7 @@ void Lumen::CombineLumenSceneLighting(
 		RDG_EVENT_NAME("CombineLighting"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandListImmediate& RHICmdList)
+		[MaxAtlasSize = Scene->LumenSceneData->GetPhysicalAtlasSize(), PassParameters, GlobalShaderMap = View.ShaderMap](FRHICommandList& RHICmdList)
 	{
 		auto PixelShader = GlobalShaderMap->GetShader<FLumenCardCombineLightingPS>();
 
