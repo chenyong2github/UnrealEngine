@@ -204,7 +204,7 @@ void FSkeletalMeshObjectStatic::FSkeletalMeshObjectLOD::InitResources(FSkelMeshC
 
 			PositionVertexBufferPtr->BindPositionVertexBuffer(VertexFactoryPtr, Data);
 			StaticMeshVertexBufferPtr->BindTangentVertexBuffer(VertexFactoryPtr, Data);
-			StaticMeshVertexBufferPtr->BindTexCoordVertexBuffer(VertexFactoryPtr, Data);
+			StaticMeshVertexBufferPtr->BindPackedTexCoordVertexBuffer(VertexFactoryPtr, Data);
 			ColorVertexBufferPtr->BindColorVertexBuffer(VertexFactoryPtr, Data);
 
 			VertexFactoryPtr->SetData(Data);
