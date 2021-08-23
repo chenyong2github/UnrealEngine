@@ -33,14 +33,6 @@ public:
 	 */
 	void AddChild( TSharedPtr<FClassViewerNode> Child );
 
-	/**
-	 * Adds the specified child to the node. If a child with the same class already exists the function add the child storing more info.
-	 * The function does not persist child order.
-	 *
-	 * @param	NewChild	The child to be added to this node for the tree.
-	 */
-	void AddUniqueChild(TSharedPtr<FClassViewerNode> NewChild);
-
 	/** 
 	 * Retrieves the class name this node is associated with. This is not the literal UClass name as it is missing the _C for blueprints
 	 * @param	bUseDisplayName	Whether to use the display name or class name
