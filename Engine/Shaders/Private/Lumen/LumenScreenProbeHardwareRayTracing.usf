@@ -17,6 +17,8 @@
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
 float PullbackBias;
+float NormalBias;
+uint CullBackFacingTriangles;
 int MaxTranslucentSkipCount; 
 
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
@@ -80,19 +82,17 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 			Ray.TMax = MaxTraceDistance;
 
-			float NormalBias = 0.1;
 			ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
-			const bool bCullBackFacingTriangles = true;
 			FRayTracedLightingContext Context = CreateRayTracedLightingContext(
 				TLAS,
 				RayCone,
 				ScreenTileCoord,
 				ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
-				bCullBackFacingTriangles,
+				CullBackFacingTriangles > 0,
 				MaxTranslucentSkipCount);
 			Context.bCalculateHitVelocity = true;
 
@@ -189,7 +189,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	Ray.TMin = max(TraceHitDistance - PullbackBias, 0.0);
 	Ray.TMax = MaxTraceDistance;
 
-	float NormalBias = 0.1;
 	ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
 
 	if (DIM_RADIANCE_CACHE)
@@ -204,8 +203,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, SceneDepth);
 
 	uint LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
-	const bool bCullBackFacingTriangles = true;
-	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord, bCullBackFacingTriangles);
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord, CullBackFacingTriangles > 0);
 
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
