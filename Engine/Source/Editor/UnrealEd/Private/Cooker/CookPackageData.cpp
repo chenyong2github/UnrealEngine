@@ -3,6 +3,7 @@
 #include "CookPackageData.h"
 
 #include "Algo/AnyOf.h"
+#include "Algo/Count.h"
 #include "AssetCompilingManager.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
 #include "CookPlatformManager.h"
@@ -28,7 +29,11 @@ namespace Cook
 
 	//////////////////////////////////////////////////////////////////////////
 	// FPackageData
-
+	FPackageData::FPlatformData::FPlatformData()
+		: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bTargetDomainLookupAttempted(false)
+		, bExistsInTargetDomain(false)
+	{
+	}
 
 	FPackageData::FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName)
 		: GeneratedOwner(nullptr), PackageName(InPackageName), FileName(InFileName), PackageDatas(PackageDatas)
@@ -45,8 +50,8 @@ namespace Cook
 	{
 		// ClearReferences should have been called earlier, but call it here in case it was missed
 		ClearReferences();
-		// We need to send OnCookedPlatformRemoved message to the monitor, so call ClearCookedPlatforms
-		ClearCookedPlatforms();
+		// We need to send OnLastCookedPlatformRemoved message to the monitor, so call SetPlatformsNotCooked
+		SetPlatformsNotCooked();
 		// Update the monitor's counters and call exit functions
 		SendToState(EPackageState::Idle, ESendFlags::QueueNone);
 	}
@@ -71,44 +76,59 @@ namespace Cook
 		FileName = InFileName;
 	}
 
-	const TArray<const ITargetPlatform*>& FPackageData::GetRequestedPlatforms() const
+	int32 FPackageData::GetNumRequestedPlatforms() const
 	{
-		return RequestedPlatforms;
-	}
-
-	void FPackageData::SetRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms)
-	{
-		RequestedPlatforms.Empty(Platforms.Num());
-		AddRequestedPlatforms(Platforms);
-	}
-
-	void FPackageData::AddRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& New)
-	{
-		for (const ITargetPlatform* TargetPlatform : New)
+		int32 Result = 0;
+		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
-			RequestedPlatforms.AddUnique(TargetPlatform);
+			Result += Pair.Value.bRequested ? 1 : 0;
+		}
+		return Result;
+	}
+
+	void FPackageData::SetPlatformsRequested(TConstArrayView<const ITargetPlatform*> TargetPlatforms, bool bRequested)
+	{
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+		{
+			PlatformDatas.FindOrAdd(TargetPlatform).bRequested = true;
 		}
 	}
 
 	void FPackageData::ClearRequestedPlatforms()
 	{
-		RequestedPlatforms.Empty();
+		for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			Pair.Value.bRequested = false;
+		}
 	}
 
-	bool FPackageData::ContainsAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const
+	bool FPackageData::HasAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const
 	{
 		if (Platforms.Num() == 0)
 		{
 			return true;
 		}
-		if (RequestedPlatforms.Num() == 0)
+		if (PlatformDatas.Num() == 0)
 		{
 			return false;
 		}
 
 		for (const ITargetPlatform* QueryPlatform : Platforms)
 		{
-			if (!RequestedPlatforms.Contains(QueryPlatform))
+			const FPlatformData* PlatformData = PlatformDatas.Find(QueryPlatform);
+			if (!PlatformData || !PlatformData->bRequested)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool FPackageData::AreAllRequestedPlatformsCooked(bool bAllowFailedCooks) const
+	{
+		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			if (!Pair.Value.bCookAttempted || (!bAllowFailedCooks && !Pair.Value.bCookSucceeded))
 			{
 				return false;
 			}
@@ -126,7 +146,7 @@ namespace Cook
 		}
 	}
 
-	void FPackageData::UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms,
+	void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms,
 		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags)
 	{
 		if (IsInProgress())
@@ -140,7 +160,7 @@ namespace Cook
 				SetIsUrgent(true);
 			}
 
-			if (!ContainsAllRequestedPlatforms(InRequestedPlatforms))
+			if (!HasAllRequestedPlatforms(InRequestedPlatforms))
 			{
 				// Send back to the Request state (canceling any current operations) and then add the new platforms
 				if (GetState() != EPackageState::Request)
@@ -148,14 +168,14 @@ namespace Cook
 					check(SendFlags == ESendFlags::QueueAddAndRemove);
 					SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 				}
-				AddRequestedPlatforms(InRequestedPlatforms);
+				SetPlatformsRequested(InRequestedPlatforms, true);
 			}
 			else if (bUrgencyChanged && SendFlags == ESendFlags::QueueAddAndRemove)
 			{
 				SendToState(GetState(), SendFlags);
 			}
 		}
-		else
+		else if (InRequestedPlatforms.Num() > 0)
 		{
 			SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback));
 			SendToState(EPackageState::Request, SendFlags);
@@ -166,9 +186,11 @@ namespace Cook
 		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback)
 	{
 		check(!CompletionCallback);
-		check(RequestedPlatforms.Num() == 0);
+		check(GetNumRequestedPlatforms() == 0)
 		check(!bIsUrgent);
-		SetRequestedPlatforms(InRequestedPlatforms);
+
+		check(InRequestedPlatforms.Num() != 0);
+		SetPlatformsRequested(InRequestedPlatforms, true);
 		SetIsUrgent(bInIsUrgent);
 		AddCompletionCallback(MoveTemp(InCompletionCallback));
 	}
@@ -180,91 +202,109 @@ namespace Cook
 		CompletionCallback = FCompletionCallback();
 	}
 
-	void FPackageData::AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New,
-		const TArrayView<const bool>& Succeeded)
+	void FPackageData::SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms,
+		const TConstArrayView<bool> Succeeded)
 	{
-		check(New.Num() == Succeeded.Num());
-		for (int32 n = 0; n < New.Num(); ++n)
+		check(TargetPlatforms.Num() == Succeeded.Num());
+		for (int32 n = 0; n < TargetPlatforms.Num(); ++n)
 		{
-			AddCookedPlatform(New[n], Succeeded[n]);
+			SetPlatformCooked(TargetPlatforms[n], Succeeded[n]);
 		}
 	}
 
-	void FPackageData::AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, bool bSucceeded)
+	void FPackageData::SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms,
+		bool bSucceeded)
 	{
-		for (const ITargetPlatform* TargetPlatform : New)
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
-			AddCookedPlatform(TargetPlatform, bSucceeded);
+			SetPlatformCooked(TargetPlatform, bSucceeded);
 		}
 	}
 
-	void FPackageData::AddCookedPlatform(const ITargetPlatform* TargetPlatform, bool bSucceeded)
+	void FPackageData::SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool bSucceeded)
 	{
-		int32 ExistingIndex = CookedPlatforms.IndexOfByKey(TargetPlatform);
-		if (ExistingIndex != INDEX_NONE)
+		bool bHasAnyOthers = false;
+		bool bModified = false;
+		for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
-			CookSucceeded[ExistingIndex] = bSucceeded;
-		}
-		else
-		{
-			CookedPlatforms.Add(TargetPlatform);
-			CookSucceeded.Add(bSucceeded);
-		}
-		PackageDatas.GetMonitor().OnCookedPlatformAdded(*this);
-	}
-
-	void FPackageData::RemoveCookedPlatform(const ITargetPlatform* Platform)
-	{
-		int32 Num = CookedPlatforms.Num();
-		for (int32 n = CookedPlatforms.Num() - 1; n >= 0; --n)
-		{
-			if (CookedPlatforms[n] == Platform)
+			if (Pair.Key == TargetPlatform)
 			{
-				CookedPlatforms.RemoveAtSwap(n);
-				CookSucceeded.RemoveAtSwap(n);
-				PackageDatas.GetMonitor().OnCookedPlatformRemoved(*this);
-				break;
+				bModified = bModified | (Pair.Value.bCookAttempted == false);
+				Pair.Value.bCookAttempted = true;
+				Pair.Value.bCookSucceeded = bSucceeded;
+			}
+			else
+			{
+				bHasAnyOthers = bHasAnyOthers | (Pair.Value.bCookAttempted != false);
 			}
 		}
-	}
-
-	void FPackageData::RemoveCookedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms)
-	{
-		for (const ITargetPlatform* Platform : Platforms)
+		if (bModified && !bHasAnyOthers)
 		{
-			RemoveCookedPlatform(Platform);
+			PackageDatas.GetMonitor().OnFirstCookedPlatformAdded(*this);
 		}
 	}
 
-	void FPackageData::ClearCookedPlatforms()
+	void FPackageData::SetPlatformsNotCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms)
 	{
-		if (CookedPlatforms.Num() > 0)
+		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
-			CookedPlatforms.Empty();
-			CookSucceeded.Empty();
-			PackageDatas.GetMonitor().OnCookedPlatformRemoved(*this);
+			SetPlatformNotCooked(TargetPlatform);
 		}
 	}
 
-	const TArray<const ITargetPlatform*>& FPackageData::GetCookedPlatforms() const
+	void FPackageData::SetPlatformsNotCooked()
 	{
-		return CookedPlatforms;
+		bool bModified = false;
+		for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			bModified = bModified | (Pair.Value.bCookAttempted != false);
+			Pair.Value.bCookAttempted = false;
+			Pair.Value.bCookSucceeded = false;
+		}
+		if (bModified)
+		{
+			PackageDatas.GetMonitor().OnLastCookedPlatformRemoved(*this);
+		}
 	}
 
-	int32 FPackageData::GetNumCookedPlatforms() const
+	void FPackageData::SetPlatformNotCooked(const ITargetPlatform* TargetPlatform)
 	{
-		return CookedPlatforms.Num();
+		bool bHasAnyOthers = false;
+		bool bModified = false;
+		for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			if (Pair.Key == TargetPlatform)
+			{
+				bModified = bModified | (Pair.Value.bCookAttempted != false);
+				Pair.Value.bCookAttempted = false;
+				Pair.Value.bCookSucceeded = false;
+			}
+			else
+			{
+				bHasAnyOthers = bHasAnyOthers | (Pair.Value.bCookAttempted != false);
+			}
+		}
+		if (bModified && !bHasAnyOthers)
+		{
+			PackageDatas.GetMonitor().OnLastCookedPlatformRemoved(*this);
+		}
+	}
+
+	const TSortedMap<const ITargetPlatform*, FPackageData::FPlatformData>& FPackageData::GetPlatformDatas() const
+	{
+		return PlatformDatas;
 	}
 
 	bool FPackageData::HasAnyCookedPlatform() const
 	{
-		return CookedPlatforms.Num() > 0;
+		return Algo::AnyOf(PlatformDatas,
+			[](const TPair<const ITargetPlatform*, FPlatformData>& Pair) { return Pair.Value.bCookAttempted; });
 	}
 
 	bool FPackageData::HasAnyCookedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms,
 		bool bIncludeFailed) const
 	{
-		if (CookedPlatforms.Num() == 0)
+		if (PlatformDatas.Num() == 0)
 		{
 			return false;
 		}
@@ -286,7 +326,7 @@ namespace Cook
 		{
 			return true;
 		}
-		if (CookedPlatforms.Num() == 0)
+		if (PlatformDatas.Num() == 0)
 		{
 			return false;
 		}
@@ -309,13 +349,10 @@ namespace Cook
 
 	ECookResult FPackageData::GetCookResults(const ITargetPlatform* Platform) const
 	{
-		int32 Num = CookedPlatforms.Num();
-		for (int n = 0; n < Num; ++n)
+		const FPlatformData* PlatformData = PlatformDatas.Find(Platform);
+		if (PlatformData && PlatformData->bCookAttempted)
 		{
-			if (CookedPlatforms[n] == Platform)
-			{
-				return CookSucceeded[n] ? ECookResult::Succeeded : ECookResult::Failed;
-			}
+			return PlatformData->bCookSucceeded ? ECookResult::Succeeded : ECookResult::Failed;
 		}
 		return ECookResult::Unseen;
 	}
@@ -573,7 +610,7 @@ namespace Cook
 	{
 		// It is not valid to enter the request state without requested platforms; it indicates a bug due to e.g.
 		// calling SendToState without UpdateRequestData from Idle
-		check(RequestedPlatforms.Num() > 0);
+		check(GetNumRequestedPlatforms() > 0);
 	}
 
 	void FPackageData::OnExitRequest()
@@ -905,7 +942,7 @@ namespace Cook
 
 	void FPackageData::OnRemoveSessionPlatform(const ITargetPlatform* Platform)
 	{
-		RequestedPlatforms.RemoveSwap(Platform);
+		PlatformDatas.Remove(Platform);
 	}
 
 	bool FPackageData::HasReferencedObjects() const
@@ -915,8 +952,36 @@ namespace Cook
 
 	void FPackageData::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
 	{
-		RemapArrayElements(RequestedPlatforms, Remap);
-		RemapArrayElements(CookedPlatforms, Remap);
+		typedef TSortedMap<const ITargetPlatform*, FPlatformData> MapType;
+		MapType NewPlatformDatas;
+		NewPlatformDatas.Reserve(PlatformDatas.Num());
+		for (TPair<const ITargetPlatform*, FPlatformData>& ExistingPair : PlatformDatas)
+		{
+			ITargetPlatform* NewKey = Remap[ExistingPair.Key];
+			NewPlatformDatas.FindOrAdd(NewKey) = MoveTemp(ExistingPair.Value);
+		}
+
+		// The save state (and maybe more in the future) depend on the order of the request platforms remaining
+		// unchanged, due to CookedPlatformDataNextIndex. If we change that order due to the remap, we need to
+		// demote back to request.
+		if (IsInProgress() && GetState() != EPackageState::Request)
+		{
+			bool bDemote = true;
+			MapType::TConstIterator OldIter = PlatformDatas.CreateConstIterator();
+			MapType::TConstIterator NewIter = NewPlatformDatas.CreateConstIterator();
+			for (; OldIter; ++OldIter, ++NewIter)
+			{
+				if (OldIter.Key() != NewIter.Key())
+				{
+					bDemote = true;
+				}
+			}
+			if (bDemote)
+			{
+				SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+			}
+		}
+		PlatformDatas = MoveTemp(NewPlatformDatas);
 	}
 
 	bool FPackageData::IsSaveInvalidated() const
@@ -1346,7 +1411,7 @@ namespace Cook
 		check(NumPreloadAllocated >= 0);
 	}
 
-	void FPackageDataMonitor::OnCookedPlatformAdded(FPackageData& PackageData)
+	void FPackageDataMonitor::OnFirstCookedPlatformAdded(FPackageData& PackageData)
 	{
 		if (!PackageData.GetMonitorIsCooked())
 		{
@@ -1355,15 +1420,12 @@ namespace Cook
 		}
 	}
 
-	void FPackageDataMonitor::OnCookedPlatformRemoved(FPackageData& PackageData)
+	void FPackageDataMonitor::OnLastCookedPlatformRemoved(FPackageData& PackageData)
 	{
-		if (PackageData.GetNumCookedPlatforms() == 0)
+		if (PackageData.GetMonitorIsCooked())
 		{
-			if (PackageData.GetMonitorIsCooked())
-			{
-				--NumCooked;
-				PackageData.SetMonitorIsCooked(false);
-			}
+			--NumCooked;
+			PackageData.SetMonitorIsCooked(false);
 		}
 	}
 
@@ -1586,23 +1648,25 @@ namespace Cook
 			}
 
 			FPackageData** PackageDataMapAddr = FileNameToPackageData.Find(FileName);
+			FPackageData* PackageData = nullptr;
 			if (PackageDataMapAddr != nullptr)
 			{
-				(*PackageDataMapAddr)->AddCookedPlatforms({ TargetPlatform }, true);
-				return;
+				PackageData = *PackageDataMapAddr;
 			}
+			else
+			{
+				// we expect all of these to be in PackageNameCache from earlier in the AR load process
+				const FName* PackageName = PackageNameCache.FindExistingCachedPackageNameFromStandardFileName(FileName);
+				checkf(PackageName != nullptr, TEXT("AddExistingPackageDatasForPlatform should only be used when the PackageCache has already been filled out with the packages"));
 
-			// we expect all of these to already be in the PackageNameCache from earlier in the AR load process
-			const FName* PackageName = PackageNameCache.FindExistingCachedPackageNameFromStandardFileName(FileName);
-			checkf(PackageName != nullptr, TEXT("AddExistingPackageDatasForPlatform should only be used when the PackageCache has already been filled out with the packages"));
-
-			// create the package data and remember it for updating caches after the the ParallelFor
-			FPackageData* PackageData = new FPackageData(*this, *PackageName, FileName);
-			NewPackageDataObjects[Index] = PackageData;
-			PackageData->AddCookedPlatforms({ TargetPlatform }, true /* Succeeded */);
+				// create the package data and remember it for updating caches after the the ParallelFor
+				PackageData = new FPackageData(*this, *PackageName, FileName);
+				NewPackageDataObjects[Index] = PackageData;
+			}
+			PackageData->SetPlatformCooked(TargetPlatform, true /* Succeeded */);
 		});
 
-		// update cache for all newly created objects (taken fropm CreatePackageData)
+		// update cache for all newly created objects (taken from CreatePackageData)
 		for (FPackageData* PackageData : NewPackageDataObjects)
 		{
 			if (PackageData)
@@ -1709,7 +1773,7 @@ namespace Cook
 	{
 		for (FPackageData* PackageData : PackageDatas)
 		{
-			PackageData->ClearCookedPlatforms();
+			PackageData->SetPlatformsNotCooked();
 		}
 	}
 

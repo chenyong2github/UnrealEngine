@@ -9,6 +9,7 @@
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
+#include "Containers/SortedMap.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "HAL/Platform.h"
@@ -70,20 +71,20 @@ namespace Cook
 	 * structure is never deallocated or moved for a given package; it is deallocated only when the CookOnTheFlyServer
 	 * is destroyed.
 	 *
-	 * RequestedPlatforms - RequestedPlatforms are the Platforms that will be Saved during cooking.
-	 *   RequestedPlatforms is only non-empty when the Package is InProgress (e.g. is in the RequestQueue,
-	 *   LoadReadyQueue, or other state containers). Once a Package finishes cooking, the RequestedPlatforms are
-	 *   cleared, and may be set again later if the Package is requested for another platform. If multiple requests
-	 *   occur at the same time, their RequestedPlatforms are merged. Since modifying the RequestedPlatforms can put
+	 * Requested platforms - Requested platforms are the Platforms that will be Saved during cooking.
+	 *   Platforms are only requested on the PackageData when the Package is InProgress (e.g. is in the RequestQueue,
+	 *   LoadReadyQueue, or other state containers). Once a Package finishes cooking, the platforms are set to
+	 *   unrequested, and may be set again later if the Package is requested for another platform. If multiple requests
+	 *   occur at the same time, their requested platforms are merged. Since modifying the requested platforms can put
 	 *   an InProgress package into an invalid state, direct write access is private; use UpdateRequestData or
 	 *   SetRequestData to write.
 
-	 * CookedPlatforms - CookedPlatforms are the platforms that have already been saved in the lifetime of the 
+	 * Cooked platforms - Cooked platforms are the platforms that have already been saved in the lifetime of the 
 	 *   CookOnTheFlyServer; note this extends outside of the current CookOnTheFlyServer session.
-	 *   CookedPlatforms also store a flag indicating whether the cook for the given platform was successful or not.
-	 *   CookedPlatforms can be added to a PackageData for reasons other than normal Save, such as when a Package is
+	 *   Cooked platforms also store a flag indicating whether the cook for the given platform was successful or not.
+	 *   Cooked platforms can be added to a PackageData for reasons other than normal Save, such as when a Package is
 	 *   detected as not applicable for a Platform and its "Cooked" operation is therefore a noop.
-	 *   CookedPlatforms can be cleared for a PackageData if the Package is modified, e.g. during editor operations
+	 *   Cooked platforms can be cleared for a PackageData if the Package is modified, e.g. during editor operations
 	 *   when the CookOnTheFlyServer is run from the editor.
 	 *
 	 * Package - The package pointer corresponding to this PackageData.
@@ -108,17 +109,29 @@ namespace Cook
 	 *   BeginCacheForCookedPlatformData called on it for the current PackageSave. This field is only non-zero during
 	 *   the save state; it is cleared when successfully or unsucessfully leaving the save state. The field is an
 	 *   object-major index into the two-dimensional array given by
-	 *       {Each Object in GetCachedObjectsInOuter} x {each Platform in RequestedPlatforms}
-	 *   e.g. the index into GetCachedObjectsInOuter is GetCookedPlatformDataNextIndex() / RequestedPlatforms.Num()
-	 *   and the index into RequestedPlatforms is GetCookedPlatformDataNextIndex() % RequestedPlatforms.Num()
+	 *       {Each Object in GetCachedObjectsInOuter} x {each Platform that is requested}
+	 *   e.g. the index into GetCachedObjectsInOuter is GetCookedPlatformDataNextIndex() / GetNumRequestedPlatforms()
+	 *   and the index into GetRequestedPlatforms() is GetCookedPlatformDataNextIndex() % GetNumRequestedPlatforms()
 	 *
 	 * Other fields with explanation inline
 	*/
 	struct FPackageData
 	{
 	public:
+		/** Data about a platform that has been interacted with (requested, etc) by the cook of a PackageData. */
+		struct FPlatformData
+		{
+			FPlatformData();
+			bool bRequested : 1;
+			bool bCookAttempted : 1;
+			bool bCookSucceeded : 1;
+			bool bTargetDomainLookupAttempted : 1;
+			bool bExistsInTargetDomain : 1;
+		};
+
 		FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);
 		~FPackageData();
+
 		/**
 		 * ClearReferences is called on every PackageData before any packageDatas are deleted,
 		 * so references are still valid during ClearReferences
@@ -139,13 +152,34 @@ namespace Cook
 		 */
 		const FName& GetFileName() const;
 
-		/** Get the current set of RequestedPlatforms. */
-		const TArray<const ITargetPlatform*>& GetRequestedPlatforms() const;
+		/** Reset OutPlatforms and copy current set of requested platforms into it. */
+		template <typename ArrayType>
+		void GetRequestedPlatforms(ArrayType& OutPlatforms) const
+		{
+			OutPlatforms.Reset(PlatformDatas.Num());
+			for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+			{
+				if (Pair.Value.bRequested)
+				{
+					OutPlatforms.Add(Pair.Key);
+				}
+			}
+		}
+
+		/** Get the number of currently requested platforms. */
+		int32 GetNumRequestedPlatforms() const;
+
 		/**
-		 * Return true if and only if every element of Platforms is present in RequestedPlatforms.
+		 * Return true if and only if every element of Platforms is currently requested.
 		 * Returns true if Platforms is empty.
 		 */
-		bool ContainsAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
+		bool HasAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
+
+		/** Return whether all Platforms that have been requested in this PackageData have also been cooked
+		 * 
+		 * @param bAllowFailedCooks Iff false, failed cooks cause function to return false.
+		 */
+		bool AreAllRequestedPlatformsCooked(bool bAllowFailedCooks) const;
 		/**
 		 * Get the flag for whether this InProgress PackageData has been marked as an urgent request
 		 * (e.g. because it has been requested from the game client during cookonthefly.).
@@ -155,26 +189,22 @@ namespace Cook
 		 */
 		bool GetIsUrgent() const { return static_cast<bool>(bIsUrgent); }
 		/**
-		 * Add the given data, which are all fields describing a request for the cook of this PackageData's Package,
-		 * onto the existing request data.
-		 * If the PackageData is not already in progress, this will be equivalent to calling SetRequestData.
-		 * If the PackageData is in progress and the given fields invalidate some of its inprogress state, the
-		 * PackageData's current progress will be canceled and it will be demoted back to an earlier state where
-		 * the changes can be made.
-		 * Once the changes can be made without invalidating the PackageData's current state, the given request data
-		 * will be added on to the PackageData's current request data; the new request data will be the union of the
-		 * two previous sets of data.
+		 * Add the given request data onto the existing request data.
+		 * If the PackageData is not in progress, just calls SetRequestData; skipped if InRequestedPlatforms is empty.
+		 * If the PackageData is in progress it is demoted back to an earlier state if necessary.
+		 * RequestData is set to the union of the previous and new values.
 		 
-		 * @param SendFlags If the PackageData needs to be moved to a new state, these SendFlags will be used for
-		 * whether to remove and add from the containers for the states.
+		 * @param SendFlags If the PackageData needs to change state, specify whether to remove/add to state containers.
 		 */
-		void UpdateRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent,
+		void UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms, bool bInIsUrgent,
 			FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags = ESendFlags::QueueAddAndRemove);
-		/**
-		 * Set the given data, which are all fields describing a request for the cook of this PackageData's Package,
-		 * onto the existing request data. It is invalid to call this on a PackageData that is already InProgress.
+		/*
+		 * Set the given data onto the existing request data.
+		 * It is invalid to call with empty InRequestedPlatforms.
+		 * It is invalid to call on a PackageData that is already InProgress. 
 		 */
-		void SetRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent, FCompletionCallback&& InCompletionCallback);
+		void SetRequestData(const TArrayView<const ITargetPlatform* const>& InRequestedPlatforms, bool bInIsUrgent,
+			FCompletionCallback&& InCompletionCallback);
 		/**
 		 * Clear all the inprogress variables from the current PackageData. It is invalid to call this except when
 		 * the PackageData is transitioning out of InProgress.
@@ -182,67 +212,56 @@ namespace Cook
 		void ClearInProgressData();
 
 		/**
-		 * Add each element of New to CookedPlatforms if it is not already present, with the given succeeded flag.
-		 * New and Succeeded must be the same length; the succeeded flag for New[n] is Succeeded[n].
-		 * If a platform is already present in CookedPlatforms, its success flag is overwritten.
+		 * FindOrAdd each TargetPlatform and set its flags: CookAttempted=true, Succeeded=<given>.
+		 * In version that takes two arrays, TargetPlatforms and Succeeded must be the same length.
 		 */
-		void AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New,
-			const TArrayView<const bool>& Succeeded);
+		void SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms,
+			const TConstArrayView<bool> Succeeded);
+		void SetPlatformsCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms, bool bSucceeded);
+		void SetPlatformCooked(const ITargetPlatform* TargetPlatform, bool bSucceeded);
 		/**
-		 * Add each element of New to CookedPlatforms if it is not already present, succeeded set to bSucceeded.
-		 * If a platform is already present in CookedPlatforms, its success flag is overwritten.
+		 * FindOrAdd each TargetPlatform and set its flags: CookAttempted=false.
+		 * In Version that takes no TargetPlatform, CookAttempted is cleared from all existing platforms.
 		 */
-		void AddCookedPlatforms(const TArrayView<const ITargetPlatform* const>& New, bool bSucceeded);
-		/**
-		 * Add TargetPlatform to CookedPlatforms if it is not already present, succeeded set to bSucceeded.
-		 * If TargetPlatform is already present in CookedPlatforms, its success flag is overwritten.
-		 */
-		void AddCookedPlatform(const ITargetPlatform* TargetPlatform, bool bSucceeded);
-		/** Remove the given Platform and its succeeded flag from CookedPlatforms if it exists. */
-		void RemoveCookedPlatform(const ITargetPlatform* Platform);
-		/** Remove each element of Platforms and its succeeded flags from CookedPlatforms if it exists. */
-		void RemoveCookedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms);
-		/** Remove all platforms and their succeeded flags from CookedPlatforms. */
-		void ClearCookedPlatforms();
-		/** Return the array of CookedPlatforms as read-only. */
-		const TArray<const ITargetPlatform*>& GetCookedPlatforms() const;
-		/** Return the number of CookedPlatforms. */
-		int32 GetNumCookedPlatforms() const;
-		/** Return true if and only if there is at least one element in CookedPlatforms */
+		void SetPlatformsNotCooked(const TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+		void SetPlatformsNotCooked();
+		void SetPlatformNotCooked(const ITargetPlatform* TargetPlatform);
+
+		/** Access the information about platforms interacted with by *this. */
+		const TSortedMap<const ITargetPlatform*, FPlatformData>& GetPlatformDatas() const;
+
+		/** Return true if and only if at least one platform has been cooked. */
 		bool HasAnyCookedPlatform() const;
 		/**
-		 * Return true if and only if at least one element of Platforms is present in CookedPlatforms, and with its
+		 * Return true if and only if at least one element of Platforms has been cooked, and with its
 		 * succeeded flag set to true if bIncludeFailed is false. Returns false if Platforms is empty.
 		 */
 		bool HasAnyCookedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms, bool bIncludeFailed) const;
 		/**
-		 * Return true if and only if ever element of Platforms is present in CookedPlatforms, and with its succeeded
+		 * Return true if and only if every element of Platforms has been cooked, and with its succeeded
 		 * flag set to true if bIncludeFailed is false. Returns true if Platforms is empty.
 		 */
 		bool HasAllCookedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms, bool bIncludeFailed) const;
 		/**
-		 * Return true if and only if the given Platform is present in CookedPlatforms, and with its succeeded flag
+		 * Return true if and only if the given Platform has been cooked, and with its succeeded flag
 		 * set to true if bIncludeFailed is false.
 		 */
 		bool HasCookedPlatform(const ITargetPlatform* Platform, bool bIncludeFailed) const;
 		/**
-		 * Return the CookResult for the given platform.  If the platform does not exist in CookedPlatforms,
+		 * Return the CookResult for the given platform.  If the platform has not been cooked,
 		 * returns ECookResult::Unseen, otherwise returns Succeeded or Failed depending on its success flag.
 		 */
 		ECookResult GetCookResults(const ITargetPlatform* Platform) const;
-		/**
-		 * Empties and then sets OutPlatforms to contain all elements of QueryPlatforms that are not present in
-		 * CookedPlatforms.
-		 */
+		/** Empties and then sets OutPlatforms to contain all platforms that have been requested and not cook-attempted. */
 		template <typename ArrayType>
-		void GetUncookedPlatforms(const TArrayView<const ITargetPlatform* const>& QueryPlatforms, ArrayType& OutPlatforms)
+		void GetUncookedPlatforms(ArrayType& OutPlatforms)
 		{
-			OutPlatforms.Reset();
-			for (const ITargetPlatform* Platform : QueryPlatforms)
+			OutPlatforms.Reset(PlatformDatas.Num());
+			for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 			{
-				if (!CookedPlatforms.Contains(Platform))
+				if (Pair.Value.bRequested && !Pair.Value.bCookAttempted)
 				{
-					OutPlatforms.Add(Platform);
+					OutPlatforms.Add(Pair.Key);
 				}
 			}
 		}
@@ -415,11 +434,9 @@ namespace Cook
 	private:
 		friend struct UE::Cook::FPackageDatas;
 
-		/** Set the RequestedPlatforms, clearing the old values and replacing them with Platforms. */
-		void SetRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms);
-		/** Add each element of New to RequestedPlatforms if it is not already present. */
-		void AddRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& New);
-		/** Remove all elements from RequestedPlatforms. */
+		/** FindOrAdd each TargetPlatform and set its bRequested value. */
+		void SetPlatformsRequested(const TConstArrayView<const ITargetPlatform*> TargetPlatforms, bool bRequested);
+		/** Set all platforms to not requested. */
 		void ClearRequestedPlatforms();
 		void SetIsUrgent(bool Value);
 
@@ -481,11 +498,8 @@ namespace Cook
 
 		TUniquePtr<FGeneratorPackage> GeneratorPackage;
 		FGeneratorPackage* GeneratedOwner;
-		TArray<const ITargetPlatform*> RequestedPlatforms;
-		/** Platform part of the CookedPlatforms set.Always the same length as CookSucceeded. */
-		TArray<const ITargetPlatform*> CookedPlatforms;
-		/** Success flag part of the CookedPlatforms set.Always the same length as CookedPlatforms. */
-		TArray<bool> CookSucceeded;
+		/** Data for each platform that has been interacted with by *this. */
+		TSortedMap<const ITargetPlatform*, FPlatformData> PlatformDatas;
 		TArray<FWeakObjectPtr> CachedObjectsInOuter;
 		FCompletionCallback CompletionCallback;
 		FName PackageName;
@@ -738,10 +752,10 @@ namespace Cook
 		/** Callback called from FPackageData when it transitions to or from inprogress. */
 		void OnInProgressChanged(FPackageData& PackageData, bool bInProgress);
 		void OnPreloadAllocatedChanged(FPackageData& PackageData, bool bPreloadAllocated);
-		/** Callback called from FPackageData when it has added a platform to its CookedPackages list. */
-		void OnCookedPlatformAdded(FPackageData& PackageData);
-		/** Callback called from FPackageData when it has removed a platform from its CookedPackages list. */
-		void OnCookedPlatformRemoved(FPackageData& PackageData);
+		/** Callback called from FPackageData when it has set a platform to CookAttempted=true and it does not have any others cooked. */
+		void OnFirstCookedPlatformAdded(FPackageData& PackageData);
+		/** Callback called from FPackageData when it has set a platform to CookAttempted=false and it does not have any others cooked. */
+		void OnLastCookedPlatformRemoved(FPackageData& PackageData);
 		/** Callback called from FPackageData when it has changed its urgency. */
 		void OnUrgencyChanged(FPackageData& PackageData);
 		/** Callback called from FPackageData when it has changed its state. */
@@ -800,7 +814,7 @@ namespace Cook
 
 	/*
 	 * Class that manages the list of all PackageDatas for a CookOnTheFlyServer. PackageDatas is an associative
-	 * array for extra data about a package (e.g. the RequestedPlatforms) that is needed by the CookOnTheFlyServer.
+	 * array for extra data about a package (e.g. the requested platforms) that is needed by the CookOnTheFlyServer.
 	 * FPackageData are allocated once and never destroyed or moved until the CookOnTheFlyServer is destroyed.
 	 * Memory on the FPackageData is allocated and deallocated as necessary for its current state.
 	 * FPackageData are mapped by PackageName and by FileName.
@@ -921,7 +935,7 @@ namespace Cook
 		 * For performance reasons, should only be called on destruction.
 		 */
 		void Clear();
-		/** Remove all CookedPlatforms from all PackageDatas. Used to e.g. invalidate previous cooks. */
+		/** Set all platforms to not cooked in all PackageDatas. Used to e.g. invalidate previous cooks. */
 		void ClearCookedPlatforms();
 		/** Remove all request data about the given platform from all PackageDatas and other memory used by *this. */
 		void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
