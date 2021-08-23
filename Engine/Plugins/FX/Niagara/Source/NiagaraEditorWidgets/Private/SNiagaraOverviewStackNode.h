@@ -30,7 +30,7 @@ protected:
 	virtual TSharedRef<SWidget> CreateNodeContentArea() override;
 	void StackViewModelStructureChanged(ENiagaraStructureChangedFlags Flags);
 	void StackViewModelDataObjectChanged(TArray<UObject*> ChangedObjects, ENiagaraDataObjectChange ChangeType);
-	void FillThumbnailBar();
+	void FillTopContentBar();
 	void OnMaterialCompiled(class UMaterialInterface* MaterialInterface);
 private:
 	EVisibility GetIssueIconVisibility() const;
@@ -66,10 +66,11 @@ private:
 	UNiagaraSystemSelectionViewModel* OverviewSelectionViewModel;
 	TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak;
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
-	/** Thumbnail widget containers */
-	TSharedPtr<SHorizontalBox> ThumbnailBar;
+	/** The top content bar houses the isolate button and the thumbnails */
+	TSharedPtr<SHorizontalBox> TopContentBar;
+
 	TArray<UNiagaraStackEntry*> PreviewStackEntries;
 	bool bIsHoveringThumbnail;
-	bool bThumbnailBarRefreshPending;
+	bool bTopContentBarRefreshPending;
 	int32 CurrentIssueIndex;
 };
