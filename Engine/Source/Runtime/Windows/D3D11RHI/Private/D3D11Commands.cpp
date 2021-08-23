@@ -353,19 +353,6 @@ void FD3D11DynamicRHI::RHISetBoundShaderState(FRHIBoundShaderState* BoundShaderS
 	}
 }
 
-template <EShaderFrequency ShaderFrequency>
-FORCEINLINE void FD3D11DynamicRHI::SetShaderTexture(FD3D11TextureBase* NewTexture, ID3D11ShaderResourceView* ShaderResourceView, uint32 TextureIndex, FRHITexture* NewTextureRHI)
-{
-	if ((NewTexture == nullptr) || (NewTexture->GetRenderTargetView(0, 0) != NULL) || (NewTexture->HasDepthStencilView()))
-	{
-		SetShaderResourceView<ShaderFrequency>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI ? NewTextureRHI->GetName() : NAME_None, FD3D11StateCache::SRV_Dynamic);
-	}
-	else
-	{
-		SetShaderResourceView<ShaderFrequency>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI->GetName(), FD3D11StateCache::SRV_Static);
-	}
-}
-
 void FD3D11DynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 TextureIndex, FRHITexture* NewTextureRHI)
 {
 	FD3D11TextureBase* NewTexture = GetD3D11TextureFromRHITexture(NewTextureRHI);
@@ -377,21 +364,21 @@ void FD3D11DynamicRHI::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI,uint32 
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
-		SetShaderTexture<SF_Vertex>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
+		SetShaderResourceView<SF_Vertex>(NewTexture, ShaderResourceView, TextureIndex);
 	}
 	break;
 	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
-		SetShaderTexture<SF_Geometry>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
+		SetShaderResourceView<SF_Geometry>(NewTexture, ShaderResourceView, TextureIndex);
 	}
 	break;
 	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
-		SetShaderTexture<SF_Pixel>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
+		SetShaderResourceView<SF_Pixel>(NewTexture, ShaderResourceView, TextureIndex);
 	}
 	break;
 	default:
@@ -405,7 +392,7 @@ void FD3D11DynamicRHI::RHISetShaderTexture(FRHIComputeShader* ComputeShaderRHI,u
 
 	FD3D11TextureBase* NewTexture = GetD3D11TextureFromRHITexture(NewTextureRHI);
 	ID3D11ShaderResourceView* ShaderResourceView = NewTexture ? NewTexture->GetShaderResourceView() : nullptr;
-	SetShaderTexture<SF_Compute>(NewTexture, ShaderResourceView, TextureIndex, NewTextureRHI);
+	SetShaderResourceView<SF_Compute>(NewTexture, ShaderResourceView, TextureIndex);
 }
 
 
@@ -480,21 +467,21 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIGraphicsShader* Sha
 	{
 		FD3D11VertexShader* VertexShader = static_cast<FD3D11VertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShader);
-		SetShaderResourceView<SF_Vertex>(Resource, D3D11SRV, TextureIndex, NAME_None);
+		SetShaderResourceView<SF_Vertex>(Resource, D3D11SRV, TextureIndex);
 	}
 	break;
 	case SF_Geometry:
 	{
 		FD3D11GeometryShader* GeometryShader = static_cast<FD3D11GeometryShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(GeometryShader);
-		SetShaderResourceView<SF_Geometry>(Resource, D3D11SRV, TextureIndex, NAME_None);
+		SetShaderResourceView<SF_Geometry>(Resource, D3D11SRV, TextureIndex);
 	}
 	break;
 	case SF_Pixel:
 	{
 		FD3D11PixelShader* PixelShader = static_cast<FD3D11PixelShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(PixelShader);
-		SetShaderResourceView<SF_Pixel>(Resource, D3D11SRV, TextureIndex, NAME_None);
+		SetShaderResourceView<SF_Pixel>(Resource, D3D11SRV, TextureIndex);
 	}
 	break;
 	default:
@@ -517,7 +504,7 @@ void FD3D11DynamicRHI::RHISetShaderResourceViewParameter(FRHIComputeShader* Comp
 		D3D11SRV = SRV->View;
 	}
 
-	SetShaderResourceView<SF_Compute>(Resource, D3D11SRV, TextureIndex, NAME_None);
+	SetShaderResourceView<SF_Compute>(Resource, D3D11SRV, TextureIndex);
 }
 
 void FD3D11DynamicRHI::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI,uint32 SamplerIndex, FRHISamplerState* NewStateRHI)
@@ -1170,11 +1157,11 @@ void FD3D11DynamicRHI::CommitComputeShaderConstants()
 }
 
 template <EShaderFrequency Frequency>
-FORCEINLINE void SetResource(FD3D11DynamicRHI* RESTRICT D3D11RHI, FD3D11StateCache* RESTRICT StateCache, uint32 BindIndex, FD3D11BaseShaderResource* RESTRICT ShaderResource, ID3D11ShaderResourceView* RESTRICT SRV, FName ResourceName = FName())
+FORCEINLINE void SetResource(FD3D11DynamicRHI* RESTRICT D3D11RHI, FD3D11StateCache* RESTRICT StateCache, uint32 BindIndex, FD3D11BaseShaderResource* RESTRICT ShaderResource, ID3D11ShaderResourceView* RESTRICT SRV)
 {
 	// We set the resource through the RHI to track state for the purposes of unbinding SRVs when a UAV or RTV is bound.
 	// todo: need to support SRV_Static for faster calls when possible
-	D3D11RHI->SetShaderResourceView<Frequency>(ShaderResource, SRV, BindIndex, ResourceName, FD3D11StateCache::SRV_Unknown);
+	D3D11RHI->SetShaderResourceView<Frequency>(ShaderResource, SRV, BindIndex);
 }
 
 template <EShaderFrequency Frequency>
@@ -1229,7 +1216,7 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D11DynamicRHI* RESTRICT D3D
 #endif
 
 			// todo: could coalesce adjacent bound resources.
-			SetResource<ShaderFrequency>(D3D11RHI, StateCache, BindIndex, ShaderResource, D3D11Resource, TextureRHI->GetName());
+			SetResource<ShaderFrequency>(D3D11RHI, StateCache, BindIndex, ShaderResource, D3D11Resource);
 			NumSetCalls++;
 			ResourceInfo = *ResourceInfos++;
 		} while (FRHIResourceTableEntry::GetUniformBufferIndex(ResourceInfo) == BufferIndex);

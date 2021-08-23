@@ -55,13 +55,6 @@ static const bool GD3D11SkipStateCaching = false;
 class FD3D11StateCacheBase
 {
 public:
-	enum ESRV_Type
-	{
-		SRV_Unknown,
-		SRV_Dynamic,
-		SRV_Static,
-	};
-
 	bool bDepthBoundsEnabled = false;
 	float DepthBoundsMin = 0.0f;
 	float DepthBoundsMax = 1.0f;
@@ -172,8 +165,7 @@ protected:
 		}
 	}
 
-	typedef void (*TSetIndexBufferAlternate)(FD3D11StateCacheBase* StateCache, ID3D11Buffer* IndexBuffer, DXGI_FORMAT Format, uint32 Offset);
-	D3D11_STATE_CACHE_INLINE void InternalSetIndexBuffer(ID3D11Buffer* IndexBuffer, DXGI_FORMAT Format, uint32 Offset, TSetIndexBufferAlternate AlternatePathFunction)
+	D3D11_STATE_CACHE_INLINE void InternalSetIndexBuffer(ID3D11Buffer* IndexBuffer, DXGI_FORMAT Format, uint32 Offset)
 	{
 #if D3D11_ALLOW_STATE_CACHE
 		D3D11_STATE_CACHE_VERIFY_PRE();
@@ -183,14 +175,7 @@ protected:
 			CurrentIndexBuffer = IndexBuffer;
 			CurrentIndexFormat = Format;
 			CurrentIndexOffset = Offset;
-			if (AlternatePathFunction != nullptr)
-			{
-				(*AlternatePathFunction)(this, IndexBuffer, Format, Offset);
-			}
-			else
-			{
-				Direct3DDeviceIMContext->IASetIndexBuffer(IndexBuffer, Format, Offset);
-			}
+			Direct3DDeviceIMContext->IASetIndexBuffer(IndexBuffer, Format, Offset);
 		}
 		D3D11_STATE_CACHE_VERIFY_POST();
 #else
@@ -198,9 +183,8 @@ protected:
 #endif
 	}
 
-	typedef void (*TSetSRVAlternate)(FD3D11StateCacheBase* StateCache, ID3D11ShaderResourceView* SRV, uint32 ResourceIndex, ESRV_Type SrvType);
 	template <EShaderFrequency ShaderFrequency>
-	D3D11_STATE_CACHE_INLINE void InternalSetShaderResourceView(ID3D11ShaderResourceView*& SRV, uint32 ResourceIndex, ESRV_Type SrvType, TSetSRVAlternate AlternatePathFunction)
+	D3D11_STATE_CACHE_INLINE void InternalSetShaderResourceView(ID3D11ShaderResourceView*& SRV, uint32 ResourceIndex)
 	{
 #if D3D11_ALLOW_STATE_CACHE
 		D3D11_STATE_CACHE_VERIFY_PRE();
@@ -216,14 +200,7 @@ protected:
 				CurrentShaderResourceViews[ShaderFrequency][ResourceIndex]->Release();
 			}
 			CurrentShaderResourceViews[ShaderFrequency][ResourceIndex] = SRV;
-			if (AlternatePathFunction != nullptr)
-			{
-				(*AlternatePathFunction)(this, SRV, ResourceIndex, SrvType);
-			}
-			else
-			{
-				InternalSetShaderResourceView<ShaderFrequency>(ResourceIndex, SRV);
-			}
+			InternalSetShaderResourceView<ShaderFrequency>(ResourceIndex, SRV);
 		}
 		D3D11_STATE_CACHE_VERIFY_POST();
 #else	// !D3D11_ALLOW_STATE_CACHE
@@ -231,8 +208,7 @@ protected:
 #endif
 	}
 
-	typedef void (*TSetStreamSourceAlternate)(FD3D11StateCacheBase* StateCache, ID3D11Buffer* VertexBuffer, uint32 StreamIndex, uint32 Stride, uint32 Offset);
-	D3D11_STATE_CACHE_INLINE void InternalSetStreamSource(ID3D11Buffer* VertexBuffer, uint32 StreamIndex, uint32 Stride, uint32 Offset, TSetStreamSourceAlternate AlternatePathFunction)
+	D3D11_STATE_CACHE_INLINE void InternalSetStreamSource(ID3D11Buffer* VertexBuffer, uint32 StreamIndex, uint32 Stride, uint32 Offset)
 	{
 #if D3D11_ALLOW_STATE_CACHE
 		D3D11_STATE_CACHE_VERIFY_PRE();
@@ -243,14 +219,7 @@ protected:
 			Slot.VertexBuffer = VertexBuffer;
 			Slot.Offset = Offset;
 			Slot.Stride = Stride;
-			if (AlternatePathFunction != nullptr)
-			{
-				(*AlternatePathFunction)(this, VertexBuffer, StreamIndex, Stride, Offset);
-			}
-			else
-			{
-				Direct3DDeviceIMContext->IASetVertexBuffers(StreamIndex, 1, &VertexBuffer, &Stride, &Offset);
-			}
+			Direct3DDeviceIMContext->IASetVertexBuffers(StreamIndex, 1, &VertexBuffer, &Stride, &Offset);
 		}
 		D3D11_STATE_CACHE_VERIFY_POST();
 #else
@@ -258,9 +227,8 @@ protected:
 #endif
 	}
 
-	typedef void (*TSetSamplerStateAlternate)(FD3D11StateCacheBase* StateCache, ID3D11SamplerState* SamplerState, uint32 SamplerIndex);
 	template <EShaderFrequency ShaderFrequency>
-	D3D11_STATE_CACHE_INLINE void InternalSetSamplerState(ID3D11SamplerState* SamplerState, uint32 SamplerIndex, TSetSamplerStateAlternate AlternatePathFunction)
+	D3D11_STATE_CACHE_INLINE void InternalSetSamplerState(ID3D11SamplerState* SamplerState, uint32 SamplerIndex)
 	{
 #if D3D11_ALLOW_STATE_CACHE
 		D3D11_STATE_CACHE_VERIFY_PRE();
@@ -268,14 +236,7 @@ protected:
 		if ((CurrentSamplerStates[ShaderFrequency][SamplerIndex] != SamplerState) || GD3D11SkipStateCaching)
 		{
 			CurrentSamplerStates[ShaderFrequency][SamplerIndex] = SamplerState;
-			if (AlternatePathFunction != nullptr)
-			{
-				(*AlternatePathFunction)(this, SamplerState, SamplerIndex);
-			}
-			else
-			{
-				InternalSetSamplerState<ShaderFrequency>(SamplerIndex, SamplerState);
-			}
+			InternalSetSamplerState<ShaderFrequency>(SamplerIndex, SamplerState);
 		}
 		D3D11_STATE_CACHE_VERIFY_POST();
 #else
@@ -302,9 +263,9 @@ public:
 	}
 
 	template <EShaderFrequency ShaderFrequency>
-	D3D11_STATE_CACHE_INLINE void SetShaderResourceView(ID3D11ShaderResourceView* SRV, uint32 ResourceIndex, ESRV_Type SrvType = SRV_Unknown)
+	D3D11_STATE_CACHE_INLINE void SetShaderResourceView(ID3D11ShaderResourceView* SRV, uint32 ResourceIndex)
 	{
-		InternalSetShaderResourceView<ShaderFrequency>(SRV, ResourceIndex, SrvType, nullptr);
+		InternalSetShaderResourceView<ShaderFrequency>(SRV, ResourceIndex);
 	}
 
 	template <EShaderFrequency ShaderFrequency>
@@ -416,7 +377,7 @@ public:
 	template <EShaderFrequency ShaderFrequency>
 	D3D11_STATE_CACHE_INLINE void SetSamplerState(ID3D11SamplerState* SamplerState, uint32 SamplerIndex)
 	{
-		InternalSetSamplerState<ShaderFrequency>(SamplerState, SamplerIndex, nullptr);
+		InternalSetSamplerState<ShaderFrequency>(SamplerState, SamplerIndex);
 	}
 
 	template <EShaderFrequency ShaderFrequency>
@@ -771,12 +732,12 @@ template <EShaderFrequency ShaderFrequency>
 	D3D11_STATE_CACHE_INLINE void SetStreamSource(ID3D11Buffer* VertexBuffer, uint32 StreamIndex, uint32 Stride, uint32 Offset)
 	{
 		ensure(Stride == StreamStrides[StreamIndex]);
-		InternalSetStreamSource(VertexBuffer, StreamIndex, Stride, Offset, nullptr);
+		InternalSetStreamSource(VertexBuffer, StreamIndex, Stride, Offset);
 	}
 
 	D3D11_STATE_CACHE_INLINE void SetStreamSource(ID3D11Buffer* VertexBuffer, uint32 StreamIndex, uint32 Offset)
 	{
-		InternalSetStreamSource(VertexBuffer, StreamIndex, StreamStrides[StreamIndex], Offset, nullptr);
+		InternalSetStreamSource(VertexBuffer, StreamIndex, StreamStrides[StreamIndex], Offset);
 	}
 
 	D3D11_STATE_CACHE_INLINE void GetStreamSources(uint32 StartStreamIndex, uint32 NumStreams, ID3D11Buffer** VertexBuffers, uint32* Strides, uint32* Offsets)
@@ -803,7 +764,7 @@ public:
 
 	D3D11_STATE_CACHE_INLINE void SetIndexBuffer(ID3D11Buffer* IndexBuffer, DXGI_FORMAT Format, uint32 Offset)
 	{
-		InternalSetIndexBuffer(IndexBuffer, Format, Offset, nullptr);
+		InternalSetIndexBuffer(IndexBuffer, Format, Offset);
 	}
 
 	D3D11_STATE_CACHE_INLINE void GetIndexBuffer(ID3D11Buffer** IndexBuffer, DXGI_FORMAT* Format, uint32* Offset)
