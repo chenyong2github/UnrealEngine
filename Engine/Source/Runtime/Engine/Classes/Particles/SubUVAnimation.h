@@ -58,6 +58,8 @@ public:
 	TArray<FVector2D> BoundingGeometry;
 
 	static FString GetDDCKeyString(const FGuid& StateId, int32 SizeX, int32 SizeY, int32 Mode, float AlphaThreshold, int32 OpacitySourceMode);
+	static void GetFeedback(UTexture2D* SubUVTexture, int32 SubImages_Horizontal, int32 SubImages_Vertical, ESubUVBoundingVertexCount BoundingMode, float AlphaThreshold, EOpacitySourceMode OpacitySourceMode,
+		TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo);
 	void Serialize(FStructuredArchive::FSlot Slot);
 	void Build(UTexture2D* SubUVTexture, int32 SubImages_Horizontal, int32 SubImages_Vertical, ESubUVBoundingVertexCount BoundingMode, float AlphaThreshold, EOpacitySourceMode OpacitySourceMode);
 };
