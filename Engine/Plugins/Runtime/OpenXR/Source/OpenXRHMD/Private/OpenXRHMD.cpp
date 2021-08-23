@@ -2361,6 +2361,53 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		Projection.fov = View.fov;
 	}
 
+	// Manage the swapchains in the stereo layers
+	auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
+	{
+		return RenderBridge->CreateSwapchain(Session,
+			PF_B8G8R8A8,
+			Texture->GetSizeX(),
+			Texture->GetSizeY(),
+			1,
+			Texture->GetNumMips(),
+			Texture->GetNumSamples(),
+			Texture->GetFlags() | Flags,
+			TexCreate_RenderTargetable,
+			Texture->GetClearBinding());
+	};
+	if (GetStereoLayersDirty())
+	{
+		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
+		{
+			if (Layer.Desc.IsVisible() && Layer.Desc.HasShape<FQuadLayer>())
+			{
+				const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
+					TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
+
+				if (Layer.NeedReAllocateTexture())
+				{
+					FRHITexture2D* Texture = Layer.Desc.Texture->GetTexture2D();
+					Layer.Swapchain = CreateSwapchain(Texture, Flags);
+					Layer.SwapchainSize = Texture->GetSizeXY();
+					Layer.bUpdateTexture = true;
+				}
+
+				if (Layer.NeedReAllocateLeftTexture())
+				{
+					FRHITexture2D* Texture = Layer.Desc.LeftTexture->GetTexture2D();
+					Layer.LeftSwapchain = CreateSwapchain(Texture, Flags);
+					Layer.bUpdateTexture = true;
+				}
+			}
+			else
+			{
+				// We retain references in FPipelinedLayerState to avoid premature destruction
+				Layer.Swapchain.Reset();
+				Layer.LeftSwapchain.Reset();
+			}
+		});
+	}
+
 	// Gather all active quad layers for composition sorted by priority
 	TArray<FOpenXRLayer> StereoLayers;
 	CopySortedLayers(StereoLayers);
@@ -2434,7 +2481,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
 		{
 			Layer.bUpdateTexture = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE;
-		});
+		}, false);
 
 		{
 			FReadScopeLock Lock(SessionHandleMutex);
@@ -3036,56 +3083,6 @@ void FOpenXRHMD::DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdL
 	{
 		// Invalid mesh means that entire area is visible, draw a fullscreen quad to simulate
 		FPixelShaderUtils::DrawFullscreenQuad(RHICmdList, 1);
-	}
-}
-
-void FOpenXRHMD::UpdateLayer(FOpenXRLayer& Layer, uint32 LayerId, bool bIsValid)
-{
-	FReadScopeLock Lock(SessionHandleMutex);
-	if (!Session || !Layer.Desc.HasShape<FQuadLayer>())
-	{
-		return;
-	}
-
-	if (bIsValid)
-	{
-		const ETextureCreateFlags Flags = Layer.Desc.Flags & IStereoLayers::LAYER_FLAG_TEX_CONTINUOUS_UPDATE ?
-			TexCreate_Dynamic | TexCreate_SRGB : TexCreate_SRGB;
-
-		auto CreateSwapchain = [this](FRHITexture2D* Texture, ETextureCreateFlags Flags)
-		{
-			return RenderBridge->CreateSwapchain(Session,
-				PF_B8G8R8A8,
-				Texture->GetSizeX(),
-				Texture->GetSizeY(),
-				1,
-				Texture->GetNumMips(),
-				Texture->GetNumSamples(),
-				Texture->GetFlags() | Flags,
-				TexCreate_RenderTargetable,
-				Texture->GetClearBinding());
-		};
-
-		if (Layer.NeedReAllocateTexture())
-		{
-			FRHITexture2D* Texture = Layer.Desc.Texture->GetTexture2D();
-			Layer.Swapchain = CreateSwapchain(Texture, Flags);
-			Layer.SwapchainSize = Texture->GetSizeXY();
-			Layer.bUpdateTexture = true;
-		}
-
-		if (Layer.NeedReAllocateLeftTexture())
-		{
-			FRHITexture2D* Texture = Layer.Desc.LeftTexture->GetTexture2D();
-			Layer.LeftSwapchain = CreateSwapchain(Texture, Flags);
-			Layer.bUpdateTexture = true;
-		}
-	}
-	else
-	{
-		// We retain references in FPipelinedLayerState to avoid premature destruction
-		Layer.Swapchain.Reset();
-		Layer.LeftSwapchain.Reset();
 	}
 }
 
