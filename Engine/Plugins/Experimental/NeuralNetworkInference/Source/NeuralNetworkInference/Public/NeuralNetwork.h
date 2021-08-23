@@ -4,10 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
+#include "NeuralTensor.h"
 #include "NeuralTensors.h"
+
 #include "NeuralNetwork.generated.h"
 
+class FNeuralOperator;
 class UAssetImportData;
+struct FModelProto;
+struct FNeuralTensorManager;
 
 /**
  * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
@@ -77,22 +82,22 @@ public:
 
 	/**
 	 * Editor-only function
-	 * It loads the desired UNeuralNetwork definition and its weights from an ONNX/ORT file.
+	 * It loads the desired network graph definition and weights given an input ONNX file path.
 	 * @param InModelFilePath can either be a full path or a relative path with respect to the Game project.
-	 * @return Whether it loaded the UNeuralNetwork successfully.
+	 * @return Whether the network was successfully loaded.
 	 */
 #if WITH_EDITOR
 	bool Load(const FString& InModelFilePath);
 #endif // WITH_EDITOR
 
 	/**
-	 * It loads the UNeuralNetwork definition and its weights into ORT.
-	 * @return Whether it loaded the UNeuralNetwork successfully.
+	 * It loads the desired network graph definition and weights given an input UNeuralNetwork UAsset.
+	 * @return Whether the network was successfully loaded.
 	 */
 	bool Load();
 
 	/**
-	 * It returns whether it loaded the UNeuralNetwork successfully.
+	 * It returns whether a network is currently loaded.
 	 */
 	bool IsLoaded() const;
 
@@ -122,6 +127,16 @@ public:
 	const FNeuralTensors& GetOutputTensors() const;
 
 	/**
+	 * Callback when UNeuralNetwork::Run() is finished. It will only occur if SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous and it could be triggered from any thread.
+	 */
+	DECLARE_DELEGATE(FOnAsyncRunCompleted);
+
+	/**
+	 * Returns the delegate called when async Run() is over (on any thread)
+	 */
+	FOnAsyncRunCompleted& GetOnAsyncRunCompletedDelegate();
+
+	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
 	 * SetInputFromArrayCopy() or GetInputDataPointerMutable().
 	 * Its output results can be retrieved with GetOutputTensor() or GetOutputTensors().
@@ -130,6 +145,9 @@ public:
 	void Run();
 
 protected:
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	bool bIsLoaded;
+
 	/**
 	 * Whether Run() will use CPU or GPU acceleration hardware.
 	 * If SetDeviceType() is never called, the default device (EDeviceType::CPU) will be used.
@@ -185,7 +203,8 @@ private:
 	UPROPERTY()
 	TArray<uint8> ModelReadFromDiskInBytes;
 
-	bool bIsLoaded;
+	FOnAsyncRunCompleted OnAsyncRunCompletedDelegate;
+
 	/**
 	 * PIMPL idiom to hide 3rd party dependencies
 	 * http://www.cppsamples.com/common-tasks/pimpl.html
