@@ -969,15 +969,21 @@ void FNiagaraSystemInstance::AdvanceSimulation(int32 TickCountToSimulate, float 
 
 bool FNiagaraSystemInstance::IsReadyToRun() const
 {
-	bool bAllReadyToRun = true;
+	// check world
+	if (World == nullptr || World->bIsTearingDown)
+	{
+		return false;
+	}
 
+	// check system
 	UNiagaraSystem* System = GetSystem();
-
 	if (!System || !System->IsReadyToRun())
 	{
 		return false;
 	}
 
+	// check emitters
+	bool bAllReadyToRun = true;
 	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> Simulation : Emitters)
 	{
 		if (!Simulation->IsReadyToRun())
@@ -2174,7 +2180,7 @@ bool FNiagaraSystemInstance::HandleCompletion()
 	}
 
 	bool bCompletedAlready = IsComplete();
-	if (bCompletedAlready || bEmittersCompleteOrDisabled)
+	if (bCompletedAlready || bEmittersCompleteOrDisabled || World->bIsTearingDown)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("Completion Achieved"));
 		Complete(false);

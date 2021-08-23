@@ -797,7 +797,7 @@ UNiagaraParameterCollectionInstance* FNiagaraSystemSimulation::GetParameterColle
 	//If no explicit override from the system, just get the current instance set on the world.
 	if (!Ret)
 	{
-		if(FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
+		if (FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World))
 		{
 			Ret = WorldMan->GetParameterCollection(Collection);
 		}
@@ -920,7 +920,10 @@ void FNiagaraSystemSimulation::AddTickGroupPromotion(FNiagaraSystemInstance* Ins
 
 	check(bIsSolo == false);
 
-	FNiagaraWorldManager::Get(World)->MarkSimulationForPostActorWork(this);
+	if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+	{
+		WorldManager->MarkSimulationForPostActorWork(this);
+	}
 }
 
 void FNiagaraSystemSimulation::RemoveFromInstanceList(FNiagaraSystemInstance* Instance)
@@ -1055,7 +1058,10 @@ void FNiagaraSystemSimulation::SetInstanceState(FNiagaraSystemInstance* Instance
 	// When we add an instance to pending spawn we must also flag for post actor work
 	if ((NewState == ENiagaraSystemInstanceState::PendingSpawn) && !bIsSolo)
 	{
-		FNiagaraWorldManager::Get(World)->MarkSimulationForPostActorWork(this);
+		if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+		{
+			WorldManager->MarkSimulationForPostActorWork(this);
+		}
 	}
 }
 
@@ -1165,6 +1171,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 
 	// Update instances
 	int32 SystemIndex = 0;
+	FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
+	check(WorldManager != nullptr);
 	while (SystemIndex < SystemInstances.Num())
 	{
 		FNiagaraSystemInstance* Instance = SystemInstances[SystemIndex];
@@ -1178,9 +1186,6 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 				// Tick demotion we need to do this now to ensure we complete in the correct group
 				if (DesiredTickGroup > SystemTickGroup)
 				{
-					FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World);
-					check(WorldManager != nullptr);
-
 					TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> NewSim = WorldManager->GetSystemSimulation(DesiredTickGroup, System);
 					NewSim->TransferInstance(Instance);
 					continue;
@@ -1228,7 +1233,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 				const ETickingGroup DesiredTickGroup = Instance->CalculateTickGroup();
 				if (DesiredTickGroup != SystemTickGroup)
 				{
-					TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> DestSim = FNiagaraWorldManager::Get(World)->GetSystemSimulation(DesiredTickGroup, System);
+					TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> DestSim = WorldManager->GetSystemSimulation(DesiredTickGroup, System);
 					DestSim->TransferInstance(Instance);
 					continue;
 				}
@@ -1280,7 +1285,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		}
 		else
 		{
-			FNiagaraWorldManager::Get(World)->MarkSimulationsForEndOfFrameWait(this);
+			WorldManager->MarkSimulationsForEndOfFrameWait(this);
 		}
 	}
 	else
