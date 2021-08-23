@@ -546,6 +546,11 @@ void UNiagaraSpriteRendererProperties::GetRendererFeedback(const UNiagaraEmitter
 			}
 		}
 	}
+
+	if (CutoutTexture)
+	{
+		DerivedData.GetFeedback(CutoutTexture, (int32)SubImageSize.X, (int32)SubImageSize.Y, BoundingMode, AlphaThreshold, OpacitySourceMode, OutErrors, OutWarnings, OutInfo);
+	}
 }
 
 void UNiagaraSpriteRendererProperties::GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const
