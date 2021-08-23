@@ -169,11 +169,11 @@ void UDataLayerEditorSubsystem::Deinitialize()
 	DataLayersBroadcast->Deinitialize();
 }
 
-bool UDataLayerEditorSubsystem::RefreshWorldPartitionEditorCells()
+bool UDataLayerEditorSubsystem::RefreshWorldPartitionEditorCells(bool bIsFromUserChange)
 {
 	if (UWorldPartition* WorldPartition = GetWorld() ? GetWorld()->GetWorldPartition() : nullptr)
 	{
-		if (!WorldPartition->RefreshLoadedEditorCells())
+		if (!WorldPartition->RefreshLoadedEditorCells(bIsFromUserChange))
 		{
 			return false;
 		}
@@ -987,51 +987,6 @@ void UDataLayerEditorSubsystem::MakeAllDataLayersVisible()
 	UpdateAllActorsVisibility(true, true);
 }
 
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded)
-{
-	check(DataLayer);
-	if (DataLayer->IsDynamicallyLoaded() != bIsDynamicallyLoaded)
-	{
-		DataLayer->Modify();
-		DataLayer->SetIsDynamicallyLoaded(bIsDynamicallyLoaded);
-		DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsDynamicallyLoaded");
-		return true;
-	}
-	return false;
-}
-
-bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded)
-{
-	bool bRefreshNeeded = SetDataLayerIsDynamicallyLoadedInternal(DataLayer, bIsDynamicallyLoaded);
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
-}
-
-bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded)
-{
-	bool bRefreshNeeded = false;
-	for (UDataLayer* DataLayer : DataLayers)
-	{
-		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInternal(DataLayer, bIsDynamicallyLoaded);
-	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
-}
-
-bool UDataLayerEditorSubsystem::ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer)
-{
-	check(DataLayer);
-	return SetDataLayerIsDynamicallyLoaded(DataLayer, !DataLayer->IsDynamicallyLoaded());
-}
-
-bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers)
-{
-	bool bRefreshNeeded = false;
-	for (UDataLayer* DataLayer : DataLayers)
-	{
-		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInternal(DataLayer, !DataLayer->IsDynamicallyLoaded());
-	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
-}
-
 bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
 {
 	check(DataLayer);
@@ -1048,7 +1003,7 @@ bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditorInternal(
 bool UDataLayerEditorSubsystem::SetDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
 {
 	bool bRefreshNeeded = SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
+	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
 bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoadedInEditor(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange)
@@ -1058,7 +1013,7 @@ bool UDataLayerEditorSubsystem::SetDataLayersIsDynamicallyLoadedInEditor(const T
 	{
 		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, bIsDynamicallyLoadedInEditor, bIsFromUserChange);
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
+	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
 bool UDataLayerEditorSubsystem::ToggleDataLayerIsDynamicallyLoadedInEditor(UDataLayer* DataLayer, const bool bIsFromUserChange)
@@ -1074,7 +1029,7 @@ bool UDataLayerEditorSubsystem::ToggleDataLayersIsDynamicallyLoadedInEditor(cons
 	{
 		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, !DataLayer->IsDynamicallyLoadedInEditor(), bIsFromUserChange);
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
+	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(bIsFromUserChange) : true;
 }
 
 bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& DataLayers)
@@ -1084,7 +1039,7 @@ bool UDataLayerEditorSubsystem::ResetUserSettings(const TArray<UDataLayer*>& Dat
 	{
 		bRefreshNeeded |= SetDataLayerIsDynamicallyLoadedInEditorInternal(DataLayer, DataLayer->IsInitiallyLoadedInEditor(), true);
 	}
-	return bRefreshNeeded ? RefreshWorldPartitionEditorCells() : true;
+	return bRefreshNeeded ? RefreshWorldPartitionEditorCells(true) : true;
 }
 
 UDataLayer* UDataLayerEditorSubsystem::GetDataLayer(const FActorDataLayer& ActorDataLayer) const

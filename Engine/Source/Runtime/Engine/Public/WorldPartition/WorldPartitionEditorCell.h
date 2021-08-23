@@ -72,10 +72,32 @@ public:
 	void RemoveActor(const FWorldPartitionHandle& ActorHandle);
 	void RemoveActor(const FGuid& Source, const FWorldPartitionHandle& ActorHandle);
 
+	inline bool IsLoaded() const
+	{
+		return bLoaded;
+	}
+
+	inline void SetLoaded(bool bInLoaded, bool bInLoadedByUserOperation)
+	{
+		bLoaded = bInLoaded;
+		bLoadedChangedByUserOperation |= bInLoadedByUserOperation;
+	}
+
+	inline bool IsLoadedChangedByUserOperation() const
+	{
+		return bLoadedChangedByUserOperation;
+	}
+
 	FBox						Bounds;
 
-	/** Tells if the cell was manually loaded in the editor */
+private:
+	/** Tells if the cell is loaded in the editor */
 	bool						bLoaded : 1;
+
+	/** Tells if the cell loading state was changed by a user operation */
+	bool						bLoadedChangedByUserOperation : 1;
+
+public:
 
 	TSet<FActorHandle> Actors;
 	TSet<FActorReference> LoadedActors;

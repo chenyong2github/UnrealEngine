@@ -438,40 +438,6 @@ public:
 	void ToggleDataLayersVisibility(const TArray<UDataLayer*>& DataLayers);
 
 	/**
-	 * Changes the DataLayer's IsDynamicallyLoaded flag to the provided state
-	 *
-	 * @param	DataLayer				The DataLayer to affect.
-	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
-
-	/**
-	 * Changes the IsDynamicallyLoaded flag of the DataLayers to the provided state
-	 *
-	 * @param	DataLayers				The DataLayers to affect
-	 * @param	bIsDynamicallyLoaded	If true the DataLayer will affect runtime streaming and actors will only be loaded if the DataLayer is active.
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool SetDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers, const bool bIsDynamicallyLoaded);
-
-	/**
-	 * Toggles the DataLayer's IsDynamicallyLoaded flag
-	 *
-	 * @param DataLayer	The DataLayer to affect
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayerIsDynamicallyLoaded(UDataLayer* DataLayer);
-
-	/**
-	 * Toggles the IsDynamicallyLoaded flag of all of the DataLayers
-	 *
-	 * @param	DataLayers	The DataLayers to affect
-	 */
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool ToggleDataLayersIsDynamicallyLoaded(const TArray<UDataLayer*>& DataLayers);
-
-	/**
 	 * Changes the DataLayer's IsDynamicallyLoadedInEditor flag to the provided state
 	 *
 	 * @param	DataLayer						The DataLayer to affect.
@@ -648,9 +614,8 @@ private:
 	/** Delegate handler for FEditorDelegates::PostUndoRedo. It internally calls DataLayerChanged.Broadcast and UpdateAllActorsVisibility to refresh the actors of each DataLayer. */
 	void PostUndoRedo();
 
-	bool SetDataLayerIsDynamicallyLoadedInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoaded);
 	bool SetDataLayerIsDynamicallyLoadedInEditorInternal(UDataLayer* DataLayer, const bool bIsDynamicallyLoadedInEditor, const bool bIsFromUserChange);
-	bool RefreshWorldPartitionEditorCells();
+	bool RefreshWorldPartitionEditorCells(bool bIsFromUserChange);
 	void UpdateDataLayerEditorPerProjectUserSettings();
 
 	/** Fires whenever one or more DataLayer changes */

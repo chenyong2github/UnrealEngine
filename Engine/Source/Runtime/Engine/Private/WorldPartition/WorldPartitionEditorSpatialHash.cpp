@@ -87,7 +87,7 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 			UWorldPartitionEditorCell* EditorCell = nullptr;
 			if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
 			{
-				if ((*EditorCellPtr)->bLoaded)
+				if ((*EditorCellPtr)->IsLoaded())
 				{
 					FCellCoord LevelCellCoord = CellCoord;
 					while (LevelCellCoord.Level < CurrentLevel)
@@ -222,7 +222,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionHandle& InActorH
 					else
 					{
 						UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
-						bSetLoadedMask = EditorCell->bLoaded;
+						bSetLoadedMask = EditorCell->IsLoaded();
 					}
 
 					FCellCoord LevelCellCoord = CellCoord;
@@ -285,7 +285,7 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionHandle& InActo
 				verify(HashCells.Remove(CellCoord));
 
 				bool bClearChildMask = true;
-				bool bClearLoadedMask = EditorCell->bLoaded;
+				bool bClearLoadedMask = EditorCell->IsLoaded();
 
 				FCellCoord LevelCellCoord = CellCoord;
 				while (LevelCellCoord.Level < CurrentLevel)
@@ -339,7 +339,7 @@ void UWorldPartitionEditorSpatialHash::OnCellLoaded(const UWorldPartitionEditorC
 		return;
 	}
 
-	check(Cell->bLoaded);
+	check(Cell->IsLoaded());
 
 	const FCellCoord CellCoord = GetCellCoords(Cell->Bounds.GetCenter(), 0);
 	const int32 CurrentLevel = GetLevelForBox(Bounds);
@@ -371,7 +371,7 @@ void UWorldPartitionEditorSpatialHash::OnCellUnloaded(const UWorldPartitionEdito
 		return;
 	}
 
-	check(!Cell->bLoaded);
+	check(!Cell->IsLoaded());
 
 	const FCellCoord CellCoord = GetCellCoords(Cell->Bounds.GetCenter(), 0);
 	const int32 CurrentLevel = GetLevelForBox(Bounds);
@@ -524,7 +524,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingUnloadedRegionInner(c
 		UWorldPartitionEditorCell* EditorCell = nullptr;
 		if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
 		{
-			if (!(*EditorCellPtr)->bLoaded)
+			if (!(*EditorCellPtr)->IsLoaded())
 			{
 				InOperation(CellCoord);
 				NumIntersecting++;

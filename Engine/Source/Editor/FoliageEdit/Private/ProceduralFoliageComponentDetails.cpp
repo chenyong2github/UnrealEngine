@@ -118,7 +118,7 @@ FReply FProceduralFoliageComponentDetails::OnLoadUnloadedAreas()
 				FVector Origin;
 				FVector Extent;
 				Component->GetOwner()->GetActorBounds(false, Origin, Extent);
-				WorldPartition->LoadEditorCells(FBox(Origin - Extent, Origin + Extent));
+				WorldPartition->LoadEditorCells(FBox(Origin - Extent, Origin + Extent), true);
 			}
 		}
 	}

@@ -457,7 +457,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		}
 
 		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
+		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true, false);
 
 		// Load more cells depending on the user's settings
 		// Skipped when running from a commandlet
@@ -474,7 +474,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			{
 				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{
-					UpdateLoadingEditorCell(Cell, true);
+					UpdateLoadingEditorCell(Cell, true, false);
 				});
 			}
 
@@ -487,7 +487,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				{
 					if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *EditorGridLastLoadedCell.ToString()))
 					{
-						UpdateLoadingEditorCell(Cell, true);
+						UpdateLoadingEditorCell(Cell, true, true);
 					}
 				}
 			}
@@ -586,7 +586,7 @@ void UWorldPartition::Uninitialize()
 				// @todo_ow: Once Metadata is removed from external actor's package, this won't be necessary anymore.
 				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{
-					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false);
+					UpdateLoadingEditorCell(Cell, /*bShouldBeLoaded*/false, /*bIsFromUserChange*/false);
 				});
 			}
 		}
@@ -746,7 +746,7 @@ bool UWorldPartition::IsSimulating()
 }
 
 #if WITH_EDITOR
-void UWorldPartition::LoadEditorCells(const FBox& Box)
+void UWorldPartition::LoadEditorCells(const FBox& Box, bool bIsFromUserChange)
 {
 	TArray<UWorldPartitionEditorCell*> CellsToLoad;
 	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
@@ -763,18 +763,18 @@ void UWorldPartition::LoadEditorCells(const FBox& Box)
 		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
 		{
 			SlowTask.EnterProgressFrame(Cell->Actors.Num() - Cell->LoadedActors.Num());
-			UpdateLoadingEditorCell(Cell, true);
+			UpdateLoadingEditorCell(Cell, true, bIsFromUserChange);
 		}
 	}
 }
 
-bool UWorldPartition::RefreshLoadedEditorCells()
+bool UWorldPartition::RefreshLoadedEditorCells(bool bIsFromUserChange)
 {
 	auto GetCellsToRefresh = [this](TArray<UWorldPartitionEditorCell*>& CellsToRefresh)
 	{
 		EditorHash->ForEachCell([&CellsToRefresh](UWorldPartitionEditorCell* Cell)
 		{
-			if (Cell->bLoaded)
+			if (Cell->IsLoaded())
 			{
 				CellsToRefresh.Add(Cell);
 			}
@@ -782,10 +782,10 @@ bool UWorldPartition::RefreshLoadedEditorCells()
 		return !CellsToRefresh.IsEmpty();
 	};
 
-	return UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true);
+	return UpdateEditorCells(GetCellsToRefresh, /*bIsCellShouldBeLoaded*/true, bIsFromUserChange);
 }
 
-void UWorldPartition::UnloadEditorCells(const FBox& Box)
+void UWorldPartition::UnloadEditorCells(const FBox& Box, bool bIsFromUserChange)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
@@ -794,7 +794,7 @@ void UWorldPartition::UnloadEditorCells(const FBox& Box)
 		return EditorHash->GetIntersectingCells(Box, CellsToUnload) > 0;
 	};
 
-	UpdateEditorCells(GetCellsToUnload, /*bIsCellShouldBeLoaded*/false);
+	UpdateEditorCells(GetCellsToUnload, /*bIsCellShouldBeLoaded*/false, bIsFromUserChange);
 }
 
 bool UWorldPartition::AreEditorCellsLoaded(const FBox& Box)
@@ -804,7 +804,7 @@ bool UWorldPartition::AreEditorCellsLoaded(const FBox& Box)
 	{
 		for (UWorldPartitionEditorCell* Cell : CellsToLoad)
 		{
-			if (!Cell->bLoaded)
+			if (!Cell->IsLoaded())
 			{
 				return false;
 			}
@@ -814,7 +814,7 @@ bool UWorldPartition::AreEditorCellsLoaded(const FBox& Box)
 	return true;
 }
 
-bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded)
+bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartitionEditorCell*>&)> GetCellsToProcess, bool bIsCellShouldBeLoaded, bool bIsFromUserChange)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
@@ -900,7 +900,7 @@ bool UWorldPartition::UpdateEditorCells(TFunctionRef<bool(TArray<UWorldPartition
 	for (UWorldPartitionEditorCell* Cell : CellsToProcess)
 	{
 		SlowTask.EnterProgressFrame(1);
-		UpdateLoadingEditorCell(Cell, bIsCellShouldBeLoaded);
+		UpdateLoadingEditorCell(Cell, bIsCellShouldBeLoaded, bIsFromUserChange);
 	}
 
 	return true;
@@ -944,13 +944,13 @@ bool UWorldPartition::ShouldActorBeLoadedByEditorCells(const FWorldPartitionActo
 };
 
 // Loads actors in Editor cell
-void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded)
+void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, bool bShouldBeLoaded, bool bFromUserOperation)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::UpdateLoadingEditorCell);
 	
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
-	UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartition::UpdateLoadingEditorCell 0x%08llx [%s]"), Cell, bShouldBeLoaded ? TEXT("Load") : TEXT("Unload"));
+	UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartition::UpdateLoadingEditorCell 0x%08llx [%s/%s]"), Cell, bShouldBeLoaded ? TEXT("Load") : TEXT("Unload"), bFromUserOperation ? TEXT("User") : TEXT("Auto"));
 
 	Cell->Modify(false);
 
@@ -988,11 +988,11 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 		}
 	}
 
-	if (Cell->bLoaded != bShouldBeLoaded)
+	if (Cell->IsLoaded() != bShouldBeLoaded)
 	{
-		Cell->bLoaded = bShouldBeLoaded;
+		Cell->SetLoaded(bShouldBeLoaded, bShouldBeLoaded && bFromUserOperation);
 
-		if (Cell->bLoaded)
+		if (Cell->IsLoaded())
 		{
 			EditorHash->OnCellLoaded(Cell);
 		}
@@ -1271,12 +1271,23 @@ void UWorldPartition::SavePerUserSettings()
 	if (GIsEditor && !World->IsGameWorld() && !IsRunningCommandlet() && !IsEngineExitRequested())
 	{
 		// Save last loaded cells settings
+		const TArray<FName>& LastEditorGridLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(GetWorld());
+
 		TArray<FName> EditorGridLastLoadedCells;
-		EditorHash->ForEachCell([this, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
+		EditorHash->ForEachCell([this, &LastEditorGridLoadedCells, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
 		{
-			if ((Cell != EditorHash->GetAlwaysLoadedCell()) && Cell->bLoaded)
+			FName CellName = Cell->GetFName();
+
+			if (Cell != EditorHash->GetAlwaysLoadedCell())
 			{
-				EditorGridLastLoadedCells.Add(Cell->GetFName());
+				if (Cell->IsLoaded() && Cell->IsLoadedChangedByUserOperation())
+				{
+					EditorGridLastLoadedCells.Add(CellName);
+				}
+				else if (!Cell->IsLoaded() && !Cell->IsLoadedChangedByUserOperation() && LastEditorGridLoadedCells.Contains(CellName))
+				{
+					EditorGridLastLoadedCells.Add(CellName);
+				}
 			}
 		});
 
