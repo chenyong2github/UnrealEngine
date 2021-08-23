@@ -44,7 +44,8 @@ public:
 		OutData[3].Z = InvPhysicalAtlasSize.X;
 		OutData[3].W = InvPhysicalAtlasSize.Y;
 
-		OutData[4] = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+		const uint32 LastUpdateFrame = 0;
+		OutData[4] = FVector4(*((float*)&LastUpdateFrame), *((float*)&LastUpdateFrame), 0.0f, 0.0f);
 
 		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}

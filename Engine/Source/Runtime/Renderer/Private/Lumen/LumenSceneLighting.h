@@ -293,7 +293,7 @@ namespace Lumen
 		const FLumenCardTracingInputs& TracingInputs,
 		const FLumenCardScatterContext& VisibleCardScatterContext);
 
-	void UpdateCardPages(
+	void BuildCardUpdateContext(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FLumenSceneData& LumenSceneData,
