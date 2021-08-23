@@ -3131,8 +3131,7 @@ bool UNiagaraDataInterfaceDebugDraw::GenerateCompilerTagPrefix(const FNiagaraFun
 
 bool UNiagaraDataInterfaceDebugDraw::GPUContextInit(const FNiagaraScriptDataInterfaceCompileInfo& InInfo, void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) const
 {
-
-#if NIAGARA_COMPUTEDEBUG_ENABLED
+#if NIAGARA_COMPUTEDEBUG_ENABLED && WITH_EDITORONLY_DATA
 	FNDIDebugDrawInstanceData_GameThread* InstanceData = reinterpret_cast<FNDIDebugDrawInstanceData_GameThread*>(PerInstanceData);
 	for (const FNiagaraFunctionSignature& Sig : InInfo.RegisteredFunctions)
 	{
