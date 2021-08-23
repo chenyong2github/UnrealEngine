@@ -60,9 +60,9 @@ namespace DatasmithRuntime
 #endif
 	}
 
+#if WITH_FREEIMAGE_LIB
 	bool GetTextureDataInternal(FIBITMAP* Bitmap, FREE_IMAGE_FORMAT FileType, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData);
 
-#if WITH_FREEIMAGE_LIB
 	void GetBitmapPixelInfo(FIBITMAP* Bitmap, int32& BitsPerPixel, int32& ChannelCount)
 	{
 		BitsPerPixel = FreeImage_GetBPP(Bitmap);
@@ -968,6 +968,15 @@ namespace DatasmithRuntime
 			::FreeImage_Initialise();
 		}
 	}
+#else
+bool GetTextureDataFromFile(const TCHAR* Filename, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
+{
+	return false;
+}
+bool GetTextureDataFromBuffer(TArray<uint8>& Bytes, EDatasmithTextureFormat Format, EDSResizeTextureMode Mode, uint32 MaxSize, bool bGenerateNormalMap, FTextureData& TextureData)
+{
+	return false;
+}
 #endif
 } // End of namespace DatasmithRuntime
 
