@@ -671,7 +671,7 @@ void ApplyPixelDepthOffsetForBasePass(inout FMaterialPixelParameters MaterialPar
 {
 	float PixelDepthOffset = ApplyPixelDepthOffsetToMaterialParameters(MaterialParameters, PixelMaterialInputs, OutDepth);
 
-#if WRITES_VELOCITY_TO_GBUFFER && !VF_NANITE
+#if WRITES_VELOCITY_TO_GBUFFER && !IS_NANITE_FACTORY
 	BasePassInterpolants.VelocityPrevScreenPosition.w += PixelDepthOffset;
 #endif
 }
@@ -867,13 +867,13 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
-#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !VF_NANITE
+#if USE_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS && !IS_NANITE_FACTORY
 	{
 		float4 ScreenPosition = SvPositionToResolvedScreenPosition(In.SvPosition);
 		float3 TranslatedWorldPosition = SvPositionToResolvedTranslatedWorld(In.SvPosition);
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, BasePassInterpolants.PixelPositionExcludingWPO);
 	}
-#elif VF_NANITE
+#elif IS_NANITE_FACTORY
 	{
 		float3 TranslatedWorldPosition = MaterialParameters.WorldPosition_CamRelative;
 		CalcMaterialParametersEx(MaterialParameters, PixelMaterialInputs, In.SvPosition, MaterialParameters.ScreenPosition, In.bIsFrontFace, TranslatedWorldPosition, TranslatedWorldPosition);
@@ -1084,10 +1084,10 @@ void FPixelShaderInOut_MainPS(
 	if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_OUTPUT_VELOCITY) != 0 || View.ForceDrawAllVelocities != 0)
 	{
 		// 2d velocity, includes camera an object motion
-	#if !VF_NANITE
-		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
-	#else
+	#if IS_NANITE_FACTORY
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, MaterialParameters.PrevScreenPosition);
+	#else
+		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#endif
 
 		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);

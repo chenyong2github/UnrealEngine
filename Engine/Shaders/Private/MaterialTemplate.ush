@@ -21,7 +21,7 @@
 #include "/Engine/Private/DeferredShadingCommon.ush"
 #include "/Engine/Private/DBufferDecalShared.ush"
 
-#define USE_ANALYTIC_DERIVATIVES	(VF_NANITE)
+#define USE_ANALYTIC_DERIVATIVES	(IS_NANITE_FACTORY)
 
 #if USES_SPEEDTREE
 	#include "/Engine/Private/SpeedTreeCommon.ush"
@@ -273,7 +273,7 @@ struct FMaterialPixelParameters
 	/** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
 	float4 ScreenPosition;
 
-#if VF_NANITE
+#if IS_NANITE_FACTORY
 	float4 PrevScreenPosition;
 #endif
 
@@ -339,14 +339,14 @@ struct FMaterialPixelParameters
 	float2	LightmapUVs_DDY;
 #endif
 
-#if USE_INSTANCING || USE_INSTANCE_CULLING || VF_NANITE
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_FACTORY
 	half4 PerInstanceParams;
 #endif
 
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
 
-#if VF_NANITE && USES_PER_INSTANCE_CUSTOM_DATA
+#if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
 	uint CustomDataOffset;
 	uint NumCustomDataFloats;
 	float CustomDataFloat0; // TODO: Temporary hack!
@@ -955,7 +955,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 /** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
 float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)
 {
-#if VF_NANITE && USES_PER_INSTANCE_CUSTOM_DATA
+#if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
 	// TODO: Temporary hack!
 	//if (Parameters.NumCustomDataFloats > 0)
 	if (Parameters.NumCustomDataFloats == 1 && Index == 0)
@@ -1133,7 +1133,7 @@ float GetPerInstanceRandom(FMaterialVertexParameters Parameters)
 /** Get the per-instance random value when instancing */
 float GetPerInstanceRandom(FMaterialPixelParameters Parameters)
 {
-#if USE_INSTANCING || USE_INSTANCE_CULLING || VF_NANITE
+#if USE_INSTANCING || USE_INSTANCE_CULLING || IS_NANITE_FACTORY
 	return Parameters.PerInstanceParams.x;
 #else
 	return 0.0;
