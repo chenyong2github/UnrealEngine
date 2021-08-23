@@ -2703,15 +2703,15 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 {
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
+		UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged());
+		if (DebuggedControlRig == nullptr)
+		{
+			DebuggedControlRig = ControlRig;
+		}
 
+		URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
 		if(!bSetupModeEnabled)
 		{
-			UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged());
-			if (DebuggedControlRig == nullptr)
-			{
-				DebuggedControlRig = ControlRig;
-			}
 			if(DebuggedControlRig)
 			{
 				Hierarchy = DebuggedControlRig->GetHierarchy();
@@ -2761,7 +2761,7 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 
 		if(ControlRigBP->RigGraphDisplaySettings.NodeRunLimit > 1)
 		{
-			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged()))
+			if(DebuggedControlRig)
 			{
 				if(URigVM* VM = DebuggedControlRig->GetVM())
 				{
@@ -2830,6 +2830,11 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 
 		if(ControlRigBP->VMRuntimeSettings.bEnableProfiling)
 		{
+			if(DebuggedControlRig)
+			{
+				ControlRigBP->RigGraphDisplaySettings.TotalMicroSeconds = DebuggedControlRig->GetVM()->GetContext().LastExecutionMicroSeconds;
+			}
+
 			if(ControlRigBP->RigGraphDisplaySettings.bAutoDetermineRange)
 			{
 				if(ControlRigBP->RigGraphDisplaySettings.LastMaxMicroSeconds < 0.0)

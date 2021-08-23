@@ -745,6 +745,7 @@ public:
 #endif
 
 	uint32 GetNumExecutions() const { return NumExecutions; }
+	const FRigVMExecuteContext& GetContext() const { return Context; }
 
 private:
 
