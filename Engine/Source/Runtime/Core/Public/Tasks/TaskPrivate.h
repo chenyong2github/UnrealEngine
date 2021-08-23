@@ -13,6 +13,8 @@
 #include "Templates/UnrealTemplate.h"
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
+#include "Misc/SpinLock.h"
+#include "Misc/ScopeLock.h"
 
 #include <atomic>
 #include <type_traits>
@@ -118,7 +120,7 @@ namespace UE { namespace Tasks
 				if (Prerequisite.Pimpl->AddSubsequent(*this))
 				{
 					Prerequisites.Enqueue(Prerequisite.Pimpl.GetReference());
-					// keep it alive until this task's destruction
+					// keep it alive until this task's execution
 					Prerequisite.Pimpl->AddRef();
 				}
 				else
@@ -130,7 +132,7 @@ namespace UE { namespace Tasks
 
 			// The task will be executed only when all prerequisites are completed.
 			// Must not be called concurrently.
-			// @param Prerequisites - an iterable collection of tasks
+			// @param InPrerequisites - an iterable collection of tasks
 			template<typename PrerequisiteCollectionType, decltype(std::declval<PrerequisiteCollectionType>().begin())* = nullptr>
 			void AddPrerequisites(const PrerequisiteCollectionType& InPrerequisites)
 			{
@@ -160,7 +162,7 @@ namespace UE { namespace Tasks
 					if (Prerequisite->AddSubsequent(*this))
 					{
 						Prerequisites.Enqueue(Prerequisite);
-						// keep it alive until this task's destruction
+						// keep it alive until this task's execution
 						Prerequisite->AddRef();
 					}
 					else
@@ -235,29 +237,18 @@ namespace UE { namespace Tasks
 					return NumLocks.load(std::memory_order_acquire) != (Pipe == nullptr ? 1 : 0);
 				};
 
-				auto TryRetractPrerequisites = [this, RecursionDepth]
-				{
-					// keep trying retracting all prerequisites even if some of them fail, so the current worker can contribute instead of being blocked
-					bool bSucceeded = true;
-					// prerequisites are "consumed" here even if their retraction fails. retraction can fail only if task execution has 
-					// already started, and it can't become "retractable" again, so no need to keep them
-					while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
-					{
-						if (!Prerequisite.GetValue()->TryRetractAndExecute(RecursionDepth))
-						{
-							bSucceeded = false;
-						}
-						Prerequisite.GetValue()->Release();
-					}
-
-					return bSucceeded;
-				};
-
 				if (IsLocked())
 				{
 					// try to unlock the task. even if prerequisites retraction fails we still need to proceed to try to execute the task here in case
 					// prerequisites were completed in parallel
-					TryRetractPrerequisites();
+
+					// prerequisites are "consumed" here even if their retraction fails. retraction can fail only if task execution has 
+					// already started, and it can't become "retractable" again, so no need to keep them
+					while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
+					{
+						Prerequisite.GetValue()->TryRetractAndExecute(RecursionDepth);
+						Prerequisite.GetValue()->Release();
+					}
 				}
 
 				// the task can be still locked if either prerequisite retraction (above) failed, or the task was piped by another thread, or the task 
@@ -281,16 +272,42 @@ namespace UE { namespace Tasks
 
 				if (IsCompleted()) // still can be hold back by nested tasks
 				{
-					return IsCompleted(); // still can be hold back by nested tasks
+					return true;
 				}
 
-				// try to retract nested tasks
-				if (!TryRetractPrerequisites())
+				// retract nested tasks. this can happen concurrently with `Close()` called by a nested task, that also consumes `Prerequisite`. 
+				// `Prerequisites` is a single-producer/single-consumer queue so we need to put an aditional synchronisation for dequeueing
 				{
-					return false;
+					TScopeLock<FSpinLock> ScopeLock(PrerequisitesLock);
+
+					// keep trying retracting all nested tasks even if some of them fail, so the current worker can contribute instead of being blocked
+					bool bSucceeded = true;
+					// prerequisites are "consumed" here even if their retraction fails. retraction can fail only if task execution has 
+					// already started, and it can't become "retractable" again, so no need to keep them
+					while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
+					{
+						TScopeUnlock<FSpinLock> ScopeUnlock(PrerequisitesLock); // only `Prerequisites.Dequeue()` needs to be locked
+
+						if (!Prerequisite.GetValue()->TryRetractAndExecute(RecursionDepth))
+						{
+							bSucceeded = false;
+						}
+						Prerequisite.GetValue()->Release();
+					}
+
+					if (!bSucceeded)
+					{
+						return false;
+					}
 				}
 
-				checkSlow(IsCompleted());
+				// it happens that all nested tasks are completed and are in the process of completing the parent (this task) concurrently, but the flag
+				// is not set yet. wait for it
+				while (!IsCompleted())
+				{
+					FPlatformProcess::Yield();
+				}
+
 				return true;
 			}
 
@@ -299,13 +316,12 @@ namespace UE { namespace Tasks
 			{
 				uint32 PrevNumLocks = NumLocks.fetch_add(1, std::memory_order_relaxed); // in case we'll succeed in adding subsequent
 				checkf(PrevNumLocks + 1 < TNumericLimits<uint32>::Max(), TEXT("Max number of nested tasks reached: %d"), TNumericLimits<uint32>::Max() - ExecutionFlag);
-				checkf(PrevNumLocks >= ExecutionFlag, TEXT("Internal error: nested tasks can be added only during parent's execution (%u)"), PrevNumLocks);
+				checkf(PrevNumLocks > ExecutionFlag, TEXT("Internal error: nested tasks can be added only during parent's execution (%u)"), PrevNumLocks);
 
 				if (Nested.AddSubsequent(*this))
 				{
-					// there's no race with, as `Prerequisites` can't be accessed by another thread during task execution (execution "locks" the task)
 					Prerequisites.Enqueue(&Nested);
-					// keep it alive until this task's destruction
+					// keep it alive until the task destruction
 					Nested.AddRef();
 				}
 				else
@@ -420,9 +436,9 @@ namespace UE { namespace Tasks
 			// The task can be deleted as the result of this call.
 			bool TryComplete(uint32 LocalNumLocks)
 			{
-				checkSlow(!IsCompleted());
 				if (LocalNumLocks == ExecutionFlag)
 				{
+					checkSlow(!IsCompleted());
 					Close();
 					return true;
 				}
@@ -439,7 +455,7 @@ namespace UE { namespace Tasks
 					return true;
 				}
 
-				return false; // too late, execution already started
+				return false; // that task is being retracted in parallel
 			}
 
 			bool TryGetExecutionPermission()
@@ -449,6 +465,7 @@ namespace UE { namespace Tasks
 
 			void RevokeExecutionPermission()
 			{
+				checkSlow(!bAvailableForExecution.load(std::memory_order_relaxed));
 				bAvailableForExecution.store(true, std::memory_order_release);
 			}
 
@@ -462,8 +479,10 @@ namespace UE { namespace Tasks
 					Prerequisite.GetValue()->Release();
 				}
 
+				checkSlow(Pipe == nullptr ? NumLocks.load(std::memory_order_relaxed) == 1 : NumLocks.load(std::memory_order_relaxed) == 0);
 				NumLocks.store(ExecutionFlag + 1, std::memory_order_relaxed); // +1 to hold it locked during execution, so nested tasks don't
 				// complete it before the execution finishes
+
 				FTaskBase* PrevTask = ExchangeCurrentTask(this);
 				TaskTrace::Started(GetTraceId());
 				StartPipeExecution();
@@ -473,6 +492,7 @@ namespace UE { namespace Tasks
 				FinishPipeExecution();
 				TaskTrace::Finished(GetTraceId());
 				ExchangeCurrentTask(PrevTask);
+				
 				uint32 LocalNumLocks = NumLocks.fetch_sub(1, std::memory_order_relaxed) - 1;
 
 				TryComplete(LocalNumLocks);
@@ -544,7 +564,9 @@ namespace UE { namespace Tasks
 			// retraction that consumes prerequisites. multiple threads can try to retract the task but only one will be allowed to proceed, 
 			// so single producer/single consumer
 			// 3) by adding nested tasks. after piping. during task execution, thus retraction is not possible and won't touch it. single-threaded
+			// `Prerequisites` can be consumed concurrently by retraction and nested tasks closing this task. This case is explicitly locked
 			TSpscQueue<FTaskBase*> Prerequisites;
+			FSpinLock PrerequisitesLock;
 
 			TClosableMpscQueue<FTaskBase*> Subsequents;
 

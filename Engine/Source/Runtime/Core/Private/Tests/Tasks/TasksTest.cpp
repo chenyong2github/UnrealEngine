@@ -823,10 +823,10 @@ namespace UE { namespace TasksTests
 
 		for (int i = 0; i != NumWorkers; ++i)
 		{
-			checkf(LowLevelTasks::FScheduler::Get().IsWorkerThread(), TEXT("No reserve workers are expected to get blocked"));
 			WorkerBlockers.Add(Launch(UE_SOURCE_LOCATION,
 				[&NumWorkersNotBlocked, &ResumeEvent]
 				{
+					checkf(LowLevelTasks::FScheduler::Get().IsWorkerThread(), TEXT("No reserve workers are expected to get blocked"));
 					--NumWorkersNotBlocked;
 					ResumeEvent.Wait();
 				}
@@ -851,7 +851,7 @@ namespace UE { namespace TasksTests
 		FTask P21{ Launch(TEXT("P21"), [] {}, Prerequisites(P11, P12)) };
 		FTask P22{ Launch(TEXT("P22"), [] {}) };
 		FTask N11, N12, N21, N22;
-		Launch(UE_SOURCE_LOCATION,
+		FTask Task = Launch(UE_SOURCE_LOCATION,
 			[&N11, &N12, &N21, &N22]
 			{
 				AddNested(N11 = Launch(TEXT("N11"),
@@ -864,7 +864,8 @@ namespace UE { namespace TasksTests
 				AddNested(N12 = Launch(TEXT("N12"), [] {}));
 			},
 			Prerequisites(P21, P22)
-		).Wait();
+		);
+		Task.Wait();
 		check(P11.IsCompleted() && P12.IsCompleted() && P21.IsCompleted() && P22.IsCompleted() &&
 			N11.IsCompleted() && N12.IsCompleted() && N21.IsCompleted() && N22.IsCompleted());
 	}
@@ -899,7 +900,8 @@ namespace UE { namespace TasksTests
 					check(bPrerequisiteDone);
 					check(!bTaskDone);
 					bTaskDone = true; 
-				}
+				},
+				Prerequisite
 			).Wait();
 			check(bPrerequisiteDone);
 			check(bTaskDone);
@@ -954,7 +956,33 @@ namespace UE { namespace TasksTests
 
 	bool FTasksDeepRetractionStressTest::RunTest(const FString& Parameters)
 	{
-		UE_BENCHMARK(5, DeepRetractionStressTest<1000>);
+		UE_BENCHMARK(5, DeepRetractionStressTest<10000>);
+
+		return true;
+	}
+
+	template<uint64 Num>
+	void NestedTasksStressTest()
+	{
+		for (uint64 i = 0; i != Num; ++i)
+		{
+			FTask Nested;
+			FTask Parent = Launch(TEXT("Parent"),
+				[&Nested]
+				{
+					AddNested(Nested = Launch(TEXT("Nested"), [] {}));
+				}
+			);
+			Parent.Wait();
+			check(Nested.IsCompleted() && Parent.IsCompleted());
+		}
+	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksNestedTasksStressTest, "System.Core.Tasks.NestedTasks.Stress", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksNestedTasksStressTest::RunTest(const FString& Parameters)
+	{
+		UE_BENCHMARK(5, NestedTasksStressTest<10000>);
 
 		return true;
 	}
