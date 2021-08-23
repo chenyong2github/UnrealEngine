@@ -288,7 +288,8 @@ void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type I
 
 SRigHierarchy::~SRigHierarchy()
 {
-	OnEditorClose();
+	const FControlRigEditor* Editor = ControlRigEditor.IsValid() ? ControlRigEditor.Pin().Get() : nullptr;
+	OnEditorClose(Editor, ControlRigBlueprint.Get());
 }
 
 void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEditor> InControlRigEditor)
@@ -454,32 +455,28 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		});
 		ControlRigEditor.Pin()->OnGetViewportContextMenu().BindSP(this, &SRigHierarchy::GetOrCreateContextMenu);
 		ControlRigEditor.Pin()->OnViewportContextMenuCommands().BindSP(this, &SRigHierarchy::GetContextMenuCommands);
-		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigHierarchy::OnControlRigEditorClose);
+		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigHierarchy::OnEditorClose);
 	}
 }
 
-void SRigHierarchy::OnEditorClose()
+void SRigHierarchy::OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
 {
-	if (ControlRigEditor.IsValid())
+	if (InEditor)
 	{
-		ControlRigEditor.Pin()->GetKeyDownDelegate().Unbind();
-		ControlRigEditor.Pin()->OnGetViewportContextMenu().Unbind();
-		ControlRigEditor.Pin()->OnViewportContextMenuCommands().Unbind();
+		FControlRigEditor* Editor = (FControlRigEditor*)InEditor;  
+		Editor->GetKeyDownDelegate().Unbind();
+		Editor->OnGetViewportContextMenu().Unbind();
+		Editor->OnViewportContextMenuCommands().Unbind();
 	}
 
-	if (ControlRigBlueprint.IsValid())
+	if (InBlueprint)
 	{
-		ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
-		ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
+		InBlueprint->Hierarchy->OnModified().RemoveAll(this);
+		InBlueprint->OnRefreshEditor().RemoveAll(this);
 	}
 	
 	ControlRigEditor.Reset();
 	ControlRigBlueprint.Reset();
-}
-
-void SRigHierarchy::OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
-{
-	OnEditorClose();
 }
 
 void SRigHierarchy::BindCommands()

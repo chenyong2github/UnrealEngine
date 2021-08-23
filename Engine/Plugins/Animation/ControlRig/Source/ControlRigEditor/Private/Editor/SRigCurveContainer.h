@@ -206,8 +206,7 @@ private:
 	/** Handler for context menus */
 	TSharedPtr<SWidget> OnGetContextMenuContent() const;
 
-	void OnEditorClose();
-	void OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
+	void OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
 
 	/**
 	* Clears and rebuilds the table, according to an optional search string
