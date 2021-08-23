@@ -15,13 +15,6 @@
 #include "VirtualTextureChunkDDCCache.h"
 #endif
 
-static int32 NumTranscodeRequests = 32;
-static FAutoConsoleVariableRef CVarNumTranscodeRequests(
-	TEXT("r.VT.NumTranscodeRequests"),
-	NumTranscodeRequests,
-	TEXT("Number of transcode request that can be in flight. default 32\n"),
-	ECVF_Default);
-
 FVirtualTextureChunkStreamingManager::FVirtualTextureChunkStreamingManager()
 {
 #if WITH_EDITOR
@@ -98,7 +91,7 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 
 	// we limit the number of pending upload tiles in order to limit the memory required to store all the staging buffers
 	// Never throttle high priority requests
-	if (UploadCache.GetNumPendingTiles() >= (uint32)NumTranscodeRequests && Priority != EVTRequestPagePriority::High)
+	if (!UploadCache.IsInMemoryBudget() && Priority != EVTRequestPagePriority::High)
 	{
 		INC_DWORD_STAT(STAT_VTP_NumTranscodeDropped);
 		return EVTRequestPageStatus::Saturated;
