@@ -20,6 +20,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureCubeArray.h"
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "TextureDerivedDataTask.h"
@@ -496,10 +497,15 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
 		const UTextureCube* Cube = CastChecked<UTextureCube>(&Texture);
 		OutBuildSettings.bLongLatSource = (Cube->Source.GetNumSlices() == 1);
-		}
+	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
 		OutBuildSettings.bStreamable = GSupportsTexture2DArrayStreaming;
+		OutBuildSettings.bTextureArray = true;
+	}
+	else if (Texture.IsA(UTextureCubeArray::StaticClass()))
+	{
+		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.bTextureArray = true;
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))

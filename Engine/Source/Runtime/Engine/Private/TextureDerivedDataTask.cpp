@@ -638,7 +638,18 @@ void FTextureCacheDerivedDataWorker::BuildTexture(bool bReplaceExistingDDC)
 						DerivedData->SizeX = CompressedImage.SizeX;
 						DerivedData->SizeY = CompressedImage.SizeY;
 						DerivedData->PixelFormat = (EPixelFormat)CompressedImage.PixelFormat;
-						DerivedData->SetNumSlices(BuildSettingsPerLayer[0].bCubemap ? 6 : (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray) ? CompressedImage.SizeZ : 1);
+						if (BuildSettingsPerLayer[0].bVolume || BuildSettingsPerLayer[0].bTextureArray)
+						{
+							DerivedData->SetNumSlices(CompressedImage.SizeZ);
+						}
+						else if (BuildSettingsPerLayer[0].bCubemap)
+						{
+							DerivedData->SetNumSlices(6);
+						}
+						else
+						{
+							DerivedData->SetNumSlices(1);
+						}
 						DerivedData->SetIsCubemap(BuildSettingsPerLayer[0].bCubemap);
 					}
 					else

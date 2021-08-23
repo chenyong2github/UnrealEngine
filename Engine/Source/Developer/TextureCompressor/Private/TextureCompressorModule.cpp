@@ -2223,7 +2223,7 @@ public:
 		TArray<FCompressedImage2D>& OutTextureMips,
 		uint32& OutNumMipsInTail,
 		uint32& OutExtData
-		)
+	)
 	{
 		const ITextureFormat* TextureFormat = nullptr;
 
@@ -2247,15 +2247,15 @@ public:
 		// we can't use the Ex version here because it needs an FImage, which needs BuildTextureMips to be called
 		const FTextureFormatCompressorCaps CompressorCaps = TextureFormat->GetFormatCapabilities();
 
-		if(!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, IntermediateMipChain))
+		if (!BuildTextureMips(SourceMips, BuildSettings, CompressorCaps, IntermediateMipChain))
 		{
 			return false;
 		}
 
 		// apply roughness adjustment depending on normal map variation
-		if(AssociatedNormalSourceMips.Num())
+		if (AssociatedNormalSourceMips.Num())
 		{
-//			check AssociatedNormalSourceMips.Format; 
+			//			check AssociatedNormalSourceMips.Format; 
 
 			TArray<FImage> IntermediateAssociatedNormalSourceMipChain;
 
@@ -2268,12 +2268,12 @@ public:
 			// important to make accurate computation with normal length
 			DefaultSettings.bRenormalizeTopMip = true;
 
-			if(!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, IntermediateAssociatedNormalSourceMipChain))
+			if (!BuildTextureMips(AssociatedNormalSourceMips, DefaultSettings, CompressorCaps, IntermediateAssociatedNormalSourceMipChain))
 			{
 				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to generate texture mips for composite texture"));
 			}
 
-			if(!ApplyCompositeTexture(IntermediateMipChain, IntermediateAssociatedNormalSourceMipChain, BuildSettings.CompositeTextureMode, BuildSettings.CompositePower))
+			if (!ApplyCompositeTexture(IntermediateMipChain, IntermediateAssociatedNormalSourceMipChain, BuildSettings.CompositeTextureMode, BuildSettings.CompositePower))
 			{
 				UE_LOG(LogTextureCompressor, Warning, TEXT("Failed to apply composite texture"));
 			}
@@ -2284,7 +2284,21 @@ public:
 		BuildSettings.TopMipSize.X = IntermediateMipChain[0].SizeX;
 		BuildSettings.TopMipSize.Y = IntermediateMipChain[0].SizeY;
 		BuildSettings.VolumeSizeZ = BuildSettings.bVolume ? IntermediateMipChain[0].NumSlices : 1;
-		BuildSettings.ArraySlices = BuildSettings.bTextureArray ? IntermediateMipChain[0].NumSlices : 1;
+		if (BuildSettings.bTextureArray)
+		{
+			if (BuildSettings.bCubemap)
+			{
+				BuildSettings.ArraySlices = IntermediateMipChain[0].NumSlices / 6;
+			}
+			else
+			{
+				BuildSettings.ArraySlices = IntermediateMipChain[0].NumSlices;
+			}
+		}
+		else
+		{
+			BuildSettings.ArraySlices = 1;
+		}
 		
 		return CompressMipChain(TextureFormat, IntermediateMipChain, BuildSettings, OutTextureMips, OutNumMipsInTail, OutExtData);
 	}
@@ -2332,11 +2346,19 @@ private:
 		check(InSourceMips[0].SizeX > 0 && InSourceMips[0].SizeY > 0 && InSourceMips[0].NumSlices > 0);
 
 		// Identify long-lat cubemaps.
-		bool bLongLatCubemap = BuildSettings.bCubemap && InSourceMips[0].NumSlices == 1;
-
-		if (BuildSettings.bCubemap && InSourceMips[0].NumSlices != 6 && !bLongLatCubemap)
+		const bool bLongLatCubemap = BuildSettings.bCubemap && !BuildSettings.bTextureArray && InSourceMips[0].NumSlices == 1;
+		if (BuildSettings.bCubemap && !bLongLatCubemap)
 		{
-			return false;
+			if (BuildSettings.bTextureArray && (InSourceMips[0].NumSlices % 6) != 0)
+			{
+				// Cube array must have multiiple of 6 slices
+				return false;
+			}
+			if (!BuildSettings.bTextureArray && InSourceMips[0].NumSlices != 6)
+			{
+				// Non-array cube must have exactly 6 slices
+				return false;
+			}
 		}
 
 		// Determine the maximum possible mip counts for source and dest.

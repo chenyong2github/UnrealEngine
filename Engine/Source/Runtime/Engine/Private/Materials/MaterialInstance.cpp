@@ -1492,6 +1492,12 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required texture array"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
 					}
 					break;
+				case EMaterialTextureParameterType::ArrayCube:
+					if (!(TextureType & MCT_TextureCubeArray))
+					{
+						UE_LOG(LogMaterial, Error, TEXT("MaterialInstance \"%s\" parameter '%s' assigned texture \"%s\" has invalid type, required texture cube array"), *MaterialName, *TextureInfo.GetParameterName().ToString(), *Texture->GetName());
+					}
+					break;
 				case EMaterialTextureParameterType::Volume:
 					if (!(TextureType & MCT_VolumeTexture))
 					{

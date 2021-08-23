@@ -8,6 +8,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureCubeArray.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
@@ -82,6 +83,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
 	UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
+	UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 	UTextureRenderTarget2D* TextureRT2D = Cast<UTextureRenderTarget2D>(Texture);
 	UTextureRenderTarget2DArray* TextureRT2DArray = Cast<UTextureRenderTarget2DArray>(Texture);
@@ -106,7 +108,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 
 	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
-		if (TextureCube || RTTextureCube)
+		if (TextureCube || TextureCubeArray || RTTextureCube)
 		{
 			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, false);
 		}

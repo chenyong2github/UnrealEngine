@@ -10,6 +10,7 @@
 #include "EngineGlobals.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureCubeArray.h"
 #include "Texture2DPreview.h"
 #include "Engine/TextureRenderTargetCube.h"
 
@@ -61,13 +62,14 @@ void UTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 W
 
 		UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
 		UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
+		UTextureCubeArray* TextureCubeArray = Cast<UTextureCubeArray>(Texture);
 		UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
 		UTextureLightProfile* TextureLightProfile = Cast<UTextureLightProfile>(Texture);
 		const bool bIsVirtualTexture = Texture->IsCurrentlyVirtualTextured();
 
 		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
 
-		if(TextureCube || RTTextureCube)
+		if(TextureCube || TextureCubeArray || RTTextureCube)
 		{
 			// is released by the render thread when it was rendered
 			BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0);

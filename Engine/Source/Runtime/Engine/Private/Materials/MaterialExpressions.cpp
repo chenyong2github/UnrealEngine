@@ -37,6 +37,7 @@
 #include "Engine/Texture2DDynamic.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
+#include "Engine/TextureCubeArray.h"
 #include "Engine/TextureRenderTargetCube.h"
 #include "Engine/VolumeTexture.h"
 #include "Styling/CoreStyle.h"
@@ -217,6 +218,7 @@
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
+#include "Materials/MaterialExpressionTextureSampleParameterCubeArray.h"
 #include "Materials/MaterialExpressionTextureSampleParameterVolume.h"
 #include "Materials/MaterialExpressionTextureCoordinate.h"
 #include "Materials/MaterialExpressionTime.h"
@@ -394,6 +396,9 @@ void GetMaterialValueTypeDescriptions(const uint32 MaterialValueType, TArray<FTe
 				break;
 			case MCT_Texture2DArray:
 				OutDescriptions.Add(LOCTEXT("Texture2DArray", "Texture 2D Array"));
+				break;
+			case MCT_TextureCubeArray:
+				OutDescriptions.Add(LOCTEXT("TextureCubeArray", "Texture Cube Array"));
 				break;
 			case MCT_VolumeTexture:
 				OutDescriptions.Add(LOCTEXT("VolumeTexture", "Volume Texture"));
@@ -1975,6 +1980,10 @@ int32 UMaterialExpressionTextureSample::Compile(class FMaterialCompiler* Compile
 				{
 					return CompilerError(Compiler, TEXT("UVW input required for texturearray sample"));
 				}
+				else if (TextureType == MCT_TextureCubeArray && !Coordinates.GetTracedInput().Expression)
+				{
+					return CompilerError(Compiler, TEXT("UVWX input required for texturecubearray sample"));
+				}
 			}
 
 			int32 CoordinateIndex = Coordinates.GetTracedInput().Expression ? Coordinates.Compile(Compiler) : Compiler->TextureCoordinate(ConstCoordinate, false, false);
@@ -3222,6 +3231,10 @@ uint32 UMaterialExpressionTextureObject::GetOutputType(int32 OutputIndex)
 	{
 		return MCT_Texture2DArray;
 	}
+	else if (Cast<UTextureCubeArray>(Texture) != nullptr)
+	{
+		return MCT_TextureCubeArray;
+	}
 	else if (Cast<UVolumeTexture>(Texture) != nullptr)
 	{
 		return MCT_VolumeTexture;
@@ -3563,6 +3576,71 @@ bool UMaterialExpressionTextureSampleParameter2DArray::TextureIsValid(UTexture* 
 const TCHAR* UMaterialExpressionTextureSampleParameter2DArray::GetRequirements()
 {
 	return TEXT("Requires Texture2DArray");
+}
+
+//
+//  UMaterialExpressionTextureSampleParameterCubeArray
+//
+UMaterialExpressionTextureSampleParameterCubeArray::UMaterialExpressionTextureSampleParameterCubeArray(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Texture;
+		FText NAME_Parameters;
+		FConstructorStatics()
+			: NAME_Texture(LOCTEXT("Texture", "Texture"))
+			, NAME_Parameters(LOCTEXT("Parameters", "Parameters"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Empty();
+	MenuCategories.Add(ConstructorStatics.NAME_Texture);
+	MenuCategories.Add(ConstructorStatics.NAME_Parameters);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionTextureSampleParameterCubeArray::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Coordinates.GetTracedInput().Expression)
+	{
+		return CompilerError(Compiler, TEXT("Cube Array sample needs UV input"));
+	}
+
+	return UMaterialExpressionTextureSampleParameter::Compile(Compiler, OutputIndex);
+}
+
+void UMaterialExpressionTextureSampleParameterCubeArray::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("ParamCubeArray"));
+	OutCaptions.Add(FString::Printf(TEXT("'%s'"), *ParameterName.ToString()));
+}
+
+bool UMaterialExpressionTextureSampleParameterCubeArray::TextureIsValid(UTexture* InTexture, FString& OutMessage)
+{
+	if (!InTexture)
+	{
+		OutMessage = TEXT("Found NULL, requires TextureCubeArray");
+		return false;
+	}
+	else if (!(InTexture->GetMaterialType() & MCT_TextureCubeArray))
+	{
+		OutMessage = FString::Printf(TEXT("Found %s, requires TextureCubeArray"), *InTexture->GetClass()->GetName());
+		return false;
+	}
+
+	return true;
+}
+#endif // WITH_EDITOR
+
+const TCHAR* UMaterialExpressionTextureSampleParameterCubeArray::GetRequirements()
+{
+	return TEXT("Requires TextureCubeArray");
 }
 
 //

@@ -347,12 +347,13 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 
 FString FUniformExpressionSet::GetSummaryString() const
 {
-	return FString::Printf(TEXT("(%u vectors, %u scalars, %u 2d tex, %u cube tex, %u 2darray tex, %u 3d tex, %u virtual tex, %u external tex, %u VT stacks, %u collections)"),
+	return FString::Printf(TEXT("(%u vectors, %u scalars, %u 2d tex, %u cube tex, %u 2darray tex, %u cubearray tex, %u 3d tex, %u virtual tex, %u external tex, %u VT stacks, %u collections)"),
 		UniformVectorPreshaders.Num(), 
 		UniformScalarPreshaders.Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Standard2D].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Cube].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num(),
+		UniformTextureParameters[(uint32)EMaterialTextureParameterType::ArrayCube].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num(),
 		UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num(),
 		UniformExternalTextureParameters.Num(),
@@ -414,6 +415,8 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 	static FString TextureCubeSamplerNames[128];
 	static FString Texture2DArrayNames[128];
 	static FString Texture2DArraySamplerNames[128];
+	static FString TextureCubeArrayNames[128];
+	static FString TextureCubeArraySamplerNames[128];
 	static FString VolumeTextureNames[128];
 	static FString VolumeTextureSamplerNames[128];
 	static FString ExternalTextureNames[128];
@@ -435,6 +438,8 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 			TextureCubeSamplerNames[i] = FString::Printf(TEXT("TextureCube_%dSampler"), i);
 			Texture2DArrayNames[i] = FString::Printf(TEXT("Texture2DArray_%d"), i);
 			Texture2DArraySamplerNames[i] = FString::Printf(TEXT("Texture2DArray_%dSampler"), i);
+			TextureCubeArrayNames[i] = FString::Printf(TEXT("TextureCubeArray_%d"), i);
+			TextureCubeArraySamplerNames[i] = FString::Printf(TEXT("TextureCubeArray_%dSampler"), i);
 			VolumeTextureNames[i] = FString::Printf(TEXT("VolumeTexture_%d"), i);
 			VolumeTextureSamplerNames[i] = FString::Printf(TEXT("VolumeTexture_%dSampler"), i);
 			ExternalTextureNames[i] = FString::Printf(TEXT("ExternalTexture_%d"), i);
@@ -477,6 +482,15 @@ FShaderParametersMetadata* FUniformExpressionSet::CreateBufferStruct()
 		new(Members) FShaderParametersMetadata::FMember(*Texture2DArrayNames[i], TEXT("Texture2DArray"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
 		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 		new(Members) FShaderParametersMetadata::FMember(*Texture2DArraySamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+	}
+
+	for (int32 i = 0; i < UniformTextureParameters[(uint32)EMaterialTextureParameterType::ArrayCube].Num(); ++i)
+	{
+		check((NextMemberOffset % SHADER_PARAMETER_POINTER_ALIGNMENT) == 0);
+		new(Members) FShaderParametersMetadata::FMember(*TextureCubeArrayNames[i], TEXT("TextureCubeArray"), __LINE__, NextMemberOffset, UBMT_TEXTURE, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
+		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
+		new(Members) FShaderParametersMetadata::FMember(*TextureCubeArraySamplerNames[i], TEXT("SamplerState"), __LINE__, NextMemberOffset, UBMT_SAMPLER, EShaderPrecisionModifier::Float, 1, 1, 0, NULL);
 		NextMemberOffset += SHADER_PARAMETER_POINTER_ALIGNMENT;
 	}
 
@@ -821,6 +835,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				UniformTextureParameters[(uint32)EMaterialTextureParameterType::Standard2D].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Cube].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Array2D].Num() * 2
+				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::ArrayCube].Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Volume].Num() * 2
 				+ UniformExternalTextureParameters.Num() * 2
 				+ UniformTextureParameters[(uint32)EMaterialTextureParameterType::Virtual].Num() * 2
@@ -1002,6 +1017,45 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				*ResourceTableTexturePtr = GBlackArrayTexture->TextureRHI;
 				check(GBlackArrayTexture->SamplerStateRHI);
 				*ResourceTableSamplerPtr = GBlackArrayTexture->SamplerStateRHI;
+			}
+		}
+
+		// Cache cube array texture uniform expressions.
+		for (int32 ExpressionIndex = 0; ExpressionIndex < GetNumTextures(EMaterialTextureParameterType::ArrayCube); ExpressionIndex++)
+		{
+			const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(EMaterialTextureParameterType::ArrayCube, ExpressionIndex);
+
+			const UTexture* Value;
+			GetTextureValue(EMaterialTextureParameterType::ArrayCube, ExpressionIndex, MaterialRenderContext, MaterialRenderContext.Material, Value);
+
+			void** ResourceTableTexturePtr = (void**)((uint8*)BufferCursor + 0 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			void** ResourceTableSamplerPtr = (void**)((uint8*)BufferCursor + 1 * SHADER_PARAMETER_POINTER_ALIGNMENT);
+			BufferCursor = ((uint8*)BufferCursor) + (SHADER_PARAMETER_POINTER_ALIGNMENT * 2);
+
+			if (Value && Value->GetResource() && (Value->GetMaterialType() & MCT_TextureCubeArray) != 0u)
+			{
+				check(Value->TextureReference.TextureReferenceRHI);
+				*ResourceTableTexturePtr = Value->TextureReference.TextureReferenceRHI;
+				const FSamplerStateRHIRef* SamplerSource = &Value->GetResource()->SamplerStateRHI;
+				ESamplerSourceMode SourceMode = Parameter.SamplerSource;
+				if (SourceMode == SSM_Wrap_WorldGroupSettings)
+				{
+					SamplerSource = &Wrap_WorldGroupSettings->SamplerStateRHI;
+				}
+				else if (SourceMode == SSM_Clamp_WorldGroupSettings)
+				{
+					SamplerSource = &Clamp_WorldGroupSettings->SamplerStateRHI;
+				}
+
+				check(*SamplerSource);
+				*ResourceTableSamplerPtr = *SamplerSource;
+			}
+			else
+			{
+				check(GBlackArrayTexture->TextureRHI);
+				*ResourceTableTexturePtr = GBlackCubeArrayTexture->TextureRHI;
+				check(GBlackArrayTexture->SamplerStateRHI);
+				*ResourceTableSamplerPtr = GBlackCubeArrayTexture->SamplerStateRHI;
 			}
 		}
 

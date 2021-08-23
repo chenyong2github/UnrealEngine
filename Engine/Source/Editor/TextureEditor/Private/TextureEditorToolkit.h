@@ -160,6 +160,11 @@ protected:
 	 */
 	bool Is2DArrayTexture() const;
 
+	/**
+	 * Checks whether the texture being edited is a texture array (Cube or 2D).
+	 */
+	bool IsArrayTexture() const;
+
 	TSharedRef<SWidget> OnGenerateMipMapLevelMenu();
 	TSharedRef<SWidget> OnGenerateSettingsMenu();
 private:
