@@ -594,6 +594,7 @@ class FLumenRadiosityHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_DISPATCH_1D"), 1);
 		OutEnvironment.SetDefine(TEXT("RADIOSITY_TRACE_TILE_SIZE_1D"), Lumen::RadiosityTraceTileSize1D);
 		OutEnvironment.SetDefine(TEXT("RADIOSITY_TRACE_TILE_SIZE_2D"), Lumen::RadiosityTraceTileSize2D);
+		OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
 	}
 };
 
