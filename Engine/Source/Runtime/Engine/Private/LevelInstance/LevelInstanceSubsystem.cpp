@@ -937,8 +937,10 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 			return;
 		}
 
+		TArray<const UDataLayer*> LevelInstanceDataLayers = LevelInstanceActor->GetDataLayerObjects();
+
 		TSet<AActor*> ActorsToMove;
-		TFunction<bool(AActor*)> AddActorToMove = [this, &ActorsToMove, &AddActorToMove](AActor* Actor)
+		TFunction<bool(AActor*)> AddActorToMove = [this, &ActorsToMove, &AddActorToMove, &LevelInstanceDataLayers](AActor* Actor)
 		{
 			if (ActorsToMove.Contains(Actor))
 			{
@@ -958,6 +960,15 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 						if (!AddActorToMove(ParentActor))
 						{
 							Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+						}
+					}
+
+					// Apply the same data layer settings to the actors to move out
+					if (Actor->SupportsDataLayer() && Actor->IsValidForDataLayer())
+					{
+						for (const UDataLayer* DataLayer : LevelInstanceDataLayers)
+						{
+							Actor->AddDataLayer(DataLayer);
 						}
 					}
 
