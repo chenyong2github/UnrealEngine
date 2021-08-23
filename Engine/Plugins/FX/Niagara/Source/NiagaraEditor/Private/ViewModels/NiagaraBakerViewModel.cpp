@@ -262,7 +262,11 @@ void FNiagaraBakerViewModel::RenderBaker()
 			OutputTexture.GeneratedTexture = NewObject<UTexture2D>(CreatePackage(*PackagePath), FName(*AssetName), RF_Standalone | RF_Public);
 		}
 
+		const bool bIsPoT = FMath::IsPowerOfTwo(OutputTexture.TextureSize.X) && FMath::IsPowerOfTwo(OutputTexture.TextureSize.Y);
+
 		OutputTexture.GeneratedTexture->Source.Init(OutputTexture.TextureSize.X, OutputTexture.TextureSize.Y, 1, 1, TSF_RGBA16F, (const uint8*)(OutputBakers[iOutputTexture].GetData()));
+		OutputTexture.GeneratedTexture->PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
+		OutputTexture.GeneratedTexture->MipGenSettings = bIsPoT ? TMGS_FromTextureGroup : TMGS_NoMipmaps;
 		OutputTexture.GeneratedTexture->AddressX = TextureAddress::TA_Clamp;
 		OutputTexture.GeneratedTexture->AddressY = TextureAddress::TA_Clamp;
 		OutputTexture.GeneratedTexture->UpdateResource();
