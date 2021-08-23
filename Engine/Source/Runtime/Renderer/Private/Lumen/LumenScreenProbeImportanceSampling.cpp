@@ -116,6 +116,7 @@ class FScreenProbeComputeLightingProbabilityDensityFunctionCS : public FGlobalSh
 		SHADER_PARAMETER(float, PrevInvPreExposure)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistoryScreenProbeSceneDepth)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, HistoryScreenProbeTranslatedWorldPosition)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -339,6 +340,7 @@ void GenerateImportanceSamplingRays(
 				PassParameters->ImportanceSamplingHistoryDistanceThreshold = GLumenScreenProbeImportanceSamplingHistoryDistanceThreshold;
 				PassParameters->HistoryScreenProbeRadiance = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.ImportanceSamplingHistoryScreenProbeRadiance);
 				PassParameters->HistoryScreenProbeSceneDepth = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.HistoryScreenProbeSceneDepth);
+				PassParameters->HistoryScreenProbeTranslatedWorldPosition = GraphBuilder.RegisterExternalTexture(ScreenProbeGatherState.HistoryScreenProbeTranslatedWorldPosition);
 			}
 
 			const uint32 ComputeLightingPDFGroupSize = FScreenProbeComputeLightingProbabilityDensityFunctionCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeTracingOctahedronResolution);
