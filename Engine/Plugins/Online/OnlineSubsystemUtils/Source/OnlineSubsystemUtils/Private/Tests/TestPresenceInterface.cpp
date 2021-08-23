@@ -145,6 +145,7 @@ bool FTestPresenceInterface::Tick(float DeltaTime)
 		SessionSettings.NumPublicConnections = 2;
 		SessionSettings.bIsLANMatch = false;
 		SessionSettings.bUsesPresence = true; // For steam, this will make the connection string not get pushed to the backend.
+		SessionSettings.bUseLobbiesIfAvailable = true;
 		SessionSettings.bShouldAdvertise = true;
 		SessionSettings.bAllowJoinInProgress = true;
 		SessionSettings.bAllowInvites = true;
