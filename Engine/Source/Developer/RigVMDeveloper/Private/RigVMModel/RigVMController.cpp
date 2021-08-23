@@ -7326,6 +7326,8 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 		return false;
 	}
 
+	Notify(ERigVMGraphNotifType::InteractionBracketOpened, nullptr);
+
 	FRigVMSetPinIndexAction PinIndexAction(Pin, InNewIndex);
 	{
 		LibraryNode->Pins.Remove(Pin);
@@ -7343,6 +7345,8 @@ bool URigVMController::SetExposedPinIndex(const FName& InPinName, int32 InNewInd
 	{
 		ActionStack->AddAction(PinIndexAction);
 	}
+
+	Notify(ERigVMGraphNotifType::InteractionBracketClosed, nullptr);
 
 	if (bPrintPythonCommand)
 	{
