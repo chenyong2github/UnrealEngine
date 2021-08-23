@@ -339,25 +339,53 @@ TValue* FNiagaraRendererRibbons::AppendToIndexBuffer(
 			const int32 ThisSubSegmentOffset = SubSegmentIndex << Offsets.InterpBitShift;
 			const int32 NextSubSegmentOffset = (bIsFinalInterp ? 0 : SubSegmentIndex + 1) << Offsets.InterpBitShift;
 
-			for (int32 TriangleId = 0; TriangleId < SliceTriangleToVertexIds.Num(); TriangleId += 2)
+			const int32 CurrSegment = ThisSegmentOffset | ThisSubSegmentOffset;
+			const int32 NextSegment = NextSegmentOffset | NextSubSegmentOffset;
+
+			int32 TriangleId = 0;
+
+			for (; TriangleId < FlipGeometryIndex; TriangleId += 2)
 			{
-				// Switch geometry layout based on above or below the centerline. 
-				// This has the effect of mirroring the triangle layout across the center
-				// except when it's an odd number of segments, then the center segment doesn't mirror.
-				const bool bShouldFlipGeometry = TriangleId < FlipGeometryIndex;
+				const int32 FirstIndex = SliceTriangleToVertexIds[TriangleId];
+				const int32 SecondIndex = SliceTriangleToVertexIds[TriangleId + 1];
 
-				OutIndices[0] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId];
-				OutIndices[1] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + 1];
-				OutIndices[2] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 0 : 1)];
-				OutIndices[3] = ThisSegmentOffset | ThisSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + (bShouldFlipGeometry ? 1 : 0)];
-				OutIndices[4] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId + 1];
-				OutIndices[5] = NextSegmentOffset | NextSubSegmentOffset | SliceTriangleToVertexIds[TriangleId];
-
+				OutIndices[0] = CurrSegment | FirstIndex;
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[0]);
+
+				OutIndices[1] = CurrSegment | SecondIndex;
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[1]);
+
+				OutIndices[2] = NextSegment | FirstIndex;
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[2]);
-				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[3]);
+
+				OutIndices[3] = OutIndices[1];
+
+				OutIndices[4] = NextSegment | SecondIndex;
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[4]);
+
+				OutIndices[5] = OutIndices[2];
+
+				OutIndices += 6;
+			}
+			for (; TriangleId < SliceTriangleToVertexIds.Num(); TriangleId += 2)
+			{
+				const int32 FirstIndex = SliceTriangleToVertexIds[TriangleId];
+				const int32 SecondIndex = SliceTriangleToVertexIds[TriangleId + 1];
+
+				OutIndices[0] = CurrSegment | FirstIndex;
+				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[0]);
+
+				OutIndices[1] = CurrSegment | SecondIndex;
+				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[1]);
+
+				OutIndices[2] = NextSegment | SecondIndex;
+				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[2]);
+
+				OutIndices[3] = OutIndices[0];
+
+				OutIndices[4] = OutIndices[2];
+
+				OutIndices[5] = NextSegment | FirstIndex;
 				MaxIndex = FMath::Max<TValue>(MaxIndex, OutIndices[5]);
 
 				OutIndices += 6;
