@@ -496,7 +496,7 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.DiffuseConvolveMipLevel = GDiffuseConvolveMipLevel;
 		const UTextureCube* Cube = CastChecked<UTextureCube>(&Texture);
-		OutBuildSettings.bLongLatSource = (Cube->Source.GetNumSlices() == 1);
+		OutBuildSettings.bLongLatSource = (Cube->Source.GetNumSlices() == 1) || Cube->Source.IsLongLatCubemap();
 	}
 	else if (Texture.IsA(UTexture2DArray::StaticClass()))
 	{
@@ -507,6 +507,7 @@ static void GetTextureBuildSettings(
 	{
 		OutBuildSettings.bCubemap = true;
 		OutBuildSettings.bTextureArray = true;
+		OutBuildSettings.bLongLatSource = Texture.Source.IsLongLatCubemap();
 	}
 	else if (Texture.IsA(UVolumeTexture::StaticClass()))
 	{

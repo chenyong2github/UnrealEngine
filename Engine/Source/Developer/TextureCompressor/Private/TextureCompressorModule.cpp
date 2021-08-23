@@ -1073,11 +1073,11 @@ struct FImageViewLongLat
 	int32 SizeY;
 
 	/** Initialization constructor. */
-	explicit FImageViewLongLat(FImage& Image)
+	explicit FImageViewLongLat(FImage& Image, int32 SliceIndex)
 	{
-		ImageColors = (&Image.AsRGBA32F()[0]);
 		SizeX = Image.SizeX;
 		SizeY = Image.SizeY;
+		ImageColors = (&Image.AsRGBA32F()[0]) + SliceIndex * SizeY * SizeX;
 	}
 
 	/** Wraps X around W. */
@@ -1210,22 +1210,25 @@ void ITextureCompressorModule::GenerateBaseCubeMipFromLongitudeLatitude2D(FImage
 {
 	FImage LongLatImage;
 	SrcImage.CopyTo(LongLatImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
-	FImageViewLongLat LongLatView(LongLatImage);
 
 	// TODO_TEXTURE: Expose target size to user.
 	uint32 Extent = ComputeLongLatCubemapExtents(LongLatImage, MaxCubemapTextureResolution);
 	float InvExtent = 1.0f / Extent;
-	OutMip->Init(Extent, Extent, 6, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
+	OutMip->Init(Extent, Extent, SrcImage.NumSlices * 6, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 
-	for(uint32 Face = 0; Face < 6; ++Face)
+	for (int32 Slice = 0; Slice < SrcImage.NumSlices; ++Slice)
 	{
-		FImageView2D MipView(*OutMip, Face);
-		for(uint32 y = 0; y < Extent; ++y)
+		FImageViewLongLat LongLatView(LongLatImage, Slice);
+		for (uint32 Face = 0; Face < 6; ++Face)
 		{
-			for(uint32 x = 0; x < Extent; ++x)
+			FImageView2D MipView(*OutMip, Slice * 6 + Face);
+			for (uint32 y = 0; y < Extent; ++y)
 			{
-				FVector DirectionWS = ComputeWSCubeDirectionAtTexelCenter(Face, x, y, InvExtent);
-				MipView.Access(x, y) = LongLatView.LookupLongLat(DirectionWS);
+				for (uint32 x = 0; x < Extent; ++x)
+				{
+					FVector DirectionWS = ComputeWSCubeDirectionAtTexelCenter(Face, x, y, InvExtent);
+					MipView.Access(x, y) = LongLatView.LookupLongLat(DirectionWS);
+				}
 			}
 		}
 	}
@@ -2346,7 +2349,7 @@ private:
 		check(InSourceMips[0].SizeX > 0 && InSourceMips[0].SizeY > 0 && InSourceMips[0].NumSlices > 0);
 
 		// Identify long-lat cubemaps.
-		const bool bLongLatCubemap = BuildSettings.bCubemap && !BuildSettings.bTextureArray && InSourceMips[0].NumSlices == 1;
+		const bool bLongLatCubemap = BuildSettings.bLongLatSource;
 		if (BuildSettings.bCubemap && !bLongLatCubemap)
 		{
 			if (BuildSettings.bTextureArray && (InSourceMips[0].NumSlices % 6) != 0)

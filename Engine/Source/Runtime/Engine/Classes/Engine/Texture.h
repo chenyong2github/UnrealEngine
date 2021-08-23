@@ -310,6 +310,7 @@ struct FTextureSource
 	FORCEINLINE int32 GetNumBlocks() const { return Blocks.Num() + 1; }
 	FORCEINLINE ETextureSourceFormat GetFormat(int32 LayerIndex = 0) const { return (LayerIndex == 0) ? Format : LayerFormat[LayerIndex]; }
 	FORCEINLINE bool IsPNGCompressed() const { return bPNGCompressed; }
+	FORCEINLINE bool IsLongLatCubemap() const { return bLongLatCubemap; }
 	FORCEINLINE int64 GetSizeOnDisk() const { return BulkData.GetPayloadSize(); }
 	inline bool HasPayloadData() const { return BulkData.HasPayloadData(); }
 	FORCEINLINE bool IsBulkDataLoaded() const { return BulkData.IsDataLoaded(); }
@@ -432,6 +433,7 @@ private:
 	friend class UTextureCube;
 	friend class UVolumeTexture;
 	friend class UTexture2DArray;
+	friend class UTextureCubeArray;
 
 #if WITH_EDITOR
 	/** Protects simultaneous access to BulkData */
@@ -535,6 +537,14 @@ private:
 	/** RGBA8 source data is optionally compressed as PNG. */
 	UPROPERTY(VisibleAnywhere, Category=TextureSource)
 	bool bPNGCompressed;
+
+	/**
+	 * Source represents a cubemap in long/lat format, will have only 1 slice per cube, rather than 6 slices.
+	 * Not needed for non-array cubemaps, since we can just look at NumSlices == 1 or 6
+	 * But for cube arrays, no way of determining whether NumSlices=6 means 1 cubemap, or 6 long/lat cubemaps
+	 */
+	UPROPERTY(VisibleAnywhere, Category = TextureSource)
+	bool bLongLatCubemap;
 
 	/** Compression format that source data is stored as. */
 	UPROPERTY(VisibleAnywhere, Category = TextureSource)

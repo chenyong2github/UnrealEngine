@@ -1027,6 +1027,7 @@ FTextureSource::FTextureSource()
 	, NumMips(0)
 	, NumLayers(1) // Default to 1 so old data has the correct value
 	, bPNGCompressed(false)
+	, bLongLatCubemap(false)
 	, CompressionFormat(TSCF_None)
 	, bGuidIsHash(false)
 	, Format(TSF_Invalid)
