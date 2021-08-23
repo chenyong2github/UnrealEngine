@@ -126,16 +126,41 @@ namespace HordeServer.Services
 		LazyCachedValue<Task<AgentSoftwareChannels>> ChannelsDocument;
 
 		/// <summary>
+		/// Singleton instance of the client service
+		/// </summary>
+		private readonly SoftwareService SoftwareService;
+
+
+		/// <summary>
+		/// The server settings
+		/// </summary>
+		IOptionsMonitor<ServerSettings> Settings;
+
+		/// <summary>
+		///  Logger for controller
+		/// </summary>
+		private readonly ILogger<AgentSoftwareService> Logger;
+
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Collection">The software collection</param>
 		/// <param name="Singleton">The channels singleton</param>
-		public AgentSoftwareService(IAgentSoftwareCollection Collection, ISingletonDocument<AgentSoftwareChannels> Singleton)
+		/// <param name="SoftwareService">The software service</param>
+		/// <param name="Settings">The settings monitor</param>		
+		/// <param name="Logger">The logger instance</param>
+		public AgentSoftwareService(IAgentSoftwareCollection Collection, ISingletonDocument<AgentSoftwareChannels> Singleton, SoftwareService SoftwareService, IOptionsMonitor<ServerSettings> Settings, ILogger<AgentSoftwareService> Logger)
 		{
 			this.Collection = Collection;
 			this.Singleton = Singleton;
+			this.SoftwareService = SoftwareService;
+			this.Settings = Settings;
+			this.Logger = Logger;
 
 			ChannelsDocument = new LazyCachedValue<Task<AgentSoftwareChannels>>(() => Singleton.GetAsync(), TimeSpan.FromSeconds(20.0));
+
+			Task.Run(() => RegisterDefaultAgent(5000));
 		}
 
 		/// <summary>
@@ -288,6 +313,53 @@ namespace HordeServer.Services
 		public Task<byte[]?> GetArchiveAsync(string Version)
 		{
 			return Collection.GetAsync(Version);
+		}
+
+		async Task RegisterDefaultAgent(int DelayMs)
+		{
+			await Task.Delay(DelayMs);			
+
+			// Check whether we have an installed agent zip
+			FileReference AgentZip = FileReference.Combine(Program.AppDir, "DefaultAgent/Agent.zip");
+			if (!Settings.CurrentValue.SingleInstance || !FileReference.Exists(AgentZip))
+			{
+				return;
+			}
+
+			Logger.LogInformation("Checking for default agent software update");
+
+			string AgentHash = ContentHash.MD5(AgentZip).ToString();
+
+			FileReference AgentHashFile = FileReference.Combine(Program.DataDir, "Agent/DefaultAgentHash");
+			
+			try 
+			{
+				
+				if (FileReference.Exists(AgentHashFile) && FileReference.ReadAllText(AgentHashFile).Trim() == AgentHash)
+				{
+					Logger.LogInformation("Default agent software is up to date");
+					return;
+				}
+			}
+			catch (Exception Ex)
+			{
+				Logger.LogError(Ex, "Error checking default agent software, {Message}", Ex.Message);
+			}
+
+			using (System.IO.Stream Stream = File.OpenRead(AgentZip.ToString()))
+			{
+				await SoftwareService.CreateSoftwareAsync(Stream, null, true);
+			}
+
+			if (!DirectoryReference.Exists(AgentHashFile.Directory))
+			{
+				DirectoryReference.CreateDirectory(AgentHashFile.Directory);
+			}
+
+			FileReference.WriteAllText(AgentHashFile, AgentHash);
+
+			Logger.LogInformation($"Updated default agent software to {AgentHash}");
+
 		}
 	}
 }

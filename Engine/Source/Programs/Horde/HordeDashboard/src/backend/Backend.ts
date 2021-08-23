@@ -1005,7 +1005,7 @@ export class Backend {
 
     downloadAgentZip() {
         try {
-            const url = `${this.serverUrl}/api/v1/agentsoftware/latest/download`;
+            const url = `${this.serverUrl}/api/v1/software/latest/download`;
             const link = document.createElement('a');
             link.href = url;
             document.body.appendChild(link);
