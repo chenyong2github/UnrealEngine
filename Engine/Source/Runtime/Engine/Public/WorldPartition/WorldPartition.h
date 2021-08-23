@@ -225,7 +225,7 @@ private:
 #endif
 
 	bool IsMainWorldPartition() const;
-	void OnWorldBeginPlay();
+	void OnWorldMatchStarting();
 
 	// Delegates registration
 	void RegisterDelegates();

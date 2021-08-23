@@ -2405,6 +2405,9 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnWorldBeginPlay);
 	FOnWorldBeginPlay OnWorldBeginPlay;
 
+	DECLARE_MULTICAST_DELEGATE(FOnMatchStarting);
+	FOnMatchStarting OnWorldMatchStarting;
+
 	/** Returns true if gameplay has already started, false otherwise. */
 	bool HasBegunPlay() const;
 
