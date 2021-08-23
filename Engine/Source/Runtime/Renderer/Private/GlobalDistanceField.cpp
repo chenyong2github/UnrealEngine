@@ -667,6 +667,7 @@ public:
 		const FVolumeUpdateRegion& UpdateRegion,
 		UTexture2D* HeightfieldTextureValue,
 		UTexture2D* VisibilityTextureValue,
+		FRHIShaderResourceView* HeightfieldDescriptionsSRV,
 		int32 NumHeightfieldsValue)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
@@ -687,7 +688,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, AOGlobalMaxSphereQueryRadius, GlobalMaxSphereQueryRadius);
 		SetShaderValue(RHICmdList, ShaderRHI, HeightfieldThickness, VolumeStep * GGlobalDistanceFieldHeightFieldThicknessScale);
 
-		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, GetHeightfieldDescriptionsSRV(), NumHeightfieldsValue);
+		HeightfieldDescriptionParameters.Set(RHICmdList, ShaderRHI, HeightfieldDescriptionsSRV, NumHeightfieldsValue);
 		HeightfieldTextureParameters.Set(RHICmdList, ShaderRHI, HeightfieldTextureValue, NULL, VisibilityTextureValue);
 	}
 
@@ -715,7 +716,8 @@ private:
 
 IMPLEMENT_SHADER_TYPE(, FCompositeHeightfieldsIntoGlobalDistanceFieldCS, TEXT("/Engine/Private/GlobalDistanceField.usf"), TEXT("CompositeHeightfieldsIntoGlobalDistanceFieldCS"), SF_Compute);
 
-extern void UploadHeightfieldDescriptions(const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor);
+extern FCPUUpdatedBuffer& GetHeightfieldDescriptionsBuffer();
+extern void UploadHeightfieldDescriptions(FCPUUpdatedBuffer& Resource, const TArray<FHeightfieldComponentDescription>& HeightfieldDescriptions, FVector2D InvLightingAtlasSize, float InvDownsampleFactor);
 
 void FHeightfieldLightingViewInfo::CompositeHeightfieldsIntoGlobalDistanceField(
 	FRHICommandList& RHICmdList,
@@ -786,14 +788,15 @@ void FHeightfieldLightingViewInfo::CompositeHeightfieldsIntoGlobalDistanceField(
 
 				if (HeightfieldDescriptions.Num() > 0)
 				{
-					UploadHeightfieldDescriptions(HeightfieldDescriptions, FVector2D(1, 1), 1.0f / UpdateRegionHeightfield.DownsampleFactor);
+					FCPUUpdatedBuffer& DescriptionsBuffer = GetHeightfieldDescriptionsBuffer();
+					UploadHeightfieldDescriptions(DescriptionsBuffer, HeightfieldDescriptions, FVector2D(1, 1), 1.0f / UpdateRegionHeightfield.DownsampleFactor);
 
 					UTexture2D* HeightfieldTexture = It.Key().HeightAndNormal;
 					UTexture2D* VisibilityTexture = It.Key().Visibility;
 
 					TShaderMapRef<FCompositeHeightfieldsIntoGlobalDistanceFieldCS> ComputeShader(View.ShaderMap);
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, Scene, View, GlobalMaxSphereQueryRadius, GlobalDistanceFieldInfo, Clipmap, ClipmapIndexValue, UpdateRegion, HeightfieldTexture, VisibilityTexture, HeightfieldDescriptions.Num());
+					ComputeShader->SetParameters(RHICmdList, Scene, View, GlobalMaxSphereQueryRadius, GlobalDistanceFieldInfo, Clipmap, ClipmapIndexValue, UpdateRegion, HeightfieldTexture, VisibilityTexture, DescriptionsBuffer.BufferSRV, HeightfieldDescriptions.Num());
 
 					//@todo - match typical update sizes.  Camera movement creates narrow slabs.
 					const uint32 NumGroupsX = FMath::DivideAndRoundUp<int32>(UpdateRegion.CellsSize.X, HeightfieldCompositeTileSize);

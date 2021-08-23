@@ -1397,6 +1397,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	WaitOcclusionTests(RHICmdList);
 
+	ResetHeightfieldDescriptionsBufferPool();
+
 	if (!ViewFamily.EngineShowFlags.Rendering)
 	{
 		return;

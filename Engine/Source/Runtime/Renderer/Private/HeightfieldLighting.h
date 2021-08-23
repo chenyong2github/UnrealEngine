@@ -137,7 +137,7 @@ private:
 	FHeightfieldDescription Heightfield;
 };
 
-extern FRHIShaderResourceView* GetHeightfieldDescriptionsSRV();
+extern void ResetHeightfieldDescriptionsBufferPool();
 
 class FHeightfieldDescriptionParameters
 {
