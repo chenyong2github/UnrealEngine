@@ -951,7 +951,7 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	if (Lumen::IsRadiosityEnabled() 
 		&& !GLumenSceneRecaptureLumenSceneEveryFrame
 		&& LumenSceneData.bFinalLightingAtlasContentsValid
-		&& TracingInputs.NumClipmapLevels > 0)
+		&& (Lumen::UseHardwareRayTracedRadiosity() || TracingInputs.NumClipmapLevels > 0))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "Radiosity");
 
