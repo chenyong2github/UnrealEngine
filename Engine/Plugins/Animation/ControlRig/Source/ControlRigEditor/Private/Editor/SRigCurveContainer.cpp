@@ -146,7 +146,11 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 	bIsChangingRigHierarchy = false;
 
 #if WITH_EDITOR
-	GEditor->OnEditorClose().AddRaw(this, &SRigCurveContainer::OnEditorClose);
+	GEditor->OnEditorClose().AddLambda([&]()
+	{
+		const FControlRigEditor* Editor = ControlRigEditor.IsValid() ? ControlRigEditor.Pin().Get() : nullptr;
+		OnEditorClose(Editor, ControlRigBlueprint.Get());
+	});
 #endif
 
 	ControlRigBlueprint->Hierarchy->OnModified().AddRaw(this, &SRigCurveContainer::OnHierarchyModified);
@@ -204,7 +208,7 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 
 	if(ControlRigEditor.IsValid())
 	{
-		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigCurveContainer::OnControlRigEditorClose);
+		ControlRigEditor.Pin()->OnControlRigEditorClosed().AddSP(this, &SRigCurveContainer::OnEditorClose);
 	}
 }
 
@@ -213,7 +217,8 @@ SRigCurveContainer::~SRigCurveContainer()
 	// Make sure we don't get called on editor exit if we've already been shut down.
 	GEditor->OnEditorClose().RemoveAll(this);
 
-	OnEditorClose();
+	const FControlRigEditor* Editor = ControlRigEditor.IsValid() ? ControlRigEditor.Pin().Get() : nullptr;
+	OnEditorClose(Editor, ControlRigBlueprint.Get());
 }
 
 FReply SRigCurveContainer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -311,25 +316,16 @@ TSharedPtr<SWidget> SRigCurveContainer::OnGetContextMenuContent() const
 	return MenuBuilder.MakeWidget();
 }
 
-void SRigCurveContainer::OnEditorClose()
+void SRigCurveContainer::OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
 {
-	if (ControlRigEditor.IsValid())
+	if (InBlueprint)
 	{
-		ControlRigBlueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
-		if (ControlRigBlueprint.IsValid())
-		{
-			ControlRigBlueprint->Hierarchy->OnModified().RemoveAll(this);
-			ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
-		}
+		InBlueprint->Hierarchy->OnModified().RemoveAll(this);
+		InBlueprint->OnRefreshEditor().RemoveAll(this);
 	}
 
 	ControlRigBlueprint.Reset();
 	ControlRigEditor.Reset();
-}
-
-void SRigCurveContainer::OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint)
-{
-	OnEditorClose();
 }
 
 void SRigCurveContainer::OnRenameClicked()

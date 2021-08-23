@@ -179,8 +179,7 @@ public:
 
 private:
 
-	void OnEditorClose();
-	void OnControlRigEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
+	void OnEditorClose(const FControlRigEditor* InEditor, UControlRigBlueprint* InBlueprint);
 
 	/** Bind commands that this widget handles */
 	void BindCommands();
