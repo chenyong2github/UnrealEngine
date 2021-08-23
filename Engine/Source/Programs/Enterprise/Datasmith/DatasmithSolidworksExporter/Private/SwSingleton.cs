@@ -81,7 +81,18 @@ namespace SolidworksDatasmith
 
 			foreach (var item in scenestoremove)
 			{
+				SwScene scene = _scenes[item];
+				if (scene == _currentScene)
+				{
+					_currentScene = null;
+				}
+				scene.Processor.Stop();
 				_scenes.Remove(item);
+			}
+
+			if (_currentScene == null && _scenes.Count > 0)
+			{
+				SwitchToScene(_scenes.First().Value.Doc);
 			}
 		}
 
@@ -96,6 +107,5 @@ namespace SolidworksDatasmith
 			EventHandler<ProgressArgs> handler = ProgressEvent;
 			handler?.Invoke(null, new ProgressArgs(null));
 		}
-		
 	}
 }

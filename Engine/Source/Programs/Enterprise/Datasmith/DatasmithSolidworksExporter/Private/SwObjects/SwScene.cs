@@ -39,21 +39,10 @@ namespace SolidworksDatasmith.SwObjects
 		private Processor _processor = null;
 		public Processor Processor { get { return _processor; } }
 
-		private bool _directLinkOn = false;
-		public bool DirectLinkOn
-		{
-			get { return _directLinkOn; }
-			set
-			{
-				if (value != _directLinkOn)
-				{
-					_directLinkOn = value;
-					var cmd = new LiveConnectCommand();
-					cmd.Active = _directLinkOn;
-					Processor.AddCommand(cmd);
-				}
-			}
-		}
+		public bool bDirectLinkAutoSync { get; set; } = false;
+		public bool bDirectLinkRequestedManualSync { get; set; } = false;
+
+		public bool bIsDirty { get; set; } = false;
 
 		// Used with global (unlinked) display states.
 		// Tracks which materials are assigned to components for a specific display state.
@@ -1109,11 +1098,15 @@ namespace SolidworksDatasmith.SwObjects
 		public void DirectLinkUpdate()
 		{
 			foreach (var pp in Parts)
+			{
 				pp.Value.Load(true);
+			}
+
 			CollectMaterials();
 			EvaluateScene(true);
 			var cmd = new LiveUpdateCommand();
 			Processor.AddCommand(cmd);
+			bIsDirty = false;
 		}
 
 		private void ExportCurrentViewOnly()

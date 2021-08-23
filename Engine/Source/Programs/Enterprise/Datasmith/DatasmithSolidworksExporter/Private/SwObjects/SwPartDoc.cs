@@ -74,7 +74,7 @@ namespace SolidworksDatasmith.SwObjects
 			}
 		}
 
-		public void Load(bool fast = false)
+		public void Load(bool bInIsDirectLinkUpdate)
 		{
 			SwSingleton.FireProgressEvent("Extracting Part Data");
 
@@ -114,10 +114,13 @@ namespace SolidworksDatasmith.SwObjects
 				cmd.PathName = PathName;
 				cmd.Name = Name;
 				cmd.StripGeom = ExtractSourceGeometry();
+
 				SwSingleton.CurrentScene.Processor.AddCommand(cmd);
 
-				if (!fast)
+				if (!bInIsDirectLinkUpdate)
+				{
 					SwSingleton.CurrentScene.SendModelDocMetadataToProcessor(Doc as ModelDoc2, cmd.Name, MetadataCommand.MetadataType.MeshActor);
+				}
 			}
 		}
 
@@ -159,12 +162,25 @@ namespace SolidworksDatasmith.SwObjects
 				if (Bodies[i].Faces.Count != doc2.Bodies[i].Faces.Count) return false;
 				for (int j = 0; j < Bodies[i].Faces.Count; j++)
 				{
-					Face2 face1 = Bodies[i].Faces[j].Face;
-					Face2 face2 = doc2.Bodies[i].Faces[j].Face;
-					uint id1 = SwSingleton.CurrentScene.GetFaceID(face1);
-					uint id2 = SwSingleton.CurrentScene.GetFaceID(face2);
-					if (id1 != id2) return false;
-					if (!Utility.IsSame(face1.GetArea(), face2.GetArea())) return false;
+					try
+					{
+						Face2 face1 = Bodies[i].Faces[j].Face;
+						Face2 face2 = doc2.Bodies[i].Faces[j].Face;
+						uint id1 = SwSingleton.CurrentScene.GetFaceID(face1);
+						uint id2 = SwSingleton.CurrentScene.GetFaceID(face2);
+						if (id1 != id2)
+						{
+							return false;
+						}
+						if (!Utility.IsSame(face1.GetArea(), face2.GetArea()))
+						{
+							return false;
+						}
+					}
+					catch (Exception)
+					{
+						return false; // Original body object has become invalid, therefore consider it different
+					}
 				}
 			}
 			return true;

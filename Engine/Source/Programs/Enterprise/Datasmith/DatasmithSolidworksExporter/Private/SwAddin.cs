@@ -6,8 +6,6 @@ using System.Runtime.InteropServices;
 using System.Collections;
 using System.Reflection;
 
-using System.Windows.Forms;
-
 using SolidWorks.Interop.sldworks;
 using SolidWorks.Interop.swpublished;
 using SolidWorks.Interop.swconst;
@@ -196,6 +194,10 @@ namespace SolidworksDatasmith
 
 			SwSingleton.ProgressEvent += OnProgressMessage;
 
+			// Init DirectLink
+			bool bDirectLinkInitOk = FDatasmithFacadeDirectLink.Init();
+			Debug.Assert(bDirectLinkInitOk);
+
 			return true;
 		}
 
@@ -229,6 +231,8 @@ namespace SolidworksDatasmith
 			{
 				SwSingleton.CurrentScene.Processor.Stop();
 			}
+
+			FDatasmithFacadeDirectLink.Shutdown();
 
 			bool bRet = iSwApp.RemoveFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocASSEMBLY);
 			bRet = iSwApp.RemoveFileSaveAsItem2(addinID, "Datasmith_FileSave", "Unreal (*.udatasmith)", "udatasmith", (int)swDocumentTypes_e.swDocPART);
@@ -316,7 +320,9 @@ namespace SolidworksDatasmith
 			// !(SUCCEEDED)  =   Insuccessful
 
 			foreach (var pp in SwSingleton.CurrentScene.Parts)
-				pp.Value.Load();
+			{
+				pp.Value.Load(false);
+			}
 
 			sFileName = ParseFilename(sFileName);
 
@@ -369,8 +375,8 @@ namespace SolidworksDatasmith
 			cmdGroup.SmallMainIcon = iBmp.CreateFileFromResourceBitmap("SolidworksDatasmith.MainIconSmall.bmp", thisAssembly);
 
 			int menuToolbarOption = (int)(swCommandItemType_e.swMenuItem | swCommandItemType_e.swToolbarItem);
-			cmdIndex0 = cmdGroup.AddCommandItem2("Direct Link Update", -1, "Update the Direct Link connection", "Synchronize", 1, "DirectLinkUpdate", "DirectLinkUpdateStatus", mainItemID1, menuToolbarOption);
-			cmdIndex1 = cmdGroup.AddCommandItem2("Direct Link On/Off", 0, "Enable/Disable the Direct Link connection", "Enable/Disable Direct Link", 0, "EnableDisableLink", "EnableDisableLinkStatus", mainItemID1, menuToolbarOption);
+			cmdIndex0 = cmdGroup.AddCommandItem2("Direct Link Synchronize", -1, "Update the Direct Link connection", "Synchronize", 1, "DirectLinkUpdate", "DirectLinkUpdateStatus", mainItemID1, menuToolbarOption);
+			cmdIndex1 = cmdGroup.AddCommandItem2("Pause/Resume Direct Link", 0, "Pause/Resume DirectLink Auto Sync", "Pause/Resume Direct Link", 0, "EnableDisableLink", "EnableDisableLinkStatus", mainItemID1, menuToolbarOption);
 			//cmdIndex1 = cmdGroup.AddCommandItem2("Show PMP", -1, "Display sample property manager", "Show PMP", 2, "ShowPMP", "EnablePMP", mainItemID2, menuToolbarOption);
 
 			cmdGroup.HasToolbar = true;
@@ -499,15 +505,22 @@ namespace SolidworksDatasmith
 		public int DirectLinkUpdateStatus()
 		{
 			if (SwSingleton.CurrentScene == null)
+			{
 				return 0;
-			if (!SwSingleton.CurrentScene.DirectLinkOn)
-				return 0;
-			return 1;
+			}
+
+			return SwSingleton.CurrentScene.bDirectLinkAutoSync ? 0 : 1;
 		}
 
 		public void EnableDisableLink()
 		{
-			SwSingleton.CurrentScene.DirectLinkOn = !SwSingleton.CurrentScene.DirectLinkOn;
+			SwSingleton.CurrentScene.bDirectLinkAutoSync = !SwSingleton.CurrentScene.bDirectLinkAutoSync;
+
+			if (SwSingleton.CurrentScene.bDirectLinkAutoSync)
+			{
+				// Run update on auto sync enable, in case we got changes
+				SwSingleton.CurrentScene.DirectLinkUpdate();
+			}
 		}
 
 		public int EnableDisableLinkStatus()
@@ -517,11 +530,11 @@ namespace SolidworksDatasmith
 			// 2 Selects and disables the item
 			// 3 Selects and enables the item
 			if (SwSingleton.CurrentScene == null)
+			{
 				return 0;
-			if (SwSingleton.CurrentScene.DirectLinkOn)
-				return 3;
-			else
-				return 1;
+			}
+
+			return SwSingleton.CurrentScene.bDirectLinkAutoSync ? 1 : 3;
 		}
 
 		public void ShowPMP()
@@ -582,6 +595,7 @@ namespace SolidworksDatasmith
 				SwEventPtr.FileOpenPostNotify += new DSldWorksEvents_FileOpenPostNotifyEventHandler(FileOpenPostNotify);
 				SwEventPtr.FileCloseNotify += new DSldWorksEvents_FileCloseNotifyEventHandler(FileCloseNotify);
 				SwEventPtr.CommandCloseNotify += new DSldWorksEvents_CommandCloseNotifyEventHandler(CommandCloseNotify);
+				SwEventPtr.OnIdleNotify += new DSldWorksEvents_OnIdleNotifyEventHandler(OnIdle);
 				return true;
 			}
 			catch (Exception e)
@@ -604,6 +618,7 @@ namespace SolidworksDatasmith
 				SwEventPtr.FileOpenPostNotify -= new DSldWorksEvents_FileOpenPostNotifyEventHandler(FileOpenPostNotify);
 				SwEventPtr.FileCloseNotify -= new DSldWorksEvents_FileCloseNotifyEventHandler(FileCloseNotify);
 				SwEventPtr.CommandCloseNotify -= new DSldWorksEvents_CommandCloseNotifyEventHandler(CommandCloseNotify);
+				SwEventPtr.OnIdleNotify -= new DSldWorksEvents_OnIdleNotifyEventHandler(OnIdle);
 				return true;
 			}
 			catch (Exception e)
@@ -741,6 +756,18 @@ namespace SolidworksDatasmith
 			return 0;
 		}
 
+		public int OnIdle()
+		{
+			if (SwSingleton.CurrentScene != null)
+			{
+				if (SwSingleton.CurrentScene.bIsDirty && SwSingleton.CurrentScene.bDirectLinkAutoSync)
+				{
+					SwSingleton.CurrentScene.DirectLinkUpdate();
+				}
+			}
+			return 0;
+		}
+
 		public int OnFileNew(object newDoc, int docType, string templateName)
 		{
 			AttachEventsToAllDocuments();
@@ -754,5 +781,4 @@ namespace SolidworksDatasmith
 
 		#endregion
 	}
-
 }
