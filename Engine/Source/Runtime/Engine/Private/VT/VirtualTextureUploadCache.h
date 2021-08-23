@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "HAL/CriticalSection.h"
 #include "RendererInterface.h"
 #include "RenderResource.h"
 #include "PixelFormat.h"
@@ -11,6 +10,22 @@
 class FRHITexture2D;
 class FRHIBuffer;
 
+/** Opaque handle for referencing an upload tile returned by FVirtualTextureUploadCache::PrepareTileForUpload(). */
+struct FVTUploadTileHandle
+{
+	explicit FVTUploadTileHandle(uint32 InIndex = ~0u) 
+		: Index(InIndex) 
+	{}
+
+	inline bool IsValid() const { return Index != ~0u; }
+
+	uint32 Index;
+};
+
+/** 
+ * Memory buffer for uploading virtual texture data. 
+ * This is a simple view of the buffer memory for a single tile intended for use by the streaming systems.
+ */
 struct FVTUploadTileBuffer
 {
 	void* Memory = nullptr;
@@ -18,134 +33,168 @@ struct FVTUploadTileBuffer
 	uint32 Stride = 0u;
 };
 
-//
-struct FVTUploadTileHandle
+/** 
+ * Extended definition of the memory buffer for uploading virtual texture 
+ * This extended view of the buffer is used internally by FVirtualTextureUploadCache.
+ */
+struct FVTUploadTileBufferExt
 {
-	explicit FVTUploadTileHandle(uint32 InIndex = 0u) : Index(InIndex) {}
-
-	inline bool IsValid() const { return Index != 0u; }
-
-	uint32 Index;
+	TRefCountPtr<FRHIBuffer> RHIBuffer;
+	void* BufferMemory = nullptr;
+	uint32 BufferOffset = 0u;
+	uint32 Stride = 0u;
 };
 
+/** 
+ * Handles allocation of staging buffer memory. 
+ */
+class FVTUploadTileAllocator
+{
+public:
+	/** Allocate a tile. Sometimes does an allocation of the backing CPU/GPU block of memory. */
+	uint32 Allocate(EPixelFormat InFormat, uint32 InTileSize);
+	/** Free a tile. Sometimes does a free of the backing CPU/GPU block of memory. */
+	void Free(uint32 InHandle);
+
+	/** Get upload buffer description from handle. */
+	FVTUploadTileBuffer GetBufferFromHandle(uint32 InHandle) const;
+	/** Get upload buffer extended description from handle. */
+	FVTUploadTileBufferExt GetBufferFromHandleExt(uint32 InHandle) const;
+	
+	/** Get allocated memory in bytes. */
+	uint32 TotalAllocatedBytes() const { return NumAllocatedBytes; }
+
+private:
+	/** Handle for an allocated tile used by the allocation system. */
+	union FHandle
+	{
+		uint32 PackedValue = 0u;
+		struct
+		{
+			uint32 FormatIndex : 8;
+			uint32 StagingBufferIndex : 8;
+			uint32 TileIndex : 16;
+		};
+	};
+
+	/**
+	 * Backing memory for buffers used by the streaming/transcoding to write texture data.
+	 * The memory is split into equal sized tiles for multiple upload tasks.
+	 * Backing memory can be either CPU heap memory or a locked GPU memory buffer depending on the platform.
+	 */
+	struct FStagingBuffer
+	{
+		~FStagingBuffer();
+
+		void Init(uint32 InBufferStrideBytes, uint32 InTileSizeBytes);
+		void Release();
+
+		/** GPU buffer if used on platform. */
+		TRefCountPtr<FRHIBuffer> RHIBuffer;
+		/** Memory pointer to locked GPU buffer if used on platform, or to allocated CPU heap memory if not. */
+		void* Memory = nullptr;
+		uint32 TileSize = 0u;
+		uint32 NumTiles = 0u;
+		/** List of tile indices that haven't been allocated. */
+		TArray<uint16> TileFreeList;
+	};
+
+	/** Container for multiple staging buffers. */
+	struct FSharedFormatBuffers
+	{
+		TArray<FStagingBuffer> StagingBuffers;
+	};
+
+	/**
+	 * Description of values that affect staging buffer creation.
+	 * Multiple virtual texture pools may map onto the same description and so can share staging buffer memory.
+	 */
+	struct FSharedFormatDesc
+	{
+		uint32 BlockBytes = 0u;
+		uint32 Stride = 0u;
+		uint32 MemorySize = 0u;
+	};
+
+	/** Array of all discovered format descriptions. */
+	TArray<FSharedFormatDesc> FormatDescs;
+	/** Array of staging buffers. Kept in sync with associated formats from FormatDescs. */
+	TArray<FSharedFormatBuffers> FormatBuffers;
+	/** Allocated memory counter. */
+	uint32 NumAllocatedBytes = 0;
+};
+
+/** 
+ * Finalizer implementation for uploading virtual textures.
+ * Handles management of upload buffers and copying streamed data to the GPU physical texture.
+ */
 class FVirtualTextureUploadCache : public IVirtualTextureFinalizer, public FRenderResource
 {
 public:
-	FVirtualTextureUploadCache();
-	virtual ~FVirtualTextureUploadCache();
-
-	// IVirtualTextureFinalizer
-	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
-
-	// FRenderResource
+	//~ Begin FRenderResource Interface.
 	virtual void ReleaseRHI() override;
+	//~ End FRenderResource Interface.
 
-	uint32 GetNumPendingTiles() const { return NumPendingTiles; }
-
+	/** Get a staging upload buffer for streaming texture data into. */
 	FVTUploadTileHandle PrepareTileForUpload(FVTUploadTileBuffer& OutBuffer, EPixelFormat InFormat, uint32 InTileSize);
+	/** 
+	 * Mark streamed upload data ready for upload to to the physical virtual texture.
+	 * Depending on the platform the upload might happen here, or be deferred to the Finalize() call.
+	 */
 	void SubmitTile(FRHICommandListImmediate& RHICmdList, const FVTUploadTileHandle& InHandle, FRHITexture2D* InDestTexture, int InDestX, int InDestY, int InSkipBorderSize);
+	/** Cancel a tile that was already in flight. */
 	void CancelTile(const FVTUploadTileHandle& InHandle);
 
-	void UpdateFreeList();
+	//~ Begin IVirtualTextureFinalizer Interface.
+	virtual void Finalize(FRDGBuilder& GraphBuilder) override;
+	//~ End IVirtualTextureFinalizer Interface.
+
+	/** Call on a tick to recycle submitted staging buffers. */
+	void UpdateFreeList(bool bForceFreeAll = false);
+
+	/** Returns true if underlying allocator within the budget set by r.VT.MaxUploadMemory.  */
+	uint32 IsInMemoryBudget() const;
 
 private:
-	enum EListType
-	{
-		LIST_SUBMITTED,
+	int32 GetOrCreatePoolIndex(EPixelFormat InFormat, uint32 InTileSize);
 
-		LIST_COUNT,
-	};
-
-	static const uint32 NUM_STAGING_TEXTURES = 3u;
-
-	struct FStagingBuffer
-	{
-		FStagingBuffer();
-		~FStagingBuffer();
-
-		TRefCountPtr<FRHIBuffer> RHIBuffer;
-		void* Memory = nullptr;
-		uint32 Size = 0u;
-		uint32 CurrentOffset = 0u;
-	};
-
-	struct FStagingTexture
-	{
-		TRefCountPtr<FRHITexture2D> RHITexture;
-		uint32_t WidthInTiles = 0u;
-		uint32_t BatchCapacity = 0u;
-		bool bIsCPUWritable;
-	};
-
-	struct FPoolEntry
-	{
-		FStagingTexture StagingTexture[NUM_STAGING_TEXTURES];
-		EPixelFormat Format = PF_Unknown;
-		uint32 TileSize = 0u;
-		uint32 BatchTextureIndex = 0u;
-		uint32 BatchCount = 0u;
-		int32 FreeTileListHead = 0;
-		int32 SubmitTileListHead = 0;
-	};
-
+	/** Description of a single allocated tile. Carries mutable state as tile moves from uploading to submitting to pending delete. */
 	struct FTileEntry
 	{
-		FTileEntry();
-		~FTileEntry();
-
-		FRHITexture2D* RHISubmitTexture = nullptr;
-		uint32 BufferIndex = 0u;
-		uint32 BufferOffset = 0u;
-		uint32 MemorySize = 0u;
-		uint32 Stride = 0u;
+		uint32 PoolIndex = 0;
+		uint32 TileHandle = 0u;
 		uint32 FrameSubmitted = 0u;
-		uint32 SubmitBatchIndex = 0u;
+		FRHITexture2D* RHISubmitTexture = nullptr;
 		int32 SubmitDestX = 0;
 		int32 SubmitDestY = 0;
 		int32 SubmitSkipBorderSize = 0;
-		int32 PoolIndex = 0;
-		int32 NextIndex = 0;
-		int32 PrevIndex = 0;
 	};
 
-	int32 GetOrCreatePoolIndex(EPixelFormat InFormat, uint32 InTileSize);
-
-	int32 CreateTileEntry(int32 PoolIndex)
+	/** Staging texture used for tile upload. Only used on platforms that don't have faster upload methods. */
+	struct FStagingTexture
 	{
-		const int32 Index = Tiles.AddDefaulted();
-		FTileEntry& Entry = Tiles[Index];
-		Entry.NextIndex = Entry.PrevIndex = Index;
-		Entry.PoolIndex = PoolIndex;
-		return Index;
-	}
+		TRefCountPtr<FRHITexture2D> RHITexture;
+		uint32 WidthInTiles = 0u;
+		uint32 BatchCapacity = 0u;
+		bool bIsCPUWritable;
+	};
 
-	void RemoveFromList(int32 Index)
+	/** State for a single pool. A pool covers all virtual textures of the same format and tile size. */
+	struct FPoolEntry
 	{
-		FTileEntry& Entry = Tiles[Index];
-		checkSlow(Index >= LIST_COUNT); // if we're trying to remove a list head, something is corrupt
-		Tiles[Entry.PrevIndex].NextIndex = Entry.NextIndex;
-		Tiles[Entry.NextIndex].PrevIndex = Entry.PrevIndex;
-		Entry.NextIndex = Entry.PrevIndex = Index;
-	}
+		EPixelFormat Format = PF_Unknown;
+		uint32 TileSize = 0u;
 
-	void AddToList(int32 HeadIndex, int32 Index)
-	{
-		FTileEntry& Head = Tiles[HeadIndex];
-		FTileEntry& Entry = Tiles[Index];
+		static const uint32 NUM_STAGING_TEXTURES = 3u;
+		FStagingTexture StagingTexture[NUM_STAGING_TEXTURES];
+		uint32 BatchTextureIndex = 0u;
 
-		// make sure we're not currently in any list
-		check(Entry.NextIndex == Index);
-		check(Entry.PrevIndex == Index);
-
-		Entry.NextIndex = HeadIndex;
-		Entry.PrevIndex = Head.PrevIndex;
-		Tiles[Head.PrevIndex].NextIndex = Index;
-		Head.PrevIndex = Index;
-	}
+		TArray<FTileEntry> PendingSubmit;
+	};
 
 	TArray<FPoolEntry> Pools;
-	TArray<FStagingBuffer> StagingBuffers;
-	TArray<FTileEntry> Tiles;
+	FVTUploadTileAllocator TileAllocator;
+	TSparseArray<FTileEntry> PendingUpload;
+	TSparseArray<FTileEntry> PendingRelease;
 	TArray<FRHITexture*> UpdatedTextures;
-	uint32 NumPendingTiles = 0u;
 };
