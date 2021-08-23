@@ -1039,6 +1039,8 @@ bool FOpenXRHMD::EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDe
 	}
 	if (Type == EXRTrackedDeviceType::Any || Type == EXRTrackedDeviceType::Controller)
 	{
+		FReadScopeLock DeviceLock(DeviceMutex);
+
 		// Skip the HMD, we already added it to the list
 		for (int32 i = 1; i < DeviceSpaces.Num(); i++)
 		{
@@ -1111,6 +1113,7 @@ bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, FQuat& Orien
 {
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
+	FReadScopeLock DeviceLock(DeviceMutex);
 	if (!DeviceSpaces.IsValidIndex(DeviceId))
 	{
 		return false;
@@ -1792,6 +1795,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	{
 		LocateViews(PipelineState, true);
 
+		ReadScopeLock DeviceLock(DeviceMutex);
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
 			if (PipelineState.PluginViews.Contains(Module))
@@ -1947,6 +1951,8 @@ bool FOpenXRHMD::BuildOcclusionMesh(XrVisibilityMaskTypeKHR Type, int View, FHMD
 bool FOpenXRHMD::OnStereoStartup()
 {
 	FWriteScopeLock Lock(SessionHandleMutex);
+	FWriteScopeLock DeviceLock(DeviceMutex);
+
 	XrSessionCreateInfo SessionInfo;
 	SessionInfo.type = XR_TYPE_SESSION_CREATE_INFO;
 	SessionInfo.next = RenderBridge->GetGraphicsBinding();
@@ -2074,14 +2080,14 @@ bool FOpenXRHMD::OnStereoTeardown()
 
 void FOpenXRHMD::DestroySession()
 {
-	FWriteScopeLock DeviceLock(DeviceMutex);
-	
 	// FlushRenderingCommands must be called outside of SessionLock since some rendering threads will also lock this mutex.
 	FlushRenderingCommands();
 	FWriteScopeLock SessionLock(SessionHandleMutex);
 
 	if (Session != XR_NULL_HANDLE)
 	{
+		FWriteScopeLock DeviceLock(DeviceMutex);
+
 		// We need to reset all swapchain references to ensure there are no attempts
 		// to destroy swapchain handles after the session is already destroyed.
 		ForEachLayer([&](uint32 /* unused */, FOpenXRLayer& Layer)
@@ -2133,6 +2139,8 @@ void FOpenXRHMD::DestroySession()
 
 int32 FOpenXRHMD::AddActionDevice(XrAction Action, XrPath Path)
 {
+	FWriteScopeLock DeviceLock(DeviceMutex);
+
 	// Ensure the HMD device is already emplaced
 	ensure(DeviceSpaces.Num() > 0);
 
@@ -2149,6 +2157,8 @@ int32 FOpenXRHMD::AddActionDevice(XrAction Action, XrPath Path)
 
 void FOpenXRHMD::ResetActionDevices()
 {
+	FWriteScopeLock DeviceLock(DeviceMutex);
+
 	// Index 0 is HMDDeviceId and is preserved. The remaining are action devices.
 	if (DeviceSpaces.Num() > 0)
 	{
@@ -2158,6 +2168,7 @@ void FOpenXRHMD::ResetActionDevices()
 
 XrPath FOpenXRHMD::GetTrackedDevicePath(const int32 DeviceId)
 {
+	FReadScopeLock DeviceLock(DeviceMutex);
 	if (DeviceSpaces.IsValidIndex(DeviceId))
 	{
 		return DeviceSpaces[DeviceId].Path;
@@ -2341,6 +2352,7 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
 	ensure(IsInRenderingThread());
+	FReadScopeLock DeviceLock(DeviceMutex);
 
 	const float WorldToMeters = GetWorldToMetersScale();
 	const FTransform InvTrackingToWorld = GetTrackingToWorldTransform().Inverse();
@@ -2506,6 +2518,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeViewsArray)
 {
 	check(PipelineState.FrameState.predictedDisplayTime);
+	FReadScopeLock DeviceLock(DeviceMutex);
 
 	uint32_t ViewCount = 0;
 	XrViewLocateInfo ViewInfo;
