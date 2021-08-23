@@ -35,7 +35,10 @@ struct CONTROLRIG_API FControlRigObjectVersion
 
 		// RigHierarchy to support multi component parent constraints
 		RigHierarchyMultiParentConstraints,
-		
+
+		// RigHierarchy now supports space favorites per control
+		RigHierarchyControlSpaceFavorites,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

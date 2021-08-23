@@ -421,11 +421,14 @@ FRigControlSettings::FRigControlSettings()
 , GizmoColor(FLinearColor::Red)
 , bIsTransientControl(false)
 , ControlEnum(nullptr)
+, SpaceFavorites()
 {
 }
 
 void FRigControlSettings::Save(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
+
 	static const UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	static const UEnum* ControlAxisEnum = StaticEnum<ERigControlAxis>();
 
@@ -456,10 +459,13 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << GizmoColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
+	Ar << SpaceFavorites;
 }
 
 void FRigControlSettings::Load(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FControlRigObjectVersion::GUID);
+
 	static const UEnum* ControlTypeEnum = StaticEnum<ERigControlType>();
 	static const UEnum* ControlAxisEnum = StaticEnum<ERigControlAxis>();
 
@@ -494,6 +500,15 @@ void FRigControlSettings::Load(FArchive& Ar)
 	if(!ControlEnumPathName.IsEmpty())
 	{
 		ControlEnum = FindObject<UEnum>(ANY_PACKAGE, *ControlEnumPathName);
+	}
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyControlSpaceFavorites)
+	{
+		Ar << SpaceFavorites;
+	}
+	else
+	{
+		SpaceFavorites.Reset();
 	}
 }
 
@@ -560,6 +575,10 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 		return false;
 	}
 	if(!GizmoColor.Equals(InOther.GizmoColor, 0.001))
+	{
+		return false;
+	}
+	if(SpaceFavorites != InOther.SpaceFavorites)
 	{
 		return false;
 	}
