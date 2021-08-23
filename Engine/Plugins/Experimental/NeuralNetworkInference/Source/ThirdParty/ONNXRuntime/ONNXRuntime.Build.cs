@@ -36,6 +36,14 @@ public class ONNXRuntime : ModuleRules
 					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen"),
 				}
 			);
+
+			PublicDependencyModuleNames.AddRange
+				(
+				new string[] {
+					"Protobuf",
+					"Re2" // ONNXRuntimeRE2
+				}
+			);
 		}
 
 		PublicDependencyModuleNames.AddRange
@@ -57,9 +65,7 @@ public class ONNXRuntime : ModuleRules
 				(
 				new string[] {
 					"DirectML",
-					"DX12",
-					"Protobuf",
-					"Re2", // ONNXRuntimeRE2
+					"DX12"
 				}
 			);
 		}
@@ -69,9 +75,7 @@ public class ONNXRuntime : ModuleRules
 			PublicDependencyModuleNames.AddRange
 				(
 				new string[] {
-					"Nsync",
-					"Protobuf",
-					"Re2", // ONNXRuntimeRE2
+					"Nsync"
 				}
 			);
 		}
