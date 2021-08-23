@@ -1684,7 +1684,7 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 	FPipelinedFrameState& PipelineState = GetPipelinedFrameStateForThread();
 
 	// Only update the device locations if the frame state has been predicted
-	if (bIsSynchronized && PipelineState.FrameState.predictedDisplayTime > 0)
+	if (PipelineState.FrameState.predictedDisplayTime > 0)
 	{
 		FReadScopeLock Lock(DeviceMutex);
 		PipelineState.DeviceLocations.SetNum(DeviceSpaces.Num());
@@ -1696,7 +1696,16 @@ void FOpenXRHMD::UpdateDeviceLocations(bool bUpdateOpenXRExtensionPlugins)
 				XrSpaceLocation& DeviceLocation = PipelineState.DeviceLocations[DeviceIndex];
 				DeviceLocation.type = XR_TYPE_SPACE_LOCATION;
 				DeviceLocation.next = nullptr;
-				XR_ENSURE(xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation));
+				XrResult Result = xrLocateSpace(DeviceSpace.Space, PipelineState.TrackingSpace, PipelineState.FrameState.predictedDisplayTime, &DeviceLocation);
+				if (Result == XR_ERROR_TIME_INVALID)
+				{
+					// The display time is no longer valid so set the location as invalid as well
+					PipelineState.DeviceLocations[DeviceIndex].locationFlags = 0;
+				}
+				else
+				{
+					XR_ENSURE(Result);
+				}
 			}
 			else
 			{
@@ -2069,6 +2078,11 @@ void FOpenXRHMD::DestroySession()
 		PipelinedLayerStateRHI.ColorSwapchain.Reset();
 		PipelinedLayerStateRHI.DepthSwapchain.Reset();
 		PipelinedLayerStateRHI.QuadSwapchains.Reset();
+
+		// Reset the frame state.
+		PipelinedFrameStateGame.FrameState = XrFrameState{ XR_TYPE_FRAME_STATE };
+		PipelinedFrameStateRendering.FrameState = XrFrameState{ XR_TYPE_FRAME_STATE };
+		PipelinedFrameStateRHI.FrameState = XrFrameState{ XR_TYPE_FRAME_STATE };
 
 		// VRFocus must be reset so FWindowsApplication::PollGameDeviceState does not incorrectly short-circuit.
 		FApp::SetUseVRFocus(false);
