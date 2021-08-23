@@ -1359,12 +1359,18 @@ void UNiagaraComponent::OnSystemComplete(bool bExternalCompletion)
 
 		if (PoolingMethod == ENCPoolMethod::AutoRelease)//Don't release back to the pool if we're completing due to scalability culling.
 		{
-			FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(GetWorld()))
+			{
+				WorldManager->GetComponentPool()->ReclaimWorldParticleSystem(this);
+			}
 		}
 		else if (PoolingMethod == ENCPoolMethod::ManualRelease_OnComplete)
 		{
 			PoolingMethod = ENCPoolMethod::ManualRelease;
-			FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+			if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(GetWorld()))
+			{
+				WorldManager->GetComponentPool()->ReclaimWorldParticleSystem(this);
+			}
 		}
 		else if (bAutoDestroy)
 		{

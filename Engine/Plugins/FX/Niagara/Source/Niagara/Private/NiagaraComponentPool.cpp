@@ -48,7 +48,10 @@ static FAutoConsoleVariableRef NiagaraKeepPooledComponentsRegistered(
 void DumpPooledWorldNiagaraNiagaraSystemInfo(UWorld* World)
 {
 	check(World);
-	FNiagaraWorldManager::Get(World)->GetComponentPool()->Dump();
+	if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+	{
+		WorldManager->GetComponentPool()->Dump();
+	}
 }
 
 FAutoConsoleCommandWithWorld DumpNCPoolInfoCommand(

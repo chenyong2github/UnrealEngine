@@ -62,8 +62,11 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 		{
 			if (UNiagaraComponentSettings::ShouldForceAutoPooling(SystemTemplate))
 			{
-				UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
-				NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, ENCPoolMethod::AutoRelease);
+				if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
+				{
+					UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool();
+					NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, ENCPoolMethod::AutoRelease);
+				}
 			}
 			else
 			{
@@ -74,9 +77,9 @@ UNiagaraComponent* CreateNiagaraSystem(UNiagaraSystem* SystemTemplate, UWorld* W
 				NiagaraComponent->bAllowAnyoneToDestroyMe = true;
 			}
 		}
-		else
+		else if (FNiagaraWorldManager* WorldManager = FNiagaraWorldManager::Get(World))
 		{
-			UNiagaraComponentPool* ComponentPool = FNiagaraWorldManager::Get(World)->GetComponentPool();
+			UNiagaraComponentPool* ComponentPool = WorldManager->GetComponentPool();
 			NiagaraComponent = ComponentPool->CreateWorldParticleSystem(SystemTemplate, World, PoolingMethod);
 		}
 	}
