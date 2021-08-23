@@ -238,7 +238,7 @@ int32 GLumenSceneDumpStats = 0;
 FAutoConsoleVariableRef CVarLumenSceneDumpStats(
 	TEXT("r.LumenScene.DumpStats"),
 	GLumenSceneDumpStats,
-	TEXT("Whether to log Lumen scene stats on the next frame."),
+	TEXT("Whether to log Lumen scene stats on the next frame. 2 - dump mesh DF. 3 - dump LumenScene objects."),
 	ECVF_RenderThreadSafe
 );
 
@@ -903,12 +903,10 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 
 	if (GLumenSceneDumpStats)
 	{
-		LumenSceneData.DumpStats(DistanceFieldSceneData);
-
-		if (GLumenSceneDumpStats >= 2)
-		{
-			DistanceFieldSceneData.ListMeshDistanceFields(true);
-		}
+		LumenSceneData.DumpStats(
+			DistanceFieldSceneData,
+			/*bDumpMeshDistanceFields*/ GLumenSceneDumpStats == 2,
+			/*bDumpPrimitiveGroups*/ GLumenSceneDumpStats == 3);
 
 		GLumenSceneDumpStats = 0;
 	}

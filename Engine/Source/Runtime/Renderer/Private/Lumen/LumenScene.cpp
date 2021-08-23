@@ -481,7 +481,9 @@ bool TrackPrimitiveForLumenScene(const FPrimitiveSceneProxy* Proxy)
 		// For now Lumen depends on the distance field representation. 
 		// This also makes sure that non opaque things won't get included in Lumen Scene
 		&& Proxy->SupportsDistanceFieldRepresentation()
-		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow());
+		&& (Proxy->IsDrawnInGame() || Proxy->CastsHiddenShadow())
+		// Exclude far field proxies as those won't use surface cache
+		&& !Proxy->IsRayTracingFarField();
 
 	return bTrack;
 }
@@ -1298,7 +1300,7 @@ bool FLumenSceneData::EvictOldestAllocation(bool bForceEvict, TSparseUniqueList<
 	return false;
 }
 
-void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData)
+void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData, bool bDumpMeshDistanceFields, bool bDumpPrimitiveGroups)
 {
 	const FIntPoint PageAtlasSizeInPages = GetDesiredPhysicalAtlasSizeInPages();
 	const int32 NumPhysicalPages = PageAtlasSizeInPages.X * PageAtlasSizeInPages.Y;
@@ -1391,4 +1393,30 @@ void FLumenSceneData::DumpStats(const FDistanceFieldSceneData& DistanceFieldScen
 	UE_LOG(LogRenderer, Log, TEXT("  SceneInstanceIndexToMeshCardsIndexBuffer: %.3fMb"), SceneInstanceIndexToMeshCardsIndexBuffer.NumBytes / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  UploadBuffer: %.3fMb"), UploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
 	UE_LOG(LogRenderer, Log, TEXT("  ByteBufferUploadBuffer: %.3fMb"), ByteBufferUploadBuffer.GetNumBytes() / (1024.0f * 1024.0f));
+
+	if (bDumpMeshDistanceFields)
+	{
+		DistanceFieldSceneData.ListMeshDistanceFields(true);
+	}
+
+	if (bDumpPrimitiveGroups)
+	{
+#if STATS
+		UE_LOG(LogRenderer, Log, TEXT("*** LumenScene Primitives ***"));
+
+		for (const FLumenPrimitiveGroup& PrimitiveGroup : PrimitiveGroups)
+		{
+			for (const FPrimitiveSceneInfo* ScenePrimitive : PrimitiveGroup.Primitives)
+			{
+				if (ScenePrimitive && ScenePrimitive->Proxy)
+				{
+					UE_LOG(LogRenderer, Log, TEXT("Group:%d InstanceIndex:%d %s"), 
+						PrimitiveGroup.RayTracingGroupMapElementId.GetIndex(),
+						PrimitiveGroup.PrimitiveInstanceIndex,
+						*ScenePrimitive->Proxy->GetStatId().GetName().ToString());
+				}
+			}
+		}
+#endif
+	}
 }

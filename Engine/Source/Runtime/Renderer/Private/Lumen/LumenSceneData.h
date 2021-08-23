@@ -425,7 +425,7 @@ public:
 		return PendingAddOperations.Num() > 0 || PendingUpdateOperations.Num() > 0 || PendingRemoveOperations.Num() > 0;
 	}
 
-	void DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData);
+	void DumpStats(const FDistanceFieldSceneData& DistanceFieldSceneData, bool bDumpMeshDistanceFields, bool bDumpPrimitiveGroups);
 	bool UpdateAtlasSize();
 	void RemoveAllMeshCards();
 	void UploadPageTable(FRDGBuilder& GraphBuilder);
