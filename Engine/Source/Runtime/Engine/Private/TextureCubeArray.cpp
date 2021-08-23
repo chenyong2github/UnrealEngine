@@ -355,7 +355,10 @@ uint32 UTextureCubeArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 
 ENGINE_API bool UTextureCubeArray::CheckArrayTexturesCompatibility()
 {
-	bool bError = false;
+	if (SourceTextures.Num() == 0)
+	{
+		return false;
+	}
 
 	for (int32 TextureIndex = 0; TextureIndex < SourceTextures.Num(); ++TextureIndex)
 	{
@@ -368,37 +371,40 @@ ENGINE_API bool UTextureCubeArray::CheckArrayTexturesCompatibility()
 		// Force the async texture build to complete
 		// TODO - better way to do this?
 		SourceTextures[TextureIndex]->GetPlatformData();
+	}
 
-		const FTextureSource& TextureSource = SourceTextures[TextureIndex]->Source;
-		// const int32 FormatDataSize = TextureSource.GetBytesPerPixel();
-		const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
-		const int32 SizeX = TextureSource.GetSizeX();
-		const int32 SizeY = TextureSource.GetSizeY();
+	const FTextureSource& TextureSource = SourceTextures[0]->Source;
+	const FString TextureName = SourceTextures[0]->GetName();
+	const ETextureSourceFormat SourceFormat = TextureSource.GetFormat();
+	const int32 SizeX = TextureSource.GetSizeX();
+	const int32 SizeY = TextureSource.GetSizeY();
+	const int32 NumSlices = TextureSource.GetNumSlices();
 
-		for (int32 TextureCmpIndex = TextureIndex + 1; TextureCmpIndex < SourceTextures.Num(); ++TextureCmpIndex)
+	ensure(NumSlices == 1 || NumSlices == 6); // either cubemap, or lat/long map
+
+	bool bError = false;
+	for (int32 TextureCmpIndex =1; TextureCmpIndex < SourceTextures.Num(); ++TextureCmpIndex)
+	{
+		const FTextureSource& TextureSourceCmp = SourceTextures[TextureCmpIndex]->Source;
+		const FString TextureNameCmp = SourceTextures[TextureCmpIndex]->GetName();
+		const ETextureSourceFormat SourceFormatCmp = TextureSourceCmp.GetFormat();
+
+		if (TextureSourceCmp.GetSizeX() != SizeX || TextureSourceCmp.GetSizeY() != SizeY)
 		{
-			// Do not create array till all texture slots are filled.
-			if (!SourceTextures[TextureCmpIndex])
-			{
-				return false;
-			}
+			UE_LOG(LogTexture, Warning, TEXT("TextureCubeArray creation failed. Textures %s and %s have different sizes."), *TextureName, *TextureNameCmp);
+			bError = true;
+		}
 
-			const FTextureSource& TextureSourceCmp = SourceTextures[TextureCmpIndex]->Source;
-			const FString TextureName = SourceTextures[TextureIndex]->GetFName().ToString();
-			const FString TextureNameCmp = SourceTextures[TextureCmpIndex]->GetFName().ToString();
-			const ETextureSourceFormat SourceFormatCmp = TextureSourceCmp.GetFormat();
+		if (TextureSourceCmp.GetNumSlices() != NumSlices)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("TextureCubeArray creation failed. Textures %s and %s have different number of faces (some are long/lat, some are not)."), *TextureName, *TextureNameCmp);
+			bError = true;
+		}
 
-			if (TextureSourceCmp.GetSizeX() != SizeX || TextureSourceCmp.GetSizeY() != SizeY)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("TextureCubeArray creation failed. Textures %s and %s have different sizes."), *TextureName, *TextureNameCmp);
-				bError = true;
-			}
-
-			if (SourceFormatCmp != SourceFormat)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("TextureCubeArray creation failed. Textures %s and %s have incompatible pixel formats."), *TextureName, *TextureNameCmp);
-				bError = true;
-			}
+		if (SourceFormatCmp != SourceFormat)
+		{
+			UE_LOG(LogTexture, Warning, TEXT("TextureCubeArray creation failed. Textures %s and %s have incompatible pixel formats."), *TextureName, *TextureNameCmp);
+			bError = true;
 		}
 	}
 
@@ -413,71 +419,70 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 		return false;
 	}
 
-	if (SourceTextures.Num() > 0)
+
+	const FTextureSource& InitialSource = SourceTextures[0]->Source;
+	// Format and format size.
+	const EPixelFormat PixelFormat = SourceTextures[0]->GetPixelFormat();
+	const ETextureSourceFormat Format = InitialSource.GetFormat();
+	const int32 FormatDataSize = InitialSource.GetBytesPerPixel();
+	// X,Y,Z size of the array.
+	const int32 SizeX = InitialSource.GetSizeX();
+	const int32 SizeY = InitialSource.GetSizeY();
+	const int32 NumSlices = InitialSource.GetNumSlices();
+	const uint32 ArraySize = SourceTextures.Num();
+	// Only copy the first mip from the source textures to array texture.
+	const uint32 NumMips = 1;
+
+	// This should be false when texture is updated to avoid overriding user settings.
+	if (bCreatingNewTexture)
 	{
-		FTextureSource& InitialSource = SourceTextures[0]->Source;
-		// Format and format size.
-		EPixelFormat PixelFormat = SourceTextures[0]->GetPixelFormat();
-		ETextureSourceFormat Format = InitialSource.GetFormat();
-		int32 FormatDataSize = InitialSource.GetBytesPerPixel();
-		// X,Y,Z size of the array.
-		int32 SizeX = InitialSource.GetSizeX();
-		int32 SizeY = InitialSource.GetSizeY();
-		uint32 ArraySize = SourceTextures.Num();
-		// Only copy the first mip from the source textures to array texture.
-		uint32 NumMips = 1;
-
-		// This should be false when texture is updated to avoid overriding user settings.
-		if (bCreatingNewTexture)
-		{
-			CompressionSettings = SourceTextures[0]->CompressionSettings;
-			MipGenSettings = TMGS_NoMipmaps;
-			PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
-			LODGroup = SourceTextures[0]->LODGroup;
-			SRGB = SourceTextures[0]->SRGB;
-			NeverStream = true;
-		}
-
-		// Create the source texture for this UTexture.
-		const uint32 NumSlices = ArraySize * 6u;
-		Source.Init(SizeX, SizeY, NumSlices, NumMips, Format);
-
-		// We only copy the top level Mip map.
-		TArray<uint8*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DestMipData;
-		TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipSizeBytes;
-		DestMipData.AddZeroed(NumMips);
-		MipSizeBytes.AddZeroed(NumMips);
-
-		for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-		{
-			DestMipData[MipIndex] = Source.LockMip(MipIndex);
-			MipSizeBytes[MipIndex] = Source.CalcMipSize(MipIndex) / ArraySize;
-		}
-
-		TArray64<uint8> RefCubeData;
-		for (int32 SourceTexIndex = 0; SourceTexIndex < SourceTextures.Num(); ++SourceTexIndex)
-		{
-			for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-			{
-				const uint64 Size = MipSizeBytes[MipIndex];
-				const uint64 CheckSize = SourceTextures[SourceTexIndex]->Source.CalcMipSize(MipIndex);
-				check(Size == CheckSize);
-
-				RefCubeData.Reset();
-				SourceTextures[SourceTexIndex]->Source.GetMipData(RefCubeData, MipIndex);
-				void* Dst = DestMipData[MipIndex] + Size * SourceTexIndex;
-				FMemory::Memcpy(Dst, RefCubeData.GetData(), Size);
-			}
-		}
-
-		for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
-		{
-			Source.UnlockMip(MipIndex);
-		}
-
-		SetLightingGuid();
-		UpdateResource();
+		CompressionSettings = SourceTextures[0]->CompressionSettings;
+		MipGenSettings = TMGS_NoMipmaps;
+		PowerOfTwoMode = ETexturePowerOfTwoSetting::None;
+		LODGroup = SourceTextures[0]->LODGroup;
+		SRGB = SourceTextures[0]->SRGB;
+		NeverStream = true;
 	}
+
+	// Create the source texture for this UTexture.
+	Source.Init(SizeX, SizeY, ArraySize * NumSlices, NumMips, Format);
+	Source.bLongLatCubemap = (NumSlices == 1);
+
+	// We only copy the top level Mip map.
+	TArray<uint8*, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DestMipData;
+	TArray<uint64, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > MipSizeBytes;
+	DestMipData.AddZeroed(NumMips);
+	MipSizeBytes.AddZeroed(NumMips);
+
+	for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+	{
+		DestMipData[MipIndex] = Source.LockMip(MipIndex);
+		MipSizeBytes[MipIndex] = Source.CalcMipSize(MipIndex) / ArraySize;
+	}
+
+	TArray64<uint8> RefCubeData;
+	for (int32 SourceTexIndex = 0; SourceTexIndex < SourceTextures.Num(); ++SourceTexIndex)
+	{
+		for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+		{
+			const uint64 Size = MipSizeBytes[MipIndex];
+			const uint64 CheckSize = SourceTextures[SourceTexIndex]->Source.CalcMipSize(MipIndex);
+			check(Size == CheckSize);
+
+			RefCubeData.Reset();
+			SourceTextures[SourceTexIndex]->Source.GetMipData(RefCubeData, MipIndex);
+			void* Dst = DestMipData[MipIndex] + Size * SourceTexIndex;
+			FMemory::Memcpy(Dst, RefCubeData.GetData(), Size);
+		}
+	}
+
+	for (uint32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+	{
+		Source.UnlockMip(MipIndex);
+	}
+
+	SetLightingGuid();
+	UpdateResource();
 
 	return true;
 }
