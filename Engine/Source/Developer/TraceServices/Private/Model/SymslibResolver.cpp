@@ -304,29 +304,36 @@ FString FSymslibResolver::FindSymbolFile(const FString& Path)
 {
 	IPlatformFile* PlatformFile = &FPlatformFileManager::Get().GetPlatformFile();
 
-	if (PlatformFile->FileExists(*Path))
-	{
-		return Path;
-	}
+	// Extract only filename part in case Path is absolute path
+	FString FileName = FPaths::GetCleanFilename(Path);
 
 	FString SymbolPath = FPlatformMisc::GetEnvironmentVariable(L"UE_INSIGHTS_SYMBOL_PATH");
 
 	FString SymbolPathPart;
 	while (SymbolPath.Split(TEXT(";"), &SymbolPathPart, &SymbolPath))
 	{
-		FString Result = FPaths::Combine(SymbolPathPart, Path);
+		FString Result = FPaths::Combine(SymbolPathPart, FileName);
 		if (PlatformFile->FileExists(*Result))
 		{
+			// File found in one of symbol paths
 			return Result;
 		}
 	}
 
-	FString Result = FPaths::Combine(SymbolPath, Path);
+	FString Result = FPaths::Combine(SymbolPath, FileName);
 	if (PlatformFile->FileExists(*Result))
 	{
+		// File found in symbol path
 		return Result;
 	}
 
+	if (PlatformFile->FileExists(*Path))
+	{
+		// File found by absolute path
+		return Path;
+	}
+
+	// File not found
 	return FString();
 }
 
@@ -374,8 +381,7 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 	}
 
 	// Iterate and map all the debug files
-	const FStringView ModuleBasePath = FPathViews::GetPath(Module->Path);
-	TStringBuilder<256> DebugFilePath;
+	const FString ModuleBasePath = FPaths::GetPath(SymbolFilePath);
 	TArray<SymsFile> Files;
 
 	SymsDebugFileIter DebugFiles;
@@ -385,11 +391,31 @@ FSymslibResolver::EModuleStatus FSymslibResolver::LoadModule(FModuleEntry* Modul
 		while (syms_debug_file_iter_next(&DebugFiles, &Path))
 		{
 			// Map the debug file
-			DebugFilePath.Reset();
-			FPathViews::Append(DebugFilePath, ModuleBasePath);
-			FPathViews::Append(DebugFilePath, ANSI_TO_TCHAR(Path.data));
 
-			if (PlatformFile->FileExists(*DebugFilePath))
+			bool bDebugFilePathFound = false;
+
+			// First try path itself if it is absolute
+			FString DebugFilePath = ANSI_TO_TCHAR(Path.data);
+			if (!FPathViews::IsRelativePath(DebugFilePath))
+			{
+				if (PlatformFile->FileExists(*DebugFilePath))
+				{
+					bDebugFilePathFound = true;
+				}
+			}
+
+			// Otherwise try relative path to symbol file path
+			if (!bDebugFilePathFound)
+			{
+				DebugFilePath = FPaths::Combine(ModuleBasePath, FPaths::GetCleanFilename(DebugFilePath));
+				if (PlatformFile->FileExists(*DebugFilePath))
+				{
+					bDebugFilePathFound = true;
+				}
+			}
+
+			// Use path if file was found
+			if (bDebugFilePathFound)
 			{
 				IMappedFileHandle* FileHandle = PlatformFile->OpenMapped(*DebugFilePath);
 				if (FileHandle != nullptr)

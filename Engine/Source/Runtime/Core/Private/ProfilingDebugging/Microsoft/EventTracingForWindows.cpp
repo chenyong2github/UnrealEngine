@@ -7,10 +7,9 @@
 #include "Logging/LogMacros.h"
 #include "Trace/Trace.h"
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#include <evntrace.h>
-#include <evntcons.h>
-#include "Windows/HideWindowsPlatformTypes.h"
+#if PLATFORM_SUPPORTS_PLATFORM_EVENTS
+
+#include COMPILED_PLATFORM_HEADER(PlatformEventTracingForWindows.h)
 
 /////////////////////////////////////////////////////////////////////
 
@@ -233,7 +232,7 @@ void FPlatformEvents::Enable(EPlatformEvent Event)
 			Properties->EnableFlags |= EVENT_TRACE_FLAG_PROFILE;
 		}
 		
-		ULONG Status = ::ControlTrace(NULL, KERNEL_LOGGER_NAME, Properties, EVENT_TRACE_CONTROL_UPDATE);
+		ULONG Status = ::ControlTraceW(NULL, KERNEL_LOGGER_NAMEW, Properties, EVENT_TRACE_CONTROL_UPDATE);
 		if (Status != ERROR_SUCCESS)
 		{
 			UE_LOG(LogPlatformEvents, Error, TEXT("Unable to update ETW trace: 0x%08x"), Status);
@@ -287,7 +286,7 @@ void FPlatformEvents::Disable(EPlatformEvent Event)
 		}
 
 		ReadyEvent->Wait(MAX_uint32);
-		ULONG Status = ::ControlTrace(NULL, KERNEL_LOGGER_NAME, Properties, EVENT_TRACE_CONTROL_UPDATE);
+		ULONG Status = ::ControlTraceW(NULL, KERNEL_LOGGER_NAMEW, Properties, EVENT_TRACE_CONTROL_UPDATE);
 		if (Status != ERROR_SUCCESS)
 		{
 			UE_LOG(LogPlatformEvents, Error, TEXT("Unable to update ETW trace: 0x%08x"), Status);
@@ -528,3 +527,5 @@ void PlatformEvents_Stop()
 		GPlatformEvents = nullptr;
 	}
 }
+
+#endif // PLATFORM_SUPPORTS_PLATFORM_EVENTS

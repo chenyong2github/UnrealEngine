@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_MODULE_DIAGNOSTICS)
+
 #include "CoreMinimal.h"
 #include "Trace/Trace.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/ModuleDiagnostics.h"
 
-#include "Windows/AllowWindowsPlatformTypes.h"
-#	include <winternl.h>
-#include "Windows/HideWindowsPlatformTypes.h"
+#include COMPILED_PLATFORM_HEADER(PlatformModuleDiagnostics.h)
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FNtDllFunction
@@ -240,3 +240,5 @@ void Modules_Subscribe(void (*Function)(bool, void*, const TCHAR*))
 		Instance->Subscribe(Function);
 	}
 }
+
+#endif // PLATFORM_SUPPORTS_WIN32_MEMORY_TRACE
