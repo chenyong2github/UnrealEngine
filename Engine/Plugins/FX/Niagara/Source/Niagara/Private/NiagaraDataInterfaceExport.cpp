@@ -170,9 +170,11 @@ struct FNDIExportProxy : public FNiagaraDataInterfaceProxy
 				InstanceData->WriteBuffer.Buffer,
 				[MaxInstances=InstanceData->WriteBufferInstanceCount, WeakCallbackHandler=InstanceData->WeakCallbackHandler, WeakSystem=InstanceData->WeakSystem](TConstArrayView<TPair<void*, uint32>> Buffers)
 				{
-					const uint32 ReadbackInstanceCount = *reinterpret_cast<uint32*>(Buffers[0].Key);
+					uint32 ReadbackInstanceCount = *reinterpret_cast<uint32*>(Buffers[0].Key);
 					if (ReadbackInstanceCount > 0)
 					{
+						ReadbackInstanceCount = FMath::Min(ReadbackInstanceCount, MaxInstances);
+
 						// Translate float data into Export Data
 						TArray<FBasicParticleData> ExportParticleData;
 						ExportParticleData.AddUninitialized(ReadbackInstanceCount);
