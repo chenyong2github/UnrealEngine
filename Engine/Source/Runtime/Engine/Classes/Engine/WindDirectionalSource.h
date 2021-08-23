@@ -21,13 +21,13 @@ private:
 	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
-public:
-	/** Returns Component subobject **/
-	class UWindDirectionalSourceComponent* GetComponent() const { return Component; }
-
 #if WITH_EDITOR
 	virtual bool SupportsDataLayer() const override { return true; }
 #endif
+
+public:
+	/** Returns Component subobject **/
+	class UWindDirectionalSourceComponent* GetComponent() const { return Component; }
 
 #if WITH_EDITORONLY_DATA
 	/** Returns ArrowComponent subobject **/

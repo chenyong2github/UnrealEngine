@@ -245,7 +245,7 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 	{
 		for (AActor* Actor : PayloadActors)
 		{
-			if (!Actor->SupportsDataLayer())
+			if (!Actor->IsValidForDataLayer())
 			{
 				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("ActorCantBeAssignedToDataLayer", "Can't assign actors to Data Layer"));
 			}
