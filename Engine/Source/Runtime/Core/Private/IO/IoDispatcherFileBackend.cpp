@@ -1134,17 +1134,6 @@ bool FFileIoStore::Resolve(FIoRequestImpl* Request)
 
 			if (ResolvedSize > 0)
 			{
-				if (void* TargetVa = Request->Options.GetTargetVa())
-				{
-					Request->IoBuffer = FIoBuffer(FIoBuffer::Wrap, TargetVa, ResolvedSize);
-				}
-				else
-				{
-					LLM_SCOPE(Request->InheritedLLMTag);
-					TRACE_CPUPROFILER_EVENT_SCOPE(AllocMemoryForRequest);
-					Request->IoBuffer = FIoBuffer(ResolvedSize);
-				}
-
 				FFileIoStoreReadRequestList CustomRequests;
 				if (PlatformImpl.CreateCustomRequests(RequestAllocator, *ResolvedRequest, CustomRequests))
 				{
@@ -1320,7 +1309,9 @@ void FFileIoStore::ScatterBlock(FFileIoStoreCompressedBlock* CompressedBlock, bo
 		{
 			if (Scatter.Size)
 			{
-				FMemory::Memcpy(Scatter.Request->GetIoBuffer().Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
+				check(Scatter.DstOffset + Scatter.Size <= Scatter.Request->GetBuffer().DataSize());
+				check(Scatter.SrcOffset + Scatter.Size <= CompressedBlock->UncompressedSize);
+				FMemory::Memcpy(Scatter.Request->GetBuffer().Data() + Scatter.DstOffset, UncompressedBuffer + Scatter.SrcOffset, Scatter.Size);
 			}
 		}
 	}
@@ -1550,6 +1541,20 @@ FIoRequestImpl* FFileIoStore::GetCompletedRequests()
 		{
 			break;
 		}
+
+		for (const FFileIoStoreBlockScatter& Scatter : BlockToDecompress->ScatterList)
+		{
+			if (Scatter.Size)
+			{
+				FIoRequestImpl* DispatcherRequest = Scatter.Request->DispatcherRequest;
+				check(DispatcherRequest);
+				if (!DispatcherRequest->HasBuffer())
+				{
+					DispatcherRequest->CreateBuffer(Scatter.Request->ResolvedSize);
+				}
+			}
+		}
+
 		// Scatter block asynchronous when the block is compressed, encrypted or signed
 		const bool bScatterAsync = bIsMultithreaded && (!BlockToDecompress->CompressionMethod.IsNone() || BlockToDecompress->EncryptionKey.IsValid() || BlockToDecompress->SignatureHash);
 		if (bScatterAsync)
@@ -1713,7 +1718,7 @@ void FFileIoStore::ReadBlocks(FFileIoStoreResolvedRequest& ResolvedRequest)
 		}
 		check(CompressedBlock->UncompressedSize > RequestStartOffsetInBlock);
 		uint64 RequestSizeInBlock = FMath::Min<uint64>(CompressedBlock->UncompressedSize - RequestStartOffsetInBlock, RequestRemainingBytes);
-		check(OffsetInRequest + RequestSizeInBlock <= ResolvedRequest.GetIoBuffer().DataSize());
+		check(OffsetInRequest + RequestSizeInBlock <= ResolvedRequest.ResolvedSize);
 		check(RequestStartOffsetInBlock + RequestSizeInBlock <= CompressedBlock->UncompressedSize);
 
 		FFileIoStoreBlockScatter& Scatter = CompressedBlock->ScatterList.AddDefaulted_GetRef();
