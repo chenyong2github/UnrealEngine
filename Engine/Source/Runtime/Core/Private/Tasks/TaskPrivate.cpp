@@ -33,16 +33,22 @@ namespace UE { namespace Tasks { namespace Private
 			GetPipe()->ClearTask(*this);
 		}
 
-		Subsequents.Close(
+		verify(Subsequents.Close(
 			[this](FTaskBase* Subsequent)
 			{
 				Subsequent->TryUnlock();
 			}
-		);
+		));
 
-		while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
+		// release nested tasks. this can happen concurrently with task retraction, that also consumes `Prerequisite`. 
+		// `Prerequisites` is a single-producer/single-consumer queue so we need to put an aditional synchronisation for dequeueing
 		{
-			Prerequisite.GetValue()->Release();
+			TScopeLock<FSpinLock> ScopeLock(PrerequisitesLock);
+			while (TOptional<FTaskBase*> Prerequisite = Prerequisites.Dequeue())
+			{
+				TScopeUnlock<FSpinLock> ScopeUnlock(PrerequisitesLock); // only `Prerequisites.Dequeue()` needs to be locked
+				Prerequisite.GetValue()->Release();
+			}
 		}
 
 		Release(); // release the reference accounted for nested tasks. the task can be destroyed as the result
