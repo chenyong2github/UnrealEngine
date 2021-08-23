@@ -164,6 +164,7 @@ private:
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UObject> Object);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UMaterialInterface> Object);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UStaticMesh> Object);
+	void SetVariable(FName InVariableName, TWeakObjectPtr<UTexture> Texture);
 	void SetVariable(FName InVariableName, TWeakObjectPtr<UTextureRenderTarget> TextureRenderTarget);
 
 	NIAGARA_SYSTEM_INSTANCE_CONTROLLER_SHIM(SetRequestedExecutionState,)
