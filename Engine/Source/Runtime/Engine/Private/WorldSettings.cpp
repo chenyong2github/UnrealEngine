@@ -278,6 +278,7 @@ void AWorldSettings::NotifyBeginPlay()
 void AWorldSettings::NotifyMatchStarted()
 {
 	UWorld* World = GetWorld();
+	World->OnWorldMatchStarting.Broadcast();
 	World->bMatchStarted = true;
 }
 

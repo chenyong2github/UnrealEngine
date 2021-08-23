@@ -640,7 +640,7 @@ void UWorldPartition::RegisterDelegates()
 
 	if (World->IsGameWorld())
 	{
-		World->OnWorldBeginPlay.AddUObject(this, &UWorldPartition::OnWorldBeginPlay);
+		World->OnWorldMatchStarting.AddUObject(this, &UWorldPartition::OnWorldMatchStarting);
 
 #if !UE_BUILD_SHIPPING
 		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UWorldPartition::GetOnScreenMessages);
@@ -669,7 +669,7 @@ void UWorldPartition::UnregisterDelegates()
 
 	if (World->IsGameWorld())
 	{
-		World->OnWorldBeginPlay.RemoveAll(this);
+		World->OnWorldMatchStarting.RemoveAll(this);
 
 #if !UE_BUILD_SHIPPING
 		FCoreDelegates::OnGetOnScreenMessages.RemoveAll(this);
@@ -687,7 +687,7 @@ void UWorldPartition::GetOnScreenMessages(FCoreDelegates::FSeverityMessageMap& O
 }
 #endif
 
-void UWorldPartition::OnWorldBeginPlay()
+void UWorldPartition::OnWorldMatchStarting()
 {
 	check(GetWorld()->IsGameWorld());
 	// Wait for any level streaming to complete
