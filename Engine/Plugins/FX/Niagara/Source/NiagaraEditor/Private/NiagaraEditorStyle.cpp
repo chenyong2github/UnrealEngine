@@ -451,7 +451,7 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 		.SetHighlightColor(FLinearColor(1, 1, 1)));
 
 	// Separator in the action menus
-	Style->Set( "MenuSeparator", new BOX_BRUSH( "MenuSeparator", 1/4.0f, FLinearColor(1,1,1,0.2f) ) );
+	Style->Set( "MenuSeparator", new BOX_CORE_BRUSH( "Common/Separator", 1/4.0f, FLinearColor(1,1,1,0.2f) ) );
 	
 	const FString SmallRoundedButtonStart(TEXT("Common/SmallRoundedButtonLeft"));
 	const FString SmallRoundedButtonMiddle(TEXT("Common/SmallRoundedButtonCentre"));
