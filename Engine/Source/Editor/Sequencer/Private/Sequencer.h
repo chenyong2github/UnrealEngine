@@ -1092,6 +1092,8 @@ private:
 
 	/** Internal conversion function that doesn't perform expensive reset/update tasks */
 	FMovieScenePossessable* ConvertToPossessableInternal(FGuid SpawnableGuid);
+	
+	void UpdateBindingIDs(FGuid OldGuid, FGuid NewGuid);
 
 	/** Recurses through a folder to replace converted GUID with new GUID */
 	bool ReplaceFolderBindingGUID(UMovieSceneFolder *Folder, FGuid Original, FGuid Converted);

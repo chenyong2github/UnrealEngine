@@ -2,7 +2,10 @@
 
 #include "Sections/MovieSceneActorReferenceSection.h"
 #include "Channels/MovieSceneChannelProxy.h"
-
+#include "MovieSceneObjectBindingID.h"
+#include "MovieSceneSequenceID.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
+#include "IMovieScenePlayer.h"
 
 bool FMovieSceneActorReferenceData::Evaluate(FFrameTime InTime, FMovieSceneActorReferenceKey& OutValue) const
 {
@@ -133,23 +136,27 @@ void UMovieSceneActorReferenceSection::PostLoad()
 	}
 }
 
-void UMovieSceneActorReferenceSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap)
+void UMovieSceneActorReferenceSection::OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player)
 {
-	if (OldGuidToNewGuidMap.Contains(ActorReferenceData.GetDefault().Object.GetGuid()))
+	UE::MovieScene::FFixedObjectBindingID DefaultFixedBindingID = ActorReferenceData.GetDefault().Object.ResolveToFixed(LocalSequenceID, Player);
+
+	if (OldFixedToNewFixedMap.Contains(DefaultFixedBindingID))
 	{
 		Modify();
 
-		ActorReferenceData.GetDefault().Object.SetGuid(OldGuidToNewGuidMap[ActorReferenceData.GetDefault().Object.GetGuid()]);
+		ActorReferenceData.GetDefault().Object = OldFixedToNewFixedMap[DefaultFixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
 	}
 
 	for (FMovieSceneActorReferenceKey& Key : ActorReferenceData.GetData().GetValues())
 	{
-		if (OldGuidToNewGuidMap.Contains(Key.Object.GetGuid()))
+		UE::MovieScene::FFixedObjectBindingID KeyFixedBindingID = Key.Object.ResolveToFixed(LocalSequenceID, Player);
+
+		if (OldFixedToNewFixedMap.Contains(KeyFixedBindingID))
 		{
 			Modify();
-			
-			Key.Object.SetGuid(OldGuidToNewGuidMap[Key.Object.GetGuid()]);
-		}	
+
+			Key.Object = OldFixedToNewFixedMap[KeyFixedBindingID].ConvertToRelative(LocalSequenceID, Hierarchy);
+		}
 	}
 }
 

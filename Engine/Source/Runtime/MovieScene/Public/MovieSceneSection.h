@@ -13,6 +13,7 @@
 #include "Evaluation/Blending/MovieSceneBlendType.h"
 #include "Evaluation/MovieSceneCompletionMode.h"
 #include "Generators/MovieSceneEasingFunction.h"
+#include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "MovieSceneFrameMigration.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Evaluation/MovieSceneEvaluationCustomVersion.h"
@@ -26,9 +27,11 @@ struct FKeyHandle;
 struct FEasingComponentData;
 struct FMovieSceneChannelProxy;
 struct FMovieSceneEvalTemplatePtr;
+struct FMovieSceneSequenceID;
 struct FFrameRate;
 
 class UMovieSceneEntitySystemLinker;
+class IMovieScenePlayer;
 
 namespace UE
 {
@@ -36,6 +39,7 @@ namespace MovieScene
 {
 	struct FEntityImportParams;
 	struct FImportedEntity;
+	struct FFixedObjectBindingID;
 }
 }
 
@@ -507,6 +511,9 @@ public:
 	 * When guid bindings are updated to allow this section to fix-up any internal bindings
 	 *
 	 */
+	virtual void OnBindingIDsUpdated(const TMap<UE::MovieScene::FFixedObjectBindingID, UE::MovieScene::FFixedObjectBindingID>& OldFixedToNewFixedMap, FMovieSceneSequenceID LocalSequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, IMovieScenePlayer& Player) {}
+
+	UE_DEPRECATED(5.0, "OnBindingsUpdated has been deprecated. Use OnBindingIDsUpdated instead")
 	virtual void OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap) { }
 
 	/** Get the referenced bindings for this section */
