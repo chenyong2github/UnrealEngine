@@ -282,20 +282,11 @@ void FVisualLoggerFilters::EnableAllCategories()
 	}
 }
 
-
 void FVisualLoggerFilters::Reset()
 {
-	if (ULogVisualizerSettings::StaticClass()->GetDefaultObject<ULogVisualizerSettings>()->bResetDataWithNewSession == false)
+	for (int32 Index = Categories.Num() - 1; Index >= 0; --Index)
 	{
-		for (int32 Index = Categories.Num() - 1; Index >= 0; --Index)
-		{
-			Categories[Index].bIsInUse = false;
-		}
-	}
-	else
-	{
-		FastCategoryFilterMap.Reset();
-		Categories.Reset();
+		Categories[Index].bIsInUse = false;
 	}
 
 	SearchBoxFilter = FString();
