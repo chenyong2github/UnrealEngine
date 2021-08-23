@@ -40,6 +40,7 @@
 #include "HAL/FileManager.h"
 #include "Misc/CoreDelegates.h"
 #include "MoviePipelineCommandLineEncoder.h"
+#include "Kismet/KismetSystemLibrary.h"
 
 #if WITH_EDITOR
 #include "MovieSceneExportMetadata.h"
@@ -517,6 +518,12 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 			{
 				Viewport->bDisableWorldRendering = false;
 			}
+
+			// Because the render target pool is shared, if you had a high-resolution render in editor the entire gbuffer
+			// has been resized up to match the new maximum extent. This console command will reset the size of the pool
+			// and cause it to re-allocate at the currrent size on the next render request, which is likely to be the size
+			// of the PIE window (720p) or the Viewport itself.
+			UKismetSystemLibrary::ExecuteConsoleCommand(GetWorld(), TEXT("r.ResetRenderTargetsExtent"), nullptr);
 
 			GAreScreenMessagesEnabled = bPrevGScreenMessagesEnabled;
 
