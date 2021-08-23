@@ -375,8 +375,19 @@ void FOpenGLDynamicRHI::RHIClearUAVFloat(FRHIUnorderedAccessView* UnorderedAcces
 	{
 		check(Texture->BufferResource);
 		{
-			int32 NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
-			uint32 NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+			int32 NumComponents = 0;
+			uint32 NumElements = 0;
+
+			if (Texture->UnrealFormat != 0)
+			{
+				NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
+				NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+			}
+			else
+			{
+				NumElements = Texture->GetBufferSize() / sizeof(float);
+				NumComponents = 1;
+			}
 					
 			switch (NumComponents)
 			{
@@ -427,8 +438,19 @@ void FOpenGLDynamicRHI::RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccess
 	{
 		check(Texture->BufferResource);
 		{
-			int32 NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
-			uint32 NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+			int32 NumComponents = 0;
+			uint32 NumElements = 0;
+
+			if (Texture->UnrealFormat != 0)
+			{
+				NumComponents = GPixelFormats[Texture->UnrealFormat].NumComponents;
+				NumElements = Texture->GetBufferSize() / GPixelFormats[Texture->UnrealFormat].BlockBytes;
+			}
+			else
+			{
+				NumElements = Texture->GetBufferSize() / sizeof(uint32);
+				NumComponents = 1;
+			}
 
 			switch (NumComponents)
 			{
