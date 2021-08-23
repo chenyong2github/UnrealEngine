@@ -15,5 +15,5 @@ protected:
 public:
 	static UClientPilotBlackboardManager * GetInstance();
 	UPROPERTY()
-	UClientPilotBlackboard* PilotBlackboard;
+	TObjectPtr<UClientPilotBlackboard> PilotBlackboard;
 };

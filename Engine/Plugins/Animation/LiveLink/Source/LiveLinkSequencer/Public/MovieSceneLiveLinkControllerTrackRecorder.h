@@ -24,5 +24,5 @@ public:
 protected:
 	/** The LiveLink controller that this track record will record properties from */
 	UPROPERTY(Transient)
-	ULiveLinkControllerBase* LiveLinkControllerToRecord;
+	TObjectPtr<ULiveLinkControllerBase> LiveLinkControllerToRecord;
 };

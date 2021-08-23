@@ -144,13 +144,13 @@ public:
 protected:
 
 	UPROPERTY()
-	USingleClickInputBehavior* ClickBehavior = nullptr;
+	TObjectPtr<USingleClickInputBehavior> ClickBehavior = nullptr;
 
 	UPROPERTY()
-	UTransformProxy* TransformProxy = nullptr;
+	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo = nullptr;
+	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 
 protected:
 	bool bShiftPressedWhenStarted = false;

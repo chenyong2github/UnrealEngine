@@ -103,7 +103,7 @@ protected:
 	TObjectPtr<UGroupEdgeInsertionProperties> Settings = nullptr;
 
 	UPROPERTY()
-	UPolyEditActivityContext* ActivityContext;
+	TObjectPtr<UPolyEditActivityContext> ActivityContext;
 
 	bool bIsRunning = false;
 

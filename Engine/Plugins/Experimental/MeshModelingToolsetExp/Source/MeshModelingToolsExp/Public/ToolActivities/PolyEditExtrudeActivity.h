@@ -90,7 +90,7 @@ public:
 	virtual void OnEndHover() override {}
 
 	UPROPERTY()
-	UPolyEditExtrudeProperties* ExtrudeProperties;
+	TObjectPtr<UPolyEditExtrudeProperties> ExtrudeProperties;
 
 protected:
 	FVector3d GetExtrudeDirection() const;
@@ -99,10 +99,10 @@ protected:
 	void Clear();
 
 	UPROPERTY()
-	UPolyEditPreviewMesh* EditPreview;
+	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
 
 	UPROPERTY()
-	UPlaneDistanceFromHitMechanic* ExtrudeHeightMechanic = nullptr;
+	TObjectPtr<UPlaneDistanceFromHitMechanic> ExtrudeHeightMechanic = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UPolyEditActivityContext> ActivityContext;

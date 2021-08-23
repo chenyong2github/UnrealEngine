@@ -157,9 +157,9 @@ public:
 	// Support for gizmo. Since the points aren't individual components, we don't actually use UTransformProxy
 	// for the transform forwarding- we just use it for the callbacks.
 	UPROPERTY()
-	UTransformProxy* TransformProxy;
+	TObjectPtr<UTransformProxy> TransformProxy;
 	UPROPERTY()
-	UTransformGizmo* TransformGizmo;
+	TObjectPtr<UTransformGizmo> TransformGizmo;
 
 	FTransform StartDragTransform;
 	bool bGizmoBeingDragged = false;
@@ -205,10 +205,10 @@ protected:
 	FLeftRghtClickBehaviorTarget RightTarget;
 
 	UPROPERTY()
-	USingleClickInputBehavior* LeftClickBehavior = nullptr;
+	TObjectPtr<USingleClickInputBehavior> LeftClickBehavior = nullptr;
 
 	UPROPERTY()
-	USingleClickInputBehavior* RightClickBehavior = nullptr;
+	TObjectPtr<USingleClickInputBehavior> RightClickBehavior = nullptr;
 
 
 

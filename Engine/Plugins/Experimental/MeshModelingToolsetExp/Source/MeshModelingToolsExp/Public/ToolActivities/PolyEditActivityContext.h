@@ -56,7 +56,7 @@ public:
 	 * through EmitCurrentMeshChangeAndUpdate so that it is lumped with the same undo transaction.
 	 */
 	UPROPERTY()
-	UPolygonSelectionMechanic* SelectionMechanic;
+	TObjectPtr<UPolygonSelectionMechanic> SelectionMechanic;
 
 	/**
 	 * Given a change to CurrentMesh (already applied and stored in MeshChangeIn), use this

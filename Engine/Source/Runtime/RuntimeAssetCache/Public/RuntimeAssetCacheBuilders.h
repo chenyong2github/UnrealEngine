@@ -186,5 +186,5 @@ public:
 	virtual int64 GetSerializedDataSizeEstimate() override;
 
 	UPROPERTY(BlueprintReadOnly, Category = "Cache")
-	UTexture2D* Texture;
+	TObjectPtr<UTexture2D> Texture;
 };

@@ -156,7 +156,7 @@ void UEditorInteractiveGizmoRegistry::RegisterEditorGizmoType(EEditorGizmoCatego
 {
 	if (ensure(InGizmoBuilder))
 	{
-		if (UEditorGizmoRegistryCategoryEntry** RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UEditorGizmoRegistryCategoryEntry)* RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
 		{
 			if (*RegEntry)
 			{
@@ -168,7 +168,7 @@ void UEditorInteractiveGizmoRegistry::RegisterEditorGizmoType(EEditorGizmoCatego
 
 void UEditorInteractiveGizmoRegistry::GetQualifiedEditorGizmoBuilders(EEditorGizmoCategory InGizmoCategory, const FToolBuilderState& InToolBuilderState, TArray<UInteractiveGizmoBuilder*>& InFoundBuilders)
 {
-	if (UEditorGizmoRegistryCategoryEntry** RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
+	if (UE_TRANSITIONAL_OBJECT_PTR(UEditorGizmoRegistryCategoryEntry)* RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
 	{
 		if (*RegEntry)
 		{
@@ -181,7 +181,7 @@ void UEditorInteractiveGizmoRegistry::DeregisterEditorGizmoType(EEditorGizmoCate
 {
 	if (ensure(InGizmoBuilder))
 	{
-		if (UEditorGizmoRegistryCategoryEntry** RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
+		if (UE_TRANSITIONAL_OBJECT_PTR(UEditorGizmoRegistryCategoryEntry)* RegEntry = GizmoCategoryMap.Find(InGizmoCategory))
 		{
 			if (*RegEntry)
 			{
