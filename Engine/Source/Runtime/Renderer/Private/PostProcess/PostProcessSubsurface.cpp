@@ -121,6 +121,8 @@ namespace
 		TEXT("0: Depth Only. It is more performant (x2 faster for close view).")
 		TEXT("1: Depth and normal. It leads to better quality in regions like eyelids. (default)"),
 		ECVF_RenderThreadSafe);
+	
+	DECLARE_GPU_STAT(SubsurfaceScattering)
 }
 
 // Define to use a custom ps to clear UAV.
@@ -527,6 +529,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler1)
 		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput2)   // Profile mask | Velocity
 		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler2)
+		SHADER_PARAMETER_STRUCT(FSubsurfaceInput, SubsurfaceInput3)   // Control Variates
+		SHADER_PARAMETER_SAMPLER(SamplerState, SubsurfaceSampler3)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, ProfileIdTexture)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -907,6 +911,7 @@ void AddSubsurfaceViewPass(
 	FRDGTextureRef QualityHistoryTexture = RegisterExternalRenderTarget(GraphBuilder, QualityHistoryState, SceneColorTextureDescriptor.Extent, TEXT("QualityHistoryTexture"));
 	FRDGTextureRef NewQualityHistoryTexture = nullptr;
 
+	RDG_GPU_STAT_SCOPE(GraphBuilder, SubsurfaceScattering);
 	/**
 	 * When in bypass mode, the setup and convolution passes are skipped, but lighting
 	 * reconstruction is still performed in the recombine pass.
@@ -1097,6 +1102,8 @@ void AddSubsurfaceViewPass(
 					if (!bForceRunningInSeparable)
 					{
 						PassParameters->HistoryUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(NewQualityHistoryTexture, 0));
+						PassParameters->SubsurfaceInput3 = GetSubsurfaceInput(SetupTexture, SubsurfaceViewportParameters);
+						PassParameters->SubsurfaceSampler3 = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Border>::GetRHI();
 					}
 
 					PassParameters->SubsurfaceInput1 = GetSubsurfaceInput(QualityHistoryTexture, SubsurfaceViewportParameters);

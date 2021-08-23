@@ -29,19 +29,24 @@ float4 SubsurfaceParams;
 Texture2D SubsurfaceInput0_Texture;
 Texture2D SubsurfaceInput1_Texture;
 Texture2D SubsurfaceInput2_Texture;
+Texture2D SubsurfaceInput3_Texture;
 
 SamplerState SubsurfaceSampler0;
 SamplerState SubsurfaceSampler1;
 SamplerState SubsurfaceSampler2;
+SamplerState SubsurfaceSampler3;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SharedSubsurfaceSampler0 SubsurfaceSampler0
 	#define SharedSubsurfaceSampler1 SubsurfaceSampler0
 	#define SharedSubsurfaceSampler2 SubsurfaceSampler0
+	#define SharedSubsurfaceSampler3 SubsurfaceSampler0
+
 #else
 	#define SharedSubsurfaceSampler0 SubsurfaceSampler0
 	#define SharedSubsurfaceSampler1 SubsurfaceSampler1
 	#define SharedSubsurfaceSampler2 SubsurfaceSampler2
+	#define SharedSubsurfaceSampler3 SubsurfaceSampler3
 #endif
 
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput0)
