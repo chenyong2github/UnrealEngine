@@ -203,7 +203,7 @@ namespace HordeServer.Storage.Controllers
 			}
 
 			ExistsResponse Response = new ExistsResponse();
-			Response.Id = (await ObjectCollection.ExistsAsync(NamespaceId, Hashes)).ToArray();
+			Response.Id = await ObjectCollection.ExistsAsync(NamespaceId, Hashes);
 			return Response;
 		}
 	}
