@@ -94,8 +94,6 @@ private:
 
 	void SavePerUserSettings();
 		
-	void FlushStreaming();
-
 	void OnGCPostReachabilityAnalysis();
 
 	// PIE/Game Methods
