@@ -39,7 +39,7 @@ typedef TUniformBufferRef<FVirtualHeightfieldMeshVertexFactoryParameters> FVirtu
 struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 {
 	FRHIShaderResourceView* InstanceBufferSRV;
-	FVector LodViewOrigin;
+	FVector3f LodViewOrigin;
 	FVector4 LodDistances;
 };
 
