@@ -141,10 +141,10 @@ public:
 		ListEntries.Remove(InListEntry);
 	}
 
-	void Empty()
+	void Empty(int32 Slack = 0)
 	{
-		ListEntries.Empty();
-		NetIdStringToListEntryMap.Empty();
+		ListEntries.Empty(Slack);
+		NetIdStringToListEntryMap.Empty(Slack);
 	}
 
 	void UpdateNetIdStr(const FString& PrevNetId, const FString& NewNetId)
@@ -462,7 +462,8 @@ private:
 		{
 		}
 
-		void ExecuteDelegateIfBound(bool bWasSuccessful, const FString& ErrorStr) const {
+		void ExecuteDelegateIfBound(bool bWasSuccessful, const FString& ErrorStr) const
+		{
 			Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, ListName, ErrorStr);
 		};
 	};
