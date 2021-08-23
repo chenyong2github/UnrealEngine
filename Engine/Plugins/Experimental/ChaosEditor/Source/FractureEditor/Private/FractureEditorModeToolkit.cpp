@@ -351,6 +351,7 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 		.BodyBorderBackgroundColor(FLinearColor(1.0, 0.0, 0.0))
 		.AreaTitleFont(FEditorStyle::Get().GetFontStyle("HistogramDetailsView.CategoryFontStyle"))
 		.InitiallyCollapsed(true)
+		.Clipping(EWidgetClipping::ClipToBounds)
 		.BodyContent()
 		[
 			SNew(SVerticalBox)
