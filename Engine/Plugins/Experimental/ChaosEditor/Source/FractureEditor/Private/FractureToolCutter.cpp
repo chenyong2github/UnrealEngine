@@ -40,7 +40,7 @@ void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
 	TransformGizmo->SetVisibility((bool)CombinedBounds.IsValid);
 	if (CombinedBounds.IsValid)
 	{
-		if (bCenterOnSelection)
+		if (bCenterOnSelection && !GIsTransacting)
 		{
 			FTransform Transform = TransformProxy->GetTransform();
 			Transform.SetTranslation(CombinedBounds.GetCenter());
@@ -48,7 +48,7 @@ void UFractureTransformGizmoSettings::ResetGizmo(bool bResetRotation)
 			{
 				Transform.SetRotation(FQuat::Identity);
 			}
-			TransformGizmo->ReinitializeGizmoTransform(Transform);
+			TransformGizmo->SetNewGizmoTransform(Transform);
 		}
 	}
 }
@@ -246,6 +246,10 @@ void UFractureToolVoronoiCutterBase::FractureContextChanged()
 
 	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
+		if (!FractureContext.GetBounds().IsValid) // skip contexts w/ invalid bounds
+		{
+			continue;
+		}
 		// Move the local bounds to the actor so we we'll draw in the correct location
 		GenerateVoronoiSites(FractureContext, VoronoiSites);
 		FBox VoronoiBounds = GetVoronoiBounds(FractureContext, VoronoiSites);

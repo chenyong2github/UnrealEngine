@@ -117,6 +117,10 @@ void UFractureToolPlaneCut::FractureContextChanged()
 	{
 		// Move the local bounds to the actor so we we'll draw in the correct location
 		FBox Bounds = FractureContext.GetWorldBounds();
+		if (!Bounds.IsValid)
+		{
+			continue;
+		}
 		GenerateSliceTransforms(FractureContext, RenderCuttingPlanesTransforms);
 
 		if (Bounds.GetExtent().GetMax() < RenderCuttingPlaneSize)
