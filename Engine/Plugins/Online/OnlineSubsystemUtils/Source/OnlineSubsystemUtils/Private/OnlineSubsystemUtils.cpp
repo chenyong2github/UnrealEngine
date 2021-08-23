@@ -631,7 +631,7 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					}
 					else if (FParse::Command(&Cmd, TEXT("STATS")))
 					{
-						(new FTestStatsInterface(SubName))->Test(InWorld);
+						(new FTestStatsInterface(SubName))->Test(InWorld, Cmd);
 						bWasHandled = true;
 					}
 					else if (FParse::Command(&Cmd, TEXT("PRESENCE")))
