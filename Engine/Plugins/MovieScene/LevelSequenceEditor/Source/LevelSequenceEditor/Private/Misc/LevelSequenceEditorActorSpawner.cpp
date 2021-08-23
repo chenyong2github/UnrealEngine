@@ -270,18 +270,18 @@ void FLevelSequenceEditorActorSpawner::SetupDefaultsForSpawnable(UObject* Spawne
 			}
 
 			// Set the section's default values to this default transform
-			TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-			FloatChannels[0]->SetDefault(Location.X);
-			FloatChannels[1]->SetDefault(Location.Y);
-			FloatChannels[2]->SetDefault(Location.Z);
+			TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+			DoubleChannels[0]->SetDefault(Location.X);
+			DoubleChannels[1]->SetDefault(Location.Y);
+			DoubleChannels[2]->SetDefault(Location.Z);
 
-			FloatChannels[3]->SetDefault(Rotation.X);
-			FloatChannels[4]->SetDefault(Rotation.Y);
-			FloatChannels[5]->SetDefault(Rotation.Z);
+			DoubleChannels[3]->SetDefault(Rotation.X);
+			DoubleChannels[4]->SetDefault(Rotation.Y);
+			DoubleChannels[5]->SetDefault(Rotation.Z);
 
-			FloatChannels[6]->SetDefault(Scale.X);
-			FloatChannels[7]->SetDefault(Scale.Y);
-			FloatChannels[8]->SetDefault(Scale.Z);
+			DoubleChannels[6]->SetDefault(Scale.X);
+			DoubleChannels[7]->SetDefault(Scale.Y);
+			DoubleChannels[8]->SetDefault(Scale.Z);
 		}
 	}
 }

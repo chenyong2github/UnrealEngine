@@ -6,7 +6,7 @@
 #include "ISequencer.h"
 #include "Tracks/MovieScene3DTransformTrack.h"
 #include "Sections/MovieScene3DTransformSection.h"
-#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
 #include "Systems/MovieSceneComponentTransformSystem.h"
 #include "MovieSceneSequence.h"
@@ -283,10 +283,10 @@ TRange<double> FMovieSceneTransformTrail::GetEffectiveSectionRange(int32 Channel
 
 	TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Empty();
 
-	TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	for (int32 ChannelIdx = ChannelOffset; ChannelIdx <= ChannelOffset + uint8(ETransformChannel::MaxChannel); ChannelIdx++)
 	{
-		FMovieSceneFloatChannel* Channel = Channels[ChannelIdx];
+		FMovieSceneDoubleChannel* Channel = Channels[ChannelIdx];
 		EffectiveRange = TRange<FFrameNumber>::Hull(EffectiveRange, Channel->ComputeEffectiveRange());
 	}
 
@@ -411,7 +411,7 @@ static bool SetActorTransform(ISequencer* Sequencer, AActor *Actor, UMovieScene3
 		}
 	}
 
-	TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 	for (int32 Index = 0; Index < Frames.Num(); ++Index)
 	{
 		const FFrameNumber& Frame = Frames[Index];
@@ -421,7 +421,7 @@ static bool SetActorTransform(ISequencer* Sequencer, AActor *Actor, UMovieScene3
 		FVector Location = LocalTransform.GetLocation();
 		FRotator Rotation = LocalTransform.GetRotation().Rotator();
 			
-		TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channels[0]->GetData();
+		TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channels[0]->GetData();
 		MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.X);
 		ChannelData = Channels[1]->GetData();
 		MovieSceneToolHelpers::SetOrAddKey(ChannelData, Frame, Location.Y);

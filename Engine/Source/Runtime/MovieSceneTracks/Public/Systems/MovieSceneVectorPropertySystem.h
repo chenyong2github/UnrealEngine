@@ -7,12 +7,24 @@
 #include "MovieSceneVectorPropertySystem.generated.h"
 
 UCLASS()
-class MOVIESCENETRACKS_API UMovieSceneVectorPropertySystem : public UMovieScenePropertySystem
+class MOVIESCENETRACKS_API UMovieSceneFloatVectorPropertySystem : public UMovieScenePropertySystem
 {
 	GENERATED_BODY()
 
 private:
-	UMovieSceneVectorPropertySystem(const FObjectInitializer& ObjInit);
+	UMovieSceneFloatVectorPropertySystem(const FObjectInitializer& ObjInit);
 
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
 };
+
+UCLASS()
+class MOVIESCENETRACKS_API UMovieSceneDoubleVectorPropertySystem : public UMovieScenePropertySystem
+{
+	GENERATED_BODY()
+
+private:
+	UMovieSceneDoubleVectorPropertySystem(const FObjectInitializer& ObjInit);
+
+	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override;
+};
+

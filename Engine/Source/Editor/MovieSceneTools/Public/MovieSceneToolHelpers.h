@@ -30,6 +30,7 @@ class UMovieSceneTrack;
 struct FMovieSceneEvaluationTrack;
 class UMovieSceneUserImportFBXSettings;
 class UMovieSceneUserImportFBXControlRigSettings;
+struct FMovieSceneDoubleValue;
 struct FMovieSceneFloatValue;
 class INodeNameAdapter;
 struct FMovieSceneSequenceTransform;
@@ -404,7 +405,7 @@ public:
 	 * @param MoveAxis The move axis to copy to
 	 * @param FrameRate The frame rate of the source channel
 	 */
-	static void CopyKeyDataToMoveAxis(const TMovieSceneChannelData<FMovieSceneFloatValue>& KeyData, UInterpTrackMoveAxis* MoveAxis, FFrameRate FrameRate);
+	static void CopyKeyDataToMoveAxis(const TMovieSceneChannelData<FMovieSceneDoubleValue>& KeyData, UInterpTrackMoveAxis* MoveAxis, FFrameRate FrameRate);
 
 	/*
 	 * Export the object binding to a camera anim
@@ -546,6 +547,12 @@ public:
 	*/
 	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneFloatValue>& ChannelData, FFrameNumber Time, float Value);
 
+	/* Set or add a key onto a double channel.
+	* @param ChannelData Channel to set or add
+	* @param Time Frame to add or set the value
+	* @param Value  Value to Set
+	*/
+	static void SetOrAddKey(TMovieSceneChannelData<FMovieSceneDoubleValue>& ChannelData, FFrameNumber Time, double Value);
 	
 	/*
 	*  Get an actors world transforms at the specified times using a player

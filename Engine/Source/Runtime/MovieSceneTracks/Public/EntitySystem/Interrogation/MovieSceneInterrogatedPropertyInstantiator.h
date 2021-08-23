@@ -21,7 +21,7 @@ class MOVIESCENETRACKS_API UMovieSceneInterrogatedPropertyInstantiatorSystem
 public:
 
 	using FMovieSceneEntityID = UE::MovieScene::FMovieSceneEntityID;
-	using FFloatRecompositionResult = UE::MovieScene::TRecompositionResult<float>;
+	using FValueRecompositionResult = UE::MovieScene::TRecompositionResult<double>;
 
 	GENERATED_BODY()
 
@@ -36,7 +36,7 @@ public:
 	 * @param InCurrentValue The value of the property to recompose
 	 * @return A result containing the recomposed value for each of the entities specified in InQuery
 	 */
-	FFloatRecompositionResult RecomposeBlendFloatChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, float InCurrentValue);
+	FValueRecompositionResult RecomposeBlendChannel(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, int32 ChannelCompositeIndex, const UE::MovieScene::FDecompositionQuery& InQuery, double InCurrentValue);
 
 	/**
 	 * Recompose a value from the constituent parts specified in InQuery, taking into account the weightings of each channel.
@@ -110,7 +110,7 @@ private:
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
 
 	bool PropertySupportsFastPath(TArrayView<const FMovieSceneEntityID> Inputs, FPropertyInfo* Output) const;
-	UClass* ResolveBlenderClass(TArrayView<const FMovieSceneEntityID> Inputs) const;
+	UClass* ResolveBlenderClass(const UE::MovieScene::FPropertyDefinition& PropertyDefinition, TArrayView<const FMovieSceneEntityID> Inputs) const;
 	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
 private:

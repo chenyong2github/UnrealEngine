@@ -13,7 +13,9 @@ enum class ESerializedPropertyType : uint8 {
 	ByteType,
 	EnumType,
 	FloatType,
-	VectorType,
+	DoubleType,
+	Vector3fType,
+	Vector3dType,
 	ColorType,
 	IntegerType,
 	StringType
@@ -74,11 +76,28 @@ struct FPropertyFileHeader
 			{
 				PropertyType = (ESerializedPropertyType::FloatType);
 			}
+			else if (Property->IsA<FDoubleProperty>())
+			{
+				PropertyType = (ESerializedPropertyType::DoubleType);
+			}
 			else if (const FStructProperty* StructProperty = CastField<const FStructProperty>(Property))
 			{
-				if (StructProperty->Struct->GetFName() == NAME_Vector)
+				// LWC_TODO: vector types
+				if (StructProperty->Struct->GetFName() == NAME_Vector3f
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+						|| StructProperty->Struct->GetFName() == NAME_Vector
+#endif
+						)
 				{
-					PropertyType = (ESerializedPropertyType::VectorType);
+					PropertyType = (ESerializedPropertyType::Vector3fType);
+				}
+				else if (StructProperty->Struct->GetFName() == NAME_Vector3d
+#if !UE_LARGE_WORLD_COORDINATES_DISABLED
+						|| StructProperty->Struct->GetFName() == NAME_Vector
+#endif
+						)
+				{
+					PropertyType = (ESerializedPropertyType::Vector3dType);
 				}
 				else if (StructProperty->Struct->GetFName() == NAME_Color)
 				{
@@ -136,11 +155,17 @@ using FPropertySerializedEnum = FSerializedProperty<int64>;
 using FPropertySerializedEnumFrame = TMovieSceneSerializedFrame<FSerializedProperty<int64>>;
 using FPropertySerializerEnum = TMovieSceneSerializer<FPropertyFileHeader, FSerializedProperty<int64>>;
 
+using FPropertySerializedDouble = FSerializedProperty<double>;
+using FPropertySerializedDoubleFrame = TMovieSceneSerializedFrame<FSerializedProperty<double>>;
+
 using FPropertySerializedFloat = FSerializedProperty<float>;
 using FPropertySerializedFloatFrame = TMovieSceneSerializedFrame<FSerializedProperty<float>>;
 
-using FPropertySerializedVector = FSerializedProperty<FVector>;
-using FPropertySerializedVectorFrame = TMovieSceneSerializedFrame<FSerializedProperty<FVector>>;
+using FPropertySerializedVector3f = FSerializedProperty<FVector3f>;
+using FPropertySerializedVector3fFrame = TMovieSceneSerializedFrame<FSerializedProperty<FVector3f>>;
+
+using FPropertySerializedVector3d = FSerializedProperty<FVector3d>;
+using FPropertySerializedVector3dFrame = TMovieSceneSerializedFrame<FSerializedProperty<FVector3d>>;
 
 using FPropertySerializedColor = FSerializedProperty<FColor>;
 using FPropertySerializedColorFrame = TMovieSceneSerializedFrame<FSerializedProperty<FColor>>;

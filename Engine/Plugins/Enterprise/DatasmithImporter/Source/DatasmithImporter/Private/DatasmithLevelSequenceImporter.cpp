@@ -11,7 +11,7 @@
 #include "Algo/Transform.h"
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Channels/MovieSceneFloatChannel.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "LevelSequence.h"
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
@@ -137,7 +137,7 @@ namespace DatasmithLevelSequenceImporterImpl
 		}
 	}
 
-	int32 GetTransformValues(const TSharedRef<IDatasmithTransformAnimationElement>& Animation, EDatasmithTransformType TransformType, const FFrameRate& SrcFrameRate, const FFrameRate& DestFrameRate, TArray<FFrameNumber>& FrameNumbers, TArray<float>& XValues, TArray<float>& YValues, TArray<float>& ZValues, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
+	int32 GetTransformValues(const TSharedRef<IDatasmithTransformAnimationElement>& Animation, EDatasmithTransformType TransformType, const FFrameRate& SrcFrameRate, const FFrameRate& DestFrameRate, TArray<FFrameNumber>& FrameNumbers, TArray<double>& XValues, TArray<double>& YValues, TArray<double>& ZValues, FFrameNumber& MinFrameNumber, FFrameNumber& MaxFrameNumber)
 	{
 		int32 NumFrames = Animation->GetFramesCount(TransformType);
 		FrameNumbers.Reset(NumFrames);
@@ -209,7 +209,7 @@ namespace DatasmithLevelSequenceImporterImpl
 		return FrameNumbers.Num();
 	}
 
-	void SetTransformChannels(TArrayView<FMovieSceneFloatChannel*>& Channels, EDatasmithTransformType TransformType, ERichCurveInterpMode Interpolation, const TArray<FFrameNumber>& FrameNumbers, TArray<float>& XValues, TArray<float>& YValues, TArray<float>& ZValues)
+	void SetTransformChannels(TArrayView<FMovieSceneDoubleChannel*>& Channels, EDatasmithTransformType TransformType, ERichCurveInterpMode Interpolation, const TArray<FFrameNumber>& FrameNumbers, TArray<double>& XValues, TArray<double>& YValues, TArray<double>& ZValues)
 	{
 		int8 ChannelIndex = 0;
 
@@ -239,29 +239,29 @@ namespace DatasmithLevelSequenceImporterImpl
 			break;
 		}
 
-		// The input float values must be converted to MovieSceneFloatValue with the given interpolation
-		auto FloatConverter = [Interpolation](float InValue)
+		// The input double values must be converted to MovieSceneDoubleValue with the given interpolation
+		auto FloatConverter = [Interpolation](double InValue)
 		{
-			FMovieSceneFloatValue NewValue(InValue);
+			FMovieSceneDoubleValue NewValue(InValue);
 			NewValue.InterpMode = Interpolation;
 			return NewValue;
 		};
 
-		TArray<FMovieSceneFloatValue> MovieSceneFloatValues;
+		TArray<FMovieSceneDoubleValue> MovieSceneDoubleValues;
 
 		// X channel
-		Algo::Transform(XValues, MovieSceneFloatValues, FloatConverter);
-		Channels[ChannelIndex]->Set(FrameNumbers, MoveTemp(MovieSceneFloatValues));
+		Algo::Transform(XValues, MovieSceneDoubleValues, FloatConverter);
+		Channels[ChannelIndex]->Set(FrameNumbers, MoveTemp(MovieSceneDoubleValues));
 
 		// Y channel
-		MovieSceneFloatValues.Reset(FrameNumbers.Num());
-		Algo::Transform(YValues, MovieSceneFloatValues, FloatConverter);
-		Channels[ChannelIndex + 1]->Set(FrameNumbers, MoveTemp(MovieSceneFloatValues));
+		MovieSceneDoubleValues.Reset(FrameNumbers.Num());
+		Algo::Transform(YValues, MovieSceneDoubleValues, FloatConverter);
+		Channels[ChannelIndex + 1]->Set(FrameNumbers, MoveTemp(MovieSceneDoubleValues));
 
 		// Z channel
-		MovieSceneFloatValues.Reset(FrameNumbers.Num());
-		Algo::Transform(ZValues, MovieSceneFloatValues, FloatConverter);
-		Channels[ChannelIndex + 2]->Set(FrameNumbers, MoveTemp(MovieSceneFloatValues));
+		MovieSceneDoubleValues.Reset(FrameNumbers.Num());
+		Algo::Transform(ZValues, MovieSceneDoubleValues, FloatConverter);
+		Channels[ChannelIndex + 2]->Set(FrameNumbers, MoveTemp(MovieSceneDoubleValues));
 	}
 
 	void SetVisibilityChannels(TArrayView<FMovieSceneBoolChannel*>& Channels, ERichCurveInterpMode Interpolation, const TArray<FFrameNumber>& FrameNumbers, TArray<bool>& Values)
@@ -323,14 +323,14 @@ namespace DatasmithLevelSequenceImporterImpl
 
 		// Populate the 3D transform section with the keyframes for each transform type
 		TArray<FFrameNumber> FrameNumbers;
-		TArray<float> XValues;
-		TArray<float> YValues;
-		TArray<float> ZValues;
+		TArray<double> XValues;
+		TArray<double> YValues;
+		TArray<double> ZValues;
 
 		const FFrameRate FrameRate = MovieScene->GetDisplayRate();
 		const FFrameRate TickResolution = MovieScene->GetTickResolution();
 
-		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 		static_assert((int)ERichCurveInterpMode::RCIM_Linear == (int)EDatasmithCurveInterpMode::Linear, "INVALID_ENUM_VALUE");
 		static_assert((int)ERichCurveInterpMode::RCIM_Constant == (int)EDatasmithCurveInterpMode::Constant, "INVALID_ENUM_VALUE");
@@ -366,7 +366,7 @@ namespace DatasmithLevelSequenceImporterImpl
 
 		FKeyDataOptimizationParams OptimParams;
 		OptimParams.DisplayRate = MovieScene->GetDisplayRate();
-		for (FMovieSceneFloatChannel* Channel : Channels)
+		for (FMovieSceneDoubleChannel* Channel : Channels)
 		{
 			Channel->Optimize(OptimParams);
 		}

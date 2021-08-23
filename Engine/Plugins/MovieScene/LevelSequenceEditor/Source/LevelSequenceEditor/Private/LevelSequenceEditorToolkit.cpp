@@ -418,18 +418,18 @@ void FLevelSequenceEditorToolkit::AddDefaultTracksForActor(AActor& Actor, const 
 							Scale = ActorRelativeTransform.GetScale3D();
 						}
 
-						TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-						FloatChannels[0]->SetDefault(Location.X);
-						FloatChannels[1]->SetDefault(Location.Y);
-						FloatChannels[2]->SetDefault(Location.Z);
+						TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+						DoubleChannels[0]->SetDefault(Location.X);
+						DoubleChannels[1]->SetDefault(Location.Y);
+						DoubleChannels[2]->SetDefault(Location.Z);
 
-						FloatChannels[3]->SetDefault(Rotation.Euler().X);
-						FloatChannels[4]->SetDefault(Rotation.Euler().Y);
-						FloatChannels[5]->SetDefault(Rotation.Euler().Z);
+						DoubleChannels[3]->SetDefault(Rotation.Euler().X);
+						DoubleChannels[4]->SetDefault(Rotation.Euler().Y);
+						DoubleChannels[5]->SetDefault(Rotation.Euler().Z);
 
-						FloatChannels[6]->SetDefault(Scale.X);
-						FloatChannels[7]->SetDefault(Scale.Y);
-						FloatChannels[8]->SetDefault(Scale.Z);
+						DoubleChannels[6]->SetDefault(Scale.X);
+						DoubleChannels[7]->SetDefault(Scale.Y);
+						DoubleChannels[8]->SetDefault(Scale.Z);
 					}
 
 					if (GetSequencer()->GetInfiniteKeyAreas())

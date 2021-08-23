@@ -56,11 +56,13 @@ struct FPropertyDefinition
 			FComponentTypeID InPropertyType, FComponentTypeID InInitialValueType)
 		: CustomPropertyRegistration(nullptr)
 		, FloatCompositeMask(0)
+		, DoubleCompositeMask(0)
 		, VariableSizeCompositeOffset(InVariableSizeCompositeOffset)
 		, CompositeSize(0)
 		, StorageType{ InSizeofStorageType, InAlignofStorageType }
 		, PropertyType(InPropertyType)
 		, InitialValueType(InInitialValueType)
+		, BlenderSystemClass(nullptr)
 	{
 	}
 
@@ -84,6 +86,9 @@ struct FPropertyDefinition
 	/** A mask of which composite indices pertain to floats */
 	uint32 FloatCompositeMask = 0;
 
+	/** A mask of which composite indices pertain to doubles */
+	uint32 DoubleCompositeMask = 0;
+
 	/** The number of channels that this property comprises */
 	uint16 VariableSizeCompositeOffset = INDEX_NONE;
 
@@ -105,6 +110,9 @@ struct FPropertyDefinition
 
 	/** MetaData types */
 	TArrayView<const FComponentTypeID> MetaDataTypes;
+
+	/** The blender system to use by default (if specified here) to blend composites of this property (it can be overriden per-entity with a blender system component) */
+	UClass* BlenderSystemClass;
 
 	/** Implementation of type specific property actions such as applying properties from entities or recomposing values */
 	TInlineValue<IPropertyComponentHandler, 32> Handler;

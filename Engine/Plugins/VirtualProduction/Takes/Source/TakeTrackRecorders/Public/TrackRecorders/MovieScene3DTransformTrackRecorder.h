@@ -44,9 +44,9 @@ struct FBufferedTransformKeys
 {
 
 	TArray<FFrameNumber> Times;
-	TArray<float> LocationX, LocationY, LocationZ;
-	TArray<float> RotationX, RotationY, RotationZ;
-	TArray<float> ScaleX, ScaleY, ScaleZ;
+	TArray<double> LocationX, LocationY, LocationZ;
+	TArray<double> RotationX, RotationY, RotationZ;
+	TArray<double> ScaleX, ScaleY, ScaleZ;
 	//Currently used only when needed when collapsing when ProcessingAnimation()
 	TArray<FQuat> CachedQuats;
 

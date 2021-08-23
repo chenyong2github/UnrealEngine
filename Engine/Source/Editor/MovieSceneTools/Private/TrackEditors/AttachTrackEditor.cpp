@@ -384,9 +384,9 @@ void F3DAttachTrackEditor::FindOrCreateTransformTrack(const TRange<FFrameNumber>
 /**
  * Helper method to safely return an array allocated to store the proper the number of float channels if not already allocated
  */
-TArray<FMovieSceneFloatValue>& ResizeAndAddKey(const FFrameNumber& InKey, int32 InNum, TMap<FFrameNumber, TArray<FMovieSceneFloatValue>>& OutTransformMap, TSet<FFrameNumber>* OutTimesAdded)
+TArray<FMovieSceneDoubleValue>& ResizeAndAddKey(const FFrameNumber& InKey, int32 InNum, TMap<FFrameNumber, TArray<FMovieSceneDoubleValue>>& OutTransformMap, TSet<FFrameNumber>* OutTimesAdded)
 {
-	TArray<FMovieSceneFloatValue>& Transform = OutTransformMap.FindOrAdd(InKey);
+	TArray<FMovieSceneDoubleValue>& Transform = OutTransformMap.FindOrAdd(InKey);
 	if (Transform.Num() == 0)
 	{
 		Transform.SetNum(InNum);
@@ -401,7 +401,7 @@ TArray<FMovieSceneFloatValue>& ResizeAndAddKey(const FFrameNumber& InKey, int32 
 /**
  * Helper method which adds keys from a list of float channels to a map mapping the time to a full transform
  */
-void AddKeysFromChannels(TArrayView<FMovieSceneFloatChannel*> InChannels, const TRange<FFrameNumber>& InAttachRange, TMap<FFrameNumber, TArray<FMovieSceneFloatValue>>& OutTransformMap, TSet<FFrameNumber>& OutTimesAdded)
+void AddKeysFromChannels(TArrayView<FMovieSceneDoubleChannel*> InChannels, const TRange<FFrameNumber>& InAttachRange, TMap<FFrameNumber, TArray<FMovieSceneDoubleValue>>& OutTransformMap, TSet<FFrameNumber>& OutTimesAdded)
 {
 	const int32 NumChannels = 9;
 	for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
@@ -421,10 +421,10 @@ void AddKeysFromChannels(TArrayView<FMovieSceneFloatChannel*> InChannels, const 
 		}
 
 		const int32 NumValsInRange = TimesInRange.Num();
-		TArrayView<const FMovieSceneFloatValue> ValuesInRange = InChannels[ChannelIndex]->GetValues().Slice(BeginRangeIndex, NumValsInRange);
+		TArrayView<const FMovieSceneDoubleValue> ValuesInRange = InChannels[ChannelIndex]->GetValues().Slice(BeginRangeIndex, NumValsInRange);
 		for (int32 KeyIndex = 0; KeyIndex < ValuesInRange.Num(); KeyIndex++)
 		{
-			TArray<FMovieSceneFloatValue>& Transform = ResizeAndAddKey(TimesInRange[KeyIndex], InChannels.Num(), OutTransformMap, &OutTimesAdded);
+			TArray<FMovieSceneDoubleValue>& Transform = ResizeAndAddKey(TimesInRange[KeyIndex], InChannels.Num(), OutTransformMap, &OutTimesAdded);
 			Transform[ChannelIndex] = ValuesInRange[KeyIndex];
 		}
 	}
@@ -434,28 +434,28 @@ void AddKeysFromChannels(TArrayView<FMovieSceneFloatChannel*> InChannels, const 
  * Helper method which updates the values in each channel in a list of movie scene float values given a 
  * transform, preserving the interpolation style and other attributes
  */
-void UpdateFloatValueTransform(const FTransform& InTransform, TArrayView<FMovieSceneFloatValue> OutFloatValueTransform)
+void UpdateDoubleValueTransform(const FTransform& InTransform, TArrayView<FMovieSceneDoubleValue> OutDoubleValueTransform)
 {
-	OutFloatValueTransform[0].Value = InTransform.GetTranslation().X;
-	OutFloatValueTransform[1].Value = InTransform.GetTranslation().Y;
-	OutFloatValueTransform[2].Value = InTransform.GetTranslation().Z;
+	OutDoubleValueTransform[0].Value = InTransform.GetTranslation().X;
+	OutDoubleValueTransform[1].Value = InTransform.GetTranslation().Y;
+	OutDoubleValueTransform[2].Value = InTransform.GetTranslation().Z;
 
-	OutFloatValueTransform[3].Value = InTransform.GetRotation().Euler().X;
-	OutFloatValueTransform[4].Value = InTransform.GetRotation().Euler().Y;
-	OutFloatValueTransform[5].Value = InTransform.GetRotation().Euler().Z;
+	OutDoubleValueTransform[3].Value = InTransform.GetRotation().Euler().X;
+	OutDoubleValueTransform[4].Value = InTransform.GetRotation().Euler().Y;
+	OutDoubleValueTransform[5].Value = InTransform.GetRotation().Euler().Z;
 
-	OutFloatValueTransform[6].Value = InTransform.GetScale3D().X;
-	OutFloatValueTransform[7].Value = InTransform.GetScale3D().Y;
-	OutFloatValueTransform[8].Value = InTransform.GetScale3D().Z;
+	OutDoubleValueTransform[6].Value = InTransform.GetScale3D().X;
+	OutDoubleValueTransform[7].Value = InTransform.GetScale3D().Y;
+	OutDoubleValueTransform[8].Value = InTransform.GetScale3D().Z;
 }
 
 /**
  * Helper method which converts a list of float values to a transform
  */
-FORCEINLINE FTransform FloatValuesToTransform(TArrayView<const FMovieSceneFloatValue> InFloatValues)
+FORCEINLINE FTransform DoubleValuesToTransform(TArrayView<const FMovieSceneDoubleValue> InDoubleValues)
 {
-	return FTransform(FRotator::MakeFromEuler(FVector(InFloatValues[3].Value, InFloatValues[4].Value, InFloatValues[5].Value)), 
-		FVector(InFloatValues[0].Value, InFloatValues[1].Value, InFloatValues[2].Value), FVector(InFloatValues[6].Value, InFloatValues[7].Value, InFloatValues[8].Value));
+	return FTransform(FRotator::MakeFromEuler(FVector(InDoubleValues[3].Value, InDoubleValues[4].Value, InDoubleValues[5].Value)), 
+		FVector(InDoubleValues[0].Value, InDoubleValues[1].Value, InDoubleValues[2].Value), FVector(InDoubleValues[6].Value, InDoubleValues[7].Value, InDoubleValues[8].Value));
 }
 
 /**
@@ -807,10 +807,10 @@ private:
 /**
  * Updates an array of float channels with the keys in a given transform map mapping times to float values
  */
-void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFrameNumber, TArray<FMovieSceneFloatValue>>& InTransformMap, TArrayView<FMovieSceneFloatChannel*>& InChannels, int32 InNumChannels, bool bInBakedData)
+void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFrameNumber, TArray<FMovieSceneDoubleValue>>& InTransformMap, TArrayView<FMovieSceneDoubleChannel*>& InChannels, int32 InNumChannels, bool bInBakedData)
 {
 	// Remove all handles in range so we can add the new ones
-	for (FMovieSceneFloatChannel* Channel : InChannels)
+	for (FMovieSceneDoubleChannel* Channel : InChannels)
 	{
 		TArray<FKeyHandle> KeysToRemove;
 		Channel->GetKeys(InAttachRange, nullptr, &KeysToRemove);
@@ -824,7 +824,7 @@ void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFr
 	InTransformMap.KeySort([](const FFrameNumber& LHS, const FFrameNumber& RHS) { return LHS.Value < RHS.Value; });
 	TArray<FFrameNumber> NewKeyFrames;
 	InTransformMap.GetKeys(NewKeyFrames);
-	TArray<FMovieSceneFloatValue> NewKeyValues;
+	TArray<FMovieSceneDoubleValue> NewKeyValues;
 
 	// Update keys in channels
 	for (int32 ChannelIndex = 0; ChannelIndex < InNumChannels; ChannelIndex++)
@@ -837,7 +837,7 @@ void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFr
 		// and simply remove and re-add all of the keys from first to last
 		TArray<FKeyHandle> LowerKeyHandles, UpperKeyHandles;
 		TArray<FFrameNumber> LowerKeyTimes, UpperKeyTimes;
-		TArray<FMovieSceneFloatValue> PrevKeyValues;
+		TArray<FMovieSceneDoubleValue> PrevKeyValues;
 		Algo::Copy(InChannels[ChannelIndex]->GetValues(), PrevKeyValues);
 
 		// Get the keys contained in before attach and after attach ranges
@@ -850,8 +850,8 @@ void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFr
 		if (ExcludedRanges.Num() > 0 && ExcludedRanges[0].GetUpperBoundValue() <= InAttachRange.GetLowerBoundValue() && LowerKeyTimes.Num() > 0)
 		{
 			InChannels[ChannelIndex]->DeleteKeys(LowerKeyHandles);
-			TArray<FMovieSceneFloatValue> ValuesToAdd;
-			Algo::Copy(TArrayView<const FMovieSceneFloatValue>(PrevKeyValues).Slice(ValueIndex, LowerKeyTimes.Num()), ValuesToAdd);
+			TArray<FMovieSceneDoubleValue> ValuesToAdd;
+			Algo::Copy(TArrayView<const FMovieSceneDoubleValue>(PrevKeyValues).Slice(ValueIndex, LowerKeyTimes.Num()), ValuesToAdd);
 			InChannels[ChannelIndex]->AddKeys(LowerKeyTimes, ValuesToAdd);
 			ValueIndex += LowerKeyTimes.Num();
 		}
@@ -863,8 +863,8 @@ void UpdateChannelTransforms(const TRange<FFrameNumber>& InAttachRange, TMap<FFr
 		if (ExcludedRanges.Num() > 0 && ExcludedRanges.Top().GetLowerBoundValue() >= InAttachRange.GetUpperBoundValue() && ValueIndex < PrevKeyValues.Num() && UpperKeyTimes.Num() > 0)
 		{
 			InChannels[ChannelIndex]->DeleteKeys(UpperKeyHandles);
-			TArray<FMovieSceneFloatValue> ValuesToAdd;
-			Algo::Copy(TArrayView<const FMovieSceneFloatValue>(PrevKeyValues).Slice(ValueIndex, UpperKeyTimes.Num()), ValuesToAdd);
+			TArray<FMovieSceneDoubleValue> ValuesToAdd;
+			Algo::Copy(TArrayView<const FMovieSceneDoubleValue>(PrevKeyValues).Slice(ValueIndex, UpperKeyTimes.Num()), ValuesToAdd);
 			InChannels[ChannelIndex]->AddKeys(UpperKeyTimes, ValuesToAdd);
 		}
 
@@ -925,7 +925,7 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 			return;
 		}
 
-		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 		FLocalTransformEvaluator LocalTransformEval(SharedThis(this), Object, TransformTrack);
 
@@ -933,12 +933,12 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 		{
 			FWorldTransformEvaluator ReAttachParentEvaluator(SharedThis(this), AttachSection->ReAttachOnDetach.Get());
 
-			CompensateChildTrack(ExcludedRange, Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>>(), ReAttachParentEvaluator, LocalTransformEval, ETransformPreserveType::CurrentKey, RevertModifier);
+			CompensateChildTrack(ExcludedRange, Channels, TOptional<TArrayView<FMovieSceneDoubleChannel*>>(), ReAttachParentEvaluator, LocalTransformEval, ETransformPreserveType::CurrentKey, RevertModifier);
 		}
 		else
 		{
 			TSet<FFrameNumber> KeyTimesToCompensate;
-			TMap<FFrameNumber, TArray<FMovieSceneFloatValue>> TransformMap;
+			TMap<FFrameNumber, TArray<FMovieSceneDoubleValue>> TransformMap;
 
 			// Add all keys already existing in the range to the transform map
 			AddKeysFromChannels(Channels, ExcludedRange, TransformMap, KeyTimesToCompensate);
@@ -967,20 +967,20 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 			// Evaluate the transform at all times with keys
 			for (auto Itr = TransformMap.CreateIterator(); Itr; ++Itr)
 			{
-				UpdateFloatValueTransform(LocalTransformEval(Itr->Key), Itr->Value);
+				UpdateDoubleValueTransform(LocalTransformEval(Itr->Key), Itr->Value);
 			}
 
 			// Modify each transform
 			for (const FFrameNumber& CompTime : KeyTimesToCompensate)
 			{
-				const FTransform RevertedTransform = RevertModifier(FloatValuesToTransform(TransformMap[CompTime]), CompTime);
-				UpdateFloatValueTransform(RevertedTransform, TransformMap[CompTime]);
+				const FTransform RevertedTransform = RevertModifier(DoubleValuesToTransform(TransformMap[CompTime]), CompTime);
+				UpdateDoubleValueTransform(RevertedTransform, TransformMap[CompTime]);
 			}
 
 			// Manually set edge keys to have linear interpolation
 			for (const FFrameNumber& EdgeKey : EdgeKeys)
 			{
-				for (FMovieSceneFloatValue& Key : TransformMap[EdgeKey])
+				for (FMovieSceneDoubleValue& Key : TransformMap[EdgeKey])
 				{
 					Key.InterpMode = ERichCurveInterpMode::RCIM_Linear;
 				}
@@ -991,7 +991,7 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 		}
 
 		// Remove previous boundary keys
-		for (FMovieSceneFloatChannel* Channel : Channels)
+		for (FMovieSceneDoubleChannel* Channel : Channels)
 		{
 			TArray<FKeyHandle> KeyAtTime;
 
@@ -1006,7 +1006,7 @@ void F3DAttachTrackEditor::TrimAndPreserve(FGuid InObjectBinding, UMovieSceneSec
 }
 
 template<typename ModifierFuncType>
-void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAttachRange, TArrayView<FMovieSceneFloatChannel*> Channels, TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels,
+void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAttachRange, TArrayView<FMovieSceneDoubleChannel*> Channels, TOptional<TArrayView<FMovieSceneDoubleChannel*>> ParentChannels,
 	const ITransformEvaluator& InParentTransformEval, const ITransformEvaluator& InChildTransformEval,
 	ETransformPreserveType InPreserveType, ModifierFuncType InModifyTransform)
 {
@@ -1015,7 +1015,7 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 	const int32 NumChannels = 9;
 
 	TSet<FFrameNumber> KeyTimesToCompensate;
-	TMap<FFrameNumber, TArray<FMovieSceneFloatValue>> TransformMap;
+	TMap<FFrameNumber, TArray<FMovieSceneDoubleValue>> TransformMap;
 
 	// Add all times with keys to the map
 	if (PreserveType == ETransformPreserveType::Bake)
@@ -1026,9 +1026,9 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 			FrameItr += FMath::RoundToInt(TickResolution.AsDecimal() / DisplayRate.AsDecimal()))
 		{
 			ResizeAndAddKey(FrameItr, Channels.Num(), TransformMap, &KeyTimesToCompensate);
-			for (FMovieSceneFloatValue& FloatVal : TransformMap[FrameItr])
+			for (FMovieSceneDoubleValue& DoubleVal : TransformMap[FrameItr])
 			{
-				FloatVal.InterpMode = ERichCurveInterpMode::RCIM_Linear;
+				DoubleVal.InterpMode = ERichCurveInterpMode::RCIM_Linear;
 			}
 		}
 	}
@@ -1060,7 +1060,7 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 	for (auto Itr = TransformMap.CreateIterator(); Itr; ++Itr)
 	{
 		const FTransform TempTransform = InChildTransformEval(Itr->Key);
-		UpdateFloatValueTransform(TempTransform, Itr->Value);
+		UpdateDoubleValueTransform(TempTransform, Itr->Value);
 	}
 
 	if (InPreserveType == ETransformPreserveType::AllKeys || InPreserveType == ETransformPreserveType::Bake)
@@ -1069,15 +1069,15 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 		for (const FFrameNumber& CompTime : KeyTimesToCompensate)
 		{
 			const FTransform ParentTransformAtTime = InParentTransformEval(CompTime);
-			const FTransform NewTransform = InModifyTransform(FloatValuesToTransform(TransformMap[CompTime]), CompTime);
+			const FTransform NewTransform = InModifyTransform(DoubleValuesToTransform(TransformMap[CompTime]), CompTime);
 			const FTransform RelativeTransform = NewTransform.GetRelativeTransform(ParentTransformAtTime);
-			UpdateFloatValueTransform(RelativeTransform, TransformMap[CompTime]);
+			UpdateDoubleValueTransform(RelativeTransform, TransformMap[CompTime]);
 		}
 	}
 	else if (InPreserveType == ETransformPreserveType::CurrentKey)
 	{
 		// Find the relative transform on the first frame of the attach
-		const FTransform BeginChildTransform = InModifyTransform(FloatValuesToTransform(TransformMap[KeyTime]), KeyTime);
+		const FTransform BeginChildTransform = InModifyTransform(DoubleValuesToTransform(TransformMap[KeyTime]), KeyTime);
 		const FTransform BeginParentTransform = InParentTransformEval(KeyTime);
 
 		const FTransform BeginRelativeTransform = BeginChildTransform.GetRelativeTransform(BeginParentTransform);
@@ -1085,20 +1085,20 @@ void F3DAttachTrackEditor::CompensateChildTrack(const TRange<FFrameNumber>& InAt
 		// offset each transform by initial relative transform calculated before
 		for (const FFrameNumber& CompTime : KeyTimesToCompensate)
 		{
-			const FTransform ChildTransformAtTime = InModifyTransform(FloatValuesToTransform(TransformMap[CompTime]), CompTime);
+			const FTransform ChildTransformAtTime = InModifyTransform(DoubleValuesToTransform(TransformMap[CompTime]), CompTime);
 			const FTransform StartToCurrentTransform = ChildTransformAtTime.GetRelativeTransform(BeginChildTransform);
 
-			UpdateFloatValueTransform(BeginRelativeTransform * StartToCurrentTransform, TransformMap[CompTime]);
+			UpdateDoubleValueTransform(BeginRelativeTransform * StartToCurrentTransform, TransformMap[CompTime]);
 		}
 
 		const FTransform EndParentTransform = InParentTransformEval(AttachEndTime);
-		UpdateFloatValueTransform(EndParentTransform * FloatValuesToTransform(TransformMap[BeforeDetachTime]), TransformMap[AttachEndTime]);
+		UpdateDoubleValueTransform(EndParentTransform * DoubleValuesToTransform(TransformMap[BeforeDetachTime]), TransformMap[AttachEndTime]);
 	}
 
 	// Manually set edge keys to have linear interpolation
 	for (const FFrameNumber& EdgeKey : EdgeKeys)
 	{
-		for (FMovieSceneFloatValue& Key : TransformMap[EdgeKey])
+		for (FMovieSceneDoubleValue& Key : TransformMap[EdgeKey])
 		{
 			Key.InterpMode = ERichCurveInterpMode::RCIM_Linear;
 		}
@@ -1148,7 +1148,7 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 
 	FWorldTransformEvaluator ParentTransformEval(SharedThis(this), ParentActor, SocketName);
 
-	TOptional<TArrayView<FMovieSceneFloatChannel*>> ParentChannels;
+	TOptional<TArrayView<FMovieSceneDoubleChannel*>> ParentChannels;
 
 	// If the constraint exists within this sequence, we can perform transform compensation
 	if (ConstraintBindingID.ResolveSequenceID(CurrentSequenceID,*GetSequencer()) == CurrentSequenceID)
@@ -1156,7 +1156,7 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 		UMovieScene3DTransformTrack* ParentTransformTrack = MovieScene->FindTrack<UMovieScene3DTransformTrack>(ConstraintBindingID.GetGuid());
 		if (ParentTransformTrack && ParentTransformTrack->GetAllSections().Num() == 1)
 		{
-			ParentChannels = ParentTransformTrack->GetAllSections()[0]->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+			ParentChannels = ParentTransformTrack->GetAllSections()[0]->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 		}
 	}
 
@@ -1250,7 +1250,7 @@ FKeyPropertyResult F3DAttachTrackEditor::AddKeyInternal( FFrameNumber KeyTime, c
 		}
 
 		// Get transform track channels
-		TArrayView<FMovieSceneFloatChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+		TArrayView<FMovieSceneDoubleChannel*> Channels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
 
 		// find intersecting section
 		TOptional<UMovieSceneSection*> IntersectingSection;

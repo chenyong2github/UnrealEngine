@@ -14,8 +14,10 @@
 #include "MovieSceneTracksComponentTypes.h"
 #include "Sections/TemplateSequenceSection.h"
 #include "Systems/FloatChannelEvaluatorSystem.h"
+#include "Systems/DoubleChannelEvaluatorSystem.h"
 #include "Systems/MovieSceneBaseValueEvaluatorSystem.h"
 #include "Systems/MovieScenePiecewiseFloatBlenderSystem.h"
+#include "Systems/MovieScenePiecewiseDoubleBlenderSystem.h"
 #include "TemplateSequence.h"
 #include "TemplateSequenceComponentTypes.h"
 
@@ -260,12 +262,14 @@ UTemplateSequencePropertyScalingEvaluatorSystem::UTemplateSequencePropertyScalin
 
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		// We need to wait until float channels have evaluated (both the values that we're going to multiply, and the
+		// We need to wait until float and double channels have evaluated (both the values that we're going to multiply, and the
 		// channel of the scale multiplier itself).
 		DefineImplicitPrerequisite(UFloatChannelEvaluatorSystem::StaticClass(), GetClass());
+		DefineImplicitPrerequisite(UDoubleChannelEvaluatorSystem::StaticClass(), GetClass());
 		DefineImplicitPrerequisite(UMovieSceneBaseValueEvaluatorSystem::StaticClass(), GetClass());
 		// We need to multiply values before they are blended together with other values we shouldn't touch.
 		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseFloatBlenderSystem::StaticClass());
+		DefineImplicitPrerequisite(GetClass(), UMovieScenePiecewiseDoubleBlenderSystem::StaticClass());
 		// We need this component to lookup the binding GUID for an entity, so we know what scaling to apply to it.
 		DefineComponentConsumer(GetClass(), BuiltInComponents->BoundObject);
 	}
@@ -361,14 +365,14 @@ struct FScaleTransformProperties
 			TRead<FInstanceHandle> InstanceHandles,
 			TRead<FMovieScenePropertyBinding> PropertyBindings,
 			TRead<FGuid> ReverseBindingLookups,
-			TReadOptional<float> BaseLocationXs, TReadOptional<float> BaseLocationYs, TReadOptional<float> BaseLocationZs,
-			TReadOptional<float> BaseRotationXs, TReadOptional<float> BaseRotationYs, TReadOptional<float> BaseRotationZs,
-			TWriteOptional<float> LocationXs, TWriteOptional<FSourceFloatChannelFlags> LocationXFlags,
-			TWriteOptional<float> LocationYs, TWriteOptional<FSourceFloatChannelFlags> LocationYFlags,
-			TWriteOptional<float> LocationZs, TWriteOptional<FSourceFloatChannelFlags> LocationZFlags,
-			TWriteOptional<float> RotationXs, TWriteOptional<FSourceFloatChannelFlags> RotationXFlags,
-			TWriteOptional<float> RotationYs, TWriteOptional<FSourceFloatChannelFlags> RotationYFlags,
-			TWriteOptional<float> RotationZs, TWriteOptional<FSourceFloatChannelFlags> RotationZFlags)
+			TReadOptional<double> BaseLocationXs, TReadOptional<double> BaseLocationYs, TReadOptional<double> BaseLocationZs,
+			TReadOptional<double> BaseRotationXs, TReadOptional<double> BaseRotationYs, TReadOptional<double> BaseRotationZs,
+			TWriteOptional<double> LocationXs, TWriteOptional<FSourceDoubleChannelFlags> LocationXFlags,
+			TWriteOptional<double> LocationYs, TWriteOptional<FSourceDoubleChannelFlags> LocationYFlags,
+			TWriteOptional<double> LocationZs, TWriteOptional<FSourceDoubleChannelFlags> LocationZFlags,
+			TWriteOptional<double> RotationXs, TWriteOptional<FSourceDoubleChannelFlags> RotationXFlags,
+			TWriteOptional<double> RotationYs, TWriteOptional<FSourceDoubleChannelFlags> RotationYFlags,
+			TWriteOptional<double> RotationZs, TWriteOptional<FSourceDoubleChannelFlags> RotationZFlags)
 	{
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
@@ -510,24 +514,24 @@ void UTemplateSequencePropertyScalingEvaluatorSystem::OnRun(FSystemTaskPrerequis
 			.Read(BuiltInComponents->InstanceHandle)
 			.Read(BuiltInComponents->PropertyBinding)
 			.Read(TemplateSequenceComponents->PropertyScaleReverseBindingLookup)
-			.ReadOptional(BuiltInComponents->BaseFloat[0])
-			.ReadOptional(BuiltInComponents->BaseFloat[1])
-			.ReadOptional(BuiltInComponents->BaseFloat[2])
-			.ReadOptional(BuiltInComponents->BaseFloat[3])
-			.ReadOptional(BuiltInComponents->BaseFloat[4])
-			.ReadOptional(BuiltInComponents->BaseFloat[5])
-			.WriteOptional(BuiltInComponents->FloatResult[0])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[0])
-			.WriteOptional(BuiltInComponents->FloatResult[1])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[1])
-			.WriteOptional(BuiltInComponents->FloatResult[2])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[2])
-			.WriteOptional(BuiltInComponents->FloatResult[3])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[3])
-			.WriteOptional(BuiltInComponents->FloatResult[4])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[4])
-			.WriteOptional(BuiltInComponents->FloatResult[5])
-			.WriteOptional(BuiltInComponents->FloatChannelFlags[5])
+			.ReadOptional(BuiltInComponents->BaseDouble[0])
+			.ReadOptional(BuiltInComponents->BaseDouble[1])
+			.ReadOptional(BuiltInComponents->BaseDouble[2])
+			.ReadOptional(BuiltInComponents->BaseDouble[3])
+			.ReadOptional(BuiltInComponents->BaseDouble[4])
+			.ReadOptional(BuiltInComponents->BaseDouble[5])
+			.WriteOptional(BuiltInComponents->DoubleResult[0])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[0])
+			.WriteOptional(BuiltInComponents->DoubleResult[1])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[1])
+			.WriteOptional(BuiltInComponents->DoubleResult[2])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[2])
+			.WriteOptional(BuiltInComponents->DoubleResult[3])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[3])
+			.WriteOptional(BuiltInComponents->DoubleResult[4])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[4])
+			.WriteOptional(BuiltInComponents->DoubleResult[5])
+			.WriteOptional(BuiltInComponents->DoubleChannelFlags[5])
 			.FilterAny({ TrackComponents->ComponentTransform.PropertyTag, TrackComponents->Transform.PropertyTag })
 			.Dispatch_PerAllocation<FScaleTransformProperties>(&Linker->EntityManager, InPrerequisites, &Subsequents, this);
 	}

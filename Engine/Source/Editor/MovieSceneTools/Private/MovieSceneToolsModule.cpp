@@ -19,6 +19,7 @@
 #include "TrackEditors/PropertyTrackEditors/BytePropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/ColorPropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/FloatPropertyTrackEditor.h"
+#include "TrackEditors/PropertyTrackEditors/DoublePropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/IntegerPropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/VectorPropertyTrackEditor.h"
 #include "TrackEditors/PropertyTrackEditors/TransformPropertyTrackEditor.h"
@@ -105,8 +106,10 @@ void FMovieSceneToolsModule::StartupModule()
 		BytePropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FBytePropertyTrackEditor>();
 		ColorPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FColorPropertyTrackEditor>();
 		FloatPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FFloatPropertyTrackEditor>();
+		DoublePropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FDoublePropertyTrackEditor>();
 		IntegerPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FIntegerPropertyTrackEditor>();
-		VectorPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FVectorPropertyTrackEditor>();
+		FloatVectorPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FFloatVectorPropertyTrackEditor>();
+		DoubleVectorPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FDoubleVectorPropertyTrackEditor>();
 		TransformPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FTransformPropertyTrackEditor>();
 		EulerTransformPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FEulerTransformPropertyTrackEditor>();
 		VisibilityPropertyTrackCreateEditorHandle = SequencerModule.RegisterPropertyTrackEditor<FVisibilityPropertyTrackEditor>();
@@ -151,6 +154,7 @@ void FMovieSceneToolsModule::StartupModule()
 		SequencerModule.RegisterChannelInterface<FMovieSceneByteChannel>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneIntegerChannel>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneFloatChannel>();
+		SequencerModule.RegisterChannelInterface<FMovieSceneDoubleChannel>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneStringChannel>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneParticleChannel>();
 		SequencerModule.RegisterChannelInterface<FMovieSceneActorReferenceData>();
@@ -231,8 +235,10 @@ void FMovieSceneToolsModule::ShutdownModule()
 	SequencerModule.UnRegisterTrackEditor( BytePropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( ColorPropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( FloatPropertyTrackCreateEditorHandle );
+	SequencerModule.UnRegisterTrackEditor( DoublePropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( IntegerPropertyTrackCreateEditorHandle );
-	SequencerModule.UnRegisterTrackEditor( VectorPropertyTrackCreateEditorHandle );
+	SequencerModule.UnRegisterTrackEditor( FloatVectorPropertyTrackCreateEditorHandle );
+	SequencerModule.UnRegisterTrackEditor( DoubleVectorPropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( TransformPropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( EulerTransformPropertyTrackCreateEditorHandle );
 	SequencerModule.UnRegisterTrackEditor( VisibilityPropertyTrackCreateEditorHandle );
@@ -426,6 +432,12 @@ void FMovieSceneToolsModule::RegisterClipboardConversions()
 	DefineExplicitConversion<FMovieSceneFloatValue, int32>([](const FMovieSceneFloatValue& In) -> int32 { return In.Value; 					});
 	DefineExplicitConversion<FMovieSceneFloatValue, uint8>([](const FMovieSceneFloatValue& In) -> uint8 { return In.Value; 					});
 	DefineExplicitConversion<FMovieSceneFloatValue, bool>([](const FMovieSceneFloatValue& In) -> bool	{ return !!In.Value; 				});
+
+	DefineExplicitConversion<int32, FMovieSceneDoubleValue>([](const int32& In) -> FMovieSceneDoubleValue { return FMovieSceneDoubleValue(In);	});
+	DefineExplicitConversion<uint8, FMovieSceneDoubleValue>([](const uint8& In) -> FMovieSceneDoubleValue { return FMovieSceneDoubleValue(In);	});
+	DefineExplicitConversion<FMovieSceneDoubleValue, int32>([](const FMovieSceneDoubleValue& In) -> int32 { return In.Value; 					});
+	DefineExplicitConversion<FMovieSceneDoubleValue, uint8>([](const FMovieSceneDoubleValue& In) -> uint8 { return In.Value; 					});
+	DefineExplicitConversion<FMovieSceneDoubleValue, bool>([](const FMovieSceneDoubleValue& In) -> bool	  { return !!In.Value;					});
 
 	FSequencerClipboardReconciler::AddTrackAlias("Location.X", "R");
 	FSequencerClipboardReconciler::AddTrackAlias("Location.Y", "G");

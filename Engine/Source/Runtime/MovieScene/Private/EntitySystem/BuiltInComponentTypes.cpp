@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "EntitySystem/BuiltInComponentTypes.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
@@ -46,6 +47,15 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatChannel[6],         TEXT("Float Channel 6"));
 	ComponentRegistry->NewComponentType(&FloatChannel[7],         TEXT("Float Channel 7"));
 	ComponentRegistry->NewComponentType(&FloatChannel[8],         TEXT("Float Channel 8"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[0],        TEXT("Double Channel 0"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[1],        TEXT("Double Channel 1"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[2],        TEXT("Double Channel 2"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[3],        TEXT("Double Channel 3"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[4],        TEXT("Double Channel 4"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[5],        TEXT("Double Channel 5"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[6],        TEXT("Double Channel 6"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[7],        TEXT("Double Channel 7"));
+	ComponentRegistry->NewComponentType(&DoubleChannel[8],        TEXT("Double Channel 8"));
 	ComponentRegistry->NewComponentType(&WeightChannel,           TEXT("Weight Channel"));
 
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[0],    TEXT("Float Channel 0 Flags"));
@@ -57,6 +67,15 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[6],    TEXT("Float Channel 6 Flags"));
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[7],    TEXT("Float Channel 7 Flags"));
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[8],    TEXT("Float Channel 8 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[0],   TEXT("Double Channel 0 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[1],   TEXT("Double Channel 1 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[2],   TEXT("Double Channel 2 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[3],   TEXT("Double Channel 3 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[4],   TEXT("Double Channel 4 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[5],   TEXT("Double Channel 5 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[6],   TEXT("Double Channel 6 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[7],   TEXT("Double Channel 7 Flags"));
+	ComponentRegistry->NewComponentType(&DoubleChannelFlags[8],   TEXT("Double Channel 8 Flags"));
 	ComponentRegistry->NewComponentType(&WeightChannelFlags,      TEXT("Weight Channel Flags"));
 
 	ComponentRegistry->NewComponentType(&Easing,                  TEXT("Easing"));
@@ -84,6 +103,15 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&FloatResult[6],        TEXT("Float Result 6"));
 	ComponentRegistry->NewComponentType(&FloatResult[7],        TEXT("Float Result 7"));
 	ComponentRegistry->NewComponentType(&FloatResult[8],        TEXT("Float Result 8"));
+	ComponentRegistry->NewComponentType(&DoubleResult[0],       TEXT("Double Result 0"));
+	ComponentRegistry->NewComponentType(&DoubleResult[1],       TEXT("Double Result 1"));
+	ComponentRegistry->NewComponentType(&DoubleResult[2],       TEXT("Double Result 2"));
+	ComponentRegistry->NewComponentType(&DoubleResult[3],       TEXT("Double Result 3"));
+	ComponentRegistry->NewComponentType(&DoubleResult[4],       TEXT("Double Result 4"));
+	ComponentRegistry->NewComponentType(&DoubleResult[5],       TEXT("Double Result 5"));
+	ComponentRegistry->NewComponentType(&DoubleResult[6],       TEXT("Double Result 6"));
+	ComponentRegistry->NewComponentType(&DoubleResult[7],       TEXT("Double Result 7"));
+	ComponentRegistry->NewComponentType(&DoubleResult[8],       TEXT("Double Result 8"));
 
 	ComponentRegistry->NewComponentType(&BaseInteger,			TEXT("Base Integer"));
 	ComponentRegistry->NewComponentType(&BaseFloat[0],          TEXT("Base Float 0"));
@@ -95,6 +123,15 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&BaseFloat[6],          TEXT("Base Float 6"));
 	ComponentRegistry->NewComponentType(&BaseFloat[7],          TEXT("Base Float 7"));
 	ComponentRegistry->NewComponentType(&BaseFloat[8],          TEXT("Base Float 8"));
+	ComponentRegistry->NewComponentType(&BaseDouble[0],         TEXT("Base Double 0"));
+	ComponentRegistry->NewComponentType(&BaseDouble[1],         TEXT("Base Double 1"));
+	ComponentRegistry->NewComponentType(&BaseDouble[2],         TEXT("Base Double 2"));
+	ComponentRegistry->NewComponentType(&BaseDouble[3],         TEXT("Base Double 3"));
+	ComponentRegistry->NewComponentType(&BaseDouble[4],         TEXT("Base Double 4"));
+	ComponentRegistry->NewComponentType(&BaseDouble[5],         TEXT("Base Double 5"));
+	ComponentRegistry->NewComponentType(&BaseDouble[6],         TEXT("Base Double 6"));
+	ComponentRegistry->NewComponentType(&BaseDouble[7],         TEXT("Base Double 7"));
+	ComponentRegistry->NewComponentType(&BaseDouble[8],         TEXT("Base Double 8"));
 
 	ComponentRegistry->NewComponentType(&BaseValueEvalTime,     TEXT("Base Value Eval Time"));
 
@@ -208,6 +245,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		static_assert(
 				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(BaseFloat), 
 				"Base floats and float results should have the same size.");
+		static_assert(
+				UE_ARRAY_COUNT(FloatChannel) == UE_ARRAY_COUNT(FloatChannelFlags),
+				"Float channel flags and flor channels should have the same size.");
 
 		// Duplicate float channels
 		for (int32 Index = 0; Index < UE_ARRAY_COUNT(FloatChannel); ++Index)
@@ -224,6 +264,33 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
 					FComplexInclusivityFilter::All({ FloatChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
 					BaseFloat[Index]);
+		}
+	}
+
+	// Double channel relationships
+	{
+		static_assert(
+				UE_ARRAY_COUNT(DoubleChannel) == UE_ARRAY_COUNT(BaseDouble), 
+				"Base doubles and double results should have the same size.");
+		static_assert(
+				UE_ARRAY_COUNT(DoubleChannel) == UE_ARRAY_COUNT(DoubleChannelFlags),
+				"Double channel flags and flor channels should have the same size.");
+
+		// Duplicate double channels
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(DoubleChannel); ++Index)
+		{
+			ComponentRegistry->Factories.DuplicateChildComponent(DoubleChannel[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], DoubleResult[Index]);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], EvalTime);
+			ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(DoubleChannel[Index], DoubleChannelFlags[Index]);
+		}
+
+		// Create base double components for double channels that are meant to be additive from base.
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(BaseDouble); ++Index)
+		{
+			ComponentRegistry->Factories.DefineComplexInclusiveComponents(
+					FComplexInclusivityFilter::All({ DoubleChannel[Index], BaseValueEvalTime, Tags.AdditiveFromBaseBlend }),
+					BaseDouble[Index]);
 		}
 	}
 

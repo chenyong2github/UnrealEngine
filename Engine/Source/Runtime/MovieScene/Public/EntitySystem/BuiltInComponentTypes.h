@@ -20,6 +20,7 @@ enum class EMovieSceneBlendType : uint8;
 struct FMovieSceneByteChannel;
 struct FMovieSceneIntegerChannel;
 struct FMovieSceneFloatChannel;
+struct FMovieSceneDoubleChannel;
 struct FMovieScenePropertyBinding;
 
 class UMovieSceneSection;
@@ -138,8 +139,28 @@ struct FSourceFloatChannel
 	const FMovieSceneFloatChannel* Source;
 };
 
-
 struct FSourceFloatChannelFlags
+{
+	bool bNeedsEvaluate = true;
+};
+
+/**
+ * The component data for evaluation a double channel
+ */
+struct FSourceDoubleChannel
+{
+	FSourceDoubleChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceDoubleChannel(const FMovieSceneDoubleChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneDoubleChannel* Source;
+};
+
+struct FSourceDoubleChannelFlags
 {
 	bool bNeedsEvaluate = true;
 };
@@ -219,6 +240,10 @@ public:
 	TComponentTypeID<FSourceFloatChannel> FloatChannel[9];
 	TComponentTypeID<FSourceFloatChannelFlags> FloatChannelFlags[9];
 
+	// An FMovieSceneDoubleChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X; 1 = Location.Y, Vector.Y)
+	TComponentTypeID<FSourceDoubleChannel> DoubleChannel[9];
+	TComponentTypeID<FSourceDoubleChannelFlags> DoubleChannelFlags[9];
+
 	// An FMovieSceneFloatChannel that represents an arbitrary weight
 	TComponentTypeID<FSourceFloatChannel> WeightChannel;
 	TComponentTypeID<FSourceFloatChannelFlags> WeightChannelFlags;
@@ -226,10 +251,16 @@ public:
 	// A float representing the output of the channel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<float> FloatResult[9];
 
+	// A double considered to be at index N within the source structure (ie 0 = Location.X, Vector.X; 1 = Location.Y, Vector.Y)
+	TComponentTypeID<double> DoubleResult[9];
+
 	// A float representing the base value for the float channel at index N, for the purposes of "additive from base" blending.
 	TComponentTypeID<float> BaseFloat[9];
 
-	// The time at which to evaluate a base value, such as BaseFloat[].
+	// A double representing the base value for the double channel at index N, for the purposes of "additive from base" blending.
+	TComponentTypeID<double> BaseDouble[9];
+
+	// The time at which to evaluate a base value, such as BaseFloat[] or BaseDouble[].
 	TComponentTypeID<FFrameTime> BaseValueEvalTime;
 
 	// A float representing the evaluated output of a weight channel

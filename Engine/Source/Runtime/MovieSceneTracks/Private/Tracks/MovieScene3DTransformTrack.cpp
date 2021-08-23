@@ -57,7 +57,7 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 {
 	struct FCurveKeyIterator
 	{
-		FCurveKeyIterator(UMovieScene3DTransformSection* InSection, FMovieSceneFloatChannel* InChannel, FName InChannelName, FFrameNumber StartTime, TRange<FFrameNumber> ViewRange)
+		FCurveKeyIterator(UMovieScene3DTransformSection* InSection, FMovieSceneDoubleChannel* InChannel, FName InChannelName, FFrameNumber StartTime, TRange<FFrameNumber> ViewRange)
 			: Section(InSection), Channel(InChannel->GetData()), ChannelName(InChannelName), SectionRange(TRange<FFrameNumber>::Intersection(ViewRange, InSection->GetRange())), CurrentIndex(INDEX_NONE)
 		{
 			TArrayView<const FFrameNumber> Times = Channel.GetTimes();
@@ -162,7 +162,7 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 
 	private:
 		UMovieScene3DTransformSection* Section;
-		TMovieSceneChannelData<FMovieSceneFloatValue> Channel;
+		TMovieSceneChannelData<FMovieSceneDoubleValue> Channel;
 		FName ChannelName;
 		TRange<FFrameNumber> SectionRange;
 		int32 CurrentIndex;
@@ -177,39 +177,39 @@ TArray<FTrajectoryKey> UMovieScene3DTransformTrack::GetTrajectoryData(FFrameNumb
 		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
 		if (TransformSection)
 		{
-			TArrayView<FMovieSceneFloatChannel*>         FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-			TArrayView<const FMovieSceneChannelMetaData> MetaData      = TransformSection->GetChannelProxy().GetMetaData<FMovieSceneFloatChannel>();
+			TArrayView<FMovieSceneDoubleChannel*>        DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+			TArrayView<const FMovieSceneChannelMetaData> MetaData      = TransformSection->GetChannelProxy().GetMetaData<FMovieSceneDoubleChannel>();
 
 			EMovieSceneTransformChannel Mask = TransformSection->GetMask().GetChannels();
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationX))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[0], MetaData[0].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[0], MetaData[0].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[0], MetaData[0].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[0], MetaData[0].Name, Time, ViewRange);
 			}
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationY))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[1], MetaData[1].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[1], MetaData[1].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[1], MetaData[1].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[1], MetaData[1].Name, Time, ViewRange);
 			}
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::TranslationZ))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[2], MetaData[2].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[2], MetaData[2].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[2], MetaData[2].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[2], MetaData[2].Name, Time, ViewRange);
 			}
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationX))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[3], MetaData[3].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[3], MetaData[3].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[3], MetaData[3].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[3], MetaData[3].Name, Time, ViewRange);
 			}
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationY))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[4], MetaData[4].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[4], MetaData[4].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[4], MetaData[4].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[4], MetaData[4].Name, Time, ViewRange);
 			}
 			if (EnumHasAnyFlags(Mask, EMovieSceneTransformChannel::RotationZ))
 			{
-				ForwardIters.Emplace(TransformSection, FloatChannels[5], MetaData[5].Name, Time, ViewRange);
-				BackwardIters.Emplace(TransformSection, FloatChannels[5], MetaData[5].Name, Time, ViewRange);
+				ForwardIters.Emplace(TransformSection, DoubleChannels[5], MetaData[5].Name, Time, ViewRange);
+				BackwardIters.Emplace(TransformSection, DoubleChannels[5], MetaData[5].Name, Time, ViewRange);
 			}
 		}
 	}

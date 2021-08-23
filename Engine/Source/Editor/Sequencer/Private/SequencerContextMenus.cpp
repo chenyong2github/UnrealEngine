@@ -926,6 +926,21 @@ void FSectionContextMenu::SetInterpTangentMode(ERichCurveInterpMode InterpMode, 
 
 					FloatChannel->AutoSetTangents();
 				}
+
+				for (FMovieSceneDoubleChannel* DoubleChannel : Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>())
+				{
+					TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = DoubleChannel->GetData();
+					TArrayView<FMovieSceneDoubleValue> Values = ChannelData.GetValues();
+
+					for (int32 KeyIndex = 0; KeyIndex < DoubleChannel->GetNumKeys(); ++KeyIndex)
+					{
+						Values[KeyIndex].InterpMode = InterpMode;
+						Values[KeyIndex].TangentMode = TangentMode;
+						bAnythingChanged = true;
+					}
+
+					DoubleChannel->AutoSetTangents();
+				}
 			}
 		}
 	}
@@ -960,7 +975,8 @@ bool FSectionContextMenu::CanSetInterpTangentMode() const
 			UMovieSceneSection* Section = KeyArea->GetOwningSection();
 			if (Section)
 			{
-				return Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num() != 0;
+				return (Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>().Num() != 0 ||
+					    Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>().Num() != 0);
 			}
 		}
 	}

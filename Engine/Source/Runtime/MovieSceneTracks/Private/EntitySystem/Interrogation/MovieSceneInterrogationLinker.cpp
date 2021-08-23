@@ -321,9 +321,9 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 	// Gather fully animated transforms - this code is simple
 	{
 		auto PopulateComplete = [&VariableTransformsByChannel, PredicateBits](FInterrogationKey InterrogationKey,
-			float LocationX, float LocationY, float LocationZ,
-			float RotationX, float RotationY, float RotationZ,
-			float ScaleX, float ScaleY, float ScaleZ)
+			double LocationX, double LocationY, double LocationZ,
+			double RotationX, double RotationY, double RotationZ,
+			double ScaleX, double ScaleY, double ScaleZ)
 		{
 			const int32 ChannelIndex = InterrogationKey.Channel.AsIndex();
 
@@ -340,9 +340,9 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 		FEntityTaskBuilder()
 		.Read(Components->Interrogation.OutputKey)
 		.ReadAllOf(
-			Components->FloatResult[0], Components->FloatResult[1], Components->FloatResult[2],
-			Components->FloatResult[3], Components->FloatResult[4], Components->FloatResult[5],
-			Components->FloatResult[6], Components->FloatResult[7], Components->FloatResult[8])
+			Components->DoubleResult[0], Components->DoubleResult[1], Components->DoubleResult[2],
+			Components->DoubleResult[3], Components->DoubleResult[4], Components->DoubleResult[5],
+			Components->DoubleResult[6], Components->DoubleResult[7], Components->DoubleResult[8])
 		.FilterAll({ TracksComponents->ComponentTransform.PropertyTag })
 		.Iterate_PerEntity(&Linker->EntityManager, PopulateComplete);
 	}
@@ -352,7 +352,7 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 		FComponentMask CompleteMask;
 		for (int32 Index = 0; Index < 9; ++Index)
 		{
-			CompleteMask.Set(Components->FloatResult[Index]);
+			CompleteMask.Set(Components->DoubleResult[Index]);
 		}
 
 		FEntityComponentFilter Filter;
@@ -365,10 +365,10 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 			{
 				const int32 Num = Allocation->Num();
 
-				TOptionalComponentReader<float> FloatComponents[9];
+				TOptionalComponentReader<double> DoubleComponents[9];
 				for (int32 Index = 0; Index < 9; ++Index)
 				{
-					FloatComponents[Index] = Allocation->TryReadComponents(Components->FloatResult[Index]);
+					DoubleComponents[Index] = Allocation->TryReadComponents(Components->DoubleResult[Index]);
 				}
 
 				for (int32 ComponentIndex = 0; ComponentIndex < Num; ++ComponentIndex)
@@ -383,15 +383,15 @@ void FInterrogationChannels::QueryWorldSpaceTransforms(UMovieSceneEntitySystemLi
 						FRotator  Rotation = Transform.GetRotation().Rotator();
 						FVector   Scale    = Transform.GetScale3D();
 
-						if (FloatComponents[0]) { Location.X     = FloatComponents[0][ComponentIndex]; }
-						if (FloatComponents[1]) { Location.Y     = FloatComponents[1][ComponentIndex]; }
-						if (FloatComponents[2]) { Location.Z     = FloatComponents[2][ComponentIndex]; }
-						if (FloatComponents[3]) { Rotation.Roll  = FloatComponents[3][ComponentIndex]; }
-						if (FloatComponents[4]) { Rotation.Pitch = FloatComponents[4][ComponentIndex]; }
-						if (FloatComponents[5]) { Rotation.Yaw   = FloatComponents[5][ComponentIndex]; }
-						if (FloatComponents[6]) { Scale.X        = FloatComponents[6][ComponentIndex]; }
-						if (FloatComponents[7]) { Scale.Y        = FloatComponents[7][ComponentIndex]; }
-						if (FloatComponents[8]) { Scale.Z        = FloatComponents[8][ComponentIndex]; }
+						if (DoubleComponents[0]) { Location.X     = DoubleComponents[0][ComponentIndex]; }
+						if (DoubleComponents[1]) { Location.Y     = DoubleComponents[1][ComponentIndex]; }
+						if (DoubleComponents[2]) { Location.Z     = DoubleComponents[2][ComponentIndex]; }
+						if (DoubleComponents[3]) { Rotation.Roll  = DoubleComponents[3][ComponentIndex]; }
+						if (DoubleComponents[4]) { Rotation.Pitch = DoubleComponents[4][ComponentIndex]; }
+						if (DoubleComponents[5]) { Rotation.Yaw   = DoubleComponents[5][ComponentIndex]; }
+						if (DoubleComponents[6]) { Scale.X        = DoubleComponents[6][ComponentIndex]; }
+						if (DoubleComponents[7]) { Scale.Y        = DoubleComponents[7][ComponentIndex]; }
+						if (DoubleComponents[8]) { Scale.Z        = DoubleComponents[8][ComponentIndex]; }
 
 						VariableTransformsByChannel[ChannelIndex][InterrogationKey.InterrogationIndex] = FTransform(Rotation, Location, Scale);
 					}
@@ -536,9 +536,9 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 	// Gather fully animated transforms - this code is simple
 	{
 		auto PopulateComplete = [&OnGetOutputForChannel, &PredicateBits](FInterrogationKey InterrogationKey,
-			float LocationX, float LocationY, float LocationZ,
-			float RotationX, float RotationY, float RotationZ,
-			float ScaleX, float ScaleY, float ScaleZ)
+			double LocationX, double LocationY, double LocationZ,
+			double RotationX, double RotationY, double RotationZ,
+			double ScaleX, double ScaleY, double ScaleZ)
 		{
 			if (PredicateBits[InterrogationKey.Channel.AsIndex()] == true)
 			{
@@ -553,9 +553,9 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 		FEntityTaskBuilder()
 		.Read(Components->Interrogation.OutputKey)
 		.ReadAllOf(
-			Components->FloatResult[0], Components->FloatResult[1], Components->FloatResult[2],
-			Components->FloatResult[3], Components->FloatResult[4], Components->FloatResult[5],
-			Components->FloatResult[6], Components->FloatResult[7], Components->FloatResult[8])
+			Components->DoubleResult[0], Components->DoubleResult[1], Components->DoubleResult[2],
+			Components->DoubleResult[3], Components->DoubleResult[4], Components->DoubleResult[5],
+			Components->DoubleResult[6], Components->DoubleResult[7], Components->DoubleResult[8])
 		.FilterAll({ TracksComponents->ComponentTransform.PropertyTag })
 		.Iterate_PerEntity(&Linker->EntityManager, PopulateComplete);
 	}
@@ -565,7 +565,7 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 		FComponentMask CompleteMask;
 		for (int32 Index = 0; Index < 9; ++Index)
 		{
-			CompleteMask.Set(Components->FloatResult[Index]);
+			CompleteMask.Set(Components->DoubleResult[Index]);
 		}
 
 		FEntityComponentFilter Filter;
@@ -578,10 +578,10 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 			{
 				const int32 Num = Allocation->Num();
 
-				TOptionalComponentReader<float> FloatComponents[9];
+				TOptionalComponentReader<double> DoubleComponents[9];
 				for (int32 Index = 0; Index < 9; ++Index)
 				{
-					FloatComponents[Index] = Allocation->TryReadComponents(Components->FloatResult[Index]);
+					DoubleComponents[Index] = Allocation->TryReadComponents(Components->DoubleResult[Index]);
 				}
 
 				for (int32 ComponentIndex = 0; ComponentIndex < Num; ++ComponentIndex)
@@ -591,15 +591,15 @@ void FInterrogationChannels::QueryLocalSpaceTransforms(UMovieSceneEntitySystemLi
 					{
 						FIntermediate3DTransform Transform = BaseValues[ComponentIndex];
 
-						if (FloatComponents[0]) { Transform.T_X = FloatComponents[0][ComponentIndex]; }
-						if (FloatComponents[1]) { Transform.T_Y = FloatComponents[1][ComponentIndex]; }
-						if (FloatComponents[2]) { Transform.T_Z = FloatComponents[2][ComponentIndex]; }
-						if (FloatComponents[3]) { Transform.R_X = FloatComponents[3][ComponentIndex]; }
-						if (FloatComponents[4]) { Transform.R_Y = FloatComponents[4][ComponentIndex]; }
-						if (FloatComponents[5]) { Transform.R_Z = FloatComponents[5][ComponentIndex]; }
-						if (FloatComponents[6]) { Transform.S_X = FloatComponents[6][ComponentIndex]; }
-						if (FloatComponents[7]) { Transform.S_Y = FloatComponents[7][ComponentIndex]; }
-						if (FloatComponents[8]) { Transform.S_Z = FloatComponents[8][ComponentIndex]; }
+						if (DoubleComponents[0]) { Transform.T_X = DoubleComponents[0][ComponentIndex]; }
+						if (DoubleComponents[1]) { Transform.T_Y = DoubleComponents[1][ComponentIndex]; }
+						if (DoubleComponents[2]) { Transform.T_Z = DoubleComponents[2][ComponentIndex]; }
+						if (DoubleComponents[3]) { Transform.R_X = DoubleComponents[3][ComponentIndex]; }
+						if (DoubleComponents[4]) { Transform.R_Y = DoubleComponents[4][ComponentIndex]; }
+						if (DoubleComponents[5]) { Transform.R_Z = DoubleComponents[5][ComponentIndex]; }
+						if (DoubleComponents[6]) { Transform.S_X = DoubleComponents[6][ComponentIndex]; }
+						if (DoubleComponents[7]) { Transform.S_Y = DoubleComponents[7][ComponentIndex]; }
+						if (DoubleComponents[8]) { Transform.S_Z = DoubleComponents[8][ComponentIndex]; }
 
 						OnGetOutputForChannel(InterrogationKey.Channel)[InterrogationKey.InterrogationIndex] = Transform;
 					}

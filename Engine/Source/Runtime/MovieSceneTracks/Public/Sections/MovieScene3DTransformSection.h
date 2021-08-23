@@ -8,9 +8,11 @@
 #include "Curves/KeyHandle.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneKeyStruct.h"
+#include "Channels/MovieSceneDoubleChannel.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "TransformData.h"
+#include "Misc/LargeWorldCoordinates.h"
 #include "MovieScene3DTransformSection.generated.h"
 
 
@@ -26,7 +28,6 @@ enum class EShow3DTrajectory : uint8
 #endif
 
 
-
 /**
  * Proxy structure for translation keys in 3D transform sections.
  */
@@ -38,7 +39,7 @@ struct FMovieScene3DLocationKeyStruct
 
 	/** The key's translation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Location = FVector3f::ZeroVector; // LWC_TODO: Stored into FMovieSceneFloatChannel (float*). Implement FMovieSceneDoubleChannel?
+	FVector Location = FVector::ZeroVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -85,7 +86,7 @@ struct FMovieScene3DScaleKeyStruct
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Scale = FVector::OneVector;	// LWC_TODO: Stored into FMovieSceneFloatChannel (float*). Implement FMovieSceneDoubleChannel?
+	FVector3f Scale = FVector::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -109,7 +110,7 @@ struct FMovieScene3DTransformKeyStruct
 
 	/** The key's translation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Location = FVector::ZeroVector;	// LWC_TODO: Stored into FMovieSceneFloatChannel (float*). Implement FMovieSceneDoubleChannel?
+	FVector Location = FVector::ZeroVector;
 
 	/** The key's rotation value. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -117,7 +118,7 @@ struct FMovieScene3DTransformKeyStruct
 
 	/** The key's scale value. */
 	UPROPERTY(EditAnywhere, Category=Key)
-	FVector3f Scale = FVector::OneVector;	// LWC_TODO: Stored into FMovieSceneFloatChannel (float*). Implement FMovieSceneDoubleChannel?
+	FVector3f Scale = FVector::OneVector;
 
 	/** The key's time. */
 	UPROPERTY(EditAnywhere, Category=Key)
@@ -271,15 +272,15 @@ private:
 
 	/** Translation curves */
 	UPROPERTY()
-	FMovieSceneFloatChannel Translation[3];
+	FMovieSceneDoubleChannel Translation[3];
 	
 	/** Rotation curves */
 	UPROPERTY()
-	FMovieSceneFloatChannel Rotation[3];
+	FMovieSceneDoubleChannel Rotation[3];
 
 	/** Scale curves */
 	UPROPERTY()
-	FMovieSceneFloatChannel Scale[3];
+	FMovieSceneDoubleChannel Scale[3];
 
 	/** Manual weight curve */
 	UPROPERTY()

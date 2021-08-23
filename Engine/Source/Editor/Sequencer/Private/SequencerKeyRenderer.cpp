@@ -448,57 +448,106 @@ void FKeyRenderer::FKeyDrawBatch::UpdateViewDependentData(FSequencer* Sequencer,
 
 	PrecomputedCurve.Reset();
 
+	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
+
 	for (FCachedKeyDrawInformation& Info : KeyDrawInfo)
 	{
 		const TSharedPtr<IKeyArea>& ThisKeyArea = Info.CachedKeyPositions.GetKeyArea();
 		const FMovieSceneChannelHandle& Channel = ThisKeyArea.Get()->GetChannel();
 
-		if (Channel.GetChannelTypeName() != FMovieSceneFloatChannel::StaticStruct()->GetFName())
-		{
-			continue;
-		}
-			
-		FMovieSceneFloatChannel* FloatChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
-		if (!FloatChannel->GetShowCurve())
-		{
-			continue;
-		}
+		const FName ChannelTypeName = Channel.GetChannelTypeName();
 
 		const FFrameNumber DeltaFrame = TimeToPixelConverter.PixelDeltaToFrame(1.f).FrameNumber;		
 		const FFrameNumber LowerBoundFrame = (InCachedState.PaddedViewRange.GetLowerBoundValue() * TickResolution).CeilToFrame();
 		const FFrameNumber UpperBoundFrame = (InCachedState.PaddedViewRange.GetUpperBoundValue() * TickResolution).FloorToFrame();
 		TOptional<float> PreviousValue;
 		float MaxValue=-FLT_MAX, MinValue=FLT_MAX;
-		for (FFrameNumber FrameNumber = LowerBoundFrame; FrameNumber <= UpperBoundFrame; )
+
+		if (ChannelTypeName == FloatChannelTypeName)
 		{
-			double EvalTime = TickResolution.AsSeconds(FrameNumber);
-			float Value = 0.f;
-			if (FloatChannel->Evaluate(FrameNumber, Value))
+			FMovieSceneFloatChannel* FloatChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneFloatChannel>().Get();
+			if (!FloatChannel->GetShowCurve())
 			{
-				if ((PreviousValue.IsSet() && !FMath::IsNearlyEqual(Value, PreviousValue.GetValue())) || FrameNumber == LowerBoundFrame || FrameNumber == UpperBoundFrame)
-				{
-					MaxValue = FMath::Max(MaxValue, Value);
-					MinValue = FMath::Min(MinValue, Value);
-
-					FCurveKey NewKey;
-					NewKey.Value = Value;
-					NewKey.FinalKeyPositionSeconds = EvalTime;
-
-					PrecomputedCurve.Add(NewKey);
-				}
-
-				if (!PreviousValue.IsSet())
-				{
-					PreviousValue = Value;
-				}
+				continue;
 			}
 
-			if (FrameNumber >= UpperBoundFrame)
+			for (FFrameNumber FrameNumber = LowerBoundFrame; FrameNumber <= UpperBoundFrame; )
 			{
-				break;
+				double EvalTime = TickResolution.AsSeconds(FrameNumber);
+				float Value = 0.f;
+				if (FloatChannel->Evaluate(FrameNumber, Value))
+				{
+					if ((PreviousValue.IsSet() && !FMath::IsNearlyEqual(Value, PreviousValue.GetValue())) || FrameNumber == LowerBoundFrame || FrameNumber == UpperBoundFrame)
+					{
+						MaxValue = FMath::Max(MaxValue, Value);
+						MinValue = FMath::Min(MinValue, Value);
+
+						FCurveKey NewKey;
+						NewKey.Value = Value;
+						NewKey.FinalKeyPositionSeconds = EvalTime;
+
+						PrecomputedCurve.Add(NewKey);
+					}
+
+					if (!PreviousValue.IsSet())
+					{
+						PreviousValue = Value;
+					}
+				}
+
+				if (FrameNumber >= UpperBoundFrame)
+				{
+					break;
+				}
+				FrameNumber += DeltaFrame;
+				FrameNumber = FMath::Min(FrameNumber, UpperBoundFrame);
 			}
-			FrameNumber += DeltaFrame;
-			FrameNumber = FMath::Min(FrameNumber, UpperBoundFrame);
+		}
+		else if (ChannelTypeName == DoubleChannelTypeName)
+		{
+			FMovieSceneDoubleChannel* DoubleChannel = ThisKeyArea.Get()->GetChannel().Cast<FMovieSceneDoubleChannel>().Get();
+			if (!DoubleChannel->GetShowCurve())
+			{
+				continue;
+			}
+
+			for (FFrameNumber FrameNumber = LowerBoundFrame; FrameNumber <= UpperBoundFrame; )
+			{
+				double EvalTime = TickResolution.AsSeconds(FrameNumber);
+				// Displaying values in float in the Sequencer track view.
+				float Value = 0.f;
+				if (DoubleChannel->Evaluate(FrameNumber, Value))
+				{
+					if ((PreviousValue.IsSet() && !FMath::IsNearlyEqual(Value, PreviousValue.GetValue())) || FrameNumber == LowerBoundFrame || FrameNumber == UpperBoundFrame)
+					{
+						MaxValue = FMath::Max(MaxValue, Value);
+						MinValue = FMath::Min(MinValue, Value);
+
+						FCurveKey NewKey;
+						NewKey.Value = Value;
+						NewKey.FinalKeyPositionSeconds = EvalTime;
+
+						PrecomputedCurve.Add(NewKey);
+					}
+
+					if (!PreviousValue.IsSet())
+					{
+						PreviousValue = Value;
+					}
+				}
+
+				if (FrameNumber >= UpperBoundFrame)
+				{
+					break;
+				}
+				FrameNumber += DeltaFrame;
+				FrameNumber = FMath::Min(FrameNumber, UpperBoundFrame);
+			}
+		}
+		else
+		{
+			continue;
 		}
 
 		TOptional<float> SpecifiedMinValue;

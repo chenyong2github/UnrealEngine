@@ -1556,12 +1556,19 @@ void FSequencer::SetInterpTangentMode(ERichCurveInterpMode InterpMode, ERichCurv
 	TSet<UMovieSceneSection*> ModifiedSections;
 
 	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
 
 	// @todo: sequencer-timecode: move this float-specific logic elsewhere to make it extensible for any channel type
 	for (const FSelectedChannelInfo& ChannelInfo : KeysByChannel.SelectedChannels)
 	{
 		FMovieSceneChannel* ChannelPtr = ChannelInfo.Channel.Get();
-		if (ChannelInfo.Channel.GetChannelTypeName() == FloatChannelTypeName && ChannelPtr)
+		if (!ChannelPtr)
+		{
+			continue;
+		}
+
+		const FName ChannelTypeName = ChannelInfo.Channel.GetChannelTypeName();
+		if (ChannelTypeName == FloatChannelTypeName || ChannelTypeName == DoubleChannelTypeName)
 		{
 			if (!ModifiedSections.Contains(ChannelInfo.OwningSection))
 			{
@@ -1569,23 +1576,46 @@ void FSequencer::SetInterpTangentMode(ERichCurveInterpMode InterpMode, ERichCurv
 				ModifiedSections.Add(ChannelInfo.OwningSection);
 			}
 
-			FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(ChannelPtr);
-			TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
-
-			TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
-
-			for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+			if (ChannelTypeName == FloatChannelTypeName)
 			{
-				const int32 KeyIndex = ChannelData.GetIndex(Handle);
-				if (KeyIndex != INDEX_NONE)
-				{
-					Values[KeyIndex].InterpMode = InterpMode;
-					Values[KeyIndex].TangentMode = TangentMode;
-					bAnythingChanged = true;
-				}
-			}
+				FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(ChannelPtr);
+				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
 
-			Channel->AutoSetTangents();
+				TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
+
+				for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+				{
+					const int32 KeyIndex = ChannelData.GetIndex(Handle);
+					if (KeyIndex != INDEX_NONE)
+					{
+						Values[KeyIndex].InterpMode = InterpMode;
+						Values[KeyIndex].TangentMode = TangentMode;
+						bAnythingChanged = true;
+					}
+				}
+
+				Channel->AutoSetTangents();
+			}
+			else if (ChannelTypeName == DoubleChannelTypeName)
+			{
+				FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(ChannelPtr);
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channel->GetData();
+
+				TArrayView<FMovieSceneDoubleValue> Values = ChannelData.GetValues();
+
+				for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+				{
+					const int32 KeyIndex = ChannelData.GetIndex(Handle);
+					if (KeyIndex != INDEX_NONE)
+					{
+						Values[KeyIndex].InterpMode = InterpMode;
+						Values[KeyIndex].TangentMode = TangentMode;
+						bAnythingChanged = true;
+					}
+				}
+
+				Channel->AutoSetTangents();
+			}
 		}
 	}
 
@@ -1612,6 +1642,7 @@ void FSequencer::ToggleInterpTangentWeightMode()
 	TSet<UMovieSceneSection*> ModifiedSections;
 
 	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName DoubleChannelTypeName = FMovieSceneDoubleChannel::StaticStruct()->GetFName();
 
 	// Remove all tangent weights unless we find a compatible key that does not have weights yet
 	ERichCurveTangentWeightMode WeightModeToApply = RCTWM_WeightedNone;
@@ -1620,12 +1651,34 @@ void FSequencer::ToggleInterpTangentWeightMode()
 	for (const FSelectedChannelInfo& ChannelInfo : KeysByChannel.SelectedChannels)
 	{
 		FMovieSceneChannel* ChannelPtr = ChannelInfo.Channel.Get();
-		if (ChannelInfo.Channel.GetChannelTypeName() == FloatChannelTypeName && ChannelPtr)
+		if (!ChannelPtr)
+		{
+			continue;
+		}
+
+		if (ChannelInfo.Channel.GetChannelTypeName() == FloatChannelTypeName)
 		{
 			FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(ChannelPtr);
 			TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
 
 			TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
+
+			for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+			{
+				const int32 KeyIndex = ChannelData.GetIndex(Handle);
+				if (KeyIndex != INDEX_NONE && Values[KeyIndex].InterpMode == RCIM_Cubic && Values[KeyIndex].Tangent.TangentWeightMode == RCTWM_WeightedNone)
+				{
+					WeightModeToApply = RCTWM_WeightedBoth;
+					goto assign_weights;
+				}
+			}
+		}
+		else if (ChannelInfo.Channel.GetChannelTypeName() == DoubleChannelTypeName)
+		{
+			FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(ChannelPtr);
+			TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channel->GetData();
+
+			TArrayView<FMovieSceneDoubleValue> Values = ChannelData.GetValues();
 
 			for (FKeyHandle Handle : ChannelInfo.KeyHandles)
 			{
@@ -1645,7 +1698,13 @@ assign_weights:
 	for (const FSelectedChannelInfo& ChannelInfo : KeysByChannel.SelectedChannels)
 	{
 		FMovieSceneChannel* ChannelPtr = ChannelInfo.Channel.Get();
-		if (ChannelInfo.Channel.GetChannelTypeName() == FloatChannelTypeName && ChannelPtr)
+		if (!ChannelPtr)
+		{
+			continue;
+		}
+
+		const FName ChannelTypeName = ChannelInfo.Channel.GetChannelTypeName();
+		if (ChannelTypeName == FloatChannelTypeName || ChannelTypeName == DoubleChannelTypeName)
 		{
 			if (!ModifiedSections.Contains(ChannelInfo.OwningSection))
 			{
@@ -1653,22 +1712,44 @@ assign_weights:
 				ModifiedSections.Add(ChannelInfo.OwningSection);
 			}
 
-			FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(ChannelPtr);
-			TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
-
-			TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
-
-			for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+			if (ChannelTypeName == FloatChannelTypeName)
 			{
-				const int32 KeyIndex = ChannelData.GetIndex(Handle);
-				if (KeyIndex != INDEX_NONE && Values[KeyIndex].InterpMode == RCIM_Cubic)
-				{
-					Values[KeyIndex].Tangent.TangentWeightMode = WeightModeToApply;
-					bAnythingChanged = true;
-				}
-			}
+				FMovieSceneFloatChannel* Channel = static_cast<FMovieSceneFloatChannel*>(ChannelPtr);
+				TMovieSceneChannelData<FMovieSceneFloatValue> ChannelData = Channel->GetData();
 
-			Channel->AutoSetTangents();
+				TArrayView<FMovieSceneFloatValue> Values = ChannelData.GetValues();
+
+				for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+				{
+					const int32 KeyIndex = ChannelData.GetIndex(Handle);
+					if (KeyIndex != INDEX_NONE && Values[KeyIndex].InterpMode == RCIM_Cubic)
+					{
+						Values[KeyIndex].Tangent.TangentWeightMode = WeightModeToApply;
+						bAnythingChanged = true;
+					}
+				}
+
+				Channel->AutoSetTangents();
+			}
+			else if (ChannelTypeName == DoubleChannelTypeName)
+			{
+				FMovieSceneDoubleChannel* Channel = static_cast<FMovieSceneDoubleChannel*>(ChannelPtr);
+				TMovieSceneChannelData<FMovieSceneDoubleValue> ChannelData = Channel->GetData();
+
+				TArrayView<FMovieSceneDoubleValue> Values = ChannelData.GetValues();
+
+				for (FKeyHandle Handle : ChannelInfo.KeyHandles)
+				{
+					const int32 KeyIndex = ChannelData.GetIndex(Handle);
+					if (KeyIndex != INDEX_NONE && Values[KeyIndex].InterpMode == RCIM_Cubic)
+					{
+						Values[KeyIndex].Tangent.TangentWeightMode = WeightModeToApply;
+						bAnythingChanged = true;
+					}
+				}
+
+				Channel->AutoSetTangents();
+			}
 		}
 	}
 
@@ -2406,16 +2487,16 @@ void FSequencer::BakeTransform()
 
 			TransformSection->SetRange(TRange<FFrameNumber>::All());
 
-			TArrayView<FMovieSceneFloatChannel*> FloatChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-			FloatChannels[0]->SetDefault(DefaultLocation.X);
-			FloatChannels[1]->SetDefault(DefaultLocation.Y);
-			FloatChannels[2]->SetDefault(DefaultLocation.Z);
-			FloatChannels[3]->SetDefault(DefaultRotation.X);
-			FloatChannels[4]->SetDefault(DefaultRotation.Y);
-			FloatChannels[5]->SetDefault(DefaultRotation.Z);
-			FloatChannels[6]->SetDefault(DefaultScale.X);
-			FloatChannels[7]->SetDefault(DefaultScale.Y);
-			FloatChannels[8]->SetDefault(DefaultScale.Z);
+			TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = TransformSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+			DoubleChannels[0]->SetDefault(DefaultLocation.X);
+			DoubleChannels[1]->SetDefault(DefaultLocation.Y);
+			DoubleChannels[2]->SetDefault(DefaultLocation.Z);
+			DoubleChannels[3]->SetDefault(DefaultRotation.X);
+			DoubleChannels[4]->SetDefault(DefaultRotation.Y);
+			DoubleChannels[5]->SetDefault(DefaultRotation.Z);
+			DoubleChannels[6]->SetDefault(DefaultScale.X);
+			DoubleChannels[7]->SetDefault(DefaultScale.Y);
+			DoubleChannels[8]->SetDefault(DefaultScale.Z);
 
 			TArray<FVector> LocalTranslations, LocalRotations, LocalScales;
 			LocalTranslations.SetNum(BakeData.Value.KeyTimes.Num());
@@ -2441,15 +2522,15 @@ void FSequencer::BakeTransform()
 			for (int32 Counter = 0; Counter < BakeData.Value.KeyTimes.Num(); ++Counter)
 			{
 				FFrameNumber KeyTime = BakeData.Value.KeyTimes[Counter];
-				FloatChannels[0]->AddLinearKey(KeyTime, LocalTranslations[Counter].X);
-				FloatChannels[1]->AddLinearKey(KeyTime, LocalTranslations[Counter].Y);
-				FloatChannels[2]->AddLinearKey(KeyTime, LocalTranslations[Counter].Z);
-				FloatChannels[3]->AddLinearKey(KeyTime, LocalRotations[Counter].X);
-				FloatChannels[4]->AddLinearKey(KeyTime, LocalRotations[Counter].Y);
-				FloatChannels[5]->AddLinearKey(KeyTime, LocalRotations[Counter].Z);
-				FloatChannels[6]->AddLinearKey(KeyTime, LocalScales[Counter].X);
-				FloatChannels[7]->AddLinearKey(KeyTime, LocalScales[Counter].Y);
-				FloatChannels[8]->AddLinearKey(KeyTime, LocalScales[Counter].Z);
+				DoubleChannels[0]->AddLinearKey(KeyTime, LocalTranslations[Counter].X);
+				DoubleChannels[1]->AddLinearKey(KeyTime, LocalTranslations[Counter].Y);
+				DoubleChannels[2]->AddLinearKey(KeyTime, LocalTranslations[Counter].Z);
+				DoubleChannels[3]->AddLinearKey(KeyTime, LocalRotations[Counter].X);
+				DoubleChannels[4]->AddLinearKey(KeyTime, LocalRotations[Counter].Y);
+				DoubleChannels[5]->AddLinearKey(KeyTime, LocalRotations[Counter].Z);
+				DoubleChannels[6]->AddLinearKey(KeyTime, LocalScales[Counter].X);
+				DoubleChannels[7]->AddLinearKey(KeyTime, LocalScales[Counter].Y);
+				DoubleChannels[8]->AddLinearKey(KeyTime, LocalScales[Counter].Z);
 			}
 		}
 	}

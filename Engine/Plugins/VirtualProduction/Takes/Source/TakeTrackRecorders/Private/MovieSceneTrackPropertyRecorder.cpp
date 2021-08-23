@@ -8,6 +8,8 @@
 #include "Tracks/MovieSceneByteTrack.h"
 #include "Sections/MovieSceneEnumSection.h"
 #include "Tracks/MovieSceneEnumTrack.h"
+#include "Sections/MovieSceneDoubleSection.h"
+#include "Tracks/MovieSceneDoubleTrack.h"
 #include "Sections/MovieSceneFloatSection.h"
 #include "Tracks/MovieSceneFloatTrack.h"
 #include "Sections/MovieSceneColorSection.h"
@@ -363,9 +365,164 @@ bool FMovieSceneTrackPropertyRecorder<uint8>::LoadRecordedFile(const FString& Fi
 }
 
 template <>
+bool FMovieSceneTrackPropertyRecorder<double>::ShouldAddNewKey(const double& InNewValue) const
+{
+	return !FMath::IsNearlyEqual(PreviousValue, InNewValue);
+}
+
+template <>
+UMovieSceneSection* FMovieSceneTrackPropertyRecorder<double>::AddSection(const FString& TrackDisplayName, UMovieScene* InMovieScene, const FGuid& InGuid, bool bSetDefault)
+{
+	FName TrackName = *Binding.GetPropertyPath();
+	UMovieSceneDoubleTrack* Track = InMovieScene->FindTrack<UMovieSceneDoubleTrack>(InGuid, TrackName);
+	if (!Track)
+	{
+		Track = InMovieScene->AddTrack<UMovieSceneDoubleTrack>(InGuid);
+	}
+	else
+	{
+		Track->RemoveAllAnimationData();
+	}
+
+	if (Track)
+	{
+		Track->SetPropertyNameAndPath(Binding.GetPropertyName(), Binding.GetPropertyPath());
+
+		UMovieSceneDoubleSection* Section = Cast<UMovieSceneDoubleSection>(Track->CreateNewSection());
+
+		// We only set the track defaults when we're not loading from a serialized recording. Serialized recordings don't store channel defaults but will always store a
+		// key on the first frame which will accomplish the same.
+		if (bSetDefault)
+		{
+			FMovieSceneDoubleChannel* Channel = Section->GetChannelProxy().GetChannel<FMovieSceneDoubleChannel>(0);
+			Channel->SetDefault(PreviousValue);
+		}
+
+		Track->AddSection(*Section);
+
+		return Section;
+	}
+
+	return nullptr;
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<double>::PostCreate(IMovieSceneTrackRecorderHost* InRecordingHost, UObject* InObjectToRecord, class UMovieScene* InMovieScene, const FGuid& InGuid, bool bOpenSerializer)
+{
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<double>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<double>& InKey)
+{
+	InSection->GetChannelProxy().GetChannel<FMovieSceneDoubleChannel>(0)->AddCubicKey(InKey.Time, InKey.Value, RCTM_Break);
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<double>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
+{
+	FKeyDataOptimizationParams Params;
+	Params.bAutoSetInterpolation = true;
+	Params.Tolerance = ReduceKeysTolerance;
+	UE::MovieScene::Optimize(InSection->GetChannelProxy().GetChannel<FMovieSceneDoubleChannel>(0), Params);
+}
+
+template <>
+double FMovieSceneTrackPropertyRecorder<double>::GetDefaultValue(UMovieSceneSection* InSection)
+{
+	FMovieSceneDoubleChannel* DoubleChannel = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>()[0];
+
+	if (DoubleChannel->GetNumKeys() > 0)
+	{
+		return DoubleChannel->GetValues()[0].Value;
+	}
+	else if (DoubleChannel->GetDefault().IsSet())
+	{
+		return DoubleChannel->GetDefault().GetValue();
+	}
+
+	return 0.f;
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<double>::SetDefaultValue(UMovieSceneSection* InSection, const double& InDefaultValue)
+{
+	return InSection->GetChannelProxy().GetChannel<FMovieSceneDoubleChannel>(0)->SetDefault(InDefaultValue);
+}
+
+template<>
+bool FMovieSceneTrackPropertyRecorder<double>::OpenSerializer(const FString& InObjectName, const FName& InPropertyName, const FString& InTrackDisplayName, const FGuid& InGuid)
+{
+	FName SerializedType("Property");
+	FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FPropertyFileHeader Header(TickResolution, SerializedType, InGuid);
+	Header.PropertyName = InPropertyName;
+	Header.TrackDisplayName = InTrackDisplayName;
+	Header.PropertyType = ESerializedPropertyType::DoubleType;
+	FText Error;
+	FString FileName = FString::Printf(TEXT("%s_%s_%s"), *(SerializedType.ToString()), *InObjectName, *(InPropertyName.ToString()));
+
+	if (!Serializer.OpenForWrite(FileName, Header, Error))
+	{
+		UE_LOG(PropertySerialization, Warning, TEXT("Error Opening Property File: Object '%s' Property '%s' Error: '%s'"), *InObjectName, *InPropertyName.ToString(), *Error.ToString());
+		return false;
+	}
+	return true;
+}
+
+template <>
+bool FMovieSceneTrackPropertyRecorder<double>::LoadRecordedFile(const FString& FileName, UMovieScene *InMovieScene, TMap<FGuid, AActor*>& ActorGuidToActorMap,  TFunction<void()> InCompletionCallback)
+{
+	bool bFileExists = Serializer.DoesFileExist(FileName);
+	if (bFileExists)
+	{
+		FText Error;
+		FPropertyFileHeader Header;
+
+		if (Serializer.OpenForRead(FileName, Header, Error))
+		{
+			MovieSceneSection = AddSection(Header.TrackDisplayName, InMovieScene, Header.Guid, false);
+
+			Serializer.GetDataRanges([this, InMovieScene, FileName, Header, InCompletionCallback](uint64 InMinFrameId, uint64 InMaxFrameId)
+			{
+				auto OnReadComplete = [this, InMovieScene, Header, InCompletionCallback]()
+				{
+					TArray<FPropertySerializedDoubleFrame> &InFrames = Serializer.ResultData;
+					if (InFrames.Num() > 0)
+					{
+						FFrameRate InFrameRate = Header.TickResolution;
+						for (const FPropertySerializedDoubleFrame& SerializedFrame : InFrames)
+						{
+							const FPropertySerializedDouble& Frame = SerializedFrame.Frame;
+							FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+							FFrameTime FrameTime = FFrameRate::TransformTime(Frame.Time, InFrameRate, TickResolution);
+							FFrameNumber CurrentFrame = FrameTime.FrameNumber;
+							FPropertyKey<double> Key;
+							Key.Time = CurrentFrame;
+							Key.Value = Frame.Value;
+							AddKeyToSection(MovieSceneSection.Get(), Key);
+							MovieSceneSection->ExpandToFrame(CurrentFrame);
+						}
+					}
+					Serializer.Close();
+					InCompletionCallback();
+				}; //callback
+
+				Serializer.ReadFramesAtFrameRange(InMinFrameId, InMaxFrameId, OnReadComplete);
+
+			});
+			return true;
+		}
+		else
+		{
+			Serializer.Close();
+		}
+	}
+	return false;
+}
+
+template <>
 bool FMovieSceneTrackPropertyRecorder<float>::ShouldAddNewKey(const float& InNewValue) const
 {
-
 	return !FMath::IsNearlyEqual(PreviousValue, InNewValue);
 }
 
@@ -518,6 +675,7 @@ bool FMovieSceneTrackPropertyRecorder<float>::LoadRecordedFile(const FString& Fi
 	}
 	return false;
 }
+
 template <>
 bool FMovieSceneTrackPropertyRecorder<FColor>::ShouldAddNewKey(const FColor& InNewValue) const
 {
@@ -723,19 +881,19 @@ bool FMovieSceneTrackPropertyRecorder<FColor>::LoadRecordedFile(const FString& F
 }
 
 template <>
-bool FMovieSceneTrackPropertyRecorder<FVector>::ShouldAddNewKey(const FVector& InNewValue) const
+bool FMovieSceneTrackPropertyRecorder<FVector3f>::ShouldAddNewKey(const FVector3f& InNewValue) const
 {
 	return !FMath::IsNearlyEqual(PreviousValue.X, InNewValue.X) || !FMath::IsNearlyEqual(PreviousValue.Y, InNewValue.Y) || !FMath::IsNearlyEqual(PreviousValue.Z, InNewValue.Z);
 }
 
 template <>
-UMovieSceneSection* FMovieSceneTrackPropertyRecorder<FVector>::AddSection(const FString& TrackDisplayName, UMovieScene* InMovieScene, const FGuid& InGuid, bool bSetDefault)
+UMovieSceneSection* FMovieSceneTrackPropertyRecorder<FVector3f>::AddSection(const FString& TrackDisplayName, UMovieScene* InMovieScene, const FGuid& InGuid, bool bSetDefault)
 {
 	FName TrackName = *Binding.GetPropertyPath();
-	UMovieSceneVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneVectorTrack>(InGuid, TrackName);
+	UMovieSceneFloatVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneFloatVectorTrack>(InGuid, TrackName);
 	if (!Track)
 	{
-		Track = InMovieScene->AddTrack<UMovieSceneVectorTrack>(InGuid);
+		Track = InMovieScene->AddTrack<UMovieSceneFloatVectorTrack>(InGuid);
 	}
 	else
 	{
@@ -748,7 +906,7 @@ UMovieSceneSection* FMovieSceneTrackPropertyRecorder<FVector>::AddSection(const 
 		Track->SetNumChannelsUsed(3);
 		Track->SetPropertyNameAndPath(Binding.GetPropertyName(), Binding.GetPropertyPath());
 
-		UMovieSceneVectorSection* Section = Cast<UMovieSceneVectorSection>(Track->CreateNewSection());
+		UMovieSceneFloatVectorSection* Section = Cast<UMovieSceneFloatVectorSection>(Track->CreateNewSection());
 
 		// We only set the track defaults when we're not loading from a serialized recording. Serialized recordings don't store channel defaults but will always store a
 		// key on the first frame which will accomplish the same.
@@ -768,12 +926,12 @@ UMovieSceneSection* FMovieSceneTrackPropertyRecorder<FVector>::AddSection(const 
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FVector>::PostCreate(IMovieSceneTrackRecorderHost* InRecordingHost, UObject* InObjectToRecord, class UMovieScene* InMovieScene, const FGuid& InGuid, bool bOpenSerializer)
+void FMovieSceneTrackPropertyRecorder<FVector3f>::PostCreate(IMovieSceneTrackRecorderHost* InRecordingHost, UObject* InObjectToRecord, class UMovieScene* InMovieScene, const FGuid& InGuid, bool bOpenSerializer)
 {
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FVector>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector>& InKey)
+void FMovieSceneTrackPropertyRecorder<FVector3f>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector3f>& InKey)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 	FloatChannels[0]->AddCubicKey(InKey.Time, InKey.Value.X, RCTM_Break);
@@ -782,7 +940,7 @@ void FMovieSceneTrackPropertyRecorder<FVector>::AddKeyToSection(UMovieSceneSecti
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
+void FMovieSceneTrackPropertyRecorder<FVector3f>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
@@ -795,9 +953,9 @@ void FMovieSceneTrackPropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* I
 }
 
 template <>
-FVector FMovieSceneTrackPropertyRecorder<FVector>::GetDefaultValue(UMovieSceneSection* InSection)
+FVector3f FMovieSceneTrackPropertyRecorder<FVector3f>::GetDefaultValue(UMovieSceneSection* InSection)
 {
-	FVector DefaultValue(0.f);
+	FVector3f DefaultValue(0.f);
 
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
@@ -817,7 +975,7 @@ FVector FMovieSceneTrackPropertyRecorder<FVector>::GetDefaultValue(UMovieSceneSe
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FVector>::SetDefaultValue(UMovieSceneSection* InSection, const FVector& InDefaultValue)
+void FMovieSceneTrackPropertyRecorder<FVector3f>::SetDefaultValue(UMovieSceneSection* InSection, const FVector3f& InDefaultValue)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 	FloatChannels[0]->SetDefault(InDefaultValue[0]);
@@ -826,14 +984,14 @@ void FMovieSceneTrackPropertyRecorder<FVector>::SetDefaultValue(UMovieSceneSecti
 }
 
 template<>
-bool FMovieSceneTrackPropertyRecorder<FVector>::OpenSerializer(const FString& InObjectName, const FName& InPropertyName, const FString& InTrackDisplayName, const FGuid& InGuid)
+bool FMovieSceneTrackPropertyRecorder<FVector3f>::OpenSerializer(const FString& InObjectName, const FName& InPropertyName, const FString& InTrackDisplayName, const FGuid& InGuid)
 {
 	FName SerializedType("Property");
 	FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 	FPropertyFileHeader Header(TickResolution, SerializedType, InGuid);
 	Header.PropertyName = InPropertyName;
 	Header.TrackDisplayName = InTrackDisplayName;
-	Header.PropertyType = ESerializedPropertyType::VectorType;
+	Header.PropertyType = ESerializedPropertyType::Vector3fType;
 	
 	FText Error;
 	FString FileName = FString::Printf(TEXT("%s_%s_%s"), *(SerializedType.ToString()), *InObjectName, *(InPropertyName.ToString()));
@@ -847,7 +1005,7 @@ bool FMovieSceneTrackPropertyRecorder<FVector>::OpenSerializer(const FString& In
 }
 
 template <>
-bool FMovieSceneTrackPropertyRecorder<FVector>::LoadRecordedFile(const FString& FileName, UMovieScene *InMovieScene, TMap<FGuid, AActor*>& ActorGuidToActorMap, TFunction<void()> InCompletionCallback)
+bool FMovieSceneTrackPropertyRecorder<FVector3f>::LoadRecordedFile(const FString& FileName, UMovieScene *InMovieScene, TMap<FGuid, AActor*>& ActorGuidToActorMap, TFunction<void()> InCompletionCallback)
 {
 	bool bFileExists = Serializer.DoesFileExist(FileName);
 	if (bFileExists)
@@ -863,17 +1021,17 @@ bool FMovieSceneTrackPropertyRecorder<FVector>::LoadRecordedFile(const FString& 
 			{
 				auto OnReadComplete = [this, InMovieScene, Header, InCompletionCallback]()
 				{
-					TArray<FPropertySerializedVectorFrame> &InFrames = Serializer.ResultData;
+					TArray<FPropertySerializedVector3fFrame> &InFrames = Serializer.ResultData;
 					if (InFrames.Num() > 0)
 					{
 						FFrameRate InFrameRate = Header.TickResolution;
-						for (const FPropertySerializedVectorFrame& SerializedFrame : InFrames)
+						for (const FPropertySerializedVector3fFrame& SerializedFrame : InFrames)
 						{
-							const FPropertySerializedVector& Frame = SerializedFrame.Frame;
+							const FPropertySerializedVector3f& Frame = SerializedFrame.Frame;
 							FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
 							FFrameTime FrameTime = FFrameRate::TransformTime(Frame.Time, InFrameRate, TickResolution);
 							FFrameNumber CurrentFrame = FrameTime.FrameNumber;
-							FPropertyKey<FVector> Key;
+							FPropertyKey<FVector3f> Key;
 							Key.Time = CurrentFrame;
 							Key.Value = Frame.Value;
 							AddKeyToSection(MovieSceneSection.Get(), Key);
@@ -897,7 +1055,180 @@ bool FMovieSceneTrackPropertyRecorder<FVector>::LoadRecordedFile(const FString& 
 	return false;
 }
 
+template <>
+bool FMovieSceneTrackPropertyRecorder<FVector3d>::ShouldAddNewKey(const FVector3d& InNewValue) const
+{
+	return !FMath::IsNearlyEqual(PreviousValue.X, InNewValue.X) || !FMath::IsNearlyEqual(PreviousValue.Y, InNewValue.Y) || !FMath::IsNearlyEqual(PreviousValue.Z, InNewValue.Z);
+}
 
+template <>
+UMovieSceneSection* FMovieSceneTrackPropertyRecorder<FVector3d>::AddSection(const FString& TrackDisplayName, UMovieScene* InMovieScene, const FGuid& InGuid, bool bSetDefault)
+{
+	FName TrackName = *Binding.GetPropertyPath();
+	UMovieSceneDoubleVectorTrack* Track = InMovieScene->FindTrack<UMovieSceneDoubleVectorTrack>(InGuid, TrackName);
+	if (!Track)
+	{
+		Track = InMovieScene->AddTrack<UMovieSceneDoubleVectorTrack>(InGuid);
+	}
+	else
+	{
+		Track->RemoveAllAnimationData();
+	}
+
+
+	if (Track)
+	{
+		Track->SetNumChannelsUsed(3);
+		Track->SetPropertyNameAndPath(Binding.GetPropertyName(), Binding.GetPropertyPath());
+
+		UMovieSceneDoubleVectorSection* Section = Cast<UMovieSceneDoubleVectorSection>(Track->CreateNewSection());
+
+		// We only set the track defaults when we're not loading from a serialized recording. Serialized recordings don't store channel defaults but will always store a
+		// key on the first frame which will accomplish the same.
+		if (bSetDefault)
+		{
+			TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = Section->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+			DoubleChannels[0]->SetDefault(PreviousValue.X);
+			DoubleChannels[1]->SetDefault(PreviousValue.Y);
+			DoubleChannels[2]->SetDefault(PreviousValue.Z);
+		}
+
+		Track->AddSection(*Section);
+		return Section;
+	}
+
+	return nullptr;
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<FVector3d>::PostCreate(IMovieSceneTrackRecorderHost* InRecordingHost, UObject* InObjectToRecord, class UMovieScene* InMovieScene, const FGuid& InGuid, bool bOpenSerializer)
+{
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<FVector3d>::AddKeyToSection(UMovieSceneSection* InSection, const FPropertyKey<FVector3d>& InKey)
+{
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	DoubleChannels[0]->AddCubicKey(InKey.Time, InKey.Value.X, RCTM_Break);
+	DoubleChannels[1]->AddCubicKey(InKey.Time, InKey.Value.Y, RCTM_Break);
+	DoubleChannels[2]->AddCubicKey(InKey.Time, InKey.Value.Z, RCTM_Break);
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<FVector3d>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
+{
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+
+	FKeyDataOptimizationParams Params;
+	Params.bAutoSetInterpolation = true;
+	Params.Tolerance = ReduceKeysTolerance;
+	UE::MovieScene::Optimize(DoubleChannels[0], Params);
+	UE::MovieScene::Optimize(DoubleChannels[1], Params);
+	UE::MovieScene::Optimize(DoubleChannels[2], Params);
+}
+
+template <>
+FVector3d FMovieSceneTrackPropertyRecorder<FVector3d>::GetDefaultValue(UMovieSceneSection* InSection)
+{
+	FVector3d DefaultValue(0.f);
+
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+
+	for (int32 ChannelIndex = 0; ChannelIndex < 3; ++ChannelIndex)
+	{
+		if (DoubleChannels[ChannelIndex]->GetNumKeys() > 0)
+		{
+			DefaultValue[ChannelIndex] = DoubleChannels[ChannelIndex]->GetValues()[0].Value;
+		}
+		else if (DoubleChannels[ChannelIndex]->GetDefault().IsSet())
+		{
+			DefaultValue[ChannelIndex] = DoubleChannels[ChannelIndex]->GetDefault().GetValue();
+		}
+	}
+
+	return DefaultValue;
+}
+
+template <>
+void FMovieSceneTrackPropertyRecorder<FVector3d>::SetDefaultValue(UMovieSceneSection* InSection, const FVector3d& InDefaultValue)
+{
+	TArrayView<FMovieSceneDoubleChannel*> DoubleChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneDoubleChannel>();
+	DoubleChannels[0]->SetDefault(InDefaultValue[0]);
+	DoubleChannels[1]->SetDefault(InDefaultValue[1]);
+	DoubleChannels[2]->SetDefault(InDefaultValue[2]);
+}
+
+template<>
+bool FMovieSceneTrackPropertyRecorder<FVector3d>::OpenSerializer(const FString& InObjectName, const FName& InPropertyName, const FString& InTrackDisplayName, const FGuid& InGuid)
+{
+	FName SerializedType("Property");
+	FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	FPropertyFileHeader Header(TickResolution, SerializedType, InGuid);
+	Header.PropertyName = InPropertyName;
+	Header.TrackDisplayName = InTrackDisplayName;
+	Header.PropertyType = ESerializedPropertyType::Vector3dType;
+	
+	FText Error;
+	FString FileName = FString::Printf(TEXT("%s_%s_%s"), *(SerializedType.ToString()), *InObjectName, *(InPropertyName.ToString()));
+
+	if (!Serializer.OpenForWrite(FileName, Header, Error))
+	{
+		UE_LOG(PropertySerialization, Warning, TEXT("Error Opening Property File: Object: '%s' Property '%s' Error: '%s'"), *InObjectName, *InPropertyName.ToString(), *Error.ToString());
+		return false;
+	}
+	return true;
+}
+
+template <>
+bool FMovieSceneTrackPropertyRecorder<FVector3d>::LoadRecordedFile(const FString& FileName, UMovieScene *InMovieScene, TMap<FGuid, AActor*>& ActorGuidToActorMap, TFunction<void()> InCompletionCallback)
+{
+	bool bFileExists = Serializer.DoesFileExist(FileName);
+	if (bFileExists)
+	{
+		FText Error;
+		FPropertyFileHeader Header;
+
+		if (Serializer.OpenForRead(FileName, Header, Error))
+		{
+			MovieSceneSection = AddSection(Header.TrackDisplayName, InMovieScene, Header.Guid, false);
+
+			Serializer.GetDataRanges([this, InMovieScene, FileName, Header, InCompletionCallback](uint64 InMinFrameId, uint64 InMaxFrameId)
+			{
+				auto OnReadComplete = [this, InMovieScene, Header, InCompletionCallback]()
+				{
+					TArray<FPropertySerializedVector3dFrame> &InFrames = Serializer.ResultData;
+					if (InFrames.Num() > 0)
+					{
+						FFrameRate InFrameRate = Header.TickResolution;
+						for (const FPropertySerializedVector3dFrame& SerializedFrame : InFrames)
+						{
+							const FPropertySerializedVector3d& Frame = SerializedFrame.Frame;
+							FFrameRate   TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
+							FFrameTime FrameTime = FFrameRate::TransformTime(Frame.Time, InFrameRate, TickResolution);
+							FFrameNumber CurrentFrame = FrameTime.FrameNumber;
+							FPropertyKey<FVector3d> Key;
+							Key.Time = CurrentFrame;
+							Key.Value = Frame.Value;
+							AddKeyToSection(MovieSceneSection.Get(), Key);
+							MovieSceneSection->ExpandToFrame(CurrentFrame);
+						}
+					}
+					Serializer.Close();
+					InCompletionCallback();
+				}; //callback
+
+				Serializer.ReadFramesAtFrameRange(InMinFrameId, InMaxFrameId, OnReadComplete);
+
+			});
+			return true;
+		}
+		else
+		{
+			Serializer.Close();
+		}
+	}
+	return false;
+}
 
 template <>
 bool FMovieSceneTrackPropertyRecorder<int32>::ShouldAddNewKey(const int32& InNewValue) const

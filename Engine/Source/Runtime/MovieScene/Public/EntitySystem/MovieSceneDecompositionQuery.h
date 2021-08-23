@@ -37,56 +37,57 @@ namespace MovieScene
 
 
 	/** Used for decomposing how a final blended value was blended */
-	struct FWeightedFloat
+	struct FWeightedValue
 	{
-		float Value = 0.f;
+		double Value = 0.f;
 		float Weight = 0.f;
 
-		float WeightedValue() const
+		double WeightedValue() const
 		{
 			return Weight != 0.f ? Value / Weight : 0.f;
 		}
 
-		FWeightedFloat Combine(FWeightedFloat Other) const
+		FWeightedValue Combine(FWeightedValue Other) const
 		{
-			return FWeightedFloat{Value + Other.Value, Weight + Other.Weight};
+			return FWeightedValue{Value + Other.Value, Weight + Other.Weight};
 		}
 
-		FWeightedFloat CombineWeighted(FWeightedFloat Other) const
+		FWeightedValue CombineWeighted(FWeightedValue Other) const
 		{
-			return FWeightedFloat{Value + Other.Value * Other.Weight, Weight + Other.Weight};
+			return FWeightedValue{Value + Other.Value * Other.Weight, Weight + Other.Weight};
 		}
 	};
 
-	struct FDecomposedFloat
+	struct FDecomposedValue
 	{
 		struct FResult
 		{
-			FWeightedFloat Absolute;
-			float Additive = 0.f;
+			FWeightedValue Absolute;
+			double Additive = 0.f;
 		};
 
 		FResult Result;
 
-		TArray<TTuple<FMovieSceneEntityID, FWeightedFloat>> DecomposedAbsolutes;
-		TArray<TTuple<FMovieSceneEntityID, FWeightedFloat>> DecomposedAdditives;
+		TArray<TTuple<FMovieSceneEntityID, FWeightedValue>> DecomposedAbsolutes;
+		TArray<TTuple<FMovieSceneEntityID, FWeightedValue>> DecomposedAdditives;
 
 		MOVIESCENE_API float Recompose(FMovieSceneEntityID EntityID, float CurrentValue, const float* InitialValue) const;
-		MOVIESCENE_API void Decompose(FMovieSceneEntityID EntityID, FWeightedFloat& ThisValue, bool& bOutIsAdditive, FWeightedFloat& Absolutes, FWeightedFloat& Additives) const;
+		MOVIESCENE_API double Recompose(FMovieSceneEntityID EntityID, double CurrentValue, const double* InitialValue) const;
+		MOVIESCENE_API void Decompose(FMovieSceneEntityID EntityID, FWeightedValue& ThisValue, bool& bOutIsAdditive, FWeightedValue& Absolutes, FWeightedValue& Additives) const;
 	};
 
 	// Align results to cache lines so there's no contention between cores
-	struct MS_ALIGN(PLATFORM_CACHE_LINE_SIZE) FAlignedDecomposedFloat
+	struct MS_ALIGN(PLATFORM_CACHE_LINE_SIZE) FAlignedDecomposedValue
 	{
-		FDecomposedFloat Value;
+		FDecomposedValue Value;
 	} GCC_ALIGN(PLATFORM_CACHE_LINE_SIZE);
 
-	struct FFloatDecompositionParams
+	struct FValueDecompositionParams
 	{
 		FDecompositionQuery Query;
 		uint16 DecomposeBlendChannel;
 		FMovieSceneEntityID PropertyEntityID;
-		TComponentTypeID<float> ResultComponentType;
+		FComponentTypeID ResultComponentType;
 		FComponentTypeID PropertyTag;
 	};
 
@@ -109,16 +110,16 @@ namespace MovieScene
 
 
 UINTERFACE()
-class MOVIESCENE_API UMovieSceneFloatDecomposer : public UInterface
+class MOVIESCENE_API UMovieSceneValueDecomposer : public UInterface
 {
 public:
 	GENERATED_BODY()
 };
 
-class IMovieSceneFloatDecomposer
+class IMovieSceneValueDecomposer
 {
 public:
 	GENERATED_BODY()
 
-	virtual FGraphEventRef DispatchDecomposeTask(const UE::MovieScene::FFloatDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedFloat* Output) = 0;
+	virtual FGraphEventRef DispatchDecomposeTask(const UE::MovieScene::FValueDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedValue* Output) = 0;
 };

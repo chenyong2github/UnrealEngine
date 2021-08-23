@@ -146,80 +146,137 @@ struct FColorPropertyTraits
 	}
 };
 
-struct FVectorChannelMetaData
+struct FFloatVectorPropertyTraits
 {
-	uint8 NumChannels = 0;
-};
+	using StorageType  = FFloatIntermediateVector;
+	using MetaDataType = TPropertyMetaData<FVectorPropertyMetaData>;
 
-struct FVectorPropertyTraits
-{
-	using StorageType  = FIntermediateVector;
-	using MetaDataType = TPropertyMetaData<FVectorChannelMetaData>;
-
-	static void GetObjectPropertyValue(const UObject* InObject, FVectorChannelMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, FIntermediateVector& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, FFloatIntermediateVector& OutValue)
 	{
-		const TCustomPropertyAccessor<FVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FVectorPropertyTraits>&>(BaseCustomAccessor);
+		const TCustomPropertyAccessor<FFloatVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatVectorPropertyTraits>&>(BaseCustomAccessor);
 		OutValue = (*CustomAccessor.Functions.Getter)(InObject, MetaData);
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, FVectorChannelMetaData MetaData, uint16 PropertyOffset, FIntermediateVector& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, FFloatIntermediateVector& OutValue)
 	{
 		switch (MetaData.NumChannels)
 		{
-			case 2: TIndirectPropertyTraits<FVector2D, FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
-			case 3: TIndirectPropertyTraits<FVector,   FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
-			case 4: TIndirectPropertyTraits<FVector4,  FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
+			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
+			case 3: TIndirectPropertyTraits<FVector3f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
+			case 4: TIndirectPropertyTraits<FVector4,  FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
 		}
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, FVectorChannelMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, FIntermediateVector& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, FFloatIntermediateVector& OutValue)
 	{
 		switch (MetaData.NumChannels)
 		{
-			case 2: TIndirectPropertyTraits<FVector2D, FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
-			case 3: TIndirectPropertyTraits<FVector,   FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
-			case 4: TIndirectPropertyTraits<FVector4,  FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
+			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
+			case 3: TIndirectPropertyTraits<FVector3f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
+			case 4: TIndirectPropertyTraits<FVector4,  FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
 		}
 	}
-	static void GetObjectPropertyValue(const UObject* InObject, FVectorChannelMetaData MetaData, const FName& PropertyPath, StorageType& OutValue)
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FName& PropertyPath, StorageType& OutValue)
 	{
 		switch (MetaData.NumChannels)
 		{
-			case 2: TIndirectPropertyTraits<FVector2D, FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
-			case 3: TIndirectPropertyTraits<FVector,   FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
-			case 4: TIndirectPropertyTraits<FVector4,  FIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
+			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
+			case 3: TIndirectPropertyTraits<FVector3f, FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
+			case 4: TIndirectPropertyTraits<FVector4,  FFloatIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
 		}
 	}
 
-	static void SetObjectPropertyValue(UObject* InObject, FVectorChannelMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, const FIntermediateVector& InValue)
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, const FFloatIntermediateVector& InValue)
 	{
-		const TCustomPropertyAccessor<FVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FVectorPropertyTraits>&>(BaseCustomAccessor);
+		const TCustomPropertyAccessor<FFloatVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FFloatVectorPropertyTraits>&>(BaseCustomAccessor);
 		(*CustomAccessor.Functions.Setter)(InObject, MetaData, InValue);
 	}
-	static void SetObjectPropertyValue(UObject* InObject, FVectorChannelMetaData MetaData, uint16 PropertyOffset, const FIntermediateVector& InValue)
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, const FFloatIntermediateVector& InValue)
 	{
 		switch (MetaData.NumChannels)
 		{
-			case 2: TIndirectPropertyTraits<FVector2D, FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
-			case 3: TIndirectPropertyTraits<FVector,   FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
-			case 4: TIndirectPropertyTraits<FVector4,  FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
+			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
+			case 3: TIndirectPropertyTraits<FVector3f, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
+			case 4: TIndirectPropertyTraits<FVector4,  FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
 		}
 
 		checkf(false, TEXT("Invalid number of channels"));
 	}
-	static void SetObjectPropertyValue(UObject* InObject, FVectorChannelMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, const FIntermediateVector& InValue)
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, const FFloatIntermediateVector& InValue)
 	{
 		switch (MetaData.NumChannels)
 		{
-			case 2: TIndirectPropertyTraits<FVector2D, FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
-			case 3: TIndirectPropertyTraits<FVector,   FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
-			case 4: TIndirectPropertyTraits<FVector4,  FIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
+			case 2: TIndirectPropertyTraits<FVector2D, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
+			case 3: TIndirectPropertyTraits<FVector3f, FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
+			case 4: TIndirectPropertyTraits<FVector4,  FFloatIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
 		}
 
 		checkf(false, TEXT("Invalid number of channels"));
 	}
 
-	static FIntermediateVector CombineComposites(FVectorChannelMetaData MetaData, float InX, float InY, float InZ, float InW)
+	static FFloatIntermediateVector CombineComposites(FVectorPropertyMetaData MetaData, float InX, float InY, float InZ, float InW)
 	{
-		return FIntermediateVector(InX, InY, InZ, InW);
+		return FFloatIntermediateVector(InX, InY, InZ, InW);
+	}
+};
+
+struct FDoubleVectorPropertyTraits
+{
+	using StorageType  = FDoubleIntermediateVector;
+	using MetaDataType = TPropertyMetaData<FVectorPropertyMetaData>;
+
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, FDoubleIntermediateVector& OutValue)
+	{
+		const TCustomPropertyAccessor<FDoubleVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FDoubleVectorPropertyTraits>&>(BaseCustomAccessor);
+		OutValue = (*CustomAccessor.Functions.Getter)(InObject, MetaData);
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, FDoubleIntermediateVector& OutValue)
+	{
+		switch (MetaData.NumChannels)
+		{
+			case 3: TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyOffset, OutValue); return;
+		}
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, FDoubleIntermediateVector& OutValue)
+	{
+		switch (MetaData.NumChannels)
+		{
+			case 3: TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyBindings, OutValue); return;
+		}
+	}
+	static void GetObjectPropertyValue(const UObject* InObject, FVectorPropertyMetaData MetaData, const FName& PropertyPath, StorageType& OutValue)
+	{
+		switch (MetaData.NumChannels)
+		{
+			case 3: TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::GetObjectPropertyValue(InObject, PropertyPath, OutValue); return;
+		}
+	}
+
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, const FCustomPropertyAccessor& BaseCustomAccessor, const FDoubleIntermediateVector& InValue)
+	{
+		const TCustomPropertyAccessor<FDoubleVectorPropertyTraits>& CustomAccessor = static_cast<const TCustomPropertyAccessor<FDoubleVectorPropertyTraits>&>(BaseCustomAccessor);
+		(*CustomAccessor.Functions.Setter)(InObject, MetaData, InValue);
+	}
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, uint16 PropertyOffset, const FDoubleIntermediateVector& InValue)
+	{
+		switch (MetaData.NumChannels)
+		{
+			case 3: TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::SetObjectPropertyValue(InObject, PropertyOffset, InValue); return;
+		}
+
+		checkf(false, TEXT("Invalid number of channels"));
+	}
+	static void SetObjectPropertyValue(UObject* InObject, FVectorPropertyMetaData MetaData, FTrackInstancePropertyBindings* PropertyBindings, const FDoubleIntermediateVector& InValue)
+	{
+		switch (MetaData.NumChannels)
+		{
+			case 3: TIndirectPropertyTraits<FVector3d, FDoubleIntermediateVector>::SetObjectPropertyValue(InObject, PropertyBindings, InValue); return;
+		}
+
+		checkf(false, TEXT("Invalid number of channels"));
+	}
+
+	static FDoubleIntermediateVector CombineComposites(FVectorPropertyMetaData MetaData, double InX, double InY, double InZ, double InW)
+	{
+		return FDoubleIntermediateVector(InX, InY, InZ, InW);
 	}
 };
 
@@ -228,6 +285,7 @@ using FBytePropertyTraits               = TDirectPropertyTraits<uint8>;
 using FEnumPropertyTraits               = TDirectPropertyTraits<uint8>;
 using FIntPropertyTraits                = TDirectPropertyTraits<int32>;
 using FFloatPropertyTraits              = TDirectPropertyTraits<float>;
+using FDoublePropertyTraits             = TDirectPropertyTraits<double>;
 using FTransformPropertyTraits          = TIndirectPropertyTraits<FTransform, FIntermediate3DTransform>;
 using FEulerTransformPropertyTraits     = TIndirectPropertyTraits<FEulerTransform, FIntermediate3DTransform>;
 using FComponentTransformPropertyTraits = TDirectPropertyTraits<FIntermediate3DTransform>;
@@ -242,12 +300,14 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TPropertyComponents<FEnumPropertyTraits> Enum;
 	TPropertyComponents<FIntPropertyTraits> Integer;
 	TPropertyComponents<FFloatPropertyTraits> Float;
+	TPropertyComponents<FDoublePropertyTraits> Double;
 	TPropertyComponents<FColorPropertyTraits> Color;
-	TPropertyComponents<FVectorPropertyTraits> Vector;
+	TPropertyComponents<FFloatVectorPropertyTraits> FloatVector;
+	TPropertyComponents<FDoubleVectorPropertyTraits> DoubleVector;
 	TPropertyComponents<FTransformPropertyTraits> Transform;
 	TPropertyComponents<FEulerTransformPropertyTraits> EulerTransform;
 	TPropertyComponents<FComponentTransformPropertyTraits> ComponentTransform;
-	TComponentTypeID<FSourceFloatChannel> QuaternionRotationChannel[3];
+	TComponentTypeID<FSourceDoubleChannel> QuaternionRotationChannel[3];
 
 	TComponentTypeID<USceneComponent*> AttachParent;
 	TComponentTypeID<FAttachmentComponent> AttachComponent;
@@ -260,8 +320,10 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 		TCustomPropertyRegistration<FEnumPropertyTraits> Enum;
 		TCustomPropertyRegistration<FIntPropertyTraits> Integer;
 		TCustomPropertyRegistration<FFloatPropertyTraits> Float;
+		TCustomPropertyRegistration<FDoublePropertyTraits> Double;
 		TCustomPropertyRegistration<FColorPropertyTraits> Color;
-		TCustomPropertyRegistration<FVectorPropertyTraits> Vector;
+		TCustomPropertyRegistration<FFloatVectorPropertyTraits> FloatVector;
+		TCustomPropertyRegistration<FDoubleVectorPropertyTraits> DoubleVector;
 		TCustomPropertyRegistration<FComponentTransformPropertyTraits, 1> ComponentTransform;
 	} Accessors;
 
