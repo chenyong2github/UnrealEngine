@@ -252,6 +252,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 	CommandList = MakeShared<FUICommandList>();
 	bSuspendModelNotifications = false;
 	bSuspendControllerSelection = false;
+	HaltedAtInstruction = INDEX_NONE;
 
 	BindCommands();
 
@@ -845,13 +846,25 @@ void SControlRigStackView::OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM*
 	}
 }
 
-void SControlRigStackView::HandleExecutionHalted(const int32 HaltedAtInstruction, UObject* InNode)
-{	
-	if (HaltedAtInstruction != INDEX_NONE && Operators.Num() > HaltedAtInstruction)
+void SControlRigStackView::HandleExecutionHalted(const int32 InHaltedAtInstruction, UObject* InNode, const FName& InEntryName)
+{
+	if (HaltedAtInstruction == InHaltedAtInstruction)
 	{
-		TreeView->SetSelection(Operators[HaltedAtInstruction]);
-		TreeView->SetScrollOffset(FMath::Max(HaltedAtInstruction-5, 0));
+		return;
 	}
+
+	if (InHaltedAtInstruction == INDEX_NONE && InEntryName == ControlRigEditor.Pin()->ControlRig->GetEventQueue().Last())
+	{
+		HaltedAtInstruction = InHaltedAtInstruction;
+		return;
+	}
+	
+	if (InHaltedAtInstruction != INDEX_NONE && Operators.Num() > InHaltedAtInstruction)
+	{
+		HaltedAtInstruction = InHaltedAtInstruction;
+		TreeView->SetSelection(Operators[InHaltedAtInstruction]);
+		TreeView->SetScrollOffset(FMath::Max(InHaltedAtInstruction-5, 0));
+	}	
 }
 
 void SControlRigStackView::OnFilterTextChanged(const FText& SearchText)

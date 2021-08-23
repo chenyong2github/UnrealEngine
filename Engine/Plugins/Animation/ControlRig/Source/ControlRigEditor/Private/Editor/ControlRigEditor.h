@@ -240,7 +240,7 @@ protected:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
-	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode);
+	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
 
 	// FBaseToolKit overrides
 	void CreateEditorModeManager() override;

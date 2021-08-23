@@ -230,6 +230,17 @@ void UControlRig::Evaluate_AnyThread()
 	for (const FName& EventName : EventQueue)
 	{
 		Execute(EControlRigState::Update, EventName);
+
+#if WITH_EDITOR
+		if (VM)
+		{
+			if (VM->GetHaltedAtBreakpoint().IsValid())
+			{
+				break;
+			}
+		}
+#endif
+			
 	}
 }
 
@@ -1401,15 +1412,18 @@ void UControlRig::HandleOnControlModified(UControlRig* Subject, FRigControlEleme
 	}	
 }
 
-void UControlRig::HandleExecutionReachedExit()
+void UControlRig::HandleExecutionReachedExit(const FName& InEventName)
 {
 #if WITH_EDITOR
-	if(URigVM* SnapShotVM = GetSnapshotVM(false))
+	if (EventQueue.Last() == InEventName)
 	{
-		SnapShotVM->CopyFrom(VM, false, false, false, true, true);
+		if(URigVM* SnapShotVM = GetSnapshotVM(false))
+		{
+			SnapShotVM->CopyFrom(VM, false, false, false, true, true);
+		}
+		DebugInfo.ResetState();
+		VM->SetBreakpointAction(ERigVMBreakpointAction::None);
 	}
-	DebugInfo.ResetState();
-	VM->SetBreakpointAction(ERigVMBreakpointAction::None);
 #endif
 	
 	if (LatestExecutedState != EControlRigState::Init && bAccumulateTime)

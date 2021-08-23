@@ -99,7 +99,7 @@ private:
 	void OnVMCompiled(UBlueprint* InCompiledBlueprint, URigVM* InCompiledVM);
 
 	//* Focus on the instruction when the execution is halted */
-	void HandleExecutionHalted(const int32 HaltedAtInstruction, UObject* InNode);
+	void HandleExecutionHalted(const int32 HaltedAtInstruction, UObject* InNode, const FName& InEntryName);
 
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
@@ -127,6 +127,8 @@ private:
 	TWeakObjectPtr<UControlRigGraph> Graph;
 
 	TArray<TSharedPtr<FRigStackEntry>> Operators;
+
+	int32 HaltedAtInstruction;
 
 	FDelegateHandle OnModelModified;
 	FDelegateHandle OnControlRigInitializedHandle;

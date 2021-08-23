@@ -446,7 +446,7 @@ private:
 	
 	void HandleOnControlModified(UControlRig* Subject, FRigControlElement* Control, const FRigControlModifiedContext& Context);
 
-	void HandleExecutionReachedExit();
+	void HandleExecutionReachedExit(const FName& InEventName);
 	
 	TArray<FRigVMExternalVariable> GetExternalVariablesImpl(bool bFallbackToBlueprint) const;
 
