@@ -176,6 +176,7 @@ void FMallocWrapper::Free(void* Address)
 
 
 ////////////////////////////////////////////////////////////////////////////////
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 class FTextSectionEditor
 {
 public:
@@ -391,7 +392,7 @@ BOOL WINAPI FVirtualWinApiHooks::VmFreeEx(HANDLE Process, LPVOID Address, SIZE_T
 
 	return VmFreeExOrig(Process, Address, Size, Type);
 }
-
+#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -439,7 +440,9 @@ FMalloc* MemoryTrace_Create(FMalloc* InMalloc)
 
 		Backtracer_Create(InMalloc);
 
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 		FVirtualWinApiHooks::Initialize(false);
+#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS)
 
 		static FUndestructed<FMallocWrapper> MemoryTrace;
 		MemoryTrace.Construct(InMalloc, false);

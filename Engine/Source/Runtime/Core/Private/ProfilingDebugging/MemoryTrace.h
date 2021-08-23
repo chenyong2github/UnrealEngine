@@ -3,23 +3,24 @@
 
 #include "Trace/Trace.h"
 
+#if !defined(UE_MEMORY_TRACE_AVAILABLE)
+#   define UE_MEMORY_TRACE_AVAILABLE 0
+#endif
+
+#if !defined(UE_MEMORY_TRACE_LATE_INIT)
+#	define UE_MEMORY_TRACE_LATE_INIT 0
+#endif
+
 #if !defined(UE_MEMORY_TRACE_ENABLED) && UE_TRACE_ENABLED
-#	if PLATFORM_WINDOWS || PLATFORM_PS4 || defined(__PS5__)
+#	if UE_MEMORY_TRACE_AVAILABLE
 #		if !PLATFORM_USES_FIXED_GMalloc_CLASS && PLATFORM_64BITS
 #			define UE_MEMORY_TRACE_ENABLED !UE_BUILD_SHIPPING
-#		endif
-#		if PLATFORM_PS4 || defined(__PS5__)
-#			define UE_MEMORY_TRACE_LATE_INIT UE_MEMORY_TRACE_ENABLED
 #		endif
 #	endif
 #endif
 
 #if !defined(UE_MEMORY_TRACE_ENABLED)
 #	define UE_MEMORY_TRACE_ENABLED 0
-#endif
-
-#if !defined(UE_MEMORY_TRACE_LATE_INIT)
-#	define UE_MEMORY_TRACE_LATE_INIT 0
 #endif
 
 #if UE_MEMORY_TRACE_ENABLED

@@ -307,6 +307,15 @@ public class Core : ModuleRules
 			}
 		}
 
+		if (Target.Platform == UnrealTargetPlatform.Win64
+			&& Target.Configuration != UnrealTargetConfiguration.Shipping)
+		{
+			PublicDefinitions.Add("PLATFORM_SUPPORTS_TRACE_WIN32_VIRTUAL_MEMORY_HOOKS=1");
+			PublicDefinitions.Add("PLATFORM_SUPPORTS_TRACE_WIN32_MODULE_DIAGNOSTICS=1");
+			PublicDefinitions.Add("PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK=1");
+			PublicDefinitions.Add("UE_MEMORY_TRACE_AVAILABLE=1");
+		}
+
 		// temporary thing.
 		PrivateDefinitions.Add("PLATFORM_SUPPORTS_BINARYCONFIG=" + (SupportsBinaryConfig(Target) ? "1" : "0"));
 

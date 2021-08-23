@@ -28,25 +28,3 @@ EPlatformEvent PlatformEvents_GetEvent(const FString& Name)
 		return EPlatformEvent::None;
 	}
 }
-
-/////////////////////////////////////////////////////////////////////
-
-#if !UE_PLATFORM_EVENTS_AVAILABLE
-
-void PlatformEvents_Init(uint32 SamplingIntervalUsec)
-{
-}
-
-void PlatformEvents_Enable(EPlatformEvent Event)
-{
-}
-
-void PlatformEvents_Disable(EPlatformEvent Event)
-{
-}
-
-void PlatformEvents_Stop()
-{
-}
-
-#endif

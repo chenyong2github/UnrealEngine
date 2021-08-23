@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK)
+
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "CoreTypes.h"
@@ -195,7 +197,9 @@ void FBacktracer::AddModule(UPTRINT ModuleBase, const TCHAR* Name)
 	const auto* NtHeader = (IMAGE_NT_HEADERS*)(ModuleBase + DosHeader->e_lfanew);
 	const IMAGE_FILE_HEADER* FileHeader = &(NtHeader->FileHeader);
 
-	if (FCString::Strfind(Name, TEXT("Binaries")) == nullptr || FCString::Strfind(Name, TEXT("ThirdParty")) != nullptr)
+	int32 NameLen = FCString::Strlen(Name);
+	if (!(NameLen > 4 && FCString::Strcmp(Name + NameLen - 4, TEXT(".exe")) == 0) && // we want always load an .exe file
+		(FCString::Strfind(Name, TEXT("Binaries")) == nullptr || FCString::Strfind(Name, TEXT("ThirdParty")) != nullptr))
 	{
 		return;
 	}
@@ -664,3 +668,4 @@ void* Backtracer_GetBacktraceId(void* AddressOfReturnAddress)
 	return nullptr;
 }
 
+#endif // defined(PLATFORM_SUPPORTS_TRACE_WIN32_CALLSTACK)
