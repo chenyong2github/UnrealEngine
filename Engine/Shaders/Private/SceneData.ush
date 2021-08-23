@@ -137,10 +137,8 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUScenePrimitiveSceneData;
-StructuredBuffer<float4> GPUSceneInstancePayloadData;
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
-RWStructuredBuffer<float4> GPUSceneInstancePayloadDataRW;
 #endif
 
 // Stride of a single primitive's data in float4's, must match C++
@@ -325,9 +323,11 @@ struct FInstanceSceneData
 
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUSceneInstanceSceneData;
+StructuredBuffer<float4> GPUSceneInstancePayloadData;
 uint GPUSceneFrameNumber;
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 RWStructuredBuffer<float4> GPUSceneInstanceSceneDataRW;
+RWStructuredBuffer<float4> GPUSceneInstancePayloadDataRW;
 uint GPUSceneFrameNumber;
 #endif
 
