@@ -322,7 +322,7 @@ class DevicenDisplay(DeviceUnreal):
         'executable_filename': Setting(
             attr_name="executable_filename",
             nice_name="nDisplay Executable Filename",
-            value="UE4Editor.exe",
+            value="UnrealEditor.exe",
         ),
         'ndisplay_cmd_args': Setting(
             attr_name="ndisplay_cmd_args",

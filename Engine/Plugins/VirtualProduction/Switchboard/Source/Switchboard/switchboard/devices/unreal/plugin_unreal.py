@@ -272,10 +272,10 @@ class DeviceUnreal(Device):
             value=0,
             tool_tip="An ID that groups Stage Monitor providers and monitors. Instances with different Session IDs are invisible to each other in Stage Monitor.",
         ),
-        'ue4_exe': Setting(
+        'ue_exe': Setting(
             attr_name="editor_exe",
-            nice_name="UE4 Editor filename",
-            value="UE4Editor.exe",
+            nice_name="Unreal Editor filename",
+            value="UnrealEditor.exe",
         ),
         'max_gpu_count': Setting(
             attr_name="max_gpu_count",
@@ -771,7 +771,7 @@ class DeviceUnreal(Device):
             self.status = DeviceStatus.CLOSED
 
     def fix_exe_flags(self):
-        ''' Tries to force the correct UE4Editor.exe flags '''
+        ''' Tries to force the correct UnrealEditor.exe flags '''
         unreals = self.program_start_queue.running_programs_named('unreal')
 
         if not len(unreals):
