@@ -1907,6 +1907,9 @@ void FRigControlElementDetails::CustomizeChildren(TSharedRef<class IPropertyHand
 		));
 		
 	}
+
+	IDetailGroup* AnimationGroup = &StructBuilder.AddGroup(TEXT("Animation"), LOCTEXT("Animation", "Animation"));
+	AnimationGroup->AddPropertyRow(SettingsHandle->GetChildHandle(TEXT("SpaceFavorites")).ToSharedRef());
 }
 
 bool FRigControlElementDetails::IsGizmoEnabled() const

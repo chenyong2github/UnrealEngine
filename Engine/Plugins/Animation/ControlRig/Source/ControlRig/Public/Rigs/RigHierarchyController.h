@@ -606,4 +606,5 @@ private:
 	bool bSuspendNotifications;
 
 	friend class UControlRig;
+	friend class URigHierarchy;
 };

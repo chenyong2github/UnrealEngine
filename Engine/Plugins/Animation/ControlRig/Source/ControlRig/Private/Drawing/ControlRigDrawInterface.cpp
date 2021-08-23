@@ -347,10 +347,20 @@ void FControlRigDrawInterface::DrawHierarchy(const FTransform& WorldOffset, URig
 				InstructionZ.Positions.Add(PZ);
 
 				FRigBaseElementParentArray Parents = Hierarchy->GetParents(Child);
-				for (FRigBaseElement* Parent : Parents)
+				TArray<FRigElementWeight> Weights = Hierarchy->GetParentWeightArray(Child);
+				
+				for (int32 ParentIndex = 0; ParentIndex < Parents.Num(); ParentIndex++)
 				{
-					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(Parent))
+					if(FRigTransformElement* ParentTransformElement = Cast<FRigTransformElement>(Parents[ParentIndex]))
 					{
+						if(Weights.IsValidIndex(ParentIndex))
+						{
+							if(Weights[ParentIndex].IsAlmostZero())
+							{
+								continue;
+							}
+						}
+						
 						FTransform ParentTransform = FTransform::Identity;
 						GetTransformLambda(ParentTransformElement, ParentTransform);
 

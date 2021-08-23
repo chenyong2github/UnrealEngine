@@ -1152,6 +1152,98 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<
 	return false;
 }
 
+bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren)
+{
+	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial,
+	bool bAffectChildren)
+{
+	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
+	{
+		int32 ParentIndex = INDEX_NONE;
+		if(const int32* ParentIndexPtr = MultiParentElement->IndexLookup.Find(InParent->GetKey()))
+		{
+			ParentIndex = *ParentIndexPtr;
+		}
+		else
+		{
+			if(URigHierarchyController* Controller = GetController(true))
+			{
+				if(Controller->AddParent(InChild, InParent, 0.f, true, false))
+				{
+					ParentIndex = MultiParentElement->IndexLookup.FindChecked(InParent->GetKey());
+				}
+			}
+		}
+
+		return SwitchToParent(InChild, ParentIndex, bInitial, bAffectChildren);
+	}
+	return false;
+}
+
+bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, int32 InParentIndex, bool bInitial, bool bAffectChildren)
+{
+	TArray<FRigElementWeight> Weights = GetParentWeightArray(InChild, bInitial);
+	if(Weights.IsValidIndex(InParentIndex))
+	{
+		FMemory::Memzero(Weights.GetData(), Weights.GetAllocatedSize());
+		Weights[InParentIndex] = 1.f;
+		return SetParentWeightArray(InChild, Weights, bInitial, bAffectChildren);
+	}
+	return false;
+}
+
+bool URigHierarchy::SwitchToDefaultParent(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
+{
+	return SwitchToDefaultParent(Find(InChild), bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SwitchToDefaultParent(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
+{
+	// we assume that the first stored parent is the default parent
+	return SwitchToParent(InChild, 0, bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SwitchToWorldSpace(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
+{
+	return SwitchToWorldSpace(Find(InChild), bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
+{
+	FRigElementKey WorldSocket = GetOrAddWorldSpaceSocket();
+	if(FRigBaseElement* Parent = Find(WorldSocket))
+	{
+		return SwitchToParent(InChild, Parent, bInitial, bAffectChildren);
+	}
+	return false;
+}
+
+FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
+{
+	static const FName WorldSpaceSocketName = TEXT("WorldSpace");
+	const FRigElementKey WorldSpaceSocketKey(WorldSpaceSocketName, ERigElementType::Socket);
+
+	FRigBaseElement* Parent = Find(WorldSpaceSocketKey);
+	if(Parent)
+	{
+		return Parent->GetKey();
+	}
+
+	if(URigHierarchyController* Controller = GetController(true))
+	{
+		return Controller->AddSocket(
+			WorldSpaceSocketName,
+			FRigElementKey(),
+			FRigSocketGetWorldTransformDelegate::CreateUObject(this, &URigHierarchy::GetWorldTransformForSocket),
+			false);
+	}
+
+	return FRigElementKey();
+}
+
 TArray<FRigElementKey> URigHierarchy::GetAllKeys(bool bTraverse, ERigElementType InElementType) const
 {
 	TArray<FRigElementKey> Keys;
@@ -3371,3 +3463,11 @@ void URigHierarchy::ComputeAllTransforms()
 	}
 }
 
+FTransform URigHierarchy::GetWorldTransformForSocket(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial)
+{
+	if(const USceneComponent* OuterSceneComponent = GetTypedOuter<USceneComponent>())
+	{
+		return OuterSceneComponent->GetComponentToWorld();
+	}
+	return FTransform::Identity;
+}

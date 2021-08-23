@@ -1700,6 +1700,90 @@ public:
 	bool SetParentWeightArray(FRigBaseElement* InChild,  const TArray<FRigElementWeight>& InWeights, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
+		* Switches a multi parent element to a single parent.
+		* This sets the new parent's weight to 1.0 and disables
+		* weights for all other potential parents.
+		* @param InChild The key of the multi parented element
+		* @param InParent The key of the parent to look up the weight for
+		* @param bInitial If true the initial weights will be used
+		* @param bAffectChildren If set to false children will not move (maintain global).
+		* @return Returns true if changing the weight was successful
+		*/
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Switches a multi parent element to a single parent.
+	 * This sets the new parent's weight to 1.0 and disables
+	 * weights for all other potential parents.
+	 * @param InChild The multi parented element
+	 * @param InParent The parent to look up the weight for
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	bool SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* InParent, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Switches a multi parent element to a single parent.
+	 * This sets the new parent's weight to 1.0 and disables
+	 * weights for all other potential parents.
+	 * @param InChild The multi parented element
+	 * @param InParentIndex The index of the parent inside of the multi parent element
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	bool SwitchToParent(FRigBaseElement* InChild, int32 InParentIndex, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Switches a multi parent element to its first parent
+	 * @param InChild The key of the multi parented element
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool SwitchToDefaultParent(FRigElementKey InChild, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Switches a multi parent element to its first parent
+	 * This sets the new parent's weight to 1.0 and disables
+	 * weights for all other potential parents.
+	 * @param InChild The multi parented element
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	bool SwitchToDefaultParent(FRigBaseElement* InChild, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Switches a multi parent element to world space.
+	 * This injects a world space socket.
+	 * @param InChild The key of the multi parented element
+	 * @param bInitial If true the initial weights will be used
+	 * @param bAffectChildren If set to false children will not move (maintain global).
+	 * @return Returns true if changing the weight was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool SwitchToWorldSpace(FRigElementKey InChild, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	* Switches a multi parent element to world space.
+	* This injects a world space socket.
+	* @param InChild The multi parented element
+	* @param bInitial If true the initial weights will be used
+	* @param bAffectChildren If set to false children will not move (maintain global).
+	* @return Returns true if changing the weight was successful
+	*/
+	bool SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
+	 * Adds the world space socket or returns it
+	 */
+	FRigElementKey GetOrAddWorldSpaceSocket();
+
+	/**
 	 * Returns true if an element is parented to another element
 	 * @param InChild The key of the child element to check for a parent
 	 * @param InParent The key of the parent element to check for
@@ -2586,6 +2670,8 @@ protected:
 		return ERigElementType::None;
 	}
 
+	FTransform GetWorldTransformForSocket(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
+	
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;

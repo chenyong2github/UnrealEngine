@@ -1675,6 +1675,14 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 		}
 	}
 
+	for(FRigBaseElement* Element : Hierarchy->Elements)
+	{
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+		{
+			ControlElement->Settings.SpaceFavorites.Remove(InElement->GetKey());
+		}
+	}
+	
 	Hierarchy->TopologyVersion++;
 
 	Notify(ERigHierarchyNotification::ElementRemoved, InElement);
@@ -1769,6 +1777,17 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 				MultiParentElement->IndexLookup.Add(NewKey, ExistingIndex);
 			}
 		}
+
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+		{
+			for(FRigElementKey& Favorite : ControlElement->Settings.SpaceFavorites)
+			{
+				if(Favorite == OldKey)
+				{
+					Favorite.Name = NewKey.Name;
+				}
+			}
+		}
 	}
 	
 	Hierarchy->PreviousNameMap.FindOrAdd(NewKey) = OldKey;
@@ -1860,30 +1879,33 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 		RemoveAllParents(InChild, bMaintainGlobalTransform);		
 	}
 
-	if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(InChild))
+	if(InWeight > SMALL_NUMBER || bRemoveAllParents)
 	{
-		if(bMaintainGlobalTransform)
+		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(InChild))
 		{
-			Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
-			Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal);
-			TransformElement->Pose.MarkDirty(ERigTransformType::CurrentLocal);
-			TransformElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+			if(bMaintainGlobalTransform)
+			{
+				Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentGlobal);
+				Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialGlobal);
+				TransformElement->Pose.MarkDirty(ERigTransformType::CurrentLocal);
+				TransformElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+			}
+			else
+			{
+				Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal);
+				Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal);
+				TransformElement->Pose.MarkDirty(ERigTransformType::CurrentGlobal);
+				TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+			}
 		}
-		else
-		{
-			Hierarchy->GetTransform(TransformElement, ERigTransformType::CurrentLocal);
-			Hierarchy->GetTransform(TransformElement, ERigTransformType::InitialLocal);
-			TransformElement->Pose.MarkDirty(ERigTransformType::CurrentGlobal);
-			TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
-		}
-	}
 
-	if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InChild))
-	{
-		Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
-		Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
-		Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
-		Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InChild))
+		{
+			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::CurrentLocal);
+			Hierarchy->GetControlOffsetTransform(ControlElement, ERigTransformType::InitialLocal);
+			Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::CurrentLocal);
+			Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
+		}
 	}
 
 	FRigElementParentConstraint Constraint;
