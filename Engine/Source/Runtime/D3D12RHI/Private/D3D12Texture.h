@@ -53,10 +53,6 @@ public:
 
 	FD3D12TextureBase(class FD3D12Device* InParent)
 		: FD3D12BaseShaderResource(InParent)
-		, MemorySize(0)
-		, BaseShaderResource(this)
-		, bCreatedRTVsPerSlice(false)
-		, NumDepthStencilViews(0)
 	{
 	}
 
@@ -79,7 +75,6 @@ public:
 		if (SubResourceIndex < FExclusiveDepthStencil::MaxIndex)
 		{
 			DepthStencilViews[SubResourceIndex] = View;
-			NumDepthStencilViews = FMath::Max(SubResourceIndex + 1, NumDepthStencilViews);
 		}
 		else
 		{
@@ -125,7 +120,6 @@ public:
 	FD3D12Resource* GetResource() const { return ResourceLocation.GetResource(); }
 	uint64 GetOffset() const { return ResourceLocation.GetOffsetFromBaseOfResource(); }
 	FD3D12ShaderResourceView* GetShaderResourceView() const { return ShaderResourceView; }
-	FD3D12BaseShaderResource* GetBaseShaderResource() const { return BaseShaderResource; }
 	inline const FTextureRHIRef& GetAliasingSourceTexture() const { return AliasingSourceTexture; }
 
 	void SetShaderResourceView(FD3D12ShaderResourceView* InShaderResourceView) { ShaderResourceView = InShaderResourceView; }
@@ -180,13 +174,6 @@ public:
 		return DepthStencilViews[AccessType.GetIndex()];
 	}
 
-	// New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
-	// You can't use fast version of XXSetShaderResources (called XXSetFastShaderResource) on dynamic or d/s targets
-	inline bool HasDepthStencilView() const
-	{
-		return (NumDepthStencilViews > 0);
-	}
-
 	inline bool HasRenderTargetViews() const
 	{
 		return (RenderTargetViews.Num() > 0);
@@ -196,9 +183,6 @@ public:
 	{
 		// Alias the location, will perform an addref underneath
 		FD3D12ResourceLocation::Alias(ResourceLocation, Texture->ResourceLocation);
-
-		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
-		// state caching logic).
 
 		ShaderResourceView = Texture->ShaderResourceView;
 
@@ -221,10 +205,7 @@ public:
 protected:
 
 	/** Amount of memory allocated by this texture, in bytes. */
-	int64 MemorySize;
-
-	/** Pointer to the base shader resource. Usually the object itself, but not for texture references. */
-	FD3D12BaseShaderResource* BaseShaderResource;
+	int64 MemorySize{};
 
 	/** A shader resource view of the texture. */
 	TRefCountPtr<FD3D12ShaderResourceView> ShaderResourceView;
@@ -232,19 +213,16 @@ protected:
 	/** A render targetable view of the texture. */
 	TArray<TRefCountPtr<FD3D12RenderTargetView>, TInlineAllocator<1>> RenderTargetViews;
 
-	bool bCreatedRTVsPerSlice;
-
-	int32 RTVArraySize;
-
 	/** A depth-stencil targetable view of the texture. */
 	TRefCountPtr<FD3D12DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
-
-	/** Number of Depth Stencil Views - used for fast call tracking. */
-	uint32	NumDepthStencilViews;
 
 	TMap<uint32, FD3D12LockedResource*> LockedMap;
 
 	FTextureRHIRef AliasingSourceTexture;
+
+	int32 RTVArraySize{};
+
+	bool bCreatedRTVsPerSlice{ false };
 };
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS

@@ -249,10 +249,9 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	ID3D12Resource* InResource,
 	D3D12_RESOURCE_STATES InInitialState,
 	const FD3D12ResourceDesc& InDesc,
-	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType) : 
-	FD3D12Resource(ParentDevice, VisibleNodes, InResource, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, InDesc, InClearValue, InHeap, InHeapType)
+	FD3D12Resource(ParentDevice, VisibleNodes, InResource, InInitialState, ED3D12ResourceStateMode::Default, D3D12_RESOURCE_STATE_TBD, InDesc, InHeap, InHeapType)
 {
 }
 
@@ -263,39 +262,23 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	ED3D12ResourceStateMode InResourceStateMode,
 	D3D12_RESOURCE_STATES InDefaultResourceState,
 	const FD3D12ResourceDesc& InDesc,
-	const D3D12_CLEAR_VALUE* InClearValue,
 	FD3D12Heap* InHeap,
 	D3D12_HEAP_TYPE InHeapType)
 	: FD3D12DeviceChild(ParentDevice)
 	, FD3D12MultiNodeGPUObject(ParentDevice->GetGPUMask(), VisibleNodes)
 	, Resource(InResource)
 	, Heap(InHeap)
-	, ResidencyHandle()
 	, Desc(InDesc)
+	, HeapType(InHeapType)
 	, PlaneCount(::GetPlaneCount(Desc.Format))
-	, SubresourceCount(0)
-	, DefaultResourceState(D3D12_RESOURCE_STATE_TBD)
 	, bRequiresResourceStateTracking(true)
 	, bDepthStencil(false)
 	, bDeferDelete(true)
 	, bBackBuffer(false)
-	, HeapType(InHeapType)
-	, GPUVirtualAddress(0)
-	, ResourceBaseAddress(nullptr)
 {
 #if UE_BUILD_DEBUG
 	FPlatformAtomics::InterlockedIncrement(&TotalResourceCount);
 #endif
-
-	// Store the optional clear value - need for defrag and transient resource recreation
-	if (InClearValue)
-	{
-		ClearValue = *InClearValue;
-	}
-	else
-	{
-		FPlatformMemory::Memzero(&ClearValue, sizeof(D3D12_CLEAR_VALUE));
-	}
 
 	// On Windows it's sadly enough not possible to get the GPU virtual address from the resource directly
 	if (Resource
@@ -515,7 +498,7 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const FD3D12ResourceDesc& InDesc,
 	if (SUCCEEDED(hr))
 	{
 		// Set the output pointer
-		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, ClearValue, nullptr, HeapProps.Type);
+		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, nullptr, HeapProps.Type);
 		(*ppOutResource)->AddRef();
 
 		// Set a default name (can override later).
@@ -566,7 +549,6 @@ HRESULT FD3D12Adapter::CreatePlacedResource(const FD3D12ResourceDesc& InDesc, FD
 			InResourceStateMode,
 			InDefaultState,
 			InDesc,
-			ClearValue,
 			BackingHeap,
 			HeapDesc.Properties.Type);
 
@@ -651,17 +633,7 @@ HRESULT FD3D12Adapter::CreateBuffer(const D3D12_HEAP_PROPERTIES& HeapProps,
 
 FD3D12ResourceLocation::FD3D12ResourceLocation(FD3D12Device* Parent)
 	: FD3D12DeviceChild(Parent)
-	, Type(ResourceLocationType::eUndefined)
-	, Owner(nullptr)
-	, UnderlyingResource(nullptr)
-	, ResidencyHandle(nullptr)
 	, Allocator(nullptr)
-	, MappedBaseAddress(nullptr)
-	, GPUVirtualAddress(0)
-	, OffsetFromBaseOfResource(0)
-	, Size(0)
-	, bTransient(false)
-	, AllocatorType(AT_Unknown)
 {
 	FMemory::Memzero(AllocatorData);
 }

@@ -154,33 +154,33 @@ private:
 
 	FD3D12ResidencyHandle ResidencyHandle;
 
-	D3D12_CLEAR_VALUE ClearValue;
+	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress{};
+	void* ResourceBaseAddress{};
+
+#if NV_AFTERMATH
+	GFSDK_Aftermath_ResourceHandle AftermathHandle{};
+#endif
+
 	const FD3D12ResourceDesc Desc;
-	uint8 PlaneCount;
-	uint16 SubresourceCount;
 	CResourceState ResourceState;
-	D3D12_RESOURCE_STATES DefaultResourceState;
-	D3D12_RESOURCE_STATES ReadableState;
-	D3D12_RESOURCE_STATES WritableState;
+	D3D12_RESOURCE_STATES DefaultResourceState{ D3D12_RESOURCE_STATE_TBD };
+	D3D12_RESOURCE_STATES ReadableState{ D3D12_RESOURCE_STATE_CORRUPT };
+	D3D12_RESOURCE_STATES WritableState{ D3D12_RESOURCE_STATE_CORRUPT };
 #ifdef PLATFORM_SUPPORTS_RESOURCE_COMPRESSION
-	D3D12_RESOURCE_STATES CompressedState;
+	D3D12_RESOURCE_STATES CompressedState{ D3D12_RESOURCE_STATE_CORRUPT };
 #endif
 	D3D12_RESOURCE_STATES UAVHiddenResourceState{ D3D12_RESOURCE_STATE_CORRUPT };
 
+	D3D12_HEAP_TYPE HeapType;
+	FName DebugName;
+
+	int32 NumMapCalls = 0;
+	uint16 SubresourceCount{};
+	uint8 PlaneCount;
 	bool bRequiresResourceStateTracking : 1;
 	bool bDepthStencil : 1;
 	bool bDeferDelete : 1;
 	bool bBackBuffer : 1;
-
-	D3D12_HEAP_TYPE HeapType;
-	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress;
-	void* ResourceBaseAddress;
-	int32 NumMapCalls = 0;
-	FName DebugName;
-
-#if NV_AFTERMATH
-	GFSDK_Aftermath_ResourceHandle AftermathHandle;
-#endif
 
 #if UE_BUILD_DEBUG
 	static int64 TotalResourceCount;
@@ -188,12 +188,12 @@ private:
 #endif
 
 public:
+	FD3D12Resource() = delete;
 	explicit FD3D12Resource(FD3D12Device* ParentDevice,
 		FRHIGPUMask VisibleNodes,
 		ID3D12Resource* InResource,
 		D3D12_RESOURCE_STATES InInitialResourceState,
 		FD3D12ResourceDesc const& InDesc,
-		const D3D12_CLEAR_VALUE* InClearValue = nullptr,
 		FD3D12Heap* InHeap = nullptr,
 		D3D12_HEAP_TYPE InHeapType = D3D12_HEAP_TYPE_DEFAULT);
 
@@ -204,7 +204,6 @@ public:
 		ED3D12ResourceStateMode InResourceStateMode,
 		D3D12_RESOURCE_STATES InDefaultResourceState,
 		FD3D12ResourceDesc const& InDesc,
-		const D3D12_CLEAR_VALUE* InClearValue,
 		FD3D12Heap* InHeap,
 		D3D12_HEAP_TYPE InHeapType);
 
@@ -223,9 +222,9 @@ public:
 	{
 		if (NumMapCalls == 0)
 		{
-		check(Resource);
-		check(ResourceBaseAddress == nullptr);
-		VERIFYD3D12RESULT(Resource->Map(0, ReadRange, &ResourceBaseAddress));
+			check(Resource);
+			check(ResourceBaseAddress == nullptr);
+			VERIFYD3D12RESULT(Resource->Map(0, ReadRange, &ResourceBaseAddress));
 		}
 		else
 		{
@@ -245,14 +244,13 @@ public:
 		--NumMapCalls;
 		if (NumMapCalls == 0)
 		{
-		Resource->Unmap(0, nullptr);
-		ResourceBaseAddress = nullptr;
-	}
+			Resource->Unmap(0, nullptr);
+			ResourceBaseAddress = nullptr;
+		}
 	}
 
 	ID3D12Pageable* GetPageable();
 	const FD3D12ResourceDesc& GetDesc() const { return Desc; }
-	D3D12_CLEAR_VALUE const& GetClearValue() const { return ClearValue; }
 	D3D12_HEAP_TYPE GetHeapType() const { return HeapType; }
 	D3D12_GPU_VIRTUAL_ADDRESS GetGPUVirtualAddress() const { return GPUVirtualAddress; }
 	inline void SetGPUVirtualAddress(D3D12_GPU_VIRTUAL_ADDRESS Value) { GPUVirtualAddress = Value; }
@@ -531,8 +529,7 @@ class FD3D12BaseShaderResource;
 class FD3D12ResourceLocation : public FRHIPoolResource, public FD3D12DeviceChild, public FNoncopyable
 {
 public:
-
-	enum class ResourceLocationType
+	enum class ResourceLocationType : uint8
 	{
 		eUndefined,
 		eStandAlone,
@@ -670,11 +667,9 @@ private:
 	void ReleaseResource();
 	void UpdateStandAloneStats(bool bIncrement);
 
-	ResourceLocationType Type;
-
-	FD3D12BaseShaderResource* Owner;
-	FD3D12Resource* UnderlyingResource;
-	FD3D12ResidencyHandle* ResidencyHandle;
+	FD3D12BaseShaderResource* Owner{};
+	FD3D12Resource* UnderlyingResource{};
+	FD3D12ResidencyHandle* ResidencyHandle{};
 
 	// Which allocator this belongs to
 	union
@@ -694,16 +689,16 @@ private:
 	} AllocatorData;
 
 	// Note: These values refer to the start of this location including any padding *NOT* the start of the underlying resource
-	void* MappedBaseAddress;
-	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress;
-	uint64 OffsetFromBaseOfResource;
+	void* MappedBaseAddress{};
+	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress{};
+	uint64 OffsetFromBaseOfResource{};
 
 	// The size the application asked for
-	uint64 Size;
+	uint64 Size{};
 
-	bool bTransient;
-
-	EAllocatorType AllocatorType;
+	ResourceLocationType Type{ ResourceLocationType::eUndefined };
+	EAllocatorType AllocatorType{ AT_Unknown };
+	bool bTransient{ false };
 };
 
 // Generic interface for every type D3D12 specific allocator
