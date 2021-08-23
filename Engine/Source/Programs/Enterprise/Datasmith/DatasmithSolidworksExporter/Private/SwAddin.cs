@@ -731,6 +731,7 @@ namespace SolidworksDatasmith
 
 		public int OnDocLoad(string docTitle, string docPath)
 		{
+			AttachEventsToAllDocuments();
 			return 0;
 		}
 
