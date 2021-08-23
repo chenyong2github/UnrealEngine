@@ -1514,6 +1514,20 @@ void UGroomComponent::SetHairLengthScaleEnable(bool bEnable)
 	InitResources();
 }
 
+bool UGroomComponent::GetIsHairLengthScaleEnabled()
+{
+	bool IsEnabled = true;
+	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
+	{
+		if (!HairDesc.HairLengthScale_Override)
+		{
+			IsEnabled = false;
+		}
+	}
+	return IsEnabled;
+}
+
+
 void UGroomComponent::SetForcedLOD(int32 LODIndex)
 {
 	if (GroomAsset)
