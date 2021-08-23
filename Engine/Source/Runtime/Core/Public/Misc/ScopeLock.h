@@ -136,4 +136,76 @@ private:
 	FCriticalSection* SynchObject;
 };
 
+namespace UE
+{
+	// RAII-style scope locking of a synchronisation primitive
+	// `MutexType` is required to implement `Lock` and `Unlock` methods
+	// Example:
+	//	{
+	//		TScopeLock<FCriticalSection> ScopeLock(CriticalSection);
+	//		...
+	//	}
+	template<typename MutexType>
+	class TScopeLock
+	{
+	public:
+		UE_NONCOPYABLE(TScopeLock);
 
+		TScopeLock(MutexType& InMutex)
+			: Mutex(&InMutex)
+		{
+			check(Mutex);
+			Mutex->Lock();
+		}
+
+		~TScopeLock()
+		{
+			Unlock();
+		}
+
+		void Unlock()
+		{
+			if (Mutex)
+			{
+				Mutex->Unlock();
+				Mutex = nullptr;
+			}
+		}
+
+	private:
+		MutexType* Mutex;
+	};
+
+	// RAII-style scope unlocking of a synchronisation primitive
+	// `MutexType` is required to implement `Lock` and `Unlock` methods
+	// Example:
+	//	{
+	//		TScopeLock<FCriticalSection> ScopeLock(CriticalSection);
+	//		for (FElementType& Element : ThreadUnsafeContainer)
+	//		{
+	//			TScopeUnlock<FCriticalSection> ScopeUnlock(CriticalSection);
+	//			Process(Element);
+	//		}
+	//	}
+	template<typename MutexType>
+	class TScopeUnlock
+	{
+	public:
+		UE_NONCOPYABLE(TScopeUnlock);
+
+		TScopeUnlock(MutexType& InMutex)
+			: Mutex(&InMutex)
+		{
+			check(Mutex);
+			Mutex->Unlock();
+		}
+
+		~TScopeUnlock()
+		{
+			Mutex->Lock();
+		}
+
+	private:
+		MutexType* Mutex;
+	};
+}
