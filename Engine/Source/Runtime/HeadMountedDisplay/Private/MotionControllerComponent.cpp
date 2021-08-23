@@ -170,7 +170,7 @@ void UMotionControllerComponent::SetShowDeviceModel(const bool bShowDeviceModel)
 #endif
 		if (DisplayComponent)
 		{
-			DisplayComponent->SetHiddenInGame(bShowDeviceModel, /*bPropagateToChildren =*/false);
+			DisplayComponent->SetHiddenInGame(!bShowDeviceModel, /*bPropagateToChildren =*/false);
 		}
 		else if (!bShowDeviceModel)
 		{
