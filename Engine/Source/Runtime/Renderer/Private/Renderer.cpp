@@ -191,6 +191,8 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 					INVALID_LAST_UPDATE_FRAME
 				);
 
+				// TODO: Payload dummy?
+
 				// Set up the parameters for the LightmapSceneData from the given LCI data 
 				FPrecomputedLightingUniformParameters LightmapParams;
 				GetPrecomputedLightingParameters(FeatureLevel, LightmapParams, Mesh.LCI);
@@ -200,6 +202,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 
 				View.PrimitiveSceneDataOverrideSRV = SinglePrimitiveStructured.PrimitiveSceneDataBufferSRV;
 				View.InstanceSceneDataOverrideSRV  = SinglePrimitiveStructured.InstanceSceneDataBufferSRV;
+				View.InstancePayloadDataOverrideSRV = SinglePrimitiveStructured.InstancePayloadDataBufferSRV;
 				View.LightmapSceneDataOverrideSRV = SinglePrimitiveStructured.LightmapSceneDataBufferSRV;
 			}
 		}

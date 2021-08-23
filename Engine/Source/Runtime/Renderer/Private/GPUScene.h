@@ -160,12 +160,14 @@ struct FGPUSceneBufferState
 	FRWBufferStructured	PrimitiveBuffer;
 	FRWBufferStructured	InstanceSceneDataBuffer;
 	uint32				InstanceSceneDataSOAStride = 1; // Distance between arrays in float4s
+	FRWBufferStructured	InstancePayloadDataBuffer;
 	FRWBufferStructured	InstanceBVHBuffer;
 	FRWBufferStructured	LightmapDataBuffer;
 	uint32 LightMapDataBufferSize;
 
 	bool bResizedPrimitiveData = false;
 	bool bResizedInstanceSceneData = false;
+	bool bResizedInstancePayloadData = false;
 	bool bResizedLightmapData = false;
 };
 
@@ -173,6 +175,7 @@ struct FGPUSceneBufferState
 // Include in shader that modifies GPU-Scene instances
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneWriterParameters, )
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstanceSceneDataRW)
+	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUSceneInstancePayloadDataRW)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<float4>, GPUScenePrimitiveSceneDataRW)
 	SHADER_PARAMETER(uint32, GPUSceneInstanceSceneDataSOAStride)
 	SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
@@ -311,8 +314,8 @@ public:
 	uint32					InstanceSceneDataSOAStride;	// Distance between arrays in float4s
 
 	FGrowOnlySpanAllocator	InstancePayloadDataAllocator;
-	//FRWBufferStructured		InstancePayloadDataBuffer;
-	//FScatterUploadBuffer	InstancePayloadUploadBuffer;
+	FRWBufferStructured		InstancePayloadDataBuffer;
+	FScatterUploadBuffer	InstancePayloadUploadBuffer;
 
 	FRWBufferStructured		InstanceBVHBuffer;
 

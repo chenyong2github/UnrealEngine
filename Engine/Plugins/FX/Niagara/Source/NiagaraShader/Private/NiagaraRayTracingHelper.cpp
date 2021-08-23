@@ -51,6 +51,7 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraUpdateCollisionGroupMapCS, "/Plugin/FX/Niagara/P
 
 BEGIN_SHADER_PARAMETER_STRUCT(FGPUSceneParameters, )
 SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 END_SHADER_PARAMETER_STRUCT()
@@ -396,6 +397,7 @@ void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, FScen
 	FNiagaraCollisionRayTraceRG::FParameters Params;
 
 	Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+	Params.GPUSceneParameters.GPUSceneInstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
 	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
 	Params.GPUSceneParameters.GPUSceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
 

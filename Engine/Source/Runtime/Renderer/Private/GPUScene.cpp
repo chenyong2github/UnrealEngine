@@ -492,7 +492,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 #endif 
 				FVector3f   LocalBoundsCenter;
 				uint32      PrimitiveId;
-				uint32      PayloadDataOffset; // TODO: Implement payload data
+				uint32      PayloadDataOffset;
 				FVector3f   LocalBoundsExtent;
 				uint32      LastUpdateSceneFrameNumber;
 				uint32      NaniteRuntimeResourceID;
@@ -552,9 +552,9 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 					InstanceSceneData.LocalBoundsExtent.Y = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).X;
 					InstanceSceneData.LocalBoundsExtent.Z = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).Y;
 					InstanceSceneData.PayloadDataOffset = asuint(LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).Z);
-					InstanceSceneData.PerInstanceRandom = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).W;
+					//InstanceSceneData.PerInstanceRandom = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).W;
 
-					InstanceSceneData.LightMapAndShadowMapUVBias = LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
+					//InstanceSceneData.LightMapAndShadowMapUVBias = LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
 
 					InstanceSceneData.NaniteHasImposter = (InstanceSceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
 				}
@@ -768,6 +768,11 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 	BufferState.InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 
+	const uint32 PayloadFloat4Count = FMath::Max(InstancePayloadDataAllocator.GetMaxSize(), InitialBufferSize);
+	const uint32 InstancePayloadDataSizeReserve = FMath::RoundUpToPowerOfTwo(PayloadFloat4Count * sizeof(FVector4));
+	BufferState.bResizedInstancePayloadData = ResizeResourceIfNeeded(GraphBuilder, InstancePayloadDataBuffer, InstancePayloadDataSizeReserve, TEXT("GPUScene.InstancePayloadData"));
+	BufferState.InstancePayloadDataBuffer = InstancePayloadDataBuffer;
+
 	if (Scene != nullptr)
 	{
 		const uint32 NumNodes = FMath::RoundUpToPowerOfTwo(FMath::Max(Scene->InstanceBVH.GetNumNodes(), InitialBufferSize));
@@ -812,6 +817,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 
 		const uint32 InstanceSceneDataNumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
 		FUAVTransitionStateScopeHelper InstanceSceneDataTransitionHelper(RHICmdList, BufferState.InstanceSceneDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+		FUAVTransitionStateScopeHelper InstancePayloadDataTransitionHelper(RHICmdList, BufferState.InstancePayloadDataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
 
 		const uint32 LightMapDataBufferSize = BufferState.LightMapDataBufferSize;
 
@@ -1401,6 +1407,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 	// Update view uniform buffer
 	View.CachedViewUniformShaderParameters->PrimitiveSceneData = PrimitiveBuffer.SRV;
 	View.CachedViewUniformShaderParameters->LightmapSceneData = LightmapDataBuffer.SRV;
+	View.CachedViewUniformShaderParameters->InstancePayloadData = InstancePayloadDataBuffer.SRV;
 	View.CachedViewUniformShaderParameters->InstanceSceneData = InstanceSceneDataBuffer.SRV;
 	View.CachedViewUniformShaderParameters->InstanceSceneDataSOAStride = InstanceSceneDataSOAStride;
 
@@ -1623,6 +1630,7 @@ void FGPUScene::GetWriteParameters(FGPUSceneWriterParameters& GPUSceneWriterPara
 	GPUSceneWriterParametersOut.GPUSceneNumAllocatedInstances = InstanceSceneDataAllocator.GetMaxSize();
 	GPUSceneWriterParametersOut.GPUSceneNumAllocatedPrimitives = DynamicPrimitivesOffset;
 	GPUSceneWriterParametersOut.GPUSceneInstanceSceneDataRW = InstanceSceneDataBuffer.UAV;
+	GPUSceneWriterParametersOut.GPUSceneInstancePayloadDataRW = InstancePayloadDataBuffer.UAV;
 	GPUSceneWriterParametersOut.GPUScenePrimitiveSceneDataRW = PrimitiveBuffer.UAV;
 }
 

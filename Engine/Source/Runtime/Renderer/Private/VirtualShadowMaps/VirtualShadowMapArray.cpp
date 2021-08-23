@@ -1422,6 +1422,7 @@ public:
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapPageTableParameters, PageTableParams)
 
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
@@ -1674,6 +1675,7 @@ void FVirtualShadowMapArray::RenderVirtualShadowMapsHw(FRDGBuilder& GraphBuilder
 				auto LoadBalancer = InstanceCullingContext->LoadBalancers[uint32(EBatchProcessingMode::Generic)];
 
 				PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
+				PassParameters->GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
 				PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 				PassParameters->GPUSceneFrameNumber = GPUScene.GetSceneFrameNumber();
 				PassParameters->InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;

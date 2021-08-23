@@ -385,6 +385,8 @@ public:
 		SkyIrradianceEnvironmentMapSRV.SafeRelease();
 		InstanceSceneDataBufferRHI.SafeRelease();
 		InstanceSceneDataBufferSRV.SafeRelease();
+		InstancePayloadDataBufferRHI.SafeRelease();
+		InstancePayloadDataBufferSRV.SafeRelease();
 		PrimitiveSceneDataTextureRHI.SafeRelease();
 		PrimitiveSceneDataTextureSRV.SafeRelease();
 		LightmapSceneDataBufferRHI.SafeRelease();
@@ -404,6 +406,7 @@ public:
 
 	FPrimitiveSceneShaderData PrimitiveSceneData;
 	FInstanceSceneShaderData InstanceSceneData;
+	//FInstancePayloadShaderData InstancePayloadData;
 	FLightmapSceneShaderData LightmapSceneData;
 
 	FBufferRHIRef PrimitiveSceneDataBufferRHI;
@@ -414,6 +417,9 @@ public:
 
 	FBufferRHIRef InstanceSceneDataBufferRHI;
 	FShaderResourceViewRHIRef InstanceSceneDataBufferSRV;
+
+	FBufferRHIRef InstancePayloadDataBufferRHI;
+	FShaderResourceViewRHIRef InstancePayloadDataBufferSRV;
 
 	FTexture2DRHIRef PrimitiveSceneDataTextureRHI;
 	FShaderResourceViewRHIRef PrimitiveSceneDataTextureSRV;
