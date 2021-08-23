@@ -210,9 +210,9 @@ protected:
 	ADisplayClusterRootActor* FindRootActor() const;
 
 protected:
-	UObject* EditingObject;
+	TWeakObjectPtr<UObject> EditingObject;
+	TArray<TWeakObjectPtr<UObject>> EditingObjects;
 	TWeakPtr<IPropertyUtilities> PropertyUtilities;
-	bool bMultipleObjectsSelected = false;
 };
 
 /**

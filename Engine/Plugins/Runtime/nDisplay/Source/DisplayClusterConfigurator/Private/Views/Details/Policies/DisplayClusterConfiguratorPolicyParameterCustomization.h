@@ -35,8 +35,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 		const FString* InInitialValue = nullptr);
 
 	virtual ~FPolicyParameterInfo() {}
@@ -65,6 +64,9 @@ protected:
 	
 	/** Checks the data model if the parameter exists. */
 	bool IsParameterAlreadyAdded() const;
+
+	/** Compares all selected viewport values. */
+	bool DoParametersMatchForAllViewports() const;
 	
 	/** Update the parameter value in the viewport data object. */
 	void UpdateCustomParameterValueText(const FString& NewValue, bool bNotify = true) const;
@@ -77,7 +79,7 @@ protected:
 	TWeakObjectPtr<UDisplayClusterBlueprint> BlueprintOwnerPtr;
 
 	/** Viewport owning policy. */
-	TWeakObjectPtr<UDisplayClusterConfigurationViewport> ConfigurationViewportPtr;
+	TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>> ConfigurationViewports;
 
 	/** BP editor found from BlueprintOwner. */
 	FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditorPtrCached;
@@ -87,9 +89,6 @@ protected:
 
 	/** Used to determine parameter visibility. */
 	FParameterVisible OnParameterVisibilityCheck;
-
-	/** Handle to the owning property being set. */
-	TSharedPtr<IPropertyHandle> ParametersHandle;
 
 private:
 	/** The display name only for the UI. */
@@ -115,8 +114,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 		const TArray<FString>& InValues,
 		const FString* InInitialItem = nullptr,
 		bool bSort = true);
@@ -160,8 +158,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 		const TArray<TSubclassOf<UActorComponent>>& InComponentClasses);
 
 	/** Populate CustomParameterOptions based on this parameter. */
@@ -186,13 +183,17 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
-		T InDefaultValue = 0, TOptional<T> InMinValue = TOptional<T>(), TOptional<T> InMaxValue = TOptional<T>()) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
+		T InDefaultValue = 0, TOptional<T> InMinValue = TOptional<T>(), TOptional<T> InMaxValue = TOptional<T>()) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports)
 	{
 		MinValue = InMinValue;
 		MaxValue = InMaxValue;
 
+		if (!DoParametersMatchForAllViewports())
+		{
+			bIsMultipleValues = true;
+		}
+		
 		if (IsParameterAlreadyAdded())
 		{
 			const FText TextValue = GetOrAddCustomParameterValueText();
@@ -218,27 +219,40 @@ public:
 			]
 			.ValueContent()
 			[
-				SNew(SSpinBox<T>)
+				SNew(SNumericEntryBox<T>)
 				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.Value(this, &FPolicyParameterInfoNumber::OnGetValue)
+				.AllowSpin(true)
 				.MinValue(MinValue)
 				.MaxValue(MaxValue)
-				.Value_Lambda([this]()
-				{
-					return NumberValue;
-				})
+				.MinSliderValue(MinValue)
+				.MaxSliderValue(MaxValue)
+				.UndeterminedString(NSLOCTEXT("PropertyEditor", "MultipleValues", "Multiple Values"))
 				.OnValueChanged_Lambda([this](T InValue)
 				{
 					NumberValue = InValue;
+					bIsMultipleValues = false;
 					UpdateCustomParameterValueText(FString::SanitizeFloat(static_cast<float>(NumberValue)));
 				})
 			];
 	}
 	// ~FPolicyParameterInfo
+	
+	TOptional<T> OnGetValue() const
+	{
+		TOptional<T> Result(NumberValue);
+		if (bIsMultipleValues)
+		{
+			Result.Reset();
+		}
+		return Result;
+	}
 
 private:
 	TOptional<T> MinValue;
 	TOptional<T> MaxValue;
 	T NumberValue;
+	bool bIsMultipleValues = false;
 };
 
 /**
@@ -251,8 +265,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
@@ -269,8 +282,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 		bool bInvertValue = false
 		);
 
@@ -294,9 +306,8 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
-		const TArray<FString>& InFileExtensions) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
+		const TArray<FString>& InFileExtensions) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports)
 	{
 		FileExtensions = InFileExtensions;
 	}
@@ -324,25 +335,36 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle,
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 		const FString* InInitialValue = nullptr) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, InInitialValue)
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports, InInitialValue)
 	{
 	}
 
 protected:
 	virtual void FormatTextAndUpdateParameter() = 0;
 	
-	TSharedRef<SWidget> MakeFloatInputWidget(TSharedRef<float>& ProxyValue, const FText& Label, bool bRotationInDegrees,
+	TSharedRef<SWidget> MakeFloatInputWidget(TSharedRef<TOptional<float>>& ProxyValue, const FText& Label, bool bRotationInDegrees,
 	                                         const FLinearColor& LabelColor, const FLinearColor& LabelBackgroundColor);
 
-	TOptional<float> OnGetValue(TSharedRef<float> Value) const
+	TOptional<float> OnGetValue(TSharedRef<TOptional<float>> Value) const
 	{
 		return Value.Get();
 	}
 
-	void OnValueCommitted(float NewValue, ETextCommit::Type CommitType, TSharedRef<float> Value);
+	void OnValueCommitted(float NewValue, ETextCommit::Type CommitType, TSharedRef<TOptional<float>> Value);
+
+	static void ResetOrSetCachedValue(TSharedRef<TOptional<float>>& InCachedValue, float InCompareValue)
+	{
+		if (InCachedValue->IsSet() && InCachedValue.Get() != InCompareValue)
+		{
+			InCachedValue->Reset();
+		}
+		else
+		{
+			*InCachedValue = InCompareValue;
+		}
+	};
 };
 
 /**
@@ -355,8 +377,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
@@ -369,17 +390,17 @@ private:
 	virtual void FormatTextAndUpdateParameter() override;
 
 private:
-	mutable TSharedRef<float> CachedTranslationX;
-	mutable TSharedRef<float> CachedTranslationY;
-	mutable TSharedRef<float> CachedTranslationZ;
+	mutable TSharedRef<TOptional<float>> CachedTranslationX;
+	mutable TSharedRef<TOptional<float>> CachedTranslationY;
+	mutable TSharedRef<TOptional<float>> CachedTranslationZ;
 
-	mutable TSharedRef<float> CachedRotationYaw;
-	mutable TSharedRef<float> CachedRotationPitch;
-	mutable TSharedRef<float> CachedRotationRoll;
+	mutable TSharedRef<TOptional<float>> CachedRotationYaw;
+	mutable TSharedRef<TOptional<float>> CachedRotationPitch;
+	mutable TSharedRef<TOptional<float>> CachedRotationRoll;
 
-	mutable TSharedRef<float> CachedScaleX;
-	mutable TSharedRef<float> CachedScaleY;
-	mutable TSharedRef<float> CachedScaleZ;
+	mutable TSharedRef<TOptional<float>> CachedScaleX;
+	mutable TSharedRef<TOptional<float>> CachedScaleY;
+	mutable TSharedRef<TOptional<float>> CachedScaleZ;
 
 	static const FString BaseMatrixString;
 };
@@ -394,38 +415,37 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
 	// ~FPolicyParameterInfo
 
 private:
-	void CustomizeRow(const FText& InHeaderText, TSharedRef<float>& InX, TSharedRef<float>& InY,
-		TSharedRef<float>& InZ, TSharedRef<float>& InW, FDetailWidgetRow& InDetailWidgetRow);
+	void CustomizeRow(const FText& InHeaderText, TSharedRef<TOptional<float>>& InX, TSharedRef<TOptional<float>>& InY,
+		TSharedRef<TOptional<float>>& InZ, TSharedRef<TOptional<float>>& InW, FDetailWidgetRow& InDetailWidgetRow);
 	virtual void FormatTextAndUpdateParameter() override;
 
 private:
-	mutable TSharedRef<float> A;
-	mutable TSharedRef<float> B;
-	mutable TSharedRef<float> C;
-	mutable TSharedRef<float> D;
+	mutable TSharedRef<TOptional<float>> A;
+	mutable TSharedRef<TOptional<float>> B;
+	mutable TSharedRef<TOptional<float>> C;
+	mutable TSharedRef<TOptional<float>> D;
 
-	mutable TSharedRef<float> E;
-	mutable TSharedRef<float> F;
-	mutable TSharedRef<float> G;
-	mutable TSharedRef<float> H;
+	mutable TSharedRef<TOptional<float>> E;
+	mutable TSharedRef<TOptional<float>> F;
+	mutable TSharedRef<TOptional<float>> G;
+	mutable TSharedRef<TOptional<float>> H;
 
-	mutable TSharedRef<float> I;
-	mutable TSharedRef<float> J;
-	mutable TSharedRef<float> K;
-	mutable TSharedRef<float> L;
+	mutable TSharedRef<TOptional<float>> I;
+	mutable TSharedRef<TOptional<float>> J;
+	mutable TSharedRef<TOptional<float>> K;
+	mutable TSharedRef<TOptional<float>> L;
 
-	mutable TSharedRef<float> M;
-	mutable TSharedRef<float> N;
-	mutable TSharedRef<float> O;
-	mutable TSharedRef<float> P;
+	mutable TSharedRef<TOptional<float>> M;
+	mutable TSharedRef<TOptional<float>> N;
+	mutable TSharedRef<TOptional<float>> O;
+	mutable TSharedRef<TOptional<float>> P;
 
 	static const FString BaseMatrixString;
 };
@@ -440,8 +460,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
@@ -451,9 +470,9 @@ private:
 	virtual void FormatTextAndUpdateParameter() override;
 
 private:
-	mutable TSharedRef<float> CachedRotationYaw;
-	mutable TSharedRef<float> CachedRotationPitch;
-	mutable TSharedRef<float> CachedRotationRoll;
+	mutable TSharedRef<TOptional<float>> CachedRotationYaw;
+	mutable TSharedRef<TOptional<float>> CachedRotationPitch;
+	mutable TSharedRef<TOptional<float>> CachedRotationRoll;
 
 	static const FString BaseRotatorString;
 };
@@ -468,8 +487,7 @@ public:
 		const FString& InDisplayName,
 		const FString& InKey,
 		UDisplayClusterBlueprint* InBlueprint,
-		UDisplayClusterConfigurationViewport* InConfigurationViewport,
-		const TSharedPtr<IPropertyHandle>& InParametersHandle);
+		const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports);
 
 	// FPolicyParameterInfo
 	virtual void CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow) override;
@@ -479,10 +497,10 @@ private:
 	virtual void FormatTextAndUpdateParameter() override;
 
 private:
-	mutable TSharedRef<float> CachedAngleL;
-	mutable TSharedRef<float> CachedAngleR;
-	mutable TSharedRef<float> CachedAngleT;
-	mutable TSharedRef<float> CachedAngleB;
+	mutable TSharedRef<TOptional<float>> CachedAngleL;
+	mutable TSharedRef<TOptional<float>> CachedAngleR;
+	mutable TSharedRef<TOptional<float>> CachedAngleT;
+	mutable TSharedRef<TOptional<float>> CachedAngleB;
 
 	static const FString BaseFrustumPlanesString;
 };
