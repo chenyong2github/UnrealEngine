@@ -149,6 +149,8 @@ public:
 		check(bCalculatedHash);
 		return RenderPassFullHash;
 	}
+	inline const VkOffset2D& GetOffset2D() const { return Offset.Offset2D; }
+	inline const VkOffset3D& GetOffset3D() const { return Offset.Offset3D; }
 	inline const VkExtent2D& GetExtent2D() const { return Extent.Extent2D; }
 	inline const VkExtent3D& GetExtent3D() const { return Extent.Extent3D; }
 	inline const VkAttachmentDescription* GetAttachmentDescriptions() const { return Desc; }
@@ -201,7 +203,7 @@ protected:
 	union
 	{
 		VkOffset3D Offset3D;
-		VkOffset3D Offset2D;
+		VkOffset2D Offset2D;
 	} Offset;
 
 	union

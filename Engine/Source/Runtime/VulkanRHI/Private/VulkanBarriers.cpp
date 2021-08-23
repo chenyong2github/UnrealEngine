@@ -1526,7 +1526,11 @@ FVulkanFramebuffer* FVulkanLayoutManager::GetOrCreateFramebuffer(FVulkanDevice& 
 
 		for (int32 Index = 0; Index < FramebufferList->Framebuffer.Num(); ++Index)
 		{
-			if (FramebufferList->Framebuffer[Index]->Matches(RenderTargetsInfo))
+			const VkRect2D RenderArea = FramebufferList->Framebuffer[Index]->GetRenderArea();
+
+			if (FramebufferList->Framebuffer[Index]->Matches(RenderTargetsInfo) &&
+				((RTLayout.GetExtent2D().width == RenderArea.extent.width) && (RTLayout.GetExtent2D().height == RenderArea.extent.height) &&
+				(RTLayout.GetOffset2D().x == RenderArea.offset.x) && (RTLayout.GetOffset2D().y == RenderArea.offset.y)))
 			{
 				return FramebufferList->Framebuffer[Index];
 			}
