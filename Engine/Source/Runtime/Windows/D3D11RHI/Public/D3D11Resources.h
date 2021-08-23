@@ -159,7 +159,6 @@ public:
 	, RenderTargetViews(InRenderTargetViews)
 	, bCreatedRTVsPerSlice(bInCreatedRTVsPerSlice)
 	, RTVArraySize(InRTVArraySize)
-	, NumDepthStencilViews(0)	
 	{
 		// Set the DSVs for all the access type combinations
 		if ( InDepthStencilViews != nullptr )
@@ -167,10 +166,6 @@ public:
 			for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)
 			{
 				DepthStencilViews[Index] = InDepthStencilViews[Index];
-				// New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
-				// You can't use fast version of XXSetShaderResources (called XXSetFastShaderResource) on dynamic or d/s targets
-				if ( DepthStencilViews[Index] != NULL )
-					NumDepthStencilViews++;
 			}
 		}
 	}
@@ -232,26 +227,11 @@ public:
 		return DepthStencilViews[AccessType.GetIndex()]; 
 	}
 
-	// New Monolithic Graphics drivers have optional "fast calls" replacing various D3d functions
-	// You can't use fast version of XXSetShaderResources (called XXSetFastShaderResource) on dynamic or d/s targets
-	bool HasDepthStencilView()
-	{
-		return ( NumDepthStencilViews > 0 );
-	}	
-
 	void AliasResources(FD3D11TextureBase* Texture)
 	{
 		check(MemorySize == Texture->MemorySize);
 		check(bCreatedRTVsPerSlice == Texture->bCreatedRTVsPerSlice);
 		check(RTVArraySize == Texture->RTVArraySize);
-
-		// If we're creating an aliased texture, make sure we handle this case correctly.
-		if (Texture->NumDepthStencilViews && !NumDepthStencilViews)
-		{
-			NumDepthStencilViews = Texture->NumDepthStencilViews;
-		}
-
-		check(NumDepthStencilViews == Texture->NumDepthStencilViews);
 
 		// Do not copy the BaseShaderResource from the source texture (this is initialized correctly here, and is used for
 		// state caching logic).
@@ -259,7 +239,7 @@ public:
 		ShaderResourceView = Texture->ShaderResourceView;
 		RenderTargetViews = Texture->RenderTargetViews;
 
-		for (uint32 Index = 0; Index < NumDepthStencilViews; Index++)
+		for (uint32 Index = 0; Index < FExclusiveDepthStencil::MaxIndex; Index++)
 		{
 			DepthStencilViews[Index] = Texture->DepthStencilViews[Index];
 		}
@@ -294,9 +274,6 @@ protected:
 
 	/** A depth-stencil targetable view of the texture. */
 	TRefCountPtr<ID3D11DepthStencilView> DepthStencilViews[FExclusiveDepthStencil::MaxIndex];
-
-	/** Number of Depth Stencil Views - used for fast call tracking. */
-	uint32	NumDepthStencilViews;	
 };
 
 /** 2D texture (vanilla, cubemap or 2D array) */
