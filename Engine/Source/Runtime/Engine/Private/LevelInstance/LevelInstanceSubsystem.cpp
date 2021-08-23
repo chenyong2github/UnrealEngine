@@ -964,7 +964,7 @@ void ULevelInstanceSubsystem::BreakLevelInstance_Impl(ALevelInstance* LevelInsta
 					}
 
 					// Apply the same data layer settings to the actors to move out
-					if (Actor->SupportsDataLayer() && Actor->IsValidForDataLayer())
+					if (Actor->IsValidForDataLayer())
 					{
 						for (const UDataLayer* DataLayer : LevelInstanceDataLayers)
 						{

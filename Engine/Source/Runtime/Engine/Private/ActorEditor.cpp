@@ -81,7 +81,7 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 		return false;
 	}
 
-	if (bIsDataLayers && !SupportsDataLayer())
+	if (bIsDataLayers && !IsValidForDataLayer())
 	{
 		return false;
 	}
@@ -1095,7 +1095,7 @@ EDataValidationResult AActor::IsDataValid(TArray<FText>& ValidationErrors)
 bool AActor::AddDataLayer(const UDataLayer* DataLayer)
 {
 	bool bActorWasModified = false;
-	if (SupportsDataLayer() && DataLayer && !ContainsDataLayer(DataLayer))
+	if (IsValidForDataLayer() && DataLayer && !ContainsDataLayer(DataLayer))
 	{
 		if (!bActorWasModified)
 		{
@@ -1209,7 +1209,7 @@ void AActor::FixupDataLayers()
 {
 	if (!GetPackage()->HasAnyPackageFlags(PKG_PlayInEditor))
 	{
-		if (!SupportsDataLayer())
+		if (!IsValidForDataLayer())
 		{
 			DataLayers.Empty();
 		}
@@ -1267,19 +1267,32 @@ bool AActor::IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& Propert
 
 bool AActor::IsValidForDataLayer() const
 {
-	UWorld* World = GetWorld();
-	if (!World)
+	if (UWorld* World = GetWorld())
 	{
-		return false;
+		if (World->WorldType != EWorldType::Editor)
+		{
+			return false;
+		}
+
+		if (!UWorld::HasSubsystem<UWorldPartitionSubsystem>(World))
+		{
+			return false;
+		}
+
+		if (GetClass()->GetDefaultObject<AActor>()->bHiddenEd)
+		{
+			return false;
+		}
+
+		if (FActorEditorUtils::IsABuilderBrush(this))
+		{
+			return false;
+		}
+
+		return SupportsDataLayer();
 	}
 
-	const bool bIsPartitionedActor = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
-	const bool bIsInEditorWorld = World->WorldType == EWorldType::Editor;
-	const bool bIsBuilderBrush = FActorEditorUtils::IsABuilderBrush(this);
-	const bool bIsHidden = GetClass()->GetDefaultObject<AActor>()->bHiddenEd;
-	const bool bIsValid = !bIsHidden && !bIsBuilderBrush && bIsInEditorWorld && bIsPartitionedActor;
-
-	return bIsValid;
+	return false;
 }
 
 // DataLayers (end)

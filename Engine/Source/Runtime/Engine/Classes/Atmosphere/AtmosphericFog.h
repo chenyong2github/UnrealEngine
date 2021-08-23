@@ -28,12 +28,11 @@ private:
 	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
-public:
-
 #if WITH_EDITOR
 	virtual bool SupportsDataLayer() const override { return true; }
 #endif
 
+public:
 	/** Returns AtmosphericFogComponent subobject **/
 	ENGINE_API class UAtmosphericFogComponent* GetAtmosphericFogComponent() { return AtmosphericFogComponent; }
 
