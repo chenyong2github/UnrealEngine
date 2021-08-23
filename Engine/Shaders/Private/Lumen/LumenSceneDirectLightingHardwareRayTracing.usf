@@ -112,6 +112,9 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 						bCullBackFacingTriangles,
 						TranslucentSkipCount);
 
+					// Shadows don't need closest hit distance
+					Context.bAcceptFirstHitAndEndSearch = true;
+
 					FLumenMinimalPayload Payload;
 					bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
 					ShadowMaskRay.ShadowFactor = bHit ? 0.0f : 1.0f;
