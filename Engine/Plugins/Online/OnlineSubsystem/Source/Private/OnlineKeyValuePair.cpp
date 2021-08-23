@@ -498,6 +498,64 @@ void FVariantData::GetValue(TArray<TSharedPtr<FJsonValue>>& OutData) const
 }
 
 /**
+ * Increments the numeric value by 1
+ */
+void FVariantData::Increment()
+{
+	checkSlow(IsNumeric());
+	switch (Type)
+	{
+	case EOnlineKeyValuePairDataType::Int32:
+		Increment<int32, EOnlineKeyValuePairDataType::Int32>(1);
+		break;
+	case EOnlineKeyValuePairDataType::UInt32:
+		Increment<uint32, EOnlineKeyValuePairDataType::UInt32>(1);
+		break;
+	case EOnlineKeyValuePairDataType::Int64:
+		Increment<int64, EOnlineKeyValuePairDataType::Int64>(1);
+		break;
+	case EOnlineKeyValuePairDataType::UInt64:
+		Increment<uint64, EOnlineKeyValuePairDataType::UInt64>(1);
+		break;
+	case EOnlineKeyValuePairDataType::Double:
+		Increment<double, EOnlineKeyValuePairDataType::Double>(1.0);
+		break;
+	case EOnlineKeyValuePairDataType::Float:
+		Increment<float, EOnlineKeyValuePairDataType::Float>(1.0);
+		break;
+	}
+}
+
+/**
+ * Decrements the numeric value by 1
+ */
+void FVariantData::Decrement()
+{
+	checkSlow(IsNumeric());
+	switch (Type)
+	{
+	case EOnlineKeyValuePairDataType::Int32:
+		Decrement<int32, EOnlineKeyValuePairDataType::Int32>(1);
+		break;
+	case EOnlineKeyValuePairDataType::UInt32:
+		Decrement<uint32, EOnlineKeyValuePairDataType::UInt32>(1);
+		break;
+	case EOnlineKeyValuePairDataType::Int64:
+		Decrement<int64, EOnlineKeyValuePairDataType::Int64>(1);
+		break;
+	case EOnlineKeyValuePairDataType::UInt64:
+		Decrement<uint64, EOnlineKeyValuePairDataType::UInt64>(1);
+		break;
+	case EOnlineKeyValuePairDataType::Double:
+		Decrement<double, EOnlineKeyValuePairDataType::Double>(1.0);
+		break;
+	case EOnlineKeyValuePairDataType::Float:
+		Decrement<float, EOnlineKeyValuePairDataType::Float>(1.0);
+		break;
+	}
+}
+
+/**
  * Cleans up the existing data and sets the type to EOnlineKeyValuePairDataType::Empty
  */
 void FVariantData::Empty()

@@ -436,6 +436,11 @@ public:
 	}
 
 	/**
+	 * Increments the numeric value by 1
+	 */
+	void Increment();
+
+	/**
 	 * Decrements the value by the specified amount
 	 *
 	 * @param DecBy the amount to decrement by
@@ -449,6 +454,11 @@ public:
 			*(TYPE*)&Value -= DecBy;
 		}
 	}
+
+	/**
+	 * Decrements the numeric value by 1
+	 */
+	void Decrement();
 
 	/**
 	 * Converts the data into a string representation
