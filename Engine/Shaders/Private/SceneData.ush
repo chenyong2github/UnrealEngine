@@ -137,8 +137,10 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUScenePrimitiveSceneData;
+StructuredBuffer<float4> GPUSceneInstancePayloadData;
 #elif USE_GLOBAL_GPU_SCENE_DATA_RW
 RWStructuredBuffer<float4> GPUScenePrimitiveSceneDataRW;
+RWStructuredBuffer<float4> GPUSceneInstancePayloadDataRW;
 #endif
 
 // Stride of a single primitive's data in float4's, must match C++
@@ -338,7 +340,7 @@ uint GetGPUSceneFrameNumber()
 #endif
 }
 
-float4 LoadInstanceDataElement(uint Index)
+float4 LoadInstanceSceneDataElement(uint Index)
 {
 #if USE_GLOBAL_GPU_SCENE_DATA
 	return GPUSceneInstanceSceneData[Index];
@@ -346,6 +348,17 @@ float4 LoadInstanceDataElement(uint Index)
 	return GPUSceneInstanceSceneDataRW[Index];
 #else
 	return View.InstanceSceneData[Index];
+#endif
+}
+
+float4 LoadInstancePayloadDataElement(uint Index)
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneInstancePayloadData[Index];
+#elif USE_GLOBAL_GPU_SCENE_DATA_RW
+	return GPUSceneInstancePayloadDataRW[Index];
+#else
+	return View.InstancePayloadData[Index];
 #endif
 }
 
@@ -359,10 +372,10 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	//       Also, please update the GetInstanceSceneData function in GPUScene.cpp for validation purposes.
 	//
 
-	InstanceData.Flags										= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).x);
-	InstanceData.PrimitiveId								= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).y);
-	InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).z);
-	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceDataElement(0 * SOAStride + InstanceId).w);
+	InstanceData.Flags										= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
+	InstanceData.PrimitiveId								= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
+	InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
+	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w);
 
 	// Only process valid instances
 	InstanceData.ValidInstance								= InstanceData.PrimitiveId != 0xFFFFFFFFu;
@@ -370,27 +383,27 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	BRANCH
 	if (InstanceData.ValidInstance)
 	{
-		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceDataElement(1 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(2 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(3 * SOAStride + InstanceId),
+		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId),
+																 LoadInstanceSceneDataElement(2 * SOAStride + InstanceId),
+																 LoadInstanceSceneDataElement(3 * SOAStride + InstanceId),
 																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-		InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceDataElement(4 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(5 * SOAStride + InstanceId),
-																 LoadInstanceDataElement(6 * SOAStride + InstanceId),
+		InstanceData.PrevLocalToWorld		= transpose(float4x4(LoadInstanceSceneDataElement(4 * SOAStride + InstanceId),
+																 LoadInstanceSceneDataElement(5 * SOAStride + InstanceId),
+																 LoadInstanceSceneDataElement(6 * SOAStride + InstanceId),
 																 float4(0.0f, 0.0f, 0.0f, 1.0f)));
 
-		InstanceData.LocalBoundsCenter							= LoadInstanceDataElement(7 * SOAStride + InstanceId).xyz;
-		InstanceData.LocalBoundsExtent.x						= LoadInstanceDataElement(7 * SOAStride + InstanceId).w;
+		InstanceData.LocalBoundsCenter							= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).xyz;
+		InstanceData.LocalBoundsExtent.x						= LoadInstanceSceneDataElement(7 * SOAStride + InstanceId).w;
 
-		InstanceData.LocalBoundsExtent.yz						= LoadInstanceDataElement(8 * SOAStride + InstanceId).xy;
-		InstanceData.PayloadDataOffset							= asuint(LoadInstanceDataElement(8 * SOAStride + InstanceId).z);
+		InstanceData.LocalBoundsExtent.yz						= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).xy;
+		InstanceData.PayloadDataOffset							= asuint(LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).z);
 
 	#if USES_PER_INSTANCE_RANDOM
-		InstanceData.PerInstanceRandom							= LoadInstanceDataElement(8 * SOAStride + InstanceId).w;
+		InstanceData.PerInstanceRandom							= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).w;
 	#endif
 
-		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceDataElement(9 * SOAStride + InstanceId);
+		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
 
 		float3 Scale2;
 		Scale2.x = length2(InstanceData.LocalToWorld[0].xyz);
@@ -440,6 +453,45 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 
 	return InstanceData;
 }
+
+// TODO: 
+#if 0
+FInstancePayloadData GetInstancePayloadData(FInstanceSceneData InstanceData)
+{
+	FInstancePayloadData PayloadData = (FInstancePayloadData)0;
+
+	// Deterministic packing/layout (all fields optional, 0 fetchable elements possible)
+	// PerInstanceRandom     float4.x
+	// CustomData Count      float4.y
+	// Reserved for future   float4.zw
+	// LightShadowUVBias     float4.xyzw
+
+	// Offsets in 32b dwords
+	const uint Offset_PerInstanceRandom = 0u;
+	const uint Offset_CustomDataHeader  = 0u;
+	const uint Offset_LightShadowUVBias = CondMask(InstanceData.HasPerInstanceRandom, 1u, 0u);
+	const uint Offset_CustomDataValues  = CondMask(InstanceData.HasLightShadowUVBias, Offset_LightShadowUVBias + 1, 0);
+
+	BRANCH
+	if (InstanceData.HasPerInstanceRandom)
+	{
+		PayloadData.PerInstanceRandom = LoadInstancePayloadElement(Offset_PerInstanceRandom).x;
+	}
+
+	BRANCH
+	if (InstanceData.HasCustomData)
+	{
+		PayloadData.CustomDataCount  = LoadInstancePayloadElement(Offset_CustomDataHeader).y;
+		PayloadData.CustomDataOffset = InstanceData.PayloadDataOffset + Offset_CustomDataValues;
+	}
+
+	BRANCH
+	if (InstanceData.HasLightShadowUVBias)
+	{
+		PayloadData.LightMapAndShadowMapUVBias = LoadInstancePayloadElement(Offset_LightShadowUVBias);
+	}
+}
+#endif // TODO
 
 struct FSceneDataIntermediates
 {

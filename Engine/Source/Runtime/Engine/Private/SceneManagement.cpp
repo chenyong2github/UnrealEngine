@@ -776,6 +776,7 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	PrimitiveSceneData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
 	InstanceSceneData = GIdentityPrimitiveBuffer.InstanceSceneDataBufferSRV;
+	InstancePayloadData = GIdentityPrimitiveBuffer.InstancePayloadDataBufferSRV;
 	LightmapSceneData = GIdentityPrimitiveBuffer.LightmapSceneDataBufferSRV;
 
 	SkyIrradianceEnvironmentMap = GIdentityPrimitiveBuffer.SkyIrradianceEnvironmentMapSRV;
@@ -796,6 +797,10 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 	if (!InstanceSceneData)
 	{
 		InstanceSceneData = GBlackTextureWithSRV->ShaderResourceViewRHI;
+	}
+	if (!InstancePayloadData)
+	{
+		InstancePayloadData = GBlackTextureWithSRV->ShaderResourceViewRHI;
 	}
 	if (!LightmapSceneData)
 	{

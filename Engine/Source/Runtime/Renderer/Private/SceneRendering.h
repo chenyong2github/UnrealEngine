@@ -1437,6 +1437,7 @@ public:
 	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
 	FShaderResourceViewRHIRef PrimitiveSceneDataOverrideSRV;
 	FShaderResourceViewRHIRef InstanceSceneDataOverrideSRV;
+	FShaderResourceViewRHIRef InstancePayloadDataOverrideSRV;
 	FTexture2DRHIRef PrimitiveSceneDataTextureOverrideRHI;
 	FShaderResourceViewRHIRef LightmapSceneDataOverrideSRV;
 

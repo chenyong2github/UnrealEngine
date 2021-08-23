@@ -234,6 +234,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT( FGPUSceneParameters, )
 	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUSceneInstanceSceneData)
+	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUSceneInstancePayloadData)
 	SHADER_PARAMETER_SRV( StructuredBuffer<float4>,	GPUScenePrimitiveSceneData)
 	SHADER_PARAMETER( uint32,						GPUSceneFrameNumber)
 END_SHADER_PARAMETER_STRUCT()
@@ -2106,6 +2107,7 @@ void CullRasterize(
 	}
 	FGPUSceneParameters GPUSceneParameters;
 	GPUSceneParameters.GPUSceneInstanceSceneData = Scene.GPUScene.InstanceSceneDataBuffer.SRV;
+	GPUSceneParameters.GPUSceneInstancePayloadData = Scene.GPUScene.InstancePayloadDataBuffer.SRV;
 	GPUSceneParameters.GPUScenePrimitiveSceneData = Scene.GPUScene.PrimitiveBuffer.SRV;
 	GPUSceneParameters.GPUSceneFrameNumber = Scene.GPUScene.GetSceneFrameNumber();
 	

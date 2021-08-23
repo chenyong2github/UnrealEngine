@@ -19,7 +19,7 @@ uint GPUSceneInstanceSceneDataSOAStride;
 uint GPUSceneNumAllocatedInstances;
 uint GPUSceneNumAllocatedPrimitives;
 
-void StoreInstanceDataElement(uint InstanceId, uint ElementIndex, float4 DataElement)
+void StoreInstanceSceneDataElement(uint InstanceId, uint ElementIndex, float4 DataElement)
 {
 	GPUSceneInstanceSceneDataRW[ElementIndex * GPUSceneInstanceSceneDataSOAStride + InstanceId] = DataElement;
 }
@@ -30,8 +30,8 @@ void StoreInstanceDataElement(uint InstanceId, uint ElementIndex, float4 DataEle
  */
 void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
 {
-	float4 DataElement = LoadInstanceDataElement(0 * GPUSceneInstanceSceneDataSOAStride + InstanceId);
+	float4 DataElement = LoadInstanceSceneDataElement(0 * GPUSceneInstanceSceneDataSOAStride + InstanceId);
 	DataElement.y = asfloat(NewPrimitiveId);
 	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
-	StoreInstanceDataElement(InstanceId, 0, DataElement);
+	StoreInstanceSceneDataElement(InstanceId, 0, DataElement);
 }

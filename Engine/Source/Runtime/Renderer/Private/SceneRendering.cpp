@@ -963,6 +963,7 @@ void FViewInfo::Init()
 	PrimitiveSceneDataOverrideSRV = nullptr;
 	PrimitiveSceneDataTextureOverrideRHI = nullptr;
 	InstanceSceneDataOverrideSRV = nullptr;
+	InstancePayloadDataOverrideSRV = nullptr;
 	LightmapSceneDataOverrideSRV = nullptr;
 
 	DitherFadeInUniformBuffer = nullptr;
@@ -1837,6 +1838,15 @@ void FViewInfo::SetupUniformBufferParameters(
 		{
 			ViewUniformShaderParameters.InstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
 			ViewUniformShaderParameters.InstanceSceneDataSOAStride = Scene->GPUScene.InstanceSceneDataSOAStride;
+		}
+
+		if (InstancePayloadDataOverrideSRV)
+		{
+			ViewUniformShaderParameters.InstanceSceneData = InstancePayloadDataOverrideSRV;
+		}
+		else if (Scene && Scene->GPUScene.InstancePayloadDataBuffer.SRV)
+		{
+			ViewUniformShaderParameters.InstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
 		}
 
 		if (LightmapSceneDataOverrideSRV)

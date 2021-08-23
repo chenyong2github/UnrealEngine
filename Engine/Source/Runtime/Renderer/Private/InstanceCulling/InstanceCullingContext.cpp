@@ -219,6 +219,7 @@ public:
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstancePayloadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneLightmapData)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
@@ -412,6 +413,7 @@ void FInstanceCullingContext::BuildRenderingCommands(
 	// PassParametersTmp.View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
 	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
+	PassParametersTmp.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
 	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;
@@ -721,6 +723,7 @@ FInstanceCullingDeferredContext *FInstanceCullingContext::CreateDeferredContext(
 	// PassParameters->View = View.ViewUniformBuffer;
 	// Set up global GPU-scene data instead...
 	PassParametersTmp.GPUSceneInstanceSceneData = GPUScene.InstanceSceneDataBuffer.SRV;
+	PassParametersTmp.GPUSceneInstancePayloadData = GPUScene.InstancePayloadDataBuffer.SRV;
 	PassParametersTmp.GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
 	PassParametersTmp.GPUSceneLightmapData = GPUScene.LightmapDataBuffer.SRV;
 	PassParametersTmp.InstanceSceneDataSOAStride = GPUScene.InstanceSceneDataSOAStride;

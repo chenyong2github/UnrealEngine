@@ -787,6 +787,7 @@ void FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 		View.PrimitiveSceneDataOverrideSRV = CachedRayTracingScene->PrimitiveSceneDataBufferSRV;
 		View.LightmapSceneDataOverrideSRV = CachedRayTracingScene->LightmapSceneDataBufferSRV;
 		View.InstanceSceneDataOverrideSRV = CachedRayTracingScene->InstanceSceneDataBufferSRV;
+		View.InstancePayloadDataOverrideSRV = CachedRayTracingScene->InstancePayloadDataBufferSRV;
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(SetupUniformBufferParameters);

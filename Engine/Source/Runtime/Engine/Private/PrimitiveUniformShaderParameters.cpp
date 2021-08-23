@@ -33,6 +33,10 @@ void FSinglePrimitiveStructured::InitRHI()
 		InstanceSceneDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
 		InstanceSceneDataBufferSRV = RHICreateShaderResourceView(InstanceSceneDataBufferRHI);
 
+		CreateInfo.DebugName = TEXT("InstancePayloadDataBuffer");
+		InstancePayloadDataBufferRHI = RHICreateStructuredBuffer(sizeof(FVector4), 1 /* unused dummy */ * sizeof(FVector4), BUF_Static | BUF_ShaderResource, CreateInfo);
+		InstancePayloadDataBufferSRV = RHICreateShaderResourceView(InstancePayloadDataBufferRHI);
+
 		CreateInfo.DebugName = TEXT("SkyIrradianceEnvironmentMap");
 		SkyIrradianceEnvironmentMapRHI = RHICreateStructuredBuffer(sizeof(FVector4), sizeof(FVector4) * 8, BUF_Static | BUF_ShaderResource, CreateInfo);
 		SkyIrradianceEnvironmentMapSRV = RHICreateShaderResourceView(SkyIrradianceEnvironmentMapRHI);
@@ -58,6 +62,10 @@ void FSinglePrimitiveStructured::UploadToGPU()
 		LockedData = RHILockBuffer(InstanceSceneDataBufferRHI, 0, FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4), RLM_WriteOnly);
 		FPlatformMemory::Memcpy(LockedData, InstanceSceneData.Data.GetData(), FInstanceSceneShaderData::DataStrideInFloat4s * sizeof(FVector4));
 		RHIUnlockBuffer(InstanceSceneDataBufferRHI);
+
+		LockedData = RHILockBuffer(InstancePayloadDataBufferRHI, 0, 1 /* unused dummy */ * sizeof(FVector4), RLM_WriteOnly);
+		FPlatformMemory::Memset(LockedData, 0x00, sizeof(FVector4));
+		RHIUnlockBuffer(InstancePayloadDataBufferRHI);
 	}
 
 //#if WITH_EDITOR
