@@ -78,19 +78,8 @@
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
 
-TRACE_DECLARE_MEMORY_COUNTER(AsyncLoadingPendingIoRequestsSize, TEXT("AsyncLoading/PendingIoRequestsSize"));
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
-CSV_DEFINE_STAT(FileIO, PendingAsyncLoadingIoRequestsSizeMB);
 CSV_DEFINE_STAT(FileIO, FrameCompletedExportBundleLoadsKB);
-
-int32 GAsyncLoadingMaxPendingRequestsSizeMB = 256;
-static FAutoConsoleVariableRef CVar_AsyncLoadingMaxPendingRequestsSizeMB(
-	TEXT("s.AsyncLoadingMaxPendingRequestsSizeMB"),
-	GAsyncLoadingMaxPendingRequestsSizeMB,
-	TEXT("Max amount of data in MB to request from IO"),
-	ECVF_Default
-);
-
 
 FArchive& operator<<(FArchive& Ar, FContainerHeaderPackageRedirect& Redirect)
 {
@@ -1795,8 +1784,8 @@ struct FAsyncPackage2
 	/** Creates GC clusters from loaded objects */
 	EAsyncPackageState::Type CreateClusters(FAsyncLoadingThreadState2& ThreadState);
 
-	void ImportPackagesRecursive();
-	void StartLoading();
+	void ImportPackagesRecursive(FIoBatch& IoBatch);
+	void StartLoading(FIoBatch& IoBatch);
 
 #if WITH_IOSTORE_IN_EDITOR
 	void GetLoadedAssets(TArray<FWeakObjectPtr>& AssetList);
@@ -2204,18 +2193,6 @@ private:
 	/** Initial load pending CDOs */
 	TMap<UClass*, TArray<FEventLoadNode2*>> PendingCDOs;
 
-	struct FBundleIoRequest
-	{
-		bool operator<(const FBundleIoRequest& Other) const
-		{
-			return Package->Data.ExportInfo.LoadOrder < Other.Package->Data.ExportInfo.LoadOrder;
-		}
-
-		FAsyncPackage2* Package;
-	};
-	TArray<FBundleIoRequest> WaitingIoRequests;
-	uint64 PendingBundleIoRequestsTotalSize = 0;
-
 	uint32 ConditionalBeginPostLoadTick = 0;
 	uint32 ConditionalFinishLoadingTick = 0;
 
@@ -2512,9 +2489,6 @@ private:
 	EAsyncPackageState::Type ProcessLoadedPackagesFromGameThread(FAsyncLoadingThreadState2& ThreadState, bool& bDidSomething, int32 FlushRequestID = INDEX_NONE);
 
 	bool CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState2& ThreadState);
-	void AddBundleIoRequest(FAsyncPackage2* Package);
-	void BundleIoRequestCompleted(FAsyncPackage2* Package);
-	void StartBundleIoRequests();
 
 	FAsyncPackage2* CreateAsyncPackage(const FAsyncPackageDesc2& Desc)
 	{
@@ -2751,10 +2725,12 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 	bool bPackagesCreated = false;
 	const int32 TimeSliceGranularity = ThreadState.UseTimeLimit() ? 4 : MAX_int32;
 
+	FIoBatch IoBatch = IoDispatcher.NewBatch();
+
 	for (;;)
 	{
 		int32 NumDequeued = 0;
-		PackageRequestQueue->Dequeue([this, &NumDequeued, TimeSliceGranularity](FPackageRequest& Request)
+		PackageRequestQueue->Dequeue([this, &NumDequeued, TimeSliceGranularity, &IoBatch](FPackageRequest& Request)
 		{
 			bool bIsMissingPackage;
 			FAsyncPackageDesc2 PackageDesc = CreatePackageDesc(Request, bIsMissingPackage);
@@ -2785,15 +2761,13 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 				{
 					{
 						TRACE_CPUPROFILER_EVENT_SCOPE(ImportPackages);
-						Package->ImportPackagesRecursive();
+						Package->ImportPackagesRecursive(IoBatch);
 					}
 
 					if (bInserted)
 					{
-						Package->StartLoading();
+						Package->StartLoading(IoBatch);
 					}
-
-					StartBundleIoRequests();
 				}
 			}
 
@@ -2807,89 +2781,10 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 			break;
 		}
 	}
+
+	IoBatch.Issue();
 	
 	return bPackagesCreated;
-}
-
-void FAsyncLoadingThread2::AddBundleIoRequest(FAsyncPackage2* Package)
-{
-	int32 LocalPendingIoRequestsCounter = PendingIoRequestsCounter.IncrementExchange() + 1;
-	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
-	WaitingIoRequests.HeapPush({ Package });
-}
-
-void FAsyncLoadingThread2::BundleIoRequestCompleted(FAsyncPackage2* Package)
-{
-	check(PendingBundleIoRequestsTotalSize >= Package->Data.ExportInfo.ExportBundlesSize)
-	PendingBundleIoRequestsTotalSize -= Package->Data.ExportInfo.ExportBundlesSize;
-	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequestsSize, PendingBundleIoRequestsTotalSize);
-	CSV_CUSTOM_STAT_DEFINED(FrameCompletedExportBundleLoadsKB, float((double)Package->Data.ExportInfo.ExportBundlesSize / 1024.0), ECsvCustomStatOp::Accumulate);
-	if (WaitingIoRequests.Num())
-	{
-		StartBundleIoRequests();
-	}
-}
-
-void FAsyncLoadingThread2::StartBundleIoRequests()
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(StartBundleIoRequests);
-	static const uint64 MaxPendingRequestsSize = IsRunningCookOnTheFly() ? MAX_uint64 : uint64(GAsyncLoadingMaxPendingRequestsSizeMB) << 20;
-	FIoBatch IoBatch = IoDispatcher.NewBatch();
-	while (WaitingIoRequests.Num())
-	{
-		FBundleIoRequest& BundleIoRequest = WaitingIoRequests.HeapTop();
-		FAsyncPackage2* Package = BundleIoRequest.Package;
-		if (PendingBundleIoRequestsTotalSize > 0 && PendingBundleIoRequestsTotalSize + Package->Data.ExportInfo.ExportBundlesSize > MaxPendingRequestsSize)
-		{
-			break;
-		}
-		PendingBundleIoRequestsTotalSize += Package->Data.ExportInfo.ExportBundlesSize;
-		WaitingIoRequests.HeapPop(BundleIoRequest, false);
-
-		FIoReadOptions ReadOptions;
-		Package->IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Package->Desc.PackageIdToLoad.Value(), 0, EIoChunkType::ExportBundleData),
-			ReadOptions,
-			Package->Desc.Priority,
-			[Package](TIoStatusOr<FIoBuffer> Result)
-		{
-			if (Result.IsOk())
-			{
-				TRACE_COUNTER_ADD(AsyncLoadingTotalLoaded, Result.ValueOrDie().DataSize());
-			}
-			else
-			{
-				UE_ASYNC_PACKAGE_LOG(Warning, Package->Desc, TEXT("StartBundleIoRequests: FailedRead"),
-					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
-				Package->bLoadHasFailed = true;
-			}
-			int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
-			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
-			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
-		});
-
-		if (!Package->Data.ShaderMapHashes.IsEmpty())
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(StartShaderMapRequests);
-			auto ReadShaderMapFunc = [Package, &IoBatch](const FIoChunkId& ChunkId, FGraphEventRef GraphEvent)
-			{
-				Package->GetPackageNode(Package_ExportsSerialized).AddBarrier();
-				int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.IncrementExchange() + 1;
-				TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
-				return IoBatch.ReadWithCallback(ChunkId, FIoReadOptions(), Package->Desc.Priority,
-					[Package, GraphEvent](TIoStatusOr<FIoBuffer> Result)
-					{
-						GraphEvent->DispatchSubsequents();
-						int32 LocalPendingIoRequestsCounter = Package->AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
-						TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
-						Package->GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
-					});
-			};
-			FCoreDelegates::PreloadPackageShaderMaps.ExecuteIfBound(Package->Data.ShaderMapHashes, ReadShaderMapFunc);
-		}
-	}
-	IoBatch.Issue();
-
-	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequestsSize, PendingBundleIoRequestsTotalSize);
 }
 
 FEventLoadNode2::FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex, int32 InBarrierCount)
@@ -3395,7 +3290,7 @@ void FGlobalImportStore::FindAllScriptObjects()
 		ScriptObjects.Num(), (float)ScriptObjects.GetAllocatedSize() / 1024.f);
 }
 
-void FAsyncPackage2::ImportPackagesRecursive()
+void FAsyncPackage2::ImportPackagesRecursive(FIoBatch& IoBatch)
 {
 	if (AsyncPackageLoadingState >= EAsyncPackageLoadingState2::ImportPackages)
 	{
@@ -3481,8 +3376,8 @@ void FAsyncPackage2::ImportPackagesRecursive()
 
 		if (bInserted)
 		{
-			ImportedPackage->ImportPackagesRecursive();
-			ImportedPackage->StartLoading();
+			ImportedPackage->ImportPackagesRecursive(IoBatch);
+			ImportedPackage->StartLoading(IoBatch);
 		}
 	}
 	UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("ImportPackages: ImportsDone"),
@@ -3492,7 +3387,7 @@ void FAsyncPackage2::ImportPackagesRecursive()
 	AsyncPackageLoadingState = EAsyncPackageLoadingState2::ImportPackagesDone;
 }
 
-void FAsyncPackage2::StartLoading()
+void FAsyncPackage2::StartLoading(FIoBatch& IoBatch)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartLoading);
 	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(this);
@@ -3500,8 +3395,52 @@ void FAsyncPackage2::StartLoading()
 
 	LoadStartTime = FPlatformTime::Seconds();
 
-	AsyncLoadingThread.AddBundleIoRequest(this);
 	AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForIo;
+
+	int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.IncrementExchange() + 1;
+	TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+
+	FIoReadOptions ReadOptions;
+	IoRequest = IoBatch.ReadWithCallback(CreateIoChunkId(Desc.PackageIdToLoad.Value(), 0, EIoChunkType::ExportBundleData),
+		ReadOptions,
+		Desc.Priority,
+		[this](TIoStatusOr<FIoBuffer> Result)
+		{
+			if (Result.IsOk())
+			{
+				TRACE_COUNTER_ADD(AsyncLoadingTotalLoaded, Result.ValueOrDie().DataSize());
+				CSV_CUSTOM_STAT_DEFINED(FrameCompletedExportBundleLoadsKB, float((double)Result.ValueOrDie().DataSize() / 1024.0), ECsvCustomStatOp::Accumulate);
+			}
+			else
+			{
+				UE_ASYNC_PACKAGE_LOG(Warning, Desc, TEXT("StartBundleIoRequests: FailedRead"),
+					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
+				bLoadHasFailed = true;
+			}
+			int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
+			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+			GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
+		});
+
+	if (!Data.ShaderMapHashes.IsEmpty())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(StartShaderMapRequests);
+		auto ReadShaderMapFunc = [this, &IoBatch](const FIoChunkId& ChunkId, FGraphEventRef GraphEvent)
+		{
+			GetPackageNode(Package_ExportsSerialized).AddBarrier();
+			int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.IncrementExchange() + 1;
+			TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+			return IoBatch.ReadWithCallback(ChunkId, FIoReadOptions(), Desc.Priority,
+				[this, GraphEvent](TIoStatusOr<FIoBuffer> Result)
+				{
+					GraphEvent->DispatchSubsequents();
+					int32 LocalPendingIoRequestsCounter = AsyncLoadingThread.PendingIoRequestsCounter.DecrementExchange() - 1;
+					TRACE_COUNTER_SET(AsyncLoadingPendingIoRequests, LocalPendingIoRequestsCounter);
+					GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
+				});
+		};
+		FCoreDelegates::PreloadPackageShaderMaps.ExecuteIfBound(Data.ShaderMapHashes, ReadShaderMapFunc);
+	}
 }
 
 EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadingThreadState2& ThreadState, FAsyncPackage2* Package, int32)
@@ -3733,11 +3672,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncLoading
 	}
 	
 	Package->ExportBundleEntryIndex = 0;
-
-	if (Package->ProcessedExportBundlesCount == 0)
-	{
-		Package->AsyncLoadingThread.BundleIoRequestCompleted(Package);
-	}
 
 	if (++Package->ProcessedExportBundlesCount == Package->Data.ExportInfo.ExportBundleCount)
 	{
@@ -6055,8 +5989,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(FAsy
 	// CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
-	CSV_CUSTOM_STAT_DEFINED(PendingAsyncLoadingIoRequestsSizeMB, float((double)PendingBundleIoRequestsTotalSize / 1024.0 / 1024.0), ECsvCustomStatOp::Set);
-
+	
 	TickAsyncLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }

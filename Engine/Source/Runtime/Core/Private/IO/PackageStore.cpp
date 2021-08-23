@@ -7,10 +7,8 @@
 
 FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo)
 {
-	Ar << ExportInfo.ExportBundlesSize;
 	Ar << ExportInfo.ExportCount;
 	Ar << ExportInfo.ExportBundleCount;
-	Ar << ExportInfo.LoadOrder;
 
 	return Ar;
 }
@@ -18,10 +16,8 @@ FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo)
 FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreExportInfo& ExportInfo)
 {
 	Writer.BeginObject();
-	Writer << "exportbundlessize" << ExportInfo.ExportBundlesSize;
 	Writer << "exportcount" << ExportInfo.ExportCount;
 	Writer << "exportbundlecount" << ExportInfo.ExportBundleCount;
-	Writer << "loadorder" << ExportInfo.LoadOrder;
 	Writer.EndObject();
 	
 	return Writer;
@@ -31,10 +27,8 @@ FPackageStoreExportInfo FPackageStoreExportInfo::FromCbObject(const FCbObject& O
 {
 	FPackageStoreExportInfo ExportInfo;
 	
-	ExportInfo.ExportBundlesSize	= Obj["exportbundlessize"].AsUInt64();
 	ExportInfo.ExportCount			= Obj["exportcount"].AsInt32();
 	ExportInfo.ExportBundleCount	= Obj["exportbundlecount"].AsInt32();
-	ExportInfo.LoadOrder			= Obj["loadorder"].AsUInt32();
 
 	return ExportInfo;
 }

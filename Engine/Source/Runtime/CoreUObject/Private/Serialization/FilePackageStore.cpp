@@ -60,10 +60,8 @@ public:
 		{
 			FPackageStoreExportInfo
 			{
-				Entry->ExportBundlesSize,
 				Entry->ExportCount,
-				Entry->ExportBundleCount,
-				Entry->LoadOrder
+				Entry->ExportBundleCount
 			},
 			MakeArrayView(Entry->ImportedPackages.Data(), Entry->ImportedPackages.Num()),
 			MakeArrayView(Entry->ShaderMapHashes.Data(), Entry->ShaderMapHashes.Num())

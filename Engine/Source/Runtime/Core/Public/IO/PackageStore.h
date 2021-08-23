@@ -16,11 +16,9 @@ class FCbWriter;
  */
 struct FPackageStoreExportInfo
 {
-	uint64 ExportBundlesSize = 0;
 	int32 ExportCount = 0;
 	int32 ExportBundleCount = 0;
-	uint32 LoadOrder = 0;
-
+	
 	CORE_API friend FArchive& operator<<(FArchive& Ar, FPackageStoreExportInfo& ExportInfo);
 	
 	CORE_API friend FCbWriter& operator<<(FCbWriter& Writer, const FPackageStoreExportInfo& ExportInfo);
