@@ -12,9 +12,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraSettings.h"
 #include "NiagaraBatchedElements.h"
-#if WITH_EDITOR
 #include "NiagaraGpuComputeDebug.h"
-#endif
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTarget2DArray.h"
 #include "NiagaraConstants.h"
@@ -1721,7 +1719,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 	OtherTyped->OverrideBufferFormat = OverrideBufferFormat;
 	OtherTyped->bOverrideFormat = bOverrideFormat;
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	OtherTyped->bPreviewGrid = bPreviewGrid;
 	OtherTyped->PreviewAttribute = PreviewAttribute;
 #endif
@@ -1793,7 +1791,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter);
 	InstanceData->UpdateTargetTexture(BufferFormat);
 
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 	InstanceData->bPreviewGrid = bPreviewGrid;
 	InstanceData->PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 	if (bPreviewGrid && !PreviewAttribute.IsNone())
@@ -1848,7 +1846,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 			TargetData->Vars.Emplace(RT_InstanceData.Vars[i].GetName());
 			TargetData->VarComponents.Emplace(RT_InstanceData.Vars[i].GetType().GetSize() / sizeof(float));
 		}
-#if WITH_EDITOR
+#if WITH_EDITORONLY_DATA
 		TargetData->bPreviewGrid = RT_InstanceData.bPreviewGrid;
 		TargetData->PreviewAttribute = RT_InstanceData.PreviewAttribute;
 #endif
@@ -2592,7 +2590,7 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandLi
 		}
 	}
 
-#if NIAGARA_COMPUTEDEBUG_ENABLED
+#if NIAGARA_COMPUTEDEBUG_ENABLED && WITH_EDITORONLY_DATA
 	if (ProxyData->bPreviewGrid && ProxyData->CurrentData)
 	{
 		if (FNiagaraGpuComputeDebug* GpuComputeDebug = Context.Batcher->GetGpuComputeDebug())
