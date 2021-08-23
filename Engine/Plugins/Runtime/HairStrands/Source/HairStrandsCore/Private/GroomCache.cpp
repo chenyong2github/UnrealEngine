@@ -55,7 +55,10 @@ int32 UGroomCache::GetFrameIndexAtTime(const float Time, bool bLooping) const
 	}
 
 	const int32 NumFrames = GroomCacheInfo.AnimationInfo.NumFrames;
-	const float Duration = GroomCacheInfo.AnimationInfo.Duration;
+
+	// Include a small fudge factor to Duration to account for possible computation discrepancies in Time.
+	// For example when sequencer computes the time for the end of a section, it might not exactly match the duration
+	const float Duration = GroomCacheInfo.AnimationInfo.Duration - KINDA_SMALL_NUMBER;
 	float AdjustedTime = Time;
 	if (bLooping)
 	{
@@ -73,10 +76,10 @@ int32 UGroomCache::GetFrameIndexAtTime(const float Time, bool bLooping) const
 void UGroomCache::GetFrameIndicesAtTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32 &OutFrameIndex, int32 &OutNextFrameIndex, float &InterpolationFactor)
 {
 	const int32 NumFrames = GroomCacheInfo.AnimationInfo.NumFrames;
-	const float Duration = GroomCacheInfo.AnimationInfo.Duration;
+	const float Duration = GroomCacheInfo.AnimationInfo.Duration - KINDA_SMALL_NUMBER;
 
 	// No index possible
-	if (NumFrames == 0 || NumFrames == 1 || Duration == 0.0f)
+	if (NumFrames == 0 || Duration == 0.0f)
 	{
 		OutFrameIndex = 0;
 		OutNextFrameIndex = 0;
@@ -85,7 +88,7 @@ void UGroomCache::GetFrameIndicesAtTime(float Time, bool bLooping, bool bIsPlayi
 	}
 
 	OutFrameIndex = GetFrameIndexAtTime(Time, bLooping);
-	OutNextFrameIndex = FMath::Min(OutFrameIndex + 1, NumFrames - 1);
+	OutNextFrameIndex = FMath::Min(OutFrameIndex + 1, NumFrames);
 
 	const float FrameDuration = GroomCacheInfo.AnimationInfo.SecondsPerFrame;
 	if (FMath::IsNearlyZero(FrameDuration))

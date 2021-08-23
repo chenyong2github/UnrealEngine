@@ -218,9 +218,6 @@ namespace ReimportGroomCacheHelpers
 	{
 		if (Settings.bImportGroomCache && GroomAsset)
 		{
-			// Compute the duration as it is not known yet
-			AnimInfo.Duration = AnimInfo.NumFrames * AnimInfo.SecondsPerFrame;
-
 			// If the reimport was from a GroomCache, set it as the parent to preserve the package name
 			// Otherwise, use the previously set GroomAsset package as the base for the package name
 			if (SourceGroomCache)
@@ -364,8 +361,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 		}
 	}
 
-	// GroomCache options are only shown if there's a valid groom animation
-	GroomCacheReimportOptions->ImportSettings.bImportGroomCache = GroomCacheReimportOptions->ImportSettings.bImportGroomCache && AnimInfo.IsValid();
+	FGroomCacheImporter::SetupImportSettings(GroomCacheReimportOptions->ImportSettings, AnimInfo);
 
 	if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 	{
@@ -402,6 +398,8 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			}
 		}
 	}
+
+	FGroomCacheImporter::ApplyImportSettings(GroomCacheReimportOptions->ImportSettings, AnimInfo);
 
 	FHairDescription HairDescription;
 	if (!SelectedTranslator->Translate(CurrentFilename, HairDescription, GroomReimportOptions->ConversionSettings))

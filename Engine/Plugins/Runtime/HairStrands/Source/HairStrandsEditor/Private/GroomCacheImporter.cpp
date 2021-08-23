@@ -4,6 +4,7 @@
 #include "GroomAsset.h"
 #include "GroomBuilder.h"
 #include "GroomCache.h"
+#include "GroomCacheImportOptions.h"
 #include "GroomImportOptions.h"
 #include "HairStrandsImporter.h"
 #include "HairStrandsTranslator.h"
@@ -101,7 +102,8 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 	FGroomCacheProcessor GuidesProcessor(EGroomCacheType::Guides, AnimInfo.Attributes);
 	if (Translator->BeginTranslation(SourceFilename))
 	{
-		const int32 NumFrames = AnimInfo.NumFrames;
+		// Sample one extra frame so that we can interpolate between EndFrame - 1 and EndFrame
+		const int32 NumFrames = AnimInfo.NumFrames + 1;
 		FScopedSlowTask SlowTask(NumFrames, LOCTEXT("ImportGroomCache", "Importing GroomCache frames"));
 		SlowTask.MakeDialog();
 
@@ -193,6 +195,71 @@ TArray<UGroomCache*> FGroomCacheImporter::ImportGroomCache(const FString& Source
 		}
 	}
 	return GroomCaches;
+}
+
+void FGroomCacheImporter::SetupImportSettings(FGroomCacheImportSettings& ImportSettings, const FGroomAnimationInfo& AnimInfo)
+{
+	// Prepare the import settings for display
+	// GroomCache options are only shown if there's a valid groom animation
+	ImportSettings.bImportGroomCache = ImportSettings.bImportGroomCache && AnimInfo.IsValid();
+
+	if (ImportSettings.bImportGroomCache)
+	{
+		if (ImportSettings.FrameEnd == 0)
+		{
+			ImportSettings.FrameEnd = AnimInfo.EndFrame;
+		}
+	}
+}
+
+void FGroomCacheImporter::ApplyImportSettings(FGroomCacheImportSettings& ImportSettings, FGroomAnimationInfo& AnimInfo)
+{
+	// Harmonize the values between what's in the settings (set by the user) and the animation info (extracted from the Alembic) used for importing
+	// The user settings usually take precedence over the animation info
+	if (ImportSettings.bImportGroomCache)
+	{
+		if (ImportSettings.bSkipEmptyFrames)
+		{
+			// Skipping empty frames will start from the beginning of the animation range or beyond if specified by the user
+			if (ImportSettings.FrameStart > AnimInfo.StartFrame)
+			{
+				AnimInfo.StartFrame = ImportSettings.FrameStart;
+			}
+			else
+			{
+				ImportSettings.FrameStart = AnimInfo.StartFrame;
+			}
+		}
+		else
+		{
+			// Otherwise, just take the value set by the user
+			AnimInfo.StartFrame = ImportSettings.FrameStart;
+		}
+
+		if (ImportSettings.FrameEnd == 0)
+		{
+			// If the user manually set the end to 0, use the actual end of the animation range
+			ImportSettings.FrameEnd = AnimInfo.EndFrame;
+		}
+		else
+		{
+			// Otherwise, just take the value set by the user
+			AnimInfo.EndFrame = ImportSettings.FrameEnd;
+		}
+
+		// Sanity check
+		if (ImportSettings.FrameEnd <= ImportSettings.FrameStart)
+		{
+			ImportSettings.FrameEnd = ImportSettings.FrameStart + 1;
+			AnimInfo.EndFrame = ImportSettings.FrameStart + 1;
+		}
+
+		// EndFrame is not included and must have at least 1 frame
+		AnimInfo.NumFrames = FMath::Max(AnimInfo.EndFrame - AnimInfo.StartFrame, 1);
+
+		// Compute the duration as it is not known yet
+		AnimInfo.Duration = AnimInfo.NumFrames * AnimInfo.SecondsPerFrame;
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

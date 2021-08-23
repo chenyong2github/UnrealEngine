@@ -31,6 +31,13 @@ void FGroomCacheImportSettingsCustomization::CustomizeChildren(TSharedRef<IPrope
 			// Visibility depends on other settings
 			VisibleType = 1;
 		}
+		else if	(ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, FrameStart) ||
+			ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, FrameEnd) ||
+			ChildHandle->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FGroomCacheImportSettings, bSkipEmptyFrames))
+		{
+			// Visibility depends on Import Groom Cache
+			VisibleType = 2;
+		}
 
 		IDetailPropertyRow& Property = StructBuilder.AddProperty(ChildHandle);
 		Property.Visibility(TAttribute<EVisibility>::Create(TAttribute<EVisibility>::FGetter::CreateSP(this, &FGroomCacheImportSettingsCustomization::ArePropertiesVisible, VisibleType)));
@@ -44,6 +51,10 @@ EVisibility FGroomCacheImportSettingsCustomization::ArePropertiesVisible(const i
 		// GroomAsset property must be shown if GroomCache is imported but not GroomAsset so that a replacement can be specified
 		// If GroomCache is not imported, then this property is not relevant
 		return Settings->bImportGroomAsset || !Settings->bImportGroomCache ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+	else if (VisibleType == 2 && Settings)
+	{
+		return !Settings->bImportGroomCache ? EVisibility::Collapsed : EVisibility::Visible;
 	}
 	return EVisibility::Visible;
 }
