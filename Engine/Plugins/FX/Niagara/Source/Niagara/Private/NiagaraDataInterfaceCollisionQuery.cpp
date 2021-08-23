@@ -18,6 +18,14 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
 
+int32 GEnableGPUHWRTCollisions = 1;
+static FAutoConsoleVariableRef CVarEnableGPUHWRTCollisions(
+	TEXT("fx.Niagara.Collision.EnableGPURayTracedCollisions"),
+	GEnableGPUHWRTCollisions,
+	TEXT("If greater than zero, GPU hardware ray trace collisions are enabled."),
+	ECVF_Default
+);
+
 namespace NDICollisionQueryLocal
 {
 	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceCollisionQuery.ush");
@@ -164,7 +172,7 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.NumBytes);
 		RayTraceCounts.Release();
 
-		if (IsRayTracingEnabled() && InMaxRayTraceRequests > 0)
+		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && InMaxRayTraceRequests > 0)
 		{
 			MaxRayTraceCount = 16 * FMath::DivideAndRoundUp(InMaxRayTraceRequests, 16);
 
@@ -646,7 +654,7 @@ void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctio
 
 bool UNiagaraDataInterfaceCollisionQuery::RequiresRayTracingScene() const
 {
-	return IsRayTracingEnabled() && MaxRayTraceCount > 0;
+	return IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxRayTraceCount > 0;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -1042,7 +1050,7 @@ public:
 		}
 
 #if RHI_RAYTRACING
-		SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() ? 1 : 0);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() && GEnableGPUHWRTCollisions ? 1 : 0);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, QueryDI->MaxRayTraceCount);
 
 		if (RayRequestsParam.IsUAVBound())
