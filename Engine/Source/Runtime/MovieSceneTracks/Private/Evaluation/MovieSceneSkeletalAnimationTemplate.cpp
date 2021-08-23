@@ -277,7 +277,7 @@ namespace MovieScene
 			ensureMsgf(InObject, TEXT("Attempting to evaluate an Animation track with a null object."));
 
 			USkeletalMeshComponent* SkeletalMeshComponent = SkeletalMeshComponentFromObject(InObject);
-			if (!SkeletalMeshComponent)
+			if (!SkeletalMeshComponent || !SkeletalMeshComponent->SkeletalMesh)
 			{
 				return;
 			}

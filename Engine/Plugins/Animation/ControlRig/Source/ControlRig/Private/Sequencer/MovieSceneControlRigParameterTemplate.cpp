@@ -554,17 +554,20 @@ void FControlRigBindingHelper::BindToSequencerInstance(UControlRig* ControlRig)
 	check(ControlRig);
 	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 	{
-		bool bWasCreated = false;
-		if (UControlRigLayerInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent, bWasCreated))
+		if(SkeletalMeshComponent->SkeletalMesh)
 		{
-			if (bWasCreated || !AnimInstance->HasControlRigTrack(ControlRig->GetUniqueID()))
+			bool bWasCreated = false;
+			if (UControlRigLayerInstance* AnimInstance = FAnimCustomInstanceHelper::BindToSkeletalMeshComponent<UControlRigLayerInstance>(SkeletalMeshComponent, bWasCreated))
 			{
-				AnimInstance->RecalcRequiredBones();
-				AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
-				ControlRig->Initialize();
-				ControlRig->RequestInit();
-				ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComponent, true);
-				ControlRig->Evaluate_AnyThread();
+				if (bWasCreated || !AnimInstance->HasControlRigTrack(ControlRig->GetUniqueID()))
+				{
+					AnimInstance->RecalcRequiredBones();
+					AnimInstance->AddControlRigTrack(ControlRig->GetUniqueID(), ControlRig);
+					ControlRig->Initialize();
+					ControlRig->RequestInit();
+					ControlRig->SetBoneInitialTransformsFromSkeletalMeshComponent(SkeletalMeshComponent, true);
+					ControlRig->Evaluate_AnyThread();
+				}
 			}
 		}
 	}
