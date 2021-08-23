@@ -166,6 +166,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Groom")
 	void SetHairLengthScaleEnable(bool bEnable);
 
+	UFUNCTION(BlueprintCallable, Category = "Groom")
+	bool GetIsHairLengthScaleEnabled();
+
 	void SetStableRasterization(bool bEnable);
 	void SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBinding, const bool bUpdateSimulation = true);
 	void SetHairRootScale(float Scale);
