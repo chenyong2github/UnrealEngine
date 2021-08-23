@@ -229,11 +229,11 @@ void UNeuralNetwork::FImpl::ConfigureTensors(FNeuralTensors& OutTensors, TArray<
  *****************************************************************************/
 
 UNeuralNetwork::UNeuralNetwork()
-	: DeviceType(ENeuralDeviceType::CPU)
+	: bIsLoaded(false)
+	, DeviceType(ENeuralDeviceType::CPU)
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
-	, bIsLoaded(false)
 {
 }
 
@@ -455,6 +455,11 @@ const FNeuralTensor& UNeuralNetwork::GetOutputTensor(const int32 InTensorIndex) 
 const FNeuralTensors& UNeuralNetwork::GetOutputTensors() const
 {
 	return OutputTensors;
+}
+
+UNeuralNetwork::FOnAsyncRunCompleted& UNeuralNetwork::GetOnAsyncRunCompletedDelegate()
+{
+	return OnAsyncRunCompletedDelegate;
 }
 
 void UNeuralNetwork::Run()

@@ -202,9 +202,24 @@ void UNeuralNetworkLegacy::SetDeviceType(const ENeuralDeviceType InDeviceType)
 	DeviceType = InDeviceType;
 }
 
-UNeuralNetworkLegacy::FOnAsyncRunCompletedInAnyThread& UNeuralNetworkLegacy::GetOnAsyncRunCompletedInAnyThreadDelegate()
+ENeuralDeviceType UNeuralNetworkLegacy::GetInputDeviceType() const
 {
-	return OnAsyncRunCompletedInAnyThreadDelegate;
+	return InputDeviceType;
+}
+
+void UNeuralNetworkLegacy::SetInputDeviceType(const ENeuralDeviceType InInputDeviceType)
+{
+	InputDeviceType = InInputDeviceType;
+}
+
+ENeuralDeviceType UNeuralNetworkLegacy::GetOutputDeviceType() const
+{
+	return OutputDeviceType;
+}
+
+void UNeuralNetworkLegacy::SetOutputDeviceType(const ENeuralDeviceType InOutputDeviceType)
+{
+	OutputDeviceType = InOutputDeviceType;
 }
 
 const TArray<FNeuralTensor>& UNeuralNetworkLegacy::GetTensors() const
@@ -275,6 +290,11 @@ TMap<FString, FNeuralTensor> UNeuralNetworkLegacy::CreateInputTensorMap() const
 TMap<FString, FNeuralTensor> UNeuralNetworkLegacy::CreateOutputTensorMap() const
 {
 	return TensorManager.CreateOutputTensorMap();
+}
+
+UNeuralNetworkLegacy::FOnAsyncRunCompleted& UNeuralNetworkLegacy::GetOnAsyncRunCompletedDelegate()
+{
+	return OnAsyncRunCompletedDelegate;
 }
 
 void UNeuralNetworkLegacy::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType, const bool bRunGPUEmptyOnlyForProfiling)
@@ -415,7 +435,7 @@ void UNeuralNetworkLegacy::Run(const ENeuralNetworkSynchronousMode InSynchronous
 							ERDGPassFlags::None,
 							[this](FRHICommandListImmediate& RHICmdList)
 						{
-							OnAsyncRunCompletedInAnyThreadDelegate.ExecuteIfBound();
+							OnAsyncRunCompletedDelegate.ExecuteIfBound();
 						});
 					}
 
