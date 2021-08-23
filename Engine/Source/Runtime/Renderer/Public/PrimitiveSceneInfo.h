@@ -246,6 +246,15 @@ enum class EPrimitiveDirtyState : uint8
 };
 ENUM_CLASS_FLAGS(EPrimitiveDirtyState);
 
+enum class EUpdateStaticMeshFlags : uint8
+{
+	RasterCommands		= (1U << 1U),
+	RayTracingCommands	= (1U << 2U),
+
+	AllCommands			= RasterCommands | RayTracingCommands,
+};
+ENUM_CLASS_FLAGS(EUpdateStaticMeshFlags);
+
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
  */
@@ -420,7 +429,7 @@ public:
 	}
 
 	/** Updates the primitive's static meshes in the scene. */
-	static void UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bReAddToDrawLists = true);
+	static void UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists = true);
 
 	/** Updates the primitive's uniform buffer. */
 	void UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList);

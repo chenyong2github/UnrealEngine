@@ -1415,12 +1415,15 @@ bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
 	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
 }
 
-void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bReAddToDrawLists)
+void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, EUpdateStaticMeshFlags UpdateFlags, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPrimitiveSceneInfo_UpdateStaticMeshes);
 
-	const bool bNeedsStaticMeshUpdate = !bReAddToDrawLists;
+	const bool bUpdateRayTracingCommands = EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RayTracingCommands) || !IsRayTracingEnabled();
+	const bool bUpdateAllCommands = EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RasterCommands) && bUpdateRayTracingCommands;
+
+	const bool bNeedsStaticMeshUpdate = !(bReAddToDrawLists && bUpdateAllCommands);
 
 	for (int32 Index = 0; Index < SceneInfos.Num(); Index++)
 	{
@@ -1434,19 +1437,33 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 			SceneInfo->bNeedsStaticMeshUpdateWithoutVisibilityCheck = false;
 		}
 
-		SceneInfo->RemoveCachedMeshDrawCommands();
-		SceneInfo->RemoveCachedNaniteDrawCommands();
+		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RasterCommands))
+		{
+			SceneInfo->RemoveCachedMeshDrawCommands();
+			SceneInfo->RemoveCachedNaniteDrawCommands();
+		}
+
 	#if RHI_RAYTRACING
-		SceneInfo->RemoveCachedRayTracingPrimitives();
+		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RayTracingCommands))
+		{
+			SceneInfo->RemoveCachedRayTracingPrimitives();
+		}
 	#endif
 	}
 
 	if (bReAddToDrawLists)
 	{
-		CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
-		CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RasterCommands))
+		{
+			CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
+			CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
+		}
+
 	#if RHI_RAYTRACING
-		CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RayTracingCommands))
+		{
+			CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+		}
 	#endif
 	}
 }

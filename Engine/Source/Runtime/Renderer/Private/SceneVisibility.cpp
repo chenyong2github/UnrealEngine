@@ -3118,7 +3118,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			{
 				SceneInfos.Add(Scene->Primitives[RollingRemoveIndex]);
 			}
-			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, SceneInfos, false);
+			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, SceneInfos, EUpdateStaticMeshFlags::AllCommands, false);
 		}
 	}
 
@@ -3974,7 +3974,7 @@ void FSceneRenderer::ComputeViewVisibility(
 		}
 		if (UpdatedSceneInfos.Num() > 0)
 		{
-			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos);
+			FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, UpdatedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
 		}
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
 	}
@@ -4209,7 +4209,7 @@ void FSceneRenderer::ComputeViewVisibility(
 
 				if (AddedSceneInfos.Num() > 0)
 				{
-					FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos);
+					FPrimitiveSceneInfo::UpdateStaticMeshes(RHICmdList, Scene, AddedSceneInfos, EUpdateStaticMeshFlags::AllCommands);
 				}
 			}
 
