@@ -67,7 +67,12 @@ static FAutoConsoleVariableRef CVarNaniteComputeRasterization(
 	TEXT("")
 );
 
+#if PLATFORM_WINDOWS
+// TODO: Off by default on Windows due to lack of atomic64 interop.
 int32 GNaniteMeshShaderRasterization = 0;
+#else
+int32 GNaniteMeshShaderRasterization = 1;
+#endif
 FAutoConsoleVariableRef CVarNaniteMeshShaderRasterization(
 	TEXT("r.Nanite.MeshShaderRasterization"),
 	GNaniteMeshShaderRasterization,
@@ -106,6 +111,14 @@ float GNaniteMinPixelsPerEdgeHW = 18.0f;
 FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("r.Nanite.MinPixelsPerEdgeHW"),
 	GNaniteMinPixelsPerEdgeHW,
+	TEXT("")
+);
+
+// TODO: WIP
+int32 GNaniteMSInterp = 0;
+static FAutoConsoleVariableRef CVarNaniteMSInterp(
+	TEXT("r.Nanite.MSInterp"),
+	GNaniteMSInterp,
 	TEXT("")
 );
 
@@ -817,6 +830,7 @@ class FHWRasterizeMS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER(FHWRasterizeMS);
 	SHADER_USE_PARAMETER_STRUCT(FHWRasterizeMS, FNaniteShader);
 
+	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FAddClusterOffset : SHADER_PERMUTATION_BOOL("ADD_CLUSTER_OFFSET");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
@@ -825,7 +839,7 @@ class FHWRasterizeMS : public FNaniteShader
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FAddClusterOffset, FMultiViewDim, FHasPrevDrawData, FVisualizeDim, FNearClipDim, FVirtualTextureTargetDim, FClusterPerPageDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -920,6 +934,7 @@ class FHWRasterizePS : public FNaniteShader
 	DECLARE_GLOBAL_SHADER( FHWRasterizePS );
 	SHADER_USE_PARAMETER_STRUCT( FHWRasterizePS, FNaniteShader );
 
+	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FRasterTechniqueDim : SHADER_PERMUTATION_INT("RASTER_TECHNIQUE", (int32)Nanite::ERasterTechnique::NumTechniques);
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FMeshShaderDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER");
@@ -929,7 +944,7 @@ class FHWRasterizePS : public FNaniteShader
 	class FClusterPerPageDim : SHADER_PERMUTATION_BOOL("CLUSTER_PER_PAGE");
 	class FNearClipDim : SHADER_PERMUTATION_BOOL("NEAR_CLIP");
 
-	using FPermutationDomain = TShaderPermutationDomain<FRasterTechniqueDim, FMultiViewDim, FMeshShaderDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FRasterTechniqueDim, FMultiViewDim, FMeshShaderDim, FPrimShaderDim, FVisualizeDim, FVirtualTextureTargetDim, FClusterPerPageDim, FNearClipDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRasterizePassParameters, Common)
@@ -994,6 +1009,11 @@ class FHWRasterizePS : public FNaniteShader
 		}
 
 		if (PermutationVector.Get<FClusterPerPageDim>() && !PermutationVector.Get<FVirtualTextureTargetDim>())
+		{
+			return false;
+		}
+
+		if (!PermutationVector.Get<FMeshShaderDim>() && PermutationVector.Get<FInterpOptDim>())
 		{
 			return false;
 		}
@@ -1582,6 +1602,7 @@ void AddPass_Rasterize(
 		GNaniteAutoShaderCulling != 0;
 
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
+	PermutationVectorPS.Set<FHWRasterizePS::FInterpOptDim>(GNaniteMSInterp != 0 && bUseMeshShader && !bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FRasterTechniqueDim>(int32(Technique));
 	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
@@ -1595,6 +1616,7 @@ void AddPass_Rasterize(
 	if (bUseMeshShader)
 	{
 		FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
+		PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
 		PermutationVectorMS.Set<FHWRasterizeMS::FRasterTechniqueDim>(int32(Technique));
 		PermutationVectorMS.Set<FHWRasterizeMS::FAddClusterOffset>(bMainPass ? 0 : 1);
 		PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
@@ -1778,6 +1800,14 @@ FRasterContext InitRasterContext(
 		// No 64-bit atomic support, or it is disabled.
 		RasterContext.RasterTechnique = ERasterTechnique::LockBufferFallback;
 	}
+#if PLATFORM_WINDOWS
+	else if (UseMeshShader() && GNaniteAtomicRasterization != 0)
+	{
+		// TODO: Currently, atomic64 vendor extensions and mesh shaders don't interop.
+		// Mesh shaders require PSO stream support, and vendor extensions require legacy PSO create.
+		RasterContext.RasterTechnique = ERasterTechnique::LockBufferFallback;
+	}
+#endif
 	else
 	{
 		// Determine what is providing support for atomics.
