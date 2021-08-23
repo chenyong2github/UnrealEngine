@@ -17,6 +17,12 @@
 
 bool ParseWaveFormatHeader(const uint8* InSrcBufferData, uint32 InSrcBufferDataSize, FWaveFormatInfo& OutHeader)
 {
+	if (!InSrcBufferData || InSrcBufferDataSize < sizeof(OutHeader.RiffWaveHeader))
+	{
+		UE_LOG(LogAudio, Error, TEXT("Failed to parse wave format header. Buffer data was null or empty."));
+		return false;
+	}
+
 	OutHeader.DataStartOffset = 0;
 
 	uint32 CurrByte = 0;
