@@ -483,12 +483,12 @@ void FVulkanCommandListContext::ClearUAVFillBuffer(FVulkanUnorderedAccessView* U
 	if (UAV->SourceStructuredBuffer)
 	{
 		TRefCountPtr<FVulkanStructuredBuffer> Buffer = UAV->SourceStructuredBuffer;
-		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->Current.Handle, Buffer->Current.Offset, Buffer->Current.Size, ClearValue);
+		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->GetHandle(), Buffer->GetOffset(), Buffer->GetCurrentSize(), ClearValue);
 	}
 	else if (UAV->SourceVertexBuffer)
 	{
 		TRefCountPtr<FVulkanVertexBuffer> Buffer = UAV->SourceVertexBuffer;
-		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->Current.Handle, Buffer->Current.Offset, Buffer->Current.Size, ClearValue);
+		VulkanRHI::vkCmdFillBuffer(CmdBuffer->GetHandle(), Buffer->GetHandle(), Buffer->GetOffset(), Buffer->GetCurrentSize(), ClearValue);
 	}
 }
 
@@ -573,7 +573,7 @@ void FVulkanCommandListContext::ClearUAV(TRHICommandList_RecursiveHazardous<FVul
 		else
 		{
 			TRefCountPtr<FVulkanVertexBuffer> Buffer = UnorderedAccessView->SourceVertexBuffer;
-			uint32 NumElements = Buffer->Current.Size / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
+			uint32 NumElements = Buffer->GetCurrentSize() / GPixelFormats[UnorderedAccessView->BufferViewFormat].BlockBytes;
 			ClearUAVShader_T<EClearReplacementResourceType::Buffer, 4, false>(RHICmdList, UnorderedAccessView, NumElements, 1, 1, ClearValue, ValueType);
 		}
 	}

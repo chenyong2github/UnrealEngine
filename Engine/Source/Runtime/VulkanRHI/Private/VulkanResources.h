@@ -401,11 +401,11 @@ public:
 		case VK_IMAGE_VIEW_TYPE_3D:
 			return 1;
 		case VK_IMAGE_VIEW_TYPE_2D_ARRAY:
-			return NumArrayLevels;
+			return ArraySize;
 		case VK_IMAGE_VIEW_TYPE_CUBE:
 			return 6;
 		case VK_IMAGE_VIEW_TYPE_CUBE_ARRAY:
-			return 6 * NumArrayLevels;
+			return 6 * ArraySize;
 		default:
 			ErrorInvalidViewType();
 			return 1;
@@ -453,7 +453,6 @@ public:
 	ETextureCreateFlags UEFlags;
 	VkMemoryPropertyFlags MemProps;
 	VkMemoryRequirements MemoryRequirements;
-	uint32 NumArrayLevels;
 
 	static void InternalLockWrite(FVulkanCommandListContext& Context, FVulkanSurface* Surface, const VkImageSubresourceRange& SubresourceRange, const VkBufferImageCopy& Region, VulkanRHI::FStagingBuffer* StagingBuffer);
 
@@ -462,6 +461,8 @@ private:
 
 	void SetInitialImageState(FVulkanCommandListContext& Context, VkImageLayout InitialLayout, bool bClear, const FClearValueBinding& ClearValueBinding);
 	friend struct FRHICommandSetInitialImageState;
+
+	void InternalMoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& DestAllocation, bool bSwapAllocation);
 
 private:
 	VkImageTiling Tiling;
@@ -1198,9 +1199,10 @@ public:
 		return Current.Offset;
 	}
 
+	// Remaining size from the current offset
 	inline uint64 GetCurrentSize() const
 	{
-		return Current.Size;
+		return Current.Alloc.Size - (Current.Offset - Current.Alloc.Offset);
 	}
 
 
