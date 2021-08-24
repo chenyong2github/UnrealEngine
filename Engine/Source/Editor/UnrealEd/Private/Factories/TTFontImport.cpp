@@ -1660,11 +1660,19 @@ void* UTrueTypeFontFactory::LoadFontFace( void* FTLibrary, int32 Height, FFeedba
 }
 
 #elif PLATFORM_LINUX
-void* UTrueTypeFontFactory::LoadFontFace( void* FTLibrary, int32 Height, FFeedbackContext* Warn, void** OutFontData )
+
+void* UTrueTypeFontFactory::LoadFontFace(void* FTLibrary, int32 Height, FFeedbackContext* Warn, void** OutFontData)
 {
-	STUBBED("UTrueTypeFontFactory::LoadFontFace");
-	return nullptr;
+	FT_Face Face = nullptr;
+	int32 Error = FT_New_Face((FT_Library)FTLibrary, TCHAR_TO_ANSI(*ImportOptions->Data.FontName), 0, &Face);
+	if (Error != 0)
+	{
+		Face = nullptr;
+	}
+
+	return Face;
 }
+
 #else 
 #error "Unknown platform"
 #endif

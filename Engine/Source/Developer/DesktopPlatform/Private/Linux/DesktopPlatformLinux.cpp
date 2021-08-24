@@ -16,6 +16,7 @@
 
 //#include "LinuxNativeFeedbackContext.h"
 #include "ISlateFileDialogModule.h"
+#include "ISlateFontDialogModule.h" 
 
 #define LOCTEXT_NAMESPACE "DesktopPlatform"
 #define MAX_FILETYPES_STR 4096
@@ -100,7 +101,22 @@ bool FDesktopPlatformLinux::OpenDirectoryDialog(const void* ParentWindowHandle, 
 
 bool FDesktopPlatformLinux::OpenFontDialog(const void* ParentWindowHandle, FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags)
 {
-	STUBBED("FDesktopPlatformLinux::OpenFontDialog");
+	if (!FModuleManager::Get().IsModuleLoaded("SlateFontDialog"))
+	{
+		FModuleManager::Get().LoadModule("SlateFontDialog");
+	}
+
+	ISlateFontDialogModule* FontDialog = FModuleManager::GetModulePtr<ISlateFontDialogModule>("SlateFontDialog");
+	
+	if (FontDialog)
+	{
+		return FontDialog->OpenFontDialog(OutFontName, OutHeight, OutFlags);
+	}
+	else
+	{
+		UE_LOG(LogLinux, Warning, TEXT("Error reading results of font dialog"));
+	}
+	
 	return false;
 }
 
