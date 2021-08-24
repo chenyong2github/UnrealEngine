@@ -39,6 +39,7 @@ IMPLEMENT_APPLICATION(TestPAL, "TestPAL");
 #define ARG_STRINGS_ALLOCATION_TEST			"stringsallocation"
 #define ARG_CREATEGUID_TEST					"createguid"
 #define ARG_THREADSTACK_TEST				"threadstack"
+#define ARG_EXEC_PROCESS_TEST				"exec-process"
 #define ARG_FORK_TEST						"fork"
 
 namespace TestPAL
@@ -1615,6 +1616,51 @@ int32 ForkTest(const TCHAR* CommandLine)
 	return 0;
 }
 
+/** 
+ * Launch the external tool as a process and wait for it to complete
+ *
+ * Set executable and parameters via something like:
+ *
+ *  ./Engine/Binaries/Linux/TestPAL exec-process exe=/bin/ls params=/tmp
+ *
+ */
+int32 ExecProcessTest(const TCHAR *CommandLine)
+{
+	FString Exe;
+	FString Params;
+
+	FPlatformMisc::SetCrashHandler(NULL);
+	FPlatformMisc::SetGracefulTerminationHandler();
+
+	GEngineLoop.PreInit(CommandLine);
+
+	if (!FParse::Value(CommandLine, TEXT("exe="), Exe))
+	{
+		Exe = TEXT("nonexistent-exe");
+	}
+	if (!FParse::Value(CommandLine, TEXT("params="), Params))
+	{
+		Params = TEXT("");
+	}
+
+	UE_LOG(LogTestPAL, Display, TEXT("  Exe:'%s' Parameters:'%s'"), *Exe, *Params);
+
+	int32 ReturnCode;
+	FString OutStdOut;
+	FString OutStdErr;
+	bool Ret = FPlatformProcess::ExecProcess(*Exe, *Params, &ReturnCode, &OutStdOut, &OutStdErr);
+
+	UE_LOG(LogTestPAL, Display, TEXT("ExecProcess returns %d"), Ret);
+	UE_LOG(LogTestPAL, Display, TEXT("  ReturnCode:%d"), ReturnCode);
+	UE_LOG(LogTestPAL, Display, TEXT("  StdOut:%s"), *OutStdOut);
+	UE_LOG(LogTestPAL, Display, TEXT("  StdErr:%s"), *OutStdErr);
+
+	FEngineLoop::AppPreExit();
+	FEngineLoop::AppExit();
+
+	return 0;
+}
+
 /**
  * Selects and runs one of test cases.
  *
@@ -1704,6 +1750,10 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 		{
 			return ThreadTraceTest(*TestPAL::CommandLine);
 		}
+		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_EXEC_PROCESS_TEST))
+		{
+			return ExecProcessTest(*TestPAL::CommandLine);
+		}
 		else if (!FCStringAnsi::Strcmp(ArgV[IdxArg], ARG_FORK_TEST))
 		{
 			return ForkTest(*TestPAL::CommandLine);
@@ -1736,6 +1786,7 @@ int32 MultiplexedMain(int32 ArgC, char* ArgV[])
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test string allocations."), UTF8_TO_TCHAR(ARG_STRINGS_ALLOCATION_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test CreateGuid."), UTF8_TO_TCHAR(ARG_CREATEGUID_TEST));
 	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test ThreadWalkStackAndDump and CaptureThreadBackTrace."), UTF8_TO_TCHAR(ARG_THREADSTACK_TEST));
+	UE_LOG(LogTestPAL, Warning, TEXT("  %s: test ExecProcess. Possible options: [-exe=executable] [-params=parameters]"), UTF8_TO_TCHAR(ARG_EXEC_PROCESS_TEST));
 
 	if (PLATFORM_LINUX)
 	{
