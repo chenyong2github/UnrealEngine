@@ -123,4 +123,5 @@ private:
 	int32 PreviousNeverMuteNonRealtimeAudio;
 	int32 PreviousSkyLightRealTimeReflectionCaptureTimeSlice;
 	int32 PreviousVolumetricRenderTarget;
+	int32 PreviousIgnoreStreamingPerformance;
 };
