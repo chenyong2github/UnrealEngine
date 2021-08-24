@@ -3,6 +3,7 @@
 #include "Internationalization/TextCache.h"
 #include "Misc/LazySingleton.h"
 #include "Misc/ScopeLock.h"
+#include "HAL/LowLevelMemTracker.h"
 
 FTextCache& FTextCache::Get()
 {
@@ -16,6 +17,7 @@ void FTextCache::TearDown()
 
 FText FTextCache::FindOrCache(const TCHAR* InTextLiteral, const TCHAR* InNamespace, const TCHAR* InKey)
 {
+	LLM_SCOPE(ELLMTag::Localization);
 	const FTextId TextId(InNamespace, InKey);
 
 	// First try and find a cached instance
