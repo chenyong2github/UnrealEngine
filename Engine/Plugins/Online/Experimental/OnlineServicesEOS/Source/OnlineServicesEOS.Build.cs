@@ -15,7 +15,11 @@ public class OnlineServicesEOS : ModuleRules
 			}
 		);
 
-		// TODO:  Use EOSShared module
-		PrivateDefinitions.Add("WITH_EOS_SDK=0");
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"EOSSDK",
+				"EOSShared",
+			}
+		);
 	}
 }

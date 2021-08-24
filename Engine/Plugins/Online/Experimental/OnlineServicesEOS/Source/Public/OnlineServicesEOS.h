@@ -2,7 +2,16 @@
 
 #pragma once
 
+#if WITH_EOS_SDK
+
 #include "Online/OnlineServicesCommon.h"
+
+#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+#include EOS_PLATFORM_BASE_FILE_NAME
+#endif
+#include "eos_sdk.h"
+
+using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle>;
 
 namespace UE::Online {
 
@@ -13,7 +22,12 @@ public:
 	virtual void RegisterComponents() override;
 
 	static EOnlineServices GetServicesProvider() { return EOnlineServices::Epic; }
-private:
+
+	EOS_HPlatform GetEOSPlatformHandle() const;
+protected:
+	IEOSPlatformHandlePtr EOSPlatformHandle;
 };
 
 /* UE::Online */ }
+
+#endif // WITH_EOS_SDK

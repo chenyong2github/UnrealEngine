@@ -1,117 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AuthEOS.h"
+
+#if WITH_EOS_SDK
 #include "OnlineServicesEOS.h"
 #include "OnlineServicesEOSTypes.h"
 #include "Online/AuthErrors.h"
 
-#if WITH_EOS_SDK
 #include "eos_auth.h"
 #include "eos_types.h"
 #include "eos_init.h"
 #include "eos_sdk.h"
 #include "eos_logging.h"
-
-void EOS_CALL EOSFree(void* Ptr)
-{
-	FMemory::Free(Ptr);
-}
-
-void* EOS_CALL EOSMalloc(size_t Size, size_t Alignment)
-{
-	return FMemory::Malloc(Size, Alignment);
-}
-
-void* EOS_CALL EOSRealloc(void* Ptr, size_t Size, size_t Alignment)
-{
-	return FMemory::Realloc(Ptr, Size, Alignment);
-}
-
-void EOS_CALL EOSLog(const EOS_LogMessage* InMsg)
-{
-	if (GLog == nullptr)
-	{
-		return;
-	}
-
-	switch (InMsg->Level)
-	{
-		case EOS_ELogLevel::EOS_LOG_Fatal:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Error:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Warning:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Verbose:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_VeryVerbose:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-		case EOS_ELogLevel::EOS_LOG_Info:
-		default:
-		{
-			UE_LOG(LogTemp, Warning, TEXT("EOSSDK-%s: %s"), ANSI_TO_TCHAR(InMsg->Category), ANSI_TO_TCHAR(InMsg->Message));
-			break;
-		}
-	}
-}
-
-EOS_HPlatform SetupEOSSdk()
-{
-	static EOS_HPlatform PlatformHandle = nullptr;
-	if (PlatformHandle == nullptr)
-	{
-		// Init EOS SDK
-		EOS_InitializeOptions SDKOptions = { };
-		SDKOptions.ApiVersion = EOS_INITIALIZE_API_LATEST;
-
-		SDKOptions.ProductName = "My Product";
-		SDKOptions.ProductVersion = "Unknown";
-		SDKOptions.AllocateMemoryFunction = &EOSMalloc;
-		SDKOptions.ReallocateMemoryFunction = &EOSRealloc;
-		SDKOptions.ReleaseMemoryFunction = &EOSFree;
-
-		EOS_EResult InitResult = EOS_Initialize(&SDKOptions);
-
-		EOS_Platform_Options PlatformOptions = {};
-		PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
-		PlatformOptions.bIsServer = EOS_FALSE;
-		PlatformOptions.EncryptionKey = nullptr;
-		PlatformOptions.OverrideCountryCode = nullptr;
-		PlatformOptions.OverrideLocaleCode = nullptr;
-		PlatformOptions.Flags = EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D9 | EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D10 | EOS_PF_WINDOWS_ENABLE_OVERLAY_OPENGL; // Enable overlay support for D3D9/10 and OpenGL. This sample uses D3D11 or SDL.
-
-		char CacheDirectory[512];
-		FCStringAnsi::Strncpy(CacheDirectory, TCHAR_TO_UTF8(*(FPlatformProcess::UserDir() / FString(TEXT("CacheDir")))), 512);
-		PlatformOptions.CacheDirectory = CacheDirectory;
-
-		PlatformOptions.ProductId = "";
-		PlatformOptions.SandboxId = "";
-		PlatformOptions.DeploymentId = "";
-
-		PlatformOptions.ClientCredentials.ClientId = "";
-		PlatformOptions.ClientCredentials.ClientSecret = "";
-
-		PlatformHandle = EOS_Platform_Create(&PlatformOptions);
-
-		EOS_Logging_SetCallback(&EOSLog);
-	}
-	return PlatformHandle;
-}
 
 namespace UE::Online {
 
@@ -152,18 +52,11 @@ struct FEosAuthCredentials :
 	char TokenAnsi[EOS_MAX_TOKEN_SIZE];
 };
 
-FAuthEOS::FAuthEOS(FOnlineServicesEOS& InOwningSubsystem)
-	: FAuthCommon(InOwningSubsystem)
+FAuthEOS::FAuthEOS(FOnlineServicesEOS& InServices)
+	: FAuthCommon(InServices)
 {
-}
-
-void FAuthEOS::Tick(float DeltaTime)
-{
-	EOS_HPlatform PlatformHandle = SetupEOSSdk();
-	if (PlatformHandle)
-	{
-		EOS_Platform_Tick(PlatformHandle);
-	}
+	AuthHandle = EOS_Platform_GetAuthInterface(InServices.GetEOSPlatformHandle());
+	check(AuthHandle != nullptr);
 }
 
 bool LexFromString(EOS_EAuthScopeFlags& OutEnum, const TCHAR* InString)
@@ -238,10 +131,6 @@ bool LexFromString(EOS_ELoginCredentialType& OutEnum, const TCHAR* const InStrin
 
 TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 {
-	EOS_HPlatform PlatformHandle = SetupEOSSdk();
-	EOS_HAuth AuthHandle = EOS_Platform_GetAuthInterface(PlatformHandle);
-	check(AuthHandle != nullptr);
-
 	TOnlineAsyncOp<FAuthLogin>& Op = Services.OpCache.GetOp<FAuthLogin>(MoveTemp(Params));
 
 	EOS_Auth_LoginOptions LoginOptions = { };
@@ -309,7 +198,7 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 		return Op.GetHandle();
 	}
 
-	Op.Then([this, AuthHandle, LoginOptions, Credentials](TOnlineAsyncOp<FAuthLogin>& InAsyncOp) mutable
+	Op.Then([this, LoginOptions, Credentials](TOnlineAsyncOp<FAuthLogin>& InAsyncOp) mutable
 		{
 			LoginOptions.Credentials = &Credentials;
 			return EOS_Async<EOS_Auth_LoginCallbackInfo>(InAsyncOp, EOS_Auth_Login, AuthHandle, LoginOptions);
@@ -356,10 +245,6 @@ TOnlineAsyncOpHandle<FAuthLogin> FAuthEOS::Login(FAuthLogin::Params&& Params)
 
 TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 {
-	EOS_HPlatform PlatformHandle = SetupEOSSdk();
-	EOS_HAuth AuthHandle = EOS_Platform_GetAuthInterface(PlatformHandle);
-	check(AuthHandle != nullptr);
-	
 	FAccountId ParamLocalUserId = Params.LocalUserId;
 	TOptional<EOS_EpicAccountId> AccountId = EOSAccountIdFromOnlineServiceAccountId(ParamLocalUserId);
 	TOnlineAsyncOp<FAuthLogout>& Op = Services.OpCache.GetOp<FAuthLogout>(MoveTemp(Params));
@@ -372,7 +257,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 			EOS_Auth_DeletePersistentAuthOptions DeletePersistentAuthOptions = {0};
 			DeletePersistentAuthOptions.ApiVersion = EOS_AUTH_DELETEPERSISTENTAUTH_API_LATEST;
 			DeletePersistentAuthOptions.RefreshToken = nullptr; // Is this needed?  Docs say it's needed for consoles
-			NextOp = NextOp.Then([this, AuthHandle, DeletePersistentAuthOptions](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
+			NextOp = NextOp.Then([this, DeletePersistentAuthOptions](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
 				{
 					return EOS_Async<EOS_Auth_DeletePersistentAuthCallbackInfo>(InAsyncOp, EOS_Auth_DeletePersistentAuth, AuthHandle, DeletePersistentAuthOptions);
 				})
@@ -383,7 +268,7 @@ TOnlineAsyncOpHandle<FAuthLogout> FAuthEOS::Logout(FAuthLogout::Params&& Params)
 				});
 		}
 		// Logout
-		NextOp.Then([this, AuthHandle, AccountId](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
+		NextOp.Then([this, AccountId](TOnlineAsyncOp<FAuthLogout>& InAsyncOp)
 			{
 				EOS_Auth_LogoutOptions LogoutOptions = { };
 				LogoutOptions.ApiVersion = EOS_AUTH_LOGOUT_API_LATEST;

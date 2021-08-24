@@ -17,6 +17,7 @@ public:
 protected:
 };
 
+#if WITH_EOS_SDK
 class FOnlineServicesFactoryEOS : public IOnlineServicesFactory
 {
 public:
@@ -27,10 +28,13 @@ public:
 	}
 protected:
 };
+#endif // WITH_EOS_SDK
 
 void FOnlineServicesEOSModule::StartupModule()
 {
+#if WITH_EOS_SDK
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOS>());
+#endif // WITH_EOS_SDK
 }
 
 /* UE::Online */ }

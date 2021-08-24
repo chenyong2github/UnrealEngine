@@ -2,10 +2,10 @@
 
 #pragma once
 
+#if WITH_EOS_SDK
+
 #include "Online/OnlineAsyncOp.h"
 #include "Async/Future.h"
-
-#if WITH_EOS_SDK
 
 #include "eos_common.h"
 
@@ -58,7 +58,7 @@ TFuture<const TEosResult*> EOS_Async(TOnlineAsyncOp<TAsyncOpType>& Op, TEosFn Eo
 
 // TEMP until Net Id Registry is done
 extern TMap<EOS_EpicAccountId, int32> EOSAccountIdMap;
-FAccountId MakeEOSAccountId(EOS_EpicAccountId EpicAccountId)
+inline FAccountId MakeEOSAccountId(EOS_EpicAccountId EpicAccountId)
 {
 	static int32 EpicAccountIdCounter = 0;
 
@@ -75,7 +75,7 @@ FAccountId MakeEOSAccountId(EOS_EpicAccountId EpicAccountId)
 	return Result;
 }
 
-TOptional<EOS_EpicAccountId> EOSAccountIdFromOnlineServiceAccountId(const FAccountId& InAccountId)
+inline TOptional<EOS_EpicAccountId> EOSAccountIdFromOnlineServiceAccountId(const FAccountId& InAccountId)
 {
 	TOptional<EOS_EpicAccountId> Result;
 	for (const TPair<EOS_EpicAccountId, int32>& EOSAccountIdPair : EOSAccountIdMap)

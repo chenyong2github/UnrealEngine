@@ -2,11 +2,13 @@
 
 #pragma once
 
+#if WITH_EOS_SDK
 #include "CoreMinimal.h"
 #include "Online/AuthCommon.h"
-#include "Containers/Ticker.h"
 
-#if WITH_EOS_SDK
+#if defined(EOS_PLATFORM_BASE_FILE_NAME)
+#include EOS_PLATFORM_BASE_FILE_NAME
+#endif
 #include "eos_auth_types.h"
 
 namespace UE::Online {
@@ -25,9 +27,10 @@ public:
 	virtual TOnlineResult<FAuthGetAccountByLocalUserNum::Result> GetAccountByLocalUserNum(FAuthGetAccountByLocalUserNum::Params&& Params) override;
 	virtual TOnlineResult<FAuthGetAccountByAccountId::Result> GetAccountByAccountId(FAuthGetAccountByAccountId::Params&& Params) override;
 
+	bool IsLoggedIn(const FAccountId& AccountId) const;
+
 protected:
 	TOnlineResult<FAccountId> GetAccountIdByLocalUserNum(int32 LocalUserNum) const;
-	virtual void Tick(float DeltaTime) override;
 
 	class FAccountInfoEOS : public FAccountInfo
 	{
@@ -36,7 +39,9 @@ protected:
 	};
 
 	TMap<FAccountId, TSharedRef<FAccountInfoEOS>> AccountInfos;
+
+	EOS_HAuth AuthHandle;
 };
 
 /* UE::Online */ }
-#endif
+#endif // WITH_EOS_SDK
