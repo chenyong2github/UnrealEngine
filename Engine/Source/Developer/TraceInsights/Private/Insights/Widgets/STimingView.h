@@ -439,10 +439,6 @@ protected:
 	FReply AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	FReply AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	void ContextMenu_ShowTaskDependecies_Execute();
-	bool ContextMenu_ShowTaskDependecies_CanExecute();
-	bool ContextMenu_ShowTaskDependecies_IsChecked();
-
 	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const;
 	
 	void FindNextEvent();
