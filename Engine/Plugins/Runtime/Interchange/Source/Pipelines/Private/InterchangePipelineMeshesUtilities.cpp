@@ -49,69 +49,72 @@ UInterchangePipelineMeshesUtilities* UInterchangePipelineMeshesUtilities::Create
 				}
 
 				FString MeshUid;
-				if (SceneNode->GetCustomMeshDependencyUid(MeshUid))
+				if (SceneNode->GetCustomAssetInstanceUid(MeshUid))
 				{
-					UInterchangeSceneNode* ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
-					if (ParentMeshSceneNode)
+					if (BaseNodeContainer->GetNode(MeshUid)->IsA<UInterchangeMeshNode>())
 					{
-						UInterchangeSceneNode* LodGroupNode = nullptr;
-						int32 LodIndex = 0;
-						FString LastChildUid = SceneNode->GetUniqueID();
-						do
+						UInterchangeSceneNode* ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(SceneNode->GetParentUid()));
+						if (ParentMeshSceneNode)
 						{
-							if (ParentMeshSceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetLodGroupSpecializeTypeString()))
+							UInterchangeSceneNode* LodGroupNode = nullptr;
+							int32 LodIndex = 0;
+							FString LastChildUid = SceneNode->GetUniqueID();
+							do
 							{
-								LodGroupNode = ParentMeshSceneNode;
-								TArray<FString> LodGroupChildrens = BaseNodeContainer->GetNodeChildrenUids(ParentMeshSceneNode->GetUniqueID());
-								for (int32 ChildLodIndex = 0; ChildLodIndex < LodGroupChildrens.Num(); ++ChildLodIndex)
+								if (ParentMeshSceneNode->IsSpecializedTypeContains(UE::Interchange::FSceneNodeStaticData::GetLodGroupSpecializeTypeString()))
 								{
-									const FString& ChildrenUid = LodGroupChildrens[ChildLodIndex];
-									if (ChildrenUid.Equals(LastChildUid))
+									LodGroupNode = ParentMeshSceneNode;
+									TArray<FString> LodGroupChildrens = BaseNodeContainer->GetNodeChildrenUids(ParentMeshSceneNode->GetUniqueID());
+									for (int32 ChildLodIndex = 0; ChildLodIndex < LodGroupChildrens.Num(); ++ChildLodIndex)
 									{
-										LodIndex = ChildLodIndex;
-										break;
+										const FString& ChildrenUid = LodGroupChildrens[ChildLodIndex];
+										if (ChildrenUid.Equals(LastChildUid))
+										{
+											LodIndex = ChildLodIndex;
+											break;
+										}
 									}
+									break;
 								}
-								break;
-							}
-							LastChildUid = ParentMeshSceneNode->GetUniqueID();
-							ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
-						} while (ParentMeshSceneNode);
+								LastChildUid = ParentMeshSceneNode->GetUniqueID();
+								ParentMeshSceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(ParentMeshSceneNode->GetParentUid()));
+							} while (ParentMeshSceneNode);
 
-						FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->MeshGeometriesPerMeshUid.FindChecked(MeshUid);
-						if (LodGroupNode)
-						{
-							//We have a LOD
-							FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->MeshInstancesPerMeshInstanceUid.FindOrAdd(LodGroupNode->GetUniqueID());
-							if (MeshInstance.LodGroupNode != nullptr)
+							FInterchangeMeshGeometry& MeshGeometry = PipelineMeshesUtilities->MeshGeometriesPerMeshUid.FindChecked(MeshUid);
+							if (LodGroupNode)
 							{
-								//This LodGroup was already created, verify everything is ok
-								checkSlow(MeshInstance.LodGroupNode == LodGroupNode);
-								checkSlow(MeshInstance.MeshInstanceUid.Equals(LodGroupNode->GetUniqueID()));
+								//We have a LOD
+								FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->MeshInstancesPerMeshInstanceUid.FindOrAdd(LodGroupNode->GetUniqueID());
+								if (MeshInstance.LodGroupNode != nullptr)
+								{
+									//This LodGroup was already created, verify everything is ok
+									checkSlow(MeshInstance.LodGroupNode == LodGroupNode);
+									checkSlow(MeshInstance.MeshInstanceUid.Equals(LodGroupNode->GetUniqueID()));
+								}
+								else
+								{
+									MeshInstance.LodGroupNode = LodGroupNode;
+									MeshInstance.MeshInstanceUid = LodGroupNode->GetUniqueID();
+								}
+								FInterchangeLodSceneNodeContainer& InstancedSceneNodes = MeshInstance.SceneNodePerLodIndex.FindOrAdd(LodIndex);
+								InstancedSceneNodes.SceneNodes.AddUnique(SceneNode);
+								MeshGeometry.ReferencingMeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
+								MeshInstance.ReferencingMeshGeometryUids.Add(MeshUid);
+								MeshInstance.bReferenceSkinnedMesh |= MeshGeometry.MeshNode->IsSkinnedMesh();
+								MeshInstance.bReferenceBlendShape |= MeshGeometry.MeshNode->IsBlendShape();
 							}
 							else
 							{
-								MeshInstance.LodGroupNode = LodGroupNode;
-								MeshInstance.MeshInstanceUid = LodGroupNode->GetUniqueID();
+								FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->MeshInstancesPerMeshInstanceUid.FindOrAdd(NodeUid);
+								MeshInstance.LodGroupNode = nullptr;
+								MeshInstance.MeshInstanceUid = NodeUid;
+								FInterchangeLodSceneNodeContainer& InstancedSceneNodes = MeshInstance.SceneNodePerLodIndex.FindOrAdd(LodIndex);
+								InstancedSceneNodes.SceneNodes.AddUnique(SceneNode);
+								MeshGeometry.ReferencingMeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
+								MeshInstance.ReferencingMeshGeometryUids.Add(MeshUid);
+								MeshInstance.bReferenceSkinnedMesh |= MeshGeometry.MeshNode->IsSkinnedMesh();
+								MeshInstance.bReferenceBlendShape |= MeshGeometry.MeshNode->IsBlendShape();
 							}
-							FInterchangeLodSceneNodeContainer& InstancedSceneNodes = MeshInstance.SceneNodePerLodIndex.FindOrAdd(LodIndex);
-							InstancedSceneNodes.SceneNodes.AddUnique(SceneNode);
-							MeshGeometry.ReferencingMeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
-							MeshInstance.ReferencingMeshGeometryUids.Add(MeshUid);
-							MeshInstance.bReferenceSkinnedMesh |= MeshGeometry.MeshNode->IsSkinnedMesh();
-							MeshInstance.bReferenceBlendShape |= MeshGeometry.MeshNode->IsBlendShape();
-						}
-						else
-						{
-							FInterchangeMeshInstance& MeshInstance = PipelineMeshesUtilities->MeshInstancesPerMeshInstanceUid.FindOrAdd(NodeUid);
-							MeshInstance.LodGroupNode = nullptr;
-							MeshInstance.MeshInstanceUid = NodeUid;
-							FInterchangeLodSceneNodeContainer& InstancedSceneNodes = MeshInstance.SceneNodePerLodIndex.FindOrAdd(LodIndex);
-							InstancedSceneNodes.SceneNodes.AddUnique(SceneNode);
-							MeshGeometry.ReferencingMeshInstanceUids.Add(MeshInstance.MeshInstanceUid);
-							MeshInstance.ReferencingMeshGeometryUids.Add(MeshUid);
-							MeshInstance.bReferenceSkinnedMesh |= MeshGeometry.MeshNode->IsSkinnedMesh();
-							MeshInstance.bReferenceBlendShape |= MeshGeometry.MeshNode->IsBlendShape();
 						}
 					}
 				}
@@ -439,7 +442,7 @@ FString UInterchangePipelineMeshesUtilities::GetMeshInstanceSkeletonRootUid(cons
 	{
 		const UInterchangeSceneNode* SceneNode = MeshInstance.SceneNodePerLodIndex[BaseLodIndex].SceneNodes[0];
 		FString MeshNodeUid;
-		if (SceneNode->GetCustomMeshDependencyUid(MeshNodeUid))
+		if (SceneNode->GetCustomAssetInstanceUid(MeshNodeUid))
 		{
 			if (SkeletonRootUidPerMeshUid.Contains(MeshNodeUid))
 			{

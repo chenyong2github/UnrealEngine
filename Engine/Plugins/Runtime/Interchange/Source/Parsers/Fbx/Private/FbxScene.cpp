@@ -9,6 +9,8 @@
 #include "FbxInclude.h"
 #include "FbxMaterial.h"
 #include "FbxMesh.h"
+#include "InterchangeCameraNode.h"
+#include "InterchangeLightNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangeResultsContainer.h"
 #include "InterchangeSceneNode.h"
@@ -23,7 +25,7 @@ namespace UE
 		namespace Private
 		{
 
-			void FFbxScene::CreateMeshNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNode* FbxSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
+			void FFbxScene::CreateMeshNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
 			{
 				UInterchangeMeshNode* MeshNode = nullptr;
 				if (NodeAttribute->GetAttributeType() == FbxNodeAttribute::eMesh)
@@ -42,18 +44,29 @@ namespace UE
 
 				if (MeshNode)
 				{
-					UnrealSceneNode->SetCustomMeshDependencyUid(MeshNode->GetUniqueID());
+					UnrealSceneNode->SetCustomAssetInstanceUid(MeshNode->GetUniqueID());
 					MeshNode->SetSceneInstanceUid(UnrealSceneNode->GetUniqueID());
 				}
 			}
 
-			void FFbxScene::CreateCameraNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNode* FbxSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
+			void CreateAssetNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer, const FStringView TypeName)
 			{
+				const FString AssetUniqueID = FFbxHelper::GetNodeAttributeUniqueID(NodeAttribute, TypeName);
+
+				if (UInterchangeBaseNode* AssetNode = NodeContainer.GetNode(AssetUniqueID))
+				{
+					UnrealSceneNode->SetCustomAssetInstanceUid(AssetNode->GetUniqueID());
+				}
 			}
 
-			void FFbxScene::CreateLightNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNode* FbxSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
+			void FFbxScene::CreateCameraNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
 			{
+				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeCameraNode::StaticAssetTypeName());
+			}
 
+			void FFbxScene::CreateLightNodeReference(UInterchangeSceneNode* UnrealSceneNode, FbxNodeAttribute* NodeAttribute, UInterchangeBaseNodeContainer& NodeContainer)
+			{
+				CreateAssetNodeReference(UnrealSceneNode, NodeAttribute, NodeContainer, UInterchangeLightNode::StaticAssetTypeName());
 			}
 
 			UInterchangeSceneNode* FFbxScene::AddHierarchyRecursively(FbxNode* Node, FbxScene* SDKScene, UInterchangeBaseNodeContainer& NodeContainer)
@@ -125,7 +138,7 @@ namespace UE
 							//For Mesh attribute we add the fbx nodes materials
 							FFbxMaterial FbxMaterial(Parser);
 							FbxMaterial.AddAllNodeMaterials(UnrealNode, Node, NodeContainer);
-							CreateMeshNodeReference(UnrealNode, Node, NodeAttribute, NodeContainer);
+							CreateMeshNodeReference(UnrealNode, NodeAttribute, NodeContainer);
 							break;
 						}
 						case FbxNodeAttribute::eLODGroup:
@@ -136,13 +149,13 @@ namespace UE
 						case FbxNodeAttribute::eCamera:
 						{
 							//Add the Camera asset
-							CreateCameraNodeReference(UnrealNode, Node, NodeAttribute, NodeContainer);
+							CreateCameraNodeReference(UnrealNode, NodeAttribute, NodeContainer);
 							break;
 						}
 						case FbxNodeAttribute::eLight:
 						{
 							//Add the Light asset
-							CreateLightNodeReference(UnrealNode, Node, NodeAttribute, NodeContainer);
+							CreateLightNodeReference(UnrealNode, NodeAttribute, NodeContainer);
 							break;
 						}
 					}

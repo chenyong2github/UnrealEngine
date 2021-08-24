@@ -8,7 +8,6 @@
 #include "InterchangeSceneNode.generated.h"
 
 //Interchange namespace
-//Interchange namespace
 namespace UE
 {
 	namespace Interchange
@@ -116,7 +115,7 @@ public:
 		}
 		else if (NodeAttributeKey == Macro_CustomLocalTransformKey
 				 || NodeAttributeKey == Macro_CustomGlobalTransformKey
-				 || NodeAttributeKey == Macro_CustomMeshDependencyUidKey)
+				 || NodeAttributeKey == Macro_CustomAssetInstanceUidKey)
 		{
 			return FString(TEXT("Scene"));
 		}
@@ -249,22 +248,23 @@ public:
 
 	/** Return false if the Attribute was not set previously.*/
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool GetCustomMeshDependencyUid(FString& AttributeValue) const
+	bool GetCustomAssetInstanceUid(FString& AttributeValue) const
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_GETTER(MeshDependencyUid, FString);
+		IMPLEMENT_NODE_ATTRIBUTE_GETTER(AssetInstanceUid, FString);
 	}
 
+	/** Tells which asset, if any, a scene node is instantiating */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node | Scene")
-	bool SetCustomMeshDependencyUid(const FString& AttributeValue)
+	bool SetCustomAssetInstanceUid(const FString& AttributeValue)
 	{
-		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(MeshDependencyUid, FString);
+		IMPLEMENT_NODE_ATTRIBUTE_SETTER_NODELEGATE(AssetInstanceUid, FString);
 	}
 
 private:
 	//Scene Attribute Keys
 	const UE::Interchange::FAttributeKey Macro_CustomLocalTransformKey = UE::Interchange::FAttributeKey(TEXT("LocalTransform"));
 	const UE::Interchange::FAttributeKey Macro_CustomGlobalTransformKey = UE::Interchange::FAttributeKey(TEXT("GlobalTransform"));
-	const UE::Interchange::FAttributeKey Macro_CustomMeshDependencyUidKey = UE::Interchange::FAttributeKey(TEXT("MeshDependencyUid"));
+	const UE::Interchange::FAttributeKey Macro_CustomAssetInstanceUidKey = UE::Interchange::FAttributeKey(TEXT("AssetInstanceUid"));
 
 	UE::Interchange::FNameAttributeArrayHelper NodeSpecializeTypes;
 	UE::Interchange::FNameAttributeArrayHelper MaterialDependencyUids;

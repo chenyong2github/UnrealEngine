@@ -182,7 +182,7 @@ namespace UE
 			{
 				UObject* ImportedObject = nullptr; // The object that was imported
 				UInterchangeFactoryBase* Factory = nullptr; //The factory that created the imported object
-				UInterchangeBaseNode* FactoryNode; //The node that describes the object
+				UInterchangeBaseNode* FactoryNode = nullptr; //The node that describes the object
 				bool bIsReimport;
 			};
 

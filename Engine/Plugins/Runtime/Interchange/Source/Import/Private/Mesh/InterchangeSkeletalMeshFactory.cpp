@@ -828,7 +828,7 @@ UObject* UInterchangeSkeletalMeshFactory::CreateAsset(const FCreateAssetParams& 
 								continue;
 							}
 							FString MeshDependencyUid;
-							MeshReference.SceneNode->GetCustomMeshDependencyUid(MeshDependencyUid);
+							MeshReference.SceneNode->GetCustomAssetInstanceUid(MeshDependencyUid);
 							MeshReference.MeshNode = Cast<UInterchangeMeshNode>(Arguments.NodeContainer->GetNode(MeshDependencyUid));
 							//Cache the scene node global matrix, we will use this matrix to bake the vertices
 							FTransform SceneNodeGlobalTransform;

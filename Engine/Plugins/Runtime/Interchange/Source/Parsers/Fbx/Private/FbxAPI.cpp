@@ -3,9 +3,11 @@
 #include "FbxAPI.h"
 
 #include "CoreMinimal.h"
+#include "FbxCamera.h"
 #include "FbxConvert.h"
 #include "FbxHelper.h"
 #include "FbxInclude.h"
+#include "FbxLight.h"
 #include "FbxMaterial.h"
 #include "FbxMesh.h"
 #include "FbxScene.h"
@@ -108,6 +110,12 @@ namespace UE
 
 				FFbxMesh FbxMesh(*this);
 				FbxMesh.AddAllMeshes(SDKScene, SDKGeometryConverter, NodeContainer, PayloadContexts);
+
+				FFbxLight FbxLight(*this);
+				FbxLight.AddAllLights(SDKScene, NodeContainer);
+
+				FFbxCamera FbxCamera(*this);
+				FbxCamera.AddAllCameras(SDKScene, NodeContainer);
 
 				FFbxScene FbxScene(*this);
 				FbxScene.AddHierarchy(SDKScene, NodeContainer);

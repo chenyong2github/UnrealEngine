@@ -3,8 +3,16 @@
 #include "InterchangeGenericScenesPipeline.h"
 
 #include "InterchangeActorFactoryNode.h"
+#include "InterchangeCameraNode.h"
+#include "InterchangeLightNode.h"
+#include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangeSceneNode.h"
+
+#include "Animation/SkeletalMeshActor.h"
+#include "CineCameraActor.h"
+#include "Engine/PointLight.h"
+#include "Engine/StaticMeshActor.h"
 
 bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas)
 {
@@ -34,7 +42,11 @@ bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 
 	for (const UInterchangeSceneNode* SceneNode : SceneNodes)
 	{
-		CreateActorFactoryNode(SceneNode, InBaseNodeContainer);
+		//Ignore specialized types for now as they are used for bones hierarchies and other asset internal data
+		if (SceneNode && SceneNode->GetSpecializedTypeCount() == 0)
+		{
+			CreateActorFactoryNode(SceneNode, InBaseNodeContainer);
+		}
 	}
 
 	return true;
@@ -67,6 +79,32 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 		ActorFactoryNode->SetCustomGlobalTransform(GlobalTransform);
 	}
 	
+	FString AssetInstanceUid;
+	if (SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid))
+	{
+		UInterchangeBaseNode* TranslatedAssetNode = FactoryNodeContainer->GetNode(AssetInstanceUid);
+
+		if (UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(TranslatedAssetNode))
+		{
+			if (MeshNode->IsSkinnedMesh())
+			{
+				ActorFactoryNode->SetCustomActorClassName(ASkeletalMeshActor::StaticClass()->GetPathName());
+			}
+			else
+			{
+				ActorFactoryNode->SetCustomActorClassName(AStaticMeshActor::StaticClass()->GetPathName());
+			}
+		}
+		else if (UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
+		{
+			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
+		}
+		else if (UInterchangeCameraNode* CameraNode = Cast<UInterchangeCameraNode>(TranslatedAssetNode))
+		{
+			ActorFactoryNode->SetCustomActorClassName(ACineCameraActor::StaticClass()->GetPathName());
+		}
+	}
+
 	FactoryNodeContainer->AddNode(ActorFactoryNode);
 }
 
