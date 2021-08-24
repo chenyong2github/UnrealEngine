@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "NeuralNetworkFromONNXTranslator.h"
+#include "GraphProtoToNeuralNetworkConverter.h"
 #include "Misc/Paths.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralOperator.h"
@@ -15,10 +15,10 @@
 
 
 
-/* FNeuralNetworkFromONNXTranslator public functions
+/* FGraphProtoToNeuralNetworkConverter public functions
  *****************************************************************************/
 
-bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& InTensorManager, const FGraphProto& InGraphProto)
+bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& InTensorManager, const FGraphProto& InGraphProto)
 {
 	TMap<FString, int32> NameIndexMap = InTensorManager.GetNameIndexMap();
 	TMap<FString, int32> DummyOutputNameIndexMap;
@@ -26,14 +26,14 @@ bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperat
 		InTensorManager.GetOutputNameIndexMap(), InGraphProto);
 	if (NameIndexMap.Num() != InTensorManager.GetNameIndexMap().Num())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::Translate(): NameIndexMap changed its size, it must not (%d != %d)."),
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): NameIndexMap changed its size, it must not (%d != %d)."),
 			NameIndexMap.Num(), InTensorManager.GetNameIndexMap().Num());
 	}
 	return bResult;
 }
 
 #if WITH_EDITOR
-bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& OutTensorManager, const FGraphProto& InGraphProto,
+bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& OutTensorManager, const FGraphProto& InGraphProto,
 	const FString& InModelPath)
 {
 	// MaxNumberTensorsInNetwork is required to avoid the bug of resizing and invalidating all pointers given to the operators
@@ -101,7 +101,7 @@ bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperat
 		// Add operator name to TMap
 		if (NameIndexMap.Find(GraphProtoOutput.Name))
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::Translate(): A FNeuralTensor of the UNeuralNetworkLegacy is a global Input and Output simultaneously."));
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): A FNeuralTensor of the UNeuralNetworkLegacy is a global Input and Output simultaneously."));
 		}
 		OutputNameDummyIndexMap.Add(GraphProtoOutput.Name, -1);
 	}
@@ -117,7 +117,7 @@ bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperat
 	// Sanity check
 	if (Tensors.Num() > MaxNumberTensorsInNetwork)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::Translate(): Tensors.Num() <= MaxNumberTensorsInNetwork failed (%d vs. %d). A resize of Tensors"
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): Tensors.Num() <= MaxNumberTensorsInNetwork failed (%d vs. %d). A resize of Tensors"
 			" might have occurred, invalidating all TArray<FNeuralTensor*> FOperator variables. Report this error (so we can fix MaxNumberTensorsInNetwork to be big enough)."),
 			Tensors.Num(), MaxNumberTensorsInNetwork);
 		bWasSuccessful = false;
@@ -134,10 +134,10 @@ bool FNeuralNetworkFromONNXTranslator::Translate(TArray<TSharedPtr<FNeuralOperat
 
 
 
-/* FNeuralNetworkFromONNXTranslator private functions
+/* FGraphProtoToNeuralNetworkConverter private functions
  *****************************************************************************/
 
-bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, TMap<FString, int32>& OutputNameIndexMap,
+bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, TMap<FString, int32>& OutputNameIndexMap,
 	TArray<FNeuralTensor>& InOutTensors, TMap<FString, int32>& InOutNameIndexMap, const TMap<FString, int32>& InInputNameDummyIndexMap,
 	const TMap<FString, int32>& InOutputNameDummyIndexMap, const FGraphProto& InGraphProto, const FString& InModelPath)
 {
@@ -185,14 +185,14 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 				// Get NewTensor from TensorProto
 				if (!NewTensor.SetFromTensorProto(&TensorProto, InputTensorName, ENeuralTensorTypeGPU::Weight/*, PathPart*/))
 				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): SetFromTensorProto() failed."));
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): SetFromTensorProto() failed."));
 					return false;
 				}
 				// Update InOutNameIndexMap and OperatorInputTensors
 				InOutNameIndexMap.Add(InputTensorName, TensorIndex);
 				OperatorInputTensors.Push(&NewTensor);
 #else
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): This code should never be called in non-Editor mode."));
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): This code should never be called in non-Editor mode."));
 				return false;
 #endif //WITH_EDITOR
 			}
@@ -203,7 +203,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 			// Sanity check
 			if (NodeProto.Output.Num() != 1)
 			{
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Constant operator requires exactly 1 output, not %d."), NodeProto.Output.Num());
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Constant operator requires exactly 1 output, not %d."), NodeProto.Output.Num());
 				return false;
 			}
 			const FString& OutputTensorName = NodeProto.Output[0];
@@ -213,7 +213,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 				// Sanity check
 				if (!InOutNameIndexMap.Find(OutputTensorName))
 				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was not found."), *OutputTensorName);
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was not found."), *OutputTensorName);
 					return false;
 				}
 				// Do nothing else
@@ -224,7 +224,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 				// Sanity check
 				if (InOutNameIndexMap.Find(OutputTensorName))
 				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was already defined and it should have not."), *OutputTensorName);
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was already defined and it should have not."), *OutputTensorName);
 					return false;
 				}
 				// Is it also an absolute output of the network?
@@ -243,7 +243,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 				// Sanity checks
 				if (!ConstantOperator.ConfigureOutputAndInternalVariablesAndSanityChecks())
 				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was already defined and it should have not."), *OutputTensorName);
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray()-Constant: Tensor %s was already defined and it should have not."), *OutputTensorName);
 					return false;
 				}
 				// Get output
@@ -263,13 +263,13 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 				if (OperatorInputTensors.Num() > 1 && OperatorInputTensors[1]->GetTensorTypeGPU() != ENeuralTensorTypeGPU::Weight)
 				{
 					UE_LOG(LogNeuralNetworkInference, Warning,
-						TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): For now, %s operators require a constant InputTensor[0] (i.e., a fixed weight tensor), it cannot change."), *NodeProto.OperatorType);
+						TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): For now, %s operators require a constant InputTensor[0] (i.e., a fixed weight tensor), it cannot change."), *NodeProto.OperatorType);
 					return false;
 				}
 				// Flip (invert) OperatorInputTensors[1]
 				if (!OperatorInputTensors[1]->Flip(2, OperatorInputTensors[1]->GetNumberDimensions()))
 				{
-					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Tensor::Flip() failed."));
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Tensor::Flip() failed."));
 					return false;
 				}
 			}
@@ -286,7 +286,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 					// Subcase 3/3: InlinedTensorIndex > -1 --> Output tensor is the same than 1 of the input tensors of that operator (inlined operator)
 			if (InlinedTensorIndex > -1 && NodeProto.Output.Num() != 1)
 			{
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): There cannot be an inlined tensor (index %d)"
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): There cannot be an inlined tensor (index %d)"
 					" if NodeProto.Output.Num() > 1 (currently %d)."), InlinedTensorIndex, NodeProto.Output.Num());
 				return false;
 			}
@@ -313,7 +313,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 						if (InlinedTensorIndex > -1)
 						{
 							UE_LOG(LogNeuralNetworkInference, Warning,
-								TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): InlinedTensorIndex = %d for this operator (%s) but the tensor (%s) already exists."), InlinedTensorIndex, *NodeProto.OperatorType, *OutputTensorName);
+								TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): InlinedTensorIndex = %d for this operator (%s) but the tensor (%s) already exists."), InlinedTensorIndex, *NodeProto.OperatorType, *OutputTensorName);
 							return false;
 						}
 						OperatorOutputTensors.Push(&InOutTensors[*ExistingTensorIndex]);
@@ -346,7 +346,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 					{
 						if (NodeProto.Output.Num() != 1)
 						{
-							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray()-%s-%s:"
+							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray()-%s-%s:"
 								" NodeProto.Output.Num() = %d != 1. Only implemented for inlined operators with 1 output. Potential issues for operators like PReLU."
 								" Although it should work as long as we pre-define the desired order of FNeuralTensors inside that operator."),
 								*NodeProto.OperatorType, *Operator->GetName(), OperatorInputTensors.Num(), NodeProto.Output.Num());
@@ -388,7 +388,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 						// Something went wrong, the tensor should exist
 						else
 						{
-							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): AuxiliaryTensorName %s did not exist in InOutTensors."), *AuxiliaryTensorName);
+							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): AuxiliaryTensorName %s did not exist in InOutTensors."), *AuxiliaryTensorName);
 							return false;
 						}
 					}
@@ -398,7 +398,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 						// Sanity check
 						if (InOutNameIndexMap.Find(AuxiliaryTensorName))
 						{
-							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): InOutNameIndexMap already has %s. Notify us of this error."), *AuxiliaryTensorName);
+							UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): InOutNameIndexMap already has %s. Notify us of this error."), *AuxiliaryTensorName);
 							return false;
 						}
 						// Create and push new auxiliary tensor
@@ -414,7 +414,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 			if (!Operator->Configure())
 			{
 				UE_LOG(LogNeuralNetworkInference, Warning,
-					TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Operator %s could not be configured, so network could not be loaded."), *Operator->GetName());
+					TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Operator %s could not be configured, so network could not be loaded."), *Operator->GetName());
 				return false;
 			}
 			// Push Operator into OutOperators
@@ -427,21 +427,21 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 		if (OutputNameIndexMap.Num() > 0)
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
-				TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Error in this function, OutputNameIndexMap.Num() should be 0 and not %d when reading from serialized data."),
+				TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Error in this function, OutputNameIndexMap.Num() should be 0 and not %d when reading from serialized data."),
 				OutputNameIndexMap.Num());
 			return false;
 		}
 		else if (InOutTensorsNumInit != InOutTensors.Num())
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
-				TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Error in this function, InOutTensors.Num() should not change from %d to %d when reading from serialized data."),
+				TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Error in this function, InOutTensors.Num() should not change from %d to %d when reading from serialized data."),
 				InOutTensorsNumInit, InOutTensors.Num());
 			return false;
 		}
 		else if (InOutNameIndexMapNumInit != InOutNameIndexMap.Num())
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
-				TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Error in this function, InOutNameIndexMap.Num() should not change from %d to %d when reading from serialized data."),
+				TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Error in this function, InOutNameIndexMap.Num() should not change from %d to %d when reading from serialized data."),
 				InOutTensorsNumInit, InOutTensors.Num());
 			return false;
 		}
@@ -450,7 +450,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 	else if (OutputNameIndexMap.Num() != InOutputNameDummyIndexMap.Num())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning,
-			TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): OutputNameIndexMap.Num() == InOutputNameDummyIndexMap.Num() failed, %d != %d."
+			TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): OutputNameIndexMap.Num() == InOutputNameDummyIndexMap.Num() failed, %d != %d."
 				" This means that not all of the outputs defined on the ONNX file were actually needed. The program will proceed with only the required ones."),
 			OutputNameIndexMap.Num(), InOutputNameDummyIndexMap.Num());
 	}
@@ -458,7 +458,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 	if (InOutNameIndexMap.Num() < InOutTensors.Num())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning,
-			TEXT("FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(): Error in this function, InOutNameIndexMap.Num() >= InOutTensors.Num() failed, %d != %d. They"
+			TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): Error in this function, InOutNameIndexMap.Num() >= InOutTensors.Num() failed, %d != %d. They"
 				" should match if no inlining occurs, or more generically, InOutNameIndexMap.Num() = InOutTensors.Num() + number_inlined_tensors."),
 			InOutNameIndexMap.Num(), InOutTensors.Num());
 	}
@@ -466,7 +466,7 @@ bool FNeuralNetworkFromONNXTranslator::CreateOperatorsAndEditTensorArray(TArray<
 	return (OutOperators.Num() > 0);
 }
 
-bool FNeuralNetworkFromONNXTranslator::CanTensorBeInlined(const FString& InTensorName, const TMap<FString, int32>& InInputNameDummyIndexMap,
+bool FGraphProtoToNeuralNetworkConverter::CanTensorBeInlined(const FString& InTensorName, const TMap<FString, int32>& InInputNameDummyIndexMap,
 	const TMap<FString, int32>& InOutputNameDummyIndexMap, const FNodeProto& InNodeProto, const FGraphProto& InGraphProto, const bool bCanOutputPropertiesChangeWithPostForward)
 {
 	// If tensor is one of the input/output tensors --> Operator cannot be inlined
@@ -510,7 +510,7 @@ bool FNeuralNetworkFromONNXTranslator::CanTensorBeInlined(const FString& InTenso
 		if (NumberOperatorsUsingTensor != 1)
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning,
-				TEXT("FNeuralNetworkFromONNXTranslator::CanTensorBeInlined(): At this point, NumberOperatorsUsingTensor should be exactly 1 (not %d)."),
+				TEXT("FGraphProtoToNeuralNetworkConverter::CanTensorBeInlined(): At this point, NumberOperatorsUsingTensor should be exactly 1 (not %d)."),
 				NumberOperatorsUsingTensor);
 		}
 	}
@@ -518,14 +518,14 @@ bool FNeuralNetworkFromONNXTranslator::CanTensorBeInlined(const FString& InTenso
 	return true;
 }
 
-TSet<uint32> FNeuralNetworkFromONNXTranslator::GetPotentiallyInlinedTensors(const TArray<FString>& InTensorNames, const TMap<FString, int32>& InInputNameDummyIndexMap,
+TSet<uint32> FGraphProtoToNeuralNetworkConverter::GetPotentiallyInlinedTensors(const TArray<FString>& InTensorNames, const TMap<FString, int32>& InInputNameDummyIndexMap,
 	const TMap<FString, int32>& InOutputNameDummyIndexMap, const FNodeProto& InNodeProto, const FGraphProto& InGraphProto)
 {
 	TSet<uint32> PotentiallyInlinedTensors;
 	for (int32 TensorNameIndex = 0; TensorNameIndex < InTensorNames.Num(); ++TensorNameIndex)
 	{
 		const FString& TensorName = InTensorNames[TensorNameIndex];
-		if (FNeuralNetworkFromONNXTranslator::CanTensorBeInlined(TensorName, InInputNameDummyIndexMap, InOutputNameDummyIndexMap, InNodeProto, InGraphProto))
+		if (FGraphProtoToNeuralNetworkConverter::CanTensorBeInlined(TensorName, InInputNameDummyIndexMap, InOutputNameDummyIndexMap, InNodeProto, InGraphProto))
 		{
 			PotentiallyInlinedTensors.Add((uint32)TensorNameIndex);
 		}
@@ -563,7 +563,7 @@ TSet<uint32> FNeuralNetworkFromONNXTranslator::GetPotentiallyInlinedTensors(cons
 		Operator = MakeShared<F##OperatorTypeSuffix##Operator>(PotentiallyInlinedTensors); /* Eg FAddOperator */ \
 	}
 
-TSharedPtr<FNeuralOperator> FNeuralNetworkFromONNXTranslator::CreateOperator(const FNodeProto& InNodeProto, const TArray<FString>& InInputTensorNamesForOperator,
+TSharedPtr<FNeuralOperator> FGraphProtoToNeuralNetworkConverter::CreateOperator(const FNodeProto& InNodeProto, const TArray<FString>& InInputTensorNamesForOperator,
 	const TMap<FString, int32>& InInputNameDummyIndexMap, const TMap<FString, int32>& InOutputNameDummyIndexMap, const FGraphProto& InGraphProto)
 {
 	TSharedPtr<FNeuralOperator> Operator;
@@ -608,7 +608,7 @@ TSharedPtr<FNeuralOperator> FNeuralNetworkFromONNXTranslator::CreateOperator(con
 	else IF_MATCHED_INLINABLE_OPERATOR_INITIALIZATION(Tanh)
 	if (!Operator.IsValid())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::CreateOperator(): Unknown or unimplemented operator %s."), *InNodeProto.OperatorType);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperator(): Unknown or unimplemented operator %s."), *InNodeProto.OperatorType);
 	}
 	return Operator;
 }

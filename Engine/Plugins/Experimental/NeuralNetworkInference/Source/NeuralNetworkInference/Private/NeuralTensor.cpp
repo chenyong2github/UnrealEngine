@@ -431,7 +431,7 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 {
 	if (!InTensorProto)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): InTensorProto was a nullptr."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto was a nullptr."));
 		return false;
 	}
 
@@ -454,11 +454,11 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 	{
 #if WITH_EDITOR
 #if PLATFORM_WINDOWS
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): DEPRECATED CODE, OTXT no longer functional."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): DEPRECATED CODE, OTXT no longer functional."));
 		// // Sanity check
 		// if (InTensorProto->ExternalData[0].Key != TEXT("location") || InTensorProto->ExternalData[0].Value.Len() < 1)
 		// {
-		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): InTensorProto->ExternalData[0].Key = %s != \"location\""
+		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto->ExternalData[0].Key = %s != \"location\""
 		// 		" || InTensorProto->ExternalData[0].Value.Len() = %d (should be > 0)."), *InTensorProto->ExternalData[0].Key, InTensorProto->ExternalData[0].Value.Len());
 		// 	return false;
 		// }
@@ -466,21 +466,21 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 		// const FString BinaryWeightFilePath = InExternalDataDirectory / InTensorProto->ExternalData[0].Value;
 		// if (!FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile((char*)GetData(), Num() * FDataType::GetSize(NeuralDataType), BinaryWeightFilePath))
 		// {
-		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): Could not read binary file: %s."), *BinaryWeightFilePath);
+		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Could not read binary file: %s."), *BinaryWeightFilePath);
 		// 	return false;
 		// }
 #else //PLATFORM_WINDOWS
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): Only implemented in Windows."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Only implemented in Windows."));
 		return false;
 #endif //PLATFORM_WINDOWS
 #else //WITH_EDITOR
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): InTensorProto->ExternalData should never be used in non-Editor mode."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto->ExternalData should never be used in non-Editor mode."));
 		return false;
 #endif //WITH_EDITOR
 	}
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralNetworkFromONNXTranslator::SetFromTensorProto(): InTensorProto was empty (RawData and ExternalData)."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto was empty (RawData and ExternalData)."));
 		return false;
 	}
 
