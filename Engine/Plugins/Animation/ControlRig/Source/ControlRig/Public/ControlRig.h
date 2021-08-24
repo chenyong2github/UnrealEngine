@@ -735,6 +735,35 @@ private:
 		FRigPose CachedPose;
 	};
 
+#if WITH_EDITOR
+
+	// Class used to temporarily cache current transient controls
+	// restore them after a CopyHierarchy call
+	class FTransientControlScope
+	{
+	public:
+		FTransientControlScope(TObjectPtr<URigHierarchy> InHierarchy);
+		~FTransientControlScope();
+	
+	private:
+		// used to match URigHierarchyController::AddControl(...)
+		struct FTransientControlInfo
+		{
+			FName Name;
+			// transient control should only have 1 parent, with weight = 1.0
+			FRigElementKey Parent;
+			FRigControlSettings Settings;
+			FRigControlValue Value;
+			FTransform OffsetTransform;
+			FTransform GizmoTransform;
+		};
+		
+		TArray<FTransientControlInfo> SavedTransientControls;
+		TObjectPtr<URigHierarchy> Hierarchy;
+	};
+
+#endif
+
 	friend class FControlRigBlueprintCompilerContext;
 	friend struct FRigHierarchyRef;
 	friend class FControlRigEditor;
