@@ -114,11 +114,6 @@ void SLibraryViewItem::Construct(const FArguments& InArgs, TSharedPtr<FWidgetTem
 		];
 }
 
-FReply SLibraryViewItem::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
-{
-	return WidgetViewModel->Template->OnDoubleClicked();
-};
-
 TSharedRef<SWidget> SLibraryView::ConstructViewOptions()
 {
 	FMenuBuilder ViewOptions(true, nullptr);
@@ -208,9 +203,8 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 	SAssignNew(WidgetTemplatesView, STreeView< TSharedPtr<FWidgetViewModel> >)
 		.ItemHeight(1.0f)
 		.SelectionMode(ESelectionMode::Single)
-		.OnGenerateRow(this, &SLibraryView::OnGenerateWidgetTemplateItem)
+		.OnGenerateRow(this, &SLibraryView::OnGenerateWidgetTemplateLibrary)
 		.OnGetChildren(FilterHandler.ToSharedRef(), &LibraryFilterHandler::OnGetFilteredChildren)
-		.OnSelectionChanged(this, &SLibraryView::WidgetLibrary_OnSelectionChanged)
 		.TreeItemsSource(&TreeWidgetViewModels);
 
 	FilterHandler->SetTreeView(WidgetTemplatesView.Get());
@@ -301,61 +295,6 @@ void SLibraryView::OnSearchChanged(const FText& InFilterText)
 	LibraryViewModel->SetSearchText(InFilterText);
 }
 
-void SLibraryView::WidgetLibrary_OnSelectionChanged(TSharedPtr<FWidgetViewModel> SelectedItem, ESelectInfo::Type SelectInfo)
-{
-	if (!SelectedItem.IsValid()) 
-	{
-		return;
-	}
-
-	// Reset the selected
-	BlueprintEditor.Pin()->SetSelectedTemplate(nullptr);
-	BlueprintEditor.Pin()->SetSelectedUserWidget(FAssetData());
-
-	// If it's not a template, return
-	if (!SelectedItem->IsTemplate())
-	{
-		return;
-	}
-
-	TSharedPtr<FWidgetTemplateViewModel> SelectedTemplate = StaticCastSharedPtr<FWidgetTemplateViewModel>(SelectedItem);
-	if (SelectedTemplate.IsValid())
-	{
-		TSharedPtr<FWidgetTemplateClass> TemplateClass = StaticCastSharedPtr<FWidgetTemplateClass>(SelectedTemplate->Template);
-		if (TemplateClass.IsValid())
-		{
-			if (TemplateClass->GetWidgetClass().IsValid())
-			{
-				BlueprintEditor.Pin()->SetSelectedTemplate(TemplateClass->GetWidgetClass());
-			}
-			else
-			{
-				TSharedPtr<FWidgetTemplateBlueprintClass> UserCreatedTemplate = StaticCastSharedPtr<FWidgetTemplateBlueprintClass>(TemplateClass);
-				if (UserCreatedTemplate.IsValid())
-				{
-					// Then pass in the asset data of selected widget
-					FAssetData UserCreatedWidget = UserCreatedTemplate->GetWidgetAssetData();
-					BlueprintEditor.Pin()->SetSelectedUserWidget(UserCreatedWidget);
-				}
-			}
-		}
-	}
-}
-
-TSharedPtr<FWidgetTemplate> SLibraryView::GetSelectedTemplateWidget() const
-{
-	TArray<TSharedPtr<FWidgetViewModel>> SelectedTemplates = WidgetTemplatesView.Get()->GetSelectedItems();
-	if (SelectedTemplates.Num() == 1)
-	{
-		TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = StaticCastSharedPtr<FWidgetTemplateViewModel>(SelectedTemplates[0]);
-		if (TemplateViewModel.IsValid())
-		{
-			return TemplateViewModel->Template;
-		}
-	}
-	return nullptr;
-}
-
 void SLibraryView::LoadItemExpansion()
 {
 	// Restore the expansion state of the widget groups.
@@ -421,7 +360,7 @@ void SLibraryView::OnGetChildren(TSharedPtr<FWidgetViewModel> Item, TArray< TSha
 	return Item->GetChildren(Children);
 }
 
-TSharedRef<ITableRow> SLibraryView::OnGenerateWidgetTemplateItem(TSharedPtr<FWidgetViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SLibraryView::OnGenerateWidgetTemplateLibrary(TSharedPtr<FWidgetViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return Item->BuildRow(OwnerTable);
 }

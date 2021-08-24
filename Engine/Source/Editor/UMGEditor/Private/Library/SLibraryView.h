@@ -63,8 +63,6 @@ private:
 
 	EVisibility GetFavoritedStateVisibility() const;
 
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
-
 private:
 	TSharedPtr<FWidgetTemplateViewModel> WidgetViewModel;
 };
@@ -84,19 +82,13 @@ public:
 	
 	virtual void Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime ) override;
 
-	/** On Selected template widget changed in Library view */
-	void WidgetLibrary_OnSelectionChanged(TSharedPtr<FWidgetViewModel> SelectedItem, ESelectInfo::Type SelectInfo);
-
-	/** Gets the selected template widget in Library */
-	TSharedPtr<FWidgetTemplate> GetSelectedTemplateWidget() const;
-
 private:
 
 	/** Builds settings menu. */
 	TSharedRef<SWidget> ConstructViewOptions();
 
 	void OnGetChildren(TSharedPtr<FWidgetViewModel> Item, TArray< TSharedPtr<FWidgetViewModel> >& Children);
-	TSharedRef<ITableRow> OnGenerateWidgetTemplateItem(TSharedPtr<FWidgetViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> OnGenerateWidgetTemplateLibrary(TSharedPtr<FWidgetViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
 
 	/** Called when the filter text is changed. */
 	void OnSearchChanged(const FText& InFilterText);

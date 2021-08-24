@@ -57,83 +57,27 @@ private:
 	FString CachedLowercaseWidgetFilter;
 };
 
-class FLibraryViewModel : public FFavortiesViewModel
+class FLibraryViewModel : public FWidgetCatalogViewModel
 {
 public:
+	FLibraryViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor) : FWidgetCatalogViewModel(InBlueprintEditor) { }
 
-	DECLARE_MULTICAST_DELEGATE(FOnUpdating)
-	DECLARE_MULTICAST_DELEGATE(FOnUpdated)
-
-public:
-	FLibraryViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
-	virtual ~FLibraryViewModel();
-
-	/** Register the View Model to events that should trigger a update of the Library*/
-	void RegisterToEvents();
-
-	/** Update the view model if needed and returns true if it did. */
-	void Update();
-
-	/** Returns true if the view model needs to be updated */
-	bool NeedUpdate() const { return bRebuildRequested; }
-	   
-	//~ Begin FFavortiesViewModel Interface
+	//~ Begin FWidgetCatalogViewModel Interface
+	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates) override;
 	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
 	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
 	virtual void SetSearchText(const FText& InSearchText) override;
-	//~ End FFavortiesViewModel Interface
+	//~ End FWidgetCatalogViewModel Interface
 
-	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
 	ViewModelsArray& GetWidgetTemplateListViewModels() { return WidgetTemplateListViewModels; }
 
-	/** Fires before the view model is updated */
-	FOnUpdating OnUpdating;
-
-	/** Fires after the view model is updated */
-	FOnUpdated OnUpdated;
-
-private:
-	FLibraryViewModel() {};
-
-	UWidgetBlueprint* GetBlueprint() const;
-
-	void BuildWidgetList();
-	void BuildClassWidgetList();
-
-	static bool FilterAssetData(FAssetData &BPAssetData);
-
-	void AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template);
-
-	/** Called when a Blueprint is recompiled and live objects are swapped out for replacements */
-	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
-
-	/** Requests a rebuild of the widget list if a widget blueprint was compiled */
-	void OnBlueprintReinstanced();
-
-	/** Called when the favorite list is changed */
-	void OnFavoritesUpdated();
-
-	/** Requests a rebuild of the widget list */
-	void OnReloadComplete(EReloadCompleteReason Reason);
-
-	/** Requests a rebuild of the widget list if a widget blueprint was deleted */
-	void HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses);
+protected:
+	//~ Begin FWidgetCatalogViewModel Interface
+	virtual void BuildWidgetList() override;
+	//~ End FWidgetCatalogViewModel Interface
 	
-	TWeakPtr<class FWidgetBlueprintEditor> BlueprintEditor;
-
-	typedef TArray<TSharedPtr<FWidgetTemplate>> WidgetTemplateArray;
-	TMap<FString, WidgetTemplateArray> WidgetTemplateCategories;
-
-	/** The source root view models for the tree. */
-	ViewModelsArray WidgetViewModels;
-
 	/** Widget template list view models associated with each root. */
 	ViewModelsArray WidgetTemplateListViewModels;
-	   
-	/** Controls rebuilding the list of spawnable widgets */
-	bool bRebuildRequested;
-
-	TSharedPtr<FWidgetHeaderViewModel> FavoriteHeader;
 };
 

@@ -13,7 +13,7 @@ class FWidgetTemplate;
 class FWidgetBlueprintEditor;
 class UWidgetBlueprint;
 class SPaletteView;
-class FFavortiesViewModel;
+class FWidgetCatalogViewModel;
 
 /** View model for the items in the widget template list */
 class FWidgetViewModel : public TSharedFromThis<FWidgetViewModel>
@@ -78,7 +78,7 @@ public:
 	virtual void SetFavorite() override { bIsFavorite = true; }
 
 	TSharedPtr<FWidgetTemplate> Template;
-	FFavortiesViewModel* FavortiesViewModel;
+	FWidgetCatalogViewModel* FavortiesViewModel;
 private:
 	/** True is the widget is a favorite. It's keep as a state to prevent a search in the favorite list. */
 	bool bIsFavorite;
@@ -135,25 +135,7 @@ private:
 	bool bForceExpansion = false;
 };
 
-class FFavortiesViewModel : public TSharedFromThis<FFavortiesViewModel>
-{
-public:
-	virtual ~FFavortiesViewModel() { }
-
-	/** Add the widget template to the list of favorites */
-	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
-
-	/** Remove the widget template to the list of favorites */
-	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
-
-	virtual void SetSearchText(const FText& InSearchText) { SearchText = InSearchText; }
-	FText GetSearchText() const { return SearchText; }
-
-protected:
-	FText SearchText;
-};
-
-class FPaletteViewModel : public FFavortiesViewModel
+class FWidgetCatalogViewModel : public TSharedFromThis<FWidgetCatalogViewModel>
 {
 public:
 
@@ -161,10 +143,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnUpdated)
 
 public:
-	FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
-	virtual ~FPaletteViewModel();
+	FWidgetCatalogViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor);
+	virtual ~FWidgetCatalogViewModel();
 
-	/** Register the View Model to events that should trigger a update of the Palette*/
+	/** Register the View Model to events that should trigger a update */
 	void RegisterToEvents();
 
 	/** Update the view model if needed and returns true if it did. */
@@ -172,12 +154,12 @@ public:
 
 	/** Returns true if the view model needs to be updated */
 	bool NeedUpdate() const { return bRebuildRequested; }
-	   
+
 	/** Add the widget template to the list of favorites */
-	void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
+	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
 
 	/** Remove the widget template to the list of favorites */
-	void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel);
+	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) = 0;
 
 	typedef TArray< TSharedPtr<FWidgetViewModel> > ViewModelsArray;
 	ViewModelsArray& GetWidgetViewModels() { return WidgetViewModels; }
@@ -188,15 +170,19 @@ public:
 	/** Fires after the view model is updated */
 	FOnUpdated OnUpdated;
 
-private:
-	FPaletteViewModel() {};
+	virtual void SetSearchText(const FText& InSearchText) { SearchText = InSearchText; }
+	FText GetSearchText() const { return SearchText; }
+
+protected:
+	FWidgetCatalogViewModel() {};
 
 	UWidgetBlueprint* GetBlueprint() const;
 
-	void BuildWidgetList();
+	virtual void BuildWidgetList();
+	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates) = 0;
 	void BuildClassWidgetList();
 
-	static bool FilterAssetData(FAssetData &BPAssetData);
+	static bool FilterAssetData(FAssetData& BPAssetData);
 
 	void AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template);
 
@@ -227,5 +213,19 @@ private:
 	bool bRebuildRequested;
 
 	TSharedPtr<FWidgetHeaderViewModel> FavoriteHeader;
+
+	FText SearchText;
+};
+
+class FPaletteViewModel : public FWidgetCatalogViewModel
+{
+public:
+	FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor) : FWidgetCatalogViewModel(InBlueprintEditor) { }
+
+	//~ Begin FWidgetCatalogViewModel Interface
+	virtual void BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates) override;
+	virtual void AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
+	virtual void RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel) override;
+	//~ End FWidgetCatalogViewModel Interface
 };
 
