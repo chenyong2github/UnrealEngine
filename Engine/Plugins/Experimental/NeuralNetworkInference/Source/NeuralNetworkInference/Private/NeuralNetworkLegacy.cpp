@@ -4,7 +4,6 @@
 #include "NeuralOperator.h"
 #include "GraphProtoToNeuralNetworkConverter.h"
 #include "NeuralNetworkInferenceUtils.h"
-#include "NeuralNetworkInferenceVersion.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "RenderGraphBuilder.h"
@@ -60,11 +59,6 @@ void UNeuralNetworkLegacy::PostLoad()
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::PostLoad(): 1 of the 3 IsLoaded() failed: UNeuralNetworkLegacy.IsLoaded() = %d, TensorManager.IsLoaded() = %d, ModelProto.IsLoaded() = %d."),
 				IsLoaded(), TensorManager.IsLoaded(), ModelProto.IsLoaded());
-			bIsLoaded = false;
-		}
-		else if (!FNeuralNetworkInferenceVersion::CheckVersion(Version) || !FNeuralNetworkInferenceVersion::CheckVersion(TensorManager.GetVersion()) || !FNeuralNetworkInferenceVersion::CheckVersion(ModelProto.GetVersion()))
-		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::PostLoad(): CheckVersion() failed."));
 			bIsLoaded = false;
 		}
 		// Turn ModelProto into Operators
@@ -139,24 +133,17 @@ bool UNeuralNetworkLegacy::Load(const FString& InFilePath)
 	}
 
 	// Read ModelProto
-	if (!FModelProtoFileReader::ReadModelProtoFromFile(ModelProto, InFilePath) || !ModelProto.IsLoaded() || !FNeuralNetworkInferenceVersion::CheckVersion(ModelProto.GetVersion()))
+	if (!FModelProtoFileReader::ReadModelProtoFromFile(ModelProto, InFilePath) || !ModelProto.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): Model could not be loaded from %s or is outdated. IsLoaded() = %d."),
-			*InFilePath, ModelProto.IsLoaded());
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): Model could not be loaded from %s."), *InFilePath);
 		return false;
 	}
 	// Turn ModelProto into Operators
 	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), InFilePath);
-	if (!TensorManager.IsLoaded() || !FNeuralNetworkInferenceVersion::CheckVersion(TensorManager.GetVersion()))
+	if (!TensorManager.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s or is outdated. IsLoaded() = %d."),
-			*InFilePath, TensorManager.IsLoaded());
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s."), *InFilePath);
 		return false;
-	}
-	// Update Version
-	if (bIsLoaded)
-	{
-		Version = FNeuralNetworkInferenceVersion::GetVersion();
 	}
 	return bIsLoaded;
 
@@ -171,19 +158,13 @@ bool UNeuralNetworkLegacy::Load(const FString& InFilePath)
 bool UNeuralNetworkLegacy::Load(FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetworkLegacy_Load"), STAT_UNeuralNetworkLegacy_Load, STATGROUP_MachineLearning);
-	if (!InTensorManager.IsLoaded() || !FNeuralNetworkInferenceVersion::CheckVersion(InTensorManager.GetVersion()))
+	if (!InTensorManager.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded or is outdated. IsLoaded() = %d."),
-			InTensorManager.IsLoaded());
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded."));
 	}
 	Swap(TensorManager, InTensorManager);
 	Operators = InOperators;
 	bIsLoaded = (Operators.Num() > 0 && TensorManager.IsLoaded());
-	// Update Version
-	if (bIsLoaded)
-	{
-		Version = FNeuralNetworkInferenceVersion::GetVersion();
-	}
 	return bIsLoaded;
 }
 

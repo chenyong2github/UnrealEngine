@@ -53,7 +53,6 @@ public:
 	 * It returns whether it loaded the UNeuralNetworkLegacy successfully.
 	 */
 	bool IsLoaded() const;
-	TArray<int32> GetVersion() const;
 
 	/**
 	 * Getter for the Tensors TArray. GetTensors() will return a const reference while GetTensorsMutable() allows modifying it.
@@ -139,8 +138,6 @@ public:
 	TMap<FString, FNeuralTensor> CreateOutputTensorMap() const;
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<int32> Version;
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	bool bIsLoaded;
 	/**
