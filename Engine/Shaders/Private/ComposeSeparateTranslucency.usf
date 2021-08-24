@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Common.ush"
+#include "ScreenPass.ush"
 
 Texture2D SceneColor;
 SamplerState SceneColorSampler;
@@ -10,6 +11,10 @@ SamplerState SeparateTranslucencySampler;
 
 Texture2D SeparateModulation;
 SamplerState SeparateModulationSampler;
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Color)
+SCREEN_PASS_TEXTURE_VIEWPORT(Translucency)
+FScreenTransform ColorToTranslucency;
 
 float2 ScreenPosToSceneColorUV;
 float2 ScreenPosToSeparateTranslucencyUV;
@@ -26,14 +31,14 @@ void MainPS(
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 BufferUV = SvPosition.xy * ScreenPosToSceneColorUV;
-	float2 SeparateTranslucencyBufferUV = min(SvPosition.xy * ScreenPosToSeparateTranslucencyUV, SeparateTranslucencyUVMax);
+	float2 ColorUV = SvPosition.xy * Color_ExtentInverse.xy;
+	float2 SeparateTranslucencyUV = clamp(ApplyScreenTransform(ColorUV, ColorToTranslucency), Translucency_UVViewportBilinearMin, Translucency_UVViewportBilinearMax);
 
-	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, BufferUV, 0);
+	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, ColorUV, 0);
 
 #if PERMUTATION_NEARESTDEPTHNEIGHBOR 
 
-	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(SvPosition.xy, BufferUV, SeparateTranslucencyExtentInverse);
+	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(SvPosition.xy, ColorUV, Translucency_ExtentInverse);
 
 	float4 SeparateTranslucencySample = 0;
 	float4 SeparateModulationSample = 0;
@@ -50,8 +55,8 @@ void MainPS(
 
 #else // PERMUTATION_NEARESTDEPTHNEIGHBOR
 	
-	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, SeparateTranslucencyBufferUV, 0);
-	float4 SeparateModulationSample   = SeparateModulation.SampleLevel(	 SeparateModulationSampler, SeparateTranslucencyBufferUV, 0);
+	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, SeparateTranslucencyUV, 0);
+	float4 SeparateModulationSample   = SeparateModulation.SampleLevel(	 SeparateModulationSampler, SeparateTranslucencyUV, 0);
 
 #endif // PERMUTATION_NEARESTDEPTHNEIGHBOR
 
