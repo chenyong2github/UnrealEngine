@@ -684,10 +684,7 @@ static void AddDrawDebugCardsGuidesPass(
 	}
 
 	const uint32 MaxCount = 128000;
-	if (ShaderDrawDebug::GetMaxElementCount() < MaxCount)
-	{
-		ShaderDrawDebug::SetMaxElementCount(MaxCount);
-	}
+	ShaderDrawDebug::RequestSpaceForElements(MaxCount);
 
 	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards || ShaderDrawData == nullptr)
 	{
