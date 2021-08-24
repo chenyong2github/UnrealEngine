@@ -30,7 +30,7 @@ bool FMergeCoincidentMeshEdges::Apply()
 	int hashN = 64;
 	if (Mesh->TriangleCount() > 100000)   hashN = 128;
 	if (Mesh->TriangleCount() > 1000000)  hashN = 256;
-	FAxisAlignedBox3d bounds = Mesh->GetCachedBounds();
+	FAxisAlignedBox3d bounds = Mesh->GetBounds(true);
 	double CellSize = bounds.MaxDim() / (double)hashN;
 	MidpointsHash.Build(CellSize, bounds.Min);
 

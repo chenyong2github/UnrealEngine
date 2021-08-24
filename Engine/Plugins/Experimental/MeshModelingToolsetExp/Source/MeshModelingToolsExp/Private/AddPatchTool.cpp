@@ -276,7 +276,7 @@ void UAddPatchTool::GeneratePreviewBaseMesh()
 	}
 
 	// recenter mesh
-	FAxisAlignedBox3d Bounds = BaseMesh->GetCachedBounds();
+	FAxisAlignedBox3d Bounds = BaseMesh->GetBounds(true);
 	FVector3d TargetOrigin = Bounds.Center();
 	for (int vid : BaseMesh->VertexIndicesItr())
 	{

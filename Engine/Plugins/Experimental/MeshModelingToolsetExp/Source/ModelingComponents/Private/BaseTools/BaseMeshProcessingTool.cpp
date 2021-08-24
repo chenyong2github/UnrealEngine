@@ -91,7 +91,7 @@ void UBaseMeshProcessingTool::Setup()
 		double UnitScalingMeasure = FMathd::Max(0.01, FMathd::Sqrt(VolArea.Y / 6.0));  // 6.0 is a bit arbitrary here...surface area of unit box
 
 		// translate to origin and then apply inverse of scale
-		FAxisAlignedBox3d Bounds = InitialMesh.GetCachedBounds();
+		FAxisAlignedBox3d Bounds = InitialMesh.GetBounds();
 		SrcTranslate = Bounds.Center();
 		MeshTransforms::Translate(InitialMesh, -SrcTranslate);
 		SrcScale = UnitScalingMeasure;

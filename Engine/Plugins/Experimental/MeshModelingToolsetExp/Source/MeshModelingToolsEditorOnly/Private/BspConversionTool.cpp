@@ -354,7 +354,7 @@ bool UBspConversionTool::CombineThenConvert(FText*)
 	}
 	else
 	{
-		NewPivot = OutputMesh.GetCachedBounds().Center();
+		NewPivot = OutputMesh.GetBounds().Center();
 	}
 
 	MeshTransforms::Translate(OutputMesh, -NewPivot);

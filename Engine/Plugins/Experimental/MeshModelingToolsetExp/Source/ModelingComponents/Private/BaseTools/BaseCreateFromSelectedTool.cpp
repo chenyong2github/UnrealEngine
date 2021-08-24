@@ -221,7 +221,7 @@ void UBaseCreateFromSelectedTool::GenerateAsset(const FDynamicMeshOpResult& OpRe
 	}
 	else // in the multi-selection case, center the pivot for the combined result
 	{
-		FVector3d Center = OpResult.Mesh->GetCachedBounds().Center();
+		FVector3d Center = OpResult.Mesh->GetBounds().Center();
 		double Rescale = OpResult.Transform.GetScale().X;
 		FTransform3d LocalTransform(-Center * Rescale);
 		LocalTransform.SetScale(FVector3d(Rescale, Rescale, Rescale));

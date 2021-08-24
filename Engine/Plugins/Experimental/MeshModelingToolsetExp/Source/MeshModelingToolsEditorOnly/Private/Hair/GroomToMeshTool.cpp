@@ -537,7 +537,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateMorpholog
 		ImplicitMorphology.Source = CachedMorphologyResult.Get();
 		FDynamicMeshAABBTree3 Spatial(ImplicitMorphology.Source, true);
 		ImplicitMorphology.SourceSpatial = &Spatial;
-		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.CloseDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
+		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetBounds(true), NewSettings.CloseDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
 		CachedMorphologyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(&ImplicitMorphology.Generate());
 		if (CachedMorphologyResult->TriangleCount() == 0)
@@ -554,7 +554,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateMorpholog
 		ImplicitMorphology.Source = CachedMorphologyResult.Get();
 		FDynamicMeshAABBTree3 Spatial(ImplicitMorphology.Source, true);
 		ImplicitMorphology.SourceSpatial = &Spatial;
-		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetCachedBounds(), NewSettings.OpenDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
+		ImplicitMorphology.SetCellSizesAndDistance(CachedMorphologyResult->GetBounds(true), NewSettings.OpenDist, NewSettings.VoxelCount, NewSettings.VoxelCount);
 
 		CachedMorphologyResult = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(&ImplicitMorphology.Generate());
 		if (CachedMorphologyResult->TriangleCount() == 0)
@@ -903,7 +903,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateSmoothing
 		// compute area of the input mesh and compute normalization scaling factor
 		FVector2d VolArea = TMeshQueries<FDynamicMesh3>::GetVolumeArea(*EditMesh);
 		double UnitScalingMeasure = FMathd::Max(0.01, FMathd::Sqrt(VolArea.Y / 6.0));  // 6.0 is a bit arbitrary here...surface area of unit box
-		FAxisAlignedBox3d Bounds = InputMesh->GetCachedBounds();
+		FAxisAlignedBox3d Bounds = InputMesh->GetBounds(true);
 		FVector3d SrcTranslate = Bounds.Center();
 		MeshTransforms::Translate(*EditMesh, -SrcTranslate);
 		double SrcScale = UnitScalingMeasure;
@@ -1153,7 +1153,7 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateUVs_ExpMa
 	
 	FDynamicMeshAABBTree3 BVTree(EditMesh, true);
 
-	FAxisAlignedBox3d Bounds = EditMesh->GetCachedBounds();
+	FAxisAlignedBox3d Bounds = EditMesh->GetBounds(true);
 	FVector3d Center = Bounds.Center();
 	FVector3d Extents = Bounds.Extents();
 
