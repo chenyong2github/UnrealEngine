@@ -30,7 +30,7 @@ FInterchangeWorkerImpl::FInterchangeWorkerImpl(int32 InServerPID, int32 InServer
 	}
 }
 
-bool FInterchangeWorkerImpl::Run()
+bool FInterchangeWorkerImpl::Run(const FString& WorkerVersionError)
 {
 	UE_LOG(LogInterchangeWorker, Verbose, TEXT("connect to %d..."), ServerPort);
 	bool bConnected = NetworkInterface.Connect(TEXT("Interchange Worker"), ServerPort, Config::ConnectTimeout_s);
@@ -42,6 +42,29 @@ bool FInterchangeWorkerImpl::Run()
 	else
 	{
 		UE_LOG(LogInterchangeWorker, Error, TEXT("Server connection failure. exit"));
+		return false;
+	}
+
+	const bool bVersionError = !WorkerVersionError.IsEmpty();
+	if (bVersionError)
+	{
+		FErrorCommand ErrorCmd;
+		ErrorCmd.ErrorMessage = WorkerVersionError;
+		CommandIO.SendCommand(ErrorCmd, Config::SendCommandTimeout_s);
+		//We want to time out after maximum of 5 seconds
+		double TimeOut = 5.0;
+		while (TimeOut > 0)
+		{
+			if (TSharedPtr<ICommand> Command = CommandIO.GetNextCommand(0.02))
+			{
+				if(Command->GetType() == ECommandId::Terminate)
+				{
+					UE_LOG(LogInterchangeWorker, Verbose, TEXT("Terminate command received. Exiting."));
+					break;
+				}
+			}
+			TimeOut -= 0.02;
+		}
 		return false;
 	}
 

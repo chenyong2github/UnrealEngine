@@ -409,6 +409,10 @@ namespace UE
 				case ECommandId::Ping:
 					ProcessCommand(StaticCast<FPingCommand&>(Command));
 					break;
+				
+				case ECommandId::Error:
+					ProcessCommand(StaticCast<FErrorCommand&>(Command));
+					break;
 
 				case ECommandId::NotifyEndTask:
 					ProcessCommand(StaticCast<FCompletedTaskCommand&>(Command));
@@ -427,6 +431,14 @@ namespace UE
 		{
 			UE::Interchange::FBackPingCommand BackPing;
 			CommandIO.SendCommand(BackPing, 0);
+		}
+
+		void FInterchangeWorkerHandler::ProcessCommand(FErrorCommand& ErrorCommand)
+		{
+			UE_LOG(LogInterchangeDispatcher, Error, TEXT("%s"), *ErrorCommand.ErrorMessage);
+			this->Dispatcher.SetInterchangeWorkerFatalError(ErrorCommand.ErrorMessage);
+			FTerminateCommand Terminate;
+			CommandIO.SendCommand(Terminate, 0);
 		}
 
 		void FInterchangeWorkerHandler::ProcessCommand(FCompletedTaskCommand& CompletedTaskCommand)

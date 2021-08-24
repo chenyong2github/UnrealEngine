@@ -3,8 +3,10 @@
 #include "InterchangeWorker.h"
 
 #include "HAL/PlatformProcess.h"
+#include "InterchangeResultsContainer.h"
 #include "InterchangeWorkerImpl.h"
 #include "RequiredProgramMainCPPInclude.h"
+#include "UObject/UObjectGlobals.h"
 
 IMPLEMENT_APPLICATION(InterchangeWorker, "InterchangeWorker");
 DEFINE_LOG_CATEGORY(LogInterchangeWorker);
@@ -53,19 +55,47 @@ int32 Main(int32 Argc, TCHAR * Argv[])
 	int32 Major = 0;
 	int32 Minor = 0;
 	int32 Patch = 0;
-	if (!UE::Interchange::DispatcherCommandVersion::FromString(InterchangeDispatcherVersion, Major, Minor, Patch))
+	bool bLWCDisabled = true;
+
+	FString WorkerVersionError;
+	if (!UE::Interchange::DispatcherCommandVersion::FromString(InterchangeDispatcherVersion, Major, Minor, Patch, bLWCDisabled))
 	{
-		UE_LOG(LogInterchangeWorker, Error, TEXT("Incompatible interchange dispatcher version string command argument."));
-		return EXIT_FAILURE;
+		WorkerVersionError = TEXT("Incompatible interchange dispatcher version string command argument.");
+		WorkerVersionError += TEXT(" Editor Version: ");
+		WorkerVersionError += InterchangeDispatcherVersion;
+		WorkerVersionError += TEXT(" Worker Version: ");
+		WorkerVersionError += UE::Interchange::DispatcherCommandVersion::ToString();
+		UE_LOG(LogInterchangeWorker, Error, TEXT("%s"), *WorkerVersionError);
 	}
- 	if (!UE::Interchange::DispatcherCommandVersion::IsAPICompatible(Major, Minor, Patch))
+
+ 	if (!UE::Interchange::DispatcherCommandVersion::IsAPICompatible(Major, Minor, Patch, bLWCDisabled))
  	{
- 		UE_LOG(LogInterchangeWorker, Error, TEXT("Incompatible interchange dispatcher version. Please recompile InterchangeWorker target."));
- 		return EXIT_FAILURE;
+		WorkerVersionError = TEXT("Incompatible interchange dispatcher API version. Please recompile InterchangeWorker target.");
+		WorkerVersionError += TEXT("\n\tEditor Version: ");
+		WorkerVersionError += InterchangeDispatcherVersion;
+		WorkerVersionError += TEXT("\n\tWorker Version: ");
+		WorkerVersionError += UE::Interchange::DispatcherCommandVersion::ToString();
+ 		UE_LOG(LogInterchangeWorker, Error, TEXT("%s"), *WorkerVersionError);
  	}
 
+	if (!WorkerVersionError.IsEmpty())
+	{
+		UInterchangeResultError_Generic* Message = NewObject<UInterchangeResultError_Generic>(GetTransientPackage());
+		Message->SourceAssetName = TEXT("InterchangeWorkerProgram");
+		Message->Text = FText::FromString(WorkerVersionError);
+		WorkerVersionError = Message->ToJson();
+		Message->ClearFlags(RF_Standalone);
+		Message->ClearInternalFlags(EInternalObjectFlags::Async | EInternalObjectFlags::AsyncLoading);
+		//Should be garbage collectable now
+	}
+
 	FInterchangeWorkerImpl Worker(FCString::Atoi(*ServerPID), FCString::Atoi(*ServerPort), ResultFolder);
-	Worker.Run();
+	Worker.Run(WorkerVersionError);
+
+	if (!WorkerVersionError.IsEmpty())
+	{
+		return EXIT_FAILURE;
+	}
 
 	return EXIT_SUCCESS;
 }

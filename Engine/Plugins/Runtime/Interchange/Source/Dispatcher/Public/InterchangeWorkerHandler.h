@@ -61,6 +61,7 @@ namespace UE
 			void ValidateConnection();
 
 			void ProcessCommand(FPingCommand& PingCommand);
+			void ProcessCommand(FErrorCommand& ErrorCommand);
 			void ProcessCommand(FCompletedTaskCommand& RunTaskCommand);
 			void ProcessCommand(FCompletedQueryTaskProgressCommand& CompletedQueryTaskProgressCommand);
 			const TCHAR* EWorkerErrorStateAsString(EWorkerErrorState e);

@@ -23,24 +23,36 @@ namespace UE
 			//Patch version should be update if there is some bug fixes in the private code.
 			static int32 GetPatch() { return 0; }
 
+			//LWCDisabled version tell if the code was compile with serialization compatibility.
+			static bool GetLWCDisabled()
+			{
+#if UE_LARGE_WORLD_COORDINATES_DISABLED
+				return true;
+#else
+				return false;
+#endif
+			}
+
 			/** Return the version in string format "Major.Minor.Patch" */
 			static FString ToString()
 			{
-				static FString Version = FString::FromInt(GetMajor()) + TEXT(".") + FString::FromInt(GetMinor()) + TEXT(".") + FString::FromInt(GetPatch());
+				static FString Version = FString::FromInt(GetMajor()) + TEXT(".") + FString::FromInt(GetMinor()) + TEXT(".") + FString::FromInt(GetPatch()) + TEXT(".") + FString::FromInt(GetLWCDisabled() ? 1 : 0);
 				return Version;
 			}
 
-			static bool FromString(const FString& VersionStr, int32& OutMajor, int32& OutMinor, int32& OutPatch)
+			static bool FromString(const FString& VersionStr, int32& OutMajor, int32& OutMinor, int32& OutPatch, bool& bOutLWCDisabled)
 			{
 				TArray<FString> Tokens;
 				VersionStr.ParseIntoArray(Tokens, TEXT("."));
-				if (Tokens.Num() != 3)
+				if (Tokens.Num() != 4)
 				{
 					return false;
 				}
 				OutMajor = FCString::Atoi(*(Tokens[0]));
 				OutMinor = FCString::Atoi(*(Tokens[1]));
 				OutPatch = FCString::Atoi(*(Tokens[2]));
+				bOutLWCDisabled = FCString::Atoi(*(Tokens[3])) != 0;
+
 				return true;
 			}
 
@@ -53,15 +65,16 @@ namespace UE
 			 *
 			 * @return true if Major and Minor version equal the compile one, InPatch is only there in case we need it in a future release
 			 */
-			static bool IsAPICompatible(int32 Major, int32 Minor, int32 Patch)
+			static bool IsAPICompatible(int32 Major, int32 Minor, int32 Patch, bool bLWCDisabled)
 			{
-				return (GetMajor() == Major && GetMinor() == Minor);
+				return (GetMajor() == Major && GetMinor() == Minor && GetLWCDisabled() == bLWCDisabled);
 			}
 		};
 
 		enum class ECommandId : uint8
 		{
 			Invalid,
+			Error,
 			Ping,
 			BackPing,
 			RunTask,
@@ -105,6 +118,16 @@ namespace UE
 			virtual ECommandId GetType() const override { return ECommandId::Terminate; }
 		};
 
+		class INTERCHANGEDISPATCHER_API FErrorCommand : public ICommand
+		{
+		public:
+			virtual ECommandId GetType() const override { return ECommandId::Error; }
+			
+		protected:
+			virtual void SerializeImpl(FArchive&) override;
+		public:
+			FString ErrorMessage;
+		};
 
 		class INTERCHANGEDISPATCHER_API FPingCommand : public ICommand
 		{

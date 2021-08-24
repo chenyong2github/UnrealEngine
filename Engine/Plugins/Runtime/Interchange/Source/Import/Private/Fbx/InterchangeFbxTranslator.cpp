@@ -88,7 +88,13 @@ bool UInterchangeFbxTranslator::Translate(UInterchangeBaseNodeContainer& BaseNod
 
 	//Blocking call until all tasks are executed
 	Dispatcher->WaitAllTaskToCompleteExecution();
-		
+	
+	FString WorkerFatalError = Dispatcher->GetInterchangeWorkerFatalError();
+	if (!WorkerFatalError.IsEmpty())
+	{
+		AddMessage(UInterchangeResult::FromJson(WorkerFatalError));
+	}
+
 	UE::Interchange::ETaskState TaskState;
 	FString JsonResult;
 	TArray<FString> JsonMessages;
