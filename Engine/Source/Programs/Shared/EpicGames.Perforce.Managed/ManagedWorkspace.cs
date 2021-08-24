@@ -1951,9 +1951,10 @@ namespace EpicGames.Perforce.Managed
 								Logger.LogInformation("SyncList: {Line}", Line);
 							}
 
-							await LogPerforceCommandAsync($"protects -M {LocalFile}", Logger);
-							await LogPerforceCommandAsync($"protects -M {LocalFile.FullName.ToLower()}", Logger);
-							await LogPerforceCommandAsync($"protects -M {LocalFile.FullName.Replace('\\', '/')}", Logger);
+							string Connection = $"-p {Client.ServerAndPort} -u {Client.UserName} -c {Client.ClientName}";
+							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile}", Logger);
+							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.ToLower()}", Logger);
+							await LogPerforceCommandAsync($"{Connection} protects -M {LocalFile.FullName.Replace('\\', '/')}", Logger);
 
 							for (int Idx = 0; ; Idx++)
 							{
