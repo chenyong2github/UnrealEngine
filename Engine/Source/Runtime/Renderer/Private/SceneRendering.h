@@ -1915,6 +1915,9 @@ public:
 	/** Called to release any deallocations that were deferred until the next render. */
 	static void CleanUp(FRHICommandListImmediate& RHICmdList);
 
+	/** Called to wait for dependent clean up tasks, but CleanUp must still be called later. */
+	static void WaitForCleanUpTasks(FRHICommandListImmediate& RHICmdList);
+
 	/** Apply the ResolutionFraction on ViewSize, taking into account renderer's requirements. */
 	static FIntPoint ApplyResolutionFraction(
 		const FSceneViewFamily& ViewFamily, const FIntPoint& UnscaledViewSize, float ResolutionFraction);
