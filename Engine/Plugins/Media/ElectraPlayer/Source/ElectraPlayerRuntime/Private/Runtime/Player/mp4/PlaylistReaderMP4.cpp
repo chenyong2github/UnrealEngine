@@ -367,7 +367,7 @@ void FPlaylistReaderMP4::WorkerThread()
 				}
 
 				// Prepare the tracks in the stream that are of a supported codec.
-				parseError = MP4Parser->PrepareTracks(TSharedPtrTS<const IParserISO14496_12>());
+				parseError = MP4Parser->PrepareTracks(PlayerSessionServices, TSharedPtrTS<const IParserISO14496_12>());
 				if (parseError == UEMEDIA_ERROR_OK)
 				{
 					Manifest = MakeSharedTS<FManifestMP4Internal>(PlayerSessionServices);
