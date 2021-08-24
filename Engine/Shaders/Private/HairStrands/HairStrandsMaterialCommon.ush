@@ -23,6 +23,12 @@ float3 DecodeVelocityFromTexture(float4 In);
 #include "/Engine/Generated/Material.ush"
 #include "/Engine/Generated/VertexFactory.ush" 
 
+#include "HairStrandsVertexFactoryCommon.ush"
+
+#ifndef USE_HAIR_TRIANGLE_STRIP
+	#error Hair triangle geometry type needs to be defined
+#endif
+
 #define SUPPORT_MATERIAL_PROPERTY 1
 uint MaterialPass_MacroGroupId;
 uint MaterialPass_MaterialId;  
@@ -60,8 +66,11 @@ FVertexFactoryInterpolantsVSToPS GetInterpolants(uint PrimitiveId, uint HairPrim
 	Input.InstanceIdOffset = PrimitiveId | (1U << 31U);
 	Input.DrawInstanceId = 0;
 #endif // VF_USE_PRIMITIVE_SCENE_DATA 
+#if USE_HAIR_TRIANGLE_STRIP
+	Input.VertexId = HairPrimitiveId * 2; // 6: the vertex factory expect triangles strip index. A quad is made of two triangles with indices: 0,1.
+#else
 	Input.VertexId = HairPrimitiveId * 6; // 6: the vertex factory expect triangles list index. A quad is made of two triangles with indices: 0,1,2,3,4,5.
-
+#endif
 	FVertexFactoryIntermediates	Intermediates = GetVertexFactoryIntermediates(Input);
 	FVertexFactoryInterpolantsVSToPS Interpolants = VertexFactoryGetInterpolantsVSToPS(Input, Intermediates, Empty);
 

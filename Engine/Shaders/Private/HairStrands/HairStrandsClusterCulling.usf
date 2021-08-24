@@ -4,6 +4,11 @@
 #include "../ColorMap.ush"
 #include "HairStrandsAABBCommon.ush"
 #include "HairStrandsClusterCommon.ush"
+#include "HairStrandsVertexFactoryCommon.ush"
+
+#ifndef USE_HAIR_TRIANGLE_STRIP
+	#error Hair triangle geometry type needs to be defined
+#endif
 
 #define COMPACTCS_NUMTHREAD 64
 
@@ -607,7 +612,11 @@ void MainClusterCullingCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 					InterlockedAdd(DispatchIndirectParametersClusterCount[0], 1, VisibleClusterId);
 
 					//uint PreviousVertexCount = 0;
+				#if USE_HAIR_TRIANGLE_STRIP
+					InterlockedAdd(DrawIndirectParameters[0], ClusterLOD.VertexCount * 2/*, PreviousVertexCount*/);
+				#else
 					InterlockedAdd(DrawIndirectParameters[0], ClusterLOD.VertexCount * 6/*, PreviousVertexCount*/);
+				#endif
 
 					GlobalClusterIdBuffer[VisibleClusterId]	  = ClusterId;
 					GlobalIndexStartBuffer[VisibleClusterId]  = ClusterLOD.VertexOffset;
@@ -658,7 +667,11 @@ void MainClusterCullingPrepareIndirectDispatchCS(
 	{
 		// DrawIndirectBuffer contains the total number of vertex count needed for drawing quad triangle strips, so 6 vertices per quad / control point
 		const uint VertexCount    = DrawIndirectBuffer[0];
-		const uint ControlPoint   = VertexCount / 6;
+#if USE_HAIR_TRIANGLE_STRIP
+		const uint ControlPoint   = VertexCount / 2;
+#else
+		const uint ControlPoint	  = VertexCount / 6;
+#endif
 		const uint DispatchCount  = DivideAndRoundUp(ControlPoint, GROUP_SIZE);
 		const uint DispatchCountX = DispatchCount >= INDIRECT_GROUP_COUNT_X ? INDIRECT_GROUP_COUNT_X : (DispatchCount % INDIRECT_GROUP_COUNT_X);
 		const uint DispatchCountY = DivideAndRoundUp(DispatchCount, INDIRECT_GROUP_COUNT_X);
