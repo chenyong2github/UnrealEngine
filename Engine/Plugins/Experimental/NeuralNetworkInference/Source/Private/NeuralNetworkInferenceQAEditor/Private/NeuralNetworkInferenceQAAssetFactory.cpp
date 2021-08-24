@@ -2,7 +2,6 @@
 
 #include "NeuralNetworkInferenceQAAssetFactory.h"
 #include "NeuralNetworkInferenceQAAsset.h"
-#include "EditorFramework/AssetImportData.h"
 #include "Misc/Paths.h"
 
 

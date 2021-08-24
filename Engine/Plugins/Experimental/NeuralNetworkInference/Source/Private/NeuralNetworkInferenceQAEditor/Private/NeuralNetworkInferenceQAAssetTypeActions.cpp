@@ -3,7 +3,6 @@
 #include "NeuralNetworkInferenceQAAssetTypeActions.h"
 #include "NeuralNetworkInferenceEditorModule.h"
 #include "NeuralNetworkInferenceQAAsset.h"
-#include "EditorFramework/AssetImportData.h"
 
 
 FText FNeuralNetworkInferenceQAAssetTypeActions::GetName() const
