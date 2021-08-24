@@ -3723,7 +3723,7 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 	RigVMPythonUtils::Print(GetFName().ToString(),
 		FString::Printf(TEXT("blueprint.change_member_variable_type('%s', '%s')"),
 		*InVarName.ToString(),
-		*PinType));
+		NewVariable.bIsArray ? *RigVMUtilities::ArrayTypeFromBaseType(PinType) : *PinType));
 
 	BroadcastExternalVariablesChangedEvent();
 }
