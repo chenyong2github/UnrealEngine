@@ -12,6 +12,7 @@
 #include "Sampling/MeshMapBaker.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
+#include "PreviewMesh.h"
 #include "BakeMeshAttributeToolCommon.h"
 #include "BakeMeshAttributeMapsTool.generated.h"
 
@@ -167,6 +168,8 @@ public:
 	// IGenericDataOperatorFactory API
 	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshMapBaker>> MakeNewOperator() override;
 
+	void SetWorld(UWorld* World);
+
 protected:
 	// need to update bResultValid if these are modified, so we don't publicly expose them. 
 	// @todo setters/getters for these
@@ -196,7 +199,8 @@ protected:
 protected:
 	friend class FMeshMapBakerOp;
 	
-	UDynamicMeshComponent* DynamicMeshComponent;
+	UPROPERTY()
+	TObjectPtr<UPreviewMesh> PreviewMesh;
 
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> PreviewMaterial;
@@ -207,6 +211,8 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UMaterialInstanceDynamic> WorkingPreviewMaterial;
 	float SecondsBeforeWorkingMaterial = 0.75;
+
+	UWorld* TargetWorld = nullptr;
 
 	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
 	UE::Geometry::FDynamicMesh3 BaseMesh;
