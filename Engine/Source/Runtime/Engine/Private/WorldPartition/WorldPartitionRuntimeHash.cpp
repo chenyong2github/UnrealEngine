@@ -17,6 +17,14 @@
 
 #define LOCTEXT_NAMESPACE "WorldPartition"
 
+static int32 GIgnoreStreamingPerformance = 0;
+static FAutoConsoleVariableRef CVarGIgnoreStreamingPerformance(
+	TEXT("wp.Runtime.IgnoreStreamingPerformance"),
+	GIgnoreStreamingPerformance,
+	TEXT("Should we ignore streaming performance checks? Enabling this will not block on critical streaming situations and may break gameplay. Useful for scenarios where we flush streaming every frame, such as movie rendering."),
+	ECVF_Default
+);
+
 UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
@@ -285,7 +293,7 @@ EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerf
 	bool bForceGoodStreamingPerformance = !GetWorld()->bMatchStarted;
 
 #if WITH_EDITOR
-	bForceGoodStreamingPerformance |= FApp::UseFixedTimeStep();
+	bForceGoodStreamingPerformance |= GIgnoreStreamingPerformance > 0;
 #endif
 
 	EWorldPartitionStreamingPerformance StreamingPerformance = EWorldPartitionStreamingPerformance::Good;
