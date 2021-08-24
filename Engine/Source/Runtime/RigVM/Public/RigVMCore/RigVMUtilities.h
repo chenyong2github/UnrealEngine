@@ -11,4 +11,9 @@ namespace RigVMUtilities
 	{
 		return InCPPType.StartsWith(TEXT("TArray<"));
 	}
+
+	FORCEINLINE FString ArrayTypeFromBaseType(const FString& InCPPType)
+	{
+		return "TArray<" + InCPPType + ">";
+	}
 }
