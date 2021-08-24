@@ -8987,6 +8987,14 @@ string CompilerGLSL::access_chain(uint32_t base, const uint32_t *indices, uint32
 		}
 
 		auto basename = to_flattened_access_chain_expression(base);
+
+		// UE Change Begin: Reconstruct global uniforms from $Globals cbuffer
+		if (options.reconstruct_global_uniforms && basename == "_Globals")
+		{
+			return chain;
+		}
+		// UE Change End: Reconstruct global uniforms from $Globals cbuffer
+
 		auto ret = join(basename, "_", chain);
 		ParsedIR::sanitize_underscores(ret);
 		return ret;

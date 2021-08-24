@@ -65,6 +65,99 @@
 
 using namespace ShaderConductor;
 
+// UE Change Begin: Clean up parameter parsing
+static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, const char* name, uint32_t& outValue)
+{
+	if (::strcmp(define.name, name) == 0)
+	{
+		outValue = static_cast<uint32_t>(std::stoi(define.value));
+		return true;
+	}
+	return false;
+}
+
+static bool ParseSpirvCrossOption(const ShaderConductor::MacroDefine& define, const char* name, bool& outValue)
+{
+	if (::strcmp(define.name, name) == 0)
+	{
+		outValue = (std::stoi(define.value) != 0);
+		return true;
+	}
+	return false;
+}
+
+#define PARSE_SPIRVCROSS_OPTION(DEFINE, NAME, VALUE)	\
+	if (ParseSpirvCrossOption(DEFINE, NAME, VALUE))		\
+	{													\
+		return true;									\
+	}
+	
+// These options are shared between GLSL, HLSL, and Metal compilers
+static bool ParseSpirvCrossOptionCommon(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_global_uniforms", opt.reconstruct_global_uniforms);
+	return false;
+}
+
+static bool ParseSpirvCrossOptionGlsl(spirv_cross::CompilerGLSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+	PARSE_SPIRVCROSS_OPTION(define, "emit_push_constant_as_uniform_buffer", opt.emit_push_constant_as_uniform_buffer);
+	PARSE_SPIRVCROSS_OPTION(define, "emit_uniform_buffer_as_plain_uniforms", opt.emit_uniform_buffer_as_plain_uniforms);
+	PARSE_SPIRVCROSS_OPTION(define, "flatten_multidimensional_arrays", opt.flatten_multidimensional_arrays);
+	PARSE_SPIRVCROSS_OPTION(define, "force_flattened_io_blocks", opt.force_flattened_io_blocks);
+	return false;
+}
+
+static bool ParseSpirvCrossOptionHlsl(spirv_cross::CompilerHLSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_semantics", opt.reconstruct_semantics);
+	PARSE_SPIRVCROSS_OPTION(define, "reconstruct_cbuffer_names", opt.reconstruct_cbuffer_names);
+	PARSE_SPIRVCROSS_OPTION(define, "implicit_resource_binding", opt.implicit_resource_binding);
+	return false;
+}
+
+static bool ParseSpirvCrossOptionMetal(spirv_cross::CompilerMSL::Options& opt, const ShaderConductor::MacroDefine& define)
+{
+	PARSE_SPIRVCROSS_OPTION(define, "ios_support_base_vertex_instance", opt.ios_support_base_vertex_instance);
+	PARSE_SPIRVCROSS_OPTION(define, "swizzle_texture_samples", opt.swizzle_texture_samples);
+	PARSE_SPIRVCROSS_OPTION(define, "texel_buffer_texture_width", opt.texel_buffer_texture_width);
+	// Use Metal's native texture-buffer type for HLSL buffers.
+	PARSE_SPIRVCROSS_OPTION(define, "texture_buffer_native", opt.texture_buffer_native);
+	// Use Metal's native frame-buffer fetch API for subpass inputs.
+	PARSE_SPIRVCROSS_OPTION(define, "use_framebuffer_fetch_subpasses", opt.use_framebuffer_fetch_subpasses);
+	// Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
+	PARSE_SPIRVCROSS_OPTION(define, "enforce_storge_buffer_bounds", opt.enforce_storge_buffer_bounds);
+	PARSE_SPIRVCROSS_OPTION(define, "buffer_size_buffer_index", opt.buffer_size_buffer_index);
+	// Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
+	PARSE_SPIRVCROSS_OPTION(define, "capture_output_to_buffer", opt.capture_output_to_buffer);
+	PARSE_SPIRVCROSS_OPTION(define, "shader_output_buffer_index", opt.shader_output_buffer_index);
+	// Allow the caller to specify the various auxiliary Metal buffer indices.
+	PARSE_SPIRVCROSS_OPTION(define, "indirect_params_buffer_index", opt.indirect_params_buffer_index);
+	PARSE_SPIRVCROSS_OPTION(define, "shader_patch_output_buffer_index", opt.shader_patch_output_buffer_index);
+	PARSE_SPIRVCROSS_OPTION(define, "shader_tess_factor_buffer_index", opt.shader_tess_factor_buffer_index);
+	PARSE_SPIRVCROSS_OPTION(define, "shader_input_wg_index", opt.shader_input_wg_index);
+	// Allow the caller to specify the Metal translation should use argument buffers.
+	PARSE_SPIRVCROSS_OPTION(define, "argument_buffers", opt.argument_buffers);
+	PARSE_SPIRVCROSS_OPTION(define, "argument_buffer_offset", opt.argument_buffer_offset);
+	PARSE_SPIRVCROSS_OPTION(define, "invariant_float_math", opt.invariant_float_math);
+	// Emulate texturecube_array with texture2d_array for iOS where this type is not available.
+	PARSE_SPIRVCROSS_OPTION(define, "emulate_cube_array", opt.emulate_cube_array);
+	// Allow user to enable decoration binding.
+	PARSE_SPIRVCROSS_OPTION(define, "enable_decoration_binding", opt.enable_decoration_binding);
+
+	// Specify dimension of subpass input attachments.
+	static const char* subpassInputDimIdent = "subpass_input_dimension";
+	static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
+	if (!strncmp(define.name, subpassInputDimIdent, subpassInputDimIdentLen))
+	{
+		int binding = std::stoi(define.name + subpassInputDimIdentLen);
+		opt.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(define.value);
+	}
+
+	return false;
+}
+// UE Change End: Clean up parameter parsing
+
 namespace
 {
     bool dllDetaching = false;
@@ -1076,39 +1169,27 @@ namespace
 			for (unsigned i = 0; i < target.numOptions; i++)
 			{
 				auto& Define = target.options[i];
-				if (!strcmp(Define.name, "emit_push_constant_as_uniform_buffer"))
+				if (!ParseSpirvCrossOptionGlsl(glslOpts, Define))
 				{
-					glslOpts.emit_push_constant_as_uniform_buffer = (std::stoi(Define.value) != 0);
-				}
-				else if (!strcmp(Define.name, "emit_uniform_buffer_as_plain_uniforms"))
-				{
-					glslOpts.emit_uniform_buffer_as_plain_uniforms = (std::stoi(Define.value) != 0);
-				}
-				else if (!strcmp(Define.name, "flatten_multidimensional_arrays"))
-				{
-					glslOpts.flatten_multidimensional_arrays = (std::stoi(Define.value) != 0);
-				}
-				else if (!strcmp(Define.name, "force_flattened_io_blocks"))
-				{
-					glslOpts.force_flattened_io_blocks = (std::stoi(Define.value) != 0);
-				}
-				// UE Change Begin: Allow remapping of variables in glsl
-				else if (!strcmp(Define.name, "remap_glsl"))
-				{
-					std::vector<std::string> Args;
-					std::stringstream ss(Define.value);
-					std::string Arg;
+					// UE Change Begin: Allow remapping of variables in glsl
+					if (!strcmp(Define.name, "remap_glsl"))
+					{
+						std::vector<std::string> Args;
+						std::stringstream ss(Define.value);
+						std::string Arg;
 
-					while (std::getline(ss, Arg, ' ')) {
-						Args.push_back(Arg);
+						while (std::getline(ss, Arg, ' '))
+						{
+							Args.push_back(Arg);
+						}
+
+						if (Args.size() < 3)
+							continue;
+
+						remaps.push_back({ Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str()) });
 					}
-
-					if (Args.size() < 3)
-						continue;
-
-					remaps.push_back({ Args[0], Args[1], (uint32_t)std::atoi(Args[2].c_str()) });
+					// UE Change End: Allow remapping of variables in glsl
 				}
-				// UE Change End: Allow remapping of variables in glsl
 			}
 
 			// UE Change Begin: Allow remapping of variables in glsl
@@ -1136,6 +1217,7 @@ namespace
         if (target.language == ShadingLanguage::Hlsl)
         {
             auto* hlslCompiler = static_cast<spirv_cross::CompilerHLSL*>(compiler.get());
+			auto commonOpts = hlslCompiler->get_common_options();
             auto hlslOpts = hlslCompiler->get_hlsl_options();
             if (target.version != nullptr)
             {
@@ -1153,121 +1235,44 @@ namespace
                 buildDummySampler = true;
             }
 
-            hlslCompiler->set_hlsl_options(hlslOpts);
+			// UE Change Begin: Support overriding HLSL options
+			for (unsigned i = 0; i < target.numOptions; i++)
+			{
+				if (!ParseSpirvCrossOptionCommon(commonOpts, target.options[i]))
+				{
+					ParseSpirvCrossOptionHlsl(hlslOpts, target.options[i]);
+				}
+			}
+			hlslCompiler->set_common_options(commonOpts);
+			// UE Change End: Support overriding HLSL options
+
+			hlslCompiler->set_hlsl_options(hlslOpts);
         }
         else if ((target.language == ShadingLanguage::Msl_macOS) || (target.language == ShadingLanguage::Msl_iOS))
         {
             auto* mslCompiler = static_cast<spirv_cross::CompilerMSL*>(compiler.get());
-            auto mslOpts = mslCompiler->get_msl_options();
+            auto opt = mslCompiler->get_msl_options();
             if (target.version != nullptr)
             {
-                mslOpts.msl_version = opts.version;
+                opt.msl_version = opts.version;
             }
-            mslOpts.swizzle_texture_samples = false;
+            opt.swizzle_texture_samples = false;
 
             // UE Change Begin: Ensure base vertex and instance indices start with zero if source language is HLSL.
-            mslOpts.enable_base_index_zero = true;
+            opt.enable_base_index_zero = true;
             // UE Change End: Ensure base vertex and instance indices start with zero if source language is HLSL.
 
             // UE Change Begin: Support reflection & overriding Metal options & resource bindings to generate correct code.
             for (unsigned i = 0; i < target.numOptions; i++)
             {
-                auto& Define = target.options[i];
-                if (!strcmp(Define.name, "ios_support_base_vertex_instance"))
-                {
-                    mslOpts.ios_support_base_vertex_instance = (std::stoi(Define.value) != 0);
-                }
-                if (!strcmp(Define.name, "swizzle_texture_samples"))
-                {
-                    mslOpts.swizzle_texture_samples = (std::stoi(Define.value) != 0);
-                }
-                if (!strcmp(Define.name, "texel_buffer_texture_width"))
-                {
-                    mslOpts.texel_buffer_texture_width = (uint32_t)std::stoi(Define.value);
-                }
-                // Use Metal's native texture-buffer type for HLSL buffers.
-                if (!strcmp(Define.name, "texture_buffer_native"))
-                {
-                    mslOpts.texture_buffer_native = (std::stoi(Define.value) != 0);
-                }
-                // Use Metal's native frame-buffer fetch API for subpass inputs.
-                if (!strcmp(Define.name, "use_framebuffer_fetch_subpasses"))
-                {
-                    mslOpts.use_framebuffer_fetch_subpasses = (std::stoi(Define.value) != 0);
-                }
-                // Storage buffer robustness - clamps access to SSBOs to the size of the buffer.
-                if (!strcmp(Define.name, "enforce_storge_buffer_bounds"))
-                {
-                    mslOpts.enforce_storge_buffer_bounds = (std::stoi(Define.value) != 0);
-                }
-                if (!strcmp(Define.name, "buffer_size_buffer_index"))
-                {
-                    mslOpts.buffer_size_buffer_index = (uint32_t)std::stoi(Define.value);
-                }
-                // Capture shader output to a buffer - used for vertex streaming to emulate GS & Tess.
-                if (!strcmp(Define.name, "capture_output_to_buffer"))
-                {
-                    mslOpts.capture_output_to_buffer = (std::stoi(Define.value) != 0);
-                }
-                if (!strcmp(Define.name, "shader_output_buffer_index"))
-                {
-                    mslOpts.shader_output_buffer_index = (uint32_t)std::stoi(Define.value);
-                }
-                // Allow the caller to specify the various auxiliary Metal buffer indices.
-                if (!strcmp(Define.name, "indirect_params_buffer_index"))
-                {
-                    mslOpts.indirect_params_buffer_index = (uint32_t)std::stoi(Define.value);
-                }
-                if (!strcmp(Define.name, "shader_patch_output_buffer_index"))
-                {
-                    mslOpts.shader_patch_output_buffer_index = (uint32_t)std::stoi(Define.value);
-                }
-                if (!strcmp(Define.name, "shader_tess_factor_buffer_index"))
-                {
-                    mslOpts.shader_tess_factor_buffer_index = (uint32_t)std::stoi(Define.value);
-                }
-                if (!strcmp(Define.name, "shader_input_wg_index"))
-                {
-                    mslOpts.shader_input_wg_index = (uint32_t)std::stoi(Define.value);
-                }
-                // Allow the caller to specify the Metal translation should use argument buffers.
-                if (!strcmp(Define.name, "argument_buffers"))
-                {
-                    mslOpts.argument_buffers = (std::stoi(Define.value) != 0);
-                }
-                if (!strcmp(Define.name, "argument_buffer_offset"))
-                {
-                    mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
-                }
-                if (!strcmp(Define.name, "invariant_float_math"))
-                {
-                    mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
-                }
-                // Emulate texturecube_array with texture2d_array for iOS where this type is not available.
-                if (!strcmp(Define.name, "emulate_cube_array"))
-                {
-                    mslOpts.emulate_cube_array = (std::stoi(Define.value) != 0);
-                }
-                // Allow user to enable decoration binding.
-                if (!strcmp(Define.name, "enable_decoration_binding"))
-                {
-                    mslOpts.enable_decoration_binding = (std::stoi(Define.value) != 0);
-                }
-                // Specify dimension of subpass input attachments.
-                static const char* subpassInputDimIdent = "subpass_input_dimension";
-                static const size_t subpassInputDimIdentLen = std::strlen(subpassInputDimIdent);
-                if (!strncmp(Define.name, subpassInputDimIdent, subpassInputDimIdentLen))
-                {
-                    int binding = std::stoi(Define.name + subpassInputDimIdentLen);
-                    mslOpts.subpass_input_dimensions[static_cast<uint32_t>(binding)] = std::stoi(Define.value);
-                }
+				ParseSpirvCrossOptionMetal(opt, target.options[i]);
             }
             // UE Change End: Support reflection & overriding Metal options & resource bindings to generate correct code.
 
-            mslOpts.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
+            opt.platform = (target.language == ShadingLanguage::Msl_iOS) ? spirv_cross::CompilerMSL::Options::iOS
                                                                              : spirv_cross::CompilerMSL::Options::macOS;
 
-            mslCompiler->set_msl_options(mslOpts);
+            mslCompiler->set_msl_options(opt);
 
 			// UE Change Begin: Don't re-assign binding slots. This is done with SPIRV-Reflect.
 #if 0
