@@ -56,7 +56,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDatasmithWireTranslator, Log, All);
 
 #define LOCTEXT_NAMESPACE "DatasmithWireTranslator"
 
-#define WRONG_VERSION_TEXT "Unsupported version of Alias detected. Please downgrade to Alias 2020.0 (or earlier version) or upgrade to Alias 2021 (or later version)."
+#define WRONG_VERSION_TEXT "Unsupported version of Alias detected. Please upgrade to Alias 2021.3 (or later version)."
 #define CAD_INTERFACE_UNAVAILABLE "CAD Interface module is unavailable. Meshing will be done by Alias."
 
 #ifdef USE_OPENMODEL
@@ -157,18 +157,21 @@ public:
 		, NumCRCErrors(0)
 	{
 		// Set ProductName, ProductVersion in DatasmithScene for Analytics purpose
-		// application_name is something like "Catia V5"
 		DatasmithScene->SetHost(TEXT("Alias"));
 		DatasmithScene->SetVendor(TEXT("Autodesk"));
-		DatasmithScene->SetExporterSDKVersion(TEXT("2019"));
+		DatasmithScene->SetExporterSDKVersion(TEXT("2022"));
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
-		DatasmithScene->SetProductVersion(TEXT("Alias 2019"));
+		DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
 
 		LocalSession = FAliasCoretechWrapper::GetSharedSession();
 	}
 
 	~FWireTranslatorImpl()
 	{
+		for (AlDagNode* Node : AlDagNodeArray)
+		{
+			delete Node;
+		}
 		AlUniverse::deleteAll();
 		LocalSession.Reset();
 	}
@@ -286,6 +289,9 @@ private:
 	/** Table of correspondence between mesh identifier and associated Datasmith mesh element */
 	TMap< uint32, TSharedPtr< IDatasmithMeshElement > > ShellUUIDToMeshElementMap;
 	TMap< FString, TSharedPtr< IDatasmithMeshElement > > BodyToMeshElementMap;
+
+	/** All DagNode to delete */
+	TArray<AlDagNode*> AlDagNodeArray;
 
 	/** Datasmith mesh elements to OpenModel objects */
 	TMap< IDatasmithMeshElement*, AlDagNode* > MeshElementToAlDagNodeMap;
@@ -1205,9 +1211,9 @@ bool FWireTranslatorImpl::GetShader()
 		TSharedPtr< IDatasmithMaterialIDElement > MaterialIDElement = FDatasmithSceneFactory::CreateMaterialId(MaterialElement->GetName());
 		ShaderNameToUEMaterialId.Add(*ShaderName, MaterialIDElement);
 
-		AlShader *curShader = Shader;
+		AlShader *CurrentShader = Shader;
 		Shader = AlUniverse::nextShader(Shader);
-		delete curShader;
+		delete CurrentShader;
 	}
 	return true;
 }
@@ -1218,6 +1224,7 @@ bool FWireTranslatorImpl::GetDagLeaves()
 {
 	FDagNodeInfo RootContainer;
 	AlRootNode = AlUniverse::firstDagNode();
+	AlDagNodeArray.Add(AlRootNode);
 	return RecurseDagForLeaves(AlRootNode, RootContainer);
 }
 
@@ -1272,6 +1279,7 @@ bool FWireTranslatorImpl::ProcessAlGroupNode(AlGroupNode& GroupNode, const FDagN
 	AlDagNode * ChildNode = GroupNode.childNode();
 	if (AlIsValid(ChildNode) == TRUE)
 	{
+		AlDagNodeArray.Add(ChildNode);
 		RecurseDagForLeaves(ChildNode, ThisGroupNodeInfo);
 	}
 
@@ -1584,7 +1592,12 @@ bool FWireTranslatorImpl::RecurseDagForLeaves(AlDagNode* FirstDagNode, const FDa
 	while (DagNode)
 	{
 		MaxSize++;
-		DagNode = GetNextNode(DagNode);
+		AlDagNode* NextDagNode = GetNextNode(DagNode);
+		if(DagNode != FirstDagNode) 
+		{
+			delete DagNode;
+		}
+		DagNode = NextDagNode;
 	}
 
 	DagNode = FirstDagNode;
@@ -1597,82 +1610,81 @@ bool FWireTranslatorImpl::RecurseDagForLeaves(AlDagNode* FirstDagNode, const FDa
 	while (DagNode)
 	{
 		// Filter invalid nodes.
-		if (!AlIsValid(DagNode))
+		if (AlIsValid(DagNode) && !IsHidden(DagNode))
 		{
-			break;
-		}
-		if (IsHidden(DagNode))
-		{
-			return true;
-		}
+			AlObjectType objectType = DagNode->type();
 
-		AlObjectType objectType = DagNode->type();
-
-		// Process the current node.
-		switch (objectType)
-		{
-			// Push all leaf nodes into 'leaves'
-		case kShellNodeType:
-		{
-			AlShellNode *ShellNode = DagNode->asShellNodePtr();
-			AlShell *Shell = ShellNode->shell();
-			uint32 NbPatch = getNumOfPatch(*Shell);
-
-			if (AlShader* Shader = Shell->firstShader())
+			// Process the current node.
+			switch (objectType)
 			{
-				ShaderName = Shader->name();
+
+			case kShellNodeType:
+			{
+				AlShellNode* ShellNode = DagNode->asShellNodePtr();
+				AlShell* Shell = ShellNode->shell();
+				uint32 NbPatch = getNumOfPatch(*Shell);
+
+				if (AlShader* Shader = Shell->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
+
+				if (NbPatch == 1)
+				{
+					AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, true, MaxSize);
+				}
+				else
+				{
+					ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
+				}
+				break;
 			}
 
-			if (NbPatch == 1)
+			case kSurfaceNodeType:
 			{
+				AlSurfaceNode* SurfaceNode = DagNode->asSurfaceNodePtr();
+				AlSurface* Surface = SurfaceNode->surface();
+				if (AlShader* Shader = Surface->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
 				AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, true, MaxSize);
+				break;
 			}
-			else
+
+			case kMeshNodeType:
 			{
-				ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
+				AlMeshNode* MeshNode = DagNode->asMeshNodePtr();
+				AlMesh* Mesh = MeshNode->mesh();
+				if (AlShader* Shader = Mesh->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
+				AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, false, MaxSize);
+				break;
 			}
-			break;
-		}
-		case kSurfaceNodeType:
-		{
-			AlSurfaceNode *SurfaceNode = DagNode->asSurfaceNodePtr();
-			AlSurface *Surface = SurfaceNode->surface();
-			if (AlShader * Shader = Surface->firstShader())
+
+			// Traverse down through groups
+			case kGroupNodeType:
 			{
-				ShaderName = Shader->name();
+				AlGroupNode* GroupNode = DagNode->asGroupNodePtr();
+				if (AlIsValid(GroupNode))
+				{
+					ProcessAlGroupNode(*GroupNode, ParentInfo);
+				}
+				break;
 			}
-			AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, true, MaxSize);
-			break;
+
+			default:
+			{
+				break;
+			}
+			}
 		}
 
-		case kMeshNodeType:
-		{
-			AlMeshNode *MeshNode = DagNode->asMeshNodePtr();
-			AlMesh *Mesh = MeshNode->mesh();
-			if (AlShader * Shader = Mesh->firstShader())
-			{
-				ShaderName = Shader->name();
-			}
-			AddNodeInBodySet(*DagNode, ShaderName, ShellToProcess, false, MaxSize);
-			break;
-		}
-
-		// Traverse down through groups
-		case kGroupNodeType:
-		{
-			AlGroupNode * GroupNode = DagNode->asGroupNodePtr();
-			if (AlIsValid(GroupNode))
-			{
-				ProcessAlGroupNode(*GroupNode, ParentInfo);
-			}
-			break;
-		}
-		default:
-		{
-		}
-
-		}
 		DagNode = GetNextNode(DagNode);
+		AlDagNodeArray.Add(DagNode);
+
 	}
 
 	for (auto Body : ShellToProcess)
@@ -1694,78 +1706,73 @@ bool FWireTranslatorImpl::RecurseDagForLeavesNoMerge(AlDagNode* FirstDagNode, co
 	DagNode = FirstDagNode;
 	while (DagNode)
 	{
-		// Filter invalid nodes.
-		if (AlIsValid(DagNode) == FALSE)
+		if (AlIsValid(DagNode) && !IsHidden(DagNode))
 		{
-			break;
-		}
-
-		if (IsHidden(DagNode))
-		{
-			return true;
-		}
-
-		// Process the current node.
-		AlObjectType objectType = DagNode->type();
-		switch (objectType)
-		{
-			// Push all leaf nodes into 'leaves'
-		case kShellNodeType:
-		{
-			AlShellNode *ShellNode = DagNode->asShellNodePtr();
-			AlShell *Shell = ShellNode->shell();
-			if (AlShader * Shader = Shell->firstShader())
+			// Process the current node.
+			AlObjectType objectType = DagNode->type();
+			switch (objectType)
 			{
-				ShaderName = Shader->name();
+
+			case kShellNodeType:
+			{
+				AlShellNode* ShellNode = DagNode->asShellNodePtr();
+				AlShell* Shell = ShellNode->shell();
+				if (AlShader* Shader = Shell->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
+
+				ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
+				break;
 			}
 
-			ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
-			break;
-		}
-		case kSurfaceNodeType:
-		{
-			AlSurfaceNode *SurfaceNode = DagNode->asSurfaceNodePtr();
-			AlSurface *Surface = SurfaceNode->surface();
-			if (AlShader * Shader = Surface->firstShader())
+			case kSurfaceNodeType:
 			{
-				ShaderName = Shader->name();
+				AlSurfaceNode* SurfaceNode = DagNode->asSurfaceNodePtr();
+				AlSurface* Surface = SurfaceNode->surface();
+				if (AlShader* Shader = Surface->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
+
+				ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
+				break;
 			}
 
-			ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
-			break;
-		}
-
-		case kMeshNodeType:
-		{
-			AlMeshNode *MeshNode = DagNode->asMeshNodePtr();
-			AlMesh *Mesh = MeshNode->mesh();
-			if (AlShader * Shader = Mesh->firstShader())
+			case kMeshNodeType:
 			{
-				ShaderName = Shader->name();
+				AlMeshNode* MeshNode = DagNode->asMeshNodePtr();
+				AlMesh* Mesh = MeshNode->mesh();
+				if (AlShader* Shader = Mesh->firstShader())
+				{
+					ShaderName = Shader->name();
+				}
+
+				ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
+				break;
 			}
 
-			ProcessAlShellNode(*DagNode, ParentInfo, ShaderName);
-			break;
-		}
-
-		// Traverse down through groups
-		case kGroupNodeType:
-		{
-			AlGroupNode * GroupNode = DagNode->asGroupNodePtr();
-			if (AlIsValid(GroupNode))
+			// Traverse down through groups
+			case kGroupNodeType:
 			{
-				ProcessAlGroupNode(*GroupNode, ParentInfo);
+				AlGroupNode* GroupNode = DagNode->asGroupNodePtr();
+				if (AlIsValid(GroupNode))
+				{
+					ProcessAlGroupNode(*GroupNode, ParentInfo);
+				}
+				break;
 			}
-			break;
-		}
 
-		default:
-		{
-		}
+			default:
+			{
+				break;
+			}
 
+			}
 		}
 
 		DagNode = GetNextNode(DagNode);
+		AlDagNodeArray.Add(DagNode);
 	}
 	return true;
 }
@@ -1885,8 +1892,8 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfMeshBody(TSharedRef<Bo
 
 	for (auto DagNode : Body->ShellSet)
 	{
-		AlMeshNode *MeshNode = DagNode->asMeshNodePtr();
-		AlMesh *Mesh = MeshNode->mesh();
+		AlMeshNode* MeshNode = DagNode->asMeshNodePtr();
+		AlMesh* Mesh = MeshNode->mesh();
 		if (Mesh)
 		{
 			TransferAlMeshToMeshDescription(*Mesh, MeshDescription, MeshParameters, True, true);
@@ -1898,7 +1905,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfMeshBody(TSharedRef<Bo
 
 TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfNodeMesh(AlMeshNode& MeshNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters, AlMatrix4x4* AlMeshInvGlobalMatrix)
 {
-	AlMesh * Mesh = MeshNode.mesh();
+	AlMesh* Mesh = MeshNode.mesh();
 	if (AlIsValid(Mesh))
 	{
 		if (AlMeshInvGlobalMatrix != nullptr)
@@ -2058,12 +2065,11 @@ bool FDatasmithWireTranslator::IsSourceSupported(const FDatasmithSceneSource& So
 bool FDatasmithWireTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 {
 #ifdef USE_OPENMODEL
-	// Check installed version of Alias Tools because binaries from 2020.1 to 2020.3 crashes on load
-	const uint64 LibAlias2020Version = 7318349414924288;
-	const uint64 LibAlias2021Version = 7599824377020416;
+	// Check installed version of Alias Tools because binaries before 2021.3 are not compatible with Alias 2022
+	const uint64 LibAlias2021_3Version = 7599833027117059;
 	uint64 FileVersion = FPlatformMisc::GetFileVersion(TEXT("libalias_api.dll"));
 
-	if (FileVersion > LibAlias2020Version && FileVersion < LibAlias2021Version)
+	if (FileVersion < LibAlias2021_3Version)
 	{
 #if WITH_EDITOR
 		// Display message and abort import
