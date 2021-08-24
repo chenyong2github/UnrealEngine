@@ -94,12 +94,12 @@ UNeuralNetworkLegacy* FLegacyModelUnitTester::NetworkUassetLoadTest(const FStrin
 	UNeuralNetworkLegacy* Network = LoadObject<UNeuralNetworkLegacy>((UObject*)GetTransientPackage(), *InUAssetPath);
 	if (!Network)
 	{
-		ensureMsgf(false, TEXT("UNeuralNetworkLegacy is a nullptr."));
+		ensureMsgf(false, TEXT("UNeuralNetworkLegacy is a nullptr. Path: \"%s\"."), *InUAssetPath);
 		return nullptr;
 	}
 	if (!Network->IsLoaded())
 	{
-		ensureMsgf(false, TEXT("UNeuralNetworkLegacy could not be loaded from uasset disk location."));
+		ensureMsgf(false, TEXT("UNeuralNetworkLegacy could not be loaded from uasset disk location. Path: \"%s\"."), *InUAssetPath);
 		return nullptr;
 	}
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %d layers loaded"), Network->GetTensors().Num());
@@ -113,12 +113,12 @@ UNeuralNetworkLegacy* FLegacyModelUnitTester::NetworkONNXLoadTest(const FString&
 	UNeuralNetworkLegacy* Network = NewObject<UNeuralNetworkLegacy>((UObject*)GetTransientPackage(), UNeuralNetworkLegacy::StaticClass());
 	if (!Network)
 	{
-		ensureMsgf(false, TEXT("UNeuralNetworkLegacy is a nullptr."));
+		ensureMsgf(false, TEXT("UNeuralNetworkLegacy is a nullptr. Path: \"%s\"."), *InONNXFilePath);
 		return nullptr;
 	}
 	if (!Network->Load(InONNXFilePath))
 	{
-		ensureMsgf(false, TEXT("UNeuralNetworkLegacy could not be loaded from ONNX file disk location: %s"), *InONNXFilePath);
+		ensureMsgf(false, TEXT("UNeuralNetworkLegacy could not be loaded from ONNX file disk location. Path: \"%s\"."), *InONNXFilePath);
 		return nullptr;
 	}
 	return Network;

@@ -112,17 +112,17 @@ FString FModelUnitTester::GetUAssetModelFilePath(const FString& InModelName, con
 	return InModelName + TEXT("'/Game/") + InModelZooRelativeDirectory / InModelName + TEXT("/") + InModelName + TEXT(".") + InModelName + TEXT("'"); // E.g., '/Game/[MODEL_ZOO_DIR]/ExampleNetworkReadable/ExampleNetworkReadable.ExampleNetworkReadable'
 }
 
-UNeuralNetwork* FModelUnitTester::NetworkUassetLoadTest(const FString& InUassetPath)
+UNeuralNetwork* FModelUnitTester::NetworkUassetLoadTest(const FString& InUAssetPath)
 {
-	UNeuralNetwork* Network = LoadObject<UNeuralNetwork>((UObject*)GetTransientPackage(), *InUassetPath);
+	UNeuralNetwork* Network = LoadObject<UNeuralNetwork>((UObject*)GetTransientPackage(), *InUAssetPath);
 	if (!Network)
 	{
-		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr."));
+		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr. Path: \"%s\"."), *InUAssetPath);
 		return nullptr;
 	}
 	if (!Network->IsLoaded())
 	{
-		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from uasset disk location."));
+		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from uasset disk location. Path: \"%s\"."), *InUAssetPath);
 		return nullptr;
 	}
 	return Network;
@@ -135,12 +135,12 @@ UNeuralNetwork* FModelUnitTester::NetworkONNXOrORTLoadTest(const FString& InMode
 	UNeuralNetwork* Network = NewObject<UNeuralNetwork>((UObject*)GetTransientPackage(), UNeuralNetwork::StaticClass());
 	if (!Network)
 	{
-		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr."));
+		ensureMsgf(false, TEXT("UNeuralNetwork is a nullptr. Path: \"%s\"."), *InModelFilePath);
 		return nullptr;
 	}
 	if (!Network->Load(InModelFilePath))
 	{
-		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from ONNX file disk location: %s"), *InModelFilePath);
+		ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from ONNX file disk location. Path: \"%s\"."), *InModelFilePath);
 		return nullptr;
 	}
 	return Network;
