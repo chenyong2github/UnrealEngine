@@ -39,6 +39,7 @@ namespace CrossCompiler
 	/** Target high level languages for ShaderConductor output. */
 	enum class EShaderConductorLanguage
 	{
+		Hlsl,
 		Glsl,
 		Essl,
 		Metal_macOS,
@@ -60,6 +61,7 @@ namespace CrossCompiler
 
 		/**
 		Target shader version.
+		Valid values for HLSL: 50, 60, 61, 62, 63, 64, 65, 66.
 		Valid values for Metal family: 20300, 20200, 20100, 20000, 10200, 10100, 10000.
 		Valid values for GLSL family: 310, 320, 330, 430.
 		*/

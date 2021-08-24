@@ -241,6 +241,29 @@ namespace CrossCompiler
 		}
 	}
 
+	static const ANSICHAR* GetHlslVersionString(int32 Version)
+	{
+		switch (Version)
+		{
+		case 50: return "50";
+		case 60: return "60";
+		case 61: return "61";
+		case 62: return "62";
+		case 63: return "63";
+		case 64: return "64";
+		case 65: return "65";
+		case 66: return "66";
+		default: return nullptr;
+		}
+	}
+
+	static void ConvertScTargetDescLanguageHlsl(const FShaderConductorTarget& InTarget, ShaderConductor::Compiler::TargetDesc& OutTargetDesc)
+	{
+		OutTargetDesc.language = ShaderConductor::ShadingLanguage::Hlsl;
+		OutTargetDesc.version = GetHlslVersionString(InTarget.Version);
+		checkf(OutTargetDesc.version, TEXT("Unsupported target shader version for HLSL: SM%d.%d"), InTarget.Version / 10, InTarget.Version % 10);
+	}
+
 	static const ANSICHAR* GetGlslFamilyVersionString(int32 Version)
 	{
 		switch (Version)
@@ -329,6 +352,9 @@ namespace CrossCompiler
 
 		switch (InTarget.Language)
 		{
+		case EShaderConductorLanguage::Hlsl:
+			ConvertScTargetDescLanguageHlsl(InTarget, OutTargetDesc);
+			break;
 		case EShaderConductorLanguage::Glsl:
 		case EShaderConductorLanguage::Essl:
 			ConvertScTargetDescLanguageGlslFamily(InTarget, OutTargetDesc);
