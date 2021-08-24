@@ -561,10 +561,12 @@ public:
 						check(Segment.VertexBuffer.IsValid());
 					}
 				
-					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr);
-					TArray<FMeshBatch> MeshBatches;
-					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
+					if (FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr))
+					{
+						TArray<FMeshBatch> MeshBatches;
+						MeshBatches.Add(*MeshBatch);
+						AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
+					}
 
 				}
 			}
@@ -578,10 +580,12 @@ public:
 						check(Segment.VertexBuffer.IsValid());
 					}
 
-					FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr);
-					TArray<FMeshBatch> MeshBatches;
-					MeshBatches.Add(*MeshBatch);
-					AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
+					if (FMeshBatch* MeshBatch = CreateMeshBatch(Context.ReferenceView, Context.ReferenceViewFamily, Context.RayTracingMeshResourceCollector, Instance, GroupIt, nullptr))
+					{
+						TArray<FMeshBatch> MeshBatches;
+						MeshBatches.Add(*MeshBatch);
+						AddOpaqueRaytracingInstance(OverrideLocalToWorld, &RTGeometry->RayTracingGeometry, RaytracingInstanceMask_Opaque, MeshBatches, GetScene().GetFeatureLevel(), OutRayTracingInstances);
+					}
 				}
 			}
 		}
@@ -681,12 +685,14 @@ public:
 						Debug_MaterialProxy = DebugMaterial;
 					}
 
-					FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, Instances[GroupIt], GroupIt, Debug_MaterialProxy);
-					if (MeshBatch == nullptr)
+					if (FMeshBatch* MeshBatch = CreateMeshBatch(View, ViewFamily, Collector, Instances[GroupIt], GroupIt, Debug_MaterialProxy))
+					{
+						Collector.AddMesh(ViewIndex, *MeshBatch);
+					}
+					else
 					{
 						continue;
 					}
-					Collector.AddMesh(ViewIndex, *MeshBatch);
 
 				#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 					// Render bounds

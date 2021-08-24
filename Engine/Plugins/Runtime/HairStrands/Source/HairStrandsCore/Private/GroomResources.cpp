@@ -26,6 +26,9 @@
 static int32 GHairStrandsBulkData_ReleaseAfterUse = 0;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_ReleaseAfterUse(TEXT("r.HairStrands.Strands.BulkData.ReleaseAfterUse"), GHairStrandsBulkData_ReleaseAfterUse, TEXT("Release CPU bulk data once hair groom/groom binding asset GPU resources are created. This saves memory"));
 
+static int32 GHairStrandsBulkData_AsyncLoading = 0;
+static FAutoConsoleVariableRef CVarHairStrandsBulkData_AsyncLoading(TEXT("r.HairStrands.Strands.BulkData.AsyncLoading"), GHairStrandsBulkData_AsyncLoading, TEXT("Load hair data with async loading so that it is not blocking the rendering thread."));
+
 static int32 GHairStrandsBulkData_Validation = 1;
 static FAutoConsoleVariableRef CVarHairStrandsBulkData_Validation(TEXT("r.HairStrands.Strands.BulkData.Validation"), GHairStrandsBulkData_Validation, TEXT("Validate some hair strands data at serialization/loading time."));
 
@@ -35,6 +38,11 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_WorldSize(TEXT("r.HairS
 static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT("r.HairStrands.DebugData.MaxSegmentPerVoxel"), GHairStrandsDebugVoxel_MaxSegmentPerVoxel, TEXT("Max number of segments per Voxel size when creating debug data."));
 
 ////////////////////////////////////////////////////////////////////////////////////
+
+EHairResourceLoadingType GetHairResourceLoadingType()
+{
+	return GHairStrandsBulkData_AsyncLoading > 0 ? EHairResourceLoadingType::Async : EHairResourceLoadingType::Sync;
+}
 
 namespace HairTransition
 {
@@ -459,6 +467,8 @@ void FHairCommonResource::InitRHI()
 {
 	if (bIsInitialized || AllocationType == EHairStrandsAllocationType::Deferred || GUsingNullRHI) { return; }
 
+	check(InternalIsDataLoaded());
+
 	if (bUseRenderGraph)
 	{
 		FMemMark Mark(FMemStack::Get());
@@ -480,23 +490,40 @@ void FHairCommonResource::ReleaseRHI()
 	bIsInitialized = false;
 }
 
-void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder)
+void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType)
 {
-	if (bIsInitialized) { return; }
+	EHairResourceStatus Status = EHairResourceStatus::None;
+	Allocate(GraphBuilder, LoadingType, Status);
+}
+
+void FHairCommonResource::Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status)
+{
+	if (bIsInitialized) { Status |= EHairResourceStatus::Valid; return; }
+
+	if (LoadingType == EHairResourceLoadingType::Async && !InternalIsDataLoaded()) { Status |= EHairResourceStatus::Loading; return; }
 
 	check(AllocationType == EHairStrandsAllocationType::Deferred);
 	FRenderResource::InitResource(); // Call RenderResource InitResource() so that the resources is marked as initialized
 	InternalAllocate(GraphBuilder);
 	bIsInitialized = true;
+	Status |= EHairResourceStatus::Valid;
 }
 
-void FHairCommonResource::AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex)
+void FHairCommonResource::AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status)
 {
+	if (LoadingType == EHairResourceLoadingType::Async && !InternalIsLODDataLoaded(LODIndex)) { Status |= EHairResourceStatus::Loading; return; }
+
 	// Sanity check. For allocation sub-resources (like LOD resources) the common/main resource needs to be already initialized.
 	check(bIsInitialized);
 	check(AllocationType == EHairStrandsAllocationType::Deferred);
 
 	InternalAllocateLOD(GraphBuilder, LODIndex);
+	Status |= EHairResourceStatus::Valid;
+}
+
+void AsyncLoadHairBulkData(FByteBulkData& InData, bool& bIsLoading)
+{
+	bIsLoading = InData.StartAsyncLoading() || bIsLoading;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -721,6 +748,26 @@ FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkD
 	PositionBuffer(), Attribute0Buffer(), Attribute1Buffer(), MaterialBuffer(), BulkData(InBulkData), CurveType(InCurveType)
 {}
 
+bool FHairStrandsRestResource::InternalIsDataLoaded()
+{
+	bool bIsLoading = false;
+
+	AsyncLoadHairBulkData(BulkData.Positions, bIsLoading);
+	AsyncLoadHairBulkData(BulkData.Attributes0, bIsLoading);
+
+	if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasUDIMData))
+	{
+		AsyncLoadHairBulkData(BulkData.Attributes1, bIsLoading);
+	}
+
+	if (!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasMaterialData))
+	{
+		AsyncLoadHairBulkData(BulkData.Materials, bIsLoading);
+	}
+
+	return !bIsLoading;
+}
+
 void FHairStrandsRestResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	const uint32 PointCount = BulkData.PointCount;
@@ -934,6 +981,16 @@ FHairStrandsClusterCullingResource::FHairStrandsClusterCullingResource(FHairStra
 
 }
 
+bool FHairStrandsClusterCullingResource::InternalIsDataLoaded()
+{
+	bool bIsLoading = false;
+	AsyncLoadHairBulkData(BulkData.PackedClusterInfos, bIsLoading);
+	AsyncLoadHairBulkData(BulkData.ClusterLODInfos, bIsLoading);
+	AsyncLoadHairBulkData(BulkData.VertexToClusterIds, bIsLoading);
+	AsyncLoadHairBulkData(BulkData.ClusterVertexIds, bIsLoading);
+	return !bIsLoading;
+}
+
 void FHairStrandsClusterCullingResource::InternalAllocate(FRDGBuilder& GraphBuilder)
 {
 	if (GHairStrandsBulkData_Validation > 0)
@@ -977,6 +1034,47 @@ void FHairStrandsRestRootResource::PopulateFromRootData()
 		LOD.Status = FLOD::EStatus::Invalid;
 		LOD.SampleCount = MeshProjectionLOD.SampleCount;
 	}
+}
+
+bool FHairStrandsRestRootResource::InternalIsDataLoaded()
+{
+	bool bIsLoading = false;
+	if (BulkData.PointCount > 0)
+	{
+		AsyncLoadHairBulkData(BulkData.VertexToCurveIndexBuffer, bIsLoading);
+	}
+	return !bIsLoading;
+}
+
+bool FHairStrandsRestRootResource::InternalIsLODDataLoaded(int32 LODIndex)
+{
+	bool bIsLoading = false;
+	
+	check(LODs.Num() == BulkData.MeshProjectionLODs.Num());
+	if (LODIndex >= 0 && LODIndex < LODs.Num())
+	{
+		FHairStrandsRootBulkData::FMeshProjectionLOD& CPUData = BulkData.MeshProjectionLODs[LODIndex];
+		const bool bHasValidCPUData = CPUData.RootTriangleBarycentricBuffer.GetBulkDataSize() > 0;
+		if (bHasValidCPUData)
+		{
+			AsyncLoadHairBulkData(CPUData.RootTriangleBarycentricBuffer, bIsLoading);
+			AsyncLoadHairBulkData(CPUData.RootTriangleIndexBuffer, bIsLoading);
+
+			AsyncLoadHairBulkData(CPUData.RestRootTrianglePosition0Buffer, bIsLoading);
+			AsyncLoadHairBulkData(CPUData.RestRootTrianglePosition1Buffer, bIsLoading);
+			AsyncLoadHairBulkData(CPUData.RestRootTrianglePosition2Buffer, bIsLoading);
+		}
+
+		const bool bHasValidCPUWeights = CPUData.MeshSampleIndicesBuffer.GetBulkDataSize() > 0;
+		if (bHasValidCPUWeights)
+		{
+			AsyncLoadHairBulkData(CPUData.MeshInterpolationWeightsBuffer, bIsLoading);
+			AsyncLoadHairBulkData(CPUData.MeshSampleIndicesBuffer, bIsLoading);
+			AsyncLoadHairBulkData(CPUData.RestSamplePositionsBuffer, bIsLoading);
+		}		
+	}
+
+	return !bIsLoading;
 }
 
 void FHairStrandsRestRootResource::InternalAllocate(FRDGBuilder& GraphBuilder)
@@ -1290,6 +1388,24 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrand
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName),
 	InterpolationBuffer(), Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
+}
+
+bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
+{
+	bool bIsLoading = false;
+	const bool bUseSingleGuide = !!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasSingleGuideData);
+	if (bUseSingleGuide)
+	{
+		AsyncLoadHairBulkData(BulkData.Interpolation, bIsLoading);
+	}
+	else
+	{
+		AsyncLoadHairBulkData(BulkData.Interpolation0, bIsLoading);
+		AsyncLoadHairBulkData(BulkData.Interpolation1, bIsLoading);
+	}
+	AsyncLoadHairBulkData(BulkData.SimRootPointIndex, bIsLoading);
+
+	return !bIsLoading;
 }
 
 void FHairStrandsInterpolationResource::InternalAllocate(FRDGBuilder& GraphBuilder)
