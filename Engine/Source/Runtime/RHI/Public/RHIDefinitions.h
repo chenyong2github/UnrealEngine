@@ -1632,6 +1632,8 @@ enum class ETextureCreateFlags : uint64
     ReduceMemoryWithTilingMode        = 1ull << 31,
     /** Texture should be allocated from transient memory. */
     Transient                         = 1ull << 32,
+    /** Texture needs to support atomic operations */
+    AtomicCompatible                  = 1ull << 33,
 };
 ENUM_CLASS_FLAGS(ETextureCreateFlags);
 
@@ -1670,6 +1672,7 @@ ENUM_CLASS_FLAGS(ETextureCreateFlags);
 #define TexCreate_AFRManual                      ETextureCreateFlags::AFRManual
 #define TexCreate_ReduceMemoryWithTilingMode     ETextureCreateFlags::ReduceMemoryWithTilingMode
 #define TexCreate_Transient                      ETextureCreateFlags::Transient
+#define TexCreate_AtomicCompatible               ETextureCreateFlags::AtomicCompatible
 
 enum EAsyncComputePriority
 {
