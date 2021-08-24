@@ -579,7 +579,8 @@ namespace HordeServer.Services
 		static ChangeFile CreateChangeFile(string RelativePath, P4.FileMetaData MetaData)
 		{
 			int Revision = GetSyncRevision(MetaData.DepotPath.Path, MetaData.HeadAction, MetaData.HeadRev);
-			return new ChangeFile(RelativePath, MetaData.DepotPath.Path, Revision, MetaData.FileSize, Md5Hash.Parse(MetaData.Digest ?? String.Empty), MetaData.HeadType.ToString());
+			Md5Hash? Digest = String.IsNullOrEmpty(MetaData.Digest) ? (Md5Hash?)null : Md5Hash.Parse(MetaData.Digest);
+			return new ChangeFile(RelativePath, MetaData.DepotPath.Path, Revision, MetaData.FileSize, Digest, MetaData.HeadType.ToString());
 		}
 
 		/// <summary>
@@ -591,7 +592,8 @@ namespace HordeServer.Services
 		static ChangeFile CreateChangeFile(string RelativePath, P4.ShelvedFile MetaData)
 		{
 			int Revision = GetSyncRevision(MetaData.Path.Path, MetaData.Action, MetaData.Revision);
-			return new ChangeFile(RelativePath, MetaData.Path.Path, Revision, MetaData.Size, Md5Hash.Parse(MetaData.Digest ?? String.Empty), MetaData.Type.ToString());
+			Md5Hash? Digest = String.IsNullOrEmpty(MetaData.Digest) ? (Md5Hash?)null : Md5Hash.Parse(MetaData.Digest);
+			return new ChangeFile(RelativePath, MetaData.Path.Path, Revision, MetaData.Size, Digest, MetaData.Type.ToString());
 		}
 
 		/// <inheritdoc/>

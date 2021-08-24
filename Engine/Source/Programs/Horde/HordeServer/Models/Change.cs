@@ -103,7 +103,7 @@ namespace HordeServer.Models
 		/// <summary>
 		/// MD5 digest of the file
 		/// </summary>
-		public Md5Hash Digest { get; set; }
+		public Md5Hash? Digest { get; set; }
 
 		/// <summary>
 		/// The file type
@@ -119,7 +119,7 @@ namespace HordeServer.Models
 		/// <param name="Length"></param>
 		/// <param name="Digest"></param>
 		/// <param name="Type"></param>
-		public ChangeFile(string Path, string DepotPath, int Revision, long Length, Md5Hash Digest, string Type)
+		public ChangeFile(string Path, string DepotPath, int Revision, long Length, Md5Hash? Digest, string Type)
 		{
 			this.Path = Path;
 			this.DepotPath = DepotPath;
