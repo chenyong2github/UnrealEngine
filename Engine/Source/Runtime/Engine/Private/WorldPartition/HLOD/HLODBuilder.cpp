@@ -64,7 +64,7 @@ void UHLODBuilder::Build(AWorldPartitionHLOD* InHLODActor, const UHLODLayer* InH
 
 		// Enable optimizations
 		HLODPrimitive->bComputeFastLocalBounds = true;
-		HLODPrimitive->bComputeBoundsOnceDuringCook = true;
+		HLODPrimitive->bComputeBoundsOnceForGame = true;
 
 		if (InHLODLayer->GetLayerType() != EHLODLayerType::Instancing)
 		{

@@ -234,9 +234,13 @@ public:
 	UPROPERTY()
 	uint8 bComputeFastLocalBounds : 1;
 
-	/** If true, this component will cache its bounds during cooking and never recompute it for cooked builds. This is for components that are known to be static. */
+	/** If true, this component will cache its bounds during cooking or in PIE and never recompute it again. This is for components that are known to be static. */
 	UPROPERTY()
-	uint8 bComputeBoundsOnceDuringCook : 1;
+	uint8 bComputeBoundsOnceForGame : 1;
+
+	/** If true, this component has already cached its bounds during cooking or in PIE and will never recompute it again.  */
+	UPROPERTY()
+	uint8 bComputedBoundsOnceForGame : 1;
 
 	/** Get the current local bounds of the component */
 	FBoxSphereBounds GetLocalBounds() const;
