@@ -273,12 +273,38 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			CurrentOffset.X = CanvasBottomRightPadding.X;
 		}
 
-		FString StatusText;
-		if (IsIncrementalPurgePending()) { StatusText += TEXT("(Purging) "); }
-		if (IsAsyncLoading()) { StatusText += TEXT("(AsyncLoading) "); }
-		if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle)"); }
-		const FString Text = FString::Printf(TEXT("Streaming Status: %s"), *StatusText);
-		FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, CurrentOffset);
+		{
+			FString StatusText;
+			if (IsIncrementalPurgePending()) { StatusText += TEXT("(Purging) "); }
+			if (IsIncrementalUnhashPending()) { StatusText += TEXT("(Unhashing) "); }
+			if (IsAsyncLoading()) { StatusText += TEXT("(AsyncLoading) "); }
+			if (StatusText.IsEmpty()) { StatusText = TEXT("(Idle)"); }
+			const FString Text = FString::Printf(TEXT("Streaming Status: %s"), *StatusText);
+			FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, CurrentOffset);
+		}
+
+		{
+			FString StatusText;
+			const UWorldPartition* WorldPartition = GetMainWorldPartition();
+			EWorldPartitionStreamingPerformance StreamingPerformance = WorldPartition->GetStreamingPerformance();
+			switch (StreamingPerformance)
+			{
+			case EWorldPartitionStreamingPerformance::Good:
+				StatusText = TEXT("Good");
+				break;
+			case EWorldPartitionStreamingPerformance::Slow:
+				StatusText = TEXT("Slow");
+				break;
+			case EWorldPartitionStreamingPerformance::Critical:
+				StatusText = TEXT("Critical");
+				break;
+			default:
+				StatusText = TEXT("Unknown");
+				break;
+			}
+			const FString Text = FString::Printf(TEXT("Streaming Performance: %s"), *StatusText);
+			FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, CurrentOffset);
+		}
 	}
 
 	if (GDrawStreamingSources || GDrawRuntimeHash2D)

@@ -16,7 +16,7 @@
 #include "WorldPartitionRuntimeHash.generated.h"
 
 UENUM()
-enum class EWorldPartitionStreamingPerformance
+enum class EWorldPartitionStreamingPerformance : uint8
 {
 	Good,
 	Slow,

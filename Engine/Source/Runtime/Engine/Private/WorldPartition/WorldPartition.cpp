@@ -1228,6 +1228,11 @@ void UWorldPartition::DrawStreamingStatusLegend(class UCanvas* Canvas, FVector2D
 	StreamingPolicy->DrawStreamingStatusLegend(Canvas, Offset);
 }
 
+EWorldPartitionStreamingPerformance UWorldPartition::GetStreamingPerformance() const
+{
+	return StreamingPolicy->GetStreamingPerformance();
+}
+
 #if WITH_EDITOR
 void UWorldPartition::DrawRuntimeHashPreview()
 {

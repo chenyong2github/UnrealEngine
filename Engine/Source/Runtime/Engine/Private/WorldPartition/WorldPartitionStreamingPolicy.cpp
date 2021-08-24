@@ -389,7 +389,7 @@ int32 UWorldPartitionStreamingPolicy::GetMaxCellsToLoad() const
 	const ENetMode NetMode = World->GetNetMode();
 	if (NetMode == NM_Standalone || NetMode == NM_Client)
 	{
-		return World->bMatchStarted ? (GMaxLoadingStreamingCells - GetCellLoadingCount()) : MAX_int32;
+		return !World->GetIsInBlockTillLevelStreamingCompleted() ? (GMaxLoadingStreamingCells - GetCellLoadingCount()) : MAX_int32;
 	}
 
 	// Always allow max on server to make sure StreamingLevels are added before clients update the visibility

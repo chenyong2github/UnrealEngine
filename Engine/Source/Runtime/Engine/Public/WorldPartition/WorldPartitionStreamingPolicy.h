@@ -70,6 +70,8 @@ public:
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }
 
+	EWorldPartitionStreamingPerformance GetStreamingPerformance() const { return StreamingPerformance; }
+
 protected:
 	virtual void SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells);
 	virtual void SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells);

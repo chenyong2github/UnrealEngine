@@ -282,9 +282,15 @@ void UWorldPartitionRuntimeHash::SortStreamingCellsByImportance(const TSet<const
 
 EWorldPartitionStreamingPerformance UWorldPartitionRuntimeHash::GetStreamingPerformance(const TSet<const UWorldPartitionRuntimeCell*>& CellsToActivate) const
 {
+	bool bForceGoodStreamingPerformance = !GetWorld()->bMatchStarted;
+
+#if WITH_EDITOR
+	bForceGoodStreamingPerformance |= FApp::UseFixedTimeStep();
+#endif
+
 	EWorldPartitionStreamingPerformance StreamingPerformance = EWorldPartitionStreamingPerformance::Good;
 
-	if (!CellsToActivate.IsEmpty() && GetWorld()->bMatchStarted)
+	if (!CellsToActivate.IsEmpty() && !bForceGoodStreamingPerformance)
 	{
 		UWorld* World = GetWorld();
 
