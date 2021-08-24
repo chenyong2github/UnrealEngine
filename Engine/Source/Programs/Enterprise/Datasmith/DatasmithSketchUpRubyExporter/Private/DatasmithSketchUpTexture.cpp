@@ -46,10 +46,9 @@ FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef, FString Materi
 	if (!Texture->TextureImageFile.IsValid())
 	{
 		Texture->SourceTextureFileName = SuGetString(SUTextureGetFileName, TextureRef);
-		Texture->TextureBaseName = FPaths::GetBaseFilename(Texture->SourceTextureFileName);
 
 		// Set texture to be material-specific. SketchUp allows to have different material have different texture images under the same name
-		Texture->TextureBaseName = Texture->TextureBaseName + TEXT('-') + MaterialName;
+		Texture->TextureBaseName = MaterialName;
 		
 		AddImageFileForTexture(Texture);
 	}
