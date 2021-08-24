@@ -1079,7 +1079,7 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 					if (Source.IsKeyHandleValid(PrevKeyHandle))
 					{
 						FRichCurveKey &PrevKey = Source.GetKey(PrevKeyHandle);
-						ArriveTangent = ArriveTangent / ((Key.Time - PrevKey.Time) * DecimalRate);
+						ArriveTangent = ArriveTangent / (Key.Time - PrevKey.Time);
 
 					}
 					float LeaveTangent = Key.LeaveTangent;
@@ -1087,7 +1087,7 @@ bool ImportFBXProperty(FString NodeName, FString AnimatedPropertyName, FGuid Obj
 					if (Source.IsKeyHandleValid(NextKeyHandle))
 					{
 						FRichCurveKey &NextKey = Source.GetKey(NextKeyHandle);
-						LeaveTangent = LeaveTangent / ((NextKey.Time - Key.Time) * DecimalRate);
+						LeaveTangent = LeaveTangent / (NextKey.Time - Key.Time);
 					}
 
 					FFrameNumber KeyTime = (Key.Time * FrameRate).RoundToFrame();
