@@ -70,7 +70,7 @@ void Update()
 ////////////////////////////////////////////////////////////////////////////////
 bool SendTo(const TCHAR* InHost, uint32 Port)
 {
-	char Host[32];
+	char Host[256];
 	ToAnsiCheap(Host, InHost);
 	return Private::Writer_SendTo(Host, Port);
 }
