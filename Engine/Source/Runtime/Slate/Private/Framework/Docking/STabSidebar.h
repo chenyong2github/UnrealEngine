@@ -7,6 +7,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SDockTab;
+class SOverlay;
 class STabDrawerButton;
 class SVerticalBox;
 class STabDrawer;
@@ -27,7 +28,7 @@ class STabSidebar : public SCompoundWidget
 public:
 	~STabSidebar();
 
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, TSharedRef<SOverlay> InDrawersOverlay);
 
 	/**
 	 * Sets an offset for the sidebar from the top of the window
@@ -80,7 +81,6 @@ private:
 	void OnTabDrawerFocusLost(TSharedRef<STabDrawer> Drawer);
 	void OnTabDrawerClosed(TSharedRef<STabDrawer> Drawer);
 	void OnTargetDrawerSizeChanged(TSharedRef<STabDrawer> Drawer, float NewSize);
-	void OnWindowDPIScaleChanged(TSharedRef<SWindow> WindowThatChanged);
 	/** Called when active tab changes which is used to determine if we should close an opened content browser drawer */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> NewlyActivated, TSharedPtr<SDockTab> PreviouslyActive);
 
@@ -115,9 +115,9 @@ private:
 private:
 	TSharedPtr<SVerticalBox> TabBox;
 	TArray<TPair<TSharedRef<SDockTab>, TSharedRef<STabDrawerButton>>> Tabs;
-	TWeakPtr<SWindow> WindowWithOverlayContent;
 	TSharedPtr<FActiveTimerHandle> OpenPendingDrawerTimerHandle;
 	ESidebarLocation Location;
+	TSharedPtr<SOverlay> DrawersOverlay;
 	/** Generally speaking one drawer is only ever open at once but we animate any previous drawer closing so there could be more than one while an animation is playing */
 	TArray<TSharedRef<STabDrawer>> OpenedDrawers;
 	/** Any pending drawer tab to open */

@@ -319,13 +319,10 @@ STabSidebar::~STabSidebar()
 	RemoveAllDrawers();
 }
 
-void STabSidebar::Construct(const FArguments& InArgs)
+void STabSidebar::Construct(const FArguments& InArgs, TSharedRef<SOverlay> InDrawersOverlay)
 {
 	Location = InArgs._Location;
-
-#if WITH_EDITOR
-	FSlateApplication::Get().OnWindowDPIScaleChanged().AddSP(this, &STabSidebar::OnWindowDPIScaleChanged);
-#endif
+	DrawersOverlay = InDrawersOverlay;
 
 	FGlobalTabmanager::Get()->OnTabForegrounded_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &STabSidebar::OnActiveTabChanged));
 
@@ -491,20 +488,9 @@ void STabSidebar::OnTabDrawerClosed(TSharedRef<STabDrawer> Drawer)
 void STabSidebar::OnTargetDrawerSizeChanged(TSharedRef<STabDrawer> Drawer, float NewSize)
 {
 	TSharedRef<SDockTab> Tab = Drawer->GetTab();
-	TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-	if (MyWindow.IsValid())
-	{
-		const float TargetDrawerSizePct = NewSize / MyWindow->GetPaintSpaceGeometry().GetLocalSize().X;
-		Tab->GetParentDockTabStack()->SetTabSidebarSizeCoefficient(Tab, TargetDrawerSizePct);
-	}
-}
 
-void STabSidebar::OnWindowDPIScaleChanged(TSharedRef<SWindow> WindowThatChanged)
-{
-	if (WindowThatChanged == WindowWithOverlayContent)
-	{
-		RemoveAllDrawers();
-	}
+	const float TargetDrawerSizePct = NewSize / DrawersOverlay->GetPaintSpaceGeometry().GetLocalSize().X;
+	Tab->GetParentDockTabStack()->SetTabSidebarSizeCoefficient(Tab, TargetDrawerSizePct);
 }
 
 void STabSidebar::OnActiveTabChanged(TSharedPtr<SDockTab> NewlyActivated, TSharedPtr<SDockTab> PreviouslyActive)
@@ -581,20 +567,11 @@ void STabSidebar::RemoveDrawer(TSharedRef<SDockTab> ForTab)
 	{
 		TSharedRef<STabDrawer> OpenedDrawerRef = *OpenedDrawer;
 
-		if (TSharedPtr<SWindow> MyWindow = WindowWithOverlayContent.Pin())
-		{
-			bool bRemoveSuccessful = MyWindow->RemoveOverlaySlot(OpenedDrawerRef);
-			ensure(bRemoveSuccessful);
-		}
+		bool bRemoveSuccessful = DrawersOverlay->RemoveSlot(OpenedDrawerRef);
+		ensure(bRemoveSuccessful);
 
 		OpenedDrawers.Remove(OpenedDrawerRef);
 	}
-
-	if (OpenedDrawers.Num() == 0)
-	{
-		WindowWithOverlayContent.Reset();
-	}
-
 
 	ForTab->OnTabDrawerClosed();
 
@@ -668,37 +645,31 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 	{
 		PendingTabToOpen.Reset();
 
-		TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
-
-		const FGeometry WindowGeometry = MyWindow->GetTickSpaceGeometry();
+		const FGeometry DrawersOverlayGeometry = DrawersOverlay->GetTickSpaceGeometry();
 		const FGeometry MyGeometry = GetTickSpaceGeometry();
 
 		// Calculate padding for the drawer itself
-		const float MinDrawerSize = MyGeometry.GetLocalSize().X + MyWindow->GetWindowBorderSize().Left;
+		const float MinDrawerSize = MyGeometry.GetLocalSize().X - 4.0f; // overlap with sidebar border slightly
 
 		const FVector2D ShadowOffset(8, 8);
 
-		const float WindowScale = FSlateApplication::Get().GetApplicationScale() * MyWindow->GetDPIScaleFactor();
-
-		const float TopOffset = ((ChildSlot.GetPadding().Top + MyGeometry.GetAbsolutePosition().Y) - WindowGeometry.GetAbsolutePosition().Y);
-
-		const float BottomOffset = ((ChildSlot.GetPadding().Bottom + WindowGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y) - MyGeometry.GetAbsolutePositionAtCoordinates(FVector2D::UnitVector).Y);
-
 		FMargin SlotPadding(
 			Location == ESidebarLocation::Left ? MinDrawerSize : 0.0f,
-			TopOffset / WindowScale - ShadowOffset.Y,
+			-ShadowOffset.Y,
 			Location == ESidebarLocation::Right ? MinDrawerSize : 0.0f,
-			BottomOffset / WindowScale - ShadowOffset.Y
+			-ShadowOffset.Y
 		);
 
+		const float AvailableWidth = DrawersOverlayGeometry.GetLocalSize().X - SlotPadding.GetTotalSpaceAlong<EOrientation::Orient_Horizontal>();
+
 		const float MaxPct = .5f;
-		const float MaxDrawerSize = MyWindow->GetSizeInScreen().X * 0.50f;
+		const float MaxDrawerSize = AvailableWidth * 0.50f;
 
 		float TargetDrawerSizePct = ForTab->GetParentDockTabStack()->GetTabSidebarSizeCoefficient(ForTab);
 		TargetDrawerSizePct = FMath::Clamp(TargetDrawerSizePct, .0f, .5f);
 
 
-		const float TargetDrawerSize = (MyWindow->GetSizeInScreen().X * TargetDrawerSizePct) / MyWindow->GetDPIScaleFactor();
+		const float TargetDrawerSize = AvailableWidth * TargetDrawerSizePct;
 
 		const TPair<TSharedRef<SDockTab>, TSharedRef<STabDrawerButton>>* TabEntry = Tabs.FindByPredicate(
 			[ForTab](auto TabPair) {
@@ -718,10 +689,7 @@ void STabSidebar::OpenDrawerInternal(TSharedRef<SDockTab> ForTab)
 				ForTab->GetContent()
 			];
 
-		check(!WindowWithOverlayContent.IsValid() || WindowWithOverlayContent == MyWindow);
-		WindowWithOverlayContent = MyWindow;
-
-		MyWindow->AddOverlaySlot()
+		DrawersOverlay->AddSlot()
 			.Padding(SlotPadding)
 			.HAlign(Location == ESidebarLocation::Left ? HAlign_Left : HAlign_Right)
 			[

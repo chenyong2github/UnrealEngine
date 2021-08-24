@@ -23,6 +23,8 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 	const TAttribute<EVisibility> TargetCrossVisibility = TAttribute<EVisibility>(SharedThis(this), &SDockingArea::TargetCrossVisibility);
 	const TAttribute<EVisibility> TargetCrossCenterVisibility = TAttribute<EVisibility>(SharedThis(this), &SDockingArea::TargetCrossCenterVisibility);
 
+	const TSharedRef<SOverlay> SidebarDrawersOverlay = SNew(SOverlay);
+
 	// In DockSplitter mode we just act as a thin shell around a Splitter widget
 	this->ChildSlot
 	[
@@ -34,7 +36,7 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SAssignNew(LeftSidebar, STabSidebar)
+				SAssignNew(LeftSidebar, STabSidebar, SidebarDrawersOverlay)
 				.Location(ESidebarLocation::Left)
 				.Visibility(EVisibility::Collapsed)
 			]
@@ -46,7 +48,7 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			[
-				SAssignNew(RightSidebar, STabSidebar)
+				SAssignNew(RightSidebar, STabSidebar, SidebarDrawersOverlay)
 				.Location(ESidebarLocation::Right)
 				.Visibility(EVisibility::Collapsed)
 			]
@@ -100,6 +102,10 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			.Visibility(TargetCrossCenterVisibility)
 			.OwnerNode( SharedThis(this) )
 			.DockDirection( SDockingNode::Center )
+		]
+		+SOverlay::Slot()
+		[
+			SidebarDrawersOverlay
 		]
 	];
 
