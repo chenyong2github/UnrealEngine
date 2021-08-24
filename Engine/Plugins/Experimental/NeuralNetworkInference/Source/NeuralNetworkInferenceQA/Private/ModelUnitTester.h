@@ -23,7 +23,7 @@ private:
 	static FString GetONNXModelFilePath(const FString& InModelZooDirectory, const FString& InModelName);
 	static FString GetORTModelFilePath(const FString& InModelZooDirectory, const FString& InModelName);
 	static FString GetUAssetModelFilePath(const FString& InModelName, const FString& InModelZooRelativeDirectory);
-	static UNeuralNetwork* NetworkUassetLoadTest(const FString& InUassetPath);
+	static UNeuralNetwork* NetworkUassetLoadTest(const FString& InUAssetPath);
 #if WITH_EDITOR
 	static UNeuralNetwork* NetworkONNXOrORTLoadTest(const FString& InModelFilePath);
 #endif //WITH_EDITOR
