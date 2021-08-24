@@ -15,8 +15,9 @@ namespace Geometry
 
 enum class EParamOpBackend
 {
-	UVAtlas = 0,
-	XAtlas = 1
+	PatchBuilder = 0,
+	XAtlas = 1,
+	UVAtlas = 2
 };
 
 class MODELINGOPERATORSEDITORONLY_API FParameterizeMeshOp : public FDynamicMeshOperator
@@ -38,10 +39,19 @@ public:
 	// XAtlas generation parameters
 	int32 XAtlasMaxIterations = 1;
 
+	// PatchBuilder generation parameters
+	int32 InitialPatchCount = 100;
+	double PatchCurvatureAlignmentWeight = 1.0;
+	double PatchMergingMetricThresh = 1.5;
+	double PatchMergingAngleThresh = 45.0;
+	int ExpMapNormalSmoothingSteps = 5;
+	double ExpMapNormalSmoothingAlpha = 0.25;
+
 	// UV layer
 	int32 UVLayer = 0;
 
 	// Atlas Packing parameters
+	bool bEnablePacking = true;
 	int32 Height = 512;
 	int32 Width = 512;
 	float Gutter = 2.5;
@@ -85,6 +95,7 @@ protected:
 
 	bool ComputeUVs_UVAtlas(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter);
 	bool ComputeUVs_XAtlas(FDynamicMesh3& InOutMesh, TFunction<bool(float)>& Interrupter);
+	bool ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FProgressCancel* Progress);
 
 	void CopyNewUVsToMesh(
 		FDynamicMesh3& Mesh,
