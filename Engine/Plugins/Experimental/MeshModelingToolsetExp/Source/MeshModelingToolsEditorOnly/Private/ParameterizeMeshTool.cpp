@@ -35,18 +35,19 @@ void UParameterizeMeshTool::Setup()
 
 	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	*InputMesh = UE::ToolTarget::GetDynamicMeshCopy(Target);
+	FTransform InputTransform = (FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target);
+	FComponentMaterialSet MaterialSet = UE::ToolTarget::GetMaterialSet(Target);
 
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this);
 	Preview->Setup(this->TargetWorld, this);
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::AutoCalculated);
 	Preview->PreviewMesh->ReplaceMesh(*InputMesh);
-	Preview->ConfigureMaterials(UE::ToolTarget::GetMaterialSet(Target).Materials,
-								ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
-	Preview->PreviewMesh->SetTransform((FTransform)UE::ToolTarget::GetLocalToWorldTransform(Target));
+	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
+	Preview->PreviewMesh->SetTransform(InputTransform);
 
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Op)
 	{
-		MaterialSettings->UpdateMaterials();
+		OnPreviewMeshUpdated();
 	});
 
 	UE::ToolTarget::HideSourceObject(Target);
@@ -79,6 +80,12 @@ void UParameterizeMeshTool::Setup()
 	AddToolPropertySource(XAtlasProperties);
 	SetToolPropertySourceEnabled(XAtlasProperties, false);
 
+	PatchBuilderProperties = NewObject<UParameterizeMeshToolPatchBuilderProperties>(this);
+	PatchBuilderProperties->RestoreProperties(this);
+	AddToolPropertySource(PatchBuilderProperties);
+	SetToolPropertySourceEnabled(PatchBuilderProperties, false);
+
+
 	MaterialSettings = NewObject<UExistingMeshMaterialProperties>(this);
 	MaterialSettings->MaterialMode = ESetMeshMaterialMode::Checkerboard;
 	MaterialSettings->RestoreProperties(this, TEXT("ModelingUVTools"));
@@ -86,6 +93,18 @@ void UParameterizeMeshTool::Setup()
 	// force update
 	MaterialSettings->UpdateMaterials();
 	Preview->OverrideMaterial = MaterialSettings->GetActiveOverrideMaterial();
+
+	if (bCreateUVLayoutViewOnSetup)
+	{
+		UVLayoutView = NewObject<UUVLayoutPreview>(this);
+		UVLayoutView->CreateInWorld(TargetWorld);
+		UVLayoutView->SetSourceMaterials(MaterialSet);
+		UVLayoutView->SetSourceWorldPosition(InputTransform, UE::ToolTarget::GetTargetActor(Target)->GetComponentsBoundingBox());
+		UVLayoutView->Settings->bVisible = false;
+		UVLayoutView->Settings->bShowWireframe = false;
+		UVLayoutView->Settings->RestoreProperties(this, TEXT("ParameterizeMeshTool"));
+		AddToolPropertySource(UVLayoutView->Settings);
+	}
 
 	Preview->InvalidateResult();    // start compute
 
@@ -97,7 +116,11 @@ void UParameterizeMeshTool::Setup()
 
 void UParameterizeMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if (PropertySet != MaterialSettings)
+	if (PropertySet == UVChannelProperties 
+		|| PropertySet == Settings 
+		|| PropertySet == UVAtlasProperties  
+		|| PropertySet == XAtlasProperties  
+		|| PropertySet == PatchBuilderProperties )
 	{
 		Preview->InvalidateResult();
 	}
@@ -111,6 +134,7 @@ void UParameterizeMeshTool::OnMethodTypeChanged()
 {
 	SetToolPropertySourceEnabled(UVAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::UVAtlas);
 	SetToolPropertySourceEnabled(XAtlasProperties, Settings->Method == EParameterizeMeshUVMethod::XAtlas);
+	SetToolPropertySourceEnabled(PatchBuilderProperties, Settings->Method == EParameterizeMeshUVMethod::PatchBuilder);
 
 	Preview->InvalidateResult();
 }
@@ -118,9 +142,18 @@ void UParameterizeMeshTool::OnMethodTypeChanged()
 
 void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	if (UVLayoutView)
+	{
+		UVLayoutView->Settings->SaveProperties(this, TEXT("RecomputeUVsTool"));
+		UVLayoutView->Disconnect();
+	}
+
 	UVChannelProperties->SaveProperties(this);
 	Settings->SaveProperties(this);
 	MaterialSettings->SaveProperties(this, TEXT("ModelingUVTools"));
+	UVAtlasProperties->SaveProperties(this);
+	XAtlasProperties->SaveProperties(this);
+	PatchBuilderProperties->SaveProperties(this);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	
@@ -140,9 +173,22 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 }
 
+void UParameterizeMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
+{
+	if (UVLayoutView)
+	{
+		UVLayoutView->Render(RenderAPI);
+	}
+}
+
 void UParameterizeMeshTool::OnTick(float DeltaTime)
 {
 	Preview->Tick(DeltaTime);
+
+	if (UVLayoutView)
+	{
+		UVLayoutView->OnTick(DeltaTime);
+	}
 }
 
 bool UParameterizeMeshTool::CanAccept() const
@@ -166,11 +212,40 @@ TUniquePtr<FDynamicMeshOperator> UParameterizeMeshTool::MakeNewOperator()
 	// xatlas options
 	ParameterizeMeshOp->XAtlasMaxIterations = XAtlasProperties->MaxIterations;
 
+	// patchbuilder options
+	ParameterizeMeshOp->InitialPatchCount = PatchBuilderProperties->InitialPatches;
+	ParameterizeMeshOp->PatchCurvatureAlignmentWeight = PatchBuilderProperties->CurvatureAlignment;
+	ParameterizeMeshOp->PatchMergingMetricThresh = PatchBuilderProperties->MergingThreshold;
+	ParameterizeMeshOp->PatchMergingAngleThresh = PatchBuilderProperties->MaxAngleDeviation;
+	ParameterizeMeshOp->ExpMapNormalSmoothingSteps = PatchBuilderProperties->SmoothingSteps;
+	ParameterizeMeshOp->ExpMapNormalSmoothingAlpha = PatchBuilderProperties->SmoothingAlpha;
+	ParameterizeMeshOp->bEnablePacking = PatchBuilderProperties->bAutoPack;
+	ParameterizeMeshOp->Width = ParameterizeMeshOp->Height = PatchBuilderProperties->TextureResolution;
+
+
 	ParameterizeMeshOp->SetTransform(UE::ToolTarget::GetLocalToWorldTransform(Target));
 
 	return ParameterizeMeshOp;
 }
 
+
+
+void UParameterizeMeshTool::OnPreviewMeshUpdated()
+{
+	if (UVLayoutView)
+	{
+		int32 UVChannel = UVChannelProperties ? UVChannelProperties->GetSelectedChannelIndex(true) : 0;
+		Preview->PreviewMesh->ProcessMesh([&](const FDynamicMesh3& NewMesh)
+		{
+			UVLayoutView->UpdateUVMesh(&NewMesh, UVChannel);
+		});
+	}
+
+	if (MaterialSettings)
+	{
+		MaterialSettings->UpdateMaterials();
+	}
+}
 
 
 #undef LOCTEXT_NAMESPACE

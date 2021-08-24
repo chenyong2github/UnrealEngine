@@ -7,6 +7,7 @@
 
 #include "Parameterization/MeshLocalParam.h"
 #include "Parameterization/DynamicMeshUVEditor.h"
+#include "Parameterization/PatchBasedMeshUVGenerator.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/MeshNormals.h"
 #include "DynamicSubmesh3.h"
@@ -362,6 +363,34 @@ bool FParameterizeMeshOp::ComputeUVs_XAtlas(FDynamicMesh3& Mesh,  TFunction<bool
 
 
 
+bool FParameterizeMeshOp::ComputeUVs_PatchBuilder(FDynamicMesh3& InOutMesh, FProgressCancel* ProgressCancel)
+{
+	FPatchBasedMeshUVGenerator UVGenerator;
+	UVGenerator.TargetPatchCount = FMath::Max(1,InitialPatchCount);
+	UVGenerator.bNormalWeightedPatches = true;
+	UVGenerator.PatchNormalWeight = FMath::Clamp(PatchCurvatureAlignmentWeight, 0.0, 999999.0);
+	UVGenerator.MinPatchSize = 2;
+
+	UVGenerator.MergingThreshold = FMath::Clamp(PatchMergingMetricThresh, 0.001, 9999.0);
+	UVGenerator.MaxNormalDeviationDeg = FMath::Clamp(PatchMergingAngleThresh, 0.0, 180.0);
+
+	UVGenerator.NormalSmoothingRounds = FMath::Clamp(ExpMapNormalSmoothingSteps, 0, 9999);
+	UVGenerator.NormalSmoothingAlpha = FMath::Clamp(ExpMapNormalSmoothingAlpha, 0.0, 1.0);
+
+	UVGenerator.bAutoAlignPatches = true;
+	UVGenerator.bAutoPack = bEnablePacking;
+	UVGenerator.PackingTextureResolution = FMath::Clamp(this->Width, 16, 4096);
+	UVGenerator.PackingGutterWidth = this->Gutter;
+
+
+	FDynamicMeshUVEditor UVEditor(&InOutMesh, UVLayer, true);
+	FGeometryResult Result = UVGenerator.AutoComputeUVs(*UVEditor.GetMesh(), *UVEditor.GetOverlay(), ProgressCancel);
+
+	SetResultInfo(NewResultInfo);
+	return (Result.HasFailed() == false);
+}
+
+
 
 void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 {
@@ -372,10 +401,16 @@ void FParameterizeMeshOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	ResultMesh = MakeUnique<FDynamicMesh3>(*InputMesh);
-
 	if (Progress && Progress->Cancelled())
 	{
 		SetResultInfo(FGeometryResult::Cancelled());
+		return;
+	}
+
+	// if using PatchBuilder, it handles all the output stuff
+	if (Method == EParamOpBackend::PatchBuilder)
+	{
+		ComputeUVs_PatchBuilder(*ResultMesh, Progress);
 		return;
 	}
 
