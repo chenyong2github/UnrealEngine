@@ -714,6 +714,9 @@ protected:
 	/** @return The visibility of the Edit Blueprint button (only visible with an actor instance that is created from a blueprint)*/
 	virtual EVisibility GetEditBlueprintButtonVisibility() const;
 
+	/** @return The visibility of the Add Component combo button */
+	virtual EVisibility GetComponentClassComboButtonVisibility() const;
+
 	/** If true, then the tree widget will clear selection on click. */
 	virtual bool ClearSelectionOnClick() const { return false; }
 	
