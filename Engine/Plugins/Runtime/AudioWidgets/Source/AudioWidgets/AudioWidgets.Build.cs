@@ -25,7 +25,7 @@ public class AudioWidgets : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"AdvancedWidgets",
-				"SignalProcessing"
+				"SignalProcessing",
 			}
 		);
 	}
