@@ -20,6 +20,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "BlueprintEditorSettings.h"
+#include "PinTypeSelectorFilter.h"
 
 #define LOCTEXT_NAMESPACE "PinTypeSelector"
 
@@ -316,6 +317,11 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 	if (InArgs._CustomFilter.IsValid())
 	{
 		CustomFilter = MakeShared<FPinTypeSelectorCustomFilterProxy>(InArgs._CustomFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged));
+	}
+	else if (UClass* PinTypeSelectorFilterClass = GetDefault<UPinTypeSelectorFilter>()->FilterClass.LoadSynchronous() )
+	{
+		TSharedPtr<IPinTypeSelectorFilter> SelectorFilter = GetDefault<UPinTypeSelectorFilter>(PinTypeSelectorFilterClass)->GetPinTypeSelectorFilter();
+		CustomFilter = MakeShared<FPinTypeSelectorCustomFilterProxy>(SelectorFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged));
 	}
 
 	bIsRightMousePressed = false;
