@@ -860,7 +860,7 @@ void UVCamComponent::UpdateActorLock()
 #endif
 		{
 			UWorld* ActorWorld = Context.World();
-			if (ActorWorld)
+			if (ActorWorld && ActorWorld->GetGameInstance())
 			{
 				APlayerController* PlayerController = ActorWorld->GetGameInstance()->GetFirstLocalPlayerController(ActorWorld);
 				if (PlayerController)
