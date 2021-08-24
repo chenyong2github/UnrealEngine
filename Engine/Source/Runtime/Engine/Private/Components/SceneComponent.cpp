@@ -1216,10 +1216,13 @@ void USceneComponent::UpdateBounds()
 	else
 	{
 		// Calculate new bounds
-		if (!bComputeBoundsOnceDuringCook || !FPlatformProperties::RequiresCookedData())
+		const UWorld* const World = GetWorld();
+		const bool bIsGameWorld = World && World->IsGameWorld();
+		if (!bComputeBoundsOnceForGame || !bIsGameWorld || !bComputedBoundsOnceForGame)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_ComponentCalcBounds);
 			Bounds = CalcBounds(GetComponentTransform());
+			bComputedBoundsOnceForGame = (bIsGameWorld || IsRunningCookCommandlet()) && bComputeBoundsOnceForGame;
 		}
 	}
 
@@ -3324,11 +3327,11 @@ void USceneComponent::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
-	if (bComputeBoundsOnceDuringCook)
+	if (bComputeBoundsOnceForGame)
 	{
 		if(Ar.CustomVer(FUE5PrivateFrostyStreamObjectVersion::GUID) >= FUE5PrivateFrostyStreamObjectVersion::SerializeSceneComponentStaticBounds)
 		{
-			bool bIsCooked = Ar.IsCooking();
+			bool bIsCooked = bComputedBoundsOnceForGame && Ar.IsCooking();
 			Ar << bIsCooked;
 
 			if (bIsCooked)
