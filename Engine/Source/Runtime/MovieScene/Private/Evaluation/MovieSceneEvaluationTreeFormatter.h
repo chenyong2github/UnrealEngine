@@ -208,15 +208,15 @@ private:
 		for (auto It : DataIndices)
 		{
 			DataStringBuilder.Reset();
-			Dummy.DataID.EntryIndex = It.Key.Get<0>();
+			Dummy.DataID.EntryIndex = It.Key.template Get<0>();
 			TArrayView<const DataType> DataView = Tree.GetDataForSingleNode(Dummy);
-			const int32 DataIndex = It.Key.Get<1>();
+			const int32 DataIndex = It.Key.template Get<1>();
 			if (ensure(DataView.IsValidIndex(DataIndex)))
 			{
 				const FDataInfo DataInfo = It.Value;
 
-				DataStringBuilder.Appendf(TEXT("%d: "), DataInfo.Get<0>());
-				DataStringBuilder.Appendf(TEXT("%s "), *LexToString(DataInfo.Get<1>()));
+				DataStringBuilder.Appendf(TEXT("%d: "), DataInfo.template Get<0>());
+				DataStringBuilder.Appendf(TEXT("%s "), *LexToString(DataInfo.template Get<1>()));
 
 				const DataType& Data = DataView[DataIndex];
 				DataFormatter.Execute(Data, DataStringBuilder);
@@ -241,7 +241,7 @@ private:
 			const FDataIndex Key(Node->DataID.EntryIndex, Index);
 			const FDataInfo DefaultValue(DataIndices.Num(), Node->Range);
 			const FDataInfo ActualValue = DataIndices.FindOrAdd(Key, DefaultValue);
-			DataBuilder.Append(LexToString(ActualValue.Get<0>()));
+			DataBuilder.Append(LexToString(ActualValue.template Get<0>()));
 		}
 		if (DataView.Num() == 0)
 		{
