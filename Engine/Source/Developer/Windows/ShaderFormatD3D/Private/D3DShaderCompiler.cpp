@@ -10,6 +10,7 @@
 #include "HAL/FileManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "RayTracingDefinitions.h"
+#include "SpirvCommon.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogD3D11ShaderCompiler, Log, All);
 
@@ -635,6 +636,71 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 			bException,
 			ExceptionInfo
 		);
+
+		// Some materials give FXC a hard time to optimize and the compiler fails with an internal error.
+		if (Result == HRESULT_FROM_WIN32(ERROR_ARITHMETIC_OVERFLOW))
+		{
+			CrossCompiler::FShaderConductorContext CompilerContext;
+
+			// Load shader source into compiler context
+			CompilerContext.LoadSource(PreprocessedShaderSource, Input.VirtualSourceFilePath, EntryPointName, static_cast<EHlslShaderFrequency>(Input.Target.Frequency));
+
+			// Compile HLSL source to SPIR-V binary
+			CrossCompiler::FShaderConductorOptions Options;
+
+			FSpirv Spirv;
+			if (!CompilerContext.CompileHlslToSpirv(Options, Spirv.Data))
+			{
+				CompilerContext.FlushErrors(Output.Errors);
+				return false;
+			}
+
+			// Cross-compile back to HLSL
+			CrossCompiler::FShaderConductorTarget TargetDesc;
+			TargetDesc.Language = CrossCompiler::EShaderConductorLanguage::Hlsl;
+			TargetDesc.Version = 50;
+			TargetDesc.CompileFlags.SetDefine(TEXT("implicit_resource_binding"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_global_uniforms"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_cbuffer_names"), 1);
+			TargetDesc.CompileFlags.SetDefine(TEXT("reconstruct_semantics"), 1);
+
+			TArray<ANSICHAR> CrossCompiledSource;
+			if (!CompilerContext.CompileSpirvToSourceAnsi(Options, TargetDesc, Spirv.GetByteData(), Spirv.GetByteSize(), CrossCompiledSource))
+			{
+				CompilerContext.FlushErrors(Output.Errors);
+				return false;
+			}
+
+			if (bDumpDebugInfo && CrossCompiledSource.Num() > 1)
+			{
+				DumpDebugShaderText(Input, CrossCompiledSource.GetData(), CrossCompiledSource.Num() - 1, TEXT("intermediate.hlsl"));
+			}
+
+			// Compile again with FXC:
+			// SPIRV-Cross will have generated the new shader with "main" as the new entry point.
+			Result = D3DCompileWrapper(
+				D3DCompileFunc,
+				CrossCompiledSource.GetData(),
+				CrossCompiledSource.Num(),
+				TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
+				/*pDefines=*/ NULL,
+				/*pInclude=*/ NULL,
+				"main",
+				TCHAR_TO_ANSI(ShaderProfile),
+				CompileFlags,
+				0,
+				Shader.GetInitReference(),
+				Errors.GetInitReference(),
+				bException,
+				ExceptionInfo
+			);
+
+			if (SUCCEEDED(Result))
+			{
+				// Let the user know this shader had to be cross-compiled due to a crash in FXC. Only shows up if CVar 'r.ShaderDevelopmentMode' is enabled.
+				Output.Errors.Add(FShaderCompilerError(FString::Printf(TEXT("Cross-compiled shader to intermediate HLSL after first attempt crashed FXC: %s"), *Input.GenerateShaderName())));
+			}
+		}
 
 		if (bException)
 		{
