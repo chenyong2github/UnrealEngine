@@ -888,7 +888,7 @@ FAGXSurface::FAGXSurface(ERHIResourceType ResourceType, EPixelFormat Format, uin
 	{
 		const bool bBufferCompatibleOption = (Desc.GetTextureType() == mtlpp::TextureType::Texture2D || Desc.GetTextureType() == mtlpp::TextureType::TextureBuffer) && NumMips == 1;
 
-		if (!bBufferCompatibleOption || ((Flags & (TexCreate_UAV|TexCreate_NoTiling)) != (TexCreate_UAV|TexCreate_NoTiling)))
+		if (!bBufferCompatibleOption || (!EnumHasAllFlags(Flags, TexCreate_UAV|TexCreate_NoTiling) && !EnumHasAllFlags(Flags, TexCreate_AtomicCompatible)))
 		{
 			Texture = GetAGXDeviceContext().CreateTexture(this, Desc);
 		}
