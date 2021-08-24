@@ -45,10 +45,7 @@ FDynamicMesh3::FDynamicMesh3(const FDynamicMesh3& Other)
 
 	Timestamp{ Other.Timestamp },
 	ShapeTimestamp{ Other.ShapeTimestamp },
-	TopologyTimestamp{ Other.TopologyTimestamp },
-
-	CachedBoundingBox{ Other.CachedBoundingBox },
-	CachedBoundingBoxTimestamp{ Other.CachedBoundingBoxTimestamp }
+	TopologyTimestamp{ Other.TopologyTimestamp }
 {
 	if (Other.HasAttributes())
 	{
@@ -78,10 +75,7 @@ FDynamicMesh3::FDynamicMesh3(FDynamicMesh3&& Other)
 	AttributeSet{ MoveTemp( Other.AttributeSet ) },
 	Timestamp{ MoveTemp( Other.Timestamp ) },
 	ShapeTimestamp{ MoveTemp( Other.ShapeTimestamp ) },
-	TopologyTimestamp{ MoveTemp( Other.TopologyTimestamp ) },
-
-	CachedBoundingBox{ MoveTemp( Other.CachedBoundingBox ) },
-	CachedBoundingBoxTimestamp{ MoveTemp( Other.CachedBoundingBoxTimestamp ) }
+	TopologyTimestamp{ MoveTemp( Other.TopologyTimestamp ) }
 {
 	if (AttributeSet)
 	{
@@ -123,9 +117,6 @@ const FDynamicMesh3 & FDynamicMesh3::operator=(FDynamicMesh3 && Other)
 	Timestamp = MoveTemp(Other.Timestamp);
 	ShapeTimestamp = MoveTemp(Other.ShapeTimestamp);
 	TopologyTimestamp = MoveTemp(Other.TopologyTimestamp);
-
-	CachedBoundingBox = MoveTemp(Other.CachedBoundingBox);
-	CachedBoundingBoxTimestamp = MoveTemp(Other.CachedBoundingBoxTimestamp);
 
 	return *this;
 }
@@ -353,9 +344,6 @@ void FDynamicMesh3::Clear()
 	Timestamp = 0;
 	ShapeTimestamp = 0;
 	TopologyTimestamp = 0;
-
-	CachedBoundingBox = FAxisAlignedBox3d();
-	CachedBoundingBoxTimestamp = -1;
 }
 
 

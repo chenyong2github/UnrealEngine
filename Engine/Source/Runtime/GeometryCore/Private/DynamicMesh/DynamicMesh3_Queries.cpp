@@ -637,19 +637,6 @@ FAxisAlignedBox3d FDynamicMesh3::GetBounds(bool bParallel) const
 }
 
 
-FAxisAlignedBox3d FDynamicMesh3::GetCachedBounds()
-{
-	if (CachedBoundingBoxTimestamp != GetShapeTimestamp())
-	{
-		CachedBoundingBox = GetBounds();
-		CachedBoundingBoxTimestamp = GetShapeTimestamp();
-	}
-	return CachedBoundingBox;
-}
-
-
-
-
 bool FDynamicMesh3::IsClosed() const
 {
 	if (TriangleCount() == 0)

@@ -177,12 +177,6 @@ protected:
 	/** The topology timestamp is incremented any time a function that modifies the mesh topology is called */
 	int TopologyTimestamp = 0;
 
-
-	/** Cached vertex bounding box (includes unreferenced vertices) */
-	FAxisAlignedBox3d CachedBoundingBox;
-	/** timestamp for CachedBoundingBox, if less than current timestamp, cache is invalid */
-	int CachedBoundingBoxTimestamp = -1;
-
 public:
 	/** Default constructor */
 	FDynamicMesh3() : FDynamicMesh3(false, false, false, false) {}
@@ -968,9 +962,6 @@ public:
 public:
 	/** Returns bounding box of all mesh vertices (including unreferenced vertices) */
 	FAxisAlignedBox3d GetBounds(bool bParallel = false) const;
-
-	/** Returns GetBounds() and saves result, cache is invalidated and recomputed if topology has changed since last call */
-	FAxisAlignedBox3d GetCachedBounds();
 
 	/**
 	 * Compute a normal/tangent frame at vertex that is "stable" as long as
