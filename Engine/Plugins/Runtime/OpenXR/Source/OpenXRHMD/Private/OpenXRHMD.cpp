@@ -1795,7 +1795,7 @@ void FOpenXRHMD::EnumerateViews(FPipelinedFrameState& PipelineState)
 	{
 		LocateViews(PipelineState, true);
 
-		ReadScopeLock DeviceLock(DeviceMutex);
+		FReadScopeLock DeviceLock(DeviceMutex);
 		for (IOpenXRExtensionPlugin* Module : ExtensionPlugins)
 		{
 			if (PipelineState.PluginViews.Contains(Module))
