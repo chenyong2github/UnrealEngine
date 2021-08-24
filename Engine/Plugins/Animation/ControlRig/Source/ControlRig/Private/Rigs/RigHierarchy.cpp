@@ -1055,6 +1055,18 @@ bool URigHierarchy::SetParentWeightArray(FRigElementKey InChild, TArray<FRigElem
 bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<FRigElementWeight>& InWeights,
 	bool bInitial, bool bAffectChildren)
 {
+	if(InWeights.Num() == 0)
+	{
+		return false;
+	}
+	
+	TArrayView<const FRigElementWeight> View(InWeights.GetData(), InWeights.Num());
+	return SetParentWeightArray(InChild, View, bInitial, bAffectChildren);
+}
+
+bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArrayView<const FRigElementWeight>& InWeights,
+	bool bInitial, bool bAffectChildren)
+{
 	using namespace ERigTransformType;
 
 	if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
@@ -2700,6 +2712,11 @@ bool URigHierarchy::IsParentedTo(FRigBaseElement* InChild, FRigBaseElement* InPa
 	if((InChild == nullptr) || (InParent == nullptr))
 	{
 		return false;
+	}
+
+	if(InChild == InParent)
+	{
+		return true;
 	}
 
 	if(FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(InChild))
