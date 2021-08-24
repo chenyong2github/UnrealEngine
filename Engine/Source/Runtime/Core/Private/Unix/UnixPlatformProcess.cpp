@@ -756,7 +756,14 @@ namespace UnixPlatformProcess
 	}
 }
 
-FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void * PipeReadChild)
+FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild)
+{
+	// CreateProc used to only have a single "write" pipe argument, which Windows and Mac would pipe both stdout and stderr into.
+	// On Unix though, only stdout was piped to it, and stderr wasn't available at all, so we'll preserve that behaviour in this overload for compatibility with existing code
+	return CreateProc(URL, Parms, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, OutProcessID, PriorityModifier, OptionalWorkingDirectory, PipeWriteChild, PipeReadChild, PipeWriteChild);
+}
+
+FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild, void* PipeStdErrChild)
 {
 	// @TODO bLaunchHidden bLaunchReallyHidden are not handled
 	// We need an absolute path to executable
@@ -924,7 +931,7 @@ FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parm
 	SpawnFlags |= POSIX_SPAWN_SETPGROUP;
 
 	int PosixSpawnErrNo = -1;
-	if (PipeWriteChild || PipeReadChild)
+	if (PipeWriteChild || PipeReadChild || PipeStdErrChild)
 	{
 		posix_spawn_file_actions_t FileActions;
 		posix_spawn_file_actions_init(&FileActions);
@@ -939,6 +946,12 @@ FProcHandle FUnixPlatformProcess::CreateProc(const TCHAR* URL, const TCHAR* Parm
 		{
 			const FPipeHandle* PipeReadHandle = reinterpret_cast<const FPipeHandle*>(PipeReadChild);
 			posix_spawn_file_actions_adddup2(&FileActions, PipeReadHandle->GetHandle(), STDIN_FILENO);
+		}
+
+		if (PipeStdErrChild)
+		{
+			const FPipeHandle* PipeStdErrorHandle = reinterpret_cast<const FPipeHandle*>(PipeStdErrChild);
+			posix_spawn_file_actions_adddup2(&FileActions, PipeStdErrorHandle->GetHandle(), STDERR_FILENO);
 		}
 
 		posix_spawnattr_setflags(&SpawnAttr, SpawnFlags);
@@ -1652,20 +1665,42 @@ bool FUnixPlatformProcess::IsApplicationRunning( const TCHAR* ProcName )
 	return !system(TCHAR_TO_UTF8(*Commandline));
 }
 
+static bool ReadPipeToStr(void *PipeRead, FString *OutStr)
+{
+	if (PipeRead)
+	{
+		FString NewLine = FPlatformProcess::ReadPipe(PipeRead);
+
+		if (NewLine.Len() > 0)
+		{
+			if (OutStr != nullptr)
+			{
+				*OutStr += NewLine;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool FUnixPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, int32* OutReturnCode, FString* OutStdOut, FString* OutStdErr, const TCHAR* OptionalWorkingDirectory, bool bShouldEndWithParentProcess)
 {
 	FString CmdLineParams = Params;
 	FString ExecutableFileName = URL;
 	int32 ReturnCode = -1;
-	FString DefaultError;
-	if (!OutStdErr)
-	{
-		OutStdErr = &DefaultError;
-	}
 
-	void* PipeRead = nullptr;
-	void* PipeWrite = nullptr;
-	verify(FPlatformProcess::CreatePipe(PipeRead, PipeWrite));
+	void* PipeReadStdOut = nullptr;
+	void* PipeWriteStdOut = nullptr;
+	verify(FPlatformProcess::CreatePipe(PipeReadStdOut, PipeWriteStdOut));
+
+	void* PipeReadStdErr = nullptr;
+	void* PipeWriteStdErr = nullptr;
+	if (OutStdErr)
+	{
+		verify(FPlatformProcess::CreatePipe(PipeReadStdErr, PipeWriteStdErr));
+	}
 
 	bool bInvoked = false;
 
@@ -1673,34 +1708,30 @@ bool FUnixPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, in
 	const bool bLaunchHidden = false;
 	const bool bLaunchReallyHidden = bLaunchHidden;
 
-	FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ExecutableFileName, *CmdLineParams, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, NULL, 0, OptionalWorkingDirectory, PipeWrite);
+	FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ExecutableFileName, *CmdLineParams, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, NULL, 0, OptionalWorkingDirectory, PipeWriteStdOut, nullptr, PipeWriteStdErr);
+
 	if (ProcHandle.IsValid())
 	{
 		while (FPlatformProcess::IsProcRunning(ProcHandle))
 		{
-			FString NewLine = FPlatformProcess::ReadPipe(PipeRead);
-			if (NewLine.Len() > 0)
-			{
-				if (OutStdOut != nullptr)
-				{
-					*OutStdOut += NewLine;
-				}
-			}
+			ReadPipeToStr(PipeReadStdOut, OutStdOut);
+			ReadPipeToStr(PipeReadStdErr, OutStdErr);
 			FPlatformProcess::Sleep(0.5);
 		}
 
-		// read the remainder
-		for(;;)
+		// Read the remainder
+		bool bReadingStdOut = true;
+		bool bReadingStdErr = true;
+		while (bReadingStdOut || bReadingStdErr)
 		{
-			FString NewLine = FPlatformProcess::ReadPipe(PipeRead);
-			if (NewLine.Len() <= 0)
+			if (bReadingStdOut && !ReadPipeToStr(PipeReadStdOut, OutStdOut))
 			{
-				break;
+				bReadingStdOut = false;
 			}
 
-			if (OutStdOut != nullptr)
+			if (bReadingStdErr && !ReadPipeToStr(PipeReadStdErr, OutStdErr))
 			{
-				*OutStdOut += NewLine;
+				bReadingStdErr = false;
 			}
 		}
 
@@ -1727,9 +1758,15 @@ bool FUnixPlatformProcess::ExecProcess(const TCHAR* URL, const TCHAR* Params, in
 		{
 			*OutStdOut = "";
 		}
+		if (OutStdErr != nullptr)
+		{
+			*OutStdErr = "";
+		}
 		UE_LOG(LogHAL, Warning, TEXT("Failed to launch Tool. (%s)"), *ExecutableFileName);
 	}
-	FPlatformProcess::ClosePipe(PipeRead, PipeWrite);
+
+	FPlatformProcess::ClosePipe(PipeReadStdOut, PipeWriteStdOut);
+	FPlatformProcess::ClosePipe(PipeReadStdErr, PipeWriteStdErr);
 	return bInvoked;
 }
 

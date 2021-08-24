@@ -404,10 +404,29 @@ struct CORE_API FGenericPlatformProcess
 	 * @param OutProcessId			if non-NULL, this will be filled in with the ProcessId
 	 * @param PriorityModifier		-2 idle, -1 low, 0 normal, 1 high, 2 higher
 	 * @param OptionalWorkingDirectory		Directory to start in when running the program, or NULL to use the current working directory
-	 * @param PipeWrite				Optional HANDLE to pipe for redirecting output
+	 * @param PipeWriteChild		Optional HANDLE to pipe for redirecting output
+	 * @param PipeReadChild			Optional HANDLE to pipe for redirecting input
 	 * @return	The process handle for use in other process functions
 	 */
-	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void * PipeReadChild = nullptr);
+	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild = nullptr);
+	
+	/**
+	 * Creates a new process and its primary thread, with separate std pipes. The new process runs the
+	 * specified executable file in the security context of the calling process.
+	 * @param URL					executable name
+	 * @param Parms					command line arguments
+	 * @param bLaunchDetached		if true, the new process will have its own window
+	 * @param bLaunchHidden			if true, the new process will be minimized in the task bar
+	 * @param bLaunchReallyHidden	if true, the new process will not have a window or be in the task bar
+	 * @param OutProcessId			if non-NULL, this will be filled in with the ProcessId
+	 * @param PriorityModifier		-2 idle, -1 low, 0 normal, 1 high, 2 higher
+	 * @param OptionalWorkingDirectory		Directory to start in when running the program, or NULL to use the current working directory
+	 * @param PipeWriteChild		Optional HANDLE to pipe for redirecting stdout
+	 * @param PipeReadChild			Optional HANDLE to pipe for redirecting stdin
+	 * @param PipeStdErrChild		Optional HANDLE to pipe for redirecting stderr
+	 * @return	The process handle for use in other process functions
+	 */
+	static FProcHandle CreateProc( const TCHAR* URL, const TCHAR* Parms, bool bLaunchDetached, bool bLaunchHidden, bool bLaunchReallyHidden, uint32* OutProcessID, int32 PriorityModifier, const TCHAR* OptionalWorkingDirectory, void* PipeWriteChild, void* PipeReadChild, void* PipeStdErrChild);
 
 	/**
 	 * Opens an existing process. 
