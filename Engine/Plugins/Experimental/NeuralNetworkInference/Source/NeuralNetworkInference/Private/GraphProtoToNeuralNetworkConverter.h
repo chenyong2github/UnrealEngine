@@ -8,7 +8,7 @@
 #include "NeuralTensor.h"
 #include "NeuralTensorManager.h"
 
-class FNeuralNetworkFromONNXTranslator
+class FGraphProtoToNeuralNetworkConverter
 {
 public:
 	/**

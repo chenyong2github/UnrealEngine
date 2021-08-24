@@ -2,7 +2,7 @@
 
 #include "NeuralNetworkLegacy.h"
 #include "NeuralOperator.h"
-#include "NeuralNetworkFromONNXTranslator.h"
+#include "GraphProtoToNeuralNetworkConverter.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "NeuralNetworkInferenceVersion.h"
 #include "EditorFramework/AssetImportData.h"
@@ -68,7 +68,7 @@ void UNeuralNetworkLegacy::PostLoad()
 			bIsLoaded = false;
 		}
 		// Turn ModelProto into Operators
-		else if (!FNeuralNetworkFromONNXTranslator::Translate(Operators, TensorManager, ModelProto.GetGraph()))
+		else if (!FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph()))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::PostLoad(): UNeuralNetworkLegacy could not be configured from its FModelProto."));
 		}
@@ -146,7 +146,7 @@ bool UNeuralNetworkLegacy::Load(const FString& InFilePath)
 		return false;
 	}
 	// Turn ModelProto into Operators
-	bIsLoaded = FNeuralNetworkFromONNXTranslator::Translate(Operators, TensorManager, ModelProto.GetGraph(), InFilePath);
+	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), InFilePath);
 	if (!TensorManager.IsLoaded() || !FNeuralNetworkInferenceVersion::CheckVersion(TensorManager.GetVersion()))
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s or is outdated. IsLoaded() = %d."),
