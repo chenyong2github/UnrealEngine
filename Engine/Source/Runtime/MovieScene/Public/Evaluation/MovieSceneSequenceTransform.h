@@ -588,17 +588,8 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 }
 
 /** Convert a FMovieSceneSequenceTransform into a string */
-inline FString LexToString(const FMovieSceneSequenceTransform& InTransform)
-{
-	if (InTransform.NestedTransforms.Num() == 0)
-	{
-		return LexToString(InTransform.LinearTransform);
-	}
-	else
-	{
-		return *FString::Printf(TEXT("%s (+%d nested loops)"),
-				*LexToString(InTransform.LinearTransform),
-				InTransform.NestedTransforms.Num());
-	}
-}
+FString LexToString(const FMovieSceneSequenceTransform& InTransform);
+
+/** Convert a FMovieSceneWarpCounter into a string */
+FString LexToString(const FMovieSceneWarpCounter& InCounter);
 
