@@ -77,6 +77,7 @@ const FName FHeaderParserNames::NAME_BlueprintType(TEXT("BlueprintType"));
 const FName FHeaderParserNames::NAME_AutoCollapseCategories(TEXT("AutoCollapseCategories"));
 const FName FHeaderParserNames::NAME_HideFunctions(TEXT("HideFunctions"));
 const FName FHeaderParserNames::NAME_AutoExpandCategories(TEXT("AutoExpandCategories"));
+const FName FHeaderParserNames::NAME_PrioritizeCategories(TEXT("PrioritizeCategories"));
 
 TArray<FString> FHeaderParser::PropertyCPPTypesRequiringUIRanges = { TEXT("float"), TEXT("double") };
 TArray<FString> FHeaderParser::ReservedTypeNames = { TEXT("none") };
@@ -8493,6 +8494,10 @@ void FHeaderParser::ResetClassData()
 		if (SuperClassDef->HasMetaData(FHeaderParserNames::NAME_AutoCollapseCategories))
 		{
 			CurrentClassDef.SetMetaData(FHeaderParserNames::NAME_AutoCollapseCategories, *SuperClassDef->GetMetaData(FHeaderParserNames::NAME_AutoCollapseCategories));
+		}
+		if (SuperClassDef->HasMetaData(FHeaderParserNames::NAME_PrioritizeCategories))
+		{
+			CurrentClassDef.SetMetaData(FHeaderParserNames::NAME_PrioritizeCategories, *SuperClassDef->GetMetaData(FHeaderParserNames::NAME_PrioritizeCategories));
 		}
 	}
 

@@ -2585,6 +2585,16 @@ void FUnrealClassDefinitionInfo::ParseClassProperties(TArray<FPropertySpecifier>
 			}
 			break;
 
+		case EClassMetadataSpecifier::PrioritizeCategories:
+
+			FHeaderParser::RequireSpecifierValue(*this, PropSpecifier);
+
+			for (FString& Value : PropSpecifier.Values)
+			{
+				PrioritizeCategories.AddUnique(MoveTemp(Value));
+			}
+			break;
+
 		case EClassMetadataSpecifier::DontAutoCollapseCategories:
 
 			FHeaderParser::RequireSpecifierValue(*this, PropSpecifier);
@@ -2851,6 +2861,7 @@ void FUnrealClassDefinitionInfo::MergeCategoryMetaData(TMap<FName, FString>& InM
 	if (SparseClassDataTypes.Num()) { InMetaData.Add(FHeaderParserNames::NAME_SparseClassDataTypes, FString::Join(SparseClassDataTypes, TEXT(" "))); }
 	if (HideFunctions.Num()) { InMetaData.Add(FHeaderParserNames::NAME_HideFunctions, FString::Join(HideFunctions, TEXT(" "))); }
 	if (AutoExpandCategories.Num()) { InMetaData.Add(FHeaderParserNames::NAME_AutoExpandCategories, FString::Join(AutoExpandCategories, TEXT(" "))); }
+	if (PrioritizeCategories.Num()) { InMetaData.Add(FHeaderParserNames::NAME_PrioritizeCategories, FString::Join(PrioritizeCategories, TEXT(" "))); }
 }
 
 void FUnrealClassDefinitionInfo::GetSparseClassDataTypes(TArray<FString>& OutSparseClassDataTypes) const

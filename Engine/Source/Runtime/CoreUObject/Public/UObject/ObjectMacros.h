@@ -760,6 +760,8 @@ namespace UC
 		collapseCategories,
 		/// Display properties in the editor using categories (default behaviour).
 		dontCollapseCategories,
+		/// Specifies category display order, unspecified will follow default display order.
+		prioritizeCategories,
 
 		/// All the properties of the class are hidden in the main display by default, and are only shown in the advanced details section.
 		AdvancedClassDisplay,

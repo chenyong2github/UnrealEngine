@@ -2742,6 +2742,8 @@ public:
 	bool IsFunctionHidden(const TCHAR* InFunction) const;
 	void GetAutoExpandCategories(TArray<FString>& OutAutoExpandCategories) const;
 	bool IsAutoExpandCategory(const TCHAR* InCategory) const;
+	void GetPrioritizeCategories(TArray<FString>& OutPrioritizedCategories) const;
+	bool IsPrioritizeCategory(const TCHAR* InCategory) const;
 	void GetAutoCollapseCategories(TArray<FString>& OutAutoCollapseCategories) const;
 	bool IsAutoCollapseCategory(const TCHAR* InCategory) const;
 	void GetClassGroupNames(TArray<FString>& OutClassGroupNames) const;

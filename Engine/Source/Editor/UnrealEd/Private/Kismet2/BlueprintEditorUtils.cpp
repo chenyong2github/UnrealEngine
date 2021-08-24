@@ -1574,6 +1574,7 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 		Class->RemoveMetaData("HideFunctions");
 		Class->RemoveMetaData("AutoExpandCategories");
 		Class->RemoveMetaData("AutoCollapseCategories");
+		Class->RemoveMetaData("PrioritizeCategories");
 		Class->RemoveMetaData("SparseClassDataTypes");
 		Class->RemoveMetaData("ClassGroupNames");
 		Class->RemoveMetaData("Category");
@@ -1599,6 +1600,10 @@ void FBlueprintEditorUtils::RecreateClassMetaData(UBlueprint* Blueprint, UClass*
 			if (ParentClass->HasMetaData(TEXT("AutoCollapseCategories")))
 			{
 				Class->SetMetaData(TEXT("AutoCollapseCategories"), *ParentClass->GetMetaData("AutoCollapseCategories"));
+			}
+			if (ParentClass->HasMetaData(TEXT("PrioritizeCategories")))
+			{
+				Class->SetMetaData(TEXT("PrioritizeCategories"), *ParentClass->GetMetaData("PrioritizeCategories"));
 			}
 		}
 

@@ -32,4 +32,5 @@ struct FHeaderParserNames
 	static const FName NAME_AutoCollapseCategories;
 	static const FName NAME_HideFunctions;
 	static const FName NAME_AutoExpandCategories;
+	static const FName NAME_PrioritizeCategories;
 };

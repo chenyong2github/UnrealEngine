@@ -506,7 +506,7 @@ void FObjectPropertyNode::GetCategoryProperties(const TSet<UClass*>& ClassesToCo
 		{
 			if (!CategoriesFromBlueprints.Contains(CategoryName) && !CategoriesFromProperties.Contains(CategoryName))
 			{
-				SortedCategories.Add(CategoryName);
+				SortedCategories.AddUnique(CategoryName);
 			}
 			CategoriesFromProperties.Add(CategoryName);
 		}
@@ -545,6 +545,7 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 	// Create a merged list of user-enforced sorted info, hidden category info, etc...
 	TSet<FName> CategoriesFromBlueprints, CategoriesFromProperties;
 	TArray<FName> SortedCategories;
+	TArray<FName> PrioritizeCategories;
 
 #if WITH_EDITORONLY_DATA
 	for (UClass* Class : ClassesToConsider)
@@ -556,9 +557,18 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 				if (!CategoriesFromBlueprints.Contains(TestCategory))
 				{
 					CategoriesFromBlueprints.Add(TestCategory);
-					SortedCategories.Add(TestCategory);
+					SortedCategories.AddUnique(TestCategory);
 				}
 			}
+		}
+
+		TArray<FString> ClassPrioritizeCategories;
+		Class->GetPrioritizeCategories(ClassPrioritizeCategories);
+		for (const FString& ClassPrioritizeCategory : ClassPrioritizeCategories)
+		{
+			FName PrioritizeCategoryName = FName(ClassPrioritizeCategory);
+			SortedCategories.AddUnique(PrioritizeCategoryName);
+			PrioritizeCategories.AddUnique(PrioritizeCategoryName);
 		}
 	}
 #endif
@@ -572,17 +582,17 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 	}
 
 	for (UClass* Class : ClassesToConsider)
-		{
+	{
 		if (Class)
-			{
+		{
 			UScriptStruct* SparseClassDataStruct = Class->GetSparseClassDataStruct();
 			if (SparseClassDataStruct)
-		{
+			{
 				SparseClassDataInstances.Add(Class, TTuple<UScriptStruct*, void*>(SparseClassDataStruct, Class->GetOrCreateSparseClassData()));
 
 				for (TFieldIterator<FProperty> It(SparseClassDataStruct); It; ++It)
-		{
-		 			GetCategoryProperties(ClassesToConsider, *It, bShouldShowDisableEditOnInstance, bShouldShowHiddenProperties, CategoriesFromBlueprints, CategoriesFromProperties, SortedCategories);
+				{
+					GetCategoryProperties(ClassesToConsider, *It, bShouldShowDisableEditOnInstance, bShouldShowHiddenProperties, CategoriesFromBlueprints, CategoriesFromProperties, SortedCategories);
 				}
 			}
 		}
@@ -594,6 +604,15 @@ void FObjectPropertyNode::InternalInitChildNodes( FName SinglePropertyName )
 		if ( !CategoriesFromProperties.Contains(CategoryName) )
 		{
 			SortedCategories.Remove(CategoryName);
+		}
+	}
+
+	// Remove any prioritized categories that don't actually exist
+	for (const FName& PrioritizeCategory : PrioritizeCategories)
+	{
+		if (!CategoriesFromProperties.Contains(PrioritizeCategory))
+		{
+			SortedCategories.Remove(PrioritizeCategory);
 		}
 	}
 

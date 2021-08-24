@@ -4890,6 +4890,7 @@ void UClass::PurgeClass(bool bRecompilingOnLoad)
 		RemoveMetaData("HideFunctions");
 		RemoveMetaData("AutoExpandCategories");
 		RemoveMetaData("AutoCollapseCategories");
+		RemoveMetaData("PrioritizeCategories");
 		RemoveMetaData("ClassGroupNames");
 	}
 #endif
@@ -5554,6 +5555,25 @@ bool UClass::IsAutoExpandCategory(const TCHAR* InCategory) const
 	if (const FString* AutoExpandCategories = FindMetaData(NAME_AutoExpandCategories))
 	{
 		return !!FCString::StrfindDelim(**AutoExpandCategories, InCategory, TEXT(" "));
+	}
+	return false;
+}
+
+void UClass::GetPrioritizeCategories(TArray<FString>& OutPrioritizedCategories) const
+{
+	static const FName NAME_PrioritizeCategories(TEXT("PrioritizeCategories"));
+	if (const FString* PrioritizeCategories = FindMetaData(NAME_PrioritizeCategories))
+	{
+		PrioritizeCategories->ParseIntoArray(OutPrioritizedCategories, TEXT(" "), true);
+	}
+}
+
+bool UClass::IsPrioritizeCategory(const TCHAR* InCategory) const
+{
+	static const FName NAME_PrioritizeCategories(TEXT("PrioritizeCategories"));
+	if (const FString* PrioritizeCategories = FindMetaData(NAME_PrioritizeCategories))
+	{
+		return !!FCString::StrfindDelim(**PrioritizeCategories, InCategory, TEXT(" "));
 	}
 	return false;
 }
