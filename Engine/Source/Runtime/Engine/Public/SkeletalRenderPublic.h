@@ -207,6 +207,9 @@ public:
 	virtual int32 GetRayTracingLOD() const { return GetLOD(); }
 #endif // RHI_RAYTRACING
 
+	virtual bool ShouldUseSeparateSkinCacheEntryForRayTracing() const { return GetLOD() != GetRayTracingLOD() || SkinCacheEntry == nullptr; }
+	virtual class FGPUSkinCacheEntry* GetSkinCacheEntryForRayTracing() const { return ShouldUseSeparateSkinCacheEntryForRayTracing() ? SkinCacheEntryForRayTracing : SkinCacheEntry; }
+
 	/** Called to notify clothing data that component transform has changed */
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) {};
 
@@ -287,7 +290,7 @@ protected:
 	/** Per-LOD info. */
 	TArray<FSkeletalMeshLODInfo> SkeletalMeshLODInfo;
 
-	class FGPUSkinCacheEntry* SkinCacheEntry;
+	FGPUSkinCacheEntry* SkinCacheEntry;
 	FGPUSkinCacheEntry* SkinCacheEntryForRayTracing;
 
 	/** Used to keep track of the first call to UpdateMinDesiredLODLevel each frame. from ViewFamily.FrameNumber */

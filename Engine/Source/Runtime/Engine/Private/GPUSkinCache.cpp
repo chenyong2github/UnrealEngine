@@ -1852,7 +1852,7 @@ void FGPUSkinCache::EndBatchDispatch(FRHICommandListImmediate& RHICmdList)
 
 			FGPUSkinCacheEntry* SkinCacheEntry = DispatchItem.SkinCacheEntry;
 
-			if (SkinCacheEntry->Mode != EGPUSkinCacheEntryMode::RayTracing)
+			if (SkinCacheEntry->GPUSkin->ShouldUseSeparateSkinCacheEntryForRayTracing() && SkinCacheEntry->Mode != EGPUSkinCacheEntryMode::RayTracing)
 			{
 				continue;
 			}

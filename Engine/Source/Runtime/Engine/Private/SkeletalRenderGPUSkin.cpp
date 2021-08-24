@@ -398,7 +398,7 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	bRequireRecreatingRayTracingGeometry = (DynamicData == nullptr || RayTracingGeometry.Initializer.Segments.Num() == 0 || // Newly created
 		(DynamicData != nullptr && DynamicData->RayTracingLODIndex != InDynamicData->RayTracingLODIndex) || // LOD level changed
 		bHiddenMaterialVisibilityDirtyForRayTracing ||
-		SkinCacheEntryForRayTracing == nullptr);
+		GetSkinCacheEntryForRayTracing() == nullptr);
 
 	bHiddenMaterialVisibilityDirtyForRayTracing = false;
 	
@@ -434,13 +434,18 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 		ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode::Raster, GPUSkinCache, RHICmdList, FrameNumberToPrepare, RevisionNumber, bMorphNeedsUpdate, DynamicData->LODIndex);
 
 	#if RHI_RAYTRACING
-		if (FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && GPUSkinCache && SkeletalMeshRenderData->bSupportRayTracing)
+		if (ShouldUseSeparateSkinCacheEntryForRayTracing() && FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && GPUSkinCache && SkeletalMeshRenderData->bSupportRayTracing)
 		{
 			// When in game, updates not sent in UWorld::SendAllEndOfFrameUpdates() (implied by IsBatchingDispatch()) are ignored.
 			if (!bIsGameWorld || GPUSkinCache->IsBatchingDispatch())
 			{
 				ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode::RayTracing, GPUSkinCache, RHICmdList, FrameNumberToPrepare, RevisionNumber, bMorphNeedsUpdate, DynamicData->RayTracingLODIndex);
 			}
+		}
+		else
+		{
+			// Immediately release any stale entry if we decide to share with the raster path
+			FGPUSkinCache::Release(SkinCacheEntryForRayTracing);
 		}
 	#endif
 	}
@@ -449,10 +454,10 @@ void FSkeletalMeshObjectGPUSkin::UpdateDynamicData_RenderThread(FGPUSkinCache* G
 	// Immediate update path. Only used in the editor as the world can be not ticking. When in game, updates not sent in UWorld::SendAllEndOfFrameUpdates() are ignored.
 	if (!bIsGameWorld && FGPUSkinCache::IsGPUSkinCacheRayTracingSupported() && GPUSkinCache && SkeletalMeshRenderData->bSupportRayTracing && !GPUSkinCache->IsBatchingDispatch())
 	{
-		if (SkinCacheEntryForRayTracing)
+		if (GetSkinCacheEntryForRayTracing())
 		{
 			FSkeletalMeshLODRenderData& LODModel = this->SkeletalMeshRenderData->LODRenderData[DynamicData->RayTracingLODIndex];
-			GPUSkinCache->ProcessRayTracingGeometryToUpdate(RHICmdList, SkinCacheEntryForRayTracing, LODModel, bRequireRecreatingRayTracingGeometry, DynamicData->bAnySegmentUsesWorldPositionOffset);
+			GPUSkinCache->ProcessRayTracingGeometryToUpdate(RHICmdList, GetSkinCacheEntryForRayTracing(), LODModel, bRequireRecreatingRayTracingGeometry, DynamicData->bAnySegmentUsesWorldPositionOffset);
 		}
 		else
 		{
@@ -506,6 +511,13 @@ void FSkeletalMeshObjectGPUSkin::ProcessUpdatedDynamicData(EGPUSkinCacheEntryMod
 	bool bDataPresent = false;
 
 	bool bGPUSkinCacheEnabled = GPUSkinCache && GEnableGPUSkinCache && (FeatureLevel >= ERHIFeatureLevel::SM5) && (DynamicData->bIsSkinCacheAllowed || Mode == EGPUSkinCacheEntryMode::RayTracing);
+
+	// Immediately release any stale entry if we've recently switched to a LOD level that disallows skin cache
+	// This saves memory and avoids confusing ShouldUseSeparateSkinCacheEntryForRayTracing() which checks SkinCacheEntry == nullptr
+	if (!bGPUSkinCacheEnabled && SkinCacheEntry)
+	{
+		FGPUSkinCache::Release(SkinCacheEntry);
+	}
 
 	if (DynamicData->PreSkinningOffsets.Num() > 0)
 	{
@@ -1160,8 +1172,8 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	// Return the passthrough vertex factory if it is requested (by ray tracing)
 	if (VFMode == ESkinVertexFactoryMode::RayTracing)
 	{
-		check(SkinCacheEntryForRayTracing);
-		check(FGPUSkinCache::IsEntryValid(SkinCacheEntryForRayTracing, ChunkIdx));
+		check(GetSkinCacheEntryForRayTracing());
+		check(FGPUSkinCache::IsEntryValid(GetSkinCacheEntryForRayTracing(), ChunkIdx));
 
 		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
 	}
