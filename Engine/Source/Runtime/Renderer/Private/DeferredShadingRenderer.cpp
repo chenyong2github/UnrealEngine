@@ -1915,7 +1915,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
 
 	// Setups the final FViewInfo::ViewRect.
-	PrepareViewRectsForRendering();
+	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
