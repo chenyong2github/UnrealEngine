@@ -153,10 +153,9 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 	using FPermutationDomain = TShaderPermutationDomain<FNearestDepthNeighborUpsampling>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector2D, ScreenPosToSceneColorUV)
-		SHADER_PARAMETER(FVector2D, ScreenPosToSeparateTranslucencyUV)
-		SHADER_PARAMETER(FVector2D, SeparateTranslucencyUVMax)
-		SHADER_PARAMETER(FVector2D, SeparateTranslucencyExtentInverse)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Translucency)
+		SHADER_PARAMETER(FScreenTransform, ColorToTranslucency)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColor)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SeparateTranslucency)
@@ -252,16 +251,19 @@ FRDGTextureRef AddTranslucencyCompositionPass(
 	const FVector2D SeparateTranslucencySize(SeparateTranslucencyRect.Size());
 	const FVector2D SeparateTranslucencyExtent((bApplyModulateOnly ? SeparateModulationTexture : SeparateTranslucencyTexture)->Desc.Extent);
 	const FVector2D SeparateTranslucencyExtentInv = FVector2D(1.0f, 1.0f) / SeparateTranslucencyExtent;
-	
-	const bool bScaleSeparateTranslucency = SeparateTranslucencySize != SceneColorSize;
-	const float DownsampleScale = SeparateTranslucencySize.X / SceneColorExtent.X;
+
+	const FScreenPassTextureViewport SceneColorViewport(SceneColor);
+	const FScreenPassTextureViewport TranslucencyViewport = SeparateTranslucencyTextures.GetDimensions().GetViewport(View.ViewRect);
+
+	const float DownsampleScale = SeparateTranslucencyTextures.GetDimensions().Scale;
+
+	const bool bScaleSeparateTranslucency = DownsampleScale != 1.0f;
 	const bool DepthUpscampling = !bPostMotionBlur && GetUseTranslucencyNearestDepthNeighborUpsample(DownsampleScale) ? 1 : 0;
 
 	FComposeSeparateTranslucencyPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComposeSeparateTranslucencyPS::FParameters>();
-	PassParameters->ScreenPosToSceneColorUV = SceneColorSizeInv * SceneColorSize * SceneColorExtentInv;
-	PassParameters->ScreenPosToSeparateTranslucencyUV = SceneColorSizeInv * SeparateTranslucencySize * SeparateTranslucencyExtentInv;
-	PassParameters->SeparateTranslucencyUVMax = (SeparateTranslucencySize - FVector2D(0.5f, 0.5f)) * SeparateTranslucencyExtentInv;
-	PassParameters->SeparateTranslucencyExtentInverse = SeparateTranslucencyExtentInv;
+	PassParameters->Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
+	PassParameters->Translucency = GetScreenPassTextureViewportParameters(TranslucencyViewport);
+	PassParameters->ColorToTranslucency = FScreenTransform::ChangeTextureUVCoordinateFromTo(SceneColorViewport, TranslucencyViewport);
 	PassParameters->SceneColor = SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point>::GetRHI();
 	PassParameters->SeparateTranslucency = SeparateTranslucencyTexture;
