@@ -6,13 +6,7 @@
 #include "NeuralEnumClasses.h"
 #include "NeuralTensor.h"
 #include "NeuralTensors.h"
-
 #include "NeuralNetwork.generated.h"
-
-class FNeuralOperator;
-class UAssetImportData;
-struct FModelProto;
-struct FNeuralTensorManager;
 
 /**
  * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
@@ -103,7 +97,7 @@ public:
 
 	/**
 	 * Getter and setter functions for DeviceType, InputDeviceType, and OutputDeviceType.
-	 * See DeviceType, InputDeviceType, and OutputDeviceType for more details.
+	 * @see DeviceType, InputDeviceType, and OutputDeviceType for more details.
 	 */
 	ENeuralDeviceType GetDeviceType() const;
 	void SetDeviceType(const ENeuralDeviceType InDeviceType);
@@ -111,6 +105,29 @@ public:
 	void SetInputDeviceType(const ENeuralDeviceType InInputDeviceType);
 	ENeuralDeviceType GetOutputDeviceType() const;
 	void SetOutputDeviceType(const ENeuralDeviceType InOutputDeviceType);
+
+	/**
+	 * Getter and setter functions for SynchronousMode.
+	 * @see SynchronousMode and GetOnAsyncRunCompletedDelegate() for more details.
+	 */
+	ENeuralNetworkSynchronousMode GetSynchronousMode() const;
+	void SetSynchronousMode(const ENeuralNetworkSynchronousMode InSynchronousMode);
+
+
+	/**
+	 * GetOnAsyncRunCompletedDelegate() returns a FOnAsyncRunCompleted delegate that will be called when async UNeuralNetwork::Run() is completed.
+	 * This FOnAsyncRunCompleted delegate could be triggered from any thread but will only be triggered if SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous.
+	 * If SynchronousMode == ENeuralNetworkSynchronousMode::Synchronous, UNeuralNetwork::Run() will block the calling thread until completed, so a callback delegate is not required.
+	 */
+	DECLARE_DELEGATE(FOnAsyncRunCompleted);
+	FOnAsyncRunCompleted& GetOnAsyncRunCompletedDelegate();
+
+	/**
+	 * Getter and setter functions for BackEnd.
+	 * @see ENeuralBackEnd for more details.
+	 */
+	ENeuralBackEnd GetBackEnd() const;
+	void SetBackEnd(const ENeuralBackEnd InBackEnd);
 
 	/**
 	 * Functions to get/fill input.
@@ -127,16 +144,6 @@ public:
 	const FNeuralTensors& GetOutputTensors() const;
 
 	/**
-	 * Callback when UNeuralNetwork::Run() is finished. It will only occur if SynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous and it could be triggered from any thread.
-	 */
-	DECLARE_DELEGATE(FOnAsyncRunCompleted);
-
-	/**
-	 * Returns the delegate called when async Run() is over (on any thread)
-	 */
-	FOnAsyncRunCompleted& GetOnAsyncRunCompletedDelegate();
-
-	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
 	 * SetInputFromArrayCopy() or GetInputDataPointerMutable().
 	 * Its output results can be retrieved with GetOutputTensor() or GetOutputTensors().
@@ -145,9 +152,6 @@ public:
 	void Run();
 
 protected:
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	bool bIsLoaded;
-
 	/**
 	 * Whether Run() will use CPU or GPU acceleration hardware.
 	 * If SetDeviceType() is never called, the default device (EDeviceType::CPU) will be used.
@@ -169,10 +173,16 @@ protected:
 	
 	/**
 	 * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
-	 * See ENeuralNetworkSynchronousMode for more details.
+	 * @see ENeuralNetworkSynchronousMode for more details.
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	ENeuralNetworkSynchronousMode SynchronousMode;
+	
+	/**
+	 * @see ENeuralBackEnd for more details.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	ENeuralBackEnd BackEnd;
 
 	/**
 	 * Original model file path from which this UNeuralNetwork was loaded from.
@@ -193,37 +203,58 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	TArray<bool> AreInputTensorSizesVariable;
 
-#if WITH_EDITORONLY_DATA
-	/** Importing data and options used for loading the neural network. */
-	UPROPERTY(VisibleAnywhere, Instanced, Category = "ImportSettings")
-	UAssetImportData* AssetImportData;
-#endif // WITH_EDITORONLY_DATA
-
 private:
+	bool bIsLoaded;
+
 	UPROPERTY()
 	TArray<uint8> ModelReadFromDiskInBytes;
 
+	/**
+	 * @see FOnAsyncRunCompleted and GetOnAsyncRunCompletedDelegate to understand OnAsyncRunCompletedDelegate.
+	 */
 	FOnAsyncRunCompleted OnAsyncRunCompletedDelegate;
 
 	/**
-	 * PIMPL idiom to hide 3rd party dependencies
+	 * Struct pointer containing the UE-and-ORT-based back end implementation.
+	 * PIMPL idiom to minimize memory when not using this back end and to to hide 3rd party dependencies.
 	 * http://www.cppsamples.com/common-tasks/pimpl.html
 	 */
-	struct FImpl;
-	TSharedPtr<FImpl> Impl;
+	struct FImplBackEndUEAndORT;
+	TSharedPtr<FImplBackEndUEAndORT> ImplBackEndUEAndORT;
+
+	/**
+	 * Struct pointer containing the only-UE-based back end implementation.
+	 * PIMPL idiom to minimize memory when not using this back end.
+	 * http://www.cppsamples.com/common-tasks/pimpl.html
+	 */
+	struct FImplBackEndUEOnly;
+	TSharedPtr<FImplBackEndUEOnly> ImplBackEndUEOnly;
 
 public:
-	// Internal functions not needed by user
-	 //~UObject interface
+#if WITH_EDITOR
+	/**
+	 * Internal and Editor-only functions not needed by the user.
+	 * Importing data and options used for loading the network.
+	 */
+	class UAssetImportData* GetAssetImportData() const;
+	class UAssetImportData* GetAndMaybeCreateAssetImportData();
+#endif // WITH_EDITOR
+
+private:
+#if WITH_EDITORONLY_DATA
+	/** Importing data and options used for loading the network. */
+	UPROPERTY(Instanced)
+	class UAssetImportData* AssetImportData;
+#endif // WITH_EDITORONLY_DATA
+
+#if WITH_EDITOR
+	/** Editor-only function: Re-import asset with editor data (imported file). */
+	void ReimportAssetFromEditorData();
+#endif // WITH_EDITOR
+
+	//~UObject interface
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Archive) override;
 	//~End of UObject interface
-#if WITH_EDITOR
-	/** Editor-only function: Re-import asset with editor data (imported file). */
-	void ReimportAssetFromEditorData();
-	/** Editor-only function: Importing data and options used for loading the neural network. */
-	UAssetImportData* GetAssetImportData() const;
-	UAssetImportData* GetAndMaybeCreateAssetImportData();
-#endif // WITH_EDITOR
 };

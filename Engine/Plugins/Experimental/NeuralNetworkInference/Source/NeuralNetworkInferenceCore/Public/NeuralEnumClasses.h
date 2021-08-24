@@ -7,12 +7,15 @@
 #include <type_traits>
 #include "NeuralEnumClasses.generated.h"
 
+/**
+ * Whether UNeuralNetwork will use the highly optimized UnrealEngine-and-ONNXRuntime-based back end (UEAndORT) or the less optimized but fully cross platform only-UE one (UEOnly).
+ * We recommend using the UnrealEngine-and-ONNXRuntime-based back end if possible, and only falling back to the only-UE one for those platforms that do not support the ONNXRuntime one yet.
+ */
 UENUM()
-enum class ENeuralDeviceType : uint8
+enum class ENeuralBackEnd : uint8
 {
-	CPU,
-	GPU,
-	None
+	UEAndORT, /* The best of both worlds, UnrealEngine-and-ONNXRuntime-accelerated back end. Recommended for those platforms that support it (e.g., Windows). */
+	UEOnly /* It might be slower than the UEAndORT back end, but it will compile in all platforms and OSs compatible with Unreal Engine. */
 };
 
 UENUM()
@@ -27,6 +30,14 @@ enum class ENeuralDataType : uint8
 	//UInt8,
 	UInt32,
 	UInt64,
+	None
+};
+
+UENUM()
+enum class ENeuralDeviceType : uint8
+{
+	CPU,
+	GPU,
 	None
 };
 

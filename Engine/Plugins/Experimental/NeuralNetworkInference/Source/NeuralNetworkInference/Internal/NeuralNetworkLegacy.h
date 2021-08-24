@@ -91,8 +91,8 @@ public:
 	template<typename T>
 	T* GetInputDataPointerMutable();
 	TMap<FString, void*> CreateInputDataPointersMutable();
-	FRDGBufferUAVRef GetInputBufferUAVRef();
-	TMap<FString, FRDGBufferUAVRef> CreateInputBufferUAVRefs();
+	//FRDGBufferUAVRef GetInputBufferUAVRef();
+	//TMap<FString, FRDGBufferUAVRef> CreateInputBufferUAVRefs();
 
 	/**
 	 * It returns the input FNeuralTensor (map) as a read-only object.
@@ -177,6 +177,13 @@ protected:
 	
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	ENeuralDeviceType OutputDeviceType;
+	
+	/**
+	 * Whether UNeuralNetwork::Run() will block the thread until completed (Synchronous), or whether it will run on a background thread, not blocking the calling thread (Asynchronous).
+	 * See ENeuralNetworkSynchronousMode for more details.
+	 */
+	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
+	ENeuralNetworkSynchronousMode SynchronousMode;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	FNeuralTensorManager TensorManager; /* It contains a few TArray and TMaps for all FNeuralTensors (Input, Output, Intermediate(Not)Initialized, Weight) */
@@ -189,22 +196,29 @@ protected:
 #endif // WITH_EDITORONLY_DATA
 
 private:
-	// Non-uproperty members
-	bool bAreTensorsInGpu; /* It should always be false when loaded from uasset (FNeuralTensors are not auto-loaded to GPU) */
-	/**
-	 * Operators represents the set of operators of the network that need to run on the Forward pass and that might need to run on the PostForward.
-	 */
-	TArray<TSharedPtr<FNeuralOperator>> Operators;
 	FOnAsyncRunCompleted OnAsyncRunCompletedDelegate;
 
+	/**
+	 * Only for the vanilla back end.
+	 * It should always be false when loaded from uasset (FNeuralTensors are not auto-loaded to GPU)
+	 */
+	bool bAreTensorsInGpu;
+
+	/**
+	 * Only for the vanilla back end.
+	 * Set of operators that the network need to run on the Forward pass and that might need to run on the PostForward pass.
+	 */
+	TArray<TSharedPtr<FNeuralOperator>> Operators;
+
 public:
+	// Internal functions not needed by the user
 	//~UObject interface
 	virtual void PostInitProperties() override;
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Archive) override;
 	//~End of UObject interface
 #if WITH_EDITOR
-/** Editor-only function: Re-import asset with editor data (imported file). */
+	/** Editor-only function: Re-import asset with editor data (imported file). */
 	void ReimportAssetFromEditorData();
 	/** Editor-only function: Importing data and options used for loading the neural network. */
 	UAssetImportData* GetAssetImportData() const;
