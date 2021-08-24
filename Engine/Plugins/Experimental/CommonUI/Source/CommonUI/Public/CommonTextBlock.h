@@ -157,7 +157,7 @@ private:
 /**
  * Text block with automatic scrolling for FX / large texts, also supports a larger set of default styling, & custom mobile scaling.
  */
-UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Text"))
+UCLASS(Config = CommonUI, DefaultConfig, ClassGroup = UI, meta = (Category = "Common UI", DisplayName = "Common Text", PrioritizeCategories = "Content"))
 class COMMONUI_API UCommonTextBlock : public UTextBlock
 {
 	GENERATED_UCLASS_BODY()
