@@ -364,7 +364,7 @@ void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieS
 
 		FGuid ParentBindingGuid;
 		const bool bFoundParentBinding = MovieScene->FindTrackBinding(*PropertyTrack, ParentBindingGuid);
-		if (ensure(bFoundParentBinding && ParentBindingGuid.IsValid()))
+		if (bFoundParentBinding && ParentBindingGuid.IsValid())
 		{
 			const UClass* ParentBoundClass = nullptr;
 			if (const FMovieScenePossessable* ParentPossessable = MovieScene->FindPossessable(ParentBindingGuid))
