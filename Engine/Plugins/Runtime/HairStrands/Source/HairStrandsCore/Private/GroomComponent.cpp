@@ -45,6 +45,8 @@ static FAutoConsoleVariableRef CVarGroomCacheStreamingEnable(TEXT("GroomCache.En
 
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
+#define USE_HAIR_TRIANGLE_STRIP 1
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 EHairStrandsDebugMode GetHairStrandsGeometryDebugMode(const FHairGroupInstance* Instance);
@@ -774,7 +776,11 @@ public:
 		{
 			VertexFactory = (FVertexFactory*)Instance->Strands.VertexFactory;
 			HairVertexCount = Instance->Strands.RestResource->GetVertexCount();
+			#if USE_HAIR_TRIANGLE_STRIP
+			MaxVertexIndex = HairVertexCount * 2;
+			#else
 			MaxVertexIndex = HairVertexCount * 6;
+			#endif
 			bUseCulling = Instance->Strands.bIsCullingEnabled;
 			NumPrimitive = bUseCulling ? 0 : HairVertexCount * 2;
 			if (MaterialRenderProxy == nullptr && Instance->Strands.Material)
@@ -856,7 +862,11 @@ public:
 		BatchElement.MaxVertexIndex = MaxVertexIndex;
 		BatchElement.UserData = reinterpret_cast<void*>(uint64(ComponentId));
 		Mesh.ReverseCulling = bUseCardsOrMeshes ? IsLocalToWorldDeterminantNegative() : false;
-		Mesh.Type = PT_TriangleList;
+		#if USE_HAIR_TRIANGLE_STRIP
+		Mesh.Type = GeometryType == EHairGeometryType::Strands ? PT_TriangleStrip : PT_TriangleList;
+		#else
+		Mesh.Type = GeometryType == PT_TriangleList;
+		#endif
 		Mesh.DepthPriorityGroup = SDPG_World;
 		Mesh.bCanApplyViewModeOverrides = false;
 

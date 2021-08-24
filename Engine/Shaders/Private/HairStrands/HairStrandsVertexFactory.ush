@@ -13,6 +13,10 @@
 
 #define USE_HAIR_COMPLEX_TRANSMITTANCE 1 
 
+#ifndef USE_HAIR_TRIANGLE_STRIP
+	#error Hair triangle geometry type needs to be defined
+#endif
+
 #if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;
 	Buffer<float4> VertexFetch_InstanceTransformBuffer;
@@ -118,11 +122,17 @@ FVertexInfo GetVertexInfo(FVertexFactoryInput Input)
 	uint VertexId = Input.VertexId;
 
 	FVertexInfo VertexInfo;
+#if USE_HAIR_TRIANGLE_STRIP
+	VertexInfo.QuadIndex	= VertexId % 2;
+	VertexInfo.BaseIndex	= VertexId / 2;
+	VertexInfo.IsTip		= 0;
+	VertexInfo.IsLeft		= VertexInfo.QuadIndex == 0 ? 1 : 0;
+#else
 	VertexInfo.QuadIndex	= VertexId % 6;
 	VertexInfo.BaseIndex	= VertexId / 6;
 	VertexInfo.IsTip		= VertexInfo.QuadIndex == 0 || VertexInfo.QuadIndex == 2 || VertexInfo.QuadIndex == 4 ? 0 : 1;
 	VertexInfo.IsLeft		= VertexInfo.QuadIndex == 0 || VertexInfo.QuadIndex == 1 || VertexInfo.QuadIndex == 5 ? 1 : 0;
-
+#endif
 	VertexInfo.HairPrimitiveId = VertexInfo.BaseIndex;
 	VertexInfo.VertexIndex = VertexInfo.BaseIndex + VertexInfo.IsTip;
 	VertexInfo.LodRadiusScale = 1.0f;
@@ -198,7 +208,11 @@ FHairControlPoint GetVertexPosition(const FVertexInfo VertexInfo, bool bInvalidJ
 	
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
+#if USE_HAIR_TRIANGLE_STRIP
+	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END) || VertexInfo.bForceInvalidQuad;
+#else
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
+#endif
 	Out.Position = bIsInvalidQuad ? float3(INFINITE_FLOAT, INFINITE_FLOAT, INFINITE_FLOAT) : Out.Position;
 
 	return Out;
@@ -230,7 +244,11 @@ float3 GetVertexPreviousPosition(FVertexFactoryInput Input, bool bInvalidJointVe
 
 	// Create a degenerated quad the end of each strand to cut between each strands
 	// #hair_todo: This is not efficient for short strand like fur for instance. Need to revisit that at some point
+#if USE_HAIR_TRIANGLE_STRIP
+	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END) || VertexInfo.bForceInvalidQuad;
+#else
 	const bool bIsInvalidQuad = (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_START && VertexInfo.IsTip == 1) || (bInvalidJointVertex && Out.Type == HAIR_CONTROLPOINT_END && VertexInfo.IsTip == 0) || VertexInfo.bForceInvalidQuad;
+#endif
 	Out.Position = bIsInvalidQuad ? float3(INFINITE_FLOAT, INFINITE_FLOAT, INFINITE_FLOAT) : Out.Position;
 
 	return Out.Position;
