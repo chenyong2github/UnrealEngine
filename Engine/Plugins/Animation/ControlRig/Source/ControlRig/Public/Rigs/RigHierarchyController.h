@@ -372,6 +372,17 @@ public:
 	bool AddParent(FRigElementKey InChild, FRigElementKey InParent, float InWeight = 0.f, bool bMaintainGlobalTransform = true, bool bSetupUndo = false);
 
 	/**
+	* Adds a new parent to an element. For elements that allow only one parent the parent will be replaced (Same as ::SetParent).
+	* @param InChild The element to add the parent for
+	* @param InParent The new parent to add
+	* @param InWeight The initial weight to give to the parent
+	* @param bMaintainGlobalTransform If set to true the child will stay in the same place spatially, otherwise it will maintain it's local transform (and potential move).
+	* @param bRemoveAllParents If set to true all parents of the child will be removed first.
+	* @return Returns true if successful.
+	*/
+	bool AddParent(FRigBaseElement* InChild, FRigBaseElement* InParent, float InWeight = 0.f, bool bMaintainGlobalTransform = true, bool bRemoveAllParents = false);
+
+	/**
 	 * Removes an existing parent from an element in the hierarchy. For elements that allow only one parent the element will be unparented (same as ::RemoveAllParents)
 	 * @param InChild The key of the element to remove the parent for
 	 * @param InParent The key of the parent to remove
@@ -541,17 +552,6 @@ private:
 	 * @return Returns true if successful.
 	 */
     bool RenameElement(FRigBaseElement* InElement, const FName &InName);
-
-	/**
-	 * Adds a new parent to an element. For elements that allow only one parent the parent will be replaced (Same as ::SetParent).
-	 * @param InChild The element to add the parent for
-	 * @param InParent The new parent to add
-	 * @param InWeight The initial weight to give to the parent
-	 * @param bMaintainGlobalTransform If set to true the child will stay in the same place spatially, otherwise it will maintain it's local transform (and potential move).
-	 * @param bRemoveAllParents If set to true all parents of the child will be removed first.
-	 * @return Returns true if successful.
-	 */
-	bool AddParent(FRigBaseElement* InChild, FRigBaseElement* InParent, float InWeight = 0.f, bool bMaintainGlobalTransform = true, bool bRemoveAllParents = false);
 
 	/**
 	 * Removes an existing parent from an element in the hierarchy. For elements that allow only one parent the element will be unparented (same as ::RemoveAllParents)

@@ -1700,6 +1700,16 @@ public:
 	bool SetParentWeightArray(FRigBaseElement* InChild,  const TArray<FRigElementWeight>& InWeights, bool bInitial = false, bool bAffectChildren = true);
 
 	/**
+	* Sets the all of the weights of the parents of a multi parent element
+	* @param InChild The multi parented element
+	* @param InWeights The new weights to set for the parents
+	* @param bInitial If true the initial weights will be used
+	* @param bAffectChildren If set to false children will not move (maintain global).
+	* @return Returns true if changing the weight was successful
+	*/
+	bool SetParentWeightArray(FRigBaseElement* InChild,  const TArrayView<const FRigElementWeight>& InWeights, bool bInitial = false, bool bAffectChildren = true);
+
+	/**
 		* Switches a multi parent element to a single parent.
 		* This sets the new parent's weight to 1.0 and disables
 		* weights for all other potential parents.
