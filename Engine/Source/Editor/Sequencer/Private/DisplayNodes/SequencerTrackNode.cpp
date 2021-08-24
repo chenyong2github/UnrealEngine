@@ -744,7 +744,7 @@ FSlateColor FSequencerTrackNode::GetDisplayNameColor() const
 		// 3D transform tracks don't map to property bindings as below
 		if (Track->IsA<UMovieScene3DTransformTrack>() || Track->IsA<UMovieScenePrimitiveMaterialTrack>())
 		{
-			return bIsDimmed ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FSlateColor::UseForeground();
+			return bIsDimmed ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
 		}
 
 		FGuid ObjectBinding;
@@ -764,12 +764,12 @@ FSlateColor FSequencerTrackNode::GetDisplayNameColor() const
 					FTrackInstancePropertyBindings PropertyBinding(PropertyTrack->GetPropertyName(), PropertyTrack->GetPropertyPath().ToString());
 					if (PropertyBinding.GetProperty(*Object))
 					{
-						return bIsDimmed ? FLinearColor(0.6f, 0.6f, 0.6f, 0.6f) : FSlateColor::UseForeground();
+						return bIsDimmed ? FSlateColor::UseSubduedForeground() : FSlateColor::UseForeground();
 					}
 				}
 			}
 
-			return bIsDimmed ? FLinearColor(0.6f, 0.0f, 0.0f, 0.6f) : FLinearColor::Red;
+			return bIsDimmed ? FSlateColor(FLinearColor::Red.Desaturate(0.6f)) : FLinearColor::Red;
 		}
 	}
 
