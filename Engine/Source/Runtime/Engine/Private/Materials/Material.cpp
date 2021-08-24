@@ -6425,6 +6425,7 @@ void UMaterial::NotifyCompilationFinished(UMaterialInterface* Material)
 
 void UMaterial::ForceRecompileForRendering()
 {
+	UpdateCachedExpressionData();
 	CacheResourceShadersForRendering( false );
 }
 

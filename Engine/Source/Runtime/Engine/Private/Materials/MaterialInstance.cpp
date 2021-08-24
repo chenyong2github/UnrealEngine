@@ -2723,6 +2723,7 @@ bool UMaterialInstance::GetGroupName(const FHashedMaterialParameterInfo& Paramet
 #if WITH_EDITOR
 void UMaterialInstance::ForceRecompileForRendering()
 {
+	UpdateCachedLayerParameters();
 	CacheResourceShadersForRendering();
 }
 #endif // WITH_EDITOR

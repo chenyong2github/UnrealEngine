@@ -862,16 +862,15 @@ void UMaterialEditingLibrary::UpdateMaterialFunction(UMaterialFunctionInterface*
 {
 	if (MaterialFunction)
 	{
-		// mark the function as changed
-		MaterialFunction->PreEditChange(nullptr);
-		MaterialFunction->PostEditChange();
-		MaterialFunction->MarkPackageDirty();
-
 		// Create a material update context so we can safely update materials using this function.
 		{
 			FMaterialUpdateContext UpdateContext;
 
-			// Go through all function instances in memory and update them if they are children
+			// mark the function as changed
+			MaterialFunction->ForceRecompileForRendering(UpdateContext, PreviewMaterial);
+			MaterialFunction->MarkPackageDirty();
+
+			// Go through all function instances in memory and recompile them if they are children
 			for (TObjectIterator<UMaterialFunctionInstance> It; It; ++It)
 			{
 				UMaterialFunctionInstance* FunctionInstance = *It;
@@ -881,80 +880,19 @@ void UMaterialEditingLibrary::UpdateMaterialFunction(UMaterialFunctionInterface*
 				if (Functions.Contains(MaterialFunction))
 				{
 					FunctionInstance->UpdateParameterSet();
-					FunctionInstance->PreEditChange(nullptr);
-					FunctionInstance->PostEditChange();
+					FunctionInstance->ForceRecompileForRendering(UpdateContext, PreviewMaterial);
+
+					// ForceRecompileForRendering will update StateId, so need to mark the package as dirty
 					FunctionInstance->MarkPackageDirty();
 				}
 			}
 
-			// Go through all materials in memory and recompile them if they use this material function
-			for (TObjectIterator<UMaterial> It; It; ++It)
+			// Notify material editor for any materials that we are updating
+			for (UMaterialInterface* CurrentMaterial : UpdateContext.GetUpdatedMaterials())
 			{
-				UMaterial* CurrentMaterial = *It;
-				if (CurrentMaterial != PreviewMaterial)
+				if (IMaterialEditor* MaterialEditor = MaterialEditingLibraryImpl::FindMaterialEditorForAsset(CurrentMaterial))
 				{
-					bool bRecompile = false;
-
-					// Preview materials often use expressions for rendering that are not in their Expressions array, 
-					// And therefore their MaterialFunctionInfos are not up to date.
-					// However we don't want to trigger this if the Material is a preview material itself. This can now be the case with thumbnail preview materials for material functions.
-					if (CurrentMaterial->bIsPreviewMaterial && (PreviewMaterial != nullptr) && !PreviewMaterial->bIsPreviewMaterial)
-					{
-						bRecompile = true;
-					}
-					else
-					{
-						TArray<UMaterialFunctionInterface*> Functions;
-						CurrentMaterial->GetDependentFunctions(Functions);
-						if (Functions.Contains(MaterialFunction))
-						{
-							bRecompile = true;
-						}
-					}
-
-					if (bRecompile)
-					{
-						UpdateContext.AddMaterial(CurrentMaterial);
-
-						// Propagate the function change to this material
-						CurrentMaterial->PreEditChange(nullptr);
-						CurrentMaterial->PostEditChange();
-						CurrentMaterial->MarkPackageDirty();
-
-						if (CurrentMaterial->MaterialGraph)
-						{
-							CurrentMaterial->MaterialGraph->RebuildGraph();
-						}
-
-						// if this instance was opened in an editor notify the change
-						if (IMaterialEditor* MaterialEditor = MaterialEditingLibraryImpl::FindMaterialEditorForAsset(CurrentMaterial))
-						{
-							MaterialEditor->NotifyExternalMaterialChange();
-						}
-					}
-				}
-			}
-
-			// Go through all material instances in memory and recompile them if they use this material function
-			for (TObjectIterator<UMaterialInstance> It; It; ++It)
-			{
-				UMaterialInstance* CurrentInstance = *It;
-				if (CurrentInstance->GetBaseMaterial())
-				{
-					TArray<UMaterialFunctionInterface*> Functions;
-					CurrentInstance->GetDependentFunctions(Functions);
-					if (Functions.Contains(MaterialFunction))
-					{
-						UpdateContext.AddMaterialInstance(CurrentInstance);
-						CurrentInstance->PreEditChange(nullptr);
-						CurrentInstance->PostEditChange();
-
-						// if this instance was opened in an editor notify the change
-						if (IMaterialEditor* MaterialEditor = MaterialEditingLibraryImpl::FindMaterialEditorForAsset(CurrentInstance))
-						{
-							MaterialEditor->NotifyExternalMaterialChange();
-						}
-					}
+					MaterialEditor->NotifyExternalMaterialChange();
 				}
 			}
 		}
