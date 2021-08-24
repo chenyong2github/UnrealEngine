@@ -243,7 +243,7 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	bool bUseIoStore;
 
-	/** If enabled, staging will make a binary config fie for faster loading. */
+	/** If enabled, staging will make a binary config file for faster loading. */
 	UPROPERTY(config, EditAnywhere, Category = Packaging)
 	bool bMakeBinaryConfig;
 
