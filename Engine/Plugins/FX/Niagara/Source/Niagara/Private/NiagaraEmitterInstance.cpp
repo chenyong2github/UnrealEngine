@@ -1523,9 +1523,15 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 
 		// @todo-threadsafety do this once during init. Should not change during runtime...
 		const uint32 ConstantBufferSize = ParmSize / (GPUExecContext->HasInterpolationParameters ? 2 : 1);
-		if (GPUExecContext->ExternalCBufferLayout->ConstantBufferSize != ConstantBufferSize)
+		if (GPUExecContext->ExternalCBufferLayoutSize != ConstantBufferSize)
 		{
-			GPUExecContext->ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"), ConstantBufferSize);
+			GPUExecContext->ExternalCBufferLayoutSize = ConstantBufferSize;
+			ENQUEUE_RENDER_COMMAND(UpdateConstantBuffer)(
+				[GPUExecContext_RT=GPUExecContext, ConstantBufferSize_RT=ConstantBufferSize](FRHICommandListImmediate& RHICmdList)
+				{
+					GPUExecContext_RT->ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"), ConstantBufferSize_RT);
+				}
+			);
 		}
 
 		// Need to call post-tick, which calls the copy to previous for interpolated spawning

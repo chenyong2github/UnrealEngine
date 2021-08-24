@@ -173,6 +173,7 @@ public:
 	class FNiagaraShaderScript*  GPUScript_RT;
 
 	// persistent layouts used to create the constant buffers for the compute sim shader
+	uint32 ExternalCBufferLayoutSize = 0;
 	TRefCountPtr<FNiagaraRHIUniformBufferLayout> ExternalCBufferLayout;
 
 	//Dynamic state updated either from GT via RT commands or from the RT side sim code itself.
