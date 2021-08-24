@@ -242,15 +242,15 @@ TMap<FString, void*> UNeuralNetworkLegacy::CreateInputDataPointersMutable()
 	return TensorManager.CreateInputDataPointersMutable();
 }
 
-FRDGBufferUAVRef UNeuralNetworkLegacy::GetInputBufferUAVRef()
-{
-	return TensorManager.GetInputBufferUAVRef();
-}
-
-TMap<FString, FRDGBufferUAVRef> UNeuralNetworkLegacy::CreateInputBufferUAVRefs()
-{
-	return TensorManager.CreateInputBufferUAVRefs();
-}
+//FRDGBufferUAVRef UNeuralNetworkLegacy::GetInputBufferUAVRef()
+//{
+//	return TensorManager.GetInputBufferUAVRef();
+//}
+//
+//TMap<FString, FRDGBufferUAVRef> UNeuralNetworkLegacy::CreateInputBufferUAVRefs()
+//{
+//	return TensorManager.CreateInputBufferUAVRefs();
+//}
 
 const FNeuralTensor& UNeuralNetworkLegacy::GetInputTensor() const
 {
