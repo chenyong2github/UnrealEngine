@@ -568,12 +568,7 @@ namespace OpenXRInputNamespace
 
 void FOpenXRInputPlugin::FOpenXRInput::SendControllerEvents()
 {
-	if (!bActionsBound)
-	{
-		return;
-	}
-
-	if (OpenXRHMD == nullptr)
+	if (!bActionsBound || OpenXRHMD == nullptr)
 	{
 		return;
 	}
@@ -890,7 +885,7 @@ void FOpenXRInputPlugin::FOpenXRInput::EnumerateSources(TArray<FMotionController
 // TODO: Refactor API to change the Hand type to EControllerHand
 void FOpenXRInputPlugin::FOpenXRInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values)
 {
-	if (OpenXRHMD == nullptr)
+	if (!bActionsBound || OpenXRHMD == nullptr)
 	{
 		return;
 	}

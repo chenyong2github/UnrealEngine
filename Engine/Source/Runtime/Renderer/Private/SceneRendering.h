@@ -1869,7 +1869,7 @@ public:
 	static FSceneRenderer* CreateSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer);
 
 	/** Setups FViewInfo::ViewRect according to ViewFamilly's ScreenPercentageInterface. */
-	void PrepareViewRectsForRendering();
+	void PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList);
 
 #if WITH_MGPU
 	/** Assigns the view GPU masks and returns the render target GPU mask. */

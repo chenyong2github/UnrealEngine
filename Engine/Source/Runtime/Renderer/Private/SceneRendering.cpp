@@ -2595,7 +2595,7 @@ FIntPoint FSceneRenderer::GetDesiredInternalBufferSize(const FSceneViewFamily& V
 }
 
 
-void FSceneRenderer::PrepareViewRectsForRendering()
+void FSceneRenderer::PrepareViewRectsForRendering(FRHICommandListImmediate& RHICmdList)
 {
 	check(IsInRenderingThread());
 
@@ -2616,7 +2616,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 			for (int32 i = 0; i < Views.Num(); i++)
 			{
 				FViewInfo& View = Views[i];
-				GEngine->StereoRenderingDevice->SetFinalViewRect(View.StereoPass, View.ViewRect);
+				GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoPass, View.ViewRect);
 			}
 		}
 		return;
@@ -2771,7 +2771,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 		for (int32 i = 0; i < Views.Num(); i++)
 		{
 			FViewInfo& View = Views[i];
-			GEngine->StereoRenderingDevice->SetFinalViewRect(View.StereoPass, View.ViewRect);
+			GEngine->StereoRenderingDevice->SetFinalViewRect(RHICmdList, View.StereoPass, View.ViewRect);
 		}
 	}
 }

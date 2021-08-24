@@ -664,7 +664,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Establish scene primitive count (must be done after UpdateAllPrimitiveSceneInfos)
 	FGPUSceneScopeBeginEndHelper GPUSceneScopeBeginEndHelper(Scene->GPUScene, GPUSceneDynamicContext, Scene);
 
-	PrepareViewRectsForRendering();
+	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 	if (ShouldRenderSkyAtmosphere(Scene, ViewFamily.EngineShowFlags))
 	{
