@@ -3,24 +3,12 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "AssetRegistry/AssetData.h"
 #include "FoliageType.h"
 
 #include "AssetPlacementSettings.generated.h"
 
-class IAssetFactoryInterface;
-
-USTRUCT()
-struct FPaletteItem
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	FAssetData AssetData;
-
-	UPROPERTY()
-	TScriptInterface<IAssetFactoryInterface> AssetFactoryInterface;
-};
+class UPlacementPaletteAsset;
+struct FPaletteItem;
 
 UCLASS(config = EditorPerProjectUserSettings)
 class UAssetPlacementSettings : public UObject
@@ -128,12 +116,27 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Place on Filters")
 	bool bTranslucent = false;
 
-	// todo: palette save and load between sessions
-	//UPROPERTY(config)
-	TArray<TSharedPtr<FPaletteItem>> PaletteItems;
-
 	UPROPERTY(config)
 	bool bUseContentBrowserSelection = true;
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+
+	void SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset);
+	void AddItemToActivePalette(const FPaletteItem& InPaletteItem);
+	TArrayView<const FPaletteItem> GetActivePaletteItems() const;
+	void ClearActivePaletteItems();
+	void SaveActivePalette();
+	void Restore();
+	void Save();
+
+protected:
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPlacementPaletteAsset> ActivePalette;
+
+	UPROPERTY(Transient)
+	TObjectPtr<UPlacementPaletteAsset> UserPalette;
+
+	UPROPERTY(config)
+	FSoftObjectPath LastActivePalettePath;
 };

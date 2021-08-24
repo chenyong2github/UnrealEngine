@@ -126,7 +126,7 @@ bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelectio
 
 	// And we need to have a valid palette item.
 	FTypedElementHandle ActorHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(InActor);
-	return GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(ActorHandle);
+	return GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(ActorHandle);
 }
 
 void UAssetPlacementEdMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
@@ -183,6 +183,12 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 		return false;
 	}
 
+	// Disable the widget in the lasso tool. The drag operations currently fight with the widget.
+	if (GetToolManager()->GetActiveToolName(EToolSide::Mouse) == UPlacementModeLassoSelectTool::ToolName)
+	{
+		return false;
+	}
+
 	return Super::ShouldDrawWidget();
 }
 
@@ -215,7 +221,7 @@ void UAssetPlacementEdMode::ClearSelection()
 
 bool UAssetPlacementEdMode::HasAnyAssetsInPalette() const
 {
-	return SettingsObjectAsPlacementSettings.IsValid() ? (SettingsObjectAsPlacementSettings->PaletteItems.Num() > 0) : false;
+	return SettingsObjectAsPlacementSettings.IsValid() ? (SettingsObjectAsPlacementSettings->GetActivePaletteItems().Num() > 0) : false;
 }
 
 bool UAssetPlacementEdMode::HasActiveSelection() const

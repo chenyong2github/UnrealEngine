@@ -9,6 +9,7 @@
 #include "InstancedFoliage.h"
 #include "InteractiveToolManager.h"
 #include "Modes/PlacementModeSubsystem.h"
+#include "PlacementPaletteItem.h"
 
 constexpr TCHAR UPlacementModePlacementTool::ToolName[];
 
@@ -38,76 +39,78 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 		return;
 	}
 
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (BrushProperties && PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num())
+	UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
+	const UAssetPlacementSettings* PlacementSettings = PlacementModeSubsystem ? PlacementModeSubsystem->GetModeSettingsObject() : nullptr;
+	if (BrushProperties && PlacementSettings)
 	{
-		FVector BrushLocation = LastBrushStamp.WorldPosition;
-
-		// Assume a default density of 100 * whatever the user has selected as brush size.
-		float DefaultDensity = 100.0f * BrushProperties->BrushSize;
-		// This is the total set of instances disregarding parameters like slope, height or layer.
-		float DesiredInstanceCountFloat = DefaultDensity /** todo: individual item's Density*/ * BrushProperties->BrushStrength;
-		// Allow a single instance with a random chance, if the brush is smaller than the density
-		int32 DesiredInstanceCount = DesiredInstanceCountFloat > 1.f ? FMath::RoundToInt(DesiredInstanceCountFloat) : FMath::FRand() < DesiredInstanceCountFloat ? 1 : 0;
-
-		// Todo: save the instance hash per tile for the editor, so that paints don't continually add instances and surpass desired density (partition actor?)
-		FFoliageInstanceHash PotentialInstanceHash(7);
-		TArray<FVector> PotentialInstanceLocations;
-
-		TArray<FAssetPlacementInfo> DesiredInfoSpawnLocations;
-		DesiredInfoSpawnLocations.Reserve(DesiredInstanceCount);
-		PotentialInstanceLocations.Empty(DesiredInstanceCount);
-		for (int32 Index = 0; Index < DesiredInstanceCount; ++Index)
+		TArrayView<const FPaletteItem> PaletteItems = MakeArrayView(PlacementSettings->GetActivePaletteItems());
+		if (PaletteItems.Num())
 		{
-			FVector Start, End;
-			GetRandomVectorInBrush(Start, End);
-			FHitResult AdjustedHitResult;
-			FindHitResultWithStartAndEndTraceVectors(AdjustedHitResult, Start, End);
-			FVector SpawnLocation = AdjustedHitResult.ImpactPoint;
-			FVector SpawnNormal = AdjustedHitResult.ImpactNormal;
+			FVector BrushLocation = LastBrushStamp.WorldPosition;
 
-			bool bValidInstance = true;
-			auto TempInstances = PotentialInstanceHash.GetInstancesOverlappingBox(FBox::BuildAABB(BrushLocation, FVector(BrushProperties->BrushRadius)));
-			for (int32 InstanceIndex : TempInstances)
+			// Assume a default density of 100 * whatever the user has selected as brush size.
+			float DefaultDensity = 100.0f * BrushProperties->BrushSize;
+			// This is the total set of instances disregarding parameters like slope, height or layer.
+			float DesiredInstanceCountFloat = DefaultDensity /** todo: individual item's Density*/ * BrushProperties->BrushStrength;
+			// Allow a single instance with a random chance, if the brush is smaller than the density
+			int32 DesiredInstanceCount = DesiredInstanceCountFloat > 1.f ? FMath::RoundToInt(DesiredInstanceCountFloat) : FMath::FRand() < DesiredInstanceCountFloat ? 1 : 0;
+
+			// Todo: save the instance hash per tile for the editor, so that paints don't continually add instances and surpass desired density (partition actor?)
+			FFoliageInstanceHash PotentialInstanceHash(7);
+			TArray<FVector> PotentialInstanceLocations;
+
+			TArray<FAssetPlacementInfo> DesiredInfoSpawnLocations;
+			DesiredInfoSpawnLocations.Reserve(DesiredInstanceCount);
+			PotentialInstanceLocations.Empty(DesiredInstanceCount);
+			for (int32 Index = 0; Index < DesiredInstanceCount; ++Index)
 			{
-				if ((PotentialInstanceLocations[InstanceIndex] - BrushLocation).SizeSquared() < FMath::Square(BrushProperties->BrushRadius))
+				FVector Start, End;
+				GetRandomVectorInBrush(Start, End);
+				FHitResult AdjustedHitResult;
+				FindHitResultWithStartAndEndTraceVectors(AdjustedHitResult, Start, End);
+				FVector SpawnLocation = AdjustedHitResult.ImpactPoint;
+				FVector SpawnNormal = AdjustedHitResult.ImpactNormal;
+
+				bool bValidInstance = true;
+				auto TempInstances = PotentialInstanceHash.GetInstancesOverlappingBox(FBox::BuildAABB(BrushLocation, FVector(BrushProperties->BrushRadius)));
+				for (int32 InstanceIndex : TempInstances)
 				{
-					bValidInstance = false;
-					break;
+					if ((PotentialInstanceLocations[InstanceIndex] - BrushLocation).SizeSquared() < FMath::Square(BrushProperties->BrushRadius))
+					{
+						bValidInstance = false;
+						break;
+					}
 				}
+
+				if (!bValidInstance)
+				{
+					continue;
+				}
+
+				int32 PotentialIdx = PotentialInstanceLocations.Add(SpawnLocation);
+				PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
+
+				int32 ItemIndex = FMath::RandHelper(PaletteItems.Num());
+				const FPaletteItem& ItemToPlace = PaletteItems[ItemIndex];
+
+				FAssetPlacementInfo NewInfo;
+				NewInfo.AssetToPlace = ItemToPlace.AssetPath.TryLoad();
+				NewInfo.FactoryOverride = ItemToPlace.AssetFactoryInterface;
+				NewInfo.ItemGuid = ItemToPlace.ItemGuid;
+				NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
+				NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
+
+				DesiredInfoSpawnLocations.Emplace(NewInfo);
 			}
 
-			if (!bValidInstance)
+			UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
+			if (PlacementSubsystem)
 			{
-				continue;
+				FPlacementOptions PlacementOptions;
+				PlacementOptions.bPreferBatchPlacement = true;
+				PlacementOptions.InstancedPlacementGridGuid = UPlacementSubsystem::GetUserGridGuid();
+				PlacementSubsystem->PlaceAssets(DesiredInfoSpawnLocations, PlacementOptions);
 			}
-
-			int32 PotentialIdx = PotentialInstanceLocations.Add(SpawnLocation);
-			PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
-
-			int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
-			const TSharedPtr<FPaletteItem>& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
-			if (!ItemToPlace)
-			{
-				return;
-			}
-
-			FAssetPlacementInfo NewInfo;
-			NewInfo.AssetToPlace = ItemToPlace->AssetData;
-			NewInfo.FactoryOverride = ItemToPlace->AssetFactoryInterface;
-			NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
-			NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
-
-			DesiredInfoSpawnLocations.Emplace(NewInfo);
-		}
-
-		UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
-		if (PlacementSubsystem)
-		{
-			FPlacementOptions PlacementOptions;
-			PlacementOptions.bPreferBatchPlacement = true;
-			PlacementOptions.InstancedPlacementGridGuid = UPlacementSubsystem::GetUserGridGuid();
-			PlacementSubsystem->PlaceAssets(DesiredInfoSpawnLocations, PlacementOptions);
 		}
 	}
 }

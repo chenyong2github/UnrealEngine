@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetPlacementSettings.h"
+#include "PlacementPaletteAsset.h"
+#include "PackageTools.h"
+#include "PlacementPaletteItem.h"
 
 bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 {
@@ -36,4 +39,67 @@ bool UAssetPlacementSettings::CanEditChange(const FProperty* InProperty) const
 	}
 
 	return true;
+}
+
+void UAssetPlacementSettings::SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset)
+{
+	if (!InPaletteAsset)
+	{
+		ActivePalette = UserPalette;
+	}
+	else
+	{
+		ActivePalette = InPaletteAsset;
+	}
+
+	LastActivePalettePath = FSoftObjectPath(InPaletteAsset);
+}
+
+void UAssetPlacementSettings::AddItemToActivePalette(const FPaletteItem& InPaletteItem)
+{
+	ActivePalette->Modify();
+	ActivePalette->PaletteItems.Add(InPaletteItem);
+}
+
+TArrayView<const FPaletteItem> UAssetPlacementSettings::GetActivePaletteItems() const
+{
+	return ActivePalette ? MakeArrayView(ActivePalette->PaletteItems) : TArrayView<const FPaletteItem>();
+}
+
+void UAssetPlacementSettings::ClearActivePaletteItems()
+{
+	ActivePalette->PaletteItems.Empty();
+}
+
+void UAssetPlacementSettings::Restore()
+{
+	LoadConfig();
+
+	UserPalette = NewObject<UPlacementPaletteAsset>(this);
+	UserPalette->LoadConfig();
+
+	ActivePalette = Cast<UPlacementPaletteAsset>(LastActivePalettePath.TryLoad());
+	if (!ActivePalette)
+	{
+		ActivePalette = UserPalette;
+	}
+}
+
+void UAssetPlacementSettings::SaveActivePalette()
+{
+	if (ActivePalette != UserPalette)
+	{
+		UPackageTools::SavePackagesForObjects(TArray<UObject*>({ ActivePalette }));
+	}
+	else
+	{
+		UserPalette->SaveConfig();
+	}
+}
+
+void UAssetPlacementSettings::Save()
+{
+	UPackageTools::SavePackagesForObjects(TArray<UObject*>({ActivePalette}));
+	UserPalette->SaveConfig();
+	SaveConfig();
 }
