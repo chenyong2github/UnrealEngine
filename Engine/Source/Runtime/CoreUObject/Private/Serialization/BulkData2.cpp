@@ -1715,6 +1715,7 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 
 	// Set up our options (we only need to set the target)
 	FIoReadOptions Options;
+	Options.SetRange(GetBulkDataOffsetInFile(), GetBulkDataSize());
 	Options.SetTargetVa(*DstBuffer);
 
 	FIoBatch Batch = GetIoDispatcher()->NewBatch();
