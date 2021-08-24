@@ -2030,14 +2030,14 @@ void FScene::AddReflectionCapture(UReflectionCaptureComponent* Component)
 			const int32 PackedIndex = Scene->ReflectionSceneData.RegisteredReflectionCaptures.Add(Proxy);
 
 			Proxy->PackedIndex = PackedIndex;
-			Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Add(FSphere(Proxy->Position, Proxy->InfluenceRadius));
+			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Add(Proxy->Position);
 			
 			if (Scene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1)
 			{
 				Proxy->UpdateMobileUniformBuffer();
 			}
 
-			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num());
+			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num());
 		});
 	}
 }
@@ -2067,7 +2067,7 @@ void FScene::RemoveReflectionCapture(UReflectionCaptureComponent* Component)
 
 			int32 CaptureIndex = Proxy->PackedIndex;
 			Scene->ReflectionSceneData.RegisteredReflectionCaptures.RemoveAtSwap(CaptureIndex);
-			Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.RemoveAtSwap(CaptureIndex);
+			Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.RemoveAtSwap(CaptureIndex);
 
 			if (Scene->ReflectionSceneData.RegisteredReflectionCaptures.IsValidIndex(CaptureIndex))
 			{
@@ -2077,7 +2077,7 @@ void FScene::RemoveReflectionCapture(UReflectionCaptureComponent* Component)
 
 			delete Proxy;
 
-			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num());
+			checkSlow(Scene->ReflectionSceneData.RegisteredReflectionCaptures.Num() == Scene->ReflectionSceneData.RegisteredReflectionCapturePositions.Num());
 		});
 
 		// Disassociate the primitive's scene proxy.
@@ -2161,38 +2161,17 @@ const FReflectionCaptureProxy* FScene::FindClosestReflectionCapture(FVector Posi
 	int32 ClosestCaptureIndex = INDEX_NONE;
 	float ClosestDistanceSquared = FLT_MAX;
 
-	int32 ClosestInfluencingCaptureIndex = INDEX_NONE;
-
 	// Linear search through the scene's reflection captures
-	// ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius has been packed densely to make this coherent in memory
-	for (int32 CaptureIndex = 0; CaptureIndex < ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num(); CaptureIndex++)
+	// ReflectionSceneData.RegisteredReflectionCapturePositions has been packed densely to make this coherent in memory
+	for (int32 CaptureIndex = 0; CaptureIndex < ReflectionSceneData.RegisteredReflectionCapturePositions.Num(); CaptureIndex++)
 	{
-		const FSphere& ReflectionCapturePositionAndRadius = ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius[CaptureIndex];
+		const float DistanceSquared = (ReflectionSceneData.RegisteredReflectionCapturePositions[CaptureIndex] - Position).SizeSquared();
 
-		const float DistanceSquared = (ReflectionCapturePositionAndRadius.Center - Position).SizeSquared();
-
-		// If the Position is inside the InfluenceRadius of a ReflectionCapture
-		if (DistanceSquared <= FMath::Square(ReflectionCapturePositionAndRadius.W))
-		{
-			// Choose the closest ReflectionCapture or record the first one found.
-			if (ClosestInfluencingCaptureIndex == INDEX_NONE || DistanceSquared < ClosestDistanceSquared)
-			{
-				ClosestDistanceSquared = DistanceSquared;
-				ClosestInfluencingCaptureIndex = CaptureIndex;
-			}
-		}
-		// If no influencing ReflectionCapture has been found, record the closest ReflectionCapture.
-		else if (ClosestInfluencingCaptureIndex == INDEX_NONE && DistanceSquared < ClosestDistanceSquared)
+		if (DistanceSquared < ClosestDistanceSquared)
 		{
 			ClosestDistanceSquared = DistanceSquared;
 			ClosestCaptureIndex = CaptureIndex;
 		}
-	}
-
-	// Choose the closest influencing ReflectionCapture if any exists.
-	if (ClosestInfluencingCaptureIndex != INDEX_NONE)
-	{
-		ClosestCaptureIndex = ClosestInfluencingCaptureIndex;
 	}
 
 	return ClosestCaptureIndex != INDEX_NONE ? ReflectionSceneData.RegisteredReflectionCaptures[ClosestCaptureIndex] : NULL;
@@ -2251,7 +2230,7 @@ void FScene::FindClosestReflectionCaptures(FVector Position, const FReflectionCa
 	};
 
 	// Find the nearest n captures to this primitive. 
-	const int32 NumRegisteredReflectionCaptures = ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num();
+	const int32 NumRegisteredReflectionCaptures = ReflectionSceneData.RegisteredReflectionCapturePositions.Num();
 	const int32 PopulateCaptureCount = FMath::Min(ArraySize, NumRegisteredReflectionCaptures);
 
 	TArray<FReflectionCaptureDistIndex, TFixedAllocator<ArraySize>> ClosestCaptureIndices;
@@ -2260,12 +2239,12 @@ void FScene::FindClosestReflectionCaptures(FVector Position, const FReflectionCa
 	for (int32 CaptureIndex = 0; CaptureIndex < PopulateCaptureCount; CaptureIndex++)
 	{
 		ClosestCaptureIndices[CaptureIndex].CaptureIndex = CaptureIndex;
-		ClosestCaptureIndices[CaptureIndex].CaptureDistance = (ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius[CaptureIndex].Center - Position).SizeSquared();
+		ClosestCaptureIndices[CaptureIndex].CaptureDistance = (ReflectionSceneData.RegisteredReflectionCapturePositions[CaptureIndex] - Position).SizeSquared();
 	}
 	
 	for (int32 CaptureIndex = PopulateCaptureCount; CaptureIndex < NumRegisteredReflectionCaptures; CaptureIndex++)
 	{
-		const float DistanceSquared = (ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius[CaptureIndex].Center - Position).SizeSquared();
+		const float DistanceSquared = (ReflectionSceneData.RegisteredReflectionCapturePositions[CaptureIndex] - Position).SizeSquared();
 		for (int32 i = 0; i < ArraySize; i++)
 		{
 			if (DistanceSquared<ClosestCaptureIndices[i].CaptureDistance)

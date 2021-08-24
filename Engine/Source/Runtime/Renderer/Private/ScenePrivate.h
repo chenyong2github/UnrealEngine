@@ -1607,7 +1607,7 @@ public:
 
 	/** The rendering thread's list of visible reflection captures in the scene. */
 	TArray<FReflectionCaptureProxy*> RegisteredReflectionCaptures;
-	TArray<FSphere> RegisteredReflectionCapturePositionAndRadius;
+	TArray<FVector> RegisteredReflectionCapturePositions;
 
 	/** 
 	 * Cubemap array resource which contains the captured scene for each reflection capture.
