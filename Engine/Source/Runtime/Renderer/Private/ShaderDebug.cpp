@@ -19,7 +19,7 @@ namespace ShaderDrawDebug
 		TEXT("ShaderDrawDebug debugging toggle.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
 
-	static int32 GShaderDrawDebug_MaxElementCount;
+	static int32 GShaderDrawDebug_MaxElementCount = 1;
 	static FAutoConsoleVariableRef CVarShaderDrawMaxElementCount(
 		TEXT("r.ShaderDrawDebug.MaxElementCount"),
 		GShaderDrawDebug_MaxElementCount,
@@ -31,6 +31,10 @@ namespace ShaderDrawDebug
 		0,
 		TEXT("Lock the shader draw buffer.\n"),
 		ECVF_Cheat | ECVF_RenderThreadSafe);
+
+	static FViewInfo* GDefaultView = nullptr;
+	static uint32 GElementRequestCount = 0;
+
 
 	bool IsEnabled()
 	{
@@ -54,12 +58,18 @@ namespace ShaderDrawDebug
 
 	void SetMaxElementCount(uint32 MaxCount)
 	{
-		GShaderDrawDebug_MaxElementCount = FMath::Max(1024, int32(MaxCount));
+		GShaderDrawDebug_MaxElementCount = FMath::Max3(1024, GShaderDrawDebug_MaxElementCount, int32(MaxCount));
 	}
 
 	uint32 GetMaxElementCount()
 	{
 		return uint32(FMath::Max(1, GShaderDrawDebug_MaxElementCount));
+	}
+
+
+	void RequestSpaceForElements(uint32 MaxElementCount)
+	{
+		GElementRequestCount += MaxElementCount;
 	}
 
 	bool IsEnabled(const FViewInfo& View)
@@ -238,6 +248,10 @@ namespace ShaderDrawDebug
 			return;
 		}
 
+		// Update max element count from the request count and reset
+		GShaderDrawDebug_MaxElementCount = FMath::Max(GShaderDrawDebug_MaxElementCount, int32(GElementRequestCount));
+		GElementRequestCount = 0;
+
 		FSceneViewState* ViewState = View.ViewState;
 
 		const bool bLockBufferThisFrame = IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked;
@@ -280,6 +294,13 @@ namespace ShaderDrawDebug
 			ViewState->ShaderDrawDebugStateData.IndirectBuffer = nullptr;
 			ViewState->ShaderDrawDebugStateData.bIsLocked = false;
 		}
+
+		// Invalid to call begin twice for the same view.
+		check(GDefaultView != &View);
+		if (GDefaultView == nullptr)
+		{
+			GDefaultView = &View;
+		}
 	}
 
 	void DrawView(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef OutputTexture, FRDGTextureRef DepthTexture)
@@ -309,6 +330,8 @@ namespace ShaderDrawDebug
 		{
 			return;
 		}
+
+		GDefaultView = nullptr;
 	}
 
 	void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters)
@@ -324,5 +347,19 @@ namespace ShaderDrawDebug
 		OutParameters.ShaderDrawMaxElementCount = GetMaxElementCount();
 		OutParameters.OutShaderDrawPrimitive = GraphBuilder.CreateUAV(DataBuffer);
 		OutParameters.OutputShaderDrawIndirect = GraphBuilder.CreateUAV(IndirectBuffer);
+	}
+
+	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
+	bool IsDefaultViewEnabled()
+	{
+		return GDefaultView != nullptr && IsEnabled(*GDefaultView);
+	}
+
+	void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters)
+	{
+		if (GDefaultView != nullptr)
+		{
+			SetParameters(GraphBuilder, GDefaultView->ShaderDrawData, OutParameters);
+		}
 	}
 }

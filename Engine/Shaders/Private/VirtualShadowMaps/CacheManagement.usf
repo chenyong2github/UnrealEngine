@@ -9,6 +9,11 @@
 //#include "NaniteDataDecode.ush"
  #include "../Nanite/HZBCull.ush"
 
+#if ENABLE_DEBUG_MODE
+#include "../ShaderDrawDebug.ush"
+#include "../ColorMap.ush"
+#endif
+
 struct FInstanceSceneDataRange
 {
 	int InstanceSceneDataOffset;
@@ -19,6 +24,10 @@ uint NumRemovedItems;
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
 uint InstanceSceneDataSOAStride;
+
+#if ENABLE_DEBUG_MODE
+uint bDrawBounds;
+#endif
 
 /**
  * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space 
@@ -49,7 +58,10 @@ void VirtualSmInvalidateInstancePagesCS(
 
 		// TODO: Clean up hardcoded flag field test.
 		bool bCastShadows = (GetPrimitiveData(InstanceSceneData.PrimitiveId).Flags & 1U) != 0U;
-		
+#if ENABLE_DEBUG_MODE
+		uint PageInvalidationCount = 0U;
+#endif
+
 		// TODO: test the flag on the instance instead once it is updated correctly InstanceSceneData.CastShadows
 		if (bCastShadows)
 		{
@@ -108,10 +120,13 @@ void VirtualSmInvalidateInstancePagesCS(
 											{
 												// Somewhere
 												OutDynamicCasterFlags[PageFlagOffset] = 1;
+#if ENABLE_DEBUG_MODE
+												++PageInvalidationCount;
+#endif
+
 											}
 										}
 									}
-
 								}
 							}
 						}
@@ -119,5 +134,12 @@ void VirtualSmInvalidateInstancePagesCS(
 				}
 			}
 		}
+#if ENABLE_DEBUG_MODE
+		if (bDrawBounds && PageInvalidationCount > 0U)
+		{
+			float3 Color = float3(0.3f, 0.3f, 0.3f) + ColorMapTurbo(min(1.0f, float(PageInvalidationCount) / 100.0f)) * 0.7f;
+			AddOBB(InstanceSceneData.LocalBoundsCenter - InstanceSceneData.LocalBoundsExtent, InstanceSceneData.LocalBoundsCenter + InstanceSceneData.LocalBoundsExtent, float4(Color, 1.0f), InstanceSceneData.LocalToWorld);
+		}
+#endif
 	}
 }

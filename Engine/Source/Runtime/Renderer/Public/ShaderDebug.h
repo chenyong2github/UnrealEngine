@@ -28,6 +28,13 @@ namespace ShaderDrawDebug
 	RENDERER_API void SetMaxElementCount(uint32 MaxCount);
 	RENDERER_API uint32 GetMaxElementCount();
 
+	/**
+	 * Call to ensure enough space for some number of elements, is added cumulatively each frame, to make it possible for several systems to request a certain number independently.
+	 * Is used to grow the max element count for subsequent frames (as the allocation happens early in the frame). 
+	 * @param The number of elements requested, an element corresponds to a line, so a cube, for example, needs 12 elements.
+	 */
+	RENDERER_API void RequestSpaceForElements(uint32 MaxElementCount);
+
 	// Call this to know if a view can render this debug information
 	bool IsEnabled(const FViewInfo& View);
 
@@ -48,4 +55,9 @@ namespace ShaderDrawDebug
 
 	// Call this to fill the FShaderDrawParameters
 	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, const FShaderDrawDebugData& Data, FShaderParameters& OutParameters);
+
+	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)
+	bool IsDefaultViewEnabled();
+	// Call this to fill the FShaderDrawParameters using the default view (the first one for which Begin was called in case of stereo or similar)
+	RENDERER_API void SetParameters(FRDGBuilder& GraphBuilder, FShaderParameters& OutParameters);
 }

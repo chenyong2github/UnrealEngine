@@ -1937,10 +1937,7 @@ void FScene::ShowPhysicsField()
 		{
 			ShaderDrawDebug::SetEnabled(true);
 		}
-		if (ShaderDrawDebug::GetMaxElementCount() < 128000)
-		{
-			ShaderDrawDebug::SetMaxElementCount(128000);
-		}
+		ShaderDrawDebug::RequestSpaceForElements(128000);
 	}
 }
 
