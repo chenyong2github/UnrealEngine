@@ -26,7 +26,9 @@ public:
 	void UpdateConfiguration_Disabled();
 
 	bool IsValid() const
-		{ return bIsEnabled; }
+	{
+		return bIsEnabled;
+	}
 
 public:
 	void PerformPostProcessFrame_RenderThread(FRHICommandListImmediate& RHICmdList, const TArray<FRHITexture2D*>* InFrameTargets = nullptr, const TArray<FRHITexture2D*>* InAdditionalFrameTargets = nullptr) const;
