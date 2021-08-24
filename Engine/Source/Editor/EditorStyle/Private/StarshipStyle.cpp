@@ -24,6 +24,7 @@
 
 void FStarshipEditorStyle::Initialize()
 {
+	LLM_SCOPE_BYNAME(TEXT("FStarshipEditorStyle"));
 	Settings = NULL;
 
 	// The core style must be initialized before the editor style

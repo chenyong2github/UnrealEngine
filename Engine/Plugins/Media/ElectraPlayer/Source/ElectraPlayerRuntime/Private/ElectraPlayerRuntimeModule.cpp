@@ -42,6 +42,7 @@ public:
 
 	void StartupModule() override
 	{
+		LLM_SCOPE_BYNAME(TEXT("StartupModule"));
 		check(!bInitialized);
 
 		if (!Electra::PlatformEarlyStartup())

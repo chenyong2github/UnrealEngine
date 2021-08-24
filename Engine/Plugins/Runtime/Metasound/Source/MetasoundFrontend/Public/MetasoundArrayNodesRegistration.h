@@ -174,6 +174,7 @@ namespace Metasound
 	template<typename ArrayType>
 	bool RegisterArrayNodes()
 	{
+		LLM_SCOPE_BYNAME(TEXT("Metasound"));
 		using namespace MetasoundArrayNodesPrivate;
 
 		bool bSuccess = RegisterArrayNumNode<ArrayType>();
