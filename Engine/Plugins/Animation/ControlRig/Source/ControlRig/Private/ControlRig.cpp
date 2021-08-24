@@ -702,6 +702,9 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				{
 					if(CDO->GetHierarchy()->GetTopologyVersion()!= GetHierarchy()->GetTopologyVersion())
 					{
+#if WITH_EDITOR
+						FTransientControlScope TransientControlScope(GetHierarchy());
+#endif
 						GetHierarchy()->CopyHierarchy(CDO->GetHierarchy());
 					}
 				}
@@ -2784,6 +2787,46 @@ UControlRig::FPoseScope::~FPoseScope()
 
 	ControlRig->GetHierarchy()->SetPose(CachedPose);
 }
+
+#if WITH_EDITOR
+
+UControlRig::FTransientControlScope::FTransientControlScope(TObjectPtr<URigHierarchy> InHierarchy)
+	:Hierarchy(InHierarchy)
+{
+	for (FRigControlElement* Control : Hierarchy->GetTransientControls())
+	{
+		FTransientControlInfo Info;
+		Info.Name = Control->GetName();
+		Info.Parent = Hierarchy->GetFirstParent(Control->GetKey());
+		Info.Settings = Control->Settings;
+		// preserve whatever value that was produced by this transient control at the moment
+		Info.Value = Hierarchy->GetControlValue(Control->GetKey(),ERigControlValueType::Current);
+		Info.OffsetTransform = Hierarchy->GetControlOffsetTransform(Control, ERigTransformType::CurrentLocal);
+		Info.GizmoTransform = Hierarchy->GetControlGizmoTransform(Control, ERigTransformType::CurrentLocal);
+				
+		SavedTransientControls.Add(Info);
+	}
+}
+
+UControlRig::FTransientControlScope::~FTransientControlScope()
+{
+	URigHierarchyController* Controller = Hierarchy->GetController();
+	for (const FTransientControlInfo& Info : SavedTransientControls)
+	{
+		Controller->AddControl(
+            Info.Name,
+            Info.Parent,
+            Info.Settings,
+            Info.Value,
+            Info.OffsetTransform,
+            Info.GizmoTransform,
+            false,
+            false
+        );
+	}
+}
+
+#endif
  
 #undef LOCTEXT_NAMESPACE
 
