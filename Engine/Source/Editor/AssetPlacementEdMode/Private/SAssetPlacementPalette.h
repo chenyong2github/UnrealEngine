@@ -16,6 +16,7 @@
 #include "Widgets/Views/STileView.h"
 #include "Widgets/Views/STreeView.h"
 #include "Misc/TextFilter.h"
+#include "PlacementPaletteAsset.h"
 
 class FAssetThumbnailPool;
 class FAssetPlacementPaletteItemModel;
@@ -43,7 +44,6 @@ public:
 	};
 
 	SLATE_BEGIN_ARGS(SAssetPlacementPalette) {}
-		SLATE_ARGUMENT(TSharedPtr<IPropertyHandle>, PalettePropertyHandle)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -92,9 +92,16 @@ private:
 
 	bool ShouldFilterAsset(const FAssetData& InAssetData);
 
+	void OnResetPaletteAssetClicked();
+	void OnSavePaletteAssetClicked();
+	EVisibility GetContentBrowserMirrorVisibility() const;
 	void OnContentBrowserMirrorButtonClicked(ECheckBoxState InState);
 	void OnContentBrowserSelectionChanged(const TArray<FAssetData>& NewSelectedAssets, bool bIsPrimaryBrowser);
 	void SetupContentBrowserMirroring(bool bInMirrorContentBrowser);
+	void OnSetPaletteAsset(const FAssetData& InAssetData);
+	void SetPaletteItems(TArrayView<const FPaletteItem> InPaletteItems);
+	void SetToLocalUserPalette();
+	FString GetPalettePath() const;
 
 	/** Sets the view mode of the palette */
 	void SetViewMode(EViewMode NewViewMode);
@@ -188,8 +195,6 @@ private:
 	/** Placement mesh details widget  */
 	TSharedPtr<IDetailsView> DetailsWidget;
 
-	TSharedPtr<IPropertyHandle> PalettePropertyHandle;
-
 	/** Placement items search box widget */
 	TSharedPtr<SSearchBox> SearchBoxPtr;
 
@@ -198,6 +203,8 @@ private:
 
 	/** Thumbnail pool for rendering mesh thumbnails */
 	TSharedPtr<FAssetThumbnailPool> ThumbnailPool;
+
+	FSoftObjectPath PalettePath;
 
 	bool bItemsNeedRebuild = true;
 	bool bShowFullTooltips = true;

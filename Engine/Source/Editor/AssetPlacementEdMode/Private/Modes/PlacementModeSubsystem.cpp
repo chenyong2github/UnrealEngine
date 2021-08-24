@@ -7,6 +7,8 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 #include "Factories/AssetFactoryInterface.h"
+#include "PlacementPaletteAsset.h"
+#include "PlacementPaletteItem.h"
 
 #include "Subsystems/PlacementSubsystem.h"
 #include "Editor.h"
@@ -14,12 +16,12 @@
 void UPlacementModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	ModeSettings = NewObject<UAssetPlacementSettings>(this);
-	ModeSettings->LoadConfig();
+	ModeSettings->Restore();
 }
 
 void UPlacementModeSubsystem::Deinitialize()
 {
-	ModeSettings->SaveConfig();
+	ModeSettings->Save();
 	ModeSettings = nullptr;
 }
 
@@ -28,52 +30,44 @@ const UAssetPlacementSettings* UPlacementModeSubsystem::GetModeSettingsObject() 
 	return ModeSettings;
 }
 
-bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedElementHandle& InElementToCheck) const
+UAssetPlacementSettings* UPlacementModeSubsystem::GetMutableModeSettingsObject()
 {
-	if (!ModeSettings)
-	{
-		return false;
-	}
+	return ModeSettings;
+}
 
+bool UPlacementModeSubsystem::DoesActivePaletteSupportElement(const FTypedElementHandle& InElementToCheck) const
+{
 	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InElementToCheck))
 	{
 		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
-		for (const TSharedPtr<FPaletteItem>& Item : ModeSettings->PaletteItems)
+		for (const FPaletteItem& Item : ModeSettings->GetActivePaletteItems())
 		{
-			if (!Item)
+			if (ReferencedAssetDatas.FindByPredicate([&Item](const FAssetData& ReferencedAssetData){ return (ReferencedAssetData.ToSoftObjectPath() == Item.AssetPath); }))
+			{
+				return true;
+			}
+
+			// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
+			// Not all actors do this reliably, so additionally check the supplied factory for a match. 
+			if (!Item.AssetFactoryInterface)
 			{
 				continue;
 			}
 
-			if (ReferencedAssetDatas.Find(Item->AssetData) != INDEX_NONE)
+			FAssetData FoundAssetDataFromFactory = Item.AssetFactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
+			if (FoundAssetDataFromFactory.ToSoftObjectPath() == Item.AssetPath)
 			{
 				return true;
 			}
 		}
 	}
 
-	// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
-	// Not all actors do this reliably, so additionally check the supplied factory for a match. 
-	for (const TSharedPtr<FPaletteItem>& Item : ModeSettings->PaletteItems)
-	{
-		if (!Item || !Item->AssetFactoryInterface)
-		{
-			continue;
-		}
-
-		FAssetData FoundAssetDataFromFactory = Item->AssetFactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
-		if (FoundAssetDataFromFactory == Item->AssetData)
-		{
-			return true;
-		}
-	}
-
 	return false;
 }
 
-TSharedPtr<FPaletteItem> UPlacementModeSubsystem::AddPaletteItem(const FAssetData& InAssetData)
+FPaletteItem UPlacementModeSubsystem::CreatePaletteItem(const FAssetData& InAssetData)
 {
-	TSharedPtr<FPaletteItem> NewPaletteItem;
+	FPaletteItem NewPaletteItem;
 	if (!InAssetData.IsValid())
 	{
 		return NewPaletteItem;
@@ -84,26 +78,21 @@ TSharedPtr<FPaletteItem> UPlacementModeSubsystem::AddPaletteItem(const FAssetDat
 		return NewPaletteItem;
 	}
 
-	if (ModeSettings && !ModeSettings->PaletteItems.FindByPredicate([InAssetData](const TSharedPtr<FPaletteItem>& ItemIter) { return ItemIter ? (ItemIter->AssetData.ObjectPath == InAssetData.ObjectPath) : false; }))
+	if (!ModeSettings->GetActivePaletteItems().FindByPredicate([InAssetData](const FPaletteItem& ItemIter) { return (ItemIter.AssetPath == InAssetData.ToSoftObjectPath()); }))
 	{
 		if (UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
 		{
 			if (TScriptInterface<IAssetFactoryInterface> AssetFactory = PlacementSubystem->FindAssetFactoryFromAssetData(InAssetData))
 			{
-				NewPaletteItem = MakeShared<FPaletteItem>();
-				NewPaletteItem->AssetData = InAssetData;
-				NewPaletteItem->AssetFactoryInterface = AssetFactory;
-				ModeSettings->PaletteItems.Add(NewPaletteItem);
+				NewPaletteItem.ItemGuid = FGuid::NewGuid();
+				NewPaletteItem.AssetPath = InAssetData.ToSoftObjectPath();
+				NewPaletteItem.AssetFactoryInterface = AssetFactory;
+				ModeSettings->AddItemToActivePalette(NewPaletteItem);
 			}
 		}
 	}
 
 	return NewPaletteItem;
-}
-
-void UPlacementModeSubsystem::ClearPalette()
-{
-	ModeSettings->PaletteItems.Empty();
 }
 
 void UPlacementModeSubsystem::SetUseContentBrowserAsPalette(bool bInUseContentBrowser)

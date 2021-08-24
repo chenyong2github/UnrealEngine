@@ -20,9 +20,9 @@
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
-FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(FAssetPlacementUIInfoPtr InTypeInfo, TSharedRef<SAssetPlacementPalette> InFoliagePalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool/*, FEdModeFoliage* InFoliageEditMode*/)
-	: TypeInfo(InTypeInfo)
-	, AssetPalette(InFoliagePalette)
+FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, TSharedRef<SAssetPlacementPalette> InParentPalette, TSharedPtr<FAssetThumbnailPool> InThumbnailPool)
+	: TypeInfo(MakeShared<FPaletteItemUIInfo>(InAssetData))
+	, AssetPalette(InParentPalette)
 {
 	check(TypeInfo);
 	DisplayFName = TypeInfo->AssetData.AssetName;
@@ -47,11 +47,6 @@ FAssetPlacementPaletteItemModel::FAssetPlacementPaletteItemModel(FAssetPlacement
 	}
 
 	ThumbnailWidget = Thumbnail->MakeThumbnailWidget(ThumbnailConfig);
-}
-
-TSharedPtr<SAssetPlacementPalette> FAssetPlacementPaletteItemModel::GetAssetPalette() const
-{
-	return AssetPalette.Pin();
 }
 
 FAssetPlacementUIInfoPtr FAssetPlacementPaletteItemModel::GetTypeUIInfo() const

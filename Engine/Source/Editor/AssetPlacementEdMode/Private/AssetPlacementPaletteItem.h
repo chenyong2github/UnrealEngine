@@ -11,6 +11,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "SAssetPlacementPalette.h"
+#include "AssetRegistry/AssetData.h"
 
 class FAssetThumbnailPool;
 struct FPaletteItem;
@@ -21,7 +22,18 @@ namespace PlacementPaletteConstants
 	const FInt32Interval ThumbnailSizeRange(32, 128);
 }
 
-typedef TSharedPtr<FPaletteItem> FAssetPlacementUIInfoPtr;
+struct FPaletteItemUIInfo
+{
+	FPaletteItemUIInfo(const FAssetData& InAssetData)
+		: AssetData(InAssetData)
+	{
+		check(AssetData.IsValid());
+	}
+
+	const FAssetData AssetData;
+};
+
+typedef TSharedPtr<FPaletteItemUIInfo> FAssetPlacementUIInfoPtr;
 
 namespace AssetPlacementPaletteTreeColumns
 {
@@ -31,10 +43,7 @@ namespace AssetPlacementPaletteTreeColumns
 class FAssetPlacementPaletteItemModel : public TSharedFromThis<FAssetPlacementPaletteItemModel>
 {
 public:
-	FAssetPlacementPaletteItemModel(FAssetPlacementUIInfoPtr InTypeInfo, TSharedRef<class SAssetPlacementPalette> InFoliagePalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
-
-	/** @return The foliage palette that contains the item */
-	TSharedPtr<SAssetPlacementPalette> GetAssetPalette() const;
+	FAssetPlacementPaletteItemModel(const FAssetData& InAssetData, TSharedRef<class SAssetPlacementPalette> InParentPalette, TSharedPtr<class FAssetThumbnailPool> InThumbnailPool);
 
 	FAssetPlacementUIInfoPtr GetTypeUIInfo() const;
 
@@ -65,8 +74,6 @@ private:
 
 	/** Gets the source asset type text */
 	FText GetSourceAssetTypeText() const;
-
-	TWeakPtr<IAssetTypeActions> GetAssetTypeActions() const;
 
 private:
 	TSharedPtr<SWidget> ThumbnailWidget;

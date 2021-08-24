@@ -23,6 +23,7 @@
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
 #include "ContextObjectStore.h"
+#include "PlacementPaletteItem.h"
 
 constexpr TCHAR UPlacementModePlaceSingleTool::ToolName[];
 
@@ -228,23 +229,25 @@ FInputRayHit UPlacementModePlaceSingleTool::BeginHoverSequenceHitTest(const FInp
 
 void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay& DevicePos)
 {
-	const UAssetPlacementSettings* PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (PlacementSettings && PlacementSettings->PaletteItems.Num())
+	UPlacementModeSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
+	const UAssetPlacementSettings* PlacementSettings = PlacementSubsystem ? PlacementSubsystem->GetModeSettingsObject() : nullptr;
+	if (PlacementSettings)
 	{
-		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
-		const TSharedPtr<FPaletteItem>& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
-		if (!ItemToPlace)
+		TArrayView<const FPaletteItem> CurrentPaletteItems = PlacementSettings->GetActivePaletteItems();
+		if (CurrentPaletteItems.Num())
 		{
-			return;
+			int32 ItemIndex = FMath::RandHelper(CurrentPaletteItems.Num());
+			const FPaletteItem& ItemToPlace = CurrentPaletteItems[ItemIndex];
+			
+			FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
+
+			PlacementInfo = MakeUnique<FAssetPlacementInfo>();
+			PlacementInfo->AssetToPlace = ItemToPlace.AssetPath.TryLoad();
+			PlacementInfo->FactoryOverride = ItemToPlace.AssetFactoryInterface;
+			PlacementInfo->ItemGuid = ItemToPlace.ItemGuid;
+			PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
+			PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 		}
-
-		FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
-
-		PlacementInfo = MakeUnique<FAssetPlacementInfo>();
-		PlacementInfo->AssetToPlace = ItemToPlace->AssetData;
-		PlacementInfo->FactoryOverride = ItemToPlace->AssetFactoryInterface;
-		PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
-		PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 	}
 }
 

@@ -28,7 +28,7 @@
 bool UPlacementToolBuilderBase::CanBuildTool(const FToolBuilderState& SceneState) const
 {	
 	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	return PlacementSettings.IsValid() && PlacementSettings->PaletteItems.Num();
+	return PlacementSettings.IsValid() && PlacementSettings->GetActivePaletteItems().Num();
 }
 
 UInteractiveTool* UPlacementToolBuilderBase::BuildTool(const FToolBuilderState& SceneState) const
@@ -295,7 +295,7 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		if (UInstancedStaticMeshComponent* ISMComponent = Cast<UInstancedStaticMeshComponent>(Hit.GetComponent()))
 		{
 			FTypedElementHandle StaticMeshObjectHandle = UEngineElementsLibrary::AcquireEditorObjectElementHandle(ISMComponent->GetStaticMesh());
-			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(StaticMeshObjectHandle))
+			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(StaticMeshObjectHandle))
 			{
 				continue;
 			}
@@ -313,7 +313,7 @@ FTypedElementListRef UPlacementBrushToolBase::GetElementsInBrushRadius(const FIn
 		else
 		{
 			FTypedElementHandle PrimarySelectionHandle = SelectionSet->GetSelectionElement(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Hit.GetComponent()), ETypedElementSelectionMethod::Primary);
-			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesCurrentPaletteSupportElement(PrimarySelectionHandle))
+			if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->DoesActivePaletteSupportElement(PrimarySelectionHandle))
 			{
 				continue;
 			}
