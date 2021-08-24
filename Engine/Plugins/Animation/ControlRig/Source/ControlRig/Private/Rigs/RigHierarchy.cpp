@@ -1038,6 +1038,8 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 				}	
 			}
 #endif
+
+			Notify(ERigHierarchyNotification::ParentWeightsChanged, MultiParentElement);
 			return true;
 		}
 	}
@@ -1146,6 +1148,9 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild, const TArray<
 				}	
 			}
 #endif
+
+			Notify(ERigHierarchyNotification::ParentWeightsChanged, MultiParentElement);
+
 			return true;
 		}
 	}
@@ -1223,8 +1228,7 @@ bool URigHierarchy::SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial, 
 
 FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
 {
-	static const FName WorldSpaceSocketName = TEXT("WorldSpace");
-	const FRigElementKey WorldSpaceSocketKey(WorldSpaceSocketName, ERigElementType::Socket);
+	const FRigElementKey WorldSpaceSocketKey = GetWorldSpaceSocketKey();
 
 	FRigBaseElement* Parent = Find(WorldSpaceSocketKey);
 	if(Parent)
@@ -1235,13 +1239,19 @@ FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
 	if(URigHierarchyController* Controller = GetController(true))
 	{
 		return Controller->AddSocket(
-			WorldSpaceSocketName,
+			WorldSpaceSocketKey.Name,
 			FRigElementKey(),
 			FRigSocketGetWorldTransformDelegate::CreateUObject(this, &URigHierarchy::GetWorldTransformForSocket),
 			false);
 	}
 
 	return FRigElementKey();
+}
+
+FRigElementKey URigHierarchy::GetWorldSpaceSocketKey() const
+{
+	static const FName WorldSpaceSocketName = TEXT("WorldSpace");
+	return FRigElementKey(WorldSpaceSocketName, ERigElementType::Socket); 
 }
 
 TArray<FRigElementKey> URigHierarchy::GetAllKeys(bool bTraverse, ERigElementType InElementType) const

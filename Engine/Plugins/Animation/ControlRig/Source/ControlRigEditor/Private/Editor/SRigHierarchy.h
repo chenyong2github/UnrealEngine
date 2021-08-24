@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/Views/STreeView.h"
-#include "Rigs/RigHierarchy.h"
 #include "EditorUndoClient.h"
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "Engine/SkeletalMesh.h"
+#include "SRigHierarchyTreeView.h"
 #include "SRigHierarchy.generated.h"
 
 class SRigHierarchy;
@@ -18,31 +17,7 @@ class UControlRigBlueprint;
 class UControlRig;
 struct FAssetData;
 class FMenuBuilder;
-class SRigHierarchyItem;
 class UToolMenu;
-
-DECLARE_DELEGATE_RetVal_TwoParams(FName, FOnRenameElement, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/);
-DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/, FText& /*OutErrorMessage*/);
-
-/** An item in the tree */
-class FRigTreeElement : public TSharedFromThis<FRigTreeElement>
-{
-public:
-	FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchy> InHierarchyHandler);
-public:
-	/** Element Data to display */
-	FRigElementKey Key;
-	bool bIsTransient;
-	TArray<TSharedPtr<FRigTreeElement>> Children;
-
-	TSharedRef<ITableRow> MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
-
-	void RequestRename();
-
-	/** Delegate for when the context menu requests a rename */
-	DECLARE_DELEGATE(FOnRenameRequested);
-	FOnRenameRequested OnRenameRequested;
-};
 
 class FRigElementHierarchyDragDropOp : public FGraphNodeDragDropOp
 {
@@ -73,30 +48,6 @@ private:
 	TArray<FRigElementKey> Elements;
 };
 
- class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>
-{
-	SLATE_BEGIN_ARGS(SRigHierarchyItem) {}
-		/** Callback when the text is committed. */
-		SLATE_EVENT(FOnRenameElement, OnRenameElement)
-		/** Called whenever the text is changed interactively by the user */
-		SLATE_EVENT(FOnVerifyElementNameChanged, OnVerifyElementNameChanged)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy);
- 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
-	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
-
-private:
-	TWeakPtr<FRigTreeElement> WeakRigTreeElement;
-	TWeakPtr<FUICommandList> WeakCommandList;
-	TWeakPtr<FControlRigEditor> ControlRigEditor;
-
-	FOnRenameElement OnRenameElement;
-	FOnVerifyElementNameChanged OnVerifyElementNameChanged;
-
-	FText GetName() const;
-};
-
 USTRUCT()
 struct FRigHierarchyImportSettings
 {
@@ -108,53 +59,6 @@ struct FRigHierarchyImportSettings
 
 	UPROPERTY(EditAnywhere, Category = "Hierachy Import")
 	TObjectPtr<USkeletalMesh> Mesh;
-};
-
-class SRigHierarchyTreeView : public STreeView<TSharedPtr<FRigTreeElement>>
-{
-public:
-
-	virtual ~SRigHierarchyTreeView() {}
-
-	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
-	{
-		FReply Reply = STreeView<TSharedPtr<FRigTreeElement>>::OnFocusReceived(MyGeometry, InFocusEvent);
-
-		LastClickCycles = FPlatformTime::Cycles();
-
-		return Reply;
-	}
-
-	uint32 LastClickCycles = 0;
-
-	/** Save a snapshot of the internal map that tracks item expansion before tree reconstruction */
-	void SaveAndClearSparseItemInfos()
-	{
-		// Only save the info if there is something to save (do not overwrite info with an empty map)
-		if (!SparseItemInfos.IsEmpty())
-		{
-			OldSparseItemInfos = SparseItemInfos;
-		}
-		ClearExpandedItems();
-	}
-
-	/** Restore the expansion infos map from the saved snapshot after tree reconstruction */
-	void RestoreSparseItemInfos(TSharedPtr<FRigTreeElement> ItemPtr)
-	{
-		for (const auto& Pair : OldSparseItemInfos)
-		{
-			if (Pair.Key->Key == ItemPtr->Key)
-			{
-				// the SparseItemInfos now reference the new element, but keep the same expansion state
-				SparseItemInfos.Add(ItemPtr, Pair.Value);
-				break;
-			}
-		}
-	}
-
-private:
-	/** A temporary snapshot of the SparseItemInfos in STreeView, used during SRigHierarchy::RefreshTreeView() */
-	TSparseItemMap OldSparseItemInfos;
 };
 
 /** Widget allowing editing of a control rig's structure */
@@ -192,12 +96,6 @@ private:
 
 	/** Return all selected keys */
 	TArray<FRigElementKey> GetSelectedKeys() const;
-
-	/** Make a row widget for the table */
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
-
-	/** Get children for the tree */
-	void HandleGetChildrenForTree(TSharedPtr<FRigTreeElement> InItem, TArray<TSharedPtr<FRigTreeElement>>& OutChildren);
 
 	/** Check whether we can deleting the selected item(s) */
 	bool CanDeleteItem() const;
@@ -257,36 +155,11 @@ private:
 	/** Our owning control rig editor */
 	TWeakPtr<FControlRigEditor> ControlRigEditor;
 
-	/** Flatten when text filtering is active */
-	bool bFlattenHierarchyOnFilter;
-
-	/** Hide parents when text filtering is active */
-	bool bHideParentsOnFilter;
-
-	/** Whether or not to show imported bones in the hierarchy */
-	bool bShowImportedBones;
-
-	/** Whether or not to show bones in the hierarchy */
-	bool bShowBones;
-
-	/** Whether or not to show controls in the hierarchy */
-	bool bShowControls;
-
-	/** Whether or not to show spaces in the hierarchy */
-	bool bShowNulls;
-
-	/** Whether or not to show rigidbodies in the hierarchy */
-	bool bShowRigidBodies;
-
-	/** Whether or not to show sockets in the hierarchy */
-	bool bShowSockets;
-
-	/** Whether or not to show the static or dynamic hierarchy */
-	bool bShowDynamicHierarchy;
+	FRigTreeDisplaySettings DisplaySettings;
+	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; } 
 
 	/** Search box widget */
 	TSharedPtr<SSearchBox> FilterBox;
-	FText FilterText;
 
 	EVisibility IsToolbarVisible() const;
 	EVisibility IsSearchbarVisible() const;
@@ -295,15 +168,6 @@ private:
 
 	/** Tree view widget */
 	TSharedPtr<SRigHierarchyTreeView> TreeView;
-
-	/** Backing array for tree view */
-	TArray<TSharedPtr<FRigTreeElement>> RootElements;
-
-	/** A map for looking up items based on their key */
-	TMap<FRigElementKey, TSharedPtr<FRigTreeElement>> ElementMap;
-
-	/** A map for looking up a parent based on their key */
-	TMap<FRigElementKey, FRigElementKey> ParentMap;
 
 	TWeakObjectPtr<UControlRigBlueprint> ControlRigBlueprint;
 	TWeakObjectPtr<UControlRig> ControlRigBeingDebuggedPtr;
@@ -320,7 +184,7 @@ private:
 
 	URigHierarchy* GetHierarchy() const;
 	URigHierarchy* GetDebuggedHierarchy() const;
-	URigHierarchy* GetHierarchyForTopology() const;
+	const URigHierarchy* GetHierarchyForTopology() const;
 
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
@@ -337,14 +201,13 @@ private:
 	void HandleControlBoneOrSpaceTransform();
 	void HandleUnparent();
 	bool FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const;
+	void HandleTestSpaceSwitching();
 
 	void HandleParent(const FToolMenuContext& Context);
 	void HandleAlign(const FToolMenuContext& Context);
 	FReply ReparentOrMatchTransform(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey, bool bReparentItems);
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
-
-	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
 
 	void ClearDetailPanel() const;
 
@@ -354,16 +217,9 @@ private:
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 	void HandleSetObjectBeingDebugged(UObject* InObject);
 
-	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
-	bool AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey(), const bool bIgnoreTextFilter = false);
-	bool AddElement(const FRigBaseElement* InElement, const bool bIgnoreTextFilter = false);
-	void AddSpacerElement();
-	bool ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
-	bool RemoveElement(FRigElementKey InKey);
-
 public:
-	FName RenameElement(const FRigElementKey& OldKey, const FString& NewName);
-	bool OnVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage);
+	FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName);
+	bool HandleVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage);
 
 	friend class FRigTreeElement;
 	friend class SRigHierarchyItem;

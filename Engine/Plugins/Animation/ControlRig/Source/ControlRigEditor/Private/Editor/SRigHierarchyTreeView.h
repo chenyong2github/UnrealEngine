@@ -1,0 +1,259 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Widgets/Views/STreeView.h"
+#include "Rigs/RigHierarchy.h"
+
+class SRigHierarchyTreeView;
+class SRigHierarchyItem;
+class FRigTreeElement;
+
+struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
+{
+	FRigTreeDisplaySettings()
+	{
+		FilterText = FText();
+
+		bFlattenHierarchyOnFilter = false;
+		bHideParentsOnFilter = false;
+		bShowImportedBones = true;
+		bShowBones = true;
+		bShowControls = true;
+		bShowNulls = true;
+		bShowRigidBodies = true;
+		bShowSockets = true;
+		bShowDynamicHierarchy = false;
+	}
+	
+	FText FilterText;
+
+	/** Flatten when text filtering is active */
+	bool bFlattenHierarchyOnFilter;
+
+	/** Hide parents when text filtering is active */
+	bool bHideParentsOnFilter;
+
+	/** Whether or not to show imported bones in the hierarchy */
+	bool bShowImportedBones;
+
+	/** Whether or not to show bones in the hierarchy */
+	bool bShowBones;
+
+	/** Whether or not to show controls in the hierarchy */
+	bool bShowControls;
+
+	/** Whether or not to show spaces in the hierarchy */
+	bool bShowNulls;
+
+	/** Whether or not to show rigidbodies in the hierarchy */
+	bool bShowRigidBodies;
+
+	/** Whether or not to show sockets in the hierarchy */
+	bool bShowSockets;
+
+	/** Whether or not to show the static or dynamic hierarchy */
+	bool bShowDynamicHierarchy;
+};
+
+DECLARE_DELEGATE_RetVal(const URigHierarchy*, FOnGetRigTreeHierarchy);
+DECLARE_DELEGATE_RetVal(const FRigTreeDisplaySettings&, FOnGetRigTreeDisplaySettings);
+DECLARE_DELEGATE_RetVal_TwoParams(FName, FOnRigTreeRenameElement, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/);
+DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnRigTreeVerifyElementNameChanged, const FRigElementKey& /*OldKey*/, const FString& /*NewName*/, FText& /*OutErrorMessage*/);
+
+typedef STableRow<TSharedPtr<FRigTreeElement>>::FOnCanAcceptDrop FOnRigTreeCanAcceptDrop;
+typedef STableRow<TSharedPtr<FRigTreeElement>>::FOnAcceptDrop FOnRigTreeAcceptDrop;
+typedef STreeView<TSharedPtr<FRigTreeElement>>::FOnSelectionChanged FOnRigTreeSelectionChanged;
+typedef STreeView<TSharedPtr<FRigTreeElement>>::FOnMouseButtonClick FOnRigTreeMouseButtonClick;
+typedef STreeView<TSharedPtr<FRigTreeElement>>::FOnMouseButtonDoubleClick FOnRigTreeMouseButtonDoubleClick;
+typedef STreeView<TSharedPtr<FRigTreeElement>>::FOnSetExpansionRecursive FOnRigTreeSetExpansionRecursive;
+
+struct CONTROLRIGEDITOR_API FRigTreeDelegates
+{
+	FOnGetRigTreeHierarchy OnGetHierarchy;
+	FOnGetRigTreeDisplaySettings OnGetDisplaySettings;
+	FOnRigTreeRenameElement OnRenameElement;
+	FOnRigTreeVerifyElementNameChanged OnVerifyElementNameChanged;
+	FOnDragDetected OnDragDetected;
+	FOnRigTreeCanAcceptDrop OnCanAcceptDrop;
+	FOnRigTreeAcceptDrop OnAcceptDrop;
+	FOnRigTreeSelectionChanged OnSelectionChanged;
+	FOnContextMenuOpening OnContextMenuOpening;
+	FOnRigTreeMouseButtonClick OnMouseButtonClick;
+	FOnRigTreeMouseButtonDoubleClick OnMouseButtonDoubleClick;
+	FOnRigTreeSetExpansionRecursive OnSetExpansionRecursive;
+
+	FRigTreeDelegates()
+	{
+		bIsChangingRigHierarchy = false;
+	}
+
+	FORCEINLINE const URigHierarchy* GetHierarchy() const
+	{
+		if(OnGetHierarchy.IsBound())
+		{
+			return OnGetHierarchy.Execute();
+		}
+		return nullptr;
+	}
+
+	FORCEINLINE const FRigTreeDisplaySettings& GetDisplaySettings() const
+	{
+		if(OnGetDisplaySettings.IsBound())
+		{
+			return OnGetDisplaySettings.Execute();
+		}
+		return DefaultDisplaySettings;
+	}
+	
+	FORCEINLINE FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName) const
+	{
+		if(OnRenameElement.IsBound())
+		{
+			return OnRenameElement.Execute(OldKey, NewName);
+		}
+		return OldKey.Name;
+	}
+	
+	FORCEINLINE bool HandleVerifyElementNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage) const
+	{
+		if(OnVerifyElementNameChanged.IsBound())
+		{
+			return OnVerifyElementNameChanged.Execute(OldKey, NewName, OutErrorMessage);
+		}
+		return false;
+	}
+
+	FORCEINLINE void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+	{
+		if(bIsChangingRigHierarchy)
+		{
+			return;
+		}
+		TGuardValue<bool> Guard(bIsChangingRigHierarchy, true);
+		OnSelectionChanged.ExecuteIfBound(Selection, SelectInfo);
+	}
+
+	static FRigTreeDisplaySettings DefaultDisplaySettings;
+	bool bIsChangingRigHierarchy;
+};
+
+
+/** An item in the tree */
+class FRigTreeElement : public TSharedFromThis<FRigTreeElement>
+{
+public:
+	FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchyTreeView> InTreeView, bool InSupportsRename);
+public:
+	/** Element Data to display */
+	FRigElementKey Key;
+	bool bIsTransient;
+	bool bSupportsRename;
+	TArray<TSharedPtr<FRigTreeElement>> Children;
+
+	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView);
+
+	void RequestRename();
+
+	/** Delegate for when the context menu requests a rename */
+	DECLARE_DELEGATE(FOnRenameRequested);
+	FOnRenameRequested OnRenameRequested;
+};
+
+class SRigHierarchyItem : public STableRow<TSharedPtr<FRigTreeElement>>
+{
+public:
+	
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedPtr<SRigHierarchyTreeView> InTreeView);
+ 	void OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const;
+	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
+	static const FSlateBrush* GetBrushForElementType(const URigHierarchy* InHierarchy, const FRigElementKey& InKey);
+
+private:
+	TWeakPtr<FRigTreeElement> WeakRigTreeElement;
+ 	FRigTreeDelegates Delegates;
+
+	FText GetName() const;
+};
+
+class SRigHierarchyTreeView : public STreeView<TSharedPtr<FRigTreeElement>>
+{
+public:
+
+	SLATE_BEGIN_ARGS(SRigHierarchyTreeView) {}
+		SLATE_ARGUMENT(FRigTreeDelegates, RigTreeDelegates)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	virtual ~SRigHierarchyTreeView() {}
+
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
+	{
+		FReply Reply = STreeView<TSharedPtr<FRigTreeElement>>::OnFocusReceived(MyGeometry, InFocusEvent);
+
+		LastClickCycles = FPlatformTime::Cycles();
+
+		return Reply;
+	}
+
+	uint32 LastClickCycles = 0;
+
+	/** Save a snapshot of the internal map that tracks item expansion before tree reconstruction */
+	void SaveAndClearSparseItemInfos()
+	{
+		// Only save the info if there is something to save (do not overwrite info with an empty map)
+		if (!SparseItemInfos.IsEmpty())
+		{
+			OldSparseItemInfos = SparseItemInfos;
+		}
+		ClearExpandedItems();
+	}
+
+	/** Restore the expansion infos map from the saved snapshot after tree reconstruction */
+	void RestoreSparseItemInfos(TSharedPtr<FRigTreeElement> ItemPtr)
+	{
+		for (const auto& Pair : OldSparseItemInfos)
+		{
+			if (Pair.Key->Key == ItemPtr->Key)
+			{
+				// the SparseItemInfos now reference the new element, but keep the same expansion state
+				SparseItemInfos.Add(ItemPtr, Pair.Value);
+				break;
+			}
+		}
+	}
+
+	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
+	bool AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
+	bool AddElement(const FRigBaseElement* InElement);
+	void AddSpacerElement();
+	bool ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey);
+	bool RemoveElement(FRigElementKey InKey);
+	void RefreshTreeView(bool bRebuildContent = true);
+	void SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
+	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	void HandleGetChildrenForTree(TSharedPtr<FRigTreeElement> InItem, TArray<TSharedPtr<FRigTreeElement>>& OutChildren);
+
+	TArray<FRigElementKey> GetSelectedKeys() const;
+	const TArray<TSharedPtr<FRigTreeElement>>& GetRootElements() const { return RootElements; }
+	FRigTreeDelegates& GetRigTreeDelegates() { return Delegates; }
+
+private:
+
+	/** A temporary snapshot of the SparseItemInfos in STreeView, used during RefreshTreeView() */
+	TSparseItemMap OldSparseItemInfos;
+
+	/** Backing array for tree view */
+	TArray<TSharedPtr<FRigTreeElement>> RootElements;
+	
+	/** A map for looking up items based on their key */
+	TMap<FRigElementKey, TSharedPtr<FRigTreeElement>> ElementMap;
+
+	/** A map for looking up a parent based on their key */
+	TMap<FRigElementKey, FRigElementKey> ParentMap;
+
+	FRigTreeDelegates Delegates;
+
+	friend class SRigHierarchy;
+};

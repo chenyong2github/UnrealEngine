@@ -40,46 +40,9 @@
 #include "EditMode/ControlRigEditMode.h"
 #include "ToolMenus.h"
 #include "ControlRigContextMenuContext.h"
+#include "SRigSpacePickerWidget.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
-
-//////////////////////////////////////////////////////////////
-/// FRigTreeElement
-///////////////////////////////////////////////////////////
-FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHierarchy> InHierarchyHandler)
-{
-	Key = InKey;
-	bIsTransient = false;
-
-	if(InHierarchyHandler.IsValid())
-	{
-		if(URigHierarchy* Hierarchy = InHierarchyHandler.Pin()->GetDebuggedHierarchy())
-		{
-			if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
-			{
-				bIsTransient = ControlElement->Settings.bIsTransientControl;
-			}
-		}
-	}
-}
-
-
-TSharedRef<ITableRow> FRigTreeElement::MakeTreeRowWidget(TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
-{
-	if (InRigTreeElement->Key.IsValid())
-	{
-		return SNew(SRigHierarchyItem, InControlRigEditor, InOwnerTable, InRigTreeElement, InCommandList, InHierarchy)
-			.OnRenameElement(InHierarchy.Get(), &SRigHierarchy::RenameElement)
-			.OnVerifyElementNameChanged(InHierarchy.Get(), &SRigHierarchy::OnVerifyNameChanged);
-	}
-
-	return SNew(SRigHierarchyItem, InControlRigEditor, InOwnerTable, InRigTreeElement, InCommandList, InHierarchy);
-}
-
-void FRigTreeElement::RequestRename()
-{
-	OnRenameRequested.ExecuteIfBound();
-}
 
 //////////////////////////////////////////////////////////////
 /// FRigElementHierarchyDragDropOp
@@ -114,176 +77,6 @@ FString FRigElementHierarchyDragDropOp::GetJoinedElementNames() const
 	return FString::Join(ElementNameStrings, TEXT(","));
 }
 
-//////////////////////////////////////////////////////////////
-/// SRigHierarchyItem
-///////////////////////////////////////////////////////////
-void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlRigEditor> InControlRigEditor, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigTreeElement> InRigTreeElement, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SRigHierarchy> InHierarchy)
-{
-	WeakRigTreeElement = InRigTreeElement;
-	WeakCommandList = InCommandList;
-	ControlRigEditor = InControlRigEditor;
-
-	OnVerifyElementNameChanged = InArgs._OnVerifyElementNameChanged;
-	OnRenameElement = InArgs._OnRenameElement;
-
-	if (!InRigTreeElement->Key.IsValid())
-	{
-		STableRow<TSharedPtr<FRigTreeElement>>::Construct(
-			STableRow<TSharedPtr<FRigTreeElement>>::FArguments()
-			.ShowSelection(false)
-			.OnCanAcceptDrop(InHierarchy.Get(), &SRigHierarchy::OnCanAcceptDrop)
-			.OnAcceptDrop(InHierarchy.Get(), &SRigHierarchy::OnAcceptDrop)
-			.Content()
-			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.FillHeight(200.f)
-				[
-					SNew(SSpacer)
-				]
-			], OwnerTable);
-		return;
-	}
-
-	TSharedPtr< SInlineEditableTextBlock > InlineWidget;
-
-	const FSlateBrush* Brush = nullptr;
-	switch (InRigTreeElement->Key.Type)
-	{
-		case ERigElementType::Control:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
-			break;
-		}
-		case ERigElementType::Null:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Null");
-			break;
-		}
-		case ERigElementType::Bone:
-		{
-			ERigBoneType BoneType = ERigBoneType::User;
-
-			FRigBoneElement* BoneElement = InHierarchy->GetHierarchyForTopology()->Find<FRigBoneElement>(InRigTreeElement->Key);
-			if(BoneElement)
-			{
-				BoneType = BoneElement->BoneType;
-			}
-
-			switch (BoneType)
-			{
-				case ERigBoneType::Imported:
-				{
-					Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneImported");
-					break;
-				}
-				case ERigBoneType::User:
-				default:
-				{
-					Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.BoneUser");
-					break;
-				}
-			}
-
-			break;
-		}
-		case ERigElementType::RigidBody:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.RigidBody");
-			break;
-		}
-		case ERigElementType::Socket:
-		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Socket");
-			break;
-		}
-		default:
-		{
-			break;
-		}
-	}
-
-	STableRow<TSharedPtr<FRigTreeElement>>::Construct(
-		STableRow<TSharedPtr<FRigTreeElement>>::FArguments()
-		.OnDragDetected(InHierarchy.Get(), &SRigHierarchy::OnDragDetected)
-		.OnCanAcceptDrop(InHierarchy.Get(), &SRigHierarchy::OnCanAcceptDrop)
-		.OnAcceptDrop(InHierarchy.Get(), &SRigHierarchy::OnAcceptDrop)
-		.ShowWires(true)
-		.Content()
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.MaxWidth(18)
-			.FillWidth(1.0)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(Brush)
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			[
-				SAssignNew(InlineWidget, SInlineEditableTextBlock)
-				.Text(this, &SRigHierarchyItem::GetName)
-				.OnVerifyTextChanged(this, &SRigHierarchyItem::OnVerifyNameChanged)
-				.OnTextCommitted(this, &SRigHierarchyItem::OnNameCommitted)
-				.MultiLine(false)
-			]
-		], OwnerTable);
-
-	InRigTreeElement->OnRenameRequested.BindSP(InlineWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
-}
-
-FText SRigHierarchyItem::GetName() const
-{
-	if(WeakRigTreeElement.Pin()->bIsTransient)
-	{
-		static const FText TemporaryControl = FText::FromString(TEXT("Temporary Control"));
-		return TemporaryControl;
-	}
-	return (FText::FromName(WeakRigTreeElement.Pin()->Key.Name));
-}
-
-bool SRigHierarchyItem::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
-{
-	FString NewName = InText.ToString();
-	if (OnVerifyElementNameChanged.IsBound())
-	{
-		return OnVerifyElementNameChanged.Execute(WeakRigTreeElement.Pin()->Key, NewName, OutErrorMessage);
-	}
-
-	// if not bound, just allow
-	return true;
-}
-
-void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type InCommitType) const
-{
-	// for now only allow enter
-	// because it is important to keep the unique names per pose
-	if (InCommitType == ETextCommit::OnEnter)
-	{
-		FString NewName = InText.ToString();
-		FRigElementKey OldKey = WeakRigTreeElement.Pin()->Key;
-
-		if (OnRenameElement.IsBound())
-		{
-			FName NewSanitizedName = OnRenameElement.Execute(OldKey, NewName);
-			if (NewSanitizedName.IsNone())
-			{
-				return;
-			}
-			NewName = NewSanitizedName.ToString();
-		}
-
-		if (WeakRigTreeElement.IsValid())
-		{
-			WeakRigTreeElement.Pin()->Key.Name = *NewName;
-		}
-	}
-}
-
 ///////////////////////////////////////////////////////////
 
 SRigHierarchy::~SRigHierarchy()
@@ -312,6 +105,21 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	}
 
 	BindCommands();
+
+	// setup all delegates for the rig hierarchy widget
+	FRigTreeDelegates Delegates;
+	Delegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SRigHierarchy::GetHierarchyForTopology);
+	Delegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SRigHierarchy::GetDisplaySettings);
+	Delegates.OnRenameElement = FOnRigTreeRenameElement::CreateSP(this, &SRigHierarchy::HandleRenameElement);
+	Delegates.OnVerifyElementNameChanged = FOnRigTreeVerifyElementNameChanged::CreateSP(this, &SRigHierarchy::HandleVerifyNameChanged);
+	Delegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SRigHierarchy::OnSelectionChanged);
+	Delegates.OnContextMenuOpening = FOnContextMenuOpening::CreateSP(this, &SRigHierarchy::CreateContextMenuWidget);
+	Delegates.OnMouseButtonClick = FOnRigTreeMouseButtonClick::CreateSP(this, &SRigHierarchy::OnItemClicked);
+	Delegates.OnMouseButtonDoubleClick = FOnRigTreeMouseButtonClick::CreateSP(this, &SRigHierarchy::OnItemDoubleClicked);
+	Delegates.OnSetExpansionRecursive = FOnRigTreeSetExpansionRecursive::CreateSP(this, &SRigHierarchy::OnSetExpansionRecursive);
+	Delegates.OnCanAcceptDrop = FOnRigTreeCanAcceptDrop::CreateSP(this, &SRigHierarchy::OnCanAcceptDrop);
+	Delegates.OnAcceptDrop = FOnRigTreeAcceptDrop::CreateSP(this, &SRigHierarchy::OnAcceptDrop);
+	Delegates.OnDragDetected = FOnDragDetected::CreateSP(this, &SRigHierarchy::OnDragDetected);
 
 	ChildSlot
 	[
@@ -407,17 +215,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
 			[
 				SAssignNew(TreeView, SRigHierarchyTreeView)
-				.TreeItemsSource(&RootElements)
-				.SelectionMode(ESelectionMode::Multi)
-				.OnGenerateRow(this, &SRigHierarchy::MakeTableRowWidget)
-				.OnGetChildren(this, &SRigHierarchy::HandleGetChildrenForTree)
-				.OnSelectionChanged(this, &SRigHierarchy::OnSelectionChanged)
-				.OnContextMenuOpening(this, &SRigHierarchy::CreateContextMenuWidget)
-				.OnMouseButtonClick(this, &SRigHierarchy::OnItemClicked)
-				.OnMouseButtonDoubleClick(this, &SRigHierarchy::OnItemDoubleClicked)
-				.OnSetExpansionRecursive(this, &SRigHierarchy::OnSetExpansionRecursive)
-				.HighlightParentNodesForSelection(true)
-				.ItemHeight(24)
+				.RigTreeDelegates(Delegates)
 			]
 		]
 
@@ -436,16 +234,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		*/
 	];
 
-	bFlattenHierarchyOnFilter = false;
-	bHideParentsOnFilter = false;
-	bShowImportedBones = true;
-	bShowBones = true;
-	bShowControls = true;
-	bShowNulls = true;
-	bShowRigidBodies = true;
-	bShowSockets = true;
 	bIsChangingRigHierarchy = false;
-	bShowDynamicHierarchy = false;
 	RefreshTreeView();
 
 	if (ControlRigEditor.IsValid())
@@ -570,62 +359,62 @@ void SRigHierarchy::BindCommands()
 
 	CommandList->MapAction(
 		Commands.FilteringFlattensHierarchy,
-		FExecuteAction::CreateLambda([this]() { bFlattenHierarchyOnFilter = !bFlattenHierarchyOnFilter; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bFlattenHierarchyOnFilter = !DisplaySettings.bFlattenHierarchyOnFilter; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bFlattenHierarchyOnFilter; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bFlattenHierarchyOnFilter; }));
 
 	CommandList->MapAction(
 		Commands.HideParentsWhenFiltering,
-		FExecuteAction::CreateLambda([this]() { bHideParentsOnFilter = !bHideParentsOnFilter; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bHideParentsOnFilter = !DisplaySettings.bHideParentsOnFilter; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bHideParentsOnFilter; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bHideParentsOnFilter; }));
 
 	CommandList->MapAction(
 		Commands.ShowImportedBones,
-		FExecuteAction::CreateLambda([this]() { bShowImportedBones = !bShowImportedBones; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowImportedBones = !DisplaySettings.bShowImportedBones; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowImportedBones; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowImportedBones; }));
 	
 	CommandList->MapAction(
 		Commands.ShowBones,
-		FExecuteAction::CreateLambda([this]() { bShowBones = !bShowBones; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowBones = !DisplaySettings.bShowBones; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowBones; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowBones; }));
 
 	CommandList->MapAction(
 		Commands.ShowControls,
-		FExecuteAction::CreateLambda([this]() { bShowControls = !bShowControls; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowControls = !DisplaySettings.bShowControls; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowControls; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowControls; }));
 	
 	CommandList->MapAction(
 		Commands.ShowNulls,
-		FExecuteAction::CreateLambda([this]() { bShowNulls = !bShowNulls; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowNulls = !DisplaySettings.bShowNulls; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowNulls; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowNulls; }));
 
 	CommandList->MapAction(
 		Commands.ShowRigidBodies,
-		FExecuteAction::CreateLambda([this]() { bShowRigidBodies = !bShowRigidBodies; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowRigidBodies = !DisplaySettings.bShowRigidBodies; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowRigidBodies; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowRigidBodies; }));
 
 	CommandList->MapAction(
 		Commands.ShowSockets,
-		FExecuteAction::CreateLambda([this]() { bShowSockets = !bShowSockets; RefreshTreeView(); }),
+		FExecuteAction::CreateLambda([this]() { DisplaySettings.bShowSockets = !DisplaySettings.bShowSockets; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowSockets; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowSockets; }));
 
 	CommandList->MapAction(
 		Commands.ShowDynamicHierarchy,
 		FExecuteAction::CreateLambda([this]()
 		{
-			bShowDynamicHierarchy = !bShowDynamicHierarchy;
+			DisplaySettings.bShowDynamicHierarchy = !DisplaySettings.bShowDynamicHierarchy;
 			HandleSetObjectBeingDebugged(GetControlRigEditor()->GetControlRigBlueprint()->GetObjectBeingDebugged());
 			RefreshTreeView();
 		}),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowDynamicHierarchy; }));
+		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowDynamicHierarchy; }));
 
 	CommandList->MapAction(
 		Commands.ToggleGizmoTransformEdit,
@@ -633,7 +422,11 @@ void SRigHierarchy::BindCommands()
 		{
 			ControlRigEditor.Pin()->GetEditMode()->ToggleGizmoTransformEdit();
 		}));
-	
+
+	CommandList->MapAction(
+		Commands.TestSpaceSwitching,
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleTestSpaceSwitching),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
 }
 
 FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -695,95 +488,13 @@ FReply SRigHierarchy::OnImportSkeletonClicked()
 
 void SRigHierarchy::OnFilterTextChanged(const FText& SearchText)
 {
-	FilterText = SearchText;
-
+	DisplaySettings.FilterText = SearchText;
 	RefreshTreeView();
 }
 
 void SRigHierarchy::RefreshTreeView(bool bRebuildContent)
 {
-	TMap<FRigElementKey, bool> ExpansionState;
-
-	if(bRebuildContent)
-	{
-		for (TPair<FRigElementKey, TSharedPtr<FRigTreeElement>> Pair : ElementMap)
-		{
-			ExpansionState.FindOrAdd(Pair.Key) = TreeView->IsItemExpanded(Pair.Value);
-		}
-
-		// internally save expansion states before rebuilding the tree, so the states can be restored later
-		TreeView->SaveAndClearSparseItemInfos();
-
-		RootElements.Reset();
-		ElementMap.Reset();
-		ParentMap.Reset();
-	}
-
-	if (ControlRigBlueprint.IsValid())
-	{
-		URigHierarchy* Hierarchy = GetHierarchyForTopology();
-		check(Hierarchy);
-
-		if(bRebuildContent)
-		{
-			Hierarchy->Traverse([&](FRigBaseElement* Element, bool& bContinue)
-            {
-                AddElement(Element);
-                bContinue = true;
-            });
-
-			// expand all elements upon the initial construction of the tree
-			if (ExpansionState.Num() == 0)
-			{
-				for (TSharedPtr<FRigTreeElement> RootElement : RootElements)
-				{
-					SetExpansionRecursive(RootElement, false, true);
-				}
-			}
-
-			for (const auto& Pair : ElementMap)
-			{
-				TreeView->RestoreSparseItemInfos(Pair.Value);
-			}
-
-			if (RootElements.Num() > 0)
-			{
-				AddSpacerElement();
-			}
-		}
-		else
-		{
-			if (RootElements.Num()> 0)
-			{
-				// elements may be added at the end of the list after a spacer element
-				// we need to remove the spacer element and re-add it at the end
-				RootElements.RemoveAll([](TSharedPtr<FRigTreeElement> InElement)
-				{
-					return InElement.Get()->Key == FRigElementKey();
-				});
-				AddSpacerElement();
-			}
-		}
-
-		TreeView->RequestTreeRefresh();
-		{
-			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
-			TreeView->ClearSelection();
-
-			TArray<FRigElementKey> Selection = Hierarchy->GetSelectedKeys();
-			for (const FRigElementKey& Key : Selection)
-			{
-				for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
-				{
-					TSharedPtr<FRigTreeElement> Found = FindElement(Key, RootElements[RootIndex]);
-					if (Found.IsValid())
-					{
-						TreeView->SetItemSelection(Found, true, ESelectInfo::OnNavigation);
-					}
-				}
-			}
-		}
-	}
+	TreeView->RefreshTreeView(bRebuildContent);
 }
 
 TArray<FRigElementKey> SRigHierarchy::GetSelectedKeys() const
@@ -800,38 +511,6 @@ TArray<FRigElementKey> SRigHierarchy::GetSelectedKeys() const
 	}
 
 	return SelectedKeys;
-}
-
-void SRigHierarchy::SetExpansionRecursive(TSharedPtr<FRigTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded)
-{
-	TreeView->SetItemExpansion(InElement, bShouldBeExpanded);
-
-	if (bTowardsParent)
-	{
-		if (const FRigElementKey* ParentKey = ParentMap.Find(InElement->Key))
-		{
-			if (TSharedPtr<FRigTreeElement>* ParentItem = ElementMap.Find(*ParentKey))
-			{
-				SetExpansionRecursive(*ParentItem, bTowardsParent, bShouldBeExpanded);
-			}
-		}
-	}
-	else
-	{
-		for (int32 ChildIndex = 0; ChildIndex < InElement->Children.Num(); ++ChildIndex)
-		{
-			SetExpansionRecursive(InElement->Children[ChildIndex], bTowardsParent, bShouldBeExpanded);
-		}
-	}
-}
-TSharedRef<ITableRow> SRigHierarchy::MakeTableRowWidget(TSharedPtr<FRigTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return InItem->MakeTreeRowWidget(ControlRigEditor.Pin(), OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
-}
-
-void SRigHierarchy::HandleGetChildrenForTree(TSharedPtr<FRigTreeElement> InItem, TArray<TSharedPtr<FRigTreeElement>>& OutChildren)
-{
-	OutChildren = InItem.Get()->Children;
 }
 
 void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
@@ -896,242 +575,6 @@ void SRigHierarchy::OnSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ES
 	}
 }
 
-TSharedPtr<FRigTreeElement> SRigHierarchy::FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem)
-{
-	if (CurrentItem->Key == InElementKey)
-	{
-		return CurrentItem;
-	}
-
-	for (int32 ChildIndex = 0; ChildIndex < CurrentItem->Children.Num(); ++ChildIndex)
-	{
-		TSharedPtr<FRigTreeElement> Found = FindElement(InElementKey, CurrentItem->Children[ChildIndex]);
-		if (Found.IsValid())
-		{
-			return Found;
-		}
-	}
-
-	return TSharedPtr<FRigTreeElement>();
-}
-
-bool SRigHierarchy::AddElement(FRigElementKey InKey, FRigElementKey InParentKey, const bool bIgnoreTextFilter)
-{
-	if(ElementMap.Contains(InKey))
-	{
-		return false;
-	}
-
-	FString FilteredString = FilterText.ToString();
-	if (bIgnoreTextFilter || FilteredString.IsEmpty() || !InKey.IsValid())
-	{
-		TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this));
-
-		if (InKey.IsValid())
-		{
-			ElementMap.Add(InKey, NewItem);
-			if (InParentKey)
-			{
-				ParentMap.Add(InKey, InParentKey);
-			}
-
-			if (InParentKey)
-			{
-				TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InParentKey);
-				check(FoundItem);
-				FoundItem->Get()->Children.Add(NewItem);
-			}
-			else
-			{
-				RootElements.Add(NewItem);
-			}
-		}
-		else
-		{
-			RootElements.Add(NewItem);
-		}
-	}
-	else
-	{
-		FString FilteredStringUnderScores = FilteredString.Replace(TEXT(" "), TEXT("_"));
-		if (InKey.Name.ToString().Contains(FilteredString) || InKey.Name.ToString().Contains(FilteredStringUnderScores))	
-		{
-			TSharedPtr<FRigTreeElement> NewItem = MakeShared<FRigTreeElement>(InKey, SharedThis(this));
-			ElementMap.Add(InKey, NewItem);
-			RootElements.Add(NewItem);
-		}
-	}
-
-	return true;
-}
-
-bool SRigHierarchy::AddElement(const FRigBaseElement* InElement, const bool bIgnoreTextFilter)
-{
-	check(InElement);
-	
-	if (ElementMap.Contains(InElement->GetKey()))
-	{
-		return false;
-	}
-
-	switch(InElement->GetType())
-	{
-		case ERigElementType::Bone:
-		{
-			if(!bShowBones)
-			{
-				return false;
-			}
-
-			const FRigBoneElement* BoneElement = CastChecked<FRigBoneElement>(InElement);
-			if (!bShowImportedBones && BoneElement->BoneType == ERigBoneType::Imported)
-			{
-				return false;
-			}
-			break;
-		}
-		case ERigElementType::Null:
-		{
-			if(!bShowNulls)
-			{
-				return false;
-			}
-			break;
-		}
-		case ERigElementType::Control:
-		{
-			if(!bShowControls)
-			{
-				return false;
-			}
-			break;
-		}
-		case ERigElementType::RigidBody:
-		{
-			if(!bShowRigidBodies)
-			{
-				return false;
-			}
-			break;
-		}
-		case ERigElementType::Socket:
-		{
-			if(!bShowSockets)
-			{
-				return false;
-			}
-			break;
-		}
-		case ERigElementType::Curve:
-		{
-			return false;
-		}
-		default:
-		{
-			break;
-		}
-	}
-
-	const URigHierarchy* Hierarchy = GetHierarchyForTopology();
-	check(Hierarchy);
-
-	if(!AddElement(InElement->GetKey(), FRigElementKey(), bIgnoreTextFilter))
-	{
-		return false;
-	}
-
-	if (ElementMap.Contains(InElement->GetKey()))
-	{
-		const FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
-		if (ParentKey.IsValid())
-		{
-			if(ElementMap.Contains(ParentKey))
-			{
-				ReparentElement(InElement->GetKey(), ParentKey);
-			}
-		}
-	}
-
-	return true;
-}
-
-void SRigHierarchy::AddSpacerElement()
-{
-	AddElement(FRigElementKey(), FRigElementKey());
-}
-
-bool SRigHierarchy::ReparentElement(FRigElementKey InKey, FRigElementKey InParentKey)
-{
-	if (!InKey.IsValid() || InKey == InParentKey)
-	{
-		return false;
-	}
-
-	TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InKey);
-	if (FoundItem == nullptr)
-	{
-		return false;
-	}
-
-	if (!FilterText.IsEmpty() && bFlattenHierarchyOnFilter)
-	{
-		return false;
-	}
-
-	if (const FRigElementKey* ExistingParentKey = ParentMap.Find(InKey))
-	{
-		if (*ExistingParentKey == InParentKey)
-		{
-			return false;
-		}
-
-		if (TSharedPtr<FRigTreeElement>* ExistingParent = ElementMap.Find(*ExistingParentKey))
-		{
-			(*ExistingParent)->Children.Remove(*FoundItem);
-		}
-
-		ParentMap.Remove(InKey);
-	}
-	else
-	{
-		if (!InParentKey.IsValid())
-		{
-			return false;
-		}
-
-		RootElements.Remove(*FoundItem);
-	}
-
-	if (InParentKey)
-	{
-		ParentMap.Add(InKey, InParentKey);
-
-		TSharedPtr<FRigTreeElement>* FoundParent = ElementMap.Find(InParentKey);
-		check(FoundParent);
-		FoundParent->Get()->Children.Add(*FoundItem);
-	}
-	else
-	{
-		RootElements.Add(*FoundItem);
-	}
-
-	return true;
-}
-
-bool SRigHierarchy::RemoveElement(FRigElementKey InKey)
-{
-	TSharedPtr<FRigTreeElement>* FoundItem = ElementMap.Find(InKey);
-	if (FoundItem == nullptr)
-	{
-		return false;
-	}
-
-	ReparentElement(InKey, FRigElementKey());
-
-	RootElements.Remove(*FoundItem);
-	return ElementMap.Remove(InKey) > 0;
-}
-
 void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
 	if(!ControlRigBlueprint.IsValid())
@@ -1163,7 +606,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		{
 			if(InElement)
 			{
-				if(AddElement(InElement))
+				if(TreeView->AddElement(InElement))
 				{
 					RefreshTreeView(false);
 				}
@@ -1174,7 +617,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		{
 			if(InElement)
 			{
-				if(RemoveElement(InElement->GetKey()))
+				if(TreeView->RemoveElement(InElement->GetKey()))
 				{
 					RefreshTreeView(false);
 				}
@@ -1187,9 +630,38 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 			if(InElement)
 			{
 				const FRigElementKey ParentKey = InHierarchy->GetFirstParent(InElement->GetKey());
-				if(ReparentElement(InElement->GetKey(), ParentKey))
+				if(TreeView->ReparentElement(InElement->GetKey(), ParentKey))
 				{
 					RefreshTreeView(false);
+				}
+			}
+			break;
+		}
+		case ERigHierarchyNotification::ParentWeightsChanged:
+		{
+			if(DisplaySettings.bShowDynamicHierarchy)
+			{
+				if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+				{
+					TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
+					if(ParentWeights.Num() > 0)
+					{
+						TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
+						check(ParentKeys.Num() == ParentWeights.Num());
+						for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
+						{
+							if(ParentWeights[ParentIndex].IsAlmostZero())
+							{
+								continue;
+							}
+
+							if(TreeView->ReparentElement(InElement->GetKey(), ParentKeys[ParentIndex]))
+							{
+								RefreshTreeView(false);
+							}
+							break;
+						}
+					}
 				}
 			}
 			break;
@@ -1207,9 +679,9 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 			{
 				const bool bSelected = (InNotif == ERigHierarchyNotification::ElementSelected); 
 					
-				for (int32 RootIndex = 0; RootIndex < RootElements.Num(); ++RootIndex)
+				for (int32 RootIndex = 0; RootIndex < TreeView->RootElements.Num(); ++RootIndex)
 				{
-					TSharedPtr<FRigTreeElement> Found = FindElement(InElement->GetKey(), RootElements[RootIndex]);
+					TSharedPtr<FRigTreeElement> Found = TreeView->FindElement(InElement->GetKey(), TreeView->RootElements[RootIndex]);
 					if (Found.IsValid())
 					{
 						TreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
@@ -1237,7 +709,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 
 void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
-	if(!bShowDynamicHierarchy)
+	if(!DisplaySettings.bShowDynamicHierarchy)
 	{
 		return;
 	}
@@ -1415,17 +887,17 @@ void SRigHierarchy::OnItemDoubleClicked(TSharedPtr<FRigTreeElement> InItem)
 {
 	if (TreeView->IsItemExpanded(InItem))
 	{
-		SetExpansionRecursive(InItem, false, false);
+		TreeView->SetExpansionRecursive(InItem, false, false);
 	}
 	else
 	{
-		SetExpansionRecursive(InItem, false, true);
+		TreeView->SetExpansionRecursive(InItem, false, true);
 	}
 }
 
 void SRigHierarchy::OnSetExpansionRecursive(TSharedPtr<FRigTreeElement> InItem, bool bShouldBeExpanded)
 {
-	SetExpansionRecursive(InItem, false, bShouldBeExpanded);
+	TreeView->SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
 UToolMenu* SRigHierarchy::GetOrCreateDragDropMenu(const TArray<FRigElementKey>& DraggedKeys, FRigElementKey TargetKey)
@@ -1489,7 +961,7 @@ UToolMenu* SRigHierarchy::GetOrCreateContextMenu()
 {
 	const FName MenuName = TEXT("ControlRigEditor.RigHierarchy.ContextMenu");
 	const FName InteractionSectionName = TEXT("Interaction");
-	
+
 	UToolMenus* ToolMenus = UToolMenus::Get();
 	const FControlRigHierarchyCommands& Commands = FControlRigHierarchyCommands::Get();
 	
@@ -1533,10 +1005,17 @@ UToolMenu* SRigHierarchy::GetOrCreateContextMenu()
 			{
 				if (const TSharedPtr<SRigHierarchy> RigHierarchyPanel = WeakThis.Pin())
 				{
-					if (RigHierarchyPanel->IsSingleBoneSelected())
+					if (RigHierarchyPanel->IsSingleBoneSelected() || RigHierarchyPanel->IsControlSelected())
 					{
 						FToolMenuSection& InteractionSection = InMenu->AddSection(InteractionSectionName, LOCTEXT("InteractionHeader", "Interaction"));
-						InteractionSection.AddMenuEntry(Commands.ControlBoneTransform);
+						if(RigHierarchyPanel->IsSingleBoneSelected())
+						{
+							InteractionSection.AddMenuEntry(Commands.ControlBoneTransform);
+						}
+						else if(RigHierarchyPanel->IsControlSelected())
+						{
+							InteractionSection.AddMenuEntry(Commands.TestSpaceSwitching);
+						}
 					}
 				}
 			}),
@@ -2251,10 +1730,10 @@ URigHierarchy* SRigHierarchy::GetDebuggedHierarchy() const
 	return GetHierarchy();
 }
 
-URigHierarchy* SRigHierarchy::GetHierarchyForTopology() const
+const URigHierarchy* SRigHierarchy::GetHierarchyForTopology() const
 {
 	URigHierarchy* Hierarchy = GetHierarchy();
-	if(bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
+	if(DisplaySettings.bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
 	{
 		Hierarchy = ControlRigBeingDebuggedPtr->GetHierarchy();
 	}
@@ -2402,7 +1881,7 @@ FReply SRigHierarchy::OnAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDro
 	return FReply::Unhandled();
 }
 
-FName SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FString& NewName)
+FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName)
 {
 	ClearDetailPanel();
 
@@ -2433,7 +1912,7 @@ FName SRigHierarchy::RenameElement(const FRigElementKey& OldKey, const FString& 
 	return NAME_None;
 }
 
-bool SRigHierarchy::OnVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage)
+bool SRigHierarchy::HandleVerifyNameChanged(const FRigElementKey& OldKey, const FString& NewName, FText& OutErrorMessage)
 {
 	if (OldKey.Name.ToString() == NewName)
 	{
@@ -2575,7 +2054,7 @@ void SRigHierarchy::HandleFrameSelection()
 	TArray<TSharedPtr<FRigTreeElement>> SelectedItems = TreeView->GetSelectedItems();
 	for (TSharedPtr<FRigTreeElement> SelectedItem : SelectedItems)
 	{
-		SetExpansionRecursive(SelectedItem, true, true);
+		TreeView->SetExpansionRecursive(SelectedItem, true, true);
 	}
 
 	if (SelectedItems.Num() > 0)
@@ -2722,6 +2201,42 @@ bool SRigHierarchy::FindClosestBone(const FVector& Point, FName& OutRigElementNa
 		return (OutRigElementName != NAME_None);
 	}
 	return false;
+}
+
+void SRigHierarchy::HandleTestSpaceSwitching()
+{
+	for(const FRigElementKey& ControlKey : GetSelectedKeys())
+	{
+		if(ControlKey.Type == ERigElementType::Control)
+		{
+			TSharedRef<SRigSpacePickerWidget> Dialog =
+				SNew(SRigSpacePickerWidget)
+				.Hierarchy(GetDebuggedHierarchy())
+				.SelectedControl(ControlKey);
+
+			SRigSpacePickerWidget::FResult PickedResult = Dialog->InvokeDialog();
+			if(PickedResult.Reply.IsEventHandled() && PickedResult.Key.IsValid())
+			{
+				if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+				{
+					const FRigElementKey SpaceKey = PickedResult.Key;
+					
+					FTransform Transform = Hierarchy->GetGlobalTransform(ControlKey);
+					if(SpaceKey == Hierarchy->GetWorldSpaceSocketKey())
+					{
+						Hierarchy->SwitchToWorldSpace(ControlKey);
+					}
+					else
+					{
+						Hierarchy->SwitchToParent(ControlKey, SpaceKey);
+					}
+					Hierarchy->SetGlobalTransform(ControlKey, Transform);
+				}
+			}
+			
+			break;
+		}
+	}
 }
 
 void SRigHierarchy::HandleParent(const FToolMenuContext& Context)

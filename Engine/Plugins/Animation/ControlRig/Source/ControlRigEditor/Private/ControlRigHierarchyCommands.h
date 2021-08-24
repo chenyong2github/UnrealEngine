@@ -110,7 +110,10 @@ public:
 
 	/** Toggle Gizmo Transform Edit*/
 	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
-	
+
+	/** Test out space switching as it would look like for animator */
+	TSharedPtr< FUICommandInfo > TestSpaceSwitching;
+
 	/**
 	 * Initialize commands
 	 */

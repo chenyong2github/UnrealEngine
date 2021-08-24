@@ -16,7 +16,6 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
-#include "SControlHierarchy.h"
 #include "SControlPicker.h"
 #include "IDetailCustomization.h"
 #include "DetailLayoutBuilder.h"
@@ -193,6 +192,11 @@ protected:
 
 void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 {
+	if(ViewportRig.IsValid())
+	{
+		ViewportRig->ControlSelected().RemoveAll(this);
+	}
+
 	SequencerRig = ControlRig;
 	ViewportRig = ControlRig;
 	if (SequencerRig.IsValid())
@@ -207,11 +211,31 @@ void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 	Objects.Add(SequencerRig);
 	RigOptionsDetailsView->SetObjects(Objects);
 
-	ControlHierarchy->SetControlRig(ViewportRig.Get());
+	HierarchyTreeView->RefreshTreeView(true);
+
+	if (ViewportRig.IsValid())
+	{
+		ViewportRig->ControlSelected().AddRaw(this, &SControlRigEditModeTools::OnRigElementSelected);
+	}
+}
+
+const URigHierarchy* SControlRigEditModeTools::GetHierarchy() const
+{
+	if(ViewportRig.IsValid())
+	{
+		return ViewportRig->GetHierarchy();
+	}
+	if(SequencerRig.IsValid())
+	{
+		return ViewportRig->GetHierarchy();
+	}
+	return nullptr;
 }
 
 void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode,UWorld* InWorld)
 {
+	bIsChangingRigHierarchy = false;
+	
 	// initialize settings view
 	FDetailsViewArgs DetailsViewArgs;
 	{
@@ -241,6 +265,19 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 	RigOptionsDetailsView->SetKeyframeHandler(SharedThis(this));
 	RigOptionsDetailsView->OnFinishedChangingProperties().AddSP(this, &SControlRigEditModeTools::OnRigOptionFinishedChange);
 
+	DisplaySettings.bShowBones = false;
+	DisplaySettings.bShowControls = true;
+	DisplaySettings.bShowNulls = false;
+	DisplaySettings.bShowSockets = false;
+	DisplaySettings.bShowRigidBodies = false;
+	DisplaySettings.bHideParentsOnFilter = true;
+	DisplaySettings.bFlattenHierarchyOnFilter = true;
+
+	FRigTreeDelegates RigTreeDelegates;
+	RigTreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SControlRigEditModeTools::GetHierarchy);
+	RigTreeDelegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SControlRigEditModeTools::GetDisplaySettings);
+	RigTreeDelegates.OnSelectionChanged = FOnRigTreeSelectionChanged::CreateSP(this, &SControlRigEditModeTools::HandleSelectionChanged);
+
 	ChildSlot
 	[
 		SNew(SScrollBox)
@@ -258,7 +295,8 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.BodyContent()
 				[
-					SAssignNew(ControlHierarchy, SControlHierarchy, InEditMode.GetControlRig(true))
+					SAssignNew(HierarchyTreeView, SRigHierarchyTreeView)
+					.RigTreeDelegates(RigTreeDelegates)
 				]
 			]
 
@@ -284,6 +322,8 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 			]
 		]
 	];
+
+	HierarchyTreeView->RefreshTreeView(true);
 }
 
 void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
@@ -487,6 +527,53 @@ void SControlRigEditModeTools::HandleModifiedEvent(ERigVMGraphNotifType InNotifT
 		default:
 		{
 			break;
+		}
+	}
+}
+
+void SControlRigEditModeTools::HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo)
+{
+	if(bIsChangingRigHierarchy)
+	{
+		return;
+	}
+	
+	const URigHierarchy* Hierarchy = GetHierarchy();
+	if (Hierarchy)
+	{
+		URigHierarchyController* Controller = ((URigHierarchy*)Hierarchy)->GetController(true);
+		check(Controller);
+		
+		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
+		const TArray<FRigElementKey> NewSelection = HierarchyTreeView->GetSelectedKeys();
+		if(!Controller->SetSelection(NewSelection))
+		{
+			return;
+		}
+	}
+}
+
+void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected)
+{
+	const FRigElementKey Key = ControlElement->GetKey();
+	for (int32 RootIndex = 0; RootIndex < HierarchyTreeView->GetRootElements().Num(); ++RootIndex)
+	{
+		TSharedPtr<FRigTreeElement> Found = HierarchyTreeView->FindElement(Key, HierarchyTreeView->GetRootElements()[RootIndex]);
+		if (Found.IsValid())
+		{
+			HierarchyTreeView->SetItemSelection(Found, bSelected, ESelectInfo::OnNavigation);
+			
+			TArray<TSharedPtr<FRigTreeElement>> SelectedItems = HierarchyTreeView->GetSelectedItems();
+			for (TSharedPtr<FRigTreeElement> SelectedItem : SelectedItems)
+			{
+				HierarchyTreeView->SetExpansionRecursive(SelectedItem, false, true);
+			}
+
+			if (SelectedItems.Num() > 0)
+			{
+				HierarchyTreeView->RequestScrollIntoView(SelectedItems.Last());
+			}
 		}
 	}
 }

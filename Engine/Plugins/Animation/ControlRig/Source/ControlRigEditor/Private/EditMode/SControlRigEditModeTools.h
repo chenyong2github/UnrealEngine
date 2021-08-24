@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "IDetailKeyframeHandler.h"
 #include "RigVMModel/RigVMGraph.h"
+#include "SRigHierarchyTreeView.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FControlRigEditMode;
@@ -13,8 +14,9 @@ class IDetailsView;
 class ISequencer;
 class SControlPicker;
 class SExpandableArea;
-class SControlHierarchy;
+class SRigHierarchyTreeView;
 class UControlRig;
+class URigHierarchy;
 class FToolBarBuilder;
 class FEditorModeTools;
 
@@ -35,6 +37,9 @@ public:
 	/** Set The Control Rig we are using*/
 	void SetControlRig(UControlRig* ControlRig);
 
+	/** Returns the hierarchy currently being used */
+	const URigHierarchy* GetHierarchy() const;
+
 	// IDetailKeyframeHandler interface
 	virtual bool IsPropertyKeyable(const UClass* InObjectClass, const class IPropertyHandle& PropertyHandle) const override;
 	virtual bool IsPropertyKeyingEnabled() const override;
@@ -52,7 +57,7 @@ private:
 	TSharedPtr<IDetailsView> RigOptionsDetailsView;
 
 	/** Hierarchy picker for controls*/
-	TSharedPtr<SControlHierarchy> ControlHierarchy;
+	TSharedPtr<SRigHierarchyTreeView> HierarchyTreeView;
 
 	/** Special picker for controls, no longer used */
 	TSharedPtr<SControlPicker> ControlPicker;
@@ -70,6 +75,8 @@ private:
 	void OnManipulatorsPicked(const TArray<FName>& Manipulators);
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
+	void OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 
 	EVisibility GetRigOptionExpanderVisibility() const;
 
@@ -88,6 +95,10 @@ private:
 	//TWeakPtr<SWindow> SelectionSetWindow;
 
 	FEditorModeTools* ModeTools = nullptr;
+	FRigTreeDisplaySettings DisplaySettings;
+	const FRigTreeDisplaySettings& GetDisplaySettings() const { return DisplaySettings; }
+	bool bIsChangingRigHierarchy;
+
 public:
 	/** Modes Panel Header Information **/
 	void CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder);
