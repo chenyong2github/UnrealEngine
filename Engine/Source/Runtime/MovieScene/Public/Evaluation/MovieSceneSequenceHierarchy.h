@@ -114,7 +114,7 @@ struct FMovieSceneSubSequenceData
 	/**
 	 * The play range of the parent section, without any warping involved.
 	 * That means that, for a sub-sequence playing with an initial offset of 50 and looping 3 times,
-	 * this play range will start 50 frames after layRange's lower bound, and extend much past PlayRange's 
+	 * this play range will start 50 frames after PlayRange's lower bound, and extend much past PlayRange's 
 	 * upper bound (3 times longer).
 	 */
 	UPROPERTY()
@@ -194,7 +194,7 @@ struct FMovieSceneSubSequenceTreeEntry
 	GENERATED_BODY()
 
 	friend FArchive& operator<<(FArchive& Ar, FMovieSceneSubSequenceTreeEntry& InOutEntry);
-	friend bool operator==(FMovieSceneSubSequenceTreeEntry A, FMovieSceneSubSequenceTreeEntry B);
+	friend bool operator==(const FMovieSceneSubSequenceTreeEntry& A, const FMovieSceneSubSequenceTreeEntry& B);
 
 	FMovieSceneSequenceID SequenceID;
 	ESectionEvaluationFlags Flags;
@@ -329,6 +329,11 @@ struct FMovieSceneSequenceHierarchy
 	{
 		return Tree.Data;
 	}
+
+#if !NO_LOGGING
+	void LogHierarchy() const;
+	void LogSubSequenceTree() const;
+#endif
 
 private:
 
