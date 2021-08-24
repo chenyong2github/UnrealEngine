@@ -149,7 +149,10 @@ static bool ShouldRenderRayTracingShadowsForLightType(ELightComponentType LightT
 
 bool ShouldRenderRayTracingShadows()
 {
-	return ShouldRenderRayTracingEffect(CVarRayTracingOcclusion.GetValueOnRenderThread() > 0);
+	const bool bIsStereo = GEngine->StereoRenderingDevice.IsValid() && GEngine->StereoRenderingDevice->IsStereoEnabled();
+	const bool bHairStrands = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
+
+	return ShouldRenderRayTracingEffect((CVarRayTracingOcclusion.GetValueOnRenderThread() > 0) && !(bIsStereo && bHairStrands) );
 }
 
 bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy)
