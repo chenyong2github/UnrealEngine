@@ -902,9 +902,13 @@ void UNiagaraSystem::RecomputeExecutionOrderForDataInterface(class UNiagaraDataI
 
 void UNiagaraSystem::Serialize(FArchive& Ar)
 {
-	Super::Serialize(Ar);
-
 	Ar.UsingCustomVersion(FNiagaraCustomVersion::GUID);
+	if (Ar.CustomVer(FNiagaraCustomVersion::GUID) < FNiagaraCustomVersion::ChangeSystemDeterministicDefault)
+	{
+		bDeterminism = true;
+	}
+
+	Super::Serialize(Ar);
 
 	if (Ar.CustomVer(FNiagaraCustomVersion::GUID) >= FNiagaraCustomVersion::ChangeEmitterCompiledDataToSharedRefs)
 	{

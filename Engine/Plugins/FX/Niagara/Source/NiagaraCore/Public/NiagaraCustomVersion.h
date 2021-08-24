@@ -166,6 +166,8 @@ struct FNiagaraCustomVersion
 
 		MoveDefaultValueFromFNiagaraVariableMetaDataToUNiagaraScriptVariable, 
 
+		ChangeSystemDeterministicDefault,	// Changed the default mode from deterministic to non-deterministic which matches emitters
+
 		// DO NOT ADD A NEW VERSION UNLESS YOU HAVE TALKED TO THE NIAGARA LEAD. Mismanagement of these versions can lead to data loss if it is adjusted in multiple streams simultaneously.
 		// -----<new versions can be added above this line>  -------------------------------------------------
 		VersionPlusOne,
