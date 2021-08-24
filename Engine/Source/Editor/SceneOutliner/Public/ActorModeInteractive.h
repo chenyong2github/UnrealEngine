@@ -19,6 +19,7 @@ private:
 
 	void OnLevelSelectionChanged(UObject* Obj);
 	void OnActorLabelChanged(AActor* ChangedActor);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap);
 	void OnLevelActorRequestsRename(const AActor* Actor);
 	void OnPostLoadMapWithWorld(UWorld* World);
 };
