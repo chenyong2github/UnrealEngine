@@ -10,9 +10,9 @@
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"EnabledByDefault": false,
+	"EnabledByDefault": true,
 	"CanContainContent": false,
-	"IsBetaVersion": false,
+	"IsBetaVersion": true,
 	"IsExperimentalVersion":  true,
 	"Installed": false,
 	"Plugins": [
@@ -25,14 +25,12 @@
 		{
 			"Name": "ControlRigSpline",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "ControlRigSplineEditor",
 			"Type": "Editor",
-			"LoadingPhase": "PostEngineInit",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }
