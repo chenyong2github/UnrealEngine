@@ -31,6 +31,7 @@ class UCanvas;
 struct IWorldPartitionStreamingSourceProvider;
 
 enum class EWorldPartitionRuntimeCellState : uint8;
+enum class EWorldPartitionStreamingPerformance : uint8;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
@@ -182,6 +183,8 @@ public:
 	void DrawRuntimeHash3D();
 	void DrawRuntimeCellsDetails(UCanvas* Canvas, FVector2D& Offset);
 	void DrawStreamingStatusLegend(UCanvas* Canvas, FVector2D& Offset);
+
+	EWorldPartitionStreamingPerformance GetStreamingPerformance() const;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(DuplicateTransient)
