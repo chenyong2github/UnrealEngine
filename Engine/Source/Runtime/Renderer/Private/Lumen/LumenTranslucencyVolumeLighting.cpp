@@ -247,13 +247,13 @@ namespace LumenTranslucencyVolumeRadianceCache
 
 	int32 GetClipmapGridResolution()
 	{
-		const int32 GridResolution = GTranslucencyVolumeRadianceCacheGridResolution / (GLumenFastCameraMode ? 2 : 1);
+		const int32 GridResolution = GTranslucencyVolumeRadianceCacheGridResolution;
 		return FMath::Clamp(GridResolution, 1, 256);
 	}
 
 	int32 GetProbeResolution()
 	{
-		return GTranslucencyVolumeRadianceCacheProbeResolution / (GLumenFastCameraMode ? 2 : 1);
+		return GTranslucencyVolumeRadianceCacheProbeResolution;
 	}
 
 	int32 GetNumMipmaps()
