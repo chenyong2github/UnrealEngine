@@ -375,11 +375,11 @@ void UControlRigGraphNode::HandleInsertArrayElement(FString InPinPath)
 	}
 }
 
-int32 UControlRigGraphNode::GetInstructionIndex()
+int32 UControlRigGraphNode::GetInstructionIndex(bool bAsInput) const
 {
 	if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetGraph()))
 	{
-		return RigGraph->GetInstructionIndex(this);
+		return RigGraph->GetInstructionIndex(this, bAsInput);
 	}
 	return INDEX_NONE;
 }
@@ -680,15 +680,9 @@ FLinearColor UControlRigGraphNode::GetNodeOpacityColor() const
 			return FLinearColor::White;
 		}
 
-		if (URigVMController* Controller = GetController())
+		if(GetInstructionIndex(true) == INDEX_NONE)
 		{
-			if (const FRigVMByteCode* ByteCode = Controller->GetCurrentByteCode())
-			{
-				if (ByteCode->GetFirstInstructionIndexForSubject(ModelNode) == INDEX_NONE)
-				{
-					return FLinearColor(0.35f, 0.35f, 0.35f, 0.35f);
-				}
-			}
+			return FLinearColor(0.35f, 0.35f, 0.35f, 0.35f);
 		}
 	}
 	return FLinearColor::White;

@@ -149,7 +149,7 @@ public:
 
 	FNodeTitleDirtied& GetNodeTitleDirtied() { return NodeTitleDirtied; }
 
-	int32 GetInstructionIndex();
+	int32 GetInstructionIndex(bool bAsInput) const;
 
 protected:
 

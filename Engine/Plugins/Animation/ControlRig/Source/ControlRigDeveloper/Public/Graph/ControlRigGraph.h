@@ -74,7 +74,7 @@ public:
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 
-	int32 GetInstructionIndex(UControlRigGraphNode* InNode);
+	int32 GetInstructionIndex(const UControlRigGraphNode* InNode, bool bAsInput);
 
 	UPROPERTY()
 	FString ModelNodePath;
@@ -133,7 +133,7 @@ private:
 
 	FControlRigGraphNodeClicked OnGraphNodeClicked;
 
-	TMap<URigVMNode*, int32> CachedInstructionIndices;
+	TMap<URigVMNode*, TPair<int32, int32>> CachedInstructionIndices;
 
 #endif
 #if WITH_EDITORONLY_DATA
