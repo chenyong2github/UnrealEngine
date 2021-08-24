@@ -50,6 +50,26 @@ struct FHairResourceName
 #endif
 };
 
+enum class EHairResourceLoadingType : uint8
+{
+	Async,
+	Sync
+};
+
+enum class EHairResourceStatus : uint8
+{
+	None = 0,
+	Loading = 1,
+	Valid = 2
+};
+
+FORCEINLINE EHairResourceStatus  operator& (EHairResourceStatus A, EHairResourceStatus B) { return static_cast<EHairResourceStatus>(static_cast<uint8>(A) & static_cast<uint8>(B)); }
+FORCEINLINE EHairResourceStatus  operator| (EHairResourceStatus A, EHairResourceStatus B) { return static_cast<EHairResourceStatus>(static_cast<uint8>(A) | static_cast<uint8>(B)); }
+FORCEINLINE EHairResourceStatus& operator|=(EHairResourceStatus&A, EHairResourceStatus B) { return A=A|B; }
+FORCEINLINE bool operator! (EHairResourceStatus A) { return static_cast<uint8>(A) != 0; }
+
+EHairResourceLoadingType GetHairResourceLoadingType();
+
 /* Hair resouces which whom allocation can be deferred */
 struct FHairCommonResource : public FRenderResource
 {
@@ -61,12 +81,15 @@ struct FHairCommonResource : public FRenderResource
 	virtual void ReleaseRHI() override;
 
 	/* Init/Release buffers (FHairCommonResource) */
-	void Allocate(FRDGBuilder& GraphBuilder);
-	void AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex);
-	virtual void InternalAllocate() {};
-	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {};
-	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) {};
-	virtual void InternalRelease() {};
+	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType);
+	void Allocate(FRDGBuilder& GraphBuilder, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
+	void AllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex, EHairResourceLoadingType LoadingType, EHairResourceStatus& Status);
+	virtual void InternalAllocate() {}
+	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) {}
+	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) {}
+	virtual void InternalRelease() {}
+	virtual bool InternalIsDataLoaded() { return true; }
+	virtual bool InternalIsLODDataLoaded(int32 LODIndex) { return true; }
 
 	bool bUseRenderGraph = true;
 	bool bIsInitialized = false;
@@ -86,6 +109,8 @@ struct FHairStrandsRestRootResource : public FHairCommonResource
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalAllocateLOD(FRDGBuilder& GraphBuilder, int32 LODIndex) override;
 	virtual void InternalRelease() override;
+	virtual bool InternalIsDataLoaded() override;
+	virtual bool InternalIsLODDataLoaded(int32 LODIndex) override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsRestRootResource"); }
@@ -225,6 +250,7 @@ struct FHairStrandsRestResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
+	virtual bool InternalIsDataLoaded() override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsResource"); }
@@ -348,6 +374,7 @@ struct FHairStrandsClusterCullingResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
+	virtual bool InternalIsDataLoaded() override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsClusterResource"); }
@@ -384,6 +411,7 @@ struct FHairStrandsInterpolationResource : public FHairCommonResource
 	/* Init/Release buffers */
 	virtual void InternalAllocate(FRDGBuilder& GraphBuilder) override;
 	virtual void InternalRelease() override;
+	virtual bool InternalIsDataLoaded() override;
 
 	/* Get the resource name */
 	virtual FString GetFriendlyName() const override { return TEXT("FHairStrandsInterplationResource"); }
