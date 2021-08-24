@@ -419,8 +419,7 @@ public:
 		}
 
 		DefinitionPtr->InvalidateDefinitionGeometry();
-
-		return false;
+		return true;
 	}
 
 
@@ -495,7 +494,7 @@ public:
 		}
 		default:
 		{
-			// todo: not expected
+			return false;
 		}
 		}
 		return true;
@@ -692,9 +691,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 	}
 	// Done converting args
 
-	Ptr->OnEntityAdded(ParentEntity, Entity);
-
-	return Qtrue;
+	return Ptr->OnEntityAdded(ParentEntity, Entity) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ruby_entity)
@@ -712,9 +709,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ru
 	}
 	// Done converting args
 
-	Ptr->OnLayerModified(Entity);
+	;
 
-	return Qtrue;
+	return Ptr->OnLayerModified(Entity) ? Qtrue : Qfalse;
 }
 
 #endif
@@ -729,9 +726,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, V
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId));
+	;
 
-	return Qtrue;
+	return Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id(VALUE self, VALUE ruby_entity_id)
@@ -744,9 +741,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id(VALUE self,
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnGeometryModified(DatasmithSketchUp::FEntityIDType(EntityId));
-
-	return Qtrue;
+	return Ptr->OnGeometryModified(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id(VALUE self, VALUE ruby_parent_entity_id, VALUE ruby_entity_id)
@@ -762,9 +757,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id(VALUE self, VALU
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnEntityAdded(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
+	;
 
-	return Qtrue;
+	return Ptr->OnEntityAdded(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VALUE ruby_entity_id)
@@ -777,9 +772,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VA
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnMaterialAdded(DatasmithSketchUp::FEntityIDType(EntityId));
-
-	return Qtrue;
+	return Ptr->OnMaterialAdded(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 
