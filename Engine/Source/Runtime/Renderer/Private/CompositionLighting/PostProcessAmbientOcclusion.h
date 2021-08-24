@@ -105,16 +105,8 @@ public:
 
 // SSAO
 
-/** TODO: The RHI version of the uniform buffer is used on all compute shaders because RDG does not yet support reads
- *  from multiple pipes (e.g. reading depth from both async compute and graphics). Using the RDG version of the uniform
- *  buffer ends up joining the async work back to graphics on the depth read. This temporary solution just uses the RHI
- *  uniform buffer to avoid registering the textures with RDG. This only works because depth is required to be
- *  read-only by previous passes. This can be removed once RDG supports multi-pipe transitions.
- */
-
 struct FSSAOCommonParameters
 {
-	TUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBufferRHI;
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = nullptr;
 	FScreenPassTextureViewport SceneTexturesViewport;
 

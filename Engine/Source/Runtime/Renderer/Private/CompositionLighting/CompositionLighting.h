@@ -9,35 +9,51 @@
 #include "CoreMinimal.h"
 #include "SceneRendering.h"
 #include "PostProcessDeferredDecals.h"
-
-class FPersistentUniformBuffers;
+#include "PostProcessAmbientOcclusion.h"
 
 /**
  * The center for all screen space processing activities (e.g. G-buffer manipulation, lighting).
  */
-namespace CompositionLighting
+class FCompositionLighting
 {
-	struct FAsyncResults
+public:
+	FCompositionLighting(TArrayView<const FViewInfo> InViews, const FSceneTextures& InSceneTextures, TUniqueFunction<bool(int32)> RequestSSAOFunction);
+
+	void ProcessAfterOcclusion(FRDGBuilder& GraphBuilder);
+
+	void ProcessBeforeBasePass(FRDGBuilder& GraphBuilder, FDBufferTextures& DBufferTextures);
+
+	void ProcessAfterBasePass(FRDGBuilder& GraphBuilder);
+
+private:
+	void TryInit();
+
+	const TArrayView<const FViewInfo> Views;
+	const FSceneViewFamily& ViewFamily;
+	const FSceneTextures& SceneTextures;
+
+	const bool bEnableDBuffer;
+	const bool bEnableDecals;
+
+	enum class ESSAOLocation
 	{
-		FRDGTextureRef HorizonsTexture = nullptr;
+		None,
+		BeforeBasePass,
+		AfterBasePass
 	};
 
-	bool CanProcessAsync(TArrayView<const FViewInfo> Views);
+	struct FAOConfig
+	{
+		uint32 Levels = 0;
+		EGTAOType GTAOType = EGTAOType::EOff;
+		ESSAOLocation SSAOLocation = ESSAOLocation::None;
+		bool bSSAOAsync = false;
+		bool bRequested = false;
+	};
 
-	void ProcessBeforeBasePass(
-		FRDGBuilder& GraphBuilder,
-		TArrayView<const FViewInfo> Views,
-		const FSceneTextures& SceneTextures,
-		FDBufferTextures& DBufferTextures);
-
-	void ProcessAfterBasePass(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FSceneTextures& SceneTextures,
-		const FAsyncResults& AsyncResults,
-		bool bEnableSSAO);
-
-	FAsyncResults ProcessAsync(FRDGBuilder& GraphBuilder, TArrayView<const FViewInfo> Views, const FMinimalSceneTextures& SceneTextures);
+	TArray<FAOConfig, TInlineAllocator<8>> ViewAOConfigs;
+	FRDGTextureRef HorizonsTexture = nullptr;
+	bool bInitialized = false;
 };
 
 extern bool ShouldRenderScreenSpaceAmbientOcclusion(const FViewInfo& View);
