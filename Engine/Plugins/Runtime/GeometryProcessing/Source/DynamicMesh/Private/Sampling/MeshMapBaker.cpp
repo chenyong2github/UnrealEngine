@@ -2,12 +2,12 @@
 
 #include "Sampling/MeshMapBaker.h"
 #include "Sampling/MeshBakerCommon.h"
+#include "Sampling/MeshMapBakerQueue.h"
 #include "Image/ImageOccupancyMap.h"
 #include "Image/ImageTile.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
-
 
 //
 // FMeshMapBaker
@@ -113,6 +113,8 @@ void FMeshMapBaker::InitBakeDefaults()
 
 void FMeshMapBaker::Bake()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::Bake");
+	
 	if (Bakers.IsEmpty())
 	{
 		return;
@@ -189,9 +191,91 @@ void FMeshMapBaker::Bake()
 	TArray<TArray64<TTuple<int64, int64>>> GutterTexelsPerTile;
 	GutterTexelsPerTile.SetNum(NumTiles);
 
-	FCriticalSection WriteLock;
-	ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer, &GutterTexelsPerTile, &WriteLock](int32 TileIdx)
+	auto NoopFn = [](const float& In, float& Out)
 	{
+	};
+
+	auto AddFn = [](const float& In, float& Out)
+	{
+		Out += In;
+	};
+
+	auto OverwriteFn = [](const float& In, float& Out)
+	{
+		Out = In;
+	};
+
+	// WriteToOutputBuffer transfers local tile data (TileBuffer) to the image output buffer (ImageTileBuffer).
+	auto WriteToOutputBuffer = [this, &ImageTileBuffer] (FMeshMapTileBuffer& TileBufferIn, const FImageTile& TargetTile, const TArray<int32>& BakeIds, auto&& Op, auto&& WeightOp)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::WriteToOutputBuffer");
+		
+		const int TargetTileWidth = TargetTile.GetWidth();
+		const int TargetTileHeight = TargetTile.GetHeight();
+		for (FVector2i TileCoords(0,0); TileCoords.Y < TargetTileHeight; ++TileCoords.Y)
+		{
+			for (TileCoords.X = 0; TileCoords.X < TargetTileWidth; ++TileCoords.X)
+			{
+				if (CancelF())
+				{
+					return;
+				}
+
+				const FVector2i ImageCoords = TargetTile.GetSourceCoords(TileCoords);
+
+				const FImageTile& BufferTile = TileBufferIn.GetTile();
+				const int64 TilePixelLinearIdx = BufferTile.GetIndexFromSourceCoords(ImageCoords);
+				const float& TilePixelWeight = TileBufferIn.GetPixelWeight(TilePixelLinearIdx);
+				float* TilePixelBuffer = TileBufferIn.GetPixel(TilePixelLinearIdx);
+
+				const int64 ImageLinearIdx = Dimensions.GetIndex(ImageCoords);
+				float& ImagePixelWeight = ImageTileBuffer.GetPixelWeight(ImageLinearIdx);
+				float* ImagePixelBuffer = ImageTileBuffer.GetPixel(ImageLinearIdx);
+
+				WeightOp(TilePixelWeight, ImagePixelWeight);
+				for( int32 Idx : BakeIds )
+				{
+					const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
+					const int32 NumData = Context.DataLayout.Num();
+					const int32 ResultOffset = BakeOffsets[Idx];
+					for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
+					{
+						const int32 ResultIdx = ResultOffset + DataIdx;
+						const int32 Offset = BakeSampleOffsets[ResultIdx];
+						float* BufferPtr = &TilePixelBuffer[Offset];
+						float* ImageBufferPtr = &ImagePixelBuffer[Offset];
+						const FMeshMapEvaluator::EComponents Stride = Context.DataLayout[DataIdx];
+
+						for (int32 FloatIdx = 0; FloatIdx < (int32)Stride; ++FloatIdx)
+						{
+							Op(BufferPtr[FloatIdx], ImageBufferPtr[FloatIdx]);
+						}
+					}
+				}
+			}
+		}
+	};
+
+	FMeshMapBakerQueue OutputQueue(NumTiles);
+	auto WriteQueuedOutput = [this, &WriteToOutputBuffer, &AddFn](FMeshMapBakerQueue& Queue)
+	{
+		if (Queue.AcquireProcessLock())
+		{
+			void* OutputData = Queue.Process();
+			while (OutputData)
+			{
+				FMeshMapTileBuffer* TileBufferPtr = (FMeshMapTileBuffer*) OutputData;
+				WriteToOutputBuffer(*TileBufferPtr, TileBufferPtr->GetTile(), BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], AddFn, AddFn);
+				delete TileBufferPtr;
+				OutputData = Queue.Process();
+			}
+			Queue.ReleaseProcessLock();
+		}
+	};
+	
+	ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer, &GutterTexelsPerTile, &OutputQueue, &WriteToOutputBuffer, &OverwriteFn, &AddFn, &NoopFn, &WriteQueuedOutput](int32 TileIdx)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::BakeTile");
 		// Generate unpadded and padded tiles.
 		const FImageTile Tile = Tiles.GetTile(TileIdx);	// Image area to sample
 		const FImageTile PaddedTile = Tiles.GetTile(TileIdx, TilePadding); // Filtered image area
@@ -202,7 +286,7 @@ void FMeshMapBaker::Bake()
 		OccupancyMap.ComputeFromUVSpaceMesh(FlatMesh, [this](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); });
 		GutterTexelsPerTile[TileIdx] = OccupancyMap.GutterTexels;
 
-		FMeshMapTileBuffer TileBuffer(PaddedTile, BakeSampleBufferSize);
+		FMeshMapTileBuffer* TileBuffer = new FMeshMapTileBuffer(PaddedTile, BakeSampleBufferSize);
 
 		// Calculate interior texels
 		const int TileWidth = Tile.GetWidth();
@@ -214,6 +298,7 @@ void FMeshMapBaker::Bake()
 			{
 				if (CancelF())
 				{
+					delete TileBuffer;
 					return;
 				}
 
@@ -234,89 +319,46 @@ void FMeshMapBaker::Bake()
 
 						FMeshMapEvaluator::FCorrespondenceSample Sample;
 						DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-
-						BakeSample(TileBuffer, Sample, UVPosition, ImageCoords);
+						BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords);
 					}
 				}
 			}
 		}
 
-		auto NoopFn = [](const float& In, float& Out)
-		{
-		};
-
-		auto AddFn = [](const float& In, float& Out)
-		{
-			Out += In;
-		};
-
-		auto OverwriteFn = [](const float& In, float& Out)
-		{
-			Out = In;
-		};
-
-		// WriteToOutputBuffer transfers local tile data (TileBuffer) to the image output buffer (ImageTileBuffer).
-		auto WriteToOutputBuffer = [this, &TileBuffer, &ImageTileBuffer] (const FImageTile& TargetTile, const TArray<int32>& BakeIds, auto&& Op, auto&& WeightOp)
-		{
-			const int TargetTileWidth = TargetTile.GetWidth();
-			const int TargetTileHeight = TargetTile.GetHeight();
-			for (FVector2i TileCoords(0,0); TileCoords.Y < TargetTileHeight; ++TileCoords.Y)
-			{
-				for (TileCoords.X = 0; TileCoords.X < TargetTileWidth; ++TileCoords.X)
-				{
-					if (CancelF())
-					{
-						return;
-					}
-
-					const FVector2i ImageCoords = TargetTile.GetSourceCoords(TileCoords);
-
-					const FImageTile& BufferTile = TileBuffer.GetTile();
-					const int64 TilePixelLinearIdx = BufferTile.GetIndexFromSourceCoords(ImageCoords);
-					const float& TilePixelWeight = TileBuffer.GetPixelWeight(TilePixelLinearIdx);
-					float* TilePixelBuffer = TileBuffer.GetPixel(TilePixelLinearIdx);
-
-					const int64 ImageLinearIdx = Dimensions.GetIndex(ImageCoords);
-					float& ImagePixelWeight = ImageTileBuffer.GetPixelWeight(ImageLinearIdx);
-					float* ImagePixelBuffer = ImageTileBuffer.GetPixel(ImageLinearIdx);
-
-					WeightOp(TilePixelWeight, ImagePixelWeight);
-					for( int32 Idx : BakeIds )
-					{
-						const FMeshMapEvaluator::FEvaluationContext& Context = BakeContexts[Idx];
-						const int32 NumData = Context.DataLayout.Num();
-						const int32 ResultOffset = BakeOffsets[Idx];
-						for (int32 DataIdx = 0; DataIdx < NumData; ++DataIdx)
-						{
-							const int32 ResultIdx = ResultOffset + DataIdx;
-							const int32 Offset = BakeSampleOffsets[ResultIdx];
-							float* BufferPtr = &TilePixelBuffer[Offset];
-							float* ImageBufferPtr = &ImagePixelBuffer[Offset];
-							const FMeshMapEvaluator::EComponents Stride = Context.DataLayout[DataIdx];
-
-							for (int32 FloatIdx = 0; FloatIdx < (int32)Stride; ++FloatIdx)
-							{
-								Op(BufferPtr[FloatIdx], ImageBufferPtr[FloatIdx]);
-							}
-						}
-					}
-				}
-			}
-		};
-
 		// Transfer 'Overwrite' float data to image tile buffer
-		WriteToOutputBuffer(Tile, BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], OverwriteFn, NoopFn);
+		WriteToOutputBuffer(*TileBuffer, Tile, BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Overwrite], OverwriteFn, NoopFn);
 
 		// Accumulate 'Add' float data to image tile buffer
-		// TODO: Optimize this write lock
-		WriteLock.Lock();
-		WriteToOutputBuffer(PaddedTile, BakeAccumulateLists[(int32)FMeshMapEvaluator::EAccumulateMode::Add], AddFn, AddFn);
-		WriteLock.Unlock();
+		OutputQueue.Post(TileIdx, TileBuffer);
+		WriteQueuedOutput(OutputQueue);
 	}, !bParallel ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None);
+
+	if (CancelF())
+	{
+		// If cancelled, delete any outstanding tile buffers in the queue.
+		while (!OutputQueue.IsDone())
+		{
+			void* Data = OutputQueue.Process</*bFlush*/ true>();
+			if (Data)
+			{
+				const FMeshMapTileBuffer* TileBuffer = (FMeshMapTileBuffer*) Data;
+				delete TileBuffer;				
+			}
+		}
+	}
+	else
+	{
+		// The queue only acquires the process lock if the next item in the queue
+		// is ready. This could mean that there are potential leftovers in the queue
+		// after the parallel for. Write them out now.
+		WriteQueuedOutput(OutputQueue);
+	}
 
 	// Normalize and convert ImageTileBuffer data to color data.
 	ParallelFor(NumTiles, [this, &Tiles, &ImageTileBuffer](int32 TileIdx)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::WriteToImageBuffer");
+		
 		const FImageTile Tile = Tiles.GetTile(TileIdx);
 		const int TileWidth = Tile.GetWidth();
 		const int TileHeight = Tile.GetHeight();
@@ -376,6 +418,8 @@ void FMeshMapBaker::Bake()
 		const int32 NumResults = BakeResults.Num();
 		ParallelFor(NumTiles, [this, &NumResults, &GutterTexelsPerTile](int32 TileIdx)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE("FMeshMapBaker::WriteGutterPixels");
+			
 			for (int64 GutterIdx = 0; GutterIdx < GutterTexelsPerTile[TileIdx].Num(); ++GutterIdx)
 			{
 				int64 GutterPixelTo;
@@ -503,38 +547,43 @@ int32 FMeshMapBaker::NumBakers() const
 	return Bakers.Num();
 }
 
-const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(int32 BakerIdx)
+const TArrayView<TUniquePtr<TImageBuilder<FVector4f>>> FMeshMapBaker::GetBakeResults(const int32 BakerIdx)
 {
 	const int32 ResultIdx = BakeOffsets[BakerIdx];
 	const int32 NumResults = BakeOffsets[BakerIdx + 1] - ResultIdx;
 	return TArrayView<TUniquePtr<TImageBuilder<FVector4f>>>(&BakeResults[ResultIdx], NumResults);
 }
 
-void FMeshMapBaker::SetDimensions(FImageDimensions DimensionsIn)
+void FMeshMapBaker::SetDimensions(const FImageDimensions DimensionsIn)
 {
 	Dimensions = DimensionsIn;
 }
 
-void FMeshMapBaker::SetGutterEnabled(bool bEnabled)
+void FMeshMapBaker::SetGutterEnabled(const bool bEnabled)
 {
 	bGutterEnabled = bEnabled;
 }
 
-void FMeshMapBaker::SetGutterSize(int32 GutterSizeIn)
+void FMeshMapBaker::SetGutterSize(const int32 GutterSizeIn)
 {
 	// GutterSize must be >= 1 since it is tied to MaxDistance for the
 	// OccupancyMap spatial search.
 	GutterSize = GutterSizeIn >= 1 ? GutterSizeIn : 1;
 }
 
-void FMeshMapBaker::SetMultisampling(int32 MultisamplingIn)
+void FMeshMapBaker::SetMultisampling(const int32 MultisamplingIn)
 {
 	Multisampling = MultisamplingIn;
 }
 
-void FMeshMapBaker::SetFilter(EBakeFilterType FilterTypeIn)
+void FMeshMapBaker::SetFilter(const EBakeFilterType FilterTypeIn)
 {
 	FilterType = FilterTypeIn;
+}
+
+void FMeshMapBaker::SetTileSize(const int TileSizeIn)
+{
+	TileSize = TileSizeIn;
 }
 
 void FMeshMapBaker::InitFilter()
