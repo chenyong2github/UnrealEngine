@@ -182,10 +182,6 @@ protected:
 	FAxisAlignedBox3d CachedBoundingBox;
 	/** timestamp for CachedBoundingBox, if less than current timestamp, cache is invalid */
 	int CachedBoundingBoxTimestamp = -1;
-	/** Cached value of IsClosed() */
-	bool bIsClosedCached = false;
-	/** timestamp for bIsClosedCached, if less than current timestamp, cache is invalid */
-	int CachedIsClosedTimestamp = -1;
 
 public:
 	/** Default constructor */
@@ -947,10 +943,6 @@ public:
 
 	/** @return true if mesh has no boundary edges */
 	bool IsClosed() const;
-
-	/** @return value of IsClosed() and cache result. cache is invalidated and recomputed if topology has changed since last call */
-	bool GetCachedIsClosed();
-
 
 	/** Timestamp is incremented any time any change is made to the mesh */
 	inline int GetTimestamp() const

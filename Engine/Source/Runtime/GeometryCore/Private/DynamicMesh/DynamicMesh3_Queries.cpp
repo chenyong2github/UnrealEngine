@@ -668,17 +668,6 @@ bool FDynamicMesh3::IsClosed() const
 	return true;
 }
 
-
-bool FDynamicMesh3::GetCachedIsClosed()
-{
-	if (CachedIsClosedTimestamp != GetTopologyTimestamp())
-	{
-		bIsClosedCached = IsClosed();
-		CachedIsClosedTimestamp = GetTopologyTimestamp();
-	}
-	return bIsClosedCached;
-}
-
 // average of 1 or 2 face normals
 FVector3d FDynamicMesh3::GetEdgeNormal(int eID) const
 {
