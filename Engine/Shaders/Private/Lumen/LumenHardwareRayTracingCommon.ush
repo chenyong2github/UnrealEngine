@@ -170,6 +170,24 @@ bool TraceLumenMinimalRay(
 )
 {
 	Payload = (FLumenMinimalPayload)0;
+	
+	// UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER is required to trace TraceLumenMinimalRay for performance reasons
+	#if UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER == 0
+	{
+		// Return a X hit pattern if define wasn't set
+		const bool TileX = Context.TraceCoord.x % 4 < 2;
+		const bool TileY = Context.TraceCoord.y % 4 < 2;
+		if (TileX ^ TileY)
+		{
+			Payload.HitT = Ray.TMin;
+		}
+		else
+		{
+			Payload.SetMiss();	
+		}		
+		return Payload.IsHit();
+	}
+	#endif
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
