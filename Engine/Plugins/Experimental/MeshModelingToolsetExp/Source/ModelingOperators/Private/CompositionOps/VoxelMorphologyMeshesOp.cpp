@@ -88,7 +88,7 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	if (bVoxWrapInput && ThickenShells > 0)
 	{
 		// positive offsets should be at least a cell wide so we don't end up deleting a bunch of the input surface
-		double CellSize = CombinedMesh.GetCachedBounds().MaxDim() / InputVoxelCount;
+		double CellSize = CombinedMesh.GetBounds(true).MaxDim() / InputVoxelCount;
 		double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
 
 		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);
@@ -123,7 +123,7 @@ void FVoxelMorphologyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	}
 
 	ImplicitMorphology.SourceSpatial = &Spatial;
-	ImplicitMorphology.SetCellSizesAndDistance(CombinedMesh.GetCachedBounds(), Distance, InputVoxelCount, OutputVoxelCount);
+	ImplicitMorphology.SetCellSizesAndDistance(CombinedMesh.GetBounds(true), Distance, InputVoxelCount, OutputVoxelCount);
 	
 	ImplicitMorphology.CancelF = [&Progress]()
 	{

@@ -215,8 +215,8 @@ bool FMeshBoolean::Compute()
 	FDynamicMesh3* CutMesh[2]{ Result, &CutMeshB }; // just an alias to keep things organized
 
 	// transform the copies to a shared space (centered at the origin and scaled to a unit cube)
-	FAxisAlignedBox3d CombinedAABB(CutMesh[0]->GetCachedBounds(), Transforms[0]);
-	FAxisAlignedBox3d MeshB_AABB(CutMesh[1]->GetCachedBounds(), Transforms[1]);
+	FAxisAlignedBox3d CombinedAABB(CutMesh[0]->GetBounds(true), Transforms[0]);
+	FAxisAlignedBox3d MeshB_AABB(CutMesh[1]->GetBounds(true), Transforms[1]);
 	CombinedAABB.Contain(MeshB_AABB);
 	double ScaleFactor = 1.0 / FMath::Clamp(CombinedAABB.MaxDim(), 0.01, 1000000.0);
 	for (int MeshIdx = 0; MeshIdx < 2; MeshIdx++)
@@ -504,7 +504,7 @@ bool FMeshBoolean::Compute()
 			int OtherMeshIdx = 1 - MeshIdx;
 			FDynamicMesh3& OtherMesh = *CutMesh[OtherMeshIdx];
 
-			TPointHashGrid3d<int> OtherMeshPointHash(OtherMesh.GetCachedBounds().MaxDim() / 64, -1);
+			TPointHashGrid3d<int> OtherMeshPointHash(OtherMesh.GetBounds(true).MaxDim() / 64, -1);
 			for (int BoundaryVID : PossUnmatchedBdryVerts[OtherMeshIdx])
 			{
 				OtherMeshPointHash.InsertPointUnsafe(BoundaryVID, OtherMesh.GetVertex(BoundaryVID));

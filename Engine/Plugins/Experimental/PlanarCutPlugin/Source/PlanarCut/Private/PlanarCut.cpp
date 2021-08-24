@@ -1293,7 +1293,7 @@ void ConvertToMeshDescription(
 
 	if (bCenterPivot)
 	{
-		FAxisAlignedBox3d Bounds = CombinedMesh.GetCachedBounds();
+		FAxisAlignedBox3d Bounds = CombinedMesh.GetBounds(true);
 		FVector3d Translate = -Bounds.Center();
 		MeshTransforms::Translate(CombinedMesh, Translate);
 		TransformOut = FTransform((FVector)-Translate);

@@ -243,7 +243,7 @@ void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponen
 
 	// initialize from LOD-0 MeshDescription
 	Component->SetMesh(UE::ToolTarget::GetDynamicMeshCopy(Target));
-	double MaxDimension = Component->GetMesh()->GetCachedBounds().MaxDim();
+	double MaxDimension = Component->GetMesh()->GetBounds(true).MaxDim();
 
 	// bake rotation and scaling into mesh because handling these inside sculpting is a mess
 	// Note: this transform does not include translation ( so only the 3x3 transform)

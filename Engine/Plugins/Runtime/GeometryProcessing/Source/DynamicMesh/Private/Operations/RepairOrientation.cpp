@@ -89,7 +89,7 @@ void FMeshRepairOrientation::ComputeStatistics(FDynamicMeshAABBTree3* Tree)
 void FMeshRepairOrientation::ComputeComponentStatistics(FDynamicMeshAABBTree3* Tree, Component& C)
 {
 	C.InFacing = C.OutFacing = 0;
-	double Dist = 2 * Mesh->GetCachedBounds().DiagonalLength();
+	double Dist = 2 * Mesh->GetBounds(true).DiagonalLength();
 	
 	// only want to raycast triangles in this component
 	TSet<int> TrisInComponent; TrisInComponent.Append(C.Triangles);

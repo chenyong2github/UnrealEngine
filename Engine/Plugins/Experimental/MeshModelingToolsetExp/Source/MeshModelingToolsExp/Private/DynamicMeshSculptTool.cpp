@@ -143,7 +143,7 @@ void UDynamicMeshSculptTool::Setup()
 	PendingTargetUpdate.Wait();
 
 	// initialize brush radius range interval, brush properties
-	double MaxDimension = DynamicMeshComponent->GetMesh()->GetCachedBounds().MaxDim();
+	double MaxDimension = DynamicMeshComponent->GetMesh()->GetBounds(true).MaxDim();
 	BrushRelativeSizeRange = FInterval1d(MaxDimension*0.01, MaxDimension);
 	BrushProperties = NewObject<USculptBrushProperties>(this);
 	BrushProperties->bShowStrength = false;

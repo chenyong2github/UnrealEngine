@@ -67,7 +67,7 @@ void USeamSculptTool::Setup()
 	MeshTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
 	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*PreviewMesh->GetMesh());
 	FMeshNormals::QuickComputeVertexNormals(*InputMesh);
-	NormalOffset = InputMesh->GetCachedBounds().MinDim() * 0.001;
+	NormalOffset = InputMesh->GetBounds(true).MinDim() * 0.001;
 
 	// disable shadows
 	//PreviewMesh->GetRootComponent()->bCastDynamicShadow = false;

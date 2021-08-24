@@ -504,7 +504,7 @@ private:
 		const int32 NumVertices = InMesh.VertexCount();
 
 		// Use the diagonal size of the bbox to make the bone distance falloff scale invariant.
-		const float DiagBounds = InMesh.GetCachedBounds().DiagonalLength();
+		const float DiagBounds = InMesh.GetBounds(true).DiagonalLength();
 	
 		const FTransformHierarchyQuery Skeleton(TransformHierarchy);
 
@@ -569,7 +569,7 @@ private:
 		const int32 NumVertices = InMesh.VertexCount();
 
 		// Use the diagonal size of the bbox to make the bone distance falloff scale invariant.
-		const float DiagBounds = InMesh.GetCachedBounds().DiagonalLength();
+		const float DiagBounds = InMesh.GetBounds(true).DiagonalLength();
 		
 		const FTransformHierarchyQuery Skeleton(TransformHierarchy);
 

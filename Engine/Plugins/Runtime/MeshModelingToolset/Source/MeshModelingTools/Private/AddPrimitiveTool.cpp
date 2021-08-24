@@ -294,7 +294,7 @@ void UAddPrimitiveTool::UpdatePreviewMesh()
 	}
 
 	// set mesh position
-	FAxisAlignedBox3d Bounds = NewMesh.GetCachedBounds();
+	FAxisAlignedBox3d Bounds = NewMesh.GetBounds(true);
 	FVector3d TargetOrigin = Bounds.Center();
 	if (ShapeSettings->PivotLocation == EMakeMeshPivotLocation::Base)
 	{

@@ -101,7 +101,7 @@ void UMeshGroupPaintTool::Setup()
 
 	FDynamicMesh3* Mesh = GetSculptMesh();
 	Mesh->EnableVertexColors(FVector3f::One());
-	FAxisAlignedBox3d Bounds = Mesh->GetCachedBounds();
+	FAxisAlignedBox3d Bounds = Mesh->GetBounds(true);
 
 	TFuture<void> PrecomputeFuture = Async(GroupPaintToolAsyncExecTarget, [&]()
 	{

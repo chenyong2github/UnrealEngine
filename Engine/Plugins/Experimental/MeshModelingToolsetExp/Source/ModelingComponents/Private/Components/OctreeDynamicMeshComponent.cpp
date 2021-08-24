@@ -58,7 +58,7 @@ void UOctreeDynamicMeshComponent::SetMesh(UE::Geometry::FDynamicMesh3&& MoveMesh
 {
 	MeshObject->SetMesh(MoveTemp(MoveMesh));
 
-	FAxisAlignedBox3d MeshBounds = GetMesh()->GetCachedBounds();
+	FAxisAlignedBox3d MeshBounds = GetMesh()->GetBounds(true);
 	Octree = MakeUnique<FDynamicMeshOctree3>();
 	Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 
@@ -96,7 +96,7 @@ void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3
 	}
 	else
 	{
-		FAxisAlignedBox3d MeshBounds = GetMesh()->GetCachedBounds();
+		FAxisAlignedBox3d MeshBounds = GetMesh()->GetBounds(true);
 		Octree = MakeUnique<FDynamicMeshOctree3>();
 		Octree->RootDimension = MeshBounds.MaxDim() * 0.25;
 		Octree->Initialize(GetMesh());

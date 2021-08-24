@@ -64,7 +64,7 @@ void FVoxelSolidifyMeshesOp::CalculateResult(FProgressCancel* Progress)
 	if (bApplyThickenShells)
 	{
 		// thickness should be at least a cell wide so we don't end up deleting a bunch of the input surface
-		double CellSize = CombinedMesh.GetCachedBounds().MaxDim() / InputVoxelCount;
+		double CellSize = CombinedMesh.GetBounds(true).MaxDim() / InputVoxelCount;
 		double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
 
 		FMeshNormals::QuickComputeVertexNormals(CombinedMesh);

@@ -57,7 +57,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			if (ThickenShells > 0 && !TransformedMeshes[MeshIdx].IsClosed())
 			{
 				// thickness should be at least a cell wide so we don't end up deleting a bunch of the input surface
-				double CellSize = TransformedMeshes[MeshIdx].GetCachedBounds().MaxDim() / InputVoxelCount;
+				double CellSize = TransformedMeshes[MeshIdx].GetBounds(true).MaxDim() / InputVoxelCount;
 				double SafeThickness = FMathd::Max(CellSize * 2, ThickenShells);
 
 				FMeshNormals::QuickComputeVertexNormals(TransformedMeshes[MeshIdx]);
@@ -85,7 +85,7 @@ void FVoxelBlendMeshesOp::CalculateResult(FProgressCancel* Progress)
 			continue;
 		}
 		ImplicitBlend.Sources.Add(&TransformedMeshes[MeshIdx]);
-		FAxisAlignedBox3d& SourceBounds = ImplicitBlend.SourceBounds.Add_GetRef(TransformedMeshes[MeshIdx].GetCachedBounds());
+		FAxisAlignedBox3d& SourceBounds = ImplicitBlend.SourceBounds.Add_GetRef(TransformedMeshes[MeshIdx].GetBounds(true));
 		CombinedBounds.Contain(SourceBounds);
 	}
 

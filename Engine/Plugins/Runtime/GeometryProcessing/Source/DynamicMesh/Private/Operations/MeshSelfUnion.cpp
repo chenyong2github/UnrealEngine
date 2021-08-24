@@ -23,7 +23,7 @@ using namespace UE::Geometry;
 bool FMeshSelfUnion::Compute()
 {
 	// transform the mesh to a shared space (centered at the origin, and scaled to a unit cube)
-	FAxisAlignedBox3d AABB = Mesh->GetCachedBounds();
+	FAxisAlignedBox3d AABB = Mesh->GetBounds(true);
 	double ScaleFactor = 1.0 / FMath::Clamp(AABB.MaxDim(), 0.01, 1000000.0);
 	FTransform3d TransformToCenteredBox = FTransform3d::Identity();
 	TransformToCenteredBox.SetTranslation(ScaleFactor * (TransformToCenteredBox.GetTranslation() - AABB.Center()));
@@ -277,7 +277,7 @@ bool FMeshSelfUnion::Compute()
 	}
 
 	// Hash boundary verts for faster search
-	TPointHashGrid3d<int> PointHash(Mesh->GetCachedBounds().MaxDim() / 64, -1);
+	TPointHashGrid3d<int> PointHash(Mesh->GetBounds(true).MaxDim() / 64, -1);
 	for (int BoundaryVID : PossUnmatchedBdryVerts)
 	{
 		PointHash.InsertPointUnsafe(BoundaryVID, Mesh->GetVertex(BoundaryVID));
