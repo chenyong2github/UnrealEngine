@@ -56,7 +56,6 @@ public:
 
 protected:
 	virtual bool CustomPrepass(float LayoutScaleMultiplier) override;
-	virtual bool ComputeVolatility() const { return GetCanCache() || SCompoundWidget::ComputeVolatility(); }
 	virtual bool Advanced_IsInvalidationRoot() const override;
 	virtual const FSlateInvalidationRoot* Advanced_AsInvalidationRoot() const override;
 	virtual TSharedRef<SWidget> GetRootWidget() override;
