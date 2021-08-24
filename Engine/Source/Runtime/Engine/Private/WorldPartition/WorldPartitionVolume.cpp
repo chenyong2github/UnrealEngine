@@ -18,7 +18,7 @@ void AWorldPartitionVolume::LoadIntersectingCells(bool bIsFromUserChange)
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
-		WorldPartition->LoadEditorCells(GetStreamingBounds(), bIsFromUserChange);
+		WorldPartition->LoadEditorCells(GetIntersectingBounds(), bIsFromUserChange);
 	}
 }
 
@@ -26,8 +26,16 @@ void AWorldPartitionVolume::UnloadIntersectingCells(bool bIsFromUserChange)
 {
 	if (UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition())
 	{
-		WorldPartition->UnloadEditorCells(GetStreamingBounds(), bIsFromUserChange);
+		WorldPartition->UnloadEditorCells(GetIntersectingBounds(), bIsFromUserChange);
 	}
+}
+
+FBox AWorldPartitionVolume::GetIntersectingBounds() const
+{
+	FVector Origin;
+	FVector Extent;
+	GetActorBounds(false, Origin, Extent);
+	return FBox(Origin - Extent, Origin + Extent);
 }
 #endif
 
