@@ -296,7 +296,7 @@ static void AddDebugHairPrintPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FShaderResourceViewRHIRef& InDepthStencilTexture)
 {
-	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !InDepthStencilTexture) return;
+	if (!VisibilityData.CategorizationTexture || !VisibilityData.NodeIndex || !VisibilityData.NodeData || !InDepthStencilTexture || !IsDebugDrawAndDebugPrintEnabled(*View)) return;
 
 	FRDGTextureRef ViewHairCountTexture = VisibilityData.ViewHairCountTexture ? VisibilityData.ViewHairCountTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
 	FRDGTextureRef ViewHairCountUintTexture = VisibilityData.ViewHairCountUintTexture ? VisibilityData.ViewHairCountUintTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
@@ -615,7 +615,7 @@ static void AddDeepShadowInfoPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	FRDGTextureRef& OutputTexture)
 {
-	if (MacroGroupDatas.DeepShadowResources.TotalAtlasSlotCount == 0)
+	if (MacroGroupDatas.DeepShadowResources.TotalAtlasSlotCount == 0 || !IsDebugDrawAndDebugPrintEnabled(View))
 	{
 		return;
 	}
@@ -1034,7 +1034,7 @@ static void AddDrawDebugClusterPass(
 							continue;
 
 						FViewInfo& ViewInfo = Views[ViewIndex];
-						if (ShaderDrawDebug::IsShaderDrawDebugEnabled(ViewInfo) && HairGroupClusters.CulledDispatchIndirectParametersClusterCount)
+						if (IsDebugDrawAndDebugPrintEnabled(ViewInfo) && HairGroupClusters.CulledDispatchIndirectParametersClusterCount)
 						{
 							FRDGBufferRef CulledDispatchIndirectParametersClusterCount = GraphBuilder.RegisterExternalBuffer(HairGroupClusters.CulledDispatchIndirectParametersClusterCount);
 							FRDGExternalBuffer& DrawIndirectBuffer = HairGroupClusters.HairGroupPublicPtr->GetDrawIndirectBuffer();
@@ -1326,7 +1326,7 @@ void RenderHairStrandsDebugInfo(
 	if (ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()))
 	{
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		if (GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
+		if (IsDebugDrawAndDebugPrintEnabled(View) && GHairStrandsDebugPPLL && VisibilityData.PPLLNodeCounterTexture) // Check if PPLL rendering is used and its debug view is enabled.
 		{
 			const FIntPoint PPLLResolution = VisibilityData.PPLLNodeIndexTexture->Desc.Extent;
 			FHairVisibilityDebugPPLLCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVisibilityDebugPPLLCS::FParameters>();
