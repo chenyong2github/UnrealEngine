@@ -48,10 +48,7 @@ FDynamicMesh3::FDynamicMesh3(const FDynamicMesh3& Other)
 	TopologyTimestamp{ Other.TopologyTimestamp },
 
 	CachedBoundingBox{ Other.CachedBoundingBox },
-	CachedBoundingBoxTimestamp{ Other.CachedBoundingBoxTimestamp },
-
-	bIsClosedCached{ Other.bIsClosedCached },
-	CachedIsClosedTimestamp{ Other.CachedIsClosedTimestamp }
+	CachedBoundingBoxTimestamp{ Other.CachedBoundingBoxTimestamp }
 {
 	if (Other.HasAttributes())
 	{
@@ -84,10 +81,7 @@ FDynamicMesh3::FDynamicMesh3(FDynamicMesh3&& Other)
 	TopologyTimestamp{ MoveTemp( Other.TopologyTimestamp ) },
 
 	CachedBoundingBox{ MoveTemp( Other.CachedBoundingBox ) },
-	CachedBoundingBoxTimestamp{ MoveTemp( Other.CachedBoundingBoxTimestamp ) },
-
-	bIsClosedCached{ Other.bIsClosedCached },
-	CachedIsClosedTimestamp{ MoveTemp( Other.CachedIsClosedTimestamp ) }
+	CachedBoundingBoxTimestamp{ MoveTemp( Other.CachedBoundingBoxTimestamp ) }
 {
 	if (AttributeSet)
 	{
@@ -133,8 +127,6 @@ const FDynamicMesh3 & FDynamicMesh3::operator=(FDynamicMesh3 && Other)
 	CachedBoundingBox = MoveTemp(Other.CachedBoundingBox);
 	CachedBoundingBoxTimestamp = MoveTemp(Other.CachedBoundingBoxTimestamp);
 
-	bIsClosedCached = MoveTemp(Other.bIsClosedCached);
-	CachedIsClosedTimestamp = MoveTemp( Other.CachedIsClosedTimestamp);
 	return *this;
 }
 
@@ -364,9 +356,6 @@ void FDynamicMesh3::Clear()
 
 	CachedBoundingBox = FAxisAlignedBox3d();
 	CachedBoundingBoxTimestamp = -1;
-
-	bIsClosedCached = false;
-	CachedIsClosedTimestamp = -1;
 }
 
 
@@ -646,7 +635,7 @@ FString FDynamicMesh3::MeshInfoString()
 	FString AttribString = FString::Printf(TEXT("VtxNormals %d  VtxColors %d  VtxUVs %d  TriGroups %d  Attributes %d"),
 		HasVertexNormals(), HasVertexColors(), HasVertexUVs(), HasTriangleGroups(), HasAttributes());
 	FString InfoString = FString::Printf(TEXT("Closed %d  Compact %d  Timestamp %d  ShapeTimestamp %d  TopologyTimestamp %d  MaxGroupID %d"),
-		GetCachedIsClosed(), IsCompact(), GetTimestamp(), GetShapeTimestamp(), GetTopologyTimestamp(), MaxGroupID());
+		IsClosed(), IsCompact(), GetTimestamp(), GetShapeTimestamp(), GetTopologyTimestamp(), MaxGroupID());
 
 	return VtxString + "\n" + TriString + "\n" + EdgeString + "\n" + AttribString + "\n" + InfoString;
 }
