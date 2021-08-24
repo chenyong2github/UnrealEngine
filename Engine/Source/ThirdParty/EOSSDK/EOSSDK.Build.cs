@@ -66,7 +66,7 @@ public class EOSSDK : ModuleRules
 		}
 	}
 
-	public string LibraryLinkNameBase
+	public virtual string LibraryLinkNameBase
 	{
 		get
 		{
