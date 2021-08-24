@@ -680,7 +680,14 @@ void FVirtualizedUntypedBulkData::SerializeForRegistry(FArchive& Ar)
 	{
 		FString PackageName;
 		Ar << PackageName;
-		ensure(FPackagePath::TryFromPackageName(PackageName, PackagePath));
+		if (PackageName.IsEmpty())
+		{
+			PackagePath.Empty();
+		}
+		else
+		{
+			ensure(FPackagePath::TryFromPackageName(PackageName, PackagePath));
+		}
 		PackageSegment = EPackageSegment::Header;
 	}
 	Ar << OffsetInFile;
