@@ -612,7 +612,6 @@ template<typename ValueType>
 FGraphEventRef TPiecewiseBlenderSystemImpl<ValueType>::DispatchDecomposeTask(FEntityManager& EntityManager, const UE::MovieScene::FValueDecompositionParams& Params, UE::MovieScene::FAlignedDecomposedValue* Output)
 {
 	using namespace UE::MovieScene;
-	using FPiecewiseBlendableValueTraits = TPiecewiseBlendableValueTraits<ValueType>;
 
 	if (!Params.ResultComponentType)
 	{
@@ -623,6 +622,8 @@ FGraphEventRef TPiecewiseBlenderSystemImpl<ValueType>::DispatchDecomposeTask(FEn
 
 	struct FChannelResultTask
 	{
+		using FPiecewiseBlendableValueTraits = TPiecewiseBlendableValueTraits<ValueType>;
+
 		TArray<FMovieSceneEntityID, TInlineAllocator<8>> EntitiesToDecompose;
 		FAlignedDecomposedValue* Result;
 		uint16 DecomposeBlendChannel;
