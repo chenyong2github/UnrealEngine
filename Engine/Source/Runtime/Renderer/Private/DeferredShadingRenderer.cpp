@@ -2453,16 +2453,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		}
 	};
 
-	CompositionLighting::FAsyncResults CompositionLightingAsyncResults;
+	FCompositionLighting CompositionLighting(Views, SceneTextures, [this] (int32 ViewIndex)
+	{
+		return ViewPipelineStates[ViewIndex]->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
+	});
 
 	const auto RenderOcclusionLambda = [&]()
 	{
 		RenderOcclusion(GraphBuilder, SceneTextures, bIsOcclusionTesting);
 
-		if (CompositionLighting::CanProcessAsync(Views))
-		{
-			CompositionLightingAsyncResults = CompositionLighting::ProcessAsync(GraphBuilder, Views, SceneTextures);
-		}
+		CompositionLighting.ProcessAfterOcclusion(GraphBuilder);
 
 		ExecuteDrainPoint();
 	};
@@ -2593,7 +2593,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DeferredShadingSceneRenderer_DBuffer);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DBuffer);
-		CompositionLighting::ProcessBeforeBasePass(GraphBuilder, Views, SceneTextures, DBufferTextures);
+		CompositionLighting.ProcessBeforeBasePass(GraphBuilder, DBufferTextures);
 	}
 	
 	if (IsForwardShadingEnabled(ShaderPlatform) && bAllowStaticLighting)
@@ -2789,15 +2789,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 		}
 
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			const FViewInfo& View = Views[ViewIndex];
-			TPipelineState<FPerViewPipelineState>& ViewPipelineState = ViewPipelineStates[ViewIndex];
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			bool bEnableSSAO = ViewPipelineState->AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO;
-			CompositionLighting::ProcessAfterBasePass(GraphBuilder, View, SceneTextures, CompositionLightingAsyncResults, bEnableSSAO);
-		}
+		CompositionLighting.ProcessAfterBasePass(GraphBuilder);
 	}
 
 	// Rebuild scene textures to include velocity, custom depth, and SSAO.
