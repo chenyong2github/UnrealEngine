@@ -445,6 +445,25 @@ namespace UnrealBuildTool
 		{
 			return GetUniqueStringRegistry().GetStringForId(Id);
 		}
+
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Name"></param>
+		/// <param name="Group"></param>
+		/// <returns></returns>
+		public static bool TryParse(string Name, out UnrealPlatformGroup Group)
+		{
+			if (GetUniqueStringRegistry().HasString(Name))
+			{
+				Group.Id = GetUniqueStringRegistry().FindOrAddByName(Name);
+				return true;
+			}
+
+			Group.Id = -1;
+			return false;
+		}
+
 		/// <summary>
 		/// 
 		/// </summary>
