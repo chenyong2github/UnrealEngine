@@ -735,10 +735,7 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 	if (!bOutDebugMarkers &&
 		(((GRenderDocFound || VulkanValidationOption == 0) && ListContains(AvailableExtensions, VK_EXT_DEBUG_MARKER_EXTENSION_NAME)) || FVulkanPlatform::ForceEnableDebugMarkers()))
 	{
-		// HACK: Lumin Nvidia driver unofficially supports this extension, but will return false if we try to load it explicitly.
-#if !PLATFORM_LUMIN
 		OutDeviceExtensions.Add(VK_EXT_DEBUG_MARKER_EXTENSION_NAME);
-#endif
 		bOutDebugMarkers = true;
 	}
 #endif

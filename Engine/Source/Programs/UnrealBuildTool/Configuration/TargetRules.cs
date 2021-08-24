@@ -1597,12 +1597,6 @@ namespace UnrealBuildTool
 		public IOSTargetRules IOSPlatform = new IOSTargetRules();
 
 		/// <summary>
-		/// Lumin-specific target settings.
-		/// </summary>
-		[ConfigSubObject]
-		public LuminTargetRules LuminPlatform = new LuminTargetRules();
-
-		/// <summary>
 		/// Linux-specific target settings.
 		/// </summary>
 		[ConfigSubObject]
@@ -1925,7 +1919,6 @@ namespace UnrealBuildTool
 			this.Inner = Inner;
 			AndroidPlatform = new ReadOnlyAndroidTargetRules(Inner.AndroidPlatform);
 			IOSPlatform = new ReadOnlyIOSTargetRules(Inner.IOSPlatform);
-			LuminPlatform = new ReadOnlyLuminTargetRules(Inner.LuminPlatform);
 			LinuxPlatform = new ReadOnlyLinuxTargetRules(Inner.LinuxPlatform);
 			MacPlatform = new ReadOnlyMacTargetRules(Inner.MacPlatform);
 			PS4Platform = new ReadOnlyPS4TargetRules(Inner.PS4Platform);
@@ -2831,12 +2824,6 @@ namespace UnrealBuildTool
 		}
 
 		public ReadOnlyAndroidTargetRules AndroidPlatform
-		{
-			get;
-			private set;
-		}
-
-		public ReadOnlyLuminTargetRules LuminPlatform
 		{
 			get;
 			private set;

@@ -865,7 +865,7 @@ void FOpenGLDynamicRHI::UpdateSRV(FOpenGLShaderResourceView* SRV)
 {
 	check(SRV);
 	// For Depth/Stencil textures whose Stencil component we wish to sample we must blit the stencil component out to an intermediate texture when we 'Store' the texture.
-#if PLATFORM_DESKTOP || PLATFORM_LUMINGL4
+#if PLATFORM_DESKTOP
 	if (FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5 && IsValidRef(SRV->Texture2D))
 	{
 		FOpenGLTexture2D* Texture2D = ResourceCast(SRV->Texture2D.GetReference());

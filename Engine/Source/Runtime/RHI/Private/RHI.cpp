@@ -1656,7 +1656,6 @@ static FName NAME_PLATFORM_ANDROID(TEXT("Android"));
 static FName NAME_PLATFORM_IOS(TEXT("IOS"));
 static FName NAME_PLATFORM_MAC(TEXT("Mac"));
 static FName NAME_PLATFORM_TVOS(TEXT("TVOS"));
-static FName NAME_PLATFORM_LUMIN(TEXT("Lumin"));
 
 // @todo platplug: This is still here, only being used now by UMaterialShaderQualitySettings::GetOrCreatePlatformSettings
 // since I have moved the other uses to FindTargetPlatformWithSupport
@@ -1683,9 +1682,6 @@ FName ShaderPlatformToPlatformName(EShaderPlatform Platform)
 	case SP_METAL_MACES3_1:
 	case SP_METAL_MRT_MAC:
 		return NAME_PLATFORM_MAC;
-	case SP_VULKAN_SM5_LUMIN:
-	case SP_VULKAN_ES3_1_LUMIN:
-		return NAME_PLATFORM_LUMIN;
 	case SP_METAL_TVOS:
 	case SP_METAL_MRT_TVOS:
 		return NAME_PLATFORM_TVOS;
@@ -2083,10 +2079,8 @@ FString LexToString(EShaderPlatform Platform, bool bError)
 	case SP_METAL_SM5: return TEXT("METAL_SM5");
 	case SP_METAL_MACES3_1: return TEXT("METAL_MACES3_1");
 	case SP_VULKAN_ES3_1_ANDROID: return TEXT("VULKAN_ES3_1_ANDROID");
-	case SP_VULKAN_ES3_1_LUMIN: return TEXT("VULKAN_ES3_1_LUMIN");
 	case SP_VULKAN_PCES3_1: return TEXT("VULKAN_PCES3_1");
 	case SP_VULKAN_SM5: return TEXT("VULKAN_SM5");
-	case SP_VULKAN_SM5_LUMIN: return TEXT("VULKAN_SM5_LUMIN");
 	case SP_VULKAN_SM5_ANDROID: return TEXT("VULKAN_SM5_ANDROID");
 
 	default:

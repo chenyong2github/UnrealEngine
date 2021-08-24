@@ -23,10 +23,6 @@
 	#include "Runtime/OpenGLDrv/Private/Windows/OpenGLWindows.h"
 #elif PLATFORM_LINUX
 	#include "Runtime/OpenGLDrv/Private/Linux/OpenGLLinux.h"
-#elif PLATFORM_LUMIN
-	// these guys will self-select
-	#include "Lumin/LuminOpenGL.h"
-	#include "Lumin/LuminGL4.h"
 #elif PLATFORM_ANDROID
 	#include "Android/AndroidOpenGL.h"
 #else

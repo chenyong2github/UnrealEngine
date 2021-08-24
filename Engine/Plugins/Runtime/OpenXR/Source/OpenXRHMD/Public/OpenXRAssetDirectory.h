@@ -21,7 +21,6 @@ public:
 	OPENXRHMD_API static FSoftObjectPath HTCViveCosmosRight;
 	OPENXRHMD_API static FSoftObjectPath HTCViveFocus;
 	OPENXRHMD_API static FSoftObjectPath HTCViveFocusPlus;
-	OPENXRHMD_API static FSoftObjectPath MagicLeapOne;
 	OPENXRHMD_API static FSoftObjectPath MicrosoftMixedRealityLeft;
 	OPENXRHMD_API static FSoftObjectPath MicrosoftMixedRealityRight;
 	OPENXRHMD_API static FSoftObjectPath OculusGo;

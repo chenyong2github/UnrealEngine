@@ -24,7 +24,6 @@ FSoftObjectPath FOpenXRAssetDirectory::HTCViveCosmosLeft          = FString(TEXT
 FSoftObjectPath FOpenXRAssetDirectory::HTCViveCosmosRight         = FString(TEXT("/OpenXR/Devices/HTCViveCosmos/Right/right_HTCViveCosmosController.right_HTCViveCosmosController"));
 FSoftObjectPath FOpenXRAssetDirectory::HTCViveFocus               = FString(TEXT("/OpenXR/Devices/HTCViveFocus/HTCViveFocusController.HTCViveFocusController"));
 FSoftObjectPath FOpenXRAssetDirectory::HTCViveFocusPlus           = FString(TEXT("/OpenXR/Devices/HTCViveFocusPlus/HTCViveFocusPlusController.HTCViveFocusPlusController"));
-FSoftObjectPath FOpenXRAssetDirectory::MagicLeapOne               = FString(TEXT("/OpenXR/Devices/MagicLeapOne/MagicLeapOneController.MagicLeapOneController"));
 FSoftObjectPath FOpenXRAssetDirectory::MicrosoftMixedRealityLeft  = FString(TEXT("/OpenXR/Devices/MicrosoftMixedReality/Left/left_MicrosoftMixedRealityController.left_MicrosoftMixedRealityController"));
 FSoftObjectPath FOpenXRAssetDirectory::MicrosoftMixedRealityRight = FString(TEXT("/OpenXR/Devices/MicrosoftMixedReality/Right/right_MicrosoftMixedRealityController.right_MicrosoftMixedRealityController"));
 FSoftObjectPath FOpenXRAssetDirectory::OculusGo                   = FString(TEXT("/OpenXR/Devices/OculusGo/OculusGoController.OculusGoController"));

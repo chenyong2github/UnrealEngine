@@ -80,8 +80,8 @@ enum EShaderPlatform
 	SP_SWITCH_REMOVED				UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 25,
 	SP_SWITCH_FORWARD_REMOVED		UE_DEPRECATED(4.27, "ShaderPlatform is removed; please don't use.") = 26,
 	SP_METAL_MRT_MAC				= 27,
-	SP_VULKAN_SM5_LUMIN				= 28,
-	SP_VULKAN_ES3_1_LUMIN			= 29,
+	SP_VULKAN_SM5_LUMIN_REMOVED		UE_DEPRECATED(5.0, "ShaderPlatform is removed; please don't use.") = 28,
+	SP_VULKAN_ES3_1_LUMIN_REMOVED	UE_DEPRECATED(5.0, "ShaderPlatform is removed; please don't use.") = 29,
 	SP_METAL_TVOS					= 30,
 	SP_METAL_MRT_TVOS				= 31,
 	/**********************************************************************************/
@@ -1781,7 +1781,7 @@ inline bool IsMobilePlatform(const EShaderPlatform Platform)
 	return
 		Platform == SP_METAL || Platform == SP_METAL_MACES3_1 || Platform == SP_METAL_TVOS
 		|| Platform == SP_OPENGL_PCES3_1 || Platform == SP_OPENGL_ES3_1_ANDROID
-		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_ES3_1_LUMIN
+		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_PCES3_1
 		|| FDataDrivenShaderPlatformInfo::GetIsMobile(Platform);
 }
 
@@ -1834,14 +1834,14 @@ inline bool IsSwitchPlatform(const FStaticShaderPlatform Platform)
 
 inline bool IsVulkanPlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_VULKAN_SM5 || Platform == SP_VULKAN_SM5_LUMIN || Platform == SP_VULKAN_PCES3_1 
-		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_ES3_1_LUMIN || Platform == SP_VULKAN_SM5_ANDROID
+	return Platform == SP_VULKAN_SM5 || Platform == SP_VULKAN_PCES3_1 
+		|| Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_SM5_ANDROID
 		|| FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform);
 }
 
 inline bool IsVulkanSM5Platform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_VULKAN_SM5 || Platform == SP_VULKAN_SM5_LUMIN || Platform == SP_VULKAN_SM5_ANDROID
+	return Platform == SP_VULKAN_SM5 || Platform == SP_VULKAN_SM5_ANDROID
 		|| (FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform) && FDataDrivenShaderPlatformInfo::GetMaxFeatureLevel(Platform) == ERHIFeatureLevel::SM5);
 }
 
@@ -1862,7 +1862,7 @@ inline bool IsAndroidOpenGLESPlatform(const FStaticShaderPlatform Platform)
 
 inline bool IsVulkanMobilePlatform(const FStaticShaderPlatform Platform)
 {
-	return Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_ES3_1_ANDROID || Platform == SP_VULKAN_ES3_1_LUMIN
+	return Platform == SP_VULKAN_PCES3_1 || Platform == SP_VULKAN_ES3_1_ANDROID
 		|| (FDataDrivenShaderPlatformInfo::GetIsLanguageVulkan(Platform) && FDataDrivenShaderPlatformInfo::GetIsMobile(Platform));
 }
 
@@ -1885,7 +1885,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 inline bool IsHlslccShaderPlatform(const FStaticShaderPlatform Platform)
 {
-	return IsMetalPlatform(Platform) || IsVulkanMobilePlatform(Platform) || IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
+	return IsOpenGLPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetIsHlslcc(Platform);
 }
 
 inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatform InShaderPlatform)
@@ -1898,7 +1898,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_METAL_MRT_TVOS:
 	case SP_METAL_MRT_MAC:
 	case SP_VULKAN_SM5:
-	case SP_VULKAN_SM5_LUMIN:
 	case SP_VULKAN_SM5_ANDROID:
 		return ERHIFeatureLevel::SM5;
 	case SP_METAL:
@@ -1907,7 +1906,6 @@ inline FStaticFeatureLevel GetMaxSupportedFeatureLevel(const FStaticShaderPlatfo
 	case SP_OPENGL_PCES3_1:
 	case SP_VULKAN_PCES3_1:
 	case SP_VULKAN_ES3_1_ANDROID:
-	case SP_VULKAN_ES3_1_LUMIN:
 	case SP_OPENGL_ES3_1_ANDROID:
 		return ERHIFeatureLevel::ES3_1;
 	default:

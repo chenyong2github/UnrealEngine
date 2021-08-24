@@ -27,7 +27,7 @@
 <Property Name="ShowExplicitFlags" Value="true" />
 
 <Property Name="AllEditorPlatforms" Value="Mac+Win64" />
-<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Lumin+Mac+PS4+PS5+Stadia+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XSX" />
+<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Mac+PS4+PS5+Stadia+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XSX" />
 
 <Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
 <Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
@@ -39,7 +39,7 @@
 
 <!-- No means of reliably running these tests atm -->
 <Option Name="EditorPlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of editor platforms that editor tests won't be run on" />
-<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Lumin+Stadia+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
+<Option Name="TargetPlatformsToSkipTests" DefaultValue="HoloLens+IOS+Linux+Stadia+TVOS" Restrict=".*" Description="List of target platforms that target tests won't be run on" />
 <Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that all tests won't be run on. Overrides Editor/TargetPlatformsToSkipTests when non-empty." />
 
 <!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
@@ -52,7 +52,6 @@
 	<Option Name="WithHoloLens" DefaultValue="false" Description="Build and test HoloLens"/>
 	<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
 	<Option Name="WithLinux" DefaultValue="false" Description="Build and test Linux"/>
-	<Option Name="WithLumin" DefaultValue="false" Description="Build and test Lumin"/>
 	<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
 	<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
 	<Option Name="WithPS5" DefaultValue="false" Description="Build and test PS5"/>
@@ -77,7 +76,6 @@
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)HoloLens+" If="$(WithHoloLens)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Linux+" If="$(WithLinux)" />
-		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Lumin+" If="$(WithLumin)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
 		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS5+" If="$(WithPS5)" />

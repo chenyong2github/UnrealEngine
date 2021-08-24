@@ -70,9 +70,6 @@ namespace UnrealBuildTool
 			{ "", "" },
 			{ "-arm64", "a8" },
 			{ "-x64", "x6" },
-			//LUMIN_MERGE
-			{ "-lumingl4", "" },
-			{ "-lumin", "" }
 		};
 
 		public enum ClangSanitizer

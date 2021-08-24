@@ -56,9 +56,6 @@
 				#include <cmath>
 			#endif
 		#endif
-		#if PLATFORM_LUMIN
-			#include <cmath>
-		#endif
 		using std::isfinite;
 	#endif
 #endif

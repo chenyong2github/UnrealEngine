@@ -53,10 +53,5 @@ public class LoginFlow : ModuleRules
 				"AnalyticsET",
 			}
 		);
-
-		if (Target.Platform == UnrealTargetPlatform.Lumin)
-		{
-			PrecompileForTargets = PrecompileTargetsType.None;
-		}
 	}
 }

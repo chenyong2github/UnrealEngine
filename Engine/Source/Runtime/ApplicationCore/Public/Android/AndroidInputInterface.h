@@ -2,13 +2,6 @@
 #pragma once
 #include "GenericPlatform/GenericApplicationMessageHandler.h"
 
-#if PLATFORM_LUMIN
-
-// @todo Lumin: include the Lumin input  - this file is not a "standard" platform include, so there is not one place to override it
-#include "Lumin/LuminInputInterface.h"
-
-#else	 
-
 #include <android/input.h>
 #include <android/keycodes.h>
 #include <android/api-level.h>
@@ -371,5 +364,3 @@ private:
 	/** List of input devices implemented in external modules. */
 	TArray<TSharedPtr<class IInputDevice>> ExternalInputDevices;
 };
-
-#endif

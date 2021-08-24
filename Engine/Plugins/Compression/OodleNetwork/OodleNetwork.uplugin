@@ -19,8 +19,7 @@
       "Type": "Runtime",
       "LoadingPhase": "Default",
 	  "BlacklistPlatforms": [ 
-		"HoloLens", 
-		"Lumin" 
+		"HoloLens"
       ]
     }
   ]

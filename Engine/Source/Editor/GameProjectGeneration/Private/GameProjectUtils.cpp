@@ -161,8 +161,6 @@ namespace
 	void SetXRPluginStates(const FProjectInformation& InProjectInfo, FProjectDescriptor& OutProject)
 	{
 		static const FString XRPlugins[] = {
-			TEXT("MagicLeapMedia"),
-			TEXT("MagicLeap"),
 			TEXT("OculusVR"),
 			TEXT("SteamVR") };
 

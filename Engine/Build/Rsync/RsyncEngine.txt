@@ -12,7 +12,6 @@
 - /**/Win64/
 - /Plugins/**/Android/
 - /Source/ThirdParty/**/Android/
-- /**/Lumin/**
 + /Source/Programs/UnrealBuildTool/Platform/Linux/LinuxCommon.cs
 - /**/Linux/**
 - /**/PS4/

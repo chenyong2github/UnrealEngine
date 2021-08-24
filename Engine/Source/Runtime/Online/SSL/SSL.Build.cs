@@ -13,8 +13,7 @@ public class SSL : ModuleRules
 				Target.Platform == UnrealTargetPlatform.Win64 ||
 				Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
 	            Target.Platform == UnrealTargetPlatform.IOS ||
-	            Target.Platform == UnrealTargetPlatform.Android ||
-				Target.Platform == UnrealTargetPlatform.Lumin;
+	            Target.Platform == UnrealTargetPlatform.Android;
 		}
 	}
 	protected virtual bool bUseDefaultSSLCert

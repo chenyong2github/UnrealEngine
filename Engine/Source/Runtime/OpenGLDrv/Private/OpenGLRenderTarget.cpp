@@ -129,7 +129,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 	glBindFramebuffer(GL_FRAMEBUFFER, Framebuffer);
 	VERIFY_GL(glBindFramebuffer)
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	static const auto CVarMobileMultiView = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("vr.MobileMultiView"));
 
 	// Allocate mobile multi-view frame buffer if enabled and supported.
@@ -197,12 +197,12 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			switch (RenderTarget->Target)
 			{
 			case GL_TEXTURE_2D:
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 			case GL_TEXTURE_EXTERNAL_OES:
 #endif
 			case GL_TEXTURE_2D_MULTISAMPLE:
 			{
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 				FOpenGLTexture2D* RenderTarget2D = (FOpenGLTexture2D*)RenderTarget;
 				const uint32 NumSamplesTileMem = RenderTarget2D->GetNumSamplesTileMem();
 				if (NumSamplesTileMem > 1 && glFramebufferTexture2DMultisampleEXT)
@@ -235,13 +235,13 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 			switch( RenderTarget->Target )
 			{
 			case GL_TEXTURE_2D:
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 			case GL_TEXTURE_EXTERNAL_OES:
 #endif
 			case GL_TEXTURE_2D_MULTISAMPLE:
 			{
 				check(ArrayIndices[RenderTargetIndex] == 0);
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 				FOpenGLTexture2D* RenderTarget2D = (FOpenGLTexture2D*)RenderTarget;
 				const uint32 NumSamplesTileMem = RenderTarget2D->GetNumSamplesTileMem();
 				if (NumSamplesTileMem > 1 && glFramebufferTexture2DMultisampleEXT)
@@ -282,7 +282,7 @@ GLuint FOpenGLDynamicRHI::GetOpenGLFramebuffer(uint32 NumSimultaneousRenderTarge
 		switch (DepthStencilTarget->Target)
 		{
 		case GL_TEXTURE_2D:
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 		case GL_TEXTURE_EXTERNAL_OES:
 #endif
 		case GL_TEXTURE_2D_MULTISAMPLE:
@@ -794,7 +794,7 @@ void FOpenGLDynamicRHI::ReadSurfaceDataRaw(FOpenGLContextState& ContextState, FR
 
 		FMemory::Free( FloatBGRAData );
 	}
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	else
 	{
 		// Flip texture data only for render targets, textures loaded from disk have Attachment set to 0 and don't need flipping.
@@ -1169,7 +1169,7 @@ void FOpenGLDynamicRHI::RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, con
 	}
 #endif
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	if (FAndroidOpenGL::RequiresAdrenoTilingModeHint())
 	{
 		FAndroidOpenGL::EnableAdrenoTilingModeHint(FCString::Strcmp(InName, TEXT("SceneColorRendering")) == 0);
@@ -1219,7 +1219,7 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
 	SetRenderTargets(1, &RTV, &DepthRTV);
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	if (RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass &&
 		!FOpenGL::SupportsShaderMRTFramebufferFetch() &&
 		FOpenGL::SupportsPixelLocalStorage())

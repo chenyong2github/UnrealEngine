@@ -48,7 +48,7 @@ public class OpenGLDrv : ModuleRules
 			);
 		}
 
-		if ((Target.Platform == UnrealTargetPlatform.Android) || (Target.Platform == UnrealTargetPlatform.Lumin))
+		if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			PrivateDependencyModuleNames.Add("detex");
 		}
@@ -76,7 +76,7 @@ public class OpenGLDrv : ModuleRules
         if (Target.Platform != UnrealTargetPlatform.Win64
 			&& Target.Platform != UnrealTargetPlatform.IOS && Target.Platform != UnrealTargetPlatform.Android
 			&& !Target.IsInPlatformGroup(UnrealPlatformGroup.Linux)
-			&& Target.Platform != UnrealTargetPlatform.TVOS && Target.Platform != UnrealTargetPlatform.Lumin)
+			&& Target.Platform != UnrealTargetPlatform.TVOS)
 		{
 			PrecompileForTargets = PrecompileTargetsType.None;
 		}

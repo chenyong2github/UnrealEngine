@@ -1,15 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#ifndef PLATFORM_LUMIN
-	#define	PLATFORM_LUMIN	0
-#endif
-
-#ifndef PLATFORM_LUMINGL4
-	#define	PLATFORM_LUMINGL4	0
-#endif
-
-//#todo-Lumin: Remove this define when it becomes untangled from Android
-#if (!defined(PLATFORM_LUMIN) || (!PLATFORM_LUMIN))
 #include "VulkanAndroidPlatform.h"
 #include "../VulkanRHIPrivate.h"
 #include <dlfcn.h>
@@ -639,5 +629,3 @@ bool FAndroidVulkanFramePacer::SupportsFramePace(int32 QueryFramePace)
 	int32 TempRefreshRate, TempSyncInterval;
 	return SupportsFramePaceInternal(QueryFramePace, TempRefreshRate, TempSyncInterval);
 }
-
-#endif

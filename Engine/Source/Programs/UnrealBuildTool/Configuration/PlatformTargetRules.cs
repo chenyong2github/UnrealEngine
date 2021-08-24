@@ -41,37 +41,6 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
-	/// Stub partial class for Lumin-specific target settings. 
-	/// This class is not in a restricted location to simplify code paths in UBT. It is visible to all UE4 users, without NDA, and will appear
-	/// empty to those without the Lumin implementation code.
-	/// </summary>
-	public partial class LuminTargetRules
-	{
-	}
-
-	/// <summary>
-	/// Stub read-only wrapper for Lumin-specific target settings.
-	/// This class is not in a restricted location to simplify code paths in UBT. It is visible to all UE4 users, without NDA, and will appear
-	/// empty to those without the Lumin implementation code.
-	/// </summary>
-	public partial class ReadOnlyLuminTargetRules
-	{
-		/// <summary>
-		/// The private mutable settings object
-		/// </summary>
-		protected LuminTargetRules Inner;
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="Inner">The settings object to wrap</param>
-		public ReadOnlyLuminTargetRules(LuminTargetRules Inner)
-		{
-			this.Inner = Inner;
-		}
-	}
-
-	/// <summary>
 	/// Stub partial class for XboxOne-specific target settings. 
 	/// This class is not in a restricted location to simplify code paths in UBT. It is visible to all UE4 users, without NDA, and will appear
 	/// empty to those without the XboxOne implementation code.

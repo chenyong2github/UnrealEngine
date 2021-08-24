@@ -822,15 +822,11 @@ void OPENGLDRV_API GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceC
 	}
 
 #elif PLATFORM_ANDROID
-	#if PLATFORM_LUMINGL4
-		Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Desktop;
-	#else
 		Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_Android;
 		Capabilities.bSupportsShaderFramebufferFetch = FOpenGL::SupportsShaderFramebufferFetch();
 		Capabilities.bRequiresARMShaderFramebufferFetchDepthStencilUndef = FOpenGL::RequiresARMShaderFramebufferFetchDepthStencilUndef();
 		Capabilities.MaxVaryingVectors = FOpenGL::GetMaxVaryingVectors();
 		Capabilities.bRequiresDisabledEarlyFragmentTests = FOpenGL::RequiresDisabledEarlyFragmentTests();
-	#endif // PLATFORM_LUMINGL4
 #elif PLATFORM_IOS
 	Capabilities.TargetPlatform = EOpenGLShaderTargetPlatform::OGLSTP_iOS;
 #else
@@ -861,15 +857,9 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 	{
 		const ANSICHAR* ES310Version = "#version 310 es";
 
-		// @todo Lumin hack: This is needed for AEP on Lumin, so that some shaders compile that need version 320
-		#if PLATFORM_LUMINGL4
-			AppendCString(GlslCode, "#version 320 es\n");
-			ReplaceCString(GlslCodeOriginal, ES310Version, "");
-		#else
-			AppendCString(GlslCode, ES310Version);
-			AppendCString(GlslCode, "\n");
-			ReplaceCString(GlslCodeOriginal, ES310Version, "");
-		#endif
+		AppendCString(GlslCode, ES310Version);
+		AppendCString(GlslCode, "\n");
+		ReplaceCString(GlslCodeOriginal, ES310Version, "");
 	}
 
 	if (TypeEnum == GL_FRAGMENT_SHADER && Capabilities.bRequiresDisabledEarlyFragmentTests)
@@ -902,7 +892,7 @@ void OPENGLDRV_API GLSLToDeviceCompatibleGLSL(FAnsiCharArray& GlslCodeOriginal, 
 		{
 			AppendCString(GlslCode, "\n\n");
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 			FOpenGL::EImageExternalType ImageExternalType = FOpenGL::GetImageExternalType();
 			switch (ImageExternalType)
 			{
@@ -3959,7 +3949,7 @@ void FOpenGLProgramBinaryCache::Initialize()
 		return;
 	}
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	if (FOpenGL::HasBinaryProgramRetrievalFailed())
 	{
 		if (FOpenGL::SupportsProgramBinary())

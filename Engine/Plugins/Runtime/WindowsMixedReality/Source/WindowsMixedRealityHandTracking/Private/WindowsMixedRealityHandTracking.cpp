@@ -355,15 +355,6 @@ void FWindowsMixedRealityHandTracking::Tick(float DeltaTime)
 void FWindowsMixedRealityHandTracking::SendControllerEvents()
 {
 // @TODO: implement for WMRSDK
-// #if WITH_MLSDK
-// 	{
-// 		const MLHandTrackingData& CurrentHandTrackingData = GetCurrentHandTrackingData();
-// 		const MLHandTrackingData& OldHandTrackingData = GetPreviousHandTrackingData();
-// 
-// 		SendControllerEventsForHand(CurrentHandTrackingData.left_hand_state, OldHandTrackingData.left_hand_state, LeftStaticGestureMap);
-// 		SendControllerEventsForHand(CurrentHandTrackingData.right_hand_state, OldHandTrackingData.right_hand_state, RightStaticGestureMap);
-// 	}
-// #endif //WITH_MLSDK
 }
 
 void FWindowsMixedRealityHandTracking::SetMessageHandler(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)

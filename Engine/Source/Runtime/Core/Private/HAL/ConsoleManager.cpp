@@ -2832,17 +2832,6 @@ static TAutoConsoleVariable<int32> CVarAndroidOverrideExternalTextureSupport(
 	TEXT("  4 = force ImageExternalESSL300 (version #300 with GL_OES_EGL_image_external_essl3)"),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarLuminOverrideExternalTextureSupport(
-	TEXT("r.Lumin.OverrideExternalTextureSupport"),
-	0,
-	TEXT("Override external texture support for OpenGLES API. (Lumin Only)\n")
-	TEXT("  0 = normal detection used [default]\n")
-	TEXT("  1 = disable external texture support\n")
-	TEXT("  2 = force ImageExternal100 (version #100 with GL_OES_EGL_image_external)\n")
-	TEXT("  3 = force ImageExternal300 (version #300 with GL_OES_EGL_image_external)\n")
-	TEXT("  4 = force ImageExternalESSL300 (version #300 with GL_OES_EGL_image_external_essl3)"),
-	ECVF_ReadOnly);
-
 static TAutoConsoleVariable<FString> CVarCustomUnsafeZones(
 	TEXT("r.CustomUnsafeZones"),
 	TEXT(""),
