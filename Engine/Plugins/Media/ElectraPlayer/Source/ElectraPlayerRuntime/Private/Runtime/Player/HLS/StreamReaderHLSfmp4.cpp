@@ -570,7 +570,7 @@ FStreamReaderHLSfmp4::FStreamHandler::EInitSegmentResult FStreamReaderHLSfmp4::F
 				if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 				{
 					// Parse the tracks of the init segment. We do this mainly to get to the CSD we might need should we have to insert filler data later.
-					parseError = InitSegmentParser->PrepareTracks(TSharedPtrTS<const IParserISO14496_12>());
+					parseError = InitSegmentParser->PrepareTracks(PlayerSessionService, TSharedPtrTS<const IParserISO14496_12>());
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
 						Request->InitSegmentCache->AddInitSegment(InitSegmentParser, Request->InitSegmentInfo, FTimeValue::GetPositiveInfinity());
@@ -836,7 +836,7 @@ void FStreamReaderHLSfmp4::FStreamHandler::HandleRequest()
 						{
 							SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_HLS_StreamReader);
 							CSV_SCOPED_TIMING_STAT(ElectraPlayer, HLS_StreamReader);
-							parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+							parseError = MP4Parser->PrepareTracks(PlayerSessionService, MP4InitSegment);
 						}
 						if (parseError == UEMEDIA_ERROR_OK)
 						{

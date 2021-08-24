@@ -153,7 +153,7 @@ namespace Electra
 		/*******************************************************************************************************************/
 		class ITrack;
 
-		virtual UEMediaError PrepareTracks(TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment) = 0;
+		virtual UEMediaError PrepareTracks(IPlayerSessionServices* PlayerSession, TSharedPtrTS<const IParserISO14496_12> OptionalMP4InitSegment) = 0;
 
 		virtual TMediaOptionalValue<FTimeFraction> GetMovieDuration() const = 0;
 

@@ -527,7 +527,7 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 	if (parseError == UEMEDIA_ERROR_OK || parseError == UEMEDIA_ERROR_END_OF_STREAM)
 	{
 		// Parse the tracks of the init segment. We do this mainly to get to the CSD we might need should we have to insert filler data later.
-		parseError = Init->PrepareTracks(TSharedPtrTS<const IParserISO14496_12>());
+		parseError = Init->PrepareTracks(PlayerSessionService, TSharedPtrTS<const IParserISO14496_12>());
 		if (parseError == UEMEDIA_ERROR_OK)
 		{
 			// Add this to the entity cache in case it needs to be retrieved again.
@@ -821,7 +821,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 						SCOPE_CYCLE_COUNTER(STAT_ElectraPlayer_DASH_StreamReader);
 						CSV_SCOPED_TIMING_STAT(ElectraPlayer, DASH_StreamReader);
 						Request->Segment.bSawLMSG = MP4Parser->HasBrand(IParserISO14496_12::BrandType_lmsg);
-						parseError = MP4Parser->PrepareTracks(MP4InitSegment);
+						parseError = MP4Parser->PrepareTracks(PlayerSessionService, MP4InitSegment);
 					}
 					if (parseError == UEMEDIA_ERROR_OK)
 					{
