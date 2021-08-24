@@ -54,7 +54,7 @@ TSharedRef<ITableRow> FWidgetTemplateViewModel::BuildRow(const TSharedRef<STable
 		.OnDragDetected(this, &FWidgetTemplateViewModel::OnDraggingWidgetTemplateItem)
 		[
 			SNew(SPaletteViewItem, SharedThis(this))
-			.HighlightText(FavortiesViewModel, &FFavortiesViewModel::GetSearchText)
+			.HighlightText(FavortiesViewModel, &FWidgetCatalogViewModel::GetSearchText)
 		];
 }
 
@@ -97,7 +97,7 @@ void FWidgetHeaderViewModel::GetChildren(TArray< TSharedPtr<FWidgetViewModel> >&
 	}
 }
 
-FPaletteViewModel::FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
+FWidgetCatalogViewModel::FWidgetCatalogViewModel(TSharedPtr<FWidgetBlueprintEditor> InBlueprintEditor)
 	: bRebuildRequested(true)
 {
 	BlueprintEditor = InBlueprintEditor;
@@ -106,22 +106,22 @@ FPaletteViewModel::FPaletteViewModel(TSharedPtr<FWidgetBlueprintEditor> InBluepr
 	FavoriteHeader->GroupName = LOCTEXT("Favorites", "Favorites");
 }
 
-void FPaletteViewModel::RegisterToEvents()
+void FWidgetCatalogViewModel::RegisterToEvents()
 {
 	// Register for events that can trigger a palette rebuild
-	GEditor->OnBlueprintReinstanced().AddRaw(this, &FPaletteViewModel::OnBlueprintReinstanced);
-	FEditorDelegates::OnAssetsDeleted.AddSP(this, &FPaletteViewModel::HandleOnAssetsDeleted);
-	FCoreUObjectDelegates::ReloadCompleteDelegate.AddSP(this, &FPaletteViewModel::OnReloadComplete);
+	GEditor->OnBlueprintReinstanced().AddRaw(this, &FWidgetCatalogViewModel::OnBlueprintReinstanced);
+	FEditorDelegates::OnAssetsDeleted.AddSP(this, &FWidgetCatalogViewModel::HandleOnAssetsDeleted);
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddSP(this, &FWidgetCatalogViewModel::OnReloadComplete);
 
 	// register for any objects replaced
-	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FPaletteViewModel::OnObjectsReplaced);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FWidgetCatalogViewModel::OnObjectsReplaced);
 
 	// Register for favorite list update to handle the case where a favorite is added in another window of the UMG Designer
 	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	Favorites->OnFavoritesUpdated.AddSP(this, &FPaletteViewModel::OnFavoritesUpdated);
+	Favorites->OnFavoritesUpdated.AddSP(this, &FWidgetCatalogViewModel::OnFavoritesUpdated);
 }
 
-FPaletteViewModel::~FPaletteViewModel()
+FWidgetCatalogViewModel::~FWidgetCatalogViewModel()
 {
 	GEditor->OnBlueprintReinstanced().RemoveAll(this);
 	FEditorDelegates::OnAssetsDeleted.RemoveAll(this);
@@ -132,19 +132,7 @@ FPaletteViewModel::~FPaletteViewModel()
 	Favorites->OnFavoritesUpdated.RemoveAll(this);
 }
 
-void FPaletteViewModel::AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
-{
-	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	Favorites->Add(WidgetTemplateViewModel->GetName().ToString());
-}
-
-void FPaletteViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
-{
-	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
-	Favorites->Remove(WidgetTemplateViewModel->GetName().ToString());
-}
-
-void FPaletteViewModel::Update()
+void FWidgetCatalogViewModel::Update()
 {
 	if (bRebuildRequested)
 	{
@@ -155,8 +143,7 @@ void FPaletteViewModel::Update()
 	}
 }
 
-
-UWidgetBlueprint* FPaletteViewModel::GetBlueprint() const
+UWidgetBlueprint* FWidgetCatalogViewModel::GetBlueprint() const
 {
 	if (BlueprintEditor.IsValid())
 	{
@@ -167,7 +154,7 @@ UWidgetBlueprint* FPaletteViewModel::GetBlueprint() const
 	return NULL;
 }
 
-void FPaletteViewModel::BuildWidgetList()
+void FWidgetCatalogViewModel::BuildWidgetList()
 {
 	// Clear the current list of view models and categories
 	WidgetViewModels.Reset();
@@ -187,39 +174,7 @@ void FPaletteViewModel::BuildWidgetList()
 	// For each entry in the category create a view model for the widget template
 	for ( auto& Entry : WidgetTemplateCategories )
 	{
-		TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
-		Header->GroupName = FText::FromString(Entry.Key);
-
-		for ( auto& Template : Entry.Value )
-		{
-			TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-			TemplateViewModel->Template = Template;
-			TemplateViewModel->FavortiesViewModel = this;
-			Header->Children.Add(TemplateViewModel);
-
-			// If it's a favorite, we also add it to the Favorite section
-			int32 index = FavoritesList.Find(Template->Name.ToString());
-			if (index != INDEX_NONE)
-			{
-				TemplateViewModel->SetFavorite();
-
-				// We have to create a second copy of the ViewModel for the treeview has it doesn't support to have the same element twice.
-				TSharedPtr<FWidgetTemplateViewModel> FavoriteTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
-				FavoriteTemplateViewModel->Template = Template;
-				FavoriteTemplateViewModel->FavortiesViewModel = this;
-				FavoriteTemplateViewModel->SetFavorite();
-
-				FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
-
-				// Remove the favorite from the temporary list
-				FavoritesList.RemoveAt(index);
-			}
-
-		}
-
-		Header->Children.Sort([] (TSharedPtr<FWidgetViewModel> L, TSharedPtr<FWidgetViewModel> R) { return R->GetName().CompareTo(L->GetName()) > 0; });
-
-		WidgetViewModels.Add(Header);
+		BuildWidgetTemplateCategory(Entry.Key, Entry.Value);
 	}	
 
 	// Remove all Favorites that may be left in the list.Typically happening when the list of favorite contains widget that were deleted since the last opening.
@@ -250,7 +205,7 @@ void FPaletteViewModel::BuildWidgetList()
 	}
 }
 
-void FPaletteViewModel::BuildClassWidgetList()
+void FWidgetCatalogViewModel::BuildClassWidgetList()
 {
 	static const FName DevelopmentStatusKey(TEXT("DevelopmentStatus"));
 
@@ -423,7 +378,7 @@ void FPaletteViewModel::BuildClassWidgetList()
 	}
 }
 
-bool FPaletteViewModel::FilterAssetData(FAssetData &InAssetData)
+bool FWidgetCatalogViewModel::FilterAssetData(FAssetData &InAssetData)
 {
 	// Excludes engine content if user sets it to false
 	if (!GetDefault<UContentBrowserSettings>()->GetDisplayEngineFolder() || !GetDefault<UUMGEditorProjectSettings>()->bShowWidgetsFromEngineContent)
@@ -445,7 +400,7 @@ bool FPaletteViewModel::FilterAssetData(FAssetData &InAssetData)
 	return false;
 }
 
-void FPaletteViewModel::AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template)
+void FWidgetCatalogViewModel::AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template)
 {
 	FString Category = Template->GetCategory().ToString();
 
@@ -462,26 +417,26 @@ void FPaletteViewModel::AddWidgetTemplate(TSharedPtr<FWidgetTemplate> Template)
 	Group.Add(Template);
 }
 
-void FPaletteViewModel::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+void FWidgetCatalogViewModel::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
 {
 }
 
-void FPaletteViewModel::OnBlueprintReinstanced()
-{
-	bRebuildRequested = true;
-}
-
-void FPaletteViewModel::OnFavoritesUpdated()
+void FWidgetCatalogViewModel::OnBlueprintReinstanced()
 {
 	bRebuildRequested = true;
 }
 
-void FPaletteViewModel::OnReloadComplete(EReloadCompleteReason Reason)
+void FWidgetCatalogViewModel::OnFavoritesUpdated()
 {
 	bRebuildRequested = true;
 }
 
-void FPaletteViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses)
+void FWidgetCatalogViewModel::OnReloadComplete(EReloadCompleteReason Reason)
+{
+	bRebuildRequested = true;
+}
+
+void FWidgetCatalogViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses)
 {
 	for (auto DeletedAssetClass : DeletedAssetClasses)
 	{
@@ -490,6 +445,59 @@ void FPaletteViewModel::HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAsse
 			bRebuildRequested = true;
 		}
 	}
+}
+
+void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TSharedPtr<FWidgetTemplate>>& Templates)
+{
+	TSharedPtr<FWidgetHeaderViewModel> Header = MakeShareable(new FWidgetHeaderViewModel());
+	Header->GroupName = FText::FromString(Category);
+
+	// Copy of the list of favorites to be able to do some cleanup in the real list
+	UWidgetPaletteFavorites* FavoritesPalette = GetDefault<UWidgetDesignerSettings>()->Favorites;
+	TArray<FString> FavoritesList = FavoritesPalette->GetFavorites();
+
+	for (auto& Template : Templates)
+	{
+		TSharedPtr<FWidgetTemplateViewModel> TemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
+		TemplateViewModel->Template = Template;
+		TemplateViewModel->FavortiesViewModel = this;
+		Header->Children.Add(TemplateViewModel);
+
+		// If it's a favorite, we also add it to the Favorite section
+		int32 index = FavoritesList.Find(Template->Name.ToString());
+		if (index != INDEX_NONE)
+		{
+			TemplateViewModel->SetFavorite();
+
+			// We have to create a second copy of the ViewModel for the treeview has it doesn't support to have the same element twice.
+			TSharedPtr<FWidgetTemplateViewModel> FavoriteTemplateViewModel = MakeShareable(new FWidgetTemplateViewModel());
+			FavoriteTemplateViewModel->Template = Template;
+			FavoriteTemplateViewModel->FavortiesViewModel = this;
+			FavoriteTemplateViewModel->SetFavorite();
+
+			FavoriteHeader->Children.Add(FavoriteTemplateViewModel);
+
+			// Remove the favorite from the temporary list
+			FavoritesList.RemoveAt(index);
+		}
+
+	}
+
+	Header->Children.Sort([](TSharedPtr<FWidgetViewModel> L, TSharedPtr<FWidgetViewModel> R) { return R->GetName().CompareTo(L->GetName()) > 0; });
+
+	WidgetViewModels.Add(Header);
+}
+
+void FPaletteViewModel::AddToFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
+{
+	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
+	Favorites->Add(WidgetTemplateViewModel->GetName().ToString());
+}
+
+void FPaletteViewModel::RemoveFromFavorites(const FWidgetTemplateViewModel* WidgetTemplateViewModel)
+{
+	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
+	Favorites->Remove(WidgetTemplateViewModel->GetName().ToString());
 }
 
 #undef LOCTEXT_NAMESPACE

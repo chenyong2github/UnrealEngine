@@ -125,13 +125,13 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 
 	TSharedPtr<FWidgetBlueprintEditor> ThisPtr(SharedThis(this));
 
-	PaletteViewModel = MakeShareable(new FPaletteViewModel(ThisPtr));
+	PaletteViewModel = MakeShared<FPaletteViewModel>(ThisPtr);
 	PaletteViewModel->RegisterToEvents();
 
-	LibraryViewModel = MakeShareable(new FLibraryViewModel(ThisPtr));
+	LibraryViewModel = MakeShared<FLibraryViewModel>(ThisPtr);
 	LibraryViewModel->RegisterToEvents();
 
-	WidgetToolbar = MakeShareable(new FWidgetBlueprintEditorToolbar(ThisPtr));
+	WidgetToolbar = MakeShared<FWidgetBlueprintEditorToolbar>(ThisPtr);
 
 	BindToolkitCommands();
 
@@ -145,7 +145,7 @@ void FWidgetBlueprintEditor::InitWidgetBlueprintEditor(const EToolkitMode::Type 
 
 	UpdatePreview(GetWidgetBlueprintObj(), true);
 
-	DesignerCommandList = MakeShareable(new FUICommandList);
+	DesignerCommandList = MakeShared<FUICommandList>();
 
 	DesignerCommandList->MapAction(FGenericCommands::Get().Delete,
 		FExecuteAction::CreateSP(this, &FWidgetBlueprintEditor::DeleteSelectedWidgets),

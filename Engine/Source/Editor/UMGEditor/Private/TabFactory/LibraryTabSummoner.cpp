@@ -13,7 +13,7 @@ FLibraryTabSummoner::FLibraryTabSummoner(TSharedPtr<class FWidgetBlueprintEditor
 		, BlueprintEditor(InBlueprintEditor)
 {
 	TabLabel = LOCTEXT("WidgetLibraryTabLabel", "Library");
-	TabIcon = FSlateIcon(FUMGStyle::GetStyleSetName(), "Palette.TabIcon");
+	TabIcon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.FolderClosed");
 
 	bIsSingleton = true;
 
