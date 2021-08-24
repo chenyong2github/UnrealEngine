@@ -386,6 +386,20 @@ public:
 			return true;
 		}
 
+		{
+			// Modified Entity could be a ComponentDefinition
+			// This event is called when ComponentDefinition properties(like name) is modified
+			// Also this is fired on special occasions - Stamp operation while modifying
+			// Faces of a component/group it's performed on doesn't sent Face modification event but sends this 
+			// So we take this opportunity  to invalidate Definition geometry too
+			DatasmithSketchUp::FDefinition* Definition = Context.GetDefinition(EntityId);
+			if (Definition)
+			{
+				Definition->InvalidateDefinitionGeometry();
+				return true;
+			}
+		}
+
 		if (Context.Materials.InvalidateMaterial(EntityId))
 		{
 			return true;
