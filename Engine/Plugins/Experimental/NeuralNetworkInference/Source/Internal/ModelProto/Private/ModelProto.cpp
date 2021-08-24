@@ -3,7 +3,6 @@
 #include "ModelProto.h"
 #include "ModelProtoUtils.h"
 #include "ModelProtoStringParser.h"
-#include "NeuralNetworkInferenceVersion.h"
 
 
 
@@ -1021,11 +1020,7 @@ bool FModelProto::LoadFromString(const FString& InProtoString, const int32 InLev
 	bIsLoaded &= FModelProtoStringParser::GetModelProtoArray(TrainingInfo, ProtoMap, TEXT("training_info"), InLevel + 1);
 
 	bIsLoaded &= IRVersion > -1 && OpsetImport.Num() > 0;
-	if (bIsLoaded)
-	{
-		Version = FNeuralNetworkInferenceVersion::GetVersion();
-	}
-	else
+	if (!bIsLoaded)
 	{
 		UE_LOG(LogModelProto, Warning, TEXT("FModelProto::LoadFromString() failed."));
 	}

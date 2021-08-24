@@ -873,9 +873,6 @@ struct MODELPROTO_API FModelProto
 
 public:
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<int32> Version;
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	bool bIsLoaded;
 
 	/**
@@ -965,7 +962,6 @@ public:
 	FModelProto();
 
 	FORCEINLINE bool IsLoaded() { return bIsLoaded; }
-	FORCEINLINE TArray<int32> GetVersion() { return Version; }
 
 	bool LoadFromString(const FString& InProtoString, const int32 InLevel = 0);
 

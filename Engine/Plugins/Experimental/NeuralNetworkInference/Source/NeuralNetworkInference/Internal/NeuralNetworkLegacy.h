@@ -155,8 +155,6 @@ public:
 
 protected:
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<int32> Version;
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	bool bIsLoaded;
 	
 	/**

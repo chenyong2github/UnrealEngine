@@ -2,7 +2,6 @@
 
 #include "NeuralNetwork.h"
 #include "NeuralNetworkInferenceUtils.h"
-#include "NeuralNetworkInferenceVersion.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"

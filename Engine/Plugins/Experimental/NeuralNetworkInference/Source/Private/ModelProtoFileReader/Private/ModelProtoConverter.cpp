@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelProtoConverter.h"
-#include "NeuralNetworkInferenceVersion.h"
 
 
 
@@ -32,7 +31,6 @@ bool FModelProtoConverter::ConvertProto3ToUAsset(FModelProto& OutModelProto, con
 {
 	// FModelProto from Protobuf onnx::ModelProto
 	OutModelProto = FModelProto();
-	OutModelProto.Version = FNeuralNetworkInferenceVersion::GetVersion();
 	OutModelProto.bIsLoaded = true;
 	OutModelProto.IRVersion = InONNXModelProto.ir_version();
 	// OperatorSetIds

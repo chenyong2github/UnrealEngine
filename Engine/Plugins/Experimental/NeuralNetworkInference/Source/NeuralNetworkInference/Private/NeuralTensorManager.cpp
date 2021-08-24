@@ -2,7 +2,6 @@
 
 #include "NeuralTensorManager.h"
 #include "NeuralNetworkInferenceUtils.h"
-#include "NeuralNetworkInferenceVersion.h"
 
 
 
@@ -140,8 +139,6 @@ bool FNeuralTensorManager::Load(TArray<FNeuralTensor>& InTensors, TMap<FString, 
 	}
 	// FNeuralTensorManager was configured
 	bIsLoaded = true;
-	// Update Version
-	Version = FNeuralNetworkInferenceVersion::GetVersion();
 	return bIsLoaded;
 }
 
@@ -174,11 +171,6 @@ bool FNeuralTensorManager::Load(TArray<FNeuralTensor>& InTensors, const TArray<F
 bool FNeuralTensorManager::IsLoaded() const
 {
 	return bIsLoaded;
-}
-
-TArray<int32> FNeuralTensorManager::GetVersion() const
-{
-	return Version;
 }
 
 const TArray<FNeuralTensor>& FNeuralTensorManager::GetTensors() const

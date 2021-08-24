@@ -2,7 +2,6 @@
 
 #include "ModelProtoFileReader.h"
 #include "ModelProtoFileReaderUtils.h"
-#include "NeuralNetworkInferenceVersion.h"
 #include "Interfaces/IPluginManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
