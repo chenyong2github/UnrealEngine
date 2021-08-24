@@ -66,12 +66,14 @@ public:
 	void SetGutterSize(int32 GutterSizeIn);
 	void SetMultisampling(int32 MultisamplingIn);
 	void SetFilter(EBakeFilterType FilterTypeIn);
+	void SetTileSize(int TileSizeIn);
 
 	FImageDimensions GetDimensions() const { return Dimensions; }
 	bool GetGutterEnabled() const { return bGutterEnabled; }
 	int32 GetGutterSize() const { return GutterSize; }
 	int32 GetMultisampling() const { return Multisampling; }
 	EBakeFilterType GetFilter() const { return FilterType; }
+	int32 GetTileSize() const { return TileSize; }
 
 protected:
 	/** Evaluate this sample. */
@@ -111,10 +113,10 @@ protected:
 	int32 Multisampling = 1;
 
 	/** The square dimensions for tiled processing of the output image(s). */
-	const int32 TileSize = 32;
+	int32 TileSize = 32;
 
 	/** The amount of padding for tiled processing of the output image(s). */
-	const int32 TilePadding = 2;
+	int32 TilePadding = 2;
 
 	/** The pixel distance around the sample texel to be considered by the filter. [0, TilePadding] */
 	int32 FilterKernelSize = 0;
