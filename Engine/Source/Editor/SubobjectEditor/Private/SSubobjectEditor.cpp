@@ -3382,6 +3382,13 @@ EVisibility SSubobjectEditor::GetEditBlueprintButtonVisibility() const
 		       : EVisibility::Visible;
 }
 
+EVisibility SSubobjectEditor::GetComponentClassComboButtonVisibility() const
+{
+	return (HideComponentClassCombo.Get() 
+	|| (UICustomization.IsValid() && UICustomization->HideAddComponentButton())) 
+	? EVisibility::Collapsed : EVisibility::Visible;
+}
+
 void SSubobjectEditor::Utils::PopulateHandlesArray(const TArray<FSubobjectEditorTreeNodePtrType>& SlateNodePtrs, TArray<FSubobjectDataHandle>& OutHandles)
 {
 	for(const FSubobjectEditorTreeNodePtrType& DroppedNodePtr : SlateNodePtrs)
