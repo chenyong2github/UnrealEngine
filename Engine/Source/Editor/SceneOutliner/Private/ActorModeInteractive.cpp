@@ -15,6 +15,7 @@ FActorModeInteractive::FActorModeInteractive(const FActorModeParams& Params)
 	FEditorDelegates::NewCurrentLevel.AddRaw(this, &FActorModeInteractive::OnNewCurrentLevel);
 
 	FCoreDelegates::OnActorLabelChanged.AddRaw(this, &FActorModeInteractive::OnActorLabelChanged);
+	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FActorModeInteractive::OnObjectsReplaced);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FActorModeInteractive::OnPostLoadMapWithWorld);
 	GEngine->OnLevelActorRequestRename().AddRaw(this, &FActorModeInteractive::OnLevelActorRequestsRename);
 }
@@ -28,6 +29,7 @@ FActorModeInteractive::~FActorModeInteractive()
 	FEditorDelegates::NewCurrentLevel.RemoveAll(this);
 
 	FCoreDelegates::OnActorLabelChanged.RemoveAll(this);
+	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	GEngine->OnLevelActorRequestRename().RemoveAll(this);
 }
@@ -107,6 +109,21 @@ void FActorModeInteractive::OnActorLabelChanged(AActor* ChangedActor)
 		if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FActorTreeItem>(ChangedActor, true))
 		{
 			SceneOutliner->OnItemLabelChanged(Item);
+		}
+	}
+}
+
+void FActorModeInteractive::OnObjectsReplaced(const TMap<UObject*, UObject*>& ReplacementMap)
+{
+	for (const TPair<UObject*, UObject*>& Pair : ReplacementMap)
+	{
+		AActor* Actor = Cast<AActor>(Pair.Value);
+		if (Actor && RepresentingWorld.Get() == Actor->GetWorld() && IsActorDisplayable(Actor))
+		{
+			if (FSceneOutlinerTreeItemPtr Item = CreateItemFor<FActorTreeItem>(Actor, true))
+			{
+				SceneOutliner->OnItemLabelChanged(Item);
+			}
 		}
 	}
 }
