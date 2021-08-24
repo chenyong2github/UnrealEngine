@@ -8278,10 +8278,9 @@ void FHlslNiagaraTranslator::RegisterCompileDependency(const FNiagaraVariableBas
 	if (InVar.GetType().IsDataInterface() || InVar.GetType().IsUObject() || InVar.IsInNameSpace(FNiagaraConstants::UserNamespace) || InVar.IsInNameSpace(FNiagaraConstants::EngineNamespace) || InVar.IsInNameSpace(FNiagaraConstants::ParameterCollectionNamespace))
 		return;
 
-	if (InVar.GetName() == TEXT("Particles.UniqueID") || InVar.GetName() == TEXT("Emitter.SpawnGroup") || InVar.GetName() == TEXT("Emitter.InterpSpawnStartDt") ||
-		InVar.GetName() == TEXT("Emitter.SpawnInterval") || InVar.GetName() == TEXT("Emitter.RandomSeed"))
+	if (FNiagaraConstants::IsNiagaraConstant(InVar) || InVar.GetName() == TEXT("Emitter.InterpSpawnStartDt") || InVar.GetName() == TEXT("Emitter.SpawnInterval"))
 	{
-		return;																							  
+		return;
 	}
 
 	if (bEmitAsLinker)																					
