@@ -449,7 +449,7 @@ bool UInterchangeGenericAssetsPipeline::MakeMeshFactoryNodeUidAndDisplayLabel(co
 				if (UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(Node))
 				{
 					FString RefMeshUid;
-					if (SceneNode->GetCustomMeshDependencyUid(RefMeshUid))
+					if (SceneNode->GetCustomAssetInstanceUid(RefMeshUid))
 					{
 						UInterchangeBaseNode* MeshNode = BaseNodeContainer->GetNode(RefMeshUid);
 						if (MeshNode)
@@ -582,7 +582,7 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToStaticMesh(UInterchangeStati
 			if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
 				FString MeshDependency;
-				SceneNode->GetCustomMeshDependencyUid(MeshDependency);
+				SceneNode->GetCustomAssetInstanceUid(MeshDependency);
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
 					StaticMeshFactoryNode->AddTargetAssetUid(MeshDependency);

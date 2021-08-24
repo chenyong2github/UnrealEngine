@@ -28,6 +28,9 @@ namespace UE
 				static FString GetMeshName(FbxGeometryBase* Mesh);
 				static FString GetMeshUniqueID(FbxGeometryBase* Mesh);
 
+				static FString GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix);
+				static FString GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix);
+
 				/**
 				 * Return the name of an FbxObject, return empty string if the object is null.
 				 */

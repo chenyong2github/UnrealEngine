@@ -16,28 +16,17 @@ namespace UE
 		{
 			FString FFbxHelper::GetMeshName(FbxGeometryBase* Mesh)
 			{
-				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
-				if (MeshName.IsEmpty())
+				FString DefaultPrefix;
+				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
 				{
-					if (Mesh->GetNodeCount() > 0)
-					{
-						if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
-						{
-							MeshName = TEXT("Mesh_");
-						}
-						else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
-						{
-							MeshName = TEXT("Shape_");
-						}
-						MeshName += FFbxHelper::GetFbxObjectName(Mesh->GetNode(0));
-					}
-					else
-					{
-						uint64 UniqueFbxObjectID = Mesh->GetUniqueID();
-						MeshName += GetUniqueIDString(UniqueFbxObjectID);
-					}
+					DefaultPrefix = TEXT("Mesh");
 				}
-				return MeshName;
+				else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
+				{
+					DefaultPrefix = TEXT("Shape");
+				}
+
+				return GetNodeAttributeName(Mesh, DefaultPrefix);
 			}
 
 			FString FFbxHelper::GetMeshUniqueID(FbxGeometryBase* Mesh)
@@ -50,29 +39,59 @@ namespace UE
 				FString MeshUniqueID;
 				if (Mesh->GetAttributeType() == FbxNodeAttribute::eMesh)
 				{
-					MeshUniqueID = TEXT("\\Mesh\\");
+					MeshUniqueID = TEXT("Mesh");
 				}
 				else if (Mesh->GetAttributeType() == FbxNodeAttribute::eShape)
 				{
-					MeshUniqueID = TEXT("\\Shape\\");
+					MeshUniqueID = TEXT("Shape");
 				}
-				FString MeshName = FFbxHelper::GetFbxObjectName(Mesh);
-				if (MeshName.IsEmpty())
+
+				return GetNodeAttributeUniqueID(Mesh, MeshUniqueID);
+			}
+
+			FString FFbxHelper::GetNodeAttributeName(FbxNodeAttribute* NodeAttribute, const FStringView DefaultNamePrefix)
+			{
+				FString NodeAttributeName = FFbxHelper::GetFbxObjectName(NodeAttribute);
+				if (NodeAttributeName.IsEmpty())
 				{
-					if (Mesh->GetNodeCount() > 0)
+					if (NodeAttribute->GetNodeCount() > 0)
 					{
-						MeshUniqueID += FFbxHelper::GetFbxNodeHierarchyName(Mesh->GetNode(0));
+						NodeAttributeName = FString(DefaultNamePrefix) + TEXT("_") + FFbxHelper::GetFbxObjectName(NodeAttribute->GetNode(0));
 					}
 					else
 					{
-						MeshUniqueID += GetMeshName(Mesh);
+						uint64 UniqueFbxObjectID = NodeAttribute->GetUniqueID();
+						NodeAttributeName += GetUniqueIDString(UniqueFbxObjectID);
 					}
 				}
-				else
+				return NodeAttributeName;
+			}
+
+			FString FFbxHelper::GetNodeAttributeUniqueID(FbxNodeAttribute* NodeAttribute, const FStringView Prefix)
+			{
+				if (!NodeAttribute)
 				{
-					MeshUniqueID += MeshName;
+					return {};
 				}
-				return MeshUniqueID;
+
+				FString NodeAttributeUniqueID = FString(TEXT("\\")) + Prefix + TEXT("\\");
+				FString NodeAttributeName = FFbxHelper::GetFbxObjectName(NodeAttribute);
+
+				if (NodeAttributeName.IsEmpty())
+				{
+					if (NodeAttribute->GetNodeCount() > 0)
+					{
+						NodeAttributeName = FFbxHelper::GetFbxNodeHierarchyName(NodeAttribute->GetNode(0));
+					}
+					else
+					{
+						NodeAttributeName = GetNodeAttributeName(NodeAttribute, Prefix);
+					}
+				}
+
+				NodeAttributeUniqueID += NodeAttributeName;
+
+				return NodeAttributeUniqueID;
 			}
 
 			FString FFbxHelper::GetFbxObjectName(const FbxObject* Object)

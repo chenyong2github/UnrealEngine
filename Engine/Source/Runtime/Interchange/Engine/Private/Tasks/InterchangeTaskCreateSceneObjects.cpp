@@ -85,6 +85,7 @@ void UE::Interchange::FTaskCreateSceneObjects::DoTask(ENamedThreads::Type Curren
 					UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ObjectInfo = ImportedInfos.AddDefaulted_GetRef();
 					ObjectInfo.ImportedObject = NodeObject;
 					ObjectInfo.Factory = Factory;
+					ObjectInfo.FactoryNode = Node;
 				}
 
 				if (CreateSceneObjectsParams.NodeContainer)

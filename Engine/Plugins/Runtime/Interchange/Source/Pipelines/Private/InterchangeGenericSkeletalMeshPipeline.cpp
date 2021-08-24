@@ -512,7 +512,7 @@ UInterchangeSkeletalMeshFactoryNode* UInterchangeGenericAssetsPipeline::CreateSk
 					if (SceneNode)
 					{
 						FString MeshNodeUid;
-						if (SceneNode->GetCustomMeshDependencyUid(MeshNodeUid))
+						if (SceneNode->GetCustomAssetInstanceUid(MeshNodeUid))
 						{
 							OutSceneNodeCount = MeshUids.Num();
 							OutFirstMeshNodeUid = MeshNodeUid;
