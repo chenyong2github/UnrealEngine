@@ -166,6 +166,32 @@ struct PLANARCUT_API FDynamicMeshCollection
 
 		FMeshData(const UE::Geometry::FDynamicMesh3& Mesh, int32 TransformIndex, FTransform ToCollection) : AugMesh(Mesh), TransformIndex(TransformIndex), ToCollection(ToCollection)
 		{}
+
+		void SetMesh(const UE::Geometry::FDynamicMesh3& NewAugMesh)
+		{
+			ClearCachedBounds();
+			AugMesh = NewAugMesh;
+		}
+
+		/// Note this relies on the caller to also call ClearCachedBounds() as needed; it will not automatically invalidate any computed bounds
+		const UE::Geometry::FAxisAlignedBox3d& GetCachedBounds()
+		{
+			if (!bHasBounds)
+			{
+				Bounds = AugMesh.GetBounds(true);
+				bHasBounds = true;
+			}
+			return Bounds;
+		}
+
+		void ClearCachedBounds()
+		{
+			bHasBounds = false;
+		}
+
+	private:
+		bool bHasBounds = false;
+		UE::Geometry::FAxisAlignedBox3d Bounds;
 	};
 	TIndirectArray<FMeshData> Meshes;
 	UE::Geometry::FAxisAlignedBox3d Bounds;
@@ -230,14 +256,9 @@ private:
 
 	void FillVertexHash(const UE::Geometry::FDynamicMesh3& Mesh, UE::Geometry::TPointHashGrid3d<int>& VertHash);
 
-	bool IsNeighboring(UE::Geometry::FDynamicMesh3& MeshA, const UE::Geometry::TPointHashGrid3d<int>& VertHashA, UE::Geometry::FDynamicMesh3& MeshB, const UE::Geometry::TPointHashGrid3d<int>& VertHashB)
-	{
-		UE::Geometry::FDynamicMesh3* Mesh[2]{ &MeshA, &MeshB };
-		const UE::Geometry::TPointHashGrid3d<int>* VertHash[2]{ &VertHashA, &VertHashB };
-		return IsNeighboring(Mesh, VertHash);
-	}
-
-	bool IsNeighboring(UE::Geometry::FDynamicMesh3* Mesh[2], const UE::Geometry::TPointHashGrid3d<int>* VertHash[2]);
+	bool IsNeighboring(
+		UE::Geometry::FDynamicMesh3& MeshA, const UE::Geometry::TPointHashGrid3d<int>& VertHashA, const UE::Geometry::FAxisAlignedBox3d& BoundsA,
+		UE::Geometry::FDynamicMesh3& MeshB, const UE::Geometry::TPointHashGrid3d<int>& VertHashB, const UE::Geometry::FAxisAlignedBox3d& BoundsB);
 };
 
 
