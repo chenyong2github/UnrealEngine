@@ -328,6 +328,11 @@ public:
 		return MemoryManager;
 	}
 
+	inline bool SupportsMemoryless()
+	{
+		return bSupportsMemoryless;
+	}
+
 	inline VulkanRHI::FDeferredDeletionQueue2& GetDeferredDeletionQueue()
 	{
 		return DeferredDeletionQueue;
@@ -518,6 +523,8 @@ private:
 
 	VkPhysicalDeviceFeatures PhysicalFeatures;
 	bool bHasSeparateDepthStencilLayouts = false;
+
+	bool bSupportsMemoryless = true;
 
 	TArray<VkQueueFamilyProperties> QueueFamilyProps;
 	VkFormatProperties FormatProperties[VK_FORMAT_RANGE_SIZE];

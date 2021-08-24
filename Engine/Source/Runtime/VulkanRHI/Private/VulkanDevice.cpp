@@ -1114,6 +1114,17 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 
 	StagingManager.Init(this);
 
+	// Update bMemoryless support
+	{
+		bSupportsMemoryless = false;
+		const VkPhysicalDeviceMemoryProperties& MemoryProperties = DeviceMemoryManager.GetMemoryProperties();
+		for (uint32 i = 0; i < MemoryProperties.memoryTypeCount && !bSupportsMemoryless; ++i)
+		{
+			bSupportsMemoryless = ((MemoryProperties.memoryTypes[i].propertyFlags & VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT) == VK_MEMORY_PROPERTY_LAZILY_ALLOCATED_BIT);
+		}
+	}
+
+
 #if VULKAN_SUPPORTS_GPU_CRASH_DUMPS
 	if (GGPUCrashDebuggingEnabled)
 	{
