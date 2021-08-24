@@ -31,10 +31,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "VoiceCodecOpus.h"
 #include "Voice.h"
-#if !PLATFORM_LUMIN
 #include <SLES/OpenSLES.h>
 #include <SLES/OpenSLES_Android.h>
-#endif // !PLATFORM_LUMIN
 #include <pthread.h>
 #include <stdlib.h>
 #include "AndroidPermissionFunctionLibrary.h"

@@ -14,18 +14,11 @@ public class GoogleOboe : ModuleRules
                 }
             );
 
-        if (Target.Platform != UnrealTargetPlatform.Lumin)
-        {
-            Type = ModuleType.CPlusPlus;
+        Type = ModuleType.CPlusPlus;
 
             
 
-            PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "GoogleOboe/Public");
-            PublicDefinitions.Add("WITH_GOOGLEOBOE=1");
-        }
-        else
-        {
-            PublicDefinitions.Add("WITH_GOOGLEOBOE=0");
-        }
+        PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory + "GoogleOboe/Public");
+        PublicDefinitions.Add("WITH_GOOGLEOBOE=1");
     }
 }

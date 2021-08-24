@@ -22,7 +22,7 @@ static TAutoConsoleVariable<int32> CVarCsmShaderCullingDebugGfx(
 	TEXT(""),
 	ECVF_RenderThreadSafe);
 
-const uint32 CSMShaderCullingMethodDefault = !PLATFORM_LUMIN;
+const uint32 CSMShaderCullingMethodDefault = 1;
 static TAutoConsoleVariable<int32> CVarsCsmShaderCullingMethod(
 	TEXT("r.Mobile.Shadow.CSMShaderCullingMethod"),
 	CSMShaderCullingMethodDefault,

@@ -63,13 +63,11 @@ FText FShaderFormatsPropertyDetails::GetFriendlyNameFromRHINameMac(const FString
 			FriendlyRHIName = LOCTEXT("MetalMRTMac", "Mac Metal iOS/tvOS Desktop Renderer Preview (SM5)");
 			break;
 		case SP_VULKAN_SM5:
-		case SP_VULKAN_SM5_LUMIN:
 		case SP_VULKAN_SM5_ANDROID:
 			FriendlyRHIName = LOCTEXT("VulkanSM5", "Vulkan (SM5)");
 			break;
 		case SP_VULKAN_PCES3_1:
 		case SP_VULKAN_ES3_1_ANDROID:
-		case SP_VULKAN_ES3_1_LUMIN:
 			FriendlyRHIName = LOCTEXT("VulkanES31", "Vulkan (ES 3.1)");
 			break;	
 		default:

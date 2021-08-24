@@ -377,7 +377,7 @@ FRHITexture* FOpenGLDynamicRHI::CreateOpenGLRHITextureOnly(const uint32 SizeX, c
 		}
 		check(SizeX == SizeY);
 	}
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	else if (bIsExternal)
 	{
 		if (FOpenGL::SupportsImageExternal())
@@ -546,7 +546,7 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITextur
 		
 		glTexParameteri(Target, GL_TEXTURE_BASE_LEVEL, 0);
 	
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 		// Do not use GL_TEXTURE_MAX_LEVEL if external texture on Android
 		if (Target != GL_TEXTURE_EXTERNAL_OES)
 #endif
@@ -684,7 +684,7 @@ void FOpenGLDynamicRHI::InitializeGLTextureInternal(GLuint TextureID, FRHITextur
 	}
 	else if (TileMemDepth)
 	{
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4		
+#if PLATFORM_ANDROID
 		Target = GL_RENDERBUFFER;
 		glGenRenderbuffers(1, &TextureID);
 		glBindRenderbuffer(GL_RENDERBUFFER, TextureID);
@@ -1056,7 +1056,7 @@ void TOpenGLTexture<RHIResourceType>::Unlock(uint32 MipIndex,uint32 ArrayIndex)
 
 	check(IsValidRef(PixelBuffer));
 	
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	// check for FloatRGBA to RGBA8 conversion needed
 	if (this->GetFormat() == PF_FloatRGBA && GLFormat.Type == GL_UNSIGNED_BYTE)
 	{

@@ -97,10 +97,5 @@ public class WebBrowser : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("Engine");
 		}
-
-		if(Target.Platform == UnrealTargetPlatform.Lumin)
-		{
-			PrecompileForTargets = ModuleRules.PrecompileTargetsType.None;
-		}
 	}
 }

@@ -189,7 +189,7 @@ void FOpenGLDynamicRHI::RHIBeginFrame()
 
 	GPUProfilingData.BeginFrame(this);
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4 //adding #if since not sure if this is required for any other platform.
+#if PLATFORM_ANDROID //adding #if since not sure if this is required for any other platform.
 	PendingState.DepthStencil = 0 ;
 #endif
 
@@ -812,11 +812,7 @@ static void InitRHICapabilitiesForGL()
 
 	UE_LOG(LogRHI, Log, TEXT("OpenGL MajorVersion = %d, MinorVersion = %d, ShaderPlatform = %s, FeatureLevel = %s"), MajorVersion, MinorVersion, *ShaderPlatformName, *FeatureLevelName);
 #if PLATFORM_ANDROID
-#if PLATFORM_LUMINGL4
-	UE_LOG(LogRHI, Log, TEXT("PLATFORM_LUMINGL4"));
-#else
 	UE_LOG(LogRHI, Log, TEXT("PLATFORM_ANDROID"));
-#endif
 #endif
 
 	GMaxTextureSamplers = Value_GL_MAX_TEXTURE_IMAGE_UNITS;
@@ -960,7 +956,7 @@ static void InitRHICapabilitiesForGL()
 	SetupTextureFormat( PF_FloatR11G11B10,		FOpenGLTextureFormat( GL_R11F_G11F_B10F,		GL_R11F_G11F_B10F,		GL_RGB,				GL_UNSIGNED_INT_10F_11F_11F_REV,	false,  false));
 	SetupTextureFormat( PF_FloatRGBA,			FOpenGLTextureFormat( GL_RGBA16F,				GL_RGBA16F,				GL_RGBA,			GL_HALF_FLOAT,						false,	false));
 
-#if PLATFORM_DESKTOP || PLATFORM_LUMINGL4
+#if PLATFORM_DESKTOP
 	CA_SUPPRESS(6286);
 	if (PLATFORM_DESKTOP || FOpenGL::GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
@@ -976,9 +972,9 @@ static void InitRHICapabilitiesForGL()
 		SetupTextureFormat(PF_G16R16, FOpenGLTextureFormat(GL_RG16, GL_RG16, GL_RG, GL_UNSIGNED_SHORT, false, false));
 	}
 	else
-#endif // PLATFORM_DESKTOP || PLATFORM_LUMINGL4
+#endif // PLATFORM_DESKTOP
 	{
-#if !PLATFORM_DESKTOP && !PLATFORM_LUMINGL4
+#if !PLATFORM_DESKTOP
 		SetupTextureFormat(PF_B8G8R8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, true));
 		SetupTextureFormat(PF_R8G8B8A8, FOpenGLTextureFormat(GL_RGBA8, GL_SRGB8_ALPHA8, GL_RGBA, GL_UNSIGNED_BYTE, false, false));
 		SetupTextureFormat(PF_R8G8B8A8_UINT, FOpenGLTextureFormat(GL_RGBA8UI, GL_RGBA8UI, GL_RGBA_INTEGER, GL_UNSIGNED_BYTE, false, false));
@@ -994,7 +990,7 @@ static void InitRHICapabilitiesForGL()
 		SetupTextureFormat( PF_DXT3,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT3_EXT,	GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT,	GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
 		SetupTextureFormat( PF_DXT5,	FOpenGLTextureFormat(GL_COMPRESSED_RGBA_S3TC_DXT5_EXT,	GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT,	GL_RGBA,	GL_UNSIGNED_BYTE,	true,	false));
 	}
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	if ( FOpenGL::SupportsETC2() )
 	{
 		SetupTextureFormat( PF_ETC2_RGB,		FOpenGLTextureFormat(GL_COMPRESSED_RGB8_ETC2,		GL_COMPRESSED_SRGB8_ETC2,					GL_RGBA,		GL_UNSIGNED_BYTE,	true,		false));
@@ -1044,7 +1040,7 @@ FOpenGLDynamicRHI::FOpenGLDynamicRHI()
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	GRHINeedsExtraDeletionLatency = CVarGLExtraDeletionLatency.GetValueOnAnyThread() == 1;
 #endif
 

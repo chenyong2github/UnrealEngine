@@ -1012,16 +1012,6 @@ namespace UnrealBuildTool
 				}
 			}
 
-			if (!IsStubProject)
-			{
-				// TODO: Restrict this to only the Lumin platform targets, routing via GetVisualStudioGlobalProperties().
-				// Currently hacking here because returning true from HasVisualStudioSupport() for lumin causes bunch of faiures in VS.
-				VCProjectFileContent.AppendLine("  <ItemGroup>");
-				VCProjectFileContent.AppendLine("    <ProjectCapability Include=\"MLProject\" />");
-				VCProjectFileContent.AppendLine("    <PropertyPageSchema Include=\"$(LOCALAPPDATA)\\Microsoft\\VisualStudio\\MagicLeap\\debugger.xaml\" />");
-				VCProjectFileContent.AppendLine("  </ItemGroup>");
-			}
-
 			// Write each project configuration PreDefaultProps section
 			foreach (Tuple<string, UnrealTargetConfiguration> ConfigurationTuple in ProjectConfigurationNameAndConfigurations)
 			{

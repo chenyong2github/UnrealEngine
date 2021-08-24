@@ -44,7 +44,4 @@ struct CORE_API FAndroidPlatformProcess : public FGenericPlatformProcess
 	static void SetThreadName(const TCHAR* ThreadName);
 };
 
-#if !PLATFORM_LUMIN
 typedef FAndroidPlatformProcess FPlatformProcess;
-#endif
-

@@ -19,7 +19,7 @@ class TFunction;
 
 #define UE_DEBUG_BREAK_IMPL()	PLATFORM_BREAK()
 
-#define ANDROID_HAS_RTSIGNALS !PLATFORM_LUMIN && PLATFORM_USED_NDK_VERSION_INTEGER >= 21
+#define ANDROID_HAS_RTSIGNALS PLATFORM_USED_NDK_VERSION_INTEGER >= 21
 
 enum class ECrashContextType;
 
@@ -345,6 +345,4 @@ private:
 #endif // USE_ANDROID_JNI
 };
 
-#if !PLATFORM_LUMIN
 typedef FAndroidMisc FPlatformMisc;
-#endif

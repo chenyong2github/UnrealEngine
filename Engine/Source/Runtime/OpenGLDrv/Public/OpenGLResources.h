@@ -49,7 +49,7 @@ namespace OpenGLConsoleVariables
 	extern int32 bUseBufferDiscard;
 };
 
-#if PLATFORM_WINDOWS || PLATFORM_LUMINGL4
+#if PLATFORM_WINDOWS
 #define RESTRICT_SUBDATA_SIZE 1
 #else
 #define RESTRICT_SUBDATA_SIZE 0
@@ -587,7 +587,7 @@ public:
 				// However, depending on the UnrealEditor features that are used, this issue might pop up elsewhere that we're yet to see.
 				// As there are concerns for maximum number of bone matrices, going for the GL_STATIC_DRAW hint should be safer, 
 				// given the fact that it won't constrain the actual usage of the data store as per the OpenGL4 spec.
-#if PLATFORM_LUMINGL4
+#if 0
 				glBufferData(Type, DiscardSize, NULL, GL_STATIC_DRAW);
 #else
 				glBufferData(Type, DiscardSize, NULL, GetAccess());
@@ -1473,7 +1473,7 @@ private:
 					case GL_TEXTURE_CUBE_MAP:
 					case GL_TEXTURE_2D_ARRAY:
 					case GL_TEXTURE_CUBE_MAP_ARRAY:
-	#if PLATFORM_ANDROID && !PLATFORM_LUMINGL4
+	#if PLATFORM_ANDROID
 					case GL_TEXTURE_EXTERNAL_OES:
 	#endif
 					{

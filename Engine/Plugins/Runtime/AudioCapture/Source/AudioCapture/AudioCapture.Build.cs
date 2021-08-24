@@ -29,7 +29,7 @@ namespace UnrealBuildTool.Rules
             {
                 PrivateDependencyModuleNames.Add("AudioCaptureAudioUnit");
             }
-            else if (Target.Platform == UnrealTargetPlatform.Android && Target.Platform != UnrealTargetPlatform.Lumin)
+            else if (Target.Platform == UnrealTargetPlatform.Android)
             {
                 PrivateDependencyModuleNames.Add("AudioCaptureAndroid");
             }

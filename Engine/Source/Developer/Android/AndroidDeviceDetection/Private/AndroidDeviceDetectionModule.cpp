@@ -111,12 +111,11 @@ public:
 		return 0;
 	}
 
-	void UpdateADBPath(FString &InADBPath, FString& InGetPropCommand, bool InbGetExtensionsViaSurfaceFlinger, bool InbForLumin)
+	void UpdateADBPath(FString &InADBPath, FString& InGetPropCommand, bool InbGetExtensionsViaSurfaceFlinger)
 	{
 		ADBPath = InADBPath;
 		GetPropCommand = InGetPropCommand;
 		bGetExtensionsViaSurfaceFlinger = InbGetExtensionsViaSurfaceFlinger;
-		bForLumin = InbForLumin;
 
 		HasADBPath = !ADBPath.IsEmpty();
 		// Force a check next time we go around otherwise it can take over 10sec to find devices
@@ -299,22 +298,6 @@ private:
 			const FString DeviceState = DeviceString.Mid(TabIndex + 1).TrimStart();
 
 			NewDeviceInfo.bAuthorizedDevice = DeviceState != TEXT("unauthorized");
-			if (bForLumin)
-			{
-				// 'mldb oobestaus' is deprecated. 'mldb ps' gives us similar functionality for checking device readiness to some extent.
-				const FString OobeCommand = FString::Printf(TEXT("-s %s ps"), *NewDeviceInfo.SerialNumber);
-				FString OobeStatus;
-				NewDeviceInfo.bAuthorizedDevice = ExecuteAdbCommand(*OobeCommand, &OobeStatus, nullptr);
-				if (DeviceMap.Contains(NewDeviceInfo.SerialNumber))
-				{
-					if (DeviceMap[NewDeviceInfo.SerialNumber].bAuthorizedDevice != NewDeviceInfo.bAuthorizedDevice)
-					{
-						// if this device is already in the connected list but authorization has changed, remove it.
-						// it will be added in the next query which will allow UI to refresh properly.
-						continue;
-					}
-				}
-			}
 
 			// add it to our list of currently connected devices
 			CurrentlyConnectedDevices.Add(NewDeviceInfo.SerialNumber);
@@ -327,16 +310,15 @@ private:
 				continue;
 			}
 
-			if (!NewDeviceInfo.bAuthorizedDevice && !bForLumin)
+			if (!NewDeviceInfo.bAuthorizedDevice)
 			{
 				//note: AndroidTargetDevice::GetName() does not fetch this value, do not rely on this
 				NewDeviceInfo.DeviceName = TEXT("Unauthorized - enable USB debugging");
 			}
 			else
 			{
-				// grab the Lumin/Android version
-				const FString AndroidVersionCommand = bForLumin ? FString::Printf(TEXT("%s ro.build.id"), *GetPropCommand) :
-					FString::Printf(TEXT("-s %s %s ro.build.version.release"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
+				// grab the Android version
+				const FString AndroidVersionCommand = FString::Printf(TEXT("-s %s %s ro.build.version.release"), *NewDeviceInfo.SerialNumber, *GetPropCommand);
 				if (!ExecuteAdbCommand(*AndroidVersionCommand, &NewDeviceInfo.HumanAndroidVersion, nullptr))
 				{
 					continue;
@@ -682,7 +664,6 @@ private:
 	FString ADBPath;
 	FString GetPropCommand;
 	bool bGetExtensionsViaSurfaceFlinger;
-	bool bForLumin;
 
 	// > 0 if we've been asked to abort work in progress at the next opportunity
 	FThreadSafeCounter StopTaskCounter;
@@ -739,13 +720,12 @@ public:
 		}
 	}
 
-	virtual void Initialize(const TCHAR* InSDKDirectoryEnvVar, const TCHAR* InSDKRelativeExePath, const TCHAR* InGetPropCommand, bool InbGetExtensionsViaSurfaceFlinger, bool InbForLumin = false) override
+	virtual void Initialize(const TCHAR* InSDKDirectoryEnvVar, const TCHAR* InSDKRelativeExePath, const TCHAR* InGetPropCommand, bool InbGetExtensionsViaSurfaceFlinger) override
 	{
 		SDKDirEnvVar = InSDKDirectoryEnvVar;
 		SDKRelativeExePath = InSDKRelativeExePath;
 		GetPropCommand = InGetPropCommand;
 		bGetExtensionsViaSurfaceFlinger = InbGetExtensionsViaSurfaceFlinger;
-		bForLumin = InbForLumin;
 		UpdateADBPath();
 	}
 
@@ -820,7 +800,7 @@ public:
 				ADBPath.Empty();
 			}
 		}
-		DetectionThreadRunnable->UpdateADBPath(ADBPath, GetPropCommand, bGetExtensionsViaSurfaceFlinger, bForLumin);
+		DetectionThreadRunnable->UpdateADBPath(ADBPath, GetPropCommand, bGetExtensionsViaSurfaceFlinger);
 	}
 
 	virtual void ExportDeviceProfile(const FString& OutPath, const FString& DeviceName) override
@@ -904,7 +884,6 @@ private:
 	FString SDKRelativeExePath;
 	FString GetPropCommand;
 	bool bGetExtensionsViaSurfaceFlinger;
-	bool bForLumin;
 
 	FRunnableThread* DetectionThread;
 	FAndroidDeviceDetectionRunnable* DetectionThreadRunnable;

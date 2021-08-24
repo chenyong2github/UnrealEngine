@@ -1,3 +1,0 @@
-# Lumin AutoSDK
-
-Details forthcoming.

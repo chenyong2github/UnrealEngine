@@ -21,10 +21,5 @@ public class AndroidLocalNotification : ModuleRules
 			"Engine",
             "Launch"
 		});
-
-		if(Target.Platform == UnrealTargetPlatform.Lumin)
-		{
-			PrecompileForTargets = PrecompileTargetsType.None;
-		}
 	}
 }

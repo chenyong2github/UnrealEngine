@@ -258,11 +258,6 @@ namespace UnrealBuildTool
 		/// Nintendo Switch
 		/// </summary>
 		public static UnrealTargetPlatform Switch = FindOrAddByName("Switch");
-
-		/// <summary>
-		/// Confidential platform
-		/// </summary>
-		public static UnrealTargetPlatform Lumin = FindOrAddByName("Lumin");
 	}
 
 	internal class UnrealTargetPlatformTypeConverter : TypeConverter

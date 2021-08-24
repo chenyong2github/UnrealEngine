@@ -345,7 +345,7 @@ public:
 	/** @see MaxNumberOfTrackedFaces */
 	int32 GetMaxNumberOfTrackedFaces() const { return MaxNumberOfTrackedFaces; }
 	
-	/** Boolean to determine whether the AR system should generate mesh data that can be used for rendering, collision, NavMesh, and more. This feature is used by OpenXR, Windows Mixed Reality, and Magic Leap. */
+	/** Boolean to determine whether the AR system should generate mesh data that can be used for rendering, collision, NavMesh, and more. This feature is used by OpenXR, Windows Mixed Reality. */
 	UPROPERTY(EditAnywhere, Category = "AR Settings | World Mapping")
 	bool bGenerateMeshDataFromTrackedGeometry;
 

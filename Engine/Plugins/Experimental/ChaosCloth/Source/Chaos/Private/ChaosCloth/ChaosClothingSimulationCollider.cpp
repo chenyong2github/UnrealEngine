@@ -510,7 +510,7 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				}
 			}
 
-#if !PLATFORM_LUMIN && !PLATFORM_ANDROID  // TODO(Kriss.Gossart): Compile on Android and fix whatever errors the following code is causing
+#if !PLATFORM_ANDROID  // TODO(Kriss.Gossart): Compile on Android and fix whatever errors the following code is causing
 #if WITH_CHAOS  // Only the chaos build has access to the ChaosConvex property
 			// Add convexes
 			for (const FKConvexElem& ConvexElem : AggGeom.ConvexElems)
@@ -553,7 +553,7 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				ClothCollisionData.Convexes.Add(Convex);
 			}
 #endif  // #if WITH_CHAOS
-#endif  // #if !PLATFORM_LUMIN && !PLATFORM_ANDROID
+#endif  // #if !PLATFORM_ANDROID
 
 		}  // End for PhysAsset->SkeletalBodySetups
 	}  // End if Asset->PhysicsAsset

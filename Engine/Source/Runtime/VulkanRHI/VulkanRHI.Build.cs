@@ -51,8 +51,7 @@ public class VulkanRHI : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 		}
 
-		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android 
-			|| Target.Platform == UnrealTargetPlatform.Lumin)
+		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Android)
 		{
             AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
         }

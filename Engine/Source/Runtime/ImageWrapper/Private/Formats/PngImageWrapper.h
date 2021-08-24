@@ -91,7 +91,7 @@ private:
 	/** The number of channels. */
 	uint8 Channels;
 
-#if PLATFORM_ANDROID || PLATFORM_LUMIN || PLATFORM_LUMINGL4
+#if PLATFORM_ANDROID
 	//Other platforms rely on libPNG internal mechanism to achieve concurrent compression\decompression on multiple threads
 	/** setjmp buffer for error recovery. */
 	jmp_buf SetjmpBuffer;

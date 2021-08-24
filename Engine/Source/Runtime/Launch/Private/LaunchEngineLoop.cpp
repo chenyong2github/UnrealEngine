@@ -4535,7 +4535,7 @@ void FEngineLoop::Exit()
 	FModuleManager::Get().UnloadModule("WorldBrowser", true);
 	FModuleManager::Get().UnloadModule("AssetRegistry", true);
 
-#if !PLATFORM_ANDROID || PLATFORM_LUMIN 	// AppPreExit doesn't work on Android
+#if !PLATFORM_ANDROID 	// AppPreExit doesn't work on Android
 	AppPreExit();
 
 	TermGamePhys();
@@ -4563,7 +4563,7 @@ void FEngineLoop::Exit()
 #endif
 
 
-#if !PLATFORM_ANDROID || PLATFORM_LUMIN // UnloadModules doesn't work on Android
+#if !PLATFORM_ANDROID // UnloadModules doesn't work on Android
 #if WITH_ENGINE
 	// Save the hot reload state
 	IHotReloadInterface* HotReload = IHotReloadInterface::GetPtr();

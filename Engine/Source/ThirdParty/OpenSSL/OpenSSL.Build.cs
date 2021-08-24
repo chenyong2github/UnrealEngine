@@ -64,7 +64,7 @@ public class OpenSSL : ModuleRules
 
 			PublicDependencyModuleNames.Add("zlib");
 		}
-		else if (Target.Platform == UnrealTargetPlatform.Android || Target.Platform == UnrealTargetPlatform.Lumin)
+		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
 			string[] Architectures = new string[] {
 				"ARM64",

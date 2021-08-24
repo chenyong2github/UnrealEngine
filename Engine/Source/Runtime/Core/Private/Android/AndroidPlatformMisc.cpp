@@ -784,92 +784,6 @@ bool FAndroidMisc::UseRenderThread()
 	return true;
 }
 
-#if PLATFORM_LUMIN
-
-int32 FAndroidMisc::NumberOfCores()
-{
-//#if USE_ANDROID_JNI
-//	static int32 NumberOfCores = android_getCpuCount();
-//	return NumberOfCores;
-//#else
-	// WARNING: this function ignores edge cases like affinity mask changes (and even more fringe cases like CPUs going offline)
-	// in the name of performance (higher level code calls NumberOfCores() way too often...)
-	static int32 NumberOfCores = 0;
-	if (NumberOfCores == 0)
-	{
-		if (FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
-		{
-			NumberOfCores = NumberOfCoresIncludingHyperthreads();
-		}
-		else
-		{
-			cpu_set_t AvailableCpusMask;
-			CPU_ZERO(&AvailableCpusMask);
-
-			if (0 != sched_getaffinity(0, sizeof(AvailableCpusMask), &AvailableCpusMask))
-			{
-				NumberOfCores = 1;	// we are running on something, right?
-			}
-			else
-			{
-				// read the proc core counts and the proc max frequencies from cpuinfo because of 
-				// potential security restrictions on the sys mount
-				if (FILE* FileGlobalCpuStats = fopen("/proc/cpuinfo", "r"))
-				{
-					char LineBuffer[256] = { 0 };
-					do
-					{
-						char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), FileGlobalCpuStats);
-						if (Line == nullptr)
-						{
-							break;	// eof or an error
-						}
-						// count the number of processor entries in loop
-						// for Lumin one processor translates to one core
-						if (strstr(Line, "processor") == Line)
-						{
-							NumberOfCores += 1;
-						}
-					} while (1);
-					fclose(FileGlobalCpuStats);
-				}
-			}
-		}
-	}
-	return NumberOfCores;
-//#endif
-}
-
-
-int32 FAndroidMisc::NumberOfCoresIncludingHyperthreads()
-{
-#if USE_ANDROID_JNI
-	return FPlatformMisc::NumberOfCores();
-#else
-	// WARNING: this function ignores edge cases like affinity mask changes (and even more fringe cases like CPUs going offline)
-	// in the name of performance (higher level code calls NumberOfCores() way too often...)
-	static int32 NumCoreIds = 0;
-	if (NumCoreIds == 0)
-	{
-		cpu_set_t AvailableCpusMask;
-		CPU_ZERO(&AvailableCpusMask);
-
-		if (0 != sched_getaffinity(0, sizeof(AvailableCpusMask), &AvailableCpusMask))
-		{
-			NumCoreIds = 1;	// we are running on something, right?
-		}
-		else
-		{
-			return CPU_COUNT(&AvailableCpusMask);
-		}
-	}
-	return NumCoreIds;
-#endif
-}
-
-
-#else
-
 int32 FAndroidMisc::NumberOfCores()
 {
 	int32 NumberOfCores = android_getCpuCount();
@@ -896,7 +810,6 @@ int32 FAndroidMisc::NumberOfCoresIncludingHyperthreads()
 	return NumberOfCores();
 }
 
-#endif
 
 static FAndroidMisc::FCPUState CurrentCPUState;
 

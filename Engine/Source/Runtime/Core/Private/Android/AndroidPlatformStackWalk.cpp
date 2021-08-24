@@ -19,7 +19,7 @@
 #include "Misc/OutputDevice.h"
 #include "Logging/LogMacros.h"
 
-#define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64 && !PLATFORM_LUMIN
+#define HAS_LIBUNWIND PLATFORM_ANDROID_ARM64
 
 #if HAS_LIBUNWIND
 #define UNW_LOCAL_ONLY

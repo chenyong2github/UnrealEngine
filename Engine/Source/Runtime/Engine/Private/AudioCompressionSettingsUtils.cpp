@@ -6,7 +6,7 @@
 
 #define ENABLE_PLATFORM_COMPRESSION_OVERRIDES 1
 
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
+#if PLATFORM_ANDROID && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
 #include "AndroidRuntimeSettings.h"
 #endif
 
@@ -53,7 +53,7 @@ FAutoConsoleVariableRef CVarChunkSlotNumScalar(
 
 const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::GetRuntimeCompressionOverridesForCurrentPlatform()
 {
-#if PLATFORM_ANDROID && !PLATFORM_LUMIN && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
+#if PLATFORM_ANDROID && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
 	static const UAndroidRuntimeSettings* Settings = GetDefault<UAndroidRuntimeSettings>();
 	if (Settings)
 	{
@@ -76,7 +76,7 @@ const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::
 		return &(Settings->CompressionOverrides);
 	}
 
-#endif // PLATFORM_ANDROID && !PLATFORM_LUMIN
+#endif // PLATFORM_ANDROID
 	return nullptr;
 }
 

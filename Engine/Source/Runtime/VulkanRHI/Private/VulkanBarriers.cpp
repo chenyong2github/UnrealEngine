@@ -1380,7 +1380,7 @@ VkImageSubresourceRange FVulkanPipelineBarrier::MakeSubresourceRange(VkImageAspe
 }
 
 //
-// Used when we need to change the layout of a single image. Some plug-ins call this function from outside the RHI (Magic Leap and Steam VR, at the time of writing this).
+// Used when we need to change the layout of a single image. Some plug-ins call this function from outside the RHI (Steam VR, at the time of writing this).
 //
 void VulkanSetImageLayout(VkCommandBuffer CmdBuffer, VkImage Image, VkImageLayout OldLayout, VkImageLayout NewLayout, const VkImageSubresourceRange& SubresourceRange)
 {

@@ -193,7 +193,7 @@ namespace UnrealBuildTool
 			{
 				ISPCTargets.AddRange(new string[] { "neon" });
 			}
-			else if (Platform == UnrealTargetPlatform.Android || Platform == UnrealTargetPlatform.Lumin)
+			else if (Platform == UnrealTargetPlatform.Android)
 			{
 				switch (Arch)
 				{
@@ -229,7 +229,7 @@ namespace UnrealBuildTool
 			{
 				ISPCOS += "linux";
 			}
-			else if (Platform == UnrealTargetPlatform.Android || Platform == UnrealTargetPlatform.Lumin)
+			else if (Platform == UnrealTargetPlatform.Android)
 			{
 				ISPCOS += "android";
 			}
@@ -265,7 +265,7 @@ namespace UnrealBuildTool
 			{
 				ISPCArch += "aarch64";
 			}
-			else if (Platform == UnrealTargetPlatform.Android || Platform == UnrealTargetPlatform.Lumin)
+			else if (Platform == UnrealTargetPlatform.Android)
 			{
 				switch (Arch)
 				{
@@ -359,8 +359,7 @@ namespace UnrealBuildTool
 			}
 			else if (UEBuildPlatform.IsPlatformInGroup(Platform, UnrealPlatformGroup.Unix) ||
 					Platform == UnrealTargetPlatform.Mac ||
-					Platform == UnrealTargetPlatform.Android ||
-					Platform == UnrealTargetPlatform.Lumin)
+					Platform == UnrealTargetPlatform.Android)
 			{
 				Suffix += ".o";
 			}

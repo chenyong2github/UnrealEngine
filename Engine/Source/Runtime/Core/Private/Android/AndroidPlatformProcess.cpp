@@ -6,9 +6,7 @@
 
 #include "Android/AndroidPlatformProcess.h"
 #include "Android/AndroidPlatformRunnableThread.h"
-#if !PLATFORM_LUMIN
 #include "Android/AndroidPlatformAffinity.h"
-#endif
 #include "Async/TaskGraphInterfaces.h"
 
 #include <sys/syscall.h>
@@ -20,19 +18,15 @@
 #include "Misc/CoreDelegates.h"
 
 // RTLD_NOLOAD not defined for all platforms before NDK15
-#if !PLATFORM_LUMIN
 #if PLATFORM_ANDROID_NDK_VERSION < 150000
 	// not defined for NDK platform before 21
 	#if PLATFORM_USED_NDK_VERSION_INTEGER < 21
 		#define RTLD_NOLOAD   0x00004
 	#endif
 #endif
-#endif
 
-#if !PLATFORM_LUMIN
 int64 FAndroidAffinity::GameThreadMask = FPlatformAffinity::GetNoAffinityMask();
 int64 FAndroidAffinity::RenderingThreadMask = FPlatformAffinity::GetNoAffinityMask();
-#endif
 
 void* FAndroidPlatformProcess::GetDllHandle(const TCHAR* Filename)
 {
@@ -214,7 +208,6 @@ static void ApplyDefaultThreadAffinity(IConsoleVariable* Var)
 				Aff = 0xFFFFFFFFFFFFFFFF;
 			}
 
-#if !PLATFORM_LUMIN
 			if (Args[Index] == TEXT("GT"))
 			{
 				FAndroidAffinity::GameThreadMask = Aff;
@@ -223,7 +216,6 @@ static void ApplyDefaultThreadAffinity(IConsoleVariable* Var)
 			{
 				FAndroidAffinity::RenderingThreadMask = Aff;
 			}
-#endif
 		}
 
 		if (FTaskGraphInterface::IsRunning())
@@ -251,7 +243,6 @@ void AndroidSetupDefaultThreadAffinity()
 	CVarAndroidDefaultThreadAffinity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&ApplyDefaultThreadAffinity));
 }
 
-#if !PLATFORM_LUMIN
 static bool EnableLittleCoreAffinity = false;
 static int32 BigCoreMask = 0;
 static int32 LittleCoreMask = 0;
@@ -278,4 +269,3 @@ uint64 FAndroidAffinity::GetLittleCoreMask()
 	}
 	return Mask;
 }
-#endif

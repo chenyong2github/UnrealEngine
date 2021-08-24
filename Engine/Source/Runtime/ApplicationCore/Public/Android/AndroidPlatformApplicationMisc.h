@@ -25,6 +25,4 @@ struct APPLICATIONCORE_API FAndroidApplicationMisc : public FGenericPlatformAppl
 	static void EnableMotionData(bool bEnable);
 };
 
-#if !PLATFORM_LUMIN
 typedef FAndroidApplicationMisc FPlatformApplicationMisc;
-#endif

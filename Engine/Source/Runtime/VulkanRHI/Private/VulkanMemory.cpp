@@ -21,7 +21,7 @@ const uint32 NUM_FRAMES_TO_WAIT_FOR_RESOURCE_DELETE = 2;
 #define UE_VK_MEMORY_KEEP_FREELIST_SORTED					1
 #define UE_VK_MEMORY_JOIN_FREELIST_ON_THE_FLY				(UE_VK_MEMORY_KEEP_FREELIST_SORTED && 1)
 #define UE_VK_MEMORY_KEEP_FREELIST_SORTED_CATCHBUGS			0 // debugging
-#define VULKAN_FREE_ALL_PAGES ((PLATFORM_ANDROID && !PLATFORM_LUMIN) ? 1 : 0)
+#define VULKAN_FREE_ALL_PAGES ((PLATFORM_ANDROID) ? 1 : 0)
 
 #define VULKAN_LOG_MEMORY_UELOG 1 //in case of debugging, it is useful to be able to log directly to LowLevelPrintf, as this is easier to diff. Please do not delete this code.
 

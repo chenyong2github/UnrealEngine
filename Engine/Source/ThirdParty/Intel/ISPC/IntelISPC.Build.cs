@@ -13,7 +13,7 @@ public class IntelISPC : ModuleRules
             Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.VisualCpp))
         {
             // For Android, ISPC is on for some archs, off for others. Decide which in the tool chain.
-            if (Target.Platform != UnrealTargetPlatform.Android && Target.Platform != UnrealTargetPlatform.Lumin)
+            if (Target.Platform != UnrealTargetPlatform.Android)
             {
                 PublicDefinitions.Add("INTEL_ISPC=1");
             }
