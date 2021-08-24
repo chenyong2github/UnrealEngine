@@ -670,33 +670,78 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 	}
 }
 
-int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
+int32 UControlRigGraph::GetInstructionIndex(const UControlRigGraphNode* InNode, bool bAsInput)
 {
-	if (const int32* FoundIndex = CachedInstructionIndices.Find(InNode->GetModelNode()))
+	if (const TPair<int32, int32>* FoundIndex = CachedInstructionIndices.Find(InNode->GetModelNode()))
 	{
-		return *FoundIndex;
+		return bAsInput ? FoundIndex->Key : FoundIndex->Value;
 	}
 
 	struct Local
 	{
-		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode, TMap<URigVMNode*, int32>& Indices)
+		static int32 GetInstructionIndex(URigVMNode* InModelNode, const FRigVMByteCode* InByteCode, TMap<URigVMNode*, TPair<int32, int32>>& Indices, bool bAsInput)
 		{
 			if (InModelNode == nullptr)
 			{
 				return INDEX_NONE;
 			}
 
-			if (const int32* ExistingIndex = Indices.Find(InModelNode))
+			if (const TPair<int32, int32>* ExistingIndex = Indices.Find(InModelNode))
 			{
-				return *ExistingIndex;
+				const int32 Index = bAsInput ? ExistingIndex->Key : ExistingIndex->Value;
+				if(Index != INDEX_NONE)
+				{
+					return Index;
+				}
 			}
 
-			Indices.Add(InModelNode, INDEX_NONE);
+			if(const URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InModelNode))
+			{
+				int32 InstructionIndex = INDEX_NONE;
+				if(bAsInput)
+				{
+					TArray<URigVMNode*> SourceNodes = RerouteNode->GetLinkedSourceNodes();
+					for(URigVMNode* SourceNode : SourceNodes)
+					{
+						InstructionIndex = GetInstructionIndex(SourceNode, InByteCode, Indices, bAsInput);
+						if(InstructionIndex != INDEX_NONE)
+						{
+							break;
+						}
+					}
+					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
+				}
+				else
+				{
+					TArray<URigVMNode*> TargetNodes = RerouteNode->GetLinkedTargetNodes();
+					for(URigVMNode* TargetNode : TargetNodes)
+					{
+						InstructionIndex = GetInstructionIndex(TargetNode, InByteCode, Indices, bAsInput);
+						if(InstructionIndex != INDEX_NONE)
+						{
+							break;
+						}
+					}
+					Indices.FindOrAdd(InModelNode).Value = InstructionIndex;
+				}
+
+				return InstructionIndex;
+			}
+
+			Indices.FindOrAdd(InModelNode, TPair<int32, int32>(INDEX_NONE, INDEX_NONE));
 
 			int32 InstructionIndex = InByteCode->GetFirstInstructionIndexForSubject(InModelNode);
 			if (InstructionIndex != INDEX_NONE)
 			{
-				Indices.FindOrAdd(InModelNode) = InstructionIndex;
+				TPair<int32, int32> Pair(InstructionIndex, InstructionIndex);
+				if(bAsInput)
+				{
+					Indices.FindOrAdd(InModelNode).Key = InstructionIndex;
+				}
+				else
+				{
+					Indices.FindOrAdd(InModelNode).Value = InstructionIndex;
+				}
 				return InstructionIndex;
 			}
 
@@ -706,7 +751,14 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 				const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(InByteCode->GetCallPathForInstruction(i), InModelNode->GetRootGraph());
 				if (Proxy.GetCallstack().Contains(InModelNode))
 				{
-					Indices.FindOrAdd(InModelNode) = i;
+					if(bAsInput)
+					{
+						Indices.FindOrAdd(InModelNode).Key = i;
+					}
+					else
+					{
+						Indices.FindOrAdd(InModelNode).Value = i;
+					}
 					return i;
 				}
 			}
@@ -716,7 +768,9 @@ int32 UControlRigGraph::GetInstructionIndex(UControlRigGraphNode* InNode)
 
 	if (const FRigVMByteCode* ByteCode = GetController()->GetCurrentByteCode())
 	{
-		return Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices);
+		const int32 SourceInstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices, true);
+		const int32 TargetInstructionIndex = Local::GetInstructionIndex(InNode->GetModelNode(), ByteCode, CachedInstructionIndices, false);
+		return bAsInput ? SourceInstructionIndex : TargetInstructionIndex;
 	}
 
 	return INDEX_NONE;
