@@ -32,6 +32,15 @@ namespace UE
 			void WaitAllTaskToCompleteExecution();
 			bool IsOver();
 
+			void SetInterchangeWorkerFatalError(FString& ErrorMessage)
+			{
+				InterchangeWorkerFatalError = MoveTemp(ErrorMessage);
+			}
+
+			FString GetInterchangeWorkerFatalError()
+			{
+				return InterchangeWorkerFatalError;
+			}
 		private:
 			void SpawnHandler();
 			bool IsHandlerAlive();
@@ -46,6 +55,8 @@ namespace UE
 
 			/** Path where the result files are dump */
 			FString ResultFolder;
+
+			FString InterchangeWorkerFatalError;
 
 			// Workers
 			TUniquePtr<FInterchangeWorkerHandler> WorkerHandler = nullptr;

@@ -15,6 +15,7 @@ namespace UE
 			switch (CommandType)
 			{
 				case ECommandId::Ping: return MakeShared<FPingCommand>();
+				case ECommandId::Error: return MakeShared<FErrorCommand>();
 				case ECommandId::BackPing: return MakeShared<FBackPingCommand>();
 				case ECommandId::RunTask: return MakeShared<FRunTaskCommand>();
 				case ECommandId::NotifyEndTask: return MakeShared<FCompletedTaskCommand>();
@@ -44,6 +45,11 @@ namespace UE
 				return ArReader.IsError() ? nullptr : Command;
 			}
 			return nullptr;
+		}
+
+		void FErrorCommand::SerializeImpl(FArchive& Ar)
+		{
+			Ar << ErrorMessage;
 		}
 
 		void FRunTaskCommand::SerializeImpl(FArchive& Ar)

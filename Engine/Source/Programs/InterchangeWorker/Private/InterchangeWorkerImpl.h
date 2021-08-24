@@ -16,7 +16,7 @@ class FInterchangeWorkerImpl
 {
 public:
 	FInterchangeWorkerImpl(int32 InServerPID, int32 InServerPort, FString& InResultFolder);
-	bool Run();
+	bool Run(const FString& WorkerVersionError);
 
 private:
 	void InitiatePing();
