@@ -843,7 +843,7 @@ FSlateColor FSequencerObjectBindingNode::GetDisplayNameColor() const
 		{
 			if (StaticCastSharedPtr<FSequencerObjectBindingNode>(CurrentNode)->GetBindingType() == EObjectBindingType::Spawnable)
 			{
-				return FLinearColor::Gray;
+				return FSlateColor::UseSubduedForeground();
 			}
 		}
 

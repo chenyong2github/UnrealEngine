@@ -115,7 +115,7 @@ FSlateColor FSequencerFolderNode::GetIconColor() const
 {
 	if (ParentTree.IsNodeMute(this))
 	{
-		return FSlateColor(MovieSceneFolder.GetFolderColor().ReinterpretAsLinear() * FLinearColor(0.6f, 0.6f, 0.6f, 0.6f));
+		return FSlateColor(MovieSceneFolder.GetFolderColor().ReinterpretAsLinear().Desaturate(0.6f));
 	}
 
 	return FSlateColor(MovieSceneFolder.GetFolderColor());
@@ -125,7 +125,7 @@ FSlateColor FSequencerFolderNode::GetDisplayNameColor() const
 {
 	if (ParentTree.IsNodeMute(this))
 	{
-		return FLinearColor(0.6f, 0.6f, 0.6f, 0.6f);
+		return FSlateColor::UseSubduedForeground();
 	}
 
 	return FSlateColor::UseForeground();
