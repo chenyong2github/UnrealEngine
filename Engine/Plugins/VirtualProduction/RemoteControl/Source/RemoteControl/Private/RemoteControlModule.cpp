@@ -958,9 +958,19 @@ public:
 			FRCFieldPathInfo FieldPathInfo = ObjectAccess.PropertyPathInfo;
 			void* TargetAddress = FieldPathInfo.GetResolvedData().ContainerAddress;
 			UObject* DefaultObject = Object->GetClass()->GetDefaultObject();
-			FieldPathInfo.Resolve(DefaultObject);
-			FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
-			ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+			if (FieldPathInfo.Resolve(DefaultObject))
+			{
+				FRCFieldResolvedData DefaultObjectResolvedData = FieldPathInfo.GetResolvedData();
+				ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, DefaultObjectResolvedData.ContainerAddress);
+			}
+			else
+			{
+				// Object might have been invalidated by the previous TestOrFinalizeOngoingChange invocation.
+				if (ObjectAccess.Object.IsValid())
+				{
+					ObjectAccess.Property->InitializeValue_InContainer(TargetAddress);
+				}
+			}
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example

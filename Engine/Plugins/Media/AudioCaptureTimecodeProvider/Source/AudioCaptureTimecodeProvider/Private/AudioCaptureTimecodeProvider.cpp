@@ -5,6 +5,7 @@
 
 #include "AudioCapture.h"
 #include "HAL/CriticalSection.h"
+#include "Misc/CommandLine.h"
 #include "LinearTimecodeDecoder.h"
 #include "Stats/StatsMisc.h"
 
@@ -238,6 +239,12 @@ FFrameRate UAudioCaptureTimecodeProvider::GetFrameRateInternal() const
 
 bool UAudioCaptureTimecodeProvider::Initialize(class UEngine* InEngine)
 {
+	if (IsRunningCommandlet() && !FParse::Param(FCommandLine::Get(), TEXT("useaudiocapturetimecode")))
+	{
+		UE_LOG(LogAudioCaptureTimecodeProvider, Display, TEXT("Audio Capture Timecode Provided initilization was skipped because UE is running in a commandlet. Use -useaudiocapturetimecode to force the initialization."));		
+		return false;
+	}
+	
 	check(Implementation == nullptr);
 	delete Implementation; // in case
 
@@ -255,9 +262,12 @@ bool UAudioCaptureTimecodeProvider::Initialize(class UEngine* InEngine)
 
 void UAudioCaptureTimecodeProvider::Shutdown(class UEngine* InEngine)
 {
-	SynchronizationState = ETimecodeProviderSynchronizationState::Closed;
-	delete Implementation;
-	Implementation = nullptr;
+	if (Implementation)
+	{
+		SynchronizationState = ETimecodeProviderSynchronizationState::Closed;
+		delete Implementation;
+		Implementation = nullptr;
+	}
 }
 
 void UAudioCaptureTimecodeProvider::BeginDestroy()

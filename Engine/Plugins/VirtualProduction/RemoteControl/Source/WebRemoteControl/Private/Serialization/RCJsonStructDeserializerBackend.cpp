@@ -5,6 +5,8 @@
 #include "UObject/EnumProperty.h"
 #include "UObject/UnrealType.h"
 
+#include <limits>
+
 namespace
 {
 	static void* GetPropertyValuePtr(FProperty* Property, FProperty* Outer, void* Data, int32 ArrayIndex)
@@ -23,10 +25,13 @@ namespace
 
 			return ArrayHelper.GetRawPtr(Index);
 		}
-		else if (Property->IsA<FMapProperty>() || Property->IsA<FSetProperty>())
+		else if (Outer && (Outer->IsA<FMapProperty>() || Outer->IsA<FSetProperty>()))
 		{
-			ensureAlwaysMsgf(false, TEXT("Set or Map property containing enums is not supported by Remote Control."));
-			return nullptr;
+			if (Property->IsA<FEnumProperty>())
+			{
+				ensureAlwaysMsgf(false, TEXT("Set or Map property containing enums is not supported by Remote Control."));
+				return nullptr;
+			}
 		}
 
 		if (ArrayIndex >= Property->ArrayDim)
@@ -128,6 +133,26 @@ bool FRCJsonStructDeserializerBackend::ReadProperty(FProperty* Property, FProper
 			return bReadResult;
 		}
 	}
+	else if (GetLastNotation() == EJsonNotation::Number)
+	{
+		if (FFloatProperty* FloatProperty = CastField<FFloatProperty>(Property))
+		{
+			if (void* Ptr = GetPropertyValuePtr(Property, Outer, Data, ArrayIndex))
+			{
+				const double& DoubleValue = GetReader()->GetValueAsNumber();
+				if (DoubleValue > std::numeric_limits<float>::max())
+				{
+					FloatProperty->SetPropertyValue(Ptr, std::numeric_limits<float>::max());
+					return true;
+				}
+			}
+			else
+			{
+				return false;
+			}
+		}
+	}
+
 
 	return FJsonStructDeserializerBackend::ReadProperty(Property, Outer, Data, ArrayIndex);
 }

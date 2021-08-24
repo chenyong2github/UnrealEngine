@@ -56,6 +56,9 @@ public:
 	/** Get raw access to this group's child nodes. */
 	TArray<TSharedPtr<SRCPanelTreeNode>>& GetNodes() { return Nodes; }
 
+	/** Make the group name's text box editable. */
+	void EnterRenameMode();
+
 	//~ SRCPanelTreeNode Interface
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
 	virtual FGuid GetId() const override;

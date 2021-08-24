@@ -60,9 +60,9 @@ void FWebSocketMessageHandler::UnregisterRoutes(FWebRemoteControlModule* WebRemo
 	}
 }
 
-void FWebSocketMessageHandler::NotifyPropertyChangedRemotely(const FGuid& OriginClientId, FName PresetName, const FGuid& ExposedPropertyId)
+void FWebSocketMessageHandler::NotifyPropertyChangedRemotely(const FGuid& OriginClientId, const FGuid& PresetId, const FGuid& ExposedPropertyId)
 {
-	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(PresetName))
+	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(PresetId))
 	{
 		if (SubscribedClients->Contains(OriginClientId))
 		{
@@ -75,11 +75,11 @@ void FWebSocketMessageHandler::NotifyPropertyChangedRemotely(const FGuid& Origin
 
 			if (!bIgnoreIncomingNotification)
 			{
-				PerFrameModifiedProperties.FindOrAdd(PresetName).FindOrAdd(OriginClientId).Add(ExposedPropertyId);
+				PerFrameModifiedProperties.FindOrAdd(PresetId).FindOrAdd(OriginClientId).Add(ExposedPropertyId);
 			}
 			else
 			{
-				for (TPair<FGuid, TSet<FGuid>>& Entry : PerFrameModifiedProperties.FindOrAdd(PresetName))
+				for (TPair<FGuid, TSet<FGuid>>& Entry : PerFrameModifiedProperties.FindOrAdd(PresetId))
 				{
 					if (Entry.Key != OriginClientId)
 					{
@@ -123,12 +123,12 @@ void FWebSocketMessageHandler::HandleWebSocketPresetRegister(const FRemoteContro
 
 	ClientConfigMap.FindOrAdd(WebSocketMessage.ClientId).bIgnoreRemoteChanges = Body.IgnoreRemoteChanges;
 	
-	TArray<FGuid>* ClientIds = WebSocketNotificationMap.Find(Preset->GetFName());
+	TArray<FGuid>* ClientIds = WebSocketNotificationMap.Find(Preset->GetPresetId());
 
 	// Don't register delegates for a preset more than once.
 	if (!ClientIds)
 	{
-		ClientIds = &WebSocketNotificationMap.Add(Preset->GetFName());
+		ClientIds = &WebSocketNotificationMap.Add(Preset->GetPresetId());
 
 		//Register to any useful callback for the given preset
 		Preset->OnExposedPropertiesModified().AddRaw(this, &FWebSocketMessageHandler::OnPresetExposedPropertiesModified);
@@ -168,7 +168,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 
 	if (Preset)
 	{
-		if (TArray<FGuid>* RegisteredClients = WebSocketNotificationMap.Find(Preset->GetFName()))
+		if (TArray<FGuid>* RegisteredClients = WebSocketNotificationMap.Find(Preset->GetPresetId()))
 		{
 			RegisteredClients->Remove(WebSocketMessage.ClientId);
 		}
@@ -178,7 +178,7 @@ void FWebSocketMessageHandler::HandleWebSocketPresetUnregister(const FRemoteCont
 void FWebSocketMessageHandler::ProcessChangedProperties()
 {
 	//Go over each property that were changed for each preset
-	for (const TPair<FName, TMap<FGuid, TSet<FGuid>>>& Entry : PerFrameModifiedProperties)
+	for (const TPair<FGuid, TMap<FGuid, TSet<FGuid>>>& Entry : PerFrameModifiedProperties)
 	{
 		if (!ShouldProcessEventForPreset(Entry.Key) || !Entry.Value.Num())
 		{
@@ -212,7 +212,7 @@ void FWebSocketMessageHandler::ProcessChangedProperties()
 void FWebSocketMessageHandler::ProcessChangedActorProperties()
 {
 	//Go over each property that were changed for each preset
-	for (const TPair<FName, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>>& Entry : PerFrameActorPropertyChanged)
+	for (const TPair<FGuid, TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>>& Entry : PerFrameActorPropertyChanged)
 	{
 		if (!ShouldProcessEventForPreset(Entry.Key) || !Entry.Value.Num())
 		{
@@ -254,7 +254,7 @@ void FWebSocketMessageHandler::OnPropertyExposed(URemoteControlPreset* Owner, co
 	}
 
 	//Cache the property field that was removed for end of frame notification
-	PerFrameAddedProperties.FindOrAdd(Owner->GetFName()).AddUnique(EntityId);
+	PerFrameAddedProperties.FindOrAdd(Owner->GetPresetId()).AddUnique(EntityId);
 }
 
 void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlPreset* Owner, const TSet<FGuid>& ModifiedPropertyIds)
@@ -270,9 +270,9 @@ void FWebSocketMessageHandler::OnPresetExposedPropertiesModified(URemoteControlP
 	}
 
 	//Cache the property field that changed for end of frame notification
-	TMap<FGuid, TSet<FGuid>>& EventsForClient = PerFrameModifiedProperties.FindOrAdd(Owner->GetFName());
+	TMap<FGuid, TSet<FGuid>>& EventsForClient = PerFrameModifiedProperties.FindOrAdd(Owner->GetPresetId());
 	
-	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetFName()))
+	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetPresetId()))
 	{
 		for (const FGuid& ModifiedPropertyId : ModifiedPropertyIds)
 		{
@@ -314,8 +314,8 @@ void FWebSocketMessageHandler::OnPropertyUnexposed(URemoteControlPreset* Owner, 
 	TSharedPtr<FRemoteControlEntity> Entity = Owner->GetExposedEntity(EntityId).Pin();
 	check(Entity);
 
-	//Cache the property field that was removed for end of frame notification
-	TTuple<TArray<FGuid>, TArray<FName>>& Entries = PerFrameRemovedProperties.FindOrAdd(Owner->GetFName());
+	// Cache the property field that was removed for end of frame notification
+	TTuple<TArray<FGuid>, TArray<FName>>& Entries = PerFrameRemovedProperties.FindOrAdd(Owner->GetPresetId());
 	Entries.Key.AddUnique(EntityId);
 	Entries.Value.AddUnique(Entity->GetLabel());
 }
@@ -333,7 +333,7 @@ void FWebSocketMessageHandler::OnFieldRenamed(URemoteControlPreset* Owner, FName
 	}
 
 	//Cache the field that was renamed for end of frame notification
-	PerFrameRenamedFields.FindOrAdd(Owner->GetFName()).AddUnique(TTuple<FName, FName>(OldFieldLabel, NewFieldLabel));
+	PerFrameRenamedFields.FindOrAdd(Owner->GetPresetId()).AddUnique(TTuple<FName, FName>(OldFieldLabel, NewFieldLabel));
 }
 
 void FWebSocketMessageHandler::OnMetadataModified(URemoteControlPreset* Owner)
@@ -350,7 +350,7 @@ void FWebSocketMessageHandler::OnMetadataModified(URemoteControlPreset* Owner)
 	}
 
 	//Cache the field that was renamed for end of frame notification
-	PerFrameModifiedMetadata.Add(Owner->GetFName());
+	PerFrameModifiedMetadata.Add(Owner->GetPresetId());
 }
 
 void FWebSocketMessageHandler::OnActorPropertyChanged(URemoteControlPreset* Owner, FRemoteControlActor& Actor, UObject* ModifiedObject, FProperty* ModifiedProperty)
@@ -381,10 +381,10 @@ void FWebSocketMessageHandler::OnActorPropertyChanged(URemoteControlPreset* Owne
 
 
 	//Cache the property field that changed for end of frame notification
-	TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>& EventsForClient = PerFrameActorPropertyChanged.FindOrAdd(Owner->GetFName());
+	TMap<FGuid, TMap<FRemoteControlActor, TArray<FRCObjectReference>>>& EventsForClient = PerFrameActorPropertyChanged.FindOrAdd(Owner->GetPresetId());
 
 	// Dont send events to the client that triggered it.
-	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetFName()))
+	if (TArray<FGuid>* SubscribedClients = WebSocketNotificationMap.Find(Owner->GetPresetId()))
 	{
 		for (const FGuid& Client : *SubscribedClients)
 		{
@@ -407,7 +407,7 @@ void FWebSocketMessageHandler::OnEntitiesModified(URemoteControlPreset* Owner, c
 	
 	TArray<uint8> Payload;
 	WebRemoteControlUtils::SerializeResponse(FRCPresetEntitiesModifiedEvent{Owner, ModifiedEntities.Array()}, Payload);
-	BroadcastToListeners(Owner->GetFName(), Payload);
+	BroadcastToListeners(Owner->GetPresetId(), Payload);
 }
 
 void FWebSocketMessageHandler::OnLayoutModified(URemoteControlPreset* Owner)
@@ -423,7 +423,7 @@ void FWebSocketMessageHandler::OnLayoutModified(URemoteControlPreset* Owner)
 	}
 
 	//Cache the field that was renamed for end of frame notification
-	PerFrameModifiedPresetLayouts.Add(Owner->GetFName());
+	PerFrameModifiedPresetLayouts.Add(Owner->GetPresetId());
 }
 
 void FWebSocketMessageHandler::OnConnectionClosedCallback(FGuid ClientId)
@@ -463,7 +463,7 @@ void FWebSocketMessageHandler::OnEndFrame()
 
 void FWebSocketMessageHandler::ProcessAddedProperties()
 {
-	for (const TPair<FName, TArray<FGuid>>& Entry : PerFrameAddedProperties)
+	for (const TPair<FGuid, TArray<FGuid>>& Entry : PerFrameAddedProperties)
 	{
 		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
@@ -497,7 +497,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsAddedEvent{ Entry.Key, Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsAddedEvent{ Preset->GetFName(), Preset->GetPresetId(), AddedPropertiesDescription }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 
@@ -506,7 +506,7 @@ void FWebSocketMessageHandler::ProcessAddedProperties()
 
 void FWebSocketMessageHandler::ProcessRemovedProperties()
 {
-	for (const TPair<FName, TTuple<TArray<FGuid>, TArray<FName>>>& Entry : PerFrameRemovedProperties)
+	for (const TPair<FGuid, TTuple<TArray<FGuid>, TArray<FName>>>& Entry : PerFrameRemovedProperties)
 	{
 		if (Entry.Value.Key.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
@@ -522,7 +522,7 @@ void FWebSocketMessageHandler::ProcessRemovedProperties()
 		ensure(Entry.Value.Key.Num() == Entry.Value.Value.Num());
 		
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Entry.Key, Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRemovedEvent{ Preset->GetFName(), Preset->GetPresetId(), Entry.Value.Value, Entry.Value.Key }, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 	
@@ -531,7 +531,7 @@ void FWebSocketMessageHandler::ProcessRemovedProperties()
 
 void FWebSocketMessageHandler::ProcessRenamedFields()
 {
-	for (const TPair<FName, TArray<TTuple<FName, FName>>>& Entry : PerFrameRenamedFields)
+	for (const TPair<FGuid, TArray<TTuple<FName, FName>>>& Entry : PerFrameRenamedFields)
 	{
 		if (Entry.Value.Num() <= 0 || !ShouldProcessEventForPreset(Entry.Key))
 		{
@@ -545,7 +545,7 @@ void FWebSocketMessageHandler::ProcessRenamedFields()
 		}
 
 		TArray<uint8> Payload;
-		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRenamedEvent{Entry.Key, Preset->GetPresetId(), Entry.Value}, Payload);
+		WebRemoteControlUtils::SerializeResponse(FRCPresetFieldsRenamedEvent{Preset->GetFName(), Preset->GetPresetId(), Entry.Value}, Payload);
 		BroadcastToListeners(Entry.Key, Payload);
 	}
 
@@ -554,7 +554,7 @@ void FWebSocketMessageHandler::ProcessRenamedFields()
 
 void FWebSocketMessageHandler::ProcessModifiedMetadata()
 {
-	for (const FName& Entry : PerFrameModifiedMetadata)
+	for (const FGuid& Entry : PerFrameModifiedMetadata)
 	{
 		if (ShouldProcessEventForPreset(Entry))
 		{
@@ -572,7 +572,7 @@ void FWebSocketMessageHandler::ProcessModifiedMetadata()
 
 void FWebSocketMessageHandler::ProcessModifiedPresetLayouts()
 {
-	for (const FName& Entry : PerFrameModifiedPresetLayouts)
+	for (const FGuid& Entry : PerFrameModifiedPresetLayouts)
 	{
 		if (ShouldProcessEventForPreset(Entry))
 		{
@@ -588,18 +588,18 @@ void FWebSocketMessageHandler::ProcessModifiedPresetLayouts()
 	PerFrameModifiedPresetLayouts.Empty();
 }
 
-void FWebSocketMessageHandler::BroadcastToListeners(FName TargetPresetName, const TArray<uint8>& Payload)
+void FWebSocketMessageHandler::BroadcastToListeners(const FGuid& TargetPresetId, const TArray<uint8>& Payload)
 {
-	const TArray<FGuid>& Listeners = WebSocketNotificationMap.FindChecked(TargetPresetName);
+	const TArray<FGuid>& Listeners = WebSocketNotificationMap.FindChecked(TargetPresetId);
 	for (const FGuid& Listener : Listeners)
 	{
 		Server->Send(Listener, Payload);
 	}
 }
 
-bool FWebSocketMessageHandler::ShouldProcessEventForPreset(FName PresetName) const
+bool FWebSocketMessageHandler::ShouldProcessEventForPreset(const FGuid& PresetId) const
 {
-	return WebSocketNotificationMap.Contains(PresetName) && WebSocketNotificationMap[PresetName].Num() > 0;
+	return WebSocketNotificationMap.Contains(PresetId) && WebSocketNotificationMap[PresetId].Num() > 0;
 }
 
 bool FWebSocketMessageHandler::WritePropertyChangeEventPayload(URemoteControlPreset* InPreset, const TSet<FGuid>& InModifiedPropertyIds, TArray<uint8>& OutBuffer)

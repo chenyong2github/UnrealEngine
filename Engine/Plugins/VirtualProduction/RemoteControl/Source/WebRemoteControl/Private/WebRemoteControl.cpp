@@ -927,7 +927,7 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 			// Don't manually trigger a property change modification if this request gets converted to a function call.
 			if (ObjectRef.IsValid() && !RemoteControlPropertyUtilities::FindSetterFunction(ObjectRef.Property.Get(), ObjectRef.Object->GetClass()))
 			{
-				WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetFName(), RemoteControlProperty->GetId());
+				WebSocketHandler->NotifyPropertyChangedRemotely(ActingClientId, Preset->GetPresetId(), RemoteControlProperty->GetId());
 			}
 		}
 		if (SetPropertyRequest.ResetToDefault)

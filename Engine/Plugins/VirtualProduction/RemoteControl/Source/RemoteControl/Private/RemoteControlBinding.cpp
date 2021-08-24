@@ -13,6 +13,7 @@
 #include "Components/ActorComponent.h"
 #include "Editor.h"
 #include "Editor/UnrealEd/Public/Editor.h"
+#include "Misc/App.h"
 #endif
 
 namespace
@@ -184,7 +185,7 @@ UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 	UWorld* World = nullptr;
 
 #if WITH_EDITOR
-	if (GEditor)
+	if (GEditor && FApp::CanEverRender())
 	{
 		World = GEditor->GetEditorWorldContext(false).World();
 	}
@@ -195,12 +196,15 @@ UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 		return World;
 	}
 
-	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+	if (GEngine)
 	{
-		if (WorldContext.WorldType == EWorldType::Game)
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
 		{
-			World = WorldContext.World();
-			break;
+			if (WorldContext.WorldType == EWorldType::Game)
+			{
+				World = WorldContext.World();
+				break;
+			}
 		}
 	}
 		

@@ -554,6 +554,8 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 			FieldGroup->GetNodes().Add(*Widget);
 		}
 	}
+
+	FieldGroup->EnterRenameMode();
 	TreeView->SetSelection(FieldGroup);
 	TreeView->ScrollToBottom();
 	TreeView->RequestListRefresh();

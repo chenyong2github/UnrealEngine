@@ -152,6 +152,11 @@ void SRCPanelGroup::SetName(FName InName)
 	NameTextBox->SetText(FText::FromName(Name));
 }
 
+void SRCPanelGroup::EnterRenameMode()
+{
+	bNeedsRename = true;
+}
+
 void SRCPanelGroup::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
 {
 	OutChildren.Append(Nodes);
@@ -238,7 +243,7 @@ FSlateColor SRCPanelGroup::GetGroupNameTextColor() const
 
 const FSlateBrush* SRCPanelGroup::GetBorderImage() const
 {
-	return FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder");
+	return FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.TransparentBorder");
 }
 
 EVisibility SRCPanelGroup::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
