@@ -1782,6 +1782,7 @@ public:
 	 * Adds the world space socket or returns it
 	 */
 	FRigElementKey GetOrAddWorldSpaceSocket();
+	FRigElementKey GetWorldSpaceSocketKey() const;
 
 	/**
 	 * Returns true if an element is parented to another element
