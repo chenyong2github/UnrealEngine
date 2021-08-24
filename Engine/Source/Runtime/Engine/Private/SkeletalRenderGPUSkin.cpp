@@ -1169,6 +1169,7 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 	const FSkelMeshObjectLODInfo& MeshLODInfo = LODInfo[LODIndex];
 	const FSkeletalMeshObjectLOD& LOD = LODs[LODIndex];
 
+#if RHI_RAYTRACING
 	// Return the passthrough vertex factory if it is requested (by ray tracing)
 	if (VFMode == ESkinVertexFactoryMode::RayTracing)
 	{
@@ -1177,6 +1178,7 @@ const FVertexFactory* FSkeletalMeshObjectGPUSkin::GetSkinVertexFactory(const FSc
 
 		return LOD.GPUSkinVertexFactories.PassthroughVertexFactories[ChunkIdx].Get();
 	}
+#endif
 
 	// If the GPU skinning cache was used, return the passthrough vertex factory
 	if (SkinCacheEntry && FGPUSkinCache::IsEntryValid(SkinCacheEntry, ChunkIdx) && DynamicData->bIsSkinCacheAllowed)

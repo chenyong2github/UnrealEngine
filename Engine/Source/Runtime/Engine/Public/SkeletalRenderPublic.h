@@ -18,6 +18,7 @@ class FPrimitiveDrawInterface;
 class FVertexFactory;
 class UMorphTarget;
 struct FSkelMeshRenderSection;
+class FGPUSkinCacheEntry;
 
 /** data for a single skinned skeletal mesh vertex */
 struct FFinalSkinVertex
@@ -205,10 +206,10 @@ public:
 	virtual const FRayTracingGeometry* GetRayTracingGeometry() const { return nullptr; }
 	virtual FRWBuffer* GetRayTracingDynamicVertexBuffer() { return nullptr; }
 	virtual int32 GetRayTracingLOD() const { return GetLOD(); }
-#endif // RHI_RAYTRACING
 
 	virtual bool ShouldUseSeparateSkinCacheEntryForRayTracing() const { return GetLOD() != GetRayTracingLOD() || SkinCacheEntry == nullptr; }
-	virtual class FGPUSkinCacheEntry* GetSkinCacheEntryForRayTracing() const { return ShouldUseSeparateSkinCacheEntryForRayTracing() ? SkinCacheEntryForRayTracing : SkinCacheEntry; }
+	virtual FGPUSkinCacheEntry* GetSkinCacheEntryForRayTracing() const { return ShouldUseSeparateSkinCacheEntryForRayTracing() ? SkinCacheEntryForRayTracing : SkinCacheEntry; }
+#endif // RHI_RAYTRACING
 
 	/** Called to notify clothing data that component transform has changed */
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) {};
