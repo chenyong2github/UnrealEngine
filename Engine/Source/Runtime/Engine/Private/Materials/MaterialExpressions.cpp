@@ -12331,40 +12331,63 @@ void UMaterialFunctionInterface::GetAssetRegistryTags(TArray<FAssetRegistryTag>&
 #if WITH_EDITOR
 void UMaterialFunctionInterface::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	{
+		FMaterialUpdateContext UpdateContext;
+		ForceRecompileForRendering(UpdateContext, nullptr);
+	}
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UMaterialFunctionInterface::ForceRecompileForRendering(FMaterialUpdateContext& UpdateContext, UMaterial* InPreviewMaterial)
+{
 	//@todo - recreate guid only when needed, not when a comment changes
 	StateId = FGuid::NewGuid();
 
 	// Go through all materials in memory and recompile them if they use this function
-	FMaterialUpdateContext UpdateContext;
 	for (TObjectIterator<UMaterialInterface> It; It; ++It)
 	{
-		UMaterialInterface* CurrentMaterial = *It;
+		UMaterialInterface* CurrentMaterialInterface = *It;
+		if (CurrentMaterialInterface == InPreviewMaterial)
+		{
+			continue;
+		}
 
 		bool bRecompile = false;
-		UMaterialFunctionInterface* Self = this;
-		CurrentMaterial->IterateDependentFunctions(
-			[Self, &bRecompile](UMaterialFunctionInterface* InFunction)
+
+		// Preview materials often use expressions for rendering that are not in their Expressions array, 
+		// And therefore their MaterialFunctionInfos are not up to date.
+		// However we don't want to trigger this if the Material is a preview material itself. This can now be the case with thumbnail preview materials for material functions.
+		if (InPreviewMaterial && !InPreviewMaterial->bIsPreviewMaterial)
+		{
+			UMaterial* CurrentMaterial = Cast<UMaterial>(CurrentMaterialInterface);
+			if (CurrentMaterial && CurrentMaterial->bIsPreviewMaterial)
 			{
-				if (InFunction == Self)
+				bRecompile = true;
+			}
+		}
+
+		if (!bRecompile)
+		{
+			UMaterialFunctionInterface* Self = this;
+			CurrentMaterialInterface->IterateDependentFunctions(
+				[Self, &bRecompile](UMaterialFunctionInterface* InFunction)
 				{
-					bRecompile = true;
-					return false;
-				}
-				return true;
-			});
+					if (InFunction == Self)
+					{
+						bRecompile = true;
+						return false;
+					}
+					return true;
+				});
+		}
 
 		if (bRecompile)
 		{
-			UpdateContext.AddMaterialInterface(CurrentMaterial);
-
 			// Propagate the change to this material
-			CurrentMaterial->PreEditChange(nullptr);
-			CurrentMaterial->PostEditChange();
-			CurrentMaterial->MarkPackageDirty();
+			UpdateContext.AddMaterialInterface(CurrentMaterialInterface);
+			CurrentMaterialInterface->ForceRecompileForRendering();
 		}
 	}
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
 
@@ -12480,13 +12503,19 @@ void UMaterialFunction::UpdateDependentFunctionCandidates()
 
 void UMaterialFunction::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+void UMaterialFunction::ForceRecompileForRendering(FMaterialUpdateContext& UpdateContext, UMaterial* InPreviewMaterial)
+{
 #if WITH_EDITORONLY_DATA
 	UpdateInputOutputTypes();
 	UpdateDependentFunctionCandidates();
 #endif
 
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	Super::ForceRecompileForRendering(UpdateContext, InPreviewMaterial);
 }
+
 #endif // WITH_EDITOR
 
 void UMaterialFunction::Serialize(FArchive& Ar)

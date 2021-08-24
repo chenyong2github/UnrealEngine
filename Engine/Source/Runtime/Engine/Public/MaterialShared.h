@@ -2773,6 +2773,8 @@ public:
 
 	/** Adds a material interface that has been updated to the context. */
 	ENGINE_API void AddMaterialInterface(UMaterialInterface* Instance);
+
+	inline const TSet<UMaterialInterface*>& GetUpdatedMaterials() const { return UpdatedMaterialInterfaces; }
 };
 
 /**
