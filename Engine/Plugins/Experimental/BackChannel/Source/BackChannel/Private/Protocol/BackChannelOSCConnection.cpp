@@ -301,7 +301,21 @@ bool FBackChannelOSCConnection::SendPacket(FBackChannelOSCPacket& Packet)
 {
 	FBackChannelOSCMessage* MsgPacket = (FBackChannelOSCMessage*)&Packet;
 
-	TArray<uint8> Data = Packet.WriteToBuffer();
+	// todo : differentiate between UDP & TCP : for now we assume TCP which requires
+	// the buffer size at the start of the array
+	
+	TArray<uint8> Data;
+
+	// This int32 will hold the number of bytes added to the array by Packet.WriteToBuffer()
+	Data.AddUninitialized(sizeof(int32));
+
+	Packet.WriteToBuffer(Data);
+
+	// Calculate the number of bytes added by the above call.
+	const int32 BufferSize = Data.Num() - sizeof(int32);
+
+	// Set the first 4 bytes to the buffer length
+	FMemory::Memcpy(Data.GetData(), (void*)&BufferSize, sizeof(int32));
 
 	UE_LOG(LogBackChannel, VeryVerbose, TEXT("Sent message to %s (tags:%s, size:%d)"), *MsgPacket->GetPath(), *MsgPacket->GetTags(), Data.Num());
 
@@ -318,15 +332,10 @@ bool FBackChannelOSCConnection::SendPacketData(const void* Data, const int32 Dat
 		return false;
 	}
 
-	// write size
 	int32 Sent = 0;
 
-	// TODO - differentiate between TCP / UDP 
 	if (DataLen > 0)
 	{
-		// OSC over TCP requires a size followed by the packet (TODO - combine these?)
-		Connection->SendData(&DataLen, sizeof(DataLen));
-
 		ANSICHAR* RawData = (ANSICHAR*)Data;
 		check(FCStringAnsi::Strlen(RawData) < 64);
 		Sent = Connection->SendData(Data, DataLen);
