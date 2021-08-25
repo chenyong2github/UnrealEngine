@@ -42,10 +42,11 @@ namespace HordeServer.Utilities
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Text">Unique id for the string</param>
-		public StringId(string Text)
+		/// <param name="Input">Unique id for the string</param>
+		[SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
+		public StringId(string Input)
 		{
-			this.Text = Text;
+			this.Text = Input;
 
 			if (Text.Length == 0)
 			{
@@ -60,9 +61,17 @@ namespace HordeServer.Utilities
 
 			for (int Idx = 0; Idx < Text.Length; Idx++)
 			{
-				if (!IsValidCharacter(Text[Idx]))
+				char Character = Text[Idx];
+				if (!IsValidCharacter(Character))
 				{
-					throw new ArgumentException($"{Text} is not a valid string id");
+					if (Character >= 'A' && Character <= 'Z')
+					{
+						Text = Text.ToLowerInvariant();
+					}
+					else
+					{
+						throw new ArgumentException($"{Text} is not a valid string id");
+					}
 				}
 			}
 		}
