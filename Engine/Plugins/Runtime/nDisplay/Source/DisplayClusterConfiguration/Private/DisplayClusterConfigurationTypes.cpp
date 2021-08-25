@@ -11,8 +11,6 @@
 #include "DisplayClusterConfigurationStrings.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "Formats/Text/DisplayClusterConfigurationTextTypes.h"
-
 #include "Engine/StaticMesh.h"
 
 #define SAVE_MAP_TO_ARRAY(Map, DestArray) \
@@ -215,21 +213,18 @@ void UDisplayClusterConfigurationHostDisplayData::PostEditChangeChainProperty(FP
 #endif
 
 UDisplayClusterConfigurationClusterNode::UDisplayClusterConfigurationClusterNode()
-{
-	const FDisplayClusterConfigurationTextClusterNode DefaultValues;
-	
-	bIsSoundEnabled = DefaultValues.SoundEnabled;
-
+	: bIsSoundEnabled(false)
 #if WITH_EDITORONLY_DATA
-	bIsVisible = true;
-	bIsEnabled = true;
+	, bIsVisible(true)
+	, bIsEnabled(true)
 #endif
+{
 }
 
 UDisplayClusterConfigurationHostDisplayData::UDisplayClusterConfigurationHostDisplayData()
+	: bIsVisible(true)
+	, bIsEnabled(true)
 {
-	bIsVisible = true;
-	bIsEnabled = true;
 	SetFlags(RF_Public);
 }
 
@@ -290,13 +285,11 @@ void UDisplayClusterConfigurationScene::GetObjectsToExport(TArray<UObject*>& Out
 }
 
 FDisplayClusterConfigurationMasterNodePorts::FDisplayClusterConfigurationMasterNodePorts()
+	: ClusterSync(41001)
+	, RenderSync (41002)
+	, ClusterEventsJson  (41003)
+	, ClusterEventsBinary(41004)
 {
-	const FDisplayClusterConfigurationTextClusterNode DefaultValues;
-	
-	ClusterSync = DefaultValues.Port_CS;
-	RenderSync = DefaultValues.Port_SS;
-	ClusterEventsJson = DefaultValues.Port_CE;
-	ClusterEventsBinary = DefaultValues.Port_CEB;
 }
 
 FDisplayClusterConfigurationClusterSync::FDisplayClusterConfigurationClusterSync()
@@ -307,13 +300,13 @@ FDisplayClusterConfigurationClusterSync::FDisplayClusterConfigurationClusterSync
 }
 
 FDisplayClusterConfigurationNetworkSettings::FDisplayClusterConfigurationNetworkSettings()
+	: ConnectRetriesAmount     (300)   // ...
+	, ConnectRetryDelay        (1000)  // 5 minutes unless all nodes up
+	, GameStartBarrierTimeout  (1000 * 3600 * 5) // 5 hours unless ready to start rendering
+	, FrameStartBarrierTimeout (1000 * 60 * 30)  // 30 minutes for the barrier
+	, FrameEndBarrierTimeout   (1000 * 60 * 30)  // 30 minutes for the barrier
+	, RenderSyncBarrierTimeout (1000 * 60 * 30)  // 30 minutes for the barrier
 {
-	const FDisplayClusterConfigurationTextNetwork DefaultValues;
-	
-	ConnectRetriesAmount = DefaultValues.ClientConnectTriesAmount;
-	ConnectRetryDelay = DefaultValues.ClientConnectRetryDelay;
-	GameStartBarrierTimeout = DefaultValues.BarrierGameStartWaitTimeout;
-	FrameStartBarrierTimeout = FrameEndBarrierTimeout = RenderSyncBarrierTimeout = DefaultValues.BarrierWaitTimeout;
 }
 
 void UDisplayClusterConfigurationViewport::GetReferencedMeshNames(TArray<FString>& OutMeshNames) const
