@@ -109,16 +109,10 @@ public:
 	/** Stops the recording */
 	void StopRecording();
 
-	/**
-	 * Returns the number of signals that remain to be proccessed.
-	 * Should only be called when StopRecording was called (checked).
-	 */
+	/** Returns the number of signals that remain to be proccessed. */
 	int32 GetNumSignalsToProccess() const;
 
-	/**
-	 * Returns the recorded data.
-	 * Should only be called when StopRecording was called GetNumSignalsToProccess == 0 (checked).
-	 */
+	/** Returns the recorded data. */
 	TArray<FDMXFunctionChannelData> GetRecordedData() const;
 
 private:
