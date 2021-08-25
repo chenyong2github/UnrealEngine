@@ -30,7 +30,7 @@ using namespace CADLibrary;
 namespace AliasToCoreTechUtils
 {
 	template<typename Surface_T>
-	uint64 CreateCTNurbs(Surface_T& Surface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix)
+	uint64 CreateCTNurbs(Surface_T& Surface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
 	{
 		FNurbsSurface CTSurface;
 
@@ -81,7 +81,7 @@ namespace AliasToCoreTechUtils
 	}
 }
 
-uint64 FAliasModelToCoretechConverter::AddTrimCurve(AlTrimCurve& TrimCurve)
+uint64 FAliasModelToCoretechConverter::AddTrimCurve(const AlTrimCurve& TrimCurve)
 {
 	FNurbsCurve CTCurve;
 
@@ -123,10 +123,10 @@ uint64 FAliasModelToCoretechConverter::AddTrimCurve(AlTrimCurve& TrimCurve)
 	return 0;
 }
 
-uint64 FAliasModelToCoretechConverter::AddTrimBoundary(AlTrimBoundary& TrimBoundary)
+uint64 FAliasModelToCoretechConverter::AddTrimBoundary(const AlTrimBoundary& TrimBoundary)
 {
 	TArray<uint64> Edges;
-	for(AlTrimCurve *TrimCurve = TrimBoundary.firstCurve(); TrimCurve; TrimCurve = TrimCurve->nextCurve())
+	for(TUniquePtr<AlTrimCurve> TrimCurve(TrimBoundary.firstCurve()); TrimCurve.IsValid(); TrimCurve = TUniquePtr<AlTrimCurve>(TrimCurve->nextCurve()))
 	{
 		if (uint64 CoedgeID = AddTrimCurve(*TrimCurve))
 		{
@@ -138,7 +138,7 @@ uint64 FAliasModelToCoretechConverter::AddTrimBoundary(AlTrimBoundary& TrimBound
 	return CTKIO_CreateLoop(Edges, LoopID) ? LoopID : 0;
 }
 
-uint64 FAliasModelToCoretechConverter::AddTrimRegion(AlTrimRegion& TrimRegion, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation)
+uint64 FAliasModelToCoretechConverter::AddTrimRegion(const AlTrimRegion& TrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation)
 {
 	uint64 SurfaceID = AliasToCoreTechUtils::CreateCTNurbs(TrimRegion, InObjectReference, InAlMatrix);
 	if (SurfaceID == 0)
@@ -147,7 +147,7 @@ uint64 FAliasModelToCoretechConverter::AddTrimRegion(AlTrimRegion& TrimRegion, E
 	}
 
 	TArray<uint64> Boundaries;
-	for(AlTrimBoundary *TrimBoundary = TrimRegion.firstBoundary(); TrimBoundary; TrimBoundary = TrimBoundary->nextBoundary())
+	for (TUniquePtr<AlTrimBoundary> TrimBoundary(TrimRegion.firstBoundary()); TrimBoundary.IsValid(); TrimBoundary = TUniquePtr<AlTrimBoundary>(TrimBoundary->nextBoundary()))
 	{
 		if (uint64 LoopId = AddTrimBoundary(*TrimBoundary))
 		{
@@ -159,20 +159,18 @@ uint64 FAliasModelToCoretechConverter::AddTrimRegion(AlTrimRegion& TrimRegion, E
 	return CTKIO_CreateFace(SurfaceID, bInOrientation, Boundaries, FaceID) ? FaceID : 0;
 }
 
-void FAliasModelToCoretechConverter::AddFace(AlSurface& Surface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceList)
+void FAliasModelToCoretechConverter::AddFace(const AlSurface& Surface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceList)
 {
-	if (AlTrimRegion *TrimRegion = Surface.firstTrimRegion())
+	TUniquePtr<AlTrimRegion> TrimRegion(Surface.firstTrimRegion());
+	if (TrimRegion.IsValid())
 	{
-		while (TrimRegion)
+		for (; TrimRegion.IsValid(); TrimRegion = TUniquePtr<AlTrimRegion>(TrimRegion->nextRegion()))
 		{
-			if(uint64 FaceID = AddTrimRegion(*TrimRegion, InObjectReference, InAlMatrix, bInOrientation))
+			if (uint64 FaceID = AddTrimRegion(*TrimRegion, InObjectReference, InAlMatrix, bInOrientation))
 			{
 				OutFaceList.Add(FaceID);
 			}
-
-			TrimRegion = TrimRegion->nextRegion();
 		}
-
 		return;
 	}
 
@@ -185,9 +183,9 @@ void FAliasModelToCoretechConverter::AddFace(AlSurface& Surface, EAliasObjectRef
 	}
 }
 
-void FAliasModelToCoretechConverter::AddShell(AlShell& Shell, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceList)
+void FAliasModelToCoretechConverter::AddShell(const AlShell& Shell, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceList)
 {
-	for (AlTrimRegion* TrimRegion = Shell.firstTrimRegion(); TrimRegion; TrimRegion = TrimRegion->nextRegion())
+	for (TUniquePtr<AlTrimRegion> TrimRegion(Shell.firstTrimRegion()); TrimRegion.IsValid(); TrimRegion = TUniquePtr<AlTrimRegion>(TrimRegion->nextRegion()))
 	{
 		if (uint64 FaceID = AddTrimRegion(*TrimRegion, InObjectReference, InAlMatrix, bInOrientation))
 		{
@@ -213,16 +211,18 @@ bool FAliasModelToCoretechConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 	}
 
 	AlObjectType objectType = DagNode.type();
-	switch (objectType)
+	switch (objectType) 
 	{
 		// Push all leaf nodes into 'leaves'
 	case kShellNodeType:
 	{
 		if (AlShellNode* ShellNode = DagNode.asShellNodePtr())
 		{
-			if (AlShell* Shell = ShellNode->shell())
+			AlShell* ShellPtr = ShellNode->shell();
+			if (AlIsValid(ShellPtr))
 			{
-				AddShell(*Shell, InObjectReference, AlMatrix, bOrientation, FaceList);
+				TUniquePtr<AlShell> Shell(ShellPtr);
+				AddShell(*ShellPtr, InObjectReference, AlMatrix, bOrientation, FaceList);
 			}
 		}
 		break;
@@ -232,9 +232,11 @@ bool FAliasModelToCoretechConverter::AddBRep(AlDagNode& DagNode, EAliasObjectRef
 	{
 		if (AlSurfaceNode* SurfaceNode = DagNode.asSurfaceNodePtr())
 		{
-			if (AlSurface* Surface = SurfaceNode->surface())
+			AlSurface* SurfacePtr = SurfaceNode->surface();
+			if (AlIsValid(SurfacePtr))
 			{
-				AddFace(*Surface, InObjectReference, AlMatrix, bOrientation, FaceList);
+				TUniquePtr<AlSurface> Surface(SurfacePtr);
+				AddFace(*SurfacePtr, InObjectReference, AlMatrix, bOrientation, FaceList);
 			}
 		}
 		break;

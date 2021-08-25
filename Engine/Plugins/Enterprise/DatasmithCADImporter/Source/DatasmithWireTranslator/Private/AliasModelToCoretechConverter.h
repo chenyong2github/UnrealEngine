@@ -39,12 +39,12 @@ protected:
 	 * Create a CT coedge (represent the use of an edge by a face).
 	 * @param TrimCurve: A curve in parametric surface space, part of a trim boundary.
 	 */
-	uint64 AddTrimCurve(AlTrimCurve& TrimCurve);
-	uint64 AddTrimBoundary(AlTrimBoundary& TrimBoundary);
+	uint64 AddTrimCurve(const AlTrimCurve& TrimCurve);
+	uint64 AddTrimBoundary(const AlTrimBoundary& TrimBoundary);
 
-	uint64 AddTrimRegion(AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation);
-	void AddFace(AlSurface& InSurface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
-	void AddShell(AlShell& InShell, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
+	uint64 AddTrimRegion(const AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation);
+	void AddFace(const AlSurface& InSurface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
+	void AddShell(const AlShell& InShell, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
 
 protected:
 	TMap<void*, uint64>  AlEdge2CTEdge;
