@@ -684,7 +684,7 @@ void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, 
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 				VertexShader->SetDepthParameter(RHICmdList, 1.0f);
-				HMDDevice->DrawHiddenAreaMesh_RenderThread(RHICmdList, View.StereoPass);
+				HMDDevice->DrawHiddenAreaMesh(RHICmdList, View.StereoPass);
 			});
 		}
 	}
