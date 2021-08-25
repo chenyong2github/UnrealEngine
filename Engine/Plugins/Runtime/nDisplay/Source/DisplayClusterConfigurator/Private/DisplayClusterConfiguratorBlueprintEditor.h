@@ -20,7 +20,7 @@ class FDisplayClusterConfiguratorViewCluster;
 class FDisplayClusterConfiguratorViewScene;
 class FDisplayClusterConfiguratorToolbar;
 class SDisplayClusterConfiguratorSCSEditorViewport;
-class USCS_Node;
+class FSubobjectEditorTreeNode;
 
 /**
  * nDisplay editor UI (should call functions on the subsystem or UNDisplayAssetEditor)
@@ -136,10 +136,10 @@ protected:
 
 	// SSCS Implementation
 	/** Delegate invoked when the selection is changed in the SCS editor widget */
-	virtual void OnSelectionUpdated(const TArray<TSharedPtr<class FSCSEditorTreeNode>>& SelectedNodes) override;
+	virtual void OnSelectionUpdated(const TArray<TSharedPtr<class FSubobjectEditorTreeNode>>& SelectedNodes) override;
 
 	/** Delegate invoked when an item is double clicked in the SCS editor widget */
-	virtual void OnComponentDoubleClicked(TSharedPtr<class FSCSEditorTreeNode> Node) override;
+	virtual void OnComponentDoubleClicked(TSharedPtr<class FSubobjectEditorTreeNode> Node) override;
 
 	friend struct FDisplayClusterSCSViewportSummoner;
 	void CreateDCSCSEditors();
