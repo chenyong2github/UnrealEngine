@@ -589,6 +589,14 @@ static FORCEINLINE bool CompareWeakObject(
 	return ObjectA.HasSameIndexAndSerialNumber(ObjectB);
 }
 
+static FORCEINLINE bool CompareInterface(
+	const FRepLayoutCmd& Cmd,
+	const void* A,
+	const void* B)
+{
+	return Cmd.Property->Identical(A, B);
+}
+
 static FORCEINLINE bool CompareNetSerializeStructWithObjectProperties(
 	const TArray<FRepLayoutCmd>& Cmds,
 	const TMap<FRepLayoutCmd*, TArray<FRepLayoutCmd>>& NetSerializeLayouts,
@@ -643,6 +651,9 @@ static FORCEINLINE bool PropertiesAreIdenticalNative(
 
 		case ERepLayoutCmdType::PropertyWeakObject:
 			return CompareWeakObject(Cmd, A, B);
+
+		case ERepLayoutCmdType::PropertyInterface:
+			return CompareInterface(Cmd, A, B);
 
 		case ERepLayoutCmdType::PropertyUInt32:
 			return CompareValue<uint32>(A, B);
@@ -5062,7 +5073,7 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 					Cmd.Type == ERepLayoutCmdType::PropertyWeakObject ||
 					Cmd.Type == ERepLayoutCmdType::PropertySoftObject)
 				{
-				if (FObjectPropertyBase* ObjProperty = CastFieldChecked<FObjectPropertyBase>(Cmd.Property))
+					if (FObjectPropertyBase* ObjProperty = CastFieldChecked<FObjectPropertyBase>(Cmd.Property))
 					{
 						if (ObjProperty->PropertyClass && (ObjProperty->PropertyClass->IsChildOf(AActor::StaticClass()) || ObjProperty->PropertyClass->IsChildOf(UActorComponent::StaticClass())))
 						{
@@ -5082,6 +5093,32 @@ static bool DiffStableProperties_r(FDiffStablePropertiesSharedParams& Params, TD
 							if (Params.ObjReferences)
 							{
 								Params.ObjReferences->AddUnique(ObjValue);
+							}
+						}
+					}
+				}
+				else if (Cmd.Type == ERepLayoutCmdType::PropertyInterface)
+				{
+					if (FInterfaceProperty* InterfaceProperty = CastFieldChecked<FInterfaceProperty>(Cmd.Property))
+					{
+						if (UObject* InterfaceObjValue = InterfaceProperty->GetPropertyValue(StackParams.Source + Cmd).GetObject())
+						{
+							if (InterfaceObjValue->GetClass() && (InterfaceObjValue->GetClass()->IsChildOf(AActor::StaticClass()) || InterfaceObjValue->GetClass()->IsChildOf(UActorComponent::StaticClass())))
+							{
+								// skip actor and component references
+								continue;
+							}
+
+							const bool bStableForNetworking = (InterfaceObjValue->HasAnyFlags(RF_WasLoaded | RF_DefaultSubObject) || InterfaceObjValue->IsNative() || InterfaceObjValue->IsDefaultSubobject());
+							if (!bStableForNetworking)
+							{
+								// skip object references without a stable name
+								continue;
+							}
+
+							if (Params.ObjReferences)
+							{
+								Params.ObjReferences->AddUnique(InterfaceObjValue);
 							}
 						}
 					}
@@ -5267,6 +5304,10 @@ static uint32 AddPropertyCmd(
 		{
 			Cmd.Type = ERepLayoutCmdType::PropertyObject;
 		}
+	}
+	else if (UnderlyingProperty->IsA(FInterfaceProperty::StaticClass()))
+	{
+		Cmd.Type = ERepLayoutCmdType::PropertyInterface;
 	}
 	else if (UnderlyingProperty->IsA(FNameProperty::StaticClass()))
 	{

@@ -10,6 +10,8 @@
 #include "UObject/UnrealTypePrivate.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "Hash/Blake3.h"
+#include "UObject/CoreNet.h"
+#include "Misc/NetworkVersion.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -153,7 +155,23 @@ void FInterfaceProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Va
 
 bool FInterfaceProperty::NetSerializeItem( FArchive& Ar, UPackageMap* Map, void* Data, TArray<uint8> * MetaData ) const
 {
-	//@todo
+	if (Ar.EngineNetVer() >= HISTORY_INTERFACE_PROPERTY_SERIALIZATION)
+	{ 
+		FScriptInterface* InterfaceValue = (FScriptInterface*)Data;
+		bool Result = Map->SerializeObject(Ar, InterfaceClass, InterfaceValue->GetObjectRef());
+		if (Ar.IsLoading())
+		{
+			if (InterfaceValue->GetObject() != nullptr)
+			{
+				InterfaceValue->SetInterface(InterfaceValue->GetObject()->GetInterfaceAddress(InterfaceClass));
+			}
+			else
+			{
+				InterfaceValue->SetInterface(nullptr);
+			}
+		}
+		return Result;
+	}
 	return false;
 }
 
