@@ -4,7 +4,7 @@
 
 #include "DatasmithSketchUpCommon.h"
 
-// Datasmith SDK.
+#include "Misc/SecureHash.h"
 #include "Containers/UnrealString.h"
 
 class IDatasmithTextureElement;
@@ -20,6 +20,9 @@ namespace DatasmithSketchUp
 	{
 	public:
 		FTextureImageFile() : bInvalidated(true) {}
+		~FTextureImageFile();
+
+		FMD5Hash ImageHash;
 
 		FString TextureName;
 		FString TextureFileName;
@@ -28,7 +31,7 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<IDatasmithTextureElement> TextureElement; // Texture element is created once per texture image file
 
-		static TSharedPtr<FTextureImageFile> Create(TSharedPtr<FTexture> Texture);
+		static TSharedPtr<FTextureImageFile> Create(FTexture& Texture, const FMD5Hash& ImageHash);
 
 		void Update(FExportContext& Context);
 
@@ -38,6 +41,8 @@ namespace DatasmithSketchUp
 		}
 
 		uint8 bInvalidated:1;
+
+		TSet<FTexture*> Textures; // Textures sharing this(same) image
 	};
 
 	// Represents texture instantiated for Datasmith
@@ -45,7 +50,7 @@ namespace DatasmithSketchUp
 	class FTexture
 	{
 	public:
-		FTexture(SUTextureRef InTextureRef, FTextureIDType InTextureId) : TextureRef(InTextureRef), TextureId(InTextureId) {}
+		FTexture(SUTextureRef InTextureRef, FTextureIDType InTextureId) : TextureRef(InTextureRef), TextureId(InTextureId), bInvalidated(true) {}
 
 		bool GetTextureUseAlphaChannel();
 
@@ -54,19 +59,22 @@ namespace DatasmithSketchUp
 		const TCHAR* GetDatasmithElementName();
 
 		void Invalidate();
+		void Update(FExportContext& Context);
+
 
 		// Sketchup reference
 		SUTextureRef TextureRef;
 		FTextureIDType TextureId;
 
-		FString SourceTextureFileName;
-		FString TextureBaseName;
+		FString MaterialName; // Material that this texture is bound to, name stored in case we need to make unique name for texture element
 		TSharedPtr<FTextureImageFile> TextureImageFile;
+
+		bool bColorized;
 
 		// Extracted from Sketchup
 		FVector2D TextureScale;
 
-		TSet<FMaterial*> Materials; // Materials using this texture
+		uint8 bInvalidated : 1;
 	};
 }
 

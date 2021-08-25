@@ -125,7 +125,9 @@ void FExportContext::Update()
 	// Update transforms/names for Datasmith Actors and MeshActors, create these actors if needed
 	RootNode->Update(*this);
 
+	Materials.UpdateTextureUsage(); // Update usage of textures by materials before updating textures(to only update used textures)
 	Textures.Update();
+	Materials.Update(); // Update materials after textures are updated - some materials might end up using shared texture(in case it has same contents, which is determined in Textures Update)
 
 	// Wait for mesh export to complete
 	for(TFuture<bool>& Task: MeshExportTasks)
@@ -165,8 +167,6 @@ FDefinition* FExportContext::GetDefinition(FEntityIDType DefinitionEntityId)
 	}
 	return nullptr;
 }
-
-
 
 void FComponentDefinitionCollection::Update()
 {
@@ -578,7 +578,7 @@ bool FMaterialCollection::InvalidateMaterial(FMaterialIDType MateriadId)
 	{
 		FMaterial& Material = **Ptr;
 
-		Material.Update(Context);
+		Material.Invalidate(Context);
 		return true;
 	}
 	return false;

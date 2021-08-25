@@ -232,14 +232,18 @@ namespace DatasmithSketchUp
 
 FMaterial::FMaterial(SUMaterialRef InMaterialRef)
 	: MaterialRef(InMaterialRef)
-
+	, bInvalidated(true)
 {}
 
 TSharedPtr<FMaterial> FMaterial::Create(FExportContext& Context, SUMaterialRef InMaterialRef)
 {
 	TSharedPtr<FMaterial> Material = MakeShared<FMaterial>(InMaterialRef);
-	Material->Update(Context);
 	return Material;
+}
+
+void FMaterial::Invalidate(FExportContext& Context)
+{
+	bInvalidated = true;
 }
 
 TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext& Context)
@@ -257,36 +261,42 @@ TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext&
 
 	Context.DatasmithScene->AddMaterial(DatasmithMaterialElementPtr);
 
-	return MakeShared<FMaterialOccurrence>(DatasmithMaterialElementPtr);
+	TSharedPtr<FMaterialOccurrence> Result = MakeShared<FMaterialOccurrence>();
+	Result->DatasmithElement = DatasmithMaterialElementPtr;
+
+	return Result;
 }
 
 void FMaterial::Remove(FExportContext& Context)
 {
 
 	if (MaterialDirectlyAppliedToMeshes)
-
 	{
-		Context.DatasmithScene->RemoveMaterial(MaterialDirectlyAppliedToMeshes->DatasmithElement);
+		MaterialDirectlyAppliedToMeshes->RemoveDatasmithElement(Context);
 	}
-
 	if (MaterialInheritedByNodes)
 	{
-		Context.DatasmithScene->RemoveMaterial(MaterialInheritedByNodes->DatasmithElement);
+		MaterialInheritedByNodes->RemoveDatasmithElement(Context);
 	}
 
 	Context.Textures.UnregisterMaterial(this);
 }
 
-void FMaterial::Update(FExportContext& Context)
+void FMaterial::UpdateTexturesUsage(FExportContext& Context)
 {
-	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
-	EntityId = ExtractedMaterial.SketchupSourceID.EntityID;
+	if (!bInvalidated)
+	{
+		return;
+	}
 
 	if (Texture)
 	{
 		Context.Textures.UnregisterMaterial(this);
 		Texture = nullptr;
 	}
+
+	// todo: extract once(another usage in Update)
+	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
 
 	if (SUIsValid(ExtractedMaterial.TextureRef))
 	{
@@ -295,41 +305,78 @@ void FMaterial::Update(FExportContext& Context)
 			: Context.Textures.AddTexture(ExtractedMaterial.TextureRef, ExtractedMaterial.SketchupSourceName);
 		Context.Textures.RegisterMaterial(this);
 	}
+}
 
+void FMaterial::Update(FExportContext& Context)
+{
+	if(!bInvalidated)
+	{
+		return;
+	}
+
+	FExtractedMaterial ExtractedMaterial(Context, MaterialRef);
+	EntityId = ExtractedMaterial.SketchupSourceID.EntityID;
+
+	if (MaterialDirectlyAppliedToMeshes)
 	{
 		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.LocalizedMaterialName, Texture, false);
 
-		if (MaterialDirectlyAppliedToMeshes)
-		{
-			Context.DatasmithScene->RemoveMaterial(MaterialDirectlyAppliedToMeshes->DatasmithElement);
-			MaterialDirectlyAppliedToMeshes->DatasmithElement = Element;
-		}
-		else
-		{
-			MaterialDirectlyAppliedToMeshes = MakeShared<FMaterialOccurrence>(Element);
-		}
+		MaterialDirectlyAppliedToMeshes->RemoveDatasmithElement(Context);
+		MaterialDirectlyAppliedToMeshes->DatasmithElement = Element;
 	}
 
+	if (MaterialInheritedByNodes)
 	{
 		TSharedPtr<IDatasmithBaseMaterialElement> Element = CreateMaterialElement(Context, ExtractedMaterial, *ExtractedMaterial.InheritedMaterialName, Texture, true);
+		MaterialInheritedByNodes->RemoveDatasmithElement(Context);
+		MaterialInheritedByNodes->DatasmithElement = Element;
+	}
 
-		if (MaterialInheritedByNodes)
+	for(FEntitiesGeometry* Geometry: MeshesMaterialDirectlyAppliedTo)
+	{
+		//Geometry->SetMaterialElementName(DatasmithSketchUpUtils::GetMaterialID(MaterialRef), MaterialDirectlyAppliedToMeshes->GetName());
+		FMaterialIDType MaterialId = DatasmithSketchUpUtils::GetMaterialID(MaterialRef);
+		for (const TSharedPtr<FDatasmithInstantiatedMesh>& Mesh: Geometry->Meshes)
 		{
-			Context.DatasmithScene->RemoveMaterial(MaterialInheritedByNodes->DatasmithElement);
-			MaterialInheritedByNodes->DatasmithElement = Element;
-		}
-		else
-		{
-			MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>(Element);
+			if (int32* SlotIdPtr = Mesh->SlotIdForMaterialID.Find(MaterialId))
+			{
+				Mesh->DatasmithMesh->SetMaterial(MaterialDirectlyAppliedToMeshes->GetName(), *SlotIdPtr);
+			}
 		}
 	}
+
+	for(FNodeOccurence* NodePtr: NodesMaterialInheritedBy)
+	{
+		FNodeOccurence& Node = *NodePtr;
+		FDefinition* EntityDefinition = Node.Entity.GetDefinition();
+		DatasmithSketchUp::FEntitiesGeometry& EntitiesGeometry = *EntityDefinition->GetEntities().EntitiesGeometry;
+
+		for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
+		{
+			// Update Override(Inherited)  Material
+			// todo: set inherited material only on mesh actors that have faces with default material, right now setting on every mesh, hot harmful but excessive
+			if (EntitiesGeometry.IsMeshUsingInheritedMaterial(MeshIndex))
+			{
+				const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
+
+				// SketchUp has 'material override' only for single('Default') material. 
+				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
+				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
+				MeshActor->AddMaterialOverride(MaterialInheritedByNodes->GetName(), FMaterial::INHERITED_MATERIAL_ID.EntityID);
+			}
+		}
+	}
+
+	bInvalidated = false;
 }
-
-
 
 FMaterialOccurrence& FMaterial::RegisterGeometry(FEntitiesGeometry* Geom)
 {
 	MeshesMaterialDirectlyAppliedTo.Add(Geom);
+	if (!MaterialDirectlyAppliedToMeshes)
+	{
+		MaterialDirectlyAppliedToMeshes = MakeShared<FMaterialOccurrence>();
+	}
 	return *MaterialDirectlyAppliedToMeshes;
 }
 
@@ -341,11 +388,29 @@ void FMaterial::UnregisterGeometry(FEntitiesGeometry* Geom)
 FMaterialOccurrence& FMaterial::RegisterInstance(FNodeOccurence* NodeOccurrence)
 {
 	NodesMaterialInheritedBy.Add(NodeOccurrence);
+	if (!MaterialInheritedByNodes)
+	{
+		MaterialInheritedByNodes = MakeShared<FMaterialOccurrence>();
+	}
 	return *MaterialInheritedByNodes;
 }
 
 const TCHAR* FMaterialOccurrence::GetName()
 {
+	if (!DatasmithElement)
+	{
+		return nullptr;
+	}
+
 	return DatasmithElement->GetName();
+}
+
+void FMaterialOccurrence::RemoveDatasmithElement(FExportContext& Context)
+{
+	if (!DatasmithElement)
+	{
+		return;
+	}
+	Context.DatasmithScene->RemoveMaterial(DatasmithElement);
 }
 

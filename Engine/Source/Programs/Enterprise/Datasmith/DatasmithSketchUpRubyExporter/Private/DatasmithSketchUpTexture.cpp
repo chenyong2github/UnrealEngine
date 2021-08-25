@@ -16,11 +16,11 @@
 
 #include "Misc/Paths.h"
 
-
 // SketchUp SDK.
 #include "DatasmithSketchUpSDKBegins.h"
 
 #include "SketchUpAPI/model/texture.h"
+#include "SketchUpAPI/model/image_rep.h"
 
 #include "DatasmithSketchUpSDKCeases.h"
 
@@ -39,37 +39,18 @@ TSharedPtr<FTexture> FTextureCollection::FindOrAdd(SUTextureRef TextureRef)
 	return Texture;
 }
 
-FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef, FString MaterialName)
+FTexture* FTextureCollection::AddTexture(SUTextureRef TextureRef, FString MaterialName, bool bColorized)
 {
 	TSharedPtr<FTexture> Texture = FindOrAdd(TextureRef);
+	Texture->bColorized = bColorized;
+	Texture->MaterialName = MaterialName;
 	Texture->Invalidate();
-	if (!Texture->TextureImageFile.IsValid())
-	{
-		Texture->SourceTextureFileName = SuGetString(SUTextureGetFileName, TextureRef);
-
-		// Set texture to be material-specific. SketchUp allows to have different material have different texture images under the same name
-		Texture->TextureBaseName = MaterialName;
-		
-		AddImageFileForTexture(Texture);
-	}
-	else
-	{
-		if (Texture->TextureImageFile)
-		{
-			Texture->TextureImageFile->Invalidate();
-		}
-	}
 	return Texture.Get();
 }
 
 FTexture* FTextureCollection::AddColorizedTexture(SUTextureRef TextureRef, FString MaterialName)
 {
-	return AddTexture(TextureRef, MaterialName);
-}
-
-void FTextureCollection::AddImageFileForTexture(TSharedPtr<FTexture> Texture)
-{
-	Texture->TextureImageFile = FTextureImageFile::Create(Texture);
+	return AddTexture(TextureRef, MaterialName, true);
 }
 
 void FTextureCollection::Update()
@@ -77,6 +58,7 @@ void FTextureCollection::Update()
 	for (TPair<FTextureIDType, TSharedPtr<FTexture>>& TextureNameAndTextureImageFile : TexturesMap)
 	{
 		TSharedPtr<FTexture> Texture = TextureNameAndTextureImageFile.Value;
+		Texture->Update(Context);
 		if (Texture->TextureImageFile)
 		{
 			Texture->TextureImageFile->Update(Context);
@@ -91,7 +73,6 @@ void FTextureCollection::RegisterMaterial(FMaterial* Material)
 	{
 		return;
 	}
-	Texture->Materials.Add(Material);
 }
 
 void FTextureCollection::UnregisterMaterial(FMaterial* Material)
@@ -101,16 +82,11 @@ void FTextureCollection::UnregisterMaterial(FMaterial* Material)
 	{
 		return;
 	}
-	Texture->Materials.Remove(Material);
-	if (!Texture->Materials.Num())
-	{
-		TSharedPtr<FTextureImageFile> TextureImageFile = Texture->TextureImageFile;
-		if (TextureImageFile->TextureElement)
-		{
-			Context.DatasmithScene->RemoveTexture(TextureImageFile->TextureElement); // todo: make sure that texture not created/added twice
-		}
-		TexturesMap.Remove(Texture->TextureId);
-	}
+
+	// Remove texture that is not used by its material
+	// todo: remove in descturtor?
+	ReleaseImage(*Texture);
+	TexturesMap.Remove(Texture->TextureId);
 }
 
 bool FTexture::GetTextureUseAlphaChannel()
@@ -136,17 +112,50 @@ const TCHAR* FTexture::GetDatasmithElementName()
 	return TextureImageFile->TextureElement->GetName();
 }
 
-TSharedPtr<FTextureImageFile> FTextureImageFile::Create(TSharedPtr<FTexture> Texture)
+TSharedPtr<FTextureImageFile> FTextureImageFile::Create(FTexture& Texture, const FMD5Hash& ImageHash)
 {
-	TSharedPtr<FTextureImageFile> TextureImageFile = MakeShared<FTextureImageFile>();
-	TextureImageFile->Texture = Texture.Get();
 
-	TextureImageFile->TextureFileName = FDatasmithUtils::SanitizeFileName(Texture->TextureBaseName) + FPaths::GetExtension(Texture->SourceTextureFileName, /*bIncludeDot*/ true);
+	FString SourceTextureFileName;
+	FString TextureBaseName;
+
+	SourceTextureFileName = SuGetString(SUTextureGetFileName, Texture.TextureRef);
+
+	// Set texture to be material-specific. SketchUp allows to have different material have different texture images under the same name
+	TextureBaseName = Texture.MaterialName;
+
+	TSharedPtr<FTextureImageFile> TextureImageFile = MakeShared<FTextureImageFile>();
+	TextureImageFile->ImageHash = ImageHash;
+	TextureImageFile->Texture = &Texture;
+
+	TextureImageFile->TextureFileName = FDatasmithUtils::SanitizeFileName(TextureBaseName) + FPaths::GetExtension(SourceTextureFileName, /*bIncludeDot*/ true);
 	TextureImageFile->TextureName = FDatasmithUtils::SanitizeObjectName(FPaths::GetBaseFilename(TextureImageFile->TextureFileName));
 	TextureImageFile->TextureElement = FDatasmithSceneFactory::CreateTexture(*TextureImageFile->TextureName);
 	TextureImageFile->TextureElement->SetSRGB(EDatasmithColorSpace::sRGB);
 
 	return TextureImageFile;
+}
+
+void FTexture::Invalidate()
+{
+	bInvalidated = true;
+}
+
+void FTexture::Update(FExportContext& Context)
+{
+	if(!bInvalidated)
+	{
+		return;
+	}
+
+	// Get the pixel scale factors of the source SketchUp texture.
+	size_t TextureWidth = 0;
+	size_t TextureHeight = 0;
+	double TextureSScale = 1.0;
+	double TextureTScale = 1.0;
+	SUTextureGetDimensions(TextureRef, &TextureWidth, &TextureHeight, &TextureSScale, &TextureTScale); // we can ignore the returned SU_RESULT
+	TextureScale = FVector2D(TextureSScale, TextureTScale);
+
+	Context.Textures.AcquireImage(*this);
 }
 
 void FTextureImageFile::Update(FExportContext& Context)
@@ -164,13 +173,86 @@ void FTextureImageFile::Update(FExportContext& Context)
 	bInvalidated = false;
 }
 
-void FTexture::Invalidate()
+FTextureImageFile::~FTextureImageFile()
 {
-	// Get the pixel scale factors of the source SketchUp texture.
-	size_t TextureWidth = 0;
-	size_t TextureHeight = 0;
-	double TextureSScale = 1.0;
-	double TextureTScale = 1.0;
-	SUTextureGetDimensions(TextureRef, &TextureWidth, &TextureHeight, &TextureSScale, &TextureTScale); // we can ignore the returned SU_RESULT
-	TextureScale = FVector2D(TextureSScale, TextureTScale);
+}
+
+void FMaterialCollection::UpdateTextureUsage()
+{
+	for (TPair<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> IdAndMaterial : MaterialDefinitionMap)
+	{
+		IdAndMaterial.Value->UpdateTexturesUsage(Context);
+	}
+}
+
+void FMaterialCollection::Update()
+{
+	for (TPair<FMaterialIDType, TSharedPtr<FMaterial>> IdAndMaterial : MaterialDefinitionMap)
+	{
+		FMaterial& Material = *IdAndMaterial.Value;
+		Material.Update(Context);
+	}
+}
+
+const TCHAR* FMaterialCollection::GetDefaultMaterialName()
+{
+	return DefaultMaterial->GetName();
+}
+
+void FTextureCollection::AcquireImage(FTexture& Texture)
+{
+	// Compute image md5
+	SUImageRepRef ImageRep = SU_INVALID;
+	SUImageRepCreate(&ImageRep);
+	SUTextureGetImageRep(Texture.TextureRef, &ImageRep);
+
+	size_t Width, Height;
+	SUImageRepGetPixelDimensions(ImageRep, &Width, &Height);
+
+	size_t DataSize, Bpp;
+	SUImageRepGetDataSize(ImageRep, &DataSize, &Bpp);
+
+	TArray<SUByte> Data;
+	Data.SetNumUninitialized(DataSize);
+	SUImageRepGetData(ImageRep, DataSize, Data.GetData());
+
+	SUImageRepRelease(&ImageRep);
+
+	FMD5 MD5;
+	MD5.Update(reinterpret_cast<const uint8*>(&Width), sizeof(Width));
+	MD5.Update(reinterpret_cast<const uint8*>(&Height), sizeof(Height));
+	MD5.Update(reinterpret_cast<const uint8*>(&Bpp), sizeof(Bpp));
+	MD5.Update(reinterpret_cast<const uint8*>(&Texture.bColorized), sizeof(Texture.bColorized)); // Colorized flag affects resulting texture image
+	MD5.Update(Data.GetData(), Data.Num());
+
+	FMD5Hash TextureHash;
+	TextureHash.Set(MD5);
+
+	TSharedPtr<FTextureImageFile>& Image = Images.FindOrAdd(TextureHash);
+	if(!Image)
+	{
+		Image = FTextureImageFile::Create(Texture, TextureHash);
+	}
+
+	Texture.TextureImageFile = Image;
+	Image->Textures.Add(&Texture);
+}
+
+void FTextureCollection::ReleaseImage(FTexture& Texture)
+{
+	TSharedPtr<FTextureImageFile> Image = Texture.TextureImageFile;
+	Texture.TextureImageFile.Reset();
+
+	// Remove reference from Image to texture 
+	Image->Textures.Remove(&Texture);
+
+	// When image not used remove it along with Datasmith texture element
+	if (!Image->Textures.Num())
+	{
+		if (Image->TextureElement)
+		{
+			Context.DatasmithScene->RemoveTexture(Image->TextureElement); // todo: make sure that texture not created/added twice
+		}
+		Images.Remove(Image->ImageHash);
+	}
 }

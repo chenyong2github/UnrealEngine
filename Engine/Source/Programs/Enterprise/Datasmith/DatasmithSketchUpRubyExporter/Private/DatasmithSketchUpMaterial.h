@@ -50,6 +50,8 @@ namespace DatasmithSketchUp
 		// Note - this is not per 'instance' as every instance can be in separate place in scene multiple times possibly resulting in different inherited materials
 		FMaterialOccurrence& RegisterInstance(FNodeOccurence*);
 
+		void Invalidate(FExportContext& Context);
+		void UpdateTexturesUsage(FExportContext& Context);
 		void Update(FExportContext& Context); // create datasmith elements for material occurrences
 		void Remove(FExportContext& Context);
 
@@ -67,7 +69,7 @@ namespace DatasmithSketchUp
 
 		SUMaterialRef MaterialRef;
 
-		int32 EntityId; // Sketchup Material entity Id is used as a slot Id on datasmith meshes
+		int32 EntityId;
 
 		FTexture* Texture = nullptr;
 
@@ -79,21 +81,21 @@ namespace DatasmithSketchUp
 		TSharedPtr<FMaterialOccurrence> MaterialInheritedByNodes;
 		TSet<FNodeOccurence*> NodesMaterialInheritedBy;
 
-		friend class FMaterialOccurrence;
+		uint8 bInvalidated : 1;
 
+		friend class FMaterialOccurrence;
 	};
 
 	class FMaterialOccurrence : FNoncopyable
 	{
 	public:
 
-		FMaterialOccurrence(const TSharedPtr<IDatasmithBaseMaterialElement>& InDatasmithElement) 
-			: DatasmithElement(InDatasmithElement)
-		{}
-
 		TSharedPtr<IDatasmithBaseMaterialElement> DatasmithElement;
 
 		const TCHAR* GetName();
+
+		void RemoveDatasmithElement(FExportContext& Context);
+
 	};
 
 
