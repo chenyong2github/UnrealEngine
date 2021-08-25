@@ -7553,7 +7553,7 @@ void FBlueprintEditorUtils::UpdateTransactionalFlags(UBlueprint* Blueprint)
 void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 {
 	TSet<UEdGraphPin*> AllPins;
-	uint16 WatchCount;
+	uint16 WatchCount = 0;
 	
 	// Find all unique pins being watched
 	FKismetDebugUtilities::ForeachPinWatch(
