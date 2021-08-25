@@ -6363,7 +6363,7 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 
 void FHlslNiagaraTranslator::EnterFunctionCallNode(const TSet<FName>& UnusedInputs)
 {
-	FunctionNodeStack.Add(UnusedInputs);
+	FunctionNodeStack.AddDefaulted_GetRef().UnusedInputs = UnusedInputs;
 }
 
 void FHlslNiagaraTranslator::ExitFunctionCallNode()
@@ -6378,7 +6378,39 @@ bool FHlslNiagaraTranslator::IsFunctionVariableCulledFromCompilation(const FName
 	{
 		return false;
 	}
-	return FunctionNodeStack.Last().Contains(InputName);
+	
+	FunctionNodeStackEntry StackEntry = FunctionNodeStack.Last();
+	if (StackEntry.UnusedInputs.Contains(InputName))
+	{
+		return true;
+	}
+
+	FString InputNameString = InputName.ToString();
+	for (const FString& CulledFunction : StackEntry.CulledFunctionNames)
+	{
+		// if the entire function call was culled, we don't want to compile anything related to it
+		if (InputNameString.StartsWith(CulledFunction + "."))
+		{
+			return true;
+		}
+	
+	}
+	return false;
+}
+
+void FHlslNiagaraTranslator::CullMapSetInputPin(UEdGraphPin* InputPin)
+{
+	if (InputPin == nullptr || InputPin->LinkedTo.Num() != 1 || FunctionNodeStack.Num() == 0)
+	{
+		return;
+	}
+
+	// when a map set input is culled that is connected to a function call node (as is the case for dynamic inputs), we also need to cull any upstream pins that set inputs for the culled function call node
+	if (UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(InputPin->LinkedTo[0]->GetOwningNode()))
+	{
+		FString FunctionScriptName = FunctionNode->GetFunctionName();
+		FunctionNodeStack.Last().CulledFunctionNames.Add(FunctionScriptName);
+	}
 }
 
 // From a valid list of namespaces, resolve any aliased tokens and promote namespaced variables without a master namespace to the input parameter map instance namespace

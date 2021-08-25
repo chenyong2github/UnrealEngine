@@ -330,6 +330,12 @@ public:
 	bool bCallIDInitialized = false;
 };
 
+struct FunctionNodeStackEntry
+{
+	TSet<FName> UnusedInputs;
+	TSet<FString> CulledFunctionNames;
+};
+
 class NIAGARAEDITOR_API FHlslNiagaraTranslator
 {
 public:
@@ -528,6 +534,7 @@ public:
 	void EnterFunctionCallNode(const TSet<FName>& UnusedInputs);
 	void ExitFunctionCallNode();
 	bool IsFunctionVariableCulledFromCompilation(const FName& InputName) const;
+	void CullMapSetInputPin(UEdGraphPin* InputPin);
 
 	virtual void Convert(class UNiagaraNodeConvert* Convert, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
 	virtual void If(class UNiagaraNodeIf* IfNode, TArray<FNiagaraVariable>& Vars, int32 Condition, TArray<int32>& PathA, TArray<int32>& PathB, TArray<int32>& Outputs);
@@ -684,8 +691,8 @@ private:
 	// Synced to the ParamMapHistories.
 	TArray<TArray<int32>> ParamMapSetVariablesToChunks;
 
-	// Used to keep track of contextual information about the currently compiled function node (currently only the unsused parameter names)
-	TArray<TSet<FName>> FunctionNodeStack;
+	// Used to keep track of contextual information about the currently compiled function node
+	TArray<FunctionNodeStackEntry> FunctionNodeStack;
 
 	// Synced to the System uniforms encountered for parameter maps thus far.
 	struct UniformVariableInfo
