@@ -275,7 +275,7 @@ void FHairStrandsBulkData::Reset()
 	PointCount = 0;
 	MaxLength = 0;
 	MaxRadius = 0;
-	BoundingBox;
+	BoundingBox = FBox(EForceInit::ForceInit);
 	Flags = 0;
 
 	// Deallocate memory if needed
