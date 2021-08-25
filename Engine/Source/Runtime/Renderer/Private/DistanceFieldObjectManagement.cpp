@@ -745,7 +745,7 @@ void FDistanceFieldSceneData::UpdateDistanceFieldObjectBuffers(
 									Vector4.W = *(const float*)&GPUSceneInstanceIndex;
 									UploadObjectData[4] = Vector4;
 
-									FMatrix VolumeToWorldT = VolumeToWorld.GetTransposed();
+									const FMatrix44f VolumeToWorldT = VolumeToWorld.GetTransposed();
 									UploadObjectData[5] = *(FVector4*)&VolumeToWorldT.M[0];
 									UploadObjectData[6] = *(FVector4*)&VolumeToWorldT.M[1];
 									UploadObjectData[7] = *(FVector4*)&VolumeToWorldT.M[2];
