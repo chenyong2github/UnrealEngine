@@ -14,7 +14,7 @@ public:
 	// IAssetTypeActions overrides
 	FText GetName() const override 
 	{ 
-		return NSLOCTEXT("AssetTypeActions", "OptimusDeformerActions", "Optimus Deformer"); 
+		return NSLOCTEXT("AssetTypeActions", "OptimusDeformerActions", "Deformer Graph"); 
 	}
 
 	FColor GetTypeColor() const override 
