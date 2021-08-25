@@ -485,9 +485,8 @@ void FOptimusEditor::BindCommands()
 void FOptimusEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPreviewScene)
 {
 	static const TCHAR* GroundAssetPath = TEXT("/Engine/MapTemplates/SM_Template_Map_Floor.SM_Template_Map_Floor");
-	static const TCHAR* DefaultMaterialPath = TEXT("/Engine/EngineMaterials/DefaultMaterial.DefaultMaterial");
 	UStaticMesh* FloorMesh = Cast<UStaticMesh>(StaticLoadObject(UStaticMesh::StaticClass(), nullptr, GroundAssetPath, nullptr, LOAD_None, nullptr));
-	UMaterial* DefaultMaterial = Cast<UMaterial>(StaticLoadObject(UMaterial::StaticClass(), nullptr, DefaultMaterialPath, nullptr, LOAD_None, nullptr));
+	UMaterial* DefaultMaterial = UMaterial::GetDefaultMaterial(MD_Surface);
 	check(FloorMesh);
 	check(DefaultMaterial);
 
