@@ -133,8 +133,7 @@ public:
 		UOptimusNode* InNode
 	);
 
-	// Remove a node directly. Also removes the links, unless bFailIfLinks is set to true,
-	// in which case this function fails before removing the node.
+	// Remove a node directly. If a node still has connections this call will fail. 
 	bool RemoveNodeDirect(
 		UOptimusNode* InNode,		
 		bool bFailIfLinks = true);
@@ -148,6 +147,7 @@ public:
 	bool RemoveAllLinksToNodeDirect(UOptimusNode* InNode);
 
 	TArray<UOptimusNodePin *> GetConnectedPins(const UOptimusNodePin* InNodePin) const;
+	TArray<const UOptimusNodeLink *> GetPinLinks(const UOptimusNodePin* InNodePin) const;
 
 	/// Check to see if connecting these two pins will form a graph cycle.
 	/// @param InNodeOutputPin The output pin to connect from.
@@ -212,11 +212,11 @@ private:
 		const UOptimusNodePin* InNodePin
 		) const;
 
-	UPROPERTY()
+	UPROPERTY(NonTransactional)
 	TArray<UOptimusNode*> Nodes;
 
 	// FIXME: Use a map.
-	UPROPERTY()
+	UPROPERTY(NonTransactional)
 	TArray<UOptimusNodeLink*> Links;
 
 	FOptimusGraphNotifyDelegate GraphNotifyDelegate;

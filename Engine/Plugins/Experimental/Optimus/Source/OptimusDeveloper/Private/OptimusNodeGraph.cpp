@@ -164,7 +164,7 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*> &InNodes)
 
 	for (UOptimusNode* Node : InNodes)
 	{
-		if (Node == nullptr || Node->GetOuter() != this)
+		if (Node == nullptr || Node->GetOwningGraph() != this)
 		{
 			return false;
 		}
@@ -316,7 +316,7 @@ UOptimusNode* UOptimusNodeGraph::CreateNodeDirect(
 {
 	check(InNodeClass->IsChildOf(UOptimusNode::StaticClass()));
 
-	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName);
+	UOptimusNode* NewNode = NewObject<UOptimusNode>(this, InNodeClass, InName, RF_Transactional);
 
 	// Configure the node as needed.
 	if (InConfigureNodeFunc && !InConfigureNodeFunc(NewNode))
@@ -546,6 +546,28 @@ TArray<UOptimusNodePin*> UOptimusNodeGraph::GetConnectedPins(
 		}
 	}
 	return ConnectedPins;
+}
+
+
+TArray<const UOptimusNodeLink*> UOptimusNodeGraph::GetPinLinks(
+	const UOptimusNodePin* InNodePin
+	) const
+{
+	TArray<const UOptimusNodeLink*> PinLinks;
+	for (const int32 Index: GetAllLinkIndexesToPin(InNodePin))
+	{
+		const UOptimusNodeLink* Link = Links[Index];
+
+		if (Link->GetNodeInputPin() == InNodePin)
+		{
+			PinLinks.Add(Link);
+		}
+		else if (Link->GetNodeOutputPin() == InNodePin)
+		{
+			PinLinks.Add(Link);
+		}
+	}
+	return PinLinks;
 }
 
 

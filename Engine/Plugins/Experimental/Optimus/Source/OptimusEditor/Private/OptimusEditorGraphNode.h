@@ -12,6 +12,7 @@ class UOptimusNode;
 class UOptimusNodePin;
 
 DECLARE_DELEGATE(FOptimusNodeTitleDirtied);
+DECLARE_DELEGATE(FOptimusNodePinsChanged);
 
 UCLASS()
 class UOptimusEditorGraphNode : public UEdGraphNode
@@ -21,8 +22,8 @@ class UOptimusEditorGraphNode : public UEdGraphNode
 public:
 	void Construct(UOptimusNode* InNode);
 
-	UOptimusNodePin* FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin);
-	UEdGraphPin* FindGraphPinFromModelPin(const UOptimusNodePin* InModelPin);
+	UOptimusNodePin* FindModelPinFromGraphPin(const UEdGraphPin* InGraphPin) const;
+	UEdGraphPin* FindGraphPinFromModelPin(const UOptimusNodePin* InModelPin) const;
 
 	/// Synchronize the stored name/value/type on the graph pin with the value stored on the node. 
 	/// If the pin has sub-pins, the value update is done recursively.
@@ -34,6 +35,8 @@ public:
 	void SyncDiagnosticStateWithModelNode();
 
 	FOptimusNodeTitleDirtied& OnNodeTitleDirtied() { return NodeTitleDirtied; }
+
+	FOptimusNodePinsChanged& OnNodePinsChanged() { return NodePinsChanged; }
 	
 	// UEdGraphNode overrides
 	FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
@@ -69,8 +72,7 @@ private:
 	    UEdGraphPin* InParentPin = nullptr);
 
 	void RemoveGraphSubPins(
-		UEdGraphPin *InParentPin,
-		bool bInIsRootPinToDelete = true
+		UEdGraphPin *InParentPin
 		);
 	
 	TMap<FName, UOptimusNodePin*> PathToModelPinMap;
@@ -82,4 +84,5 @@ private:
 	TArray<UOptimusNodePin*> TopLevelOutputPins;
 
 	FOptimusNodeTitleDirtied NodeTitleDirtied;
+	FOptimusNodePinsChanged NodePinsChanged;
 };

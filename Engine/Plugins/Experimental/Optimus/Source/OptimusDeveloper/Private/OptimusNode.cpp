@@ -10,6 +10,8 @@
 #include "OptimusDiagnostic.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
+#include "OptimusObjectVersion.h"
+#include "Actions/OptimusNodeGraphActions.h"
 
 #include "Algo/Reverse.h"
 #include "UObject/UObjectIterator.h"
@@ -260,8 +262,8 @@ void UOptimusNode::PostCreateNode()
 	Pins.Empty();
 
 	{
-		TGuardValue<bool> BlockNotify(bBlockNotifications, true);
-		CreatePins();
+		TGuardValue<bool> NodeConstructionGuard(bConstructingNode, true);
+		ConstructNode();
 	}
 }
 
@@ -273,9 +275,26 @@ bool UOptimusNode::Modify(bool bInAlwaysMarkDirty)
 }
 
 
+void UOptimusNode::Serialize(FArchive& Ar)
+{
+	UObject::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
+}
+
+
+void UOptimusNode::PostLoad()
+{
+	UObject::PostLoad();
+
+	// Earlier iterations didn't set this flag. 
+	SetFlags(RF_Transactional);
+}
+
+
 void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {
-	if (!bBlockNotifications)
+	if (CanNotify())
 	{
 		UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
 
@@ -288,13 +307,59 @@ void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 
 
 
-void UOptimusNode::CreatePins()
+void UOptimusNode::ConstructNode()
 {
 	CreatePinsFromStructLayout(GetClass(), nullptr);
 }
 
 
+void UOptimusNode::EnableDynamicPins()
+{
+	bDynamicPins = true;
+}
+
+
 UOptimusNodePin* UOptimusNode::AddPin(
+	FName InName,
+	EOptimusNodePinDirection InDirection,
+	FOptimusNodePinStorageConfig InStorageConfig,
+	FOptimusDataTypeRef InDataType,
+	UOptimusNodePin* InBeforePin
+	)
+{
+	if (!bDynamicPins)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to add a pin to a non-dynamic node: %s"), *GetNodePath());
+		return nullptr;
+	}
+
+	if (InBeforePin)
+	{
+		if (InBeforePin->GetNode() != this)
+		{
+			UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to place a pin before one that does not belong to this node: %s"), *InBeforePin->GetPinPath());
+			return nullptr;
+		}
+		// TODO: Revisit if/when we add pin groups.
+		if (InBeforePin->GetParentPin() != nullptr)
+		{
+			UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to place a pin before one that is not a top-level pin: %s"), *InBeforePin->GetPinPath());
+			return nullptr;
+		}
+	}
+
+	FOptimusNodeAction_AddPin *AddPinAction = new FOptimusNodeAction_AddPin(
+		this, InName, InDirection, InStorageConfig, InDataType, InBeforePin); 
+	if (!GetActionStack()->RunAction(AddPinAction))
+	{
+		return nullptr;
+	}
+
+	return AddPinAction->GetPin(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+UOptimusNodePin* UOptimusNode::AddPinDirect(
     FName InName,
     EOptimusNodePinDirection InDirection,
     FOptimusNodePinStorageConfig InStorageConfig,
@@ -332,7 +397,7 @@ UOptimusNodePin* UOptimusNode::AddPin(
 		}
 	}
 
-	if (!bBlockNotifications)
+	if (CanNotify())
 	{
 		Pin->Notify(EOptimusGraphNotifyType::PinAdded);
 	}
@@ -343,11 +408,96 @@ UOptimusNodePin* UOptimusNode::AddPin(
 
 bool UOptimusNode::RemovePin(UOptimusNodePin* InPin)
 {
-	return false;
+	if (!bDynamicPins)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to remove a pin from a non-dynamic node: %s"), *GetNodePath());
+		return false;
+	}
+
+	if (InPin->GetParentPin() != nullptr)
+	{
+		UE_LOG(LogOptimusDeveloper, Error, TEXT("Attempting to remove a non-root pin: %s"), *InPin->GetPinPath());
+		return false;
+	}
+
+	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
+	Action->SetTitlef(TEXT("Remove Pin"));
+
+	TArray<UOptimusNodePin*> PinsToRemove = InPin->GetSubPinsRecursively();
+	PinsToRemove.Add(InPin);
+
+	const UOptimusNodeGraph* Graph = GetOwningGraph();
+
+	// Validate that there are no links to the pins we want to remove.
+	for (const UOptimusNodePin* Pin: PinsToRemove)
+	{
+		for (const UOptimusNodeLink *Link: Graph->GetPinLinks(Pin))
+		{
+			Action->AddSubAction<FOptimusNodeGraphAction_RemoveLink>(Link);
+		}
+	}
+
+	Action->AddSubAction<FOptimusNodeAction_RemovePin>(InPin);
+	
+	return GetActionStack()->RunAction(Action);
 }
 
 
-bool UOptimusNode::SetPinDataType(
+bool UOptimusNode::RemovePinDirect(UOptimusNodePin* InPin)
+{
+	TArray<UOptimusNodePin*> PinsToRemove = InPin->GetSubPinsRecursively();
+	PinsToRemove.Add(InPin);
+
+	// Reverse the list so that we start by deleting the leaf-most pins first.
+	Algo::Reverse(PinsToRemove);
+
+	const UOptimusNodeGraph* Graph = GetOwningGraph();
+
+	// Validate that there are no links to the pins we want to remove.
+	for (const UOptimusNodePin* Pin: PinsToRemove)
+	{
+		if (!Graph->GetConnectedPins(Pin).IsEmpty())
+		{
+			UE_LOG(LogOptimusDeveloper, Warning, TEXT("Attempting to remove a connected pin: %s"), *Pin->GetPinPath());
+			return false;
+		}
+	}
+
+	// We only notify on the root pin once we're no longer reachable.
+	Pins.Remove(InPin);
+	InPin->Notify(EOptimusGraphNotifyType::PinRemoved);
+	
+	for (UOptimusNodePin* Pin: PinsToRemove)
+	{
+		ExpandedPins.Remove(Pin->GetUniqueName());
+		
+		Pin->Rename(nullptr, GetTransientPackage());
+		Pin->MarkPendingKill();
+	}
+
+	CachedPinLookup.Reset();
+
+	return true;
+}
+
+bool UOptimusNode::SetPinDataType
+(
+	UOptimusNodePin* InPin,
+	FOptimusDataTypeRef InDataType
+	)
+{
+	if (!InPin || InPin->GetDataType() == InDataType.Resolve())
+	{
+		return false;
+	}
+
+	// FIXME: Preserve links.
+	
+	return GetActionStack()->RunAction<FOptimusNodeAction_SetPinType>(InPin, InDataType);
+}
+
+
+bool UOptimusNode::SetPinDataTypeDirect(
 	UOptimusNodePin* InPin, 
 	FOptimusDataTypeRef InDataType
 	)
@@ -356,40 +506,36 @@ bool UOptimusNode::SetPinDataType(
 	if (ensure(InPin) && ensure(InDataType.IsValid()) && 
 	    ensure(InPin->GetPropertyFromPin() == nullptr))
 	{
-		bool bPinTypeChanged;
-		
-		// FIXME: Turn into an undo command that preserves links.
-		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Value &&
-			EnumHasAllFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+		if (!InPin->SetDataType(InDataType))
 		{
-			bPinTypeChanged = InPin->SetDataType(InDataType);
+			return false;
+		}
 
-			if (bPinTypeChanged)
-			{
-				// If the type was already a sub-element type, remove the existing pins.
-				if (EnumHasAllFlags(InPin->GetDataType()->TypeFlags, EOptimusDataTypeFlags::ShowElements))
-				{
-					InPin->ClearSubPins();
-				}
+		// For value types, we want to show sub-pins.
+		if (InPin->GetStorageType() == EOptimusNodePinStorageType::Value)
+		{
+			// Remove all sub-pins, if there were any.		
+			TGuardValue<bool> SuppressNotifications(bSendNotifications, false);
 				
-				// Add sub-pins, if the registered type is set to show them but only for value types.
+			// If the type was already a sub-element type, remove the existing pins.
+			InPin->ClearSubPins();
+				
+			// Add sub-pins, if the registered type is set to show them but only for value types.
+			if (EnumHasAllFlags(InDataType->TypeFlags, EOptimusDataTypeFlags::ShowElements))
+			{
 				if (const UScriptStruct* Struct = Cast<const UScriptStruct>(InDataType->TypeObject))
 				{
 					CreatePinsFromStructLayout(Struct, InPin);
 				}
 			}
 		}
-		else
-		{
-			bPinTypeChanged = InPin->SetDataType(InDataType);
-		}
 
-		if (bPinTypeChanged && !bBlockNotifications)
+		if (CanNotify())
 		{
 			InPin->Notify(EOptimusGraphNotifyType::PinTypeChanged);
 		}
 
-		return bPinTypeChanged;
+		return true;
 	}
 	else
 	{
@@ -398,9 +544,26 @@ bool UOptimusNode::SetPinDataType(
 }
 
 
-bool UOptimusNode::SetPinName(UOptimusNodePin* InPin, FName InNewName)
+bool UOptimusNode::SetPinName(
+	UOptimusNodePin* InPin, 
+	FName InNewName
+	)
 {
+	if (!InPin || InPin->GetFName() == InNewName)
+	{
+		return false;
+	}
+
 	// FIXME: Namespace check?
+	return GetActionStack()->RunAction<FOptimusNodeAction_SetPinName>(InPin, InNewName);
+}
+
+
+bool UOptimusNode::SetPinNameDirect(
+	UOptimusNodePin* InPin, 
+	FName InNewName
+	)
+{
 	if (ensure(InPin) && InNewName != NAME_None)
 	{
 		const FName OldName = InPin->GetFName();
@@ -533,7 +696,7 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	}
 
 
-	return AddPin(InProperty->GetFName(), InDirection, StorageConfig, DataType, nullptr, InParentPin);
+	return AddPinDirect(InProperty->GetFName(), InDirection, StorageConfig, DataType, nullptr, InParentPin);
 }
 
 UOptimusActionStack* UOptimusNode::GetActionStack() const

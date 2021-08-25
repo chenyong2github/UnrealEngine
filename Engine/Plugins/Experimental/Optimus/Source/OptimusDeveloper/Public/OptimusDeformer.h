@@ -180,6 +180,10 @@ public:
 	/** Returns a multicast delegate that can be subscribed to listen compilation results. Note that the shader compilation results are async and can be returned after the CompileEnd delegate. */
 	FOptimusGraphCompileMessageDelegate& GetCompileMessageDelegate() { return CompileMessageDelegate; }
 
+	/// UObject overrides
+	void Serialize(FArchive& Ar) override;
+	
+
 	/// UComputeGraph overrides
 	void GetKernelBindings(int32 InKernelIndex, TMap<int32, TArray<uint8>>& OutBindings) const override;
 	void OnKernelCompilationComplete(int32 InKernelIndex, const TArray<FString>& InCompileErrors) override;
@@ -221,8 +225,6 @@ public:
 	    const FString& InNewName) override;
 
 	
-public:
-
 	UPROPERTY(EditAnywhere, Category=Preview)
 	USkeletalMesh *Mesh = nullptr;
 

@@ -316,6 +316,7 @@ void SOptimusEditorGraphNode::Construct(const FArguments& InArgs)
 		}
 	});
 
+	EditorGraphNode->OnNodePinsChanged().BindSP(this, &SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins);
 }
 
 EVisibility SOptimusEditorGraphNode::GetTitleVisibility() const
@@ -486,6 +487,13 @@ void SOptimusEditorGraphNode::Tick(
 		// GraphNode->NodeWidth = (int32)AllottedGeometry.Size.X;
 		// GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
 		RefreshErrorInfo();
+
+		// These will be deleted on the next tick.
+		for (UEdGraphPin *PinToDelete: PinsToDelete)
+		{
+			PinToDelete->MarkPendingKill();
+		}
+		PinsToDelete.Reset();
 	}
 }
 
@@ -500,6 +508,54 @@ UOptimusNode* SOptimusEditorGraphNode::GetModelNode() const
 {
 	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
 	return EditorGraphNode ? EditorGraphNode->ModelNode : nullptr;
+}
+
+
+void SOptimusEditorGraphNode::SyncPinWidgetsWithGraphPins()
+{
+	// Collect graph pins to delete. We do this here because this widget is the only entity
+	// that's aware of the lifetime requirements for the graph pins (SGraphPanel uses Slate 
+	// timers to trigger a delete, which makes deleting them from a non-widget setting). 
+	TSet<UEdGraphPin *> LocalPinsToDelete;
+	for (const TSharedRef<SGraphPin>& GraphPin: InputPins)
+	{
+		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+	}
+	for (const TSharedRef<SGraphPin>& GraphPin: OutputPins)
+	{
+		LocalPinsToDelete.Add(GraphPin->GetPinObj());
+	}
+
+	UOptimusEditorGraphNode* EditorGraphNode = GetEditorGraphNode();
+	for (const UEdGraphPin* LivePin: EditorGraphNode->Pins)
+	{
+		LocalPinsToDelete.Remove(LivePin);
+	}
+	for (const UEdGraphPin* DeletingPin: LocalPinsToDelete)
+	{
+		TWeakPtr<SGraphPin>* PinWidgetPtr = PinWidgetMap.Find(DeletingPin);
+		if (PinWidgetPtr)
+		{
+			TSharedPtr<SGraphPin> PinWidget = PinWidgetPtr->Pin();
+			if (PinWidget.IsValid())
+			{
+				// Ensure that this pin widget can no longer depend on the soon-to-be-deleted
+				// graph pin.
+				PinWidget->InvalidateGraphData();
+			}
+		}
+	}
+	PinsToDelete.Append(LocalPinsToDelete);
+
+	// Reconstruct the pin widgets. This could be done more surgically but will do for now.
+	InputPins.Reset();
+	OutputPins.Reset();
+	PinWidgetMap.Reset();
+
+	CreatePinWidgets();
+
+	InputTree->RequestTreeRefresh();
+	OutputTree->RequestTreeRefresh();
 }
 
 
@@ -537,10 +593,10 @@ TSharedRef<ITableRow> SOptimusEditorGraphNode::MakeTableRowWidget(
 	if (ensure(EditorGraphNode))
 	{
 		UEdGraphPin* GraphPin = EditorGraphNode->FindGraphPinFromModelPin(InModelPin);
-		TSharedPtr<SGraphPin> *PinWidgetPtr = PinWidgetMap.Find(GraphPin);
+		TWeakPtr<SGraphPin> *PinWidgetPtr = PinWidgetMap.Find(GraphPin);
 		if (PinWidgetPtr)
 		{
-			PinWidget = *PinWidgetPtr;
+			PinWidget = PinWidgetPtr->Pin();
 		}
 	}
 

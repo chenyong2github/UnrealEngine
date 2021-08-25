@@ -112,6 +112,12 @@ public:
 		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceDimensionality : 0;
 	}
 
+	/** Returns the resource context for this pin, if a resource pin, otherwise returns NAME_None */
+	FName GetResourceContext() const
+	{
+		return StorageType == EOptimusNodePinStorageType::Resource ? ResourceContext : NAME_None;
+	}
+
 	/** Returns the FProperty object for this pin. This can be used to directly address the
 	  * node data represented by this pin. Not all pins have an underlying resource so this can
 	  * return nullptr.
@@ -131,6 +137,10 @@ public:
 	/// Returns the sub-pins of this pin. For example for a pin representing the FVector type, 
 	/// this will return pins for the X, Y, and Z components of it (as float values).
 	const TArray<UOptimusNodePin*> &GetSubPins() const { return SubPins; }
+
+	/// Returns all sub-pins of this pin, recursively. In the returned list, the parent pins
+	/// are listed before their child pins.
+	TArray<UOptimusNodePin *> GetSubPinsRecursively() const;
 
 	/// Ask this pin if it allows a connection from the other pin. 
 	/// @param InOtherPin The other pin to connect to/from

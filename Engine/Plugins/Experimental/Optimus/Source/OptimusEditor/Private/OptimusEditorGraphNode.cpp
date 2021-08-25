@@ -9,9 +9,6 @@
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
 
-#include "EdGraphSchema_K2.h"
-#include "GraphEditAction.h"
-
 
 void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 {
@@ -52,7 +49,7 @@ void UOptimusEditorGraphNode::Construct(UOptimusNode* InModelNode)
 
 UOptimusNodePin* UOptimusEditorGraphNode::FindModelPinFromGraphPin(
 	const UEdGraphPin* InGraphPin
-	)
+	) const
 {
 	if (InGraphPin == nullptr)
 	{
@@ -63,7 +60,7 @@ UOptimusNodePin* UOptimusEditorGraphNode::FindModelPinFromGraphPin(
 
 UEdGraphPin* UOptimusEditorGraphNode::FindGraphPinFromModelPin(
 	const UOptimusNodePin* InModelPin
-)
+	) const
 {
 	if (InModelPin == nullptr)
 	{
@@ -165,32 +162,27 @@ void UOptimusEditorGraphNode::SynchronizeGraphPinTypeWithModelPin(
 
 	FEdGraphPinType PinType = UOptimusEditorGraphSchema::GetPinTypeFromDataType(DataType);
 
-	// If the pin has sub-pins, we need to reconstruct.
+	// If the pin has sub-pins, we may need to remove or rebuild the sub-pins.
 	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
-	if (!GraphPin)
+	if (ensure(GraphPin))
 	{
-		// TBD: Does it need to exist?
-		return;
-	}
-
-	// If the graph node had sub-pins, we need to remove those.
-	if (!GraphPin->SubPins.IsEmpty())
-	{
+		// If the graph node had sub-pins, we need to remove those.
 		RemoveGraphSubPins(GraphPin);
-		GraphPin->Purge();
-	}
 
-	if (!InModelPin->GetSubPins().IsEmpty())
-	{
-		for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+		// Create new sub-pins, if required, to reflect the new type.
+		if (!InModelPin->GetSubPins().IsEmpty())
 		{
-			CreateGraphPinFromModelPin(ModelSubPin, GraphPin->Direction, GraphPin);
+			for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+			{
+				CreateGraphPinFromModelPin(ModelSubPin, GraphPin->Direction, GraphPin);
+			}
 		}
-	}
 		
-	GraphPin->PinType = PinType;
+		GraphPin->PinType = PinType;
 
-	Cast<UOptimusEditorGraph>(GetGraph())->RefreshVisualNode(this);
+		// Notify the node widget that the pins have changed.
+		(void)NodePinsChanged.ExecuteIfBound();
+	}
 }
 
 
@@ -277,12 +269,9 @@ bool UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 }
 
 void UOptimusEditorGraphNode::RemoveGraphSubPins(
-	UEdGraphPin* InParentPin,
-	bool bInIsRootPinToDelete
+	UEdGraphPin* InParentPin
 	)
 {
-	// Make a copy of the subpins, because calling MarkPendingKill removes it from the subpin
-	// list of the parent.
 	TArray<UEdGraphPin*> SubPins = InParentPin->SubPins;
 	
 	for (UEdGraphPin* SubPin: SubPins)
@@ -295,14 +284,10 @@ void UOptimusEditorGraphNode::RemoveGraphSubPins(
 
 		if (!SubPin->SubPins.IsEmpty())
 		{
-			RemoveGraphSubPins(SubPin, false);
-		}
-
-		if (bInIsRootPinToDelete)
-		{
-			SubPin->MarkPendingKill();
+			RemoveGraphSubPins(SubPin);
 		}
 	}
+	InParentPin->SubPins.Reset();
 }
 
 
@@ -329,6 +314,8 @@ bool UOptimusEditorGraphNode::ModelPinAdded(const UOptimusNodePin* InModelPin)
 	}
 
 	UpdateTopLevelPins();
+	
+	(void)NodePinsChanged.ExecuteIfBound();
 
 	return true;
 }
@@ -336,9 +323,29 @@ bool UOptimusEditorGraphNode::ModelPinAdded(const UOptimusNodePin* InModelPin)
 
 bool UOptimusEditorGraphNode::ModelPinRemoved(const UOptimusNodePin* InModelPin)
 {
-	// TBD
-	check(false);
-	return false;
+	UEdGraphPin* GraphPin = FindGraphPinFromModelPin(InModelPin);
+
+	if (ensure(GraphPin))
+	{
+		PathToModelPinMap.Remove(GraphPin->PinName);
+		PathToGraphPinMap.Remove(GraphPin->PinName);
+
+		// Remove this pin, and all sub-pins, from our list of owned pins.
+		RemoveGraphSubPins(GraphPin);
+		Pins.Remove(GraphPin);
+		
+		UpdateTopLevelPins();
+
+		// This takes care of updating the node, and also deleting the removed graph pins from
+		// the graph node widget, which is surprisingly difficult to do from here. 
+		(void)NodePinsChanged.ExecuteIfBound();
+		
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 

@@ -14,5 +14,5 @@ class UOptimusNode_SetResource
 	GENERATED_BODY()
 
 protected:
-	void CreatePins() override;
+	void ConstructNode() override;
 };

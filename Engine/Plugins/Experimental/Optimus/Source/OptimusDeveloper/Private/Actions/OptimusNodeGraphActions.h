@@ -258,7 +258,7 @@ struct FOptimusNodeGraphAction_RemoveLink :
 	FOptimusNodeGraphAction_RemoveLink() = default;
 
 	FOptimusNodeGraphAction_RemoveLink(
-		UOptimusNodeLink *InLink
+		const UOptimusNodeLink *InLink
 	);
 
 protected:

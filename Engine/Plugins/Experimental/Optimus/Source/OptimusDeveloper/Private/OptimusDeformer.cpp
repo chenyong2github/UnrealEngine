@@ -15,6 +15,7 @@
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
 #include "OptimusDeveloperModule.h"
+#include "OptimusObjectVersion.h"
 #include "ComputeFramework/ComputeKernel.h"
 #include "DataInterfaces/DataInterfaceRawBuffer.h"
 #include "Nodes/OptimusNode_ComputeKernel.h"
@@ -210,6 +211,10 @@ UOptimusVariableDescription* UOptimusDeformer::CreateVariableDirect(
 
 	UOptimusVariableDescription* Variable = NewObject<UOptimusVariableDescription>(this, UOptimusVariableDescription::StaticClass(), InName, RF_Transactional);
 
+	// Make sure to give this variable description a unique GUID. We use this when updating the
+	// class.
+	Variable->Guid = FGuid::NewGuid();
+	
 	MarkPackageDirty();
 
 	return Variable;
@@ -990,6 +995,16 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	}
 
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
+}
+
+
+void UOptimusDeformer::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	// Mark with a custom version. This has the nice side-benefit of making the asset indexer
+	// skip this object if the plugin is not loaded.
+	Ar.UsingCustomVersion(FOptimusObjectVersion::GUID);
 }
 
 

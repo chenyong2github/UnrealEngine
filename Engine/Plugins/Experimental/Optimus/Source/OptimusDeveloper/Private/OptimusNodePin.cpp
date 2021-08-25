@@ -310,6 +310,28 @@ bool UOptimusNodePin::VerifyValue(const FString& InStringValue) const
 }
 
 
+TArray<UOptimusNodePin*> UOptimusNodePin::GetSubPinsRecursively() const
+{
+	TArray<UOptimusNodePin*> CollectedPins;
+	TQueue<UOptimusNodePin*> PinQueue;
+
+	PinQueue.Enqueue(const_cast<UOptimusNodePin*>(this));
+	UOptimusNodePin *WorkingPin = nullptr;
+	while (PinQueue.Dequeue(WorkingPin))
+	{
+		for (UOptimusNodePin *SubPin: WorkingPin->SubPins)
+		{
+			CollectedPins.Add(SubPin);
+			if (!SubPin->SubPins.IsEmpty())
+			{
+				PinQueue.Enqueue(SubPin);
+			}
+		}
+	}
+	return CollectedPins;
+}
+
+
 bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* OutReason) const
 {
 	if (!ensure(InOtherPin))
@@ -459,9 +481,10 @@ void UOptimusNodePin::AddSubPin(
 
 void UOptimusNodePin::ClearSubPins()
 {
-	for (UOptimusNodePin *SubPin: SubPins)
+	for (UOptimusNodePin* Pin: SubPins)
 	{
-		SubPin->Notify(EOptimusGraphNotifyType::PinRemoved);
+		// Consign them to oblivion.
+		Pin->Rename(nullptr, GetTransientPackage());
 	}
 	SubPins.Reset();
 }

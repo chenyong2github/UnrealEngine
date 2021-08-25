@@ -5,13 +5,13 @@
 #include "OptimusResourceDescription.h"
 #include "OptimusNodePin.h"
 
-void UOptimusNode_GetResource::CreatePins()
+void UOptimusNode_GetResource::ConstructNode()
 {
 	UOptimusResourceDescription *Res = GetResourceDescription();
 	if (Res)
 	{
 		// FIXME: Define context.
-		AddPin(
+		AddPinDirect(
 			Res->ResourceName,
 			EOptimusNodePinDirection::Output,
 			FOptimusNodePinStorageConfig(1, TEXT("Vertex")),

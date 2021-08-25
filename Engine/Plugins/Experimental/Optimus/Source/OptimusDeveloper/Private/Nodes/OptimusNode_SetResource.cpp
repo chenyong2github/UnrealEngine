@@ -6,12 +6,12 @@
 #include "OptimusResourceDescription.h"
 
 
-void UOptimusNode_SetResource::CreatePins()
+void UOptimusNode_SetResource::ConstructNode()
 {
 	UOptimusResourceDescription* Res = GetResourceDescription();
 	if (Res)
 	{
-		AddPin(
+		AddPinDirect(
 		    Res->ResourceName,
 		    EOptimusNodePinDirection::Input,
 		    FOptimusNodePinStorageConfig(1, TEXT("Vertex")),
