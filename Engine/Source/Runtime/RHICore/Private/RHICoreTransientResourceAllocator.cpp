@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RHICoreTransientResourceAllocator.h"
+#include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 
 static int32 GRHITransientAllocatorMinimumHeapSize = 128;
 static FAutoConsoleVariableRef CVarGRHITransientAllocatorMinimumHeapSize(
@@ -44,6 +46,9 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Resources"), STAT_RHITransientResources, ST
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Textures"), STAT_RHITransientTextures, STATGROUP_RHITransientMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Buffers"), STAT_RHITransientBuffers, STATGROUP_RHITransientMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Heaps"), STAT_RHITransientHeaps, STATGROUP_RHITransientMemory);
+
+DECLARE_LLM_MEMORY_STAT(TEXT("RHI Transient Resources"), STAT_RHITransientResourcesLLM, STATGROUP_LLMFULL);
+LLM_DEFINE_TAG(RHITransientResources, NAME_None, NAME_None, GET_STATFNAME(STAT_RHITransientResourcesLLM), GET_STATFNAME(STAT_EngineSummaryLLM));
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -115,6 +120,7 @@ FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocati
 	HeapInitializer.TextureCacheSize = Initializer.TextureCacheSize;
 	HeapInitializer.BufferCacheSize = Initializer.BufferCacheSize;
 
+	LLM_SCOPE_BYTAG(RHITransientResources);
 	return CreateHeap(HeapInitializer);
 }
 

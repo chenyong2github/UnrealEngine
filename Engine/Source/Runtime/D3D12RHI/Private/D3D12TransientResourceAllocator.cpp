@@ -68,8 +68,6 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 
 		LLM_PLATFORM_SCOPE(ELLMTag::GraphicsPlatform);
 
-		// We are tracking allocations ourselves, so don't let XMemAlloc track these as well
-		LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
 		VERIFYD3D12RESULT(D3DDevice->CreateHeap(&Desc, IID_PPV_ARGS(&D3DHeap)));
 
 #if PLATFORM_WINDOWS
@@ -95,8 +93,6 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 
 FD3D12TransientHeap::~FD3D12TransientHeap()
 {
-	LLM_SCOPED_PAUSE_TRACKING_FOR_TRACKER(ELLMTracker::Default, ELLMAllocType::System);
-
 	if (Heap)
 	{
 		D3D12_HEAP_DESC Desc = Heap->GetHeapDesc();
