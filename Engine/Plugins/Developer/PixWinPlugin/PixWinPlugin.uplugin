@@ -9,6 +9,7 @@
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
 	"EnabledByDefault": true,
+	"SupportedTargetPlatforms":  [ "Win64" ],
 	"Modules": [
 		{
 			"Name": "PixWinPlugin",
