@@ -3594,7 +3594,7 @@ const TMap<int32, FClothSimulData>& USkeletalMeshComponent::GetCurrentClothingDa
 void USkeletalMeshComponent::UpdateClothStateAndSimulate(float DeltaTime, FTickFunction& ThisTickFunction)
 {
 	// If disabled or no simulation
-	if (CVarEnableClothPhysics.GetValueOnGameThread() == 0 || !ClothingSimulation)
+	if (CVarEnableClothPhysics.GetValueOnGameThread() == 0 || !ClothingSimulation || bDisableClothSimulation)
 	{
 		return;
 	}
