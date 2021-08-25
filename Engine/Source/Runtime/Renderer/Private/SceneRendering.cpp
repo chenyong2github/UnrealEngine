@@ -1842,7 +1842,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		if (InstancePayloadDataOverrideSRV)
 		{
-			ViewUniformShaderParameters.InstanceSceneData = InstancePayloadDataOverrideSRV;
+			ViewUniformShaderParameters.InstancePayloadData = InstancePayloadDataOverrideSRV;
 		}
 		else if (Scene && Scene->GPUScene.InstancePayloadDataBuffer.SRV)
 		{
