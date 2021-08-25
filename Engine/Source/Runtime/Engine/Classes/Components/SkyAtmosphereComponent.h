@@ -283,11 +283,11 @@ private:
 	TObjectPtr<class UArrowComponent> ArrowComponent;
 #endif
 
+public:
 #if WITH_EDITOR
 	virtual bool SupportsDataLayer() const override { return true; }
 #endif
 
-public:
 	/** Returns SkyAtmosphereComponent subobject */
 	ENGINE_API USkyAtmosphereComponent* GetComponent() const { return SkyAtmosphereComponent; }
 
