@@ -124,10 +124,10 @@ public:
 
 	void CompactInPlace(const FCompactMaps& CompactMaps)
 	{
-		for (int TID = 0; TID < CompactMaps.MapT.Num(); TID++)
+		for (int TID = 0, NumTID = CompactMaps.NumTriangleMappings(); TID < NumTID; TID++)
 		{
-			int ToTID = CompactMaps.MapT[TID];
-			if (ToTID < 0)
+			const int ToTID = CompactMaps.GetTriangleMapping(TID);
+			if (ToTID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}
@@ -142,12 +142,12 @@ public:
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicMeshTriangleAttribute<AttribValueType, AttribDimension>& ToCopy)
 	{
 		CopyParentClassData(ToCopy);
-		check(CompactMaps.MapT.Num() <= int(ToCopy.AttribValues.Num() / AttribDimension));
+		check(CompactMaps.NumTriangleMappings() <= int(ToCopy.AttribValues.Num() / AttribDimension));
 		AttribValueType Data[AttribDimension];
-		for (int TID = 0; TID < CompactMaps.MapT.Num(); TID++)
+		for (int TID = 0, NumTID = CompactMaps.NumTriangleMappings(); TID < NumTID; TID++)
 		{
-			int ToTID = CompactMaps.MapT[TID];
-			if (ToTID == -1)
+			const int ToTID = CompactMaps.GetTriangleMapping(TID);
+			if (ToTID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}

@@ -111,10 +111,10 @@ public:
 
 	void CompactInPlace(const FCompactMaps& CompactMaps)
 	{
-		for (int VID = 0; VID < CompactMaps.MapV.Num(); VID++)
+		for (int VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
 		{
-			int ToVID = CompactMaps.MapV[VID];
-			if (ToVID < 0)
+			const int ToVID = CompactMaps.GetVertexMapping(VID);
+			if (ToVID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}
@@ -129,13 +129,13 @@ public:
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexAttribute<AttribValueType, AttribDimension, ParentType>& ToCopy)
 	{
 		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
-		check(CompactMaps.MapV.Num() >= 0 && static_cast<size_t>(CompactMaps.MapV.Num()) <= AttribValues.Num() / AttribDimension);
+		check(CompactMaps.NumVertexMappings() >= 0 && static_cast<size_t>(CompactMaps.NumVertexMappings()) <= AttribValues.Num() / AttribDimension);
 
 		AttribValueType Data[AttribDimension];
-		for (int VID = 0; VID < CompactMaps.MapV.Num(); VID++)
+		for (int VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
 		{
-			int ToVID = CompactMaps.MapV[VID];
-			if (ToVID == -1)
+			int ToVID = CompactMaps.GetVertexMapping(VID);
+			if (ToVID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}

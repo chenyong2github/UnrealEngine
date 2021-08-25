@@ -120,14 +120,14 @@ public:
 		}
 
 		// copy triangles across
-		check(CompactMaps.bKeepTriangleMap && CompactMaps.MapT.Num() == Copy.GetParentMesh()->MaxTriangleID()); // must have valid triangle map
+		check(CompactMaps.NumTriangleMappings() == Copy.GetParentMesh()->MaxTriangleID()); // must have valid triangle map
 		for (int FromTID : Copy.GetParentMesh()->TriangleIndicesItr())
 		{
 			if (!Copy.IsSetTriangle(FromTID))
 			{
 				continue;
 			}
-			int ToTID = CompactMaps.MapT[FromTID];
+			const int ToTID = CompactMaps.GetTriangleMapping(FromTID);
 			FIndex3i FromTriElements = Copy.GetTriangle(FromTID);
 			SetTriangle(ToTID, FIndex3i(MapE[FromTriElements.A], MapE[FromTriElements.B], MapE[FromTriElements.C]));
 		}
@@ -156,7 +156,7 @@ public:
 			// remap all parents
 			if (ParentVertices[ID] >= 0)
 			{
-				ParentVertices[ID] = CompactMaps.GetVertex(ParentVertices[ID]);
+				ParentVertices[ID] = CompactMaps.GetVertexMapping(ParentVertices[ID]);
 			}
 		}
 
@@ -194,7 +194,7 @@ public:
 			{
 				continue; // triangle was not set; skip it
 			}
-			int NewStart = CompactMaps.GetTriangle(TID) * 3;
+			int NewStart = CompactMaps.GetTriangleMapping(TID) * 3;
 			for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 			{
 				ElementTriangles[NewStart + SubIdx] = MapE[ElementTriangles[OldStart + SubIdx]];

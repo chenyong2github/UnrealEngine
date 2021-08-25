@@ -113,10 +113,10 @@ public:
 
 	void CompactInPlace(const FCompactMaps& CompactMaps) override
 	{
-		for (int32 VID = 0; VID < CompactMaps.MapV.Num(); VID++)
+		for (int32 VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
 		{
-			const int32 ToVID = CompactMaps.MapV[VID];
-			if (ToVID < 0)
+			const int32 ToVID = CompactMaps.GetVertexMapping(VID);
+			if (ToVID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}
@@ -131,12 +131,12 @@ public:
 	void CompactCopy(const FCompactMaps& CompactMaps, const TDynamicVertexSkinWeightsAttribute<ParentType>& ToCopy)
 	{
 		TDynamicAttributeBase<ParentType>::CopyParentClassData(ToCopy);
-		check(CompactMaps.MapV.Num() <= VertexBoneWeights.Num());
+		check(CompactMaps.NumVertexMappings() <= VertexBoneWeights.Num());
 		FBoneWeights Data;
-		for (int32 VID = 0; VID < CompactMaps.MapV.Num(); VID++)
+		for (int32 VID = 0, NumVID = CompactMaps.NumVertexMappings(); VID < NumVID; VID++)
 		{
-			const int32 ToVID = CompactMaps.MapV[VID];
-			if (ToVID == -1)
+			const int32 ToVID = CompactMaps.GetVertexMapping(VID);
+			if (ToVID == FCompactMaps::InvalidID)
 			{
 				continue;
 			}

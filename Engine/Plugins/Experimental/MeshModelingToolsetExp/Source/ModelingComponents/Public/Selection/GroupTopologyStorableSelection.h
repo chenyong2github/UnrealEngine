@@ -15,7 +15,7 @@ class UPrimitiveComponent;
 class UInteractiveTool;
 PREDECLARE_USE_GEOMETRY_STRUCT(FGroupTopologySelection);
 PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopology);
-PREDECLARE_USE_GEOMETRY_STRUCT(FCompactMaps);
+PREDECLARE_USE_GEOMETRY_CLASS(FCompactMaps);
 
 /**
  * Class used to represent a group topology selection independently of a FGroupTopology. Relies
