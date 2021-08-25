@@ -223,6 +223,9 @@ public:
 	float GetLODIndex() const { return LODIndex; }
 	int32 GetIntLODIndex() const { return FMath::Max(0, FMath::FloorToInt(LODIndex)); }
 
+	void SetMeshLODIndex(float InMeshLODIndex) { MeshLODIndex = InMeshLODIndex; }
+	float GetMeshLODIndex() const { return MeshLODIndex; }
+
 	void SetLODVisibility(bool bVisible) { bLODVisibility = bVisible; }
 	bool GetLODVisibility() const { return bLODVisibility; }
 
@@ -320,7 +323,8 @@ public:
 	TArray<EHairBindingType> BindingTypes;
 
 	// Data change every frame by the groom proxy based on views data
-	float LODIndex = 0;			// Current LOD used for all views
+	float MeshLODIndex = -1;
+	float LODIndex = -1;		// Current LOD used for all views
 	float LODBias = 0;			// Current LOD bias
 	bool bLODVisibility = true; // Enable/disable hair rendering for this component
 };

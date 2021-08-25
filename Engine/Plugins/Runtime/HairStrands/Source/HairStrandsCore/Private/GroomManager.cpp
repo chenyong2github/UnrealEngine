@@ -641,6 +641,7 @@ static void RunHairLODSelection(
 		// Use the forced LOD index if set, otherwise compute the LOD based on the maximal screensize accross all views
 		// Compute the view where the screen size is maximale
 		const float PrevLODIndex = Instance->HairGroupPublicData->GetLODIndex();
+		const float PrevMeshLODIndex = Instance->HairGroupPublicData->GetMeshLODIndex();
 		float LODIndex = Instance->Strands.Modifier.LODForcedIndex; // check where this is updated 
 
 		// Insure that MinLOD is necessary taken into account if a force LOD is request (i.e., LODIndex>=0). If a Force LOD 
@@ -784,27 +785,35 @@ static void RunHairLODSelection(
 			Instance->Strands.VertexFactory->InitResources();
 		}
 
-		Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
-		Instance->HairGroupPublicData->SetLODIndex(LODIndex);
-		Instance->HairGroupPublicData->SetLODBias(0);
-		Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
-		Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
-		Instance->GeometryType = GeometryType;
-		Instance->BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
-		Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
-		Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
-		Instance->Strands.bIsCullingEnabled = bCullingEnable;
+		// Only switch LOD if the data are ready to be used
+		const bool bIsLODDataReady = !!(ResourceStatus & EHairResourceStatus::Loading);
+		if (bIsLODDataReady)
+		{
+			Instance->HairGroupPublicData->SetLODVisibility(bIsVisible);
+			Instance->HairGroupPublicData->SetLODIndex(LODIndex);
+			Instance->HairGroupPublicData->SetLODBias(0);
+			Instance->HairGroupPublicData->SetMeshLODIndex(MeshLODIndex);
+			Instance->HairGroupPublicData->VFInput.GeometryType = GeometryType;
+			Instance->HairGroupPublicData->VFInput.bHasLODSwitch = (FMath::FloorToInt(PrevLODIndex) != FMath::FloorToInt(LODIndex));
+			Instance->GeometryType = GeometryType;
+			Instance->BindingType = Instance->HairGroupPublicData->GetBindingType(IntLODIndex);
+			Instance->Guides.bIsSimulationEnable = Instance->HairGroupPublicData->IsSimulationEnable(IntLODIndex);
+			Instance->Guides.bHasGlobalInterpolation = Instance->HairGroupPublicData->IsGlobalInterpolationEnable(IntLODIndex);
+			Instance->Strands.bIsCullingEnabled = bCullingEnable;
+		}
 
-		// Update the local-to-world transform based on the binding type 
-		Instance->LocalToWorld = Instance->BindingType == EHairBindingType::Skinning ? Instance->Debug.SkeletalLocalToWorld : Instance->LocalToWorld;
-
-		// If all resources are not ready yet, change the geomtry to be invalid, so that it don't get processed this frame.
-		if (!(ResourceStatus & EHairResourceStatus::Loading))
+		// If requested LOD's resources are not ready yet, and the previous LOD was invalid or if the MeshLODIndex has changed 
+		// (which would required extra data loading) change the geometry to be invalid, so that it don't get processed this frame.
+		const bool bIsLODValid = PrevLODIndex >= 0;
+		const bool bHasMeshLODChanged = PrevMeshLODIndex != MeshLODIndex && (Instance->Guides.bHasGlobalInterpolation || Instance->BindingType == EHairBindingType::Skinning);
+		if (!bIsLODDataReady && (!bIsLODValid || bHasMeshLODChanged))
 		{
 			Instance->GeometryType = EHairGeometryType::NoneGeometry;
 			Instance->BindingType = EHairBindingType::NoneBinding;
 		}
 
+		// Update the local-to-world transform based on the binding type 
+		Instance->LocalToWorld = Instance->BindingType == EHairBindingType::Skinning ? Instance->Debug.SkeletalLocalToWorld : Instance->LocalToWorld;
 	}
 }
 
