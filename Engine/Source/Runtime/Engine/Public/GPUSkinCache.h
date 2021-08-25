@@ -241,8 +241,8 @@ public:
 	{
 		friend struct FRWBufferTracker;
 
-		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InNumTriangles, FRHICommandListImmediate& RHICmdList)
-			: NumVertices(InNumVertices), WithTangents(InWithTangents), UseIntermediateTangents(InUseIntermediateTangents), NumTriangles(InNumTriangles)
+		FRWBuffersAllocation(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InIntermediateAccumulatedTangentsSize, FRHICommandListImmediate& RHICmdList)
+			: NumVertices(InNumVertices), WithTangents(InWithTangents), UseIntermediateTangents(InUseIntermediateTangents), IntermediateAccumulatedTangentsSize(InIntermediateAccumulatedTangentsSize)
 		{
 			for (int32 Index = 0; Index < NUM_BUFFERS; ++Index)
 			{
@@ -259,9 +259,9 @@ public:
 					IntermediateTangents.AccessState = ERHIAccess::Unknown;
 				}
 			}
-			if (NumTriangles > 0)
+			if (IntermediateAccumulatedTangentsSize > 0)
 			{
-				IntermediateAccumulatedTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), NumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
+				IntermediateAccumulatedTangents.Buffer.Initialize(TEXT("SkinCacheIntermediateAccumulatedTangents"), sizeof(int32), IntermediateAccumulatedTangentsSize * FGPUSkinCache::IntermediateAccumBufferNumInts, PF_R32_SINT, BUF_UnorderedAccess);
 				IntermediateAccumulatedTangents.AccessState = ERHIAccess::Unknown;
 				// The UAV must be zero-filled. We leave it zeroed after each round (see RecomputeTangentsPerVertexPass.usf), so this is only needed on when the buffer is first created.
 				RHICmdList.ClearUAVUint(IntermediateAccumulatedTangents.Buffer.UAV, FUintVector4(0, 0, 0, 0));
@@ -279,13 +279,13 @@ public:
 				Tangents.Release();
 				IntermediateTangents.Release();
 			}
-			if (NumTriangles > 0)
+			if (IntermediateAccumulatedTangentsSize > 0)
 			{
 				IntermediateAccumulatedTangents.Release();
 			}
 		}
 
-		static uint64 CalculateRequiredMemory(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InNumTriangles)
+		static uint64 CalculateRequiredMemory(uint32 InNumVertices, bool InWithTangents, bool InUseIntermediateTangents, uint32 InIntermediateAccumulatedTangentsSize)
 		{
 			uint64 PositionBufferSize = PosBufferBytesPerElement * InNumVertices * 3 * NUM_BUFFERS;
 			uint64 TangentBufferSize = InWithTangents ? TangentBufferBytesPerElement * InNumVertices * 2 : 0;
@@ -294,13 +294,13 @@ public:
 			{
 				IntermediateTangentBufferSize = InWithTangents ? TangentBufferBytesPerElement * InNumVertices * 2 : 0;
 			}
-			uint64 AccumulatedTangentBufferSize = InNumTriangles * 3 * FGPUSkinCache::IntermediateAccumBufferNumInts * sizeof(int32);
+			uint64 AccumulatedTangentBufferSize = InIntermediateAccumulatedTangentsSize * FGPUSkinCache::IntermediateAccumBufferNumInts * sizeof(int32);
 			return TangentBufferSize + IntermediateTangentBufferSize + PositionBufferSize + AccumulatedTangentBufferSize;
 		}
 
 		uint64 GetNumBytes() const
 		{
-			return CalculateRequiredMemory(NumVertices, WithTangents, UseIntermediateTangents, NumTriangles);
+			return CalculateRequiredMemory(NumVertices, WithTangents, UseIntermediateTangents, IntermediateAccumulatedTangentsSize);
 		}
 
 		FSkinCacheRWBuffer* GetTangentBuffer()
@@ -315,7 +315,7 @@ public:
 
 		FSkinCacheRWBuffer* GetIntermediateAccumulatedTangentBuffer()
 		{
-			return NumTriangles > 0 ? &IntermediateAccumulatedTangents : nullptr;
+			return IntermediateAccumulatedTangentsSize > 0 ? &IntermediateAccumulatedTangents : nullptr;
 		}
 
 		void RemoveAllFromTransitionArray(TSet<FSkinCacheRWBuffer*>& BuffersToTransition);
@@ -331,7 +331,7 @@ public:
 		const uint32 NumVertices;
 		const bool WithTangents;
 		const bool UseIntermediateTangents;
-		const uint32 NumTriangles;
+		const uint32 IntermediateAccumulatedTangentsSize;
 
 		static const uint32 PosBufferBytesPerElement = 4;
 		static const uint32 TangentBufferBytesPerElement = 8;
