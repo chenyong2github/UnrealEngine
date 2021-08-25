@@ -7,10 +7,14 @@ Texture2DStreamIn_DDC.cpp: Stream in helper for 2D textures loading DDC files.
 #include "Streaming/Texture2DStreamIn_DDC.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "RenderUtils.h"
-#include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 
 #if WITH_EDITORONLY_DATA
+
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
+#include "DerivedDataRequestOwner.h"
 
 int32 GStreamingUseAsyncRequestsForDDC = 1;
 static FAutoConsoleVariableRef CVarStreamingDDCPendingSleep(
@@ -95,8 +99,10 @@ void PurgeAbandonedDDCHandles()
 
 FTexture2DStreamIn_DDC::FTexture2DStreamIn_DDC(UTexture2D* InTexture)
 	: FTexture2DStreamIn(InTexture)
+	, DDCRequestOwner(UE::DerivedData::EPriority::Normal)
 {
 	DDCHandles.AddZeroed(ResourceState.MaxNumLODs);
+	DDCBuffers.AddZeroed(ResourceState.MaxNumLODs);
 }
 
 FTexture2DStreamIn_DDC::~FTexture2DStreamIn_DDC()
@@ -115,30 +121,86 @@ FTexture2DStreamIn_DDC::~FTexture2DStreamIn_DDC()
 
 void FTexture2DStreamIn_DDC::DoCreateAsyncDDCRequests(const FContext& Context)
 {
-	if (Context.Texture && Context.Resource)
+	if (!Context.Texture || !Context.Resource)
 	{
-		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
+		return;
+	}
+
+	if (const FTexturePlatformData* PlatformData = Context.Texture->GetPlatformData())
+	{
+		const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
+
+		if (PlatformData->DerivedDataKey.IsType<FString>())
 		{
-			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-			if (!MipMap.DerivedDataKey.IsEmpty())
+			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
-				check(!DDCHandles[MipIndex]);
-				DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*MipMap.DerivedDataKey, Context.Texture->GetPathName());
+				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+				if (MipMap.IsPagedToDerivedData())
+				{
+					check(!DDCHandles[MipIndex]);
+					DDCHandles[MipIndex] = GetDerivedDataCacheRef().GetAsynchronous(*PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, MipMap), Context.Texture->GetPathName());
 
 #if !UE_BUILD_SHIPPING
-				// On some platforms the IO is too fast to test cancelation requests timing issues.
-				if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
-				{
-					FPlatformProcess::Sleep(FRenderAssetStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
-				}
+					// On some platforms the IO is too fast to test cancelation requests timing issues.
+					if (FRenderAssetStreamingSettings::ExtraIOLatency > 0 && TaskSynchronization.GetValue() == 0)
+					{
+						FPlatformProcess::Sleep(FRenderAssetStreamingSettings::ExtraIOLatency * .001f); // Slow down the streaming.
+					}
 #endif
-			}
-			else
-			{
-				UE_LOG(LogTexture, Error, TEXT("DDC key missing."));
-				MarkAsCancelled();
+				}
+				else
+				{
+					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
+					MarkAsCancelled();
+				}
 			}
 		}
+		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
+		{
+			using namespace UE::DerivedData;
+			TArray<FCachePayloadKey> MipKeys;
+
+			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
+			{
+				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+				if (MipMap.IsPagedToDerivedData())
+				{
+					MipKeys.Emplace(*PlatformData->GetDerivedDataMipKeyProxy(MipIndex + LODBias, MipMap).AsCachePayloadKey());
+				}
+			}
+
+			if (MipKeys.Num())
+			{
+				GetCache().GetPayload(MipKeys, Context.Texture->GetPathName(), ECachePolicy::Default, DDCRequestOwner,
+					[this, &Context, LODBias](FCacheGetPayloadCompleteParams&& Params)
+					{
+						if (Params.Status == EStatus::Ok)
+						{
+							for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
+							{
+								TStringBuilder<16> MipName;
+								MipName << TEXT("Mip") << (MipIndex + LODBias);
+								if (Params.Payload.GetId() == FPayloadId::FromName(MipName))
+								{
+									check(!DDCBuffers[MipIndex]);
+									DDCBuffers[MipIndex] = Params.Payload.GetData().Decompress();
+									break;
+								}
+							}
+						}
+					});
+			}
+		}
+		else
+		{
+			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
+			MarkAsCancelled();
+		}
+	}
+	else
+	{
+		UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
+		MarkAsCancelled();
 	}
 }
 
@@ -152,66 +214,116 @@ bool FTexture2DStreamIn_DDC::DoPoolDDCRequests(const FContext& Context)
 			return false;
 		}
 	}
-	return true;
+	return DDCRequestOwner.Poll();
 }
 
 void FTexture2DStreamIn_DDC::DoLoadNewMipsFromDDC(const FContext& Context)
 {
-	if (Context.Texture && Context.Resource)
+	if (!Context.Texture || !Context.Resource)
 	{
-		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
+		return;
+	}
+
+	if (const FTexturePlatformData* PlatformData = Context.Texture->GetPlatformData())
+	{
+		const int32 LODBias = static_cast<int32>(Context.MipsView.GetData() - PlatformData->Mips.GetData());
+
+		if (PlatformData->DerivedDataKey.IsType<FString>())
 		{
-			const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
-			check(MipData[MipIndex]);
-
-			if (!MipMap.DerivedDataKey.IsEmpty())
+			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
-				// The overhead of doing 2 copy of each mip data (from GetSynchronous() and FMemoryReader) in hidden by other texture DDC ops happening at the same time.
-				TArray<uint8> DerivedMipData;
-				bool bDDCValid = true;
+				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+				check(MipData[MipIndex]);
 
-				const uint32 Handle = DDCHandles[MipIndex];
-				if (Handle)
+				if (MipMap.IsPagedToDerivedData())
 				{
-					bDDCValid = GetDerivedDataCacheRef().GetAsynchronousResults(Handle, DerivedMipData);
-					DDCHandles[MipIndex] = 0;
-				}
-				else
-				{
-					bDDCValid = GetDerivedDataCacheRef().GetSynchronous(*MipMap.DerivedDataKey, DerivedMipData, Context.Texture->GetPathName());
-				}
+					// The overhead of doing 2 copy of each mip data (from GetSynchronous() and FMemoryReader) in hidden by other texture DDC ops happening at the same time.
+					TArray<uint8> DerivedMipData;
+					bool bDDCValid = true;
 
-				if (bDDCValid)				
-				{
-					const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
-					FMemoryReader Ar(DerivedMipData, true);
-
-					int32 MipSize = 0;
-					Ar << MipSize;
-
-					if (MipSize == ExpectedMipSize)
+					const uint32 Handle = DDCHandles[MipIndex];
+					if (Handle)
 					{
-						Ar.Serialize(MipData[MipIndex], MipSize);
+						bDDCValid = GetDerivedDataCacheRef().GetAsynchronousResults(Handle, DerivedMipData);
+						DDCHandles[MipIndex] = 0;
 					}
 					else
 					{
-						UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d)."), MipIndex, ExpectedMipSize);
+						bDDCValid = GetDerivedDataCacheRef().GetSynchronous(*PlatformData->GetDerivedDataMipKeyString(MipIndex + LODBias, MipMap), DerivedMipData, Context.Texture->GetPathName());
+					}
+
+					if (bDDCValid)
+					{
+						const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+						FMemoryReader Ar(DerivedMipData, true);
+
+						int32 MipSize = 0;
+						Ar << MipSize;
+
+						if (MipSize == ExpectedMipSize)
+						{
+							Ar.Serialize(MipData[MipIndex], MipSize);
+						}
+						else
+						{
+							UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d)."), MipIndex, ExpectedMipSize);
+							MarkAsCancelled();
+						}
+					}
+					else
+					{
+						// UE_LOG(LogTexture, Warning, TEXT("Failed to stream mip data from the derived data cache for %s. Streaming mips will be recached."), Context.Texture->GetPathName() );
 						MarkAsCancelled();
 					}
 				}
 				else
 				{
-					// UE_LOG(LogTexture, Warning, TEXT("Failed to stream mip data from the derived data cache for %s. Streaming mips will be recached."), Context.Texture->GetPathName() );
+					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
 					MarkAsCancelled();
 				}
 			}
-			else
+		}
+		else if (PlatformData->DerivedDataKey.IsType<UE::DerivedData::FCacheKeyProxy>())
+		{
+			for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 			{
-				UE_LOG(LogTexture, Error, TEXT("DDC key missing."));
-				MarkAsCancelled();
+				const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
+				check(MipData[MipIndex]);
+
+				if (MipMap.IsPagedToDerivedData())
+				{
+					check(DDCBuffers[MipIndex]);
+
+					const int32 ExpectedMipSize = CalcTextureMipMapSize(MipMap.SizeX, MipMap.SizeY, Context.Resource->GetPixelFormat(), 0);
+					if (DDCBuffers[MipIndex].GetSize() == ExpectedMipSize)
+					{
+						FMemory::Memcpy(MipData[MipIndex], DDCBuffers[MipIndex].GetData(), DDCBuffers[MipIndex].GetSize());
+					}
+					else
+					{
+						UE_LOG(LogTexture, Error, TEXT("DDC mip size (%d) not as expected (%d) for mip %d of %s."), static_cast<int32>(DDCBuffers[MipIndex].GetSize()), ExpectedMipSize, MipIndex, *Context.Texture->GetPathName());
+						MarkAsCancelled();
+					}
+					DDCBuffers[MipIndex].Reset();
+				}
+				else
+				{
+					UE_LOG(LogTexture, Error, TEXT("Attempting to stream in a mip that is already present."));
+					MarkAsCancelled();
+				}
 			}
 		}
+		else
+		{
+			UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated a supported derived data key format."));
+			MarkAsCancelled();
+		}
 		FPlatformMisc::MemoryBarrier();
+	}
+	else
+	{
+		UE_LOG(LogTexture, Error, TEXT("Attempting to stream in mips for texture that has not generated derived data yet."));
+		MarkAsCancelled();
 	}
 }
 

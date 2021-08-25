@@ -20,6 +20,10 @@
 #include "PerPlatformProperties.h"
 #include "Misc/FieldAccessor.h"
 #include "Virtualization/VirtualizedBulkData.h"
+#if WITH_EDITORONLY_DATA
+#include "Misc/TVariant.h"
+#include "DerivedDataCacheKeyProxy.h"
+#endif
 
 #if WITH_EDITOR
 #include "Templates/DontCopy.h"
@@ -631,17 +635,11 @@ struct FTexturePlatformData
 
 #if WITH_EDITORONLY_DATA
 	/** The key associated with this derived data. */
-	FString DerivedDataKey;
-	/** 
-	* The key associated with the derived data generated for the shipping build.
-	* In order to save developer's time when running a build in the Editor,
-	* cooking a texture for the Editor build normally involves less complicated processing
-	* than cooking a texture for the shipping build. However, in many cases a fully cooked
-	* texture is already available in the cache when the project is opened on the developer's machine.
-	* This key allows to load the texture generated for the shipping build from the cache, if available,
-	* instead of building a new texture locally using fast cooking.
-	*/
-	FString ShippingDerivedDataKey;
+	TVariant<FString, UE::DerivedData::FCacheKeyProxy> DerivedDataKey;
+
+	/** The key used when comparing this derived data key to another reference key. */
+	TVariant<FString, UE::DerivedData::FCacheKeyProxy> ComparisonDerivedDataKey;
+
 	/** Async cache task if one is outstanding. */
 	struct FTextureAsyncCacheDerivedDataTask* AsyncTask;
 #endif
@@ -677,6 +675,9 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	void SerializeWithConditionalBulkData(FArchive& Ar, class UTexture* Owner);
+
+	FString GetDerivedDataMipKeyString(int32 MipIndex, const FTexture2DMipMap& Mip) const;
+	UE::DerivedData::FCachePayloadKeyProxy GetDerivedDataMipKeyProxy(int32 MipIndex, const FTexture2DMipMap& Mip) const;
 #endif // WITH_EDITORONLY_DATA
 
 	/** 
@@ -733,6 +734,7 @@ public:
 	}
 
 #if WITH_EDITOR
+	static bool IsUsingNewDerivedData();
 	bool IsAsyncWorkComplete() const;
 	void Cache(
 		class UTexture& InTexture,

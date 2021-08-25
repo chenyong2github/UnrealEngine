@@ -54,6 +54,11 @@
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/StrongObjectPtr.h"
 
+#if WITH_EDITORONLY_DATA
+#include "Misc/TVariant.h"
+#include "DerivedDataCacheKey.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "UTexture2D"
 
 UTexture2D::UTexture2D(const FObjectInitializer& ObjectInitializer)
@@ -139,7 +144,7 @@ void FTexture2DMipMap::SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipId
 	Ar << bCooked;
 
 #if WITH_EDITORONLY_DATA
-	if (bIgnoreBulkDataForStreamingMips && !DerivedDataKey.IsEmpty())
+	if (bIgnoreBulkDataForStreamingMips && IsPagedToDerivedData())
 	{
 		FByteBulkData EmptyData;
 		EmptyData.Serialize(Ar, Owner, MipIdx, false, FileRegionType);
@@ -160,7 +165,17 @@ void FTexture2DMipMap::SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipId
 	if (!bCooked)
 	{
 		Ar << FileRegionType;
-		Ar << DerivedDataKey;
+
+		FString LegacyDDCKeyString;
+		if (Ar.IsSaving())
+		{
+			if (IsPagedToDerivedData())
+			{
+				LegacyDDCKeyString = TEXT("DummyLegacyKey");
+			}
+		}
+
+		Ar << LegacyDDCKeyString;
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
@@ -191,7 +206,6 @@ uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey
 	}
 	const uint32 Result = DerivedData.Num();
 	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
-	DerivedDataKey = InDerivedDataKey;
 	BulkData.RemoveBulkData();
 	return Result;
 }

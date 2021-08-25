@@ -11,6 +11,7 @@
 #if WITH_EDITOR
 
 #include "Async/AsyncWork.h"
+#include "DerivedDataCacheKeyProxy.h"
 #include "Engine/Texture2D.h"
 #include "IImageWrapperModule.h"
 #include "ImageCore.h"
@@ -141,7 +142,6 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	void BuildTexture(bool bReplaceExistingDDC = false);
 
 	void ConsumeBuildFunctionOutput(const UE::DerivedData::FBuildOutput& BuildOutput, const FString& TexturePath, bool bReplaceExistingDDC);
-
 public:
 
 	/** Initialization constructor. */
@@ -263,5 +263,10 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 	const FTextureBuildSettings& Settings,
 	EQueuedWorkPriority Priority,
 	ETextureCacheFlags Flags);
+
+UE::DerivedData::FCacheKeyProxy CreateTextureCacheKeyProxy(
+	UTexture& Texture,
+	ETextureCacheFlags CacheFlags,
+	const FTextureBuildSettings& Settings);
 
 #endif // WITH_EDITOR
