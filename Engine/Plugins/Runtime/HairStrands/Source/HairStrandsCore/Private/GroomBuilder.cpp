@@ -33,7 +33,7 @@ static FAutoConsoleVariableRef CVarHairClusterBuilder_MaxVoxelResolution(TEXT("r
 FString FGroomBuilder::GetVersion()
 {
 	// Important to update the version when groom building changes
-	return TEXT("2p");
+	return TEXT("2q");
 }
 
 namespace FHairStrandsDecimation
@@ -1205,6 +1205,8 @@ namespace HairInterpolationBuilder
 		const FHairStrandsInterpolationDatas& HairInterpolation, 
 		FHairStrandsInterpolationBulkData& OutBulkData)
 	{
+		OutBulkData.Reset();
+
 		TRACE_CPUPROFILER_EVENT_SCOPE(HairInterpolationBuilder::BuildRenderData);
 
 		const uint32 PointCount = HairInterpolation.Num();
@@ -1759,6 +1761,8 @@ void FGroomBuilder::BuildBulkData(
 	const FHairStrandsDatas& InData,
 	FHairStrandsBulkData& OutBulkData)
 {
+	OutBulkData.Reset();
+
 	const int32 NumCurves = InData.GetNumCurves();
 	FRandomStream Random;
 	Random.Initialize(InInfo.GroupID);
@@ -2553,6 +2557,8 @@ static void BuildClusterBulkData(
 	const FHairStrandsClusterCullingData& In,
 	FHairStrandsClusterCullingBulkData& Out)
 {
+	Out.Reset();
+
 	Out.ClusterCount	= In.ClusterCount;
 	Out.VertexCount		= In.VertexCount;
 	Out.VertexLODCount	= In.ClusterVertexIds.Num();

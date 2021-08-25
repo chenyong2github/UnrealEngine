@@ -435,8 +435,9 @@ struct HAIRSTRANDSCORE_API FHairStrandsBulkData
 
 	void Serialize(FArchive& Ar, UObject* Owner);
 
-	bool IsValid() const { return CurveCount > 0 && PointCount > 0;	}
-	
+	bool IsValid() const { return CurveCount > 0 && PointCount > 0; }
+	void Reset();
+
 	uint32 GetNumCurves() const { return CurveCount;  };
 	uint32 GetNumPoints() const { return PointCount; };
 	float  GetMaxLength() const	{ return MaxLength; };

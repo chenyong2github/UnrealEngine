@@ -2194,9 +2194,14 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	//              RBF | Yes		    | Yes		   | Yes
 	//
 	bool bHasNeedSkinningBinding = false;			   
-	bool bHasNeedGlobalDeformation = false;
-	bool bHasNeedSimulation = false;
 	bool bHasNeedSkeletalMesh = false;
+	TArray<bool> bHasNeedGlobalDeformation;
+	TArray<bool> bHasNeedSimulation;
+	bHasNeedGlobalDeformation.Init(false, GroomAsset->HairGroupsData.Num());
+	bHasNeedSimulation.Init(false, GroomAsset->HairGroupsData.Num());
+
+	bool bHasAnyNeedSimulation = false;
+	bool bHasAnyNeedGlobalDeformation = false;
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
 		for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
@@ -2207,13 +2212,16 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			// Note on Global Deformation:
 			// * Global deformation require to have skinning binding
 			// * Force global interpolation to be enable for meshes with skinning binding as we use RBF defomation for 'sticking' meshes onto skel. mesh surface			
-			bHasNeedSkeletalMesh	  = bHasNeedSkeletalMesh || BindingType == EGroomBindingType::Rigid;
-			bHasNeedSkinningBinding   = bHasNeedSkinningBinding || BindingType == EGroomBindingType::Skinning;
-			bHasNeedSimulation		  = bHasNeedSimulation || IsSimulationEnable(GroupIt, LODIt);
-			bHasNeedGlobalDeformation = bHasNeedGlobalDeformation || (BindingType == EGroomBindingType::Skinning && GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt));
+			bHasNeedSkeletalMesh				= bHasNeedSkeletalMesh || BindingType == EGroomBindingType::Rigid;
+			bHasNeedSkinningBinding				= bHasNeedSkinningBinding || BindingType == EGroomBindingType::Skinning;
+			bHasNeedSimulation[GroupIt]			= bHasNeedSimulation[GroupIt] || IsSimulationEnable(GroupIt, LODIt);
+			bHasNeedGlobalDeformation[GroupIt]	= bHasNeedGlobalDeformation[GroupIt] || (BindingType == EGroomBindingType::Skinning && GroomAsset->IsGlobalInterpolationEnable(GroupIt, LODIt));
+
+			bHasAnyNeedSimulation				= bHasAnyNeedSimulation			|| bHasNeedSimulation[GroupIt];
+			bHasAnyNeedGlobalDeformation		= bHasAnyNeedGlobalDeformation	|| bHasNeedGlobalDeformation[GroupIt];
 		}
 	}
-	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasNeedGlobalDeformation;
+	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasAnyNeedGlobalDeformation;
 
 	// 2. Insure that the binding asset is compatible, otherwise no binding
 	UMeshComponent* ParentMeshComponent = GetAttachParent() ? Cast<UMeshComponent>(GetAttachParent()) : nullptr;
@@ -2289,7 +2297,8 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	if (LocalBindingAsset == nullptr)
 	{
 		bHasNeedSkinningBinding = false;
-		bHasNeedGlobalDeformation = false;
+		bHasAnyNeedGlobalDeformation = false;
+		bHasNeedGlobalDeformation.Init(false, GroomAsset->HairGroupsData.Num());
 	}
 
 	if (GroomCache)
@@ -2378,7 +2387,7 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		// * Physics simulation
 		// * RBF deformation.
 		// Therefore, even if simulation is disabled, we need to run partially the update if the binding system is enabled (skin deformation + RBF correction)
-		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation || bHasNeedGlobalDeformation)) || (HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides);
+		const bool bNeedGuides = (GroupData.Guides.HasValidData() && (bHasNeedSimulation[GroupIt] || bHasNeedGlobalDeformation[GroupIt])) || (HairGroupInstance->Debug.GroomCacheType == EGroomCacheType::Guides);
 		if (bNeedGuides)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.BulkData;

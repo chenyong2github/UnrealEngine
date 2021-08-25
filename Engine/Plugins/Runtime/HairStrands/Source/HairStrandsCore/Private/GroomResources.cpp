@@ -746,7 +746,10 @@ void FHairMeshesDeformedResource::InternalRelease()
 FHairStrandsRestResource::FHairStrandsRestResource(FHairStrandsBulkData& InBulkData, EHairStrandsResourcesType InCurveType, const FHairResourceName& InResourceName) :
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName),
 	PositionBuffer(), Attribute0Buffer(), Attribute1Buffer(), MaterialBuffer(), BulkData(InBulkData), CurveType(InCurveType)
-{}
+{
+	// Sanity check
+	check(!!(BulkData.Flags & FHairStrandsBulkData::DataFlags_HasData));
+}
 
 bool FHairStrandsRestResource::InternalIsDataLoaded()
 {
@@ -899,6 +902,12 @@ void FHairStrandsClusterCullingBulkData::Reset()
 	VertexToClusterIds.RemoveBulkData();
 	ClusterVertexIds.RemoveBulkData();
 	PackedClusterInfos.RemoveBulkData();
+
+	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+	ClusterLODInfos 	= FByteBulkData();
+	VertexToClusterIds 	= FByteBulkData();
+	ClusterVertexIds 	= FByteBulkData();
+	PackedClusterInfos 	= FByteBulkData();
 }
 
 void FHairStrandsClusterCullingBulkData::Serialize(FArchive& Ar, UObject* Owner)
@@ -1332,6 +1341,7 @@ void FHairStrandsRootBulkData::Reset()
 {
 	RootCount = 0;
 	VertexToCurveIndexBuffer.RemoveBulkData();
+	VertexToCurveIndexBuffer = FByteBulkData();
 	for (FMeshProjectionLOD& LOD : MeshProjectionLODs)
 	{
 		LOD.RootTriangleIndexBuffer.RemoveBulkData();
@@ -1342,6 +1352,17 @@ void FHairStrandsRootBulkData::Reset()
 		LOD.MeshInterpolationWeightsBuffer.RemoveBulkData();
 		LOD.MeshSampleIndicesBuffer.RemoveBulkData();
 		LOD.RestSamplePositionsBuffer.RemoveBulkData();
+
+		// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+		LOD.RootTriangleIndexBuffer 		= FByteBulkData();
+		LOD.RootTriangleBarycentricBuffer 	= FByteBulkData();
+		LOD.RestRootTrianglePosition0Buffer = FByteBulkData();
+		LOD.RestRootTrianglePosition1Buffer = FByteBulkData();
+		LOD.RestRootTrianglePosition2Buffer = FByteBulkData();
+		LOD.MeshInterpolationWeightsBuffer 	= FByteBulkData();
+		LOD.MeshSampleIndicesBuffer 		= FByteBulkData();
+		LOD.RestSamplePositionsBuffer 		= FByteBulkData();
+
 		LOD.ValidSectionIndices.Empty();
 	}
 	MeshProjectionLODs.Empty();
@@ -1388,6 +1409,8 @@ FHairStrandsInterpolationResource::FHairStrandsInterpolationResource(FHairStrand
 	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName),
 	InterpolationBuffer(), Interpolation0Buffer(), Interpolation1Buffer(), BulkData(InBulkData)
 {
+	// Sanity check
+	check(!!(BulkData.Flags & FHairStrandsInterpolationBulkData::DataFlags_HasData));
 }
 
 bool FHairStrandsInterpolationResource::InternalIsDataLoaded()
