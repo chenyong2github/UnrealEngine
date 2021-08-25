@@ -155,8 +155,8 @@ private:
 		const FIoHash& CompressedHash, FSharedBuffer&& CompressedData) const;
 
 	/* Debug helpers */
-	bool DidSimulateMiss(const TCHAR* InKey);
 	bool ShouldSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const FCacheKey& InKey);
 private:
 	FString Domain;
 	FString Namespace;
@@ -173,6 +173,7 @@ private:
 	/** Keys we ignored due to miss rate settings */
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
+	TSet<FCacheKey> DebugMissedCacheKeys;
 };
 
 } // namespace UE::DerivedData::Backends

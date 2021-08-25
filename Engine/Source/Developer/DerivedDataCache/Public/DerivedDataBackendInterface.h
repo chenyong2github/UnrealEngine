@@ -11,6 +11,8 @@
 class FDerivedDataCacheUsageStats;
 class FDerivedDataCacheStatsNode;
 
+namespace UE::DerivedData { struct FCacheKey; }
+
 DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
 
 DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Gets"),STAT_DDC_NumGets,STATGROUP_DDC, );
@@ -85,6 +87,7 @@ public:
 			each backend.
 		*/
 		bool ShouldSimulateMiss(const TCHAR* InCacheKey);
+		bool ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey);
 	};
 
 	virtual ~FDerivedDataBackendInterface()

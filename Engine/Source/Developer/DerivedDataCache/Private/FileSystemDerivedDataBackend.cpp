@@ -1003,7 +1003,7 @@ private:
 				[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, uint64(0));
 	}
 
-	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy) const
+	bool PutCacheRecord(const FCacheRecord& Record, FStringView Context, ECachePolicy Policy)
 	{
 		if (!IsWritable())
 		{
@@ -1018,6 +1018,13 @@ private:
 		if (!EnumHasAnyFlags(Policy, SpeedClass == ESpeedClass::Local ? ECachePolicy::StoreLocal : ECachePolicy::StoreRemote))
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped put of %s from '%.*s' due to cache policy"),
+				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return false;
+		}
+
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			return false;
 		}
@@ -1074,7 +1081,7 @@ private:
 		return true;
 	}
 
-	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData = false) const
+	FOptionalCacheRecord GetCacheRecord(const FCacheKey& Key, FStringView Context, ECachePolicy Policy, bool bAlwaysLoadInlineData = false)
 	{
 		if (!IsUsable())
 		{
@@ -1087,6 +1094,13 @@ private:
 		if (!EnumHasAnyFlags(Policy, SpeedClass == ESpeedClass::Local ? ECachePolicy::QueryLocal : ECachePolicy::QueryRemote))
 		{
 			UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("%s: Skipped get of %s from '%.*s' due to cache policy"),
+				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			return FOptionalCacheRecord();
+		}
+
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
 				*CachePath, *WriteToString<96>(Key), Context.Len(), Context.GetData());
 			return FOptionalCacheRecord();
 		}
@@ -1499,21 +1513,19 @@ private:
 	/** Keys we ignored due to miss rate settings */
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
-
-	bool DidSimulateMiss(const TCHAR* InKey)
-	{
-		if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
-		{
-			return false;
-		}
-		FScopeLock Lock(&MissedKeysCS);
-		return DebugMissedKeys.Contains(FName(InKey));
-	}
+	TSet<FCacheKey> DebugMissedCacheKeys;
 
 	bool ShouldSimulateMiss(const TCHAR* InKey)
 	{
-		// once missed, always missed
-		if (DidSimulateMiss(InKey))
+		if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+		{
+			return false;
+		}
+
+		const FName Key(InKey);
+		const uint32 Hash = GetTypeHash(Key);
+
+		if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
 		{
 			return true;
 		}
@@ -1522,7 +1534,31 @@ private:
 		{
 			FScopeLock Lock(&MissedKeysCS);
 			UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
-			DebugMissedKeys.Add(FName(InKey));
+			DebugMissedKeys.AddByHash(Hash, Key);
+			return true;
+		}
+
+		return false;
+	}
+
+	bool ShouldSimulateMiss(const FCacheKey& Key)
+	{
+		if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+		{
+			return false;
+		}
+
+		const uint32 Hash = GetTypeHash(Key);
+
+		if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
+		{
+			return true;
+		}
+
+		if (DebugOptions.ShouldSimulateMiss(Key))
+		{
+			FScopeLock Lock(&MissedKeysCS);
+			DebugMissedCacheKeys.AddByHash(Hash, Key);
 			return true;
 		}
 

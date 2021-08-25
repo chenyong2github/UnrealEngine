@@ -1307,25 +1307,33 @@ bool FDerivedDataBackendInterface::FBackendDebugOptions::ParseFromTokens(FDerive
 /* Convenience function for backends that check if the key should be missed or not */
 bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(const TCHAR* InCacheKey)
 {
-	bool bDoMiss = false;
-
-	if (SimulateMissTypes.Num() > 0)
+	if (!SimulateMissTypes.IsEmpty())
 	{
-		FString TypeStr = FString(InCacheKey);
-		TypeStr = TypeStr.Left(TypeStr.Find(TEXT("_")));
-
+		FStringView TypeStr(InCacheKey);
+		TypeStr.LeftInline(TypeStr.Find(TEXT("_")));
 		if (SimulateMissTypes.Contains(TypeStr))
 		{
-			bDoMiss = true;
+			return true;
 		}
 	}
 
-	if (!bDoMiss && RandomMissRate > 0)
+	return RandomMissRate > 0 && FMath::RandHelper(100) < RandomMissRate;
+}
+
+/* Convenience function for backends that check if the key should be missed or not */
+bool FDerivedDataBackendInterface::FBackendDebugOptions::ShouldSimulateMiss(const UE::DerivedData::FCacheKey& InCacheKey)
+{
+	if (!SimulateMissTypes.IsEmpty())
 	{
-		bDoMiss = FMath::RandHelper(100) < RandomMissRate;
+		TStringBuilder<256> Type;
+		Type << InCacheKey.Bucket;
+		if (SimulateMissTypes.Contains(Type.ToView()))
+		{
+			return true;
+		}
 	}
 
-	return bDoMiss;
+	return RandomMissRate > 0 && FMath::RandHelper(100) < RandomMissRate;
 }
 
 #undef LOCTEXT_NAMESPACE
