@@ -259,8 +259,8 @@ static FScreenPassTexture AddPostProcessingGTAOAllPasses(
 					GraphBuilder,
 					View,
 					CommonParameters,
-					CommonParameters.SceneDepth,
-					CurrentOutput);
+					HorizonSearchOutputs.Color,
+					CommonParameters.SceneDepth);
 		}
 
 		if (bTemporalPass)
