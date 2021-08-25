@@ -149,6 +149,17 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledNormal)
 END_SHADER_PARAMETER_STRUCT()
 
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenHZBScreenTraceParameters, )
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PrevSceneColorTexture)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HistorySceneDepth)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
+	SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
+	SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
+	SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
+	SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
+	SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
+END_SHADER_PARAMETER_STRUCT()
+
 void VisualizeHardwareRayTracing(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -190,6 +201,12 @@ extern void CullForCardTracing(
 
 extern void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
+
+extern FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
+	FRDGBuilder& GraphBuilder, 
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures);
+
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);

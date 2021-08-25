@@ -39,12 +39,13 @@ void ClearTracesCS(
 float MaxTraceDistance;
 
 Texture2D FurthestHZBTexture;
-Texture2D ColorTexture;
 #define FurthestHZBTextureSampler GlobalPointClampedSampler
-#define ColorTextureSampler GlobalPointClampedSampler
+
+Texture2D PrevSceneColorTexture;
+float4 PrevScreenPositionScaleBias;
+Texture2D HistorySceneDepth;
+
 float4 HZBUvFactorAndInvFactor;
-float4 ColorBufferScaleBias;
-float2 ReducedColorUVMax;
 float PrevSceneColorPreExposureCorrection;
 float MaxHierarchicalScreenTraceIterations;
 float RelativeDepthThickness;
@@ -238,29 +239,51 @@ void ScreenProbeTraceScreenTexturesCS(
 
 				if (bHit)
 				{
-					float2 ReducedColorUV = HitUVz.xy * ColorBufferScaleBias.xy + ColorBufferScaleBias.zw;
-					ReducedColorUV = min(ReducedColorUV, ReducedColorUVMax);
+					float2 HitScreenUV = HitUVz.xy;
+					float2 HitScreenPosition = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+					float HitDeviceZ = HitUVz.z;
 
-					float3 Lighting = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level).rgb * PrevSceneColorPreExposureCorrection;
-					
-					#if DEBUG_VISUALIZE_TRACE_TYPES
-						RWTraceRadiance[TraceCoord] = float3(.5f, 0, 0) * View.PreExposure;
-					#else
-						RWTraceRadiance[TraceCoord] = Lighting;
-					#endif
+					float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
+					float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 
+					float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
+
+					// Skip reporting a hit if near the edge of the screen
+					if (Vignette < InterleavedGradientNoise(TraceCoord + 0.5f, 0))
 					{
-						float2 HitScreenUV = HitUVz.xy;
-						float2 HitScreenPosition = (HitScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+						bHit = false;
+					}
 
-						float HitDeviceZ = HitUVz.z;
-						float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
-						float3 HitHistoryScreenPosition = GetHistoryScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
+					if (bHit)
+					{
+						// Calculate the expected depth of the pixel last frame
+						float PrevSceneDepth = ConvertFromDeviceZ(HitHistoryScreenPosition.z);
 
-						float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
-						float3 HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+						// Lookup the actual depth at the same screen position last frame
+						float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalBilinearClampedSampler, HitHistoryScreenUV, 0).x);
 
-						bFastMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition - View.PreViewTranslation, HitWorldVelocity);
+						float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
+						// Skip reporting a hit if the position was occluded last frame
+						bHit = DistanceToHistoryValue / PrevSceneDepth < .01f;
+					}
+
+					if (bHit)
+					{
+						float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
+
+						#if DEBUG_VISUALIZE_TRACE_TYPES
+							RWTraceRadiance[TraceCoord] = float3(.5f, 0, 0) * View.PreExposure;
+						#else
+							RWTraceRadiance[TraceCoord] = Lighting;
+						#endif
+
+						{
+							float HitSceneDepth = ConvertFromDeviceZ(HitUVz.z);
+							float3 HitTranslatedWorldPosition = mul(float4(HitScreenPosition * HitSceneDepth, HitSceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
+							float3 HitWorldVelocity = HitTranslatedWorldPosition - GetPrevTranslatedWorldPosition(HitHistoryScreenPosition);
+
+							bFastMoving = IsTraceMoving(WorldPosition, SceneDepth, ScreenProbeAtlasCoord, HitTranslatedWorldPosition - View.PreViewTranslation, HitWorldVelocity);
+						}
 					}
 				}
 

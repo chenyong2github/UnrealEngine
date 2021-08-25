@@ -1005,7 +1005,6 @@ DECLARE_GPU_STAT(LumenScreenProbeGather);
 FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 	FRDGTextureRef LightingChannelsTexture,
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
@@ -1302,8 +1301,7 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 		Scene,
 		View, 
 		GLumenGatherCvars.TraceMeshSDFs != 0 && Lumen::UseMeshSDFTracing(),
-		SceneTextures.UniformBuffer,
-		PrevSceneColorMip,
+		SceneTextures,
 		LightingChannelsTexture,
 		TracingInputs,
 		RadianceCacheParameters,

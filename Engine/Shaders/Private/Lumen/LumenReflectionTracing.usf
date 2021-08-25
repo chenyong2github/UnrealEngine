@@ -35,8 +35,8 @@ void ReflectionClearTracesCS(
  
 float MaxTraceDistance;
 
-Texture2D ColorTexture;
-#define ColorTextureSampler GlobalPointClampedSampler
+Texture2D PrevSceneColorTexture;
+Texture2D HistorySceneDepth;
 float4 PrevScreenPositionScaleBias;
 float PrevSceneColorPreExposureCorrection;
 float4 HZBUvFactorAndInvFactor;
@@ -107,37 +107,56 @@ void ReflectionTraceScreenTexturesCS(
 
 			bHit = bHit && !bUncertain;
 
-			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
-
-			float2 SampleUV;
-			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
-
-			// Skip reporting a hit if near the edge of the screen or Temporal AA is off
-			if (Vignette < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0)
-				|| PrevScreenPositionScaleBias.x < .000001f)
-			{
-				bHit = false;
-			}
-
 			if (bHit)
 			{
-				float3 Lighting = SampleScreenColor(ColorTexture, ColorTextureSampler, SampleUV).xyz * PrevSceneColorPreExposureCorrection;
+				float2 HitScreenUV = HitUVz.xy;
+				float2 HitScreenPosition = (HitUVz.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+				float HitDeviceZ = HitUVz.z;
 
-				float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+				float3 HitHistoryScreenPosition = GetPrevScreenPosition(HitScreenPosition, HitScreenUV, HitDeviceZ);
+				float2 HitHistoryScreenUV = HitHistoryScreenPosition.xy * PrevScreenPositionScaleBias.xy + PrevScreenPositionScaleBias.zw;
 
-				if (MaxLighting > MaxRayIntensity)
+				float Vignette = min(ComputeHitVignetteFromScreenPos(HitScreenPosition), ComputeHitVignetteFromScreenPos(HitHistoryScreenPosition.xy));
+
+				// Skip reporting a hit if near the edge of the screen
+				if (Vignette < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0))
 				{
-					Lighting *= MaxRayIntensity / MaxLighting;
+					bHit = false;
 				}
 
-				#if DEBUG_VISUALIZE_TRACE_TYPES
-					RWTraceRadiance[ReflectionTracingCoord] = float3(.5f, 0, 0) * View.PreExposure;
-				#else
-					RWTraceRadiance[ReflectionTracingCoord] = Lighting;
-				#endif
+				if (bHit)
+				{
+					// Calculate the expected depth of the pixel last frame
+					float PrevSceneDepth = ConvertFromDeviceZ(HitHistoryScreenPosition.z);
+
+					// Lookup the actual depth at the same screen position last frame
+					float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(HistorySceneDepth, GlobalBilinearClampedSampler, HitHistoryScreenUV, 0).x);
+
+					float DistanceToHistoryValue = abs(HistoryDepth - PrevSceneDepth);
+					// Skip reporting a hit if the position was occluded last frame
+					bHit = DistanceToHistoryValue / PrevSceneDepth < .01f;
+				}
+
+				if (bHit)
+				{
+					float3 Lighting = SampleScreenColor(PrevSceneColorTexture, GlobalPointClampedSampler, HitHistoryScreenUV).xyz * PrevSceneColorPreExposureCorrection;
+
+					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+					if (MaxLighting > MaxRayIntensity)
+					{
+						Lighting *= MaxRayIntensity / MaxLighting;
+					}
+
+					#if DEBUG_VISUALIZE_TRACE_TYPES
+						RWTraceRadiance[ReflectionTracingCoord] = float3(.5f, 0, 0) * View.PreExposure;
+					#else
+						RWTraceRadiance[ReflectionTracingCoord] = Lighting;
+					#endif
+				}
 			}
 
+			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
 			RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(HitDistance, bHit);
 		}
 	}

@@ -86,14 +86,8 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHZBScreenTraceParameters, HZBScreenTraceParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
-		SHADER_PARAMETER(FVector4, HZBUvFactorAndInvFactor)
-		SHADER_PARAMETER(FVector4, PrevScreenPositionScaleBias)
-		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
-		SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
-		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
@@ -316,6 +310,86 @@ void SetupIndirectTracingParametersForReflections(FLumenIndirectTracingParameter
 	OutParameters.SpecularFromDiffuseRoughnessEnd = 0.0f;
 }
 
+FLumenHZBScreenTraceParameters SetupHZBScreenTraceParameters(
+	FRDGBuilder& GraphBuilder, 
+	const FViewInfo& View,
+	const FSceneTextures& SceneTextures)
+{
+	FRDGTextureRef CurrentSceneColor = SceneTextures.Color.Resolve;
+
+	FRDGTextureRef InputColor = CurrentSceneColor;
+	FIntPoint ViewportOffset = View.ViewRect.Min;
+	FIntPoint ViewportExtent = View.ViewRect.Size();
+	FIntPoint BufferSize = SceneTextures.Config.Extent;
+
+	if (View.PrevViewInfo.CustomSSRInput.IsValid())
+	{
+		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
+		ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
+		ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
+		BufferSize = InputColor->Desc.Extent;
+	}
+	else if (View.PrevViewInfo.TSRHistory.IsValid())
+	{
+		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
+		ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
+		ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
+		BufferSize = InputColor->Desc.Extent;
+	}
+	else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
+	{
+		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
+		ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
+		ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
+		BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
+	}
+	else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
+	{
+		InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.ScreenSpaceRayTracingInput);
+		ViewportOffset = View.PrevViewInfo.ViewRect.Min;
+		ViewportExtent = View.PrevViewInfo.ViewRect.Size();
+		BufferSize = InputColor->Desc.Extent;
+	}
+
+	FLumenHZBScreenTraceParameters Parameters;
+	{
+		const FVector2D HZBUvFactor(
+			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
+		Parameters.HZBUvFactorAndInvFactor = FVector4(
+			HZBUvFactor.X,
+			HZBUvFactor.Y,
+			1.0f / HZBUvFactor.X,
+			1.0f / HZBUvFactor.Y);
+
+		const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
+		const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
+		const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
+		Parameters.HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
+	}
+
+	{
+		FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
+
+		Parameters.PrevScreenPositionScaleBias = FVector4(
+			ViewportExtent.X * 0.5f * InvBufferSize.X,
+			-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
+			(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,
+			(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSize.Y);
+	}
+
+	Parameters.PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
+
+	Parameters.PrevSceneColorTexture = InputColor;
+	Parameters.HistorySceneDepth = View.PrevViewInfo.DepthBuffer ? GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.DepthBuffer) : SceneTextures.Depth.Target;
+
+	checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
+	Parameters.ClosestHZBTexture = View.ClosestHZB;
+	Parameters.HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
+
+	return Parameters;
+}
+
 void TraceReflections(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -354,81 +428,16 @@ void TraceReflections(
 	{
 		FReflectionTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceScreenTexturesCS::FParameters>();
 
-		FRDGTextureRef CurrentSceneColor = SceneTextures.Color.Resolve;
-
-		FRDGTextureRef InputColor = CurrentSceneColor;
-		FIntPoint ViewportOffset = View.ViewRect.Min;
-		FIntPoint ViewportExtent = View.ViewRect.Size();
-		FIntPoint BufferSize = SceneTextures.Config.Extent;
-
-		if (View.PrevViewInfo.CustomSSRInput.IsValid())
-		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.CustomSSRInput.RT[0]);
-			ViewportOffset = View.PrevViewInfo.CustomSSRInput.ViewportRect.Min;
-			ViewportExtent = View.PrevViewInfo.CustomSSRInput.ViewportRect.Size();
-			BufferSize = InputColor->Desc.Extent;
-		}
-		else if (View.PrevViewInfo.TSRHistory.IsValid())
-		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TSRHistory.LowFrequency);
-			ViewportOffset = View.PrevViewInfo.TSRHistory.OutputViewportRect.Min;
-			ViewportExtent = View.PrevViewInfo.TSRHistory.OutputViewportRect.Size();
-			BufferSize = InputColor->Desc.Extent;
-		}
-		else if (View.PrevViewInfo.TemporalAAHistory.IsValid())
-		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.TemporalAAHistory.RT[0]);
-			ViewportOffset = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Min;
-			ViewportExtent = View.PrevViewInfo.TemporalAAHistory.ViewportRect.Size();
-			BufferSize = View.PrevViewInfo.TemporalAAHistory.ReferenceBufferSize;
-		}
-		else if (View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
-		{
-			InputColor = GraphBuilder.RegisterExternalTexture(View.PrevViewInfo.ScreenSpaceRayTracingInput);
-			ViewportOffset = View.PrevViewInfo.ViewRect.Min;
-			ViewportExtent = View.PrevViewInfo.ViewRect.Size();
-			BufferSize = InputColor->Desc.Extent;
-		}
-
-		{
-			const FVector2D HZBUvFactor(
-				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-			PassParameters->HZBUvFactorAndInvFactor = FVector4(
-				HZBUvFactor.X,
-				HZBUvFactor.Y,
-				1.0f / HZBUvFactor.X,
-				1.0f / HZBUvFactor.Y);
-
-			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.Config.Extent, View.ViewRect);
-			const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
-			const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
-			PassParameters->HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
-		}
-
-		{
-			FVector2D InvBufferSize(1.0f / float(BufferSize.X), 1.0f / float(BufferSize.Y));
-
-			PassParameters->PrevScreenPositionScaleBias = FVector4(
-				ViewportExtent.X * 0.5f * InvBufferSize.X,
-				-ViewportExtent.Y * 0.5f * InvBufferSize.Y,
-				(ViewportExtent.X * 0.5f + ViewportOffset.X) * InvBufferSize.X,
-				(ViewportExtent.Y * 0.5f + ViewportOffset.Y) * InvBufferSize.Y);
-		}
-
+		PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
 		PassParameters->View = View.ViewUniformBuffer;
-		PassParameters->PrevSceneColorPreExposureCorrection = InputColor != CurrentSceneColor ? View.PreExposure / View.PrevViewInfo.SceneColorPreExposure : 1.0f;
+		
 		PassParameters->SceneTextures = SceneTextureParameters;
-		PassParameters->ColorTexture = InputColor;
 
-		if (InputColor == CurrentSceneColor || !PassParameters->SceneTextures.GBufferVelocityTexture)
+		if (PassParameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !PassParameters->SceneTextures.GBufferVelocityTexture)
 		{
 			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		}
 
-		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
-		PassParameters->ClosestHZBTexture = View.ClosestHZB;
-		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenReflectionHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenReflectionHierarchicalScreenTraceRelativeDepthThreshold;
 
