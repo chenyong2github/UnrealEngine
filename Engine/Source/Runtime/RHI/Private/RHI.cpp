@@ -2699,5 +2699,3 @@ void FRHITransientBuffer::Init(const TCHAR* InName, uint32 InAllocationIndex, ui
 
 	// TODO: Add method to rename a buffer.
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
