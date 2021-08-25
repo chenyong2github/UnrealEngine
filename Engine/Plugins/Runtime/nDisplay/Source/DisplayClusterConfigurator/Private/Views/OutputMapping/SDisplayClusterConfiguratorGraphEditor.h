@@ -110,6 +110,8 @@ private:
 	bool CanSizeToChildNodes() const;
 	void SizeToChildNodes();
 
+	void SortNodes();
+
 private:
 	TWeakPtr<FDisplayClusterConfiguratorBlueprintEditor> ToolkitPtr;
 

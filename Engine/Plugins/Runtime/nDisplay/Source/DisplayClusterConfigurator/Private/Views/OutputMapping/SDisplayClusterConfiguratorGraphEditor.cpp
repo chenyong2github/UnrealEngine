@@ -20,6 +20,7 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditorActions.h"
+#include "SGraphPanel.h"
 #include "Misc/ConfigCacheIni.h"
 
 #include "Interfaces/Views/OutputMapping/IDisplayClusterConfiguratorViewOutputMapping.h"
@@ -29,6 +30,8 @@
 
 void SDisplayClusterConfiguratorGraphEditor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	SortNodes();
+
 	SGraphEditor::Tick(AllottedGeometry, InCurrentTime, InDeltaTime);
 
 	// Every tick, give the graph nodes an opportunity to update their position and size, to allow procedurally positioned nodes a chance to reposition if need be.
@@ -838,6 +841,19 @@ void SDisplayClusterConfiguratorGraphEditor::SizeToChildNodes()
 	{
 		Transaction.Cancel();
 	}
+}
+
+void SDisplayClusterConfiguratorGraphEditor::SortNodes()
+{
+	// Sort the nodes via their depth to ensure that overlapping nodes are properly rendered on top of each order and mouse interactions are properly handled
+	TSlotlessChildren<SNodePanel::SNode>* VisibleChildren = static_cast<TSlotlessChildren<SNodePanel::SNode>*>(GetGraphPanel()->GetChildren());
+
+	struct SNodeLessThanSort
+	{
+		FORCEINLINE bool operator()(const TSharedRef<SNodePanel::SNode>& A, const TSharedRef<SNodePanel::SNode>& B) const { return A.Get() < B.Get(); }
+	};
+
+	VisibleChildren->Sort(SNodeLessThanSort());
 }
 
 void SDisplayClusterConfiguratorGraphEditor::Construct(const FArguments& InArgs, const TSharedRef<FDisplayClusterConfiguratorBlueprintEditor>& InToolkit, const TSharedRef<FDisplayClusterConfiguratorViewOutputMapping>& InViewOutputMapping)

@@ -38,7 +38,7 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorOutputMappingToolbar::MakeToolBar
 	const FDisplayClusterConfiguratorCommands& Commands = IDisplayClusterConfigurator::Get().GetCommands();
 
 	// Use a custom style
-	FName ToolBarStyle = "ViewportMenu";
+	FName ToolBarStyle = "EditorViewportToolBar";
 	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
@@ -53,39 +53,46 @@ TSharedRef<SWidget> SDisplayClusterConfiguratorOutputMappingToolbar::MakeToolBar
 				SNew(SEditorViewportToolbarMenu)
 				.ParentToolBar(SharedThis(this))
 				.Cursor(EMouseCursor::Default)
-				.Image("EditorViewportToolBar.MenuDropdown")
+				.Image("EditorViewportToolBar.OptionsDropdown")
 				.OnGetMenuContent(this, &SDisplayClusterConfiguratorOutputMappingToolbar::MakeAdvancedMenu)
 			]
 		);
 	}
 	ToolbarBuilder.EndSection();
 
+	ToolbarBuilder.BeginSection("ClusterItems");
+	{
+		ToolbarBuilder.BeginBlockGroup();
+		{
+			ToolbarBuilder.AddToolBarButton(Commands.ToggleWindowInfo,
+				NAME_None,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleWindowInfo"),
+				"ToggleWindowInfo"
+			);
+
+			ToolbarBuilder.AddToolBarButton(Commands.ToggleWindowCornerImage,
+				NAME_None,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleWindowCornerImage"),
+				"ToggleWindowCornerImage"
+			);
+			ToolbarBuilder.AddToolBarButton(Commands.ToggleOutsideViewports,
+				NAME_None,
+				TAttribute<FText>(),
+				TAttribute<FText>(),
+				FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleOutsideViewports"),
+				"ToggleOutsideViewports"
+			);
+		}
+		ToolbarBuilder.EndBlockGroup();
+	}
+	ToolbarBuilder.EndSection();
+
 	ToolbarBuilder.BeginSection("View");
 	{
-		ToolbarBuilder.AddToolBarButton(Commands.ToggleWindowInfo,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleWindowInfo"),
-			"ToggleWindowInfo"
-			);
-
-		ToolbarBuilder.AddToolBarButton(Commands.ToggleWindowCornerImage,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleWindowCornerImage"),
-			"ToggleWindowCornerImage"
-			);
-
-		ToolbarBuilder.AddToolBarButton(Commands.ToggleOutsideViewports,
-			NAME_None,
-			TAttribute<FText>(),
-			TAttribute<FText>(),
-			FSlateIcon(FDisplayClusterConfiguratorStyle::GetStyleSetName(), "DisplayClusterConfigurator.OutputMapping.ToggleOutsideViewports"),
-			"ToggleOutsideViewports"
-			);
-
 		ToolbarBuilder.AddToolBarButton(Commands.ZoomToFit,
 			NAME_None,
 			TAttribute<FText>(),
