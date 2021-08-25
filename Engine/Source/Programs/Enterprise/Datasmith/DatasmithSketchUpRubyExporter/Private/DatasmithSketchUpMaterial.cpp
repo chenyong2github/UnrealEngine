@@ -19,6 +19,8 @@
 #include "SketchUpAPI/model/entity.h"
 #include "SketchUpAPI/model/model.h"
 #include "SketchUpAPI/model/texture.h"
+#include "SketchUpAPI/model/typed_value.h"
+#include "SketchUpAPI/model/rendering_options.h"
 #include "DatasmithSketchUpSDKCeases.h"
 
 // Datasmith SDK.
@@ -144,9 +146,8 @@ namespace DatasmithSketchUp
 		FString MaterialLabel = FDatasmithUtils::SanitizeObjectName(InMaterial.SketchupSourceName);
 		DatasmithMaterialElementPtr->SetLabel(*MaterialLabel);
 
-		// Convert the SketchUp sRGB color to a Datasmith linear color.
-		FColor       SRGBColor(InMaterial.SourceColor.red, InMaterial.SourceColor.green, InMaterial.SourceColor.blue, InMaterial.bSourceColorAlphaUsed ? InMaterial.SourceColor.alpha : 255);
-		FLinearColor LinearColor(SRGBColor);
+		
+		FLinearColor LinearColor = FMaterial::ConvertColor(InMaterial.SourceColor, InMaterial.bSourceColorAlphaUsed);
 
 		DatasmithMaterialElementPtr->SetTwoSided(false);// todo: consider this
 
@@ -248,9 +249,40 @@ void FMaterial::Invalidate(FExportContext& Context)
 
 TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext& Context)
 {
+	TSharedPtr<FMaterialOccurrence> Result = MakeShared<FMaterialOccurrence>();
+	Result->DatasmithElement = CreateDefaultMaterialElement(Context);
+	return Result;
+}
+
+FLinearColor FMaterial::ConvertColor(const SUColor& C, bool bAlphaUsed)
+{
+	FColor SRGBColor(C.red, C.green, C.blue, bAlphaUsed ? C.alpha : 255);
+	return FLinearColor(SRGBColor);
+}
+
+TSharedRef<IDatasmithBaseMaterialElement> FMaterial::CreateDefaultMaterialElement(FExportContext& Context)
+{
 	TSharedRef<IDatasmithUEPbrMaterialElement> DatasmithMaterialElementPtr = FDatasmithSceneFactory::CreateUEPbrMaterial(TEXT("Default"));
 
 	FLinearColor LinearColor(0.5, 0.5, 0.5, 1);
+
+	// Retrieve Front Face color current Style - Styles api doesn't have a way to access it, using RenderingOptions instead
+	SURenderingOptionsRef RenderingOptionsRef = SU_INVALID;
+	if (SUModelGetRenderingOptions(Context.ModelRef, &RenderingOptionsRef) == SU_ERROR_NONE)
+	{
+		
+		SUTypedValueRef ColorTypedValue = SU_INVALID;
+		SUTypedValueCreate(&ColorTypedValue);
+		if (SURenderingOptionsGetValue(RenderingOptionsRef, "FaceFrontColor", &ColorTypedValue) == SU_ERROR_NONE)
+		{
+			SUColor Color;
+			if (SUTypedValueGetColor(ColorTypedValue, &Color) == SU_ERROR_NONE)
+			{
+				LinearColor = ConvertColor(Color);
+			}
+		}
+		SUTypedValueRelease(&ColorTypedValue);
+	}
 
 	DatasmithMaterialElementPtr->SetTwoSided(false);// todo: consider this
 
@@ -261,10 +293,7 @@ TSharedPtr<FMaterialOccurrence> FMaterial::CreateDefaultMaterial(FExportContext&
 
 	Context.DatasmithScene->AddMaterial(DatasmithMaterialElementPtr);
 
-	TSharedPtr<FMaterialOccurrence> Result = MakeShared<FMaterialOccurrence>();
-	Result->DatasmithElement = DatasmithMaterialElementPtr;
-
-	return Result;
+	return DatasmithMaterialElementPtr;
 }
 
 void FMaterial::Remove(FExportContext& Context)

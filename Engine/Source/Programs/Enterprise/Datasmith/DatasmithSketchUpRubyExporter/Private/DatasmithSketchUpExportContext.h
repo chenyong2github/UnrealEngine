@@ -185,6 +185,8 @@ namespace DatasmithSketchUp
 		bool InvalidateMaterial(FMaterialIDType MateriadId);
 		bool RemoveMaterial(FEntityIDType EntityId);
 
+		bool InvalidateDefaultMaterial();
+
 
 		TSharedPtr<FMaterial>* Find(FMaterialIDType MaterialID)
 		{

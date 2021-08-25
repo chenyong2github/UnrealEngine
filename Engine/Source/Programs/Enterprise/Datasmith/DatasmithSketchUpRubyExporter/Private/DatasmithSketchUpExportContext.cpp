@@ -594,3 +594,13 @@ bool FMaterialCollection::RemoveMaterial(FEntityIDType EntityId)
 	}
 	return false;
 }
+
+bool FMaterialCollection::InvalidateDefaultMaterial()
+{
+	Context.DatasmithScene->RemoveMaterial(DefaultMaterial->DatasmithElement);
+
+	DefaultMaterial->DatasmithElement = FMaterial::CreateDefaultMaterialElement(Context);
+
+	return false;
+}
+

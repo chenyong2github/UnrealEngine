@@ -41,6 +41,11 @@ namespace DatasmithSketchUp
 		static TSharedPtr<FMaterial> Create(FExportContext& Context, SUMaterialRef InMaterialRef);
 
 		static TSharedPtr<FMaterialOccurrence> CreateDefaultMaterial(FExportContext& Context);
+		static TSharedRef<IDatasmithBaseMaterialElement> CreateDefaultMaterialElement(FExportContext& Context);
+
+		// Convert the SketchUp sRGB color to a Datasmith linear color.
+		static FLinearColor ConvertColor(const SUColor& C, bool bAlphaUsed = false);
+
 
 		// Indicate that this material is used as directly applied on a mesh
 		FMaterialOccurrence& RegisterGeometry(FEntitiesGeometry*);
