@@ -1463,6 +1463,9 @@ protected:
 			TopologyTimestamp++;
 		}
 	}
+
+	/** Returns the internal version number used during serialization. This is used for testing purposes. */
+	static int SerializeInternal_LatestVersion();
 };
 
 
