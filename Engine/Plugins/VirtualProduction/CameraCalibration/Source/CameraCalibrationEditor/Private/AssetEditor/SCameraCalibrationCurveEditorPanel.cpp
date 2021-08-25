@@ -116,6 +116,7 @@ TSharedPtr<FExtender> SCameraCalibrationCurveEditorPanel::GetToolbarExtender()
 		static void FillToolbar(FToolBarBuilder& ToolBarBuilder, TSharedRef<SCurveKeyDetailPanel> InKeyDetailsPanel, TSharedRef<SCameraCalibrationCurveEditorPanel> InEditorPanel)
 		{
 			ToolBarBuilder.BeginSection("View");
+			ToolBarBuilder.BeginStyleOverride("AssetEditorToolbar");
 			{
 				// Dropdown Menu for choosing your viewing mode
 				TAttribute<FSlateIcon> ViewModeIcon;

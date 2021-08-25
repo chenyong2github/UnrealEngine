@@ -128,7 +128,7 @@ struct FCameraCalibrationMenuEntryImpl
 				NAME_None,
 				LOCTEXT("LensFile_Label", "Lens File"),
 				MakeAttributeLambda(TooltipLambda),
-				FSlateIcon(FCameraCalibrationEditorStyle::GetStyleSetName(), TEXT("ToolbarIcon.LensFile"))
+				FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), TEXT("ToolbarIcon.LensFile"))
 			);
 
 			// Add a simple drop-down menu (no label, no icon for the drop-down button itself) that list the lens files available
@@ -154,7 +154,7 @@ struct FCameraCalibrationMenuEntryImpl
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("CreateMenuLabel", "New Empty Lens File"),
 				LOCTEXT("CreateMenuTooltip", "Create a new Lens File asset."),
-				FSlateIcon(FCameraCalibrationEditorStyle::GetStyleSetName(), TEXT("ClassIcon.LensFile")),
+				FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), TEXT("ClassIcon.LensFile")),
 				FUIAction(
 					FExecuteAction::CreateRaw(this, &FCameraCalibrationMenuEntryImpl::CreateNewLensFile)
 				)

@@ -183,6 +183,7 @@ void SLiveLinkSubjectRepresentationPicker::Construct(const FArguments& InArgs)
 			.SelectAllTextOnCommit(true)
 			.ClearKeyboardFocusOnCommit(false)
 			.Font(InArgs._Font)
+			.Style(FLiveLinkEditorPrivate::GetStyleSet(), "EditableTextBox")
 		];
 	}
 
@@ -191,9 +192,9 @@ void SLiveLinkSubjectRepresentationPicker::Construct(const FArguments& InArgs)
 		SAssignNew(PickerComboButton, SComboButton)
 		.ComboButtonStyle(InArgs._ComboButtonStyle)
 		.ButtonStyle(InArgs._ButtonStyle)
-		.ForegroundColor(InArgs._ForegroundColor)
+		.ForegroundColor(FSlateColor::UseForeground())
 		.ContentPadding(InArgs._ContentPadding)
-		.VAlign(VAlign_Fill)
+		.VAlign(VAlign_Center)
 		.OnGetMenuContent(this, &SLiveLinkSubjectRepresentationPicker::BuildMenu)
 		.ButtonContent()
 		[

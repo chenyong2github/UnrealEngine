@@ -32,7 +32,7 @@ DEFINE_LOG_CATEGORY(LogCameraCalibrationEditor);
 void FCameraCalibrationEditorModule::StartupModule()
 {
 	FCameraCalibrationCommands::Register();
-	FCameraCalibrationEditorStyle::Register();
+	FCameraCalibrationEditorStyle::Get();
 
 	// Register AssetTypeActions
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
@@ -80,6 +80,7 @@ const FPlacementCategoryInfo* FCameraCalibrationEditorModule::GetVirtualProducti
 	{
 		FPlacementCategoryInfo Info(
 			LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
+			FSlateIcon(FCameraCalibrationEditorStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
 			VirtualProductionName,
 			TEXT("PMVirtualProduction"),
 			25
@@ -180,7 +181,6 @@ void FCameraCalibrationEditorModule::ShutdownModule()
 			}
 		}
 
-		FCameraCalibrationEditorStyle::Unregister();
 		FCameraCalibrationCommands::Unregister();
 
 		UnregisterPlacementModeItems();

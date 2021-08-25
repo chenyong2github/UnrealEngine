@@ -136,37 +136,40 @@ void SLensDataAddPointDialog::Construct(const FArguments& InArgs, ULensFile* InL
 			[
 				SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
 				.AutoWidth()
 				[
 					SNew(STextBlock)
-					.Text(LOCTEXT("DataCategoryLabel", "Data Type "))
+					.Text(LOCTEXT("DataCategoryLabel", "Data Type"))
+					.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+					.TransformPolicy(ETextTransformPolicy::ToUpper)
 				]
 				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				[
-					SNew(STextBlock)
-					.Text(MakeAttributeLambda([=]
-					{
-							switch (SelectedCategory)
-							{
-								case ELensDataCategory::Focus: return LOCTEXT("FocusCategory", "Encoder - Focus");
-								case ELensDataCategory::Iris: return LOCTEXT("IrisCategory", "Encoder - Iris");
-								case ELensDataCategory::Zoom: return LOCTEXT("ZoomCategory", "Focal Length");
-								case ELensDataCategory::Distortion: return LOCTEXT("DistortionCategory", "Distortion Parameters");
-								case ELensDataCategory::ImageCenter: return LOCTEXT("ImageCenterCategory", "Image Center");
-								case ELensDataCategory::NodalOffset: return LOCTEXT("NodalOffsetCategory", "Nodal offset");
-								case ELensDataCategory::STMap: return LOCTEXT("STMapCategory", "STMap");
-								default: return LOCTEXT("InvalidCategory", "Invalid");
-							}
-					}))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
+				.HAlign(HAlign_Right)
 				.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 				[
 					SNew(SComboButton)
 					.OnGetMenuContent(this, &SLensDataAddPointDialog::MakeDataCategoryMenuWidget)
 					.ContentPadding(FMargin(4.0, 2.0))
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(MakeAttributeLambda([=]
+						{
+							switch (SelectedCategory)
+							{
+							case ELensDataCategory::Focus: return LOCTEXT("FocusCategory", "Encoder - Focus");
+							case ELensDataCategory::Iris: return LOCTEXT("IrisCategory", "Encoder - Iris");
+							case ELensDataCategory::Zoom: return LOCTEXT("ZoomCategory", "Focal Length");
+							case ELensDataCategory::Distortion: return LOCTEXT("DistortionCategory", "Distortion Parameters");
+							case ELensDataCategory::ImageCenter: return LOCTEXT("ImageCenterCategory", "Image Center");
+							case ELensDataCategory::NodalOffset: return LOCTEXT("NodalOffsetCategory", "Nodal offset");
+							case ELensDataCategory::STMap: return LOCTEXT("STMapCategory", "STMap");
+							default: return LOCTEXT("InvalidCategory", "Invalid");
+							}
+						}))
+					]
 				]
 			]
 		]
@@ -251,20 +254,23 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeTrackingDataWidget()
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
+			.Padding(0.f, 8.f, 0.f, 8.f)
 			.VAlign(VAlign_Center)
 			[
 				SNew(SCheckBox)
 				.IsChecked(MakeAttributeLambda([this, Index]() { return IsTrackingDataOverrided(Index) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; }))
 				.OnCheckStateChanged(this, &SLensDataAddPointDialog::OnOverrideTrackingData, Index)
+				.ToolTipText(LOCTEXT("TrackingDataCheckboxTooltip", "Check to override incoming tracking data for this input"))
 			]
 			+ SHorizontalBox::Slot()
-			.FillWidth(0.2f)
+			.VAlign(VAlign_Center)
+			.Padding(4.f, 0.f, 0.f, 0.f)
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(Label))
 			]
 			+ SHorizontalBox::Slot()
-			.FillWidth(0.8f)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SNumericEntryBox<float>)
 				.IsEnabled(MakeAttributeLambda([this, Index]() { return IsTrackingDataOverrided(Index); }))
@@ -296,12 +302,10 @@ TSharedRef<SWidget> SLensDataAddPointDialog::MakeTrackingDataWidget()
 			TrackingWidget = 
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
-				.AutoHeight()
 				[
 					MakeRowWidget(TEXT("Input Focus"), 0)
 				]
 				+ SVerticalBox::Slot()
-				.AutoHeight()
 				[
 					MakeRowWidget(TEXT("Input Zoom"), 1)
 				];

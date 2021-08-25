@@ -27,6 +27,7 @@
 #include "Curves/LensSTMapCurveModel.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Misc/MessageDialog.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 
 
@@ -339,36 +340,39 @@ TSharedRef<SWidget> SLensDataViewer::MakeToolbarWidget(TSharedRef<SCameraCalibra
 {
 	// Curve toolbar
 	FToolBarBuilder ToolBarBuilder(CurvePanel->GetCommands(), FMultiBoxCustomization::None, CurvePanel->GetToolbarExtender(), true);
-	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 	ToolBarBuilder.BeginSection("Asset");
-	
+	ToolBarBuilder.BeginStyleOverride("AssetEditorToolbar");
+
 	TSharedRef<SWidget> AddPointButton =
 			 SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Center)
+			.ToolTipText(LOCTEXT("AddLensDataPoint", "Add a lens data point"))
 			.OnClicked_Lambda([this]()
 			{
 				OnAddDataPointHandler();
 				return FReply::Handled();
 			})
 			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-				.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-				.ColorAndOpacity(FLinearColor::White)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
 			];
 
 	TSharedRef<SWidget> ClearAllButton =
 			SNew(SButton)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.VAlign(VAlign_Center)
+			.ToolTipText(LOCTEXT("DeleteLensData", "Delete all calibrated lens data"))
 			.OnClicked(this, &SLensDataViewer::OnClearLensFileClicked)
 			[
-				SNew(STextBlock)
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
-				.Text(FText::FromString(FString(TEXT("\xf1f8"))) /*fa-trash*/)
-				.ColorAndOpacity(FLinearColor::White)
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 			];
 
+	ToolBarBuilder.AddSeparator();
 	ToolBarBuilder.AddWidget(AddPointButton);
+	ToolBarBuilder.AddSeparator();
 	ToolBarBuilder.AddWidget(ClearAllButton);
 		
 	ToolBarBuilder.EndSection();

@@ -6,6 +6,7 @@
 #include "ScopedTransaction.h"
 #include "SLensDataEditPointDialog.h"
 #include "UI/CameraCalibrationEditorStyle.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "SCameraCalibrationRemovePointDialog.h"
 
@@ -230,12 +231,11 @@ void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 				.OnClicked(this, &SLensDataItem::OnEditPointClicked)
 				.IsEnabled(InArgs._AllowEditPoint)
 				.Visibility(InArgs._EditPointVisibility)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
+				.ToolTipText(LOCTEXT("EditLensDataPoint", "Edit the value at this point"))
 				[
-					SNew(STextBlock)
-					.TextStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.Button.TextStyle")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Edit"))
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -244,12 +244,11 @@ void SLensDataItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 				SNew(SButton)
 				.IsEnabled(InArgs._AllowRemoval)
 				.OnClicked(this, &SLensDataItem::OnRemovePointClicked)
-				.ButtonStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.RemoveButton")
+				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ToolTipText(LOCTEXT("RemoveLensDataPoint", "Remove this point"))
 				[
-					SNew(STextBlock)
-					.TextStyle(FCameraCalibrationEditorStyle::Get(), "CameraCalibration.Button.TextStyle")
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-					.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.Delete"))
 				]
 			]
 		], OwnerTable);
