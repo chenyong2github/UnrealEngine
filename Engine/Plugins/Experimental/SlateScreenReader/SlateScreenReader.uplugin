@@ -23,7 +23,9 @@
 			"WhitelistPlatforms" :
 			[
 				"Win64",
-				"Mac"
+				"Mac",
+				"Linux",
+				"LinuxArm64"
 			],
 			"BlacklistTargets" :
 			[
