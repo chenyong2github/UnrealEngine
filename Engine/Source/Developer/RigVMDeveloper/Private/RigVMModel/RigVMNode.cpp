@@ -476,8 +476,7 @@ TArray<int32> URigVMNode::GetInstructionsForVMImpl(URigVM* InVM, const FRigVMAST
 	if(InProxy.IsValid())
 	{
 		const FRigVMASTProxy Proxy = InProxy.GetChild((UObject*)this);
-		const FString CallPath = Proxy.GetCallstack().GetCallPath();
-		return InVM->GetByteCode().GetAllInstructionIndicesForCallPath(CallPath, false, true);
+		return InVM->GetByteCode().GetAllInstructionIndicesForCallstack(Proxy.GetCallstack().GetStack());
 	}
 	else
 	{

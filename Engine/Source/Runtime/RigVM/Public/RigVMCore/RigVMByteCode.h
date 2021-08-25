@@ -1006,8 +1006,21 @@ public:
 	// returns all found instruction indices for a given callpath
 	TArray<int32> GetAllInstructionIndicesForCallPath(const FString& InCallPath, bool bStartsWith = false, bool bEndsWith = false) const;
 
+	// returns the first hit instruction index for a given callpath (or INDEX_NONE)
+	int32 GetFirstInstructionIndexForCallstack(const TArray<UObject*>& InCallstack) const;
+
+	// returns all found instruction indices for a given callpath
+	const TArray<int32>& GetAllInstructionIndicesForCallstack(const TArray<UObject*>& InCallstack) const;
+
 	// returns the callstack which was used to inject a given instruction
 	const TArray<UObject*>* GetCallstackForInstruction(int32 InInstructionIndex) const;
+
+	// returns the callstack hash which was used to inject a given instruction
+	uint32 GetCallstackHashForInstruction(int32 InInstructionIndex) const;
+
+	// computes a hash for a given callstack
+	static uint32 GetCallstackHash(const TArray<UObject*>& InCallstack);
+	static uint32 GetCallstackHash(const TArrayView<UObject* const>& InCallstack);
 
 #endif
 
@@ -1040,6 +1053,8 @@ private:
 	TArray<FString> CallPathPerInstruction;
 	TMap<FString, TArray<int32>> CallPathToInstructions;
 	TArray<TArray<UObject*>> CallstackPerInstruction;
+	TMap<uint32, TArray<int32>> CallstackHashToInstructions;
+	TArray<uint32> CallstackHashPerInstruction;
 
 #endif
 

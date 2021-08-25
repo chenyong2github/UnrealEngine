@@ -663,6 +663,8 @@ void FRigVMByteCode::Reset()
 	CallPathPerInstruction.Reset();
 	CallPathToInstructions.Reset();
 	CallstackPerInstruction.Reset();
+	CallstackHashToInstructions.Reset();
+	CallstackHashPerInstruction.Reset();
 #endif
 }
 
@@ -679,6 +681,8 @@ void FRigVMByteCode::Empty()
 	CallPathPerInstruction.Empty();
 	CallPathToInstructions.Empty();
 	CallstackPerInstruction.Empty();
+	CallstackHashToInstructions.Empty();
+	CallstackHashPerInstruction.Empty();
 #endif
 }
 
@@ -1702,6 +1706,32 @@ TArray<int32> FRigVMByteCode::GetAllInstructionIndicesForCallPath(const FString&
 	return MatchedInstructions;
 }
 
+int32 FRigVMByteCode::GetFirstInstructionIndexForCallstack(const TArray<UObject*>& InCallstack) const
+{
+	const TArray<int32>& InstructionIndices = GetAllInstructionIndicesForCallstack(InCallstack);
+	if (InstructionIndices.Num() > 0)
+	{
+		return InstructionIndices[0];
+	}
+	return INDEX_NONE;
+}
+
+const TArray<int32>& FRigVMByteCode::GetAllInstructionIndicesForCallstack(const TArray<UObject*>& InCallstack) const
+{
+	if(InCallstack.IsEmpty())
+	{
+		return EmptyInstructionIndices;
+	}
+
+	const uint32 Hash = GetCallstackHash(InCallstack);
+	if(const TArray<int32>* Instructions = CallstackHashToInstructions.Find(Hash))
+	{
+		return *Instructions;
+	}
+	
+	return EmptyInstructionIndices;
+}
+
 void FRigVMByteCode::SetSubject(int32 InInstructionIndex, const FString& InCallPath, const TArray<UObject*>& InCallstack)
 {
 	UObject* Subject = InCallstack.Last();
@@ -1724,6 +1754,20 @@ void FRigVMByteCode::SetSubject(int32 InInstructionIndex, const FString& InCallP
 		CallstackPerInstruction.AddZeroed(1 + InInstructionIndex - CallstackPerInstruction.Num());
 	}
 	CallstackPerInstruction[InInstructionIndex] = InCallstack;
+
+	if (CallstackHashPerInstruction.Num() <= InInstructionIndex)
+	{
+		CallstackHashPerInstruction.AddZeroed(1 + InInstructionIndex - CallstackHashPerInstruction.Num());
+	}
+	CallstackHashPerInstruction[InInstructionIndex] = GetCallstackHash(InCallstack);
+
+	for(int32 CallstackLength = InCallstack.Num(); CallstackLength > 0; CallstackLength--)
+	{
+		UObject* const* DataPtr = &InCallstack[InCallstack.Num() - CallstackLength];
+		TArrayView<UObject* const> View(DataPtr, CallstackLength);
+		uint32 Hash = GetCallstackHash(View);
+		CallstackHashToInstructions.FindOrAdd(Hash).Add(InInstructionIndex);
+	}
 }
 
 const TArray<UObject*>* FRigVMByteCode::GetCallstackForInstruction(int32 InInstructionIndex) const
@@ -1733,6 +1777,36 @@ const TArray<UObject*>* FRigVMByteCode::GetCallstackForInstruction(int32 InInstr
 		return &CallstackPerInstruction[InInstructionIndex];
 	}
 	return nullptr;
+}
+
+uint32 FRigVMByteCode::GetCallstackHashForInstruction(int32 InInstructionIndex) const
+{
+	if (CallstackHashPerInstruction.IsValidIndex(InInstructionIndex))
+	{
+		return CallstackHashPerInstruction[InInstructionIndex];
+	}
+	return 0;
+}
+
+uint32 FRigVMByteCode::GetCallstackHash(const TArray<UObject*>& InCallstack)
+{
+	UObject*const * DataPtr = nullptr;
+	if(InCallstack.Num() > 0)
+	{
+		DataPtr = &InCallstack[0];
+	}
+	TArrayView<UObject* const> View(DataPtr, InCallstack.Num());
+	return GetCallstackHash(View);
+}
+
+uint32 FRigVMByteCode::GetCallstackHash(const TArrayView<UObject* const>& InCallstack)
+{
+	uint32 Hash = GetTypeHash(InCallstack.Num());
+	for(const UObject* Object : InCallstack)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Object));
+	}
+	return Hash;
 }
 
 #endif
