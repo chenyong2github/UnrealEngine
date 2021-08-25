@@ -65,6 +65,7 @@ struct FPropertyInstanceInfo
 	FText DisplayName;
 	FText Value;
 	FText Type;
+	TWeakObjectPtr<UObject> Object = nullptr; // only filled if property is a UObject
 	TFieldPath<FProperty> Property;
 	TArray<TSharedPtr<FPropertyInstanceInfo>> Children;
 };
