@@ -59,7 +59,6 @@
 #include "GeometryCollection/GeometryCollectionTestSpatialHash.h"
 #include "GeometryCollection/GeometryCollectionTestVisibility.h"
 #include "GeometryCollection/GeometryCollectionTestEvents.h"
-#include "GeometryCollection/GeometryCollectionTestSkeletalMeshPhysicsProxy.h"
 #include "GeometryCollection/GeometryCollectionTestSerialization.h"
 
 #include "CompGeom/ExactPredicates.h"
