@@ -114,6 +114,8 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 		// Send HDR meta data to enable
 		D3DRHI->EnableHDR();
 	}
+	
+	DXGI_FORMAT SwapChainFormat = GetRenderTargetFormat(PixelFormat);
 
 	// Skip swap chain creation in off-screen rendering mode
 	bNeedSwapChain = !FParse::Param(FCommandLine::Get(), TEXT("RenderOffScreen"));
@@ -136,7 +138,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				SwapChainDesc1.SampleDesc.Count = 1;
 				SwapChainDesc1.SampleDesc.Quality = 0;
 
-				SwapChainDesc1.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+				SwapChainDesc1.Format = SwapChainFormat;
 				SwapChainDesc1.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
 				// Double buffering required to create stereo swap chain
 				SwapChainDesc1.BufferCount = 2;
@@ -165,7 +167,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 			SwapChainDesc.Height = SizeY;
 			SwapChainDesc.SampleDesc.Count = 1;
 			SwapChainDesc.SampleDesc.Quality = 0;
-			SwapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+			SwapChainDesc.Format = SwapChainFormat;
 			SwapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT | DXGI_USAGE_SHADER_INPUT;
 
 			DXGI_SWAP_CHAIN_FULLSCREEN_DESC FSSwapChainDesc = {};

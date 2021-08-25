@@ -336,7 +336,8 @@ void FSlateRHIRenderer::CreateViewport(const TSharedRef<SWindow> Window)
 		NewInfo->DesiredWidth = Width;
 		NewInfo->DesiredHeight = Height;
 		NewInfo->ProjectionMatrix = CreateProjectionMatrix( Width, Height );
-		if (bIsStandaloneStereoOnlyDevice)
+		// In MobileLDR case backbuffer format should match or be compatible with a SceneColor format in FSceneRenderTargets::GetDesiredMobileSceneColorFormat()
+		if (bIsStandaloneStereoOnlyDevice || (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && !IsMobileHDR()))
 		{
 			NewInfo->PixelFormat = GetSlateRecommendedColorFormat();
 		}
