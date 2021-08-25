@@ -7591,8 +7591,6 @@ void FBlueprintEditorUtils::UpdateStalePinWatches( UBlueprint* Blueprint )
 		{
 			FKismetDebugUtilities::AddPinWatch(Blueprint, Pin);
 		}
-
-		Blueprint->Status = BS_Dirty;
 	}
 }
 
