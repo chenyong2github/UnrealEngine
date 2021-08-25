@@ -6462,6 +6462,7 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 					static const TCHAR PublicFolderName[] = TEXT("Public/");
 					static const TCHAR PrivateFolderName[] = TEXT("Private/");
 					static const TCHAR ClassesFolderName[] = TEXT("Classes/");
+					static const TCHAR InternalFolderName[] = TEXT("Internal/");
 					if (FCString::Strnicmp(IncludePath, PublicFolderName, UE_ARRAY_COUNT(PublicFolderName) - 1) == 0)
 					{
 						IncludePath += (UE_ARRAY_COUNT(PublicFolderName) - 1);
@@ -6473,6 +6474,10 @@ void PrepareModules(TArray<FUnrealPackageDefinitionInfo*>& PackageDefs, const FS
 					else if (FCString::Strnicmp(IncludePath, ClassesFolderName, UE_ARRAY_COUNT(ClassesFolderName) - 1) == 0)
 					{
 						IncludePath += (UE_ARRAY_COUNT(ClassesFolderName) - 1);
+					}
+					else if (FCString::Strnicmp(IncludePath, InternalFolderName, UE_ARRAY_COUNT(InternalFolderName) - 1) == 0)
+					{
+						IncludePath += (UE_ARRAY_COUNT(InternalFolderName) - 1);
 					}
 
 					// Add the include path
