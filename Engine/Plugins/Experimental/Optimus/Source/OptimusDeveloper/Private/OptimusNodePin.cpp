@@ -93,8 +93,16 @@ FText UOptimusNodePin::GetTooltipText() const
 	// FIXME: We probably want a specialized widget for this in SOptimusEditorGraphNode::MakeTableRowWidget
 	if (StorageType == EOptimusNodePinStorageType::Value)
 	{
-		return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Value", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tValue"),
-			FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()) );
+		if (DataType->ShaderValueType.IsValid())
+		{
+			return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_ShaderValue", "Name:\t{0}\nType:\t{1} ({2})\nStorage:\tValue"),
+				FText::FromString(GetName()), DataType->DisplayName, FText::FromString(DataType->ShaderValueType->ToString()) );
+		}
+		else
+		{
+			return FText::FormatOrdered(LOCTEXT("OptimusNodePin_Tooltip_Value", "Name:\t{0}\nType:\t{1}\nStorage:\tValue"),
+				FText::FromString(GetName()), DataType->DisplayName);
+		}
 	}
 	else
 	{
