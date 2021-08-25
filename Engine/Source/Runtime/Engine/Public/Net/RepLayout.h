@@ -771,7 +771,8 @@ enum class ERepLayoutCmdType : uint8
 	PropertyNativeBool		= 21,
 	PropertySoftObject		= 22,
 	PropertyWeakObject		= 23,
-	NetSerializeStructWithObjectReferences = 24,
+	PropertyInterface		= 24,
+	NetSerializeStructWithObjectReferences = 25,
 };
 
 /** Various flags that describe how a Top Level Property should be handled. */
