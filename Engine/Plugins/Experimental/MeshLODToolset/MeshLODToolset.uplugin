@@ -33,7 +33,8 @@
 		},
 		{
 			"Name": "MeshModelingToolsetExp",
-			"Enabled": true
+			"Enabled": true,
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{
 			"Name": "EditorScriptingUtilities",
