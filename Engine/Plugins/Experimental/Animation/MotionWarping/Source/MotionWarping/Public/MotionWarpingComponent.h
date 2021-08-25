@@ -47,14 +47,6 @@ class MOTIONWARPING_API UMotionWarpingUtilities : public UBlueprintFunctionLibra
 
 public:
 
-	/** Extracts data from a MotionWarpingSyncPoint */
-	UFUNCTION(BlueprintPure, Category = "Motion Warping", meta = (NativeBreakFunc))
-	static void BreakMotionWarpingSyncPoint(const FMotionWarpingSyncPoint& SyncPoint, FVector& Location, FRotator& Rotation);
-
-	/** Create a MotionWarpingSyncPoint struct */
-	UFUNCTION(BlueprintPure, Category = "Motion Warping", meta = (NativeMakeFunc))
-	static FMotionWarpingSyncPoint MakeMotionWarpingSyncPoint(FVector Location, FRotator Rotation);
-
 	/** Extract bone pose in local space for all bones in BoneContainer. If Animation is a Montage the pose is extracted from the first track */
 	static void ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose);
 
@@ -72,9 +64,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static void GetMotionWarpingWindowsFromAnimation(const UAnimSequenceBase* Animation, TArray<FMotionWarpingWindowData>& OutWindows);
 
-	/** @return All the MotionWarping windows within the supplied animation for a given Sync Point */
+	/** @return All the MotionWarping windows within the supplied animation for a given Warp Target */
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	static void GetMotionWarpingWindowsForSyncPointFromAnimation(const UAnimSequenceBase* Animation, FName WarpTargetName, TArray<FMotionWarpingWindowData>& OutWindows);
+	static void GetMotionWarpingWindowsForWarpTargetFromAnimation(const UAnimSequenceBase* Animation, FName WarpTargetName, TArray<FMotionWarpingWindowData>& OutWindows);
 };
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMotionWarpingPreUpdate, class UMotionWarpingComponent*, MotionWarpingComp);
@@ -104,17 +96,6 @@ public:
 	/** Returns the list of root motion modifiers */
 	FORCEINLINE const TArray<URootMotionModifier*>& GetModifiers() const { return Modifiers; }
 
-	/** Find the SyncPoint associated with a specified name */
-	FORCEINLINE const FMotionWarpingSyncPoint* FindSyncPoint(const FName& SyncPointName) const { return SyncPoints.Find(SyncPointName); }
-
-	/** Adds or update the sync point associated with a specified name */
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	void AddOrUpdateSyncPoint(FName Name, const FMotionWarpingSyncPoint& SyncPoint);
-
-	/** Removes sync point associated with the specified key  */
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	int32 RemoveSyncPoint(FName Name);
-
 	/** Check if we contain a RootMotionModifier for the supplied animation and time range */
 	bool ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
 
@@ -127,6 +108,58 @@ public:
 
 	URootMotionModifier* AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 
+	/** Find the target associated with a specified name */
+	FORCEINLINE const FMotionWarpingTarget* FindWarpTarget(const FName& WarpTargetName) const { return WarpTargetMap.Find(WarpTargetName); }
+
+	/** Adds or update a target associated with a specified name */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	void AddOrUpdateWarpTarget(FName WarpTargetName, const FMotionWarpingTarget& WarpTarget);
+
+	/** 
+	 * Create and adds or update a target associated with a specified name 
+	 * @param WarpTargetName Warp target identifier
+	 * @param TargetTransform Transform used to set the location and rotation for the warp target
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	void AddOrUpdateWarpTargetFromTransform(FName WarpTargetName, FTransform TargetTransform);
+
+	/**
+	 * Create and adds or update a target associated with a specified name
+	 * @param WarpTargetName Warp target identifier
+	 * @param Component Scene Component used to get the target transform
+	 * @param BoneName Optional bone or socket in the component used to get the target transform. 
+	 * @param bFollowComponent Whether the target transform should update while the warping is active. Useful for tracking moving targets.
+	 *		  Note that this will be one frame off if our owner ticks before the target actor. Add tick pre-requisites to avoid this.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	void AddOrUpdateWarpTargetFromComponent(FName WarpTargetName, const USceneComponent* Component, FName BoneName, bool bFollowComponent);
+
+	/**
+	 * Create and adds or update a target associated with a specified name
+	 * @param WarpTargetName Warp target identifier
+	 * @param TargetLocation Location for the warp target
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	void AddOrUpdateWarpTargetFromLocation(FName WarpTargetName, FVector TargetLocation)
+	{
+		AddOrUpdateWarpTargetFromTransform(WarpTargetName, FTransform(TargetLocation));
+	}
+
+	/**
+	 * Create and adds or update a target associated with a specified name
+	 * @param WarpTargetName Warp target identifier
+	 * @param TargetLocation Location for the warp target
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	void AddOrUpdateWarpTargetFromLocationAndRotation(FName WarpTargetName, FVector TargetLocation, FRotator TargetRotation)
+	{
+		AddOrUpdateWarpTargetFromTransform(WarpTargetName, FTransform(TargetRotation, TargetLocation));
+	}
+
+	/** Removes the warp target associated with the specified key  */
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	int32 RemoveWarpTarget(FName WarpTargetName);
+
 protected:
 
 	/** Character this component belongs to */
@@ -138,7 +171,7 @@ protected:
 	TArray<URootMotionModifier*> Modifiers;
 
 	UPROPERTY(Transient)
-	TMap<FName, FMotionWarpingSyncPoint> SyncPoints;
+	TMap<FName, FMotionWarpingTarget> WarpTargetMap;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	TOptional<FVector> OriginalRootMotionAccum;

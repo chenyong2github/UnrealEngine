@@ -82,15 +82,16 @@ FTransform URootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(const FTra
 
 	// Debug
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() > 0)
+	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
+	if (DebugLevel == 1 || DebugLevel == 3)
 	{
 		PrintLog(TEXT("AdjustmentBlendWarp"), InRootMotion, FinalRootMotion);
+	}
 
-		if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() >= 2)
-		{
-			const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
-			DrawDebugWarpedTracks(DrawDebugDuration);
-		}
+	if (DebugLevel == 2 || DebugLevel == 3)
+	{
+		const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
+		DrawDebugWarpedTracks(DrawDebugDuration);
 	}
 #endif
 
@@ -366,15 +367,15 @@ void URootMotionModifier_AdjustmentBlendWarp::DrawDebugWarpedTracks(float DrawDu
 			{
 				for (int32 FrameIdx = 0; FrameIdx < Result.AnimationTracks[TrackIndex].PosKeys.Num() - 1; FrameIdx++)
 				{
-					FTransform StartTransform;
-					ExtractBoneTransformAtFrame(StartTransform, TrackIndex, FrameIdx);
-					StartTransform = StartTransform * RootStartTransform.Inverse() * CachedMeshTransform;
+					FTransform T1;
+					ExtractBoneTransformAtFrame(T1, TrackIndex, FrameIdx);
+					T1 = T1 * RootStartTransform.Inverse() * CachedMeshTransform;
 
-					FTransform EndTransform;
-					ExtractBoneTransformAtFrame(EndTransform, TrackIndex, FrameIdx + 1);
-					EndTransform = EndTransform * RootStartTransform.Inverse() * CachedMeshTransform;
+					FTransform T2;
+					ExtractBoneTransformAtFrame(T2, TrackIndex, FrameIdx + 1);
+					T2 = T2 * RootStartTransform.Inverse() * CachedMeshTransform;
 
-					DrawDebugLine(World, StartTransform.GetLocation(), EndTransform.GetLocation(), FColor::Yellow, false, DrawDuration, 0, 0.5f);
+					DrawDebugLine(World, T1.GetLocation(), T2.GetLocation(), FColor::Yellow, false, DrawDuration, 0, 0.5f);
 				}
 			}
 		}

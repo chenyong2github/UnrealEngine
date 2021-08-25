@@ -83,9 +83,6 @@ protected:
 	UPROPERTY()
 	FAnimSequenceTrackContainer Result;
 
-	UPROPERTY()
-	float ActualStartTime = 0.f;
-
 	void PrecomputeWarpedTracks();
 
 	FTransform ExtractWarpedRootMotion() const;

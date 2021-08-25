@@ -152,15 +152,15 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 	// Debug
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
-	if (DebugLevel > 0)
+	if (DebugLevel == 1 || DebugLevel == 3)
 	{
 		PrintLog(TEXT("SkewWarp"), InRootMotion, FinalRootMotion);
+	}
 
-		if (DebugLevel >= 2)
-		{
-			const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
-			DrawDebugCoordinateSystem(CharacterOwner->GetWorld(), GetTargetLocation(), GetTargetRotator(), 50.f, false, DrawDebugDuration, 0, 1.f);
-		}
+	if (DebugLevel == 2 || DebugLevel == 3)
+	{
+		const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
+		DrawDebugCoordinateSystem(CharacterOwner->GetWorld(), GetTargetLocation(), GetTargetRotator(), 50.f, false, DrawDebugDuration, 0, 1.f);
 	}
 #endif
 
