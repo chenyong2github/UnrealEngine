@@ -2964,6 +2964,16 @@ void FControlRigEditor::Tick(float DeltaTime)
 			}
 		}
 	}
+
+	if(WeakGroundActorPtr.IsValid())
+	{
+		const TSharedRef<IPersonaPreviewScene> CurrentPreviewScene = GetPersonaToolkit()->GetPreviewScene();
+		WeakGroundActorPtr->GetStaticMeshComponent()->SetVisibility(CurrentPreviewScene->GetFloorVisibility());
+
+		const float FloorOffset = CurrentPreviewScene->GetFloorOffset();
+		const FTransform FloorTransform(FRotator(0, 0, 0), FVector(0, 0, -(FloorOffset)), FVector(4.0f, 4.0f, 1.0f));
+		WeakGroundActorPtr->GetStaticMeshComponent()->SetRelativeTransform(FloorTransform);
+	}
 }
 
 bool FControlRigEditor::IsEditable(UEdGraph* InGraph) const
@@ -3692,6 +3702,8 @@ void FControlRigEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPrevi
 	GroundActor->GetStaticMeshComponent()->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	GroundActor->GetStaticMeshComponent()->SetCollisionProfileName(UCollisionProfile::BlockAll_ProfileName);
 	GroundActor->GetStaticMeshComponent()->bSelectable = false;
+
+	WeakGroundActorPtr = GroundActor;
 
 	AAnimationEditorPreviewActor* Actor = InPersonaPreviewScene->GetWorld()->SpawnActor<AAnimationEditorPreviewActor>(AAnimationEditorPreviewActor::StaticClass(), FTransform::Identity);
 	Actor->SetFlags(RF_Transient);

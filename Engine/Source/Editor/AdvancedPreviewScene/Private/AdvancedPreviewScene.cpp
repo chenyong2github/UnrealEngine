@@ -193,6 +193,11 @@ FLinearColor FAdvancedPreviewScene::GetBackgroundColor() const
 	return Color * DefaultSettings->Profiles[CurrentProfileIndex].EnvironmentIntensity;
 }
 
+float FAdvancedPreviewScene::GetFloorOffset() const
+{
+	return -(float)FloorMeshComponent->GetRelativeTransform().GetLocation().Z;
+}
+
 void FAdvancedPreviewScene::SetFloorOffset(const float InFloorOffset)
 {
 	FTransform FloorTransform(FRotator(0, 0, 0), FVector(0, 0, -(InFloorOffset)), FVector(4.0f, 4.0f, 1.0f));
@@ -303,6 +308,15 @@ const bool FAdvancedPreviewScene::HandleInputKey(FViewport* InViewport, int32 Co
 		}
 	}
 
+	return false;
+}
+
+bool FAdvancedPreviewScene::GetFloorVisibility() const
+{
+	if(FloorMeshComponent)
+	{
+		return FloorMeshComponent->GetVisibleFlag();
+	}
 	return false;
 }
 
