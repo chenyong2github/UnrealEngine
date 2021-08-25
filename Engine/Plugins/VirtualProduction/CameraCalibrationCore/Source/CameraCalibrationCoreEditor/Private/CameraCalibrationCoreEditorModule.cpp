@@ -8,6 +8,7 @@
 #include "ActorFactories/ActorFactory.h"
 #include "CalibrationPointComponent.h"
 #include "CalibrationPointComponentDetails.h"
+#include "CameraCalibrationCoreEditorStyle.h"
 #include "DistortionHandlerPickerDetailCustomization.h"
 #include "Editor.h"
 #include "IPlacementModeModule.h"
@@ -23,6 +24,8 @@ DEFINE_LOG_CATEGORY(LogCameraCalibrationCoreEditor);
 
 void FCameraCalibrationCoreEditorModule::StartupModule()
 {
+	FCameraCalibrationCoreEditorStyle::Get();
+
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(
@@ -82,6 +85,7 @@ const FPlacementCategoryInfo* FCameraCalibrationCoreEditorModule::GetVirtualProd
 	{
 		FPlacementCategoryInfo Info(
 			LOCTEXT("VirtualProductionCategoryName", "Virtual Production"),
+			FSlateIcon(FCameraCalibrationCoreEditorStyle::Get().GetStyleSetName(), "PlacementBrowser.Icons.VirtualProduction"),
 			VirtualProductionName,
 			TEXT("PMVirtualProduction"),
 			25 // Determines where the category shows up in the list with respect to the others.

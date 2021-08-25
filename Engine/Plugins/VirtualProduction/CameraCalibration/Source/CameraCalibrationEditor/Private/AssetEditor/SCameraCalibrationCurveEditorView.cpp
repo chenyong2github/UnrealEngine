@@ -278,9 +278,9 @@ void SCameraCalibrationCurveEditorView::PaintView(const FPaintArgs& Args, const 
 			const FLensDataCurveModel* const LensDataCurveModel = static_cast<const FLensDataCurveModel* const>(Curve);
 
 			// Draw an axis descriptor for the current curve editor view
-			const FText AxisDescriptor = FText::Format(LOCTEXT("CurveEditorTooltipName", "X-Axis: {0}   Y-Axis: {1} {2}"), LensDataCurveModel->GetKeyLabel(), LensDataCurveModel->GetLongDisplayName(), LensDataCurveModel->GetValueLabel());
+			const FText AxisDescriptor = FText::Format(LOCTEXT("CurveEditorAxisDescriptor", "X-Axis: {0}   Y-Axis: {1} {2}"), LensDataCurveModel->GetKeyLabel(), LensDataCurveModel->GetLongDisplayName(), LensDataCurveModel->GetValueLabel());
 
-			const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("FontAwesome.11");
+			const FSlateFontInfo FontInfo = FAppStyle::Get().GetFontStyle("CurveEd.LabelFont");
 			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			const ESlateDrawEffect DrawEffects = ShouldBeEnabled(bParentEnabled) ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 

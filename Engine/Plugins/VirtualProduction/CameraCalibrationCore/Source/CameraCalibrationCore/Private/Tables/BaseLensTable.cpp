@@ -7,11 +7,11 @@ FName FBaseLensTable::GetFriendlyPointName(ELensDataCategory InCategory)
 {
 	switch (InCategory)
 	{
-		case ELensDataCategory::Zoom: return TEXT("Focal Length Point");
-		case ELensDataCategory::Distortion: return TEXT("Distortion Point");
-		case ELensDataCategory::ImageCenter: return TEXT("Image Center Point");
-		case ELensDataCategory::STMap: return TEXT("ST Map Point");
-		case ELensDataCategory::NodalOffset: return TEXT("Nodal Offset Point");
+		case ELensDataCategory::Zoom: return TEXT("Focal Length");
+		case ELensDataCategory::Distortion: return TEXT("Distortion Parameters");
+		case ELensDataCategory::ImageCenter: return TEXT("Image Center");
+		case ELensDataCategory::STMap: return TEXT("ST Map");
+		case ELensDataCategory::NodalOffset: return TEXT("Nodal Offset");
 	}
 
 	return TEXT("");

@@ -15,7 +15,7 @@ class FCameraCalibrationCommands : public TCommands<FCameraCalibrationCommands>
 public:
 
 	FCameraCalibrationCommands()
-		: TCommands<FCameraCalibrationCommands>(TEXT("CameraCalibration"), NSLOCTEXT("CameraCalibrationCommands", "CameraCalibrationCommandsEdit", "CameraCalibration"), NAME_None, FCameraCalibrationEditorStyle::GetStyleSetName())
+		: TCommands<FCameraCalibrationCommands>(TEXT("CameraCalibration"), NSLOCTEXT("CameraCalibrationCommands", "CameraCalibrationCommandsEdit", "CameraCalibration"), NAME_None, FCameraCalibrationEditorStyle::Get().GetStyleSetName())
 	{}
 	
 	/**

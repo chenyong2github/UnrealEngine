@@ -126,6 +126,17 @@ public:
 			.SetMenuBorderPadding(FMargin(0.0f));
 		StyleSet->Set("ComboButton", ComboButton);
 
+		FEditableTextBoxStyle EditableTextStyle = FEditableTextBoxStyle()
+			.SetFont(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+			.SetBackgroundImageNormal(FSlateNoResource())
+			.SetBackgroundImageHovered(FSlateNoResource())
+			.SetBackgroundImageFocused(FSlateNoResource())
+			.SetBackgroundImageReadOnly(FSlateNoResource())
+			.SetBackgroundColor(FLinearColor::Transparent)
+			.SetForegroundColor(FSlateColor::UseForeground());
+
+		StyleSet->Set("EditableTextBox", EditableTextStyle);
+
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 
 		RegisterSettings();

@@ -348,7 +348,7 @@ void SCameraCalibrationRemovePointDialog::Construct(const FArguments& InArgs, co
 		return;
 	}
 	
-	const FText DialogText = FText::Format(LOCTEXT("DialogTextLabel", "Select points to remove which have same raw input than {0}"), FText::FromName(BaseDataTable->GetScriptStruct()->GetFName()));
+	const FText DialogText = LOCTEXT("DialogTextLabel", "The calibration data you wish to delete may be inherently linked to additional data.\nChoose any and all linked data you wish to delete.");
 
 	const TSharedPtr<SWidget> ButtonsWidget = [this]()
 	{
