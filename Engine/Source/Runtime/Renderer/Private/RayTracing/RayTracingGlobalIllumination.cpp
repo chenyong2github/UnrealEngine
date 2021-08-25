@@ -722,6 +722,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIllumination(const FV
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIlluminationDeferredMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!ShouldRenderRayTracingGlobalIllumination(View))
+	{
+		return;
+	}
+
 	const bool bSortMaterials = CVarRayTracingGlobalIlluminationFinalGatherSortMaterials.GetValueOnRenderThread() != 0;
 	int EnableTransmission = CVarRayTracingGlobalIlluminationEnableTransmission.GetValueOnRenderThread();
 

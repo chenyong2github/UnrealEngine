@@ -268,9 +268,7 @@ namespace Lumen
 			return true;
 		}
 
-		if (View.Family
-			&& View.Family->EngineShowFlags.VisualizeLumenScene
-			&& Lumen::ShouldVisualizeHardwareRayTracing())
+		if (Lumen::ShouldVisualizeHardwareRayTracing(View))
 		{
 			return true;
 		}

@@ -116,12 +116,14 @@ namespace Lumen
 #endif
 	}
 
-	bool ShouldVisualizeHardwareRayTracing()
+	bool ShouldVisualizeHardwareRayTracing(const FViewInfo& View)
 	{
 		bool bVisualize = false;
 #if RHI_RAYTRACING
 		bVisualize = IsRayTracingEnabled()
 			&& Lumen::UseHardwareRayTracing()
+			&& View.Family
+			&& View.Family->EngineShowFlags.VisualizeLumenScene
 			&& (CVarLumenVisualizeHardwareRayTracing.GetValueOnRenderThread() != 0);
 #endif
 		return bVisualize;
@@ -484,7 +486,7 @@ IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeApplySkylightCS, "/Engine/Private/Lumen/L
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualize(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 	// Shading pass
-	if (Lumen::ShouldVisualizeHardwareRayTracing())
+	if (Lumen::ShouldVisualizeHardwareRayTracing(View))
 	{
 		for (int TraceMode = static_cast<int>(ETraceMode::HitLightingRetrace); TraceMode < static_cast<int>(ETraceMode::MAX); ++TraceMode)
 		{
@@ -501,7 +503,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualizeLumen
 	// Fixed-function lighting version
 	Lumen::FHardwareRayTracingPermutationSettings PermutationSettings = Lumen::GetVisualizeHardwareRayTracingPermutationSettings();
 
-	if (Lumen::ShouldVisualizeHardwareRayTracing())
+	if (Lumen::ShouldVisualizeHardwareRayTracing(View))
 	{
 		{
 			FLumenVisualizeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
