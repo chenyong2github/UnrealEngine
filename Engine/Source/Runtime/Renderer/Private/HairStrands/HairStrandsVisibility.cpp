@@ -2130,6 +2130,8 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 		});
 	}
 
+	// Ensure HTile is valid after manually feeding the scene depth value
+	AddResummarizeHTilePass(GraphBuilder, OutVisibilityDepthTexture);
 
 	return OutVisibilityDepthTexture;
 }
