@@ -66,10 +66,7 @@
 		{
 			"Name": "ModelProtoFileReader",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64"
-			]
+			"LoadingPhase": "Default"
 		}
 	]
 }
