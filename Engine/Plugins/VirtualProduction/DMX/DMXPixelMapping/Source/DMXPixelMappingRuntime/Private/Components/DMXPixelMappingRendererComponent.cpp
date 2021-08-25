@@ -478,24 +478,34 @@ void UDMXPixelMappingRendererComponent::RendererInputTexture()
 {
 	Initialize();
 
-#if WITH_EDITOR
 	switch (RendererType)
 	{
-	case(EDMXPixelMappingRendererType::Texture) :
-		// Nothing
-		if (InputTexture != nullptr &&  InputTexture->Resource != nullptr)
+	case(EDMXPixelMappingRendererType::Texture):
+		// No rendering required
+		break;
+
+	case(EDMXPixelMappingRendererType::Material):
+		PixelMappingRenderer->RenderMaterial(InputRenderTarget, InputMaterial);
+		break;
+
+	case(EDMXPixelMappingRendererType::UMG):
+		PixelMappingRenderer->RenderWidget(InputRenderTarget, UserWidget);
+		break;
+	default:
+		checkNoEntry(); // Unknown renderer type
+	}
+
+#if WITH_EDITOR
+	if (RendererType == EDMXPixelMappingRendererType::Texture)
+	{
+		if (InputTexture != nullptr && InputTexture->Resource != nullptr)
 		{
 			ResizePreviewRenderTarget(InputTexture->Resource->GetSizeX(), InputTexture->Resource->GetSizeY());
 		}
-		break;
-	case(EDMXPixelMappingRendererType::Material):
-		PixelMappingRenderer->RenderMaterial(InputRenderTarget, InputMaterial);
+	}
+	else
+	{
 		ResizePreviewRenderTarget(SizeX, SizeY);
-		break;
-	case(EDMXPixelMappingRendererType::UMG):
-		PixelMappingRenderer->RenderWidget(InputRenderTarget, UserWidget);
-		ResizePreviewRenderTarget(SizeX, SizeY);
-		break;
 	}
 #endif
 }
