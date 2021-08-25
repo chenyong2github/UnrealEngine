@@ -39,7 +39,7 @@ namespace Lumen
 	bool AnyLumenHardwareRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View);
 	bool IsSoftwareRayTracingSupported();
 	bool IsLumenFeatureAllowedForView(const FScene* Scene, const FSceneView& View, bool bSkipTracingDataCheck = false, bool bSkipProjectCheck = false);
-	bool ShouldVisualizeHardwareRayTracing();
+	bool ShouldVisualizeHardwareRayTracing(const FViewInfo& View);
 	bool ShouldHandleSkyLight(const FScene* Scene, const FSceneViewFamily& ViewFamily);
 	bool UseVirtualShadowMaps();
 	void ExpandDistanceFieldUpdateTrackingBounds(const FSceneViewState* ViewState, DistanceField::FUpdateTrackingBounds& UpdateTrackingBounds);
@@ -58,7 +58,7 @@ namespace Lumen
 	bool IsSurfaceCacheUpdateFrameFrozen();
 
 	// Software ray tracing
-	bool UseVoxelLighting();
+	bool UseVoxelLighting(const FViewInfo& View);
 
 	// Hardware ray tracing
 	bool UseHardwareRayTracing();

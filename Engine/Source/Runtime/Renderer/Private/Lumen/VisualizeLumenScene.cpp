@@ -412,7 +412,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 	if (Lumen::IsLumenFeatureAllowedForView(Scene, View) 
 		&& bAnyLumenActive 
-		&& (Lumen::ShouldVisualizeHardwareRayTracing() || Lumen::IsSoftwareRayTracingSupported()))
+		&& (Lumen::ShouldVisualizeHardwareRayTracing(View) || Lumen::IsSoftwareRayTracingSupported()))
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenScene");
 
@@ -465,7 +465,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 			const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 			const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize();
 
-			if (Lumen::ShouldVisualizeHardwareRayTracing())
+			if (Lumen::ShouldVisualizeHardwareRayTracing(Views[0]))
 			{
 				FLumenIndirectTracingParameters IndirectTracingParameters;
 				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;

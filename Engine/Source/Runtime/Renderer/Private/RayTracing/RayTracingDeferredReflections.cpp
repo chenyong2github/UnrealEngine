@@ -310,6 +310,11 @@ IMPLEMENT_GLOBAL_SHADER(FRayTracingDeferredReflectionsRGS, "/Engine/Private/RayT
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!ShouldRenderRayTracingReflections(View))
+	{
+		return;
+	}
+
 	FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
 
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread() == 1;
@@ -391,6 +396,11 @@ static void AddReflectionResolvePass(
 
 void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflectionsDeferredMaterial(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!ShouldRenderRayTracingReflections(View))
+	{
+		return;
+	}
+
 	FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
 
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread() == 1;

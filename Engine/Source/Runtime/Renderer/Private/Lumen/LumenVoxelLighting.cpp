@@ -106,7 +106,7 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingForceMovementUpdate(
 constexpr uint32 GNumVoxelDirections = 6;
 constexpr uint32 GVisBufferTileSize = 4;
 
-bool Lumen::UseVoxelLighting()
+bool Lumen::UseVoxelLighting(const FViewInfo& View)
 {
 	if (!Lumen::IsSoftwareRayTracingSupported())
 	{
@@ -119,7 +119,7 @@ bool Lumen::UseVoxelLighting()
 		&& Lumen::UseHardwareRayTracedReflections()
 		&& Lumen::UseHardwareRayTracedRadianceCache()
 		&& Lumen::UseHardwareRayTracedTranslucencyVolume()
-		&& Lumen::ShouldVisualizeHardwareRayTracing())
+		&& Lumen::ShouldVisualizeHardwareRayTracing(View))
 	{
 		return false;
 	}
@@ -1083,7 +1083,7 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 	LLM_SCOPE_BYTAG(Lumen);
 
 	const FViewInfo& View = Views[0];
-	if (!Lumen::UseVoxelLighting())
+	if (!Lumen::UseVoxelLighting(View))
 	{
 		// No need for voxel lighting, skip update and release resources
 		View.ViewState->Lumen.VoxelVisBuffer = nullptr;

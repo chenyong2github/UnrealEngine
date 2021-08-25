@@ -508,6 +508,11 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingReflectionsDeferredMaterial
 
 void FDeferredShadingSceneRenderer::PrepareSingleLayerWaterRayTracingReflections(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
+	if (!ShouldRenderRayTracingReflections(View))
+	{
+		return;
+	}
+
 	const bool bHybridReflections = ShouldRayTracedReflectionsUseHybridReflections();
 	const bool bRayTraceSkyLightContribution = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
 
