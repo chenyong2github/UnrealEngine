@@ -214,11 +214,7 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 		Outputs.Add(INDEX_NONE);
 	}
 
-	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-
-	// First compile fully down the hierarchy for our predecessors..
-	TArray<FCompiledPin, TInlineAllocator<16>> CompileInputs;
-	CompileInputs.Reserve(InputPins.Num());
+	// update the translator with the culled function calls before compiling any further
 	for (UEdGraphPin* InputPin : InputPins)
 	{
 		if (IsAddPin(InputPin))
@@ -227,6 +223,19 @@ void UNiagaraNodeParameterMapSet::Compile(class FHlslNiagaraTranslator* Translat
 		}
 
 		if (Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
+		{
+			Translator->CullMapSetInputPin(InputPin);
+		}
+	}
+
+	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
+
+	// First compile fully down the hierarchy for our predecessors..
+	TArray<FCompiledPin, TInlineAllocator<16>> CompileInputs;
+	CompileInputs.Reserve(InputPins.Num());
+	for (UEdGraphPin* InputPin : InputPins)
+	{
+		if (IsAddPin(InputPin) || Translator->IsFunctionVariableCulledFromCompilation(InputPin->PinName))
 		{
 			continue;
 		}
