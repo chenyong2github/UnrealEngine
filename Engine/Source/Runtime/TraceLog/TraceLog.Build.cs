@@ -10,11 +10,6 @@ public class TraceLog : ModuleRules
 	{
 		bRequiresImplementModule = false;
 		PublicIncludePathModuleNames.Add("Core");
-	
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicDefinitions.Add("PLATFORM_SUPPORTS_PLATFORM_EVENTS=1");
-		}
     }
 
 	// used by platform extension derived classes. probably should become a project setting at some point!
