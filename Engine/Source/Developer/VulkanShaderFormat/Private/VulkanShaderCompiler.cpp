@@ -2402,6 +2402,48 @@ static void BuildShaderInterfaceVariableMetaData(const SpvReflectInterfaceVariab
 	}
 }
 
+static uint32 CalculateSpirvInstructionCount(FSpirv& Spirv)
+{
+	// Count instructions inside functions
+	bool bInsideFunction = false;
+	uint32 ApproxInstructionCount = 0;
+	int32 SpvIndex = 5;  //skip headers
+	while (SpvIndex < Spirv.Data.Num())
+	{
+		const uint32 CurrentWord = Spirv.Data[SpvIndex];
+		const SpvOp CurrentOp = (SpvOp)(CurrentWord & 0xFFFF);
+		const uint32 CurrentNodeWordCount = (CurrentWord >> 16) & 0xFFFF;
+		if (CurrentOp == SpvOpFunction)
+		{
+			check(!bInsideFunction);
+			bInsideFunction = true;
+		}
+		else if (CurrentOp == SpvOpFunctionEnd)
+		{
+			check(bInsideFunction);
+			bInsideFunction = false;
+		}
+		else if (bInsideFunction)
+		{
+			// Skip a few more ops that show up often but don't result in much work on their own
+			if ((CurrentOp != SpvOpLabel) &&
+				(CurrentOp != SpvOpAccessChain) &&
+				(CurrentOp != SpvOpSelectionMerge) &&
+				(CurrentOp != SpvOpCompositeConstruct) &&
+				(CurrentOp != SpvOpCompositeInsert) &&
+				(CurrentOp != SpvOpCompositeExtract))
+			{
+				++ApproxInstructionCount;
+			}
+		}
+
+		SpvIndex += CurrentNodeWordCount;
+	}
+	check(!bInsideFunction);
+
+	return ApproxInstructionCount;
+}
+
 static void BuildShaderOutputFromSpirv(
 	FSpirv&						Spirv,
 	const FShaderCompilerInput& Input,
@@ -2798,13 +2840,15 @@ static void BuildShaderOutputFromSpirv(
 	Spirv.Data = TArray<uint32>(Reflection.GetCode(), Reflection.GetCodeSize() / 4);
 	PatchSpirvReflectionEntriesAndEntryPoint(Spirv);
 
+	const uint32 ApproxInstructionCount = CalculateSpirvInstructionCount(Spirv);
+
 	BuildShaderOutput(
 		Output,
 		Input,
 		TCHAR_TO_ANSI(*MetaData),
 		MetaData.Len(),
 		BindingTable,
-		/*NumLines*/0,
+		ApproxInstructionCount,
 		Spirv,
 		DebugName,
 		bHasRealUBs,
