@@ -48,9 +48,9 @@ namespace HordeServer.Compute.Impl
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/compute/{ChannelId}")]
-		public async Task AddTasksAsync([FromRoute] string ChannelId, [FromBody] AddTasksRequest Request)
+		public async Task AddTasksAsync([FromRoute] ChannelId ChannelId, [FromBody] AddTasksRequest Request)
 		{
-			await ComputeService.AddTasksAsync(Impl.ComputeService.DefaultNamespaceId, Request.RequirementsHash, Request.TaskHashes, new ChannelId(ChannelId));
+			await ComputeService.AddTasksAsync(Impl.ComputeService.DefaultNamespaceId, Request.RequirementsHash, Request.TaskHashes, ChannelId);
 		}
 
 		/// <summary>
@@ -62,17 +62,17 @@ namespace HordeServer.Compute.Impl
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/compute/{ChannelId}/updates")]
-		public async Task<GetTaskUpdatesResponse> GetUpdatesAsync([FromRoute] string ChannelId, [FromQuery] int Wait = 0)
+		public async Task<GetTaskUpdatesResponse> GetUpdatesAsync([FromRoute] ChannelId ChannelId, [FromQuery] int Wait = 0)
 		{
 			List<IComputeTaskStatus> Results;
 			if (Wait == 0)
 			{
-				Results = await ComputeService.GetTaskUpdatesAsync(new ChannelId(ChannelId));
+				Results = await ComputeService.GetTaskUpdatesAsync(ChannelId);
 			}
 			else
 			{
 				using CancellationTokenSource DelaySource = new CancellationTokenSource(Wait * 1000);
-				Results = await ComputeService.WaitForTaskUpdatesAsync(new ChannelId(ChannelId), DelaySource.Token);
+				Results = await ComputeService.WaitForTaskUpdatesAsync(ChannelId, DelaySource.Token);
 			}
 
 			GetTaskUpdatesResponse Response = new GetTaskUpdatesResponse();
