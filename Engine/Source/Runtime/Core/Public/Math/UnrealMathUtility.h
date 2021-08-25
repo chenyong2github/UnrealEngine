@@ -31,9 +31,9 @@ DECLARE_LWC_TYPE(Plane, 4);
 struct  FBox;
 struct  FRotator;
 DECLARE_LWC_TYPE(Matrix, 44);
-struct  FQuat;
+DECLARE_LWC_TYPE(Quat, 4);
 struct  FTwoVectors;
-struct  FTransform;
+DECLARE_LWC_TYPE(Transform, 3);
 class  FSphere;
 struct FVector2D;
 struct FLinearColor;
@@ -146,6 +146,31 @@ class TRange;
 /*-----------------------------------------------------------------------------
 	Global functions.
 -----------------------------------------------------------------------------*/
+
+/**
+ * Template helper for FMath::Lerp<>() and related functions.
+ * By default, any type T is assumed to not need a custom Lerp implementation (IsRequired=false).
+ * However a class that requires custom functionality (eg FQuat) can specialize the template to define IsRequired=true and
+ * implement the Lerp() function and other similar functions and provide a custom implementation.
+ * Example:
+ * 
+ *	template<> struct TCustomLerp< MyClass >
+ *	{
+ *		// Required to use our custom Lerp() function below.
+ *		enum { IsRequired = true };
+ *
+ *		// Implements for float Alpha param. You could also add overrides or make it a template param.
+ *		static inline MyClass Lerp(const MyClass& A, const MyClass& B, const float& Alpha)
+ *		{
+ *			return MyClass::Lerp(A, B, Alpha); // Or do the computation here directly.
+ *		}
+ *	};
+ */
+template <typename T>
+struct TCustomLerp
+{
+	enum { IsRequired = false };
+};
 
 /**
  * Structure for all math helper functions, inherits from platform math to pick up platform-specific implementations
@@ -269,19 +294,18 @@ struct FMath : public FPlatformMath
 	 */
 	static FORCEINLINE bool IsNearlyEqual(float A, float B, float ErrorTolerance = SMALL_NUMBER)
 	{
-		return Abs<float>( A - B ) <= ErrorTolerance;
+		return Abs( A - B ) <= ErrorTolerance;
 	}
 
-	/**
-	 *	Checks if two floating point numbers are nearly equal.
-	 *	@param A				First number to compare
-	 *	@param B				Second number to compare
-	 *	@param ErrorTolerance	Maximum allowed difference for considering them as 'nearly equal'
-	 *	@return					true if A and B are nearly equal
-	 */
-	static FORCEINLINE bool IsNearlyEqual(double A, double B, double ErrorTolerance = SMALL_NUMBER)
+	static FORCEINLINE bool IsNearlyEqual(double A, double B, double ErrorTolerance = DOUBLE_SMALL_NUMBER)
 	{
-		return Abs<double>( A - B ) <= ErrorTolerance;
+		return Abs(A - B) <= ErrorTolerance;
+	}
+
+	// Overload to resolve common scenario with the first value from a variable and 2 hard-coded constants.
+	static FORCEINLINE bool IsNearlyEqual(double A, float B, float ErrorTolerance = SMALL_NUMBER)
+	{
+		return Abs(A - (double)B) <= (double)ErrorTolerance;
 	}
 
 	/**
@@ -632,6 +656,11 @@ public:
 	}
 #undef FASTASIN_HALF_PI
 
+	static FORCEINLINE double FastAsin(double Value)
+	{
+		// TODO: add fast approximation
+		return FMath::Asin(Value);
+	}
 
 	// Conversion Functions
 
@@ -667,10 +696,11 @@ public:
 	static CORE_API float ClampAngle(float AngleDegrees, float MinAngleDegrees, float MaxAngleDegrees);
 
 	/** Find the smallest angle between two headings (in degrees) */
-	static float FindDeltaAngleDegrees(float A1, float A2)
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static T FindDeltaAngleDegrees(T A1, T A2)
 	{
 		// Find the difference
-		float Delta = A2 - A1;
+		T Delta = A2 - A1;
 
 		// If change is larger than 180
 		if (Delta > 180.0f)
@@ -690,10 +720,11 @@ public:
 	}
 
 	/** Find the smallest angle between two headings (in radians) */
-	static float FindDeltaAngleRadians(float A1, float A2)
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static T FindDeltaAngleRadians(T A1, T A2)
 	{
 		// Find the difference
-		float Delta = A2 - A1;
+		T Delta = A2 - A1;
 
 		// If change is larger than PI
 		if (Delta > PI)
@@ -719,7 +750,8 @@ public:
 	}
 
 	/** Given a heading which may be outside the +/- PI range, 'unwind' it back into that range. */
-	static float UnwindRadians(float A)
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static T UnwindRadians(T A)
 	{
 		while(A > PI)
 		{
@@ -735,7 +767,8 @@ public:
 	}
 
 	/** Utility to ensure angle is between +/- 180 degrees by unwinding. */
-	static float UnwindDegrees(float A)
+	template<typename T, TEMPLATE_REQUIRES(TIsFloatingPoint<T>::Value)>
+	static T UnwindDegrees(T A)
 	{
 		while(A > 180.f)
 		{
@@ -881,10 +914,17 @@ public:
 	}
 
 	/** Performs a linear interpolation between two values, Alpha ranges from 0-1 */
-	template< class T, class U > 
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T,U>::Value)) >
 	static FORCEINLINE_DEBUGGABLE T Lerp( const T& A, const T& B, const U& Alpha )
 	{
 		return (T)(A + Alpha * (B-A));
+	}
+
+	/** Custom lerps defined for those classes not suited to the default implemenation. */
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	static FORCEINLINE_DEBUGGABLE T Lerp(const T& A, const T& B, const U& Alpha)
+	{
+		return TCustomLerp<T>::Lerp(A, B, Alpha);
 	}
 
 	/** Performs a linear interpolation between two values, Alpha ranges from 0-1. Handles full numeric range of T */
@@ -902,7 +942,7 @@ public:
 	}
 
 	/** Performs a 2D linear interpolation between four values values, FracX, FracY ranges from 0-1 */
-	template< class T, class U > 
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T, U>::Value)) >
 	static FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00,const T& P10,const T& P01,const T& P11, const U& FracX, const U& FracY)
 	{
 		return Lerp(
@@ -910,6 +950,13 @@ public:
 			Lerp(P01,P11,FracX),
 			FracY
 			);
+	}
+
+	/** Custom lerps defined for those classes not suited to the default implemenation. */
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	static FORCEINLINE_DEBUGGABLE T BiLerp(const T& P00, const T& P10, const T& P01, const T& P11, const U& FracX, const U& FracY)
+	{
+		return TCustomLerp<T>::BiLerp(P00, P10, P01, P11, FracX, FracY);
 	}
 
 	/**
@@ -921,13 +968,20 @@ public:
 	 *
 	 * @return  Interpolated value
 	 */
-	template< class T, class U > 
+	template< class T, class U, TEMPLATE_REQUIRES(!TCustomLerp<T>::IsRequired && (TIsFloatingPoint<U>::Value || TIsSame<T, U>::Value)) >
 	static FORCEINLINE_DEBUGGABLE T CubicInterp( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
 		const U A2 = A * A;
 		const U A3 = A2 * A;
 
 		return T((((2*A3)-(3*A2)+1) * P0) + ((A3-(2*A2)+A) * T0) + ((A3-A2) * T1) + (((-2*A3)+(3*A2)) * P1));
+	}
+
+	/** Custom lerps defined for those classes not suited to the default implemenation. */
+	template< class T, class U, TEMPLATE_REQUIRES(TCustomLerp<T>::IsRequired) >
+	static FORCEINLINE_DEBUGGABLE T CubicInterp(const T& P0, const T& T0, const T& P1, const T& T1, const U& A)
+	{
+		return TCustomLerp<T>::CubicInterp(P0, T0, P1, T1, A);
 	}
 
 	/**
@@ -939,7 +993,7 @@ public:
 	 *
 	 * @return  Interpolated value
 	 */
-	template< class T, class U > 
+	template< class T, class U, TEMPLATE_REQUIRES(TIsFloatingPoint<U>::Value) >
 	static FORCEINLINE_DEBUGGABLE T CubicInterpDerivative( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
 		T a = 6.f*P0 + 3.f*T0 + 3.f*T1 - 6.f*P1;
@@ -960,7 +1014,7 @@ public:
 	 *
 	 * @return  Interpolated value
 	 */
-	template< class T, class U > 
+	template< class T, class U, TEMPLATE_REQUIRES(TIsFloatingPoint<U>::Value) >
 	static FORCEINLINE_DEBUGGABLE T CubicInterpSecondDerivative( const T& P0, const T& T0, const T& P1, const T& T1, const U& A )
 	{
 		T a = 12.f*P0 + 6.f*T0 + 6.f*T1 - 12.f*P1;
@@ -1090,19 +1144,8 @@ public:
 	}
 
 	// Rotator specific interpolation
-	template< class U > static FRotator Lerp(const FRotator& A, const FRotator& B, const U& Alpha);
-	template< class U > static FRotator LerpRange(const FRotator& A, const FRotator& B, const U& Alpha);
-
-	// Quat-specific interpolation
-
-	template< class U > static FQuat Lerp(const FQuat& A, const FQuat& B, const U& Alpha);
-	template< class U > static FQuat BiLerp(const FQuat& P00, const FQuat& P10, const FQuat& P01, const FQuat& P11, float FracX, float FracY);
-
-	/**
-	 * In the case of quaternions, we use a bezier like approach.
-	 * T - Actual 'control' orientations.
-	 */
-	template< class U > static FQuat CubicInterp( const FQuat& P0, const FQuat& T0, const FQuat& P1, const FQuat& T1, const U& A);
+	static FRotator LerpRange(const FRotator& A, const FRotator& B, float Alpha);
+	static FRotator LerpRange(const FRotator& A, const FRotator& B, double Alpha);
 
 	/*
 	 *	Cubic Catmull-Rom Spline interpolation. Based on http://www.cemyuksel.com/research/catmullrom_param/catmullrom.pdf 
@@ -1208,10 +1251,12 @@ public:
 	static CORE_API FLinearColor CInterpTo(const FLinearColor& Current, const FLinearColor& Target, float DeltaTime, float InterpSpeed);
 
 	/** Interpolate quaternion from Current to Target with constant step (in radians) */
-	static CORE_API FQuat QInterpConstantTo(const FQuat& Current, const FQuat& Target, float DeltaTime, float InterpSpeed);
+	template< class T >
+	static CORE_API UE::Math::TQuat<T> QInterpConstantTo(const UE::Math::TQuat<T>& Current, const UE::Math::TQuat<T>& Target, float DeltaTime, float InterpSpeed);
 
 	/** Interpolate quaternion from Current to Target. Scaled by angle to Target, so it has a strong start speed and ease out. */
-	static CORE_API FQuat QInterpTo(const FQuat& Current, const FQuat& Target, float DeltaTime, float InterpSpeed);
+	template< class T >
+	static CORE_API UE::Math::TQuat<T> QInterpTo(const UE::Math::TQuat<T>& Current, const UE::Math::TQuat<T>& Target, float DeltaTime, float InterpSpeed);
 
 	/**
 	* Returns an approximation of Exp(-X) based on a Taylor expansion that has had the coefficients adjusted (using

@@ -11,7 +11,6 @@
 struct FGeometry;
 struct FNodalPointOffset;
 struct FPointerEvent;
-struct FTransform;
 
 class UNodalOffsetTool;
 class SWidget;

@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 
-struct FTransform;
 
 class UTexture2D;
 

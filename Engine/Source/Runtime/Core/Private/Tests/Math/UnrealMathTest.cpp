@@ -25,8 +25,8 @@
 DEFINE_LOG_CATEGORY_STATIC(LogUnrealMathTest, Log, All);
 
 // Create some temporary storage variables
-alignas(16) static float GScratch[16];
-alignas(16) static double GScratchDouble[16];
+alignas(alignof(VectorRegister4Float)) static float GScratch[16];
+alignas(alignof(VectorRegister4Double)) static double GScratchDouble[16];
 static float GSum;
 static double GSumDouble;
 static bool GPassing;
@@ -219,7 +219,7 @@ bool TestFVector3Equal( const FVector3f& Vec0, const FVector3f& Vec1, float Tole
 	return GSum <= Tolerance;
 }
 
-bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
+bool TestQuatsEqual(const FQuat4f& Q0, const FQuat4f& Q1, float Tolerance)
 {
 	GScratch[0] = Q0.X;
 	GScratch[1] = Q0.Y;
@@ -230,6 +230,23 @@ bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
 	GScratch[6] = Q1.Z;
 	GScratch[7] = Q1.W;
 	GSum = 0.f;
+
+	const bool bEqual = Q0.Equals(Q1, Tolerance);
+	CheckPassing(bEqual);
+	return bEqual;
+}
+
+bool TestQuatsEqual(const FQuat4d& Q0, const FQuat4d& Q1, double Tolerance)
+{
+	GScratchDouble[0] = Q0.X;
+	GScratchDouble[1] = Q0.Y;
+	GScratchDouble[2] = Q0.Z;
+	GScratchDouble[3] = Q0.W;
+	GScratchDouble[4] = Q1.X;
+	GScratchDouble[5] = Q1.Y;
+	GScratchDouble[6] = Q1.Z;
+	GScratchDouble[7] = Q1.W;
+	GSumDouble = 0.f;
 
 	const bool bEqual = Q0.Equals(Q1, Tolerance);
 	CheckPassing(bEqual);
@@ -269,7 +286,7 @@ bool TestFVector3Normalized(const FVector3f& Vec0, float Tolerance)
  *
  * @return true if normalized(ish)
  */
-bool TestQuatNormalized(const FQuat& Q0, float Tolerance)
+bool TestQuatNormalized(const FQuat4f& Q0, float Tolerance)
 {
 	GScratch[0] = Q0.X;
 	GScratch[1] = Q0.Y;
@@ -451,7 +468,7 @@ void TestVectorMatrixInverse(UE::Math::TMatrix<FReal>* DstMatrix, const UE::Math
  * @param MatrixM		FMatrix44f pointer to the Matrix to apply transform
  * @return VectorRegister4Float = VecP*MatrixM
  */
-VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP,  const void* MatrixM )
+VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP,  const FMatrix44f* MatrixM )
 {
 	typedef float Float4x4[4][4];
 	union U { 
@@ -474,7 +491,7 @@ VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP
 * @param Rotator FRotator 
 * @return Rotation as a quaternion.
 */
-MATHTEST_INLINE FQuat TestRotatorToQuaternion( const FRotator& Rotator)
+MATHTEST_INLINE FQuat4f TestRotatorToQuaternion( const FRotator& Rotator)
 {
 	const float Pitch = FMath::Fmod(Rotator.Pitch, 360.f);
 	const float Yaw = FMath::Fmod(Rotator.Yaw, 360.f);
@@ -487,7 +504,7 @@ MATHTEST_INLINE FQuat TestRotatorToQuaternion( const FRotator& Rotator)
 	const float SP = FMath::Sin(FMath::DegreesToRadians(Pitch * 0.5f));
 	const float SY = FMath::Sin(FMath::DegreesToRadians(Yaw   * 0.5f));
 
-	FQuat RotationQuat;
+	FQuat4f RotationQuat;
 	RotationQuat.W = CR*CP*CY + SR*SP*SY;
 	RotationQuat.X = CR*SP*SY - SR*CP*CY;
 	RotationQuat.Y = -CR*SP*CY - SR*CP*SY;
@@ -495,7 +512,7 @@ MATHTEST_INLINE FQuat TestRotatorToQuaternion( const FRotator& Rotator)
 	return RotationQuat;
 }
 
-MATHTEST_INLINE FVector3f TestQuaternionRotateVectorScalar(const FQuat& Quat, const FVector3f& Vector)
+MATHTEST_INLINE FVector3f TestQuaternionRotateVectorScalar(const FQuat4f& Quat, const FVector3f& Vector)
 {
 	// (q.W*q.W-qv.qv)v + 2(qv.v)qv + 2 q.W (qv x v)
 	const FVector3f qv(Quat.X, Quat.Y, Quat.Z);
@@ -507,18 +524,18 @@ MATHTEST_INLINE FVector3f TestQuaternionRotateVectorScalar(const FQuat& Quat, co
 }
 
 // Q * V * Q^-1
-MATHTEST_INLINE FVector3f TestQuaternionMultiplyVector(const FQuat& Quat, const FVector3f& Vector)
+MATHTEST_INLINE FVector3f TestQuaternionMultiplyVector(const FQuat4f& Quat, const FVector3f& Vector)
 {
-	FQuat VQ(Vector.X, Vector.Y, Vector.Z, 0.f);
-	FQuat VT, VR;
-	FQuat I = Quat.Inverse();
+	FQuat4f VQ(Vector.X, Vector.Y, Vector.Z, 0.f);
+	FQuat4f VT, VR;
+	FQuat4f I = Quat.Inverse();
 	VectorQuaternionMultiply(&VT, &Quat, &VQ);
 	VectorQuaternionMultiply(&VR, &VT, &I);
 
 	return FVector3f(VR.X, VR.Y, VR.Z);
 }
 
-MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat& Quat, const FVector3f &V)
+MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat4f& Quat, const FVector3f &V)
 {
 	const VectorRegister4Float Rotation = *((const VectorRegister4Float*)(&Quat));
 	const VectorRegister4Float InputVectorW0 = VectorLoadFloat3_W0(&V);
@@ -537,7 +554,7 @@ MATHTEST_INLINE FVector3f TestQuaternionRotateVectorRegister(const FQuat& Quat, 
 * @param Quat1	Pointer to the first quaternion (must not be the destination)
 * @param Quat2	Pointer to the second quaternion (must not be the destination)
 */
-void TestVectorQuaternionMultiply( void *Result, const void* Quat1, const void* Quat2)
+void TestVectorQuaternionMultiply( FQuat4f* Result, const FQuat4f* Quat1, const FQuat4f* Quat2)
 {
 	typedef float Float4[4];
 	const Float4& A = *((const Float4*) Quat1);
@@ -560,7 +577,7 @@ void TestVectorQuaternionMultiply( void *Result, const void* Quat1, const void* 
 /**
  * Converts a Quaternion to a Rotator.
  */
-FORCENOINLINE FRotator TestQuaternionToRotator(const FQuat& Quat)
+FORCENOINLINE FRotator TestQuaternionToRotator(const FQuat4f& Quat)
 {
 	const float X = Quat.X;
 	const float Y = Quat.Y;
@@ -604,7 +621,7 @@ FORCENOINLINE FRotator TestQuaternionToRotator(const FQuat& Quat)
 }
 
 
-FORCENOINLINE FQuat FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2)
+FORCENOINLINE FQuat4f FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2)
 {
 	const FVector3f cross = vec1 ^ vec2;
 	const float crossMag = cross.Size();
@@ -616,7 +633,7 @@ FORCENOINLINE FQuat FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2
 		const float Dot = vec1 | vec2;
 		if (Dot > -KINDA_SMALL_NUMBER)
 		{
-			return FQuat::Identity; // no rotation
+			return FQuat4f::Identity; // no rotation
 		}
 		// Exactly opposite..
 		else
@@ -628,7 +645,7 @@ FORCENOINLINE FQuat FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2
 			FVector3f AxisA, AxisB;
 			Vec.FindBestAxisVectors(AxisA, AxisB);
 
-			return FQuat(AxisA.X, AxisA.Y, AxisA.Z, 0.f); // (axis*sin(pi/2), cos(pi/2)) = (axis, 0)
+			return FQuat4f(AxisA.X, AxisA.Y, AxisA.Z, 0.f); // (axis*sin(pi/2), cos(pi/2)) = (axis, 0)
 		}
 	}
 
@@ -645,7 +662,7 @@ FORCENOINLINE FQuat FindBetween_Old(const FVector3f& vec1, const FVector3f& vec2
 	FMath::SinCos(&sinHalfAng, &cosHalfAng, 0.5f * angle);
 	const FVector3f axis = cross / crossMag;
 
-	return FQuat(
+	return FQuat4f(
 		sinHalfAng * axis.X,
 		sinHalfAng * axis.Y,
 		sinHalfAng * axis.Z,
@@ -708,7 +725,7 @@ void LogRotatorTest(const TCHAR* TestName, const FRotator& A, const FRotator& B,
 	}
 }
 
-void LogQuaternionTest(const TCHAR* TestName, const FQuat& A, const FQuat& B, bool bComparison)
+void LogQuaternionTest(const TCHAR* TestName, const FQuat4f& A, const FQuat4f& B, bool bComparison)
 {
 	if (bComparison == false)
 	{
@@ -2601,31 +2618,29 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 	}
 
-
-
-	FQuat Q0, Q1, Q2, Q3;
-
 	// Sin, Cos, Tan tests
 	TestVectorTrigFunctions<float, VectorRegister4Float>();
 
 	// Exp, Log tests
 	TestVectorExpLogFunctions<float, VectorRegister4Float>();
 
+	FQuat4f Q0, Q1, Q2, Q3;
+
 	// Quat<->Rotator conversions and equality
 	{
 		// Identity conversion
 		{
 			const FRotator R0 = FRotator::ZeroRotator;
-			const FRotator R1 = FRotator(FQuat::Identity);
-			LogRotatorTest(true, TEXT("FRotator::ZeroRotator ~= FQuat::Identity : Rotator"), R0, R1, R0.Equals(R1, 0.f));
-			LogRotatorTest(true, TEXT("FRotator::ZeroRotator == FQuat::Identity : Rotator"), R0, R1, R0 == R1);
-			LogRotatorTest(true, TEXT("FRotator::ZeroRotator not != FQuat::Identity : Rotator"), R0, R1, !(R0 != R1));
+			const FRotator R1 = FRotator(FQuat4f::Identity);
+			LogRotatorTest(true, TEXT("FRotator::ZeroRotator ~= FQuat4f::Identity : Rotator"), R0, R1, R0.Equals(R1, 0.f));
+			LogRotatorTest(true, TEXT("FRotator::ZeroRotator == FQuat4f::Identity : Rotator"), R0, R1, R0 == R1);
+			LogRotatorTest(true, TEXT("FRotator::ZeroRotator not != FQuat4f::Identity : Rotator"), R0, R1, !(R0 != R1));
 
-			Q0 = FQuat::Identity;
-			Q1 = FQuat(FRotator::ZeroRotator);
-			LogQuaternionTest(TEXT("FRotator::ZeroRotator ~= FQuat::Identity : Quaternion"), Q0, Q1, Q0.Equals(Q1, 0.f));
-			LogQuaternionTest(TEXT("FRotator::ZeroRotator == FQuat::Identity : Quaternion"), Q0, Q1, Q0 == Q1);
-			LogQuaternionTest(TEXT("FRotator::ZeroRotator not != FQuat::Identity : Quaternion"), Q0, Q1, !(Q0 != Q1));
+			Q0 = FQuat4f::Identity;
+			Q1 = FQuat4f(FRotator::ZeroRotator);
+			LogQuaternionTest(TEXT("FRotator::ZeroRotator ~= FQuat4f::Identity : Quaternion"), Q0, Q1, Q0.Equals(Q1, 0.f));
+			LogQuaternionTest(TEXT("FRotator::ZeroRotator == FQuat4f::Identity : Quaternion"), Q0, Q1, Q0 == Q1);
+			LogQuaternionTest(TEXT("FRotator::ZeroRotator not != FQuat4f::Identity : Quaternion"), Q0, Q1, !(Q0 != Q1));
 		}
 
 		const float Nudge = KINDA_SMALL_NUMBER * 0.25f;
@@ -2667,8 +2682,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		const float QuatTolerance = 1e-6f;
 		for (auto const& A : RotArray)
 		{
-			const FQuat QA = TestRotatorToQuaternion(A);
-			const FQuat QB = A.Quaternion();
+			const FQuat4f QA = TestRotatorToQuaternion(A);
+			const FQuat4f QB = FQuat4f(A);
 			LogQuaternionTest(TEXT("TestRotatorToQuaternion"), QA, QB, TestQuatsEqual(QA, QB, QuatTolerance));
 		}
 	}
@@ -2677,6 +2692,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	{
 		const float Nudge = KINDA_SMALL_NUMBER * 0.25f;
 		const FRotator RotArray[] ={
+			FRotator(0.0f, 0.0f, 0.0f),
+			FRotator(30.0f, 30.0f, 30.0f),
 			FRotator(30.0f, -45.0f, 90.0f),
 			FRotator(45.0f, 60.0f, -120.0f),
 			FRotator(0.f, 90.f, 0.f),
@@ -2686,6 +2703,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			FRotator(90.f, 0.f, 0.f),
 			FRotator(-90.f, 0.f, 0.f),
 			FRotator(150.f, 0.f, 0.f),
+			FRotator(0.0f, 0.0f, 45.0f),
+			FRotator(0.0f, 0.0f, -45.0f),
 			FRotator(+360.0f, -720.0f, 1080.0f),
 			FRotator(+360.0f + 1.0f, -720.0f + 1.0f, 1080.0f + 1.0f),
 			FRotator(+360.0f + Nudge, -720.0f - Nudge, 1080.0f - Nudge),
@@ -2705,22 +2724,22 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	// Quat -> Axis and Angle
 	{
-		FVector Axis;
+		FVector3f Axis;
 		float Angle;
 
 		// Identity -> X Axis
-		Axis = FQuat::Identity.GetRotationAxis();
-		LogTest<float>(TEXT("FQuat::Identity.GetRotationAxis() == FVector3f::XAxisVector"), TestFVector3Equal(Axis, FVector3f::XAxisVector));
+		Axis = FQuat4f::Identity.GetRotationAxis();
+		LogTest<float>(TEXT("FQuat4f::Identity.GetRotationAxis() == FVector3f::XAxisVector"), TestFVector3Equal(Axis, FVector3f::XAxisVector));
 
-		const FQuat QuatArray[] = {
-			FQuat(0.0f, 0.0f, 0.0f, 1.0f),
-			FQuat(1.0f, 0.0f, 0.0f, 0.0f),
-			FQuat(0.0f, 1.0f, 0.0f, 0.0f),
-			FQuat(0.0f, 0.0f, 1.0f, 0.0f),
-			FQuat(0.000046571717f, -0.000068426132f, 0.000290602446f, 0.999999881000f) // length = 0.99999992665
+		const FQuat4f QuatArray[] = {
+			FQuat4f(0.0f, 0.0f, 0.0f, 1.0f),
+			FQuat4f(1.0f, 0.0f, 0.0f, 0.0f),
+			FQuat4f(0.0f, 1.0f, 0.0f, 0.0f),
+			FQuat4f(0.0f, 0.0f, 1.0f, 0.0f),
+			FQuat4f(0.000046571717f, -0.000068426132f, 0.000290602446f, 0.999999881000f) // length = 0.99999992665
 		};
 
-		for (const FQuat& Q : QuatArray)
+		for (const FQuat4f& Q : QuatArray)
 		{
 			Q.ToAxisAndAngle(Axis, Angle);
 			LogTest<float>(TEXT("Quat -> Axis and Angle: Q is Normalized"), TestQuatNormalized(Q, 1e-6f));
@@ -2728,11 +2747,64 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		}
 	}
 
+	// Quat Lerp/Slerp
+	{
+		const FRotator Rotator0 = FRotator( 300.0f, -45.0f,  0.0f);
+		const FRotator Rotator1 = FRotator(  10.0f, 270.0f, 30.0f);
+		const float FloatAlpha = 0.25f;
+		const double DoubleAlpha = 0.25;
+		
+		// Quat<float>
+		Q0 = FQuat4f(Rotator0);
+		Q1 = FQuat4f(Rotator1);
+		
+		// float alpha
+		Q2 = FMath::Lerp(Q0, Q1, FloatAlpha);
+		Q3 = FQuat4f::Slerp(Q0, Q1, FloatAlpha);
+		LogTest<float>(TEXT("TestQuatLerp"), TestQuatsEqual(Q2, Q3, 1e-6f));
+
+		Q2 = FMath::Lerp<FQuat4f>(Q0, Q1, FloatAlpha);
+		Q3 = FQuat4f::Slerp(Q0, Q1, FloatAlpha);
+		LogTest<float>(TEXT("TestQuatLerp"), TestQuatsEqual(Q2, Q3, 1e-6f));
+		
+		// double alpha
+		Q2 = FMath::Lerp(Q0, Q1, DoubleAlpha);
+		Q3 = FQuat4f::Slerp(Q0, Q1, (float)DoubleAlpha);
+		LogTest<float>(TEXT("TestQuatLerp"), TestQuatsEqual(Q2, Q3, 1e-6f));
+
+		Q2 = FMath::Lerp<FQuat4f>(Q0, Q1, DoubleAlpha);
+		Q3 = FQuat4f::Slerp(Q0, Q1, (float)DoubleAlpha);
+		LogTest<float>(TEXT("TestQuatLerp"), TestQuatsEqual(Q2, Q3, 1e-6f));
+
+		// Quat<double>
+		FQuat4d QD0, QD1, QD2, QD3;
+		QD0 = FQuat4d(Rotator0);
+		QD1 = FQuat4d(Rotator1);
+		
+		// double alpha
+		QD2 = FMath::Lerp(QD0, QD1, DoubleAlpha);
+		QD3 = FQuat4d::Slerp(QD0, QD1, DoubleAlpha);
+		LogTest<double>(TEXT("TestQuatLerp"), TestQuatsEqual(QD2, QD3, 1e-6f));
+
+		QD2 = FMath::Lerp<FQuat4d>(QD0, QD1, DoubleAlpha);
+		QD3 = FQuat4d::Slerp(QD0, QD1, DoubleAlpha);
+		LogTest<double>(TEXT("TestQuatLerp"), TestQuatsEqual(QD2, QD3, 1e-6f));
+		
+		// float alpha
+		QD2 = FMath::Lerp(QD0, QD1, FloatAlpha);
+		QD3 = FQuat4d::Slerp(QD0, QD1, FloatAlpha);
+		LogTest<double>(TEXT("TestQuatLerp"), TestQuatsEqual(QD2, QD3, 1e-6f));
+
+		QD2 = FMath::Lerp<FQuat4d>(QD0, QD1, FloatAlpha);
+		QD3 = FQuat4d::Slerp(QD0, QD1, FloatAlpha);
+		LogTest<double>(TEXT("TestQuatLerp"), TestQuatsEqual(QD2, QD3, 1e-6f));
+	}
+
 	// Quat / Rotator conversion to vectors, matrices
 	{
 		FRotator Rotator0;
 		Rotator0 = FRotator(30.0f, -45.0f, 90.0f);
-		Q0 = Rotator0.Quaternion();
+		Q0 = FQuat4f(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
 		LogTest<float>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
@@ -2742,11 +2814,11 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		LogTest<float>( TEXT("Test0 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
 		
 		FV0 = FRotationMatrix( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = FQuatRotationMatrix( Q0 ).GetScaledAxis( EAxis::X );
+		FV1 = FQuatRotationMatrix( FQuat(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
 		LogTest<float>( TEXT("Test0 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
 
 		Rotator0 = FRotator(45.0f,  60.0f, 120.0f);
-		Q0 = Rotator0.Quaternion();
+		Q0 = FQuat4f(Rotator0);
 		Q1 = TestRotatorToQuaternion(Rotator0);
 		LogTest<float>( TEXT("TestRotatorToQuaternion"), TestQuatsEqual(Q0, Q1, 1e-6f));
 
@@ -2755,24 +2827,25 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		LogTest<float>( TEXT("Test1 Rotator::Vector()"), TestFVector3Equal(FV0, FV1, 1e-6f));
 
 		FV0 = FRotationMatrix( Rotator0 ).GetScaledAxis( EAxis::X );
-		FV1 = FQuatRotationMatrix( Q0 ).GetScaledAxis( EAxis::X );
+		FV1 = FQuatRotationMatrix( FQuat(Q0.X, Q0.Y, Q0.Z, Q0.W) ).GetScaledAxis( EAxis::X );
 		LogTest<float>(TEXT("Test1 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-5f));
 
-		FV0 = FRotationMatrix(FRotator::ZeroRotator).GetScaledAxis(EAxis::X);
-		FV1 = FQuatRotationMatrix(FQuat::Identity).GetScaledAxis(EAxis::X);
+		FV0 = FRotationMatrix( FRotator::ZeroRotator ).GetScaledAxis(EAxis::X);
+		FV1 = FQuatRotationMatrix( FQuat::Identity ).GetScaledAxis(EAxis::X);
 		LogTest<float>(TEXT("Test2 FQuatRotationMatrix"), TestFVector3Equal(FV0, FV1, 1e-6f));
 	}
 
 	// Quat Rotation tests
 	{
 		// Use these Quats...
-		const FQuat TestQuats[] = {
-			FQuat(FQuat::Identity),
-			FQuat(FRotator(30.0f, -45.0f, 90.0f)),
-			FQuat(FRotator(45.0f,  60.0f, 120.0f)),
-			FQuat(FRotator(0.0f, 180.0f, 45.0f)),
-			FQuat(FRotator(-120.0f, -90.0f, 0.0f)),
-			FQuat(FRotator(-0.01f, 0.02f, -0.03f)),
+		const FQuat4f TestQuats[] = {
+			FQuat4f(FQuat4f::Identity),
+			FQuat4f(FRotator(30.0f, 30.0f, 30.0f)),
+			FQuat4f(FRotator(30.0f, -45.0f, 90.0f)),
+			FQuat4f(FRotator(45.0f,  60.0f, 120.0f)),
+			FQuat4f(FRotator(0.0f, 180.0f, 45.0f)),
+			FQuat4f(FRotator(-120.0f, -90.0f, 0.0f)),
+			FQuat4f(FRotator(-0.01f, 0.02f, -0.03f)),
 		};
 
 		// ... to rotate these Vectors...
@@ -2790,7 +2863,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		// ... and test within this tolerance.
 		const float Tolerance = 1e-4f;
 
-		// Test Macro. Tests FQuat::RotateVector(_Vec) against _Func(_Vec)
+		// Test Macro. Tests FQuat4f::RotateVector(_Vec) against _Func(_Vec)
 		#define TEST_QUAT_ROTATE(_QIndex, _VIndex, _Quat, _Vec, _Func, _Tolerance) \
 		{ \
 			const FString _TestName = FString::Printf(TEXT("Test Quat%d: Vec%d: %s"), _QIndex, _VIndex, TEXT(#_Func)); \
@@ -2800,7 +2873,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		// Test loop
 		for (int32 QIndex = 0; QIndex < UE_ARRAY_COUNT(TestQuats); ++QIndex)
 		{
-			const FQuat& Q = TestQuats[QIndex];
+			const FQuat4f& Q = TestQuats[QIndex];
 			for (int32 VIndex = 0; VIndex < UE_ARRAY_COUNT(TestVectors); ++VIndex)
 			{
 				const FVector3f& V = TestVectors[VIndex];
@@ -2820,9 +2893,9 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 					const FVector3f ANorm = A.GetSafeNormal();
 					const FVector3f BNorm = B.GetSafeNormal();
 
-					const FQuat Old = FindBetween_Old(ANorm, BNorm);
-					const FQuat NewNormal = FQuat::FindBetweenNormals(ANorm, BNorm);
-					const FQuat NewVector = FQuat::FindBetweenVectors(A, B);
+					const FQuat4f Old = FindBetween_Old(ANorm, BNorm);
+					const FQuat4f NewNormal = FQuat4f::FindBetweenNormals(ANorm, BNorm);
+					const FQuat4f NewVector = FQuat4f::FindBetweenVectors(A, B);
 
 					const FVector3f RotAOld = Old.RotateVector(ANorm);
 					const FVector3f RotANewNormal = NewNormal.RotateVector(ANorm);
@@ -2850,7 +2923,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			{
 				const FVector3f VNormal = V.GetSafeNormal();
 
-				Q0 = FQuat::FindBetweenNormals(FVector3f::ForwardVector, VNormal);
+				Q0 = FQuat4f::FindBetweenNormals(FVector3f::ForwardVector, VNormal);
 				Q1 = V.ToOrientationQuat();
 				const FRotator R0 = V.ToOrientationRotator();
 
@@ -2866,8 +2939,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 
 	// Quat multiplication
 	{
-		Q0 = FQuat(FRotator(30.0f, -45.0f, 90.0f));
-		Q1 = FQuat(FRotator(45.0f, 60.0f, 120.0f));
+		Q0 = FQuat4f(FRotator(30.0f, -45.0f, 90.0f));
+		Q1 = FQuat4f(FRotator(45.0f, 60.0f, 120.0f));
 		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
 		TestVectorQuaternionMultiply(&Q3, &Q0, &Q1);
 		LogTest<float>(TEXT("VectorQuaternionMultiply"), TestQuatsEqual(Q2, Q3, 1e-6f));
@@ -2877,8 +2950,8 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 		V3 = VectorLoadAligned(&Q3);
 		LogTest<float>(TEXT("VectorQuaternionMultiply2"), TestVectorsEqual(V2, V3, 1e-6f));
 
-		Q0 = FQuat(FRotator(0.0f, 180.0f, 45.0f));
-		Q1 = FQuat(FRotator(-120.0f, -90.0f, 0.0f));
+		Q0 = FQuat4f(FRotator(0.0f, 180.0f, 45.0f));
+		Q1 = FQuat4f(FRotator(-120.0f, -90.0f, 0.0f));
 		VectorQuaternionMultiply(&Q2, &Q0, &Q1);
 		TestVectorQuaternionMultiply(&Q3, &Q0, &Q1);
 		LogTest<float>(TEXT("VectorMatrixInverse"), TestQuatsEqual(Q2, Q3, 1e-6f));

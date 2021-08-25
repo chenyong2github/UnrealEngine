@@ -69,13 +69,17 @@ struct FNDIArrayImplHelper<FVector3d> : public FNDIArrayImplHelperBase<FVector3d
 	{
 		return sizeof(float);
 	}
+	static int32 CPUGetTypeStride()
+	{
+		return sizeof(FVector3f);
+	}
 
 	static void CopyData(void* Dest, const FVector3d* Src, int32 BufferSize)
 	{
 		FVector3f* DestFloats = (FVector3f*)Dest;
 		int32 Num = BufferSize / sizeof(FVector3d);
 		for (int32 i = 0; i < Num; i++)
-			DestFloats[i] = Src[i];
+			DestFloats[i] = (FVector3f)Src[i];
 	}
 };
 
@@ -102,14 +106,37 @@ struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinea
 };
 
 template<>
-struct FNDIArrayImplHelper<FQuat> : public FNDIArrayImplHelperBase<FQuat>
+struct FNDIArrayImplHelper<FQuat4f> : public FNDIArrayImplHelperBase<FQuat4f>
 {
-	typedef FQuat TVMArrayType;
+	typedef FQuat4f TVMArrayType;
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetQuatDef(); }
-	static const FQuat GetDefaultValue() { return FQuat::Identity; }
+	static const FQuat4f GetDefaultValue() { return FQuat4f::Identity; }
+};
+
+// LWC_TODO: This is represented as an FQuat4f internally (array is converted to floats during PushToRenderThread)
+template<>
+struct FNDIArrayImplHelper<FQuat4d> : public FNDIArrayImplHelperBase<FQuat4d>
+{
+	typedef FQuat4f TVMArrayType;
+	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
+	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
+	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
+	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetQuatDef(); }
+	static const FQuat4f GetDefaultValue() { return FQuat4f::Identity; }
+
+	static int32 GPUGetTypeStride() { return sizeof(FQuat4f); }
+	static int32 CPUGetTypeStride() { return sizeof(FQuat4f); }
+
+	static void CopyData(void* Dest, const FQuat4d* Src, int32 BufferSize)
+	{
+		FQuat4f* DestFloats = (FQuat4f*)Dest;
+		int32 Num = BufferSize / sizeof(FQuat4d);
+		for (int32 i = 0; i < Num; i++)
+			DestFloats[i] = (FQuat4f)Src[i];
+	}
 };
 
 UNiagaraDataInterfaceArrayFloat::UNiagaraDataInterfaceArrayFloat(FObjectInitializer const& ObjectInitializer)

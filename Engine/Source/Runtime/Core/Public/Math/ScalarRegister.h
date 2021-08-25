@@ -25,7 +25,9 @@
 class ScalarRegister
 {
 public:
-	VectorRegister Value;
+	using RegisterType = VectorRegister4Float;
+
+	RegisterType Value;
 
 	/** default constructor */
 	FORCEINLINE ScalarRegister();
@@ -38,9 +40,9 @@ public:
 
 	/** Constructor
 	 *
-	 * @param VectorRegister float4 vector register type
+	 * @param RegisterType float4 vector register type
 	 */
-	explicit FORCEINLINE ScalarRegister(VectorRegister VectorValue);
+	explicit FORCEINLINE ScalarRegister(RegisterType VectorValue);
 
 	/**
 	 * Gets the result of multiplying a scalar register to this.
@@ -96,14 +98,14 @@ public:
 
 	/** assignment operator
 	 *
-	 * @param RHS a VectorRegister
+	 * @param RHS a RegisterType
 	 */
-	FORCEINLINE ScalarRegister& operator=(const VectorRegister& RHS);
+	FORCEINLINE ScalarRegister& operator=(const RegisterType& RHS);
 
 	/**
-	 * ScalarRegister to VectorRegister conversion operator.
+	 * ScalarRegister to RegisterType conversion operator.
 	 */
-	FORCEINLINE operator VectorRegister() const;
+	FORCEINLINE operator RegisterType() const;
 };
 
 FORCEINLINE ScalarRegister::ScalarRegister()
@@ -120,7 +122,7 @@ FORCEINLINE ScalarRegister::ScalarRegister(const float& ScalarValue)
 	Value = VectorLoadFloat1(&ScalarValue);
 }
 
-FORCEINLINE ScalarRegister::ScalarRegister(VectorRegister VectorValue)
+FORCEINLINE ScalarRegister::ScalarRegister(RegisterType VectorValue)
 {
 	Value = VectorValue;
 }
@@ -159,13 +161,13 @@ FORCEINLINE ScalarRegister& ScalarRegister::operator=(const ScalarRegister& RHS)
 	return *this;
 }
 
-FORCEINLINE ScalarRegister& ScalarRegister::operator=(const VectorRegister& RHS)
+FORCEINLINE ScalarRegister& ScalarRegister::operator=(const RegisterType& RHS)
 {
 	Value = RHS;
 	return *this;
 }
 
-FORCEINLINE ScalarRegister::operator VectorRegister() const
+FORCEINLINE ScalarRegister::operator RegisterType() const
 {
 	return Value;
 }
@@ -189,13 +191,18 @@ FORCEINLINE ScalarRegister ScalarMax(const ScalarRegister& A, const ScalarRegist
 	return ScalarRegister(VectorMax(A.Value, B.Value));
 }
 
-// Specialization of Lerp template that works with scalar (float in vector) registers
-template<> FORCEINLINE ScalarRegister FMath::Lerp(const ScalarRegister& A, const ScalarRegister& B, const ScalarRegister& Alpha)
+// TCustomLerp for FMath::Lerp()
+template<> struct TCustomLerp<ScalarRegister>
 {
-	const VectorRegister Delta = VectorSubtract(B.Value, A.Value);
-	return ScalarRegister(VectorMultiplyAdd(Alpha.Value, Delta, A.Value));
-}
+	enum { IsRequired = true };
 
+	// Specialization of Lerp template that works with scalar (float in vector) registers
+	FORCEINLINE ScalarRegister Lerp(const ScalarRegister& A, const ScalarRegister& B, const ScalarRegister& Alpha)
+	{
+		const ScalarRegister::RegisterType Delta = VectorSubtract(B.Value, A.Value);
+		return ScalarRegister(VectorMultiplyAdd(Alpha.Value, Delta, A.Value));
+	}
+};
 
 /**
  * Computes the reciprocal of the scalar register (component-wise) and returns the result.

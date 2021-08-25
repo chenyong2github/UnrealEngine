@@ -63,7 +63,7 @@ using FPhysActorDummy = ChaosInterface::FDummyPhysActor;
 template<typename T>
 using FCallbackDummy = ChaosInterface::FDummyCallback<T>;
 
-struct FTransform;
+DECLARE_LWC_TYPE(Transform, 3);
 
 using FHitLocation = ChaosInterface::FLocationHit;
 using FHitSweep = ChaosInterface::FSweepHit;

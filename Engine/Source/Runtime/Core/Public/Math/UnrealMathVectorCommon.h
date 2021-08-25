@@ -25,13 +25,14 @@ FORCEINLINE VectorRegister4Float VectorOne(void)
  * Overloads for code passing &MyVector, &MyQuat, etc.
  */
 
- ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
- /// VectorLoad
- ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/// VectorLoad
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FORCEINLINE VectorRegister4Float VectorLoad(const FQuat* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TQuat<T>* Ptr)
 {
-	return VectorLoad((const float*)(Ptr));
+	return VectorLoadAligned((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoad(const FVector4* Ptr)
@@ -39,14 +40,10 @@ FORCEINLINE VectorRegister4Float VectorLoad(const FVector4* Ptr)
 	return VectorLoad((const float*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoad(const FVector3f* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TVector<T>* Ptr)
 {
-	return VectorLoad((const float*)(Ptr));
-}
-
-FORCEINLINE VectorRegister4Double VectorLoad(const FVector3d* Ptr)
-{
-	return VectorLoad((const double*)(Ptr));
+	return VectorLoad((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoad(const FVector2D* Ptr)
@@ -71,9 +68,10 @@ FORCEINLINE VectorRegister4Double VectorLoad(const VectorRegister4Double* Ptr)
 /// VectorLoadAligned
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FORCEINLINE VectorRegister4Float VectorLoadAligned(const FQuat* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadAligned(const UE::Math::TQuat<T>* Ptr)
 {
-	return VectorLoadAligned((const float*)(Ptr));
+	return VectorLoadAligned((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoadAligned(const FVector4* Ptr)
@@ -81,14 +79,10 @@ FORCEINLINE VectorRegister4Float VectorLoadAligned(const FVector4* Ptr)
 	return VectorLoadAligned((const float*)(Ptr));
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadAligned(const FPlane4f* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadAligned(const UE::Math::TPlane<T>* Ptr)
 {
-	return VectorLoadAligned((const float*)(Ptr));
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadAligned(const FPlane4d* Ptr)
-{
-	return VectorLoadAligned((const double*)(Ptr));
+	return VectorLoadAligned((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoadAligned(const VectorRegister4Float* Ptr)
@@ -119,14 +113,10 @@ FORCEINLINE VectorRegister4Float VectorLoadFloat3(const float* Ptr)
 	return MakeVectorRegister(Ptr[0], Ptr[1], Ptr[2], 0.0f);
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadFloat3(const FVector3f* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadFloat3(const UE::Math::TVector<T>* Ptr)
 {
-	return VectorLoadFloat3((const float*)(Ptr));
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadFloat3(const FVector3d* Ptr)
-{
-	return VectorLoadFloat3((const double*)(Ptr));
+	return VectorLoadFloat3((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadDouble3(const double* Ptr)
@@ -155,14 +145,10 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat3_W0(const double* Ptr)
 	return VectorLoadFloat3(Ptr);
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadFloat3_W0(const FVector3f* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadFloat3_W0(const UE::Math::TVector<T>* Ptr)
 {
-	return VectorLoadFloat3_W0((const float*)(Ptr));
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadFloat3_W0(const FVector3d* Ptr)
-{
-	return VectorLoadFloat3_W0((const double*)(Ptr));
+	return VectorLoadFloat3_W0((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoadFloat3_W0(const FRotator* Ptr)
@@ -191,14 +177,10 @@ FORCEINLINE VectorRegister4Float VectorLoadFloat3_W1(const float* Ptr)
 	return MakeVectorRegister(Ptr[0], Ptr[1], Ptr[2], 1.0f);
 }
 
-FORCEINLINE VectorRegister4Float VectorLoadFloat3_W1(const FVector3f* Ptr)
+template<typename T>
+FORCEINLINE TVectorRegisterType<T> VectorLoadFloat3_W1(const UE::Math::TVector<T>* Ptr)
 {
-	return VectorLoadFloat3_W1((const float*)Ptr);
-}
-
-FORCEINLINE VectorRegister4Double VectorLoadFloat3_W1(const FVector3d* Ptr)
-{
-	return VectorLoadFloat3_W1((const double*)Ptr);
+	return VectorLoadFloat3_W1((const T*)Ptr);
 }
 
 FORCEINLINE VectorRegister4Double VectorLoadDouble3_W1(const double* Ptr)
@@ -238,21 +220,34 @@ FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, float* Dst)
 }
 #endif
 
-template<typename FReal>
-FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, UE::Math::TVector<FReal>* Dst)
+template<typename T>
+FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, UE::Math::TVector<T>* Dst)
 {
-	VectorStore(Vec, (FReal*)Dst);
+	VectorStore(Vec, (T*)Dst);
 }
 
-template<typename FReal>
-FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, UE::Math::TVector<FReal>* Dst)
+template<typename T>
+FORCEINLINE void VectorStore(const VectorRegister4Double& Vec, UE::Math::TVector<T>* Dst)
 {
-	VectorStore(Vec, (FReal*)Dst);
+	VectorStore(Vec, (T*)Dst);
 }
 
 FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, FVector4* Dst)
 {
 	VectorStore(Vec, (float*)Dst); // TODO: LWC: convert once templated.
+}
+
+template<typename T>
+FORCEINLINE void VectorStore(const TVectorRegisterType<T>& Vec, struct UE::Math::TQuat<T>* Dst)
+{
+	VectorStore(Vec, (T*)Dst);
+}
+
+// Specific overload to support promoting float->double vector and storing in TQuat<double>
+FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, struct UE::Math::TQuat<double>* Dst)
+{
+	VectorRegister4Double DoubleVec(Vec);
+	VectorStore(DoubleVec, Dst);
 }
 
 FORCEINLINE void VectorStore(const VectorRegister4Float& Vec, VectorRegister4Float* Dst)
@@ -300,15 +295,17 @@ FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, FVector4* 
 }
 #endif
 
-// TODO: LWC: remove temp hack once FQuat is templated
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, struct FQuat* Dst)
+template<typename T>
+FORCEINLINE void VectorStoreAligned(const TVectorRegisterType<T>& Vec, struct UE::Math::TQuat<T>* Dst)
 {
-	VectorStoreAligned(Vec, (float*)Dst);
+	VectorStoreAligned(Vec, (T*)Dst);
 }
-// TODO: LWC: remove temp hack once FQuat is templated
-FORCEINLINE void VectorStoreAligned(const VectorRegister4Double& Vec, struct FQuat* Dst)
+
+// Specific overload to support promoting float->double vector and storing in TQuat<double>
+FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, struct UE::Math::TQuat<double>* Dst)
 {
-	VectorStoreAligned(Vec, (float*)Dst);
+	VectorRegister4Double DoubleVec(Vec);
+	VectorStoreAligned(DoubleVec, Dst);
 }
 
 FORCEINLINE void VectorStoreAligned(const VectorRegister4Float& Vec, VectorRegister4Float* Dst)
@@ -334,16 +331,16 @@ FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, float* Dst)
 }
 #endif
 
-template<typename FReal>
-FORCEINLINE void VectorStoreFloat3(const VectorRegister4Float& Vec, UE::Math::TVector<FReal>* Dst)
+template<typename T>
+FORCEINLINE void VectorStoreFloat3(const VectorRegister4Float& Vec, UE::Math::TVector<T>* Dst)
 {
-	VectorStoreFloat3(Vec, (FReal*)Dst);
+	VectorStoreFloat3(Vec, (T*)Dst);
 }
 
-template<typename FReal>
-FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, UE::Math::TVector<FReal>* Dst)
+template<typename T>
+FORCEINLINE void VectorStoreFloat3(const VectorRegister4Double& Vec, UE::Math::TVector<T>* Dst)
 {
-	VectorStoreFloat3(Vec, (FReal*)Dst);
+	VectorStoreFloat3(Vec, (T*)Dst);
 }
 
 FORCEINLINE void VectorStoreFloat3(const VectorRegister4Float& Vec, FRotator* Dst)
@@ -388,12 +385,12 @@ FORCEINLINE void VectorStoreFloat1(const VectorRegister4Double& Vec, int64* Dst)
 
 // Returns a normalized 4 vector = Vector / |Vector|.
 // There is no handling of zero length vectors, use VectorNormalizeSafe if this is a possible input.
-template<typename VectorRegisterType>
-FORCEINLINE VectorRegisterType VectorNormalizeAccurate( const VectorRegisterType& Vector )
+template<typename TVectorRegisterType>
+FORCEINLINE TVectorRegisterType VectorNormalizeAccurate( const TVectorRegisterType& Vector )
 {
-	const VectorRegisterType SquareSum = VectorDot4(Vector, Vector);
-	const VectorRegisterType InvLength = VectorReciprocalSqrtAccurate(SquareSum);
-	const VectorRegisterType NormalizedVector = VectorMultiply(InvLength, Vector);
+	const TVectorRegisterType SquareSum = VectorDot4(Vector, Vector);
+	const TVectorRegisterType InvLength = VectorReciprocalSqrtAccurate(SquareSum);
+	const TVectorRegisterType NormalizedVector = VectorMultiply(InvLength, Vector);
 	return NormalizedVector;
 }
 
@@ -494,18 +491,33 @@ template<> FORCEINLINE VectorRegister4Double FGenericPlatformMath::Max(const Vec
 	return VectorMax(A, B);
 }
 
-// Specialization of Lerp template that works with vector registers
-template<> FORCEINLINE VectorRegister4Float FMath::Lerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
+// TCustomLerp for FMath::Lerp<VectorRegister4Float>()
+template<>
+struct TCustomLerp<VectorRegister4Float>
 {
-	const VectorRegister4Float Delta = VectorSubtract(B, A);
-	return VectorMultiplyAdd(Alpha, Delta, A);
-}
+	enum { IsRequired = true };
+	
+	// Specialization of Lerp function that works with vector registers
+	static FORCEINLINE VectorRegister4Float Lerp(const VectorRegister4Float& A, const VectorRegister4Float& B, const VectorRegister4Float& Alpha)
+	{
+		const VectorRegister4Float Delta = VectorSubtract(B, A);
+		return VectorMultiplyAdd(Alpha, Delta, A);
+	}
+};
 
-//template<> FORCEINLINE VectorRegister4Double FMath::Lerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)
-//{
-//	const VectorRegister4Double Delta = VectorSubtract(B, A);
-//	return VectorMultiplyAdd(Alpha, Delta, A);
-//}
+// TCustomLerp for FMath::Lerp<VectorRegister4Double>()
+template<>
+struct TCustomLerp<VectorRegister4Double>
+{
+	enum { IsRequired = true };
+
+	// Specialization of Lerp function that works with vector registers
+	static FORCEINLINE VectorRegister4Double Lerp(const VectorRegister4Double& A, const VectorRegister4Double& B, const VectorRegister4Double& Alpha)
+	{
+		const VectorRegister4Double Delta = VectorSubtract(B, A);
+		return VectorMultiplyAdd(Alpha, Delta, A);
+	}
+};
 
 // A and B are quaternions.  The result is A + (|A.B| >= 0 ? 1 : -1) * B
 FORCEINLINE VectorRegister4Float VectorAccumulateQuaternionShortestPath(const VectorRegister4Float& A, const VectorRegister4Float& B)
@@ -720,34 +732,6 @@ FORCEINLINE VectorRegister4Double VectorQuaternionInverseRotateVector(const Vect
 	return VectorQuaternionRotateVector(QInv, VectorW0);
 }
 
-
-/**
-* Rotate a vector using a pointer to a unit Quaternion.
-*
-* @param Result		Pointer to where the result should be stored
-* @param Quat		Pointer to the unit quaternion (must not be the destination)
-* @param VectorW0	Pointer to the vector (must not be the destination). W component must be zero.
-*/
-FORCEINLINE void VectorQuaternionRotateVectorPtr( void* RESTRICT Result, const void* RESTRICT Quat, const void* RESTRICT VectorW0)
-{
-	*((VectorRegister *)Result) = VectorQuaternionRotateVector(*((const VectorRegister *)Quat), *((const VectorRegister *)VectorW0));
-}
-// TODO: LWC: implement for template type FQuat
-
-/**
-* Rotate a vector using the inverse of a unit Quaternion (rotation in the opposite direction).
-*
-* @param Result		Pointer to where the result should be stored
-* @param Quat		Pointer to the unit quaternion (must not be the destination)
-* @param VectorW0	Pointer to the vector (must not be the destination). W component must be zero.
-*/
-FORCEINLINE void VectorQuaternionInverseRotateVectorPtr(void* RESTRICT Result, const void* RESTRICT Quat, const void* RESTRICT VectorW0)
-{
-	*((VectorRegister *)Result) = VectorQuaternionInverseRotateVector(*((const VectorRegister *)Quat), *((const VectorRegister *)VectorW0));
-}
-// TODO: LWC: implement for template type FQuat
-
-
 FORCEINLINE VectorRegister4Double VectorMultiply(VectorRegister4Double Vec1, VectorRegister4Float Vec2)
 {
 	return VectorMultiply(Vec1, VectorRegister4Double(Vec2));
@@ -761,21 +745,6 @@ FORCEINLINE VectorRegister4Double VectorMultiplyAdd(VectorRegister4Double Vec1, 
 FORCEINLINE VectorRegister4Double VectorMultiplyAdd(VectorRegister4Double Vec1, VectorRegister4Float Vec2, VectorRegister4Float Acc)
 {
 	return VectorMultiplyAdd(Vec1, VectorRegister4Double(Vec2), VectorRegister4Double(Acc));
-}
-
-FORCEINLINE VectorRegister4Double operator+(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
-{
-	return VectorAdd(Vec1, Vec2);
-}
-
-FORCEINLINE VectorRegister4Double operator-(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
-{
-	return VectorSubtract(Vec1, Vec2);
-}
-
-FORCEINLINE VectorRegister4Double operator*(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2)
-{
-	return VectorMultiply(Vec1, Vec2);
 }
 
 FORCEINLINE VectorRegister4Double VectorSetDouble(double X, double Y, double Z, double W)
@@ -874,9 +843,23 @@ FORCEINLINE VectorRegister4Double VectorFractional(const VectorRegister4Double& 
 }
 
 
-FORCEINLINE void VectorQuaternionMultiply(FQuat* RESTRICT Result, const FQuat* RESTRICT Quat1, const FQuat* RESTRICT Quat2)
+FORCEINLINE void VectorQuaternionMultiply(FQuat4f* RESTRICT Result, const FQuat4f* RESTRICT Quat1, const FQuat4f* RESTRICT Quat2)
 {
-	*((VectorRegister4Float*)Result) = VectorQuaternionMultiply2(*((const VectorRegister4Float*)Quat1), *((const VectorRegister4Float*)Quat2));
+	//*((VectorRegister4Float*)Result) = VectorQuaternionMultiply2(*((const VectorRegister4Float*)Quat1), *((const VectorRegister4Float*)Quat2));
+	const VectorRegister4Float Q1 = VectorLoadAligned(Quat1);
+	const VectorRegister4Float Q2 = VectorLoadAligned(Quat2);
+	const VectorRegister4Float QResult = VectorQuaternionMultiply2(Q1, Q2);
+	VectorStoreAligned(QResult, Result);
+}
+
+FORCEINLINE void VectorQuaternionMultiply(FQuat4d* RESTRICT Result, const FQuat4d* RESTRICT Quat1, const FQuat4d* RESTRICT Quat2)
+{
+	// Warning: don't try to cast FQuat4d to VectorRegister4Double, they may not be of the same alignment.
+	// We can still use VectorLoadAligned/VectorStoreAligned, because those only enforce 16-byte alignment and fall back to unaligned otherwise.
+	const VectorRegister4Double Q1 = VectorLoadAligned(Quat1);
+	const VectorRegister4Double Q2 = VectorLoadAligned(Quat2);
+	const VectorRegister4Double QResult = VectorQuaternionMultiply2(Q1, Q2);
+	VectorStoreAligned(QResult, Result);
 }
 
 /**

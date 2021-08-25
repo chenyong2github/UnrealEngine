@@ -1043,7 +1043,7 @@ const FNiagaraTypeDefinition& FNiagaraTypeDefinition::Get()
 	if (TIsSame<T, FVector4>::Value) { return FNiagaraTypeDefinition::GetVec4Def(); }
 	if (TIsSame<T, int32>::Value) { return FNiagaraTypeDefinition::GetIntDef(); }
 	if (TIsSame<T, FNiagaraBool>::Value) { return FNiagaraTypeDefinition::GetBoolDef(); }
-	if (TIsSame<T, FQuat>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }
+	if (TIsSame<T, FQuat4f>::Value) { return FNiagaraTypeDefinition::GetQuatDef(); }
 	if (TIsSame<T, FMatrix44f>::Value) { return FNiagaraTypeDefinition::GetMatrix4Def(); }
 	if (TIsSame<T, FLinearColor>::Value) { return FNiagaraTypeDefinition::GetColorDef(); }
 	if (TIsSame<T, FNiagaraID>::Value) { return FNiagaraTypeDefinition::GetIDDef(); }
@@ -1705,7 +1705,7 @@ struct alignas(16) FNiagaraOwnerParameters
 	FMatrix44f EngineWorldToLocalTransposed = FMatrix44f::Identity;
 	FMatrix44f EngineLocalToWorldNoScale = FMatrix44f::Identity;
 	FMatrix44f EngineWorldToLocalNoScale = FMatrix44f::Identity;
-	FQuat EngineRotation = FQuat::Identity;
+	FQuat4f EngineRotation = FQuat4f::Identity;
 	FVector4 EnginePosition = FVector4(EForceInit::ForceInitToZero);
 	FVector4 EngineVelocity = FVector4(EForceInit::ForceInitToZero);
 	FVector4 EngineXAxis = FVector4(1.0f, 0.0f, 0.0f, 0.0f);

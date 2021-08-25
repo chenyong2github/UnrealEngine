@@ -10,7 +10,7 @@
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_AVX
-#define UE_PLATFORM_MATH_USE_AVX			0 //PLATFORM_ALWAYS_HAS_AVX
+#define UE_PLATFORM_MATH_USE_AVX			PLATFORM_ALWAYS_HAS_AVX
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_AVX_2
@@ -502,14 +502,12 @@ FORCEINLINE VectorRegister4Double VectorLoad(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
 {
-#if !UE_PLATFORM_MATH_USE_AVX
+#if !UE_PLATFORM_MATH_USE_AVX_2
 	VectorRegister4Double Result;
 	Result.XY = _mm_loadu_pd((double*)(Ptr));
 	Result.ZW = _mm_load_sd((double*)(Ptr+2));
 	return Result;
 #else
-	// TODO: AVX: compare performance. MaskLoad is supposed to be efficient compared to MaskStore (from Intel and AMD manuals citing instruction latency), but validate this.
-	// Otherwise, use the m128d code above.
 	return _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask));
 #endif	
 }
@@ -522,14 +520,17 @@ FORCEINLINE VectorRegister4Double VectorLoadFloat3(const double* Ptr)
  */
 FORCEINLINE VectorRegister4Double VectorLoadFloat3_W1(const double* Ptr)
 {
-#if !UE_PLATFORM_MATH_USE_AVX
+#if !UE_PLATFORM_MATH_USE_AVX_2
 	VectorRegister4Double Result;
 	Result.XY = _mm_loadu_pd((double*)(Ptr));
 	Result.ZW = MakeVectorRegister2Double(Ptr[2], 1.0);
 	return Result;
 #else
-	// TODO: AVX: improve?
-	return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
+	//return MakeVectorRegisterDouble(Ptr[0], Ptr[1], Ptr[2], 1.0);
+	VectorRegister4Double Result;
+	Result = _mm256_maskload_pd(Ptr, _mm256_castpd_si256(GlobalVectorConstants::DoubleXYZMask));
+	Result = _mm256_blend_pd(Result, VectorOneDouble(), 0b1000);
+	return Result;
 #endif	
 }
 
@@ -2121,40 +2122,50 @@ FORCEINLINE void VectorMatrixMultiply(FMatrix44f* Result, const FMatrix44f* Matr
 
 FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matrix1, const FMatrix44d* Matrix2)
 {
-	const VectorRegister4Double* A = (const VectorRegister4Double*)Matrix1;
-	const VectorRegister4Double* B = (const VectorRegister4Double*)Matrix2;
-	VectorRegister4Double* R = (VectorRegister4Double*)Result;
-	VectorRegister4Double Temp, R0, R1, R2;
+	// Warning: FMatrix44d alignment may not match VectorRegister4Double, so you can't just cast to VectorRegister4Double*.
+	typedef double Double4x4[4][4];
+	const Double4x4& AMRows = *((const Double4x4*)Matrix1);
+	const Double4x4& BMRows = *((const Double4x4*)Matrix2);
+	Double4x4& ResultDst = *((Double4x4*)Result);
+	VectorRegister4Double Temp, ARow;
+
+	VectorRegister4Double B[4];
+	B[0] = VectorLoad(BMRows[0]);
+	B[1] = VectorLoad(BMRows[1]);
+	B[2] = VectorLoad(BMRows[2]);
+	B[3] = VectorLoad(BMRows[3]);
 
 	// First row of result (Matrix1[0] * Matrix2).
-	Temp = VectorMultiply(VectorReplicate(A[0], 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[0], 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[0], 2), B[2], Temp);
-	R0 = VectorMultiplyAdd(VectorReplicate(A[0], 3), B[3], Temp);
+	ARow = VectorLoad(AMRows[0]);
+	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+	VectorStore(Temp, ResultDst[0]);
 
 	// Second row of result (Matrix1[1] * Matrix2).
-	Temp = VectorMultiply(VectorReplicate(A[1], 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[1], 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[1], 2), B[2], Temp);
-	R1 = VectorMultiplyAdd(VectorReplicate(A[1], 3), B[3], Temp);
+	ARow = VectorLoad(AMRows[1]);
+	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+	VectorStore(Temp, ResultDst[1]);
 
 	// Third row of result (Matrix1[2] * Matrix2).
-	Temp = VectorMultiply(VectorReplicate(A[2], 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[2], 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[2], 2), B[2], Temp);
-	R2 = VectorMultiplyAdd(VectorReplicate(A[2], 3), B[3], Temp);
+	ARow = VectorLoad(AMRows[2]);
+	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+	VectorStore(Temp, ResultDst[2]);
 
 	// Fourth row of result (Matrix1[3] * Matrix2).
-	Temp = VectorMultiply(VectorReplicate(A[3], 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 2), B[2], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(A[3], 3), B[3], Temp);
-
-	// Store result
-	R[0] = R0;
-	R[1] = R1;
-	R[2] = R2;
-	R[3] = Temp;
+	ARow = VectorLoad(AMRows[3]);
+	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+	VectorStore(Temp, ResultDst[3]);
 }
 
 
@@ -2362,7 +2373,16 @@ FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Floa
 
 FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Float& VecP, const FMatrix44d* MatrixM)
 {
-	const VectorRegister4Double* M = (const VectorRegister4Double*) MatrixM;
+	// Warning: FMatrix44d alignment may not match VectorRegister4Double, so you can't just cast to VectorRegister4Double*.
+	typedef double Double4x4[4][4];
+	const Double4x4& MRows = *((const Double4x4*)MatrixM);
+
+	VectorRegister4Double M[4];
+	M[0] = VectorLoad(MRows[0]);
+	M[1] = VectorLoad(MRows[1]);
+	M[2] = VectorLoad(MRows[2]);
+	M[3] = VectorLoad(MRows[3]);
+
 	VectorRegister4Double VTempX, VTempY, VTempZ, VTempW;
 	VectorRegister4Double VecPDouble = VecP;
 
@@ -2383,7 +2403,16 @@ FORCEINLINE VectorRegister4Float VectorTransformVector(const VectorRegister4Floa
 
 FORCEINLINE VectorRegister4Double VectorTransformVector(const VectorRegister4Double& VecP, const FMatrix44d* MatrixM)
 {
-	const VectorRegister4Double* M = (const VectorRegister4Double*) MatrixM;
+	// Warning: FMatrix44d alignment may not match VectorRegister4Double, so you can't just cast to VectorRegister4Double*.
+	typedef double Double4x4[4][4];
+	const Double4x4& MRows = *((const Double4x4*)MatrixM);
+
+	VectorRegister4Double M[4];
+	M[0] = VectorLoad(MRows[0]);
+	M[1] = VectorLoad(MRows[1]);
+	M[2] = VectorLoad(MRows[2]);
+	M[3] = VectorLoad(MRows[3]);
+
 	VectorRegister4Double VTempX, VTempY, VTempZ, VTempW;
 
 	// Splat x,y,z and w
@@ -2818,7 +2847,11 @@ FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Float* RESTRICT Result,
 {
 	*Result = VectorQuaternionMultiply2(*Quat1, *Quat2);
 }
-// TODO: LWC: implement for doubles / FQuat
+
+FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Double* RESTRICT Result, const VectorRegister4Double* RESTRICT Quat1, const VectorRegister4Double* RESTRICT Quat2)
+{
+	*Result = VectorQuaternionMultiply2(*Quat1, *Quat2);
+}
 
 // Returns true if the vector contains a component that is either NAN or +/-infinite.
 FORCEINLINE bool VectorContainsNaNOrInfinite(const VectorRegister4Float& Vec)

@@ -19,10 +19,6 @@ CORE_API const FVector2D FVector2D::ZeroVector(0.0f, 0.0f);
 CORE_API const FVector2D FVector2D::UnitVector(1.0f, 1.0f);
 CORE_API const FVector2D FVector2D::Unit45Deg(UE_INV_SQRT_2, UE_INV_SQRT_2);
 
-CORE_API const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
-
-CORE_API const VectorRegister VECTOR_INV_255 = DECLARE_VECTOR_REGISTER(1.f/255.f, 1.f/255.f, 1.f/255.f, 1.f/255.f);
-
 CORE_API const uint32 FMath::BitFlag[32] =
 {
 	(1U << 0),	(1U << 1),	(1U << 2),	(1U << 3),
@@ -260,7 +256,7 @@ FRotator FVector4::Rotation() const
 }
 
 template<>
-FQuat FVector3f::ToOrientationQuat() const
+FQuat4f FVector3f::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
@@ -274,7 +270,7 @@ FQuat FVector3f::ToOrientationQuat() const
 	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
 	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
 
-	FQuat RotationQuat;
+	FQuat4f RotationQuat;
 	RotationQuat.X =  SP*SY;
 	RotationQuat.Y = -SP*CY;
 	RotationQuat.Z =  CP*SY;
@@ -283,7 +279,7 @@ FQuat FVector3f::ToOrientationQuat() const
 }
 
 template<>
-FQuat FVector3d::ToOrientationQuat() const
+FQuat4d FVector3d::ToOrientationQuat() const
 {
 	// Essentially an optimized Vector->Rotator->Quat made possible by knowing Roll == 0, and avoiding radians->degrees->radians.
 	// This is done to avoid adding any roll (which our API states as a constraint).
@@ -297,7 +293,7 @@ FQuat FVector3d::ToOrientationQuat() const
 	FMath::SinCos(&SP, &CP, PitchRad * DIVIDE_BY_2);
 	FMath::SinCos(&SY, &CY, YawRad * DIVIDE_BY_2);
 
-	FQuat RotationQuat;
+	FQuat4d RotationQuat;
 	RotationQuat.X = static_cast<float>(SP * SY);
 	RotationQuat.Y = static_cast<float>(-SP * CY);
 	RotationQuat.Z = static_cast<float>(CP * SY);
@@ -358,7 +354,13 @@ FVector FMath::ClosestPointOnInfiniteLine(const FVector& LineStart, const FVecto
 	return ClosestPoint;
 }
 
-FRotator::FRotator(const FQuat& Quat)
+FRotator::FRotator(const FQuat4f& Quat)
+{
+	*this = Quat.Rotator();
+	DiagnosticCheckNaN();
+}
+
+FRotator::FRotator(const FQuat4d& Quat)
 {
 	*this = Quat.Rotator();
 	DiagnosticCheckNaN();
@@ -437,9 +439,8 @@ FQuat FRotator::Quaternion() const
 	const VectorRegister4Float LeftTerm  = VectorBitwiseXor(SignBitsLeft , VectorMultiply(CR, VectorMultiply(SP_SP_CP_CP, SY_CY_SY_CY)));
 	const VectorRegister4Float RightTerm = VectorBitwiseXor(SignBitsRight, VectorMultiply(SR, VectorMultiply(CP_CP_SP_SP, CY_SY_CY_SY)));
 
-	FQuat RotationQuat;
 	const VectorRegister4Float Result = VectorAdd(LeftTerm, RightTerm);	
-	VectorStoreAligned(Result, &RotationQuat);
+	FQuat RotationQuat = FQuat::MakeFromVectorRegister(Result);
 #else
 	const float DEG_TO_RAD = PI/(180.f);
 	const float RADS_DIVIDED_BY_2 = DEG_TO_RAD/2.f;
@@ -557,268 +558,116 @@ FRotator FMatrix44d::Rotator() const
 }
 
 template<>
-FQuat FMatrix44f::ToQuat() const
+FQuat4f FMatrix44f::ToQuat() const
 {
-	return FQuat(*this);
+	return FQuat4f(*this);
 }
 
 template<>
-FQuat FMatrix44d::ToQuat() const
+FQuat4d FMatrix44d::ToQuat() const
 {
-	return FQuat(*this);
+	return FQuat4d(*this);
 }
 
-CORE_API const FQuat FQuat::Identity(0,0,0,1);
 
-
-//////////////////////////////////////////////////////////////////////////
-// FQuat
-
-FRotator FQuat::Rotator() const
+namespace UE
 {
-	DiagnosticCheckNaN();
-	const float SingularityTest = Z*X-W*Y;
-	const float YawY = 2.f*(W*Z+X*Y);
-	const float YawX = (1.f-2.f*(FMath::Square(Y) + FMath::Square(Z)));
+namespace Math
+{
+	//////////////////////////////////////////////////////////////////////////
+	// FQuat
 
-	// reference 
-	// http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
-	// http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/
+	template<typename T>
+	FRotator TQuat<T>::Rotator() const
+	{
+		DiagnosticCheckNaN();
+		const T SingularityTest = Z * X - W * Y;
+		const T YawY = 2.f * (W * Z + X * Y);
+		const T YawX = (1.f - 2.f * (FMath::Square(Y) + FMath::Square(Z)));
 
-	// this value was found from experience, the above websites recommend different values
-	// but that isn't the case for us, so I went through different testing, and finally found the case 
-	// where both of world lives happily. 
-	const float SINGULARITY_THRESHOLD = 0.4999995f;
-	const float RAD_TO_DEG = (180.f)/PI;
-	FRotator RotatorFromQuat;
+		// reference 
+		// http://en.wikipedia.org/wiki/Conversion_between_quaternions_and_Euler_angles
+		// http://www.euclideanspace.com/maths/geometry/rotations/conversions/quaternionToEuler/
 
-	if (SingularityTest < -SINGULARITY_THRESHOLD)
-	{
-		RotatorFromQuat.Pitch = -90.f;
-		RotatorFromQuat.Yaw = FMath::Atan2(YawY, YawX) * RAD_TO_DEG;
-		RotatorFromQuat.Roll = FRotator::NormalizeAxis(-RotatorFromQuat.Yaw - (2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
-	}
-	else if (SingularityTest > SINGULARITY_THRESHOLD)
-	{
-		RotatorFromQuat.Pitch = 90.f;
-		RotatorFromQuat.Yaw = FMath::Atan2(YawY, YawX) * RAD_TO_DEG;
-		RotatorFromQuat.Roll = FRotator::NormalizeAxis(RotatorFromQuat.Yaw - (2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
-	}
-	else
-	{
-		RotatorFromQuat.Pitch = FMath::FastAsin(2.f*(SingularityTest)) * RAD_TO_DEG;
-		RotatorFromQuat.Yaw = FMath::Atan2(YawY, YawX) * RAD_TO_DEG;
-		RotatorFromQuat.Roll = FMath::Atan2(-2.f*(W*X+Y*Z), (1.f-2.f*(FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG;
-	}
+		// this value was found from experience, the above websites recommend different values
+		// but that isn't the case for us, so I went through different testing, and finally found the case 
+		// where both of world lives happily. 
+		const T SINGULARITY_THRESHOLD = 0.4999995f;
+		const T RAD_TO_DEG = (T)(180.f / PI);
+		float Pitch, Yaw, Roll;
+
+		if (SingularityTest < -SINGULARITY_THRESHOLD)
+		{
+			Pitch = -90.f;
+			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator::NormalizeAxis(-Yaw - float(2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
+		}
+		else if (SingularityTest > SINGULARITY_THRESHOLD)
+		{
+			Pitch = 90.f;
+			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = FRotator::NormalizeAxis(Yaw - float(2.f * FMath::Atan2(X, W) * RAD_TO_DEG));
+		}
+		else
+		{
+			Pitch = float(FMath::FastAsin(2.f * SingularityTest) * RAD_TO_DEG);
+			Yaw = float(FMath::Atan2(YawY, YawX) * RAD_TO_DEG);
+			Roll = float(FMath::Atan2(-2.f * (W*X + Y*Z), (1.f - 2.f * (FMath::Square(X) + FMath::Square(Y)))) * RAD_TO_DEG);
+		}
+
+		FRotator RotatorFromQuat = FRotator(Pitch, Yaw, Roll);
 
 #if ENABLE_NAN_DIAGNOSTIC
-	if (RotatorFromQuat.ContainsNaN())
-	{
-		logOrEnsureNanError(TEXT("FQuat::Rotator(): Rotator result %s contains NaN! Quat = %s, YawY = %.9f, YawX = %.9f"), *RotatorFromQuat.ToString(), *this->ToString(), YawY, YawX);
-		RotatorFromQuat = FRotator::ZeroRotator;
-	}
+		if (RotatorFromQuat.ContainsNaN())
+		{
+			logOrEnsureNanError(TEXT("TQuat<T>::Rotator(): Rotator result %s contains NaN! Quat = %s, YawY = %.9f, YawX = %.9f"), *RotatorFromQuat.ToString(), *this->ToString(), YawY, YawX);
+			RotatorFromQuat = FRotator::ZeroRotator;
+		}
 #endif
 
-	return RotatorFromQuat;
-}
-
-FQuat FQuat::MakeFromEuler(const FVector& Euler)
-{
-	return FRotator::MakeFromEuler(Euler).Quaternion();
-}
-
-void FQuat::ToSwingTwist(const FVector& InTwistAxis, FQuat& OutSwing, FQuat& OutTwist) const
-{
-	// Vector part projected onto twist axis
-	FVector Projection = FVector::DotProduct(InTwistAxis, FVector(X, Y, Z)) * InTwistAxis;
-
-	using FQuatReal = decltype(FQuat::X);
-
-	// Twist quaternion
-	OutTwist = FQuat((FQuatReal)Projection.X, (FQuatReal)Projection.Y, (FQuatReal)Projection.Z, W);
-
-	// Singularity close to 180deg
-	if(OutTwist.SizeSquared() == 0.0f)
-	{
-		OutTwist = FQuat::Identity;
-	}
-	else
-	{
-		OutTwist.Normalize();
+		return RotatorFromQuat;
 	}
 
-	// Set swing
-	OutSwing = *this * OutTwist.Inverse();
-}
-
-float FQuat::GetTwistAngle(const FVector& TwistAxis) const
-{
-	float XYZ = (float)FVector::DotProduct(TwistAxis, FVector(X, Y, Z));
-	return FMath::UnwindRadians(2.0f * (float)FMath::Atan2(XYZ, W));
-}
-
-FVector FQuat::Euler() const
-{
-	return Rotator().Euler();
-}
-
-bool FQuat::NetSerialize(FArchive& Ar, class UPackageMap*, bool& bOutSuccess)
-{
-	FQuat Q;
-
-	if (Ar.IsSaving())
+	template<typename T>
+	TQuat<T> TQuat<T>::MakeFromEuler(const TVector<T>& Euler)
 	{
-		Q = *this;
+		return TQuat<T>(FRotator::MakeFromEuler(Euler));
+	}
 
-		// Make sure we have a non null SquareSum. It shouldn't happen with a quaternion, but better be safe.
-		if(Q.SizeSquared() <= SMALL_NUMBER)
+	template<typename T>
+	void TQuat<T>::ToSwingTwist(const TVector<T>& InTwistAxis, TQuat<T>& OutSwing, TQuat<T>& OutTwist) const
+	{
+		// Vector part projected onto twist axis
+		TVector<T> Projection = TVector<T>::DotProduct(InTwistAxis, TVector<T>(X, Y, Z)) * InTwistAxis;
+
+		// Twist quaternion
+		OutTwist = TQuat<T>((FReal)Projection.X, (FReal)Projection.Y, (FReal)Projection.Z, W);
+
+		// Singularity close to 180deg
+		if (OutTwist.SizeSquared() == 0.0f)
 		{
-			Q = FQuat::Identity;
+			OutTwist = TQuat<T>::Identity;
 		}
 		else
 		{
-			// All transmitted quaternions *MUST BE* unit quaternions, in which case we can deduce the value of W.
-			if (!ensure(Q.IsNormalized()))
-			{
-				Q.Normalize();
-			}
-			// force W component to be non-negative
-			if (Q.W < 0.f)
-			{
-				Q.X *= -1.f;
-				Q.Y *= -1.f;
-				Q.Z *= -1.f;
-				Q.W *= -1.f;
-			}
-		}
-	}
-
-	Ar << Q.X << Q.Y << Q.Z;
-
-	if ( Ar.IsLoading() )
-	{
-		const float XYZMagSquared = (Q.X*Q.X + Q.Y*Q.Y + Q.Z*Q.Z);
-		const float WSquared = 1.0f - XYZMagSquared;
-		// If mag of (X,Y,Z) <= 1.0, then we calculate W to make magnitude of Q 1.0
-		if (WSquared >= 0.f)
-		{
-			Q.W = FMath::Sqrt(WSquared);
-		}
-		// If mag of (X,Y,Z) > 1.0, we set W to zero, and then renormalize 
-		else
-		{
-			Q.W = 0.f;
-
-			const float XYZInvMag = FMath::InvSqrt(XYZMagSquared);
-			Q.X *= XYZInvMag;
-			Q.Y *= XYZInvMag;
-			Q.Z *= XYZInvMag;
+			OutTwist.Normalize();
 		}
 
-		*this = Q;
+		// Set swing
+		OutSwing = *this * OutTwist.Inverse();
 	}
 
-	bOutSuccess = true;
-	return true;
-}
-
-
-//
-// Based on:
-// http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final
-// http://www.euclideanspace.com/maths/algebra/vectors/angleBetween/index.htm
-//
-FORCEINLINE_DEBUGGABLE FQuat FindBetween_Helper(const FVector& A, const FVector& B, FVector::FReal NormAB)
-{
-	using FReal = decltype(FQuat::X);
-	FReal W = FReal(NormAB + FVector::DotProduct(A, B));	// LWC_TODO: Precision loss
-	FQuat Result;
-
-	if (W >= 1e-6f * NormAB)
+	template<typename T>
+	T TQuat<T>::GetTwistAngle(const TVector<T>& TwistAxis) const
 	{
-		//Axis = FVector::CrossProduct(A, B);
-		Result = FQuat(FReal(A.Y * B.Z - A.Z * B.Y),
-					   FReal(A.Z * B.X - A.X * B.Z),
-					   FReal(A.X * B.Y - A.Y * B.X),
-					   W);
+		T XYZ = (T)TVector<T>::DotProduct(TwistAxis, TVector<T>(X, Y, Z));
+		return FMath::UnwindRadians((T)2.0f * FMath::Atan2(XYZ, W));
 	}
-	else
-	{
-		// A and B point in opposite directions
-		W = 0.f;
-		Result = FMath::Abs(A.X) > FMath::Abs(A.Y)
-				? FQuat(FReal(-A.Z), 0.f, FReal(A.X), W)
-				: FQuat(0.f, FReal(-A.Z), FReal(A.Y), W);
-	}
-
-	Result.Normalize();
-	return Result;
+}
 }
 
-FQuat FQuat::FindBetweenNormals(const FVector& A, const FVector& B)
-{
-	const FVector::FReal NormAB = 1.f;
-	return FindBetween_Helper(A, B, NormAB);
-}
 
-FQuat FQuat::FindBetweenVectors(const FVector& A, const FVector& B)
-{
-	const FVector::FReal NormAB = FMath::Sqrt(A.SizeSquared() * B.SizeSquared());
-	return FindBetween_Helper(A, B, NormAB);
-}
 
-FQuat FQuat::Log() const
-{
-	FQuat Result;
-	Result.W = 0.f;
-
-	if ( FMath::Abs(W) < 1.f )
-	{
-		const float Angle = FMath::Acos(W);
-		const float SinAngle = FMath::Sin(Angle);
-
-		if ( FMath::Abs(SinAngle) >= SMALL_NUMBER )
-		{
-			const float Scale = Angle/SinAngle;
-			Result.X = Scale*X;
-			Result.Y = Scale*Y;
-			Result.Z = Scale*Z;
-
-			return Result;
-		}
-	}
-
-	Result.X = X;
-	Result.Y = Y;
-	Result.Z = Z;
-
-	return Result;
-}
-
-FQuat FQuat::Exp() const
-{
-	const float Angle = FMath::Sqrt(X*X + Y*Y + Z*Z);
-	const float SinAngle = FMath::Sin(Angle);
-
-	FQuat Result;
-	Result.W = FMath::Cos(Angle);
-
-	if ( FMath::Abs(SinAngle) >= SMALL_NUMBER )
-	{
-		const float Scale = SinAngle/Angle;
-		Result.X = Scale*X;
-		Result.Y = Scale*Y;
-		Result.Z = Scale*Z;
-	}
-	else
-	{
-		Result.X = X;
-		Result.Y = Y;
-		Result.Z = Z;
-	}
-
-	return Result;
-}
 
 /*-----------------------------------------------------------------------------
 	Swept-Box vs Box test.
@@ -1018,99 +867,280 @@ float FLinearColor::EvaluateBezier(const FLinearColor* ControlPoints, int32 NumP
 	return Length;
 }
 
-
-
-FQuat FQuat::Slerp_NotNormalized(const FQuat& Quat1,const FQuat& Quat2, float Slerp)
+namespace UE
 {
-	// Get cosine of angle between quats.
-	const float RawCosom = 
-		    Quat1.X * Quat2.X +
+namespace Math
+{
+	template<typename T>
+	TQuat<T> TQuat<T>::Slerp_NotNormalized(const TQuat<T>& Quat1, const TQuat<T>& Quat2, T Slerp)
+	{
+		// Get cosine of angle between quats.
+		const T RawCosom =
+			Quat1.X * Quat2.X +
 			Quat1.Y * Quat2.Y +
 			Quat1.Z * Quat2.Z +
 			Quat1.W * Quat2.W;
-	// Unaligned quats - compensate, results in taking shorter route.
-	const float Cosom = FMath::FloatSelect( RawCosom, RawCosom, -RawCosom );
-	
-	float Scale0, Scale1;
+		// Unaligned quats - compensate, results in taking shorter route.
+		const T Cosom = FMath::FloatSelect(RawCosom, RawCosom, -RawCosom);
 
-	if( Cosom < 0.9999f )
-	{	
-		const float Omega = FMath::Acos(Cosom);
-		const float InvSin = 1.f/FMath::Sin(Omega);
-		Scale0 = FMath::Sin( (1.f - Slerp) * Omega ) * InvSin;
-		Scale1 = FMath::Sin( Slerp * Omega ) * InvSin;
+		T Scale0, Scale1;
+
+		if (Cosom < T(0.9999f))
+		{
+			const T Omega = FMath::Acos(Cosom);
+			const T InvSin = T(1.f) / FMath::Sin(Omega);
+			Scale0 = FMath::Sin((T(1.f) - Slerp) * Omega) * InvSin;
+			Scale1 = FMath::Sin(Slerp * Omega) * InvSin;
+		}
+		else
+		{
+			// Use linear interpolation.
+			Scale0 = T(1.0f) - Slerp;
+			Scale1 = Slerp;
+		}
+
+		// In keeping with our flipped Cosom:
+		Scale1 = FMath::FloatSelect(RawCosom, Scale1, -Scale1);
+
+		TQuat<T> Result;
+
+		Result.X = Scale0 * Quat1.X + Scale1 * Quat2.X;
+		Result.Y = Scale0 * Quat1.Y + Scale1 * Quat2.Y;
+		Result.Z = Scale0 * Quat1.Z + Scale1 * Quat2.Z;
+		Result.W = Scale0 * Quat1.W + Scale1 * Quat2.W;
+
+		return Result;
 	}
-	else
+
+	template<typename T>
+	TQuat<T> TQuat<T>::SlerpFullPath_NotNormalized(const TQuat<T>&quat1, const TQuat<T>&quat2, T Alpha )
 	{
-		// Use linear interpolation.
-		Scale0 = 1.0f - Slerp;
-		Scale1 = Slerp;	
+		const T CosAngle = FMath::Clamp(quat1 | quat2, T(-1.f), T(1.f));
+		const T Angle = FMath::Acos(CosAngle);
+
+		//UE_LOG(LogUnrealMath, Log,  TEXT("CosAngle: %f Angle: %f"), CosAngle, Angle );
+
+		if ( FMath::Abs(Angle) < T(KINDA_SMALL_NUMBER))
+		{
+			return quat1;
+		}
+
+		const T SinAngle = FMath::Sin(Angle);
+		const T InvSinAngle = T(1.f)/SinAngle;
+
+		const T Scale0 = FMath::Sin((1.0f-Alpha)*Angle)*InvSinAngle;
+		const T Scale1 = FMath::Sin(Alpha*Angle)*InvSinAngle;
+
+		return quat1*Scale0 + quat2*Scale1;
 	}
 
-	// In keeping with our flipped Cosom:
-	Scale1 = FMath::FloatSelect( RawCosom, Scale1, -Scale1 );
-
-	FQuat Result;
-		
-	Result.X = Scale0 * Quat1.X + Scale1 * Quat2.X;
-	Result.Y = Scale0 * Quat1.Y + Scale1 * Quat2.Y;
-	Result.Z = Scale0 * Quat1.Z + Scale1 * Quat2.Z;
-	Result.W = Scale0 * Quat1.W + Scale1 * Quat2.W;
-
-	return Result;
-}
-
-FQuat FQuat::SlerpFullPath_NotNormalized(const FQuat &quat1, const FQuat &quat2, float Alpha )
-{
-	const float CosAngle = FMath::Clamp(quat1 | quat2, -1.f, 1.f);
-	const float Angle = FMath::Acos(CosAngle);
-
-	//UE_LOG(LogUnrealMath, Log,  TEXT("CosAngle: %f Angle: %f"), CosAngle, Angle );
-
-	if ( FMath::Abs(Angle) < KINDA_SMALL_NUMBER )
+	template<typename T>
+	TQuat<T> TQuat<T>::Squad(const TQuat<T>& quat1, const TQuat<T>& tang1, const TQuat<T>& quat2, const TQuat<T>& tang2, T Alpha)
 	{
-		return quat1;
+		// Always slerp along the short path from quat1 to quat2 to prevent axis flipping.
+		// This approach is taken by OGRE engine, amongst others.
+		const TQuat<T> Q1 = TQuat::Slerp_NotNormalized(quat1, quat2, Alpha);
+		const TQuat<T> Q2 = TQuat::SlerpFullPath_NotNormalized(tang1, tang2, Alpha);
+		const TQuat<T> Result = TQuat::SlerpFullPath(Q1, Q2, 2.f * Alpha * (1.f - Alpha));
+
+		return Result;
 	}
 
-	const float SinAngle = FMath::Sin(Angle);
-	const float InvSinAngle = 1.f/SinAngle;
+	template<typename T>
+	TQuat<T> TQuat<T>::SquadFullPath(const TQuat<T>& quat1, const TQuat<T>& tang1, const TQuat<T>& quat2, const TQuat<T>& tang2, T Alpha)
+	{
+		const TQuat<T> Q1 = TQuat::SlerpFullPath_NotNormalized(quat1, quat2, Alpha);
+		const TQuat<T> Q2 = TQuat::SlerpFullPath_NotNormalized(tang1, tang2, Alpha);
+		const TQuat<T> Result = TQuat::SlerpFullPath(Q1, Q2, 2.f * Alpha * (1.f - Alpha));
 
-	const float Scale0 = FMath::Sin((1.0f-Alpha)*Angle)*InvSinAngle;
-	const float Scale1 = FMath::Sin(Alpha*Angle)*InvSinAngle;
+		return Result;
+	}
 
-	return quat1*Scale0 + quat2*Scale1;
-}
+	template<typename T>
+	void TQuat<T>::CalcTangents(const TQuat<T>& PrevP, const TQuat<T>& P, const TQuat<T>& NextP, T Tension, TQuat<T>& OutTan)
+	{
+		const TQuat<T> InvP = P.Inverse();
+		const TQuat<T> Part1 = (InvP * PrevP).Log();
+		const TQuat<T> Part2 = (InvP * NextP).Log();
 
-FQuat FQuat::Squad(const FQuat& quat1, const FQuat& tang1, const FQuat& quat2, const FQuat& tang2, float Alpha)
-{
-	// Always slerp along the short path from quat1 to quat2 to prevent axis flipping.
-	// This approach is taken by OGRE engine, amongst others.
-	const FQuat Q1 = FQuat::Slerp_NotNormalized(quat1, quat2, Alpha);
-	const FQuat Q2 = FQuat::SlerpFullPath_NotNormalized(tang1, tang2, Alpha);
-	const FQuat Result = FQuat::SlerpFullPath(Q1, Q2, 2.f * Alpha * (1.f - Alpha));
+		const TQuat<T> PreExp = (Part1 + Part2) * -0.5f;
 
-	return Result;
-}
+		OutTan = P * PreExp.Exp();
+	}
 
-FQuat FQuat::SquadFullPath(const FQuat& quat1, const FQuat& tang1, const FQuat& quat2, const FQuat& tang2, float Alpha)
-{
-	const FQuat Q1 = FQuat::SlerpFullPath_NotNormalized(quat1, quat2, Alpha);
-	const FQuat Q2 = FQuat::SlerpFullPath_NotNormalized(tang1, tang2, Alpha);
-	const FQuat Result = FQuat::SlerpFullPath(Q1, Q2, 2.f * Alpha * (1.f - Alpha));
+	template<typename T>
+	TVector<T> TQuat<T>::Euler() const
+	{
+		return Rotator().Euler();
+	}
 
-	return Result;
-}
+	template<typename T>
+	bool TQuat<T>::NetSerialize(FArchive& Ar, class UPackageMap*, bool& bOutSuccess)
+	{
+		TQuat<T> Q;
 
-void FQuat::CalcTangents(const FQuat& PrevP, const FQuat& P, const FQuat& NextP, float Tension, FQuat& OutTan)
-{
-	const FQuat InvP = P.Inverse();
-	const FQuat Part1 = (InvP * PrevP).Log();
-	const FQuat Part2 = (InvP * NextP).Log();
+		if (Ar.IsSaving())
+		{
+			Q = *this;
 
-	const FQuat PreExp = (Part1 + Part2) * -0.5f;
+			// Make sure we have a non null SquareSum. It shouldn't happen with a quaternion, but better be safe.
+			if (Q.SizeSquared() <= (T)SMALL_NUMBER)
+			{
+				Q = TQuat<T>::Identity;
+			}
+			else
+			{
+				// All transmitted quaternions *MUST BE* unit quaternions, in which case we can deduce the value of W.
+				if (!ensure(Q.IsNormalized()))
+				{
+					Q.Normalize();
+				}
+				// force W component to be non-negative
+				if (Q.W < 0.f)
+				{
+					Q.X *= -1.f;
+					Q.Y *= -1.f;
+					Q.Z *= -1.f;
+					Q.W *= -1.f;
+				}
+			}
+		}
 
-	OutTan = P * PreExp.Exp();
-}
+		Ar << Q.X << Q.Y << Q.Z;
+
+		if (Ar.IsLoading())
+		{
+			const T XYZMagSquared = (Q.X * Q.X + Q.Y * Q.Y + Q.Z * Q.Z);
+			const T WSquared = (T)1.0f - XYZMagSquared;
+			// If mag of (X,Y,Z) <= 1.0, then we calculate W to make magnitude of Q 1.0
+			if (WSquared >= 0.f)
+			{
+				Q.W = FMath::Sqrt(WSquared);
+			}
+			// If mag of (X,Y,Z) > 1.0, we set W to zero, and then renormalize 
+			else
+			{
+				Q.W = 0.f;
+
+				const T XYZInvMag = FMath::InvSqrt(XYZMagSquared);
+				Q.X *= XYZInvMag;
+				Q.Y *= XYZInvMag;
+				Q.Z *= XYZInvMag;
+			}
+
+			*this = Q;
+		}
+
+		bOutSuccess = true;
+		return true;
+	}
+
+
+	//
+	// Based on:
+	// http://lolengine.net/blog/2014/02/24/quaternion-from-two-vectors-final
+	// http://www.euclideanspace.com/maths/algebra/vectors/angleBetween/index.htm
+	//
+	template<typename T>
+	FORCEINLINE_DEBUGGABLE TQuat<T> FindBetween_Helper(const TVector<T>& A, const TVector<T>& B, T NormAB)
+	{
+		T W = NormAB + TVector<T>::DotProduct(A, B);
+		TQuat<T> Result;
+
+		if (W >= 1e-6f * NormAB)
+		{
+			//Axis = FVector::CrossProduct(A, B);
+			Result = TQuat<T>(
+				A.Y * B.Z - A.Z * B.Y,
+				A.Z * B.X - A.X * B.Z,
+				A.X * B.Y - A.Y * B.X,
+				W);
+		}
+		else
+		{
+			// A and B point in opposite directions
+			W = 0.f;
+			Result = FMath::Abs(A.X) > FMath::Abs(A.Y)
+				? TQuat<T>(-A.Z, 0.f, A.X, W)
+				: TQuat<T>(0.f, -A.Z, A.Y, W);
+		}
+
+		Result.Normalize();
+		return Result;
+	}
+
+	template<typename T>
+	TQuat<T> TQuat<T>::FindBetweenNormals(const TVector<T>& A, const TVector<T>& B)
+	{
+		const T NormAB = 1.f;
+		return UE::Math::FindBetween_Helper(A, B, NormAB);
+	}
+
+	template<typename T>
+	TQuat<T> TQuat<T>::FindBetweenVectors(const TVector<T>& A, const TVector<T>& B)
+	{
+		const T NormAB = FMath::Sqrt(A.SizeSquared() * B.SizeSquared());
+		return UE::Math::FindBetween_Helper(A, B, NormAB);
+	}
+
+	template<typename T>
+	TQuat<T> TQuat<T>::Log() const
+	{
+		TQuat<T> Result;
+		Result.W = 0.f;
+
+		if (FMath::Abs(W) < 1.f)
+		{
+			const T Angle = FMath::Acos(W);
+			const T SinAngle = FMath::Sin(Angle);
+
+			if (FMath::Abs(SinAngle) >= T(SMALL_NUMBER))
+			{
+				const T Scale = Angle / SinAngle;
+				Result.X = Scale * X;
+				Result.Y = Scale * Y;
+				Result.Z = Scale * Z;
+
+				return Result;
+			}
+		}
+
+		Result.X = X;
+		Result.Y = Y;
+		Result.Z = Z;
+
+		return Result;
+	}
+
+	template<typename T>
+	TQuat<T> TQuat<T>::Exp() const
+	{
+		const T Angle = FMath::Sqrt(X * X + Y * Y + Z * Z);
+		const T SinAngle = FMath::Sin(Angle);
+
+		TQuat<T>  Result;
+		Result.W = FMath::Cos(Angle);
+
+		if (FMath::Abs(SinAngle) >= T(SMALL_NUMBER))
+		{
+			const T Scale = SinAngle / Angle;
+			Result.X = Scale * X;
+			Result.Y = Scale * Y;
+			Result.Z = Scale * Z;
+		}
+		else
+		{
+			Result.X = X;
+			Result.Y = Y;
+			Result.Z = Z;
+		}
+
+		return Result;
+	}
+
+
+} // namespace UE::Math
+} // namespace UE
 
 template<typename T>
 static void FindBounds( T& OutMin, T& OutMax,  T Start, T StartLeaveTan, float StartT, T End, T EndArriveTan, float EndT, bool bCurve )
@@ -2100,7 +2130,7 @@ CORE_API FVector FMath::VInterpNormalRotationTo(const FVector& Current, const FV
 
 	// Decompose into an axis and angle for rotation
 	FVector DeltaAxis(0.f);
-	float DeltaAngle = 0.f;
+	FQuat::FReal DeltaAngle = 0.f;
 	DeltaQuat.ToAxisAndAngle(DeltaAxis, DeltaAngle);
 
 	// Find rotation step for this frame
@@ -2108,7 +2138,7 @@ CORE_API FVector FMath::VInterpNormalRotationTo(const FVector& Current, const FV
 
 	if( FMath::Abs(DeltaAngle) > RotationStepRadians )
 	{
-		DeltaAngle = FMath::Clamp(DeltaAngle, -RotationStepRadians, RotationStepRadians);
+		DeltaAngle = FMath::Clamp<FQuat::FReal>(DeltaAngle, -RotationStepRadians, RotationStepRadians);
 		DeltaQuat = FQuat(DeltaAxis, DeltaAngle);
 		return DeltaQuat.RotateVector(Current);
 	}
@@ -2336,7 +2366,8 @@ CORE_API FLinearColor FMath::CInterpTo(const FLinearColor& Current, const FLinea
 	return Current + DeltaMove;
 }
 
-CORE_API FQuat FMath::QInterpConstantTo(const FQuat& Current, const FQuat& Target, float DeltaTime, float InterpSpeed)
+template< class T >
+CORE_API UE::Math::TQuat<T> FMath::QInterpConstantTo(const UE::Math::TQuat<T>& Current, const UE::Math::TQuat<T>& Target, float DeltaTime, float InterpSpeed)
 {
 	// If no interp speed, jump to target value
 	if (InterpSpeed <= 0.f)
@@ -2350,14 +2381,20 @@ CORE_API FQuat FMath::QInterpConstantTo(const FQuat& Current, const FQuat& Targe
 		return Target;
 	}
 
-	float DeltaInterpSpeed = FMath::Clamp(DeltaTime * InterpSpeed, 0.f, 1.f);
-	float AngularDistance = FMath::Max(SMALL_NUMBER, Target.AngularDistance(Current));
-	float Alpha = FMath::Clamp(DeltaInterpSpeed / AngularDistance, 0.f, 1.f);
+	float DeltaInterpSpeed = FMath::Clamp<float>(DeltaTime * InterpSpeed, 0.f, 1.f);
+	float AngularDistance = FMath::Max<float>(SMALL_NUMBER, (float)(Target.AngularDistance(Current)));
+	float Alpha = FMath::Clamp<float>(DeltaInterpSpeed / AngularDistance, 0.f, 1.f);
 
-	return FQuat::Slerp(Current, Target, Alpha);
+	return UE::Math::TQuat<T>::Slerp(Current, Target, Alpha);
 }
 
-CORE_API FQuat FMath::QInterpTo(const FQuat& Current, const FQuat& Target, float DeltaTime, float InterpSpeed)
+// Instantiate for linker
+template CORE_API UE::Math::TQuat<float> FMath::QInterpConstantTo<float>(const UE::Math::TQuat<float>& Current, const UE::Math::TQuat<float>& Target, float DeltaTime, float InterpSpeed);
+template CORE_API UE::Math::TQuat<double> FMath::QInterpConstantTo<double>(const UE::Math::TQuat<double>& Current, const UE::Math::TQuat<double>& Target, float DeltaTime, float InterpSpeed);
+
+
+template< class T >
+CORE_API UE::Math::TQuat<T> FMath::QInterpTo(const UE::Math::TQuat<T>& Current, const UE::Math::TQuat<T>& Target, float DeltaTime, float InterpSpeed)
 {
 	// If no interp speed, jump to target value
 	if (InterpSpeed <= 0.f)
@@ -2371,8 +2408,13 @@ CORE_API FQuat FMath::QInterpTo(const FQuat& Current, const FQuat& Target, float
 		return Target;
 	}
 
-	return FQuat::Slerp(Current, Target, FMath::Clamp(InterpSpeed * DeltaTime, 0.f, 1.f));
+	return UE::Math::TQuat<T>::Slerp(Current, Target, FMath::Clamp<float>(InterpSpeed * DeltaTime, 0.f, 1.f));
 }
+
+// Instantiate for linker
+template CORE_API UE::Math::TQuat<float> FMath::QInterpTo<float>(const UE::Math::TQuat<float>& Current, const UE::Math::TQuat<float>& Target, float DeltaTime, float InterpSpeed);
+template CORE_API UE::Math::TQuat<double> FMath::QInterpTo<double>(const UE::Math::TQuat<double>& Current, const UE::Math::TQuat<double>& Target, float DeltaTime, float InterpSpeed);
+
 
 CORE_API float ClampFloatTangent( float PrevPointVal, float PrevTime, float CurPointVal, float CurTime, float NextPointVal, float NextTime )
 {
@@ -3342,3 +3384,8 @@ float FMath::PerlinNoise3D(const FVector& Location)
 		),
 		-1.0f, 1.0f);
 }
+
+
+// Instantiate for linker
+template struct UE::Math::TQuat<float>;
+template struct UE::Math::TQuat<double>;

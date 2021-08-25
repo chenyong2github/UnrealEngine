@@ -115,7 +115,7 @@ void UPolyEditInsetOutsetActivity::BeginInset()
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	EditPreview = PolyEditActivityUtil::CreatePolyEditPreviewMesh(*ParentTool, *ActivityContext);
 	EditPreview->InitializeInsetType(ActivityContext->CurrentMesh.Get(), ActiveTriangleSelection, &WorldTransform);
@@ -138,7 +138,7 @@ void UPolyEditInsetOutsetActivity::BeginInset()
 	FMeshBoundaryLoops Loops(&InsetHitTargetMesh);
 	TArray<FVector3d> LoopVertices;
 	Loops.Loops[0].GetVertices(LoopVertices);
-	CurveDistMechanic->InitializePolyLoop(LoopVertices, FTransform3d::Identity());
+	CurveDistMechanic->InitializePolyLoop(LoopVertices, UE::Geometry::FTransform3d::Identity());
 
 	SetToolPropertySourceEnabled(Settings, true);
 

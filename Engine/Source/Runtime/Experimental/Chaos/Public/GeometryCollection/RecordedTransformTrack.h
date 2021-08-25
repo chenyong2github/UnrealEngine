@@ -544,7 +544,7 @@ struct CHAOS_API FRecordedTransformTrack
 
 		FQuat Delta = Curr.GetRotation() * Prev.GetRotation().Inverse();
 		FVector Axis;
-		float Angle;
+		FVector::FReal Angle;
 		Delta.ToAxisAndAngle(Axis, Angle);
 
 		return (Axis * Angle) / SampleWidth;

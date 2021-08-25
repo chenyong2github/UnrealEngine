@@ -11,7 +11,6 @@
 	#import <ARKit/ARKit.h>
 #endif
 
-struct FTransform;
 
 /** Represents a cached version of the data coming from an ARKit mesh anchor */
 class FARKitMeshData : public IMRMesh::FBrickDataReceipt

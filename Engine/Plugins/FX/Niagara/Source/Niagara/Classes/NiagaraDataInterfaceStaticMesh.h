@@ -206,7 +206,7 @@ struct FNDIStaticMesh_InstanceData
 	TRefCountPtr<const FStaticMeshLODResources> CachedLOD;
 
 	/** Cached socket information, if available */
-	TArray<FTransform> CachedSockets;
+	TArray<FTransform3f> CachedSockets;
 
 	/** Number of filtered sockets. */
 	int32 NumFilteredSockets = 0;

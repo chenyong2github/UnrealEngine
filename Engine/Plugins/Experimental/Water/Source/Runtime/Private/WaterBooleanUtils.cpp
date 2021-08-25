@@ -23,7 +23,6 @@
 #include "Model.h"
 #include "WaterModule.h"
 
-
 double FWaterBooleanUtils::UnitAspectRatio(const FVector3d& A, const FVector3d& B, const FVector3d& C)
 {
 	double AspectRatio = VectorUtil::AspectRatio(A, B, C);
@@ -132,7 +131,7 @@ void FWaterBooleanUtils::ExtractMesh(AVolume* Volume, FDynamicMesh3& Mesh)
 	Mesh.DiscardAttributes();
 
 	UModel* Model = Volume->Brush;
-	FTransform3d XForm(Volume->GetTransform());
+	UE::Geometry::FTransform3d XForm(Volume->GetTransform());
 
 	// Each "BspNode" is a planar polygon, triangulate each polygon and accumulate in a mesh.
 	// Note that this does not make any attempt to weld vertices/edges
@@ -239,10 +238,10 @@ void FWaterBooleanUtils::ApplyBooleanRepairs(FDynamicMesh3& Mesh, double MergeTo
 
 void FWaterBooleanUtils::MakeNormalizationTransform(
 	const FAxisAlignedBox3d& Bounds,
-	FTransform3d& ToNormalizedOut, FTransform3d& FromNormalizedOut)
+	UE::Geometry::FTransform3d& ToNormalizedOut, UE::Geometry::FTransform3d& FromNormalizedOut)
 {
 	double WorldSize = Bounds.MaxDim();
-	FromNormalizedOut = FTransform3d::Identity();
+	FromNormalizedOut = UE::Geometry::FTransform3d::Identity();
 	FromNormalizedOut.SetTranslation(Bounds.Center());
 	FromNormalizedOut.SetScale(WorldSize * FVector3d::One());
 	ToNormalizedOut = FromNormalizedOut.Inverse();
@@ -263,12 +262,12 @@ void FWaterBooleanUtils::SetToFaceNormals(FDynamicMesh3& Mesh)
 	}
 }
 
-FDynamicMesh3 FWaterBooleanUtils::AccumulateExtrusionVolumes(const TArray<AWaterBodyExclusionVolume*>& ExclusionVolumes, const FTransform3d& Transform)
+FDynamicMesh3 FWaterBooleanUtils::AccumulateExtrusionVolumes(const TArray<AWaterBodyExclusionVolume*>& ExclusionVolumes, const UE::Geometry::FTransform3d& Transform)
 {
 	// First step is to boolean-union all the volumes into this mesh
 	FDynamicMesh3 CombinedVolumes;
 
-	FTransform3d IdentityTransform;
+	UE::Geometry::FTransform3d IdentityTransform;
 	for (AWaterBodyExclusionVolume* Volume : ExclusionVolumes)
 	{
 		// convert volume to mesh
@@ -303,6 +302,8 @@ FDynamicMesh3 FWaterBooleanUtils::AccumulateExtrusionVolumes(const TArray<AWater
 
 FDynamicMesh3 FWaterBooleanUtils::MakeBoxCollisionMesh(FAxisAlignedBox3d WorldBoxBounds, const TArray<AWaterBodyExclusionVolume*>& ExclusionVolumes)
 {
+	using FTransform3d = UE::Geometry::FTransform3d;
+
 	// construct a transform that scales the input world-space box to unit bounds, to improve numerical precision
 	FTransform3d ToUnitTransform, FromUnitTransform;
 	MakeNormalizationTransform(WorldBoxBounds, ToUnitTransform, FromUnitTransform);
@@ -1093,7 +1094,7 @@ void FWaterBooleanUtils::BuildOceanCollisionComponents(
 	TArray<TArray<AWaterBodyExclusionVolume*>> ClusteredVolumes;
 	ClusterExclusionVolumes(IntersectingVolumes, ClusteredVolumes, WorldMeshBufferWidth);
 
-	FTransform3d ActorTransformd(ActorTransform);
+	UE::Geometry::FTransform3d ActorTransformd(ActorTransform);
 
 	// for each cluster, clip ocean box to bounds-plus-buffer of cluster and then
 	// compute Boolean subtraction of exclusion volumes from that box

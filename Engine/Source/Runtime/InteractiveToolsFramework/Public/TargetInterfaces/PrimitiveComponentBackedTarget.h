@@ -10,7 +10,6 @@
 
 class UPrimitiveComponent;
 class AActor;
-struct FTransform;
 
 UINTERFACE()
 class INTERACTIVETOOLSFRAMEWORK_API UPrimitiveComponentBackedTarget : public UInterface

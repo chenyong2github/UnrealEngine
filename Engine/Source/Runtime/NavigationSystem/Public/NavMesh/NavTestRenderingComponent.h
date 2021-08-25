@@ -121,7 +121,6 @@ private:
 #include "NavTestRenderingComponent.generated.h"
 
 class FPrimitiveSceneProxy;
-struct FTransform;
 
 UCLASS(hidecategories=Object)
 class UNavTestRenderingComponent: public UPrimitiveComponent

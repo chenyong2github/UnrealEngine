@@ -366,13 +366,13 @@ public:
 	virtual void UpdateInternalValueFromStruct(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetQuatStruct(), TEXT("Struct type not supported."));
-		VectorValue = *((FQuat*)Struct->GetStructMemory());
+		VectorValue = *((FQuat4f*)Struct->GetStructMemory());
 	}
 
 	virtual void UpdateStructFromInternalValue(TSharedRef<FStructOnScope> Struct) override
 	{
 		checkf(Struct->GetStruct() == FNiagaraTypeDefinition::GetQuatStruct(), TEXT("Struct type not supported."));
-		*((FQuat*)Struct->GetStructMemory()) = VectorValue;
+		*((FQuat4f*)Struct->GetStructMemory()) = VectorValue;
 	}
 
 protected:
@@ -416,7 +416,7 @@ protected:
 	}
 
 private:
-	FQuat VectorValue;
+	FQuat4f VectorValue;
 };
 
 TSharedPtr<SNiagaraParameterEditor> FNiagaraEditorQuatTypeUtilities::CreateParameterEditor(const FNiagaraTypeDefinition& ParameterType) const
@@ -433,7 +433,7 @@ FString FNiagaraEditorQuatTypeUtilities::GetPinDefaultStringFromValue(const FNia
 {
 	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
 	// NOTE: We can not use ToString() here since the vector pin control doesn't use the standard 'X=0,Y=0,Z=0,W=0' syntax.
-	FQuat Value = AllocatedVariable.GetValue<FQuat>();
+	FQuat4f Value = AllocatedVariable.GetValue<FQuat4f>();
 	return FString::Printf(TEXT("%3.3f,%3.3f,%3.3f,%3.3f"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
@@ -443,8 +443,8 @@ bool FNiagaraEditorQuatTypeUtilities::SetValueFromPinDefaultString(const FString
 	FVector4 Value(0, 0, 0, 0);
 	if (FDefaultValueHelper::ParseVector4(StringValue, Value) || !Variable.IsDataAllocated())
 	{
-		FQuat Quat(Value.X, Value.Y, Value.Z, Value.W);
-		Variable.SetValue<FQuat>(Quat);
+		FQuat4f Quat(Value.X, Value.Y, Value.Z, Value.W);
+		Variable.SetValue<FQuat4f>(Quat);
 		return true;
 	}
 	return false;
@@ -457,14 +457,14 @@ FText FNiagaraEditorQuatTypeUtilities::GetSearchTextFromValue(const FNiagaraVari
 
 FText FNiagaraEditorQuatTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
 {
-	FQuat Value = Variable.GetValue<FQuat>();
+	FQuat4f Value = Variable.GetValue<FQuat4f>();
 	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
 void FNiagaraEditorQuatTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVariable& Variable) const
 {
 	checkf(Variable.GetType().GetStruct() == FNiagaraTypeDefinition::GetQuatStruct(), TEXT("Struct type not supported."));
-	Variable.SetValue<FQuat>(FQuat(0, 0, 0, 1));
+	Variable.SetValue<FQuat4f>(FQuat4f(0, 0, 0, 1));
 }
 
 bool FNiagaraEditorNiagaraIDTypeUtilities::CanHandlePinDefaults() const

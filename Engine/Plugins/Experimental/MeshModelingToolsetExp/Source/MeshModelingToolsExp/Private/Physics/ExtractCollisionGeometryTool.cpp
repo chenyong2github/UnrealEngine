@@ -127,6 +127,7 @@ void UExtractCollisionGeometryTool::Setup()
 
 void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	using FTransform3d = UE::Geometry::FTransform3d;
 	OutputTypeProperties->SaveProperties(this, TEXT("ExtractCollisionTool"));
 	Settings->SaveProperties(this);
 	VizSettings->SaveProperties(this);

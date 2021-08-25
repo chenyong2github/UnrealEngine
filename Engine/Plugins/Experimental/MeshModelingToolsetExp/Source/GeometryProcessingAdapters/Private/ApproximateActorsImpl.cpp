@@ -552,6 +552,7 @@ static TSharedPtr<FApproximationMeshData> GenerateApproximationMesh(
 			CurResultMeshSpatial.Build();
 		}
 
+		using FTransform3d = UE::Geometry::FTransform3d;
 		TArray<FTransform3d> NoTransforms;
 		NoTransforms.Add(FTransform3d::Identity());
 		TArray<FDynamicMeshAABBTree3*> Spatials;

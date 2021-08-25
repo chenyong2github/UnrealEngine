@@ -360,7 +360,7 @@ bool UMeshSelectionTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 		SourceMesh->GetTriInfo(OutHit.FaceIndex, Normal, Area, Centroid);
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		UE::Geometry::FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
 		FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
 
 		if (Normal.Dot((Centroid - LocalEyePosition)) > 0)
@@ -416,7 +416,7 @@ TUniquePtr<FDynamicMeshOctree3>& UMeshSelectionTool::GetOctree()
 
 void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI)
 {
-	FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	UE::Geometry::FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// TODO: need dynamic vertex hash table!
@@ -438,7 +438,7 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 
 void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArray<int>& TriangleROI)
 {
-	FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
+	UE::Geometry::FTransform3d Transform = UE::ToolTarget::GetLocalToWorldTransform(Target);
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	// always select first triangle
@@ -591,7 +591,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 	{
 		FViewCameraState StateOut;
 		GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(StateOut);
-		FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
+		UE::Geometry::FTransform3d LocalToWorld = UE::ToolTarget::GetLocalToWorldTransform(Target);
 		FVector3d LocalEyePosition(LocalToWorld.InverseTransformPosition(StateOut.Position));
 
 		for (int tid : TriangleROI)
@@ -702,7 +702,7 @@ FBox UMeshSelectionTool::GetWorldSpaceFocusBox()
 		FAxisAlignedBox3d Bounds = FAxisAlignedBox3d::Empty();
 
 		const FDynamicMesh3* Mesh = PreviewMesh->GetMesh();
-		FTransform3d Transform(PreviewMesh->GetTransform());
+		UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 		for (int32 tid : SelectedFaces)
 		{
 			FIndex3i Tri = Mesh->GetTriangle(tid);

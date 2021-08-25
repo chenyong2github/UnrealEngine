@@ -145,6 +145,11 @@ UScriptStruct* FNiagaraTypeHelper::FindNiagaraFriendlyTopLevelStruct(UScriptStru
 		return FNiagaraTypeDefinition::GetVec3Struct();
 	}
 
+	if (InStruct->GetFName() == NAME_Quat || InStruct->GetFName() == NAME_Quat4d) // LWC support
+	{
+		return FNiagaraTypeDefinition::GetQuatStruct();
+	}
+
 	return InStruct;
 }
 

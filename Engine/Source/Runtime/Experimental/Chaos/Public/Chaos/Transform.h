@@ -113,44 +113,63 @@ namespace Chaos
 	};
 
 	template<>
-	class TRigidTransform<FReal, 2> : public FTransform
+	class TRigidTransform<FReal, 2> : public UE::Math::TTransform<FReal>
 	{
+		using BaseTransform = UE::Math::TTransform<FReal>;
 	public:
 		TRigidTransform()
-			: FTransform() {}
+			: BaseTransform() {}
 		TRigidTransform(const TVector<FReal, 3>& Translation, const TRotation<FReal, 3>& Rotation)
-			: FTransform(Rotation, FVector(Translation)) {}	// LWC_TODO: Perf pessimization
+			: BaseTransform(Rotation, Translation) {}
 		TRigidTransform(const FMatrix44d& Matrix)
-			: FTransform(Matrix) {}
+			: BaseTransform(Matrix) {}
 		TRigidTransform(const FMatrix44f& Matrix)
-			: FTransform(Matrix) {}
-		TRigidTransform(const FTransform& Transform)
-			: FTransform(Transform) {}
-		PMatrix<FReal, 3, 3> Inverse() const
+			: BaseTransform(Matrix) {}
+		TRigidTransform(const BaseTransform& Transform)
+			: BaseTransform(Transform) {}
+		TRigidTransform<FReal, 2> Inverse() const
 		{
-			return (FMatrix44f)ToMatrixNoScale().Inverse();	// LWC_TODO: Perf pessimization
+			return BaseTransform::Inverse();
+		}
+
+		inline TRigidTransform<FReal, 2> operator*(const TRigidTransform<FReal, 2>& Other) const
+		{
+			return BaseTransform::operator*(Other);
 		}
 	};
 
 	template<>
-	class TRigidTransform<FReal, 3> : public FTransform
+	class TRigidTransform<FReal, 3> : public UE::Math::TTransform<FReal>
 	{
+		using BaseTransform = UE::Math::TTransform<FReal>;
 	public:
 		TRigidTransform()
-			: FTransform() {}
+			: BaseTransform() {}
 		TRigidTransform(const TVector<FReal, 3>& Translation, const TRotation<FReal, 3>& Rotation)
-			: FTransform(Rotation, FVector(Translation)) {}	// LWC_TODO: Perf pessimization
+			: BaseTransform(Rotation, Translation) {}
 		TRigidTransform(const TVector<FReal, 3>& Translation, const TRotation<FReal, 3>& Rotation, const TVector<FReal, 3>& Scale)
-			: FTransform(Rotation, FVector(Translation), FVector(Scale)) {}	// LWC_TODO: Perf pessimization
+			: BaseTransform(Rotation, Translation, Scale) {}
 		TRigidTransform(const FMatrix44d& Matrix)
-			: FTransform(Matrix) {}
+			: BaseTransform(Matrix) {}
 		TRigidTransform(const FMatrix44f& Matrix)
-			: FTransform(Matrix) {}
-		TRigidTransform(const FTransform& Transform)
-			: FTransform(Transform) {}
-		PMatrix<FReal, 4, 4> Inverse() const
+			: BaseTransform(Matrix) {}
+		TRigidTransform(const BaseTransform& Transform)
+			: BaseTransform(Transform) {}
+		TRigidTransform<FReal, 3> Inverse() const
 		{
-			return ToMatrixNoScale().Inverse();
+			return BaseTransform::Inverse();
+		}
+
+		PMatrix<FReal, 4, 4> ToMatrixNoScale() const
+		{
+			return BaseTransform::ToMatrixNoScale();
+		}
+
+		CHAOS_API Chaos::PMatrix<Chaos::FReal, 4, 4> operator*(const Chaos::PMatrix<Chaos::FReal, 4, 4>& Matrix) const;
+		
+		inline TRigidTransform<FReal, 3> operator*(const TRigidTransform<FReal, 3>& Other) const
+		{
+			return BaseTransform::operator*(Other);
 		}
 
 		// Get the transform which maps from Other to This, ignoring the scale on both.
@@ -190,5 +209,3 @@ inline uint32 GetTypeHash(const Chaos::TRigidTransform<Chaos::FReal, 3>& InTrans
 	return HashCombine(GetTypeHash(InTransform.GetTranslation()), HashCombine(GetTypeHash(InTransform.GetRotation().Euler()), GetTypeHash(InTransform.GetScale3D())));
 }
 
-CHAOS_API Chaos::PMatrix<Chaos::FReal, 4, 4> operator*(const Chaos::TRigidTransform<Chaos::FReal, 3>& Transform, const Chaos::PMatrix<Chaos::FReal, 4, 4>& Matrix);
-CHAOS_API Chaos::PMatrix<Chaos::FReal, 4, 4> operator*(const Chaos::PMatrix<Chaos::FReal, 4, 4>& Matrix, const Chaos::TRigidTransform<Chaos::FReal, 3>& Transform);

@@ -171,22 +171,22 @@ public:
 		return BoneRefToLocals[CurrIndex ^ 1];
 	}
 
-	FORCEINLINE TArray<FTransform>& CurrComponentTransforms()
+	FORCEINLINE TArray<FTransform3f>& CurrComponentTransforms()
 	{
 		return ComponentTransforms[CurrIndex];
 	}
 
-	FORCEINLINE const TArray<FTransform>& CurrComponentTransforms() const
+	FORCEINLINE const TArray<FTransform3f>& CurrComponentTransforms() const
 	{
 		return ComponentTransforms[CurrIndex];
 	}
 
-	FORCEINLINE TArray<FTransform>& PrevComponentTransforms()
+	FORCEINLINE TArray<FTransform3f>& PrevComponentTransforms()
 	{
 		return ComponentTransforms[CurrIndex ^ 1];
 	}
 
-	FORCEINLINE const TArray<FTransform>& PrevComponentTransforms() const
+	FORCEINLINE const TArray<FTransform3f>& PrevComponentTransforms() const
 	{
 		return ComponentTransforms[CurrIndex ^ 1];
 	}
@@ -222,7 +222,7 @@ private:
 	TArray<FMatrix44f> BoneRefToLocals[2];
 
 	/** Component space transforms */
-	TArray<FTransform> ComponentTransforms[2];
+	TArray<FTransform3f> ComponentTransforms[2];
 
 	struct FLODData
 	{
@@ -633,7 +633,7 @@ struct FNDISkeletalMesh_InstanceData
 	struct FCachedSocketInfo
 	{
 		FCachedSocketInfo() : BoneIdx(INDEX_NONE){}
-		FTransform Transform;
+		FTransform3f Transform;
 		int32 BoneIdx;
 	};
 	TArray<FCachedSocketInfo> FilteredSocketInfo;
@@ -644,7 +644,7 @@ struct FNDISkeletalMesh_InstanceData
 	/** Index into which socket transforms to use.  */
 	uint32 FilteredSocketTransformsIndex = 0;
 	/** Transforms for sockets. */
-	TStaticArray<TArray<FTransform>, 2> FilteredSocketTransforms;
+	TStaticArray<TArray<FTransform3f>, 2> FilteredSocketTransforms;
 
 	uint32 ChangeId;
 
@@ -697,9 +697,9 @@ struct FNDISkeletalMesh_InstanceData
 	}
 
 	void UpdateFilteredSocketTransforms();
-	TArray<FTransform>& GetFilteredSocketsWriteBuffer() { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
-	const TArray<FTransform>& GetFilteredSocketsCurrBuffer() const { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
-	const TArray<FTransform>& GetFilteredSocketsPrevBuffer() const { return FilteredSocketTransforms[(FilteredSocketTransformsIndex + 1) % FilteredSocketTransforms.Num()]; }
+	TArray<FTransform3f>& GetFilteredSocketsWriteBuffer() { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
+	const TArray<FTransform3f>& GetFilteredSocketsCurrBuffer() const { return FilteredSocketTransforms[FilteredSocketTransformsIndex]; }
+	const TArray<FTransform3f>& GetFilteredSocketsPrevBuffer() const { return FilteredSocketTransforms[(FilteredSocketTransformsIndex + 1) % FilteredSocketTransforms.Num()]; }
 
 	bool HasColorData();
 };

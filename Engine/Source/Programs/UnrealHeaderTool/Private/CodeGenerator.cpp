@@ -1721,7 +1721,7 @@ static bool IsAlwaysAccessible(FUnrealScriptStructDefinitionInfo& ScriptDef)
 	if( ToTest == NAME_Plane || ToTest == NAME_Plane4f || ToTest == NAME_Plane4d
 		||	ToTest == NAME_Vector || ToTest == NAME_Vector3f || ToTest == NAME_Vector3d
 		||	ToTest == NAME_Vector4
-		||	ToTest == NAME_Quat
+		||	ToTest == NAME_Quat || ToTest == NAME_Quat4f || ToTest == NAME_Quat4d
 		||	ToTest == NAME_Color
 		)
 	{

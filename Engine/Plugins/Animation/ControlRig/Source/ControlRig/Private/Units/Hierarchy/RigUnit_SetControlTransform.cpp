@@ -80,7 +80,7 @@ FRigUnit_SetControlFloat_Execute()
 				const FRigElementKey Key(Control, ERigElementType::Control);
 				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
-					if(FMath::IsNearlyEqual(Weight, 1.f))
+					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
 						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<float>(FloatValue));
 					}
@@ -146,7 +146,7 @@ FRigUnit_SetControlInteger_Execute()
 				const FRigElementKey Key(Control, ERigElementType::Control);
 				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
-					if(FMath::IsNearlyEqual(Weight, 1.f))
+					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
 						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
 					}
@@ -213,7 +213,7 @@ FRigUnit_SetControlVector2D_Execute()
 				if (CachedControlIndex.UpdateCache(Key, Hierarchy))
 				{
 					const FVector3f CurrentValue(Vector.X, Vector.Y, 0.f);
-					if(FMath::IsNearlyEqual(Weight, 1.f))
+					if(FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
 						Hierarchy->SetControlValue(CachedControlIndex, FRigControlValue::Make<FVector3f>(CurrentValue));
 					}
@@ -289,7 +289,7 @@ FRigUnit_SetControlVector_Execute()
 
 					if (ControlType == ERigControlType::Position)
 					{
-						if(FMath::IsNearlyEqual(Weight, 1.f))
+						if(FMath::IsNearlyEqual((float)Weight, 1.f))
 						{
 							Transform.SetLocation(Vector);
 						}
@@ -301,7 +301,7 @@ FRigUnit_SetControlVector_Execute()
 					}
 					else if (ControlType == ERigControlType::Scale)
 					{
-						if(FMath::IsNearlyEqual(Weight, 1.f))
+						if(FMath::IsNearlyEqual((float)Weight, 1.f))
 						{
 							Transform.SetScale3D(Vector);
 						}
@@ -364,7 +364,7 @@ FRigUnit_SetControlRotator_Execute()
 					}
 
 					FQuat Quat = FQuat(Rotator);
-					if (FMath::IsNearlyEqual(Weight, 1.f))
+					if (FMath::IsNearlyEqual((float)Weight, 1.f))
 					{
 						Transform.SetRotation(Quat);
 					}
@@ -452,7 +452,7 @@ FRigUnit_SetControlTransform_Execute()
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							if(FMath::IsNearlyEqual(Weight, 1.f))
+							if(FMath::IsNearlyEqual((float)Weight, 1.f))
 							{
 								Hierarchy->SetGlobalTransform(CachedControlIndex, Transform);
 							}
@@ -465,7 +465,7 @@ FRigUnit_SetControlTransform_Execute()
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							if(FMath::IsNearlyEqual(Weight, 1.f))
+							if(FMath::IsNearlyEqual((float)Weight, 1.f))
 							{
 								Hierarchy->SetLocalTransform(CachedControlIndex, Transform);
 							}

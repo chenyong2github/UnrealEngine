@@ -24,7 +24,8 @@ struct FNDITransformHandlerNoop
 	FORCEINLINE void TransformPosition(FVector3d& V, const FMatrix44d& M) { }
 	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) { }
 	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) { }
-	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { }
+	FORCEINLINE void TransformRotation(FQuat4f& Q1, const FQuat4f& Q2) { }
+	FORCEINLINE void TransformRotation(FQuat4d& Q1, const FQuat4d& Q2) { }
 };
 
 struct FNDITransformHandler
@@ -33,7 +34,8 @@ struct FNDITransformHandler
 	FORCEINLINE void TransformPosition(FVector3d& P, const FMatrix44d& M) { P = M.TransformPosition(P); }
 	FORCEINLINE void TransformVector(FVector3f& V, const FMatrix44f& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
 	FORCEINLINE void TransformVector(FVector3d& V, const FMatrix44d& M) { V = M.TransformVector(V).GetUnsafeNormal3(); }
-	FORCEINLINE void TransformRotation(FQuat& Q1, const FQuat& Q2) { Q1 = Q2 * Q1; }
+	FORCEINLINE void TransformRotation(FQuat4f& Q1, const FQuat4f& Q2) { Q1 = Q2 * Q1; }
+	FORCEINLINE void TransformRotation(FQuat4d& Q1, const FQuat4d& Q2) { Q1 = Q2 * Q1; }
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -751,14 +753,14 @@ struct FNDIInputParam<FVector4>
 };
 
 template<>
-struct FNDIInputParam<FQuat>
+struct FNDIInputParam<FQuat4f>
 {
 	VectorVM::FExternalFuncInputHandler<float> X;
 	VectorVM::FExternalFuncInputHandler<float> Y;
 	VectorVM::FExternalFuncInputHandler<float> Z;
 	VectorVM::FExternalFuncInputHandler<float> W;
 	FORCEINLINE FNDIInputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
-	FORCEINLINE FQuat GetAndAdvance() { return FQuat(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
+	FORCEINLINE FQuat4f GetAndAdvance() { return FQuat4f(X.GetAndAdvance(), Y.GetAndAdvance(), Z.GetAndAdvance(), W.GetAndAdvance()); }
 };
 
 template<>
@@ -859,7 +861,7 @@ struct FNDIOutputParam<FVector4>
 };
 
 template<>
-struct FNDIOutputParam<FQuat>
+struct FNDIOutputParam<FQuat4f>
 {
 	VectorVM::FExternalFuncRegisterHandler<float> X;
 	VectorVM::FExternalFuncRegisterHandler<float> Y;
@@ -867,7 +869,7 @@ struct FNDIOutputParam<FQuat>
 	VectorVM::FExternalFuncRegisterHandler<float> W;
 	FORCEINLINE FNDIOutputParam(FVectorVMExternalFunctionContext& Context) : X(Context), Y(Context), Z(Context), W(Context) {}
 	FORCEINLINE bool IsValid() const { return X.IsValid() || Y.IsValid() || Z.IsValid() || W.IsValid(); }
-	FORCEINLINE void SetAndAdvance(FQuat Val)
+	FORCEINLINE void SetAndAdvance(FQuat4f Val)
 	{
 		*X.GetDestAndAdvance() = Val.X;
 		*Y.GetDestAndAdvance() = Val.Y;

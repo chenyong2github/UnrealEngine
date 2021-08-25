@@ -235,8 +235,6 @@ inline FVector Concatenate(const FVector& LHS, const FVector& RHS)
 	return LHS + RHS;
 }
 	
-} // namespace UE::Core 
-} // namespace UE
 
 /**
  * Specialization for concatenating two rotations.
@@ -252,6 +250,9 @@ inline FQuat Concatenate(const FQuat& LHS, const FQuat& RHS)
 {
 	return RHS * LHS;
 }
+
+} // namespace UE::Math
+} // namespace UE
 
 /**
  * Specialization for concatenating two rotations.

@@ -30,7 +30,7 @@ public:
 public:
 
 	/** A rotator of zero degrees on each axis. */
-	static CORE_API const FRotator ZeroRotator;
+	static const FRotator ZeroRotator;
 
 public:
 
@@ -90,7 +90,8 @@ public:
 	 *
 	 * @param Quat Quaternion used to specify rotation.
 	 */
-	explicit CORE_API FRotator( const FQuat& Quat );
+	explicit CORE_API FRotator( const FQuat4f& Quat );
+	explicit CORE_API FRotator( const FQuat4d& Quat);
 
 public:
 
@@ -444,6 +445,9 @@ public:
 		return true;
 	}
 };
+
+
+inline const FRotator FRotator::ZeroRotator(0.f, 0.f, 0.f);
 
 
 /* FRotator inline functions
@@ -804,19 +808,32 @@ FORCEINLINE void FRotator::SetClosestToMe(FRotator& MakeClosest) const
 template<> struct TIsPODType<FRotator> { enum { Value = true }; };
 template<> struct TIsUECoreType<FRotator> { enum { Value = true }; };
 
-
 /* FMath inline functions
  *****************************************************************************/
 
-template<class U>
-FORCEINLINE_DEBUGGABLE FRotator FMath::Lerp(const FRotator& A, const FRotator& B, const U& Alpha)
+template<> struct TCustomLerp<FRotator>
 {
-	return A + (B - A).GetNormalized() * Alpha;
-}
+	// Required to make FMath::Lerp<FRotator>() call our custom Lerp() implementation below.
+	enum { IsRequired = true };
 
-template<class U>
-FORCEINLINE_DEBUGGABLE FRotator FMath::LerpRange(const FRotator& A, const FRotator& B, const U& Alpha)
+	static FORCEINLINE_DEBUGGABLE FRotator Lerp(const FRotator& A, const FRotator& B, const float& Alpha)
+	{
+		return A + (B - A).GetNormalized() * Alpha;
+	}
+
+	static FORCEINLINE_DEBUGGABLE FRotator Lerp(const FRotator& A, const FRotator& B, const double& Alpha)
+	{
+		return Lerp(A, B, (float)Alpha);
+	}
+};
+
+FORCEINLINE_DEBUGGABLE FRotator FMath::LerpRange(const FRotator& A, const FRotator& B, float Alpha)
 {
 	// Similar to Lerp, but does not take the shortest path. Allows interpolation over more than 180 degrees.
-	return (A * (1 - Alpha) + B * Alpha).GetNormalized();
+	return (A * (1.f - Alpha) + B * Alpha).GetNormalized();
+}
+
+FORCEINLINE_DEBUGGABLE FRotator FMath::LerpRange(const FRotator& A, const FRotator& B, double Alpha)
+{
+	return FMath::LerpRange(A, B, (float)Alpha);
 }

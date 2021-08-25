@@ -1379,7 +1379,44 @@ FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Float* RESTRICT Result,
 	R[3] = TW;
 #endif
 }
-// TODO: LWC: implement for doubles and remove 'void*'
+
+FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Double* RESTRICT Result, const VectorRegister4Double* RESTRICT Quat1, const VectorRegister4Double* RESTRICT Quat2)
+{
+	typedef double Double4[4];
+	const Double4& A = *((const Double4*)Quat1);
+	const Double4& B = *((const Double4*)Quat2);
+	Double4& R = *((Double4*)Result);
+
+#if USE_FAST_QUAT_MUL
+	const double T0 = (A[2] - A[1]) * (B[1] - B[2]);
+	const double T1 = (A[3] + A[0]) * (B[3] + B[0]);
+	const double T2 = (A[3] - A[0]) * (B[1] + B[2]);
+	const double T3 = (A[1] + A[2]) * (B[3] - B[0]);
+	const double T4 = (A[2] - A[0]) * (B[0] - B[1]);
+	const double T5 = (A[2] + A[0]) * (B[0] + B[1]);
+	const double T6 = (A[3] + A[1]) * (B[3] - B[2]);
+	const double T7 = (A[3] - A[1]) * (B[3] + B[2]);
+	const double T8 = T5 + T6 + T7;
+	const double T9 = 0.5 * (T4 + T8);
+
+	R[0] = T1 + T9 - T8;
+	R[1] = T2 + T9 - T7;
+	R[2] = T3 + T9 - T6;
+	R[3] = T0 + T9 - T5;
+#else
+	// store intermediate results in temporaries
+	const double TX = A[3] * B[0] + A[0] * B[3] + A[1] * B[2] - A[2] * B[1];
+	const double TY = A[3] * B[1] - A[0] * B[2] + A[1] * B[3] + A[2] * B[0];
+	const double TZ = A[3] * B[2] + A[0] * B[1] - A[1] * B[0] + A[2] * B[3];
+	const double TW = A[3] * B[3] - A[0] * B[0] - A[1] * B[1] - A[2] * B[2];
+
+	// copy intermediate result to *this
+	R[0] = TX;
+	R[1] = TY;
+	R[2] = TZ;
+	R[3] = TW;
+#endif
+}
 
 /**
 * Multiplies two quaternions; the order matters.
@@ -1400,12 +1437,8 @@ FORCEINLINE VectorRegister4Float VectorQuaternionMultiply2( const VectorRegister
 
 FORCEINLINE VectorRegister4Double VectorQuaternionMultiply2(const VectorRegister4Double& Quat1, const VectorRegister4Double& Quat2)
 {
-	// TODO: LWC: implement for doubles, this is a lossy conversion for the interim.
-	VectorRegister4Float FloatResult;
-	VectorRegister4Float FloatQ1 = MakeVectorRegisterFloatFromDouble(Quat1); // Lossy conversion!
-	VectorRegister4Float FloatQ2 = MakeVectorRegisterFloatFromDouble(Quat2); // Lossy conversion!
-	VectorQuaternionMultiply(&FloatResult, &FloatQ1, &FloatQ2);
-	VectorRegister4Double Result = FloatResult; // convert back to double
+	VectorRegister4Double Result;
+	VectorQuaternionMultiply(&Result, &Quat1, &Quat2);
 	return Result;
 }
 

@@ -103,10 +103,10 @@ void FDatasmithFacadeActor::GetRotation(
 {
 	FQuat RotationQuat(GetDatasmithActorElement()->GetRotation());
 
-	OutX = RotationQuat.X;
-	OutY = RotationQuat.Y;
-	OutZ = RotationQuat.Z;
-	OutW = RotationQuat.W;
+	OutX = (float)RotationQuat.X;
+	OutY = (float)RotationQuat.Y;
+	OutZ = (float)RotationQuat.Z;
+	OutW = (float)RotationQuat.W;
 }
 
 void FDatasmithFacadeActor::SetTranslation(

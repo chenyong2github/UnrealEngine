@@ -199,6 +199,10 @@ struct FGenericPlatformMath
 	{
 		return (int32)F;
 	}
+	static CONSTEXPR FORCEINLINE int32 TruncToInt(double F)
+	{
+		return (int32)F;
+	}
 
 	/**
 	 * Converts a float to an integer value with truncation towards zero.
@@ -229,6 +233,12 @@ struct FGenericPlatformMath
 	{
 		int32 I = (int32)F;
 		I -= ( (float)I > F );
+		return I;
+	}
+	static FORCEINLINE int32 FloorToInt(double F)
+	{
+		int32 I = (int32)F;
+		I -= ((float)I > F);
 		return I;
 	}
 
@@ -291,6 +301,13 @@ struct FGenericPlatformMath
 	{
 		int32 I = (int32)F;
 		I += ( (float)I < F );
+		return I;
+	}
+
+	static FORCEINLINE int32 CeilToInt(double F)
+	{
+		int32 I = (int32)F;
+		I += ((float)I < F);
 		return I;
 	}
 
@@ -774,7 +791,7 @@ struct FGenericPlatformMath
 	 */
 	static CONSTEXPR FORCEINLINE double FloatSelect( double Comparand, double ValueGEZero, double ValueLTZero )
 	{
-		return Comparand >= 0.f ? ValueGEZero : ValueLTZero;
+		return Comparand >= 0.0 ? ValueGEZero : ValueLTZero;
 	}
 
 	/** Computes absolute value in a generic way */
@@ -948,6 +965,12 @@ struct FGenericPlatformMath
 	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
 	static FORCEINLINE float InvSqrtEst(T&& F) { return InvSqrt((float)F); }
 
+	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE int32 FloorToInt(T F) { return FloorToInt((float)F); }
+	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static FORCEINLINE int32 CeilToInt(T F) { return CeilToInt((float)F); }
+	template<typename T> UE_DEPRECATED(5.0, "Arguments cause function resolution ambiguity.")
+	static CONSTEXPR FORCEINLINE int32 TruncToInt(T F) { return TruncToInt((float)F); }
 private:
 
 	/** Error reporting for Fmod. Not inlined to avoid compilation issues and avoid all the checks and error reporting at all callsites. */

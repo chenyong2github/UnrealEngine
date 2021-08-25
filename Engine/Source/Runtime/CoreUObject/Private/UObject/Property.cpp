@@ -256,7 +256,7 @@ IMPLEMENT_STRUCT(Color);
 
 
 template<>
-struct TStructOpsTypeTraits<FQuat> : public TStructOpsTypeTraitsBase2<FQuat>
+struct TStructOpsTypeTraits<FQuat4f> : public TStructOpsTypeTraitsBase2<FQuat4f>
 {
 	enum 
 	{
@@ -265,9 +265,26 @@ struct TStructOpsTypeTraits<FQuat> : public TStructOpsTypeTraitsBase2<FQuat>
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
 		WithIdentical = true,
+		WithSerializer = true,
 	};
 };
-IMPLEMENT_STRUCT(Quat);
+IMPLEMENT_STRUCT(Quat4f);
+
+template<>
+struct TStructOpsTypeTraits<FQuat4d> : public TStructOpsTypeTraitsBase2<FQuat4d>
+{
+	enum
+	{
+		//quat is somewhat special in that it initialized w to one
+		WithNoInitConstructor = true,
+		WithNetSerializer = true,
+		WithNetSharedSerialization = true,
+		WithIdentical = true,
+		WithSerializer = true,
+	};
+};
+IMPLEMENT_STRUCT(Quat4d);
+IMPLEMENT_STRUCT(Quat);		// Aliased to one of FQuat4f/FQuat4d
 
 template<>
 struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwoVectors>
@@ -358,14 +375,27 @@ struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
 IMPLEMENT_STRUCT(Guid);
 
 template<>
-struct TStructOpsTypeTraits<FTransform> : public TStructOpsTypeTraitsBase2<FTransform>
+struct TStructOpsTypeTraits<FTransform3f> : public TStructOpsTypeTraitsBase2<FTransform3f>
 {
 	enum
 	{
+		//WithSerializer = true,
 		WithIdentical = true,
 	};
 };
-IMPLEMENT_STRUCT(Transform);
+IMPLEMENT_STRUCT(Transform3f);
+
+template<>
+struct TStructOpsTypeTraits<FTransform3d> : public TStructOpsTypeTraitsBase2<FTransform3d>
+{
+	enum
+	{
+		//WithSerializer = true,
+		WithIdentical = true,
+	};
+};
+IMPLEMENT_STRUCT(Transform3d);
+IMPLEMENT_STRUCT(Transform); // Aliased
 
 template<>
 struct TStructOpsTypeTraits<FRandomStream> : public TStructOpsTypeTraitsBase2<FRandomStream>

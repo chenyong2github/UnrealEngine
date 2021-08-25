@@ -49,7 +49,7 @@ void SetVariableByType(FNiagaraVariable& DataVariable, FNiagaraDataSet& Data, in
 	else if (VarType == FNiagaraTypeDefinition::GetVec3Def()) { SetValueWithAccessor<FVector3f>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetVec4Def()) { SetValueWithAccessor<FVector4>(DataVariable, Data, ParticleIndex); }
 	else if (VarType == FNiagaraTypeDefinition::GetColorDef()) { SetValueWithAccessor<FLinearColor>(DataVariable, Data, ParticleIndex); }
-	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat>(DataVariable, Data, ParticleIndex); }
+	else if (VarType == FNiagaraTypeDefinition::GetQuatDef()) { SetValueWithAccessor<FQuat4f>(DataVariable, Data, ParticleIndex); }
 }
 
 void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVariable& TargetVariable)
@@ -90,9 +90,14 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 		FVector3f Data = SourceVariable.GetValue<FVector3f>();
 		TargetVariable.SetValue<FVector>(FVector(Data));
 	}
+	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFQuatDef())
+	{
+		FQuat4f Data = SourceVariable.GetValue<FQuat4f>();
+		TargetVariable.SetValue<FQuat>(FQuat(Data));
+	}
 	else if (SourceType == FNiagaraTypeDefinition::GetQuatDef() && TargetType == UNiagaraComponentRendererProperties::GetFRotatorDef())
 	{
-		FQuat Data = SourceVariable.GetValue<FQuat>();
+		FQuat4f Data = SourceVariable.GetValue<FQuat4f>();
 		TargetVariable.SetValue<FRotator>(Data.Rotator());
 	}
 }

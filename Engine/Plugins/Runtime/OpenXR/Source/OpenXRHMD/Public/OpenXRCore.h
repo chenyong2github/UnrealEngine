@@ -43,7 +43,7 @@ FORCEINLINE FQuat ToFQuat(XrQuaternionf Quat)
 
 FORCEINLINE XrQuaternionf ToXrQuat(FQuat Quat)
 {
-	return XrQuaternionf{ Quat.Y, Quat.Z, -Quat.X, -Quat.W };
+	return XrQuaternionf{ (float)Quat.Y, (float)Quat.Z, -(float)Quat.X, -(float)Quat.W };
 }
 
 FORCEINLINE FVector ToFVector(XrVector3f Vector, float Scale = 1.0f)
