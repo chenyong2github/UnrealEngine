@@ -315,6 +315,8 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 			}
 
 			FStaticParameterSet StaticParameters;
+			CombinationMaterialInstance->GetStaticParameterValues(StaticParameters);
+
 			for (const FWeightmapLayerAllocationInfo& Allocation : Allocations)
 			{
 				if (Allocation.LayerInfo)
@@ -323,8 +325,8 @@ UMaterialInstanceConstant* ULandscapeComponent::GetCombinationMaterial(FMaterial
 					StaticParameters.TerrainLayerWeightParameters.Add(FStaticTerrainLayerWeightParameter(LayerParameter, Allocation.WeightmapTextureIndex, true, FGuid(), !Allocation.LayerInfo->bNoWeightBlend));
 				}
 			}
-			CombinationMaterialInstance->UpdateStaticPermutation(StaticParameters, InMaterialUpdateContext);
 
+			CombinationMaterialInstance->UpdateStaticPermutation(StaticParameters, InMaterialUpdateContext);
 			CombinationMaterialInstance->PostEditChange();
 		}
 
