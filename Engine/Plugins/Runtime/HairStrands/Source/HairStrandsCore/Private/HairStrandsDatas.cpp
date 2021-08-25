@@ -168,10 +168,18 @@ void FHairStrandsInterpolationBulkData::Reset()
 	Flags = 0;
 	PointCount = 0;
 	SimPointCount = 0;
+	
+	// Deallocate memory if needed
 	Interpolation.RemoveBulkData();
 	Interpolation0.RemoveBulkData();
 	Interpolation1.RemoveBulkData();
 	SimRootPointIndex.RemoveBulkData();
+
+	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+	Interpolation		= FByteBulkData();
+	Interpolation0		= FByteBulkData();
+	Interpolation1		= FByteBulkData();
+	SimRootPointIndex	= FByteBulkData();
 }
 
 void FHairStrandsInterpolationBulkData::Serialize(FArchive& Ar, UObject* Owner)
@@ -259,6 +267,30 @@ void FHairStrandsBulkData::Serialize(FArchive& Ar, UObject* Owner)
 		}
 		CurveOffsets.Serialize(Ar, Owner, ChunkIndex, bAttemptFileMapping);
 	}
+}
+
+void FHairStrandsBulkData::Reset()
+{
+	CurveCount = 0;
+	PointCount = 0;
+	MaxLength = 0;
+	MaxRadius = 0;
+	BoundingBox;
+	Flags = 0;
+
+	// Deallocate memory if needed
+	Positions.RemoveBulkData();
+	Attributes0.RemoveBulkData();
+	Attributes1.RemoveBulkData();
+	Materials.RemoveBulkData();
+	CurveOffsets.RemoveBulkData();
+
+	// Reset the bulk byte buffer to ensure the (serialize) data size is reset to 0
+	Positions 	 = FByteBulkData();
+	Attributes0  = FByteBulkData();
+	Attributes1  = FByteBulkData();
+	Materials 	 = FByteBulkData();
+	CurveOffsets = FByteBulkData();
 }
 
 void FHairStrandsDatas::Reset()
