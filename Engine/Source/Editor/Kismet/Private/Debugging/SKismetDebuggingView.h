@@ -49,7 +49,8 @@ public:
 	virtual TSharedRef<SWidget> GenerateValueWidget();
 
 	// Add any context menu items that can act on this node
-	virtual void MakeMenu(class FMenuBuilder& MenuBuilder) { }
+	// If you override, make sure FDebugLineItem::MakeMenu still gets called
+	virtual void MakeMenu(class FMenuBuilder& MenuBuilder);
 
 	// Gather all of the children
 	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch = true) {}
@@ -114,6 +115,11 @@ protected:
 
 	// @return The text to display in the value column, unless GenerateValueWidget is overridden
 	virtual FText GetDescription() const;
+
+	bool HasName() const;
+	bool HasValue() const;
+	void CopyNameToClipboard() const;
+	void CopyValueToClipboard() const;
 protected:
 	// Type of action (poor mans RTTI for the tree, really only used to accelerate Compare checks)
 	EDebugLineType Type;
@@ -162,7 +168,9 @@ protected:
 
 	static TSharedRef<SHorizontalBox> GetDebugLineTypeToggle(FDebugLineItem::EDebugLineType Type, const FText& Text);
 	
-	TSharedPtr<SWidget> OnMakeContextMenu();
+	TSharedPtr<SWidget> OnMakeDebugTreeContextMenu() const;
+	TSharedPtr<SWidget> OnMakeOtherTreeContextMenu() const;
+	static TSharedPtr<SWidget> OnMakeTreeContextMenu(const TSharedPtr<STreeView<FDebugTreeItemPtr>>& Tree);
 
 	// called when SearchBox query is committed by the user
 	void OnSearchTextCommitted(const FText& Text, ETextCommit::Type);

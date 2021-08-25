@@ -1829,9 +1829,10 @@ FPropertyInstanceInfo::FPropertyInstanceInfo(FPropertyInstance PropertyInstance)
 	}
 	else if (FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Property.Get()))
 	{
-		if (UObject* Obj = ObjectPropertyBase->GetObjectPropertyValue(PropertyInstance.Value))
+		Object = ObjectPropertyBase->GetObjectPropertyValue(PropertyInstance.Value);
+		if (Object.IsValid())
 		{
-			Value = FText::FromString(Obj->GetFullName());
+			Value = FText::FromString(Object->GetFullName());
 		}
 		else
 		{
