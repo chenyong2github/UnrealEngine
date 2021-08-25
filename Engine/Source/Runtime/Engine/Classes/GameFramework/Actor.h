@@ -1115,6 +1115,7 @@ public:
 	bool RemoveDataLayer(const UDataLayer* DataLayer);
 	bool RemoveAllDataLayers();
 	bool ContainsDataLayer(const UDataLayer* DataLayer) const;
+	virtual bool SupportsDataLayer() const { return true; }
 	bool HasDataLayers() const;
 	bool HasValidDataLayers() const;
 	bool HasAllDataLayers(const TArray<const UDataLayer*>& DataLayers) const;
@@ -1125,11 +1126,6 @@ public:
 	bool IsPropertyChangedAffectingDataLayers(FPropertyChangedEvent& PropertyChangedEvent) const;
 	bool IsValidForDataLayer() const;
 	void FixupDataLayers();
-
-private:
-	virtual bool SupportsDataLayer() const { return true; }
-
-public:
 #endif
 
 	//~=============================================================================

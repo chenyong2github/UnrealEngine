@@ -108,7 +108,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindLightWeightInsta
 		if (Instance->GetRepresentedClass() == ActorClass)
 		{
 #if WITH_EDITOR
-			if (!Layer || (Instance->IsValidForDataLayer() && Instance->ContainsDataLayer(Layer)))
+			if (!Layer || (Instance->SupportsDataLayer() && Instance->ContainsDataLayer(Layer)))
 #endif // WITH_EDITOR
 			{
 				return Instance;
@@ -132,7 +132,7 @@ ALightWeightInstanceManager* FLightWeightInstanceSubsystem::FindOrAddLightWeight
 		if (InstanceManager->GetRepresentedClass() == ActorClass)
 		{
 #if WITH_EDITOR
-			if (!Layer || (InstanceManager->IsValidForDataLayer() && InstanceManager->ContainsDataLayer(Layer)))
+			if (!Layer || (InstanceManager->SupportsDataLayer() && InstanceManager->ContainsDataLayer(Layer)))
 #endif // WITH_EDITOR
 			{
 				return InstanceManager;
