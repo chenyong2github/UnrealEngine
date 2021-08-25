@@ -24,15 +24,18 @@
 	"Plugins": [
 		{
 			"Name": "MeshModelingToolset",
-			"Enabled": true
+			"Enabled": true,
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{
 			"Name": "MeshModelingToolsetExp",
-			"Enabled": true
+			"Enabled": true,
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{
 			"Name": "MeshLODToolset",
-			"Enabled": true
+			"Enabled": true,
+			"WhitelistTargets": [ "Editor" ]
 		},
 		{
 			"Name": "StylusInput",
