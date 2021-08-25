@@ -2683,6 +2683,88 @@ protected:
 
 	FTransform GetWorldTransformForSocket(const FRigUnitContext* InContext, const FRigElementKey& InKey, bool bInitial);
 	
+	FORCEINLINE static float GetWeightForLerp(const float WeightA, const float WeightB)
+	{
+		float Weight = 0.f;
+		const float ClampedWeightA = FMath::Max(WeightA, 0.f);
+		const float ClampedWeightB = FMath::Max(WeightB, 0.f);
+		const float OverallWeight = ClampedWeightA + ClampedWeightB;
+		if(OverallWeight > SMALL_NUMBER)
+		{
+			Weight = ClampedWeightB / OverallWeight;
+		}
+		return Weight;
+	}
+
+	struct FConstraintIndex
+	{
+		int32 Location;
+		int32 Rotation;
+		int32 Scale;
+
+		FConstraintIndex()
+			: Location(INDEX_NONE)
+			, Rotation(INDEX_NONE)
+			, Scale(INDEX_NONE)
+		{}
+
+		FConstraintIndex(int32 InIndex)
+			: Location(InIndex)
+			, Rotation(InIndex)
+			, Scale(InIndex)
+		{}
+	};
+
+	FTransform ComputeLocalControlValue(
+		FRigControlElement* ControlElement,
+		const FTransform& InGlobalTransform,
+		ERigTransformType::Type InTransformType) const;
+	
+	FTransform SolveParentConstraints(
+		const FRigElementParentConstraintArray& InConstraints,
+		const ERigTransformType::Type InTransformType,
+		const FTransform& InLocalOffsetTransform,
+		bool bApplyLocalOffsetTransform,
+		const FTransform& InLocalPoseTransform,
+		bool bApplyLocalPoseTransform) const;
+
+	FTransform InverseSolveParentConstraints(
+		const FTransform& InGlobalTransform,
+		const FRigElementParentConstraintArray& InConstraints,
+		const ERigTransformType::Type InTransformType,
+		const FTransform& InLocalOffsetTransform) const;
+
+	FTransform LazilyComputeParentConstraint(
+		const FRigElementParentConstraintArray& Constraints,
+		int32 InIndex,
+		const ERigTransformType::Type InTransformType,
+		const FTransform& InLocalOffsetTransform,
+		bool bApplyLocalOffsetTransform,
+		const FTransform& InLocalPoseTransform,
+		bool bApplyLocalPoseTransform) const;
+
+	static void ComputeParentConstraintIndices(
+		const FRigElementParentConstraintArray& InConstraints,
+		ERigTransformType::Type InTransformType,
+		FConstraintIndex& OutFirstConstraint,
+		FConstraintIndex& OutSecondConstraint,
+		FConstraintIndex& OutNumConstraintsAffecting,
+		FRigElementWeight& OutTotalWeight
+	);
+
+	static void IntegrateParentConstraintVector(
+		FVector& OutVector,
+		const FTransform& InTransform,
+		float InWeight,
+		bool bIsLocation);
+
+	static void IntegrateParentConstraintQuat(
+		int32& OutNumMixedRotations,
+		FQuat& OutFirstRotation,
+		FQuat& OutMixedRotation,
+		const FTransform& InTransform,
+		float InWeight);
+
 	friend class URigHierarchyController;
 	friend class UControlRig;
 	friend class FControlRigEditor;
