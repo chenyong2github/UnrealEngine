@@ -219,7 +219,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	}
 
 	static const auto CVarMobileMSAA = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileMSAA"));
-	NumMSAASamples = (CVarMobileMSAA ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
+	NumMSAASamples = (CVarMobileMSAA && SupportsMSAA() ? CVarMobileMSAA->GetValueOnAnyThread() : 1);
 }
 
 class FMobileDirLightShaderParamsRenderResource : public FRenderResource
@@ -398,7 +398,8 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		bSeparateTranslucencyActive ||
 		Views[0].bIsReflectionCapture ||
 		(bDeferredShading && bPostProcessUsesSceneDepth) ||
-		bShouldRenderVelocities;
+		bShouldRenderVelocities ||
+		bIsFullPrepassEnabled;
 	// never keep MSAA depth
 	bKeepDepthContent = (NumMSAASamples > 1 ? false : bKeepDepthContent);
 
@@ -1810,7 +1811,7 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 
 bool FMobileSceneRenderer::SupportsMSAA() const
 {
-	return !(IsUsingMobilePixelProjectedReflection(ShaderPlatform) || IsUsingMobileAmbientOcclusion(ShaderPlatform) || ShouldRenderVelocities() || bDeferredShading);
+	return !(IsUsingMobilePixelProjectedReflection(ShaderPlatform) || IsUsingMobileAmbientOcclusion(ShaderPlatform) || ShouldRenderVelocities() || bIsFullPrepassEnabled || bDeferredShading);
 }
 
 bool FMobileSceneRenderer::ShouldRenderHZB()
