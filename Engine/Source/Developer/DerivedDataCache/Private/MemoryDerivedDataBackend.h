@@ -198,8 +198,8 @@ private:
 protected:
 
 	/* Debug helpers */
-	bool DidSimulateMiss(const TCHAR* InKey);
 	bool ShouldSimulateMiss(const TCHAR* InKey);
+	bool ShouldSimulateMiss(const FCacheKey& InKey);
 
 	/** Debug Options */
 	FBackendDebugOptions DebugOptions;
@@ -207,6 +207,7 @@ protected:
 	/** Keys we ignored due to miss rate settings */
 	FCriticalSection MissedKeysCS;
 	TSet<FName> DebugMissedKeys;
+	TSet<FCacheKey> DebugMissedCacheKeys;
 };
 
 } // UE::DerivedData::Backends

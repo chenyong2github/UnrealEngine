@@ -273,7 +273,7 @@ FZenDerivedDataBackend::GetZenData(const FCacheKey& CacheKey, ECachePolicy Cache
 FDerivedDataBackendInterface::EPutStatus
 FZenDerivedDataBackend::PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists)
 {
-	if (DidSimulateMiss(CacheKey))
+	if (ShouldSimulateMiss(CacheKey))
 	{
 		return EPutStatus::NotCached;
 	}
@@ -469,20 +469,17 @@ bool FZenDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 	return true;
 }
 
-bool FZenDerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 {
-	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
 		return false;
 	}
-	FScopeLock Lock(&MissedKeysCS);
-	return DebugMissedKeys.Contains(FName(InKey));
-}
 
-bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
-{
-	// once missed, always missed
-	if (DidSimulateMiss(InKey))
+	const FName Key(InKey);
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
 	{
 		return true;
 	}
@@ -491,7 +488,31 @@ bool FZenDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	{
 		FScopeLock Lock(&MissedKeysCS);
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
-		DebugMissedKeys.Add(FName(InKey));
+		DebugMissedKeys.AddByHash(Hash, Key);
+		return true;
+	}
+
+	return false;
+}
+
+bool FZenDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+{
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(Key))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		DebugMissedCacheKeys.AddByHash(Hash, Key);
 		return true;
 	}
 
@@ -509,7 +530,13 @@ void FZenDerivedDataBackend::Put(
 	{
 		COOK_STAT(auto Timer = UsageStats.TimePut());
 		bool bResult;
-		if (bCacheRecordEndpointEnabled)
+		if (ShouldSimulateMiss(Record.GetKey()))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Record.GetKey()), Context.Len(), Context.GetData());
+			bResult = false;
+		}
+		else if (bCacheRecordEndpointEnabled)
 		{
 			bResult = PutCacheRecord(Record, Context, Policy);
 		}
@@ -552,7 +579,12 @@ void FZenDerivedDataBackend::Get(
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 
 		FOptionalCacheRecord Record;
-		if (bCacheRecordEndpointEnabled)
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		}
+		else if (bCacheRecordEndpointEnabled)
 		{
 			Record = GetCacheRecord(Key, Context, Policy);
 		}
@@ -603,12 +635,22 @@ void FZenDerivedDataBackend::GetPayload(
 			AppendZenUri(Key.CacheKey, Key.Id, QueryUri);
 			AppendPolicyQueryString(Policy, QueryUri);
 
-			TArray64<uint8> PayloadData;
-			EGetResult GetResult = GetZenData(QueryUri, PayloadData);
+			EGetResult GetResult;
 			FCompressedBuffer CompressedBuffer;
-			if (GetResult == EGetResult::Success)
+			if (ShouldSimulateMiss(Key.CacheKey))
 			{
-				CompressedBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData)));
+				UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+					*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+				GetResult = EGetResult::NotFound;
+			}
+			else
+			{
+				TArray64<uint8> PayloadData;
+				GetResult = GetZenData(QueryUri, PayloadData);
+				if (GetResult == EGetResult::Success)
+				{
+					CompressedBuffer = FCompressedBuffer::FromCompressed(MakeSharedBufferFromArray(MoveTemp(PayloadData)));
+				}
 			}
 			if (CompressedBuffer)
 			{

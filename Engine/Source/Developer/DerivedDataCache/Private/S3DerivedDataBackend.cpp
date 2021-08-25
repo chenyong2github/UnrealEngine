@@ -1149,7 +1149,7 @@ bool FS3DerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)
 
 bool FS3DerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
 {
-	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
 		return false;
 	}

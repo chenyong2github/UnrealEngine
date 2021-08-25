@@ -114,7 +114,7 @@ FDerivedDataBackendInterface::EPutStatus FMemoryDerivedDataBackend::PutCachedDat
 	COOK_STAT(auto Timer = UsageStats.TimePut());
 	FScopeLock ScopeLock(&SynchronizationObject);
 
-	if (DidSimulateMiss(CacheKey))
+	if (ShouldSimulateMiss(CacheKey))
 	{
 		return EPutStatus::Skipped;
 	}
@@ -354,20 +354,17 @@ bool FMemoryDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOption
 	return true;
 }
 
-bool FMemoryDerivedDataBackend::DidSimulateMiss(const TCHAR* InKey)
+bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 {
-	if (DebugOptions.RandomMissRate == 0 || DebugOptions.SimulateMissTypes.Num() == 0)
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
 	{
 		return false;
 	}
-	FScopeLock Lock(&MissedKeysCS);
-	return DebugMissedKeys.Contains(FName(InKey));
-}
 
-bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
-{
-	// once missed, always missed
-	if (DidSimulateMiss(InKey))
+	const FName Key(InKey);
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedKeys.ContainsByHash(Hash, Key))
 	{
 		return true;
 	}
@@ -376,7 +373,31 @@ bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const TCHAR* InKey)
 	{
 		FScopeLock Lock(&MissedKeysCS);
 		UE_LOG(LogDerivedDataCache, Verbose, TEXT("Simulating miss in %s for %s"), *GetName(), InKey);
-		DebugMissedKeys.Add(FName(InKey));
+		DebugMissedKeys.AddByHash(Hash, Key);
+		return true;
+	}
+
+	return false;
+}
+
+bool FMemoryDerivedDataBackend::ShouldSimulateMiss(const FCacheKey& Key)
+{
+	if (DebugOptions.RandomMissRate == 0 && DebugOptions.SimulateMissTypes.IsEmpty())
+	{
+		return false;
+	}
+
+	const uint32 Hash = GetTypeHash(Key);
+
+	if (FScopeLock Lock(&MissedKeysCS); DebugMissedCacheKeys.ContainsByHash(Hash, Key))
+	{
+		return true;
+	}
+
+	if (DebugOptions.ShouldSimulateMiss(Key))
+	{
+		FScopeLock Lock(&MissedKeysCS);
+		DebugMissedCacheKeys.AddByHash(Hash, Key);
 		return true;
 	}
 
@@ -422,6 +443,13 @@ void FMemoryDerivedDataBackend::Put(
 				OnComplete({Key, Status});
 			}
 		};
+
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for put of %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+			continue;
+		}
 
 		const FPayload& Value = Record.GetValuePayload();
 		const TConstArrayView<FPayload> Attachments = Record.GetAttachmentPayloads();
@@ -482,7 +510,12 @@ void FMemoryDerivedDataBackend::Get(
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		FOptionalCacheRecord Record;
-		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
+		if (ShouldSimulateMiss(Key))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(Key), Context.Len(), Context.GetData());
+		}
+		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* CacheRecord = CacheRecords.Find(Key))
 		{
 			Record = *CacheRecord;
 		}
@@ -515,7 +548,12 @@ void FMemoryDerivedDataBackend::GetPayload(
 	{
 		COOK_STAT(auto Timer = UsageStats.TimeGet());
 		FPayload Payload;
-		if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(PayloadKey.CacheKey))
+		if (ShouldSimulateMiss(PayloadKey.CacheKey))
+		{
+			UE_LOG(LogDerivedDataCache, Verbose, TEXT("%s: Simulated miss for get of %s from '%.*s'"),
+				*GetName(), *WriteToString<96>(PayloadKey), Context.Len(), Context.GetData());
+		}
+		else if (FScopeLock ScopeLock(&SynchronizationObject); const FCacheRecord* Record = CacheRecords.Find(PayloadKey.CacheKey))
 		{
 			Payload = Record->GetAttachmentPayload(PayloadKey.Id);
 		}
