@@ -216,3 +216,30 @@ void TraceScreen(
 		bUncertain,
 		OutScreenUV);
 } 
+
+float3 GetPrevScreenPosition(float2 ScreenPosition, float2 ScreenUV, float DeviceZ)
+{
+	float3 HistoryScreenPosition = float3(ScreenPosition, DeviceZ);
+	bool bIsDynamicPixel = false;
+
+	{
+		float4 ThisClip = float4(HistoryScreenPosition, 1);
+		//float4 PrevClip = mul(ThisClip, View.ClipToPrevClip); //<=== doesn't contain AA offsets
+		float4 PrevClip = mul(ThisClip, View.ClipToPrevClipWithAA);
+		
+		float3 PrevScreen = PrevClip.xyz / PrevClip.w;
+		float3 Velocity = HistoryScreenPosition - PrevScreen;
+		float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GlobalPointClampedSampler, ScreenUV, 0);
+		bIsDynamicPixel = EncodedVelocity.x > 0.0;
+
+		if (bIsDynamicPixel)
+		{
+			// Warning: overwriting velocity, this only works if DeviceZ matches what's in the depth buffer
+			Velocity = DecodeVelocityFromTexture(EncodedVelocity);
+		}
+
+		HistoryScreenPosition -= Velocity;
+	}
+
+	return HistoryScreenPosition;
+}

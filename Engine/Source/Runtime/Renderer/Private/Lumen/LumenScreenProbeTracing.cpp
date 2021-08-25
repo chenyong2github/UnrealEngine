@@ -116,13 +116,11 @@ class FScreenProbeTraceScreenTexturesCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FScreenProbeTraceScreenTexturesCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FCommonScreenSpaceRayParameters, ScreenSpaceRayParameters)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ClosestHZBTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, SceneDepthTexture)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHZBScreenTraceParameters, HZBScreenTraceParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, LightingChannelsTexture)
-		SHADER_PARAMETER(FVector2D, HZBBaseTexelSize)
-		SHADER_PARAMETER(FVector4, HZBUVToScreenUVScaleBias)
-		SHADER_PARAMETER(float, PrevSceneColorPreExposureCorrection)
 		SHADER_PARAMETER(float, MaxHierarchicalScreenTraceIterations)
 		SHADER_PARAMETER(float, RelativeDepthThickness)
 		SHADER_PARAMETER(float, NumThicknessStepsToDetermineCertainty)
@@ -549,15 +547,14 @@ void TraceScreenProbes(
 	const FScene* Scene,
 	const FViewInfo& View, 
 	bool bTraceMeshSDFs,
-	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
-	const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColor,
+	const FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
 	const FLumenCardTracingInputs& TracingInputs,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FScreenProbeParameters& ScreenProbeParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
 {
-	const FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder, SceneTexturesUniformBuffer);
+	const FSceneTextureParameters& SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures);
 
 	{
 		FClearTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearTracesCS::FParameters>();
@@ -585,27 +582,17 @@ void TraceScreenProbes(
 	{
 		FScreenProbeTraceScreenTexturesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeTraceScreenTexturesCS::FParameters>();
 
-		ScreenSpaceRayTracing::SetupCommonScreenSpaceRayParameters(GraphBuilder, SceneTextures, PrevSceneColor, View, /* out */ &PassParameters->ScreenSpaceRayParameters);
+		PassParameters->HZBScreenTraceParameters = SetupHZBScreenTraceParameters(GraphBuilder, View, SceneTextures);
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->SceneTextures = SceneTextureParameters;
 
-		PassParameters->ScreenSpaceRayParameters.CommonDiffuseParameters.SceneTextures = SceneTextures;
-
+		if (PassParameters->HZBScreenTraceParameters.PrevSceneColorTexture == SceneTextures.Color.Resolve || !PassParameters->SceneTextures.GBufferVelocityTexture)
 		{
-			const FVector2D HZBUvFactor(
-				float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
-				float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y));
-
-			const FVector4 ScreenPositionScaleBias = View.GetScreenPositionScaleBias(SceneTextures.SceneDepthTexture->Desc.Extent, View.ViewRect);
-			const FVector2D HZBUVToScreenUVScale = FVector2D(1.0f / HZBUvFactor.X, 1.0f / HZBUvFactor.Y) * FVector2D(2.0f, -2.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y);
-			const FVector2D HZBUVToScreenUVBias = FVector2D(-1.0f, 1.0f) * FVector2D(ScreenPositionScaleBias.X, ScreenPositionScaleBias.Y) + FVector2D(ScreenPositionScaleBias.W, ScreenPositionScaleBias.Z);
-			PassParameters->HZBUVToScreenUVScaleBias = FVector4(HZBUVToScreenUVScale, HZBUVToScreenUVBias);
+			PassParameters->SceneTextures.GBufferVelocityTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
 		}
 
-		checkf(View.ClosestHZB, TEXT("Lumen screen tracing: ClosestHZB was not setup, should have been setup by FDeferredShadingSceneRenderer::RenderHzb"));
-		PassParameters->ClosestHZBTexture = View.ClosestHZB;
-		PassParameters->SceneDepthTexture = SceneTextures.SceneDepthTexture;
+		PassParameters->FurthestHZBTexture = View.HZB;
 		PassParameters->LightingChannelsTexture = LightingChannelsTexture;
-		PassParameters->HZBBaseTexelSize = FVector2D(1.0f / View.ClosestHZB->Desc.Extent.X, 1.0f / View.ClosestHZB->Desc.Extent.Y);
-		PassParameters->PrevSceneColorPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->MaxHierarchicalScreenTraceIterations = GLumenScreenProbeGatherHierarchicalScreenTracesMaxIterations;
 		PassParameters->RelativeDepthThickness = GLumenScreenProbeGatherRelativeDepthThickness;
 		PassParameters->NumThicknessStepsToDetermineCertainty = GLumenScreenProbeGatherNumThicknessStepsToDetermineCertainty;
@@ -650,7 +637,7 @@ void TraceScreenProbes(
 
 		RenderHardwareRayTracingScreenProbe(GraphBuilder,
 			Scene,
-			SceneTextures,
+			SceneTextureParameters,
 			ScreenProbeParameters,
 			View,
 			TracingInputs,
@@ -682,7 +669,7 @@ void TraceScreenProbes(
 				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 				PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 				PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-				PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
+				PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 				PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 				if (bNeedTraceHairVoxel)
 				{
@@ -722,7 +709,7 @@ void TraceScreenProbes(
 		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
-		PassParameters->SceneTexturesStruct = SceneTexturesUniformBuffer;
+		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		if (bNeedTraceHairVoxel)
 		{

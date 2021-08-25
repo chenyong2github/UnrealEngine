@@ -757,7 +757,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 
 		ScreenSpaceRayTracing::FPrevSceneColorMip PrevSceneColorMip;
-		if ((ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
+		if ((ViewPipelineState.bUseLumenProbeHierarchy || ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::SSGI)
 			&& View.PrevViewInfo.ScreenSpaceRayTracingInput.IsValid())
 		{
 			PrevSceneColorMip = ScreenSpaceRayTracing::ReducePrevSceneColorMip(GraphBuilder, SceneTextureParameters, View);
@@ -799,7 +799,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			DenoiserOutputs = RenderLumenScreenProbeGather(
 				GraphBuilder, 
 				SceneTextures,
-				PrevSceneColorMip, 
 				LightingChannelsTexture,
 				View,
 				&View.PrevViewInfo,
