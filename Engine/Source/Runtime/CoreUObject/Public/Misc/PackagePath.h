@@ -142,6 +142,17 @@ public:
 	COREUOBJECT_API static FPackagePath FromPackageNameChecked(const TCHAR* InPackageName);
 
 	/**
+	 * Construct a PackagePath from a known valid LongPackageName FName
+	 *
+	 * Will be converted to a MountedPath when the LocalPath is required; if the package is not mounted at that point
+	 * the LocalPath will be empty
+	 *
+	 * @param InPackageName A valid LongPackageName, does not have to be mounted or existing
+	 * @return The constructed PackagePath
+	 */
+	COREUOBJECT_API static FPackagePath FromPackageNameUnchecked(FName InPackageName);
+
+	/**
 	 * Construct a PackagePath from a LocalPath string
 	 *
 	 * Does not handle InFilenames that are actually PackageNames; use TryFromMountedName if you need to handle either
@@ -446,6 +457,7 @@ private:
 		LocalOnlyPath,
 	};
 
+#if WITH_EDITOR
 	/**
 	 * Combined storage for (EPackageIDType-specific path+filename storage) followed by (possibly empty)
 	 * PackageNameRoot followed by (possibly empty) FilePathRoot followed by (possibly empty) Extension
@@ -458,4 +470,8 @@ private:
 	mutable uint16 ExtensionLen = 0;
 	mutable EPackageIdType IdType = EPackageIdType::Empty;
 	mutable EPackageExtension HeaderExtension = EPackageExtension::Unspecified;
+#else
+	FName PackageName;
+	mutable EPackageExtension HeaderExtension = EPackageExtension::Unspecified;
+#endif
 };

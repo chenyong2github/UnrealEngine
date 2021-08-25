@@ -5730,7 +5730,7 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 			bCreatedLinkerRoot = true;
 		}
 		LinkerRoot->SetFlags(RF_Public | RF_WasLoaded);
-		LinkerRoot->SetLoadedPath(FPackagePath::FromPackageNameChecked(Desc.PackageNameToLoad));
+		LinkerRoot->SetLoadedPath(FPackagePath::FromPackageNameUnchecked(Desc.PackageNameToLoad));
 		LinkerRoot->SetCanBeImportedFlag(Desc.bCanBeImported);
 		LinkerRoot->SetPackageId(Desc.UPackageId);
 		LinkerRoot->SetPackageIdToLoad(Desc.PackageIdToLoad);
