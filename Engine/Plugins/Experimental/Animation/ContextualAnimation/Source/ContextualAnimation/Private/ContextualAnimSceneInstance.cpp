@@ -246,7 +246,7 @@ void UContextualAnimSceneInstance::Join(FContextualAnimSceneActorData& SceneActo
 				const FName SyncPointName = Pair.Key;
 				const float SyncTime = SceneActorData.GetAnimData()->GetSyncTimeForWarpSection(SyncPointName);
 				const FTransform AlignmentTransform = (SceneActorData.GetAnimData()->AlignmentData.ExtractTransformAtTime(SyncPointName, SyncTime) * Pair.Value);
-				MotionWarpingComp->AddOrUpdateSyncPoint(SyncPointName, AlignmentTransform);
+				MotionWarpingComp->AddOrUpdateWarpTargetFromTransform(SyncPointName, AlignmentTransform);
 			}
 		}
 

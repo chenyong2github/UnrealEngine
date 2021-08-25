@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
-#include "RootMotionModifier.h"
 #include "AnimNotifyState_MotionWarping.generated.h"
 
 class UMotionWarpingComponent;
 class UAnimSequenceBase;
+class URootMotionModifier;
 
 /** AnimNotifyState used to define a motion warping window in the animation */
 UCLASS(meta = (DisplayName = "Motion Warping"))
@@ -49,4 +49,8 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = "Motion Warping")
 	void OnWarpEnd(UMotionWarpingComponent* MotionWarpingComp, URootMotionModifier* Modifier) const;
+
+#if WITH_EDITOR
+	virtual void ValidateAssociatedAssets() override;
+#endif
 };

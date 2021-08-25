@@ -45,6 +45,7 @@ class ENGINE_API UAnimNotifyState : public UObject
 #if WITH_EDITOR
 	virtual void OnAnimNotifyCreatedInEditor(FAnimNotifyEvent& ContainingAnimNotifyEvent) {};
 	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const { return true; }
+	virtual void ValidateAssociatedAssets() {}
 #endif
 
 	UE_DEPRECATED(5.0, "This function is deprecated. Use the other NotifyBegin instead.")
@@ -83,11 +84,15 @@ class ENGINE_API UAnimNotifyState : public UObject
 	}
 
 	/** UObject Interface */
-	virtual void PostLoad();
+	virtual void PostLoad() override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	/** End UObject Interface */
 
 	/** This notify is always a branching point when used on Montages. */
 	bool bIsNativeBranchingPoint;
+
+protected:
+	UObject* GetContainingAsset() const;
 };
 
 

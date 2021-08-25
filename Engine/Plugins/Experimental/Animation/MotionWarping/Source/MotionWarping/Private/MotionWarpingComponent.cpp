@@ -16,23 +16,12 @@ DEFINE_LOG_CATEGORY(LogMotionWarping);
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 TAutoConsoleVariable<int32> FMotionWarpingCVars::CVarMotionWarpingDisable(TEXT("a.MotionWarping.Disable"), 0, TEXT("Disable Motion Warping"), ECVF_Cheat);
-TAutoConsoleVariable<int32> FMotionWarpingCVars::CVarMotionWarpingDebug(TEXT("a.MotionWarping.Debug"), 0, TEXT("0: Disable, 1: Only Log 2: Log and DrawDebug"), ECVF_Cheat);
-TAutoConsoleVariable<float> FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration(TEXT("a.MotionWarping.DrawDebugLifeTime"), 0.f, TEXT("Time in seconds each draw debug persists.\nRequires 'a.MotionWarping.Debug 2'"), ECVF_Cheat);
+TAutoConsoleVariable<int32> FMotionWarpingCVars::CVarMotionWarpingDebug(TEXT("a.MotionWarping.Debug"), 0, TEXT("0: Disable, 1: Only Log, 2: Only DrawDebug, 3: Log and DrawDebug"), ECVF_Cheat);
+TAutoConsoleVariable<float> FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration(TEXT("a.MotionWarping.DrawDebugLifeTime"), 1.f, TEXT("Time in seconds each draw debug persists.\nRequires 'a.MotionWarping.Debug 2'"), ECVF_Cheat);
 #endif
 
 // UMotionWarpingUtilities
 ///////////////////////////////////////////////////////////////////////
-
-void UMotionWarpingUtilities::BreakMotionWarpingSyncPoint(const FMotionWarpingSyncPoint& SyncPoint, FVector& Location, FRotator& Rotation)
-{
-	Location = SyncPoint.GetLocation(); 
-	Rotation = SyncPoint.Rotator();
-}
-
-FMotionWarpingSyncPoint UMotionWarpingUtilities::MakeMotionWarpingSyncPoint(FVector Location, FRotator Rotation)
-{
-	return FMotionWarpingSyncPoint(Location, Rotation);
-}
 
 void UMotionWarpingUtilities::ExtractLocalSpacePose(const UAnimSequenceBase* Animation, const FBoneContainer& BoneContainer, float Time, bool bExtractRootMotion, FCompactPose& OutPose)
 {
@@ -120,7 +109,7 @@ void UMotionWarpingUtilities::GetMotionWarpingWindowsFromAnimation(const UAnimSe
 	}
 }
 
-void UMotionWarpingUtilities::GetMotionWarpingWindowsForSyncPointFromAnimation(const UAnimSequenceBase* Animation, FName WarpTargetName, TArray<FMotionWarpingWindowData>& OutWindows)
+void UMotionWarpingUtilities::GetMotionWarpingWindowsForWarpTargetFromAnimation(const UAnimSequenceBase* Animation, FName WarpTargetName, TArray<FMotionWarpingWindowData>& OutWindows)
 {
 	if (Animation && WarpTargetName != NAME_None)
 	{
@@ -220,6 +209,12 @@ void UMotionWarpingComponent::Update()
 			const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
 			if (MotionWarpingNotify)
 			{
+				if(MotionWarpingNotify->RootMotionModifier == nullptr)
+				{
+					UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(Montage));
+					continue;
+				}
+
 				const float StartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, Montage->GetPlayLength());
 				const float EndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, Montage->GetPlayLength());
 
@@ -247,6 +242,12 @@ void UMotionWarpingComponent::Update()
 						const UAnimNotifyState_MotionWarping* MotionWarpingNotify = NotifyEvent.NotifyStateClass ? Cast<UAnimNotifyState_MotionWarping>(NotifyEvent.NotifyStateClass) : nullptr;
 						if (MotionWarpingNotify)
 						{
+							if (MotionWarpingNotify->RootMotionModifier == nullptr)
+							{
+								UE_LOG(LogMotionWarping, Warning, TEXT("MotionWarpingComponent::Update. A motion warping window in %s doesn't have a valid root motion modifier!"), *GetNameSafe(AnimSegment->AnimReference));
+								continue;
+							}
+
 							const float NotifyStartTime = FMath::Clamp(NotifyEvent.GetTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
 							const float NotifyEndTime = FMath::Clamp(NotifyEvent.GetEndTriggerTime(), 0.f, AnimSegment->AnimReference->GetPlayLength());
 
@@ -355,7 +356,7 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 				OriginalRootMotionAccum = ActorFeetLocation;
 				WarpedRootMotionAccum = ActorFeetLocation;
 			}
-			
+
 			OriginalRootMotionAccum = OriginalRootMotionAccum.GetValue() + InRootMotion.GetLocation();
 			WarpedRootMotionAccum = WarpedRootMotionAccum.GetValue() + FinalRootMotion.GetLocation();
 
@@ -375,18 +376,34 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 	return FinalRootMotion;
 }
 
-void UMotionWarpingComponent::AddOrUpdateSyncPoint(FName Name, const FMotionWarpingSyncPoint& SyncPoint)
+void UMotionWarpingComponent::AddOrUpdateWarpTarget(FName WarpTargetName, const FMotionWarpingTarget& WarpTarget)
 {
-	if (Name != NAME_None)
+	if (WarpTargetName != NAME_None)
 	{
-		FMotionWarpingSyncPoint& MotionWarpingSyncPoint = SyncPoints.FindOrAdd(Name);
-		MotionWarpingSyncPoint = SyncPoint;
+		FMotionWarpingTarget& WarpTargetRef = WarpTargetMap.FindOrAdd(WarpTargetName);
+		WarpTargetRef = WarpTarget;
 	}
 }
 
-int32 UMotionWarpingComponent::RemoveSyncPoint(FName Name)
+int32 UMotionWarpingComponent::RemoveWarpTarget(FName WarpTargetName)
 {
-	return SyncPoints.Remove(Name);
+	return WarpTargetMap.Remove(WarpTargetName);
+}
+
+void UMotionWarpingComponent::AddOrUpdateWarpTargetFromTransform(FName WarpTargetName, FTransform TargetTransform)
+{
+	AddOrUpdateWarpTarget(WarpTargetName, TargetTransform);
+}
+
+void UMotionWarpingComponent::AddOrUpdateWarpTargetFromComponent(FName WarpTargetName, const USceneComponent* Component, FName BoneName, bool bFollowComponent)
+{
+	if (Component == nullptr)
+	{
+		UE_LOG(LogMotionWarping, Warning, TEXT("AddOrUpdateWarpTargetFromComponent has failed!. Reason: Invalid Component"));
+		return;
+	}
+
+	AddOrUpdateWarpTarget(WarpTargetName, FMotionWarpingTarget(Component, BoneName, bFollowComponent));
 }
 
 URootMotionModifier* UMotionWarpingComponent::AddModifierFromTemplate(URootMotionModifier* Template, const UAnimSequenceBase* Animation, float StartTime, float EndTime)

@@ -3,6 +3,7 @@
 #include "Animation/AnimNotifies/AnimNotifyState.h"
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "UObject/ObjectSaveContext.h"
 
 /////////////////////////////////////////////////////
 // UAnimNotifyState
@@ -108,7 +109,26 @@ void UAnimNotifyState::PostLoad()
 #if WITH_EDITOR
 	// Ensure that all loaded notifies are transactional
 	SetFlags(GetFlags() | RF_Transactional);
+
+	// Make sure the asset isn't bogus (e.g., a looping particle system in a one-shot notify)
+	ValidateAssociatedAssets();
 #endif
 }
 
+void UAnimNotifyState::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+#if WITH_EDITOR
+	ValidateAssociatedAssets();
+#endif
+	Super::PreSave(ObjectSaveContext);
+}
 
+UObject* UAnimNotifyState::GetContainingAsset() const
+{
+	UObject* ContainingAsset = GetTypedOuter<UAnimSequenceBase>();
+	if (ContainingAsset == nullptr)
+	{
+		ContainingAsset = GetOutermost();
+	}
+	return ContainingAsset;
+}

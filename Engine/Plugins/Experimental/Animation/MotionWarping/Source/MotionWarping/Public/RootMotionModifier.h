@@ -9,6 +9,7 @@
 class UMotionWarpingComponent;
 class UAnimNotifyState_MotionWarping;
 class URootMotionModifier;
+class USceneComponent;
 
 /** The possible states of a Root Motion Modifier */
 UENUM(BlueprintType)
@@ -29,70 +30,8 @@ enum class ERootMotionModifierState : uint8
 
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnRootMotionModifierDelegate, UMotionWarpingComponent*, MotionWarpingComp, URootMotionModifier*, RootMotionModifier);
 
-/** Represents a point of alignment in the world */
-USTRUCT(BlueprintType, meta = (HasNativeMake = "MotionWarping.MotionWarpingUtilities.MakeMotionWarpingSyncPoint", HasNativeBreak = "MotionWarping.MotionWarpingUtilities.BreakMotionWarpingSyncPoint"))
-struct MOTIONWARPING_API FMotionWarpingSyncPoint
-{
-	GENERATED_BODY()
-
-	FMotionWarpingSyncPoint()
-		: Location(FVector::ZeroVector), Rotation(FQuat::Identity) {}
-	FMotionWarpingSyncPoint(const FVector& InLocation, const FQuat& InRotation)
-		: Location(InLocation), Rotation(InRotation) {}
-	FMotionWarpingSyncPoint(const FVector& InLocation, const FRotator& InRotation)
-		: Location(InLocation), Rotation(InRotation.Quaternion()) {}
-	FMotionWarpingSyncPoint(const FTransform& InTransform)
-		: Location(InTransform.GetLocation()), Rotation(InTransform.GetRotation()) {}
-
-	FORCEINLINE const FVector& GetLocation() const { return Location; }
-	FORCEINLINE const FQuat& GetRotation() const { return Rotation; }
-	FORCEINLINE FRotator Rotator() const { return Rotation.Rotator(); }
-
-	FORCEINLINE bool operator==(const FMotionWarpingSyncPoint& Other) const
-	{
-		return Other.Location.Equals(Location) && Other.Rotation.Equals(Rotation);
-	}
-
-	FORCEINLINE bool operator!=(const FMotionWarpingSyncPoint& Other) const
-	{
-		return !Other.Location.Equals(Location) || !Other.Rotation.Equals(Rotation);
-	}
-
-protected:
-
-	UPROPERTY()
-	FVector Location;
-
-	UPROPERTY()
-	FQuat Rotation;
-};
-
-// FRootMotionModifier_Warp
+// URootMotionModifier
 ///////////////////////////////////////////////////////////////
-
-UENUM(BlueprintType)
-enum class EMotionWarpRotationType : uint8
-{
-	/** Character rotates to match the rotation of the sync point */
-	Default,
-
-	/** Character rotates to face the sync point */
-	Facing,
-};
-
-/** Method used to extract the warp point from the animation */
-UENUM(BlueprintType)
-enum class EWarpPointAnimProvider : uint8
-{
-	/** No warp point is provided */
-	None,
-
-	/** Warp point defined by a 'hard-coded' transform  user can enter through the warping notify */
-	Static,
-
-	/** Warp point defined by a bone */
-	Bone
-};
 
 UCLASS(Abstract, BlueprintType, EditInlineNew)
 class MOTIONWARPING_API URootMotionModifier : public UObject
@@ -128,6 +67,14 @@ public:
 	/** Whether this modifier runs before the extracted root motion is converted to world space or after */
 	UPROPERTY(BlueprintReadOnly, Category = "Defaults")
 	bool bInLocalSpace = false;
+
+	/** Character owner transform at the time this modifier becomes active */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Defaults")
+	FTransform StartTransform;
+
+	/** Actual playback time when the modifier becomes active */
+	UPROPERTY(Transient, BlueprintReadOnly, Category = "Defaults")
+	float ActualStartTime = 0.f;
 
 	/** Delegate called when this modifier is activated (starts affecting the root motion) */
 	UPROPERTY()
@@ -172,7 +119,84 @@ private:
 	ERootMotionModifierState State = ERootMotionModifierState::Waiting;
 };
 
-UCLASS(meta = (DisplayName = "Simple Warp"))
+// URootMotionModifier_Warp
+///////////////////////////////////////////////////////////////
+
+/** Represents a point of alignment in the world */
+USTRUCT(BlueprintType)
+struct MOTIONWARPING_API FMotionWarpingTarget
+{
+	GENERATED_BODY()
+
+	/** When the warp target is created from a component this stores the transform of the component at the time of creation, otherwise its the transform supplied by the user */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FTransform Transform;
+
+	/** Optional component used to calculate the final target transform */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	TWeakObjectPtr<const USceneComponent> Component;
+
+	/** Optional bone name in the component used to calculate the final target transform */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	FName BoneName;
+
+	/** Whether the target transform calculated from a component and an optional bone should be updated during the warp */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
+	bool bFollowComponent;
+
+	FMotionWarpingTarget()
+		: Transform(FTransform::Identity), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
+
+	FMotionWarpingTarget(const FTransform& InTransform)
+		: Transform(InTransform), Component(nullptr), BoneName(NAME_None), bFollowComponent(false) {}
+
+	FMotionWarpingTarget(const USceneComponent* InComp, FName InBoneName, bool bInbFollowComponent);
+
+	FTransform GetTargetTrasform() const;
+
+	FORCEINLINE FVector GetLocation() const { return GetTargetTrasform().GetLocation(); }
+	FORCEINLINE FQuat GetRotation() const { return GetTargetTrasform().GetRotation(); }
+	FORCEINLINE FRotator Rotator() const { return GetTargetTrasform().Rotator(); }
+
+	FORCEINLINE bool operator==(const FMotionWarpingTarget& Other) const
+	{
+		return Other.Transform.Equals(Transform) && Other.Component == Component && Other.BoneName == BoneName && Other.bFollowComponent == bFollowComponent;
+	}
+
+	FORCEINLINE bool operator!=(const FMotionWarpingTarget& Other) const
+	{
+		return !Other.Transform.Equals(Transform) || Other.Component != Component || Other.BoneName != BoneName || Other.bFollowComponent != bFollowComponent;
+	}
+
+	static FTransform GetTargetTransformFromComponent(const USceneComponent* Comp, const FName& BoneName);
+
+};
+
+UENUM(BlueprintType)
+enum class EMotionWarpRotationType : uint8
+{
+	/** Character rotates to match the rotation of the sync point */
+	Default,
+
+	/** Character rotates to face the sync point */
+	Facing,
+};
+
+/** Method used to extract the warp point from the animation */
+UENUM(BlueprintType)
+enum class EWarpPointAnimProvider : uint8
+{
+	/** No warp point is provided */
+	None,
+
+	/** Warp point defined by a 'hard-coded' transform  user can enter through the warping notify */
+	Static,
+
+	/** Warp point defined by a bone */
+	Bone
+};
+
+UCLASS(Abstract)
 class MOTIONWARPING_API URootMotionModifier_Warp : public URootMotionModifier
 {
 	GENERATED_BODY()
@@ -221,7 +245,6 @@ public:
 
 	//~ Begin FRootMotionModifier Interface
 	virtual void Update() override;
-	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
 	//~ End FRootMotionModifier Interface
 
 	/** Event called during update if the target transform changes while the warping is active */
@@ -231,28 +254,38 @@ public:
 	void PrintLog(const FString& Name, const FTransform& OriginalRootMotion, const FTransform& WarpedRootMotion) const;
 #endif
 
-	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	static URootMotionModifier_Warp* AddRootMotionModifierSimpleWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime,
-		FName InWarpTargetName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
-		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier = 1.f);
-
-protected:
-
 	FORCEINLINE FVector GetTargetLocation() const { return CachedTargetTransform.GetLocation(); }
 	FORCEINLINE FRotator GetTargetRotator() const { return GetTargetRotation().Rotator(); }
 	FQuat GetTargetRotation() const;
 
 	FQuat WarpRotation(const FTransform& RootMotionDelta, const FTransform& RootMotionTotal, float DeltaSeconds);
 
-	//@TODO: This should be Optional and private
+protected:
+
 	UPROPERTY()
 	FTransform CachedTargetTransform = FTransform::Identity;
-
-private:
 
 	/** Cached of the offset from the warp target. Used to calculate the final target transform when a warp target is defined in the animation */
 	TOptional<FTransform> CachedOffsetFromWarpPoint;
 };
+
+// URootMotionModifier_SimpleWarp. 
+// DEPRECATED in favor of URootMotionModifier_SkewWarp (kept for reference)
+///////////////////////////////////////////////////////////////
+
+UCLASS(Deprecated, meta = (DisplayName = "Simple Warp"))
+class MOTIONWARPING_API UDEPRECATED_RootMotionModifier_SimpleWarp : public URootMotionModifier_Warp
+{
+	GENERATED_BODY()
+
+public:
+
+	UDEPRECATED_RootMotionModifier_SimpleWarp(const FObjectInitializer& ObjectInitializer);
+	virtual FTransform ProcessRootMotion(const FTransform& InRootMotion, float DeltaSeconds) override;
+};
+
+// URootMotionModifier_Scale
+///////////////////////////////////////////////////////////////
 
 UCLASS(meta = (DisplayName = "Scale"))
 class MOTIONWARPING_API URootMotionModifier_Scale : public URootMotionModifier
