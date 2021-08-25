@@ -415,7 +415,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet)
 }
 
 
-void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTransform3d& Transform)
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const UE::Geometry::FTransform3d& Transform)
 {
 	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
 	{
@@ -445,7 +445,7 @@ void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const FTr
 
 
 
-void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<FTransform3d>& TransformSequence)
+void FSimpleShapeSet3d::Append(const FSimpleShapeSet3d& OtherShapeSet, const TArray<UE::Geometry::FTransform3d>& TransformSequence)
 {
 	for (FSphereShape3d SphereShape : OtherShapeSet.Spheres)
 	{
@@ -518,7 +518,7 @@ void FSimpleShapeSet3d::FilterByVolume(int32 MaximumCount)
 
 
 
-void FSimpleShapeSet3d::ApplyTransform(const FTransform3d& Transform)
+void FSimpleShapeSet3d::ApplyTransform(const UE::Geometry::FTransform3d& Transform)
 {
 	for (FSphereShape3d& SphereShape : Spheres)
 	{

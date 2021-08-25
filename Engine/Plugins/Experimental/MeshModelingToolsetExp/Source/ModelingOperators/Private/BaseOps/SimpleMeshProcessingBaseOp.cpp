@@ -41,7 +41,7 @@ FSimpleMeshProcessingBaseOp::FSimpleMeshProcessingBaseOp(const FDynamicMesh3* Me
 	}
 }
 
-void FSimpleMeshProcessingBaseOp::SetTransform(const FTransform3d& XForm)
+void FSimpleMeshProcessingBaseOp::SetTransform(const UE::Geometry::FTransform3d& XForm)
 {
 	ResultTransform = XForm;
 }
