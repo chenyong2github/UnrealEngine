@@ -2189,37 +2189,34 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;				
 		Params.CollisionGroup = -1;
+		Params.CollisionParticleFraction = 0.70f;
 		Params.MinLevelSetResolution = 15;
 		Params.MaxLevelSetResolution = 20;
 		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
+		UnitTest.Initialize();
 		
-		
-		// Todo: these aren't used anywhere in the test?
-		//typedef TUniquePtr<Chaos::FImplicitObject> FImplicitPointer;
-		//const TManagedArray<FImplicitPointer> & Implicits = RestCollection->template GetAttribute<FImplicitPointer>(FGeometryCollectionPhysicsProxy::ImplicitsAttribute, FTransformCollection::TransformGroup);
-
+		// We can get the size of an original CollisionParticles by storing the Simplicials before any internal resizing. 
 		typedef TUniquePtr< FCollisionStructureManager::FSimplicial > FSimplicialPointer;
 		const TManagedArray<FSimplicialPointer> & Simplicials = RestCollection->template GetAttribute<FSimplicialPointer>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
 
-		UnitTest.Advance();		
+		UnitTest.Advance();		// this call triggers the array resize based on the fraction
 
+		// Test non-clustered bodies
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
-
-		FReal CollisionParticlesPerObjectFractionDefault = (FReal)0.5;
-		IConsoleVariable*  CVarCollisionParticlesPerObjectFractionDefault = IConsoleManager::Get().FindConsoleVariable(TEXT("p.CollisionParticlesPerObjectFractionDefault"));
-		EXPECT_NE(CVarCollisionParticlesPerObjectFractionDefault, nullptr);
-		if (CVarCollisionParticlesPerObjectFractionDefault != nullptr)
+		int32 NumCollisionParticles, ExpectedNumCollisionParticles;
+		for (int i = 0; i < ParticleHandles.Num(); i++)
 		{
-			CollisionParticlesPerObjectFractionDefault = (FReal)CVarCollisionParticlesPerObjectFractionDefault->GetFloat();
+			if (Collection->RestCollection->SimulationType[i] == FGeometryCollection::ESimulationTypes::FST_Rigid)
+			{
+				NumCollisionParticles = ParticleHandles[i]->CollisionParticlesSize(); // resized
+				ExpectedNumCollisionParticles = (int32)Simplicials[i]->Size() * Params.CollisionParticleFraction;
+				EXPECT_EQ(ExpectedNumCollisionParticles, NumCollisionParticles);
+				EXPECT_FALSE(NumCollisionParticles == 0.0f);
+				EXPECT_FALSE(Params.CollisionParticleFraction == 1.0f); // not defaulted
+			}
 		}
-		
-/*
-		todo: what is the replacement here?
-		EXPECT_EQ(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[10])->Size(), (int)(Simplicials[10]->Size() * CollisionParticlesPerObjectFractionDefault));
-		EXPECT_EQ(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[11])->Size(), (int)(Simplicials[11]->Size() * CollisionParticlesPerObjectFractionDefault));
-		EXPECT_EQ(Particles.CollisionParticles(Object->PhysicsProxy->RigidBodyIDArray_TestingAccess()[12])->Size(), (int)(Simplicials[12]->Size() * CollisionParticlesPerObjectFractionDefault));
-*/
 	}
+
 }
