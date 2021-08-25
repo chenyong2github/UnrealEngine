@@ -389,7 +389,7 @@ FLinearColor UControlRigGraphNode::GetNodeProfilingColor() const
 #if WITH_EDITOR
 	if(bEnableProfiling)
 	{
-		if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter()))
+		if(UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>())
 		{
 			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
 			{
@@ -644,7 +644,7 @@ void UControlRigGraphNode::CreateOutputPins(URigVMPin* InParentPin)
 
 UClass* UControlRigGraphNode::GetControlRigGeneratedClass() const
 {
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
+	UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>();
 	if(Blueprint)
 	{
 		if (Blueprint->GeneratedClass)
@@ -659,7 +659,7 @@ UClass* UControlRigGraphNode::GetControlRigGeneratedClass() const
 
 UClass* UControlRigGraphNode::GetControlRigSkeletonGeneratedClass() const
 {
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(GetOuter()->GetOuter());
+	UControlRigBlueprint* Blueprint = GetTypedOuter<UControlRigBlueprint>();
 	if(Blueprint)
 	{
 		if (Blueprint->SkeletonGeneratedClass)
