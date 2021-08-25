@@ -59,6 +59,7 @@ private:
 	
 	TMap<AVEncoder::FVideoEncoderInputFrame*, FTexture2DRHIRef> BackBuffers;
 	TSharedPtr<AVEncoder::FVideoEncoderInput> VideoEncoderInput = nullptr;
+	void DeleteBackBuffers();
 
 	int32 Width = 1920;
 	int32 Height = 1080;

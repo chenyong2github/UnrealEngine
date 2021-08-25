@@ -24,7 +24,6 @@ extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer()
 {
-
 	if (GEngine && GEngine->GameViewport)
     {
 		FVector2D Res;
@@ -81,7 +80,15 @@ FVideoCapturer::FVideoCapturer()
 		{
 			unimplemented();
 		}
+
+		FCoreDelegates::OnPreExit.AddRaw(this, &FVideoCapturer::DeleteBackBuffers);
 	}
+}
+
+void FVideoCapturer::DeleteBackBuffers()
+{
+	CurrentState = webrtc::MediaSourceInterface::SourceState::kEnded;
+	BackBuffers.Empty();
 }
 
 void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
