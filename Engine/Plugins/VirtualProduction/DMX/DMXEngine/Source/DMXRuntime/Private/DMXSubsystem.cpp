@@ -764,14 +764,16 @@ void UDMXSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	LibraryOfDMXLibraries->GetAssetDataList(AssetDatas);
 
 	for (const FAssetData& AssetData : AssetDatas)
-{
-		if (!AssetData.IsAssetLoaded())
 	{
-			LoadedDMXLibraries.Add(CastChecked<UDMXLibrary>(AssetData.ToSoftObjectPath().TryLoad()));
+		UDMXLibrary* DMXLibrary = Cast<UDMXLibrary>(AssetData.ToSoftObjectPath().TryLoad());
+
+		if (DMXLibrary)
+		{
+			LoadedDMXLibraries.Add(DMXLibrary);
 		}
 		else
 		{
-			LoadedDMXLibraries.Add(CastChecked<UDMXLibrary>(AssetData.ToSoftObjectPath().ResolveObject()));
+			UE_LOG(DMXSubsystemLog, Warning, TEXT("Failed to load DMXLibrary %s. See previous errors for causes."), *AssetData.AssetName.ToString());
 		}
 	}
 	OnAllDMXLibraryAssetsLoaded.Broadcast();
