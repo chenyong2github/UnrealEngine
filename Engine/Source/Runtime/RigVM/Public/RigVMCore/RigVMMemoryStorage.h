@@ -193,6 +193,8 @@ public:
 	// Returns the CPP type of the tail property, for ex: '[2].Translation' it is 'FVector'
 	FString GetTailCPPType() const;
 
+	static bool RequiresCPPTypeObject(const FString& InCPPType);
+
 private:
 	
 	static const FString ArrayPrefix;
