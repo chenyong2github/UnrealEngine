@@ -2,13 +2,13 @@
 
 #pragma once
 
+#include "IRemoteControlUIModule.h"
 #include "RemoteControlPreset.h"
 #include "SRCPanelTreeNode.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 #include "UObject/StrongObjectPtr.h"
-#include "UObject/WeakObjectPtrTemplates.h"
 
 struct FRCPanelGroup;
 class FRCPanelWidgetRegistry;
@@ -51,10 +51,8 @@ class SRCPanelExposedEntitiesList : public SCompoundWidget
 public:
 	SLATE_BEGIN_ARGS(SRCPanelExposedEntitiesList)
 		: _EditMode(true)
-		, _DisplayValues(true)
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
-		SLATE_ARGUMENT(bool, DisplayValues)
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
 
@@ -91,11 +89,11 @@ private:
 	/** Handle selection changes. */
 	void OnSelectionChanged(TSharedPtr<SRCPanelTreeNode> Node, ESelectInfo::Type SelectInfo);
 	/** Handlers for drag/drop events. */
-	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<SRCPanelGroup>& DragTargetGroup);
+	FReply OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<SRCPanelTreeNode>& DragTargetGroup);
 	/** Get the id of the group that holds a particular widget. */
 	FGuid GetGroupId(const FGuid& EntityId);
 	/** Handles group deletion. */
-	void OnDeleteGroup(const TSharedPtr<SRCPanelGroup>& PanelGroup);
+	void OnDeleteGroup(const FGuid& GroupId);
 	/** Select actors in the current level. */
 	void SelectActorsInlevel(const TArray<UObject*>& Objects);
 	//~ Register to engine/editor events in order to correctly update widgets.
@@ -142,8 +140,6 @@ private:
 	FDelegateHandle OnPropertyChangedHandle;
 	/** Delegate called on selected group change. */
 	FOnSelectionChange OnSelectionChangeDelegate;
-	/** Whether to display the values in the list. */
-	bool bDisplayValues = false;
 	/** The column data shared between all tree nodes in order to share a splitter amongst all rows. */
 	FRCColumnSizeData ColumnSizeData;
 	/** The actual width of the right column.  The left column is 1-ColumnWidth */

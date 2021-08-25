@@ -2,31 +2,19 @@
 
 #pragma once
 
+#include "IRemoteControlUIModule.h"
 #include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
-#include "DragAndDrop/DecoratedDragDropOp.h"
 #include "Misc/Guid.h"
-#include "Widgets/Layout/SSplitter.h"
 
 class SWidget;
 class SRCPanelGroup;
 struct SRCPanelExposedField;
 struct SRCPanelExposedActor;
-
-/**
- * Holds data about a row's columns' size.
- */
-struct FRCColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
-
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};
+struct SRCPanelExposedMaterial;
 
 /** A node in the panel tree view. */
-struct SRCPanelTreeNode
+struct SRCPanelTreeNode : public SCompoundWidget
 {
 	enum ENodeType
 	{
@@ -34,7 +22,8 @@ struct SRCPanelTreeNode
 		Group,
 		Field,
 		FieldChild,
-		Actor
+		Actor,
+		Material
 	};
 
 	virtual ~SRCPanelTreeNode() {}
@@ -42,19 +31,15 @@ struct SRCPanelTreeNode
 	/** Get this tree node's childen. */
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const {}
 	/** Get this node's ID if any. */
-	virtual FGuid GetId() const { return FGuid(); }
+	virtual FGuid GetRCId() const { return FGuid(); }
 	/** Get get this node's type. */
-	virtual ENodeType GetType() const { return Invalid; };
+	virtual ENodeType GetRCType() const { return ENodeType::Invalid; };
 	/** Refresh the node. */
 	virtual void Refresh() {};
 	/** Get the context menu for this node. */
 	virtual TSharedPtr<SWidget> GetContextMenu() { return nullptr; }
-
-	//~ Utiliy methods for not having to downcast 
-	virtual TSharedPtr<SRCPanelExposedField> AsField() { return nullptr; }
-	virtual TSharedPtr<SWidget> AsFieldChild() { return nullptr; }
-	virtual TSharedPtr<SRCPanelGroup> AsGroup() { return nullptr; }
-	virtual TSharedPtr<SRCPanelExposedActor> AsActor() { return nullptr; }
+	/** Set whether this widget is currently hovered when drag and dropping. */
+	virtual void SetIsHovered(bool bIsBeingHovered) {}
 
 protected:
 	struct FMakeNodeWidgetArgs
@@ -89,46 +74,5 @@ private:
 	static constexpr float SplitterOffset = 0.008f;
 };
 
-class FExposedEntityDragDrop : public FDecoratedDragDropOp
-{
-public:
-	DRAG_DROP_OPERATOR_TYPE(FExposedFieldDragDropOp, FDecoratedDragDropOp)
-
-	using WidgetType = SWidget;
-
-	FExposedEntityDragDrop(TSharedPtr<SWidget> InWidget, FGuid InId)
-		: Id(MoveTemp(InId))
-	{
-		DecoratorWidget = SNew(SBorder)
-			.Padding(1.0f)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle_Active"))
-			.Content()
-			[
-				InWidget.ToSharedRef()
-			];
-
-		Construct();
-	}
-
-	/** Get the ID of the represented entity or group. */
-	FGuid GetId()
-	{
-		return Id;
-	}
-
-	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override
-	{
-		FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
-	}
-
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
-	{
-		return DecoratorWidget;
-	}
-
-private:
-	FGuid Id;
-	TSharedPtr<SWidget> DecoratorWidget;
-};
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanelNode*/

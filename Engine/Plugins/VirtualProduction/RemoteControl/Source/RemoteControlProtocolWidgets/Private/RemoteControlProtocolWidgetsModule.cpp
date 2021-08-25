@@ -19,7 +19,7 @@ TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntit
 	ResetProtocolBindingList();
 
 	// Currently only supports Properties
-	if (InFieldId.IsValid() && InFieldType == EExposedFieldType::Property)
+	if (InFieldId.IsValid() && InPreset->GetExposedEntityType(InFieldId) == FRemoteControlProperty::StaticStruct())
 	{
 		return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
 	}

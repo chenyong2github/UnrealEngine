@@ -2,10 +2,10 @@
 
 #include "SRCLogger.h"
 
-#include "EditorStyleSet.h"
 #include "MessageLogModule.h"
 #include "RemoteControlLogger.h"
 #include "Modules/ModuleManager.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/Layout/SBorder.h"
 
 void SRCLogger::Construct(const FArguments& InArgs)
@@ -27,7 +27,7 @@ void SRCLogger::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.BorderImage(FAppStyle::Get().GetBrush("Menu.Background"))
 		.Padding(2.f)
 		[
 			LogListingWidget.ToSharedRef()

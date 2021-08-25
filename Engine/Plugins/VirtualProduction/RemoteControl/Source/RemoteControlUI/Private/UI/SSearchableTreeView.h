@@ -3,18 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "SlateFwd.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Misc/TextFilter.h"
+#include "Styling/AppStyle.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Algo/Transform.h"
-#include "EditorStyleSet.h"
 #include "Widgets/Input/SSearchBox.h"
-#include "Framework/Application/SlateApplication.h"
 #include "Widgets/Images/SImage.h"
-#include "SSearchableComboBox.h"
 
 /**
  * Widget that displays a searchable tree view.
@@ -138,7 +135,7 @@ private:
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image(FEditorStyle::Get().GetBrush("GraphEditor.Function_16x"))
+				.Image(FAppStyle::Get().GetBrush("GraphEditor.Function_16x"))
 			]
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)

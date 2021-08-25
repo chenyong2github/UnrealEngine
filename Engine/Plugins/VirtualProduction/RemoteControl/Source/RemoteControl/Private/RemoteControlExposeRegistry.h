@@ -5,8 +5,6 @@
 #include "CoreMinimal.h"
 #include "RemoteControlEntity.h"
 #include "UObject/Class.h"
-#include "UObject/StructOnScope.h"
-#include "Templates/EnableIf.h"
 #include "Templates/SharedPointer.h"
 #include "Templates/UnrealTypeTraits.h"
 
@@ -152,6 +150,11 @@ public:
 	const UScriptStruct* GetExposedEntityType(const FGuid& ExposedEntityId) const;
 
 	/**
+	 * Get all the exposed types in the registry (ie. FRemoteControlActor)
+	 */
+	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
+
+	/**
 	 * Add an entity to the set of exposed entities of its type.
 	 * @param EntityToExpose the entity to expose.
 	 * @param EntityType EntityType the type of the entity to expose.
@@ -206,4 +209,8 @@ private:
 	/** Cache of label to ids. */
 	UPROPERTY(Transient)
 	TMap<FName, FGuid> LabelToIdCache;
+
+	/** Holds the types of entities exposed in the registry. */
+	UPROPERTY()
+	TSet<UScriptStruct*> ExposedTypes;
 };

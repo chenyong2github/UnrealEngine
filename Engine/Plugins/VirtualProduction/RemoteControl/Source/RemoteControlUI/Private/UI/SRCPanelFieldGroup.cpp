@@ -15,8 +15,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Views/SExpanderArrow.h"
-#include "Widgets/Views/STableViewBase.h"
 #include "Widgets/SBoxPanel.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
@@ -73,7 +71,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
 			.ColorAndOpacity(this, &SRCPanelGroup::GetGroupNameTextColor)
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+			.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 			.Text(FText::FromName(Name))
 			.OnTextCommitted(this, &SRCPanelGroup::OnLabelCommitted)
 			.OnVerifyTextChanged(this, &SRCPanelGroup::OnVerifyItemLabelChanged)
@@ -87,7 +85,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 		[
 			SNew(SButton)
 			.Visibility(this, &SRCPanelGroup::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+			.ButtonStyle(FAppStyle::Get(), "FlatButton")
 			.OnClicked_Lambda([this] () 
 				{
 					bNeedsRename = true;
@@ -96,7 +94,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 			[
 				SNew(STextBlock)
 				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
 			]
 		];
@@ -116,7 +114,7 @@ void SRCPanelGroup::Construct(const FArguments& InArgs, URemoteControlPreset* In
 			[
 				SNew(STextBlock)
 				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 				.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
 			]
 		];
@@ -157,24 +155,19 @@ void SRCPanelGroup::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChi
 	OutChildren.Append(Nodes);
 }
 
-FGuid SRCPanelGroup::GetId() const
+FGuid SRCPanelGroup::GetRCId() const
 {
 	return Id;
 }
 
-SRCPanelTreeNode::ENodeType SRCPanelGroup::GetType() const
+SRCPanelTreeNode::ENodeType SRCPanelGroup::GetRCType() const
 {
 	return SRCPanelTreeNode::Group;
 }
 
-TSharedPtr<SRCPanelGroup> SRCPanelGroup::AsGroup()
-{
-	return StaticCastSharedRef<SRCPanelGroup>(AsShared());
-}
-
 FReply SRCPanelGroup::OnFieldDropGroup(const FDragDropEvent& Event, TSharedPtr<SRCPanelTreeNode> TargetField)
 {
-	if (TSharedPtr<FExposedEntityDragDrop> DragDropOp = Event.GetOperationAs<FExposedEntityDragDrop>())
+	if (const TSharedPtr<FExposedEntityDragDrop> DragDropOp = Event.GetOperationAs<FExposedEntityDragDrop>())
 	{
 		return OnFieldDropGroup(DragDropOp, TargetField);
 	}
@@ -187,11 +180,11 @@ FReply SRCPanelGroup::OnFieldDropGroup(TSharedPtr<FDragDropOperation> DragDropOp
 	{
 		if (DragDropOperation->IsOfType<FExposedEntityDragDrop>() && OnFieldDropEvent.IsBound())
 		{
-			return OnFieldDropEvent.Execute(DragDropOperation, TargetField, AsGroup());
+			return OnFieldDropEvent.Execute(DragDropOperation, TargetField, StaticCastSharedRef<SRCPanelGroup>(AsShared()));
 		}
 		else if (DragDropOperation->IsOfType<FFieldGroupDragDropOp>() && OnFieldDropEvent.IsBound())
 		{
-			return OnFieldDropEvent.Execute(DragDropOperation, nullptr, AsGroup());
+			return OnFieldDropEvent.Execute(DragDropOperation, nullptr, StaticCastSharedRef<SRCPanelGroup>(AsShared()));
 		}
 	}
 
@@ -206,7 +199,7 @@ bool SRCPanelGroup::OnAllowDropFromOtherGroup(TSharedPtr<FDragDropOperation> Dra
 		{
 			if (OnGetGroupId.IsBound())
 			{
-				FGuid OriginGroupId = OnGetGroupId.Execute(DragDropOp->GetId());
+				const FGuid OriginGroupId = OnGetGroupId.Execute(DragDropOp->GetId());
 				if (OriginGroupId != Id)
 				{
 					return true;
@@ -227,7 +220,7 @@ bool SRCPanelGroup::OnAllowDropFromOtherGroup(TSharedPtr<FDragDropOperation> Dra
 
 FReply SRCPanelGroup::HandleDeleteGroup()
 {
-	OnDeleteGroup.ExecuteIfBound(AsGroup());
+	OnDeleteGroup.ExecuteIfBound(Id);
 	return FReply::Handled();
 }
 

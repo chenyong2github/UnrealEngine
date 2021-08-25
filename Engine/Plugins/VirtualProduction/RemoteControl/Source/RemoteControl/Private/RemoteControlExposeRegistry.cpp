@@ -84,12 +84,18 @@ const UScriptStruct* URemoteControlExposeRegistry::GetExposedEntityType(const FG
 	return nullptr;
 }
 
+const TSet<UScriptStruct*>& URemoteControlExposeRegistry::GetExposedEntityTypes() const
+{
+	return ExposedTypes;
+}
+
 TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::AddExposedEntity(FRemoteControlEntity&& EntityToExpose, UScriptStruct* EntityType)
 {
 	LabelToIdCache.Add(EntityToExpose.GetLabel(), EntityToExpose.GetId());
 	FRCEntityWrapper Wrapper{ MoveTemp(EntityToExpose), EntityType};
 	TSharedPtr<FRemoteControlEntity> Entity = Wrapper.Get();
 	ExposedEntities.Add(MoveTemp(Wrapper));
+	ExposedTypes.Add(EntityType);
 	return Entity;
 }
 
