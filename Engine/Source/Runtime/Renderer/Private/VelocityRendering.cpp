@@ -272,6 +272,8 @@ void FSceneRenderer::RenderVelocities(
 				VelocityLoadAction = ERenderTargetLoadAction::ELoad;
 			}
 
+			VelocityLoadAction = View.DecayLoadAction(VelocityLoadAction);
+
 			if (!bHasAnyDraw)
 			{
 				continue;
