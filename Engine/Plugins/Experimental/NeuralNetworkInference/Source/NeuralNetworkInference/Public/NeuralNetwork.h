@@ -124,9 +124,14 @@ public:
 
 	/**
 	 * Getter and setter functions for BackEnd.
+	 * GetBackEnd()/GetBackEndForCurrentPlatform():
+	 * - If BackEnd == Auto, GetBackEnd() will return Auto and GetBackEndForCurrentPlatform() will return the actual BackEnd being used for the current platform (UEAndORT or UEOnly).
+	 * - If BackEnd != Auto, GetBackEnd() and GetBackEndForCurrentPlatform() will both return the same value (UEAndORT or UEOnly).
+	 * SetBackEnd() will modify both BackEnd and BackEndForCurrentPlatform.
 	 * @see ENeuralBackEnd for more details.
 	 */
 	ENeuralBackEnd GetBackEnd() const;
+	ENeuralBackEnd GetBackEndForCurrentPlatform() const;
 	void SetBackEnd(const ENeuralBackEnd InBackEnd);
 
 	/**
@@ -209,6 +214,13 @@ private:
 
 	UPROPERTY()
 	TArray<uint8> ModelReadFromDiskInBytes;
+
+	/**
+	 * If BackEnd != Auto, BackEndForCurrentPlatform will be equal to BackEnd.
+	 * Otherwise, BackEndForCurrentPlatform will be set to the optimal BackEnd given the current platform.
+	 * @see ENeuralBackEnd for more details.
+	 */
+	ENeuralBackEnd BackEndForCurrentPlatform;
 
 	/**
 	 * @see FOnAsyncRunCompleted and GetOnAsyncRunCompletedDelegate to understand OnAsyncRunCompletedDelegate.
