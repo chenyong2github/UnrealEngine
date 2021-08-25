@@ -110,6 +110,7 @@ void UEditorValidatorSubsystem::RegisterBlueprintValidators()
 			UObject* ValidatorObject = BPAssetData.ToSoftObjectPath().ResolveObject();
 			if (ValidatorObject == nullptr)
 			{
+				FSoftObjectPathSerializationScope SerializationScope(NAME_None, NAME_None, ESoftObjectPathCollectType::EditorOnlyCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
 				ValidatorObject = BPAssetData.ToSoftObjectPath().TryLoad();
 			}
 			if (ValidatorObject)
