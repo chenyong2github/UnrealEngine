@@ -280,7 +280,7 @@ void USkinWeightsPaintTool::CalculateVertexROI(const FBrushStampData& Stamp, TAr
 {
 	using namespace UE::Geometry;
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	FTransform3d Transform(TargetComponent->GetWorldTransform());
+	UE::Geometry::FTransform3d Transform(TargetComponent->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	float RadiusSqr = CurrentBrushRadius * CurrentBrushRadius;
@@ -351,7 +351,7 @@ void USkinWeightsPaintTool::ApplyStamp(const FBrushStampData& Stamp)
 		return;
 
 	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
-	FTransform3d Transform(TargetComponent->GetWorldTransform());
+	UE::Geometry::FTransform3d Transform(TargetComponent->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition((FVector3d)Stamp.WorldPosition);
 
 	TArray<int32> ROIVertices;

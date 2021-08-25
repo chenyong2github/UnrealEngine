@@ -20,6 +20,7 @@ struct FNDIArrayImplHelperBase
 
 	static void GPUGetFetchHLSL(FString& OutHLSL, const TCHAR* BufferName) { OutHLSL.Appendf(TEXT("OutValue = %s[ClampedIndex];"), BufferName); }
 	static int32 GPUGetTypeStride() { return sizeof(TArrayType); }
+	static int32 CPUGetTypeStride() { return sizeof(TArrayType); }
 	static void CopyData(void* Dest, const TArrayType* Src, int32 BufferSize)
 	{
 		FMemory::Memcpy(Dest, Src, BufferSize);
@@ -421,28 +422,27 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 				if (RT_Proxy->NumElements > 0)
 				{
 					const int32 BufferStride = T::GPUGetTypeStride();
-					const int32 BufferSize = RT_Array.GetTypeSize() * RT_Array.Num();
+					const int32 BufferSize = T::CPUGetTypeStride() * RT_Array.Num();
 					const int32 BufferNumElements = BufferSize / BufferStride;
-					check((sizeof(TArrayType) % BufferStride) == 0);
-					check(BufferSize == BufferNumElements * BufferStride);
+					check(T::GPUGetTypeStride() <= T::CPUGetTypeStride());
 
 					RT_Proxy->Buffer.Initialize(TEXT("NiagaraArrayFloat"), BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static);
 					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
-					T::CopyData(GPUMemory, RT_Array.GetData(), BufferSize);
+					T::CopyData(GPUMemory, RT_Array.GetData(), RT_Array.GetTypeSize() * RT_Array.Num());
 					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 				else
 				{
 					const int32 BufferStride = T::GPUGetTypeStride();
-					const int32 BufferSize = RT_Array.GetTypeSize();
-					const int32 BufferNumElements = BufferSize / BufferStride;
-					check((sizeof(TArrayType) % BufferStride) == 0);
+					const int32 BufferSize = T::CPUGetTypeStride();
+					const int32 BufferNumElements = BufferSize / BufferStride;					
+					check(T::GPUGetTypeStride() <= T::CPUGetTypeStride());
 
-					const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
+					const TArrayType DefaultValue = (TArrayType)FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 
 					RT_Proxy->Buffer.Initialize(TEXT("NiagaraArrayFloat"), BufferStride, BufferNumElements, FNDIArrayImplHelper<TArrayType>::PixelFormat, BUF_Static);
 					void* GPUMemory = RHICmdList.LockBuffer(RT_Proxy->Buffer.Buffer, 0, BufferSize, RLM_WriteOnly);
-					T::CopyData(GPUMemory, &DefaultValue, BufferSize);
+					T::CopyData(GPUMemory, &DefaultValue, RT_Array.GetTypeSize());
 					RHICmdList.UnlockBuffer(RT_Proxy->Buffer.Buffer);
 				}
 
@@ -555,15 +555,15 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
 				const int32 Index = FMath::Clamp(IndexParam.GetAndAdvance(), 0, Num);
-				OutValue.SetAndAdvance(Data[Index]);
+				OutValue.SetAndAdvance((typename FNDIArrayImplHelper<TArrayType>::TVMArrayType)Data[Index]);
 			}
 		}
 		else
 		{
-			const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
+			const TArrayType DefaultValue = (TArrayType)FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 			for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 			{
-				OutValue.SetAndAdvance(DefaultValue);
+				OutValue.SetAndAdvance((typename FNDIArrayImplHelper<TArrayType>::TVMArrayType)DefaultValue);
 			}
 		}
 	}
@@ -591,7 +591,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 
 		if (NewNum > OldNum)
 		{
-			const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
+			const TArrayType DefaultValue = (TArrayType)FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 			for (int32 i = OldNum; i < NewNum; ++i)
 			{
 				Data[i] = DefaultValue;
@@ -609,7 +609,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 Index = IndexParam.GetAndAdvance();
-			const TArrayType Value = InValue.GetAndAdvance();
+			const TArrayType Value = (TArrayType)InValue.GetAndAdvance();
 
 			if (Data.IsValidIndex(Index))
 			{
@@ -630,7 +630,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const bool bSkipExecute = InSkipExecute.GetAndAdvance();
-			const TArrayType Value = InValue.GetAndAdvance();
+			const TArrayType Value = (TArrayType)InValue.GetAndAdvance();
 			if (!bSkipExecute && (Data.Num() < MaxElements))
 			{
 				Data.Emplace(Value);
@@ -644,7 +644,7 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 		FNDIInputParam<FNiagaraBool> InSkipExecute(Context);
 		FNDIOutputParam<typename FNDIArrayImplHelper<TArrayType>::TVMArrayType> OutValue(Context);
 		FNDIOutputParam<FNiagaraBool> OutIsValid(Context);
-		const TArrayType DefaultValue = FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
+		const TArrayType DefaultValue = (TArrayType)FNDIArrayImplHelper<TArrayType>::GetDefaultValue();
 
 		FRWScopeLock WriteLock(Owner->ArrayRWGuard, SLT_Write);
 		for (int32 i=0; i < Context.GetNumInstances(); ++i)
@@ -652,12 +652,12 @@ struct FNiagaraDataInterfaceArrayImpl : public INiagaraDataInterfaceArrayImpl
 			const bool bSkipExecute = InSkipExecute.GetAndAdvance();
 			if (bSkipExecute || (Data.Num() == 0))
 			{
-				OutValue.SetAndAdvance(DefaultValue);
+				OutValue.SetAndAdvance((typename FNDIArrayImplHelper<TArrayType>::TVMArrayType)DefaultValue);
 				OutIsValid.SetAndAdvance(false);
 			}
 			else
 			{
-				OutValue.SetAndAdvance(Data.Pop());
+				OutValue.SetAndAdvance((typename FNDIArrayImplHelper<TArrayType>::TVMArrayType)Data.Pop());
 				OutIsValid.SetAndAdvance(true);
 			}
 		}

@@ -32,10 +32,6 @@
 #pragma warning (disable : 4459)
 #endif
 
-/**
- * A vector in 3-D space composed of components (X, Y, Z) with floating point precision.
- */
-
 // Move out of global namespace to avoid collisions with Chaos::TVector within the physics code.
 namespace UE
 {
@@ -44,6 +40,9 @@ namespace Math
 
 template<typename T> struct TPlane;
 
+/**
+ * A vector in 3-D space composed of components (X, Y, Z) with floating point precision.
+ */
 template<typename T>
 struct TVector
 {
@@ -95,19 +94,19 @@ public:
 	static const TVector<T> ZAxisVector;
 
 	/** @return Zero Vector (0,0,0) */
-	static TVector<T> Zero() { return ZeroVector; }
+	static inline TVector<T> Zero() { return ZeroVector; }
 
 	/** @return One Vector (1,1,1) */
-	static TVector<T> One() { return OneVector; }
+	static inline TVector<T> One() { return OneVector; }
 
 	/** @return Unit X Vector (1,0,0)  */
-	static TVector<T> UnitX() { return XAxisVector; }
+	static inline TVector<T> UnitX() { return XAxisVector; }
 
 	/** @return Unit Y Vector (0,1,0)  */
-	static TVector<T> UnitY() { return YAxisVector; }
+	static inline TVector<T> UnitY() { return YAxisVector; }
 
 	/** @return Unit Z Vector (0,0,1)  */
-	static TVector<T> UnitZ() { return ZAxisVector; }
+	static inline TVector<T> UnitZ() { return ZAxisVector; }
 
 public:
 
@@ -798,7 +797,7 @@ public:
      * @return Quaternion from the Vector's direction, without any roll.
      * @see ToOrientationRotator(), FQuat::FindBetweenVectors()
      */
-    CORE_API FQuat ToOrientationQuat() const;
+    CORE_API TQuat<T> ToOrientationQuat() const;
 
     /**
      * Return the FRotator orientation corresponding to the direction in which the vector points.
@@ -1182,7 +1181,6 @@ inline void operator<<(FStructuredArchive::FSlot Slot, TVector<double>& V)
 	}
 	V.DiagnosticCheckNaN();
 }
-
 
 /* FVector inline functions
  *****************************************************************************/
@@ -2374,17 +2372,17 @@ FORCEINLINE TVector<T> TVector<T>::Max3(const TVector<T>& A, const TVector<T>& B
         ); 
 }
 
-template<typename T> const TVector<T> TVector<T>::ZeroVector(0, 0, 0);
-template<typename T> const TVector<T> TVector<T>::OneVector(1, 1, 1);
-template<typename T> const TVector<T> TVector<T>::UpVector(0, 0, 1);
-template<typename T> const TVector<T> TVector<T>::DownVector(0, 0, -1);
-template<typename T> const TVector<T> TVector<T>::ForwardVector(1, 0, 0);
-template<typename T> const TVector<T> TVector<T>::BackwardVector(-1, 0, 0);
-template<typename T> const TVector<T> TVector<T>::RightVector(0, 1, 0);
-template<typename T> const TVector<T> TVector<T>::LeftVector(0, -1, 0);
-template<typename T> const TVector<T> TVector<T>::XAxisVector(1, 0, 0);
-template<typename T> const TVector<T> TVector<T>::YAxisVector(0, 1, 0);
-template<typename T> const TVector<T> TVector<T>::ZAxisVector(0, 0, 1);
+template<typename T> inline const TVector<T> TVector<T>::ZeroVector(0, 0, 0);
+template<typename T> inline const TVector<T> TVector<T>::OneVector(1, 1, 1);
+template<typename T> inline const TVector<T> TVector<T>::UpVector(0, 0, 1);
+template<typename T> inline const TVector<T> TVector<T>::DownVector(0, 0, -1);
+template<typename T> inline const TVector<T> TVector<T>::ForwardVector(1, 0, 0);
+template<typename T> inline const TVector<T> TVector<T>::BackwardVector(-1, 0, 0);
+template<typename T> inline const TVector<T> TVector<T>::RightVector(0, 1, 0);
+template<typename T> inline const TVector<T> TVector<T>::LeftVector(0, -1, 0);
+template<typename T> inline const TVector<T> TVector<T>::XAxisVector(1, 0, 0);
+template<typename T> inline const TVector<T> TVector<T>::YAxisVector(0, 1, 0);
+template<typename T> inline const TVector<T> TVector<T>::ZAxisVector(0, 0, 1);
 
 /**
  * Multiplies a vector by a scaling factor.
@@ -2412,7 +2410,7 @@ FORCEINLINE uint32 GetTypeHash(const TVector<T>& Vector)
 	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(Vector));
 }
 
-} // namespace UE::Core
+} // namespace UE::Math
 } // namespace UE
 
 DECLARE_LWC_TYPE(Vector, 3);
@@ -2433,8 +2431,8 @@ DECLARE_LWC_TYPE_ISPC(Vector, 3);
 // Forward declare all explicit specializations (in UnrealMath.cpp)
 template<> CORE_API FRotator FVector3f::ToOrientationRotator() const;
 template<> CORE_API FRotator FVector3d::ToOrientationRotator() const;
-template<> CORE_API FQuat FVector3f::ToOrientationQuat() const;
-template<> CORE_API FQuat FVector3d::ToOrientationQuat() const;
+template<> CORE_API FQuat4f FVector3f::ToOrientationQuat() const;
+template<> CORE_API FQuat4d FVector3d::ToOrientationQuat() const;
 template<> CORE_API FRotator FVector3f::Rotation() const;
 template<> CORE_API FRotator FVector3d::Rotation() const;
 

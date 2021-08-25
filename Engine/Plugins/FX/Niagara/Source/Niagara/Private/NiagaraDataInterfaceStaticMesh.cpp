@@ -146,9 +146,9 @@ void FStaticMeshGpuSpawnBuffer::Initialise(const FStaticMeshLODResources* Res, c
 	if (NumSockets > 0)
 	{
 		SocketTransformsResourceArray.Reserve(NumFilteredSockets * 3);
-		for (const FTransform& SocketTransform : InstanceData->CachedSockets)
+		for (const FTransform3f& SocketTransform : InstanceData->CachedSockets)
 		{
-			const FQuat SocketRotation = SocketTransform.GetRotation();
+			const FQuat4f SocketRotation = SocketTransform.GetRotation();
 			SocketTransformsResourceArray.Add(FVector4(SocketTransform.GetTranslation(), 0.0f));
 			SocketTransformsResourceArray.Add(FVector4(SocketRotation.X, SocketRotation.Y, SocketRotation.Z, SocketRotation.W));
 			SocketTransformsResourceArray.Add(FVector4(SocketTransform.GetScale3D(), 0.0f));
@@ -397,9 +397,9 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 			CachedSockets.AddDefaulted(NumMeshSockets);
 			for (int32 i=0; i < NumMeshSockets; ++i)
 			{
-				CachedSockets[i].SetTranslation(Mesh->Sockets[i]->RelativeLocation);
-				CachedSockets[i].SetRotation(FQuat(Mesh->Sockets[i]->RelativeRotation));
-				CachedSockets[i].SetScale3D(Mesh->Sockets[i]->RelativeScale);
+				CachedSockets[i].SetTranslation(FVector3f(Mesh->Sockets[i]->RelativeLocation));
+				CachedSockets[i].SetRotation(FQuat4f(Mesh->Sockets[i]->RelativeRotation));
+				CachedSockets[i].SetScale3D(FVector3f(Mesh->Sockets[i]->RelativeScale));
 			}
 
 			NumFilteredSockets = 0;
@@ -2536,10 +2536,10 @@ void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMExternalFuncti
 	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector3f> OutTranslate(Context);
-	FNDIOutputParam<FQuat> OutRotate(Context);
+	FNDIOutputParam<FQuat4f> OutRotate(Context);
 	FNDIOutputParam<FVector3f> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
+	const FQuat4f InstRotation = bWorldSpace ? FQuat4f(InstData->Rotation) : FQuat4f::Identity;
 
 	const int32 SocketMax = InstData->CachedSockets.Num() - 1;
 	if (SocketMax >= 0)
@@ -2548,16 +2548,16 @@ void UNiagaraDataInterfaceStaticMesh::GetSocketTransform(FVectorVMExternalFuncti
 		{
 			const int32 SocketIndex = FMath::Clamp(InSocketIndex.GetAndAdvance(), 0, SocketMax);
 
-			FTransform SocketTransform = InstData->CachedSockets[SocketIndex];
-			OutTranslate.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
+			FTransform3f SocketTransform = (FTransform3f)InstData->CachedSockets[SocketIndex];
+			OutTranslate.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
 			OutRotate.SetAndAdvance(bWorldSpace ? InstRotation * SocketTransform.GetRotation() : SocketTransform.GetRotation());
-			OutScale.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
+			OutScale.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
 		}
 	}
 	else
 	{
-		const FVector DefaultTranslate = bWorldSpace ? InstData->Transform.GetOrigin() : FVector::ZeroVector;
-		const FVector DefaultScale = bWorldSpace ? InstData->Transform.ExtractScaling() : FVector::OneVector;
+		const FVector3f DefaultTranslate = bWorldSpace ? FVector3f(InstData->Transform.GetOrigin()) : FVector3f::ZeroVector;
+		const FVector3f DefaultScale = bWorldSpace ? FVector3f(InstData->Transform.ExtractScaling()) : FVector3f::OneVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslate.SetAndAdvance(DefaultTranslate);
@@ -2574,10 +2574,10 @@ void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMExtern
 	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector3f> OutTranslate(Context);
-	FNDIOutputParam<FQuat> OutRotate(Context);
+	FNDIOutputParam<FQuat4f> OutRotate(Context);
 	FNDIOutputParam<FVector3f> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
+	const FQuat4f InstRotation = bWorldSpace ? FQuat4f(InstData->Rotation) : FQuat4f::Identity;
 
 	const int32 SocketMax = InstData->NumFilteredSockets - 1;
 	if (SocketMax >= 0)
@@ -2586,16 +2586,16 @@ void UNiagaraDataInterfaceStaticMesh::GetFilteredSocketTransform(FVectorVMExtern
 		{
 			const int32 SocketIndex = InstData->FilteredAndUnfilteredSockets[FMath::Clamp(InSocketIndex.GetAndAdvance(), 0, SocketMax)];
 
-			FTransform SocketTransform = InstData->CachedSockets[SocketIndex];
-			OutTranslate.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
+			FTransform3f SocketTransform = (FTransform3f)InstData->CachedSockets[SocketIndex];
+			OutTranslate.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
 			OutRotate.SetAndAdvance(bWorldSpace ? InstRotation * SocketTransform.GetRotation() : SocketTransform.GetRotation());
-			OutScale.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
+			OutScale.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
 		}
 	}
 	else
 	{
-		const FVector DefaultTranslate = bWorldSpace ? InstData->Transform.GetOrigin() : FVector::ZeroVector;
-		const FVector DefaultScale = bWorldSpace ? InstData->Transform.ExtractScaling() : FVector::OneVector;
+		const FVector3f DefaultTranslate = bWorldSpace ? FVector3f(InstData->Transform.GetOrigin()) : FVector3f::ZeroVector;
+		const FVector3f DefaultScale = bWorldSpace ? FVector3f(InstData->Transform.ExtractScaling()) : FVector3f::OneVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslate.SetAndAdvance(DefaultTranslate);
@@ -2612,10 +2612,10 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMExte
 	FNDIInputParam<int32> InSocketIndex(Context);
 
 	FNDIOutputParam<FVector3f> OutTranslate(Context);
-	FNDIOutputParam<FQuat> OutRotate(Context);
+	FNDIOutputParam<FQuat4f> OutRotate(Context);
 	FNDIOutputParam<FVector3f> OutScale(Context);
 
-	const FQuat InstRotation = bWorldSpace ? InstData->Rotation : FQuat::Identity;
+	const FQuat4f InstRotation = bWorldSpace ? FQuat4f(InstData->Rotation) : FQuat4f::Identity;
 
 	if (InstData->NumFilteredSockets > 0)
 	{
@@ -2627,10 +2627,10 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMExte
 		{
 			const int32 SocketIndex = InstData->FilteredAndUnfilteredSockets[FMath::Clamp(InSocketIndex.GetAndAdvance(), 0, SocketMax) + SocketOffset];
 
-			FTransform SocketTransform = InstData->CachedSockets[SocketIndex];
-			OutTranslate.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
+			FTransform3f SocketTransform = (FTransform3f)InstData->CachedSockets[SocketIndex];
+			OutTranslate.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
 			OutRotate.SetAndAdvance(bWorldSpace ? InstRotation * SocketTransform.GetRotation() : SocketTransform.GetRotation());
-			OutScale.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
+			OutScale.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
 		}
 	}
 	else if (InstData->CachedSockets.Num() > 0)
@@ -2640,16 +2640,16 @@ void UNiagaraDataInterfaceStaticMesh::GetUnfilteredSocketTransform(FVectorVMExte
 		{
 			const int32 SocketIndex = FMath::Clamp(InSocketIndex.GetAndAdvance(), 0, SocketMax);
 
-			FTransform SocketTransform = InstData->CachedSockets[SocketIndex];
-			OutTranslate.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
+			FTransform3f SocketTransform = (FTransform3f)InstData->CachedSockets[SocketIndex];
+			OutTranslate.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformPosition(SocketTransform.GetTranslation())) : SocketTransform.GetTranslation());
 			OutRotate.SetAndAdvance(bWorldSpace ? InstRotation * SocketTransform.GetRotation() : SocketTransform.GetRotation());
-			OutScale.SetAndAdvance(bWorldSpace ? FVector(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
+			OutScale.SetAndAdvance(bWorldSpace ? FVector3f(InstData->Transform.TransformVector(SocketTransform.GetScale3D())) : SocketTransform.GetScale3D());
 		}
 	}
 	else
 	{
-		const FVector DefaultTranslate = bWorldSpace ? InstData->Transform.GetOrigin() : FVector::ZeroVector;
-		const FVector DefaultScale = bWorldSpace ? InstData->Transform.ExtractScaling() : FVector::OneVector;
+		const FVector3f DefaultTranslate = bWorldSpace ? FVector3f(InstData->Transform.GetOrigin()) : FVector3f::ZeroVector;
+		const FVector3f DefaultScale = bWorldSpace ? FVector3f(InstData->Transform.ExtractScaling()) : FVector3f::OneVector;
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			OutTranslate.SetAndAdvance(DefaultTranslate);

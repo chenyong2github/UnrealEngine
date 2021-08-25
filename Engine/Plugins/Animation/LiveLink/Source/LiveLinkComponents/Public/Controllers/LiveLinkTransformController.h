@@ -7,7 +7,7 @@
 #include "LiveLinkTransformController.generated.h"
 
 struct FLiveLinkTransformStaticData;
-struct FTransform;
+DECLARE_LWC_TYPE(Transform, 3);
 class USceneComponent;
 
 USTRUCT(BlueprintType)
@@ -34,7 +34,7 @@ struct LIVELINKCOMPONENTS_API FLiveLinkTransformControllerData
 	/**
 	 * Whether we sweep to the destination location, triggering overlaps along the way and stopping short of the target if blocked by something.
 	 * Only the root component is swept and checked for blocking collision, child components move without sweeping. If collision is off, this has no effect.
-	 */
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LiveLink", AdvancedDisplay)
 	bool bSweep = false;
 
@@ -43,7 +43,7 @@ struct LIVELINKCOMPONENTS_API FLiveLinkTransformControllerData
 	 * If true, physics velocity for this object is unchanged (so ragdoll parts are not affected by change in location).
 	 * If false, physics velocity is updated based on the change in position (affecting ragdoll parts).
 	 * If CCD is on and not teleporting, this will affect objects along the entire sweep volume.
-	 */
+	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "LiveLink", AdvancedDisplay)
 	bool bTeleport = true;
 	

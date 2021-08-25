@@ -134,6 +134,7 @@ public:
 	static FNiagaraTypeDefinition GetFColorDef();
 	static FNiagaraTypeDefinition GetFRotatorDef();
 	static FNiagaraTypeDefinition GetFVectorDef();
+	static FNiagaraTypeDefinition GetFQuatDef();
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 

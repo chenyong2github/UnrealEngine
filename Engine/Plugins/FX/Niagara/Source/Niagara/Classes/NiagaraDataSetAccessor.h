@@ -277,9 +277,9 @@ struct FNiagaraDataSetAccessorTypeInfo<FLinearColor>
 };
 
 template<>
-struct FNiagaraDataSetAccessorTypeInfo<FQuat>
+struct FNiagaraDataSetAccessorTypeInfo<FQuat4f>
 {
-	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FQuat>;
+	using TAccessorBaseClass = FNiagaraDataSetAccessorFloat<FQuat4f>;
 
 	static constexpr bool bSupportsHalf = false;
 	static constexpr int32 NumElements = 4;

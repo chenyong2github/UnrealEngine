@@ -529,7 +529,7 @@ void FClothingSimulationSolver::SetReferenceVelocityScale(
 	OldRootBoneLocalTransform.AddToTranslation(-OldLocalSpaceLocation);
 
 	// Calculate deltas
-	const FTransform DeltaTransform = ReferenceSpaceTransform.GetRelativeTransform(OldReferenceSpaceTransform);
+	const FRigidTransform3 DeltaTransform = ReferenceSpaceTransform.GetRelativeTransform(OldReferenceSpaceTransform);
 
 	// Apply linear velocity scale
 	const FVec3 LinearRatio = FVec3(1.f) - LinearVelocityScale.BoundToBox(FVec3(0.f), FVec3(1.f));
@@ -545,10 +545,10 @@ void FClothingSimulationSolver::SetReferenceVelocityScale(
 	}
 
 	const FReal PartialDeltaAngle = DeltaAngle * FMath::Clamp(1.f - AngularVelocityScale, 0.f, 1.f);
-	DeltaRotation = FQuat(Axis, PartialDeltaAngle);
+	DeltaRotation = UE::Math::TQuat<FReal>(Axis, PartialDeltaAngle);
 
 	// Transform points back into the previous frame of reference before applying the adjusted deltas 
-	PreSimulationTransforms[GroupId] = OldRootBoneLocalTransform.Inverse() * FTransform(DeltaRotation, DeltaPosition) * OldRootBoneLocalTransform;
+	PreSimulationTransforms[GroupId] = OldRootBoneLocalTransform.Inverse() * FRigidTransform3(DeltaPosition, DeltaRotation) * OldRootBoneLocalTransform;
 
 	// Save the reference bone relative angular velocity for calculating the fictitious forces
 	FictitiousAngularDisplacement[GroupId] = ReferenceSpaceTransform.TransformVector(Axis * PartialDeltaAngle * FMath::Min(2.f, FictitiousAngularScale));  // Clamp to 2x the delta angle

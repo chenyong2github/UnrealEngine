@@ -3305,7 +3305,18 @@ public:
 			else
 			{
 				// Allocate space for the struct
-				const int32 RequiredAllocSize = ScriptStruct->GetStructureSize();
+				int32 RequiredAllocSize = ScriptStruct->GetStructureSize();
+				if (StructOps)
+				{
+					const int32 CppAllocSize = Align(StructOps->GetSize(), ScriptStruct->GetMinAlignment());
+					if (!ensure(RequiredAllocSize >= CppAllocSize))
+					{
+						UE_LOG(LogClass, Warning, TEXT("Struct %s%s has Cpp alloc size = %d > ScriptStruct->GetStructureSize() = %d, this could result in allocations that are too small to fit the structure."),
+							InStruct->GetPrefixCPP(), *InStruct->GetName(), CppAllocSize, RequiredAllocSize);
+						// We'd probably crash below, so use a larger allocated size.
+						RequiredAllocSize = StructOps->GetSize();
+					}
+				}
 				TempBuffer = (uint8*)FMemory::Malloc(RequiredAllocSize, ScriptStruct->GetMinAlignment());
 
 				// The following section is a partial duplication of ScriptStruct->InitializeStruct, except we initialize with 0xFD instead of 0x00
@@ -6515,7 +6526,9 @@ bool UScriptStruct::CanSerializeAsAlias(const FPropertyTag& Tag) const
 	return (
 		(Tag.StructName == NAME_Vector && (GetFName() == NAME_Vector3f || GetFName() == NAME_Vector3d)) ||
 		(Tag.StructName == NAME_Plane && (GetFName() == NAME_Plane4f || GetFName() == NAME_Plane4d)) ||
-		(Tag.StructName == NAME_Matrix && (GetFName() == NAME_Matrix44f || GetFName() == NAME_Matrix44d))
+		(Tag.StructName == NAME_Matrix && (GetFName() == NAME_Matrix44f || GetFName() == NAME_Matrix44d)) ||
+		(Tag.StructName == NAME_Quat && (GetFName() == NAME_Quat4f || GetFName() == NAME_Quat4d)) ||
+		(Tag.StructName == NAME_Transform && (GetFName() == NAME_Transform4f || GetFName() == NAME_Transform4d))
 		);
 }
 

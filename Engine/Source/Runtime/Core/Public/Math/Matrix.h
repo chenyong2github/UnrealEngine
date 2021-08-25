@@ -13,6 +13,8 @@
 #include "Math/Axis.h"
 #include <type_traits>
 
+DECLARE_LWC_TYPE(Quat, 4);
+
 #ifdef _MSC_VER
 #pragma warning (push)
 // Ensure template functions don't generate shadowing warnings against global variables at the point of instantiation.
@@ -325,7 +327,7 @@ public:
 	 *
 	 * @warning rotation part will need to be unit length for this to be right!
 	 */
-	CORE_API FQuat ToQuat() const;
+	CORE_API UE::Math::TQuat<T> ToQuat() const;
 
 	// Frustum plane extraction.
 	/** @param OuTPln the near plane of the Frustum of this matrix */
@@ -532,8 +534,8 @@ DECLARE_LWC_TYPE_ISPC(Matrix, 44);
 // Forward declare all explicit specializations (in UnrealMath.cpp)
 template<> CORE_API FRotator FMatrix44f::Rotator() const;
 template<> CORE_API FRotator FMatrix44d::Rotator() const;
-template<> CORE_API FQuat FMatrix44f::ToQuat() const;
-template<> CORE_API FQuat FMatrix44d::ToQuat() const;
+template<> CORE_API FQuat4f FMatrix44f::ToQuat() const;
+template<> CORE_API FQuat4d FMatrix44d::ToQuat() const;
 
 
 #if 0	// LWC_TODO: Is this in use?

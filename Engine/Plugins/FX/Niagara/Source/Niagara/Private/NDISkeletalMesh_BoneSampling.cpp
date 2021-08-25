@@ -712,7 +712,7 @@ struct FBoneSocketSkinnedDataOutputHandler
 	}
 
 	FNDIOutputParam<FVector3f> Position;
-	FNDIOutputParam<FQuat> Rotation;
+	FNDIOutputParam<FQuat4f> Rotation;
 	FNDIOutputParam<FVector3f> Velocity;
 
 	//TODO: Rotation + Scale too? Use quats so we can get proper interpolation between bone and parent.
@@ -743,10 +743,10 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 	//TODO: Replace this by storing off FTransforms and doing a proper lerp to get a final transform.
 	//Also need to pull in a per particle interpolation factor.
-	const FMatrix& InstanceTransform = InstData->Transform;
-	const FMatrix& PrevInstanceTransform = InstData->PrevTransform;
-	const FQuat InstanceRotation = Output.bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
-	const FQuat PrevInstanceRotation = Output.bNeedsRotation ? PrevInstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+	const FMatrix44f InstanceTransform = (FMatrix44f)InstData->Transform;
+	const FMatrix44f PrevInstanceTransform = (FMatrix44f)InstData->PrevTransform;
+	const FQuat4f InstanceRotation = Output.bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
+	const FQuat4f PrevInstanceRotation = Output.bNeedsRotation ? PrevInstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
 
 	FSkeletalMeshAccessorHelper Accessor;
 	Accessor.Init<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>(InstData);
@@ -756,8 +756,8 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 		const int32 BoneAndSocketCount = BoneCount + InstData->FilteredSocketInfo.Num();
 		float InvDt = 1.0f / InstData->DeltaSeconds;
 
-		const TArray<FTransform>& FilteredSocketCurrTransforms = InstData->GetFilteredSocketsCurrBuffer();
-		const TArray<FTransform>& FilteredSocketPrevTransforms = InstData->GetFilteredSocketsPrevBuffer();
+		const TArray<FTransform3f>& FilteredSocketCurrTransforms = InstData->GetFilteredSocketsCurrBuffer();
+		const TArray<FTransform3f>& FilteredSocketPrevTransforms = InstData->GetFilteredSocketsPrevBuffer();
 
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
@@ -784,13 +784,13 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 				}
 				if (Output.bNeedsRotation)
 				{
-					Output.Rotation.SetAndAdvance(FQuat::Identity);
+					Output.Rotation.SetAndAdvance(FQuat4f::Identity);
 				}
 			}
 			else if (bIsSocket)
 			{
-				FTransform CurrSocketTransform = FilteredSocketCurrTransforms[Socket];
-				FTransform PrevSocketTransform = FilteredSocketPrevTransforms[Socket];
+				FTransform3f CurrSocketTransform = FilteredSocketCurrTransforms[Socket];
+				FTransform3f PrevSocketTransform = FilteredSocketPrevTransforms[Socket];
 
 				Pos = CurrSocketTransform.GetLocation();
 				TransformHandler.TransformPosition(Pos, InstanceTransform);
@@ -803,13 +803,13 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 				if (Output.bNeedsRotation)
 				{
-					FQuat Rotation = CurrSocketTransform.GetRotation();
+					FQuat4f Rotation = CurrSocketTransform.GetRotation();
 					TransformHandler.TransformRotation(Rotation, InstanceRotation);
 					if (bInterpolated::Value)
 					{
-						FQuat PrevRotation = PrevSocketTransform.GetRotation();
+						FQuat4f PrevRotation = PrevSocketTransform.GetRotation();
 						TransformHandler.TransformRotation(PrevRotation, PrevInstanceRotation);
-						Rotation = FQuat::Slerp(PrevRotation, Rotation, Interp);
+						Rotation = FQuat4f::Slerp(PrevRotation, Rotation, Interp);
 					}
 
 					Output.Rotation.SetAndAdvance(Rotation);
@@ -829,13 +829,13 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 				if (Output.bNeedsRotation)
 				{
-					FQuat Rotation = SkinningHandler.GetSkinnedBoneRotation(Accessor, Bone);
+					FQuat4f Rotation = SkinningHandler.GetSkinnedBoneRotation(Accessor, Bone);
 					TransformHandler.TransformRotation(Rotation, InstanceRotation);
 					if (bInterpolated::Value)
 					{
-						FQuat PrevRotation = SkinningHandler.GetSkinnedBonePreviousRotation(Accessor, Bone);
+						FQuat4f PrevRotation = SkinningHandler.GetSkinnedBonePreviousRotation(Accessor, Bone);
 						TransformHandler.TransformRotation(PrevRotation, PrevInstanceRotation);
-						Rotation = FQuat::Slerp(PrevRotation, Rotation, Interp);
+						Rotation = FQuat4f::Slerp(PrevRotation, Rotation, Interp);
 					}
 
 					Output.Rotation.SetAndAdvance(Rotation);
@@ -879,7 +879,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetSkinnedBoneData(FVectorVMExternalFunc
 
 			if (Output.bNeedsRotation)
 			{
-				Output.Rotation.SetAndAdvance(FQuat::Identity);
+				Output.Rotation.SetAndAdvance(FQuat4f::Identity);
 			}
 
 			if (Output.bNeedsVelocity || bInterpolated::Value)
@@ -950,22 +950,22 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMExte
 	FNDIInputParam<FNiagaraBool> ApplyWorldTransform(Context);
 
 	FNDIOutputParam<FVector3f> OutSocketTranslate(Context);
-	FNDIOutputParam<FQuat> OutSocketRotation(Context);
+	FNDIOutputParam<FQuat4f> OutSocketRotation(Context);
 	FNDIOutputParam<FVector3f> OutSocketScale(Context);
 
-	const TArray<FTransform>& CurrentFilteredSockets = InstData->GetFilteredSocketsCurrBuffer();
+	const TArray<FTransform3f>& CurrentFilteredSockets = InstData->GetFilteredSocketsCurrBuffer();
 	const int32 SocketMax = CurrentFilteredSockets.Num() - 1;
 	if (SocketMax >= 0)
 	{
 		const bool bNeedsRotation = OutSocketRotation.IsValid();
-		const FMatrix InstanceTransform = InstData->Transform;
-		const FQuat InstanceRotation = bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat::Identity;
+		const FMatrix44f InstanceTransform = (FMatrix44f)InstData->Transform;
+		const FQuat4f InstanceRotation = bNeedsRotation ? InstanceTransform.GetMatrixWithoutScale().ToQuat() : FQuat4f::Identity;
 
 		for (int32 i = 0; i < Context.GetNumInstances(); ++i)
 		{
 			const int32 SocketIndex = FMath::Clamp(SocketParam.GetAndAdvance(), 0, SocketMax);
 			FVector3f SocketTranslation = CurrentFilteredSockets[SocketIndex].GetTranslation();
-			FQuat SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
+			FQuat4f SocketRotation = CurrentFilteredSockets[SocketIndex].GetRotation();
 			FVector3f SocketScale = CurrentFilteredSockets[SocketIndex].GetScale3D();
 
 			const bool bApplyTransform = ApplyWorldTransform.GetAndAdvance();
@@ -986,7 +986,7 @@ void UNiagaraDataInterfaceSkeletalMesh::GetFilteredSocketTransform(FVectorVMExte
 		for (int32 i=0; i < Context.GetNumInstances(); ++i)
 		{
 			OutSocketTranslate.SetAndAdvance(FVector3f::ZeroVector);
-			OutSocketRotation.SetAndAdvance(FQuat::Identity);
+			OutSocketRotation.SetAndAdvance(FQuat4f::Identity);
 			OutSocketScale.SetAndAdvance(FVector3f::ZeroVector);
 		}
 	}

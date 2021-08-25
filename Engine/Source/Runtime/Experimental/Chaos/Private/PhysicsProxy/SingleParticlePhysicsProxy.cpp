@@ -283,7 +283,7 @@ bool FSingleParticlePhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyRigidP
 					FQuat Target = FMath::Lerp(*Prev, NextPullData->R, *Alpha);
 					if (LeashAlpha)
 					{
-						Target = FMath::Lerp(Rigid->R(), Target, *LeashAlpha);
+						Target = FMath::Lerp<FQuat>(Rigid->R(), Target, *LeashAlpha);
 					}
 					Rigid->SetR(Target, false);
 				}

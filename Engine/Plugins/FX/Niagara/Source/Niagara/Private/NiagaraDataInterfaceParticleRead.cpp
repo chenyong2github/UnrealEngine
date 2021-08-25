@@ -1600,7 +1600,7 @@ void UNiagaraDataInterfaceParticleRead::ReadColor(FVectorVMExternalFunctionConte
 
 void UNiagaraDataInterfaceParticleRead::ReadQuat(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadWithCheck<FQuat>(Context, AttributeToRead, FQuat::Identity);
+	ReadWithCheck<FQuat4f>(Context, AttributeToRead, FQuat4f::Identity);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadID(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
@@ -1720,7 +1720,7 @@ void UNiagaraDataInterfaceParticleRead::ReadColorByIndex(FVectorVMExternalFuncti
 
 void UNiagaraDataInterfaceParticleRead::ReadQuatByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)
 {
-	ReadByIndexWithCheck<FQuat>(Context, AttributeToRead, FQuat::Identity);
+	ReadByIndexWithCheck<FQuat4f>(Context, AttributeToRead, FQuat4f::Identity);
 }
 
 void UNiagaraDataInterfaceParticleRead::ReadIDByIndex(FVectorVMExternalFunctionContext& Context, FName AttributeToRead)

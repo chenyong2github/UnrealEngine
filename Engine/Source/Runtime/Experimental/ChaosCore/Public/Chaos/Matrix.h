@@ -148,6 +148,11 @@ namespace Chaos
 			    M[3][0] * Other[0] + M[3][1] * Other[1] + M[3][2] * Other[2] + M[3][3] * Other[3]);
 		}
 #endif
+
+		PMatrix<FReal, 4, 4> operator*(const PMatrix<FReal, 4, 4>& Other) const
+		{
+			return static_cast<const UE::Math::TMatrix<FReal>*>(this)->operator*(static_cast<const UE::Math::TMatrix<FReal>&>(Other));
+		}
 	};
 
 	// TODO(mlentine): Do not use 4x4 matrix for 3x3 implementation

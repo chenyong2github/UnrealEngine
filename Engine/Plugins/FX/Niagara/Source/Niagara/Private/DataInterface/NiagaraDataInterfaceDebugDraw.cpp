@@ -55,10 +55,10 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 	void AddSphere(const FVector3f& Location, float Radius, int32 Segments, const FLinearColor& Color)
 	{
-		AddSphere(Location, FVector3f(Radius), FQuat::Identity, FQuat::Identity, FVector3f::OneVector, Segments, true, true, true, Color);
+		AddSphere(Location, FVector3f(Radius), FQuat4f::Identity, FQuat4f::Identity, FVector3f::OneVector, Segments, true, true, true, Color);
 	}
 
-	void AddSphere(const FVector3f& Location, const FVector3f& Radius, const FQuat& AxisRotator, const FQuat& WorldRotate, const FVector3f& WorldScale, int32 Segments, bool bHemiX, bool bHemiY, bool bHemiZ, const FLinearColor& Color)
+	void AddSphere(const FVector3f& Location, const FVector3f& Radius, const FQuat4f& AxisRotator, const FQuat4f& WorldRotate, const FVector3f& WorldScale, int32 Segments, bool bHemiX, bool bHemiY, bool bHemiZ, const FLinearColor& Color)
 	{
 		const float uinc = 2.0f * PI / float(Segments);
 
@@ -66,7 +66,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		float SinX0 = FMath::Sin(ux);
 		float CosX0 = FMath::Cos(ux);
 		FVector3f LerpVector = FVector3f(bHemiX ? 1.0f : 0.0f, bHemiY ? 1.0f : 0.0f, bHemiZ ? 1.0f : 0.0f);
-		FTransform LocalToWorld;
+		FTransform3f LocalToWorld;
 		LocalToWorld.SetComponents(WorldRotate, FVector3f::ZeroVector, WorldScale);
 
 		for (int x = 0; x < Segments; ++x)
@@ -115,14 +115,14 @@ struct FNDIDebugDrawInstanceData_GameThread
 		}
 	}
 
-	void AddBox(const FVector3f& Location, const FQuat& Rotation, const FVector3f& Extents, const FLinearColor& Color)
+	void AddBox(const FVector3f& Location, const FQuat4f& Rotation, const FVector3f& Extents, const FLinearColor& Color)
 	{
-		AddBox(Location, Rotation, Extents, FQuat::Identity, FVector3f::OneVector, Color);
+		AddBox(Location, Rotation, Extents, FQuat4f::Identity, FVector3f::OneVector, Color);
 	}
 
-	void AddBox(const FVector3f& Location, const FQuat& Rotation, const FVector3f& Extents, const FQuat& WorldRotate, const FVector3f& WorldScale, const FLinearColor& Color)
+	void AddBox(const FVector3f& Location, const FQuat4f& Rotation, const FVector3f& Extents, const FQuat4f& WorldRotate, const FVector3f& WorldScale, const FLinearColor& Color)
 	{
-		FTransform LocalToWorld;
+		FTransform3f LocalToWorld;
 		LocalToWorld.SetComponents(WorldRotate, FVector3f::ZeroVector, WorldScale);
 		const FVector3f Points[] =
 		{
@@ -205,12 +205,12 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 	void AddCylinder(const FVector3f& Location, const FVector3f& Axis, float Height, float Radius, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color)
 	{
-		FQuat Rotation = FQuat::FindBetweenNormals(FVector3f::UpVector, Axis);
+		FQuat4f Rotation = FQuat4f::FindBetweenNormals(FVector3f::UpVector, Axis);
 
 		AddCylinder(Location, Rotation, Height, Radius, NumHeightSegments, NumRadiusSegments, Color, false, false, FVector3f::OneVector, true);
 	}
 
-	void AddCylinder(const FVector3f& Location, const FQuat& Rotation, float Height, float Radius, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color, bool bHemiXDraw, bool bHemiYDraw, const FVector3f& NonUniformScale, bool bCenterVertically)
+	void AddCylinder(const FVector3f& Location, const FQuat4f& Rotation, float Height, float Radius, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color, bool bHemiXDraw, bool bHemiYDraw, const FVector3f& NonUniformScale, bool bCenterVertically)
 	{
 		const FVector3f HeightVector = FVector3f::ZAxisVector * Height;
 		const FVector3f HalfHeightOffset = bCenterVertically? HeightVector * 0.5f : FVector3f::ZeroVector;
@@ -253,12 +253,12 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 	void AddCone(const FVector3f& Location, const FVector3f& Axis, float Height, float RadiusTop, float RadiusBottom, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color)
 	{
-		FQuat Rotation = FQuat::FindBetweenNormals(FVector3f::UpVector, Axis);
+		FQuat4f Rotation = FQuat4f::FindBetweenNormals(FVector3f::UpVector, Axis);
 
 		AddCone(Location, Rotation, Height, RadiusTop, RadiusBottom, NumHeightSegments, NumRadiusSegments, Color, FVector3f::OneVector, true);
 	}
 
-	void AddCone(const FVector3f& Location, const FQuat& Rotation, float Height, float RadiusTop, float RadiusBottom, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color, const FVector3f& NonUniformScale, bool bCenterVertically)
+	void AddCone(const FVector3f& Location, const FQuat4f& Rotation, float Height, float RadiusTop, float RadiusBottom, int32 NumHeightSegments, int32 NumRadiusSegments, const FLinearColor& Color, const FVector3f& NonUniformScale, bool bCenterVertically)
 	{
 		const FVector3f HeightVector = FVector3f::ZAxisVector * Height;
 		const FVector3f HalfHeightOffset = bCenterVertically ? HeightVector * 0.5f : FVector3f::ZeroVector;
@@ -309,7 +309,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 	{
 		const FVector3f AxisNorm = Axis.GetSafeNormal();
 
-		const FQuat AxisRotation = FQuat::FindBetweenNormals(FVector3f::UpVector, AxisNorm);
+		const FQuat4f AxisRotation = FQuat4f::FindBetweenNormals(FVector3f::UpVector, AxisNorm);
 
 		const FVector3f TangentX = AxisRotation.RotateVector(FVector3f::XAxisVector);
 		const FVector3f TangentY = AxisRotation.RotateVector(FVector3f::YAxisVector);
@@ -348,7 +348,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 	}
 
-	void AddCoordinateSystem(const FVector3f& Location, const FQuat& Rotation, float Scale)
+	void AddCoordinateSystem(const FVector3f& Location, const FQuat4f& Rotation, float Scale)
 	{
 		const FVector3f XAxis = Rotation.RotateVector(FVector3f(Scale, 0.0f, 0.0f));
 		const FVector3f YAxis = Rotation.RotateVector(FVector3f(0.0f, Scale, 0.0f));
@@ -359,7 +359,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		AddLine(Location, Location + ZAxis, FLinearColor::Blue);
 	}
 
-	void AddGrid2D(const FVector3f& Center, const FQuat& Rotation, const FVector2D& Extents, const FIntPoint& NumCells, const FLinearColor& Color)
+	void AddGrid2D(const FVector3f& Center, const FQuat4f& Rotation, const FVector2D& Extents, const FIntPoint& NumCells, const FLinearColor& Color)
 	{
 		const FVector3f Corner = Center - Rotation.RotateVector(FVector3f(Extents.X, Extents.Y, 0.0f));
 		const FVector3f XLength = Rotation.RotateVector(FVector3f(Extents.X * 2.0f, 0.0f, 0.0f));
@@ -379,7 +379,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 		}
 	}
 
-	void AddGrid3D(const FVector3f& Center, const FQuat& Rotation, const FVector3f& Extents, const FIntVector& NumCells, const FLinearColor& Color)
+	void AddGrid3D(const FVector3f& Center, const FQuat4f& Rotation, const FVector3f& Extents, const FIntVector& NumCells, const FLinearColor& Color)
 	{
 		const FVector3f Corner = Center - Rotation.RotateVector(Extents);
 		const FVector3f XLength = Rotation.RotateVector(FVector3f(Extents.X * 2.0f, 0.0f, 0.0f));
@@ -515,7 +515,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			}
 		}
 
-		void TransformQuat(bool bRotationWasSet, FQuat& Quat, const TOptional<ENiagaraCoordinateSpace>& SourceSpace, ENiagaraCoordinateSpace DestSpace, const FNiagaraSystemInstance* SystemInstance)
+		void TransformQuat(bool bRotationWasSet, FQuat4f& Quat, const TOptional<ENiagaraCoordinateSpace>& SourceSpace, ENiagaraCoordinateSpace DestSpace, const FNiagaraSystemInstance* SystemInstance)
 		{
 			ENiagaraCoordinateSpace SourceSpaceConcrete = GetConcreteSource(bRotationWasSet, SourceSpace);
 			ENiagaraCoordinateSpace DestSpaceConcrete = GetConcreteSource(true, DestSpace);
@@ -526,11 +526,11 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			if (SourceSpaceConcrete == ENiagaraCoordinateSpace::Local && DestSpaceConcrete == ENiagaraCoordinateSpace::World)
 			{
-				Quat = SystemInstance->GetWorldTransform().Rotator().Quaternion() * Quat;
+				Quat = (FQuat4f)SystemInstance->GetWorldTransform().Rotator().Quaternion() * Quat;
 			}
 			else if (SourceSpaceConcrete == ENiagaraCoordinateSpace::World && DestSpaceConcrete == ENiagaraCoordinateSpace::Local)
 			{
-				Quat = SystemInstance->GetWorldTransform().Rotator().GetInverse().Quaternion() * Quat;
+				Quat = (FQuat4f)SystemInstance->GetWorldTransform().Rotator().GetInverse().Quaternion() * Quat;
 			}
 			else
 			{
@@ -592,9 +592,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> StartLocation = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> StartLocation = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> StartLocationCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> EndLocation = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> EndLocation = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> EndLocationCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 4);
 
@@ -617,14 +617,14 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<FVector2D> Extents = GetTag<FVector2D>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 4);
 			TOptional<FNiagaraBool> HalfExtents = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 5);
-			TOptional<FVector> XAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
-			TOptional<FVector> YAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 7);
+			TOptional<FVector3f> XAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
+			TOptional<FVector3f> YAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 7);
 			TOptional<ENiagaraCoordinateSpace> AxisCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 8);
 			TOptional<int32> NumXSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 9);
 			TOptional<int32> NumYSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 10);
@@ -664,13 +664,13 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<float> Radius = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 4);
-			TOptional<FVector> XAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 5);
-			TOptional<FVector> YAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
+			TOptional<FVector3f> XAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 5);
+			TOptional<FVector3f> YAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
 			TOptional<ENiagaraCoordinateSpace> AxisCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 7);
 			TOptional<int32> NumSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 8);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 9);
@@ -702,14 +702,14 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
-			TOptional<FVector> RotationAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 4);
+			TOptional<FVector3f> RotationAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 4);
 			TOptional<float> RotationNormalizedAngle = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 5);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 6);
-			TOptional<FVector> Extents = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 7);
+			TOptional<FVector3f> Extents = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 7);
 			TOptional<FNiagaraBool> HalfExtents = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 8);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 9);
 
@@ -720,7 +720,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			FVector3f DrawRotationAxis = RotationAxis.Get(FVector3f::ZAxisVector);
 			float DrawRotationNormalizedAngle = RotationNormalizedAngle.Get(0.0f);
 			FLinearColor DrawColor = Color.Get(FLinearColor::Green);
-			FQuat DrawRotation = FQuat::Identity;
+			FQuat4f DrawRotation = FQuat4f::Identity;
 
 
 			// DrawCenter and DrawOffset both are brought in and are used to locate the center of the box.
@@ -729,9 +729,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, ENiagaraCoordinateSpace::Simulation, SystemInstance);
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::Simulation, SystemInstance);
 
-			DrawRotation = FQuat(DrawRotationAxis, FMath::DegreesToRadians(DrawRotationNormalizedAngle * 360.0f));
+			DrawRotation = FQuat4f(DrawRotationAxis, FMath::DegreesToRadians(DrawRotationNormalizedAngle * 360.0f));
 
-			FQuat WorldRot = FQuat::Identity;
+			FQuat4f WorldRot = FQuat4f::Identity;
 			TransformQuat(true, WorldRot, RotationWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 			FVector3f WorldScale = FVector3f::OneVector;
 			ScaleVector(true, WorldScale, RotationWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
@@ -756,19 +756,19 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<float> Radius = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RadiusWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
 			TOptional<FNiagaraBool> HemiX = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 6);
 			TOptional<FNiagaraBool> HemiY = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 7);
 			TOptional<FNiagaraBool> HemiZ = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 8);
-			TOptional<FVector> OrientationAxisForSphere = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 9);
+			TOptional<FVector3f> OrientationAxisForSphere = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 9);
 			TOptional<ENiagaraCoordinateSpace> RotationCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 10);
-			TOptional<FQuat> AdditionalRotation = GetTag<FQuat>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 11);
-			TOptional<FVector> NonUniformScale = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 12);
+			TOptional<FQuat4f> AdditionalRotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 11);
+			TOptional<FVector3f> NonUniformScale = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 12);
 			TOptional<int32> NumSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 13);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 14);
 
@@ -791,9 +791,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, ENiagaraCoordinateSpace::Simulation, SystemInstance);
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::Simulation, SystemInstance);
 
-			FQuat OrientationAxis = FQuat::FindBetweenVectors(FVector3f(1.0f, 0.0f, 0.0f), DrawOrientationAxis) * AdditionalRotation.Get(FQuat::Identity);
+			FQuat4f OrientationAxis = FQuat4f::FindBetweenVectors(FVector3f(1.0f, 0.0f, 0.0f), DrawOrientationAxis) * AdditionalRotation.Get(FQuat4f::Identity);
 
-			FQuat WorldRot = FQuat::Identity;
+			FQuat4f WorldRot = FQuat4f::Identity;
 			TransformQuat(true, WorldRot, RadiusWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 			FVector3f WorldScale = FVector3f::OneVector;
 			ScaleVector(true, WorldScale, RadiusWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
@@ -815,9 +815,9 @@ struct FNDIDebugDrawInstanceData_GameThread
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 			static FNiagaraTypeDefinition OrientationAxisTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetOrientationAxisEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<float> Radius = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 4);
 			TOptional<float> Height = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 5);
@@ -826,7 +826,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TOptional<FNiagaraBool> HemiY = GetTag<FNiagaraBool>(SystemInstance, FNiagaraTypeDefinition::GetBoolDef(), 8);
 			TOptional<ENiagaraOrientationAxis> OrientationAxis = GetTag<ENiagaraOrientationAxis>(SystemInstance, OrientationAxisTypeDef, 9);
 			TOptional<ENiagaraCoordinateSpace> OrientationAxisCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 10);
-			TOptional<FVector> NonUniformScale = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 11);
+			TOptional<FVector3f> NonUniformScale = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 11);
 			TOptional<int32> NumRadiusSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 12);
 			TOptional<int32> NumHeightSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 13);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 14);
@@ -847,10 +847,10 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
-			FQuat WorldRot =
-				DrawOrientationAxisEnum == ENiagaraOrientationAxis::XAxis ? FQuat(FRotator(0, 90, -90)) :
-				DrawOrientationAxisEnum == ENiagaraOrientationAxis::YAxis ? FQuat(FRotator(0, 0, -90)) :
-				FQuat::Identity;
+			FQuat4f WorldRot =
+				DrawOrientationAxisEnum == ENiagaraOrientationAxis::XAxis ? FQuat4f(FRotator(0, 90, -90)) :
+				DrawOrientationAxisEnum == ENiagaraOrientationAxis::YAxis ? FQuat4f(FRotator(0, 0, -90)) :
+				FQuat4f::Identity;
 
 			TransformQuat(true, WorldRot, OrientationAxisCoordinateSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
@@ -871,15 +871,15 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<float> Angle = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 4);
 			TOptional<float> Length = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 5);
-			TOptional<FVector> OrientationAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
+			TOptional<FVector3f> OrientationAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
 			TOptional<ENiagaraCoordinateSpace> OrientationAxisCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 7);
-			TOptional<FVector> NonUniformScale = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 8);
+			TOptional<FVector3f> NonUniformScale = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 8);
 			TOptional<int32> NumRadiusSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 9);
 			TOptional<int32> NumHeightSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetIntDef(), 10);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 11);
@@ -898,7 +898,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
 
-			FQuat WorldRot = FQuat::FindBetweenNormals(FVector3f::ZAxisVector, DrawOrientationAxis);
+			FQuat4f WorldRot = FQuat4f::FindBetweenNormals(FVector3f::ZAxisVector, DrawOrientationAxis);
 			TransformQuat(true, WorldRot, OrientationAxisCoordinateSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
 			FVector3f HalfOffset = DrawOrientationAxis.GetSafeNormal() * DrawLength * 0.5f;
@@ -920,15 +920,15 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
 			TOptional<float> MajorRadius = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 4);
 			TOptional<float> MinorRadius = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 5);
-			TOptional<FVector> OrientationAxis = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
+			TOptional<FVector3f> OrientationAxis = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
 			TOptional<ENiagaraCoordinateSpace> OrientationAxisCoordinateSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 7);
-			TOptional<FVector> NonUniformScale = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 8);
+			TOptional<FVector3f> NonUniformScale = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 8);
 			TOptional<int32> MajorRadiusSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 9);
 			TOptional<int32> MinorRadiusSegments = GetTag<int32>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 10);
 			TOptional<FLinearColor> Color = GetTag<FLinearColor>(SystemInstance, FNiagaraTypeDefinition::GetColorDef(), 11);
@@ -946,7 +946,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 			TransformVector(Offset.IsSet(), DrawOffset, OffsetWorldSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
-			FQuat WorldRot = FQuat::Identity;
+			FQuat4f WorldRot = FQuat4f::Identity;
 			TransformQuat(true, WorldRot, OrientationAxisCoordinateSpace, ENiagaraCoordinateSpace::World, SystemInstance);
 
 			DrawOrientationAxis = WorldRot.RotateVector(DrawOrientationAxis);
@@ -964,17 +964,17 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
-			TOptional<FQuat> Rotation = GetTag<FQuat>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
+			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
 			TOptional<float> Scale = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 6);
 
 			FVector3f DrawCenter = Center.Get(FVector3f::ZeroVector);
 			FVector3f DrawOffset = Offset.Get(FVector3f::ZeroVector);
-			FQuat DrawRotation = Rotation.Get(FQuat::Identity);
+			FQuat4f DrawRotation = Rotation.Get(FQuat4f::Identity);
 			float DrawScale = Scale.Get(1.0f);
 
 			TransformPosition(Center.IsSet(), DrawCenter, CenterWorldSpace, ENiagaraCoordinateSpace::Simulation, SystemInstance);
@@ -993,11 +993,11 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
-			TOptional<FQuat> Rotation = GetTag<FQuat>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
+			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
 			TOptional<FVector2D> Extents = GetTag<FVector2D>(SystemInstance, FNiagaraTypeDefinition::GetVec2Def(), 6);
 			TOptional<float> NumCellsX = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 7);
@@ -1008,7 +1008,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			FVector3f DrawCenter = Center.Get(FVector3f::ZeroVector);
 			FVector3f DrawOffset = Offset.Get(FVector3f::ZeroVector);
-			FQuat DrawRotation = Rotation.Get(FQuat::Identity);
+			FQuat4f DrawRotation = Rotation.Get(FQuat4f::Identity);
 			FVector2D DrawExtents = Extents.Get(FVector2D(10.f));
 			int32 DrawNumCellsX = NumCellsX.Get(10);
 			int32 DrawNumCellsY = NumCellsY.Get(10);
@@ -1030,13 +1030,13 @@ struct FNDIDebugDrawInstanceData_GameThread
 				return;
 			static FNiagaraTypeDefinition CoordTypeDef = FNiagaraTypeDefinition(FNiagaraTypeDefinition::GetCoordinateSpaceEnum());
 
-			TOptional<FVector> Center = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
+			TOptional<FVector3f> Center = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 0);
 			TOptional<ENiagaraCoordinateSpace> CenterWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 1);
-			TOptional<FVector> Offset = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
+			TOptional<FVector3f> Offset = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 2);
 			TOptional<ENiagaraCoordinateSpace> OffsetWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 3);
-			TOptional<FQuat> Rotation = GetTag<FQuat>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
+			TOptional<FQuat4f> Rotation = GetTag<FQuat4f>(SystemInstance, FNiagaraTypeDefinition::GetQuatDef(), 4);
 			TOptional<ENiagaraCoordinateSpace> RotationWorldSpace = GetTag<ENiagaraCoordinateSpace>(SystemInstance, CoordTypeDef, 5);
-			TOptional<FVector> Extents = GetTag<FVector>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
+			TOptional<FVector3f> Extents = GetTag<FVector3f>(SystemInstance, FNiagaraTypeDefinition::GetVec3Def(), 6);
 			TOptional<float> NumCellsX = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 7);
 			TOptional<float> NumCellsY = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 8);
 			TOptional<float> NumCellsZ = GetTag<float>(SystemInstance, FNiagaraTypeDefinition::GetFloatDef(), 9);
@@ -1045,7 +1045,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 
 			FVector3f DrawCenter = Center.Get(FVector3f::ZeroVector);
 			FVector3f DrawOffset = Offset.Get(FVector3f::ZeroVector);
-			FQuat DrawRotation = Rotation.Get(FQuat::Identity);
+			FQuat4f DrawRotation = Rotation.Get(FQuat4f::Identity);
 			FVector3f DrawExtents = Extents.Get(FVector3f(10.f));
 			int32 DrawNumCellsX = NumCellsX.Get(10);
 			int32 DrawNumCellsY = NumCellsY.Get(10);
@@ -1156,8 +1156,8 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("EndLocationCoordinateSpace")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> StartLocation = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
-							TOptional<FVector> EndLocation = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[2]);
+							TOptional<FVector3f> StartLocation = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> EndLocation = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[2]);
 
 							bIsValid = StartLocation.IsSet() || EndLocation.IsSet();
 
@@ -1179,7 +1179,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("UnboundedPlane")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<FVector2D> Extents = GetCompileTag<FVector2D>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec2Def(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Extents.IsSet();
@@ -1199,7 +1199,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("NumSegments")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<float> Radius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Radius.IsSet();
@@ -1219,8 +1219,8 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("HalfExtents")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
-							TOptional<FVector> Extents = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[7]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Extents = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[7]);
 
 							bIsValid = Center.IsSet() || Extents.IsSet();
 
@@ -1244,7 +1244,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Num Segments")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));							
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<float> Radius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Radius.IsSet();
@@ -1269,7 +1269,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Num Height Segments")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<float> Radius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Radius.IsSet();
@@ -1291,7 +1291,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Num Height Segments")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<float> Radius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[4]);
 
 							bIsValid = Center.IsSet() || Radius.IsSet();
@@ -1313,7 +1313,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("MinorRadiusSegments")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 							TOptional<float> MajorRadius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[4]);
 							TOptional<float> MinorRadius = GetCompileTag<float>(SystemInstance, Script, FNiagaraTypeDefinition::GetFloatDef(), ParamNames[5]);
 
@@ -1331,7 +1331,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("RotationCoordinateSpace")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Scale")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 
 							bIsValid = Center.IsSet();
 
@@ -1350,7 +1350,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("NumCellsY")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 
 							bIsValid = Center.IsSet();
 
@@ -1370,7 +1370,7 @@ struct FNDIDebugDrawInstanceData_GameThread
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("NumCellsZ")));
 							ParamNames.Add(GenerateParameterName(ExistingShape, TEXT("Color")));
 
-							TOptional<FVector> Center = GetCompileTag<FVector>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
+							TOptional<FVector3f> Center = GetCompileTag<FVector3f>(SystemInstance, Script, FNiagaraTypeDefinition::GetVec3Def(), ParamNames[0]);
 
 							bIsValid = Center.IsSet();
 
@@ -1673,7 +1673,7 @@ namespace NDIDebugDrawLocal
 			}
 
 			FNDIInputParam<FVector3f> LocationParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<FVector3f> ExtentsParam;
 			FNDIInputParam<FLinearColor> ColorParam;
 		};
@@ -1711,7 +1711,7 @@ namespace NDIDebugDrawLocal
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
 			const FVector3f Location = Bindings.LocationParam.GetAndAdvance();
-			const FQuat Rotation = Bindings.RotationParam.GetAndAdvance();
+			const FQuat4f Rotation = Bindings.RotationParam.GetAndAdvance();
 			const FVector3f Extents = Bindings.ExtentsParam.GetAndAdvance();
 			const FLinearColor Color = Bindings.ColorParam.GetAndAdvance();
 
@@ -1773,7 +1773,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<FNiagaraBool> HemiZParam;
 			FNDIInputParam<FVector3f> OrientationAxisParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> RotationWSParam;
-			FNDIInputParam<FQuat> AdditionalRotationParam;
+			FNDIInputParam<FQuat4f> AdditionalRotationParam;
 			FNDIInputParam<FVector3f> NonUniformScaleParam;
 			FNDIInputParam<int32> SegmentsParam;
 			FNDIInputParam<FLinearColor> ColorParam;
@@ -2045,7 +2045,7 @@ namespace NDIDebugDrawLocal
 			}
 
 			FNDIInputParam<FVector3f> LocationParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<float> ScaleParam;
 		};		
 		
@@ -2067,7 +2067,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<ENiagaraCoordinateSpace> LocationWSParam;
 			FNDIInputParam<FVector3f> OffsetParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> OffsetWSParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> RotationCoordinateSpace;
 			FNDIInputParam<float> ScaleParam;
 		};
@@ -2077,7 +2077,7 @@ namespace NDIDebugDrawLocal
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
 			const FVector3f Location = Bindings.LocationParam.GetAndAdvance();
-			const FQuat Rotation = Bindings.RotationParam.GetAndAdvance();
+			const FQuat4f Rotation = Bindings.RotationParam.GetAndAdvance();
 			const float Scale = Bindings.ScaleParam.GetAndAdvance();
 
 			if (bExecute)
@@ -2103,7 +2103,7 @@ namespace NDIDebugDrawLocal
 			}
 
 			FNDIInputParam<FVector3f> CenterParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<FVector2D> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
 			FNDIInputParam<int32> NumCellsYParam;
@@ -2131,7 +2131,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<ENiagaraCoordinateSpace> LocationWSParam;
 			FNDIInputParam<FVector3f> OffsetParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> OffsetWSParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> RotationCoordinateSpace;
 			FNDIInputParam<FVector2D> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
@@ -2143,7 +2143,7 @@ namespace NDIDebugDrawLocal
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
 			const FVector3f Center = Bindings.CenterParam.GetAndAdvance();
-			const FQuat Rotation = Bindings.RotationParam.GetAndAdvance();
+			const FQuat4f Rotation = Bindings.RotationParam.GetAndAdvance();
 			const FVector2D Extents = Bindings.ExtentsParam.GetAndAdvance();
 			const FIntPoint NumCells(Bindings.NumCellsXParam.GetAndAdvance(), Bindings.NumCellsYParam.GetAndAdvance());
 			const FLinearColor Color = Bindings.ColorParam.GetAndAdvance();
@@ -2172,7 +2172,7 @@ namespace NDIDebugDrawLocal
 			}
 
 			FNDIInputParam<FVector3f> CenterParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<FVector3f> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
 			FNDIInputParam<int32> NumCellsYParam;
@@ -2202,7 +2202,7 @@ namespace NDIDebugDrawLocal
 			FNDIInputParam<ENiagaraCoordinateSpace> LocationWSParam;
 			FNDIInputParam<FVector3f> OffsetParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> OffsetWSParam;
-			FNDIInputParam<FQuat> RotationParam;
+			FNDIInputParam<FQuat4f> RotationParam;
 			FNDIInputParam<ENiagaraCoordinateSpace> RotationCoordinateSpace;
 			FNDIInputParam<FVector3f> ExtentsParam;
 			FNDIInputParam<int32> NumCellsXParam;
@@ -2216,7 +2216,7 @@ namespace NDIDebugDrawLocal
 		static void Draw(FNDIDebugDrawInstanceData_GameThread* InstanceData, VMBindings& Bindings, bool bExecute)
 		{
 			const FVector3f Center = Bindings.CenterParam.GetAndAdvance();
-			const FQuat Rotation = Bindings.RotationParam.GetAndAdvance();
+			const FQuat4f Rotation = Bindings.RotationParam.GetAndAdvance();
 			const FVector3f Extents = Bindings.ExtentsParam.GetAndAdvance();
 			const FIntVector NumCells(Bindings.NumCellsXParam.GetAndAdvance(), Bindings.NumCellsYParam.GetAndAdvance(), Bindings.NumCellsZParam.GetAndAdvance());
 			const FLinearColor Color = Bindings.ColorParam.GetAndAdvance();
@@ -2642,7 +2642,7 @@ void UNiagaraDataInterfaceDebugDraw::GetFunctions(TArray<FNiagaraFunctionSignatu
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Hemisphere Z"))).SetValue(true);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Sphere Orientation Axis"))).SetValue(FVector3f::ZAxisVector);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(CoordTypeDef, TEXT("RotationCoordinateSpace"))).SetValue(ENiagaraCoordinateSpace::Local);
-		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Additional Rotation"))).SetValue(FQuat::Identity);
+		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), TEXT("Additional Rotation"))).SetValue(FQuat4f::Identity);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("NonUniform Scale"))).SetValue(FVector3f::OneVector);
 		Signature.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("Num Segments"))).SetValue(12);
 		Signature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Color")));

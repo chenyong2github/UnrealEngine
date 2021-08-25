@@ -348,7 +348,7 @@ struct HEADMOUNTEDDISPLAY_API FXRMotionControllerData
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	TArray<FVector> HandKeyPositions;
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
-	TArray<struct FQuat> HandKeyRotations;
+	TArray<FQuat> HandKeyRotations;
 	UPROPERTY(BlueprintReadOnly, Category = "XR")
 	TArray<float> HandKeyRadii;
 

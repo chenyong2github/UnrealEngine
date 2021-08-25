@@ -150,13 +150,13 @@ namespace CameraNodalOffsetAlgoPoints
 
 		// Average the rotation
 
-		float AverageQuatVec[4] = { 0 }; // Simple averaging should work for similar quaterions, which these are.
+		FQuat::FReal AverageQuatVec[4] = { 0 }; // Simple averaging should work for similar quaterions, which these are.
 
 		for (const FSinglePoseResult& SinglePoseResult : SinglePoseResults)
 		{
 			const FQuat Rotation = SinglePoseResult.Transform.GetRotation();
 
-			const float ThisQuat[4] = {
+			const FQuat::FReal ThisQuat[4] = {
 				Rotation.X,
 				Rotation.Y,
 				Rotation.Z,

@@ -31,8 +31,73 @@ using TVectorRegisterType = std::conditional_t<std::is_same_v<T, float>, VectorR
 // 'Cross-platform' vector intrinsics (built on the platform-specific ones defined above)
 #include "Math/UnrealMathVectorCommon.h"
 
+
+#if !defined(UE_SSE_DOUBLE_ALIGNMENT) || (UE_SSE_DOUBLE_ALIGNMENT <= 16)
+// Suitable to just use regular VectorRegister4Double as persistent variables.
+using PersistentVectorRegister4Double = VectorRegister4Double;
+#else
+/**
+ * VectorRegister type to be used as member variables of structs, when alignment should not be over 16 bytes.
+ * 32-byte alignment requires large allocations in some allocators, and this allows us to keep at a 16-byte aligned type in situations (ie AVX) where the underlying
+ * VectorRegister type might want 32-byte alignment instead. It does imply use of unaligned loads/stores (which should be fine) in the conversion process, but try to
+ * formulate code using these types to only load/store once by avoiding repeated type conversion.
+ *
+ * See TPersistentVectorRegisterType<> below, for automatic selection of the correct type for a member variable.
+ */
+struct alignas(16) PersistentVectorRegister4Double
+{
+	double XYZW[4];
+
+	FORCEINLINE PersistentVectorRegister4Double() = default;
+
+	FORCEINLINE PersistentVectorRegister4Double(const VectorRegister4Double& Register)
+	{
+		VectorStore(Register, XYZW);
+	}
+
+	FORCEINLINE PersistentVectorRegister4Double(const VectorRegister4Float& Register)
+	{
+		VectorStore(VectorRegister4Double(Register), XYZW);
+	}
+
+	FORCEINLINE PersistentVectorRegister4Double& operator=(const VectorRegister4Double& Register)
+	{
+		VectorStore(Register, XYZW);
+		return *this;
+	}
+
+	FORCEINLINE PersistentVectorRegister4Double& operator=(const VectorRegister4Float& Register)
+	{
+		VectorStore(VectorRegister4Double(Register), XYZW);
+		return *this;
+	}
+
+	FORCEINLINE operator VectorRegister4Double() const
+	{
+		return VectorLoad(XYZW);
+	}
+};
+#endif // Alignment check for VectorRegister4Double
+
+// Suitable to just use regular VectorRegister4Float as persistent variables.
+using PersistentVectorRegister4Float = VectorRegister4Float;
+
+/**
+ * Alias for VectorRegister type to be used as member variables of structs, when alignment should not be over 16 bytes.
+ * 32-byte alignment requires large allocations in some allocators, which we want to avoid.
+ * See PersistentVectorRegister4Double for more details.
+ * 
+ * Usage example:
+ * TPersistentVectorRegisterType<float> MyFloatRegister;
+ * TPersistentVectorRegisterType<double> MyDoubleRegister;
+ */
+template<typename T>
+using TPersistentVectorRegisterType = std::conditional_t<std::is_same_v<T, float>, PersistentVectorRegister4Float, std::conditional_t<std::is_same_v<T, double>, PersistentVectorRegister4Double, void> >;
+
+
+
 /** Vector that represents (1/255,1/255,1/255,1/255) */
-extern CORE_API const VectorRegister VECTOR_INV_255;
+inline static const VectorRegister VECTOR_INV_255 = DECLARE_VECTOR_REGISTER(1.f / 255.f, 1.f / 255.f, 1.f / 255.f, 1.f / 255.f);
 
 // Old names for comparison functions, kept for compatibility.
 #define VectorMask_LT( Vec1, Vec2 )			VectorCompareLT(Vec1, Vec2)
@@ -49,9 +114,7 @@ extern CORE_API const VectorRegister VECTOR_INV_255;
 
 namespace GlobalVectorConstants
 {
-	static const VectorRegister AnimWeightThreshold = MakeVectorRegister(ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH);
-	static const VectorRegister RotationSignificantThreshold = MakeVectorRegister(1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA);
-	// LWC_TODO : only needed until FQuat is using doubles (see TransformVectorized)
-	static const VectorRegister4Float RotationSignificantThresholdFloat = MakeVectorRegisterFloat(1.0f - DELTA * DELTA, 1.0f - DELTA * DELTA, 1.0f - DELTA * DELTA, 1.0f - DELTA * DELTA);
+	inline static const VectorRegister AnimWeightThreshold = MakeVectorRegister(ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH, ZERO_ANIMWEIGHT_THRESH);
+	inline static const VectorRegister RotationSignificantThreshold = MakeVectorRegister(1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA, 1.0f - DELTA*DELTA);
 }
 

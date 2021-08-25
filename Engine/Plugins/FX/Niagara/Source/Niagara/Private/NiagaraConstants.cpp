@@ -387,7 +387,7 @@ void FNiagaraConstants::Init()
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, TEXT("0.0,0.0,0.0,1.0"));
 		Var = SYS_PARAM_PARTICLES_MESH_ORIENTATION;
-		Var.SetValue<FQuat>(FQuat::Identity);
+		Var.SetValue<FQuat4f>(FQuat4f::Identity);
 		AttrDefaultsValueMap.Add(SYS_PARAM_PARTICLES_MESH_ORIENTATION, Var);
 
 		AttrDefaultsStrMap.Add(SYS_PARAM_PARTICLES_MESH_INDEX, TEXT("0"));

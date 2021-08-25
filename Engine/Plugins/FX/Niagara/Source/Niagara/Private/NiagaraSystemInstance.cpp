@@ -1930,6 +1930,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 
 		const FVector Location = GatheredInstanceParameters.ComponentTrans.GetLocation();
 		const FVector LastLocation = FMath::IsNearlyZero(CurrentSystemParameters.EngineSystemAge) ? Location : FVector(OwnerParameters[GetParameterIndex(true)].EnginePosition);
+		const FQuat LastRotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
 
 		CurrentOwnerParameters.EngineLocalToWorld = LocalToWorld;
 		CurrentOwnerParameters.EngineWorldToLocal = LocalToWorld.Inverse();
@@ -1937,7 +1938,7 @@ void FNiagaraSystemInstance::TickInstanceParameters_Concurrent()
 		CurrentOwnerParameters.EngineWorldToLocalTransposed = CurrentOwnerParameters.EngineWorldToLocal.GetTransposed();
 		CurrentOwnerParameters.EngineLocalToWorldNoScale = LocalToWorldNoScale;
 		CurrentOwnerParameters.EngineWorldToLocalNoScale = LocalToWorldNoScale.Inverse();
-		CurrentOwnerParameters.EngineRotation = GatheredInstanceParameters.ComponentTrans.GetRotation();
+		CurrentOwnerParameters.EngineRotation = FQuat4f((float)LastRotation.X, (float)LastRotation.Y, (float)LastRotation.Z, (float)LastRotation.W);
 		CurrentOwnerParameters.EnginePosition = Location;
 		CurrentOwnerParameters.EngineVelocity = (Location - LastLocation) / GatheredInstanceParameters.DeltaSeconds;
 		CurrentOwnerParameters.EngineXAxis = CurrentOwnerParameters.EngineRotation.GetAxisX();

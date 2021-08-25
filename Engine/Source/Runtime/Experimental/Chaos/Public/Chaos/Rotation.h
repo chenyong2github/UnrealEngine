@@ -44,15 +44,16 @@ namespace Chaos
 	};
 
 	template<>
-	class TRotation<FReal, 3> : public FQuat
+	class TRotation<FReal, 3> : public UE::Math::TQuat<FReal>
 	{
+		using BaseQuat = UE::Math::TQuat<FReal>;
 	public:
 		TRotation()
-		    : FQuat() {}
-		TRotation(const FQuat& Quat)
-		    : FQuat(Quat) {}
+		    : BaseQuat() {}
+		TRotation(const BaseQuat& Quat)
+		    : BaseQuat(Quat) {}
 		TRotation(const FMatrix& Matrix)
-		    : FQuat(Matrix) {}
+		    : BaseQuat(Matrix) {}
 
 		PMatrix<FReal, 3, 3> ToMatrix() const
 		{
@@ -107,9 +108,9 @@ namespace Chaos
 		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
 		 * /see ToSwingTwist
 		 */
-		void ToSwingTwistX(FQuat& OutSwing, FQuat& OutTwist) const
+		void ToSwingTwistX(BaseQuat& OutSwing, BaseQuat& OutTwist) const
 		{
-			OutTwist = (X != 0.0f)? FQuat(X, 0, 0, W).GetNormalized() : FQuat::Identity;
+			OutTwist = (X != 0.0f)? BaseQuat(X, 0, 0, W).GetNormalized() : BaseQuat::Identity;
 			OutSwing = *this * OutTwist.Inverse();
 		}
 
@@ -144,7 +145,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromIdentity()
 		{
-			return FQuat(0, 0, 0, 1);
+			return BaseQuat(0, 0, 0, 1);
 		}
 
 		/**
@@ -152,8 +153,8 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromElements(const FReal X, const FReal Y, const FReal Z, const FReal W)
 		{
-			using FQuatReal = decltype(FQuat::X);	// LWC_TODO: Remove once FQuat supports variants
-			return FQuat((FQuatReal)X, (FQuatReal)Y, (FQuatReal)Z, (FQuatReal)W);
+			using FQuatReal = BaseQuat::FReal;
+			return BaseQuat((FQuatReal)X, (FQuatReal)Y, (FQuatReal)Z, (FQuatReal)W);
 		}
 
 		/**
@@ -169,7 +170,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromAxisAngle(const ::Chaos::TVector<FReal, 3>& Axis, const FReal AngleRad)
 		{
-			return FQuat(FVector(Axis.X, Axis.Y, Axis.Z), (decltype(FQuat::X))AngleRad);
+			return BaseQuat(UE::Math::TVector<FReal>(Axis.X, Axis.Y, Axis.Z), (BaseQuat::FReal)AngleRad);
 		}
 
 		/**
@@ -177,7 +178,7 @@ namespace Chaos
 		 */
 		static TRotation<FReal, 3> FromVector(const ::Chaos::TVector<FReal, 3>& V)
 		{
-			using FQuatReal = decltype(FQuat::X);	// LWC_TODO: Remove once FQuat supports variants
+			using FQuatReal = BaseQuat::FReal;
 			TRotation<FReal, 3> Rot;
 			FReal HalfSize = 0.5f * V.Size();
 			FReal sinc = (FMath::Abs(HalfSize) > 1e-8) ? FMath::Sin(HalfSize) / HalfSize : 1;

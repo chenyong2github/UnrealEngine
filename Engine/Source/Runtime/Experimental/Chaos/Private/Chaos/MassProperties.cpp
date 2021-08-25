@@ -79,7 +79,7 @@ namespace Chaos
 
 		// NOTE: UE Matrix are column-major, so the PMatrix constructor is not setting eigenvectors - we need to transpose it to get a UE rotation matrix.
 		FinalRotation = FRotation3(RotationMatrix.GetTransposed());
-		if (!ensure(FMath::IsNearlyEqual(FinalRotation.Size(), 1.0f, KINDA_SMALL_NUMBER)))
+		if (!ensure(FMath::IsNearlyEqual((float)FinalRotation.Size(), 1.0f, KINDA_SMALL_NUMBER)))
 		{
 			return FRotation3::FromElements(FVec3(0), 1);
 		}

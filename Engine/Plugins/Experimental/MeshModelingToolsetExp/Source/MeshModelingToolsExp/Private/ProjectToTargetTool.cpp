@@ -78,6 +78,7 @@ TUniquePtr<FDynamicMeshOperator> UProjectToTargetTool::MakeNewOperator()
 	RemeshOp->ProjectionTarget = ProjectionTarget.Get();
 	RemeshOp->ProjectionTargetSpatial = ProjectionTargetSpatial.Get();
 
+	using FTransform3d = UE::Geometry::FTransform3d;
 	RemeshOp->ToolMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[0])->GetWorldTransform());
 	RemeshOp->TargetMeshLocalToWorld = FTransform3d(Cast<IPrimitiveComponentBackedTarget>(Targets[1])->GetWorldTransform());
 	RemeshOp->bUseWorldSpace = ProjectProperties->bWorldSpace;

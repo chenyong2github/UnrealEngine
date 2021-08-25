@@ -53,7 +53,6 @@ using namespace UE::Geometry;
 
 using namespace UE::PlanarCut;
 
-
 // logic from FMeshUtility::GenerateGeometryCollectionFromBlastChunk, sets material IDs based on construction pattern that external materials have even IDs and are matched to internal materials at InternalID = ExternalID+1
 int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx) const
 {
@@ -888,6 +887,8 @@ int32 MergeBones(
 	bool bUnionJoinedPieces
 )
 {
+	using UE::Geometry::FTransform3d;
+
 	FTransform CellsToWorld = FTransform::Identity;
 
 	FGeometryCollectionProximityUtility::UpdateProximity(&Collection);
@@ -1269,7 +1270,7 @@ void ConvertToMeshDescription(
 		// unless it's just one mesh that we're going to center later anyway
 		if (!bCenterPivot || NumMeshes > 1)
 		{
-			MeshTransforms::ApplyTransform(Mesh, (FTransform3d)ToCollection);
+			MeshTransforms::ApplyTransform(Mesh, (UE::Geometry::FTransform3d)ToCollection);
 		}
 
 		FMeshNormals::InitializeOverlayToPerVertexNormals(Mesh.Attributes()->PrimaryNormals(), true);

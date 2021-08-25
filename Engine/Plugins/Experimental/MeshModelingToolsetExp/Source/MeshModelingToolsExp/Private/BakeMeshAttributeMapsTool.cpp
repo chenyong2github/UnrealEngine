@@ -725,6 +725,7 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 
 	if (Settings->bUseWorldSpace && bIsBakeToSelf == false)
 	{
+		using FTransform3d = UE::Geometry::FTransform3d;
 		FTransform3d DetailToWorld = UE::ToolTarget::GetLocalToWorldTransform(DetailTarget);
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
 		FTransform3d WorldToBase = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);

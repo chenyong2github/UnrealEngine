@@ -663,6 +663,12 @@ FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FVector3d& InVa
 	return SetParameterValue((FVector3f)InValue, Param, bAdd);
 }
 
+template<>
+FORCEINLINE bool FNiagaraParameterStore::SetParameterValue(const FQuat4d& InValue, const FNiagaraVariable& Param, bool bAdd)
+{
+	return SetParameterValue((FQuat4f)InValue, Param, bAdd);
+}
+
 FORCEINLINE_DEBUGGABLE void FNiagaraParameterStore::Tick()
 {
 #if NIAGARA_NAN_CHECKING
@@ -1079,9 +1085,9 @@ struct FNiagaraParameterDirectBinding<FVector4>
 };
 
 template<>
-struct FNiagaraParameterDirectBinding<FQuat>
+struct FNiagaraParameterDirectBinding<FQuat4f>
 {
-	mutable FQuat* ValuePtr;
+	mutable FQuat4f* ValuePtr;
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
 	FNiagaraParameterStore* BoundStore;
 	FNiagaraVariable BoundVariable;
@@ -1095,40 +1101,40 @@ struct FNiagaraParameterDirectBinding<FQuat>
 #endif
 	{}
 
-	FQuat* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
+	FQuat4f* Init(FNiagaraParameterStore& InStore, const FNiagaraVariable& DestVariable)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
 		BoundStore = &InStore;
 		BoundVariable = DestVariable;
 		LayoutVersion = BoundStore->GetLayoutVersion();
 #endif
-		check(DestVariable.GetSizeInBytes() == sizeof(FQuat));
-		ValuePtr = (FQuat*)InStore.GetParameterData(DestVariable);
+		check(DestVariable.GetSizeInBytes() == sizeof(FQuat4f));
+		ValuePtr = (FQuat4f*)InStore.GetParameterData(DestVariable);
 		return ValuePtr;
 	}
 
-	FORCEINLINE void SetValue(const FQuat& InValue)
+	FORCEINLINE void SetValue(const FQuat4f& InValue)
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
-		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat4f));
 		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 #endif
 		if (ValuePtr)
 		{
-			FMemory::Memcpy(ValuePtr, &InValue, sizeof(FQuat));//Temp annoyance until we fix the alignment issues with parameter stores.
+			FMemory::Memcpy(ValuePtr, &InValue, sizeof(FQuat4f));//Temp annoyance until we fix the alignment issues with parameter stores.
 		}
 	}
 
-	FORCEINLINE FQuat GetValue()const
+	FORCEINLINE FQuat4f GetValue()const
 	{
 #if NIAGARA_VALIDATE_DIRECT_BINDINGS
-		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat));
+		checkSlow(BoundVariable.GetSizeInBytes() == sizeof(FQuat4f));
 		checkfSlow(LayoutVersion == BoundStore->GetLayoutVersion(), TEXT("This binding is invalid, its bound parameter store's layout was changed since it was created"));
 #endif
-		FQuat Ret;
+		FQuat4f Ret;
 		if (ValuePtr)
 		{
-			FMemory::Memcpy(&Ret, ValuePtr, sizeof(FQuat));//Temp annoyance until we fix the alignment issues with parameter stores.
+			FMemory::Memcpy(&Ret, ValuePtr, sizeof(FQuat4f));//Temp annoyance until we fix the alignment issues with parameter stores.
 		}
 		return Ret;
 	}

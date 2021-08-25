@@ -32,7 +32,7 @@ namespace
 		const double FpsB = RateB.AsDecimal();
 
 		// protect against divide by zero
-		if (FMath::IsNearlyEqual(FpsB, 0))
+		if (FMath::IsNearlyEqual(FpsB, 0.0))
 		{
 			return false;
 		}
@@ -63,7 +63,7 @@ FQualifiedFrameTime UGenlockedTimecodeProvider::CorrectFromGenlock(FQualifiedFra
 	}
 	
 	// Protect against divide by zero. Also eliminates timecode rate being faster than genlock rate.
-	if (FMath::IsNearlyEqual(SyncsPerTcFrame, 0))
+	if (FMath::IsNearlyEqual(SyncsPerTcFrame, 0.0))
 	{
 		return InFrameTime;
 	}

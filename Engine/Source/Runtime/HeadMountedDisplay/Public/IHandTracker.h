@@ -43,7 +43,7 @@ public:
 	 */
 	virtual bool GetKeypointState(EControllerHand Hand, EHandKeypoint Keypoint, FTransform& OutTransform, float& OutRadius) const = 0;
 
-	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<FVector>& OutPositions, TArray<struct FQuat>& OutRotations, TArray<float>& OutRadii) const = 0;
+	virtual bool GetAllKeypointStates(EControllerHand Hand, TArray<FVector>& OutPositions, TArray<FQuat>& OutRotations, TArray<float>& OutRadii) const = 0;
 
 	virtual bool HasHandMeshData() const
 	{

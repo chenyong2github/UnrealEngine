@@ -11,8 +11,6 @@
 namespace UE {
 namespace Math {
 
-// LWC_TODO: FQuat -> TQuat<T>
-	
 /** Rotation and translation matrix using quaternion rotation */
 template <typename T>
 struct TQuatRotationTranslationMatrix
@@ -26,10 +24,10 @@ public:
 	* @param Q rotation
 	* @param Origin translation to apply
 	*/
-	TQuatRotationTranslationMatrix(const FQuat& Q, const TVector<T>& Origin);
+	TQuatRotationTranslationMatrix(const TQuat<T>& Q, const TVector<T>& Origin);
 
 	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(const FQuat& Q, const TVector<T>& Origin)
+	static TMatrix<T> Make(const TQuat<T>& Q, const TVector<T>& Origin)
 	{
 		return TQuatRotationTranslationMatrix<T>(Q, Origin);
 	}
@@ -48,13 +46,13 @@ public:
 	*
 	* @param Q rotation
 	*/
-	TQuatRotationMatrix(const FQuat& Q)
+	TQuatRotationMatrix(const TQuat<T>& Q)
 		: TQuatRotationTranslationMatrix<T>(Q, TVector<T>::ZeroVector)
 	{
 	}
 
 	/** Matrix factory. Return an FMatrix so we don't have type conversion issues in expressions. */
-	static TMatrix<T> Make(const FQuat& Q)
+	static TMatrix<T> Make(const TQuat<T>& Q)
 	{
 		return TQuatRotationMatrix<T>(Q);
 	}
@@ -62,7 +60,7 @@ public:
 
 
 template<typename T>
-FORCEINLINE TQuatRotationTranslationMatrix<T>::TQuatRotationTranslationMatrix(const FQuat& Q, const TVector<T>& Origin)
+FORCEINLINE TQuatRotationTranslationMatrix<T>::TQuatRotationTranslationMatrix(const TQuat<T>& Q, const TVector<T>& Origin)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && WITH_EDITORONLY_DATA
 	// Make sure Quaternion is normalized

@@ -10,7 +10,6 @@
 
 struct FGeometry;
 struct FPointerEvent;
-struct FTransform;
 
 struct FDistortionInfo;
 struct FFocalLengthInfo;

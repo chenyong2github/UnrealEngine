@@ -325,6 +325,12 @@ FORCEINLINE VectorRegister2Int64 MakeVectorRegisterInt64(int64 X, int64 Y)
 	return Tmp.V;
 }
 
+// Make double register from float register
+FORCEINLINE VectorRegister4Double MakeVectorRegisterDouble(const VectorRegister4Float& From)
+{
+	return VectorRegister4Double(From);
+}
+
 // Lossy conversion: double->float vector
 FORCEINLINE VectorRegister4Float MakeVectorRegisterFloatFromDouble(const VectorRegister4Double& Vec)
 {
@@ -2273,6 +2279,11 @@ FORCEINLINE VectorRegister4Double VectorQuaternionMultiply2(const VectorRegister
 * @param Quat2	Pointer to the second quaternion (must not be the destination)
 */
 FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Float* RESTRICT Result, const VectorRegister4Float* RESTRICT Quat1, const VectorRegister4Float* RESTRICT Quat2)
+{
+	*Result = VectorQuaternionMultiply2(*Quat1, *Quat2);
+}
+
+FORCEINLINE void VectorQuaternionMultiply(VectorRegister4Double* RESTRICT Result, const VectorRegister4Double* RESTRICT Quat1, const VectorRegister4Double* RESTRICT Quat2)
 {
 	*Result = VectorQuaternionMultiply2(*Quat1, *Quat2);
 }

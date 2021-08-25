@@ -588,22 +588,66 @@ struct FRotator
  * Quaternion.
  * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Quat.h
  */
-USTRUCT(immutable, noexport, BlueprintType)
-struct FQuat
+USTRUCT(immutable, noexport)
+struct FQuat4f
 {
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Quat, SaveGame)
+	UPROPERTY(EditAnywhere, Category=Quat, SaveGame)
 	float X;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Quat, SaveGame)
+	UPROPERTY(EditAnywhere, Category=Quat, SaveGame)
 	float Y;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Quat, SaveGame)
+	UPROPERTY(EditAnywhere, Category=Quat, SaveGame)
 	float Z;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Quat, SaveGame)
+	UPROPERTY(EditAnywhere, Category=Quat, SaveGame)
 	float W;
 
 };
+
+
+/**
+ * Quaternion.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Quat.h
+ */
+USTRUCT(immutable, noexport)
+struct FQuat4d
+{
+	UPROPERTY(EditAnywhere, Category = Quat, SaveGame)
+	double X;
+
+	UPROPERTY(EditAnywhere, Category = Quat, SaveGame)
+	double Y;
+
+	UPROPERTY(EditAnywhere, Category = Quat, SaveGame)
+	double Z;
+
+	UPROPERTY(EditAnywhere, Category = Quat, SaveGame)
+	double W;
+
+};
+
+
+/**
+ * Quaternion.
+ * @note The full C++ class is located here: Engine\Source\Runtime\Core\Public\Math\Quat.h
+ */
+USTRUCT(immutable, noexport, BlueprintType)
+struct FQuat
+{
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Quat, SaveGame)
+	FLargeWorldCoordinatesReal X;		// Alias for float/double depending on LWC status. Note: Will be refactored to double before UE5 ships.
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Quat, SaveGame)
+	FLargeWorldCoordinatesReal Y;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Quat, SaveGame)
+	FLargeWorldCoordinatesReal Z;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Quat, SaveGame)
+	FLargeWorldCoordinatesReal W;
+};
+
 
 /**
  * A packed normal.
@@ -1167,6 +1211,46 @@ struct FInterpCurveLinearColor
 	/** Specify the offset from the last point's input key corresponding to the loop point */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InterpCurveLinearColor)
 	float LoopKeyOffset;
+};
+
+/**
+ * Transform composed of Quat/Translation/Scale.
+ * @note This is implemented in either TransformVectorized.h or TransformNonVectorized.h depending on the platform.
+ */
+USTRUCT(immutable, noexport)
+struct FTransform3f
+{
+	/** Rotation of this transformation, as a quaternion. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FQuat4f Rotation;
+
+	/** Translation of this transformation, as a vector. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FVector3f Translation;
+
+	/** 3D scale (always applied in local space) as a vector. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FVector3f Scale3D;
+};
+
+/**
+ * Transform composed of Quat/Translation/Scale.
+ * @note This is implemented in either TransformVectorized.h or TransformNonVectorized.h depending on the platform.
+ */
+USTRUCT(immutable, noexport)
+struct FTransform3d
+{
+	/** Rotation of this transformation, as a quaternion. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FQuat4d Rotation;
+
+	/** Translation of this transformation, as a vector. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FVector3d Translation;
+
+	/** 3D scale (always applied in local space) as a vector. */
+	UPROPERTY(EditAnywhere, Category = Transform, SaveGame)
+	FVector3d Scale3D;
 };
 
 /**

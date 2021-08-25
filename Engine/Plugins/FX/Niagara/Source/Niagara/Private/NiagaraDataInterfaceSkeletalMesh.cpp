@@ -365,7 +365,7 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 
 	const TArray<FTransform>& BaseCompSpaceTransforms = SkelComp->GetComponentSpaceTransforms();
 	TArray<FMatrix44f>& CurrBones = CurrBoneRefToLocals();
-	TArray<FTransform>& CurrTransforms = CurrComponentTransforms();
+	TArray<FTransform3f>& CurrTransforms = CurrComponentTransforms();
 
 	if (USkinnedMeshComponent* MasterComponent = SkelComp->MasterPoseComponent.Get())
 	{
@@ -395,14 +395,14 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
 					{
 						bFoundMaster = true;
-						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
+						CurrTransforms[BoneIndex] = (FTransform3f)MasterTransforms[MasterIndex];
 					}
 				}
 
 				if ( !bFoundMaster )
 				{
 					const int32 ParentIndex = SkelMesh->GetRefSkeleton().GetParentIndex(BoneIndex);
-					FTransform BoneTransform = SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
+					FTransform3f BoneTransform = (FTransform3f)SkelMesh->GetRefSkeleton().GetRefBonePose()[BoneIndex];
 					if ((ParentIndex >= 0) && (ParentIndex < BoneIndex))
 					{
 						BoneTransform = BoneTransform * CurrTransforms[ParentIndex];
@@ -424,7 +424,7 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 	else
 	{
 		SkelComp->CacheRefToLocalMatrices(CurrBones);
-		CurrTransforms = SkelComp->GetComponentSpaceTransforms();
+		CurrTransforms = LWC::ConvertArrayType<FTransform3f>(SkelComp->GetComponentSpaceTransforms());	// LWC_TODO: Perf pessimization
 	}
 }
 
@@ -1112,9 +1112,9 @@ void FSkeletalMeshGpuDynamicBufferProxy::NewFrame(const FNDISkeletalMesh_Instanc
 			}
 
 			// Append sockets
-			for (const FTransform& SocketTransform : InstanceData->GetFilteredSocketsCurrBuffer())
+			for (const FTransform3f& SocketTransform : InstanceData->GetFilteredSocketsCurrBuffer())
 			{
-				const FQuat Rotation = SocketTransform.GetRotation();
+				const FQuat4f Rotation = SocketTransform.GetRotation();
 				BoneSamplingData.Add(SocketTransform.GetLocation());
 				BoneSamplingData.Add(FVector4(Rotation.X, Rotation.Y, Rotation.Z, Rotation.W));
 				BoneSamplingData.Add(SocketTransform.GetScale3D());
@@ -2138,14 +2138,16 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 			{
 				for (int32 i = 0; i < FilteredSocketInfo.Num(); ++i)
 				{
-					NewSkelComp->GetSocketInfoByName(FilteredSockets[i], FilteredSocketInfo[i].Transform, FilteredSocketInfo[i].BoneIdx);
+					FTransform SocketTransform;
+					NewSkelComp->GetSocketInfoByName(FilteredSockets[i], SocketTransform, FilteredSocketInfo[i].BoneIdx);
+					FilteredSocketInfo[i].Transform = (FTransform3f)SocketTransform;
 				}
 			}
 			else
 			{
 				for (int32 i = 0; i < FilteredSocketInfo.Num(); ++i)
 				{
-					FilteredSocketInfo[i].Transform = FTransform(Mesh->GetComposedRefPoseMatrix(FilteredSockets[i]));
+					FilteredSocketInfo[i].Transform = FTransform3f(Mesh->GetComposedRefPoseMatrix(FilteredSockets[i]));
 					FilteredSocketInfo[i].BoneIdx = INDEX_NONE;
 				}
 			}
@@ -2357,13 +2359,13 @@ bool FNDISkeletalMesh_InstanceData::Tick(UNiagaraDataInterfaceSkeletalMesh* Inte
 void FNDISkeletalMesh_InstanceData::UpdateFilteredSocketTransforms()
 {
 	USkeletalMeshComponent* SkelComp = Cast<USkeletalMeshComponent>(SceneComponent.Get());
-	TArray<FTransform>& WriteBuffer = GetFilteredSocketsWriteBuffer();
+	TArray<FTransform3f>& WriteBuffer = GetFilteredSocketsWriteBuffer();
 
 	for (int32 i = 0; i < FilteredSocketInfo.Num(); ++i)
 	{
 		const FCachedSocketInfo& SocketInfo = FilteredSocketInfo[i];
 		const FTransform& BoneTransform = SocketInfo.BoneIdx != INDEX_NONE ? SkelComp->GetBoneTransform(SocketInfo.BoneIdx, FTransform::Identity) : FTransform::Identity;
-		WriteBuffer[i] = SocketInfo.Transform * BoneTransform;
+		WriteBuffer[i] = SocketInfo.Transform * FTransform3f(BoneTransform);
 	}
 }
 

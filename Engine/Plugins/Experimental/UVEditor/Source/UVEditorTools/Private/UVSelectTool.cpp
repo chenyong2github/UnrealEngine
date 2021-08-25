@@ -603,8 +603,8 @@ void UUVSelectTool::OnSelectionChanged()
 						}
 					}
 				}
+				}
 			}
-		}
 		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
 		{
 			for (int32 Vid : Selection.SelectedIDs)
@@ -648,7 +648,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 	{
 		FTransform MeshTransform = Targets[SelectionTargetIndex]->AppliedPreview->PreviewMesh->GetTransform();
 		const FDynamicMesh3* LivePreviewMesh = Targets[SelectionTargetIndex]->AppliedCanonical.Get();
-		
+
 		for (int32 Eid : BoundaryEids)
 		{
 			FVector3d Vert1, Vert2;
@@ -756,7 +756,7 @@ void UUVSelectTool::ApplyGizmoTransform()
 {
 	if (bGizmoTransformNeedsApplication)
 	{
-		FTransform3d TransformToApply(UnappliedGizmoTransform);
+		UE::Geometry::FTransform3d TransformToApply(UnappliedGizmoTransform);
 
 		// TODO: The division here is a bit of a hack. Properly-speaking, the scaling handles should act relative to
 		// gizmo size, not the visible space across which we drag, otherwise it becomes dependent on the units we

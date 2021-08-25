@@ -45,9 +45,7 @@ struct TRigVMIsBaseStructure
 
 struct FRotator;
 template<> struct TRigVMIsBaseStructure<FRotator> { enum { Value = true }; };
-struct FQuat;
 template<> struct TRigVMIsBaseStructure<FQuat> { enum { Value = true }; };
-struct FTransform;
 template<> struct TRigVMIsBaseStructure<FTransform> { enum { Value = true }; };
 struct FLinearColor;
 template<> struct TRigVMIsBaseStructure<FLinearColor> { enum { Value = true }; };

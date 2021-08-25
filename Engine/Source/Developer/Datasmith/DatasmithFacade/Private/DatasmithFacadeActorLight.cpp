@@ -179,10 +179,10 @@ void FDatasmithFacadeActorLight::GetIesRotation(
 ) const
 {
 	FQuat IesQuat(GetDatasmithLightActorElement()->GetIesRotation());
-	OutX = IesQuat.X;
-	OutY = IesQuat.Y;
-	OutZ = IesQuat.Z;
-	OutW = IesQuat.W;
+	OutX = (float)IesQuat.X;
+	OutY = (float)IesQuat.Y;
+	OutZ = (float)IesQuat.Z;
+	OutW = (float)IesQuat.W;
 }
 
 void FDatasmithFacadeActorLight::GetIesRotation(

@@ -125,7 +125,7 @@ void UPolyEditExtrudeActivity::BeginExtrude()
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 
 	// Get the world frame
 	FFrame3d ActiveSelectionFrameLocal = ActivityContext->CurrentTopology->GetSelectionFrame(ActiveSelection);
@@ -179,7 +179,7 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
 
-	FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d WorldTransform(ActivityContext->Preview->PreviewMesh->GetTransform());
 	FVector3d MeshSpaceExtrudeDirection = WorldTransform.InverseTransformVector(ActiveSelectionFrameWorld.Z());
 	double ExtrudeDistance = ExtrudeHeightMechanic->CurrentHeight;
 
@@ -239,6 +239,7 @@ void UPolyEditExtrudeActivity::Clear()
 
 FVector3d UPolyEditExtrudeActivity::GetExtrudeDirection() const
 {
+	using FTransform3d = UE::Geometry::FTransform3d;
 	switch (ExtrudeProperties->Direction)
 	{
 	default:

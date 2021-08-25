@@ -951,6 +951,7 @@ void ConstructUniqueScalesMapping(
 	TArray<FTransformSequence3d>& UniqueScaleTransformsOut,
 	double ScaleComponentTolerance = 0.01)
 {
+	using FTransform3d = UE::Geometry::FTransform3d;
 	// two transforms are "the same up to scaling" if this returns true
 	auto CompareScales = [ScaleComponentTolerance](const FTransform3d& T1, const FTransform3d& T2)
 	{
