@@ -714,10 +714,12 @@ public:
 	FRigTransformElement* ParentElement;
 	FRigElementWeight Weight;
 	FRigElementWeight InitialWeight;
+	mutable FRigComputedTransform Cache;
 		
 	FORCEINLINE FRigElementParentConstraint()
 		: ParentElement(nullptr)
 	{
+		Cache.bDirty = true;
 	}
 
 	FORCEINLINE const FRigElementWeight& GetWeight(bool bInitial = false) const
