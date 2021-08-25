@@ -22,7 +22,7 @@ class URectangleMarqueeMechanic;
 class USingleClickInputBehavior;
 
 using UE::Geometry::FDynamicMeshAABBTree3;
-PREDECLARE_USE_GEOMETRY_STRUCT(FCompactMaps);
+PREDECLARE_USE_GEOMETRY_CLASS(FCompactMaps);
 
 UCLASS()
 class MODELINGCOMPONENTS_API UPolygonSelectionMechanicProperties : public UInteractiveToolPropertySet

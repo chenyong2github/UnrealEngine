@@ -240,40 +240,28 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 	// currently cannot re-use existing attribute buffers
 	Clear();
 
-	// use a local map if none passed in
-	FCompactMaps LocalMapsVar;
-	FCompactMaps* UseMaps = CompactInfo;
-	bool bNeedClearTriangleMap = false;
-	if (!UseMaps)
-	{
-		UseMaps = &LocalMapsVar;
-		UseMaps->bKeepTriangleMap = bAttributes && copy.HasAttributes();
-	}
-	else
-	{
-		// check if we need to temporarily keep the triangle map and clear it after
-		bool bNeedTriangleMap = bAttributes && copy.HasAttributes();
-		if (bNeedTriangleMap && !UseMaps->bKeepTriangleMap)
-		{
-			UseMaps->bKeepTriangleMap = true;
-			bNeedClearTriangleMap = true;
-		}
-	}
-	UseMaps->Reset();
+	// Use a triangle map if we have a CompactInfo or we need to copy attributes.
+	const bool bUseTriangleMap = CompactInfo != nullptr || (bAttributes && copy.HasAttributes());
 
+	// If we don't have a CompactInfo, we'll make it refer to a local one.
+	FCompactMaps LocalCompactInfo;
+	if (!CompactInfo)
+	{
+		CompactInfo = &LocalCompactInfo;
+	}
+
+	CompactInfo->ResetVertexMap(copy.MaxVertexID(), false);
 	FVertexInfo vinfo;
-	TArray<int>& mapV = UseMaps->MapV; mapV.SetNumUninitialized(copy.MaxVertexID());
-
-	for (int vid = 0; vid < copy.MaxVertexID(); vid++)
+	for (int vid = 0, NumVid = copy.MaxVertexID(); vid < NumVid; vid++)
 	{
 		if (copy.IsVertex(vid))
 		{
 			copy.GetVertex(vid, vinfo, bNormals, bColors, bUVs);
-			mapV[vid] = AppendVertex(vinfo);
+			CompactInfo->SetVertexMapping(vid, AppendVertex(vinfo));
 		}
 		else
 		{
-			mapV[vid] = -1;
+			CompactInfo->SetVertexMapping(vid, FCompactMaps::InvalidID);
 		}
 	}
 
@@ -284,25 +272,20 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 	}
 
 	// need the triangle map to be computed if we have attributes and/or the FCompactMaps flag was set to request it
-	bool bNeedsTriangleMap = (bAttributes && copy.HasAttributes()) || UseMaps->bKeepTriangleMap;
-	if (bNeedsTriangleMap)
+	
+	if (bUseTriangleMap)
 	{
-		UseMaps->MapT.SetNumUninitialized(copy.MaxTriangleID());
-		for (int tid = 0; tid < copy.MaxTriangleID(); tid++)
-		{
-			UseMaps->MapT[tid] = -1;
-		}
+		CompactInfo->ResetTriangleMap(bUseTriangleMap ? copy.MaxTriangleID() : 0, true);
 	}
 	for (int tid : copy.TriangleIndicesItr())
 	{
-		FIndex3i t = copy.GetTriangle(tid);
-		t = FIndex3i(mapV[t.A], mapV[t.B], mapV[t.C]);
-		int g = (copy.HasTriangleGroups()) ? copy.GetTriangleGroup(tid) : InvalidID;
-		int NewTID = AppendTriangle(t, g);
+		const FIndex3i t = CompactInfo->GetVertexMapping(copy.GetTriangle(tid));
+		const int g = (copy.HasTriangleGroups()) ? copy.GetTriangleGroup(tid) : InvalidID;
+		const int NewTID = AppendTriangle(t, g);
 		GroupIDCounter = FMath::Max(GroupIDCounter, g + 1);
-		if (bNeedsTriangleMap)
+		if (bUseTriangleMap)
 		{
-			UseMaps->MapT[tid] = NewTID;
+			CompactInfo->SetTriangleMapping(tid, NewTID);
 		}
 	}
 
@@ -310,12 +293,7 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 	{
 		EnableAttributes();
 		AttributeSet->EnableMatchingAttributes(*copy.Attributes());
-		AttributeSet->CompactCopy(*UseMaps, *copy.Attributes());
-	}
-
-	if (bNeedClearTriangleMap)
-	{
-		CompactInfo->ClearTriangleMap();
+		AttributeSet->CompactCopy(*CompactInfo, *copy.Attributes());
 	}
 
 	Timestamp = FMath::Max(Timestamp + 1, copy.Timestamp);

@@ -292,38 +292,26 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 
 void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 {
-
 	// Initialize CompactInfo
 
-	// if have attributes, need CompactInfo -- we'll make it refer to a local one if none was passed in
-	FCompactMaps LocalCompact;
-	// if we have attributes, but didn't request triangle map, we're going to put the triangle map anyway for attributes use and then clear it after
-	bool bNeedClearTriangleMap = false;
-
-	if (HasAttributes())
+	// If we need a CompactInfo for compacting attributes but we don't have one, we'll make it refer to a local one.
+	FCompactMaps LocalCompactInfo;
+	if (HasAttributes() && !CompactInfo)
 	{
-		if (!CompactInfo)
-		{
-			CompactInfo = &LocalCompact;
-		}
-		if (!CompactInfo->bKeepTriangleMap)
-		{
-			bNeedClearTriangleMap = true;
-			CompactInfo->bKeepTriangleMap = true;
-		}
+		CompactInfo = &LocalCompactInfo;
 	}
 
 	if (CompactInfo)
 	{
 		// starts as identity (except at gaps); sparsely remapped below
-		CompactInfo->Reset(MaxVertexID(), MaxTriangleID());
-		for (int VID = 0; VID < MaxVertexID(); VID++)
+		CompactInfo->Reset(MaxVertexID(), MaxTriangleID(), false);
+		for (int VID = 0, NumVID = MaxVertexID(); VID < NumVID; VID++)
 		{
-			CompactInfo->MapV[VID] = IsVertex(VID) ? VID : -1;
+			CompactInfo->SetVertexMapping(VID, IsVertex(VID) ? VID : -1);
 		}
-		for (int TID = 0; TID < CompactInfo->MapT.Num(); TID++)
+		for (int TID = 0, NumTID = MaxTriangleID(); TID < NumTID; TID++)
 		{
-			CompactInfo->MapT[TID] = IsTriangle(TID) ? TID : -1;
+			CompactInfo->SetTriangleMapping(TID, IsTriangle(TID) ? TID : -1);
 		}
 	}
 
@@ -385,7 +373,7 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 
 		if (CompactInfo != nullptr)
 		{
-			CompactInfo->SetVertex(iLastV, iCurV);
+			CompactInfo->SetVertexMapping(iLastV, iCurV);
 		}
 
 		// move cur forward one, last back one, and  then search for next valid
@@ -455,9 +443,9 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 		tref[iCurT] = tref[iLastT];
 		tref[iLastT] = FRefCountVector::INVALID_REF_COUNT;
 
-		if (CompactInfo != nullptr && CompactInfo->bKeepTriangleMap)
+		if (CompactInfo != nullptr)
 		{
-			CompactInfo->SetTriangle(iLastT, iCurT);
+			CompactInfo->SetTriangleMapping(iLastT, iCurT);
 		}
 
 		// move cur forward one, last back one, and  then search for next valid
@@ -536,11 +524,6 @@ void FDynamicMesh3::CompactInPlace(FCompactMaps* CompactInfo)
 	{
 		checkSlow(CompactInfo);		// can this ever fail?
 		AttributeSet->CompactInPlace(*CompactInfo);
-	}
-
-	if (bNeedClearTriangleMap)
-	{
-		CompactInfo->ClearTriangleMap();
 	}
 }
 

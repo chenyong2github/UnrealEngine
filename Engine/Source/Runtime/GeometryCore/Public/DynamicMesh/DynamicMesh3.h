@@ -219,6 +219,13 @@ public:
 	 * Copy input mesh while compacting, i.e. removing unused vertices/triangles/edges. 
 	 * Note that it is currently unsafe to hold on to the attribute set pointer (returned from Attributes())
 	 * across the CompactCopy call, as the latter may rebuild an entirely new attribute set.
+	 * 
+	 * @param CopyMesh Mesh to copy
+	 * @param bNormals if true, will copy normals
+	 * @param bColors if true, will copy colors
+	 * @param bUVs if true, will copy UVs
+	 * @param bAttributes if true, will copy attributes
+	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and triangle IDs were changed during compaction
 	 */
 	void CompactCopy(const FDynamicMesh3& CopyMesh, bool bNormals = true, bool bColors = true, bool bUVs = true,
 	                 bool bAttributes = true, FCompactMaps* CompactInfo = nullptr);
@@ -1091,7 +1098,7 @@ public:
 	 * Compact mesh in-place, by moving vertices around and rewriting indices.
 	 * Should be faster if the amount of compacting is not too significant, and is useful in some places.
 	 *
-	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and (optionally) triangle IDs were changed during compaction
+	 * @param CompactInfo if not nullptr, will be filled with mapping indicating how vertex and triangle IDs were changed during compaction
 	 * @todo VertexEdgeLists is not compacted. does not affect indices, but does keep memory.
 	 */
 	void CompactInPlace(FCompactMaps* CompactInfo = nullptr);

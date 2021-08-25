@@ -60,7 +60,7 @@ void UGroupTopologyStorableSelection::SetSelection(const FGroupTopology& Topolog
 
 	for (int32 CornerID : SelectionIn.SelectedCornerIDs)
 	{
-		CornerVids.Add(CompactMaps.GetVertex(TopologyIn.GetCornerVertexID(CornerID)));
+		CornerVids.Add(CompactMaps.GetVertexMapping(TopologyIn.GetCornerVertexID(CornerID)));
 	}
 	for (int32 EdgeID : SelectionIn.SelectedEdgeIDs)
 	{
@@ -134,10 +134,10 @@ FIndex2i UGroupTopologyStorableSelection::GetGroupEdgeRepresentativeVerts(const 
 	if (GroupEdge.EndpointCorners.A != IndexConstants::InvalidID)
 	{
 		// Use remapped vids
-		int32 FirstVid = CompactMaps.GetVertex(Verts[0]);
-		int32 FirstNeighbor = CompactMaps.GetVertex(Verts[1]);
-		int32 LastVid = CompactMaps.GetVertex(Verts.Last());
-		int32 LastNeighbor = CompactMaps.GetVertex(Verts[Verts.Num() - 2]);
+		int32 FirstVid = CompactMaps.GetVertexMapping(Verts[0]);
+		int32 FirstNeighbor = CompactMaps.GetVertexMapping(Verts[1]);
+		int32 LastVid = CompactMaps.GetVertexMapping(Verts.Last());
+		int32 LastNeighbor = CompactMaps.GetVertexMapping(Verts[Verts.Num() - 2]);
 
 		return FirstVid < LastVid ?
 			FIndex2i(FMath::Min(FirstVid, FirstNeighbor), FMath::Max(FirstVid, FirstNeighbor))
@@ -149,7 +149,7 @@ FIndex2i UGroupTopologyStorableSelection::GetGroupEdgeRepresentativeVerts(const 
 		RemappedVerts.SetNum(Verts.Num());
 		for (int32 i = 0; i < Verts.Num(); ++i)
 		{
-			RemappedVerts[i] = CompactMaps.GetVertex(Verts[i]);
+			RemappedVerts[i] = CompactMaps.GetVertexMapping(Verts[i]);
 		}
 		return GetLoopRepresentativeVerts(RemappedVerts);
 	}
