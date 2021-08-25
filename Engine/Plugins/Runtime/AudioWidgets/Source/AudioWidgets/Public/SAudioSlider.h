@@ -11,6 +11,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Input/SSlider.h"
@@ -30,13 +31,14 @@ public:
 		_AlwaysShowLabel = false;
 
 		const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-		ensure(AudioSliderStyle);
-
-		_LabelBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBackgroundColor");
-		_SliderBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBackgroundColor");
-		_SliderBarColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBarColor");
-		_SliderThumbColor = AudioSliderStyle->GetColor("AudioSlider.DefaultThumbColor");
-		_WidgetBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultWidgetBackgroundColor");
+		if (ensure(AudioSliderStyle))
+		{
+			_LabelBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBackgroundColor");
+			_SliderBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBackgroundColor");
+			_SliderBarColor = AudioSliderStyle->GetColor("AudioSlider.DefaultBarColor");
+			_SliderThumbColor = AudioSliderStyle->GetColor("AudioSlider.DefaultThumbColor");
+			_WidgetBackgroundColor = AudioSliderStyle->GetColor("AudioSlider.DefaultWidgetBackgroundColor");
+		}
 	}
 		/** A value representing the audio slider value. */
 		SLATE_ATTRIBUTE(float, Value)
@@ -65,6 +67,7 @@ public:
 	SLATE_END_ARGS()
 
 	SAudioSliderBase();
+	virtual ~SAudioSliderBase() {};
 
 	/**
 	 * Construct the widget.
@@ -129,6 +132,7 @@ class AUDIOWIDGETS_API SAudioSlider
 {
 public:
 	SAudioSlider();
+	virtual ~SAudioSlider() {};
 	virtual void Construct(const SAudioSliderBase::FArguments& InDeclaration);
 	void SetLinToOutputCurve(const TWeakObjectPtr<const UCurveFloat> LinToOutputCurve);
 	void SetOutputToLinCurve(const TWeakObjectPtr<const UCurveFloat> OutputToLinCurve);

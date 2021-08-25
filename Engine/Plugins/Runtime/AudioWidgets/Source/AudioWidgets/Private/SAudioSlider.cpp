@@ -27,7 +27,10 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InDeclarati
 	WidgetBackgroundColor = InDeclaration._WidgetBackgroundColor;
 
 	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	ensure(AudioSliderStyle);
+	if (!ensure(AudioSliderStyle))
+	{
+		return;
+	}
 
 	ChildSlot
 	[
@@ -72,11 +75,9 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InDeclarati
 				.Alignment(FVector2D(0.0f, 0.5f))
 				.Offset(FMargin(0.0f, 0.0f, 0.0f, 32.0f))
 				.AutoSize(true)
-				//.ZOrder(3)
 				[
 					SNew(SHorizontalBox)
 					+ SHorizontalBox::Slot()
-					//.AutoWidth()
 					.FillWidth(0.5)
 					.Padding(4.0f, 0.0f)
 					.HAlign(HAlign_Right)
@@ -215,9 +216,7 @@ void SAudioSliderBase::Construct(const SAudioSliderBase::FArguments& InDeclarati
 FVector2D SAudioSliderBase::ComputeDesiredSize(float) const
 {
 	const ISlateStyle* AudioSliderStyle = FSlateStyleRegistry::FindSlateStyle("AudioSliderStyle");
-	ensure(AudioSliderStyle);
-
-	return AudioSliderStyle->GetVector("AudioSlider.DesiredWidgetSize");
+	return ensure(AudioSliderStyle) ? AudioSliderStyle->GetVector("AudioSlider.DesiredWidgetSize") : FVector2D(26.0f, 477.0f);
 }
 
 void SAudioSliderBase::SetUnitsText(const FText Units)
