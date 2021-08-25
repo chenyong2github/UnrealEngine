@@ -7,7 +7,7 @@ public class NeuralNetworkInference : ModuleRules
 	public NeuralNetworkInference( ReadOnlyTargetRules Target ) : base( Target )
 	{
 		// Define when ORT-based NNI is available
-		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 /*|| Target.Platform == UnrealTargetPlatform.Linux*/);
+		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux);
 		if (bIsORTSupported)
 		{
 			PublicDefinitions.Add("WITH_FULL_NNI_SUPPORT");

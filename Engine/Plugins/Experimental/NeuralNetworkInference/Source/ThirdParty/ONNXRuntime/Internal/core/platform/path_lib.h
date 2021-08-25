@@ -257,7 +257,7 @@ template <typename T>
 void LoopDir(const std::string& dir_name, T func) {
 #ifndef __PROSPERO__
 
-  DIR* dir = dirent::opendir(dir_name.c_str());
+  DIR* dir = opendir(dir_name.c_str());
   if (dir == nullptr) {
     auto e = errno;
     char buf[1024];

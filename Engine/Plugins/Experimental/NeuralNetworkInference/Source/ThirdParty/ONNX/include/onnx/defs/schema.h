@@ -123,7 +123,7 @@ namespace ONNX_NAMESPACE {
 		std::string expanded_message_;
 	};
 
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 #define fail_schema(...)                                                        \
     do {                                                                            \
         std::cerr << ONNX_NAMESPACE::MakeString( __VA_ARGS__);                      \
@@ -970,7 +970,7 @@ namespace ONNX_NAMESPACE {
 		class OpSchemaRegisterOnce final {
 		public:
 			OpSchemaRegisterOnce(OpSchema& op_schema) {
-#ifndef __PROSPERO__
+#ifndef UE_ONNX_NO_EXCEPTIONS
 				try {
 #endif
 					op_schema.Finalize();
@@ -1022,7 +1022,7 @@ namespace ONNX_NAMESPACE {
 
 					m[op_name][op_domain].insert(
 						std::pair<int, OpSchema&&>(ver, std::move(op_schema)));
-#ifndef __PROSPERO__
+#ifndef UE_ONNX_NO_EXCEPTIONS
 				}
 				catch (const std::exception& e) {
 					std::cerr << "Schema error: " << e.what() << std::endl;

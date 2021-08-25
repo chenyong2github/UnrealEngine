@@ -8,7 +8,7 @@
 #include "onnx/proto_utils.h"
 #include "onnx/string_utils.h"
 
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 #include <iostream>
 #endif
 
@@ -50,7 +50,7 @@ namespace ONNX_NAMESPACE {
 		std::string expanded_message_;
 	};
 
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 #define fail_type_inference(...)                                                   \
     do {                                                                               \
         std::cerr << ONNX_NAMESPACE::MakeString("[TypeInferenceError] ", __VA_ARGS__); \

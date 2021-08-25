@@ -91,7 +91,7 @@ namespace ONNX_NAMESPACE {
 
 			const TypeProto* getInputType(size_t index) const override {
 				if (index >= allInputTypes_.size()) {
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 					std::cerr << "input " + ONNX_NAMESPACE::to_string(index) + " is out of bounds";
 #else
 					throw std::runtime_error("input " + ONNX_NAMESPACE::to_string(index) + " is out of bounds");
@@ -102,7 +102,7 @@ namespace ONNX_NAMESPACE {
 
 			const TensorProto* getInputData(size_t index) const override {
 				if (index >= allInputData_.size()) {
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 					std::cerr << "input " + ONNX_NAMESPACE::to_string(index) + " is out of bounds";
 #else
 					throw std::runtime_error("input " + ONNX_NAMESPACE::to_string(index) + " is out of bounds");
@@ -117,7 +117,7 @@ namespace ONNX_NAMESPACE {
 
 			TypeProto* getOutputType(size_t index) override {
 				if (index >= allOutputTypes_.size()) {
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 					std::cerr << "output " + ONNX_NAMESPACE::to_string(index) + " is out of bounds";
 #else
 					throw std::runtime_error("output " + ONNX_NAMESPACE::to_string(index) + " is out of bounds");
