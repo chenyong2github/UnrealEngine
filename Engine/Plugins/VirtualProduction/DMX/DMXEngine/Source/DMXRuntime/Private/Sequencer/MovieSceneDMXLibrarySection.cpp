@@ -25,6 +25,7 @@ void FDMXFixturePatchChannel::SetFixturePatch(UDMXEntityFixturePatch* InPatch)
 {
 	if (InPatch != nullptr && InPatch->IsValidLowLevelFast())
 	{
+		DMXLibrary = InPatch->GetParentLibrary();
 		ActiveMode = InPatch->GetActiveModeIndex();
 	}
 
@@ -335,7 +336,7 @@ void UMovieSceneDMXLibrarySection::Serialize(FArchive& Ar)
 
 		if (Ar.CustomVer(FDMXRuntimeObjectVersion::GUID) < FDMXRuntimeObjectVersion::ReplaceWeakWithStrongFixturePatchReferncesInLibrarySection)
 		{
-			// Add a library reference if possible. In cases where this is serialized before the section's library is loaded, this is not possible programaticalle.
+			// Add a library reference if possible. In cases where this is serialized before the section's library is loaded, this is not possible programmatically.
 			// This is expected to be a rare case (as it wouldn't prevent the sequence from playing before 4.27). For these cases, provide detailed steps to the user how to upgrade in logs.
 			for (FDMXFixturePatchChannel& Channel : FixturePatchChannels)
 			{
