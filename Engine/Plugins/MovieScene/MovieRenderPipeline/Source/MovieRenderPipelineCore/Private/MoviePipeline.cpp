@@ -839,6 +839,11 @@ void UMoviePipeline::BuildShotListFromSequence()
 		Shot->ShotInfo.NumSpatialSamples = AntiAliasingSettings->SpatialSampleCount;
 		Shot->ShotInfo.CachedFrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
 		Shot->ShotInfo.CachedTickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
+		Shot->ShotInfo.CachedShotTickResolution = Shot->ShotInfo.CachedTickResolution;
+		if (Shot->ShotInfo.SubSectionHierarchy.IsValid() && Shot->ShotInfo.SubSectionHierarchy->MovieScene.IsValid())
+		{
+			Shot->ShotInfo.CachedShotTickResolution = Shot->ShotInfo.SubSectionHierarchy->MovieScene->GetTickResolution();
+		}
 		Shot->ShotInfo.NumTiles = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
 
 		// Expand the shot (but don't actually modify the sections)
@@ -1253,6 +1258,7 @@ MoviePipeline::FFrameConstantMetrics UMoviePipeline::CalculateShotFrameMetrics(c
 {
 	MoviePipeline::FFrameConstantMetrics Output;
 	Output.TickResolution = TargetSequence->GetMovieScene()->GetTickResolution();
+	Output.ShotTickResolution = InShot->ShotInfo.CachedShotTickResolution;
 	Output.FrameRate = GetPipelineMasterConfig()->GetEffectiveFrameRate(TargetSequence);
 	Output.TicksPerOutputFrame = FFrameRate::TransformTime(FFrameTime(FFrameNumber(1)), Output.FrameRate, Output.TickResolution);
 

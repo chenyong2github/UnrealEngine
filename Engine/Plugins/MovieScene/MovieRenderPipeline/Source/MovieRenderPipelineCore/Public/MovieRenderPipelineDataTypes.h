@@ -244,8 +244,10 @@ namespace MoviePipeline
 
 	struct FFrameConstantMetrics
 	{
-		/** What is the tick resolution fo the sequence */
+		/** What is the tick resolution of the master sequence */
 		FFrameRate TickResolution;
+		/** What is the tick resolution of the current shot */
+		FFrameRate ShotTickResolution;
 		/** What is the effective frame rate of the output */
 		FFrameRate FrameRate;
 		/** How many ticks per output frame. */
@@ -503,6 +505,8 @@ public:
 	/** Cached Tick Resolution our numbers are in. Simplifies some APIs. */
 	FFrameRate CachedTickResolution;
 	
+	/** Cached Tick Resolution the movie scene this range was generated for is in. Can be different than the master due to mixed tick resolutions. */
+	FFrameRate CachedShotTickResolution;
 public:
 	/** The current state of processing this Shot is in. Not all states will be passed through. */
 	EMovieRenderShotState State;
