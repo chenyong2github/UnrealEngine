@@ -59,7 +59,6 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 	// Setup
 	AddCommand(new FCloseAllAssetEditorsCommand());
 	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
-		TRACE_BOOKMARK(TEXT("LoadAssetAndPIE - %s"), *LongAssetPath);
 		TRACE_BOOKMARK(TEXT("LoadAsset - %s"), *LongAssetPath);
 		return true;
 		}));
@@ -90,7 +89,6 @@ bool FIterationOpenAssets::RunTest(const FString& LongAssetPath)
 	// Teardown
 	AddCommand(new FFunctionLatentCommand([LongAssetPath] {
 		TRACE_BOOKMARK(TEXT("PIEComplete - %s"), *LongAssetPath);
-		TRACE_BOOKMARK(TEXT("LoadAssetAndPIEComplete - %s"), *LongAssetPath);
 		return true;
 		}));
 
