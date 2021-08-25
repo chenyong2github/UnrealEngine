@@ -39,12 +39,12 @@ enum class EAlShaderModelType : uint8
 
 namespace OpenModelUtils
 {
-	const TCHAR * AlObjectTypeToString(AlObjectType type);
-	const TCHAR * AlShadingFieldToString(AlShadingFields field);
+	const TCHAR* AlObjectTypeToString(AlObjectType type);
+	const TCHAR* AlShadingFieldToString(AlShadingFields field);
 
-	void SetActorTransform(const TSharedPtr< IDatasmithActorElement >& ActorElement, AlDagNode& DagNode);
+	void SetActorTransform(TSharedPtr<IDatasmithActorElement>& OutActorElement, const AlDagNode& InDagNode);
 
-	bool IsValidActor(const TSharedPtr< IDatasmithActorElement >& ActorElement);
+	bool IsValidActor(const TSharedPtr<IDatasmithActorElement>& ActorElement);
 
 	inline FString UuidToString(const uint32& Uuid)
 	{
@@ -58,22 +58,22 @@ namespace OpenModelUtils
 		return HashCombine(IdA, HashCombine(IdB, HashCombine(IdC, IdD)));
 	}
 
-	inline uint32 GetAlDagNodeUuid(AlDagNode& GroupNode)
+	inline uint32 GetAlDagNodeUuid(const TSharedPtr<AlDagNode>& DagNode)
 	{
-		if (GroupNode.hasPersistentID() == sSuccess)
+		if (DagNode->hasPersistentID() == sSuccess)
 		{
 			AlPersistentID* PersistentID;
-			GroupNode.persistentID(PersistentID);
+			DagNode->persistentID(PersistentID);
 			return GetTypeHash(*PersistentID);
 		}
-		FString Label = GroupNode.name();
+		FString Label = UTF8_TO_TCHAR(DagNode->name());
 		return GetTypeHash(Label);
 	}
 
 	// Note that Alias file unit is cm like UE
 	bool TransferAlMeshToMeshDescription(const AlMesh& Mesh, FMeshDescription& MeshDescription, CADLibrary::FMeshParameters& SymmetricParameters, bool& bHasNormal, bool bMerge = false);
 
-	AlDagNode* TesselateDagLeaf(AlDagNode* DagLeaf, ETesselatorType TessType, double Tolerance);
+	TSharedPtr<AlDagNode> TesselateDagLeaf(const AlDagNode& DagLeaf, ETesselatorType TessType, double Tolerance);
 }
 
 
