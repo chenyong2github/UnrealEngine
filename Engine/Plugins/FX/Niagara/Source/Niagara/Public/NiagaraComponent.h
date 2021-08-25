@@ -136,7 +136,6 @@ private:
 	UPROPERTY()
 	uint32 bRenderingEnabled : 1;
 
-
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnRegister() override;
@@ -726,6 +725,10 @@ private:
 
 	float ForceUpdateTransformTime;
 	FBox CurrLocalBounds;
+
+	FBox SystemFixedBounds;
+	TMap<FName, FBox> EmitterFixedBounds;
+
 
 	float CustomTimeDilation = 1.0f;
 
