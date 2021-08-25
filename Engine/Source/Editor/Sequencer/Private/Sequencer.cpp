@@ -10882,6 +10882,9 @@ FMovieScenePossessable* FSequencer::ConvertToPossessableInternal(FGuid Spawnable
 	const bool bIsDefaultTransform = true;
 	PossessedActor->FinishSpawning(DefaultTransform, bIsDefaultTransform);
 
+	// The transform needs to be set again for deferred construction and dynamic root components. Until the fix for: UE-67537
+	PossessedActor->SetActorTransform(DefaultTransform);
+
 	const FGuid NewPossessableGuid = CreateBinding(*PossessedActor, PossessedActor->GetActorLabel());
 	const FGuid OldSpawnableGuid = Spawnable->GetGuid();
 
