@@ -196,6 +196,11 @@ public:
 	 */
 	virtual bool PlayEarlyStartupMovies() = 0;
 
+	/**
+	 * @return true if Initialize was called
+	 */
+	virtual bool IsInitialized() const = 0;
+
 	/** 
 	 * Starts playing the movie given the last FLoadingScreenAttributes passed in
 	 * @return true of a movie started playing.

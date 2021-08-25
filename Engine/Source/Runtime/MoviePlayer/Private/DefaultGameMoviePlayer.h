@@ -91,6 +91,8 @@ public:
 	virtual void SetupLoadingScreenFromIni() override;
 	virtual void SetViewportDPIScale(float InViewportDPIScale) override;
 	
+	bool IsInitialized() const override { return bInitialized; }
+
 	/** Check if the initial movie(s) is still playing */
 	virtual bool IsStartupMoviePlaying() const override { return IsMoviePlaying; };
 
