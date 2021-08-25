@@ -165,6 +165,7 @@ bool UUVEditorToolMeshInput::InitializeMeshes(
 	UVEditorToolUtil::GenerateUVUnwrapMesh(
 		*AppliedCanonical->Attributes()->GetUVLayer(UVLayerIndex),
 		*UnwrapCanonical, UVToVertPosition);
+	UnwrapCanonical->SetShapeChangeStampEnabled(true);
 
 	// Set up the unwrap preview
 	UnwrapPreview = NewObject<UMeshOpPreviewWithBackgroundCompute>();

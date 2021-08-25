@@ -555,37 +555,27 @@ void FRemesher::ApplyVertexBuffer(bool bParallel)
 		{
 			if (TempFlagBuffer[vid])
 			{
-				Mesh->SetVertex(vid, TempPosBuffer[vid]);
+				Mesh->SetVertex(vid, TempPosBuffer[vid], false);
 			}
 		}
+		Mesh->UpdateChangeStamps(true, false);
 	}
 	else
 	{
-		// The serial version calls Mesh->SetVertex which sets the vertex position and also updates the timestamps. In
-		// the parallel version, to avoid contention for the timestamps we work in batches, calling 
-		// SetVertex_NoTimeStampUpdate several times for each async task, then finally locking and incrementing the 
-		// timestamp once per task.
-
-		// TODO: Try varying the batch size to observe a trade-off between work done per thread and overhead due to 
-		// locking.
-
+		// TODO: verify that this batching is still necessary, now that timestamps/locking situation has been improved
 		const int BatchSize = 1000;
 		const int NumBatches = FMath::CeilToInt(Mesh->MaxVertexID() / static_cast<float>(BatchSize));
-
 		ParallelFor(NumBatches, [this, BatchSize](int32 BatchID)
 		{
-			int NumVerticesSetThisBatch = 0;
 			for (int VertexID = BatchID * BatchSize; VertexID < (BatchID + 1) * BatchSize; ++VertexID)
 			{
 				if (VertexID < TempFlagBuffer.Num() && TempFlagBuffer[VertexID] && Mesh->IsVertex(VertexID))
 				{
-					Mesh->SetVertex_NoTimeStampUpdate(VertexID, TempPosBuffer[VertexID]);
-					++NumVerticesSetThisBatch;
+					Mesh->SetVertex(VertexID, TempPosBuffer[VertexID], false);
 				}
 			}
-			Mesh->IncrementTimeStamps(NumVerticesSetThisBatch, true, false);
-
 		}, false);
+		Mesh->UpdateChangeStamps(true, false);
 	}
 }
 

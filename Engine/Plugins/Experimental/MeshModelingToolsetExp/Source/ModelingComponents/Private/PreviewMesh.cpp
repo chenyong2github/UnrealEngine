@@ -296,7 +296,7 @@ FDynamicMeshAABBTree3* UPreviewMesh::GetSpatial()
 {
 	if (DynamicMeshComponent != nullptr && bBuildSpatialDataStructure)
 	{
-		if (MeshAABBTree.IsValid())
+		if (MeshAABBTree.IsValid(false))
 		{
 			return &MeshAABBTree;
 		}

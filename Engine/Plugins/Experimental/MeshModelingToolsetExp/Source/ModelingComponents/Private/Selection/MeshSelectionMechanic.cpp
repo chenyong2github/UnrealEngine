@@ -290,7 +290,9 @@ void UMeshSelectionMechanic::UpdateCentroid()
 		CurrentSelectionCentroid /= CurrentSelection.SelectedIDs.Num();
 	}
 
-	CentroidTimestamp = CurrentSelection.Mesh->GetShapeTimestamp();
+	// disable centroid caching if mesh does not have shape changestamp enabled
+	CentroidTimestamp = CurrentSelection.Mesh->HasShapeChangeStampEnabled() ?
+		CurrentSelection.Mesh->GetShapeChangeStamp() : TNumericLimits<uint32>::Max();
 }
 
 FVector3d UMeshSelectionMechanic::GetCurrentSelectionCentroid()
@@ -299,7 +301,7 @@ FVector3d UMeshSelectionMechanic::GetCurrentSelectionCentroid()
 	{
 		return FVector3d(0);
 	}
-	else if (CurrentSelection.Mesh->GetShapeTimestamp() != CentroidTimestamp)
+	else if (CurrentSelection.Mesh->GetShapeChangeStamp() != CentroidTimestamp)
 	{
 		UpdateCentroid();
 	}
@@ -371,7 +373,7 @@ void UMeshSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 		{
 			// It should be okay to reassign this. If we're in multiselect, and it misses a hit, this just won't happen and selection won't be altered.
 			CurrentSelection.Mesh = MeshSpatials[i]->GetMesh();
-			CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyTimestamp();
+			CurrentSelection.TopologyTimestamp = CurrentSelection.Mesh->GetTopologyChangeStamp();
 			CurrentSelectionIndex = i;
 			break;
 		}

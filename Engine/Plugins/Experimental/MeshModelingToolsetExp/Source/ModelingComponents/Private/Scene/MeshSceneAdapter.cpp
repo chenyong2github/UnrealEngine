@@ -536,7 +536,7 @@ struct TMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<
 		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID(); };
 		TriangleCount = [&]() { return ParentAdapter.TriangleCount(); };
 		VertexCount = [&]() { return ParentAdapter.VertexCount(); };
-		GetShapeTimestamp = [&]() { return ParentAdapter.GetShapeTimestamp(); };
+		GetChangeStamp = [&]() { return ParentAdapter.GetChangeStamp(); };
 		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
 		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
 	}

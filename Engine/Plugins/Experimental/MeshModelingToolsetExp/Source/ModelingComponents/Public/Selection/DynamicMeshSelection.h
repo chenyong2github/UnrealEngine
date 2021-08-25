@@ -38,7 +38,7 @@ public:
 	/** Checks whether the selection's timestamp still matches the meshes topology timestamp. */
 	bool MatchesTimestamp() const
 	{
-		return Mesh && Mesh->GetTopologyTimestamp() == TopologyTimestamp;
+		return Mesh && Mesh->GetTopologyChangeStamp() == TopologyTimestamp;
 	}
 
 	bool IsEmpty() const

@@ -80,7 +80,7 @@ public:
 	 */
 	bool Validate()
 	{
-		bool bValidMeshAndSpatial = Source != nullptr && SourceSpatial != nullptr && SourceSpatial->IsValid();
+		bool bValidMeshAndSpatial = Source != nullptr && SourceSpatial != nullptr && SourceSpatial->IsValid(false);
 		bool bValidWinding = SourceWinding != nullptr;
 		bool bValidParams = SurfaceSearchSteps >= 0 && MeshCellSize > 0 && FMath::IsFinite(MeshCellSize);
 		return bValidMeshAndSpatial && bValidWinding && bValidParams;

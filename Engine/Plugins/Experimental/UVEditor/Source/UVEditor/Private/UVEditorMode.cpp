@@ -221,7 +221,7 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 				TriangleOpacity));
 
 		// Initialize our timestamp so we can later detect changes
-		MeshChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeTimestamp());
+		MeshChangeStamps.Add(ToolInputObject->UnwrapCanonical->GetShapeChangeStamp());
 
 		// Set up the wireframe display of the unwrapped mesh.
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
@@ -273,7 +273,7 @@ bool UUVEditorMode::HaveUnappliedChanges()
 {
 	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
 		{
 			return true;
 		}
@@ -285,7 +285,7 @@ void UUVEditorMode::GetAssetsWithUnappliedChanges(TArray<TObjectPtr<UObject>> Un
 {
 	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
 		{
 			UnappliedAssetsOut.Add(OriginalObjectsToEdit[i]);
 		}
@@ -303,10 +303,10 @@ void UUVEditorMode::ApplyChanges()
 
 	for (int32 i = 0; i < ToolInputObjects.Num(); ++i)
 	{
-		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp() != MeshChangeStamps[i])
+		if (ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp() != MeshChangeStamps[i])
 		{
 			Cast<IDynamicMeshCommitter>(ToolTargets[i])->CommitDynamicMesh(*ToolInputObjects[i]->AppliedCanonical, CommitInfo);
-			MeshChangeStamps[i] = ToolInputObjects[i]->UnwrapCanonical->GetShapeTimestamp();
+			MeshChangeStamps[i] = ToolInputObjects[i]->UnwrapCanonical->GetShapeChangeStamp();
 		}
 	}
 

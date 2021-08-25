@@ -124,7 +124,7 @@ protected:
 		ComputedSpatials.SetNum(Sources.Num());
 		ParallelFor(Sources.Num(), [this, bReuseComputed](int SourceIdx)
 			{
-				if (!bReuseComputed || ComputedSpatials[SourceIdx].GetMesh() != Sources[SourceIdx] || !ComputedSpatials[SourceIdx].IsValid())
+				if (!bReuseComputed || ComputedSpatials[SourceIdx].GetMesh() != Sources[SourceIdx] || !ComputedSpatials[SourceIdx].IsValid(false))
 				{
 					ComputedSpatials[SourceIdx].SetMesh(Sources[SourceIdx], true);
 				}

@@ -12,7 +12,6 @@ FPointSetAdapterd UE::Geometry::MakePointsAdapter(const FDynamicPointSet3d* Poin
 	Adapter.PointCount = [PointSet]() { return PointSet->VertexCount(); };
 	Adapter.IsPoint = [PointSet](int Idx) { return PointSet->IsVertex(Idx); };
 	Adapter.GetPoint = [PointSet](int Idx) { return PointSet->GetVertex(Idx); };
-	Adapter.Timestamp = [PointSet] { return PointSet->GetTimestamp(); };
 
 	Adapter.HasNormals = [PointSet] { return false; };
 	Adapter.GetPointNormal = [PointSet](int Idx) {return FVector3f(0,0,1); };
@@ -29,7 +28,6 @@ FPointSetAdapterd UE::Geometry::MakeVerticesAdapter(const FDynamicMesh3* Mesh)
 	Adapter.PointCount = [Mesh]() { return Mesh->VertexCount(); };
 	Adapter.IsPoint = [Mesh](int Idx) { return Mesh->IsVertex(Idx); };
 	Adapter.GetPoint = [Mesh](int Idx) { return Mesh->GetVertex(Idx); };
-	Adapter.Timestamp = [Mesh] { return Mesh->GetTimestamp(); };
 
 	Adapter.HasNormals = [Mesh] { return Mesh->HasVertexNormals(); };
 	Adapter.GetPointNormal = [Mesh](int Idx) {return Mesh->GetVertexNormal(Idx); };
@@ -45,7 +43,6 @@ FPointSetAdapterd UE::Geometry::MakeTriCentroidsAdapter(const FDynamicMesh3* Mes
 	Adapter.PointCount = [Mesh]() { return Mesh->TriangleCount(); };
 	Adapter.IsPoint = [Mesh](int Idx) { return Mesh->IsTriangle(Idx); };
 	Adapter.GetPoint = [Mesh](int Idx) { return Mesh->GetTriCentroid(Idx); };
-	Adapter.Timestamp = [Mesh] { return Mesh->GetTimestamp(); };
 
 	Adapter.HasNormals = [] { return true; };
 	Adapter.GetPointNormal = [Mesh](int Idx) {return (FVector3f)Mesh->GetTriNormal(Idx); };
@@ -63,7 +60,6 @@ FPointSetAdapterd UE::Geometry::MakeEdgeMidpointsAdapter(const FDynamicMesh3* Me
 	Adapter.PointCount = [Mesh]() { return Mesh->EdgeCount(); };
 	Adapter.IsPoint = [Mesh] (int Idx) { return Mesh->IsEdge(Idx); };
 	Adapter.GetPoint = [Mesh](int Idx) { return Mesh->GetEdgePoint(Idx, 0.5); };
-	Adapter.Timestamp = [Mesh] { return Mesh->GetTimestamp(); };
 
 	Adapter.HasNormals = [] { return false; };
 	Adapter.GetPointNormal = [](int Idx) { return FVector3f::UnitY();};
@@ -86,7 +82,6 @@ FPointSetAdapterd UE::Geometry::MakeBoundaryEdgeMidpointsAdapter(const FDynamicM
 	Adapter.PointCount = [NumBoundaryEdges]() { return NumBoundaryEdges; };
 	Adapter.IsPoint = [Mesh](int Idx) { return Mesh->IsEdge(Idx) && Mesh->IsBoundaryEdge(Idx); };
 	Adapter.GetPoint = [Mesh](int Idx) { return Mesh->GetEdgePoint(Idx, 0.5); };
-	Adapter.Timestamp = [Mesh] { return Mesh->GetTimestamp(); };
 
 	Adapter.HasNormals = [] { return false; };
 	Adapter.GetPointNormal = [](int Idx) { return FVector3f::UnitY(); };
@@ -117,7 +112,7 @@ FTriangleMeshAdapterd UE::Geometry::MakeDynamicMeshAdapter(const FDynamicMesh3* 
 		[Mesh]() { return Mesh->MaxVertexID(); },
 		[Mesh]() { return Mesh->TriangleCount(); },
 		[Mesh]() { return Mesh->VertexCount(); },
-		[Mesh]() { return Mesh->GetShapeTimestamp(); },
+		[Mesh]() { return Mesh->GetChangeStamp(); },
 		[Mesh](int Idx) { return Mesh->GetTriangle(Idx); },
 		[Mesh](int Idx) { return Mesh->GetVertex(Idx); }
 	};

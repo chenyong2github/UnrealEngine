@@ -37,7 +37,7 @@ int FDynamicMesh3::AppendVertex(const FVertexInfo& VtxInfo)
 		Attributes()->OnNewVertex(vid, false);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return vid;
 }
 
@@ -94,7 +94,7 @@ int FDynamicMesh3::AppendVertex(const FDynamicMesh3& from, int fromVID)
 		Attributes()->OnNewVertex(vid, false);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return vid;
 }
 
@@ -141,7 +141,7 @@ EMeshResult FDynamicMesh3::InsertVertex(int vid, const FVertexInfo& info, bool b
 		Attributes()->OnNewVertex(vid, true);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -211,7 +211,7 @@ int FDynamicMesh3::AppendTriangle(const FIndex3i& tv, int gid)
 		Attributes()->OnNewTriangle(tid, false);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return tid;
 }
 
@@ -277,7 +277,7 @@ EMeshResult FDynamicMesh3::InsertTriangle(int tid, const FIndex3i& tv, int gid, 
 		Attributes()->OnNewTriangle(tid, true);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -540,7 +540,7 @@ EMeshResult FDynamicMesh3::ReverseTriOrientation(int tID)
 		return EMeshResult::Failed_NotATriangle;
 	}
 	ReverseTriOrientationInternal(tID);
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -570,7 +570,7 @@ void FDynamicMesh3::ReverseOrientation(bool bFlipNormals)
 			Normals[vid] = -Normals[vid];
 		}
 	}
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 }
 
 EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool bPreserveManifold)
@@ -624,7 +624,7 @@ EMeshResult FDynamicMesh3::RemoveVertex(int vID, bool bRemoveAllTriangles, bool 
 	ensure(VertexRefCounts.IsValid(vID) == false);
 	VertexEdgeLists.Clear(vID);
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -705,7 +705,7 @@ EMeshResult FDynamicMesh3::RemoveTriangle(int tID, bool bRemoveIsolatedVertices,
 		Attributes()->OnRemoveTriangle(tID);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -832,7 +832,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 		AddTriangleEdge(tID, newv[2], newv[0], 2, e2);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -945,7 +945,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 			Attributes()->OnSplitEdge(SplitInfo);
 		}
 
-		UpdateTimeStamp(true, true);
+		UpdateChangeStamps(true, true);
 		return EMeshResult::Ok;
 
 	}
@@ -1041,7 +1041,7 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 			Attributes()->OnSplitEdge(SplitInfo);
 		}
 
-		UpdateTimeStamp(true, true);
+		UpdateChangeStamps(true, true);
 		return EMeshResult::Ok;
 	}
 
@@ -1164,7 +1164,7 @@ EMeshResult FDynamicMesh3::FlipEdge(int eab, FEdgeFlipInfo& FlipInfo)
 		Attributes()->OnFlipEdge(FlipInfo);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -1238,7 +1238,7 @@ EMeshResult FDynamicMesh3::SplitVertex(int VertexID, const TArrayView<const int>
 	{
 		Attributes()->OnSplitVertex(SplitInfo, TrianglesToUpdate);
 	}
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -1602,7 +1602,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 		Attributes()->OnCollapseEdge(CollapseInfo);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -1870,7 +1870,7 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 		Attributes()->OnMergeEdges(MergeInfo);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 
@@ -1945,7 +1945,7 @@ EMeshResult FDynamicMesh3::PokeTriangle(int TriangleID, const FVector3d& BaryCoo
 		Attributes()->OnPokeTriangle(PokeResult);
 	}
 
-	UpdateTimeStamp(true, true);
+	UpdateChangeStamps(true, true);
 	return EMeshResult::Ok;
 }
 

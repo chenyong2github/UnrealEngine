@@ -50,9 +50,9 @@ struct FDynamicMeshUVMesh
 		return UV->ElementCount();
 	}
 
-	inline int32 GetShapeTimestamp() const
+	inline uint64 GetChangeStamp() const
 	{
-		return Mesh->GetShapeTimestamp();
+		return Mesh->GetChangeStamp();
 	}
 
 	inline FIndex3i GetTriangle(int32 TriangleIndex) const

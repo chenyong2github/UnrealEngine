@@ -52,9 +52,9 @@ namespace UE
 				return Mesh->VertexCount();
 			}
 
-			FORCEINLINE int32 GetShapeTimestamp() const
+			FORCEINLINE uint64 GetChangeStamp() const
 			{
-				return 0;
+				return 1;
 			}
 
 			FORCEINLINE FIndex3i GetTriangle(int32 Index) const

@@ -616,9 +616,9 @@ TFuture<void> UMeshVertexSculptTool::ApplyStamp()
 		{
 			int VertIdx = VertexROI[k];
 			const FVector3d& NewPos = ROIPositionBuffer[k];
-			Mesh->SetVertex_NoTimeStampUpdate(VertIdx, NewPos);
+			Mesh->SetVertex(VertIdx, NewPos, false);
 		});
-		Mesh->IncrementTimeStamps(1, true, false);
+		Mesh->UpdateChangeStamps(true, false);
 	}
 
 	LastStamp = CurrentStamp;

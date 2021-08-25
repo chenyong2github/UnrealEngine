@@ -26,7 +26,7 @@ struct TTriangleMeshAdapter
 	TFunction<int32()> MaxVertexID;
 	TFunction<int32()> TriangleCount;
 	TFunction<int32()> VertexCount;
-	TFunction<int32()> GetShapeTimestamp;
+	TFunction<uint64()> GetChangeStamp;
 	TFunction<FIndex3i(int32)> GetTriangle;
 	TFunction<FVector3<RealType>(int32)> GetVertex;
 
@@ -116,9 +116,9 @@ struct TIndexMeshArrayAdapter
 		return SourceVertices->Num();
 	}
 
-	FORCEINLINE int32 GetShapeTimestamp() const
+	FORCEINLINE uint64 GetChangeStamp() const
 	{
-		return 0; // source data doesn't have a timestamp concept
+		return 1; // source data doesn't have a timestamp concept
 	}
 
 	FORCEINLINE FIndex3i GetTriangle(int32 Index) const
@@ -198,9 +198,9 @@ struct TIndexVectorMeshArrayAdapter
 		return SourceVertices->Num();
 	}
 
-	FORCEINLINE int32 GetShapeTimestamp() const
+	FORCEINLINE uint64 GetChangeStamp() const
 	{
-		return 0; // source data doesn't have a timestamp concept
+		return 1; // source data doesn't have a timestamp concept
 	}
 
 	FORCEINLINE FIndex3i GetTriangle(int32 Index) const
