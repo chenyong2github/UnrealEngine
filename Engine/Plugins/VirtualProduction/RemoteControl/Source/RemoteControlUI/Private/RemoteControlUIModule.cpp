@@ -4,25 +4,23 @@
 
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
-#include "EditorStyleSet.h"
-#include "ISettingsModule.h"
-#include "ISettingsSection.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "MaterialEditor/DEditorParameterValue.h"
 #include "PropertyHandle.h"
 #include "RemoteControlActor.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlSettings.h"
+#include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
+#include "UI/SRCPanelExposedField.h"
+#include "UI/SRCPanelExposedActor.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelExposedEntitiesList.h"
 #include "UI/SRemoteControlPanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
 
@@ -32,10 +30,11 @@ namespace RemoteControlUIModule
 	{
 		static TArray<FName> CustomizedStructNames =
 		{
-		FRemoteControlProperty::StaticStruct()->GetFName(),
-		FRemoteControlFunction::StaticStruct()->GetFName(),
-		FRemoteControlActor::StaticStruct()->GetFName()
-	};
+			FRemoteControlProperty::StaticStruct()->GetFName(),
+			FRemoteControlFunction::StaticStruct()->GetFName(),
+			FRemoteControlActor::StaticStruct()->GetFName()
+		};
+
 		return CustomizedStructNames;
 	};
 }
@@ -48,6 +47,7 @@ void FRemoteControlUIModule::StartupModule()
 	RegisterContextMenuExtender();
 	RegisterStructCustomizations();
 	RegisterSettings();
+	RegisterWidgetFactories();
 }
 
 void FRemoteControlUIModule::ShutdownModule()
@@ -214,7 +214,7 @@ FSlateIcon FRemoteControlUIModule::OnGetExposedIcon(TSharedPtr<IPropertyHandle> 
 		}
 	}
 
-	return FSlateIcon(FEditorStyle::Get().GetStyleSetName(), BrushName);
+	return FSlateIcon(FAppStyle::Get().GetStyleSetName(), BrushName);
 }
 
 bool FRemoteControlUIModule::CanToggleExposeProperty(TSharedPtr<IPropertyHandle> Handle) const
@@ -389,6 +389,41 @@ void FRemoteControlUIModule::OnSettingsModified(UObject*, FPropertyChangedEvent&
 			EntityList->Refresh();
 		}	
 	}
+}
+
+void FRemoteControlUIModule::RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate)
+{
+	if (!GenerateWidgetDelegates.Contains(RemoteControlEntityType))
+	{
+		GenerateWidgetDelegates.Add(RemoteControlEntityType, OnGenerateRCWidgetDelegate);
+	}
+}
+
+void FRemoteControlUIModule::UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType)
+{
+	GenerateWidgetDelegates.Remove(RemoteControlEntityType);
+}
+
+void FRemoteControlUIModule::RegisterWidgetFactories()
+{
+	RegisterWidgetFactoryForType(FRemoteControlActor::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedActor::MakeInstance));
+	RegisterWidgetFactoryForType(FRemoteControlProperty::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
+	RegisterWidgetFactoryForType(FRemoteControlFunction::StaticStruct(), FOnGenerateRCWidget::CreateStatic(&SRCPanelExposedField::MakeInstance));
+}
+
+TSharedPtr<SRCPanelTreeNode> FRemoteControlUIModule::GenerateEntityWidget(const FGenerateWidgetArgs& Args)
+{
+	if (Args.Preset && Args.Entity)
+	{
+		const UScriptStruct* EntityType = Args.Preset->GetExposedEntityType(Args.Entity->GetId());
+		
+		if (FOnGenerateRCWidget* OnGenerateWidget = GenerateWidgetDelegates.Find(const_cast<UScriptStruct*>(EntityType)))
+		{
+			return OnGenerateWidget->Execute(Args);
+		}
+	}
+
+	return nullptr;
 }
 
 IMPLEMENT_MODULE(FRemoteControlUIModule, RemoteControlUI);

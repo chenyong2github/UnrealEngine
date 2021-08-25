@@ -6,10 +6,34 @@
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
 
+class FDelegateHandle;
+class FRCPanelWidgetRegistry;
+struct FRemoteControlEntity;
 class IPropertyHandle;
 class IDetailCategoryBuilder;
 class IDetailLayoutBuilder;
+struct SRCPanelTreeNode;
 class URemoteControlPreset;
+
+struct FRCColumnSizeData
+{
+	TAttribute<float> LeftColumnWidth;
+	TAttribute<float> RightColumnWidth;
+	SSplitter::FOnSlotResized OnWidthChanged;
+
+	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
+};
+
+struct FGenerateWidgetArgs
+{
+	URemoteControlPreset* Preset = nullptr;
+	FRCColumnSizeData ColumnSizeData;
+	TSharedPtr<FRemoteControlEntity> Entity;
+	TAttribute<bool> bIsInEditMode;
+	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
+};
+
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<SRCPanelTreeNode>, FOnGenerateRCWidget, const FGenerateWidgetArgs& /*Args*/);
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnGenerateExtensions, TArray<TSharedRef<class SWidget>>& /*OutExtensions*/);
 
@@ -79,4 +103,14 @@ public:
 	 * Get the preset currently being edited in the editor.
 	 */
 	virtual URemoteControlPreset* GetActivePreset() const = 0;
+
+	/**
+	 * Register a widget factory to handle creating a widget in the control panel.
+	 */
+	virtual void RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate) = 0;
+
+	/**
+	 * Unregister a previously registered widget factory.
+	 */
+	virtual void UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType) = 0;
 };

@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UI/RemoteControlPanelStyle.h"
+#include "Styling/AppStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
-#include "EditorStyleSet.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SButton.h"
@@ -14,7 +14,7 @@
 #define BOX_BRUSH(RelativePath, ...) FSlateBoxBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define CORE_BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush(StyleSet->RootToCoreContentDir(RelativePath, TEXT(".png") ), __VA_ARGS__)
 #define BOX_PLUGIN_BRUSH( RelativePath, ... ) FSlateBoxBrush(FRemoteControlPanelStyle::InContent( RelativePath, ".png" ), __VA_ARGS__)
-#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
+#define DEFAULT_FONT(...) FAppStyle::Get().GetDefaultFontStyle(__VA_ARGS__)
 
 TSharedPtr<FSlateStyleSet> FRemoteControlPanelStyle::StyleSet;
 
@@ -36,27 +36,29 @@ void FRemoteControlPanelStyle::Initialize()
 
 	StyleSet->Set("ClassThumbnail.RemoteControlPreset", new IMAGE_PLUGIN_BRUSH("Icons/RemoteControlAPI_64x", Icon64x64));
 
-	FButtonStyle ExposeFunctionButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("PropertyEditor.AssetComboStyle");
+	const ISlateStyle& AppStyle = FAppStyle::Get();
+
+	FButtonStyle ExposeFunctionButtonStyle = AppStyle.GetWidgetStyle<FButtonStyle>("PropertyEditor.AssetComboStyle");
 	ExposeFunctionButtonStyle.Normal = BOX_BRUSH("Common/GroupBorder", FMargin(4.0f / 16.0f));
 	ExposeFunctionButtonStyle.Normal.TintColor = FLinearColor(0, 0, 0, 0.1);
 	StyleSet->Set("RemoteControlPanel.ExposeFunctionButton", ExposeFunctionButtonStyle);
 
-	FHyperlinkStyle ObjectSectionNameStyle = FCoreStyle::Get().GetWidgetStyle<FHyperlinkStyle>("Hyperlink");
+	FHyperlinkStyle ObjectSectionNameStyle = AppStyle.GetWidgetStyle<FHyperlinkStyle>("Hyperlink");
 	FButtonStyle SectionNameButtonStyle = ObjectSectionNameStyle.UnderlineStyle;
 	SectionNameButtonStyle.Normal = ObjectSectionNameStyle.UnderlineStyle.Hovered;
 	StyleSet->Set("RemoteControlPanel.SectionNameButton", SectionNameButtonStyle);
 
 	FTextBlockStyle SectionNameTextStyle = ObjectSectionNameStyle.TextStyle;
-	SectionNameTextStyle.Font = FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle");
+	SectionNameTextStyle.Font = AppStyle.GetFontStyle("DetailsView.CategoryFontStyle");
 	StyleSet->Set("RemoteControlPanel.SectionName", SectionNameTextStyle);
 
-	FButtonStyle UnexposeButtonStyle = FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("FlatButton");
+	FButtonStyle UnexposeButtonStyle = AppStyle.GetWidgetStyle<FButtonStyle>("FlatButton");
 	UnexposeButtonStyle.Normal = FSlateNoResource();
 	UnexposeButtonStyle.NormalPadding = FMargin(0, 1.5f);
 	UnexposeButtonStyle.PressedPadding = FMargin(0, 1.5f);
 	StyleSet->Set("RemoteControlPanel.UnexposeButton", UnexposeButtonStyle);
 
-	FTextBlockStyle ButtonTextStyle = FEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
+	FTextBlockStyle ButtonTextStyle = AppStyle.GetWidgetStyle<FTextBlockStyle>("ContentBrowser.TopBar.Font");
 	FLinearColor ButtonTextColor = ButtonTextStyle.ColorAndOpacity.GetSpecifiedColor();
 	ButtonTextColor.A /= 2;
 	ButtonTextStyle.ColorAndOpacity = ButtonTextColor;
@@ -66,7 +68,7 @@ void FRemoteControlPanelStyle::Initialize()
 	// Default to transparent
 	StyleSet->Set("RemoteControlPanel.ExposedFieldBorder", new FSlateNoResource());
 
-	FEditableTextBoxStyle SectionNameTextBoxStyle = FCoreStyle::Get().GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
+	FEditableTextBoxStyle SectionNameTextBoxStyle = AppStyle.GetWidgetStyle< FEditableTextBoxStyle >("NormalEditableTextBox");
 	SectionNameTextBoxStyle.BackgroundImageNormal = BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f));
 	StyleSet->Set("RemoteControlPanel.SectionNameTextBox", SectionNameTextBoxStyle);
 
@@ -76,14 +78,14 @@ void FRemoteControlPanelStyle::Initialize()
 	StyleSet->Set("RemoteControlPanel.HorizontalDash", new IMAGE_BRUSH("Common/HorizontalDottedLine_16x1px", FVector2D(16.0f, 1.0f), FLinearColor::White, ESlateBrushTileType::Horizontal));
 	StyleSet->Set("RemoteControlPanel.VerticalDash", new IMAGE_BRUSH("Common/VerticalDottedLine_1x16px", FVector2D(1.0f, 16.0f), FLinearColor::White, ESlateBrushTileType::Vertical));
 
-	FLinearColor NewSelectionColor = FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row").ActiveBrush.TintColor.GetSpecifiedColor();
+	FLinearColor NewSelectionColor = AppStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row").ActiveBrush.TintColor.GetSpecifiedColor();
 	NewSelectionColor.R *= 1.8;
 	NewSelectionColor.G *= 1.8;
 	NewSelectionColor.B *= 1.8;
 	NewSelectionColor.A = 0.3;
 	StyleSet->Set("RemoteControlPanel.GroupRowSelected", new BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f), NewSelectionColor));
 
-	FTableRowStyle GroupRowStyle = FCoreStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
+	FTableRowStyle GroupRowStyle = AppStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
 	GroupRowStyle.SetEvenRowBackgroundBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
 	GroupRowStyle.SetOddRowBackgroundBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
 	GroupRowStyle.SetEvenRowBackgroundHoveredBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));

@@ -20,16 +20,16 @@ class SInlineEditableTextBlock;
 class URemoteControlPreset;
 
 /** Widget representing a group. */
-class SRCPanelGroup : public SRCPanelTreeNode, public SCompoundWidget
+class SRCPanelGroup : public SRCPanelTreeNode
 {
 public:
 	using SWidget::SharedThis;
 	using SWidget::AsShared;
 
 public:
-	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<SRCPanelGroup>& /* DragTargetGroup */);
+	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnFieldDropEvent, const TSharedPtr<FDragDropOperation>& /* Event */, const TSharedPtr<SRCPanelTreeNode>& /* TargetField */, const TSharedPtr<SRCPanelTreeNode>& /* DragTargetGroup */);
 	DECLARE_DELEGATE_RetVal_OneParam(FGuid, FOnGetGroupId, const FGuid& /* EntityId */);
-	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const TSharedPtr<SRCPanelGroup>&);
+	DECLARE_DELEGATE_OneParam(FOnDeleteGroup, const FGuid& /*GroupId*/);
 
 	SLATE_BEGIN_ARGS(SRCPanelGroup)
 		: _EditMode(true)
@@ -58,9 +58,8 @@ public:
 
 	//~ SRCPanelTreeNode Interface
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
-	virtual FGuid GetId() const override;
-	virtual ENodeType GetType() const override;
-	virtual TSharedPtr<SRCPanelGroup> AsGroup() override;
+	virtual FGuid GetRCId() const override;
+	virtual ENodeType GetRCType() const override;
 
 private:
 	//~ Handle drag/drop events
@@ -117,7 +116,7 @@ public:
 	{
 		DecoratorWidget = SNew(SBorder)
 			.Padding(0.f)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.BorderImage(FAppStyle::Get().GetBrush("Graph.ConnectorFeedback.Border"))
 			.Content()
 			[
 				InWidget.ToSharedRef()

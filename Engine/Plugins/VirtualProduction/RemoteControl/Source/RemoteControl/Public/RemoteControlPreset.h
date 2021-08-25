@@ -528,7 +528,7 @@ public:
 	/**
 	 * Get the exposed entities of a certain type.
 	 */
-	template <typename ExposableEntityType>
+	template <typename ExposableEntityType = FRemoteControlEntity>
 	TArray<TWeakPtr<const ExposableEntityType>> GetExposedEntities() const
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
@@ -545,7 +545,7 @@ public:
 	/**
 	 * Get the exposed entities of a certain type.
 	 */
-	template <typename ExposableEntityType>
+	template <typename ExposableEntityType = FRemoteControlEntity>
 	TArray<TWeakPtr<ExposableEntityType>> GetExposedEntities()
 	{
 		static_assert(TIsDerivedFrom<ExposableEntityType, FRemoteControlEntity>::Value, "ExposableEntityType must derive from FRemoteControlEntity.");
@@ -557,6 +557,14 @@ public:
 			{
 				return StaticCastSharedPtr<ExposableEntityType>(Entity);
 			});
+		return ReturnedEntities;
+	}
+
+	TArray<TWeakPtr<FRemoteControlEntity>> GetExposedEntities(UScriptStruct* EntityType)
+	{
+		TArray<TWeakPtr<FRemoteControlEntity>> ReturnedEntities;
+		const TArray<TSharedPtr<FRemoteControlEntity>> Entities = GetEntities(EntityType);
+		ReturnedEntities.Append(Entities);
 		return ReturnedEntities;
 	}
 
@@ -586,6 +594,9 @@ public:
 
 	/** Get the type of an exposed entity by querying with its id. (ie. FRemoteControlActor) */
 	const UScriptStruct* GetExposedEntityType(const FGuid& ExposedEntityId) const;
+	
+	/** Get all types of exposed entities currently exposed. (ie. FRemoteControlActor) */
+	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
 
 	/** Returns whether an entity is exposed on the preset. */
 	bool IsExposed(const FGuid& ExposedEntityId) const;

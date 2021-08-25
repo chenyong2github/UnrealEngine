@@ -4,9 +4,7 @@
 #include "IRemoteControlUIModule.h"
 
 #include "CoreMinimal.h"	
-#include "Input/Reply.h"
 #include "LevelEditor.h"
-#include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
@@ -45,6 +43,9 @@ public:
 	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
 	virtual void UnregisterMetadataCustomization(FName MetadataKey) override;
 	virtual URemoteControlPreset* GetActivePreset() const override;
+	virtual void RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate) override;
+	virtual void UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType) override;
+
 	//~ End IRemoteControlUIModule interface
 
 	/**
@@ -61,6 +62,8 @@ public:
 	{
 		return ExternalEntityMetadataCustomizations;
 	}
+
+	TSharedPtr<SRCPanelTreeNode> GenerateEntityWidget(const FGenerateWidgetArgs& Args);
 
 private:
 	/**
@@ -121,6 +124,8 @@ private:
 	void RegisterSettings();
 	void UnregisterSettings();
 	void OnSettingsModified(UObject*, struct FPropertyChangedEvent&);
+
+	void RegisterWidgetFactories();
 private:
 	/** The custom actions added to the actor context menu. */
 	TSharedPtr<class FRemoteControlPresetActions> RemoteControlPresetActions;
@@ -142,4 +147,6 @@ private:
 
 	/** Map of metadata key to customization handler. */
 	TMap<FName, FOnCustomizeMetadataEntry> ExternalEntityMetadataCustomizations;
+
+	TMap<TWeakObjectPtr<UScriptStruct>, FOnGenerateRCWidget> GenerateWidgetDelegates;
 };

@@ -17,7 +17,7 @@ TSharedRef<SWidget> SRCPanelTreeNode::MakeSplitRow(TSharedRef<SWidget> LeftColum
 	RightColumnAttribute.BindRaw(this, &SRCPanelTreeNode::GetRightColumnWidth);
 	
 	return SNew(SSplitter)
-		.Style(FEditorStyle::Get(), "DetailsView.Splitter")
+		.Style(FAppStyle::Get(), "DetailsView.Splitter")
 		.PhysicalSplitterHandleSize(1.0f)
 		.HitDetectionSplitterHandleSize(5.0f)
 		+ SSplitter::Slot()
@@ -67,10 +67,12 @@ TSharedRef<SWidget> SRCPanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& 
 	TSharedRef<SWidget> RightColumn =
 		SNew(SOverlay)
 		+ SOverlay::Slot()
+
 		.HAlign(HAlign_Fill)
 		[
 			SNew(SBox)
 			.HAlign(HAlign_Left)
+			.VAlign(VAlign_Center)
 			[
 				WidgetOrNull(Args.ValueWidget)			
 			]
@@ -81,7 +83,7 @@ TSharedRef<SWidget> SRCPanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& 
 		.VAlign(VAlign_Center)
 		[
 			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 			.Padding(0.f)
 			[
 				WidgetOrNull(Args.UnexposeButton)
@@ -99,19 +101,19 @@ void SRCPanelTreeNode::OnLeftColumnResized(float) const
 
 float SRCPanelTreeNode::GetLeftColumnWidth() const
 {
-	const float Offset = GetType() == ENodeType::Group ? SplitterOffset : 0;
+	const float Offset = GetRCType() == ENodeType::Group ? SplitterOffset : 0;
 	return FMath::Clamp(ColumnSizeData.LeftColumnWidth.Get() + Offset, 0.f, 1.f);
 }
 
 float SRCPanelTreeNode::GetRightColumnWidth() const
 {
-	const float Offset = GetType() == ENodeType::Group ? SplitterOffset : 0;
+	const float Offset = GetRCType() == ENodeType::Group ? SplitterOffset : 0;
 	return  FMath::Clamp(ColumnSizeData.RightColumnWidth.Get() - Offset, 0.f, 1.f);
 }
 
 void SRCPanelTreeNode::SetColumnWidth(float InWidth)
 {
-	const float Offset = GetType() == ENodeType::Group ? SplitterOffset : -SplitterOffset;
+	const float Offset = GetRCType() == ENodeType::Group ? SplitterOffset : -SplitterOffset;
 	ColumnSizeData.SetColumnWidth(FMath::Clamp(InWidth + SplitterOffset, 0.f, 1.f));
 }
 

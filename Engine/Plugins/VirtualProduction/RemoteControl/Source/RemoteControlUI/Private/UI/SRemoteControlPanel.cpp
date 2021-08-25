@@ -78,14 +78,14 @@ namespace RemoteControlPanelUtils
 		return GEditor ? GEditor->GetEditorWorldContext(false).World() : nullptr;
 	}
 
-	template <typename EntityType> 
-	TSharedPtr<FStructOnScope> GetEntityOnScope(const TSharedPtr<EntityType>& Entity)
+	TSharedPtr<FStructOnScope> GetEntityOnScope(const TSharedPtr<FRemoteControlEntity>& Entity, const UScriptStruct* EntityType)
 	{
-		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");
-		if (Entity)
+		if (ensure(Entity && EntityType))
 		{
-			return MakeShared<FStructOnScope>(EntityType::StaticStruct(), reinterpret_cast<uint8*>(Entity.Get()));
+			check(EntityType->IsChildOf(FRemoteControlEntity::StaticStruct()));
+			return MakeShared<FStructOnScope>(EntityType, reinterpret_cast<uint8*>(Entity.Get()));
 		}
+
 		return nullptr;
 	}
 }
@@ -106,7 +106,6 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	EntityProtocolDetails = SNew(SBox);
 	
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get(), WidgetRegistry)
-		.DisplayValues(true)
 		.OnEntityListUpdated_Lambda([this] ()
 		{
 			UpdateEntityDetailsView(EntityList->GetSelection());
@@ -153,11 +152,11 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			[
 				SNew(SButton)
 				.Visibility_Lambda([this]() { return bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.OnClicked(this, &SRemoteControlPanel::OnCreateGroup)
 				[
 					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("SceneOutliner.NewFolderIcon"))
+					.Image(FAppStyle::Get().GetBrush("SceneOutliner.NewFolderIcon"))
 				]
 			]
 			// Function library picker
@@ -233,7 +232,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				.AutoWidth()
 				[
 					SAssignNew(PresetNameTextBlock, STextBlock)
-					.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+					.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
 					.Text(FText::FromName(Preset->GetFName()))
 				]
 				+ SHorizontalBox::Slot()
@@ -248,14 +247,15 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 				.AutoWidth()
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ContentPadding(2.0f)
+					.ButtonStyle(FAppStyle::Get(), "FlatButton")
 					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
 					.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
 					[
 						SNew(STextBlock)
 						.ColorAndOpacity(FColor::White)
 						.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 						.Text(FEditorFontGlyphs::Cogs)
 					]
 				]
@@ -270,7 +270,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			[
 				SNew(SBorder)
 				.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
 				[
 					SNew(SWidgetSwitcher)
 					.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
@@ -278,7 +278,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 					[
 						// Exposed entities List
 						SNew(SBorder)
-						.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+						.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 						[
 							EntityList.ToSharedRef()
 						]
@@ -299,7 +299,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 						[
 							// Exposed entities List
 							SNew(SBorder)
-							.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+							.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 							[
 								EntityList.ToSharedRef()
 							]
@@ -314,7 +314,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 							.SizeRule(SSplitter::SizeToContent)
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 								[
 									SNew(SBox)
 									.MinDesiredHeight(40.0f)
@@ -326,7 +326,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 							+ SSplitter::Slot()
 							[
 								SNew(SBorder)
-								.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+								.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 								[
 									EntityProtocolDetails.ToSharedRef()
 								]
@@ -347,8 +347,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	{
 		// We want to insert the widgets before the edit mode buttons.
 		constexpr int32 NumEditModeWidgets = 2;
-		const int32 ExtensionsPosititon = ExtensionWidgets.Num() - NumEditModeWidgets;
-		TopExtensions->InsertSlot(ExtensionsPosititon)
+		const int32 ExtensionsPosition = ExtensionWidgets.Num() - NumEditModeWidgets;
+		TopExtensions->InsertSlot(ExtensionsPosition)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
@@ -472,9 +472,9 @@ FGuid SRemoteControlPanel::GetSelectedGroup() const
 {
 	if (TSharedPtr<SRCPanelTreeNode> Node = EntityList->GetSelection())
 	{
-		if (Node->AsGroup())
+		if (Node->GetRCType() == SRCPanelTreeNode::Group)
 		{
-			return Node->GetId();		
+			return Node->GetRCId();		
 		}
 	}
 	return FGuid();
@@ -497,14 +497,14 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateCPUThrottleButton() const
 	FText PerformanceWarningText = FText::Format(LOCTEXT("RemoteControlPerformanceWarning", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
 
 	return SNew(SButton)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+		.ButtonStyle(FAppStyle::Get(), "FlatButton")
 		.Visibility_Lambda([]() {return GetDefault<UEditorPerformanceSettings>()->bThrottleCPUWhenNotForeground ? EVisibility::Visible : EVisibility::Collapsed; } )
 		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickDisableUseLessCPU)
 		[
 			SNew(STextBlock)
 			.ToolTipText(MoveTemp(PerformanceWarningText))
 			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
 			.Text(FEditorFontGlyphs::Exclamation_Triangle)
 		];
 }
@@ -587,14 +587,14 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	
 	return SAssignNew(ExposeComboButton, SComboButton)
 		.Visibility_Lambda([this]() { return this->bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
-		.ButtonStyle(FEditorStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
 		.ForegroundColor(FSlateColor::UseForeground())
 		.CollapseMenuOnParentFocus(true)
 		.ContentPadding(FMargin(10.0f, 0.f))
 		.ButtonContent()
 		[
 			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
+			.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
 			.Text(LOCTEXT("ExposeButtonLabel", "Expose"))
 		]
 		.MenuContent()
@@ -937,55 +937,30 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
 {
 	TSharedPtr<FStructOnScope> SelectedEntityPtr;
-	EExposedFieldType FieldType = EExposedFieldType::Invalid;
+
 	if (SelectedNode)
 	{
-		if (const TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
+		if (SelectedNode->GetRCType() != SRCPanelTreeNode::Group)
 		{
-			if (const TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
-			{
-				if(Field->GetStruct() == FRemoteControlProperty::StaticStruct())
-				{
-					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
-					FieldType = EExposedFieldType::Property;
-				}
-				else if(Field->GetStruct() == FRemoteControlFunction::StaticStruct())
-				{
-					SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlFunction>(Field));
-					FieldType = EExposedFieldType::Function;
-				}
-				else
-				{
-					checkNoEntry();
-				}
-				
-				SelectedEntity = Field;			
-			}
-		}
-		else if (const TSharedPtr<SRCPanelExposedActor> ActorWidget = SelectedNode->AsActor())
-		{
-			if (const TSharedPtr<FRemoteControlActor> Actor = ActorWidget->GetRemoteControlActor().Pin())
-			{
-				SelectedEntity = Actor;
-				SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope<FRemoteControlActor>(Actor);
-			}
+			TSharedPtr<FRemoteControlEntity> Entity = Preset->GetExposedEntity<FRemoteControlEntity>(SelectedNode->GetRCId()).Pin();
+			SelectedEntityPtr = RemoteControlPanelUtils::GetEntityOnScope(Entity, Preset->GetExposedEntityType(SelectedNode->GetRCId()));
 		}
 	}
+
 	if (ensure(EntityDetailsView))
 	{
 		EntityDetailsView->SetStructureData(SelectedEntityPtr);
 	}
 
 	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
-	if(SelectedEntity && SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName))
+	if(SelectedNode.IsValid() && FModuleManager::Get().IsModuleLoaded(ProtocolWidgetsModuleName) && ensure(Preset.IsValid()))
 	{
-		// If the SelectedNode is valid, the Preset should be too.
-		if(ensure(Preset.IsValid()))
+		if (TSharedPtr<FRemoteControlEntity> RCEntity = Preset->GetExposedEntity(SelectedNode->GetRCId()).Pin())
 		{
-			if(SelectedEntity->IsBound())
+			if(RCEntity->IsBound())
 			{
 				IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>(ProtocolWidgetsModuleName);
-				EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), SelectedEntity->GetId(), FieldType));	
+				EntityProtocolDetails->SetContent(ProtocolWidgetsModule.GenerateDetailsForEntity(Preset.Get(), RCEntity->GetId()));
 			}
 			else
 			{
