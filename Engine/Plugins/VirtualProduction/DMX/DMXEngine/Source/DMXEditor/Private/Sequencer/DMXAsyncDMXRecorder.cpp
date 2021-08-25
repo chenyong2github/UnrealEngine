@@ -303,6 +303,9 @@ void FDMXAsyncDMXRecorder::StartRecording(double InRecordStartTime, FFrameNumber
 
 	if (bListenersStopped)
 	{
+		// Reset the buffer, to make sure it doesn't contain data from the previous recording
+		SignalToLocalUniverseMap.Reset();
+
 		// Get relevant timing info
 		FTakeRecorderParameters Parameters;
 		Parameters.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
@@ -358,7 +361,6 @@ int32 FDMXAsyncDMXRecorder::GetNumSignalsToProccess() const
 TArray<FDMXFunctionChannelData> FDMXAsyncDMXRecorder::GetRecordedData() const
 {
 	check(bListenersStopped);
-	check(NumSignalsToProccess == 0);
 
 	return FunctionChannelDataArr;
 }
