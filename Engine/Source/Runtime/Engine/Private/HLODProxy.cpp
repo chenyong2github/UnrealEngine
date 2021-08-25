@@ -6,6 +6,7 @@
 #include "GameFramework/WorldSettings.h"
 
 #if WITH_EDITOR
+#include "DerivedDataCacheKey.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/ArchiveCrc32.h"
 #include "HierarchicalLOD.h"
@@ -357,7 +358,19 @@ uint32 UHLODProxy::GetCRC(UTexture* InTexture, uint32 InCRC)
          FTexturePlatformData* PlatformData = *InTexture->GetRunningPlatformData();
          if (PlatformData != nullptr)
          {
-             return FCrc::StrCrc32(*PlatformData->DerivedDataKey, InCRC);
+			 if (const FString* KeyString = PlatformData->DerivedDataKey.TryGet<FString>())
+			 {
+				 return FCrc::StrCrc32(**KeyString, InCRC);
+			 }
+			 else if (const UE::DerivedData::FCacheKeyProxy* KeyProxy = PlatformData->DerivedDataKey.TryGet<UE::DerivedData::FCacheKeyProxy>())
+			 {
+				 const UE::DerivedData::FCacheKey* Key = KeyProxy->AsCacheKey();
+				 FAnsiStringView BucketStringView = Key->Bucket.ToString();
+				 FArchiveCrc32 Ar(InCRC);
+				 Ar.Serialize(const_cast<ANSICHAR*>(BucketStringView.GetData()), BucketStringView.Len());
+				 Ar.Serialize(const_cast<FIoHash*>(&Key->Hash), sizeof(FIoHash));
+				 return Ar.GetCrc();
+			 }
          }
      }
  

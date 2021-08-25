@@ -64,19 +64,20 @@ struct FTexture2DMipMap
 #if WITH_EDITORONLY_DATA
 	void SerializeWithConditionalBulkData(FArchive& Ar, UObject* Owner, int32 MipIndex);
 
-	/** Key if stored in the derived data cache. */
-	FString DerivedDataKey;
-
 	/** The file region type appropriate for this mip's pixel format. */
 	EFileRegionType FileRegionType = EFileRegionType::None;
+
+	bool IsPagedToDerivedData() const { return BulkData.GetBulkDataSize() == 0; }
 
 	/**
 	 * Place mip-map data in the derived data cache associated with the provided
 	 * key.
 	 */
 	uint32 StoreInDerivedDataCache(const FString& InDerivedDataKey, const FStringView& TextureName, bool bReplaceExistingDDC);
+
 #endif // #if WITH_EDITORONLY_DATA
 private:
+
 	void SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipIndex, bool bBulkDataConditionalOnKey);
 };
 

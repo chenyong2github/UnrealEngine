@@ -31,6 +31,7 @@
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildSession.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheKey.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "Engine/TextureCube.h"
@@ -414,7 +415,7 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 		for (int32 MipIndex = 0; MipIndex < DerivedData->Mips.Num(); ++MipIndex)
 		{
 			FTexture2DMipMap& Mip = DerivedData->Mips[MipIndex];
-			if (Mip.DerivedDataKey.IsEmpty())
+			if (!Mip.IsPagedToDerivedData())
 			{
 				break;
 			}
@@ -435,7 +436,7 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 				int32 MipSize = TCheckValueCast<int32>(MipData.GetSize());
 				MipWriter << MipSize;
 				MipWriter.Serialize(const_cast<void*>(MipData.GetData()), MipSize);
-				GetDerivedDataCacheRef().Put(*Mip.DerivedDataKey, MipDataCopy, TexturePath, bReplaceExistingDDC);
+				GetDerivedDataCacheRef().Put(*DerivedData->GetDerivedDataMipKeyString(MipIndex, Mip), MipDataCopy, TexturePath, bReplaceExistingDDC);
 			}
 
 			if (bInlineMips && (MipIndex >= (int32)BuildSettingsPerLayer[0].LODBiasWithCinematicMips))
@@ -446,14 +447,11 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 				void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
 				MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
 				Mip.BulkData.Unlock();
-				Mip.DerivedDataKey.Empty();
 			}
 		}
 
-		FString DerivedDataKey;
-		GetTextureDerivedDataKeyFromSuffix(KeySuffix, DerivedDataKey);
 		TArrayView<const uint8> PrimaryDataView((const uint8*)PrimaryData.GetData(), PrimaryData.GetSize());
-		GetDerivedDataCacheRef().Put(*DerivedDataKey, PrimaryDataView, TexturePath, bReplaceExistingDDC);
+		GetDerivedDataCacheRef().Put(*DerivedData->DerivedDataKey.Get<FString>(), PrimaryDataView, TexturePath, bReplaceExistingDDC);
 
 		bSucceeded = true;
 	}
@@ -723,7 +721,6 @@ FTextureCacheDerivedDataWorker::FTextureCacheDerivedDataWorker(
 		DerivedData->VTData = nullptr;
 	}
 	UTexture::GetPixelFormatEnum();
-	GetTextureDerivedDataKeySuffix(Texture, InSettingsPerLayer, KeySuffix);
 		
 	const bool bAllowAsyncBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncBuild);
 	const bool bAllowAsyncLoading = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncLoading);
@@ -795,24 +792,53 @@ void FTextureCacheDerivedDataWorker::DoWork()
 	const bool bAllowAsyncBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncBuild);
 	const bool bAllowAsyncLoading = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::AllowAsyncLoading);
 	const bool bForVirtualTextureStreamingBuild = EnumHasAnyFlags(CacheFlags, ETextureCacheFlags::ForVirtualTextureStreamingBuild);
+	const bool bValidateVirtualTextureCompression = CVarVTValidateCompressionOnLoad.GetValueOnAnyThread() != 0;
 	bool bInvalidVirtualTextureCompression = false;
 
 	TArray<uint8> RawDerivedData;
 
+	FString LocalDerivedDataKeySuffix;
+	FString LocalDerivedDataKey;
+	FString LocalComparisonDerivedDataKey;
+	GetTextureDerivedDataKeySuffix(Texture, BuildSettingsPerLayer.GetData(), LocalDerivedDataKeySuffix);
+	GetTextureDerivedDataKeyFromSuffix(LocalDerivedDataKeySuffix, LocalDerivedDataKey);
+	LocalComparisonDerivedDataKey = LocalDerivedDataKey;
 	if (!bForceRebuild)
 	{
 		// First try to load a texture generated for the shipping build from the cache.
 		// FTexturePlatformData::ShippingDerivedDataKey is set when we are running a build in the Editor.
 		// This allows to preview how the texture will look in the final build and avoid rebuilding texture locally using fast cooking.
-		if (!DerivedData->ShippingDerivedDataKey.IsEmpty() && DerivedData->ShippingDerivedDataKey != DerivedData->DerivedDataKey)
+		if (BuildSettingsPerLayer[0].FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
 		{
-			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*DerivedData->ShippingDerivedDataKey, RawDerivedData, Texture.GetPathName());
+			const int32 NumLayers = Texture.Source.GetNumLayers();
+			TArray<FTextureBuildSettings> ShippingBuildSettingsPerLayer;
+			ShippingBuildSettingsPerLayer.SetNum(NumLayers);
+			for (int32 LayerIndex = 0; LayerIndex < NumLayers; ++LayerIndex)
+			{
+				ShippingBuildSettingsPerLayer[LayerIndex] = BuildSettingsPerLayer[LayerIndex];
+				ShippingBuildSettingsPerLayer[LayerIndex].FastTextureEncode = ETextureFastEncode::Off;
+			}
+			FString ShippingDerivedDataKeySuffix;
+			FString ShippingDerivedDataKey;
+			GetTextureDerivedDataKeySuffix(Texture, ShippingBuildSettingsPerLayer.GetData(), ShippingDerivedDataKeySuffix);
+			GetTextureDerivedDataKeyFromSuffix(ShippingDerivedDataKeySuffix, ShippingDerivedDataKey);
+
+			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*ShippingDerivedDataKey, RawDerivedData, Texture.GetPathName());
+			if (bLoadedFromDDC)
+			{
+				LocalDerivedDataKeySuffix = ShippingDerivedDataKeySuffix;
+				LocalDerivedDataKey = ShippingDerivedDataKey;
+			}
 		}
+
 		if (!bLoadedFromDDC)
 		{
-			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*DerivedData->DerivedDataKey, RawDerivedData, Texture.GetPathName());
+			bLoadedFromDDC = GetDerivedDataCacheRef().GetSynchronous(*LocalDerivedDataKey, RawDerivedData, Texture.GetPathName());
 		}
 	}
+	KeySuffix = LocalDerivedDataKeySuffix;
+	DerivedData->DerivedDataKey.Emplace<FString>(LocalDerivedDataKey);
+	DerivedData->ComparisonDerivedDataKey.Emplace<FString>(LocalComparisonDerivedDataKey);
 
 	if (bLoadedFromDDC)
 	{
@@ -1062,7 +1088,7 @@ public:
 		}
 
 		FBuildDefinition Definition = CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, Settings, bUseCompositeTexture);
-
+		
 		if (!EnumHasAnyFlags(Flags, ETextureCacheFlags::ForceRebuild) && Settings.FastTextureEncode == ETextureFastEncode::TryOffEncodeFast)
 		{
 			FTextureBuildSettings ShippingSettings = Settings;
@@ -1075,7 +1101,12 @@ public:
 					{
 					default:
 					case EStatus::Ok:
-						return EndBuild(MoveTemp(Params.Output), Params.BuildStatus);
+						BuildSession.Get().Build(Definition, EBuildPolicy::None, *Owner,
+							[this](FBuildCompleteParams&& Params)
+							{
+								DerivedData.ComparisonDerivedDataKey.Emplace<FCacheKeyProxy>(Params.CacheKey);
+							});
+						return EndBuild(Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus);
 					case EStatus::Error:
 						return BeginBuild(Definition, Flags);
 					}
@@ -1116,12 +1147,17 @@ public:
 			BuildPolicy &= ~EBuildPolicy::CacheQuery;
 		}
 		BuildSession.Get().Build(Definition, BuildPolicy, *Owner,
-			[this](FBuildCompleteParams&& Params) { EndBuild(MoveTemp(Params.Output), Params.BuildStatus); });
+			[this](FBuildCompleteParams&& Params)
+			{
+				DerivedData.ComparisonDerivedDataKey.Emplace<FCacheKeyProxy>(Params.CacheKey);
+				EndBuild(Params.CacheKey, MoveTemp(Params.Output), Params.BuildStatus);
+			});
 	}
 
-	void EndBuild(UE::DerivedData::FBuildOutput&& Output, UE::DerivedData::EBuildStatus Status)
+	void EndBuild(const UE::DerivedData::FCacheKey& CacheKey, UE::DerivedData::FBuildOutput&& Output, UE::DerivedData::EBuildStatus Status)
 	{
 		using namespace UE::DerivedData;
+		DerivedData.DerivedDataKey.Emplace<FCacheKeyProxy>(CacheKey);
 		bCacheHit = EnumHasAnyFlags(Status, EBuildStatus::CacheQueryHit);
 		BuildOutputSize = Algo::TransformAccumulate(Output.GetPayloads(),
 			[](const FPayload& Payload) { return Payload.GetData().GetRawSize(); }, uint64(0));
@@ -1181,114 +1217,6 @@ public:
 		return Owner->Poll();
 	}
 
-private:
-	void WriteDerivedData(UE::DerivedData::FBuildOutput&& Output)
-	{
-		using namespace UE::DerivedData;
-
-		Output.IterateDiagnostics([](const FBuildDiagnostic& Diagnostic)
-		{
-			if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
-			{
-				UE_LOG(LogTexture, Warning, TEXT("[Build Error] %.*s: %.*s"),
-					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
-					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
-			}
-			else
-			{
-				UE_LOG(LogTexture, Warning, TEXT("[Build Warning] %.*s: %.*s"),
-					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
-					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
-			}
-		});
-
-		if (Output.HasError())
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
-				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
-			return;
-		}
-
-		if (const FPayload& Payload = Output.GetPayload(FPayloadId::FromName(TEXT("Texture"))))
-		{
-			FSharedBuffer Data = Payload.GetData().Decompress();
-			FMemoryReaderView Ar(Data, /*bIsPersistent*/ true);
-			DerivedData.Serialize(Ar, nullptr);
-		}
-		else
-		{
-			UE_LOG(LogTexture, Warning, TEXT("Missing output for build of '%s' by %s."),
-				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
-			return;
-		}
-
-		for (int32 MipIndex = 0, MipCount = DerivedData.Mips.Num(); MipIndex < MipCount; ++MipIndex)
-		{
-			FTexture2DMipMap& Mip = DerivedData.Mips[MipIndex];
-			if (Mip.DerivedDataKey.IsEmpty())
-			{
-				break;
-			}
-
-			if (const FPayload& MipPayload = Output.GetPayload(FPayloadId::FromName(WriteToString<8>(TEXT("Mip"), MipIndex))))
-			{
-				if (bInlineMips && MipIndex >= FirstMipToLoad)
-				{
-					FSharedBuffer MipData = MipPayload.GetData().Decompress();
-					const uint64 MipSize = MipData.GetSize();
-
-					Mip.BulkData.Lock(LOCK_READ_WRITE);
-					void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
-					MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
-					Mip.BulkData.Unlock();
-					Mip.DerivedDataKey.Empty();
-				}
-			}
-			else
-			{
-				UE_LOG(LogTexture, Warning, TEXT("Missing output for mip %d for build of '%s' by %s."),
-					MipIndex, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
-				return;
-			}
-		}
-	}
-
-	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)
-	{
-		using namespace UE::DerivedData;
-		switch (SourcePriority)
-		{
-		case EQueuedWorkPriority::Lowest:  return EPriority::Lowest;
-		case EQueuedWorkPriority::Low:     return EPriority::Low;
-		case EQueuedWorkPriority::Normal:  return EPriority::Normal;
-		case EQueuedWorkPriority::High:    return EPriority::High;
-		case EQueuedWorkPriority::Highest: return EPriority::Highest;
-		default:                           return EPriority::Normal;
-		}
-	}
-
-	static EQueuedWorkPriority ConvertPriority(UE::DerivedData::EPriority SourcePriority)
-	{
-		using namespace UE::DerivedData;
-		switch (SourcePriority)
-		{
-		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
-		case EPriority::Low:      return EQueuedWorkPriority::Low;
-		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
-		case EPriority::High:     return EQueuedWorkPriority::High;
-		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
-		case EPriority::Blocking: return EQueuedWorkPriority::Highest;
-		default:                  return EQueuedWorkPriority::Normal;
-		}
-	}
-
-	static bool LoadModules()
-	{
-		FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-		FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
-		return true;
-	}
-
 	static bool IsTextureValidForBuilding(UTexture& Texture, ETextureCacheFlags Flags, bool& bOutUseCompositeTexture)
 	{
 		const int32 NumBlocks = Texture.Source.GetNumBlocks();
@@ -1309,7 +1237,7 @@ private:
 			case TSF_BGRE8:
 			case TSF_RGBA16:
 			case TSF_RGBA16F:
-			break;
+				break;
 			default:
 				UE_LOG(LogTexture, Fatal, TEXT("Texture %s has source art in an invalid format."), *Texture.GetPathName());
 				return false;
@@ -1399,6 +1327,113 @@ private:
 		return true;
 	}
 
+private:
+	void WriteDerivedData(UE::DerivedData::FBuildOutput&& Output)
+	{
+		using namespace UE::DerivedData;
+
+		Output.IterateDiagnostics([](const FBuildDiagnostic& Diagnostic)
+		{
+			if (Diagnostic.Level == EBuildDiagnosticLevel::Error)
+			{
+				UE_LOG(LogTexture, Warning, TEXT("[Build Error] %.*s: %.*s"),
+					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
+					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
+			}
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("[Build Warning] %.*s: %.*s"),
+					Diagnostic.Category.Len(), Diagnostic.Category.GetData(),
+					Diagnostic.Message.Len(), Diagnostic.Message.GetData());
+			}
+		});
+
+		if (Output.HasError())
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Failed to build derived data for build of '%s' by %s."),
+				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+			return;
+		}
+
+		if (const FPayload& Payload = Output.GetPayload(FPayloadId::FromName(TEXT("Texture"))))
+		{
+			FSharedBuffer Data = Payload.GetData().Decompress();
+			FMemoryReaderView Ar(Data, /*bIsPersistent*/ true);
+			DerivedData.Serialize(Ar, nullptr);
+		}
+		else
+		{
+			UE_LOG(LogTexture, Warning, TEXT("Missing output for build of '%s' by %s."),
+				*WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+			return;
+		}
+
+		for (int32 MipIndex = 0, MipCount = DerivedData.Mips.Num(); MipIndex < MipCount; ++MipIndex)
+		{
+			FTexture2DMipMap& Mip = DerivedData.Mips[MipIndex];
+			if (!Mip.IsPagedToDerivedData())
+			{
+				break;
+			}
+
+			if (const FPayload& MipPayload = Output.GetPayload(FPayloadId::FromName(WriteToString<8>(TEXT("Mip"), MipIndex))))
+			{
+				if (bInlineMips && MipIndex >= FirstMipToLoad)
+				{
+					FSharedBuffer MipData = MipPayload.GetData().Decompress();
+					const uint64 MipSize = MipData.GetSize();
+
+					Mip.BulkData.Lock(LOCK_READ_WRITE);
+					void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
+					MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
+					Mip.BulkData.Unlock();
+				}
+			}
+			else
+			{
+				UE_LOG(LogTexture, Warning, TEXT("Missing output for mip %d for build of '%s' by %s."),
+					MipIndex, *WriteToString<128>(Output.GetName()), *WriteToString<32>(Output.GetFunction()));
+				return;
+			}
+		}
+	}
+
+	static UE::DerivedData::EPriority ConvertPriority(EQueuedWorkPriority SourcePriority)
+	{
+		using namespace UE::DerivedData;
+		switch (SourcePriority)
+		{
+		case EQueuedWorkPriority::Lowest:  return EPriority::Lowest;
+		case EQueuedWorkPriority::Low:     return EPriority::Low;
+		case EQueuedWorkPriority::Normal:  return EPriority::Normal;
+		case EQueuedWorkPriority::High:    return EPriority::High;
+		case EQueuedWorkPriority::Highest: return EPriority::Highest;
+		default:                           return EPriority::Normal;
+		}
+	}
+
+	static EQueuedWorkPriority ConvertPriority(UE::DerivedData::EPriority SourcePriority)
+	{
+		using namespace UE::DerivedData;
+		switch (SourcePriority)
+		{
+		case EPriority::Lowest:   return EQueuedWorkPriority::Lowest;
+		case EPriority::Low:      return EQueuedWorkPriority::Low;
+		case EPriority::Normal:   return EQueuedWorkPriority::Normal;
+		case EPriority::High:     return EQueuedWorkPriority::High;
+		case EPriority::Highest:  return EQueuedWorkPriority::Highest;
+		case EPriority::Blocking: return EQueuedWorkPriority::Highest;
+		default:                  return EQueuedWorkPriority::Normal;
+		}
+	}
+
+	static bool LoadModules()
+	{
+		FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+		FModuleManager::LoadModuleChecked<ITextureCompressorModule>(TEXTURE_COMPRESSOR_MODULENAME);
+		return true;
+	}
+
 	FTexturePlatformData& DerivedData;
 	TOptional<UE::DerivedData::FRequestOwner> Owner;
 	UE::DerivedData::FOptionalBuildSession BuildSession;
@@ -1425,6 +1460,49 @@ FTextureAsyncCacheDerivedDataTask* CreateTextureBuildTask(
 		return new FTextureBuildTask(Texture, FunctionName, DerivedData, Settings, Priority, Flags);
 	}
 	return nullptr;
+}
+
+UE::DerivedData::FCacheKeyProxy CreateTextureCacheKeyProxy(
+	UTexture& Texture,
+	ETextureCacheFlags CacheFlags,
+	const FTextureBuildSettings& Settings)
+{
+	using namespace UE::DerivedData;
+
+	TStringBuilder<64> FunctionName;
+	if (TryFindTextureBuildFunction(FunctionName, Settings))
+	{
+		IBuild& Build = GetBuild();
+
+		TStringBuilder<256> TexturePath;
+		Texture.GetPathName(nullptr, TexturePath);
+
+		FString KeySuffix;
+		GetTextureDerivedDataKeySuffix(Texture, &Settings, KeySuffix);
+
+		bool bUseCompositeTexture = false;
+		if (FTextureBuildTask::IsTextureValidForBuilding(Texture, CacheFlags, bUseCompositeTexture))
+		{
+			TOptional<UE::TextureDerivedData::FTextureBuildInputResolver> PlaceholderResolver;
+			UE::DerivedData::IBuildInputResolver* InputResolver = GetGlobalBuildInputResolver();
+			if (!InputResolver)
+			{
+				PlaceholderResolver.Emplace(Texture);
+				InputResolver = &PlaceholderResolver.GetValue();
+			}
+			FBuildSession Session = Build.CreateSession(TexturePath, InputResolver);
+			FBuildDefinition Definition = FTextureBuildTask::CreateDefinition(Build, Texture, TexturePath, FunctionName, KeySuffix, Settings, bUseCompositeTexture);
+			
+			FCacheKey GeneratedKey;
+			FRequestOwner CacheKeyGenerationOwner(EPriority::Blocking);
+			Session.Build(Definition, EBuildPolicy::None, CacheKeyGenerationOwner,
+				[&GeneratedKey](FBuildCompleteParams&& Params) { GeneratedKey = Params.CacheKey; });
+			CacheKeyGenerationOwner.Wait();
+
+			return GeneratedKey;
+		}
+	}
+	return FCacheKey::Empty;
 }
 
 #endif // WITH_EDITOR

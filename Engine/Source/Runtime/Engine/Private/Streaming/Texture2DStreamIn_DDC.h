@@ -7,9 +7,11 @@ Texture2DStreamIn_DDC.h: Stream in helper for 2D textures loading DDC files.
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Memory/SharedBuffer.h"
 #include "Texture2DStreamIn.h"
 
 #if WITH_EDITORONLY_DATA
+#include "DerivedDataRequestOwner.h"
 
 extern int32 GStreamingUseAsyncRequestsForDDC;
 
@@ -24,6 +26,8 @@ protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
 	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCHandles;
+	TArray<FSharedBuffer, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCBuffers;
+	UE::DerivedData::FRequestOwner DDCRequestOwner;
 
 	// ****************************
 	// ********* Helpers **********
