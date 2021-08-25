@@ -477,6 +477,7 @@ protected:
 
 	TMap<int32, int32> CapsuleToHierarchyIndex;
 	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> WrapperObjects;
+	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
 	
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

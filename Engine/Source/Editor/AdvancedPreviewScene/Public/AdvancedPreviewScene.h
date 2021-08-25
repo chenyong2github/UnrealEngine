@@ -45,8 +45,10 @@ public:
 
 	void SetSkyRotation(const float SkyRotation);
 	/* Sets the visiblity state for the floor/environment by storing it in the scene profile and refreshing the scene, in case bDirect is true it sets the visibility directly and leaves the profile untouched. */
+	bool GetFloorVisibility() const;
 	void SetFloorVisibility(const bool bVisible, const bool bDirect = false);
 	void SetEnvironmentVisibility(const bool bVisible, const bool bDirect = false);
+	float GetFloorOffset() const;
 	void SetFloorOffset(const float InFloorOffset);
 	void SetProfileIndex(const int32 InProfileIndex);
 

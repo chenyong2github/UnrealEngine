@@ -82,6 +82,7 @@ namespace UnrealBuildTool.Rules
 					"PropertyAccessEditor",
 					"KismetWidgets",
 					"PythonScriptPlugin",
+					"AdvancedPreviewScene",
 				}
             );
 
