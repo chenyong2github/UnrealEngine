@@ -118,13 +118,19 @@ public:
 	virtual void CreateMenuEntry(class FMenuBuilder& MenuBuilder) const override;
 	virtual bool HasIcon() const override;
 
+	/** Returns whether this menu entry block opens a sub-menu. */
 	bool IsSubMenu() const { return bIsSubMenu; }
+
+	/** Sets whether the menu search algorithm should walk down this menu sub-menus. */
+	void SetRecursivelySearchable(bool bInRecursivelySearchable) { bIsRecursivelySearchable = bInRecursivelySearchable; }
+
+	/** Returns whether the menu search algorithm should walk down this menu sub-menus. */
+	bool IsRecursivelySearchable() const { return bIsRecursivelySearchable; }
 
 private:
 
 	/** FMultiBlock private interface */
 	virtual TSharedRef< class IMultiBlockBaseWidget > ConstructWidget() const override;
-
 
 private:
 
@@ -152,6 +158,9 @@ private:
 
 	/** True if this menu entry opens a sub-menu */
 	bool bIsSubMenu;
+
+	/** True if the search algorithm should walk down this menu sub menus. Usually true, unless the menu has circular/infinite expansion (happens in some menus generated on the fly by reflection). */
+	bool bIsRecursivelySearchable;
 
 	/** True if this menu entry opens a sub-menu by clicking on it only */
 	bool bOpenSubMenuOnClick;
