@@ -81,34 +81,7 @@ namespace UE { namespace Tasks
 		// @return true if the task is completed
 		bool Wait(FTimespan Timeout = FTimespan::MaxValue())
 		{
-			if (!IsValid())
-			{
-				return true;
-			}
-
-			TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
-			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
-
-			if (Pimpl->TryRetractAndExecute())
-			{
-				return true;
-			}
-
-			// the event must be alive for the task and this function lifetime, we don't know which one will be finished first as waiting can time out
-			// before the waiting task is completed
-			FSharedEventRef CompletionEvent;
-
-			TRefCountPtr<Private::TTaskWithResult<void>> WaitingTask{ new Private::TTaskWithResult<void>, /*bAddRef=*/ false };
-			WaitingTask->Init(TEXT("Waiting Task"), [CompletionEvent] { CompletionEvent->Trigger(); }, Private::FTaskBase::InlineTaskPriority);
-			WaitingTask->AddPrerequisites(*this);
-
-			if (WaitingTask->TryLaunch())
-			{	// was executed inline
-				check(WaitingTask->IsCompleted());
-				return true;
-			}
-
-			return CompletionEvent->Wait(Timeout);
+			return !IsValid() || Pimpl->Wait(Timeout);
 		}
 
 		// waits for task's completion while executing other tasks. Shouldn't be used inside a latency-sensitive task
@@ -116,8 +89,6 @@ namespace UE { namespace Tasks
 		{
 			if (IsValid())
 			{
-				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
-				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
 				Pimpl->BusyWait();
 			}
 		}
@@ -127,13 +98,7 @@ namespace UE { namespace Tasks
 		// @return true if the task is completed
 		bool BusyWait(FTimespan Timeout)
 		{
-			if (IsValid())
-			{
-				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
-				return Pimpl->BusyWait(Timeout);
-			}
-
-			return true;
+			return !IsValid() || Pimpl->BusyWait(Timeout);
 		}
 
 		// waits for task's completion or the given condition becomes true, while executing other tasks.
@@ -142,14 +107,7 @@ namespace UE { namespace Tasks
 		template<typename ConditionType>
 		bool BusyWait(ConditionType&& Condition)
 		{
-			if (IsValid())
-			{
-				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
-				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
-				return Pimpl->BusyWait(Forward<ConditionType>(Condition));
-			}
-
-			return true;
+			return !IsValid() || Pimpl->BusyWait(Forward<ConditionType>(Condition));
 		}
 
 	protected:
