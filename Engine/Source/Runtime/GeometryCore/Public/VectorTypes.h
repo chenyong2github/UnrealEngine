@@ -905,11 +905,6 @@ struct TVector4
 	{
 	}
 
-	constexpr TVector4(const T* Data)
-		: X(Data[0]), Y(Data[1]), Z(Data[2]), W(Data[3])
-	{
-	}
-
 	constexpr TVector4(const TVector4& Vec) = default;
 
 	template<typename RealType2>
@@ -917,34 +912,6 @@ struct TVector4
 		: X((T)Vec.X), Y((T)Vec.Y), Z((T)Vec.Z), W((T)Vec.W)
 	{
 	}
-
-	explicit constexpr operator const T*() const
-	{
-		return &X;
-	};
-	explicit constexpr operator T*()
-	{
-		return &X;
-	}
-
-	explicit constexpr operator FLinearColor() const
-	{
-		return FLinearColor((float)X, (float)Y, (float)Z, (float)W);
-	}
-	constexpr TVector4(const FLinearColor& Color)
-		: X((T)Color.R), Y((T)Color.G), Z((T)Color.B), W((T)Color.A)
-	{
-	}
-
-	explicit constexpr operator FColor() const
-	{
-		return FColor(
-			FMathf::Clamp((int)((float)X*255.0f), 0, 255),
-			FMathf::Clamp((int)((float)Y*255.0f), 0, 255),
-			FMathf::Clamp((int)((float)Z*255.0f), 0, 255),
-			FMathf::Clamp((int)((float)W*255.0f), 0, 255));
-	}
-
 
 	static TVector4<T> Zero()
 	{
@@ -973,16 +940,6 @@ struct TVector4
 	{
 		return (&X)[Idx];
 	}
-
-	T Length() const
-	{
-		return TMathUtil<T>::Sqrt(X * X + Y * Y + Z * Z + W * W);
-	}
-	T SquaredLength() const
-	{
-		return X * X + Y * Y + Z * Z + W * W;
-	}
-
 
 	constexpr TVector4<T> operator-() const
 	{
@@ -1020,19 +977,9 @@ struct TVector4
 		return TVector4<T>(X * (T)Scalar, Y * (T)Scalar, Z * (T)Scalar, W * (T)Scalar);
 	}
 
-	constexpr TVector4<T> operator*(const TVector4<T>& V2) const // component-wise
-	{
-		return TVector4<T>(X * V2.X, Y * V2.Y, Z * V2.Z, W * V2.W);
-	}
-
 	constexpr TVector4<T> operator/(const T& Scalar) const
 	{
 		return TVector4<T>(X / Scalar, Y / Scalar, Z / Scalar, W / Scalar);
-	}
-
-	constexpr TVector4<T> operator/(const TVector4<T>& V2) const // component-wise
-	{
-		return TVector4<T>(X / V2.X, Y / V2.Y, Z / V2.Z, W / V2.W);
 	}
 
 	constexpr TVector4<T>& operator+=(const TVector4<T>& V2)
@@ -1181,6 +1128,28 @@ template <typename RealType, typename RealType2>
 inline TVector4<RealType> operator*(RealType2 Scalar, const TVector4<RealType>& V)
 {
 	return TVector4<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y, (RealType)Scalar * V.Z, (RealType)Scalar * V.W);
+}
+
+template<typename T>
+FLinearColor ToLinearColor(const TVector4<T>& V)
+{
+	return FLinearColor((float)V.X, (float)V.Y, (float)V.Z, (float)V.W);
+}
+
+template<typename T>
+TVector4<T> ToVector4(const FLinearColor& Color)
+{
+	return TVector4<T>( (T)Color.R, (T)Color.G, (T)Color.B, (T)Color.A );
+}
+
+template<typename T>
+FColor ToFColor(const TVector4<T>& V)
+{
+	return FColor(
+		FMathf::Clamp((int)((float)V.X*255.0f), 0, 255),
+		FMathf::Clamp((int)((float)V.Y*255.0f), 0, 255),
+		FMathf::Clamp((int)((float)V.Z*255.0f), 0, 255),
+		FMathf::Clamp((int)((float)V.W*255.0f), 0, 255));
 }
 
 template <typename RealType>

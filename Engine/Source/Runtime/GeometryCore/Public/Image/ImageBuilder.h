@@ -349,6 +349,22 @@ public:
 		}
 	}
 
+	void SetPixel(const FVector2i& PixelCoords, const FLinearColor& FloatPixel)
+	{
+		switch (ImageType)
+		{
+		case EImageType::Float1:
+			Image1f->SetPixel(PixelCoords, FloatPixel.R);
+			break;
+		case EImageType::Float3:
+			Image3f->SetPixel(PixelCoords, FVector3f(FloatPixel.R, FloatPixel.G, FloatPixel.B));
+			break;
+		case EImageType::Float4:
+			Image4f->SetPixel(PixelCoords, FVector4f(FloatPixel.R, FloatPixel.G, FloatPixel.B, FloatPixel.A));
+			break;
+		}
+	}
+
 	FVector4f GetPixel(int64 LinearIndex) const
 	{
 		switch (ImageType)

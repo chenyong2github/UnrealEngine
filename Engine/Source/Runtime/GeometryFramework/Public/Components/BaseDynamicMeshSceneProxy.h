@@ -512,7 +512,7 @@ public:
 				}
 
 				FColor VertexFColor = (bHaveColors && TriColor[j] != FDynamicMesh3::InvalidID) ?
-					FColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+					ToFColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
 
 				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = VertexFColor;
 
@@ -697,7 +697,7 @@ public:
 				if (bUpdateColors)
 				{
 					FColor VertexFColor = (bHaveColors  && TriColor[j] != FDynamicMesh3::InvalidID) ?
-						FColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
+						ToFColor(ColorOverlay->GetElement(TriColor[j])) : UniformTriColor;
 					RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = VertexFColor;
 				}
 

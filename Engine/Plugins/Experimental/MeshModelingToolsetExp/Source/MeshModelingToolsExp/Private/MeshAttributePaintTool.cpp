@@ -422,7 +422,7 @@ void UMeshAttributePaintTool::UpdateVisibleAttribute()
 			{
 				const int32 vid = ColorOverlay->GetParentVertex(elid);
 				const float Value = AttribData.CurrentValues[vid];
-				const FVector4f Color4f(ColorMapper->ToColor(Value));
+				const FVector4f Color4f = ToVector4<float>(ColorMapper->ToColor(Value));
 				ColorOverlay->SetElement(elid,  Color4f);
 			}
 		});
@@ -495,7 +495,7 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 		{
 			int32 vid = ActionData.ROIVertices[k];
 			AttribData.CurrentValues[vid] = ActionData.ROIAfter[k];
-			FVector4f NewColor(ColorMapper->ToColor(ActionData.ROIAfter[k]));
+			FVector4f NewColor( ToVector4<float>(ColorMapper->ToColor(ActionData.ROIAfter[k])) );
 			ColorOverlay->GetVertexElements(vid, ElIDs);
 			for (int elid : ElIDs)
 			{
@@ -713,7 +713,7 @@ void UMeshAttributePaintTool::ExternalUpdateValues(int32 AttribIndex, const TArr
 			FDynamicMeshColorOverlay* ColorOverlay = Mesh.Attributes()->PrimaryColors();
 			for (int32 vid : VertexIndices)
 			{
-				FVector4f NewColor(ColorMapper->ToColor(AttribData.CurrentValues[vid]));
+				FVector4f NewColor( ToVector4<float>(ColorMapper->ToColor(AttribData.CurrentValues[vid])) );
 				ColorOverlay->GetVertexElements(vid, ElIDs);
 				for (int elid : ElIDs)
 				{

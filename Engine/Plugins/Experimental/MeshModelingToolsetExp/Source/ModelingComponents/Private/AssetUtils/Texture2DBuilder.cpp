@@ -336,12 +336,12 @@ bool FTexture2DBuilder::Copy(const TImageBuilder<FVector4f>& SourceImage, const 
 			Pixel.Y = FMathf::Clamp(Pixel.Y, 0.0, 1.0);
 			Pixel.Z = FMathf::Clamp(Pixel.Z, 0.0, 1.0);
 			Pixel.W = FMathf::Clamp(Pixel.W, 0.0, 1.0);
-			FColor Texel = ((FLinearColor)Pixel).ToFColor(bConvertToSRGB);
+			FColor Texel = ToLinearColor(Pixel).ToFColor(bConvertToSRGB);
 			SetTexel(i, Texel);
 		}
 		else
 		{
-			FFloat16Color Texel((FLinearColor)Pixel);
+			FFloat16Color Texel(ToLinearColor(Pixel));
 			SetTexel(i, Texel);
 		}
 	}
@@ -362,13 +362,13 @@ bool FTexture2DBuilder::CopyTo(TImageBuilder<FVector4f>& DestImage) const
 		{
 			FColor ByteColor = GetTexel(i);
 			FLinearColor FloatColor(ByteColor);
-			DestImage.SetPixel(i, FVector4f(FloatColor));
+			DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 		}
 		else
 		{
 			FFloat16Color Float16Color = GetTexelFloat16(i);
 			FLinearColor FloatColor = Float16Color.GetFloats();
-			DestImage.SetPixel(i, FVector4f(FloatColor));
+			DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 		}
 	}
 	return true;
