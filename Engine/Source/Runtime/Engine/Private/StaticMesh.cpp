@@ -35,6 +35,7 @@
 #include "StaticMeshDescription.h"
 #include "StaticMeshOperations.h"
 #include "Rendering/NaniteResources.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "SpeedTreeWind.h"
 #include "DistanceFieldAtlas.h"
@@ -378,9 +379,12 @@ bool FStaticMeshLODResources::IsLODCookedOut(const ITargetPlatform* TargetPlatfo
 	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
 	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
 
+	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
+	const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
+
 	// If LOD streaming is supported, LODs below MinLOD are stored to optional paks and thus never cooked out
 	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	return !bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported();
+	return (!bMeshStreamingEnabled && !bNaniteCoareMeshStreamingEnabled) || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported();
 #else
 	return false;
 #endif
@@ -399,8 +403,13 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
 	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
 
+	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
+	const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
+
 	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	if (!bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported())
+	bool bSupportMeshLODStreamig = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming);
+	bool bIsLODStreamingSupported = LODGroupSettings.IsLODStreamingSupported();
+	if ((!bMeshStreamingEnabled && !bNaniteCoareMeshStreamingEnabled) || !bSupportMeshLODStreamig || StaticMesh->NeverStream || !bIsLODStreamingSupported)
 	{
 		return true;
 	}
@@ -1327,31 +1336,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 			[this, DebugName = Parent->GetFName()](FRHICommandListImmediate& RHICmdList)
 			{
 				FRayTracingGeometryInitializer Initializer;
-				Initializer.DebugName = DebugName;
-				Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
-				Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
-				Initializer.GeometryType = RTGT_Triangles;
-				Initializer.bFastBuild = false;
-				
-				TArray<FRayTracingGeometrySegment> GeometrySections;
-				GeometrySections.Reserve(Sections.Num());
-				for (const FStaticMeshSection& Section : Sections)
-				{
-					FRayTracingGeometrySegment Segment;
-					Segment.VertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
-					Segment.VertexBufferElementType = VET_Float3;
-					Segment.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
-					Segment.VertexBufferOffset = 0;
-					Segment.MaxVertices = VertexBuffers.PositionVertexBuffer.GetNumVertices();
-					Segment.FirstPrimitive = Section.FirstIndex / 3;
-					Segment.NumPrimitives = Section.NumTriangles;
-					Segment.bEnabled = Section.bVisibleInRayTracing;
-					Segment.bForceOpaque = Section.bForceOpaque;
-					GeometrySections.Add(Segment);
-					Initializer.TotalPrimitiveCount += Section.NumTriangles;
-				}
-				Initializer.Segments = GeometrySections;
-
+				SetupRayTracingGeometryInitializer(Initializer, DebugName);
 				RayTracingGeometry.SetInitializer(Initializer);
 			}
 		);
@@ -1366,6 +1351,36 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 	});
 #endif
 }
+
+#if RHI_RAYTRACING
+void FStaticMeshLODResources::SetupRayTracingGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName)
+{
+	Initializer.DebugName = DebugName;
+	Initializer.IndexBuffer = IndexBuffer.IndexBufferRHI;
+	Initializer.TotalPrimitiveCount = 0; // This is calculated below based on static mesh section data
+	Initializer.GeometryType = RTGT_Triangles;
+	Initializer.bFastBuild = false;
+
+	TArray<FRayTracingGeometrySegment> GeometrySections;
+	GeometrySections.Reserve(Sections.Num());
+	for (const FStaticMeshSection& Section : Sections)
+	{
+		FRayTracingGeometrySegment Segment;
+		Segment.VertexBuffer = VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
+		Segment.VertexBufferElementType = VET_Float3;
+		Segment.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
+		Segment.VertexBufferOffset = 0;
+		Segment.MaxVertices = VertexBuffers.PositionVertexBuffer.GetNumVertices();
+		Segment.FirstPrimitive = Section.FirstIndex / 3;
+		Segment.NumPrimitives = Section.NumTriangles;
+		Segment.bEnabled = Section.bVisibleInRayTracing;
+		Segment.bForceOpaque = Section.bForceOpaque;
+		GeometrySections.Add(Segment);
+		Initializer.TotalPrimitiveCount += Section.NumTriangles;
+	}
+	Initializer.Segments = GeometrySections;
+}
+#endif // RHI_RAYTRACING
 
 void FStaticMeshLODResources::ReleaseResources()
 {
@@ -1851,6 +1866,16 @@ int32 FStaticMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
 	}
 
 	return LODIndex;
+}
+
+
+void UStaticMesh::RequestUpdateCachedRenderState() const
+{
+	Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+	if (HasValidNaniteData() && CoarseMeshSM)
+	{
+		CoarseMeshSM->RequestUpdateCachedRenderState(this);
+	}
 }
 
 
@@ -2481,6 +2506,14 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 		KeySuffix += TEXT("zzzzzzzz");
 	}
 
+	// Nanite Coarse mesh streaming change require regenerating the coarse mesh LODs during caching
+	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
+	const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
+	if (bNaniteCoareMeshStreamingEnabled)
+	{
+		KeySuffix += TEXT("_NCMS");
+	}
+
 	KeySuffix.AppendChar(Mesh->bSupportUniformlyDistributedSampling ? TEXT('1') : TEXT('0'));
 
 	if (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::HardwareLZDecompression))
@@ -2710,7 +2743,13 @@ void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStatic
 			else
 			{
 				IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
-				if (!MeshBuilderModule.BuildMesh(*this, Owner, LODGroup))
+
+				// Only build the LODs if coarse mesh streaming is enabled
+				static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
+				const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
+
+				const bool bGenerateStreamingLODs = (TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || TargetPlatform->HasEditorOnlyData()) && bNaniteCoareMeshStreamingEnabled && LODGroup.IsLODStreamingSupported();
+				if (!MeshBuilderModule.BuildMesh(*this, Owner, LODGroup, bGenerateStreamingLODs))
 				{
 					UE_LOG(LogStaticMesh, Error, TEXT("Failed to build static mesh. See previous line(s) for details."));
 					return;
@@ -6250,6 +6289,21 @@ bool UStaticMesh::StreamIn(int32 NewMipCount, bool bHighPrio)
 		return !PendingUpdate->IsCancelled();
 	}
 	return false;
+}
+
+EStreamableRenderAssetType UStaticMesh::GetRenderAssetType() const
+{
+	// Don't register for regular streaming when it's Nanite rendered - proxy mesh data is only used for Raytracing and proxy mesh streaming system is used for that
+	Nanite::FCoarseMeshStreamingManager* CoarseMeshStreamingManager = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+	if (HasValidNaniteData() && CoarseMeshStreamingManager)
+	{
+		return EStreamableRenderAssetType::NaniteCoarseMesh;
+	}
+	else
+	{
+		return EStreamableRenderAssetType::StaticMesh;
+	}
+
 }
 
 void UStaticMesh::CancelAllPendingStreamingActions()

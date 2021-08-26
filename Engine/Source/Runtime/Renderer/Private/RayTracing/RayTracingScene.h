@@ -80,6 +80,9 @@ public:
 	// Geometries which still have a pending build request but are used this frame and require a force build.
 	TArray<const FRayTracingGeometry*> GeometriesToBuild;
 
+	// Used coarse mesh streaming handles during the last TLAS build
+	TArray<Nanite::CoarseMeshStreamingHandle> UsedCoarseMeshStreamingHandles;
+
 	FRayTracingAccelerationStructureSize SizeInfo = {};
 
 	FRDGBufferRef BuildScratchBuffer;

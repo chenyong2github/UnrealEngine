@@ -17,6 +17,11 @@
  // Allows yield to lower priority threads
 #define RENDER_ASSET_STREAMING_SLEEP_DT (0.010f)
 
+namespace Nanite
+{
+	class FCoarseMeshStreamingManager;
+}
+
 enum class EStreamableRenderAssetType : uint8
 {
 	None,
@@ -24,6 +29,7 @@ enum class EStreamableRenderAssetType : uint8
 	StaticMesh,
 	SkeletalMesh,
 	LandscapeMeshMobile,
+	NaniteCoarseMesh,
 };
 
 UCLASS(Abstract, MinimalAPI)
@@ -270,4 +276,5 @@ protected:
 
 	friend struct FRenderAssetStreamingManager;
 	friend struct FStreamingRenderAsset;
+	friend class Nanite::FCoarseMeshStreamingManager;
 };

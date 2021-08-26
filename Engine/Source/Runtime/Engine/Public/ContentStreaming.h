@@ -40,6 +40,11 @@ class FSoundSource;
 struct FWaveInstance;
 struct FRenderAssetStreamingManager;
 
+namespace Nanite
+{
+	class FCoarseMeshStreamingManager;
+}
+
 /** Helper function to flush resource streaming. */
 void FlushResourceStreaming();
 
@@ -717,6 +722,11 @@ struct FStreamingManagerCollection : public IStreamingManager
 	ENGINE_API struct FVirtualTextureChunkStreamingManager& GetVirtualTextureStreamingManager() const;
 
 	/**
+	 * Gets a reference to the Nanite Coarse Mesh Streaming Manager
+	*/
+	ENGINE_API Nanite::FCoarseMeshStreamingManager* GetNaniteCoarseMeshStreamingManager() const;
+
+	/**
 	 * Adds a streaming manager to the array of managers to route function calls to.
 	 *
 	 * @param StreamingManager	Streaming manager to add
@@ -816,6 +826,9 @@ protected:
 
 	/** The virtual texture streaming manager, should always exist */
 	FVirtualTextureChunkStreamingManager* VirtualTextureStreamingManager;
+
+	/** The nanite coarse mesh streaming manager, should always exist */
+	Nanite::FCoarseMeshStreamingManager* NaniteCoarseMeshStreamingManager;
 
 #if WITH_EDITOR
 	// Locks out any audio streaming manager call when we are re-initializing the audio streaming manager.

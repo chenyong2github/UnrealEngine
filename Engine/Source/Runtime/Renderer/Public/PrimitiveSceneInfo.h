@@ -28,6 +28,11 @@ template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 class FNaniteCommandInfo;
 
+namespace Nanite
+{
+	using CoarseMeshStreamingHandle = int16;
+}
+
 /** Data used to track a primitive's allocation in the volume texture atlas that stores indirect lighting. */
 class FIndirectLightingCacheAllocation
 {
@@ -384,6 +389,8 @@ public:
 	bool bIsRayTracingRelevant : 1;
 	bool bIsRayTracingStaticRelevant : 1;
 	bool bIsVisibleInRayTracing : 1;
+	bool bCachedRaytracingDataDirty : 1;
+	Nanite::CoarseMeshStreamingHandle CoarseMeshStreamingHandle;
 
 	TArray<TArray<int32, TInlineAllocator<2>>> CachedRayTracingMeshCommandIndicesPerLOD;
 
@@ -562,7 +569,8 @@ public:
 	/** Mark the runtime virtual textures covered by this primitive as dirty. */
 	void FlushRuntimeVirtualTexture();
 
-#if RHI_RAYTRACING
+#if RHI_RAYTRACING	
+	static void UpdateCachedRaytracingData(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 	RENDERER_API FRHIRayTracingGeometry* GetStaticRayTracingGeometryInstance(int LodLevel) const;
 #endif
 
@@ -643,7 +651,7 @@ private:
 	TArray<FRayTracingGeometry*> RayTracingGeometries;
 
 	/** Creates cached ray tracing representations for all meshes. */
-	static void CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	static void CacheRayTracingPrimitives(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
 
 	/** Removes cached ray tracing representations for all meshes. */
 	void RemoveCachedRayTracingPrimitives();

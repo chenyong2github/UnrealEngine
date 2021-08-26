@@ -123,6 +123,7 @@ public:
 	virtual bool IsRayTracingStaticRelevant() const { return true; }
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<struct FRayTracingInstance>& OutRayTracingInstances) override;
 	virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance) override;
+	virtual Nanite::CoarseMeshStreamingHandle GetCoarseMeshStreamingHandle() const override { return CoarseMeshStreamingHandle; }
 #endif
 
 	virtual uint32 GetMemoryFootprint() const override;
@@ -171,6 +172,11 @@ protected:
 
 	bool IsCollisionView(const FEngineShowFlags& EngineShowFlags, bool& bDrawSimpleCollision, bool& bDrawComplexCollision) const;
 
+#if RHI_RAYTRACING
+	int32 GetFirstValidRaytracingGeometryLODIndex() const;
+	void SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const;
+#endif // RHI_RAYTRACING
+
 protected:
 	FMeshInfo MeshInfo;
 
@@ -192,9 +198,10 @@ protected:
 #if RHI_RAYTRACING
 	bool bHasRayTracingInstances = false;
 	bool bCachedRayTracingInstanceTransformsValid = false;
-	const FRayTracingGeometry* RayTracingGeometry = nullptr;
+	Nanite::CoarseMeshStreamingHandle CoarseMeshStreamingHandle = INDEX_NONE;
+	int16 CachedRayTracingMaterialsLODIndex = INDEX_NONE;
 	TArray<FMatrix> CachedRayTracingInstanceTransforms;
-	TArray<FMeshBatch> CachedRayTracingMaterials;
+	TArray<FMeshBatch> CachedRayTracingMaterials;	
 	FRayTracingMaskAndFlags CachedRayTracingInstanceMaskAndFlags;
 #endif
 

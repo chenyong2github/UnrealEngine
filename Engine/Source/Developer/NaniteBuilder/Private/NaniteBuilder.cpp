@@ -24,7 +24,7 @@
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define NANITE_DERIVEDDATA_VER TEXT("178FA71A-3EAE-4A16-AA92-4CAFAFC9D52A")
+#define NANITE_DERIVEDDATA_VER TEXT("1EA0064F-CA42-4D83-8930-5BA21EDBDBE1")
 
 namespace Nanite
 {
@@ -57,9 +57,8 @@ public:
 
 	virtual bool Build(
 		FResources& Resources,
-		TArray< FStaticMeshBuildVertex>& Vertices,
-		TArray< uint32 >& TriangleIndices,
-		TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
+		FVertexMeshData& InputMeshData,
+		TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings) override;
 };
@@ -481,11 +480,10 @@ static void ClusterTriangles(
 
 static bool BuildNaniteData(
 	FResources& Resources,
-	TArray< FStaticMeshBuildVertex >& Verts, // TODO: Do not require this vertex type for all users of Nanite
-	TArray< uint32 >& Indexes,
+	Nanite::IBuilderModule::FVertexMeshData& InputMeshData,
 	TArray< int32 >& MaterialIndexes,
 	TArray<uint32>& MeshTriangleCounts,
-	TArray< FStaticMeshSection, TInlineAllocator<1> >& Sections,
+	TArray<Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings
 )
@@ -499,7 +497,7 @@ static bool BuildNaniteData(
 
 	FBounds	VertexBounds;
 	uint32 Channel = 255;
-	for( auto& Vert : Verts )
+	for( auto& Vert : InputMeshData.Vertices )
 	{
 		VertexBounds += Vert.Position;
 
@@ -509,8 +507,8 @@ static bool BuildNaniteData(
 		Channel &= Vert.Color.A;
 	}
 
-	Resources.NumInputTriangles	= Indexes.Num() / 3;
-	Resources.NumInputVertices	= Verts.Num();
+	Resources.NumInputTriangles	= InputMeshData.TriangleIndices.Num() / 3;
+	Resources.NumInputVertices	= InputMeshData.Vertices.Num();
 	Resources.NumInputMeshes	= MeshTriangleCounts.Num();
 	Resources.NumInputTexCoords = NumTexCoords;
 
@@ -540,7 +538,7 @@ static bool BuildNaniteData(
 			uint32 NumClustersBefore = Clusters.Num();
 			if (NumTriangles)
 			{
-				ClusterTriangles(Verts, TArrayView< const uint32 >( &Indexes[BaseTriangle * 3], NumTriangles * 3 ),
+				ClusterTriangles(InputMeshData.Vertices, TArrayView< const uint32 >( &InputMeshData.TriangleIndices[BaseTriangle * 3], NumTriangles * 3 ),
 										TArrayView< const int32 >( &MaterialIndexes[BaseTriangle], NumTriangles ),
 										Clusters, VertexBounds, NumTexCoords, bHasVertexColor);
 			}
@@ -560,10 +558,15 @@ static bool BuildNaniteData(
 	if (bUseCoarseRepresentation)
 	{
 		check(MeshTriangleCounts.Num() == 1);
-		Verts.Empty();
-		Indexes.Empty();
 		MaterialIndexes.Empty();
 	}
+	else if (OutputLODMeshData.Num() > 0)
+	{
+		// Copy over the input mesh data as ouput because the input data will be cleared since it's not used anymore
+		OutputLODMeshData[0] = InputMeshData;
+	}
+	InputMeshData.Vertices.Empty();
+	InputMeshData.TriangleIndices.Empty();
 
 	uint32 Time0 = FPlatformTime::Cycles();
 
@@ -586,46 +589,69 @@ static bool BuildNaniteData(
 
 	if (bUseCoarseRepresentation)
 	{
-		const uint32 CoarseStartTime = FPlatformTime::Cycles();
-		const int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
-		const float CoarseTargetError = 0.1f;
-		const int32 CoarseTargetErrorMaxTriCount = FMath::Max(CoarseTriCount, 8192);
+		check(OutputLODMeshData.Num() > 0);
 
-		TArray<FStaticMeshSection, TInlineAllocator<1>> CoarseSections = Sections;
-		BuildCoarseRepresentation(Groups, Clusters, Verts, Indexes, CoarseSections, NumTexCoords, CoarseTriCount, CoarseTargetError, CoarseTargetErrorMaxTriCount);
+		int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(OldTriangleCount) * Settings.PercentTriangles)));
+		float CoarseTargetError = 0.1f;
+		int32 CoarseTargetErrorMaxTriCount = FMath::Max(CoarseTriCount, 8192);
 
-		// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
-		// that do not end up with any assigned triangles (due to decimation process).
+		// Each LOD reduce to 1/8th of previous triangle count
+		const float LODIterationFactor = 1.0f / 8;
 
-		for (FStaticMeshSection& Section : Sections)
+		for (int32 CoarseLODIndex = 0; CoarseLODIndex < OutputLODMeshData.Num(); ++CoarseLODIndex)
 		{
-			// For each section info, try to find a matching entry in the coarse version.
-			const FStaticMeshSection* CoarseSection = CoarseSections.FindByPredicate(
-				[&Section](const FStaticMeshSection& CoarseSectionIter)
-			{
-				return CoarseSectionIter.MaterialIndex == Section.MaterialIndex;
-			});
+			const uint32 CoarseStartTime = FPlatformTime::Cycles();
 
-			if (CoarseSection != nullptr)
+			Nanite::IBuilderModule::FVertexMeshData& CoarseLODMeshData = OutputLODMeshData[CoarseLODIndex];
+			
+			// Copy the section data which will then be patched up after the simplification
+			CoarseLODMeshData.Sections = InputMeshData.Sections;
+
+			TArray<FStaticMeshSection, TInlineAllocator<1>> CoarseSections = InputMeshData.Sections;
+			BuildCoarseRepresentation(Groups, Clusters, CoarseLODMeshData.Vertices, CoarseLODMeshData.TriangleIndices, CoarseSections, NumTexCoords, CoarseTriCount, CoarseTargetError, CoarseTargetErrorMaxTriCount);
+
+			// Fixup mesh section info with new coarse mesh ranges, while respecting original ordering and keeping materials
+			// that do not end up with any assigned triangles (due to decimation process).
+
+			for (FStaticMeshSection& Section : CoarseLODMeshData.Sections)
 			{
-				// Matching entry found
-				Section.FirstIndex     = CoarseSection->FirstIndex;
-				Section.NumTriangles   = CoarseSection->NumTriangles;
-				Section.MinVertexIndex = CoarseSection->MinVertexIndex;
-				Section.MaxVertexIndex = CoarseSection->MaxVertexIndex;
+				// For each section info, try to find a matching entry in the coarse version.
+				const FStaticMeshSection* CoarseSection = CoarseSections.FindByPredicate(
+					[&Section](const FStaticMeshSection& CoarseSectionIter)
+					{
+						return CoarseSectionIter.MaterialIndex == Section.MaterialIndex;
+					});
+
+				if (CoarseSection != nullptr)
+				{
+					// Matching entry found
+					Section.FirstIndex = CoarseSection->FirstIndex;
+					Section.NumTriangles = CoarseSection->NumTriangles;
+					Section.MinVertexIndex = CoarseSection->MinVertexIndex;
+					Section.MaxVertexIndex = CoarseSection->MaxVertexIndex;
+				}
+				else
+				{
+					// Section removed due to decimation, set placeholder entry
+					Section.FirstIndex = 0;
+					Section.NumTriangles = 0;
+					Section.MinVertexIndex = 0;
+					Section.MaxVertexIndex = 0;
+				}
 			}
-			else
+
+			const uint32 CoarseEndTime = FPlatformTime::Cycles();
+			UE_LOG(LogStaticMesh, Log, TEXT("Coarse %d/%d [%.2fs], original tris: %d, coarse tris: %d"), CoarseLODIndex + 1, OutputLODMeshData.Num(), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriCount);
+
+			// Find out triangle count of this LOD and set next target depending on the reduce factor
+			int32 LODTriangleCount = 0;
+			for (FStaticMeshSection& Section : CoarseSections)
 			{
-				// Section removed due to decimation, set placeholder entry
-				Section.FirstIndex     = 0;
-				Section.NumTriangles   = 0;
-				Section.MinVertexIndex = 0;
-				Section.MaxVertexIndex = 0;
+				LODTriangleCount += Section.NumTriangles;
 			}
+			CoarseTriCount = LODTriangleCount * LODIterationFactor;
+			CoarseTargetErrorMaxTriCount = LODTriangleCount * LODIterationFactor;
 		}
-
-		const uint32 CoarseEndTime = FPlatformTime::Cycles();
-		UE_LOG(LogStaticMesh, Log, TEXT("Coarse [%.2fs], original tris: %d, coarse tris: %d"), FPlatformTime::ToMilliseconds(CoarseEndTime - CoarseStartTime) / 1000.0f, OldTriangleCount, CoarseTriCount);
 	}
 
 	uint32 EncodeTime0 = FPlatformTime::Cycles();
@@ -677,14 +703,20 @@ bool FBuilderModule::Build(
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
 	check(Settings.PercentTriangles == 1.0f); // No coarse representation used by this path
-	TArray<FStaticMeshSection, TInlineAllocator<1>> IgnoredCoarseSections;
+
+	FVertexMeshData InputMeshData;
+	InputMeshData.Vertices = Vertices;
+	InputMeshData.TriangleIndices = TriangleIndices;
+	// Section are left empty because they are not touched anyway (not building a coarse representation)
+	
+	TArray<FVertexMeshData, TInlineAllocator<2>> EmptyOutputLODMeshData;
+	
 	return BuildNaniteData(
 		Resources,
-		Vertices,
-		TriangleIndices,
+		InputMeshData,
 		MaterialIndices,
 		MeshTriangleCounts,
-		IgnoredCoarseSections,
+		EmptyOutputLODMeshData,
 		NumTexCoords,
 		Settings
 	);
@@ -692,25 +724,24 @@ bool FBuilderModule::Build(
 
 bool FBuilderModule::Build(
 	FResources& Resources,
-	TArray< FStaticMeshBuildVertex>& Vertices,
-	TArray< uint32 >& TriangleIndices,
-	TArray< FStaticMeshSection, TInlineAllocator<1>>& Sections,
+	FVertexMeshData& InputMeshData,
+	TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
 	uint32 NumTexCoords,
 	const FMeshNaniteSettings& Settings)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::Build);
 
 	// TODO: Properly error out if # of unique materials is > 64 (error message to editor log)
-	check(Sections.Num() > 0 && Sections.Num() <= 64);
+	check(InputMeshData.Sections.Num() > 0 && InputMeshData.Sections.Num() <= 64);
 
 	// Build associated array of triangle index and material index.
 	TArray<int32> MaterialIndices;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Nanite::BuildSections);
-		MaterialIndices.Reserve(TriangleIndices.Num() / 3);
-		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
+		MaterialIndices.Reserve(InputMeshData.TriangleIndices.Num() / 3);
+		for (int32 SectionIndex = 0; SectionIndex < InputMeshData.Sections.Num(); SectionIndex++)
 		{
-			FStaticMeshSection& Section = Sections[SectionIndex];
+			FStaticMeshSection& Section = InputMeshData.Sections[SectionIndex];
 
 			// TODO: Safe to enforce valid materials always?
 			check(Section.MaterialIndex != INDEX_NONE);
@@ -722,18 +753,17 @@ bool FBuilderModule::Build(
 	}
 
 	TArray<uint32> MeshTriangleCounts;
-	MeshTriangleCounts.Add(TriangleIndices.Num() / 3);
+	MeshTriangleCounts.Add(InputMeshData.TriangleIndices.Num() / 3);
 
 	// Make sure there is 1 material index per triangle.
-	check(MaterialIndices.Num() * 3 == TriangleIndices.Num());
+	check(MaterialIndices.Num() * 3 == InputMeshData.TriangleIndices.Num());
 
 	return BuildNaniteData(
 		Resources,
-		Vertices,
-		TriangleIndices,
+		InputMeshData,
 		MaterialIndices,
 		MeshTriangleCounts,
-		Sections,
+		OutputLODMeshData,
 		NumTexCoords,
 		Settings
 	);

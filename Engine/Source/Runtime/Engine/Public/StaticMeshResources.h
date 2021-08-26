@@ -464,6 +464,10 @@ public:
 
 	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
+#if RHI_RAYTRACING
+	void SetupRayTracingGeometryInitializer(FRayTracingGeometryInitializer& Initializer, const FName& DebugName);
+#endif // RHI_RAYTRACING
+
 	/** Get the estimated memory overhead of buffers marked as NeedsCPUAccess. */
 	SIZE_T GetCPUAccessMemoryOverhead() const;
 

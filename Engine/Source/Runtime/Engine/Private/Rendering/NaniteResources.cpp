@@ -24,6 +24,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "NaniteSceneProxy.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 #if RHI_RAYTRACING
 #include "RayTracingInstance.h"
@@ -371,8 +372,8 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 
 	const bool bHasSurfaceStaticLighting = MeshInfo.GetLightMap() != nullptr || MeshInfo.GetShadowMap() != nullptr;
 
-	const uint32 LODIndex = 0; // Only data from LOD0 is used.
-	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[LODIndex];
+	const uint32 FirstLODIndex = 0; // Only data from LOD0 is used.
+	const FStaticMeshLODResources& MeshResources = RenderData->LODResources[FirstLODIndex];
 	const FStaticMeshSectionArray& MeshSections = MeshResources.Sections;
 
 	// Copy the pointer to the volume data, async building of the data may modify the one on FStaticMeshLODResources while we are rendering
@@ -488,23 +489,13 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	}
 
 #if RHI_RAYTRACING
-	CachedRayTracingMaterials.Reserve(MaterialSections.Num());
-	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
-	{
-		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
-		FMeshBatch& MeshBatch = CachedRayTracingMaterials.AddDefaulted_GetRef();
-		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-		MeshBatch.MaterialRenderProxy = MaterialSection.Material->GetRenderProxy();
-		MeshBatch.bWireframe = false;
-		MeshBatch.SegmentIndex = SectionIndex;
-		MeshBatch.LODIndex = LODIndex;
-	}
+	CachedRayTracingMaterials.SetNum(MaterialSections.Num());
 
 	if (IsRayTracingEnabled())
 	{
+		CoarseMeshStreamingHandle = (Nanite::CoarseMeshStreamingHandle)Component->GetStaticMesh()->GetStreamingIndex();
 		if (MeshResources.GetNumVertices())
 		{
-			RayTracingGeometry = &MeshResources.RayTracingGeometry;
 			bHasRayTracingInstances = true;
 		}
 
@@ -989,16 +980,66 @@ void FSceneProxy::OnTransformChanged()
 }
 
 #if RHI_RAYTRACING
+
+int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
+{
+	int32 NumLODs = RenderData->LODResources.Num();
+	int LODIndex = 0;
+
+#if WITH_EDITOR
+	// If coarse mesh streaming mode is set to 2 then we force use the lowest LOD to visualize streamed out coarse meshes
+	Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+	if (CoarseMeshSM && CoarseMeshSM->GetStreamingMode() == 2)
+	{
+		LODIndex = NumLODs - 1;
+	}
+#endif // WITH_EDITOR
+
+	// find the first valid RT geometry index
+	for (; LODIndex < NumLODs; ++LODIndex)
+	{
+		if (RenderData->LODResources[LODIndex].RayTracingGeometry.Initializer.TotalPrimitiveCount > 0 &&
+			RenderData->LODResources[LODIndex].RayTracingGeometry.RayTracingGeometryRHI != nullptr)
+		{
+			return LODIndex;
+		}
+	}
+
+	return INDEX_NONE;
+}
+
+void FSceneProxy::SetupRayTracingMaterials(int32 LODIndex, TArray<FMeshBatch>& Materials) const
+{
+	check(Materials.Num() == MaterialSections.Num());
+	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
+	{
+		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
+		FMeshBatch& MeshBatch = Materials[SectionIndex];
+		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
+		MeshBatch.MaterialRenderProxy = MaterialSection.Material->GetRenderProxy();
+		MeshBatch.bWireframe = false;
+		MeshBatch.SegmentIndex = SectionIndex;
+		MeshBatch.LODIndex = 0;
+	}
+}
+
 void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	if (GRayTracingNaniteProxyMeshes == 0 || RayTracingGeometry->Initializer.TotalPrimitiveCount == 0 || !bHasRayTracingInstances)
+	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances)
 	{
 		return;
 	}
 
-	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.Emplace_GetRef();
+	// try and find the first valid RT geometry index
+	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
+	if (ValidLODIndex == INDEX_NONE)
+	{
+		return;
+	}
 
-	RayTracingInstance.Geometry = RayTracingGeometry;
+	// Setup a new instance
+	FRayTracingInstance& RayTracingInstance = OutRayTracingInstances.Emplace_GetRef();
+	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;;
 
 	const int32 InstanceCount = InstanceSceneData.Num();
 	if (CachedRayTracingInstanceTransforms.Num() != InstanceCount || !bCachedRayTracingInstanceTransformsValid)
@@ -1019,13 +1060,21 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 	RayTracingInstance.InstanceTransformsView = CachedRayTracingInstanceTransforms;
 	RayTracingInstance.NumTransforms = CachedRayTracingInstanceTransforms.Num();
 
+	// Setup the cached materials again when the LOD changes
+	if (ValidLODIndex != CachedRayTracingMaterialsLODIndex)
+	{
+		SetupRayTracingMaterials(ValidLODIndex, CachedRayTracingMaterials);		
+		CachedRayTracingMaterialsLODIndex = ValidLODIndex;
+
+		// Request rebuild
+		CachedRayTracingInstanceMaskAndFlags.Mask = 0;
+	}
 	RayTracingInstance.MaterialsView = CachedRayTracingMaterials;
 
 	if (CachedRayTracingInstanceMaskAndFlags.Mask == 0)
 	{
 		CachedRayTracingInstanceMaskAndFlags = BuildRayTracingInstanceMaskAndFlags(CachedRayTracingMaterials, GetScene().GetFeatureLevel());
 	}
-
 	RayTracingInstance.Mask = CachedRayTracingInstanceMaskAndFlags.Mask;
 	RayTracingInstance.bForceOpaque = CachedRayTracingInstanceMaskAndFlags.bForceOpaque;
 	RayTracingInstance.bDoubleSided = CachedRayTracingInstanceMaskAndFlags.bDoubleSided;
@@ -1034,12 +1083,21 @@ void FSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringCont
 ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingInstance& RayTracingInstance)
 {
 	const bool bShouldRender = (IsVisibleInRayTracing() && ShouldRenderInMainPass() && IsDrawnInGame()) || IsRayTracingFarField();
-	if (GRayTracingNaniteProxyMeshes == 0 || RayTracingGeometry->Initializer.TotalPrimitiveCount == 0 || !bHasRayTracingInstances || !bShouldRender)
+	if (GRayTracingNaniteProxyMeshes == 0 || !bHasRayTracingInstances || !bShouldRender)
 	{
 		return ERayTracingPrimitiveFlags::Excluded;
 	}
 
-	RayTracingInstance.Geometry = RayTracingGeometry;
+	// try and find the first valid RT geometry index
+	int32 ValidLODIndex = GetFirstValidRaytracingGeometryLODIndex();
+	if (ValidLODIndex == INDEX_NONE)
+	{
+		// If there is a streaming handle (but no valid LOD available(, then give the streaming flag to make sure it's not excluded
+		// It's still needs to be processed during TLAS build because this will drive the streaming of these resources.
+		return (CoarseMeshStreamingHandle != INDEX_NONE) ? ERayTracingPrimitiveFlags::Streaming : ERayTracingPrimitiveFlags::Excluded;
+	}
+
+	RayTracingInstance.Geometry = &RenderData->LODResources[ValidLODIndex].RayTracingGeometry;
 
 	const int32 InstanceCount = InstanceSceneData.Num();
 	RayTracingInstance.InstanceTransforms.SetNumUninitialized(InstanceCount);
@@ -1051,18 +1109,8 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	}
 	RayTracingInstance.NumTransforms = InstanceCount;
 
-	RayTracingInstance.Materials.Reserve(MaterialSections.Num());
-	const int32 LODIndex = 0;
-	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
-	{
-		const FMaterialSection& MaterialSection = MaterialSections[SectionIndex];
-		FMeshBatch& MeshBatch = RayTracingInstance.Materials.AddDefaulted_GetRef();
-		MeshBatch.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
-		MeshBatch.MaterialRenderProxy = MaterialSection.Material->GetRenderProxy();
-		MeshBatch.bWireframe = false;
-		MeshBatch.SegmentIndex = SectionIndex;
-		MeshBatch.LODIndex = LODIndex;
-	}
+	RayTracingInstance.Materials.SetNum(MaterialSections.Num());
+	SetupRayTracingMaterials(ValidLODIndex, RayTracingInstance.Materials);
 
 	FRayTracingMaskAndFlags MaskAndFlags = BuildRayTracingInstanceMaskAndFlags(RayTracingInstance.Materials, GetScene().GetFeatureLevel());
 
@@ -1070,7 +1118,13 @@ ERayTracingPrimitiveFlags FSceneProxy::GetCachedRayTracingInstance(FRayTracingIn
 	RayTracingInstance.bForceOpaque = MaskAndFlags.bForceOpaque;
 	RayTracingInstance.bDoubleSided = MaskAndFlags.bDoubleSided;
 
-	return ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
+	// setup the flags
+	ERayTracingPrimitiveFlags ResultFlags = ERayTracingPrimitiveFlags::CacheMeshCommands | ERayTracingPrimitiveFlags::CacheInstances;
+	if (CoarseMeshStreamingHandle != INDEX_NONE)
+	{
+		ResultFlags = ResultFlags | ERayTracingPrimitiveFlags::Streaming;
+	}
+	return ResultFlags;
 }
 
 #endif // RHI_RAYTRACING

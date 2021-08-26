@@ -360,6 +360,7 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bAttachedToStreamingManagerAsDynamic = false;
 	bHandledByStreamingManagerAsDynamic = false;
 	bIgnoreStreamingManagerUpdate = false;
+	bAttachedToCoarseMeshStreamingManager = false;
 	LastCheckedAllCollideableDescendantsTime = 0.f;
 	
 	bApplyImpulseOnDamage = true;
@@ -675,7 +676,7 @@ void UPrimitiveComponent::OnUnregister()
 	Super::OnUnregister();
 
 	// Unregister only has effect on dynamic primitives (as static ones are handled when the level visibility changes).
-	if (bAttachedToStreamingManagerAsDynamic)
+	if (bAttachedToStreamingManagerAsDynamic || bAttachedToCoarseMeshStreamingManager)
 	{
 		IStreamingManager::Get().NotifyPrimitiveDetached(this);
 	}
@@ -1400,7 +1401,7 @@ void UPrimitiveComponent::PreSave(FObjectPreSaveContext ObjectSaveContext)
 void UPrimitiveComponent::BeginDestroy()
 {
 	// Whether static or dynamic, all references need to be freed
-	if (IsAttachedToStreamingManager())
+	if (IsAttachedToStreamingManager() || bAttachedToCoarseMeshStreamingManager)
 	{
 		IStreamingManager::Get().NotifyPrimitiveDetached(this);
 	}

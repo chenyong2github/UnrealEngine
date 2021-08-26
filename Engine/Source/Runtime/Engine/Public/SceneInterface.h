@@ -534,6 +534,7 @@ public:
 	virtual void IncrementFrameNumber() {}
 
 #if RHI_RAYTRACING
+	virtual void UpdateCachedRayTracingState(class FPrimitiveSceneProxy* SceneProxy) {}
 	virtual class FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() { return nullptr; }
 #endif
 

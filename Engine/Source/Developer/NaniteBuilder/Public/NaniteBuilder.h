@@ -54,11 +54,17 @@ public:
 		return false;
 	}
 
+	struct FVertexMeshData
+	{
+		TArray<FStaticMeshBuildVertex> Vertices;
+		TArray<uint32> TriangleIndices;
+		TArray<FStaticMeshSection, TInlineAllocator<1>> Sections;
+	};
+
 	virtual bool Build(
 		FResources& Resources,
-		TArray<FStaticMeshBuildVertex>& Vertices,
-		TArray<uint32>& TriangleIndices,
-		TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
+		FVertexMeshData& InputMeshData,
+		TArray<FVertexMeshData, TInlineAllocator<2>>& OutputLODMeshData,
 		uint32 NumTexCoords,
 		const FMeshNaniteSettings& Settings)
 	{

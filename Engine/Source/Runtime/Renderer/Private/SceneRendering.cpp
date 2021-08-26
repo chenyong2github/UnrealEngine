@@ -72,6 +72,7 @@
 #include "Lumen/Lumen.h"
 #include "Nanite/Nanite.h"
 #include "DistanceFieldLightingShared.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -4230,6 +4231,19 @@ void FRendererModule::PostRenderAllViewports()
 	// Increment FrameNumber before render the scene. Wrapping around is no problem.
 	// This is the only spot we change GFrameNumber, other places can only read.
 	++GFrameNumber;
+
+#if RHI_RAYTRACING
+	// Update the resource state after all viewports are done with rendering - all info collected for all views
+	Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+	if (CoarseMeshSM)
+	{
+		ENQUEUE_RENDER_COMMAND(NaniteCoarseMeshUpdateResourceStates)(
+			[CoarseMeshSM](FRHICommandListImmediate& RHICmdList)
+			{
+				CoarseMeshSM->UpdateResourceStates();
+			});
+	}
+#endif //#if RHI_RAYTRACING
 }
 
 void FRendererModule::PerFrameCleanupIfSkipRenderer()

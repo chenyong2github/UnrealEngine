@@ -56,6 +56,7 @@
 #include "NaniteVisualizationData.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "SceneTextureReductions.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "Strata/Strata.h"
@@ -66,6 +67,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "SceneCaptureRendering.h"
+#include "NaniteSceneProxy.h"
 
 extern int32 GNaniteShowStats;
 
@@ -618,6 +620,9 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 	TArray<FRelevantPrimitive> RelevantPrimitives;
 	RelevantPrimitives.Reserve(Scene->PrimitiveSceneProxies.Num());
 
+	TArray<FPrimitiveSceneInfo*> DirtyCachedRayTracingPrimitives;
+	DirtyCachedRayTracingPrimitives.Reserve(Scene->PrimitiveSceneProxies.Num());
+
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
@@ -736,6 +741,19 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				continue;
 			}
 
+			// Marked visible and used after point, check if streaming then mark as used in the TLAS (so it can be streamed in)
+			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::Streaming))
+			{
+				// Is the cached data dirty?
+				if (SceneInfo->bCachedRaytracingDataDirty)
+				{
+					DirtyCachedRayTracingPrimitives.Add(Scene->Primitives[PrimitiveIndex]);
+				}
+
+				check(SceneInfo->CoarseMeshStreamingHandle != INDEX_NONE);
+				RayTracingScene.UsedCoarseMeshStreamingHandles.Add(SceneInfo->CoarseMeshStreamingHandle);
+			}
+
 			//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
 			//Touching the SceneProxy to determine this would simply cost too much
 			static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
@@ -757,6 +775,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 			}
 		}
 	}
+
+	FPrimitiveSceneInfo::UpdateCachedRaytracingData(Scene, DirtyCachedRayTracingPrimitives);
 
 	FGraphEventArray LODTaskList;
 
@@ -1318,6 +1338,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		}
 	}
 
+	// Inform the coarse mesh streaming manager about all the used streamable render assets in the scene
+	Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+	if (CoarseMeshSM)
+	{
+		CoarseMeshSM->AddUsedStreamingHandles(RayTracingScene.UsedCoarseMeshStreamingHandles);
+	}
+
 	return true;
 }
 
@@ -1856,12 +1883,19 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 #if RHI_RAYTRACING
 	{
 		ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
-		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode)
+		bool bNaniteCoarseMeshStreamingModeChanged = false;
+#if WITH_EDITOR
+		Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
+		bNaniteCoarseMeshStreamingModeChanged = CoarseMeshSM ? CoarseMeshSM->CheckStreamingMode() : false;
+#endif // WITH_EDITOR
+
+		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged)
 		{
 			// If we change to or from a path traced render, we need to refresh the cached ray tracing mesh commands
 			// because they contain data about the currently bound shader. This operation is a bit expensive but
 			// only happens once as we transition between modes which should be rare.
-			Scene->RefreshRayTracingMeshCommandCache(GraphBuilder.RHICmdList, CurrentMode);
+			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
+			Scene->RefreshRayTracingMeshCommandCache();
 		}
 	}
 #endif
