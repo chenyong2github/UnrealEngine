@@ -37,9 +37,9 @@ public:
 
 			float Offset = VertexWeights[VertexID];
 			FVector3d NewPosition = Mesh.GetVertexRef(VertexID) + (Offset * Intensity * Normals[VertexID]);
-			Mesh.SetVertex_NoTimeStampUpdate(VertexID, NewPosition);
+			Mesh.SetVertex(VertexID, NewPosition, false);
 		});
-		Mesh.IncrementTimeStamps(1, true, false);
+		Mesh.UpdateChangeStamps(true, false);
 	}
 
 

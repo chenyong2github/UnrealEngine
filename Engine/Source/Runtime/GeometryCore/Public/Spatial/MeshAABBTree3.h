@@ -61,7 +61,7 @@ class TMeshAABBTree3 : public IMeshSpatial
 
 protected:
 	const TriangleMeshType* Mesh;
-	int MeshTimestamp = -1;
+	uint64 MeshChangeStamp = 0;
 	int TopDownLeafMaxTriCount = 4;
 
 public:
@@ -80,7 +80,7 @@ public:
 	void SetMesh(const TriangleMeshType* SourceMesh, bool bAutoBuild = true)
 	{
 		Mesh = SourceMesh;
-		MeshTimestamp = -1;
+		MeshChangeStamp = 0;
 
 		if (bAutoBuild)
 		{
@@ -94,15 +94,21 @@ public:
 	}
 
 	/**
-	 * @return true if internal timestamp matches mesh timestamp
+	 * @param bAllowUnsafeModifiedMeshQueries if true, then a built tree will still be considered valid even if the mesh change stamp has been modified
+	 * @return true if tree is built and mesh is unchanged (identified based on change stamp)
 	 */
-	bool IsValid() const 
+	bool IsValid(bool bAllowUnsafeModifiedMeshQueries) const 
 	{
-		if (MeshTimestamp == Mesh->GetShapeTimestamp())
+		checkSlow(RootIndex >= 0);
+		if (RootIndex < 0)
 		{
-			checkSlow(RootIndex >= 0);
+			return false;
 		}
-		return MeshTimestamp == Mesh->GetShapeTimestamp();
+		if (! bAllowUnsafeModifiedMeshQueries)
+		{
+			return (MeshChangeStamp == Mesh->GetChangeStamp());
+		}
+		return true;
 	}
 
 	void SetBuildOptions(int32 MaxBoxTriCount)
@@ -113,13 +119,13 @@ public:
 	void Build()
 	{
 		BuildTopDown(false);
-		MeshTimestamp = Mesh->GetShapeTimestamp();
+		MeshChangeStamp = Mesh->GetChangeStamp();
 	}
 
 	void Build(const TArray<int32>& TriangleList)
 	{
 		BuildTopDown(false, TriangleList, TriangleList.Num());
-		MeshTimestamp = Mesh->GetShapeTimestamp();
+		MeshChangeStamp = Mesh->GetChangeStamp();
 	}
 
 	virtual bool SupportsNearestTriangle() const override
@@ -136,8 +142,7 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const override
 	{
-		checkSlow(RootIndex >= 0);
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return IndexConstants::InvalidID;
 		}
@@ -258,8 +263,7 @@ public:
 	virtual int FindNearestVertex(const FVector3d& P, double& NearestDistSqr,
 		double MaxDist = TNumericLimits<double>::Max(), const FQueryOptions& Options = FQueryOptions())
 	{
-		checkSlow(RootIndex >= 0);
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return IndexConstants::InvalidID;
 		}
@@ -373,12 +377,10 @@ public:
 		//   nearestT to TNumericLimits<double>::Max(), then we will test all boxes (!)
 		NearestT = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
 
-		checkSlow(RootIndex >= 0);
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}
-
 
 		FindHitTriangle(RootIndex, Ray, NearestT, TID, Options);
 		return TID != IndexConstants::InvalidID;
@@ -468,10 +470,11 @@ public:
 	 */
 	virtual bool TestAnyHitTriangle(const FRay3d& Ray, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}
+
 		double MaxDistance = (Options.MaxDistance < TNumericLimits<float>::Max()) ? Options.MaxDistance : TNumericLimits<float>::Max();
 		int32 HitTID = IndexConstants::InvalidID;
 		bool bFoundHit = TestAnyHitTriangle(RootIndex, Ray, HitTID, MaxDistance, Options);
@@ -584,8 +587,7 @@ public:
 		double& Distance, const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions()
 	)
 	{
-		checkSlow(RootIndex >= 0);
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return FIndex2i::Invalid();
 		}
@@ -633,8 +635,7 @@ public:
 	 */
 	virtual void DoTraversal(FTreeTraversal& Traversal, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		checkSlow(RootIndex >= 0);
-		if (RootIndex < 0 || (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp())))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return;
 		}
@@ -710,7 +711,7 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const
 	{
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}
@@ -761,7 +762,7 @@ public:
 		const FQueryOptions& Options = FQueryOptions(), const FQueryOptions& OtherTreeOptions = FQueryOptions()
 	) const
 	{
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}
@@ -786,7 +787,7 @@ public:
 		const FQueryOptions& Options = FQueryOptions()
 	) const
 	{
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}
@@ -824,7 +825,7 @@ public:
 
 		MeshIntersection::FIntersectionsQueryResult result;
 
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return result;
 		}
@@ -858,7 +859,7 @@ public:
 
 		MeshIntersection::FIntersectionsQueryResult Result;
 
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return Result;
 		}
@@ -870,7 +871,7 @@ public:
 
 	virtual bool TestSelfIntersection(bool bIgnoreTopoConnected = true, const FQueryOptions& Options = FQueryOptions()) const
 	{
-		if (!Options.bAllowUnsafeModifiedMeshQueries && !ensure(MeshTimestamp == Mesh->GetShapeTimestamp()))
+		if ( ensure(IsValid(Options.bAllowUnsafeModifiedMeshQueries)) == false )
 		{
 			return false;
 		}

@@ -316,7 +316,7 @@ class TFastWindingTree
 	};
 
 	TMap<int, FWNInfo> FastWindingCache;
-	int FastWindingCacheTimestamp = -1;
+	uint64 FastWindingCacheMeshChangeStamp = 0;
 
 public:
 	/**
@@ -348,23 +348,23 @@ public:
 		return Tree;
 	}
 
-	void Build(bool bAlwaysBuildRegardlessOfTimestamp = true)
+	void Build(bool bForceRebuild = true)
 	{
 		check(Tree);
-		if (Tree->MeshTimestamp != Tree->Mesh->GetShapeTimestamp())
+		if ( Tree->IsValid(false) == false )
 		{
 			Tree->Build();
 		}
-		if (bAlwaysBuildRegardlessOfTimestamp || FastWindingCacheTimestamp != Tree->MeshTimestamp)
+		if (bForceRebuild || FastWindingCacheMeshChangeStamp != Tree->MeshChangeStamp)
 		{
 			build_fast_winding_cache();
-			FastWindingCacheTimestamp = Tree->MeshTimestamp;
+			FastWindingCacheMeshChangeStamp = Tree->MeshChangeStamp;
 		}
 	}
 
 	bool IsBuilt() const
 	{
-		return Tree->MeshTimestamp == Tree->Mesh->GetShapeTimestamp() && FastWindingCacheTimestamp == Tree->MeshTimestamp;
+		return Tree->IsValid(false) && FastWindingCacheMeshChangeStamp == Tree->MeshChangeStamp;
 	}
 
 	/**

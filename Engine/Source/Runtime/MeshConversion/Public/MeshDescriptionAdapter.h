@@ -69,11 +69,11 @@ public:
 	{
 		return Mesh->Vertices().Num();
 	}
-	int32 GetShapeTimestamp() const
+	uint64 GetChangeStamp() const
 	{
-		// MeshDescription doesn't provide any mechanism to know if it's been modified so just return 0
+		// MeshDescription doesn't provide any mechanism to know if it's been modified so just return 1
 		// and leave it to the caller to not build an aabb and then change the underlying mesh
-		return 0;
+		return 1;
 	}
 	FIndex3i GetTriangle(int32 IDValue) const
 	{
@@ -179,11 +179,11 @@ public:
 	{
 		return Mesh->Vertices().Num();
 	}
-	int32 GetShapeTimestamp() const
+	uint64 GetChangeStamp() const
 	{
-		// MeshDescription doesn't provide any mechanism to know if it's been modified so just return 0
+		// MeshDescription doesn't provide any mechanism to know if it's been modified so just return 1
 		// and leave it to the caller to not build an aabb and then change the underlying mesh
-		return 0;
+		return 1;
 	}
 	FIndex3i GetTriangle(int32 IDValue) const
 	{
@@ -251,7 +251,7 @@ struct FMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<
 		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
 		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
 		VertexCount = [&]() { return ParentAdapter.VertexCount();};
-		GetShapeTimestamp = [&]() { return ParentAdapter.GetShapeTimestamp();};
+		GetChangeStamp = [&]() { return ParentAdapter.GetChangeStamp();};
 		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
 		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
 	}
@@ -264,7 +264,7 @@ struct FMeshDescriptionMeshAdapterd : public UE::Geometry::TTriangleMeshAdapter<
 		MaxVertexID = [&]() { return ParentAdapter.MaxVertexID();};
 		TriangleCount = [&]() { return ParentAdapter.TriangleCount();};
 		VertexCount = [&]() { return ParentAdapter.VertexCount();};
-		GetShapeTimestamp = [&]() { return ParentAdapter.GetShapeTimestamp();};
+		GetChangeStamp = [&]() { return ParentAdapter.GetChangeStamp();};
 		GetTriangle = [&](int32 TriangleID) { return ParentAdapter.GetTriangle(TriangleID); };
 		GetVertex = [&](int32 VertexID) { return ParentAdapter.GetVertex(VertexID); };
 	}

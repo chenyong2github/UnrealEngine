@@ -316,7 +316,7 @@ void UUVSelectTool::Setup()
 			Tree->SetMesh(Target->UnwrapCanonical.Get());
 			TreeStore->Set(Target->UnwrapCanonical.Get(), Tree);
 		}
-		if (!Tree->IsValid())
+		if (!Tree->IsValid(false))
 		{
 			Tree->Build();
 		}
@@ -418,7 +418,7 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 		// to our undo/redo change implementation sometimes incrementing the topology timestamp
 		// even when the topology hasn't changed.
 		// TODO: Check whether we still need this once we use FMeshVertexChange instead of FDynamicMeshChange
-		SelectionStore->Selection->TopologyTimestamp = SelectionStore->Selection->Mesh->GetTopologyTimestamp();
+		SelectionStore->Selection->TopologyTimestamp = SelectionStore->Selection->Mesh->GetTopologyChangeStamp();
 
 		// Don't issue a transaciton if we're cancelling (currently only possible via undo out
 		// of the "Transform" tool). Otherwise, issue a speculative change so that we can clear
@@ -735,7 +735,7 @@ void UUVSelectTool::GizmoTransformEnded(UTransformProxy* Proxy)
 		Targets[SelectionTargetIndex]->UpdateAllFromUnwrapPreview(&MovingVids, nullptr, &SelectedTids);
 	}
 
-	if (!AABBTrees[SelectionTargetIndex]->IsValid())
+	if (!AABBTrees[SelectionTargetIndex]->IsValid(false))
 	{
 		AABBTrees[SelectionTargetIndex]->Build();
 	}

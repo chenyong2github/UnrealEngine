@@ -77,19 +77,15 @@ enum class EMeshComponents : uint8
 *
 * The function CheckValidity() does extensive sanity checking on the mesh data structure.
 * Use this to test your code, both for mesh construction and editing!!
-*
-*
-* TODO:
-*  - Many of the iterators depend on lambda functions, can we replace these with calls to
-*    internal/static functions that do the same thing?
-*  - efficient TriTrianglesItr() implementation?
-*  - additional Topology timestamp?
-*  - CompactInPlace() does not compact VertexEdgeLists
-*  ? TDynamicVector w/ 'stride' option, so that we can guarantee that tuples are in single block.
-*    The can have custom accessor that looks up entire tuple
 */
 class GEOMETRYCORE_API FDynamicMesh3
 {
+
+// TODO:
+//  - Many of the iterators depend on lambda functions, can we replace these with calls to
+//    internal/static functions that do the same thing?
+//  - CompactInPlace() does not compact VertexEdgeLists
+
 public:
 	using FEdgeFlipInfo     = DynamicMeshInfo::FEdgeFlipInfo;
 	using FEdgeSplitInfo    = DynamicMeshInfo::FEdgeSplitInfo;
@@ -168,14 +164,15 @@ protected:
 	/** Reference counts of edge indices. Ref count is always 1 if the edge exists. Iterate over this to find out which edge indices are valid. */
 	FRefCountVector EdgeRefCounts;
 
+	/** Extended Attributes for the Mesh (UV layers, Hard Normals, additional Polygroup Layers, etc) */
 	TUniquePtr<FDynamicMeshAttributeSet> AttributeSet{};
 
-	/** The mesh timestamp is incremented any time a function that modifies the mesh is called */
-	int Timestamp = 0;
-	/** The shape timestamp is incremented any time a function that modifies the mesh shape or topology is called */
-	int ShapeTimestamp = 0;
-	/** The topology timestamp is incremented any time a function that modifies the mesh topology is called */
-	int TopologyTimestamp = 0;
+	/** Enable/Disable updating of ShapeChangeStamp. This can be problematic in multi-threaded contexts so it is disabled by default. */
+	bool bEnableShapeChangeStamp = false;
+	/** If bEnableShapeChangeStamp=true, The shape change stamp is incremented any time a function that modifies the mesh shape or topology is called */
+	std::atomic<uint32> ShapeChangeStamp = 1;
+	/** The topology change stamp is incremented any time a function that modifies the mesh topology is called */
+	std::atomic<uint32> TopologyChangeStamp = 1;
 
 public:
 	/** Default constructor */
@@ -339,6 +336,61 @@ public:
 	{
 		return EdgeRefCounts.IsValid(EdgeID);
 	}
+
+
+
+
+	//
+	// Change Tracking support
+	// 
+	// 
+	// 
+public:
+
+	/** Enable/Disable incrementing of the ShapeChangeStamp */
+	void SetShapeChangeStampEnabled(bool bEnabled)
+	{
+		bEnableShapeChangeStamp = bEnabled;
+	}
+
+	/** @return true if Shape ChangeStamp is enabled (disabled by default) */
+	bool HasShapeChangeStampEnabled() const
+	{
+		return bEnableShapeChangeStamp;
+	}
+
+	/** Increment the specified ChangeStamps, if they are enabled. Thread-safe. */
+	void UpdateChangeStamps(bool bShapeChange, bool bTopologyChange)
+	{
+		if (bEnableShapeChangeStamp && (bShapeChange || bTopologyChange))
+		{
+			ShapeChangeStamp++;		// atomic increment
+		}
+		if (bTopologyChange)
+		{
+			TopologyChangeStamp++;	// atomic increment
+		}
+	}
+
+	/** ShapeChangeStamp is incremented any time a mesh vertex position is changed or the mesh topology is modified, if bEnableShapeChangeStamp=true */
+	inline uint32 GetShapeChangeStamp() const
+	{
+		ensureMsgf(bEnableShapeChangeStamp, TEXT("ShapeChange Tracking is not enabled on this mesh. Use SetShapeChangeStampEnabled() to enable, or use GetChangeStamp() to avoid this ensure."));
+		return ShapeChangeStamp;
+	}
+
+	/** TopologyChangeStamp is incremented when the mesh topology is modified */
+	inline uint32 GetTopologyChangeStamp() const
+	{
+		return TopologyChangeStamp;
+	}
+
+	/** ChangeStamp is a combination of the Shape and Topology ChangeStamps */
+	inline uint64 GetChangeStamp() const
+	{
+		return ShapeChangeStamp + TopologyChangeStamp;
+	}
+
 
 
 	//
@@ -534,51 +586,24 @@ public:
 		return Vertices[VertexID];
 	}
 
-	/** Set vertex position */
-	inline void SetVertex(int VertexID, const FVector3d& vNewPos)
+	/** 
+	 * Set vertex position 
+	 * @param bTrackChange if true, ShapeChangeStamp will be incremented (if enabled)
+	 */
+	inline void SetVertex(int VertexID, const FVector3d& vNewPos, bool bTrackChange = true)
 	{
 		checkSlow(VectorUtil::IsFinite(vNewPos));
 		checkSlow(IsVertex(VertexID));
 		if (VectorUtil::IsFinite(vNewPos))
 		{
 			Vertices[VertexID] = vNewPos;
-			UpdateTimeStamp(true, false);
+			if (bTrackChange)
+			{
+				UpdateChangeStamps(true, false);
+			}
 		}
 	}
 
-	/** Set vertex position. DOES NOT UPDATE TIMESTAMPS.
-	This is meant to be used in conjunction with IncrementTimeStamps, below. Set a bunch of vertex positions then 
-	increment the timestamps with the number of vertices that were moved, rather than incrementing the timestamps for
-	each vertex.
-	*/
-	void SetVertex_NoTimeStampUpdate(int VertexID, const FVector3d& vNewPos)
-	{
-		checkSlow(VectorUtil::IsFinite(vNewPos));
-		checkSlow(IsVertex(VertexID));
-
-		if (VectorUtil::IsFinite(vNewPos))
-		{
-			Vertices[VertexID] = vNewPos;
-		}
-	}
-
-	/** Increment the specified timestamps by the given amount. Thread-safe. 
-	This is meant to be used in conjunction with SetVertex_NoTimeStampUpdate, above. Set a bunch of vertex positions then
-	increment the timestamps with the number of vertices that were moved, rather than incrementing the timestamps for
-	each vertex.
-	*/
-	void IncrementTimeStamps(int Amount, bool bShapeChange, bool bTopologyChange)
-	{
-		FPlatformAtomics::InterlockedAdd(&Timestamp, Amount);
-		if (bShapeChange)
-		{
-			FPlatformAtomics::InterlockedAdd(&ShapeTimestamp, Amount);
-		}
-		if (bTopologyChange)
-		{
-			FPlatformAtomics::InterlockedAdd(&TopologyTimestamp, Amount);
-		}
-	}
 
 	/** Get extended vertex information */
 	bool GetVertex(int VertexID, FVertexInfo& VertInfo, bool bWantNormals, bool bWantColors, bool bWantUVs) const;
@@ -725,7 +750,6 @@ public:
 			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector3f>& Normals = VertexNormals.GetValue();
 			Normals[vID]                       = vNewNormal;
-			UpdateTimeStamp(false, false);
 		}
 	}
 
@@ -752,7 +776,6 @@ public:
 			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector3f>& Colors = VertexColors.GetValue();
 			Colors[vID]                       = vNewColor;
-			UpdateTimeStamp(false, false);
 		}
 	}
 
@@ -777,7 +800,6 @@ public:
 			checkSlow(IsVertex(vID));
 			TDynamicVector<FVector2f>& UVs = VertexUVs.GetValue();
 			UVs[vID]                       = vNewUV;
-			UpdateTimeStamp(false, false);
 		}
 	}
 
@@ -802,7 +824,6 @@ public:
 			checkSlow(IsTriangle(tid));
 			TriangleGroups.GetValue()[tid] = group_id;
 			GroupIDCounter                 = FMath::Max(GroupIDCounter, group_id + 1);
-			UpdateTimeStamp(false, false);
 		}
 	}
 
@@ -938,30 +959,12 @@ public:
 	/** returns measure of compactness in range [0,1], where 1 is fully compacted */
 	double CompactMetric() const
 	{
-		return ((double)VertexCount() / (double)MaxVertexID() + (double)TriangleCount() / (double)MaxTriangleID()) *
-		    0.5;
+		return ((double)VertexCount() / (double)MaxVertexID() + (double)TriangleCount() / (double)MaxTriangleID()) * 0.5;
 	}
 
 	/** @return true if mesh has no boundary edges */
 	bool IsClosed() const;
 
-	/** Timestamp is incremented any time any change is made to the mesh */
-	inline int GetTimestamp() const
-	{
-		return Timestamp;
-	}
-
-	/** ShapeTimestamp is incremented any time any vertex position is changed or the mesh topology is modified */
-	inline int GetShapeTimestamp() const
-	{
-		return ShapeTimestamp;
-	}
-
-	/** TopologyTimestamp is incremented any time any vertex position is changed or the mesh topology is modified */
-	inline int GetTopologyTimestamp() const
-	{
-		return TopologyTimestamp;
-	}
 
 	//
 	// Geometric queries
@@ -1450,19 +1453,6 @@ protected:
 
 	void ReverseTriOrientationInternal(int TriangleID);
 
-	void UpdateTimeStamp(bool bShapeChange, bool bTopologyChange)
-	{
-		Timestamp++;
-		if (bShapeChange)
-		{
-			ShapeTimestamp++;
-		}
-		if (bTopologyChange)
-		{
-			checkSlow(bShapeChange); // we consider topology change to be a shape change!
-			TopologyTimestamp++;
-		}
-	}
 
 	/** Returns the internal version number used during serialization. This is used for testing purposes. */
 	static int SerializeInternal_LatestVersion();

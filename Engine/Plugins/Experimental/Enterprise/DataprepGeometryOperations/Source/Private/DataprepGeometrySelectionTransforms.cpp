@@ -98,7 +98,7 @@ namespace DataprepGeometryOperationsUtils
 
 		MergedMeshTree.Build();
 
-		check( MergedMeshTree.IsValid() );
+		check( MergedMeshTree.IsValid(false) );
 
 		using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
 		const FAxisAlignedBox3d MergedMeshBox = MergedMeshTree.GetBoundingBox();

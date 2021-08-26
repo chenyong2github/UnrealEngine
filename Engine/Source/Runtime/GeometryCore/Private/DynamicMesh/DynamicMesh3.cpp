@@ -41,12 +41,11 @@ FDynamicMesh3::FDynamicMesh3(const FDynamicMesh3& Other)
 	GroupIDCounter{ Other.GroupIDCounter },
 
 	Edges{ Other.Edges },
-	EdgeRefCounts{ Other.EdgeRefCounts },
-
-	Timestamp{ Other.Timestamp },
-	ShapeTimestamp{ Other.ShapeTimestamp },
-	TopologyTimestamp{ Other.TopologyTimestamp }
+	EdgeRefCounts{ Other.EdgeRefCounts }
 {
+	ShapeChangeStamp.store(Other.ShapeChangeStamp);
+	TopologyChangeStamp.store(Other.TopologyChangeStamp);
+
 	if (Other.HasAttributes())
 	{
 		EnableAttributes();
@@ -72,11 +71,11 @@ FDynamicMesh3::FDynamicMesh3(FDynamicMesh3&& Other)
 	Edges{ MoveTemp( Other.Edges ) },
 	EdgeRefCounts{ MoveTemp( Other.EdgeRefCounts ) },
 
-	AttributeSet{ MoveTemp( Other.AttributeSet ) },
-	Timestamp{ MoveTemp( Other.Timestamp ) },
-	ShapeTimestamp{ MoveTemp( Other.ShapeTimestamp ) },
-	TopologyTimestamp{ MoveTemp( Other.TopologyTimestamp ) }
+	AttributeSet{ MoveTemp( Other.AttributeSet ) }
 {
+	ShapeChangeStamp.store(Other.ShapeChangeStamp);
+	TopologyChangeStamp.store(Other.TopologyChangeStamp);
+
 	if (AttributeSet)
 	{
 		AttributeSet->Reparent(this);
@@ -114,9 +113,9 @@ const FDynamicMesh3 & FDynamicMesh3::operator=(FDynamicMesh3 && Other)
 	{
 		AttributeSet->Reparent(this);
 	}
-	Timestamp = MoveTemp(Other.Timestamp);
-	ShapeTimestamp = MoveTemp(Other.ShapeTimestamp);
-	TopologyTimestamp = MoveTemp(Other.TopologyTimestamp);
+	
+	ShapeChangeStamp.store(Other.ShapeChangeStamp);
+	TopologyChangeStamp.store(Other.TopologyChangeStamp);
 
 	return *this;
 }
@@ -222,8 +221,8 @@ void FDynamicMesh3::Copy(const FDynamicMesh3& copy, bool bNormals, bool bColors,
 		DiscardAttributes();
 	}
 
-	Timestamp = FMath::Max(Timestamp + 1, copy.Timestamp);
-	ShapeTimestamp = TopologyTimestamp = Timestamp;
+	ShapeChangeStamp.store(copy.ShapeChangeStamp);
+	TopologyChangeStamp.store(copy.TopologyChangeStamp);
 }
 
 void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool bColors, bool bUVs, bool bAttributes, FCompactMaps* CompactInfo)
@@ -296,8 +295,8 @@ void FDynamicMesh3::CompactCopy(const FDynamicMesh3& copy, bool bNormals, bool b
 		AttributeSet->CompactCopy(*CompactInfo, *copy.Attributes());
 	}
 
-	Timestamp = FMath::Max(Timestamp + 1, copy.Timestamp);
-	ShapeTimestamp = TopologyTimestamp = Timestamp;
+	ShapeChangeStamp.store(copy.ShapeChangeStamp);
+	TopologyChangeStamp.store(copy.TopologyChangeStamp);
 }
 
 void FDynamicMesh3::Clear()
@@ -319,9 +318,9 @@ void FDynamicMesh3::Clear()
 	EdgeRefCounts.Clear();
 
 	AttributeSet.Reset();
-	Timestamp = 0;
-	ShapeTimestamp = 0;
-	TopologyTimestamp = 0;
+
+	ShapeChangeStamp.store(1);
+	TopologyChangeStamp.store(1);
 }
 
 
@@ -600,8 +599,8 @@ FString FDynamicMesh3::MeshInfoString()
 		EdgeCount(), MaxEdgeID(), *EdgeRefCounts.UsageStats());
 	FString AttribString = FString::Printf(TEXT("VtxNormals %d  VtxColors %d  VtxUVs %d  TriGroups %d  Attributes %d"),
 		HasVertexNormals(), HasVertexColors(), HasVertexUVs(), HasTriangleGroups(), HasAttributes());
-	FString InfoString = FString::Printf(TEXT("Closed %d  Compact %d  Timestamp %d  ShapeTimestamp %d  TopologyTimestamp %d  MaxGroupID %d"),
-		IsClosed(), IsCompact(), GetTimestamp(), GetShapeTimestamp(), GetTopologyTimestamp(), MaxGroupID());
+	FString InfoString = FString::Printf(TEXT("Closed %d  Compact %d  ShapeChangeStamp %d  TopologyChangeStamp %d  MaxGroupID %d"),
+		IsClosed(), IsCompact(), GetShapeChangeStamp(), GetTopologyChangeStamp(), MaxGroupID());
 
 	return VtxString + "\n" + TriString + "\n" + EdgeString + "\n" + AttribString + "\n" + InfoString;
 }

@@ -272,9 +272,9 @@ struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 	{
 		return GlobalVertices.Num();
 	}
-	constexpr inline int32 GetShapeTimestamp() const
+	constexpr inline uint64 GetChangeStamp() const
 	{
-		return 0;
+		return 1;
 	}
 
 	inline void GetTriVertices(int TID, UE::Math::TVector<double>& V0, UE::Math::TVector<double>& V1, UE::Math::TVector<double>& V2) const
@@ -354,9 +354,9 @@ struct FGeomFlatUVMesh
 	{
 		return Collection->UVs.Num();
 	}
-	constexpr inline int32 GetShapeTimestamp() const
+	constexpr inline uint64 GetChangeStamp() const
 	{
-		return 0;
+		return 1;
 	}
 
 	inline void GetTriVertices(int TID, UE::Math::TVector<double>& V0, UE::Math::TVector<double>& V1, UE::Math::TVector<double>& V2) const

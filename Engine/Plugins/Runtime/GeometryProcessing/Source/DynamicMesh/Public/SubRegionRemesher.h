@@ -464,10 +464,10 @@ protected:
 		{
 			if (SmoothIndices[i] >= 0)
 			{
-				Mesh->SetVertex_NoTimeStampUpdate(SmoothIndices[i], SmoothedPositions[i]);
+				Mesh->SetVertex(SmoothIndices[i], SmoothedPositions[i], false);
 			}
 		});
-		Mesh->IncrementTimeStamps(1, true, false);
+		Mesh->UpdateChangeStamps(true, false);
 	}
 };
 
