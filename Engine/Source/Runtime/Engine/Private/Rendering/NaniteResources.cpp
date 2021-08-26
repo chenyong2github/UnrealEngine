@@ -988,8 +988,7 @@ int32 FSceneProxy::GetFirstValidRaytracingGeometryLODIndex() const
 
 #if WITH_EDITOR
 	// If coarse mesh streaming mode is set to 2 then we force use the lowest LOD to visualize streamed out coarse meshes
-	Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
-	if (CoarseMeshSM && CoarseMeshSM->GetStreamingMode() == 2)
+	if (Nanite::FCoarseMeshStreamingManager::GetStreamingMode() == 2)
 	{
 		LODIndex = NumLODs - 1;
 	}
