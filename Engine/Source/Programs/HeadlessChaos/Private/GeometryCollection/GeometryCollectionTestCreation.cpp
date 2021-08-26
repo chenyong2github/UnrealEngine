@@ -255,10 +255,10 @@ namespace GeometryCollectionTest
 
 			EXPECT_EQ((Collection->FaceCount)[0], 12);
 			EXPECT_EQ((Collection->FaceCount)[1], 12);
-			EXPECT_EQ((Collection->FaceCount)[1], 12);
-			EXPECT_EQ((Collection->FaceCount)[1], 12);
-			EXPECT_EQ((Collection->FaceCount)[1], 12);
-			EXPECT_EQ((Collection->FaceCount)[1], 12);
+			EXPECT_EQ((Collection->FaceCount)[2], 12);
+			EXPECT_EQ((Collection->FaceCount)[3], 12);
+			EXPECT_EQ((Collection->FaceCount)[4], 12);
+			EXPECT_EQ((Collection->FaceCount)[5], 12);
 			EXPECT_EQ((Collection->Indices).Num(), 72);
 
 			EXPECT_EQ((Collection->VertexStart)[0], 0);
