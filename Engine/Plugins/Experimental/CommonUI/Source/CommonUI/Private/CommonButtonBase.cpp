@@ -720,7 +720,7 @@ void UCommonButtonBase::SetSelectedInternal(bool bInSelected, bool bAllowSound /
 	if (bSelected)
 	{
 		NativeOnSelected(bBroadcast);
-		if (!bToggleable)
+		if (!bToggleable && IsInteractable())
 		{
 			// If the button isn't toggleable, then disable interaction with the root button while selected
 			// The prevents us getting unnecessary click noises and events
