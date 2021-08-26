@@ -412,7 +412,7 @@ FString LexToString(EMaterialQualityLevel::Type QualityLevel)
 		default:
 			break;
 	}
-	return TEXT("UnknownFeatureLevel");
+	return TEXT("UnknownMaterialQualityLevel");
 }
 
 /**

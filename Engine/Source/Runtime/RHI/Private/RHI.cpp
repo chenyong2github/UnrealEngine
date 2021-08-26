@@ -2128,6 +2128,8 @@ FString LexToString(ERHIFeatureLevel::Type Level)
 			return TEXT("SM4_REMOVED");
 		case ERHIFeatureLevel::SM5:
 			return TEXT("SM5");
+		case ERHIFeatureLevel::SM6:
+			return TEXT("SM6");
 		default:
 			break;
 	}
