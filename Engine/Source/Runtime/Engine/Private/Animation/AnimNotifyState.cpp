@@ -4,6 +4,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "UObject/ObjectSaveContext.h"
+#include "Animation/AnimSequenceBase.h"
 
 /////////////////////////////////////////////////////
 // UAnimNotifyState
