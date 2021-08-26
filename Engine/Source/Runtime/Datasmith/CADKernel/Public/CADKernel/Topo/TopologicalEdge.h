@@ -181,7 +181,7 @@ namespace CADKernel
 		 */
 		bool CheckIfDegenerated();
 
-		void Link(const TSharedRef<FTopologicalEdge>& OtherEdge, double JoiningTolerance);
+		void Link(const TSharedRef<FTopologicalEdge>& OtherEdge, double SquareJoiningTolerance);
 
 		TSharedRef<const FTopologicalEdge> GetLinkActiveEdge() const
 		{
