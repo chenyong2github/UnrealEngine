@@ -158,6 +158,9 @@ namespace CrossCompiler
 		/** Disassembles the specified SPIR-V module and returns its assembly as text representation. */
 		static bool Disassemble(EShaderConductorIR Language, const void* Binary, uint32 BinaryByteSize, TArray<ANSICHAR>& OutAssemblyText);
 
+		/** Maps the primary shader frequency (see FShaderTarget::Frequency) to EHlslShaderFrequency used by this context. */
+		static EHlslShaderFrequency MapShaderFrequency(EShaderFrequency Frequency);
+
 	public:
 		struct FShaderConductorIntermediates; // Pimpl idiom
 

@@ -917,4 +917,23 @@ namespace CrossCompiler
 		return IdentifierTable;
 	}
 
+	EHlslShaderFrequency FShaderConductorContext::MapShaderFrequency(EShaderFrequency Frequency)
+	{
+		const EHlslShaderFrequency FrequencyTable[] =
+		{
+			HSF_VertexShader,		// SF_Vertex
+			HSF_InvalidFrequency,	// SF_Mesh
+			HSF_InvalidFrequency,	// SF_Amplification
+			HSF_PixelShader,		// SF_Pixel
+			HSF_GeometryShader,		// SF_Geometry
+			HSF_ComputeShader,		// SF_Compute
+			HSF_RayGen,				// SF_RayGen
+			HSF_RayMiss,			// SF_RayMiss
+			HSF_RayHitGroup,		// SF_RayHitGroup
+			HSF_RayCallable,		// SF_RayCallable
+		};
+		const uint32 FrequencyIndex = static_cast<uint32>(Frequency);
+		return (FrequencyIndex < UE_ARRAY_COUNT(FrequencyTable) ? FrequencyTable[FrequencyIndex] : HSF_InvalidFrequency);
+	}
+
 } // namespace CrossCompiler

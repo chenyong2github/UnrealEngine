@@ -643,7 +643,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 			CrossCompiler::FShaderConductorContext CompilerContext;
 
 			// Load shader source into compiler context
-			CompilerContext.LoadSource(PreprocessedShaderSource, Input.VirtualSourceFilePath, EntryPointName, static_cast<EHlslShaderFrequency>(Input.Target.Frequency));
+			const EHlslShaderFrequency Frequency = CrossCompiler::FShaderConductorContext::MapShaderFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency));
+			CompilerContext.LoadSource(PreprocessedShaderSource, Input.VirtualSourceFilePath, EntryPointName, Frequency);
 
 			// Compile HLSL source to SPIR-V binary
 			CrossCompiler::FShaderConductorOptions Options;
@@ -678,11 +679,12 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 
 			// Compile again with FXC:
 			// SPIRV-Cross will have generated the new shader with "main" as the new entry point.
+			const FString CrossCompiledSourceFilename = Input.VirtualSourceFilePath + TEXT(".intermediate.hlsl");
 			Result = D3DCompileWrapper(
 				D3DCompileFunc,
 				CrossCompiledSource.GetData(),
-				CrossCompiledSource.Num(),
-				TCHAR_TO_ANSI(*Input.VirtualSourceFilePath),
+				CrossCompiledSource.Num() - 1,
+				TCHAR_TO_ANSI(*CrossCompiledSourceFilename),
 				/*pDefines=*/ NULL,
 				/*pInclude=*/ NULL,
 				"main",
