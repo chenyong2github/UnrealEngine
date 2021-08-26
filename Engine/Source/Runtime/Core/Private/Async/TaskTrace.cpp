@@ -196,6 +196,15 @@ namespace TaskTrace
 			<< WaitingStarted.Tasks(Tasks.GetData(), Tasks.Num());
 	}
 
+	FWaitingScope::FWaitingScope(FId TaskId)
+	{
+		check(bGTaskTraceInitialized);
+
+		UE_TRACE_LOG(TaskTrace, WaitingStarted, TaskChannel)
+			<< WaitingStarted.Timestamp(FPlatformTime::Cycles64())
+			<< WaitingStarted.Tasks(&TaskId, 1);
+	}
+
 	FWaitingScope::~FWaitingScope()
 	{
 		check(bGTaskTraceInitialized);
