@@ -3121,6 +3121,10 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 			}
 		}
 		bResetSimulation |= SimulationSettings.SimulationSetup.bResetSimulation;
+		if (!IsVisible() || (GetOwner() && GetOwner()->IsHidden()))
+		{
+			bResetSimulation = true;
+		}
 	}
 	bInitSimulation = false;
 
