@@ -6,6 +6,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Editor/PropertyEditor/Public/PropertyHandle.h"
+#include "Framework/SlateDelegates.h"
 
 /**
  * Delegate fired when picking a new image.
