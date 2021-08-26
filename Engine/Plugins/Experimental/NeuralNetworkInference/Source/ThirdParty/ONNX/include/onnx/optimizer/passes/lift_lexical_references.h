@@ -227,7 +227,7 @@ namespace ONNX_NAMESPACE {
 					for (auto& ref : unresolved) {
 						errmsg += ref + ",";
 					}
-#ifndef __PROSPERO__
+#ifndef UE_ONNX_NO_EXCEPTIONS
 					throw std::runtime_error(errmsg);
 #else
 					std::cerr << errmsg;

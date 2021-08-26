@@ -34,7 +34,7 @@ namespace ONNX_NAMESPACE {
 			std::string expanded_message_;
 		};
 
-#if defined(__PROSPERO__)
+#if defined(UE_ONNX_NO_EXCEPTIONS)
 #define fail_check(...)                                                 \
     do {                                                                    \
         std::cerr << ONNX_NAMESPACE::MakeString(__VA_ARGS__);               \

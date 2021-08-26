@@ -37,6 +37,10 @@ public class ONNX : ModuleRules
 
 			// PublicDefinitions
 			PublicDefinitions.Add("WITH_ONNX");
+
+			if(Target.Platform == UnrealTargetPlatform.Linux){
+				PublicDefinitions.Add("UE_ONNX_NO_EXCEPTIONS");
+			}
 		}
 	}
 }
