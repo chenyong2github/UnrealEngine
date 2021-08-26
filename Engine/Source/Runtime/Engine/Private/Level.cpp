@@ -60,6 +60,10 @@ Level.cpp: Level-related functions
 #include "IAssetRegistry.h"
 #include "AssetData.h"
 #include "PieFixupSerializer.h"
+#include "Editor.h"
+#include "Subsystems/EditorActorSubsystem.h"
+#include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Notifications/NotificationManager.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "Engine/LevelStreaming.h"
@@ -73,6 +77,7 @@ Level.cpp: Level-related functions
 #include "HAL/LowLevelMemTracker.h"
 #include "ObjectTrace.h"
 
+#define LOCTEXT_NAMESPACE "ULevel"
 DEFINE_LOG_CATEGORY(LogLevel);
 
 int32 GActorClusteringEnabled = 1;
@@ -3048,6 +3053,29 @@ void ULevel::RepairLevelScript()
 		}
 	}
 
+	// Show a toast notification to the user if there are multiple LSAs in this level (only for levels being actively edited)
+	if (LevelScriptActor && !MultipleLSAsNotification.IsValid() &&
+		OwningWorld && OwningWorld->WorldType == EWorldType::Editor)
+	{
+		TArray<ALevelScriptActor*> SiblingLSAs = LevelScriptActor->FindSiblingLevelScriptActors();
+
+		if (!SiblingLSAs.IsEmpty())
+		{
+			UE_LOG(LogLevel, Error, TEXT("Detected more than one LevelScriptActor in map '%s'. This can lead to duplicate level blueprint operations during play."), *GetPathName());
+
+			FNotificationInfo Info(LOCTEXT("MultipleLSAsPopupTitle", "Map Corruption: Multiple Level Script Actors"));
+			Info.ExpireDuration = 10.0f;
+			Info.bFireAndForget = true;
+			Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
+
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("MultipleLSAsPopupBeginRepair", "Repair Map"), LOCTEXT("MultipleLSAsBeginRepairTT", "Repairing the map by deleting extra LevelScriptActors"), FSimpleDelegate::CreateUObject(this, &ULevel::OnMultipleLSAsPopupClicked)));
+			Info.ButtonDetails.Add(FNotificationButtonInfo(LOCTEXT("MultipleLSAsPopupDismiss", "Dismiss"), LOCTEXT("MultipleLSAsPopupDismissTT", "Dismiss this notification"), FSimpleDelegate::CreateUObject(this, &ULevel::OnMultipleLSAsPopupDismissed)));
+
+			MultipleLSAsNotification = FSlateNotificationManager::Get().AddNotification(Info);
+			MultipleLSAsNotification.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
+		}
+	}
+
 	// Catch the edge case where we have a level blueprint but have never created the LevelScriptActor based on it.
 	//    This could happen if a new level is saved before the level blueprint is compiled.
 	if (!LevelScriptActor && LevelScriptBlueprint && !LevelScriptBlueprint->bIsRegeneratingOnLoad &&
@@ -3106,4 +3134,48 @@ void ULevel::RegenerateLevelScriptActor()
 		UE_LOG(LogLevel, Error, TEXT("Skipped regeneration of LevelScriptActor due to blueprint '%s' having no spawnable class. A probable cause is that the blueprint is deriving from an invalid class, and may not function."), *LevelScriptBlueprint->GetName());
 	}
 }
+
+void ULevel::RemoveExtraLevelScriptActors()
+{
+	if (LevelScriptActor)
+	{
+		TArray<ALevelScriptActor*> ExtraLSAs = LevelScriptActor->FindSiblingLevelScriptActors();
+
+		if (ExtraLSAs.Num() > 0)
+		{
+			if (UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>())
+			{
+				for (ALevelScriptActor* LSA : ExtraLSAs)
+				{
+					UE_LOG(LogLevel, Log, TEXT("Deleting extra LevelScriptActor: %s"), *LSA->GetPathName());
+					EditorActorSubsystem->DestroyActor(LSA);
+				}
+			}
+		}
+	}
+}
+
+void ULevel::OnMultipleLSAsPopupClicked()
+{
+	RemoveExtraLevelScriptActors();
+	OnMultipleLSAsPopupDismissed();
+}
+
+void ULevel::OnMultipleLSAsPopupDismissed()
+{
+	if (MultipleLSAsNotification.IsValid())
+	{
+		TSharedPtr<SNotificationItem> NotifPopup = MultipleLSAsNotification.Pin();
+
+		NotifPopup->SetCompletionState(SNotificationItem::CS_None);
+		NotifPopup->SetExpireDuration(0.0f);
+		NotifPopup->SetFadeOutDuration(0.0f);
+		NotifPopup->ExpireAndFadeout();
+
+		MultipleLSAsNotification.Reset();
+	}
+}
+
 #endif // WITH_EDITOR
+
+#undef LOCTEXT_NAMESPACE
