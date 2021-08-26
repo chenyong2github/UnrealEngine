@@ -3,13 +3,15 @@
 #pragma once
 
 #include "SRCPanelTreeNode.h"
-#include "RemoteControlPanelStyle.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
+#include "RemoteControlPanelStyle.h"
+#include "Widgets/Layout/SBorder.h"
 
 class AActor;
 struct FRemoteControlEntity;
-class URemoteControlPreset;
+class SInlineEditableTextBlock;
 class SWidget;
+class URemoteControlPreset;
 
 /**
  * @Note if you inherit from this struct, you must call SRCPanelExposedEntity::Initialize.
