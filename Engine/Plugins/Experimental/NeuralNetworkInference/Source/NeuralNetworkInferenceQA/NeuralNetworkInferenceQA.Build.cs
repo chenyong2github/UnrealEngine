@@ -33,19 +33,15 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			}
 		);
 
-		// Win64-only
-		if (Target.Platform == UnrealTargetPlatform.Win64)
+		// Editor-only
+		if (Target.bBuildEditor)
 		{
-			// Editor-only (to be deprecated)
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.AddRange
-					(
-					new string[] {
-						"ModelProtoFileReader"
-					}
-				);
-			}
+			PrivateDependencyModuleNames.AddRange
+				(
+				new string[] {
+					"ModelProtoFileReader"
+				}
+			);
 		}
 	}
 }

@@ -30,4 +30,10 @@ struct UNeuralNetwork::FImplBackEndUEOnly
 	 * Set of operators that the network need to run on the Forward pass and that might need to run on the PostForward pass.
 	 */
 	TArray<TSharedPtr<FNeuralOperator>> Operators;
+
+ #if WITH_EDITOR
+ 	static bool Load(const FString& InModelFullFilePath);
+ #endif //WITH_EDITOR
+
+	static bool Load(FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
 };
