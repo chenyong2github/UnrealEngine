@@ -275,7 +275,7 @@ static bool ReadPixelDataToImage(TUniquePtr<FImagePixelData>& PixelData, FImageA
 					const uint8* BufferPixel = &SourceBuffer[(yi * Width + xi) * 4];
 					FColor Color(BufferPixel[2], BufferPixel[1], BufferPixel[0], BufferPixel[3]);		// BGRA
 					FLinearColor PixelColorf = (bLinear) ? Color.ReinterpretAsLinear() : FLinearColor(Color);
-					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+					ResultImageOut.SetPixel(FVector2i(xi, yi), PixelColorf);
 				}
 			}
 			return true;
@@ -291,7 +291,7 @@ static bool ReadPixelDataToImage(TUniquePtr<FImagePixelData>& PixelData, FImageA
 				{
 					const FFloat16Color* BufferPixel = &SourceBuffer[yi * Width + xi];
 					FLinearColor PixelColorf = BufferPixel->GetFloats();
-					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+					ResultImageOut.SetPixel(FVector2i(xi, yi), PixelColorf);
 				}
 			}
 			return true;
@@ -306,7 +306,7 @@ static bool ReadPixelDataToImage(TUniquePtr<FImagePixelData>& PixelData, FImageA
 				for (int32 xi = 0; xi < Width; ++xi)
 				{
 					FLinearColor PixelColorf = SourceBuffer[yi * Width + xi];
-					ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+					ResultImageOut.SetPixel(FVector2i(xi, yi), PixelColorf);
 				}
 			}
 			return true;
@@ -591,7 +591,7 @@ bool FWorldRenderCapture::CaptureEmissiveFromPosition(
 		for (int32 xi = 0; xi < Width; ++xi)
 		{
 			FLinearColor PixelColorf = ReadImageBuffer[yi * Width + xi];
-			ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+			ResultImageOut.SetPixel(FVector2i(xi, yi), PixelColorf);
 		}
 	}
 
@@ -753,7 +753,7 @@ bool FWorldRenderCapture::CaptureFromPosition(
 		{
 			FLinearColor PixelColorf = ReadImageBuffer[yi * Width + xi];
 			PixelColorf.A = 1.0f;		// ?
-			ResultImageOut.SetPixel(FVector2i(xi, yi), FVector4f(PixelColorf));
+			ResultImageOut.SetPixel(FVector2i(xi, yi), PixelColorf);
 		}
 	}
 

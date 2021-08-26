@@ -51,7 +51,7 @@ static bool ReadTexture_PlatformData(
 		FLinearColor FloatColor = (TextureMap->SRGB) ?
 				FLinearColor::FromSRGBColor(ByteColor) :
 				ByteColor.ReinterpretAsLinear();
-		DestImage.SetPixel(i, FVector4f(FloatColor));
+		DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 	}
 
 	// restore built platform texture data to initial state
@@ -98,7 +98,7 @@ static bool ReadTexture_SourceData(
 				FLinearColor::FromSRGBColor(PixelColor) :
 				PixelColor.ReinterpretAsLinear();
 
-			DestImage.SetPixel(i, FVector4f(FloatColor));
+			DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 		}
 	}
 	// code below is also derived from FImage::CopyTo (CopyImage) - invoked during BuildTexture on import.
@@ -123,7 +123,8 @@ static bool ReadTexture_SourceData(
 		for (int64 i = 0; i < Num; ++i)
 		{
 			const uint8* PixelPtr = SourceDataPtr + (i * BytesPerPixel);
-			DestImage.SetPixel(i, FVector4f( ((const FFloat16Color*)PixelPtr)->GetFloats() ));
+			FLinearColor LinearColor = ((const FFloat16Color*)PixelPtr)->GetFloats();
+			DestImage.SetPixel(i, ToVector4<float>(LinearColor) );
 		}
 	}
 	else if ((SourceFormat == TSF_G16))
@@ -148,7 +149,7 @@ static bool ReadTexture_SourceData(
 			FLinearColor FloatColor = (TextureMap->SRGB) ?
 				FLinearColor::FromSRGBColor(FColor(PixelColor, PixelColor, PixelColor, 255)) :
 				FLinearColor(PixelColorf, PixelColorf, PixelColorf, 1.0);
-			DestImage.SetPixel(i, FVector4f(FloatColor));
+			DestImage.SetPixel(i, ToVector4<float>(FloatColor));
 		}
 	}
 
@@ -358,7 +359,7 @@ bool UE::AssetUtils::SaveDebugImage(
 	ConvertedColor.Reserve(N);
 	for ( int64 i = 0; i < N; ++i )
 	{
-		FLinearColor LinearColor = (FLinearColor)Image.GetPixel(i);
+		FLinearColor LinearColor = ToLinearColor(Image.GetPixel(i));
 		ConvertedColor.Add(LinearColor.ToFColor(bConvertToSRGB));
 	}
 

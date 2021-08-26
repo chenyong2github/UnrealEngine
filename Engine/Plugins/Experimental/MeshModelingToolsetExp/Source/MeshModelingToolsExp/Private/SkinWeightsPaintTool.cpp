@@ -299,7 +299,7 @@ FVector4f USkinWeightsPaintTool::WeightToColor(float Value)
 	{
 		// A close approximation of the skeletal mesh editor's bone weight ramp. 
 		const FLinearColor HSV((1.0f - Value) * 285.0f, 100.0f, 85.0f);
-		return FVector4f(HSV.HSVToLinearRGB());
+		return UE::Geometry::ToVector4<float>(HSV.HSVToLinearRGB());
 	}
 }
 
