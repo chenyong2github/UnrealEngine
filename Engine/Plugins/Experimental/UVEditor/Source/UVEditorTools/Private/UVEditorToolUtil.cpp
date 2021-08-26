@@ -26,7 +26,7 @@ void UVEditorToolUtil::GenerateUVUnwrapMesh(
 	{
 		FVector2f UVElement = UVOverlay.GetElement(ElementID);
 		UnwrapMeshOut.InsertVertex(ElementID, UVToVertPosition(UVElement), true);
-		UnwrapMeshUVOverlay->InsertElement(ElementID, (float*)UVElement);
+		UnwrapMeshUVOverlay->InsertElement(ElementID, &UVElement.X);
 	}
 	UnwrapMeshOut.EndUnsafeVerticesInsert();
 	UnwrapMeshUVOverlay->EndUnsafeElementsInsert();
@@ -81,7 +81,7 @@ void UVEditorToolUtil::UpdateUVUnwrapMesh(const FDynamicMeshUVOverlay& UVOverlay
 			}
 			else
 			{
-				UnwrapMeshUVOverlay->InsertElement(ElementID, (float*)ElementValue);
+				UnwrapMeshUVOverlay->InsertElement(ElementID, &ElementValue.X);
 			}
 		}
 	}
@@ -114,7 +114,8 @@ void UVEditorToolUtil::UpdateUVOverlayFromUnwrapMesh(
 		}
 		else
 		{
-			UVOverlayOut.InsertElement(Vid, (float*)VertPositionToUV(UnwrapMeshIn.GetVertex(Vid)));
+			FVector2f UV = VertPositionToUV(UnwrapMeshIn.GetVertex(Vid));
+			UVOverlayOut.InsertElement(Vid, &UV.X);
 		}
 	};
 
