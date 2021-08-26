@@ -7689,6 +7689,21 @@ FRigVMGraphVariableDescription URigVMController::AddLocalVariable(const FName& I
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
 
+	// Check this is the main graph of a function
+	{
+		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter()))
+		{
+			if (!LibraryNode->GetOuter()->IsA<URigVMFunctionLibrary>())
+			{
+				return NewVariable;
+			}
+		}
+		else
+		{
+			return NewVariable;
+		}
+	}
+
 	FName VariableName = GetUniqueName(InVariableName, [Graph](const FName& InName) {
 		for (FRigVMGraphVariableDescription LocalVariable : Graph->GetLocalVariables())
 		{
