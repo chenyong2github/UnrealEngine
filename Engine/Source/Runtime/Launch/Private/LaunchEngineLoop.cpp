@@ -1599,6 +1599,21 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif
 
+	// Name of project file before normalization (as specified in command line).
+	// Used to fixup project name if necessary.
+	FString GameProjectFilePathUnnormalized;
+
+	{
+		SCOPED_BOOT_TIMING("LaunchSetGameName");
+
+		// Set GameName, based on the command line
+		if (LaunchSetGameName(CmdLine, GameProjectFilePathUnnormalized) == false)
+		{
+			// If it failed, do not continue
+			return 1;
+		}
+	}
+	
 	// Initialize trace
 	FTraceAuxiliary::Initialize(CmdLine);
 	FTraceAuxiliary::TryAutoConnect();
@@ -1646,21 +1661,6 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		GMalloc = FStatsMallocProfilerProxy::Get();
 	}
 #endif // STATS
-
-	// Name of project file before normalization (as specified in command line).
-	// Used to fixup project name if necessary.
-	FString GameProjectFilePathUnnormalized;
-
-	{
-		SCOPED_BOOT_TIMING("LaunchSetGameName");
-
-		// Set GameName, based on the command line
-		if (LaunchSetGameName(CmdLine, GameProjectFilePathUnnormalized) == false)
-		{
-			// If it failed, do not continue
-			return 1;
-		}
-	}
 
 #if WITH_APPLICATION_CORE
 	{
