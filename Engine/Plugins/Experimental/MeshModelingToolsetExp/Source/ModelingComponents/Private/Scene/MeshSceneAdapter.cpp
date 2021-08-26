@@ -1870,7 +1870,7 @@ void FMeshSceneAdapter::GenerateBaseClosingMesh(double BaseHeight, double Extrud
 		{
 			Offset.Triangles.Add(tid);
 		}
-		Offset.bUseFaceNormals = true;
+		Offset.ExtrusionVectorType = FOffsetMeshRegion::EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage;
 		Offset.DefaultOffsetDistance = ExtrudeHeight;
 		Offset.bIsPositiveOffset = (ExtrudeHeight > 0);
 		Offset.Apply();

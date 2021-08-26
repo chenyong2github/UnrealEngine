@@ -32,6 +32,18 @@ class DYNAMICMESH_API FOffsetMeshRegion
 {
 public:
 
+
+	enum class EVertexExtrusionVectorType
+	{
+		Zero,
+		VertexNormal,
+		// Angle weighted average of the triangles in the selection that contain this vertex (unit length)
+		SelectionTriNormalsAngleWeightedAverage,
+		// Like SelectionTriNormalsAngleWeightedAverage, but with the vertex length adjusted to try to keep
+		// the selection triangles parallel to their original location.
+		SelectionTriNormalsAngleWeightedAdjusted,
+	};
+
 	//
 	// Inputs
 	//
@@ -42,11 +54,28 @@ public:
 	/** The triangle region we are modifying */
 	TArray<int32> Triangles;
 
-	/** This function is called to generate the offset vertex position. Default returns (Position + DefaultOffsetDistance * Normal) */
-	TFunction<FVector3d(const FVector3d&, const FVector3f&, int)> OffsetPositionFunc;
+	/** This function is called to generate the offset vertex position. */
+	TFunction<FVector3d(const FVector3d& Position, const FVector3d& VertexVector, int Vid)> OffsetPositionFunc = 
+		[this](const FVector3d& Position, const FVector3d& VertexVector, int Vid)
+	{
+		return Position + this->DefaultOffsetDistance * (FVector3d)VertexVector;
+	};
 
-	/** If no Offset function is set, we will displace by DefaultOffsetDistance*Normal */
+	/** Used in the default OffsetPositionFunc. */
 	double DefaultOffsetDistance = 1.0;
+
+	/** Determines the type of vector passed in per-vertex to OffsetPositionFunc */
+	EVertexExtrusionVectorType ExtrusionVectorType = EVertexExtrusionVectorType::Zero;
+
+	/** 
+	 * When stitching the extruded portion to the source loop, this determines the grouping of the side quads by 
+	 * passing in successive Eids in the original loop. For instance, always returning true will result in one 
+	 * group for the stitched portion, and always returning true will result in a separate group for every edge
+	 * quad. By default, the same group is given to adjacent edges that separate the same two groups, or to border
+	 * edges that are colinear.
+	 */
+	TFunction<bool(int32 Eid1, int32 Eid2)> LoopEdgesShouldHaveSameGroup =
+		[this](int32 Eid1, int32 Eid2) { return EdgesSeparateSameGroupsAndAreColinearAtBorder(Mesh, Eid1, Eid2, true); };
 
 	/** quads on the stitch loop are planar-projected and scaled by this amount */
 	float UVScaleFactor = 1.0f;
@@ -54,15 +83,12 @@ public:
 	/** If a sub-region of Triangles is a full connected component, offset into a solid instead of leaving a shell*/
 	bool bOffsetFullComponentsAsSolids = true;
 
-	/** if offset is "negative" (ie negative distance, inset, etc) and inset is an entire mesh region, needs to  */
+	/** 
+	 * When bOffsetFullComponentsAsSolids is true and the extrusion applied by OffsetPositionFunc is negative,
+	 * then fully-connected components need to be turned inside-out. Thus, in this circumstance we need to
+	 * be notified whether the OffsetPositionFunc is applying a positive or negative offset.
+	 */
 	bool bIsPositiveOffset = true;
-
-	/** if true, offset each vertex along each face normal and average result, rather than using estimated vertex normal  */
-	bool bUseFaceNormals = false;
-
-
-	/** If set, change tracker will be updated based on edit */
-	TUniquePtr<FDynamicMeshChangeTracker> ChangeTracker;
 
 	//
 	// Outputs
@@ -73,14 +99,21 @@ public:
 	 */
 	struct FOffsetInfo
 	{
-		/** Set of triangles for this region */
-		TArray<int32> InitialTriangles;
+		/**
+		 * Set of triangles for this region. These will be the same Tids that were
+		 * originally in the region. 
+		 */
+		TArray<int32> OffsetTids;
+		/** 
+		 * Groups on offset faces. These IDs will be the same as the original groups 
+		 * in the region. 
+		 */
+		TArray<int32> OffsetGroups;
+
 		/** Initial loops on the mesh */
 		TArray<FEdgeLoop> BaseLoops;
 		/** Offset loops on the mesh */
 		TArray<FEdgeLoop> OffsetLoops;
-		/** Groups on offset faces */
-		TArray<int32> OffsetGroups;
 
 		/** Lists of triangle-strip "tubes" that connect each loop-pair */
 		TArray<TArray<int>> StitchTriangles;
@@ -99,7 +132,7 @@ public:
 	/**
 	 * List of all triangles created/modified by this operation
 	 */
-	TArray<int32> AllModifiedTriangles;
+	TArray<int32> AllModifiedAndNewTriangles;
 
 public:
 	FOffsetMeshRegion(FDynamicMesh3* mesh);
@@ -126,12 +159,12 @@ public:
 	 */
 	virtual bool Apply();
 
-
+	// The default function used for LoopEdgesShouldHaveSameGroup. 
+	static bool EdgesSeparateSameGroupsAndAreColinearAtBorder(FDynamicMesh3* Mesh,
+		int32 Eid1, int32 Eid2, bool bCheckColinearityAtBorder);
 protected:
 
 	virtual bool ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
-
-	virtual bool ApplySolidExtrude(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
 };
 
 } // end namespace UE::Geometry

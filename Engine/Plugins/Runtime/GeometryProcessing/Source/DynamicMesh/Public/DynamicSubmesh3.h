@@ -180,6 +180,28 @@ public:
 		}
 	}
 
+	/** @return Group ID in the submesh, mapped from base mesh */
+	inline int MapGroupToSubmesh(int BaseGID) const
+	{
+		checkSlow(bComputeTriMaps);
+		return Mappings.GetGroupMap().GetTo(BaseGID);
+	}
+	/** @return Group ID in the base mesh, mapped from submesh */
+	inline int MapGroupToBaseMesh(int SubGID) const
+	{
+		checkSlow(bComputeTriMaps);
+		return Mappings.GetGroupMap().GetFrom(SubGID);
+	}
+	/** @param GroupIDs Array of group IDs in the base mesh that will all be changed to the corresponding IDs in the submesh */
+	void MapGroupsToSubmesh(TArrayView<int32> GroupIDs) const
+	{
+		checkSlow(bComputeTriMaps);
+		for (int i = 0; i < GroupIDs.Num(); ++i)
+		{
+			GroupIDs[i] = MapGroupToSubmesh(GroupIDs[i]);
+		}
+	}
+
 	/**
 	 * Computes the Submesh object, index mappings corresponding sub to base mesh, and boundary between sub and base mesh
 	 * @param SubTriangles ArrayView of triangle IDs to include in the submesh

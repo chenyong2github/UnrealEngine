@@ -67,6 +67,7 @@ public:
 	inline bool ContainsTriangle(int FromID) const { return TriangleMap.ContainsFrom(FromID); }
 
 	FIndexMapi& GetGroupMap() { return GroupMap; }
+	const FIndexMapi& GetGroupMap() const { return GroupMap; }
 	void SetGroup(int FromID, int ToID) { GroupMap.Add(FromID, ToID); }
 	int GetNewGroup(int FromID) const { return GroupMap.GetTo(FromID); }
 	inline bool ContainsGroup(int FromID) const { return GroupMap.ContainsFrom(FromID); }

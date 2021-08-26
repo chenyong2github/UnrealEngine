@@ -19,6 +19,9 @@ class FDynamicMesh3;
 class FMeshNormals;
 
 /**
+ * Note: FExtrudeMesh might someday be removed. Consider using FOffsetMeshRegion instead,
+ * which can extrude all or part of a mesh.
+ * 
  * FExtrudeMesh implements a full-mesh extrusion of a mesh. This happens in two stages:
  * 1) all triangles of input mesh are duplicated and offset
  * 2) base and offset border loops are stitched together with triangulated quads
