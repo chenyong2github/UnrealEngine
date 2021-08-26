@@ -84,7 +84,7 @@ public:
 	 * Copy Length bytes from current Pos into V.
 	 * Must not be called unless GetSource is ESource::Segments.
 	 */
-	bool Serialize(void* V, int64 Length);
+	bool Serialize(void* V, int64 Length, bool bIsError);
 
 	/**
 	 * Ensure requests have been sent for segments touching the given range. Out of range requests are ignored.
