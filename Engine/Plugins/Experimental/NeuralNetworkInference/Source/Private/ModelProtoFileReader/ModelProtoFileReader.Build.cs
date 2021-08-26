@@ -9,8 +9,6 @@ public class ModelProtoFileReader : ModuleRules
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
-		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
-
 		PublicIncludePaths.AddRange(
 			new string[] {
 				System.IO.Path.Combine(ModuleDirectory, "..")
@@ -21,8 +19,6 @@ public class ModelProtoFileReader : ModuleRules
 			(
 			new string[] {
 				"Core",
-				"CoreUObject",
-				"Engine",
 				"ModelProto"
 			}
         );
@@ -30,10 +26,7 @@ public class ModelProtoFileReader : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-				"NeuralNetworkInferenceCore",
-				"Projects",
-				"Protobuf",
-				"ThirdPartyHelperAndDLLLoader"
+				"ModelProtoConverter"
 			}
 		);
 	}
