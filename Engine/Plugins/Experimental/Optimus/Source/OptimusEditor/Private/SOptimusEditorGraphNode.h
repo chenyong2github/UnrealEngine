@@ -24,7 +24,7 @@ public:
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
-
+	
 	// SGraphNode overrides
 	void EndUserInteraction() const override;
 	void AddPin( const TSharedRef<SGraphPin>& PinToAdd ) override;
@@ -36,6 +36,8 @@ private:
 	UOptimusEditorGraphNode *GetEditorGraphNode() const;
 	UOptimusNode* GetModelNode() const;
 
+	void SyncPinWidgetsWithGraphPins();
+	
 	EVisibility GetTitleVisibility() const;
 
 	// SGraphNode protected overrides
@@ -60,12 +62,17 @@ private:
 
 	TSharedPtr<SScrollBar> TreeScrollBar;
 
-	TMap<const UEdGraphPin*, TSharedPtr<SGraphPin>> PinWidgetMap;
+	TMap<const UEdGraphPin*, TWeakPtr<SGraphPin>> PinWidgetMap;
 
 	// A paired list of widgets to map from labels to pin to support labels participating in
 	// pin hovering.
 	TArray<TSharedRef<SWidget>> HoverWidgetLabels;
 	TArray<TSharedRef<SGraphPin>> HoverWidgetPins;
+
+	// Delayed pin deletion. To deal with the fact that pin deletion cannot occur until we
+	// have re-generated the pin list. SOptimusEditorGraphNode has already relinquished them
+	// but we still have a pointer to them in our pin widget.
+	TSet<UEdGraphPin *> PinsToDelete;
 
 	// Cached error type to compare against the UEdGraphNode to see if we need to refresh
 	// our error state.

@@ -30,12 +30,12 @@ UOptimusVariableDescription* UOptimusNode_GetVariable::GetVariableDescription() 
 }
 
 
-void UOptimusNode_GetVariable::CreatePins()
+void UOptimusNode_GetVariable::ConstructNode()
 {
 	UOptimusVariableDescription *Var = VariableDesc.Get();
 	if (Var)
 	{
-		AddPin(
+		AddPinDirect(
 			Var->VariableName, 
 			EOptimusNodePinDirection::Output,
 			{},

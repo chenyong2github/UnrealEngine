@@ -33,7 +33,7 @@ public:
 	}
 
 protected:
-	void CreatePins() override;
+	void ConstructNode() override;
 
 private:
 	void CreatePinsFromDataInterface(UOptimusComputeDataInterface *InDataInterface);

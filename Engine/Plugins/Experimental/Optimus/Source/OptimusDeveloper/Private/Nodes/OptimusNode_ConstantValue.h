@@ -46,5 +46,5 @@ public:
 	TArray<uint8> GetShaderValue() const;
 
 protected:
-	void CreatePins() override;
+	void ConstructNode() override;
 };

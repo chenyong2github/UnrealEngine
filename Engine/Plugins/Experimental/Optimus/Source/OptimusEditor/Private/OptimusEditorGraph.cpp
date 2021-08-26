@@ -242,12 +242,27 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNoti
 			    if (ensure(GraphNode))
 			    {
 					GraphNode->ModelPinAdded(ModelPin);
-				    RefreshVisualNode(GraphNode);
+				    // RefreshVisualNode(GraphNode);
 			    }
+			}
+			break;
 		}
-		break;
+
+		case EOptimusGraphNotifyType::PinRemoved:
+		{
+			UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);
+			if (ensure(ModelPin))
+			{
+				UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+
+				if (ensure(GraphNode))
+				{
+					GraphNode->ModelPinRemoved(ModelPin);
+				}
+			}
+			break;
 		}
-	
+		
 		case EOptimusGraphNotifyType::PinRenamed:
 		{
 		    UOptimusNodePin* ModelPin = Cast<UOptimusNodePin>(InSubject);

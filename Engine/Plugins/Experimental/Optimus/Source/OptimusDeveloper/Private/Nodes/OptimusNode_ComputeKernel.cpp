@@ -14,6 +14,7 @@
 
 UOptimusNode_ComputeKernel::UOptimusNode_ComputeKernel()
 {
+	EnableDynamicPins();
 	UpdatePreamble();
 }
 
@@ -497,57 +498,113 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 			UpdatePreamble();
 			return;
 		}
-		
-		EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
-		FOptimus_ShaderBinding *Binding = nullptr;
-		FName Name;
-		UOptimusNodePin *BeforePin = nullptr;
-		FOptimusNodePinStorageConfig StorageConfig;
-
-		if (BasePropertyName == ParametersName)
+		else
 		{
-			Direction = EOptimusNodePinDirection::Input;
-			Binding = &Parameters.Last();
-			Name = FName("Param");
-			StorageConfig = {};
+			EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
+			FOptimus_ShaderBinding *Binding = nullptr;
+			FName Name;
+			UOptimusNodePin *BeforePin = nullptr;
+			FOptimusNodePinStorageConfig StorageConfig;
 
-			if (!InputBindings.IsEmpty())
+			if (BasePropertyName == ParametersName)
 			{
-				BeforePin = GetPins()[Parameters.Num() - 1];
+				Direction = EOptimusNodePinDirection::Input;
+				Binding = &Parameters.Last();
+				Name = FName("Param");
+				StorageConfig = {};
+
+				if (!InputBindings.IsEmpty())
+				{
+					BeforePin = GetPins()[Parameters.Num() - 1];
+				}
 			}
-		}
-		else if (BasePropertyName == InputBindingsName)
-		{
-			Direction = EOptimusNodePinDirection::Input;
-			Binding = &InputBindings.Last();
-			Name = FName("Input");
+			else if (BasePropertyName == InputBindingsName)
+			{
+				Direction = EOptimusNodePinDirection::Input;
+				Binding = &InputBindings.Last();
+				Name = FName("Input");
 
-			// FIXME: Dimensionlity and context.
-			StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
-		}
-		else if (BasePropertyName == OutputBindingsName)
-		{
-			Direction = EOptimusNodePinDirection::Output;
-			Binding = &OutputBindings.Last();
-			Name = FName("Output");
+				// FIXME: Dimensionlity and context.
+				StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
+			}
+			else if (BasePropertyName == OutputBindingsName)
+			{
+				Direction = EOptimusNodePinDirection::Output;
+				Binding = &OutputBindings.Last();
+				Name = FName("Output");
 
-			StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
-		}
+				StorageConfig = FOptimusNodePinStorageConfig(1, TEXT("Vertex"));
+			}
 
-		if (ensure(Binding))
-		{
-			Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
-			Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
+			if (ensure(Binding))
+			{
+				Binding->Name = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodePin::StaticClass(), Name);
+				Binding->DataType = FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass());
 
-			AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
+				AddPin(Binding->Name, Direction, StorageConfig, Binding->DataType, BeforePin);
 
-			UpdatePreamble();
+				UpdatePreamble();
+			}
 		}
 	}
 	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayRemove)
 	{
-		// FIXME: REMOVE THE PIN!
-		UpdatePreamble();
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimus_ShaderContextBinding, Contexts))
+		{
+			UpdatePinContextAndDimensionality(EOptimusNodePinDirection::Input);
+			UpdatePreamble();
+		}
+		else
+		{
+			auto GetFilteredPins = [this](EOptimusNodePinDirection InDirection, EOptimusNodePinStorageType InStorageType)
+			{
+				TMap<FName, UOptimusNodePin *> FilteredPins;
+				for (UOptimusNodePin *Pin: GetPins())
+				{
+					if (Pin->GetDirection() == InDirection && Pin->GetStorageType() == InStorageType)
+					{
+						FilteredPins.Add(Pin->GetFName(), Pin);
+					}
+				}
+				return FilteredPins;
+			};
+
+			TMap<FName, UOptimusNodePin *> RemovedPins;
+			if (BasePropertyName == ParametersName)
+			{
+				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Value);
+				
+				for (const FOptimus_ShaderBinding& Binding: Parameters)
+				{
+					RemovedPins.Remove(Binding.Name);
+				}
+			}
+			else if (BasePropertyName == InputBindingsName)
+			{
+				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Input, EOptimusNodePinStorageType::Resource);
+				
+				for (const FOptimus_ShaderBinding& Binding: InputBindings)
+				{
+					RemovedPins.Remove(Binding.Name);
+				}
+			}
+			else if (BasePropertyName == OutputBindingsName)
+			{
+				RemovedPins = GetFilteredPins(EOptimusNodePinDirection::Output, EOptimusNodePinStorageType::Resource);
+				
+				for (const FOptimus_ShaderBinding& Binding: OutputBindings)
+				{
+					RemovedPins.Remove(Binding.Name);
+				}
+			}
+
+			if (ensure(RemovedPins.Num() == 1))
+			{
+				RemovePin(RemovedPins.CreateIterator().Value());
+
+				UpdatePreamble();
+			}
+		}
 	}
 }
 

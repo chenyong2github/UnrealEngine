@@ -104,7 +104,7 @@ public:
 	/// Returns the node's diagnostic level (e.g. error state). For a node, only None, Warning
 	/// Error are relevant.
 	EOptimusDiagnosticLevel GetDiagnosticLevel() const { return DiagnosticLevel; }
-	
+
 	/// Find the pin associated with the given dot-separated pin path.
 	/// @param InPinPath The path of the pin.
 	/// @return The pin object, if found, otherwise nullptr.
@@ -142,24 +142,40 @@ public:
 #if WITH_EDITOR
 	bool Modify( bool bInAlwaysMarkDirty=true ) override;
 #endif
+	void Serialize(FArchive& Ar) override;
+	void PostLoad() override;
 	
 protected:
 	friend class UOptimusNodeGraph;
 	friend class UOptimusNodePin;
 	friend class UOptimusDeformer;
+	friend struct FOptimusNodeAction_AddRemovePin;
+	friend struct FOptimusNodeAction_SetPinType;
+	friend struct FOptimusNodeAction_SetPinName;
 
 	// Return the action stack for this node.
 	UOptimusActionStack* GetActionStack() const;
 
 	// Node layout data
-	UPROPERTY()
+	// FIXME: Move to private.
+	UPROPERTY(NonTransactional)
 	FVector2D GraphPosition;
 
-	// FIXME: Rename to ConstructNode()
-	virtual void CreatePins();
+	// Called when the node is being constructed
+	virtual void ConstructNode();
 
-	/** Create a pin and add it to the node in the location specified. */ 
+	void EnableDynamicPins();
+
 	UOptimusNodePin* AddPin(
+		FName InName,
+		EOptimusNodePinDirection InDirection,
+		FOptimusNodePinStorageConfig InStorageConfig,
+		FOptimusDataTypeRef InDataType,
+		UOptimusNodePin* InBeforePin = nullptr
+		);
+	
+	/** Create a pin and add it to the node in the location specified. */ 
+	UOptimusNodePin* AddPinDirect(
 		FName InName,
 		EOptimusNodePinDirection InDirection,
 		FOptimusNodePinStorageConfig InStorageConfig,
@@ -168,19 +184,33 @@ protected:
 		UOptimusNodePin* InParentPin = nullptr
 		);
 
-	// Remove the pin.
+	// Remove a pin.
 	bool RemovePin(
 		UOptimusNodePin* InPin
 		);
 
+	// Remove the pin with no undo.
+	bool RemovePinDirect(
+		UOptimusNodePin* InPin
+		);
+	
 	/** Set the pin data type. */
-	// FIXME: Currently not undoable
 	bool SetPinDataType(
+		UOptimusNodePin* InPin,
+		FOptimusDataTypeRef InDataType
+		);
+	
+	bool SetPinDataTypeDirect(
 		UOptimusNodePin* InPin,
 		FOptimusDataTypeRef InDataType
 		);
 
 	bool SetPinName(
+		UOptimusNodePin* InPin,
+		FName InNewName
+		);
+	
+	bool SetPinNameDirect(
 	    UOptimusNodePin* InPin,
 	    FName InNewName
 		);
@@ -202,6 +232,12 @@ private:
 	void Notify(
 		EOptimusGraphNotifyType InNotifyType
 	);
+
+	bool CanNotify() const
+	{
+		return !bConstructingNode && bSendNotifications;
+	}
+	
 	
 	void CreatePinsFromStructLayout(
 		const UStruct *InStruct, 
@@ -214,14 +250,17 @@ private:
 		UOptimusNodePin* InParentPin = nullptr
 	);
 
-	UPROPERTY()
+	// The display name to show. This is non-transactional because it is controlled by our 
+	// action system rather than the transacting system for undo.
+	UPROPERTY(NonTransactional)
 	FText DisplayName;
 
-	// The list of pins. 
-	UPROPERTY()
+	// The list of pins. Non-transactional for the same reason as above. 
+	UPROPERTY(NonTransactional)
 	TArray<UOptimusNodePin *> Pins;
 
-	UPROPERTY()
+	// The list of pins that should be shown as expanded in the graph view.
+	UPROPERTY(NonTransactional)
 	TSet<FName> ExpandedPins;
 
 	UPROPERTY()
@@ -231,8 +270,14 @@ private:
 	// if the object is now different and may need to be involved in updating the compute graph.
 	int32 Revision = 0;
 
-	// Ensure we don't send notifications during construction.
-	bool bBlockNotifications = false;
+	// Set to true if the node is dynamic and can have pins arbitrarily added.
+	bool bDynamicPins = false;
+
+	// A sentinel to indicate we're doing node construction.
+	bool bConstructingNode = false;
+
+	// A sentinel to indicate whether sending notifications is allowed.
+	bool bSendNotifications = true;
 
 	/// Cached pin lookups
 	mutable TMap<TArray<FName>, UOptimusNodePin*> CachedPinLookup;

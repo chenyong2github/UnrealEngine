@@ -403,10 +403,9 @@ FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 // ---- Remove link
 
 FOptimusNodeGraphAction_RemoveLink::FOptimusNodeGraphAction_RemoveLink(
-	UOptimusNodeLink* InLink
+	const UOptimusNodeLink* InLink
 	) :
 	FOptimusNodeGraphAction_AddRemoveLink(InLink->GetNodeOutputPin(), InLink->GetNodeInputPin())
 {
 	SetTitlef(TEXT("Remove Link"));
 }
-

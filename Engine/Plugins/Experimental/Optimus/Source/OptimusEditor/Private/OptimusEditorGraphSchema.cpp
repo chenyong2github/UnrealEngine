@@ -14,6 +14,7 @@
 #include "EdGraphSchema_K2.h"
 #include "Editor.h"
 #include "OptimusComputeDataInterface.h"
+#include "OptimusEditorGraphConnectionDrawingPolicy.h"
 #include "Styling/SlateIconFinder.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -193,6 +194,19 @@ void UOptimusEditorGraphSchema::BreakPinLinks(UEdGraphPin& TargetPin, bool bSend
 void UOptimusEditorGraphSchema::BreakSinglePinLink(UEdGraphPin* SourcePin, UEdGraphPin* TargetPin) const
 {
 
+}
+
+
+FConnectionDrawingPolicy* UOptimusEditorGraphSchema::CreateConnectionDrawingPolicy(
+	int32 InBackLayerID,
+	int32 InFrontLayerID,
+	float InZoomFactor,
+	const FSlateRect& InClippingRect,
+	FSlateWindowElementList& InDrawElements,
+	UEdGraph* InGraphObj
+	) const
+{
+	return new FOptimusEditorGraphConnectionDrawingPolicy(InBackLayerID, InFrontLayerID, InZoomFactor, InClippingRect, InDrawElements, InGraphObj);
 }
 
 

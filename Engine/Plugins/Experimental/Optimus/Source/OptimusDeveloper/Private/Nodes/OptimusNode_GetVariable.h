@@ -28,7 +28,7 @@ public:
 	}
 
 protected:
-	void CreatePins() override;
+	void ConstructNode() override;
 
 private:
 	UPROPERTY()

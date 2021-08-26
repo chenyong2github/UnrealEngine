@@ -22,7 +22,7 @@ void UOptimusNode_DataInterface::SetDataInterfaceClass(
 }
 
 
-void UOptimusNode_DataInterface::CreatePins()
+void UOptimusNode_DataInterface::ConstructNode()
 {
 	if (ensure(!DataInterfaceClass.IsNull()))
 	{
@@ -114,7 +114,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 			return;
 		}
 
-		AddPin(InDefinition.PinName, EOptimusNodePinDirection::Output, {}, PinDataType);
+		AddPinDirect(InDefinition.PinName, EOptimusNodePinDirection::Output, {}, PinDataType);
 	}
 	else if (!InDefinition.DataFunctionName.IsEmpty())
 	{
@@ -182,7 +182,7 @@ void UOptimusNode_DataInterface::CreatePinFromDefinition(
 		}
 
 		const FOptimusNodePinStorageConfig StorageConfig(InDefinition.CountFunctionNames.Num(), InDefinition.ContextName);
-		AddPin(InDefinition.PinName, PinDirection, StorageConfig, PinDataType);
+		AddPinDirect(InDefinition.PinName, PinDirection, StorageConfig, PinDataType);
 	}
 	else
 	{
