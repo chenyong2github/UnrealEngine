@@ -83,6 +83,26 @@ namespace UE
 				return Out;
 			}
 
+			FTransform FFbxConvert::AdjustCameraTransform(const FTransform& Transform)
+			{
+				//Add a roll of -90 degree locally for every cameras. Camera up vector differ from fbx to unreal
+				const FRotator AdditionalRotation(0.0f, 0.0f, -90.0f);
+				FTransform CameraTransform = FTransform(AdditionalRotation) * Transform;
+
+				//Remove the scale of the node holding a camera (the mesh is provide by the engine and can be different in size)
+				CameraTransform.SetScale3D(FVector::OneVector);
+				
+				return CameraTransform;
+			}
+
+			FTransform FFbxConvert::AdjustLightTransform(const FTransform& Transform)
+			{
+				//Add the z rotation of 90 degree locally for every light. Light direction differ from fbx to unreal 
+				const FRotator AdditionalRotation(0.0f, 90.0f, 0.0f);
+				FTransform LightTransform = FTransform(AdditionalRotation) * Transform;
+				return LightTransform;
+			}
+
 			FMatrix FFbxConvert::ConvertMatrix(const FbxAMatrix& Matrix)
 			{
 				FMatrix UEMatrix;

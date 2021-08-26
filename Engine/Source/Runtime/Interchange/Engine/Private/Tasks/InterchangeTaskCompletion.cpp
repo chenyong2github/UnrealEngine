@@ -99,6 +99,15 @@ void UE::Interchange::FTaskPreCompletion::DoTask(ENamedThreads::Type CurrentThre
 				}
 				else
 				{
+					if (AActor* Actor = Cast<AActor>(ImportedObject))
+					{
+						Actor->RegisterAllComponents();
+					}
+					else if (UActorComponent* Component = Cast<UActorComponent>(ImportedObject))
+					{
+						Component->RegisterComponent();
+					}
+
 					AsyncHelper->SceneImportResult->AddImportedObject(ImportedObject);
 				}
 

@@ -113,7 +113,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	//Find all translated node we need for this pipeline
 	BaseNodeContainer->IterateNodes([this](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
-		switch(Node->GetnodeContainerType())
+		switch(Node->GetNodeContainerType())
 		{
 			case EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset:
 			{
@@ -384,7 +384,8 @@ UInterchangeMaterialFactoryNode* UInterchangeGenericAssetsPipeline::CreateMateri
 		}
 		BaseNodeContainer->AddNode(MaterialFactoryNode);
 		MaterialFactoryNodes.Add(MaterialFactoryNode);
-		MaterialFactoryNode->AddTargetAssetUid(MaterialNode->GetUniqueID());
+		MaterialFactoryNode->AddTargetNodeUid(MaterialNode->GetUniqueID());
+		MaterialNode->AddTargetNodeUid(MaterialFactoryNode->GetUniqueID());
 	}
 	return MaterialFactoryNode;
 }
@@ -585,14 +586,16 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToStaticMesh(UInterchangeStati
 				SceneNode->GetCustomAssetInstanceUid(MeshDependency);
 				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
 				{
-					StaticMeshFactoryNode->AddTargetAssetUid(MeshDependency);
+					StaticMeshFactoryNode->AddTargetNodeUid(MeshDependency);
+					BaseNodeContainer->GetNode(MeshDependency)->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
 				}
 				
 				SceneNode->GetMaterialDependencyUids(MaterialDependencies);
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
-				StaticMeshFactoryNode->AddTargetAssetUid(NodeUid);
+				StaticMeshFactoryNode->AddTargetNodeUid(NodeUid);
+				MeshNode->AddTargetNodeUid(StaticMeshFactoryNode->GetUniqueID());
 				MeshNode->GetMaterialDependencies(MaterialDependencies);
 			}
 

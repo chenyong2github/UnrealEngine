@@ -8,7 +8,14 @@
 #include "UObject/ObjectMacros.h"
 
 
-
+UInterchangeBaseNode::UInterchangeBaseNode()
+{
+	Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
+	FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
+	TargetNodes.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
+	RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
+	RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::NodeContainerType_None));
+}
 
 void UInterchangeBaseNode::InitializeNode(const FString& UniqueID, const FString& DisplayLabel, const EInterchangeNodeContainerType NodeContainerType)
 {
@@ -29,8 +36,6 @@ void UInterchangeBaseNode::InitializeNode(const FString& UniqueID, const FString
 	{
 		LogAttributeStorageErrors(Result, TEXT("RegisterAttribute"), UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey());
 	}
-
-	FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
 
 	bIsInitialized = true;
 }
@@ -156,7 +161,7 @@ bool UInterchangeBaseNode::SetEnabled(const bool bIsEnabled)
 	return false;
 }
 
-EInterchangeNodeContainerType UInterchangeBaseNode::GetnodeContainerType() const
+EInterchangeNodeContainerType UInterchangeBaseNode::GetNodeContainerType() const
 {
 	if (!Attributes->ContainAttribute(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey()))
 	{
@@ -211,24 +216,24 @@ bool UInterchangeBaseNode::SetAssetName(const FString& AssetName)
 	return false;
 }
 
-int32 UInterchangeBaseNode::GetTargetAssetCount() const
+int32 UInterchangeBaseNode::GetTargetNodeCount() const
 {
-	return TargetAssets.GetCount();
+	return TargetNodes.GetCount();
 }
 
-void UInterchangeBaseNode::GetTargetAssetUids(TArray<FString>& OutTargetAssets) const
+void UInterchangeBaseNode::GetTargetNodeUids(TArray<FString>& OutTargetAssets) const
 {
-	TargetAssets.GetNames(OutTargetAssets);
+	TargetNodes.GetNames(OutTargetAssets);
 }
 
-bool UInterchangeBaseNode::AddTargetAssetUid(const FString& AssetUid)
+bool UInterchangeBaseNode::AddTargetNodeUid(const FString& AssetUid) const
 {
-	return TargetAssets.AddName(AssetUid);
+	return TargetNodes.AddName(AssetUid);
 }
 
-bool UInterchangeBaseNode::RemoveTargetAssetUid(const FString& AssetUid)
+bool UInterchangeBaseNode::RemoveTargetNodeUid(const FString& AssetUid) const
 {
-	return TargetAssets.RemoveName(AssetUid);
+	return TargetNodes.RemoveName(AssetUid);
 }
 
 FString UInterchangeBaseNode::InvalidNodeUid()

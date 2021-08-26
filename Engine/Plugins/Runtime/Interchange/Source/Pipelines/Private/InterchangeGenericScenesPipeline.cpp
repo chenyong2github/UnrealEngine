@@ -27,7 +27,7 @@ bool UInterchangeGenericLevelPipeline::ExecutePreImportPipeline(UInterchangeBase
 	//Find all translated node we need for this pipeline
 	InBaseNodeContainer->IterateNodes([&SceneNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
-		switch(Node->GetnodeContainerType())
+		switch(Node->GetNodeContainerType())
 		{
 		case EInterchangeNodeContainerType::NodeContainerType_TranslatedScene:
 		{
@@ -72,6 +72,8 @@ void UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchange
 	{
 		ActorFactoryNode->SetParentUid(TEXT("Factory_") + SceneNode->GetParentUid());
 	}
+
+	ActorFactoryNode->AddTargetNodeUid(SceneNode->GetUniqueID());
 
 	FTransform GlobalTransform;
 	if (SceneNode->GetCustomGlobalTransform(GlobalTransform))
