@@ -14,7 +14,10 @@
 		{
 			"Name": "OnlineServicesEOS",
 			"Type": "Runtime",
-			"LoadingPhase": "PostConfigInit"
+			"LoadingPhase": "PostConfigInit",
+			"BlacklistPlatforms": [
+				"LinuxArm64"
+			]
 		}
 	],
 	"LocalizationTargets": [
