@@ -108,19 +108,43 @@ void UMovieScene::Serialize( FArchive& Ar )
 			++MasterTrackIndex;
 		}
 
-		for (FMovieSceneBinding& ObjectBinding : ObjectBindings)
+		for (int32 ObjectBindingIndex = 0; ObjectBindingIndex < ObjectBindings.Num(); )
 		{
-			for (int32 TrackIndex = 0; TrackIndex < ObjectBinding.GetTracks().Num(); )
+			bool bRemoveObject = false;
+
+			// First, look to remove the object
+			for (int32 TrackIndex = 0; TrackIndex < ObjectBindings[ObjectBindingIndex].GetTracks().Num(); ++TrackIndex)
 			{
-				UMovieSceneTrack* Track = ObjectBinding.GetTracks()[TrackIndex];
-				if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+				UMovieSceneTrack* Track = ObjectBindings[ObjectBindingIndex].GetTracks()[TrackIndex];
+				if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveObject)
 				{
-					Track->RemoveForCook();
-					ObjectBinding.RemoveTrack(*Track);
-					UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
-					continue;
+					bRemoveObject = true;
+					break;
 				}
-				++TrackIndex;
+			}
+
+			if (bRemoveObject)
+			{
+				UE_LOG(LogMovieScene, Display, TEXT("Removing muted object and all of its tracks: %s from: %s"), *ObjectBindings[ObjectBindingIndex].GetName(), *GetPathName());
+				ObjectBindings.RemoveAt(ObjectBindingIndex);
+			}
+			else
+			{
+				// If the object wasn't removed, look to remove tracks
+				for (int32 TrackIndex = 0; TrackIndex < ObjectBindings[ObjectBindingIndex].GetTracks().Num(); )
+				{
+					UMovieSceneTrack* Track = ObjectBindings[ObjectBindingIndex].GetTracks()[TrackIndex];
+					if (Track && Track->GetCookOptimizationFlags() == ECookOptimizationFlags::RemoveTrack)
+					{
+						Track->RemoveForCook();
+						ObjectBindings[ObjectBindingIndex].RemoveTrack(*Track);
+						UE_LOG(LogMovieScene, Display, TEXT("Removing muted track: %s from: %s"), *Track->GetDisplayName().ToString(), *GetPathName());
+						continue;
+					}
+					++TrackIndex;
+				}
+				
+				++ObjectBindingIndex;
 			}
 		}
 	}
