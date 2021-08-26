@@ -43,6 +43,10 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, const TSharedRef<FTokenizedMessage>&);
 
+/**
+  * A Deformer Graph is an asset that is used to create and control custom deformations on 
+  * skeletal meshes.
+  */
 UCLASS()
 class OPTIMUSDEVELOPER_API UOptimusDeformer :
 	public UComputeGraph,

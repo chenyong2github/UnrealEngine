@@ -7,7 +7,7 @@
 FOptimusEditorCommands::FOptimusEditorCommands() 
 	: TCommands<FOptimusEditorCommands>(
 		"OptimusEditor", // Context name for fast lookup
-		NSLOCTEXT("Contexts", "OptimusEditor", "Optimus Editor"), // Localized context name for displaying
+		NSLOCTEXT("Contexts", "DeformerGraphEditor", "Deformer Graph Editor"), // Localized context name for displaying
 		NAME_None,
 		FEditorStyle::GetStyleSetName()
 	)

@@ -217,19 +217,19 @@ void FOptimusEditor::InspectObjects(const TArray<UObject*>& InObjects)
 
 FName FOptimusEditor::GetToolkitFName() const
 {
-	return FName("OptimusEditor");
+	return FName("DeformerGraphEditor");
 }
 
 
 FText FOptimusEditor::GetBaseToolkitName() const
 {
-	return LOCTEXT("AppLabel", "Optimus Deformer Editor");
+	return LOCTEXT("AppLabel", "Deformer Graph Editor");
 }
 
 
 FString FOptimusEditor::GetWorldCentricTabPrefix() const
 {
-	return LOCTEXT("WorldCentricTabPrefix", "Optimus Deformer Editor ").ToString();
+	return LOCTEXT("WorldCentricTabPrefix", "Deformer Graph Editor ").ToString();
 }
 
 
@@ -813,7 +813,7 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 FGraphAppearanceInfo FOptimusEditor::GetGraphAppearance() const
 {
 	FGraphAppearanceInfo Appearance;
-	Appearance.CornerText = LOCTEXT("AppearanceCornerText_OptimusDeformer", "OPTIMUS DEFORMER");
+	Appearance.CornerText = LOCTEXT("AppearanceCornerText_DeformerGraph", "DEFORMER GRAPH");
 	return Appearance;
 }
 

@@ -19,6 +19,10 @@ public:
 	UOptimusDeformerFactory();
 
 	/// UFactory overrides
+	FString GetDefaultNewAssetName() const override
+	{
+		return TEXT("DeformerGraph");
+	}
 
 	UObject* FactoryCreateNew(
 		UClass* InClass, 
