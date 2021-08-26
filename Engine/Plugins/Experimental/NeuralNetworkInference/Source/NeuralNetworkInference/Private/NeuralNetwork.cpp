@@ -2,14 +2,12 @@
 
 #include "NeuralNetwork.h"
 #include "NeuralNetworkImplBackEndUEAndORT.h"
+#include "NeuralNetworkImplBackEndUEOnly.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-
-// Other files with UNeuralNetwork implementation (to be included only once and after the includes above)
-#include "NeuralNetworkImplBackEndUEOnly.imp"
 
 
 
