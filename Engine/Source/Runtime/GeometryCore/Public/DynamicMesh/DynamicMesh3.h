@@ -1225,9 +1225,10 @@ public:
 	 * @param KeepEdgeID index of the edge that should be kept
 	 * @param DiscardEdgeID index of the edge that should be removed
 	 * @param MergeInfo returned information about new and modified mesh elements
+	 * @param CheckValidOrientation perform edge consistency orientation checks before merging.
 	 * @return Ok on success, or enum value indicates why operation cannot be applied. Mesh remains unmodified on error.
 	 */
-	virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo);
+	virtual EMeshResult MergeEdges(int KeepEdgeID, int DiscardEdgeID, FMergeEdgesInfo& MergeInfo, bool bCheckValidOrientation=true);
 
 
 	/**

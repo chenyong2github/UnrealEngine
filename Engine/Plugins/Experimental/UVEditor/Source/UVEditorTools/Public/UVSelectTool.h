@@ -11,6 +11,7 @@
 #include "InteractiveToolBuilder.h"
 #include "TargetInterfaces/UVUnwrapDynamicMesh.h"
 #include "UVToolContextObjects.h"
+#include "IndexTypes.h"
 
 #include "UVSelectTool.generated.h"
 
@@ -28,6 +29,7 @@ class UUVToolStateObjectStore;
 class UPreviewMesh;
 class UUVEditorToolMeshInput;
 class UUVToolEmitChangeAPI;
+class UUVSeamSewAction;
 
 UCLASS()
 class UVEDITORTOOLS_API UUVSelectToolBuilder : public UInteractiveToolBuilder
@@ -73,6 +75,35 @@ public:
 	bool bUpdatePreviewDuringDrag = true;
 };
 
+
+
+UENUM()
+enum class ESelectToolAction
+{
+	NoAction,
+
+	Sew,
+};
+
+UCLASS()
+class UVEDITORTOOLS_API USelectToolActionPropertySet : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	TWeakObjectPtr<UUVSelectTool> ParentTool;
+
+	void Initialize(UUVSelectTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	void PostAction(ESelectToolAction Action);
+
+	/** Move the mirror plane to center of bounding box without changing its normal. */
+	UFUNCTION(CallInEditor, Category = Actions)
+	void Sew();
+
+};
+
+
+
 /**
  * A tool for selecting elements of a flat FDynamicMesh corresponding to a UV layer of some asset.
  * If bGizmoEnabled is set to true, the selected elements can be moved around.
@@ -111,6 +142,8 @@ public:
 	virtual bool HasCancel() const override { return false; }
 	virtual bool HasAccept() const override { return false; }
 
+	void RequestAction(ESelectToolAction ActionType);
+
 protected:
 	virtual void OnSelectionChanged();
 
@@ -124,7 +157,9 @@ protected:
 	virtual void UpdateGizmo();
 	virtual void UpdateLivePreviewLines();
 
-	void ConfigureSelectionModeFromControls();
+	void SetToolActionsVisiblity(bool isVisible);
+
+	void ConfigureSelectionModeFromControls();	
 
 	UWorld* TargetWorld;
 
@@ -133,6 +168,9 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UUVSelectToolProperties> Settings = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<USelectToolActionPropertySet> ToolActions = nullptr;
 
 	UPROPERTY()
 	TObjectPtr<UMeshSelectionMechanic> SelectionMechanic = nullptr;
@@ -154,16 +192,24 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UUVSelectToolChangeRouter> ChangeRouter = nullptr;
 
+	UPROPERTY()
+	TObjectPtr<UUVSeamSewAction> SewAction = nullptr;
+
 	UE::Geometry::FFrame3d InitialGizmoFrame;
 	FTransform UnappliedGizmoTransform;
 	bool bInDrag = false;
 	bool bGizmoTransformNeedsApplication = false;
 
 	TArray<int32> MovingVids;
+	TArray<int32> SelectedVids;
 	TArray<int32> SelectedTids;
 	TArray<FVector3d> MovingVertOriginalPositions;
 	int32 SelectionTargetIndex;
 	TArray<int32> BoundaryEids;
+	
+	ESelectToolAction PendingAction;
+
+	void ApplyAction(ESelectToolAction ActionType);
 
 	// We need this flag so that SetGizmoVisibility can be called before Setup() by the tool builder.
 	bool bGizmoEnabled = false;
