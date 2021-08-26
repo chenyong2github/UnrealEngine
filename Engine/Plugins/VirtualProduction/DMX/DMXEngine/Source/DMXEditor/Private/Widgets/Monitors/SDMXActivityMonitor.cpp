@@ -211,9 +211,9 @@ void SDMXActivityMonitor::ClearAllDMXBuffers()
 
 void SDMXActivityMonitor::ResizeDataMapToUniverseRange()
 {
-	TMap<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>> CachedUniverseToDataMap = UniverseToDataMap;
+	const TMap<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>> CachedUniverseToDataMap = UniverseToDataMap;
 	
-	for (TTuple<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>>& UniverseToDataKvp : UniverseToDataMap)
+	for (const TTuple<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>>& UniverseToDataKvp : CachedUniverseToDataMap)
 	{
 		if (UniverseToDataKvp.Key < MinUniverseID || UniverseToDataKvp.Key > MaxUniverseID)
 		{
