@@ -820,6 +820,8 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 	FRDGTextureRef& OutForwardScreenSpaceShadowMask,
 	FRDGTextureRef& OutForwardScreenSpaceShadowMaskSubPixel)
 {
+	CheckShadowDepthRenderCompleted();
+
 	const bool bIsHairEnable = HairStrands::HasViewHairStrandsData(Views);
 	bool bScreenShadowMaskNeeded = false;
 

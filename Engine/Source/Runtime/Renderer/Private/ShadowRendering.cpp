@@ -1920,7 +1920,7 @@ void FSceneRenderer::RenderShadowProjections(
 	bool bProjectingForForwardShading,
 	bool bMobileModulatedProjections)
 {
-	ensureMsgf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
+	CheckShadowDepthRenderCompleted();
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
@@ -1986,6 +1986,8 @@ void FSceneRenderer::RenderShadowProjections(
 	const FLightSceneInfo* LightSceneInfo,
 	bool bProjectingForForwardShading)
 {
+	CheckShadowDepthRenderCompleted();
+
 	const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 	const FLightSceneProxy* LightSceneProxy = LightSceneInfo->Proxy;
 
@@ -2214,6 +2216,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	FRDGTextureRef ScreenShadowMaskSubPixelTexture,
 	bool& bInjectedTranslucentVolume)
 {
+	CheckShadowDepthRenderCompleted();
+
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_RenderShadowProjections, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowProjectionOnOpaque");
