@@ -334,6 +334,8 @@ namespace Nanite
 	{
 		check(IsInRenderingThread());
 
+#if RHI_RAYTRACING
+
 		// For safety - perhaps only required because another component could be added/removed here?
 		FScopeLock ScopeLock(&UpdateCS);
 
@@ -349,6 +351,7 @@ namespace Nanite
 				}
 			}
 		}
+#endif // RHI_RAYTRACING
 	}
 
 	void FCoarseMeshStreamingManager::UpdateResourceStreaming(float DeltaTime, bool bProcessEverything)
