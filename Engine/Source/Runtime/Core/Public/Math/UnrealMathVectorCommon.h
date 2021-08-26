@@ -32,7 +32,7 @@ FORCEINLINE VectorRegister4Float VectorOne(void)
 template<typename T>
 FORCEINLINE TVectorRegisterType<T> VectorLoad(const UE::Math::TQuat<T>* Ptr)
 {
-	return VectorLoadAligned((const T*)(Ptr));
+	return VectorLoad((const T*)(Ptr));
 }
 
 FORCEINLINE VectorRegister4Float VectorLoad(const FVector4* Ptr)
