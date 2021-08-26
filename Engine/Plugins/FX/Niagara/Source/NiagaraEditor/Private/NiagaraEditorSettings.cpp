@@ -283,6 +283,62 @@ void UNiagaraEditorSettings::BuildCachedPlaybackSpeeds() const
 	CachedPlaybackSpeeds.GetValue().Sort();
 }
 
+bool UNiagaraEditorSettings::IsShowGridInViewport() const
+{
+	return bShowGridInViewport;
+}
+
+void UNiagaraEditorSettings::SetShowGridInViewport(bool bInShowGridInViewport)
+{
+	if (this->bShowGridInViewport != bInShowGridInViewport)
+	{
+		this->bShowGridInViewport = bInShowGridInViewport;
+		SaveConfig();
+	}
+}
+
+bool UNiagaraEditorSettings::IsShowInstructionsCount() const
+{
+	return bShowInstructionsCount;
+}
+
+void UNiagaraEditorSettings::SetShowInstructionsCount(bool bInShowInstructionsCount)
+{
+	if (this->bShowInstructionsCount != bInShowInstructionsCount)
+	{
+		this->bShowInstructionsCount = bInShowInstructionsCount;
+		SaveConfig();
+	}
+}
+
+bool UNiagaraEditorSettings::IsShowParticleCountsInViewport() const
+{
+	return bShowParticleCountsInViewport;
+}
+
+void UNiagaraEditorSettings::SetShowParticleCountsInViewport(bool bInShowParticleCountsInViewport)
+{
+	if (this->bShowParticleCountsInViewport != bInShowParticleCountsInViewport)
+	{
+		this->bShowParticleCountsInViewport = bInShowParticleCountsInViewport;
+		SaveConfig();
+	}
+}
+
+bool UNiagaraEditorSettings::IsShowEmitterExecutionOrder() const
+{
+	return bShowEmitterExecutionOrder;
+}
+
+void UNiagaraEditorSettings::SetShowEmitterExecutionOrder(bool bInShowEmitterExecutionOrder)
+{
+	if (this->bShowEmitterExecutionOrder != bInShowEmitterExecutionOrder)
+	{
+		this->bShowEmitterExecutionOrder = bInShowEmitterExecutionOrder;
+		SaveConfig();		
+	}
+}
+
 TArray<float> UNiagaraEditorSettings::GetPlaybackSpeeds() const
 {
 	if(!CachedPlaybackSpeeds.IsSet())
