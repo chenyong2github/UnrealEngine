@@ -337,6 +337,11 @@ void FContextSwitchesProvider::AddThreadInfo(uint32 ThreadId, uint32 SystemThrea
 	SystemToTraceThreadIdMap.Add(SystemThreadId, ThreadId);
 }
 
+void FContextSwitchesProvider::AddThreadName(uint32 SystemTreadId, uint32 SystemProcessId, FStringView Name)
+{
+	//
+}
+
 const IContextSwitchesProvider* ReadContextSwitchesProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<IContextSwitchesProvider>(FContextSwitchesProvider::ProviderName);

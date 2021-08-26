@@ -10,6 +10,7 @@ UE_TRACE_CHANNEL_DEFINE(StackSamplingChannel)
 
 UE_TRACE_EVENT_DEFINE(PlatformEvent, ContextSwitch)
 UE_TRACE_EVENT_DEFINE(PlatformEvent, StackSample)
+UE_TRACE_EVENT_DEFINE(PlatformEvent, ThreadName)
 
 /////////////////////////////////////////////////////////////////////
 
