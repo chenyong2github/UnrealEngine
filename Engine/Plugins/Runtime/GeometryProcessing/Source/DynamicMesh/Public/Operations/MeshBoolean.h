@@ -117,6 +117,21 @@ public:
 	/** All edges created by mesh boolean algorithm. Only populated if bTrackAllNewEdges = true */
 	TSet<int32> AllNewEdges;
 
+	/**
+	 * When doing an operation that merges two meshes (Union, Difference, Intersect)
+	 * and bPopulateSecondMeshGroupMap is true, we populate a map from group ID's in the
+	 * second mesh to group ID's in the result. Useful when the boolean is part of
+	 * another operation that might want to track selection into the result.
+	 * 
+	 * TODO: It would be nice to have a similar triangle map, but it's more tedious to
+	 * implement due to the mesh cuts that happen. We might also someday want something
+	 * similar for the first mesh, where the group ID's will usually stay the same except
+	 * when all triangles of a particular group are removed and the group ID is repurposed
+	 * for the second mesh...
+	 */
+	bool bPopulateSecondMeshGroupMap = false;
+	FIndexMapi SecondMeshGroupMap;
+
 public:
 
 	/**

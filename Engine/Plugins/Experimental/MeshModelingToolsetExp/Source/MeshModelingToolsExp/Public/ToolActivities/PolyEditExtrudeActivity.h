@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "DeformationOps/ExtrudeOp.h" // EPolyEditExtrudeMode
+#include "GeometryBase.h"
+#include "GroupTopology.h" // FGroupTopologySelection
 #include "InteractiveToolActivity.h"
 #include "FrameTypes.h"
 
@@ -13,20 +16,7 @@
 class UPolyEditActivityContext;
 class UPolyEditPreviewMesh;
 class UPlaneDistanceFromHitMechanic;
-
-UENUM()
-enum class EPolyEditExtrudeMode
-{
-	//~ TODO: this is what we actually want, but not yet implemented.
-	//~ SelectedFaceNormals,
-
-	SingleDirection,
-
-	//~ These are likely not very useful, but they can sometimes take
-	//~ the place of SelectedFaceNormals, until we implement that.
-	SelectedTriangleNormals,
-	VertexNormals,
-};
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 UENUM()
 enum class EPolyEditExtrudeDirection
@@ -40,7 +30,6 @@ enum class EPolyEditExtrudeDirection
 	LocalZ
 };
 
-
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeProperties : public UInteractiveToolPropertySet
 {
@@ -48,22 +37,38 @@ class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeProperties : public UInteractiveT
 
 public:
 	UPROPERTY(EditAnywhere, Category = Extrude)
-	EPolyEditExtrudeMode ExtrudeMode = EPolyEditExtrudeMode::SingleDirection;
+	EPolyEditExtrudeMode ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
 
+	/** Which way to move vertices during the extrude */
 	UPROPERTY(EditAnywhere, Category = Extrude)
-	EPolyEditExtrudeDirection Direction = EPolyEditExtrudeDirection::SelectionNormal;
+	EPolyEditExtrudeDirectionMode DirectionMode = EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven;
+
+	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
+	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay)
+	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/** Controls whether extruding an entire open-border patch should create a solid or an open shell */
 	UPROPERTY(EditAnywhere, Category = Extrude)
 	bool bShellsToSolids = true;
+
+	/** 
+	 * When extruding regions that touch the mesh border, assign the side groups (groups on the 
+	 * stitched side of the extrude) in a way that considers edge colinearity. For instance, when
+	 * true, extruding a flat rectangle will give four different groups on its sides rather than
+	 * one connected group.
+	 */
+	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay)
+	bool bUseColinearityForSettingBorderGroups = true;
 };
 
 /**
  * 
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeActivity : public UInteractiveToolActivity, 
+class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeActivity : public UInteractiveToolActivity,
+	public UE::Geometry::IDynamicMeshOperatorFactory,
 	public IClickBehaviorTarget, public IHoverBehaviorTarget
+
 {
 	GENERATED_BODY()
 
@@ -78,6 +83,9 @@ public:
 	virtual EToolActivityEndResult End(EToolShutdownType) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void Tick(float DeltaTime) override;
+
+	// IDynamicMeshOperatorFactory
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	// IClickBehaviorTarget API
 	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
@@ -94,12 +102,10 @@ public:
 
 protected:
 	FVector3d GetExtrudeDirection() const;
-	void BeginExtrude();
-	void ApplyExtrude();
-	void Clear();
-
-	UPROPERTY()
-	TObjectPtr<UPolyEditPreviewMesh> EditPreview;
+	virtual void BeginExtrude();
+	virtual void ApplyExtrude();
+	virtual void ReinitializeExtrudeHeightMechanic();
+	virtual void EndInternal();
 
 	UPROPERTY()
 	TObjectPtr<UPlaneDistanceFromHitMechanic> ExtrudeHeightMechanic = nullptr;
@@ -107,9 +113,15 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UPolyEditActivityContext> ActivityContext;
 
+	TSharedPtr<UE::Geometry::FDynamicMesh3> PatchMesh;
+	TArray<int32> NewSelectionGids;
+
 	bool bIsRunning = false;
 
+	UE::Geometry::FGroupTopologySelection ActiveSelection;
 	UE::Geometry::FFrame3d ActiveSelectionFrameWorld;
+	UE::Geometry::FFrame3d ExtrusionFrameWorld;
 	float UVScaleFactor = 1.0f;
-	bool bPreviewUpdatePending = false;
+
+	bool bRequestedApply = false;
 };

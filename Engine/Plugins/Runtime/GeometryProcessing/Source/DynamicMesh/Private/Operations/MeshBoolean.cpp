@@ -668,6 +668,11 @@ bool FMeshBoolean::Compute()
 		FMeshIndexMappings IndexMaps;
 		Editor.AppendMesh(CutMesh[1], IndexMaps);
 
+		if (bPopulateSecondMeshGroupMap)
+		{
+			SecondMeshGroupMap = IndexMaps.GetGroupMap();
+		}
+
 		if (bWeldSharedEdges)
 		{
 			bool bWeldSuccess = MergeEdges(IndexMaps, CutMesh, CutBoundaryEdges, AllVIDMatches);

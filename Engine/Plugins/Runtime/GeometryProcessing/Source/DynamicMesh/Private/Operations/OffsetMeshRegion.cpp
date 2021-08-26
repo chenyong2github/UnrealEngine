@@ -12,20 +12,33 @@
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-FOffsetMeshRegion::FOffsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
+namespace OffsetMeshRegionLocals
 {
-	OffsetPositionFunc = [this](const FVector3d& Position, const FVector3f& Normal, int VertexID)
+	bool EdgesAreParallel(FDynamicMesh3* Mesh, int32 Eid1, int32 Eid2)
 	{
-		return Position + this->DefaultOffsetDistance * (FVector3d)Normal;
-	};
+		FIndex2i Vids1 = Mesh->GetEdgeV(Eid1);
+		FIndex2i Vids2 = Mesh->GetEdgeV(Eid2);
+
+		FVector3d Vec1 = Mesh->GetVertex(Vids1.A) - Mesh->GetVertex(Vids1.B);
+		FVector3d Vec2 = Mesh->GetVertex(Vids2.A) - Mesh->GetVertex(Vids2.B);
+		if (!Vec1.Normalize(KINDA_SMALL_NUMBER) || !Vec2.Normalize(KINDA_SMALL_NUMBER))
+		{
+			// A degenerate edge is parallel enough for our purposes
+			return true;
+		}
+		return FMath::Abs(Vec1.Dot(Vec2)) >= 1 - KINDA_SMALL_NUMBER;
+	}
 }
 
+FOffsetMeshRegion::FOffsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
+{
+}
 
 bool FOffsetMeshRegion::Apply()
 {
 	FMeshNormals Normals;
 	bool bHaveVertexNormals = Mesh->HasVertexNormals();
-	if (bHaveVertexNormals == false && bUseFaceNormals == false)
+	if (!bHaveVertexNormals && ExtrusionVectorType == EVertexExtrusionVectorType::VertexNormal)
 	{
 		Normals = FMeshNormals(Mesh);
 		Normals.ComputeVertexNormals();
@@ -39,32 +52,18 @@ bool FOffsetMeshRegion::Apply()
 	for (int k = 0; k < RegionComponents.Num(); ++k)
 	{
 		FOffsetInfo& Region = OffsetRegions[k];
-		Region.InitialTriangles = MoveTemp(RegionComponents.Components[k].Indices);
-		bool bRegionOK = false;
+		Region.OffsetTids = MoveTemp(RegionComponents.Components[k].Indices);
 
-		TArray<int32> AllTriangles;
-		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, Region.InitialTriangles, AllTriangles);
-		if (AllTriangles.Num() == Region.InitialTriangles.Num() && bOffsetFullComponentsAsSolids)
+		if (bOffsetFullComponentsAsSolids)
 		{
-			bRegionOK = ApplySolidExtrude(Region, (bHaveVertexNormals) ? nullptr : &Normals);
-		}
-		else 
-		{
-			bRegionOK = ApplyOffset(Region, (bHaveVertexNormals) ? nullptr : &Normals);
+			TArray<int32> AllTriangles;
+			FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, Region.OffsetTids, AllTriangles);
+			Region.bIsSolid = AllTriangles.Num() == Region.OffsetTids.Num();
 		}
 
-		if ( bRegionOK )
-		{
-			AllModifiedTriangles.Append(Region.InitialTriangles);
-			for (TArray<int32>& RegionTris : Region.StitchTriangles)
-			{
-				AllModifiedTriangles.Append(RegionTris);
-			}
-		}
-		else
-		{
-			bAllOK = false;
-		}
+		bool bRegionOK = ApplyOffset(Region, (bHaveVertexNormals) ? nullptr : &Normals);
+
+		bAllOK = bAllOK && bRegionOK;
 	}
 
 	return bAllOK;
@@ -72,187 +71,226 @@ bool FOffsetMeshRegion::Apply()
 
 }
 
-
-bool FOffsetMeshRegion::ApplySolidExtrude(FOffsetInfo& Region, FMeshNormals* UseNormals)
-{
-	FDynamicSubmesh3 SubmeshCalc(Mesh, Region.InitialTriangles);
-	FDynamicMesh3& Submesh = SubmeshCalc.GetSubmesh();
-
-	FExtrudeMesh Extruder(&Submesh);
-	Extruder.ExtrudedPositionFunc = this->OffsetPositionFunc;
-	Extruder.DefaultExtrudeDistance = this->DefaultOffsetDistance;
-	Extruder.UVScaleFactor = this->UVScaleFactor;
-	Extruder.IsPositiveOffset = bIsPositiveOffset;
-
-	bool bOK = Extruder.Apply();
-	if (bOK == false)
-	{
-		return false;
-	}
-
-	if (ChangeTracker)
-	{
-		ChangeTracker->SaveTriangles(Region.InitialTriangles, true);
-	}
-
-	FDynamicMeshEditor Editor(Mesh);
-	Editor.RemoveTriangles(Region.InitialTriangles, true);
-
-	FMeshIndexMappings Mappings;
-	Editor.AppendMesh(&Submesh, Mappings);
-
-	// transfer tris and groups back
-	// TODO: loops
-	for (FExtrudeMesh::FExtrusionInfo& ExtrudeRegionInfo : Extruder.Extrusions)
-	{
-		for (TArray<int32>& StitchTriSet : ExtrudeRegionInfo.StitchTriangles)
-		{
-			for (int32 k = 0; k < StitchTriSet.Num(); ++k)
-			{
-				StitchTriSet[k] = Mappings.GetNewTriangle(StitchTriSet[k]);
-			}
-			Region.StitchTriangles.Add(StitchTriSet);
-		}
-		for (TArray<int32>& StitchGroupSet : ExtrudeRegionInfo.StitchPolygonIDs)
-		{
-			for (int32 k = 0; k < StitchGroupSet.Num(); ++k)
-			{
-				StitchGroupSet[k] = Mappings.GetNewGroup(StitchGroupSet[k]);
-			}
-			Region.StitchPolygonIDs.Add(StitchGroupSet);
-		}
-
-		for (int32 GroupID : ExtrudeRegionInfo.OffsetTriGroups)
-		{
-			Region.OffsetGroups.Add(Mappings.GetNewGroup(GroupID));
-		}
-	}
-
-	Region.bIsSolid = true;
-
-	//Region.BaseLoops[LoopIndex].InitializeFromVertices(Mesh, BaseLoopV);
-	//Region.OffsetLoops[LoopIndex].InitializeFromVertices(Mesh, OffsetLoopV);
-	//LoopIndex++;
-
-	return true;
-
-}
-
-
 bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormals)
 {
-	FMeshRegionBoundaryLoops InitialLoops(Mesh, Region.InitialTriangles, false);
+	// Store offset groups
+	if (Mesh->HasTriangleGroups())
+	{
+		for (int32 Tid : Region.OffsetTids)
+		{
+			Region.OffsetGroups.AddUnique(Mesh->GetTriangleGroup(Tid));
+		}
+	}
+
+	FMeshRegionBoundaryLoops InitialLoops(Mesh, Region.OffsetTids, false);
 	bool bOK = InitialLoops.Compute();
 	if (bOK == false)
 	{
 		return false;
 	}
 
-	int NumInitialLoops = InitialLoops.GetLoopCount();
+	AllModifiedAndNewTriangles.Append(Region.OffsetTids);
 
-	if (ChangeTracker)
+	// Before we start changing triangles, prepare by allocating group IDs that we'll use
+	// for the stitched sides (doing it before changes to the mesh allows user-provided
+	// functions to operate on the original mesh).
+	TArray<TArray<int32>> LoopsEdgeGroups;
+	TArray<int32> NewGroupIDs;
+	LoopsEdgeGroups.SetNum(InitialLoops.Loops.Num());
+	for (int32 i = 0; i < InitialLoops.Loops.Num(); ++i)
 	{
-		ChangeTracker->SaveTriangles(Region.InitialTriangles, true);
-	}
+		TArray<int32>& LoopEids = InitialLoops.Loops[i].Edges;
+		int32 NumEids = LoopEids.Num();
 
-	FDynamicMeshEditor Editor(Mesh);
-
-	// keep track of offset groups
-	if (Mesh->HasTriangleGroups())
-	{
-		for (int32 gid : Region.InitialTriangles)
+		if (!ensure(NumEids > 2))
 		{
-			Region.OffsetGroups.AddUnique(Mesh->GetTriangleGroup(gid));
+			// Shouldn't actually happen because we're extruding triangles
+			continue;
+		}
+
+		TArray<int32>& CurrentEdgeGroups = LoopsEdgeGroups[i];
+		CurrentEdgeGroups.SetNumUninitialized(NumEids);
+		CurrentEdgeGroups[0] = Mesh->AllocateTriangleGroup();
+		NewGroupIDs.Add(CurrentEdgeGroups[0]);
+
+		// Propagate the group backwards first so we don't allocate an unnecessary group
+		// at the end and then have to fix it.
+		int32 LastDifferentGroupIndex = NumEids - 1;
+		while (LastDifferentGroupIndex > 0
+			&& LoopEdgesShouldHaveSameGroup(LoopEids[0], LoopEids[LastDifferentGroupIndex]))
+		{
+			CurrentEdgeGroups[LastDifferentGroupIndex] = CurrentEdgeGroups[0];
+			--LastDifferentGroupIndex;
+		}
+
+		// Now add new groups forward
+		for (int32 j = 1; j <= LastDifferentGroupIndex; ++j)
+		{
+			if (!LoopEdgesShouldHaveSameGroup(LoopEids[j], LoopEids[j - 1]))
+			{
+				CurrentEdgeGroups[j] = Mesh->AllocateTriangleGroup();
+				NewGroupIDs.Add(CurrentEdgeGroups[j]);
+			}
+			else
+			{
+				CurrentEdgeGroups[j] = CurrentEdgeGroups[j-1];
+			}
 		}
 	}
 
+	FDynamicMeshEditor Editor(Mesh);
 	TArray<FDynamicMeshEditor::FLoopPairSet> LoopPairs;
-	bOK = Editor.DisconnectTriangles(Region.InitialTriangles, LoopPairs, true);
+
+	FDynamicMeshEditResult DuplicateResult;
+	if (Region.bIsSolid)
+	{
+		// In the solid case, we want to duplicate the region.
+		FMeshIndexMappings IndexMap;
+		Editor.DuplicateTriangles(Region.OffsetTids, IndexMap, DuplicateResult);
+
+		AllModifiedAndNewTriangles.Append(DuplicateResult.NewTriangles);
+
+		// Populate LoopPairs
+		for (FEdgeLoop& BaseLoop : InitialLoops.Loops)
+		{
+			LoopPairs.Add(FDynamicMeshEditor::FLoopPairSet());
+			FDynamicMeshEditor::FLoopPairSet& LoopPair = LoopPairs.Last();
+
+			// Which loops we choose as the outer/inner will determine whether the
+			// sides are stitched inside out or not. The original Tids are the ones
+			// that are offset. In a positive offset, we want old as the "outer" and
+			// new as "inner". In negative offset, we want the reverse to allow our
+			// stitching code to still have the sides face outward.
+			TArray<int32>* OriginalVertsOut = &LoopPair.OuterVertices;
+			TArray<int32>* OriginalEdgesOut = &LoopPair.OuterEdges;
+			TArray<int32>* NewVertsOut = &LoopPair.InnerVertices;
+			TArray<int32>* NewEdgesOut = &LoopPair.InnerEdges;
+			
+			if (bIsPositiveOffset)
+			{
+				Swap(OriginalVertsOut, NewVertsOut);
+				Swap(OriginalEdgesOut, NewEdgesOut);
+			}
+
+			*OriginalVertsOut = BaseLoop.Vertices;
+			*OriginalEdgesOut = BaseLoop.Edges;
+			
+			for (int32 Vid : BaseLoop.Vertices)
+			{
+				NewVertsOut->Add(IndexMap.GetNewVertex(Vid));
+			}
+
+			FEdgeLoop OtherLoop;
+			bOK = ensure(OtherLoop.InitializeFromVertices(Mesh, *NewVertsOut, false));
+			*NewEdgesOut = OtherLoop.Edges;
+		}
+	}
+	else
+	{
+		bOK = Editor.DisconnectTriangles(Region.OffsetTids, LoopPairs, true /*bHandleBoundaryVertices*/);
+	}
+
 	if (bOK == false)
 	{
 		return false;
 	}
 
-	// offset vertices
 	FMeshVertexSelection SelectionV(Mesh);
-	SelectionV.SelectTriangleVertices(Region.InitialTriangles);
-	if (bUseFaceNormals)
+	SelectionV.SelectTriangleVertices(Region.OffsetTids);
+	TArray<int32> SelectedVids = SelectionV.AsArray();
+
+	// If we need to, assemble the vertex vectors for us to use (before we actually start moving things)
+	TArray<FVector3d> VertexExtrudeVectors;
+	if (ExtrusionVectorType == EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage
+		|| ExtrusionVectorType == EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted)
 	{
-		TArray<int32> Vertices = SelectionV.AsArray();
-		TSet<int32> TriangleSet(Region.InitialTriangles);
-		int32 NumV = Vertices.Num();
-		TArray<FVector3d> NewPositions;
-		NewPositions.SetNum(NumV);
-		for (int32 k = 0; k < NumV; ++k)
+		VertexExtrudeVectors.SetNumUninitialized(SelectedVids.Num());
+
+		// Used to test which triangles are in selection
+		TSet<int32> TriangleSet(Region.OffsetTids);
+
+		for (int32 i = 0; i < SelectedVids.Num(); ++i)
 		{
-			int32 vid = Vertices[k];
-			FVector3d VertexPos = Mesh->GetVertex(vid);
-			FVector3d AccumV = FVector3d::Zero();
-			int32 Count = 0;
-			for (int32 tid : Mesh->VtxTrianglesItr(vid))
+			int32 Vid = SelectedVids[i];
+			FVector3d ExtrusionVector = FVector3d::Zero();
+
+			// Get angle-weighted normalized average vector
+			for (int32 Tid : Mesh->VtxTrianglesItr(Vid))
 			{
-				if (TriangleSet.Contains(tid))
+				if (TriangleSet.Contains(Tid))
 				{
-					FVector3f TriNormal = (FVector3f)Mesh->GetTriNormal(tid);
-					FVector3d TriNormalOffsetPos = OffsetPositionFunc(VertexPos, TriNormal, vid);
-					AccumV += TriNormalOffsetPos;
-					Count++;
+					double Angle = Mesh->GetTriInternalAngleR(Tid, Mesh->GetTriangle(Tid).IndexOf(Vid));
+					ExtrusionVector += Angle * Mesh->GetTriNormal(Tid);
 				}
 			}
-			NewPositions[k] = (Count == 0) ? VertexPos : (AccumV / (double)Count);
-		}
-		for (int32 k = 0; k < NumV; ++k)
-		{
-			Mesh->SetVertex(Vertices[k], NewPositions[k]);
+			ExtrusionVector.Normalize();
+
+			if (ExtrusionVectorType == EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted)
+			{
+				// Perform an angle-weighted adjustment of the vector length. For each triangle normal, the
+				// length needs to be multiplied by 1/cos(theta) to place the vertex in the plane that it
+				// would be in if the face was moved a unit along triangle normal (where theta is angle of
+				// triangle normal to the current extrusion vector).
+				double AngleSum = 0;
+				double Adjustment = 0;
+				for (int32 Tid : Mesh->VtxTrianglesItr(Vid))
+				{
+					if (TriangleSet.Contains(Tid))
+					{
+						double Angle = Mesh->GetTriInternalAngleR(Tid, Mesh->GetTriangle(Tid).IndexOf(Vid));
+						double CosTheta = Mesh->GetTriNormal(Tid).Dot(ExtrusionVector);
+						Adjustment += Angle / CosTheta;
+
+						// For the average at the end
+						AngleSum += Angle;
+					}
+				}
+				Adjustment /= AngleSum;
+				ExtrusionVector *= Adjustment;
+			}
+
+			VertexExtrudeVectors[i] = ExtrusionVector;
 		}
 	}
-	else
+
+	// Perform the actual vertex displacement.
+	for (int32 i = 0; i < SelectedVids.Num(); ++i)
 	{
-		for (int32 vid : SelectionV)
+		int32 Vid = SelectedVids[i];
+		FVector3d OldPosition = Mesh->GetVertex(Vid);
+		FVector3f ExtrusionVector = FVector3d::Zero();
+
+		switch (ExtrusionVectorType)
 		{
-			FVector3d v = Mesh->GetVertex(vid);
-			FVector3f n = (UseNormals != nullptr) ? (FVector3f)(*UseNormals)[vid] : Mesh->GetVertexNormal(vid);
-			FVector3d newv = OffsetPositionFunc(v, n, vid);
-			Mesh->SetVertex(vid, newv);
+		case EVertexExtrusionVectorType::VertexNormal:
+			ExtrusionVector = Mesh->GetVertexNormal(Vid);
+			break;
+		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAverage:
+		case EVertexExtrusionVectorType::SelectionTriNormalsAngleWeightedAdjusted:
+			ExtrusionVector = VertexExtrudeVectors[i];
+			break;
 		}
+
+		FVector3d NewPosition = OffsetPositionFunc(OldPosition, ExtrusionVector, Vid);
+		Mesh->SetVertex(Vid, NewPosition);
 	}
 
+	// Stitch the loops
 
-
-	// stitch each loop
+	int NumInitialLoops = InitialLoops.GetLoopCount();
 	Region.BaseLoops.SetNum(NumInitialLoops);
 	Region.OffsetLoops.SetNum(NumInitialLoops);
 	Region.StitchTriangles.SetNum(NumInitialLoops);
 	Region.StitchPolygonIDs.SetNum(NumInitialLoops);
 	int32 LoopIndex = 0;
-	for (FDynamicMeshEditor::FLoopPairSet& LoopPair : LoopPairs)
+	for (int32 i = 0; i < LoopPairs.Num(); ++i)
 	{
+		FDynamicMeshEditor::FLoopPairSet& LoopPair = LoopPairs[i];
+		const TArray<int32>& EdgeGroups = LoopsEdgeGroups[i];
+
 		TArray<int32>& BaseLoopV = LoopPair.OuterVertices;
 		TArray<int32>& OffsetLoopV = LoopPair.InnerVertices;
 		int NumLoopV = BaseLoopV.Num();
-
-		// allocate a new group ID for each pair of input group IDs, and build up list of new group IDs along loop
-		TArray<int32> NewGroupIDs;
-		TArray<int32> EdgeGroups;
-		TMap<TPair<int32,int32>, int32> NewGroupsMap;
-		for (int32 k = 0; k < NumLoopV; ++k)
-		{
-			int32 OffsetEdgeID = Mesh->FindEdge(OffsetLoopV[k], OffsetLoopV[(k + 1) % NumLoopV]);
-			int32 OffsetGroupID = Mesh->GetTriangleGroup(Mesh->GetEdgeT(OffsetEdgeID).A);
-
-			// base edge may not exist if we offset entire region. In that case just use single GroupID
-			int32 BaseEdgeID = Mesh->FindEdge(BaseLoopV[k], BaseLoopV[(k + 1) % NumLoopV]);
-			int32 BaseGroupID = (BaseEdgeID >= 0) ? Mesh->GetTriangleGroup(Mesh->GetEdgeT(BaseEdgeID).A) : OffsetGroupID;
-
-			TPair<int32,int32> GroupPair(FMathd::Min(BaseGroupID, OffsetGroupID), FMathd::Max(BaseGroupID, OffsetGroupID));
-			if (NewGroupsMap.Contains(GroupPair) == false)
-			{
-				int32 NewGroupID = Mesh->AllocateTriangleGroup();
-				NewGroupIDs.Add(NewGroupID);
-				NewGroupsMap.Add(GroupPair, NewGroupID);
-			}
-			EdgeGroups.Add(NewGroupsMap[GroupPair]);
-		}
 
 		// stitch the loops
 		FDynamicMeshEditResult StitchResult;
@@ -270,8 +308,9 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 		StitchResult.GetAllTriangles(Region.StitchTriangles[LoopIndex]);
 		Region.StitchPolygonIDs[LoopIndex] = NewGroupIDs;
 
+		AllModifiedAndNewTriangles.Append(Region.StitchTriangles[LoopIndex]);
+
 		// for each polygon we created in stitch, set UVs and normals
-		// TODO copied from FExtrudeMesh, doesn't really make sense in this context...
 		if (Mesh->HasAttributes())
 		{
 			float AccumUVTranslation = 0;
@@ -316,7 +355,41 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 		LoopIndex++;
 	}
 
+	if (Region.bIsSolid)
+	{
+		if (bIsPositiveOffset)
+		{
+			// Flip the "bottom" of the region to face outwards
+			Editor.ReverseTriangleOrientations(DuplicateResult.NewTriangles, true);
+		}
+		else
+		{
+			Editor.ReverseTriangleOrientations(Region.OffsetTids, true);
+		}
+	}
+
 	return true;
 }
 
+bool FOffsetMeshRegion::EdgesSeparateSameGroupsAndAreColinearAtBorder(FDynamicMesh3* Mesh, 
+	int32 Eid1, int32 Eid2, bool bCheckColinearityAtBorder)
+{
+	FIndex2i Tris1 = Mesh->GetEdgeT(Eid1);
+	FIndex2i Groups1(Mesh->GetTriangleGroup(Tris1.A),
+		Tris1.B == IndexConstants::InvalidID ? IndexConstants::InvalidID : Mesh->GetTriangleGroup(Tris1.B));
+
+	FIndex2i Tris2 = Mesh->GetEdgeT(Eid2);
+	FIndex2i Groups2(Mesh->GetTriangleGroup(Tris2.A), 
+		Tris2.B == IndexConstants::InvalidID ? IndexConstants::InvalidID : Mesh->GetTriangleGroup(Tris2.B));
+
+	if (bCheckColinearityAtBorder
+		&& Groups1.A == Groups2.A
+		&& Groups1.B == IndexConstants::InvalidID
+		&& Groups2.B == IndexConstants::InvalidID)
+	{
+		return OffsetMeshRegionLocals::EdgesAreParallel(Mesh, Eid1, Eid2);
+	}
+	else return (Groups1.A == Groups2.A && Groups1.B == Groups2.B)
+		|| (Groups1.A == Groups2.B && Groups1.B == Groups2.A);
+}
 
