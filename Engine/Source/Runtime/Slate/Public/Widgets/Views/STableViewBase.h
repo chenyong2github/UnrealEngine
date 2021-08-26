@@ -141,6 +141,9 @@ public:
 	/** Scrolls the view to the bottom */
 	void ScrollToBottom();
 
+	/** Returns whether the attached scrollbar is scrolling */
+	bool IsScrolling() const;
+
 	/** Gets the scroll offset of this view (in items) */
 	float GetScrollOffset() const;
 

@@ -53,7 +53,7 @@ public:
 	virtual void MakeMenu(class FMenuBuilder& MenuBuilder);
 
 	// Gather all of the children
-	virtual void GatherChildren(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch = true) {}
+	virtual void GatherChildrenBase(TArray<FDebugTreeItemPtr>& OutChildren, bool bRespectSearch = true) {}
 
 	// returns whether this tree node has children (used by drop down arrows)
 	virtual bool HasChildren();
@@ -105,6 +105,9 @@ protected:
 
 	// Compare this item to another of the same type
 	virtual bool Compare(const FDebugLineItem* Other) const=0;
+
+	// used for sets
+	virtual uint32 GetHash() = 0;
 
 	// Used to update the state of a line item rather than replace it.
 	// called after Compare returns true
@@ -193,4 +196,10 @@ protected:
 
 	// Search Box for tree
 	TSharedPtr<SSearchBox> SearchBox;
+
+	// updating the tree every tick is slow. use this to
+	// update less frequently
+	static constexpr uint8 TreeUpdatesPerSecond = 2;
+	static constexpr float UpdateInterval = 1.f / TreeUpdatesPerSecond;
+	float TreeUpdateTimer = UpdateInterval;
 };
