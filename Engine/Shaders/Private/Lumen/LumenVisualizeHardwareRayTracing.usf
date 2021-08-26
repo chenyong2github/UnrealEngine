@@ -434,6 +434,7 @@ uint GroupCount;
 uint LightingMode;
 uint VisualizeHiResSurface;
 uint MaxTranslucentSkipCount;
+float3 FarFieldReferencePos;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 {
@@ -457,6 +458,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 		float2 ScreenUV = (ScreenCoord + 0.5) * View.BufferSizeAndInvSize.zw;
 
 		int HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING;
+#if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
+		HitLightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
+#endif // DIM_TRACE_MODE
+
 		RayDesc Ray = CreatePrimaryRay(ScreenUV);
 		Ray.TMax = min(Ray.TMax, MaxTraceDistance);
 #if DIM_TRACE_MODE == TRACE_MODE_HIT_LIGHTING_RETRACE
@@ -488,6 +493,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			bCullBackFacingTriangles,
 			MaxTranslucentSkipCount,
 			bHiResSurface);
+		Context.FarFieldMaxTraceDistance = MaxTraceDistance;
+		Context.FarFieldReferencePos = FarFieldReferencePos;
 #if DIM_TRACE_MODE == TRACE_MODE_FAR_FIELD_RETRACE
 		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
 #endif // DIM_TRACE_MODE
@@ -529,3 +536,4 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 }
 
 #endif // LUMEN_HARDWARE_RAYTRACING
+

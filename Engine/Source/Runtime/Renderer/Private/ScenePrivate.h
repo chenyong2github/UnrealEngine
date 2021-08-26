@@ -2629,6 +2629,8 @@ public:
 
 	/** Force a refresh of all cached ray tracing data in the scene (when path tracing mode changes or coarse mesh streaming for example). */
 	void RefreshRayTracingMeshCommandCache();
+	
+	void RefreshRayTracingInstances();
 #endif
 
 	/** Nanite material commands. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */

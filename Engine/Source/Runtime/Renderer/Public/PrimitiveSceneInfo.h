@@ -15,6 +15,7 @@
 #include "Engine/Scene.h"
 #include "RendererInterface.h"
 #include "MeshPassProcessor.h"
+#include "PrimitiveSceneProxy.h"
 
 class FPrimitiveSceneInfo;
 class FPrimitiveSceneProxy;
@@ -27,6 +28,7 @@ class FIndirectLightingCacheUniformParameters;
 template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 class FNaniteCommandInfo;
+struct FRayTracingInstance;
 
 namespace Nanite
 {
@@ -658,6 +660,10 @@ private:
 
 	/** Updates cached transforms in CachedRayTracingInstance */
 	void UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld);
+
+	/** Updates cached ray tracing instances. Utility closesly mirrors CacheRayTracingPrimitives(..) */
+	static void UpdateCachedRayTracingInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos);
+	static void UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags);
 #endif
 
 public:
