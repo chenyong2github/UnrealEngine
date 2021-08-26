@@ -39,8 +39,7 @@ public:
 	~SRigSpacePickerWidget();
 
 	FResult InvokeDialog();
-	void CloseDialog(bool bWasPicked=false);
-	FReply CancelClicked();
+	void CloseDialog();
 	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 
 	virtual bool SupportsKeyboardFocus() const override
