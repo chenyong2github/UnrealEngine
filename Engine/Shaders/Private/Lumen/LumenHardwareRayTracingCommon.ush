@@ -35,6 +35,10 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 	return LocalPosition;
 }
 
+#ifndef ENABLE_NEAR_FIELD_TRACING
+#define ENABLE_NEAR_FIELD_TRACING 1
+#endif // ENABLE_NEAR_FIELD_TRACING
+
 // Lighting modes
 #define LIGHTING_FROM_SURFACE_CACHE 0
 #define EVALUATE_MATERIAL 1
@@ -63,11 +67,14 @@ struct FRayTracedLightingContext
 	uint LinearCoord;
 	uint InstanceMask;
 	int TranslucentSkipCountMax;
+	float FarFieldMaxTraceDistance;
+	float3 FarFieldReferencePos;
 
 	// Whether to sample high res surface cache data or low res always resident pages
 	bool bHiResSurface;
 	bool bCullBackFacingTriangles;
 	bool bAcceptFirstHitAndEndSearch;
+	bool bSkipClosestHitShader;
 	bool bCalculateHitVelocity;
 };
 
@@ -87,9 +94,12 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 	Context.TraceCoord = TraceCoord;
 	Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
+	Context.FarFieldMaxTraceDistance = -1.0;
+	Context.FarFieldReferencePos = 0;
 	Context.bHiResSurface = bHiResSurface;
 	Context.bCullBackFacingTriangles = bCullBackFacingTriangles;
 	Context.bAcceptFirstHitAndEndSearch = false;
+	Context.bSkipClosestHitShader = false;
 	Context.bCalculateHitVelocity = false;
 	return Context;
 }
@@ -123,6 +133,7 @@ FRayTracedLightingContext CreateRayTracedLightingContext(
 struct FRayTracedLightingResult
 {
 	bool bIsHit;
+	bool bIsFarField;
 	float TraceHitDistance;
 	float3 Radiance;
 
@@ -135,6 +146,7 @@ FRayTracedLightingResult CreateRayTracedLightingResult()
 {
 	FRayTracedLightingResult Result;
 	Result.bIsHit = false;
+	Result.bIsFarField = false;
 	Result.TraceHitDistance = 0;
 	Result.Radiance = 0;
 	Result.WorldVelocity = 0;
@@ -192,6 +204,7 @@ bool TraceLumenMinimalRay(
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	RayFlags |= Context.bCullBackFacingTriangles ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 	RayFlags |= Context.bAcceptFirstHitAndEndSearch ? RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH : 0;
+	RayFlags |= Context.bSkipClosestHitShader ? RAY_FLAG_SKIP_CLOSEST_HIT_SHADER : 0;
 
 	TraceLumenRay(Context.TLAS, RayFlags, Context.InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
 
@@ -353,6 +366,10 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 		Payload.SetMinimalPayloadMode();
 	}
 
+	// Permute ray origin if tracing against far-field
+	float3 RayOrigin = Ray.Origin;
+	Ray.Origin += Context.InstanceMask == RAY_TRACING_MASK_FAR_FIELD ? Context.FarFieldReferencePos : 0.0;
+
 	// Trace visibility ray
 	TraceMaterialRayPacked(
 		Payload,
@@ -364,6 +381,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLighting(
 		Context.TraceCoord,
 		bEnableSkyLightContribution);
 
+	Ray.Origin = RayOrigin;
 	Result.bIsHit = Payload.IsHit();
 	if (Result.bIsHit)
 	{
@@ -384,6 +402,8 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	Result.TraceHitDistance = Ray.TMax;
 
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
+
+#if ENABLE_NEAR_FIELD_TRACING
 	Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
 
 	int TranslucentSkipCount = 0;
@@ -410,6 +430,23 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		uint SceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.GetPrimitiveIndex(), Payload.GetInstanceIndex());
 		Result.Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, Result.TraceHitDistance, SceneInstanceIndex, Result.MeshCardsIndex);
 	}
+#endif
 
+#if ENABLE_FAR_FIELD_TRACING
+	if (!Result.bIsHit)
+	{
+		Ray.Origin += Context.FarFieldReferencePos;
+		Ray.TMin = Ray.TMax;
+		Ray.TMax = Context.FarFieldMaxTraceDistance;
+		Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
+		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
+		if (Result.bIsHit)
+		{
+			Result.TraceHitDistance = Payload.HitT;
+			Result.MaterialShaderIndex = Payload.GetMaterialShaderIndex();
+			Result.bIsFarField = true;
+		}
+	}
+#endif // ENABLE_FAR_FIELD_TRACING
 	return Result;
 }

@@ -221,15 +221,6 @@ static FAutoConsoleVariableRef CVarRayTracingDebugForceOpaque(
 	TEXT("Forces all ray tracing geometry instances to be opaque, effectively disabling any-hit shaders. This is useful for debugging and profiling. (default = 0)")
 );
 
-static TAutoConsoleVariable<int32> CVarRayTracingFarField(
-	TEXT("r.RayTracing.FarField"), 0,
-	TEXT("Enable/Disable far field ray tracing."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<float> CVarRayTracingFarFieldMaxTraceDistance(
-	TEXT("r.RayTracing.FarField.MaxTraceDistance"), 1.0e6f,
-	TEXT("Maximum hit-distance for far-field ray tracing (Default = 1.0e6)."),
-	ECVF_RenderThreadSafe);
 
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
@@ -275,17 +266,6 @@ float GetRayTracingCullingRadius()
 {
 	return CVarRayTracingCullingRadius.GetValueOnRenderThread();
 }
-
-int32 GetRayTracingFarField()
-{
-	return CVarRayTracingFarField.GetValueOnRenderThread();
-}
-
-float GetRayTracingFarFieldMaxTraceDistance()
-{
-	return CVarRayTracingFarFieldMaxTraceDistance.GetValueOnRenderThread();
-}
-
 #endif // RHI_RAYTRACING
 
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
@@ -629,14 +609,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		int32 BroadIndex = 0;
 		const int32 CullInRayTracing = GetRayTracingCulling();
 		const float CullingRadius = GetRayTracingCullingRadius();
-		const float FarFieldCullingRadius = GetRayTracingFarFieldMaxTraceDistance();
+		const float FarFieldCullingRadius = Lumen::GetFarFieldMaxTraceDistance();
 		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
 		const float AngleThresholdRatio = FMath::Tan(FMath::Min(89.99f, CullAngleThreshold) * PI / 180.0f);
 		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
 		const FVector ViewDirection = View.GetViewDirection();
 		const bool bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
 		const bool bCullByRadiusOrDistance = CullInRayTracing == 3;
-		const bool bIsRayTracingFarField = GetRayTracingFarField() > 0;
+		const bool bIsRayTracingFarField = Lumen::UseFarField();
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
 		{
@@ -1896,6 +1876,15 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			Scene->CachedRayTracingMeshCommandsMode = CurrentMode;
 			Scene->RefreshRayTracingMeshCommandCache();
 		}
+
+		static FVector FarFieldReferencePosLast = Lumen::GetFarFieldReferencePos();
+		FVector FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
+		if (FarFieldReferencePosLast.Z != FarFieldReferencePos.Z)
+		{
+			FarFieldReferencePosLast = FarFieldReferencePos;
+			Scene->RefreshRayTracingInstances();
+		}
+
 	}
 #endif
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

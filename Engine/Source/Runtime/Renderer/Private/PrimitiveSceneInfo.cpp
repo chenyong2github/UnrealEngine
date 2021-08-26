@@ -660,6 +660,38 @@ void FScene::RefreshRayTracingMeshCommandCache()
 	FPrimitiveSceneInfo::CacheRayTracingPrimitives(this, Primitives);
 }
 
+void FScene::RefreshRayTracingInstances()
+{
+	// Re-cache all current primitives
+	FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(this, Primitives);
+}
+
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstances(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+{
+	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
+	{
+		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
+
+		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
+		{
+			FRayTracingInstance CachedRayTracingInstance;
+			ERayTracingPrimitiveFlags& Flags = Scene->PrimitiveRayTracingFlags[SceneInfo->GetIndex()];
+
+			// Cache the coarse mesh streaming handle
+			SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();
+
+			// Write flags
+			Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
+			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && !EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
+			{
+				continue;
+			}
+
+			UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
+		}
+	}
+}
+
 void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
@@ -764,45 +796,55 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 				}
 			}
 
-			if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
-			{
-				// Cache a copy of local transforms so that they can be updated in the future
-				// TODO: this is actually not needed for static meshes with non-movable mobility (except in editor)
-				SceneInfo->CachedRayTracingInstanceLocalTransforms = CachedRayTracingInstance.InstanceTransforms;
+			UpdateCachedRayTracingInstance(SceneInfo, CachedRayTracingInstance, Flags);
+		}
+	}
+}
 
-				// TODO: allocate from FRayTracingScene & do better low-level caching
-				SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
-				SceneInfo->CachedRayTracingInstanceWorldTransforms.Empty();
-				SceneInfo->CachedRayTracingInstanceWorldTransforms.AddUninitialized(CachedRayTracingInstance.NumTransforms);
-				SceneInfo->UpdateCachedRayTracingInstanceTransforms(SceneInfo->Proxy->GetLocalToWorld());
-				SceneInfo->CachedRayTracingInstance.Transforms = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstance(FPrimitiveSceneInfo* SceneInfo, FRayTracingInstance& CachedRayTracingInstance, ERayTracingPrimitiveFlags& Flags)
+{
+	if (EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheInstances))
+	{
+		// Cache a copy of local transforms so that they can be updated in the future
+		// TODO: this is actually not needed for static meshes with non-movable mobility (except in editor)
+		SceneInfo->CachedRayTracingInstanceLocalTransforms = CachedRayTracingInstance.InstanceTransforms;
+		// TODO: allocate from FRayTracingScene & do better low-level caching
+		SceneInfo->CachedRayTracingInstance.NumTransforms = CachedRayTracingInstance.NumTransforms;
+		SceneInfo->CachedRayTracingInstanceWorldTransforms.Empty();
+		SceneInfo->CachedRayTracingInstanceWorldTransforms.AddUninitialized(CachedRayTracingInstance.NumTransforms);
 
-				check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.Transforms.Num()));
+		// Apply local offset to far-field object
+		FMatrix LocalToWorld = SceneInfo->Proxy->GetLocalToWorld();
+		if (SceneInfo->Proxy->IsRayTracingFarField())
+		{
+			LocalToWorld = LocalToWorld.ConcatTranslation(Lumen::GetFarFieldReferencePos());
+		}
+		SceneInfo->UpdateCachedRayTracingInstanceTransforms(LocalToWorld);
+		SceneInfo->CachedRayTracingInstance.Transforms = MakeArrayView(SceneInfo->CachedRayTracingInstanceWorldTransforms);
 
-				SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
+		check(SceneInfo->CachedRayTracingInstance.NumTransforms >= uint32(SceneInfo->CachedRayTracingInstance.Transforms.Num()));
 
-				// At this point (in AddToScene()) PrimitiveIndex has been set
-				check(SceneInfo->GetIndex() != INDEX_NONE);
-				SceneInfo->CachedRayTracingInstance.DefaultUserData = (uint32)SceneInfo->GetIndex();
-				SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
+		SceneInfo->CachedRayTracingInstance.GeometryRHI = CachedRayTracingInstance.Geometry->RayTracingGeometryRHI;
 
-				if (SceneInfo->Proxy->IsRayTracingFarField())
-				{
-					SceneInfo->CachedRayTracingInstance.Mask = RAY_TRACING_MASK_FAR_FIELD;
-					Flags |= ERayTracingPrimitiveFlags::FarField;
-				}
+		// At this point (in AddToScene()) PrimitiveIndex has been set
+		check(SceneInfo->GetIndex() != INDEX_NONE);
+		SceneInfo->CachedRayTracingInstance.DefaultUserData = (uint32)SceneInfo->GetIndex();
+		SceneInfo->CachedRayTracingInstance.Mask = CachedRayTracingInstance.Mask; // When no cached command is found, InstanceMask == 0 and the instance is effectively filtered out
 
-				if (CachedRayTracingInstance.bForceOpaque)
-				{
-					SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
-				}
+		if (SceneInfo->Proxy->IsRayTracingFarField())
+		{
+			SceneInfo->CachedRayTracingInstance.Mask = RAY_TRACING_MASK_FAR_FIELD;
+			Flags |= ERayTracingPrimitiveFlags::FarField;
+		}
 
-				if (CachedRayTracingInstance.bDoubleSided)
-				{
-					SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
-				}
-			}
+		if (CachedRayTracingInstance.bForceOpaque)
+		{
+			SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::ForceOpaque;
+		}
 
+		if (CachedRayTracingInstance.bDoubleSided)
+		{
+			SceneInfo->CachedRayTracingInstance.Flags |= ERayTracingInstanceFlags::TriangleCullDisable;
 		}
 	}
 }

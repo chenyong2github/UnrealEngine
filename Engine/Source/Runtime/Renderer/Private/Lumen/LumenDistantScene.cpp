@@ -114,6 +114,39 @@ static TAutoConsoleVariable<float> CVarLumenDistantSceneNaniteLODBias(
 	TEXT("LOD bias for Nanite geometry in Lumen distant scene representation. 0 - full detail. > 0 - reduced detail."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarLumenFarField(
+	TEXT("r.LumenScene.FarField"), 0,
+	TEXT("Enable/Disable Lumen far-field ray tracing."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarLumenFarFieldMaxTraceDistance(
+	TEXT("r.LumenScene.FarField.MaxTraceDistance"), 1.0e6f,
+	TEXT("Maximum hit-distance for Lumen far-field ray tracing (Default = 1.0e6)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarLumenFarFieldReferencePosZ(
+	TEXT("r.LumenScene.FarField.ReferencePos.Z"),
+	100000.0f,
+	TEXT("Far-field reference position in Z (default = 100000.0)"),
+	ECVF_RenderThreadSafe
+);
+
+namespace Lumen
+{
+	bool UseFarField()
+	{
+		return CVarLumenFarField.GetValueOnRenderThread() != 0;
+	}
+
+	float GetFarFieldMaxTraceDistance()
+	{
+		return CVarLumenFarFieldMaxTraceDistance.GetValueOnRenderThread();
+	}
+
+	FVector GetFarFieldReferencePos() {
+		return FVector(0.0f, 0.0f, CVarLumenFarFieldReferencePosZ.GetValueOnRenderThread());
+	}
+}
 
 bool ShouldEnableDistantScene()
 {

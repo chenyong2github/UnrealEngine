@@ -419,6 +419,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 
 		// Output
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
@@ -624,6 +625,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
+			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -795,6 +797,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 			PassParameters->MaxRayAllocationCount = RayCount;
 			PassParameters->MaxTraceDistance = MaxTraceDistance;
+			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
@@ -910,6 +913,7 @@ void VisualizeHardwareRayTracing(
 			PassParameters->VisualizeMode = GLumenVisualizeMode;
 			PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 			PassParameters->MaxTraceDistance = FarFieldMaxTraceDistance;
+			PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 
 			// Output
 			PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);
