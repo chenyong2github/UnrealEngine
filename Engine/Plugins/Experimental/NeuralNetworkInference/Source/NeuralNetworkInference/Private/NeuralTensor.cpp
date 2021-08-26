@@ -453,7 +453,6 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 	else if (!InTensorProto->ExternalData.IsEmpty())
 	{
 #if WITH_EDITOR
-#if PLATFORM_WINDOWS
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): DEPRECATED CODE, OTXT no longer functional."));
 		// // Sanity check
 		// if (InTensorProto->ExternalData[0].Key != TEXT("location") || InTensorProto->ExternalData[0].Value.Len() < 1)
@@ -469,10 +468,6 @@ bool FNeuralTensor::SetFromTensorProto(const FTensorProto* const InTensorProto, 
 		// 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Could not read binary file: %s."), *BinaryWeightFilePath);
 		// 	return false;
 		// }
-#else //PLATFORM_WINDOWS
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): Only implemented in Windows."));
-		return false;
-#endif //PLATFORM_WINDOWS
 #else //WITH_EDITOR
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FNeuralTensor::SetFromTensorProto(): InTensorProto->ExternalData should never be used in non-Editor mode."));
 		return false;

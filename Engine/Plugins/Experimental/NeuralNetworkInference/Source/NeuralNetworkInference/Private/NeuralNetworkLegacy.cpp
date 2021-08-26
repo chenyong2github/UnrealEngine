@@ -11,9 +11,7 @@
 #include "RHI.h"
 
 #if WITH_EDITOR
-#if PLATFORM_WINDOWS
 #include "ModelProtoFileReader.h"
-#endif //PLATFORM_WINDOWS
 #endif //WITH_EDITOR
 
 
@@ -116,10 +114,8 @@ UAssetImportData* UNeuralNetworkLegacy::GetAndMaybeCreateAssetImportData()
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-bool UNeuralNetworkLegacy::Load(const FString& InFilePath)
+bool UNeuralNetworkLegacy::Load(const FString& InModelFilePath)
 {
-#if PLATFORM_WINDOWS
-
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetworkLegacy_Load_File"), STAT_UNeuralNetworkLegacy_Load_File, STATGROUP_MachineLearning);
 
 	// Clean previous networks
@@ -133,25 +129,19 @@ bool UNeuralNetworkLegacy::Load(const FString& InFilePath)
 	}
 
 	// Read ModelProto
-	if (!FModelProtoFileReader::ReadModelProtoFromFile(ModelProto, InFilePath) || !ModelProto.IsLoaded())
+	if (!FModelProtoFileReader::ReadModelProtoFromFile(ModelProto, InModelFilePath) || !ModelProto.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): Model could not be loaded from %s."), *InFilePath);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): Model could not be loaded from %s."), *InModelFilePath);
 		return false;
 	}
 	// Turn ModelProto into Operators
-	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), InFilePath);
+	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), InModelFilePath);
 	if (!TensorManager.IsLoaded())
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s."), *InFilePath);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s."), *InModelFilePath);
 		return false;
 	}
 	return bIsLoaded;
-
-#else //PLATFORM_WINDOWS
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): Only implemented for Windows."),
-		*InFilePath, ModelProto.IsLoaded());
-	return false;
-#endif //PLATFORM_WINDOWS
 }
 #endif //WITH_EDITOR
 

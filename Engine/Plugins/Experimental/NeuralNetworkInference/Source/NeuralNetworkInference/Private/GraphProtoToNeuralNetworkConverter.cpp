@@ -8,9 +8,7 @@
 #include "NeuralTensorManager.h"
 
 #if WITH_EDITOR
-#if PLATFORM_WINDOWS
 #include "ModelProtoFileReader.h"
-#endif //PLATFORM_WINDOWS
 #endif //WITH_EDITOR
 
 
