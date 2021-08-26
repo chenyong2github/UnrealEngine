@@ -125,14 +125,14 @@ public:
 
 	/** Select the largest connected mesh component by triangle count */
 	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 6))
-	void LargestAreaPart()
+	void LargestTriCountPart()
 	{
 		PostAction(EMeshSelectionToolActions::SelectLargestComponentByTriCount);
 	}
 
 	/** Select the largest connected mesh component by mesh area */
 	UFUNCTION(CallInEditor, Category = SelectionEdits, meta = (DisplayPriority = 7))
-	void LargestTriCountPart()
+	void LargestAreaPart()
 	{
 		PostAction(EMeshSelectionToolActions::SelectLargestComponentByArea);
 	}

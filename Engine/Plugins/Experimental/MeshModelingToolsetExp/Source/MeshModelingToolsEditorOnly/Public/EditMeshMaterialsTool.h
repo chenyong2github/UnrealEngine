@@ -88,6 +88,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UEditMeshMaterialsTool : public UMeshSelec
 
 public:
 	virtual void Setup() override;
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool CanAccept() const override { return UMeshSelectionTool::CanAccept() || bHaveModifiedMaterials; }

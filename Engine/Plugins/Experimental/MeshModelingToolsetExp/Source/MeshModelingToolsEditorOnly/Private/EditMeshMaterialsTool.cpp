@@ -160,6 +160,83 @@ void UEditMeshMaterialsTool::OnTick(float DeltaTime)
 }
 
 
+void UEditMeshMaterialsTool::RegisterActions(FInteractiveToolActionSet& ActionSet)
+{
+	UDynamicMeshBrushTool::RegisterActions(ActionSet);
+
+	// There's a bunch of code duplication here from UMeshSelectionTool::RegisterActions.
+	// In fact the only difference is currenlty that we don't register the "delete triangles" action.
+	// We could just override the function that performs the delete and not bother overriding the
+	// RegisterActions method at all, but that seems risky in case the select tool ever adds other
+	// things (especially lambdas) that we don't want to support in the edit materials tool...
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 50,
+		TEXT("TriSelectIncreaseSize"),
+		LOCTEXT("TriSelectIncreaseSize", "Increase Size"),
+		LOCTEXT("TriSelectIncreaseSizeTooltip", "Increase Brush Size"),
+		EModifierKey::None, EKeys::D,
+		[this]() { IncreaseBrushSizeAction(); });
+
+	ActionSet.RegisterAction(this, (int32)EStandardToolActions::BaseClientDefinedActionID + 51,
+		TEXT("TriSelectDecreaseSize"),
+		LOCTEXT("TriSelectDecreaseSize", "Decrease Size"),
+		LOCTEXT("TriSelectDecreaseSizeTooltip", "Decrease Brush Size"),
+		EModifierKey::None, EKeys::S,
+		[this]() { DecreaseBrushSizeAction(); });
+
+#if WITH_EDITOR  	// enum HasMetaData()  is not available at runtime
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::CycleSelectionMode,
+		TEXT("CycleSelectionMode"),
+		LOCTEXT("CycleSelectionMode", "Cycle Selection Mode"),
+		LOCTEXT("CycleSelectionModeTooltip", "Cycle through selection modes"),
+		EModifierKey::None, EKeys::Q,
+		[this]() {
+			const UEnum* SelectionModeEnum = StaticEnum<EMeshSelectionToolPrimaryMode>();
+			check(SelectionModeEnum);
+			int32 NumEnum = SelectionModeEnum->NumEnums() - 1;
+			do {
+				SelectionProps->SelectionMode = (EMeshSelectionToolPrimaryMode)(((int32)SelectionProps->SelectionMode + 1) % NumEnum);
+			} while (SelectionModeEnum->HasMetaData(TEXT("Hidden"), (int32)SelectionProps->SelectionMode));
+		}
+	);
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::CycleViewMode,
+		TEXT("CycleViewMode"),
+		LOCTEXT("CycleViewMode", "Cycle View Mode"),
+		LOCTEXT("CycleViewModeTooltip", "Cycle through face coloring modes"),
+		EModifierKey::None, EKeys::A,
+		[this]() {
+			const UEnum* ViewModeEnum = StaticEnum<EMeshFacesColorMode>();
+			check(ViewModeEnum);
+			int32 NumEnum = ViewModeEnum->NumEnums() - 1;
+			do {
+				SelectionProps->FaceColorMode = (EMeshFacesColorMode)(((int32)SelectionProps->FaceColorMode + 1) % NumEnum);
+			} while (ViewModeEnum->HasMetaData(TEXT("Hidden"), (int32)SelectionProps->FaceColorMode));
+		}
+	);
+#endif
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::ShrinkSelection,
+		TEXT("ShrinkSelection"),
+		LOCTEXT("ShrinkSelection", "Shrink Selection"),
+		LOCTEXT("ShrinkSelectionTooltip", "Shrink selection"),
+		EModifierKey::Shift, EKeys::Comma,
+		[this]() { GrowShrinkSelection(false); });
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::GrowSelection,
+		TEXT("GrowSelection"),
+		LOCTEXT("GrowSelection", "Grow Selection"),
+		LOCTEXT("GrowSelectionTooltip", "Grow selection"),
+		EModifierKey::Shift, EKeys::Period,
+		[this]() { GrowShrinkSelection(true); });
+
+	ActionSet.RegisterAction(this, (int32)EMeshSelectionToolActions::OptimizeSelection,
+		TEXT("OptimizeSelection"),
+		LOCTEXT("OptimizeSelection", "Optimize Selection"),
+		LOCTEXT("OptimizeSelectionTooltip", "Optimize selection"),
+		EModifierKey::None, EKeys::O,
+		[this]() { OptimizeSelection(); });
+}
 
 
 void UEditMeshMaterialsTool::ApplyMaterialAction(EEditMeshMaterialsToolActions ActionType)
