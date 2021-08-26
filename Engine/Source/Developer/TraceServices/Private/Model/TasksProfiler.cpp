@@ -405,7 +405,10 @@ namespace TraceServices
 
 	const FWaitingForTasks* FTasksProvider::TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const
 	{
-		if (FCString::Strcmp(TimerName, TEXT("WaitUntilTasksComplete")) != 0 && FCString::Strcmp(TimerName, TEXT("GameThreadWaitForTask")) != 0)
+		if (FCString::Strcmp(TimerName, TEXT("WaitUntilTasksComplete")) != 0 && 
+			FCString::Strcmp(TimerName, TEXT("GameThreadWaitForTask")) != 0 &&
+			FCString::Strcmp(TimerName, TEXT("Tasks::Wait")) != 0 &&
+			FCString::Strcmp(TimerName, TEXT("Tasks::BusyWait")) != 0)
 		{
 			return nullptr;
 		}

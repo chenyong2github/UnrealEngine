@@ -21,10 +21,16 @@ namespace UE { namespace Tasks
 	TTask<TInvokeResult_T<TaskBodyType>> Launch(const TCHAR* DebugName, TaskBodyType&& TaskBody, PrerequisitesCollectionType&& Prerequisites, LowLevelTasks::ETaskPriority Priority = LowLevelTasks::ETaskPriority::Normal);
 
 	template<typename TaskCollectionType>
-	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
+	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
 
 	template<typename TaskCollectionType>
-	bool BusyWait(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
+	bool BusyWait(const TaskCollectionType& Tasks, FTimespan InTimeout = FTimespan::MaxValue());
+
+	namespace Private
+	{
+		template<typename TaskCollectionType>
+		TArray<TaskTrace::FId> GetTraceIds(const TaskCollectionType& Tasks);
+	}
 
 	// a common part of the generic `TTask<ResultType>` and its `TTask<void>` specialisation
 	template<typename ResultType>
@@ -37,16 +43,19 @@ namespace UE { namespace Tasks
 		friend class TPrerequisites;
 
 		template<typename TaskCollectionType>
-		friend bool Private::TryRetractAndExecute(TaskCollectionType&& Tasks, FTimespan Timeout);
+		friend bool Private::TryRetractAndExecute(const TaskCollectionType& Tasks, FTimespan Timeout);
+
+		template<typename TaskCollectionType>
+		friend TArray<TaskTrace::FId> Private::GetTraceIds(const TaskCollectionType& Tasks);
 
 		template<typename TaskType>
-		friend void AddNested(TaskType&& Nested);
+		friend void AddNested(const TaskType& Nested);
 
 		template<typename TaskCollectionType>
-		friend bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
+		friend bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
 
 		template<typename TaskCollectionType>
-		friend bool BusyWait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
+		friend bool BusyWait(const TaskCollectionType& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/);
 
 	protected:
 		TTaskBase() = default;
@@ -72,7 +81,15 @@ namespace UE { namespace Tasks
 		// @return true if the task is completed
 		bool Wait(FTimespan Timeout = FTimespan::MaxValue())
 		{
-			if (!IsValid() || Pimpl->TryRetractAndExecute())
+			if (!IsValid())
+			{
+				return true;
+			}
+
+			TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
+			TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
+
+			if (Pimpl->TryRetractAndExecute())
 			{
 				return true;
 			}
@@ -99,6 +116,8 @@ namespace UE { namespace Tasks
 		{
 			if (IsValid())
 			{
+				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
+				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
 				Pimpl->BusyWait();
 			}
 		}
@@ -108,7 +127,13 @@ namespace UE { namespace Tasks
 		// @return true if the task is completed
 		bool BusyWait(FTimespan Timeout)
 		{
-			return !IsValid() || Pimpl->BusyWait(Timeout);
+			if (IsValid())
+			{
+				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
+				return Pimpl->BusyWait(Timeout);
+			}
+
+			return true;
 		}
 
 		// waits for task's completion or the given condition becomes true, while executing other tasks.
@@ -117,7 +142,14 @@ namespace UE { namespace Tasks
 		template<typename ConditionType>
 		bool BusyWait(ConditionType&& Condition)
 		{
-			return !IsValid() || Pimpl->BusyWait(Forward<ConditionType>(Condition));
+			if (IsValid())
+			{
+				TaskTrace::FWaitingScope WaitingScope(Pimpl->GetTraceId());
+				TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
+				return Pimpl->BusyWait(Forward<ConditionType>(Condition));
+			}
+
+			return true;
 		}
 
 	protected:
@@ -256,10 +288,38 @@ namespace UE { namespace Tasks
 		return TTask<FResult>{ Task };
 	}
 
-	// wait for multiple tasks, with optional timeout
-	template<typename TaskCollectionType>
-	bool Wait(TaskCollectionType&& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/)
+	namespace Private
 	{
+		template<typename TaskCollectionType>
+		TArray<TaskTrace::FId> GetTraceIds(const TaskCollectionType& Tasks)
+		{
+#if UE_TASK_TRACE_ENABLED
+			TArray<TaskTrace::FId> TasksIds;
+			TasksIds.Reserve(Tasks.Num());
+
+			for (auto& Task : Tasks)
+			{
+				if (Task.IsValid())
+				{
+					TasksIds.Add(Task.Pimpl->GetTraceId());
+				}
+			}
+
+			return TasksIds;
+#else
+			return {};
+#endif
+		}
+	}
+
+	// wait for multiple tasks, with optional timeout
+	// @param TaskCollectionType - an iterable collection of `TTask<T>`, e.g. `TArray<FTask>`
+	template<typename TaskCollectionType>
+	bool Wait(const TaskCollectionType& Tasks, FTimespan InTimeout/* = FTimespan::MaxValue()*/)
+	{
+		TaskTrace::FWaitingScope WaitingScope(Private::GetTraceIds(Tasks));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::Wait);
+
 		FTimeout Timeout{ InTimeout };
 
 		if (Private::TryRetractAndExecute(Tasks, InTimeout))
@@ -286,8 +346,11 @@ namespace UE { namespace Tasks
 
 	// wait for multiple tasks while executing other tasks
 	template<typename TaskCollectionType>
-	bool BusyWait(TaskCollectionType&& Tasks, FTimespan TimeoutValue/* = FTimespan::MaxValue()*/)
+	bool BusyWait(const TaskCollectionType& Tasks, FTimespan TimeoutValue/* = FTimespan::MaxValue()*/)
 	{
+		TaskTrace::FWaitingScope WaitingScope(Private::GetTraceIds(Tasks));
+		TRACE_CPUPROFILER_EVENT_SCOPE(Tasks::BusyWait);
+
 		FTimeout Timeout{ TimeoutValue };
 
 		if (Private::TryRetractAndExecute(Tasks, TimeoutValue))
@@ -344,7 +407,7 @@ namespace UE { namespace Tasks
 	// until all nested tasks are completed. It's similar to explicitly waiting for a sub-task at the end of its parent task, except explicit waiting
 	// blocks the worker executing the parent task until the sub-task is completed. With nested tasks, the worker won't be blocked.
 	template<typename TaskType>
-	void AddNested(TaskType&& Nested)
+	void AddNested(const TaskType& Nested)
 	{
 		Private::FTaskBase* Parent = Private::FTaskBase::GetCurrentTask();
 		check(Parent != nullptr);

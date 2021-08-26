@@ -42,6 +42,7 @@ namespace TaskTrace
 	struct CORE_API FWaitingScope
 	{
 		explicit FWaitingScope(const TArray<FId>& Tasks); // waiting for given tasks completion
+		explicit FWaitingScope(FId TaskId);
 		~FWaitingScope();
 	};
 
@@ -58,6 +59,7 @@ namespace TaskTrace
 	inline void Finished(FId TaskId) {}
 	inline void Completed(FId TaskId) {}
 	inline FWaitingScope::FWaitingScope(const TArray<FId>& Tasks) {}
+	inline FWaitingScope::FWaitingScope(FId TaskId) {}
 	inline FWaitingScope::~FWaitingScope() {}
 #endif // UE_TASK_TRACE_ENABLED
 }

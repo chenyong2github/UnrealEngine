@@ -590,14 +590,14 @@ namespace UE { namespace Tasks
 		};
 
 		template<typename TaskCollectionType>
-		bool TryRetractAndExecute(TaskCollectionType&& Tasks, FTimespan InTimeout = FTimespan::MaxValue())
+		bool TryRetractAndExecute(const TaskCollectionType& Tasks, FTimespan InTimeout = FTimespan::MaxValue())
 		{
 			FTimeout Timeout{ InTimeout };
 			bool bResult = true;
 
 			for (auto& Task : Tasks)
 			{
-				if (!Task.Pimpl->TryRetractAndExecute())
+				if (Task.IsValid() && !Task.Pimpl->TryRetractAndExecute())
 				{
 					bResult = false;
 				}
