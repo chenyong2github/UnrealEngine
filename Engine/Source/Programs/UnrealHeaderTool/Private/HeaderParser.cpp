@@ -4045,8 +4045,9 @@ void FHeaderParser::GetVarType(
 						// Optionally emit messages about native pointer members and swallow trailing 'const' after pointer properties
 						if (VariableCategory == EVariableCategory::Member)
 						{
-							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
-								TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
+							// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
+							ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine && !PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")) ? UHTConfig.EngineNativePointerMemberBehavior : UHTConfig.NonEngineNativePointerMemberBehavior,
+								TEXT("Native pointer"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), TEXT("TObjectPtr"));
 
 							MatchIdentifier(TEXT("const"), ESearchCase::CaseSensitive);
 						}
@@ -4055,8 +4056,9 @@ void FHeaderParser::GetVarType(
 					}
 					else if ((PropertyType == CPT_ObjectPtrReference) && (VariableCategory == EVariableCategory::Member))
 					{
-						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
-							TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar());
+						// TODO: Remove exclusion for plugins under engine when all plugins have had their raw pointers converted.
+						ConditionalLogPointerUsage(bIsCurrentModulePartOfEngine && !PackageDef.GetModule().BaseDirectory.Contains(TEXT("/Plugins/")) ? UHTConfig.EngineObjectPtrMemberBehavior : UHTConfig.NonEngineObjectPtrMemberBehavior,
+							TEXT("ObjectPtr"), FString(InputPos - VarStartPos, Input + VarStartPos).TrimStartAndEnd().ReplaceCharWithEscapedChar(), nullptr);
 					}
 
 					// Imply const if it's a parameter that is a pointer to a const class
@@ -8904,18 +8906,32 @@ bool FHeaderParser::CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const F
 	return true;
 }
 
-void FHeaderParser::ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl)
+void FHeaderParser::ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl, const TCHAR* AlternativeTypeDesc)
 {
 	switch (PointerMemberBehavior)
 	{
 		case EPointerMemberBehavior::Disallow:
 		{
-			LogError(TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *Filename, InputLine, *PointerTypeDecl);
+			if (AlternativeTypeDesc)
+			{
+				LogError(TEXT("%s usage in member declaration detected [[[%s]]].  This is disallowed for the target/module, consider %s as an alternative."), PointerTypeDesc, *PointerTypeDecl, AlternativeTypeDesc);
+			}
+			else
+			{
+				LogError(TEXT("%s usage in member declaration detected [[[%s]]]."), PointerTypeDesc, *PointerTypeDecl);
+			}
 		}
 		break;
 		case EPointerMemberBehavior::AllowAndLog:
 		{
-			UE_LOG(LogCompile, Log, TEXT("%s usage in member declaration detected in '%s', line %d [[%s]]"), PointerTypeDesc, *Filename, InputLine, *PointerTypeDecl);
+			if (AlternativeTypeDesc)
+			{
+				UE_LOG(LogCompile, Log, TEXT("%s(%d): %s usage in member declaration detected [[[%s]]].  Consider %s as an alternative."), *Filename, InputLine, PointerTypeDesc, *PointerTypeDecl, AlternativeTypeDesc);
+			}
+			else
+			{
+				UE_LOG(LogCompile, Log, TEXT("%s(%d): usage in member declaration detected [[[%s]]]."), *Filename, InputLine, PointerTypeDesc, *PointerTypeDecl);
+			}
 		}
 		break;
 		case EPointerMemberBehavior::AllowSilently:

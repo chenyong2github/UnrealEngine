@@ -108,9 +108,9 @@ FStringView ParseBracketedStringSegment(const FString& InString, int32& InOutCur
 TValueOrError<FPointerUpgrader::FPointerUpgradeList, FString> FPointerUpgrader::FillUpgradeList(const FString& LogFilename)
 {
 	FPointerUpgradeList UpgradeList;
-	const TCHAR* Preamble = EnumHasAllFlags(BehaviorFlags, EPointerUpgradeBehaviorFlags::Reverse) ? TEXT("ObjectPtr usage in member declaration detected in '") : TEXT("Native pointer usage in member declaration detected in '");
+	const TCHAR* Preamble = EnumHasAllFlags(BehaviorFlags, EPointerUpgradeBehaviorFlags::Reverse) ? TEXT("ObjectPtr usage in member declaration detected [[") : TEXT("Native pointer usage in member declaration detected [[");
 	TArray<FString> PointerUpgradeEntries;
-	if (!FFileHelper::LoadFileToStringArrayWithPredicate(PointerUpgradeEntries, *LogFilename, [&Preamble](const FString& Line) { return Line.Contains(Preamble);  }))
+	if (!FFileHelper::LoadFileToStringArrayWithPredicate(PointerUpgradeEntries, *LogFilename, [&Preamble](const FString& Line) { return Line.Contains("LogCompile: ") && Line.Contains(Preamble);  }))
 	{
 		return MakeError(FString::Printf(TEXT("Unable to load UHT log: %s"), *LogFilename));
 	}
@@ -119,19 +119,20 @@ TValueOrError<FPointerUpgrader::FPointerUpgradeList, FString> FPointerUpgrader::
 	for (const FString& Entry : PointerUpgradeEntries)
 	{
 		int32 CurrentIndex = 0;
-		FStringView FilenameView = ParseBracketedStringSegment(Entry, CurrentIndex, Preamble, TEXT("'"));
+		FStringView FilenameView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT("LogCompile: "), TEXT("("));
 		if (FilenameView.IsEmpty())
 		{
 			return MakeError(FString::Printf(TEXT("Failed to parse filename from pointer member upgrade statement: %s"), *Entry));
 		}
 
-		FStringView LineNumberView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT(", line "), TEXT(" "));
+		CurrentIndex--; // Backtrack one character to allow us to re-find the opening bracket for the line number segment
+		FStringView LineNumberView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT("("), TEXT(")"));
 		if (LineNumberView.IsEmpty())
 		{
 			return MakeError(FString::Printf(TEXT("Failed to parse line number from pointer member upgrade statement: %s"), *Entry));
 		}
 
-		FStringView TypeNameView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT("[["), TEXT("]]"));
+		FStringView TypeNameView = ParseBracketedStringSegment(Entry, CurrentIndex, TEXT("[[["), TEXT("]]]"));
 		if (TypeNameView.IsEmpty())
 		{
 			return MakeError(FString::Printf(TEXT("Failed to parse type name from pointer member upgrade statement: %s"), *Entry));
