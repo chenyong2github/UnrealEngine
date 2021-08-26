@@ -255,6 +255,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=PlayInEditor, meta=(ToolTip="Whether to play sounds when in a Play In Editor session"))
 	bool EnableGameSound;
 
+	/** Whether to automatically solo audio in first PIE client. */
+	UPROPERTY(config, EditAnywhere, Category = PlayInEditor, meta = (ToolTip="Whether to automatically solo audio in first PIE client", EditCondition="EnableGameSound", DisplayName = "Solo Audio in First PIE Client"))
+	bool SoloAudioInFirstPIEClient;
+
 	/** Whether to play a sound when entering and exiting PIE */
 	UPROPERTY(config, EditAnywhere, AdvancedDisplay, Category = PlayInEditor, meta = (DisplayName = "Enable PIE Enter and Exit Sounds"))
 	bool EnablePIEEnterAndExitSounds;
