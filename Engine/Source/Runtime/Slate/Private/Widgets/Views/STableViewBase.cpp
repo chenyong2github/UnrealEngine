@@ -991,6 +991,11 @@ void STableViewBase::ScrollToBottom()
 	RequestLayoutRefresh();
 }
 
+bool STableViewBase::IsScrolling() const
+{
+	return ScrollBar->IsScrolling();
+}
+
 FVector2D STableViewBase::GetScrollDistance()
 {
 	return FVector2D( 0, ScrollBar->DistanceFromTop() );
