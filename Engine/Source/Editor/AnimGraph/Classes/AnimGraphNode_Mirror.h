@@ -36,7 +36,7 @@ private:
 	static FText GetTitleGivenAssetInfo(const FText& AssetName);
 	void OnMirrorDataTableChanged(); 
 	void BindMirrorDataTableChangedDelegate(); 
-
+	bool HasMirrorDataTableForBlueprints(const TArray<UBlueprint*>& Blueprints) const;
 	/** Used for filtering in the Blueprint context menu when the sequence asset this node uses is unloaded */
 	FString UnloadedSkeletonName;
 };
