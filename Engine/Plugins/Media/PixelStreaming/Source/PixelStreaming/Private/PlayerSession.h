@@ -17,7 +17,7 @@ class FPlayerSession
     , public webrtc::DataChannelObserver
 {
 public:
-	FPlayerSession(FStreamer& Outer, FPlayerId PlayerId, bool bOriginalQualityController);
+	FPlayerSession(FStreamer& Outer, FPlayerId PlayerId);
 	virtual ~FPlayerSession() override;
 
 	void SetVideoEncoder(FPixelStreamingVideoEncoder* InVideoEncoder);
@@ -31,7 +31,6 @@ public:
 	void OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterface> Candidate);
 	void DisconnectPlayer(const FString& Reason);
 
-	bool IsOriginalQualityController() const;
 	bool IsQualityController() const;
 	void SetQualityController(bool bControlsQuality);
 
@@ -80,7 +79,6 @@ private:
 
 	FStreamer& Streamer;
 	FPlayerId PlayerId;
-	bool bOriginalQualityController;
 	FPixelStreamingVideoEncoder* VideoEncoder = nullptr;
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection;
 	rtc::scoped_refptr<webrtc::DataChannelInterface> DataChannel;

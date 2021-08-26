@@ -135,8 +135,7 @@ void FVideoCapturer::OnFrameReady(const FTexture2DRHIRef& FrameBuffer)
 
 	UE_LOG(PixelStreamer, VeryVerbose, TEXT("(%d) captured video %lld"), RtcTimeMs(), TimestampUs);
 
-	// pass to webrtc which will pass it to the correct encoder
-	// TODO couldnt we pass directly to PixelStreamingVideoEncoder here and have it output to the webrtc broadcaster or something?
+	// Here we pass the frame to Webrtc which will pass it to the correct encoder.
 	rtc::scoped_refptr<FPixelStreamingFrameBuffer> Buffer = new rtc::RefCountedObject<FPixelStreamingFrameBuffer>(BackBuffers[InputFrame], InputFrame, VideoEncoderInput);
 	webrtc::VideoFrame Frame = webrtc::VideoFrame::Builder().set_video_frame_buffer(Buffer).set_timestamp_us(TimestampUs).set_rotation(webrtc::VideoRotation::kVideoRotation_0).set_id(FrameId).build();
 	OnFrame(Frame);

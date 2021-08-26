@@ -5,7 +5,9 @@
 #include "HAL/ThreadSafeBool.h"
 #include "WebRTCIncludes.h"
 #include "VideoEncoder.h"
+#include "Templates/SharedPointer.h"
 
+class IPixelStreamingSessions;
 class FPlayerSession;
 struct FEncoderContext;
 
@@ -13,11 +15,10 @@ struct FEncoderContext;
 class FPixelStreamingVideoEncoder : public webrtc::VideoEncoder
 {
 public:
-	FPixelStreamingVideoEncoder(FPlayerSession* OwnerSession, FEncoderContext* context);
+	FPixelStreamingVideoEncoder(FPlayerId InOwnerPlayerId, const IPixelStreamingSessions* InPixelStreamingSessions, FEncoderContext* InContext);
 	virtual ~FPixelStreamingVideoEncoder() override;
 
-	bool IsQualityController() const { return bControlsQuality; }
-	void SetQualityController(bool bControlsQuality);
+	bool IsQualityController() const;
 
 	// WebRTC Interface
 	virtual int InitEncode(webrtc::VideoCodec const* codec_settings, webrtc::VideoEncoder::Settings const& settings) override;
@@ -35,7 +36,7 @@ public:
 	// End WebRTC Interface.
 
 	AVEncoder::FVideoEncoder::FLayerConfig GetConfig() const { return EncoderConfig; }
-	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& config);
+	void UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& Config);
 
 	void SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation);
 	FPlayerId GetPlayerId();
@@ -50,16 +51,18 @@ private:
 	// We store this so we can restore back to it if the user decides to use then stop using the PixelStreaming.Encoder.TargetBitrate CVar.
 	int32 WebRtcProposedTargetBitrate = 5000000; 
 	FEncoderContext* Context;
-	FPlayerId PlayerId;
 
 	AVEncoder::FVideoEncoder::FLayerConfig EncoderConfig;
 
 	webrtc::EncodedImageCallback* OnEncodedImageCallback = nullptr;
 	
-	// Only one encoder controls the quality of the stream, all the others just get this peer's quality.
-	// The alternative is encoding separate streams for each peer, this is too much processing until we have layered
-	// video encoding like hardware accelerated VP9/AV1.
-	FThreadSafeBool bControlsQuality = false;
+	// Note: Each encoder is associated with a player/peer.
+	// However, only one encoder controls the quality of the stream, all the others just get this peer's quality.
+	// The alternative is encoding separate streams for each peer, which is not tenable while NVENC sessions are limited.
+	FPlayerId OwnerPlayerId;
 
 	bool ForceNextKeyframe = false;
+
+	// USed for checks such as whether a given player id is associated with the quality controlling player.
+	const IPixelStreamingSessions* PixelStreamingSessions;
 };

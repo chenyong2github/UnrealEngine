@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "PixelStreamingVideoEncoder.h"
-
 #include "PixelStreamingEncoderFactory.h"
 #include "VideoEncoderFactory.h"
 #include "PixelStreamingFrameBuffer.h"
@@ -11,15 +10,17 @@
 #include "Misc/Paths.h"
 #include "PixelStreamingSettings.h"
 #include "LatencyTester.h"
+#include "PlayerId.h"
+#include "IPixelStreamingSessions.h"
 
-FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(FPlayerSession* OwnerSession, FEncoderContext* context)
+FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(FPlayerId InOwnerPlayerId, const IPixelStreamingSessions* InPixelStreamingSessions, FEncoderContext* InContext)
 {
-	verify(OwnerSession);
-	verify(context);
-	verify(context->Factory)
-	bControlsQuality = OwnerSession->IsOriginalQualityController();
-	PlayerId = OwnerSession->GetPlayerId();
-	Context = context;
+	verify(InOwnerPlayerId != INVALID_PLAYER_ID);
+	verify(InContext);
+	verify(InContext->Factory)
+	this->Context = InContext;
+	this->OwnerPlayerId = InOwnerPlayerId;
+	this->PixelStreamingSessions = InPixelStreamingSessions;
 }
 
 FPixelStreamingVideoEncoder::~FPixelStreamingVideoEncoder()
@@ -27,21 +28,15 @@ FPixelStreamingVideoEncoder::~FPixelStreamingVideoEncoder()
 	Context->Factory->ReleaseVideoEncoder(this);
 }
 
-void FPixelStreamingVideoEncoder::SetQualityController(bool bControlsQualityNow)
-{
-	if (bControlsQuality != bControlsQualityNow)
-	{
-		UE_LOG(PixelStreamer, Log, TEXT("%s : PlayerId=%s, controls quality %d"), TEXT("FVideoEncoder::SetQualityController"), *this->PlayerId, bControlsQualityNow);
-		bControlsQuality = bControlsQualityNow;
-	}
-}
-
 int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder initialise for PlayerId=%s"), *this->GetPlayerId());
 
-	if (!bControlsQuality)
+	// If not the associated with a quality controlling peer, then simply early exit on the encode.
+	if (!this->IsQualityController())
+	{
 		return WEBRTC_VIDEO_CODEC_OK;
+	}
 
 	checkf(AVEncoder::FVideoEncoderFactory::Get().IsSetup(), TEXT("FVideoEncoderFactory not setup"));
 
@@ -52,21 +47,6 @@ int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_sett
 	EncoderConfig.MaxFramerate = codec_settings->maxFramerate;
 
 	WebRtcProposedTargetBitrate = codec_settings->startBitrate;
-
-	// Make viewport match the requested encode size. Is this a good idea?
-	// FVector2D ViewportRes = FVector2D(0,0);
-    // if (GEngine && GEngine->GameViewport)
-    // {
-	// 	GEngine->GameViewport->GetViewportSize(ViewportRes);
-    // }
-	// if(ViewportRes.X != VideoInit.Width || ViewportRes.Y != VideoInit.Height)
-	// {
-
-	// 	AsyncTask(ENamedThreads::GameThread, [this]() {
-	// 		FSystemResolution::RequestResolutionChange(VideoInit.Width, VideoInit.Height, EWindowMode::Type::Windowed);
-	// 	});
-		
-	// }
 
 	return WEBRTC_VIDEO_CODEC_OK;
 }
@@ -88,7 +68,8 @@ int32 FPixelStreamingVideoEncoder::Release()
 
 int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::vector<webrtc::VideoFrameType> const* frame_types)
 {
-	if (!bControlsQuality)
+	// If not the associated with a quality controlling peer, then simply early exit on the encode.
+	if (!this->IsQualityController())
 	{
 		//UE_LOG(PixelStreamer, Log, TEXT("Skipping encode for this peer"));
 		return WEBRTC_VIDEO_CODEC_OK;
@@ -97,7 +78,9 @@ int32 FPixelStreamingVideoEncoder::Encode(webrtc::VideoFrame const& frame, std::
 	const FPixelStreamingFrameBuffer* EncoderFrameBuffer = static_cast<FPixelStreamingFrameBuffer*>(frame.video_frame_buffer().get());
 
 	if (!Context->Encoder)
+	{
 		CreateAVEncoder(EncoderFrameBuffer->GetVideoEncoderInput());
+	}
 
 	// Detect video frame not matching encoder encoding resolution
 	// Note: This can happen when UE application changes its resolution and the encoder is not programattically.
@@ -168,7 +151,8 @@ void FPixelStreamingVideoEncoder::SetRates(RateControlParameters const& paramete
 	WebRtcProposedTargetBitrate = parameters.bitrate.get_sum_kbps() * 1000;
 	EncoderConfig.TargetBitrate = TargetBitrateCVar > -1 ? TargetBitrateCVar : WebRtcProposedTargetBitrate;
 
-	if (bControlsQuality && Context->Encoder)
+	// Only the quality controlling peer should update the underlying encoder configuration with new bitrate/framerate.
+	if (this->IsQualityController() && Context->Encoder)
 	{
 		Context->Encoder->UpdateLayerConfig(0, EncoderConfig);
 		UE_LOG(PixelStreamer, Verbose, TEXT("WebRTC changed rates - %d bps | %d fps "), EncoderConfig.TargetBitrate, EncoderConfig.MaxFramerate);
@@ -194,11 +178,15 @@ webrtc::VideoEncoder::EncoderInfo FPixelStreamingVideoEncoder::GetEncoderInfo() 
 	return info;
 }
 
-void FPixelStreamingVideoEncoder::UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& config)
+void FPixelStreamingVideoEncoder::UpdateConfig(AVEncoder::FVideoEncoder::FLayerConfig const& InConfig)
 {
-	EncoderConfig = config;
-	if (bControlsQuality && Context->Encoder)
-		Context->Encoder->UpdateLayerConfig(0, EncoderConfig);
+	this->EncoderConfig = InConfig;
+
+	// Only the quality controlling peer should update the underlying encoder configuration.
+	if (this->IsQualityController() && this->Context->Encoder)
+	{
+		this->Context->Encoder->UpdateLayerConfig(0, this->EncoderConfig);
+	}
 }
 
 void FPixelStreamingVideoEncoder::SendEncodedImage(webrtc::EncodedImage const& encoded_image, webrtc::CodecSpecificInfo const* codec_specific_info, webrtc::RTPFragmentationHeader const* fragmentation)
@@ -225,9 +213,14 @@ void FPixelStreamingVideoEncoder::SendEncodedImage(webrtc::EncodedImage const& e
 	}
 }
 
+bool FPixelStreamingVideoEncoder::IsQualityController() const
+{
+	return this->PixelStreamingSessions->IsQualityController(this->OwnerPlayerId);
+}
+
 FPlayerId FPixelStreamingVideoEncoder::GetPlayerId()
 {
-	return PlayerId;
+	return this->OwnerPlayerId;
 }
 
 bool FPixelStreamingVideoEncoder::IsRegisteredWithWebRTC()

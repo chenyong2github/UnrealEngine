@@ -16,15 +16,15 @@
 #include "Modules/ModuleManager.h"
 #include "Containers/UnrealString.h"
 #include "PixelStreamingAudioSink.h"
+#include "GenericPlatform/GenericPlatformMath.h"
 #include <chrono>
 
-FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId, bool bInOriginalQualityController)
+FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId)
     : Streamer(InStreamer)
     , PlayerId(InPlayerId)
-	, bOriginalQualityController(bInOriginalQualityController)
 	, InputDevice(FModuleManager::Get().GetModuleChecked<IPixelStreamingModule>("PixelStreaming").GetInputDevice())
 {
-	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%s, quality controller: %d"), TEXT("FPlayerSession::FPlayerSession"), *PlayerId, bOriginalQualityController);
+	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%s"), TEXT("Created FPlayerSession::FPlayerSession"), *PlayerId);
 }
 
 FPlayerSession::~FPlayerSession()
@@ -132,7 +132,7 @@ void FPlayerSession::OnOffer(TUniquePtr<webrtc::SessionDescriptionInterface> SDP
 		// this `FPlayerSession` into encoder factory queue and pop it out of the queue when encoder instance
 		// is created. Unfortunately I (Andriy) don't see a way to put `check`s to verify it works correctly.
 		
-		Streamer.GetVideoEncoderFactory()->AddSession(*this);
+		Streamer.GetVideoEncoderFactory()->QueueNextEncoderOwner(this->GetPlayerId());
 
 		PeerConnection->SetLocalDescription(SetLocalDescriptionObserver, SDP);
 
@@ -240,32 +240,26 @@ FPixelStreamingAudioSink& FPlayerSession::GetAudioSink()
 	return this->AudioSink;
 }
 
-bool FPlayerSession::IsOriginalQualityController() const
-{
-	return bOriginalQualityController;
-}
-
 bool FPlayerSession::IsQualityController() const
 {
-	return VideoEncoder != nullptr && VideoEncoder->IsQualityController();
+	return this->Streamer.IsQualityController(this->GetPlayerId());
 }
 
 void FPlayerSession::SetQualityController(bool bControlsQuality)
 {
-	if (!VideoEncoder || !DataChannel)
+	if(bControlsQuality)
 	{
-		return;
+		this->Streamer.SetQualityController(this->GetPlayerId());
 	}
-
-	VideoEncoder->SetQualityController(bControlsQuality);
+	
 	SendQualityControlStatus();
 }
 
 void FPlayerSession::SendKeyFrame()
 {
-	if (IsQualityController())
+	if (IsQualityController() && this->VideoEncoder)
 	{
-		VideoEncoder->ForceKeyFrame();
+		this->VideoEncoder->ForceKeyFrame();
 	}
 }
 
@@ -296,7 +290,7 @@ void FPlayerSession::SendQualityControlStatus() const
 	}
 
 	const uint8 MessageType = static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::QualityControlOwnership);
-	const uint8 ControlsQuality = VideoEncoder->IsQualityController() ? 1 : 0;
+	const uint8 ControlsQuality = this->IsQualityController() ? 1 : 0;
 
 	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + sizeof(ControlsQuality));
 
@@ -328,16 +322,38 @@ void FPlayerSession::SendFreezeFrame(const TArray64<uint8>& JpegBytes) const
 
 	const uint8 MessageType = static_cast<uint8>(PixelStreamingProtocol::EToPlayerMsg::FreezeFrame);
 	const int32 JpegSize = JpegBytes.Num();
-	rtc::CopyOnWriteBuffer Buffer(sizeof(MessageType) + sizeof(JpegSize) + JpegSize);
 
-	size_t Pos = 0;
-	Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
-	Pos = SerializeToBuffer(Buffer, Pos, &JpegSize, sizeof(JpegSize));
-	Pos = SerializeToBuffer(Buffer, Pos, JpegBytes.GetData(), JpegSize);
+	// Maximum size of a single buffer should be 16KB as this is spec compliant message length for a single data channel transmission
+	const int32 MaxBufferBytes = 16 * 1024;
+	const int32 MessageHeader = sizeof(MessageType) + sizeof(JpegSize);
+	const int32 MaxJpegBytesPerMsg = MaxBufferBytes - MessageHeader;
 
-	if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+	int32 JpegBytesTransmitted = 0;
+
+	while(JpegBytesTransmitted < JpegSize)
 	{
-		UE_LOG(PixelStreamer, Error, TEXT("failed to send freeze frame"));
+		int32 RemainingJpegBytes = JpegSize - JpegBytesTransmitted;
+		int32 JpegBytesToTransmit =  FGenericPlatformMath::Min(MaxJpegBytesPerMsg, RemainingJpegBytes);
+
+		rtc::CopyOnWriteBuffer Buffer(MessageHeader + JpegBytesToTransmit);
+
+		size_t Pos = 0;
+
+		// Write message type as FreezeFrame
+		Pos = SerializeToBuffer(Buffer, Pos, &MessageType, sizeof(MessageType));
+		// Write size of FreezeFrame payload
+		Pos = SerializeToBuffer(Buffer, Pos, &JpegSize, sizeof(JpegSize));
+		// Write the jpeg bytes payload
+		Pos = SerializeToBuffer(Buffer, Pos, JpegBytes.GetData() + JpegBytesTransmitted, JpegBytesToTransmit);
+
+		if (!DataChannel->Send(webrtc::DataBuffer(Buffer, true)))
+		{
+			UE_LOG(PixelStreamer, Error, TEXT("failed to send freeze frame"));
+			return;
+		}
+
+		// Increment the number of bytes we have transmitted
+		JpegBytesTransmitted += JpegBytesToTransmit; 
 	}
 }
 
@@ -529,10 +545,13 @@ void FPlayerSession::OnStateChange()
 	webrtc::DataChannelInterface::DataState State = this->DataChannel->state();
 	if (State == webrtc::DataChannelInterface::DataState::kOpen)
 	{
+
 		// Once the data channel is opened, we check to see if we have any
 		// freeze frame chunks cached. If so then we send them immediately
 		// to the browser for display, without waiting for the video.
 		Streamer.SendCachedFreezeFrameTo(*this);
+		
+
 	}
 }
 
@@ -550,7 +569,8 @@ void FPlayerSession::OnMessage(const webrtc::DataBuffer& Buffer)
 	if (MsgType == PixelStreamingProtocol::EToStreamerMsg::RequestQualityControl)
 	{
 		check(Size == 1);
-		Streamer.OnQualityOwnership(PlayerId);
+		UE_LOG(PixelStreamer, Log, TEXT("Player %s has requested quality control through the data channel."), *PlayerId);
+		this->SetQualityController(true);
 	}
 	else if(MsgType == PixelStreamingProtocol::EToStreamerMsg::LatencyTest)
 	{

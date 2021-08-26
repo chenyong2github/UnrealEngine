@@ -5,8 +5,9 @@
 #include "VideoEncoder.h"
 #include "Containers/Queue.h"
 #include "Utils.h"
+#include "PlayerId.h"
+#include "IPixelStreamingSessions.h"
 
-class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;
 class FPixelStreamingVideoEncoder;
 
@@ -29,7 +30,7 @@ class FPixelStreamingVideoEncoderFactory : public webrtc::VideoEncoderFactory
 {
 
 public:
-	FPixelStreamingVideoEncoderFactory();
+	FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions);
 	virtual ~FPixelStreamingVideoEncoderFactory() override;
 
 	/**
@@ -37,7 +38,7 @@ public:
 	* what session the next created encoder should belong to.
 	* It allows us to get the right FPlayerSession <-> FVideoEncoder relationship
 	*/
-	void AddSession(FPlayerSession& PlayerSession);
+	void QueueNextEncoderOwner(FPlayerId OwnerPlayer);
 
 	virtual std::vector<webrtc::SdpVideoFormat> GetSupportedFormats() const override;
 
@@ -52,9 +53,11 @@ public:
 
 private:
 	FEncoderContext EncoderContext;
-	TQueue<FPlayerSession*> PendingPlayerSessions;
+	TQueue<FPlayerId> PendingPlayerSessions;
 
 	// Each encoder is associated with a particular player (peer).
 	TArray<FPixelStreamingVideoEncoder*> ActiveEncoders;
 	
+	// Used for checks such as whether a given player id is associated with the quality controlling player.
+	IPixelStreamingSessions* PixelStreamingSessions;
 };

@@ -4,16 +4,17 @@
 
 #include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
-
+#include "Templates/SharedPointer.h"
 #include "RHI.h"
 #include "HAL/Thread.h"
+#include "IPixelStreamingSessions.h"
 
 
 class FVideoCapturer;
 class FPlayerSession;
 class FPixelStreamingVideoEncoderFactory;
 
-class FStreamer : public FSignallingServerConnectionObserver
+class FStreamer : public FSignallingServerConnectionObserver, public IPixelStreamingSessions
 {
 public:
 	static bool CheckPlatformCompatibility();
@@ -26,21 +27,32 @@ public:
 	void SendCachedFreezeFrameTo(FPlayerSession& Player); 
 	void SendUnfreezeFrame();
 
+	bool IsStreaming() const { return bStreamingStarted; }
 	void SetStreamingStarted(bool started) { bStreamingStarted = started; }
 	FSignallingServerConnection* GetSignallingServerConnection() const { return SignallingServerConnection.Get(); }
 	FPixelStreamingVideoEncoderFactory* GetVideoEncoderFactory() const { return VideoEncoderFactory; }
 
-	void OnQualityOwnership(FPlayerId PlayerId);
-
 	// data coming from the engine
 	void OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer);
 
-	int GetNumPlayers() const;
-	void GetPlayerSessions(TArray<FPlayerSession*>& OutPlayerSessions);
-	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
-	FPlayerSession* GetUnlistenedPlayerSession();
+	// Begin IPixelStreamingSessions interface.
+	virtual int GetNumPlayers() const override;
+	virtual int32 GetPlayers(TArray<FPlayerId> OutPlayerIds) const override;
+	virtual FPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
+	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
+	virtual bool IsQualityController(FPlayerId PlayerId) const override;
+	virtual bool SetQualityController(FPlayerId PlayerId) override;
+	virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;
+	virtual void SendLatestQP(FPlayerId PlayerId) const override;
+	virtual void AssociateVideoEncoder(FPlayerId AssociatedPlayerId, FPixelStreamingVideoEncoder* VideoEncoder) override;
+	// End IPixelStreamingSessions interface.
 
 private:
+
+	// Get the actual player session if the player exists, or nullptr if not. Note it is private because FPlayerSession should
+	// not be used outside of Streamer.
+	FPlayerSession* GetPlayerSession(FPlayerId PlayerId) const;
+
 	webrtc::AudioProcessing* SetupAudioProcessingModule();
 
 	// Procedure for WebRTC inter-thread communication
@@ -79,10 +91,13 @@ private:
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 	cricket::AudioOptions AudioSourceOptions;
 
-	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;
+	FPlayerId QualityControllingPlayer = ToPlayerId(FString(TEXT("No quality controlling peer.")));
+	mutable FCriticalSection QualityControllerCS;
+
+	TMap<FPlayerId, FPlayerSession*> Players;
 	// `Players` is modified only in WebRTC signalling thread, but can be accessed (along with contained `FPlayerSession` instances) 
 	// from other threads. All `Players` modifications in WebRTC thread and all accesses in other threads should be locked.
-	FCriticalSection PlayersCS;
+	mutable FCriticalSection PlayersCS;
 	
 	// When we send a freeze frame we retain the data to handle connection
 	// scenarios.

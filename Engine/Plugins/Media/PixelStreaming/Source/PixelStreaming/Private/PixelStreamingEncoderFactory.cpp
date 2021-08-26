@@ -1,14 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingEncoderFactory.h"
-#include "PlayerSession.h"
 #include "PixelStreamingVideoEncoder.h"
 #include "PixelStreamingSettings.h"
 #include "Utils.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
 
-FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory()
+FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
+	: PixelStreamingSessions(InPixelStreamingSessions)
 {
 	EncoderContext.Factory = this;
 }
@@ -17,9 +17,9 @@ FPixelStreamingVideoEncoderFactory::~FPixelStreamingVideoEncoderFactory()
 {
 }
 
-void FPixelStreamingVideoEncoderFactory::AddSession(FPlayerSession& PlayerSession)
+void FPixelStreamingVideoEncoderFactory::QueueNextEncoderOwner(FPlayerId OwnerPlayer)
 {
-	PendingPlayerSessions.Enqueue(&PlayerSession);
+	PendingPlayerSessions.Enqueue(OwnerPlayer);
 }
 
 std::vector<webrtc::SdpVideoFormat> FPixelStreamingVideoEncoderFactory::GetSupportedFormats() const
@@ -48,15 +48,15 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 		return webrtc::VP8Encoder::Create();
 	else
 	{
-		FPlayerSession* Session;
-		bool res = PendingPlayerSessions.Dequeue(Session);
-		checkf(res, TEXT("no player session associated with encoder instance"));
+		FPlayerId AssociatedPlayerId = INVALID_PLAYER_ID;
+		bool bHasSession = PendingPlayerSessions.Dequeue(AssociatedPlayerId);
+		checkf(bHasSession && AssociatedPlayerId != INVALID_PLAYER_ID, TEXT("No player session associated with encoder instance."));
 
-		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded encoder for PlayerId=%s"), *Session->GetPlayerId());
+		UE_LOG(PixelStreamer, Log, TEXT("Encoder factory addded encoder for PlayerId=%s"), *AssociatedPlayerId);
 
-		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(Session, &EncoderContext);
+		auto VideoEncoder = std::make_unique<FPixelStreamingVideoEncoder>(AssociatedPlayerId, this->PixelStreamingSessions, &EncoderContext);
 		this->ActiveEncoders.Add(VideoEncoder.get());
-		Session->SetVideoEncoder(VideoEncoder.get());
+		this->PixelStreamingSessions->AssociateVideoEncoder(AssociatedPlayerId, VideoEncoder.get());
 		return VideoEncoder;
 	}
 }

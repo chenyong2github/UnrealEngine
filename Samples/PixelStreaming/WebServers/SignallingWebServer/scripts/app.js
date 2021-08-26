@@ -229,8 +229,9 @@ function showPlayOverlay() {
 	img.src = '/images/Play.png';
 	img.alt = 'Start Streaming';
 	setOverlay('clickableState', img, event => {
-		if (webRtcPlayerObj)
+		if (webRtcPlayerObj) {
 			webRtcPlayerObj.video.play();
+		}
 
 		requestInitialSettings();
 		requestQualityControl();
@@ -396,29 +397,61 @@ function setupWebRtcPlayer(htmlElement, config) {
 			} else {
 				showFreezeFrameOverlay();
 			}
+			webRtcPlayerObj.setVideoEnabled(false);
 		};
+	}
+
+	function processFreezeFrameMessage(view) {
+		// Reset freeze frame if we got a freeze frame message and we are not "receiving" yet.
+		if(!freezeFrame.receiving) {
+			freezeFrame.receiving = true;
+			freezeFrame.valid = false;
+			freezeFrame.size = 0;
+			freezeFrame.jpeg = undefined;
+		}
+
+		// Extract total size of freeze frame (across all chunks)
+		freezeFrame.size = (new DataView(view.slice(1, 5).buffer)).getInt32(0, true);
+
+		// Get the jpeg part of the payload
+		let jpegBytes = view.slice(1 + 4);
+
+		// Append to existing jpeg that holds the freeze frame
+		if(freezeFrame.jpeg) {
+			let jpeg = new Uint8Array(freezeFrame.jpeg.length + jpegBytes.length);
+			jpeg.set(freezeFrame.jpeg, 0);
+			jpeg.set(jpegBytes, freezeFrame.jpeg.length);
+			freezeFrame.jpeg = jpeg;
+		}
+		// No existing freeze frame jpeg, make one
+		else {
+			freezeFrame.jpeg = jpegBytes;
+			freezeFrame.receiving = true;
+			console.log(`received first chunk of freeze frame: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
+		}
+		
+		// Uncomment for debug
+		//console.log(`Received freeze frame chunk: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
+
+		// Finished receiving freeze frame, we can show it now
+		if (freezeFrame.jpeg.length === freezeFrame.size) {
+			freezeFrame.receiving = false;
+			freezeFrame.valid = true;
+			console.log(`received complete freeze frame ${freezeFrame.size}`);
+			showFreezeFrame();
+		}
+		// We received more data than the freeze frame payload message indicate (this is an error)
+		else if (freezeFrame.jpeg.length > freezeFrame.size) {
+			console.error(`received bigger freeze frame than advertised: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
+			freezeFrame.jpeg = undefined;
+			freezeFrame.receiving = false;
+		}
 	}
 
 	webRtcPlayerObj.onDataChannelMessage = function (data) {
 		var view = new Uint8Array(data);
-		if (freezeFrame.receiving) {
-			let jpeg = new Uint8Array(freezeFrame.jpeg.length + view.length);
-			jpeg.set(freezeFrame.jpeg, 0);
-			jpeg.set(view, freezeFrame.jpeg.length);
-			freezeFrame.jpeg = jpeg;
-			if (freezeFrame.jpeg.length === freezeFrame.size) {
-				freezeFrame.receiving = false;
-				freezeFrame.valid = true;
-				console.log(`received complete freeze frame ${freezeFrame.size}`);
-				showFreezeFrame();
-			} else if (freezeFrame.jpeg.length > freezeFrame.size) {
-				console.error(`received bigger freeze frame than advertised: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
-				freezeFrame.jpeg = undefined;
-				freezeFrame.receiving = false;
-			} else {
-				console.log(`received next chunk (${view.length} bytes) of freeze frame: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
-			}
-		} else if (view[0] === ToClientMessageType.QualityControlOwnership) {
+
+		if (view[0] === ToClientMessageType.QualityControlOwnership) {
 			let ownership = view[1] === 0 ? false : true;
 			console.log("Received quality controller message, will control quality: " + ownership);
 			// If we own the quality control, we can't relenquish it. We only loose
@@ -440,15 +473,7 @@ function setupWebRtcPlayer(htmlElement, config) {
 				showOnScreenKeyboard(command);
 			}
 		} else if (view[0] === ToClientMessageType.FreezeFrame) {
-			freezeFrame.size = (new DataView(view.slice(1, 5).buffer)).getInt32(0, true);
-			freezeFrame.jpeg = view.slice(1 + 4);
-			if (freezeFrame.jpeg.length < freezeFrame.size) {
-				console.log(`received first chunk of freeze frame: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
-				freezeFrame.receiving = true;
-			} else {
-				console.log(`received complete freeze frame: ${freezeFrame.jpeg.length}/${freezeFrame.size}`);
-				showFreezeFrame();
-			}
+			processFreezeFrameMessage(view);
 		} else if (view[0] === ToClientMessageType.UnfreezeFrame) {
 			invalidateFreezeFrameOverlay();
 		} else if (view[0] === ToClientMessageType.VideoEncoderAvgQP) {
@@ -752,7 +777,7 @@ function setupFreezeFrameOverlay() {
 	freezeFrameOverlay.style.display = 'none';
 	freezeFrameOverlay.style.pointerEvents = 'none';
 	freezeFrameOverlay.style.position = 'absolute';
-	freezeFrameOverlay.style.zIndex = '30';
+	freezeFrameOverlay.style.zIndex = '20';
 }
 function showFreezeFrameOverlay() {
 	if (freezeFrame.valid) {
@@ -762,6 +787,9 @@ function showFreezeFrameOverlay() {
 function invalidateFreezeFrameOverlay() {
 	freezeFrameOverlay.style.display = 'none';
 	freezeFrame.valid = false;
+	if(webRtcPlayerObj) {
+		webRtcPlayerObj.setVideoEnabled(true);
+	}
 }
 function resizeFreezeFrameOverlay() {
 	if (freezeFrame.width !== 0 && freezeFrame.height !== 0) {

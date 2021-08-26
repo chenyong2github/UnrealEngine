@@ -243,7 +243,7 @@ void FPixelStreamingModule::OnBackBufferReady_RenderThread(SWindow& SlateWindow,
 
 	// Check to see if we have been instructed to capture the back buffer as a
 	// freeze frame.
-	if (bCaptureNextBackBufferAndStream)
+	if (bCaptureNextBackBufferAndStream && Streamer->IsStreaming())
 	{
 		bCaptureNextBackBufferAndStream = false;
 
@@ -406,11 +406,7 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 		bool bEnded = FLatencyTester::End(LatencyResults, LatencyTestPlayerId);
 		if(bEnded)
 		{
-			FPlayerSession* PlayerSession = Streamer->GetPlayerSession(LatencyTestPlayerId);
-			if(PlayerSession != nullptr)
-			{
-				PlayerSession->SendMessage(PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
-			}
+			Streamer->SendMessage(LatencyTestPlayerId, PixelStreamingProtocol::EToPlayerMsg::LatencyTest, LatencyResults);
 		}
 	}
 
@@ -420,11 +416,11 @@ void FPixelStreamingModule::Tick(float DeltaTime)
 		double Now = FPlatformTime::Seconds();
 		if (Now - LastVideoEncoderQPReportTime > 1)
 		{
-			TArray<FPlayerSession*> PlayerSessions;
-			Streamer->GetPlayerSessions(PlayerSessions);
-			for(FPlayerSession* PlayerSession : PlayerSessions)
+			TArray<FPlayerId> PlayerIds;
+			Streamer->GetPlayers(PlayerIds);
+			for(FPlayerId& PlayerId : PlayerIds)
 			{
-				PlayerSession->SendVideoEncoderQP();
+				this->Streamer->SendLatestQP(PlayerId);
 			}
 
 			LastVideoEncoderQPReportTime = FPlatformTime::Seconds();
@@ -444,14 +440,8 @@ FPixelStreamingAudioSink* FPixelStreamingModule::GetPeerAudioSink(FPlayerId Play
 	{
 		return nullptr;
 	}
-	FPlayerSession* Session = this->Streamer->GetPlayerSession(PlayerId);
 
-	if(!Session)
-	{
-		return nullptr;
-	}
-
-	return &Session->GetAudioSink();
+	return this->Streamer->GetAudioSink(PlayerId);
 }
 
 FPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
@@ -460,14 +450,8 @@ FPixelStreamingAudioSink* FPixelStreamingModule::GetUnlistenedAudioSink()
 	{
 		return nullptr;
 	}
-	FPlayerSession* Session = this->Streamer->GetUnlistenedPlayerSession();
 
-	if(!Session)
-	{
-		return nullptr;
-	}
-
-	return &Session->GetAudioSink();
+	return this->Streamer->GetUnlistenedAudioSink();
 }
 
 IMPLEMENT_MODULE(FPixelStreamingModule, PixelStreaming)

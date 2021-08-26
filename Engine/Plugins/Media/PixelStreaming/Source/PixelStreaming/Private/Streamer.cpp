@@ -57,8 +57,8 @@ void FStreamer::StartWebRtcSignallingThread()
 
 	PeerConnectionConfig = {};
 
-	auto videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>();
-	VideoEncoderFactory = videoEncoderFactory.get();
+	std::unique_ptr<FPixelStreamingVideoEncoderFactory> videoEncoderFactory = std::make_unique<FPixelStreamingVideoEncoderFactory>(this);
+	this->VideoEncoderFactory = videoEncoderFactory.get();
 
 	bool bUseLegacyAudioDeviceModule = PixelStreamingSettings::CVarPixelStreamingWebRTCUseLegacyAudioDevice.GetValueOnAnyThread();
 	rtc::scoped_refptr<webrtc::AudioDeviceModule> AudioDeviceModule;
@@ -128,7 +128,7 @@ void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 
 void FStreamer::OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
 {
-	PeerConnectionConfig = Config;
+	this->PeerConnectionConfig = Config;
 }
 
 void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
@@ -136,8 +136,8 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 	CreatePlayerSession(PlayerId);
 	AddStreams(PlayerId);
 
-	FPlayerSession* Player = GetPlayerSession(PlayerId);
-	checkf(Player, TEXT("just created player %s not found"), *PlayerId);
+	FPlayerSession* Player = this->GetPlayerSession(PlayerId);
+	checkf(Player, TEXT("Somehow a player we just created player %s was not found."), *PlayerId);
 
 	Player->OnOffer(MoveTemp(Sdp));
 
@@ -153,8 +153,14 @@ void FStreamer::OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptio
 void FStreamer::OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
 {
 	FPlayerSession* Player = GetPlayerSession(PlayerId);
-	checkf(Player, TEXT("player %s not found"), *PlayerId);
-	Player->OnRemoteIceCandidate(MoveTemp(Candidate));
+	if(Player)
+	{
+		Player->OnRemoteIceCandidate(MoveTemp(Candidate));
+	}
+	else
+	{
+		UE_LOG(PixelStreamer, Log, TEXT("Could not pass remote ice candidate to player because Player %s no available."), *PlayerId);
+	}
 }
 
 void FStreamer::OnPlayerDisconnected(FPlayerId PlayerId)
@@ -174,38 +180,122 @@ int FStreamer::GetNumPlayers() const
 	return this->Players.Num();
 }
 
-void FStreamer::GetPlayerSessions(TArray<FPlayerSession*>& OutPlayerSessions)
+int32 FStreamer::GetPlayers(TArray<FPlayerId> OutPlayerIds) const
 {
 	FScopeLock PlayersLock(&PlayersCS);
-	for (auto& Entry : Players)
+	return this->Players.GetKeys(OutPlayerIds);
+}
+
+FPlayerSession* FStreamer::GetPlayerSession(FPlayerId PlayerId) const
+{
+	FScopeLock PlayersLock(&PlayersCS);
+	if(Players.Contains(PlayerId))
 	{
-		TUniquePtr<FPlayerSession>& Session = Entry.Value;
-		if(Session.IsValid())
-		{
-			OutPlayerSessions.Add(Session.Get());
-		}
+		return Players[PlayerId];
 	}
+
+	return nullptr;
 }
 
-FPlayerSession* FStreamer::GetPlayerSession(FPlayerId PlayerId)
+bool FStreamer::SetQualityController(FPlayerId PlayerId)
 {
-	TUniquePtr<FPlayerSession>* Player = Players.Find(PlayerId);
-	return Player ? Player->Get() : nullptr;
+
+	FScopeLock PlayersLock(&PlayersCS);
+
+	if (this->Players.Contains(PlayerId))
+	{
+
+		// Lock just for quality controller change
+		{
+			FScopeLock QualityControllerLock(&QualityControllerCS);
+			this->QualityControllingPlayer = PlayerId;
+			UE_LOG(PixelStreamer, Log, TEXT("Quality controller is now PlayerId=%s."), *PlayerId);
+		}
+
+		// Update quality controller status on the browser side too
+		for (auto& Entry : Players)
+		{
+			FPlayerSession* Session = Entry.Value;
+			if(Session)
+			{
+				Session->SendQualityControlStatus();
+			}
+		}
+
+		return true;
+	}
+	return false;
 }
 
-FPlayerSession* FStreamer::GetUnlistenedPlayerSession()
+bool FStreamer::IsQualityController(FPlayerId PlayerId) const
+{
+	FScopeLock QualityControllerLock(&QualityControllerCS);
+	return this->QualityControllingPlayer == PlayerId;
+}
+
+FPixelStreamingAudioSink* FStreamer::GetAudioSink(FPlayerId PlayerId) const
+{
+	FPlayerSession* Session = this->GetPlayerSession(PlayerId);
+	if(Session)
+	{
+		return &Session->GetAudioSink();
+	}
+	return nullptr;
+}
+
+FPixelStreamingAudioSink* FStreamer::GetUnlistenedAudioSink() const
 {
 	FScopeLock PlayersLock(&PlayersCS);
 	for (auto& Entry : Players)
 	{
-		TUniquePtr<FPlayerSession>& Session = Entry.Value;
+		FPlayerSession* Session = Entry.Value;
 		FPixelStreamingAudioSink& AudioSink = Session->GetAudioSink();
 		if(!AudioSink.HasAudioConsumers())
 		{
-			return Session.Get();
+			return &Session->GetAudioSink();
 		}
 	}
 	return nullptr;
+}
+
+bool FStreamer::SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const 
+{
+	FPlayerSession* Session = this->GetPlayerSession(PlayerId);
+	if(Session)
+	{
+		return Session->SendMessage(Type, Descriptor);
+	}
+	else
+	{
+		UE_LOG(PixelStreamer, Log, TEXT("Could not send message over data using PlayerId=%s because that player was not found."), *PlayerId);
+	}
+	return false;
+}
+
+void FStreamer::SendLatestQP(FPlayerId PlayerId) const
+{
+	FPlayerSession* Session = this->GetPlayerSession(PlayerId);
+	if(Session)
+	{
+		return Session->SendVideoEncoderQP();
+	}
+	else
+	{
+		UE_LOG(PixelStreamer, Log, TEXT("Could not send latest QP for PlayerId=%s because that player was not found."), *PlayerId);
+	}
+}
+
+void FStreamer::AssociateVideoEncoder(FPlayerId AssociatedPlayerId, FPixelStreamingVideoEncoder* VideoEncoder)
+{
+	FPlayerSession* Session = this->GetPlayerSession(AssociatedPlayerId);
+	if(Session)
+	{
+		return Session->SetVideoEncoder(VideoEncoder);
+	}
+	else
+	{
+		UE_LOG(PixelStreamer, Log, TEXT("Could not set video encoder for PlayerId=%s because that player was not found."), *AssociatedPlayerId);
+	}
 }
 
 void FStreamer::DeleteAllPlayerSessions()
@@ -228,7 +318,7 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 	// Therefore, we only try to create the player if not created already
 	{
 		FScopeLock PlayersLock(&PlayersCS);
-		if (Players.Find(PlayerId))
+		if (Players.Contains(PlayerId))
 		{
 			return;
 		}
@@ -237,9 +327,10 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 	UE_LOG(PixelStreamer, Log, TEXT("Creating player session for PlayerId=%s"), *PlayerId);
 	
 	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
-	bool bOriginalQualityController = Players.Num() == 0; // first player controls quality by default
-	TUniquePtr<FPlayerSession> Session = MakeUnique<FPlayerSession>(*this, PlayerId, bOriginalQualityController);
-	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection = PeerConnectionFactory->CreatePeerConnection(PeerConnectionConfig, webrtc::PeerConnectionDependencies{ Session.Get() });
+	bool bMakeQualityController = Players.Num() == 0; // first player controls quality by default
+	FPlayerSession* Session = new FPlayerSession(*this, PlayerId);
+
+	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection = PeerConnectionFactory->CreatePeerConnection(PeerConnectionConfig, webrtc::PeerConnectionDependencies{ Session });
 	check(PeerConnection);
 
 	// Setup suggested bitrate settings on the Peer Connection based on our CVars
@@ -253,21 +344,27 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 
 	{
 		FScopeLock PlayersLock(&PlayersCS);
-		Players.Add(PlayerId) = MoveTemp(Session);
+		// This means the player map will hold a SharedPtr reference, so it shouldn't be deleted until this player is removed.
+		Players.Add(PlayerId, Session);
+	}
+
+	if(bMakeQualityController)
+	{
+		Session->SetQualityController(bMakeQualityController);
 	}
 
 	if (UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates())
 	{
-		Delegates->OnNewConnection.Broadcast(PlayerId, bOriginalQualityController);
+		Delegates->OnNewConnection.Broadcast(PlayerId, bMakeQualityController);
 	}
 }
 
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 {
-	FPlayerSession* Player = GetPlayerSession(PlayerId);
+	FPlayerSession* Player = this->GetPlayerSession(PlayerId);
 	if (!Player)
 	{
-		UE_LOG(PixelStreamer, VeryVerbose, TEXT("failed to delete player %s: not found"), *PlayerId);
+		UE_LOG(PixelStreamer, VeryVerbose, TEXT("Failed to delete player %s - that player was not found."), *PlayerId);
 		return;
 	}
 
@@ -292,7 +389,9 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		// Inform the application-specific blueprint that nobody is viewing or
 		// interacting with the app. This is an opportunity to reset the app.
 		if (Delegates)
+		{
 			Delegates->OnAllConnectionsClosed.Broadcast();
+		}
 	}
 	else if (bWasQualityController)
 	{
@@ -300,12 +399,19 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 		TArray<FPlayerId> PlayerIds;
 		Players.GetKeys(PlayerIds);
 		check(PlayerIds.Num() != 0);
-		OnQualityOwnership(PlayerIds[0]);
+		this->SetQualityController(PlayerIds[0]);
 	}
 }
 
 void FStreamer::AddStreams(FPlayerId PlayerId)
 {
+
+	FPlayerSession* Session = this->GetPlayerSession(PlayerId);
+	if(!Session)
+	{
+		UE_LOG(PixelStreamer, VeryVerbose, TEXT("Failed to create media stream for player %s - that player was not found."), *PlayerId);
+		return;
+	}
 
 	bool bSyncVideoAndAudio = !PixelStreamingSettings::CVarPixelStreamingWebRTCDisableAudioSync.GetValueOnAnyThread();
 	
@@ -313,9 +419,6 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 	FString const VideoStreamId = bSyncVideoAndAudio ? TEXT("pixelstreaming_av_stream_id") : TEXT("pixelstreaming_video_stream_id");
 	FString const AudioTrackLabel = TEXT("pixelstreaming_audio_track_label");
 	FString const VideoTrackLabel = TEXT("pixelstreaming_video_track_label");
-
-	FPlayerSession* Session = GetPlayerSession(PlayerId);
-	check(Session);
 
 	if (!Session->GetPeerConnection().GetSenders().empty())
 	{
@@ -412,19 +515,6 @@ void FStreamer::SetupAudioTrack(FPlayerSession* Session, FString const AudioStre
 	}
 }
 
-void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
-{
-	checkf(GetPlayerSession(PlayerId), TEXT("player %s not found"), *PlayerId);
-	{
-		FScopeLock PlayersLock(&PlayersCS);
-		for (auto&& PlayerEntry : Players)
-		{
-			FPlayerSession& Player = *PlayerEntry.Value;
-			Player.SetQualityController(Player.GetPlayerId() == PlayerId ? true : false);
-		}
-	}
-}
-
 void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
@@ -439,6 +529,11 @@ void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, con
 
 void FStreamer::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 {
+	if(!this->bStreamingStarted)
+	{
+		return;
+	}
+
 	UE_LOG(PixelStreamer, Log, TEXT("Sending freeze frame to players: %d bytes"), JpegBytes.Num());
 	{
 		FScopeLock PlayersLock(&PlayersCS);
@@ -447,7 +542,6 @@ void FStreamer::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 			PlayerEntry.Value->SendFreezeFrame(JpegBytes);
 		}
 	}
-	
 
 	CachedJpegBytes = JpegBytes;
 }
@@ -470,6 +564,7 @@ void FStreamer::SendUnfreezeFrame()
 		for (auto&& PlayerEntry : Players)
 		{
 			PlayerEntry.Value->SendUnfreezeFrame();
+			PlayerEntry.Value->SendKeyFrame();
 		}
 	}
 	

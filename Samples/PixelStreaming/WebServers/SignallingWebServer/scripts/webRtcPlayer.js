@@ -120,7 +120,7 @@
         //**********************
 
         //Create Video element and expose that as a parameter
-        createWebRtcVideo = function() {
+        this.createWebRtcVideo = function() {
             var video = document.createElement('video');
 
             video.id = "streamingVideo";
@@ -158,7 +158,7 @@
             return video;
         }
 
-        this.video = createWebRtcVideo();
+        this.video = this.createWebRtcVideo();
 
         onsignalingstatechange = function(state) {
             console.info('signaling state change:', state)
@@ -270,8 +270,8 @@
 
         mungeSDPOffer = function (offer) {
 
-            //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "http://www.webrtc.org/experiments/rtp-hdrext/playout-delay 0 0\r\na=name:playout-delay");
-
+            // turn off video-timing sdp sent from browser
+            //offer.sdp = offer.sdp.replace("http://www.webrtc.org/experiments/rtp-hdrext/playout-delay", "");
 
             // this indicate we support stereo (Chrome needs this)
             offer.sdp = offer.sdp.replace('useinbandfec=1', 'useinbandfec=1;stereo=1;sprop-maxcapturerate=48000');
@@ -419,6 +419,10 @@
         //**********************
         //Public functions
         //**********************
+
+        this.setVideoEnabled = function(enabled) {
+            self.video.srcObject.getTracks().forEach(track => track.enabled = enabled);
+        }
 
         this.startLatencyTest = function(onTestStarted) {
             // Can't start latency test without a video element
