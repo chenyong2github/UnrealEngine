@@ -15,37 +15,37 @@
 class FSlateFontDlgWindow
 {
 private:
-    TSharedPtr<SWindow> Window;
+	TSharedPtr<SWindow> Window;
 
-    TSharedPtr<FString> SelectedFont;
-    TArray<TSharedPtr<FString>> FontList;
+	TSharedPtr<FString> SelectedFont;
+	TArray<TSharedPtr<FString>> FontList;
 
-    TSharedPtr<FString> SelectedTypeface;
-    TArray<TSharedPtr<FString>> SelectedTypefaceList;
-    TMap<FString, TArray<TSharedPtr<FString>>> TypefaceList;
+	TSharedPtr<FString> SelectedTypeface;
+	TArray<TSharedPtr<FString>> SelectedTypefaceList;
+	TMap<FString, TArray<TSharedPtr<FString>>> TypefaceList;
 
-    TSharedPtr<STextComboBox> TypefaceDropdown;
-    TSharedPtr<STextBlock> SampleTextBlock;
-    TSharedPtr<STextBlock> ColorIconText;
+	TSharedPtr<STextComboBox> TypefaceDropdown;
+	TSharedPtr<STextBlock> SampleTextBlock;
+	TSharedPtr<STextBlock> ColorIconText;
 
-    FTextBlockStyle SampleTextStyle;
-    const uint8 SampleTextSize = 36;
+	FTextBlockStyle SampleTextStyle;
+	const uint8 SampleTextSize = 36;
 
-    uint8 FontSize = SampleTextSize;
-    FLinearColor FontColor = FLinearColor::White;
+	uint8 FontSize = SampleTextSize;
+	FLinearColor FontColor = FLinearColor::White;
 
-    FcFontSet* FontSet;
+	FcFontSet* FontSet;
 
-    FSlateFontInfo GetSampleFont() const;
+	FSlateFontInfo GetSampleFont() const;
 
-    void LoadFonts();
+	void LoadFonts();
 
-    FReply OpenColorPicker();
+	FReply OpenColorPicker();
 
 public:
-    FSlateFontDlgWindow(bool& OutSuccess);
+	FSlateFontDlgWindow(bool& OutSuccess);
 
-    void OpenFontWindow(FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags, bool& OutSuccess);
+	void OpenFontWindow(FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags, bool& OutSuccess);
 };
 
 #undef LOCTEXT_NAMESPACE

@@ -21,148 +21,148 @@ DEFINE_LOG_CATEGORY_STATIC(LogSlateFontDialog, Log, All);
 
 namespace
 {
-    FcPattern* GetFontMatch(TSharedPtr<FString> SelectedFont, TSharedPtr<FString> SelectedTypeface)
-    {
-        FcPattern* Query = FcPatternCreate(); 
-        FcPatternAddString(Query, FC_FAMILY, reinterpret_cast<const FcChar8*>(TCHAR_TO_UTF8(**SelectedFont)));
-        FcPatternAddString(Query, FC_STYLE, reinterpret_cast<const FcChar8*>(TCHAR_TO_UTF8(**SelectedTypeface)));
+	FcPattern* GetFontMatch(TSharedPtr<FString> SelectedFont, TSharedPtr<FString> SelectedTypeface)
+	{
+		FcPattern* Query = FcPatternCreate(); 
+		FcPatternAddString(Query, FC_FAMILY, reinterpret_cast<const FcChar8*>(TCHAR_TO_UTF8(**SelectedFont)));
+		FcPatternAddString(Query, FC_STYLE, reinterpret_cast<const FcChar8*>(TCHAR_TO_UTF8(**SelectedTypeface)));
 
-        // Increase the scope of possible matches
-        FcConfigSubstitute(nullptr, Query, FcMatchPattern);
-        FcDefaultSubstitute(Query);
+		// Increase the scope of possible matches
+		FcConfigSubstitute(nullptr, Query, FcMatchPattern);
+		FcDefaultSubstitute(Query);
 
-        FcResult Result = FcResultNoMatch;
-        FcPattern* Match = FcFontMatch(nullptr, Query, &Result);
-        if (Result != FcResultMatch)
-        {
-            UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to match a font, error number: %i"), static_cast<int>(Result));
-            Match = nullptr;
-        }
+		FcResult Result = FcResultNoMatch;
+		FcPattern* Match = FcFontMatch(nullptr, Query, &Result);
+		if (Result != FcResultMatch)
+		{
+			UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to match a font, error number: %i"), static_cast<int>(Result));
+			Match = nullptr;
+		}
 
-        FcPatternDestroy(Query);
+		FcPatternDestroy(Query);
 
-        return Match;
-    }
+		return Match;
+	}
 
-    FString GetFontFilename(TSharedPtr<FString> SelectedFont, TSharedPtr<FString> SelectedTypeface)
-    {
-        FcPattern* Match = GetFontMatch(SelectedFont, SelectedTypeface);
+	FString GetFontFilename(TSharedPtr<FString> SelectedFont, TSharedPtr<FString> SelectedTypeface)
+	{
+		FcPattern* Match = GetFontMatch(SelectedFont, SelectedTypeface);
 
-        FcChar8* FilenameRaw = nullptr;
-        FcResult Result = FcPatternGetString(Match, FC_FILE, 0, &FilenameRaw);
-        if (Result != FcResultMatch)
-        {
-            UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to match a font, error number: %i"), static_cast<int>(Result));
-        }
-        FString Filename(UTF8_TO_TCHAR(FilenameRaw));
+		FcChar8* FilenameRaw = nullptr;
+		FcResult Result = FcPatternGetString(Match, FC_FILE, 0, &FilenameRaw);
+		if (Result != FcResultMatch)
+		{
+			UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to match a font, error number: %i"), static_cast<int>(Result));
+		}
+		FString Filename(UTF8_TO_TCHAR(FilenameRaw));
 
-        FcPatternDestroy(Match);
+		FcPatternDestroy(Match);
 
-        return Filename;
-    }
+		return Filename;
+	}
 }
 
 FSlateFontInfo FSlateFontDlgWindow::GetSampleFont() const
 {
-    TSharedPtr<FCompositeFont> SampleFont = MakeShareable(new FCompositeFont(**SelectedFont, GetFontFilename(SelectedFont, SelectedTypeface), EFontHinting::Default, EFontLoadingPolicy::LazyLoad));
-    return FSlateFontInfo(SampleFont, SampleTextSize);
+	TSharedPtr<FCompositeFont> SampleFont = MakeShareable(new FCompositeFont(**SelectedFont, GetFontFilename(SelectedFont, SelectedTypeface), EFontHinting::Default, EFontLoadingPolicy::LazyLoad));
+	return FSlateFontInfo(SampleFont, SampleTextSize);
 }
 
 void FSlateFontDlgWindow::LoadFonts()
 {
-    for (int i = 0; i < FontSet->nfont; i++)
-    {
-        FcPattern* Pattern = FontSet->fonts[i];
+	for (int i = 0; i < FontSet->nfont; i++)
+	{
+		FcPattern* Pattern = FontSet->fonts[i];
 
-        // Grab the font name
-        FcChar8* NameRaw = nullptr;
-        FcResult Result = FcPatternGetString(Pattern, FC_FAMILY, 0, &NameRaw);
-        if (Result != FcResultMatch)
-        {
-            UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to load a font, error number: %i"), static_cast<int>(Result));
-            continue;
-        }
-        FString Name(UTF8_TO_TCHAR(NameRaw));
+		// Grab the font name
+		FcChar8* NameRaw = nullptr;
+		FcResult Result = FcPatternGetString(Pattern, FC_FAMILY, 0, &NameRaw);
+		if (Result != FcResultMatch)
+		{
+			UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to load a font, error number: %i"), static_cast<int>(Result));
+			continue;
+		}
+		FString Name(UTF8_TO_TCHAR(NameRaw));
 
-        // Grab the style/typeface name
-        FcChar8* StyleRaw = nullptr;
-        Result = FcPatternGetString(Pattern, FC_STYLE, 0, &StyleRaw);
-        if (Result != FcResultMatch)
-        {
-            UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to load a font, error number: %i"), static_cast<int>(Result));
-            continue;
-        }
-        FString Style(UTF8_TO_TCHAR(StyleRaw));
-        
-        TArray<TSharedPtr<FString>>& Typefaces = TypefaceList.FindOrAdd(Name);
-        if (!Typefaces.ContainsByPredicate([&Style] (const TSharedPtr<FString>& Element) { return *Element == Style; }))
-        {
-            Typefaces.Add(MakeShareable(new FString(Style)));
-        }
-    }
-    
-    // Can't use TMap::GenerateKeyArray because we need TSharedPtr<FString>, not FString
-    for (const TPair<FString, TArray<TSharedPtr<FString>>>& Typeface : TypefaceList)
-    {
-        FontList.AddUnique(MakeShareable(new FString(Typeface.Key)));
-    }
+		// Grab the style/typeface name
+		FcChar8* StyleRaw = nullptr;
+		Result = FcPatternGetString(Pattern, FC_STYLE, 0, &StyleRaw);
+		if (Result != FcResultMatch)
+		{
+			UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig failed to load a font, error number: %i"), static_cast<int>(Result));
+			continue;
+		}
+		FString Style(UTF8_TO_TCHAR(StyleRaw));
+		
+		TArray<TSharedPtr<FString>>& Typefaces = TypefaceList.FindOrAdd(Name);
+		if (!Typefaces.ContainsByPredicate([&Style] (const TSharedPtr<FString>& Element) { return *Element == Style; }))
+		{
+			Typefaces.Add(MakeShareable(new FString(Style)));
+		}
+	}
+	
+	// Can't use TMap::GenerateKeyArray because we need TSharedPtr<FString>, not FString
+	for (const TPair<FString, TArray<TSharedPtr<FString>>>& Typeface : TypefaceList)
+	{
+		FontList.AddUnique(MakeShareable(new FString(Typeface.Key)));
+	}
 
-    FontList.Sort([] (const TSharedPtr<FString>& First, const TSharedPtr<FString>& Second) { return *First < *Second; });
+	FontList.Sort([] (const TSharedPtr<FString>& First, const TSharedPtr<FString>& Second) { return *First < *Second; });
 
-    SelectedFont = FontList[0];
-    SelectedTypefaceList = *TypefaceList.Find(*SelectedFont);
-    SelectedTypeface = SelectedTypefaceList[0];
+	SelectedFont = FontList[0];
+	SelectedTypefaceList = *TypefaceList.Find(*SelectedFont);
+	SelectedTypeface = SelectedTypefaceList[0];
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FReply FSlateFontDlgWindow::OpenColorPicker()
 {
-    TSharedPtr<SWindow> ColorWindow;
-    SAssignNew(ColorWindow, SWindow)
-    .Title(LOCTEXT("ColorPickerTest-WindowTitle-StandardColor", "Standard Color"))
-    .ClientSize(SColorPicker::DEFAULT_WINDOW_SIZE)
-    .IsPopupWindow(true);
+	TSharedPtr<SWindow> ColorWindow;
+	SAssignNew(ColorWindow, SWindow)
+	.Title(LOCTEXT("ColorPickerTest-WindowTitle-StandardColor", "Standard Color"))
+	.ClientSize(SColorPicker::DEFAULT_WINDOW_SIZE)
+	.IsPopupWindow(true);
 
-    TSharedPtr<SBox> ColorPicker = SNew(SBox)
-    .Padding(10.0f)
-    [
-        SNew(SColorPicker)
-        .ParentWindow(ColorWindow)
-        .UseAlpha(false)
-        .OnColorCommitted_Lambda([this] (const FLinearColor& NewColor) 
-        { 
-            FontColor = NewColor;
-            FontColor.A = 1.0f;
-            SampleTextBlock->SetColorAndOpacity(FontColor); 
-        })
-    ];
+	TSharedPtr<SBox> ColorPicker = SNew(SBox)
+	.Padding(10.0f)
+	[
+		SNew(SColorPicker)
+		.ParentWindow(ColorWindow)
+		.UseAlpha(false)
+		.OnColorCommitted_Lambda([this] (const FLinearColor& NewColor) 
+		{ 
+			FontColor = NewColor;
+			FontColor.A = 1.0f;
+			SampleTextBlock->SetColorAndOpacity(FontColor); 
+		})
+	];
 
-    ColorWindow->SetContent(ColorPicker.ToSharedRef());
+	ColorWindow->SetContent(ColorPicker.ToSharedRef());
 
-    FSlateApplication::Get().AddModalWindow(ColorWindow.ToSharedRef(), FGlobalTabmanager::Get()->GetRootWindow());
-    return FReply::Handled();
+	FSlateApplication::Get().AddModalWindow(ColorWindow.ToSharedRef(), FGlobalTabmanager::Get()->GetRootWindow());
+	return FReply::Handled();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 FSlateFontDlgWindow::FSlateFontDlgWindow(bool& OutSuccess)
 {
-    FontSet = FcConfigGetFonts(nullptr, FcSetSystem);
-    if (FontSet->nfont < 1)
-    {
-        OutSuccess = false;
-        UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig could not find any fonts"));
-        return;
-    }
-    
-    OutSuccess = true;
-    
-    LoadFonts();
+	FontSet = FcConfigGetFonts(nullptr, FcSetSystem);
+	if (FontSet->nfont < 1)
+	{
+		OutSuccess = false;
+		UE_LOG(LogSlateFontDialog, Warning, TEXT("FontConfig could not find any fonts"));
+		return;
+	}
+	
+	OutSuccess = true;
+	
+	LoadFonts();
 
-    SampleTextStyle = FTextBlockStyle()
-    .SetFont(GetSampleFont())
-    .SetColorAndOpacity(FontColor);
+	SampleTextStyle = FTextBlockStyle()
+	.SetFont(GetSampleFont())
+	.SetColorAndOpacity(FontColor);
 }
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -170,316 +170,315 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 // OutFontName actually gets set to the filepath of the chosen font to reduce dependencies in UTrueTypeFontFactory::LoadFontFace within TTFontImport.cpp 
 void FSlateFontDlgWindow::OpenFontWindow(FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags, bool& OutSuccess)
 {
-    OutFontName = GetFontFilename(SelectedFont, SelectedTypeface);
-    OutHeight = (float) FontSize;
-    OutFlags = EFontImportFlags::None;
-    EnumAddFlags(OutFlags, EFontImportFlags::EnableAntialiasing);
-    EnumAddFlags(OutFlags, EFontImportFlags::AlphaOnly);
+	OutFontName = GetFontFilename(SelectedFont, SelectedTypeface);
+	OutHeight = (float) FontSize;
+	OutFlags = EFontImportFlags::None;
+	EnumAddFlags(OutFlags, EFontImportFlags::EnableAntialiasing);
+	EnumAddFlags(OutFlags, EFontImportFlags::AlphaOnly);
 
-    // Create the font dialogue window
-    SAssignNew(Window, SWindow)
-    .Title(FText::FromString(TEXT("Fonts")))
-    .SizingRule(ESizingRule::Autosized)
-    .AutoCenter(EAutoCenter::PreferredWorkArea)
-    .SupportsMaximize(false)
-    .SupportsMinimize(false)
-    .HasCloseButton(false)
-    [
-        SNew(SGridPanel)
+	// Create the font dialogue window
+	SAssignNew(Window, SWindow)
+	.Title(FText::FromString(TEXT("Fonts")))
+	.SizingRule(ESizingRule::Autosized)
+	.AutoCenter(EAutoCenter::PreferredWorkArea)
+	.SupportsMaximize(false)
+	.SupportsMinimize(false)
+	.HasCloseButton(false)
+	[
+		SNew(SGridPanel)
 
-        // Font
-        +SGridPanel::Slot(0, 0)
-        .Padding(8.0f)
-        [
-            SNew(SVerticalBox)
+		// Font
+		+SGridPanel::Slot(0, 0)
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
 
-            // Name
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString(TEXT("Font")))
-            ]
+			// Name
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock).Text(FText::FromString(TEXT("Font")))
+			]
 
-            // Dropdown
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SBox)
-                .WidthOverride(180.0f)
-                [
-                    SNew(STextComboBox)
-                    .OptionsSource(&FontList)
-                    .InitiallySelectedItem(FontList[0])
-                    .OnSelectionChanged_Lambda([this, &OutFontName] (TSharedPtr<FString> InSelection, ESelectInfo::Type InSelectInfo) 
-                    {
-                        if (InSelection.IsValid())
-                        {
-                            SelectedFont = InSelection;
-                            SelectedTypefaceList = *TypefaceList.Find(*SelectedFont);
-                            SelectedTypeface = SelectedTypefaceList[0];
-                            OutFontName = GetFontFilename(SelectedFont, SelectedTypeface);
-                            TypefaceDropdown->RefreshOptions();
-                            TypefaceDropdown->SetSelectedItem(SelectedTypefaceList[0]);
+			// Dropdown
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBox)
+				.WidthOverride(180.0f)
+				[
+					SNew(STextComboBox)
+					.OptionsSource(&FontList)
+					.InitiallySelectedItem(FontList[0])
+					.OnSelectionChanged_Lambda([this, &OutFontName] (TSharedPtr<FString> InSelection, ESelectInfo::Type InSelectInfo) 
+					{
+						if (InSelection.IsValid())
+						{
+							SelectedFont = InSelection;
+							SelectedTypefaceList = *TypefaceList.Find(*SelectedFont);
+							SelectedTypeface = SelectedTypefaceList[0];
+							OutFontName = GetFontFilename(SelectedFont, SelectedTypeface);
+							TypefaceDropdown->RefreshOptions();
+							TypefaceDropdown->SetSelectedItem(SelectedTypefaceList[0]);
 
-                            SampleTextBlock->SetFont(GetSampleFont());
-                        }
-                    } )
-                ]           
-            ]
-        ]
+							SampleTextBlock->SetFont(GetSampleFont());
+						}
+					} )
+				]           
+			]
+		]
 
-        // Typeface
-        +SGridPanel::Slot(1, 0)
-        .Padding(8.0f)
-        [
-            SNew(SVerticalBox)
-            
-            // Name
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString(TEXT("Typeface")))
-            ]
+		// Typeface
+		+SGridPanel::Slot(1, 0)
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
+			
+			// Name
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock).Text(FText::FromString(TEXT("Typeface")))
+			]
 
-            // Dropdown
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SBox)
-                .WidthOverride(100.0f)
-                [
-                    SAssignNew(TypefaceDropdown, STextComboBox)
-                    .OptionsSource(&SelectedTypefaceList)
-                    .InitiallySelectedItem(SelectedTypefaceList[0])
-                    .OnSelectionChanged_Lambda([this] (TSharedPtr<FString> InSelection, ESelectInfo::Type InSelectInfo) 
-                    {
-                        if (InSelection.IsValid())
-                        {
-                            SelectedTypeface = InSelection;
-                            SampleTextBlock->SetFont(GetSampleFont());
-                        }
-                    } ) 
-                ] 
-            ]
-        ]
+			// Dropdown
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SBox)
+				.WidthOverride(100.0f)
+				[
+					SAssignNew(TypefaceDropdown, STextComboBox)
+					.OptionsSource(&SelectedTypefaceList)
+					.InitiallySelectedItem(SelectedTypefaceList[0])
+					.OnSelectionChanged_Lambda([this] (TSharedPtr<FString> InSelection, ESelectInfo::Type InSelectInfo) 
+					{
+						if (InSelection.IsValid())
+						{
+							SelectedTypeface = InSelection;
+							SampleTextBlock->SetFont(GetSampleFont());
+						}
+					} ) 
+				] 
+			]
+		]
 
-        // Size
-        +SGridPanel::Slot(2, 0)
-        .Padding(8.0f)
-        [
-            SNew(SVerticalBox)
+		// Size
+		+SGridPanel::Slot(2, 0)
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
 
-            // Name
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString(TEXT("Size")))
-            ]
+			// Name
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock).Text(FText::FromString(TEXT("Size")))
+			]
 
-            // Text box
-            +SVerticalBox::Slot()
-            .HAlign(HAlign_Left)
-            .AutoHeight()
-            [
-                SNew(SNumericEntryBox<uint8>)
-                .Value_Lambda( [this] { return FontSize; } ) 
-                .OnValueCommitted_Lambda([this, &OutHeight] (float InValue, ETextCommit::Type CommitInfo) 
-                { 
-                    FontSize = InValue; 
-                    OutHeight = static_cast<float>(FontSize);
-                } )
-            ]
-        ]
+			// Text box
+			+SVerticalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoHeight()
+			[
+				SNew(SNumericEntryBox<uint8>)
+				.Value_Lambda( [this] { return FontSize; } ) 
+				.OnValueCommitted_Lambda([this, &OutHeight] (float InValue, ETextCommit::Type CommitInfo) 
+				{ 
+					FontSize = InValue; 
+					OutHeight = static_cast<float>(FontSize);
+				} )
+			]
+		]
 
-        // Effects
-        +SGridPanel::Slot(0, 1)
-        .Padding(8.0f)
-        [
-            SNew(SVerticalBox)
+		// Effects
+		+SGridPanel::Slot(0, 1)
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
 
-            // Section name
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(STextBlock)
-                .Text(FText::FromString(TEXT("Effects")))
-            ]
+			// Section name
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(TEXT("Effects")))
+			]
 
-            // Strikethrough
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SHorizontalBox)
+			// Strikethrough
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
 
-                // Checkbox
-                +SHorizontalBox::Slot()
-                .AutoWidth()
-                [
-                    SNew(SCheckBox)
-                    .Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SimplifiedCheckbox"))
-                    .OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
-                    {
-                        if (NewState == ECheckBoxState::Checked)
-                        {
-                            SampleTextStyle.SetStrikeBrush(*FEditorStyle::GetBrush("DefaultTextUnderline"));
-                        }
-                        else
-                        {
-                            SampleTextStyle.SetStrikeBrush(*FEditorStyle::GetBrush("NoBrush"));
-                        }
+				// Checkbox
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SimplifiedCheckbox"))
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState)
+					{
+						if (NewState == ECheckBoxState::Checked)
+						{
+							SampleTextStyle.SetStrikeBrush(*FEditorStyle::GetBrush("DefaultTextUnderline"));
+						}
+						else
+						{
+							SampleTextStyle.SetStrikeBrush(*FEditorStyle::GetBrush("NoBrush"));
+						}
 
-                        SampleTextBlock->SetTextStyle(&SampleTextStyle);
-                    })
-                ]
+						SampleTextBlock->SetTextStyle(&SampleTextStyle);
+					})
+				]
 
-                // Name
-                +SHorizontalBox::Slot()
-                .AutoWidth()
-                .Padding(8.0f, 0.0f)
-                [
-                    SNew(STextBlock).Text(FText::FromString(TEXT("Strikethrough")))
-                ]
-            ]
+				// Name
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(8.0f, 0.0f)
+				[
+					SNew(STextBlock).Text(FText::FromString(TEXT("Strikethrough")))
+				]
+			]
 
-            // Underline
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(SHorizontalBox)
+			// Underline
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
 
-                // Checkbox
-                +SHorizontalBox::Slot()
-                .AutoWidth()
-                [
-                    SNew(SCheckBox)
-                    .Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SimplifiedCheckbox"))
-                    .OnCheckStateChanged_Lambda([this, &OutFlags](ECheckBoxState NewState)
-                    {
-                        if (NewState == ECheckBoxState::Checked)
-                        {
-                            SampleTextStyle.SetUnderlineBrush(*FEditorStyle::GetBrush("DefaultTextUnderline"));
-                            EnumAddFlags(OutFlags, EFontImportFlags::EnableUnderline);
-                        }
-                        else
-                        {
-                            SampleTextStyle.SetUnderlineBrush(*FEditorStyle::GetBrush("NoBrush"));
-                            EnumRemoveFlags(OutFlags, EFontImportFlags::EnableUnderline);
-                        }
+				// Checkbox
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SCheckBox)
+					.Style(&FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("SimplifiedCheckbox"))
+					.OnCheckStateChanged_Lambda([this, &OutFlags](ECheckBoxState NewState)
+					{
+						if (NewState == ECheckBoxState::Checked)
+						{
+							SampleTextStyle.SetUnderlineBrush(*FEditorStyle::GetBrush("DefaultTextUnderline"));
+							EnumAddFlags(OutFlags, EFontImportFlags::EnableUnderline);
+						}
+						else
+						{
+							SampleTextStyle.SetUnderlineBrush(*FEditorStyle::GetBrush("NoBrush"));
+							EnumRemoveFlags(OutFlags, EFontImportFlags::EnableUnderline);
+						}
 
-                        SampleTextBlock->SetTextStyle(&SampleTextStyle);
-                    })
-                ]
+						SampleTextBlock->SetTextStyle(&SampleTextStyle);
+					})
+				]
 
-                // Name
-                +SHorizontalBox::Slot()
-                .AutoWidth()
-                .Padding(8.0f, 0.0f)
-                [
-                    SNew(STextBlock).Text(FText::FromString(TEXT("Underline")))
-                ]
-            ]
-        ]
+				// Name
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(8.0f, 0.0f)
+				[
+					SNew(STextBlock).Text(FText::FromString(TEXT("Underline")))
+				]
+			]
+		]
 
-        // Color
-        +SGridPanel::Slot(1, 1)
-        .Padding(8.0f)
-        [
-            SNew(SVerticalBox)
+		// Color
+		+SGridPanel::Slot(1, 1)
+		.Padding(8.0f)
+		[
+			SNew(SVerticalBox)
 
-            // Name
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            [
-                SNew(STextBlock).Text(FText::FromString(TEXT("Color")))
-            ]
+			// Name
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(STextBlock).Text(FText::FromString(TEXT("Color")))
+			]
 
-            // Color picker button
-            +SVerticalBox::Slot()
-            .AutoHeight()
-            .HAlign(HAlign_Left)
-            [
-                SNew(SButton)
-                .ButtonStyle(FEditorStyle::Get(), "Menu.Button")
-                .OnClicked_Raw(this, &FSlateFontDlgWindow::OpenColorPicker)
-                [
-                    SNew(SOverlay)
+			// Color picker button
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Left)
+			[
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "Menu.Button")
+				.OnClicked_Raw(this, &FSlateFontDlgWindow::OpenColorPicker)
+				[
+					SNew(SOverlay)
 
-                    +SOverlay::Slot()
-                    .Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
-                    .HAlign(HAlign_Center)
-                    .VAlign(VAlign_Bottom)
-                    [
-                        SAssignNew(ColorIconText, STextBlock)
-                        .Text(LOCTEXT("ColorLabel", "A"))
-                    ]
+					+SOverlay::Slot()
+					.Padding(FMargin(0.0f, 0.0f, 0.0f, 4.0f))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Bottom)
+					[
+						SAssignNew(ColorIconText, STextBlock)
+						.Text(LOCTEXT("ColorLabel", "A"))
+					]
 
-                    +SOverlay::Slot()
-                    .HAlign(HAlign_Center)
-                    .VAlign(VAlign_Bottom)
-                    [
-                        SNew(SColorBlock)
-                        .Color_Lambda([this] () { return FontColor; })
-                        .Size(FVector2D(20.0f, 6.0f))
-                    ]
-                ]
-            ]
-        ]
+					+SOverlay::Slot()
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Bottom)
+					[
+						SNew(SColorBlock)
+						.Color_Lambda([this] () { return FontColor; })
+						.Size(FVector2D(20.0f, 6.0f))
+					]
+				]
+			]
+		]
 
-        // Sample Text
-        +SGridPanel::Slot(2, 1)
-        .Padding(8.0f)
-        [
-            SNew(SBox)
-            .MaxDesiredHeight(200)
-            .MaxDesiredWidth(600)
-            [
-                SAssignNew(SampleTextBlock, STextBlock)
-                .TextStyle(&SampleTextStyle)
-                .Text(FText::FromString(TEXT("Sample Text")))
-            ]
-        ]
+		// Sample Text
+		+SGridPanel::Slot(2, 1)
+		.Padding(8.0f)
+		[
+			SNew(SBox)
+			.MaxDesiredHeight(200)
+			.MaxDesiredWidth(600)
+			[
+				SAssignNew(SampleTextBlock, STextBlock)
+				.TextStyle(&SampleTextStyle)
+				.Text(FText::FromString(TEXT("Sample Text")))
+			]
+		]
 
-        // OK / Cancel buttons
-        +SGridPanel::Slot(2, 2)
-        .Padding(8.0f)
-        .HAlign(EHorizontalAlignment::HAlign_Right)
-        [
-            SNew(SHorizontalBox)
+		// OK / Cancel buttons
+		+SGridPanel::Slot(2, 2)
+		.Padding(8.0f)
+		.HAlign(EHorizontalAlignment::HAlign_Right)
+		[
+			SNew(SHorizontalBox)
 
-            // OK Button
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            .Padding(8.0f, 0.0f)
-            [
-                SNew(SButton)
-                .Text(FText::FromString(TEXT("OK")))
-                .OnClicked_Lambda([this, &OutSuccess] () -> FReply 
-                {
-                    // PrintMatchingFont();
-                    OutSuccess = true;
-                    Window->RequestDestroyWindow();
-                    return FReply::Handled(); 
-                })
-            ]
+			// OK Button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(FText::FromString(TEXT("OK")))
+				.OnClicked_Lambda([this, &OutSuccess] () -> FReply 
+				{
+					OutSuccess = true;
+					Window->RequestDestroyWindow();
+					return FReply::Handled(); 
+				})
+			]
 
-            // Cancel Button
-            +SHorizontalBox::Slot()
-            .AutoWidth()
-            .Padding(8.0f, 0.0f)
-            [
-                SNew(SButton)
-                .Text(FText::FromString(TEXT("Cancel")))
-                .OnClicked_Lambda([this, &OutSuccess] () -> FReply 
-                { 
-                    OutSuccess = false;
-                    Window->RequestDestroyWindow(); 
-                    return FReply::Handled(); 
-                })
-            ]
-        ]
-    ];
+			// Cancel Button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(8.0f, 0.0f)
+			[
+				SNew(SButton)
+				.Text(FText::FromString(TEXT("Cancel")))
+				.OnClicked_Lambda([this, &OutSuccess] () -> FReply 
+				{ 
+					OutSuccess = false;
+					Window->RequestDestroyWindow(); 
+					return FReply::Handled(); 
+				})
+			]
+		]
+	];
 
-    FSlateApplication::Get().AddModalWindow(Window.ToSharedRef(), FGlobalTabmanager::Get()->GetRootWindow()); 
+	FSlateApplication::Get().AddModalWindow(Window.ToSharedRef(), FGlobalTabmanager::Get()->GetRootWindow()); 
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
