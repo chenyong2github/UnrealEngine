@@ -63,6 +63,8 @@ UNeuralNetwork::~UNeuralNetwork()
 #if WITH_EDITOR
 bool UNeuralNetwork::Load(const FString& InModelFilePath)
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_EditorOnly"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+
 	// Clean previous networks
 	bIsLoaded = false;
 
@@ -99,7 +101,7 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(/*ModelReadFromDiskInBytes*/ ModelFullFilePath);
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromDiskInBytes*/ ModelFullFilePath);
 	}
 	// Unknown
 	else
@@ -114,6 +116,8 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 
 bool UNeuralNetwork::Load()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+
 	// Clean previous networks
 	bIsLoaded = false;
 
@@ -125,7 +129,7 @@ bool UNeuralNetwork::Load()
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromDiskInBytes*/ ModelFullFilePath);
 	}
 	// Unknown
 	else
@@ -248,6 +252,8 @@ const FNeuralTensors& UNeuralNetwork::GetOutputTensors() const
 
 void UNeuralNetwork::Run()
 {
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
+
 	// Sanity checks
 	if (!bIsLoaded)
 	{
@@ -264,7 +270,7 @@ void UNeuralNetwork::Run()
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+		ImplBackEndUEOnly->Run(OnAsyncRunCompletedDelegate, SynchronousMode, DeviceType, InputDeviceType, OutputDeviceType);
 	}
 
 	// Unknown
