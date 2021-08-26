@@ -83,7 +83,7 @@ public:
 
 protected:
 	void Clear();
-	void BeginInset();
+	bool BeginInset();
 	void ApplyInset();
 
 	bool bIsRunning = false;
