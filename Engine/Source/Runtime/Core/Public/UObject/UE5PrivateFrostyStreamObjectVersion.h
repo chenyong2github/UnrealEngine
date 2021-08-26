@@ -24,6 +24,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Always serialize the actor label in cooked builds
 		SerializeActorLabelInCookedBuilds,
 
+		// Changed world partition HLODs cells from FSotObjectPath to FName
+		ConvertWorldPartitionHLODsCellsToName,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

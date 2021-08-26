@@ -19,7 +19,7 @@ class ENGINE_API AWorldPartitionHLOD : public AActor
 public:
 	void SetVisibility(bool bInVisible);
 
-	inline const TSoftObjectPtr<UWorldPartitionRuntimeCell>& GetSourceCell() const { return SourceCell; }
+	inline FName GetSourceCellName() const { return SourceCellName; }
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
 	virtual bool IsHLODRelevant() const override { return true; }
@@ -47,7 +47,7 @@ public:
 		OutGridIndexZ = GridIndexZ;
 	}
 
-	void SetSourceCell(const TSoftObjectPtr<UWorldPartitionRuntimeCell>& InSourceCell);
+	void SetSourceCellName(FName InSourceCellName);
 	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
 
 	const FBox& GetHLODBounds() const;
@@ -108,7 +108,10 @@ private:
 	uint32 LODLevel;
 
 	UPROPERTY()
-	TSoftObjectPtr<UWorldPartitionRuntimeCell> SourceCell;
+	TSoftObjectPtr<UWorldPartitionRuntimeCell> SourceCell_DEPRECATED;
+
+	UPROPERTY()
+	FName SourceCellName;
 };
 
 DEFINE_ACTORDESC_TYPE(AWorldPartitionHLOD, FHLODActorDesc);
