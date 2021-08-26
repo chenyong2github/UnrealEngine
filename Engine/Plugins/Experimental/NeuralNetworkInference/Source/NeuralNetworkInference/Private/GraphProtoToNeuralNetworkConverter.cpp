@@ -7,10 +7,6 @@
 #include "NeuralOperators.h"
 #include "NeuralTensorManager.h"
 
-#if WITH_EDITOR
-#include "ModelProtoFileReader.h"
-#endif //WITH_EDITOR
-
 
 
 /* FGraphProtoToNeuralNetworkConverter public functions
