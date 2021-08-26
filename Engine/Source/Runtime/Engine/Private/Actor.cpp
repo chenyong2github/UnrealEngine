@@ -984,44 +984,44 @@ FBox AActor::GetStreamingBounds() const
 {
 	FBox StreamingBounds(ForceInit);
 
-	auto IsComponentRelevant = [this](const UActorComponent* Component)
+	auto HandleComponent = [this, &StreamingBounds](const UActorComponent* Component)
 	{
 		check(Component);
 
 		if (!Component->IsRegistered())
 		{
-			return false;
+			return;
 		}
 
 		if (Component->HasAnyFlags(RF_Transient))
 		{
-			return false;
+			return;
 		}
 
 		if (!IsEditorOnly() && Component->IsEditorOnly())
 		{
-			return false;
+			return;
 		}
 
-		return true;
+		const FBox ComponentStreamingBound = Component->GetStreamingBounds();
+		if (!ComponentStreamingBound.IsValid)
+		{
+			return;
+		}
+
+		StreamingBounds += ComponentStreamingBound;
 	};
 
-	ForEachComponent<UPrimitiveComponent>(true, [this, &StreamingBounds, &IsComponentRelevant](UActorComponent* Component)
+	ForEachComponent<UPrimitiveComponent>(true, [this, &HandleComponent](UActorComponent* Component)
 	{
-		if (IsComponentRelevant(Component))
-		{
-			StreamingBounds += Component->GetStreamingBounds();
-		}
+		HandleComponent(Component);
 	});
 
 	if (!StreamingBounds.IsValid)
 	{
-		ForEachComponent<UActorComponent>(false, [this, &StreamingBounds, &IsComponentRelevant](UActorComponent* Component)
+		ForEachComponent<UActorComponent>(false, [this, &HandleComponent](UActorComponent* Component)
 		{
-			if (IsComponentRelevant(Component))
-			{
-				StreamingBounds += Component->GetStreamingBounds();
-			}
+			HandleComponent(Component);
 		});
 	}
 

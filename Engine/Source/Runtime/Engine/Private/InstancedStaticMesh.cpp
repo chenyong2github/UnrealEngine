@@ -2555,6 +2555,11 @@ void UInstancedStaticMeshComponent::ApplyLightMapping(FStaticLightingTextureMapp
 		MarkRenderStateDirty();
 	}
 }
+
+FBox UInstancedStaticMeshComponent::GetStreamingBounds() const
+{
+	return (GetStaticMesh() && PerInstanceSMData.Num()) ? Super::GetStreamingBounds() : FBox(ForceInit);
+}
 #endif
 
 void UInstancedStaticMeshComponent::ReleasePerInstanceRenderData()
