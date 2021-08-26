@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ContentStreaming.h"
 
 class UStreamableRenderAsset;
 class ULevel;

@@ -2,6 +2,7 @@
 
 #include "Rendering/NaniteCoarseMeshStreamingManager.h"
 #include "Engine/StreamableRenderAsset.h"
+#include "Engine/StaticMesh.h"
 
 DECLARE_STATS_GROUP(TEXT("Nanite Coarse Mesh Streaming"), STATGROUP_NaniteCoarseMeshStreaming, STATCAT_Advanced);
 
