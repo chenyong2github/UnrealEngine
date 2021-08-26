@@ -198,8 +198,8 @@ static bool BuildNaniteFromHiResSourceModel(
 
 	// Build the vertex and index buffer. We do not need WedgeMap or RemapVerts
 	TArray<int32> WedgeMap, RemapVerts;
-	TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
-	BuildVertexBuffer(StaticMesh, HiResMeshDescription, HiResBuildSettings, WedgeMap, HiResStaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
+	Nanite::IBuilderModule::FVertexMeshData InputMeshData;
+	BuildVertexBuffer(StaticMesh, HiResMeshDescription, HiResBuildSettings, WedgeMap, HiResStaticMeshLOD.Sections, PerSectionIndices, InputMeshData.Vertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 	WedgeMap.Empty();
 
 	const uint32 NumTextureCoord = HiResMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate).GetNumChannels();
@@ -208,12 +208,11 @@ static bool BuildNaniteFromHiResSourceModel(
 	HiResMeshDescription.Empty();
 
 	// Concatenate the per-section index buffers.
-	TArray<uint32> CombinedIndices;
 	bool bNeeds32BitIndices = false;
-	BuildCombinedSectionIndices(PerSectionIndices, HiResStaticMeshLOD, CombinedIndices, bNeeds32BitIndices);
+	BuildCombinedSectionIndices(PerSectionIndices, HiResStaticMeshLOD, InputMeshData.TriangleIndices, bNeeds32BitIndices);
 
 	// compute bounds from the HiRes mesh before we do Nanite build because it will modify StaticMeshBuildVertices
-	ComputeBoundsFromVertexList(StaticMeshBuildVertices, HiResBoundsOut.Origin, HiResBoundsOut.BoxExtent, HiResBoundsOut.SphereRadius);
+	ComputeBoundsFromVertexList(InputMeshData.Vertices, HiResBoundsOut.Origin, HiResBoundsOut.BoxExtent, HiResBoundsOut.SphereRadius);
 
 	// Nanite build requires the section material indices to have already been resolved from the SectionInfoMap
 	// as the indices are baked into the FMaterialTriangles.
@@ -226,7 +225,8 @@ static bool BuildNaniteFromHiResSourceModel(
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::BuildNaniteFromHiResSourceModel::Nanite);
 		Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
-		if (!NaniteBuilderModule.Build(NaniteResourcesOut, StaticMeshBuildVertices, CombinedIndices, HiResStaticMeshLOD.Sections, NumTextureCoord, NaniteSettings))
+		TArray<Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<2>> EmptyOutputLODMeshData; //< not output mesh data required
+		if (!NaniteBuilderModule.Build(NaniteResourcesOut, InputMeshData, EmptyOutputLODMeshData, NumTextureCoord, NaniteSettings))
 		{
 			UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for HiRes static mesh. See previous line(s) for details."));
 			return false;
@@ -238,7 +238,7 @@ static bool BuildNaniteFromHiResSourceModel(
 
 
 
-bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
+bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup, bool bGenerateCoarseMeshStreamingLODs)
 {
 	const bool bNaniteBuildEnabled = StaticMesh->NaniteSettings.bEnabled;
 	const bool bHaveHiResSourceModel = StaticMesh->IsHiResMeshDescriptionValid();
@@ -523,15 +523,85 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			WedgeMap.Empty();	// Make sure to not keep the large WedgeMap from the input mesh around.
 								// No need to calculate a new one for the coarse mesh, because Nanite meshes don't need it yet.
 			Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
-			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTextureCoord, NaniteSettings ) )
+
+			// Setup the input data
+			Nanite::IBuilderModule::FVertexMeshData InputMeshData;
+			InputMeshData.Vertices = StaticMeshBuildVertices;
+			InputMeshData.TriangleIndices = CombinedIndices;
+			InputMeshData.Sections = StaticMeshLOD.Sections;
+
+			// Clear memory, not needed anymore
+			StaticMeshBuildVertices.Empty();
+			CombinedIndices.Empty();
+
+			// If nanite is build for 1 source model only then 2 LOD proxies will be requested - one streaming and one non streaming
+			// (not done when bHaveHiResSourceModel is set because then default source model is used as proxy - this is by design as because source models can then be tweaked as needed)
+			int32 OutputProxyCount = (NumSourceModels == 1 && bGenerateCoarseMeshStreamingLODs) ? 2 : 1;
+									
+			// Request output LODs for each LOD resource
+			TArray<Nanite::IBuilderModule::FVertexMeshData, TInlineAllocator<2>> OutputLODMeshData;
+			OutputLODMeshData.SetNum(OutputProxyCount);
+
+			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, InputMeshData, OutputLODMeshData, NumTextureCoord, NaniteSettings ) )
 			{
 				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for static mesh. See previous line(s) for details."));
 			}
 
+			// Copy over the output data to the static mesh LOD data
+			// Certain output LODs might be empty if the builder decided it wasn't needed (then remove these LODs again)
+			int ValidLODCount = 0;
+			for (int32 ProxyIndex = 0; ProxyIndex < OutputLODMeshData.Num(); ++ProxyIndex)
+			{
+				Nanite::IBuilderModule::FVertexMeshData& ProxyMeshData = OutputLODMeshData[ProxyIndex];
+				
+				bool bHasValidSections = false;
+				for (FStaticMeshSection& Section : ProxyMeshData.Sections)
+				{
+					if (Section.NumTriangles > 0)
+					{
+						bHasValidSections = true;
+						break;
+					}
+				}
+
+				// Valid valid sections then copy over data to the LODResource
+				if (bHasValidSections)
+				{
+					// Add new LOD resource if not created yet
+					if (ValidLODCount >= StaticMeshRenderData.LODResources.Num())
+					{
+						StaticMeshRenderData.LODResources.Add(new FStaticMeshLODResources);
+						new (StaticMeshRenderData.LODVertexFactories) FStaticMeshVertexFactories(GMaxRHIFeatureLevel);
+					}
+
+					FStaticMeshLODResources& ProxyLOD = StaticMeshRenderData.LODResources[ValidLODCount];
+
+					ProxyLOD.Sections = FStaticMeshSectionArray(ProxyMeshData.Sections);
+
+					TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
+					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
+					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseFullPrecisionUVs(LODBuildSettings.bUseFullPrecisionUVs);
+					ProxyLOD.VertexBuffers.StaticMeshVertexBuffer.Init(ProxyMeshData.Vertices, NumTextureCoord);
+					ProxyLOD.VertexBuffers.PositionVertexBuffer.Init(ProxyMeshData.Vertices);
+					ProxyLOD.VertexBuffers.ColorVertexBuffer.Init(ProxyMeshData.Vertices);
+
+					// Why is the 'bNeeds32BitIndices' used from the original index buffer? Is that needed?
+					const EIndexBufferStride::Type IndexBufferStride = bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit;
+					ProxyLOD.IndexBuffer.SetIndices(ProxyMeshData.TriangleIndices, IndexBufferStride);
+
+					// post-process the index buffer
+					//BuildLODSlowTask.EnterProgressFrame(1);
+					BuildAllBufferOptimizations(ProxyLOD, LODBuildSettings, ProxyMeshData.TriangleIndices, bNeeds32BitIndices, ProxyMeshData.Vertices);
+
+					ValidLODCount++;
+				}
+			}
+			// Should have at least one valid proxy LOD
+			check(ValidLODCount > 0);
+
 			bNaniteDataBuilt = true;
 		}
-
-		// create the vertex and index buffers
+		else
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshBuilder::Build::BufferInit);
 			StaticMeshLOD.VertexBuffers.StaticMeshVertexBuffer.SetUseHighPrecisionTangentBasis(LODBuildSettings.bUseHighPrecisionTangentBasis);
@@ -542,11 +612,11 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 
 			const EIndexBufferStride::Type IndexBufferStride = bNeeds32BitIndices ? EIndexBufferStride::Force32Bit : EIndexBufferStride::Force16Bit;
 			StaticMeshLOD.IndexBuffer.SetIndices(CombinedIndices, IndexBufferStride);
-		}
 
-		// post-process the index buffer
-		BuildLODSlowTask.EnterProgressFrame(1);
-		BuildAllBufferOptimizations(StaticMeshLOD, LODBuildSettings, CombinedIndices, bNeeds32BitIndices, StaticMeshBuildVertices);
+			// post-process the index buffer
+			BuildLODSlowTask.EnterProgressFrame(1);
+			BuildAllBufferOptimizations(StaticMeshLOD, LODBuildSettings, CombinedIndices, bNeeds32BitIndices, StaticMeshBuildVertices);
+		}
 
 	} //End of LOD for loop
 

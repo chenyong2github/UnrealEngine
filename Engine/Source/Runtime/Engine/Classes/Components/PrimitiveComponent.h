@@ -307,6 +307,9 @@ public:
 	/** When true, texture streaming manager won't update the component state. Used to perform early exits when updating component. */
 	mutable uint8 bIgnoreStreamingManagerUpdate : 1;
 
+	/** Whether this primitive is referenced by a Nanite::FCoarseMeshStreamingManager  */
+	mutable uint8 bAttachedToCoarseMeshStreamingManager : 1;
+
 	/** Whether this primitive is referenced by the streaming manager and should sent callbacks when detached or destroyed */
 	FORCEINLINE bool IsAttachedToStreamingManager() const { return !!(bAttachedToStreamingManagerAsStatic | bAttachedToStreamingManagerAsDynamic); }
 

@@ -153,6 +153,7 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	bIsRayTracingRelevant(InComponent->SceneProxy->IsRayTracingRelevant()),
 	bIsRayTracingStaticRelevant(InComponent->SceneProxy->IsRayTracingStaticRelevant()),
 	bIsVisibleInRayTracing(InComponent->SceneProxy->IsVisibleInRayTracing()),
+	CoarseMeshStreamingHandle(INDEX_NONE),
 #endif
 	PackedIndex(INDEX_NONE),
 	ComponentForDebuggingOnly(InComponent),
@@ -650,23 +651,16 @@ void FPrimitiveSceneInfo::RemoveCachedNaniteDrawCommands()
 }
 
 #if RHI_RAYTRACING
-void FScene::RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdList, ERayTracingMeshCommandsMode Mode)
+void FScene::RefreshRayTracingMeshCommandCache()
 {
-	if (Mode != CachedRayTracingMeshCommandsMode)
-	{
-		// Remember if were using path tracing or not when caching the commands
-		CachedRayTracingMeshCommandsMode = Mode;
+	// Get rid of all existing cached commands
+	CachedRayTracingMeshCommands.Empty(CachedRayTracingMeshCommands.Num());
 
-		// Get rid of all existing cached commands
-		CachedRayTracingMeshCommands.Empty(CachedRayTracingMeshCommands.Num());
-
-		// Re-cache all current primitives
-		FPrimitiveSceneInfo::CacheRayTracingPrimitives(RHICmdList, this, Primitives);
-	}
+	// Re-cache all current primitives
+	FPrimitiveSceneInfo::CacheRayTracingPrimitives(this, Primitives);
 }
 
-// TODO: Remove RHICmdList argument? It does not appear to be used
-void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
 {
 	if (IsRayTracingEnabled() && !(Scene->World->WorldType == EWorldType::EditorPreview || Scene->World->WorldType == EWorldType::GamePreview))
 	{
@@ -721,6 +715,9 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 			// Write flags
 			Flags = SceneInfo->Proxy->GetCachedRayTracingInstance(CachedRayTracingInstance);
 
+			// Cache the coarse mesh streaming handle
+			SceneInfo->CoarseMeshStreamingHandle = SceneInfo->Proxy->GetCoarseMeshStreamingHandle();
+
 			if (SceneInfo->Proxy->IsRayTracingStaticRelevant() && !EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::CacheMeshCommands))
 			{
 				// Legacy path for static meshes.
@@ -729,7 +726,9 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FRHICommandListImmediate& RH
 				{
 					Flags = ERayTracingPrimitiveFlags::ComputeLOD | ERayTracingPrimitiveFlags::CacheMeshCommands;
 				}
-				else
+				// Don't mark excluded if it's streaming - because it could still have no geometry data but TLAS update will
+				// drive the streaming requests then (if it's excluded then the data will never be requested for stream in)
+				else if (!EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::Streaming))
 				{
 					Flags = ERayTracingPrimitiveFlags::Excluded;
 				}
@@ -883,7 +882,7 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 		CacheMeshDrawCommands(RHICmdList, Scene, SceneInfos);
 		CacheNaniteDrawCommands(RHICmdList, Scene, SceneInfos);
 	#if RHI_RAYTRACING
-		CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+		CacheRayTracingPrimitives(Scene, SceneInfos);
 	#endif
 	}
 }
@@ -1462,11 +1461,31 @@ void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdLis
 	#if RHI_RAYTRACING
 		if (EnumHasAnyFlags(UpdateFlags, EUpdateStaticMeshFlags::RayTracingCommands))
 		{
-			CacheRayTracingPrimitives(RHICmdList, Scene, SceneInfos);
+			CacheRayTracingPrimitives(Scene, SceneInfos);
 		}
 	#endif
 	}
 }
+
+#if RHI_RAYTRACING
+void FPrimitiveSceneInfo::UpdateCachedRaytracingData(FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos)
+{
+	if (SceneInfos.Num() > 0)
+	{
+		for (int32 Index = 0; Index < SceneInfos.Num(); Index++)
+		{
+			FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index]; 
+			// should have been marked dirty by calling UpdateCachedRayTracingState on the scene before
+			// scene info is being updated here
+			check(SceneInfo->bCachedRaytracingDataDirty);
+			SceneInfo->RemoveCachedRayTracingPrimitives();
+			SceneInfo->bCachedRaytracingDataDirty = false;
+		}
+
+		CacheRayTracingPrimitives(Scene, SceneInfos);
+	}
+}
+#endif //RHI_RAYTRACING
 
 void FPrimitiveSceneInfo::UpdateUniformBuffer(FRHICommandListImmediate& RHICmdList)
 {

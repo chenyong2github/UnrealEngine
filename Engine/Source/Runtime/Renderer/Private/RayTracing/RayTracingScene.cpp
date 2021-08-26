@@ -142,6 +142,7 @@ void FRayTracingScene::Reset()
 
 	Instances.Reset();
 	GeometriesToBuild.Reset();
+	UsedCoarseMeshStreamingHandles.Reset();
 
 	Allocator.Flush();
 

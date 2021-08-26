@@ -1046,7 +1046,7 @@ void UStaticMeshComponent::GetStreamingRenderAssetInfo(FStreamingTextureLevelCon
 		}
 	}
 
-	if (GetStaticMesh()->RenderResourceSupportsStreaming())
+	if (GetStaticMesh()->RenderResourceSupportsStreaming() && (GetStaticMesh()->GetRenderAssetType() == EStreamableRenderAssetType::StaticMesh))
 	{
 		const float TexelFactor = ForcedLodModel > 0 ?
 			-(GetStaticMesh()->GetRenderData()->LODResources.Num() - ForcedLodModel + 1) :

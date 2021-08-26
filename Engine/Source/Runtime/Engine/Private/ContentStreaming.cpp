@@ -26,6 +26,7 @@
 #include "VT/VirtualTextureChunkManager.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -38,6 +39,12 @@ static TAutoConsoleVariable<int32> CVarMeshStreaming(
 	TEXT("When non zero, enables mesh stremaing.\n"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+static int32 GNaniteCoarseMeshStreamingEnabled = 0;
+static FAutoConsoleVariableRef CVarNaniteCoarseMeshStreaming(
+	TEXT("r.Nanite.CoarseMeshStreaming"),
+	GNaniteCoarseMeshStreamingEnabled,
+	TEXT("Generates 2 Nanite coarse mesh LODs and dynamically streams in the higher quality LOD depending on TLAS usage of the proxy.\n"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
 /** Collection of views that need to be taken into account for streaming. */
 TArray<FStreamingViewInfo> IStreamingManager::CurrentViewInfos;
@@ -760,6 +767,7 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 	, DisableResourceStreamingCount(0)
 	, LoadMapTimeLimit(5.0f)
 	, RenderAssetStreamingManager(nullptr)
+	, NaniteCoarseMeshStreamingManager(nullptr)
 {
 #if PLATFORM_SUPPORTS_TEXTURE_STREAMING
 	// Disable texture streaming if that was requested (needs to happen before the call to ProcessNewlyLoadedUObjects, as that can load textures)
@@ -792,6 +800,13 @@ FStreamingManagerCollection::FStreamingManagerCollection()
 
 FStreamingManagerCollection::~FStreamingManagerCollection()
 {
+	if (NaniteCoarseMeshStreamingManager)
+	{
+		RemoveStreamingManager(NaniteCoarseMeshStreamingManager);
+		delete NaniteCoarseMeshStreamingManager;
+		NaniteCoarseMeshStreamingManager = nullptr;
+	}
+
 	RemoveStreamingManager(VirtualTextureStreamingManager);
 	delete VirtualTextureStreamingManager;
 	VirtualTextureStreamingManager = nullptr;
@@ -1004,6 +1019,8 @@ bool FStreamingManagerCollection::IsRenderAssetStreamingEnabled(EStreamableRende
 		case EStreamableRenderAssetType::StaticMesh:
 		case EStreamableRenderAssetType::SkeletalMesh:
 			return FPlatformProperties::SupportsMeshLODStreaming() && CVarMeshStreaming.GetValueOnAnyThread() != 0;
+		case EStreamableRenderAssetType::NaniteCoarseMesh:
+			return FPlatformProperties::SupportsMeshLODStreaming() && GNaniteCoarseMeshStreamingEnabled != 0;
 		case EStreamableRenderAssetType::LandscapeMeshMobile:
 			return true;
 		default:
@@ -1044,6 +1061,11 @@ FVirtualTextureChunkStreamingManager& FStreamingManagerCollection::GetVirtualTex
 {
 	check(VirtualTextureStreamingManager);
 	return *VirtualTextureStreamingManager;
+}
+
+Nanite::FCoarseMeshStreamingManager* FStreamingManagerCollection::GetNaniteCoarseMeshStreamingManager() const
+{
+	return NaniteCoarseMeshStreamingManager;
 }
 
 /** Don't stream world resources for the next NumFrames. */
@@ -1287,6 +1309,12 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 			// Create the streaming manager and add the default streamers.
 			RenderAssetStreamingManager = new FRenderAssetStreamingManager();
 			AddStreamingManager( RenderAssetStreamingManager );		
+
+			if (IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::NaniteCoarseMesh))
+			{
+				NaniteCoarseMeshStreamingManager = new Nanite::FCoarseMeshStreamingManager();
+				AddStreamingManager(NaniteCoarseMeshStreamingManager);
+			}
 				
 			// TODO : Register all levels
 
@@ -1308,6 +1336,10 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 		{
 			FlushRenderingCommands();
 			RenderAssetStreamingManager->BlockTillAllRequestsFinished();
+			if (NaniteCoarseMeshStreamingManager)
+			{
+				NaniteCoarseMeshStreamingManager->BlockTillAllRequestsFinished();
+			}
 
 			// Stream all LODs back in before disabling the streamer.
 			for( TObjectIterator<UStreamableRenderAsset>It; It; ++It )
@@ -1320,6 +1352,10 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 				}
 			}
 			RenderAssetStreamingManager->BlockTillAllRequestsFinished();
+			if (NaniteCoarseMeshStreamingManager)
+			{
+				NaniteCoarseMeshStreamingManager->BlockTillAllRequestsFinished();
+			}
 
 			for( TObjectIterator<UStreamableRenderAsset>It; It; ++It )
 			{
@@ -1329,6 +1365,13 @@ void FStreamingManagerCollection::AddOrRemoveTextureStreamingManagerIfNeeded(boo
 			RemoveStreamingManager(RenderAssetStreamingManager);
 			delete RenderAssetStreamingManager;
 			RenderAssetStreamingManager = nullptr;
+
+			if (NaniteCoarseMeshStreamingManager)
+			{
+				RemoveStreamingManager(NaniteCoarseMeshStreamingManager);
+				delete NaniteCoarseMeshStreamingManager;
+				NaniteCoarseMeshStreamingManager = nullptr;
+			}
 		}
 	}
 }

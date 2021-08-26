@@ -617,6 +617,8 @@ public:
 	ENGINE_API const FStaticMeshRenderData* GetRenderData() const;
 	ENGINE_API void SetRenderData(TUniquePtr<class FStaticMeshRenderData>&& InRenderData);
 
+	void RequestUpdateCachedRenderState() const;
+
 #if WITH_EDITORONLY_DATA
 	static const float MinimumAutoLODPixelError;
 
@@ -1530,7 +1532,7 @@ public:
 	ENGINE_API virtual bool HasPendingRenderResourceInitialization() const final override;
 	ENGINE_API virtual bool StreamOut(int32 NewMipCount) final override;
 	ENGINE_API virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
-	ENGINE_API virtual EStreamableRenderAssetType GetRenderAssetType() const final override { return EStreamableRenderAssetType::StaticMesh; }
+	ENGINE_API virtual EStreamableRenderAssetType GetRenderAssetType() const final override;
 	//~ End UStreamableRenderAsset Interface
 
 #if USE_BULKDATA_STREAMING_TOKEN

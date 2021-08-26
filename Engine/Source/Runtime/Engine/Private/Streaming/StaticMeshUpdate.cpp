@@ -225,11 +225,19 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 				// Skip LODs that have their render data stripped
 				if (Context.LODResourcesView[LODIndex]->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 				{
+					// Rebuild the initializer because it could have been reset during a previous release
+					FRayTracingGeometryInitializer Initializer;
+					Context.LODResourcesView[LODIndex]->SetupRayTracingGeometryInitializer(Initializer, Context.Mesh->GetFName());
+					Context.LODResourcesView[LODIndex]->RayTracingGeometry.SetInitializer(Initializer);
+
 					Context.LODResourcesView[LODIndex]->RayTracingGeometry.InitResource();
 				}
 			}
+
 		}
 #endif
+				
+		Context.Mesh->RequestUpdateCachedRenderState();
 		RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 		MarkAsSuccessfullyFinished();
 	}
@@ -348,6 +356,8 @@ void FStaticMeshStreamOut::ReleaseRHIBuffers(const FContext& Context)
 			}
 #endif
 		}
+
+		Context.Mesh->RequestUpdateCachedRenderState();
 	}
 	MarkAsSuccessfullyFinished();
 }

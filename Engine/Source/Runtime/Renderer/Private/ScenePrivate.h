@@ -2627,8 +2627,8 @@ public:
 #if RHI_RAYTRACING
 	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
 
-	/** This method is meant to be used when transitioning to and from path traced rendering since shader bindings must be updated in the cached commands. */
-	void RefreshRayTracingMeshCommandCache(FRHICommandListImmediate& RHICmdList, ERayTracingMeshCommandsMode Mode);
+	/** Force a refresh of all cached ray tracing data in the scene (when path tracing mode changes or coarse mesh streaming for example). */
+	void RefreshRayTracingMeshCommandCache();
 #endif
 
 	/** Nanite material commands. These are stored on the scene as they are computed at FPrimitiveSceneInfo::AddToScene time. */
@@ -3126,6 +3126,7 @@ public:
 	}
 
 #if RHI_RAYTRACING
+	virtual void UpdateCachedRayTracingState(class FPrimitiveSceneProxy* SceneProxy) override;
 	virtual FRayTracingDynamicGeometryCollection* GetRayTracingDynamicGeometryCollection() override
 	{
 		return RayTracingDynamicGeometryCollection;

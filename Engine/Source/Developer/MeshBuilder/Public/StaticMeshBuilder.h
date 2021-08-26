@@ -18,7 +18,7 @@ public:
 	FStaticMeshBuilder();
 	virtual ~FStaticMeshBuilder() {}
 
-	virtual bool Build(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup) override;
+	virtual bool Build(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup, bool bGenerateCoarseMeshStreamingLODs) override;
 
 	//No support for skeletal mesh build in this class
 	virtual bool Build(const struct FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) override

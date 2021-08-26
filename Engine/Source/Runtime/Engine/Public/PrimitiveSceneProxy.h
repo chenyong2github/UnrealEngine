@@ -29,6 +29,11 @@ enum class ERuntimeVirtualTextureMaterialType : uint8;
 struct FMeshBatch;
 class FColorVertexBuffer;
 
+namespace Nanite
+{
+	using CoarseMeshStreamingHandle = int16;
+}
+
 /** Data for a simple dynamic light. */
 class FSimpleLightEntry
 {
@@ -143,6 +148,9 @@ enum class ERayTracingPrimitiveFlags : uint8
 
 	// Primitive is masked as a far field object
 	FarField = 1 << 5,
+
+	// Raytracing data is streamable
+	Streaming = 1 << 6,
 };
 ENUM_CLASS_FLAGS(ERayTracingPrimitiveFlags);
 
@@ -266,6 +274,11 @@ public:
 	 * Fields of the instances can be partially filled, depending on what is desired to be cached, which is described in the returned flags
 	 */
 	ENGINE_API virtual ERayTracingPrimitiveFlags GetCachedRayTracingInstance(FRayTracingInstance& OutRayTracingInstance);
+
+	/**
+	 * If the ray tracing data is streaming then get the coarse mesh streaming handle 
+	 */
+	ENGINE_API virtual Nanite::CoarseMeshStreamingHandle GetCoarseMeshStreamingHandle() const { return INDEX_NONE; }
 #endif // RHI_RAYTRACING
 
 	/** 

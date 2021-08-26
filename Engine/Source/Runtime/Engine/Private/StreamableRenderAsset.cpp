@@ -3,6 +3,7 @@
 #include "Engine/StreamableRenderAsset.h"
 #include "Misc/App.h"
 #include "ContentStreaming.h"
+#include "Rendering/NaniteCoarseMeshStreamingManager.h"
 
 extern bool TrackRenderAssetEvent(struct FStreamingRenderAsset* StreamingRenderAsset, UStreamableRenderAsset* RenderAsset, bool bForceMipLevelsToBeResident, const FRenderAssetStreamingManager* Manager);
 
@@ -201,11 +202,19 @@ bool UStreamableRenderAsset::IsPendingStreamingRequestLocked() const
 void UStreamableRenderAsset::LinkStreaming()
 {
 	// Note that this must be called after InitResource() otherwise IsStreamable will always be false.
-	if (!IsTemplate() && RenderResourceSupportsStreaming() && IStreamingManager::Get().IsRenderAssetStreamingEnabled(GetRenderAssetType()))
+	EStreamableRenderAssetType RenderAssetType = GetRenderAssetType();
+	if (!IsTemplate() && RenderResourceSupportsStreaming() && IStreamingManager::Get().IsRenderAssetStreamingEnabled(RenderAssetType))
 	{
 		if (StreamingIndex == INDEX_NONE)
 		{
-			IStreamingManager::Get().GetRenderAssetStreamingManager().AddStreamingRenderAsset(this);
+			if (RenderAssetType == EStreamableRenderAssetType::NaniteCoarseMesh)
+			{
+				IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager()->RegisterRenderAsset(this);
+			}
+			else
+			{
+				IStreamingManager::Get().GetRenderAssetStreamingManager().AddStreamingRenderAsset(this);
+			}
 		}
 	}
 	else
@@ -218,7 +227,16 @@ void UStreamableRenderAsset::UnlinkStreaming()
 {
 	if (StreamingIndex != INDEX_NONE)
 	{
-		IStreamingManager::Get().GetRenderAssetStreamingManager().RemoveStreamingRenderAsset(this);
+		EStreamableRenderAssetType RenderAssetType = GetRenderAssetType();
+		if (RenderAssetType == EStreamableRenderAssetType::NaniteCoarseMesh)
+		{
+			IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager()->UnregisterRenderAsset(this);
+		}
+		else
+		{
+			IStreamingManager::Get().GetRenderAssetStreamingManager().RemoveStreamingRenderAsset(this);
+		}
+
 		// Reset the timer effect from SetForceMipLevelsToBeResident()
 		ForceMipLevelsToBeResidentTimestamp = 0;
 		// No more streaming events can happen now
