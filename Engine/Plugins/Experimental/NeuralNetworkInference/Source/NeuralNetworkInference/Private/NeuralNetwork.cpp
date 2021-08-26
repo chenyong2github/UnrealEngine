@@ -41,7 +41,7 @@ ENeuralBackEnd FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(const ENeural
  *****************************************************************************/
 
 UNeuralNetwork::UNeuralNetwork()
-	: DeviceType(ENeuralDeviceType::CPU)
+	: DeviceType(ENeuralDeviceType::GPU)
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
