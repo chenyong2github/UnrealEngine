@@ -413,7 +413,12 @@ namespace UnrealGameSync
 
 		private void NotifyMenu_Exit_Click(object sender, EventArgs e)
 		{
-			if(DetectStartupProjectSettingsWindow != null)
+			if (MainWindowInstance != null && !MainWindowInstance.ConfirmClose())
+			{
+				return;
+			}
+
+			if (DetectStartupProjectSettingsWindow != null)
 			{
 				DetectStartupProjectSettingsWindow.Close();
 				DetectStartupProjectSettingsWindow = null;
