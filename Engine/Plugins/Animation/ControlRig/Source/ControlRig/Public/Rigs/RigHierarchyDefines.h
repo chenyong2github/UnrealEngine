@@ -280,6 +280,8 @@ public:
 		return Value;
 	}
 
+	friend FArchive& operator <<(FArchive& Ar, FRigControlValue& Value);
+
 	FORCEINLINE_DEBUGGABLE FString ToPythonString(ERigControlType InControlType) const
 	{
 		FString ValueStr;
@@ -951,6 +953,7 @@ private:
 	friend class UControlRigBlueprint;
 	friend class URigHierarchyController;
 	friend class UControlRig;
+	friend struct FRigControlSettings;
 };
 
 template<>

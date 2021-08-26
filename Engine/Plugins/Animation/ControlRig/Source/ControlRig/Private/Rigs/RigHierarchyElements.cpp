@@ -435,8 +435,7 @@ void FRigControlSettings::Save(FArchive& Ar)
 
 	FName ControlTypeName = ControlTypeEnum->GetNameByValue((int64)ControlType);
 	FName PrimaryAxisName = ControlAxisEnum->GetNameByValue((int64)PrimaryAxis);
-	FTransform MinimumTransform = MinimumValue.GetAsTransform(ControlType, PrimaryAxis);
-	FTransform MaximumTransform = MaximumValue.GetAsTransform(ControlType, PrimaryAxis);
+
 	FString ControlEnumPathName;
 	if(ControlEnum)
 	{
@@ -452,8 +451,8 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << bLimitRotation;
 	Ar << bLimitScale;
 	Ar << bDrawLimits;
-	Ar << MinimumTransform;
-	Ar << MaximumTransform;
+	Ar << MinimumValue;
+	Ar << MaximumValue;
 	Ar << bGizmoEnabled;
 	Ar << bGizmoVisible;
 	Ar << GizmoName;
@@ -471,7 +470,6 @@ void FRigControlSettings::Load(FArchive& Ar)
 	static const UEnum* ControlAxisEnum = StaticEnum<ERigControlAxis>();
 
 	FName ControlTypeName, PrimaryAxisName;
-	FTransform MinimumTransform, MaximumTransform;
 	FString ControlEnumPathName;
 
 	Ar << ControlTypeName;
@@ -483,8 +481,22 @@ void FRigControlSettings::Load(FArchive& Ar)
 	Ar << bLimitRotation;
 	Ar << bLimitScale;
 	Ar << bDrawLimits;
-	Ar << MinimumTransform;
-	Ar << MaximumTransform;
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::StorageMinMaxValuesAsFloatStorage)
+	{
+		Ar << MinimumValue;
+		Ar << MaximumValue;
+	}
+	else
+	{
+		FTransform MinimumTransform, MaximumTransform;
+		Ar << MinimumTransform;
+		Ar << MaximumTransform;
+		MinimumValue.SetFromTransform(MinimumTransform, ControlType, PrimaryAxis);
+		MaximumValue.SetFromTransform(MaximumTransform, ControlType, PrimaryAxis);
+	}
+	
+
 	Ar << bGizmoEnabled;
 	Ar << bGizmoVisible;
 	Ar << GizmoName;
@@ -494,8 +506,6 @@ void FRigControlSettings::Load(FArchive& Ar)
 
 	ControlType = (ERigControlType)ControlTypeEnum->GetValueByName(ControlTypeName);
 	PrimaryAxis = (ERigControlAxis)ControlAxisEnum->GetValueByName(PrimaryAxisName);
-	MinimumValue.SetFromTransform(MinimumTransform, ControlType, PrimaryAxis);
-	MaximumValue.SetFromTransform(MaximumTransform, ControlType, PrimaryAxis);
 
 	ControlEnum = nullptr;
 	if(!ControlEnumPathName.IsEmpty())

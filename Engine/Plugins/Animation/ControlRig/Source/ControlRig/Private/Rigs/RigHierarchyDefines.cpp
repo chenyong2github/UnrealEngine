@@ -309,3 +309,41 @@ FVector FRigMirrorSettings::MirrorVector(const FVector& InVector) const
 	Axis.SetComponentForAxis(MirrorAxis, 1.f);
 	return InVector.MirrorByVector(Axis);
 }
+
+FArchive& operator<<(FArchive& Ar, FRigControlValue& Value)
+{
+	Ar <<  Value.FloatStorage.Float00;
+	Ar <<  Value.FloatStorage.Float01;
+	Ar <<  Value.FloatStorage.Float02;
+	Ar <<  Value.FloatStorage.Float03;
+	Ar <<  Value.FloatStorage.Float10;
+	Ar <<  Value.FloatStorage.Float11;
+	Ar <<  Value.FloatStorage.Float12;
+	Ar <<  Value.FloatStorage.Float13;
+	Ar <<  Value.FloatStorage.Float20;
+	Ar <<  Value.FloatStorage.Float21;
+	Ar <<  Value.FloatStorage.Float22;
+	Ar <<  Value.FloatStorage.Float23;
+	Ar <<  Value.FloatStorage.Float30;
+	Ar <<  Value.FloatStorage.Float31;
+	Ar <<  Value.FloatStorage.Float32;
+	Ar <<  Value.FloatStorage.Float33;
+	Ar <<  Value.FloatStorage.Float00_2;
+	Ar <<  Value.FloatStorage.Float01_2;
+	Ar <<  Value.FloatStorage.Float02_2;
+	Ar <<  Value.FloatStorage.Float03_2;
+	Ar <<  Value.FloatStorage.Float10_2;
+	Ar <<  Value.FloatStorage.Float11_2;
+	Ar <<  Value.FloatStorage.Float12_2;
+	Ar <<  Value.FloatStorage.Float13_2;
+	Ar <<  Value.FloatStorage.Float20_2;
+	Ar <<  Value.FloatStorage.Float21_2;
+	Ar <<  Value.FloatStorage.Float22_2;
+	Ar <<  Value.FloatStorage.Float23_2;
+	Ar <<  Value.FloatStorage.Float30_2;
+	Ar <<  Value.FloatStorage.Float31_2;
+	Ar <<  Value.FloatStorage.Float32_2;
+	Ar <<  Value.FloatStorage.Float33_2;
+
+	return Ar;
+}
