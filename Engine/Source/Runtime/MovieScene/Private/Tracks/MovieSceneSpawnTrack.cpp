@@ -176,6 +176,23 @@ const TArray<UMovieSceneSection*>& UMovieSceneSpawnTrack::GetAllSections() const
 	return Sections;
 }
 
+#if WITH_EDITOR
+
+ECookOptimizationFlags UMovieSceneSpawnTrack::GetCookOptimizationFlags() const
+{
+	ECookOptimizationFlags CookOptimizationFlags = Super::GetCookOptimizationFlags();
+
+	// Remove the object if the track is muted
+	if (CookOptimizationFlags == ECookOptimizationFlags::RemoveTrack)
+	{
+		return ECookOptimizationFlags::RemoveObject;
+	}
+
+	return CookOptimizationFlags;
+}
+
+#endif
+
 #if WITH_EDITORONLY_DATA
 
 FText UMovieSceneSpawnTrack::GetDisplayName() const
