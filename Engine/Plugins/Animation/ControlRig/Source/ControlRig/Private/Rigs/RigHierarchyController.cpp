@@ -1003,7 +1003,7 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 		}
 
 		check(NewElement);
-		ensure(NewElement->GetKey() == PerElementData.Key);
+		NewElement->Key = PerElementData.Key;
 
 		if(bReplaceExistingElements)
 		{
