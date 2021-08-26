@@ -41,7 +41,7 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 
 	AddSpacePickerButton(
 		FEditorStyle::GetBrush("EditorViewport.RelativeCoordinateSystem_Local"),
-		LOCTEXT("Local", "Local"),
+		LOCTEXT("Parent", "Parent"),
 		FOnClicked::CreateSP(this, &SRigSpacePickerWidget::HandleLocalSpaceClicked)
 	);
 	
