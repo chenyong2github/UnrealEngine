@@ -36,6 +36,7 @@ struct FLevelCollection;
 class ULevelActorContainer;
 class FLevelPartitionOperationScope;
 class FRegisterComponentContext;
+class SNotificationItem;
 
 UINTERFACE()
 class ULevelPartitionInterface : public UInterface
@@ -1201,11 +1202,21 @@ private:
 	bool IncrementalRunConstructionScripts(bool bProcessAllActors);
 
 #if WITH_EDITOR
+private:
 	/** Attempts to detect and fix any issues with the level script blueprint and associated objects */
 	void RepairLevelScript();
 
 	/** Replace the existing LSA (if set) by spawning a new one based on this level's script blueprint */
 	void RegenerateLevelScriptActor();
+
+	/** Find and destroy any extra LSAs, as they will cause duplicated level script operations */
+	void RemoveExtraLevelScriptActors();
+
+	/** Notification popup used to guide the user to repair multiple LSAs detected upon loading in the editor */
+	TWeakPtr<SNotificationItem> MultipleLSAsNotification;
+	void OnMultipleLSAsPopupClicked();
+	void OnMultipleLSAsPopupDismissed();
+
 #endif // WITH_EDITOR
 };
 

@@ -33,22 +33,13 @@ ALevelScriptActor::ALevelScriptActor(const FObjectInitializer& ObjectInitializer
 
 #if WITH_EDITOR
 	// this is intended as an early detection of cases where more than one LevelScriptActor is introduced into a single map
-	const UObject* ThisOuter = GetOuter();
-	if (!Cast<UPackage>(ThisOuter))
+	TArray<ALevelScriptActor*> Siblings = FindSiblingLevelScriptActors();
+
+	for (const ALevelScriptActor* Sibling : Siblings)
 	{
-		TArray<UObject*> AllSiblingObjects;
-		GetObjectsWithOuter(ThisOuter, AllSiblingObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
-
-		for (const UObject* Sibling : AllSiblingObjects)
-		{
-			bool bIsNotAnLSA           = !Cast<ALevelScriptActor>(Sibling);
-			bool bIsTheSameObject      = Sibling == this;
-			bool bHasNewerClassVersion = Sibling->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists);
-
-			ensureMsgf((bIsNotAnLSA || bIsTheSameObject || bHasNewerClassVersion),
-				TEXT("Detected the creation of more than one LevelScriptActor (%s, %s) within the same outer (%s) in package (%s). This can lead to duplicate level blueprint operations during play."),
-				*GetName(), *Sibling->GetName(), *ThisOuter->GetName(), *ThisOuter->GetPackage()->GetName());
-		}
+		ensureMsgf(false,
+			TEXT("Detected the creation of more than one LevelScriptActor (%s, %s) within the same outer. This can lead to duplicate level blueprint operations during play."),
+			*GetPathName(), *Sibling->GetPathName());
 	}
 #endif // WITH_EDITOR
 }
@@ -122,3 +113,34 @@ void ALevelScriptActor::DisableInput(class APlayerController* PlayerController)
 	}
 	bInputEnabled = false;
 }
+
+
+#if WITH_EDITOR
+
+TArray<ALevelScriptActor*> ALevelScriptActor::FindSiblingLevelScriptActors() const
+{
+	TArray<ALevelScriptActor*> SiblingLSAs;
+
+	const UObject* ThisOuter = GetOuter();
+	if (!ThisOuter->IsA<UPackage>())
+	{
+		TArray<UObject*> AllSiblingObjects;
+		GetObjectsWithOuter(ThisOuter, AllSiblingObjects, false, RF_NoFlags, EInternalObjectFlags::PendingKill);
+
+		for (UObject* Sibling : AllSiblingObjects)
+		{
+			ALevelScriptActor* SiblingAsLSA = Cast<ALevelScriptActor>(Sibling);
+			const bool bIsNotAnLSA = SiblingAsLSA == nullptr;
+			const bool bIsTheSameObject = Sibling == this;
+			const bool bHasNewerClassVersion = Sibling->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists);
+
+			if (!bIsNotAnLSA && !bIsTheSameObject && !bHasNewerClassVersion)
+			{
+				SiblingLSAs.Add(SiblingAsLSA);
+			}
+		}
+	}
+
+	return SiblingLSAs;
+}
+#endif // WITH_EDITOR

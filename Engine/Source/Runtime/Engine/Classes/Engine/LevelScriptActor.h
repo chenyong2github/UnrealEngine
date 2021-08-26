@@ -68,6 +68,9 @@ class ENGINE_API ALevelScriptActor : public AActor
 
 #if WITH_EDITOR
 	virtual bool SupportsExternalPackaging() const override { return false; }
+
+	/** Utility function for finding a map corruption issue that can cause duplicate level scripting events */
+	TArray<ALevelScriptActor*> FindSiblingLevelScriptActors() const;
 #endif
 	//~ End AActor Interface
 
