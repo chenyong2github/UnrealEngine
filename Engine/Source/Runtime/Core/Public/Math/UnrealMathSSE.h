@@ -10,7 +10,7 @@
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_AVX
-#define UE_PLATFORM_MATH_USE_AVX			0 // PLATFORM_ALWAYS_HAS_AVX
+#define UE_PLATFORM_MATH_USE_AVX			PLATFORM_ALWAYS_HAS_AVX
 #endif
 
 #ifndef UE_PLATFORM_MATH_USE_AVX_2
@@ -97,7 +97,7 @@ struct alignas(UE_SSE_DOUBLE_ALIGNMENT) VectorRegister4Double
 	};
 
 	// Use in preference when reading XY or ZW to extract values, it's better on MSVC than the generated memory reads.
-	FORCEINLINE VectorRegister2Double GetXY() const { return _mm256_castpd256_pd128(XYZW); }
+	FORCEINLINE VectorRegister2Double GetXY() const { return _mm256_extractf128_pd(XYZW, 0); } // { return _mm256_castpd256_pd128(XYZW); } // Possible MSVC compiler bug in optimized bugs when using this cast, but can be more efficient.
 	FORCEINLINE VectorRegister2Double GetZW() const { return _mm256_extractf128_pd(XYZW, 1); }
 #endif
 
@@ -838,10 +838,10 @@ namespace SSEPermuteHelpers
 
 	// Identity
 	template<> FORCEINLINE VectorRegister4Double PermuteLanes<0, 1>(const VectorRegister4Double& Vec) { return Vec; }
-	template<> FORCEINLINE VectorRegister4Double PermuteLanes<0, 0>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(Vec, Vec.GetXY(), 1); } // copy XY to lane 1
 #if !UE_PLATFORM_MATH_USE_AVX_2
 	// On AVX1, permute2f128 can be quite slow, so look for alternatives (extract + insert). On AVX2, permute2f128 is more efficient and should equal or beat (extract + insert).
 	// Sources: https://www.agner.org/optimize/instruction_tables.pdf, https://uops.info/table.html
+	template<> FORCEINLINE VectorRegister4Double PermuteLanes<0, 0>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(Vec, Vec.GetXY(), 1); } // copy XY to lane 1
 	template<> FORCEINLINE VectorRegister4Double PermuteLanes<1, 0>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(_mm256_castpd128_pd256(Vec.GetZW()), Vec.GetXY(), 1); } // copy XY to lane 1
 	template<> FORCEINLINE VectorRegister4Double PermuteLanes<1, 1>(const VectorRegister4Double& Vec) { return _mm256_insertf128_pd(Vec, Vec.GetZW(), 0); } // copy ZW to lane 0
 #endif // !AVX2
@@ -986,10 +986,10 @@ namespace SSEPermuteHelpers
 
 	// Lane shuffle helper specialization
 	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<0, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_blend_pd(Vec1, Vec2, 0b1100); }
-	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<0, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(Vec1, Vec2.GetXY(), 1); } // copy XY to lane 1
 #if !UE_PLATFORM_MATH_USE_AVX_2
 	// On AVX1, permute2f128 can be quite slow, so look for alternatives (extract + insert). On AVX2, permute2f128 is more efficient and should equal or beat (extract + insert).
 	// Sources: https://www.agner.org/optimize/instruction_tables.pdf, https://uops.info/table.html
+	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<0, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(Vec1, Vec2.GetXY(), 1); } // copy XY to lane 1
 	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<1, 0>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(_mm256_castpd128_pd256(Vec1.GetZW()), Vec2.GetXY(), 1); } // copy XY to lane 1
 	template<> FORCEINLINE VectorRegister4Double ShuffleLanes<1, 1>(const VectorRegister4Double& Vec1, const VectorRegister4Double& Vec2) { return _mm256_insertf128_pd(Vec2, Vec1.GetZW(), 0); } // copy ZW to lane 0
 #endif // !AVX2
@@ -2127,7 +2127,7 @@ FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matr
 	const Double4x4& AMRows = *((const Double4x4*)Matrix1);
 	const Double4x4& BMRows = *((const Double4x4*)Matrix2);
 	Double4x4& ResultDst = *((Double4x4*)Result);
-	VectorRegister4Double Temp, ARow;
+	VectorRegister4Double Temp;
 
 	VectorRegister4Double B[4];
 	B[0] = VectorLoad(BMRows[0]);
@@ -2136,36 +2136,44 @@ FORCEINLINE void VectorMatrixMultiply(FMatrix44d* Result, const FMatrix44d* Matr
 	B[3] = VectorLoad(BMRows[3]);
 
 	// First row of result (Matrix1[0] * Matrix2).
-	ARow = VectorLoad(AMRows[0]);
-	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-	VectorStore(Temp, ResultDst[0]);
+	{
+		VectorRegister4Double ARow = VectorLoad(AMRows[0]);
+		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+		VectorStore(Temp, ResultDst[0]);
+	}
 
 	// Second row of result (Matrix1[1] * Matrix2).
-	ARow = VectorLoad(AMRows[1]);
-	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-	VectorStore(Temp, ResultDst[1]);
+	{
+		VectorRegister4Double ARow = VectorLoad(AMRows[1]);
+		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+		VectorStore(Temp, ResultDst[1]);
+	}
 
 	// Third row of result (Matrix1[2] * Matrix2).
-	ARow = VectorLoad(AMRows[2]);
-	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-	VectorStore(Temp, ResultDst[2]);
+	{
+		VectorRegister4Double ARow = VectorLoad(AMRows[2]);
+		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+		VectorStore(Temp, ResultDst[2]);
+	}
 
 	// Fourth row of result (Matrix1[3] * Matrix2).
-	ARow = VectorLoad(AMRows[3]);
-	Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
-	Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
-	VectorStore(Temp, ResultDst[3]);
+	{
+		VectorRegister4Double ARow = VectorLoad(AMRows[3]);
+		Temp = VectorMultiply(VectorReplicate(ARow, 0), B[0]);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 1), B[1], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 2), B[2], Temp);
+		Temp = VectorMultiplyAdd(VectorReplicate(ARow, 3), B[3], Temp);
+		VectorStore(Temp, ResultDst[3]);
+	}
 }
 
 
