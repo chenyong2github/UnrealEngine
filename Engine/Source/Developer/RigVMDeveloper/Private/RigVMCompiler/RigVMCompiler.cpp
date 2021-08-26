@@ -199,6 +199,14 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 					VisitedGraphs.AddUnique(ContainedGraph);
 				}
 			}
+
+			for(URigVMPin* Pin : ModelNode->Pins)
+			{
+				if(!URigVMController::EnsurePinValidity(Pin, true))
+				{
+					return false;
+				}
+			}
 		}
 	}
 

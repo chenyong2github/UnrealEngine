@@ -63,6 +63,12 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 	, Containers()
 	, DefaultValue(InDefaultValue)
 {
+	// sanity check that we have a CPP Type Object for enums, structs and uobjects
+	if(RequiresCPPTypeObject(CPPType))
+	{
+		checkf(CPPTypeObject != nullptr, TEXT("CPPType '%s' requires the CPPTypeObject to be provided."), *CPPType);
+	}
+
 	// only allow valid names
 	SanitizeName();
 
@@ -88,6 +94,13 @@ FRigVMPropertyDescription::FRigVMPropertyDescription(const FName& InName, const 
 		}
 	}
 	while(!TailCPPType.IsEmpty());
+
+	// sanity check the CPPType matches the provided struct
+	if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(CPPTypeObject))
+	{
+		checkf(TailCPPType == ScriptStruct->GetStructCPPName(), TEXT("CPPType '%s' doesn't match provided Struct '%s'"),
+			*TailCPPType, *ScriptStruct->GetStructCPPName());
+	}
 }
 
 FName FRigVMPropertyDescription::SanitizeName(const FName& InName)
@@ -153,6 +166,37 @@ FString FRigVMPropertyDescription::GetTailCPPType() const
 	}
 	
 	return TailCPPType;
+}
+
+bool FRigVMPropertyDescription::RequiresCPPTypeObject(const FString& InCPPType)
+{
+	static const TArray<FString> PrefixesRequiringCPPTypeObject = {
+		TEXT("F"), 
+		TEXT("TArray<F"), 
+		TEXT("E"), 
+		TEXT("TArray<E"), 
+		TEXT("U"), 
+		TEXT("TArray<U")
+	};
+	static const TArray<FString> CPPTypesNotRequiringCPPTypeObject = {
+		TEXT("FString"), 
+		TEXT("TArray<FString>"), 
+		TEXT("FName"), 
+		TEXT("TArray<FName>") 
+	};
+
+	if(!CPPTypesNotRequiringCPPTypeObject.Contains(InCPPType))
+	{
+		for(const FString& Prefix : PrefixesRequiringCPPTypeObject)
+		{
+			if(InCPPType.StartsWith(Prefix, ESearchCase::CaseSensitive))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -838,6 +838,10 @@ private:
 #endif
 
 	void DestroyObject(UObject* InObjectToDestroy);
+	static void AddNodePin(URigVMNode* InNode, URigVMPin* InPin);
+	static void AddSubPin(URigVMPin* InParentPin, URigVMPin* InPin);
+	static bool EnsurePinValidity(URigVMPin* InPin, bool bRecursive);
+	static void ValidatePin(URigVMPin* InPin);
 
 	FRigVMExternalVariable GetVariableByName(const FName& InExternalVariableName);
 	TArray<FRigVMExternalVariable> GetAllVariables();
