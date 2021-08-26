@@ -8,9 +8,6 @@
 #include "ModelVector.hpp"
 #include "Vertex.hpp"
 
-struct FQuat;
-DECLARE_LWC_TYPE(Vector, 3);
-
 BEGIN_NAMESPACE_UE_AC
 
 // Tool geometry class
