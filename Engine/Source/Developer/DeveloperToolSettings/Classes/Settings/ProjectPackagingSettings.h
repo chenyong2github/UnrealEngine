@@ -592,6 +592,8 @@ public:
 	FString GetBuildTargetForPlatform(FName PlatformName) const;
 	void SetBuildTargetForPlatform(FName PlatformName, FString BuildTargetName);
 
+	const FTargetInfo* GetBuildTargetInfoForPlatform(FName PlatformName) const;
+
 private:
 	/** Per platform build configuration */
 	UPROPERTY(config)

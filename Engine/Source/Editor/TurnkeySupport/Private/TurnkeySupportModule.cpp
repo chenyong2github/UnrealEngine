@@ -441,14 +441,6 @@ public:
 				BuildCookRunParams += FString::Printf(TEXT(" -manifests -createchunkinstall -chunkinstalldirectory=\"%s\" -chunkinstallversion=%s"), *(PackagingSettings->HttpChunkInstallDataDirectory.Path), *(PackagingSettings->HttpChunkInstallDataVersion));
 			}
 
-			// use AllPlatformPackagingSettings because these are user settings, and not checked in for all users to use
-			FString BuildTarget = AllPlatformPackagingSettings->GetBuildTargetForPlatform(IniPlatformName);
-			if (BuildTarget.IsEmpty())
-			{
-				BuildTarget = AllPlatformPackagingSettings->BuildTarget;
-			}
-			
-
 			EProjectPackagingBuildConfigurations BuildConfig = AllPlatformPackagingSettings->GetBuildConfigurationForPlatform(IniPlatformName);
 			// if PPBC_MAX is set, then the project default should be used instead of the per platform build config
 			if (BuildConfig == EProjectPackagingBuildConfigurations::PPBC_MAX)
@@ -462,18 +454,20 @@ public:
 				BuildConfig = EProjectPackagingBuildConfigurations::PPBC_Shipping;
 			}
 			
+			const FTargetInfo* BuildTargetInfo = AllPlatformPackagingSettings->GetBuildTargetInfoForPlatform(IniPlatformName);
+
 			const UProjectPackagingSettings::FConfigurationInfo& ConfigurationInfo = UProjectPackagingSettings::ConfigurationInfo[(int)BuildConfig];
-			if (BuildTarget.IsEmpty())
+			if (BuildTargetInfo->Type == EBuildTargetType::Client)
 			{
-				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
+				BuildCookRunParams += FString::Printf(TEXT(" -client -target=%s -clientconfig=%s"), *BuildTargetInfo->Name, LexToString(ConfigurationInfo.Configuration));
 			}
-			else if (PlatformInfo->PlatformType == EBuildTargetType::Server)
+			else if (BuildTargetInfo->Type == EBuildTargetType::Server)
 			{
-				BuildCookRunParams += FString::Printf(TEXT(" -target=%s -serverconfig=%s"), *BuildTarget, LexToString(ConfigurationInfo.Configuration));
+				BuildCookRunParams += FString::Printf(TEXT(" -server -noclient -target=%s -serverconfig=%s"), *BuildTargetInfo->Name, LexToString(ConfigurationInfo.Configuration));
 			}
 			else
 			{
-				BuildCookRunParams += FString::Printf(TEXT(" -target=%s -clientconfig=%s"), *BuildTarget, LexToString(ConfigurationInfo.Configuration));
+				BuildCookRunParams += FString::Printf(TEXT(" -clientconfig=%s"), LexToString(ConfigurationInfo.Configuration));
 			}
 		}
 // 		else if (Mode == EPrepareContentMode::PrepareForDebugging)

@@ -215,6 +215,28 @@ const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfo() const
 	return (DefaultGameTarget != nullptr) ? DefaultGameTarget : DefaultClientTarget;
 }
 
+const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FName PlatformName) const
+{
+	const FTargetInfo* DefaultGameTarget = nullptr;
+	const FTargetInfo* DefaultClientTarget = nullptr;
+	for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
+	{
+		if (Target.Name == GetBuildTargetForPlatform(PlatformName))
+		{
+			return &Target;
+		}
+		else if (Target.Type == EBuildTargetType::Game && (DefaultGameTarget == nullptr || Target.Name < DefaultGameTarget->Name))
+		{
+			DefaultGameTarget = &Target;
+		}
+		else if (Target.Type == EBuildTargetType::Client && (DefaultClientTarget == nullptr || Target.Name < DefaultClientTarget->Name))
+		{
+			DefaultClientTarget = &Target;
+		}
+	}
+	return (DefaultGameTarget != nullptr) ? DefaultGameTarget : DefaultClientTarget;
+}
+
 EProjectPackagingBuildConfigurations UProjectPackagingSettings::GetBuildConfigurationForPlatform(FName PlatformName) const
 {
 	const EProjectPackagingBuildConfigurations* Value = PerPlatformBuildConfig.Find(PlatformName);
