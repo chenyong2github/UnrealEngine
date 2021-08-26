@@ -1,14 +1,41 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NeuralNetwork.h"
+#include "NeuralNetworkImplBackEndUEAndORT.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "EditorFramework/AssetImportData.h"
 #include "HAL/FileManager.h"
+#include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
 // Other files with UNeuralNetwork implementation (to be included only once and after the includes above)
-#include "NeuralNetworkImplBackEndUEAndORT.imp"
 #include "NeuralNetworkImplBackEndUEOnly.imp"
+
+
+
+/* FPrivateNeuralNetwork functions
+ *****************************************************************************/
+
+struct FPrivateNeuralNetwork
+{
+public:
+	static ENeuralBackEnd SetBackEndForCurrentPlatform(const ENeuralBackEnd InBackEnd);
+};
+
+ENeuralBackEnd FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(const ENeuralBackEnd InBackEnd)
+{
+	// Auto
+	if (InBackEnd == ENeuralBackEnd::Auto)
+	{
+#ifdef WITH_FULL_NNI_SUPPORT
+		return ENeuralBackEnd::UEAndORT;
+#else //WITH_FULL_NNI_SUPPORT
+		return ENeuralBackEnd::UEOnly;
+#endif //WITH_FULL_NNI_SUPPORT
+	}
+	// Otherwise
+	return InBackEnd;
+}
 
 
 
@@ -20,12 +47,9 @@ UNeuralNetwork::UNeuralNetwork()
 	, InputDeviceType(ENeuralDeviceType::CPU)
 	, OutputDeviceType(ENeuralDeviceType::CPU)
 	, SynchronousMode(ENeuralNetworkSynchronousMode::Synchronous)
-#ifdef WITH_FULL_NNI_SUPPORT
-	, BackEnd(ENeuralBackEnd::UEAndORT)
-#else //WITH_FULL_NNI_SUPPORT
-	, BackEnd(ENeuralBackEnd::UEOnly)
-#endif //WITH_FULL_NNI_SUPPORT
+	, BackEnd(ENeuralBackEnd::Auto)
 	, bIsLoaded(false)
+	, BackEndForCurrentPlatform(FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd))
 {
 }
 
@@ -70,19 +94,19 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 	}
 
 	// UEAndORT
-	if (BackEnd == ENeuralBackEnd::UEAndORT)
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
 		return Load();
 	}
 	// UEOnly
-	else if (BackEnd == ENeuralBackEnd::UEOnly)
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Not implemented for BackEnd = %d yet."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 	// Unknown
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown BackEnd = %d."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 
 	return bIsLoaded;
@@ -96,23 +120,19 @@ bool UNeuralNetwork::Load()
 	bIsLoaded = false;
 
 	// UEAndORT
-	if (BackEnd == ENeuralBackEnd::UEAndORT)
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-#ifdef WITH_FULL_NNI_SUPPORT
 		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, InputTensors, OutputTensors, AreInputTensorSizesVariable, ModelReadFromDiskInBytes, ModelFullFilePath, GetDeviceType());
-#else
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
-#endif //WITH_FULL_NNI_SUPPORT
 	}
 	// UEOnly
-	else if (BackEnd == ENeuralBackEnd::UEOnly)
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Not implemented for BackEnd = %d yet."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 	// Unknown
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown BackEnd = %d."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 
 	return bIsLoaded;
@@ -133,7 +153,7 @@ void UNeuralNetwork::SetDeviceType(const ENeuralDeviceType InDeviceType)
 	if (DeviceType != InDeviceType)
 	{
 		DeviceType = InDeviceType;
-		if (BackEnd == ENeuralBackEnd::UEAndORT)
+		if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 		{
 			Load();
 		}
@@ -180,11 +200,20 @@ ENeuralBackEnd UNeuralNetwork::GetBackEnd() const
 	return BackEnd;
 }
 
+ENeuralBackEnd UNeuralNetwork::GetBackEndForCurrentPlatform() const
+{
+	return BackEndForCurrentPlatform;
+}
+
 void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 {
-	if (BackEnd != InBackEnd)
+	BackEnd = InBackEnd;
+	const ENeuralBackEnd NewBackEndForCurrentPlatform = FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(BackEnd);
+	// Reload only required if BackEndForCurrentPlatform changes (regardless of whether BackEnd changed).
+	// BackEndForCurrentPlatform does not necesarily change if BackEnd changes. E.g., changing from UEAndORT into Auto in Windows will result in BackEndForCurrentPlatform = UEAndORT in both cases.
+	if (BackEndForCurrentPlatform != NewBackEndForCurrentPlatform)
 	{
-		BackEnd = InBackEnd;
+		BackEndForCurrentPlatform = NewBackEndForCurrentPlatform;
 		Load();
 	}
 }
@@ -229,25 +258,21 @@ void UNeuralNetwork::Run()
 	}
 
 	// UEAndORT
-	if (BackEnd == ENeuralBackEnd::UEAndORT)
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-#ifdef WITH_FULL_NNI_SUPPORT
 		ImplBackEndUEAndORT->Run(OutputTensors, InputTensors, SynchronousMode, InputDeviceType, OutputDeviceType);
-#else
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
-#endif //WITH_FULL_NNI_SUPPORT
 	}
 
 	// UEOnly
-	else if (BackEnd == ENeuralBackEnd::UEOnly)
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Not implemented for BackEnd = %d yet."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 
 	// Unknown
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown BackEnd = %d."), (int32)BackEnd);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
 	}
 }
 
