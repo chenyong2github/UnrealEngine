@@ -22,7 +22,7 @@
 		},
 		{
 			"Name": "UVEditorTools",
-			"Type": "Runtime",
+			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
 	],
