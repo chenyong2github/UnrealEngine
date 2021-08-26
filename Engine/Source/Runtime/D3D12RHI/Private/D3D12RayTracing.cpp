@@ -2964,6 +2964,7 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	checkf(Initializer.Segments.Num() > 0, TEXT("Ray tracing geometry must be initialized with at least one segment."));
 	Segments = TArray<FRayTracingGeometrySegment>(Initializer.Segments.GetData(), Initializer.Segments.Num());
 
+	RHIIndexBuffer = Initializer.IndexBuffer;
 	IndexStride = RHIIndexBuffer ? RHIIndexBuffer->GetStride() : 0; // stride 0 means implicit triangle list for non-indexed geometry
 
 	static constexpr uint32 IndicesPerPrimitive = 3; // Only triangle meshes are supported
@@ -2971,7 +2972,6 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 	GeometryDescs.SetNumUninitialized(Segments.Num());
 	TranslateRayTracingGeometryDescs(Initializer, GeometryDescs);
 
-	RHIIndexBuffer = Initializer.IndexBuffer;
 	SetDirty(FRHIGPUMask::All(), true);
 
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS PrebuildDescInputs = {};
