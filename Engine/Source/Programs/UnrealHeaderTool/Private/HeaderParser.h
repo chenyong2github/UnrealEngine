@@ -617,8 +617,8 @@ private:
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
 
-	// Checks if a valid range has been found on the provided metadata
-	void ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl);
+	// Emits either a log message, warning, or error about a member pointer according to the behavior specified by the PointerMemberBehavior argument
+	void ConditionalLogPointerUsage(EPointerMemberBehavior PointerMemberBehavior, const TCHAR* PointerTypeDesc, FString&& PointerTypeDecl, const TCHAR* AlternativeTypeDesc);
 
 	// Check to see if the declaration is a constructor
 	static bool CheckForConstructor(FUnrealStructDefinitionInfo& StructDef, const FDeclaration& Declaration);
