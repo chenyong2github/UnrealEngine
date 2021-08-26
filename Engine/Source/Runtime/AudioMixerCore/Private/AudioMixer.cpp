@@ -692,13 +692,21 @@ namespace Audio
 	{	
 		LLM_SCOPE(ELLMTag::AudioMixer);
 
+		uint32 ReturnVal = 0;
+		FMemory::SetupTLSCachesOnCurrentThread();
+
 		// Call different functions depending on if it's the "main" audio mixer instance. Helps debugging callstacks.
 		if (AudioStreamInfo.AudioMixer->IsMainAudioMixer())
 		{
-			return MainAudioDeviceRun();
+			ReturnVal = MainAudioDeviceRun();
+		}
+		else
+		{
+			ReturnVal = RunInternal();
 		}
 
-		return RunInternal();
+		FMemory::ClearAndDisableTLSCachesOnCurrentThread();
+		return ReturnVal;
 	}
 
 	/** The default channel orderings to use when using pro audio interfaces while still supporting surround sound. */
