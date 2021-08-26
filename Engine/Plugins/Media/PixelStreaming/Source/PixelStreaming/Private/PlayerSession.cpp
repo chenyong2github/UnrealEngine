@@ -30,8 +30,15 @@ FPlayerSession::FPlayerSession(FStreamer& InStreamer, FPlayerId InPlayerId)
 FPlayerSession::~FPlayerSession()
 {
 	UE_LOG(PixelStreamer, Log, TEXT("%s: PlayerId=%s"), TEXT("FPlayerSession::~FPlayerSession"), *PlayerId);
-	if (DataChannel)
-		DataChannel->UnregisterObserver();
+	if (this->DataChannel)
+	{
+		this->DataChannel->UnregisterObserver();
+	}
+	if (this->PeerConnection)
+	{
+		this->PeerConnection->Close();
+	}
+		
 }
 
 void FPlayerSession::SetVideoEncoder(FPixelStreamingVideoEncoder* InVideoEncoder)

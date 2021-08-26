@@ -373,6 +373,7 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 	{
 		FScopeLock PlayersLock(&PlayersCS);
 		Players.Remove(PlayerId);
+		delete Player;
 	}
 
 	UPixelStreamerDelegates* Delegates = UPixelStreamerDelegates::GetPixelStreamerDelegates();
