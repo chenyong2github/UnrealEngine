@@ -662,6 +662,100 @@ public:
 		}
 	}
 
+	void GeneratePerfectHashes(FIoStoreTocResource& TocResource)
+	{
+		// https://en.wikipedia.org/wiki/Perfect_hash_function
+		TRACE_CPUPROFILER_EVENT_SCOPE(TocGeneratePerfectHashes);
+		uint32 ChunkCount = TocResource.ChunkIds.Num();
+		check(TocResource.ChunkOffsetLengths.Num() == ChunkCount);
+		
+		TArray<FIoChunkId> OutTocChunkIds;
+		OutTocChunkIds.SetNum(ChunkCount);
+		TArray<FIoOffsetAndLength> OutTocOffsetAndLengths;
+		OutTocOffsetAndLengths.SetNum(ChunkCount);
+		TocResource.ChunkHashSeeds.SetNumZeroed(ChunkCount);
+		
+		TArray<TArray<int32>> Buckets;
+		Buckets.SetNum(ChunkCount);
+
+		TBitArray FreeSlots(true, ChunkCount);
+		// Put each chunk in a bucket, each bucket contains the chunk ids that have colliding hashes
+		for (uint32 ChunkIndex = 0; ChunkIndex < ChunkCount; ++ChunkIndex)
+		{
+			const FIoChunkId& ChunkId = TocResource.ChunkIds[ChunkIndex];
+			Buckets[FIoStoreTocResource::HashChunkIdWithSeed(0, ChunkId) % ChunkCount].Add(ChunkIndex);
+		}
+		// For each bucket containing more than one chunk id find a seed that makes its chunk ids
+		// hash to unused slots in the output array
+		Algo::Sort(Buckets, [](const TArray<int32>& A, const TArray<int32>& B)
+			{
+				return A.Num() > B.Num();
+			});
+		for (uint32 BucketIndex = 0; BucketIndex < ChunkCount; ++BucketIndex)
+		{
+			const TArray<int32>& Bucket = Buckets[BucketIndex];
+			if (Bucket.Num() <= 1)
+			{
+				break;
+			}
+
+			uint32 Seed = 1;
+			TBitArray BucketUsedSlots(false, ChunkCount);
+			int32 IndexInBucket = 0;
+			while (IndexInBucket < Bucket.Num())
+			{
+				const FIoChunkId& ChunkId = TocResource.ChunkIds[Bucket[IndexInBucket]];
+				uint32 Slot = FIoStoreTocResource::HashChunkIdWithSeed(Seed, ChunkId) % ChunkCount;
+				if (!FreeSlots[Slot] || BucketUsedSlots[Slot])
+				{
+					++Seed;
+					IndexInBucket = 0;
+					BucketUsedSlots.Init(false, ChunkCount);
+				}
+				else
+				{
+					BucketUsedSlots[Slot] = true;
+					++IndexInBucket;
+				}
+			}
+
+			uint64 BucketHash = FIoStoreTocResource::HashChunkIdWithSeed(0, TocResource.ChunkIds[Bucket[0]]);
+			TocResource.ChunkHashSeeds[BucketHash % ChunkCount] = Seed;
+			for (IndexInBucket = 0; IndexInBucket < Bucket.Num(); ++IndexInBucket)
+			{
+				int32 ChunkIndex = Bucket[IndexInBucket];
+				const FIoChunkId& ChunkId = TocResource.ChunkIds[ChunkIndex];
+				uint32 Slot = FIoStoreTocResource::HashChunkIdWithSeed(Seed, ChunkId) % ChunkCount;
+				check(FreeSlots[Slot]);
+				FreeSlots[Slot] = false;
+				OutTocChunkIds[Slot] = ChunkId;
+				OutTocOffsetAndLengths[Slot] = TocResource.ChunkOffsetLengths[ChunkIndex];
+			}
+		}
+
+		// For the remaining buckets with only one chunk id put that chunk id in the first empty position in
+		// the output array and store the index as a negative seed for the bucket (-1 to allow use of slot 0)
+		TConstSetBitIterator<> FreeSlotIt(FreeSlots);
+		for (uint32 BucketIndex = 0; BucketIndex < ChunkCount; ++BucketIndex)
+		{
+			const TArray<int32>& Bucket = Buckets[BucketIndex];
+			if (Bucket.Num() == 1)
+			{
+				uint32 Slot = FreeSlotIt.GetIndex();
+				++FreeSlotIt;
+				int32 ChunkIndex = Bucket[0];
+				const FIoChunkId& ChunkId = TocResource.ChunkIds[ChunkIndex];
+				uint64 BucketHash = FIoStoreTocResource::HashChunkIdWithSeed(0, ChunkId);
+				TocResource.ChunkHashSeeds[BucketHash % ChunkCount] = -static_cast<int32>(Slot) - 1;
+				OutTocChunkIds[Slot] = ChunkId;
+				OutTocOffsetAndLengths[Slot] = TocResource.ChunkOffsetLengths[ChunkIndex];
+			}
+		}
+
+		TocResource.ChunkIds = OutTocChunkIds;
+		TocResource.ChunkOffsetLengths = OutTocOffsetAndLengths;
+	}
+
 	UE_NODISCARD TIoStatusOr<FIoStoreWriterResult> Flush()
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FlushContainer);
@@ -735,6 +829,8 @@ public:
 		}
 
 		FIoStoreTocResource& TocResource = Toc.GetTocResource();
+
+		GeneratePerfectHashes(TocResource);
 
 		if (ContainerSettings.IsIndexed())
 		{
@@ -2017,30 +2113,43 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 	}
 
 	// Chunk IDs
-	const FIoChunkId* ChunkIds = reinterpret_cast<const FIoChunkId*>(TocBuffer.Get());
+	const uint8* DataPtr = TocBuffer.Get();
+	const FIoChunkId* ChunkIds = reinterpret_cast<const FIoChunkId*>(DataPtr);
 	OutTocResource.ChunkIds = MakeArrayView<FIoChunkId const>(ChunkIds, Header.TocEntryCount);
+	DataPtr += Header.TocEntryCount * sizeof(FIoChunkId);
 
 	// Chunk offsets
-	const FIoOffsetAndLength* ChunkOffsetLengths = reinterpret_cast<const FIoOffsetAndLength*>(ChunkIds + Header.TocEntryCount);
+	const FIoOffsetAndLength* ChunkOffsetLengths = reinterpret_cast<const FIoOffsetAndLength*>(DataPtr);
 	OutTocResource.ChunkOffsetLengths = MakeArrayView<FIoOffsetAndLength const>(ChunkOffsetLengths, Header.TocEntryCount);
+	DataPtr += Header.TocEntryCount * sizeof(FIoOffsetAndLength);
+
+	// Chunk hash seeds
+	if (Header.Version >= static_cast<uint8>(EIoStoreTocVersion::PerfectHash))
+	{
+		const int32* ChunkHashSeeds = reinterpret_cast<const int32*>(DataPtr);
+		OutTocResource.ChunkHashSeeds = MakeArrayView<int32 const>(ChunkHashSeeds, Header.TocEntryCount);
+		DataPtr += Header.TocEntryCount * sizeof(int32);
+	}
 
 	// Compression blocks
-	const FIoStoreTocCompressedBlockEntry* CompressionBlocks = reinterpret_cast<const FIoStoreTocCompressedBlockEntry*>(ChunkOffsetLengths + Header.TocEntryCount);
+	const FIoStoreTocCompressedBlockEntry* CompressionBlocks = reinterpret_cast<const FIoStoreTocCompressedBlockEntry*>(DataPtr);
 	OutTocResource.CompressionBlocks = MakeArrayView<FIoStoreTocCompressedBlockEntry const>(CompressionBlocks, Header.TocCompressedBlockEntryCount);
+	DataPtr += Header.TocCompressedBlockEntryCount * sizeof(FIoStoreTocCompressedBlockEntry);
 
 	// Compression methods
 	OutTocResource.CompressionMethods.Reserve(Header.CompressionMethodNameCount + 1);
 	OutTocResource.CompressionMethods.Add(NAME_None);
 
-	const ANSICHAR* AnsiCompressionMethodNames = reinterpret_cast<const ANSICHAR*>(CompressionBlocks + Header.TocCompressedBlockEntryCount);
+	const ANSICHAR* AnsiCompressionMethodNames = reinterpret_cast<const ANSICHAR*>(DataPtr);
 	for (uint32 CompressonNameIndex = 0; CompressonNameIndex < Header.CompressionMethodNameCount; CompressonNameIndex++)
 	{
 		const ANSICHAR* AnsiCompressionMethodName = AnsiCompressionMethodNames + CompressonNameIndex * Header.CompressionMethodNameLength;
 		OutTocResource.CompressionMethods.Add(FName(AnsiCompressionMethodName));
 	}
+	DataPtr += Header.CompressionMethodNameCount * Header.CompressionMethodNameLength;
 
 	// Chunk block signatures
-	const uint8* SignatureBuffer = reinterpret_cast<const uint8*>(AnsiCompressionMethodNames + Header.CompressionMethodNameCount * Header.CompressionMethodNameLength);
+	const uint8* SignatureBuffer = reinterpret_cast<const uint8*>(DataPtr);
 	const uint8* DirectoryIndexBuffer = SignatureBuffer;
 
 	const bool bIsSigned = EnumHasAnyFlags(Header.ContainerFlags, EIoContainerFlags::Signed);
@@ -2175,6 +2284,12 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 		return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to write chunk offsets"));
 	}
 
+	// Chunk hash seeds
+	if (!WriteArray(TocFileHandle.Get(), TocResource.ChunkHashSeeds))
+	{
+		return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to write chunk hash seeds"));
+	}
+
 	// Compression blocks
 	if (!WriteArray(TocFileHandle.Get(), TocResource.CompressionBlocks))
 	{
@@ -2241,6 +2356,18 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	TocFileHandle->Flush(true);
 
 	return TocFileHandle->Tell();
+}
+
+uint64 FIoStoreTocResource::HashChunkIdWithSeed(int32 Seed, const FIoChunkId& ChunkId)
+{
+	const uint8* Data = ChunkId.GetData();
+	const uint32 DataSize = ChunkId.GetSize();
+	uint64 Hash = Seed ? static_cast<uint64>(Seed) : 0xcbf29ce484222325;
+	for (uint32 Index = 0; Index < DataSize; ++Index)
+	{
+		Hash = (Hash * 0x00000100000001B3) ^ Data[Index];
+	}
+	return Hash;
 }
 
 void FIoStoreReader::GetFilenames(TArray<FString>& OutFileList) const

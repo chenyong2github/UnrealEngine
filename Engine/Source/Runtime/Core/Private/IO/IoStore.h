@@ -14,6 +14,7 @@ enum class EIoStoreTocVersion : uint8
 	Initial,
 	DirectoryIndex,
 	PartitionSize,
+	PerfectHash,
 	LatestPlusOne,
 	Latest = LatestPlusOne - 1
 };
@@ -215,6 +216,8 @@ struct FIoStoreTocResource
 
 	TArray<FIoOffsetAndLength> ChunkOffsetLengths;
 
+	TArray<int32> ChunkHashSeeds;
+
 	TArray<FIoStoreTocCompressedBlockEntry> CompressionBlocks;
 
 	TArray<FName> CompressionMethods;
@@ -228,4 +231,6 @@ struct FIoStoreTocResource
 	UE_NODISCARD static FIoStatus Read(const TCHAR* TocFilePath, EIoStoreTocReadOptions ReadOptions, FIoStoreTocResource& OutTocResource);
 
 	UE_NODISCARD static TIoStatusOr<uint64> Write(const TCHAR* TocFilePath, FIoStoreTocResource& TocResource, const FIoContainerSettings& ContainerSettings, const FIoStoreWriterSettings& WriterSettings);
+
+	static uint64 HashChunkIdWithSeed(int32 Seed, const FIoChunkId& ChunkId);
 };
