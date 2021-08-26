@@ -862,7 +862,7 @@ void FRDGUserValidation::ValidateExecuteEnd()
 	{
 		auto ValidateResourceAtExecuteEnd = [](const FRDGParentResourceRef Resource)
 		{
-			check(Resource->ReferenceCount == 0);
+			check(Resource->ReferenceCount == Resource->bExtracted ? 1 : 0);
 
 			const auto& ParentDebugData = Resource->GetParentDebugData();
 			const bool bProducedButNeverUsed = ParentDebugData.PassAccessCount == 1 && ParentDebugData.FirstProducer;
