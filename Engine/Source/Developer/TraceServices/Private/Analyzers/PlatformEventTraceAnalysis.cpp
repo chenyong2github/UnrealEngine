@@ -22,6 +22,7 @@ void FPlatformEventTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Cont
 
 	Builder.RouteEvent(RouteId_ContextSwitch, "PlatformEvent", "ContextSwitch");
 	Builder.RouteEvent(RouteId_StackSample, "PlatformEvent", "StackSample");
+	Builder.RouteEvent(RouteId_ThreadName, "PlatformEvent", "ThreadName");
 }
 
 bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -54,6 +55,18 @@ bool FPlatformEventTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FO
 
 		Session.UpdateDurationSeconds(Time);
 
+		break;
+	}
+
+	case RouteId_ThreadName:
+	{
+		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
+		uint32 ProcessId = EventData.GetValue<uint32>("ProcessId");
+		FStringView Name;
+		if (EventData.GetString("Name", Name))
+		{
+			ContextSwitchesProvider.AddThreadName(ThreadId, ProcessId, Name);
+		}
 		break;
 	}
 

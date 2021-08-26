@@ -5,6 +5,7 @@
 #include "HAL/Event.h"
 #include "HAL/RunnableThread.h"
 #include "Logging/LogMacros.h"
+#include "Experimental/Containers/SherwoodHashTable.h"
 #include "Trace/Trace.h"
 
 #if PLATFORM_SUPPORTS_PLATFORM_EVENTS
@@ -57,6 +58,9 @@ private:
 
 	// timestamp for each core when thread start executing on it
 	uint64 ContexSwitchStart[256];
+
+	// thread ids that have their info already sent
+	Experimental::TSherwoodSet<uint32> ThreadNameSet;
 };
 
 // https://docs.microsoft.com/en-us/windows/win32/etw/cswitch
@@ -104,7 +108,6 @@ uint32 FPlatformEvents::CurrentProcessId;
 
 void FPlatformEvents::TraceEventCallback(PEVENT_RECORD Event)
 {
-	uint32 ProcessId = Event->EventHeader.ProcessId;
 	int Opcode = Event->EventHeader.EventDescriptor.Opcode;
 	if (Opcode == FContextSwitchEvent::Type)
 	{
@@ -130,6 +133,43 @@ void FPlatformEvents::TraceEventCallback(PEVENT_RECORD Event)
 					<< ContextSwitch.EndTime(EndTime)
 					<< ContextSwitch.ThreadId(ThreadId)
 					<< ContextSwitch.CoreNumber(CoreNumber);
+
+				bool bAlreadyAdded = false;
+				GPlatformEvents->ThreadNameSet.Add(ThreadId, &bAlreadyAdded);
+				if (!bAlreadyAdded)
+				{
+					WCHAR Name[4096];
+					DWORD NameLen = 0;
+					uint32 ProcessId = 0;
+
+					HANDLE ThreadHandle = ::OpenThread(THREAD_QUERY_LIMITED_INFORMATION, false, ThreadId);
+					if (ThreadHandle)
+					{
+						ProcessId = ::GetProcessIdOfThread(ThreadHandle);
+						::CloseHandle(ThreadHandle);
+					}
+
+					// collect names only about threads not belonging to our process
+					if (ProcessId && ProcessId != CurrentProcessId)
+					{
+						HANDLE ProcessHandle = ::OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, ProcessId);
+						if (ProcessHandle)
+						{
+							NameLen = sizeof(Name) / sizeof(*Name);
+							if (::QueryFullProcessImageNameW(ProcessHandle, 0, Name, &NameLen) == 0)
+							{
+								// failed to get name of process executable
+								NameLen = 0;
+							}
+							::CloseHandle(ProcessHandle);
+						}
+
+						UE_TRACE_LOG(PlatformEvent, ThreadName, ContextSwitchChannel, NameLen * sizeof(TCHAR))
+							<< ThreadName.ThreadId(ThreadId)
+							<< ThreadName.ProcessId(ProcessId)
+							<< ThreadName.Name(Name, NameLen);
+					}
+				}
 			}
 		}
 
@@ -333,6 +373,8 @@ void FPlatformEvents::Stop()
 		StopETW();
 		Thread->WaitForCompletion();
 	}
+
+	ThreadNameSet.Empty();
 }
 
 /////////////////////////////////////////////////////////////////////

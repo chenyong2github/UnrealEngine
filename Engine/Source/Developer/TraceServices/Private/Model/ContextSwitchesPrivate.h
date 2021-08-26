@@ -35,6 +35,8 @@ public:
 	void Add(uint32 SystemThreadId, double Start, double End, uint32 CoreNumber);
 	void AddThreadInfo(uint32 ThreadId, uint32 SystemThreadId);
 
+	void AddThreadName(uint32 SystemTreadId, uint32 SystemProcessId, FStringView Name);
+
 private:
 	const TPagedArray<FContextSwitch>* GetContextSwitches(uint32 ThreadId) const;
 

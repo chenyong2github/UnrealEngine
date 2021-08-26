@@ -34,6 +34,16 @@ UE_TRACE_EVENT_BEGIN_EXTERN(PlatformEvent, StackSample, NoSync)
 	UE_TRACE_EVENT_FIELD(uint64[], Addresses)
 UE_TRACE_EVENT_END()
 
+// thread information for context switches
+// NOTE: in some cases name of process can be empty, for example when there are no
+// privileges to query it or there are no name for process thread belongs to.
+// Depending on platform actual name can be absolute path to process executable.
+UE_TRACE_EVENT_BEGIN_EXTERN(PlatformEvent, ThreadName, NoSync)
+	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
+	UE_TRACE_EVENT_FIELD(uint32, ProcessId)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Name)
+UE_TRACE_EVENT_END()
+
 /////////////////////////////////////////////////////////////////////
 
 enum class EPlatformEvent

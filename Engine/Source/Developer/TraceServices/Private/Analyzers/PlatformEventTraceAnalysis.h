@@ -28,6 +28,7 @@ private:
 	{
 		RouteId_ContextSwitch,
 		RouteId_StackSample,
+		RouteId_ThreadName,
 	};
 
 	IAnalysisSession& Session;
