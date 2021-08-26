@@ -6,6 +6,7 @@
 #include "Templates/SharedPointer.h"
 #include "Containers/Array.h"
 #include "Misc/Guid.h"
+#include "Widgets/SCompoundWidget.h"
 
 class SWidget;
 class SRCPanelGroup;

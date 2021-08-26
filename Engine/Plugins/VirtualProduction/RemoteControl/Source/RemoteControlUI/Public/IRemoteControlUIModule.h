@@ -2,9 +2,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/Attribute.h"
 #include "Modules/ModuleManager.h"
 #include "Modules/ModuleInterface.h"
 #include "Templates/SharedPointer.h"
+#include "Widgets/Layout/SSplitter.h"
 
 class FDelegateHandle;
 class FRCPanelWidgetRegistry;
