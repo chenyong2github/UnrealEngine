@@ -1885,8 +1885,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ERayTracingMeshCommandsMode CurrentMode = ViewFamily.EngineShowFlags.PathTracing ? ERayTracingMeshCommandsMode::PATH_TRACING : ERayTracingMeshCommandsMode::RAY_TRACING;
 		bool bNaniteCoarseMeshStreamingModeChanged = false;
 #if WITH_EDITOR
-		Nanite::FCoarseMeshStreamingManager* CoarseMeshSM = IStreamingManager::Get().GetNaniteCoarseMeshStreamingManager();
-		bNaniteCoarseMeshStreamingModeChanged = CoarseMeshSM ? CoarseMeshSM->CheckStreamingMode() : false;
+		bNaniteCoarseMeshStreamingModeChanged = Nanite::FCoarseMeshStreamingManager::CheckStreamingMode();
 #endif // WITH_EDITOR
 
 		if (CurrentMode != Scene->CachedRayTracingMeshCommandsMode || bNaniteCoarseMeshStreamingModeChanged)

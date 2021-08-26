@@ -48,8 +48,8 @@ public:
 
 #if WITH_EDITOR
 	/** In the editor force a refresh of all cached commands when the coarse LOD mode changes */
-	ENGINE_API bool CheckStreamingMode();
-	int32 GetStreamingMode() const { return CachedNaniteCoarseMeshStreamingMode; }
+	ENGINE_API static bool CheckStreamingMode();
+	static int32 GetStreamingMode() { return CachedNaniteCoarseMeshStreamingMode; }
 #endif // WITH_EDITOR
 
 private:
@@ -124,7 +124,7 @@ private:
 	uint64 TickCount = 0;
 
 #if WITH_EDITOR
-	int32 CachedNaniteCoarseMeshStreamingMode = 0;
+	static int32 CachedNaniteCoarseMeshStreamingMode;
 #endif // WITH_EDITOR
 };
 

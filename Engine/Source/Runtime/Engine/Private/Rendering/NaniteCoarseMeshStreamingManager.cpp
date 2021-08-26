@@ -38,11 +38,13 @@ static FAutoConsoleVariableRef CVarNaniteCoarseMeshStreamingMode(
 
 namespace Nanite
 {
+
+#if WITH_EDITOR
+	int32 FCoarseMeshStreamingManager::CachedNaniteCoarseMeshStreamingMode = GNaniteCoarseMeshStreamingMode;
+#endif // WITH_EDITOR
+
 	FCoarseMeshStreamingManager::FCoarseMeshStreamingManager()
 	{
-#if WITH_EDITOR
-		CachedNaniteCoarseMeshStreamingMode = GNaniteCoarseMeshStreamingMode;
-#endif // WITH_EDITOR
 	}
 
 #if WITH_EDITOR
