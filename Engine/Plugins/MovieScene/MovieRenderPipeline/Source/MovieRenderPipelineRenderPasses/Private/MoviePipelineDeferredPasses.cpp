@@ -636,7 +636,8 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		// Taking overscan into account.
 		FIntPoint FullOutputSize = UMoviePipelineBlueprintLibrary::GetEffectiveOutputResolution(GetPipeline()->GetPipelineMasterConfig(), GetPipeline()->GetActiveShotList()[GetPipeline()->GetCurrentShotIndex()]);
 
-		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > 1.0f ?
+		float OutputSizeAspectRatio = FullOutputSize.X / (float)FullOutputSize.Y;
+		const FIntPoint ConstrainedFullSize = CameraCache.AspectRatio > OutputSizeAspectRatio ?
 			FIntPoint(FullOutputSize.X, FMath::CeilToInt((double)FullOutputSize.X / (double)CameraCache.AspectRatio)) :
 			FIntPoint(FMath::CeilToInt(CameraCache.AspectRatio * FullOutputSize.Y), FullOutputSize.Y);
 
