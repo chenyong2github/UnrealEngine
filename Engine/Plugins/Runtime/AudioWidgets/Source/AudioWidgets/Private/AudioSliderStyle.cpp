@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioSliderStyle.h"
+#include "Styling/SlateTypes.h"
 
 FAudioSliderStyle::FAudioSliderStyle()
 	: FSlateStyleSet("AudioSliderStyle")
