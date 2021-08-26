@@ -45,8 +45,6 @@ private:
 public:
     FSlateFontDlgWindow(bool& OutSuccess);
 
-    ~FSlateFontDlgWindow();
-
     void OpenFontWindow(FString& OutFontName, float& OutHeight, EFontImportFlags& OutFlags, bool& OutSuccess);
 };
 

@@ -165,11 +165,6 @@ FSlateFontDlgWindow::FSlateFontDlgWindow(bool& OutSuccess)
     .SetColorAndOpacity(FontColor);
 }
 
-FSlateFontDlgWindow::~FSlateFontDlgWindow()
-{
-    FcFontSetDestroy(FontSet);
-}
-
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 // OutFontName actually gets set to the filepath of the chosen font to reduce dependencies in UTrueTypeFontFactory::LoadFontFace within TTFontImport.cpp 
