@@ -42,7 +42,7 @@ void UNeuralNetworkLegacy::PostInitProperties()
 	{
 		GetAndMaybeCreateAssetImportData();
 	}
-#endif
+#endif //WITH_EDITORONLY_DATA
 	Super::PostInitProperties();
 }
 
@@ -75,7 +75,7 @@ void UNeuralNetworkLegacy::Serialize(FArchive& Archive)
 	{
 		ReimportAssetFromEditorData();
 	}
-#endif // WITH_EDITORONLY_DATA
+#endif //WITH_EDITORONLY_DATA
 	Super::Serialize(Archive);
 }
 
@@ -95,12 +95,10 @@ void UNeuralNetworkLegacy::ReimportAssetFromEditorData()
 	}
 }
 
-#if WITH_EDITOR
 UAssetImportData* UNeuralNetworkLegacy::GetAssetImportData() const
 {
 	return AssetImportData;
 }
-#endif // WITH_EDITOR
 
 UAssetImportData* UNeuralNetworkLegacy::GetAndMaybeCreateAssetImportData()
 {
@@ -111,9 +109,7 @@ UAssetImportData* UNeuralNetworkLegacy::GetAndMaybeCreateAssetImportData()
 	}
 	return AssetImportData;
 }
-#endif // WITH_EDITOR
 
-#if WITH_EDITOR
 bool UNeuralNetworkLegacy::Load(const FString& InModelFilePath)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetworkLegacy_Load_File"), STAT_UNeuralNetworkLegacy_Load_File, STATGROUP_MachineLearning);

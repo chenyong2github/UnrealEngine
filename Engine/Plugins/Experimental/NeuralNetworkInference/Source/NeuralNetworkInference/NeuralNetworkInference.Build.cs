@@ -50,16 +50,12 @@ public class NeuralNetworkInference : ModuleRules
 		// Editor-only
 		if (Target.bBuildEditor)
 		{
-			// Win64-only
-			if (Target.Platform == UnrealTargetPlatform.Win64)
-			{
-				PrivateDependencyModuleNames.AddRange
-					(
-					new string[] {
-						"ModelProtoFileReader"
-					}
-				);
-			}
+			PrivateDependencyModuleNames.AddRange
+				(
+				new string[] {
+					"ModelProtoFileReader"
+				}
+			);
 		}
 
 		if (bIsORTSupported)

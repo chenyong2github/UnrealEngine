@@ -99,7 +99,7 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(/*ModelReadFromDiskInBytes*/ ModelFullFilePath);
 	}
 	// Unknown
 	else
