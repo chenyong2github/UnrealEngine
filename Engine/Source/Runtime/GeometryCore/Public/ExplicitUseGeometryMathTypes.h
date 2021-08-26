@@ -94,17 +94,17 @@ using UE::Geometry::FSegment2d;
 using UE::Geometry::FSegment3f;
 using UE::Geometry::FSegment3d;
 
-using UE::Geometry::FRay3f;
-using UE::Geometry::FRay3d;
+//using UE::Geometry::FRay3f;
+//using UE::Geometry::FRay3d;
 
-using UE::Geometry::FSphere3d;
-using UE::Geometry::FSphere3f;
+//using UE::Geometry::FSphere3d;
+//using UE::Geometry::FSphere3f;
 
 using UE::Geometry::FCapsule3d;
 using UE::Geometry::FCapsule3f;
 
-using UE::Geometry::FOrientedBox3d;
-using UE::Geometry::FOrientedBox3f;
+//using UE::Geometry::FOrientedBox3d;
+//using UE::Geometry::FOrientedBox3f;
 
 using UE::Geometry::FTriangle2d;
 using UE::Geometry::FTriangle2f;

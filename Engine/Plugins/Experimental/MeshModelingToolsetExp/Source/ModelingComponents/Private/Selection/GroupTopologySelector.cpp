@@ -578,7 +578,7 @@ bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& 
 bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
 {
 	// Shoot ray backwards to see if we hit something. 
-	FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
+	UE::Geometry::FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
 	ToEyeRay.Origin += (double)(100 * FMathf::ZeroTolerance) * ToEyeRay.Direction;
 	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
 	{

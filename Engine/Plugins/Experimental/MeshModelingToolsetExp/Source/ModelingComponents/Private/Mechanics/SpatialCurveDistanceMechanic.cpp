@@ -39,7 +39,7 @@ void USpatialCurveDistanceMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 	FVector3d RayNearest;
 	FVector3d CurveNearest;
 
-	FRay3d Ray(WorldRay);
+	UE::Geometry::FRay3d Ray(WorldRay);
 	int NumV = Curve.Num() - 1;
 	double MinDistSqr = TNumericLimits<double>::Max();
 	for (int k = 0; k < NumV; ++k)

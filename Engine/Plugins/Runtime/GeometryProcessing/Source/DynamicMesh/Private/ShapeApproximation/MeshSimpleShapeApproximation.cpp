@@ -88,6 +88,8 @@ bool FMeshSimpleShapeApproximation::GetDetectedSimpleShape(
 
 
 
+namespace UE {
+namespace Geometry {
 
 struct FSimpleShapeFitsResult
 {
@@ -98,12 +100,11 @@ struct FSimpleShapeFitsResult
 	FOrientedBox3d Box;
 
 	bool bHaveCapsule = false;
-	UE::Geometry::FCapsule3d Capsule;
+	FCapsule3d Capsule;
 
 	bool bHaveConvex = false;
 	FDynamicMesh3 Convex;
 };
-
 
 
 static void ComputeSimpleShapeFits(const FDynamicMesh3& Mesh,
@@ -168,6 +169,9 @@ static void ComputeSimpleShapeFits(const FDynamicMesh3& Mesh,
 	}
 }
 
+
+}
+}
 
 
 

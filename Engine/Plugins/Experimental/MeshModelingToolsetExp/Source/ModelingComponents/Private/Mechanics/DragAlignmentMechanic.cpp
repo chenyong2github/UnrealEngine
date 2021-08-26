@@ -198,7 +198,7 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
 	MeshRayCast = [this, GetSpatialIn, TargetTransform, LinearDeformer](const FRay& WorldRay, FHitResult& HitResult, bool bUseFilter)
 	{
 		// Transform ray into local space
-		FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
+		UE::Geometry::FRay3d LocalRay(TargetTransform.InverseTransformPosition((FVector3d)WorldRay.Origin),
 			TargetTransform.InverseTransformVector((FVector3d)WorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);
 

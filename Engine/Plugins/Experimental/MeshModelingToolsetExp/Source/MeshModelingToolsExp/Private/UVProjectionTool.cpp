@@ -318,11 +318,11 @@ void UUVProjectionTool::InitializeMesh()
 
 
 
-FOrientedBox3d UUVProjectionTool::GetProjectionBox()
+UE::Geometry::FOrientedBox3d UUVProjectionTool::GetProjectionBox()
 {
 	FFrame3d BoxFrame(TransformProxy->GetTransform());
 	FVector3d BoxDimensions = 0.5 * (FVector3d)BasicProperties->Dimensions;
-	return FOrientedBox3d(BoxFrame, BoxDimensions);
+	return UE::Geometry::FOrientedBox3d(BoxFrame, BoxDimensions);
 }
 
 
@@ -332,7 +332,7 @@ void UUVProjectionTool::Render(IToolsContextRenderAPI* RenderAPI)
 	ProjectionShapeVisualizer.bDepthTested = false;
 	ProjectionShapeVisualizer.BeginFrame(RenderAPI, CameraState);
 
-	FOrientedBox3d PrimBox = GetProjectionBox();
+	UE::Geometry::FOrientedBox3d PrimBox = GetProjectionBox();
 	FVector MinCorner = (FVector)-PrimBox.Extents;
 	FVector MaxCorner = (FVector)PrimBox.Extents;
 	float Width = MaxCorner.X - MinCorner.X;
@@ -548,7 +548,7 @@ void UUVProjectionTool::ApplyAction_AutoFit(bool bAlign)
 		if (BasicProperties->ProjectionType == EUVProjectionMethod::Plane || BasicProperties->ProjectionType == EUVProjectionMethod::Box || BasicProperties->ProjectionType == EUVProjectionMethod::Cylinder)
 		{
 			// compute min-volume box
-			FOrientedBox3d MinBoundingBox;
+			UE::Geometry::FOrientedBox3d MinBoundingBox;
 			FMinVolumeBox3d MinBoxCalc;
 			bool bMinBoxOK = MinBoxCalc.SolveSubsample(Points.Num(), 1000,
 				[&](int32 Index) { return WorldTransform.TransformPosition(Points[Index]); }, false, nullptr);
@@ -558,7 +558,7 @@ void UUVProjectionTool::ApplyAction_AutoFit(bool bAlign)
 			}
 			else
 			{
-				MinBoundingBox = FOrientedBox3d(WorldBounds);
+				MinBoundingBox = UE::Geometry::FOrientedBox3d(WorldBounds);
 			}
 
 			AlignFrame = MinBoundingBox.Frame;

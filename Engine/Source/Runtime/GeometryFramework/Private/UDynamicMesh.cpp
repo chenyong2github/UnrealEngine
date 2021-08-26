@@ -61,7 +61,7 @@ void UDynamicMesh::ResetToCube()
 	{
 		EditMesh.Clear();
 		FMinimalBoxMeshGenerator BoxGen;
-		BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 50.0 * FVector3d::One());
+		BoxGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), 50.0 * FVector3d::One());
 		EditMesh = FDynamicMesh3(&BoxGen.Generate());
 		EditMesh.EnableTriangleGroups();
 		EditMesh.Attributes()->EnableMaterialID();
@@ -525,7 +525,7 @@ void UDynamicMesh::ImportCustomProperties(const TCHAR* SourceText, FFeedbackCont
 		// if we got here we failed. Rather than produce an empty mesh, we generate a small cube
 		UE_LOG(LogTemp, Warning, TEXT("UDynamicMesh text-based property serialization incomplete, generating box as placeholder. Try increasing geometry.DynamicMesh.TextBasedDupeTriThreshold, or geometry.DynamicMesh.DupeStashTimeout."))
 		FMinimalBoxMeshGenerator BoxGen;
-		BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 50.0 * FVector3d::One());
+		BoxGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), 50.0 * FVector3d::One());
 		FDynamicMesh3 GenMesh(&BoxGen.Generate());
 		GenMesh.Attributes()->EnableMaterialID();
 		SetMesh(MoveTemp(GenMesh));

@@ -37,6 +37,12 @@ static TAutoConsoleVariable<int32> CVarMeshSceneAdapterDisableMultiThreading(
 	TEXT("Determines whether or not to use multi-threading in MeshSceneAdapter.\n"));
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /** 
  * Compute the bounds of the vertices of Mesh, under 3D transformation TransformFunc
  * @return computed bounding box
@@ -763,6 +769,9 @@ static void CollectComponentChildMeshes(UActorComponent* Component, FActorAdapte
 
 }
 
+
+}	// end namespace UE
+}	// end namespace Geometry
 
 
 void FMeshSceneAdapter::AddActors(const TArray<AActor*>& ActorsSetIn)

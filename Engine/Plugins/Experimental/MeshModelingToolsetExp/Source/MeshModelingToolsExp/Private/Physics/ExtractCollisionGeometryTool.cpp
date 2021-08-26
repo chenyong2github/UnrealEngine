@@ -276,7 +276,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh_Simple()
 	for (const FKBoxElem& Box : AggGeom.BoxElems)
 	{
 		FMinimalBoxMeshGenerator BoxGen;
-		BoxGen.Box = FOrientedBox3d(
+		BoxGen.Box = UE::Geometry::FOrientedBox3d(
 			FFrame3d(FVector3d(Box.Center), FQuaterniond(Box.Rotation.Quaternion())),
 			0.5*FVector3d(Box.X, Box.Y, Box.Z));
 		BoxGen.Generate();

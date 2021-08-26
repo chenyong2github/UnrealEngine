@@ -117,7 +117,10 @@ void FMeshImageBakingCache::InvalidateOccupancy()
 
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -251,6 +254,8 @@ static bool GetDetailTrianglePoint_Nearest(
 }
 
 
+}
+}
 
 
 bool FMeshImageBakingCache::ValidateCache()

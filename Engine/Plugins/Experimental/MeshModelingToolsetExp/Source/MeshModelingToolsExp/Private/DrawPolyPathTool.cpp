@@ -263,9 +263,9 @@ bool UDrawPolyPathTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	if (SurfacePathMechanic != nullptr)
 	{
 		FFrame3d HitPoint;
-		if (SurfacePathMechanic->IsHitByRay(FRay3d(Ray), HitPoint))
+		if (SurfacePathMechanic->IsHitByRay(UE::Geometry::FRay3d(Ray), HitPoint))
 		{
-			OutHit.Distance = FRay3d(Ray).Project(HitPoint.Origin);
+			OutHit.Distance = UE::Geometry::FRay3d(Ray).Project(HitPoint.Origin);
 			OutHit.ImpactPoint = (FVector)HitPoint.Origin;
 			OutHit.ImpactNormal = (FVector)HitPoint.Z();
 			return true;
