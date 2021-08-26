@@ -675,6 +675,24 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 		AudioDevice->ResetInterpolation();
 		AudioDevice->OnEndPIE(false); // TODO: Should this have been bWasSimulatingInEditor?
 		AudioDevice->SetTransientMasterVolume(1.0f);
+		// Reset solo audio
+		if (PlayInEditorSessionInfo.IsSet())
+		{
+			ULevelEditorPlaySettings* EditorPlaySettings = PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings;
+			if (EditorPlaySettings && EditorPlaySettings->SoloAudioInFirstPIEClient && GEngine)
+			{
+				if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayWorld))
+				{
+					if (WorldContext->PIEInstance == 0)
+					{
+						if (FAudioDeviceManager* DeviceManager = AudioDevice->GetAudioDeviceManager())
+						{
+							DeviceManager->SetSoloDevice(INDEX_NONE);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	// Clean up all streaming levels
@@ -2834,6 +2852,26 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 			if (FAudioDeviceHandle GameInstanceAudioDevice = GameInstance->GetWorld()->GetAudioDevice())
 			{
 				GameInstanceAudioDevice->SetTransientMasterVolume(0.0f);
+			}
+		}
+		if (InParams.EditorPlaySettings->SoloAudioInFirstPIEClient)
+		{
+			if (FAudioDeviceHandle GameInstanceAudioDevice = PlayWorld->GetAudioDevice())
+			{
+				if (GEngine)
+				{
+					if (FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager())
+					{
+						if (InPIEInstanceIndex == 0)
+						{
+							DeviceManager->SetSoloDevice(GameInstanceAudioDevice->DeviceID);
+						}
+						else
+						{
+							GameInstanceAudioDevice->SetDeviceMuted(true);
+						}
+					}
+				}
 			}
 		}
 
