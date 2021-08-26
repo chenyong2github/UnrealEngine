@@ -133,7 +133,9 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Fill)
 					[	
 						SAssignNew(PatchedUniverseScrollBox, SScrollBox)					
-						.Orientation(EOrientation::Orient_Vertical)	
+						.Orientation(EOrientation::Orient_Vertical)
+						.ScrollBarAlwaysVisible(true)
+						.ScrollBarThickness(FVector2D(5.f, 0.f))
 					]
 				]
 			];
