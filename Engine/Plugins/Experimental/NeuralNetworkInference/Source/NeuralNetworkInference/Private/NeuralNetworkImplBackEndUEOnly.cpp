@@ -16,10 +16,9 @@
 /* FImplBackEndUEOnly public functions
  *****************************************************************************/
 
-#if WITH_EDITOR
-
 bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const FString& InModelFilePath)
 {
+#if WITH_EDITOR
 	// Initialize InOutImplBackEndUEOnly
 	if (!InOutImplBackEndUEOnly.IsValid())
 	{
@@ -42,8 +41,11 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 		return false;
 	}
 	return true;
-}
+#else //WITH_EDITOR
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): Only implemented for Editor mode."));
+	return false;
 #endif //WITH_EDITOR
+}
 
 //bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)
 //{
