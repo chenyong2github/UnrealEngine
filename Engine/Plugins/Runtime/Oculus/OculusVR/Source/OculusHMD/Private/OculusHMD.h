@@ -134,8 +134,8 @@ public:
 	//virtual bool GetChromaAbCorrectionValues(FVector4& K) const override;
 	virtual bool HasHiddenAreaMesh() const override;
 	virtual bool HasVisibleAreaMesh() const override;
-	virtual void DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
-	virtual void DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+	virtual void DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+	virtual void DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
 	//virtual void DrawDistortionMesh_RenderThread(struct FHeadMountedDisplayPassContext& Context, const FIntPoint& TextureSize) override;
 	//virtual void UpdateScreenSettings(const FViewport* InViewport) override;
 	//virtual void UpdatePostProcessSettings(FPostProcessSettings*) override;

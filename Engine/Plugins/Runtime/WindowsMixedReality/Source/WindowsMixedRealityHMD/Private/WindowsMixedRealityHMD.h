@@ -179,10 +179,10 @@ namespace WindowsMixedReality
 		}
 
 		virtual bool HasHiddenAreaMesh() const override;
-		virtual void DrawHiddenAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+		virtual void DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
 
 		virtual bool HasVisibleAreaMesh() const override;
-		virtual void DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
+		virtual void DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override;
 
 		// Spectator screen Hooks.
 		virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;

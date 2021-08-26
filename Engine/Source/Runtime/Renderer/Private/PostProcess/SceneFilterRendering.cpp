@@ -262,7 +262,7 @@ void DrawHmdMesh(
 
 	if (GEngine->XRSystem->GetHMDDevice())
 	{
-		GEngine->XRSystem->GetHMDDevice()->DrawVisibleAreaMesh_RenderThread(RHICmdList, StereoView);
+		GEngine->XRSystem->GetHMDDevice()->DrawVisibleAreaMesh(RHICmdList, StereoView);
 	}
 }
 

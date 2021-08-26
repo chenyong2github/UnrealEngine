@@ -1181,9 +1181,8 @@ namespace OculusHMD
 	}
 
 
-	static void DrawOcclusionMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
+	static void DrawOcclusionMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass, const FHMDViewMesh MeshAssets[])
 	{
-		CheckInRenderThread();
 		check(StereoPass != eSSP_FULL);
 
 		const uint32 MeshIndex = (StereoPass == eSSP_LEFT_EYE) ? 0 : 1;
@@ -1195,20 +1194,16 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::DrawHiddenAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	void FOculusHMD::DrawHiddenAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
 	{
-		CheckInRenderThread();
-
-		DrawOcclusionMesh_RenderThread(RHICmdList, StereoPass, HiddenAreaMeshes);
+		DrawOcclusionMesh(RHICmdList, StereoPass, HiddenAreaMeshes);
 	}
 
 
-	void FOculusHMD::DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
-		{
-		CheckInRenderThread();
-
-		DrawOcclusionMesh_RenderThread(RHICmdList, StereoPass, VisibleAreaMeshes);
-		}
+	void FOculusHMD::DrawVisibleAreaMesh(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
+	{
+		DrawOcclusionMesh(RHICmdList, StereoPass, VisibleAreaMeshes);
+	}
 
 	float FOculusHMD::GetPixelDenity() const
 	{

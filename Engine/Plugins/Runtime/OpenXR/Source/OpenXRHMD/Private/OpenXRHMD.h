@@ -215,8 +215,8 @@ public:
 	virtual void CopyTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, FIntRect SrcRect, FRHITexture2D* DstTexture, FIntRect DstRect, bool bClearBlack, bool bNoAlpha) const override;
 	virtual bool HasHiddenAreaMesh() const override final;
 	virtual bool HasVisibleAreaMesh() const override final;
-	virtual void DrawHiddenAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
-	virtual void DrawVisibleAreaMesh_RenderThread(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
+	virtual void DrawHiddenAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
+	virtual void DrawVisibleAreaMesh(class FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const override final;
 	virtual void OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily) override;
 	virtual void OnBeginRendering_GameThread() override;
 	virtual void OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform) override;
