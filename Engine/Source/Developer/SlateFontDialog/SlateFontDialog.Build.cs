@@ -2,40 +2,39 @@
 
 using UnrealBuildTool;
 
-
 [SupportedPlatforms("Linux")]
 public class SlateFontDialog : ModuleRules
 {
-    public SlateFontDialog(ReadOnlyTargetRules Target) : base(Target)
-    {
-        PrivateDependencyModuleNames.AddRange(
-            new string[] {
-                "Core",
-                "CoreUObject",
-                "AppFramework",
-                "EditorStyle",
-                "InputCore",
-                "Slate",
-                "SlateCore"
-            }
-        );
+	public SlateFontDialog(ReadOnlyTargetRules Target) : base(Target)
+	{
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Core",
+				"CoreUObject",
+				"AppFramework",
+				"EditorStyle",
+				"InputCore",
+				"Slate",
+				"SlateCore"
+			}
+		);
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "TargetPlatform"
-            }
-        );
+		PrivateIncludePathModuleNames.AddRange(
+			new string[] {
+				"TargetPlatform"
+			}
+		);
 
-        PublicIncludePathModuleNames.AddRange(
-            new string[] {
-                "DesktopPlatform"
-            }
-        );
+		PublicIncludePathModuleNames.AddRange(
+			new string[] {
+				"DesktopPlatform"
+			}
+		);
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
 		{
 			"FreeType2",
 			"FontConfig"
 		});
-    }
+	}
 }

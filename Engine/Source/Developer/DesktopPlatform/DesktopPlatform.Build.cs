@@ -9,11 +9,11 @@ public class DesktopPlatform : ModuleRules
 		PrivateIncludePaths.Add("Developer/DesktopPlatform/Private");
 
 		PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "DerivedDataCache",
+			new string[] {
+				"DerivedDataCache",
 				"SlateFontDialog",
-            }
-        );
+			}
+		);
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
