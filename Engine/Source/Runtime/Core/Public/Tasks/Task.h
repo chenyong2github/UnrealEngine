@@ -4,7 +4,6 @@
 
 #include "Tasks/TaskPrivate.h"
 #include "Async/Fundamental/Task.h"
-#include "Templates/RefCounting.h"
 #include "Containers/StaticArray.h"
 #include "HAL/Event.h"
 #include "CoreTypes.h"
