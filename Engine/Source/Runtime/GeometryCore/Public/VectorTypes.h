@@ -38,11 +38,6 @@ struct FVector2
 	{
 	}
 
-	constexpr FVector2(const T* Data)
-		: X(Data[0]), Y(Data[1])
-	{
-	}
-
 	constexpr FVector2(const FVector2& Vec) = default;
 
 	constexpr FVector2(const FVector2D& Vec)
@@ -54,16 +49,6 @@ struct FVector2
 	explicit constexpr FVector2(const FVector2<RealType2>& Vec)
 		: X((T)Vec.X), Y((T)Vec.Y)
 	{
-	}
-
-	explicit constexpr operator const T*() const
-	{
-		return &X;
-	};
-
-	explicit constexpr operator T*()
-	{
-		return &X;
 	}
 
 	explicit operator FVector2D() const

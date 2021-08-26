@@ -76,7 +76,8 @@ namespace UVEditorToolMeshInputLocals
 			}
 			else
 			{
-				OverlayOut.InsertElement(ElementID, (float*)OverlayIn.GetElement(ElementID));
+				FVector2f UV = OverlayIn.GetElement(ElementID);
+				OverlayOut.InsertElement(ElementID, &UV.X);
 			}
 		};
 
