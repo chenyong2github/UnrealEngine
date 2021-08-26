@@ -1,10 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
+
 #include "InterchangeGenericAssetsPipeline.h"
 
 #include "Animation/Skeleton.h"
 #include "CoreMinimal.h"
-#include "Engine/TextureCube.h"
-#include "Engine/TextureLightProfile.h"
 #include "InterchangeMaterialFactoryNode.h"
 #include "InterchangeMaterialNode.h"
 #include "InterchangeMeshNode.h"
@@ -17,14 +16,7 @@
 #include "InterchangeSourceData.h"
 #include "InterchangeStaticMeshFactoryNode.h"
 #include "InterchangeStaticMeshLodDataNode.h"
-#include "InterchangeTexture2DArrayFactoryNode.h"
-#include "InterchangeTexture2DArrayNode.h"
-#include "InterchangeTexture2DNode.h"
-#include "InterchangeTextureCubeFactoryNode.h"
-#include "InterchangeTextureCubeNode.h"
 #include "InterchangeTextureFactoryNode.h"
-#include "InterchangeTextureLightProfileFactoryNode.h"
-#include "InterchangeTextureLightProfileNode.h"
 #include "InterchangeTextureNode.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -32,59 +24,6 @@
 #include "Templates/SubclassOf.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
-
-namespace UE::Interchange::Private
-{
-	UClass* GetDefaultFactoryClassFromTextureNodeClass(UClass* NodeClass)
-	{
-		if (UInterchangeTexture2DNode::StaticClass() == NodeClass)
-		{
-			return UInterchangeTextureFactoryNode::StaticClass();
-		}
-
-		if (UInterchangeTextureCubeNode::StaticClass() == NodeClass)
-		{
-			return UInterchangeTextureCubeFactoryNode::StaticClass();
-		}
-
-		if (UInterchangeTexture2DArrayNode::StaticClass() == NodeClass)
-		{
-			return UInterchangeTexture2DArrayFactoryNode::StaticClass();
-		}
-
-		if (UInterchangeTextureLightProfileNode::StaticClass() == NodeClass)
-		{
-			return UInterchangeTextureLightProfileFactoryNode::StaticClass();
-		}
-
-		return nullptr;
-	}
-
-	UClass* GetDefaultAssetClassFromFactoryClass(UClass* NodeClass)
-	{
-		if (UInterchangeTextureFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTexture2D::StaticClass();
-		}
-
-		if (UInterchangeTextureCubeFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTextureCube::StaticClass();
-		}
-
-		if (UInterchangeTexture2DArrayFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTexture2DArray::StaticClass();
-		}
-
-		if (UInterchangeTextureLightProfileFactoryNode::StaticClass() == NodeClass)
-		{
-			return UTextureLightProfile::StaticClass();
-		}
-
-		return nullptr;
-	}
-}
 
 void UInterchangeGenericAssetsPipeline::PreDialogCleanup(const FName PipelineStackName)
 {
@@ -135,7 +74,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 		//import textures
 		for (const UInterchangeTextureNode* TextureNode : TextureNodes)
 		{
-			CreateTextureFactoryNode(TextureNode, UE::Interchange::Private::GetDefaultFactoryClassFromTextureNodeClass(TextureNode->GetClass()));
+			HandleCreationOfTextureFactoryNode(TextureNode);
 		}
 	}
 
@@ -282,11 +221,11 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipeline(UInterchangeBas
 	return true;
 }
 
-bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset)
+bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport)
 {
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
-	if (!BaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	if (!InBaseNodeContainer || !ensure(InBaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
 	{
 		return false;
 	}
@@ -299,50 +238,9 @@ bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 	//Finish the physics asset import, it need the skeletal mesh render data to create the physics collision geometry
 	PostImportPhysicsAssetImport(CreatedAsset, Node);
 
+	PostImportTextureAssetImport(CreatedAsset, bIsAReimport);
+
 	return true;
-}
-
-UInterchangeTextureFactoryNode* UInterchangeGenericAssetsPipeline::CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass)
-{
-	FString DisplayLabel = TextureNode->GetDisplayLabel();
-	FString NodeUid = UInterchangeTextureFactoryNode::GetTextureFactoryNodeUidFromTextureNodeUid(TextureNode->GetUniqueID());
-	UInterchangeTextureFactoryNode* TextureFactoryNode = nullptr;
-	if (BaseNodeContainer->IsNodeUidValid(NodeUid))
-	{
-		TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetNode(NodeUid));
-		if (!ensure(TextureFactoryNode))
-		{
-			//Log an error
-		}
-	}
-	else
-	{
-		UClass* FactoryClass = FactorySubclass.Get();
-		if (!ensure(FactoryClass))
-		{
-			// Log an error
-			return nullptr;
-		}
-
-		UClass* TextureClass = UE::Interchange::Private::GetDefaultAssetClassFromFactoryClass(FactoryClass);
-		if (!ensure(TextureClass))
-		{
-			// Log an error
-			return nullptr;
-		}
-
-		TextureFactoryNode = NewObject<UInterchangeTextureFactoryNode>(BaseNodeContainer, FactoryClass);
-		if (!ensure(TextureFactoryNode))
-		{
-			return nullptr;
-		}
-		//Creating a UTexture2D
-		TextureFactoryNode->InitializeTextureNode(NodeUid, DisplayLabel, TextureClass->GetName(), TextureNode->GetDisplayLabel());
-		TextureFactoryNode->SetCustomTranslatedTextureNodeUid(TextureNode->GetUniqueID());
-		BaseNodeContainer->AddNode(TextureFactoryNode);
-		TextureFactoryNodes.Add(TextureFactoryNode);
-	}
-	return TextureFactoryNode;
 }
 
 UInterchangeMaterialFactoryNode* UInterchangeGenericAssetsPipeline::CreateMaterialFactoryNode(const UInterchangeMaterialNode* MaterialNode)

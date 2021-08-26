@@ -4362,7 +4362,14 @@ UObject* UTextureFactory::FactoryCreateBinary
 	}
 
 	// Automatically detect if the texture is a normal map and configure its properties accordingly
-	NormalMapIdentification::HandleAssetPostImport(this, Texture);
+
+	if (!bUsingExistingSettings)
+	{
+		if (UE::NormalMapIdentification::HandleAssetPostImport(Texture))
+		{
+			Texture->bFlipGreenChannel = bFlipNormalMapGreenChannel;
+		}
+	}
 
 	if(IsAutomatedImport())
 	{

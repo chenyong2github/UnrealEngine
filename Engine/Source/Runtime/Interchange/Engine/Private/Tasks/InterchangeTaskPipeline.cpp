@@ -59,9 +59,10 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 	UInterchangePipelineBase* PipelineBase = AsyncHelper->Pipelines[PipelineIndex];
 	TArray<FString> NodeUniqueIDs;
 	TArray<UObject*> ImportedObjects;
+	TArray<bool> IsAssetsReimported;
 
 	auto FillImportedObjectsFromSource =
-		[&NodeUniqueIDs, &ImportedObjects, this](FCriticalSection& CriticalSection, const TMap<int32, TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>>& ImportedInfosPerSource)
+		[&NodeUniqueIDs, &ImportedObjects, &IsAssetsReimported, this](FCriticalSection& CriticalSection, const TMap<int32, TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>>& ImportedInfosPerSource)
 		{
 			FScopeLock Lock(&CriticalSection);
 			if (ImportedInfosPerSource.Contains(SourceIndex))
@@ -69,10 +70,12 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 				const TArray<UE::Interchange::FImportAsyncHelper::FImportedObjectInfo>& ImportedInfos = ImportedInfosPerSource.FindChecked(SourceIndex);
 				NodeUniqueIDs.Reserve(ImportedInfos.Num());
 				ImportedObjects.Reserve(ImportedInfos.Num());
+				IsAssetsReimported.Reserve(ImportedInfos.Num());
 				for (const UE::Interchange::FImportAsyncHelper::FImportedObjectInfo& ImportedInfo : ImportedInfos)
 				{
 					NodeUniqueIDs.Add(ImportedInfo.FactoryNode->GetUniqueID());
 					ImportedObjects.Add(ImportedInfo.ImportedObject);
+					IsAssetsReimported.Add(ImportedInfo.bIsReimport);
 				}
 			}
 		};
@@ -98,6 +101,6 @@ void UE::Interchange::FTaskPipelinePostImport::DoTask(ENamedThreads::Type Curren
 	//Call the pipeline outside of the lock, we do this in case the pipeline take a long time. We call it for each asset created by this import
 	for (int32 ObjectIndex = 0; ObjectIndex < ImportedObjects.Num(); ++ObjectIndex)
 	{
-		Pipeline->ScriptedExecutePostImportPipeline(NodeContainer, NodeUniqueIDs[ObjectIndex], ImportedObjects[ObjectIndex]);
+		Pipeline->ScriptedExecutePostImportPipeline(NodeContainer, NodeUniqueIDs[ObjectIndex], ImportedObjects[ObjectIndex], IsAssetsReimported[ObjectIndex]);
 	}
 }

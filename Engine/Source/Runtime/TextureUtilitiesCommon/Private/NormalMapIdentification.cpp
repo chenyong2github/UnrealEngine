@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NormalMapIdentification.h"
+
+#if WITH_EDITOR
+
 #include "Engine/Texture2D.h"
-#include "Factories/TextureFactory.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -394,7 +396,7 @@ static bool IsTextureANormalMap( UTexture* Texture )
 #if NORMALMAP_IDENTIFICATION_TIMING
 	double EndSeconds = FPlatformTime::Seconds();
 
-	FString Msg = FString::Printf( TEXT("NormalMapIdentification took %.2f seconds to analyze %s"), (EndSeconds-StartSeconds), *Texture->GetFullName() ); 
+	FString Msg = FString::Printf( TEXT("NormalMapIdentification took %f seconds to analyze %s"), (EndSeconds-StartSeconds), *Texture->GetFullName() ); 
 
 	GLog->Log(Msg);
 #endif
@@ -459,12 +461,12 @@ public:
 	TWeakPtr<SNotificationItem> Notification;
 };
 
-void NormalMapIdentification::HandleAssetPostImport( UTextureFactory* TextureFactory, UTexture* Texture )
+bool UE::NormalMapIdentification::HandleAssetPostImport( UTexture* Texture )
 {
-	if(TextureFactory != NULL && Texture != NULL)
+	if( Texture != NULL)
 	{
 		// Try to automatically identify a normal map
-		if ( !TextureFactory->bUsingExistingSettings && IsTextureANormalMap( Texture ) )
+		if ( IsTextureANormalMap( Texture ) )
 		{
 			// Set the compression settings and no gamma correction for a normal map
 			{
@@ -473,7 +475,6 @@ void NormalMapIdentification::HandleAssetPostImport( UTextureFactory* TextureFac
 				Texture->CompressionSettings = TC_Normalmap;
 				Texture->SRGB = false;
 				Texture->LODGroup = TEXTUREGROUP_WorldNormalMap;
-				Texture->bFlipGreenChannel = TextureFactory->bFlipNormalMapGreenChannel;
 			}
 
 			// Show the user a notification indicating that this texture will be imported as a normal map.
@@ -505,8 +506,14 @@ void NormalMapIdentification::HandleAssetPostImport( UTextureFactory* TextureFac
 					NormalMapNotificationDelegate->Notification.Pin()->SetCompletionState(SNotificationItem::CS_Pending);
 				}
 			}
+
+			return true;
 		}
 	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE
+
+#endif //WITH_EDITOR
