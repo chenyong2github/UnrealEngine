@@ -262,11 +262,6 @@ namespace GeometryCollectionTest
 	}
 
 
-	void CollisionResolution_SimplicialCubeToAnalyticCube()
-	{
-
-	}
-
 
 	GTEST_TEST(AllTraits,GeometryCollection_CollisionResolution_SimplicialSphereToAnalyticSphere)
 	{
