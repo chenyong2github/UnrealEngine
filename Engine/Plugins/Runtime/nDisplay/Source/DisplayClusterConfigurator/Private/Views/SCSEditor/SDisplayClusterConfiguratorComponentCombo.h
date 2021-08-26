@@ -2,30 +2,21 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "SComponentClassCombo.h"
-#include "SlateFwd.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
 
-class UDisplayClusterBlueprint;
-class FTextFilterExpressionEvaluator;
-class SSearchBox;
+class FComponentClassComboEntry;
 class SToolTip;
+class FTextFilterExpressionEvaluator;
 
-DECLARE_DELEGATE_OneParam(FTemplateSelected, UDisplayClusterBlueprint* /* Template */);
-
-class SDisplayClusterConfiguratorComponentClassCombo : public SComboButton
+class SDisplayClusterConfiguratorComponentClassCombo : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SDisplayClusterConfiguratorComponentClassCombo)
+	SLATE_BEGIN_ARGS( SDisplayClusterConfiguratorComponentClassCombo )
 		: _IncludeText(true)
 	{}
 
 		SLATE_ATTRIBUTE(bool, IncludeText)
-		SLATE_EVENT( FComponentClassSelected, OnComponentClassSelected )
+		SLATE_EVENT( FSubobjectClassSelected, OnSubobjectClassSelected )
 
 	SLATE_END_ARGS()
 
@@ -62,19 +53,18 @@ public:
 protected:
 	/** Generate the source component list to use for nDisplay. */
 	void GenerateComponentClassList();
-private:
-
+	
 	FText GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const;
 
 	TSharedRef<SToolTip> GetComponentToolTip(FComponentClassComboEntryPtr Entry) const;
+	
+	FSubobjectClassSelected OnSubobjectClassSelected;
 
-	FComponentClassSelected OnComponentClassSelected;
-
+	TArray<FComponentClassComboEntryPtr>* ComponentClassListPtr;
+	
 	/** List of component class names used by combo box */
 	TArray<FComponentClassComboEntryPtr> ComponentClassList;
 
-	TArray<FComponentClassComboEntryPtr>* ComponentClassListPtr = nullptr;
-	
 	/** List of component class names, filtered by the current search string */
 	TArray<FComponentClassComboEntryPtr> FilteredComponentClassList;
 
@@ -83,6 +73,9 @@ private:
 
 	/** The search box control - part of the combo drop down */
 	TSharedPtr<SSearchBox> SearchBox;
+
+	/** The Add combo button. */
+	TSharedPtr<class SEditorHeaderButton> AddNewButton;
 
 	/** The component list control - part of the combo drop down */
 	TSharedPtr< SListView<FComponentClassComboEntryPtr> > ComponentClassListView;

@@ -32,7 +32,6 @@
 #include "Views/DisplayClusterConfiguratorToolbar.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
 
-#include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
 
 #include "Components/ActorComponent.h"
@@ -56,13 +55,17 @@
 #include "Tools/BaseAssetToolkit.h"
 #include "Engine/Selection.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Notifications/SNotificationList.h"
 #include "HAL/ConsoleManager.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
+#include "ScopedTransaction.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorBlueprintEditor"
@@ -1054,8 +1057,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::Compile()
 	FBlueprintEditor::Compile();
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
-	const TArray<TSharedPtr<FSCSEditorTreeNode>>& SelectedNodes)
+void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(const TArray<TSharedPtr<class FSubobjectEditorTreeNode>>& SelectedNodes)
 {
 	if (CurrentSelectionSource == ESelectionSource::Refresh)
 	{
@@ -1080,13 +1082,18 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 	// Update the selection visualization
 	if (ADisplayClusterRootActor* EditorActorInstance = Cast<ADisplayClusterRootActor>(Blueprint->SimpleConstructionScript->GetComponentEditorActorInstance()))
 	{
-		auto IsComponentSelected = [SelectedNodes, EditorActorInstance](UActorComponent* InComponent) -> bool
+		auto IsComponentSelected = [SelectedNodes, this](UActorComponent* InComponent) -> bool
 		{
-			for (const TSharedPtr<FSCSEditorTreeNode>& TreeNode : SelectedNodes)
+			for (const TSharedPtr<FSubobjectEditorTreeNode>& TreeNode : SelectedNodes)
 			{
-				if (TreeNode.IsValid() && TreeNode->FindComponentInstanceInActor(EditorActorInstance) == InComponent)
+				const FSubobjectData* NodeData = TreeNode ? TreeNode->GetDataSource() : nullptr;
+				if (NodeData)
 				{
-					return true;
+					const UActorComponent* ActorComponent = NodeData->GetObjectForBlueprint<UActorComponent>(GetBlueprintObj());
+					if (TreeNode.IsValid() && ActorComponent == InComponent)
+					{
+						return true;
+					}
 				}
 			}
 			
@@ -1137,31 +1144,32 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 		TArray<FString> SelectedComponentNames;
 		bool bShowComponents = true;
 		InspectorObjects.Empty(SelectedNodes.Num());
-		for (FSCSEditorTreeNodePtrType NodePtr : SelectedNodes)
+		for (FSubobjectEditorTreeNodePtrType NodePtr : SelectedNodes)
 		{
-			if (NodePtr.IsValid())
+			const FSubobjectData* NodeData = NodePtr ? NodePtr->GetDataSource() : nullptr;
+			if (NodeData)
 			{
-				if (NodePtr->IsActorNode())
+				if (const AActor* Actor = NodeData->GetObject<AActor>())
 				{
-					if (AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj()))
+					if (const AActor* DefaultActor = NodeData->GetObjectForBlueprint<AActor>(GetBlueprintObj()))
 					{
-						InspectorObjects.Add(DefaultActor);
-
+						InspectorObjects.Add(const_cast<AActor*>(DefaultActor));
+					
 						FString Title;
 						DefaultActor->GetName(Title);
 						InspectorTitle = FText::FromString(Title);
 						bShowComponents = false;
-
+					
 						TryInvokingDetailsTab();
 					}
 				}
 				else
 				{
-					UActorComponent* EditableComponent = NodePtr->GetOrCreateEditableComponentTemplate(GetBlueprintObj());
+					const UActorComponent* EditableComponent = NodeData->GetObjectForBlueprint<UActorComponent>(GetBlueprintObj());
 					if (EditableComponent)
 					{
 						InspectorTitle = FText::FromString(NodePtr->GetDisplayString());
-						InspectorObjects.Add(EditableComponent);
+						InspectorObjects.Add(const_cast<UActorComponent*>(EditableComponent));
 
 						FString ComponentName = EditableComponent->GetName();
 						ComponentName.RemoveFromEnd(UActorComponent::ComponentTemplateNameSuffix);
@@ -1206,7 +1214,7 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnSelectionUpdated(
 	}
 }
 
-void FDisplayClusterConfiguratorBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<FSCSEditorTreeNode> Node)
+void FDisplayClusterConfiguratorBlueprintEditor::OnComponentDoubleClicked(TSharedPtr<class FSubobjectEditorTreeNode> Node)
 {
 	TSharedPtr<SDockTab> OwnerTab = Inspector->GetOwnerTab();
 	if (OwnerTab.IsValid())
@@ -1216,21 +1224,25 @@ void FDisplayClusterConfiguratorBlueprintEditor::OnComponentDoubleClicked(TShare
 		AActor* PreviewActor = GetPreviewActor();
 		if (ViewportTabContent.IsValid() && Node.IsValid() && PreviewActor)
 		{
-			if (USceneComponent* ComponentTemplate = Cast<USceneComponent>(Node->GetComponentTemplate()))
+			if (const USceneComponent* ComponentTemplate = Cast<USceneComponent>(Node->GetComponentTemplate()))
 			{
 				const bool bIsCamera = ComponentTemplate->IsA<UDisplayClusterCameraComponent>() || ComponentTemplate->IsA<UCameraComponent>();
 				if (bIsCamera)
 				{
-					if (USceneComponent* Component = Cast<USceneComponent>(Node->FindComponentInstanceInActor(PreviewActor)))
+					if (const FSubobjectData* NodeData = Node->GetDataSource())
 					{
-						TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ViewportFunc =
-							[this, Component](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+						if (const USceneComponent* Component = Cast<USceneComponent>(NodeData->FindComponentInstanceInActor(PreviewActor)))
 						{
-							const TSharedRef<SDisplayClusterConfiguratorSCSEditorViewport> Viewport = StaticCastSharedRef<SDisplayClusterConfiguratorSCSEditorViewport>(Entity->AsWidget());
-							Viewport->GetDisplayClusterViewportClient()->SetCameraToComponent(const_cast<USceneComponent*>(Component));
-						};
+							TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> ViewportFunc =
+								[this, Component](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+								{
+									const TSharedRef<SDisplayClusterConfiguratorSCSEditorViewport> Viewport =
+										StaticCastSharedRef<SDisplayClusterConfiguratorSCSEditorViewport>(Entity->AsWidget());
+									Viewport->GetDisplayClusterViewportClient()->SetCameraToComponent(const_cast<USceneComponent*>(Component));
+								};
 
-						ViewportTabContent->PerformActionOnViewports(ViewportFunc);
+							ViewportTabContent->PerformActionOnViewports(ViewportFunc);
+						}
 					}
 				}
 			}
@@ -1268,18 +1280,20 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 	FWeakObjectPtr ExtensionContext)
 {
 	auto PerformComboAddClass = [=](TSubclassOf<UActorComponent> ComponentClass, EComponentCreateAction::Type ComponentCreateAction,
-		UObject* AssetOverride) -> UActorComponent*
+		UObject* AssetOverride) -> FSubobjectDataHandle
 	{
-		if (USubobjectEditorExtensionContext* SubobjectEditorExtensionContext = Cast<USubobjectEditorExtensionContext>(ExtensionContext.Get()))
+		FSubobjectDataHandle NewComponentHandle = FSubobjectDataHandle::InvalidHandle;
+		
+		if (const USubobjectEditorExtensionContext* SubobjectEditorExtensionContext = Cast<USubobjectEditorExtensionContext>(ExtensionContext.Get()))
 		{
 			if (const TSharedPtr<SSubobjectEditor> SubobjectEditor = SubobjectEditorExtensionContext->GetSubobjectEditor().Pin())
 			{
 				UClass* NewClass = ComponentClass;
-
-				UActorComponent* NewComponent = nullptr;
-
+				
 				if (NewClass != nullptr)
 				{
+					TUniquePtr<FScopedTransaction> AddTransaction = MakeUnique<FScopedTransaction>(LOCTEXT("AddComponent", "Add Component"));
+					
 					FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
 					USelection* Selection = GEditor->GetSelectedObjects();
 
@@ -1289,13 +1303,13 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 					// Otherwise the DisplayCluster class name is used, not the custom nDisplay display name.
 					if (AssetOverride == nullptr && NewClass->IsClassGroupName(TEXT("DisplayCluster")))
 					{
-						const FString DisplayName =  FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(NewClass);
+						const FString DisplayName = FDisplayClusterConfiguratorUtils::FormatNDisplayComponentName(NewClass);
 						AssetOverride = NewObject<UActorComponent>(GetTransientPackage(), NewClass, *DisplayName);
 					}
 					
 					USubobjectDataSubsystem* SubobjectSystem = USubobjectDataSubsystem::Get();
 					FAddNewSubobjectParams AddSubobjectParams;
-					FText FailReason;
+					AddSubobjectParams.BlueprintContext = LoadedBlueprint.Get();
 					AddSubobjectParams.NewClass = NewClass;
 										
 					// This adds components according to the type selected in the drop down. If the user
@@ -1303,24 +1317,30 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 					// else we go down the previous route of adding components by type.
 					//
 					// Furthermore don't try to match up assets for USceneComponent it will match lots of things and doesn't have any nice behavior for asset adds 
+
+					FText OutFailReason;
+					
 					if (Selection->Num() > 0 && !AssetOverride && NewClass != USceneComponent::StaticClass())
 					{
 						for (FSelectionIterator ObjectIter(*Selection); ObjectIter; ++ObjectIter)
 						{
 							UObject* Object = *ObjectIter;
-							TArray< TSubclassOf<UActorComponent> > ComponentClasses = FComponentAssetBrokerage::GetComponentsForAsset(Object);
+							TArray<TSubclassOf<UActorComponent>> ComponentClasses = FComponentAssetBrokerage::GetComponentsForAsset(Object);
 
 							// if the selected asset supports the selected component type then go ahead and add it
 							for (int32 ComponentIndex = 0; ComponentIndex < ComponentClasses.Num(); ComponentIndex++)
 							{
 								if (ComponentClasses[ComponentIndex]->IsChildOf(NewClass))
 								{
-									AddSubobjectParams.AssetOverride = Object;
-									AddSubobjectParams.ParentHandle = SubobjectSystem->FindHandleForObject(SubobjectEditor->GetSceneRootNode()->GetDataHandle(), Object);
-									SubobjectSystem->AddNewSubobject(AddSubobjectParams, FailReason);
-									
-									bAddedComponent = true;
-									break;
+									const FSubobjectDataHandle ParentHandle = SubobjectSystem->FindHandleForObject(SubobjectEditor->GetSceneRootNode()->GetDataHandle(), Object);
+									if(ParentHandle.IsValid())
+									{
+										AddSubobjectParams.AssetOverride = Object;
+										AddSubobjectParams.ParentHandle = ParentHandle;
+										NewComponentHandle = SubobjectSystem->AddNewSubobject(AddSubobjectParams, OutFailReason);
+										bAddedComponent = true;
+										break;
+									}
 								}
 							}
 						}
@@ -1328,20 +1348,63 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 
 					if (!bAddedComponent)
 					{
-						// As the SCS splits up the scene and actor components, can now add directly
-						AddSubobjectParams.NewClass = NewClass;
-						AddSubobjectParams.AssetOverride = AssetOverride;
-						AddSubobjectParams.ParentHandle = SubobjectSystem->FindHandleForObject(SubobjectEditor->GetSceneRootNode()->GetDataHandle(), AssetOverride);
-						SubobjectSystem->AddNewSubobject(AddSubobjectParams, FailReason);
+						// Attach this component to the override asset first, but if none is given then use the actor context			
+						FSubobjectDataHandle ParentHandle = SubobjectSystem->FindHandleForObject(SubobjectEditor->GetSceneRootNode()->GetDataHandle(), AssetOverride);
+			
+						if(!ParentHandle.IsValid())
+						{
+							// If we have something selected, then we should attach it to that
+							TArray<FSubobjectEditorTreeNodePtrType> SelectedTreeNodes = SubobjectEditor->GetSelectedNodes();
+							if(SelectedTreeNodes.Num() > 0)
+							{
+								ParentHandle = SelectedTreeNodes[0]->GetDataHandle();
+							}
+							// Otherwise fall back to the root node
+							else
+							{
+								const TArray<FSubobjectEditorTreeNodePtrType>& RootNodes = SubobjectEditor->GetRootNodes();
+								ParentHandle = RootNodes.Num() > 0
+												? RootNodes[0]->GetDataHandle()
+												: FSubobjectDataHandle::InvalidHandle;					
+							}
+						}
+			
+						if(ParentHandle.IsValid())
+						{
+							AddSubobjectParams.AssetOverride = AssetOverride;
+							AddSubobjectParams.ParentHandle = ParentHandle;
+							NewComponentHandle = SubobjectSystem->AddNewSubobject(AddSubobjectParams, OutFailReason);
+						}
 					}
 					
-					SubobjectEditor->UpdateTree();
-				}
+					if(!NewComponentHandle.IsValid())
+					{
+						if (OutFailReason.IsEmpty())
+						{
+							OutFailReason = LOCTEXT("AddComponentFailed_Generic", "Failed to add component!");
+						}
+						FNotificationInfo Info(OutFailReason);
+						Info.Image = FEditorStyle::GetBrush(TEXT("Icons.Error"));
+						Info.bFireAndForget = true;
+						Info.bUseSuccessFailIcons = false;
+						Info.ExpireDuration = 5.0f;
 
-				return NewComponent;
+						FSlateNotificationManager::Get().AddNotification(Info);
+					}
+					else
+					{
+						SubobjectEditor->UpdateTree();
+						// Set focus to the newly created subobject
+						if(const FSubobjectEditorTreeNodePtrType NewNode = SubobjectEditor->FindSlateNodeForHandle(NewComponentHandle))
+						{
+							SubobjectEditor->GetDragDropTree()->SetSelection(NewNode);
+							SubobjectEditor->GetCommandList()->ExecuteAction(FGenericCommands::Get().Rename.ToSharedRef());
+						}
+					}
+				}
 			}
 		}
-		return nullptr;
+		return NewComponentHandle;
 	};
 	
 	return SNew(SHorizontalBox)
@@ -1351,7 +1414,7 @@ TSharedRef<SWidget> FDisplayClusterConfiguratorBlueprintEditor::CreateSCSEditorE
 		.HAlign(HAlign_Left)
 		[
 			SNew(SDisplayClusterConfiguratorComponentClassCombo)
-			.OnComponentClassSelected(FComponentClassSelected::CreateLambda(PerformComboAddClass))
+			.OnSubobjectClassSelected(FSubobjectClassSelected::CreateLambda(PerformComboAddClass))
 			.Visibility_Lambda([this, ExtensionContext]
 			{
 				if(USubobjectEditorExtensionContext* SubobjectEditorExtensionContext = Cast<USubobjectEditorExtensionContext>(ExtensionContext.Get()))

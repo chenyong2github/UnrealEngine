@@ -769,18 +769,21 @@ FVector FDisplayClusterConfiguratorSCSEditorViewportClient::GetWidgetLocation() 
 		if (SelectedNodes.Num() > 0 && SelectedNodes.Last().IsValid())
 		{
 			// Use the last selected item for the widget location
-			const USceneComponent* SceneComp = Cast<USceneComponent>(SelectedNodes.Last()->GetDataSource()->FindComponentInstanceInActor(PreviewActor));
-			if (SceneComp)
+			if (const FSubobjectData* NodeData = SelectedNodes.Last()->GetDataSource())
 			{
-				TSharedPtr<ISCSEditorCustomization> Customization = BlueprintEditorPtr.Pin()->CustomizeSubobjectEditor(SceneComp);
-				FVector CustomLocation;
-				if (Customization.IsValid() && Customization->HandleGetWidgetLocation(SceneComp, CustomLocation))
+				const USceneComponent* SceneComp = Cast<USceneComponent>(NodeData->FindComponentInstanceInActor(PreviewActor));
+				if (SceneComp)
 				{
-					Location = CustomLocation;
-				}
-				else
-				{
-					Location = SceneComp->GetComponentLocation();
+					TSharedPtr<ISCSEditorCustomization> Customization = BlueprintEditorPtr.Pin()->CustomizeSubobjectEditor(SceneComp);
+					FVector CustomLocation;
+					if (Customization.IsValid() && Customization->HandleGetWidgetLocation(SceneComp, CustomLocation))
+					{
+						Location = CustomLocation;
+					}
+					else
+					{
+						Location = SceneComp->GetComponentLocation();
+					}
 				}
 			}
 		}

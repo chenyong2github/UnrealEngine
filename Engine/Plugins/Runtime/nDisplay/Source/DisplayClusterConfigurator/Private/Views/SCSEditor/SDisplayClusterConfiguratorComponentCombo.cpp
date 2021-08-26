@@ -1,9 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Views/SCSEditor/SDisplayClusterConfiguratorComponentCombo.h"
-
-#include "DisplayClusterConfiguratorBlueprintEditor.h"
-#include "DisplayClusterRootActor.h"
+#include "SDisplayClusterConfiguratorComponentCombo.h"
 
 #include "Components/DisplayClusterCameraComponent.h"
 #include "Components/DisplayClusterICVFXCameraComponent.h"
@@ -15,32 +12,31 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Views/SListView.h"
 #include "Widgets/Input/SComboBox.h"
-#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SSeparator.h"
 
-#include "Misc/TextFilterExpressionEvaluator.h"
+#include "EditorStyleSet.h"
 #include "Components/SceneComponent.h"
 #include "Engine/Blueprint.h"
 #include "Engine/Selection.h"
-
 #include "Editor.h"
-#include "EditorStyleSet.h"
 #include "Styling/SlateIconFinder.h"
 #include "ComponentAssetBroker.h"
 #include "ComponentTypeRegistry.h"
 #include "EditorClassUtils.h"
+
 #include "SListViewSelectorDropdownMenu.h"
-#include "SComponentClassCombo.h"
+#include "Misc/TextFilterExpressionEvaluator.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorComponentClassCombo"
 
 void SDisplayClusterConfiguratorComponentClassCombo::Construct(const FArguments& InArgs)
 {
 	PrevSelectedIndex = INDEX_NONE;
-	OnComponentClassSelected = InArgs._OnComponentClassSelected;
-	
+	OnSubobjectClassSelected = InArgs._OnSubobjectClassSelected;
 	TextFilter = MakeShared<FTextFilterExpressionEvaluator>(ETextFilterExpressionEvaluatorMode::BasicString);
-	
+
 	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentClassListPtr).AddRaw(this, &SDisplayClusterConfiguratorComponentClassCombo::UpdateComponentClassList);
 
 	UpdateComponentClassList();
@@ -56,76 +52,50 @@ void SDisplayClusterConfiguratorComponentClassCombo::Construct(const FArguments&
 		.OnTextChanged( this, &SDisplayClusterConfiguratorComponentClassCombo::OnSearchBoxTextChanged )
 		.OnTextCommitted( this, &SDisplayClusterConfiguratorComponentClassCombo::OnSearchBoxTextCommitted );
 
-	// Create the Construct arguments for the parent class (SComboButton)
-	SComboButton::FArguments Args;
-	Args.ButtonContent()
+	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(1.f,1.f)
+		SAssignNew(AddNewButton, SEditorHeaderButton)
+		.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+		.Text(LOCTEXT("AddComponent", "Add Component"))
+		.OnComboBoxOpened(this, &SDisplayClusterConfiguratorComponentClassCombo::ClearSelection)
+		.MenuContent()
 		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-		]
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.Padding(1.f)
-		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("AddnDisplayComponentButtonLabel", "Add Component"))
-			.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Visibility(InArgs._IncludeText.Get() ? EVisibility::Visible : EVisibility::Collapsed)
-		]
-	]
-	.MenuContent()
-	[
-
-		SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
-		[
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
-			.Padding(2)
+			SNew(SListViewSelectorDropdownMenu<FComponentClassComboEntryPtr>, SearchBox, ComponentClassListView)
 			[
-				SNew(SBox)
-				.WidthOverride(250)
-				[				
-					SNew(SVerticalBox)
-					+SVerticalBox::Slot()
-					.Padding(1.f)
-					.AutoHeight()
-					[
-						SearchBox.ToSharedRef()
-					]
-					+SVerticalBox::Slot()
-					.MaxHeight(400)
-					[
-						ComponentClassListView.ToSharedRef()
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+				.Padding(2)
+				[
+					SNew(SBox)
+					.WidthOverride(250)
+					[				
+						SNew(SVerticalBox)
+						+SVerticalBox::Slot()
+						.Padding(1.f)
+						.AutoHeight()
+						[
+							SearchBox.ToSharedRef()
+						]
+						+SVerticalBox::Slot()
+						.MaxHeight(400)
+						[
+							ComponentClassListView.ToSharedRef()
+						]
 					]
 				]
 			]
 		]
-	]
-	.IsFocusable(true)
-	.ContentPadding(FMargin(5, 0))
-	.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-	.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-	.ForegroundColor(FLinearColor::White)
-	.OnComboBoxOpened(this, &SDisplayClusterConfiguratorComponentClassCombo::ClearSelection);
+	];
 
-	SComboButton::Construct(Args);
+	
 
 	ComponentClassListView->EnableToolTipForceField( true );
-	// The base class can automatically handle setting focus to a specified control when the combo button is opened
-	SetMenuContentWidgetToFocus( SearchBox );
+	// The button can automatically handle setting focus to a specified control when the combo button is opened
+	AddNewButton->SetMenuContentWidgetToFocus( SearchBox );
 }
 
 SDisplayClusterConfiguratorComponentClassCombo::~SDisplayClusterConfiguratorComponentClassCombo()
 {
-	OnComponentClassSelected.Unbind();
 	FComponentTypeRegistry::Get().GetOnComponentTypeListChanged().RemoveAll(this);
 	FilteredComponentClassList.Empty();
 	ComponentClassList.Empty();
@@ -231,6 +201,7 @@ void SDisplayClusterConfiguratorComponentClassCombo::OnSearchBoxTextCommitted(co
 	}
 }
 
+// @todo: use FKismetEditorUtilities if the main SCS editor combo also moves their version of this function.
 static UClass* GetAuthoritativeBlueprintClass(UBlueprint const* const Blueprint)
 {
 	UClass* BpClass = (Blueprint->SkeletonGeneratedClass != nullptr) ? Blueprint->SkeletonGeneratedClass :
@@ -256,20 +227,12 @@ void SDisplayClusterConfiguratorComponentClassCombo::OnAddComponentSelectionChan
 		// We don't want the item to remain selected
 		ClearSelection();
 
-		// The filtered list won't always clear & regenerate. Seems to be a UE bug.
-		{
-			const FText EmptyText;
-			TextFilter->SetFilterText(EmptyText);
-
-			GenerateFilteredComponentList();
-		}
-		
 		if ( InItem->IsClass() )
 		{
 			// Neither do we want the combo dropdown staying open once the user has clicked on a valid option
-			SetIsOpen(false, false);
+			AddNewButton->SetIsMenuOpen(false, false);
 
-			if( OnComponentClassSelected.IsBound() )
+			if( OnSubobjectClassSelected.IsBound() )
 			{
 				UClass* ComponentClass = InItem->GetComponentClass();
 				if (ComponentClass == nullptr)
@@ -279,11 +242,11 @@ void SDisplayClusterConfiguratorComponentClassCombo::OnAddComponentSelectionChan
 					UBlueprint* LoadedObject = LoadObject<UBlueprint>(nullptr, *InItem->GetComponentPath(), nullptr, LoadFlags, nullptr);
 					ComponentClass = GetAuthoritativeBlueprintClass(LoadedObject);
 				}
-
-				UActorComponent* NewActorComponent = OnComponentClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride());
-				if(NewActorComponent)
+				
+				FSubobjectDataHandle NewActorCompHandle = OnSubobjectClassSelected.Execute(ComponentClass, InItem->GetComponentCreateAction(), InItem->GetAssetOverride());
+				if(NewActorCompHandle.IsValid())
 				{
-					InItem->GetOnComponentCreated().ExecuteIfBound(NewActorComponent);
+					InItem->GetOnSubobjectCreated().ExecuteIfBound(NewActorCompHandle);
 				}
 			}
 		}
@@ -347,13 +310,9 @@ TSharedRef<ITableRow> SDisplayClusterConfiguratorComponentClassCombo::GenerateAd
 				.Style(&FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.NoHoverTableRow"))
 				.ShowSelection(false)
 			[
-				SNew(SBox)
-				.Padding(1.f)
-				[
-					SNew(SBorder)
-					.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-					.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
-				]
+				SNew(SSeparator)
+				.SeparatorImage(FEditorStyle::Get().GetBrush("Menu.Separator"))
+				.Thickness(1.0f)
 			];
 	}
 	else
@@ -401,6 +360,73 @@ void SDisplayClusterConfiguratorComponentClassCombo::UpdateComponentClassList()
 {
 	GenerateComponentClassList();
 	GenerateFilteredComponentList();
+}
+
+FText SDisplayClusterConfiguratorComponentClassCombo::GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const
+{
+	// Get a user friendly string from the component name
+	FString FriendlyComponentName;
+
+	if( Entry->GetComponentCreateAction() == EComponentCreateAction::CreateNewCPPClass )
+	{
+		FriendlyComponentName = LOCTEXT("NewCPPComponentFriendlyName", "New C++ Component...").ToString();
+	}
+	else if (Entry->GetComponentCreateAction() == EComponentCreateAction::CreateNewBlueprintClass )
+	{
+		FriendlyComponentName = LOCTEXT("NewBlueprintComponentFriendlyName", "New Blueprint Script Component...").ToString();
+	}
+	else
+	{
+		FriendlyComponentName = SComponentClassCombo::GetSanitizedComponentName(Entry);
+
+		// Don't try to match up assets for USceneComponent it will match lots of things and doesn't have any nice behavior for asset adds 
+		if (Entry->GetComponentClass() != USceneComponent::StaticClass() && Entry->GetComponentNameOverride().IsEmpty())
+		{
+			// Search the selected assets and look for any that can be used as a source asset for this type of component
+			// If there is one we append the asset name to the component name, if there are many we append "Multiple Assets"
+			FString AssetName;
+			UObject* PreviousMatchingAsset = nullptr;
+
+			FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
+			USelection* Selection = GEditor->GetSelectedObjects();
+			for(FSelectionIterator ObjectIter(*Selection); ObjectIter; ++ObjectIter)
+			{
+				UObject* Object = *ObjectIter;
+				check(Object);
+				UClass* Class = Object->GetClass();
+
+				TArray<TSubclassOf<UActorComponent> > ComponentClasses = FComponentAssetBrokerage::GetComponentsForAsset(Object);
+				for(int32 ComponentIndex = 0; ComponentIndex < ComponentClasses.Num(); ComponentIndex++)
+				{
+					if(ComponentClasses[ComponentIndex]->IsChildOf(Entry->GetComponentClass()))
+					{
+						if(AssetName.IsEmpty())
+						{
+							// If there is no previous asset then we just accept the name
+							AssetName = Object->GetName();
+							PreviousMatchingAsset = Object;
+						}
+						else
+						{
+							// if there is a previous asset then check that we didn't just find multiple appropriate components
+							// in a single asset - if the asset differs then we don't display the name, just "Multiple Assets"
+							if(PreviousMatchingAsset != Object)
+							{
+								AssetName = LOCTEXT("MultipleAssetsForComponentAnnotation", "Multiple Assets").ToString();
+								PreviousMatchingAsset = Object;
+							}
+						}
+					}
+				}
+			}
+
+			if(!AssetName.IsEmpty())
+			{
+				FriendlyComponentName += FString(" (") + AssetName + FString(")");
+			}
+		}
+	}
+	return FText::FromString(FriendlyComponentName);
 }
 
 void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList()
@@ -457,62 +483,20 @@ void SDisplayClusterConfiguratorComponentClassCombo::GenerateComponentClassList(
 	}
 }
 
-FText SDisplayClusterConfiguratorComponentClassCombo::GetFriendlyComponentName(FComponentClassComboEntryPtr Entry) const
-{
-	// Get a user friendly string from the component name
-	FString FriendlyComponentName = SComponentClassCombo::GetSanitizedComponentName(Entry);
-
-	// Don't try to match up assets for USceneComponent it will match lots of things and doesn't have any nice behavior for asset adds 
-	if (Entry->GetComponentClass() != USceneComponent::StaticClass() && Entry->GetComponentNameOverride().IsEmpty())
-	{
-		// Search the selected assets and look for any that can be used as a source asset for this type of component
-		// If there is one we append the asset name to the component name, if there are many we append "Multiple Assets"
-		FString AssetName;
-		UObject* PreviousMatchingAsset = nullptr;
-
-		FEditorDelegates::LoadSelectedAssetsIfNeeded.Broadcast();
-		USelection* Selection = GEditor->GetSelectedObjects();
-		for(FSelectionIterator ObjectIter(*Selection); ObjectIter; ++ObjectIter)
-		{
-			UObject* Object = *ObjectIter;
-			check(Object);
-			UClass* Class = Object->GetClass();
-
-			TArray<TSubclassOf<UActorComponent> > ComponentClasses = FComponentAssetBrokerage::GetComponentsForAsset(Object);
-			for(int32 ComponentIndex = 0; ComponentIndex < ComponentClasses.Num(); ComponentIndex++)
-			{
-				if(ComponentClasses[ComponentIndex]->IsChildOf(Entry->GetComponentClass()))
-				{
-					if(AssetName.IsEmpty())
-					{
-						// If there is no previous asset then we just accept the name
-						AssetName = Object->GetName();
-						PreviousMatchingAsset = Object;
-					}
-					else
-					{
-						// if there is a previous asset then check that we didn't just find multiple appropriate components
-						// in a single asset - if the asset differs then we don't display the name, just "Multiple Assets"
-						if(PreviousMatchingAsset != Object)
-						{
-							AssetName = LOCTEXT("MultipleAssetsForComponentAnnotation", "Multiple Assets").ToString();
-							PreviousMatchingAsset = Object;
-						}
-					}
-				}
-			}
-		}
-
-		if(!AssetName.IsEmpty())
-		{
-			FriendlyComponentName += FString(" (") + AssetName + FString(")");
-		}
-	}
-	return FText::FromString(FriendlyComponentName);
-}
-
 TSharedRef<SToolTip> SDisplayClusterConfiguratorComponentClassCombo::GetComponentToolTip(FComponentClassComboEntryPtr Entry) const
 {
+	// Special handling for the "New..." options
+	if (Entry->GetComponentCreateAction() == EComponentCreateAction::CreateNewCPPClass)
+	{
+		return SNew(SToolTip)
+			.Text(LOCTEXT("NewCPPComponentToolTip", "Create a custom actor component using C++"));
+	}
+	else if (Entry->GetComponentCreateAction() == EComponentCreateAction::CreateNewBlueprintClass)
+	{
+		return SNew(SToolTip)
+			.Text(LOCTEXT("NewBlueprintComponentToolTip", "Create a custom actor component using Blueprints"));
+	}
+	
 	// Handle components which have a currently loaded class
 	if (const UClass* ComponentClass = Entry->GetComponentClass())
 	{
