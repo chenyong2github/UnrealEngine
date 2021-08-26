@@ -1610,7 +1610,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
 		.SetTabWellBrush(FSlateColorBrush(FStyleColors::Background))
 
-		.SetTabPadding(FMargin(4.f, 7.f, 10.f, 8.f))
+		.SetTabPadding(FMargin(4.f, 4.f, 10.f, 4.f))
 		.SetOverlapWidth(-2.0f) // Negative Overlap Width to add space between tabs
 		.SetFlashColor(TabFlashColor)
 
