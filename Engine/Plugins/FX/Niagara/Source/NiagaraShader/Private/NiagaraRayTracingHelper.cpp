@@ -68,7 +68,9 @@ class FNiagaraCollisionRayTraceRG : public FGlobalShader
 		SHADER_PARAMETER(uint32, HashTableSize)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 		SHADER_PARAMETER_SRV(Buffer<FNiagaraRayData>, Rays)
+		SHADER_PARAMETER(uint32, RaysOffset)
 		SHADER_PARAMETER_UAV(Buffer<FNiagaraRayTracingResult>, CollisionOutput)
+		SHADER_PARAMETER(uint32, CollisionOutputOffset)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, RayTraceCounts)
 		SHADER_PARAMETER_SRV(Buffer<UINT>, HashToCollisionGroups)
 		SHADER_PARAMETER(uint32, MaxRetraces)
@@ -155,12 +157,164 @@ IMPLEMENT_GLOBAL_SHADER(FNiagaraCollisionRayTraceRG, "/Plugin/FX/Niagara/Private
 IMPLEMENT_GLOBAL_SHADER(FNiagaraCollisionRayTraceCH, "/Plugin/FX/Niagara/Private/NiagaraRayTracingShaders.usf", "NiagaraCollisionRayTraceCH", SF_RayHitGroup);
 IMPLEMENT_GLOBAL_SHADER(FNiagaraCollisionRayTraceMiss, "/Plugin/FX/Niagara/Private/NiagaraRayTracingShaders.usf", "NiagaraCollisionRayTraceMiss", SF_RayMiss);
 
+
+int32 GNiagaraHWRTScratchBucketSize = 1024;
+static FAutoConsoleVariableRef CVarNiagaraHWRTScratchBucketSize(
+	TEXT("fx.Niagara.RayTracing.ScratchPadBucketSize"),
+	GNiagaraHWRTScratchBucketSize,
+	TEXT("Size (in elements) for Niagara hardware ray tracing scratch buffer buckets. \n"),
+	ECVF_Default
+);
+
+int32 GNiagaraHWRTCountsScratchBucketSize = 3 * 256;
+static FAutoConsoleVariableRef CVarNiagaraHWRTCountsScratchBucketSize(
+	TEXT("fx.Niagara.RayTracing.CountsScratchPadBucketSize"),
+	GNiagaraHWRTCountsScratchBucketSize,
+	TEXT("Scratch bucket size for the HWRT counts buffer. This buffer requires 4. \n"),
+	ECVF_Default
+);
+
+FNiagaraRayTracingHelper::FNiagaraRayTracingHelper(EShaderPlatform InShaderPlatform)
+	: ShaderPlatform(InShaderPlatform)
+	, RayRequests(GNiagaraHWRTScratchBucketSize, TEXT("NiagaraRayRequests"))
+	, RayTraceIntersections(GNiagaraHWRTScratchBucketSize, TEXT("NiagaraRayTraceIntersections"))
+	, RayTraceCounts(GNiagaraHWRTCountsScratchBucketSize, TEXT("NiagaraRayTraceCounts"), BUF_Static | BUF_DrawIndirect)
+{}
+
+FNiagaraRayTracingHelper::~FNiagaraRayTracingHelper()
+{
+	Reset();
+	Dispatches.Reset();
+
+	//TODO: Move RT Helper out of NiagaraShader and into Niagara. Makes general sense plus it would allow use to hook into these memory stats.
+// 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayRequests.AllocatedBytes());
+// 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.AllocatedBytes());
+// 	DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.AllocatedBytes());
+
+	RayRequests.Release();
+	RayTraceIntersections.Release();
+	RayTraceCounts.Release();
+}
+
 void FNiagaraRayTracingHelper::Reset()
 {
 	RayTracingPipelineState = nullptr;
 	RayTracingScene = nullptr;
 	RayTracingSceneView = nullptr;
 	ViewUniformBuffer = nullptr;
+}
+
+void FNiagaraRayTracingHelper::BeginFrame(FRHICommandList& RHICmdList)
+{
+	//Store off last frames dispatches so we can still access the previous results buffers for reading in this frame's simulations.
+	PreviousFrameDispatches = MoveTemp(Dispatches);
+	Dispatches.Reset();
+
+	//Ensure we're each buffer is definitely in the right access state.
+	RayRequests.Transition(RHICmdList, ERHIAccess::Unknown, ERHIAccess::UAVCompute);//Simulations will write new ray trace requests.
+	RayTraceIntersections.Transition(RHICmdList, ERHIAccess::Unknown, ERHIAccess::SRVCompute);//Simulations will read from the previous frames results.
+	RayTraceCounts.Transition(RHICmdList, ERHIAccess::Unknown, ERHIAccess::UAVCompute);//Simulations will accumulate the number of traces requests here.
+
+	//Reset the allocations.
+	RayRequests.Reset();
+
+	//Note this doesn't change any buffers or data themselves and the ray intersections buffer are still going to be read as SRVs in the up coming simulations dispatches.
+	//We're just clearing existing allocations here.
+	RayTraceIntersections.Reset();
+
+	//We have to also clear the counts/indirect args buffer.
+	RayTraceCounts.Reset(RHICmdList, true);
+
+	// Clear the dummy buffer allocations.
+	DummyDispatch.Reset();
+
+	RayTracingPipelineState = nullptr;
+	RayTracingScene = nullptr;
+	RayTracingSceneView = nullptr;
+	ViewUniformBuffer = nullptr;
+}
+
+void FNiagaraRayTracingHelper::EndFrame(FRHICommandList& RHICmdList, FScene* Scene)
+{
+	RayRequests.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Ray trace dispatches will read the ray requests.
+	RayTraceIntersections.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Ray trace dispatches will write new results.
+	RayTraceCounts.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute);//Ray trace dispatches read these counts and use them for indirect dispatches.
+	
+	IssueRayTraces(RHICmdList, Scene);
+
+	RayRequests.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame, simulations will write new ray trace requests.
+	RayTraceIntersections.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Next frame these results will be read by simulations shaders.
+	RayTraceCounts.Transition(RHICmdList, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame these counts will be written by simulation shaders.
+}
+
+void FNiagaraRayTracingHelper::AddToDispatch(FNiagaraDataInterfaceProxy* DispatchKey, uint32 MaxRays, int32 MaxRetraces)
+{
+	FNiagaraRayTraceDispatchInfo& Dispatch = Dispatches.FindOrAdd(DispatchKey);
+	Dispatch.MaxRays += MaxRays;
+	Dispatch.MaxRetraces = MaxRetraces;
+}
+
+const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDispatch(FNiagaraDataInterfaceProxy* DispatchKey, FRHICommandList& RHICmdList)
+{
+	FNiagaraRayTraceDispatchInfo& Dispatch = Dispatches.FindChecked(DispatchKey);
+
+	//Finalize allocations first time we access the dispatch.
+	if (Dispatch.RayRequests.IsValid() == false)
+	{
+		//TODO: Move RT Helper out of NiagaraShader and into Niagara. Makes general sense plus it would allow use to hook into these memory stats.
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayRequests.AllocatedBytes());
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.AllocatedBytes());
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.AllocatedBytes());
+
+		Dispatch.RayRequests = RayRequests.Alloc(Dispatch.MaxRays);
+		Dispatch.RayTraceIntersections = RayTraceIntersections.Alloc(Dispatch.MaxRays);
+		Dispatch.RayCounts = RayTraceCounts.Alloc<uint32>(3, RHICmdList, true);
+
+		//TODO: Could add a delegate to call from the scratch when new buffers are allocated to reduce stat spam here?
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayRequests.AllocatedBytes());
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.AllocatedBytes());
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.AllocatedBytes());
+
+		//Find last frame's results buffer if there was one. Ideally we can do this without the map but it will need a bit of wrangling.
+		FNiagaraRayTraceDispatchInfo* PrevDispatch = PreviousFrameDispatches.Find(DispatchKey);
+		if (PrevDispatch && PrevDispatch->RayTraceIntersections.IsValid())
+		{
+			Dispatch.LastFrameRayTraceIntersections = PrevDispatch->RayTraceIntersections;
+		}
+		else
+		{
+			//Set the current frame results just so this is a valid buffer.
+			//If we didn't have a results buffer last frame then this won't actually be read.
+			Dispatch.LastFrameRayTraceIntersections = Dispatch.RayTraceIntersections;
+		}
+	}
+	
+	return Dispatch;
+}
+
+const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDummyDispatch(FRHICommandList& RHICmdList)
+{
+	if (DummyDispatch.IsValid() == false)
+	{
+		//TODO: Move RT Helper out of NiagaraShader and into Niagara. Makes general sense plus it would allow use to hook into these memory stats.
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayRequests.AllocatedBytes());
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.AllocatedBytes());
+// 		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.AllocatedBytes());
+
+		DummyDispatch.RayRequests = RayRequests.Alloc(1);
+		DummyDispatch.RayTraceIntersections = RayTraceIntersections.Alloc(1);
+		DummyDispatch.LastFrameRayTraceIntersections = DummyDispatch.RayTraceIntersections;
+		DummyDispatch.RayCounts = RayTraceCounts.Alloc<uint32>(3, RHICmdList, true);
+		
+		//TODO: Move RT Helper out of NiagaraShader and into Niagara. Makes general sense plus it would allow use to hook into these memory stats.
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayRequests.AllocatedBytes());
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.AllocatedBytes());
+// 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.AllocatedBytes());
+
+		DummyDispatch.MaxRays = 0;
+		DummyDispatch.MaxRetraces = 0;
+	}
+	return DummyDispatch;
 }
 
 static FRayTracingPipelineState* CreateNiagaraRayTracingPipelineState(
@@ -382,7 +536,7 @@ void FNiagaraRayTracingHelper::BuildRayTracingSceneInfo(FRHICommandList& RHICmdL
 	}
 }
 
-void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, FScene* Scene, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
+void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, FScene* Scene)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, NiagaraIssueCollisionRayTraces);
 	check(RayTracingPipelineState);
@@ -390,60 +544,67 @@ void FNiagaraRayTracingHelper::IssueRayTraces(FRHICommandList& RHICmdList, FScen
 	check(RayTracingSceneView);
 	check(Scene);
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);
-
-	TShaderRef<FNiagaraCollisionRayTraceRG> RGShader = FNiagaraCollisionRayTraceRG::GetShader(ShaderMap);
-
-	FNiagaraCollisionRayTraceRG::FParameters Params;
-
-	Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
-	Params.GPUSceneParameters.GPUSceneInstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
-	Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
-	Params.GPUSceneParameters.GPUSceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
-
-	Params.HashTable = PrimIdHashTable.SRV;
-	Params.HashTableSize = HashTableSize;
-	Params.TLAS = RayTracingSceneView;
-	Params.Rays = RayTraceRequests;
-	Params.CollisionOutput = RayTraceResults;
-	Params.HashToCollisionGroups = HashToCollisionGroups.SRV;
-	Params.MaxRetraces = MaxRetraces;
-
-	if (FNiagaraCollisionRayTraceRG::SupportsIndirectDispatch())
+	for (TPair<FNiagaraDataInterfaceProxy*, FNiagaraRayTraceDispatchInfo>& Pair : Dispatches)
 	{
-		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute));
+		FNiagaraRayTraceDispatchInfo& DispatchInfo = Pair.Value;
+		
+		if (DispatchInfo.MaxRays == 0)
+		{
+			continue;
+		}
 
-		FRayTracingShaderBindingsWriter GlobalResources;
-		SetShaderParameters(GlobalResources, RGShader, Params);
+		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ShaderPlatform);
 
-		RHICmdList.RayTraceDispatchIndirect(
-			RayTracingPipelineState,
-			RGShader.GetRayTracingShader(),
-			RayTracingScene,
-			GlobalResources,
-			IndirectArgsBuffer->Buffer,
-			IndirectArgsOffset);
+		TShaderRef<FNiagaraCollisionRayTraceRG> RGShader = FNiagaraCollisionRayTraceRG::GetShader(ShaderMap);
 
-		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
-	}
-	else
-	{
-		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute));
-		Params.RayTraceCounts = IndirectArgsBuffer->SRV;
+		FNiagaraCollisionRayTraceRG::FParameters Params;
 
-		FRayTracingShaderBindingsWriter GlobalResources;
-		SetShaderParameters(GlobalResources, RGShader, Params);
+		Params.GPUSceneParameters.GPUSceneInstanceSceneData = Scene->GPUScene.InstanceSceneDataBuffer.SRV;
+		Params.GPUSceneParameters.GPUSceneInstancePayloadData = Scene->GPUScene.InstancePayloadDataBuffer.SRV;
+		Params.GPUSceneParameters.GPUScenePrimitiveSceneData = Scene->GPUScene.PrimitiveBuffer.SRV;
+		Params.GPUSceneParameters.GPUSceneFrameNumber = Scene->GPUScene.GetSceneFrameNumber();
 
-		RHICmdList.RayTraceDispatch(
-			RayTracingPipelineState,
-			RGShader.GetRayTracingShader(),
-			RayTracingScene,
-			GlobalResources,
-			RayTraceCounts.X,
-			RayTraceCounts.Y
-		);
+		Params.HashTable = PrimIdHashTable.SRV;
+		Params.HashTableSize = HashTableSize;
+		Params.TLAS = RayTracingSceneView;
+		Params.Rays = DispatchInfo.RayRequests.Buffer->SRV;
+		Params.RaysOffset = DispatchInfo.RayRequests.Offset;
+		Params.CollisionOutput = DispatchInfo.RayTraceIntersections.Buffer->UAV;
+		Params.CollisionOutputOffset = DispatchInfo.RayTraceIntersections.Offset;
+		Params.HashToCollisionGroups = HashToCollisionGroups.SRV;
+		Params.MaxRetraces = DispatchInfo.MaxRetraces;
 
-		RHICmdList.Transition(FRHITransitionInfo(IndirectArgsBuffer->UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute));
+		if (FNiagaraCollisionRayTraceRG::SupportsIndirectDispatch())
+		{
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RGShader, Params);
+
+			//Can we wrangle things so we can have one indirect dispatch with each internal dispatch pointing to potentially different Ray and Results buffers?
+			//For now have a each as a unique dispatch.
+			RHICmdList.RayTraceDispatchIndirect(
+				RayTracingPipelineState,
+				RGShader.GetRayTracingShader(),
+				RayTracingScene,
+				GlobalResources,
+				DispatchInfo.RayCounts.Buffer->Buffer,
+				DispatchInfo.RayCounts.Offset * sizeof(uint32));
+		}
+		else
+		{
+			Params.RayTraceCounts = DispatchInfo.RayCounts.Buffer->SRV;
+
+			FRayTracingShaderBindingsWriter GlobalResources;
+			SetShaderParameters(GlobalResources, RGShader, Params);
+
+			RHICmdList.RayTraceDispatch(
+				RayTracingPipelineState,
+				RGShader.GetRayTracingShader(),
+				RayTracingScene,
+				GlobalResources,
+				DispatchInfo.MaxRays,
+				1
+			);
+		}
 	}
 }
 

@@ -18,11 +18,19 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
 
+void OnHWRTCollisionsEnabledChanged(IConsoleVariable* CVar)
+{
+	//Force a reinit of everything just to be safe.
+	FNiagaraSystemUpdateContext Context;
+	Context.AddAll(true);
+}
+
 int32 GEnableGPUHWRTCollisions = 1;
 static FAutoConsoleVariableRef CVarEnableGPUHWRTCollisions(
 	TEXT("fx.Niagara.Collision.EnableGPURayTracedCollisions"),
 	GEnableGPUHWRTCollisions,
 	TEXT("If greater than zero, GPU hardware ray trace collisions are enabled."),
+	FConsoleVariableDelegate::CreateStatic(&OnHWRTCollisionsEnabledChanged),
 	ECVF_Default
 );
 
@@ -44,8 +52,11 @@ namespace NDICollisionQueryLocal
 	static const FString RayTracingEnabledParamName(TEXT("RayTracingEnabled_"));
 	static const FString MaxRayTraceCountParamName(TEXT("MaxRayTraceCount_"));
 	static const FString RayRequestsParamName(TEXT("RayRequests_"));
+	static const FString RayRequestsOffsetParamName(TEXT("RayRequestsOffset_"));
 	static const FString IntersectionResultsParamName(TEXT("IntersectionResults_"));
+	static const FString IntersectionResultsOffsetParamName(TEXT("IntersectionResultsOffset_"));
 	static const FString RayTraceCountsParamName(TEXT("RayTraceCounts_"));
+	static const FString RayTraceCountsOffsetParamName(TEXT("RayTraceCountsOffset_"));
 }
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
@@ -66,27 +77,12 @@ struct FNiagaraCollisionDIFunctionVersion
 struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfaceProxy
 {
 #if RHI_RAYTRACING
-	FRWBufferStructured RayTraceRequests;
-	FRWBufferStructured RayTraceIntersections;
-	FRWBuffer RayTraceCounts;
-
-	int32 MaxRayTraceCount = 0;
-
+	int32 MaxTracesPerParticle = 0;
 	uint32 MaxRetraces = 0;
 #endif
 
 	virtual ~FNiagaraDataIntefaceProxyCollisionQuery()
 	{
-#if RHI_RAYTRACING
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
-		RayTraceRequests.Release();
-
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
-		RayTraceIntersections.Release();
-
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.NumBytes);
-		RayTraceCounts.Release();
-#endif
 	}
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
@@ -99,112 +95,31 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		FNiagaraDataInterfaceProxy::PreStage(RHICmdList, Context);
 
 #if RHI_RAYTRACING
-		// First stage needs to clear the indirect args
-		if (MaxRayTraceCount > 0 && Context.SimStageData->bFirstStage)
+
+		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
 		{
-			RHICmdList.ClearUAVUint(RayTraceCounts.UAV, FUintVector4(0, 0, 0, 0));
-			RHICmdList.Transition(FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+			//Accumulate the total ray requests for this DI for all dispatches in the stage.
+			int32 RayRequests = MaxTracesPerParticle * Context.SimStageData->DestinationNumInstances;
+			FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
+			RTHelper.AddToDispatch(this, RayRequests, MaxRetraces);
 		}
 #endif
 	}
 
 	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
 	{
-#if RHI_RAYTRACING
-		// If we are not the last stage we need to transition because another stage may write
-		// If we do not have a ray tracing scene active we also need to transition as PostSimulate will not transition the buffers
-		if (MaxRayTraceCount > 0 && (!Context.SimStageData->bLastStage || !Context.Batcher->HasRayTracingScene()))
-		{
-			FRHITransitionInfo Transitions[] =
-			{
-				FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute),
-			};
-			RHICmdList.Transition(Transitions);
-		}
-#endif
 	}
 
 	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
 	{
 		FNiagaraDataInterfaceProxy::PostSimulate(RHICmdList, Context);
-
-#if RHI_RAYTRACING
-		if (MaxRayTraceCount > 0 && Context.Batcher->HasRayTracingScene())
-		{
-			{
-				FRHITransitionInfo PreTransitions[] =
-				{
-					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
-					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs),
-				};
-				RHICmdList.Transition(PreTransitions);
-			}
-
-			Context.Batcher->IssueRayTraces(RHICmdList, FIntPoint(MaxRayTraceCount, 1), MaxRetraces, RayTraceRequests.SRV, &RayTraceCounts, 0, RayTraceIntersections.UAV);
-
-			{
-				FRHITransitionInfo PostTransitions[] =
-				{
-					FRHITransitionInfo(RayTraceRequests.UAV, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute),
-					FRHITransitionInfo(RayTraceIntersections.UAV, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute),
-					FRHITransitionInfo(RayTraceCounts.UAV, ERHIAccess::IndirectArgs, ERHIAccess::UAVCompute),
-				};
-				RHICmdList.Transition(PostTransitions);
-			}
-		}
-#endif
 	}
 
-	void RenderThreadInitialize(int32 InMaxRayTraceRequests, uint32 InMaxRetraces)
+	void RenderThreadInitialize(int32 InMaxTracesPerParticle, uint32 InMaxRetraces)
 	{
 #if RHI_RAYTRACING
-		MaxRayTraceCount = 0;
 		MaxRetraces = InMaxRetraces;
-
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
-		RayTraceRequests.Release();
-
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
-		RayTraceIntersections.Release();
-
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.NumBytes);
-		RayTraceCounts.Release();
-
-		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && InMaxRayTraceRequests > 0)
-		{
-			MaxRayTraceCount = 16 * FMath::DivideAndRoundUp(InMaxRayTraceRequests, 16);
-
-			RayTraceRequests.Initialize(
-				TEXT("NiagaraRayTraceRequests"),
-				sizeof(FNiagaraRayData),
-				MaxRayTraceCount,
-				BUF_Static,
-				false /*bUseUavCounter*/,
-				false /*bAppendBuffer*/,
-				ERHIAccess::UAVCompute);
-			INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceRequests.NumBytes);
-
-			RayTraceIntersections.Initialize(
-				TEXT("NiagaraRayTraceIntersections"),
-				sizeof(FNiagaraRayTracingResult),
-				MaxRayTraceCount,
-				BUF_Static,
-				false /*bUseUavCounter*/,
-				false /*bAppendBuffer*/,
-				ERHIAccess::SRVCompute);
-			INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceIntersections.NumBytes);
-
-			RayTraceCounts.Initialize(
-				TEXT("NiagaraRayTraceIndirectArgs"),
-				sizeof(uint32),
-				4,
-				PF_R32_UINT,
-				ERHIAccess::UAVCompute,
-				BUF_Static | BUF_DrawIndirect);
-			INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, RayTraceCounts.NumBytes);
-		}
+		MaxTracesPerParticle = InMaxTracesPerParticle;
 #endif
 	}
 };
@@ -253,7 +168,7 @@ void UNiagaraDataInterfaceCollisionQuery::PostLoad()
 {
 	Super::PostLoad();
 
-	if (MaxRayTraceCount)
+	if (MaxTracesPerParticle)
 	{
 		MarkRenderDataDirty();
 	}
@@ -654,7 +569,7 @@ void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctio
 
 bool UNiagaraDataInterfaceCollisionQuery::RequiresRayTracingScene() const
 {
-	return IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxRayTraceCount > 0;
+	return IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -966,7 +881,7 @@ bool UNiagaraDataInterfaceCollisionQuery::Equals(const UNiagaraDataInterface* Ot
 	}
 
 	const UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<const UNiagaraDataInterfaceCollisionQuery>(Other);
-	return OtherTyped->MaxRayTraceCount == MaxRayTraceCount;
+	return OtherTyped->MaxTracesPerParticle == MaxTracesPerParticle;
 	return OtherTyped->MaxRetraces == MaxRetraces;
 }
 
@@ -978,7 +893,7 @@ bool UNiagaraDataInterfaceCollisionQuery::CopyToInternal(UNiagaraDataInterface* 
 	}
 
 	UNiagaraDataInterfaceCollisionQuery* OtherTyped = CastChecked<UNiagaraDataInterfaceCollisionQuery>(Destination);
-	OtherTyped->MaxRayTraceCount = MaxRayTraceCount;
+	OtherTyped->MaxTracesPerParticle = MaxTracesPerParticle;
 	OtherTyped->MaxRetraces = MaxRetraces;
 	OtherTyped->MarkRenderDataDirty();
 	return true;
@@ -990,9 +905,9 @@ void UNiagaraDataInterfaceCollisionQuery::PushToRenderThreadImpl()
 
 	// Push Updates to Proxy, first release any resources
 	ENQUEUE_RENDER_COMMAND(FUpdateDI)(
-		[RT_Proxy, RT_MaxRayTraceRequests = MaxRayTraceCount, RT_MaxRetraces = MaxRetraces](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_MaxTracesPerParticle = MaxTracesPerParticle, RT_MaxRetraces = MaxRetraces](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_Proxy->RenderThreadInitialize(RT_MaxRayTraceRequests, RT_MaxRetraces);
+			RT_Proxy->RenderThreadInitialize(RT_MaxTracesPerParticle, RT_MaxRetraces);
 		});
 }
 
@@ -1001,7 +916,7 @@ void UNiagaraDataInterfaceCollisionQuery::PostEditChangeProperty(struct FPropert
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCollisionQuery, MaxRayTraceCount))
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceCollisionQuery, MaxTracesPerParticle))
 	{
 		MarkRenderDataDirty();
 	}
@@ -1021,8 +936,11 @@ public:
 		RayTracingEnabledParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTracingEnabledParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		MaxRayTraceCountParam.Bind(ParameterMap, *(NDICollisionQueryLocal::MaxRayTraceCountParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		RayRequestsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayRequestsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
+		RayRequestOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayRequestsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		IntersectionResultsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::IntersectionResultsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
+		IntersectionResultOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::IntersectionResultsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 		RayTraceCountsParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTraceCountsParamName + ParameterInfo.DataInterfaceHLSLSymbol));
+		RayTraceCountsOffsetParam.Bind(ParameterMap, *(NDICollisionQueryLocal::RayTraceCountsOffsetParamName + ParameterInfo.DataInterfaceHLSLSymbol));
 #endif
 	}
 
@@ -1050,22 +968,42 @@ public:
 		}
 
 #if RHI_RAYTRACING
+
+		FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
+		const FNiagaraRayTraceDispatchInfo* DispatchInfo = nullptr;
+		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && QueryDI->MaxTracesPerParticle > 0)
+		{
+			DispatchInfo = &RTHelper.GetDispatch(QueryDI, RHICmdList);
+		}
+		else
+		{
+			DispatchInfo = &RTHelper.GetDummyDispatch(RHICmdList);
+		}
+
 		SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() && GEnableGPUHWRTCollisions ? 1 : 0);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, QueryDI->MaxRayTraceCount);
+		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, DispatchInfo->MaxRays);
 
 		if (RayRequestsParam.IsUAVBound())
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), QueryDI->RayTraceRequests.UAV);
+			check(DispatchInfo->RayRequests.IsValid());
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), DispatchInfo->RayRequests.Buffer->UAV);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RayRequestOffsetParam, DispatchInfo->RayRequests.Offset);
 		}
 
 		if (IntersectionResultsParam.IsBound())
 		{
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, QueryDI->RayTraceIntersections.SRV);
+			check(DispatchInfo->LastFrameRayTraceIntersections.IsValid());
+
+			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, DispatchInfo->LastFrameRayTraceIntersections.Buffer->SRV);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, IntersectionResultOffsetParam, DispatchInfo->LastFrameRayTraceIntersections.Offset);
 		}
 
 		if (RayTraceCountsParam.IsUAVBound())
 		{
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayTraceCountsParam.GetUAVIndex(), QueryDI->RayTraceCounts.UAV);
+			check(DispatchInfo->RayCounts.IsValid());
+
+			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayTraceCountsParam.GetUAVIndex(), DispatchInfo->RayCounts.Buffer->UAV);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTraceCountsOffsetParam, DispatchInfo->RayCounts.Offset);
 		}
 #endif
 	}
@@ -1095,8 +1033,11 @@ private:
 	LAYOUT_FIELD(FShaderParameter, RayTracingEnabledParam);
 	LAYOUT_FIELD(FShaderParameter, MaxRayTraceCountParam);
 	LAYOUT_FIELD(FRWShaderParameter, RayRequestsParam);
+	LAYOUT_FIELD(FShaderParameter, RayRequestOffsetParam);
 	LAYOUT_FIELD(FShaderResourceParameter, IntersectionResultsParam);
+	LAYOUT_FIELD(FShaderParameter, IntersectionResultOffsetParam);
 	LAYOUT_FIELD(FRWShaderParameter, RayTraceCountsParam);
+	LAYOUT_FIELD(FShaderParameter, RayTraceCountsOffsetParam);
 #endif
 };
 

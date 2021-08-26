@@ -30,7 +30,7 @@ public:
 	DECLARE_NIAGARA_DI_PARAMETER();
 
 	UPROPERTY(EditAnywhere, Category = "Ray Trace")
-	int32 MaxRayTraceCount = 0;
+	int32 MaxTracesPerParticle = 0;
 
 	/** If a collision is rejected, how many times do we attempt to retrace from that collision point forward to find a new, valid collision.*/
 	UPROPERTY(EditAnywhere, Category = "Ray Trace")

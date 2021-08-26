@@ -9,9 +9,11 @@
 #include "/Engine/Private/HashTable.ush"
 #include "/Engine/Private/RayTracing/VFXTraceRay.ush"
 
-RaytracingAccelerationStructure               TLAS;
-StructuredBuffer<FNiagaraRayData>               Rays;
-RWStructuredBuffer<FNiagaraRayTracingResult> CollisionOutput;
+RaytracingAccelerationStructure					TLAS;
+StructuredBuffer<FNiagaraRayData>				Rays;
+uint											RaysOffset;
+RWStructuredBuffer<FNiagaraRayTracingResult>	CollisionOutput;
+uint											CollisionOutputOffset;
 
 #if NIAGARA_RAYTRACE_FAKE_INDIRECT
 Buffer<uint>                                  RayTraceCounts;
@@ -55,13 +57,13 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	const uint RayIndex = DispatchRaysIndex().x;
 
 #if NIAGARA_RAYTRACE_FAKE_INDIRECT
-	if (RayIndex >= RayTraceCounts[0])
+	if (RayIndex >= RayTraceCounts[0]) 
 	{
 		return;
 	}
 #endif
 
-	FNiagaraRayData InputRay = Rays[RayIndex];
+	FNiagaraRayData InputRay = Rays[RayIndex + RaysOffset];
 
 	RayDesc Ray;
 	Ray.Origin = InputRay.Origin;
@@ -81,7 +83,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 		while (NumCasts++ <= MaxRetraces)
 		{
 			Payload = (FVFXTracePayload)0;
-			VFX_TRACE_RAY(
+			VfxTraceRay(
 				TLAS,   // AccelerationStructure
 				RayFlags,
 				RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
@@ -90,10 +92,10 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 				0,      // MissShaderIndex
 				Ray,    // RayDesc
 				Payload // Payload
-			);
+			); 
 
 			uint GPUSceneInstanceIndex = GetGPUSceneInstanceIndex(Payload.PrimitiveIndex, Payload.InstanceIndex);
-			uint PrimCollisionGroup;
+			uint PrimCollisionGroup; 
 			if (FindCollisionGroup(GPUSceneInstanceIndex, PrimCollisionGroup))
 			{
 				//If we collide with something of a different group to the Ray then break and allow the collision. Otherwise loop and attempt to recast just infront of the hit we're discarding.
@@ -112,7 +114,7 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 	}
 	else
 	{
-		VFX_TRACE_RAY(
+		VfxTraceRay(
 			TLAS,   // AccelerationStructure
 			RayFlags,
 			RAY_TRACING_MASK_OPAQUE,          // InstanceInclusionMask
@@ -124,11 +126,12 @@ RAY_TRACING_ENTRY_RAYGEN(NiagaraCollisionRayTraceRG)
 		);
 	}
 
-	CollisionOutput[RayIndex].HitT = Payload.HitT;
+	uint OutputIndex = RayIndex + CollisionOutputOffset;
+	CollisionOutput[OutputIndex].HitT = Payload.HitT;
 	if (Payload.IsHit())
 	{
-		CollisionOutput[RayIndex].WorldPosition = Payload.WorldPosition;
-		CollisionOutput[RayIndex].WorldNormal = Payload.WorldNormal;
+		CollisionOutput[OutputIndex].WorldPosition = Payload.WorldPosition;
+		CollisionOutput[OutputIndex].WorldNormal = Payload.WorldNormal;
 	}
 }
 

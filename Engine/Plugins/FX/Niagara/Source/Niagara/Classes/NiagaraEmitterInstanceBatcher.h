@@ -158,7 +158,7 @@ public:
 	FNiagaraGpuReadbackManager* GetGpuReadbackManager() const { return GpuReadbackManagerPtr.Get(); }
 
 #if RHI_RAYTRACING
-	void IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const;
+	FNiagaraRayTracingHelper& GetRayTracingHelper()const;
 	bool HasRayTracingScene() const;
 
 	void SetPrimitiveRayTracingCollisionGroup(UPrimitiveComponent* PrimitiveComponent, uint32 Group);
