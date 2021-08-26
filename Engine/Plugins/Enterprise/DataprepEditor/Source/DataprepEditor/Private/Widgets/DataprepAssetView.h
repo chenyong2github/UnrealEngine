@@ -23,6 +23,8 @@
 class IDetailsView;
 class SDataprepAssetView;
 class SDataprepConsumerWidget;
+class SSubobjectEditor;
+class FSubobjectEditorTreeNode;
 
 class SDataprepAssetView : public SCompoundWidget
 {
@@ -93,7 +95,7 @@ private:
 	/** Add this property and all its child properties to SelectedObjectProperties */
 	void AddPropertiesRecursive(FProperty* Property);
 
-	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes);
+	void OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<FSubobjectEditorTreeNode>>& SelectedNodes);
 
 private:
 	/** Property viewing widget */
@@ -112,10 +114,10 @@ private:
 	TSharedPtr<SSplitter> DetailsSplitter;
 
 	/** Component tree */
-	TSharedPtr<class SSCSEditor> SCSEditor;
+	TSharedPtr<SSubobjectEditor> SubobjectEditor;
 
 	/** Customize how the component tree looks like */
-	TSharedPtr<class FDataprepSCSEditorUICustomization> SCSEditorUICustomization;
+	TSharedPtr<class FDataprepSCSEditorUICustomization> SubobjectEditorUICustomization;
 
 	/** The first actor in the currently selected objects */
 	AActor* SelectedActor;
