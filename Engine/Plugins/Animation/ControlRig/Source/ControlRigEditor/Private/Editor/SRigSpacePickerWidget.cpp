@@ -67,32 +67,31 @@ void SRigSpacePickerWidget::Construct(const FArguments& InArgs)
 			}
 		}
 	}
-
-	// Ok/Cancel buttons
-	ListBox->AddSlot()
-	.AutoHeight()
-	.HAlign(HAlign_Right)
-	.VAlign(VAlign_Bottom)
-	.Padding(4, 12, 0, 0)
-	[
-		SNew(SUniformGridPanel)
-		.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
-		.MinDesiredSlotWidth(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotWidth"))
-		.MinDesiredSlotHeight(FEditorStyle::GetFloat("StandardDialog.MinDesiredSlotHeight"))
-		+SUniformGridPanel::Slot(0,0)
-		[
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.ContentPadding( FEditorStyle::GetMargin("StandardDialog.ContentPadding") )
-			.OnClicked(this, &SRigSpacePickerWidget::CancelClicked)
-			.Text(LOCTEXT("RigSpacePickerWidgetCancel", "Cancel"))
-		]
-	];
 }
 
 SRigSpacePickerWidget::~SRigSpacePickerWidget()
 {
 }
+
+class SRigSpacePickerWindow : public SWindow
+{
+public:
+
+	virtual bool OnIsActiveChanged(const FWindowActivateEvent& ActivateEvent) override
+	{
+		if(ActivateEvent.GetActivationType() == FWindowActivateEvent::EA_Deactivate)
+		{
+			DeactivatedDelegate.ExecuteIfBound();
+		}
+		return SWindow::OnIsActiveChanged(ActivateEvent);
+	}
+
+	FSimpleDelegate& OnDeactivated() { return DeactivatedDelegate; }
+
+private:
+
+	FSimpleDelegate DeactivatedDelegate;
+}; 
 
 SRigSpacePickerWidget::FResult SRigSpacePickerWidget::InvokeDialog()
 {
@@ -100,7 +99,7 @@ SRigSpacePickerWidget::FResult SRigSpacePickerWidget::InvokeDialog()
 	
 	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
 
-	TSharedRef<SWindow> Window = SNew(SWindow)
+	TSharedRef<SRigSpacePickerWindow> Window = SNew(SRigSpacePickerWindow)
 	.Title( LOCTEXT("SRigSpacePickerWidgetPickSpace", "Pick a new space") )
 	.CreateTitleBar(false)
 	.Type(EWindowType::Menu)
@@ -113,6 +112,7 @@ SRigSpacePickerWidget::FResult SRigSpacePickerWidget::InvokeDialog()
 	];
 	
 	Window->SetWidgetToFocusOnActivate(AsShared());
+	Window->OnDeactivated().BindSP(this, &SRigSpacePickerWidget::CloseDialog);
 	
 	PickerWindow = Window;
 
@@ -125,30 +125,19 @@ SRigSpacePickerWidget::FResult SRigSpacePickerWidget::InvokeDialog()
 	return Result;
 }
 
-void SRigSpacePickerWidget::CloseDialog(bool bWasPicked)
+void SRigSpacePickerWidget::CloseDialog()
 {
-	if(!bWasPicked)
-	{
-		PickedKey = FRigElementKey();
-	}
-
 	if ( PickerWindow.IsValid() )
 	{
 		PickerWindow.Pin()->RequestDestroyWindow();
 	}
 }
 
-FReply SRigSpacePickerWidget::CancelClicked()
-{
-	CloseDialog();
-	return FReply::Handled();
-}
-
 FReply SRigSpacePickerWidget::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
 	{
-		CancelClicked();
+		PickedKey = FRigElementKey();
 		return FReply::Handled();
 	}
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
@@ -211,7 +200,7 @@ FReply SRigSpacePickerWidget::HandleWorldSpaceClicked()
 FReply SRigSpacePickerWidget::HandleElementSpaceClicked(FRigElementKey InKey)
 {
 	PickedKey = InKey;
-	CloseDialog(true);
+	CloseDialog();
 	return FReply::Handled();
 }
 
