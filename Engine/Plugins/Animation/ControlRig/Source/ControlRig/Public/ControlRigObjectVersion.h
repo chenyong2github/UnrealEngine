@@ -39,6 +39,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// RigHierarchy now supports space favorites per control
 		RigHierarchyControlSpaceFavorites,
 
+		// RigHierarchy now stores min and max values as float storages 
+		StorageMinMaxValuesAsFloatStorage,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
