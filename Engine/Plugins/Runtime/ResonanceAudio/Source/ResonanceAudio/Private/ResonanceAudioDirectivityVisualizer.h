@@ -47,8 +47,8 @@ private:
 #endif
 
 	UPROPERTY()
-	UMaterial* Material;
+	TObjectPtr<UMaterial> Material;
 
 	UPROPERTY()
-	UResonanceAudioSpatializationSourceSettings* Settings;
+	TObjectPtr<UResonanceAudioSpatializationSourceSettings> Settings;
 };
