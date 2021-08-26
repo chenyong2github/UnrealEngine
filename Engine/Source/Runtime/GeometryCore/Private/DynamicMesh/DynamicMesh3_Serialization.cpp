@@ -9,17 +9,26 @@ using namespace UE::Geometry;
 
 enum class EDynamicMeshSerializationVersion
 {
-	InitialVersion = 1
+	InitialVersion = 1,
+
+	// ----- new versions to be added above this line -------------------------------------------------
+	VersionPlusOne,
+	LatestVersion = VersionPlusOne - 1
 };
 
+int FDynamicMesh3::SerializeInternal_LatestVersion()
+{
+	return static_cast<int>(EDynamicMeshSerializationVersion::LatestVersion);
+}
 
 void FDynamicMesh3::Serialize(FArchive& Ar)
 {
-	checkSlow(CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure));
+	// Check validity before saving data.
+	checkSlow(Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure));
 
 	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
-	int32 SerializationVersion = (int32)EDynamicMeshSerializationVersion::InitialVersion;
+	int32 SerializationVersion = static_cast<int>(EDynamicMeshSerializationVersion::LatestVersion);
 	Ar << SerializationVersion;
 
 	Ar << Vertices;
@@ -46,4 +55,7 @@ void FDynamicMesh3::Serialize(FArchive& Ar)
 		}
 		Ar << *AttributeSet;
 	}
+
+	// Check validity after loading data.
+	checkSlow(!Ar.IsLoading() || CheckValidity(FValidityOptions(), EValidityCheckFailMode::Ensure));
 }
