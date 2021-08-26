@@ -32,8 +32,10 @@ struct UNeuralNetwork::FImplBackEndUEOnly
 	TArray<TSharedPtr<FNeuralOperator>> Operators;
 
  #if WITH_EDITOR
- 	static bool Load(const FString& InModelFullFilePath);
+ 	static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const FString& InModelFullFilePath);
  #endif //WITH_EDITOR
 
-	static bool Load(FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
+	//static bool Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators);
+
+	void Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 };
