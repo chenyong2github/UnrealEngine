@@ -74,6 +74,11 @@ struct FCompressedHeader
 	/** Serialization operator. */
 	friend FArchive& operator << (FArchive& Ar, FCompressedHeader& Data)
 	{
+		// The 'CR1' marker prevents the data router backend to fallback to a backward compatibility version where
+		// a buggy/incomplete header was written at the beginning of the stream and the correct/valid one at the end.
+		uint8 Version[] = {'C', 'R', '1'};
+		Ar.Serialize(Version, sizeof(Version));
+
 		Data.DirectoryName.SerializeAsANSICharArray(Ar, 260);
 		Data.FileName.SerializeAsANSICharArray(Ar, 260);
 		Ar << Data.UncompressedSize;
@@ -227,7 +232,7 @@ bool FCrashUploadBase::CompressData(const TArray<FString>& InPendingFiles, FComp
 
 	if (OptionalHeader != nullptr)
 	{
-		FMemoryWriter MemoryHeaderWriter(UncompressedData, false, true);
+		FMemoryWriter MemoryHeaderWriter(UncompressedData);
 
 		OptionalHeader->UncompressedSize = UncompressedData.Num();
 		OptionalHeader->FileCount = CurrentFileIndex;
