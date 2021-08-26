@@ -53,7 +53,13 @@
 
 #if WITH_EDITOR  // The GeometryCacheStreamer module is editor-only
 // Can toggle on/off to compare performance with StaticMesh instead of GeometryCache
-static bool bUseGeometryCacheUSD = true;
+static bool GUseGeometryCacheUSD = true;
+
+static FAutoConsoleVariableRef CVarUsdUseGeometryCache(
+	TEXT("USD.UseGeometryCache"),
+	GUseGeometryCacheUSD,
+	TEXT("Use GeometryCache instead of static meshes for loading animated meshes"));
+
 #endif // WITH_EDITOR
 
 namespace UsdGeomMeshTranslatorImpl
@@ -1087,7 +1093,7 @@ void FUsdGeomMeshTranslator::CreateAssets()
 	TRACE_CPUPROFILER_EVENT_SCOPE( FUsdGeomMeshTranslator::CreateAssets );
 
 #if WITH_EDITOR
-	if ( bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
+	if ( GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		// Create the GeometryCache TaskChain
 		TSharedRef< FGeometryCacheCreateAssetsTaskChain > AssetsTaskChain = MakeShared< FGeometryCacheCreateAssetsTaskChain >( Context, PrimPath );
@@ -1107,7 +1113,7 @@ USceneComponent* FUsdGeomMeshTranslator::CreateComponents()
 {
 #if WITH_EDITOR
 	// Animated meshes as GeometryCache
-	if ( bUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
+	if ( GUseGeometryCacheUSD && UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() ) )
 	{
 		TOptional< TSubclassOf< USceneComponent > > GeometryCacheComponent( UGeometryCacheUsdComponent::StaticClass() );
 		return CreateComponentsEx( GeometryCacheComponent, {} );
@@ -1197,7 +1203,7 @@ void FUsdGeomMeshTranslator::UpdateComponents( USceneComponent* SceneComponent )
 
 	if (
 #if WITH_EDITOR
-		!bUseGeometryCacheUSD &&
+		!GUseGeometryCacheUSD &&
 #endif // !WITH_EDITOR
 		UsdGeomMeshTranslatorImpl::IsAnimated( GetPrim() )
 	)
