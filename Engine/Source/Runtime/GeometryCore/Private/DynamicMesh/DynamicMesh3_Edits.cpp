@@ -777,7 +777,7 @@ EMeshResult FDynamicMesh3::SetTriangle(int tID, const FIndex3i& newv, bool bRemo
 			continue;
 		}
 		ReplaceEdgeTriangle(eid, tID, InvalidID);
-		const FEdge Edge;
+		const FEdge Edge = GetEdge(eid);
 		if (Edge.Tri[0] == InvalidID)
 		{
 			int a = Edge.Vert[0];
@@ -1617,7 +1617,7 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 
 
 
-EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& MergeInfo)
+EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& MergeInfo, bool bCheckValidOrientation)
 {
 	MergeInfo = FMergeEdgesInfo();
 
@@ -1649,7 +1649,8 @@ EMeshResult FDynamicMesh3::MergeEdges(int eKeep, int eDiscard, FMergeEdgesInfo& 
 	IndexUtil::OrientTriEdge(c, d, GetTriangle(tcd));
 	int x = c; c = d; d = x;   // joinable bdry edges have opposing orientations, so flip to get ac and b/d correspondences
 	FVector3d Va = GetVertex(a), Vb = GetVertex(b), Vc = GetVertex(c), Vd = GetVertex(d);
-	if (((Va - Vc).SquaredLength() + (Vb - Vd).SquaredLength()) >
+	if (bCheckValidOrientation && 
+		((Va - Vc).SquaredLength() + (Vb - Vd).SquaredLength()) >
 		((Va - Vd).SquaredLength() + (Vb - Vc).SquaredLength()))
 	{
 		return EMeshResult::Failed_SameOrientation;

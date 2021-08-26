@@ -2,6 +2,7 @@
 
 #include "UVSelectTool.h"
 
+#include "Algo/Unique.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "ContextObjectStore.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
@@ -9,6 +10,7 @@
 #include "Drawing/MeshElementsVisualizer.h"
 #include "Drawing/PreviewGeometryActor.h"
 #include "DynamicMesh/DynamicMeshChangeTracker.h"
+#include "DynamicMesh/MeshIndexUtil.h"
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "InteractiveToolManager.h"
 #include "MeshOpPreviewHelpers.h" // UMeshOpPreviewWithBackgroundCompute
@@ -16,6 +18,8 @@
 #include "Selection/MeshSelectionMechanic.h"
 #include "Selection/DynamicMeshSelection.h"
 #include "ToolSetupUtil.h"
+
+#include "UVSeamSewAction.h"
 
 #include "ToolTargetManager.h"
 
@@ -212,6 +216,7 @@ namespace UVSelectToolLocals
 		FTransform GizmoBefore;
 		FTransform GizmoAfter;
 	};
+
 }
 
 void UUVSelectToolSpeculativeChangeAPI::EmitSpeculativeChange(UObject* TargetObject, 
@@ -258,12 +263,28 @@ UInteractiveTool* UUVSelectToolBuilder::BuildTool(const FToolBuilderState& Scene
 	return NewTool;
 }
 
+// Tool property functions
+
+void  USelectToolActionPropertySet::Sew()
+{
+	PostAction(ESelectToolAction::Sew); 
+}
+
+void USelectToolActionPropertySet::PostAction(ESelectToolAction Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestAction(Action);
+	}
+}
+
+
 void UUVSelectTool::Setup()
 {
 	check(Targets.Num() > 0);
 
 	UInteractiveTool::Setup();
-
+	
 	SetToolDisplayName(LOCTEXT("ToolName", "UV Select Tool"));
 
 	Settings = NewObject<UUVSelectToolProperties>(this);
@@ -272,6 +293,10 @@ void UUVSelectTool::Setup()
 
 	UContextObjectStore* ContextStore = GetToolManager()->GetContextObjectStore();
 	EmitChangeAPI = ContextStore->FindContext<UUVToolEmitChangeAPI>();
+
+	ToolActions = NewObject<USelectToolActionPropertySet>(this);
+	ToolActions->Initialize(this);
+	AddToolPropertySource(ToolActions);
 
 	SelectionMechanic = NewObject<UMeshSelectionMechanic>();
 	SelectionMechanic->Setup(this);
@@ -392,6 +417,13 @@ void UUVSelectTool::Setup()
 	LivePreviewLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
 		GetToolManager(), /*bDepthTested*/ true));
 
+	SewAction = NewObject<UUVSeamSewAction>();
+	SewAction->Setup(this);
+	SewAction->Initialize(
+		Targets[0]->UnwrapPreview->GetWorld(),
+		Targets);
+
+
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())
 	{
 		OnSelectionChanged();
@@ -455,6 +487,11 @@ void UUVSelectTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		LivePreviewGeometryActor->Destroy();
 		LivePreviewGeometryActor = nullptr;
+	}
+
+	if (SewAction)
+	{
+		SewAction->Shutdown();
 	}
 
 	// Calls shutdown on gizmo and destroys it.
@@ -527,6 +564,7 @@ void UUVSelectTool::OnSelectionChanged()
 	MovingVids.Reset();
 	SelectedTids.Reset();
 	BoundaryEids.Reset();
+
 	if (!Selection.IsEmpty())
 	{
 		// Note which mesh we're selecting in.
@@ -603,8 +641,8 @@ void UUVSelectTool::OnSelectionChanged()
 						}
 					}
 				}
-				}
 			}
+		}
 		else if (Selection.Type == FDynamicMeshSelection::EType::Vertex)
 		{
 			for (int32 Vid : Selection.SelectedIDs)
@@ -634,8 +672,9 @@ void UUVSelectTool::OnSelectionChanged()
 		}
 	}
 
+	SewAction->SetSelection(SelectionTargetIndex, &Selection);
+
 	UpdateLivePreviewLines();
-	
 	UpdateGizmo();
 }
 
@@ -658,10 +697,11 @@ void UUVSelectTool::UpdateLivePreviewLines()
 				MeshTransform.TransformPosition(Vert1), 
 				MeshTransform.TransformPosition(Vert2), 
 				FColor::Yellow, 2, 1.5);
-		}
-		
+		}	
 	}
 }
+
+
 
 void UUVSelectTool::SetGizmoEnabled(bool bEnabledIn)
 {
@@ -783,6 +823,7 @@ void UUVSelectTool::ApplyGizmoTransform()
 		}
 
 		bGizmoTransformNeedsApplication = false;
+		SewAction->UpdateVisualizations();
 	}
 }
 
@@ -794,6 +835,49 @@ void UUVSelectTool::Render(IToolsContextRenderAPI* RenderAPI)
 void UUVSelectTool::OnTick(float DeltaTime)
 {
 	ApplyGizmoTransform();
+
+	// Deal with any buttons that may have been clicked
+	if (PendingAction != ESelectToolAction::NoAction)
+	{
+		ApplyAction(PendingAction);
+		PendingAction = ESelectToolAction::NoAction;
+	}
+}
+
+void UUVSelectTool::RequestAction(ESelectToolAction ActionType)
+{
+	if (PendingAction == ESelectToolAction::NoAction)
+	{
+		PendingAction = ActionType;
+	}
+}
+
+void UUVSelectTool::ApplyAction(ESelectToolAction ActionType)
+{
+	switch (ActionType)
+	{
+	case ESelectToolAction::Sew:
+		if (SewAction)
+		{
+			bool ActionSuccessful = SewAction->ExecuteAction(*EmitChangeAPI);
+
+			if (ActionSuccessful)
+			{
+				if (!AABBTrees[SelectionTargetIndex]->IsValid(false))
+				{
+					AABBTrees[SelectionTargetIndex]->Build();
+				}
+
+				// TODO: Emit a selection update instead of just clearing things here. If we do
+				// still clear, remember that SelectionTargetIndex gets updated, so either do it
+				// here or save a pointer to input object before doing stuff.
+				SelectionMechanic->SetSelection(FDynamicMeshSelection(), true, false);
+			}
+		}
+		break;
+	default:
+		break;
+	}
 }
 
 
