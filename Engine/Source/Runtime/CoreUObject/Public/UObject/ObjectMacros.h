@@ -1189,6 +1189,9 @@ namespace UM
 		/// [PropertyMetadata] Specifies a boolean property that is used to indicate whether editing of this property is disabled.
 		EditCondition,
 
+		/// [PropertyMetadata] This property derives its visibility from its EditCondition.
+		EditConditionHides,
+
 		/// [PropertyMetadata] Keeps the elements of an array from being reordered by dragging 
 		EditFixedOrder,
 		
