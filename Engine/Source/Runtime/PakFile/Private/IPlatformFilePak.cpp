@@ -2533,7 +2533,10 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 
 			for (IAsyncReadRequest* Elem : Swapped)
 			{
-				Elem->WaitCompletion();
+				while (!Elem->PollCompletion())
+				{
+					FPlatformProcess::Sleep(0);
+				}
 				delete Elem;
 			}
 			Swapped.Empty();
