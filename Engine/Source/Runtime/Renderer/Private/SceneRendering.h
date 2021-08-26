@@ -2199,6 +2199,12 @@ protected:
 
 protected:
 	FGPUSceneDynamicContext GPUSceneDynamicContext;
+
+	void CheckShadowDepthRenderCompleted() const
+	{
+		checkf(bShadowDepthRenderCompleted, TEXT("Shadow depth rendering was not done before shadow projections, this will cause severe shadow artifacts and indicates an engine bug (pass ordering)"));
+	}
+
 private:
 	void ComputeFamilySize();
 
