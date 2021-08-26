@@ -15,9 +15,13 @@ class KISMET_API USSCSEditorMenuContext : public UObject
 {
 	GENERATED_BODY()
 public:
-
+	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	
 	TWeakPtr<SSCSEditor> SCSEditor;
-
+	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	TWeakPtr<SSubobjectEditor> SubobjectEditor;
 
 	bool bOnlyShowPasteOption;

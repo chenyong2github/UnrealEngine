@@ -44,6 +44,8 @@ namespace UnrealBuildTool.Rules
 					"StatsViewer",
 					"ToolMenus",
 					"UnrealEd",
+					"SubobjectEditor",
+					"SubobjectDataInterface",
 				}
 			);
 

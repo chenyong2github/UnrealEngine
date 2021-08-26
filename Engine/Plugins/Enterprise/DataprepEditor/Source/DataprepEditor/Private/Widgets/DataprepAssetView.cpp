@@ -22,7 +22,9 @@
 #include "EditorFontGlyphs.h"
 #include "Modules/ModuleManager.h"
 #include "ISCSEditorUICustomization.h"
-#include "SSCSEditor.h"
+#include "SSubobjectEditor.h"
+#include "SSubobjectInstanceEditor.h"
+#include "SubobjectData.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
@@ -92,9 +94,8 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 			SNew(SBox)
 				.Visibility_Lambda([this]() -> EVisibility { return SelectedActor ? EVisibility::Visible : EVisibility::Collapsed; })
 				[
-					SAssignNew(SCSEditor, SSCSEditor)
-						.EditorMode(EComponentEditorMode::ActorInstance)
-						.ActorContext_Lambda([this]() -> AActor* { return SelectedActor; })
+					SAssignNew(SubobjectEditor, SSubobjectInstanceEditor)
+						.ObjectContext_Lambda([this]() -> UObject* { return SelectedActor; })
 						.OnSelectionUpdated(this, &SGraphNodeDetailsWidget::OnSCSEditorTreeViewSelectionChanged)
 						.AllowEditing(false)
 				]
@@ -104,8 +105,8 @@ void SGraphNodeDetailsWidget::Construct(const FArguments& InArgs)
 			PropertyView.ToSharedRef()
 		];
 
-	SCSEditorUICustomization = MakeShared<FDataprepSCSEditorUICustomization>();
-	SCSEditor->SetUICustomization(SCSEditorUICustomization);
+	SubobjectEditorUICustomization = MakeShared<FDataprepSCSEditorUICustomization>();
+	SubobjectEditor->SetUICustomization(SubobjectEditorUICustomization);
 
 	// Create the border that all of the content will get stuffed into
 	ChildSlot
@@ -177,7 +178,7 @@ void SGraphNodeDetailsWidget::AddPropertiesRecursive(FProperty* Property)
 	}
 }
 
-void SGraphNodeDetailsWidget::OnSCSEditorTreeViewSelectionChanged(const TArray<TSharedPtr<class FSCSEditorTreeNode> >& SelectedNodes)
+void SGraphNodeDetailsWidget::OnSCSEditorTreeViewSelectionChanged(const TArray<FSubobjectEditorTreeNodePtrType>& SelectedNodes)
 {
 	if (SelectedNodes.Num() > 0)
 	{
@@ -185,22 +186,23 @@ void SGraphNodeDetailsWidget::OnSCSEditorTreeViewSelectionChanged(const TArray<T
 		{
 			TArray<UObject*> DetailsObjects;
 
-			for (const TSharedPtr<FSCSEditorTreeNode>& SelectedNode : SelectedNodes)
+			for (const FSubobjectEditorTreeNodePtrType& SelectedNode : SelectedNodes)
 			{
 				if (SelectedNode.IsValid())
 				{
-					if (SelectedNode->GetNodeType() == FSCSEditorTreeNode::RootActorNode)
+					if (SelectedNode->IsRootActorNode())
 					{
 						// Root actor takes precedence
 						DetailsObjects.Empty();
 						DetailsObjects.Add(SelectedActor);
 						break;
 					}
-					else if (SelectedNode->GetNodeType() == FSCSEditorTreeNode::ComponentNode)
+					else if (SelectedNode->IsComponentNode())
 					{
-						if (UActorComponent* ComponentInstance = SelectedNode->FindComponentInstanceInActor(SelectedActor))
+						FSubobjectData* Data = SelectedNode->GetDataSource();
+						if (const UActorComponent* ComponentInstance = Data->FindComponentInstanceInActor(SelectedActor))
 						{
-							DetailsObjects.Add(ComponentInstance);
+							DetailsObjects.Add(const_cast<UActorComponent*>(ComponentInstance));
 						}
 					}
 				}
@@ -358,7 +360,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 		}
 	}
 
-	SCSEditorUICustomization->SetHideComponentsTree(SelectedActor == nullptr);
+	SubobjectEditorUICustomization->SetHideComponentsTree(SelectedActor == nullptr);
 
 	PropertyView->SetObjects(SelectionInfo.ObjectsForPropertyEditing);
 
@@ -384,7 +386,7 @@ void SGraphNodeDetailsWidget::UpdateFromObjects(const TArray<UObject*>& Property
 	// Don't update component tree if this update comes from itself (avoids infinite recusrsion)
 	if (!bSelfUpdate)
 	{
-		SCSEditor->UpdateTree();
+		SubobjectEditor->UpdateTree();
 	}
 }
 

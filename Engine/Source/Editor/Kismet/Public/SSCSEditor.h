@@ -977,6 +977,8 @@ namespace EComponentEditorMode
 	};
 };
 
+class UE_DEPRECATED(5.0, "SSCSEditor has been deprecated, use a child class of SSubobjectEditor instead.") SSCSEditor;
+
 class KISMET_API SSCSEditor : public SCompoundWidget
 {
 public:
