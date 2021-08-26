@@ -21,6 +21,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TSharedPtr
 	, ToolTipOverride( InToolTipOverride )
 	, IconOverride( InIconOverride )
 	, bIsSubMenu( false )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( false )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -36,6 +37,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TAttribute
 	, IconOverride( InIcon )
 	, EntryBuilder( InEntryBuilder )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( InUserInterfaceActionType )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -51,6 +53,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TAttribute
 	, ToolTipOverride( InToolTip )
 	, IconOverride( InIcon )
 	, bIsSubMenu( false )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( false )
 	, UserInterfaceActionType( InUserInterfaceActionType )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -66,6 +69,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TAttribute
 	, IconOverride( InIcon )
 	, EntryBuilder( InEntryBuilder )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -82,6 +86,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TAttribute
 	, IconOverride( InIcon )
 	, MenuBuilder( InMenuBuilder )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -98,6 +103,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TAttribute
 	, IconOverride( InIcon )
 	, EntryWidget( InEntryWidget )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -111,6 +117,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction&
 	, ToolTipOverride( InToolTip )
 	, EntryWidget( Contents )
 	, bIsSubMenu( false )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( false )
 	, UserInterfaceActionType( InUserInterfaceActionType )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -124,6 +131,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TSharedRef
 	, EntryBuilder( InEntryBuilder )
 	, EntryWidget( Contents )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -138,6 +146,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction&
 	, EntryBuilder( InEntryBuilder )
 	, EntryWidget( Contents )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( false )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -153,6 +162,7 @@ FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const FUIAction&
 	, IconOverride( InIcon )
 	, MenuBuilder( InMenuBuilder )
 	, bIsSubMenu( bInSubMenu )
+	, bIsRecursivelySearchable( true )
 	, bOpenSubMenuOnClick( bInSubMenuOnClick )
 	, UserInterfaceActionType( EUserInterfaceActionType::Button )
 	, bCloseSelfOnly( bInCloseSelfOnly )
@@ -1493,10 +1503,16 @@ TSharedRef< SWidget > SMenuEntryBlock::MakeNewMenuWidget() const
 			}
 		}
 
-		FMenuBuilder MenuBuilder(MenuEntryBlock->bShouldCloseWindowAfterMenuSelection, MultiBlock->GetActionList(), MenuEntryBlock->Extender, bCloseSelfOnly, StyleSet, /* searchable */ true, SubMenuCustomizationName );
-		{
-			MenuEntryBlock->EntryBuilder.Execute( MenuBuilder );
-		}
+		FMenuBuilder MenuBuilder(MenuEntryBlock->bShouldCloseWindowAfterMenuSelection,
+		                         MultiBlock->GetActionList(),
+		                         MenuEntryBlock->Extender,
+		                         bCloseSelfOnly,
+		                         StyleSet,
+		                         /*Searchable*/true, // Best guess default. This could be changed by the EntryBuilder delegate where more context is available.
+		                         SubMenuCustomizationName,
+		                         MenuEntryBlock->IsRecursivelySearchable()); // Best guess default. This could be changed by the EntryBuilder delegate where more context is available.
+
+		MenuEntryBlock->EntryBuilder.Execute( MenuBuilder );
 
 		return MenuBuilder.MakeWidget();
 	}

@@ -723,8 +723,8 @@ void SMultiBoxWidget::AddBlockWidget(const FMultiBlock& Block, TSharedPtr<SHoriz
 
 		BlockWidget = FlattenWidget;
 	}
-	// If the added block is searchable and expands to a sub-menu. (This is the first pass building the multibox widget)
-	else if (GetSearchable() && Block.GetSearchable() && Block.GetType() == EMultiBlockType::MenuEntry && static_cast<const FMenuEntryBlock&>(Block).IsSubMenu())
+	// If the added block is searchable and the search is allowed to walk down sub-menus recursively. (This is the first pass building the multibox widget)
+	else if (GetSearchable() && Block.GetSearchable() && Block.GetType() == EMultiBlockType::MenuEntry && static_cast<const FMenuEntryBlock&>(Block).IsSubMenu() && static_cast<const FMenuEntryBlock&>(Block).IsRecursivelySearchable())
 	{
 		// If the block widget being added displays a searchable text.
 		const TArray<FText>* SearchableTextHierarchy = MultiBoxWidgets.Find(BlockWidget);
@@ -914,6 +914,7 @@ void SMultiBoxWidget::SetSearchable(bool InSearchable)
 {
 	bSearchable = InSearchable;
 }
+
 bool SMultiBoxWidget::GetSearchable() const
 {
 	return bSearchable;
