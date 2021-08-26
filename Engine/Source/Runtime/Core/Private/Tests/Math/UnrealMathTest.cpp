@@ -331,6 +331,25 @@ bool TestMatricesEqual( FMatrix44f &Mat0, FMatrix44f &Mat1, float Tolerance = 0.
 	return true;
 }
 
+bool TestMatricesEqual(FMatrix44d& Mat0, FMatrix44d& Mat1, double Tolerance = 0.0f)
+{
+	for (int32 Row = 0; Row < 4; ++Row)
+	{
+		GSumDouble = 0.f;
+		for (int32 Column = 0; Column < 4; ++Column)
+		{
+			double Diff = Mat0.M[Row][Column] - Mat1.M[Row][Column];
+			GSumDouble += FMath::Abs(Diff);
+		}
+		if (GSumDouble > Tolerance)
+		{
+			CheckPassing(false);
+			return false;
+		}
+	}
+	return true;
+}
+
 
 /**
  * Multiplies two 4x4 matrices.
@@ -477,6 +496,24 @@ VectorRegister4Float TestVectorTransformVector(const VectorRegister4Float&  VecP
 	} Tmp, Result;
 	Tmp.v = VecP;
 	const Float4x4& M = *((const Float4x4*)MatrixM);	
+
+	Result.f[0] = Tmp.f[0] * M[0][0] + Tmp.f[1] * M[1][0] + Tmp.f[2] * M[2][0] + Tmp.f[3] * M[3][0];
+	Result.f[1] = Tmp.f[0] * M[0][1] + Tmp.f[1] * M[1][1] + Tmp.f[2] * M[2][1] + Tmp.f[3] * M[3][1];
+	Result.f[2] = Tmp.f[0] * M[0][2] + Tmp.f[1] * M[1][2] + Tmp.f[2] * M[2][2] + Tmp.f[3] * M[3][2];
+	Result.f[3] = Tmp.f[0] * M[0][3] + Tmp.f[1] * M[1][3] + Tmp.f[2] * M[2][3] + Tmp.f[3] * M[3][3];
+
+	return Result.v;
+}
+
+VectorRegister4Double TestVectorTransformVector(const VectorRegister4Double& VecP, const FMatrix44d* MatrixM)
+{
+	typedef double Float4x4[4][4];
+	union U {
+		VectorRegister4Double v; double f[4];
+		FORCEINLINE U() : v() {}
+	} Tmp, Result;
+	Tmp.v = VecP;
+	const Float4x4& M = *((const Float4x4*)MatrixM);
 
 	Result.f[0] = Tmp.f[0] * M[0][0] + Tmp.f[1] * M[1][0] + Tmp.f[2] * M[2][0] + Tmp.f[3] * M[3][0];
 	Result.f[1] = Tmp.f[0] * M[0][1] + Tmp.f[1] * M[1][1] + Tmp.f[2] * M[2][1] + Tmp.f[3] * M[3][1];
@@ -1829,6 +1866,54 @@ bool RunDoubleVectorTest()
 	LogTest<double>(TEXT("VectorMaskBits"), MaskBits == 5);
 
 
+	FMatrix44d	M0, M1, M2, M3;
+	FVector3d Eye, LookAt, Up;
+	// Create Look at Matrix
+	Eye = FVector3d(1024.0f, -512.0f, -2048.0f);
+	LookAt = FVector3d(0.0f, 0.0f, 0.0f);
+	Up = FVector3d(0.0f, 1.0f, 0.0f);
+	M0 = FLookAtMatrix(Eye, LookAt, Up);
+
+	// Create GL ortho projection matrix
+	const double Width = 1920.0f;
+	const double Height = 1080.0f;
+	const double Left = 0.0f;
+	const double Right = Left + Width;
+	const double Top = 0.0f;
+	const double Bottom = Top + Height;
+	const double ZNear = -100.0f;
+	const double ZFar = 100.0f;
+
+	M1 = FMatrix44d(FPlane4d(2.0f / (Right - Left), 0, 0, 0),
+		FPlane4d(0, 2.0f / (Top - Bottom), 0, 0),
+		FPlane4d(0, 0, 1 / (ZNear - ZFar), 0),
+		FPlane4d((Left + Right) / (Left - Right), (Top + Bottom) / (Bottom - Top), ZNear / (ZNear - ZFar), 1));
+
+	VectorMatrixMultiply(&M2, &M0, &M1);
+	TestVectorMatrixMultiply(&M3, &M0, &M1);
+	LogTest<double>(TEXT("VectorMatrixMultiply"), TestMatricesEqual(M2, M3, 0.000001f));
+
+	VectorMatrixInverse(&M2, &M1);
+	TestVectorMatrixInverse(&M3, &M1);
+	LogTest<double>(TEXT("VectorMatrixInverse"), TestMatricesEqual(M2, M3, 0.000001f));
+	
+	// 	FTransform Transform;
+	// 	Transform.SetFromMatrix(M1);
+	// 	FTransform InvTransform = Transform.Inverse();
+	// 	FTransform InvTransform2 = FTransform(Transform.ToMatrixWithScale().Inverse());
+	// 	LogTest<double>( TEXT("FTransform Inverse"), InvTransform.Equals(InvTransform2, 1e-3f ) );
+
+	V0 = MakeVectorRegister(100.0f, -100.0f, 200.0f, 1.0f);
+	V1 = VectorTransformVector(V0, &M0);
+	V2 = TestVectorTransformVector(V0, &M0);
+	LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
+
+	V0 = MakeVectorRegister(32768.0f, 131072.0f, -8096.0f, 1.0f);
+	V1 = VectorTransformVector(V0, &M1);
+	V2 = TestVectorTransformVector(V0, &M1);
+	LogTest<double>(TEXT("VectorTransformVector"), TestVectorsEqual(V1, V2, 1e-8f));
+
+
 	// NaN / Inf tests
 	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
 	typedef union
@@ -2376,7 +2461,7 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	LogTest<float>(TEXT("VectorMaskBits"), MaskBits == 5);
 
 
-	FMatrix44f	M0, M1, M2, M3;		// LWC_TODO: Need double version tests!
+	FMatrix44f	M0, M1, M2, M3;
 	FVector3f Eye, LookAt, Up;	
 	// Create Look at Matrix
 	Eye    = FVector3f(1024.0f, -512.0f, -2048.0f);
@@ -2416,12 +2501,12 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 	V0 = MakeVectorRegister( 100.0f, -100.0f, 200.0f, 1.0f );
 	V1 = VectorTransformVector(V0, &M0);
 	V2 = TestVectorTransformVector(V0, &M0);
-	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2 ) );
+	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
 
 	V0 = MakeVectorRegister( 32768.0f,131072.0f, -8096.0f, 1.0f );
 	V1 = VectorTransformVector(V0, &M1);
 	V2 = TestVectorTransformVector(V0, &M1);
-	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2 ) );
+	LogTest<float>( TEXT("VectorTransformVector"), TestVectorsEqual( V1, V2, 1e-8f ) );
 
 	// NaN / Inf tests
 	// Using a union as we need to do a bitwise cast of 0xFFFFFFFF into a float.
