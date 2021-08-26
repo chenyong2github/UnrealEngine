@@ -84,6 +84,7 @@ namespace GeometryCollectionTest
 		ECollisionTypeEnum CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 		ESimplicialType SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere;
 		EImplicitTypeEnum ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
+		float CollisionParticleFraction = 1.0f;
 		EInitialVelocityTypeEnum InitialVelocityType = EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None;
 		TArray<FTransform> NestedTransforms;
 		bool EnableClustering = true;

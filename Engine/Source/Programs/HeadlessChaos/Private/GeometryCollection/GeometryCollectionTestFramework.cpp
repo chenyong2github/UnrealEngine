@@ -158,6 +158,11 @@ namespace GeometryCollectionTest
 			SimulationParams.Shared.bMassAsDensity = Params.bMassAsDensity;
 			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].CollisionType = Params.CollisionType;
 			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].ImplicitType = Params.ImplicitType;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MinLevelSetResolution = Params.MinLevelSetResolution;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].LevelSetData.MaxLevelSetResolution = Params.MaxLevelSetResolution;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].ImplicitType = Params.ImplicitType;
+			SimulationParams.Shared.SizeSpecificData[0].CollisionShapesData[0].CollisionParticleData.CollisionParticlesFraction = Params.CollisionParticleFraction;
+			SimulationParams.CollisionSampleFraction = Params.CollisionParticleFraction; // this should not be here, must remove/replace SimulationParams.CollisionSampleFraction in other files.
 			SimulationParams.Simulating = Params.Simulating;
 			SimulationParams.EnableClustering = Params.EnableClustering;
 			SimulationParams.InitialLinearVelocity = Params.InitialLinearVelocity;
@@ -168,11 +173,6 @@ namespace GeometryCollectionTest
 			SimulationParams.RemoveOnFractureEnabled = Params.RemoveOnFractureEnabled;
 			SimulationParams.CollisionGroup = Params.CollisionGroup;
 			SimulationParams.ClusterGroupIndex = Params.ClusterGroupIndex;
-
-			FSharedSimulationSizeSpecificData Tmp;
-			Tmp.CollisionShapesData[0].LevelSetData.MinLevelSetResolution = Params.MinLevelSetResolution;
-			Tmp.CollisionShapesData[0].LevelSetData.MaxLevelSetResolution = Params.MaxLevelSetResolution;
-			SimulationParams.Shared.SizeSpecificData.Add(Tmp);
 
 			Chaos::FErrorReporter ErrorReporter;
 			BuildSimulationData(ErrorReporter, *RestCollection.Get(), SimulationParams.Shared);
