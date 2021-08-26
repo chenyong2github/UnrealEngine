@@ -11,6 +11,7 @@
 #include "Containers/ClosableMpscQueue.h"
 #include "Containers/SpscQueue.h"
 #include "Templates/UnrealTemplate.h"
+#include "Templates/RefCounting.h"
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
 #include "Misc/SpinLock.h"
