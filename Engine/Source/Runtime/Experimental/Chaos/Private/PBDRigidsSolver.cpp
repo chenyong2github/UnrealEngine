@@ -195,6 +195,11 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDeferNarrowPhase(TEXT("p.Chaos.S
 int32 ChaosSolverCollisionUseManifolds = 1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifolds in collision."));
 
+int32 ChaosSolverJointPriority = 0;
+FAutoConsoleVariableRef CVarChaosSolverJointPriority(TEXT("p.Chaos.Solver.Joint.Priority"), ChaosSolverJointPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
+
+int32 ChaosSolverSuspensionPriority = 0;
+FAutoConsoleVariableRef CVarChaosSolverSuspensionPriority(TEXT("p.Chaos.Solver.Suspension.Priority"), ChaosSolverSuspensionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 
 // Joint cvars
 float ChaosSolverJointMinSolverStiffness = 1.0f;
@@ -401,8 +406,8 @@ namespace Chaos
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
-		, JointConstraintRule(JointConstraints)
-		, SuspensionConstraintRule(SuspensionConstraints)
+		, JointConstraintRule(JointConstraints, ChaosSolverJointPriority)
+		, SuspensionConstraintRule(SuspensionConstraints, ChaosSolverSuspensionPriority)
 		, PerSolverField(nullptr)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
