@@ -10,6 +10,7 @@
 #include "NiagaraComponent.h"
 #include "NiagaraEditorCommands.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraEditorSettings.h"
 #include "NiagaraEffectType.h"
 #include "NiagaraPerfBaseline.h"
 #include "NiagaraSettings.h"
@@ -383,7 +384,13 @@ UNiagaraSystemEditorData* FNiagaraSystemViewportClient::GetSystemEditorData() co
 
 void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 {
-	DrawFlags = EDrawElements::ParticleCounts;
+	const UNiagaraEditorSettings* Settings = GetDefault<UNiagaraEditorSettings>();
+	
+	DrawFlags = 0;
+	DrawFlags |= Settings->IsShowParticleCountsInViewport() ? EDrawElements::ParticleCounts : 0;
+	DrawFlags |= Settings->IsShowInstructionsCount() ? EDrawElements::InstructionCounts : 0;
+	DrawFlags |= Settings->IsShowEmitterExecutionOrder() ? EDrawElements::EmitterExecutionOrder : 0;
+
 	bShowBackground = false;
 	PreviewComponent = nullptr;
 	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
@@ -392,6 +399,8 @@ void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 	Sequencer = InArgs._Sequencer;
 	
 	SEditorViewport::Construct( SEditorViewport::FArguments() );
+
+	Client->EngineShowFlags.SetGrid(Settings->IsShowGridInViewport());
 }
 
 SNiagaraSystemViewport::~SNiagaraSystemViewport()
@@ -544,21 +553,36 @@ void SNiagaraSystemViewport::BindCommands()
 
 	CommandList->MapAction(
 		Commands.ToggleInstructionCounts,
-		FExecuteAction::CreateLambda([Viewport=this]() { Viewport->ToggleDrawElement(EDrawElements::InstructionCounts); Viewport->RefreshViewport(); }),
+		FExecuteAction::CreateLambda([Viewport=this]()
+		{
+			Viewport->ToggleDrawElement(EDrawElements::InstructionCounts);
+			GetMutableDefault<UNiagaraEditorSettings>()->SetShowInstructionsCount(Viewport->GetDrawElement(EDrawElements::InstructionCounts));
+			Viewport->RefreshViewport();
+		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport=this]() -> bool { return Viewport->GetDrawElement(EDrawElements::InstructionCounts); })
 	);
 
 	CommandList->MapAction(
 		Commands.ToggleParticleCounts,
-		FExecuteAction::CreateLambda([Viewport = this]() { Viewport->ToggleDrawElement(EDrawElements::ParticleCounts); Viewport->RefreshViewport(); }),
+		FExecuteAction::CreateLambda([Viewport = this]()
+		{
+			Viewport->ToggleDrawElement(EDrawElements::ParticleCounts);
+			GetMutableDefault<UNiagaraEditorSettings>()->SetShowParticleCountsInViewport(Viewport->GetDrawElement(EDrawElements::ParticleCounts));
+			Viewport->RefreshViewport();
+		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::ParticleCounts); })
 	);
 
 	CommandList->MapAction(
 		Commands.ToggleEmitterExecutionOrder,
-		FExecuteAction::CreateLambda([Viewport = this]() { Viewport->ToggleDrawElement(EDrawElements::EmitterExecutionOrder); Viewport->RefreshViewport(); }),
+		FExecuteAction::CreateLambda([Viewport = this]()
+		{
+			Viewport->ToggleDrawElement(EDrawElements::EmitterExecutionOrder);
+			GetMutableDefault<UNiagaraEditorSettings>()->SetShowEmitterExecutionOrder(Viewport->GetDrawElement(EDrawElements::EmitterExecutionOrder));
+			Viewport->RefreshViewport();
+		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::EmitterExecutionOrder); })
 	);
@@ -596,6 +620,7 @@ void SNiagaraSystemViewport::OnFocusViewportToSelection()
 void SNiagaraSystemViewport::TogglePreviewGrid()
 {
 	SystemViewportClient->SetShowGrid();
+	GetMutableDefault<UNiagaraEditorSettings>()->SetShowGridInViewport(SystemViewportClient->EngineShowFlags.Grid);
 	RefreshViewport();
 }
 

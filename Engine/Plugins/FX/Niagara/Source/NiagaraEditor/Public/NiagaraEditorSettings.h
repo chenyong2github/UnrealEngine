@@ -288,6 +288,12 @@ public:
 	/** Sets whether or not to display advanced categories for the parameter panel. */
 	void SetDisplayAdvancedParameterPanelCategories(bool bInDisplayAdvancedParameterPanelCategories);
 
+	bool IsShowGridInViewport() const;
+	void SetShowGridInViewport(bool bShowGridInViewport);
+	
+	bool IsShowParticleCountsInViewport() const;
+	void SetShowParticleCountsInViewport(bool bShowParticleCountsInViewport);
+	
 	FNiagaraNewAssetDialogConfig GetNewAssetDailogConfig(FName InDialogConfigKey) const;
 
 	void SetNewAssetDialogConfig(FName InDialogConfigKey, const FNiagaraNewAssetDialogConfig& InNewAssetDialogConfig);
@@ -379,4 +385,21 @@ private:
 
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraCurveTemplate> CurveTemplates;
+
+	UPROPERTY(config)
+	bool bShowGridInViewport;
+
+	UPROPERTY(config)
+	bool bShowInstructionsCount;
+	
+	UPROPERTY(config)
+	bool bShowParticleCountsInViewport;
+
+	UPROPERTY(config)
+	bool bShowEmitterExecutionOrder;
+public:
+	bool IsShowInstructionsCount() const;
+	void SetShowInstructionsCount(bool bShowInstructionsCount);
+	bool IsShowEmitterExecutionOrder() const;
+	void SetShowEmitterExecutionOrder(bool bShowEmitterExecutionOrder);
 };
