@@ -177,7 +177,19 @@ public:
 	/** If enable, import the material asset find in the sources. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TEXTURES_CATEGORY)
 	bool bImportTextures = true;
-	
+
+#if WITH_EDITORONLY_DATA
+	/** 
+	 * If enable, after a new import a test will be run to see if the texture is a normal map
+	 * If the texture is a normal map the SRG, CompressionSettings and LODGroup settings will be adjusted.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = TEXTURES_CATEGORY)
+	bool bDetectNormalMapTexture = true;
+
+	/** If enabled, the texture's green channel will be inverted for normal maps. */
+	UPROPERTY(EditAnywhere, Category = TEXTURES_CATEGORY)
+	bool bFlipNormalMapGreenChannel = false;
+#endif
 
 	// END Pre import pipeline properties
 	//////////////////////////////////////////////////////////////////////////
@@ -188,7 +200,7 @@ protected:
 
 	virtual bool ExecutePreImportPipeline(UInterchangeBaseNodeContainer* InBaseNodeContainer, const TArray<UInterchangeSourceData*>& InSourceDatas) override;
 
-	virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* InBaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset) override;
+	virtual bool ExecutePostImportPipeline(const UInterchangeBaseNodeContainer* BaseNodeContainer, const FString& NodeKey, UObject* CreatedAsset, bool bIsAReimport) override;
 
 	virtual bool CanExecuteOnAnyThread(EInterchangePipelineTask PipelineTask) override
 	{
@@ -208,8 +220,6 @@ private:
 
 	/** Texture factory assets nodes */
 	TArray<UInterchangeTextureFactoryNode*> TextureFactoryNodes;
-
-	UInterchangeTextureFactoryNode* CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass);
 	
 	/** Material translated assets nodes */
 	TArray<UInterchangeMaterialNode*> MaterialNodes;
@@ -296,6 +306,18 @@ private:
 
 	/** Specialize for skeletalmesh */
 	void ImplementUseSourceNameForAssetOptionSkeletalMesh(const int32 MeshesAndAnimsImportedNodeCount);
+
+	/************************************************************************/
+	/* Texture API BEGIN                                              */
+
+	UInterchangeTextureFactoryNode* HandleCreationOfTextureFactoryNode(const UInterchangeTextureNode* TextureNode);
+
+	UInterchangeTextureFactoryNode* CreateTextureFactoryNode(const UInterchangeTextureNode* TextureNode, const TSubclassOf<UInterchangeTextureFactoryNode>& FactorySubclass);
+
+	void PostImportTextureAssetImport(UObject* CreatedAsset, bool bIsAReimport);
+
+	/* Texture API END                                                */
+	/************************************************************************/
 };
 
 

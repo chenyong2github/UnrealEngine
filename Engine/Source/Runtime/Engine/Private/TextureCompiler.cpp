@@ -86,6 +86,28 @@ FName FTextureCompilingManager::GetStaticAssetTypeName()
 	return TEXT("UE-Texture");
 }
 
+bool FTextureCompilingManager::IsCompilingTexture(UTexture* InTexture) const 
+{
+	check(IsInGameThread());
+
+	if (!InTexture)
+	{
+		return false;
+	}
+
+	const TWeakObjectPtr<UTexture> InWeakTexturePtr = InTexture;
+	uint32 Hash = GetTypeHash(InWeakTexturePtr);
+	for (const TSet<TWeakObjectPtr<UTexture>>& Bucket : RegisteredTextureBuckets)
+	{
+		if (Bucket.ContainsByHash(Hash, InWeakTexturePtr))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 FName FTextureCompilingManager::GetAssetTypeName() const
 {
 	return GetStaticAssetTypeName();
@@ -410,6 +432,7 @@ void FTextureCompilingManager::PostCompilation(TArrayView<UTexture* const> InCom
 			}
 
 			FAssetCompilingManager::Get().OnAssetPostCompileEvent().Broadcast(AssetsData);
+			OnTexturePostCompileEvent().Broadcast(InCompiledTextures);
 		}
 	}
 }

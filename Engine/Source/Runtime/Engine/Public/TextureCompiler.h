@@ -13,6 +13,8 @@ class UTexture;
 class FQueuedThreadPool;
 enum class EQueuedWorkPriority : uint8;
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FTexturePostCompileEvent, const TArrayView<UTexture* const>&);
+
 class FTextureCompilingManager : IAssetCompilingManager
 {
 public:
@@ -71,6 +73,11 @@ public:
 	/** Get the name of the asset type this compiler handles */
 	ENGINE_API static FName GetStaticAssetTypeName();
 
+	/** Return true if the texture is currently compiled */
+	ENGINE_API bool IsCompilingTexture(UTexture* InTexture) const;
+
+	FTexturePostCompileEvent& OnTexturePostCompileEvent() {return TexturePostCompileEvent;}
+
 private:
 	friend class FAssetCompilingManager;
 
@@ -93,6 +100,9 @@ private:
 	bool bHasShutdown = false;
 	TArray<TSet<TWeakObjectPtr<UTexture>>> RegisteredTextureBuckets;
 	FAsyncCompilationNotification Notification;
+
+	/** Event issued at the end of the compile process */
+	FTexturePostCompileEvent TexturePostCompileEvent;
 };
 
 #endif
