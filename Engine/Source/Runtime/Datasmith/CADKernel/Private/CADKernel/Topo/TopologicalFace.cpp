@@ -57,7 +57,7 @@ void FTopologicalFace::ApplyNaturalLoops()
 		TSharedRef<FCurve> Curve2D = FEntity::MakeShared<FSegmentCurve>(StartPoint, EndPoint, 2);
 		TSharedRef<FRestrictionCurve> Curve3D = FEntity::MakeShared<FRestrictionCurve>(CarrierSurface.ToSharedRef(), Curve2D);
 		TSharedPtr<FTopologicalEdge> Edge = FTopologicalEdge::Make(Curve3D);
-		if (Edge.IsValid())
+		if (!Edge.IsValid())
 		{
 			return;
 		}
