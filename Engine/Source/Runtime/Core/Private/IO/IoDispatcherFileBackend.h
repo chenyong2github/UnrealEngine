@@ -60,13 +60,23 @@ public:
 	const FAES::FAESKey& GetEncryptionKey() const { return ContainerFile.EncryptionKey; }
 
 private:
-	FFileIoStoreImpl& PlatformImpl;
+	const FIoOffsetAndLength* FindChunkInternal(const FIoChunkId& ChunkId) const;
 
-	TMap<FIoChunkId, FIoOffsetAndLength> Toc;
+	FFileIoStoreImpl& PlatformImpl;
+	
+	struct FPerfectHashMap
+	{
+		TArray<int32> TocChunkHashSeeds;
+		TArray<uint32> TocChunkHashes;
+		TArray<FIoOffsetAndLength> TocOffsetAndLengths;
+	};
+	FPerfectHashMap PerfectHashMap;
+	TMap<FIoChunkId, FIoOffsetAndLength> TocImperfectHashMapFallback;
 	FFileIoStoreContainerFile ContainerFile;
 	FIoContainerId ContainerId;
 	int32 Order;
 	bool bClosed = false;
+	bool bHasPerfectHashMap = false;
 
 	static TAtomic<uint32> GlobalPartitionIndex;
 	static TAtomic<uint32> GlobalContainerInstanceId;
