@@ -8,11 +8,14 @@
 
 #include "Components/SceneComponent.h"
 #include "Engine/Engine.h"
+#include "Engine/StaticMesh.h"
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
 #include "Nodes/InterchangeBaseNode.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
+#include "InterchangeMeshNode.h"
+#include "InterchangeSceneNode.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -24,6 +27,65 @@ namespace UE
 	{
 		namespace Private
 		{
+			FString FindMeshDependencyUid(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeActorFactoryNode* ActorFactoryNode)
+			{
+				FString MeshDependency;
+
+				TArray<FString> ActorTargetNodes;
+				ActorFactoryNode->GetTargetNodeUids(ActorTargetNodes);
+				if (!ActorTargetNodes.IsEmpty())
+				{
+					if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(NodeContainer->GetNode(ActorTargetNodes[0])))
+					{
+						FString AssetInstanceUid;
+						SceneNode->GetCustomAssetInstanceUid(AssetInstanceUid);
+
+						if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(NodeContainer->GetNode(AssetInstanceUid)))
+						{
+							TArray<FString> MeshTargetNodes;
+							MeshNode->GetTargetNodeUids(MeshTargetNodes);
+
+							if (!MeshTargetNodes.IsEmpty())
+							{
+								MeshDependency = MeshTargetNodes[0];
+							}
+						}
+					}
+				}
+
+				return MeshDependency;
+			}
+
+			void SetupStaticMeshComponent(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeActorFactoryNode* ActorFactoryNode, UStaticMeshComponent& StaticMeshComponent)
+			{
+				StaticMeshComponent.UnregisterComponent();
+
+				const FString MeshDependency = FindMeshDependencyUid(NodeContainer, ActorFactoryNode);
+
+				if (const UInterchangeBaseNode* MeshNode = NodeContainer->GetNode(MeshDependency))
+				{
+					if (UStaticMesh* StaticMesh = Cast<UStaticMesh>(MeshNode->ReferenceObject.TryLoad()))
+					{
+						StaticMeshComponent.SetStaticMesh(StaticMesh);
+					}
+				}
+			}
+
+			void SetupSkeletalMeshComponent(const UInterchangeBaseNodeContainer* NodeContainer, const UInterchangeActorFactoryNode* ActorFactoryNode, USkeletalMeshComponent& SkeletalMeshComponent)
+			{
+				SkeletalMeshComponent.UnregisterComponent();
+
+				const FString MeshDependency = FindMeshDependencyUid(NodeContainer, ActorFactoryNode);
+
+				if (const UInterchangeBaseNode* MeshNode = NodeContainer->GetNode(MeshDependency))
+				{
+					if (USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(MeshNode->ReferenceObject.TryLoad()))
+					{
+						SkeletalMeshComponent.SetSkeletalMesh(SkeletalMesh);
+					}
+				}
+			}
+
 			AActor* SpawnActor(const FActorSpawnParameters& ActorSpawnParameters, const UInterchangeActorFactoryNode* ActorFactoryNode, AActor* ParentActor)
 			{
 				ensure(ActorFactoryNode);
@@ -110,6 +172,21 @@ namespace UE
 				const FString ActorNodeUniqueID = ActorNode->GetUniqueID();
 
 				AActor* SpawnedActor = SpawnActor(SpawnParameters, Cast<UInterchangeActorFactoryNode>(ActorNode), ParentActor);
+
+				if (!SpawnedActor)
+				{
+					return;
+				}
+
+				if (UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(SpawnedActor->GetRootComponent()))
+				{
+					SetupStaticMeshComponent(NodeContainer, ActorNode, *StaticMeshComponent);
+				}
+				else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(SpawnedActor->GetRootComponent()))
+				{
+					SetupSkeletalMeshComponent(NodeContainer, ActorNode, *SkeletalMeshComponent);
+				}
+
 				OutSpawnedActors.Add(ActorNodeUniqueID, SpawnedActor);
 
 				if (bSpawnChildren)

@@ -30,6 +30,9 @@ namespace UE
 				static FVector ConvertPos(const FbxVector4& Vector);
 				static FVector ConvertDir(const FbxVector4& Vector);
 
+				static FTransform AdjustCameraTransform(const FTransform& Transform);
+				static FTransform AdjustLightTransform(const FTransform& Transform);
+
 				/** Transform Conversion API End */
 				//////////////////////////////////////////////////////////////////////////
 

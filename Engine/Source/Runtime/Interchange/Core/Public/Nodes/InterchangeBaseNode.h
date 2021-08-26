@@ -816,14 +816,7 @@ class INTERCHANGECORE_API UInterchangeBaseNode : public UObject
 	GENERATED_BODY()
 
 public:
-	UInterchangeBaseNode()
-	{
-		Attributes = MakeShared<UE::Interchange::FAttributeStorage, ESPMode::ThreadSafe>();
-		FactoryDependencies.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::GetFactoryDependenciesBaseKey());
-		TargetAssets.Initialize(Attributes, UE::Interchange::FBaseNodeStaticData::TargetAssetIDsKey());
-		RegisterAttribute<bool>(UE::Interchange::FBaseNodeStaticData::IsEnabledKey(), true);
-		RegisterAttribute<uint8>(UE::Interchange::FBaseNodeStaticData::NodeContainerTypeKey(), static_cast<uint8>(EInterchangeNodeContainerType::NodeContainerType_None));
-	}
+	UInterchangeBaseNode();
 
 	virtual ~UInterchangeBaseNode() = default;
 
@@ -1131,25 +1124,25 @@ public:
 	 * Get number of target assets relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	int32 GetTargetAssetCount() const;
+	int32 GetTargetNodeCount() const;
 
 	/**
 	 * Get target assets relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	void GetTargetAssetUids(TArray<FString>& OutTargetAssets) const;
+	void GetTargetNodeUids(TArray<FString>& OutTargetAssets) const;
 
 	/**
 	 * Add asset node UID relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool AddTargetAssetUid(const FString& AssetUid);
+	bool AddTargetNodeUid(const FString& AssetUid) const;
 
 	/**
 	 * Remove asset node UID relating to this object.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	bool RemoveTargetAssetUid(const FString& AssetUid);
+	bool RemoveTargetNodeUid(const FString& AssetUid) const;
 
 	/**
 	 * IsEnable true mean that the node will be import/export, if false it will be discarded.
@@ -1170,7 +1163,7 @@ public:
 	 * Return the node container type which define the purpose of the node (Factory node, translated scene node or translated asset node).
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node")
-	EInterchangeNodeContainerType GetnodeContainerType() const;
+	EInterchangeNodeContainerType GetNodeContainerType() const;
 
 	/**
 	 * Return a FGuid build from the FSHA1 of all the attribute data contain in the node.
@@ -1252,5 +1245,5 @@ protected:
 	/**
 	 * This tracks the IDs of asset nodes which are the target of factories
 	 */
-	UE::Interchange::FNameAttributeArrayHelper TargetAssets;
+	mutable UE::Interchange::FNameAttributeArrayHelper TargetNodes;
 };

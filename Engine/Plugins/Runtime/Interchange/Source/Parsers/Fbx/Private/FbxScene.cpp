@@ -76,8 +76,8 @@ namespace UE
 
 				UInterchangeSceneNode* UnrealNode = CreateTransformNode(NodeContainer, NodeName, NodeUniqueID);
 				check(UnrealNode);
-					
-				auto GetConvertedTransform = [](FbxAMatrix& NewFbxMatrix)
+				
+				auto GetConvertedTransform = [Node](FbxAMatrix& NewFbxMatrix)
 				{
 					FTransform Transform;
 					FbxVector4 NewLocalT = NewFbxMatrix.GetT();
@@ -86,13 +86,27 @@ namespace UE
 					Transform.SetTranslation(FFbxConvert::ConvertPos(NewLocalT));
 					Transform.SetScale3D(FFbxConvert::ConvertScale(NewLocalS));
 					Transform.SetRotation(FFbxConvert::ConvertRotToQuat(NewLocalQ));
+
+					if (FbxNodeAttribute* NodeAttribute = Node->GetNodeAttribute())
+					{
+						switch (NodeAttribute->GetAttributeType())
+						{
+						case FbxNodeAttribute::eCamera:
+							Transform = FFbxConvert::AdjustCameraTransform(Transform);
+							break;
+						case FbxNodeAttribute::eLight:
+							Transform = FFbxConvert::AdjustLightTransform(Transform);
+							break;
+						}
+					}
+
 					return Transform;
 				};
 
 				{
 					//Set the global node transform
-					FbxAMatrix GloabalFbxMatrix = Node->EvaluateGlobalTransform();
-					FTransform GlobalTransform = GetConvertedTransform(GloabalFbxMatrix);
+					FbxAMatrix GlobalFbxMatrix = Node->EvaluateGlobalTransform();
+					FTransform GlobalTransform = GetConvertedTransform(GlobalFbxMatrix);
 					UnrealNode->SetCustomGlobalTransform(GlobalTransform);
 
 					//Set the local node transform

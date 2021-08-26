@@ -220,7 +220,7 @@ bool UInterchangeGenericAssetsPipeline::ExecutePreImportPipelineSkeletalMesh()
 	//Find all translated node we need for this pipeline
 	BaseNodeContainer->IterateNodes([this, &SkinnedMeshNodes, &StaticMeshNodes](const FString& NodeUid, UInterchangeBaseNode* Node)
 	{
-		switch(Node->GetnodeContainerType())
+		switch(Node->GetNodeContainerType())
 		{
 			case EInterchangeNodeContainerType::NodeContainerType_TranslatedAsset:
 			{
@@ -679,10 +679,20 @@ void UInterchangeGenericAssetsPipeline::AddLodDataToSkeletalMesh(const UIntercha
 			TArray<FString> MaterialDependencies;
 			if (const UInterchangeSceneNode* SceneNode = Cast<UInterchangeSceneNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
+				FString MeshDependency;
+				SceneNode->GetCustomAssetInstanceUid(MeshDependency);
+				if (BaseNodeContainer->IsNodeUidValid(MeshDependency))
+				{
+					SkeletalMeshFactoryNode->AddTargetNodeUid(MeshDependency);
+					BaseNodeContainer->GetNode(MeshDependency)->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
+				}
+
 				SceneNode->GetMaterialDependencyUids(MaterialDependencies);
 			}
 			else if (const UInterchangeMeshNode* MeshNode = Cast<UInterchangeMeshNode>(BaseNodeContainer->GetNode(NodeUid)))
 			{
+				SkeletalMeshFactoryNode->AddTargetNodeUid(NodeUid);
+				MeshNode->AddTargetNodeUid(SkeletalMeshFactoryNode->GetUniqueID());
 				MeshNode->GetMaterialDependencies(MaterialDependencies);
 			}
 			const int32 MaterialCount = MaterialDependencies.Num();

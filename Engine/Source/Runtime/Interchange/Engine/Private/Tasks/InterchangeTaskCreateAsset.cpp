@@ -296,7 +296,7 @@ void UE::Interchange::FTaskCreateAsset::DoTask(ENamedThreads::Type CurrentThread
 				if (!Result->InterchangeKey.IsEmpty() && (Result->DestinationAssetName.IsEmpty() || Result->AssetType == nullptr))
 				{
 					TArray<FString> TargetAssets;
-					Node->GetTargetAssetUids(TargetAssets);
+					Node->GetTargetNodeUids(TargetAssets);
 					if (TargetAssets.Contains(Result->InterchangeKey))
 					{
 						Result->DestinationAssetName = NodeAsset->GetPathName();
