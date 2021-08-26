@@ -86,12 +86,12 @@ static TArray<float> GenerateInverseSRGBTable(uint32 InPrecision)
 	return OutLinearTable;
 }
 
-static TArray<uint8> GenerateSRGBTableFloat16to8()
+static TArray<float> GenerateSRGBTableFloat16toFloat()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ImageQuant_TableGeneration);
-	TArray<uint8> OutsRGBTable;
+	TArray<float> OutsRGBTable;
 	OutsRGBTable.SetNumUninitialized(65536);
-	uint8* OutsRGBTableData = OutsRGBTable.GetData();
+	float* OutsRGBTableData = OutsRGBTable.GetData();
 
 	FFloat16 OnePointZero = 1.0f;
 	for (int32 TableIndex = OnePointZero.Encoded; TableIndex < 32768; TableIndex++)
@@ -118,8 +118,8 @@ static TArray<uint8> GenerateSRGBTableFloat16to8()
 		{
 			ValueAsLinear = FMath::Pow(ValueAsLinear, 1.0f / 2.4f) * 1.055f - 0.055f;
 		}
-		// Flooring avoids an extra branch for Round. Using [] on GetData() avoids bounds checking cost.
-		OutsRGBTableData[TableIndex] = (uint8)FMath::FloorToInt((ValueAsLinear * 255.f) + 0.5f);
+		// Simply multiply by 255 to get floats in the proper range for quantization after the table is indexed.
+		OutsRGBTableData[TableIndex] = (ValueAsLinear * 255.f);
 	}
 
 	return OutsRGBTable;
@@ -155,13 +155,16 @@ static TArray<FFloat16> GenerateSRGBTableFloat16to16()
 
 static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InColor, const int32 InCount)
 {
-	TArray<uint8> sRGBTable = GenerateSRGBTableFloat16to8();
+	TArray<float> sRGBTable = GenerateSRGBTableFloat16toFloat();
+
+	// This quantization uses a table of float values from 0.0-255.0, and does the proper rounding for each pixel.
+	// The proper rounding is done by adding a random value from 0.0-1.0 instead of 0.5 to each value returned from the table.
 
 	// Convert all of our pixels.
 	TArray<FColor> OutsRGBData;
 	OutsRGBData.SetNumUninitialized(InCount);
 
-	uint8* sRGBTableData = static_cast<uint8*>(sRGBTable.GetData());
+	float* sRGBTableData = static_cast<float*>(sRGBTable.GetData());
 	FColor* OutData = static_cast<FColor*>(OutsRGBData.GetData());
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ImageQuant_ApplysRGB);
@@ -169,12 +172,12 @@ static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InCol
 	{
 		// Avoid the bounds checking of TArray[]
 		FColor* OutColor = &OutData[PixelIndex];
-		OutColor->R = sRGBTableData[InColor[PixelIndex].R.Encoded];
-		OutColor->G = sRGBTableData[InColor[PixelIndex].G.Encoded];
-		OutColor->B = sRGBTableData[InColor[PixelIndex].B.Encoded];
+		OutColor->R = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].R.Encoded] + FMath::FRand());
+		OutColor->G = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].G.Encoded] + FMath::FRand());
+		OutColor->B = (uint8)FMath::FloorToInt(sRGBTableData[InColor[PixelIndex].B.Encoded] + FMath::FRand());
 
 		// Alpha doesn't get sRGB conversion, it just gets linearly converted to 8 bit. Flooring avoids an extra branch for Round.
-		OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + 0.5f), 0, 255);
+		OutColor->A = (uint8)FMath::Clamp(FMath::FloorToInt((InColor[PixelIndex].A * 255.f) + FMath::FRand()), 0, 255);
 	}
 
 	return OutsRGBData;
