@@ -27,7 +27,7 @@ namespace DisplaceMeshToolTestsLocals
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CreateTestBoxMesh()
 	{
 		FGridBoxMeshGenerator BoxGenerator;
-		BoxGenerator.Box = FOrientedBox3d(FVector3d::Zero(), FVector3d(1.0, 1.0, 1.0));
+		BoxGenerator.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), FVector3d(1.0, 1.0, 1.0));
 		int EdgeNum = 5;
 		BoxGenerator.EdgeVertices = FIndex3i(EdgeNum, EdgeNum, EdgeNum);
 		BoxGenerator.Generate();

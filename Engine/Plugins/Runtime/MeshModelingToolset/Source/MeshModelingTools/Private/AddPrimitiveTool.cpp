@@ -391,7 +391,7 @@ void UAddBoxPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 {
 	FGridBoxMeshGenerator BoxGen;
 	auto* BoxSettings = Cast<UProceduralBoxToolProperties>(ShapeSettings);
-	BoxGen.Box = FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Depth, BoxSettings->Width, BoxSettings->Height));
+	BoxGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(), 0.5*FVector3d(BoxSettings->Depth, BoxSettings->Width, BoxSettings->Height));
 	BoxGen.EdgeVertices = FIndex3i(BoxSettings->DepthSubdivisions + 1,
 								   BoxSettings->WidthSubdivisions + 1,
 								   BoxSettings->HeightSubdivisions + 1);
@@ -625,7 +625,7 @@ void UAddSpherePrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 	{
 		FBoxSphereGenerator SphereGen;
 		SphereGen.Radius = SphereSettings->Radius;
-		SphereGen.Box = FOrientedBox3d(FVector3d::Zero(),
+		SphereGen.Box = UE::Geometry::FOrientedBox3d(FVector3d::Zero(),
 			0.5 * FVector3d(SphereSettings->Subdivisions + 1,
 				SphereSettings->Subdivisions + 1,
 				SphereSettings->Subdivisions + 1));

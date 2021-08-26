@@ -424,9 +424,9 @@ bool UPolygonOnMeshTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 	if (DrawPolygonMechanic != nullptr)
 	{
 		FFrame3d HitPoint;
-		if (DrawPolygonMechanic->IsHitByRay(FRay3d(Ray), HitPoint))
+		if (DrawPolygonMechanic->IsHitByRay(UE::Geometry::FRay3d(Ray), HitPoint))
 		{
-			OutHit.Distance = FRay3d(Ray).Project(HitPoint.Origin);
+			OutHit.Distance = UE::Geometry::FRay3d(Ray).Project(HitPoint.Origin);
 			OutHit.ImpactPoint = (FVector)HitPoint.Origin;
 			OutHit.ImpactNormal = (FVector)HitPoint.Z();
 			return true;
