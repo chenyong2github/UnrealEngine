@@ -68,6 +68,11 @@
 			"Name": "ModelProtoFileReader",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "ModelProtoConverter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	]
 }
