@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #if NIAGARA_USE_RAYTRACING
-bool											RayTracingEnabled_{ParameterName};
-uint                                            MaxRayTraceCount_{ParameterName};
-RWStructuredBuffer<FNiagaraRayData>               RWRayRequests_{ParameterName};
-StructuredBuffer<FNiagaraRayTracingResult>     IntersectionResults_{ParameterName};
-RWBuffer<uint>                                  RWRayTraceCounts_{ParameterName};
+/** Niagara ray tracing uses shared buffers between dispathces so each buffer has a buffer + and offset into that buffer for the current dispatch. */
+bool										RayTracingEnabled_{ParameterName};
+uint										MaxRayTraceCount_{ParameterName};
+RWStructuredBuffer<FNiagaraRayData>			RWRayRequests_{ParameterName};
+uint										RayRequestsOffset_{ ParameterName };
+StructuredBuffer<FNiagaraRayTracingResult>	IntersectionResults_{ParameterName};
+uint										IntersectionResultsOffset_{ ParameterName };
+RWBuffer<uint>								RWRayTraceCounts_{ParameterName};
+uint										RayTraceCountsOffset_{ ParameterName };
 #endif
 
 void QuerySceneDepthGPU_{ParameterName}(in float3 In_SamplePos, out float Out_SceneDepth, out float3 Out_CameraPosWorld, out bool Out_IsInsideView, out float3 Out_WorldPos, out float3 Out_WorldNormal)
@@ -28,7 +32,7 @@ void IssueAsyncRayTraceGpu_{ParameterName}_UEImpureCall(int In_QueryID, float3 I
 #if NIAGARA_USE_RAYTRACING
 	if (RayTracingEnabled_{ParameterName})
 	{
-		NDICollisionQuery_IssueAsyncRayTrace(MaxRayTraceCount_{ParameterName}, RWRayRequests_{ParameterName}, RWRayTraceCounts_{ParameterName}, In_QueryID, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_IsQueryValid);
+		NDICollisionQuery_IssueAsyncRayTrace(MaxRayTraceCount_{ParameterName}, RWRayRequests_{ParameterName}, RayRequestsOffset_{ ParameterName }, RWRayTraceCounts_{ParameterName}, RayTraceCountsOffset_{ ParameterName }, In_QueryID, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_IsQueryValid);
 		return;
 	}
 #endif
@@ -40,7 +44,7 @@ void ReserveRayTraceIndex_{ParameterName}_UEImpureCall(int In_TraceCount, out in
 #if NIAGARA_USE_RAYTRACING
 	if (RayTracingEnabled_{ParameterName})
 	{
-		NDICollisionQuery_ReserveRayTraceIndex(MaxRayTraceCount_{ParameterName}, RWRayTraceCounts_{ParameterName}, In_TraceCount, Out_StartQueryID, Out_IndicesValid);
+		NDICollisionQuery_ReserveRayTraceIndex(MaxRayTraceCount_{ParameterName}, RWRayTraceCounts_{ParameterName}, RayTraceCountsOffset_{ ParameterName }, In_TraceCount, Out_StartQueryID, Out_IndicesValid);
 		return;
 	}
 #endif
@@ -52,7 +56,7 @@ void CreateAsyncRayTraceGpu_{ParameterName}_UEImpureCall(float3 In_TraceStart, f
 #if NIAGARA_USE_RAYTRACING
 	if (RayTracingEnabled_{ParameterName})
 	{
-		NDICollisionQuery_CreateAsyncRayTrace(MaxRayTraceCount_{ParameterName}, RWRayRequests_{ParameterName}, RWRayTraceCounts_{ParameterName}, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_QueryID, Out_IsQueryValid);
+		NDICollisionQuery_CreateAsyncRayTrace(MaxRayTraceCount_{ParameterName}, RWRayRequests_{ParameterName}, RayRequestsOffset_{ ParameterName }, RWRayTraceCounts_{ParameterName}, RayTraceCountsOffset_{ ParameterName }, In_TraceStart, In_TraceEnd, In_TraceChannel, Out_QueryID, Out_IsQueryValid);
 		return;
 	}
 #endif
@@ -64,9 +68,9 @@ void ReadAsyncRayTraceGpu_{ParameterName}(int In_PreviousFrameQueryID, out bool 
 #if NIAGARA_USE_RAYTRACING
 	if (RayTracingEnabled_{ParameterName})
 	{
-		NDICollisionQuery_ReadAsyncRayTrace(MaxRayTraceCount_{ParameterName}, IntersectionResults_{ParameterName}, In_PreviousFrameQueryID, Out_CollisionValid, Out_CollisionDistance, Out_CollisionPosWorld, Out_CollisionNormal);
+		NDICollisionQuery_ReadAsyncRayTrace(MaxRayTraceCount_{ParameterName}, IntersectionResults_{ParameterName}, IntersectionResultsOffset_{ParameterName}, In_PreviousFrameQueryID, Out_CollisionValid, Out_CollisionDistance, Out_CollisionPosWorld, Out_CollisionNormal);
 		return;
-	}	
+	}
 #endif
 	Out_CollisionValid = false;
 }

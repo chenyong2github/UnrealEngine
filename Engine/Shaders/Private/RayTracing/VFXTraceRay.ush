@@ -17,22 +17,6 @@
 #include "/Platform/Private/VFXTraceRay.ush"
 #else // OVERRIDE_VFXTRACERAY_USH
 
-
-float3 GetWorldNormalCommon(FVFXTracePayload Payload)
-{
-	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
-
-	float3 LocalPosition = (1.0f - Payload.Barycentrics.x - Payload.Barycentrics.y) * Tri.LocalPositions[0]
-		+ Payload.Barycentrics.x * Tri.LocalPositions[1]
-		+ Payload.Barycentrics.y * Tri.LocalPositions[2];
-
-	float3 LocalEdges[2] = { Tri.LocalPositions[1] - Tri.LocalPositions[0], Tri.LocalPositions[2] - Tri.LocalPositions[0] };
-	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
-	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
-
-	return normalize(mul(LocalNormal, InverseTranspose3x3));
-}
-
 void InitVFXTracePayloadFromHitShader(FDefaultAttributes Attributes, out FVFXTracePayload OutPayload)
 {
 	OutPayload.HitT = RayTCurrent();
@@ -40,13 +24,35 @@ void InitVFXTracePayloadFromHitShader(FDefaultAttributes Attributes, out FVFXTra
 	OutPayload.InstanceIndex = InstanceIndex() - GetBaseInstanceIndex();
 	OutPayload.Barycentrics = Attributes.Barycentrics;
 
+	//Reconstruct world position.
 	OutPayload.WorldPosition = WorldRayOrigin() + WorldRayDirection() * RayTCurrent();
 
-	OutPayload.WorldNormal = GetWorldNormalCommon(OutPayload);
+	//Reconstruct world normal.
+	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
+
+	float3 LocalPosition = (1.0f - Attributes.Barycentrics.x - Attributes.Barycentrics.y) * Tri.LocalPositions[0]
+		+ Attributes.Barycentrics.x * Tri.LocalPositions[1]
+		+ Attributes.Barycentrics.y * Tri.LocalPositions[2];
+
+	float3 LocalEdges[2] = { Tri.LocalPositions[1] - Tri.LocalPositions[0], Tri.LocalPositions[2] - Tri.LocalPositions[0] };
+	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
+	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
+
+	OutPayload.WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
 }
 
-#define VFX_TRACE_RAY(TLAS, RayFlags, InstanceInclusionMask, RayContributionToHitGroupIndex, MultiplierForGeometryContributionToShaderIndex, MissShaderIndex, Ray, Payload)\
-		TraceRay(TLAS, RayFlags, InstanceInclusionMask, RayContributionToHitGroupIndex, MultiplierForGeometryContributionToShaderIndex, MissShaderIndex, Ray, Payload);
+void VfxTraceRay(
+	RaytracingAccelerationStructure AccelerationStructure,
+	uint RayFlags,
+	uint InstanceInclusionMask,
+	uint RayContributionToHitGroupIndex,
+	uint MultiplierForGeometryContributionToHitGroupIndex,
+	uint MissShaderIndex,
+	RayDesc InRay,
+	inout FVFXTracePayload Payload)
+{
+	TraceRay(AccelerationStructure, RayFlags, InstanceInclusionMask, RayContributionToHitGroupIndex, MultiplierForGeometryContributionToHitGroupIndex, MissShaderIndex, InRay, Payload);
+}
 
 #endif //#ifndef UE_TRACE_RAY
 

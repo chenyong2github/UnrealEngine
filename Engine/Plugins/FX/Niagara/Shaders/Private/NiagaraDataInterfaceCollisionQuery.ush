@@ -151,7 +151,7 @@ uint BuildRayTraceMask(int TraceChannel)
 	return 0xFF;
 }
 
-void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, RWBuffer<uint> RWRayTraceCounts, int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
+void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset, int In_QueryID, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out bool Out_IsQueryValid)
 {
 	Out_IsQueryValid = false;
 
@@ -160,29 +160,31 @@ void NDICollisionQuery_IssueAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuf
 		float3 Trace = In_TraceEnd - In_TraceStart;
 		float TraceLength = length(Trace);
 
-		RWRayRequests[In_QueryID].Origin = In_TraceStart;
-		RWRayRequests[In_QueryID].Mask = BuildRayTraceMask(In_TraceChannel);
-		RWRayRequests[In_QueryID].Direction = normalize(Trace);
-		RWRayRequests[In_QueryID].TFar = TraceLength;
+		//Offset query into the actual ray buffer.
+		uint RayIndex = RayRequestOffset + In_QueryID;
+		RWRayRequests[RayIndex].Origin = In_TraceStart;
+		RWRayRequests[RayIndex].Mask = BuildRayTraceMask(In_TraceChannel);
+		RWRayRequests[RayIndex].Direction = normalize(Trace);
+		RWRayRequests[RayIndex].TFar = TraceLength;
 		Out_IsQueryValid = true;
 
 		// we want to keep track of the maximum index used
-		InterlockedMax(RWRayTraceCounts[0], In_QueryID + 1);
-		RWRayTraceCounts[1] = 1;
-		RWRayTraceCounts[2] = 1;
+		InterlockedMax(RWRayTraceCounts[RayTraceCountsOffset + 0], In_QueryID + 1);
+		RWRayTraceCounts[RayTraceCountsOffset + 1] = 1;
+		RWRayTraceCounts[RayTraceCountsOffset + 2] = 1;
 	}
 }
 
-void NDICollisionQuery_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint> RWRayTraceCounts, int In_TraceCount, out int Out_StartQueryID, out bool Out_IndicesValid)
+void NDICollisionQuery_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset, int In_TraceCount, out int Out_StartQueryID, out bool Out_IndicesValid)
 {
 	Out_IndicesValid = false;
 
-	if ((In_TraceCount + RWRayTraceCounts[0]) < MaxRayTraceCount)
+	if ((In_TraceCount + RWRayTraceCounts[RayTraceCountsOffset + 0]) < MaxRayTraceCount)
 	{
 		uint RequestIndex = 0;
-		InterlockedAdd(RWRayTraceCounts[0], In_TraceCount, RequestIndex);
-		RWRayTraceCounts[1] = 1;
-		RWRayTraceCounts[2] = 1;
+		InterlockedAdd(RWRayTraceCounts[RayTraceCountsOffset + 0], In_TraceCount, RequestIndex);
+		RWRayTraceCounts[RayTraceCountsOffset + 1] = 1;
+		RWRayTraceCounts[RayTraceCountsOffset + 2] = 1;
 
 		if ((In_TraceCount + RequestIndex) <= MaxRayTraceCount)
 		{
@@ -191,33 +193,35 @@ void NDICollisionQuery_ReserveRayTraceIndex(uint MaxRayTraceCount, RWBuffer<uint
 		}
 		else
 		{
-			InterlockedMax(RWRayTraceCounts[0], MaxRayTraceCount);
+			InterlockedMax(RWRayTraceCounts[RayTraceCountsOffset + 0], MaxRayTraceCount);
 		}
 	}
 }
 
-void NDICollisionQuery_CreateAsyncRayTrace(uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, RWBuffer<uint> RWRayTraceCounts, float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out int Out_QueryID, out bool Out_IsQueryValid)
+void NDICollisionQuery_CreateAsyncRayTrace(	uint MaxRayTraceCount, RWStructuredBuffer<FNiagaraRayData> RWRayRequests, uint RayRequestsOffset, RWBuffer<uint> RWRayTraceCounts, uint RayTraceCountsOffset,
+											float3 In_TraceStart, float3 In_TraceEnd, int In_TraceChannel, out int Out_QueryID, out bool Out_IsQueryValid)
 {
 	Out_IsQueryValid = false;
 
-	NDICollisionQuery_ReserveRayTraceIndex(MaxRayTraceCount, RWRayTraceCounts, 1, Out_QueryID, Out_IsQueryValid);
+	NDICollisionQuery_ReserveRayTraceIndex(MaxRayTraceCount, RWRayTraceCounts, RayTraceCountsOffset, 1, Out_QueryID, Out_IsQueryValid);
 
 	if (Out_IsQueryValid)
 	{
 		float3 Trace = In_TraceEnd - In_TraceStart;
 		float TraceLength = length(Trace);
 
-		RWRayRequests[Out_QueryID].Origin = In_TraceStart;
-		RWRayRequests[Out_QueryID].Mask = BuildRayTraceMask(In_TraceChannel);
-		RWRayRequests[Out_QueryID].Direction = normalize(Trace);
-		RWRayRequests[Out_QueryID].TFar = TraceLength;
+		uint RayIndex = Out_QueryID + RayRequestsOffset;
+		RWRayRequests[RayIndex].Origin = In_TraceStart;
+		RWRayRequests[RayIndex].Mask = BuildRayTraceMask(In_TraceChannel);
+		RWRayRequests[RayIndex].Direction = normalize(Trace);
+		RWRayRequests[RayIndex].TFar = TraceLength;
 
 		//TODO: We can pack collision group and trace channels into the same int and test both in the RG Shader.
-		RWRayRequests[Out_QueryID].CollisionGroup = In_TraceChannel;
+		RWRayRequests[RayIndex].CollisionGroup = In_TraceChannel;
 	}
 }
 
-void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingResult> IntersectionResults, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
+void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer<FNiagaraRayTracingResult> IntersectionResults, uint IntersectionRestultsOffest, int In_PreviousFrameQueryID, out bool Out_CollisionValid, out float Out_CollisionDistance, out float3 Out_CollisionPosWorld, out float3 Out_CollisionNormal)
 {
 	Out_CollisionValid = false;
 	Out_CollisionDistance = 0.0f;
@@ -226,7 +230,7 @@ void NDICollisionQuery_ReadAsyncRayTrace(uint MaxRayTraceCount, StructuredBuffer
 
 	if (In_PreviousFrameQueryID >= 0 && uint(In_PreviousFrameQueryID) < MaxRayTraceCount)
 	{
-		FNiagaraRayTracingResult HitResult = IntersectionResults[In_PreviousFrameQueryID];
+		FNiagaraRayTracingResult HitResult = IntersectionResults[In_PreviousFrameQueryID + IntersectionRestultsOffest];
 
 		Out_CollisionValid = HitResult.IsHit();
 		if (Out_CollisionValid)

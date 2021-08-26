@@ -121,8 +121,6 @@ struct FDefaultPayload : FIntersectionPayload
 
 struct FVFXTracePayload : FIntersectionPayload
 {
-	void SetWorldNormal(float3 InNormal) { WorldNormal = InNormal; }
-
 	float3 WorldPosition;
 	float3 WorldNormal;
 };

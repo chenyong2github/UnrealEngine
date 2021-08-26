@@ -249,6 +249,10 @@ NiagaraEmitterInstanceBatcher::~NiagaraEmitterInstanceBatcher()
 {
 	FinishDispatches();
 
+#if RHI_RAYTRACING
+	RayTracingHelper->Reset();
+#endif
+
 	GlobalCBufferLayout = nullptr;
 	SystemCBufferLayout = nullptr;
 	OwnerCBufferLayout = nullptr;
@@ -504,6 +508,10 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			//UE_LOG(LogNiagara, Log, TEXT("NiagaraEmitterInstanceBatcher: Queued ticks are being Destroyed due to not rendering.  This may result in undesirable simulation artifacts."));
 
 			FinishDispatches();
+
+#if RHI_RAYTRACING
+			RayTracingHelper->Reset();
+#endif
 			break;
 		}
 	}
@@ -1618,6 +1626,13 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool
 	{
 		UpdateInstanceCountManager(GraphBuilder.RHICmdList);
 		PrepareAllTicks(GraphBuilder.RHICmdList);
+		
+#if RHI_RAYTRACING
+		if (HasRayTracingScene())
+		{
+			RayTracingHelper->BeginFrame(GraphBuilder.RHICmdList);
+		}
+#endif
 
 		if ( NiagaraEmitterInstanceBatcherLocal::GDebugLogging)
 		{
@@ -1694,10 +1709,6 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 
 #if RHI_RAYTRACING
 			BuildRayTracingSceneInfo(RHICmdList, Views);
-			ON_SCOPE_EXIT
-			{
-				ResetRayTracingSceneInfo();
-			};
 #endif
 
 			CurrentPassViews = Views;
@@ -1708,6 +1719,13 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 			ExecuteTicks(RHICmdList, ViewUniformBuffer, ENiagaraGpuComputeTickStage::PostOpaqueRender);
 
 			FinishDispatches();
+
+#if RHI_RAYTRACING
+			if(HasRayTracingScene())
+			{
+				RayTracingHelper->EndFrame(RHICmdList, GetScene());
+			}
+#endif
 
 			// Clear CurrentPassViews
 			CurrentPassViews = TConstArrayView<FViewInfo>();
@@ -1962,11 +1980,11 @@ void NiagaraEmitterInstanceBatcher::ResetRayTracingSceneInfo()
 	RayTracingHelper->Reset();
 }
 
-void NiagaraEmitterInstanceBatcher::IssueRayTraces(FRHICommandList& RHICmdList, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults) const
-{
-	check(NumProxiesThatRequireRayTracingScene > 0);
 
-	RayTracingHelper->IssueRayTraces(RHICmdList, GetScene(), RayTraceCounts, MaxRetraces, RayTraceRequests, IndirectArgsBuffer, IndirectArgsOffset, RayTraceResults);
+FNiagaraRayTracingHelper& NiagaraEmitterInstanceBatcher::GetRayTracingHelper()const
+{
+	check(RayTracingHelper.IsValid());
+	return *RayTracingHelper.Get();
 }
 
 bool NiagaraEmitterInstanceBatcher::HasRayTracingScene() const
