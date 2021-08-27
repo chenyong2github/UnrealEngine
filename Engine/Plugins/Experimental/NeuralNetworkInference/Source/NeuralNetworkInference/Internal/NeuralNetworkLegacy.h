@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
 #include "NeuralTensor.h"
-#include "NeuralTensors.h"
 
 #include "NeuralNetwork.h"
 #include "ModelProto.h"

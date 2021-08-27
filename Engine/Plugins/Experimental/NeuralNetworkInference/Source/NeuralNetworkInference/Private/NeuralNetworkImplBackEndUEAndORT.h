@@ -29,21 +29,28 @@ struct UNeuralNetwork::FImplBackEndUEAndORT
 {
 public:
 #ifdef WITH_FULL_NNI_SUPPORT
+	// Network-related variables
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
 	TUniquePtr<Ort::AllocatorWithDefaultOptions> Allocator;
 	TUniquePtr<Ort::SessionOptions> SessionOptions;
+	// Tensor-related variables
+	TUniquePtr<Ort::MemoryInfo> AllocatorInfo; /* Memory allocator information */
+	TArray<Ort::Value> InputOrtTensors; /* Actual ONNXRuntime tensors */
+	TArray<const char*> InputTensorNames; /* Tensor names */
+	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
+	TArray<const char*> OutputTensorNames; /* Tensor names */
 #endif //WITH_FULL_NNI_SUPPORT
 
 //#if WITH_EDITOR
-//	static bool LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FNeuralTensors& OutInputTensors, FNeuralTensors& OutOutputTensors,
+//	static bool LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
 //		TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 //#endif //WITH_EDITOR
 
-	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FNeuralTensors& OutInputTensors, FNeuralTensors& OutOutputTensors,
+	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
 		TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 	
-	void Run(FNeuralTensors& InOutOutputTensors, const FNeuralTensors& InInputTensors, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
+	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
 #ifdef WITH_FULL_NNI_SUPPORT
 private:
@@ -51,6 +58,10 @@ private:
 
 	bool ConfigureMembers(const ENeuralDeviceType InDeviceType);
 
-	void ConfigureTensors(FNeuralTensors& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable = nullptr);
+	void ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable = nullptr);
+
+	void SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes, TArray<TArray<int64>>& InSizes, const bool bIsInput);
+
+	static void LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors, Ort::MemoryInfo& InOutAllocatorInfo, const int32 InTensorIndex);
 #endif //WITH_FULL_NNI_SUPPORT
 };
