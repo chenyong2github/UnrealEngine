@@ -20,12 +20,6 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 {}
 
 #if WITH_EDITOR
-
-void UWorldPartitionRuntimeCell::AddCellData(const UWorldPartitionRuntimeCellData* InCellData)
-{
-	CellDataMap.Add(InCellData->GetClass(), InCellData);
-}
-
 void UWorldPartitionRuntimeCell::SetDataLayers(const TArray<const UDataLayer*>& InDataLayers)
 {
 	check(DataLayers.IsEmpty());
@@ -102,12 +96,3 @@ bool UWorldPartitionRuntimeCell::IsDebugShown() const
 		   FWorldPartitionDebugHelper::AreDebugDataLayersShown(DataLayers) &&
 		   FWorldPartitionDebugHelper::IsDebugCellNameShow(DebugName);
 }
-
-const UWorldPartitionRuntimeCellData* UWorldPartitionRuntimeCell::GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const
-{
-	return CellDataMap.FindRef(InCellDataClass);
-}
-
-UWorldPartitionRuntimeCellData::UWorldPartitionRuntimeCellData(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
-{}
