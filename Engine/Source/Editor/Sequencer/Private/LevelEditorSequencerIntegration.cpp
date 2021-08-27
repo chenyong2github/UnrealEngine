@@ -181,6 +181,14 @@ void FLevelEditorSequencerIntegration::Initialize(const FLevelEditorSequencerInt
 		AcquiredResources.Add([=]{ FEditorDelegates::PostSaveWorldWithContext.Remove(Handle); });
 	}
 	{
+		FDelegateHandle Handle = FEditorDelegates::PreSaveExternalActors.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreSaveExternalActors);
+		AcquiredResources.Add([=]{ FEditorDelegates::PreSaveExternalActors.Remove(Handle); });
+	}
+	{
+		FDelegateHandle Handle = FEditorDelegates::PostSaveExternalActors.AddRaw(this, &FLevelEditorSequencerIntegration::OnPostSaveExternalActors);
+		AcquiredResources.Add([=]{ FEditorDelegates::PostSaveExternalActors.Remove(Handle); });
+	}
+	{
 		FDelegateHandle Handle = FEditorDelegates::PreBeginPIE.AddRaw(this, &FLevelEditorSequencerIntegration::OnPreBeginPIE);
 		AcquiredResources.Add([=]{ FEditorDelegates::PreBeginPIE.Remove(Handle); });
 	}
@@ -329,40 +337,22 @@ void FLevelEditorSequencerIntegration::OnActorLabelChanged(AActor* ChangedActor)
 
 void FLevelEditorSequencerIntegration::OnPreSaveWorld(class UWorld* World, FObjectPreSaveContext ObjectSaveContext)
 {
-	// Restore the saved state so that the level save can save that instead of the animated state.
-	IterateAllSequencers(
-		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
-		{
-			if (Options.bRequiresLevelEvents)
-			{
-				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
-				{
-					TrackEditor->OnPreSaveWorld(World);
-				}
-				In.RestorePreAnimatedState();
-			}
-		}
-	);
+	RestoreToSavedState(World);
 }
 
 void FLevelEditorSequencerIntegration::OnPostSaveWorld(class UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
-	// Reset the time after saving so that an update will be triggered to put objects back to their animated state.
-	IterateAllSequencers(
-		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
-		{
-			if (Options.bRequiresLevelEvents)
-			{
-				In.InvalidateCachedData();
-				In.ForceEvaluate();
+	ResetToAnimatedState(World);
+}
 
-				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
-				{
-					TrackEditor->OnPostSaveWorld(World);
-				}
-			}
-		}
-	);
+void FLevelEditorSequencerIntegration::OnPreSaveExternalActors(UWorld* World)
+{
+	RestoreToSavedState(World);
+}
+
+void FLevelEditorSequencerIntegration::OnPostSaveExternalActors(UWorld* World)
+{
+	ResetToAnimatedState(World);
 }
 
 void FLevelEditorSequencerIntegration::OnNewCurrentLevel()
@@ -1140,6 +1130,44 @@ void FLevelEditorSequencerIntegration::RestoreRealtimeViewports()
 			}
 		}
 	}
+}
+
+void FLevelEditorSequencerIntegration::RestoreToSavedState(UWorld* World)
+{
+	// Restore the saved state so that the level save can save that instead of the animated state.
+	IterateAllSequencers(
+		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
+		{
+			if (Options.bRequiresLevelEvents)
+			{
+				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
+				{
+					TrackEditor->OnPreSaveWorld(World);
+				}
+				In.RestorePreAnimatedState();
+			}
+		}
+	);
+}
+
+void FLevelEditorSequencerIntegration::ResetToAnimatedState(UWorld* World)
+{
+	// Reset the time after saving so that an update will be triggered to put objects back to their animated state.
+	IterateAllSequencers(
+		[World](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
+		{
+			if (Options.bRequiresLevelEvents)
+			{
+				In.InvalidateCachedData();
+				In.ForceEvaluate();
+
+				for (const TSharedPtr<ISequencerTrackEditor>& TrackEditor : In.GetTrackEditors())
+				{
+					TrackEditor->OnPostSaveWorld(World);
+				}
+			}
+		}
+	);
 }
 
 TSharedRef<FExtender> FLevelEditorSequencerIntegration::OnExtendLevelEditorViewMenu(const TSharedRef<FUICommandList> CommandList)
