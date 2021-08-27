@@ -35,6 +35,9 @@ uint LightOffset;
 
 uint LumenLightType;
 float MaxTraceDistance;
+float FarFieldMaxTraceDistance;
+float3 FarFieldReferencePos;
+
 float SurfaceBias;
 float SlopeScaledSurfaceBias;
 
@@ -77,12 +80,15 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 
 				float3 L = LightData.Direction;
 				float3 ToLight = L;
-				float TMax = MaxTraceDistance;
+				float NearFieldTMax = MaxTraceDistance;
+				float FarFieldTMax = FarFieldMaxTraceDistance;
 
 				if (LumenLightType != LIGHT_TYPE_DIRECTIONAL && LightData.bRadialLight)
 				{
 					ToLight = LightData.Position - WorldPosition;
-					TMax = min(TMax, length(ToLight));
+					float LengthToLight = length(ToLight);
+					NearFieldTMax = min(NearFieldTMax, LengthToLight);
+					FarFieldTMax = min(FarFieldTMax, LengthToLight);
 					L = normalize(ToLight);
 				}
 
@@ -97,8 +103,6 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 				const float BiasScale = 1.0;
 				Ray.Origin = GetCardWorldPositionForShadowing(WorldPosition, L, WorldNormal, SurfaceBias, SlopeScaledSurfaceBias, BiasScale);
 				Ray.Direction = L;
-				Ray.TMin = 0;
-				Ray.TMax = TMax;
 #endif
 
 				{
@@ -116,7 +120,32 @@ RAY_TRACING_ENTRY_RAYGEN(LumenSceneDirectLightingHardwareRayTracingRGS)
 					Context.bAcceptFirstHitAndEndSearch = true;
 
 					FLumenMinimalPayload Payload;
-					bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+
+					bool bHit = false;
+#if ENABLE_FAR_FIELD_TRACING
+					{
+						// Rebase origin and point-source direction for far-field rays
+						RayDesc FarFieldRay;
+						FarFieldRay.Origin = WorldPosition + FarFieldReferencePos;
+						FarFieldRay.Direction = Ray.Direction;
+						FarFieldRay.TMin = NearFieldTMax;
+						FarFieldRay.TMax = FarFieldTMax;
+
+						Context.InstanceMask = RAY_TRACING_MASK_FAR_FIELD;
+						Context.bSkipClosestHitShader = true;
+						bHit = TraceLumenMinimalRay(FarFieldRay, Context, Payload);
+
+						Context.bSkipClosestHitShader = false;
+					}
+#endif // ENABLE_FAR_FIELD_TRACING
+					if (!bHit)
+					{
+						Ray.TMin = 0;
+						Ray.TMax = NearFieldTMax;
+						Context.InstanceMask = RAY_TRACING_MASK_OPAQUE;
+						bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+					}
+
 					ShadowMaskRay.ShadowFactor = bHit ? 0.0f : 1.0f;
 				}
 
