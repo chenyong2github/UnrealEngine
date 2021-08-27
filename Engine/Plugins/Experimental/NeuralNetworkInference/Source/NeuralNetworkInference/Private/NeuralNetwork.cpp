@@ -222,30 +222,89 @@ void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 
 const FNeuralTensor& UNeuralNetwork::GetInputTensor(const int32 InTensorIndex) const
 {
-	return InputTensors.GetTensor(InTensorIndex);
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return InputTensors[InTensorIndex];
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+		const int32 TensorIndex = ImplBackEndUEOnly->TensorManager.GetInputIndexes()[InTensorIndex];
+		return ImplBackEndUEOnly->TensorManager.GetTensors()[TensorIndex];
+	}
+
+	// Unknown
+	checkf(false, TEXT("UNeuralNetwork::GetInputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return InputTensors[InTensorIndex];
 }
 
-const FNeuralTensors& UNeuralNetwork::GetInputTensors() const
+const TArray<FNeuralTensor>& UNeuralNetwork::GetInputTensors() const
 {
 	return InputTensors;
 }
 
 void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex)
 {
-	InputTensors.SetFromArrayCopy(InArray, InTensorIndex);
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		InputTensors[InTensorIndex].SetFromArrayCopy(InArray);
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): UEOnly not implemented yet."));
+	}
+
+	// Unknown
+	else
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	}
 }
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
 {
-	return InputTensors.GetDataPointerMutable(InTensorIndex);
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return InputTensors[InTensorIndex].GetData(); // Or ImplBackEndUEAndORT->InputOrtTensors[InTensorIndex].GetTensorMutableData<float>();
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetInputDataPointerMutable(): UEOnly not implemented yet."));
+	}
+
+	// Unknown
+	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return nullptr;
 }
 
 const FNeuralTensor& UNeuralNetwork::GetOutputTensor(const int32 InTensorIndex) const
 {
-	return OutputTensors.GetTensor(InTensorIndex);
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return OutputTensors[InTensorIndex];
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetOutputTensor(): UEOnly not implemented yet."));
+	}
+
+	// Unknown
+	checkf(false, TEXT("UNeuralNetwork::GetOutputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return OutputTensors[InTensorIndex];
 }
 
-const FNeuralTensors& UNeuralNetwork::GetOutputTensors() const
+const TArray<FNeuralTensor>& UNeuralNetwork::GetOutputTensors() const
 {
 	return OutputTensors;
 }
@@ -264,7 +323,7 @@ void UNeuralNetwork::Run()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		ImplBackEndUEAndORT->Run(OutputTensors, InputTensors, SynchronousMode, InputDeviceType, OutputDeviceType);
+		ImplBackEndUEAndORT->Run(SynchronousMode, InputDeviceType, OutputDeviceType);
 	}
 
 	// UEOnly

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "NeuralEnumClasses.h"
 #include "NeuralTensor.h"
-#include "NeuralTensors.h"
 #include "NeuralNetwork.generated.h"
 
 /**
@@ -139,7 +138,7 @@ public:
 	 * These functions either take a TArray as input, return a modificable void* to fill the data, or return a constant FNeuralTensor(s) to see input properties (e.g., size or dimensions).
 	 */
 	const FNeuralTensor& GetInputTensor(const int32 InTensorIndex = 0) const;
-	const FNeuralTensors& GetInputTensors() const;
+	const TArray<FNeuralTensor>& GetInputTensors() const;
 	void SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex = 0);
 	void* GetInputDataPointerMutable(const int32 InTensorIndex = 0);
 
@@ -147,7 +146,7 @@ public:
 	 * Functions to get output. The returned FNeuralTensor(s) are constant to prevent the user from modifying the tensor properties (e.g., size or dimensions).
 	 */
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
-	const FNeuralTensors& GetOutputTensors() const;
+	const TArray<FNeuralTensor>& GetOutputTensors() const;
 
 	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
@@ -197,13 +196,13 @@ protected:
 	FString ModelFullFilePath;
 
 	/**
-	 * InputTensors and OutputTensors represent the input and output TArray<FNeuralTensors> of the network, respectively.
+	 * InputTensors and OutputTensors represent the input and output TArray<FNeuralTensor> of the network, respectively.
 	 */
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	FNeuralTensors InputTensors;
+	TArray<FNeuralTensor> InputTensors;
 
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	FNeuralTensors OutputTensors;
+	TArray<FNeuralTensor> OutputTensors;
 
 	/** Whether some of the FNeuralTensor of InputTensor have flexible/variable dimensions. */
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")

@@ -9,7 +9,7 @@
  *****************************************************************************/
 
 //#if WITH_EDITOR
-//bool UNeuralNetwork::FImplBackEndUEAndORT::LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FNeuralTensors& OutInputTensors, FNeuralTensors& OutOutputTensors,
+//bool UNeuralNetwork::FImplBackEndUEAndORT::LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
 //	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 //{
 //	// Initialize and configure InOutImplBackEndUEAndORT
@@ -77,36 +77,48 @@
 //}
 //#endif //WITH_EDITOR
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, FNeuralTensors& OutInputTensors, FNeuralTensors& OutOutputTensors,
+bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
 	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
 #ifdef WITH_FULL_NNI_SUPPORT
-	const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-
-	// Initialize and configure InOutImplBackEndUEAndORT
-	if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InModelFullFilePath, InDeviceType))
+#if WITH_EDITOR
+	try
+#endif //WITH_EDITOR
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): InitializedAndConfigureMembers failed."));
+		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
+
+		// Initialize and configure InOutImplBackEndUEAndORT
+		if (!UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(InOutImplBackEndUEAndORT, InModelFullFilePath, InDeviceType))
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): InitializedAndConfigureMembers failed."));
+			return false;
+		}
+
+		// Create session from model saved in InModelReadFromDiskInBytes (if not empty)
+		if (InModelReadFromDiskInBytes.Num() > 0)
+		{
+			// Read model from ModelReadFromDiskInBytesVector
+			InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromDiskInBytes.GetData(), InModelReadFromDiskInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
+		}
+		// Else
+		else
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("InModelReadFromDiskInBytes was empty."));
+			return false;
+		}
+
+		InOutImplBackEndUEAndORT->ConfigureTensors(OutInputTensors, &OutAreInputTensorSizesVariable);
+		InOutImplBackEndUEAndORT->ConfigureTensors(OutOutputTensors);
+
+		return true;
+	}
+#if WITH_EDITOR
+	catch (const std::exception& Exception)
+	{
+		UE_LOG(LogNeuralNetworkInference, Error, TEXT("%s"), UTF8_TO_TCHAR(Exception.what()));
 		return false;
 	}
-
-	// Create session from model saved in InModelReadFromDiskInBytes (if not empty)
-	if (InModelReadFromDiskInBytes.Num() > 0)
-	{
-		// Read model from ModelReadFromDiskInBytesVector
-		InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromDiskInBytes.GetData(), InModelReadFromDiskInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
-	}
-	// Else
-	else
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("InModelReadFromDiskInBytes was empty."));
-		return false;
-	}
-
-	InOutImplBackEndUEAndORT->ConfigureTensors(OutInputTensors, &OutAreInputTensorSizesVariable);
-	InOutImplBackEndUEAndORT->ConfigureTensors(OutOutputTensors);
-
-	return true;
+#endif //WITH_EDITOR
 
 #else //WITH_FULL_NNI_SUPPORT
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto (recommended) or ENeuralBackEnd::UEOnly for this platform."));
@@ -114,32 +126,44 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 #endif //WITH_FULL_NNI_SUPPORT
 }
 
-void UNeuralNetwork::FImplBackEndUEAndORT::Run(FNeuralTensors& InOutOutputTensors, const FNeuralTensors& InInputTensors, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_FULL_NNI_SUPPORT
-	// @todo: Temporarily disabled until we connect GPU input/output between UE and ORT
-	if (InInputDeviceType == ENeuralDeviceType::GPU || InOutputDeviceType == ENeuralDeviceType::GPU)
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): InputDeviceType & OutputDeviceType must be set to CPU for now."));
-		return;
-	}
-
-	// Run UNeuralNetwork
-	if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
+#if WITH_EDITOR
+	try
+#endif //WITH_EDITOR
 	{
 		const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
-		Session->Run(Ort::RunOptions{ nullptr },
-			InInputTensors.GetTensorNames(), InInputTensors.GetONNXRuntimeTensors(), InInputTensors.GetNumberTensors(),
-			InOutOutputTensors.GetTensorNames(), InOutOutputTensors.GetONNXRuntimeTensors(), InOutOutputTensors.GetNumberTensors());
+
+		// @todo: Temporarily disabled until we connect GPU input/output between UE and ORT
+		if (InInputDeviceType == ENeuralDeviceType::GPU || InOutputDeviceType == ENeuralDeviceType::GPU)
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): InputDeviceType & OutputDeviceType must be set to CPU for now."));
+			return;
+		}
+
+		// Run UNeuralNetwork
+		if (InSynchronousMode == ENeuralNetworkSynchronousMode::Synchronous)
+		{
+			Session->Run(Ort::RunOptions{ nullptr },
+				InputTensorNames.GetData(), &InputOrtTensors[0], InputTensorNames.Num(),
+				OutputTensorNames.GetData(), &OutputOrtTensors[0], OutputTensorNames.Num());
+		}
+		else if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): SynchronousMode = %d not implemented yet. Use SynchronousMode = Synchronous."), (int32)InSynchronousMode);
+		}
+		else
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown SynchronousMode = %d."), (int32)InSynchronousMode);
+		}
 	}
-	else if (InSynchronousMode == ENeuralNetworkSynchronousMode::Asynchronous)
+#if WITH_EDITOR
+	catch (const std::exception& Exception)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): SynchronousMode = %d not implemented yet. Use SynchronousMode = Synchronous."), (int32)InSynchronousMode);
+		UE_LOG(LogNeuralNetworkInference, Error, TEXT("%s"), UTF8_TO_TCHAR(Exception.what()));
 	}
-	else
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Unknown SynchronousMode = %d."), (int32)InSynchronousMode);
-	}
+#endif //WITH_EDITOR
 
 #else //WITH_FULL_NNI_SUPPORT
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
@@ -166,6 +190,8 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TShare
 		InOutImplBackEndUEAndORT->Environment = MakeUnique<Ort::Env>(ORT_LOGGING_LEVEL_WARNING, ModelFullFilePathCharPtr); // Any unique string would work, it does not need to be the file path
 
 		InOutImplBackEndUEAndORT->Allocator = MakeUnique<Ort::AllocatorWithDefaultOptions>();
+
+		InOutImplBackEndUEAndORT->AllocatorInfo = MakeUnique<Ort::MemoryInfo>(Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeCPU));
 	}
 
 	// Configure InOutImplBackEndUEAndORT
@@ -232,7 +258,7 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 	return true;
 }
 
-void UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(FNeuralTensors& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable)
+void UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(TArray<FNeuralTensor>& OutTensors, TArray<bool>* OutAreInputTensorSizesVariable)
 {
 	const bool bIsInput = (OutAreInputTensorSizesVariable != nullptr);
 	TArray<const char*> TensorNames;
@@ -322,7 +348,76 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ConfigureTensors(FNeuralTensors& OutT
 
 	}
 
-	OutTensors.SetFromNetwork(TensorNames, TensorDataTypes, TensorSizes);
+	SetTensorsFromNetwork(OutTensors, TensorNames, TensorDataTypes, TensorSizes, bIsInput);
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes,
+	TArray<TArray<int64>>& InSizes, const bool bIsInput)
+{
+	const int32 TensorNumber = InTensorNames.Num();
+	if (InTensorDataTypes.Num() != TensorNumber || InSizes.Num() != TensorNumber)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("InTensorNames.Num() == InTensorDataTypes.Num() == InSizes.Num() failed, %d vs. %d vs. %d."),
+			InTensorNames.Num(), InTensorDataTypes.Num(), InSizes.Num());
+		return;
+	}
+
+	// Swap variables
+	TArray<const char*>& TensorNames = (bIsInput ? InputTensorNames : OutputTensorNames);
+	Swap(TensorNames, InTensorNames);
+
+	// Pre-allocate each variable
+	if (OutTensors.Num() != TensorNumber)
+	{
+		OutTensors.SetNum(TensorNumber);
+	}
+
+	// Config each TensorIndex
+	TArray<Ort::Value>& OrtTensors = (bIsInput ? InputOrtTensors : OutputOrtTensors);
+	for (int32 TensorIndex = 0; TensorIndex < TensorNumber; ++TensorIndex)
+	{
+		if (OrtTensors.Num() <= TensorIndex)
+		{
+			OrtTensors.Emplace(Ort::Value(nullptr));
+		}
+		// Pre-allocate TArray
+		OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
+		// Link tensor with ORT blob
+		LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
+	}
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors, Ort::MemoryInfo& InOutAllocatorInfo, const int32 InTensorIndex)
+{
+	const TArray<int64>& Sizes = InOutTensors[InTensorIndex].GetSizes();
+	if (Sizes.Num() > 0 && InOutTensors[InTensorIndex].Num() > 0)
+	{
+		FNeuralTensor& Tensor = InOutTensors[InTensorIndex];
+		const int64 Volume = Tensor.Num();
+		const int32 ArrayDimensions = Sizes.Num();
+
+		const ENeuralDataType NeuralDataType = Tensor.GetDataType();
+		if (NeuralDataType == ENeuralDataType::Float)
+		{
+#ifdef _WIN32
+			const TArray<int64_t>& SizesInt64t = Sizes;
+#else
+			checkf(sizeof(int64) == sizeof(int64_t), TEXT("int64 and int64_t should both have the same size."));
+			TArray<int64_t> SizesInt64t;
+			SizesInt64t.SetNumUninitialized(ArrayDimensions);
+			FMemory::Memcpy(SizesInt64t.GetData(), (int64_t*)Sizes.GetData(), sizeof(int64_t) * ArrayDimensions);
+#endif //_WIN32
+			InOutOrtTensors[InTensorIndex] = Ort::Value::CreateTensor<float>(InOutAllocatorInfo, Tensor.GetDataCasted<float>(), Volume, SizesInt64t.GetData(), ArrayDimensions);
+		}
+		//else if (NeuralDataType == ENeuralDataType::Double)
+		//{
+		//	InOutOrtTensors[InTensorIndex] = Ort::Value::CreateTensor<double>(InOutAllocatorInfo, Tensor.GetDataCasted<double>(), Volume, Sizes.GetData(), ArrayDimensions);
+		//}
+		else
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("Not implemented (yet) for ENeuralDataType = %d."), (int32)NeuralDataType);
+		}
+	}
 }
 
 #endif //WITH_FULL_NNI_SUPPORT

@@ -56,14 +56,14 @@ void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		}
 		// Input debugging
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %s - Input/Output"), *ModelName);
-		for (uint32 TensorIndex = 0; TensorIndex < Network->GetInputTensors().GetNumberTensors(); ++TensorIndex)
+		for (int32 TensorIndex = 0; TensorIndex < Network->GetInputTensors().Num(); ++TensorIndex)
 		{
-			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("InputTensor[%d] = %s."), TensorIndex, *Network->GetInputTensors().GetTensorName(TensorIndex));
+			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("InputTensor[%d] = %s."), TensorIndex, *Network->GetInputTensor(TensorIndex).GetName());
 		}
 		// Output debugging
-		for (uint32 TensorIndex = 0; TensorIndex < Network->GetOutputTensors().GetNumberTensors(); ++TensorIndex)
+		for (int32 TensorIndex = 0; TensorIndex < Network->GetOutputTensors().Num(); ++TensorIndex)
 		{
-			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputTensor[%d] = %s."), TensorIndex, *Network->GetOutputTensors().GetTensorName(TensorIndex));
+			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputTensor[%d] = %s."), TensorIndex, *Network->GetOutputTensor(TensorIndex).GetName());
 		}
 		ModelAccuracyTest(Network, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 
