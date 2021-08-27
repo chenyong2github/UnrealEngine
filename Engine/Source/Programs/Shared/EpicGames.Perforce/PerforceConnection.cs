@@ -27,26 +27,13 @@ namespace EpicGames.Perforce
 		ILogger Logger { get; }
 
 		/// <summary>
-		/// Execute a command and parse the response
+		/// Runs a Perforce command
 		/// </summary>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Command line arguments</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>List of objects returned by the server</returns>
-		Task<List<PerforceResponse>> CommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default);
-
-		/// <summary>
-		/// Execute a command and parse the response
-		/// </summary>
-		/// <param name="Command">The command to execute</param>
-		/// <param name="Arguments">Command line arguments</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="HandleRecord">Delegate used to handle each record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>List of objects returned by the server</returns>
-		Task RecordCommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default);
+		/// <param name="Command">The command name</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="InputData">Input data to be passed to the command</param>
+		/// <returns>Response object</returns>
+		Task<IPerforceResponse> RunAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData);
 
 		/// <summary>
 		/// Execute the 'login' command
@@ -225,39 +212,10 @@ namespace EpicGames.Perforce
 			return Arguments;
 		}
 
-		/// <summary>
-		/// Execute a command and parse the response
-		/// </summary>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>List of objects returned by the server</returns>
-		public async Task<List<PerforceResponse>> CommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
+		/// <inheritdoc/>
+		public Task<IPerforceResponse> RunAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData)
 		{
-			using (PerforceChildProcess Process = new PerforceChildProcess(Command, Arguments, InputData, GetGlobalArguments(), Logger))
-			{
-				CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
-				return await Process.ReadResponsesAsync(StatRecordInfo, CancellationToken);
-			}
-		}
-
-		/// <summary>
-		/// Execute a command and parse the response
-		/// </summary>
-		/// <param name="Command">Command to execute</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to pass to Perforce</param>
-		/// <param name="HandleRecord">Delegate used to handle each record</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>List of objects returned by the server</returns>
-		public async Task RecordCommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default)
-		{
-			using (PerforceChildProcess Process = new PerforceChildProcess(Command, Arguments, InputData, GetGlobalArguments(), Logger))
-			{
-				await Process.ReadRecordsAsync(HandleRecord, CancellationToken);
-			}
+			return Task.FromResult<IPerforceResponse>(new PerforceChildProcess(Command, Arguments, InputData, GetGlobalArguments(), Logger));
 		}
 
 		#region p4 login
@@ -388,6 +346,43 @@ namespace EpicGames.Perforce
 	/// </summary>
 	public static class PerforceConnectionExtensions
 	{
+		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Command">Command to execute</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="StatRecordType">The type of records to return for "stat" responses</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
+		{
+			using (IPerforceResponse Response = await Perforce.RunAsync(Command, Arguments, InputData))
+			{
+				CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
+				return await Response.ReadResponsesAsync(StatRecordInfo, CancellationToken);
+			}
+		}
+
+		/// <summary>
+		/// Execute a command and parse the response
+		/// </summary>
+		/// <param name="Perforce">The Perforce connection</param>
+		/// <param name="Command">Command to execute</param>
+		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="InputData">Input data to pass to Perforce</param>
+		/// <param name="HandleRecord">Delegate used to handle each record</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of objects returned by the server</returns>
+		public static async Task RecordCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default)
+		{
+			using (IPerforceResponse Response = await Perforce.RunAsync(Command, Arguments, InputData))
+			{
+				await Response.ReadRecordsAsync(HandleRecord, CancellationToken);
+			}
+		}
+
 		/// <summary>
 		/// Serializes a list of key/value pairs into binary format.
 		/// </summary>
