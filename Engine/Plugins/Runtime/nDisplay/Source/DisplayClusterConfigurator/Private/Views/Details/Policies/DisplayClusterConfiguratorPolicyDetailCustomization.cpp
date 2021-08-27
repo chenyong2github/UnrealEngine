@@ -308,6 +308,10 @@ void FDisplayClusterConfiguratorProjectionCustomization::OnTextCommittedInCustom
 
 bool FDisplayClusterConfiguratorProjectionCustomization::IsPolicyIdenticalAcrossEditedObjects(bool bRequireCustomPolicy) const
 {
+	if (ConfigurationViewports.Num() <= 1)
+	{
+		return true;
+	}
 	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
 	{
 		if (Viewport.IsValid() &&
