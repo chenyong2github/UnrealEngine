@@ -257,7 +257,7 @@ namespace EpicGames.Perforce.Managed
 		/// Try to parse modifiers from a utf8 string
 		/// </summary>
 		/// <param name="Text"></param>
-		/// <param name="Modifiers"></param>
+		/// <param name="Result"></param>
 		/// <returns></returns>
 		public static bool TryParseModifiers(ReadOnlySpan<byte> Text, out (FileTypeModifiers, int) Result)
 		{

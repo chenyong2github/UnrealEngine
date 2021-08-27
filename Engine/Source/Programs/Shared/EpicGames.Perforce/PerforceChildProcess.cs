@@ -178,9 +178,9 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Formats the current contents of the buffer to a string
 		/// </summary>
-		/// <param name="Dat">The next byte that was read</param>
+		/// <param name="Data">The next byte that was read</param>
 		/// <returns>String representation of the buffer</returns>
-		private static string FormatDataAsString(Span<byte> Data)
+		private static string FormatDataAsString(ReadOnlySpan<byte> Data)
 		{
 			StringBuilder Result = new StringBuilder();
 			if (Data.Length > 0)
@@ -227,7 +227,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Formats the current contents of the buffer to a string
 		/// </summary>
-		/// <param name="NextByte">The next byte that was read</param>
+		/// <param name="BufferIdx">The next byte that was read</param>
 		/// <returns>String representation of the buffer</returns>
 		private string FormatDataAsHexDump(int BufferIdx)
 		{
@@ -660,6 +660,7 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="RequiredSuffix">The required suffix for any subobject arrays.</param>
 		/// <param name="RecordInfo">Reflection information for the type being serialized into.</param>
+		/// <param name="Record">Receives the deserialized record on success</param>
 		/// <returns>The parsed object.</returns>
 		bool TryReadTypedRecord(Utf8String RequiredSuffix, CachedRecordInfo RecordInfo, [NotNullWhen(true)] out object? Record)
 		{

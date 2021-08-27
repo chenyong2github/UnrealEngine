@@ -4,8 +4,14 @@ using System;
 
 namespace EpicGames.Perforce
 {
+	/// <summary>
+	/// 
+	/// </summary>
 	public class AnnotateLineRecord
 	{
+		/// <summary>
+		/// 
+		/// </summary>
 		[PerforceTag("depotFile")]
 		public readonly string DepotFile;
 

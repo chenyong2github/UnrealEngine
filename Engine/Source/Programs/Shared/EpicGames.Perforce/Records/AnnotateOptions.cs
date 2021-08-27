@@ -4,6 +4,9 @@ using System;
 
 namespace EpicGames.Perforce
 {
+	/// <summary>
+	/// 
+	/// </summary>
 	[Flags]
 	public enum AnnotateOptions
 	{
