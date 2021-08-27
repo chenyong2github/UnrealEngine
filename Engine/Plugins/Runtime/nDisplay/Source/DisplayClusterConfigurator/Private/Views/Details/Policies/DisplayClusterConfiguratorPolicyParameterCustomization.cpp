@@ -24,6 +24,7 @@
 #include "PropertyHandle.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Components/StaticMeshComponent.h"
+#include "ScopedTransaction.h"
 
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SNumericEntryBox.h"
@@ -42,16 +43,15 @@ FPolicyParameterInfo::FPolicyParameterInfo(
 	const FString& InDisplayName,
 	const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle,
+	const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
 	const FString* InInitialValue)
 {
 	ParamDisplayName = InDisplayName;
 	ParamTooltip = FText::GetEmpty();
 	ParamKey = InKey;
 	BlueprintOwnerPtr = InBlueprint;
-	ConfigurationViewportPtr = InConfigurationViewport;
-	ParametersHandle = InParametersHandle;
+	ConfigurationViewports = InConfigurationViewports;
+	
 	BlueprintEditorPtrCached = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(InBlueprint);
 
 	if (InInitialValue)
@@ -67,47 +67,124 @@ void FPolicyParameterInfo::SetParameterVisibilityDelegate(FParameterVisible InDe
 
 FText FPolicyParameterInfo::GetOrAddCustomParameterValueText() const
 {
-	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
-	check(ConfigurationViewport != nullptr);
-
-	FString* ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
-	if (ParameterValue == nullptr)
+	if (!DoParametersMatchForAllViewports())
 	{
-		UpdateCustomParameterValueText(InitialValue.IsValid() ? *InitialValue : TEXT(""), false);
-		ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+		return LOCTEXT("MultipleValues", "Multiple Values");
 	}
-	check(ParameterValue)
+	
+	FString* ParameterValue = nullptr;
+	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+	{
+		UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+		check(ConfigurationViewport != nullptr);
+
+		ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+		if (ParameterValue == nullptr)
+		{
+			UpdateCustomParameterValueText(InitialValue.IsValid() ? *InitialValue : TEXT(""), false);
+			ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+		}
+		check(ParameterValue)
+
+		// Only need values from one viewport since they match.
+		break;
+	}
 	
 	return FText::FromString(*ParameterValue);
 }
 
 bool FPolicyParameterInfo::IsParameterAlreadyAdded() const
 {
-	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
-	check(ConfigurationViewport != nullptr);
+	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+	{
+		UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+		check(ConfigurationViewport != nullptr);
 
-	return ConfigurationViewport->ProjectionPolicy.Parameters.Contains(GetParameterKey());
+		if (ConfigurationViewport->ProjectionPolicy.Parameters.Contains(GetParameterKey()))
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool FPolicyParameterInfo::DoParametersMatchForAllViewports() const
+{
+	FString LastParameterValue;
+	bool bFirstParamFound = false;
+	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+	{
+		if (!Viewport.IsValid())
+		{
+			continue;
+		}
+
+		if (FString* ParameterValue = Viewport->ProjectionPolicy.Parameters.Find(GetParameterKey()))
+		{
+			if (bFirstParamFound && LastParameterValue != *ParameterValue)
+			{
+				return false;
+			}
+
+			LastParameterValue = *ParameterValue;
+		}
+
+		bFirstParamFound = true;
+	}
+
+	return true;
 }
 
 void FPolicyParameterInfo::UpdateCustomParameterValueText(const FString& NewValue, bool bNotify) const
 {
-	UDisplayClusterConfigurationViewport* ConfigurationViewport = ConfigurationViewportPtr.Get();
-	check(ConfigurationViewport != nullptr);
-	ConfigurationViewport->Modify();
-
-	FStructProperty* StructProperty = FindFProperty<FStructProperty>(ConfigurationViewport->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
-	check(StructProperty);
-
-	uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(ConfigurationViewport);
-	DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, ParametersHandle, GetParameterKey(), NewValue);
-
-	if (bNotify)
+	bool bHasChanged = false;
+	FScopedTransaction Transaction(LOCTEXT("UpdateParameterText", "Update Parameter"));
+	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
 	{
-		if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+		UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+		check(ConfigurationViewport != nullptr);
+
+		const FString& Key = GetParameterKey();
+		
+		if (const FString *OldValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(Key))
 		{
-			BlueprintEditor->ClusterChanged(true);
-			BlueprintEditor->RefreshDisplayClusterPreviewActor();
+			if (*OldValue == NewValue)
+			{
+				continue;
+			}
 		}
+
+		bHasChanged = true;
+		ConfigurationViewport->Modify();
+
+		FStructProperty* StructProperty = FindFProperty<FStructProperty>(ConfigurationViewport->GetClass(), GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+		check(StructProperty);
+
+		const TSharedPtr<ISinglePropertyView> ProjectionPolicyView = DisplayClusterConfiguratorPropertyUtils::GetPropertyView(
+			ConfigurationViewport, GET_MEMBER_NAME_CHECKED(UDisplayClusterConfigurationViewport, ProjectionPolicy));
+
+		check(ProjectionPolicyView.IsValid());
+
+		TSharedPtr<IPropertyHandle> PropertyHandle = ProjectionPolicyView->GetPropertyHandle()->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationPolymorphicEntity, Parameters));
+		check(PropertyHandle.IsValid());
+		
+		uint8* MapContainer = StructProperty->ContainerPtrToValuePtr<uint8>(ConfigurationViewport);
+		DisplayClusterConfiguratorPropertyUtils::AddKeyValueToMap(MapContainer, PropertyHandle, Key, NewValue);
+
+		if (bNotify)
+		{
+			if (FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditor = FDisplayClusterConfiguratorUtils::GetBlueprintEditorForObject(BlueprintOwnerPtr.Get()))
+			{
+				BlueprintEditor->ClusterChanged(true);
+				BlueprintEditor->RefreshDisplayClusterPreviewActor();
+			}
+		}
+	}
+
+	if (!bHasChanged)
+	{
+		Transaction.Cancel();
 	}
 }
 
@@ -117,9 +194,8 @@ EVisibility FPolicyParameterInfo::IsParameterVisible() const
 }
 
 FPolicyParameterInfoCombo::FPolicyParameterInfoCombo(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle,
-	const TArray<FString>& InValues, const FString* InInitialItem, bool bSort) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, InInitialItem)
+													UDisplayClusterBlueprint* InBlueprint,const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
+													const TArray<FString>& InValues, const FString* InInitialItem, bool bSort) : FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports, InInitialItem)
 {
 	for (const FString& Value : InValues)
 	{
@@ -185,9 +261,8 @@ FPolicyParameterInfoComponentCombo::FPolicyParameterInfoComponentCombo(
 	const FString& InDisplayName,
 	const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle,
-	const TArray<TSubclassOf<UActorComponent>>& InComponentClasses) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, {}, nullptr)
+	const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports,
+	const TArray<TSubclassOf<UActorComponent>>& InComponentClasses) : FPolicyParameterInfoCombo(InDisplayName, InKey, InBlueprint, InConfigurationViewports, {}, nullptr)
 {
 	ComponentTypes = InComponentClasses;
 	if (BlueprintEditorPtrCached)
@@ -229,9 +304,8 @@ void FPolicyParameterInfoComponentCombo::CreateParameterValues(ADisplayClusterRo
 
 FPolicyParameterInfoText::FPolicyParameterInfoText(const FString& InDisplayName, const FString& InKey,
 	UDisplayClusterBlueprint* InBlueprint,
-	UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle)
+	const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports)
 {
 }
 
@@ -257,9 +331,8 @@ void FPolicyParameterInfoText::CreateCustomRowWidget(IDetailChildrenBuilder& InD
 }
 
 FPolicyParameterInfoBool::FPolicyParameterInfoBool(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle, bool bInvertValue) :
-	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle),
+	UDisplayClusterBlueprint* InBlueprint, const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports, bool bInvertValue) :
+	FPolicyParameterInfo(InDisplayName, InKey, InBlueprint, InConfigurationViewports),
 	bInvertValue(bInvertValue)
 {
 }
@@ -287,6 +360,11 @@ void FPolicyParameterInfoBool::CreateCustomRowWidget(IDetailChildrenBuilder& InD
 
 ECheckBoxState FPolicyParameterInfoBool::IsChecked() const
 {
+	if (!DoParametersMatchForAllViewports())
+	{
+		return ECheckBoxState::Undetermined;	
+	}
+	
 	const FString StrValue = GetOrAddCustomParameterValueText().ToString().ToLower();
 	const bool bValue = DisplayClusterTypesConverter::template FromString<bool>(StrValue);
 	const bool bIsChecked = bInvertValue ? !bValue : bValue;
@@ -395,7 +473,7 @@ FReply FPolicyParameterInfoFile::OnChangePathClicked()
 }
 
 
-TSharedRef<SWidget> FPolicyParameterInfoFloatReference::MakeFloatInputWidget(TSharedRef<float>& ProxyValue, const FText& Label,
+TSharedRef<SWidget> FPolicyParameterInfoFloatReference::MakeFloatInputWidget(TSharedRef<TOptional<float>>& ProxyValue, const FText& Label,
                                                                      bool bRotationInDegrees,
                                                                      const FLinearColor& LabelColor,
                                                                      const FLinearColor& LabelBackgroundColor)
@@ -417,7 +495,7 @@ TSharedRef<SWidget> FPolicyParameterInfoFloatReference::MakeFloatInputWidget(TSh
 		];
 }
 
-void FPolicyParameterInfoFloatReference::OnValueCommitted(float NewValue, ETextCommit::Type CommitType, TSharedRef<float> Value)
+void FPolicyParameterInfoFloatReference::OnValueCommitted(float NewValue, ETextCommit::Type CommitType, TSharedRef<TOptional<float>> Value)
 {
 	*Value = NewValue;
 	FormatTextAndUpdateParameter();
@@ -427,18 +505,17 @@ const FString FPolicyParameterInfoMatrix::BaseMatrixString = DisplayClusterTypes
 
 FPolicyParameterInfoMatrix::FPolicyParameterInfoMatrix(const FString& InDisplayName, const FString& InKey,
                                                        UDisplayClusterBlueprint* InBlueprint,
-                                                       UDisplayClusterConfigurationViewport* InConfigurationViewport,
-														const TSharedPtr<IPropertyHandle>& InParametersHandle):
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseMatrixString),
-	CachedTranslationX(MakeShared<float>()),
-	CachedTranslationY(MakeShared<float>()),
-	CachedTranslationZ(MakeShared<float>()),
-	CachedRotationYaw(MakeShared<float>()),
-	CachedRotationPitch(MakeShared<float>()),
-	CachedRotationRoll(MakeShared<float>()),
-	CachedScaleX(MakeShared<float>()),
-	CachedScaleY(MakeShared<float>()),
-	CachedScaleZ(MakeShared<float>())
+                                                       const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports):
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, &BaseMatrixString),
+	CachedTranslationX(MakeShared<TOptional<float>>()),
+	CachedTranslationY(MakeShared<TOptional<float>>()),
+	CachedTranslationZ(MakeShared<TOptional<float>>()),
+	CachedRotationYaw(MakeShared<TOptional<float>>()),
+	CachedRotationPitch(MakeShared<TOptional<float>>()),
+	CachedRotationRoll(MakeShared<TOptional<float>>()),
+	CachedScaleX(MakeShared<TOptional<float>>()),
+	CachedScaleY(MakeShared<TOptional<float>>()),
+	CachedScaleZ(MakeShared<TOptional<float>>())
 {
 	const FText TextValue = GetOrAddCustomParameterValueText();
 	const FMatrix Matrix = DisplayClusterTypesConverter::template FromString<FMatrix>(TextValue.ToString());
@@ -458,6 +535,8 @@ FPolicyParameterInfoMatrix::FPolicyParameterInfoMatrix(const FString& InDisplayN
 	*CachedScaleX = Scale.X;
 	*CachedScaleY = Scale.Y;
 	*CachedScaleZ = Scale.Z;
+
+	// TODO: Multiple values.
 }
 
 
@@ -581,9 +660,22 @@ void FPolicyParameterInfoMatrix::CustomizeScale(FDetailWidgetRow& InDetailWidget
 
 void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 {
-	const FVector Translation(*CachedTranslationX, *CachedTranslationY, *CachedTranslationZ);
-	const FRotator Rotation(*CachedRotationPitch, *CachedRotationYaw, *CachedRotationRoll);
-	const FVector Scale(*CachedScaleX, *CachedScaleY, *CachedScaleZ);
+	const bool bAllValuesSet =
+		CachedTranslationX->IsSet() && CachedTranslationY->IsSet() && CachedTranslationZ->IsSet() &&
+		CachedRotationPitch->IsSet() && CachedRotationYaw->IsSet() && CachedRotationRoll->IsSet() &&
+		CachedScaleX->IsSet() && CachedScaleY->IsSet() && CachedScaleZ->IsSet();
+
+	if (!bAllValuesSet)
+	{
+		// We can't call Get() on optional values that aren't set.
+		// This check isn't ideal but we need the complete matrix
+		// to process it back to a string.
+		return;
+	}
+	
+	const FVector Translation(*CachedTranslationX.Get(), *CachedTranslationY.Get(), *CachedTranslationZ.Get());
+	const FRotator Rotation(*CachedRotationPitch.Get(), *CachedRotationYaw.Get(), *CachedRotationRoll.Get());
+	const FVector Scale(*CachedScaleX.Get(), *CachedScaleY.Get(), *CachedScaleZ.Get());
 	
 	const FMatrix Matrix = FScaleRotationTranslationMatrix(Scale, Rotation, Translation);
 	
@@ -594,35 +686,71 @@ void FPolicyParameterInfoMatrix::FormatTextAndUpdateParameter()
 const FString FPolicyParameterInfo4x4Matrix::BaseMatrixString = DisplayClusterTypesConverter::template ToString<FMatrix>(FMatrix(FPlane(1.0f, 0.0f, 0.0f, 0.0f), FPlane(0.0f, 1.0f, 0.0f, 0.0f), FPlane(0.0f, 0.0f, 0.0f, 1.0f), FPlane(0.0f, 0.0f, 1.0f, 0.0f)));
 
 FPolicyParameterInfo4x4Matrix::FPolicyParameterInfo4x4Matrix(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseMatrixString),
-	A(MakeShared<float>()), B(MakeShared<float>()), C(MakeShared<float>()), D(MakeShared<float>()), E(MakeShared<float>())
-	, F(MakeShared<float>()), G(MakeShared<float>()), H(MakeShared<float>()), I(MakeShared<float>()), J(MakeShared<float>())
-	, K(MakeShared<float>()), L(MakeShared<float>()), M(MakeShared<float>()), N(MakeShared<float>()), O(MakeShared<float>())
-	, P(MakeShared<float>())
+	UDisplayClusterBlueprint* InBlueprint, const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, &BaseMatrixString),
+	A(MakeShared<TOptional<float>>()), B(MakeShared<TOptional<float>>()), C(MakeShared<TOptional<float>>()), D(MakeShared<TOptional<float>>()), E(MakeShared<TOptional<float>>())
+	, F(MakeShared<TOptional<float>>()), G(MakeShared<TOptional<float>>()), H(MakeShared<TOptional<float>>()), I(MakeShared<TOptional<float>>()), J(MakeShared<TOptional<float>>())
+	, K(MakeShared<TOptional<float>>()), L(MakeShared<TOptional<float>>()), M(MakeShared<TOptional<float>>()), N(MakeShared<TOptional<float>>()), O(MakeShared<TOptional<float>>())
+	, P(MakeShared<TOptional<float>>())
 {
-	const FText TextValue = GetOrAddCustomParameterValueText();
-	const FMatrix Matrix = DisplayClusterTypesConverter::template FromString<FMatrix>(TextValue.ToString());
-	*A = Matrix.M[0][0];
-	*B = Matrix.M[0][1];
-	*C = Matrix.M[0][2];
-	*D = Matrix.M[0][3];
+	if (!DoParametersMatchForAllViewports())
+	{
+		for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+		{
+			UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+			check(ConfigurationViewport != nullptr);
 
-	*E = Matrix.M[1][0];
-	*F = Matrix.M[1][1];
-	*G = Matrix.M[1][2];
-	*H = Matrix.M[1][3];
+			FString* ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+			check(ParameterValue)
 
-	*I = Matrix.M[2][0];
-	*J = Matrix.M[2][1];
-	*K = Matrix.M[2][2];
-	*L = Matrix.M[2][3];
+			const FText TextValue = FText::FromString(*ParameterValue);
+			const FMatrix Matrix = DisplayClusterTypesConverter::template FromString<FMatrix>(TextValue.ToString());
 
-	*M = Matrix.M[3][0];
-	*N = Matrix.M[3][1];
-	*O = Matrix.M[3][2];
-	*P = Matrix.M[3][3];
+			ResetOrSetCachedValue(A, Matrix.M[0][0]);
+			ResetOrSetCachedValue(B, Matrix.M[0][1]);
+			ResetOrSetCachedValue(C, Matrix.M[0][2]);
+			ResetOrSetCachedValue(D, Matrix.M[0][3]);
+
+			ResetOrSetCachedValue(E, Matrix.M[1][0]);
+			ResetOrSetCachedValue(F, Matrix.M[1][1]);
+			ResetOrSetCachedValue(G, Matrix.M[1][2]);
+			ResetOrSetCachedValue(H, Matrix.M[1][3]);
+
+			ResetOrSetCachedValue(I, Matrix.M[2][0]);
+			ResetOrSetCachedValue(J, Matrix.M[2][1]);
+			ResetOrSetCachedValue(K, Matrix.M[2][2]);
+			ResetOrSetCachedValue(L, Matrix.M[2][3]);
+
+			ResetOrSetCachedValue(M, Matrix.M[3][0]);
+			ResetOrSetCachedValue(N, Matrix.M[3][1]);
+			ResetOrSetCachedValue(O, Matrix.M[3][2]);
+			ResetOrSetCachedValue(P, Matrix.M[3][3]);
+		}
+	}
+	else
+	{
+		const FText TextValue = GetOrAddCustomParameterValueText();
+		const FMatrix Matrix = DisplayClusterTypesConverter::template FromString<FMatrix>(TextValue.ToString());
+		*A = Matrix.M[0][0];
+		*B = Matrix.M[0][1];
+		*C = Matrix.M[0][2];
+		*D = Matrix.M[0][3];
+
+		*E = Matrix.M[1][0];
+		*F = Matrix.M[1][1];
+		*G = Matrix.M[1][2];
+		*H = Matrix.M[1][3];
+
+		*I = Matrix.M[2][0];
+		*J = Matrix.M[2][1];
+		*K = Matrix.M[2][2];
+		*L = Matrix.M[2][3];
+
+		*M = Matrix.M[3][0];
+		*N = Matrix.M[3][1];
+		*O = Matrix.M[3][2];
+		*P = Matrix.M[3][3];
+	}
 }
 
 void FPolicyParameterInfo4x4Matrix::CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow)
@@ -645,8 +773,8 @@ void FPolicyParameterInfo4x4Matrix::CreateCustomRowWidget(IDetailChildrenBuilder
 	Group.ToggleExpansion(true);
 }
 
-void FPolicyParameterInfo4x4Matrix::CustomizeRow(const FText& InHeaderText, TSharedRef<float>& InX, TSharedRef<float>& InY,
-		TSharedRef<float>& InZ, TSharedRef<float>& InW, FDetailWidgetRow& InDetailWidgetRow)
+void FPolicyParameterInfo4x4Matrix::CustomizeRow(const FText& InHeaderText, TSharedRef<TOptional<float>>& InX, TSharedRef<TOptional<float>>& InY,
+		TSharedRef<TOptional<float>>& InZ, TSharedRef<TOptional<float>>& InW, FDetailWidgetRow& InDetailWidgetRow)
 {
 	InDetailWidgetRow
 	.Visibility(MakeAttributeRaw(this, &FPolicyParameterInfo4x4Matrix::IsParameterVisible))
@@ -686,10 +814,24 @@ void FPolicyParameterInfo4x4Matrix::CustomizeRow(const FText& InHeaderText, TSha
 
 void FPolicyParameterInfo4x4Matrix::FormatTextAndUpdateParameter()
 {
-	const FPlane PlaneX(*A, *B, *C, *D);
-	const FPlane PlaneY(*E, *F, *G, *H);
-	const FPlane PlaneZ(*I, *J, *K, *L);
-	const FPlane PlaneW(*M, *N, *O, *P);
+	const bool bAllValuesSet =
+		A->IsSet() && B->IsSet() && C->IsSet() && D->IsSet() &&
+		E->IsSet() && F->IsSet() && G->IsSet() && H->IsSet() &&
+		I->IsSet() && J->IsSet() && K->IsSet() && L->IsSet() &&
+		M->IsSet() && N->IsSet() && O->IsSet() && P->IsSet();
+
+	if (!bAllValuesSet)
+	{
+		// We can't call Get() on optional values that aren't set.
+		// This check isn't ideal but we need the complete matrix
+		// to process it back to a string.
+		return;
+	}
+	
+	const FPlane PlaneX(*A.Get(), *B.Get(), *C.Get(), *D.Get());
+	const FPlane PlaneY(*E.Get(), *F.Get(), *G.Get(), *H.Get());
+	const FPlane PlaneZ(*I.Get(), *J.Get(), *K.Get(), *L.Get());
+	const FPlane PlaneW(*M.Get(), *N.Get(), *O.Get(), *P.Get());
 	
 	const FMatrix Matrix(PlaneX, PlaneY, PlaneZ, PlaneW);
 
@@ -701,19 +843,40 @@ const FString FPolicyParameterInfoRotator::BaseRotatorString = DisplayClusterTyp
 
 FPolicyParameterInfoRotator::FPolicyParameterInfoRotator(const FString& InDisplayName, const FString& InKey,
                                                          UDisplayClusterBlueprint* InBlueprint,
-                                                         UDisplayClusterConfigurationViewport* InConfigurationViewport,
-                                                         const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseRotatorString),
-	CachedRotationYaw(MakeShared<float>()),
-	CachedRotationPitch(MakeShared<float>()),
-	CachedRotationRoll(MakeShared<float>())
+                                                         const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, &BaseRotatorString),
+	CachedRotationYaw(MakeShared<TOptional<float>>()),
+	CachedRotationPitch(MakeShared<TOptional<float>>()),
+	CachedRotationRoll(MakeShared<TOptional<float>>())
 {
-	const FText TextValue = GetOrAddCustomParameterValueText();
-	const FRotator Rotation = DisplayClusterTypesConverter::template FromString<FRotator>(TextValue.ToString());
 
-	*CachedRotationYaw = Rotation.Yaw;
-	*CachedRotationPitch = Rotation.Pitch;
-	*CachedRotationRoll = Rotation.Roll;
+	if (!DoParametersMatchForAllViewports())
+	{
+		for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+		{
+			UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+			check(ConfigurationViewport != nullptr);
+
+			FString* ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey());
+			check(ParameterValue)
+
+			const FText TextValue = FText::FromString(*ParameterValue);
+			const FRotator Rotation = DisplayClusterTypesConverter::template FromString<FRotator>(TextValue.ToString());
+
+			ResetOrSetCachedValue(CachedRotationYaw, Rotation.Yaw);
+			ResetOrSetCachedValue(CachedRotationPitch, Rotation.Pitch);
+			ResetOrSetCachedValue(CachedRotationRoll, Rotation.Roll);
+		}
+	}
+	else
+	{
+		const FText TextValue = GetOrAddCustomParameterValueText();
+		const FRotator Rotation = DisplayClusterTypesConverter::template FromString<FRotator>(TextValue.ToString());
+
+		*CachedRotationYaw = Rotation.Yaw;
+		*CachedRotationPitch = Rotation.Pitch;
+		*CachedRotationRoll = Rotation.Roll;
+	}
 }
 
 void FPolicyParameterInfoRotator::CreateCustomRowWidget(IDetailChildrenBuilder& InDetailWidgetRow)
@@ -751,7 +914,13 @@ void FPolicyParameterInfoRotator::CreateCustomRowWidget(IDetailChildrenBuilder& 
 
 void FPolicyParameterInfoRotator::FormatTextAndUpdateParameter()
 {
-	const FRotator Rotation(*CachedRotationPitch, *CachedRotationYaw, *CachedRotationRoll);
+	const bool bAllValuesSet = CachedRotationPitch->IsSet() && CachedRotationYaw->IsSet() && CachedRotationRoll->IsSet();
+	if (!bAllValuesSet)
+	{
+		return;
+	}
+	
+	const FRotator Rotation(*CachedRotationPitch.Get(), *CachedRotationYaw.Get(), *CachedRotationRoll.Get());
 
 	const FString RotationString = DisplayClusterTypesConverter::template ToString(Rotation);
 	UpdateCustomParameterValueText(RotationString);
@@ -760,38 +929,76 @@ void FPolicyParameterInfoRotator::FormatTextAndUpdateParameter()
 const FString FPolicyParameterInfoFrustumAngle::BaseFrustumPlanesString = FString("l=-30, r=30, t=30, b=-30");
 
 FPolicyParameterInfoFrustumAngle::FPolicyParameterInfoFrustumAngle(const FString& InDisplayName, const FString& InKey,
-	UDisplayClusterBlueprint* InBlueprint, UDisplayClusterConfigurationViewport* InConfigurationViewport,
-	const TSharedPtr<IPropertyHandle>& InParametersHandle) :
-	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewport, InParametersHandle, &BaseFrustumPlanesString),
-	CachedAngleL(MakeShared<float>()),
-	CachedAngleR(MakeShared<float>()),
-	CachedAngleT(MakeShared<float>()),
-	CachedAngleB(MakeShared<float>())
+	UDisplayClusterBlueprint* InBlueprint, const TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>>& InConfigurationViewports) :
+	FPolicyParameterInfoFloatReference(InDisplayName, InKey, InBlueprint, InConfigurationViewports, &BaseFrustumPlanesString),
+	CachedAngleL(MakeShared<TOptional<float>>()),
+	CachedAngleR(MakeShared<TOptional<float>>()),
+	CachedAngleT(MakeShared<TOptional<float>>()),
+	CachedAngleB(MakeShared<TOptional<float>>())
 {
-	const FString TextValue = GetOrAddCustomParameterValueText().ToString();
-
-	float Left;
-	if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleL), Left))
+	if (!DoParametersMatchForAllViewports())
 	{
-		*CachedAngleL = Left;
+		for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
+		{
+			UDisplayClusterConfigurationViewport* ConfigurationViewport = Viewport.Get();
+			check(ConfigurationViewport != nullptr);
+
+			if (const FString* ParameterValue = ConfigurationViewport->ProjectionPolicy.Parameters.Find(GetParameterKey()))
+			{
+				const FString TextValue = *ParameterValue;
+				float Left;
+				if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleL), Left))
+				{
+					ResetOrSetCachedValue(CachedAngleL, Left);
+				}
+
+				float Right;
+				if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleR), Right))
+				{
+					ResetOrSetCachedValue(CachedAngleR, Right);
+				}
+
+				float Top;
+				if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleT), Top))
+				{
+					ResetOrSetCachedValue(CachedAngleT, Top);
+				}
+
+				float Bottom;
+				if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleB), Bottom))
+				{
+					ResetOrSetCachedValue(CachedAngleB, Bottom);
+				}
+			}
+		}
 	}
-
-	float Right;
-	if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleR), Right))
+	else
 	{
-		*CachedAngleR = Right;
-	}
+		const FString TextValue = GetOrAddCustomParameterValueText().ToString();
 
-	float Top;
-	if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleT), Top))
-	{
-		*CachedAngleT = Top;
-	}
+		float Left;
+		if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleL), Left))
+		{
+			*CachedAngleL = Left;
+		}
 
-	float Bottom;
-	if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleB), Bottom))
-	{
-		*CachedAngleB = Bottom;
+		float Right;
+		if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleR), Right))
+		{
+			*CachedAngleR = Right;
+		}
+
+		float Top;
+		if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleT), Top))
+		{
+			*CachedAngleT = Top;
+		}
+
+		float Bottom;
+		if (DisplayClusterHelpers::str::ExtractValue(TextValue, FString(DisplayClusterProjectionStrings::cfg::manual::AngleB), Bottom))
+		{
+			*CachedAngleB = Bottom;
+		}
 	}
 }
 
@@ -834,10 +1041,16 @@ void FPolicyParameterInfoFrustumAngle::CreateCustomRowWidget(IDetailChildrenBuil
 
 void FPolicyParameterInfoFrustumAngle::FormatTextAndUpdateParameter()
 {
-	const FString AngleLStr = FString::SanitizeFloat(*CachedAngleL);
-	const FString AngleRStr = FString::SanitizeFloat(*CachedAngleR);
-	const FString AngleTStr = FString::SanitizeFloat(*CachedAngleT);
-	const FString AngleBStr = FString::SanitizeFloat(*CachedAngleB);
+	const bool bAllValuesSet = CachedAngleL->IsSet() && CachedAngleR->IsSet() && CachedAngleT->IsSet()  && CachedAngleB->IsSet();
+	if (!bAllValuesSet)
+	{
+		return;
+	}
+	
+	const FString AngleLStr = FString::SanitizeFloat(*CachedAngleL.Get());
+	const FString AngleRStr = FString::SanitizeFloat(*CachedAngleR.Get());
+	const FString AngleTStr = FString::SanitizeFloat(*CachedAngleT.Get());
+	const FString AngleBStr = FString::SanitizeFloat(*CachedAngleB.Get());
 	
 	const FString AngleString = FString::Printf(TEXT("l=%s, r=%s, t=%s, b=%s"), *AngleLStr, *AngleRStr, *AngleTStr, *AngleBStr);
 

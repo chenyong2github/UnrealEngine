@@ -41,7 +41,7 @@ protected:
 	const FString& GetCurrentPolicy() const;
 	bool IsCustomTypeInConfig() const;
 	void OnTextCommittedInCustomPolicyText(const FText& InValue, ETextCommit::Type CommitType);
-
+	bool IsPolicyIdenticalAcrossEditedObjects(bool bRequireCustomPolicy = false) const;
 private:
 	TSharedPtr<FString>	CustomOption;
 	TArray< TSharedPtr<FString> > ProjectionPolicyOptions;
@@ -72,5 +72,6 @@ private:
 	// End Custom Parameters Selection
 	
 private:
+	TArray<TWeakObjectPtr<UDisplayClusterConfigurationViewport>> ConfigurationViewports;
 	TWeakObjectPtr<UDisplayClusterConfigurationViewport> ConfigurationViewportPtr;
 };
