@@ -12,4 +12,4 @@ void FControlRigSplineEditorModule::ShutdownModule()
 {
 }
 
-IMPLEMENT_MODULE(FControlRigSplineEditorModule, ControlRigSpline)
+IMPLEMENT_MODULE(FControlRigSplineEditorModule, ControlRigSplineEditor)
