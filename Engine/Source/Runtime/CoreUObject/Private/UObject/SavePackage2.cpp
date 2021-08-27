@@ -704,20 +704,20 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 			// The entire package will be serialized to memory and then compared against package on disk.
 			// Each difference will be log with its Serialize call stack trace if IsDiffCallstack is true
 			FArchive* Saver = new FArchiveStackTrace(SaveContext.GetAsset(), *SaveContext.GetPackage()->GetLoadedPath().GetPackageName(), SaveContext.IsDiffCallstack(), SaveContext.GetDiffMapPtr());
-			SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), Saver, SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
+			SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), Saver, SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversionedNative());
 		}
 		else
 		{
 			if (SaveContext.IsSaveAsync())
 			{
 				// Allocate the linker with a memory writer, forcing byte swapping if wanted.
-				SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
+				SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversionedNative());
 			}
 			else
 			{
 				// Allocate the linker, forcing byte swapping if wanted.
 				SaveContext.TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
-				SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.TempFilename.GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
+				SaveContext.Linker = MakePimpl<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.TempFilename.GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversionedNative());
 			}
 		}
 		if (SaveContext.IsGenerateSaveError())
@@ -798,7 +798,7 @@ ESavePackageResult BuildLinker(FSaveContext& SaveContext)
 		SaveContext.Linker->SetFilterEditorOnly(SaveContext.IsFilterEditorOnly());
 		SaveContext.Linker->SetCookingTarget(SaveContext.GetTargetPlatform());
 
-		bool bUseUnversionedProperties = SaveContext.IsUsingUnversionedProperties();
+		bool bUseUnversionedProperties = SaveContext.IsSaveUnversionedProperties();
 		SaveContext.Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
 
 #if WITH_EDITOR

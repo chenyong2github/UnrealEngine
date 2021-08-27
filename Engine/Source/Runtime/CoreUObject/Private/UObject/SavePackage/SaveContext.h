@@ -252,14 +252,14 @@ public:
 		return !!(SaveArgs.SaveFlags & SAVE_KeepDirty);
 	}
 
-	bool IsSaveUnversioned() const
+	bool IsSaveUnversionedNative() const
 	{
-		return !!(SaveArgs.SaveFlags & SAVE_Unversioned);
+		return !!(SaveArgs.SaveFlags & SAVE_Unversioned_Native);
 	}
 
-	bool IsUsingUnversionedProperties() const
+	bool IsSaveUnversionedProperties() const
 	{
-		return IsSaveUnversioned() && bCanUseUnversionedPropertySerialization;
+		return !!(SaveArgs.SaveFlags & SAVE_Unversioned_Properties) && bCanUseUnversionedPropertySerialization;
 	}
 
 	bool IsComputeHash() const

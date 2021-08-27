@@ -2363,7 +2363,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				/** If true, we are going to save to disk async to save time. */
 				const bool bSaveAsync = !!(SaveFlags & SAVE_Async);
 
-				const bool bSaveUnversioned = !!(SaveFlags & SAVE_Unversioned);
+				const bool bSaveUnversionedNative = !!(SaveFlags & SAVE_Unversioned_Native);
+				const bool bSaveUnversionedProperties = !!(SaveFlags & SAVE_Unversioned_Properties) && CanUseUnversionedPropertySerialization(TargetPlatform);
 
 				FArchiveFormatterType* Formatter = nullptr;
 				FArchive* TextFormatArchive = nullptr;
@@ -2415,13 +2416,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						// The entire package will be serialized to memory and then compared against package on disk.
 						// Each difference will be log with its Serialize call stack trace
 						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->GetLoadedPath().GetPackageName(), true, InOutDiffMap);
-						Linker = MakePimpl<FLinkerSave>(InOuter, Saver, bForceByteSwapping, bSaveUnversioned);
+						Linker = MakePimpl<FLinkerSave>(InOuter, Saver, bForceByteSwapping, bSaveUnversionedNative);
 					}
 					else if (TargetPlatform != nullptr && (SaveFlags & SAVE_DiffOnly))
 					{
 						// The entire package will be serialized to memory and then compared against package on disk
 						FArchive* Saver = new FArchiveStackTrace(FindAssetInPackage(InOuter), *InOuter->GetLoadedPath().GetPackageName(), false);
-						Linker = MakePimpl<FLinkerSave>(InOuter, Saver, bForceByteSwapping, bSaveUnversioned);
+						Linker = MakePimpl<FLinkerSave>(InOuter, Saver, bForceByteSwapping, bSaveUnversionedNative);
 					}
 					else if ((!!TargetPlatform) && FParse::Value(FCommandLine::Get(), TEXT("DiffCookedPackages="), DiffCookedPackagesPath))
 					{
@@ -2444,13 +2445,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						if (bSaveAsync)
 						{
 							// Allocate the linker with a memory writer, forcing byte swapping if wanted.
-							Linker = MakePimpl<FLinkerSave>(InOuter, bForceByteSwapping, bSaveUnversioned);
+							Linker = MakePimpl<FLinkerSave>(InOuter, bForceByteSwapping, bSaveUnversionedNative);
 						}
 						else
 						{
 							// Allocate the linker, forcing byte swapping if wanted.
 							TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
-							Linker = MakePimpl<FLinkerSave>(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversioned);
+							Linker = MakePimpl<FLinkerSave>(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversionedNative);
 						}
 					}
 					Linker->bProceduralSave = ObjectSaveContext.bProceduralSave;
@@ -2504,8 +2505,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				Linker->SetFilterEditorOnly( FilterEditorOnly );
 				Linker->SetCookingTarget(TargetPlatform);
 
-				bool bUseUnversionedProperties = bSaveUnversioned && CanUseUnversionedPropertySerialization(TargetPlatform);
-				Linker->SetUseUnversionedPropertySerialization(bUseUnversionedProperties);
+				Linker->SetUseUnversionedPropertySerialization(bSaveUnversionedProperties);
 
 				// Make sure the package has the same version as the linker
 				InOuter->LinkerPackageVersion = Linker->UEVer();
