@@ -81,15 +81,6 @@ struct FWorldPartitionRuntimeCellObjectMapping
 #endif
 };
 
-/**
- * Serve as a generic container of type specific data that can be assigned to each runtime cell
- */
-UCLASS(Abstract)
-class UWorldPartitionRuntimeCellData : public UObject
-{
-	GENERATED_UCLASS_BODY()
-};
-
 class UActorDescContainer;
 
 /**
@@ -162,7 +153,6 @@ class UWorldPartitionRuntimeCell : public UObject
 
 	void SetDataLayers(const TArray<const UDataLayer*>& InDataLayers);
 	void SetDebugInfo(FIntVector InCoords, FName InGridName);
-	void AddCellData(const UWorldPartitionRuntimeCellData* InCellData);
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint64 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) PURE_VIRTUAL(UWorldPartitionRuntimeCell::AddActorToCell,);
 	virtual int32 GetActorCount() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetActorCount, return 0;);
 
@@ -171,12 +161,12 @@ class UWorldPartitionRuntimeCell : public UObject
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
 	virtual void MoveAlwaysLoadedContentToPersistentLevel() PURE_VIRTUAL(UWorldPartitionRuntimeCell::MoveAlwaysLoadedContentToPersistentLevel);
 	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
-#endif
 
-	const UWorldPartitionRuntimeCellData* GetCellData(const TSubclassOf<UWorldPartitionRuntimeCellData> InCellDataClass) const;
-	template <class T> inline const T* GetCellData() const { return Cast<const T>(GetCellData(T::StaticClass())); }
-	template <class T> inline bool HasCellData() const { return GetCellData<T>() != nullptr; }
+	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }
+#endif
 	
+	bool GetIsHLOD() const { return bIsHLOD; }
+
 protected:
 #if WITH_EDITOR
 	void UpdateDebugName();
@@ -186,9 +176,6 @@ protected:
 	bool bIsAlwaysLoaded;
 
 private:
-	UPROPERTY()
-	TMap<const TSubclassOf<UWorldPartitionRuntimeCellData>, TObjectPtr<const UWorldPartitionRuntimeCellData>> CellDataMap;
-
 	UPROPERTY()
 	TArray<FName> DataLayers;
 
@@ -208,6 +195,9 @@ private:
 
 	UPROPERTY()
 	bool bClientOnlyVisible;
+
+	UPROPERTY()
+	bool bIsHLOD;
 
 	UPROPERTY()
 	bool bBlockOnSlowLoading;

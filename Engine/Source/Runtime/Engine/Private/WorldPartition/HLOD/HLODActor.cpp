@@ -204,10 +204,3 @@ void AWorldPartitionHLOD::BuildHLOD(bool bForceBuild)
 }
 
 #endif // WITH_EDITOR
-
-
-UWorldPartitionRuntimeHLODCellData::UWorldPartitionRuntimeHLODCellData(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-

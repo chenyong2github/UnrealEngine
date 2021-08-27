@@ -259,7 +259,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		{
 			for (auto It = Cells.CreateIterator(); It; ++It)
 			{
-				if ((*It)->HasCellData<UWorldPartitionRuntimeHLODCellData>())
+				if ((*It)->GetIsHLOD())
 				{
 					It.RemoveCurrent();
 				}
@@ -559,7 +559,7 @@ bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntime
 				// Don't consider HLOD cells if HLODs are disabled.
 				if (!bIsHLODEnabled)
 				{
-					bSkipCell = Cell->HasCellData<UWorldPartitionRuntimeHLODCellData>();
+					bSkipCell = Cell->GetIsHLOD();
 				}
 
 				// If we are querying for Unloaded/Loaded but a Cell is part of a data layer outside of the query that is activated do not consider it

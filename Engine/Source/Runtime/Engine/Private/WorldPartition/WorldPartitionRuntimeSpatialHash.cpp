@@ -952,6 +952,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 				StreamingCell->SetDebugInfo(CellGlobalCoords, CurrentStreamingGrid.GridName);
 				StreamingCell->SetClientOnlyVisible(CurrentStreamingGrid.bClientOnlyVisible);
 				StreamingCell->SetBlockOnSlowLoading(CurrentStreamingGrid.bBlockOnSlowStreaming);
+				StreamingCell->SetIsHLOD(RuntimeGrid.HLODLayer ? true : false);
 
 				UE_LOG(LogWorldPartition, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
 
@@ -970,9 +971,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					}
 				}
 
-				// Keep track of all AWorldPartitionHLOD actors referenced by this cell
-				int32 NumHLODActors = 0;
-
 				for (const FActorInstance& ActorInstance : FilteredActors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
@@ -985,20 +983,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							StreamingCell->ActorContainer->Actors.Add(Actor->GetFName(), Actor);
 						}
 					}
-
-					if (ActorDescView.GetActorClass()->IsChildOf<AWorldPartitionHLOD>())
-					{
-						NumHLODActors++;
-					}
-
 					UE_LOG(LogWorldPartition, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
-				}
-
-				if (NumHLODActors == FilteredActors.Num())
-				{
-					// Mark this cell as containing HLOD data
-					UWorldPartitionRuntimeHLODCellData* HLODCellData = NewObject<UWorldPartitionRuntimeHLODCellData>(StreamingCell);
-					StreamingCell->AddCellData(HLODCellData);
 				}
 
 				if (Mode == EWorldPartitionStreamingMode::Cook)
