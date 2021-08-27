@@ -5,10 +5,12 @@
 namespace HairAttribute
 {
 	const FName Vertex::Color("groom_color");
+	const FName Vertex::Roughness("groom_roughness");
 	const FName Vertex::Position("position");
 	const FName Vertex::Width("groom_width");
 
 	const FName Strand::Color("groom_color");
+	const FName Strand::Roughness("groom_roughness");
 	const FName Strand::GroupID("groom_group_id");
 	const FName Strand::Guide("groom_guide");
 	const FName Strand::ID("groom_id");
@@ -19,6 +21,7 @@ namespace HairAttribute
 	const FName Strand::GuideWeights("groom_guide_weights");
 
 	const FName Groom::Color("groom_color");
+	const FName Groom::Roughness("groom_roughness");
 	const FName Groom::Width("groom_width");
 	const FName Groom::MajorVersion("groom_version_major");
 	const FName Groom::MinorVersion("groom_version_minor");
