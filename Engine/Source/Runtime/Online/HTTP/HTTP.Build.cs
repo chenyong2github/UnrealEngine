@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
-using EpicGames.Core;
 
 public class HTTP : ModuleRules
 {
@@ -23,6 +22,9 @@ public class HTTP : ModuleRules
 				Target.Platform == UnrealTargetPlatform.Switch;
 		}
 	}
+	protected virtual bool bPlatformSupportsXCurl { get { return false; } }
+
+	private bool bPlatformSupportsCurl { get { return bPlatformSupportsLibCurl || bPlatformSupportsXCurl; } }
 
 	protected virtual bool bPlatformRequiresOpenSSL
 	{
@@ -56,25 +58,29 @@ public class HTTP : ModuleRules
 			}
 			);
 
-		if (bPlatformSupportsLibCurl)
+		if (bPlatformSupportsCurl)
 		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Sockets",
 				}
 			);
 
-			PublicDefinitions.Add("CURL_ENABLE_DEBUG_CALLBACK=1");
-			if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+			if (bPlatformSupportsLibCurl && !bPlatformSupportsXCurl)
 			{
-				PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");
+
+				PublicDefinitions.Add("CURL_ENABLE_DEBUG_CALLBACK=1");
+				if (Target.Configuration != UnrealTargetConfiguration.Shipping)
+				{
+					PublicDefinitions.Add("CURL_ENABLE_NO_TIMEOUTS_OPTION=1");
+				}
 			}
 		}
-		else
-		{
-			PublicDefinitions.Add("WITH_LIBCURL=0");
-		}
+
+		PrivateDefinitions.Add("WITH_CURL_LIBCURL =" + (bPlatformSupportsLibCurl ? "1" : "0"));
+		PrivateDefinitions.Add("WITH_CURL_XCURL=" + (bPlatformSupportsXCurl ? "1" : "0"));
+		PrivateDefinitions.Add("WITH_CURL= " + ((bPlatformSupportsLibCurl || bPlatformSupportsXCurl) ? "1" : "0"));
 
 		// Use Curl over WinHttp on platforms that support it (until WinHttp client security is in a good place at the least)
 		if (bPlatformSupportsWinHttp)

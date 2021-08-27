@@ -12,12 +12,26 @@
 
 class FCurlHttpResponse;
 
-#if WITH_LIBCURL
+#if WITH_CURL
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 #endif
+
+#if WITH_CURL_XCURL
+//We copied this template to include the windows file from WindowsHWrapper's way if including MinWindows.h, since including xcurl.h directly caused gnarly build errors
+#include "CoreTypes.h"
+#include "HAL/PlatformMemory.h"
+#include "Windows/PreWindowsApi.h"
+#ifndef STRICT
+#define STRICT
+#endif
+#include "xcurl.h"
+#include "Windows/PostWindowsApi.h"
+#else
 	#include "curl/curl.h"
+#endif
+
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
@@ -459,4 +473,4 @@ private:
 	int32 volatile bSucceeded;
 };
 
-#endif //WITH_LIBCURL
+#endif //WITH_CURL

@@ -2,7 +2,7 @@
 
 #include "Curl/CurlHttpManager.h"
 
-#if WITH_LIBCURL
+#if WITH_CURL
 
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManager.h"
@@ -34,7 +34,9 @@
 #endif
 
 CURLM* FCurlHttpManager::GMultiHandle = nullptr;
+#if !WITH_CURL_XCURL
 CURLSH* FCurlHttpManager::GShareHandle = nullptr;
+#endif
 
 FCurlHttpManager::FCurlRequestOptions FCurlHttpManager::CurlRequestOptions;
 
@@ -196,6 +198,7 @@ void FCurlHttpManager::InitCurl()
 			}
 		}
 
+#if !WITH_CURL_XCURL
 		GShareHandle = curl_share_init();
 		if (NULL != GShareHandle)
 		{
@@ -207,6 +210,7 @@ void FCurlHttpManager::InitCurl()
 		{
 			UE_LOG(LogInit, Fatal, TEXT("Could not initialize libcurl share handle!"));
 		}
+#endif
 	}
 	else
 	{
@@ -316,12 +320,14 @@ void FCurlHttpManager::FCurlRequestOptions::Log()
 
 void FCurlHttpManager::ShutdownCurl()
 {
+#if !WITH_CURL_XCURL
 	if (GShareHandle != nullptr)
 	{
 		CURLSHcode ShareCleanupCode = curl_share_cleanup(GShareHandle);
 		ensureMsgf(ShareCleanupCode == CURLSHE_OK, TEXT("CurlShareCleanup failed. ReturnValue=[%d]"), static_cast<int32>(ShareCleanupCode));
 		GShareHandle = nullptr;
 	}
+#endif
 
 	if (GMultiHandle != nullptr)
 	{
@@ -425,4 +431,4 @@ bool FCurlHttpManager::SupportsDynamicProxy() const
 {
 	return true;
 }
-#endif //WITH_LIBCURL
+#endif //WITH_CURL

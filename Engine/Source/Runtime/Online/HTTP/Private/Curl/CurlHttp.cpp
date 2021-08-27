@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_LIBCURL
+#if WITH_CURL
 
 #include "Curl/CurlHttp.h"
 #include "Stats/Stats.h"
@@ -833,7 +833,11 @@ bool FCurlHttpRequest::SetupRequestHttpThread()
 			check(!GetHeader(TEXT("Content-Type")).IsEmpty() || RequestPayload->IsURLEncoded());
 			curl_easy_setopt(EasyHandle, CURLOPT_POST, 1L);
 			curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDS, NULL);
+#if WITH_CURL_XCURL
+			curl_easy_setopt(EasyHandle, CURLOPT_INFILESIZE, RequestPayload->GetContentLength());
+#else
 			curl_easy_setopt(EasyHandle, CURLOPT_POSTFIELDSIZE, RequestPayload->GetContentLength());
+#endif
 			bUseReadFunction = true;
 		}
 		else if (Verb == TEXT("PUT") || Verb == TEXT("PATCH"))
@@ -946,16 +950,16 @@ bool FCurlHttpRequest::SetupRequestHttpThread()
 			curl_easy_setopt(EasyHandle, CURLOPT_SEEKDATA, this);
 			curl_easy_setopt(EasyHandle, CURLOPT_SEEKFUNCTION, StaticSeekCallback);
 		}
-
-		{
-			//Tracking the locking in the CURLOPT_SHARE branch of the curl_easy_setopt implementation
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_SetupRequest_EASY_CURLOPT_SHARE);
-
-			curl_easy_setopt(EasyHandle, CURLOPT_SHARE, FCurlHttpManager::GShareHandle);
-		}
 	}
 
-	curl_easy_setopt(EasyHandle, CURLOPT_SHARE, FCurlHttpManager::GShareHandle);
+#if !WITH_CURL_XCURL
+	{
+		//Tracking the locking in the CURLOPT_SHARE branch of the curl_easy_setopt implementation
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCurlHttpRequest_SetupRequest_EASY_CURLOPT_SHARE);
+
+		curl_easy_setopt(EasyHandle, CURLOPT_SHARE, FCurlHttpManager::GShareHandle);
+	}
+#endif
 
 	UE_LOG(LogHttp, Log, TEXT("%p: Starting %s request to URL='%s'"), this, *Verb, *URL);
 
@@ -1438,4 +1442,4 @@ FString FCurlHttpResponse::GetContentAsString() const
 	return FString(TCHARData.Length(), TCHARData.Get());
 }
 
-#endif //WITH_LIBCURL
+#endif //WITH_CURL
