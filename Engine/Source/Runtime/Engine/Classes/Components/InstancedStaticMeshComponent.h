@@ -119,6 +119,18 @@ struct FInstancedStaticMeshMappingInfo
 	}
 };
 
+USTRUCT()
+struct FInstancedStaticMeshRandomSeed
+{
+	GENERATED_USTRUCT_BODY()
+
+	UPROPERTY()
+	int32 StartInstanceIndex;
+
+	UPROPERTY()
+	int32 RandomSeed;
+};
+
 /** A component that efficiently renders multiple instances of the same StaticMesh. */
 UCLASS(ClassGroup = Rendering, meta = (BlueprintSpawnableComponent), Blueprintable)
 class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, public ISMInstanceManager
@@ -156,6 +168,10 @@ class ENGINE_API UInstancedStaticMeshComponent : public UStaticMeshComponent, pu
 	this is set to zero (default), it will be populated automatically by the editor. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=InstancedStaticMeshComponent)
 	int32 InstancingRandomSeed=0;
+
+	/** Additional random seeds ranges. Each seed entry will be applied from AdditionalRandomSeeds[i].StartInstanceIndex to AdditionalRandomSeeds[i+1].StartInstanceIndex -1 */
+	UPROPERTY()
+	TArray<FInstancedStaticMeshRandomSeed> AdditionalRandomSeeds;
 
 	/** Distance from camera at which each instance begins to fade out. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Culling)
@@ -562,4 +578,8 @@ public:
 	/* The cached random seed */
 	UPROPERTY()
 	int32 InstancingRandomSeed = 0;
+
+	/* Additional random seeds */
+	UPROPERTY()
+	TArray<FInstancedStaticMeshRandomSeed> AdditionalRandomSeeds;
 };
