@@ -25,11 +25,11 @@ ENeuralBackEnd FPrivateNeuralNetwork::SetBackEndForCurrentPlatform(const ENeural
 	// Auto
 	if (InBackEnd == ENeuralBackEnd::Auto)
 	{
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 		return ENeuralBackEnd::UEAndORT;
-#else //WITH_FULL_NNI_SUPPORT
+#else //WITH_UE_AND_ORT_SUPPORT
 		return ENeuralBackEnd::UEOnly;
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 	}
 	// Otherwise
 	return InBackEnd;
