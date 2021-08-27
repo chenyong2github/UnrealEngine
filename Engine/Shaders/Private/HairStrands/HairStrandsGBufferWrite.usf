@@ -86,7 +86,6 @@ void MainPS(
 		Samples_BaseColor	*= InvSampleCount;
 		Samples_Roughnesss	*= InvSampleCount;
 		Samples_Backlit		*= InvSampleCount;
-		Samples_Depth		*= InvSampleCount;
 
 		WriteGBuffer(
 			Samples_Tangent,
