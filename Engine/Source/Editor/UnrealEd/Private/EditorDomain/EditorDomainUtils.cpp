@@ -51,7 +51,7 @@ const TSet<FName>& GetEditorPackageBlockList()
 }
 
 // Change to a new guid when EditorDomain needs to be invalidated
-const TCHAR* EditorDomainVersion = TEXT("D1718C34CA7C47AEB87A1607568E25B0");
+const TCHAR* EditorDomainVersion = TEXT("86E449B024FD412BB80DB1397EFAE34D");
 // Identifier of the CacheBuckets for EditorDomain tables
 const TCHAR* EditorDomainPackageBucketName = TEXT("EditorDomainPackage");
 const TCHAR* EditorDomainBulkDataListBucketName = TEXT("EditorDomainBulkDataList");
@@ -754,7 +754,7 @@ bool TrySavePackage(UPackage* Package)
 				bSaveUnversioned = false;
 			}
 		}
-		SaveFlags |= bSaveUnversioned ? SAVE_Unversioned : 0;
+		SaveFlags |= bSaveUnversioned ? SAVE_Unversioned_Properties : 0;
 	}
 
 	FMemoryPackageWriter* PackageWriter = new FMemoryPackageWriter();
