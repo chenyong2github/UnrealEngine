@@ -301,9 +301,9 @@ bool FDisplayClusterConfiguratorProjectionCustomization::IsPolicyIdenticalAcross
 	for (const TWeakObjectPtr<UDisplayClusterConfigurationViewport>& Viewport : ConfigurationViewports)
 	{
 		if (Viewport.IsValid() &&
-			Viewport->ProjectionPolicy.Type != CurrentSelectedPolicy ||
-			bRequireCustomPolicy && !Viewport->ProjectionPolicy.bIsCustom ||
-			!bRequireCustomPolicy && Viewport->ProjectionPolicy.bIsCustom != bIsCustomPolicy)
+			(Viewport->ProjectionPolicy.Type != CurrentSelectedPolicy ||
+			(bRequireCustomPolicy && !Viewport->ProjectionPolicy.bIsCustom) ||
+			(!bRequireCustomPolicy && Viewport->ProjectionPolicy.bIsCustom != bIsCustomPolicy)))
 		{
 			return false;
 		}
