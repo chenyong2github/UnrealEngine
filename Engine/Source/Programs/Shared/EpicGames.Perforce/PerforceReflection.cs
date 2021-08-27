@@ -228,7 +228,7 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Parses the given text as an enum
 		/// </summary>
-		/// <param name="Text"></param>
+		/// <param name="Name"></param>
 		/// <returns></returns>
 		public int ParseToInteger(Utf8String Name)
 		{

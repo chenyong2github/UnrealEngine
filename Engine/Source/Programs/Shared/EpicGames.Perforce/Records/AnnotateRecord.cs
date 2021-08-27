@@ -5,6 +5,9 @@ using System.Collections.Generic;
 
 namespace EpicGames.Perforce
 {
+	/// <summary>
+	/// 
+	/// </summary>
 	public class AnnotateRecord
 	{
 		/// <summary>
@@ -60,7 +63,10 @@ namespace EpicGames.Perforce
 		/// </summary>
 		[PerforceTag("data", Optional = true)]
 		public readonly string Data;
-
+		
+		/// <summary>
+		/// 
+		/// </summary>
 		[PerforceRecordList]
 		public List<AnnotateLineRecord> LineRecord = new List<AnnotateLineRecord>();
 

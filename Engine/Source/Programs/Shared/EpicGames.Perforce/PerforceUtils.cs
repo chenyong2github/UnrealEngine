@@ -10,8 +10,14 @@ using System.Threading.Tasks.Dataflow;
 
 namespace EpicGames.Perforce
 {
+	/// <summary>
+	/// Utility methods for dealing with Perforce paths
+	/// </summary>
 	public static class PerforceUtils
 	{
+		/// <summary>
+		/// Escape a path to Perforce syntax
+		/// </summary>
 		static public string EscapePath(string Path)
 		{
 			string NewPath = Path;
@@ -22,6 +28,9 @@ namespace EpicGames.Perforce
 			return NewPath;
 		}
 
+		/// <summary>
+		/// Remove escape characters from a path
+		/// </summary>
 		static public string UnescapePath(string Path)
 		{
 			string NewPath = Path;
@@ -33,6 +42,9 @@ namespace EpicGames.Perforce
 			return NewPath;
 		}
 
+		/// <summary>
+		/// Remove escape characters from a UTF8 path
+		/// </summary>
 		static public Utf8String UnescapePath(Utf8String Path)
 		{
 			ReadOnlySpan<byte> PathSpan = Path.Span;
