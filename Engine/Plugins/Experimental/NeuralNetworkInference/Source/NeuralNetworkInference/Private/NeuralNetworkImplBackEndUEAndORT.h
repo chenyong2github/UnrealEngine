@@ -10,7 +10,7 @@
 NNI_THIRD_PARTY_INCLUDES_START
 #undef check
 #undef TEXT
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 	#include "RedirectCoutAndCerrToUeLog.h"
 
 	#include "onnxruntime/core/session/onnxruntime_cxx_api.h"
@@ -20,7 +20,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 	#ifdef WITH_NNI_CPU_NOT_RECOMMENDED
 	#include "onnxruntime/core/providers/nni_cpu/nni_cpu_provider_factory.h"
 	#endif //WITH_NNI_CPU_NOT_RECOMMENDED
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 NNI_THIRD_PARTY_INCLUDES_END
 
 
@@ -28,7 +28,7 @@ NNI_THIRD_PARTY_INCLUDES_END
 struct UNeuralNetwork::FImplBackEndUEAndORT
 {
 public:
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 	// Network-related variables
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
@@ -40,7 +40,7 @@ public:
 	TArray<const char*> InputTensorNames; /* Tensor names */
 	TArray<Ort::Value> OutputOrtTensors; /* Actual ONNXRuntime tensors */
 	TArray<const char*> OutputTensorNames; /* Tensor names */
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 
 //#if WITH_EDITOR
 //	static bool LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
@@ -52,7 +52,7 @@ public:
 	
 	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 private:
 	static bool InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 
@@ -63,5 +63,5 @@ private:
 	void SetTensorsFromNetwork(TArray<FNeuralTensor>& OutTensors, TArray<const char*>& InTensorNames, TArray<ENeuralDataType>& InTensorDataTypes, TArray<TArray<int64>>& InSizes, const bool bIsInput);
 
 	static void LinkTensorToONNXRuntime(TArray<FNeuralTensor>& InOutTensors, TArray<Ort::Value>& InOutOrtTensors, Ort::MemoryInfo& InOutAllocatorInfo, const int32 InTensorIndex);
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 };

@@ -10,7 +10,7 @@ public class NeuralNetworkInference : ModuleRules
 		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux);
 		if (bIsORTSupported)
 		{
-			PublicDefinitions.Add("WITH_FULL_NNI_SUPPORT");
+			PublicDefinitions.Add("WITH_UE_AND_ORT_SUPPORT");
 		}
 
 		ShortName = "NNI"; // Could be removed when plugin moves to Experimental, NFL path is too long

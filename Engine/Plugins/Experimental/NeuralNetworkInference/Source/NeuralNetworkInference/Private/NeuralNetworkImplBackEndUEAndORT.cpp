@@ -80,7 +80,7 @@
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
 	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
 	try
 #endif //WITH_EDITOR
@@ -120,15 +120,15 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 	}
 #endif //WITH_EDITOR
 
-#else //WITH_FULL_NNI_SUPPORT
+#else //WITH_UE_AND_ORT_SUPPORT
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto (recommended) or ENeuralBackEnd::UEOnly for this platform."));
 	return false;
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 }
 
 void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
 	try
 #endif //WITH_EDITOR
@@ -165,9 +165,9 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMo
 	}
 #endif //WITH_EDITOR
 
-#else //WITH_FULL_NNI_SUPPORT
+#else //WITH_UE_AND_ORT_SUPPORT
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto or ENeuralBackEnd::UEOnly for this platform."));
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
 }
 
 
@@ -175,7 +175,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMo
 /* UNeuralNetwork private functions
  *****************************************************************************/
 
-#ifdef WITH_FULL_NNI_SUPPORT
+#ifdef WITH_UE_AND_ORT_SUPPORT
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::InitializedAndConfigureMembers(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
@@ -420,4 +420,4 @@ void UNeuralNetwork::FImplBackEndUEAndORT::LinkTensorToONNXRuntime(TArray<FNeura
 	}
 }
 
-#endif //WITH_FULL_NNI_SUPPORT
+#endif //WITH_UE_AND_ORT_SUPPORT
