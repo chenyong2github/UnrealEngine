@@ -125,7 +125,7 @@ bool FGenericPlatformHttp::UsesThreadedHttp()
 {
 	// Many platforms use libcurl.  Our libcurl implementation uses threading.
 	// Platforms that don't use libcurl but have threading will need to override UsesThreadedHttp to return true for their platform.
-	return WITH_LIBCURL;
+	return WITH_CURL;
 }
 
 static bool IsAllowedChar(UTF8CHAR LookupChar)

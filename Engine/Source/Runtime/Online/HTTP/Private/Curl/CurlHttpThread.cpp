@@ -6,7 +6,7 @@
 #include "Curl/CurlHttp.h"
 #include "Curl/CurlHttpManager.h"
 
-#if WITH_LIBCURL
+#if WITH_CURL
 
 FCurlHttpThread::FCurlHttpThread()
 {

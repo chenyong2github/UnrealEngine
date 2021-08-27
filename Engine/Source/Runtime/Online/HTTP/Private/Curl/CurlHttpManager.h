@@ -7,9 +7,11 @@
 
 class FHttpThread;
 
-#if WITH_LIBCURL
+#if WITH_CURL
 
+#if !WITH_CURL_XCURL
 typedef void CURLSH;
+#endif
 typedef void CURLM;
 
 class FCurlHttpManager : public FHttpManager
@@ -18,7 +20,9 @@ public:
 	static void InitCurl();
 	static void ShutdownCurl();
 	static bool IsInit();
+#if !WITH_CURL_XCURL
 	static CURLSH* GShareHandle;
+#endif
 	static CURLM * GMultiHandle;
 
 	static struct FCurlRequestOptions
@@ -70,4 +74,4 @@ protected:
 	//~ End HttpManager Interface
 };
 
-#endif //WITH_LIBCURL
+#endif //WITH_CURL 
