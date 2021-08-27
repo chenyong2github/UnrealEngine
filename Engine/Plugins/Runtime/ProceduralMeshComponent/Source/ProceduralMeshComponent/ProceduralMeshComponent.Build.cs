@@ -14,7 +14,6 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"InteractiveToolsFramework",
 					"MeshDescription",
 					"RenderCore",
 					"RHI",
