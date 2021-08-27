@@ -1246,6 +1246,11 @@ const TCHAR* FMacPlatformProcess::GetBinariesSubdirectory()
 	return TEXT("Mac");
 }
 
+const FString FMacPlatformProcess::GetModulesDirectory()
+{
+	return FString(BaseDir());
+}
+
 bool FMacPlatformProcess::LaunchFileInDefaultExternalApplication( const TCHAR* FileName, const TCHAR* Parms /*= NULL*/, ELaunchVerb::Type Verb /*= ELaunchVerb::Open*/, bool bPromptToOpenOnFailure /*= true */)
 {
 	SCOPED_AUTORELEASE_POOL;

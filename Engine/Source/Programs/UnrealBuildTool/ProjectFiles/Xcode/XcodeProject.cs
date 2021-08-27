@@ -1589,7 +1589,8 @@ namespace UnrealBuildTool
 
 											// Get the output directory
 											DirectoryReference RootDirectory = Unreal.EngineDirectory;
-											if ((ProjectTarget.TargetRules.Type == TargetType.Game || ProjectTarget.TargetRules.Type == TargetType.Client || ProjectTarget.TargetRules.Type == TargetType.Server) && bShouldCompileMonolithic)
+											// Unique and Monolithic both need to use the target directory not the engine directory
+											if (ProjectTarget.TargetRules.Type != TargetType.Program && (bShouldCompileMonolithic || ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Unique))
 											{
 												if (ProjectTarget.UnrealProjectFilePath != null)
 												{
@@ -1611,7 +1612,11 @@ namespace UnrealBuildTool
 												// Figure out what the compiled binary will be called so that we can point the IDE to the correct file
 												if (ProjectTarget.TargetRules.Type != TargetType.Game)
 												{
-													ExeName = "Unreal" + ProjectTarget.TargetRules.Type.ToString();
+													// Only if shared - unique retains the Target Name
+													if(ProjectTarget.TargetRules.BuildEnvironment == TargetBuildEnvironment.Shared)
+													{
+														ExeName = "Unreal" + ProjectTarget.TargetRules.Type.ToString();
+													}
 												}
 											}
 
