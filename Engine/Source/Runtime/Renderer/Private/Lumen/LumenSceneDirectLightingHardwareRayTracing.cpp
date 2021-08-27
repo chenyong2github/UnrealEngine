@@ -56,6 +56,9 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 	DECLARE_GLOBAL_SHADER(FLumenDirectLightingHardwareRayTracingBatchedRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenDirectLightingHardwareRayTracingBatchedRGS, FLumenHardwareRayTracingRGS)
 
+	class FEnableFarFieldTracing : SHADER_PERMUTATION_BOOL("ENABLE_FAR_FIELD_TRACING");
+	using FPermutationDomain = TShaderPermutationDomain<FEnableFarFieldTracing>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTileScatterParameters, CardScatterParameters)
@@ -68,6 +71,8 @@ class FLumenDirectLightingHardwareRayTracingBatchedRGS : public FLumenHardwareRa
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 		SHADER_PARAMETER(uint32, GroupCount)
 		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(float, FarFieldMaxTraceDistance)
+		SHADER_PARAMETER(FVector3f, FarFieldReferencePos)
 
 		SHADER_PARAMETER(float, SurfaceBias)
 		SHADER_PARAMETER(float, SlopeScaledSurfaceBias)
@@ -90,7 +95,9 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingDirectLighting
 {
 	if (Lumen::UseHardwareRayTracedDirectLighting())
 	{
-		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>();
+		FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
+		TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
 	}
 }
@@ -126,6 +133,8 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	PassParameters->MaxTranslucentSkipCount = 1; // TODO: CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 	PassParameters->GroupCount = FMath::Max(CVarLumenSceneDirectLightingHardwareRayTracingGroupCount.GetValueOnRenderThread(), 1);
 	PassParameters->MaxTraceDistance = Lumen::GetSurfaceCacheOffscreenShadowingMaxTraceDistance();
+	PassParameters->FarFieldMaxTraceDistance = Lumen::GetFarFieldMaxTraceDistance();
+	PassParameters->FarFieldReferencePos = Lumen::GetFarFieldReferencePos();
 
 	PassParameters->LumenLightType = (uint32) LumenLight.Type;
 	PassParameters->SurfaceBias = 1.0f;
@@ -135,7 +144,9 @@ void TraceLumenHardwareRayTracedDirectLightingShadows(
 	PassParameters->RWShadowMaskTiles = ShadowMaskTilesUAV;
 	PassParameters->ShadowMaskTilesOffset = LumenLight.ShadowMaskTilesOffset;
 
-	TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>();
+	FLumenDirectLightingHardwareRayTracingBatchedRGS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FLumenDirectLightingHardwareRayTracingBatchedRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
+	TShaderRef<FLumenDirectLightingHardwareRayTracingBatchedRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenDirectLightingHardwareRayTracingBatchedRGS>(PermutationVector);
 
 	ClearUnusedGraphResources(RayGenerationShader, PassParameters);
 
