@@ -2826,39 +2826,48 @@ EAutosaveContentPackagesResult::Type FEditorFileUtils::AutosaveMapEx(const FStri
 			// Now gather the world external packages and save them if needed
 			if (World->PersistentLevel)
 			{
+				TArray<UPackage*> ExternalPackagesToSave;
 				for (UPackage* ExternalPackage : World->PersistentLevel->GetLoadedExternalActorPackages())
 				{
 					if (ExternalPackage->IsDirty() && (bForceIfNotInList || DirtyPackagesForAutoSave.Contains(ExternalPackage))
 						&& FPackageName::IsValidLongPackageName(ExternalPackage->GetName(), /*bIncludeReadOnlyRoots=*/false))
 					{
 						// Don't try to save external packages that will get deleted
-						bool bActorPackageNeedsToSave = false;
-						ForEachObjectWithPackage(ExternalPackage, [&bActorPackageNeedsToSave](UObject* Object)
+						ForEachObjectWithPackage(ExternalPackage, [ExternalPackage, &ExternalPackagesToSave](UObject* Object)
 						{
 							if (Cast<AActor>(Object))
 							{
 								if (!Object->IsPendingKill())
 								{
-									bActorPackageNeedsToSave = true;
+									ExternalPackagesToSave.Add(ExternalPackage);
 									return false;
 								}
 							}
 							return true;
 						}, false);
-
-						if (bActorPackageNeedsToSave)
-						{
-							const FString AutosaveFilename = GetAutoSaveFilename(ExternalPackage, AbsoluteAutosaveDir, AutosaveIndex, FPackageName::GetAssetPackageExtension());
-							if (!GEditor->Exec(nullptr, *FString::Printf(TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=false AUTOSAVING=true"), *ExternalPackage->GetName(), *AutosaveFilename)))
-							{
-								return EAutosaveContentPackagesResult::Failure;
-							}
-							// We saved an actor
-							bResult = true;
-							// Re-mark the package as dirty, because autosaving it will have cleared the dirty flag
-							ExternalPackage->MarkPackageDirty();
-						}
 					}
+				}
+
+				if (ExternalPackagesToSave.Num())
+				{
+					FEditorDelegates::PreSaveExternalActors.Broadcast(World);
+
+					for (UPackage* ExternalPackage : ExternalPackagesToSave)
+					{
+						const FString AutosaveFilename = GetAutoSaveFilename(ExternalPackage, AbsoluteAutosaveDir, AutosaveIndex, FPackageName::GetAssetPackageExtension());
+						if (!GEditor->Exec(nullptr, *FString::Printf(TEXT("OBJ SAVEPACKAGE PACKAGE=\"%s\" FILE=\"%s\" SILENT=false AUTOSAVING=true"), *ExternalPackage->GetName(), *AutosaveFilename)))
+						{
+							return EAutosaveContentPackagesResult::Failure;
+						}
+
+						// We saved an actor
+						bResult = true;
+
+						// Re-mark the package as dirty, because autosaving it will have cleared the dirty flag
+						ExternalPackage->MarkPackageDirty();
+					}
+
+					FEditorDelegates::PostSaveExternalActors.Broadcast(World);
 				}
 			}
 		}
@@ -3755,6 +3764,21 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 		FScopedSlowTask SlowTask(FinalSaveList.Num() * 2, NSLOCTEXT("UnrealEd", "SavingPackagesE", "Saving packages..."));
 		SlowTask.MakeDialog();
 
+		UWorld* ActorsWorld = nullptr;
+		for (UPackage* Package : FinalSaveList)
+		{
+			if (AActor* Actor = AActor::FindActorInPackage(Package))
+			{
+				ActorsWorld = Actor->GetWorld();
+				break;
+			}
+		}
+
+		if (ActorsWorld)
+		{
+			FEditorDelegates::PreSaveExternalActors.Broadcast(ActorsWorld);
+		}
+
 		for (UPackage* Package : FinalSaveList)
 		{
 			SlowTask.EnterProgressFrame(1);
@@ -3806,6 +3830,11 @@ FEditorFileUtils::EPromptReturnCode InternalPromptForCheckoutAndSave(const TArra
 					ReturnResponse = FEditorFileUtils::PR_Failure;
 				}
 			}
+		}
+
+		if (ActorsWorld)
+		{
+			FEditorDelegates::PostSaveExternalActors.Broadcast(ActorsWorld);
 		}
 	}
 

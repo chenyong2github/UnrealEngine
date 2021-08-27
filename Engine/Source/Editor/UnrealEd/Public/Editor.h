@@ -74,8 +74,12 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPreSaveWorldWithContext, class UWorld*, FObjectPreSaveContext);
 	/** delegate type for post save world events ( uint32 SaveFlags, UWorld* World, bool bSuccess ) */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPostSaveWorld, uint32, class UWorld*, bool);
-	/** delegate type for post save world events ( UWorld* World, FObjectPostSaveContext ObjectSaveContext, bool bSuccess ) */
+	/** delegate type for post save world events ( UWorld* World, FObjectPostSaveContext ObjectSaveContext ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPostSaveWorldWithContext, class UWorld*, FObjectPostSaveContext);
+	/** delegate type for pre save external actors event, called by editor save codepaths and auto saves ( UWorld* World )*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPreSaveExternalActors, class UWorld*);
+	/** delegate type for post save external actors event, called by editor save codepaths and auto saves ( UWorld* World )*/
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostSaveExternalActors, class UWorld*);
 	/** delegate for a PIE event (begin, end, pause/resume, etc) (Params: bool bIsSimulating) */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPIEEvent, const bool);
 	/** delegate for a standalone local play event (Params: uint32 processID) */
@@ -225,6 +229,10 @@ struct UNREALED_API FEditorDelegates
 	static FOnPostSaveWorld PostSaveWorld;
 	/** Called after SaveWorld is processed */
 	static FOnPostSaveWorldWithContext PostSaveWorldWithContext;
+	/** Called before any number of external actors will be saved */
+	static FOnPreSaveExternalActors PreSaveExternalActors;
+	/** Called after any number of external actors has been saved */
+	static FOnPostSaveExternalActors PostSaveExternalActors;
 	/** Called when finishing picking a new blueprint class during construction */
 	static FOnFinishPickingBlueprintClass OnFinishPickingBlueprintClass;
 	/** Called when beginning configuration of a new asset */
