@@ -95,6 +95,12 @@ private:
 	/** Called after the world has been saved. The sequencer updates to the animated state. */
 	void OnPostSaveWorld(UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
+	/** Called before any number of external actors are going to be saved. The sequencer puts everything back to its initial state. */
+	void OnPreSaveExternalActors(UWorld* World);
+
+	/** Called after any number of external actors has been saved. The sequencer puts everything back to its initial state. */
+	void OnPostSaveExternalActors(UWorld* World);
+
 	/** Called after a level has been added */
 	void OnLevelAdded(ULevel* InLevel, UWorld* InWorld);
 
@@ -172,6 +178,8 @@ private:
 	void DetachOutlinerColumn();
 	void ActivateRealtimeViewports();
 	void RestoreRealtimeViewports();
+	void RestoreToSavedState(UWorld* World);
+	void ResetToAnimatedState(UWorld* World);
 
 	struct FSequencerAndOptions
 	{
