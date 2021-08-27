@@ -10,7 +10,7 @@
 
 //#if WITH_EDITOR
 //bool UNeuralNetwork::FImplBackEndUEAndORT::LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
-//	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
+//	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 //{
 //	// Initialize and configure InOutImplBackEndUEAndORT
 //	const FRedirectCoutAndCerrToUeLog RedirectCoutAndCerrToUeLog;
@@ -21,7 +21,7 @@
 //	}
 //
 //	// Note: This code uses the changes in the ONNX Runtime API, which are not needed for desktop platforms (where ONNX/ProtoBuf is supported)
-//	// Fill InModelReadFromDiskInBytes from ONNX/ORT file
+//	// Fill InModelReadFromFileInBytes from ONNX/ORT file
 //	const FString FileExtension = FPaths::GetExtension(InModelFullFilePath, /*bIncludeDot*/ false);
 //	const char* const FilePathCharPtr = TCHAR_TO_ANSI(*InModelFullFilePath);
 //	// If ONNX file, turn into ORT format first
@@ -48,25 +48,25 @@
 //		// Read model from OutputORTOptimizedModelPath
 //		return Load(OutputORTOptimizedModelPath);
 //	}
-//	// Create session (it should be ORT file at this point), and read InModelReadFromDiskInBytes if not empty
+//	// Create session (it should be ORT file at this point), and read InModelReadFromFileInBytes if not empty
 //	else if (FileExtension.Equals(TEXT("ort"), ESearchCase::IgnoreCase))
 //	{
 //		// Read model from InModelFullFilePath
-//		std::vector<uint8_t> OutputModelReadFromDiskInBytesVector;
+//		std::vector<uint8_t> OutputModelReadFromFileInBytesVector;
 //		InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment,
 //#ifdef _WIN32
 //			*InModelFullFilePath,
 //#else
 //			FilePathCharPtr,
 //#endif
-//			*InOutImplBackEndUEAndORT->SessionOptions, &OutputModelReadFromDiskInBytesVector);
+//			*InOutImplBackEndUEAndORT->SessionOptions, &OutputModelReadFromFileInBytesVector);
 //	
-//		// Fill InModelReadFromDiskInBytes
-//		const int32 ArraySize = OutputModelReadFromDiskInBytesVector.size();
+//		// Fill InModelReadFromFileInBytes
+//		const int32 ArraySize = OutputModelReadFromFileInBytesVector.size();
 //		if (ArraySize > 0)
 //		{
-//			InModelReadFromDiskInBytes.SetNumUninitialized(ArraySize);
-//			FMemory::Memcpy(InModelReadFromDiskInBytes.GetData(), &OutputModelReadFromDiskInBytesVector[0], ArraySize);
+//			InModelReadFromFileInBytes.SetNumUninitialized(ArraySize);
+//			FMemory::Memcpy(InModelReadFromFileInBytes.GetData(), &OutputModelReadFromFileInBytesVector[0], ArraySize);
 //		}
 //	
 //		return Load();
@@ -78,7 +78,7 @@
 //#endif //WITH_EDITOR
 
 bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
-	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromDiskInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
+	TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 #if WITH_EDITOR
@@ -94,16 +94,16 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 			return false;
 		}
 
-		// Create session from model saved in InModelReadFromDiskInBytes (if not empty)
-		if (InModelReadFromDiskInBytes.Num() > 0)
+		// Create session from model saved in InModelReadFromFileInBytes (if not empty)
+		if (InModelReadFromFileInBytes.Num() > 0)
 		{
-			// Read model from ModelReadFromDiskInBytesVector
-			InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromDiskInBytes.GetData(), InModelReadFromDiskInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
+			// Read model from ModelReadFromFileInBytesVector
+			InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromFileInBytes.GetData(), InModelReadFromFileInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
 		}
 		// Else
 		else
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("InModelReadFromDiskInBytes was empty."));
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("InModelReadFromFileInBytes was empty."));
 			return false;
 		}
 
