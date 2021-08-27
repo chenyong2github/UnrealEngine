@@ -474,6 +474,12 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 
 		Ar << ISMC->PerInstanceSMCustomData;
 		Ar << ISMC->InstancingRandomSeed;
+
+		for (FInstancedStaticMeshRandomSeed& ISMCRandomSeed : ISMC->AdditionalRandomSeeds)
+		{
+			Ar << ISMCRandomSeed.StartInstanceIndex;
+			Ar << ISMCRandomSeed.RandomSeed;
+		}
 	}
 
 	return Ar.GetCrc();

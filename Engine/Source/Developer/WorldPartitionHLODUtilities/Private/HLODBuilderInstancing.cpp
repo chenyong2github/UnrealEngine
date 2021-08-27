@@ -35,6 +35,8 @@ namespace
 
 		int32							NumCustomDataFloats = 0;
 		TArray<float>					InstancesCustomData;
+
+		TArray<FInstancedStaticMeshRandomSeed> RandomSeeds;
 	};
 }
 
@@ -61,6 +63,7 @@ TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPart
 			if (UInstancedStaticMeshComponent* ISMC = Cast<UInstancedStaticMeshComponent>(SMC))
 			{
 				InstancingData.NumCustomDataFloats = FMath::Max(InstancingData.NumCustomDataFloats, ISMC->NumCustomDataFloats);
+				InstancingData.RandomSeeds.Add( { InstancingData.NumInstances, ISMC->InstancingRandomSeed } );
 				InstancingData.NumInstances += ISMC->GetInstanceCount();
 			}
 			else
@@ -123,6 +126,16 @@ TArray<UPrimitiveComponent*> UHLODBuilderInstancing::CreateComponents(AWorldPart
 		Component->NumCustomDataFloats = EntryInstancingData.NumCustomDataFloats;
 		Component->AddInstances(EntryInstancingData.InstancesTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
 		Component->PerInstanceSMCustomData = MoveTemp(EntryInstancingData.InstancesCustomData);
+
+		if (!EntryInstancingData.RandomSeeds.IsEmpty())
+		{
+			Component->InstancingRandomSeed = EntryInstancingData.RandomSeeds[0].RandomSeed;
+		}
+
+		if (EntryInstancingData.RandomSeeds.Num() > 1)
+		{
+			Component->AdditionalRandomSeeds = TArrayView<FInstancedStaticMeshRandomSeed>(&EntryInstancingData.RandomSeeds[1], EntryInstancingData.RandomSeeds.Num() - 1);
+		}
 
 		Components.Add(Component);
 	};

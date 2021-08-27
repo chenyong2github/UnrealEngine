@@ -1925,6 +1925,7 @@ TStructOnScope<FActorComponentInstanceData> UInstancedStaticMeshComponent::GetCo
 
 	// Back up random seed
 	StaticMeshInstanceData->InstancingRandomSeed = InstancingRandomSeed;
+	StaticMeshInstanceData->AdditionalRandomSeeds = AdditionalRandomSeeds;
 #endif
 	return InstanceData;
 }
@@ -1987,6 +1988,7 @@ void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticM
 	SelectedInstances = InstancedMeshData->SelectedInstances;
 
 	InstancingRandomSeed = InstancedMeshData->InstancingRandomSeed;
+	AdditionalRandomSeeds = InstancedMeshData->AdditionalRandomSeeds;
 
 	// Force recreation of the render data
 	InstanceUpdateCmdBuffer.Edit();
@@ -2123,6 +2125,9 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 	
 	check(InstancingRandomSeed != 0);
 	FRandomStream RandomStream = FRandomStream(InstancingRandomSeed);
+
+	auto AdditionanlRandomSeedsIt = AdditionalRandomSeeds.CreateIterator();
+	int32 SeedResetIndex = AdditionanlRandomSeedsIt ? AdditionanlRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
 	
 	for (int32 Index = 0; Index < NumInstances; ++Index)
 	{
@@ -2132,7 +2137,15 @@ void UInstancedStaticMeshComponent::BuildRenderData(FStaticMeshInstanceData& Out
 			// could be skipped by density settings
 			continue;
 		}
-			
+
+		// Reset the random stream if necessary
+		if (Index == SeedResetIndex)
+		{
+			RandomStream = FRandomStream(AdditionanlRandomSeedsIt->RandomSeed);
+			AdditionanlRandomSeedsIt++;
+			SeedResetIndex = AdditionanlRandomSeedsIt ? AdditionanlRandomSeedsIt->StartInstanceIndex : INDEX_NONE;
+		}
+
 		const FInstancedStaticMeshInstanceData& InstanceData = PerInstanceSMData[Index];
 		FVector2D LightmapUVBias = FVector2D(-1.0f, -1.0f);
 		FVector2D ShadowmapUVBias = FVector2D(-1.0f, -1.0f);
