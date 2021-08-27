@@ -1503,7 +1503,15 @@ namespace EpicGames.Perforce.Managed
 				};
 
 				// Create the workspace, and add records for all the files. Exclude deleted files with digest = null.
-				await PerforceClient.RecordCommandAsync($"fstat -Ol -Op -Os -Rh -T \"{String.Join(",", FStatIndexedRecord.FieldNames)}\" \"//{PerforceClient.ClientName}/...@{ChangeNumber}\"", null, HandleRecord, CancellationToken);
+				List<string> Arguments = new List<string>();
+				Arguments.Add("-Ol");
+				Arguments.Add("-Op");
+				Arguments.Add("-Os");
+				Arguments.Add("-Rh");
+				Arguments.Add("-T");
+				Arguments.Add(String.Join(",", FStatIndexedRecord.FieldNames));
+				Arguments.Add($"//{PerforceClient.ClientName}/...@{ChangeNumber}");
+				await PerforceClient.RecordCommandAsync("fstat", Arguments, null, HandleRecord, CancellationToken);
 
 				// Output the elapsed time
 				Scope.Progress = $"({Timer.Elapsed.TotalSeconds:0.0}s)";
