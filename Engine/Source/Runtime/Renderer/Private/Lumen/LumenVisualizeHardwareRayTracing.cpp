@@ -139,30 +139,43 @@ namespace Lumen
 		return ModesAndPermutationSettings;
 	}
 #endif
-}
+} // namespace Lumen
 
 #if RHI_RAYTRACING
+
+namespace LumenVisualize
+{
+	// Struct definitions much match those in LumenVisualizeHardwareRayTracing.usf
+	struct FTileDataPacked
+	{
+		uint32 PackedData;
+	};
+
+	struct FRayDataPacked
+	{
+		uint32 PackedData;
+	};
+
+	struct FTraceDataPacked
+	{
+		uint32 PackedData[2];
+	};
+
+	enum class ECompactMode
+	{
+		// Permutations for compaction modes
+		HitLightingRetrace,
+		FarFieldRetrace,
+		ForceHitLighting,
+
+		MAX
+	};
+
+} // namespace LumenVisualize
 
 void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingVisualizeDeferredMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
 }
-
-// Struct definitions much match those in LumenVisualizeHardwareRayTracing.usf
-
-struct FTileDataPacked
-{
-	uint32 PackedData;
-};
-
-struct FRayDataPacked
-{
-	uint32 PackedData;
-};
-
-struct FTraceDataPacked
-{
-	uint32 PackedData[2];
-};
 
 class FLumenVisualizeCreateTilesCS : public FGlobalShader
 {
@@ -206,12 +219,12 @@ class FLumenVisualizeCreateRaysCS : public FGlobalShader
 		// Input
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTileDataPacked>, TileDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FTileDataPacked>, TileDataPacked)
 		SHADER_PARAMETER(float, MaxTraceDistance)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayDataPacked>, RWRayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FRayDataPacked>, RWRayDataPacked)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -262,36 +275,26 @@ class FLumenVisualizeCompactRaysIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenVisualizeCompactRaysIndirectArgsCS, "/Engine/Private/Lumen/LumenVisualizeHardwareRayTracing.usf", "FLumenVisualizeCompactRaysIndirectArgsCS", SF_Compute);
 
-enum class ECompactMode
-{
-	// Permutations for compaction modes
-	HitLightingRetrace,
-	FarFieldRetrace,
-	ForceHitLighting,
-
-	MAX
-};
-
 class FLumenVisualizeCompactRaysCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FLumenVisualizeCompactRaysCS)
 	SHADER_USE_PARAMETER_STRUCT(FLumenVisualizeCompactRaysCS, FGlobalShader);
 
-	class FCompactModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_COMPACT_MODE", ECompactMode);
+	class FCompactModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_COMPACT_MODE", LumenVisualize::ECompactMode);
 	using FPermutationDomain = TShaderPermutationDomain<FCompactModeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRayDataPacked>, RayDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FRayDataPacked>, RayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FTraceDataPacked>, TraceDataPacked)
 
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedRayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayDataPacked>, RWCompactedRayDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWCompactedTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FRayDataPacked>, RWCompactedRayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FTraceDataPacked>, RWCompactedTraceDataPacked)
 
 		// Indirect
 		RDG_BUFFER_ACCESS(CompactRaysIndirectArgs, ERHIAccess::IndirectArgs)
@@ -354,14 +357,14 @@ class FLumenVisualizeBucketRaysByMaterialIdCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRayDataPacked>, RayDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FRayDataPacked>, RayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FTraceDataPacked>, TraceDataPacked)
 
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 
 		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayDataPacked>, RWRayDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FRayDataPacked>, RWRayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
 		RDG_BUFFER_ACCESS(BucketRaysByMaterialIdIndirectArgs, ERHIAccess::IndirectArgs)
@@ -408,8 +411,8 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		// Input
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRayDataPacked>, RayDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FRayDataPacked>, RayDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenVisualize::FTraceDataPacked>, TraceDataPacked)
 
 		SHADER_PARAMETER(int, ThreadCount)
 		SHADER_PARAMETER(int, GroupCount)
@@ -423,7 +426,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 		// Output
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenVisualize::FTraceDataPacked>, RWTraceDataPacked)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -542,7 +545,7 @@ void VisualizeHardwareRayTracing(
 	FRDGBufferRef TileAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.TileAllocator"));
 	FIntPoint TileCount = FMath::DivideAndRoundUp(ViewRectSize, FIntPoint(FLumenVisualizeCreateRaysCS::GetThreadGroupSize2D()));
 	uint32 MaxTileCount = TileCount.X * TileCount.Y;
-	FRDGBufferRef TileDataPackedStructuredBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTileDataPacked), MaxTileCount), TEXT("Lumen.Visualize.TileDataPacked"));
+	FRDGBufferRef TileDataPackedStructuredBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FTileDataPacked), MaxTileCount), TEXT("Lumen.Visualize.TileDataPacked"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(TileAllocatorBuffer, PF_R32_UINT), 0);
 	{
 		FLumenVisualizeCreateTilesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCreateTilesCS::FParameters>();
@@ -576,7 +579,7 @@ void VisualizeHardwareRayTracing(
 	FRDGBufferRef RayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.RayAllocator"));
 	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(RayAllocatorBuffer, PF_R32_UINT), 0);
 
-	FRDGBufferRef RayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FRayDataPacked), RayCount), TEXT("Lumen.Visualize.RayDataPacked"));
+	FRDGBufferRef RayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FRayDataPacked), RayCount), TEXT("Lumen.Visualize.RayDataPacked"));
 	{
 		FLumenVisualizeCreateRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCreateRaysCS::FParameters>();
 		{
@@ -603,7 +606,7 @@ void VisualizeHardwareRayTracing(
 	}
 
 	// Dispatch rays, resolving some of the screen with surface cache entries and collecting secondary rays for hit-lighting
-	FRDGBufferRef TraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.TraceDataPacked"));
+	FRDGBufferRef TraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.TraceDataPacked"));
 	{
 		FLumenVisualizeHardwareRayTracingRGS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeHardwareRayTracingRGS::FParameters>();
 		{
@@ -686,8 +689,8 @@ void VisualizeHardwareRayTracing(
 			FRDGBufferRef CompactedRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.CompactedRayAllocator"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
-			FRDGBufferRef CompactedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FRayDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedRayDataPacked"));
-			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedTraceDataPacked"));
+			FRDGBufferRef CompactedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FRayDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedRayDataPacked"));
+			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedTraceDataPacked"));
 			{
 				FLumenVisualizeCompactRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysCS::FParameters>();
 				{
@@ -707,7 +710,7 @@ void VisualizeHardwareRayTracing(
 				}
 
 				FLumenVisualizeCompactRaysCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(bForceHitLighting ? ECompactMode::ForceHitLighting : ECompactMode::HitLightingRetrace);
+				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(bForceHitLighting ? LumenVisualize::ECompactMode::ForceHitLighting : LumenVisualize::ECompactMode::HitLightingRetrace);
 				TShaderRef<FLumenVisualizeCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -742,8 +745,8 @@ void VisualizeHardwareRayTracing(
 					FIntVector(1, 1, 1));
 			}
 
-			FRDGBufferRef BucketedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FRayDataPacked), RayCount), TEXT("Lumen.Visualize.BucketedRayDataPacked"));
-			FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.BucketedTraceDataPacked"));
+			FRDGBufferRef BucketedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FRayDataPacked), RayCount), TEXT("Lumen.Visualize.BucketedRayDataPacked"));
+			FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.BucketedTraceDataPacked"));
 			{
 				FLumenVisualizeBucketRaysByMaterialIdCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeBucketRaysByMaterialIdCS::FParameters>();
 				{
@@ -851,8 +854,8 @@ void VisualizeHardwareRayTracing(
 			FRDGBufferRef CompactedRayAllocatorBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Visualize.CompactedRayAllocator"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
-			FRDGBufferRef CompactedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FRayDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedRayDataPacked"));
-			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedTraceDataPacked"));
+			FRDGBufferRef CompactedRayDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FRayDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedRayDataPacked"));
+			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenVisualize::FTraceDataPacked), RayCount), TEXT("Lumen.Visualize.CompactedTraceDataPacked"));
 			{
 				FLumenVisualizeCompactRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenVisualizeCompactRaysCS::FParameters>();
 				{
@@ -872,7 +875,7 @@ void VisualizeHardwareRayTracing(
 				}
 
 				FLumenVisualizeCompactRaysCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(ECompactMode::FarFieldRetrace);
+				PermutationVector.Set<FLumenVisualizeCompactRaysCS::FCompactModeDim>(LumenVisualize::ECompactMode::FarFieldRetrace);
 				TShaderRef<FLumenVisualizeCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenVisualizeCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,

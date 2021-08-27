@@ -188,9 +188,39 @@ namespace Lumen
 		return LightingMode;
 	}
 #endif // RHI_RAY_TRACING
-}
+} // namespace Lumen
 
 #if RHI_RAYTRACING
+
+namespace LumenReflection
+{
+	// Struct definitions much match those in LumenVisualizeHardwareRayTracing.usf
+
+	enum class ELightingMode
+	{
+		// Permutations for tracing modes
+		SurfaceCache,
+		HitLighting,
+		MAX
+	};
+
+	enum class ECompactMode
+	{
+		// Permutations for compaction modes
+		HitLightingRetrace,
+		FarFieldRetrace,
+		ForceHitLighting,
+		AppendRays,
+
+		MAX
+	};
+
+	struct FTraceDataPacked
+	{
+		uint32 PackedData[2];
+	};
+
+} // namespace LumenReflection
 
 class FLumenReflectionHardwareRayTracingIndirectArgsCS : public FGlobalShader
 {
@@ -220,20 +250,6 @@ class FLumenReflectionHardwareRayTracingIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingIndirectArgsCS, "/Engine/Private/Lumen/LumenReflectionHardwareRayTracing.usf", "FLumenReflectionHardwareRayTracingIndirectArgsCS", SF_Compute);
 
-
-enum class ELightingMode
-{
-	// Permutations for tracing modes
-	SurfaceCache,
-	HitLighting,
-	MAX
-};
-
-struct FTraceDataPacked
-{
-	uint32 PackedData[2];
-};
-
 bool IsHardwareRayTracingReflectionsIndirectDispatch()
 {
 	return GRHISupportsRayTracingDispatchIndirect && (CVarLumenReflectionsHardwareRayTracingIndirect.GetValueOnRenderThread() == 1);
@@ -244,7 +260,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	DECLARE_GLOBAL_SHADER(FLumenReflectionHardwareRayTracingRGS)
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenReflectionHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
-	class FLightingModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_LIGHTING_MODE", ELightingMode);
+	class FLightingModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_LIGHTING_MODE", LumenReflection::ELightingMode);
 	class FEnableNearFieldTracing : SHADER_PERMUTATION_BOOL("ENABLE_NEAR_FIELD_TRACING");
 	class FEnableFarFieldTracing : SHADER_PERMUTATION_BOOL("ENABLE_FAR_FIELD_TRACING");
 	class FApplySkyLightDim : SHADER_PERMUTATION_BOOL("DIM_APPLY_SKY_LIGHT");
@@ -257,7 +273,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		RDG_BUFFER_ACCESS(HardwareRayTracingIndirectArgs, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenReflection::FTraceDataPacked>, TraceDataPacked)
 
 		// Constants
 		SHADER_PARAMETER(int, ThreadCount)
@@ -275,7 +291,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
 
 		// Ray continuation buffer
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenReflection::FTraceDataPacked>, RWTraceDataPacked)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -286,8 +302,8 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		}
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		ELightingMode LightingMode = PermutationVector.Get<FLightingModeDim>();
-		if (LightingMode == ELightingMode::SurfaceCache)
+		LumenReflection::ELightingMode LightingMode = PermutationVector.Get<FLightingModeDim>();
+		if (LightingMode == LumenReflection::ELightingMode::SurfaceCache)
 		{
 			bool bEnableNearFieldTracing = PermutationVector.Get<FEnableNearFieldTracing>();
 			bool bEnableFarFieldTracing = PermutationVector.Get<FEnableFarFieldTracing>();
@@ -297,7 +313,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 			return (bEnableNearFieldTracing && !bEnableFarFieldTracing) || 
 				(bApplySkyLight && !bEnableNearFieldTracing && bEnableFarFieldTracing && bWriteFinalLighting);
 		}
-		else if (LightingMode == ELightingMode::HitLighting)
+		else if (LightingMode == LumenReflection::ELightingMode::HitLighting)
 		{
 			bool bApplySkyLight = PermutationVector.Get<FApplySkyLightDim>();
 			bool bEnableNearFieldTracing = PermutationVector.Get<FEnableNearFieldTracing>();
@@ -316,7 +332,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		OutEnvironment.SetDefine(TEXT("SURFACE_CACHE_FEEDBACK"), 1);
 
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FLightingModeDim>() == ELightingMode::SurfaceCache)
+		if (PermutationVector.Get<FLightingModeDim>() == LumenReflection::ELightingMode::SurfaceCache)
 		{
 			OutEnvironment.SetDefine(TEXT("UE_RAY_TRACING_LIGHTWEIGHT_CLOSEST_HIT_SHADER"), 1);
 		}
@@ -354,35 +370,24 @@ class FLumenReflectionCompactRaysIndirectArgsCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FLumenReflectionCompactRaysIndirectArgsCS, "/Engine/Private/Lumen/LumenReflectionHardwareRayTracing.usf", "FLumenReflectionCompactRaysIndirectArgsCS", SF_Compute);
 
-enum class ECompactMode
-{
-	// Permutations for compaction modes
-	HitLightingRetrace,
-	FarFieldRetrace,
-	ForceHitLighting,
-	AppendRays,
-
-	MAX
-};
-
 class FLumenReflectionCompactRaysCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FLumenReflectionCompactRaysCS)
 	SHADER_USE_PARAMETER_STRUCT(FLumenReflectionCompactRaysCS, FGlobalShader);
 
-	class FCompactModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_COMPACT_MODE", ECompactMode);
+	class FCompactModeDim : SHADER_PERMUTATION_ENUM_CLASS("DIM_COMPACT_MODE", LumenReflection::ECompactMode);
 	using FPermutationDomain = TShaderPermutationDomain<FCompactModeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenReflection::FTraceDataPacked>, TraceDataPacked)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint>, RWRayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint2>, RWTraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenReflection::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
 		RDG_BUFFER_ACCESS(CompactRaysIndirectArgs, ERHIAccess::IndirectArgs)
@@ -444,13 +449,13 @@ class FLumenReflectionBucketRaysByMaterialIdCS : public FGlobalShader
 		// Input
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, RayAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FTraceDataPacked>, TraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenReflection::FTraceDataPacked>, TraceDataPacked)
 
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 
 		// Output
 		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint2>, RWTraceTexelDataPacked)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FTraceDataPacked>, RWTraceDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenReflection::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
 		RDG_BUFFER_ACCESS(BucketRaysByMaterialIdIndirectArgs, ERHIAccess::IndirectArgs)
@@ -485,7 +490,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 	{
 		{
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::HitLighting);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::HitLighting);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
@@ -509,7 +514,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 		// Default
 		{
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::SurfaceCache);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::SurfaceCache);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(!UseFarFieldForReflections());
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(false);
@@ -523,7 +528,7 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 		if (UseFarFieldForReflections())
 		{
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::SurfaceCache);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::SurfaceCache);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
@@ -552,7 +557,7 @@ void RenderLumenHardwareRayTracingReflections(
 	FIntPoint BufferSize = ReflectionTracingParameters.ReflectionTracingBufferSize;
 	int32 RayCount = BufferSize.X * BufferSize.Y;
 
-	FRDGBufferRef TraceDataPackedBufferCached = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Reflections.TraceDataPacked"));
+	FRDGBufferRef TraceDataPackedBufferCached = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenReflection::FTraceDataPacked), RayCount), TEXT("Lumen.Reflections.TraceDataPacked"));
 	FRDGBufferRef RayAllocatorBufferCached = CompactedTraceParameters.CompactedTraceTexelAllocator->Desc.Buffer;
 	FRDGBufferRef TraceTexelDataPackedBufferCached = CompactedTraceParameters.CompactedTraceTexelData->Desc.Buffer;
 
@@ -612,7 +617,7 @@ void RenderLumenHardwareRayTracingReflections(
 		}
 
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::SurfaceCache);
+		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::SurfaceCache);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(!UseFarFieldForReflections());
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(false);
@@ -683,7 +688,7 @@ void RenderLumenHardwareRayTracingReflections(
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
 			FRDGBufferRef CompactedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));
-			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
+			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenReflection::FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
 			{
 				FLumenReflectionCompactRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionCompactRaysCS::FParameters>();
 				{
@@ -702,7 +707,7 @@ void RenderLumenHardwareRayTracingReflections(
 				}
 
 				FLumenReflectionCompactRaysCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenReflectionCompactRaysCS::FCompactModeDim>(ECompactMode::FarFieldRetrace);
+				PermutationVector.Set<FLumenReflectionCompactRaysCS::FCompactModeDim>(LumenReflection::ECompactMode::FarFieldRetrace);
 				TShaderRef<FLumenReflectionCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenReflectionCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -772,7 +777,7 @@ void RenderLumenHardwareRayTracingReflections(
 			}
 
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::SurfaceCache);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::SurfaceCache);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(false);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(true);
@@ -843,7 +848,7 @@ void RenderLumenHardwareRayTracingReflections(
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedRayAllocatorBuffer, PF_R32_UINT), 0);
 
 			FRDGBufferRef CompactedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflection.BucketedTexelTraceDataPackedBuffer"));
-			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
+			FRDGBufferRef CompactedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenReflection::FTraceDataPacked), RayCount), TEXT("Lumen.Reflection.CompactedTraceDataPacked"));
 			{
 				FLumenReflectionCompactRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionCompactRaysCS::FParameters>();
 				{
@@ -863,7 +868,7 @@ void RenderLumenHardwareRayTracingReflections(
 
 				FLumenReflectionCompactRaysCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FLumenReflectionCompactRaysCS::FCompactModeDim>(bIsForceHitLighting ?
-					ECompactMode::ForceHitLighting : ECompactMode::HitLightingRetrace);
+					LumenReflection::ECompactMode::ForceHitLighting : LumenReflection::ECompactMode::HitLightingRetrace);
 				TShaderRef<FLumenReflectionCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenReflectionCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -916,7 +921,7 @@ void RenderLumenHardwareRayTracingReflections(
 				}
 
 				FLumenReflectionCompactRaysCS::FPermutationDomain PermutationVector;
-				PermutationVector.Set<FLumenReflectionCompactRaysCS::FCompactModeDim>(ECompactMode::AppendRays);
+				PermutationVector.Set<FLumenReflectionCompactRaysCS::FCompactModeDim>(LumenReflection::ECompactMode::AppendRays);
 				TShaderRef<FLumenReflectionCompactRaysCS> ComputeShader = View.ShaderMap->GetShader<FLumenReflectionCompactRaysCS>(PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
@@ -949,7 +954,7 @@ void RenderLumenHardwareRayTracingReflections(
 			}
 
 			FRDGBufferRef BucketedTexelTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, RayCount), TEXT("Lumen.Reflections.BucketedTexelTraceDataPackedBuffer"));
-			FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FTraceDataPacked), RayCount), TEXT("Lumen.Reflections.BucketedTraceDataPacked"));
+			FRDGBufferRef BucketedTraceDataPackedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(LumenReflection::FTraceDataPacked), RayCount), TEXT("Lumen.Reflections.BucketedTraceDataPacked"));
 			{
 				FLumenReflectionBucketRaysByMaterialIdCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FLumenReflectionBucketRaysByMaterialIdCS::FParameters>();
 				{
@@ -1033,7 +1038,7 @@ void RenderLumenHardwareRayTracingReflections(
 			}
 
 			FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(ELightingMode::HitLighting);
+			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(LumenReflection::ELightingMode::HitLighting);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FApplySkyLightDim>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableNearFieldTracing>(true);
 			PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FEnableFarFieldTracing>(Lumen::UseFarField());
