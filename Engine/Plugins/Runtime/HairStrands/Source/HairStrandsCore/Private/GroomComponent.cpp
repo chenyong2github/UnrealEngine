@@ -1652,6 +1652,15 @@ void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
 	}
 }
 
+void UGroomComponent::ResetSimulation()
+{
+	if (SimulationSettings.SolverSettings.bEnableSimulation)
+	{
+		bResetSimulation = true;
+		bInitSimulation = true;
+	}
+}
+
 void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalid)
 {
 	UpdateHairGroupsDesc();
@@ -3679,8 +3688,7 @@ void ResetSimulationOnAllGroomComponents(IConsoleVariable* InCVarPakTesterEnable
 	{
 		for (TObjectIterator<UGroomComponent> HairStrandsComponentIt; HairStrandsComponentIt; ++HairStrandsComponentIt)
 		{
-			HairStrandsComponentIt->bResetSimulation = true;
-			HairStrandsComponentIt->bInitSimulation  = true;
+			HairStrandsComponentIt->ResetSimulation();
 		}
 	}
 	GHairStrandsResetSimulationOnAllGroomComponents = 0;

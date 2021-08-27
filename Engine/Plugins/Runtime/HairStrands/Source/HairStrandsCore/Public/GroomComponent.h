@@ -159,6 +159,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Simulation")
 	void SetEnableSimulation(bool bInEnableSimulation);
 
+	/* Reset the simulation, if enabled */
+	UFUNCTION(BlueprintCallable, Category = "Simulation")
+	void ResetSimulation();
+
 	/* Accessor function for changing hair length scale from blueprint/sequencer */
 	UFUNCTION(BlueprintCallable, Category = "Groom")
 	void SetHairLengthScale(float Scale);
