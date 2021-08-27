@@ -429,16 +429,15 @@ bool FMeshBoolean::Compute()
 				});
 			for (int EID : ProcessMesh.EdgeIndicesItr())
 			{
-				FIndex2i TriPair = ProcessMesh.GetEdgeT(EID);
-				if (TriPair.B == IndexConstants::InvalidID || KeepTri[MeshIdx][TriPair.A] == KeepTri[MeshIdx][TriPair.B])
+				FDynamicMesh3::FEdge Edge = ProcessMesh.GetEdge(EID);
+				if (Edge.Tri.B == IndexConstants::InvalidID || KeepTri[MeshIdx][Edge.Tri.A] == KeepTri[MeshIdx][Edge.Tri.B])
 				{
 					continue;
 				}
 
 				CutBoundaryEdges[MeshIdx].Add(EID);
-				FIndex2i VertPair = ProcessMesh.GetEdgeV(EID);
-				PossUnmatchedBdryVerts[MeshIdx].Add(VertPair.A);
-				PossUnmatchedBdryVerts[MeshIdx].Add(VertPair.B);
+				PossUnmatchedBdryVerts[MeshIdx].Add(Edge.Vert.A);
+				PossUnmatchedBdryVerts[MeshIdx].Add(Edge.Vert.B);
 			}
 		}
 		// now go ahead and delete from both meshes
@@ -876,7 +875,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 					bHasBadEdge = true;
 					return; // break instead of continue to skip the whole edge
 				}
-				if (OtherEdgeDir.Dot(EdgeDir) <= -1 + DotTolerance)
+				if (OtherEdgeDir.Dot(EdgeDir) <= -DotTolerance)
 				{
 					OpposedEdge = VertEID;
 				}
@@ -1151,13 +1150,31 @@ void FMeshBoolean::SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* 
 				FDynamicMesh3::FEdgeCollapseInfo CollapseInfo;
 				int RemoveV = Edge.Vert[RemoveVIdx];
 				int KeepV = Edge.Vert[KeepVIdx];
+				// Detect the case of a triangle with two boundary edges, where collapsing 
+				// the target boundary edge would keep the non-boundary edge.
+				// This collapse will remove the triangle, so we add the
+				// (formerly) non-boundary edge as our new boundary edge.
+				auto WouldRemoveTwoBoundaryEdges = [](const FDynamicMesh3& Mesh, int EID, int RemoveV)
+				{
+					checkSlow(Mesh.IsEdge(EID));
+					int OppV = Mesh.GetEdgeOpposingV(EID).A;
+					int NextOnTri = Mesh.FindEdge(RemoveV, OppV);
+					return Mesh.IsBoundaryEdge(NextOnTri);
+				};
+				bool bWouldRemoveNext = WouldRemoveTwoBoundaryEdges(*CutMesh[0], EID, RemoveV);
 				EMeshResult CollapseResult = CutMesh[0]->CollapseEdge(KeepV, RemoveV, 0, CollapseInfo);
 				if (CollapseResult == EMeshResult::Ok)
 				{
+					if (bWouldRemoveNext && ensure(CutMesh[0]->IsBoundaryEdge(CollapseInfo.KeptEdges.A)))
+					{
+						CutBoundaryEdgeSets[0].Add(CollapseInfo.KeptEdges.A);
+					}
+
 					if (bHasMatches)
 					{
 						int OtherRemoveV = Matches[RemoveVIdx];
 						int OtherKeepV = Matches[KeepVIdx];
+						bool bOtherWouldRemoveNext = WouldRemoveTwoBoundaryEdges(*CutMesh[1], OtherEID, OtherRemoveV);
 						FDynamicMesh3::FEdgeCollapseInfo OtherCollapseInfo;
 						EMeshResult OtherCollapseResult = CutMesh[1]->CollapseEdge(OtherKeepV, OtherRemoveV, 0, OtherCollapseInfo);
 						if (OtherCollapseResult != EMeshResult::Ok)
@@ -1170,6 +1187,10 @@ void FMeshBoolean::SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* 
 						}
 						else
 						{
+							if (bOtherWouldRemoveNext && ensure(CutMesh[1]->IsBoundaryEdge(OtherCollapseInfo.KeptEdges.A)))
+							{
+								CutBoundaryEdgeSets[1].Add(OtherCollapseInfo.KeptEdges.A);
+							}
 							AllVIDMatches.Remove(RemoveV);
 							CutBoundaryEdgeSets[1].Remove(OtherCollapseInfo.CollapsedEdge);
 							CutBoundaryEdgeSets[1].Remove(OtherCollapseInfo.RemovedEdges[0]);
