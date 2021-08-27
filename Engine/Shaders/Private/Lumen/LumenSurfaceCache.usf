@@ -88,8 +88,8 @@ void LumenCardCopyPS(
 		}
 		#else
 		{
-			float3 Albedo = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).xyz;
-			OutColor0 = float4(Albedo, 0.0f);
+			float Opacity = Texture2DSampleLevel(SourceAtlas, GlobalPointClampedSampler, AtlasUV, 0).w;
+			OutColor0 = float4(Opacity, 0.0f, 0.0f, 0.0f);
 		}
 		#endif
 	}
