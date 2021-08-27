@@ -348,6 +348,8 @@ private:
 
 	TArray<UNiagaraStackFunctionInput*> GetChildInputs() const;
 
+	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
+
 private:
 	/** The module function call which owns this input entry. NOTE: This input might not be an input to the module function
 		call, it may be an input to a dynamic input function call which is owned by the module. */
@@ -367,6 +369,9 @@ private:
 
 	/** The meta data for this input, defined in the owning function's script. */
 	TOptional<FNiagaraVariableMetaData> InputMetaData;
+
+	// Stack issues generated when updating from metadata.
+	TArray<FStackIssue> InputMetaDataIssues;
 
 	/** A unique key for this input for looking up editor only UI data. */
 	FString StackEditorDataKey;
@@ -471,4 +476,10 @@ private:
 
 	// If true then this stack entry is the semantic child of another stack entry
 	bool bIsSemanticChild = false;
+
+	// The value of the change id for the graph which owns the function call that owns this input as of the last refresh.
+	TOptional<FGuid> LastOwningGraphChangeId;
+
+	// The value of the change id for the called graph of the function call which owns this input as of the last refresh.
+	TOptional<FGuid> LastFunctionGraphChangeId;
 };

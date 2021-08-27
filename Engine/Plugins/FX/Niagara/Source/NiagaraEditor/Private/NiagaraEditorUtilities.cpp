@@ -1139,7 +1139,7 @@ void FNiagaraEditorUtilities::SetStaticSwitchConstants(UNiagaraGraph* Graph, TAr
 		UNiagaraNodeFunctionCall* FunctionNode = Cast<UNiagaraNodeFunctionCall>(Node);
 		if (FunctionNode)
 		{
-			FunctionNode->DebugState = FunctionNode->bInheritDebugStatus? ConstantResolver.GetDebugState() : ENiagaraFunctionDebugState::NoDebug;
+			FunctionNode->DebugState = FunctionNode->bInheritDebugStatus? ConstantResolver.CalculateDebugState() : ENiagaraFunctionDebugState::NoDebug;
 
 			if (FunctionNode->PropagatedStaticSwitchParameters.Num() > 0)
 			{

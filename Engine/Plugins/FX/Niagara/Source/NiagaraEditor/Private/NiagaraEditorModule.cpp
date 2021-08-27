@@ -146,6 +146,8 @@
 
 #include "NiagaraPerfBaseline.h"
 
+#include "NiagaraGraphDataCache.h"
+
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
 #define LOCTEXT_NAMESPACE "NiagaraEditorModule"
@@ -1101,6 +1103,8 @@ void FNiagaraEditorModule::StartupModule()
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &FNiagaraEditorModule::GeneratePerfBaselines);
 #endif
+
+	GraphDataCache = MakeUnique<FNiagaraGraphDataCache>();
 }
 
 void FNiagaraEditorModule::ShutdownModule()
@@ -1215,6 +1219,8 @@ void FNiagaraEditorModule::ShutdownModule()
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().Unbind();
 #endif
+
+	GraphDataCache.Reset();
 }
 
 void FNiagaraEditorModule::OnPostEngineInit()

@@ -40,6 +40,7 @@ class FParticlePerfStatsListener_NiagaraBaselineComparisonRender;
 class FNiagaraDebugger;
 class UNiagaraParameterDefinitions;
 class UNiagaraReservedParametersManager;
+class FNiagaraGraphDataCache;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -196,6 +197,8 @@ public:
 
 	TArray<UNiagaraParameterDefinitions*>& GetReservedDefinitions() { return ReservedDefinitions; };
 
+	FNiagaraGraphDataCache& GetGraphDataCache() const { return *GraphDataCache.Get(); }
+
 private:
 	class FDeferredDestructionContainerBase
 	{
@@ -335,6 +338,8 @@ private:
 
 	// Set of Parameter Definitions assets to reconcile the unique Id for Definitions that are duplicated from each other.
 	TArray<UNiagaraParameterDefinitions*> ReservedDefinitions;
+
+	TUniquePtr<FNiagaraGraphDataCache> GraphDataCache;
 };
 
 USTRUCT()

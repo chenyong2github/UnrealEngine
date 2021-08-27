@@ -1040,19 +1040,22 @@ void UNiagaraStackModuleItem::RefreshIsEnabled()
 
 void UNiagaraStackModuleItem::OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages)
 {
-	MessageManagerIssues.Reset();
-	for (TSharedRef<const INiagaraMessage> Message : NewMessages)
+	if (MessageManagerIssues.Num() != 0 || NewMessages.Num() != 0)
 	{
-		// Sometimes compile errors with the same info are generated, so guard against duplicates here.
-		FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
-		if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
-			{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+		MessageManagerIssues.Reset();
+		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 		{
-			MessageManagerIssues.Add(Issue);
+			// Sometimes compile errors with the same info are generated, so guard against duplicates here.
+			FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
+			if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			{
+				MessageManagerIssues.Add(Issue);
+			}
 		}
-	}
 
-	RefreshChildren();
+		RefreshChildren();
+	}
 }
 
 bool UNiagaraStackModuleItem::CanMoveAndDelete() const

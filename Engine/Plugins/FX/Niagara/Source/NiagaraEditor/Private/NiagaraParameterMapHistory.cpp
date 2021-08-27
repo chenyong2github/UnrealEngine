@@ -1552,7 +1552,7 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 	if (OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetFunctionDebugStateEnum(), TEXT("Function.DebugState")))
 	{
 		FNiagaraInt32 EnumValue;
-		EnumValue.Value = (uint8)GetDebugState();
+		EnumValue.Value = (uint8)CalculateDebugState();
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}
@@ -1625,7 +1625,7 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 	return false;
 }
 
-ENiagaraFunctionDebugState FCompileConstantResolver::GetDebugState() const
+ENiagaraFunctionDebugState FCompileConstantResolver::CalculateDebugState() const
 {
 	const UNiagaraSystem* CurrentSystem =  System? System : (Emitter ? Cast<UNiagaraSystem>(Emitter->GetOuter()) : nullptr);
 	bool bDisableDebug = CurrentSystem ? CurrentSystem->bDisableAllDebugSwitches : false;

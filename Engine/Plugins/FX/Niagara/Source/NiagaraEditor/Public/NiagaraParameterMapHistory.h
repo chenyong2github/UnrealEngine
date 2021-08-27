@@ -21,9 +21,15 @@ public:
 	FCompileConstantResolver(const UNiagaraSystem* System, ENiagaraScriptUsage Usage, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(nullptr), System(System), Translator(nullptr), Usage(Usage), DebugState(DebugState) {}
 	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator, ENiagaraFunctionDebugState DebugState = ENiagaraFunctionDebugState::NoDebug) : Emitter(nullptr), System(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function), DebugState(DebugState) {}
 
+	const UNiagaraEmitter* GetEmitter() const { return Emitter; }
+	const UNiagaraSystem* GetSystem() const { return System; }
+	const FHlslNiagaraTranslator* GetTranslator() const { return Translator; }
+	ENiagaraScriptUsage GetUsage() const { return Usage; }
+	ENiagaraFunctionDebugState GetDebugState() const { return DebugState; }
+
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 
-	ENiagaraFunctionDebugState GetDebugState() const;
+	ENiagaraFunctionDebugState CalculateDebugState() const;
 	FCompileConstantResolver WithDebugState(ENiagaraFunctionDebugState InDebugState) const;
 	FCompileConstantResolver WithUsage(ENiagaraScriptUsage ScriptUsage) const;
 private:
