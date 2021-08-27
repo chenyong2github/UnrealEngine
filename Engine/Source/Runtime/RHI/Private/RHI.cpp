@@ -641,6 +641,8 @@ void FRHIResource::BeginTrackingResource(FRHIResource* InResource)
 {
 	if (GRHITrackingResources)
 	{
+		LLM_SCOPE_BYNAME(TEXT("RHIMisc/ResourceTracking"));
+
 		FScopeLock Lock(&GRHIResourceTrackingCriticalSection);
 
 		InResource->bBeingTracked = true;

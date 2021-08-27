@@ -1524,7 +1524,7 @@ FORCEINLINE TRefCountPtr<FRHIRayTracingPipelineState> RHICreateRayTracingPipelin
 
 FORCEINLINE FUniformBufferLayoutRHIRef RHICreateUniformBufferLayout(const FRHIUniformBufferLayoutInitializer& Initializer)
 {
-	LLM_SCOPE(ELLMTag::RHIMisc);
+	LLM_SCOPE_BYNAME(TEXT("RHIMisc/CreateUniformBufferLayout"));
 	return new FRHIUniformBufferLayout(Initializer);
 }
 
