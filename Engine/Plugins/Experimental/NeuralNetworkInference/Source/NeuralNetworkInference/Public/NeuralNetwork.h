@@ -74,17 +74,22 @@ public:
 	virtual ~UNeuralNetwork();
 
 	/**
-	 * Editor-only function
 	 * It loads the desired network graph definition and weights given an input ONNX file path.
 	 * @param InModelFilePath can either be a full path or a relative path with respect to the Game project.
 	 * @return Whether the network was successfully loaded.
 	 */
-#if WITH_EDITOR
 	bool Load(const FString& InModelFilePath);
-#endif // WITH_EDITOR
 
 	/**
-	 * It loads the desired network graph definition and weights given an input UNeuralNetwork UAsset.
+	 * It loads the desired network graph definition and weights given an input ONNX file path that has been read as a TArray<uint8> buffer.
+	 * @see FFileHelper::LoadFileToArray for an example of how to read a file into a TArray<uint8>.
+	 * @param InModelReadFromFileInBytes will be moved for performance reasons.
+	 * @return Whether the network was successfully loaded.
+	 */
+	bool Load(TArray<uint8>& InModelReadFromFileInBytes);
+
+	/**
+	 * It loads the desired network graph definition and weights internally saved on this UNeuralNetwork instance.
 	 * @return Whether the network was successfully loaded.
 	 */
 	bool Load();
@@ -212,7 +217,7 @@ private:
 	bool bIsLoaded;
 
 	UPROPERTY()
-	TArray<uint8> ModelReadFromDiskInBytes;
+	TArray<uint8> ModelReadFromFileInBytes;
 
 	/**
 	 * If BackEnd != Auto, BackEndForCurrentPlatform will be equal to BackEnd.

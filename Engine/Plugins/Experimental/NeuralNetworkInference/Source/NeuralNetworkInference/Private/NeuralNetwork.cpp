@@ -60,15 +60,14 @@ UNeuralNetwork::~UNeuralNetwork()
 /* UNeuralNetwork public functions
  *****************************************************************************/
 
-#if WITH_EDITOR
 bool UNeuralNetwork::Load(const FString& InModelFilePath)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_EditorOnly"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromFString"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
 
 	// Clean previous networks
 	bIsLoaded = false;
 
-	// Fill ModelFullFilePath & ModelReadFromDiskInBytes
+	// Fill ModelFullFilePath & ModelReadFromFileInBytes
 	{
 		// Sanity check
 		if (InModelFilePath.IsEmpty())
@@ -84,34 +83,37 @@ bool UNeuralNetwork::Load(const FString& InModelFilePath)
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Model not found \"%s\"."), *ModelFullFilePath);
 			return false;
 		}
-		// Read file into ModelReadFromDiskInBytes
+		// Read file into ModelReadFromFileInBytes
 		// Source: https://github.com/microsoft/onnxruntime/blob/894fc828587c919d815918c4da6cde314e5d54ed/onnxruntime/test/shared_lib/test_model_loading.cc#L21-L31
-		if (!FFileHelper::LoadFileToArray(ModelReadFromDiskInBytes, *ModelFullFilePath))
+		if (!FFileHelper::LoadFileToArray(ModelReadFromFileInBytes, *ModelFullFilePath))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Error reading model \"%s\"."), *ModelFullFilePath);
 			return false;
 		}
 	}
 
-	// UEAndORT
-	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	return Load();
+}
+
+
+bool UNeuralNetwork::Load(TArray<uint8>& InModelReadFromFileInBytes)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Load_FromTArrayUInt8"), STAT_UNeuralNetwork_Load, STATGROUP_MachineLearning);
+
+	// Clean previous networks
+	bIsLoaded = false;
+
+	if (InModelReadFromFileInBytes.IsEmpty())
 	{
-		return Load();
-	}
-	// UEOnly
-	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
-	{
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromDiskInBytes*/ ModelFullFilePath);
-	}
-	// Unknown
-	else
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(): InModelReadFromFileInBytes is empty."));
+		return false;
 	}
 
-	return bIsLoaded;
+	// Read file into ModelReadFromFileInBytes
+	Swap(ModelReadFromFileInBytes, InModelReadFromFileInBytes);
+
+	return Load();
 }
-#endif //WITH_EDITOR
 
 
 bool UNeuralNetwork::Load()
@@ -124,12 +126,16 @@ bool UNeuralNetwork::Load()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, InputTensors, OutputTensors, AreInputTensorSizesVariable, ModelReadFromDiskInBytes, ModelFullFilePath, GetDeviceType());
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, InputTensors, OutputTensors, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType());
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromDiskInBytes*/ ModelFullFilePath);
+#if WITH_EDITOR
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromFileInBytes*/ ModelFullFilePath);
+#else //WITH_EDITOR
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(const FString& InModelFilePath) only supported in Editor (WITH_EDITOR) for ENeuralBackEnd::UEOnly."));
+#endif //WITH_EDITOR
 	}
 	// Unknown
 	else
@@ -390,8 +396,8 @@ void UNeuralNetwork::PostInitProperties()
 void UNeuralNetwork::PostLoad()
 {
 	Super::PostLoad();
-	// If ModelReadFromDiskInBytes is not empty, call Load() 
-	if (ModelReadFromDiskInBytes.Num() > 0)
+	// If ModelReadFromFileInBytes is not empty, call Load() 
+	if (ModelReadFromFileInBytes.Num() > 0)
 	{
 		if (!Load())
 		{
