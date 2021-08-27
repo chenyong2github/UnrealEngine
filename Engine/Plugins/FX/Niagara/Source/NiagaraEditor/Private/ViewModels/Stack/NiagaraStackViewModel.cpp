@@ -89,10 +89,8 @@ void UNiagaraStackViewModel::InitializeWithViewModels(TSharedPtr<FNiagaraSystemV
 	{
 		if (EmitterViewModel.IsValid())
 		{
-			EmitterViewModel->OnScriptCompiled().AddUObject(this, &UNiagaraStackViewModel::OnEmitterCompiled);
 			EmitterViewModel->OnParentRemoved().AddUObject(this, &UNiagaraStackViewModel::EmitterParentRemoved);
 		}
-		SystemViewModelPinned->OnSystemCompiled().AddUObject(this, &UNiagaraStackViewModel::OnSystemCompiled);
 		
 		UNiagaraStackRoot* StackRoot = NewObject<UNiagaraStackRoot>(this);
 		UNiagaraStackEntry::FRequiredEntryData RequiredEntryData(SystemViewModelPinned.ToSharedRef(), EmitterViewModel,
@@ -153,13 +151,11 @@ void UNiagaraStackViewModel::Reset()
 
 	if (EmitterHandleViewModel.IsValid())
 	{
-		EmitterHandleViewModel.Pin()->GetEmitterViewModel()->OnScriptCompiled().RemoveAll(this);
 		EmitterHandleViewModel.Reset();
 	}
 
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel.Pin()->OnSystemCompiled().RemoveAll(this);
 		SystemViewModel.Reset();
 	}
 
@@ -345,18 +341,6 @@ void UNiagaraStackViewModel::CollapseToHeadersRecursive(TArray<UNiagaraStackEntr
 void UNiagaraStackViewModel::GetPathForEntry(UNiagaraStackEntry* Entry, TArray<UNiagaraStackEntry*>& EntryPath) const
 {
 	GeneratePathForEntry(RootEntry, Entry, TArray<UNiagaraStackEntry*>(), EntryPath);
-}
-
-void UNiagaraStackViewModel::OnSystemCompiled()
-{
-	// Queue a refresh for the next tick because forcing a refresh now can cause entries to be finalized while they're still being used.
-	bRefreshPending = true;
-}
-
-void UNiagaraStackViewModel::OnEmitterCompiled(UNiagaraScript*, const FGuid&)
-{
-	// Queue a refresh for the next tick because forcing a refresh now can cause entries to be finalized while they're still being used.
-	bRefreshPending = true;
 }
 
 void UNiagaraStackViewModel::EmitterParentRemoved()

@@ -372,6 +372,12 @@ TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInput::GetChildInputs()
 	return ChildInputs;
 }
 
+void UNiagaraStackFunctionInput::GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const
+{
+	OutOwningGraphChangeId = OwningFunctionCallNode->GetNiagaraGraph()->GetChangeID();
+	OutFunctionGraphChangeId = OwningFunctionCallNode->GetCalledGraph() != nullptr ? OwningFunctionCallNode->GetCalledGraph()->GetChangeID() : FGuid();
+}
+
 FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
 {
 	if (IsFinalized())
@@ -756,6 +762,12 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 	{
 		NewIssues.Append(MessageManagerIssues);
 	}
+
+	FGuid CurrentOwningGraphChangeId;
+	FGuid CurrentFunctionGraphChangeId;
+	GetCurrentChangeIds(CurrentOwningGraphChangeId, CurrentFunctionGraphChangeId);
+	LastOwningGraphChangeId = CurrentOwningGraphChangeId;
+	LastFunctionGraphChangeId = CurrentFunctionGraphChangeId;
 }
 
 class UNiagaraStackFunctionInputUtilities
@@ -877,10 +889,17 @@ void UNiagaraStackFunctionInput::RefreshValues()
 		return;
 	}
 
-	// First collect the default values which are used to figure out if an input can be reset, and are used to
-	// determine the current displayed value.
-	DefaultInputValues = FInputValues();
-	UpdateValuesFromScriptDefaults(DefaultInputValues);
+	FGuid CurrentOwningGraphChangeId;
+	FGuid CurrentFunctionGraphChangeId;
+	GetCurrentChangeIds(CurrentOwningGraphChangeId, CurrentFunctionGraphChangeId);
+	if (LastOwningGraphChangeId.IsSet() == false || (CurrentOwningGraphChangeId != LastOwningGraphChangeId.GetValue()) ||
+		LastFunctionGraphChangeId.IsSet() == false || (CurrentFunctionGraphChangeId != LastFunctionGraphChangeId.GetValue()))
+	{
+		// First collect the default values which are used to figure out if an input can be reset, and are used to
+		// determine the current displayed value.
+		DefaultInputValues = FInputValues();
+		UpdateValuesFromScriptDefaults(DefaultInputValues);
+	}
 
 	FInputValues OldValues = InputValues;
 	InputValues = FInputValues();
@@ -964,7 +983,18 @@ void UNiagaraStackFunctionInput::RefreshValues()
 
 void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIssues)
 {
+	FGuid CurrentOwningGraphChangeId;
+	FGuid CurrentFunctionGraphChangeId;
+	GetCurrentChangeIds(CurrentOwningGraphChangeId, CurrentFunctionGraphChangeId);
+	if (LastFunctionGraphChangeId.IsSet() && CurrentFunctionGraphChangeId == LastFunctionGraphChangeId)
+	{
+		// If the called function graph hasn't changed, then the metadata will also be the same and we can skip updating these values.
+		NewIssues.Append(InputMetaDataIssues);
+		return;
+	}
+
 	InputMetaData.Reset();
+	InputMetaDataIssues.Empty();
 	if (OwningFunctionCallNode->IsA<UNiagaraNodeAssignment>())
 	{
 		// Set variables nodes have no metadata, but if they're setting a defined constant see if there's metadata for that.
@@ -1007,7 +1037,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIss
 
 		if (EditConditionError.IsEmpty() == false)
 		{
-			NewIssues.Add(FStackIssue(
+			InputMetaDataIssues.Add(FStackIssue(
 				EStackIssueSeverity::Info,
 				LOCTEXT("EditConditionErrorShort", "Edit condition error"),
 				FText::Format(LOCTEXT("EditConditionErrorLongFormat", "Edit condition failed to bind.  Function: {0} Input: {1} Message: {2}"), 
@@ -1023,7 +1053,7 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIss
 
 		if (VisibleConditionError.IsEmpty() == false)
 		{
-			NewIssues.Add(FStackIssue(
+			InputMetaDataIssues.Add(FStackIssue(
 				EStackIssueSeverity::Info,
 				LOCTEXT("VisibleConditionErrorShort", "Visible condition error"),
 				FText::Format(LOCTEXT("VisibleConditionErrorLongFormat", "Visible condition failed to bind.  Function: {0} Input: {1} Message: {2}"),
@@ -1037,6 +1067,8 @@ void UNiagaraStackFunctionInput::RefreshFromMetaData(TArray<FStackIssue>& NewIss
 		bIsInlineEditConditionToggle = InputType == FNiagaraTypeDefinition::GetBoolDef() && 
 			InputMetaData->bInlineEditConditionToggle;
 	}
+
+	NewIssues.Append(InputMetaDataIssues);
 }
 
 FText UNiagaraStackFunctionInput::GetDisplayName() const
@@ -1760,18 +1792,22 @@ FNiagaraVariable UNiagaraStackFunctionInput::CreateRapidIterationVariable(const 
 
 void UNiagaraStackFunctionInput::OnMessageManagerRefresh(const TArray<TSharedRef<const INiagaraMessage>>& NewMessages)
 {
-	MessageManagerIssues.Reset();
-	if (InputValues.DynamicNode.IsValid())
+	if(MessageManagerIssues.Num() != 0 || NewMessages.Num() != 0)
 	{
-		for (TSharedRef<const INiagaraMessage> Message : NewMessages)
+		MessageManagerIssues.Reset();
+		if (InputValues.DynamicNode.IsValid())
 		{
-			FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
-			if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
-				{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+			for (TSharedRef<const INiagaraMessage> Message : NewMessages)
 			{
-				MessageManagerIssues.Add(Issue);	
+				FStackIssue Issue = FNiagaraMessageUtilities::MessageToStackIssue(Message, GetStackEditorDataKey());
+				if (MessageManagerIssues.ContainsByPredicate([&Issue](const FStackIssue& NewIssue)
+					{ return NewIssue.GetUniqueIdentifier() == Issue.GetUniqueIdentifier(); }) == false)
+				{
+					MessageManagerIssues.Add(Issue);	
+				}
 			}
 		}
+		RefreshChildren();
 	}
 }
 

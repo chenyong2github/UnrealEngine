@@ -64,6 +64,10 @@ private:
 
 	void OnScriptGraphChanged(const struct FEdGraphEditAction& InAction);
 
+	void OnSystemScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
+
+	void OnParticleScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion);
+
 	TOptional<FDropRequestResponse> CanDropOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
 
 	TOptional<FDropRequestResponse> CanDropEntriesOnTarget(const UNiagaraStackEntry& TargetEntry, const FDropRequest& DropRequest);
@@ -96,6 +100,10 @@ private:
 	bool bIsValidForOutput;
 
 	TWeakObjectPtr<UEdGraph> ScriptGraph;
+
+	TWeakObjectPtr<UNiagaraSystem> OwningSystemWeak;
+
+	TWeakObjectPtr<UNiagaraScript> OwningParticleScriptWeak;
 
 	FDelegateHandle OnGraphChangedHandle;
 };

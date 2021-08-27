@@ -28,5 +28,14 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 private:
+	void GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const;
+
+private:
 	UNiagaraNodeFunctionCall* FunctionCallNode;
+
+	// The value of the change id for the graph which owns the function call as of the last refresh.
+	TOptional<FGuid> LastOwningGraphChangeId;
+
+	// The value of the change id for the called graph of the function call as of the last refresh.
+	TOptional<FGuid> LastFunctionGraphChangeId;
 };

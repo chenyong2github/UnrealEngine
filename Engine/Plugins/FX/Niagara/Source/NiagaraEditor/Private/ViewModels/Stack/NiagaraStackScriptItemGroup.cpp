@@ -381,6 +381,26 @@ void UNiagaraStackScriptItemGroup::Initialize(
 	ScriptGraph = InScriptViewModel->GetGraphViewModel()->GetGraph();
 	ScriptGraph->AddOnGraphChangedHandler(
 		FOnGraphChanged::FDelegate::CreateUObject(this, &UNiagaraStackScriptItemGroup::OnScriptGraphChanged));
+
+	if (ScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript)
+	{
+		OwningSystemWeak = &GetSystemViewModel()->GetSystem();
+		OwningSystemWeak->GetSystemSpawnScript()->OnVMScriptCompiled().AddUObject(this, &UNiagaraStackScriptItemGroup::OnSystemScriptCompiled);
+	}
+	else if (ScriptUsage == ENiagaraScriptUsage::SystemUpdateScript || ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript)
+	{
+		OwningSystemWeak = &GetSystemViewModel()->GetSystem();
+		OwningSystemWeak->GetSystemUpdateScript()->OnVMScriptCompiled().AddUObject(this, &UNiagaraStackScriptItemGroup::OnSystemScriptCompiled);
+	}
+	else if (GetEmitterViewModel().IsValid())
+	{
+		OwningParticleScriptWeak = GetEmitterViewModel()->GetEmitter()->GetScript(ScriptUsage, ScriptUsageId);
+		if (OwningParticleScriptWeak.IsValid())
+		{
+			OwningParticleScriptWeak->OnVMScriptCompiled().AddUObject(this, &UNiagaraStackScriptItemGroup::OnParticleScriptCompiled);
+			OwningParticleScriptWeak->OnGPUScriptCompiled().AddUObject(this, &UNiagaraStackScriptItemGroup::OnParticleScriptCompiled);
+		}
+	}
 }
 
 UNiagaraNodeOutput* UNiagaraStackScriptItemGroup::GetScriptOutputNode() const
@@ -411,6 +431,21 @@ void UNiagaraStackScriptItemGroup::FinalizeInternal()
 	{
 		ScriptViewModel.Reset();
 	}
+
+	if ((ScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript) && OwningSystemWeak.IsValid())
+	{
+		OwningSystemWeak->GetSystemSpawnScript()->OnVMScriptCompiled().RemoveAll(this);
+	}
+	else if ((ScriptUsage == ENiagaraScriptUsage::SystemUpdateScript || ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript) && OwningSystemWeak.IsValid())
+	{
+		OwningSystemWeak->GetSystemUpdateScript()->OnVMScriptCompiled().RemoveAll(this);
+	}
+	else if (OwningParticleScriptWeak.IsValid())
+	{
+		OwningParticleScriptWeak->OnVMScriptCompiled().RemoveAll(this);
+		OwningParticleScriptWeak->OnGPUScriptCompiled().RemoveAll(this);
+	}
+
 	Super::FinalizeInternal();
 }
 
@@ -1146,6 +1181,22 @@ void UNiagaraStackScriptItemGroup::OnScriptGraphChanged(const struct FEdGraphEdi
 	if (InAction.Action == GRAPHACTION_RemoveNode)
 	{
 		OnRequestFullRefreshDeferred().Broadcast();
+	}
+}
+
+void UNiagaraStackScriptItemGroup::OnSystemScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)
+{
+	if (IsFinalized() == false)
+	{
+		RefreshChildren();
+	}
+}
+
+void UNiagaraStackScriptItemGroup::OnParticleScriptCompiled(UNiagaraScript* InScript, const FGuid& ScriptVersion)
+{
+	if (IsFinalized() == false)
+	{
+		RefreshChildren();
 	}
 }
 

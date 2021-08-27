@@ -48,6 +48,17 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackModuleItemOutputCollection::GetS
 
 void UNiagaraStackModuleItemOutputCollection::RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues)
 {
+	FGuid CurrentOwningGraphChangeId;
+	FGuid CurrentFunctionGraphChangeId;
+	GetCurrentChangeIds(CurrentOwningGraphChangeId, CurrentFunctionGraphChangeId);
+	if (LastOwningGraphChangeId.IsSet() && CurrentOwningGraphChangeId == LastOwningGraphChangeId &&
+		LastFunctionGraphChangeId.IsSet() && CurrentFunctionGraphChangeId == LastFunctionGraphChangeId)
+	{
+		// If the owning and called graph haven't changed, then the child outputs haven't changed either.
+		NewChildren.Append(CurrentChildren);
+		return;
+	}
+
 	UEdGraphPin* OutputParameterMapPin = FNiagaraStackGraphUtilities::GetParameterMapOutputPin(*FunctionCallNode);
 	if (ensureMsgf(OutputParameterMapPin != nullptr, TEXT("Invalid Stack Graph - Function call node has no output pin.")))
 	{
@@ -84,4 +95,13 @@ void UNiagaraStackModuleItemOutputCollection::RefreshChildrenInternal(const TArr
 
 		NewChildren.Sort(SortNewChildrenPred);
 	}
+
+	LastOwningGraphChangeId = CurrentOwningGraphChangeId;
+	LastFunctionGraphChangeId = CurrentFunctionGraphChangeId;
+}
+
+void UNiagaraStackModuleItemOutputCollection::GetCurrentChangeIds(FGuid& OutOwningGraphChangeId, FGuid& OutFunctionGraphChangeId) const
+{
+	OutOwningGraphChangeId = FunctionCallNode->GetNiagaraGraph()->GetChangeID();
+	OutFunctionGraphChangeId = FunctionCallNode->GetCalledGraph() != nullptr ? FunctionCallNode->GetCalledGraph()->GetChangeID() : FGuid();
 }
