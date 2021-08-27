@@ -79,46 +79,31 @@ namespace EpicGames.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="InputData">Input data to pass to the child process</param>
+		/// <param name="Command"></param>
 		/// <param name="Arguments">Command line arguments</param>
+		/// <param name="InputData">Input data to pass to the child process</param>
+		/// <param name="GlobalOptions"></param>
 		/// <param name="Logger">Logging device</param>
-		public PerforceChildProcess(byte[]? InputData, string Arguments, ILogger Logger)
+		public PerforceChildProcess(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, IReadOnlyList<string> GlobalOptions, ILogger Logger)
 		{
 			string PerforceFileName = GetExecutable();
 
-			string FullArgumentList = "-G " + Arguments;
+			List<string> FullArguments = new List<string>();
+			FullArguments.Add("-G");
+			FullArguments.AddRange(GlobalOptions);
+			FullArguments.Add(Command);
+			FullArguments.AddRange(Arguments);
+
+			string FullArgumentList = CommandLineArguments.Join(FullArguments);
 			Logger.LogDebug("Running {0} {1}", PerforceFileName, FullArgumentList);
 
-			Scope = TraceSpan.Create($"{GetCommandName(Arguments)}", Service: "perforce");
+			Scope = TraceSpan.Create($"{Command}", Service: "perforce");
 			Scope.AddMetadata("arguments", FullArgumentList);
 
 			ChildProcessGroup = new ManagedProcessGroup();
 			ChildProcess = new ManagedProcess(ChildProcessGroup, PerforceFileName, FullArgumentList, null, null, InputData, ProcessPriorityClass.Normal);
 
 			Buffer = new byte[64 * 1024];
-		}
-
-		/// <summary>
-		/// Gets the command name from the argument list
-		/// </summary>
-		/// <param name="CommandLine">The command line arguments</param>
-		/// <returns>The command name</returns>
-		public static string GetCommandName(string CommandLine)
-		{
-			string[] Arguments = CommandLineArguments.Split(CommandLine);
-			for(int Idx = 0; Idx < Arguments.Length; Idx++)
-			{
-				string Argument = Arguments[Idx];
-				if(Argument == "-p" || Argument == "-u" || Argument == "-c")
-				{
-					Idx++;
-				}
-				else if(Argument.Length > 0 && Char.IsLetter(Argument[0]))
-				{
-					return Argument;
-				}
-			}
-			return "(unknown)";
 		}
 
 		/// <summary>
