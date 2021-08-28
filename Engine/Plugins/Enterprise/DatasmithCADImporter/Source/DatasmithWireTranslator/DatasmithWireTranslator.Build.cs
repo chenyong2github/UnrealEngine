@@ -7,7 +7,7 @@ public class DatasmithWireTranslator : ModuleRules
 {
 	public DatasmithWireTranslator(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
@@ -18,19 +18,21 @@ public class DatasmithWireTranslator : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-                "CADInterfaces",
-                "CADLibrary",
-                "CADTools",
+				"CADInterfaces",
+				"CADKernel",
+				"CADKernelSurface",
+				"CADLibrary",
+				"CADTools",
 				"CoreTechSurface",
-                "DatasmithContent",
+				"DatasmithContent",
 				"DatasmithCore",
 				"DatasmithTranslator",
 				"Engine",
 				"MeshDescription",
 				"ParametricSurface",
 				"StaticMeshDescription",
-            }
-        );
+			}
+		);
 
 		if (Target.bBuildEditor == true)
 		{

@@ -9,6 +9,7 @@
 #include "Engine/StaticMesh.h"
 #include "MeshDescription.h"
 #include "MeshDescriptionHelper.h"
+#include "Misc/FileHelper.h"
 #include "StaticMeshAttributes.h"
 #include "UObject/EnterpriseObjectVersion.h"
 
@@ -64,26 +65,14 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 		CADKernelSession->AddDatabase(RawData);
 
 		TSharedRef<CADKernel::FModel> CADKernelModel = CADKernelSession->GetModel();
-
-		// Tesselate the model
-		TSharedRef<CADKernel::FModelMesh> CADKernelModelMesh = CADKernel::FEntity::MakeShared<CADKernel::FModelMesh>();
-
-		CADLibrary::FCADKernelTools::DefineMeshCriteria(CADKernelModelMesh, ImportParameters);
-
-		CADKernel::FParametricMesher Mesher(CADKernelModelMesh);
-		Mesher.MeshEntity(CADKernelModel);
-
 		TArray<TSharedPtr<CADKernel::FBody>> CADKernelBodies = CADKernelModel->GetBodies();
 		if (CADKernelBodies.Num() != 1)
 		{
 			return bSuccessfulTessellation;
 		}
 
-		CADLibrary::FBodyMesh BodyMesh;
-		uint32 DefaultMaterialHash = 0;
-
-		TSharedRef<CADKernel::FTopologicalEntity> Body = StaticCastSharedRef<CADKernel::FTopologicalEntity>(CADKernelBodies[0].ToSharedRef());
-		if(CADLibrary::FCADKernelTools::Tessellate(Body, ImportParameters, CadMeshParameters, MeshDescription))
+		TSharedRef<CADKernel::FTopologicalEntity> CADKernelEntity = CADKernelModel;
+		if(CADLibrary::FCADKernelTools::Tessellate(CADKernelEntity, ImportParameters, CadMeshParameters, MeshDescription))
 		{
 			// To update the SectionInfoMap 
 			TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
