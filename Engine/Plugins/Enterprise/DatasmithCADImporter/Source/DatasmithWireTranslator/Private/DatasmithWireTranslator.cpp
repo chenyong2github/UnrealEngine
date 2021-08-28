@@ -8,6 +8,7 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
+#include "HAL/ConsoleManager.h"
 #include "DatasmithWireTranslatorModule.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
@@ -26,6 +27,7 @@
 #endif
 
 #include "AliasModelToCoretechConverter.h" // requires CoreTech as public dependency
+#include "AliasModelToCADKernelConverter.h"
 #include "CADInterfacesModule.h"
 #include "AliasBrepConverter.h"
 #include "CoreTechSurfaceExtension.h"
@@ -155,9 +157,9 @@ public:
 		}
 		else
 		{
-			//TSharedRef<FAliasModelToCADKernelConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCADKernelConverter>();
-			//CADModelConverter = AliasToCoretechConverter;
-			//AliasBRepConverter = AliasToCoretechConverter;
+			TSharedRef<FAliasModelToCADKernelConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCADKernelConverter>();
+			CADModelConverter = AliasToCoretechConverter;
+			AliasBRepConverter = AliasToCoretechConverter;
 		}
 	}
 
@@ -203,7 +205,7 @@ private:
 	void GetDagNodeMeta(const AlDagNode& InDagNode, TSharedPtr<IDatasmithActorElement> OutActorElement);
 
 	TOptional<FMeshDescription> GetMeshOfShellNode(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
-	TOptional<FMeshDescription> GetMeshOfNodeMesh(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters, AlMatrix4x4* AlMeshInvGlobalMatrix = nullptr);
+	TOptional<FMeshDescription> GetMeshOfNodeMesh(AlDagNode& DagNode, CADLibrary::FMeshParameters& MeshParameters, AlMatrix4x4* AlMeshInvGlobalMatrix = nullptr);
 	TOptional<FMeshDescription> GetMeshOfShellBody(TSharedRef<BodyData> DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
 	TOptional<FMeshDescription> GetMeshOfMeshBody(TSharedRef<BodyData> DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
 
@@ -1842,7 +1844,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfShellNode(AlDagNode& D
 		{
 			// Get the meshes from the dag nodes. Note that removing the mesh's DAG.
 			// will also removes the meshes, so we have to do it later.
-			TOptional<FMeshDescription> UEMesh = GetMeshOfNodeMesh(*TesselatedNode, MeshElement, MeshParameters, &AlMatrix);
+			TOptional<FMeshDescription> UEMesh = GetMeshOfNodeMesh(*TesselatedNode, MeshParameters, &AlMatrix);
 			return UEMesh;
 		}
 	}
@@ -1884,7 +1886,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfMeshBody(TSharedRef<Bo
 	return MoveTemp(MeshDescription);
 }
 
-TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfNodeMesh(AlDagNode& TesselatedNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters, AlMatrix4x4* AlMeshInvGlobalMatrix)
+TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfNodeMesh(AlDagNode& TesselatedNode, CADLibrary::FMeshParameters& MeshParameters, AlMatrix4x4* AlMeshInvGlobalMatrix)
 {
 	AlMeshNode* MeshNode = TesselatedNode.asMeshNodePtr();
 	if (!AlIsValid(MeshNode))
@@ -1999,7 +2001,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshDescription(TSharedRef<I
 
 	case kMeshNodeType:
 	{
-		return GetMeshOfNodeMesh(DagNode, MeshElement, MeshParameters);
+		return GetMeshOfNodeMesh(DagNode, MeshParameters);
 		break;
 	}
 

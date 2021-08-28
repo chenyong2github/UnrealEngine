@@ -23,6 +23,28 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 	{
 		OrientedEdge.Entity->SetLoop(Loop);
 	}
+
+	TArray<FPoint2D> LoopSampling;
+	Loop->Get2DSampling(LoopSampling);
+	FAABB2D LoopBoundary;
+	LoopBoundary += LoopSampling;
+	Loop->Boundary.Set(LoopBoundary.GetMin(), LoopBoundary.GetMax());
+
+	// Check if the loop is not composed with only degenerated edge
+	bool bDegeneratedLoop = true;
+	for (const FOrientedEdge& Edge : Loop->GetEdges())
+	{
+		if (!Edge.Entity->IsDegenerated())
+		{
+			bDegeneratedLoop = false;
+			break;
+		}
+	}
+
+	if (bDegeneratedLoop)
+	{
+		TSharedPtr<FTopologicalLoop>();
+	}
 	return Loop;
 }
 
