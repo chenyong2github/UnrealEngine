@@ -385,8 +385,8 @@ class FLumenReflectionCompactRaysCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<LumenReflection::FTraceDataPacked>, TraceDataPacked)
 
 		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint>, RWRayAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint2>, RWTraceTexelDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRayAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWTraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenReflection::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
@@ -454,7 +454,7 @@ class FLumenReflectionBucketRaysByMaterialIdCS : public FGlobalShader
 		SHADER_PARAMETER(int, MaxRayAllocationCount)
 
 		// Output
-		SHADER_PARAMETER_RDG_BUFFER_UAV(Buffer<uint2>, RWTraceTexelDataPacked)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWTraceTexelDataPacked)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<LumenReflection::FTraceDataPacked>, RWTraceDataPacked)
 
 		// Indirect args
