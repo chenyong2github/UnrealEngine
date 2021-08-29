@@ -6,6 +6,7 @@
 #include "Utils.h"
 #include "absl/strings/match.h"
 #include "modules/video_coding/codecs/vp8/include/vp8.h"
+#include "Misc/ScopeLock.h"
 
 FPixelStreamingVideoEncoderFactory::FPixelStreamingVideoEncoderFactory(IPixelStreamingSessions* InPixelStreamingSessions)
 	: PixelStreamingSessions(InPixelStreamingSessions)
@@ -19,6 +20,8 @@ FPixelStreamingVideoEncoderFactory::~FPixelStreamingVideoEncoderFactory()
 
 void FPixelStreamingVideoEncoderFactory::QueueNextEncoderOwner(FPlayerId OwnerPlayer)
 {
+	// Lock during adding a new player
+	FScopeLock FactoryLock(&this->FactoryCS);
 	PendingPlayerSessions.Enqueue(OwnerPlayer);
 }
 
@@ -48,6 +51,9 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 		return webrtc::VP8Encoder::Create();
 	else
 	{
+		// Lock during encoder creation
+		FScopeLock FactoryLock(&this->FactoryCS);
+
 		FPlayerId AssociatedPlayerId = INVALID_PLAYER_ID;
 		bool bHasSession = PendingPlayerSessions.Dequeue(AssociatedPlayerId);
 		checkf(bHasSession && AssociatedPlayerId != INVALID_PLAYER_ID, TEXT("No player session associated with encoder instance."));
@@ -61,8 +67,11 @@ std::unique_ptr<webrtc::VideoEncoder> FPixelStreamingVideoEncoderFactory::Create
 	}
 }
 
-void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
+void FPixelStreamingVideoEncoderFactory::RemoveStaleEncoders()
 {
+	// Lock during removing stale encoders
+	FScopeLock FactoryLock(&this->FactoryCS);
+
 	// Iterate backwards so we can remove invalid encoders along the way
 	for (int32 Index = ActiveEncoders.Num()-1; Index >= 0; --Index)
 	{
@@ -72,9 +81,19 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 			ActiveEncoders.RemoveAt(Index);
 			UE_LOG(PixelStreamer, Log, TEXT("Encoder factory cleaned up stale encoder associated with PlayerId=%s"), *Encoder->GetPlayerId());
 		}
-		else
+	}
+}
+
+void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation)
+{
+	// Before sending encoded image to each encoder's callback, check if all encoders we have are still relevant.
+	this->RemoveStaleEncoders();
+
+	// Go through each encoder and send our encoded image to its callback
+	for(FPixelStreamingVideoEncoder* Encoder : ActiveEncoders)
+	{
+		if(Encoder->IsRegisteredWithWebRTC())
 		{
-			// Fires a callback internally in WebRTC to pass it an encoded image
 			Encoder->SendEncodedImage(encoded_image, codec_specific_info, fragmentation);
 		}
 	}
@@ -85,6 +104,9 @@ void FPixelStreamingVideoEncoderFactory::OnEncodedImage(const webrtc::EncodedIma
 
 void FPixelStreamingVideoEncoderFactory::ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder)
 {
+	// Lock during deleting an encoder
+	FScopeLock FactoryLock(&this->FactoryCS);
+
 	ActiveEncoders.Remove(encoder);
 	if (ActiveEncoders.Num() == 0 && EncoderContext.Encoder != nullptr)
 	{

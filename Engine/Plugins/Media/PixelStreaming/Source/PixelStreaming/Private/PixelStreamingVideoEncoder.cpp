@@ -30,13 +30,10 @@ FPixelStreamingVideoEncoder::~FPixelStreamingVideoEncoder()
 
 int FPixelStreamingVideoEncoder::InitEncode(webrtc::VideoCodec const* codec_settings, VideoEncoder::Settings const& settings)
 {
+	// Note: We don't early exit if this is not the quality controller
+	// Because if this does eventually become the quality controller we want the config setup with some real values.
+	
 	UE_LOG(PixelStreamer, Log, TEXT("PixelStreaming video encoder initialise for PlayerId=%s"), *this->GetPlayerId());
-
-	// If not the associated with a quality controlling peer, then simply early exit on the encode.
-	if (!this->IsQualityController())
-	{
-		return WEBRTC_VIDEO_CODEC_OK;
-	}
 
 	checkf(AVEncoder::FVideoEncoderFactory::Get().IsSetup(), TEXT("FVideoEncoderFactory not setup"));
 
@@ -352,6 +349,8 @@ void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEn
 	auto& Available = AVEncoder::FVideoEncoderFactory::Get().GetAvailable();
 
 	Context->Encoder = AVEncoder::FVideoEncoderFactory::Get().Create(Available[0].ID, encoderInput, EncoderConfig);
+	checkf(Context->Encoder, TEXT("Pixel Streaming video encoder creation failed, check encoder config."));
+
 	FEncoderContext* ContextPtr = this->Context;
 	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) { OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); });
 }

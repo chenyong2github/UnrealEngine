@@ -7,6 +7,7 @@
 #include "Utils.h"
 #include "PlayerId.h"
 #include "IPixelStreamingSessions.h"
+#include "HAL/CriticalSection.h"
 
 class FPixelStreamingVideoEncoderFactory;
 class FPixelStreamingVideoEncoder;
@@ -22,7 +23,7 @@ class FPixelStreamingVideoEncoder;
 struct FEncoderContext
 {
 	FPixelStreamingVideoEncoderFactory* Factory;
-	TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
+	TUniquePtr<AVEncoder::FVideoEncoder> Encoder; // The real underlying encoder.
 	FSmoothedValue<60> SmoothedAvgQP;
 };
 
@@ -50,6 +51,7 @@ public:
 
 	void OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
 	void ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder);
+	void RemoveStaleEncoders();
 
 private:
 	FEncoderContext EncoderContext;
@@ -60,4 +62,7 @@ private:
 	
 	// Used for checks such as whether a given player id is associated with the quality controlling player.
 	IPixelStreamingSessions* PixelStreamingSessions;
+
+	// This encoder factory can be access on multiple WebRTC threads (1 for each peer) so it needs resource locking.
+	FCriticalSection FactoryCS;
 };

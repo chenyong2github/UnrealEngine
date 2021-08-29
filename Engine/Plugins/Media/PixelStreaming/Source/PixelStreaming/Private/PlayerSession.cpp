@@ -236,7 +236,9 @@ void FPlayerSession::OnRemoteIceCandidate(TUniquePtr<webrtc::IceCandidateInterfa
 void FPlayerSession::DisconnectPlayer(const FString& Reason)
 {
 	if (bDisconnecting)
+	{
 		return; // already notified SignallingServer to disconnect this player
+	}
 
 	bDisconnecting = true;
 	Streamer.GetSignallingServerConnection()->SendDisconnectPlayer(PlayerId, Reason);
