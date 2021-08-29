@@ -126,7 +126,7 @@ bool UNeuralNetwork::Load()
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, InputTensors, OutputTensors, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType());
+		bIsLoaded = UNeuralNetwork::FImplBackEndUEAndORT::Load(ImplBackEndUEAndORT, AreInputTensorSizesVariable, ModelReadFromFileInBytes, ModelFullFilePath, GetDeviceType());
 	}
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
@@ -228,41 +228,46 @@ void UNeuralNetwork::SetBackEnd(const ENeuralBackEnd InBackEnd)
 
 const FNeuralTensor& UNeuralNetwork::GetInputTensor(const int32 InTensorIndex) const
 {
+	// Sanity check
+	checkf(bIsLoaded, TEXT("Call UNeuralNetwork::Load() to load a model first."));
+
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		return InputTensors[InTensorIndex];
+		return ImplBackEndUEAndORT->InputTensors[InTensorIndex];
 	}
 
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-		const int32 TensorIndex = ImplBackEndUEOnly->TensorManager.GetInputIndexes()[InTensorIndex];
-		return ImplBackEndUEOnly->TensorManager.GetTensors()[TensorIndex];
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
+		return TensorManager.GetTensors()[TensorManager.GetInputIndexes()[InTensorIndex]];
 	}
 
 	// Unknown
 	checkf(false, TEXT("UNeuralNetwork::GetInputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
-	return InputTensors[InTensorIndex];
-}
-
-const TArray<FNeuralTensor>& UNeuralNetwork::GetInputTensors() const
-{
-	return InputTensors;
+	return ImplBackEndUEAndORT->InputTensors[InTensorIndex];
 }
 
 void UNeuralNetwork::SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex)
 {
+	// Sanity check
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): Call UNeuralNetwork::Load() to load a model first."));
+	}
+
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		InputTensors[InTensorIndex].SetFromArrayCopy(InArray);
+		ImplBackEndUEAndORT->InputTensors[InTensorIndex].SetFromArrayCopy(InArray);
 	}
 
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArrayCopy(): UEOnly not implemented yet."));
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
+		TensorManager.GetTensorsMutable()[TensorManager.GetInputIndexes()[InTensorIndex]].SetFromArrayCopy(InArray);
 	}
 
 	// Unknown
@@ -274,16 +279,24 @@ UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::SetInputFromArr
 
 void* UNeuralNetwork::GetInputDataPointerMutable(const int32 InTensorIndex)
 {
+	// Sanity check
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetInputDataPointerMutable(): Call UNeuralNetwork::Load() to load a model first."));
+		return nullptr;
+	}
+
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		return InputTensors[InTensorIndex].GetData(); // Or ImplBackEndUEAndORT->InputOrtTensors[InTensorIndex].GetTensorMutableData<float>();
+		return ImplBackEndUEAndORT->InputTensors[InTensorIndex].GetData(); // Or ImplBackEndUEAndORT->InputOrtTensors[InTensorIndex].GetTensorMutableData<float>();
 	}
 
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetInputDataPointerMutable(): UEOnly not implemented yet."));
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
+		return TensorManager.GetTensorsMutable()[TensorManager.GetInputIndexes()[InTensorIndex]].GetData();
 	}
 
 	// Unknown
@@ -291,38 +304,89 @@ UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetInputDataPoi
 	return nullptr;
 }
 
-const FNeuralTensor& UNeuralNetwork::GetOutputTensor(const int32 InTensorIndex) const
+int64 UNeuralNetwork::GetInputTensorNumber() const
 {
+	// Sanity check
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetInputTensorNumber(): Call UNeuralNetwork::Load() to load a model first."));
+		return -1;
+	}
+
 	// UEAndORT
 	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
 	{
-		return OutputTensors[InTensorIndex];
+		return ImplBackEndUEAndORT->InputTensors.Num();
 	}
 
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetOutputTensor(): UEOnly not implemented yet."));
+		return ImplBackEndUEOnly->TensorManager.GetInputIndexes().Num();
+	}
+
+	// Unknown
+	checkf(false, TEXT("UNeuralNetwork::GetInputTensorNumber(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return -1;
+}
+
+const FNeuralTensor& UNeuralNetwork::GetOutputTensor(const int32 InTensorIndex) const
+{
+	// Sanity check
+	checkf(bIsLoaded, TEXT("Call UNeuralNetwork::Load() to load a model first."));
+
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return ImplBackEndUEAndORT->OutputTensors[InTensorIndex];
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+		FNeuralTensorManager& TensorManager = ImplBackEndUEOnly->TensorManager;
+		return TensorManager.GetTensors()[TensorManager.GetOutputIndexes()[InTensorIndex]];
 	}
 
 	// Unknown
 	checkf(false, TEXT("UNeuralNetwork::GetOutputTensor(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
-	return OutputTensors[InTensorIndex];
+	return ImplBackEndUEAndORT->OutputTensors[InTensorIndex];
 }
 
-const TArray<FNeuralTensor>& UNeuralNetwork::GetOutputTensors() const
+int64 UNeuralNetwork::GetOutputTensorNumber() const
 {
-	return OutputTensors;
+	// Sanity check
+	if (!bIsLoaded)
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::GetOutputTensorNumber(): Call UNeuralNetwork::Load() to load a model first."));
+		return -1;
+	}
+
+	// UEAndORT
+	if (BackEndForCurrentPlatform == ENeuralBackEnd::UEAndORT)
+	{
+		return ImplBackEndUEAndORT->OutputTensors.Num();
+	}
+
+	// UEOnly
+	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
+	{
+		return ImplBackEndUEOnly->TensorManager.GetOutputIndexes().Num();
+	}
+
+	// Unknown
+	checkf(false, TEXT("UNeuralNetwork::GetOutputTensorNumber(): Unknown [BackEnd,BackEndForCurrentPlatform] = [%d,%d]."), (int32)BackEnd, (int32)BackEndForCurrentPlatform);
+	return -1;
 }
 
 void UNeuralNetwork::Run()
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
 
-	// Sanity checks
+	// Sanity check
 	if (!bIsLoaded)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): No architecture has been loaded yet. Run() will not work until IsLoaded() returns true."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Run(): Call UNeuralNetwork::Load() to load a model first."));
 		return;
 	}
 

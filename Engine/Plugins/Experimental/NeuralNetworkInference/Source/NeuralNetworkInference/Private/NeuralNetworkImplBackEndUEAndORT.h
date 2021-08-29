@@ -28,13 +28,18 @@ NNI_THIRD_PARTY_INCLUDES_END
 struct UNeuralNetwork::FImplBackEndUEAndORT
 {
 public:
+	/**
+	 * InputTensors and OutputTensors represent the input and output TArray<FNeuralTensor> of the network, respectively.
+	 */
+	TArray<FNeuralTensor> InputTensors;
+	TArray<FNeuralTensor> OutputTensors;
 #ifdef WITH_UE_AND_ORT_SUPPORT
-	// Network-related variables
+	/** Network-related variables */
 	TUniquePtr<Ort::Env> Environment;
 	TUniquePtr<Ort::Session> Session;
 	TUniquePtr<Ort::AllocatorWithDefaultOptions> Allocator;
 	TUniquePtr<Ort::SessionOptions> SessionOptions;
-	// Tensor-related variables
+	/** Tensor-related variables */
 	TUniquePtr<Ort::MemoryInfo> AllocatorInfo; /* Memory allocator information */
 	TArray<Ort::Value> InputOrtTensors; /* Actual ONNXRuntime tensors */
 	TArray<const char*> InputTensorNames; /* Tensor names */
@@ -43,12 +48,10 @@ public:
 #endif //WITH_UE_AND_ORT_SUPPORT
 
 //#if WITH_EDITOR
-//	static bool LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
-//		TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
+//	static bool LoadFile(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 //#endif //WITH_EDITOR
 
-	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<FNeuralTensor>& OutInputTensors, TArray<FNeuralTensor>& OutOutputTensors,
-		TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
+	static bool Load(TSharedPtr<FImplBackEndUEAndORT>& InOutImplBackEndUEAndORT, TArray<bool>& OutAreInputTensorSizesVariable, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType);
 	
 	void Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType);
 
