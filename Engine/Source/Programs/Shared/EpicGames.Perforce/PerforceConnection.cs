@@ -17,51 +17,6 @@ using System.Threading.Tasks;
 namespace EpicGames.Perforce
 {
 	/// <summary>
-	/// Base interface for Perforce clients
-	/// </summary>
-	public interface IPerforceConnection
-	{
-		/// <summary>
-		/// Logger for this connection
-		/// </summary>
-		ILogger Logger { get; }
-
-		/// <summary>
-		/// Runs a Perforce command
-		/// </summary>
-		/// <param name="Command">The command name</param>
-		/// <param name="Arguments">Arguments for the command</param>
-		/// <param name="InputData">Input data to be passed to the command</param>
-		/// <returns>Response object</returns>
-		Task<IPerforceResponse> RunAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData);
-
-		/// <summary>
-		/// Execute the 'login' command
-		/// </summary>
-		/// <param name="Password">Password to use to login</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>Response from the server</returns>
-		Task LoginAsync(string Password, CancellationToken CancellationToken = default);
-
-		/// <summary>
-		/// Sets an environment variable
-		/// </summary>
-		/// <param name="Name">Name of the variable to set</param>
-		/// <param name="Value">Value for the variable</param>
-		/// <param name="CancellationToken">Token used to cancel the operation</param>
-		/// <returns>Response from the server</returns>
-		Task SetAsync(string Name, string Value, CancellationToken CancellationToken = default);
-
-		/// <summary>
-		/// Gets the setting of a Perforce variable
-		/// </summary>
-		/// <param name="Name">Name of the variable to get</param>
-		/// <param name="CancellationToken">Cancellation token for the request</param>
-		/// <returns>Value of the variable</returns>
-		Task<string?> TryGetSettingAsync(string Name, CancellationToken CancellationToken = default);
-	}
-
-	/// <summary>
 	/// Stores settings for communicating with a Perforce server.
 	/// </summary>
 	public class PerforceConnection : IPerforceConnection
@@ -213,9 +168,9 @@ namespace EpicGames.Perforce
 		}
 
 		/// <inheritdoc/>
-		public Task<IPerforceResponse> RunAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData)
+		public Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData)
 		{
-			return Task.FromResult<IPerforceResponse>(new PerforceChildProcess(Command, Arguments, InputData, GetGlobalArguments(), Logger));
+			return Task.FromResult<IPerforceOutput>(new PerforceChildProcess(Command, Arguments, InputData, GetGlobalArguments(), Logger));
 		}
 
 		#region p4 login
@@ -358,10 +313,9 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task<List<PerforceResponse>> CommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Type? StatRecordType, CancellationToken CancellationToken = default)
 		{
-			using (IPerforceResponse Response = await Perforce.RunAsync(Command, Arguments, InputData))
+			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, InputData))
 			{
-				CachedRecordInfo? StatRecordInfo = (StatRecordType == null) ? null : PerforceReflection.GetCachedRecordInfo(StatRecordType);
-				return await Response.ReadResponsesAsync(StatRecordInfo, CancellationToken);
+				return await Response.ReadResponsesAsync(StatRecordType, CancellationToken);
 			}
 		}
 
@@ -377,7 +331,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of objects returned by the server</returns>
 		public static async Task RecordCommandAsync(this IPerforceConnection Perforce, string Command, IReadOnlyList<string> Arguments, byte[]? InputData, Action<PerforceRecord> HandleRecord, CancellationToken CancellationToken = default)
 		{
-			using (IPerforceResponse Response = await Perforce.RunAsync(Command, Arguments, InputData))
+			await using (IPerforceOutput Response = await Perforce.CommandAsync(Command, Arguments, InputData))
 			{
 				await Response.ReadRecordsAsync(HandleRecord, CancellationToken);
 			}
@@ -1751,6 +1705,18 @@ namespace EpicGames.Perforce
 		/// Execute the 'fstat' command
 		/// </summary>
 		/// <param name="Connection">Connection to the Perforce server</param>
+		/// <param name="FileSpecs">List of file specifications to query</param>
+		/// <param name="CancellationToken">Token used to cancel the operation</param>
+		/// <returns>List of responses from the server</returns>
+		public static async Task<List<FStatRecord>> FStatAsync(this IPerforceConnection Connection, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		{
+			return (await TryFStatAsync(Connection, FStatOptions.None, FileSpecs, CancellationToken)).Data;
+		}
+
+		/// <summary>
+		/// Execute the 'fstat' command
+		/// </summary>
+		/// <param name="Connection">Connection to the Perforce server</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
@@ -1798,7 +1764,7 @@ namespace EpicGames.Perforce
 		/// <returns>List of responses from the server</returns>
 		public static Task<PerforceResponseList<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
 		{
-			return TryFStatAsync(Connection, -1, -1, null, MaxFiles, Options, FileSpecs, CancellationToken);
+			return TryFStatAsync(Connection, -1, -1, null, null, MaxFiles, Options, FileSpecs, CancellationToken);
 		}
 
 		/// <summary>
@@ -1808,14 +1774,15 @@ namespace EpicGames.Perforce
 		/// <param name="AfterChangeNumber">Return only files affected after the given changelist number.</param>
 		/// <param name="OnlyChangeNumber">Return only files affected by the given changelist number.</param>
 		/// <param name="Filter">List only those files that match the criteria specified.</param>
+		/// <param name="Fields">Fields to return in the output</param>
 		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<List<FStatRecord>> FStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<List<FStatRecord>> FStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, string? Fields, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
 		{
-			return (await TryFStatAsync(Connection, AfterChangeNumber, OnlyChangeNumber, Filter, MaxFiles, Options, FileSpecs, CancellationToken)).Data;
+			return (await TryFStatAsync(Connection, AfterChangeNumber, OnlyChangeNumber, Filter, Fields, MaxFiles, Options, FileSpecs, CancellationToken)).Data;
 		}
 
 		/// <summary>
@@ -1825,12 +1792,13 @@ namespace EpicGames.Perforce
 		/// <param name="AfterChangeNumber">Return only files affected after the given changelist number.</param>
 		/// <param name="OnlyChangeNumber">Return only files affected by the given changelist number.</param>
 		/// <param name="Filter">List only those files that match the criteria specified.</param>
+		/// <param name="Fields">Fields to return in the output</param>
 		/// <param name="MaxFiles">Produce fstat output for only the first max files.</param>
 		/// <param name="Options">Options for the command</param>
 		/// <param name="FileSpecs">List of file specifications to query</param>
 		/// <param name="CancellationToken">Token used to cancel the operation</param>
 		/// <returns>List of responses from the server</returns>
-		public static async Task<PerforceResponseList<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
+		public static async Task<PerforceResponseList<FStatRecord>> TryFStatAsync(this IPerforceConnection Connection, int AfterChangeNumber, int OnlyChangeNumber, string? Filter, string? Fields, int MaxFiles, FStatOptions Options, FileSpecList FileSpecs, CancellationToken CancellationToken = default)
 		{
 			// Build the argument list
 			List<string> Arguments = new List<string>();
@@ -1846,6 +1814,11 @@ namespace EpicGames.Perforce
 			{
 				Arguments.Add("-F");
 				Arguments.Add(Filter);
+			}
+			if (Fields != null)
+			{
+				Arguments.Add("-T");
+				Arguments.Add(Fields);
 			}
 			if((Options & FStatOptions.ReportDepotSyntax) != 0)
 			{
