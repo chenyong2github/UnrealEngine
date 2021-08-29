@@ -94,13 +94,8 @@ void FPrivateNeuralTensor::NDTensorIndexesPlus1(TArray<int32>& InOutImageAreaInd
 
 
 
-/* FNeuralTensor structors
+/* FNeuralTensor costructors
  *****************************************************************************/
-
-FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
-	: FNeuralTensor(InDataType, InVolume > 0 ? TArray<int64>({ InVolume }) : TArray<int64>({}), InName, InTensorTypeGPU)
-{
-}
 
 FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
 	: Name(InName)
@@ -111,6 +106,21 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const TArray<int6
 	// Memory allocation
 	SetNumUninitialized(InSizes, InDataType);
 }
+
+FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+	: FNeuralTensor(InDataType, InVolume > 0 ? TArray<int64>({ InVolume }) : TArray<int64>({}), InName, InTensorTypeGPU)
+{
+}
+
+FNeuralTensor::FNeuralTensor(const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
+	: FNeuralTensor(ENeuralDataType::None, TArray<int64>({}), InName, InTensorTypeGPU)
+{
+}
+
+
+
+/* FNeuralTensor private costructor
+ *****************************************************************************/
 
 FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const InValues, const int64 InSizeOfT, const int64 InValueNum, const TArray<int64>& InSizes, const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU)
 	: FNeuralTensor(InDataType, InSizes, InName, InTensorTypeGPU)
@@ -126,6 +136,11 @@ FNeuralTensor::FNeuralTensor(const ENeuralDataType InDataType, const void* const
 		SetFromPointer(InValues, InSizeOfT, InValueNum);
 	}
 }
+
+
+
+/* FNeuralTensor copy/move structors/assignment
+ *****************************************************************************/
 
 FNeuralTensor::FNeuralTensor(const FNeuralTensor& InTensor)
 	: FNeuralTensor(InTensor.DataType, InTensor.Sizes, InTensor.Name)

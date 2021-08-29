@@ -54,8 +54,9 @@ public:
 	 * @param InSizes Set to empty (or omit argument) if memory allocation is not required or the final size is unknown.
 	 * @param InName Used for GPU debugging and the ToString() function.
 	*/
-	explicit FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
 	explicit FNeuralTensor(const ENeuralDataType InDataType = ENeuralDataType::None, const TArray<int64>& InSizes = TArray<int64>(), const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
+	explicit FNeuralTensor(const ENeuralDataType InDataType, const int64 InVolume, const FString& InName = TEXT("FNeuralTensor"), const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
+	explicit FNeuralTensor(const FString& InName, const ENeuralTensorTypeGPU InTensorTypeGPU = ENeuralTensorTypeGPU::Generic);
 
 	/**
 	 * Performance-wise, this constructor makes a deep copy of the data (not optimal). For maximum speed, use the other constructors + GetData()/GetDataCasted().
