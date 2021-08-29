@@ -143,15 +143,15 @@ public:
 	 * These functions either take a TArray as input, return a modificable void* to fill the data, or return a constant FNeuralTensor(s) to see input properties (e.g., size or dimensions).
 	 */
 	const FNeuralTensor& GetInputTensor(const int32 InTensorIndex = 0) const;
-	const TArray<FNeuralTensor>& GetInputTensors() const;
 	void SetInputFromArrayCopy(const TArray<float>& InArray, const int32 InTensorIndex = 0);
 	void* GetInputDataPointerMutable(const int32 InTensorIndex = 0);
+	int64 GetInputTensorNumber() const;
 
 	/**
 	 * Functions to get output. The returned FNeuralTensor(s) are constant to prevent the user from modifying the tensor properties (e.g., size or dimensions).
 	 */
 	const FNeuralTensor& GetOutputTensor(const int32 InTensorIndex = 0) const;
-	const TArray<FNeuralTensor>& GetOutputTensors() const;
+	int64 GetOutputTensorNumber() const;
 
 	/**
 	 * Run() executes the forward pass on the current UNeuralNetwork given the current input FDeprecatedNeuralTensor(s), which were previously filled with
@@ -200,24 +200,14 @@ protected:
 	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
 	FString ModelFullFilePath;
 
-	/**
-	 * InputTensors and OutputTensors represent the input and output TArray<FNeuralTensor> of the network, respectively.
-	 */
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<FNeuralTensor> InputTensors;
-
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<FNeuralTensor> OutputTensors;
-
-	/** Whether some of the FNeuralTensor of InputTensor have flexible/variable dimensions. */
-	UPROPERTY(VisibleAnywhere, Category = "Neural Network Inference")
-	TArray<bool> AreInputTensorSizesVariable;
-
 private:
 	bool bIsLoaded;
 
 	UPROPERTY()
 	TArray<uint8> ModelReadFromFileInBytes;
+
+	/** Whether some of the FNeuralTensor of InputTensor have flexible/variable dimensions. */
+	TArray<bool> AreInputTensorSizesVariable;
 
 	/**
 	 * If BackEnd != Auto, BackEndForCurrentPlatform will be equal to BackEnd.

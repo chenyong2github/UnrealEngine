@@ -40,7 +40,9 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): TensorManager could not be loaded from %s."), *InModelFilePath);
 		return false;
 	}
+	// Everything worked out, return true
 	return true;
+
 #else //WITH_EDITOR
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): Only implemented for Editor mode."));
 	return false;
@@ -62,76 +64,6 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 //	Swap(InOutImplBackEndUEOnly->TensorManager, InTensorManager);
 //	InOutImplBackEndUEOnly->Operators = InOperators;
 //	return (InOutImplBackEndUEOnly->Operators.Num() > 0 && InOutImplBackEndUEOnly->TensorManager.IsLoaded());
-//}
-
-//const TArray<FNeuralTensor>& UNeuralNetwork::FImplBackEndUEOnly::GetTensors() const
-//{
-//	return TensorManager.GetTensors();
-//}
-//
-//void UNeuralNetwork::FImplBackEndUEOnly::SetInputFromTensorCopy(const FNeuralTensor& InTensorMap)
-//{
-//	return TensorManager.SetInputFromTensorCopy(InTensorMap);
-//}
-//
-//void UNeuralNetwork::FImplBackEndUEOnly::SetInputFromTensorMapCopy(const TMap<FString, FNeuralTensor>& InTensorMap)
-//{
-//	return TensorManager.SetInputFromTensorMapCopy(InTensorMap);
-//}
-//
-//TMap<FString, void*> UNeuralNetwork::FImplBackEndUEOnly::CreateInputDataPointersMutable()
-//{
-//	return TensorManager.CreateInputDataPointersMutable();
-//}
-//
-////FRDGBufferUAVRef UNeuralNetwork::FImplBackEndUEOnly::GetInputBufferUAVRef()
-////{
-////	return TensorManager.GetInputBufferUAVRef();
-////}
-////
-////TMap<FString, FRDGBufferUAVRef> UNeuralNetwork::FImplBackEndUEOnly::CreateInputBufferUAVRefs()
-////{
-////	return TensorManager.CreateInputBufferUAVRefs();
-////}
-//
-//const FNeuralTensor& UNeuralNetwork::FImplBackEndUEOnly::GetInputTensor() const
-//{
-//	return TensorManager.GetInputTensor();
-//}
-//
-//const TMap<FString, int32>& UNeuralNetwork::FImplBackEndUEOnly::GetInputNameIndexMap() const
-//{
-//	return TensorManager.GetInputNameIndexMap();
-//}
-//
-//const FNeuralTensor& UNeuralNetwork::FImplBackEndUEOnly::GetOutputTensor() const
-//{
-//	return TensorManager.GetOutputTensor();
-//}
-//
-//const TMap<FString, int32>& UNeuralNetwork::FImplBackEndUEOnly::GetOutputNameIndexMap() const
-//{
-//	return TensorManager.GetOutputNameIndexMap();
-//}
-//
-//const FRDGBufferSRVRef UNeuralNetwork::FImplBackEndUEOnly::GetOutputBufferSRVRef() const
-//{
-//	return TensorManager.GetOutputBufferSRVRef();
-//}
-//
-//TMap<FString, const FRDGBufferSRVRef> UNeuralNetwork::FImplBackEndUEOnly::CreateOutputBufferSRVRefs() const
-//{
-//	return TensorManager.CreateOutputBufferSRVRefs();
-//}
-//
-//TMap<FString, FNeuralTensor> UNeuralNetwork::FImplBackEndUEOnly::CreateInputTensorMap() const
-//{
-//	return TensorManager.CreateInputTensorMap();
-//}
-//
-//TMap<FString, FNeuralTensor> UNeuralNetwork::FImplBackEndUEOnly::CreateOutputTensorMap() const
-//{
-//	return TensorManager.CreateOutputTensorMap();
 //}
 
 void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
