@@ -366,11 +366,34 @@ void UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 	TArray<const char*>& TensorNames = (bIsInput ? InputTensorNames : OutputTensorNames);
 	Swap(TensorNames, InTensorNames);
 
-	// Pre-allocate each variable
-	if (OutTensors.Num() != TensorNumber)
+	// Note: Switching from/to CPU to/from GPU would cause the FNeuralTensors to be re-initialized. We need to avoid that. For that, we will only re-allocate the tensors...
+	// - If bAreTensorsAlreadyCreatedWithRightNames == false, meaning tensors had not been created until now for this network.
+	// - And if the existing tensors have the right size, given that SetNumUninitialized() only re-allocates them if their size has changed.
+
+	// Fill bAreTensorsAlreadyCreatedWithRightNames - Check if tensors already created with the right names
+	bool bAreTensorsAlreadyCreatedWithRightNames = (OutTensors.Num() == TensorNames.Num());
+	if (bAreTensorsAlreadyCreatedWithRightNames)
 	{
-		OutTensors.SetNum(TensorNumber);
+		for (int32 TensorIndex = 0; TensorIndex < TensorNumber; ++TensorIndex)
+		{
+			if (OutTensors[TensorIndex].GetName() != ANSI_TO_TCHAR(TensorNames[TensorIndex]))
+			{
+				bAreTensorsAlreadyCreatedWithRightNames = false;
+				break;
+			}
+		}
 	}
+
+	// Assign name to each input/output tensor
+	if (!bAreTensorsAlreadyCreatedWithRightNames)
+	{
+		OutTensors.Empty();
+		for (const char* const TensorName : TensorNames)
+		{
+			OutTensors.Emplace(FNeuralTensor(ANSI_TO_TCHAR(TensorName)));
+		}
+	}
+	ensureMsgf(OutTensors.Num() == TensorNumber, TEXT("OutTensors.Num() == TensorNumber failed, %d != %d."), OutTensors.Num(), TensorNumber);
 
 	// Config each TensorIndex
 	TArray<Ort::Value>& OrtTensors = (bIsInput ? InputOrtTensors : OutputOrtTensors);
@@ -380,7 +403,7 @@ void UNeuralNetwork::FImplBackEndUEAndORT::SetTensorsFromNetwork(TArray<FNeuralT
 		{
 			OrtTensors.Emplace(Ort::Value(nullptr));
 		}
-		// Pre-allocate TArray
+		// Pre-allocate TArray (if size is different)
 		OutTensors[TensorIndex].SetNumUninitialized(InSizes[TensorIndex], InTensorDataTypes[TensorIndex]);
 		// Link tensor with ORT blob
 		LinkTensorToONNXRuntime(OutTensors, OrtTensors, *AllocatorInfo, TensorIndex);
