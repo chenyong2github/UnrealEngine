@@ -273,26 +273,26 @@ namespace PixelStreamingSettings
 }
 
 template<typename T>
-void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar, bool StopOnSeparator = false)
 {
 	T Value;
-	if (FParse::Value(FCommandLine::Get(), Match, Value))
+	if (FParse::Value(FCommandLine::Get(), Match, Value, StopOnSeparator))
 		CVar->Set(Value, ECVF_SetByCommandline);
 };
 
-void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar)
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CVar, bool StopOnSeparator = false)
 {
 	FString Value;
-	if (FParse::Value(FCommandLine::Get(), Match, Value))
+	if (FParse::Value(FCommandLine::Get(), Match, Value, StopOnSeparator))
 		CVar->Set(*Value, ECVF_SetByCommandline);
 };
 
-void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
+void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar, bool StopOnSeparator = false)
 {
 	FString ValueMatch(Match);
 	ValueMatch.Append(TEXT("="));
 	FString Value;
-	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
+	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value, StopOnSeparator)) {
 		if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
 			CVar->Set(true, ECVF_SetByCommandline);
 		}
