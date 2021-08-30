@@ -74,7 +74,17 @@ namespace Gauntlet
 				return WorkerID != -1;
 			}
 		}
-
+		
+		/// <summary>
+		/// Returns the device pool id 
+		/// </summary>
+		public static string DevicePoolId
+		{
+			get
+			{
+				return Params.ParseValue("devicepool", "");
+			}
+		}		
 
 		public static string TempDir
 		{
