@@ -715,8 +715,7 @@ namespace UnrealBuildTool
 				// Build the target
 				using(Timeline.ScopeEvent("UEBuildTarget.Build()"))
 				{
-					const bool bIsAssemblingBuild = true;
-					Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SpecificFilesToCompile);
+					Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor.SpecificFilesToCompile);
 				}
 
 				// Save the pre-build scripts onto the makefile
@@ -755,10 +754,9 @@ namespace UnrealBuildTool
 				if (Makefile.UObjectModules.Count > 0)
 				{
 					const bool bIsGatheringBuild = false;
-					const bool bIsAssemblingBuild = true;
 
 					FileReference ModuleInfoFileName = FileReference.Combine(Makefile.ProjectIntermediateDirectory, TargetDescriptor.Name + ".uhtmanifest");
-					ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, TargetDescriptor.ProjectFile, TargetDescriptor.Name, Makefile.TargetType, Makefile.bHasProjectScriptPlugin, UObjectModules: Makefile.UObjectModules, ModuleInfoFileName: ModuleInfoFileName, bIsGatheringBuild: bIsGatheringBuild, bIsAssemblingBuild: bIsAssemblingBuild, WorkingSet: WorkingSet, UHTAdditionalArguments: Makefile.UHTAdditionalArguments);
+					ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, TargetDescriptor.ProjectFile, TargetDescriptor.Name, Makefile.TargetType, Makefile.bHasProjectScriptPlugin, UObjectModules: Makefile.UObjectModules, ModuleInfoFileName: ModuleInfoFileName, bIsGatheringBuild: bIsGatheringBuild, WorkingSet: WorkingSet, UHTAdditionalArguments: Makefile.UHTAdditionalArguments);
 				}
 			}
 			return Makefile;
