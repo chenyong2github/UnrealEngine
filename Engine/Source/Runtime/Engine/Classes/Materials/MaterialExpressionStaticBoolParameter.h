@@ -25,6 +25,14 @@ public:
 	virtual uint32 GetOutputType(int32 OutputIndex) override {return MCT_StaticBool;}
 	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
 	virtual EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	{
+		if (Meta.Value.Type == EMaterialParameterType::StaticSwitch)
+		{
+			return SetParameterValue(Name, Meta.Value.AsStaticSwitch(), Meta.ExpressionGuid);
+		}
+		return Super::SetParameterValue(Name, Meta);
+	}
 #endif
 	//~ End UMaterialExpression Interface
 

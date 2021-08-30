@@ -289,113 +289,38 @@ void FMaterialPropertyHelpers::CopyMaterialToInstance(UMaterialInstanceConstant*
 		{
 			ChildInstance->MarkPackageDirty();
 			ChildInstance->ClearParameterValuesEditorOnly();
+
+			FMaterialInstanceParameterUpdateContext UpdateContext(ChildInstance);
+
 			//propagate changes to the base material so the instance will be updated if it has a static permutation resource
-			FStaticParameterSet NewStaticParameters;
 			for (int32 GroupIdx = 0; GroupIdx < ParameterGroups.Num(); GroupIdx++)
 			{
 				FEditorParameterGroup& Group = ParameterGroups[GroupIdx];
 				for (int32 ParameterIdx = 0; ParameterIdx < Group.Parameters.Num(); ParameterIdx++)
 				{
-					if (Group.Parameters[ParameterIdx] == NULL)
+					UDEditorParameterValue* Parameter = Group.Parameters[ParameterIdx];
+					if (Parameter && Parameter->bOverride)
 					{
-						continue;
-					}
-					UDEditorScalarParameterValue* ScalarParameterValue = Cast<UDEditorScalarParameterValue>(Group.Parameters[ParameterIdx]);
-					if (ScalarParameterValue)
-					{
-						if (ScalarParameterValue->bOverride)
+						FMaterialParameterMetadata ParameterResult;
+						if (Parameter->GetValue(ParameterResult))
 						{
-							ChildInstance->SetScalarParameterValueEditorOnly(ScalarParameterValue->ParameterInfo, ScalarParameterValue->ParameterValue);
-							continue;
+							UpdateContext.SetParameterValueEditorOnly(Parameter->ParameterInfo, ParameterResult);
 						}
-					}
-					UDEditorFontParameterValue* FontParameterValue = Cast<UDEditorFontParameterValue>(Group.Parameters[ParameterIdx]);
-					if (FontParameterValue)
-					{
-						if (FontParameterValue->bOverride)
+						else
 						{
-							ChildInstance->SetFontParameterValueEditorOnly(FontParameterValue->ParameterInfo, FontParameterValue->ParameterValue.FontValue, FontParameterValue->ParameterValue.FontPage);
-							continue;
-						}
-					}
+							UDEditorMaterialLayersParameterValue* LayersParameterValue = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
+							if (LayersParameterValue)
+							{
+								FMaterialLayersFunctions LayerValue = LayersParameterValue->ParameterValue;
+								FGuid ExpressionIdValue = LayersParameterValue->ExpressionId;
 
-					UDEditorTextureParameterValue* TextureParameterValue = Cast<UDEditorTextureParameterValue>(Group.Parameters[ParameterIdx]);
-					if (TextureParameterValue)
-					{
-						if (TextureParameterValue->bOverride)
-						{
-							ChildInstance->SetTextureParameterValueEditorOnly(TextureParameterValue->ParameterInfo, TextureParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParameterValue = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Group.Parameters[ParameterIdx]);
-					if (RuntimeVirtualTextureParameterValue)
-					{
-						if (RuntimeVirtualTextureParameterValue->bOverride)
-						{
-							ChildInstance->SetRuntimeVirtualTextureParameterValueEditorOnly(RuntimeVirtualTextureParameterValue->ParameterInfo, RuntimeVirtualTextureParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorVectorParameterValue* VectorParameterValue = Cast<UDEditorVectorParameterValue>(Group.Parameters[ParameterIdx]);
-					if (VectorParameterValue)
-					{
-						if (VectorParameterValue->bOverride)
-						{
-							ChildInstance->SetVectorParameterValueEditorOnly(VectorParameterValue->ParameterInfo, VectorParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorMaterialLayersParameterValue* LayersParameterValue = Cast<UDEditorMaterialLayersParameterValue>(Group.Parameters[ParameterIdx]);
-					if (LayersParameterValue)
-					{
-						FMaterialLayersFunctions LayerValue = LayersParameterValue->ParameterValue;
-						FGuid ExpressionIdValue = LayersParameterValue->ExpressionId;
-
-						if (LayersParameterValue->bOverride)
-						{
-							FStaticMaterialLayersParameter* NewParameter =
-								new(NewStaticParameters.MaterialLayersParameters) FStaticMaterialLayersParameter(LayersParameterValue->ParameterInfo, LayerValue, LayersParameterValue->bOverride, ExpressionIdValue);
-						}
-					}
-
-					UDEditorStaticSwitchParameterValue* StaticSwitchParameterValue = Cast<UDEditorStaticSwitchParameterValue>(Group.Parameters[ParameterIdx]);
-					if (StaticSwitchParameterValue)
-					{
-						bool SwitchValue = StaticSwitchParameterValue->ParameterValue;
-						FGuid ExpressionIdValue = StaticSwitchParameterValue->ExpressionId;
-
-						if (StaticSwitchParameterValue->bOverride)
-						{
-							FStaticSwitchParameter* NewParameter =
-								new(NewStaticParameters.StaticSwitchParameters) FStaticSwitchParameter(StaticSwitchParameterValue->ParameterInfo, SwitchValue, StaticSwitchParameterValue->bOverride, ExpressionIdValue);
-						}
-					}
-
-					// static component mask
-
-					UDEditorStaticComponentMaskParameterValue* StaticComponentMaskParameterValue = Cast<UDEditorStaticComponentMaskParameterValue>(Group.Parameters[ParameterIdx]);
-					if (StaticComponentMaskParameterValue)
-					{
-						bool MaskR = StaticComponentMaskParameterValue->ParameterValue.R;
-						bool MaskG = StaticComponentMaskParameterValue->ParameterValue.G;
-						bool MaskB = StaticComponentMaskParameterValue->ParameterValue.B;
-						bool MaskA = StaticComponentMaskParameterValue->ParameterValue.A;
-						FGuid ExpressionIdValue = StaticComponentMaskParameterValue->ExpressionId;
-
-						if (StaticComponentMaskParameterValue->bOverride)
-						{
-							FStaticComponentMaskParameter* NewParameter = new(NewStaticParameters.StaticComponentMaskParameters)
-								FStaticComponentMaskParameter(StaticComponentMaskParameterValue->ParameterInfo, MaskR, MaskG, MaskB, MaskA, StaticComponentMaskParameterValue->bOverride, ExpressionIdValue);
+								FStaticMaterialLayersParameter* NewParameter =
+									new(UpdateContext.GetStaticParameters().MaterialLayersParameters) FStaticMaterialLayersParameter(LayersParameterValue->ParameterInfo, LayerValue, LayersParameterValue->bOverride, ExpressionIdValue);
+							}
 						}
 					}
 				}
 			}
-
-			ChildInstance->UpdateStaticPermutation(NewStaticParameters);
 		}
 	}
 }
@@ -410,113 +335,26 @@ void FMaterialPropertyHelpers::TransitionAndCopyParameters(UMaterialInstanceCons
 			ChildInstance->MarkPackageDirty();
 			ChildInstance->ClearParameterValuesEditorOnly();
 			//propagate changes to the base material so the instance will be updated if it has a static permutation resource
-			FStaticParameterSet NewStaticParameters;
+			//FStaticParameterSet NewStaticParameters;
+			FMaterialInstanceParameterUpdateContext UpdateContext(ChildInstance);
 			for (int32 GroupIdx = 0; GroupIdx < ParameterGroups.Num(); GroupIdx++)
 			{
 				FEditorParameterGroup& Group = ParameterGroups[GroupIdx];
 				for (int32 ParameterIdx = 0; ParameterIdx < Group.Parameters.Num(); ParameterIdx++)
 				{
-					if (Group.Parameters[ParameterIdx] == NULL)
+					UDEditorParameterValue* Parameter = Group.Parameters[ParameterIdx];
+					if (Parameter && (Parameter->bOverride || bForceCopy))
 					{
-						continue;
-					}
-					UDEditorScalarParameterValue* ScalarParameterValue = Cast<UDEditorScalarParameterValue>(Group.Parameters[ParameterIdx]);
-					if (ScalarParameterValue)
-					{
-						if (ScalarParameterValue->bOverride || bForceCopy)
+						FMaterialParameterMetadata EditorValue;
+						if (Parameter->GetValue(EditorValue))
 						{
 							FMaterialParameterInfo TransitionedScalarInfo = FMaterialParameterInfo();
-							TransitionedScalarInfo.Name = ScalarParameterValue->ParameterInfo.Name;
-							ChildInstance->SetScalarParameterValueEditorOnly(TransitionedScalarInfo, ScalarParameterValue->ParameterValue);
-							continue;
-						}
-					}
-					UDEditorFontParameterValue* FontParameterValue = Cast<UDEditorFontParameterValue>(Group.Parameters[ParameterIdx]);
-					if (FontParameterValue)
-					{
-						if (FontParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedFontInfo = FMaterialParameterInfo();
-							TransitionedFontInfo.Name = FontParameterValue->ParameterInfo.Name;
-							ChildInstance->SetFontParameterValueEditorOnly(TransitionedFontInfo, FontParameterValue->ParameterValue.FontValue, FontParameterValue->ParameterValue.FontPage);
-							continue;
-						}
-					}
-
-					UDEditorTextureParameterValue* TextureParameterValue = Cast<UDEditorTextureParameterValue>(Group.Parameters[ParameterIdx]);
-					if (TextureParameterValue)
-					{
-						if (TextureParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedTextureInfo = FMaterialParameterInfo();
-							TransitionedTextureInfo.Name = TextureParameterValue->ParameterInfo.Name;
-							ChildInstance->SetTextureParameterValueEditorOnly(TransitionedTextureInfo, TextureParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorRuntimeVirtualTextureParameterValue* RVTParameterValue = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Group.Parameters[ParameterIdx]);
-					if (RVTParameterValue)
-					{
-						if (RVTParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedTextureInfo = FMaterialParameterInfo();
-							TransitionedTextureInfo.Name = RVTParameterValue->ParameterInfo.Name;
-							ChildInstance->SetRuntimeVirtualTextureParameterValueEditorOnly(TransitionedTextureInfo, RVTParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorVectorParameterValue* VectorParameterValue = Cast<UDEditorVectorParameterValue>(Group.Parameters[ParameterIdx]);
-					if (VectorParameterValue)
-					{
-						if (VectorParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedVectorInfo = FMaterialParameterInfo();
-							TransitionedVectorInfo.Name = VectorParameterValue->ParameterInfo.Name;
-							ChildInstance->SetVectorParameterValueEditorOnly(TransitionedVectorInfo, VectorParameterValue->ParameterValue);
-							continue;
-						}
-					}
-
-					UDEditorStaticSwitchParameterValue* StaticSwitchParameterValue = Cast<UDEditorStaticSwitchParameterValue>(Group.Parameters[ParameterIdx]);
-					if (StaticSwitchParameterValue)
-					{
-						bool SwitchValue = StaticSwitchParameterValue->ParameterValue;
-						FGuid ExpressionIdValue = StaticSwitchParameterValue->ExpressionId;
-
-						if (StaticSwitchParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedSwitchInfo = FMaterialParameterInfo();
-							TransitionedSwitchInfo.Name = StaticSwitchParameterValue->ParameterInfo.Name;
-							FStaticSwitchParameter* NewParameter =
-								new(NewStaticParameters.StaticSwitchParameters) FStaticSwitchParameter(TransitionedSwitchInfo, SwitchValue, StaticSwitchParameterValue->bOverride, ExpressionIdValue);
-						}
-					}
-
-					// static component mask
-
-					UDEditorStaticComponentMaskParameterValue* StaticComponentMaskParameterValue = Cast<UDEditorStaticComponentMaskParameterValue>(Group.Parameters[ParameterIdx]);
-					if (StaticComponentMaskParameterValue)
-					{
-						bool MaskR = StaticComponentMaskParameterValue->ParameterValue.R;
-						bool MaskG = StaticComponentMaskParameterValue->ParameterValue.G;
-						bool MaskB = StaticComponentMaskParameterValue->ParameterValue.B;
-						bool MaskA = StaticComponentMaskParameterValue->ParameterValue.A;
-						FGuid ExpressionIdValue = StaticComponentMaskParameterValue->ExpressionId;
-
-						if (StaticComponentMaskParameterValue->bOverride || bForceCopy)
-						{
-							FMaterialParameterInfo TransitionedMaskInfo = FMaterialParameterInfo();
-							TransitionedMaskInfo.Name = StaticComponentMaskParameterValue->ParameterInfo.Name;
-							FStaticComponentMaskParameter* NewParameter = new(NewStaticParameters.StaticComponentMaskParameters)
-								FStaticComponentMaskParameter(TransitionedMaskInfo, MaskR, MaskG, MaskB, MaskA, StaticComponentMaskParameterValue->bOverride, ExpressionIdValue);
+							TransitionedScalarInfo.Name = Parameter->ParameterInfo.Name;
+							UpdateContext.SetParameterValueEditorOnly(TransitionedScalarInfo, EditorValue);
 						}
 					}
 				}
 			}
-
-			ChildInstance->UpdateStaticPermutation(NewStaticParameters);
 		}
 	}
 }
@@ -799,84 +637,13 @@ void FMaterialPropertyHelpers::ResetToDefault(class UDEditorParameterValue* Para
 	const FScopedTransaction Transaction( LOCTEXT( "ResetToDefault", "Reset To Default" ) );
 	Parameter->Modify();
 
-	const FMaterialParameterInfo& ParameterInfo = Parameter->ParameterInfo;
-	
-	UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
-	UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(Parameter);
-	UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(Parameter);
-	UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(Parameter);
-	UDEditorFontParameterValue* FontParam = Cast<UDEditorFontParameterValue>(Parameter);
-	UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(Parameter);
-	UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(Parameter);
-	UDEditorMaterialLayersParameterValue* LayersParam = Cast<UDEditorMaterialLayersParameterValue>(Parameter);
-
-	if (ScalarParam)
+	FMaterialParameterMetadata EditorValue;
+	if (Parameter->GetValue(EditorValue))
 	{
-		float OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetScalarParameterDefaultValue(ParameterInfo, OutValue))
+		FMaterialParameterMetadata DefaultValue;
+		if (MaterialEditorInstance->SourceInstance->GetParameterDefaultValue(EditorValue.Value.Type, Parameter->ParameterInfo, DefaultValue))
 		{
-			ScalarParam->ParameterValue = OutValue;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (VectorParam)
-	{
-		FLinearColor OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetVectorParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			VectorParam->ParameterValue = OutValue;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (TextureParam)
-	{
-		UTexture* OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetTextureParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			TextureParam->ParameterValue = OutValue;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (RuntimeVirtualTextureParam)
-	{
-		URuntimeVirtualTexture* OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			RuntimeVirtualTextureParam->ParameterValue = OutValue;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (FontParam)
-	{
-		UFont* OutFontValue;
-		int32 OutFontPage;
-		if (MaterialEditorInstance->SourceInstance->GetFontParameterDefaultValue(ParameterInfo, OutFontValue, OutFontPage))
-		{
-			FontParam->ParameterValue.FontValue = OutFontValue;
-			FontParam->ParameterValue.FontPage = OutFontPage;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (SwitchParam)
-	{
-		bool OutValue;
-		FGuid TempGuid(0,0,0,0);
-		if (MaterialEditorInstance->SourceInstance->GetStaticSwitchParameterDefaultValue(ParameterInfo, OutValue, TempGuid))
-		{
-			SwitchParam->ParameterValue = OutValue;
-			MaterialEditorInstance->CopyToSourceInstance();
-		}
-	}
-	else if (CompMaskParam)
-	{
-		bool OutValue[4];
-		FGuid TempGuid(0,0,0,0);
-		if (MaterialEditorInstance->SourceInstance->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, OutValue[0], OutValue[1], OutValue[2], OutValue[3], TempGuid))
-		{
-			CompMaskParam->ParameterValue.R = OutValue[0];
-			CompMaskParam->ParameterValue.G = OutValue[1];
-			CompMaskParam->ParameterValue.B = OutValue[2];
-			CompMaskParam->ParameterValue.A = OutValue[3];
+			Parameter->SetValue(DefaultValue.Value);
 			MaterialEditorInstance->CopyToSourceInstance();
 		}
 	}
@@ -987,100 +754,19 @@ bool FMaterialPropertyHelpers::ShouldLayerAssetShowResetToDefault(TSharedPtr<FSo
 
 bool FMaterialPropertyHelpers::ShouldShowResetToDefault(UDEditorParameterValue* InParameter, UMaterialEditorInstanceConstant* MaterialEditorInstance)
 {
-	const FMaterialParameterInfo& ParameterInfo = InParameter->ParameterInfo;
+	//const FMaterialParameterInfo& ParameterInfo = InParameter->ParameterInfo;
 
-	UDEditorFontParameterValue* FontParam = Cast<UDEditorFontParameterValue>(InParameter);
-	UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(InParameter);
-	UDEditorStaticComponentMaskParameterValue* CompMaskParam = Cast<UDEditorStaticComponentMaskParameterValue>(InParameter);
-	UDEditorStaticSwitchParameterValue* SwitchParam = Cast<UDEditorStaticSwitchParameterValue>(InParameter);
-	UDEditorTextureParameterValue* TextureParam = Cast<UDEditorTextureParameterValue>(InParameter);
-	UDEditorRuntimeVirtualTextureParameterValue* RuntimeVirtualTextureParam = Cast<UDEditorRuntimeVirtualTextureParameterValue>(InParameter);
-	UDEditorVectorParameterValue* VectorParam = Cast<UDEditorVectorParameterValue>(InParameter);
+	FMaterialParameterMetadata EditorValue;
+	if (InParameter->GetValue(EditorValue))
+	{
+		FMaterialParameterMetadata SourceValue;
+		MaterialEditorInstance->SourceInstance->GetParameterDefaultValue(EditorValue.Value.Type, InParameter->ParameterInfo, SourceValue);
+		if (EditorValue.Value != SourceValue.Value)
+		{
+			return true;
+		}
+	}
 
-	if (ScalarParam)
-	{
-		float OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetScalarParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			if (ScalarParam->ParameterValue != OutValue)
-			{
-				return true;
-			}
-		}
-	}
-	else if (FontParam)
-	{
-		UFont* OutFontValue;
-		int32 OutFontPage;
-		if (MaterialEditorInstance->SourceInstance->GetFontParameterDefaultValue(ParameterInfo, OutFontValue, OutFontPage))
-		{
-			if (FontParam->ParameterValue.FontValue != OutFontValue ||
-				FontParam->ParameterValue.FontPage != OutFontPage)
-			{
-				return true;
-			}
-		}
-	}
-	else if (TextureParam)
-	{
-		UTexture* OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetTextureParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			if (TextureParam->ParameterValue != OutValue)
-			{
-				return true;
-			}
-		}
-	}
-	else if (RuntimeVirtualTextureParam)
-	{
-		URuntimeVirtualTexture* OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			if (RuntimeVirtualTextureParam->ParameterValue != OutValue)
-			{
-				return true;
-			}
-		}
-	}
-	else if (VectorParam)
-	{
-		FLinearColor OutValue;
-		if (MaterialEditorInstance->SourceInstance->GetVectorParameterDefaultValue(ParameterInfo, OutValue))
-		{
-			if (VectorParam->ParameterValue != OutValue)
-			{
-				return true;
-			}
-		}
-	}
-	else if (SwitchParam)
-	{
-		bool OutValue;
-		FGuid TempGuid(0, 0, 0, 0);
-		if (MaterialEditorInstance->SourceInstance->GetStaticSwitchParameterDefaultValue(ParameterInfo, OutValue, TempGuid))
-		{
-			if (SwitchParam->ParameterValue != OutValue)
-			{
-				return true;
-			}
-		}
-	}
-	else if (CompMaskParam)
-	{
-		bool OutValue[4];
-		FGuid TempGuid(0, 0, 0, 0);
-		if (MaterialEditorInstance->SourceInstance->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, OutValue[0], OutValue[1], OutValue[2], OutValue[3], TempGuid))
-		{
-			if (CompMaskParam->ParameterValue.R != OutValue[0] ||
-				CompMaskParam->ParameterValue.G != OutValue[1] ||
-				CompMaskParam->ParameterValue.B != OutValue[2] ||
-				CompMaskParam->ParameterValue.A != OutValue[3])
-			{
-				return true;
-			}
-		}
-	}
 	return false;
 }
 

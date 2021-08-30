@@ -15,4 +15,23 @@ class UNREALED_API UDEditorRuntimeVirtualTextureParameterValue : public UDEditor
 
 	UPROPERTY(EditAnywhere, Category=DEditorTextureParameterValue)
 	TObjectPtr<class URuntimeVirtualTexture> ParameterValue;
+
+	virtual FName GetDefaultGroupName() const override { return TEXT("Texture Parameter Values"); }
+
+	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const override
+	{
+		UDEditorParameterValue::GetValue(OutResult);
+		OutResult.Value = ParameterValue;
+		return true;
+	}
+
+	virtual bool SetValue(const FMaterialParameterValue& Value) override
+	{
+		if (Value.Type == EMaterialParameterType::RuntimeVirtualTexture)
+		{
+			ParameterValue = Value.RuntimeVirtualTexture;
+			return true;
+		}
+		return false;
+	}
 };

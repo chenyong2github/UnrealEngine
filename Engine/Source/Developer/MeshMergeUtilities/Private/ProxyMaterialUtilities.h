@@ -43,7 +43,7 @@ namespace ProxyMaterialUtilities
 
 	static EMaterialParameterType GetConstantParamType(EFlattenMaterialProperties InProperty)
 	{
-		EMaterialParameterType ParamType = EMaterialParameterType::Count;
+		EMaterialParameterType ParamType = EMaterialParameterType::None;
 
 		switch (InProperty)
 		{
@@ -106,7 +106,7 @@ namespace ProxyMaterialUtilities
 									  InBaseMaterial->GetVectorParameterDefaultValue(ConstName, DefaultVectorValue);
 				break;
 
-			case EMaterialParameterType::Count:
+			case EMaterialParameterType::None:
 				MissingNames += UseTexture.ToString();
 				break;
 			}

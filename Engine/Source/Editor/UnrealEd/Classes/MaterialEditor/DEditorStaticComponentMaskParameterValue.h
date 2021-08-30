@@ -53,5 +53,26 @@ class UNREALED_API UDEditorStaticComponentMaskParameterValue : public UDEditorPa
 	UPROPERTY(EditAnywhere, Category=DEditorStaticComponentMaskParameterValue)
 	struct FDComponentMaskParameter ParameterValue;
 
+	virtual FName GetDefaultGroupName() const override { return TEXT("Static Component Mask Parameter Values"); }
+
+	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const override
+	{
+		UDEditorParameterValue::GetValue(OutResult);
+		OutResult.Value = FMaterialParameterValue(ParameterValue.R, ParameterValue.G, ParameterValue.B, ParameterValue.A);
+		return true;
+	}
+
+	virtual bool SetValue(const FMaterialParameterValue& Value) override
+	{
+		if (Value.Type == EMaterialParameterType::StaticComponentMask)
+		{
+			ParameterValue.R = Value.Bool[0];
+			ParameterValue.G = Value.Bool[1];
+			ParameterValue.B = Value.Bool[2];
+			ParameterValue.A = Value.Bool[3];
+			return true;
+		}
+		return false;
+	}
 };
 

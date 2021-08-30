@@ -8,6 +8,7 @@
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReleaseObjectVersion.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "StaticParameterSet.generated.h"
 
@@ -40,6 +41,8 @@ struct FStaticParameterBase
 		bOverride(InOverride),
 		ExpressionGUID(InGuid)
 	{ }
+
+	bool IsOverride() const { return bOverride; }
 
 	friend FArchive& operator<<(FArchive& Ar, FStaticParameterBase& P)
 	{
@@ -130,6 +133,14 @@ struct FStaticSwitchParameter : public FStaticParameterBase
 		FStaticParameterBase::AppendKeyString(KeyString);
 		KeyString += FString::FromInt(Value);
 	}
+
+	void GetValue(FMaterialParameterMetadata& OutResult) const
+	{
+		OutResult.Value = Value;
+#if WITH_EDITORONLY_DATA
+		OutResult.ExpressionGuid = ExpressionGUID;
+#endif
+	}
 };
 
 /**
@@ -206,6 +217,14 @@ struct FStaticComponentMaskParameter : public FStaticParameterBase
 		KeyString += FString::FromInt(G);
 		KeyString += FString::FromInt(B);
 		KeyString += FString::FromInt(A);
+	}
+
+	void GetValue(FMaterialParameterMetadata& OutResult) const
+	{
+		OutResult.Value = FMaterialParameterValue(R, G, B, A);
+#if WITH_EDITORONLY_DATA
+		OutResult.ExpressionGuid = ExpressionGUID;
+#endif
 	}
 };
 
@@ -413,6 +432,16 @@ struct FStaticParameterSet
 
 	bool Equivalent(const FStaticParameterSet& ReferenceSet) const;
 
+#if WITH_EDITORONLY_DATA
+	void SetParameterValue(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
+	void AddParametersOfType(EMaterialParameterType Type, const TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& Values);
+#endif // WITH_EDITORONLY_DATA
+
 private:
 	void SortForEquivalent();
+
+#if WITH_EDITORONLY_DATA
+	void SetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool Value);
+	void SetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool R, bool G, bool B, bool A);
+#endif // WITH_EDITORONLY_DATA
 };

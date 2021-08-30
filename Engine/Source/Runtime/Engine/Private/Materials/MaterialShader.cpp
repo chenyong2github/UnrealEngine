@@ -338,6 +338,84 @@ bool FStaticParameterSet::Equivalent(const FStaticParameterSet& ReferenceSet) co
 	return false;
 }
 
+#if WITH_EDITORONLY_DATA
+void FStaticParameterSet::SetParameterValue(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
+{
+	const FMaterialParameterValue& Value = Meta.Value;
+	switch (Value.Type)
+	{
+	case EMaterialParameterType::StaticSwitch: SetStaticSwitchParameterValue(ParameterInfo, Meta.ExpressionGuid, Value.AsStaticSwitch()); break;
+	case EMaterialParameterType::StaticComponentMask: SetStaticComponentMaskParameterValue(ParameterInfo, Meta.ExpressionGuid, Value.Bool[0], Value.Bool[1], Value.Bool[2], Value.Bool[3]); break;
+	default: checkNoEntry();
+	}
+}
+
+void FStaticParameterSet::AddParametersOfType(EMaterialParameterType Type, const TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& Values)
+{
+	switch (Type)
+	{
+	case EMaterialParameterType::StaticSwitch:
+		StaticSwitchParameters.Empty(Values.Num());
+		for (const auto& It : Values)
+		{
+			const FMaterialParameterMetadata& Meta = It.Value;
+			check(Meta.Value.Type == Type);
+			StaticSwitchParameters.Emplace(It.Key, Meta.Value.AsStaticSwitch(), Meta.bOverride, Meta.ExpressionGuid);
+		}
+		break;
+	case EMaterialParameterType::StaticComponentMask:
+		StaticComponentMaskParameters.Empty(Values.Num());
+		for (const auto& It : Values)
+		{
+			const FMaterialParameterMetadata& Meta = It.Value;
+			check(Meta.Value.Type == Type);
+			StaticComponentMaskParameters.Emplace(It.Key,
+				Meta.Value.Bool[0],
+				Meta.Value.Bool[1],
+				Meta.Value.Bool[2],
+				Meta.Value.Bool[3],
+				Meta.bOverride,
+				Meta.ExpressionGuid);
+		}
+		break;
+	default: checkNoEntry();
+	}
+}
+
+void FStaticParameterSet::SetStaticSwitchParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool Value)
+{
+	for (FStaticSwitchParameter& Parameter : StaticSwitchParameters)
+	{
+		if (Parameter.ParameterInfo == ParameterInfo)
+		{
+			Parameter.bOverride = true;
+			Parameter.Value = Value;
+			return;
+		}
+	}
+
+	new(StaticSwitchParameters) FStaticSwitchParameter(ParameterInfo, Value, true, ExpressionGuid);
+}
+
+void FStaticParameterSet::SetStaticComponentMaskParameterValue(const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool R, bool G, bool B, bool A)
+{
+	for (FStaticComponentMaskParameter& Parameter : StaticComponentMaskParameters)
+	{
+		if (Parameter.ParameterInfo == ParameterInfo)
+		{
+			Parameter.bOverride = true;
+			Parameter.R = R;
+			Parameter.G = G;
+			Parameter.B = B;
+			Parameter.A = A;
+			return;
+		}
+	}
+
+	new(StaticComponentMaskParameters) FStaticComponentMaskParameter(ParameterInfo, R, G, B, A, true, ExpressionGuid);
+}
+#endif // WITH_EDITORONLY_DATA
+
 void FMaterialShaderMapId::Serialize(FArchive& Ar, bool bLoadedByCookedMaterial)
 {
 	SCOPED_LOADTIMER(FMaterialShaderMapId_Serialize);

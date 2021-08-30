@@ -44,6 +44,14 @@ class UMaterialExpressionScalarParameter : public UMaterialExpressionParameter
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	EMaterialGenerateHLSLStatus GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression) override;
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	{
+		if (Meta.Value.Type == EMaterialParameterType::Scalar)
+		{
+			return SetParameterValue(Name, Meta.Value.AsScalar());
+		}
+		return Super::SetParameterValue(Name, Meta);
+	}
 #endif
 	//~ End UMaterialExpression Interface
 

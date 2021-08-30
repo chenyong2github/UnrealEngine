@@ -49,6 +49,8 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "ShaderCompilerCore.h"
 
+PRAGMA_DISABLE_OPTIMIZATION
+
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
 namespace MaterialInstanceCookStats
@@ -833,33 +835,7 @@ UMaterial* UMaterialInstance::GetMaterial()
 	}
 }
 
-#if WITH_EDITOR
-bool UMaterialInstance::GetScalarParameterSliderMinMax(const FHashedMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		if (CachedData->Parameters.GetScalarParameterSliderMinMax(ParameterInfo, OutSliderMin, OutSliderMax))
-		{
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetScalarParameterSliderMinMax(ParameterInfo, OutSliderMin, OutSliderMax);
-	}
-
-	return false;
-}
-#endif // WITH_EDITOR
-
-bool UMaterialInstance::GetScalarParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly) const
+bool UMaterialInstance::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
 {
 	bool bFoundAValue = false;
 
@@ -869,324 +845,55 @@ bool UMaterialInstance::GetScalarParameterValue(const FHashedMaterialParameterIn
 	}
 
 	// Instance override
-	const FScalarParameterValue* ParameterValue = GameThread_FindParameterByName(ScalarParameterValues, ParameterInfo);
-	if (ParameterValue)
+	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckInstanceOverrides))
 	{
-		OutValue = ParameterValue->ParameterValue;
-		return true;
-	}
-	
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
+		// If we're not a parent, set the flag to signify this parameter was a MI override
+		const bool bSetOverride = !EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::IsParent);
+		bool bResult = false;
+		switch (Type)
 		{
-			OutValue = CachedData->Parameters.ScalarValues[ParameterIndex];
+		case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+		case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+		case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+		case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+		case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+#if WITH_EDITORONLY_DATA
+		case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, bSetOverride, OutResult); break;
+		case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, bSetOverride, OutResult); break;
+#endif // WITH_EDITORONLY_DATA
+		default: checkNoEntry(); break;
+		}
+		if (bResult)
+		{
 			return true;
 		}
 	}
-	
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetScalarParameterValue(ParameterInfo, OutValue, bOveriddenOnly);
-	}
-	
-	return false;
-}
-
-#if WITH_EDITOR
-bool UMaterialInstance::IsScalarParameterUsedAsAtlasPosition(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// Instance override
-	const FScalarParameterValue* ParameterValue = GameThread_FindParameterByName(ScalarParameterValues, ParameterInfo);
-#if WITH_EDITOR
-	if (ParameterValue && ParameterValue->AtlasData.Curve.Get() != nullptr && ParameterValue->AtlasData.Atlas.Get() != nullptr)
-	{
-		OutValue = ParameterValue->AtlasData.bIsUsedAsAtlasPosition;
-		OutCurve = ParameterValue->AtlasData.Curve;
-		OutAtlas = ParameterValue->AtlasData.Atlas;
-		return true;
-	}
-#endif
 
 	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
+	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides) &&
+		ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter &&
+		CachedData)
 	{
-		if (CachedData->Parameters.IsScalarParameterUsedAsAtlasPosition(ParameterInfo, OutValue, OutCurve, OutAtlas))
+		if (CachedData->Parameters.GetParameterValue(Type, ParameterInfo, OutResult))
 		{
 			return true;
 		}
 	}
 
 	// Next material in hierarchy
-	if (Parent)
+	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckParent) && Parent)
 	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->IsScalarParameterUsedAsAtlasPosition(ParameterInfo, OutValue, OutCurve, OutAtlas);
-	}
-
-	return false;
-}
-#endif // WITH_EDITOR
-
-bool UMaterialInstance::GetVectorParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// Instance override
-	const FVectorParameterValue* ParameterValue = GameThread_FindParameterByName(VectorParameterValues, ParameterInfo);
-	if (ParameterValue)
-	{
-		OutValue = ParameterValue->ParameterValue;
-		return true;
-	}
-	
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
+		EMaterialGetParameterValueFlags ParentFlags = Flags | EMaterialGetParameterValueFlags::IsParent;
+		if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckNonOverrides))
 		{
-			OutValue = CachedData->Parameters.VectorValues[ParameterIndex];
-			return true;
+			// Parent's instance overrides are non-overrides relative to this material
+			ParentFlags |= EMaterialGetParameterValueFlags::CheckInstanceOverrides;
 		}
-	}
-	
-	// Next material in hierarchy
-	if (Parent)
-	{
+
 		FMICReentranceGuard	Guard(this);
-		return Parent->GetVectorParameterValue(ParameterInfo, OutValue, bOveriddenOnly);
-	}
-	
-	return false;
-}
-
-#if WITH_EDITOR
-bool UMaterialInstance::IsVectorParameterUsedAsChannelMask(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-	
-	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		if (CachedData->Parameters.IsVectorParameterUsedAsChannelMask(ParameterInfo, OutValue))
-		{
-			return true;
-		}
-	}
-	
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->IsVectorParameterUsedAsChannelMask(ParameterInfo, OutValue);
-	}
-	
-	return false;
-}
-
-bool  UMaterialInstance::GetVectorParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		return false;
+		return Parent->GetParameterValue(Type, ParameterInfo, OutResult, ParentFlags);
 	}
 
-	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		if (CachedData->Parameters.GetVectorParameterChannelNames(ParameterInfo, OutValue))
-		{
-			return true;
-		}
-	}
-
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetVectorParameterChannelNames(ParameterInfo, OutValue);
-	}
-
-	return false;
-};
-#endif // WITH_EDITOR
-
-bool UMaterialInstance::GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bOveriddenOnly) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		OutValue = nullptr;
-		return false;
-	}
-
-	// Instance override
-	const FTextureParameterValue* ParameterValue = GameThread_FindParameterByName(TextureParameterValues, ParameterInfo);
-	if (ParameterValue)
-	{
-		OutValue = ParameterValue->ParameterValue;
-		return true;
-	}
-	
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.TextureValues[ParameterIndex];
-			return true;
-		}
-	}
-	
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetTextureParameterValue(ParameterInfo,OutValue,bOveriddenOnly);
-	}
-	
-	OutValue = nullptr;
-	return false;
-}
-
-bool UMaterialInstance::GetRuntimeVirtualTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bOveriddenOnly) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		OutValue = nullptr;
-		return false;
-	}
-
-	// Instance override
-	const FRuntimeVirtualTextureParameterValue* ParameterValue = GameThread_FindParameterByName(RuntimeVirtualTextureParameterValues, ParameterInfo);
-	if (ParameterValue)
-	{
-		OutValue = ParameterValue->ParameterValue;
-		return true;
-	}
-
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.RuntimeVirtualTextureValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetRuntimeVirtualTextureParameterValue(ParameterInfo, OutValue, bOveriddenOnly);
-	}
-
-	OutValue = nullptr;
-	return false;
-}
-
-
-#if WITH_EDITOR
-bool  UMaterialInstance::GetTextureParameterChannelNames(const FHashedMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// Instance-included default
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		if (CachedData->Parameters.GetTextureParameterChannelNames(ParameterInfo, OutValue))
-		{
-			return true;
-		}
-	}
-
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetTextureParameterChannelNames(ParameterInfo, OutValue);
-	}
-
-	return false;
-};
-#endif // WITH_EDITOR
-
-bool UMaterialInstance::GetFontParameterValue(const FHashedMaterialParameterInfo& ParameterInfo,class UFont*& OutFontValue, int32& OutFontPage, bool bOveriddenOnly) const
-{
-	bool bFoundAValue = false;
-
-	if (GetReentrantFlag())
-	{
-		OutFontValue = nullptr;
-		OutFontPage = INDEX_NONE;
-		return false;
-	}
-
-	// Instance override
-	const FFontParameterValue* ParameterValue = GameThread_FindParameterByName(FontParameterValues, ParameterInfo);
-	if (ParameterValue)
-	{
-		OutFontValue = ParameterValue->FontValue;
-		OutFontPage = ParameterValue->FontPage;
-		return true;
-	}
-	
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutFontValue = CachedData->Parameters.FontValues[ParameterIndex];
-			OutFontPage = CachedData->Parameters.FontPageValues[ParameterIndex];
-			return true;
-		}
-	}
-	
-	// Next material in hierarchy
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetFontParameterValue(ParameterInfo, OutFontValue, OutFontPage, bOveriddenOnly);
-	}
-	
-	OutFontValue = nullptr;
-	OutFontPage = INDEX_NONE;
 	return false;
 }
 
@@ -2147,72 +1854,15 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 			}
 		}
 
-		// Static Switch Parameters
-		GetAllStaticSwitchParameterInfo(OutParameterInfo, Guids);
-		OutStaticParameters.StaticSwitchParameters.AddZeroed(OutParameterInfo.Num());
-
-		for(int32 ParameterIdx=0; ParameterIdx<OutParameterInfo.Num(); ParameterIdx++)
+		TMap<FMaterialParameterInfo, FMaterialParameterMetadata> ParameterValues;
+		for (int32 ParameterTypeIndex = 0; ParameterTypeIndex < NumMaterialParameterTypes; ++ParameterTypeIndex)
 		{
-			FStaticSwitchParameter& ParentParameter = OutStaticParameters.StaticSwitchParameters[ParameterIdx];
-			FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-			FGuid ExpressionId = Guids[ParameterIdx];
-
-			ParentParameter.bOverride = false;
-			ParentParameter.ParameterInfo = ParameterInfo;
-
-			GetStaticSwitchParameterValue(ParameterInfo, ParentParameter.Value, ExpressionId);
-
-			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
-
-			// If the SourceInstance is overriding this parameter, use its settings
-			for(int32 SwitchParamIdx = 0; SwitchParamIdx < StaticParameters.StaticSwitchParameters.Num(); SwitchParamIdx++)
+			const EMaterialParameterType ParameterType = (EMaterialParameterType)ParameterTypeIndex;
+			if (IsStaticMaterialParameter(ParameterType))
 			{
-				const FStaticSwitchParameter& StaticSwitchParam = StaticParameters.StaticSwitchParameters[SwitchParamIdx];
-
-				if(ParameterInfo == StaticSwitchParam.ParameterInfo)
-				{
-					ParentParameter.bOverride = StaticSwitchParam.bOverride;
-					if (StaticSwitchParam.bOverride)
-					{
-						ParentParameter.Value = StaticSwitchParam.Value;
-					}
-				}
-			}
-		}
-
-		// Static Component Mask Parameters
-		GetAllStaticComponentMaskParameterInfo(OutParameterInfo, Guids);
-		OutStaticParameters.StaticComponentMaskParameters.AddZeroed(OutParameterInfo.Num());
-
-		for(int32 ParameterIdx=0; ParameterIdx<OutParameterInfo.Num(); ParameterIdx++)
-		{
-			FStaticComponentMaskParameter& ParentParameter = OutStaticParameters.StaticComponentMaskParameters[ParameterIdx];
-			FMaterialParameterInfo& ParameterInfo = OutParameterInfo[ParameterIdx];
-			FGuid ExpressionId = Guids[ParameterIdx];
-
-			ParentParameter.bOverride = false;
-			ParentParameter.ParameterInfo = ParameterInfo;
-			
-			GetStaticComponentMaskParameterValue(ParameterInfo, ParentParameter.R, ParentParameter.G, ParentParameter.B, ParentParameter.A, ExpressionId);
-
-			ParentParameter.ExpressionGUID = Guids[ParameterIdx];
-			
-			// If the SourceInstance is overriding this parameter, use its settings
-			for(int32 MaskParamIdx = 0; MaskParamIdx < StaticParameters.StaticComponentMaskParameters.Num(); MaskParamIdx++)
-			{
-				const FStaticComponentMaskParameter &StaticComponentMaskParam = StaticParameters.StaticComponentMaskParameters[MaskParamIdx];
-
-				if(ParameterInfo == StaticComponentMaskParam.ParameterInfo)
-				{
-					ParentParameter.bOverride = StaticComponentMaskParam.bOverride;
-					if (StaticComponentMaskParam.bOverride)
-					{
-						ParentParameter.R = StaticComponentMaskParam.R;
-						ParentParameter.G = StaticComponentMaskParam.G;
-						ParentParameter.B = StaticComponentMaskParam.B;
-						ParentParameter.A = StaticComponentMaskParam.A;
-					}
-				}
+				ParameterValues.Reset();
+				GetAllParametersOfType(ParameterType, ParameterValues);
+				OutStaticParameters.AddParametersOfType(ParameterType, ParameterValues);
 			}
 		}
 	}
@@ -2227,7 +1877,70 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 }
 #endif // WITH_EDITORONLY_DATA
 
-void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const
+{
+	const UMaterial* Material = GetMaterial_Concurrent();
+	int32 NumParameters = 0;
+	if (CachedData)
+	{
+		NumParameters += CachedData->Parameters.GetNumParameters(Type);
+	}
+	if (Material)
+	{
+		NumParameters += Material->GetCachedExpressionData().Parameters.GetNumParameters(Type);
+	}
+
+	OutParameters.Empty(NumParameters);
+	if (CachedData)
+	{
+		CachedData->Parameters.GetAllParametersOfType(Type, OutParameters);
+	}
+	if (Material)
+	{
+		Material->GetCachedExpressionData().Parameters.GetAllParametersOfType(Type, OutParameters);
+	}
+
+	TArray<const UMaterialInstance*> InstanceChain;
+	InstanceChain.Add(this);
+	{
+		const UMaterialInterface* CurrentParent = Parent;
+		while (CurrentParent)
+		{
+			const UMaterialInstance* ParentInstance = Cast<UMaterialInstance>(CurrentParent);
+			if (ParentInstance)
+			{
+				InstanceChain.Add(ParentInstance);
+				CurrentParent = ParentInstance->Parent;
+			}
+			else
+			{
+				check(CurrentParent == Material);
+				CurrentParent = nullptr;
+			}
+		}
+	}
+
+	for (int32 i = InstanceChain.Num() - 1; i >= 0; --i)
+	{
+		const UMaterialInstance* Instance = InstanceChain[i];
+		const bool bSetOverride = (i == 0); // Only set the override flag for parameters overriden by the current material (always at slot0)
+		switch (Type)
+		{
+		case EMaterialParameterType::Scalar: GameThread_ApplyParameterOverrides(Instance->ScalarParameterValues, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::Vector: GameThread_ApplyParameterOverrides(Instance->VectorParameterValues, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::Texture: GameThread_ApplyParameterOverrides(Instance->TextureParameterValues, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::RuntimeVirtualTexture: GameThread_ApplyParameterOverrides(Instance->RuntimeVirtualTextureParameterValues, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::Font: GameThread_ApplyParameterOverrides(Instance->FontParameterValues, bSetOverride, OutParameters); break;
+#if WITH_EDITORONLY_DATA
+		case EMaterialParameterType::StaticSwitch: GameThread_ApplyParameterOverrides(Instance->StaticParameters.StaticSwitchParameters, bSetOverride, OutParameters); break;
+		case EMaterialParameterType::StaticComponentMask: GameThread_ApplyParameterOverrides(Instance->StaticParameters.StaticComponentMaskParameters, bSetOverride, OutParameters); break;
+#endif // WITH_EDITORONLY_DATA
+		default: checkNoEntry();
+		}
+	}
+}
+
+void UMaterialInstance::GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	const UMaterial* Material = GetMaterial_Concurrent();
 	int32 NumParameters = 0;
@@ -2244,37 +1957,12 @@ void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArr
 	OutParameterIds.Empty(NumParameters);
 	if (CachedData)
 	{
-		CachedData->Parameters.GetAllParameterInfoOfType(Type, false, OutParameterInfo, OutParameterIds);
+		CachedData->Parameters.GetAllParameterInfoOfType(Type, OutParameterInfo, OutParameterIds);
 	}
 	if (Material)
 	{
-		Material->GetCachedExpressionData().Parameters.GetAllGlobalParameterInfoOfType(Type, false, OutParameterInfo, OutParameterIds);
+		Material->GetCachedExpressionData().Parameters.GetAllGlobalParameterInfoOfType(Type, OutParameterInfo, OutParameterIds);
 	}
-}
-
-void UMaterialInstance::GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::Scalar, OutParameterInfo, OutParameterIds);
-}
-
-void UMaterialInstance::GetAllVectorParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::Vector, OutParameterInfo, OutParameterIds);
-}
-
-void UMaterialInstance::GetAllTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::Texture, OutParameterInfo, OutParameterIds);
-}
-
-void UMaterialInstance::GetAllRuntimeVirtualTextureParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::RuntimeVirtualTexture, OutParameterInfo, OutParameterIds);
-}
-
-void UMaterialInstance::GetAllFontParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::Font, OutParameterInfo, OutParameterIds);
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2286,16 +1974,6 @@ void UMaterialInstance::GetAllMaterialLayersParameterInfo(TArray<FMaterialParame
 	{
 		Material->GetAllParameterInfo<UMaterialExpressionMaterialAttributeLayers>(OutParameterInfo, OutParameterIds);
 	}
-}
-
-void UMaterialInstance::GetAllStaticSwitchParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::StaticSwitch, OutParameterInfo, OutParameterIds);
-}
-
-void UMaterialInstance::GetAllStaticComponentMaskParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
-{
-	GetAllParametersOfType(EMaterialParameterType::StaticComponentMask, OutParameterInfo, OutParameterIds);
 }
 
 bool UMaterialInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
@@ -2351,326 +2029,7 @@ void UMaterialInstance::GetDependentFunctions(TArray<UMaterialFunctionInterface*
 }
 #endif // WITH_EDITORONLY_DATA
 
-bool UMaterialInstance::GetScalarParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
-{
 #if WITH_EDITOR
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-#endif
-
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FScalarParameterValue& ScalarParam : ScalarParameterValues)
-		{
-			if (ScalarParam.ParameterInfo == ParameterInfo)
-			{
-				OutValue = ScalarParam.ParameterValue;
-				return true;
-			}
-		}
-	}
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.ScalarValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-#if WITH_EDITOR
-		FMICReentranceGuard	Guard(this);
-#endif
-		return Parent->GetScalarParameterDefaultValue(ParameterInfo, OutValue, bOveriddenOnly, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetVectorParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
-{
-#if WITH_EDITOR
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-#endif
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FVectorParameterValue& VectorParam : VectorParameterValues)
-		{
-			if (VectorParam.ParameterInfo == ParameterInfo)
-			{
-				OutValue = VectorParam.ParameterValue;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.VectorValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-#if WITH_EDITOR
-		FMICReentranceGuard	Guard(this);
-#endif
-		return Parent->GetVectorParameterDefaultValue(ParameterInfo, OutValue, bOveriddenOnly, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, UTexture*& OutValue, bool bCheckOwnedGlobalOverrides) const
-{
-#if WITH_EDITOR
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-#endif
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FTextureParameterValue& TextureParam : TextureParameterValues)
-		{
-			if (TextureParam.ParameterInfo == ParameterInfo)
-			{
-				OutValue = TextureParam.ParameterValue;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.TextureValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-#if WITH_EDITOR
-		FMICReentranceGuard	Guard(this);
-#endif
-		return Parent->GetTextureParameterDefaultValue(ParameterInfo, OutValue, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetRuntimeVirtualTextureParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, URuntimeVirtualTexture*& OutValue, bool bCheckOwnedGlobalOverrides) const
-{
-#if WITH_EDITOR
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-#endif
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FRuntimeVirtualTextureParameterValue& RuntimeVirtualTextureParam : RuntimeVirtualTextureParameterValues)
-		{
-			if (RuntimeVirtualTextureParam.ParameterInfo == ParameterInfo)
-			{
-				OutValue = RuntimeVirtualTextureParam.ParameterValue;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = CachedData->Parameters.RuntimeVirtualTextureValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-#if WITH_EDITOR
-		FMICReentranceGuard	Guard(this);
-#endif
-		return Parent->GetRuntimeVirtualTextureParameterDefaultValue(ParameterInfo, OutValue, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetFontParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, UFont*& OutFontValue, int32& OutFontPage, bool bCheckOwnedGlobalOverrides) const
-{
-#if WITH_EDITOR
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-#endif
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FFontParameterValue& FontParam : FontParameterValues)
-		{
-			if (FontParam.ParameterInfo == ParameterInfo)
-			{
-				OutFontValue = FontParam.FontValue;
-				OutFontPage = FontParam.FontPage;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::Font, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutFontValue = CachedData->Parameters.FontValues[ParameterIndex];
-			OutFontPage = CachedData->Parameters.FontPageValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	if (Parent)
-	{
-#if WITH_EDITOR
-		FMICReentranceGuard	Guard(this);
-#endif
-		return Parent->GetFontParameterDefaultValue(ParameterInfo, OutFontValue, OutFontPage, true);
-	}
-
-	return false;
-}
-
-#if WITH_EDITOR
-bool UMaterialInstance::GetStaticSwitchParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FStaticSwitchParameter& SwitchParam : StaticParameters.StaticSwitchParameters)
-		{
-			if (SwitchParam.bOverride && SwitchParam.ParameterInfo == ParameterInfo)
-			{
-				OutValue = SwitchParam.Value;
-				OutExpressionGuid = SwitchParam.ExpressionGUID;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutExpressionGuid = CachedData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, ParameterIndex);
-			OutValue = CachedData->Parameters.StaticSwitchValues[ParameterIndex];
-			return true;
-		}
-	}
-	
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticSwitchParameterDefaultValue(ParameterInfo, OutValue, OutExpressionGuid, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance:: GetStaticComponentMaskParameterDefaultValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutR, bool& OutG, bool& OutB, bool& OutA, FGuid& OutExpressionGuid, bool bCheckOwnedGlobalOverrides) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// In the case of duplicate parameters with different values, this will return the
-	// first matching expression found, not necessarily the one that's used for rendering
-	if (bCheckOwnedGlobalOverrides)
-	{
-		// Parameters overridden by this instance
-		for (const FStaticComponentMaskParameter& ComponentMaskParam : StaticParameters.StaticComponentMaskParameters)
-		{
-			if (ComponentMaskParam.bOverride && ComponentMaskParam.ParameterInfo == ParameterInfo)
-			{
-				OutR = ComponentMaskParam.R;
-				OutG = ComponentMaskParam.G;
-				OutB = ComponentMaskParam.B;
-				OutA = ComponentMaskParam.A;
-				OutExpressionGuid = ComponentMaskParam.ExpressionGUID;
-				return true;
-			}
-		}
-	}
-
-	if (ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutExpressionGuid = CachedData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, ParameterIndex);
-			OutR = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].R;
-			OutG = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].G;
-			OutB = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].B;
-			OutA = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].A;
-			return true;
-		}
-	}
-	
-	if (Parent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, OutR, OutG, OutB, OutA, OutExpressionGuid, true);
-	}
-
-	return false;
-}
-
 bool UMaterialInstance::GetGroupName(const FHashedMaterialParameterInfo& ParameterInfo, FName& OutGroup) const
 {
 	if (GetReentrantFlag())
@@ -3022,92 +2381,6 @@ void UMaterialInstance::CacheShadersForResources(EShaderPlatform ShaderPlatform,
 }
 
 #if WITH_EDITORONLY_DATA
-bool UMaterialInstance::GetStaticSwitchParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& OutValue, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// Instance override
-	for (const FStaticSwitchParameter& Param : StaticParameters.StaticSwitchParameters)
-	{
-		if (Param.ParameterInfo == ParameterInfo)
-		{
-			OutExpressionGuid = Param.ExpressionGUID;
-			OutValue = Param.Value;
-			return true;
-		}
-	}
-
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::StaticSwitch, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutExpressionGuid = CachedData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticSwitch, ParameterIndex);
-			OutValue = CachedData->Parameters.StaticSwitchValues[ParameterIndex];
-			return true;
-		}
-	}
-
-	// Next material in hierarchy
-	if (Parent && bCheckParent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticSwitchParameterValue(ParameterInfo, OutValue, OutExpressionGuid, bOveriddenOnly, true);
-	}
-
-	return false;
-}
-
-bool UMaterialInstance::GetStaticComponentMaskParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, bool& R, bool& G, bool& B, bool& A, FGuid& OutExpressionGuid, bool bOveriddenOnly, bool bCheckParent) const
-{
-	if (GetReentrantFlag())
-	{
-		return false;
-	}
-
-	// Instance override
-	for (const FStaticComponentMaskParameter& Param : StaticParameters.StaticComponentMaskParameters)
-	{
-		if (Param.ParameterInfo == ParameterInfo)
-		{
-			OutExpressionGuid = Param.ExpressionGUID;
-			R = Param.R;
-			G = Param.G;
-			B = Param.B;
-			A = Param.A;
-			return true;
-		}
-	}
-
-	// Instance-included default
-	if (!bOveriddenOnly && ParameterInfo.Association != EMaterialParameterAssociation::GlobalParameter && CachedData)
-	{
-		const int32 ParameterIndex = CachedData->Parameters.FindParameterIndex(EMaterialParameterType::StaticComponentMask, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutExpressionGuid = CachedData->Parameters.GetExpressionGuid(EMaterialParameterType::StaticComponentMask, ParameterIndex);
-			R = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].R;
-			G = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].G;
-			B = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].B;
-			A = CachedData->Parameters.StaticComponentMaskValues[ParameterIndex].A;
-			return true;
-		}
-	}
-
-	// Next material in hierarchy
-	if (Parent && bCheckParent)
-	{
-		FMICReentranceGuard	Guard(this);
-		return Parent->GetStaticComponentMaskParameterValue(ParameterInfo, R, G, B, A, OutExpressionGuid, bOveriddenOnly, true);
-	}
-
-	return false;
-}
-
 bool UMaterialInstance::GetMaterialLayersParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialLayersFunctions& OutLayers, FGuid& OutExpressionGuid, bool bCheckParent /*= true*/) const
 {
 	if (GetReentrantFlag())
@@ -3789,6 +3062,65 @@ bool UMaterialInstance::SetVectorParameterByIndexInternal(int32 ParameterIndex, 
 	return true;
 }
 
+#if WITH_EDITORONLY_DATA
+FMaterialInstanceParameterUpdateContext::FMaterialInstanceParameterUpdateContext(UMaterialInstance* InInstance)
+	: Instance(InInstance)
+	, bForceStaticPermutationUpdate(false)
+{
+	check(InInstance);
+	StaticParameters = InInstance->GetStaticParameters();
+	BasePropertyOverrides = InInstance->BasePropertyOverrides;
+}
+
+FMaterialInstanceParameterUpdateContext::~FMaterialInstanceParameterUpdateContext()
+{
+	Instance->UpdateStaticPermutation(StaticParameters, BasePropertyOverrides, bForceStaticPermutationUpdate);
+}
+
+void FMaterialInstanceParameterUpdateContext::SetParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
+{
+	const FMaterialParameterValue& Value = Meta.Value;
+	if (IsStaticMaterialParameter(Value.Type))
+	{
+		// Route static parameters to the static parameter set
+		StaticParameters.SetParameterValue(ParameterInfo, Meta, Flags);
+	}
+	else
+	{
+		const bool bUseAtlas = EnumHasAnyFlags(Flags, EMaterialSetParameterValueFlags::SetCurveAtlas);
+		FScalarParameterAtlasInstanceData AtlasData;
+
+		switch (Value.Type)
+		{
+		case EMaterialParameterType::Scalar:
+			if (bUseAtlas)
+			{
+				AtlasData.bIsUsedAsAtlasPosition = Meta.bUsedAsAtlasPosition;
+				AtlasData.Atlas = Meta.ScalarAtlas;
+				AtlasData.Curve = Meta.ScalarCurve;
+			}
+			Instance->SetScalarParameterValueInternal(ParameterInfo, Value.AsScalar(), bUseAtlas, AtlasData);
+			break;
+		case EMaterialParameterType::Vector: Instance->SetVectorParameterValueInternal(ParameterInfo, Value.AsLinearColor()); break;
+		case EMaterialParameterType::Texture: Instance->SetTextureParameterValueInternal(ParameterInfo, Value.Texture); break;
+		case EMaterialParameterType::Font: Instance->SetFontParameterValueInternal(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
+		case EMaterialParameterType::RuntimeVirtualTexture: Instance->SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value.RuntimeVirtualTexture); break;
+		default: checkNoEntry();
+		}
+	}
+}
+
+void FMaterialInstanceParameterUpdateContext::SetForceStaticPermutationUpdate(bool bValue)
+{
+	bForceStaticPermutationUpdate = bValue;
+}
+
+void FMaterialInstanceParameterUpdateContext::SetBasePropertyOverrides(const FMaterialInstanceBasePropertyOverrides& InValue)
+{
+	BasePropertyOverrides = InValue;
+}
+#endif // WITH_EDITORONLY_DATA
+
 void UMaterialInstance::SetVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
@@ -3832,7 +3164,7 @@ bool UMaterialInstance::SetScalarParameterByIndexInternal(int32 ParameterIndex, 
 	return true;
 }
 
-void UMaterialInstance::SetScalarParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, float Value)
+void UMaterialInstance::SetScalarParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, float Value, bool bUseAtlas, FScalarParameterAtlasInstanceData AtlasData)
 {
 	LLM_SCOPE(ELLMTag::MaterialInstance);
 
@@ -3848,10 +3180,28 @@ void UMaterialInstance::SetScalarParameterValueInternal(const FMaterialParameter
 		bForceUpdate = true;
 	}
 
-	// Don't enqueue an update if it isn't needed
-	if (bForceUpdate || ParameterValue->ParameterValue != Value)
+	float ValueToSet = Value;
+#if WITH_EDITORONLY_DATA
+	if (bUseAtlas)
 	{
-		ParameterValue->ParameterValue = Value;
+		UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(AtlasData.Atlas.Get());
+		UCurveLinearColor* Curve = Cast<UCurveLinearColor>(AtlasData.Curve.Get());
+		if (Atlas && Curve)
+		{
+			int32 Index = Atlas->GradientCurves.Find(Curve);
+			if (Index != INDEX_NONE)
+			{
+				ValueToSet = (float)Index;
+			}
+		}
+		ParameterValue->AtlasData = AtlasData;
+	}
+#endif // WITH_EDITORONLY_DATA
+
+	// Don't enqueue an update if it isn't needed
+	if (bForceUpdate || ParameterValue->ParameterValue != ValueToSet)
+	{
+		ParameterValue->ParameterValue = ValueToSet;
 		// Update the material instance data in the rendering thread.
 		GameThread_UpdateMIParameter(this, *ParameterValue);
 	}
@@ -4139,7 +3489,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 
 void UMaterialInstance::UpdateStaticPermutation(FMaterialUpdateContext* MaterialUpdateContext)
 {
-	UpdateStaticPermutation(StaticParameters, MaterialUpdateContext);
+	// Force the update, since we aren't technically changing anything
+	UpdateStaticPermutation(StaticParameters, BasePropertyOverrides, true, MaterialUpdateContext);
 }
 
 void UMaterialInstance::UpdateParameterNames()
@@ -5173,3 +4524,5 @@ void UMaterialInstance::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& 
 UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
 TArray<UMaterialInstance::FCustomParameterSetUpdaterDelegate> UMaterialInstance::CustomParameterSetUpdaters;
 #endif // WITH_EDITORONLY_DATA
+
+PRAGMA_ENABLE_OPTIMIZATION

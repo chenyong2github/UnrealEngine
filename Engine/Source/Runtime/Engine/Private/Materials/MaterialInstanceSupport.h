@@ -225,6 +225,7 @@ ParameterType* GameThread_FindParameterByName(TArray<ParameterType>& Parameters,
 	}
 	return NULL;
 }
+
 template <typename ParameterType>
 const ParameterType* GameThread_FindParameterByName(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo)
 {
@@ -275,4 +276,48 @@ const ParameterType* GameThread_FindParameterByIndex(const TArray<ParameterType>
 	}
 
 	return &Parameters[Index];
+}
+
+template <typename ParameterType>
+FORCEINLINE bool GameThread_GetParameterValue(const TArray<ParameterType>& Parameters, const FHashedMaterialParameterInfo& ParameterInfo, bool bSetOverride, FMaterialParameterMetadata& OutResult)
+{
+	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
+	{
+		const ParameterType* Parameter = &Parameters[ParameterIndex];
+		if (Parameter->IsOverride() && Parameter->ParameterInfo == ParameterInfo)
+		{
+			Parameter->GetValue(OutResult);
+#if WITH_EDITORONLY_DATA
+			if (bSetOverride)
+			{
+				OutResult.bOverride = true;
+			}
+#endif // WITH_EDITORONLY_DATA
+			return true;
+		}
+	}
+	return false;
+}
+
+template <typename ParameterType>
+FORCEINLINE void GameThread_ApplyParameterOverrides(const TArray<ParameterType>& Parameters, bool bSetOverride, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters)
+{
+	for (int32 ParameterIndex = 0; ParameterIndex < Parameters.Num(); ParameterIndex++)
+	{
+		const ParameterType* Parameter = &Parameters[ParameterIndex];
+		if (Parameter->IsOverride())
+		{
+			FMaterialParameterMetadata* Result = OutParameters.Find(Parameter->ParameterInfo);
+			if (Result)
+			{
+				Parameter->GetValue(*Result);
+#if WITH_EDITORONLY_DATA
+				if (bSetOverride)
+				{
+					Result->bOverride = true;
+				}
+#endif // WITH_EDITORONLY_DATA
+			}
+		}
+	}
 }
