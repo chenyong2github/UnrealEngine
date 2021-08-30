@@ -31,7 +31,7 @@ public:
 private:
 	void OverrideWorld(FSoftObjectPath InNewContextPath);
 
-	FDelegateHandle OnObjectModifiedDelegateHandle;
+	FDelegateHandle OnMapOpenedDelegateHandle;
 	
 	TWeakPtr<FLevelSnapshotsEditorInput> EditorInputPtr;
 
