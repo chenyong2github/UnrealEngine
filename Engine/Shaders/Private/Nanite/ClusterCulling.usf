@@ -293,7 +293,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 		if( bVisible && !Cull.bCrossesNearPlane )
 		{
 			// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
-			uint FlagMask = DynamicData.bHasMoved ? ( VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG ) : VSM_ALLOCATED_FLAG;
+			uint FlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 			bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
 
 			uint4 ClusterRectPages = uint4( NaniteView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
@@ -649,7 +649,7 @@ void NodeCull(uint BatchSize, uint GroupIndex)
 			BRANCH
 			if( bVisible )
 			{
-				uint FlagMask = DynamicData.bHasMoved ? ( VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG ) : VSM_ALLOCATED_FLAG;
+				uint FlagMask = DynamicData.bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 				bVisible = OverlapsAnyValidPage( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel, NaniteView.ViewRect.xy, Rect, FlagMask );
 			}
 #endif

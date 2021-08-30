@@ -485,7 +485,7 @@ void InstanceCullVSM(
 				BRANCH
 				if( bVisible && !Cull.bCrossesNearPlane )
 				{
-					uint FlagMask = bHasMoved ? ( VSM_ALLOCATED_FLAG | VSM_UNCACHED_FLAG ) : VSM_ALLOCATED_FLAG;
+					uint FlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG;
 					bVisible = OverlapsAnyValidPage(MipView.TargetLayerIndex, MipView.TargetMipLevel, MipView.ViewRect.xy, Rect, FlagMask );
 				}
 
