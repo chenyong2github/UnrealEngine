@@ -723,7 +723,7 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 				{
 					// only do this in non-setup mode because 
 					// when setup mode is enabled, the control values are cleared before reaching here (too late to save them)
-					PoseScope = MakeUnique<UControlRig::FPoseScope>(this);
+					PoseScope = MakeUnique<UControlRig::FPoseScope>(this, ERigElementType::ToResetAfterSetupEvent);
 				}
 
 				// reset the pose to initial such that setup event can run from a deterministic initial state
@@ -2771,13 +2771,12 @@ void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const
 	}
 }
 
-UControlRig::FPoseScope::FPoseScope(UControlRig* InControlRig)
+UControlRig::FPoseScope::FPoseScope(UControlRig* InControlRig, ERigElementType InFilter)
+: ControlRig(InControlRig)
+, Filter(InFilter)
 {
 	check(InControlRig);
-
-	CachedPose = InControlRig->GetHierarchy()->GetPose();
-
-	ControlRig = InControlRig;
+	CachedPose = InControlRig->GetHierarchy()->GetPose(false, InFilter, FRigElementKeyCollection());
 }
 
 UControlRig::FPoseScope::~FPoseScope()

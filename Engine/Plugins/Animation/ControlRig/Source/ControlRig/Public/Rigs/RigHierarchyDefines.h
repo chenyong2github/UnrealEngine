@@ -26,6 +26,7 @@ enum class ERigElementType : uint8
 	Socket = 0x020,
 	Last = 0x040 UMETA(Hidden),
 	All = Bone | Null | Control | Curve | RigidBody | Socket,
+	ToResetAfterSetupEvent = Bone | Control | Curve UMETA(Hidden),
 };
 
 UENUM(BlueprintType)
