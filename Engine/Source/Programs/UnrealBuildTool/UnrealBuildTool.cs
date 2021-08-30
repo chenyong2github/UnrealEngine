@@ -449,6 +449,7 @@ namespace UnrealBuildTool
 				Log.OutputLevel = Options.LogOutputLevel;
 				Log.IncludeTimestamps = Options.bLogTimestamps;
 				Log.IncludeProgramNameWithSeverityPrefix = Options.bLogFromMsBuild;
+				Log.IncludeCallingMethod = false;
 
 				// Always start capturing logs as early as possible to later copy to a log file if the ToolMode desires it (we have to start capturing before we get the ToolModeOptions below)
 				StartupTraceListener StartupTrace = new StartupTraceListener();
@@ -460,6 +461,7 @@ namespace UnrealBuildTool
 				// Add the log writer if requested. When building a target, we'll create the writer for the default log file later.
 				if(Options.LogFileName != null)
 				{
+					Log.TraceInformation($"Log will be written to {Options.LogFileName}");
 					Log.AddFileWriter("LogTraceListener", Options.LogFileName);
 				}
 

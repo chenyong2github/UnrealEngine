@@ -99,6 +99,12 @@ namespace AutomationTool
 				StartupListener.CopyTo(LogTraceListener);
 				Trace.Listeners.Remove(StartupListener);
 				
+				Log.TraceInformation($"Log location: {LogUtils.LogFileName}");
+				if (!String.Equals(LogUtils.FinalLogFileName, LogUtils.LogFileName))
+				{
+					Log.TraceInformation($"Final log location: {LogUtils.FinalLogFileName}");	
+				}
+				
 				// Initialize UBT
 				if (!UnrealBuildTool.PlatformExports.Initialize())
 				{

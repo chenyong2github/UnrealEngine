@@ -129,6 +129,7 @@ namespace UnrealBuildTool
 					LogFile = LogFile.ChangeExtension(null) + "_" + LogSuffix + LogFile.GetExtension();
 				}
 
+				Log.TraceInformation($"Log will be written to {LogFile}");
 				TextWriterTraceListener LogTraceListener = Log.AddFileWriter("DefaultLogTraceListener", LogFile);
 				StartupListener.CopyTo(LogTraceListener);
 			}

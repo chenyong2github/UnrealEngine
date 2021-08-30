@@ -308,7 +308,8 @@ namespace AutomationToolDriver
 		public static int Main(string[] Arguments)
 		{
 			// Initialize the log system, buffering the output until we can create the log file
-			Trace.Listeners.Add(StartupListener);
+			Log.IncludeCallingMethod = false;
+			Log.AddTraceListener(StartupListener);
 
 			// Populate AutomationToolCommandLine and CommandsToExecute
 			try
