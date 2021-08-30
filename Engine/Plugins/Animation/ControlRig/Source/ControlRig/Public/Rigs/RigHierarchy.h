@@ -93,6 +93,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
+	virtual void PostLoad() override;
 #if WITH_EDITOR
 	virtual void PostTransacted(const FTransactionObjectEvent& TransactionEvent) override;
 #endif

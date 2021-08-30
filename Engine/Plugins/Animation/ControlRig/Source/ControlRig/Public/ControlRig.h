@@ -726,12 +726,13 @@ private:
 	class FPoseScope
 	{
 	public:
-		FPoseScope(UControlRig* InControlRig);
+		FPoseScope(UControlRig* InControlRig, ERigElementType InFilter = ERigElementType::All);
 		~FPoseScope();
 
 	private:
 
 		UControlRig* ControlRig;
+		ERigElementType Filter;
 		FRigPose CachedPose;
 	};
 

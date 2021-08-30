@@ -235,6 +235,95 @@ void URigHierarchy::Load(FArchive& Ar)
 	Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
 }
 
+void URigHierarchy::PostLoad()
+{
+	UObject::PostLoad();
+
+	struct Local
+	{
+		static bool NeedsCheck(const FRigLocalAndGlobalTransform& InTransform)
+		{
+			return !InTransform.Local.bDirty && !InTransform.Global.bDirty;
+		}
+	};
+
+	// we need to check the elements for integrity (global vs local) to be correct.
+	for(int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		FRigBaseElement* BaseElement = Elements[ElementIndex];
+
+		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(ControlElement->Offset.Initial))
+			{
+				const FTransform ComputedGlobalTransform = SolveParentConstraints(
+					ControlElement->ParentConstraints, ERigTransformType::InitialGlobal,
+					ControlElement->Offset.Get(ERigTransformType::InitialLocal), true,
+					FTransform::Identity, false);
+
+				const FTransform CachedGlobalTransform = ControlElement->Offset.Get(ERigTransformType::InitialGlobal);
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					ControlElement->Offset.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+
+			if(Local::NeedsCheck(ControlElement->Pose.Initial))
+			{
+				const FTransform ComputedGlobalTransform = SolveParentConstraints(
+					ControlElement->ParentConstraints, ERigTransformType::InitialGlobal,
+					GetControlOffsetTransform(ControlElement, ERigTransformType::InitialGlobal), true,
+					ControlElement->Pose.Get(ERigTransformType::InitialLocal), true);
+				
+				const FTransform CachedGlobalTransform = ControlElement->Pose.Get(ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					// for nulls we perceive the local transform as less relevant
+					ControlElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+				}
+			}
+
+			// we also need to check the pose here - for controls it is a bit different than for other
+			// types.
+			continue;
+		}
+
+		if(FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(MultiParentElement->Pose.Initial))
+			{
+				const FTransform ComputedGlobalTransform = SolveParentConstraints(
+					MultiParentElement->ParentConstraints, ERigTransformType::InitialGlobal,
+					FTransform::Identity, false,
+					MultiParentElement->Pose.Get(ERigTransformType::InitialLocal), true);
+				
+				const FTransform CachedGlobalTransform = MultiParentElement->Pose.Get(ERigTransformType::InitialGlobal);
+				
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					// for nulls we perceive the local transform as less relevant
+					MultiParentElement->Pose.MarkDirty(ERigTransformType::InitialLocal);
+				}
+			}
+		}
+
+		if(FRigTransformElement* TransformElement = Cast<FRigTransformElement>(BaseElement))
+		{
+			if(Local::NeedsCheck(TransformElement->Pose.Initial))
+			{
+				const FTransform ParentTransform = GetParentTransform(TransformElement, ERigTransformType::InitialGlobal);
+				const FTransform ComputedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialLocal) * ParentTransform;
+				const FTransform CachedGlobalTransform = TransformElement->Pose.Get(ERigTransformType::InitialGlobal);
+				if(!FRigComputedTransform::Equals(ComputedGlobalTransform, CachedGlobalTransform, 0.01))
+				{
+					TransformElement->Pose.MarkDirty(ERigTransformType::InitialGlobal);
+				}
+			}
+		}
+	}
+}
+
 void URigHierarchy::Reset()
 {
 	TopologyVersion = 0;
@@ -1669,7 +1758,7 @@ FTransform URigHierarchy::GetTransform(FRigTransformElement* InTransformElement,
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>(InTransformElement))
 			{
-				const FTransform NewTransform = ComputeLocalControlValue(ControlElement, ControlElement->Pose.Get(OpposedType), InTransformType);
+				const FTransform NewTransform = ComputeLocalControlValue(ControlElement, ControlElement->Pose.Get(OpposedType), GlobalType);
 				InTransformElement->Pose.Set(InTransformType, NewTransform);
 			}
 			else
@@ -1825,8 +1914,10 @@ FTransform URigHierarchy::GetControlOffsetTransform(FRigControlElement* InContro
 
 		if(IsLocal(InTransformType))
 		{
-			const FTransform ParentTransform = GetParentTransform(InControlElement, GlobalType);
-			InControlElement->Offset.Set(InTransformType, InControlElement->Offset.Get(OpposedType).GetRelativeTransform(ParentTransform));
+			const FTransform LocalTransform = InverseSolveParentConstraints(
+				InControlElement->Offset.Get(OpposedType), 
+				InControlElement->ParentConstraints, InTransformType, FTransform::Identity);
+			InControlElement->Offset.Set(InTransformType, LocalTransform);
 		}
 		else
 		{
@@ -2075,8 +2166,7 @@ FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const E
 				FTransform::Identity,
 				false
 			);
-			Output.Set(OutputTransform);
-			Output.bDirty = false;
+			MultiParentElement->Parent.Set(InTransformType, OutputTransform);
 		}
 		return Output.Transform;
 	}
