@@ -15,6 +15,7 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundNodeWavePlayer.h"
 #include "MovieSceneTrack.h"
+#include "Engine/Engine.h"
 
 UMovieSceneSection* MovieSceneHelpers::FindSectionAtTime( TArrayView<UMovieSceneSection* const> Sections, FFrameNumber Time )
 {
