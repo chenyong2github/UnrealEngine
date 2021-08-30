@@ -1,0 +1,17 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "IAudioParameterTransmitter.h"
+
+#include "AudioParameterInterface.h"
+
+namespace Audio
+{
+	bool ILegacyParameterTransmitter::GetParameter(FName InName, FAudioParameter& OutValue) const
+	{
+		return false;
+	}
+
+	TArray<UObject*> ILegacyParameterTransmitter::GetReferencedObjects() const
+	{
+		return { };
+	}
+} // namespace Audio
