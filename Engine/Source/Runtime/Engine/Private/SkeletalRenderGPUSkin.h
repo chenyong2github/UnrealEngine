@@ -698,18 +698,20 @@ public:
 		MorphVertexBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphVertexBuffer"));
 		MorphNormalizationBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphNormalizationBuffer"));
 
-		MorphTargetWeightParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetWeight"));
-		ThreadOffsetsParameter.Bind(Initializer.ParameterMap, TEXT("ThreadOffsets"));
-		GlobalDispatchOffsetParameter.Bind(Initializer.ParameterMap, TEXT("GlobalDispatchOffset"));
+		MorphTargetWeightsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetWeights"));
+		MorphTargetBatchOffsetsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetBatchOffsets"));
+		MorphTargetGroupOffsetsParameter.Bind(Initializer.ParameterMap, TEXT("MorphTargetGroupOffsets"));
 		PositionScaleParameter.Bind(Initializer.ParameterMap, TEXT("PositionScale"));
 		WeightScaleParameter.Bind(Initializer.ParameterMap, TEXT("WeightScale"));
+		PrecisionParameter.Bind(Initializer.ParameterMap, TEXT("Precision"));
 
-		VertexIndicesParameter.Bind(Initializer.ParameterMap, TEXT("VertexIndicies"));
-		MorphDeltasParameter.Bind(Initializer.ParameterMap, TEXT("MorphDeltas"));
+		MorphDataBufferParameter.Bind(Initializer.ParameterMap, TEXT("MorphDataBuffer"));
 	}
 
+	static const uint32 MorphTargetDispatchBatchSize = 128;
+
 	void SetParameters(FRHICommandList& RHICmdList, const FVector4& LocalScale, float WeightScale, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, FMorphVertexBuffer& MorphVertexBuffer);
-	void SetOffsetAndSize(FRHICommandList& RHICmdList, uint32 StartIndex, uint32 EndIndexPlusOne, const FMorphTargetVertexInfoBuffers& MorphTargetVertexInfoBuffers, const TArray<float>& MorphTargetWeights);
+	void SetMorphOffsetsAndWeights(FRHICommandList& RHICmdList, uint32 BatchOffsets[MorphTargetDispatchBatchSize], uint32 GroupOffsets[MorphTargetDispatchBatchSize], float Weights[MorphTargetDispatchBatchSize]);
 
 	void Dispatch(FRHICommandList& RHICmdList, uint32 Size);
 	void EndAllDispatches(FRHICommandList& RHICmdList);
@@ -723,15 +725,15 @@ protected:
 	LAYOUT_FIELD(FShaderResourceParameter, MorphVertexBufferParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, MorphNormalizationBufferParameter);
 
-	LAYOUT_FIELD(FShaderParameter, MorphTargetWeightParameter);
+	LAYOUT_FIELD(FShaderParameter, MorphTargetWeightsParameter);
 	LAYOUT_FIELD(FShaderParameter, OffsetAndSizeParameter);
-	LAYOUT_FIELD(FShaderParameter, ThreadOffsetsParameter);
-	LAYOUT_FIELD(FShaderParameter, GlobalDispatchOffsetParameter);
+	LAYOUT_FIELD(FShaderParameter, MorphTargetBatchOffsetsParameter);
+	LAYOUT_FIELD(FShaderParameter, MorphTargetGroupOffsetsParameter);
 	LAYOUT_FIELD(FShaderParameter, PositionScaleParameter);
 	LAYOUT_FIELD(FShaderParameter, WeightScaleParameter);
+	LAYOUT_FIELD(FShaderParameter, PrecisionParameter);
 
-	LAYOUT_FIELD(FShaderResourceParameter, VertexIndicesParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, MorphDeltasParameter);
+	LAYOUT_FIELD(FShaderResourceParameter, MorphDataBufferParameter);
 };
 
 class FGPUMorphNormalizeCS : public FGlobalShader

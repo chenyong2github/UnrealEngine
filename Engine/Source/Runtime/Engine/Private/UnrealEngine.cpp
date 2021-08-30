@@ -135,7 +135,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
 #include "Engine/ViewportStatsSubsystem.h"
-
+#include "GPUSkinCache.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 
 #include "Particles/Spawn/ParticleModuleSpawn.h"
@@ -4578,6 +4578,10 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleMemReportDeferredCommand( Cmd, Ar, InWorld );
 	}
+	else if ( FParse::Command( &Cmd, TEXT("SkeletalMeshReport") ))
+	{
+		return HandleSkeletalMeshReportCommand(Cmd, Ar, InWorld);
+	}
 	else if( FParse::Command( &Cmd, TEXT("PARTICLEMESHUSAGE") ) )
 	{
 		return HandleParticleMeshUsageCommand( Cmd, Ar );
@@ -6823,6 +6827,97 @@ bool UEngine::HandleMemReportDeferredCommand( const TCHAR* Cmd, FOutputDevice& A
 	return true;
 }
 
+bool UEngine::HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
+{
+	Ar.Logf(TEXT("+++ Skeletal Mesh Report +++"));
+
+	auto BytesToKB = [&](uint32 Bytes) -> uint32
+	{
+		return (Bytes + 512) / 1024;
+	};
+
+	auto GetResourceSizeKB = [&](const FRHIResource* Resource) -> uint32
+	{
+		int32 SizeInKB = 0;
+		FRHIResourceInfo ResourceInfo;
+		if (Resource && Resource->GetResourceInfo(ResourceInfo))
+		{
+			SizeInKB = BytesToKB(ResourceInfo.VRamAllocation.AllocationSize);
+		}
+		return SizeInKB;
+	};
+
+	static const IConsoleVariable* CVarDefaultGPUSkinCacheBehavior = IConsoleManager::Get().FindConsoleVariable(TEXT("r.SkinCache.DefaultBehavior"));
+	bool bSkinCacheGlobalDefault = CVarDefaultGPUSkinCacheBehavior && ESkinCacheDefaultBehavior(CVarDefaultGPUSkinCacheBehavior->GetInt()) == ESkinCacheDefaultBehavior::Inclusive;
+
+	int32 NumMeshes = 0;
+	FRHIResourceInfo ResourceInfo;
+	for (TObjectIterator<USkeletalMesh> It; It; ++It)
+	{
+		USkeletalMesh* Mesh = *It;
+		FString Name = Mesh->GetFullName();
+
+		if (Mesh->GetResourceForRendering() && Mesh->GetResourceForRendering()->LODRenderData.Num() > 0)
+		{
+			Ar.Logf(TEXT("%s"), *Name);
+
+			TIndirectArray<FSkeletalMeshLODRenderData>& LodRenderDatas = Mesh->GetResourceForRendering()->LODRenderData;
+			for (int32 LODIdx = 0; LODIdx < LodRenderDatas.Num(); LODIdx++)
+			{
+				const FSkeletalMeshLODRenderData& RenderData = LodRenderDatas[LODIdx];
+	
+				FSkeletalMeshLODInfo* LodInfo = Mesh->GetLODInfo(LODIdx);
+				check(LodInfo);
+				bool bSkinCachedLODEnabled = GEnableGPUSkinCache && (LodInfo->SkinCacheUsage == ESkinCacheUsage::Auto ? bSkinCacheGlobalDefault : LodInfo->SkinCacheUsage == ESkinCacheUsage::Enabled);
+
+				int32 MorphDataKB = GetResourceSizeKB(RenderData.MorphTargetVertexInfoBuffers.MorphDataBuffer);
+				int32 ClothVertexBufferKB = GetResourceSizeKB(RenderData.ClothVertexBuffer.VertexBufferRHI);
+
+				FString RecomputeTangentSections = TEXT("");
+				for (int32 SectionIdx = 0; SectionIdx < RenderData.RenderSections.Num(); SectionIdx++)
+				{
+					const FSkelMeshRenderSection& Section = RenderData.RenderSections[SectionIdx];
+					if (Section.bRecomputeTangent)
+					{
+						if (RecomputeTangentSections.IsEmpty())
+						{
+							RecomputeTangentSections = TEXT("[Section]") + FString::FromInt(SectionIdx);
+						}
+						else
+						{
+							RecomputeTangentSections = RecomputeTangentSections + TEXT("/") + FString::FromInt(SectionIdx);
+						}
+					}
+					
+				}
+				if (RecomputeTangentSections.IsEmpty())
+				{
+					RecomputeTangentSections = TEXT("Off");
+				}
+
+				Ar.Logf(TEXT("  [LOD%d]: RefSkeletonBones=%3d, RequiredBones=%3d, ActiveBones=%3d, MaxBoneInfluences=%2d, NumMorphTargets=%7d, MorphData=%4dKB, ClothVertexBuffer=%4dKB, SkinCache=%s, RecomputeTangent=%s, SupportRayTracing=%s, RayTracingMinLOD=%d"), LODIdx,
+					Mesh->GetRefSkeleton().GetNum(),
+					RenderData.RequiredBones.Num(),
+					RenderData.ActiveBoneIndices.Num(),
+					RenderData.SkinWeightVertexBuffer.GetMaxBoneInfluences(),
+					Mesh->GetMorphTargets().Num(),
+					MorphDataKB,
+					ClothVertexBufferKB,
+					bSkinCachedLODEnabled ? TEXT("Y") : TEXT("N"),
+					*RecomputeTangentSections,
+					Mesh->bSupportRayTracing ? TEXT("Y") : TEXT("N"),
+					Mesh->RayTracingMinLOD);
+			}
+		}
+
+		NumMeshes++;
+	}
+
+	Ar.Logf(TEXT("Total %d skeletal meshes."), NumMeshes);
+	Ar.Logf(TEXT("--- Skeletal Mesh Report ---"));
+
+	return true;
+}
 
 bool UEngine::HandleParticleMeshUsageCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
