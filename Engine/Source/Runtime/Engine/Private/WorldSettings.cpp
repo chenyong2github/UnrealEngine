@@ -14,7 +14,6 @@
 #include "Engine/WorldComposition.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
-#include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/GameNetworkManager.h"
 #include "AudioDevice.h"
@@ -123,9 +122,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	DefaultBookmarkClass = UBookMark::StaticClass();
 	LastBookmarkClass = DefaultBookmarkClass;
-
-	// Default to UWorldPartitionLevelStreamingPolicy
-	WorldPartitionStreamingPolicyClass = UWorldPartitionLevelStreamingPolicy::StaticClass();
 
 	LevelInstancePivotOffset = FVector::ZeroVector;
 }
