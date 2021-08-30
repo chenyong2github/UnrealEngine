@@ -2308,6 +2308,47 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		}
 		break;
 
+		case GeometryCollection::ESelectionMode::Parent:
+		{
+			const TManagedArray<int32>& Parents = GeometryCollectionPtr->Parent;
+			
+			const TArray<int32> SelectedBones = GetSelectedBones();
+
+			TArray<int32> NewSelection;
+			for (int32 Bone : SelectedBones)
+			{
+				int32 ParentBone = Parents[Bone];
+				if (ParentBone != FGeometryCollection::Invalid)
+				{
+					NewSelection.AddUnique(ParentBone);
+				}
+			}
+
+			ResetBoneSelection();
+			AppendSelectedBones(NewSelection);
+		}
+		break;
+
+		case GeometryCollection::ESelectionMode::Children:
+		{
+			const TManagedArray<TSet<int32>>& Children = GeometryCollectionPtr->Children;
+
+			const TArray<int32> SelectedBones = GetSelectedBones();
+
+			TArray<int32> NewSelection;
+			for (int32 Bone : SelectedBones)
+			{
+				for (int32 Child : Children[Bone])
+				{
+					NewSelection.AddUnique(Child);
+				}
+			}
+
+			ResetBoneSelection();
+			AppendSelectedBones(NewSelection);
+		}
+		break;
+
 		case GeometryCollection::ESelectionMode::Siblings:
 		{
 			const TManagedArray<int32>& Parents = GeometryCollectionPtr->Parent;
@@ -2334,28 +2375,30 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		}
 		break;
 
-		case GeometryCollection::ESelectionMode::AllInCluster:
+		case GeometryCollection::ESelectionMode::Level:
 		{
-			const TManagedArray<int32>& Parents = GeometryCollectionPtr->Parent;
-
-			const TArray<int32> SelectedBones = GetSelectedBones();
-
-			TArray<int32> NewSelection;
-			for (int32 Bone : SelectedBones)
+			if (GeometryCollectionPtr->HasAttribute("Level", FTransformCollection::TransformGroup))
 			{
-				int32 ParentBone = Parents[Bone];
-				TArray<int32> LeafBones;
-				FGeometryCollectionClusteringUtility::GetLeafBones(GeometryCollectionPtr.Get(), ParentBone, true, LeafBones);
+				const TManagedArray<int32>& Levels = GeometryCollectionPtr->GetAttribute<int32>("Level", FTransformCollection::TransformGroup);
 
-				for (int32 Element : LeafBones)
+				const TArray<int32> SelectedBones = GetSelectedBones();
+
+				TArray<int32> NewSelection;
+				for (int32 Bone : SelectedBones)
 				{
-					NewSelection.AddUnique(Element);
+					int32 Level = Levels[Bone];
+					for (int32 TransformIdx = 0; TransformIdx < GeometryCollectionPtr->NumElements(FTransformCollection::TransformGroup); ++TransformIdx)
+					{
+						if (Levels[TransformIdx] == Level)
+						{
+							NewSelection.AddUnique(TransformIdx);
+						}
+					}
 				}
 
-			}
-
-			ResetBoneSelection();
-			AppendSelectedBones(NewSelection);
+				ResetBoneSelection();
+				AppendSelectedBones(NewSelection);
+			}	
 		}
 		break;
 

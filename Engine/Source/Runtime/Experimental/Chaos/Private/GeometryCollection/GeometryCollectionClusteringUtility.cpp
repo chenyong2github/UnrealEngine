@@ -714,6 +714,8 @@ void FGeometryCollectionClusteringUtility::ValidateResults(FGeometryCollection* 
 	}
 	check(NumRootNodes == 1);
 
+	RemoveDanglingClusters(GeometryCollection);
+
 	ensure(GeometryCollection->HasContiguousFaces());
 	ensure(GeometryCollection->HasContiguousVertices());
 }
@@ -813,6 +815,7 @@ void FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(FGeometryColl
 			}
 		}
 	}
+	
 	ValidateResults(GeometryCollection);
 }
 
