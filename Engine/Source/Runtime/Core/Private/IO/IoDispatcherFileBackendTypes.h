@@ -87,10 +87,10 @@ struct FFileIoStoreCompressedBlock
 	FFileIoStoreCompressedBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
 	FName CompressionMethod;
-	uint64 RawOffset;
-	uint32 UncompressedSize;
-	uint32 CompressedSize;
-	uint32 RawSize;
+	uint64 RawOffset = uint64(-1);
+	uint32 UncompressedSize = uint32(-1);
+	uint32 CompressedSize = uint32(-1);
+	uint32 RawSize = uint32(-1);
 	uint32 RefCount = 0;
 	uint32 UnfinishedRawBlocksCount = 0;
 	TArray<struct FFileIoStoreReadRequest*, TInlineAllocator<2>> RawBlocks;
