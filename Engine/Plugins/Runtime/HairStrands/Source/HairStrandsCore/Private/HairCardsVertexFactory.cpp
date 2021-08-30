@@ -25,7 +25,6 @@ template<typename T> inline void VFC_BindParam(FMeshDrawSingleShaderBindings& Sh
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FHairCardsVertexFactoryUniformShaderParameters, "HairCardsVF");
 
 FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
-	uint32 Current,
 	const FHairGroupInstance* Instance,
 	const uint32 LODIndex,
 	EHairGeometryType GeometryType, 
@@ -46,8 +45,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		const bool bIsDynamic = LOD.DeformedResource != nullptr;
 		if (bIsDynamic)
 		{
-			UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
-			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u-Current : 0].SRV.GetReference();
+			UniformParameters.PositionBuffer = LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::EFrameType::Current).SRV.GetReference();
+			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->GetBuffer(FHairCardsDeformedResource::EFrameType::Previous).SRV.GetReference();
 		}
 		else
 		{
@@ -78,8 +77,8 @@ FHairCardsUniformBuffer CreateHairCardsVFUniformBuffer(
 		const bool bIsDynamic = LOD.DeformedResource != nullptr;
 		if (bIsDynamic)
 		{
-			UniformParameters.PositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? Current : 0].SRV.GetReference();
-			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->DeformedPositionBuffer[bIsDynamic ? 1u - Current : 0].SRV.GetReference();
+			UniformParameters.PositionBuffer = LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::EFrameType::Current).SRV.GetReference();
+			UniformParameters.PreviousPositionBuffer = LOD.DeformedResource->GetBuffer(FHairMeshesDeformedResource::EFrameType::Previous).SRV.GetReference();
 		}
 		else
 		{
@@ -172,18 +171,14 @@ public:
 		if (InstanceGeometryType == EHairGeometryType::Cards)
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[LODIndex];
-			const bool bIsDynamic = LOD.DeformedResource != nullptr;
-			const uint32 UniformIndex = bIsDynamic ? LOD.DeformedResource->GetIndex(FHairCardsDeformedResource::Current) : 0;
-			check(LOD.UniformBuffer[UniformIndex]);
-			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
+			check(LOD.UniformBuffer);
+			VertexFactoryUniformBuffer = LOD.UniformBuffer;
 		}
 		else if (InstanceGeometryType == EHairGeometryType::Meshes)
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = Instance->Meshes.LODs[LODIndex];
-			const bool bIsDynamic = LOD.DeformedResource != nullptr;
-			const uint32 UniformIndex = bIsDynamic ? LOD.DeformedResource->GetIndex(FHairMeshesDeformedResource::Current) : 0;
-			check(LOD.UniformBuffer[UniformIndex]);
-			VertexFactoryUniformBuffer = LOD.UniformBuffer[UniformIndex];
+			check(LOD.UniformBuffer);
+			VertexFactoryUniformBuffer = LOD.UniformBuffer;
 		}
 		
 		check(VertexFactoryUniformBuffer);
@@ -193,7 +188,7 @@ public:
 
 IMPLEMENT_TYPE_LAYOUT(FHairCardsVertexFactoryShaderParameters);
 
-FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, uint32 BufferIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
+FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, uint32 GroupIndex, uint32 LODIndex, EHairGeometryType GeometryType, EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const char* InDebugName)
 	: FVertexFactory(InFeatureLevel)
 	, DebugName(InDebugName)
 {
@@ -202,7 +197,6 @@ FHairCardsVertexFactory::FHairCardsVertexFactory(FHairGroupInstance* Instance, u
 	Data.Instance = Instance;
 	Data.GroupIndex = GroupIndex;
 	Data.LODIndex = LODIndex;
-	Data.BufferIndex = BufferIndex;
 	Data.GeometryType = GeometryType;
 }
 /**
@@ -323,7 +317,7 @@ void FHairCardsVertexFactory::InitResources()
 		if (HairInstance->Cards.LODs.IsValidIndex(Data.LODIndex))
 		{
 			const FHairGroupInstance::FCards::FLOD& LOD = HairInstance->Cards.LODs[Data.LODIndex];
-			HairInstance->Cards.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Cards, bManualFetch);
+			HairInstance->Cards.LODs[Data.LODIndex].UniformBuffer = CreateHairCardsVFUniformBuffer(HairInstance, Data.LODIndex, EHairGeometryType::Cards, bManualFetch);
 		}
 	}
 	else if (Data.GeometryType == EHairGeometryType::Meshes && IsHairStrandsEnabled(EHairStrandsShaderType::Meshes, GMaxRHIShaderPlatform))
@@ -331,7 +325,7 @@ void FHairCardsVertexFactory::InitResources()
 		if (HairInstance->Meshes.LODs.IsValidIndex(Data.LODIndex))
 		{
 			const FHairGroupInstance::FMeshes::FLOD& LOD = HairInstance->Meshes.LODs[Data.LODIndex];
-			HairInstance->Meshes.LODs[Data.LODIndex].UniformBuffer[Data.BufferIndex] = CreateHairCardsVFUniformBuffer(Data.BufferIndex, HairInstance, Data.LODIndex, EHairGeometryType::Meshes, bManualFetch);
+			HairInstance->Meshes.LODs[Data.LODIndex].UniformBuffer = CreateHairCardsVFUniformBuffer(HairInstance, Data.LODIndex, EHairGeometryType::Meshes, bManualFetch);
 		}
 	}
 }

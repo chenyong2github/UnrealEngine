@@ -612,9 +612,6 @@ struct FHairCardsDeformedResource : public FHairCommonResource
 	/* Whether the GPU data should be initialized with the asset data or not */
 	const bool bInitializedData = false;
 
-	/* Whether the GPU data should be initialized with the asset data or not */
-	uint32 CurrentIndex = 0;
-
 	enum EFrameType
 	{
 		Previous,
@@ -622,9 +619,8 @@ struct FHairCardsDeformedResource : public FHairCommonResource
 	};
 
 	// Helper accessors
-	inline uint32 GetIndex(EFrameType T)				{ return T == EFrameType::Current ? CurrentIndex : 1u - CurrentIndex; }
+	inline uint32 GetIndex(EFrameType T)				{ return T == EFrameType::Current ? 0u : 1u; }
 	inline FRDGExternalBuffer& GetBuffer(EFrameType T)	{ return DeformedPositionBuffer[GetIndex(T)];  }
-	inline void SwapBuffer()							{ CurrentIndex = 1u - CurrentIndex; }
 };
 
 struct FHairCardsInterpolationBulkData;

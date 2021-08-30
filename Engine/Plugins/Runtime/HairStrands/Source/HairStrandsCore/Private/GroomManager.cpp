@@ -52,20 +52,12 @@ namespace HairTransition
 
 void FHairGroupInstance::FCards::FLOD::InitVertexFactory()
 {
-	VertexFactory[0]->InitResources();
-	if (DeformedResource)
-	{
-		VertexFactory[1]->InitResources();
-	}
+	VertexFactory->InitResources();
 }
 
 void FHairGroupInstance::FMeshes::FLOD::InitVertexFactory()
 {
-	VertexFactory[0]->InitResources();
-	if (DeformedResource)
-	{
-		VertexFactory[1]->InitResources();
-	}
+	VertexFactory->InitResources();
 }
 
 static bool IsInstanceFrustumCullingEnable()
@@ -525,33 +517,6 @@ static void RunHairBufferSwap(const FHairStrandsInstances& Instances, const TArr
 		{
 			if (Instance->Guides.DeformedResource) { Instance->Guides.DeformedResource->SwapBuffer(); }
 			if (Instance->Strands.DeformedResource) { Instance->Strands.DeformedResource->SwapBuffer(); }
-
-			for (uint32 LODIt = 0, LODCount = Instance->Cards.LODs.Num(); LODIt < LODCount; ++LODIt)
-			{
-				if (Instance->Cards.IsValid(LODIt))
-				{
-					if (Instance->Cards.LODs[LODIt].DeformedResource)
-					{
-						Instance->Cards.LODs[LODIt].DeformedResource->SwapBuffer();
-					}
-					if (Instance->Cards.LODs[LODIt].Guides.IsValid())
-					{
-						Instance->Cards.LODs[LODIt].Guides.DeformedResource->SwapBuffer();
-					}
-				}
-			}
-
-			for (uint32 LODIt = 0, LODCount = Instance->Meshes.LODs.Num(); LODIt < LODCount; ++LODIt)
-			{
-				if (Instance->Meshes.IsValid(LODIt))
-				{
-					if (Instance->Meshes.LODs[LODIt].DeformedResource)
-					{
-						Instance->Meshes.LODs[LODIt].DeformedResource->SwapBuffer();
-					}
-				}
-			}
-
 			Instance->Debug.LastFrameIndex = Views[0]->Family->FrameNumber;
 		}
 

@@ -340,8 +340,7 @@ public:
 				{
 					if (HairInstance->Cards.IsValid(LODIt))
 					{
-						if (HairInstance->Cards.LODs[LODIt].VertexFactory[0] == nullptr) HairInstance->Cards.LODs[LODIt].VertexFactory[0] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 0u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
-						if (HairInstance->Cards.LODs[LODIt].VertexFactory[1] == nullptr) HairInstance->Cards.LODs[LODIt].VertexFactory[1] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 1u, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
+						if (HairInstance->Cards.LODs[LODIt].VertexFactory == nullptr) HairInstance->Cards.LODs[LODIt].VertexFactory = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, EHairGeometryType::Cards, ShaderPlatform, FeatureLevel, "HairCardsVertexFactory");
 					}
 				}
 			}
@@ -354,8 +353,7 @@ public:
 				{
 					if (HairInstance->Meshes.IsValid(LODIt))
 					{
-						if (HairInstance->Meshes.LODs[LODIt].VertexFactory[0] == nullptr) HairInstance->Meshes.LODs[LODIt].VertexFactory[0] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 0u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
-						if (HairInstance->Meshes.LODs[LODIt].VertexFactory[1] == nullptr) HairInstance->Meshes.LODs[LODIt].VertexFactory[1] = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, 1u, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
+						if (HairInstance->Meshes.LODs[LODIt].VertexFactory == nullptr) HairInstance->Meshes.LODs[LODIt].VertexFactory = new FHairCardsVertexFactory(HairInstance, GroupIt, LODIt, EHairGeometryType::Meshes, ShaderPlatform, FeatureLevel, "HairMeshesVertexFactory");
 
 					}
 				}
@@ -2783,8 +2781,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 						}
 						#endif
 
-						InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].VertexFactory[0]);
-						InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].VertexFactory[1]);
+						InternalResourceRelease(LocalInstance->Cards.LODs[CardLODIt].VertexFactory);
 					}
 				}
 			}
@@ -2804,8 +2801,7 @@ void UGroomComponent::DeleteDeferredHairGroupInstances()
 						}
 						#endif
 
-						InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].VertexFactory[0]);
-						InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].VertexFactory[1]);
+						InternalResourceRelease(LocalInstance->Meshes.LODs[MeshesLODIt].VertexFactory);
 					}
 				}
 			}
