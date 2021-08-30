@@ -7,6 +7,7 @@
 #include "DataprepEditingOperations.h"
 
 #include "AssetToolsModule.h"
+#include "AssetRegistryModule.h"
 #include "ContentBrowserModule.h"
 #include "Dialogs/DlgPickAssetPath.h"
 #include "IContentBrowserSingleton.h"
@@ -120,6 +121,8 @@ public:
 								RowData.MaterialReplacement = nullptr;
 								DataTable->AddRow(Material->GetFName(), RowData);
 							}
+
+							FAssetRegistryModule::AssetCreated( DataTable );
 
 							FContentBrowserModule& ContentBrowserModule = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
 							ContentBrowserModule.Get().SyncBrowserToAssets(TArray<UObject*>({ DataTable }), true);
