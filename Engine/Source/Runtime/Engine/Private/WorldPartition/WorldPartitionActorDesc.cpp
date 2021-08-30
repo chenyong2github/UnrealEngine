@@ -16,6 +16,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
 #include "Engine/Public/ActorReferencesUtils.h"
 #endif
@@ -213,6 +214,29 @@ FName FWorldPartitionActorDesc::GetActorName() const
 	FString ActorContext;
 	verify(GetActorPath().ToString().Split(TEXT("."), &ActorContext, &ActorName, ESearchCase::CaseSensitive, ESearchDir::FromEnd));
 	return *ActorName;
+}
+
+TArray<const UDataLayer*> FWorldPartitionActorDesc::GetDataLayerObjects() const
+{
+	if (Container)
+	{
+		if (AWorldDataLayers* WorldDataLayers = Container->GetWorld()->GetWorldDataLayers())
+		{
+			TArray<const UDataLayer*> DataLayerObjects;
+			DataLayerObjects.Reserve(DataLayers.Num());
+			for (const FName& DataLayerName : DataLayers)
+			{
+				if (const UDataLayer* DataLayer = WorldDataLayers->GetDataLayerFromName(DataLayerName))
+				{
+					DataLayerObjects.Add(DataLayer);
+				}
+			}
+
+			return DataLayerObjects;
+		}
+	}
+
+	return TArray<const UDataLayer*>();
 }
 
 UHLODLayer* FWorldPartitionActorDesc::GetHLODLayer() const

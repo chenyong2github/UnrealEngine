@@ -229,23 +229,34 @@ void FSceneOutlinerModule::CreateActorInfoColumns(FSceneOutlinerInitializationOp
 	{
 		TStringBuilder<128> Builder;
 
+		TArray<const UDataLayer*> DataLayerObjects;
+
 		if (const FActorTreeItem* ActorItem = Item.CastTo<FActorTreeItem>())
 		{
 			AActor* Actor = ActorItem->Actor.Get();
 
-			if (!Actor)
+			if (Actor)
 			{
-				return FString();
+				DataLayerObjects = Actor->GetDataLayerObjects();
 			}
+		}
+		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
+		{
+			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.GetActorDesc();
 
-			for (const UDataLayer* DataLayer : Actor->GetDataLayerObjects())
+			if (ActorDesc)
 			{
-				if (Builder.Len())
-				{
-					Builder += TEXT(", ");
-				}
-				Builder += DataLayer->GetDataLayerLabel().ToString();
+				DataLayerObjects = ActorDesc->GetDataLayerObjects();
 			}
+		}
+
+		for (const UDataLayer* DataLayer : DataLayerObjects)
+		{
+			if (Builder.Len())
+			{
+				Builder += TEXT(", ");
+			}
+			Builder += DataLayer->GetDataLayerLabel().ToString();
 		}
 		
 		return Builder.ToString();
