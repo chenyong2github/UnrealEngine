@@ -11,11 +11,10 @@
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerModel : public TSharedFromThis< FUsdLayerModel >
 {
 public:
-	FText GetDisplayName() const { return DisplayName; }
-
-	FText DisplayName;
+	FString DisplayName;
 	bool bIsEditTarget = false;
 	bool bIsMuted = false;
+	bool bIsDirty = false;
 };
 
 class USDSTAGEEDITORVIEWMODELS_API FUsdLayerViewModel : public IUsdTreeViewItem
@@ -32,6 +31,7 @@ public:
 	void RefreshData();
 
 	UE::FSdfLayer GetLayer() const;
+	FText GetDisplayName() const;
 
 	bool IsLayerMuted() const;
 	bool CanMuteLayer() const;
@@ -43,6 +43,8 @@ public:
 	void AddSubLayer( const TCHAR* SubLayerIdentifier );
 	void NewSubLayer( const TCHAR* SubLayerIdentifier );
 	bool RemoveSubLayer( int32 SubLayerIndex );
+
+	bool IsLayerDirty() const;
 
 public:
 	TSharedRef< FUsdLayerModel > LayerModel;

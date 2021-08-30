@@ -258,7 +258,19 @@ void SUsdStage::SetupStageActorDelegates()
 			{
 				if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
 				{
-					this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), false );
+					constexpr bool bResync = false;
+					this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
+				}
+			}
+		);
+
+		OnLayersChangedHandle = ViewModel.UsdStageActor->GetUsdListener().GetOnLayersChanged().AddLambda(
+			[ this ]( const TArray< FString >& LayersNames )
+			{
+				if ( this->UsdLayersTreeView && ViewModel.UsdStageActor.IsValid() )
+				{
+					constexpr bool bResync = false;
+					this->UsdLayersTreeView->Refresh( ViewModel.UsdStageActor.Get(), bResync );
 				}
 			}
 		);
@@ -275,6 +287,7 @@ void SUsdStage::ClearStageActorDelegates()
 		StageActor->OnActorDestroyed.Remove ( OnActorDestroyedHandle );
 
 		StageActor->GetUsdListener().GetOnStageEditTargetChanged().Remove( OnStageEditTargetChangedHandle );
+		StageActor->GetUsdListener().GetOnLayersChanged().Remove( OnLayersChangedHandle );
 	}
 }
 

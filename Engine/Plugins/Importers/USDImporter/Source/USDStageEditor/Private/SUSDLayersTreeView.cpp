@@ -37,7 +37,7 @@ public:
 			.VAlign( VAlign_Center )
 			[
 				SNew(STextBlock)
-				.Text( TreeItem->LayerModel, &FUsdLayerModel::GetDisplayName )
+				.Text( TreeItem, &FUsdLayerViewModel::GetDisplayName )
 			];
 	}
 };

@@ -79,6 +79,7 @@ protected:
 	FDelegateHandle OnStageChangedHandle;
 	FDelegateHandle OnStageEditTargetChangedHandle;
 	FDelegateHandle OnPrimChangedHandle;
+	FDelegateHandle OnLayersChangedHandle;
 
 	FDelegateHandle OnViewportSelectionChangedHandle;
 
