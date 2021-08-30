@@ -613,6 +613,21 @@ bool URigVMPin::IsValidDefaultValue(const FString& InDefaultValue) const
 
 	if (IsArray())
 	{
+		if(InDefaultValue.IsEmpty())
+		{
+			return false;
+		}
+		
+		if(InDefaultValue[0] != TCHAR('('))
+		{
+			return false;
+		}
+
+		if(InDefaultValue[InDefaultValue.Len() - 1] != TCHAR(')'))
+		{
+			return false;
+		}
+
 		DefaultValues = URigVMPin::SplitDefaultValue(InDefaultValue);
 	}
 	else

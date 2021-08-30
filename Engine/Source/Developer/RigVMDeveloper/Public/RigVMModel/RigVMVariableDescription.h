@@ -72,27 +72,39 @@ public:
 		PinType.ResetToDefaults();
 		PinType.PinCategory = NAME_None;
 
-		if (CPPType == TEXT("bool"))
+		FString CurrentCPPType = CPPType;
+		if (CurrentCPPType.StartsWith(TEXT("TArray<")))
+		{
+			PinType.ContainerType = EPinContainerType::Array;
+			CurrentCPPType.RemoveFromStart(TEXT("TArray<"));
+			CurrentCPPType.RemoveFromEnd(TEXT(">"));
+		}
+		else
+		{
+			PinType.ContainerType = EPinContainerType::None;
+		}
+
+		if (CurrentCPPType == TEXT("bool"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 		}
-		else if (CPPType == TEXT("int32"))
+		else if (CurrentCPPType == TEXT("int32"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 		}
-		else if (CPPType == TEXT("float"))
+		else if (CurrentCPPType == TEXT("float"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Float;
 		}
-		else if (CPPType == TEXT("double"))
+		else if (CurrentCPPType == TEXT("double"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Double;
 		}
-		else if (CPPType == TEXT("FName"))
+		else if (CurrentCPPType == TEXT("FName"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 		}
-		else if (CPPType == TEXT("FString"))
+		else if (CurrentCPPType == TEXT("FString"))
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 		}
@@ -105,15 +117,6 @@ public:
 		{
 			PinType.PinCategory = UEdGraphSchema_K2::PC_Byte;
 			PinType.PinSubCategoryObject = CPPTypeObject;
-		}
-
-		if (CPPType.StartsWith(TEXT("TArray<")))
-		{
-			PinType.ContainerType = EPinContainerType::Array;
-		}
-		else
-		{
-			PinType.ContainerType = EPinContainerType::None;
 		}
 
 		return PinType;
