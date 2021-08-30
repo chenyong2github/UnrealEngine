@@ -33,12 +33,12 @@ using namespace UE::Geometry;
 //
 //		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
 //		{
-//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			const TVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
 //			f << "v " << Vertex.X << " " << Vertex.Y << " 0" << std::endl;
 //		}
 //		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
 //		{
-//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			const TVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
 //			f << "v " << Vertex.X << " " << Vertex.Y << " .5" << std::endl;
 //		}
 //		for (const FIndex2i& Edge : Delaunay.Edges)
@@ -56,7 +56,7 @@ using namespace UE::Geometry;
 //		std::ofstream f(*Path);
 //		for (int32 VertexIdx = 0; VertexIdx < Delaunay.Vertices.Num(); VertexIdx++)
 //		{
-//			const FVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
+//			const TVector2<RealType>& Vertex = Delaunay.Vertices[VertexIdx];
 //			f << "v " << Vertex.X << " " << Vertex.Y << " 0" << std::endl;
 //		}
 //		for (const FIndex3i& Tri : Delaunay.Triangles)
@@ -120,7 +120,7 @@ bool HasUnorderedEdge(const TMap<TPair<int, int>, bool>& EdgeMap, int VertA, int
 namespace ConstrainedDelaunay2Internal
 {
 	template<class RealType>
-	void SplitBowtiesHelper(TArray<TPair<int, int>>& NeedUpdates, TArray<FVector2<RealType>>& Vertices, TArray<int8>& Keep, const std::vector<int>& Indices, const std::vector<int>& Adj)
+	void SplitBowtiesHelper(TArray<TPair<int, int>>& NeedUpdates, TArray<TVector2<RealType>>& Vertices, TArray<int8>& Keep, const std::vector<int>& Indices, const std::vector<int>& Adj)
 	{
 		int TriNum = int(Adj.size() / 3);
 		int32 OrigNumVertices = Vertices.Num();
@@ -187,7 +187,7 @@ namespace ConstrainedDelaunay2Internal
 				int NewVertID = -1;
 				if (bSeenSource)
 				{
-					FVector2<RealType> VertexToCopy = Vertices[VertID];
+					TVector2<RealType> VertexToCopy = Vertices[VertID];
 					NewVertID = Vertices.Add(VertexToCopy);
 				}
 
@@ -281,7 +281,7 @@ namespace ConstrainedDelaunay2Internal
 
 
 template<class RealType>
-bool TConstrainedDelaunay2<RealType>::Triangulate(TFunctionRef<bool(const TArray<FVector2<RealType>>&, const FIndex3i&)> KeepTriangle)
+bool TConstrainedDelaunay2<RealType>::Triangulate(TFunctionRef<bool(const TArray<TVector2<RealType>>&, const FIndex3i&)> KeepTriangle)
 {
 	Triangles.Empty();
 

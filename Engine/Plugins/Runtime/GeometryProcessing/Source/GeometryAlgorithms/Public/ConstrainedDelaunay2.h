@@ -14,6 +14,7 @@
 namespace UE {
 namespace Geometry {
 
+using namespace UE::Math;
 
 
 template<typename RealType>
@@ -22,7 +23,7 @@ struct TConstrainedDelaunay2
 	//
 	// inputs
 	//
-	TArray<FVector2<RealType>> Vertices;
+	TArray<TVector2<RealType>> Vertices;
 
 	// Edges and HoleEdges must not be intersecting; use Arrangment2D to pre-process any input w/ intersecting edges
 	TArray<FIndex2i> Edges;	// Edges can be boundaries or not based on the EFillRule setting
@@ -73,7 +74,7 @@ struct TConstrainedDelaunay2
 			if (Graph.IsVertex(Idx))
 			{
 				GraphToDTVertIdxMap[Idx] = Vertices.Num();
-				Vertices.Add((FVector2<RealType>)Graph.GetVertex(Idx));
+				Vertices.Add((TVector2<RealType>)Graph.GetVertex(Idx));
 			}
 			else
 			{
@@ -90,9 +91,9 @@ struct TConstrainedDelaunay2
 	{
 		int32 VertexStart = Vertices.Num();
 		int32 VertexEnd = VertexStart + Polygon.VertexCount();
-		for (const FVector2<InputRealType> &Vertex : Polygon.GetVertices())
+		for (const TVector2<InputRealType> &Vertex : Polygon.GetVertices())
 		{
-			Vertices.Add((FVector2<RealType>)Vertex);
+			Vertices.Add((TVector2<RealType>)Vertex);
 		}
 
 		TArray<FIndex2i>* EdgeArr;
@@ -142,7 +143,7 @@ struct TConstrainedDelaunay2
 	 * @param KeepTriangle Function to check whether the given triangle should be kept in the output
 	 * @return false if Triangulation failed
 	 */
-	bool GEOMETRYALGORITHMS_API Triangulate(TFunctionRef<bool(const TArray<FVector2<RealType>>&, const FIndex3i&)> KeepTriangle);
+	bool GEOMETRYALGORITHMS_API Triangulate(TFunctionRef<bool(const TArray<TVector2<RealType>>&, const FIndex3i&)> KeepTriangle);
 };
 
 template<typename RealType>

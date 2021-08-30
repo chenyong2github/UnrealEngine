@@ -20,6 +20,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template <typename T>
 class FDynamicGraph2 : public FDynamicGraph
 {
@@ -29,17 +31,17 @@ class FDynamicGraph2 : public FDynamicGraph
 	TDynamicVectorN<T, 2> vertices;
 
 public:
-	static FVector2<T> InvalidVertex()
+	static TVector2<T> InvalidVertex()
 	{
-		return FVector2<T>(TNumericLimits<T>::Max(), 0);
+		return TVector2<T>(TNumericLimits<T>::Max(), 0);
 	}
 
-	FVector2<T> GetVertex(int VID) const
+	TVector2<T> GetVertex(int VID) const
 	{
 		return vertices_refcount.IsValid(VID) ? vertices.AsVector2(VID) : InvalidVertex();
 	}
 
-	void SetVertex(int VID, FVector2<T> VNewPos)
+	void SetVertex(int VID, TVector2<T> VNewPos)
 	{
 		check(VectorUtil::IsFinite(VNewPos)); // this will really catch a lot of bugs...
 		if (vertices_refcount.IsValid(VID))
@@ -50,7 +52,7 @@ public:
 	}
 
 	using FDynamicGraph::GetEdgeV;
-	bool GetEdgeV(int EID, FVector2<T>& A, FVector2<T>& B) const
+	bool GetEdgeV(int EID, UE::Math::TVector2<T>& A, UE::Math::TVector2<T>& B) const
 	{
 		if (edges_refcount.IsValid(EID))
 		{
@@ -70,14 +72,14 @@ public:
 			vertices.AsVector2(e.B));
 	}
 
-	FVector2<T> GetEdgeCenter(int EID) const
+	TVector2<T> GetEdgeCenter(int EID) const
 	{
 		checkf(edges_refcount.IsValid(EID), TEXT("FDynamicGraph2.GetEdgeCenter: invalid segment with id %d"), EID);
 		const FEdge& e = edges[EID];
 		return 0.5 * (vertices.AsVector2(e.A) + vertices.AsVector2(e.B));
 	}
 
-	int AppendVertex(FVector2<T> V)
+	int AppendVertex(TVector2<T> V)
 	{
 		int vid = append_vertex_internal();
 		vertices.InsertAt({{V.X, V.Y}}, vid);
@@ -134,9 +136,9 @@ public:
 */
 
 	/** Enumerate positions of all vertices in graph */
-	value_iteration<FVector2<T>> Vertices() const
+	value_iteration<TVector2<T>> Vertices() const
 	{
-		return vertices_refcount.MappedIndices<FVector2<T>>(
+		return vertices_refcount.MappedIndices<TVector2<T>>(
 			[=](int vid) {
 				return vertices.template AsVector2<T>(vid);
 			});
@@ -154,10 +156,10 @@ public:
 		{
 			Sorted.Add(EID);
 		}
-		FVector2<T> V = vertices.AsVector2(VID);
+		TVector2<T> V = vertices.AsVector2(VID);
 		Algo::SortBy(Sorted, [&](int EID) {
 			int NbrVID = edge_other_v(EID, VID);
-			FVector2<T> D = vertices.AsVector2(NbrVID) - V;
+			TVector2<T> D = vertices.AsVector2(NbrVID) - V;
 			return TMathUtil<T>::Atan2Positive(D.Y, D.X);
 		});
 
@@ -168,7 +170,7 @@ public:
 	FAxisAlignedBox2d GetBounds() const
 	{
 		TAxisAlignedBox2<T> AABB;
-		for (const FVector2<T>& V : Vertices())
+		for (const TVector2<T>& V : Vertices())
 		{
 			AABB.Contain(V);
 		}
@@ -206,9 +208,9 @@ public:
 		int nbra = edge_other_v(*ValueIterate, VID);
 		int nbrb = edge_other_v(*++ValueIterate, VID);
 
-		FVector2<T> V = vertices.AsVector2(VID);
-		FVector2<T> A = vertices.AsVector2(nbra);
-		FVector2<T> B = vertices.AsVector2(nbrb);
+		TVector2<T> V = vertices.AsVector2(VID);
+		TVector2<T> A = vertices.AsVector2(nbra);
+		TVector2<T> B = vertices.AsVector2(nbrb);
 		A -= V;
 		if (Normalize(A) == 0)
 		{
@@ -226,7 +228,7 @@ protected:
 	// internal used in SplitEdge
 	virtual int append_new_split_vertex(int A, int B) override
 	{
-		FVector2<T> vNew = 0.5 * (GetVertex(A) + GetVertex(B));
+		TVector2<T> vNew = 0.5 * (GetVertex(A) + GetVertex(B));
 		int f = AppendVertex(vNew);
 		return f;
 	}
@@ -235,7 +237,7 @@ protected:
 	{
 		for (int VID : VertexIndices())
 		{
-			FVector2<T> V = GetVertex(VID);
+			TVector2<T> V = GetVertex(VID);
 			CheckOrFailF(VectorUtil::IsFinite(V));
 		}
 	}

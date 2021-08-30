@@ -161,7 +161,7 @@ namespace
 		FIndex3i TriangleVertices = Mesh->GetTriangle(NewTriangleID);
 		FVector2f NewElement = 0.5f * (EdgeElements[0] + EdgeElements[1]);
 		
-		bool bIsDegen = (EdgeElements[0].Distance(EdgeElements[1]) == 0.0f);
+		bool bIsDegen = ( Distance(EdgeElements[0], EdgeElements[1]) == 0.0f);
 		if (!bIsDegen)
 		{
 			// push the new element off the edge slightly to avoid degenerate triangle (assuming the adjacent triangle 

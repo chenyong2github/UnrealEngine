@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute unsigned distance between 3D Point and 3D Triangle
  */
@@ -59,7 +61,7 @@ public:
 		Real f10 = b0 + a00;
 		Real f01 = b0 + a01;
 
-		FVector2<Real> p0, p1, p;
+		TVector2<Real> p0, p1, p;
 		Real dt1, h0, h1;
 
 		// Compute the endpoints p0 and p1 of the segment.  The segment is
@@ -194,7 +196,7 @@ public:
 	}
 
 private:
-	void GetMinEdge02(Real const& a11, Real const& b1, FVector2<Real>& p) const
+	void GetMinEdge02(Real const& a11, Real const& b1, TVector2<Real>& p) const
 	{
 		p[0] = (Real)0;
 		if (b1 >= (Real)0)
@@ -213,7 +215,7 @@ private:
 
 	void GetMinEdge12(
 			Real const& a01, Real const& a11, Real const& b1, Real const& f10,
-			Real const& f01, FVector2<Real>& p) const
+			Real const& f01, TVector2<Real>& p) const
 	{
 		Real h0 = a01 + b1 - f10;
 		if (h0 >= (Real)0)
@@ -236,8 +238,8 @@ private:
 	}
 
 	void GetMinInterior(
-			FVector2<Real> const& p0, Real const& h0, FVector2<Real> const& p1,
-			Real const& h1, FVector2<Real>& p) const
+			TVector2<Real> const& p0, Real const& h0, TVector2<Real> const& p1,
+			Real const& h1, TVector2<Real>& p) const
 	{
 		Real z = h0 / (h0 - h1);
 		p = ((Real)1 - z) * p0 + z * p1;

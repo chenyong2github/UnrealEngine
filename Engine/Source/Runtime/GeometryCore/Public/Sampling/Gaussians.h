@@ -87,13 +87,13 @@ public:
 
 	TGaussian2(RealType SigmaIn = 1.0) : Sigma(SigmaIn) {}
 
-	RealType Evaluate(const FVector2<RealType>& XY) const
+	RealType Evaluate(const UE::Math::TVector2<RealType>& XY) const
 	{
 		RealType InvTwoSigmaSqr = 1.0 / (2.0 * Sigma * Sigma);
 		return TMathUtil<RealType>::InvPi * InvTwoSigmaSqr * TMathUtil<RealType>::Exp( -XY.SquaredLength() * InvTwoSigmaSqr );
 	}
 
-	RealType EvaluateSqrUnscaled(const FVector2<RealType>& XY) const
+	RealType EvaluateSqrUnscaled(const UE::Math::TVector2<RealType>& XY) const
 	{
 		RealType InvTwoSigmaSqr = 1.0 / (2.0 * Sigma * Sigma);
 		return TMathUtil<RealType>::Exp(-XY.SquaredLength() * InvTwoSigmaSqr);

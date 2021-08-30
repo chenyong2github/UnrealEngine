@@ -600,8 +600,8 @@ bool UMeshGroupPaintTool::SyncMeshWithGroupBuffer(FDynamicMesh3* Mesh)
 
 template<typename RealType>
 static bool FindPolylineSelfIntersection(
-	const TArray<FVector2<RealType>>& Polyline, 
-	FVector2<RealType>& IntersectionPointOut, 
+	const TArray<UE::Math::TVector2<RealType>>& Polyline, 
+	UE::Math::TVector2<RealType>& IntersectionPointOut, 
 	FIndex2i& IntersectionIndexOut,
 	bool bParallel = true)
 {
@@ -635,9 +635,9 @@ static bool FindPolylineSelfIntersection(
 
 template<typename RealType>
 static bool FindPolylineSegmentIntersection(
-	const TArray<FVector2<RealType>>& Polyline,
+	const TArray<UE::Math::TVector2<RealType>>& Polyline,
 	const TSegment2<RealType>& Segment,
-	FVector2<RealType>& IntersectionPointOut,
+	UE::Math::TVector2<RealType>& IntersectionPointOut,
 	int& IntersectionIndexOut)
 {
 
@@ -664,7 +664,7 @@ bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
 	int32 N = Polyline.Num();
 
 	// handle already-closed polylines
-	if (Polyline[0].Distance(Polyline[N-1]) < 0.0001f)
+	if (Distance(Polyline[0], Polyline[N-1]) < 0.0001f)
 	{
 		return true;
 	}
@@ -711,7 +711,7 @@ bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
 	}
 	float Size = Bounds.DiagonalLength();
 
-	FVector2f StartPos = Polyline[0] + 0.001 * StartDirOut;
+	FVector2f StartPos = Polyline[0] + 0.001f * StartDirOut;
 	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(StartPos, StartPos + 2*Size*StartDirOut), IntersectPoint, IntersectionIndex.A))
 	{
 		//TArray<FVector2f> NewPolyline;
@@ -725,7 +725,7 @@ bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
 		return true;
 	}
 
-	FVector2f EndPos = Polyline[N-1] + 0.001 * EndDirOut;
+	FVector2f EndPos = Polyline[N-1] + 0.001f * EndDirOut;
 	if (FindPolylineSegmentIntersection(Polyline, FSegment2f(EndPos, EndPos + 2*Size*EndDirOut), IntersectPoint, IntersectionIndex.A))
 	{
 		//TArray<FVector2f> NewPolyline;

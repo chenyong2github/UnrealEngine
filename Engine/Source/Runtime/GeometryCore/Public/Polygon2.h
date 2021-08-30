@@ -19,6 +19,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TPolygon2 is a 2D polygon represented as a list of Vertices.
  * 
@@ -29,7 +31,7 @@ class TPolygon2
 {
 protected:
 	/** The list of vertices/corners of the polygon */
-	TArray<FVector2<T>> Vertices;
+	TArray<TVector2<T>> Vertices;
 
 	/** A counter that is incremented every time the polygon vertices are modified */
 	int Timestamp;
@@ -50,14 +52,25 @@ public:
 	/**
 	 * Construct polygon with given list of vertices
 	 */
-	TPolygon2(const TArray<FVector2<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
+	TPolygon2(const TArray<TVector2<T>>& VertexList) : Vertices(VertexList), Timestamp(0)
 	{
 	}
+
+	template<typename OtherVertexType>
+	TPolygon2(const TArray<OtherVertexType>& VertexList) : Timestamp(0)
+	{
+		Vertices.Reserve(VertexList.Num());
+		for (const OtherVertexType& OtherVtx : VertexList)
+		{
+			Vertices.Add( TVector2<T>(OtherVtx.X, OtherVtx.Y) );
+		}
+	}
+
 
 	/**
 	 * Construct polygon with given indices into a vertex array
 	 */
-	TPolygon2(TArrayView<const FVector2<T>> VertexArray, TArrayView<const int32> VertexIndices) : Timestamp(0)
+	TPolygon2(TArrayView<const TVector2<T>> VertexArray, TArrayView<const int32> VertexIndices) : Timestamp(0)
 	{
 		Vertices.SetNum(VertexIndices.Num());
 		for (int32 Idx = 0; Idx < VertexIndices.Num(); Idx++)
@@ -75,7 +88,7 @@ public:
 	/**
 	 * Get the vertex at a given index
 	 */
-	const FVector2<T>& operator[](int Index) const
+	const TVector2<T>& operator[](int Index) const
 	{
 		return Vertices[Index];
 	}
@@ -84,7 +97,7 @@ public:
 	 * Get the vertex at a given index
 	 * @warning changing the vertex via this operator does not update Timestamp!
 	 */
-	FVector2<T>& operator[](int Index)
+	TVector2<T>& operator[](int Index)
 	{
 		return Vertices[Index];
 	}
@@ -93,7 +106,7 @@ public:
 	/**
 	 * @return first vertex of Polygon
 	 */
-	const FVector2<T>& Start() const
+	const TVector2<T>& Start() const
 	{
 		return Vertices[0];
 	}
@@ -101,7 +114,7 @@ public:
 	/**
 	 * @return list of Vertices of Polygon
 	 */
-	const TArray<FVector2<T>>& GetVertices() const
+	const TArray<TVector2<T>>& GetVertices() const
 	{
 		return Vertices;
 	}
@@ -117,7 +130,7 @@ public:
 	/**
 	 * Add a vertex to the Polygon
 	 */
-	void AppendVertex(const FVector2<T>& Position)
+	void AppendVertex(const TVector2<T>& Position)
 	{
 		Vertices.Add(Position);
 		Timestamp++;
@@ -126,7 +139,7 @@ public:
 	/**
 	 * Add a list of Vertices to the Polygon
 	 */
-	void AppendVertices(const TArray<FVector2<T>>& NewVertices)
+	void AppendVertices(const TArray<TVector2<T>>& NewVertices)
 	{
 		Vertices.Append(NewVertices);
 		Timestamp++;
@@ -135,7 +148,7 @@ public:
 	/**
 	 * Set vertex at given index to a new Position
 	 */
-	void Set(int VertexIndex, const FVector2<T>& Position)
+	void Set(int VertexIndex, const TVector2<T>& Position)
 	{
 		Vertices[VertexIndex] = Position;
 		Timestamp++;
@@ -153,7 +166,7 @@ public:
 	/**
 	 * Replace the list of Vertices with a new list
 	 */
-	void SetVertices(const TArray<FVector2<T>>& NewVertices)
+	void SetVertices(const TArray<TVector2<T>>& NewVertices)
 	{
 		Vertices = NewVertices;
 		Timestamp++;
@@ -178,10 +191,10 @@ public:
 	 * Get the tangent vector at a vertex of the polygon, which is the normalized
 	 * vector from the previous vertex to the next vertex
 	 */
-	FVector2<T> GetTangent(int VertexIndex) const
+	TVector2<T> GetTangent(int VertexIndex) const
 	{
-		FVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
-		FVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
+		TVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
+		TVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
 		return Normalized(next - prev);
 	}
 
@@ -190,7 +203,7 @@ public:
 	 * Get the normal vector at a vertex of the polygon, which is perpendicular to GetTangent()
 	 * Points "inward" for a Clockwise Polygon, and outward for CounterClockwise
 	 */
-	FVector2<T> GetNormal(int VertexIndex) const
+	TVector2<T> GetNormal(int VertexIndex) const
 	{
 		return PerpCW(GetTangent(VertexIndex));
 	}
@@ -201,14 +214,14 @@ public:
 	 * This vector is independent of the lengths of the adjacent segments.
 	 * Points "inward" for a Clockwise Polygon, and outward for CounterClockwise
 	 */
-	FVector2<T> GetNormal_FaceAvg(int VertexIndex) const
+	TVector2<T> GetNormal_FaceAvg(int VertexIndex) const
 	{
-		FVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
-		FVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
+		TVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
+		TVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
 		next -= Vertices[VertexIndex]; Normalize(next);
 		prev -= Vertices[VertexIndex]; Normalize(prev);
 
-		FVector2<T> n = (PerpCW(next) - PerpCW(prev));
+		TVector2<T> n = (PerpCW(next) - PerpCW(prev));
 		T len = Normalize(n);
 		if (len == 0) 
 		{
@@ -317,8 +330,8 @@ public:
 		}
 		for (int i = 0; i < N; ++i) 
 		{
-			const FVector2<T>& v1 = Vertices[i];
-			const FVector2<T>& v2 = Vertices[(i + 1) % N];
+			const TVector2<T>& v1 = Vertices[i];
+			const TVector2<T>& v2 = Vertices[(i + 1) % N];
 			fArea += v1.X * v2.Y - v1.Y * v2.X;
 		}
 		return fArea * 0.5;
@@ -341,7 +354,7 @@ public:
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i)
 		{
-			fPerim += Vertices[i].Distance(Vertices[(i + 1) % N]);
+			fPerim += Distance(Vertices[i], Vertices[(i + 1) % N]);
 		}
 		return fPerim;
 	}
@@ -350,7 +363,7 @@ public:
 	/**
 	 * Get the previous and next vertex positions for a given vertex of the Polygon
 	 */
-	void NeighbourPoints(int iVertex, FVector2<T> &PrevNbrOut, FVector2<T> &NextNbrOut) const
+	void NeighbourPoints(int iVertex, TVector2<T> &PrevNbrOut, TVector2<T> &NextNbrOut) const
 	{
 		int N = Vertices.Num();
 		PrevNbrOut = Vertices[(iVertex == 0) ? N - 1 : iVertex - 1];
@@ -361,7 +374,7 @@ public:
 	/**
 	 * Get the vectors from a given vertex to the previous and next Vertices, optionally normalized
 	 */
-	void NeighbourVectors(int iVertex, FVector2<T> &ToPrevOut, FVector2<T> &ToNextOut, bool bNormalize = false) const
+	void NeighbourVectors(int iVertex, TVector2<T> &ToPrevOut, TVector2<T> &ToNextOut, bool bNormalize = false) const
 	{
 		int N = Vertices.Num();
 		ToPrevOut = Vertices[(iVertex == 0) ? N - 1 : iVertex - 1] - Vertices[iVertex];
@@ -379,7 +392,7 @@ public:
 	 */
 	T OpeningAngleDeg(int iVertex) const
 	{
-		FVector2<T> e0, e1;
+		TVector2<T> e0, e1;
 		NeighbourVectors(iVertex, e0, e1, true);
 		return AngleD(e0, e1);
 	}
@@ -388,11 +401,11 @@ public:
 	/**
 	 * @return analytic winding integral for this Polygon at an arbitrary point
 	 */
-	T WindingIntegral(const FVector2<T>& QueryPoint) const
+	T WindingIntegral(const TVector2<T>& QueryPoint) const
 	{
 		T sum = 0;
 		int N = Vertices.Num();
-		FVector2<T> a = Vertices[0] - QueryPoint, b = FVector2<T>::Zero();
+		TVector2<T> a = Vertices[0] - QueryPoint, b = TVector2<T>::Zero();
 		for (int i = 0; i < N; ++i) 
 		{
 			b = Vertices[(i + 1) % N] - QueryPoint;
@@ -406,7 +419,7 @@ public:
 	/**
 	 * @return true if the given query point is inside the Polygon, based on the winding integral
 	 */
-	bool Contains(const FVector2<T>& QueryPoint) const
+	bool Contains(const TVector2<T>& QueryPoint) const
 	{
 		int nWindingNumber = 0;
 
@@ -415,7 +428,7 @@ public:
 		{
 			return false;
 		}
-		FVector2<T> a = Vertices[0], b = FVector2<T>::Zero();
+		TVector2<T> a = Vertices[0], b = TVector2<T>::Zero();
 		for (int i = 0; i < N; ++i) 
 		{
 			b = Vertices[(i + 1) % N];
@@ -584,7 +597,7 @@ public:
 	 * @param OutArray intersection points are stored here
 	 * @return true if any intersections were found
 	 */
-	bool FindIntersections(const TPolygon2<T>& OtherPoly, TArray<FVector2<T>>& OutArray) const
+	bool FindIntersections(const TPolygon2<T>& OtherPoly, TArray<TVector2<T>>& OutArray) const
 	{
 		if (!Bounds().Intersects(OtherPoly.Bounds()))
 		{
@@ -632,7 +645,7 @@ public:
 	 * @param SegmentParam parameter in range [-Extent,Extent] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector2<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
+	TVector2<T> GetSegmentPoint(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
 		return seg.PointAt(SegmentParam);
@@ -643,7 +656,7 @@ public:
 	 * @param SegmentParam parameter in range [0,1] along segment
 	 * @return point on the segment at the given parameter value
 	 */
-	FVector2<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
+	TVector2<T> GetSegmentPointUnitParam(int SegmentIndex, T SegmentParam) const
 	{
 		TSegment2<T> seg(Vertices[SegmentIndex], Vertices[(SegmentIndex + 1) % Vertices.Num()]);
 		return seg.PointBetween(SegmentParam);
@@ -655,13 +668,13 @@ public:
 	 * @param SegmentParam parameter in range [0,1] along segment
 	 * @return interpolated normal to the segment at the given parameter value
 	 */
-	FVector2<T> GetNormal(int iSeg, T SegmentParam) const
+	TVector2<T> GetNormal(int iSeg, T SegmentParam) const
 	{
 		TSegment2<T> seg(Vertices[iSeg], Vertices[(iSeg + 1) % Vertices.Num()]);
 		T t = ((SegmentParam / seg.Extent) + 1.0) / 2.0;
 
-		FVector2<T> n0 = GetNormal(iSeg);
-		FVector2<T> n1 = GetNormal((iSeg + 1) % Vertices.Num());
+		TVector2<T> n0 = GetNormal(iSeg);
+		TVector2<T> n1 = GetNormal((iSeg + 1) % Vertices.Num());
 		return Normalized((T(1) - t) * n0 + t * n1);
 	}
 
@@ -674,7 +687,7 @@ public:
 	 * @param NearestSegParamOut the parameter value of the nearest point on the segment
 	 * @return squared distance to the polygon
 	 */
-	T DistanceSquared(const FVector2<T>& QueryPoint, int& NearestSegIndexOut, T& NearestSegParamOut) const
+	T DistanceSquared(const TVector2<T>& QueryPoint, int& NearestSegIndexOut, T& NearestSegParamOut) const
 	{
 		NearestSegIndexOut = -1;
 		NearestSegParamOut = TNumericLimits<T>::Max();
@@ -688,11 +701,11 @@ public:
 			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)
 			{
-				d = seg.EndPoint().DistanceSquared(QueryPoint);
+				d = UE::Geometry::DistanceSquared(seg.EndPoint(), QueryPoint);
 			}
 			else if (t <= -seg.Extent)
 			{
-				d = seg.StartPoint().DistanceSquared(QueryPoint);
+				d = UE::Geometry::DistanceSquared(seg.StartPoint(), QueryPoint);
 			}
 			else
 			{
@@ -714,7 +727,7 @@ public:
 	 * @param QueryPoint the query point
 	 * @return squared distance to the polygon
 	 */
-	T DistanceSquared(const FVector2<T>& QueryPoint) const
+	T DistanceSquared(const TVector2<T>& QueryPoint) const
 	{
 		int seg; T segt;
 		return DistanceSquared(QueryPoint, seg, segt);
@@ -728,9 +741,9 @@ public:
 	{
 		T avg = 0; int N = Vertices.Num();
 		for (int i = 1; i < N; ++i) {
-			avg += Vertices[i].Distance(Vertices[i - 1]);
+			avg += Distance(Vertices[i], Vertices[i - 1]);
 		}
-		avg += Vertices[N - 1].Distance(Vertices[0]);
+		avg += Distance(Vertices[N - 1], Vertices[0]);
 		return avg / N;
 	}
 
@@ -739,7 +752,7 @@ public:
 	 * Translate the polygon
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	TPolygon2<T>& Translate(const FVector2<T>& Translate) 
+	TPolygon2<T>& Translate(const TVector2<T>& Translate) 
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i)
@@ -754,7 +767,7 @@ public:
 	 * Scale the Polygon relative to a given point
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	TPolygon2<T>& Scale(const FVector2<T>& Scale, const FVector2<T>& Origin)
+	TPolygon2<T>& Scale(const TVector2<T>& Scale, const TVector2<T>& Origin)
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i)
@@ -770,7 +783,7 @@ public:
 	 * Apply an arbitrary transformation to the Polygon
 	 * @returns the Polygon, so that you can chain calls like Translate().Scale()
 	 */
-	TPolygon2<T>& Transform(const TFunction<FVector2<T> (const FVector2<T>&)>& TransformFunc)
+	TPolygon2<T>& Transform(const TFunction<TVector2<T> (const TVector2<T>&)>& TransformFunc)
 	{
 		int N = Vertices.Num();
 		for (int i = 0; i < N; ++i) 
@@ -791,7 +804,7 @@ public:
 	 */
 	void VtxNormalOffset(T OffsetDistance, bool bUseFaceAvg = false)
 	{
-		TArray<FVector2<T>> NewVertices;
+		TArray<TVector2<T>> NewVertices;
 		NewVertices.SetNumUninitialized(Vertices.Num());
 		if (bUseFaceAvg) 
 		{
@@ -824,15 +837,15 @@ public:
 	{
 		// [TODO] possibly can do with half as many normalizes if we do w/ sequential edges,
 		//  rather than centering on each v?
-		TArray<FVector2<T>> NewVertices;
+		TArray<TVector2<T>> NewVertices;
 		NewVertices.SetNumUninitialized(Vertices.Num());
 		for (int k = 0; k < Vertices.Num(); ++k) 
 		{
-			FVector2<T> v = Vertices[k];
-			FVector2<T> next = Vertices[(k + 1) % Vertices.Num()];
-			FVector2<T> prev = Vertices[k == 0 ? Vertices.Num() - 1 : k - 1];
-			FVector2<T> dn = Normalized(next - v);
-			FVector2<T> dp = Normalized(prev - v);
+			TVector2<T> v = Vertices[k];
+			TVector2<T> next = Vertices[(k + 1) % Vertices.Num()];
+			TVector2<T> prev = Vertices[k == 0 ? Vertices.Num() - 1 : k - 1];
+			TVector2<T> dn = Normalized(next - v);
+			TVector2<T> dp = Normalized(prev - v);
 			TLine2<T> ln(v + OffsetDistance * PerpCW(dn), dn);
 			TLine2<T> lp(v - OffsetDistance * PerpCW(dp), dp);
 
@@ -862,7 +875,7 @@ private:
 	//            v[] = polyline array of vertex points
 	//            j,k = indices for the subchain v[j] to v[k]
 	//    Output: mk[] = array of markers matching vertex array v[]
-	static void SimplifyDouglasPeucker(T Tolerance, const TArray<FVector2<T>>& Vertices, int j, int k, TArray<bool>& Marked)
+	static void SimplifyDouglasPeucker(T Tolerance, const TArray<TVector2<T>>& Vertices, int j, int k, TArray<bool>& Marked)
 	{
 		Marked.SetNum(Vertices.Num());
 		if (k <= j + 1) // there is nothing to simplify
@@ -914,7 +927,7 @@ public:
 		}
 
 		int i, k, pv;            // misc counters
-		TArray<FVector2<T>> NewVertices;
+		TArray<TVector2<T>> NewVertices;
 		NewVertices.SetNumUninitialized(n + 1);  // vertex buffer
 		TArray<bool> Marked;
 		Marked.SetNumUninitialized(n + 1);
@@ -928,7 +941,7 @@ public:
 		NewVertices[0] = Vertices[0];              // start at the beginning
 		for (i = 1, k = 1, pv = 0; i < n; i++) 
 		{
-			if (Vertices[i].DistanceSquared(Vertices[pv]) < clusterTol2)
+			if ( UE::Geometry::DistanceSquared(Vertices[i], Vertices[pv]) < clusterTol2)
 			{
 				continue;
 			}
@@ -1021,22 +1034,22 @@ public:
 	{
 		check(IsClockwise());
 
-		TArray<FVector2<T>> OldV = Vertices;
+		TArray<TVector2<T>> OldV = Vertices;
 		int N = OldV.Num();
 		Vertices.Reset();
 
 		int iCur = 0;
 		do {
-			FVector2<T> center = OldV[iCur];
+			TVector2<T> center = OldV[iCur];
 
 			int iPrev = (iCur == 0) ? N - 1 : iCur - 1;
-			FVector2<T> prev = OldV[iPrev];
+			TVector2<T> prev = OldV[iPrev];
 			int iNext = (iCur + 1) % N;
-			FVector2<T> next = OldV[iNext];
+			TVector2<T> next = OldV[iNext];
 
-			FVector2<T> cp = prev - center;
+			TVector2<T> cp = prev - center;
 			T cpdist = Normalize(cp);
-			FVector2<T> cn = next - center;
+			TVector2<T> cn = next - center;
 			T cndist = Normalize(cn);
 
 			// if degenerate, skip this vert
@@ -1064,9 +1077,9 @@ public:
 
 
 			T prev_cut_dist = TMathUtil<T>::Min(ChamferDist, cpdist*0.5);
-			FVector2<T> prev_cut = center + cp * prev_cut_dist;
+			TVector2<T> prev_cut = center + cp * prev_cut_dist;
 			T next_cut_dist = TMathUtil<T>::Min(ChamferDist, cndist * 0.5);
-			FVector2<T> next_cut = center + cn * next_cut_dist;
+			TVector2<T> next_cut = center + cn * next_cut_dist;
 
 			Vertices.Add(prev_cut);
 			Vertices.Add(next_cut);
@@ -1082,33 +1095,33 @@ public:
 	/**
 	 * Construct a four-vertex rectangle polygon
 	 */
-	static TPolygon2<T> MakeRectangle(const FVector2<T>& Center, T Width, T Height)
+	static TPolygon2<T> MakeRectangle(const TVector2<T>& Center, T Width, T Height)
 	{
 		TPolygon2<T> Rectangle;
 		Rectangle.Vertices.SetNumUninitialized(4);
-		Rectangle.Set(0, FVector2<T>(Center.X - Width / 2, Center.Y - Height / 2));
-		Rectangle.Set(1, FVector2<T>(Center.X + Width / 2, Center.Y - Height / 2));
-		Rectangle.Set(2, FVector2<T>(Center.X + Width / 2, Center.Y + Height / 2));
-		Rectangle.Set(3, FVector2<T>(Center.X - Width / 2, Center.Y + Height / 2));
+		Rectangle.Set(0, TVector2<T>(Center.X - Width / 2, Center.Y - Height / 2));
+		Rectangle.Set(1, TVector2<T>(Center.X + Width / 2, Center.Y - Height / 2));
+		Rectangle.Set(2, TVector2<T>(Center.X + Width / 2, Center.Y + Height / 2));
+		Rectangle.Set(3, TVector2<T>(Center.X - Width / 2, Center.Y + Height / 2));
 		return Rectangle;
 	}
 
 	/**
 	* Construct a rounded rectangle polygon
 	*/
-	static TPolygon2<T> MakeRoundedRectangle(const FVector2<T>& Center, T Width, T Height, T Corner, int CornerSteps)
+	static TPolygon2<T> MakeRoundedRectangle(const TVector2<T>& Center, T Width, T Height, T Corner, int CornerSteps)
 	{
 		TPolygon2<T> RRectangle;
 		CornerSteps = FMath::Max(2, CornerSteps);
 		RRectangle.Vertices.SetNumUninitialized(CornerSteps * 4);
 		
-		FVector2<T> InnerExtents(Width*.5 - Corner, Height*.5 - Corner);
-		FVector2<T> InnerCorners[4]
+		TVector2<T> InnerExtents(Width*.5 - Corner, Height*.5 - Corner);
+		TVector2<T> InnerCorners[4]
 		{
 			Center - InnerExtents,
-			FVector2<T>(Center.X + InnerExtents.X, Center.Y - InnerExtents.Y),
+			TVector2<T>(Center.X + InnerExtents.X, Center.Y - InnerExtents.Y),
 			Center + InnerExtents,
-			FVector2<T>(Center.X - InnerExtents.X, Center.Y + InnerExtents.Y),
+			TVector2<T>(Center.X - InnerExtents.X, Center.Y + InnerExtents.Y),
 		};
 
 		T IdxToAng = TMathUtil<T>::HalfPi / T(CornerSteps - 1);
@@ -1117,10 +1130,10 @@ public:
 			T Angle = StepIdx * IdxToAng;
 			T OffC = TMathUtil<T>::Cos(Angle) * Corner;
 			T OffS = TMathUtil<T>::Sin(Angle) * Corner;
-			RRectangle.Set(StepIdx + CornerSteps * 0, InnerCorners[0] + FVector2<T>(-OffC, -OffS));
-			RRectangle.Set(StepIdx + CornerSteps * 1, InnerCorners[1] + FVector2<T>(OffS, -OffC));
-			RRectangle.Set(StepIdx + CornerSteps * 2, InnerCorners[2] + FVector2<T>(OffC, OffS));
-			RRectangle.Set(StepIdx + CornerSteps * 3, InnerCorners[3] + FVector2<T>(-OffS, OffC));
+			RRectangle.Set(StepIdx + CornerSteps * 0, InnerCorners[0] + TVector2<T>(-OffC, -OffS));
+			RRectangle.Set(StepIdx + CornerSteps * 1, InnerCorners[1] + TVector2<T>(OffS, -OffC));
+			RRectangle.Set(StepIdx + CornerSteps * 2, InnerCorners[2] + TVector2<T>(OffC, OffS));
+			RRectangle.Set(StepIdx + CornerSteps * 3, InnerCorners[3] + TVector2<T>(-OffS, OffC));
 		}
 		return RRectangle;
 	}
@@ -1138,7 +1151,7 @@ public:
 		{
 			T t = (T)i / (T)Steps;
 			T a = TMathUtil<T>::TwoPi * t + AngleShiftRadians;
-			Circle.Set(i, FVector2<T>(Radius * TMathUtil<T>::Cos(a), Radius * TMathUtil<T>::Sin(a)));
+			Circle.Set(i, TVector2<T>(Radius * TMathUtil<T>::Cos(a), Radius * TMathUtil<T>::Sin(a)));
 		}
 
 		return Circle;

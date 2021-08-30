@@ -14,6 +14,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TSampledScalarField2 implements a generic 2D grid of values that can be interpolated in various ways.
  * The grid is treated as a set of sample points in 2D space, IE a grid origin and x/y point-spacing is part of this class.
@@ -28,8 +30,8 @@ class TSampledScalarField2
 public:
 	TDenseGrid2<ValueType> GridValues;
 
-	FVector2<RealType> GridOrigin;
-	FVector2<RealType> CellDimensions;
+	TVector2<RealType> GridOrigin;
+	TVector2<RealType> CellDimensions;
 
 	/**
 	 * Create empty grid, defaults to 2x2 grid of whatever default value of ValueType is
@@ -37,8 +39,8 @@ public:
 	TSampledScalarField2()
 	{
 		GridValues.Resize(2, 2);
-		GridOrigin = FVector2<RealType>::Zero();
-		CellDimensions = FVector2<RealType>::One();
+		GridOrigin = TVector2<RealType>::Zero();
+		CellDimensions = TVector2<RealType>::One();
 	}
 
 	void CopyConfiguration(const TSampledScalarField2<RealType,ValueType>& OtherField)
@@ -75,7 +77,7 @@ public:
 	/**
 	 * Set the 2D origin of the grid
 	 */
-	void SetPosition(const FVector2<RealType>& Origin)
+	void SetPosition(const TVector2<RealType>& Origin)
 	{
 		GridOrigin = Origin;
 	}
@@ -93,10 +95,10 @@ public:
 	 * @param Position sample point relative to grid origin/dimensions
 	 * @return interpolated value at this position
 	 */
-	ValueType BilinearSampleClamped(const FVector2<RealType>& Position) const
+	ValueType BilinearSampleClamped(const TVector2<RealType>& Position) const
 	{
 		// transform Position into grid coordinates
-		FVector2<RealType> GridPoint(
+		TVector2<RealType> GridPoint(
 			((Position.X - GridOrigin.X) / CellDimensions.X),
 			((Position.Y - GridOrigin.Y) / CellDimensions.Y));
 
@@ -140,10 +142,10 @@ public:
 	 * @param Position sample point relative to grid origin/dimensions
 	 * @return interpolated value at this position
 	 */
-	void BilinearSampleGradientClamped(const FVector2<RealType>& Position, ValueType& GradXOut, ValueType& GradYOut) const
+	void BilinearSampleGradientClamped(const TVector2<RealType>& Position, ValueType& GradXOut, ValueType& GradYOut) const
 	{
 		// transform Position into grid coordinates
-		FVector2<RealType> GridPoint(
+		TVector2<RealType> GridPoint(
 			((Position.X - GridOrigin.X) / CellDimensions.X),
 			((Position.Y - GridOrigin.Y) / CellDimensions.Y));
 

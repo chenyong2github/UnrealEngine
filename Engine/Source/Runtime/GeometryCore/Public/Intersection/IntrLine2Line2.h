@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between two 2D lines
  */
@@ -28,7 +30,7 @@ protected:
 	
 public:
 	// result data
-	FVector2<RealType> Point;
+	TVector2<RealType> Point;
 	RealType Segment1Parameter;
 	RealType Segment2Parameter;
 	int Quantity = 0;
@@ -118,7 +120,7 @@ public:
 			return false;
 		}
 
-		FVector2<RealType> s = FVector2<RealType>::Zero();
+		TVector2<RealType> s = TVector2<RealType>::Zero();
 		Type = Classify(Line1.Origin, Line1.Direction,
 			Line2.Origin, Line2.Direction, dotThresh, DistThresh, s);
 
@@ -146,9 +148,9 @@ public:
 
 
 	static EIntersectionType Classify(
-		const FVector2<RealType>& P0, const FVector2<RealType>& D0, 
-		const FVector2<RealType>& P1, const FVector2<RealType>& D1, 
-		RealType DotThreshold, RealType DistThreshold, FVector2<RealType>& s)
+		const TVector2<RealType>& P0, const TVector2<RealType>& D0, 
+		const TVector2<RealType>& P1, const TVector2<RealType>& D1, 
+		RealType DotThreshold, RealType DistThreshold, TVector2<RealType>& s)
 	{
 		// Ensure DotThreshold is nonnegative.
 		DotThreshold = FMath::Max(DotThreshold, (RealType)0);
@@ -161,7 +163,7 @@ public:
 		// produces the point of intersection.  Also,
 		//   s1 = Q.Dot(Perp(D0))/D0.Dot(Perp(D1))
 
-		FVector2<RealType> diff = P1 - P0;
+		TVector2<RealType> diff = P1 - P0;
 		RealType D0DotPerpD1 = DotPerp(D0, D1);
 		if (FMath::Abs(D0DotPerpD1) > DotThreshold) 
 		{

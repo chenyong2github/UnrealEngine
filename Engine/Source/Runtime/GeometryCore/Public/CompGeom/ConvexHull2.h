@@ -16,6 +16,7 @@
 namespace UE {
 namespace Geometry {
 
+using namespace UE::Math;
 
 
 template<typename RealType>
@@ -33,7 +34,7 @@ public:
 	 * @param FilterFunc Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(int32 NumPoints, TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
+	bool Solve(int32 NumPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc = [](int32 Idx) {return true;});
 
 	/**
 	 * Generate convex hull as long as input is not degenerate
@@ -44,7 +45,7 @@ public:
 	 * @param Filter Optional filter to include only a subset of the points in the output hull
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(TArrayView<const FVector2<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc)
+	bool Solve(TArrayView<const TVector2<RealType>> Points, TFunctionRef<bool(int32)> FilterFunc)
 	{
 		return Solve(Points.Num(), [&Points](int32 Idx)
 			{
@@ -61,7 +62,7 @@ public:
 	 * @param Points Array of points to consider
 	 * @return true if hull was generated, false if points span < 2 dimensions
 	 */
-	bool Solve(TArrayView<const FVector2<RealType>> Points)
+	bool Solve(TArrayView<const TVector2<RealType>> Points)
 	{
 		return Solve(Points.Num(), [&Points](int32 Idx)
 			{
@@ -108,9 +109,9 @@ public:
 protected:
 
 	// divide-and-conquer algorithm
-	void GetHull(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32& IdxFirst, int32& IdxLast);
-	void Merge(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1);
-	void GetTangent(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1);
+	void GetHull(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32& IdxFirst, int32& IdxLast);
+	void Merge(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1);
+	void GetTangent(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1);
 
 	int32 Dimension = 0;
 	int32 NumUniquePoints = 0;

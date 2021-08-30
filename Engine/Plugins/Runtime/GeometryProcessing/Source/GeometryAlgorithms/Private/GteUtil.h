@@ -19,15 +19,15 @@ namespace Geometry
 {
 
 template<typename Real>
-gte::Vector2<Real> Convert(const FVector2<Real>& Vec)
+gte::Vector2<Real> Convert(const UE::Math::TVector2<Real>& Vec)
 {
 	return gte::Vector2<Real>({ Vec.X, Vec.Y});
 }
 
 template<typename Real>
-FVector2<Real> Convert(const gte::Vector2<Real>& Vec)
+UE::Math::TVector2<Real> Convert(const gte::Vector2<Real>& Vec)
 {
-	return FVector2<Real>(Vec[0], Vec[1]);
+	return UE::Math::TVector2<Real>(Vec[0], Vec[1]);
 }
 
 template<typename Real>

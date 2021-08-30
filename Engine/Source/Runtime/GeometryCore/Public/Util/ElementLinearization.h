@@ -266,7 +266,7 @@ public:
 		YVector[i] = Value;
 	}
 
-	void SetXY(int32 i, const FVector2<RealType>& Value)
+	void SetXY(int32 i, const UE::Math::TVector2<RealType>& Value)
 	{
 		XVector[i] = Value.X;
 		YVector[i] = Value.Y;

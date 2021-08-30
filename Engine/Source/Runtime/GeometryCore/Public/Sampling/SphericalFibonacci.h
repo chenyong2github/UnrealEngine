@@ -11,6 +11,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * A Spherical Fibonacci (SF) Point Set is a set of points that are roughly evenly distributed on a sphere.
  * The points lie on a spiral, see https://dl.acm.org/doi/10.1145/2816795.2818131 for more information.
@@ -89,14 +91,14 @@ public:
 		TMatrix2<RealType> invB = B.Inverse();
 
 		//Vector2d c = floor(mul(invB, RealType2(phi, cosTheta - (1 - 1.0/N))));
-		FVector2<RealType> c(phi, cosTheta - (1.0 - 1.0/N));
+		TVector2<RealType> c(phi, cosTheta - (1.0 - 1.0/N));
 		c = invB * c;
 		c.X = TMathUtil<RealType>::Floor(c.X); c.Y = TMathUtil<RealType>::Floor(c.Y);
 
 		RealType d = TMathUtil<RealType>::MaxReal, j = 0;
 		for (int32 s = 0; s < 4; ++s) 
 		{
-			FVector2<RealType> cosTheta_second((RealType)(s % 2) + c.X, (RealType)(s / 2) + c.Y);
+			TVector2<RealType> cosTheta_second((RealType)(s % 2) + c.X, (RealType)(s / 2) + c.Y);
 			cosTheta = B.Row1.Dot(cosTheta_second) + (1.0 - 1.0 / N);
 			cosTheta = TMathUtil<RealType>::Clamp(cosTheta, -1.0, +1.0) * 2.0 - cosTheta;
 			RealType i = TMathUtil<RealType>::Floor(N * 0.5 - cosTheta * N * 0.5);
@@ -167,7 +169,7 @@ public:
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector2<RealType> Point(int32 Index) const
+	TVector2<RealType> Point(int32 Index) const
 	{
 		static const RealType PHI = (TMathUtil<RealType>::Sqrt(5.0) + 1.0) / 2.0;
 		checkSlow(Index >= 0 && Index < N);
@@ -193,14 +195,14 @@ public:
 			X = R * TMathUtil<RealType>::Cos(Theta);
 			Y = R * TMathUtil<RealType>::Sin(Theta);
 		}
-		return FVector2<RealType>(X,Y);
+		return TVector2<RealType>(X,Y);
 	}
 
 	/**
 	 * @param Index point index in range [0,Num()-1]
 	 * @return sphere point for given Index
 	 */
-	FVector2<RealType> operator[](int32 Index) const
+	TVector2<RealType> operator[](int32 Index) const
 	{
 		return Point(Index);
 	}
@@ -257,7 +259,7 @@ public:
 		case EDistribution::Cosine:
 		{
 			TFibonacciLattice<RealType> Points(N, TFibonacciLattice<RealType>::EType::Disc);
-			const FVector2<RealType> Pt = Points[Index];
+			const TVector2<RealType> Pt = Points[Index];
             
 			// Planar projection of Fibonacci spiral (unit disc [xd, yd]) to
 			// hemisphere to achieve cosine weighted ray distribution.

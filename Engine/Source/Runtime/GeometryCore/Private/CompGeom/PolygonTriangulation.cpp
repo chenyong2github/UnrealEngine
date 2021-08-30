@@ -9,8 +9,8 @@ using namespace UE::Geometry;
 // explicit instantiations
 namespace PolygonTriangulation
 {
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<FVector2<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
-	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<FVector2<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<float>(const TArray<TVector2<float>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	template GEOMETRYCORE_API void TriangulateSimplePolygon<double>(const TArray<TVector2<double>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 
 	template GEOMETRYCORE_API void ComputePolygonPlane<float>(const TArray<FVector3<float>>& VertexPositions, FVector3<float>& NormalOut, FVector3<float>& PlanePointOut);
 	template GEOMETRYCORE_API void ComputePolygonPlane<double>(const TArray<FVector3<double>>& VertexPositions, FVector3<double>& NormalOut, FVector3<double>& PlanePointOut);
@@ -27,11 +27,11 @@ namespace PolygonTriangulation
 // This is based on the 3D triangulation code from MeshDescription.cpp, simplified for 2D polygons
 // 
 template<typename T>
-void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
+void PolygonTriangulation::TriangulateSimplePolygon(const TArray<TVector2<T>>& VertexPositions, TArray<FIndex3i>& OutTriangles)
 {
 	struct Local
 	{
-		static inline bool IsTriangleFlipped(T OrientationSign, const FVector2<T>& VertexPositionA, const FVector2<T>& VertexPositionB, const FVector2<T>& VertexPositionC)
+		static inline bool IsTriangleFlipped(T OrientationSign, const TVector2<T>& VertexPositionA, const TVector2<T>& VertexPositionB, const TVector2<T>& VertexPositionC)
 		{
 			T TriSignedArea = TTriangle2<T>::SignedArea(VertexPositionA, VertexPositionB, VertexPositionC);
 			return TriSignedArea * OrientationSign < 0;
@@ -47,8 +47,8 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 	double PolySignedArea = 0;
 	for (int i = 0; i < PolygonVertexCount; ++i)
 	{
-		const FVector2<T>& v1 = VertexPositions[i];
-		const FVector2<T>& v2 = VertexPositions[(i + 1) % PolygonVertexCount];
+		const TVector2<T>& v1 = VertexPositions[i];
+		const TVector2<T>& v2 = VertexPositions[(i + 1) % PolygonVertexCount];
 		PolySignedArea += v1.X*v2.Y - v1.Y*v2.X;
 	}
 	PolySignedArea *= 0.5;
@@ -93,9 +93,9 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 		// vertices are collinear or other degenerate cases.
 		if (RemainingVertexCount > 3 && EarTestCount < RemainingVertexCount)
 		{
-			const FVector2<T>& PrevVertexPosition = VertexPositions[PrevVertexNumbers[EarVertexNumber]];
-			const FVector2<T>& EarVertexPosition = VertexPositions[EarVertexNumber];
-			const FVector2<T>& NextVertexPosition = VertexPositions[NextVertexNumbers[EarVertexNumber]];
+			const TVector2<T>& PrevVertexPosition = VertexPositions[PrevVertexNumbers[EarVertexNumber]];
+			const TVector2<T>& EarVertexPosition = VertexPositions[EarVertexNumber];
+			const TVector2<T>& NextVertexPosition = VertexPositions[NextVertexNumbers[EarVertexNumber]];
 
 			// Figure out whether the potential ear triangle is facing the same direction as the polygon
 			// itself.  If it's facing the opposite direction, then we're dealing with a concave triangle
@@ -109,7 +109,7 @@ void PolygonTriangulation::TriangulateSimplePolygon(const TArray<FVector2<T>>& V
 				{
 					// Test every other remaining vertex to make sure that it doesn't lie inside our potential ear
 					// triangle.  If we find a vertex that's inside the triangle, then it cannot actually be an ear.
-					const FVector2<T>& TestVertexPosition = VertexPositions[TestVertexNumber];
+					const TVector2<T>& TestVertexPosition = VertexPositions[TestVertexNumber];
 					if (TTriangle2<T>::IsInside(PrevVertexPosition, EarVertexPosition, NextVertexPosition, TestVertexPosition))
 					{
 						bIsEar = false;

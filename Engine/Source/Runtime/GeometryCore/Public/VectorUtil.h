@@ -29,12 +29,13 @@ enum class EIntersectionType
 namespace VectorUtil
 {
 	using namespace UE::Geometry;
+	using namespace UE::Math;
 
 	/**
 	 * @return true if all components of V are finite
 	 */
 	template <typename RealType>
-	inline bool IsFinite(const FVector2<RealType>& V)
+	inline bool IsFinite(const TVector2<RealType>& V)
 	{
 		return TMathUtil<RealType>::IsFinite(V.X) && TMathUtil<RealType>::IsFinite(V.Y);
 	}
@@ -101,10 +102,10 @@ namespace VectorUtil
 	 * @return area of 2D triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline RealType Area(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	inline RealType Area(const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
 	{
-		FVector2<RealType> Edge1(V1 - V0);
-		FVector2<RealType> Edge2(V2 - V0);
+		TVector2<RealType> Edge1(V1 - V0);
+		TVector2<RealType> Edge2(V2 - V0);
 		RealType CrossZ = DotPerp(Edge1, Edge2);
 		return (RealType)0.5 * TMathUtil<RealType>::Abs(CrossZ);
 	}
@@ -113,7 +114,7 @@ namespace VectorUtil
 	 * @return signed area of 2D triangle V0,V1,V2
 	 */
 	template <typename RealType>
-	inline RealType SignedArea(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	inline RealType SignedArea(const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
 	{
 		return ((RealType)0.5) * ((V0.X * V1.Y - V0.Y * V1.X) + (V1.X * V2.Y - V1.Y * V2.X) + (V2.X * V0.Y - V2.Y * V0.X));
 	}
@@ -155,7 +156,7 @@ namespace VectorUtil
 
 	/** @return true if all coordinates of V0 and V1 are within Epsilon of eachother */
 	template <typename RealType>
-	inline bool EpsilonEqual(const FVector2<RealType>& V0, const FVector2<RealType>& V1, RealType Epsilon)
+	inline bool EpsilonEqual(const TVector2<RealType>& V0, const TVector2<RealType>& V1, RealType Epsilon)
 	{
 		return EpsilonEqual(V0.X, V1.X, Epsilon) && EpsilonEqual(V0.Y, V1.Y, Epsilon);
 	}
@@ -335,11 +336,11 @@ namespace VectorUtil
 	* TODO: make robust to degenerate triangles?
 	*/
 	template <typename RealType>
-	FVector3<RealType> BarycentricCoords(const FVector2<RealType>& Point, const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	FVector3<RealType> BarycentricCoords(const TVector2<RealType>& Point, const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
 	{
-		FVector2<RealType> kV02 = V0 - V2;
-		FVector2<RealType> kV12 = V1 - V2;
-		FVector2<RealType> kPV2 = Point - V2;
+		TVector2<RealType> kV02 = V0 - V2;
+		TVector2<RealType> kV12 = V1 - V2;
+		TVector2<RealType> kPV2 = Point - V2;
 		RealType fM00 = kV02.Dot(kV02);
 		RealType fM01 = kV02.Dot(kV12);
 		RealType fM11 = kV12.Dot(kV12);
@@ -387,11 +388,11 @@ namespace VectorUtil
 		FVector3<RealType> Perp0, Perp1;
 		VectorUtil::MakePerpVectors<RealType>(Normal, Perp0, Perp1);
 		// project points to triangle plane coordinates
-		FVector2<RealType> vi(Vi.Dot(Perp0), Vi.Dot(Perp1));
-		FVector2<RealType> vj(Vj.Dot(Perp0), Vj.Dot(Perp1));
-		FVector2<RealType> vk(Vk.Dot(Perp0), Vk.Dot(Perp1));
+		TVector2<RealType> vi(Vi.Dot(Perp0), Vi.Dot(Perp1));
+		TVector2<RealType> vj(Vj.Dot(Perp0), Vj.Dot(Perp1));
+		TVector2<RealType> vk(Vk.Dot(Perp0), Vk.Dot(Perp1));
 		// calculate gradient
-		FVector2<RealType> GradX = (fj-fi)*PerpCW(vi-vk) + (fk-fi)*PerpCW(vj-vi);
+		TVector2<RealType> GradX = (fj-fi)*PerpCW(vi-vk) + (fk-fi)*PerpCW(vj-vi);
 		// map back to 3D vector in triangle plane
 		RealType AreaScale = (RealType)1 / ((RealType)2 * VectorUtil::Area<RealType>(Vi, Vj, Vk));
 		return AreaScale * (GradX.X * Perp0 + GradX.Y * Perp1);

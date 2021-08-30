@@ -17,6 +17,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between 2D Line and 2D Triangle
  */
@@ -34,8 +36,8 @@ public:
 	EIntersectionResult Result = EIntersectionResult::NotComputed;
 	EIntersectionType Type = EIntersectionType::Empty;
 
-	FVector2<Real> Point0;
-	FVector2<Real> Point1;
+	TVector2<Real> Point0;
+	TVector2<Real> Point1;
 	double Param0;
 	double Param1;
 
@@ -106,7 +108,7 @@ public:
 		}
 		else
 		{
-			FVector2<Real> param;
+			TVector2<Real> param;
 			GetInterval(Line.Origin, Line.Direction, Triangle, Dist, Sign, param);
 
 			TIntersector1<Real> intr(param[0], param[1], -TMathUtil<Real>::MaxReal, +TMathUtil<Real>::MaxReal);
@@ -144,7 +146,7 @@ public:
 
 
 	static void TriangleLineRelations(
-		const FVector2<Real>& Origin, const FVector2<Real>& Direction, const TTriangle2<Real>& Tri,
+		const TVector2<Real>& Origin, const TVector2<Real>& Direction, const TTriangle2<Real>& Tri,
 		FVector3<Real>& Dist, FVector3i& Sign, int& Positive, int& Negative, int& Zero, Real Tolerance = TMathUtil<Real>::ZeroTolerance)
 	{
 		Positive = 0;
@@ -152,7 +154,7 @@ public:
 		Zero = 0;
 		for (int i = 0; i < 3; ++i)
 		{
-			FVector2<Real> diff = Tri.V[i] - Origin;
+			TVector2<Real> diff = Tri.V[i] - Origin;
 			Dist[i] = DotPerp(diff, Direction);
 			if (Dist[i] > Tolerance)
 			{
@@ -174,15 +176,15 @@ public:
 	}
 
 
-	static bool GetInterval(const FVector2<Real>& Origin, const FVector2<Real>& Direction, const TTriangle2<Real>& Tri,
-							const FVector3<Real>& Dist, const FVector3i& Sign, FVector2<Real>& param)
+	static bool GetInterval(const TVector2<Real>& Origin, const TVector2<Real>& Direction, const TTriangle2<Real>& Tri,
+							const FVector3<Real>& Dist, const FVector3i& Sign, TVector2<Real>& param)
 	{
 		// Project Triangle onto Line.
 		FVector3<Real> proj;
 		int i;
 		for (i = 0; i < 3; ++i)
 		{
-			FVector2<Real> diff = Tri.V[i] - Origin;
+			TVector2<Real> diff = Tri.V[i] - Origin;
 			proj[i] = Direction.Dot(diff);
 		}
 

@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between 2D triangles
  */
@@ -36,7 +38,7 @@ public:
 
 	// intersection polygon - this array will always be 6 elements long,
 	// however only the first Quantity vertices will be valid
-	FVector2<Real> Points[6];
+	TVector2<Real> Points[6];
 
 	TIntrTriangle2Triangle2()
 	{}
@@ -66,7 +68,7 @@ public:
 	bool Test()
 	{
 		int i0, i1;
-		FVector2<Real> dir;
+		TVector2<Real> dir;
 
 		// Test edges of Triangle0 for separation.
 		for (i0 = 0, i1 = 2; i0 < 3; i1 = i0++)
@@ -125,7 +127,7 @@ public:
 		for (int i1 = 2, i0 = 0; i0 < 3; i1 = i0++)
 		{
 			// Clip against edge <V0[i1],V0[i0]>.
-			FVector2<Real> N(
+			TVector2<Real> N(
 				Triangle0.V[i1].Y - Triangle0.V[i0].Y,
 				Triangle0.V[i0].X - Triangle0.V[i1].X);
 			double c = N.Dot(Triangle0.V[i1]);
@@ -157,7 +159,7 @@ public:
 
 
 
-	static int WhichSide(const TTriangle2<Real>& V, const FVector2<Real>& P, const FVector2<Real>& D)
+	static int WhichSide(const TTriangle2<Real>& V, const TVector2<Real>& P, const TVector2<Real>& D)
 	{
 		// Vertices are projected to the form P+t*D.  Return value is +1 if all
 		// t > 0, -1 if all t < 0, 0 otherwise, in which case the line splits the
@@ -192,7 +194,7 @@ public:
 private:
 	// quantity, V initially are input polygon vertex count and vertices;
 	// on return, they are the clipped polygon vertex count and vertices
-	static void ClipConvexPolygonAgainstLine(const FVector2<Real>& N, double c, int& quantity, FVector2<Real> V[6])
+	static void ClipConvexPolygonAgainstLine(const TVector2<Real>& N, double c, int& quantity, TVector2<Real> V[6])
 	{
 		// The input vertices are assumed to be in counterclockwise order.  The
 		// ordering is an invariant of this function.
@@ -223,7 +225,7 @@ private:
 			if (negative > 0)
 			{
 				// Line transversely intersects polygon.
-				FVector2<Real> CV[6];
+				TVector2<Real> CV[6];
 				int cQuantity = 0, cur, prv;
 				double t;
 

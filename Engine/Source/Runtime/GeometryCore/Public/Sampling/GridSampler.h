@@ -38,12 +38,12 @@ public:
 	 * @param Index linear point index in range [0,Num()-1]
 	 * @return grid sample for given linear index
 	 */
-	FVector2<RealType> Sample(int32 Index) const
+	UE::Math::TVector2<RealType> Sample(int32 Index) const
 	{
 		checkSlow(Index >= 0 && Index < Num());
 		RealType X = (static_cast<RealType>(Index % Size) + RealType{ 1 } / RealType{ 2 }) / static_cast<RealType>(Size);
 		RealType Y = (static_cast<RealType>(Index / Size) + RealType{ 1 } / RealType{ 2 }) / static_cast<RealType>(Size);
-		return FVector2<RealType>(X, Y);
+		return UE::Math::TVector2<RealType>(X, Y);
 	}
 };
 

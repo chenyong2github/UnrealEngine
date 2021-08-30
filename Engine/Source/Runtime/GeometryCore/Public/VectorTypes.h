@@ -9,253 +9,119 @@
 #include <sstream>
 
 
+/**
+ * Temporary local definition of UE::Math::TVector2 to support LWC conversion.
+ */
+namespace UE {
+namespace Math {
+
+	template <typename T>
+	struct TVector2
+	{
+		using FReal = T;
+
+		T X{}, Y{};
+
+		TVector2() {}
+		TVector2(T InF) : X(InF), Y(InF) {}
+		TVector2(T InX, T InY) : X(InX), Y(InY) {}
+		TVector2(const FVector2D& Vec) : X((T)Vec.X), Y((T)Vec.Y) { }
+
+		template<typename FArg, TEMPLATE_REQUIRES(!TIsSame<T, FArg>::Value)>
+		explicit TVector2(const TVector2<FArg>& From) : TVector2<T>((T)From.X, (T)From.Y) {}
+
+		explicit operator FVector2D() const { return FVector2D((float)X, (float)Y); }
+
+		static inline TVector2<T> Zero() { return TVector2<T>((T)0, (T)0); }
+		static inline TVector2<T> One() { return TVector2<T>((T)1, (T)1); }
+		static inline TVector2<T> UnitX() { return TVector2<T>((T)1, (T)0); }
+		static inline TVector2<T> UnitY() { return TVector2<T>((T)0, (T)1); }
+
+		TVector2<T>& operator=(const TVector2<T>& V2) { X = V2.X; Y = V2.Y;	return *this; }
+
+		T& operator[](int Idx) { return (&X)[Idx]; }
+		T operator[](int Idx) const { return (&X)[Idx]; }
+
+		T Length() const { return TMathUtil<T>::Sqrt(X * X + Y * Y); }
+		T SquaredLength() const { return X * X + Y * Y; }
+		T Dot(const TVector2<T>& V2) const { return X * V2.X + Y * V2.Y; }
+
+		TVector2 operator-() const { return TVector2(-X, -Y); }
+		TVector2 operator+(const TVector2& V2) const { return TVector2(X + V2.X, Y + V2.Y); }
+		TVector2 operator-(const TVector2& V2) const { return TVector2(X - V2.X, Y - V2.Y); }
+		TVector2<T> operator+(const T& Scalar) const { return TVector2<T>(X + Scalar, Y + Scalar); }
+		TVector2<T> operator-(const T& Scalar) const { return TVector2<T>(X - Scalar, Y - Scalar); }
+		TVector2<T> operator*(const T& Scalar) const { return TVector2<T>(X * Scalar, Y * Scalar); }
+		TVector2<T> operator*(const TVector2<T>& V2) const { return TVector2<T>(X * V2.X, Y * V2.Y); }
+		TVector2<T> operator/(const T& Scalar) const { return TVector2<T>(X / Scalar, Y / Scalar); }
+		TVector2<T> operator/(const TVector2<T>& V2) const { return TVector2<T>(X / V2.X, Y / V2.Y); }
+		TVector2<T>& operator+=(const TVector2<T>& V2) { X += V2.X; Y += V2.Y; return *this; }
+		TVector2<T>& operator-=(const TVector2<T>& V2) { X -= V2.X; Y -= V2.Y; return *this; }
+		TVector2<T>& operator*=(const T& Scalar) { X *= Scalar; Y *= Scalar; return *this; }
+		TVector2<T>& operator/=(const T& Scalar) { X /= Scalar; Y /= Scalar; return *this; }
+		bool operator==(const TVector2<T>& Other) const { return X == Other.X && Y == Other.Y; }
+		bool operator!=(const TVector2<T>& Other) const	{ return X != Other.X || Y != Other.Y; }
+
+		template<typename RealType2>
+		TVector2<T> operator*(const RealType2& Scalar) const { return TVector2<T>(X * (T)Scalar, Y * (T)Scalar); }
+
+		friend FArchive& operator<<(FArchive& Ar, TVector2& Vec) { Vec.Serialize(Ar); return Ar; }
+		void Serialize(FArchive& Ar) { Ar << X; Ar << Y; }
+	};
+
+
+	template <typename RealType>
+	inline TVector2<RealType> operator*(RealType Scalar, const TVector2<RealType>& V) {	return TVector2<RealType>(Scalar * V.X, Scalar * V.Y); }
+
+	template <typename T>
+	FORCEINLINE uint32 GetTypeHash(const TVector2<T>& Vector) { return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(TVector2<T>)); }
+
+	template <typename RealType>
+	std::ostream& operator<<(std::ostream& os, const TVector2<RealType>& Vec) { os << Vec.X << " " << Vec.Y; return os;	}
+
+}
+}
+
+typedef UE::Math::TVector2<float> FVector2f;
+typedef UE::Math::TVector2<double> FVector2d;
+template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
+template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
+
 namespace UE {
 namespace Geometry {
 
 
-/**
-* Templated 2D Vector. Ported from g3Sharp library, with the intention of
-* maintaining compatibility with existing g3Sharp code. Has an API
-* similar to WildMagic, GTEngine, Eigen, etc.
-*
-* Convenience typedefs for FVector2f/FVector2d are defined, and
-* should be preferentially used over the base template type
-*
-* @todo Possibly can be replaced/merged with Chaos TVector<T,N>
-*/
-template <typename T>
-struct FVector2
-{
-	T X{}, Y{};
-
-	constexpr FVector2()
-		: X(0), Y(0)
-	{
-	}
-
-	constexpr FVector2(T ValX, T ValY)
-		: X(ValX), Y(ValY)
-	{
-	}
-
-	constexpr FVector2(const FVector2& Vec) = default;
-
-	constexpr FVector2(const FVector2D& Vec)
-		: X((T)Vec.X), Y((T)Vec.Y)
-	{
-	}
-
-	template<typename RealType2>
-	explicit constexpr FVector2(const FVector2<RealType2>& Vec)
-		: X((T)Vec.X), Y((T)Vec.Y)
-	{
-	}
-
-	explicit operator FVector2D() const
-	{
-		return FVector2D((float)X, (float)Y);
-	}
-
-	constexpr static FVector2<T> Zero()
-	{
-		return FVector2<T>((T)0, (T)0);
-	}
-	constexpr static FVector2<T> One()
-	{
-		return FVector2<T>((T)1, (T)1);
-	}
-	constexpr static FVector2<T> UnitX()
-	{
-		return FVector2<T>((T)1, (T)0);
-	}
-	constexpr static FVector2<T> UnitY()
-	{
-		return FVector2<T>((T)0, (T)1);
-	}
-
-	constexpr FVector2<T>& operator=(const FVector2<T>& V2)
-	{
-		X = V2.X;
-		Y = V2.Y;
-		return *this;
-	}
-
-	constexpr T& operator[](int Idx)
-	{
-		return (&X)[Idx];
-	}
-	constexpr const T& operator[](int Idx) const
-	{
-		return (&X)[Idx];
-	}
-
-	constexpr T Length() const
-	{
-		return TMathUtil<T>::Sqrt(X * X + Y * Y);
-	}
-	T SquaredLength() const
-	{
-		return X * X + Y * Y;
-	}
-
-	constexpr T Distance(const FVector2<T>& V2) const
-	{
-		T dx = V2.X - X;
-		T dy = V2.Y - Y;
-		return TMathUtil<T>::Sqrt(dx * dx + dy * dy);
-	}
-	constexpr T DistanceSquared(const FVector2<T>& V2) const
-	{
-		T dx = V2.X - X;
-		T dy = V2.Y - Y;
-		return dx * dx + dy * dy;
-	}
-
-	constexpr T Dot(const FVector2<T>& V2) const
-	{
-		return X * V2.X + Y * V2.Y;
-	}
-
-	constexpr  FVector2 operator-() const
-	{
-		return FVector2(-X, -Y);
-	}
-
-	constexpr FVector2 operator+(const FVector2& V2) const
-	{
-		return FVector2(X + V2.X, Y + V2.Y);
-	}
-
-	constexpr FVector2 operator-(const FVector2& V2) const
-	{
-		return FVector2(X - V2.X, Y - V2.Y);
-	}
-
-	constexpr FVector2<T> operator+(const T& Scalar) const
-	{
-		return FVector2<T>(X + Scalar, Y + Scalar);
-	}
-
-	constexpr FVector2<T> operator-(const T& Scalar) const
-	{
-		return FVector2<T>(X - Scalar, Y - Scalar);
-	}
-
-	constexpr FVector2<T> operator*(const T& Scalar) const
-	{
-		return FVector2<T>(X * Scalar, Y * Scalar);
-	}
-
-	template<typename RealType2>
-	constexpr FVector2<T> operator*(const RealType2& Scalar) const
-	{
-		return FVector2<T>(X * (T)Scalar, Y * (T)Scalar);
-	}
-
-	constexpr FVector2<T> operator*(const FVector2<T>& V2) const // component-wise
-	{
-		return FVector2<T>(X * V2.X, Y * V2.Y);
-	}
-
-	constexpr FVector2<T> operator/(const T& Scalar) const
-	{
-		return FVector2<T>(X / Scalar, Y / Scalar);
-	}
-
-	constexpr FVector2<T> operator/(const FVector2<T>& V2) const // component-wise
-	{
-		return FVector2<T>(X / V2.X, Y / V2.Y);
-	}
-
-	constexpr FVector2<T>& operator+=(const FVector2<T>& V2)
-	{
-		X += V2.X;
-		Y += V2.Y;
-		return *this;
-	}
-
-	constexpr FVector2<T>& operator-=(const FVector2<T>& V2)
-	{
-		X -= V2.X;
-		Y -= V2.Y;
-		return *this;
-	}
-
-	constexpr FVector2<T>& operator*=(const T& Scalar)
-	{
-		X *= Scalar;
-		Y *= Scalar;
-		return *this;
-	}
-
-	constexpr FVector2<T>& operator/=(const T& Scalar)
-	{
-		X /= Scalar;
-		Y /= Scalar;
-		return *this;
-	}
-
-	constexpr bool operator==(const FVector2<T>& Other) const
-	{
-		return X == Other.X && Y == Other.Y;
-	}
-
-	constexpr bool operator!=(const FVector2<T>& Other) const
-	{
-		return X != Other.X || Y != Other.Y;
-	}
-
-	/**
-	 * Serialization operator for FVector2.
-	 *
-	 * @param Ar Archive to serialize with.
-	 * @param Vec Vector to serialize.
-	 * @returns Passing down serializing archive.
-	 */
-	friend FArchive& operator<<(FArchive& Ar, FVector2& Vec)
-	{
-		Vec.Serialize(Ar);
-		return Ar;
-	}
-
-	/** Serialize FVector2 to an archive. */
-	void Serialize(FArchive& Ar)
-	{
-		Ar << X;
-		Ar << Y;
-	}
-};
 
 /** @return dot product of V1 with PerpCW(V2), ie V2 rotated 90 degrees clockwise */
 template <typename T>
-constexpr T DotPerp(const FVector2<T>& V1, const FVector2<T>& V2)
+constexpr T DotPerp(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
 {
 	return V1.X * V2.Y - V1.Y * V2.X;
 }
 
 /** @return right-Perpendicular vector to V, ie V rotated 90 degrees clockwise */
 template <typename T>
-constexpr FVector2<T> PerpCW(const FVector2<T>& V)
+constexpr UE::Math::TVector2<T> PerpCW(const UE::Math::TVector2<T>& V)
 {
-	return FVector2<T>(V.Y, -V.X);
+	return UE::Math::TVector2<T>(V.Y, -V.X);
 }
 
 /** @return > 0 if C is to the left of the line from A to B, < 0 if to the right, 0 if on the line */
 template<typename T>
-T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
+T Orient(const UE::Math::TVector2<T>& A, const UE::Math::TVector2<T>& B, const UE::Math::TVector2<T>& C)
 {
 	return DotPerp((B - A), (C - A));
 }
 
 
 template <typename T>
-constexpr bool IsNormalized(const FVector2<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+constexpr bool IsNormalized(const UE::Math::TVector2<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
 {
 	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y) - 1) < Tolerance;
 }
 
 template <typename T>
-T Normalize(FVector2<T>& Vector, const T Epsilon = 0)
+T Normalize(UE::Math::TVector2<T>& Vector, const T Epsilon = 0)
 {
 	 T length = Vector.Length();
 	 if (length > Epsilon)
@@ -270,21 +136,38 @@ T Normalize(FVector2<T>& Vector, const T Epsilon = 0)
 }
 
 template <typename T>
-FVector2<T> Normalized(const FVector2<T>& Vector, const T Epsilon = 0)
+UE::Math::TVector2<T> Normalized(const UE::Math::TVector2<T>& Vector, const T Epsilon = 0)
 {
 	T length = Vector.Length();
 	if (length > Epsilon)
 	{
 		T invLength = ((T)1) / length;
-		return FVector2<T>(Vector.X*invLength, Vector.Y*invLength);
+		return UE::Math::TVector2<T>(Vector.X*invLength, Vector.Y*invLength);
 	}
-	return FVector2<T>((T)0, (T)0);
+	return UE::Math::TVector2<T>((T)0, (T)0);
+}
+
+
+template<typename T>
+T Distance(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
+{
+	T dx = V2.X - V1.X;
+	T dy = V2.Y - V1.Y;
+	return TMathUtil<T>::Sqrt(dx * dx + dy * dy);
+}
+
+template<typename T>
+T DistanceSquared(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
+{
+	T dx = V2.X - V1.X;
+	T dy = V2.Y - V1.Y;
+	return dx * dx + dy * dy;
 }
 
 
 // Angle in Degrees
 template <typename T>
-T AngleD(const FVector2<T>& V1, const FVector2<T>& V2)
+T AngleD(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
@@ -293,7 +176,7 @@ T AngleD(const FVector2<T>& V1, const FVector2<T>& V2)
 
 // Angle in Radians
 template <typename T>
-T AngleR(const FVector2<T>& V1, const FVector2<T>& V2)
+T AngleR(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
@@ -302,7 +185,7 @@ T AngleR(const FVector2<T>& V1, const FVector2<T>& V2)
 
 // Angle in Radians
 template <typename T>
-T SignedAngleR(const FVector2<T>& V1, const FVector2<T>& V2)
+T SignedAngleR(const UE::Math::TVector2<T>& V1, const UE::Math::TVector2<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
@@ -319,10 +202,10 @@ T SignedAngleR(const FVector2<T>& V1, const FVector2<T>& V2)
 }
 
 template <typename T>
-FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
+UE::Math::TVector2<T> Lerp(const UE::Math::TVector2<T>& A, const UE::Math::TVector2<T>& B, T Alpha)
 {
 	T OneMinusAlpha = (T)1 - Alpha;
-	return FVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
+	return UE::Math::TVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
 		OneMinusAlpha * A.Y + Alpha * B.Y);
 }
 
@@ -688,21 +571,21 @@ T AngleR(const UE::Math::TVector<T>& V1, const UE::Math::TVector<T>& V2)
 }
 
 template <typename T>
-constexpr FVector2<T> GetXY(const UE::Math::TVector<T>& V)
+constexpr UE::Math::TVector2<T> GetXY(const UE::Math::TVector<T>& V)
 {
-	return FVector2<T>(V.X, V.Y);
+	return UE::Math::TVector2<T>(V.X, V.Y);
 }
 
 template <typename T>
-constexpr FVector2<T> GetXZ(const UE::Math::TVector<T>& V)
+constexpr UE::Math::TVector2<T> GetXZ(const UE::Math::TVector<T>& V)
 {
-	return FVector2<T>(V.X, V.Z);
+	return UE::Math::TVector2<T>(V.X, V.Z);
 }
 
 template <typename T>
-constexpr FVector2<T> GetYZ(const UE::Math::TVector<T>& V)
+constexpr UE::Math::TVector2<T> GetYZ(const UE::Math::TVector<T>& V)
 {
-	return FVector2<T>(V.Y, V.Z);
+	return UE::Math::TVector2<T>(V.Y, V.Z);
 }
 
 
@@ -839,34 +722,6 @@ FORCEINLINE uint32 GetTypeHash(const FVector3<T>& Vector)
 
 
 
-
-template <typename T>
-FORCEINLINE uint32 GetTypeHash(const FVector2<T>& Vector)
-{
-	// (this is how FIntVector and all the other FVectors do their hash functions)
-	// Note: this assumes there's no padding that could contain uncompared data.
-	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(FVector2<T>));
-}
-
-template <typename RealType>
-inline FVector2<RealType> operator*(RealType Scalar, const FVector2<RealType>& V)
-{
-	return FVector2<RealType>(Scalar * V.X, Scalar * V.Y);
-}
-
-// allow float*Vector2<double> and double*Vector2<float>
-template <typename RealType, typename RealType2>
-inline FVector2<RealType> operator*(RealType2 Scalar, const FVector2<RealType>& V)
-{
-	return FVector2<RealType>((RealType)Scalar * V.X, (RealType)Scalar * V.Y);
-}
-
-template <typename RealType>
-std::ostream& operator<<(std::ostream& os, const FVector2<RealType>& Vec)
-{
-	os << Vec.X << " " << Vec.Y;
-	return os;
-}
 
 
 
@@ -1159,16 +1014,16 @@ FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
 } // end namespace UE::Geometry
 } // end namespace UE
 
-typedef UE::Geometry::FVector2<float> FVector2f;
-typedef UE::Geometry::FVector2<double> FVector2d;
+//typedef UE::Geometry::FVector2<float> FVector2f;
+//typedef UE::Geometry::FVector2<double> FVector2d;
 
 //typedef UE::Geometry::FVector3<float> FVector3f;
 //typedef UE::Geometry::FVector3<double> FVector3d;
 
 typedef UE::Geometry::TVector4<float> FVector4f;
 typedef UE::Geometry::TVector4<double> FVector4d;
-template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
-template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
+//template<> struct TCanBulkSerialize<FVector2f> { enum { Value = true }; };
+//template<> struct TCanBulkSerialize<FVector2d> { enum { Value = true }; };
 
 template<> struct TCanBulkSerialize<FVector4f> { enum { Value = true }; };
 template<> struct TCanBulkSerialize<FVector4d> { enum { Value = true }; };

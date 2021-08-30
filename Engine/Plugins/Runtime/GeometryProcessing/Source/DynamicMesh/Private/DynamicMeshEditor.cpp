@@ -1182,7 +1182,7 @@ void FDynamicMeshEditor::RescaleAttributeUVs(float UVScale, bool bWorldSpace, in
 			}
 			for (int j = 2, i = 0; i < 3; j = i++)
 			{
-				TotalEdgeUVLen += TriUVs[j].Distance(TriUVs[i]);
+				TotalEdgeUVLen += Distance(TriUVs[j], TriUVs[i]);
 				TotalEdgeLen += Distance(TriVs[j], TriVs[i]);
 			}
 		}
