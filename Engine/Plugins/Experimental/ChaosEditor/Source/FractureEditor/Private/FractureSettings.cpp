@@ -8,6 +8,7 @@ UFractureSettings::UFractureSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, ExplodeAmount(0.0)
 	, FractureLevel(-1)
+	, bHideUnselected(false)
 {}
 
 #endif

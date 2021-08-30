@@ -816,6 +816,12 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 	const TManagedArray<int32>& ExemplarIndexArray = GetExemplarIndexArray();
 	const int32 TransformCount = GlobalMatrices.Num();
 	
+	const TManagedArray<bool>* HideArray = nullptr;
+	if (RestCollection->GetGeometryCollection()->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+	{
+		HideArray = &RestCollection->GetGeometryCollection()->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+	}
+	
 	const int32 ExemplarCount = EmbeddedGeometryComponents.Num();
 	for (int32 ExemplarIndex = 0; ExemplarIndex < ExemplarCount; ++ExemplarIndex)
 	{		
@@ -827,7 +833,10 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 		{
 			if (ExemplarIndexArray[Idx] == ExemplarIndex)
 			{
-				InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+				if (!HideArray || !(*HideArray)[Idx])
+				{ 
+					InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+				}
 			}
 		}
 
@@ -1334,6 +1343,11 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		const TManagedArray<TArray<FVector2D>>& UVs = Collection->UVs;
 		const TManagedArray<FLinearColor>& Color = Collection->Color;
 		const TManagedArray<FLinearColor>& BoneColors = Collection->BoneColor;
+		
+		const int32 NumGeom = Collection->NumElements(FGeometryCollection::GeometryGroup);
+		const TManagedArray<int32>& TransformIndex = Collection->TransformIndex;
+		const TManagedArray<int32>& FaceStart = Collection->FaceStart;
+		const TManagedArray<int32>& FaceCount = Collection->FaceCount;
 
 		ConstantData->Vertices = TArray<FVector3f>(Vertex.GetData(), Vertex.Num());
 		ConstantData->BoneMap = TArray<int32>(BoneMap.GetData(), BoneMap.Num());
@@ -1356,19 +1370,53 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		const TManagedArray<int32>& MaterialID = Collection->MaterialID;
 
 		const TManagedArray<bool>& Visible = GetVisibleArray();  // Use copy on write attribute. The rest collection visible array can be overriden for the convenience of debug drawing the collision volumes
+		
+#if WITH_EDITOR
+		// We will override visibility with the Hide array (if available).
+		TArray<bool> VisibleOverride;
+		VisibleOverride.Init(true, Visible.Num());
+		bool bUsingHideArray = false;
+
+		if (Collection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+		{
+			bUsingHideArray = true;
+
+			const TManagedArray<bool>& Hide = Collection->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+			for (int32 GeomIdx = 0; GeomIdx < NumGeom; ++GeomIdx)
+			{
+				if (Hide[TransformIndex[GeomIdx]])
+				{
+					// (Temporarily) hide faces of this hidden geometry
+					for (int32 FaceIdxOffset = 0; FaceIdxOffset < FaceCount[GeomIdx]; ++FaceIdxOffset)
+					{
+						VisibleOverride[FaceStart[GeomIdx]+FaceIdxOffset] = false;
+					}
+				}
+			}
+		}
+#endif
+		
 		const TManagedArray<int32>& MaterialIndex = Collection->MaterialIndex;
 
 		const int32 NumFaceGroupEntries = Collection->NumElements(FGeometryCollection::FacesGroup);
 
 		for (int FaceIndex = 0; FaceIndex < NumFaceGroupEntries; ++FaceIndex)
 		{
+#if WITH_EDITOR
+			NumIndices += static_cast<int>(VisibleOverride[FaceIndex]);
+#else
 			NumIndices += static_cast<int>(Visible[FaceIndex]);
+#endif
 		}
 
 		ConstantData->Indices.AddUninitialized(NumIndices);
 		for (int IndexIdx = 0, cdx = 0; IndexIdx < NumFaceGroupEntries; ++IndexIdx)
 		{
+#if WITH_EDITOR
+			if (VisibleOverride[MaterialIndex[IndexIdx]])
+#else
 			if (Visible[MaterialIndex[IndexIdx]])
+#endif
 			{
 				ConstantData->Indices[cdx++] = Indices[MaterialIndex[IndexIdx]];
 			}
@@ -1384,7 +1432,11 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 
 			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].FirstIndex / 3; TriangleIndex++)
 			{
+#if WITH_EDITOR
+				if (!VisibleOverride[MaterialIndex[TriangleIndex]])
+#else
 				if (!Visible[MaterialIndex[TriangleIndex]])
+#endif
 				{
 					Section.FirstIndex -= 3;
 				}
@@ -1392,7 +1444,12 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 
 			for (int32 TriangleIndex = 0; TriangleIndex < Sections[SectionIndex].NumTriangles; TriangleIndex++)
 			{
-				if (!Visible[MaterialIndex[Sections[SectionIndex].FirstIndex / 3 + TriangleIndex]])
+				int32 FaceIdx = MaterialIndex[Sections[SectionIndex].FirstIndex / 3 + TriangleIndex];
+#if WITH_EDITOR
+				if (!VisibleOverride[FaceIdx])
+#else
+				if (!Visible[FaceIdx])
+#endif
 				{
 					Section.NumTriangles--;
 				}
@@ -1407,9 +1464,7 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 
 		// store the index buffer and render sections for the base unfractured mesh
 		const TManagedArray<int32>& TransformToGeometryIndex = Collection->TransformToGeometryIndex;
-		const TManagedArray<int32>& FaceStart = Collection->FaceStart;
-		const TManagedArray<int32>& FaceCount = Collection->FaceCount;
-
+		
 		const int32 NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
 		TArray<FIntVector> BaseMeshIndices;
 		TArray<int32> BaseMeshOriginalFaceIndices;
@@ -1422,7 +1477,11 @@ void UGeometryCollectionComponent::InitConstantData(FGeometryCollectionConstantD
 		for (int FaceIndex = 0; FaceIndex < NumFaces; ++FaceIndex)
 		{
 			// only add visible external faces.  MaterialID that is even is an external material
+#if WITH_EDITOR
+			if (VisibleOverride[FaceIndex] && (MaterialID[FaceIndex] % 2 == 0 || bUsingHideArray))
+#else
 			if (Visible[FaceIndex] && MaterialID[FaceIndex] % 2 == 0)
+#endif
 			{
 				BaseMeshIndices.Add(Indices[FaceIndex]);
 				BaseMeshOriginalFaceIndices.Add(FaceIndex);

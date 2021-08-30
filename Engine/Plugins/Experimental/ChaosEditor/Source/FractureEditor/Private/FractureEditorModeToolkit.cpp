@@ -477,6 +477,10 @@ void FFractureEditorModeToolkit::OnObjectPostEditChange( UObject* Object, FPrope
 		{
 			OnLevelViewValueChanged();
 		}
+		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UFractureSettings, bHideUnselected))
+		{
+			OnHideUnselectedChanged(GetHideUnselectedValue());
+		}
 		else if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UHistogramSettings, bSorted))
 		{
 			UHistogramSettings* HistogramSettings = GetMutableDefault<UHistogramSettings>();
@@ -660,6 +664,50 @@ void FFractureEditorModeToolkit::BindCommands()
 	}
 }
 
+void FFractureEditorModeToolkit::SetHideForUnselected(UGeometryCollectionComponent* GCComp)
+{
+	if (const UGeometryCollection* RestCollection = GCComp->GetRestCollection())
+	{
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+
+		// If Hide managed array exists, set false for any selected bones, true for selected. 
+		// If a cluster is selected, set false for all children.
+		if (GeometryCollection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+		{
+			TManagedArray<bool>& Hide = GeometryCollection->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+			const TManagedArray<TSet<int32>>& Children = GeometryCollection->GetAttribute<TSet<int32>>("Children", FGeometryCollection::TransformGroup);
+			
+			const TArray<int32>& SelectedBones = GCComp->GetSelectedBones();
+			if (SelectedBones.Num() > 0)
+			{ 
+				Hide.Fill(true);
+
+				for (int32 SelectedBone : SelectedBones)
+				{
+					Hide[SelectedBone] = false;
+					if (Children[SelectedBone].Num() > 0)
+					{ 
+						TArray<int32> BranchBones;
+						FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(Children, SelectedBone, BranchBones);
+						for (int32 BranchBone : BranchBones)
+						{
+							Hide[BranchBone] = false;
+						}
+					}
+				}
+			}
+			else
+			{
+				// Don't hide anything if we've selected nothing
+				Hide.Fill(false);
+			}
+
+			GCComp->RefreshEmbeddedGeometry();
+
+		}
+	}
+}
+
 void FFractureEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 
 {
 	if (GetActiveTool() != nullptr)
@@ -698,6 +746,12 @@ int32 FFractureEditorModeToolkit::GetLevelViewValue() const
 {
 	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
 	return FractureSettings->FractureLevel;
+}
+
+bool FFractureEditorModeToolkit::GetHideUnselectedValue() const
+{
+	UFractureSettings* FractureSettings = GetMutableDefault<UFractureSettings>();
+	return FractureSettings->bHideUnselected;
 }
 
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
@@ -820,6 +874,42 @@ void FFractureEditorModeToolkit::OnLevelViewValueChanged()
 	SetOutlinerComponents(GeomCompSelection.Array());
 
 	GCurrentLevelEditingViewportClient->Invalidate();
+}
+
+void FFractureEditorModeToolkit::OnHideUnselectedChanged(bool bHide)
+{
+	TSet<UGeometryCollectionComponent*> GeomCompSelection;
+	GetSelectedGeometryCollectionComponents(GeomCompSelection);
+
+	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
+	{
+		if (const UGeometryCollection* RestCollection = Comp->GetRestCollection())
+		{ 
+			TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+			
+			if (bHide)
+			{
+				// If we are toggling on, add and configure the Hide array.
+				if (!GeometryCollection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+				{
+					GeometryCollection->AddAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
+				}
+				SetHideForUnselected(Comp);
+			}
+			else
+			{
+				// If we are toggling off, remove the Hide array.
+				if (GeometryCollection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+				{
+					GeometryCollection->RemoveAttribute("Hide", FGeometryCollection::TransformGroup);
+				}
+			}
+		
+			// redraw
+			Comp->MarkRenderDynamicDataDirty();
+			Comp->MarkRenderStateDirty();
+		}
+	}
 }
 
 void FFractureEditorModeToolkit::ToggleShowBoneColors()
@@ -1022,6 +1112,8 @@ void FFractureEditorModeToolkit::SetBoneSelection(UGeometryCollectionComponent* 
 {
 	OutlinerView->SetBoneSelection(InRootComponent, InSelectedBones, bClearCurrentSelection);
 	HistogramView->SetBoneSelection(InRootComponent, InSelectedBones, bClearCurrentSelection);
+
+	SetHideForUnselected(InRootComponent);
 	
 	if (ActiveTool != nullptr)
 	{
@@ -1436,6 +1528,8 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 			ActiveTool->FractureContextChanged();
 		}
 
+		SetHideForUnselected(RootComponent);
+
 		RootComponent->MarkRenderStateDirty();
 		RootComponent->MarkRenderDynamicDataDirty();
 	}
@@ -1465,6 +1559,8 @@ void FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged(UGeometryCollec
 			ActiveTool->SelectedBonesChanged();
 			ActiveTool->FractureContextChanged();
 		}
+
+		SetHideForUnselected(RootComponent);
 
 		RootComponent->MarkRenderStateDirty();
 		RootComponent->MarkRenderDynamicDataDirty();

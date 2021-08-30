@@ -71,6 +71,7 @@ void UFractureEditorMode::Enter()
 	if (FFractureEditorModeToolkit* FractureToolkit = static_cast<FFractureEditorModeToolkit*>(Toolkit.Get()))
 	{
 		FractureToolkit->SetInitialPalette();
+		FractureToolkit->OnHideUnselectedChanged(FractureToolkit->GetHideUnselectedValue());
 	}
 	
 	OnActorSelectionChanged(SelectedObjects, false);
@@ -357,6 +358,16 @@ void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 
 			FScopedColorEdit ShowBoneColorsEdit(ExistingSelection);
 			ShowBoneColorsEdit.SetEnableBoneSelection(false);
+
+			// If we have a Hide array on the collection, remove it.
+			if (const UGeometryCollection* RestCollection = ExistingSelection->GetRestCollection())
+			{
+				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection = RestCollection->GetGeometryCollection();
+				if (GeometryCollection->HasAttribute("Hide", FGeometryCollection::TransformGroup))
+				{
+					GeometryCollection->RemoveAttribute("Hide", FGeometryCollection::TransformGroup);
+				}
+			}
 			
 			ExistingSelection->MarkRenderStateDirty();
 		}

@@ -261,6 +261,7 @@ class FGeometryCollectionSceneProxy final : public FPrimitiveSceneProxy
 
 	bool bShowBoneColors;
 	bool bEnableBoneSelection;
+	bool bSuppressSelectionMaterial;
 	int BoneSelectionMaterialID;
 
 	bool bUseFullPrecisionUVs = false;

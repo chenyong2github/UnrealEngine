@@ -91,6 +91,7 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 	, ConstantData(nullptr)
 	, bShowBoneColors(Component->GetShowBoneColors())
 	, bEnableBoneSelection(Component->GetEnableBoneSelection())
+	, bSuppressSelectionMaterial(Component->GetSuppressSelectionMaterial())
 	, BoneSelectionMaterialID(Component->GetBoneSelectedMaterialID())
 	, bUseFullPrecisionUVs(Component->GetRestCollection()->bUseFullPrecisionUVs)
 	, TransformVertexBuffersContainsOriginalMesh(false)
@@ -799,7 +800,7 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			// bone selection is already contained in the rendered colors
 			// #note: This renders the geometry again but with the bone selection material.  Ideally we'd have one render pass and one
 			// material.
-			if (bShowBoneColors || bEnableBoneSelection)
+			if ((bShowBoneColors || bEnableBoneSelection) && !bSuppressSelectionMaterial)
 			{
 				FMaterialRenderProxy* MaterialRenderProxy = Materials[BoneSelectionMaterialID]->GetRenderProxy();
 

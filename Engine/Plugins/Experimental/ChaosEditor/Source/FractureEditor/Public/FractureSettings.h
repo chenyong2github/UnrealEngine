@@ -23,4 +23,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = ViewSettings, meta = (DisplayName = "Fracture Level", UIMin = "-1" ))
 	int32 FractureLevel;
 
+	/** When active, only show selected bones.  */
+	UPROPERTY(EditAnywhere, Category = ViewSettings, meta = (DisplayName = "Hide Unselected"))
+	bool bHideUnselected;
+
 };
