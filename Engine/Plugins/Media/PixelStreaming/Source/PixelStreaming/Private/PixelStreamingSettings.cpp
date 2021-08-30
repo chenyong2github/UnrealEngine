@@ -273,10 +273,10 @@ namespace PixelStreamingSettings
 }
 
 template<typename T>
-void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar, bool StopOnSeparator = false)
+void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<T>& CVar)
 {
 	T Value;
-	if (FParse::Value(FCommandLine::Get(), Match, Value, StopOnSeparator))
+	if (FParse::Value(FCommandLine::Get(), Match, Value))
 		CVar->Set(Value, ECVF_SetByCommandline);
 };
 
@@ -287,12 +287,12 @@ void CommandLineParseValue(const TCHAR* Match, TAutoConsoleVariable<FString>& CV
 		CVar->Set(*Value, ECVF_SetByCommandline);
 };
 
-void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar, bool StopOnSeparator = false)
+void CommandLineParseOption(const TCHAR* Match, TAutoConsoleVariable<bool>& CVar)
 {
 	FString ValueMatch(Match);
 	ValueMatch.Append(TEXT("="));
 	FString Value;
-	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value, StopOnSeparator)) {
+	if (FParse::Value(FCommandLine::Get(), *ValueMatch, Value)) {
 		if (Value.Equals(FString(TEXT("true")), ESearchCase::IgnoreCase)) {
 			CVar->Set(true, ECVF_SetByCommandline);
 		}
