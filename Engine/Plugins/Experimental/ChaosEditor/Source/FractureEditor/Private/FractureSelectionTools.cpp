@@ -34,10 +34,15 @@ void FFractureSelectionTools::ToggleSelectedBones(UGeometryCollectionComponent* 
 					TArray<int32> Highlighted;
 					FGeometryCollectionClusteringUtility::ContextBasedClusterSelection(GeometryCollection, EditBoneColor.GetViewLevel(), Selected, RevisedSelected, Highlighted);
 					EditBoneColor.SetSelectedBones(RevisedSelected);
-					EditBoneColor.SetHighlightedBones(Highlighted);
-
-					// @todo FractureEd:  Replace with delegate for custom fracture tree view
-					//SceneOutliner::FSceneOutlinerDelegates::Get().OnComponentSelectionChanged.Broadcast(GeometryCollectionComponent);
+					
+					const TArray<int32>& SelectedBones = EditBoneColor.GetSelectedBones();
+					TArray<int32> HighlightBones;
+					for (int32 SelectedBone : SelectedBones)
+					{
+						FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(GeometryCollectionPtr->Children, SelectedBone, HighlightBones);
+					}
+					
+					EditBoneColor.SetHighlightedBones(HighlightBones);
 				}
 			}
 

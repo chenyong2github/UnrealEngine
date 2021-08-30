@@ -410,7 +410,7 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		const TManagedArray<FTransform>& Transforms = GetTransformArray();
 
 		const int32 NumBoxes = BoundingBoxes.Num();
-
+	
 		int32 NumElements = HackGeometryCollectionPtr->NumElements(FGeometryCollection::TransformGroup);
 		if (RestCollection->EnableNanite && HackGeometryCollectionPtr->HasAttribute("BoundingBox", FGeometryCollection::TransformGroup) && NumElements)
 		{
@@ -2408,7 +2408,12 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 		}
 
 		const TArray<int32>& SelectedBones = GetSelectedBones();
-		SetHighlightedBones(SelectedBones);
+		TArray<int32> HighlightBones;
+		for (int32 SelectedBone: SelectedBones)
+		{ 
+			FGeometryCollectionClusteringUtility::RecursiveAddAllChildren(GeometryCollectionPtr->Children, SelectedBone, HighlightBones);
+		}
+		SetHighlightedBones(HighlightBones);
 	}
 }
 
