@@ -284,7 +284,7 @@ static FUVAreaMetrics Compute_UV_Area_Metrics(const FDynamicMesh3* Mesh, const T
 		{
 			if (Submesh.IsBoundaryEdge(TriEdges[j]))
 			{
-				Metrics.UVPerimeter += UVTri[j].Distance(UVTri[(j + 1) % 3]);
+				Metrics.UVPerimeter += Distance( UVTri[j], UVTri[(j + 1) % 3] );
 			}
 		}
 

@@ -12,6 +12,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Convert between integer grid coordinates and scaled real-valued coordinates (ie assumes integer grid origin == real origin)
  */
@@ -27,7 +29,7 @@ struct TScaleGridIndexer2
 	}
 
 	/** Convert real-valued point to integer grid coordinates */
-	inline FVector2i ToGrid(const FVector2<RealType>& P) const
+	inline FVector2i ToGrid(const TVector2<RealType>& P) const
 	{
 		return FVector2i(
 			(int)TMathUtil<RealType>::Floor(P.X / CellSize),
@@ -35,9 +37,9 @@ struct TScaleGridIndexer2
 	}
 
 	/** Convert integer grid coordinates to real-valued point */
-	inline FVector2<RealType> FromGrid(const FVector2i& GridPoint) const
+	inline TVector2<RealType> FromGrid(const FVector2i& GridPoint) const
 	{
-		return FVector2<RealType>(GridPoint.X*CellSize, GridPoint.Y*CellSize);
+		return TVector2<RealType>(GridPoint.X*CellSize, GridPoint.Y*CellSize);
 	}
 };
 typedef TScaleGridIndexer2<float> FScaleGridIndexer2f;
@@ -53,9 +55,9 @@ struct TShiftGridIndexer2
 	/** Real-valued size of an integer grid cell */
 	RealType CellSize;
 	/** Real-valued origin of grid, position of integer grid origin */
-	FVector2<RealType> Origin;
+	TVector2<RealType> Origin;
 
-	TShiftGridIndexer2(const FVector2<RealType>& origin, RealType cellSize)
+	TShiftGridIndexer2(const TVector2<RealType>& origin, RealType cellSize)
 	{
 		Origin = origin;
 		CellSize = cellSize;
@@ -63,7 +65,7 @@ struct TShiftGridIndexer2
 	}
 
 	/** Convert real-valued point to integer grid coordinates */
-	inline FVector2i ToGrid(const FVector2<RealType>& Point) const
+	inline FVector2i ToGrid(const TVector2<RealType>& Point) const
 	{
 		return FVector2i(
 			(int)TMathUtil<RealType>::Floor((Point.X - Origin.X) / CellSize),
@@ -71,17 +73,17 @@ struct TShiftGridIndexer2
 	}
 
 	/** Convert integer grid coordinates to real-valued point */
-	inline FVector2<RealType> FromGrid(const FVector2i& GridPoint) const
+	inline TVector2<RealType> FromGrid(const FVector2i& GridPoint) const
 	{
-		return FVector2<RealType>(
+		return TVector2<RealType>(
 			((RealType)GridPoint.X * CellSize) + Origin.X,
 			((RealType)GridPoint.Y * CellSize) + Origin.Y);
 	}
 
 	/** Convert real-valued grid coordinates to real-valued point */
-	inline FVector2<RealType> FromGrid(const FVector2<RealType>& RealGridPoint) const
+	inline TVector2<RealType> FromGrid(const TVector2<RealType>& RealGridPoint) const
 	{
-		return FVector2<RealType>(
+		return TVector2<RealType>(
 			((RealType)RealGridPoint.X * CellSize) + Origin.X,
 			((RealType)RealGridPoint.Y * CellSize) + Origin.Y);
 	}

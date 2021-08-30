@@ -10,6 +10,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 template <typename RealType>
 struct TMatrix3
 {
@@ -271,8 +273,8 @@ struct TMatrix3
 template <typename RealType>
 struct TMatrix2
 {
-	FVector2<RealType> Row0;
-	FVector2<RealType> Row1;
+	TVector2<RealType> Row0;
+	TVector2<RealType> Row1;
 
 	TMatrix2()
 	{
@@ -280,20 +282,20 @@ struct TMatrix2
 
 	TMatrix2(RealType ConstantValue)
 	{
-		Row0 = Row1 = FVector2<RealType>(ConstantValue, ConstantValue);
+		Row0 = Row1 = TVector2<RealType>(ConstantValue, ConstantValue);
 	}
 
 	TMatrix2(RealType Diag0, RealType Diag1)
 	{
-		Row0 = FVector2<RealType>(Diag0, 0);
-		Row1 = FVector2<RealType>(0, Diag1);
+		Row0 = TVector2<RealType>(Diag0, 0);
+		Row1 = TVector2<RealType>(0, Diag1);
 	}
 
 	/**
 	 * Construct outer-product of U*transpose(V) of U and V
 	 * result is that Mij = u_i * v_j
 	 */
-	TMatrix2<RealType>(const FVector2<RealType>& U, const FVector2<RealType>& V)
+	TMatrix2<RealType>(const TVector2<RealType>& U, const TVector2<RealType>& V)
 		: Row0(U.X * V.X, U.X * V.Y),
 		  Row1(U.Y * V.X, U.Y * V.Y)
 	{
@@ -305,7 +307,7 @@ struct TMatrix2
 	{
 	}
 
-	TMatrix2(const FVector2<RealType>& V1, const FVector2<RealType>& V2, bool bRows)
+	TMatrix2(const TVector2<RealType>& V1, const TVector2<RealType>& V2, bool bRows)
 	{
 		if (bRows)
 		{
@@ -314,8 +316,8 @@ struct TMatrix2
 		}
 		else
 		{
-			Row0 = FVector2<RealType>(V1.X, V2.X);
-			Row1 = FVector2<RealType>(V1.Y, V2.Y);
+			Row0 = TVector2<RealType>(V1.X, V2.X);
+			Row1 = TVector2<RealType>(V1.Y, V2.Y);
 		}
 	}
 
@@ -348,9 +350,9 @@ struct TMatrix2
 			Row1.X * Scale, Row1.Y * Scale);
 	}
 
-	FVector2<RealType> operator*(const FVector2<RealType>& V) const
+	TVector2<RealType> operator*(const TVector2<RealType>& V) const
 	{
-		return FVector2<RealType>(
+		return TVector2<RealType>(
 			Row0.X * V.X + Row0.Y * V.Y,
 			Row1.X * V.X + Row1.Y * V.Y);
 	}

@@ -19,6 +19,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Compute intersection between 3D triangles
  * use Test() for fast boolean query, does not compute intersection info
@@ -564,7 +566,7 @@ public:
 		}
 
 		TTriangle2<Real> projTri;
-		FVector2<Real> projEnd0, projEnd1;
+		TVector2<Real> projEnd0, projEnd1;
 		int i;
 
 		if (maxNormal == 0)
@@ -613,7 +615,7 @@ public:
 
 		int Quantity = 0;
 
-		FVector2<Real> intr[2];
+		TVector2<Real> intr[2];
 		if (calc.Type == EIntersectionType::Segment)
 		{
 			Quantity = 2;
@@ -692,10 +694,10 @@ protected:
 		FVector3<Real> V2mV0 = triangle.V[2] - triangle.V[0];
 
 		// The planar representation of P-V0.
-		FVector2<Real> ProjP(U0.Dot(PmV0), U1.Dot(PmV0));
+		TVector2<Real> ProjP(U0.Dot(PmV0), U1.Dot(PmV0));
 
 		// The planar representation of the triangle <V0-V0,V1-V0,V2-V0>.
-		TTriangle2<Real> ProjT(FVector2<Real>::Zero(), FVector2<Real>(U0.Dot(V1mV0), U1.Dot(V1mV0)), FVector2<Real>(U0.Dot(V2mV0), U1.Dot(V2mV0)));
+		TTriangle2<Real> ProjT(TVector2<Real>::Zero(), TVector2<Real>(U0.Dot(V1mV0), U1.Dot(V1mV0)), TVector2<Real>(U0.Dot(V2mV0), U1.Dot(V2mV0)));
 
 		// Test whether P-V0 is in the triangle <0,V1-V0,V2-V0>.
 		if (ProjT.IsInsideOrOn_Oriented(ProjP) <= 0)
@@ -781,9 +783,9 @@ protected:
 		}
 
 		// 2D triangle intersection routines require counterclockwise ordering.
-		FVector2<Real> save;
-		FVector2<Real> edge0 = projTri0.V[1] - projTri0.V[0];
-		FVector2<Real> edge1 = projTri0.V[2] - projTri0.V[0];
+		TVector2<Real> save;
+		TVector2<Real> edge0 = projTri0.V[1] - projTri0.V[0];
+		TVector2<Real> edge1 = projTri0.V[2] - projTri0.V[0];
 		if (DotPerp(edge0, edge1) < (Real)0)
 		{
 			// Triangle is clockwise, reorder it.

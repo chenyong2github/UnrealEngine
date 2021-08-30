@@ -473,7 +473,7 @@ void FEmbedPolygonsOp::CalculateResult(FProgressCancel* Progress)
 			for (int UIdx = 0; UIdx < UValues.Num(); UIdx++)
 			{
 				UValues[UIdx] = Along;
-				Along += Polygon[UIdx % Polygon.VertexCount()].Distance(Polygon[(UIdx + 1) % Polygon.VertexCount()]);
+				Along += Distance(Polygon[UIdx % Polygon.VertexCount()], Polygon[(UIdx + 1) % Polygon.VertexCount()]);
 			}
 
 			for (int UVIdx = 0, NumUVLayers = ResultMesh->Attributes()->NumUVLayers(); UVIdx < NumUVLayers; UVIdx++)

@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * Hash Grid for values associated with 2D points.
  *
@@ -56,7 +58,7 @@ public:
 	 * @param Value the point/value to insert
 	 * @param Position the position associated with this value
 	 */
-	void InsertPoint(const PointDataType& Value, const FVector2<RealType>& Position)
+	void InsertPoint(const PointDataType& Value, const TVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		{
@@ -70,7 +72,7 @@ public:
 	 * @param Value the point/value to insert
 	 * @param Position the position associated with this value
 	 */
-	void InsertPointUnsafe(const PointDataType& Value, const FVector2<RealType>& Position)
+	void InsertPointUnsafe(const PointDataType& Value, const TVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		Hash.Add(idx, Value);
@@ -83,7 +85,7 @@ public:
 	 * @param Position the position associated with this value
 	 * @return true if the value existed at this position
 	 */
-	bool RemovePoint(const PointDataType& Value, const FVector2<RealType>& Position)
+	bool RemovePoint(const PointDataType& Value, const TVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		{
@@ -98,7 +100,7 @@ public:
 	 * @param Position the position associated with this value
 	 * @return true if the value existed at this position
 	 */
-	bool RemovePointUnsafe(const PointDataType& Value, const FVector2<RealType>& Position)
+	bool RemovePointUnsafe(const PointDataType& Value, const TVector2<RealType>& Position)
 	{
 		FVector2i idx = Indexer.ToGrid(Position);
 		return Hash.RemoveSingle(idx, Value) > 0;
@@ -111,7 +113,7 @@ public:
 	 * @param OldPosition the current position associated with this value
 	 * @param NewPosition the new position for this value
 	 */
-	void UpdatePoint(const PointDataType& Value, const FVector2<RealType>& OldPosition, const FVector2<RealType>& NewPosition)
+	void UpdatePoint(const PointDataType& Value, const TVector2<RealType>& OldPosition, const TVector2<RealType>& NewPosition)
 	{
 		FVector2i old_idx = Indexer.ToGrid(OldPosition);
 		FVector2i new_idx = Indexer.ToGrid(NewPosition);
@@ -139,7 +141,7 @@ public:
 	 * @param OldPosition the current position associated with this value
 	 * @param NewPosition the new position for this value
 	 */
-	void UpdatePointUnsafe(const PointDataType& Value, const FVector2<RealType>& OldPosition, const FVector2<RealType>& NewPosition)
+	void UpdatePointUnsafe(const PointDataType& Value, const TVector2<RealType>& OldPosition, const TVector2<RealType>& NewPosition)
 	{
 		FVector2i old_idx = Indexer.ToGrid(OldPosition);
 		FVector2i new_idx = Indexer.ToGrid(NewPosition);
@@ -163,7 +165,7 @@ public:
 	 * @return the found pair (Value,DistanceFunc(Value)), or (InvalidValue,MaxDouble) if not found
 	 */
 	TPair<PointDataType, RealType> FindNearestInRadius(
-		const FVector2<RealType>& QueryPoint, RealType Radius, 
+		const TVector2<RealType>& QueryPoint, RealType Radius, 
 		TFunctionRef<RealType(const PointDataType&)> DistanceSqFunc,
 		TFunctionRef<bool(const PointDataType&)> IgnoreFunc = [](const PointDataType& data) { return false; }) const
 	{
@@ -172,8 +174,8 @@ public:
 			return TPair<PointDataType, RealType>(GetInvalidValue(), TNumericLimits<RealType>::Max());
 		}
 
-		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * FVector2<RealType>::One());
-		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * FVector2<RealType>::One());
+		FVector2i min_idx = Indexer.ToGrid(QueryPoint - Radius * TVector2<RealType>::One());
+		FVector2i max_idx = Indexer.ToGrid(QueryPoint + Radius * TVector2<RealType>::One());
 
 		RealType min_distsq = TNumericLimits<RealType>::Max();
 		PointDataType nearest = GetInvalidValue();

@@ -896,7 +896,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 					FVector2f OtherUV = Mesh.GetVertexUV(OtherV);
 					FVector2f RemoveUV = Mesh.GetVertexUV(RemoveV);
 					FVector2f KeepUV = Mesh.GetVertexUV(KeepV);
-					if ( Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
+					if ( DistanceSquared( Lerp(OtherUV, KeepUV, LerpT), RemoveUV) > UVEqualThresholdSq)
 					{
 						bHasBadEdge = true;
 						return;
@@ -954,7 +954,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 						FVector2f OtherUV = UVs->GetElement(OtherE);
 						FVector2f RemoveUV = UVs->GetElement(RemoveE);
 						FVector2f KeepUV = UVs->GetElement(KeepE);
-						if (Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
+						if ( DistanceSquared( Lerp(OtherUV, KeepUV, LerpT), RemoveUV) > UVEqualThresholdSq)
 						{
 							bHasBadEdge = true;
 							return;

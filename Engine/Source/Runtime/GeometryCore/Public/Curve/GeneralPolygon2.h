@@ -18,6 +18,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TGeneralPolygon2 is a 2D polygon with holes
  */
@@ -168,7 +170,7 @@ public:
     }
 
 
-	void Translate(FVector2<T> translate) {
+	void Translate(TVector2<T> translate) {
 		Outer.Translate(translate);
 		for (TPolygon2<T>& Hole : Holes)
 		{
@@ -177,7 +179,7 @@ public:
 	}
 
 
-    void Scale(FVector2<T> scale, FVector2<T> origin) {
+    void Scale(TVector2<T> scale, TVector2<T> origin) {
 		Outer.Scale(scale, origin);
 		for (TPolygon2<T>& Hole : Holes)
 		{
@@ -185,7 +187,7 @@ public:
 		}
 	}
 
-    void Transform(const TFunction<FVector2<T> (const FVector2<T>&)>& TransformFunc)
+    void Transform(const TFunction<TVector2<T> (const TVector2<T>&)>& TransformFunc)
     {
         Outer.Transform(TransformFunc);
 		for (TPolygon2<T>& Hole : Holes)
@@ -205,7 +207,7 @@ public:
     }
 
 
-	bool Contains(FVector2<T> vTest)
+	bool Contains(TVector2<T> vTest)
 	{
 		if (Outer.Contains(vTest) == false)
 		{
@@ -254,7 +256,7 @@ public:
     }
 
 
-    FVector2<T> GetSegmentPoint(int iSegment, double fSegT, int iHoleIndex = -1)
+    TVector2<T> GetSegmentPoint(int iSegment, double fSegT, int iHoleIndex = -1)
 	{
 		if (iHoleIndex == -1)
 		{
@@ -272,7 +274,7 @@ public:
 		return Holes[iHoleIndex].Segment(iSegment);			
 	}
 
-	FVector2<T> GetNormal(int iSegment, double segT, int iHoleIndex = -1)
+	TVector2<T> GetNormal(int iSegment, double segT, int iHoleIndex = -1)
 	{
 		if (iHoleIndex == -1)
 		{
@@ -282,7 +284,7 @@ public:
 	}
 
 	// this should be more efficient when there are Holes...
-	double DistanceSquared(FVector2<T> p, int &iHoleIndex, int &iNearSeg, double &fNearSegT)
+	double DistanceSquared(TVector2<T> p, int &iHoleIndex, int &iNearSeg, double &fNearSegT)
 	{
 		iNearSeg = iHoleIndex = -1;
 		fNearSegT = TMathUtil<T>::MaxReal;

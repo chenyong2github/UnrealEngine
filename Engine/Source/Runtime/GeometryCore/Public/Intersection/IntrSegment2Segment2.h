@@ -17,6 +17,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 // ported from WildMagic5
 //
 //
@@ -66,8 +68,8 @@ public:
 	EIntersectionResult Result = EIntersectionResult::NotComputed;
 	EIntersectionType Type = EIntersectionType::Empty;
 	// these values are all on segment 1, unlike many other tests!!
-	FVector2<RealType> Point0;
-	FVector2<RealType> Point1;     // only set if Quantity == 2, ie segment overlap
+	TVector2<RealType> Point0;
+	TVector2<RealType> Point1;     // only set if Quantity == 2, ie segment overlap
 
 	RealType Parameter0;
 	RealType Parameter1;     // only set if Quantity == 2, ie segment overlap
@@ -154,7 +156,7 @@ public:
 		}
 
 
-		FVector2<RealType> s = FVector2<RealType>::Zero();
+		TVector2<RealType> s = TVector2<RealType>::Zero();
 		Type = TIntrLine2Line2<RealType>::Classify(Segment1.Center, Segment1.Direction,
 			Segment2.Center, Segment2.Direction,
 			DotThreshold, IntervalThreshold, s);
@@ -178,7 +180,7 @@ public:
 		else if (Type == EIntersectionType::Line)
 		{
 			// Compute the location of Segment1 endpoints relative to segment0.
-			FVector2<RealType> diff = Segment2.Center - Segment1.Center;
+			TVector2<RealType> diff = Segment2.Center - Segment1.Center;
 			RealType t1 = Segment1.Direction.Dot(diff);
 			RealType tmin = t1 - Segment2.Extent;
 			RealType tmax = t1 + Segment2.Extent;

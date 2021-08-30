@@ -75,7 +75,7 @@ protected:
 			PathPercentages.Add(0);
 			for (int XIdx = 0, XNum = CrossSection.VertexCount(); XIdx < XNum; XIdx++)
 			{
-				double SegLen = CrossSection[XIdx].Distance(CrossSection[(XIdx + 1) % XNum]);
+				double SegLen = Distance(CrossSection[XIdx], CrossSection[(XIdx + 1) % XNum]);
 				TotalPerimeter += SegLen;
 				CrossSectionPercentages.Add(TotalPerimeter);
 			}
@@ -380,7 +380,7 @@ public:
 		AlongPercents[0] = 0;
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
 		{
-			float Dist = FVector2d(Radii[XIdx], Heights[XIdx]).Distance(FVector2d(Radii[XIdx + 1], Heights[XIdx + 1]));
+			float Dist = Distance( FVector2d(Radii[XIdx], Heights[XIdx]), FVector2d(Radii[XIdx + 1], Heights[XIdx + 1]) );
 			LenAlong += Dist;
 			AlongPercents[XIdx + 1] = LenAlong;
 		}

@@ -12,6 +12,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 template <typename RealType>
 struct TInterval1
@@ -539,15 +540,15 @@ struct TAxisAlignedBox3
 template <typename RealType>
 struct TAxisAlignedBox2
 {
-	FVector2<RealType> Min;
-	FVector2<RealType> Max;
+	TVector2<RealType> Min;
+	TVector2<RealType> Max;
 
 	TAxisAlignedBox2() : 
 		TAxisAlignedBox2(Empty())
 	{
 	}
 
-	TAxisAlignedBox2(const FVector2<RealType>& Min, const FVector2<RealType>& Max)
+	TAxisAlignedBox2(const TVector2<RealType>& Min, const TVector2<RealType>& Max)
 		: Min(Min), Max(Max)
 	{
 	}
@@ -557,8 +558,8 @@ struct TAxisAlignedBox2
 	template<typename OtherRealType>
 	explicit TAxisAlignedBox2(const TAxisAlignedBox2<OtherRealType>& OtherBox)
 	{
-		this->Min = FVector2<RealType>(OtherBox.Min);
-		this->Max = FVector2<RealType>(OtherBox.Max);
+		this->Min = TVector2<RealType>(OtherBox.Min);
+		this->Max = TVector2<RealType>(OtherBox.Max);
 	}
 
 	TAxisAlignedBox2(RealType SquareSize)
@@ -570,16 +571,16 @@ struct TAxisAlignedBox2
 	{
 	}
 
-	TAxisAlignedBox2(const TArray<FVector2<RealType>>& Pts)
+	TAxisAlignedBox2(const TArray<TVector2<RealType>>& Pts)
 	{
 		*this = Empty();
 		Contain(Pts);
 	}
 
-	TAxisAlignedBox2(const FVector2<RealType>& Center, RealType HalfWidth)
+	TAxisAlignedBox2(const TVector2<RealType>& Center, RealType HalfWidth)
 	{
-		this->Min = FVector2<RealType>(Center.X - HalfWidth, Center.Y - HalfWidth);
-		this->Max = FVector2<RealType>(Center.X + HalfWidth, Center.Y + HalfWidth);
+		this->Min = TVector2<RealType>(Center.X - HalfWidth, Center.Y - HalfWidth);
+		this->Max = TVector2<RealType>(Center.X + HalfWidth, Center.Y + HalfWidth);
 	}
 
 	explicit operator FBox2D() const
@@ -597,18 +598,18 @@ struct TAxisAlignedBox2
 	static TAxisAlignedBox2<RealType> Empty()
 	{
 		return TAxisAlignedBox2(
-			FVector2<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
-			FVector2<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
+			TVector2<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()),
+			TVector2<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
 	}
 
-	FVector2<RealType> Center() const
+	TVector2<RealType> Center() const
 	{
-		return FVector2<RealType>(
+		return TVector2<RealType>(
 			(Min.X + Max.X) * (RealType)0.5,
 			(Min.Y + Max.Y) * (RealType)0.5);
 	}
 
-	FVector2<RealType> Extents() const
+	TVector2<RealType> Extents() const
 	{
 		return (Max - Min) * (RealType).5;
 	}
@@ -618,15 +619,15 @@ struct TAxisAlignedBox2
 	 * @param Index which corner to return, must be in range [0,3]
 	 * @return Corner of the bounding rectangle
 	 */
-	FVector2<RealType> GetCorner(int Index) const
+	TVector2<RealType> GetCorner(int Index) const
 	{
 		check(Index >= 0 && Index <= 3);
 		RealType X = ((Index % 3) == 0) ? (Min.X) : (Max.X);
 		RealType Y = ((Index & 2) == 0) ? (Min.Y) : (Max.Y);
-		return FVector2<RealType>(X, Y);
+		return TVector2<RealType>(X, Y);
 	}
 
-	inline void Contain(const FVector2<RealType>& V)
+	inline void Contain(const TVector2<RealType>& V)
 	{
 		if (V.X < Min.X)
 		{
@@ -654,15 +655,15 @@ struct TAxisAlignedBox2
 		Max.Y = Max.Y > Other.Max.Y ? Max.Y : Other.Max.Y;
 	}
 
-	void Contain(const TArray<FVector2<RealType>>& Pts)
+	void Contain(const TArray<TVector2<RealType>>& Pts)
 	{
-		for (const FVector2<RealType>& Pt : Pts)
+		for (const TVector2<RealType>& Pt : Pts)
 		{
 			Contain(Pt);
 		}
 	}
 
-	bool Contains(const FVector2<RealType>& V) const
+	bool Contains(const TVector2<RealType>& V) const
 	{
 		return (Min.X <= V.X) && (Min.Y <= V.Y) && (Max.X >= V.X) && (Max.Y >= V.Y);
 	}
@@ -680,8 +681,8 @@ struct TAxisAlignedBox2
 	TAxisAlignedBox2<RealType> Intersect(const TAxisAlignedBox2<RealType> &Box) const
 	{
 		TAxisAlignedBox2<RealType> Intersection(
-			FVector2<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y)),
-			FVector2<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y)));
+			TVector2<RealType>(TMathUtil<RealType>::Max(Min.X, Box.Min.X), TMathUtil<RealType>::Max(Min.Y, Box.Min.Y)),
+			TVector2<RealType>(TMathUtil<RealType>::Min(Max.X, Box.Max.X), TMathUtil<RealType>::Min(Max.Y, Box.Max.Y)));
 		if (Intersection.Height() <= 0 || Intersection.Width() <= 0)
 		{
 			return TAxisAlignedBox2<RealType>::Empty();
@@ -692,7 +693,7 @@ struct TAxisAlignedBox2
 		}
 	}
 
-	RealType DistanceSquared(const FVector2<RealType>& V) const
+	RealType DistanceSquared(const TVector2<RealType>& V) const
 	{
 		RealType dx = (V.X < Min.X) ? Min.X - V.X : (V.X > Max.X ? V.X - Max.X : 0);
 		RealType dy = (V.Y < Min.Y) ? Min.Y - V.Y : (V.Y > Max.Y ? V.Y - Max.Y : 0);

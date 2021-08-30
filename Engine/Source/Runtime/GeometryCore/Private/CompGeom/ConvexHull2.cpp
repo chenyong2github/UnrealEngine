@@ -15,7 +15,7 @@ namespace Geometry
 
 
 template<class RealType>
-bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
+bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
 {
 	Hull.Reset();
 
@@ -33,7 +33,7 @@ bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector2<RealTy
 	}
 	Hull.Sort([&GetPointFunc](int32 A, int32 B)
 		{
-			FVector2<RealType> PA = GetPointFunc(A), PB = GetPointFunc(B);
+			TVector2<RealType> PA = GetPointFunc(A), PB = GetPointFunc(B);
 			return (PA.X < PB.X) || (PA.X == PB.X && PA.Y < PB.Y);
 		});
 
@@ -84,7 +84,7 @@ bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector2<RealTy
 }
 
 template<class RealType>
-void TConvexHull2<RealType>::GetHull(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32& IdxFirst, int32& IdxLast)
+void TConvexHull2<RealType>::GetHull(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32& IdxFirst, int32& IdxLast)
 {
 	int32 NumVertices = IdxLast - IdxFirst + 1;
 	if (NumVertices > 1)
@@ -104,7 +104,7 @@ void TConvexHull2<RealType>::GetHull(TFunctionRef<FVector2<RealType>(int32)> Get
 }
 
 template<class RealType>
-void TConvexHull2<RealType>::Merge(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1)
+void TConvexHull2<RealType>::Merge(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1)
 {
 	// Subhull0 is to the left of subhull1 because of the initial sorting of
 	// the points by x-components.  We need to find two mutually visible
@@ -237,7 +237,7 @@ EPointOrdering PointOnLine(FVector2d P, FVector2d L0, FVector2d L1)
 }
 
 template<class RealType>
-void TConvexHull2<RealType>::GetTangent(TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1)
+void TConvexHull2<RealType>::GetTangent(TFunctionRef<TVector2<RealType>(int32)> GetPointFunc, TArray<int32>& Merged, int32 j0, int32 j1, int32 j2, int32 j3, int32& i0, int32& i1)
 {
 	// In theory the loop terminates in a finite number of steps, but the
 	// upper bound for the loop variable is used to trap problems caused by

@@ -81,7 +81,7 @@ bool FArrangement::insert_segment(FVector2d A, FVector2d B, double Tol)
     }
 
     // handle tiny-segment case
-    double SegLenSq = A.DistanceSquared(B);
+    double SegLenSq = DistanceSquared(A, B);
     if (SegLenSq <= VertexSnapTol*VertexSnapTol)
     {
         // seg is too short and was already on an existing vertex; just consider that vertex to be the inserted segment
@@ -247,7 +247,7 @@ int FArrangement::find_existing_vertex(FVector2d Pt)
 
 int FArrangement::find_nearest_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID)
 {
-    auto FuncDistSq = [&](int B) { return Pt.DistanceSquared(Graph.GetVertex(B)); };
+    auto FuncDistSq = [&](int B) { return DistanceSquared(Pt, Graph.GetVertex(B)); };
     auto FuncIgnore = [&](int VID) { return VID == IgnoreVID; };
     TPair<int, double> found = (IgnoreVID == -1) ? PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq)
                                                  : PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq, FuncIgnore);

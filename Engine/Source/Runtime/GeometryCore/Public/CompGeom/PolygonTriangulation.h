@@ -8,6 +8,7 @@
 namespace PolygonTriangulation
 {
 	using namespace UE::Geometry;
+	using namespace UE::Math;
 
 	/**
 	 * Compute triangulation of simple 2D polygon using ear-clipping
@@ -15,7 +16,7 @@ namespace PolygonTriangulation
 	 * @param OutTriangles computed triangulation. Each triangle is a tuple of indices into VertexPositions.
 	 */
 	template<typename RealType>
-	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<FVector2<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
+	void GEOMETRYCORE_API TriangulateSimplePolygon(const TArray<TVector2<RealType>>& VertexPositions, TArray<FIndex3i>& OutTriangles);
 
 
 	template<typename RealType>

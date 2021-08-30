@@ -13,6 +13,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /*
  * 2D Line Segment stored as Center point, normalized Direction vector, and scalar Extent
  */
@@ -21,9 +23,9 @@ struct TSegment2
 {
 public:
 	/** Center point of segment */
-	FVector2<T> Center = FVector2<T>::Zero();
+	TVector2<T> Center = TVector2<T>::Zero();
 	/** normalized Direction vector of segment */
-	FVector2<T> Direction = FVector2<T>::UnitX();
+	TVector2<T> Direction = TVector2<T>::UnitX();
 	/** Extent of segment, which is half the total length */
 	T Extent = (T)0;
 
@@ -32,7 +34,7 @@ public:
 	/**
 	 * Construct a Segment from two Points
 	 */
-	TSegment2(const FVector2<T>& Point0, const FVector2<T>& Point1)
+	TSegment2(const TVector2<T>& Point0, const TVector2<T>& Point1)
 	{
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
@@ -43,7 +45,7 @@ public:
 	/**
 	 * Construct a segment from a Center Point, normalized Direction, and scalar Extent
 	 */
-	TSegment2(const FVector2<T>& CenterIn, const FVector2<T>& DirectionIn, T ExtentIn)
+	TSegment2(const TVector2<T>& CenterIn, const TVector2<T>& DirectionIn, T ExtentIn)
 	{
 		Center = CenterIn;
 		Direction = DirectionIn; 
@@ -53,13 +55,13 @@ public:
 
 
 	/** Update the Segment with a new start point */
-	inline void SetStartPoint(const FVector2<T>& Point)
+	inline void SetStartPoint(const TVector2<T>& Point)
 	{
 		update_from_endpoints(Point, EndPoint());
 	}
 
 	/** Update the Segment with a new end point */
-	inline void SetEndPoint(const FVector2<T>& Point)
+	inline void SetEndPoint(const TVector2<T>& Point)
 	{
 		update_from_endpoints(StartPoint(), Point);
 	}
@@ -74,13 +76,13 @@ public:
 
 
 	/** @return start point of segment */
-	inline FVector2<T> StartPoint() const
+	inline TVector2<T> StartPoint() const
 	{
 		return Center - Extent * Direction;
 	}
 
 	/** @return end point of segment */
-	inline FVector2<T> EndPoint() const
+	inline TVector2<T> EndPoint() const
 	{
 		return Center + Extent * Direction;
 	}
@@ -93,7 +95,7 @@ public:
 	}
 
 	/** @return first (i == 0) or second (i == 1) endpoint of the Segment  */
-	inline FVector2<T> GetPointFromIndex(int i) const
+	inline TVector2<T> GetPointFromIndex(int i) const
 	{
 		return (i == 0) ? (Center - Extent * Direction) : (Center + Extent * Direction);
 	}
@@ -101,7 +103,7 @@ public:
 	/**
 	 * @return point on segment at given (signed) Distance from the segment Origin
 	 */
-	inline FVector2<T> PointAt(T DistanceParameter) const
+	inline TVector2<T> PointAt(T DistanceParameter) const
 	{
 		return Center + DistanceParameter * Direction;
 	}
@@ -110,7 +112,7 @@ public:
 	 * @param UnitParameter value in range [0,1]
 	 * @return point on segment at that linearly interpolates between start and end based on Unit Parameter
 	 */
-	inline FVector2<T> PointBetween(T UnitParameter) const
+	inline TVector2<T> PointBetween(T UnitParameter) const
 	{
 		return Center + ((T)2 * UnitParameter - (T)1) * Extent * Direction;
 	}
@@ -118,7 +120,7 @@ public:
 	/**
 	 * @return minimum squared distance from Point to segment
 	 */
-	inline T DistanceSquared(const FVector2<T>& Point) const
+	inline T DistanceSquared(const TVector2<T>& Point) const
 	{
 		T DistParameter;
 		return DistanceSquared(Point, DistParameter);
@@ -131,28 +133,28 @@ public:
 	 * @param DistParameterOut calculated distance parameter in range [-Extent,Extent]
 	 * @return minimum squared distance from Point to Segment
 	 */	
-	T DistanceSquared(const FVector2<T>& Point, T& DistParameterOut) const
+	T DistanceSquared(const TVector2<T>& Point, T& DistParameterOut) const
 	{
 		DistParameterOut = (Point - Center).Dot(Direction);
 		if (DistParameterOut >= Extent)
 		{
 			DistParameterOut = Extent;
-			return Point.DistanceSquared(EndPoint());
+			return UE::Geometry::DistanceSquared(Point, EndPoint());
 		}
 		else if (DistParameterOut <= -Extent)
 		{
 			DistParameterOut = -Extent;
-			return Point.DistanceSquared(StartPoint());
+			return UE::Geometry::DistanceSquared(Point, StartPoint());
 		}
-		FVector2<T> ProjectedPt = Center + DistParameterOut * Direction;
-		return ProjectedPt.DistanceSquared(Point);
+		TVector2<T> ProjectedPt = Center + DistParameterOut * Direction;
+		return UE::Geometry::DistanceSquared(ProjectedPt, Point);
 	}
 
 
 	/**
 	 * @return nearest point on segment to QueryPoint
 	 */
-	inline FVector2<T> NearestPoint(const FVector2<T>& QueryPoint) const
+	inline TVector2<T> NearestPoint(const TVector2<T>& QueryPoint) const
 	{
 		T t = (QueryPoint - Center).Dot(Direction);
 		if (t >= Extent)
@@ -170,7 +172,7 @@ public:
 	/**
 	 * @return scalar projection of QueryPoint onto line of Segment (not clamped to Extents)
 	 */
-	inline T Project(const FVector2<T>& QueryPoint) const
+	inline T Project(const TVector2<T>& QueryPoint) const
 	{
 		return (QueryPoint - Center).Dot(Direction);
 	}
@@ -179,7 +181,7 @@ public:
 	/**
 	 * @return scalar projection of QueryPoint onto line of Segment, mapped to [0,1] range along segment
 	 */
-	inline T ProjectUnitRange(const FVector2<T>& QueryPoint) const
+	inline T ProjectUnitRange(const TVector2<T>& QueryPoint) const
 	{
 		T ProjT = (QueryPoint - Center).Dot(Direction);
 		T Alpha = ((ProjT / Extent) + (T)1) * (T)0.5;
@@ -194,11 +196,11 @@ public:
 	 * @param Tolerance tolerance band in which we return 0
 	 * @return +1 if point is to right of line, -1 if left, and 0 if on line or within tolerance band
 	 */
-	int WhichSide(const FVector2<T>& QueryPoint, T Tolerance = 0)
+	int WhichSide(const TVector2<T>& QueryPoint, T Tolerance = 0)
 	{
 		// [TODO] subtract Center from test?
-		FVector2<T> EndPt = Center + Extent * Direction;
-		FVector2<T> StartPt = Center - Extent * Direction;
+		TVector2<T> EndPt = Center + Extent * Direction;
+		TVector2<T> StartPt = Center - Extent * Direction;
 		T det = -Orient(EndPt, StartPt, QueryPoint);
 		return (det > Tolerance ? +1 : (det < -Tolerance ? -1 : 0));
 	}
@@ -215,7 +217,7 @@ public:
 	{
 		// see IntrLine2Line2 and IntrSegment2Segment2 for details on this code
 
-		FVector2<T> diff = OtherSegment.Center - Center;
+		TVector2<T> diff = OtherSegment.Center - Center;
 		T D0DotPerpD1 = DotPerp(Direction, OtherSegment.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > DotThresh)      // Lines intersect in a single point.
 		{
@@ -260,7 +262,7 @@ public:
 	/**
 	 * Calculate distance from QueryPoint to segment (StartPt,EndPt)
 	 */
-	static T FastDistanceSquared(const FVector2<T>& StartPt, const FVector2<T>& EndPt, const FVector2<T>& QueryPt, T Tolerance = TMathUtil<T>::Epsilon)
+	static T FastDistanceSquared(const TVector2<T>& StartPt, const TVector2<T>& EndPt, const TVector2<T>& QueryPt, T Tolerance = TMathUtil<T>::Epsilon)
 	{
 		T vx = EndPt.X - StartPt.X, vy = EndPt.Y - StartPt.Y;
 		T len2 = vx * vx + vy * vy;
@@ -295,7 +297,7 @@ public:
 	 * @param Tolerance tolerance band in which we return 0
 	 * @return +1 if point is to right of line, -1 if left, and 0 if on line or within tolerance band
 	 */
-	static int WhichSide(const FVector2<T>& StartPt, const FVector2<T>& EndPt, const FVector2<T>& QueryPt, T Tolerance = (T)0)
+	static int WhichSide(const TVector2<T>& StartPt, const TVector2<T>& EndPt, const TVector2<T>& QueryPt, T Tolerance = (T)0)
 	{
 		T det = -Orient(StartPt, EndPt, QueryPt);
 		return (det > Tolerance ? +1 : (det < -Tolerance ? -1 : 0));
@@ -308,7 +310,7 @@ public:
 protected:
 
 	// update segment based on new endpoints
-	inline void update_from_endpoints(const FVector2<T>& p0, const FVector2<T>& p1)
+	inline void update_from_endpoints(const TVector2<T>& p0, const TVector2<T>& p1)
 	{
 		Center = 0.5 * (p0 + p1);
 		Direction = p1 - p0;
@@ -450,15 +452,15 @@ public:
 		if (DistParameterOut >= Extent)
 		{
 			DistParameterOut = Extent;
-			return Point.DistanceSquared(EndPoint());
+			return UE::Geometry::DistanceSquared(Point, EndPoint());
 		}
 		else if (DistParameterOut <= -Extent)
 		{
 			DistParameterOut = -Extent;
-			return Point.DistanceSquared(StartPoint());
+			return UE::Geometry::DistanceSquared(Point, StartPoint());
 		}
 		FVector3<T> ProjectedPt = Center + DistParameterOut * Direction;
-		return ProjectedPt.DistanceSquared(Point);
+		return UE::Geometry::DistanceSquared(ProjectedPt, Point);
 	}
 
 

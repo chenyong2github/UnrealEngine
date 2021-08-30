@@ -12,6 +12,8 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
+
 /**
  * TLine2 is a two-dimensional infinite line.
  * The line is stored in (Center,Direction) form.
@@ -20,24 +22,24 @@ template<typename T>
 struct TLine2
 {
 	/** Origin / Center Point of Line */
-	FVector2<T> Origin;
+	TVector2<T> Origin;
 
 	/** Direction of Line, Normalized */
-	FVector2<T> Direction;
+	TVector2<T> Direction;
 
 	/**
 	 * Construct default line along X axis
 	 */
 	TLine2()
 	{
-		Origin = FVector2<T>::Zero();
-		Direction = FVector2<T>::UnitX();
+		Origin = TVector2<T>::Zero();
+		Direction = TVector2<T>::UnitX();
 	}
 
 	/**
 	 * Construct line with given Origin and Direction
 	 */
-	TLine2(const FVector2<T>& OriginIn, const FVector2<T>& DirectionIn)
+	TLine2(const TVector2<T>& OriginIn, const TVector2<T>& DirectionIn)
 		: Origin(OriginIn), Direction(DirectionIn)
 	{
 	}
@@ -46,7 +48,7 @@ struct TLine2
 	/**
 	 * @return line between two points
 	 */
-	static TLine2<T> FromPoints(const FVector2<T>& Point0, const FVector2<T>& Point1)
+	static TLine2<T> FromPoints(const TVector2<T>& Point0, const TVector2<T>& Point1)
 	{
 		return TLine2<T>(Point0, Normalized(Point1 - Point0) );
 	}
@@ -55,7 +57,7 @@ struct TLine2
 	/**
 	 * @return point on line at given line parameter value (distance along line from origin)
 	 */
-	inline FVector2<T> PointAt(T LineParameter) const
+	inline TVector2<T> PointAt(T LineParameter) const
 	{
 		return Origin + LineParameter * Direction;
 	}
@@ -64,7 +66,7 @@ struct TLine2
 	/**
 	 * @return line parameter (ie distance from Origin) at nearest point on line to QueryPoint
 	 */
-	inline T Project(const FVector2<T>& QueryPoint) const
+	inline T Project(const TVector2<T>& QueryPoint) const
 	{
 		return (QueryPoint - Origin).Dot(Direction);
 	}
@@ -72,17 +74,17 @@ struct TLine2
 	/**
 	 * @return smallest squared distance from line to QueryPoint
 	 */
-	inline T DistanceSquared(const FVector2<T>& QueryPoint) const
+	inline T DistanceSquared(const TVector2<T>& QueryPoint) const
 	{
 		T ParameterT = (QueryPoint - Origin).Dot(Direction);
-		FVector2<T> proj = Origin + ParameterT * Direction;
+		TVector2<T> proj = Origin + ParameterT * Direction;
 		return (proj - QueryPoint).SquaredLength();
 	}
 
 	/**
 	 * @return nearest point on line to QueryPoint
 	 */
-	inline FVector2<T> NearestPoint(const FVector2<T>& QueryPoint) const
+	inline TVector2<T> NearestPoint(const TVector2<T>& QueryPoint) const
 	{
 		T ParameterT = (QueryPoint - Origin).Dot(Direction);
 		return Origin + ParameterT * Direction;
@@ -92,7 +94,7 @@ struct TLine2
 	/**
 	 * @return +1 if QueryPoint is "right" of line, -1 if "left" or 0 if "on" line (up to given tolerance)
 	 */
-	inline int WhichSide(const FVector2<T>& QueryPoint, T OnLineTolerance = 0) const
+	inline int WhichSide(const TVector2<T>& QueryPoint, T OnLineTolerance = 0) const
 	{
 		T x0 = QueryPoint.X - Origin.X;
 		T y0 = QueryPoint.Y - Origin.Y;
@@ -110,10 +112,10 @@ struct TLine2
 	 * @param ParallelDotTolerance tolerance used to determine if lines are parallel (and hence cannot intersect)
 	 * @return true if lines intersect and IntersectionPointOut was computed
 	 */
-	bool IntersectionPoint(const TLine2<T>& OtherLine, FVector2<T>& IntersectionPointOut, T ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
+	bool IntersectionPoint(const TLine2<T>& OtherLine, TVector2<T>& IntersectionPointOut, T ParallelDotTolerance = TMathUtil<T>::ZeroTolerance) const
 	{
 		// see IntrTLine2TLine2 for more detailed explanation
-		FVector2<T> diff = OtherLine.Origin - Origin;
+		TVector2<T> diff = OtherLine.Origin - Origin;
 		T D0DotPerpD1 = DotPerp(Direction, OtherLine.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > ParallelDotTolerance)                     // TLines intersect in a single point.
 		{

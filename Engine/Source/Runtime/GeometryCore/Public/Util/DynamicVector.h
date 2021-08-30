@@ -494,7 +494,7 @@ public:
 	{
 		return Data[TopIndex * N + SubIndex];
 	}
-	inline void SetVector2(unsigned int TopIndex, const FVector2<Type>& V)
+	inline void SetVector2(unsigned int TopIndex, const UE::Math::TVector2<Type>& V)
 	{
 		check(N >= 2);
 		unsigned int i = TopIndex * N;
@@ -509,10 +509,10 @@ public:
 		Data[i + 1] = V.Y;
 		Data[i + 2] = V.Z;
 	}
-	inline FVector2<Type> AsVector2(unsigned int TopIndex) const
+	inline UE::Math::TVector2<Type> AsVector2(unsigned int TopIndex) const
 	{
 		check(N >= 2);
-		return FVector2<Type>(
+		return UE::Math::TVector2<Type>(
 			Data[TopIndex * N + 0],
 			Data[TopIndex * N + 1]);
 	}

@@ -270,7 +270,7 @@ protected:
 		}
 
 		// handle tiny-segment case
-		double SegLenSq = A.DistanceSquared(B);
+		double SegLenSq = DistanceSquared( A, B );
 		if (SegLenSq <= VertexSnapTol*VertexSnapTol)
 		{
 			// seg is too short and was already on an existing vertex; just consider that vertex to be the inserted segment
@@ -441,7 +441,7 @@ protected:
 	 */
 	int find_nearest_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID = -1)
 	{
-		auto FuncDistSq = [&](int B) { return Pt.DistanceSquared(Graph.GetVertex(B)); };
+		auto FuncDistSq = [&](int B) { return DistanceSquared(Pt, Graph.GetVertex(B)); };
 		auto FuncIgnore = [&](int VID) { return VID == IgnoreVID; };
 		TPair<int, double> found = (IgnoreVID == -1) ? PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq)
 													 : PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq, FuncIgnore);
@@ -457,7 +457,7 @@ protected:
 	 */
 	int find_nearest_boundary_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID = -1)
 	{
-		auto FuncDistSq = [&](int B) { return Pt.DistanceSquared(Graph.GetVertex(B)); };
+		auto FuncDistSq = [&](int B) { return DistanceSquared(Pt, Graph.GetVertex(B)); };
 		auto FuncIgnore = [&](int VID) { return Graph.IsBoundaryVertex(VID) == false || VID == IgnoreVID; };
 		TPair<int, double> found =
 			PointHash.FindNearestInRadius(Pt, SearchRadius, FuncDistSq, FuncIgnore);

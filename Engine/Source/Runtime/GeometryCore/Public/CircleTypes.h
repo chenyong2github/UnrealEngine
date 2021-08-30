@@ -13,10 +13,12 @@ namespace UE
 namespace Geometry 
 {
 
+using namespace UE::Math;
+
 template<typename RealType>
 struct TCircle2
 {
-	FVector2<RealType> Center = FVector2<RealType>(0, 0);
+	TVector2<RealType> Center = TVector2<RealType>(0, 0);
 	RealType Radius = (RealType)1;
 	bool bIsReversed = false;
 
@@ -24,11 +26,11 @@ struct TCircle2
 
 	explicit TCircle2(const RealType& RadiusIn)
 	{
-		Center = FVector2<RealType>(0, 0);
+		Center = TVector2<RealType>(0, 0);
 		Radius = RadiusIn;
 	}
 
-	TCircle2(const FVector2<RealType>& CenterIn, const RealType& RadiusIn)
+	TCircle2(const TVector2<RealType>& CenterIn, const RealType& RadiusIn)
 	{
 		Center = CenterIn;
 		Radius = RadiusIn;
@@ -75,37 +77,37 @@ struct TCircle2
 	}
 
 
-	FVector2<RealType> GetPointFromAngleD(RealType AngleDeg) const
+	TVector2<RealType> GetPointFromAngleD(RealType AngleDeg) const
 	{
 		return GetPointFromAngleR(AngleDeg * TMathUtil<RealType>::DegToRad);
 	}
 
-	FVector2<RealType> GetPointFromAngleR(RealType AngleRad) const
+	TVector2<RealType> GetPointFromAngleR(RealType AngleRad) const
 	{
 		RealType c = TMathUtil<RealType>::Cos(AngleRad), s = TMathUtil<RealType>::Sin(AngleRad);
-		return FVector2<RealType>(Center.X + c*Radius, Center.Y + s*Radius);
+		return TVector2<RealType>(Center.X + c*Radius, Center.Y + s*Radius);
 	}
 
 
-	FVector2<RealType> GetPointFromUnitParameter(RealType UnitParam) const
+	TVector2<RealType> GetPointFromUnitParameter(RealType UnitParam) const
 	{
 		RealType AngleRad = ((bIsReversed) ? (-UnitParam) : (UnitParam)) * TMathUtil<RealType>::TwoPi;
 		return GetPointFromAngleR(AngleRad);
 	}
 
 
-	bool IsInside(const FVector2<RealType>& Point) const
+	bool IsInside(const TVector2<RealType>& Point) const
 	{
 		return Center.DistanceSquared(Point) < Radius*Radius;
 	}
 
 
-	RealType SignedDistance(const FVector2<RealType>& Point) const
+	RealType SignedDistance(const TVector2<RealType>& Point) const
 	{
 		return Center.Distance(Point) - Radius;
 	}
 
-	RealType Distance(const FVector2<RealType>& Point) const
+	RealType Distance(const TVector2<RealType>& Point) const
 	{
 		return TMathUtil<RealType>::Abs(Center.Distance(Point) - Radius);
 	}
@@ -113,10 +115,10 @@ struct TCircle2
 
 	TAxisAlignedBox2<RealType> GetBoundingBox() const
 	{
-		FVector2<RealType>(Center.X + Radius, Center.Y + Radius);
+		TVector2<RealType>(Center.X + Radius, Center.Y + Radius);
 		return TAxisAlignedBox2<RealType>(
-			FVector2<RealType>(Center.X - Radius, Center.Y - Radius),
-			FVector2<RealType>(Center.X + Radius, Center.Y + Radius));
+			TVector2<RealType>(Center.X - Radius, Center.Y - Radius),
+			TVector2<RealType>(Center.X + Radius, Center.Y + Radius));
 	}
 
 
@@ -223,7 +225,7 @@ struct TCircle3
 	FVector3<RealType> GetPointFromAngleR(RealType AngleRad) const
 	{
 		RealType c = TMathUtil<RealType>::Cos(AngleRad), s = TMathUtil<RealType>::Sin(AngleRad);
-		return Frame.FromPlaneUV(FVector2<RealType>(Radius*c, Radius*s), 2);
+		return Frame.FromPlaneUV(TVector2<RealType>(Radius*c, Radius*s), 2);
 	}
 
 	FVector3<RealType> GetPointFromUnitParameter(RealType UnitParam) const

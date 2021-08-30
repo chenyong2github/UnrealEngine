@@ -10,6 +10,7 @@ namespace UE
 namespace Geometry
 {
 
+using namespace UE::Math;
 
 /**
  * Triangle utility functions
@@ -33,35 +34,35 @@ namespace TriangleUtil
 template<typename RealType>
 struct TTriangle2
 {
-	FVector2<RealType> V[3];
+	TVector2<RealType> V[3];
 
 	TTriangle2() {}
 
-	TTriangle2(const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	TTriangle2(const TVector2<RealType>& V0, const TVector2<RealType>& V1, const TVector2<RealType>& V2)
 	{
 		V[0] = V0;
 		V[1] = V1;
 		V[2] = V2;
 	}
 
-	TTriangle2(const FVector2<RealType> VIn[3])
+	TTriangle2(const TVector2<RealType> VIn[3])
 	{
 		V[0] = VIn[0];
 		V[1] = VIn[1];
 		V[2] = VIn[2];
 	}
 
-	FVector2<RealType> BarycentricPoint(RealType Bary0, RealType Bary1, RealType Bary2) const
+	TVector2<RealType> BarycentricPoint(RealType Bary0, RealType Bary1, RealType Bary2) const
 	{
 		return Bary0 * V[0] + Bary1 * V[1] + Bary2 * V[2];
 	}
 
-	FVector2<RealType> BarycentricPoint(const FVector3<RealType>& BaryCoords) const
+	TVector2<RealType> BarycentricPoint(const FVector3<RealType>& BaryCoords) const
 	{
 		return BaryCoords[0] * V[0] + BaryCoords[1] * V[1] + BaryCoords[2] * V[2];
 	}
 
-	FVector3<RealType> GetBarycentricCoords(const FVector2<RealType>& Point) const
+	FVector3<RealType> GetBarycentricCoords(const TVector2<RealType>& Point) const
 	{
 		return VectorUtil::BarycentricCoords(Point, V[0], V[1], V[2]);
 	}
@@ -72,7 +73,7 @@ struct TTriangle2
 	 * @param C third vertex of triangle
 	 * @return signed area of triangle
 	 */
-	static RealType SignedArea(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C)
+	static RealType SignedArea(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& C)
 	{
 		return ((RealType)0.5) * ((A.X*B.Y - A.Y*B.X) + (B.X*C.Y - B.Y*C.X) + (C.X*A.Y - C.Y*A.X));
 	}
@@ -97,7 +98,7 @@ struct TTriangle2
 	 * @param QueryPoint test point
 	 * @return true if QueryPoint is inside triangle
 	 */
-	static bool IsInside(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
+	static bool IsInside(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& C, const TVector2<RealType>& QueryPoint)
 	{
 		RealType Sign1 = Orient(A, B, QueryPoint);
 		RealType Sign2 = Orient(B, C, QueryPoint);
@@ -106,14 +107,14 @@ struct TTriangle2
 	}
 
 	/** @return true if QueryPoint is inside triangle */
-	bool IsInside(const FVector2<RealType>& QueryPoint) const
+	bool IsInside(const TVector2<RealType>& QueryPoint) const
 	{
 		return IsInside(V[0], V[1], V[2], QueryPoint);
 	}
 
 
 	/** @return true if QueryPoint is inside triangle or on edge */
-	static bool IsInsideOrOn(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
+	static bool IsInsideOrOn(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& C, const TVector2<RealType>& QueryPoint)
 	{
 		RealType Sign1 = Orient(A, B, QueryPoint);
 		RealType Sign2 = Orient(B, C, QueryPoint);
@@ -122,7 +123,7 @@ struct TTriangle2
 	}
 
 	/** @return true if QueryPoint is inside triangle or on edge */
-	bool IsInsideOrOn(const FVector2<RealType>& QueryPoint, RealType Epsilon = 0) const
+	bool IsInsideOrOn(const TVector2<RealType>& QueryPoint, RealType Epsilon = 0) const
 	{
 		return IsInsideOrOn(V[0], V[1], V[2], QueryPoint);
 	}
@@ -133,7 +134,7 @@ struct TTriangle2
 	 *  (the code early-outs at the first 'outside' edge, which only works if the triangle is oriented as expected)
 	 * @return 1 if outside, -1 if inside, 0 if on boundary
 	 */
-	int IsInsideOrOn_Oriented(const FVector2<RealType>& QueryPoint) const
+	int IsInsideOrOn_Oriented(const TVector2<RealType>& QueryPoint) const
 	{
 		return IsInsideOrOn_Oriented(V[0], V[1], V[2], QueryPoint);
 	}
@@ -143,7 +144,7 @@ struct TTriangle2
 	 *  (the code early-outs at the first 'outside' edge, which only works if the triangle is oriented as expected)
 	 * @return 1 if outside, -1 if inside, 0 if on boundary
 	 */
-	static int IsInsideOrOn_Oriented(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
+	static int IsInsideOrOn_Oriented(const TVector2<RealType>& A, const TVector2<RealType>& B, const TVector2<RealType>& C, const TVector2<RealType>& QueryPoint)
 	{
 		checkSlow(Orient(A, B, C) <= 0); // TODO: remove this checkSlow; it's just to make sure the orientation is as expected
 
@@ -173,7 +174,6 @@ struct TTriangle2
 
 typedef TTriangle2<float> FTriangle2f;
 typedef TTriangle2<double> FTriangle2d;
-typedef TTriangle2<int> FTriangle2i;
 
 
 

@@ -53,7 +53,7 @@ static double CalculateAverageUVScale(const FDynamicMeshUVOverlay* UVOverlay, in
 			{
 				int32 jn = (j + 1) % 3;
 				double Len3D = Distance(Pos[j], Pos[jn]);
-				double LenUV = UV[j].Distance(UV[jn]);
+				double LenUV = Distance(UV[j], UV[jn]);
 				double Scale = LenUV / FMathd::Max(FMathf::ZeroTolerance, Len3D);
 				AverageScale += Scale;
 				Count++;
