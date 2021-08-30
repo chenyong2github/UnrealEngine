@@ -15,18 +15,20 @@
 #include "ISettingsSection.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/Text/STextBlock.h"
 
-TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
+TSharedRef<SWindow> SLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow(
 	const FCloseCreationFormDelegate& CallOnClose, 
 	ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
 {
 	check(InProjectSettings);
+	check(InDataManagementSettings);
 	
 	// Compute centered window position based on max window size, which include when all categories are expanded
 	const FVector2D LastSize = InProjectSettings->GetLastCreationWindowSize();
@@ -49,27 +51,27 @@ TSharedRef<SWindow> FLevelSnapshotsEditorCreationForm::MakeAndShowCreationWindow
 		.SupportsMaximize(false)
 		.ScreenPosition(WindowPosition);
 
-	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = 
-		SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings, InDataManagementSettings);
-	
+	const TSharedRef<SLevelSnapshotsEditorCreationForm> CreationForm = SNew(SLevelSnapshotsEditorCreationForm, Window, CallOnClose, InProjectSettings, InDataManagementSettings);
 	Window->SetContent
 	(
 		CreationForm
 	);
-
 	Window->SetOnWindowClosed(FOnWindowClosed::CreateSP(CreationForm, &SLevelSnapshotsEditorCreationForm::OnWindowClosed));
 
 	FSlateApplication::Get().AddWindow(Window);
-
 	return Window;
 }
 
 void SLevelSnapshotsEditorCreationForm::Construct(
-	const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, 
-	ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
+	const FArguments& InArgs,
+	TWeakPtr<SWindow> InWidgetWindow,
+	const FCloseCreationFormDelegate& CallOnClose, 
+	ULevelSnapshotsEditorProjectSettings* InProjectSettings,
+	ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings)
 {
 	check(InProjectSettings);
-
+	check(InDataManagementSettings);
+	
 	ProjectSettingsObjectPtr = InProjectSettings;
 	DataManagementSettingsObjectPtr = InDataManagementSettings;
 	
@@ -79,117 +81,141 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 	bNameDiffersFromDefault = DataManagementSettingsObjectPtr.Get()->IsNameOverridden();
 	
 	ChildSlot
+	[
+		SNew(SBorder)
+		.BorderImage(new FSlateColorBrush(FColor(10, 10, 10)))
 		[
-			SNew(SBorder)
-			.BorderImage(new FSlateColorBrush(FColor(10, 10, 10)))
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2.f, 2.f, 2.f, 0.f)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Top)
 			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				.Padding(8.f, 5.f, 8.f, 0.f)
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Top)
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
-					[
-						SNew(SVerticalBox)
+					SNew(SVerticalBox)
 
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(1.f, 1.f, 0.f, 0.f)
-						.HAlign(HAlign_Left)
-						.VAlign(VAlign_Top)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(1.f, 1.f, 0.f, 0.f)
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Top)
+					[
+						SNew(STextBlock)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
+						.ColorAndOpacity(FColor(200, 200, 200))
+						.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameLabel", "Name"))
+					]
+
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(8.f, 1.f, 8.f, 10.f)
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.HAlign(HAlign_Fill)
 						[
-							SNew(STextBlock)
-							.Font(FCoreStyle::GetDefaultFontStyle("Regular", 9))
-							.ColorAndOpacity(FColor(200, 200, 200))
-							.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameLabel", "NAME"))
+							SNew(SEditableTextBox)
+							.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
+							.BackgroundColor(FLinearColor::Transparent)
+							.ForegroundColor(FSlateColor::UseForeground())
+							.Justification(ETextJustify::Center)
+							.SelectAllTextWhenFocused(true)
+							.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameOverrideHintText", "Override Snapshot Name..."))
+							.Text(this, &SLevelSnapshotsEditorCreationForm::GetNameOverrideText)
+							.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetNameOverrideText)
+							.ToolTipText(
+							NSLOCTEXT("LevelSnapshots", "CreationForm_NameOverrideFieldTooltipText", "Override the name defined in Project Settings while using the Creation Form."))
 						]
 
-						+SVerticalBox::Slot()
-						.AutoHeight()
-						.Padding(8.f, 1.f, 8.f, 10.f)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.HAlign(HAlign_Right)
+						.VAlign(VAlign_Center)
 						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							.HAlign(HAlign_Fill)
+							SNew(SButton)
+							.IsFocusable(false)
+							.ToolTipText(
+								NSLOCTEXT("LevelSnapshots", "CreationForm_ResetNameTooltipText", "Reset the overridden name to the one defined in Project Settings."))
+							.ButtonStyle(FEditorStyle::Get(), "NoBorder")
+							.ContentPadding(0)
+							.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility)
+							.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetNameClicked)
+							.Content()
 							[
-								SNew(SEditableTextBox)
-								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 16))
-								.BackgroundColor(FLinearColor::Transparent)
-								.ForegroundColor(FSlateColor::UseForeground())
-								.Justification(ETextJustify::Center)
-								.SelectAllTextWhenFocused(true)
-								.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_SnapshotNameOverrideHintText", "Override Snapshot Name..."))
-								.Text(this, &SLevelSnapshotsEditorCreationForm::GetNameOverrideText)
-								.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetNameOverrideText)
-								.ToolTipText(
-								NSLOCTEXT("LevelSnapshots", "CreationForm_NameOverrideFieldTooltipText", "Override the name defined in Project Settings while using the Creation Form."))
-							]
-
-							+SHorizontalBox::Slot()
-							.AutoWidth()
-							.HAlign(HAlign_Right)
-							.VAlign(VAlign_Center)
-							[
-								SNew(SButton)
-								.IsFocusable(false)
-								.ToolTipText(
-									NSLOCTEXT("LevelSnapshots", "CreationForm_ResetNameTooltipText", "Reset the overridden name to the one defined in Project Settings."))
-								.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-								.ContentPadding(0)
-								.Visibility(this, &SLevelSnapshotsEditorCreationForm::GetNameDiffersFromDefaultAsVisibility)
-								.OnClicked(this, &SLevelSnapshotsEditorCreationForm::OnResetNameClicked)
-								.Content()
-								[
-									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-								]
+								SNew(SImage)
+								.Image(FEditorStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
 							]
 						]
 					]
 				]
+			]
 
-				+SVerticalBox::Slot()
-				.Padding(8.f, 10.f, 8.f, 20.f)
-				.VAlign(VAlign_Fill)
+			+SVerticalBox::Slot()
+			.Padding(2.f, 10.f, 2.f, 0.f)
+			.VAlign(VAlign_Fill)
+			[
+				SNew(SMultiLineEditableTextBox)
+				.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+				.BackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f))
+				.ForegroundColor(FSlateColor::UseForeground())
+				.SelectAllTextWhenFocused(true)
+				.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_DescriptionHintText", "Description"))
+				.Text(DescriptionText)
+				.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetDescriptionText)
+				.AllowMultiLine(true)
+				.AutoWrapText(true)
+			]
+			
+			+SVerticalBox::Slot()
+			.Padding(2.f, 10.f, 2.f, 0.f)
+			.AutoHeight()
+			.VAlign(VAlign_Bottom)
+			[
+				SNew(STextBlock)
+				.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+				.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveDirLabel", "Save Directory"))
+			]
+
+			+SVerticalBox::Slot()
+			.Padding(2.f, 2.f, 2.f, 0.f)
+			.AutoHeight()
+			.VAlign(VAlign_Bottom)
+			[
+				MakeDataManagementSettingsDetailsWidget()
+			]
+			
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.VAlign(VAlign_Bottom)
+			.HAlign(HAlign_Fill)
+			.Padding(2.f, 5.f)
+			[
+				SNew(SHorizontalBox)
+
+				// Save Async checkbox
+				+SHorizontalBox::Slot()
+				.Padding(3.f, 0.f)
+				.HAlign(HAlign_Left)
 				[
-					SNew(SMultiLineEditableTextBox)
-					.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-					.BackgroundColor(FLinearColor(0.2f, 0.2f, 0.2f))
-					.ForegroundColor(FSlateColor::UseForeground())
-					.SelectAllTextWhenFocused(true)
-					.HintText(NSLOCTEXT("LevelSnapshots", "CreationForm_DescriptionHintText", "<description>"))
-					.Text(DescriptionText)
-					.OnTextCommitted(this, &SLevelSnapshotsEditorCreationForm::SetDescriptionText)
-					.AllowMultiLine(true)
-					.AutoWrapText(true)
+					SNew(SCheckBox)
+					.IsChecked_Lambda([this]() { return bSaveAsync ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
+					.OnCheckStateChanged_Lambda([this](ECheckBoxState NewState) { bSaveAsync = NewState == ECheckBoxState::Checked; })
+					.ToolTipText(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveAsync_Tooltip", "Enabling may speed up saving for large levels."))
+					[
+						SNew(STextBlock)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 10))
+						.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveAsync", "Save async"))
+					]
 				]
 				
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Bottom)
-				[
-					SNew(STextBlock)
-					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-					.Text(NSLOCTEXT("LevelSnapshots", "CreationForm_SaveDirLabel", "Save Directory"))
-				]
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Bottom)
-				[
-					MakeDataManagementSettingsDetailsWidget()
-				]
-
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.VAlign(VAlign_Bottom)
+				// Create snapshot button
+				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
-				.Padding(2.f, 5.f)
 				[
 					SNew(SButton)
 					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
@@ -203,7 +229,8 @@ void SLevelSnapshotsEditorCreationForm::Construct(
 					]
 				]
 			]
-		];
+		]
+	];
 }
 
 TSharedRef<SWidget> SLevelSnapshotsEditorCreationForm::MakeDataManagementSettingsDetailsWidget() const
@@ -301,6 +328,9 @@ void SLevelSnapshotsEditorCreationForm::OnWindowClosed(const TSharedRef<SWindow>
 	{
 		DataManagementSettingsObjectPtr->SaveConfig();
 	}
-	
-	CallOnCloseDelegate.ExecuteIfBound(bWasCreateSnapshotPressed, DescriptionText);
+
+	if (bWasCreateSnapshotPressed)
+	{
+		CallOnCloseDelegate.ExecuteIfBound(DescriptionText, bSaveAsync);
+	}
 }

@@ -66,12 +66,35 @@ void ULevelSnapshotsFilterPreset::MarkTransactional()
 	{
 		Child->MarkTransactional();
 	}
+
+	OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject* ModifiedObject, const FTransactionObjectEvent& TransactionInfo)
+	{
+		if (!ModifiedObject || bHasJustCreatedNewChild)
+		{
+			return;
+		}
+
+		const bool bChangedChildArray = ModifiedObject == this && TransactionInfo.GetChangedProperties().Contains(GET_MEMBER_NAME_CHECKED(ULevelSnapshotsFilterPreset, Children));
+		if (bChangedChildArray)
+		{
+			OnFilterModified.Broadcast(EFilterChangeType::RowChildFilterAddedOrRemoved);
+			return;
+		}
+		
+		const bool bChangedChildInstance = ModifiedObject != this && ModifiedObject->IsIn(this);
+		const bool bConjunctionWasAddedOrRemoved = TransactionInfo.HasPendingKillChange();
+		if (bChangedChildInstance && !bConjunctionWasAddedOrRemoved)
+		{
+			const bool bConjunctionChildrenWereChanged = TransactionInfo.GetChangedProperties().Contains(UConjunctionFilter::GetChildrenMemberName());
+			const bool bModifiedFilterHierarchy = Cast<UConjunctionFilter>(ModifiedObject) && (bConjunctionWasAddedOrRemoved || bConjunctionChildrenWereChanged);
+			OnFilterModified.Broadcast(bModifiedFilterHierarchy ? EFilterChangeType::RowChildFilterAddedOrRemoved : EFilterChangeType::FilterPropertyModified);
+		}
+	});
 }
 
 UConjunctionFilter* ULevelSnapshotsFilterPreset::CreateChild()
 {
 	UConjunctionFilter* Child;
-
 	{
 		FScopedTransaction Transaction(FText::FromString("Add filter row"));
 		Modify();
@@ -79,11 +102,10 @@ UConjunctionFilter* ULevelSnapshotsFilterPreset::CreateChild()
 		Child = NewObject<UConjunctionFilter>(this, UConjunctionFilter::StaticClass(), NAME_None, RF_Transactional);
 		Children.Add(Child);
 
-		OnFilterModified.Broadcast(EFilterChangeType::RowAdded);
-		
+		OnFilterModified.Broadcast(EFilterChangeType::BlankRowAdded);
+		// We broadcast OnFilterModified already. Avoid OnObjectTransacted triggering it again.
 		bHasJustCreatedNewChild = true;
 	}
-	// OnObjectTransacted will be triggered twice when a ConjunctionFilter is created, this scope ignores the second call
 	bHasJustCreatedNewChild = false;
 	
 	
@@ -106,23 +128,6 @@ void ULevelSnapshotsFilterPreset::RemoveConjunction(UConjunctionFilter* Child)
 const TArray<UConjunctionFilter*>& ULevelSnapshotsFilterPreset::GetChildren() const
 {
 	return Children;
-}
-
-void ULevelSnapshotsFilterPreset::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	if (!HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
-	{
-		OnObjectTransactedHandle = FCoreUObjectDelegates::OnObjectTransacted.AddLambda([this](UObject* ModifiedObject, const FTransactionObjectEvent& TransactionInfo)
-		{	
-			if (IsValid(ModifiedObject) && ModifiedObject->IsIn(this) && ModifiedObject != this && !bHasJustCreatedNewChild)
-			{
-				const bool bModifiedChildren = Cast<UConjunctionFilter>(ModifiedObject) && TransactionInfo.GetChangedProperties().Contains(UConjunctionFilter::GetChildrenMemberName());
-				OnFilterModified.Broadcast(bModifiedChildren ? EFilterChangeType::RowChildFilterAddedOrRemoved : EFilterChangeType::FilterPropertyModified);
-			}
-		});
-	}
 }
 
 void ULevelSnapshotsFilterPreset::BeginDestroy()

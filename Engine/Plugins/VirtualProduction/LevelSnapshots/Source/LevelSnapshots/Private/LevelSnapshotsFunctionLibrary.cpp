@@ -7,7 +7,6 @@
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsStats.h"
 
 #include "EngineUtils.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
@@ -98,8 +97,6 @@ ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot(const UObject*
 
 ULevelSnapshot* ULevelSnapshotsFunctionLibrary::TakeLevelSnapshot_Internal(const UObject* WorldContextObject, const FName NewSnapshotName, UPackage* InPackage, const FString Description)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeLevelSnapshot"), STAT_TakeLevelSnapshot, STATGROUP_LevelSnapshots);
-	
 	UWorld* TargetWorld = nullptr;
 	if (WorldContextObject)
 	{
@@ -137,7 +134,6 @@ void ULevelSnapshotsFunctionLibrary::ApplyFilterToFindSelectedProperties(
 	bool bAllowUnchangedProperties,
     bool bAllowNonEditableProperties)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplyFilterToFindSelectedProperties"), STAT_ApplyFilterToFindSelectedProperties, STATGROUP_LevelSnapshots);
 	if (Filter == nullptr)
 	{
 		Filter = GetMutableDefault<UConstantFilter>();

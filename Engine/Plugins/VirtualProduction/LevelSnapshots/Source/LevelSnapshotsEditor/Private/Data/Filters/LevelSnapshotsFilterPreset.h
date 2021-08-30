@@ -12,7 +12,7 @@ class UNegatableFilter;
 enum class EFilterChangeType : uint8
 {
 	/* A blank row was added */
-	RowAdded,
+	BlankRowAdded,
 	/* A row was removed */
 	RowRemoved,
 	/* A filter was added or removed to a row */
@@ -42,7 +42,6 @@ public:
 	const TArray<UConjunctionFilter*>& GetChildren() const;
 
 	//~ Begin UObject Interface
-	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 	
@@ -65,7 +64,7 @@ public:
 
 private:
 	
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	TArray<UConjunctionFilter*> Children;
 
 	bool bHasJustCreatedNewChild = false;

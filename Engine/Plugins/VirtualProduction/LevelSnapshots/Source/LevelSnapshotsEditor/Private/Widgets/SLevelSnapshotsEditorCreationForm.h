@@ -7,30 +7,29 @@
 #include "Settings/LevelSnapshotsEditorDataManagementSettings.h"
 #include "Dialogs/CustomDialog.h"
 
-DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, bool, FText)
+DECLARE_DELEGATE_TwoParams(FCloseCreationFormDelegate, const FText& /* Description */, bool /* bSaveAsync */);
 
 class ULevelSnapshotsEditorProjectSettings;
 class ULevelSnapshotsEditorDataManagementSettings;
 class SWindow;
 
-struct FLevelSnapshotsEditorCreationForm
-{
-	static TSharedRef<SWindow> MakeAndShowCreationWindow(
-		const FCloseCreationFormDelegate& CallOnClose, 
-		ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings);
-};
-
 class SLevelSnapshotsEditorCreationForm : public SCustomDialog
 {
 public:
 
+	static TSharedRef<SWindow> MakeAndShowCreationWindow(const FCloseCreationFormDelegate& CallOnClose, ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings);
+	
 	SLATE_BEGIN_ARGS(SLevelSnapshotsEditorCreationForm)
 	{}
 	SLATE_END_ARGS()
 
 	void Construct(
-		const FArguments& InArgs, TWeakPtr< SWindow > InWidgetWindow, const FCloseCreationFormDelegate& CallOnClose, 
-		ULevelSnapshotsEditorProjectSettings* InProjectSettings, ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings);
+		const FArguments& InArgs,
+		TWeakPtr<SWindow> InWidgetWindow,
+		const FCloseCreationFormDelegate& CallOnClose,
+		ULevelSnapshotsEditorProjectSettings* InProjectSettings,
+		ULevelSnapshotsEditorDataManagementSettings* InDataManagementSettings
+		);
 
 	~SLevelSnapshotsEditorCreationForm();
 
@@ -60,7 +59,7 @@ private:
 	bool bWasCreateSnapshotPressed = false;
 
 	FText DescriptionText;
+	bool bSaveAsync = true;
 
 	FCloseCreationFormDelegate CallOnCloseDelegate;
-
 };

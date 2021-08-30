@@ -4,7 +4,6 @@
 
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
-#include "LevelSnapshotsStats.h"
 #include "PropertyInfoHelpers.h"
 #include "Restorability/PropertyComparisonParams.h"
 
@@ -94,6 +93,7 @@ namespace
 
 void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySelectionMap& SelectionSet)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld);
 	if (TargetWorld == nullptr)
 	{
 		return;
@@ -125,7 +125,8 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 
 bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeLevelSnapshot"), STAT_TakeLevelSnapshot, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(SnapshotWorld);
+	
 	if (!ensure(TargetWorld))
 	{
 		UE_LOG(LogLevelSnapshots, Warning, TEXT("Unable To Snapshot World as World was invalid"));
@@ -165,7 +166,7 @@ bool ULevelSnapshot::SnapshotWorld(UWorld* TargetWorld)
 
 bool ULevelSnapshot::HasOriginalChangedPropertiesSinceSnapshotWasTaken(AActor* SnapshotActor, AActor* WorldActor) const
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("HasOriginalChangedSinceSnapshot"), STAT_AreAllSnapshotRelevantPropertiesIdentical, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(HasOriginalChangedSinceSnapshot);
 
 	if (!IsValid(SnapshotActor) || !IsValid(WorldActor))
 	{
@@ -306,7 +307,7 @@ bool ULevelSnapshot::AreSnapshotAndOriginalPropertiesEquivalent(const FProperty*
 
 TOptional<AActor*> ULevelSnapshot::GetDeserializedActor(const FSoftObjectPath& OriginalActorPath)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GetDeserializedActor"), STAT_GetDeserializedActor, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(GetDeserializedActor);
 	
 	EnsureWorldInitialised();
 	return SerializedData.GetDeserializedActor(OriginalActorPath, GetPackage());
@@ -319,7 +320,8 @@ int32 ULevelSnapshot::GetNumSavedActors() const
 
 void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedActor, FActorPathConsumer HandleRemovedActor, FActorConsumer HandleAddedActor) const
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("DiffWorld"), STAT_DiffWorld, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld);
+	
 	if (!ensure(World && HandleMatchedActor.IsBound() && HandleRemovedActor.IsBound() && HandleAddedActor.IsBound()))
 	{
 		return;
@@ -327,40 +329,49 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 
 	// Find actors that are not present in the snapshot
 	TSet<AActor*> AllActors;
-	const int32 NumActorsInWorld = Algo::Accumulate(World->GetLevels(), 0, [](int64 Size, const ULevel* Level){ return Size + Level->Actors.Num(); });
-	AllActors.Reserve(NumActorsInWorld);
-	for (ULevel* Level : World->GetLevels())
 	{
-		for (AActor* ActorInLevel : Level->Actors)
+		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_FindAllActors);
+
+		const int32 NumActorsInWorld = Algo::Accumulate(World->GetLevels(), 0, [](int64 Size, const ULevel* Level){ return Size + Level->Actors.Num(); });
+		AllActors.Reserve(NumActorsInWorld);
+		for (ULevel* Level : World->GetLevels())
 		{
-			AllActors.Add(ActorInLevel);
-			
-			// Warning: ActorInLevel can be null, e.g. when an actor was just removed from the world (and still in undo buffer)
-			if (IsValid(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel) && FSnapshotRestorability::ShouldConsiderNewActorForRemoval(ActorInLevel))
+			for (AActor* ActorInLevel : Level->Actors)
 			{
-				HandleAddedActor.Execute(ActorInLevel);
+				AllActors.Add(ActorInLevel);
+			
+				// Warning: ActorInLevel can be null, e.g. when an actor was just removed from the world (and still in undo buffer)
+				if (IsValid(ActorInLevel) && !SerializedData.HasMatchingSavedActor(ActorInLevel) && FSnapshotRestorability::ShouldConsiderNewActorForRemoval(ActorInLevel))
+				{
+					HandleAddedActor.Execute(ActorInLevel);
+				}
 			}
 		}
 	}
+	
 
 	// Try to find world actors and call appropriate callback
-	SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &AllActors](const FSoftObjectPath& OriginalActorPath)
-    {
-		// TODO: we need to check whether the actor's class was blacklisted in the project settings
-		UObject* ResolvedActor = OriginalActorPath.ResolveObject();
-		// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
-		const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
+	{
+		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_IteratorAllActors);
+		
+		SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &AllActors](const FSoftObjectPath& OriginalActorPath)
+		{
+			// TODO: we need to check whether the actor's class was blacklisted in the project settings
+			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
+			// OriginalActorPath may still resolve to a live actor if it was just removed. We need to check the ULevel::Actors to see whether it was removed.
+			const bool bWasRemovedFromWorld = ResolvedActor == nullptr || !AllActors.Contains(Cast<AActor>(ResolvedActor));
 
-		// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
-		if (bWasRemovedFromWorld)
-		{
-			HandleRemovedActor.Execute(OriginalActorPath);
-		}
-		else
-		{
-			HandleMatchedActor.Execute(OriginalActorPath);
-		}
-    });
+			// We do not need to call IsActorDesirableForCapture: it was already called when we took this snapshot
+			if (bWasRemovedFromWorld)
+			{
+				HandleRemovedActor.Execute(OriginalActorPath);
+			}
+			else
+			{
+				HandleMatchedActor.Execute(OriginalActorPath);
+			}
+		});
+	}
 }
 
 void ULevelSnapshot::SetSnapshotName(const FName& InSnapshotName)

@@ -8,7 +8,6 @@
 #include "Data/LevelSnapshot.h"
 #include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsEditorStyle.h"
-#include "LevelSnapshotsStats.h"
 #include "PropertyInfoHelpers.h"
 #include "PropertySelection.h"
 
@@ -2149,10 +2148,9 @@ FReply SLevelSnapshotsEditorResults::OnClickApplyToWorld()
 	const TOptional<ULevelSnapshot*> ActiveLevelSnapshot = EditorDataPtr->GetActiveSnapshot();
 	if (ActiveLevelSnapshot.IsSet())
 	{
-		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("OnClickApplyToWorld"), STAT_LevelSnapshots, STATGROUP_LevelSnapshots);
+		SCOPED_SNAPSHOT_EDITOR_TRACE(ClickApplyToWorld);
 		{
-			// Measure how long it takes to get all selected properties from UI
-			DECLARE_SCOPE_CYCLE_COUNTER(TEXT("BuildSelectionSetFromSelectedPropertiesInEachActorGroup"), STAT_BuildSelectionSetFromSelectedProperties, STATGROUP_LevelSnapshots);
+			SCOPED_SNAPSHOT_EDITOR_TRACE(GetSelectedPropertiesFromUI)
 			BuildSelectionSetFromSelectedPropertiesInEachActorGroup();
 		}
 
@@ -2555,7 +2553,7 @@ void SLevelSnapshotsEditorResults::GenerateTreeView(const bool bSnapshotHasChang
 		return;
 	}
 
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GenerateTreeView"), STAT_GenerateTreeView, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_EDITOR_TRACE(GenerateTreeView);
 
 	if (bSnapshotHasChanged)
 	{
@@ -2718,12 +2716,6 @@ bool SLevelSnapshotsEditorResults::GenerateTreeViewChildren_ModifiedActors(FLeve
 					{
 						if (const FPropertySelection* SubObjectProperties = InSelectionMap.GetSelectedProperties(SubObject))
 						{
-							if (!SubObject->IsA(UActorComponent::StaticClass()))
-							{
-								FPropertySelection* InObjectProperties = const_cast<FPropertySelection*>(InSelectionMap.GetSelectedProperties(InObject));
-								InObjectProperties->SetHasCustomSerializedSubobjects(true);
-							}
-							
 							NewCachedSearchTerms += " " + SubObject->GetName();
 							for (const TFieldPath<FProperty>& LeafProperty : SubObjectProperties->GetSelectedLeafProperties())
 							{

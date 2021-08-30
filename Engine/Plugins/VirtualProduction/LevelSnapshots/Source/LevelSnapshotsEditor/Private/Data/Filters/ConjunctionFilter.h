@@ -49,7 +49,7 @@ public:
 	
 private:
 
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	TArray<UNegatableFilter*> Children;
 
 	UPROPERTY()

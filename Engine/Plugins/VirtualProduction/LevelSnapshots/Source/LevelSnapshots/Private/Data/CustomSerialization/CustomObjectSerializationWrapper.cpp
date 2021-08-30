@@ -4,7 +4,6 @@
 
 #include "ApplySnapshotDataArchiveV2.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsStats.h"
 #include "CustomSerialization/CustomSerializationDataManager.h"
 #include "LevelSnapshotsModule.h"
 #include "PropertySelectionMap.h"
@@ -26,6 +25,8 @@ namespace
 		FSerializationDataGetter SerializationDataGetter
 		)
 	{
+		SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PostSnapshotRestore);
+		
 		FLevelSnapshotsModule& LevelSnapshots = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 		TSharedPtr<ICustomObjectSnapshotSerializer> CustomSerializer = LevelSnapshots.GetCustomSerializerForClass(SnapshotObject->GetClass());
 		if (!CustomSerializer.IsValid() || !ensure(SerializationDataGetter() != nullptr))
@@ -69,6 +70,8 @@ namespace
 		FSerializationDataGetter SerializationDataGetter
 		)
 	{
+		SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PostEditorRestore);
+		
 		FLevelSnapshotsModule& LevelSnapshots = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 		TSharedPtr<ICustomObjectSnapshotSerializer> CustomSerializer = LevelSnapshots.GetCustomSerializerForClass(EditorObject->GetClass());
 		if (!CustomSerializer.IsValid())
@@ -117,7 +120,7 @@ void FCustomObjectSerializationWrapper::TakeSnapshotForActor(
 	FCustomSerializationData& ActorSerializationData,
 	FWorldSnapshotData& WorldData)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeSnapshotForActor"), STAT_TakeSnapshotForActor, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_TakeActorSnapshot);
 	
 	FLevelSnapshotsModule& LevelSnapshots = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	TSharedPtr<ICustomObjectSnapshotSerializer> CustomSerializer = LevelSnapshots.GetCustomSerializerForClass(EditorActor->GetClass());
@@ -138,7 +141,7 @@ void FCustomObjectSerializationWrapper::TakeSnapshotForSubobject(
 	UObject* Subobject,
 	FWorldSnapshotData& WorldData)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("TakeSnapshotForSubobject"), STAT_TakeSnapshotForSubobject, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_TakeSubobjectSnapshot);
 	
 	FLevelSnapshotsModule& LevelSnapshots = FModuleManager::Get().GetModuleChecked<FLevelSnapshotsModule>("LevelSnapshots");
 	TSharedPtr<ICustomObjectSnapshotSerializer> CustomSerializer = LevelSnapshots.GetCustomSerializerForClass(Subobject->GetClass());
@@ -162,7 +165,8 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreActorRestore_SnapshotW
 	FWorldSnapshotData& WorldData,
 	UPackage* LocalisationSnapshotPackage)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("StartRestoreSnapshotForActor_SnapshotWorld"), STAT_StartRestoreSnapshotForActor_SnapshotWorld, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreSnapshotActorRestore);
+	
 	return PreObjectRestore_SnapshotWorld(
 		SnapshotActor,
 		WorldData,
@@ -178,8 +182,8 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreActorRestore_EditorWor
 	const FPropertySelectionMap& SelectionMap,
 	UPackage* LocalisationSnapshotPackage)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("StartRestoreSnapshotForActor_EditorWorld"), STAT_StartRestoreSnapshotForActor_EditorWorld, STATGROUP_LevelSnapshots);
-
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreEditorRestore);
+	
 	const TOptional<AActor*> SnapshotActor = WorldData.GetDeserializedActor(EditorActor, LocalisationSnapshotPackage);
 	check(SnapshotActor);
 	
@@ -200,7 +204,8 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Snaps
 	UPackage* LocalisationSnapshotPackage
 	)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("StartRestoreSnapshotForSubobject_SnapshotWorld"), STAT_StartRestoreSnapshotForSubobject_SnapshotWorld, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreSnapshotRestore);
+	
 	return PreObjectRestore_SnapshotWorld(
 		Subobject,
 		WorldData,
@@ -217,7 +222,7 @@ FRestoreObjectScope FCustomObjectSerializationWrapper::PreSubobjectRestore_Edito
 	UPackage* LocalisationSnapshotPackage
 	)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("StartRestoreSnapshotForSubobject_EditorWorld"), STAT_StartRestoreSnapshotForSubobject_EditorWorld, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(CustomObjectSerialization_PreEditorRestore);
 	
 	const FSoftObjectPath SubobjectPath(EditorObject);
 	if (!WorldData.GetCustomSubobjectData_ForSubobject(SubobjectPath))
