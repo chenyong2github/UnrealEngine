@@ -197,7 +197,8 @@ public:
 protected:
 	void HandleObjectsChangedNotice( const pxr::UsdNotice::ObjectsChanged& Notice, const pxr::UsdStageWeakPtr& Sender );
 	void HandleStageEditTargetChangedNotice( const pxr::UsdNotice::StageEditTargetChanged& Notice, const pxr::UsdStageWeakPtr& Sender );
-	void HandleLayersChangedNotice ( const pxr::SdfNotice::LayersDidChange& Notice );
+	void HandleLayersChangedNotice( const pxr::SdfNotice::LayersDidChange& Notice );
+	void HandleLayerDirtinessChangedNotice( const pxr::SdfNotice::LayerDirtinessChanged& Notice );
 
 	void EmitDeprecatedEvents( const pxr::UsdNotice::ObjectsChanged & Notice );
 
@@ -205,6 +206,7 @@ private:
 	pxr::TfNotice::Key RegisteredObjectsChangedKey;
 	pxr::TfNotice::Key RegisteredStageEditTargetChangedKey;
 	pxr::TfNotice::Key RegisteredLayersChangedKey;
+	pxr::TfNotice::Key RegisteredLayerDirtinessChangedKey;
 #endif // #if USE_USD_SDK
 };
 
@@ -293,6 +295,7 @@ void FUsdListenerImpl::Register( const pxr::UsdStageRefPtr& Stage )
 	}
 
 	RegisteredLayersChangedKey = pxr::TfNotice::Register( pxr::TfWeakPtr< FUsdListenerImpl >( this ), &FUsdListenerImpl::HandleLayersChangedNotice );
+	RegisteredLayerDirtinessChangedKey = pxr::TfNotice::Register( pxr::TfWeakPtr< FUsdListenerImpl >( this ), &FUsdListenerImpl::HandleLayerDirtinessChangedNotice );
 }
 #endif // #if USE_USD_SDK
 
@@ -303,11 +306,12 @@ FUsdListenerImpl::~FUsdListenerImpl()
 	pxr::TfNotice::Revoke( RegisteredObjectsChangedKey );
 	pxr::TfNotice::Revoke( RegisteredStageEditTargetChangedKey );
 	pxr::TfNotice::Revoke( RegisteredLayersChangedKey );
+	pxr::TfNotice::Revoke( RegisteredLayerDirtinessChangedKey );
 #endif // #if USE_USD_SDK
 }
 
 #if USE_USD_SDK
-void FUsdListenerImpl::HandleObjectsChangedNotice( const pxr::UsdNotice::ObjectsChanged & Notice, const pxr::UsdStageWeakPtr & Sender )
+void FUsdListenerImpl::HandleObjectsChangedNotice( const pxr::UsdNotice::ObjectsChanged& Notice, const pxr::UsdStageWeakPtr& Sender )
 {
 	if ( !OnPrimsChanged.IsBound() && !OnStageInfoChanged.IsBound() && !OnObjectsChanged.IsBound() )
 	{
@@ -377,6 +381,19 @@ void FUsdListenerImpl::HandleLayersChangedNotice( const pxr::SdfNotice::LayersDi
 
 	FScopedUnrealAllocs UnrealAllocs;
 	OnLayersChanged.Broadcast( LayersNames );
+}
+
+void FUsdListenerImpl::HandleLayerDirtinessChangedNotice( const pxr::SdfNotice::LayerDirtinessChanged& Notice )
+{
+	if ( !OnLayersChanged.IsBound() || IsBlocked.GetValue() > 0 )
+	{
+		return;
+	}
+
+	FScopedUnrealAllocs UnrealAllocs;
+
+	TArray< FString > LayersNames; // We don't know which layer dirtiness has changed unfortunately so we'll provide an empty list for now.
+	OnLayersChanged.Broadcast(LayersNames);
 }
 
 void FUsdListenerImpl::EmitDeprecatedEvents( const pxr::UsdNotice::ObjectsChanged& Notice )
