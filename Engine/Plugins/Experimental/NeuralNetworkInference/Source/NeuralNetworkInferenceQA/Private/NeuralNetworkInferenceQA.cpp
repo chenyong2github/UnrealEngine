@@ -10,13 +10,15 @@
 /* UNeuralNetworkInferenceQA static functions
  *****************************************************************************/
 
-void UNeuralNetworkInferenceQA::UnitTesting()
+bool UNeuralNetworkInferenceQA::UnitTesting()
 {
 	const FString ProjectContentDir = FPaths::ProjectContentDir();
 	const FString MachineLearningTestsRelativeDirectory = TEXT("Tests/MachineLearning/");
 	const FString ModelZooRelativeDirectory = MachineLearningTestsRelativeDirectory / TEXT("Models/"); // Eg "Tests/MachineLearning/Models/"
 	const FString UnitTestRelativeDirectory = MachineLearningTestsRelativeDirectory / TEXT("UnitTests/"); // Eg "Tests/MachineLearning/UnitTests/"
-	FUnitTester::GlobalTest(ProjectContentDir, ModelZooRelativeDirectory, UnitTestRelativeDirectory);
+	const bool bDidGlobalTestPassed = FUnitTester::GlobalTest(ProjectContentDir, ModelZooRelativeDirectory, UnitTestRelativeDirectory);
+	ensureMsgf(bDidGlobalTestPassed, TEXT("UNeuralNetworkInferenceQA::UnitTesting() returned false. See log above."));
+	return bDidGlobalTestPassed;
 }
 
 
@@ -32,8 +34,10 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNeuralNetworkInferenceTest, "System.Engine.Mac
 
 bool FNeuralNetworkInferenceTest::RunTest(const FString& Parameters)
 {
-	UNeuralNetworkInferenceQA::UnitTesting();
-UE_LOG(LogNeuralNetworkInferenceQA, Warning, TEXT("FNeuralNetworkInferenceTest::RunTest(): Warning with parameters = %s."), *Parameters);
+	if (!UNeuralNetworkInferenceQA::UnitTesting())
+	{
+		AddError(TEXT("FNeuralNetworkInferenceTest::RunTest(): UNeuralNetworkInferenceQA::UnitTesting() returned false. See log above.")); // AddWarning/AddError would both work here
+	}
 	return true;
 }
 

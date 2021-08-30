@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "LegacyONNXTester.h"
+#include "ModelProtoFileReaderTester.h"
 #include "NeuralNetworkInferenceQAUtils.h"
 
 #if WITH_EDITOR
@@ -9,10 +9,10 @@
 
 
 
-/* FLegacyONNXTester public functions
+/* FModelProtoFileReaderTester public functions
  *****************************************************************************/
 
-void FLegacyONNXTester::ONNXReadNetworkTest(const FString& InONNXModelFileName)
+bool FModelProtoFileReaderTester::Test(const FString& InONNXModelFileName)
 {
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Read ONNX Network And Test"));
 
@@ -20,8 +20,10 @@ void FLegacyONNXTester::ONNXReadNetworkTest(const FString& InONNXModelFileName)
 	FModelProto ModelProto;
 	FModelProtoFileReader::ReadModelProtoFromFile(ModelProto, InONNXModelFileName);
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ModelProto:\n%s"), *ModelProto.ToString());
-	ensureMsgf(ModelProto.IsLoaded(), TEXT("FLegacyONNXTester::ONNXReadNetworkTest() failed, FModelProto could not be read from InONNXModelFileName: %s."), *InONNXModelFileName);
+	ensureMsgf(ModelProto.IsLoaded(), TEXT("FModelProtoFileReaderTester::ONNXReadNetworkTest() failed, FModelProto could not be read from InONNXModelFileName: %s."), *InONNXModelFileName);
+	return ModelProto.IsLoaded();
 #else //WITH_EDITOR
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ONNXReadNetworkTest test skipped (only in Editor)."));
+	return true;
 #endif //WITH_EDITOR
 }

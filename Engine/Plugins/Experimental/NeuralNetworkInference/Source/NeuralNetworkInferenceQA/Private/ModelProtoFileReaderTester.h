@@ -4,8 +4,8 @@
 
 #include "CoreMinimal.h"
 
-class FLegacyONNXTester
+class FModelProtoFileReaderTester
 {
 public:
-	static void ONNXReadNetworkTest(const FString& InONNXModelFileName);
+	static bool Test(const FString& InONNXModelFileName);
 };
