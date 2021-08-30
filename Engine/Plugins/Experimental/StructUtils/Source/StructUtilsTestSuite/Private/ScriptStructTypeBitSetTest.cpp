@@ -215,17 +215,27 @@ struct FStructUtilsTest_BitSetHash : FAITestBase
 {
 	virtual bool InstantTest() override
 	{
+		FTestStructBitSet EmptyCollection;
 		FTestStructBitSet CollectionA;
 		FTestStructBitSet CollectionB;
 
 		CollectionA.AddBit(9);
 		CollectionB.AddBit(9);
-		CollectionB.AddBit(21);
+		CollectionB.AddBit(1024);
 
 		const uint32 HashA = GetTypeHash(CollectionA);
 		const uint32 HashB = GetTypeHash(CollectionB);
 
 		AITEST_NOT_EQUAL("Two distinct bit sets should have distinct hashes", HashA, HashB);
+
+		CollectionB.RemoveBit(1024);
+		const uint32 HashB2 = GetTypeHash(CollectionB);
+		AITEST_EQUAL("Two bit sets of the same composition should have have identical hashes", HashA, HashB2);
+				
+		CollectionB.RemoveBit(9);
+		const uint32 HashEmpty = GetTypeHash(EmptyCollection);
+		const uint32 HashEmptyB = GetTypeHash(CollectionB);
+		AITEST_EQUAL("An emptied bit set needs to have the same hash as an empty bit set", HashEmpty, HashEmptyB);
 
 		return true;
 	}

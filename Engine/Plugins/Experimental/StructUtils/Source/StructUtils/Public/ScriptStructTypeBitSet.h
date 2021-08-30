@@ -173,9 +173,19 @@ private:
 		{
 			FConstWordIterator Iterator(Instance);
 			uint32 Hash = 0;
+			uint32 TrailingZeroHash = 0;
 			while (Iterator)
 			{
-				Hash = HashCombine(Hash, Iterator.GetWord());
+				const uint32 Word = Iterator.GetWord();
+				if (Word)
+				{
+					Hash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
+					TrailingZeroHash = 0;
+				}
+				else // potentially a trailing 0-word
+				{
+					TrailingZeroHash = HashCombine(TrailingZeroHash ? TrailingZeroHash : Hash, Word);
+				}
 				++Iterator;
 			}
 			return Hash;
