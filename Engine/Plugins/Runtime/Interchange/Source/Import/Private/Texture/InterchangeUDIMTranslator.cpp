@@ -328,9 +328,11 @@ TOptional<UE::Interchange::FImportBlockedImage> UInterchangeUDIMTranslator::GetB
 					FString PreUDIMName;
 					FString PostUDIMName;
 					const int32 UDIMIndex = UE::TextureUtilitiesCommon::ParseUDIMName(FilenameNoExtension, UdimRegexPattern, PreUDIMName, PostUDIMName);
-					
-					const int32 BlockX = (UDIMIndex - 1001) % 10;
-					const int32 BlockY = (UDIMIndex - 1001) / 10;
+
+					int32 BlockX;
+					int32 BlockY;
+
+					UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIMIndex, BlockX, BlockY);
 
 					BlockedImage.InitBlockFromImage(BlockX, BlockY, Image);
 

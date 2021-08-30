@@ -2,11 +2,14 @@
 
 #include "Texture/InterchangeTextureFactory.h"
 
+#include "Async/TaskGraphInterfaces.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
 #include "Engine/TextureLightProfile.h"
+#include "HAL/FileManagerGeneric.h"
 #include "InterchangeAssetImportData.h"
 #include "InterchangeImportCommon.h"
 #include "InterchangeImportLog.h"
@@ -27,6 +30,7 @@
 #include "Texture/InterchangeTextureLightProfilePayloadInterface.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 #include "TextureCompiler.h"
+#include "UDIMUtilities.h"
 #include "UObject/ObjectMacros.h"
 
 #if WITH_EDITORONLY_DATA
@@ -34,7 +38,6 @@
 #include "EditorFramework/AssetImportData.h"
 
 #endif //WITH_EDITORONLY_DATA
-
 
 
 namespace UE::Interchange::Private::InterchangeTextureFactory
@@ -585,6 +588,139 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 		return *this;
 	}
 
+	TArray<FString> GetFilesToHash(const FTextureNodeVariant& TextureNodeVariant, const FTexturePayloadVariant& TexturePayload)
+	{
+		TArray<FString> FilesToHash;
+		// Standard texture 2D payload
+		if (const UInterchangeTexture2DNode* const* TextureNode = TextureNodeVariant.TryGet<const UInterchangeTexture2DNode*>())
+		{
+			using namespace UE::Interchange;
+			if (const TOptional<FImportBlockedImage>* OptionalBlockedPayload = TexturePayload.TryGet<TOptional<FImportBlockedImage>>())
+			{
+				if (OptionalBlockedPayload->IsSet())
+				{
+					const FImportBlockedImage& BlockImage = OptionalBlockedPayload->GetValue();
+					TMap<int32, FString> BlockAndFiles = (*TextureNode)->GetSourceBlocks();
+					FilesToHash.Reserve(BlockAndFiles.Num());
+					for (const FTextureSourceBlock& BlockData : BlockImage.BlocksData)
+					{
+						if (FString* FilePath = BlockAndFiles.Find(UE::TextureUtilitiesCommon::GetUDIMIndex(BlockData.BlockX, BlockData.BlockY)))
+						{
+							FilesToHash.Add(*FilePath);
+						}
+					}
+				}
+
+			}
+		}
+		return FilesToHash;
+	}
+
+	FGraphEventArray GenerateHashSourceFilesTasks(const UInterchangeSourceData* SourceData, TArray<FString>&& FilesToHash, TArray<FAssetImportInfo::FSourceFile>& OutSourceFiles)
+	{
+		struct FHashSourceTaskBase
+		{
+			/**
+				* Returns the name of the thread that this task should run on.
+				*
+				* @return Always run on any thread.
+				*/
+			ENamedThreads::Type GetDesiredThread()
+			{
+				return ENamedThreads::AnyBackgroundThreadNormalTask;
+			}
+
+			/**
+				* Gets the task's stats tracking identifier.
+				*
+				* @return Stats identifier.
+				*/
+			TStatId GetStatId() const
+			{
+				return GET_STATID(STAT_TaskGraph_OtherTasks);
+			}
+
+			/**
+				* Gets the mode for tracking subsequent tasks.
+				*
+				* @return Always track subsequent tasks.
+				*/
+			static ESubsequentsMode::Type GetSubsequentsMode()
+			{
+				return ESubsequentsMode::TrackSubsequents;
+			}
+		};
+
+		FGraphEventArray TasksToDo;
+
+		// We do the hashing of the source files after the import to avoid a bigger memory overhead.
+		if (FilesToHash.IsEmpty())
+		{
+			struct FHashSingleSource : public FHashSourceTaskBase
+			{
+				FHashSingleSource(const UInterchangeSourceData* InSourceData)
+					: SourceData(InSourceData)
+				{}
+
+				/**
+				 * Performs the actual task.
+				 *
+				 * @param CurrentThread The thread that this task is executing on.
+				 * @param MyCompletionGraphEvent The completion event.
+				 */
+				void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				{
+					if (SourceData)
+					{ 
+						//Getting the file Hash will cache it into the source data
+						SourceData->GetFileContentHash();
+					}
+				}
+
+			private:
+				const UInterchangeSourceData* SourceData = nullptr;
+			};
+		
+			TasksToDo.Add(TGraphTask<FHashSingleSource>::CreateTask().ConstructAndDispatchWhenReady(SourceData));
+		}
+		else
+		{
+			struct FHashMutipleSource : public FHashSourceTaskBase
+			{
+				FHashMutipleSource(FString&& InFileToHash, FAssetImportInfo::FSourceFile& OutSourceFile)
+					: FileToHash(MoveTemp(InFileToHash))
+					, SourceFile(OutSourceFile)
+				{}
+
+				/**
+				 * Performs the actual task.
+				 *
+				 * @param CurrentThread The thread that this task is executing on.
+				 * @param MyCompletionGraphEvent The completion event.
+				 */
+				void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+				{
+					SourceFile.FileHash = FMD5Hash::HashFile(*FileToHash);
+					SourceFile.Timestamp =IFileManager::Get().GetTimeStamp(*FileToHash);
+					SourceFile.RelativeFilename = MoveTemp(FileToHash);
+				}
+
+			private:
+				FString FileToHash;
+				FAssetImportInfo::FSourceFile& SourceFile;
+			};
+
+			OutSourceFiles.AddDefaulted(FilesToHash.Num());
+
+			for (int32 Index = 0; Index < FilesToHash.Num(); ++Index)
+			{
+				TasksToDo.Add(TGraphTask<FHashMutipleSource>::CreateTask().ConstructAndDispatchWhenReady(MoveTemp(FilesToHash[Index]), OutSourceFiles[Index]));
+			}
+		}
+
+		return TasksToDo;
+	}
+
 #endif // WITH_EDITORONLY_DATA
  }
 
@@ -773,11 +909,16 @@ UObject* UInterchangeTextureFactory::CreateAsset(const FCreateAssetParams& Argum
 		return nullptr;
 	}
 
-	//Getting the file Hash will cache it into the source data
-	Arguments.SourceData->GetFileContentHash();
+	FGraphEventArray TasksToDo = GenerateHashSourceFilesTasks(Arguments.SourceData, GetFilesToHash(TextureNodeVariant, TexturePayload), SourceFiles);
+
+	// Hash the payload while we hash the source files
 
 	// This will hash the payload to generate a unique ID before passing it to the virtualized bulkdata
 	ProcessedPayload = MoveTemp(TexturePayload);
+
+	// Wait for the hashing task(s)
+	ENamedThreads::Type NamedThread = IsInGameThread() ? ENamedThreads::GameThread : ENamedThreads::AnyThread;
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(TasksToDo, NamedThread);
 
 	//The interchange completion task (call in the GameThread after the factories pass), will call PostEditChange which will trig another asynchronous system that will build all texture in parallel
 
@@ -854,13 +995,15 @@ void UInterchangeTextureFactory::PreImportPreCompletedCallback(const FImportPreC
 	if (ensure(Texture && Arguments.SourceData))
 	{
 		//We must call the Update of the asset source file in the main thread because UAssetImportData::Update execute some delegate we do not control
-		UE::Interchange::FFactoryCommon::FUpdateImportAssetDataParameters UpdateImportAssetDataParameters(Texture
+		UE::Interchange::FFactoryCommon::FSetImportAssetDataParameters SetImportAssetDataParameters(Texture
 																						 , Texture->AssetImportData
 																						 , Arguments.SourceData
 																						 , Arguments.NodeUniqueID
 																						 , Arguments.NodeContainer
 																						 , Arguments.Pipelines);
-		Texture->AssetImportData = UE::Interchange::FFactoryCommon::UpdateImportAssetData(UpdateImportAssetDataParameters);
+		SetImportAssetDataParameters.SourceFiles = MoveTemp(SourceFiles);
+
+		Texture->AssetImportData = UE::Interchange::FFactoryCommon::SetImportAssetData(SetImportAssetDataParameters);
 	}
 #endif
 }

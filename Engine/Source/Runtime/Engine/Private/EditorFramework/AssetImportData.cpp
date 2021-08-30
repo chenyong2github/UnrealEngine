@@ -173,6 +173,28 @@ void UAssetImportData::AddFileName(const FString& InPath, int32 Index, FString S
 	OnImportDataChanged.Broadcast(Old, this);
 }
 
+void UAssetImportData::SetSourceFiles(TArray<FAssetImportInfo::FSourceFile>&& SourceFiles)
+{
+	FAssetImportInfo Old = SourceData;
+
+	for (FAssetImportInfo::FSourceFile& SourceFile : SourceFiles)
+	{
+		if (!SourceFile.FileHash.IsValid())
+		{
+			SourceFile.FileHash = FMD5Hash::HashFile(*SourceFile.RelativeFilename);
+		}
+
+		if (SourceFile.Timestamp == FDateTime())
+		{
+			SourceFile.Timestamp = IFileManager::Get().GetTimeStamp(*SourceFile.RelativeFilename);
+		}
+	}
+
+	SourceData.SourceFiles = MoveTemp(SourceFiles);
+
+	OnImportDataChanged.Broadcast(Old, this);
+}
+
 void UAssetImportData::Update(const FString& InPath, FMD5Hash *Md5Hash/* = nullptr*/)
 {
 	FAssetImportInfo Old = SourceData;

@@ -8,11 +8,58 @@
 #include "InterchangeSourceData.h"
 #include "Nodes/InterchangeBaseNodeContainer.h"
 #include "UObject/Object.h"
+#include "EditorFramework/AssetImportData.h"
+#include "HAL/FileManager.h"
 
 namespace UE
 {
 	namespace Interchange
 	{
+		namespace Private::ImportCommon
+		{
+			UInterchangeAssetImportData* BeginSetupAssetData(FFactoryCommon::FUpdateImportAssetDataParameters& Parameters)
+			{
+				if (!ensure(IsInGameThread()))
+				{
+					return nullptr;
+				}
+				if (!ensure(Parameters.SourceData && Parameters.AssetImportDataOuter))
+				{
+					return nullptr;
+				}
+
+				UInterchangeAssetImportData* AssetImportData = Cast<UInterchangeAssetImportData>(Parameters.AssetImportData);
+
+				if (!AssetImportData)
+				{
+					AssetImportData = NewObject<UInterchangeAssetImportData>(Parameters.AssetImportDataOuter, NAME_None);
+				}
+
+				ensure(AssetImportData);
+
+				return AssetImportData;
+			}
+
+
+			void EndSetupAssetData(FFactoryCommon::FUpdateImportAssetDataParameters& Parameters, UInterchangeAssetImportData* AssetImportData)
+			{
+				//Set the interchange node graph data
+				AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
+				FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
+				AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
+				for (const UInterchangePipelineBase* Pipeline : Parameters.Pipelines)
+				{
+					UInterchangePipelineBase* DupPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(Pipeline, AssetImportData));
+					if (DupPipeline)
+					{
+						AssetImportData->Pipelines.Add(DupPipeline);
+					}
+				}
+			}
+
+
+		}
+
 		FFactoryCommon::FUpdateImportAssetDataParameters::FUpdateImportAssetDataParameters(UObject* InAssetImportDataOuter
 																							, UAssetImportData* InAssetImportData
 																							, const UInterchangeSourceData* InSourceData
@@ -43,62 +90,89 @@ namespace UE
 			{
 				return nullptr;
 			}
+
+			UInterchangeAssetImportData* AssetImportData = Private::ImportCommon::BeginSetupAssetData(Parameters);
+
+			if (Parameters.AssetImportData)
+			{
+				if (!Parameters.AssetImportData->IsA<UInterchangeAssetImportData>())
+				{
+					// Migrate the old source data
+					TArray<FAssetImportInfo::FSourceFile> OldSourceFiles = Parameters.AssetImportData->SourceData.SourceFiles;
+					AssetImportData->SetSourceFiles(MoveTemp(OldSourceFiles));
+				}
+			}
+
 			//Set the asset import data file source to allow reimport. TODO: manage MD5 Hash properly
 			TOptional<FMD5Hash> FileContentHash = Parameters.SourceData->GetFileContentHash();
 
-			UInterchangeAssetImportData* AssetImportData = nullptr;
-				
-			if (Parameters.AssetImportData)
-			{
-				AssetImportData = Cast<UInterchangeAssetImportData>(Parameters.AssetImportData);
-				if (!AssetImportData)
-				{
-					AssetImportData = NewObject<UInterchangeAssetImportData>(Parameters.AssetImportDataOuter, NAME_None);
-					TArray<FString> Filenames;
-					Parameters.AssetImportData->ExtractFilenames(Filenames);
-					TArray<FString> Labels;
-					Parameters.AssetImportData->ExtractDisplayLabels(Labels);
-					if (Filenames.Num() > 1)
-					{
-						for (int32 FileIndex = 0; FileIndex < Filenames.Num(); ++FileIndex)
-						{
-							FString Filename = Filenames[FileIndex];
-							FString Label;
-							if (Labels.IsValidIndex(FileIndex))
-							{
-								Label = Labels[FileIndex];
-							}
-							//This is slow since it will hash the file, TODO make sure hashing is done in the create asset task
-							AssetImportData->AddFileName(Filename, FileIndex, Label);
-						}
-					}
-				}
-			}
-			else
-			{
-				AssetImportData = NewObject<UInterchangeAssetImportData>(Parameters.AssetImportDataOuter, NAME_None);
-			}
-
-			ensure(AssetImportData);
 			//Update the first filename, TODO for asset using multiple source file we have to update the correct index
 			AssetImportData->Update(Parameters.SourceData->GetFilename(), FileContentHash.IsSet() ? &FileContentHash.GetValue() : nullptr);
-			//Set the interchange node graph data
-			AssetImportData->NodeUniqueID = Parameters.NodeUniqueID;
-			FObjectDuplicationParameters DupParam(Parameters.NodeContainer, AssetImportData);
-			AssetImportData->NodeContainer = CastChecked<UInterchangeBaseNodeContainer>(StaticDuplicateObjectEx(DupParam));
-			for (const UInterchangePipelineBase* Pipeline : Parameters.Pipelines)
-			{
-				UInterchangePipelineBase* DupPipeline = Cast<UInterchangePipelineBase>(StaticDuplicateObject(Pipeline, AssetImportData));
-				if (DupPipeline)
-				{
-					AssetImportData->Pipelines.Add(DupPipeline);
-				}
-			}
+
+
+			Private::ImportCommon::EndSetupAssetData(Parameters, AssetImportData);
+
 			// Return the asset import data so it can be set on the imported asset.
 			return AssetImportData;
 #endif //#if WITH_EDITORONLY_DATA
 			return nullptr;
 		}
+
+
+#if WITH_EDITORONLY_DATA
+		FFactoryCommon::FSetImportAssetDataParameters::FSetImportAssetDataParameters(UObject* InAssetImportDataOuter
+																					, UAssetImportData* InAssetImportData
+																					, const UInterchangeSourceData* InSourceData
+																					, FString InNodeUniqueID
+																					, UInterchangeBaseNodeContainer* InNodeContainer
+																					, const TArray<UInterchangePipelineBase*>& InPipelines)
+			: FUpdateImportAssetDataParameters(InAssetImportDataOuter
+				, InAssetImportData
+				, InSourceData
+				, InNodeUniqueID
+				, InNodeContainer
+				, InPipelines
+				)
+			, SourceFiles()
+		{
+		}
+
+		UAssetImportData* FFactoryCommon::SetImportAssetData(FSetImportAssetDataParameters& Parameters)
+		{
+			UInterchangeAssetImportData* AssetImportData = Private::ImportCommon::BeginSetupAssetData(Parameters);
+
+			// Update the source files
+			{
+				if (Parameters.SourceFiles.IsEmpty())
+				{
+					TOptional<FMD5Hash> FileContentHash = Parameters.SourceData->GetFileContentHash();
+
+					// Todo add display label?
+					Parameters.SourceFiles.Emplace(
+						AssetImportData->SanitizeImportFilename(Parameters.SourceData->GetFilename()),
+						IFileManager::Get().GetTimeStamp(*Parameters.SourceData->GetFilename()),
+						FileContentHash.IsSet() ? FileContentHash.GetValue() : FMD5Hash()
+						);
+				}
+				else
+				{
+					for (FAssetImportInfo::FSourceFile& Source : Parameters.SourceFiles)
+					{
+						// This is done here since this is not thread safe
+						Source.RelativeFilename = AssetImportData->SanitizeImportFilename(Source.RelativeFilename);
+					}
+				}
+
+				AssetImportData->SetSourceFiles(MoveTemp(Parameters.SourceFiles));
+			}
+
+			Private::ImportCommon::EndSetupAssetData(Parameters, AssetImportData);
+
+			// Return the asset import data so it can be set on the imported asset.
+			return AssetImportData;
+		}
+#endif //#if WITH_EDITORONLY_DATA
+
 
 		void FFactoryCommon::ApplyReimportStrategyToAsset(const EReimportStrategyFlags ReimportStrategyFlags
 										  , UObject* Asset

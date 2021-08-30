@@ -3590,8 +3590,7 @@ UTexture* UTextureFactory::ImportTextureUDIM(UClass* Class, UObject* InParent, F
 				{
 					const int32 UDIMIndex = It.Key;
 					FTextureSourceBlock* Block = new(SourceBlocks) FTextureSourceBlock();
-					Block->BlockX = (UDIMIndex - 1001) % 10;
-					Block->BlockY = (UDIMIndex - 1001) / 10;
+					UE::TextureUtilitiesCommon::ExtractUDIMCoordinates(UDIMIndex, Block->BlockX, Block->BlockY);
 					Block->SizeX = Image.SizeX;
 					Block->SizeY = Image.SizeY;
 					Block->NumSlices = 1;
