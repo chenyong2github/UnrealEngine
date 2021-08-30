@@ -35,8 +35,8 @@ ALevelInstancePivot* ALevelInstancePivot::Create(ALevelInstance* LevelInstanceAc
 
 	
 	// Keep Spawn World Transform in case Level Instance transform changes.
-	PivotActor->SpawnOffset = PivotActor->GetActorLocation();
-	PivotActor->OriginalPivotOffset = LevelInstanceActor->GetActorLocation() - WorldSettings->LevelInstancePivotOffset;
+	PivotActor->SpawnTransform = PivotActor->GetActorTransform();
+	PivotActor->OriginalPivotOffset = WorldSettings->LevelInstancePivotOffset;
 	PivotActor->SetLevelInstanceID(LevelInstanceActor->GetLevelInstanceID());
 
 	return PivotActor;
@@ -108,18 +108,17 @@ void ALevelInstancePivot::SetPivot(ELevelInstancePivotType PivotType, AActor* Pi
 
 void ALevelInstancePivot::UpdateOffset()
 {
+	// Offset Change is the relative transform of the pivot actor to its spawn transform (we only care about relative translation as we don't support rotation on pivot)
+	FVector LocalToPivot = GetActorTransform().GetRelativeTransform(SpawnTransform).GetTranslation();
+
+	// We then apply that offset to the original pivot
+	FVector NewPivotOffset = OriginalPivotOffset - LocalToPivot;
+
 	AWorldSettings* WorldSettings = GetLevel()->GetWorldSettings();
-
-	// Offset Change is the relative transform to the spawn transform
-	FVector LocalToPivot = GetActorLocation() - SpawnOffset;
-
-	// We then apply that offset to the original pivot world transform
-	FVector NewPivotOffset = LocalToPivot + OriginalPivotOffset;
-
 	if (!NewPivotOffset.Equals(WorldSettings->LevelInstancePivotOffset))
 	{
 		WorldSettings->Modify();
-		WorldSettings->LevelInstancePivotOffset = SpawnOffset - NewPivotOffset;
+		WorldSettings->LevelInstancePivotOffset = NewPivotOffset;
 	}
 }
 

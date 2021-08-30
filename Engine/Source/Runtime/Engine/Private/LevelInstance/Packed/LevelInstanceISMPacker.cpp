@@ -41,10 +41,7 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 	UInstancedStaticMeshComponent* PackComponent = InPackingActor->AddPackedComponent<UInstancedStaticMeshComponent>();
 	
 	FTransform ActorTransform = InPackingActor->GetActorTransform();
-	FTransform CurrentPivotOffsetInverse = ActorTransform.GetRelativeTransform(InContext.GetLevelTransform());
-
-	PackComponent->SetComponentToWorld(ActorTransform);
-	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	PackComponent->AttachToComponent(InPackingActor->GetRootComponent(), FAttachmentTransformRules::SnapToTargetIncludingScale);
 	
 	FLevelInstanceISMPackerCluster* ISMCluster = (FLevelInstanceISMPackerCluster*)InClusterID.GetData();
 	check(ISMCluster);
@@ -63,21 +60,20 @@ void FLevelInstanceISMPacker::PackActors(FPackedLevelInstanceBuilderContext& InC
 
 				if (ensure(ISMComponent->GetInstanceTransform(InstanceIndex, InstanceTransform, /*bWorldSpace=*/ true)))
 				{
-					InstanceTransforms.Add(InstanceTransform);
+					// WorldSpace -> ActorSpace -> Apply pivot change
+					InstanceTransforms.Add(InstanceTransform.GetRelativeTransform(ActorTransform) * InContext.GetRelativePivotTransform());
 				}
 			}
 		}
 		else // other subclasses are processed like regular UStaticMeshComponent
 		{
 			UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(Component);
-			InstanceTransforms.Add(StaticMeshComponent->GetComponentTransform());
+
+			// WorldSpace -> ActorSpace -> Apply pivot change
+			InstanceTransforms.Add(StaticMeshComponent->GetComponentTransform().GetRelativeTransform(ActorTransform) * InContext.GetRelativePivotTransform());
 		}
 	}
-	PackComponent->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/true);
-
-	FTransform NewWorldTransform = ActorTransform * CurrentPivotOffsetInverse * FTransform(InContext.GetPivotOffset());
-
-	PackComponent->SetWorldTransform(NewWorldTransform);
+	PackComponent->AddInstances(InstanceTransforms, /*bShouldReturnIndices*/false, /*bWorldSpace*/false);
 	PackComponent->RegisterComponent();
 }
 

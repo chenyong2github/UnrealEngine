@@ -162,7 +162,7 @@ void ULevelStreamingLevelInstance::SetLoadedLevel(ULevel* Level)
 		{
 			AWorldSettings* WorldSettings = NewLoadedLevel->GetWorldSettings();
 			check(WorldSettings);
-			LevelTransform.AddToTranslation(WorldSettings->LevelInstancePivotOffset);
+			LevelTransform = FTransform(WorldSettings->LevelInstancePivotOffset) * LevelTransform;
 		}
 	}
 }
