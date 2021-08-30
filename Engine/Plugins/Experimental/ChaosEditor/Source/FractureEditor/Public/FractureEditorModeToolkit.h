@@ -111,11 +111,13 @@ public:
 	// View Settings
 	float GetExplodedViewValue() const;
 	int32 GetLevelViewValue() const;
+	bool GetHideUnselectedValue() const;
 	void OnSetExplodedViewValue(float NewValue);
 	void OnSetLevelViewValue(int32 NewValue);
 
 	void OnExplodedViewValueChanged();
 	void OnLevelViewValueChanged();
+	void OnHideUnselectedChanged(bool bHide);
 
 	// Update any View Property Changes 
 	void OnObjectPostEditChange( UObject* Object, FPropertyChangedEvent& PropertyChangedEvent );
@@ -185,6 +187,8 @@ private:
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void OnHistogramBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 	void BindCommands();
+
+	void SetHideForUnselected(UGeometryCollectionComponent* GCComp);
 
 private:
 	UFractureModalTool* ActiveTool;
