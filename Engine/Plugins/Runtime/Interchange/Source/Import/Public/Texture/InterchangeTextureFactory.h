@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EditorFramework/AssetImportData.h"
 #include "InterchangeFactoryBase.h"
 #include "Misc/TVariant.h"
 #include "Texture/InterchangeBlockedTexturePayloadData.h"
@@ -58,6 +59,11 @@ public:
 
 private:
 	UE::Interchange::Private::InterchangeTextureFactory::FProcessedPayload ProcessedPayload;
+
+#if WITH_EDITORONLY_DATA
+	// When importing a UDIM the data for the source files will be stored here
+	TArray<FAssetImportInfo::FSourceFile> SourceFiles;
+#endif // WITH_EDITORONLY_DATA
 };
 
 

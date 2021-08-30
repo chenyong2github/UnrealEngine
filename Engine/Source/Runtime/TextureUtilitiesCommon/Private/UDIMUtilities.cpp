@@ -46,5 +46,16 @@ namespace UE
 
 			return UdimValue;
 		}
+
+		int32 GetUDIMIndex(int32 BlockX, int32 BlockY)
+		{
+			return BlockY * 10 + BlockX + 1001;
+		}
+
+		void ExtractUDIMCoordinates(int32 UDIMIndex, int32& OutBlockX, int32& OutBlockY)
+		{
+			OutBlockX = (UDIMIndex - 1001) % 10;
+			OutBlockY = (UDIMIndex - 1001) / 10;
+		}
 	}
 }

@@ -26,6 +26,8 @@ struct ENGINE_API FAssetImportInfo
 
 	struct FSourceFile
 	{
+		FSourceFile() = default;
+
 		FSourceFile(FString InRelativeFilename, const FDateTime& InTimestamp = 0, const FMD5Hash& InFileHash = FMD5Hash(), const FString& InDisplayLabelName = FString())
 			: RelativeFilename(MoveTemp(InRelativeFilename))
 			, Timestamp(InTimestamp)
@@ -123,6 +125,9 @@ public:
 	/** Add a filename at the specific index. Will update the imported timespan and MD5. It will also add in between with empty filenames*/
 	void AddFileName(const FString& InPath, int32 Index, FString SourceFileLabel = FString());
 
+	/** Replace the source files with the one provided. The MD5 hashes will be computed if they aren't set */
+	void SetSourceFiles(TArray<FAssetImportInfo::FSourceFile>&& SourceFiles);
+
 #if WITH_EDITOR
 	/** If your asset import data flavor need to add some asset registry tag, override this function. */
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags){}
@@ -157,10 +162,10 @@ public:
 
 	virtual void PostLoad() override;
 
-protected:
-
 	/** Convert an absolute import path so that it's relative to either this object's package, BaseDir() or leave it absolute */
 	FString SanitizeImportFilename(const FString& InPath) const;
+
+protected:
 
 	/** Resolve a filename that is relative to either this object's package, BaseDir() or absolute */
 	FString ResolveImportFilename(const FString& InRelativePath) const;
