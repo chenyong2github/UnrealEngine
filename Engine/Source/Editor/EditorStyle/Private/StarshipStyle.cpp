@@ -1956,6 +1956,17 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 	// Sequencer
 	if (IncludeEditorSpecificStyles())
 	{
+		FToolBarStyle SequencerToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("AssetEditorToolbar");
+
+		SequencerToolbar.SetButtonPadding(       FMargin(6.0f, 0.0f));
+		SequencerToolbar.SetCheckBoxPadding(     FMargin(2.0f, 0.0f));
+		SequencerToolbar.SetComboButtonPadding(  FMargin(2.0f, 0.0f));
+		SequencerToolbar.SetIndentedBlockPadding(FMargin(2.0f, 0.0f));
+		SequencerToolbar.SetBlockPadding(        FMargin(2.0f, 0.0f));
+		SequencerToolbar.SetSeparatorPadding(    FMargin(6.0f, 0.0f));
+
+		Set("SequencerToolBar", SequencerToolbar);
+
 		Set("Sequencer.IconKeyAuto", new IMAGE_BRUSH("Sequencer/IconKeyAuto", Icon12x12));
 		Set("Sequencer.IconKeyBreak", new IMAGE_BRUSH("Sequencer/IconKeyBreak", Icon12x12));
 		Set("Sequencer.IconKeyConstant", new IMAGE_BRUSH("Sequencer/IconKeyConstant", Icon12x12));
@@ -2069,13 +2080,6 @@ void FStarshipEditorStyle::FStyle::SetupSequencerStyles()
 			.SetNormalPadding( FMargin(0,0,0,0) )
 			.SetPressedPadding( FMargin(0,0,0,0) )
 		);
-		Set("Sequencer.ExposedNamePill.Input", FEditableTextBoxStyle()
-			.SetBackgroundImageNormal(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageHovered(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageFocused(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageReadOnly(FSlateColorBrush(FLinearColor::Transparent))
-		);
-
 
 		Set("Sequencer.AnimationOutliner.ColorStrip", FButtonStyle()
 			.SetNormal(FSlateNoResource())
@@ -6901,6 +6905,17 @@ void FStarshipEditorStyle::FStyle::SetupToolkitStyles()
 
 	// New Curve Editor 
 	{
+		FToolBarStyle CurveEditorToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("AssetEditorToolbar");
+
+		CurveEditorToolbar.SetButtonPadding(       FMargin(6.0f, 0.0f));
+		CurveEditorToolbar.SetCheckBoxPadding(     FMargin(0.0f, 0.0f));
+		CurveEditorToolbar.SetComboButtonPadding(  FMargin(0.0f, 0.0f));
+		CurveEditorToolbar.SetIndentedBlockPadding(FMargin(0.0f, 0.0f));
+		CurveEditorToolbar.SetBlockPadding(        FMargin(0.0f, 0.0f));
+		CurveEditorToolbar.SetSeparatorPadding(    FMargin(2.0f, 0.0f));
+
+		Set("CurveEditorToolBar", CurveEditorToolbar);
+
 		// Tab
 		Set("GenericCurveEditor.TabIcon", new IMAGE_BRUSH("GenericCurveEditor/Icons/CurveEditor_32x", Icon16x16, FLinearColor(1.f, 1.f, 1.f, 0.8f)));
 

@@ -92,8 +92,6 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 		[
 			SAssignNew(EditableText, SEditableTextBox)
 			.Font(FEditorStyle::GetFontStyle("TinyText"))
-			.Style(FEditorStyle::Get(), "Sequencer.ExposedNamePill.Input")
-			.BackgroundColor(FLinearColor::Transparent)
 			.OnTextCommitted(this, &SObjectBindingTag::OnNewTextCommitted)
 			.HintText(LOCTEXT("AddNew_Hint", "Enter New Name"))
 		];
@@ -166,6 +164,13 @@ void SObjectBindingTag::Construct(const FArguments& InArgs)
 			[
 				ContentBox
 			]
+		];
+	}
+	else if (OnCreateNew.IsBound())
+	{
+		ChildSlot
+		[
+			ContentBox
 		];
 	}
 	else
