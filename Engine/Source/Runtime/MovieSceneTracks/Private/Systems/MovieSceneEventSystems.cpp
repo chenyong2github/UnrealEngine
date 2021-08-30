@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Systems/MovieSceneEventSystems.h"
+#include "Algo/RemoveIf.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "EntitySystem/MovieSceneSpawnablesSystem.h"
@@ -72,19 +73,31 @@ void UMovieSceneEventSystem::TriggerAllEvents()
 	for (TPair<FInstanceHandle, TArray<FMovieSceneEventTriggerData>>& Pair : EventsByRoot)
 	{
 		const FSequenceInstance& RootInstance = InstanceRegistry->GetInstance(Pair.Key);
+		IMovieScenePlayer* Player = RootInstance.GetPlayer();
+
+		FFrameTime SkipUntil;
+		const bool bSkipTrigger = Player->IsDisablingEventTriggers(SkipUntil);
 
 		if (RootInstance.GetContext().GetDirection() == EPlayDirection::Forwards)
 		{
+			if (bSkipTrigger)
+			{
+				Algo::RemoveIf(Pair.Value, [SkipUntil](FMovieSceneEventTriggerData& Data) { return Data.RootTime <= SkipUntil; });
+			}
 			Algo::SortBy(Pair.Value, &FMovieSceneEventTriggerData::RootTime);
 		}
 		else
 		{
+			if (bSkipTrigger)
+			{
+				Algo::RemoveIf(Pair.Value, [SkipUntil](FMovieSceneEventTriggerData& Data) { return Data.RootTime >= SkipUntil; });
+			}
 			Algo::SortBy(Pair.Value, &FMovieSceneEventTriggerData::RootTime, TGreater<>());
 		}
 
 		FTriggerBatch& TriggerBatch = TriggerBatches.Emplace_GetRef();
 		TriggerBatch.Triggers = Pair.Value;
-		TriggerBatch.Player = RootInstance.GetPlayer();
+		TriggerBatch.Player = Player;
 	}
 
 	// We need to clean our state before actually triggering the events because one of those events could
@@ -100,6 +113,12 @@ void UMovieSceneEventSystem::TriggerAllEvents()
 
 void UMovieSceneEventSystem::TriggerEvents(TArrayView<const FMovieSceneEventTriggerData> Events, IMovieScenePlayer* Player)
 {
+#if !NO_LOGGING
+	UMovieSceneSequence* PlayerSequence = Player->GetEvaluationTemplate().GetRootSequence();
+	FString SequenceName = PlayerSequence->GetName();
+	UE_LOG(LogMovieScene, VeryVerbose, TEXT("%s: Triggering %d events"), *SequenceName, Events.Num());
+#endif
+
 	TArray<UObject*> GlobalContexts = Player->GetEventContexts();
 
 	for (const FMovieSceneEventTriggerData& Event : Events)
@@ -114,6 +133,10 @@ void UMovieSceneEventSystem::TriggerEvents(TArrayView<const FMovieSceneEventTrig
 #endif
 			continue;
 		}
+
+#if !NO_LOGGING
+		UE_LOG(LogMovieScene, VeryVerbose, TEXT("%s: - Triggering event at frame %d, subframe %f"), *SequenceName, Event.RootTime.FrameNumber.Value, Event.RootTime.GetSubFrame());
+#endif
 
 #if WITH_EDITOR
 		const static FName NAME_CallInEditor(TEXT("CallInEditor"));
