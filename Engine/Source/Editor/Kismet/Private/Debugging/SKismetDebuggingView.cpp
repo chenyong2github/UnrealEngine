@@ -995,9 +995,16 @@ TSharedRef<SWidget> FWatchLineItem::GetNameIcon()
 		PinIconColor = Schema->GetPinTypeColor(ObjectToFocus->PinType);
 		PinIconColor.A = 0.3f;
 		
+		// Note: Currently tunnel node pins (e.g. macro/consolidated node outputs) won't return a property.
 		UBlueprint* ParentBlueprint = GetBlueprintForObject(ParentObjectRef.Get());
-		FProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(ParentBlueprint, ObjectToFocus);
-		Typename = UEdGraphSchema_K2::TypeToText(Property);
+		if (FProperty* Property = FKismetDebugUtilities::FindClassPropertyForPin(ParentBlueprint, ObjectToFocus))
+		{
+			Typename = UEdGraphSchema_K2::TypeToText(Property);
+		}
+		else
+		{
+			Typename = UEdGraphSchema_K2::TypeToText(ObjectToFocus->PinType);
+		}
 	}
 	else
 	{
