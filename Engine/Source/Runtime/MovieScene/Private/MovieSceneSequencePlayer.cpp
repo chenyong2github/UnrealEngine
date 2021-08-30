@@ -1182,8 +1182,7 @@ FString UMovieSceneSequencePlayer::GetSequenceName(bool bAddClientInfo) const
 	}
 	else
 	{
-		static const FName NoneName(NAME_None);
-		return NoneName.ToString();
+		return LexToString(NAME_None);
 	}
 }
 
