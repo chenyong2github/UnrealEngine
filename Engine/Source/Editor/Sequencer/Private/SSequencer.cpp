@@ -1365,6 +1365,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 	FSlimHorizontalToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, true);
 	
 	ToolBarBuilder.BeginSection("Base Commands");
+	ToolBarBuilder.BeginStyleOverride("SequencerToolbar");
 	{
 		// General 
 		if (SequencerPtr.Pin()->IsLevelEditorSequencer())
@@ -1591,6 +1592,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 		}
 	}
 	ToolBarBuilder.EndSection();
+	ToolBarBuilder.EndStyleOverride();
 
 	return ToolBarBuilder.MakeWidget();
 }

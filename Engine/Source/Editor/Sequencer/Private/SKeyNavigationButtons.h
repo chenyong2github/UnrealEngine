@@ -66,11 +66,11 @@ public:
 				.ColorAndOpacity(HoverTint)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.ToolTipText(PreviousKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnPreviousKeyClicked)
 					.ForegroundColor( FSlateColor::UseForeground() )
-					.ContentPadding(0)
+					.ContentPadding(2)
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
@@ -91,11 +91,11 @@ public:
 				.IsEnabled(!InDisplayNode->GetSequencer().IsReadOnly())
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.ToolTipText(SetKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnAddKeyClicked)
 					.ForegroundColor( FSlateColor::UseForeground() )
-					.ContentPadding(0)
+					.ContentPadding(2)
 					.IsFocusable(false)
 					[
 						SNew(STextBlock)
@@ -115,10 +115,10 @@ public:
 				.ColorAndOpacity(HoverTint)
 				[
 					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+					.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
 					.ToolTipText(NextKeyToolTip)
 					.OnClicked(this, &SKeyNavigationButtons::OnNextKeyClicked)
-					.ContentPadding(0)
+					.ContentPadding(2)
 					.ForegroundColor( FSlateColor::UseForeground() )
 					.IsFocusable(false)
 					[

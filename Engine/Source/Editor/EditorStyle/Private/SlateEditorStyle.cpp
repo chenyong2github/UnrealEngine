@@ -2465,13 +2465,6 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 			.SetNormalPadding( FMargin(0,0,0,0) )
 			.SetPressedPadding( FMargin(0,0,0,0) )
 		);
-		Set("Sequencer.ExposedNamePill.Input", FEditableTextBoxStyle()
-			.SetBackgroundImageNormal(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageHovered(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageFocused(FSlateColorBrush(FLinearColor::Transparent))
-			.SetBackgroundImageReadOnly(FSlateColorBrush(FLinearColor::Transparent))
-		);
-
 
 		Set("Sequencer.AnimationOutliner.ColorStrip", FButtonStyle()
 			.SetNormal(FSlateNoResource())

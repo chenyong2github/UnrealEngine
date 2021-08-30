@@ -1969,7 +1969,7 @@ void FLevelEditorToolBar::RegisterCinematicsMenu()
 			// We hide the header row to keep the UI compact.
 			// @todo: Might be useful to have this sometimes, actually.  Ideally the user could summon it.
 			InitOptions.bShowHeaderRow = false;
-			InitOptions.bShowSearchBox = false;
+			InitOptions.bShowSearchBox = true;
 			InitOptions.bShowCreateNewFolder = false;
 
 			InitOptions.ColumnMap.Add(FSceneOutlinerBuiltInColumnTypes::Label(), FSceneOutlinerColumnInfo(ESceneOutlinerColumnVisibility::Visible, 0));
