@@ -186,8 +186,12 @@ bool FPackedLevelInstanceBuilder::PackActor(APackedLevelInstance* InPackedLevelI
 	AWorldSettings* WorldSettings = SourceLevel->GetWorldSettings();
 	Context.DiscardActor(WorldSettings);
 
-	Context.SetLevelTransform(SourceLevelStreaming->LevelTransform);
-	Context.SetPivotOffset(WorldSettings->LevelInstancePivotOffset);
+	// Build relative transform without rotation because pivots don't support rotation
+	FTransform CurrentPivotTransform(SourceLevelStreaming->LevelTransform.GetRelativeTransform(InPackedLevelInstance->GetActorTransform()).GetTranslation());
+	FTransform NewPivotTransform(WorldSettings->LevelInstancePivotOffset);
+	FTransform RelativePivotTransform(NewPivotTransform.GetRelativeTransform(CurrentPivotTransform));
+		
+	Context.SetRelativePivotTransform(RelativePivotTransform);
 	
 	if (AActor* DefaultBrush = SourceLevel->GetDefaultBrush())
 	{

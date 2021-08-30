@@ -38,7 +38,7 @@ private:
 private:
 #if WITH_EDITORONLY_DATA
 	FLevelInstanceID LevelInstanceID;
-	FVector SpawnOffset;
+	FTransform SpawnTransform;
 	FVector OriginalPivotOffset;
 #endif
 };
