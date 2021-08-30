@@ -184,6 +184,11 @@ void FChaosMarshallingManager::FreeDataToHistory_Internal(FPushPhysicsData* Push
 
 void FChaosMarshallingManager::SetHistoryLength_Internal(int32 InHistoryLength)
 {
+	if (!ensure(InHistoryLength >= 0))
+	{
+		InHistoryLength = 0;
+	}
+	
 	HistoryLength = InHistoryLength;
 	//make sure late entries are pruned
 	if(HistoryQueue_Internal.Num() > HistoryLength)

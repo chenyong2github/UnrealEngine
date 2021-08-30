@@ -201,6 +201,9 @@ namespace Chaos
 
 			TArray<FAccelerationStructureHandle> PotentialIntersections;
 
+			//If we are in a resim, this particle must be diverged and so it better be marked as enabled during resim
+			ensure(!bIsResimming || Particle1.EnabledDuringResim());
+
 			if (bIsResimming || (Particle1.ObjectState() == EObjectStateType::Dynamic || Particle1.ObjectState() == EObjectStateType::Sleeping))
 			{
 				const bool bBody1Bounded = HasBoundingBox(Particle1);

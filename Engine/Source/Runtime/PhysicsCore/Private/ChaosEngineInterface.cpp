@@ -1605,6 +1605,7 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 	if(InParams.bStatic)
 	{
 		Particle = FGeometryParticle::CreateParticle();
+		Particle->SetResimType(EResimType::ResimAsSlave);
 	}
 	else
 	{

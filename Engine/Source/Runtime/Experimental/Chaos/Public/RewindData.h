@@ -1048,7 +1048,7 @@ private:
 		int32 LastDirtyFrame;	//Track how recently this was made dirty
 		int32 InitializedOnStep = INDEX_NONE;	//if not INDEX_NONE, it indicates we saw initialization during rewind history window
 		int32 DirtyDynamics = INDEX_NONE;
-		bool bResimAsSlave = false;	//Indicates the particle will always resim in the exact same way from game thread data
+		bool bResimAsSlave = true;	//Indicates the particle will always resim in the exact same way from game thread data
 
 		FDirtyParticleInfo(FDirtyPropertiesPool& InPropertiesPool, TGeometryParticleHandle<FReal,3>& InPTParticle, const FUniqueIdx UniqueIdx,const int32 CurFrame,const int32 NumFrames)
 		: History(NumFrames)
@@ -1132,6 +1132,7 @@ private:
 	FDirtyParticleInfo& FindOrAddParticle(TGeometryParticleHandle<FReal,3>& PTParticle, const int32 InitializedOnFrame = INDEX_NONE);
 	bool RewindToFrame(int32 Frame);
 
+	static void DesyncParticle(FDirtyParticleInfo& Info, const FFrameAndPhase FrameAndPhase);
 
 	TArrayAsMap<FUniqueIdx,int32> ParticleToAllDirtyIdx;
 	TCircularBuffer<FFrameManagerInfo> Managers;
