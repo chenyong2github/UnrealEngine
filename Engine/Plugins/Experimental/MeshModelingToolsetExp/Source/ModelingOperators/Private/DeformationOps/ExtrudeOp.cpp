@@ -7,6 +7,7 @@
 #include "DynamicSubmesh3.h"
 #include "Operations/OffsetMeshRegion.h"
 #include "Operations/MeshBoolean.h"
+#include "Selections/MeshConnectedComponents.h"
 
 #include "Util/ProgressCancel.h"
 
@@ -137,9 +138,43 @@ bool FExtrudeOp::BooleanExtrude(FProgressCancel* Progress)
 		return false;
 	}
 
+	// For whole-component extrusions, the boolean operation that we are about to perform typically
+	// results in the removal of the original triangles, resulting in an open shell. If we want
+	// the shell to be a closed solid, we actually just want the extruded portion in the boolean,
+	// with no participation from the original triangles. So we actually have to delete the whole-component
+	// triangles before combining with the extruded piece(s)
+	if (bShellsToSolids)
+	{
+		FMeshConnectedComponents SelectionComponents(ResultMesh.Get());
+		SelectionComponents.FindTrianglesConnectedToSeeds(TriangleSelection);
+
+		TSet<int32> TriangleSelectionSet(TriangleSelection);
+		for (FMeshConnectedComponents::FComponent& Component : SelectionComponents.Components)
+		{
+			bool bWholeComponentIsSelected = true;
+			for (int32 Tid : Component.Indices)
+			{
+				if (!TriangleSelectionSet.Contains(Tid))
+				{
+					bWholeComponentIsSelected = false;
+					break;
+				}
+			}
+
+			// Perform the deletion if needed
+			if (bWholeComponentIsSelected)
+			{
+				for (int32 Tid : Component.Indices)
+				{
+					ResultMesh->RemoveTriangle(Tid);
+				}
+			}
+		}//end iterating through selection components
+	}
+
 	// Now perform a boolean operation with our result.
 	FMeshBoolean::EBooleanOp Op = ExtrudeDistance > 0 ? FMeshBoolean::EBooleanOp::Union : FMeshBoolean::EBooleanOp::Difference;
-	FMeshBoolean MeshBoolean(OriginalMesh.Get(), FTransform3d::Identity(), &Submesh->GetSubmesh(), FTransform3d::Identity(), ResultMesh.Get(), Op);
+	FMeshBoolean MeshBoolean(ResultMesh.Get(), FTransform3d::Identity(), &Submesh->GetSubmesh(), FTransform3d::Identity(), ResultMesh.Get(), Op);
 	MeshBoolean.bPutResultInInputSpace = true;
 	MeshBoolean.bSimplifyAlongNewEdges = true;
 	MeshBoolean.bPopulateSecondMeshGroupMap = true;

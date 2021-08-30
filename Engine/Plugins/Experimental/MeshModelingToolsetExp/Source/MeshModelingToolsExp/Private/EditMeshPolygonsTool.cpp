@@ -864,6 +864,13 @@ void UEditMeshPolygonsTool::OnTick(float DeltaTime)
 		//Interactive operations:
 		case EEditMeshPolygonsToolActions::Extrude:
 		{
+			ExtrudeActivity->ExtrudeProperties->ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
+			StartActivity(ExtrudeActivity);
+			break;
+		}
+		case EEditMeshPolygonsToolActions::PushPull:
+		{
+			ExtrudeActivity->ExtrudeProperties->ExtrudeMode = EPolyEditExtrudeMode::Boolean;
 			StartActivity(ExtrudeActivity);
 			break;
 		}
