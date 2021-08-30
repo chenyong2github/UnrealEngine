@@ -419,9 +419,8 @@ void UUVSelectTool::Setup()
 
 	SewAction = NewObject<UUVSeamSewAction>();
 	SewAction->Setup(this);
-	SewAction->Initialize(
-		Targets[0]->UnwrapPreview->GetWorld(),
-		Targets);
+	SewAction->SetTargets(Targets);
+	SewAction->SetWorld(Targets[0]->UnwrapPreview->GetWorld());
 
 
 	if (!SelectionMechanic->GetCurrentSelection().IsEmpty())

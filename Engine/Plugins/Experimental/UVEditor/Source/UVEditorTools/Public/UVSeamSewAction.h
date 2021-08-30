@@ -41,7 +41,8 @@ public:
 
 	UUVSeamSewAction();
 
-	void Initialize(UWorld* WorldIn, const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn) override;
+	void SetWorld(UWorld* WorldIn) override;
+	void Setup(UInteractiveTool* ParentToolIn) override;
 	void Shutdown() override;
 
 	void SetSelection(int32 SelectionTargetIndexIn, const UE::Geometry::FDynamicMeshSelection* NewSelection);

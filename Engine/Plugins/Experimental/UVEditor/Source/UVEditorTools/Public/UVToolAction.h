@@ -18,15 +18,15 @@ class UVEDITORTOOLS_API UUVToolAction : public UInteractionMechanic
 {
 	GENERATED_BODY()
 public:
-	virtual void Initialize(UWorld* WorldIn, const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
+	virtual void SetWorld(UWorld* WorldIn) {}
+
+	virtual void SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
 	{
-		World = WorldIn;
 		Targets = TargetsIn;
-	}		
+	}
+
 	virtual void Shutdown() override {
 		UInteractionMechanic::Shutdown();
-
-		World = nullptr;
 
 		for(TObjectPtr<UUVEditorToolMeshInput>& Target : Targets)
 		{
@@ -37,9 +37,6 @@ public:
 	virtual void UpdateVisualizations() {};
 
 protected:
-
-	UPROPERTY()
-	TWeakObjectPtr<UWorld> World;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
