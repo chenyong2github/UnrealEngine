@@ -515,6 +515,14 @@ public:
 	UMovieSceneSequence* GetSequence() const { return Sequence; }
 
 	/**
+	 * Get the name of the sequence this player is playing
+	 * @param bAddClientInfo  If true, add client index if running as a client
+	 * @return the name of the sequence, or None if no sequence is set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	FString GetSequenceName(bool bAddClientInfo = false) const;
+
+	/**
 	 * Access this player's tick manager
 	 */
 	UMovieSceneSequenceTickManager* GetTickManager() const { return TickManager; }
@@ -533,6 +541,7 @@ protected:
 
 	void PlayInternal();
 	void StopInternal(FFrameTime TimeToResetTo);
+	void FinishPlaybackInternal(FFrameTime TimeToFinishAt);
 
 	struct FMovieSceneUpdateArgs
 	{
@@ -578,6 +587,7 @@ protected:
 	virtual void UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraCutParams& CameraCutParams) override {}
 	virtual void ResolveBoundObjects(const FGuid& InBindingId, FMovieSceneSequenceID SequenceID, UMovieSceneSequence& Sequence, UObject* ResolutionContext, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;
 	virtual IMovieScenePlaybackClient* GetPlaybackClient() override { return PlaybackClient ? &*PlaybackClient : nullptr; }
+	virtual bool IsDisablingEventTriggers(FFrameTime& DisabledUntilTime) const override;
 	virtual void PreEvaluation(const FMovieSceneContext& Context) override;
 	virtual void PostEvaluation(const FMovieSceneContext& Context) override;
 
@@ -617,6 +627,12 @@ private:
 	 */
 	UFUNCTION(netmulticast, reliable)
 	void RPC_OnStopEvent(FFrameTime StoppedTime);
+
+	/**
+	 * Called on the server when playback has reached the end. Could lead to stopping or pausing.
+	 */
+	UFUNCTION(netmulticast, reliable)
+	void RPC_OnFinishPlaybackEvent(FFrameTime StoppedTime);
 
 	/**
 	 * Check whether this sequence player is an authority, as determined by its outer Actor
@@ -687,6 +703,10 @@ protected:
 	/** Play position helper */
 	FMovieScenePlaybackPosition PlayPosition;
 
+	/** Disable event triggers until given time */
+	TOptional<FFrameTime> DisableEventTriggersUntilTime;
+
+	/** Spawn register */
 	TSharedPtr<FMovieSceneSpawnRegister> SpawnRegister;
 
 	struct FServerTimeSample

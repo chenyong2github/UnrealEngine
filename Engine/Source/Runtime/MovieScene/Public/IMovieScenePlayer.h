@@ -201,6 +201,11 @@ public:
 	virtual TArray<UObject*> GetEventContexts() const { return TArray<UObject*>(); }
 
 	/**
+	 * Returns whether event triggers are disabled and if so, until what time.
+	 */
+	virtual bool IsDisablingEventTriggers(FFrameTime& DisabledUntilTime) const { return false; }
+
+	/**
 	 * Test whether this is a preview player or not. As such, playback range becomes insignificant for things like spawnables
 	 */
 	virtual bool IsPreview() const { return false; }
