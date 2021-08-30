@@ -10,7 +10,7 @@
 
 #include "DataprepStringsArrayFetcher.generated.h"
 
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, Meta = (DisplayName = "Strings Array"))
 class DATAPREPCORE_API UDataprepStringsArrayFetcher : public UDataprepFetcher
 {
 	GENERATED_BODY()

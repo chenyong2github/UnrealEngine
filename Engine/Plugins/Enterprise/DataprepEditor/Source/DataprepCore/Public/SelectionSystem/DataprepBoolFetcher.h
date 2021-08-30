@@ -13,7 +13,7 @@
 /**
  * The bool fetcher is a specialized type of fetcher for the booleans
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, Meta = (DisplayName = "Condition"))
 class DATAPREPCORE_API UDataprepBoolFetcher : public UDataprepFetcher
 {
 	GENERATED_BODY()

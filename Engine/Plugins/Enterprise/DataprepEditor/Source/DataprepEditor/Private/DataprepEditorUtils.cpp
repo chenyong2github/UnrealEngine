@@ -368,7 +368,7 @@ bool FDataprepEditorUtils::CreateUserDefinedFilter()
 				if ( FetcherClass )
 				{
 					TSharedPtr< DataprepEditorUtils::FFilterCategory > Category = MakeShared<DataprepEditorUtils::FFilterCategory>();
-					Category->Name = Filter->GetFilterCategoryText();
+					Category->Name = FetcherClass->GetDisplayNameText();
 					Category->FetcherClass = FetcherClass;
 					FilterCategories.Add( Category );
 				}
