@@ -2,7 +2,7 @@
 
 #pragma once
 
-// UE4
+// UE
 #include "CoreMinimal.h"
 #include "Math/SHMath.h"
 #include "AppleARKitAvailability.h"
@@ -34,7 +34,7 @@ struct APPLEARKIT_API FAppleARKitLightEstimate
 
 	/** 
 	 * This is a conversion copy-constructor that takes a raw ARLightEstimate and fills this structs 
-	 * members with the UE4-ified versions of ARLightEstimate's properties.
+	 * members with the UE-ified versions of ARLightEstimate's properties.
 	 */ 
 	FAppleARKitLightEstimate( ARLightEstimate* InARLightEstimate );
 
