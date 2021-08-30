@@ -294,9 +294,6 @@ class UNREALED_API UMaterialEditorInstanceConstant : public UObject
 
 	void ApplySourceFunctionChanges();
 
-	/** Builds a FStaticParameterSet for the source UMaterialInstance to store.  The built set has only parameters overridden by this instance. */
-	void BuildStaticParametersForSourceInstance(FStaticParameterSet& OutStaticParameters);
-
 	/** 
 	 * Sets the source instance for this object and regenerates arrays. 
 	 *

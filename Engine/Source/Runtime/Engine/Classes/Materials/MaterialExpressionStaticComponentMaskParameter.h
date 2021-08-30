@@ -39,6 +39,19 @@ public:
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	{
+		if (Meta.Value.Type == EMaterialParameterType::StaticComponentMask)
+		{
+			return SetParameterValue(Name,
+				Meta.Value.Bool[0],
+				Meta.Value.Bool[1],
+				Meta.Value.Bool[2],
+				Meta.Value.Bool[3],
+				Meta.ExpressionGuid);
+		}
+		return Super::SetParameterValue(Name, Meta);
+	}
 #endif
 	//~ End UMaterialExpression Interface
 

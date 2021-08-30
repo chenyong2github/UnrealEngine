@@ -44,6 +44,7 @@
 #include "Curves/CurveLinearColor.h"
 #include "Curves/CurveLinearColorAtlas.h"
 
+const FMaterialCachedParameterEntry FMaterialCachedParameterEntry::EmptyData{};
 const FMaterialCachedExpressionData FMaterialCachedExpressionData::EmptyData{};
 
 void FMaterialCachedExpressionData::Reset()
@@ -103,10 +104,7 @@ void FMaterialCachedParameters::AddReferencedObjects(FReferenceCollector& Collec
 #if WITH_EDITOR
 static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid)
 {
-	FMaterialCachedParameterEntry& Entry = Type >= EMaterialParameterType::RuntimeCount ?
-													CachedParameters.EditorOnlyEntries[static_cast<int32>(Type) - static_cast<int32>(EMaterialParameterType::RuntimeCount)] :
-													CachedParameters.RuntimeEntries[static_cast<int32>(Type)];
-
+	FMaterialCachedParameterEntry& Entry = CachedParameters.GetParameterTypeEntry(Type);
 	FSetElementId ElementId = Entry.ParameterInfoSet.FindId(ParameterInfo);
 	int32 Index = INDEX_NONE;
 	if (!ElementId.IsValidId())
@@ -701,7 +699,9 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 void FMaterialCachedParameterEntry::Reset()
 {
 	ParameterInfoSet.Reset();
+#if WITH_EDITORONLY_DATA
 	ExpressionGuids.Reset();
+#endif
 }
 
 void FMaterialCachedParameters::Reset()
@@ -743,38 +743,130 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 	return ElementId.AsInteger();
 }
 
+void FMaterialCachedParameters::GetParameterValueByIndex(EMaterialParameterType Type, int32 ParameterIndex, FMaterialParameterMetadata& OutResult) const
+{
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
+
+#if WITH_EDITORONLY_DATA
+	OutResult.ExpressionGuid = Entry.ExpressionGuids[ParameterIndex];
+#endif
+
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar:
+		OutResult.Value = ScalarValues[ParameterIndex];
+#if WITH_EDITORONLY_DATA
+		OutResult.ScalarMin = ScalarMinMaxValues[ParameterIndex].X;
+		OutResult.ScalarMax = ScalarMinMaxValues[ParameterIndex].Y;
+		{
+			UCurveLinearColor* Curve = ScalarCurveValues[ParameterIndex];
+			UCurveLinearColorAtlas* Atlas = ScalarCurveAtlasValues[ParameterIndex];
+			if (Curve && Atlas)
+			{
+				OutResult.ScalarCurve = Curve;
+				OutResult.ScalarAtlas = Atlas;
+				OutResult.bUsedAsAtlasPosition = true;
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+		break;
+	case EMaterialParameterType::Vector:
+		OutResult.Value = VectorValues[ParameterIndex];
+#if  WITH_EDITORONLY_DATA
+		OutResult.ChannelName[0] = VectorChannelNameValues[ParameterIndex].R;
+		OutResult.ChannelName[1] = VectorChannelNameValues[ParameterIndex].G;
+		OutResult.ChannelName[2] = VectorChannelNameValues[ParameterIndex].B;
+		OutResult.ChannelName[3] = VectorChannelNameValues[ParameterIndex].A;
+		OutResult.bUsedAsChannelMask = VectorUsedAsChannelMaskValues[ParameterIndex];
+#endif // WITH_EDITORONLY_DATA
+		break;
+	case EMaterialParameterType::Texture:
+		OutResult.Value = TextureValues[ParameterIndex];
+#if WITH_EDITORONLY_DATA
+		OutResult.ChannelName[0] = TextureChannelNameValues[ParameterIndex].R;
+		OutResult.ChannelName[1] = TextureChannelNameValues[ParameterIndex].G;
+		OutResult.ChannelName[2] = TextureChannelNameValues[ParameterIndex].B;
+		OutResult.ChannelName[3] = TextureChannelNameValues[ParameterIndex].A;
+#endif // WITH_EDITORONLY_DATA
+		break;
+	case EMaterialParameterType::RuntimeVirtualTexture:
+		OutResult.Value = RuntimeVirtualTextureValues[ParameterIndex];
+		break;
+	case EMaterialParameterType::Font:
+		OutResult.Value = FMaterialParameterValue(FontValues[ParameterIndex], FontPageValues[ParameterIndex]);
+		break;
+#if WITH_EDITORONLY_DATA
+	case EMaterialParameterType::StaticSwitch:
+		OutResult.Value = StaticSwitchValues[ParameterIndex];
+		break;
+	case EMaterialParameterType::StaticComponentMask:
+		OutResult.Value = StaticComponentMaskValues[ParameterIndex];
+		break;
+#endif // WITH_EDITORONLY_DATA
+	default:
+		checkNoEntry();
+		break;
+	}
+}
+
+bool FMaterialCachedParameters::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const
+{
+	const int32 Index = FindParameterIndex(Type, ParameterInfo);
+	if (Index != INDEX_NONE)
+	{
+		GetParameterValueByIndex(Type, Index, OutResult);
+		return true;
+	}
+
+	return false;
+}
+
+#if WITH_EDITORONLY_DATA
 const FGuid& FMaterialCachedParameters::GetExpressionGuid(EMaterialParameterType Type, int32 Index) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	return Entry.ExpressionGuids[Index];
 }
+#endif // WITH_EDITORONLY_DATA
 
-void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+void FMaterialCachedParameters::GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const int32 NumParameters = Entry.ParameterInfoSet.Num();
-	if (bEmptyOutput)
+	OutParameters.Reserve(OutParameters.Num() + NumParameters);
+
+	for (int32 ParameterIndex = 0; ParameterIndex < NumParameters; ++ParameterIndex)
 	{
-		OutParameterInfo.Empty(NumParameters);
-		OutParameterIds.Empty(NumParameters);
+		const FMaterialParameterInfo& ParameterInfo = Entry.ParameterInfoSet[FSetElementId::FromInteger(ParameterIndex)];
+		FMaterialParameterMetadata& Result = OutParameters.Emplace(ParameterInfo);
+		GetParameterValueByIndex(Type, ParameterIndex, Result);
 	}
+}
+
+void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+{
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
+	const int32 NumParameters = Entry.ParameterInfoSet.Num();
+	OutParameterInfo.Reserve(OutParameterInfo.Num() + NumParameters);
+	OutParameterIds.Reserve(OutParameterIds.Num() + NumParameters);
 
 	for (TSet<FMaterialParameterInfo>::TConstIterator It(Entry.ParameterInfoSet); It; ++It)
 	{
 		OutParameterInfo.Add(*It);
+#if WITH_EDITORONLY_DATA
 		OutParameterIds.Add(Entry.ExpressionGuids[It.GetId().AsInteger()]);
+#else
+		OutParameterIds.Add(FGuid());
+#endif
 	}
 }
 
-void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
+void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const int32 NumParameters = Entry.ParameterInfoSet.Num();
-	if (bEmptyOutput)
-	{
-		OutParameterInfo.Empty(NumParameters);
-		OutParameterIds.Empty(NumParameters);
-	}
+	OutParameterIds.Reserve(OutParameterInfo.Num() + NumParameters);
+	OutParameterIds.Reserve(OutParameterIds.Num() + NumParameters);
 
 	for (TSet<FMaterialParameterInfo>::TConstIterator It(Entry.ParameterInfoSet); It; ++It)
 	{
@@ -782,101 +874,13 @@ void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParamet
 		if (ParameterInfo.Association == GlobalParameter)
 		{
 			OutParameterInfo.Add(ParameterInfo);
+#if WITH_EDITORONLY_DATA
 			OutParameterIds.Add(Entry.ExpressionGuids[It.GetId().AsInteger()]);
+#else
+			OutParameterIds.Add(FGuid());
+#endif
 		}
 	}
-}
-
-bool FMaterialCachedParameters::GetScalarParameterSliderMinMax(const FMemoryImageMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const
-{
-#if WITH_EDITORONLY_DATA
-	if (ScalarMinMaxValues.Num() != 0)
-	{
-		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutSliderMin = ScalarMinMaxValues[ParameterIndex].X;
-			OutSliderMax = ScalarMinMaxValues[ParameterIndex].Y;
-			return true;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	return false;
-}
-
-bool FMaterialCachedParameters::IsScalarParameterUsedAsAtlasPosition(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const
-{
-#if WITH_EDITORONLY_DATA
-	if (ScalarCurveValues.Num() != 0)
-	{
-		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Scalar, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			UCurveLinearColor* Curve = ScalarCurveValues[ParameterIndex];
-			UCurveLinearColorAtlas* Atlas = ScalarCurveAtlasValues[ParameterIndex];
-			if (Curve && Atlas)
-			{
-				OutCurve = Curve;
-				OutAtlas = Atlas;
-				OutValue = true;
-			}
-			else
-			{
-				OutValue = false;
-			}
-			return true;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	return false;
-}
-
-bool FMaterialCachedParameters::IsVectorParameterUsedAsChannelMask(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue) const
-{
-#if WITH_EDITORONLY_DATA
-	if (VectorUsedAsChannelMaskValues.Num() != 0)
-	{
-		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = VectorUsedAsChannelMaskValues[ParameterIndex];
-			return true;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	return false;
-}
-
-bool FMaterialCachedParameters::GetVectorParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
-{
-#if WITH_EDITORONLY_DATA
-	if (VectorChannelNameValues.Num() != 0)
-	{
-		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Vector, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = VectorChannelNameValues[ParameterIndex];
-			return true;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	return false;
-}
-
-bool FMaterialCachedParameters::GetTextureParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const
-{
-#if WITH_EDITORONLY_DATA
-	if (TextureChannelNameValues.Num() != 0)
-	{
-		const int32 ParameterIndex = FindParameterIndex(EMaterialParameterType::Texture, ParameterInfo);
-		if (ParameterIndex != INDEX_NONE)
-		{
-			OutValue = TextureChannelNameValues[ParameterIndex];
-			return true;
-		}
-	}
-#endif // WITH_EDITORONLY_DATA
-	return false;
 }
 
 void FMaterialInstanceCachedData::Initialize(FMaterialCachedExpressionData&& InCachedExpressionData)

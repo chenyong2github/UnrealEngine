@@ -15,4 +15,6 @@ class UNREALED_API UDEditorMaterialLayersParameterValue : public UDEditorParamet
 
 	UPROPERTY(EditAnywhere, Category=DEditorMaterialLayersParameterValue)
 	struct FMaterialLayersFunctions ParameterValue;
+
+	virtual FName GetDefaultGroupName() const override { return TEXT("Material Layers Parameter Values"); }
 };

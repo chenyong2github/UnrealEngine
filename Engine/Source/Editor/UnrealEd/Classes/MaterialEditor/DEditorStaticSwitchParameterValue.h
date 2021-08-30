@@ -16,5 +16,23 @@ class UNREALED_API UDEditorStaticSwitchParameterValue : public UDEditorParameter
 	UPROPERTY(EditAnywhere, Category=DEditorStaticSwitchParameterValue)
 	uint32 ParameterValue:1;
 
+	virtual FName GetDefaultGroupName() const override { return TEXT("Static Switch Parameter Values"); }
+
+	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const override
+	{
+		UDEditorParameterValue::GetValue(OutResult);
+		OutResult.Value = (bool)ParameterValue;
+		return true;
+	}
+
+	virtual bool SetValue(const FMaterialParameterValue& Value) override
+	{
+		if (Value.Type == EMaterialParameterType::StaticSwitch)
+		{
+			ParameterValue = Value.AsStaticSwitch();
+			return true;
+		}
+		return false;
+	}
 };
 

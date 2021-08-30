@@ -519,6 +519,7 @@ class ENGINE_API UMaterialExpression : public UObject
 
 	virtual FName GetParameterName() const { return NAME_None; }
 	virtual void SetParameterName(const FName& Name) {}
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) { return false; }
 
 	/**
 	 * Called after a node copy, once the Material and Function properties are set correctly and that all new expressions are added to Material->Expressions

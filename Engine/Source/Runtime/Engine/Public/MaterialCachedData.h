@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialLayersFunctions.h"
 #include "Misc/Guid.h"
 #include "UObject/ObjectMacros.h"
@@ -72,35 +73,12 @@ struct FParameterChannelNames
 	FText A;
 };
 
-enum class EMaterialParameterType : int32
-{
-	Scalar,
-	Vector,
-	Texture,
-	Font,
-	RuntimeVirtualTexture,
-
-	RuntimeCount, // Runtime parameter types must go above here, and editor-only ones below
-
-#if WITH_EDITORONLY_DATA
-	StaticSwitch = RuntimeCount,
-	StaticComponentMask,
-	// Excluding StaticMaterialLayer due to type specific complications
-
-	Count,
-#else
-	Count = RuntimeCount,
-#endif
-};
-static const int32 NumMaterialRuntimeParameterTypes = (int32)EMaterialParameterType::RuntimeCount;
-#if WITH_EDITORONLY_DATA
-static const int32 NumMaterialEditorOnlyParameterTypes = (int32)EMaterialParameterType::Count - (int32)EMaterialParameterType::RuntimeCount;
-#endif
-
 USTRUCT()
 struct FMaterialCachedParameterEntry
 {
 	GENERATED_USTRUCT_BODY()
+
+	ENGINE_API static const FMaterialCachedParameterEntry EmptyData;
 
 	void Reset();
 
@@ -109,30 +87,11 @@ struct FMaterialCachedParameterEntry
 	UPROPERTY()
 	TSet<FMaterialParameterInfo> ParameterInfoSet;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FGuid> ExpressionGuids; // editor-only?
+	TArray<FGuid> ExpressionGuids;
+#endif // WITH_EDITORONLY_DATA
 
-};
-
-USTRUCT()
-struct FStaticComponentMaskValue
-{
-	GENERATED_USTRUCT_BODY();
-
-	FStaticComponentMaskValue() : R(false), G(false), B(false), A(false) {}
-	FStaticComponentMaskValue(bool InR, bool InG, bool InB, bool InA) : R(InR), G(InG), B(InB), A(InA) {}
-
-	UPROPERTY()
-	bool R = false;
-	
-	UPROPERTY()
-	bool G = false;
-
-	UPROPERTY()
-	bool B = false;
-
-	UPROPERTY()
-	bool A = false;
 };
 
 USTRUCT()
@@ -141,25 +100,25 @@ struct FMaterialCachedParameters
 	GENERATED_USTRUCT_BODY()
 
 #if WITH_EDITORONLY_DATA
-	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::RuntimeCount ? EditorOnlyEntries[static_cast<int32>(Type) - static_cast<int32>(EMaterialParameterType::RuntimeCount)] : RuntimeEntries[static_cast<int32>(Type)]; }
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::NumRuntime ? EditorOnlyEntries[static_cast<int32>(Type) - NumMaterialRuntimeParameterTypes] : RuntimeEntries[static_cast<int32>(Type)]; }
+	inline FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) { return Type >= EMaterialParameterType::NumRuntime ? EditorOnlyEntries[static_cast<int32>(Type) - NumMaterialRuntimeParameterTypes] : RuntimeEntries[static_cast<int32>(Type)]; }
 #else
-	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return RuntimeEntries[static_cast<int32>(Type)]; }
+	inline const FMaterialCachedParameterEntry& GetParameterTypeEntry(EMaterialParameterType Type) const { return Type >= EMaterialParameterType::NumRuntime ? FMaterialCachedParameterEntry::EmptyData : RuntimeEntries[static_cast<int32>(Type)]; }
 #endif
 
 	inline int32 GetNumParameters(EMaterialParameterType Type) const { return GetParameterTypeEntry(Type).ParameterInfoSet.Num(); }
 	int32 FindParameterIndex(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& HashedParameterInfo) const;
+	bool GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult) const;
+	void GetParameterValueByIndex(EMaterialParameterType Type, int32 ParameterIndex, FMaterialParameterMetadata& OutResult) const;
+#if WITH_EDITORONLY_DATA
 	const FGuid& GetExpressionGuid(EMaterialParameterType Type, int32 Index) const;
-	void GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
-	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
+#endif
+	void GetAllParametersOfType(EMaterialParameterType Type, TMap<FMaterialParameterInfo, FMaterialParameterMetadata>& OutParameters) const;
+	void GetAllParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
+	void GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const;
 	void Reset();
 
 	void AddReferencedObjects(FReferenceCollector& Collector);
-
-	bool GetScalarParameterSliderMinMax(const FMemoryImageMaterialParameterInfo& ParameterInfo, float& OutSliderMin, float& OutSliderMax) const;
-	bool IsScalarParameterUsedAsAtlasPosition(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue, TSoftObjectPtr<UCurveLinearColor>& OutCurve, TSoftObjectPtr<UCurveLinearColorAtlas>& OutAtlas) const;
-	bool IsVectorParameterUsedAsChannelMask(const FMemoryImageMaterialParameterInfo& ParameterInfo, bool& OutValue) const;
-	bool GetVectorParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
-	bool GetTextureParameterChannelNames(const FMemoryImageMaterialParameterInfo& ParameterInfo, FParameterChannelNames& OutValue) const;
 
 	UPROPERTY()
 	FMaterialCachedParameterEntry RuntimeEntries[NumMaterialRuntimeParameterTypes];

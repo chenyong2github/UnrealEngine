@@ -51,6 +51,14 @@ class UMaterialExpressionRuntimeVirtualTextureSampleParameter : public UMaterial
 	virtual void GetCaption(TArray<FString>& OutCaptions) const override;
 	virtual bool MatchesSearchQuery(const TCHAR* SearchQuery) override;
 	virtual void SetValueToMatchingExpression(UMaterialExpression* OtherExpression) override;
+	virtual bool SetParameterValue(const FName& Name, const FMaterialParameterMetadata& Meta) override
+	{
+		if (Meta.Value.Type == EMaterialParameterType::RuntimeVirtualTexture)
+		{
+			return SetParameterValue(Name, Meta.Value.RuntimeVirtualTexture);
+		}
+		return Super::SetParameterValue(Name, Meta);
+	}
 #endif
 	virtual FGuid& GetParameterExpressionId() override { return ExpressionGUID; }
 	//~ End UMaterialExpression Interface

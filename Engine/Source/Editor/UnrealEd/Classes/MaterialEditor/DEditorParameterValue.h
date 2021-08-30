@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Misc/Guid.h"
+#include "MaterialTypes.h"
 #include "Materials/MaterialExpressionParameter.h"
 
 #include "DEditorParameterValue.generated.h"
@@ -14,6 +15,11 @@ UCLASS(hidecategories=Object, collapsecategories, editinlinenew)
 class UNREALED_API UDEditorParameterValue : public UObject
 {
 	GENERATED_UCLASS_BODY()
+
+	static UDEditorParameterValue* Create(UObject* Owner,
+		EMaterialParameterType Type,
+		const FMaterialParameterInfo& ParameterInfo,
+		const FMaterialParameterMetadata& Meta);
 
 	UPROPERTY(EditAnywhere, Category=DEditorParameterValue)
 	uint32 bOverride:1;
@@ -29,5 +35,25 @@ class UNREALED_API UDEditorParameterValue : public UObject
 	UPROPERTY()
 	int32 SortPriority = 32;
 #endif
+
+	virtual FName GetDefaultGroupName() const { return TEXT("None"); }
+	virtual bool SetValue(const FMaterialParameterValue& Value) { return false; }
+
+	virtual bool GetValue(FMaterialParameterMetadata& OutResult) const
+	{
+		OutResult.ExpressionGuid = ExpressionId;
+		OutResult.bOverride = bOverride;
+		return false;
+	}
+
+	EMaterialParameterType GetParameterType() const
+	{
+		FMaterialParameterMetadata Result;
+		if (GetValue(Result))
+		{
+			return Result.Value.Type;
+		}
+		return EMaterialParameterType::None;
+	}
 };
 
