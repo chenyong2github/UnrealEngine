@@ -1085,7 +1085,8 @@ public:
 	{
 		for (const TPair<FName, FByteBulkData*>& Format : Formats)
 		{
-			delete Format.Value;
+			FByteBulkData* BulkData = Format.Value;
+			delete BulkData;
 		}
 		Formats.Empty();
 	}
