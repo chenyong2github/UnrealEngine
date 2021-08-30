@@ -365,7 +365,7 @@ public:
 	 */
 	virtual bool IsVisible()
 	{
-		return !GizmoActor->IsHidden();
+		return GizmoActor && !GizmoActor->IsHidden();
 	}
 
 	/**
