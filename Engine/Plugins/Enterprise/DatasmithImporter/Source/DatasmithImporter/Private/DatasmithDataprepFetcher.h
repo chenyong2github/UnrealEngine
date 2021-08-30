@@ -8,7 +8,7 @@
 
 #include "DatasmithDataprepFetcher.generated.h"
 
-UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Metadata Value", ToolTip="Collect the value for a key from the datasmith user metadata."))
+UCLASS(BlueprintType, NotBlueprintable, Meta = (DisplayName="Metadata Value", ToolTip="Filter objects based on the key value of their metadata."))
 class UDatasmithStringMetadataValueFetcher final : public UDataprepStringFetcher
 {
 	GENERATED_BODY()
