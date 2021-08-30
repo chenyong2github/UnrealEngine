@@ -28,7 +28,9 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 	virtual void Execute(const FRigUnitContext& Context) {}
 
 	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
-
+	
+	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const { return FTransform::Identity; }
+	
 	/** The name of the method used within each rig unit */
 	FORCEINLINE_DEBUGGABLE static FName GetMethodName()
 	{
