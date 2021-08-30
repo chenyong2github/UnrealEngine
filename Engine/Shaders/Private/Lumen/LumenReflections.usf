@@ -219,8 +219,7 @@ void ReflectionResolveCS(
 
 	if (SceneDepth < 1000000.0f)
 	{
-		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
 
 		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
 
@@ -536,7 +535,7 @@ void ReflectionTemporalReprojectionCS(
 		float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
 
 		{
-			FGBufferData GBufferData = GetGBufferData(ScreenUV);
+			FGBufferData GBufferData = GetGBufferDataUint(ReflectionScreenCoord);
 			float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 			float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 			float3 V = normalize(-TranslatedWorldPosition);
@@ -598,8 +597,7 @@ void ReflectionBilateralFilterCS(
 
 	if (SceneDepth < 1000000.0f)
 	{
-		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+		FGBufferData GBufferData = GetGBufferDataUint(ScreenCoord);
 
 		float TopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(GBufferData));
 
@@ -634,7 +632,7 @@ void ReflectionBilateralFilterCS(
 					if (all(NeighborScreenCoord >= int2(0, 0) && NeighborScreenCoord < (int2)View.ViewSizeAndInvSize.xy))
 					{
 						float2 NeighborScreenUV = (NeighborScreenCoord + 0.5f) * View.BufferSizeAndInvSize.zw;
-						FGBufferData NeighborGBufferData = GetScreenSpaceData(NeighborScreenUV).GBuffer;
+						FGBufferData NeighborGBufferData = GetGBufferDataUint(NeighborScreenCoord);
 						float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborGBufferData.Depth);
 						float NeighborTopLayerRoughness = ApplySmoothBias(GetClearCoatRoughness(NeighborGBufferData));
 

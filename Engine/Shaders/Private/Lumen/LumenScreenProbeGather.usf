@@ -15,9 +15,14 @@
 #include "../ClearCoatCommon.ush"
 #include "LumenRadianceCacheMarkCommon.ush"
 #include "../TextureSampling.ush"
+#include "../MortonCode.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
+#endif
+
+#ifndef INTEGRATE_TILE_CLASSIFICATION_MODE
+#define INTEGRATE_TILE_CLASSIFICATION_MODE 0
 #endif
 
 RWTexture2D<float> RWOctahedralSolidAngleTexture;
@@ -115,7 +120,7 @@ float GetScreenProbeDepthFromUAV(uint2 ScreenProbeAtlasCoord)
 }
 
 void CalculateUniformUpsampleInterpolationWeights(
-	uint2 SVPosition, 
+	float2 ScreenCoord, 
 	float2 NoiseOffset, 
 	float3 WorldPosition, 
 	float SceneDepth, 
@@ -124,7 +129,7 @@ void CalculateUniformUpsampleInterpolationWeights(
 	out uint2 ScreenTileCoord00, 
 	out float4 InterpolationWeights)
 {
-	uint2 ScreenProbeFullResScreenCoord = clamp(SVPosition.xy - View.ViewRectMin.xy - (int2)GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + NoiseOffset, 0, (int2)View.ViewSizeAndInvSize.xy - 1);
+	uint2 ScreenProbeFullResScreenCoord = clamp(ScreenCoord.xy - View.ViewRectMin.xy - GetScreenTileJitter(SCREEN_TEMPORAL_INDEX) + NoiseOffset, 0.0f, View.ViewSizeAndInvSize.xy - 1.0f);
 	ScreenTileCoord00 = min(ScreenProbeFullResScreenCoord / ScreenProbeDownsampleFactor, (uint2)ScreenProbeViewSize - 2);
 
 	uint BilinearExpand = 1;
@@ -177,10 +182,10 @@ void CalculateUniformUpsampleInterpolationWeights(
 
 RWTexture2D<uint> RWScreenTileAdaptiveProbeHeader;
 RWTexture2D<uint> RWScreenTileAdaptiveProbeIndices;
-RWBuffer<uint> RWAdaptiveScreenProbeData;
+RWStructuredBuffer<uint> RWAdaptiveScreenProbeData;
 
 void CalculateUpsampleInterpolationWeights(
-	uint2 SVPosition,
+	float2 ScreenCoord,
 	float2 NoiseOffset,
 	float3 WorldPosition,
 	float SceneDepth,
@@ -190,7 +195,7 @@ void CalculateUpsampleInterpolationWeights(
 	out float4 InterpolationWeights)
 {
 	uint2 ScreenTileCoord00;
-	CalculateUniformUpsampleInterpolationWeights(SVPosition, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, bIsUpsamplePass, ScreenTileCoord00, InterpolationWeights);
+	CalculateUniformUpsampleInterpolationWeights(ScreenCoord, NoiseOffset, WorldPosition, SceneDepth, WorldNormal, bIsUpsamplePass, ScreenTileCoord00, InterpolationWeights);
 
 	ScreenProbeAtlasCoordArray[0] = ScreenTileCoord00;
 	ScreenProbeAtlasCoordArray[1] = ScreenTileCoord00 + uint2(1, 0);
@@ -238,7 +243,7 @@ void CalculateUpsampleInterpolationWeights(
 						NewDepthWeight = ProbeDepth > 0 ? exp2(-100.0f * (RelativeDepthDifference * RelativeDepthDifference)) : 0;
 					}
 
-					float2 DistanceToScreenProbe = abs(ScreenProbeScreenPosition - SVPosition);
+					float2 DistanceToScreenProbe = abs(ScreenProbeScreenPosition - ScreenCoord);
 					float NewCornerWeight = 1.0f - saturate(min(DistanceToScreenProbe.x, DistanceToScreenProbe.y) / (float)ScreenProbeDownsampleFactor);
 					float NewInterpolationWeight = NewDepthWeight * NewCornerWeight;
 
@@ -253,7 +258,7 @@ void CalculateUpsampleInterpolationWeights(
 	}
 }
 
-RWBuffer<uint> RWNumAdaptiveScreenProbes;
+RWStructuredBuffer<uint> RWNumAdaptiveScreenProbes;
 
 groupshared uint SharedNumProbesToAllocate;
 groupshared uint SharedAdaptiveProbeBaseIndex;
@@ -514,20 +519,219 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 	#endif // HAIRSTRANDS_MARK_USED_METHOD
 }
 
-Buffer<float3> ScreenProbeRadianceSHAmbient;
-Buffer<float4> ScreenProbeRadianceSHDirectional;
+#define INTEGRATE_TILE_SIZE 8
+
+#define TILE_CLASSIFICATION_SIMPLE_DIFFUSE 0
+#define TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF 1
+// SampleBxDF bloats VGPR requirements due to Hair shading
+#define TILE_CLASSIFICATION_SUPPORT_ALL 2
+#define TILE_CLASSIFICATION_NUM 3
+
+RWStructuredBuffer<uint> RWIntegrateIndirectArgs;
+RWTexture2D<float4> RWDiffuseIndirect;
+RWTexture2D<float3> RWRoughSpecularIndirect;
+RWTexture2D<uint> RWTileClassificationModes;
+
+uint DefaultDiffuseIntegrationMethod;
+
+groupshared uint SharedTileClassification[TILE_CLASSIFICATION_NUM];
+
+
+float GetDiffuseLerp(float Roughness)
+{
+	return saturate((Roughness - .5f) / .3f);
+}
+
+// Note: must match SampleBxDFWrapper
+bool RequiresBxDFImportanceSampling(uint ShadingModelID)
+{
+	switch (ShadingModelID)
+	{
+	case SHADINGMODELID_HAIR:
+		return true;
+	default:
+		return false;
+	}
+}
+
+// Highest quality and fastest for diffuse
+#define DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC 0
+// Noisy and slow, but handles any shading model and GBuffer bent normal AO
+#define DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF 1
+// Slow reference
+#define DIFFUSE_INTEGRATION_NUMERICAL_INTEGRAL 2
+
+uint GetDiffuseIntegrationMethod(FGBufferData GBufferData)
+{
+	uint DiffuseIntegrationMethod = DefaultDiffuseIntegrationMethod;
+
+	if (RequiresBxDFImportanceSampling(GBufferData.ShadingModelID))
+	{
+		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
+	}
+
+#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
+	if (GBufferData.DiffuseIndirectSampleOcclusion != 0)
+	{
+		DiffuseIntegrationMethod = DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF;
+	}
+#endif
+
+	return DiffuseIntegrationMethod;
+}
+
+[numthreads(INTEGRATE_TILE_SIZE, INTEGRATE_TILE_SIZE, 1)] 
+void ScreenProbeTileClassificationMarkCS(
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	if (DispatchThreadId.x < TILE_CLASSIFICATION_NUM * 3)
+	{
+		RWIntegrateIndirectArgs[DispatchThreadId.x] = (DispatchThreadId.x % 3 == 0) ? 0 : 1;
+	}
+
+	if (GroupThreadId.x < TILE_CLASSIFICATION_NUM)
+	{
+		SharedTileClassification[GroupThreadId.x] = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (all(DispatchThreadId < (uint2)View.ViewSizeAndInvSize.xy))
+	{
+		FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
+
+		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		{
+			uint TileClassification = TILE_CLASSIFICATION_SIMPLE_DIFFUSE;
+
+			if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
+			{
+				TileClassification = TILE_CLASSIFICATION_SUPPORT_ALL;
+			}
+			else 
+			{
+				uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(GBufferData);
+
+				if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
+				{
+					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
+				}
+
+				float DiffuseLerp = GetDiffuseLerp(GBufferData.Roughness);
+
+				if (DiffuseLerp < 1.0f || GBufferData.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+				{
+					TileClassification = TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF;
+				}
+			}
+
+			SharedTileClassification[TileClassification] = 1;
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint MaxTileClassification = 0xFFFF;
+
+	UNROLL
+	for (uint i = 0; i < TILE_CLASSIFICATION_NUM; i++)
+	{
+		if (SharedTileClassification[i] > 0)
+		{
+			MaxTileClassification = i;
+		}
+	}
+
+	if (all(GroupThreadId == 0))
+	{
+		RWTileClassificationModes[GroupId] = MaxTileClassification;
+	}
+
+	// Clear tiles that the integration shader won't run on
+	if (MaxTileClassification == 0xFFFF && all(DispatchThreadId < (uint2)View.ViewSizeAndInvSize.xy))
+	{
+		RWDiffuseIndirect[DispatchThreadId.xy] = 0;
+		RWRoughSpecularIndirect[DispatchThreadId.xy] = 0;
+	}
+}
+
+RWStructuredBuffer<uint> RWIntegrateTileData;
+Texture2D<uint> TileClassificationModes;
+
+uint2 ViewportTileDimensions;
+
+groupshared uint SharedNumTiles[TILE_CLASSIFICATION_NUM];
+groupshared uint SharedIntegrateTileData[TILE_CLASSIFICATION_NUM * THREADGROUP_SIZE];
+groupshared uint SharedGlobalTileOffset[TILE_CLASSIFICATION_NUM];
+
+[numthreads(THREADGROUP_SIZE, 1, 1)] 
+void ScreenProbeTileClassificationBuildListsCS(
+	uint2 GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	//@todo - parallel version
+	if (GroupThreadId == 0)
+	{
+		UNROLL
+		for (uint i = 0; i < TILE_CLASSIFICATION_NUM; i++)
+		{
+			SharedNumTiles[i] = 0;
+		}
+
+		for (uint x = 0; x < THREADGROUP_SIZE; x++)
+		{
+			uint2 ThreadOffset = ZOrder2D(x, log2(8));
+			uint2 TileCoordinate = GroupId * 8 + ThreadOffset;
+
+			if (all(TileCoordinate < ViewportTileDimensions))
+			{
+				uint Mode = TileClassificationModes[TileCoordinate];
+
+				if (Mode != 0xFFFF)
+				{
+					uint TileOffset = SharedNumTiles[Mode];
+					uint PackedTileData = TileCoordinate.x | (TileCoordinate.y << 16);
+					SharedIntegrateTileData[Mode * THREADGROUP_SIZE + TileOffset] = PackedTileData;
+					SharedNumTiles[Mode] = TileOffset + 1;
+				}
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (GroupThreadId < TILE_CLASSIFICATION_NUM)
+	{
+		uint Mode = GroupThreadId;
+		InterlockedAdd(RWIntegrateIndirectArgs[Mode * 3], SharedNumTiles[Mode], SharedGlobalTileOffset[Mode]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (uint ModeIndex = 0; ModeIndex < TILE_CLASSIFICATION_NUM; ModeIndex++)
+	{
+		if (GroupThreadId < SharedNumTiles[ModeIndex])
+		{
+			RWIntegrateTileData[ModeIndex * ViewportTileDimensions.x * ViewportTileDimensions.y + SharedGlobalTileOffset[ModeIndex] + GroupThreadId] = SharedIntegrateTileData[ModeIndex * THREADGROUP_SIZE + GroupThreadId];
+		}
+	}
+}
+
+Texture2D<float3> ScreenProbeRadianceSHAmbient;
+Texture2D<float4> ScreenProbeRadianceSHDirectional;
 
 FThreeBandSHVectorRGB GetScreenProbeSH(uint2 ScreenProbeAtlasCoord, float InterpolationWeight)
 {
-	uint AmbientReadIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
-	float3 AmbientVector = ScreenProbeRadianceSHAmbient.Load(AmbientReadIndex).xyz;
+	float3 AmbientVector = ScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord].xyz;
 
-	float4 SHCoefficients0Red = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 0) * 2 + 0);
-	float4 SHCoefficients1Red = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 0) * 2 + 1);
-	float4 SHCoefficients0Green = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 1) * 2 + 0);
-	float4 SHCoefficients1Green = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 1) * 2 + 1);
-	float4 SHCoefficients0Blue = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 2) * 2 + 0);
-	float4 SHCoefficients1Blue = ScreenProbeRadianceSHDirectional.Load((AmbientReadIndex * 3 + 2) * 2 + 1);
+	float4 SHCoefficients0Red = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 0 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
+	float4 SHCoefficients1Red = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 1 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
+	float4 SHCoefficients0Green = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 2 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
+	float4 SHCoefficients1Green = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 3 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
+	float4 SHCoefficients0Blue = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 4 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
+	float4 SHCoefficients1Blue = ScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + 5 * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)];
 
 #if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
 	float4 SHDenormalizationScales0 = float4(
@@ -579,23 +783,30 @@ Texture2D<float3> ScreenProbeRadiance;
 
 float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 ScreenProbeAtlasCoord[4], float4 InterpolationWeights)
 {
-	float BorderSize = 1u << (uint)ScreenProbeGatherMaxMip;
-	float2 ProbeCoord = (UnitVectorToOctahedron(ConeDirection) * 0.5 + 0.5) * ScreenProbeGatherOctahedronResolution;
-					
-	float2 InvBufferSize = 1.0f / (float2)(ScreenProbeGatherOctahedronResolutionWithBorder * ScreenProbeAtlasBufferSize);
-	float2 UVMul = ScreenProbeGatherOctahedronResolutionWithBorder * InvBufferSize;
-	float2 UVAdd = (ProbeCoord + BorderSize) * InvBufferSize;
+	float2 ProbeUV = UnitVectorToOctahedron(ConeDirection) * 0.5 + 0.5;
 
-	float2 UV0 = ScreenProbeAtlasCoord[0] * UVMul + UVAdd;
+#define COMBINED_FACTORS 1
+#if COMBINED_FACTORS
+	float2 AtlasUVMul = SampleRadianceAtlasUVMul;
+	float2 AtlasUVAdd = ProbeUV * SampleRadianceProbeUVMul + SampleRadianceProbeUVAdd;
+#else
+	float BorderSize = exp2(ScreenProbeGatherMaxMip);
+	float2 ProbeCoord = ProbeUV * ScreenProbeGatherOctahedronResolution;		
+	float2 InvBufferSize = 1.0f / (float2)(ScreenProbeGatherOctahedronResolutionWithBorder * ScreenProbeAtlasBufferSize);
+	float2 AtlasUVMul = ScreenProbeGatherOctahedronResolutionWithBorder * InvBufferSize;
+	float2 AtlasUVAdd = (ProbeCoord + BorderSize) * InvBufferSize;
+#endif
+
+	float2 UV0 = ScreenProbeAtlasCoord[0] * AtlasUVMul + AtlasUVAdd;
 	float3 InterpolatedRadiance = InterpolationWeights.x > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV0, MipLevel).xyz * InterpolationWeights.x : 0;
 
-	float2 UV1 = ScreenProbeAtlasCoord[1] * UVMul + UVAdd;
+	float2 UV1 = ScreenProbeAtlasCoord[1] * AtlasUVMul + AtlasUVAdd;
 	InterpolatedRadiance += InterpolationWeights.y > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV1, MipLevel).xyz * InterpolationWeights.y : 0;
 
-	float2 UV2 = ScreenProbeAtlasCoord[2] * UVMul + UVAdd;
+	float2 UV2 = ScreenProbeAtlasCoord[2] * AtlasUVMul + AtlasUVAdd;
 	InterpolatedRadiance += InterpolationWeights.z > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV2, MipLevel).xyz * InterpolationWeights.z : 0;
 
-	float2 UV3 = ScreenProbeAtlasCoord[3] * UVMul + UVAdd;
+	float2 UV3 = ScreenProbeAtlasCoord[3] * AtlasUVMul + AtlasUVAdd;
 	InterpolatedRadiance += InterpolationWeights.w > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV3, MipLevel).xyz * InterpolationWeights.w : 0;
 	return InterpolatedRadiance;
 }
@@ -636,19 +847,13 @@ float FullResolutionJitterWidth;
 uint UseScreenBentNormal;
 Texture2D<float3> ScreenBentNormal;
 
-#ifndef DIFFUSE_INTEGRAL_METHOD
-#define DIFFUSE_INTEGRAL_METHOD 0
-#endif
-
-bool RequiresBxDFImportanceSampling(uint ShadingModelID)
+FBxDFSample SampleBxDFWrapper(const uint TermMask, FGBufferData GBuffer, float3 V, float4 E)
 {
-	switch (ShadingModelID)
-	{
-	case SHADINGMODELID_HAIR:
-		return true;
-	default:
-		return false;
-	}
+#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_SIMPLE_DIFFUSE || INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_SUPPORT_IMPORTANCE_SAMPLE_BRDF
+	return SampleDefaultLitBxDF(TermMask, GBuffer, V, E);
+#else
+	return SampleBxDF(TermMask, GBuffer, V, E);
+#endif
 }
 
 float IrradianceBounce0Rescale(float AO)
@@ -699,24 +904,33 @@ float3 InverseTonemapLighting(float3 TonemappedLighting)
 #endif
 }
 
-RWTexture2D<float4> RWDiffuseIndirect;
-RWTexture2D<float3> RWRoughSpecularIndirect;
+#define TILE_CLASSIFICATION_DISABLED TILE_CLASSIFICATION_NUM
+
 float MaxRoughnessToTrace;
 float RoughnessFadeLength;
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ScreenProbeIndirectCS(
-	uint2 DispatchThreadId : SV_DispatchThreadID)
+StructuredBuffer<uint> IntegrateTileData;
+
+[numthreads(INTEGRATE_TILE_SIZE, INTEGRATE_TILE_SIZE, 1)]  
+void ScreenProbeIntegrateCS(
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID)
 {
-	float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
-	float SceneDepth = CalcSceneDepth(ScreenUV);
+#if INTEGRATE_TILE_CLASSIFICATION_MODE < TILE_CLASSIFICATION_DISABLED
+	uint PackedTileData = IntegrateTileData[INTEGRATE_TILE_CLASSIFICATION_MODE * ViewportTileDimensions.x * ViewportTileDimensions.y + GroupId];
+	uint2 TileCoord = uint2(PackedTileData & 0xFFFF, PackedTileData >> 16);
+	DispatchThreadId = TileCoord * INTEGRATE_TILE_SIZE + GroupThreadId;
+#endif
+
+	float SceneDepth = CalcSceneDepth(DispatchThreadId);
 
 	{
-		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
-		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+		FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
 		
 		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
 		{
+			float2 ScreenUV = (DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
 			float2 NoiseOffset = 0.0f;
@@ -780,23 +994,9 @@ void ScreenProbeIndirectCS(
 			}
 			#endif
 
-// Highest quality and fastest for diffuse
-#define SPHERICAL_HARMONIC 0
-// Noisy and slow, but handles any shading model and GBuffer bent normal AO
-#define IMPORTANCE_SAMPLE_BRDF 1
-// Slow reference
-#define NUMERICAL_INTEGRAL 2
+			uint DiffuseIntegrationMethod = GetDiffuseIntegrationMethod(GBufferData);
 
-			uint DiffuseIntegrationMethod = RequiresBxDFImportanceSampling(GBufferData.ShadingModelID) ? IMPORTANCE_SAMPLE_BRDF : DIFFUSE_INTEGRAL_METHOD;
-			
-			#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
-			if (GBufferData.DiffuseIndirectSampleOcclusion != 0)
-			{
-				DiffuseIntegrationMethod = IMPORTANCE_SAMPLE_BRDF;
-			}
-			#endif
-
-			if (DiffuseIntegrationMethod == SPHERICAL_HARMONIC)
+			if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_SPHERICAL_HARMONIC)
 			{
 				FThreeBandSHVectorRGB LightingSH = GetScreenProbeSH(ScreenProbeAtlasCoord[0], InterpolationWeights.x);
 				LightingSH = AddSH(LightingSH, GetScreenProbeSH(ScreenProbeAtlasCoord[1], InterpolationWeights.y));
@@ -814,7 +1014,8 @@ void ScreenProbeIndirectCS(
 				
 				DiffuseLighting += 4 * PI * SHDiffuseLighting;
 			}
-			else if (DiffuseIntegrationMethod == IMPORTANCE_SAMPLE_BRDF)
+#if INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
+			else if (DiffuseIntegrationMethod == DIFFUSE_INTEGRATION_IMPORTANCE_SAMPLE_BRDF)
 			{
 				// This could be configurable if not for GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
 				uint NumPixelSamples = INDIRECT_SAMPLE_COUNT;
@@ -827,7 +1028,7 @@ void ScreenProbeIndirectCS(
 				for (uint PixelRayIndex = 0; PixelRayIndex < NumPixelSamples; PixelRayIndex += 1)
 				{
 					float4 E = ComputeIndirectLightingSampleE(DispatchThreadId.xy, PixelRayIndex, NumPixelSamples);
-					FBxDFSample BxDFSample = SampleBxDF(TermMask, GBufferData, V, E);
+					FBxDFSample BxDFSample = SampleBxDFWrapper(TermMask, GBufferData, V, E);
 
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, DiffuseMipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
 
@@ -855,7 +1056,8 @@ void ScreenProbeIndirectCS(
 				}
 				#endif
 			}
-#if DIFFUSE_INTEGRAL_METHOD == NUMERICAL_INTEGRAL
+#endif
+#if INTEGRATE_TILE_CLASSIFICATION_MODE == TILE_CLASSIFICATION_DISABLED
 			else
 			{
 				float TotalWeight = 0;
@@ -960,15 +1162,24 @@ void ScreenProbeIndirectCS(
 				}
 			#endif
 
+			#define DEBUG_VISUALIZE_TILE_CLASSIFICATION 0
+			#if DEBUG_VISUALIZE_TILE_CLASSIFICATION
+				float3 FastModeColor = float3(0, 1, 0);
+				float3 SlowModeColor = float3(1, 0, 0);
+				float3 TileClassificationColoring = lerp(FastModeColor, SlowModeColor, INTEGRATE_TILE_CLASSIFICATION_MODE / (float)(TILE_CLASSIFICATION_NUM - 1));
+				DiffuseIndirectOutput = TileClassificationColoring;
+			#endif
+
 			// FDiffuseIndirectCompositePS applies DiffuseColor
 			RWDiffuseIndirect[DispatchThreadId.xy] = float4(DiffuseIndirectOutput, EncodedAlpha);
 
 			float3 SpecularLighting = 0;
 
-#define COMPUTE_ROUGH_SPECULAR 1
-#if COMPUTE_ROUGH_SPECULAR
+			float DiffuseLerp = GetDiffuseLerp(GBufferData.Roughness);
 
-			float DiffuseLerp = saturate((GBufferData.Roughness - .5f) / .3f);
+#define DEBUG_COMPUTE_ROUGH_SPECULAR 1
+#if DEBUG_COMPUTE_ROUGH_SPECULAR && INTEGRATE_TILE_CLASSIFICATION_MODE != TILE_CLASSIFICATION_SIMPLE_DIFFUSE
+
 			uint NumSpecularSamples = 4;
 
 			// Prevent NaNs from ImportanceSampleVisibleGGX
@@ -997,7 +1208,7 @@ void ScreenProbeIndirectCS(
 				
 					E = BiasBSDFImportantSample(E);
 
-					FBxDFSample BxDFSample = SampleBxDF(SHADING_TERM_SPECULAR, GBufferData, V, E);
+					FBxDFSample BxDFSample = SampleBxDFWrapper(SHADING_TERM_SPECULAR, GBufferData, V, E);
 					float3 InterpolatedRadiance = InterpolateFromScreenProbes(BxDFSample.L, MipLevel, ScreenProbeAtlasCoord, InterpolationWeights);
 
 					float DirectionVisibility = 1.0f;
@@ -1013,9 +1224,14 @@ void ScreenProbeIndirectCS(
 				SpecularLighting = InverseTonemapLighting(SpecularLighting / (float)NumSpecularSamples);
 			}
 
+#endif
 			//@todo - replace with SH fit of GGX
 			SpecularLighting = lerp(SpecularLighting, DiffuseLighting / PI, DiffuseLerp);
-#endif
+
+			#if DEBUG_VISUALIZE_TILE_CLASSIFICATION
+				SpecularLighting = TileClassificationColoring;
+			#endif
+
 			RWRoughSpecularIndirect[DispatchThreadId.xy] = SpecularLighting;
 		}
 		else
@@ -1025,6 +1241,10 @@ void ScreenProbeIndirectCS(
 		}
 	}
 }
+
+RWTexture2D<float3> RWNewHistoryDiffuseIndirect;
+RWTexture2D<float3> RWNewHistoryRoughSpecularIndirect;
+RWTexture2D<float> RWNewHistoryConvergence;
 
 Texture2D DiffuseIndirect;
 Texture2D RoughSpecularIndirect;
@@ -1046,8 +1266,8 @@ Texture2D VelocityTexture;
 SamplerState VelocityTextureSampler;
 
 float PrevInvPreExposure;
-float InvFractionOfLightingMovingForFullNeighborhoodClamp;
-float MaxNeighborhoodClampAmount;
+float InvFractionOfLightingMovingForFastUpdateMode;
+float MaxFastUpdateModeAmount;
 
 static const int2 kOffsets3x3[8] =
 {
@@ -1060,34 +1280,6 @@ static const int2 kOffsets3x3[8] =
 	int2( 0,  1),
 	int2( 1,  1),
 };
-
-float3 ClampHistory(
-	Texture2D LightingTexture,
-	uint2 ScreenCoord, 
-	uint2 MinScreenCoord, 
-	uint2 MaxScreenCoord,
-	float3 NewLighting,
-	float3 HistoryLighting)
-{
-	float3 NeighborMin = NewLighting;
-	float3 NeighborMax = NewLighting;
-
-	UNROLL
-	for (uint NeighborId = 0; NeighborId < 8; NeighborId++)
-	{
-		int2 SampleOffset = kOffsets3x3[NeighborId];
-
-		uint2 NeighborScreenCoord = ScreenCoord + SampleOffset;
-		NeighborScreenCoord = clamp(NeighborScreenCoord, MinScreenCoord, MaxScreenCoord);
-
-		float3 Lighting = LightingTexture[NeighborScreenCoord].xyz;
-		NeighborMin = min(NeighborMin, Lighting.xyz);
-		NeighborMax = max(NeighborMax, Lighting.xyz);
-	}
-
-	HistoryLighting = clamp(HistoryLighting, NeighborMin, NeighborMax);
-	return HistoryLighting;
-}
 
 float3 GetFilteredNeighborhoodLighting(
 	Texture2D LightingTexture,
@@ -1120,16 +1312,14 @@ float3 GetFilteredNeighborhoodLighting(
 	return FilteredLighting /= max(TotalWeight, 1.0f);
 }
 
-void ScreenProbeTemporalReprojectionDepthRejectionPS(
-	float4 SVPosition : SV_POSITION,
-	out float4 OutDiffuseIndirect : SV_Target0,
-	out float4 OutRoughSpecularIndirect : SV_Target1,
-	out float4 OutConvergence : SV_Target2)
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenProbeTemporalReprojectionDepthRejectionCS( 
+	uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float2 ScreenUV = SVPosition.xy * View.BufferSizeAndInvSize.zw;
+	float2 ScreenUV = (DispatchThreadId + 0.5f) * View.BufferSizeAndInvSize.zw;
 	float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
 
-	float DeviceZ = Texture2DSampleLevel(SceneDepthTexture, GlobalPointClampedSampler, ScreenUV, 0).r;
+	float DeviceZ = SceneDepthTexture[DispatchThreadId].x;
 	float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 	float3 HistoryScreenPosition = GetHistoryScreenPosition(ScreenPosition, ScreenUV, DeviceZ);
 
@@ -1137,7 +1327,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	bool bHistoryWasOffscreen = any(HistoryScreenUV > HistoryUVMinMax.zw) || any(HistoryScreenUV < HistoryUVMinMax.xy);
 	HistoryScreenUV = clamp(HistoryScreenUV, HistoryUVMinMax.xy, HistoryUVMinMax.zw);
 
-	float4 NewDiffuseLighting = Texture2DSampleLevel(DiffuseIndirect, GlobalPointClampedSampler, ScreenUV, 0);
+	float4 NewDiffuseLighting = DiffuseIndirect[DispatchThreadId];
 	float3 HistoryDiffuseIndirect = Texture2DSampleLevel(DiffuseIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 	bool bLightingIsValid = NewDiffuseLighting.w > 0.0f;
 	float LightingIsMoving = abs(NewDiffuseLighting.w);
@@ -1146,7 +1336,7 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 	{
 		uint2 MinScreenCoord = uint2(0, 0);
 		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
-		NewDiffuseLighting.xyz = GetFilteredNeighborhoodLighting(DiffuseIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, bLightingIsValid);
+		NewDiffuseLighting.xyz = GetFilteredNeighborhoodLighting(DiffuseIndirect, DispatchThreadId, MinScreenCoord, MaxScreenCoord, bLightingIsValid);
 	}
 
 	float EffectiveConvergenceWeight = HistoryConvergenceWeight;
@@ -1168,11 +1358,11 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 		// Lookup the actual depth at the same screen position last frame
 		float HistoryDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x);
 
-		float Noise = InterleavedGradientNoise(SVPosition.xy, View.StateFrameIndexMod8);
+		float Noise = InterleavedGradientNoise(DispatchThreadId.xy, View.StateFrameIndexMod8);
 		float RelativeHistoryDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise) / 1000.0f;
 
 		{
-			FGBufferData GBufferData = GetGBufferDataFromSceneTextures(ScreenUV);
+			FGBufferData GBufferData = GetGBufferDataUint(DispatchThreadId);
 			float3 TranslatedWorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToTranslatedWorld).xyz;
 			float3 V = normalize(-TranslatedWorldPosition);
 			// Raise the threshold at grazing angles to compensate for TAA jitter causing a depth mismatch dependent on the angle
@@ -1191,28 +1381,17 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 
 	float UpdatedConvergence = lerp(NewConvergence, ConvergenceHistory, EffectiveConvergenceWeight);
 
-	float3 NewRoughSpecularLighting = Texture2DSampleLevel(RoughSpecularIndirect, GlobalBilinearClampedSampler, ScreenUV, 0).xyz;
+	float3 NewRoughSpecularLighting = RoughSpecularIndirect[DispatchThreadId].xyz;
 	float3 HistoryRoughSpecularIndirect = Texture2DSampleLevel(RoughSpecularIndirectHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).xyz * PrevInvPreExposure * View.PreExposure;
 
 	// Compute the amount of neighborhood clamp history rejection to apply based on what fraction of the probe directions hit fast moving objects
-	float NeighborhoodClampAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFullNeighborhoodClamp);
+	float FastUpdateModeAmount = saturate(LightingIsMoving * InvFractionOfLightingMovingForFastUpdateMode);
 	// For performance, skip neighborhood clamp when it would have had a small contribution
-	NeighborhoodClampAmount = saturate(min((NeighborhoodClampAmount - .2f) / .8f, MaxNeighborhoodClampAmount));
+	FastUpdateModeAmount = saturate(min((FastUpdateModeAmount - .2f) / .8f, MaxFastUpdateModeAmount));
 	float EffectiveHistoryWeight = HistoryWeight;
 
-	if (NeighborhoodClampAmount > 0)
-	{
-		uint2 MinScreenCoord = uint2(0, 0);
-		uint2 MaxScreenCoord = (uint2)(View.ViewSizeAndInvSize.xy - 1);
-		float3 ClampedHistoryDiffuseIndirect = ClampHistory(DiffuseIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, NewDiffuseLighting.xyz, HistoryDiffuseIndirect);
-		HistoryDiffuseIndirect = lerp(HistoryDiffuseIndirect, ClampedHistoryDiffuseIndirect, NeighborhoodClampAmount);
-
-		float3 ClampedHistoryRoughSpecularIndirect = ClampHistory(RoughSpecularIndirect, SVPosition.xy, MinScreenCoord, MaxScreenCoord, NewRoughSpecularLighting, HistoryRoughSpecularIndirect);
-		HistoryRoughSpecularIndirect = lerp(HistoryRoughSpecularIndirect, ClampedHistoryRoughSpecularIndirect, NeighborhoodClampAmount);
-	}
-
-	UpdatedConvergence = min(UpdatedConvergence, 1.0f - .5f * NeighborhoodClampAmount);
-	EffectiveHistoryWeight *= UpdatedConvergence * lerp(PositionWeight, 1.0f, NeighborhoodClampAmount);
+	UpdatedConvergence = min(UpdatedConvergence, 1.0f - .5f * FastUpdateModeAmount);
+	EffectiveHistoryWeight *= UpdatedConvergence * lerp(PositionWeight, 1.0f, FastUpdateModeAmount);
 
 	if (bHistoryWasOffscreen)
 	{ 
@@ -1224,19 +1403,20 @@ void ScreenProbeTemporalReprojectionDepthRejectionPS(
 		EffectiveHistoryWeight = 1.0f;
 	}
 
-	OutDiffuseIndirect = float4(lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight), 0);
-	OutRoughSpecularIndirect = float4(lerp(NewRoughSpecularLighting.rgb, HistoryRoughSpecularIndirect.rgb, EffectiveHistoryWeight), 0);
-
+	float3 OutDiffuseIndirect = lerp(NewDiffuseLighting.rgb, HistoryDiffuseIndirect.rgb, EffectiveHistoryWeight);
+	float3 OutRoughSpecularIndirect = lerp(NewRoughSpecularLighting.rgb, HistoryRoughSpecularIndirect.rgb, EffectiveHistoryWeight);
 
 
 	/////////////////
-	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = NeighborhoodClampAmount;
+	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = FastUpdateModeAmount; 
 	//OutRoughSpecularIndirect.xyz = OutDiffuseIndirect.xyz = bHistoryWasOffscreen ? 0 : PositionWeight;
 
 	OutDiffuseIndirect.rgb = -min(-OutDiffuseIndirect.rgb, 0.0f);
 	OutRoughSpecularIndirect.rgb = -min(-OutRoughSpecularIndirect.rgb, 0.0f);
 
-	OutConvergence = float4(UpdatedConvergence, 0, 0, 0);
+	RWNewHistoryDiffuseIndirect[DispatchThreadId] = OutDiffuseIndirect;
+	RWNewHistoryRoughSpecularIndirect[DispatchThreadId] = OutRoughSpecularIndirect;
+	RWNewHistoryConvergence[DispatchThreadId] = UpdatedConvergence;
 }
 
 RWTexture2D<float> RWCompressedDepthBufferOutput;

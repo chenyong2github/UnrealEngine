@@ -419,8 +419,8 @@ void ScreenProbeFilterGatherTracesCS(
 	}
 }
 
-RWBuffer<float3> RWScreenProbeRadianceSHAmbient;
-RWBuffer<float4> RWScreenProbeRadianceSHDirectional;
+RWTexture2D<float3> RWScreenProbeRadianceSHAmbient;
+RWTexture2D<float4> RWScreenProbeRadianceSHDirectional;
 
 #define NUM_LIGHTING_SH_COEFFICIENTS 9
 groupshared float SharedSHBasisFunctions[THREADGROUP_SIZE * THREADGROUP_SIZE][NUM_LIGHTING_SH_COEFFICIENTS];
@@ -468,8 +468,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 				if (ThreadIndex == 0)
 				{
-					uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
-					RWScreenProbeRadianceSHAmbient[WriteIndex] = AmbientRGB;
+					RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
 				}
 
 				float4 DirectionalSH0[3];
@@ -505,9 +504,8 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 						ThreadDirectionalSH1 = ThreadDirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
 					#endif
 
-					uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
-					RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = ThreadDirectionalSH0;
-					RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = ThreadDirectionalSH1;
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH0;
+					RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = ThreadDirectionalSH1;
 				}
 #else
 				SharedSHBasisFunctions[ThreadIndex][0] = BasisFunction.V0.x;
@@ -554,8 +552,7 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 			if (ThreadIndex == 0)
 			{
-				uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
-				RWScreenProbeRadianceSHAmbient[WriteIndex] = AmbientRGB;
+				RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = AmbientRGB;
 			}
 
 			if (ThreadIndex < 3)
@@ -590,9 +587,8 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 					DirectionalSH1 = DirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
 				#endif
 
-				uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = DirectionalSH0;
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = DirectionalSH1;
+				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH0;
+				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = DirectionalSH1;
 			}
 #endif
 		}
@@ -603,22 +599,19 @@ void ScreenProbeConvertToSphericalHarmonicCS(
 
 			if (ThreadIndex == 0)
 			{
-				uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
-				RWScreenProbeRadianceSHAmbient[WriteIndex] = 0;
+				RWScreenProbeRadianceSHAmbient[ScreenProbeAtlasCoord] = 0;
 			}
 
 			if (ThreadIndex < 3)
 			{
-				uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = 0;
-				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = 0;
+				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 0) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
+				RWScreenProbeRadianceSHDirectional[uint2(ScreenProbeAtlasCoord.x + (ThreadIndex * 2 + 1) * ScreenProbeAtlasViewSize.x, ScreenProbeAtlasCoord.y)] = 0;
 			}
 		}
 	}
 }
 
-
-RWBuffer<UNORM float> RWScreenProbeMoving;
+RWTexture2D<UNORM float> RWScreenProbeMoving;
 Texture2D<float> ScreenProbeTraceMoving;
 
 groupshared float SharedTexelMoving[THREADGROUP_SIZE * THREADGROUP_SIZE * 4];
@@ -687,8 +680,7 @@ void ScreenProbeCalculateMovingCS(
 			
 			if (ThreadIndex == 0)
 			{
-				uint WriteIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
-				RWScreenProbeMoving[WriteIndex] = ProbeMoving;
+				RWScreenProbeMoving[ScreenProbeAtlasCoord] = ProbeMoving;
 			}
 		}
 	}

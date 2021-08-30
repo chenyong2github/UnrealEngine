@@ -36,6 +36,15 @@ enum class EScreenProbeIndirectArgs
 	Max
 };
 
+// Must match TILE_CLASSIFICATION_NUM in usf
+enum class EScreenProbeIntegrateTileClassification
+{
+	SimpleDiffuse,
+	SupportImportanceSampleBRDF,
+	SupportAll,
+	Num
+};
+
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeImportanceSamplingParameters, )
 	SHADER_PARAMETER(uint32, MaxImportanceSamplingOctahedronResolution)
 	SHADER_PARAMETER(uint32, ScreenProbeBRDFOctahedronResolution)
@@ -53,6 +62,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER(float, ScreenProbeGatherMaxMip)
 	SHADER_PARAMETER(float, RelativeSpeedDifferenceToConsiderLightingMoving)
 	SHADER_PARAMETER(float, ScreenTraceNoFallbackThicknessScale)
+	SHADER_PARAMETER(FVector2D, SampleRadianceProbeUVMul)
+	SHADER_PARAMETER(FVector2D, SampleRadianceProbeUVAdd)
+	SHADER_PARAMETER(FVector2D, SampleRadianceAtlasUVMul)
 	SHADER_PARAMETER(uint32, AdaptiveScreenTileSampleResolution)
 	SHADER_PARAMETER(uint32, NumUniformScreenProbes)
 	SHADER_PARAMETER(uint32, MaxNumAdaptiveProbes)
@@ -84,14 +96,14 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadianceWithBorder)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, ScreenProbeRadianceSHAmbient)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ScreenProbeRadianceSHDirectional)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, ScreenProbeMoving)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ScreenProbeRadianceSHAmbient)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, ScreenProbeRadianceSHDirectional)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ScreenProbeMoving)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, CompactedTraceTexelAllocator)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, CompactedTraceTexelData)
 	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 

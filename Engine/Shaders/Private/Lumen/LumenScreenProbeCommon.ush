@@ -8,7 +8,7 @@
 
 //Note: Also have to change format on C++ side
 #define SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS 0
-#define PROBE_THREADGROUP_SIZE_2D 8
+#define PROBE_THREADGROUP_SIZE_2D 8 
 #define PROBE_THREADGROUP_SIZE_1D 64
 
 // Main control for Screen Probe tracing resolution.  8 = 8x8 traces per probe
@@ -29,6 +29,11 @@ float ScreenProbeGatherMaxMip;
 float RelativeSpeedDifferenceToConsiderLightingMoving;
 float ScreenTraceNoFallbackThicknessScale;
 
+// Used by InterpolateFromScreenProbes() to sample probe radiance with border
+float2 SampleRadianceProbeUVMul;
+float2 SampleRadianceProbeUVAdd;
+float2 SampleRadianceAtlasUVMul;
+
 // Downsample factor from full res to Screen Probe res
 uint ScreenProbeDownsampleFactor;
 // ScreenProbeViewSize.x * ScreenProbeViewSize.y
@@ -43,8 +48,8 @@ Texture2D<float2> ScreenProbeWorldNormal;
 Texture2D ScreenProbeWorldSpeed;
 
 // Single element, contains the number of adaptive screen probes placed
-Buffer<uint> NumAdaptiveScreenProbes;
-Buffer<uint> AdaptiveScreenProbeData;
+StructuredBuffer<uint> NumAdaptiveScreenProbes;
+StructuredBuffer<uint> AdaptiveScreenProbeData;
 
 Texture2D<uint> ScreenTileAdaptiveProbeHeader;
 Texture2D<uint> ScreenTileAdaptiveProbeIndices;
@@ -277,11 +282,11 @@ bool IsTraceMoving(float3 ProbeWorldPosition, float ProbeSceneDepth, uint2 Scree
 #endif
 }
 
-Buffer<float> ScreenProbeMoving;
+Texture2D<float> ScreenProbeMoving;
 
 float GetScreenProbeMoving(uint2 ScreenProbeAtlasCoord)
 {
-	return ScreenProbeMoving[ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x];
+	return ScreenProbeMoving[ScreenProbeAtlasCoord];
 }
 
 float EncodeProbeHitDistanceForFiltering(float HitDistance)
@@ -351,8 +356,8 @@ float OctahedralSolidAngleLUT(float2 UV, float Resolution)
 	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * OctahedralSolidAngleTextureResolutionSq / (Resolution * Resolution);
 }
 
-Buffer<uint> CompactedTraceTexelAllocator;
-Buffer<uint2> CompactedTraceTexelData;
+StructuredBuffer<uint> CompactedTraceTexelAllocator;
+StructuredBuffer<uint2> CompactedTraceTexelData;
 
 uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
 {
