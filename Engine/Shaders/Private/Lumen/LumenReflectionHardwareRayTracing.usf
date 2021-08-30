@@ -242,6 +242,8 @@ void FLumenReflectionHardwareRayTracingIndirectArgsCS()
 
 #if LUMEN_HARDWARE_RAYTRACING
 
+float3 FarFieldReferencePos;
+
 #include "LumenHardwareRayTracingCommon.ush"
 
 RaytracingAccelerationStructure TLAS;
@@ -251,7 +253,6 @@ uint GroupCount;
 int NearFieldLightingMode;
 float MaxTraceDistance;
 float FarFieldMaxTraceDistance;
-float3 FarFieldReferencePos;
 float PullbackBias;
 int MaxTranslucentSkipCount;
 
@@ -322,9 +323,10 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		const float Epsilon = 0.5;
 		Ray.TMin = TraceData.TraceDistance - Epsilon;
 
-		int LightingMode = TraceData.bIsFarField ?
+		int LightingMode = (TraceData.bIsFarField || !TraceData.bIsValidMeshCardIndex) ?
 			EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING :
 			NearFieldLightingMode;
+		LightingMode = EVALUATE_MATERIAL_AND_DIRECT_LIGHTING_AND_SKY_LIGHTING;
 		FRayTracedLightingResult Result = TraceAndCalculateRayTracedLighting(Ray, Context, LightingMode);
 
 #else // DIM_LIGHTING_MODE == LIGHTING_MODE_SURFACE_CACHE
