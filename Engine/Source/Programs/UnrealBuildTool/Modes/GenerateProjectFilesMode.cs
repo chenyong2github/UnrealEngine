@@ -73,6 +73,7 @@ namespace UnrealBuildTool
 			FileReference LogFile = FileReference.Combine(UnrealBuildTool.EngineProgramSavedDirectory, "UnrealBuildTool", "Log_GPF.txt");
 			// find the StartupTraceListener in the listeners that was added super early on
 			StartupTraceListener StartupListener = Trace.Listeners.OfType<StartupTraceListener>().First();
+			Log.TraceInformation($"Log will be written to {LogFile}");
 			TextWriterTraceListener LogTraceListener = Log.AddFileWriter("DefaultLogTraceListener", LogFile);
 			StartupListener.CopyTo(LogTraceListener);
 			Trace.Listeners.Remove(StartupListener);
@@ -162,7 +163,7 @@ namespace UnrealBuildTool
 			}
 			if (BadPlatformNames.Count > 0)
 			{
-				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information ({1})\n\n", string.Join(", ", BadPlatformNames), Log.OutputFile);
+				Log.TraceInformationOnce("\nSome Platforms were skipped due to invalid SDK setup: {0}.\nSee the log file for detailed information\n\n", string.Join(", ", BadPlatformNames));
 				Log.TraceInformation("");
 			}
 			Log.TraceLog("---   SDK INFO END   ---");

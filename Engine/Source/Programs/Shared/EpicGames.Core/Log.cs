@@ -206,6 +206,15 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// When true, a timestamp will be written to the log file when the first listener is added
+		/// </summary>
+		public static bool IncludeStartingTimestamp
+		{
+			get => DefaultLogger.IncludeStartingTimestamp;
+			set => DefaultLogger.IncludeStartingTimestamp = value;
+		}
+
+		/// <summary>
 		/// Path to the log file being written to. May be null.
 		/// </summary>
 		public static FileReference OutputFile => DefaultLogger.OutputFile;
@@ -712,6 +721,15 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// When true, a timestamp will be written to the log file when the first listener is added
+		/// </summary>
+		public bool IncludeStartingTimestamp
+		{
+			get; set;
+		}
+		private bool IncludeStartingTimestampWritten = false;
+
+		/// <summary>
 		/// Path to the log file being written to. May be null.
 		/// </summary>
 		public FileReference OutputFile
@@ -763,6 +781,7 @@ namespace EpicGames.Core
 			IncludeCallingMethod = true;
 			IncludeCallingMethodForConsole = false;
 			ColorConsoleOutput = true;
+			IncludeStartingTimestamp = true;
 		}
 
 		/// <summary>
@@ -770,6 +789,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="OutputFile">The file to write to</param>
 		/// <returns>The created trace listener</returns>
+		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public TextWriterTraceListener AddFileWriter(string Name, FileReference OutputFile)
 		{
 			try
@@ -780,6 +800,7 @@ namespace EpicGames.Core
 				lock (SyncObject)
 				{
 					Trace.Listeners.Add(LogTraceListener);
+					WriteInitialTimestamp();
 				}
 				return LogTraceListener;
 			}
@@ -793,6 +814,7 @@ namespace EpicGames.Core
 		/// Adds a <see cref="TraceListener"/> to the collection in a safe manner.
 		/// </summary>
 		/// <param name="TraceListener">The <see cref="TraceListener"/> to add.</param>
+		[MethodImplAttribute(MethodImplOptions.NoInlining)]
 		public void AddTraceListener(TraceListener TraceListener)
 		{
 			lock (SyncObject)
@@ -800,7 +822,22 @@ namespace EpicGames.Core
 				if (!Trace.Listeners.Contains(TraceListener))
 				{
 					Trace.Listeners.Add(TraceListener);
+					WriteInitialTimestamp();
 				}
+			}
+		}
+
+		/// <summary>
+		/// Write a timestamp to the log, once. To be called when a new listener is added.
+		/// </summary>
+		[MethodImplAttribute(MethodImplOptions.NoInlining)]
+		private void WriteInitialTimestamp()
+		{
+			if (IncludeStartingTimestamp && !IncludeStartingTimestampWritten)
+			{
+				DateTime Now = DateTime.Now;
+				WriteLinePrivate(2, false, LogEventType.Log, LogFormatOptions.NoConsoleOutput, $"Log started at {DateTime.Now} ({DateTime.Now.ToUniversalTime():yyyy-MM-ddTHH\\:mm\\:ssZ})");
+				IncludeStartingTimestampWritten = true;
 			}
 		}
 
