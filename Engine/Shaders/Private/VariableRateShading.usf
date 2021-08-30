@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	FixedFoveation.usf
+	VariableRateShading.usf
 =============================================================================*/
 
 #include "Common.ush"
