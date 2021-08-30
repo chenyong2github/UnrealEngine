@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Framework/Docking/STabDrawer.h"
+#include "Framework/Docking/TabManager.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Layout/ArrangedChildren.h"
@@ -75,8 +76,15 @@ void STabDrawer::Construct(const FArguments& InArgs, TSharedRef<SDockTab> InTab,
 	];
 }
 
-void STabDrawer::Open()
+void STabDrawer::Open(bool bAnimateOpen)
 {
+	if (!bAnimateOpen)
+	{
+		SetCurrentSize(TargetDrawerSize);
+		OpenCloseAnimation.JumpToEnd();
+		return;
+	}
+
 	OpenCloseAnimation.Play(AsShared(), false, OpenCloseAnimation.IsPlaying() ? OpenCloseAnimation.GetSequenceTime() : 0.0f, false);
 
 	if (!OpenCloseTimer.IsValid())
@@ -98,11 +106,24 @@ void STabDrawer::Close()
 		AnimationThrottle = FSlateThrottleManager::Get().EnterResponsiveMode();
 		OpenCloseTimer = RegisterActiveTimer(0.0f, FWidgetActiveTimerDelegate::CreateSP(this, &STabDrawer::UpdateAnimation));
 	}
+
+	// Make sure that this tab isn't active if it's still active when closing.
+	// This might happen if the tab drawer lost focus to a non-tab (e.g. Content Drawer), so no other tab has become active.
+	// Don't unconditionally clear the active tab, since this drawer might be closing due to another tab taking focus.
+	if (FGlobalTabmanager::Get()->GetActiveTab() == ForTab)
+	{
+		FGlobalTabmanager::Get()->SetActiveTab(nullptr);
+	}
 }
 
 bool STabDrawer::IsOpen() const
 {
 	return !OpenCloseAnimation.IsAtStart();
+}
+
+bool STabDrawer::IsClosing() const
+{
+	return OpenCloseAnimation.IsPlaying() && OpenCloseAnimation.IsInReverse();
 }
 
 const TSharedRef<SDockTab> STabDrawer::GetTab() const
@@ -498,13 +519,26 @@ void STabDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWea
 		TArray<TSharedRef<SWidget>, TInlineAllocator<4>> LegalFocusWidgets;
 		LegalFocusWidgets.Add(ThisWidget);
 		LegalFocusWidgets.Add(ChildSlot.GetWidget());
+		if (TSharedPtr<SWidget> TabButtonSP = TabButton.Pin())
+		{
+			LegalFocusWidgets.Add(TabButtonSP.ToSharedRef());
+		}
 
 		bool bShouldLoseFocus = false;
 		// Do not close due to slow tasks as those opening send window activation events
-		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid() && !IsLegalWidgetFocused(NewFocusedWidgetPath, MakeArrayView(LegalFocusWidgets)))
+		if (!GIsSlowTask && !FSlateApplication::Get().GetActiveModalWindow().IsValid())
 		{
-			if(NewFocusedWidgetPath.IsValid())
+			if (IsLegalWidgetFocused(NewFocusedWidgetPath, MakeArrayView(LegalFocusWidgets)))
 			{
+				// New focus is on this tab, so make it active
+				if (!IsClosing())
+				{
+					FGlobalTabmanager::Get()->SetActiveTab(ForTab);
+				}
+			}
+			else if (NewFocusedWidgetPath.IsValid())
+			{
+				// New focus is on something else, try to check if it's a menu
 				TSharedRef<SWindow> NewWindow = NewFocusedWidgetPath.GetWindow();
 				TSharedPtr<SWindow> MyWindow = FSlateApplication::Get().FindWidgetWindow(ThisWidget);
 

@@ -298,12 +298,14 @@ TSharedRef<FTabManager::FLayoutNode> FTabManager::FLayout::NewFromString_Helper(
 
 			FString SidebarLocation;
 			float SidebarSizeCoefficient = .15f;
+			bool bPinnedInSidebar = false;
 			if (TabAsJson->TryGetStringField(TEXT("SidebarLocation"), SidebarLocation))
 			{
 				TabAsJson->TryGetNumberField(TEXT("SidebarCoeff"), SidebarSizeCoefficient);
+				TabAsJson->TryGetBoolField(TEXT("SidebarPinned"), bPinnedInSidebar);
 			}
 
-			NewStack->AddTab(TabId, TabStateFromString( TabAsJson->GetStringField(TEXT("TabState"))), SidebarLocationFromString(SidebarLocation), SidebarSizeCoefficient);
+			NewStack->AddTab(TabId, TabStateFromString( TabAsJson->GetStringField(TEXT("TabState"))), SidebarLocationFromString(SidebarLocation), SidebarSizeCoefficient, bPinnedInSidebar);
 		}
 		return NewStack;
 	}
@@ -470,6 +472,7 @@ TSharedRef<FJsonObject> FTabManager::FLayout::PersistToString_Helper(const TShar
 				{
 					TabAsJson->SetStringField(TEXT("SidebarLocation"), StringFromSidebarLocation(Tab.SidebarLocation));
 					TabAsJson->SetNumberField(TEXT("SidebarCoeff"), Tab.SidebarSizeCoefficient);
+					TabAsJson->SetBoolField(TEXT("SidebarPinned"), Tab.bPinnedInSidebar);
 				}
 
 				TabsAsJson.Add( MakeShareable( new FJsonValueObject(TabAsJson) ) );

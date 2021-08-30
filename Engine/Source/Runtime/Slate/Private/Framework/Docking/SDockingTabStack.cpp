@@ -351,6 +351,26 @@ void SDockingTabStack::SetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& 
 	}
 }
 
+bool SDockingTabStack::IsTabPinnedInSidebar(const TSharedRef<SDockTab>& InTab)
+{
+	FTabManager::FTab* Tab = Tabs.FindByPredicate(FTabMatcher(InTab->GetLayoutIdentifier()));
+	if (Tab)
+	{
+		return Tab->bPinnedInSidebar;
+	}
+
+	return false;
+}
+
+void SDockingTabStack::SetTabPinnedInSidebar(const TSharedRef<SDockTab>& InTab, bool bPinnedInSidebar)
+{
+	FTabManager::FTab* Tab = Tabs.FindByPredicate(FTabMatcher(InTab->GetLayoutIdentifier()));
+	if (Tab)
+	{
+		Tab->bPinnedInSidebar = bPinnedInSidebar;
+	}
+}
+
 const TSlotlessChildren<SDockTab>& SDockingTabStack::GetTabs() const
 {
 	return TabWell->GetTabs();

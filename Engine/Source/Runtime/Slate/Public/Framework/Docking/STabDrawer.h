@@ -62,14 +62,21 @@ class STabDrawer : public SCompoundWidget
 	/** Sets the current size of the drawer, ignoring any open/close animation */
 	void SetCurrentSize(float InSize);
 
-	/** Begins an animation which opens the drawer */
-	void Open();
+	/**
+	 * Opens the drawer
+	 *
+	 * @param bAnimateOpen Whether to play an animation when opening the drawer, defaults to true
+	 */
+	void Open(bool bAnimateOpen=true);
 
 	/** Begins an animation which closes the drawer */
 	void Close();
 
 	/** @return true if the drawer is open */
 	bool IsOpen() const;
+
+	/** @return true if the drawer is currently playing the close animation */
+	bool IsClosing() const;
 
 	/** @return the tab whose contents is being shown in the drawer */
 	const TSharedRef<SDockTab> GetTab() const;

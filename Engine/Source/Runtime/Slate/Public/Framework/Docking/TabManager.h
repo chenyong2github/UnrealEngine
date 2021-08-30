@@ -399,15 +399,17 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				, TabState(InTabState)
 				, SidebarLocation(ESidebarLocation::None)
 				, SidebarSizeCoefficient(0.0f)
+				, bPinnedInSidebar(false)
 			{
 				check(InTabState != ETabState::SidebarTab);
 			}
 
-			FTab(const FTabId& InTabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float InSidebarSizeCoefficient)
+			FTab(const FTabId& InTabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float InSidebarSizeCoefficient, bool bInPinnedInSidebar)
 				: TabId(InTabId)
 				, TabState(InTabState)
 				, SidebarLocation(InSidebarLocation)
 				, SidebarSizeCoefficient(InSidebarSizeCoefficient)
+				, bPinnedInSidebar(bInPinnedInSidebar)
 			{
 				check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
 			}
@@ -421,6 +423,7 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 			ETabState::Type TabState;
 			ESidebarLocation SidebarLocation;
 			float SidebarSizeCoefficient;
+			bool bPinnedInSidebar;
 		};
 
 		class SLATE_API FStack : public FLayoutNode
@@ -446,18 +449,18 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 					return SharedThis(this);
 				}
 
-				TSharedRef<FStack> AddTab(const FName TabType, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient)
+				TSharedRef<FStack> AddTab(const FName TabType, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient, bool bPinnedInSidebar=false)
 				{
 					check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
-					Tabs.Add(FTab(FTabId(TabType), InTabState, InSidebarLocation, SidebarSizeCoefficient));
+					Tabs.Add(FTab(FTabId(TabType), InTabState, InSidebarLocation, SidebarSizeCoefficient, bPinnedInSidebar));
 					return SharedThis(this);
 				}
 
-				TSharedRef<FStack> AddTab(const FTabId TabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient)
+				TSharedRef<FStack> AddTab(const FTabId TabId, ETabState::Type InTabState, ESidebarLocation InSidebarLocation, float SidebarSizeCoefficient, bool bPinnedInSidebar=false)
 				{
 					check(InTabState != ETabState::SidebarTab || InSidebarLocation != ESidebarLocation::None);
 
-					Tabs.Add(FTab(TabId, InTabState, InSidebarLocation, SidebarSizeCoefficient));
+					Tabs.Add(FTab(TabId, InTabState, InSidebarLocation, SidebarSizeCoefficient, bPinnedInSidebar));
 
 					return SharedThis(this);
 				}
