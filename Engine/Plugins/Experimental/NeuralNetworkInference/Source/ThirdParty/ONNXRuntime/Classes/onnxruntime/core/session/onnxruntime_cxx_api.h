@@ -29,6 +29,7 @@
 
 #ifdef WITH_UE
 #include "GenericPlatform/GenericPlatformAffinity.h"
+#include "ORTExceptionHandler.h"
 #endif
 
 namespace Ort {
@@ -62,7 +63,6 @@ struct Exception : std::exception {
 // UE: Exception turned into UE's equivalent
 #else
 }
-#include "ORTExceptionHandler.h"
 namespace Ort {
 #define ORT_CXX_API_THROW(string, code) FORTExceptionHandler::ThrowPseudoException(string, code)
 #endif
@@ -653,4 +653,6 @@ struct CustomOpBase : OrtCustomOp {
 
 }  // namespace Ort
 
+#ifndef WITH_UE
 #include "onnxruntime_cxx_inline.h"
+#endif
