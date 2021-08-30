@@ -18,7 +18,7 @@ namespace AutomationTool
 	public static class ScriptManager
 	{
 		private static Dictionary<string, Type> ScriptCommands;
-		private static HashSet<Assembly> AllCompiledAssemblies;
+		public static readonly HashSet<Assembly> AllScriptAssemblies = new HashSet<Assembly>();
 		public static HashSet<FileReference> BuildProducts { get; private set; } = new HashSet<FileReference>();
 
 		/// <summary>
@@ -27,7 +27,7 @@ namespace AutomationTool
 		static void EnumerateScriptCommands()
 		{
 			ScriptCommands = new Dictionary<string, Type>(StringComparer.InvariantCultureIgnoreCase);
-			foreach (Assembly CompiledScripts in AllCompiledAssemblies)
+			foreach (Assembly CompiledScripts in AllScriptAssemblies)
 			{
 				try
 				{
@@ -77,7 +77,7 @@ namespace AutomationTool
 
 			HashSet<DirectoryReference> OutputDirs = new HashSet<DirectoryReference>();
 
-			foreach (Assembly CompiledAssembly in AllCompiledAssemblies)
+			foreach (Assembly CompiledAssembly in AllScriptAssemblies)
 			{
 				DirectoryReference AssemblyDirectory = FileReference.FromString(CompiledAssembly.Location).Directory;
 				AssemblyDirectory = DirectoryReference.FindCorrectCase(AssemblyDirectory);
@@ -106,7 +106,6 @@ namespace AutomationTool
 		/// <returns>List of compiled assemblies</returns>
 		public static void LoadScriptAssemblies(IEnumerable<FileReference> AssemblyPaths)
 		{
-			HashSet<Assembly> Assemblies = new HashSet<Assembly>();
 			foreach (FileReference AssemblyLocation in AssemblyPaths)
 			{
 				// Load the assembly into our app domain
@@ -117,7 +116,7 @@ namespace AutomationTool
 					// Add a resolver for the Assembly directory, so that its dependencies may be found alongside it
 					AssemblyUtils.InstallRecursiveAssemblyResolver(AssemblyLocation.Directory.FullName);
 					Assembly Assembly = AppDomain.CurrentDomain.Load(AssemblyName.GetAssemblyName(AssemblyLocation.FullName));
-					Assemblies.Add(Assembly);
+					AllScriptAssemblies.Add(Assembly);
 				}
 				catch (Exception Ex)
 				{
@@ -125,25 +124,11 @@ namespace AutomationTool
 				}
 			}
 
-			AllCompiledAssemblies = Assemblies;
-
-			Platform.InitializePlatforms(AllCompiledAssemblies);
+			Platform.InitializePlatforms(AllScriptAssemblies);
 
 			EnumerateScriptCommands();
 
 			EnumerateBuildProducts();
-		}
-
-		public static HashSet<Assembly> GetCompiledAssemblies()
-		{
-			if (AllCompiledAssemblies == null)
-			{
-				return new HashSet<Assembly>();
-			}
-			else
-			{
-				return AllCompiledAssemblies;
-			}
 		}
 
 		public static Dictionary<string, Type> Commands

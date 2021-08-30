@@ -512,15 +512,8 @@ namespace Gauntlet
 				// find all types from loaded assemblies that implement testnode
 					List < Type> CandidateTypes = new List<Type>();
 
-				foreach (var Assembly in AppDomain.CurrentDomain.GetAssemblies())
+				foreach (Assembly Assembly in ScriptManager.AllScriptAssemblies) 
 				{
-					if (String.Equals("AutomationTool", Assembly.GetName().Name))
-					{
-						// Skip the AutomationTool driver assembly - it contains no relevant types, and trying to process it here
-						// can result in an exception if Microsoft.Build.Framework is not able to be loaded.
-						continue;
-					}
-
 					foreach (var Type in Assembly.GetTypes())
 					{
 						if (typeof(ITestNode).IsAssignableFrom(Type))
@@ -733,9 +726,9 @@ namespace Gauntlet
 
 				if (bIncludeCompiledScripts)
 				{
-					foreach (Assembly assembly in ScriptManager.GetCompiledAssemblies())
+					foreach (Assembly Assembly in ScriptManager.AllScriptAssemblies)
 					{
-						List<Type> AssemblyTypes = assembly.GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T)).ToList();
+						List<Type> AssemblyTypes = Assembly.GetTypes().Where(T => typeof(InterfaceType).IsAssignableFrom(T)).ToList();
 						AllTypes.UnionWith(AssemblyTypes);
 					}
 				}
