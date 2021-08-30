@@ -69,6 +69,39 @@ public:
 };
 
 
+UCLASS(DisplayName = "Select Parent", Category = "FractureTools")
+class UFractureToolSelectParent : public UFractureToolSelectAll
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolSelectParent(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// UFractureActionTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+};
+
+
+UCLASS(DisplayName = "Select Children", Category = "FractureTools")
+class UFractureToolSelectChildren : public UFractureToolSelectAll
+{
+public:
+	GENERATED_BODY()
+
+	UFractureToolSelectChildren(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+
+	// UFractureActionTool Interface
+	virtual FText GetDisplayText() const override;
+	virtual FText GetTooltipText() const override;
+	virtual FSlateIcon GetToolIcon() const override;
+	virtual void RegisterUICommand(FFractureEditorCommands* BindingContext) override;
+	virtual void Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit) override;
+};
+
 UCLASS(DisplayName = "Select Siblings", Category = "FractureTools")
 class UFractureToolSelectSiblings : public UFractureToolSelectAll
 {
@@ -86,13 +119,13 @@ public:
 };
 
 
-UCLASS(DisplayName = "Select Neighbors", Category = "FractureTools")
-class UFractureToolSelectAllInCluster : public UFractureToolSelectAll
+UCLASS(DisplayName = "Select All In Level", Category = "FractureTools")
+class UFractureToolSelectAllInLevel : public UFractureToolSelectAll
 {
 public:
 	GENERATED_BODY()
 
-	UFractureToolSelectAllInCluster(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
+	UFractureToolSelectAllInLevel(const FObjectInitializer& ObjInit) : Super(ObjInit) {}
 
 	// UFractureActionTool Interface
 	virtual FText GetDisplayText() const override;
@@ -103,7 +136,7 @@ public:
 };
 
 
-UCLASS(DisplayName = "Select Neighbors", Category = "FractureTools")
+UCLASS(DisplayName = "Select Invert", Category = "FractureTools")
 class UFractureToolSelectInvert : public UFractureToolSelectAll
 {
 public:

@@ -16,8 +16,10 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > SelectAll;
 		TSharedPtr< FUICommandInfo > SelectNone;
 		TSharedPtr< FUICommandInfo > SelectNeighbors;
+		TSharedPtr< FUICommandInfo > SelectParent;
+		TSharedPtr< FUICommandInfo > SelectChildren;
 		TSharedPtr< FUICommandInfo > SelectSiblings;
-		TSharedPtr< FUICommandInfo > SelectAllInCluster;
+		TSharedPtr< FUICommandInfo > SelectAllInLevel;
 		TSharedPtr< FUICommandInfo > SelectInvert;
 
 		// View Settings
@@ -34,6 +36,7 @@ class FFractureEditorCommands : public TCommands<FFractureEditorCommands>
 		TSharedPtr< FUICommandInfo > Uncluster;
 		TSharedPtr< FUICommandInfo > Flatten;
 		TSharedPtr< FUICommandInfo > MoveUp;
+		TSharedPtr< FUICommandInfo > ClusterMerge;
 
 		// Edit Commands
 		TSharedPtr< FUICommandInfo > DeleteBranch;

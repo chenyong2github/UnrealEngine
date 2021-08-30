@@ -540,8 +540,10 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.SelectAll);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectNone);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectNeighbors);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectParent);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectChildren);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectSiblings);
-		ToolbarBuilder.AddToolBarButton(Commands.SelectAllInCluster);
+		ToolbarBuilder.AddToolBarButton(Commands.SelectAllInLevel);
 		ToolbarBuilder.AddToolBarButton(Commands.SelectInvert);
 	}
 	else if (PaletteIndex == TEXT("Fracture"))
@@ -568,6 +570,7 @@ void FFractureEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class FToo
 		ToolbarBuilder.AddToolBarButton(Commands.Cluster);
 		ToolbarBuilder.AddToolBarButton(Commands.Uncluster);
 		ToolbarBuilder.AddToolBarButton(Commands.MoveUp);
+		ToolbarBuilder.AddToolBarButton(Commands.ClusterMerge);
 	}
 	else if (PaletteIndex == TEXT("Embed"))
 	{

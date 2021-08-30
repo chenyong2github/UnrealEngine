@@ -47,7 +47,9 @@ namespace GeometryCollection
 		InverseGeometry,
 		Siblings,
 		Neighbors,
-		AllInCluster
+		Parent,
+		Children,
+		Level
 	};
 }
 

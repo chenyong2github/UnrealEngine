@@ -225,4 +225,61 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 	}
 }
 
+
+
+FText UFractureToolClusterMerge::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("FractureToolClusteringOps", "FractureToolClusterMerge", "Cluster Merge"));
+}
+
+FText UFractureToolClusterMerge::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("FractureToolClusteringOps", "FractureToolClusterMergeTooltip", "Merge selected clusters."));
+}
+
+FSlateIcon UFractureToolClusterMerge::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.Merge");
+}
+
+void UFractureToolClusterMerge::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "Merge", "Merge", "Merge selected clusters.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->ClusterMerge = UICommandInfo;
+}
+
+void UFractureToolClusterMerge::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
+
+		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
+
+		for (FFractureToolContext& Context : Contexts)
+		{
+			const TManagedArray<TSet<int32>>& Children = Context.GetGeometryCollection()->Children;
+
+			Context.ConvertSelectionToClusterNodes();
+
+			// Collect children of context clusters
+			TArray<int32> ChildBones;
+			ChildBones.Reserve(Context.GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
+			for (int32 Select : Context.GetSelection())
+			{
+				ChildBones.Append(Children[Select].Array());
+			}
+			
+			int32 MergeNode = FGeometryCollectionClusteringUtility::PickBestNodeToMergeTo(Context.GetGeometryCollection().Get(), Context.GetSelection());
+			FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), MergeNode, ChildBones);
+			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+			
+			Context.SetSelection({MergeNode});
+			Refresh(Context, Toolkit);
+		}
+
+		SetOutlinerComponents(Contexts, Toolkit);
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

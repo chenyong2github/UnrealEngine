@@ -34,8 +34,10 @@ FFractureEditorStyle::FFractureEditorStyle()
 	Set("FractureEditor.SelectAll",            new IMAGE_BRUSH_SVG("FractureSelectAll", IconSize));
 	Set("FractureEditor.SelectNone",           new IMAGE_BRUSH_SVG("FractureDeselectAll", IconSize));
 	Set("FractureEditor.SelectNeighbors",      new IMAGE_BRUSH_SVG("FractureSelectNeighbor", IconSize));
+	Set("FractureEditor.SelectParent",		   new IMAGE_BRUSH_SVG("FractureSelectParent", IconSize));
+	Set("FractureEditor.SelectChildren",       new IMAGE_BRUSH_SVG("FractureSelectChildren", IconSize));
 	Set("FractureEditor.SelectSiblings",       new IMAGE_BRUSH_SVG("FractureSelectSiblings", IconSize));
-	Set("FractureEditor.SelectAllInCluster",   new IMAGE_BRUSH_SVG("FractureSelectAllInCluster", IconSize));
+	Set("FractureEditor.SelectAllInLevel",     new IMAGE_BRUSH_SVG("FractureSelectAllInLevel", IconSize));
 	Set("FractureEditor.SelectInvert",         new IMAGE_BRUSH_SVG("FractureSelectInvert", IconSize));
 
 	Set("FractureEditor.AutoCluster",          new IMAGE_BRUSH_SVG("FractureAutoCluster", IconSize));

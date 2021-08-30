@@ -126,6 +126,69 @@ void UFractureToolSelectNeighbors::Execute(TWeakPtr<FFractureEditorModeToolkit> 
 }
 
 
+FText UFractureToolSelectParent::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectParent", "Select Parent"));
+}
+
+FText UFractureToolSelectParent::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectParentTooltip", "Select clusters containing the currently selected bones."));
+}
+
+FSlateIcon UFractureToolSelectParent::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.SelectParent");
+}
+
+void UFractureToolSelectParent::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectParent", "Parent", "Select clusters containing the currently selected bones.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->SelectParent = UICommandInfo;
+}
+
+void UFractureToolSelectParent::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		SelectByMode(InToolkit.Pin().Get(), GeometryCollection::ESelectionMode::Parent);
+	}
+}
+
+
+
+FText UFractureToolSelectChildren::GetDisplayText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectChildren", "Select Children"));
+}
+
+FText UFractureToolSelectChildren::GetTooltipText() const
+{
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectChildrenTooltip", "Select all bones that are immediate children of the currently selected clusters."));
+}
+
+FSlateIcon UFractureToolSelectChildren::GetToolIcon() const
+{
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.SelectChildren");
+}
+
+void UFractureToolSelectChildren::RegisterUICommand(FFractureEditorCommands* BindingContext)
+{
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectChildren", "Children", "Select all bones that are immediate children of the currently selected clusters.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->SelectChildren = UICommandInfo;
+}
+
+void UFractureToolSelectChildren::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+{
+	if (InToolkit.IsValid())
+	{
+		SelectByMode(InToolkit.Pin().Get(), GeometryCollection::ESelectionMode::Children);
+	}
+}
+
+
+
+
 FText UFractureToolSelectSiblings::GetDisplayText() const
 {
 	return FText(NSLOCTEXT("Fracture", "FractureToolSelectSiblings", "Select Siblings"));
@@ -133,7 +196,7 @@ FText UFractureToolSelectSiblings::GetDisplayText() const
 
 FText UFractureToolSelectSiblings::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectSiblingsTooltip", "Select all bones at the same levels as the currently selected bones."));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectSiblingsTooltip", "Select all bones sharing the cluster with currently selected bones."));
 }
 
 FSlateIcon UFractureToolSelectSiblings::GetToolIcon() const
@@ -143,7 +206,7 @@ FSlateIcon UFractureToolSelectSiblings::GetToolIcon() const
 
 void UFractureToolSelectSiblings::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectSiblings", "Siblings", "Select all bones at the same levels as the currently selected bones.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectSiblings", "Siblings", "Select all bones sharing the cluster with currently selected bones.", EUserInterfaceActionType::Button, FInputChord());
 	BindingContext->SelectSiblings = UICommandInfo;
 }
 
@@ -156,34 +219,35 @@ void UFractureToolSelectSiblings::Execute(TWeakPtr<FFractureEditorModeToolkit> I
 }
 
 
-FText UFractureToolSelectAllInCluster::GetDisplayText() const
+FText UFractureToolSelectAllInLevel::GetDisplayText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllInCluster", "Select All In Cluster"));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllInLevel", "Select All In Level"));
 }
 
-FText UFractureToolSelectAllInCluster::GetTooltipText() const
+FText UFractureToolSelectAllInLevel::GetTooltipText() const
 {
-	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllInClusterTooltip", "Select all bones with the same parent as selected bones."));
+	return FText(NSLOCTEXT("Fracture", "FractureToolSelectAllInLevelTooltip", "Select all bones at the same level as currently selected bones."));
 }
 
-FSlateIcon UFractureToolSelectAllInCluster::GetToolIcon() const
+FSlateIcon UFractureToolSelectAllInLevel::GetToolIcon() const
 {
-	return FSlateIcon("FractureEditorStyle", "FractureEditor.SelectAllInCluster");
+	return FSlateIcon("FractureEditorStyle", "FractureEditor.SelectAllInLevel");
 }
 
-void UFractureToolSelectAllInCluster::RegisterUICommand(FFractureEditorCommands* BindingContext)
+void UFractureToolSelectAllInLevel::RegisterUICommand(FFractureEditorCommands* BindingContext)
 {
-	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectAllInCluster", "Cluster", "Select all bones with the same parent as selected bones.", EUserInterfaceActionType::Button, FInputChord());
-	BindingContext->SelectAllInCluster = UICommandInfo;
+	UI_COMMAND_EXT(BindingContext, UICommandInfo, "SelectAllInLevel", "Level", "Select all bones at the same level as currently selected bones.", EUserInterfaceActionType::Button, FInputChord());
+	BindingContext->SelectAllInLevel = UICommandInfo;
 }
 
-void UFractureToolSelectAllInCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
+void UFractureToolSelectAllInLevel::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
 	if (InToolkit.IsValid())
 	{
-		SelectByMode(InToolkit.Pin().Get(), GeometryCollection::ESelectionMode::AllInCluster);
+		SelectByMode(InToolkit.Pin().Get(), GeometryCollection::ESelectionMode::Level);
 	}
 }
+
 
 
 FText UFractureToolSelectInvert::GetDisplayText() const

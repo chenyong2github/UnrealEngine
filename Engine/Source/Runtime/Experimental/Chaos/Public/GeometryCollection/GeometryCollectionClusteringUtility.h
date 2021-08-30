@@ -119,8 +119,10 @@ public:
 	static void RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
 
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
-private:
+
 	static int32 PickBestNodeToMergeTo(const FGeometryCollection* GeometryCollection, const TArray<int32>& SourceElements);
+
+private:
 	// #todo: intend to remove reliance on custom attributes for slider by making use of Rest/Dynamic collections
 	static void ResetSliderTransforms(TManagedArray<FTransform>& ExplodedTransforms, TManagedArray<FTransform>& Transforms);
 	
