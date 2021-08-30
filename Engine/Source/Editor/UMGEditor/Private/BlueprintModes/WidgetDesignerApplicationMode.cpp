@@ -53,7 +53,7 @@ FWidgetDesignerApplicationMode::FWidgetDesignerApplicationMode(TSharedPtr<FWidge
 					->SetSizeCoefficient(0.5f)
 					->SetForegroundTab(FPaletteTabSummoner::TabID)
 					->AddTab(FPaletteTabSummoner::TabID, ETabState::OpenedTab)
-					->AddTab(FLibraryTabSummoner::TabID, ETabState::ClosedTab)
+					->AddTab(FLibraryTabSummoner::TabID, ETabState::OpenedTab)
 				)
 				->Split
 				(
