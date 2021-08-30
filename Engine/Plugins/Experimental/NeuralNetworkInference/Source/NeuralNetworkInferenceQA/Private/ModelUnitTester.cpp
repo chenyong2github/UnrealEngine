@@ -10,7 +10,7 @@
 /* FModelUnitTester static public functions
  *****************************************************************************/
 
-void FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory)
+bool FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory)
 {
 	// Model names, input values, and number of repetitions for profiling
 #ifdef WITH_UE_AND_ORT_SUPPORT
@@ -20,12 +20,12 @@ void FModelUnitTester::GlobalTest(const FString& InProjectContentDir, const FStr
 	const TArray<int32> GPURepetitions({ 1000, 1000, 100, 1000 });
 #else
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- Some FModelUnitTester tests skipped (only if WITH_UE_AND_ORT_SUPPORT)."));
-UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- FModelUnitTester test skipped (only if WITH_UE_AND_ORT_SUPPORT)."));
-return;
 	const TArray<FString> ModelNames({ TEXT("MLRigDeformer"), TEXT("cloth_network") });
 	const TArray<float> InputArrayValues({ 1.f, 0.f });
 	const TArray<int32> CPURepetitions({ 100, 0 });
 	const TArray<int32> GPURepetitions({ 100, 100 });
+UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- FModelUnitTester test skipped (only if WITH_UE_AND_ORT_SUPPORT)."));
+return true;
 #endif //WITH_UE_AND_ORT_SUPPORT
 
 	// Ground truths
@@ -35,7 +35,7 @@ return;
 		{138.373184, 126.754100, 127.287398, 130.316194, 127.303495, 124.801134, 126.5462530}, {0.488662, 0.472437, 0.478862, 0.522685, 0.038322, 0.480848, 0.483821}});
 
 	// Run tests
-	ModelLoadAccuracyAndSpeedTests(InProjectContentDir, InModelZooRelativeDirectory, ModelNames, InputArrayValues, CPUGroundTruths, GPUGroundTruths, CPURepetitions, GPURepetitions);
+	return ModelLoadAccuracyAndSpeedTests(InProjectContentDir, InModelZooRelativeDirectory, ModelNames, InputArrayValues, CPUGroundTruths, GPUGroundTruths, CPURepetitions, GPURepetitions);
 }
 
 
@@ -43,10 +43,12 @@ return;
 /* FModelUnitTester static private functions
  *****************************************************************************/
 
-void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const TArray<FString>& InModelNames,
+bool FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectContentDir, const FString& InModelZooRelativeDirectory, const TArray<FString>& InModelNames,
 	const TArray<float>& InInputArrayValues, const TArray<TArray<double>>& InCPUGroundTruths, const TArray<TArray<double>>& InGPUGroundTruths, const TArray<int32>& InCPURepetitions,
 	const TArray<int32>& InGPURepetitions)
 {
+	bool bDidGlobalTestPassed = true;
+
 	const FString ModelZooDirectory = InProjectContentDir / InModelZooRelativeDirectory;
 
 	// Test OTXT/UAsset accuracy
@@ -62,7 +64,7 @@ void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		if (!Network)
 		{
 			ensureMsgf(false, TEXT("UNeuralNetwork could not be loaded from UAssetModelFilePath %s."), *UAssetModelFilePath);
-			return;
+			return false;
 		}
 		// Input debugging
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %s - Input/Output"), *ModelName);
@@ -75,7 +77,7 @@ void FModelUnitTester::ModelLoadAccuracyAndSpeedTests(const FString& InProjectCo
 		{
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputTensor[%d] = %s."), TensorIndex, *Network->GetOutputTensor(TensorIndex).GetName());
 		}
-		ModelAccuracyTest(Network, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+		bDidGlobalTestPassed &= ModelAccuracyTest(Network, InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("---------------------------------------------------------------------------------------------------------------------------------"));
 
@@ -90,7 +92,7 @@ if (ONNXOrORTIndex == 1)
 	break;
 }
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- %s - Network %s Load and Run - %s"), *ModelName, *ModelType, *ModelFilePath);
-			ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
+			bDidGlobalTestPassed &= ModelAccuracyTest(NetworkONNXOrORTLoadTest(ModelFilePath), InInputArrayValues, CPUGroundTruths, GPUGroundTruths);
 		}
 #else
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("-------------------- Skipped (only in Editor)."));
@@ -103,8 +105,10 @@ if (ONNXOrORTIndex == 1)
 		const FString& ModelName = InModelNames[ModelIndex];
 		UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- %s - Network UAsset Speed Profiling"), *ModelName);
 		const FString UAssetModelFilePath = GetUAssetModelFilePath(ModelName, InModelZooRelativeDirectory);
-		ModelSpeedTest(UAssetModelFilePath, InCPURepetitions[ModelIndex], InGPURepetitions[ModelIndex]);
+		bDidGlobalTestPassed &= ModelSpeedTest(UAssetModelFilePath, InCPURepetitions[ModelIndex], InGPURepetitions[ModelIndex]);
 	}
+
+	return true;
 }
 
 FString FModelUnitTester::GetONNXModelFilePath(const FString& ModelZooDirectory, const FString& InModelName)
@@ -157,11 +161,12 @@ UNeuralNetwork* FModelUnitTester::NetworkONNXOrORTLoadTest(const FString& InMode
 }
 #endif //WITH_EDITOR
 
-void FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TArray<float>& InInputArrayValues, const TArray<double>& InCPUGroundTruths, const TArray<double>& InGPUGroundTruths)
+bool FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TArray<float>& InInputArrayValues, const TArray<double>& InCPUGroundTruths, const TArray<double>& InGPUGroundTruths)
 {
+	// Sanity check
 	if (!InOutNetwork)
 	{
-		return;
+		return false;
 	}
 	// Find NetworkSize
 	const int64 NetworkSize = InOutNetwork->GetInputTensor().Num();
@@ -179,6 +184,7 @@ void FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TAr
 			InputArrays.Num(), InCPUGroundTruths.Num(), InGPUGroundTruths.Num());
 	}
 	// Run each input with CPU/GPU and compare with each other and with the ground truth
+	bool bDidGlobalTestPassed = true;
 	for (int32 Index = 0; Index < InputArrays.Num(); ++Index)
 	{
 		TArray<float>& InputArray = InputArrays[Index];
@@ -223,8 +229,12 @@ void FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TAr
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputArrayCPU = %s"), *FNeuralTensor(OutputArrayCPU, OutputSizes).ToString(MaxNumberElementsToDisplay));
 			UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("OutputArrayGPU = %s"), *FNeuralTensor(OutputArrayGPU, OutputSizes).ToString(MaxNumberElementsToDisplay));
 			ensureMsgf(false, TEXT("At least 1 of the 4 CPU/GPU tests failed."));
+			return false;
 		}
+		bDidGlobalTestPassed &= !bDidSomeTestFailed;
 	}
+	// Test successful
+	return bDidGlobalTestPassed;
 }
 
 #define MODEL_UNIT_TESTER_SPEED_TEST(OutCopyTimeInMilliSeconds, OutNetworkTimeInMilliSeconds, InRepetitions, bInIsGPU) \
@@ -256,7 +266,7 @@ void FModelUnitTester::ModelAccuracyTest(UNeuralNetwork* InOutNetwork, const TAr
 	} \
 	const float OutNetworkTimeInMilliSeconds = Timer.Toc() / InRepetitions - OutCopyTimeInMilliSeconds
 
-void FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const int32 InCPURepetitions, const int32 InGPURepetitions)
+bool FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const int32 InCPURepetitions, const int32 InGPURepetitions)
 {
 	// Load Network
 	UNeuralNetwork* InOutNetwork = NetworkUassetLoadTest(InUAssetPath);
@@ -264,7 +274,7 @@ void FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const int32 I
 	if (!InOutNetwork)
 	{
 		ensureMsgf(false, TEXT("InOutNetwork was a nullptr."));
-		return;
+		return false;
 	}
 	// Needed variables
 	const int64 NetworkSize = InOutNetwork->GetInputTensor().Num();
@@ -288,6 +298,8 @@ void FModelUnitTester::ModelSpeedTest(const FString& InUAssetPath, const int32 I
 		TEXT("Forward pass speed profiling (TensorCopy and Forward()): CPUx1 = %f+%f msec, CPUx%d = %f+%f msec, GPUx1 = %f+%f msec, GPUx%d = %f+%f msec."),
 		CPUCopyTimer1, CPUNetworkTimer1, InCPURepetitions, CPUCopyTimer, CPUNetworkTimer,
 		GPUCopyTimer1, GPUNetworkTimer1, InGPURepetitions, GPUCopyTimer, GPUNetworkTimer);
+	// Test successful
+	return true;
 }
 
 double FModelUnitTester::GetAveragedL1Norm(const TArray<float>& InArray)

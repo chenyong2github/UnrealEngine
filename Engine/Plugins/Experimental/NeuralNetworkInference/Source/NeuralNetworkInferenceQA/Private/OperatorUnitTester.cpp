@@ -14,7 +14,7 @@
 /* FOperatorUnitTester static public functions
  *****************************************************************************/
 
-void FOperatorUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InUnitTestRelativeDirectory)
+bool FOperatorUnitTester::GlobalTest(const FString& InProjectContentDir, const FString& InUnitTestRelativeDirectory)
 {
 	const FString UnitTestDirectory = InProjectContentDir / InUnitTestRelativeDirectory;
 	const float ZeroThreshold = 0.f;
@@ -144,7 +144,7 @@ void FOperatorUnitTester::GlobalTest(const FString& InProjectContentDir, const F
 	if (!NeuralNetworkInferenceQAAsset)
 	{
 		ensureMsgf(false, TEXT("NeuralNetworkInferenceQAAsset could not be loaded!"));
-		return;
+		return false;
 	}
 	NeuralNetworkInferenceQAAsset->FindOrAddOperators(OperatorNames);
 	NeuralNetworkInferenceQAAsset->FlushNewTests();
@@ -208,10 +208,13 @@ void FOperatorUnitTester::GlobalTest(const FString& InProjectContentDir, const F
 	{
 		// Saving NeuralNetworkInferenceQAAsset
 		ensureMsgf(NeuralNetworkInferenceQAAsset->Save(), TEXT("NeuralNetworkInferenceQAAsset->Save() failed."));
-
 		// Error message
 		ensureMsgf(false, TEXT("NeuralNetworkInferenceQAAsset->CompareNewVsPreviousTests() failed. Updated NeuralNetworkInferenceQAAsset saved as %s. Check the previous warning messages."), *NeuralNetworkInferenceQAAsset->GetOutermost()->GetLoadedPath().GetLocalFullPath());
+		// Test failed
+		return false;
 	}
+	// Test successful
+	return true;
 }
 
 

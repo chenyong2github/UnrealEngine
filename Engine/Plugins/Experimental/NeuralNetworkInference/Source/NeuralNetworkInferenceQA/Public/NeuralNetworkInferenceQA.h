@@ -16,5 +16,5 @@ class NEURALNETWORKINFERENCEQA_API UNeuralNetworkInferenceQA : public UObject
 
 public:
 	UFUNCTION(BlueprintCallable, Category = "NeuralNetworkInferenceQA")
-	static void UnitTesting();
+	static bool UnitTesting();
 };
