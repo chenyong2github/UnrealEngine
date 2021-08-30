@@ -1046,27 +1046,10 @@ void UInterchangeManager::SetActiveMode(bool IsActive)
 			}
 			return true;
 		});
-
-		//Block GC in a different thread then game thread
-		FString ThreadName = FString(TEXT("InterchangeGCGuard"));
-		GcGuardThread = FThread(*ThreadName, [this]()
-		{
-			FGCScopeGuard GCScopeGuard;
-			while (bIsActive && ImportTasks.Num() > 0)
-			{
-				FPlatformProcess::Sleep(0.01f);
-			}
-		});
 	}
 	else
 	{
 		FTSTicker::GetCoreTicker().RemoveTicker(NotificationTickHandle);
 		NotificationTickHandle.Reset();
-
-		if (GcGuardThread.IsJoinable())
-		{
-			//Finish the thread
-			GcGuardThread.Join();
-		}
 	}
 }
