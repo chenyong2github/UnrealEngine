@@ -36,8 +36,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SComboButton.h"
-//#include "WorkspaceMenuStructure.h"
-//#include "WorkspaceMenuStructureModule.h"
+#include "Widgets/Testing/SStarshipSuite.h"
 
 #if WITH_EDITOR
 	#include "EngineAnalytics.h"
@@ -1838,12 +1837,9 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 
 	MenuBuilder.BeginSection("DebugOptions", LOCTEXT("OptionsHeading", "Debug Options"));
 
-	auto CanExecute = []() {return true; };
-
 	// Enable Automation Tests Option.
 	{
 		FUIAction ToogleAutomationTestsAction;
-		ToogleAutomationTestsAction.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
 		ToogleAutomationTestsAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
 			{
 				this->SetEnableAutomaticTesting(!this->GetEnableAutomaticTesting());
@@ -1855,7 +1851,7 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableAutomatedTesting", "Enable Automation Testing"),
-			LOCTEXT("EnableAutomatedTestingDesc", "Activates the automatic test system for sessions opened from this window."),
+			LOCTEXT("EnableAutomatedTestingDesc", "Activates the automatic test system for new sessions opened from this window."),
 			FSlateIcon(),
 			ToogleAutomationTestsAction,
 			NAME_None,
@@ -1866,7 +1862,6 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 	// Enable Debug Tools Option.
 	{
 		FUIAction ToogleDebugToolsAction;
-		ToogleDebugToolsAction.CanExecuteAction = FCanExecuteAction::CreateLambda(CanExecute);
 		ToogleDebugToolsAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
 			{
 				this->SetEnableDebugTools(!this->GetEnableDebugTools());
@@ -1878,13 +1873,33 @@ TSharedRef<SWidget> SStartPageWindow::MakeTraceListMenu()
 
 		MenuBuilder.AddMenuEntry(
 			LOCTEXT("EnableDebugTools", "Enable Debug Tools"),
-			LOCTEXT("EnableDebugToolsDesc", "Enables debug tools for sessions opened from this window."),
+			LOCTEXT("EnableDebugToolsDesc", "Enables debug tools for new sessions opened from this window."),
 			FSlateIcon(),
 			ToogleDebugToolsAction,
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
+
+#if !UE_BUILD_SHIPPING
+	// Open Starship Test Suite
+	{
+		FUIAction OpenStarshipSuiteAction;
+		OpenStarshipSuiteAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				RestoreStarshipSuite();
+			});
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
+			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"),
+			OpenStarshipSuiteAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+#endif // !UE_BUILD_SHIPPING
 
 	MenuBuilder.EndSection();
 
