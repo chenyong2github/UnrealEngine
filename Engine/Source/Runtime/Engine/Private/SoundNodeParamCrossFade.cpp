@@ -13,10 +13,9 @@ USoundNodeParamCrossFade::USoundNodeParamCrossFade(const FObjectInitializer& Obj
 
 float USoundNodeParamCrossFade::GetCurrentDistance(FAudioDevice* AudioDevice, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams) const
 {
-	float ParamValue = 0.0f;
-	
-	ActiveSound.GetFloatParameter(ParamName, ParamValue);
-	return ParamValue;
+	FAudioParameter ParamValue;
+	ActiveSound.GetTransmitter()->GetParameter(ParamName, ParamValue);
+	return ParamValue.FloatParam;
 }
 
 bool USoundNodeParamCrossFade::AllowCrossfading(FActiveSound& ActiveSound) const

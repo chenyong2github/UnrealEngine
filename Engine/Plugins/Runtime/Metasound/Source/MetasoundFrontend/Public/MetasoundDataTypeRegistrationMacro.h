@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/Casts.h"
 
+#include "IAudioProxyInitializer.h"
 #include "MetasoundArrayNodesRegistration.h"
 #include "MetasoundAutoConverterNode.h"
 #include "MetasoundConverterNodeRegistrationMacro.h"
@@ -146,29 +147,6 @@ namespace Metasound
 		{
 			static constexpr ELiteralType Value = ELiteralType::UObjectProxyArray;
 		};
-
-		// SFINAE used to optionally invoke subclasses of IAudioProxyDataFactory when we can.
-		template<typename UClassToUse, typename TEnableIf<TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
-		IAudioProxyDataFactory* CastToAudioProxyDataFactory(UObject* InObject)
-		{
-			if (InObject)
-			{
-				UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
-				if (ensureAlways(DowncastObject))
-				{
-					return static_cast<IAudioProxyDataFactory*>(DowncastObject);
-				}
-			}
-
-			return nullptr;
-		}
-
-		template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
-		IAudioProxyDataFactory* CastToAudioProxyDataFactory(UObject* InObject)
-		{
-			return nullptr;
-		}
-		
 
 		// This utility function can be used to optionally check to see if we can transmit a data type, and autogenerate send and receive nodes for that datatype.
 		template<typename TDataType, typename TEnableIf<TIsTransmittable<TDataType>::Value, bool>::Type = true>
@@ -434,15 +412,13 @@ namespace Metasound
 					if constexpr (!std::is_same<UClassToUse, void>::value)
 					{
 						static_assert(std::is_base_of<IAudioProxyDataFactory, UClassToUse>::value, "If a Metasound Datatype uses a UObject as a literal, the UClass of that object needs to also derive from Audio::IProxyDataFactory. See USoundWave as an example.");
-						if (InObject)
+						if (Frontend::IDataTypeRegistry::Get().IsUObjectProxyFactory(InObject))
 						{
-							IAudioProxyDataFactory* ObjectAsFactory = CastToAudioProxyDataFactory<UClassToUse>(InObject);
+							IAudioProxyDataFactory* ObjectAsFactory = Audio::CastToProxyDataFactory<UClassToUse>(InObject);
 							if (ensureAlways(ObjectAsFactory))
 							{
-								static FName ProxySubsystemName = TEXT("Metasound");
-
 								Audio::FProxyDataInitParams ProxyInitParams;
-								ProxyInitParams.NameOfFeatureRequestingProxy = ProxySubsystemName;
+								ProxyInitParams.NameOfFeatureRequestingProxy = "MetaSound";
 
 								return ObjectAsFactory->CreateNewProxyData(ProxyInitParams);
 							}

@@ -20,18 +20,19 @@ float USoundNodeWaveParam::GetDuration()
 	return INDEFINITELY_LOOPING_DURATION;
 }
 
-void USoundNodeWaveParam::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
+void USoundNodeWaveParam::ParseNodes(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
-	USoundWave* NewWave = NULL;
-	ActiveSound.GetWaveParameter( WaveParameterName, NewWave );
-	if( NewWave != NULL )
+	FAudioParameter ParamValue;
+	ActiveSound.GetTransmitter()->GetParameter(WaveParameterName, ParamValue);
+
+	if (USoundWave* NewWave = Cast<USoundWave>(ParamValue.ObjectParam))
 	{
-		NewWave->Parse( AudioDevice, GetNodeWaveInstanceHash(NodeWaveInstanceHash, (UPTRINT)NewWave, 0), ActiveSound, ParseParams, WaveInstances );
+		NewWave->Parse(AudioDevice, GetNodeWaveInstanceHash(NodeWaveInstanceHash, (UPTRINT)NewWave, 0), ActiveSound, ParseParams, WaveInstances);
 	}
 	else
 	{
 		// use the default node linked to us, if any
-		Super::ParseNodes( AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances );
+		Super::ParseNodes(AudioDevice, NodeWaveInstanceHash, ActiveSound, ParseParams, WaveInstances);
 	}
 }
 

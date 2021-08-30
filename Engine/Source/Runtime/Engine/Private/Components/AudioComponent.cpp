@@ -3,7 +3,7 @@
 #include "Components/AudioComponent.h"
 #include "ActiveSound.h"
 #include "Audio.h"
-#include "Audio/AudioComponentParameterization.h"
+#include "Audio/SoundGeneratorParameterInterface.h"
 #include "AudioDevice.h"
 #include "AudioThread.h"
 #include "Components/BillboardComponent.h"
@@ -33,20 +33,15 @@ FAutoConsoleVariableRef CVarPrimeSoundOnAudioComponentSpawn(
 	ECVF_Default);
 
 
-/*-----------------------------------------------------------------------------
-UInitialActiveSoundParams implementation.
------------------------------------------------------------------------------*/
+uint64 UAudioComponent::AudioComponentIDCounter = 0;
+TMap<uint64, UAudioComponent*> UAudioComponent::AudioIDToComponentMap;
+FCriticalSection UAudioComponent::AudioIDToComponentMapLock;
+
+
 UInitialActiveSoundParams::UInitialActiveSoundParams(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
-
-/*-----------------------------------------------------------------------------
-UAudioComponent implementation.
------------------------------------------------------------------------------*/
-uint64 UAudioComponent::AudioComponentIDCounter = 0;
-TMap<uint64, UAudioComponent*> UAudioComponent::AudioIDToComponentMap;
-FCriticalSection UAudioComponent::AudioIDToComponentMapLock;
 
 UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -107,16 +102,13 @@ UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentI
 
 void UAudioComponent::BeginDestroy()
 {
-	if (ParameterInterface)
-	{
-		ParameterInterface->Shutdown();
-	}
-
 	if (IsActive() && Sound && Sound->IsLooping())
 	{
 		UE_LOG(LogAudio, Verbose, TEXT("Audio Component is being destroyed prior to stopping looping sound '%s' directly."), *Sound->GetFullName());
 		Stop();
 	}
+
+	ResetParameters();
 
 	{
 		FScopeLock Lock(&AudioIDToComponentMapLock);
@@ -512,12 +504,6 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 
 			AudioDevice->GetMaxDistanceAndFocusFactor(Sound, World, Location, AttenuationSettingsToApply, MaxDistance, FocusFactor);
 
-			if (!ParameterInterface)
-			{
-				static const FName InterfaceName("AudioComponentParameterization");
-				ParameterInterface = NewObject<UAudioComponentParameterization>(this, InterfaceName);
-			}
-
 			FActiveSound NewActiveSound;
 			NewActiveSound.SetAudioComponent(*this);
 			NewActiveSound.SetWorld(GetWorld());
@@ -609,7 +595,6 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 			NewActiveSound.QuantizedRequestData = InPlayRequestData.QuantizedRequestData;
 
 			NewActiveSound.MaxDistance = MaxDistance;
-			NewActiveSound.InstanceParameters = InstanceParameters;
 
 			Audio::FVolumeFader& Fader = NewActiveSound.ComponentVolumeFader;
 			Fader.SetVolume(0.0f); // Init to 0.0f to fade as default is 1.0f
@@ -617,7 +602,8 @@ void UAudioComponent::PlayInternal(const PlayInternalRequestData& InPlayRequestD
 
 			// Bump ActiveCount... this is used to determine if an audio component is still active after a sound reports back as completed
 			++ActiveCount;
-			AudioDevice->AddNewActiveSound(NewActiveSound);
+
+			AudioDevice->AddNewActiveSound(NewActiveSound, &InstanceParameters);
 
 			// In editor, the audio thread is not run separate from the game thread, and can result in calling PlaybackComplete prior
 			// to bIsActive being set. Therefore, we assign to the current state of ActiveCount as opposed to just setting to true.
@@ -771,11 +757,7 @@ void UAudioComponent::Stop()
 
 	if (bIsPreviewSound)
 	{
-		if (ParameterInterface)
-		{
-			ParameterInterface->Shutdown();
-			ParameterInterface = nullptr;
-		}
+		ResetParameters();
 	}
 
 	// Set this to immediately be inactive
@@ -1089,234 +1071,6 @@ void UAudioComponent::Deactivate()
 	}
 }
 
-void UAudioComponent::SetFloatParameter( const FName InName, const float InFloat )
-{
-	if (InName != NAME_None)
-	{
-		bool bFound = false;
-
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.FloatParam = InFloat;
-				bFound = true;
-				break;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		if (!bFound)
-		{
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[ NewParamIndex ].ParamName = InName;
-			InstanceParameters[ NewParamIndex ].FloatParam = InFloat;
-		}
-
-		// If we're active we need to push this value to the ActiveSound
-		if (IsActive())
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetFloatParameter"), STAT_AudioSetFloatParameter, STATGROUP_AudioThreadCommands);
-
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, InName, InFloat]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->SetFloatParameter(InName, InFloat);
-					}
-				}, GET_STATID(STAT_AudioSetFloatParameter));
-			}
-		}
-	}
-}
-
-TScriptInterface<IAudioParameterInterface> UAudioComponent::GetParameterInterface() const
-{
-	return ParameterInterface;
-}
-
-void UAudioComponent::SetWaveParameter( const FName InName, USoundWave* InWave )
-{
-	if (InName != NAME_None)
-	{
-		bool bFound = false;
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.SoundWaveParam = InWave;
-				bFound = true;
-				break;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		if (!bFound)
-		{
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[NewParamIndex].ParamName = InName;
-			InstanceParameters[NewParamIndex].SoundWaveParam = InWave;
-		}
-
-		// If we're active we need to push this value to the ActiveSound
-		if (IsActive())
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetWaveParameter"), STAT_AudioSetWaveParameter, STATGROUP_AudioThreadCommands);
-
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, InName, InWave]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->SetWaveParameter(InName, InWave);
-					}
-				}, GET_STATID(STAT_AudioSetWaveParameter));
-			}
-		}
-	}
-}
-
-void UAudioComponent::SetBoolParameter( const FName InName, const bool InBool )
-{
-	if (InName != NAME_None)
-	{
-		bool bFound = false;
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.BoolParam = InBool;
-				bFound = true;
-				break;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		if (!bFound)
-		{
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[ NewParamIndex ].ParamName = InName;
-			InstanceParameters[ NewParamIndex ].BoolParam = InBool;
-		}
-
-		// If we're active we need to push this value to the ActiveSound
-		if (IsActive())
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetBoolParameter"), STAT_AudioSetBoolParameter, STATGROUP_AudioThreadCommands);
-
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, InName, InBool]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->SetBoolParameter(InName, InBool);
-					}
-				}, GET_STATID(STAT_AudioSetBoolParameter));
-			}
-		}
-	}
-}
-
-void UAudioComponent::SetIntParameter( const FName InName, const int32 InInt )
-{
-	if (InName != NAME_None)
-	{
-		bool bFound = false;
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.IntParam = InInt;
-				bFound = true;
-				break;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		if (!bFound)
-		{
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[NewParamIndex].ParamName = InName;
-			InstanceParameters[NewParamIndex].IntParam = InInt;
-		}
-
-		// If we're active we need to push this value to the ActiveSound
-		if (IsActive())
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetIntParameter"), STAT_AudioSetIntParameter, STATGROUP_AudioThreadCommands);
-
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, InName, InInt]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->SetIntParameter(InName, InInt);
-					}
-				}, GET_STATID(STAT_AudioSetIntParameter));
-			}
-		}
-	}
-}
-
-void UAudioComponent::SetSoundParameter(const FAudioComponentParam& Param)
-{
-	if (Param.ParamName != NAME_None)
-	{
-		bool bFound = false;
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == Param.ParamName)
-			{
-				P = Param;
-				bFound = true;
-				break;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		if (!bFound)
-		{
-			const int32 NewParamIndex = InstanceParameters.Add(Param);
-		}
-
-		if (IsActive())
-		{
-			if (FAudioDevice* AudioDevice = GetAudioDevice())
-			{
-				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetSoundParameter"), STAT_AudioSetSoundParameter, STATGROUP_AudioThreadCommands);
-
-				const uint64 MyAudioComponentID = AudioComponentID;
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, MyAudioComponentID, Param]()
-				{
-					FActiveSound* ActiveSound = AudioDevice->FindActiveSound(MyAudioComponentID);
-					if (ActiveSound)
-					{
-						ActiveSound->SetSoundParameter(Param);
-					}
-				}, GET_STATID(STAT_AudioSetSoundParameter));
-			}
-		}
-	}
-}
-
 void UAudioComponent::SetFadeInComplete()
 {
 	EAudioComponentPlayState PlayState = GetPlayState();
@@ -1342,6 +1096,11 @@ void UAudioComponent::SetIsVirtualized(bool bInIsVirtualized)
 	}
 
 	bIsVirtualized = bInIsVirtualized ? 1 : 0;
+}
+
+void UAudioComponent::SetWaveParameter(FName InName, USoundWave* InWave)
+{
+	SetObjectParameter(InName, Cast<UObject>(InWave));
 }
 
 void UAudioComponent::SetVolumeMultiplier(const float NewVolumeMultiplier)

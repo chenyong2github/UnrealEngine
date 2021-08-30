@@ -12,32 +12,31 @@ USoundNodeSwitch::USoundNodeSwitch(const FObjectInitializer& ObjectInitializer)
 {
 }
 
-void USoundNodeSwitch::ParseNodes( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances )
+void USoundNodeSwitch::ParseNodes(FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanceHash, FActiveSound& ActiveSound, const FSoundParseParameters& ParseParams, TArray<FWaveInstance*>& WaveInstances)
 {
-	int32 ChildNodeIndex = 0;
-
-	if (ActiveSound.GetIntParameter( IntParameterName, ChildNodeIndex ))
+	FAudioParameter Param;
+	if (ActiveSound.GetTransmitter()->GetParameter(IntParameterName, Param))
 	{
-		ChildNodeIndex += 1;
+		Param.IntParam += 1;
 	}
 	
-	if (ChildNodeIndex < 0 || ChildNodeIndex >= ChildNodes.Num())
+	if (Param.IntParam < 0 || Param.IntParam >= ChildNodes.Num())
 	{
-		ChildNodeIndex = 0;
+		Param.IntParam = 0;
 	}
 
-	if (ChildNodeIndex < ChildNodes.Num() && ChildNodes[ChildNodeIndex])
+	if (Param.IntParam < ChildNodes.Num() && ChildNodes[Param.IntParam])
 	{
-		ChildNodes[ChildNodeIndex]->ParseNodes(AudioDevice, GetNodeWaveInstanceHash(NodeWaveInstanceHash, ChildNodes[ChildNodeIndex], ChildNodeIndex), ActiveSound, ParseParams, WaveInstances);
+		ChildNodes[Param.IntParam]->ParseNodes(AudioDevice, GetNodeWaveInstanceHash(NodeWaveInstanceHash, ChildNodes[Param.IntParam], Param.IntParam), ActiveSound, ParseParams, WaveInstances);
 	}
 }
 
 void USoundNodeSwitch::CreateStartingConnectors()
 {
-	InsertChildNode( ChildNodes.Num() );
-	InsertChildNode( ChildNodes.Num() );
-	InsertChildNode( ChildNodes.Num() );
-	InsertChildNode( ChildNodes.Num() );
+	InsertChildNode(ChildNodes.Num());
+	InsertChildNode(ChildNodes.Num());
+	InsertChildNode(ChildNodes.Num());
+	InsertChildNode(ChildNodes.Num());
 }
 
 #if WITH_EDITOR

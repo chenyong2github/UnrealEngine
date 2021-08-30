@@ -310,7 +310,7 @@ namespace Metasound
 
 			const FString& GetInstanceIDName()
 			{
-				static const FString& Name = FMetasoundInstanceTransmitter::GetInstanceIDEnvironmentVariableName();
+				static const FString& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
 				return Name;
 			}
 
@@ -488,7 +488,7 @@ namespace Metasound
 
 			const FString& GetInstanceIDName()
 			{
-				static const FString& Name = FMetasoundInstanceTransmitter::GetInstanceIDEnvironmentVariableName();
+				static const FString& Name = FMetaSoundParameterTransmitter::GetInstanceIDEnvironmentVariableName();
 				return Name;
 			}
 

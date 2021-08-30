@@ -15,6 +15,7 @@ struct FSoundGeneratorInitParams
 	int32 NumFramesPerCallback = 0;
 	uint64 InstanceID = 0;
 	bool bIsPreviewSound = false;
+	FString GraphName;
 };
 
 class ENGINE_API ISoundGenerator

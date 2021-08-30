@@ -362,19 +362,19 @@ private:
 
 	TMap<UPTRINT, FWaveInstance*> WaveInstances;
 
-	class FInstanceTransmitter
+	class FParameterTransmitter
 	{
 	public:
-		FInstanceTransmitter() = default;
-		FInstanceTransmitter(FInstanceTransmitter&&) = default;
-		FInstanceTransmitter& operator=(FInstanceTransmitter&&) = default;
+		FParameterTransmitter() = default;
+		FParameterTransmitter(FParameterTransmitter&&) = default;
+		FParameterTransmitter& operator=(FParameterTransmitter&&) = default;
 
-		FInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitterImpl)
+		FParameterTransmitter(TUniquePtr<Audio::IParameterTransmitter>&& InTransmitterImpl)
 		:	TransmitterImpl(MoveTemp(InTransmitterImpl))
 		{
 		}
 
-		FInstanceTransmitter(const FInstanceTransmitter& InOther)
+		FParameterTransmitter(const FParameterTransmitter& InOther)
 		{
 			if (InOther.IsValid())
 			{
@@ -382,7 +382,7 @@ private:
 			}
 		}
 
-		FInstanceTransmitter& operator=(const FInstanceTransmitter& InOther)
+		FParameterTransmitter& operator=(const FParameterTransmitter& InOther)
 		{
 			TransmitterImpl.Reset();
 			if (InOther.IsValid())
@@ -392,7 +392,7 @@ private:
 			return *this;
 		}
 
-		FInstanceTransmitter& operator=(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitterImpl)
+		FParameterTransmitter& operator=(TUniquePtr<Audio::IParameterTransmitter>&& InTransmitterImpl)
 		{
 			TransmitterImpl = MoveTemp(InTransmitterImpl);
 			return *this;
@@ -403,37 +403,38 @@ private:
 			return TransmitterImpl.IsValid();
 		}
 
-		IAudioInstanceTransmitter* Get()
+		Audio::IParameterTransmitter* Get()
 		{
 			return TransmitterImpl.Get();
 		}
-		const IAudioInstanceTransmitter* Get() const
-		{
-			return TransmitterImpl.Get();
-		}
-
-		IAudioInstanceTransmitter* operator->()
+		const Audio::IParameterTransmitter* Get() const
 		{
 			return TransmitterImpl.Get();
 		}
 
-		const IAudioInstanceTransmitter* operator->() const
+		Audio::IParameterTransmitter* operator->()
+		{
+			return TransmitterImpl.Get();
+		}
+
+		const Audio::IParameterTransmitter* operator->() const
 		{
 			return TransmitterImpl.Get();
 		}
 
 	private:
-		TUniquePtr<IAudioInstanceTransmitter> TransmitterImpl;
+		TUniquePtr<Audio::IParameterTransmitter> TransmitterImpl;
 	};
 
-	FInstanceTransmitter InstanceTransmitter;
+	FParameterTransmitter InstanceTransmitter;
 
 public:
-	IAudioInstanceTransmitter* GetTransmitter() 
+	Audio::IParameterTransmitter* GetTransmitter()
 	{
 		return InstanceTransmitter.Get();
 	}
-	const IAudioInstanceTransmitter* GetTransmitter() const
+
+	const Audio::IParameterTransmitter* GetTransmitter() const
 	{
 		return InstanceTransmitter.Get();
 	}
@@ -641,13 +642,11 @@ public:
 	TMap<UPTRINT,uint32> SoundNodeOffsetMap;
 	TArray<uint8> SoundNodeData;
 
-	TArray<FAudioComponentParam> InstanceParameters;
-
 	// Whether or not there are Source Bus Sends that have not been sent to the render thread
 	bool bHasNewBusSends;
 
 	// Bus send(s) that have not yet been sent to the render thread
-	TArray<TTuple<EBusSendType, FSoundSourceBusSendInfo>> newBusSends;
+	TArray<TTuple<EBusSendType, FSoundSourceBusSendInfo>> NewBusSends;
 
 	FSoundModulationDefaultRoutingSettings ModulationRouting;
 
@@ -682,45 +681,6 @@ public:
 
 	/** Gets total concurrency gain stage based on all concurrency memberships of sound */
 	float GetTotalConcurrencyVolumeScale() const;
-
-	/** Sets a float instance parameter for the ActiveSound */
-	void SetFloatParameter(const FName InName, const float InFloat);
-
-	/** Sets a wave instance parameter for the ActiveSound */
-	void SetWaveParameter(const FName InName, class USoundWave* InWave);
-
-	/** Sets a boolean instance parameter for the ActiveSound */
-	void SetBoolParameter(const FName InName, const bool InBool);
-
-	/** Sets an integer instance parameter for the ActiveSound */
-	void SetIntParameter(const FName InName, const int32 InInt);
-
-	/** Sets the audio component parameter on the active sound. Note: this can be set without audio components if they are set when active sound is created. */
-	void SetSoundParameter(const FAudioComponentParam& Param);
-
-	/**
-	 * Try and find an Instance Parameter with the given name and if we find it return the float value.
-	 * @return true if float for parameter was found, otherwise false
-	 */
-	bool GetFloatParameter(const FName InName, float& OutFloat) const;
-
-	/**
-	 *Try and find an Instance Parameter with the given name and if we find it return the USoundWave value.
-	 * @return true if USoundWave for parameter was found, otherwise false
-	 */
-	bool GetWaveParameter(const FName InName, USoundWave*& OutWave) const;
-
-	/**
-	 *Try and find an Instance Parameter with the given name and if we find it return the boolean value.
-	 * @return true if boolean for parameter was found, otherwise false
-	 */
-	bool GetBoolParameter(const FName InName, bool& OutBool) const;
-
-	/**
-	 *Try and find an Instance Parameter with the given name and if we find it return the integer value.
-	 * @return true if boolean for parameter was found, otherwise false
-	 */
-	bool GetIntParameter(const FName InName, int32& OutInt) const;
 
 	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 

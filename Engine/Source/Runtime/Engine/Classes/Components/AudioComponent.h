@@ -1,26 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Audio/AudioParameterInterface.h"
+#include "Audio/SoundGeneratorParameterInterface.h"
+#include "AudioParameterInterface.h"
 #include "Components/SceneComponent.h"
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
-#include "IAudioExtensionPlugin.h"
+#include "IAudioParameterTransmitter.h"
+#include "Math/RandomStream.h"
+#include "Quartz/AudioMixerClockHandle.h"
+#include "Quartz/AudioMixerQuantizedCommands.h"
+#include "Sound/QuartzQuantizationUtilities.h"
+#include "Sound/QuartzSubscription.h"
 #include "Sound/SoundAttenuation.h"
 #include "Sound/SoundWave.h"
 #include "UObject/ObjectMacros.h"
-#include "Math/RandomStream.h"
-#include "Sound/QuartzSubscription.h"
-#include "Sound/QuartzQuantizationUtilities.h"
-#include "Quartz/AudioMixerClockHandle.h"
-#include "Quartz/AudioMixerQuantizedCommands.h"
 
 #include "AudioComponent.generated.h"
 
+
+// Forward Declarations
 class FAudioDevice;
+class UAudioComponent;
 class USoundBase;
 class USoundClass;
 class USoundConcurrency;
+class USoundWave;
+
+struct FAudioComponentParam;
+
 
 // Enum describing the audio component play state
 UENUM(BlueprintType)
@@ -49,7 +57,7 @@ enum class EAudioComponentPlayState : uint8
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAudioFinished);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioFinishedNative, class UAudioComponent*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnAudioFinishedNative, UAudioComponent*);
 
 /** Called when subtitles are sent to the SubtitleManager.  Set this delegate if you want to hijack the subtitles for other purposes */
 DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnQueueSubtitles, const TArray<struct FSubtitleCue>&, Subtitles, float, CueDuration);
@@ -58,22 +66,22 @@ DECLARE_DYNAMIC_DELEGATE_TwoParams(FOnQueueSubtitles, const TArray<struct FSubti
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioPlayStateChanged, EAudioComponentPlayState, PlayState);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAudioPlayStateChangedNative, const class UAudioComponent*, EAudioComponentPlayState);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAudioPlayStateChangedNative, const UAudioComponent*, EAudioComponentPlayState);
 
 /** Called when sound becomes virtualized or realized (resumes playback from virtualization). */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAudioVirtualizationChanged, bool, bIsVirtualized);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAudioVirtualizationChangedNative, const class UAudioComponent*, bool);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnAudioVirtualizationChangedNative, const UAudioComponent*, bool);
 
 /** Called as a sound plays on the audio component to allow BP to perform actions based on playback percentage.
 * Computed as samples played divided by total samples, taking into account pitch.
 * Not currently implemented on all platforms.
 */
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioPlaybackPercent, const class USoundWave*, PlayingSoundWave, const float, PlaybackPercent);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioPlaybackPercent, const USoundWave*, PlayingSoundWave, const float, PlaybackPercent);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioPlaybackPercentNative, const class UAudioComponent*, const class USoundWave*, const float);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioPlaybackPercentNative, const UAudioComponent*, const USoundWave*, const float);
 
 /**
 * Called while a sound plays and returns the sound's envelope value (using an envelope follower in the audio renderer).
@@ -82,7 +90,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioPlaybackPercentNative, const clas
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnAudioSingleEnvelopeValue, const class USoundWave*, PlayingSoundWave, const float, EnvelopeValue);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioSingleEnvelopeValueNative, const class UAudioComponent*, const class USoundWave*, const float);
+DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioSingleEnvelopeValueNative, const UAudioComponent*, const USoundWave*, const float);
 
 /**
 * Called while a sound plays and returns the sound's average and max envelope value (using an envelope follower in the audio renderer per wave instance).
@@ -91,7 +99,7 @@ DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnAudioSingleEnvelopeValueNative, const 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAudioMultiEnvelopeValue, const float, AverageEnvelopeValue, const float, MaxEnvelope, const int32, NumWaveInstances);
 
 /** shadow delegate declaration for above */
-DECLARE_MULTICAST_DELEGATE_FourParams(FOnAudioMultiEnvelopeValueNative, const class UAudioComponent*, const float, const float, const int32);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnAudioMultiEnvelopeValueNative, const UAudioComponent*, const float, const float, const int32);
 
 
 
@@ -116,49 +124,16 @@ enum class EAudioFaderCurve : uint8
 
 
 /**
- *	Struct used for storing one per-instance named parameter for this AudioComponent.
- *	Certain nodes in the SoundCue may reference parameters by name so they can be adjusted per-instance.
+ * Legacy struct used for storing named parameter for a given AudioComponent.
  */
 USTRUCT(BlueprintType)
-struct FAudioComponentParam
+struct UE_DEPRECATED(5.0, "FAudioComponentParam has been deprecated, use FAudioParameter") FAudioComponentParam : public FAudioParameter
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	// Name of the parameter
+	// DEPRECATED
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
-	FName ParamName;
-
-	// Value of the parameter when used as a float
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
-	float FloatParam;
-
-	// Value of the parameter when used as a boolean
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
-	bool BoolParam;
-
-	// Value of the parameter when used as an integer
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
-	int32 IntParam;
-
-	// Value of the parameter when used as a sound wave
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=AudioComponentParam)
-	TObjectPtr<class USoundWave> SoundWaveParam;
-
-	FAudioComponentParam(const FName& Name)
-		: ParamName(Name)
-		, FloatParam(0.f)
-		, BoolParam(false)
-		, IntParam(0)
-		, SoundWaveParam(nullptr)
-	{}
-
-	FAudioComponentParam()
-		: FloatParam(0.f)
-		, BoolParam(false)
-		, IntParam(0)
-		, SoundWaveParam(nullptr)
-	{
-	}
+	TObjectPtr<USoundWave> SoundWaveParam = nullptr;
 };
 
 /**
@@ -171,7 +146,7 @@ class UInitialActiveSoundParams : public UObject
 
 	// Collection of parameters to be sent to the active sound
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Audio")
-	TArray<FAudioComponentParam> AudioParams;
+	TArray<FAudioParameter> AudioParams;
 
 	void Reset(int32 ReserveSize = 0)
 	{
@@ -186,19 +161,20 @@ class UInitialActiveSoundParams : public UObject
  * @see USoundBase
  */
 UCLASS(ClassGroup=(Audio, Common), hidecategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
-class ENGINE_API UAudioComponent : public USceneComponent
+class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGeneratorParameterInterface
 {
 	GENERATED_UCLASS_BODY()
 
 	/** The sound to be played */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
-	TObjectPtr<class USoundBase> Sound;
+	TObjectPtr<USoundBase> Sound;
 
-	/** Array of per-instance parameters for this AudioComponent. */
+	/** Array of per-instance parameters for this AudioComponent. Direct changes to this array from Blueprint (as opposed to updates
+	  * made via the Set functions) will not be forwarded to the sound if the component is actively playing. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound, AdvancedDisplay)
-	TArray<struct FAudioComponentParam> InstanceParameters;
+	TArray<FAudioParameter> InstanceParameters;
 
-	/** Optional sound group this AudioComponent belongs to */
+	/** SoundClass that overrides that set on the referenced SoundBase when component is played. */
 	UPROPERTY(EditAnywhere, Category=Sound, AdvancedDisplay)
 	TObjectPtr<USoundClass> SoundClassOverride;
 
@@ -521,7 +497,7 @@ public:
 	 *  Doesn't indicate if the sound is paused or fading in/out. Use GetPlayState() to get the full play state.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	virtual bool IsPlaying() const;
+	virtual bool IsPlaying() const override;
 
 	/** Returns if the sound is virtualized. */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
@@ -539,40 +515,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void AdjustVolume(float AdjustVolumeDuration, float AdjustVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
-	/** Allows the designer to set the Float Parameter on the SoundCue whose name matches the name indicated.
-	 * @param InName The name of the Float to set. It must match the name set in SoundCue's Crossfade By Param or Continuous Modulator Node.
-	 * @param InFloat The value to set the Parameter to.
+	/** Sets the parameter matching the name indicated to the provided Wave. Provided for convenience/backward compatibility
+	 * with SoundCues (The parameter interface supports any object and is up to the system querying it to determine whether
+	 * it is a valid type).
+	 * @param InName The name of the parameter to assign the wave to.
+	 * @param InWave The wave value to set.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetFloatParameter(FName InName, float InFloat);
-
-	UPROPERTY(Transient)
-	TScriptInterface<IAudioParameterInterface> ParameterInterface;
-
-	/** Retrieves the parameter interface to set parameters on sound types that support parameterization (ex. MetaSounds if plugin is enabled). */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Parameters")
-	TScriptInterface<IAudioParameterInterface> GetParameterInterface() const;
-
-	/** Allows the designer to set the Wave Parameter on the SoundCue whose name matches the name indicated.
-	 * @param InName The name of the Wave to set. It must match the name set in SoundCue's WaveParam Node
-	 * @param InWave The value to set the Parameter to
-	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetWaveParameter(FName InName, class USoundWave* InWave);
-
-	/** Allows the designer to set the Boolean Parameter on the SoundCue whose name matches the name indicated.
-	 * @param InName The name of the Boolean to set. It must match the name set in SoundCue's Branch Node 
-	 * @param InBool The value to set the Parameter to
-	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Boolean Parameter"))
-	void SetBoolParameter(FName InName, bool InBool);
-
-	/** Allows the designer to set the Integer Parameter on the SoundCue whose name matches the name indicated.
-	 * @param InName The name of the Integer to set. It must match the name set in SoundCue's Switch Node
-	 * @param InInt The value to set the Parameter to
-	 */
-	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta=(DisplayName="Set Integer Parameter"))
-	void SetIntParameter(FName InName, int32 InInt);
+	UFUNCTION(BlueprintCallable, Category = "Audio|Parameter")
+	void SetWaveParameter(FName InName, USoundWave* InWave);
 
 	/** Set a new volume multiplier */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
@@ -701,10 +651,6 @@ private:
 	void BroadcastPlayState();
 
 public:
-
-	/** Sets the sound instance parameter. */
-	void SetSoundParameter(const FAudioComponentParam& Param);
-
 	/** Set when the sound is finished with initial fading in */
 	void SetFadeInComplete();
 
@@ -751,9 +697,6 @@ public:
 	 */
 	void CollectAttenuationShapesForVisualization(TMultiMap<EAttenuationShape::Type, FBaseAttenuationSettings::AttenuationShapeDetails>& ShapeDetailsMap) const;
 
-	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
-	FAudioDevice* GetAudioDevice() const;
-
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
@@ -765,6 +708,13 @@ public:
 	void SetPlaybackTimes(const TMap<uint32, float>& InSoundWavePlaybackTimes);
 
 	void SetSourceEffectChain(USoundEffectSourcePresetChain* InSourceEffectChain);
+
+	/** SoundGeneratorParameterInterface Implementation */
+	FAudioDevice* GetAudioDevice() const override;
+	TArray<FAudioParameter>& GetInstanceParameters() override { return InstanceParameters; }
+	uint64 GetInstanceID() const override { return AudioComponentID; }
+	USoundBase* GetSound() override { return Sound; }
+
 public:
 
 	/**

@@ -1582,7 +1582,7 @@ void UGameplayStatics::PlaySoundAtLocation(const UObject* WorldContextObject, cl
 
 	if (FAudioDeviceHandle AudioDevice = ThisWorld->GetAudioDevice())
 	{
-		const TArray<FAudioComponentParam>* Params = InitialParams ? &InitialParams->AudioParams : nullptr;
+		const TArray<FAudioParameter>* Params = InitialParams ? &InitialParams->AudioParams : nullptr;
 		AudioDevice->PlaySoundAtLocation(Sound, ThisWorld, VolumeMultiplier, PitchMultiplier, StartTime, Location, Rotation, AttenuationSettings, ConcurrencySettings, Params, OwningActor);
 	}
 }

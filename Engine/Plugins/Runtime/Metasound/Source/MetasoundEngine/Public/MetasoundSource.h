@@ -3,13 +3,14 @@
 
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraph.h"
+#include "IAudioParameterTransmitter.h"
 #include "Metasound.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundFrontendRegistries.h"
-#include "MetasoundInstanceTransmitter.h"
 #include "MetasoundOperatorSettings.h"
+#include "MetasoundParameterTransmitter.h"
 #include "MetasoundRouter.h"
 #include "Sound/SoundWaveProcedural.h"
 #include "UObject/MetaData.h"
@@ -157,13 +158,15 @@ public:
 		return this;
 	}
 
+	virtual void InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName) override;
 	virtual void InitResources() override;
 
 	virtual bool IsPlayable() const override;
 	virtual bool SupportsSubtitles() const override;
 	virtual float GetDuration() override;
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) override;
-	virtual TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const override;
+	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const override;
+	virtual bool IsParameterValid(const FAudioParameter& InParameter) const override;
 
 	// Get the most up to date archetype for metasound sources.
 	const TArray<FMetasoundFrontendVersion>& GetSupportedArchetypeVersions() const override;
@@ -192,6 +195,6 @@ private:
 	Metasound::FOperatorSettings GetOperatorSettings(Metasound::FSampleRate InSampleRate) const;
 	Metasound::FMetasoundEnvironment CreateEnvironment() const;
 	Metasound::FMetasoundEnvironment CreateEnvironment(const FSoundGeneratorInitParams& InParams) const;
-	Metasound::FMetasoundEnvironment CreateEnvironment(const FAudioInstanceTransmitterInitParams& InParams) const;
+	Metasound::FMetasoundEnvironment CreateEnvironment(const Audio::FParameterTransmitterInitParams& InParams) const;
 	const TArray<Metasound::FVertexKey>& GetAudioOutputVertexKeys() const;
 };

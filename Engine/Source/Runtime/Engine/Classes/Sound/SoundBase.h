@@ -1,13 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-/**
- * The base class for a playable sound object
- */
 
 #include "Audio.h"
 #include "CoreMinimal.h"
 #include "IAudioExtensionPlugin.h"
+#include "IAudioParameterTransmitter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
 #include "SoundConcurrency.h"
@@ -19,8 +17,15 @@
 #include "UObject/ObjectMacros.h"
 #include "AudioDeviceManager.h"
 #include "Interfaces/Interface_AssetUserData.h"
+
 #include "SoundBase.generated.h"
 
+
+// Forward Declarations
+namespace Audio
+{
+	class IParameterTransmitter;
+} // namespace Audio
 
 class USoundEffectSourcePreset;
 class USoundSourceBus;
@@ -30,6 +35,7 @@ class UAssetUserData;
 
 struct FActiveSound;
 struct FSoundParseParameters;
+
 
 /**
  * Method of virtualization when a sound is stopped due to playback constraints
@@ -54,6 +60,9 @@ enum class EVirtualizationMode : uint8
 	Restart
 };
 
+/**
+ * The base class for a playable sound object
+ */
 UCLASS(config=Engine, hidecategories=Object, abstract, editinlinenew, BlueprintType)
 class ENGINE_API USoundBase : public UObject, public IInterface_AssetUserData
 {
@@ -280,13 +289,18 @@ public:
 	virtual const TArray<UAssetUserData*>* GetAssetUserDataArray() const override;
 	//~ End IInterface_AssetUserData Interface
 
-	/** Called prior to attempting to play sound from Game Thread to enable initializing any additional resources required for playback. */
+	/** Called from the Game Thread prior to attempting to pass parameters to the ParameterTransmitter. */
+	virtual void InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName);
+
+	/** Called from the Game Thread prior to attempting to initialize a sound instance. */
 	virtual void InitResources() { }
 
 	/** Creates a sound generator instance from this sound base. Return true if this is being implemented by a subclass. Sound generators procedurally generate audio in the audio render thread. */
 	virtual ISoundGeneratorPtr CreateSoundGenerator(const FSoundGeneratorInitParams& InParams) { return nullptr; }
 
-	/** Creates a instance transmitter for communicating with active sound instances. */
-	virtual TUniquePtr<IAudioInstanceTransmitter> CreateInstanceTransmitter(const FAudioInstanceTransmitterInitParams& InParams) const { return nullptr; }
-};
+	/** Creates a parameter transmitter for communicating with active sound instances. */
+	virtual TUniquePtr<Audio::IParameterTransmitter> CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const;
 
+	/** Returns whether parameter is valid input for the given sound */
+	virtual bool IsParameterValid(const FAudioParameter& InParameter) const;
+};

@@ -3,7 +3,7 @@
 
 #include "Algo/Count.h"
 #include "Algo/Transform.h"
-#include "Audio/AudioParameterInterface.h"
+#include "AudioParameterInterface.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
 #include "GraphEditorSettings.h"
