@@ -286,6 +286,28 @@ public:
 	FP4RecordSet PreviousRecords;
 };
 
+/** An extended version of FP4ClientUser that allows the standard input stream to be overriden */
+class FP4CommandWithStdInputClientUser : public FP4ClientUser
+{
+public:
+	FP4CommandWithStdInputClientUser(FStringView InStdInput, FP4RecordSet& InRecords, EP4ClientUserFlags InFlags, TArray<FText>& InOutErrorMessages, ClientApi& InP4Client)
+		: FP4ClientUser(InRecords, InFlags, InOutErrorMessages)
+		, P4Client(InP4Client)
+		, StdInput(InStdInput)
+	{
+	}
+
+
+	virtual void InputData(StrBuf* OutBuffer, Error* OutError) override
+	{	
+		OutBuffer->Append(FROM_TCHAR(*StdInput, IsUnicodeServer()));
+	}
+
+protected:
+	ClientApi& P4Client;
+	FString StdInput;
+};
+
 /** Custom ClientUser class for handling login commands */
 class FP4LoginClientUser : public FP4ClientUser
 {
@@ -881,6 +903,27 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 	}
 }
 
+bool FPerforceConnection::CreateWorkspace(FStringView WorkspaceSpec, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages)
+{
+	TArray<FString> Params;
+	FP4RecordSet Records;
+
+	EP4ClientUserFlags Flags = bIsUnicode ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
+
+	const char* ArgV[] = { "-i" };
+	P4Client.SetArgv(1, const_cast<char* const*>(ArgV));
+
+	FP4KeepAlive KeepAlive(InIsCancelled);
+	P4Client.SetBreak(&KeepAlive);
+
+	FP4CommandWithStdInputClientUser User(WorkspaceSpec, Records, Flags, OutErrorMessages, P4Client);
+	P4Client.Run("client", &User);
+
+	P4Client.SetBreak(nullptr);
+	
+	return OutErrorMessages.Num() == 0;
+}
+
 void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InConnectionInfo)
 {
 	// Verify Input. ServerName and UserName are required
@@ -978,6 +1021,18 @@ void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InC
 				ClientRoot = ClientRoot.Replace(TEXT("\\"), TEXT("/"));
 			}
 		}
+	}
+}
+
+FString FPerforceConnection::GetUser()
+{
+	if (bEstablishedConnection)
+	{
+		return TO_TCHAR(P4Client.GetUser().Text(), bIsUnicode);
+	}
+	else
+	{
+		return FString();
 	}
 }
 

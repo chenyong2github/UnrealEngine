@@ -118,4 +118,15 @@ bool ISourceControlProvider::TryToDownloadFileFromBackgroundThread(const TShared
 	return false;
 }
 
+ECommandResult::Type ISourceControlProvider::SwitchWorkspace(FStringView NewWorkspaceName, FSourceControlResultInfo& OutResultInfo, FString* OutOldWorkspaceName)
+{
+	FFormatNamedArguments Arguments;
+	Arguments.Add(TEXT("ProviderName"), FText::FromName(GetName()));
+	FText Message = FText::Format(LOCTEXT("UnsupportedOperation", "SwitchWorkspace is not supported by source control provider '{ProviderName}'"), Arguments);
+
+	OutResultInfo.ErrorMessages.Add(Message);
+
+	return ECommandResult::Failed;
+}
+
 #undef LOCTEXT_NAMESPACE

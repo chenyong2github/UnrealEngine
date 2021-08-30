@@ -289,6 +289,18 @@ public:
 	SOURCECONTROL_API virtual bool TryToDownloadFileFromBackgroundThread(const TSharedRef<class FDownloadFile>& InOperation, const TArray<FString>& InFiles);
 
 	/**
+	 * Used to switch the provider from one workspace to another. 
+	 * NOTE: This concept is currently only implemented for the perforce source control provider.
+	 * 
+	 * @param NewWorkspaceName			The name of the workspace to switch to
+	 * @param ResultInfo[out]			Errors and info messages generated will be written here
+	 * @param OutOldWorkspaceName[out]	The name of the previous workspace will be written to this FString if the pointer is valid (optional)
+	 * 
+	 * @return The result of the operation.
+	 */
+	SOURCECONTROL_API virtual ECommandResult::Type SwitchWorkspace(FStringView NewWorkspaceName, FSourceControlResultInfo& OutResultInfo, FString* OutOldWorkspaceName);
+
+	/**
 	 * Whether the provider uses local read-only state to signal whether a file is editable.
 	 */
 	virtual bool UsesLocalReadOnlyState() const = 0;

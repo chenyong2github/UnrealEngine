@@ -96,6 +96,17 @@ public:
 	 */
 	int32 EditPendingChangelist(const FText& NewDescription, int32 ChangelistNumber, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages);
 
+	/** 
+	 * Creates a workspace based on the spec provided via the WorkspaceSpec.
+	 * 
+	 * @param WorkspaceSpec		The specification of the workspace to create
+	 * @param InIsCancelled		Delegate allowing the cancelling of the command if needed
+	 * @param OutErrorMessages	An array that will be filled with all errors encountered during the command
+	 * 
+	 * @return Returns true if no errors were encountered, otherwise false
+	 */
+	bool CreateWorkspace(FStringView WorkspaceSpec, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages);
+
 	/**
 	 * Attempt to login - some servers will require this 
 	 * @param	InConnectionInfo		Credentials to use
@@ -108,6 +119,13 @@ public:
 	 * @param InConnectionInfo		Connection credentials
 	 */
 	void EstablishConnection(const FPerforceConnectionInfo& InConnectionInfo);
+
+	/** 
+	 * Return the user of the connection
+	 * 
+	 * @return The current perforce user, this will be blank if the connect failed.
+	 */
+	FString GetUser();
 
 public:
 	/** Perforce API client object */
