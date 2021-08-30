@@ -7990,9 +7990,7 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 		FRigVMInverseAction InverseAction;
 		InverseAction.Title = FString::Printf(TEXT("Change Local Variable type %s to %s"), *InVariableName.ToString(), *InCPPType);
 
-		ActionStack->BeginAction(InverseAction);
 		ActionStack->AddAction(FRigVMChangeLocalVariableTypeAction(LocalVariables[FoundIndex], InCPPType, InCPPTypeObject));
-		ActionStack->EndAction(InverseAction);
 	}	
 	
 	LocalVariables[FoundIndex].CPPType = InCPPType;
