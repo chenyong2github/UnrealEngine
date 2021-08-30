@@ -41,7 +41,11 @@ static FAutoConsoleVariableRef CVarHairStrandsDebugVoxel_MaxSegmentPerVoxel(TEXT
 
 EHairResourceLoadingType GetHairResourceLoadingType()
 {
+#if !WITH_EDITORONLY_DATA
 	return GHairStrandsBulkData_AsyncLoading > 0 ? EHairResourceLoadingType::Async : EHairResourceLoadingType::Sync;
+#else
+	return EHairResourceLoadingType::Sync;
+#endif
 }
 
 namespace HairTransition
