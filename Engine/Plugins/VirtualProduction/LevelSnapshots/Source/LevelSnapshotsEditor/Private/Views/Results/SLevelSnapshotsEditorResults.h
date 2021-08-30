@@ -45,9 +45,8 @@ enum ELevelSnapshotsObjectType
 
 struct FLevelSnapshotsEditorResultsSplitterManager
 {
-	float NameColumnWidth = 1.0f;
-	float SnapshotPropertyColumnWidth = 1.0f;
-	float WorldObjectPropertyColumnWidth = 1.0f;
+	float NestedColumnWidth = 0.5f; // The right side of the first splitter which contains the nested splitter for the property widgets
+	float SnapshotPropertyColumnWidth = 0.5f;
 };
 
 struct FLevelSnapshotsEditorResultsRowStateMemory
@@ -482,23 +481,30 @@ public:
 
 	float GetNameColumnSize() const;
 
+	float CalculateAndReturnNestedColumnSize();
+
 	float GetSnapshotColumnSize() const;
 
 	float GetWorldColumnSize() const;
 
-	void SetNameColumnSize(const float InWidth) const;
+	void SetNestedColumnSize(const float InWidth) const;
 
 	void SetSnapshotColumnSize(const float InWidth) const;
-
-	void SetWorldColumnSize(const float InWidth) const;
 
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 private:
 	
-	TSharedPtr<SSplitter> SplitterPtr = nullptr;
+	TSharedPtr<SSplitter> OuterSplitterPtr = nullptr;
+	TSharedPtr<SSplitter> NestedSplitterPtr = nullptr;
+	
 	TWeakPtr<FLevelSnapshotsEditorResultsRow> Item = nullptr;
 
 	/* For splitter sync */
+
+	/* To sync up splitter location in tree view items, we need to account for the tree view's indentation.
+	 * Instead of calculating the coefficient twice each frame (for left and right splitter slots), we do it once and cache it here. */
+	float CachedNestedColumnWidthAdjusted = 0.f;
+	
 	FLevelSnapshotsEditorResultsSplitterManagerPtr SplitterManagerPtr;
 };
