@@ -296,7 +296,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!DoesPlatformSupportLumenGI(Parameters.Platform))
+		if (!FLumenHardwareRayTracingRGS::ShouldCompilePermutation(Parameters))
 		{
 			return false;
 		}
