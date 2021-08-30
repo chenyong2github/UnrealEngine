@@ -18,7 +18,6 @@ class UWorldPartition;
 class UAssetUserData;
 class UNetConnection;
 class UNavigationSystemConfig;
-class UWorldPartitionStreamingPolicy;
 class UAISystemBase;
 
 UENUM()
@@ -480,10 +479,6 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category=WorldPartitionSetup)
 	uint8 bEnableWorldPartition:1;
 
-	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
-	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, AdvancedDisplay, meta=(editcondition = "bEnableWorldPartition"))
-	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
-
 	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
 	UPROPERTY()
 	FVector LevelInstancePivotOffset;
@@ -545,7 +540,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfigOverride;
 
-	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, NoClear, meta=(NoResetToDefault), Instanced)
+	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, NoClear, meta=(NoResetToDefault, HideEditConditionToggle, EditCondition = "bEnableWorldPartition"), Instanced)
 	TObjectPtr<UWorldPartition> WorldPartition;
 
 public:

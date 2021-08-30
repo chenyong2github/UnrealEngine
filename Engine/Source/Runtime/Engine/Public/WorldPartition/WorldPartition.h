@@ -191,6 +191,10 @@ public:
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
 	IWorldPartitionEditor* WorldPartitionEditor;
+
+	/** Class of WorldPartitionStreamingPolicy to be used to manage world partition streaming. */
+	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault))
+	TSubclassOf<UWorldPartitionStreamingPolicy> WorldPartitionStreamingPolicyClass;
 #endif
 
 	UPROPERTY(EditAnywhere, Category=RuntimeHash, NoClear, meta = (NoResetToDefault), Instanced)
