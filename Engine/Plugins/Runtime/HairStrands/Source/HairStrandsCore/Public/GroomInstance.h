@@ -134,12 +134,11 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			FStrandsBaseWithInterpolation Guides;
 
 			UMaterialInterface* Material = nullptr;
-			FHairCardsUniformBuffer UniformBuffer[2];
-			FHairCardsVertexFactory* VertexFactory[2] = { nullptr, nullptr };
+			FHairCardsUniformBuffer UniformBuffer;
+			FHairCardsVertexFactory* VertexFactory = nullptr;
 			FHairCardsVertexFactory* GetVertexFactory() const
 			{
-				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
-				return VertexFactory[Index];
+				return VertexFactory;
 			}
 			void InitVertexFactory();
 
@@ -169,12 +168,11 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			#endif
 
 			UMaterialInterface* Material = nullptr;
-			FHairCardsUniformBuffer UniformBuffer[2];
-			FHairCardsVertexFactory* VertexFactory[2] = { nullptr, nullptr };
+			FHairCardsUniformBuffer UniformBuffer;
+			FHairCardsVertexFactory* VertexFactory = nullptr;
 			FHairCardsVertexFactory* GetVertexFactory() const 
 			{
-				const uint32 Index = DeformedResource ? DeformedResource->CurrentIndex : 0;
-				return VertexFactory[Index];
+				return VertexFactory;
 			}
 			void InitVertexFactory();
 		};

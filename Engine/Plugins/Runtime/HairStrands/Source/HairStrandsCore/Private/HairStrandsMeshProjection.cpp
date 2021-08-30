@@ -1006,6 +1006,7 @@ template<typename TRestResource, typename TDeformedResource>
 void InternalAddHairRBFInterpolationPass(
 	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap* ShaderMap,
+	const bool bCards,
 	const int32 MeshLODIndex,
 	TRestResource* RestResources,
 	TDeformedResource* DeformedResources,
@@ -1018,15 +1019,19 @@ void InternalAddHairRBFInterpolationPass(
 		return;
 	}
 
+	// Copy current to previous position before update the current position. This allows to have correct motion vectors.
+	FRDGImportedBuffer DeformedPositionBuffer_Curr = Register(GraphBuilder, DeformedResources->GetBuffer(TDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer DeformedPositionBuffer_Prev = Register(GraphBuilder, DeformedResources->GetBuffer(TDeformedResource::EFrameType::Previous), ERDGImportedBufferFlags::CreateUAV);
+	AddCopyBufferPass(GraphBuilder, DeformedPositionBuffer_Prev.Buffer, DeformedPositionBuffer_Curr.Buffer);
+
 	FHairStrandsRestRootResource::FLOD& RestLODData = RestRootResources->LODs[MeshLODIndex];
 	FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedRootResources->LODs[MeshLODIndex];
 	FHairMeshesInterpolateCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairMeshesInterpolateCS::FParameters>();
 	Parameters->VertexCount = VertexCount;
 	Parameters->MaxSampleCount = RestLODData.SampleCount;
 
-	FRDGImportedBuffer OutDeformedPositionBuffer = Register(GraphBuilder, DeformedResources->GetBuffer(TDeformedResource::EFrameType::Current), ERDGImportedBufferFlags::CreateUAV);
 	Parameters->RestPositionBuffer			= RestResources->RestPositionBuffer.ShaderResourceViewRHI;
-	Parameters->OutDeformedPositionBuffer	= OutDeformedPositionBuffer.UAV;
+	Parameters->OutDeformedPositionBuffer	= DeformedPositionBuffer_Curr.UAV;
 
 	Parameters->RestSamplePositionsBuffer	= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
 	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer);
@@ -1036,12 +1041,14 @@ void InternalAddHairRBFInterpolationPass(
 	TShaderMapRef<FHairMeshesInterpolateCS> ComputeShader(ShaderMap);
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		RDG_EVENT_NAME("HairInterpolationRBF"),
+		RDG_EVENT_NAME("HairInterpolationRBF(%s)", bCards ? TEXT("Cards") : TEXT("Meshes")),
 		ComputeShader,
 		Parameters,
 		DispatchGroupCount);
 
-	GraphBuilder.SetBufferAccessFinal(OutDeformedPositionBuffer.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(DeformedPositionBuffer_Curr.Buffer, ERHIAccess::SRVMask);
+	GraphBuilder.SetBufferAccessFinal(DeformedPositionBuffer_Prev.Buffer, ERHIAccess::SRVMask);
+	
 }
 
 void AddHairMeshesRBFInterpolationPass(
@@ -1056,6 +1063,7 @@ void AddHairMeshesRBFInterpolationPass(
 	InternalAddHairRBFInterpolationPass(
 		GraphBuilder,
 		ShaderMap,
+		false,
 		MeshLODIndex,
 		RestResources,
 		DeformedResources,
@@ -1075,6 +1083,7 @@ void AddHairCardsRBFInterpolationPass(
 	InternalAddHairRBFInterpolationPass(
 		GraphBuilder,
 		ShaderMap,
+		true,
 		MeshLODIndex,
 		RestResources,
 		DeformedResources,
