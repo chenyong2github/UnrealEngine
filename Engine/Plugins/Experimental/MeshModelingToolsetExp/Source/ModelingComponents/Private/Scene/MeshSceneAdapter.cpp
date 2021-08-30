@@ -482,7 +482,7 @@ static UMaterialInterface* GetStaticMeshMaterialFromSlotName(UStaticMesh* Static
 struct FMeshDescriptionTriangleMeshSurfaceAdapter : public FMeshDescriptionTriangleMeshAdapter
 {
 public:
-	FMeshDescriptionTriangleMeshSurfaceAdapter(const FMeshDescription* MeshIn, UStaticMesh* StaticMeshIn)
+	FMeshDescriptionTriangleMeshSurfaceAdapter(const FMeshDescription* MeshIn, UStaticMesh* StaticMeshIn, bool bOnlySurfaceMaterials)
 		: FMeshDescriptionTriangleMeshAdapter(MeshIn)
 		, NumValidTriangles(0)
 		, bHasInvalidPolyGroup(false)
@@ -490,25 +490,28 @@ public:
 		FStaticMeshConstAttributes MeshDescriptionAttributes(*MeshIn);
 		TPolygonGroupAttributesConstRef<FName> MaterialSlotNames = MeshDescriptionAttributes.GetPolygonGroupMaterialSlotNames();
 
-		for (FPolygonGroupID PolygonGroupID : MeshIn->PolygonGroups().GetElementIDs())
+		if (bOnlySurfaceMaterials)
 		{
-			// Try to find correct material index for the slot name in the MeshDescription. 
-			// Sometimes this data is wrong, in that case fall back to slot 0
-			FName MaterialSlotName = MaterialSlotNames[PolygonGroupID];
-			int32 MaterialIndex = GetStaticMeshMaterialIndexFromSlotName(StaticMeshIn, MaterialSlotName, true);
-
-			UMaterialInterface* MaterialInterface = GetStaticMeshMaterialFromSlotName(StaticMeshIn, MaterialSlotName, true);
-			const UMaterial* Material = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
-
-			bool bValidPolyGroup = Material != nullptr && Material->MaterialDomain == EMaterialDomain::MD_Surface;
-			if (bValidPolyGroup)
+			for (FPolygonGroupID PolygonGroupID : MeshIn->PolygonGroups().GetElementIDs())
 			{
-				ValidPolyGroups.Add(PolygonGroupID);
-				NumValidTriangles += MeshIn->GetNumPolygonGroupTriangles(PolygonGroupID);
-			}
-			else
-			{
-				bHasInvalidPolyGroup = true;
+				// Try to find correct material index for the slot name in the MeshDescription. 
+				// Sometimes this data is wrong, in that case fall back to slot 0
+				FName MaterialSlotName = MaterialSlotNames[PolygonGroupID];
+				int32 MaterialIndex = GetStaticMeshMaterialIndexFromSlotName(StaticMeshIn, MaterialSlotName, true);
+
+				UMaterialInterface* MaterialInterface = GetStaticMeshMaterialFromSlotName(StaticMeshIn, MaterialSlotName, true);
+				const UMaterial* Material = MaterialInterface != nullptr ? MaterialInterface->GetMaterial_Concurrent() : nullptr;
+
+				bool bValidPolyGroup = Material != nullptr && Material->MaterialDomain == EMaterialDomain::MD_Surface;
+				if (bValidPolyGroup)
+				{
+					ValidPolyGroups.Add(PolygonGroupID);
+					NumValidTriangles += MeshIn->GetNumPolygonGroupTriangles(PolygonGroupID);
+				}
+				else
+				{
+					bHasInvalidPolyGroup = true;
+				}
 			}
 		}
 	}
@@ -572,7 +575,7 @@ public:
 #else
 		SourceMesh = StaticMesh->GetMeshDescription(LODIndex);
 #endif
-		Adapter = MakeUnique<FMeshDescriptionTriangleMeshSurfaceAdapter>(SourceMesh, StaticMesh);
+		Adapter = MakeUnique<FMeshDescriptionTriangleMeshSurfaceAdapter>(SourceMesh, StaticMesh, BuildOptions.bOnlySurfaceMaterials);
 
 		if (SourceMesh && Adapter)
 		{
@@ -904,7 +907,7 @@ void FMeshSceneAdapter::Build(const FMeshSceneAdapterBuildOptions& BuildOptions)
 
 		if (BuildOptions.bPrintDebugMessages)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("[FMeshSceneAdapter] decomposed %d source meshes into %d unique meshes containing %d triangles"), DecomposedSourceMeshCount.load(), DecomposedMeshesCount.load(), AddedTrisCount)
+			UE_LOG(LogGeometry, Warning, TEXT("[FMeshSceneAdapter] decomposed %d source meshes into %d unique meshes containing %d triangles"), DecomposedSourceMeshCount.load(), DecomposedMeshesCount.load(), AddedTrisCount)
 		}
 
 	}
@@ -1432,7 +1435,7 @@ void FMeshSceneAdapter::Build_FullDecompose(const FMeshSceneAdapterBuildOptions&
 
 	if (BuildOptions.bPrintDebugMessages)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("[FMeshSceneAdapter] decomposed %d source meshes used in %d instances (of %d total source meshes with %ld unique triangles), into %d new part meshes used in %d new instances containing %ld unique triangles. Scene has %ld total unique and %ld total instanced. Skipped %d decompositions. Skipped %d tiny components (%d instances, %d total triangles). %d 1-triangle meshes."), 
+		UE_LOG(LogGeometry, Warning, TEXT("[FMeshSceneAdapter] decomposed %d source meshes used in %d instances (of %d total source meshes with %ld unique triangles), into %d new part meshes used in %d new instances containing %ld unique triangles. Scene has %ld total unique and %ld total instanced. Skipped %d decompositions. Skipped %d tiny components (%d instances, %d total triangles). %d 1-triangle meshes."), 
 			   DecomposedSourceMeshCount.load(), SourceInstancesCount.load(), NumInitialSources, NumSourceUniqueTris, 
 			   NewUniqueMeshesCount.load(), NewInstancesCount.load(), AddedUniqueTrisCount, 
 			   NumFinalUniqueTris.load(), InstancedTrisCount,

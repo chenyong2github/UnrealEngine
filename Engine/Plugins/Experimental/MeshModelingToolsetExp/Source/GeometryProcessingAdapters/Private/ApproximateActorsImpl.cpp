@@ -964,6 +964,7 @@ void FApproximateActorsImpl::GenerateApproximationForActorSet(const TArray<AActo
 	// filter out objects smaller than 10% of voxel size
 	SceneBuildOptions.bFilterTinyObjects = Options.bIgnoreTinyParts;
 	SceneBuildOptions.TinyObjectBoxMaxDimension = Options.TinyPartMaxDimensionMeters;
+	SceneBuildOptions.bOnlySurfaceMaterials = true;
 	SceneBuildOptions.bPrintDebugMessages = Options.bVerbose;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ApproximateActorsImpl_Generate_BuildScene);
