@@ -16,7 +16,8 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"BlacklistPlatforms": [
-				"LinuxArm64"
+				"LinuxArm64",
+				"Hololens"
 			]
 		}
 	],
