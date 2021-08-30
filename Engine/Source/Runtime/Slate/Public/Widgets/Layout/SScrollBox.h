@@ -341,6 +341,9 @@ protected:
 	/** Whether to permit overscroll on this scroll box */
 	EAllowOverscroll AllowOverscroll;
 
+	/** Padding to the scrollbox */
+	FMargin ScrollBarPadding;
+
 	/** Whether to back pad this scroll box, allowing user to scroll backward until child contents are no longer visible */
 	bool BackPadScrolling;
 
