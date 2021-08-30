@@ -98,6 +98,8 @@ protected:
 
 	// Wireframe Display Properties
 	float TriangleOpacity = 1.0;
+	const float TriangleDepthOffset = 0.5;
+	const float WireframeDepthOffset = 0.6;	
 	FColor TriangleColor = FColor(50, 194, 219);
 	FColor WireframeColor = FColor(50, 100, 219);
 	FColor IslandBorderColor = FColor(103, 52, 235);

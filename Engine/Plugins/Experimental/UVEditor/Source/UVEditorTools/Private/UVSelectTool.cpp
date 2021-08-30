@@ -695,7 +695,7 @@ void UUVSelectTool::UpdateLivePreviewLines()
 			LivePreviewLineSet->AddLine(
 				MeshTransform.TransformPosition(Vert1), 
 				MeshTransform.TransformPosition(Vert2), 
-				FColor::Yellow, 2, 1.5);
+				FColor::Yellow, LivePreviewHighlightThickness, LivePreviewHighlightDepthOffset);
 		}	
 	}
 }

@@ -129,8 +129,7 @@ protected:
 
 	float LineThickness = 3;
 	float PointThickness = 6;
-	// TODO: This should probably be lower, but we have to lower the depth bias elsewhere first.
-	float DepthBias = 5;
+	float DepthBias = 0.7;
 
 	FVector3d CurrentSelectionCentroid;
 	int32 CentroidTimestamp = -1;
