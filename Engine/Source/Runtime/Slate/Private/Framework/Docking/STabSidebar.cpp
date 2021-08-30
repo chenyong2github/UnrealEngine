@@ -629,7 +629,7 @@ TSharedRef<SWidget> STabSidebar::OnGetTabDrawerContextMenuWidget(TSharedRef<SDoc
 		MenuBuilder.BeginSection("RestoreOptions", LOCTEXT("RestoreOptions", "Options"));
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("AutoHideTab", "Restore Tab"),
+				LOCTEXT("AutoHideTab", "Undock from Sidebar"),
 				LOCTEXT("HideTabWellTooltip", "Moves this tab out of the sidebar and back to a full tab where it previously was before it was added to the sidebar."),
 				FSlateIcon(),
 				FUIAction(
