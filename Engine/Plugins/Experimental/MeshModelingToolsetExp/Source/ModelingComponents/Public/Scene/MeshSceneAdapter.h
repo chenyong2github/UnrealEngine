@@ -64,6 +64,7 @@ struct MODELINGCOMPONENTS_API FMeshTypeContainer
  */
 struct FMeshSceneAdapterBuildOptions
 {
+	/** If true, various build log messages and statistics will be written to LogGeometry */
 	bool bPrintDebugMessages = false;
 
 	/** If true, find approximately-planar meshes with a main dimension below DesiredMinThickness and thicken them to DesiredMinThickness  */
@@ -76,7 +77,10 @@ struct FMeshSceneAdapterBuildOptions
 	/** If bFilterTinyObjects is enabled, then a tiny object is identified by having a maximum (transformed) bounding-box dimension below this size */
 	double TinyObjectBoxMaxDimension = 0.001;
 
+	/** If true, only mesh sections that are assigned a valid surface material (ie MaterialDomain::MD_Surface) will be included/processed in the Mesh Scene. This filters out Decals, for example. */
+	bool bOnlySurfaceMaterials = false;
 
+	/** If true, AABBTree and Fast Winding data structures will be built for unique scene meshes */
 	bool bBuildSpatialDataStructures = true;
 };
 
