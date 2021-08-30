@@ -66,7 +66,7 @@ ovrAudioContext FOculusAudioContextManager::GetOrCreateSerializationContext(UAct
 	/* NOTE: this was meant to be some magic that would clean up the serialization 
 	context so there is no stale state in PIE. This failed when there was no geometry 
 	in the scene. Since the plugins are force to use one global context that seems 
-	like a better option for the vanilla UE4 integraiton to do as well for consistency.
+	like a better option for the vanilla UE integraiton to do as well for consistency.
 	*/
 	if (SerializationParent != nullptr)
 	{
