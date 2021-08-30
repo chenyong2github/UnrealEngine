@@ -2466,6 +2466,11 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 					}
 				}
 			}
+
+			for(URigVMPin* Pin : SubNode->Pins)
+			{
+				EnsurePinValidity(Pin, true);
+			}
 		}
 
 		Notify(ERigVMGraphNotifType::NodeAdded, CreatedNode);
