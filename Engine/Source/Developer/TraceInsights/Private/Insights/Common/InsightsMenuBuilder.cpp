@@ -4,8 +4,11 @@
 
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Testing/SStarshipSuite.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+
+#include "Insights/InsightsStyle.h"
 
 #define LOCTEXT_NAMESPACE "InsightsMenuBuilder"
 
@@ -60,7 +63,27 @@ void FInsightsMenuBuilder::PopulateMenu(FMenuBuilder& MenuBuilder)
 			FUIAction(FExecuteAction::CreateLambda([=] { FGlobalTabmanager::Get()->TryInvokeTab(WidgetReflectorTabId); })));
 		MenuBuilder.EndSection();
 	}
-#endif
+
+#if !UE_BUILD_SHIPPING
+	// Open Starship Test Suite
+	{
+		FUIAction OpenStarshipSuiteAction;
+		OpenStarshipSuiteAction.ExecuteAction = FExecuteAction::CreateLambda([this]()
+			{
+				RestoreStarshipSuite();
+			});
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("OpenStarshipSuite", "Starship Test Suite"),
+			LOCTEXT("OpenStarshipSuiteDesc", "Opens the Starship UX test suite."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Bug"),
+			OpenStarshipSuiteAction,
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+#endif // !UE_BUILD_SHIPPING
+#endif // !WITH_EDITOR
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

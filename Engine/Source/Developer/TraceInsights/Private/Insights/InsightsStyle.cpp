@@ -162,6 +162,8 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("FindNext", new IMAGE_BRUSH("Animation/forward", Icon20x20));
 	Style.Set("FindLast", new IMAGE_BRUSH("Animation/forward_end", Icon20x20));
 
+	Style.Set("Icon.Bug", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/bug", Icon24x24));
+
 	return StyleRef;
 }
 
