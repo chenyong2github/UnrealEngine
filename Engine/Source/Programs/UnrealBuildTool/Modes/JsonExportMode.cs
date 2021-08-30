@@ -55,8 +55,7 @@ namespace UnrealBuildTool
 						Arguments.ApplyTo(BuildConfiguration);
 
 						// Create the makefile
-						const bool bIsAssemblingBuild = true;
-						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, bIsAssemblingBuild, TargetDescriptor.SpecificFilesToCompile);
+						TargetMakefile Makefile = Target.Build(BuildConfiguration, WorkingSet, TargetDescriptor.SpecificFilesToCompile);
 						List<LinkedAction> Actions = Makefile.Actions.ConvertAll(x => new LinkedAction(x));
 						ActionGraph.Link(Actions);
 
