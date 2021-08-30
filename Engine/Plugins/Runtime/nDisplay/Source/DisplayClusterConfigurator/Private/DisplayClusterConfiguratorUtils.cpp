@@ -3,6 +3,7 @@
 #include "DisplayClusterConfiguratorUtils.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
 #include "DisplayClusterConfiguratorFactory.h"
+#include "DisplayClusterConfiguratorLog.h"
 
 #include "DisplayClusterRootActor.h"
 #include "Blueprints/DisplayClusterBlueprint.h"
@@ -16,8 +17,10 @@
 
 #include "Engine/SCS_Node.h"
 #include "Engine/SimpleConstructionScript.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Widgets/Notifications/SNotificationList.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguratorUtils"
@@ -48,6 +51,27 @@ UDisplayClusterBlueprint* FDisplayClusterConfiguratorUtils::CreateBlueprintFromR
 {
 	check(RootActor);
 	check(Package);
+
+	const FString BlueprintNameStr = BlueprintName.ToString();
+	if (UObject* ExistingObject = FindObject<UObject>(Package, *BlueprintNameStr))
+	{
+		FNotificationInfo Info(FText::Format(LOCTEXT("FileExists", "Cannot create a new nDisplay blueprint with the name '{0}'. The file already exists."),
+			FText::FromName(BlueprintName)));
+
+		UE_LOG(DisplayClusterConfiguratorLog, Error, TEXT("Cannot create a new nDisplay blueprint with the name '%s'. The file already exists. To re-import right click on the file and use the context option instead."),
+			*BlueprintNameStr);
+		
+		Info.bUseLargeFont = false;
+		Info.ExpireDuration = 5.0f;
+
+		const TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+		if (Notification.IsValid())
+		{
+			Notification->SetCompletionState(SNotificationItem::CS_Fail);
+		}
+
+		return nullptr;
+	}
 
 	UDisplayClusterBlueprint* Blueprint = CastChecked<UDisplayClusterBlueprint>(FKismetEditorUtilities::CreateBlueprint(ADisplayClusterRootActor::StaticClass(),
 		Package,
