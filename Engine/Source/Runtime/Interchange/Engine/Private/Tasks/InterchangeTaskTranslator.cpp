@@ -7,16 +7,19 @@
 #include "InterchangeManager.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"
+#include "Nodes/InterchangeBaseNodeContainer.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/GarbageCollection.h"
 #include "UObject/WeakObjectPtrTemplates.h"
-#include "Nodes/InterchangeBaseNodeContainer.h"
 
 void UE::Interchange::FTaskTranslator::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(Translator)
 #endif
+	FGCScopeGuard GCScopeGuard;
+
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 

@@ -12,6 +12,7 @@
 #include "InterchangeResultsContainer.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/GarbageCollection.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
@@ -21,6 +22,8 @@ void UE::Interchange::FTaskPreAsyncCompletion::DoTask(ENamedThreads::Type Curren
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(PreAsyncCompletion)
 #endif
+	FGCScopeGuard GCScopeGuard;
+
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 

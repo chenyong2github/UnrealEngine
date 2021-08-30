@@ -10,8 +10,8 @@
 #include "InterchangeSourceData.h"
 #include "InterchangeTaskCompletion.h"
 #include "InterchangeTaskCreateAsset.h"
-#include "InterchangeTaskPipeline.h"
 #include "InterchangeTaskCreateSceneObjects.h"
+#include "InterchangeTaskPipeline.h"
 #include "InterchangeTranslatorBase.h"
 #include "Misc/Paths.h"
 #include "Nodes/InterchangeBaseNode.h"
@@ -19,9 +19,10 @@
 #include "PackageUtils/PackageUtils.h"
 #include "Stats/Stats.h"
 #include "Templates/SharedPointer.h"
+#include "UObject/GarbageCollection.h"
 #include "UObject/Object.h"
-#include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/UObjectGlobals.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 
@@ -30,6 +31,8 @@ void UE::Interchange::FTaskParsing::DoTask(ENamedThreads::Type CurrentThread, co
 #if INTERCHANGE_TRACE_ASYNCHRONOUS_TASK_ENABLED
 	INTERCHANGE_TRACE_ASYNCHRONOUS_TASK(ParsingGraph)
 #endif
+	FGCScopeGuard GCScopeGuard;
+
 	TSharedPtr<FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
