@@ -524,12 +524,12 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 					
 				}
 			}
+		}
 
-			if (Context.GetStatus() == EMovieScenePlayerStatus::Scrubbing || Context.GetStatus() == EMovieScenePlayerStatus::Stepping)
-			{
-				// While scrubbing, play the sound for a short time and then cut it.
-				AudioComponent.StopDelayed(AudioTrackConstants::ScrubDuration);
-			}
+		if (Context.GetStatus() == EMovieScenePlayerStatus::Scrubbing || Context.GetStatus() == EMovieScenePlayerStatus::Stepping)
+		{
+			// While scrubbing, play the sound for a short time and then cut it.
+			AudioComponent.StopDelayed(AudioTrackConstants::ScrubDuration);
 		}
 
 		if (bAllowSpatialization)
