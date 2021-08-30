@@ -2197,10 +2197,6 @@ bool FMaterial::CacheShaders(const FMaterialShaderMapId& ShaderMapId, EShaderPla
 				TRefCountPtr<FMaterialShaderMap> LoadedShaderMap;
 				FMaterialShaderMap::LoadFromDerivedDataCache(this, ShaderMapId, Platform, TargetPlatform, LoadedShaderMap, DDCKeyHash);
 				ShaderMap = LoadedShaderMap;
-				if (LoadedShaderMap)
-				{
-					UE_LOG(LogMaterial, Verbose, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *GetAssetName(), *DDCKeyHash);
-				}
 			}
 
 			check(!ShaderMap || ShaderMap->GetFrozenContentSize() > 0u);

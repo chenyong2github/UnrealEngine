@@ -1270,6 +1270,11 @@ void FMaterialShaderMap::LoadFromDerivedDataCache(const FMaterial* Material, con
 				COOK_STAT(Timer.TrackCyclesOnly());
 				InOutShaderMap = nullptr;
 			}
+
+			if (InOutShaderMap)
+			{
+				UE_LOG(LogMaterial, Display, TEXT("Loaded shaders for %s from DDC (key hash: %s)"), *Material->GetAssetName(), *OutDDCKeyDesc);
+			}
 		}
 		INC_FLOAT_STAT_BY(STAT_ShaderCompiling_DDCLoading,(float)MaterialDDCTime);
 	}
@@ -1284,7 +1289,7 @@ void FMaterialShaderMap::SaveToDerivedDataCache()
 	Serialize(Ar);
 
 	FString DataKey = GetMaterialShaderMapKeyString(ShaderMapId, GetShaderPlatform());
-	UE_LOG(LogMaterial, Verbose, TEXT("Saving material DDC for key hash %s"), *FSHA1_HashString(DataKey));
+	UE_LOG(LogMaterial, Display, TEXT("Saved shaders for %s from DDC (key hash: %s)"), GetMaterialPath(), *FSHA1_HashString(DataKey));
 	GetDerivedDataCacheRef().Put(*DataKey, SaveData, FStringView(GetFriendlyName()));
 	COOK_STAT(Timer.AddMiss(SaveData.Num()));
 }
