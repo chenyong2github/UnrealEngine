@@ -198,6 +198,7 @@ void SDockingTabStack::Construct( const FArguments& InArgs, const TSharedRef<FTa
 				.Visibility(this, &SDockingTabStack::GetUnhideButtonVisibility)
 				.DesiredSizeScale(this, &SDockingTabStack::GetUnhideTabWellButtonScale)
 				.ButtonColorAndOpacity(this, &SDockingTabStack::GetUnhideTabWellButtonOpacity)
+				.ToolTipText(LOCTEXT("UnhideTabWellToolTip", "Show Tabs"))
 				[
 					// button should be big enough to show its own image
 					SNew(SSpacer)
@@ -647,7 +648,7 @@ TSharedRef<SWidget> SDockingTabStack::MakeContextMenu()
 		MenuBuilder.BeginSection("DockingTabStackOptions", LOCTEXT("TabOptionsHeading", "Options") );
 		{
 			MenuBuilder.AddMenuEntry(
-				LOCTEXT("CollapseTabWell", "Collapse Tab Well"),
+				LOCTEXT("CollapseTabWell", "Hide Tabs"),
 				LOCTEXT("CollapseTabWellTooltip", "Collapses the tabs headers to save room."),
 				FSlateIcon(),
 				FUIAction(
@@ -659,7 +660,7 @@ TSharedRef<SWidget> SDockingTabStack::MakeContextMenu()
 			if(IsTabAllowedInSidebar(TabWell->GetForegroundTab()))
 			{
 				MenuBuilder.AddMenuEntry(
-					LOCTEXT("MoveToSidebar", "Move To Sidebar"),
+					LOCTEXT("MoveToSidebar", "Dock to Sidebar"),
 					LOCTEXT("MoveToSidebarTooltip", "Moves this tab to a sidebar drawer on the side of the window closest to the tab.\nThe tab can be opened from the drawer and will automatically close again when clicking off it."),
 					FSlateIcon(),
 					FUIAction(
