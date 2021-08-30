@@ -130,6 +130,11 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 						}
 					}
 				}
+
+				if(SubTitle.Len() > 40)
+				{
+					SubTitle = SubTitle.Left(36) + TEXT(" ...");
+				}
 			}
 
 			if (NodeTitle.IsEmpty())
