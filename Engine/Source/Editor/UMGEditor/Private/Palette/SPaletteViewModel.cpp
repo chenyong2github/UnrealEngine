@@ -482,8 +482,8 @@ void FPaletteViewModel::BuildWidgetTemplateCategory(FString& Category, TArray<TS
 		}
 
 	}
-
-	Header->Children.Sort([](TSharedPtr<FWidgetViewModel> L, TSharedPtr<FWidgetViewModel> R) { return R->GetName().CompareTo(L->GetName()) > 0; });
+	
+	Header->Children.Sort([](const TSharedPtr<FWidgetViewModel>& L, const TSharedPtr<FWidgetViewModel>& R) { return R->GetName().CompareTo(L->GetName()) > 0; });
 
 	WidgetViewModels.Add(Header);
 }

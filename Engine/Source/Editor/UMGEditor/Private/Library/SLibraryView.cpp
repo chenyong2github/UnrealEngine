@@ -10,6 +10,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "SAssetView.h"
 
 #if WITH_EDITOR
@@ -251,13 +252,20 @@ void SLibraryView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetBluepri
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
-			SNew(SScrollBorder, WidgetTemplatesView.ToSharedRef())
+			SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+			.Padding(0)
 			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-				.Padding(0)
+				SNew(SScrollBox)
+				.ScrollBarPadding(FMargin(2.0, 0))
+				+SScrollBox::Slot()
 				[
-					WidgetTemplatesView.ToSharedRef()
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+					.Padding(0)
+					[
+						WidgetTemplatesView.ToSharedRef()
+					]
 				]
 			]
 		]
