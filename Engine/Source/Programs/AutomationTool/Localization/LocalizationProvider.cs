@@ -6,6 +6,7 @@ using AutomationTool;
 using UnrealBuildTool;
 using EpicGames.Core;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace EpicGames.Localization
 {
@@ -160,16 +161,8 @@ namespace EpicGames.Localization
 			{
 				// Find all types that derive from LocalizationProvider in any of our DLLs
 				CachedLocalizationProviderTypes = new Dictionary<string, Type>();
-				var LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
-				foreach (var Dll in LoadedAssemblies)
+				foreach (Assembly Dll in ScriptManager.AllScriptAssemblies)
 				{
-					if (String.Equals("AutomationTool", Dll.GetName().Name))
-					{
-						// Exclude the AutomationTool driver assembly - it contains no relevant types, and trying to load it here
-						// can result in an exception if Microsoft.Build.Framework is not able to be loaded
-						continue;
-					}
-					
 					var AllTypes = Dll.GetTypes();
 					foreach (var PotentialLocalizationNodeType in AllTypes)
 					{

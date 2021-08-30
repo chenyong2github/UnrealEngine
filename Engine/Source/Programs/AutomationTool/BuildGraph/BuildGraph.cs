@@ -530,16 +530,13 @@ namespace AutomationTool
 		/// <param name="bPublicTasksOnly">Whether to include just public tasks, or all the tasks in any loaded assemblies</param>
 		static bool FindAvailableTasks(Dictionary<string, ScriptTask> NameToTask, bool bPublicTasksOnly)
 		{
-			IEnumerable<Assembly> LoadedAssemblies = AppDomain.CurrentDomain.GetAssemblies()
-				// Exclude the AutomationTool driver assembly - it contains no tasks, and trying to load it in the context of
-				// BuildGraph can result in an exception if Microsoft.Build.Framework is not able to be loaded
-				.Where(A => !String.Equals("AutomationTool", A.GetName().Name));
+			IEnumerable<Assembly> LoadedScriptAssemblies = ScriptManager.AllScriptAssemblies;
 
 			if(bPublicTasksOnly)
 			{
-				LoadedAssemblies = LoadedAssemblies.Where(x => IsPublicAssembly(new FileReference(x.Location)));
+				LoadedScriptAssemblies = LoadedScriptAssemblies.Where(x => IsPublicAssembly(new FileReference(x.Location)));
 			}
-			foreach (Assembly LoadedAssembly in LoadedAssemblies)
+			foreach (Assembly LoadedAssembly in LoadedScriptAssemblies)
 			{
 				Type[] Types;
 				try
