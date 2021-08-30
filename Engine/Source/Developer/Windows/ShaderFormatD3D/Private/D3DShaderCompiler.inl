@@ -27,6 +27,7 @@ public:
 		bool bInEnable16BitTypes,
 		bool bGenerateSymbols,
 		bool bSymbolsBasedOnSource,
+		bool bDiagnosticsFormatMsvc,
 		uint32 D3DCompileFlags,
 		uint32 AutoBindingSpace,
 		const TCHAR* InOptValidatorVersion
@@ -157,6 +158,12 @@ public:
 
 			ExtraArguments.Add(L"/Fd");
 			ExtraArguments.Add(L".\\");
+		}
+
+		if (bDiagnosticsFormatMsvc)
+		{
+			// Use MSVC format to enable jumping directly to shader files on errors in VisualStudio
+			ExtraArguments.Add(L"-fdiagnostics-format=msvc");
 		}
 
 		// Reflection will be removed later, otherwise the disassembly won't contain variables
