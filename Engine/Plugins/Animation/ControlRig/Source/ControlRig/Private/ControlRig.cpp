@@ -1616,7 +1616,7 @@ void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotificati
 
 #if WITH_EDITOR
 
-FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey)
+FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey, FTransform OffsetTransform)
 {
 	if ((InPin == nullptr) || (DynamicHierarchy == nullptr))
 	{
@@ -1669,7 +1669,7 @@ FName UControlRig::AddTransientControl(URigVMPin* InPin, FRigElementKey SpaceKey
     	Parent,
     	Settings,
     	FRigControlValue::Make(FTransform::Identity),
-    	FTransform::Identity,
+    	OffsetTransform,
     	GizmoTransform, false);
 
 	SetTransientControlValue(InPin);
