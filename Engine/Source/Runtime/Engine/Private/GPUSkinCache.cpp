@@ -76,7 +76,7 @@ TAutoConsoleVariable<int32> CVarGPUSkinCacheRecomputeTangents(
 	ECVF_RenderThreadSafe
 );
 
-static int32 GForceRecomputeTangents = 0;
+int32 GForceRecomputeTangents = 0;
 FAutoConsoleVariableRef CVarGPUSkinCacheForceRecomputeTangents(
 	TEXT("r.SkinCache.ForceRecomputeTangents"),
 	GForceRecomputeTangents,

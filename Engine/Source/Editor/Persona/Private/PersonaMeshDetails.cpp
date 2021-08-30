@@ -2436,7 +2436,8 @@ void FPersonaMeshDetails::CustomizeLODInfoSetingsDetails(IDetailLayoutBuilder& D
 			LODInfoGroup.AddPropertyRow(LODInfoChildHandle);
 
 			//Some property has to call post edit change, since they are not part of the DDC key, but they are use by directly by the skinned mesh component.
-			bool bShouldPreventPostEditChange = GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, SkinCacheUsage) != LODInfoChildHandle->GetProperty()->GetFName();
+			bool bShouldPreventPostEditChange = GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, SkinCacheUsage) != LODInfoChildHandle->GetProperty()->GetFName() &&
+												GET_MEMBER_NAME_CHECKED(FSkeletalMeshLODInfo, MorphTargetPositionErrorTolerance) != LODInfoChildHandle->GetProperty()->GetFName();
 			if(bShouldPreventPostEditChange)
 			{
 				PreventAttributePostEditChange(LODInfoChildHandle, LODIndex, LODInfoChildHandle->GetProperty()->GetFName(), bForceComponentRefreshFalse);

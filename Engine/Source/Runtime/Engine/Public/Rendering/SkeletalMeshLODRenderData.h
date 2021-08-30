@@ -53,7 +53,7 @@ struct FSkelMeshRenderSection
 	/** The bones which are used by the vertices of this section. Indices of bones in the USkeletalMesh::RefSkeleton array */
 	TArray<FBoneIndexType> BoneMap;
 
-	/** The number of triangles in this section. */
+	/** The number of vertices in this section. */
 	uint32 NumVertices;
 
 	/** max # of bones used to skin the vertices in this section */

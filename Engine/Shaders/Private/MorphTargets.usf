@@ -6,37 +6,50 @@
 
 
 #include "Common.ush"
+#include "BitPacking.ush"
+#include "ComputeShaderUtils.ush"
 
 ////////////////////////////////////////////////////////////////
 
-#define GMorphTargetDispatchBatchSize 128
+#define GMorphTargetDispatchBatchSize	128
+#define BATCH_SIZE						64
+#define NUM_BATCH_HEADER_DWORDS			10
+#define INDEX_MAX_BITS					31
+#define POSITION_MAX_BITS				28
+#define TANGENTZ_MAX_BITS				16
 
 RWBuffer<uint> MorphVertexBuffer;
 RWBuffer<int> MorphNormalizationBuffer;
+ByteAddressBuffer MorphDataBuffer;
 
-uint4 ThreadOffsets[GMorphTargetDispatchBatchSize / 4];
-float4 MorphTargetWeight[GMorphTargetDispatchBatchSize / 4];
+//TODO: use a buffer instead of packing into constant buffer?
+uint4 MorphTargetBatchOffsets[GMorphTargetDispatchBatchSize / 4];
+uint4 MorphTargetGroupOffsets[GMorphTargetDispatchBatchSize / 4];
+float4 MorphTargetWeights[GMorphTargetDispatchBatchSize / 4];
 
 float4 PositionScale;
 float WeightScale;
-uint GlobalDispatchOffset;
+float2 Precision;
 
-Buffer<uint> VertexIndicies;
-Buffer<float> MorphDeltas;
+groupshared uint LocalGroupOffsets[GMorphTargetDispatchBatchSize];
 
-groupshared float LocalWeights[GMorphTargetDispatchBatchSize];
-groupshared uint LocalThreadOffsets[GMorphTargetDispatchBatchSize];
-
-#if 0
-// This is how MorphVertexBuffer is interpreted as (6 floats)
-struct FMorphGPUSkinVertex
+void LoadLocalData(uint GroupIndex)
 {
-	FFloat16 PosDelta[3];
-	FFloat16 TangentDelta[3];
-};
-#endif
+	if (GroupIndex < GMorphTargetDispatchBatchSize / 4)
+	{
+		uint GroupSharedIndex = GroupIndex * 4;
+		uint4 Offset = MorphTargetGroupOffsets[GroupIndex];
 
-float FindWeight(in uint DispatchIndex, out uint2 Offsets)
+		for (int i = 0; i < 4; ++i)
+		{
+			LocalGroupOffsets[GroupSharedIndex + i] = Offset[i];
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+}
+
+uint GroupIndexToMorphTargetLocalIndex(uint GroupThreadIndex)
 {
 	uint Idx = 0;
 	uint Width = GMorphTargetDispatchBatchSize >> 1;
@@ -44,84 +57,127 @@ float FindWeight(in uint DispatchIndex, out uint2 Offsets)
 	UNROLL
 	while (Width > 0)
 	{
-		Idx += (DispatchIndex < LocalThreadOffsets[Idx + Width]) ? 0 : Width;
+		Idx += (GroupThreadIndex >= LocalGroupOffsets[Idx + Width]) ? Width : 0;
 		Width = Width >> 1;
 	}
 
-	Offsets = GlobalDispatchOffset + float2(0, LocalThreadOffsets[Idx + 1]);
-	return LocalWeights[Idx];
+	return Idx;
 }
 
-void LoadLocalData(uint GroupIndex)
+struct FBatchHeader
 {
-	if (GroupIndex < GMorphTargetDispatchBatchSize / 4)
+	uint	DataOffset;
+	uint	NumElements;
+	bool	bTangents;
+
+	uint	IndexBits;
+	uint3	PositionBits;
+	uint3	TangentZBits;
+
+	uint	IndexMin;
+	int3	PositionMin;
+	int3	TangentZMin;
+};
+
+FBatchHeader GetBatchHeader(uint BatchIndex)
+{
+	const uint BaseAddress = BatchIndex * (NUM_BATCH_HEADER_DWORDS * 4);
+	uint4 Data0 = MorphDataBuffer.Load4(BaseAddress);
+	uint2 Data1 = MorphDataBuffer.Load2(BaseAddress + 16);
+
+	FBatchHeader Header		= (FBatchHeader)0;
+	Header.DataOffset		= Data0.x;
+	Header.IndexBits		= BitFieldExtractU32(Data0.y, 5, 0);
+	Header.PositionBits.x	= BitFieldExtractU32(Data0.y, 5, 5);
+	Header.PositionBits.y	= BitFieldExtractU32(Data0.y, 5, 10);
+	Header.PositionBits.z	= BitFieldExtractU32(Data0.y, 5, 15);
+	Header.bTangents		= BitFieldExtractU32(Data0.y, 1, 20);
+	Header.NumElements		= Data0.y >> 21;
+	
+	Header.IndexMin			= Data0.z;
+	Header.PositionMin		= int3(Data0.w, Data1);
+
+	if (Header.bTangents)
 	{
-		uint GroupSharedIndex = GroupIndex * 4;
-		float4 Weight = MorphTargetWeight[GroupIndex];
-		uint4 Offset = ThreadOffsets[GroupIndex];
-
-		for (int i = 0; i < 4; ++i)
-		{
-			LocalWeights[GroupSharedIndex + i] = Weight[i];
-			LocalThreadOffsets[GroupSharedIndex + i] = Offset[i];
-		}
+		// TODO: Don't even store this. Need to handle two different batch header sizes.
+		uint4 Data2				= MorphDataBuffer.Load4(BaseAddress + 24);
+		Header.TangentZBits.x	= BitFieldExtractU32(Data2.x, 5, 0);
+		Header.TangentZBits.y	= BitFieldExtractU32(Data2.x, 5, 5);
+		Header.TangentZBits.z	= BitFieldExtractU32(Data2.x, 5, 10);
+		Header.TangentZMin		= int3(Data2.yzw);
 	}
-
-	GroupMemoryBarrierWithGroupSync();
+	
+	return Header;
 }
 
-[numthreads(2, 32, 1)]
-void GPUMorphUpdateCS(uint2 DispatchId : SV_DispatchThreadID, uint2 GroupId : SV_GroupThreadID, uint GroupIndex : SV_GroupIndex)
+[numthreads(BATCH_SIZE, 1, 1)]
+void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
 {
-	LoadLocalData(GroupIndex);
+	LoadLocalData(GroupThreadIndex);
 
-	uint2 Offsets;
-	float Weight = FindWeight(DispatchId.y, Offsets);
+	const uint GroupIndex = GetUnWrappedDispatchGroupId(GroupId);
+	const uint MorphTargetLocalIndex = GroupIndexToMorphTargetLocalIndex(GroupIndex);
 
-	const uint WorkItemIndex = DispatchId.y + Offsets.x;
-	if (WorkItemIndex < Offsets.y && (Weight != 0.0f))
-	{		
-		for (uint i = 0; i < 3; i++)
-		{
-			const uint ElementIndex = 3 * GroupId.x + i;
-			const uint MorphVertexBufferStride = 3u + 3u;
-			float MorphDelta = MorphDeltas[MorphVertexBufferStride * WorkItemIndex + ElementIndex];
-			float MorphOffset = Weight * MorphDelta;
+	const uint BatchStartIndex = MorphTargetBatchOffsets[MorphTargetLocalIndex >> 2][MorphTargetLocalIndex & 3u];			//TODO: use a buffer instead of packing into constant buffer?
+	const uint GroupOffset = GroupIndex - LocalGroupOffsets[MorphTargetLocalIndex];
+	const FBatchHeader BatchHeader = GetBatchHeader(BatchStartIndex + GroupIndex - LocalGroupOffsets[MorphTargetLocalIndex]);
 
-			float Scale = (GroupId.x == 0) ? PositionScale[i] : PositionScale[3];
-			int QuantizedOffset = round(MorphOffset * Scale);
-
-			const uint DestVertexIndex = MorphVertexBufferStride * VertexIndicies[WorkItemIndex] + ElementIndex;
-			InterlockedAdd(MorphVertexBuffer[DestVertexIndex], asuint(QuantizedOffset));
-		}
-
-		if (GroupId.x == 0)
-		{
-			int QuantizedWeight = round(Weight * WeightScale);
-			InterlockedAdd(MorphNormalizationBuffer[WorkItemIndex], QuantizedWeight);
-		}
-	}
-}
-
-[numthreads(2, 32, 1)]
-void GPUMorphNormalizeCS(uint2 DispatchId : SV_DispatchThreadID, uint2 GroupId : SV_GroupThreadID, uint GroupIndex : SV_GroupIndex)
-{
-	const uint WorkItemIndex = DispatchId.y;
-	for (uint i = 0; i < 3; i++)
+	if (GroupThreadIndex < BatchHeader.NumElements)
 	{
-		const uint ElementIndex = 3 * GroupId.x + i;
-		const uint MorphVertexBufferStride = 3u + 3u;
-		const uint DestVertexIndex = MorphVertexBufferStride * WorkItemIndex + ElementIndex;
+		const float Weight			= MorphTargetWeights[MorphTargetLocalIndex >> 2][MorphTargetLocalIndex & 3u];			//TODO: use a buffer instead of packing into constant buffer?
+		const uint NumPositionBits	= BatchHeader.PositionBits.x + BatchHeader.PositionBits.y + BatchHeader.PositionBits.z;
+		const uint NumTangentBits	= BatchHeader.TangentZBits.x + BatchHeader.TangentZBits.y + BatchHeader.TangentZBits.z;
+		const uint StrideInBits		= BatchHeader.IndexBits + NumPositionBits + (BatchHeader.bTangents ? NumTangentBits : 0);
 
-		float Scale = (GroupId.x == 0) ? PositionScale[i] : PositionScale[3];
-		float NomalizedResult = float(asint(MorphVertexBuffer[DestVertexIndex])) * Scale;
-		//normalize directions by 1 / accumulated absolute weights
+		const uint CompileTimeMaxBits = INDEX_MAX_BITS + 3 * POSITION_MAX_BITS + 3 * TANGENTZ_MAX_BITS;
+		FBitStreamReaderStateRO InputStream = BitStreamReader_Create_Aligned_RO(MorphDataBuffer, BatchHeader.DataOffset, GroupThreadIndex * StrideInBits, CompileTimeMaxBits);
+		const uint DestVertexIndex = BitStreamReader_Read(InputStream, BatchHeader.IndexBits, INDEX_MAX_BITS) + BatchHeader.IndexMin + GroupThreadIndex;
+		
+		const int3 LocalPosition = BitStreamReader_Read3(InputStream, BatchHeader.PositionBits, POSITION_MAX_BITS);
+		const float3 PositionDelta = float3(LocalPosition + BatchHeader.PositionMin) * Precision.x;
+		const int3 QuantizedPositionOffset = (int3)round(PositionDelta * Weight * PositionScale.xyz);
 
-		float Weight = float(MorphNormalizationBuffer[WorkItemIndex]) * WeightScale;
-		if(GroupId.x && Weight > 1.0f)
+		const uint DestVertexAddress = DestVertexIndex * 6;
+		InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 0], asuint(QuantizedPositionOffset.x));
+		InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 1], asuint(QuantizedPositionOffset.y));
+		InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 2], asuint(QuantizedPositionOffset.z));
+
+		if (BatchHeader.bTangents)
 		{
-			NomalizedResult /= Weight;
+			const int3 LocalTangent = BitStreamReader_Read3(InputStream, BatchHeader.TangentZBits, TANGENTZ_MAX_BITS);
+			const float3 TangentZDelta = float3(LocalTangent + BatchHeader.TangentZMin) * Precision.y;
+			const int3 QuantizedTangentZOffset = (int3)round(TangentZDelta * Weight * PositionScale.w);
+			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 3], asuint(QuantizedTangentZOffset.x));
+			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 4], asuint(QuantizedTangentZOffset.y));
+			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 5], asuint(QuantizedTangentZOffset.z));
 		}
-		MorphVertexBuffer[DestVertexIndex] = asuint(NomalizedResult);
+
+		// Update weight sum
+		int QuantizedWeight = (int)round(Weight * WeightScale);
+		InterlockedAdd(MorphNormalizationBuffer[DestVertexIndex], QuantizedWeight);	//TODO: Only used to normalize tangent weights. Are we sure we even want to do this?
 	}
+}
+
+[numthreads(64, 1, 1)]
+void GPUMorphNormalizeCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_GroupIndex)
+{
+	const uint DestVertexIndex = GetUnWrappedDispatchThreadId(GroupId, GroupThreadIndex, 64);
+	const uint DestVertexAddress = DestVertexIndex * 6;
+
+	const float3 Position = float3(int3(MorphVertexBuffer[DestVertexAddress + 0], MorphVertexBuffer[DestVertexAddress + 1], MorphVertexBuffer[DestVertexAddress + 2])) * PositionScale.xyz;
+
+	MorphVertexBuffer[DestVertexAddress + 0] = asuint(Position.x);
+	MorphVertexBuffer[DestVertexAddress + 1] = asuint(Position.y);
+	MorphVertexBuffer[DestVertexAddress + 2] = asuint(Position.z);
+	
+	// TODO: Does this tangent normalization code make sense?
+	const float Weight = float(MorphNormalizationBuffer[DestVertexIndex]) * WeightScale;
+	float3 TangentZ = float3(int3(MorphVertexBuffer[DestVertexAddress + 3], MorphVertexBuffer[DestVertexAddress + 4], MorphVertexBuffer[DestVertexAddress + 5])) * PositionScale.w;
+	if (Weight > 1.0f)
+	{
+		TangentZ /= Weight;
+	}
+	MorphVertexBuffer[DestVertexAddress + 3] = asuint(TangentZ.x);
+	MorphVertexBuffer[DestVertexAddress + 4] = asuint(TangentZ.y);
+	MorphVertexBuffer[DestVertexAddress + 5] = asuint(TangentZ.z);
 }

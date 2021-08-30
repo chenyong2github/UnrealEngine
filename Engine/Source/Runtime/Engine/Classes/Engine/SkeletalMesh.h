@@ -429,6 +429,10 @@ struct FSkeletalMeshLODInfo
 	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo)
 	ESkinCacheUsage SkinCacheUsage = ESkinCacheUsage::Auto;
 
+	/** The Morph target position error tolerance in microns. Larger values result in better compression and lower memory footprint, but also lower quality. */
+	UPROPERTY(EditAnywhere, Category = SkeletalMeshLODInfo, meta = (UIMin = "0.01", ClampMin = "0.01", UIMax = "10000.0", ClampMax = "10000.0"))
+	float MorphTargetPositionErrorTolerance = 20.0f;
+
 	/** Whether to disable morph targets for this LOD. */
 	UPROPERTY()
 	uint8 bHasBeenSimplified:1;
