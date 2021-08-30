@@ -176,7 +176,7 @@ class FScreenProbeFilterGatherTracesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeHitDistance)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, ScreenProbeMoving)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, ScreenProbeMoving)
 		SHADER_PARAMETER(float, SpatialFilterMaxRadianceHitAngle)
 		SHADER_PARAMETER(float, SpatialFilterPositionWeightScale)
 		SHADER_PARAMETER(int32, SpatialFilterHalfKernelSize)
@@ -205,8 +205,8 @@ class FScreenProbeConvertToSphericalHarmonicCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FScreenProbeConvertToSphericalHarmonicCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float3>, RWScreenProbeRadianceSHAmbient)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWScreenProbeRadianceSHDirectional)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWScreenProbeRadianceSHAmbient)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWScreenProbeRadianceSHDirectional)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeRadiance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
@@ -270,7 +270,7 @@ class FScreenProbeCalculateMovingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FScreenProbeCalculateMovingCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float>, RWScreenProbeMoving)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<UNORM float>, RWScreenProbeMoving)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ScreenProbeTraceMoving)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
@@ -415,16 +415,15 @@ void FilterScreenProbes(
 	}
 
 	const uint32 CalculateMovingThreadGroupSize = FScreenProbeCalculateMovingCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
-	const EPixelFormat ProbeMovingFormat = PF_R8;
-	FRDGBufferDesc ScreenProbeMovingDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[ProbeMovingFormat].BlockBytes, ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y);
-	FRDGBufferRef ScreenProbeMoving = GraphBuilder.CreateBuffer(ScreenProbeMovingDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeMoving"));
-	FRDGBufferSRVRef ScreenProbeMovingSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ScreenProbeMoving, ProbeMovingFormat));
+	
+	FRDGTextureDesc ScreenProbeMovingDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_R8, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureRef ScreenProbeMoving = GraphBuilder.CreateTexture(ScreenProbeMovingDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeMoving"));
 
 	ensureMsgf(CalculateMovingThreadGroupSize != MAX_uint32, TEXT("Unsupported gather resolution"));
 
 	{
 		FScreenProbeCalculateMovingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeCalculateMovingCS::FParameters>();
-		PassParameters->RWScreenProbeMoving = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ScreenProbeMoving, ProbeMovingFormat));
+		PassParameters->RWScreenProbeMoving = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeMoving));
 		PassParameters->ScreenProbeTraceMoving = ScreenProbeTraceMoving;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -512,7 +511,7 @@ void FilterScreenProbes(
 			PassParameters->RWScreenProbeRadiance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FilteredScreenProbeRadiance));
 			PassParameters->ScreenProbeRadiance = ScreenProbeRadiance;
 			PassParameters->ScreenProbeHitDistance = ScreenProbeHitDistance;
-			PassParameters->ScreenProbeMoving = ScreenProbeMovingSRV;
+			PassParameters->ScreenProbeMoving = ScreenProbeMoving;
 			PassParameters->SpatialFilterMaxRadianceHitAngle = FMath::Clamp<float>(GLumenScreenProbeFilterMaxRadianceHitAngle * PI / 180.0f, 0.0f, PI);
 			PassParameters->SpatialFilterPositionWeightScale = GLumenScreenFilterPositionWeightScale;
 			PassParameters->SpatialFilterHalfKernelSize = GLumenScreenProbeSpatialFilterHalfKernelSize;
@@ -544,19 +543,19 @@ void FilterScreenProbes(
 	}
 
 	const uint32 ConvertToSHThreadGroupSize = FScreenProbeConvertToSphericalHarmonicCS::GetThreadGroupSize(ScreenProbeParameters.ScreenProbeGatherOctahedronResolution);
-	const int32 RadianceSHBufferSize = ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y;
-	const EPixelFormat SHAmbientFormat = PF_FloatRGB;
-	const EPixelFormat SHDirectionalFormat = PF_FloatRGBA;
-	FRDGBufferDesc ScreenProbeRadianceSHAmbientDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[SHAmbientFormat].BlockBytes, RadianceSHBufferSize * 1);
-	FRDGBufferRef ScreenProbeRadianceSHAmbient = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHAmbientDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHAmbient"));
-	FRDGBufferDesc ScreenProbeRadianceSHDirectionalDesc = FRDGBufferDesc::CreateBufferDesc(GPixelFormats[SHDirectionalFormat].BlockBytes, RadianceSHBufferSize * 6);
-	FRDGBufferRef ScreenProbeRadianceSHDirectional = GraphBuilder.CreateBuffer(ScreenProbeRadianceSHDirectionalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHDirectional"));
+
+	FRDGTextureDesc ScreenProbeRadianceSHAmbientDesc(FRDGTextureDesc::Create2D(ScreenProbeParameters.ScreenProbeAtlasBufferSize, PF_FloatRGB, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureRef ScreenProbeRadianceSHAmbient = GraphBuilder.CreateTexture(ScreenProbeRadianceSHAmbientDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHAmbient"));
+	
+	const FIntPoint ProbeRadianceSHDirectionalBufferSize(ScreenProbeParameters.ScreenProbeAtlasBufferSize.X * 6, ScreenProbeParameters.ScreenProbeAtlasBufferSize.Y);
+	FRDGTextureDesc ScreenProbeRadianceSHDirectionalDesc(FRDGTextureDesc::Create2D(ProbeRadianceSHDirectionalBufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	FRDGTextureRef ScreenProbeRadianceSHDirectional = GraphBuilder.CreateTexture(ScreenProbeRadianceSHDirectionalDesc, TEXT("Lumen.ScreenProbeGather.ScreenProbeRadianceSHDirectional"));
 
 	if (ConvertToSHThreadGroupSize != MAX_uint32)
 	{
 		FScreenProbeConvertToSphericalHarmonicCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FScreenProbeConvertToSphericalHarmonicCS::FParameters>();
-		PassParameters->RWScreenProbeRadianceSHAmbient = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ScreenProbeRadianceSHAmbient, SHAmbientFormat));
-		PassParameters->RWScreenProbeRadianceSHDirectional = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(ScreenProbeRadianceSHDirectional, SHDirectionalFormat));
+		PassParameters->RWScreenProbeRadianceSHAmbient = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHAmbient));
+		PassParameters->RWScreenProbeRadianceSHDirectional = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ScreenProbeRadianceSHDirectional));
 		PassParameters->ScreenProbeRadiance = ScreenProbeRadiance;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
@@ -621,7 +620,7 @@ void FilterScreenProbes(
 
 	GatherParameters.ScreenProbeRadiance = ScreenProbeRadiance;
 	GatherParameters.ScreenProbeRadianceWithBorder = ScreenProbeRadianceWithBorder;
-	GatherParameters.ScreenProbeRadianceSHAmbient =  GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ScreenProbeRadianceSHAmbient, SHAmbientFormat));
-	GatherParameters.ScreenProbeRadianceSHDirectional =  GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ScreenProbeRadianceSHDirectional, SHDirectionalFormat));
-	GatherParameters.ScreenProbeMoving = ScreenProbeMovingSRV;
+	GatherParameters.ScreenProbeRadianceSHAmbient =  ScreenProbeRadianceSHAmbient;
+	GatherParameters.ScreenProbeRadianceSHDirectional = ScreenProbeRadianceSHDirectional;
+	GatherParameters.ScreenProbeMoving = ScreenProbeMoving;
 }
