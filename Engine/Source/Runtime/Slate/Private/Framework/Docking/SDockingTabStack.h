@@ -80,6 +80,9 @@ public:
 	float GetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab);
 	void SetTabSidebarSizeCoefficient(const TSharedRef<SDockTab>& InTab, float InSizeCoefficient);
 
+	bool IsTabPinnedInSidebar(const TSharedRef<SDockTab>& InTab);
+	void SetTabPinnedInSidebar(const TSharedRef<SDockTab>& InTab, bool bPinnedInSidebar);
+
 	/** @return true if the specified tab can be moved to a sidebar */
 	bool CanMoveTabToSideBar(TSharedRef<SDockTab> Tab) const;
 

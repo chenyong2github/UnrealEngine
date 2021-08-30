@@ -17,6 +17,9 @@ enum class ESidebarLocation : uint8;
 /**
  * A Sidebar is a widget that contains STabDrawers which can be opened and closed from the drawer to allow temporary access to the tab
  * A drawer is automatically dismissed when it or any of its children loses focus
+ * 
+ * Tabs can be pinned in the sidebar: this prevents them from being automatically dismissed when they lose focus,
+ * and it also causes them to be summoned back when all other drawers are dismissed
  */
 class STabSidebar : public SCompoundWidget
 {
@@ -77,12 +80,11 @@ public:
 	 */
 	bool TryOpenSidebarDrawer(TSharedRef<SDockTab> ForTab);
 private:
-	void OnTabDrawerButtonClicked(TSharedRef<SDockTab> ForTab);
+	void OnTabDrawerButtonPressed(TSharedRef<SDockTab> ForTab);
+	void OnTabDrawerPinButtonToggled(TSharedRef<SDockTab> ForTab, bool bIsPinned);
 	void OnTabDrawerFocusLost(TSharedRef<STabDrawer> Drawer);
 	void OnTabDrawerClosed(TSharedRef<STabDrawer> Drawer);
 	void OnTargetDrawerSizeChanged(TSharedRef<STabDrawer> Drawer, float NewSize);
-	/** Called when active tab changes which is used to determine if we should close an opened content browser drawer */
-	void OnActiveTabChanged(TSharedPtr<SDockTab> NewlyActivated, TSharedPtr<SDockTab> PreviouslyActive);
 
 	TSharedRef<SWidget> OnGetTabDrawerContextMenuWidget(TSharedRef<SDockTab> ForTab);
 	void OnRestoreTab(TSharedRef<SDockTab> TabToRestore);
@@ -95,23 +97,42 @@ private:
 	void RemoveDrawer(TSharedRef<SDockTab> ForTab);
 
 	/**
-	 * Removes all drawers instantly
+	 * Removes all drawers instantly (including drawers for pinned tabs)
 	 */
 	void RemoveAllDrawers();
-	
-	/**
-	 * Closes all drawers, playing a close animation and waiting to remove until the animation is complete
-	 */
-	void CloseAllDrawers();
 
 	EActiveTimerReturnType OnOpenPendingDrawerTimer(double CurrentTime, float DeltaTime);
-	void OpenDrawerNextFrame(TSharedRef<SDockTab> ForTab);
-	void OpenDrawerInternal(TSharedRef<SDockTab> ForTab);
+	void OpenDrawerNextFrame(TSharedRef<SDockTab> ForTab, bool bAnimateOpen);
+	void OpenDrawerInternal(TSharedRef<SDockTab> ForTab, bool bAnimateOpen);
+	void CloseDrawerInternal(TSharedRef<SDockTab> ForTab);
+
+	/**
+	 * Reopens the pinned tab only if there are no other open drawers;
+	 * this should be used to bring pinned tabs back after other tabs lose focus/are closed
+	 */
+	void SummonPinnedTabIfNothingOpened();
 
 	/**
 	 * Updates the appearance of open drawers
 	 */
 	void UpdateDrawerAppearance();
+
+	/**
+	 * Returns the first tab in this sidebar that is marked pinned
+	 */
+	TSharedPtr<SDockTab> FindFirstPinnedTab() const;
+
+	/**
+	 * Returns the tab for the last-opened drawer that is still open,
+	 * excluding any drawers that are in the process of closing
+	 */
+	TSharedPtr<SDockTab> GetForegroundTab() const;
+
+	/**
+	 * Returns the drawer for the given tab if it's open
+	 */
+	TSharedPtr<STabDrawer> FindOpenedDrawer(TSharedRef<SDockTab> ForTab) const;
+
 private:
 	TSharedPtr<SVerticalBox> TabBox;
 	TArray<TPair<TSharedRef<SDockTab>, TSharedRef<STabDrawerButton>>> Tabs;
@@ -122,4 +143,6 @@ private:
 	TArray<TSharedRef<STabDrawer>> OpenedDrawers;
 	/** Any pending drawer tab to open */
 	TWeakPtr<SDockTab> PendingTabToOpen;
+	/** Whether to animate the pending tab open */
+	bool bAnimatePendingTabOpen = false;
 }; 

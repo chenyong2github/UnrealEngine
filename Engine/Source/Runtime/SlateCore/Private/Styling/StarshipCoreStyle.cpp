@@ -1663,6 +1663,8 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 		Style->Set("Docking.Sidebar.Border_SquareRight", new FSlateRoundedBoxBrush(FStyleColors::Transparent, FVector4(CornerRadius, 0.0f, 0.0f, CornerRadius), FStyleColors::Hover, BorderWidth));
 	}
 
+	Style->Set("Docking.Sidebar.PinTabIcon", new IMAGE_BRUSH_SVG("Starship/Docking/pin", Icon12x12));
+
 	// Dock Cross
 	Style->Set("Docking.Cross.DockLeft", new IMAGE_BRUSH("/Docking/OuterDockingIndicator", FVector2D(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f, 0.25f)));
 	Style->Set("Docking.Cross.DockLeft_Hovered", new IMAGE_BRUSH("/Docking/OuterDockingIndicator", FVector2D(6.f, 6.f), FLinearColor(1.0f, 0.35f, 0.0f)));
