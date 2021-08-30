@@ -1733,8 +1733,7 @@ namespace UnrealBuildTool
 			// files that are injected as top level prerequisites.  If UHT only emitted included header files, we wouldn't need to run it during the Gather phase at all.
 			if (Makefile.UObjectModules.Count > 0)
 			{
-				FileReference ModuleInfoFileName = FileReference.Combine(ProjectIntermediateDirectory, TargetName + ".uhtmanifest");
-				ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, ProjectFile, TargetName, TargetType, bHasProjectScriptPlugin, Makefile.UObjectModules, ModuleInfoFileName, WorkingSet, Makefile.UHTAdditionalArguments);
+				ExternalExecution.ExecuteHeaderToolIfNecessary(BuildConfiguration, ProjectFile, Makefile, TargetName, WorkingSet);
 			}
 
 			// Find all the shared PCHs.
@@ -3425,9 +3424,6 @@ namespace UnrealBuildTool
 			// We flag the compile environment when we build UHT so that we don't need to check
 			// this for each file when generating their dependencies.
 			GlobalCompileEnvironment.bHackHeaderGenerator = (AppName == "UnrealHeaderTool");
-
-			// UHTLite
-			GlobalCompileEnvironment.bHackHeaderGenerator |= (AppName == "UHTLite");
 
 			bool bUseDebugCRT = GlobalCompileEnvironment.Configuration == CppConfiguration.Debug && Rules.bDebugBuildsActuallyUseDebugCRT;
 			GlobalCompileEnvironment.bUseDebugCRT = bUseDebugCRT;
