@@ -22,16 +22,41 @@ UUVSeamSewAction::UUVSeamSewAction()
 
 }
 
-void UUVSeamSewAction::Initialize(UWorld* WorldIn, const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
+void UUVSeamSewAction::SetWorld(UWorld* WorldIn)
 {
-	UUVToolAction::Initialize(WorldIn, TargetsIn);
+	UUVToolAction::SetWorld(WorldIn);
 
-	UnwrapPreviewGeometryActor = World->SpawnActor<APreviewGeometryActor>(FVector::ZeroVector, FRotator(0, 0, 0), FActorSpawnParameters());
-	SewEdgePairingLineSet = NewObject<ULineSetComponent>(UnwrapPreviewGeometryActor);
+	if (UnwrapPreviewGeometryActor)
+	{
+		UnwrapPreviewGeometryActor->Destroy();
+	}
+
+	// We need the world so we can create the geometry actor in the right place.
+	FRotator Rotation(0.0f, 0.0f, 0.0f);
+	FActorSpawnParameters SpawnInfo;
+	UnwrapPreviewGeometryActor = WorldIn->SpawnActor<APreviewGeometryActor>(FVector::ZeroVector, Rotation, SpawnInfo);
+
+	// Attach the rendering component to the actor
+	SewEdgePairingLineSet->Rename(nullptr, UnwrapPreviewGeometryActor); // Changes the "outer"
 	UnwrapPreviewGeometryActor->SetRootComponent(SewEdgePairingLineSet);
-	SewEdgePairingLineSet->RegisterComponent();
+	if (SewEdgePairingLineSet->IsRegistered())
+	{
+		SewEdgePairingLineSet->ReregisterComponent();
+	}
+	else
+	{
+		SewEdgePairingLineSet->RegisterComponent();
+	}
+
+}
+
+void UUVSeamSewAction::Setup(UInteractiveTool* ParentToolIn)
+{
+	UUVToolAction::Setup(ParentToolIn);
+
+	SewEdgePairingLineSet = NewObject<ULineSetComponent>();
 	SewEdgePairingLineSet->SetLineMaterial(ToolSetupUtil::GetDefaultLineComponentMaterial(
-		nullptr, /*bDepthTested*/ true));
+		GetParentTool()->GetToolManager(), /*bDepthTested*/ true));
 }
 
 void UUVSeamSewAction::Shutdown()
