@@ -172,9 +172,9 @@ void SScrollBox::Construct( const FArguments& InArgs )
 		ScrollBar = ConstructScrollBar();
 		ScrollBar->SetDragFocusCause(InArgs._ScrollBarDragFocusCause);
 		ScrollBar->SetThickness(InArgs._ScrollBarThickness);
-		ScrollBar->SetPadding(InArgs._ScrollBarPadding);
 		ScrollBar->SetUserVisibility(InArgs._ScrollBarVisibility);
 		ScrollBar->SetScrollBarAlwaysVisible(InArgs._ScrollBarAlwaysVisible);
+		ScrollBarPadding = InArgs._ScrollBarPadding;
 
 		bScrollBarIsExternal = false;
 	}
@@ -256,6 +256,7 @@ void SScrollBox::ConstructVerticalLayout()
 	if (!bScrollBarIsExternal)
 	{
 		PanelAndScrollbar->AddSlot()
+		.Padding(ScrollBarPadding)
 		.AutoWidth()
 		[
 			ScrollBar.ToSharedRef()
@@ -532,7 +533,7 @@ void SScrollBox::SetScrollBarThickness(FVector2D InThickness)
 
 void SScrollBox::SetScrollBarPadding(const FMargin& InPadding)
 {
-	ScrollBar->SetPadding(InPadding);
+	ScrollBarPadding = InPadding;
 }
 
 void SScrollBox::SetScrollBarRightClickDragAllowed(bool bIsAllowed)
