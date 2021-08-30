@@ -67,6 +67,7 @@ public:
 	inline bool GetActorIsHLODRelevant() const { return bActorIsHLODRelevant; }
 	class UHLODLayer* GetHLODLayer() const;
 	inline const TArray<FName>& GetDataLayers() const { return DataLayers; }
+	TArray<const UDataLayer*> GetDataLayerObjects() const;
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
