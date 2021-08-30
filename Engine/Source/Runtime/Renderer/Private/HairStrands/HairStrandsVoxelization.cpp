@@ -200,7 +200,7 @@ static void AddVirtualVoxelInjectOpaquePass(
 
 	FComputeShaderUtils::AddPass(
 		GraphBuilder, 
-		RDG_EVENT_NAME("HairStrandsInjectOpaqueDepthInVoxel"), 
+		RDG_EVENT_NAME("HairStrands::InjectOpaqueDepthInVoxel"), 
 		ComputeShader, 
 		Parameters, 
 		VoxelResources.IndirectArgsBuffer,
@@ -629,11 +629,11 @@ static void AddAllocateVoxelPagesPass(
 		}
 
 		// Currently support only 32 instance group at max
-		check(Parameters->MacroGroupCount < 32);
+		check(Parameters->MacroGroupCount <= FHairStrandsMacroGroupData::MaxMacroGroupCount);
 		TShaderMapRef<FVoxelAllocatePageIndexCS> ComputeShader(View.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsAllocatePageIndex"),
+			RDG_EVENT_NAME("HairStrands::AllocatePageIndex"),
 			ComputeShader,
 			Parameters,
 			FIntVector(1,1,1));
@@ -721,7 +721,7 @@ static void AddAllocateVoxelPagesPass(
 				TShaderMapRef<FVoxelMarkValidPageIndex_PrepareCS> ComputeShader(View.ShaderMap, PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Prepare(%s,%s)", bUseClusterAABB ? TEXT("Cluster") : TEXT("Group"), bForceDirectPageAllocation ? TEXT("Direct") : TEXT("Indirect")),
+					RDG_EVENT_NAME("HairStrands::MarkValidPageIndex_Prepare(%s,%s)", bUseClusterAABB ? TEXT("Cluster") : TEXT("Group"), bForceDirectPageAllocation ? TEXT("Direct") : TEXT("Indirect")),
 					ComputeShader,
 					Parameters,
 					DispatchCount);
@@ -742,7 +742,7 @@ static void AddAllocateVoxelPagesPass(
 
 					const FIntVector DispatchCount(1, 1, 1);
 					TShaderMapRef<FVoxelMarkValidPageIndex_IndirectArgsCS> ComputeShader(View.ShaderMap);
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_IndirectArgs"), ComputeShader, Parameters, DispatchCount);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::MarkValidPageIndex_IndirectArgs"), ComputeShader, Parameters, DispatchCount);
 				}
 
 				// Scatter
@@ -758,7 +758,7 @@ static void AddAllocateVoxelPagesPass(
 					Parameters->OutValidPageIndexBuffer = PageIndexBufferUAV;
 
 					TShaderMapRef<FVoxelMarkValidPageIndex_ScatterCS> ComputeShader(View.ShaderMap);
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsMarkValidPageIndex_Scatter"), ComputeShader, Parameters, ScatterIndirectArgsBuffer, 0);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::MarkValidPageIndex_Scatter"), ComputeShader, Parameters, ScatterIndirectArgsBuffer, 0);
 				}
 			}
 		}
@@ -794,7 +794,7 @@ static void AddAllocateVoxelPagesPass(
 				TShaderMapRef<FVoxelMarkValidPageIndexCS> ComputeShader(View.ShaderMap, PermutationVector);
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
-					RDG_EVENT_NAME("HairStrandsMarkValidPageIndex"),
+					RDG_EVENT_NAME("HairStrands::MarkValidPageIndex"),
 					ComputeShader,
 					Parameters,
 					DispatchCount);
@@ -826,7 +826,7 @@ static void AddAllocateVoxelPagesPass(
 
 			const FIntVector DispatchCount(1, 1, 1);
 			TShaderMapRef<FVoxelAddNodeDescCS> ComputeShader(View.ShaderMap, PermutationVector);
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsAddNodeDesc"), ComputeShader, Parameters, DispatchCount);
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::AddNodeDesc"), ComputeShader, Parameters, DispatchCount);
 		}
 
 		// Allocate pages
@@ -853,7 +853,7 @@ static void AddAllocateVoxelPagesPass(
 
 				const uint32 ArgsOffset = sizeof(uint32) * 3 * MacroGroup.MacroGroupId;
 
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsAllocateVoxelPage"), ComputeShader, Parameters, 
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::AllocateVoxelPage"), ComputeShader, Parameters, 
 					PageIndexAllocationIndirectBufferArgs,
 					ArgsOffset);
 			}
@@ -861,7 +861,7 @@ static void AddAllocateVoxelPagesPass(
 			{
 				const FIntVector DispatchCount((CPUAllocationDesc.PageIndexCount + GroupSize - 1) / GroupSize, 1, 1);
 				check(DispatchCount.X < 65535);
-				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsAllocateVoxelPage"), ComputeShader, Parameters, DispatchCount);
+				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::AllocateVoxelPage"), ComputeShader, Parameters, DispatchCount);
 			}
 		}
 
@@ -879,7 +879,7 @@ static void AddAllocateVoxelPagesPass(
 
 			const FIntVector DispatchCount(1, 1, 1);
 			TShaderMapRef<FVoxelAddIndirectBufferCS> ComputeShader(View.ShaderMap);
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsBuildVoxelIndirectArgs"), ComputeShader, Parameters, DispatchCount);
+			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::BuildVoxelIndirectArgs"), ComputeShader, Parameters, DispatchCount);
 		}
 	}
 
@@ -1172,7 +1172,7 @@ static FRDGBufferRef IndirectVoxelPageClear(
 		TShaderMapRef<FVoxelIndPageClearBufferGenCS> ComputeShader(ViewInfo.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsVoxelGenIndBufferClearCS"),
+			RDG_EVENT_NAME("HairStrands::VoxelGenIndBufferClearCS"),
 			ComputeShader,
 			Parameters,
 			FIntVector(1,1,1));
@@ -1188,7 +1188,7 @@ static FRDGBufferRef IndirectVoxelPageClear(
 		TShaderMapRef<FVoxelIndPageClearCS> ComputeShader(ViewInfo.ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("HairStrandsVoxelIndPageClearCS"),
+			RDG_EVENT_NAME("HairStrands::VoxelIndPageClearCS"),
 			ComputeShader,
 			Parameters,
 			ClearIndArgsBuffer,
@@ -1318,13 +1318,13 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					PassParameters->HairStrandsVF_CullingRadiusScaleBuffer	= RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
 					PassParameters->IndirectBufferArgs = CullingIndirectBuffer.Buffer;
 
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelComputeRaster(culling=on)"), ComputeShader_CullingOn, PassParameters, CullingIndirectBuffer.Buffer, 0);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelComputeRaster(culling=on)"), ComputeShader_CullingOn, PassParameters, CullingIndirectBuffer.Buffer, 0);
 				}
 				else
 				{
 					const FIntVector DispatchCount = ComputeDispatchCount(PassParameters->HairStrandsVF_VertexCount, GroupSize);
 					PassParameters->DispatchCountX = DispatchCount.X;
-					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelComputeRaster(culling=off)"), ComputeShader_CullingOff, PassParameters, DispatchCount);
+					FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VoxelComputeRaster(culling=off)"), ComputeShader_CullingOff, PassParameters, DispatchCount);
 				}
 			}
 		}
@@ -1537,7 +1537,7 @@ static void AddVirtualVoxelGenerateMipPass(
 		Parameters->OutIndirectArgs		= GraphBuilder.CreateUAV(MipIndirectArgs);
 
 		TShaderMapRef<FVirtualVoxelIndirectArgMipCS> ComputeShader(View.ShaderMap);
-		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsBuildVoxelMipIndirectArgs"), ComputeShader, Parameters, FIntVector(1, 1, 1));
+		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::BuildVoxelMipIndirectArgs"), ComputeShader, Parameters, FIntVector(1, 1, 1));
 	}
 
 	// Generate MIP level (in one go for all allocated pages)
@@ -1558,7 +1558,7 @@ static void AddVirtualVoxelGenerateMipPass(
 		TShaderMapRef<FVirtualVoxelGenerateMipCS> ComputeShader(View.ShaderMap);
 		ClearUnusedGraphResources(ComputeShader, Parameters);
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsComputeVoxelMip"),
+			RDG_EVENT_NAME("HairStrands::ComputeVoxelMip"),
 			Parameters,
 			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader](FRHICommandList& RHICmdList)
@@ -1592,7 +1592,7 @@ static void AddVirtualVoxelGenerateMipPass(
 		TShaderMapRef<FVirtualVoxelPatchPageIndexWithMipDataCS> ComputeShader(View.ShaderMap);
 		ClearUnusedGraphResources(ComputeShader, Parameters);
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("HairStrandsPatchPageIndexWithMip"),
+			RDG_EVENT_NAME("HairStrands::PatchPageIndexWithMip"),
 			Parameters,
 			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader](FRHICommandList& RHICmdList)

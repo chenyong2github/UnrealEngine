@@ -115,7 +115,7 @@ static void AddHairMacroGroupAABBPass(
 
 static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitivesGroups)
 {
-	// Simple linear search as the expected number of groups is supposed to be low (<10)
+	// Simple linear search as the expected number of groups is supposed to be low (<16, see FHairStrandsMacroGroupData::MaxMacroGroupCount)
 	for (const FHairStrandsMacroGroupData::PrimitiveInfo& Group : PrimitivesGroups)
 	{
 		if (Group.GroupIndex == GroupIndex && Group.ResourceId == ResourceId)
@@ -151,7 +151,6 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 		PrimitiveInfo.ResourceId = reinterpret_cast<uint64>(MeshBatchAndRelevance->Mesh->Elements[0].UserData);
 		PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
 		PrimitiveInfo.PublicDataPtr = HairGroupPublicData;
-		check(PrimitiveInfo.GroupIndex < 32); // Sanity check
 
 		if (HairGroupPublicData->DoesSupportVoxelization())
 		{
@@ -173,7 +172,6 @@ void CreateHairStrandsMacroGroups(
 	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
 
 	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator>& MacroGroups = View.HairStrandsViewData.MacroGroupDatas;
-	FHairStrandsMacroGroupResources& MacroGroupResources = View.HairStrandsViewData.MacroGroupResources;
 
 	int32 MaterialId = 0;
 
@@ -188,9 +186,17 @@ void CreateHairStrandsMacroGroups(
 		const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
 
 		bool bFound = false;
+		float MinDistance = FLT_MAX;
+		uint32 ClosestMacroGroupId = ~0u;
 		for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
 		{
-			const bool bIntersect = FBoxSphereBounds::SpheresIntersect(MacroGroup.Bounds, PrimitiveBounds);
+			const FSphere MacroSphere = MacroGroup.Bounds.GetSphere();
+			const FSphere PrimSphere = PrimitiveBounds.GetSphere();
+
+			const float DistCenters = (MacroSphere.Center - PrimSphere.Center).Size();
+			const float AccumRadius = FMath::Max(0.f, MacroSphere.W + PrimSphere.W);
+			const bool bIntersect = DistCenters <= AccumRadius;
+			
 			if (bIntersect)
 			{
 				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
@@ -198,15 +204,34 @@ void CreateHairStrandsMacroGroups(
 				bFound = true;
 				break;
 			}
+
+			const float MacroToPrimDistance = DistCenters - AccumRadius;
+			if (MacroToPrimDistance < MinDistance)
+			{
+				MinDistance = MacroToPrimDistance;
+				ClosestMacroGroupId = MacroGroup.MacroGroupId;
+			}
 		}
 
 		if (!bFound)
 		{
-			FHairStrandsMacroGroupData MacroGroup;
-			MacroGroup.MacroGroupId = MacroGroupId++;
-			InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
-			MacroGroup.Bounds = PrimitiveBounds;
-			MacroGroups.Add(MacroGroup);
+			// If we have reached the max number of macro group (MAX_HAIR_MACROGROUP_COUNT), then merge the current one with the closest one.
+			if (MacroGroups.Num() == FHairStrandsMacroGroupData::MaxMacroGroupCount)
+			{
+				check(ClosestMacroGroupId != ~0u);
+				FHairStrandsMacroGroupData& MacroGroup = MacroGroups[ClosestMacroGroupId];
+				check(MacroGroup.MacroGroupId == ClosestMacroGroupId);
+				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
+			}
+			else
+			{
+				FHairStrandsMacroGroupData MacroGroup;
+				MacroGroup.MacroGroupId = MacroGroupId++;
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance);
+				MacroGroup.Bounds = PrimitiveBounds;
+				MacroGroups.Add(MacroGroup);
+			}
 		}
 	};
 
@@ -219,8 +244,11 @@ void CreateHairStrandsMacroGroups(
 	{
 		MacroGroup.ScreenRect = ComputeProjectedScreenRect(MacroGroup.Bounds.GetBox(), View);
 	}
+	// Sanity check
+	check(MacroGroups.Num() <= FHairStrandsMacroGroupData::MaxMacroGroupCount);
 
 	// Build hair macro group AABBB
+	FHairStrandsMacroGroupResources& MacroGroupResources = View.HairStrandsViewData.MacroGroupResources;
 	const uint32 MacroGroupCount = MacroGroups.Num();
 	if (MacroGroupCount > 0)
 	{

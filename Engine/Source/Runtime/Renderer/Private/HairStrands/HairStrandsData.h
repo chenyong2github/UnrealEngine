@@ -259,6 +259,8 @@ class FHairGroupPublicData;
 /// Hair macro group infos
 struct FHairStrandsMacroGroupData
 {
+	static const uint32 MaxMacroGroupCount = 16u; // Needs to be kept consistent with MAX_HAIR_MACROGROUP_COUNT (HairStrandsVisibilityCommon.ush)
+
 	// List of primitive/mesh batch within an instance group
 	struct PrimitiveInfo
 	{
