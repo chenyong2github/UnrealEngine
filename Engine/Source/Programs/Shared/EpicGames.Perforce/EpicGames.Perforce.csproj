@@ -44,7 +44,7 @@
     <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\win-x64\$(WindowsNativeConfig)\EpicGames.Perforce.Native.dll" Visible="false">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\win-x64\$(WindowsNativeConfig)\EpicGames.Perforce.Native.pdb" Visible="false">
+    <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\win-x64\$(WindowsNativeConfig)\EpicGames.Perforce.Native.pdb" Visible="false" Condition="Exists('..\..\Shared\EpicGames.Perforce.Native\bin\win-x64\$(WindowsNativeConfig)\EpicGames.Perforce.Native.pdb')">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="..\..\Shared\EpicGames.Perforce.Native\bin\linux-x64\Release\EpicGames.Perforce.Native.so" Visible="false">
