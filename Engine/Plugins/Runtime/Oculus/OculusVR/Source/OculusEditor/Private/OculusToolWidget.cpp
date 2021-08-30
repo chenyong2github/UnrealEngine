@@ -23,7 +23,7 @@
 #define LOCTEXT_NAMESPACE "OculusToolWidget"
 
 // Misc notes and known issues:
-// * I save after every change because UE4 wasn't prompting to save on exit, but this makes it tough for users to undo, and doesn't prompt shader rebuild. Alternatives?
+// * I save after every change because UE wasn't prompting to save on exit, but this makes it tough for users to undo, and doesn't prompt shader rebuild. Alternatives?
 
 TSharedRef<SHorizontalBox> SOculusToolWidget::CreateSimpleSetting(SimpleSetting* setting)
 {
