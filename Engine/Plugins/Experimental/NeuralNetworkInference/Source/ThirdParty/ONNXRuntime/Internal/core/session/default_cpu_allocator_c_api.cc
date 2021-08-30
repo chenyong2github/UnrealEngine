@@ -3,7 +3,11 @@
 
 #include <atomic>
 #include "core/framework/utils.h"
+#ifndef WITH_UE
 #include "core/session/onnxruntime_cxx_api.h"
+#else
+#include "core/session/ue_onnxruntime_cxx_api.h"
+#endif
 #include "core/session/ort_apis.h"
 #include <assert.h>
 

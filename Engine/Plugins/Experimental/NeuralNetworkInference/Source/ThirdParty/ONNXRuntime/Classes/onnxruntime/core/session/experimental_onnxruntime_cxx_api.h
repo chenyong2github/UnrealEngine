@@ -17,7 +17,11 @@
 // guarantee of backwards compatibility in future releases.
 
 #pragma once
+#ifndef WITH_UE
 #include "onnxruntime_cxx_api.h"
+#else
+#include "ue_onnxruntime_cxx_api.h"
+#endif
 
 namespace Ort {
 namespace Experimental {
