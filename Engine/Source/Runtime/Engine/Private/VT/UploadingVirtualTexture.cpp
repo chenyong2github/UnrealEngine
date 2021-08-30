@@ -393,19 +393,19 @@ FVTDataAndStatus FUploadingVirtualTexture::ReadData(FGraphEventArray& OutComplet
 		{
 			SCOPE_CYCLE_COUNTER(STAT_VTP_MakeChunkAvailable);
 			check(Chunk.DerivedDataKey.IsEmpty() == false);
-			FString ChunkFileNameDCC;
+			FString ChunkFileNameDDC;
 
-			// If request is flagged as high priority, we will block here until DCC cache is populated
+			// If request is flagged as high priority, we will block here until DDC cache is populated
 			// This way we can service these high priority tasks immediately
-			// Would be better to have DCC cache return a task event handle, which could be used to chain a subsequent read operation,
+			// Would be better to have DDC cache return a task event handle, which could be used to chain a subsequent read operation,
 			// but that would be more complicated, and this should generally not be a critical runtime path
-			const bool bAsyncDCC = (Priority == EVTRequestPagePriority::Normal);
-			const bool Available = GetVirtualTextureChunkDDCCache()->MakeChunkAvailable(&Data->Chunks[ChunkIndex], bAsyncDCC, ChunkFileNameDCC, ChunkOffsetInFile);
+			const bool bAsyncDDC = (Priority == EVTRequestPagePriority::Normal);
+			const bool Available = GetVirtualTextureChunkDDCCache()->MakeChunkAvailable(&Data->Chunks[ChunkIndex], bAsyncDDC, ChunkFileNameDDC, ChunkOffsetInFile);
 			if (!Available)
 			{
 				return EVTRequestPageStatus::Saturated;
 			}
-			ChunkFileName = ChunkFileNameDCC;
+			ChunkFileName = ChunkFileNameDDC;
 			ChunkSource = EChunkSource::File;
 		}
 #else // WITH_EDITOR

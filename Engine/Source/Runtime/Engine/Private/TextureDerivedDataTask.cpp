@@ -1015,7 +1015,7 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		CompositeTextureData.ReleaseMemory();
 
 		// Populate the VT DDC Cache now if we're asynchronously loading to avoid too many high prio/synchronous request on the render thread
-		if (!IsInGameThread() && DerivedData->VTData)
+		if (!IsInGameThread() && DerivedData->VTData && !DerivedData->VTData->Chunks.Last().DerivedDataKey.IsEmpty())
 		{
 			GetVirtualTextureChunkDDCCache()->MakeChunkAvailable_Concurrent(&DerivedData->VTData->Chunks.Last());
 		}
