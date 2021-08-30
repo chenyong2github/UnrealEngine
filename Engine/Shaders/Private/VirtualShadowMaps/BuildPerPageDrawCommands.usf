@@ -126,7 +126,8 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 
 				FScreenRect Rect = GetScreenRect(MipView.ViewRect, Cull, 4);
 
-				uint FlagMask = (VSM_ALLOCATED_FLAG | VSM_NON_NANITE_FLAG) | ( bHasMoved ? VSM_UNCACHED_FLAG : 0 );
+				uint FlagMask = VSM_NON_NANITE_FLAG | (bHasMoved ? VSM_ALLOCATED_FLAG : VSM_UNCACHED_FLAG);
+
 				if (OverlapsAnyValidPage(VirtualShadowMapId, MipLevel, MipView.ViewRect.xy, Rect, FlagMask))
 				{
 					uint4 RectPages = uint4( MipView.ViewRect.xyxy + Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
