@@ -144,13 +144,6 @@ EToolActivityStartResult UPolyEditExtrudeActivity::Start()
 			NewSelectionGids = Op->ExtrudedFaceNewGids;
 		});
 
-	// Temporarily clear the selection to avoid the highlighting on the preview as we extrude (which 
-	// sometimes highlights incorrect triangles in boolean mode). There's currently not a good way to
-	// disable those secondary triangle buffers without losing the filter function.
-	// The selection gets reset on End(), either to a new selection, or to the old one on cancel.
-	ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
-	ActivityContext->SelectionMechanic->SetSelection(FGroupTopologySelection(), false);
-
 	SetToolPropertySourceEnabled(ExtrudeProperties, true);
 
 	// Set up the basics of the extrude height mechanic.
@@ -183,6 +176,14 @@ void UPolyEditExtrudeActivity::BeginExtrude()
 {
 	using namespace PolyEditExtrudeActivityLocals;
 	using UE::Geometry::FTransform3d;
+
+	ActiveSelection = ActivityContext->SelectionMechanic->GetActiveSelection();
+
+	// Temporarily clear the selection to avoid the highlighting on the preview as we extrude (which 
+	// sometimes highlights incorrect triangles in boolean mode). There's currently not a good way to
+	// disable those secondary triangle buffers without losing the filter function.
+	// The selection gets reset on ApplyExtrude() to a new selection, or to the old selection in EndInternal.
+	ActivityContext->SelectionMechanic->SetSelection(FGroupTopologySelection(), false);
 
 	TArray<int32> ActiveTriangleSelection;
 	ActivityContext->CurrentTopology->GetSelectedTriangles(ActiveSelection, ActiveTriangleSelection);
@@ -257,10 +258,6 @@ EToolActivityEndResult UPolyEditExtrudeActivity::End(EToolShutdownType ShutdownT
 		return EToolActivityEndResult::ErrorDuringEnd;
 	}
 
-	// Remember to reset the selection. Even if we change it to something else when applying the
-	// extrude, the previous selection needs to be valid.
-	ActivityContext->SelectionMechanic->SetSelection(ActiveSelection, false);
-
 	if (ShutdownType == EToolShutdownType::Cancel)
 	{
 		EndInternal();
@@ -286,6 +283,12 @@ EToolActivityEndResult UPolyEditExtrudeActivity::End(EToolShutdownType ShutdownT
 // Does whatever kind of cleanup we need to do to end the activity.
 void UPolyEditExtrudeActivity::EndInternal()
 {
+	if (ActivityContext->SelectionMechanic->GetActiveSelection() != ActiveSelection)
+	{
+		// We haven't reset the selection back from when we cleared it to avoid the highlighting.
+		ActivityContext->SelectionMechanic->SetSelection(ActiveSelection, false);
+	}
+
 	ActivityContext->Preview->ClearOpFactory();
 	ActivityContext->Preview->OnOpCompleted.RemoveAll(this);
 	PatchMesh.Reset();
@@ -300,6 +303,17 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 	check(ExtrudeHeightMechanic != nullptr);
 
 	const FDynamicMesh3* ResultMesh = ActivityContext->Preview->PreviewMesh->GetMesh();
+
+	if (ResultMesh->TriangleCount() == 0)
+	{
+		ParentTool->GetToolManager()->DisplayMessage(
+			LOCTEXT("OnDeleteAllFailedMessage", "Cannot Delete Entire Mesh"),
+			EToolMessageLevel::UserWarning);
+
+		// Reset the preview
+		ActivityContext->Preview->PreviewMesh->UpdatePreview(ActivityContext->CurrentMesh.Get());
+		return;
+	}
 
 	// Prep for undo.
 	// TODO: It would be nice if we could attach the change tracker to the op and have it actually
@@ -349,9 +363,18 @@ void UPolyEditExtrudeActivity::ApplyExtrude()
 		NewSelection.SelectedGroupIDs.Append(NewSelectionGids);
 	}
 
+	// We need to reset the old selection back before we give the new one, so
+	// that undo reverts back to the correct selection state.
+	if (ActivityContext->SelectionMechanic->GetActiveSelection() != ActiveSelection)
+	{
+		ActivityContext->SelectionMechanic->SetSelection(ActiveSelection, false);
+	}
+
 	// Emit undo  (also updates relevant structures)
 	ActivityContext->EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshExtrudeChange", "Extrude"),
 		ChangeTracker.EndChange(), NewSelection, true);
+
+	ActiveSelection = NewSelection;
 }
 
 // Gets used to set the direction along which we measure the distance to extrude.

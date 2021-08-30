@@ -95,6 +95,7 @@ enum class EEditMeshPolygonsToolActions
 	NoAction,
 	CancelCurrent,
 	Extrude,
+	PushPull,
 	Inset,
 	Outset,
 	InsertEdge,
@@ -179,9 +180,13 @@ class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolActions : public UEditMeshPo
 {
 	GENERATED_BODY()
 public:
-	/** Extrude the current set of selected faces. Click in viewport to confirm extrude height. */
+	/** Extrude the current set of selected faces by moving and stitching them. */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Extrude", DisplayPriority = 1))
 	void Extrude() { PostAction(EEditMeshPolygonsToolActions::Extrude); }
+
+	/** Like Extrude, but performed in a boolean way, meaning that the faces can cut away the mesh or bridge mesh parts. */
+	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Push/Pull", DisplayPriority = 1))
+	void PushPull() { PostAction(EEditMeshPolygonsToolActions::PushPull); }
 
 	/** Inset the current set of selected faces. Click in viewport to confirm inset distance. */
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Inset", DisplayPriority = 2))
@@ -191,11 +196,14 @@ public:
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Outset", DisplayPriority = 3))
 	void Outset() { PostAction(EEditMeshPolygonsToolActions::Outset);	}
 
-	/** Merge the current set of selected faces into a single face. */
+	//~ TODO: Make the Merge and Delete comments visible as tooltips. Currently we can't due to a bug that
+	//~ limits our total tooltip text allotment: UE-124608
+
+	//~ Merge the current set of selected faces into a single face.
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Merge", DisplayPriority = 4))
 	void Merge() { PostAction(EEditMeshPolygonsToolActions::Merge);	}
 
-	/** Delete the current set of selected faces */
+	//~ Delete the current set of selected faces
 	UFUNCTION(CallInEditor, Category = FaceEdits, meta = (DisplayName = "Delete", DisplayPriority = 4))
 	void Delete() { PostAction(EEditMeshPolygonsToolActions::Delete); }
 

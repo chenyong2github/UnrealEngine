@@ -36,19 +36,19 @@ class MESHMODELINGTOOLSEXP_API UPolyEditExtrudeProperties : public UInteractiveT
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = Extrude)
+	// Not visible in details panel because we decided that we would use a separate "Push/Pull" button.
 	EPolyEditExtrudeMode ExtrudeMode = EPolyEditExtrudeMode::MoveAndStitch;
 
 	/** Which way to move vertices during the extrude */
-	UPROPERTY(EditAnywhere, Category = Extrude)
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	EPolyEditExtrudeDirectionMode DirectionMode = EPolyEditExtrudeDirectionMode::SelectedTriangleNormalsEven;
 
 	/** What axis to measure the extrusion distance along. When the direction mode is Single Direction, also controls the direction. */
-	UPROPERTY(EditAnywhere, Category = Extrude, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions, AdvancedDisplay)
 	EPolyEditExtrudeDirection MeasureDirection = EPolyEditExtrudeDirection::SelectionNormal;
 
 	/** Controls whether extruding an entire open-border patch should create a solid or an open shell */
-	UPROPERTY(EditAnywhere, Category = Extrude)
+	UPROPERTY(EditAnywhere, Category = ExtrusionOptions)
 	bool bShellsToSolids = true;
 
 	/** 
