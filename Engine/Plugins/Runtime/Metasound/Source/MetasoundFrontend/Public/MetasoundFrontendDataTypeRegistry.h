@@ -146,7 +146,7 @@ namespace Metasound
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
-			virtual Audio::IProxyDataPtr CreateProxy(UObject*) const = 0;
+			virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const = 0;
 
 			/** Create a data channel for transmission. If this data type does not
 			 * support transmission, return a nullptr. */
@@ -172,6 +172,7 @@ namespace Metasound
 
 			virtual void GetRegisteredDataTypeNames(TArray<FName>& OutNames) const = 0;
 
+			virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const = 0;
 			virtual bool GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const = 0;
 
 			// Return the enum interface for a data type. If the data type does not have 
@@ -182,12 +183,15 @@ namespace Metasound
 
 			virtual bool IsLiteralTypeSupported(const FName& InDataType, ELiteralType InLiteralType) const = 0;
 			virtual bool IsLiteralTypeSupported(const FName& InDataType, EMetasoundFrontendLiteralType InLiteralType) const = 0;
+			virtual bool IsUObjectProxyFactory(UObject* InObject) const = 0;
 
 			virtual UClass* GetUClassForDataType(const FName& InDataType) const = 0;
 
+			virtual Audio::IProxyDataPtr CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const = 0;
+
 			virtual FLiteral CreateDefaultLiteral(const FName& InDataType) const = 0;
 			virtual FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const = 0;
-			virtual FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) const = 0;
+			virtual FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, const TArray<UObject*>& InObjectArray) const = 0;
 
 			virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const = 0;
 

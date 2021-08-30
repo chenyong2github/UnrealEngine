@@ -1,0 +1,433 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "IAudioProxyInitializer.h"
+#include "UObject/Interface.h"
+
+#include "AudioParameterInterface.generated.h"
+
+
+UENUM()
+enum class EAudioParameterType : uint8
+{
+	// 'Default' results in behavior that is resolved
+	// based on the system interpreting it.  To support
+	// legacy implementation, SoundCues cache all typed values
+	// associated with a given parameter name, whereas MetaSounds
+	// only use the last typed value set.
+	None UMETA(DisplayName = "Default"),
+
+	// Boolean value
+	Boolean,
+
+	// Integer value
+	Integer,
+
+	// Float value
+	Float,
+
+	// String value (not supported by legacy SoundCue system)
+	String,
+
+	// Object value (types other than SoundWave not supported by legacy SoundCue system)
+	Object,
+
+	// Array of default initialized values (not supported by legacy SoundCue system)
+	// Hidden for now as no parameter types exist that support default construction
+	NoneArray UMETA(Hidden, DisplayName = "Default (Array)"),
+
+	// Array of boolean values (not supported by legacy SoundCue system)
+	BooleanArray UMETA(DisplayName = "Boolean (Array)"),
+
+	// Array of integer values (not supported by legacy SoundCue system)
+	IntegerArray UMETA(DisplayName = "Integer (Array)"),
+
+	// Array of float values (not supported by legacy SoundCue system)
+	FloatArray UMETA(DisplayName = "Float (Array)"),
+
+	// Array of string values (not supported by legacy SoundCue system)
+	StringArray UMETA(DisplayName = "String (Array)"),
+
+	// Array of object values (not supported by legacy SoundCue system)
+	ObjectArray UMETA(DisplayName = "Object (Array)"),
+
+	COUNT UMETA(Hidden)
+};
+
+
+USTRUCT(BlueprintType)
+struct AUDIOEXTENSIONS_API FAudioParameter
+{
+	GENERATED_USTRUCT_BODY()
+
+	FAudioParameter() = default;
+
+	FAudioParameter(FName InName)
+		: ParamName(InName)
+	{
+	}
+
+	FAudioParameter(FName InName, float InValue)
+		: ParamName(InName)
+		, FloatParam(InValue)
+		, ParamType(EAudioParameterType::Float)
+	{
+	}
+
+	FAudioParameter(FName InName, bool InValue)
+		: ParamName(InName)
+		, BoolParam(InValue)
+		, ParamType(EAudioParameterType::Boolean)
+	{
+	}
+
+	FAudioParameter(FName InName, int32 InValue)
+		: ParamName(InName)
+		, IntParam(InValue)
+		, ParamType(EAudioParameterType::Integer)
+	{
+	}
+
+	FAudioParameter(FName InName, UObject* InValue)
+		: ParamName(InName)
+		, ObjectParam(InValue)
+		, ParamType(EAudioParameterType::Object)
+	{
+	}
+
+	FAudioParameter(FName InName, const FString& InValue)
+		: ParamName(InName)
+		, StringParam(InValue)
+		, ParamType(EAudioParameterType::String)
+	{
+	}
+
+	FAudioParameter(FName InName, const TArray<float>& InValue)
+		: ParamName(InName)
+		, ArrayFloatParam(InValue)
+		, ParamType(EAudioParameterType::FloatArray)
+	{
+	}
+
+	FAudioParameter(FName InName, TArray<float>&& InValue)
+		: ParamName(InName)
+		, ArrayFloatParam(MoveTemp(InValue))
+		, ParamType(EAudioParameterType::FloatArray)
+	{
+	}
+
+	FAudioParameter(FName InName, const TArray<bool>& InValue)
+		: ParamName(InName)
+		, ArrayBoolParam(InValue)
+		, ParamType(EAudioParameterType::BooleanArray)
+	{
+	}
+
+	FAudioParameter(FName InName, TArray<bool>&& InValue)
+		: ParamName(InName)
+		, ArrayBoolParam(MoveTemp(InValue))
+		, ParamType(EAudioParameterType::BooleanArray)
+	{
+	}
+
+	FAudioParameter(FName InName, const TArray<int32>& InValue)
+		: ParamName(InName)
+		, ArrayIntParam(InValue)
+		, ParamType(EAudioParameterType::IntegerArray)
+	{
+	}
+
+	FAudioParameter(FName InName, TArray<int32>&& InValue)
+		: ParamName(InName)
+		, ArrayIntParam(MoveTemp(InValue))
+		, ParamType(EAudioParameterType::IntegerArray)
+	{
+	}
+
+	FAudioParameter(FName InName, const TArray<UObject*>& InValue)
+		: ParamName(InName)
+		, ArrayObjectParam(InValue)
+		, ParamType(EAudioParameterType::ObjectArray)
+	{
+	}
+
+	FAudioParameter(FName InName, TArray<UObject*>&& InValue)
+		: ParamName(InName)
+		, ArrayObjectParam(MoveTemp(InValue))
+		, ParamType(EAudioParameterType::ObjectArray)
+	{
+	}
+
+	FAudioParameter(FName InName, const TArray<FString>& InValue)
+		: ParamName(InName)
+		, ArrayStringParam(InValue)
+		, ParamType(EAudioParameterType::StringArray)
+	{
+	}
+
+	FAudioParameter(FName InName, TArray<FString>&& InValue)
+		: ParamName(InName)
+		, ArrayStringParam(MoveTemp(InValue))
+		, ParamType(EAudioParameterType::StringArray)
+	{
+	}
+
+	// Static function to avoid int32 constructor collision
+	static FAudioParameter CreateDefaultArray(FName InName, int32 InNum)
+	{
+		FAudioParameter NewParam(InName, InNum);
+		NewParam.ParamType = EAudioParameterType::NoneArray;
+		return NewParam;
+	}
+
+	// Sets values specified by type field of the given parameter on this parameter. If the provided parameter is set to type 'None', takes all values of the given parameter.
+	// bInTakeName = Take the name of the provided parameter.
+	// bInTakeType = Take the type of the provided parameter.
+	// bInMergeArrayTypes - Appends array(s) for specified type if true, else swaps the local value with that of the provided parameter if false.
+	void Merge(const FAudioParameter& InParameter, bool bInTakeName = true, bool bInTakeType = true, bool bInMergeArrayTypes = false);
+
+	FAudioParameter(FAudioParameter&& InParameter)
+		: ParamName(MoveTemp(InParameter.ParamName))
+		, FloatParam(MoveTemp(InParameter.FloatParam))
+		, BoolParam(MoveTemp(InParameter.BoolParam))
+		, IntParam(MoveTemp(InParameter.IntParam))
+		, ObjectParam(MoveTemp(InParameter.ObjectParam))
+		, StringParam(MoveTemp(InParameter.StringParam))
+		, ArrayFloatParam(MoveTemp(InParameter.ArrayFloatParam))
+		, ArrayBoolParam(MoveTemp(InParameter.ArrayBoolParam))
+		, ArrayIntParam(MoveTemp(InParameter.ArrayIntParam))
+		, ArrayObjectParam(MoveTemp(InParameter.ArrayObjectParam))
+		, ArrayStringParam(MoveTemp(InParameter.ArrayStringParam))
+		, ParamType(MoveTemp(InParameter.ParamType))
+		, ObjectProxies(MoveTemp(InParameter.ObjectProxies))
+	{
+	}
+
+	FAudioParameter(const FAudioParameter& InParameter)
+		: ParamName(InParameter.ParamName)
+		, FloatParam(InParameter.FloatParam)
+		, BoolParam(InParameter.BoolParam)
+		, IntParam(InParameter.IntParam)
+		, ObjectParam(InParameter.ObjectParam)
+		, StringParam(InParameter.StringParam)
+		, ArrayFloatParam(InParameter.ArrayFloatParam)
+		, ArrayBoolParam(InParameter.ArrayBoolParam)
+		, ArrayIntParam(InParameter.ArrayIntParam)
+		, ArrayObjectParam(InParameter.ArrayObjectParam)
+		, ArrayStringParam(InParameter.ArrayStringParam)
+		, ParamType(InParameter.ParamType)
+	{
+		ObjectProxies.Reset();
+		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
+		{
+			ObjectProxies.Emplace(DataPtr->Clone());
+		}
+	}
+
+	FAudioParameter& operator=(const FAudioParameter& InParameter)
+	{
+		ParamName = InParameter.ParamName;
+		FloatParam = InParameter.FloatParam;
+		BoolParam = InParameter.BoolParam;
+		IntParam = InParameter.IntParam;
+		ObjectParam = InParameter.ObjectParam;
+		StringParam = InParameter.StringParam;
+		ArrayFloatParam = InParameter.ArrayFloatParam;
+		ArrayBoolParam = InParameter.ArrayBoolParam;
+		ArrayIntParam = InParameter.ArrayIntParam;
+		ArrayObjectParam = InParameter.ArrayObjectParam;
+		ArrayStringParam = InParameter.ArrayStringParam;
+		ParamType = InParameter.ParamType;
+
+		ObjectProxies.Reset();
+		for (const Audio::IProxyDataPtr& DataPtr : InParameter.ObjectProxies)
+		{
+			ObjectProxies.Emplace(DataPtr->Clone());
+		}
+
+		return *this;
+	}
+
+	FAudioParameter& operator=(FAudioParameter&& InParameter)
+	{
+		ParamName = MoveTemp(InParameter.ParamName);
+		FloatParam = MoveTemp(InParameter.FloatParam);
+		BoolParam = MoveTemp(InParameter.BoolParam);
+		IntParam = MoveTemp(InParameter.IntParam);
+		ObjectParam = MoveTemp(InParameter.ObjectParam);
+		StringParam = MoveTemp(InParameter.StringParam);
+		ArrayFloatParam = MoveTemp(InParameter.ArrayFloatParam);
+		ArrayBoolParam = MoveTemp(InParameter.ArrayBoolParam);
+		ArrayIntParam = MoveTemp(InParameter.ArrayIntParam);
+		ArrayObjectParam = MoveTemp(InParameter.ArrayObjectParam);
+		ArrayStringParam = MoveTemp(InParameter.ArrayStringParam);
+		ParamType = MoveTemp(InParameter.ParamType);
+
+		ObjectProxies = MoveTemp(InParameter.ObjectProxies);
+
+		return *this;
+	}
+
+	// Name of the parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName="Name"), Category = AudioParameter)
+	FName ParamName;
+
+	// Float value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Float)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Float"), Category = AudioParameter)
+	float FloatParam = 0.f;
+
+	// Boolean value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Bool)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Bool"), Category = AudioParameter)
+	bool BoolParam = false;
+
+	// Integer value of parameter. If set to 'Default Construct', value is number of array items to construct.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Int)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Integer || ParamType == EAudioParameterType::NoneArray"), Category = AudioParameter)
+	int32 IntParam = 0;
+
+	// Object value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value (Object)", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::None || ParamType == EAudioParameterType::Object"), Category = AudioParameter)
+	TObjectPtr<UObject> ObjectParam = nullptr;
+
+	// String value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::String"), Category = AudioParameter)
+	FString StringParam;
+
+	// Array Float value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::FloatArray"), Category = AudioParameter)
+	TArray<float> ArrayFloatParam;
+
+	// Boolean value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::BooleanArray"), Category = AudioParameter)
+	TArray<bool> ArrayBoolParam;
+
+	// Integer value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::IntegerArray"), Category = AudioParameter)
+	TArray<int32> ArrayIntParam;
+
+	// Object value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::ObjectArray"), Category = AudioParameter)
+	TArray<TObjectPtr<UObject>> ArrayObjectParam;
+
+	// String value of parameter
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Value", DisplayAfter = "ParamType", EditConditionHides, EditCondition = "ParamType == EAudioParameterType::StringArray"), Category = AudioParameter)
+	TArray<FString> ArrayStringParam;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (DisplayName = "Type"), Category = AudioParameter)
+	EAudioParameterType ParamType = EAudioParameterType::None;
+
+	// Object proxies to be generated when parameter is passed to the AudioThread to represent ObjectParam/ArrayObjectParam safely
+	TArray<Audio::IProxyDataPtr> ObjectProxies;
+
+	// Common find algorithm for default/legacy parameter system
+	static const FAudioParameter* FindParam(const TArray<FAudioParameter>& InParams, FName InParamName)
+	{
+		if (InParamName.IsValid())
+		{
+			for (const FAudioParameter& ExistingParam : InParams)
+			{
+				if (ExistingParam.ParamName == InParamName)
+				{
+					return &ExistingParam;
+				}
+			}
+		}
+
+		return nullptr;
+	}
+
+	// Common find & add algorithm for default/legacy parameter system.
+	static FAudioParameter* FindOrAddParam(TArray<FAudioParameter>& OutParams, FName InParamName)
+	{
+		FAudioParameter* Param = nullptr;
+		if (!InParamName.IsValid())
+		{
+			return Param;
+		}
+
+		for (FAudioParameter& ExistingParam : OutParams)
+		{
+			if (ExistingParam.ParamName == InParamName)
+			{
+				Param = &ExistingParam;
+				break;
+			}
+		}
+
+		if (!Param)
+		{
+			Param = &OutParams.AddDefaulted_GetRef();
+			Param->ParamName = InParamName;
+		}
+
+		return Param;
+	}
+};
+
+
+UINTERFACE(BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class AUDIOEXTENSIONS_API UAudioParameterInterface : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
+
+class AUDIOEXTENSIONS_API IAudioParameterInterface : public IInterface
+{
+	GENERATED_IINTERFACE_BODY()
+
+public:
+	// Resets all parameters to their original values.
+	UFUNCTION(BlueprintCallable, Category = "Audio|Parameter")
+	virtual void ResetParameters() = 0;
+
+	// Triggers a named trigger
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Trigger Parameter"), Category = "Audio|Parameter")
+	virtual void SetTriggerParameter(FName InName) = 0;
+
+	// Sets a named Boolean
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Boolean Parameter"), Category = "Audio|Parameter")
+	virtual void SetBoolParameter(FName InName, bool InBool) = 0;
+	
+	// Sets a named Boolean Array
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Boolean Array Parameter"), Category = "Audio|Parameter")
+	virtual void SetBoolArrayParameter(FName InName, const TArray<bool>& InValue) = 0;
+
+	// Sets a named Int32
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Integer Parameter"), Category = "Audio|Parameter")
+	virtual void SetIntParameter(FName InName, int32 InInt) = 0;
+
+	// Sets a named Int32 Array
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Integer Array Parameter"), Category = "Audio|Parameter")
+	virtual void SetIntArrayParameter(FName InName, const TArray<int32>& InValue) = 0;
+
+	// Sets a named Float
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Float Parameter"), Category = "Audio|Parameter")
+	virtual void SetFloatParameter(FName InName, float InFloat) = 0;
+	
+	// Sets a named Float Array
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Float Array Parameter"), Category = "Audio|Parameter")
+	virtual void SetFloatArrayParameter(FName InName, const TArray<float>& InValue) = 0;
+	
+	// Sets a named String
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set String Parameter"), Category = "Audio|Parameter")
+	virtual void SetStringParameter(FName InName, const FString& InValue) = 0;
+
+	// Sets a named String Array
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set String Array Parameter"), Category = "Audio|Parameter")
+	virtual void SetStringArrayParameter(FName InName, const TArray<FString>& InValue) = 0;
+
+	// Sets a named UObject
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Object Parameter"), Category = "Audio|Parameter")
+	virtual void SetObjectParameter(FName InName, UObject* InValue) = 0;
+
+	// Sets a named UObject Array
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Object Array Parameter"), Category = "Audio|Parameter")
+	virtual void SetObjectArrayParameter(FName InName, const TArray<UObject*>& InValue) = 0;
+
+	// Sets a named parameter to the given parameter structure value
+	virtual void SetParameter(FAudioParameter&& InValue) = 0;
+
+	// Sets an array of parameters as a batch
+	virtual void SetParameters(TArray<FAudioParameter>&& InValues) = 0;
+};

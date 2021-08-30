@@ -13,7 +13,6 @@
 
 // Forward Declarations
 struct FMetasoundFrontendClassName;
-class IMetaSoundAssetInterface;
 
 
 UENUM()

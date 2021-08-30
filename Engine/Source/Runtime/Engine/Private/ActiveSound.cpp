@@ -224,11 +224,12 @@ void FActiveSound::AddReferencedObjects(FReferenceCollector& Collector)
 		}
 	}
 
-	for (FAudioComponentParam& Param : InstanceParameters)
+	if (InstanceTransmitter.IsValid())
 	{
-		if (Param.SoundWaveParam)
+		TArray<UObject*> InstanceReferences = InstanceTransmitter->GetReferencedObjects();
+		for (UObject* Object : InstanceReferences)
 		{
-			Collector.AddReferencedObject(Param.SoundWaveParam);
+			Collector.AddReferencedObject(Object);
 		}
 	}
 }
@@ -395,7 +396,7 @@ void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSource
 			Info.SendLevel = SendInfo.SendLevel;
 
 			bHasNewBusSends = true;
-			newBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType, SendInfo));
+			NewBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType, SendInfo));
 			return;
 		}
 	}
@@ -404,7 +405,7 @@ void FActiveSound::SetSourceBusSend(EBusSendType BusSendType, const FSoundSource
 	BusSendsOverride[(int32)BusSendType].Add(SendInfo);
 
 	bHasNewBusSends = true;
-	newBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType,SendInfo));
+	NewBusSends.Add(TTuple<EBusSendType, FSoundSourceBusSendInfo>(BusSendType,SendInfo));
 }
 
 bool FActiveSound::HasNewBusSends() const
@@ -414,12 +415,12 @@ bool FActiveSound::HasNewBusSends() const
 
 TArray< TTuple<EBusSendType, FSoundSourceBusSendInfo> > const& FActiveSound::GetNewBusSends() const
 {
-	return newBusSends;
+	return NewBusSends;
 }
 
 void FActiveSound::ResetNewBusSends()
 {
-	newBusSends.Empty();
+	NewBusSends.Empty();
 	bHasNewBusSends = false;
 }
 
@@ -1263,24 +1264,6 @@ void FActiveSound::ApplyRadioFilter(const FSoundParseParameters& ParseParams)
 	bRadioFilterSelected = true;
 }
 
-bool FActiveSound::GetFloatParameter(const FName InName, float& OutFloat) const
-{
-	// Always fail if we pass in no name.
-	if (InName != NAME_None)
-	{
-		for (const FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				OutFloat = P.FloatParam;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 float FActiveSound::GetVolume() const
 {
 	const float Volume = VolumeMultiplier * ComponentVolumeFader.GetVolume() * GetTotalConcurrencyVolumeScale();
@@ -1304,163 +1287,6 @@ void FActiveSound::UpdateConcurrencyVolumeScalars(const float DeltaTime)
 	for (TPair<FConcurrencyGroupID, FConcurrencySoundData>& ConcurrencyPair : ConcurrencyGroupData)
 	{
 		ConcurrencyPair.Value.Update(DeltaTime);
-	}
-}
-
-void FActiveSound::SetFloatParameter(const FName InName, const float InFloat)
-{
-	if (InName != NAME_None)
-	{		
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.FloatParam = InFloat;
-				return;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-		InstanceParameters[NewParamIndex].ParamName = InName;
-		InstanceParameters[NewParamIndex].FloatParam = InFloat;
-	}
-}
-
-bool FActiveSound::GetWaveParameter(const FName InName, USoundWave*& OutWave) const
-{
-	// Always fail if we pass in no name.
-	if (InName != NAME_None)
-	{
-		for (const FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				OutWave = P.SoundWaveParam;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-void FActiveSound::SetWaveParameter(const FName InName, USoundWave* InWave)
-{
-	if (InName != NAME_None)
-	{
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.SoundWaveParam = InWave;
-				return;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-		InstanceParameters[NewParamIndex].ParamName = InName;
-		InstanceParameters[NewParamIndex].SoundWaveParam = InWave;
-	}
-}
-
-bool FActiveSound::GetBoolParameter(const FName InName, bool& OutBool) const
-{
-	// Always fail if we pass in no name.
-	if (InName != NAME_None)
-	{
-		for (const FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				OutBool = P.BoolParam;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-void FActiveSound::SetBoolParameter(const FName InName, const bool InBool)
-{
-	if (InName != NAME_None)
-	{
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.BoolParam = InBool;
-				return;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-		InstanceParameters[NewParamIndex].ParamName = InName;
-		InstanceParameters[NewParamIndex].BoolParam = InBool;
-	}
-}
-
-bool FActiveSound::GetIntParameter(const FName InName, int32& OutInt) const
-{
-	// Always fail if we pass in no name.
-	if (InName != NAME_None)
-	{
-		for (const FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				OutInt = P.IntParam;
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
-void FActiveSound::SetIntParameter(const FName InName, const int32 InInt)
-{
-	if (InName != NAME_None)
-	{
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == InName)
-			{
-				P.IntParam = InInt;
-				return;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-		InstanceParameters[NewParamIndex].ParamName = InName;
-		InstanceParameters[NewParamIndex].IntParam = InInt;
-	}
-}
-
-void FActiveSound::SetSoundParameter(const FAudioComponentParam& Param)
-{
-	if (Param.ParamName != NAME_None)
-	{
-		// First see if an entry for this name already exists
-		for (FAudioComponentParam& P : InstanceParameters)
-		{
-			if (P.ParamName == Param.ParamName)
-			{
-				P = Param;
-				return;
-			}
-		}
-
-		// We didn't find one, so create a new one.
-		const int32 NewParamIndex = InstanceParameters.Add(Param);
 	}
 }
 

@@ -10,6 +10,7 @@
 #include "MetasoundDataReference.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundLiteral.h"
+#include "MetasoundLog.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundTrigger.h"
@@ -42,6 +43,7 @@
  * 3) Most non-audio data types cannot be mixed, so multiple senders to the same address will cause only one of the senders to be effective.
  * 4) while the overall system is thread safe, individual TSender and TReceiver objects should only be used by a single thread.
  */
+
 
 namespace Metasound
 {
@@ -358,6 +360,8 @@ namespace Metasound
 		// This can be changed to change when we reallocate the internal buffer for this sender.
 		static constexpr float BufferResizeThreshold = 2.0f;
 
+		bool bMessageDataTypeError = true;
+
 	public:
 
 		bool Push(const TDataType& InElement)
@@ -378,9 +382,11 @@ namespace Metasound
 		{
 			if (!TLiteralTraits<TDataType>::IsParsable(InLiteral))
 			{
-				// The literal sent in is not compatible with the data type.
-				ensureMsgf(false, TEXT("Failed to send data. Data type [TypeName:%s] cannot be parsed from literal [Literal:%s]."), *GetMetasoundDataTypeString<TDataType>(), *LexToString(InLiteral));
-
+				if (bMessageDataTypeError)
+				{
+					UE_LOG(LogMetaSound, Error, TEXT("Failed to send data. Data type [TypeName:%s] cannot be parsed from literal [Literal:%s]."), *GetMetasoundDataTypeString<TDataType>(), *LexToString(InLiteral));
+					bMessageDataTypeError = false;
+				}
 				return false;
 			}
 			else

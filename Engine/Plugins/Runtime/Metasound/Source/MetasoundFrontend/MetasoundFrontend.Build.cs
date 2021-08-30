@@ -13,6 +13,7 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"AudioExtensions",
 					"Core",
 					"CoreUObject",
 					"Serialization",

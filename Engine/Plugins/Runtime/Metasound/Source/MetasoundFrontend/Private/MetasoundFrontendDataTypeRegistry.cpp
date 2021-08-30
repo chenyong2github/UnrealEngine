@@ -326,6 +326,7 @@ namespace Metasound
 
 				virtual void GetRegisteredDataTypeNames(TArray<FName>& OutNames) const override;
 
+				virtual bool GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const override;
 				virtual bool GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const override;
 
 				// Return the enum interface for a data type. If the data type does not have 
@@ -339,9 +340,12 @@ namespace Metasound
 
 				virtual UClass* GetUClassForDataType(const FName& InDataType) const override;
 
+				bool IsUObjectProxyFactory(UObject* InObject) const override;
+				Audio::IProxyDataPtr CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const override;
+
 				virtual FLiteral CreateDefaultLiteral(const FName& InDataType) const override;
 				virtual FLiteral CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const override;
-				virtual FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) const override;
+				virtual FLiteral CreateLiteralFromUObjectArray(const FName& InDataType, const TArray<UObject*>& InObjectArray) const override;
 
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const override;
 
@@ -362,6 +366,9 @@ namespace Metasound
 				const IDataTypeRegistryEntry* FindDataTypeEntry(const FName& InDataTypeName) const;
 
 				TMap<FName, TUniquePtr<IDataTypeRegistryEntry>> RegisteredDataTypes;
+
+				// UObject type names to DataTypeNames
+				TMap<const UClass*, FName> RegisteredObjectClasses;
 			};
 
 			bool FDataTypeRegistry::RegisterDataType(TUniquePtr<IDataTypeRegistryEntry>&& InEntry)
@@ -387,6 +394,15 @@ namespace Metasound
 						NodeRegistry->RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(InEntry->Clone()));
 					}
 
+					const FDataTypeRegistryInfo& RegistryInfo = InEntry->GetDataTypeInfo();
+					if (!RegistryInfo.IsArrayType())
+					{
+						if (const UClass* Class = RegistryInfo.ProxyGeneratorClass)
+						{
+							RegisteredObjectClasses.Add(Class, Name);
+						}
+					}
+
 					RegisteredDataTypes.Add(Name, MoveTemp(InEntry));
 
 					UE_LOG(LogMetaSound, Verbose, TEXT("Registered Metasound Datatype [Name:%s]."), *Name.ToString());
@@ -399,6 +415,23 @@ namespace Metasound
 			void FDataTypeRegistry::GetRegisteredDataTypeNames(TArray<FName>& OutNames) const
 			{
 				RegisteredDataTypes.GetKeys(OutNames);
+			}
+
+			bool FDataTypeRegistry::GetDataTypeInfo(const UObject* InObject, FDataTypeRegistryInfo& OutInfo) const
+			{
+				if (InObject)
+				{
+					if (const FName* DataTypeName = RegisteredObjectClasses.Find(InObject->GetClass()))
+					{
+						if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(*DataTypeName))
+						{
+							OutInfo = Entry->GetDataTypeInfo();
+							return true;
+						}
+					}
+				}
+
+				return false;
 			}
 
 			bool FDataTypeRegistry::GetDataTypeInfo(const FName& InDataType, FDataTypeRegistryInfo& OutInfo) const
@@ -529,55 +562,56 @@ namespace Metasound
 				return nullptr;
 			}
 
-			FLiteral FDataTypeRegistry::CreateDefaultLiteral(const FName& InDataType) const 
+			FLiteral FDataTypeRegistry::CreateDefaultLiteral(const FName& InDataType) const
 			{
 				return FLiteral::GetDefaultForType(GetDesiredLiteralType(InDataType));
 			}
 
-			FLiteral FDataTypeRegistry::CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const
+			bool FDataTypeRegistry::IsUObjectProxyFactory(UObject* InObject) const
 			{
-				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				if (!InObject)
 				{
-					if (Audio::IProxyDataPtr ProxyPtr = Entry->CreateProxy(InObject))
-					{
-						if (InObject)
-						{
-							ensureAlwaysMsgf(ProxyPtr.IsValid(), TEXT("UObject failed to create a valid proxy."));
-						}
-						return Metasound::FLiteral(MoveTemp(ProxyPtr));
-					}
+					return false;
 				}
 
-				return Metasound::FLiteral();
+				return RegisteredObjectClasses.Contains(InObject->GetClass());
 			}
 
-			FLiteral FDataTypeRegistry::CreateLiteralFromUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray) const
+			Audio::IProxyDataPtr FDataTypeRegistry::CreateProxyFromUObject(const FName& InDataType, UObject* InObject) const
 			{
+				Audio::IProxyDataPtr ProxyPtr;
+
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					TArray<Audio::IProxyDataPtr> ProxyArray;
-
-					for (UObject* InObject : InObjectArray)
+					ProxyPtr = Entry->CreateProxy(InObject);
+					if (ProxyPtr)
 					{
-						Audio::IProxyDataPtr ProxyPtr = Entry->CreateProxy(InObject);
-
-						if (InObject)
+						if (!InObject)
 						{
-							if (!ProxyPtr.IsValid())
-							{
-								UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from UObject [Name:%s]."), *InObject->GetName());
-							}
+							UE_LOG(LogMetaSound, Error, TEXT("Failed to create a valid proxy from UObject '%s'."), *InObject->GetName());
 						}
-
-						ProxyArray.Add(MoveTemp(ProxyPtr));
 					}
+				}
 
-					return Metasound::FLiteral(MoveTemp(ProxyArray));
-				}
-				else
+				return ProxyPtr;
+			}
+
+			FLiteral FDataTypeRegistry::CreateLiteralFromUObject(const FName& InDataType, UObject* InObject) const
+			{
+				Audio::IProxyDataPtr ProxyPtr = CreateProxyFromUObject(InDataType, InObject);
+				return Metasound::FLiteral(MoveTemp(ProxyPtr));
+			}
+
+			FLiteral FDataTypeRegistry::CreateLiteralFromUObjectArray(const FName& InDataType, const TArray<UObject*>& InObjectArray) const
+			{
+				TArray<Audio::IProxyDataPtr> ProxyArray;
+				for (UObject* InObject : InObjectArray)
 				{
-					return Metasound::FLiteral();
+					Audio::IProxyDataPtr ProxyPtr = CreateProxyFromUObject(InDataType, InObject);
+					ProxyArray.Emplace(MoveTemp(ProxyPtr));
 				}
+
+				return Metasound::FLiteral(MoveTemp(ProxyArray));
 			}
 
 			TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FDataTypeRegistry::CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const

@@ -6,24 +6,23 @@
 
 float FModulatorContinuousParams::GetValue(const FActiveSound& ActiveSound) const
 {
-	float ParamFloat = 0.f;
-
-	if (!ActiveSound.GetFloatParameter(ParameterName, ParamFloat))
+	FAudioParameter Param;
+	if (!ActiveSound.GetTransmitter()->GetParameter(ParameterName, Param))
 	{
-		ParamFloat = Default;
+		Param.FloatParam = Default;
 	}
 
 	if(ParamMode == MPM_Direct)
 	{
-		return ParamFloat;
+		return Param.FloatParam;
 	}
 	else if(ParamMode == MPM_Abs)
 	{
-		ParamFloat = FMath::Abs(ParamFloat);
+		Param.FloatParam = FMath::Abs(Param.FloatParam);
 	}
 
 	float Gradient;
-	if(MaxInput <= MinInput)
+	if (MaxInput <= MinInput)
 	{
 		Gradient = 0.f;
 	}
@@ -32,7 +31,7 @@ float FModulatorContinuousParams::GetValue(const FActiveSound& ActiveSound) cons
 		Gradient = (MaxOutput - MinOutput)/(MaxInput - MinInput);
 	}
 
-	const float ClampedParam = FMath::Clamp(ParamFloat, MinInput, MaxInput);
+	const float ClampedParam = FMath::Clamp(Param.FloatParam, MinInput, MaxInput);
 
 	return MinOutput + ((ClampedParam - MinInput) * Gradient);
 }

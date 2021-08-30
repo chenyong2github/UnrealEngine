@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "AudioParameterInterface.h"
 #include "CoreMinimal.h"
 #include "MetasoundLiteral.h"
 
@@ -32,9 +33,22 @@ enum class EMetasoundFrontendLiteralType : uint8
 	StringArray = static_cast<uint8>(Metasound::ELiteralType::StringArray),
 	UObjectArray = static_cast<uint8>(Metasound::ELiteralType::UObjectProxyArray),
 
-
 	Invalid UMETA(Hidden)
 };
+
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::None) == static_cast<uint8>(EAudioParameterType::None), "Type 'None' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::Boolean) == static_cast<uint8>(EAudioParameterType::Boolean), "Type 'Boolean' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::Integer) == static_cast<uint8>(EAudioParameterType::Integer), "Type 'Integer' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::Float) == static_cast<uint8>(EAudioParameterType::Float), "Type 'Float' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::String) == static_cast<uint8>(EAudioParameterType::String), "Type 'String' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::UObject) == static_cast<uint8>(EAudioParameterType::Object), "Type 'UObjectProxy' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::NoneArray) == static_cast<uint8>(EAudioParameterType::NoneArray), "Type 'NoneArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::BooleanArray) == static_cast<uint8>(EAudioParameterType::BooleanArray), "Type 'BooleanArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::IntegerArray) == static_cast<uint8>(EAudioParameterType::IntegerArray), "Type 'IntegerArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::FloatArray) == static_cast<uint8>(EAudioParameterType::FloatArray), "Type 'FloatArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::StringArray) == static_cast<uint8>(EAudioParameterType::StringArray), "Type 'StringArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::UObjectArray) == static_cast<uint8>(EAudioParameterType::ObjectArray), "Type 'UObjectProxyArray' value must match");
+static_assert(static_cast<uint8>(EMetasoundFrontendLiteralType::Invalid) == static_cast<uint8>(EAudioParameterType::COUNT), "Enum EMetasoundFrontendLiteralType' count must match 'EAudioParameterType'");
 
 // Check that the static_cast<>s above are using the correct type.
 static_assert(std::is_same<uint8, std::underlying_type<EMetasoundFrontendLiteralType>::type>::value, "Update type in static_cast<TYPE> from Metasound::ELiteralType to EMetasoundFrontendLiteralType in EMetasoundFrontendLiteralType declaration.");

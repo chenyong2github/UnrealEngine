@@ -3,7 +3,7 @@
 
 #include "AudioDevice.h"
 #include "EngineDefines.h"
-#include "IAudioExtensionPlugin.h"
+#include "IAudioParameterTransmitter.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundClass.h"
 #include "Sound/SoundSubmix.h"
@@ -277,4 +277,209 @@ void USoundBase::RemoveUserDataOfClass(TSubclassOf<UAssetUserData> InUserDataCla
 const TArray<UAssetUserData*>* USoundBase::GetAssetUserDataArray() const
 {
 	return &ToRawPtrTArrayUnsafe(AssetUserData);
+}
+
+TUniquePtr<Audio::IParameterTransmitter> USoundBase::CreateParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams) const
+{
+	class FDefaultParameterTransmitter : public Audio::IParameterTransmitter
+	{
+		uint64 InstanceID = INDEX_NONE;
+		TArray<FAudioParameter> AudioParameters;
+
+	public:
+		FDefaultParameterTransmitter(Audio::FParameterTransmitterInitParams&& InParams)
+			: InstanceID(MoveTemp(InParams.InstanceID))
+			, AudioParameters(MoveTemp(InParams.DefaultParams))
+		{
+		}
+
+		virtual ~FDefaultParameterTransmitter() = default;
+
+		bool Reset() override
+		{
+			AudioParameters.Reset();
+			return true;
+		}
+
+		bool SetParameter(FAudioParameter&& InValue) override
+		{
+			if (FAudioParameter* Param = FAudioParameter::FindOrAddParam(AudioParameters, InValue.ParamName))
+			{
+				// Cannot do wholesale move because legacy system (i.e. SoundCues) support
+				// multiple value types mapped to a single parameter FName
+				switch (InValue.ParamType)
+				{
+					case EAudioParameterType::Boolean:
+					{
+						Param->BoolParam = InValue.BoolParam;
+					}
+					break;
+
+					case EAudioParameterType::BooleanArray:
+					{
+						Param->ArrayBoolParam = MoveTemp(InValue.ArrayBoolParam);
+					}
+					break;
+
+					case EAudioParameterType::Float:
+					{
+						Param->FloatParam = InValue.FloatParam;
+					}
+					break;
+
+					case EAudioParameterType::FloatArray:
+					{
+						Param->ArrayFloatParam = MoveTemp(InValue.ArrayFloatParam);
+					}
+					break;
+
+					case EAudioParameterType::Integer:
+					case EAudioParameterType::NoneArray:
+					{
+						Param->IntParam = InValue.IntParam;
+					}
+					break;
+
+					case EAudioParameterType::IntegerArray:
+					{
+						Param->ArrayIntParam = MoveTemp(InValue.ArrayIntParam);
+					}
+					break;
+
+					case EAudioParameterType::None:
+					{
+						*Param = MoveTemp(InValue);
+					}
+					break;
+
+					case EAudioParameterType::Object:
+					{
+						Param->ObjectParam = MoveTemp(InValue.ObjectParam);
+						Param->ObjectProxies = MoveTemp(InValue.ObjectProxies);
+					}
+					break;
+
+					case EAudioParameterType::ObjectArray:
+					{
+						Param->ArrayObjectParam = MoveTemp(InValue.ArrayObjectParam);
+						Param->ObjectProxies = MoveTemp(InValue.ObjectProxies);
+					}
+					break;
+
+					case EAudioParameterType::String:
+					{
+						Param->StringParam = MoveTemp(InValue.StringParam);
+					}
+					break;
+
+					case EAudioParameterType::StringArray:
+					{
+						Param->ArrayStringParam = MoveTemp(InValue.ArrayStringParam);
+					}
+					break;
+
+					default:
+					{
+						checkNoEntry();
+					}
+				}
+
+				InValue = FAudioParameter();
+
+				return true;
+			}
+
+			InValue = FAudioParameter();
+			return false;
+		}
+
+		uint64 GetInstanceID() const override
+		{
+			return InstanceID;
+		}
+
+		bool GetParameter(FName InName, FAudioParameter& OutValue) const override
+		{
+			if (const FAudioParameter* Param = FAudioParameter::FindParam(AudioParameters, InName))
+			{
+				OutValue = *Param;
+				return true;
+			}
+
+			return false;
+		}
+
+		TArray<UObject*> GetReferencedObjects() const override
+		{
+			TArray<UObject*> Objects;
+			for (const FAudioParameter& Param : AudioParameters)
+			{
+				if (Param.ObjectParam)
+				{
+					Objects.Add(Param.ObjectParam);
+				}
+
+				for (UObject* Object : Param.ArrayObjectParam)
+				{
+					if (Object)
+					{
+						Objects.Add(Object);
+					}
+				}
+			}
+
+			return Objects;
+		}
+
+		TUniquePtr<Audio::IParameterTransmitter> Clone() const override
+		{
+			return MakeUnique<FDefaultParameterTransmitter>(*this);
+		}
+	};
+
+	return MakeUnique<FDefaultParameterTransmitter>(MoveTemp(InParams));
+}
+
+void USoundBase::InitParameters(TArray<FAudioParameter>& InParametersToInit, FName InFeatureName)
+{
+	for (int32 i = InParametersToInit.Num() - 1; i >= 0; --i)
+	{
+		if (!IsParameterValid(InParametersToInit[i]))
+		{
+			InParametersToInit.RemoveAtSwap(i, 1, false /* bAllowShrinking */);
+		}
+	}
+}
+
+bool USoundBase::IsParameterValid(const FAudioParameter& InParameter) const
+{
+	switch (InParameter.ParamType)
+	{
+		case EAudioParameterType::BooleanArray:
+		case EAudioParameterType::FloatArray:
+		case EAudioParameterType::IntegerArray:
+		case EAudioParameterType::NoneArray:
+		case EAudioParameterType::ObjectArray:
+		case EAudioParameterType::StringArray:
+		case EAudioParameterType::String:
+		{
+			return false;
+		}
+
+		case EAudioParameterType::Object:
+		case EAudioParameterType::None:
+		{
+			if (InParameter.ObjectParam)
+			{
+				return InParameter.ObjectParam->GetClass()->IsChildOf(USoundWave::StaticClass());
+			}
+		}
+
+		default:
+		{
+			break;
+		}
+	}
+
+	return true;
 }

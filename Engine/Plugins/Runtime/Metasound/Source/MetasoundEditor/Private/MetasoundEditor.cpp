@@ -823,7 +823,7 @@ namespace Metasound
 				{
 					PlayTime = 0.0;
 
-					UObject* ParamInterfaceObject = PreviewComp->GetParameterInterface().GetObject();
+					UObject* ParamInterfaceObject = PreviewComp;
 					if (ensure(ParamInterfaceObject))
 					{
 						SetPreviewID(ParamInterfaceObject->GetUniqueID());
@@ -947,11 +947,11 @@ namespace Metasound
 					{
 						// TODO: fix how identifying the parameter to update is determined. It should not be done
 						// with a "DisplayName" but rather the vertex Guid.
-						if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
+						if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent)
 						{
 							FConstNodeHandle NodeHandle = InputNode->GetConstNodeHandle();
 							FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-							ParamInterface->Trigger(*VertexKey);
+							ParamInterface->SetTriggerParameter(*VertexKey);
 						}
 					}
 				}

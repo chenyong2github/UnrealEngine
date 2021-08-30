@@ -17,9 +17,9 @@
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundFrontendSearchEngine.h"
 #include "MetasoundFrontendTransform.h"
-#include "MetasoundInstanceTransmitter.h"
 #include "MetasoundJsonBackend.h"
 #include "MetasoundLog.h"
+#include "MetasoundParameterTransmitter.h"
 #include "MetasoundTrace.h"
 #include "StructSerializer.h"
 #include "UObject/MetaData.h"
@@ -441,7 +441,7 @@ TUniquePtr<Metasound::IGraph> FMetasoundAssetBase::BuildMetasoundDocument() cons
 	if (FrontendGraph.IsValid())
 	{
 		TSet<FVertexKey> VerticesToSkip = GetNonTransmittableInputVertices(*Doc);
-		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetasoundInstanceTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
+		bool bSuccessfullyInjectedReceiveNodes = InjectReceiveNodes(*FrontendGraph, FMetaSoundParameterTransmitter::CreateSendAddressFromEnvironment, VerticesToSkip);
 		if (!bSuccessfullyInjectedReceiveNodes)
 		{
 			UE_LOG(LogMetaSound, Error, TEXT("Error while injecting async communication hooks. Instance communication may not function properly [Name:%s]."), *GetOwningAssetName());
@@ -551,7 +551,7 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 {
 	using namespace Metasound;
 	using namespace Metasound::Frontend;
-	using FSendInfo = FMetasoundInstanceTransmitter::FSendInfo;
+	using FSendInfo = FMetaSoundParameterTransmitter::FSendInfo;
 
 	TArray<FSendInfoAndVertexName> SendInfos;
 
@@ -567,7 +567,7 @@ TArray<FMetasoundAssetBase::FSendInfoAndVertexName> FMetasoundAssetBase::GetSend
 
 			// TODO: incorporate VertexID into address. But need to ensure that VertexID
 			// will be maintained after injecting Receive nodes. 
-			Info.SendInfo.Address = FMetasoundInstanceTransmitter::CreateSendAddressFromInstanceID(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
+			Info.SendInfo.Address = FMetaSoundParameterTransmitter::CreateSendAddressFromInstanceID(InInstanceID, InputHandle->GetName(), InputHandle->GetDataType());
 			Info.SendInfo.ParameterName = FName(InputHandle->GetDisplayName().ToString()); // TODO: display name hack. Need to have naming consistent in editor for inputs
 			//Info.SendInfo.ParameterName = FName(*InputHandle->GetName()); // TODO: this is the expected parameter name.
 			Info.SendInfo.TypeName = InputHandle->GetDataType();
@@ -675,7 +675,7 @@ TArray<FString> FMetasoundAssetBase::GetTransmittableInputVertexNames() const
 	return GraphInputVertexNames;
 }
 
-Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(const Metasound::FMetasoundInstanceTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
+Metasound::Frontend::FNodeHandle FMetasoundAssetBase::AddInputPinForSendAddress(const Metasound::FMetaSoundParameterTransmitter::FSendInfo& InSendInfo, Metasound::Frontend::FGraphHandle InGraph) const
 {
 	FMetasoundFrontendClassInput Description;
 	FGuid VertexID = FGuid::NewGuid();

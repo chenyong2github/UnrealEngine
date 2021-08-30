@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MetasoundEditorGraph.h"
 
-#include "Audio/AudioParameterInterface.h"
+#include "AudioParameterInterface.h"
 #include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -311,7 +311,7 @@ void UMetasoundEditorGraphInput::OnLiteralChanged(bool bPostTransaction)
 		UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent();
 		check(PreviewComponent);
 
-		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
+		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent)
 		{
 			// TODO: fix how identifying the parameter to update is determined. It should not be done
 			// with a "DisplayName" but rather the vertex Guid.
@@ -609,13 +609,7 @@ bool UMetasoundEditorGraph::IsPreviewing() const
 		return false;
 	}
 
-	UObject* ParamInterfaceObject = PreviewComponent->GetParameterInterface().GetObject();
-	if (!ParamInterfaceObject)
-	{
-		return false;
-	}
-
-	return ParamInterfaceObject->GetUniqueID() == PreviewID;
+	return PreviewComponent->GetUniqueID() == PreviewID;
 }
 
 void UMetasoundEditorGraph::IterateOutputs(TUniqueFunction<void(UMetasoundEditorGraphOutput&)> InFunction) const

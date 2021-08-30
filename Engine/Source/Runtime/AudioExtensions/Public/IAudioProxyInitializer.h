@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Templates/Casts.h"
 #include "Templates/UnrealTypeTraits.h"
 
 /**
@@ -126,13 +127,38 @@ namespace Audio
 	{
 		FName NameOfFeatureRequestingProxy;
 	};
-}
+} // namespace Audio
 
 /*
 * This can be subclassed to make a UClass an audio proxy factory.
 */
-class IAudioProxyDataFactory
+class AUDIOEXTENSIONS_API IAudioProxyDataFactory
 {
 public:
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) = 0;
 };
+
+namespace Audio
+{
+	// SFINAE used to optionally invoke subclasses of IAudioProxyDataFactory when we can.
+	template<typename UClassToUse, typename TEnableIf<TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
+	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
+	{
+		if (InObject)
+		{
+			UClassToUse* DowncastObject = Cast<UClassToUse>(InObject);
+			if (ensureAlways(DowncastObject))
+			{
+				return static_cast<IAudioProxyDataFactory*>(DowncastObject);
+			}
+		}
+
+		return nullptr;
+	}
+
+	template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
+	IAudioProxyDataFactory* CastToProxyDataFactory(UObject* InObject)
+	{
+		return nullptr;
+	}
+} // namespace Audio

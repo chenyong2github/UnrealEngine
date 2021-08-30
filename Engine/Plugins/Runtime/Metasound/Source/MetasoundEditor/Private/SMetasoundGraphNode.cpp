@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "SMetasoundGraphNode.h"
 
-#include "Audio/AudioParameterInterface.h"
+#include "AudioParameterInterface.h"
 #include "Components/AudioComponent.h"
 #include "EditorStyleSet.h"
 #include "GraphEditorSettings.h"
@@ -71,14 +71,11 @@ void SMetasoundGraphNode::ExecuteInputTrigger(UMetasoundEditorGraphInputLiteral&
 
 	if (UAudioComponent* PreviewComponent = GEditor->GetPreviewAudioComponent())
 	{
-		if (TScriptInterface<IAudioParameterInterface> ParamInterface = PreviewComponent->GetParameterInterface())
-		{
-			// TODO: fix how identifying the parameter to update is determined. It should not be done
-			// with a "DisplayName" but rather the vertex Guid.
-			Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
-			Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
-			ParamInterface->Trigger(*VertexKey);
-		}
+		// TODO: fix how identifying the parameter to update is determined. It should not be done
+		// with a "DisplayName" but rather the vertex Guid.
+		Metasound::Frontend::FConstNodeHandle NodeHandle = Input->GetConstNodeHandle();
+		Metasound::FVertexKey VertexKey = Metasound::FVertexKey(NodeHandle->GetDisplayName().ToString());
+		PreviewComponent->SetTriggerParameter(*VertexKey);
 	}
 }
 
