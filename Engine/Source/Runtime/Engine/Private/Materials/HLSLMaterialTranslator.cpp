@@ -6222,7 +6222,7 @@ void FHLSLMaterialTranslator::UseSceneTextureId(ESceneTextureId SceneTextureId, 
 			Errorf(TEXT("Decals can only access SceneDepth, CustomDepth, CustomStencil, and WorldNormal."));
 		}
 
-		const bool bSceneTextureRequiresSM5 = SceneTextureId == PPI_WorldNormal || SceneTextureId == PPI_CustomDepth || SceneTextureId == PPI_CustomStencil;
+		const bool bSceneTextureRequiresSM5 = SceneTextureId == PPI_WorldNormal;
 		if (bSceneTextureRequiresSM5)
 		{
 			ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5);
