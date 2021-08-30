@@ -358,3 +358,25 @@ public:
 	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
 	virtual bool UpdateStates() const override;
 };
+
+class FPerforceCreateWorkspaceWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceCreateWorkspaceWorker() = default;
+
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};
+
+class FPerforceDeleteWorkspaceWorker : public IPerforceSourceControlWorker
+{
+public:
+	virtual ~FPerforceDeleteWorkspaceWorker() = default;
+
+	// IPerforceSourceControlWorker interface
+	virtual FName GetName() const override;
+	virtual bool Execute(class FPerforceSourceControlCommand& InCommand) override;
+	virtual bool UpdateStates() const override;
+};

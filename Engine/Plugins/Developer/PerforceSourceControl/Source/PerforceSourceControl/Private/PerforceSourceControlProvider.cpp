@@ -645,6 +645,69 @@ bool FPerforceSourceControlProvider::TryToDownloadFileFromBackgroundThread(const
 	return Command.bCommandSuccessful;
 }
 
+ECommandResult::Type FPerforceSourceControlProvider::SwitchWorkspace(FStringView NewWorkspaceName, FSourceControlResultInfo& OutResultInfo, FString* OutOldWorkspaceName)
+{
+	if (!CommandQueue.IsEmpty())
+	{
+		UE_LOG(LogSourceControl, Log, TEXT("Waiting on pending commands before switching workspace"));
+
+		// Run the busy loop while we wait for any current commands to be cleared.
+		while (!CommandQueue.IsEmpty())
+		{
+			// Tick the command queue and update progress.
+			Tick();
+
+			// Sleep for a bit so we don't busy-wait so much.
+			FPlatformProcess::Sleep(0.01f);
+		}
+	}
+
+	
+	Close();
+
+	// Do not call Init directly as we do not want to save the new workspace name to
+	// the source control settings!
+
+	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
+	const FString OldWorkspaceName = PerforceSourceControl.AccessSettings().GetWorkspace();
+		
+	FPerforceSourceControlSettings& P4Settings = PerforceSourceControl.AccessSettings();
+
+	FString PortName = P4Settings.GetPort();
+	FString UserName = P4Settings.GetUserName();
+	FString ClientSpecName = FString(NewWorkspaceName);
+
+	if (FPerforceConnection::EnsureValidConnection(PortName, UserName, ClientSpecName, P4Settings.GetConnectionInfo()))
+	{
+		P4Settings.SetPort(PortName);
+		P4Settings.SetUserName(UserName);
+		P4Settings.SetWorkspace(ClientSpecName);
+		check(NewWorkspaceName == ClientSpecName);
+
+		bServerAvailable = true;
+
+		if (OutOldWorkspaceName != nullptr)
+		{
+			*OutOldWorkspaceName = OldWorkspaceName;
+		}
+
+		UE_LOG(LogSourceControl, Log, TEXT("Switched workspaces from '%s' to '%s%'"),  *OldWorkspaceName, *ClientSpecName);
+
+		return ECommandResult::Succeeded;
+	}
+	else
+	{
+		FText Message = FText::Format(	LOCTEXT("Perforce_ConnectionFailed", "Failed to re-establish the connection after switching to workspace {0}"),
+										FText::FromString(FString(NewWorkspaceName)));
+		OutResultInfo.ErrorMessages.Add(Message);
+
+		// The connection didn't work so we should try to restore the old workspace name
+		PerforceSourceControl.AccessSettings().SetWorkspace(OldWorkspaceName);
+		
+		return ECommandResult::Failed;
+	}
+}
+
 #if SOURCE_CONTROL_WITH_SLATE
 TSharedRef<class SWidget> FPerforceSourceControlProvider::MakeSettingsWidget() const
 {

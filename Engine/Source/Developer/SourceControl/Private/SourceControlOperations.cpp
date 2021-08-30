@@ -4,6 +4,7 @@
 
 #include "Containers/StringView.h"
 #include "ISourceControlModule.h"
+#include "Misc/PathViews.h"
 #include "Misc/Paths.h"
 
 FDownloadFile::FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosity)
@@ -22,4 +23,13 @@ FDownloadFile::FDownloadFile(FStringView InTargetDirectory, EVerbosity InVerbosi
 		UE_LOG(LogSourceControl, Error, TEXT("Path '%s' passed to FDownloadFile is invalid due to: %s"), 
 			*TargetDirectory, *Reason.ToString());
 	}
+}
+
+FCreateWorkspace::FCreateWorkspace(FStringView InWorkspaceName, FStringView InWorkspaceRoot)
+	: WorkspaceName(InWorkspaceName)
+{
+	TStringBuilder<512> AbsoluteWorkspaceName;
+	FPathViews::ToAbsolutePath(InWorkspaceRoot, AbsoluteWorkspaceName);
+
+	WorkspaceRoot = AbsoluteWorkspaceName.ToString();
 }

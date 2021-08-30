@@ -762,4 +762,107 @@ private:
 	TMap<FString, FSharedBuffer> FileDataMap;
 };
 
+/** 
+ * Operation used to create a new workspace if the source control system supports this functionality.
+ */
+class FCreateWorkspace : public FSourceControlOperationBase
+{
+public:
+	using FClientViewMapping = TPair<FString,FString>;
+
+	FCreateWorkspace() = delete;
+
+	/**
+	 * Constructor
+	 * 
+	 * @param InWorkspaceName	The name of the workspace to create
+	 * @param InWorkspaceRoom	The file path to the workspace root (can be relative to the project)
+	 */
+	SOURCECONTROL_API FCreateWorkspace(FStringView InWorkspaceName, FStringView InWorkspaceRoot);
+	
+	/**
+	 * Add a new mapping for the client spec in the native format of the current source control provider.
+	 * These will be written to the client spec in the order that they are added.
+	 * 
+	 * @param DepotPath		The path in the source control depot to map from
+	 * @param ClientPath	The path on the local client to map too
+	 */
+	void AddNativeClientViewMapping(FStringView DepotPath, FStringView ClientPath)
+	{
+		ClientView.Emplace(DepotPath, ClientPath);
+	}
+
+	const FString& GetWorkspaceName() const
+	{
+		return WorkspaceName;
+	}
+
+	const FString& GetWorkspaceRoot() const
+	{
+		return WorkspaceRoot;
+	}
+
+	const TArray<FClientViewMapping> GetClientView() const
+	{
+		return ClientView;
+	}
+
+	// ISourceControlOperation interface
+
+	virtual FName GetName() const override
+	{
+		return "CreateWorkspace";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_CreateWorkspaceOperation", "Creating a workspace...");
+	}
+
+protected:
+
+	FString WorkspaceName;
+	FString WorkspaceRoot;
+	TArray<FClientViewMapping> ClientView;
+};
+
+/** Operation used to delete a workspace */
+class FDeleteWorkspace : public FSourceControlOperationBase
+{
+public:
+	FDeleteWorkspace() = delete;
+
+	/** 
+	 * Constructor
+	 * 
+	 * @param InWorkspaceName The name of the workspace to be deleted
+	 */
+	FDeleteWorkspace(FStringView InWorkspaceName)
+		: WorkspaceName(InWorkspaceName)
+	{
+
+	}
+
+	const FString& GetWorkspaceName() const
+	{
+		return WorkspaceName;
+	}
+
+	// ISourceControlOperation interface
+
+	virtual FName GetName() const override
+	{
+		return "DeleteWorkspace";
+	}
+
+	virtual FText GetInProgressString() const override
+	{
+		return LOCTEXT("SourceControl_DeleteWorkspaceOperation", "Deleting a workspace...");
+	}
+
+protected:
+
+	FString WorkspaceName;
+};
+
 #undef LOCTEXT_NAMESPACE
