@@ -4,6 +4,7 @@
 #include "../Matrices.ush"
 #include "HairStrandsVoxelPageCommon.ush"
 #include "HairStrandsAABBCommon.ush"
+#include "HairStrandsVisibilityCommon.ush"
 
 #if SHADER_ALLOCATEPAGEINDEX 
 
@@ -25,12 +26,16 @@ RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>								OutPageIndexAllocationIndirectBufferArgs;
 RWStructuredBuffer<FVoxelizationViewInfo>	OutVoxelizationViewInfoBuffer;
 
+#ifndef MAX_HAIR_MACROGROUP_COUNT
+#error MAX_HAIR_MACROGROUP_COUNT needs to be defined
+#endif
+
 #define INVALID_OFFSET 0xFFFFFFFF
-#define MAX_INSTANCE_GROUP_COUNT 32
-groupshared uint PageIndexOffsets[MAX_INSTANCE_GROUP_COUNT];
+
+groupshared uint PageIndexOffsets[MAX_HAIR_MACROGROUP_COUNT];
 
 // This code assume we have less than 32 macro group (which fit into a single CU/SM)
-[numthreads(MAX_INSTANCE_GROUP_COUNT, 1, 1)]
+[numthreads(MAX_HAIR_MACROGROUP_COUNT, 1, 1)]
 void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint MacroGroupId = DispatchThreadId.x;

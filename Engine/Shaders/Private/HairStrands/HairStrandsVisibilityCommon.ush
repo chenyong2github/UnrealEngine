@@ -13,6 +13,8 @@
 
 #define HAIR_VISIBILITY_GROUP_COUNT_WIDTH 64
 
+#define MAX_HAIR_MACROGROUP_COUNT 16
+
 #include "HairStrandsVisibilityCommonStruct.ush"
 
  ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -253,7 +255,7 @@ FPackedHairSample PackHairSample(const FHairSample In)
 	// PrimitiveId is on 28bits | MacroGroupId is on 4bits
 	Out.PrimitiveID_MacroGroupID = 
 		((In.PrimitiveId  & 0x0FFFFFFF)) |
-		((In.MacroGroupId & 0xF) << 28);
+		((In.MacroGroupId & 0xF) << 28); // If this encoding change, ensure it conforms to MAX_HAIR_MACROGROUP_COUNT
 
 	Out.Depth					= In.Depth;																			// 32bits float
 	Out.BaseColor_Roughness		= float4ToUint(float4(sqrt(In.BaseColor), In.Roughness));							// 32bits uint
@@ -279,7 +281,7 @@ FHairSample UnpackHairSample(const FPackedHairSample In)
 	Out.Coverage8bit = (In.Tangent_Coverage8bit >> 24) & 0xFF;
 
 	Out.PrimitiveId  = In.PrimitiveID_MacroGroupID & 0x0FFFFFFF;
-	Out.MacroGroupId = (In.PrimitiveID_MacroGroupID>>28) & 0xF;
+	Out.MacroGroupId = (In.PrimitiveID_MacroGroupID>>28) & 0xF; // If this encoding change, ensure it conforms to MAX_HAIR_MACROGROUP_COUNT
 
 	const float4 BaseColorAndRoughness = UintToFloat4(In.BaseColor_Roughness);
 	Out.BaseColor			= BaseColorAndRoughness.xyz * BaseColorAndRoughness.xyz;
