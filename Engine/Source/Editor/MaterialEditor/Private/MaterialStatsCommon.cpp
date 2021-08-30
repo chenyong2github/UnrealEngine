@@ -457,11 +457,11 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 					// distance field shadows only shaders
 					{
 						static const FName Name_HDRLinear64 = bOnlySkyPermutation ? 
-							TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64Skylight") : 
-							TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64");
+							TEXT("TMobileBasePassPSTMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64Skylight") : 
+							TEXT("TMobileBasePassPSTMobileDistanceFieldShadowsAndLQLightMapPolicy0HDRLinear64");
 						static const FName Name_LDRGamma32 = bOnlySkyPermutation ? 
-							TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32Skylight") : 
-							TEXT("TMobileBasePassPSFMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32");
+							TEXT("TMobileBasePassPSTMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32Skylight") : 
+							TEXT("TMobileBasePassPSTMobileDistanceFieldShadowsAndLQLightMapPolicy0LDRGamma32");
 						static const FName ShaderName = bMobileHDR ? Name_HDRLinear64 : Name_LDRGamma32;
 
 						const FString Description = FString::Printf(TEXT("Mobile base pass shader with distance field shadows%s"), DescSuffix);

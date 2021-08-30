@@ -2216,6 +2216,175 @@ void FStaticLightingSystem::KickoffSwarm()
 	}
 }
 
+void MergeShadowMapIntoLQLightMapAlphaChannel(UMapBuildDataRegistry* Registry)
+{
+	if (!Registry)
+	{
+		return;
+	}
+
+	// Find all the ShadowMap2Ds associated with the same LightMap2D
+	TMap<UTexture2D*, TArray<FShadowMap2D*>*> LightMapTextureShadowMap2Ds;
+	{
+		for (TMap<FGuid, FMeshMapBuildData>::TIterator It(Registry->GetMeshBuildDatas()); It; ++It)
+		{
+			FMeshMapBuildData& MeshBuildData = It->Value;
+			if (!MeshBuildData.LightMap || !MeshBuildData.ShadowMap)
+			{
+				continue;
+			}
+
+			FLightMap2D* LightMap2D = MeshBuildData.LightMap->GetLightMap2D();
+			FShadowMap2D* ShadowMap2D = MeshBuildData.ShadowMap->GetShadowMap2D();
+			UTexture2D* LightMapTexture = LightMap2D->GetTexture(1);
+
+			TArray<FShadowMap2D*>* ShadowMap2Ds = nullptr;
+			if (LightMapTextureShadowMap2Ds.Contains(LightMapTexture))
+			{
+				ShadowMap2Ds = LightMapTextureShadowMap2Ds[LightMapTexture];
+			}
+			else
+			{
+				ShadowMap2Ds = new TArray<FShadowMap2D*>();
+				LightMapTextureShadowMap2Ds.Add(LightMapTexture, ShadowMap2Ds);
+			}
+
+			ShadowMap2Ds->Add(ShadowMap2D);
+		}
+	}
+
+	// Sort the ShadowMapTextures from large to small
+	{
+		for (TMap<UTexture2D*, TArray<FShadowMap2D*>*>::TIterator It(LightMapTextureShadowMap2Ds); It; ++It)
+		{
+			TArray<FShadowMap2D*>* ShadowMap2Ds = It->Value;
+			ShadowMap2Ds->StableSort([](const FShadowMap2D& A, const FShadowMap2D& B)
+			{
+				const UTexture2D* ShadowMapTexture_A = A.GetTexture();
+				const UTexture2D* ShadowMapTexture_B = B.GetTexture();
+				const int32 Size_A = ShadowMapTexture_A->GetSizeX() * ShadowMapTexture_A->GetSizeY();
+				const int32 Size_B = ShadowMapTexture_B->GetSizeX() * ShadowMapTexture_B->GetSizeY();
+
+				return Size_A > Size_B;
+			});
+		}
+	}
+
+	// Merge the ShadowMapTextures into the alpha channel of the LightMapTexture, until the LightMapTexture is full
+	{
+		for (TMap<UTexture2D*, TArray<FShadowMap2D*>*>::TIterator It(LightMapTextureShadowMap2Ds); It; ++It)
+		{
+			UTexture2D* LightMapTexture = It->Key;
+			TArray<FShadowMap2D*>* ShadowMap2Ds = It->Value;
+
+			//if (!LightMapTexture->GetName().Contains("LQ_Lightmap_1_8"))
+			{
+				//	continue;
+			}
+
+			TMap<UTexture2D*, FVector4> MergedShadowMapTexturesUVScaleBias;
+			FVector2D UVBias = FVector2D(0, 0);
+
+			for (int32 Index = 0; Index < ShadowMap2Ds->Num(); Index++)
+			{
+				FShadowMap2D* ShadowMap2D = (*ShadowMap2Ds)[Index];
+				UTexture2D* ShadowMapTexture = ShadowMap2D->GetTexture();
+
+				if (MergedShadowMapTexturesUVScaleBias.Contains(ShadowMapTexture))
+				{
+					FVector4 UVScaleBias = MergedShadowMapTexturesUVScaleBias[ShadowMapTexture];
+					ShadowMap2D->SetUseLQLightMapAlphaChannel_UVScaleBias(true, FVector2D(UVScaleBias.X, UVScaleBias.Y), FVector2D(UVScaleBias.Z, UVScaleBias.W));
+
+					continue;
+				}
+
+				// Check whether the LightMapTexture is full
+				if (UVBias.Y >= 1)
+				{
+					continue;
+				}
+
+				const int32 TextureSizeX_LightMap = LightMapTexture->GetSizeX();
+				const int32 TextureSizeY_LightMap = LightMapTexture->GetSizeY();
+				const int32 TextureSizeX_ShadowMap = ShadowMapTexture->GetSizeX();
+				const int32 TextureSizeY_ShadowMap = ShadowMapTexture->GetSizeY();
+
+				int32 MipBias_ShadowMap = 0;
+				{
+					int32 MipSizeX_ShadowMap = TextureSizeX_ShadowMap;
+					while (MipSizeX_ShadowMap > TextureSizeX_LightMap * (1 - UVBias.X))
+					{
+						MipBias_ShadowMap++;
+						MipSizeX_ShadowMap = FMath::Max(1, TextureSizeX_ShadowMap >> MipBias_ShadowMap);
+					}
+				}
+
+				// Fill the alpha channel of LightMapTexture texel-by-texel
+				{
+					const int32 NumMips = LightMapTexture->Source.GetNumMips();
+					check(NumMips > 0);
+
+					for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+					{
+						FColor* MipData_LightMap = (FColor*)LightMapTexture->Source.LockMip(0, 0, MipIndex);
+
+						TArray64<uint8> MipData_ShadowMap;
+						bool bHasMipData_ShadowMap = ShadowMapTexture->Source.GetMipData(MipData_ShadowMap, MipIndex + MipBias_ShadowMap);
+						if (!bHasMipData_ShadowMap)
+						{
+							continue;
+						}
+
+						const int32 MipSizeX_LightMap = FMath::Max(1, TextureSizeX_LightMap >> MipIndex);
+						const int32 MipSizeY_LightMap = FMath::Max(1, TextureSizeY_LightMap >> MipIndex);
+						const int32 MipSizeX_ShadowMap = FMath::Max(1, TextureSizeX_ShadowMap >> (MipIndex + MipBias_ShadowMap));
+						const int32 MipSizeY_ShadowMap = FMath::Max(1, TextureSizeY_ShadowMap >> (MipIndex + MipBias_ShadowMap));
+
+						for (int32 SrcY = 0; SrcY < MipSizeY_ShadowMap; SrcY++)
+						{
+							for (int32 SrcX = 0; SrcX < MipSizeX_ShadowMap; SrcX++)
+							{
+								int32 DstX = SrcX + UVBias.X * MipSizeX_LightMap;
+								int32 DstY = SrcY + UVBias.Y * MipSizeY_LightMap;
+
+								FColor& DstColor = MipData_LightMap[DstY * MipSizeX_LightMap + DstX];
+								DstColor.A = MipData_ShadowMap[SrcY * MipSizeX_ShadowMap + SrcX];
+							}
+						}
+					}
+
+					// Unlock all mip levels.
+					for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+					{
+						LightMapTexture->Source.UnlockMip(0, 0, MipIndex);
+					}
+				}
+
+				// Update UVScaleBias 
+				FVector2D UVScale = FVector2D(float(TextureSizeX_ShadowMap >> MipBias_ShadowMap) / TextureSizeX_LightMap, float(TextureSizeY_ShadowMap >> MipBias_ShadowMap) / TextureSizeY_LightMap);
+				ShadowMap2D->SetUseLQLightMapAlphaChannel_UVScaleBias(true, UVScale, UVBias);
+				UE_LOG(LogTemp, Warning, TEXT(".................%s,%s: %f,%f"), *LightMapTexture->GetName(), *ShadowMapTexture->GetName(), UVBias.X, UVBias.Y);
+
+				MergedShadowMapTexturesUVScaleBias.Add(ShadowMapTexture, FVector4(UVScale, UVBias));
+				UVBias.X += UVScale.X;
+				if (UVBias.X >= 1)
+				{
+					UVBias.X = 0;
+					UVBias.Y += UVScale.Y;
+				}
+			}
+
+			// Update the texture resource.
+			FTextureFormatSettings LayerFormatSettings;
+			LightMapTexture->GetLayerFormatSettings(0, LayerFormatSettings);
+			LayerFormatSettings.CompressionNoAlpha = false;
+			LightMapTexture->SetLayerFormatSettings(0, LayerFormatSettings);
+
+			LightMapTexture->UpdateResource();
+		}
+	}
+}
+
 bool FStaticLightingSystem::FinishLightmassProcess()
 {
 	bool bSuccessful = false;
@@ -2284,6 +2453,26 @@ bool FStaticLightingSystem::FinishLightmassProcess()
 				StatsViewerModule.GetPage(EStatsPage::LightingBuildInfo)->Show();
 			}
 		}
+
+		/*
+		{
+			ULevel* StorageLevel = GWorld->GetActiveLightingScenario();
+			if (StorageLevel)
+			{
+				UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+				MergeShadowMapIntoLQLightMapAlphaChannel(Registry);
+			}
+			else
+			{
+				for (int32 LevelIndex = 0; LevelIndex < GWorld->GetNumLevels(); LevelIndex++)
+				{
+					ULevel* Level = GWorld->GetLevel(LevelIndex);
+					UMapBuildDataRegistry* Registry = Level->MapBuildData;
+					MergeShadowMapIntoLQLightMapAlphaChannel(Registry);
+				}
+			}
+		}
+		*/
 
 		SlowTask.EnterProgressFrame();
 		ApplyNewLightingData(bSuccessful);
