@@ -63,6 +63,7 @@
 #include "NiagaraEditor/Private/SNiagaraAssetPickerList.h"
 #include "Widgets/SNiagaraParameterDefinitionsPanel.h"
 #include "ViewModels/NiagaraParameterDefinitionsPanelViewModel.h"
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemEditor"
@@ -674,6 +675,12 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack(const 
 			NiagaraEditorModule.GetWidgetProvider()->CreateStackView(*SystemViewModel->GetSelectionViewModel()->GetSelectionStackViewModel())
 		];
 
+	SDockTab::FOnTabClosedCallback TabClosedCallback = SDockTab::FOnTabClosedCallback::CreateLambda([=](TSharedRef<SDockTab> DockTab)
+	{
+		SystemViewModel->GetSelectionViewModel()->GetSelectionStackViewModel()->ResetSearchText();
+	});
+	
+	SpawnedTab->SetOnTabClosed(TabClosedCallback);
 	return SpawnedTab;
 }
 
