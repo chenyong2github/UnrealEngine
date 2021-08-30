@@ -111,6 +111,7 @@ public:
 
 	virtual void Tick();
 	//~ stack search stuff
+	void ResetSearchText();
 	void OnSearchTextChanged(const FText& SearchText);
 	FText GetCurrentSearchText() const { return CurrentSearchText; };
 	bool IsSearching();

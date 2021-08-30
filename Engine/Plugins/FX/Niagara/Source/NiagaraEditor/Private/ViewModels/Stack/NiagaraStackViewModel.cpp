@@ -199,6 +199,13 @@ void UNiagaraStackViewModel::Tick()
 	}
 }
 
+void UNiagaraStackViewModel::ResetSearchText()
+{
+	CurrentSearchText = FText::GetEmpty();
+	// restarting the search with empty text will reset search results
+	bRestartSearch = true;	
+}
+
 void UNiagaraStackViewModel::OnSearchTextChanged(const FText& SearchText)
 {
 	if (RootEntry && !CurrentSearchText.EqualTo(SearchText))
