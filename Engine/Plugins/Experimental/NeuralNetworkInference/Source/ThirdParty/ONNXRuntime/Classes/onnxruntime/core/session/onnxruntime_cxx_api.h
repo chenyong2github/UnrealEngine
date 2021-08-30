@@ -653,6 +653,4 @@ struct CustomOpBase : OrtCustomOp {
 
 }  // namespace Ort
 
-#ifndef WITH_UE
-#include "onnxruntime_cxx_inline.h"
-#endif
+#include "onnxruntime_cxx_inline.imp"

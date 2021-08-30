@@ -11,7 +11,7 @@
 #define ORT_API_MANUAL_INIT
 #endif
 
-#include "ue_onnxruntime_cxx_api.h"
+#include "onnxruntime_cxx_api.h"
 
 #ifdef ORT_API_MANUAL_INIT
 #undef ORT_API_MANUAL_INIT
