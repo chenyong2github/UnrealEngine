@@ -217,7 +217,7 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 			0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
 				GetToolManager(),
 				(FLinearColor)TriangleColor,
-				2,  //depth offset
+				TriangleDepthOffset,
 				TriangleOpacity));
 
 		// Initialize our timestamp so we can later detect changes
@@ -227,7 +227,7 @@ void UUVEditorMode::InitializeTargets(TArray<TObjectPtr<UObject>>& AssetsIn, TAr
 		UMeshElementsVisualizer* WireframeDisplay = NewObject<UMeshElementsVisualizer>(this);
 		WireframeDisplay->CreateInWorld(GetWorld(), FTransform::Identity);
 
-		WireframeDisplay->Settings->DepthBias = 2.5;
+		WireframeDisplay->Settings->DepthBias = WireframeDepthOffset;
 		WireframeDisplay->Settings->bAdjustDepthBiasUsingMeshSize = false;
 		WireframeDisplay->Settings->bShowWireframe = true;
 		WireframeDisplay->Settings->bShowBorders = true;
@@ -370,7 +370,7 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 				0, ToolSetupUtil::GetCustomTwoSidedDepthOffsetMaterial(
 					GetToolManager(),
 					(FLinearColor)TriangleColor,
-					2,  //depth offset
+					TriangleDepthOffset,
 					TriangleOpacity));
 		}
 		

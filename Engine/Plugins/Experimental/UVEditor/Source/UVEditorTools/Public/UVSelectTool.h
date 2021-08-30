@@ -210,6 +210,8 @@ protected:
 	ESelectToolAction PendingAction;
 
 	void ApplyAction(ESelectToolAction ActionType);
+	const float LivePreviewHighlightThickness = 2.0;
+	const float LivePreviewHighlightDepthOffset = 0.5;
 
 	// We need this flag so that SetGizmoVisibility can be called before Setup() by the tool builder.
 	bool bGizmoEnabled = false;
