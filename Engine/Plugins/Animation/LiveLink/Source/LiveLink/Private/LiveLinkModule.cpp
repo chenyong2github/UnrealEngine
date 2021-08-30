@@ -6,6 +6,7 @@
 #include "LiveLinkLogInstance.h"
 #include "LiveLinkPreset.h"
 #include "LiveLinkSettings.h"
+#include "Misc/CommandLine.h"
 #include "Misc/CoreDelegates.h"
 
 #define LOCTEXT_NAMESPACE "LiveLinkModule"
@@ -62,9 +63,36 @@ void FLiveLinkModule::CreateStyle()
 
 void FLiveLinkModule::OnEngineLoopInitComplete()
 {
-	if (ULiveLinkPreset* Preset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous())
+	ULiveLinkPreset* StartupPreset = nullptr;
+	const FString& CommandLine = FCommandLine::Get();
+	const TCHAR* PresetStr = TEXT("LiveLink.Preset.Apply Preset=");
+	const int32 FoundElement = CommandLine.Find(PresetStr);
+	if (FoundElement != INDEX_NONE)
 	{
-		Preset->ApplyToClient();
+		int32 LiveLinkArgumentEnd = CommandLine.Find(",", ESearchCase::IgnoreCase, ESearchDir::FromStart, FoundElement);
+		if (LiveLinkArgumentEnd == INDEX_NONE)
+		{
+			LiveLinkArgumentEnd = CommandLine.Find("\"", ESearchCase::IgnoreCase, ESearchDir::FromStart, FoundElement);
+		}
+		if (LiveLinkArgumentEnd != INDEX_NONE)
+		{
+			const int32 StartIndex = FoundElement + FCString::Strlen(PresetStr);
+			if (CommandLine.IsValidIndex(StartIndex) && CommandLine.IsValidIndex(LiveLinkArgumentEnd))
+			{
+				const FString LiveLinkPresetName = CommandLine.Mid(StartIndex, LiveLinkArgumentEnd - StartIndex);
+				StartupPreset = Cast<ULiveLinkPreset>(StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *LiveLinkPresetName));
+			}
+		}
+	}
+
+	if (StartupPreset == nullptr)
+	{
+		StartupPreset = GetDefault<ULiveLinkSettings>()->DefaultLiveLinkPreset.LoadSynchronous();
+	}
+
+	if (StartupPreset)
+	{
+		StartupPreset->ApplyToClient();
 	}
 }
 

@@ -1,11 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LiveLinkPreset.h"
+
 #include "Features/IModularFeatures.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/CoreDelegates.h"
 #include "LiveLinkClient.h"
 #include "LiveLinkLog.h"
-#include "UObject/ConstructorHelpers.h"
+#include "Misc/App.h"
 
 namespace
 {
@@ -14,21 +16,25 @@ namespace
 		TEXT("Apply a LiveLinkPreset. Use: LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"),
 		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 			{
-				for (const FString& Element : Args)
+				//LiveLinkModule now looks for this commandline argument when starting up. No need to execute it twice at launch
+				if (GFrameCounter > 1)
 				{
-					const TCHAR* PresetStr = TEXT("Preset=");
-					int32 FoundElement = Element.Find(PresetStr);
-					if (FoundElement != INDEX_NONE)
+					for (const FString& Element : Args)
 					{
-						UObject* Object = StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *Element + FoundElement + FCString::Strlen(PresetStr));
-						if (Object)
+						const TCHAR* PresetStr = TEXT("Preset=");
+						const int32 FoundElement = Element.Find(PresetStr);
+						if (FoundElement != INDEX_NONE)
 						{
-							CastChecked<ULiveLinkPreset>(Object)->ApplyToClient();
+							UObject* Object = StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *Element + FoundElement + FCString::Strlen(PresetStr));
+							if (Object)
+							{
+								CastChecked<ULiveLinkPreset>(Object)->ApplyToClient();
+							}
 						}
 					}
 				}
 			})
-		);
+	);
 
 	static FAutoConsoleCommand LiveLinkPresetAddCmd(
 		TEXT("LiveLink.Preset.Add"),
@@ -38,7 +44,7 @@ namespace
 				for (const FString& Element : Args)
 				{
 					const TCHAR* PresetStr = TEXT("Preset=");
-					int32 FoundElement = Element.Find(PresetStr);
+					const int32 FoundElement = Element.Find(PresetStr);
 					if (FoundElement != INDEX_NONE)
 					{
 						UObject* Object = StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *Element + FoundElement + FCString::Strlen(PresetStr));
@@ -52,38 +58,171 @@ namespace
 		);
 }
 
+struct FApplyToClientPollingOperation
+{
+	/** Holds a weak pointer to the preset that will be applied. */
+	TWeakObjectPtr<const ULiveLinkPreset> WeakPreset;
+	/** Keeps track of remaining time before aborting  */
+	double RemainingTime = 1.0;
+	/** Keeps track of the last time the Update function was called. */
+	double LastTimeSinceUpdate = 0.0;
+	
+	/** Result of a call to Update() */
+	enum class EApplyToClientUpdateResult : uint8
+	{
+		Success, // Preset was successfully applied.
+		Failure, // Preset could not be applied.
+		Pending  // Operation is still ongoing.
+	};
+
+	FApplyToClientPollingOperation(const ULiveLinkPreset* Preset)
+		: WeakPreset(Preset)
+	{
+	}
+	
+	EApplyToClientUpdateResult Update()
+	{
+        
+        const ULiveLinkPreset* Preset = WeakPreset.Get();
+        if (!Preset || !IModularFeatures::Get().IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+        {
+        	FLiveLinkLog::Error(TEXT("Could not apply preset"));
+        	return EApplyToClientUpdateResult::Failure;
+        }
+        
+        FLiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+
+        if (LastTimeSinceUpdate == 0.0)
+        {
+        	// Start the process of removing sources.
+        	LiveLinkClient.RemoveAllSources();
+        	LastTimeSinceUpdate = FApp::GetCurrentTime();
+        }
+
+        LiveLinkClient.Tick();
+
+        constexpr bool bEvenIfPendingKill = true;
+        if (LiveLinkClient.GetSources(bEvenIfPendingKill).Num() == 0)
+        {
+        	bool bResult = true;
+
+        	for (const FLiveLinkSourcePreset& SourcePreset : Preset->GetSourcePresets())
+        	{
+        		bResult &= LiveLinkClient.CreateSource(SourcePreset);
+        	}
+
+        	for (const FLiveLinkSubjectPreset& SubjectPreset : Preset->GetSubjectPresets())
+        	{
+        		bResult &= LiveLinkClient.CreateSubject(SubjectPreset);
+        	}
+        
+        	if (bResult)
+        	{
+        		FLiveLinkLog::Info(TEXT("Applied '%s'"), *Preset->GetFullName());
+        	}
+        	else
+        	{
+        		FLiveLinkLog::Error(TEXT("Could not apply '%s'"), *Preset->GetFullName());
+        	}
+
+        	return bResult ? EApplyToClientUpdateResult::Success : EApplyToClientUpdateResult::Failure;
+        }
+
+        RemainingTime -= FApp::GetCurrentTime() - LastTimeSinceUpdate;
+        if (RemainingTime <= 0.0)
+        {
+        	return EApplyToClientUpdateResult::Failure;
+        }
+        
+        LastTimeSinceUpdate = FApp::GetCurrentTime();
+		return EApplyToClientUpdateResult::Pending;
+	}
+};
+
+namespace VPLiveLinkPresetPrivate
+{
+	/**
+	 * Class made to handle dispatching a latent ApplyToPreset operation without touching public headers
+	 */
+	class FApplyToPresetLatentActionManager
+	{
+	public:
+		/** Disallow Copying / Moving */
+		UE_NONCOPYABLE(FApplyToPresetLatentActionManager);
+
+		static FApplyToPresetLatentActionManager& Get()
+		{
+			static FApplyToPresetLatentActionManager Instance;
+			return Instance;
+		}
+
+
+		~FApplyToPresetLatentActionManager()
+		{
+			FCoreDelegates::OnEndFrame.RemoveAll(this);
+		}
+
+		bool IsPerformingLatentAction() const
+		{
+			return PollingOperation.IsValid();
+		}
+
+		void StartLatentAction(const ULiveLinkPreset* Preset)
+		{
+			if (IsPerformingLatentAction())
+			{
+				return;
+			}
+
+			PollingOperation = MakeUnique<FApplyToClientPollingOperation>(Preset);
+		}
+
+		bool TriggerLatentAction()
+		{
+			if (PollingOperation)
+			{
+				FApplyToClientPollingOperation::EApplyToClientUpdateResult Result = PollingOperation->Update();
+				if (Result != FApplyToClientPollingOperation::EApplyToClientUpdateResult::Pending)
+				{
+					PollingOperation.Reset();
+				}
+
+				return Result == FApplyToClientPollingOperation::EApplyToClientUpdateResult::Success;
+			}
+			return false;
+		}
+
+
+	private:
+
+		FApplyToPresetLatentActionManager()
+		{
+			FCoreDelegates::OnEndFrame.AddRaw(this, &FApplyToPresetLatentActionManager::OnEndFrame);
+		}
+
+		void OnEndFrame()
+		{
+			TriggerLatentAction();
+		}
+
+	private:
+		TUniquePtr<FApplyToClientPollingOperation> PollingOperation;
+	};
+	
+}
+
 bool ULiveLinkPreset::ApplyToClient() const
 {
-	bool bResult = false;
-	if (IModularFeatures::Get().IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	VPLiveLinkPresetPrivate::FApplyToPresetLatentActionManager& Registry = VPLiveLinkPresetPrivate::FApplyToPresetLatentActionManager::Get();
+
+	if (Registry.IsPerformingLatentAction())
 	{
-		FLiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-
-		LiveLinkClient.RemoveAllSources();
-		LiveLinkClient.Tick();
-
-		bResult = true;
-		for (const FLiveLinkSourcePreset& SourcePreset : Sources)
-		{
-			bResult &= LiveLinkClient.CreateSource(SourcePreset);
-		}
-
-		for (const FLiveLinkSubjectPreset& SubjectPreset : Subjects)
-		{
-			bResult &= LiveLinkClient.CreateSubject(SubjectPreset);
-		}
+		FLiveLinkLog::Error(TEXT("Could not apply '%s', operation is already in progress."), *GetFullName());
+		return false;
 	}
 
-	if (bResult)
-	{
-		FLiveLinkLog::Info(TEXT("Applied '%s'"), *GetFullName());
-	}
-	else
-	{
-		FLiveLinkLog::Error(TEXT("Could not apply '%s'"), *GetFullName());
-	}
-
-	return bResult;
+	Registry.StartLatentAction(this);
+	return Registry.TriggerLatentAction();
 }
 
 bool ULiveLinkPreset::AddToClient(const bool bRecreatePresets) const
@@ -96,7 +235,7 @@ bool ULiveLinkPreset::AddToClient(const bool bRecreatePresets) const
 		TArray<FGuid> AllSources;
 		AllSources.Append(LiveLinkClient.GetSources());
 		AllSources.Append(LiveLinkClient.GetVirtualSources());
-		TArray<FLiveLinkSubjectKey> AllSubjects = LiveLinkClient.GetSubjects(true, true);
+		const TArray<FLiveLinkSubjectKey> AllSubjects = LiveLinkClient.GetSubjects(true, true);
 
 		TSet<FGuid> FoundSources;
 		TSet<FLiveLinkSubjectKey> FoundSubjects;
@@ -166,12 +305,12 @@ void ULiveLinkPreset::BuildFromClient()
 	{
 		FLiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 
-		for (FGuid SourceGuid : LiveLinkClient.GetSources())
+		for (const FGuid& SourceGuid : LiveLinkClient.GetSources())
 		{
 			Sources.Add(LiveLinkClient.GetSourcePreset(SourceGuid, this));
 		}
 
-		for (FGuid SourceGuid : LiveLinkClient.GetVirtualSources())
+		for (const FGuid& SourceGuid : LiveLinkClient.GetVirtualSources())
 		{
 			FLiveLinkSourcePreset NewPreset = LiveLinkClient.GetSourcePreset(SourceGuid, this);
 			if (NewPreset.Guid.IsValid())
