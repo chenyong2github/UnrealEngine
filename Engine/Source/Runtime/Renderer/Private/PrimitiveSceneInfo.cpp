@@ -870,7 +870,7 @@ void FPrimitiveSceneInfo::RemoveCachedRayTracingPrimitives()
 	}
 }
 
-void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(FMatrix NewPrimitiveLocalToWorld)
+void FPrimitiveSceneInfo::UpdateCachedRayTracingInstanceTransforms(const FMatrix& NewPrimitiveLocalToWorld)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UpdateCachedRayTracingInstanceTransforms);
 	for (int32 Index = 0; Index < CachedRayTracingInstanceLocalTransforms.Num(); Index++)
