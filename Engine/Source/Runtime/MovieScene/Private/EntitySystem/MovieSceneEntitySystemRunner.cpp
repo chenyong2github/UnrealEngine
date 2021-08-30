@@ -144,7 +144,6 @@ void FMovieSceneEntitySystemRunner::Flush()
 
 	if (!Linker->StartEvaluation(*this))
 	{
-		UE_LOG(LogMovieSceneECS, Error, TEXT("An evaluation is already running on this linker, and re-entrancy isn't allow at this point"));
 		return;
 	}
 
