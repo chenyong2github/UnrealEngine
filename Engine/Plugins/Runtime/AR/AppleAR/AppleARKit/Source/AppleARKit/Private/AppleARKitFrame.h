@@ -24,7 +24,7 @@ struct APPLEARKIT_API FAppleARKitFrame
 #if SUPPORTS_ARKIT_1_0
 	/** 
 	 * This is a conversion copy-constructor that takes a raw ARFrame and fills this structs members
-	 * with the UE4-ified versions of ARFrames properties.
+	 * with the UE-ified versions of ARFrames properties.
 	 *
 	 * @param InARFrame 		- The frame to convert / copy
 	 * @param MinCameraUV 		- The minimum (top left) UV used to render the passthrough camera
