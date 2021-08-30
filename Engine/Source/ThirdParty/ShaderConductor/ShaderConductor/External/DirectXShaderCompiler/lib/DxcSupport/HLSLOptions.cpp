@@ -697,6 +697,10 @@ int ReadDxcOpts(const OptTable *optionTable, unsigned flagsToInclude,
     return 1;
   }
 
+  // UE Change Begin: Allow changing diagnostics format
+  opts.DiagnosticsFormat = Args.getLastArgValue(OPT_fdiagnostics_format_EQ, "clang");
+  // UE Change End: Allow changing diagnostics format
+
   opts.HandleExceptions = !Args.hasFlag(OPT_disable_exception_handling, OPT_INVALID, false);
 
   if (opts.DefaultColMajor && opts.DefaultRowMajor) {

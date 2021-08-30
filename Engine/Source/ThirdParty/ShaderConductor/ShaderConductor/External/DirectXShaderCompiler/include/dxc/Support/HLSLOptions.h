@@ -198,6 +198,10 @@ public:
   bool ForceZeroStoreLifetimes = false; // OPT_force_zero_store_lifetimes
   bool EnableLifetimeMarkers = false; // OPT_enable_lifetime_markers
 
+  // UE Change Begin: Allow changing diagnostics format
+  llvm::StringRef DiagnosticsFormat; // OPT_fdiagnostics_format
+  // UE Change End: Allow changing diagnostics format
+
   // Optimization pass enables, disables and selects
   std::map<std::string, bool> DxcOptimizationToggles; // OPT_opt_enable & OPT_opt_disable
   std::map<std::string, std::string> DxcOptimizationSelects; // OPT_opt_select
