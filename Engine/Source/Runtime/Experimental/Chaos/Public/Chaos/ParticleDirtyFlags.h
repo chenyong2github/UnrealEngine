@@ -318,7 +318,6 @@ public:
 		SetObjectState(Other.ObjectState());
 		SetGravityEnabled(Other.GravityEnabled());
 		SetCollisionGroup(Other.CollisionGroup());
-		SetResimType(Other.ResimType());
 		SetSleepType(Other.SleepType());
 		SetOneWayInteraction(Other.OneWayInteraction());
 		SetCollisionConstraintFlag(Other.CollisionConstraintFlag());
@@ -336,7 +335,6 @@ public:
 			&& MaxAngularSpeedSq() == Other.MaxAngularSpeedSq()
 			&& GravityEnabled() == Other.GravityEnabled()
 			&& CollisionGroup() == Other.CollisionGroup()
-			&& ResimType() == Other.ResimType()
 			&& SleepType() == Other.SleepType()
 			&& OneWayInteraction() == Other.OneWayInteraction() 
 			&& CollisionConstraintFlag() == Other.CollisionConstraintFlag()
@@ -375,9 +373,6 @@ public:
 
 	int32 CollisionGroup() const { return MCollisionGroup; }
 	void SetCollisionGroup(int32 InGroup){ MCollisionGroup = InGroup; }
-
-	EResimType ResimType() const { return MResimType; }
-	void SetResimType(EResimType Type) { MResimType = Type; }
 
 	ESleepType SleepType() const { return MSleepType; }
 	void SetSleepType(ESleepType Type) { MSleepType = Type; }
@@ -434,6 +429,7 @@ public:
 		SetGeometry(Other.SharedGeometryLowLevel());
 		SetUniqueIdx(Other.UniqueIdx());
 		SetSpatialIdx(Other.SpatialIdx());
+		SetResimType(Other.ResimType());
 #if CHAOS_DEBUG_NAME
 		SetDebugName(Other.DebugName());
 #endif
@@ -444,7 +440,8 @@ public:
 	{
 		return Geometry() == Other.Geometry()
 			&& UniqueIdx() == Other.UniqueIdx()
-			&& SpatialIdx() == Other.SpatialIdx();
+			&& SpatialIdx() == Other.SpatialIdx()
+			&& ResimType() == Other.ResimType();
 	}
 
 	bool operator==(const FParticleNonFrequentData& Other) const
@@ -466,6 +463,13 @@ public:
 	FSpatialAccelerationIdx SpatialIdx() const { return MSpatialIdx; }
 	void SetSpatialIdx(FSpatialAccelerationIdx InIdx){ MSpatialIdx = InIdx; }
 
+	EResimType ResimType() const { return MResimType; }
+
+	void SetResimType(EResimType InType)
+	{
+		MResimType = InType;
+	}
+
 #if CHAOS_DEBUG_NAME
 	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return MDebugName; }
 	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InName) { MDebugName = InName; }
@@ -474,7 +478,7 @@ private:
 	TSharedPtr<const FImplicitObject,ESPMode::ThreadSafe> MGeometry;
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
-
+	EResimType MResimType;
 #if CHAOS_DEBUG_NAME
 	TSharedPtr<FString, ESPMode::ThreadSafe> MDebugName;
 #endif

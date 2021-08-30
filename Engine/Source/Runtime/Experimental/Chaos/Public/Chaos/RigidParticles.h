@@ -16,14 +16,6 @@
 namespace Chaos
 {
 
-enum class EResimType : uint8
-{
-	FullResim,	//fully re-run simulation and keep results (any forces must be applied again)
-	//ResimWithPrevForces, //use previous forces and keep results (UNIMPLEMENTED)
-	ResimAsSlave //use previous forces and snap to previous results regardless of variation - used to push other objects away
-	//ResimAsKinematic //treat as kinematic (UNIMPLEMENTED)
-};
-
 enum class ESleepType : uint8
 {
 	MaterialSleep,	//physics material determines sleep threshold
@@ -101,7 +93,6 @@ public:
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
-		TArrayCollection::AddArray(&MResimType);
 		TArrayCollection::AddArray(&MSleepType);
 		TArrayCollection::AddArray(&bCCDEnabled);
 	}
@@ -128,7 +119,6 @@ public:
 		, MPreObjectState(MoveTemp(Other.MPreObjectState))
 		, MGravityEnabled(MoveTemp(Other.MGravityEnabled))
 		, MOneWayInteraction(MoveTemp(Other.MOneWayInteraction))
-		, MResimType(MoveTemp(Other.MResimType))
 		, MSleepType(MoveTemp(Other.MSleepType))
 		, bCCDEnabled(MoveTemp(Other.bCCDEnabled))
 	{
@@ -158,7 +148,6 @@ public:
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 		TArrayCollection::AddArray(&MGravityEnabled);
 		TArrayCollection::AddArray(&MOneWayInteraction);
-		TArrayCollection::AddArray(&MResimType);
 		TArrayCollection::AddArray(&MSleepType);
 		TArrayCollection::AddArray(&bCCDEnabled);
 	}
@@ -248,8 +237,6 @@ public:
 	FORCEINLINE const bool& OneWayInteraction(const int32 Index) const { return MOneWayInteraction[Index]; }
 	FORCEINLINE bool& OneWayInteraction(const int32 Index) { return MOneWayInteraction[Index]; }
 
-	FORCEINLINE EResimType ResimType(const int32 Index) const { return MResimType[Index]; }
-	FORCEINLINE EResimType& ResimType(const int32 Index) { return MResimType[Index]; }
 
 	FORCEINLINE const bool& CCDEnabled(const int32 Index) const { return bCCDEnabled[Index]; }
 	FORCEINLINE bool& CCDEnabled(const int32 Index) { return bCCDEnabled[Index]; }
@@ -370,7 +357,6 @@ private:
 	TArrayCollectionArray<EObjectStateType> MPreObjectState;
 	TArrayCollectionArray<bool> MGravityEnabled;
 	TArrayCollectionArray<bool> MOneWayInteraction;
-	TArrayCollectionArray<EResimType> MResimType;
 	TArrayCollectionArray<ESleepType> MSleepType;
 	TArrayCollectionArray<bool> bCCDEnabled;
 
