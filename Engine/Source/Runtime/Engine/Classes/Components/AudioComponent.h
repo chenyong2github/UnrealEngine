@@ -126,7 +126,7 @@ enum class EAudioFaderCurve : uint8
 /**
  * Legacy struct used for storing named parameter for a given AudioComponent.
  */
-USTRUCT(BlueprintType)
+USTRUCT()
 struct UE_DEPRECATED(5.0, "FAudioComponentParam has been deprecated, use FAudioParameter") FAudioComponentParam : public FAudioParameter
 {
 	GENERATED_BODY()
