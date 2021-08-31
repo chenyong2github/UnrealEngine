@@ -13,7 +13,7 @@
 //#define DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT() \
 //	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-USTRUCT()
+USTRUCT(BlueprintType)
 struct FControlRigExecuteContext : public FRigVMExecuteContext
 {
 	GENERATED_BODY()
