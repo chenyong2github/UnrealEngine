@@ -4840,7 +4840,7 @@ namespace VulkanRHI
 		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
 		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
 
-		Entry.Handle = VK_NULL_HANDLE;
+		Entry.Handle = 0;
 		Entry.DeviceMemoryAllocation = DeviceMemoryAllocation;
 		{
 			FScopeLock ScopeLock(&CS);
@@ -4862,7 +4862,7 @@ namespace VulkanRHI
 		Queue->GetLastSubmittedInfo(Entry.CmdBuffer, Entry.FenceCounter);
 		Entry.FrameNumber = GVulkanRHIDeletionFrameNumber;
 
-		Entry.Handle = VK_NULL_HANDLE;
+		Entry.Handle = 0;
 		Entry.Allocation = Allocation;
 		Entry.DeviceMemoryAllocation = 0;
 
