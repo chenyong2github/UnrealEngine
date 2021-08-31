@@ -316,12 +316,14 @@ void FFractureEditorModeToolkit::RequestModeUITabs()
 		HierarchyTabInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FFractureEditorModeToolkit::CreateHierarchyTab);
 		HierarchyTabInfo.TabLabel = LOCTEXT("FractureHierarchy", "Fracture Hierarchy");
 		HierarchyTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
+		HierarchyTabInfo.TabIcon = GetEditorModeIcon();
 		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::TopRightTabID, HierarchyTabInfo);
 
 
 		StatisticsTabInfo.OnSpawnTab = FOnSpawnTab::CreateSP(SharedThis(this), &FFractureEditorModeToolkit::CreateStatisticsTab);
 		StatisticsTabInfo.TabLabel = LOCTEXT("FractureStatistics", "Level Statistics");
 		StatisticsTabInfo.TabTooltip = LOCTEXT("ModesToolboxTabTooltipText", "Open the  Modes tab, which contains the active editor mode's settings.");
+		StatisticsTabInfo.TabIcon = GetEditorModeIcon();
 		ModeUILayerPtr->SetModePanelInfo(FAssetEditorModeUILayer::BottomLeftTabID, StatisticsTabInfo);
 	}
 }
@@ -426,11 +428,6 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateHierarchyTab(const FSpawn
 			OutlinerExpander
 		];
 
-	const FSlateBrush* TabIcon = GetEditorModeIcon().GetSmallIcon();
-	if (CreatedTab)
-	{
-		CreatedTab->SetTabIcon(TabIcon);
-	}
 	HierarchyTab = CreatedTab;
 	return CreatedTab.ToSharedRef();
 }
@@ -456,11 +453,6 @@ TSharedRef<SDockTab> FFractureEditorModeToolkit::CreateStatisticsTab(const FSpaw
 			StatisticsExpander
 		];
 
-	const FSlateBrush* TabIcon = GetEditorModeIcon().GetSmallIcon();
-	if (CreatedTab)
-	{
-		CreatedTab->SetTabIcon(TabIcon);
-	}
 	StatisticsTab = CreatedTab;
 	return CreatedTab.ToSharedRef();
 }

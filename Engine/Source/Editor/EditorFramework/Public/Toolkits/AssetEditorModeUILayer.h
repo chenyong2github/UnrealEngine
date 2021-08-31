@@ -34,7 +34,7 @@ public:
 	/** Called by SLevelEditor to notify the toolbox about an existing toolkit no longer being hosted */
 	virtual void OnToolkitHostingFinished(const TSharedRef<IToolkit>& Toolkit);
 	virtual TSharedPtr<FTabManager> GetTabManager();
-	virtual TSharedPtr<FWorkspaceItem> GetModeMenuCategory();
+	virtual TSharedPtr<FWorkspaceItem> GetModeMenuCategory() const;
 	virtual void SetModePanelInfo(const FName InTabSpawnerID, const FMinorTabConfig& InTabInfo);
 	virtual TMap<FName, TWeakPtr<SDockTab>> GetSpawnedTabs();
 	virtual FSimpleDelegate& ToolkitHostReadyForUI()
@@ -60,6 +60,7 @@ protected:
 	bool CanSpawnStoredTab(const FSpawnTabArgs& Args, const FName TabID);
 	FText GetTabSpawnerName(const FName TabID) const;
 	FText GetTabSpawnerTooltip(const FName TabID) const;
+	const FSlateIcon& GetTabSpawnerIcon(const FName TabID) const;
 	virtual void RegisterLayoutExtensions(FLayoutExtender& Extender) {};
 
 protected:

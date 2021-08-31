@@ -78,7 +78,7 @@ void FLevelEditorModeUILayer::RegisterLayoutExtensions(FLayoutExtender& Extender
 
 
 
-TSharedPtr<FWorkspaceItem> FLevelEditorModeUILayer::GetModeMenuCategory()
+TSharedPtr<FWorkspaceItem> FLevelEditorModeUILayer::GetModeMenuCategory() const
 {
 	const IWorkspaceMenuStructure& MenuStructure = WorkspaceMenu::GetMenuStructure();
 	return MenuStructure.GetLevelEditorModesCategory();
