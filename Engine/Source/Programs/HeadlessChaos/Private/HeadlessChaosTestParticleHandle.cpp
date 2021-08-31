@@ -19,6 +19,22 @@ namespace ChaosTest {
 		Five->AddParticles(5);
 		auto Two = MakeUnique<FGeometryParticles>();
 		Two->AddParticles(2);
+
+		TArray<TUniquePtr<FGeometryParticleHandle>> HandleStorage;
+		auto CreateHandlesHelper = [&HandleStorage](auto& SOA)
+		{
+			//Create a handle with just the bare minimum that we need so that handle iterator uses real handles that are linked with SOA
+			for(int32 ParticleIdx = 0; (unsigned)ParticleIdx < SOA->Size(); ++ParticleIdx)
+			{
+				TUniquePtr<FGeometryParticleHandle> NewParticleHandle = FGeometryParticleHandle::CreateParticleHandle(MakeSerializable(SOA), ParticleIdx, HandleStorage.Num());
+				SOA->SetHandle(ParticleIdx, NewParticleHandle.Get());
+				HandleStorage.Add(MoveTemp(NewParticleHandle));
+			}
+		};
+
+		CreateHandlesHelper(Five);
+		CreateHandlesHelper(Two);
+
 		//empty soa in the start
 		{
 			TArray<FGeometryParticleHandle*> Handles;
@@ -30,13 +46,31 @@ namespace ChaosTest {
 			}
 			EXPECT_EQ(Handles.Num(), 7);
 
+			//disable first middle and last
+			Five->LightWeightDisabled(0) = true;
+			Five->LightWeightDisabled(2) = true;
+			Five->LightWeightDisabled(4) = true;
+			Two->LightWeightDisabled(1) = true;
+
+			int32 NonDisabledCount = 0;
+			for (auto& Particle : View)
+			{
+				++NonDisabledCount;
+			}
+			EXPECT_EQ(NonDisabledCount, 3);
+
 			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			int32 Count = 0;
 			for (auto& Handle : HandleView)
 			{
 				++Count;
 			}
-			EXPECT_EQ(Count, 7);
+			EXPECT_EQ(Count, 3);	//3 because 4 are disabled
+
+			Five->LightWeightDisabled(0) = false;
+			Five->LightWeightDisabled(2) = false;
+			Five->LightWeightDisabled(4) = false;
+			Two->LightWeightDisabled(1) = false;
 		}
 
 		//empty soa in the middle
@@ -70,13 +104,31 @@ namespace ChaosTest {
 			}
 			EXPECT_EQ(Handles.Num(), 7);
 
+			//disable first middle and last
+			Five->LightWeightDisabled(0) = true;
+			Five->LightWeightDisabled(2) = true;
+			Five->LightWeightDisabled(4) = true;
+			Two->LightWeightDisabled(1) = true;
+
+			int32 NonDisabledCount = 0;
+			for (auto& Particle : View)
+			{
+				++NonDisabledCount;
+			}
+			EXPECT_EQ(NonDisabledCount, 3);
+
 			THandleView<FGeometryParticles> HandleView = MakeHandleView(Handles);
 			int32 Count = 0;
 			for (auto& Handle : HandleView)
 			{
 				++Count;
 			}
-			EXPECT_EQ(Count, 7);
+			EXPECT_EQ(Count, 3);	//3 because 4 are disabled
+
+			Five->LightWeightDisabled(0) = false;
+			Five->LightWeightDisabled(2) = false;
+			Five->LightWeightDisabled(4) = false;
+			Two->LightWeightDisabled(1) = false;
 		}
 
 		//parallel for
@@ -129,6 +181,73 @@ namespace ChaosTest {
 				for (bool Val : AuxArray)
 				{
 					EXPECT_TRUE(Val);
+				}
+			}
+
+
+			//disable first middle and last
+			Five->LightWeightDisabled(0) = true;
+			Five->LightWeightDisabled(2) = true;
+			Five->LightWeightDisabled(4) = true;
+			Two->LightWeightDisabled(1) = true;
+
+			{
+				TArray<bool> AuxArray;
+				AuxArray.SetNumZeroed(View.Num());
+				bool DoubleWrite = false;
+				View.ParallelFor([&AuxArray, &DoubleWrite](const auto& Particle, int32 Idx)
+					{
+						if (AuxArray[Idx])
+						{
+							DoubleWrite = true;
+						}
+						AuxArray[Idx] = true;
+					});
+
+				EXPECT_FALSE(DoubleWrite);
+
+				for (int32 Idx = 0; Idx < AuxArray.Num(); ++Idx)
+				{
+					if(Idx == 0 || Idx == 2 || Idx == 4 || Idx == 6)
+					{
+						//didn't write because disabled
+						EXPECT_FALSE(AuxArray[Idx]);
+					}
+					else
+					{
+						EXPECT_TRUE(AuxArray[Idx]);
+					}
+					
+				}
+			}
+
+			{
+				TArray<bool> AuxArray;
+				AuxArray.SetNumZeroed(View.Num());
+				bool DoubleWrite = false;
+				HandleView.ParallelFor([&AuxArray, &DoubleWrite](const auto& Particle, int32 Idx)
+					{
+						if (AuxArray[Idx])
+						{
+							DoubleWrite = true;
+						}
+						AuxArray[Idx] = true;
+					});
+
+				EXPECT_FALSE(DoubleWrite);
+
+				for (int32 Idx = 0; Idx < AuxArray.Num(); ++Idx)
+				{
+					if (Idx == 0 || Idx == 2 || Idx == 4 || Idx == 6)
+					{
+						//didn't write because disabled
+						EXPECT_FALSE(AuxArray[Idx]);
+					}
+					else
+					{
+						EXPECT_TRUE(AuxArray[Idx]);
+					}
+
 				}
 			}
 		}

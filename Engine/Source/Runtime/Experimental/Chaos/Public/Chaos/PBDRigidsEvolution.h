@@ -196,6 +196,8 @@ struct FSpatialAccelerationCacheHandle
 		return Cache->Bounds(EntryIdx);
 	}
 
+	bool LightWeightDisabled() const { return false; }
+
 	union
 	{
 		FSpatialAccelerationCache* GeometryParticles;	//using same name as particles SOA for template reuse, should probably rethink this

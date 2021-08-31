@@ -65,6 +65,7 @@ void GeometryParticleDefaultConstruct(FConcrete& Concrete, const FGeometryPartic
 	Concrete.SetR(TRotation<T, d>::Identity);
 	Concrete.SetSpatialIdx(FSpatialAccelerationIdx{ 0,0 });
 	Concrete.SetResimType(EResimType::FullResim);
+	Concrete.SetEnabledDuringResim(true);
 }
 
 template <typename T, int d, typename FConcrete>
@@ -345,7 +346,7 @@ protected:
 		//TODO: patch from SOA
 		GeometryParticleDefaultConstruct<T, d>(*this, Params);
 		SetHasBounds(false);
-		SetEnabledDuringResim(false);
+		SetLightWeightDisabled(false);
 	}
 
 	template <typename TParticlesType, typename TParams>
@@ -514,7 +515,8 @@ public:
 	bool EnabledDuringResim() const { return GeometryParticles->EnabledDuringResim(ParticleIdx); }
 	void SetEnabledDuringResim(bool bEnabledDuringResim) { GeometryParticles->EnabledDuringResim(ParticleIdx) = bEnabledDuringResim; }
 
-
+	bool LightWeightDisabled() const { return GeometryParticles->LightWeightDisabled(ParticleIdx); }
+	void SetLightWeightDisabled(bool bLightWeightDisabled) { GeometryParticles->LightWeightDisabled(ParticleIdx) = bLightWeightDisabled; }
 
 #if CHAOS_DETERMINISTIC
 	FParticleID ParticleID() const { return GeometryParticles->ParticleID(ParticleIdx); }
@@ -1842,6 +1844,16 @@ public:
 	EResimType ResimType() const
 	{
 		return MNonFrequentData.Read().ResimType();
+	}
+
+	void SetEnabledDuringResim(bool bEnabledDuringResim)
+	{
+		MNonFrequentData.Modify(true, MDirtyFlags, Proxy, [bEnabledDuringResim](auto& Data) { Data.SetEnabledDuringResim(bEnabledDuringResim); });
+	}
+
+	bool EnabledDuringResim() const
+	{
+		return MNonFrequentData.Read().EnabledDuringResim();
 	}
 
 

@@ -366,6 +366,7 @@ namespace Chaos
 			TArrayCollection::AddArray(&MParticleConstraints);
 			TArrayCollection::AddArray(&MResimType);
 			TArrayCollection::AddArray(&MEnabledDuringResim);
+			TArrayCollection::AddArray(&MLightWeightDisabled);
 
 
 #if CHAOS_DEBUG_NAME
@@ -404,6 +405,7 @@ namespace Chaos
 			, MParticleConstraints(MoveTemp(Other.MParticleConstraints))
 			, MResimType(MoveTemp(Other.MResimType))
 			, MEnabledDuringResim(MoveTemp(Other.MEnabledDuringResim))
+			, MLightWeightDisabled(MoveTemp(Other.MLightWeightDisabled))
 
 
 #if CHAOS_DETERMINISTIC
@@ -444,6 +446,7 @@ namespace Chaos
 
 			TArrayCollection::AddArray(&MResimType);
 			TArrayCollection::AddArray(&MEnabledDuringResim);
+			TArrayCollection::AddArray(&MLightWeightDisabled);
 		}
 
 		static constexpr bool IsRigidBodySim() { return SimType == EGeometryParticlesSimType::RigidBodySim; }
@@ -485,6 +488,7 @@ namespace Chaos
 			
 			TArrayCollection::AddArray(&MResimType);
 			TArrayCollection::AddArray(&MEnabledDuringResim);
+			TArrayCollection::AddArray(&MLightWeightDisabled);
 		}
 
 		CHAOS_API virtual ~TGeometryParticlesImp()
@@ -666,6 +670,9 @@ namespace Chaos
 		FORCEINLINE bool EnabledDuringResim(const int32 Index) const { return MEnabledDuringResim[Index]; }
 		FORCEINLINE bool& EnabledDuringResim(const int32 Index) { return MEnabledDuringResim[Index]; }
 
+		FORCEINLINE bool LightWeightDisabled(const int32 Index) const { return MLightWeightDisabled[Index]; }
+		FORCEINLINE bool& LightWeightDisabled(const int32 Index) { return MLightWeightDisabled[Index]; }
+
 private:
 		friend THandleType;
 		CHAOS_API void ResetWeakParticleHandle(const int32 Index)
@@ -804,6 +811,7 @@ public:
 		TArrayCollectionArray<FConstraintHandleArray> MParticleConstraints;
 		TArrayCollectionArray<EResimType> MResimType;
 		TArrayCollectionArray<bool> MEnabledDuringResim;
+		TArrayCollectionArray<bool> MLightWeightDisabled;
 
 		void UpdateShapesArray(const int32 Index)
 		{

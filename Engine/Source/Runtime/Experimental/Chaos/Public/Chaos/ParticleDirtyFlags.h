@@ -430,6 +430,7 @@ public:
 		SetUniqueIdx(Other.UniqueIdx());
 		SetSpatialIdx(Other.SpatialIdx());
 		SetResimType(Other.ResimType());
+		SetEnabledDuringResim(Other.EnabledDuringResim());
 #if CHAOS_DEBUG_NAME
 		SetDebugName(Other.DebugName());
 #endif
@@ -441,7 +442,8 @@ public:
 		return Geometry() == Other.Geometry()
 			&& UniqueIdx() == Other.UniqueIdx()
 			&& SpatialIdx() == Other.SpatialIdx()
-			&& ResimType() == Other.ResimType();
+			&& ResimType() == Other.ResimType()
+			&& EnabledDuringResim() == Other.EnabledDuringResim();
 	}
 
 	bool operator==(const FParticleNonFrequentData& Other) const
@@ -470,6 +472,9 @@ public:
 		MResimType = InType;
 	}
 
+	bool EnabledDuringResim() const { return MEnabledDuringResim; }
+	void SetEnabledDuringResim(bool bEnabledDuringResim) { MEnabledDuringResim = bEnabledDuringResim; }
+
 #if CHAOS_DEBUG_NAME
 	const TSharedPtr<FString, ESPMode::ThreadSafe>& DebugName() const { return MDebugName; }
 	void SetDebugName(const TSharedPtr<FString, ESPMode::ThreadSafe>& InName) { MDebugName = InName; }
@@ -479,6 +484,7 @@ private:
 	FUniqueIdx MUniqueIdx;
 	FSpatialAccelerationIdx MSpatialIdx;
 	EResimType MResimType;
+	bool MEnabledDuringResim;
 #if CHAOS_DEBUG_NAME
 	TSharedPtr<FString, ESPMode::ThreadSafe> MDebugName;
 #endif
