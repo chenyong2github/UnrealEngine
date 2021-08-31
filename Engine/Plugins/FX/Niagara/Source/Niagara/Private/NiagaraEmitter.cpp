@@ -18,6 +18,7 @@
 #include "NiagaraTrace.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Modules/ModuleManager.h"
+#include "UObject/ObjectSaveContext.h"
 #include "UObject/Package.h"
 
 #if WITH_EDITOR
@@ -926,11 +927,9 @@ void UNiagaraEmitter::PostEditChangeProperty(struct FPropertyChangedEvent& Prope
 #endif
 }
 
-void UNiagaraEmitter::PreSave(const ITargetPlatform* TargetPlatform)
+void UNiagaraEmitter::PreSave(FObjectPreSaveContext ObjectSaveContext)
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS;
-	Super::PreSave(TargetPlatform);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS;
+	Super::PreSave(ObjectSaveContext);
 	UpdateEmitterAfterLoad();
 }
 
