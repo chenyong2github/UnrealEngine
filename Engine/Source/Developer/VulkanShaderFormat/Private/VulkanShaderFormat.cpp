@@ -26,7 +26,7 @@ class FShaderFormatVulkan : public IShaderFormat
 
 	int32 InternalGetVersion(FName Format) const
 	{
-		if (Format == NAME_VULKAN_SM5 ||	Format == NAME_VULKAN_SM5_ANDROID)
+		if (Format == NAME_VULKAN_SM5 || Format == NAME_VULKAN_SM5_ANDROID)
 		{
 			return UE_SHADER_VULKAN_SM5_VER;
 		}
@@ -84,13 +84,6 @@ public:
 			DoCompileVulkanShader(Input, Output, WorkingDirectory, EVulkanShaderVersion::SM5);
 		}
 	}
-
-	//virtual bool CreateLanguage(FName Format, ILanguageSpec*& OutSpec, FCodeBackend*& OutBackend, uint32 InHlslCompileFlags) override
-	//{
-	//	OutSpec = new FVulkanLanguageSpec(false);
-	//	OutBackend = new FVulkanCodeBackend(InHlslCompileFlags, HCT_FeatureLevelSM4);
-	//	return false;
-	//}
 
 	virtual const TCHAR* GetPlatformIncludeDirectory() const
 	{

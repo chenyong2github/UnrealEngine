@@ -22,7 +22,6 @@ public class VulkanShaderFormat : ModuleRules
 			}
 			);
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "HLSLCC");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "GlsLang");
 
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)

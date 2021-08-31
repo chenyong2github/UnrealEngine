@@ -1302,20 +1302,10 @@ bool IsDxcEnabledForPlatform(EShaderPlatform Platform)
 		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.OpenGL.ForceDXC"));
 		return (CVar && CVar->GetInt() != 0);
 	}
-	if (IsMetalPlatform(Platform))
+	// Hlslcc has been removed for Metal and Vulkan. There is only DXC now.
+	if (IsMetalPlatform(Platform) || IsVulkanPlatform(Platform))
 	{
-		// Hlslcc has been removed for Metal. There is only DXC now.
 		return true;
-	}
-	if (IsVulkanPlatform(Platform))
-	{
-		static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.ForceDXC"));
-		int32 VulkanForceDxc = (CVar ? CVar->GetInt() : 0);
-		const bool bIsVulkanMobile = IsVulkanMobilePlatform((EShaderPlatform)Platform) || IsVulkanMobileSM5Platform((EShaderPlatform)Platform);
-		const bool bIsDxcEnabledForDesktop = (VulkanForceDxc == 1 && !bIsVulkanMobile);
-		const bool bIsDxcEnabledForMobile = (VulkanForceDxc == 2 && bIsVulkanMobile);
-		const bool bIsDxcEnableForAll = (VulkanForceDxc == 3);
-		return (bIsDxcEnabledForDesktop || bIsDxcEnabledForMobile || bIsDxcEnableForAll);
 	}
 	return false;
 }

@@ -2359,7 +2359,7 @@ inline void DispatchComputeShader(
 /** Returns whether the platform is using emulated uniform buffers */
 extern RENDERCORE_API bool IsUsingEmulatedUniformBuffers(EShaderPlatform Platform);
 
-/** Returns whether DirectXShaderCompiler (DXC) is enabled for the specified shader platform. See console variables "r.OpenGL.ForceDXC", "r.Vulkan.ForceDXC", and "r.D3D.ForceDXC". */
+/** Returns whether DirectXShaderCompiler (DXC) is enabled for the specified shader platform. See console variables "r.OpenGL.ForceDXC", "r.D3D.ForceDXC". */
 extern RENDERCORE_API bool IsDxcEnabledForPlatform(EShaderPlatform Platform);
 
 /** Appends to KeyString for all shaders. */

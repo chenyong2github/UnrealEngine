@@ -962,16 +962,6 @@ static TAutoConsoleVariable<int32> CVarOpenGLForceDXC(
 	TEXT(" 1: Force new compiler for all shaders (default)"),
 	ECVF_ReadOnly);
 
-static TAutoConsoleVariable<int32> CVarVulkanForceDXC(
-	TEXT("r.Vulkan.ForceDXC"),
-	3, 
-	TEXT("Forces DirectX Shader Compiler (DXC) to be used for all Vulkan shaders instead of hlslcc.\n")
-	TEXT(" 0: Disable (hlslcc/glslang)\n")
-	TEXT(" 1: Enabled on desktop platforms only (default)\n")
-	TEXT(" 2: Enabled on mobile platforms only\n")
-	TEXT(" 3: Enabled on all platforms"),
-	ECVF_ReadOnly);
-
 int32 GCreateShadersOnLoad = 0;
 static FAutoConsoleVariableRef CVarCreateShadersOnLoad(
 	TEXT("r.CreateShadersOnLoad"),

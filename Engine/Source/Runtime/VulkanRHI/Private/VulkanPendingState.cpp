@@ -508,7 +508,7 @@ void FVulkanPendingGfxState::InternalUpdateDynamicStates(FVulkanCmdBuffer* Cmd)
 	{
 		ensure(Viewport.width > 0 || Viewport.height > 0);
 
-		// Flip viewport on Y-axis to be uniform between HLSLcc and DXC generated SPIR-V shaders (requires VK_KHR_maintenance1 extension)
+		// Flip viewport on Y-axis to be uniform between DXC generated SPIR-V shaders (requires VK_KHR_maintenance1 extension)
 		VkViewport FlippedViewport = Viewport;
 		FlippedViewport.y += FlippedViewport.height;
 		FlippedViewport.height = -FlippedViewport.height;
