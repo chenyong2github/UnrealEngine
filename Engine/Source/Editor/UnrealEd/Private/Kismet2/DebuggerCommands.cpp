@@ -471,7 +471,7 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::StopPlaySession_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::HasPlayWorld),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::HasPlayWorld)
+		FIsActionButtonVisible()
 	);
 
 	// Late join session
@@ -501,7 +501,7 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::SingleFrameAdvance_Clicked),
 		FCanExecuteAction::CreateStatic(&FPlayWorldCommandCallbacks::HasPlayWorldAndPaused),
 		FIsActionChecked(),
-		FIsActionChecked::CreateStatic(&FPlayWorldCommandCallbacks::HasPlayWorldAndPaused)
+		FIsActionButtonVisible()
 	);
 
 	ActionList.MapAction(Commands.TogglePlayPauseOfPlaySession,
@@ -524,7 +524,7 @@ void FPlayWorldCommands::BindGlobalPlayWorldCommands()
 		FExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::PossessEjectPlayer_Clicked),
 		FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanPossessEjectPlayer),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanPossessEjectPlayer)
+		FIsActionButtonVisible()
 	);
 
 	// Breakpoint-only commands
@@ -584,59 +584,96 @@ void FPlayWorldCommands::BuildToolbar(FToolMenuSection& InSection, bool bInclude
 	FToolMenuEntry PlayMenuEntry =
 		FToolMenuEntry::InitToolBarButton(
 			FPlayWorldCommands::Get().RepeatLastPlay,
-			LOCTEXT("RepeatLastPlay", "Play"),
+			TAttribute<FText>(),
 			TAttribute< FText >::Create(TAttribute< FText >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayToolTip)),
 			TAttribute< FSlateIcon >::Create(TAttribute< FSlateIcon >::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetRepeatLastPlayIcon)),
 			FName(TEXT("LevelToolbarPlay")));
-	PlayMenuEntry.StyleNameOverride = FName("PlayToolbar");
-
-	// Play combo box
-	FUIAction SpecialPIEOptionsMenuAction;
-	SpecialPIEOptionsMenuAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
-
-	PlayMenuEntry.AddOptionsDropdown(
-		SpecialPIEOptionsMenuAction,
-		FOnGetContent::CreateStatic(&GeneratePlayMenuContent, GlobalPlayWorldActions.ToSharedRef()),
-		LOCTEXT("PIEComboToolTip", "Change Play Mode and Play Settings")
-	);
+	PlayMenuEntry.StyleNameOverride = FName("Toolbar.BackplateLeftPlay");
 
 	// Play
 	InSection.AddEntry(PlayMenuEntry);
 
-	if (bIncludeLaunchButtonAndOptions)
-	{
-		ITurnkeySupportModule::Get().MakeTurnkeyMenu(InSection);
-	}
-
 	// Resume/pause toggle (only one will be visible, and only in PIE/SIE)
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ResumePlaySession, TAttribute<FText>(),
+	FToolMenuEntry ResumeEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ResumePlaySession, TAttribute<FText>(),
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetResumePlaySessionToolTip)),
 		TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetResumePlaySessionImage)),
-		FName(TEXT("ResumePlaySession"))
-	));
+		FName(TEXT("ResumePlaySession")));
+	ResumeEntry.StyleNameOverride = FName("Toolbar.BackplateLeftPlay");
 
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PausePlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("PausePlaySession"))));
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().SingleFrameAdvance, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("SingleFrameAdvance"))));
+	FToolMenuEntry PauseEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PausePlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("PausePlaySession")));
+	PauseEntry.StyleNameOverride = FName("Toolbar.BackplateLeft");
+
+	InSection.AddEntry(ResumeEntry);
+	InSection.AddEntry(PauseEntry);
+	
+	FToolMenuEntry SingleFrameAdvanceEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().SingleFrameAdvance, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("SingleFrameAdvance")));
+	SingleFrameAdvanceEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+	InSection.AddEntry(SingleFrameAdvanceEntry);
 
 	// Stop
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StopPlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StopPlaySession"))));
+	FToolMenuEntry StopEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StopPlaySession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StopPlaySession")));
+	StopEntry.StyleNameOverride = FName("Toolbar.BackplateCenterStop");
+
+	InSection.AddEntry(StopEntry);
 
 	// Late Join
 	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().LateJoinSession, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("LateJoinSession"))));
 
 	// Eject/possess toggle
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PossessEjectPlayer,
+
+	FToolMenuEntry EjectMenuEntry =
+	FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().PossessEjectPlayer,
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectLabel)),
 		TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectTooltip)),
 		TAttribute<FSlateIcon>::Create(TAttribute<FSlateIcon>::FGetter::CreateStatic(&FInternalPlayWorldCommandCallbacks::GetPossessEjectImage)),
-		FName(TEXT("PossessEjectPlayer"))
-	));
+		FName(TEXT("PossessEjectPlayer")));
+	EjectMenuEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+
+	// Play combo box
+	/*EjectMenuEntry.AddOptionsDropdown(
+		SpecialPIEOptionsMenuAction,
+		FOnGetContent::CreateStatic(&GeneratePlayMenuContent, GlobalPlayWorldActions.ToSharedRef()),
+		LOCTEXT("PIEComboToolTip", "Change Play Mode and Play Settings")
+	);*/
+
+	InSection.AddEntry(EjectMenuEntry);
+
+	FUIAction SpecialPIEOptionsMenuAction;
+	SpecialPIEOptionsMenuAction.CanExecuteAction = FCanExecuteAction::CreateStatic(&FInternalPlayWorldCommandCallbacks::CanShowNonPlayWorldOnlyActions);
+
+	FToolMenuEntry PIEComboEntry = FToolMenuEntry::InitComboButton("PIECombo", SpecialPIEOptionsMenuAction, FOnGetContent::CreateStatic(&GeneratePlayMenuContent, GlobalPlayWorldActions.ToSharedRef()), FText(), LOCTEXT("PIEComboToolTip", "Change Play Mode and Play Settings"));
+	PIEComboEntry.StyleNameOverride = FName("Toolbar.BackplateRightCombo");
+
+	InSection.AddEntry(PIEComboEntry);
 
 	// Single-stepping only buttons
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ShowCurrentStatement, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ShowCurrentStatement"))));
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepInto, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepInto"))));
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOver, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOver"))));
-	InSection.AddEntry(FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOut, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOut"))));
+
+	InSection.AddSeparator(NAME_None).StyleNameOverride = FName("Toolbar.BackplateRight");
+	
+	FToolMenuEntry ShowCurrentStatementEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().ShowCurrentStatement, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("ShowCurrentStatement")));
+	ShowCurrentStatementEntry.StyleNameOverride = FName("Toolbar.BackplateLeft");
+
+	FToolMenuEntry StepIntoEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepInto, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepInto")));
+	StepIntoEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+
+	FToolMenuEntry StepOverEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOver, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOver")));
+	StepOverEntry.StyleNameOverride = FName("Toolbar.BackplateCenter");
+
+	FToolMenuEntry StepOutEntry = FToolMenuEntry::InitToolBarButton(FPlayWorldCommands::Get().StepOut, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), FName(TEXT("StepOut")));
+	StepOutEntry.StyleNameOverride = FName("Toolbar.BackplateRight");
+
+	InSection.AddEntry(ShowCurrentStatementEntry);
+
+	InSection.AddEntry(StepIntoEntry);
+	
+	InSection.AddEntry(StepOverEntry);
+	
+	InSection.AddEntry(StepOutEntry);
+
+	if (bIncludeLaunchButtonAndOptions)
+	{
+		ITurnkeySupportModule::Get().MakeTurnkeyMenu(InSection);
+	}
 }
 
 static void MakePreviewDeviceMenu(FMenuBuilder& MenuBuilder)
@@ -1035,17 +1072,13 @@ FText FInternalPlayWorldCommandCallbacks::GetPossessEjectTooltip()
 
 FSlateIcon FInternalPlayWorldCommandCallbacks::GetPossessEjectImage()
 {
-	if (IsInPIE())
-	{
-		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.EjectFromPlayer");
-	}
-	else if (IsInSIE())
+	if (IsInSIE())
 	{
 		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.PossessPlayer");
 	}
 	else
 	{
-		return FSlateIcon();
+		return FSlateIcon(FEditorStyle::GetStyleSetName(), "PlayWorld.EjectFromPlayer");
 	}
 }
 

@@ -122,6 +122,7 @@ TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetail
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
+		.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
 		[
 			DebugObjectsComboBox.ToSharedRef()
 		]
@@ -129,7 +130,7 @@ TSharedRef<SWidget> SBlueprintEditorSelectedDebugObjectWidget::OnGetActiveDetail
 		.AutoWidth()
 		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
-		.Padding(2.0f)
+		.Padding(4.0f)
 		[
 			BrowseButton
 		];

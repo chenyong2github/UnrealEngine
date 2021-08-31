@@ -3031,7 +3031,7 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
-		FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, true)
+		FIsActionButtonVisible()
 	);
 }
 
@@ -7947,23 +7947,6 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 		];
 
 	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
-
-	TSharedPtr<FUICommandInfo> ToggleCmd = FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes;
-
-	// Add a menu version of toggle, when we can't show the full one
-	MenuBuilder.AddMenuEntry
-	(
-		ToggleCmd->GetLabel(),
-		ToggleCmd->GetDescription(),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
-			FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, false)),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
 
 	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
 

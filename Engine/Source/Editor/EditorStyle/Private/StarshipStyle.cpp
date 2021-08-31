@@ -5384,24 +5384,113 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 
 	// Play in editor / play in world
 	{
+		// Leftmost button for backplate style toolbar buttons
+		FToolBarStyle MainToolbarLeftButton = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("AssetEditorToolbar");
+
+		const FButtonStyle LeftToolbarButton = FButtonStyle(MainToolbarLeftButton.ButtonStyle)
+			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)))
+			.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)))
+			.SetNormalPadding(FMargin(8.f, 4.f, 6.f, 4.f))
+			.SetPressedPadding(FMargin(8.f, 4.f, 6.f, 4.f));
+
+
+		MainToolbarLeftButton.SetButtonStyle(LeftToolbarButton);
+		MainToolbarLeftButton.SetButtonPadding(FMargin(8.f, 0.0f, 0.0f, 0.0f));
+		MainToolbarLeftButton.SetSeparatorPadding(FMargin(0.f, 0.f, 8.f, 0.f));
+
+		Set("Toolbar.BackplateLeft", MainToolbarLeftButton);
+
+		// Specialized Play Button (Left button with green color)
 		FLinearColor GreenHSV = FStyleColors::AccentGreen.GetSpecifiedColor().LinearRGBToHSV();
-		
 		FLinearColor GreenHover = FLinearColor(GreenHSV.R, GreenHSV.G * .5, GreenHSV.B, GreenHSV.A).HSVToLinearRGB();
 		FLinearColor GreenPress = FLinearColor(GreenHSV.R, GreenHSV.G, GreenHSV.B*.5, GreenHSV.A).HSVToLinearRGB(); 
 
-		FToolBarStyle PlayToolbar = FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FToolBarStyle>("AssetEditorToolbar");
+		FToolBarStyle MainToolbarPlayButton = MainToolbarLeftButton;
 
-		const FButtonStyle PlayToolbarButton = FButtonStyle(PlayToolbar.SettingsButtonStyle)
+		const FButtonStyle PlayToolbarButton = FButtonStyle(MainToolbarPlayButton.ButtonStyle)
 			.SetNormalForeground(FStyleColors::AccentGreen)
 			.SetPressedForeground(GreenPress)
 			.SetHoveredForeground(GreenHover);
 
+		MainToolbarPlayButton.SetButtonStyle(PlayToolbarButton);
 
-		PlayToolbar.SetSettingsButtonStyle(PlayToolbarButton);
+		Set("Toolbar.BackplateLeftPlay", MainToolbarPlayButton);
 
-		PlayToolbar.SetShowLabels(true);
+		// Center Buttons for backplate style toolbar buttons
+		FToolBarStyle MainToolbarCenterButton = MainToolbarLeftButton;
 
-		Set("PlayToolBar", PlayToolbar);
+		const FButtonStyle CenterToolbarButton = FButtonStyle(MainToolbarCenterButton.ButtonStyle)
+			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 0.0f, 0.0f, 0.0f)))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 0.0f, 0.0f, 0.0f)))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 0.0f, 0.0f, 0.0f)))
+			.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 0.0f, 0.0f, 0.0f)))
+			.SetNormalPadding(FMargin(2.f, 4.f, 6.f, 4.f))
+			.SetPressedPadding(FMargin(2.f, 4.f, 6.f, 4.f));
+
+		MainToolbarCenterButton.SetButtonPadding(0.0f);
+		MainToolbarCenterButton.SetButtonStyle(CenterToolbarButton);
+
+		Set("Toolbar.BackplateCenter", MainToolbarCenterButton);
+
+		// Specialized Stop Button (Center button + Red color)
+
+		FLinearColor RedHSV = FStyleColors::AccentRed.GetSpecifiedColor().LinearRGBToHSV();
+
+		FLinearColor RedHover = FLinearColor(RedHSV.R, RedHSV.G * .5, RedHSV.B, RedHSV.A).HSVToLinearRGB();
+		FLinearColor RedPress = FLinearColor(RedHSV.R, RedHSV.G, RedHSV.B * .5, RedHSV.A).HSVToLinearRGB();
+
+		FToolBarStyle MainToolbarStopButton = MainToolbarCenterButton;
+
+		const FButtonStyle StopToolbarButton = FButtonStyle(MainToolbarStopButton.ButtonStyle)
+			.SetNormalForeground(FStyleColors::AccentRed)
+			.SetPressedForeground(RedPress)
+			.SetHoveredForeground(RedHover);
+
+		MainToolbarStopButton.SetButtonStyle(StopToolbarButton);
+
+		Set("Toolbar.BackplateCenterStop", MainToolbarStopButton);
+
+		// Rightmost button for backplate style toolbar buttons
+		FToolBarStyle MainToolbarRightButton = MainToolbarLeftButton;
+
+		const FButtonStyle RightToolbarButton = FButtonStyle(MainToolbarRightButton.ButtonStyle)
+			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetNormalPadding(FMargin(2.f, 4.f, 8.f, 4.f))
+			.SetPressedPadding(FMargin(2.f, 4.f, 8.f, 4.f));
+
+		MainToolbarRightButton.SetButtonStyle(RightToolbarButton);
+		MainToolbarRightButton.SetButtonPadding(FMargin(0.0f, 0.0f, 8.0f, 0.0f));
+		MainToolbarRightButton.SetSeparatorPadding(FMargin(8.f, 0.f, 8.f, 0.f));
+
+		Set("Toolbar.BackplateRight", MainToolbarRightButton);
+
+		// Rightmost button for backplate style toolbar buttons as a combo button
+		FToolBarStyle MainToolbarRightComboButton = MainToolbarLeftButton;
+
+		const FButtonStyle RightToolbarComboButton = FButtonStyle(MainToolbarRightComboButton.ButtonStyle)
+			.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)))
+			.SetNormalPadding(FMargin(7.f, 4.f, 6.f, 4.f))
+			.SetPressedPadding(FMargin(7.f, 4.f, 6.f, 4.f));
+
+		FComboButtonStyle PlayToolbarComboButton = FComboButtonStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+			.SetDownArrowPadding(FMargin(-19.f, 0.f, 2.f, 0.f))
+			.SetDownArrowImage(CORE_IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+		PlayToolbarComboButton.ButtonStyle = RightToolbarComboButton;
+
+		MainToolbarRightComboButton.SetButtonStyle(RightToolbarComboButton);
+		MainToolbarRightComboButton.SetComboButtonStyle(PlayToolbarComboButton);
+		MainToolbarRightComboButton.SetSeparatorPadding(FMargin(8.f, 0.f, 8.f, 0.f));
+		MainToolbarRightComboButton.SetComboButtonPadding(FMargin(1.0f, 0.0f, 8.0f, 0.0f));
+
+		Set("Toolbar.BackplateRightCombo", MainToolbarRightComboButton);
 
 		Set("PlayWorld.Simulate", new IMAGE_BRUSH_SVG("Starship/MainToolbar/simulate", Icon20x20));
 		Set( "PlayWorld.RepeatLastPlay", new IMAGE_BRUSH_SVG("Starship/MainToolbar/play", Icon20x20));
@@ -5434,14 +5523,14 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set( "PlayWorld.PossessPlayer", new IMAGE_BRUSH_SVG("Starship/AssetIcons/PlayerController_16", Icon20x20));
 		Set( "PlayWorld.EjectFromPlayer", new IMAGE_BRUSH_SVG("Starship/MainToolbar/eject", Icon40x40));
 
-		Set( "PlayWorld.ShowCurrentStatement", new IMAGE_BRUSH( "Icons/icon_findnode_40x", Icon40x40 ) );
-		Set( "PlayWorld.ShowCurrentStatement.Small", new IMAGE_BRUSH( "Icons/icon_findnode_40x", Icon20x20 ) );
-		Set( "PlayWorld.StepOut", new IMAGE_BRUSH("Icons/icon_DebugStepOut_40x", Icon40x40));
-		Set( "PlayWorld.StepOut.Small", new IMAGE_BRUSH("Icons/icon_DebugStepOut_40x", Icon20x20));
-		Set( "PlayWorld.StepInto", new IMAGE_BRUSH( "Icons/icon_DebugStepIn_40x", Icon40x40 ) );
-		Set( "PlayWorld.StepInto.Small", new IMAGE_BRUSH( "Icons/icon_DebugStepIn_40x", Icon20x20 ) );
-		Set( "PlayWorld.StepOver", new IMAGE_BRUSH( "Icons/icon_DebugStepOver_40x", Icon40x40 ) );
-		Set( "PlayWorld.StepOver.Small", new IMAGE_BRUSH("Icons/icon_DebugStepOver_40x", Icon20x20));
+		Set( "PlayWorld.ShowCurrentStatement", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugFindNode", Icon40x40 ) );
+		Set( "PlayWorld.ShowCurrentStatement.Small", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugFindNode", Icon20x20 ) );
+		Set( "PlayWorld.StepOut", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugStepOut", Icon40x40));
+		Set( "PlayWorld.StepOut.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugStepOut", Icon20x20));
+		Set( "PlayWorld.StepInto", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugStepInto", Icon40x40 ) );
+		Set( "PlayWorld.StepInto.Small", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugStepInto", Icon20x20 ) );
+		Set( "PlayWorld.StepOver", new IMAGE_BRUSH_SVG( "Starship/MainToolbar/DebugStepOver", Icon40x40 ) );
+		Set( "PlayWorld.StepOver.Small", new IMAGE_BRUSH_SVG("Starship/MainToolbar/DebugStepOver", Icon20x20));
 	}
 
 

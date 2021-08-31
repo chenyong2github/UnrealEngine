@@ -1415,6 +1415,8 @@ public:
 	/** Make nodes which are unrelated to the selected nodes fade out */
 	void ToggleHideUnrelatedNodes();
 	bool IsToggleHideUnrelatedNodesChecked() const;
+	
+	UE_DEPRECATED(5.0, "The Toggle Hide Unrelated Nodes button is always shown now")
 	bool ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const;
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
