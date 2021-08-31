@@ -10,10 +10,9 @@
 #include "GeometryCollectionProxyData.h"
 #include "PBDRigidsEvolutionFwd.h"
 
-class FJointConstraintPhysicsProxy;
-
 namespace Chaos
 {
+class FJointConstraintPhysicsProxy;
 
 template <typename TProxy>
 struct TBasePullData

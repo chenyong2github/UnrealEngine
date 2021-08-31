@@ -40,14 +40,15 @@ struct CHAOS_API FProxyTimestamp
 class CHAOS_API IPhysicsProxyBase
 {
 public:
-	IPhysicsProxyBase(EPhysicsProxyType InType)
+	IPhysicsProxyBase(EPhysicsProxyType InType, UObject* InOwner)
 		: Solver(nullptr)
+		, Owner(InOwner)
 		, DirtyIdx(INDEX_NONE)
 		, Type(InType)
 		, SyncTimestamp(new FProxyTimestamp)
 	{}
 
-	virtual UObject* GetOwner() const = 0;
+	UObject* GetOwner() const { return Owner; }
 
 	template< class SOLVER_TYPE>
 	SOLVER_TYPE* GetSolver() const { return static_cast<SOLVER_TYPE*>(Solver); }
@@ -79,6 +80,7 @@ protected:
 	
 	/** The solver that owns the solver object */
 	Chaos::FPhysicsSolverBase* Solver;
+	UObject* Owner;
 
 private:
 	int32 DirtyIdx;

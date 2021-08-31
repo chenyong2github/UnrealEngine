@@ -23,10 +23,9 @@ FAutoConsoleVariableRef CVar_SyncKinematicOnGameThread(TEXT("P.Chaos.SyncKinemat
 
 
 FSingleParticlePhysicsProxy::FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner)
-	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy)
+	: IPhysicsProxyBase(EPhysicsProxyType::SingleParticleProxy, InOwner)
 	, Particle(MoveTemp(InParticle))
 	, Handle(InHandle)
-	, Owner(InOwner)
 	, PullDataInterpIdx_External(INDEX_NONE)
 {
 	Particle->SetProxy(this);
