@@ -251,8 +251,13 @@ namespace SharedPointerInternals
 				{
 					std::atomic_thread_fence(std::memory_order_acquire);
 
+					// Disable this if running clang's static analyzer. Passing shared pointers
+					// and references to functions it cannot reason about, produces false
+					// positives about use-after-free in the TSharedPtr/TSharedRef destructors.
+#if !defined(__clang_analyzer__)
 					// No more references to this reference count.  Destroy it!
 					delete this;
+#endif
 				}
 			}
 			else
@@ -262,7 +267,9 @@ namespace SharedPointerInternals
 				if( --WeakReferenceCount == 0 )
 				{
 					// No more references to this reference count.  Destroy it!
+#if !defined(__clang_analyzer__)
 					delete this;
+#endif
 				}
 			}
 		}
