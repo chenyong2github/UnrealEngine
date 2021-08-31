@@ -348,11 +348,6 @@ namespace UnrealBuildTool
 		public static DirectoryReference IntermediateProjectFilesPath = DirectoryReference.Combine(Unreal.EngineDirectory, "Intermediate", "ProjectFiles");
 
 		/// <summary>
-		/// Path to timestamp file, recording when was the last time projects were created.
-		/// </summary>
-		public static string ProjectTimestampFile = Path.Combine(IntermediateProjectFilesPath.FullName, "Timestamp");
-
-		/// <summary>
 		/// Global static new line string used by ProjectFileGenerator to generate project files.
 		/// </summary>
 		public static readonly string NewLine = Environment.NewLine;
