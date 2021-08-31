@@ -169,44 +169,38 @@ public:
 		return Parent->GetFallback(InFeatureLevel);
 	}
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		if (ParameterInfo.Name == HairGroupHairColorParamName)
+		switch (Type)
 		{
-			*OutValue = HairGroupColor;
-			return true;
+		case EMaterialParameterType::Vector:
+			if (ParameterInfo.Name == HairGroupHairColorParamName)
+			{
+				OutValue = FVector3f(HairGroupColor);
+				return true;
+			}
+			break;
+		case EMaterialParameterType::Scalar:
+			if (ParameterInfo.Name == DebugModeParamName)
+			{
+				OutValue = DebugMode;
+				return true;
+			}
+			else if (ParameterInfo.Name == MinHairRadiusParamName)
+			{
+				OutValue = HairMinRadius;
+				return true;
+			}
+			else if (ParameterInfo.Name == MaxHairRadiusParamName)
+			{
+				OutValue = HairMaxRadius;
+				return true;
+			}
+			break;
+		default:
+			break;
 		}
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == DebugModeParamName)
-		{
-			*OutValue = DebugMode;
-			return true;
-		}
-		else if (ParameterInfo.Name == MinHairRadiusParamName)
-		{
-			*OutValue = HairMinRadius;
-			return true;
-		}
-		else if (ParameterInfo.Name == MaxHairRadiusParamName)
-		{
-			*OutValue = HairMaxRadius;
-			return true;
-		}
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 };
 

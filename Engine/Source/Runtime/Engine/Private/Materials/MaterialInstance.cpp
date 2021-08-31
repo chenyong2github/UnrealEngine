@@ -49,8 +49,6 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "ShaderCompilerCore.h"
 
-PRAGMA_DISABLE_OPTIMIZATION
-
 #if ENABLE_COOK_STATS
 #include "ProfilingDebugging/ScopedTimers.h"
 namespace MaterialInstanceCookStats
@@ -237,16 +235,15 @@ UMaterialInterface* FMaterialInstanceResource::GetMaterialInterface() const
 	return Owner;
 }
 
-bool FMaterialInstanceResource::GetScalarValue(
-	const FHashedMaterialParameterInfo& ParameterInfo,
-	float* OutValue,
-	const FMaterialRenderContext& Context
-	) const
+bool FMaterialInstanceResource::GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 {
 	checkSlow(IsInParallelRenderingThread());
 
 	static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
-	if (ParameterInfo.Name == NameSubsurfaceProfile)
+	bool bResult = false;
+
+	// Check for hard-coded parameters
+	if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == NameSubsurfaceProfile)
 	{
 		check(ParameterInfo.Association == EMaterialParameterAssociation::GlobalParameter);
 		const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
@@ -262,94 +259,30 @@ bool FMaterialInstanceResource::GetScalarValue(
 			// no profile specified means we use the default one stored at [0] which is human skin
 			AllocationId = 0;
 		}
-		*OutValue = AllocationId / 255.0f;
-
-		return true;
+		OutValue = AllocationId / 255.0f;
+		bResult = true;
 	}
 
-	const float* Value = RenderThread_FindParameterByName<float>(ParameterInfo);
-	if(Value)
+	if (!bResult)
 	{
-		*OutValue = *Value;
-		return true;
+		// Check for instances overrides
+		switch (Type)
+		{
+		case EMaterialParameterType::Scalar: bResult = RenderThread_GetParameterValue<float>(ParameterInfo, OutValue); break;
+		case EMaterialParameterType::Vector: bResult = RenderThread_GetParameterValue<FLinearColor>(ParameterInfo, OutValue); break;
+		case EMaterialParameterType::Texture: bResult = RenderThread_GetParameterValue<const UTexture*>(ParameterInfo, OutValue); break;
+		case EMaterialParameterType::RuntimeVirtualTexture: bResult = RenderThread_GetParameterValue<const URuntimeVirtualTexture*>(ParameterInfo, OutValue); break;
+		default: ensure(false); break; // other parameter types are not expected on the render thread
+		}
 	}
-	else if (Parent)
-	{
-		return Parent->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-	else
-	{
-		return false;
-	}
-}
 
-bool FMaterialInstanceResource::GetVectorValue(
-	const FHashedMaterialParameterInfo& ParameterInfo,
-	FLinearColor* OutValue,
-	const FMaterialRenderContext& Context
-	) const
-{
-	checkSlow(IsInParallelRenderingThread());
-	const FLinearColor* Value = RenderThread_FindParameterByName<FLinearColor>(ParameterInfo);
-	if(Value)
+	if (!bResult && Parent)
 	{
-		*OutValue = *Value;
-		return true;
+		// Check parent
+		bResult = Parent->GetRenderProxy()->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
-	else if(Parent)
-	{
-		return Parent->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-	else
-	{
-		return false;
-	}
-}
 
-bool FMaterialInstanceResource::GetTextureValue(
-	const FHashedMaterialParameterInfo& ParameterInfo,
-	const UTexture** OutValue,
-	const FMaterialRenderContext& Context
-	) const
-{
-	checkSlow(IsInParallelRenderingThread());
-	const UTexture* const * Value = RenderThread_FindParameterByName<const UTexture*>(ParameterInfo);
-	if(Value && *Value)
-	{
-		*OutValue = *Value;
-		return true;
-	}
-	else if(Parent)
-	{
-		return Parent->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-	else
-	{
-		return false;
-	}
-}
-
-bool FMaterialInstanceResource::GetTextureValue(
-	const FHashedMaterialParameterInfo& ParameterInfo,
-	const URuntimeVirtualTexture** OutValue,
-	const FMaterialRenderContext& Context
-) const
-{
-	checkSlow(IsInParallelRenderingThread());
-	const URuntimeVirtualTexture* const * Value = RenderThread_FindParameterByName<const URuntimeVirtualTexture*>(ParameterInfo);
-	if (Value && *Value)
-	{
-		*OutValue = *Value;
-		return true;
-	}
-	else if (Parent)
-	{
-		return Parent->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-	else
-	{
-		return false;
-	}
+	return bResult;
 }
 
 void UMaterialInstance::PropagateDataToMaterialProxy()
@@ -835,6 +768,27 @@ UMaterial* UMaterialInstance::GetMaterial()
 	}
 }
 
+bool UMaterialInstance::GetParameterOverrideValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
+{
+	// If we're not a parent, set the flag to signify this parameter was a MI override
+	const bool bSetOverride = !EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::IsParent);
+	bool bResult = false;
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, bSetOverride, OutResult); break;
+#if WITH_EDITORONLY_DATA
+	case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, bSetOverride, OutResult); break;
+	case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, bSetOverride, OutResult); break;
+#endif // WITH_EDITORONLY_DATA
+	default: checkNoEntry(); break;
+	}
+	return bResult;
+}
+
 bool UMaterialInstance::GetParameterValue(EMaterialParameterType Type, const FMemoryImageMaterialParameterInfo& ParameterInfo, FMaterialParameterMetadata& OutResult, EMaterialGetParameterValueFlags Flags) const
 {
 	bool bFoundAValue = false;
@@ -847,23 +801,7 @@ bool UMaterialInstance::GetParameterValue(EMaterialParameterType Type, const FMe
 	// Instance override
 	if (EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::CheckInstanceOverrides))
 	{
-		// If we're not a parent, set the flag to signify this parameter was a MI override
-		const bool bSetOverride = !EnumHasAnyFlags(Flags, EMaterialGetParameterValueFlags::IsParent);
-		bool bResult = false;
-		switch (Type)
-		{
-		case EMaterialParameterType::Scalar: bResult = GameThread_GetParameterValue(ScalarParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-		case EMaterialParameterType::Vector: bResult = GameThread_GetParameterValue(VectorParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-		case EMaterialParameterType::Texture: bResult = GameThread_GetParameterValue(TextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-		case EMaterialParameterType::RuntimeVirtualTexture: bResult = GameThread_GetParameterValue(RuntimeVirtualTextureParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-		case EMaterialParameterType::Font: bResult = GameThread_GetParameterValue(FontParameterValues, ParameterInfo, bSetOverride, OutResult); break;
-#if WITH_EDITORONLY_DATA
-		case EMaterialParameterType::StaticSwitch: bResult = GameThread_GetParameterValue(StaticParameters.StaticSwitchParameters, ParameterInfo, bSetOverride, OutResult); break;
-		case EMaterialParameterType::StaticComponentMask: bResult = GameThread_GetParameterValue(StaticParameters.StaticComponentMaskParameters, ParameterInfo, bSetOverride, OutResult); break;
-#endif // WITH_EDITORONLY_DATA
-		default: checkNoEntry(); break;
-		}
-		if (bResult)
+		if (GetParameterOverrideValue(Type, ParameterInfo, OutResult, Flags))
 		{
 			return true;
 		}
@@ -1317,7 +1255,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 #endif // #if WITH_EDITOR
 }
 
-void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
+void UMaterialInstance::OverrideNumericParameterDefault(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
 {
 #if WITH_EDITOR
 	bool bShouldRecacheMaterialExpressions = false;
@@ -1326,42 +1264,12 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FHashedMaterialPara
 		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
 		if (SourceMaterialResource)
 		{
-			SourceMaterialResource->TransientOverrides.SetVectorOverride(ParameterInfo, Value, bOverride);
+			SourceMaterialResource->TransientOverrides.SetNumericOverride(Type, ParameterInfo, Value, bOverride);
 
-			const TArrayView<const FMaterialVectorParameterInfo> Parameters = SourceMaterialResource->GetUniformVectorParameterExpressions();
+			const TArrayView<const FMaterialNumericParameterInfo> Parameters = SourceMaterialResource->GetUniformNumericParameterExpressions();
 			for (int32 i = 0; i < Parameters.Num(); ++i)
 			{
-				const FMaterialVectorParameterInfo& Parameter = Parameters[i];
-				if (Parameter.ParameterInfo == ParameterInfo)
-				{
-					bShouldRecacheMaterialExpressions = true;
-				}
-			}
-		}
-	}
-
-	if (bShouldRecacheMaterialExpressions)
-	{
-		RecacheUniformExpressions(false);
-	}
-#endif // #if WITH_EDITOR
-}
-
-void UMaterialInstance::OverrideScalarParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
-{
-#if WITH_EDITOR
-	bool bShouldRecacheMaterialExpressions = false;
-	if (bHasStaticPermutationResource)
-	{
-		FMaterialResource* SourceMaterialResource = GetMaterialResource(InFeatureLevel);
-		if (SourceMaterialResource)
-		{
-			SourceMaterialResource->TransientOverrides.SetScalarOverride(ParameterInfo, Value, bOverride);
-
-			const TArrayView<const FMaterialScalarParameterInfo> Parameters = SourceMaterialResource->GetUniformScalarParameterExpressions();
-			for (int32 i = 0; i < Parameters.Num(); ++i)
-			{
-				const FMaterialScalarParameterInfo& Parameter = Parameters[i];
+				const FMaterialNumericParameterInfo& Parameter = Parameters[i];
 				if (Parameter.ParameterInfo == ParameterInfo)
 				{
 					bShouldRecacheMaterialExpressions = true;
@@ -1519,53 +1427,44 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 	// because static (bool) parameters can cause some parameters to be hidden
 	FMaterialResource* MaterialResource = GetMaterialResource(FeatureLevel);
 
-	if(MaterialResource)
+	if (MaterialResource)
 	{
 		// first, clear out all the parameter values
 		ClearParameterValuesInternal(false);
 
-		// scalar
+		TArrayView<const FMaterialNumericParameterInfo> Array = MaterialResource->GetUniformNumericParameterExpressions();
+		for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
 		{
-			TArrayView<const FMaterialScalarParameterInfo> Array = MaterialResource->GetUniformScalarParameterExpressions();
+			const FMaterialNumericParameterInfo& Parameter = Array[i];
 
-			for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
+			const UMaterialInterface* CheckMaterial = &SourceMaterialToCopyFrom;
+			FMaterialParameterMetadata ParameterValue;
+			bool bFoundValue = false;
+			while (CheckMaterial)
 			{
-				const FMaterialScalarParameterInfo& Parameter = Array[i];
-
-				float Value;
-				Parameter.GetGameThreadNumberValue(&SourceMaterialToCopyFrom, Value);
-
-				FScalarParameterValue* ParameterValue = GameThread_FindParameterByName(ScalarParameterValues, Parameter.ParameterInfo);
-				if (!ParameterValue)
+				const UMaterialInstance* CheckMaterialInstance = Cast<UMaterialInstance>(CheckMaterial);
+				if (CheckMaterialInstance)
 				{
-					ParameterValue = new(ScalarParameterValues)FScalarParameterValue;
-					ParameterValue->ParameterInfo = FMaterialParameterInfo(Parameter.ParameterInfo);
+					if (CheckMaterialInstance->GetParameterOverrideValue(Parameter.ParameterType, Parameter.ParameterInfo, ParameterValue))
+					{
+						bFoundValue = true;
+						break;
+					}
+					CheckMaterial = CheckMaterialInstance->Parent;
 				}
-
-				ParameterValue->ParameterValue = Value;
+				else
+				{
+					break;
+				}
 			}
-		}
 
-		// vector
-		{
-			TArrayView<const FMaterialVectorParameterInfo> Array = MaterialResource->GetUniformVectorParameterExpressions();
-
-			for (int32 i = 0, Count = Array.Num(); i < Count; ++i)
+			if (!bFoundValue)
 			{
-				const FMaterialVectorParameterInfo& Parameter = Array[i];
-
-				FLinearColor Value;
-				Parameter.GetGameThreadNumberValue(&SourceMaterialToCopyFrom, Value);
-
-				FVectorParameterValue* ParameterValue = GameThread_FindParameterByName(VectorParameterValues, Parameter.ParameterInfo);
-				if (!ParameterValue)
-				{
-					ParameterValue = new(VectorParameterValues)FVectorParameterValue;
-					ParameterValue->ParameterInfo = FMaterialParameterInfo(Parameter.ParameterInfo);
-				}
-
-				ParameterValue->ParameterValue = Value;
+				const UE::Shader::FValue DefaultValue = MaterialResource->GetUniformExpressions().GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset);
+				ParameterValue.Value = FMaterialParameterValue(Parameter.ParameterType, DefaultValue);
 			}
+
+			SetParameterValueInternal(FMaterialParameterInfo(Parameter.ParameterInfo), ParameterValue);
 		}
 
 		// now, init the resources
@@ -3079,34 +2978,14 @@ FMaterialInstanceParameterUpdateContext::~FMaterialInstanceParameterUpdateContex
 
 void FMaterialInstanceParameterUpdateContext::SetParameterValueEditorOnly(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
 {
-	const FMaterialParameterValue& Value = Meta.Value;
-	if (IsStaticMaterialParameter(Value.Type))
+	if (IsStaticMaterialParameter(Meta.Value.Type))
 	{
 		// Route static parameters to the static parameter set
 		StaticParameters.SetParameterValue(ParameterInfo, Meta, Flags);
 	}
 	else
 	{
-		const bool bUseAtlas = EnumHasAnyFlags(Flags, EMaterialSetParameterValueFlags::SetCurveAtlas);
-		FScalarParameterAtlasInstanceData AtlasData;
-
-		switch (Value.Type)
-		{
-		case EMaterialParameterType::Scalar:
-			if (bUseAtlas)
-			{
-				AtlasData.bIsUsedAsAtlasPosition = Meta.bUsedAsAtlasPosition;
-				AtlasData.Atlas = Meta.ScalarAtlas;
-				AtlasData.Curve = Meta.ScalarCurve;
-			}
-			Instance->SetScalarParameterValueInternal(ParameterInfo, Value.AsScalar(), bUseAtlas, AtlasData);
-			break;
-		case EMaterialParameterType::Vector: Instance->SetVectorParameterValueInternal(ParameterInfo, Value.AsLinearColor()); break;
-		case EMaterialParameterType::Texture: Instance->SetTextureParameterValueInternal(ParameterInfo, Value.Texture); break;
-		case EMaterialParameterType::Font: Instance->SetFontParameterValueInternal(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
-		case EMaterialParameterType::RuntimeVirtualTexture: Instance->SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value.RuntimeVirtualTexture); break;
-		default: checkNoEntry();
-		}
+		Instance->SetParameterValueInternal(ParameterInfo, Meta, Flags);
 	}
 }
 
@@ -3120,6 +2999,32 @@ void FMaterialInstanceParameterUpdateContext::SetBasePropertyOverrides(const FMa
 	BasePropertyOverrides = InValue;
 }
 #endif // WITH_EDITORONLY_DATA
+
+void UMaterialInstance::SetParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
+{
+	const bool bUseAtlas = EnumHasAnyFlags(Flags, EMaterialSetParameterValueFlags::SetCurveAtlas);
+	const FMaterialParameterValue& Value = Meta.Value;
+	FScalarParameterAtlasInstanceData AtlasData;
+	switch (Value.Type)
+	{
+	case EMaterialParameterType::Scalar:
+#if WITH_EDITORONLY_DATA
+		if (bUseAtlas)
+		{
+			AtlasData.bIsUsedAsAtlasPosition = Meta.bUsedAsAtlasPosition;
+			AtlasData.Atlas = Meta.ScalarAtlas;
+			AtlasData.Curve = Meta.ScalarCurve;
+		}
+#endif // WITH_EDITORONLY_DATA
+		SetScalarParameterValueInternal(ParameterInfo, Value.AsScalar(), bUseAtlas, AtlasData);
+		break;
+	case EMaterialParameterType::Vector: SetVectorParameterValueInternal(ParameterInfo, Value.AsLinearColor()); break;
+	case EMaterialParameterType::Texture: SetTextureParameterValueInternal(ParameterInfo, Value.Texture); break;
+	case EMaterialParameterType::Font: SetFontParameterValueInternal(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: SetRuntimeVirtualTextureParameterValueInternal(ParameterInfo, Value.RuntimeVirtualTexture); break;
+	default: checkNoEntry();
+	}
+}
 
 void UMaterialInstance::SetVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value)
 {
@@ -4392,22 +4297,26 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 
 				if (MaterialResource)
 				{
-					// Scalars
-					TArrayView<const FMaterialScalarParameterInfo> ScalarExpressions = MaterialResource->GetUniformScalarParameterExpressions();
-					for (const FMaterialScalarParameterInfo& Parameter : ScalarExpressions)
+					// Numeric
+					for (const FMaterialNumericParameterInfo& Parameter : MaterialResource->GetUniformNumericParameterExpressions())
 					{
-						FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
-						ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
-						Parameter.GetDefaultValue(ParameterValue->ParameterValue);
-					}
-
-					// Vectors
-					TArrayView<const FMaterialVectorParameterInfo> VectorExpressions = MaterialResource->GetUniformVectorParameterExpressions();
-					for (const FMaterialVectorParameterInfo& Parameter : VectorExpressions)
-					{
-						FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;
-						ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
-						Parameter.GetDefaultValue(ParameterValue->ParameterValue);
+						const UE::Shader::FValue DefaultValue = MaterialResource->GetUniformExpressions().GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset);
+						if (Parameter.ParameterType == EMaterialParameterType::Scalar)
+						{
+							FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
+							ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
+							ParameterValue->ParameterValue = DefaultValue.AsFloatScalar();
+						}
+						else if (Parameter.ParameterType == EMaterialParameterType::Vector)
+						{
+							FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;
+							ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
+							ParameterValue->ParameterValue = DefaultValue.AsLinearColor();
+						}
+						else
+						{
+							ensure(false);
+						}
 					}
 
 					// Textures
@@ -4524,5 +4433,3 @@ void UMaterialInstance::AppendReferencedParameterCollectionIdsTo(TArray<FGuid>& 
 UMaterialInstance::FCustomStaticParametersGetterDelegate UMaterialInstance::CustomStaticParametersGetters;
 TArray<UMaterialInstance::FCustomParameterSetUpdaterDelegate> UMaterialInstance::CustomParameterSetUpdaters;
 #endif // WITH_EDITORONLY_DATA
-
-PRAGMA_ENABLE_OPTIMIZATION

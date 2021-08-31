@@ -100,7 +100,7 @@ void UE::HLSLTree::FCodeWriter::Append(const FCodeWriter& InWriter)
 
 void UE::HLSLTree::FCodeWriter::WriteConstant(const Shader::FValue& Value)
 {
-	auto ToString = [](bool v)
+	auto ToString = [](uint8 v)
 	{
 		return v ? TEXT("true") : TEXT("false");
 	};

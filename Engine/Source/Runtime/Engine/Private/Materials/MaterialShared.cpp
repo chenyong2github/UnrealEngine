@@ -69,8 +69,7 @@ IMPLEMENT_TYPE_LAYOUT(FMeshMaterialShaderMap);
 IMPLEMENT_TYPE_LAYOUT(FMaterialProcessedSource);
 IMPLEMENT_TYPE_LAYOUT(FMaterialShaderMapContent);
 IMPLEMENT_TYPE_LAYOUT(FMaterialUniformPreshaderHeader);
-IMPLEMENT_TYPE_LAYOUT(FMaterialScalarParameterInfo);
-IMPLEMENT_TYPE_LAYOUT(FMaterialVectorParameterInfo);
+IMPLEMENT_TYPE_LAYOUT(FMaterialNumericParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialTextureParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialExternalTextureParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialVirtualTextureStack);
@@ -228,6 +227,16 @@ int32 FMaterialCompiler::Errorf(const TCHAR* Format,...)
 	TCHAR	ErrorText[2048];
 	GET_VARARGS( ErrorText, UE_ARRAY_COUNT(ErrorText), UE_ARRAY_COUNT(ErrorText)-1, Format, Format );
 	return Error(ErrorText);
+}
+
+int32 FMaterialCompiler::ScalarParameter(FName ParameterName, float DefaultValue)
+{
+	return GenericParameter(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
+}
+
+int32 FMaterialCompiler::VectorParameter(FName ParameterName, const FLinearColor& DefaultValue)
+{
+	return GenericParameter(EMaterialParameterType::Vector, ParameterName, DefaultValue);
 }
 
 IMPLEMENT_STRUCT(ExpressionInput);
@@ -785,14 +794,9 @@ TArrayView<const FMaterialTextureParameterInfo> FMaterial::GetUniformTextureExpr
 	return GetUniformExpressions().UniformTextureParameters[(uint32)Type];
 }
 
-TArrayView<const FMaterialVectorParameterInfo> FMaterial::GetUniformVectorParameterExpressions() const
+TArrayView<const FMaterialNumericParameterInfo> FMaterial::GetUniformNumericParameterExpressions() const
 { 
-	return GetUniformExpressions().UniformVectorParameters;
-}
-
-TArrayView<const FMaterialScalarParameterInfo> FMaterial::GetUniformScalarParameterExpressions() const
-{ 
-	return GetUniformExpressions().UniformScalarParameters;
+	return GetUniformExpressions().UniformNumericParameters;
 }
 
 bool FMaterial::RequiresSceneColorCopy_GameThread() const
@@ -2970,6 +2974,50 @@ void FMaterialVirtualTextureStack::Serialize(FArchive& Ar)
 	FMaterialRenderProxy
 -----------------------------------------------------------------------------*/
 
+bool FMaterialRenderProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::Vector, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.AsLinearColor();
+		return true;
+	}
+	return false;
+}
+
+bool FMaterialRenderProxy::GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::Scalar, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.AsScalar();
+		return true;
+	}
+	return false;
+}
+
+bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::Texture, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.Texture;
+		return true;
+	}
+	return false;
+}
+
+bool FMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
+{
+	FMaterialParameterValue Value;
+	if (GetParameterValue(EMaterialParameterType::RuntimeVirtualTexture, ParameterInfo, Value, Context))
+	{
+		*OutValue = Value.RuntimeVirtualTexture;
+		return true;
+	}
+	return false;
+}
+
 static void OnVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton)
 {
 	FMaterialRenderProxy* MaterialProxy = static_cast<FMaterialRenderProxy*>(Baton);
@@ -3407,48 +3455,33 @@ TSet<FMaterialRenderProxy*> FMaterialRenderProxy::DeferredUniformExpressionCache
 	FColoredMaterialRenderProxy
 -----------------------------------------------------------------------------*/
 
-bool FColoredMaterialRenderProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+bool FColoredMaterialRenderProxy::GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 {
-	if(ParameterInfo.Name == ColorParamName)
+	if (Type == EMaterialParameterType::Vector && ParameterInfo.Name == ColorParamName)
 	{
-		*OutValue = Color;
+		OutValue = Color;
 		return true;
 	}
 	else
 	{
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
-}
-
-bool FColoredMaterialRenderProxy::GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-}
-
-bool FColoredMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetTextureValue(ParameterInfo,OutValue,Context);
-}
-
-bool FColoredMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 }
 
 /*-----------------------------------------------------------------------------
 	FColoredTexturedMaterialRenderProxy
 -----------------------------------------------------------------------------*/
 
-bool FColoredTexturedMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
+bool FColoredTexturedMaterialRenderProxy::GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 {
-	if (ParameterInfo.Name == TextureParamName)
+	if (Type == EMaterialParameterType::Texture && ParameterInfo.Name == TextureParamName)
 	{
-		*OutValue = Texture;
+		OutValue = Texture;
 		return true;
 	}
 	else
 	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 }
 
@@ -3465,32 +3498,17 @@ const FMaterialRenderProxy* FOverrideSelectionColorMaterialRenderProxy::GetFallb
 	return Parent->GetFallback(InFeatureLevel);
 }
 
-bool FOverrideSelectionColorMaterialRenderProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+bool FOverrideSelectionColorMaterialRenderProxy::GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 {
-	if (ParameterInfo.Name == FName(NAME_SelectionColor))
+	if (Type == EMaterialParameterType::Vector && ParameterInfo.Name == FName(NAME_SelectionColor))
 	{
-		*OutValue = SelectionColor;
+		OutValue = SelectionColor;
 		return true;
 	}
 	else
 	{
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
-}
-
-bool FOverrideSelectionColorMaterialRenderProxy::GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-}
-
-bool FOverrideSelectionColorMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-}
-
-bool FOverrideSelectionColorMaterialRenderProxy::GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-{
-	return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
 }
 
 /*-----------------------------------------------------------------------------
@@ -3498,14 +3516,14 @@ bool FOverrideSelectionColorMaterialRenderProxy::GetTextureValue(const FHashedMa
 -----------------------------------------------------------------------------*/
 static FName NAME_LightmapRes = FName(TEXT("LightmapRes"));
 
-bool FLightingDensityMaterialRenderProxy::GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+bool FLightingDensityMaterialRenderProxy::GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 {
-	if (ParameterInfo.Name == NAME_LightmapRes)
+	if (Type == EMaterialParameterType::Vector && ParameterInfo.Name == NAME_LightmapRes)
 	{
-		*OutValue = FLinearColor(LightmapResolution.X, LightmapResolution.Y, 0.0f, 0.0f);
+		OutValue = FLinearColor(LightmapResolution.X, LightmapResolution.Y, 0.0f, 0.0f);
 		return true;
 	}
-	return FColoredMaterialRenderProxy::GetVectorValue(ParameterInfo, OutValue, Context);
+	return FColoredMaterialRenderProxy::GetParameterValue(Type, ParameterInfo, OutValue, Context);
 }
 
 #if WITH_EDITOR
@@ -4958,4 +4976,60 @@ void FMaterial::SetShaderMapsOnMaterialResources(const TMap<TRefCountPtr<FMateri
 		SetShaderMapsOnMaterialResources_RenderThread(RHICmdList, InMaterialsToUpdate);
 	});
 }
+
+FMaterialParameterValue::FMaterialParameterValue(EMaterialParameterType InType, const UE::Shader::FValue& InValue)
+{
+	switch (InType)
+	{
+	case EMaterialParameterType::Scalar: *this = InValue.AsFloatScalar(); break;
+	case EMaterialParameterType::Vector: *this = InValue.AsLinearColor(); break;
+	case EMaterialParameterType::StaticSwitch: *this = InValue.AsBoolScalar(); break;
+	case EMaterialParameterType::StaticComponentMask:
+	{
+		const UE::Shader::FBoolValue BoolValue = InValue.AsBool();
+		*this = FMaterialParameterValue(BoolValue[0], BoolValue[1], BoolValue[2], BoolValue[3]);
+		break;
+	}
+	default: ensure(false); Type = EMaterialParameterType::None; break;
+	}
+}
+
+UE::Shader::FValue FMaterialParameterValue::AsShaderValue() const
+{
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar: return Float[0];
+	case EMaterialParameterType::Vector: return UE::Shader::FValue(Float[0], Float[1], Float[2], Float[3]);
+	case EMaterialParameterType::StaticSwitch: return Bool[0];
+	case EMaterialParameterType::StaticComponentMask: return UE::Shader::FValue(Bool[0], Bool[1], Bool[2], Bool[3]);
+	case EMaterialParameterType::Texture:
+	case EMaterialParameterType::Font:
+	case EMaterialParameterType::RuntimeVirtualTexture:
+		// Non-numeric types, can't represent as shader values
+		return UE::Shader::FValue();
+	default:
+		checkNoEntry();
+		return UE::Shader::FValue();
+	}
+}
+
+UE::Shader::EValueType GetShaderValueType(EMaterialParameterType Type)
+{
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar: return UE::Shader::EValueType::Float1;
+	case EMaterialParameterType::Vector: return UE::Shader::EValueType::Float4;
+	case EMaterialParameterType::StaticSwitch: return UE::Shader::EValueType::Bool1;
+	case EMaterialParameterType::StaticComponentMask: return UE::Shader::EValueType::Bool4;
+	case EMaterialParameterType::Texture:
+	case EMaterialParameterType::Font:
+	case EMaterialParameterType::RuntimeVirtualTexture:
+		// Non-numeric types, can't represent as shader values
+		return UE::Shader::EValueType::Void;
+	default:
+		checkNoEntry();
+		return UE::Shader::EValueType::Void;
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

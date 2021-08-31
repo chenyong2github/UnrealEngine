@@ -65,6 +65,42 @@ static inline EMaterialValueType GetVectorType(uint32 NumComponents)
 	};
 }
 
+static inline EMaterialValueType GetMaterialValueType(EMaterialParameterType Type)
+{
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar: return MCT_Float;
+	case EMaterialParameterType::Vector: return MCT_Float4;
+	default: checkNoEntry(); return MCT_Unknown;
+	}
+}
+
+static inline EMaterialValueType GetMaterialValueType(UE::Shader::EValueType Type)
+{
+	switch (Type)
+	{
+	case UE::Shader::EValueType::Void: return MCT_VoidStatement;
+
+	case UE::Shader::EValueType::Float1: return MCT_Float;
+	case UE::Shader::EValueType::Float2: return MCT_Float2;
+	case UE::Shader::EValueType::Float3: return MCT_Float3;
+	case UE::Shader::EValueType::Float4: return MCT_Float4;
+
+	case UE::Shader::EValueType::Int1: return MCT_Float;
+	case UE::Shader::EValueType::Int2: return MCT_Float2;
+	case UE::Shader::EValueType::Int3: return MCT_Float3;
+	case UE::Shader::EValueType::Int4: return MCT_Float4;
+
+	case UE::Shader::EValueType::Bool1: return MCT_Float;
+	case UE::Shader::EValueType::Bool2: return MCT_Float2;
+	case UE::Shader::EValueType::Bool3: return MCT_Float3;
+	case UE::Shader::EValueType::Bool4: return MCT_Float4;
+
+	case UE::Shader::EValueType::MaterialAttributes: return MCT_MaterialAttributes;
+	default: checkNoEntry(); return MCT_Unknown;
+	}
+}
+
 static inline int32 SwizzleComponentToIndex(TCHAR Component)
 {
 	switch (Component)
@@ -3976,15 +4012,33 @@ int32 FHLSLMaterialTranslator::AccessCollectionParameter(UMaterialParameterColle
 		ComponentIndex == -1 ? true : ComponentIndex % 4 == 3);
 }
 
-int32 FHLSLMaterialTranslator::ScalarParameter(FName ParameterName, float DefaultValue)
+int32 FHLSLMaterialTranslator::GenericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue)
 {
+	const UE::Shader::EValueType ValueType = GetShaderValueType(ParameterType);
+	check(DefaultValue.GetType() == ValueType);
+
+	const uint32* PrevDefaultOffset = DefaultUniformValues.Find(DefaultValue);
+	uint32 DefaultOffset;
+	if (PrevDefaultOffset)
+	{
+		DefaultOffset = *PrevDefaultOffset;
+	}
+	else
+	{
+		DefaultOffset = MaterialCompilationOutput.UniformExpressionSet.DefaultValues.Num();
+		DefaultUniformValues.Add(DefaultValue, DefaultOffset);
+		UE::Shader::FMemoryImageValue DefaultValueMemory = DefaultValue.AsMemoryImage();
+		MaterialCompilationOutput.UniformExpressionSet.DefaultValues.Append(DefaultValueMemory.Bytes, DefaultValueMemory.Size);
+	}
+
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;
+
 	int32 ParameterIndex = INDEX_NONE;
-	for (int32 i = 0; i < MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.Num(); ++i)
+	for (int32 i = 0; i < MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.Num(); ++i)
 	{
-		const FMaterialScalarParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters[i];
-		if (Parameter.ParameterInfo == ParameterInfo)
+		const FMaterialNumericParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters[i];
+		if (Parameter.ParameterType == ParameterType && Parameter.ParameterInfo == ParameterInfo)
 		{
 			ParameterIndex = i;
 			break;
@@ -3992,39 +4046,14 @@ int32 FHLSLMaterialTranslator::ScalarParameter(FName ParameterName, float Defaul
 	}
 	if (ParameterIndex == INDEX_NONE)
 	{
-		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.Num();
-		FMaterialScalarParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.AddDefaulted_GetRef();
+		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.Num();
+		FMaterialNumericParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.AddDefaulted_GetRef();
 		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.DefaultValue = DefaultValue;
+		Parameter.ParameterType = ParameterType;
+		Parameter.DefaultValueOffset = DefaultOffset;
 	}
 
-	return AddUniformExpression(new FMaterialUniformExpressionScalarParameter(ParameterInfo, ParameterIndex), MCT_Float, TEXT(""));
-}
-
-int32 FHLSLMaterialTranslator::VectorParameter(FName ParameterName, const FLinearColor& DefaultValue)
-{
-	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
-	ParameterInfo.Name = ParameterName;
-
-	int32 ParameterIndex = INDEX_NONE;
-	for (int32 i = 0; i < MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.Num(); ++i)
-	{
-		const FMaterialVectorParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters[i];
-		if (Parameter.ParameterInfo == ParameterInfo)
-		{
-			ParameterIndex = i;
-			break;
-		}
-	}
-	if (ParameterIndex == INDEX_NONE)
-	{
-		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.Num();
-		FMaterialVectorParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.AddDefaulted_GetRef();
-		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.DefaultValue = DefaultValue;
-	}
-
-	return AddUniformExpression(new FMaterialUniformExpressionVectorParameter(ParameterInfo, ParameterIndex), MCT_Float4, TEXT(""));
+	return AddUniformExpression(new FMaterialUniformExpressionGenericParameter(ParameterInfo, ParameterIndex), GetMaterialValueType(ParameterType), TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::Constant(float X)

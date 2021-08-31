@@ -2,6 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/MemoryLayout.h"
 
 namespace UE
 {
@@ -49,6 +50,7 @@ enum class EValueType : uint8
 	MaterialAttributes,
 };
 
+uint32 GetComponentTypeSizeInBytes(EValueComponentType Type);
 FValueTypeDescription GetValueTypeDescription(EValueType Type);
 EValueType MakeValueType(EValueComponentType ComponentType, int32 NumComponents);
 EValueType MakeValueType(EValueType BaseType, int32 NumComponents);
@@ -67,14 +69,24 @@ using FFloatValue = TValue<float>;
 using FIntValue = TValue<int32>;
 using FBoolValue = TValue<bool>;
 
+struct FMemoryImageValue
+{
+	static const uint32 MaxSize = sizeof(double) * 4;
+	uint8 Bytes[MaxSize];
+	uint32 Size;
+};
+
 union FValueComponent
 {
 	FValueComponent() : Packed(0u) {}
 
+	// 'Bool' is stored as uint8 to avoid changing on different compilers
+	bool AsBool() const { return Bool != 0u; }
+
 	uint32 Packed;
 	float Float;
 	int32 Int;
-	bool Bool;
+	uint8 Bool;
 };
 static_assert(sizeof(FValueComponent) == sizeof(uint32), "bad packing");
 
@@ -151,6 +163,14 @@ struct FValue
 		Component[0].Bool = v;
 	}
 
+	inline FValue(bool X, bool Y, bool Z, bool W) : ComponentType(EValueComponentType::Bool), NumComponents(4)
+	{
+		Component[0].Bool = X;
+		Component[1].Bool = Y;
+		Component[2].Bool = Z;
+		Component[3].Bool = W;
+	}
+
 	inline FValue(int32 v) : ComponentType(EValueComponentType::Int), NumComponents(1)
 	{
 		Component[0].Int = v;
@@ -160,11 +180,16 @@ struct FValue
 
 	inline const FValueComponent& GetComponent(int32 i) const { check(i >= 0 && i < NumComponents); return Component[i]; }
 
+	static FValue FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes = nullptr);
+
+	FMemoryImageValue AsMemoryImage() const;
+
 	FFloatValue AsFloat() const;
 	FIntValue AsInt() const;
 	FBoolValue AsBool() const;
 
 	FLinearColor AsLinearColor() const;
+	float AsFloatScalar() const;
 	bool AsBoolScalar() const;
 
 	EValueComponentType ComponentType;
@@ -174,6 +199,7 @@ struct FValue
 
 ENGINE_API bool operator==(const FValue& Lhs, const FValue& Rhs);
 inline bool operator!=(const FValue& Lhs, const FValue& Rhs) { return !operator==(Lhs, Rhs); }
+ENGINE_API uint32 GetTypeHash(const FValue& Value);
 
 ENGINE_API FValue Abs(const FValue& Value);
 ENGINE_API FValue Saturate(const FValue& Value);
@@ -208,3 +234,6 @@ ENGINE_API FValue Cross(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Append(const FValue& Lhs, const FValue& Rhs);
 }
 }
+
+DECLARE_INTRINSIC_TYPE_LAYOUT(UE::Shader::EValueType);
+DECLARE_INTRINSIC_TYPE_LAYOUT(UE::Shader::EValueComponentType);

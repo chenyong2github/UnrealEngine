@@ -7877,7 +7877,7 @@ void UMaterialExpressionVectorParameter::PostEditChangeProperty(FPropertyChanged
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue))
 	{
 		// Callback into the editor
-		FEditorSupportDelegates::VectorParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+		FEditorSupportDelegates::NumericParameterDefaultChanged.Broadcast(this, EMaterialParameterType::Vector, ParameterName, DefaultValue);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, PrimitiveDataIndex))
 	{
@@ -8048,7 +8048,7 @@ void UMaterialExpressionChannelMaskParameter::PostEditChangeProperty(FPropertyCh
 			DefaultValue = FLinearColor(0.0f, 0.0f, 0.0f, 1.0f); break;
 		}
 
-		FEditorSupportDelegates::VectorParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+		FEditorSupportDelegates::NumericParameterDefaultChanged.Broadcast(this, EMaterialParameterType::Vector, ParameterName, DefaultValue);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionVectorParameter, DefaultValue))
 	{
@@ -8199,7 +8199,7 @@ void UMaterialExpressionScalarParameter::PostEditChangeProperty(FPropertyChanged
 	if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, DefaultValue))
 	{
 		// Callback into the editor
-		FEditorSupportDelegates::ScalarParameterDefaultChanged.Broadcast(this, ParameterName, DefaultValue);
+		FEditorSupportDelegates::NumericParameterDefaultChanged.Broadcast(this, EMaterialParameterType::Scalar, ParameterName, DefaultValue);
 	}
 	else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UMaterialExpressionScalarParameter, PrimitiveDataIndex))
 	{

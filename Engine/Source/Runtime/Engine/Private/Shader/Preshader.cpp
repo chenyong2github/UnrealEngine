@@ -14,6 +14,19 @@ void UE::Shader::FPreshaderData::WriteData(const void* Value, uint32 Size)
 	Data.Append((uint8*)Value, Size);
 }
 
+template<>
+UE::Shader::FPreshaderData& UE::Shader::FPreshaderData::Write<UE::Shader::FValue>(const FValue& Value)
+{
+	const EValueType Type = Value.GetType();
+	FMemoryImageValue MemoryValue = Value.AsMemoryImage();
+	Data.Add((uint8)Type);
+	if (MemoryValue.Size > 0u)
+	{
+		Data.Append(MemoryValue.Bytes, MemoryValue.Size);
+	}
+	return *this;
+}
+
 void UE::Shader::FPreshaderData::WriteName(const FScriptName& Name)
 {
 	int32 Index = Names.Find(Name);
@@ -102,74 +115,61 @@ FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(UE
 	return FHashedMaterialParameterInfo(Name, Association, Index);
 }
 
-static void GetVectorParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, UE::Shader::FValue& OutValue)
+template<>
+UE::Shader::FValue ReadPreshaderValue<UE::Shader::FValue>(UE::Shader::FPreshaderDataContext& RESTRICT Data)
 {
-	const FMaterialVectorParameterInfo& Parameter = UniformExpressionSet.GetVectorParameter(ParameterIndex);
-
-	FLinearColor ParameterValue(ForceInitToZero);
-	bool bNeedsDefaultValue = false;
-	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetVectorValue(Parameter.ParameterInfo, &ParameterValue, Context))
-	{
-		if (Context.Material.HasMaterialLayers())
-		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetVectorParameterDefaultValue(Parameter.ParameterInfo, ParameterValue))
-			{
-				bNeedsDefaultValue = true;
-			}
-		}
-		else
-		{
-			bNeedsDefaultValue = true;
-		}
-	}
-
-	if (bNeedsDefaultValue)
-	{
-#if WITH_EDITOR
-		if (!Context.Material.TransientOverrides.GetVectorOverride(Parameter.ParameterInfo, ParameterValue))
-#endif // WITH_EDITOR
-		{
-			Parameter.GetDefaultValue(ParameterValue);
-		}
-	}
-
-	OutValue = ParameterValue;
+	const UE::Shader::EValueType Type = (UE::Shader::EValueType)ReadPreshaderValue<uint8>(Data);
+	uint32 Size = 0u;
+	UE::Shader::FValue Result = UE::Shader::FValue::FromMemoryImage(Type, Data.Ptr, &Size);
+	Data.Ptr += Size;
+	checkSlow(Data.Ptr <= Data.EndPtr);
+	return Result;
 }
 
-static void GetScalarParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, UE::Shader::FValue& OutValue)
+static void EvaluateParameter(const FUniformExpressionSet& UniformExpressionSet, uint32 ParameterIndex, const FMaterialRenderContext& Context, UE::Shader::FValue& OutValue)
 {
-	const FMaterialScalarParameterInfo& Parameter = UniformExpressionSet.GetScalarParameter(ParameterIndex);
+	const FMaterialNumericParameterInfo& Parameter = UniformExpressionSet.GetNumericParameter(ParameterIndex);
+	bool bFoundParameter = false;
 
-	float ParameterValue = 0.0f;
-	bool bNeedsDefaultValue = false;
-	if (!Context.MaterialRenderProxy || !Context.MaterialRenderProxy->GetScalarValue(Parameter.ParameterInfo, &ParameterValue, Context))
+	// First allow proxy the chance to override parameter
+	if (Context.MaterialRenderProxy)
 	{
-		if (Context.Material.HasMaterialLayers())
+		FMaterialParameterValue ParameterValue;
+		if (Context.MaterialRenderProxy->GetParameterValue(Parameter.ParameterType, Parameter.ParameterInfo, ParameterValue, Context))
 		{
-			UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
-			if (!Interface || !Interface->GetScalarParameterDefaultValue(Parameter.ParameterInfo, ParameterValue))
+			OutValue = ParameterValue.AsShaderValue();
+			bFoundParameter = true;
+		}
+	}
+
+	// Allow interface to override default value, only needed if using material layers
+	if (!bFoundParameter && Context.Material.HasMaterialLayers())
+	{
+		UMaterialInterface* Interface = Context.Material.GetMaterialInterface();
+		if (Interface)
+		{
+			FMaterialParameterMetadata ParameterValue;
+			if (Interface->GetParameterDefaultValue(Parameter.ParameterType, Parameter.ParameterInfo, ParameterValue))
 			{
-				bNeedsDefaultValue = true;
+				OutValue = ParameterValue.Value.AsShaderValue();
+				bFoundParameter = true;
 			}
 		}
-		else
-		{
-			bNeedsDefaultValue = true;
-		}
 	}
 
-	if (bNeedsDefaultValue)
-	{
+	// Editor overrides
 #if WITH_EDITOR
-		if (!Context.Material.TransientOverrides.GetScalarOverride(Parameter.ParameterInfo, ParameterValue))
-#endif // WITH_EDITOR
-		{
-			Parameter.GetDefaultValue(ParameterValue);
-		}
+	if (!bFoundParameter)
+	{
+		bFoundParameter = Context.Material.TransientOverrides.GetNumericOverride(Parameter.ParameterType, Parameter.ParameterInfo, OutValue);
 	}
+#endif // WITH_EDITOR
 
-	OutValue = ParameterValue;
+	// Default value
+	if (!bFoundParameter)
+	{
+		OutValue = UniformExpressionSet.GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset);
+	}
 }
 
 template<typename Operation>
@@ -339,13 +339,9 @@ void UE::Shader::EvaluatePreshader(const FUniformExpressionSet* UniformExpressio
 		case EPreshaderOpcode::Constant:
 			Stack.Add(ReadPreshaderValue<UE::Shader::FValue>(Data));
 			break;
-		case EPreshaderOpcode::VectorParameter:
+		case EPreshaderOpcode::Parameter:
 			check(UniformExpressionSet);
-			GetVectorParameter(*UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context, Stack.AddDefaulted_GetRef());
-			break;
-		case EPreshaderOpcode::ScalarParameter:
-			check(UniformExpressionSet);
-			GetScalarParameter(*UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context, Stack.AddDefaulted_GetRef());
+			EvaluateParameter(*UniformExpressionSet, ReadPreshaderValue<uint16>(Data), Context, Stack.AddDefaulted_GetRef());
 			break;
 		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, UE::Shader::Add); break;
 		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, UE::Shader::Sub); break;

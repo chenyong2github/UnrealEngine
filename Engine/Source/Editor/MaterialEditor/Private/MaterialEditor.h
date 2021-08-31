@@ -127,38 +127,11 @@ public:
 		return UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 	}
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override
 	{
 		if (Expression.IsValid() && Expression->Material)
 		{
-			return Expression->Material->GetRenderProxy()->GetVectorValue(ParameterInfo, OutValue, Context);
-		}
-		return false;
-	}
-
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (Expression.IsValid() && Expression->Material)
-		{
-			return Expression->Material->GetRenderProxy()->GetScalarValue(ParameterInfo, OutValue, Context);
-		}
-		return false;
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (Expression.IsValid() && Expression->Material)
-		{
-			return Expression->Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
-		}
-		return false;
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (Expression.IsValid() && Expression->Material)
-		{
-			return Expression->Material->GetRenderProxy()->GetTextureValue(ParameterInfo, OutValue, Context);
+			return Expression->Material->GetRenderProxy()->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 		}
 		return false;
 	}
@@ -833,12 +806,10 @@ private:
 	/** Callback when an asset is imported */
 	void OnAssetPostImport(UFactory* InFactory, UObject* InObject);
 
-	void OnVectorParameterDefaultChanged(class UMaterialExpression*, FName ParameterName, const FLinearColor& Value);
-	void OnScalarParameterDefaultChanged(class UMaterialExpression*, FName ParameterName, float Value);
+	void OnNumericParameterDefaultChanged(class UMaterialExpression*, EMaterialParameterType Type, FName ParameterName, const UE::Shader::FValue& Value);
 	void OnParameterDefaultChanged();
 
-	void SetVectorParameterDefaultOnDependentMaterials(FName ParameterName, const FLinearColor& Value, bool bOverride);
-	void SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float, bool bOverride);
+	void SetNumericParameterDefaultOnDependentMaterials(EMaterialParameterType Type, FName ParameterName, const UE::Shader::FValue& Value, bool bOverride);
 
 	// FEditorUndoClient Interface
 	virtual void PostUndo(bool bSuccess) override;
@@ -980,8 +951,7 @@ private:
 	/** Used to store material errors */
 	TArray<TSharedPtr<FMaterialInfo>> MaterialInfoList;
 
-	TArray<FName> OverriddenVectorParametersToRevert;
-	TArray<FName> OverriddenScalarParametersToRevert;
+	TSet<TTuple<EMaterialParameterType, FName>> OverriddenNumericParametersToRevert;
 
 	/** If true, don't render connectors that are not connected to anything. */
 	bool bHideUnusedConnectors;

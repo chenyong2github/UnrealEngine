@@ -1024,59 +1024,48 @@ public:
 		return Parent->GetFallback(InFeatureLevel);
 	}
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		if (ParameterInfo.Name == FName(TEXT("Landscape_RedMask")))
+		switch (Type)
 		{
-			*OutValue = R;
-			return true;
+		case EMaterialParameterType::Vector:
+			if (ParameterInfo.Name == FName(TEXT("Landscape_RedMask")))
+			{
+				OutValue = R;
+				return true;
+			}
+			else if (ParameterInfo.Name == FName(TEXT("Landscape_GreenMask")))
+			{
+				OutValue = G;
+				return true;
+			}
+			else if (ParameterInfo.Name == FName(TEXT("Landscape_BlueMask")))
+			{
+				OutValue = B;
+				return true;
+			}
+			break;
+		case EMaterialParameterType::Texture:
+			if (ParameterInfo.Name == FName(TEXT("Landscape_RedTexture")))
+			{
+				OutValue = RedTexture;
+				return true;
+			}
+			else if (ParameterInfo.Name == FName(TEXT("Landscape_GreenTexture")))
+			{
+				OutValue = GreenTexture;
+				return true;
+			}
+			else if (ParameterInfo.Name == FName(TEXT("Landscape_BlueTexture")))
+			{
+				OutValue = BlueTexture;
+				return true;
+			}
+			break;
+		default:
+			break;
 		}
-		else if (ParameterInfo.Name == FName(TEXT("Landscape_GreenMask")))
-		{
-			*OutValue = G;
-			return true;
-		}
-		else if (ParameterInfo.Name == FName(TEXT("Landscape_BlueMask")))
-		{
-			*OutValue = B;
-			return true;
-		}
-		else
-		{
-			return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		// NOTE: These should be returning black textures when NULL. The material will
-		// use a white texture if they are.
-		if (ParameterInfo.Name == FName(TEXT("Landscape_RedTexture")))
-		{
-			*OutValue = RedTexture;
-			return true;
-		}
-		else if (ParameterInfo.Name == FName(TEXT("Landscape_GreenTexture")))
-		{
-			*OutValue = GreenTexture;
-			return true;
-		}
-		else if (ParameterInfo.Name == FName(TEXT("Landscape_BlueTexture")))
-		{
-			*OutValue = BlueTexture;
-			return true;
-		}
-		else
-		{
-			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 };
 
@@ -1101,37 +1090,29 @@ public:
 	{
 		return Parent->GetFallback(InFeatureLevel);
 	}
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		if (ParameterInfo.Name == FName(TEXT("HighlightColor")))
+		switch (Type)
 		{
-			*OutValue = FLinearColor(1.f, 0.5f, 0.5f);
-			return true;
+		case EMaterialParameterType::Vector:
+			if (ParameterInfo.Name == FName(TEXT("HighlightColor")))
+			{
+				OutValue = FLinearColor(1.f, 0.5f, 0.5f);
+				return true;
+			}
+			break;
+		case EMaterialParameterType::Texture:
+			if (ParameterInfo.Name == FName(TEXT("SelectedData")))
+			{
+				OutValue = SelectTexture;
+				return true;
+			}
+			break;
+		default:
+			break;
 		}
-		else
-		{
-			return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == FName(TEXT("SelectedData")))
-		{
-			*OutValue = SelectTexture;
-			return true;
-		}
-		else
-		{
-			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 };
 
@@ -1158,34 +1139,29 @@ public:
 	{
 		return Parent->GetFallback(InFeatureLevel);
 	}
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == FName(TEXT("bInverted")))
+		switch (Type)
 		{
-			*OutValue = bInverted;
-			return true;
+		case EMaterialParameterType::Scalar:
+			if (ParameterInfo.Name == FName(TEXT("bInverted")))
+			{
+				OutValue = (float)bInverted;
+				return true;
+			}
+			break;
+		case EMaterialParameterType::Texture:
+			if (ParameterInfo.Name == FName(TEXT("SelectedData")))
+			{
+				OutValue = SelectTexture;
+				return true;
+			}
+			break;
+		default:
+			break;
 		}
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == FName(TEXT("SelectedData")))
-		{
-			*OutValue = SelectTexture;
-			return true;
-		}
-		else
-		{
-			return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 };
 
@@ -1213,7 +1189,8 @@ public:
 	{
 		return Parent->GetFallback(InFeatureLevel);
 	}
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
 		static FName ColorNames[] =
 		{
@@ -1235,41 +1212,39 @@ public:
 			FName(TEXT("Color15"))
 		};
 
-		for (int32 i = 0; i < UE_ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
+		switch (Type)
 		{
-			if (ParameterInfo.Name == ColorNames[i])
+		case EMaterialParameterType::Vector:
+			for (int32 i = 0; i < UE_ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
 			{
-				*OutValue = LayerColors[i];
+				if (ParameterInfo.Name == ColorNames[i])
+				{
+					OutValue = LayerColors[i];
+					return true;
+				}
+			}
+			break;
+		case EMaterialParameterType::Scalar:
+			if (ParameterInfo.Name == FName(TEXT("Rotation")))
+			{
+				OutValue = Rotation;
 				return true;
 			}
+			else if (ParameterInfo.Name == FName(TEXT("NumStripes")))
+			{
+				OutValue = (float)LayerColors.Num();
+				return true;
+			}
+			else if (ParameterInfo.Name == FName(TEXT("ComponentSizeVerts")))
+			{
+				OutValue = (float)ComponentSizeVerts;
+				return true;
+			}
+			break;
+		default:
+			break;
 		}
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == FName(TEXT("Rotation")))
-		{
-			*OutValue = Rotation;
-			return true;
-		}
-		if (ParameterInfo.Name == FName(TEXT("NumStripes")))
-		{
-			*OutValue = LayerColors.Num();
-			return true;
-		}
-		if (ParameterInfo.Name == FName(TEXT("ComponentSizeVerts")))
-		{
-			*OutValue = ComponentSizeVerts;
-			return true;
-		}		
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 };
