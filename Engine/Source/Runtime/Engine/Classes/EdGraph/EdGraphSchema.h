@@ -1212,4 +1212,12 @@ class ENGINE_API UEdGraphSchema : public UObject
 	*/
 	virtual TSharedPtr<FEdGraphSchemaAction> MakeActionFromVariableDescription(const UEdGraph* InEdGraph, const FBPVariableDescription& VariableDescription) const { return nullptr; }
 
+	/**
+	 * Insert additional actions into the blueprint action menu
+	 * @param InBlueprints List of all blueprints you want actions for.
+	 * @param InGraphs A list of graphs you want compatible actions for.
+	 * @param InPins A list of pins you want compatible actions for.
+	 * @param OutAllActions Resulting compatible actions
+	 */
+	virtual void InsertAdditionalActions(TArray<UBlueprint*> InBlueprints, TArray<UEdGraph*> InGraphs, TArray<UEdGraphPin*> InPins, FGraphActionListBuilderBase& OutAllActions) const {}
 };

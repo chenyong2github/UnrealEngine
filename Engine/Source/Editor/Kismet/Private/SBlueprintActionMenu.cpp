@@ -459,6 +459,12 @@ void SBlueprintActionMenu::CollectAllActions(FGraphActionListBuilderBase& OutAll
 	OutAllActions.Append(MenuBuilder); // @TODO: Avoid this copy
 	// also try adding promote to variable if we can do so.
 	TryInsertPromoteToVariable(FilterContext, OutAllActions);
+
+	// give the schema the opportunity to add another action
+	if(const UEdGraphSchema* Schema = Cast<const UEdGraphSchema>(GraphObj->GetSchema()))
+	{
+		Schema->InsertAdditionalActions(FilterContext.Blueprints, FilterContext.Graphs, FilterContext.Pins, OutAllActions);
+	}
 }
 
 void SBlueprintActionMenu::ConstructActionContext(FBlueprintActionContext& ContextDescOut)
