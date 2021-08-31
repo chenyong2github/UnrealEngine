@@ -578,7 +578,10 @@ public:
 	bool IsLocked() const { return LockStatus != LOCKSTATUS_Unlocked; }
 
 	/**
-	 * Clears/ removes the bulk data and resets element count to 0.
+	 * Clears/removes any currently allocated data payload and resets element count to 0.
+	 * 
+	 * Note that once this has been called, the bulkdata object will no longer be able to reload
+	 * it's payload from disk!
 	 */
 	void RemoveBulkData();
 

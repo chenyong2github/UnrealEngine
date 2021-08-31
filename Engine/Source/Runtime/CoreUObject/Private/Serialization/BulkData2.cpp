@@ -1440,13 +1440,11 @@ void FBulkDataBase::RemoveBulkData()
 	FreeData();
 
 	if (!IsUsingIODispatcher())
-	{ 
+	{
 		PackageTokenSystem::UnRegisterToken(Data.Token);
-		Data.Token = InvalidToken;
-	}
+	}	
 
-	BulkDataFlags = BULKDATA_None;
-
+	Data.Token = InvalidToken;
 }
 
 bool FBulkDataBase::StartAsyncLoading()
