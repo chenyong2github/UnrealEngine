@@ -5,6 +5,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Count.h"
 #include "AssetCompilingManager.h"
+#include "Async/ParallelFor.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookRequestCluster.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
@@ -20,7 +21,6 @@
 #include "UObject/ReferenceChainSearch.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/UObjectHash.h"
-#include "Async/ParallelFor.h"
 
 namespace UE
 {

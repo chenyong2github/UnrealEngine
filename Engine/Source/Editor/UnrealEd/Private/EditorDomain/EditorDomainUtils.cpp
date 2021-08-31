@@ -522,7 +522,7 @@ void UtilsInitialize()
 	GEditorPackageBlockList = ConstructPackageNameBlockList();
 
 	bool bTargetDomainClassUseBlockList = true;
-	if (FParse::Param(FCommandLine::Get(), TEXT("noiterate")))
+	if (FParse::Param(FCommandLine::Get(), TEXT("fullcook")))
 	{
 		// Allow list is marked as used, but is initialized empty
 		bTargetDomainClassUseBlockList = false;

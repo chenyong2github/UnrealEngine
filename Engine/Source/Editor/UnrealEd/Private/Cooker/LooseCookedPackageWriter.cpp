@@ -83,7 +83,7 @@ FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 void FLooseCookedPackageWriter::BeginCook(const FCookInfo& Info)
 {
 	bIterateSharedBuild = Info.bIterateSharedBuild;
-	if (Info.bCleanBuild)
+	if (Info.bFullBuild)
 	{
 		DeleteSandboxDirectory();
 	}

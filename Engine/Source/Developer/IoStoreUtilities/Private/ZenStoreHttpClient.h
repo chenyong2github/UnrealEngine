@@ -29,7 +29,7 @@ public:
 					FStringView ServerRoot, 
 					FStringView EngineRoot, 
 					FStringView ProjectRoot);
-	void EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild);
+	void EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild);
 
 	void InitializeReadOnly(FStringView InProjectId, FStringView InOplogId);
 

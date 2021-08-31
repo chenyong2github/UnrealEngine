@@ -112,11 +112,11 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 	bAllowEdit = true;
 }
 
-void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild)
+void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild)
 {
 	UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
-	if (bCleanBuild)
+	if (bFullBuild)
 	{
 		UE_LOG(LogZenStore, Display, TEXT("Deleting oplog '%s'/'%s' if it exists"), *FString(InProjectId), *FString(InOplogId));
 		Request->PerformBlockingDelete(OplogPath);
@@ -562,7 +562,7 @@ void FZenStoreHttpClient::Initialize(
 {
 }
 
-void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bCleanBuild)
+void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild)
 {
 }
 

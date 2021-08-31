@@ -7311,7 +7311,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 		}
 
 		const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-		const bool bIterative = !FParse::Param(FCommandLine::Get(), TEXT("noiterate")) && (bHybridIterativeEnabled || IsCookFlagSet(ECookInitializationFlags::Iterative));
+		const bool bIterative = !FParse::Param(FCommandLine::Get(), TEXT("fullcook")) && (bHybridIterativeEnabled || IsCookFlagSet(ECookInitializationFlags::Iterative));
 		const bool bIsSharedIterativeCook = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
 		TArray<TPair<const ITargetPlatform*,bool>, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
 		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> PopulatePlatforms;
@@ -7384,12 +7384,12 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 
 			ICookedPackageWriter::FCookInfo CookInfo;
 			CookInfo.CookMode = IsCookOnTheFlyMode() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
-			CookInfo.bCleanBuild = false;
+			CookInfo.bFullBuild = false;
 			CookInfo.bIterateSharedBuild = bIterateSharedBuild && !bShouldClearCookedContent;
 			bool bResetResults = false;
 			if (bShouldClearCookedContent)
 			{
-				CookInfo.bCleanBuild = true;
+				CookInfo.bFullBuild = true;
 				bResetResults = true;
 			}
 			else if (!PlatformData->bIsSandboxInitialized)
@@ -7402,7 +7402,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 				}
 			}
 			PackageWriter.BeginCook(CookInfo);
-			PlatformData->bCleanBuild = CookInfo.bCleanBuild;
+			PlatformData->bFullBuild = CookInfo.bFullBuild;
 			PlatformData->bIsSandboxInitialized = true;
 			ResetPlatforms.Emplace(TargetPlatform, bResetResults);
 		}

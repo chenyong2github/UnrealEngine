@@ -157,7 +157,7 @@ public:
 		};
 
 		ECookMode CookMode = CookByTheBookMode;
-		bool bCleanBuild = true;
+		bool bFullBuild = true;
 		bool bIterateSharedBuild = false;
 	};
 
