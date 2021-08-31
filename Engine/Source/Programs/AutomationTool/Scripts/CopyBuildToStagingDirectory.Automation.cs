@@ -870,7 +870,7 @@ namespace AutomationScripts
 					// Initialize platform extensions to stage.
 					var PlatformExtensionsToStage = new List<string>();
 					{
-						string PlatformExtensionName = SC.StageTargetPlatform.PlatformType.ToString();
+						string PlatformExtensionName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.PlatformType);
 						PlatformExtensionsToStage.Add(PlatformExtensionName);
 
 						DataDrivenPlatformInfo.ConfigDataDrivenPlatformInfo Info = DataDrivenPlatformInfo.GetDataDrivenInfoForPlatform(SC.StageTargetPlatform.PlatformType);
