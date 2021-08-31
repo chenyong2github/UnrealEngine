@@ -95,10 +95,11 @@ protected:
 	virtual void BindCommands() override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
+	void UpdateTriangleMaterialBasedOnBackground(bool IsBackgroundVisible);
 
 	// Wireframe Display Properties
 	float TriangleOpacity = 1.0;
-	const float TriangleDepthOffset = 0.5;
+	float TriangleDepthOffset = 0.5;
 	const float WireframeDepthOffset = 0.6;	
 	FColor TriangleColor = FColor(50, 194, 219);
 	FColor WireframeColor = FColor(50, 100, 219);
