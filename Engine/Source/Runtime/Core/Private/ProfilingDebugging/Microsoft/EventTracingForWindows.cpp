@@ -164,7 +164,7 @@ void FPlatformEvents::TraceEventCallback(PEVENT_RECORD Event)
 							::CloseHandle(ProcessHandle);
 						}
 
-						UE_TRACE_LOG(PlatformEvent, ThreadName, ContextSwitchChannel, NameLen * sizeof(TCHAR))
+						UE_TRACE_LOG(PlatformEvent, ThreadName, ContextSwitchChannel)
 							<< ThreadName.ThreadId(ThreadId)
 							<< ThreadName.ProcessId(ProcessId)
 							<< ThreadName.Name(Name, NameLen);
