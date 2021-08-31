@@ -1198,8 +1198,8 @@ int32 FGenericPlatformMisc::NumberOfWorkerThreadsToSpawn()
 
 	int32 NumberOfCores = FPlatformMisc::NumberOfCores();
 	int32 MaxWorkerThreadsWanted = (IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly()) ? MaxGameThreads : MaxThreads;
-	// need to spawn at least one worker thread (see FTaskGraphImplementation)
-	return FMath::Max(FMath::Min(NumberOfCores - 1, MaxWorkerThreadsWanted), 1);
+	// need to spawn at least two worker thread (see FTaskGraphImplementation)
+	return FMath::Max(FMath::Min(NumberOfCores - 1, MaxWorkerThreadsWanted), 2);
 }
 
 int32 FGenericPlatformMisc::NumberOfIOWorkerThreadsToSpawn()
