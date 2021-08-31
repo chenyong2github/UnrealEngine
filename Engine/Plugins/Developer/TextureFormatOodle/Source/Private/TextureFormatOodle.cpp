@@ -20,6 +20,7 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "TextureBuildFunction.h"
 #include "DerivedDataBuildFunctionFactory.h"
+#include "Tasks/Task.h"
 
 #include "oodle2tex.h"
 
@@ -853,6 +854,8 @@ public:
 
 	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_CompressImage);
+
 		check(InImage.SizeX > 0);
 		check(InImage.SizeY > 0);
 		check(InImage.NumSlices > 0);
@@ -1164,64 +1167,45 @@ static ITextureFormat* Singleton = NULL;
 // TFO_ plugins to Oodle to run Oodle system services in Unreal
 // @todo Oodle : factor this out and share for Core & Net some day
 
-// global map of TaskGraph references to uint64 for Oodle Jobify system
-// protected by TaskIdMapLock
-static uint8 PadToCacheLine1[64];
-static FCriticalSection TaskIdMapLock;
-// would be more efficient to split task ids into bins to reduce contention
-static uint64 NextTaskId = 1;
-static TMap<uint64, FGraphEventRef> TaskIdMap;
-static uint8 PadToCacheLine2[64];
-
 static OO_U64 OODLE_CALLBACK TFO_RunJob(t_fp_Oodle_Job* JobFunction, void* JobData, OO_U64* Dependencies, int NumDependencies, void* UserPtr)
 {
-	FGraphEventArray Prerequisites;
-	if ( NumDependencies > 0 )
-	{
-		// map uint64 dependencies to TaskGraph refs
-		Prerequisites.Reserve(NumDependencies);
+	using namespace UE::Tasks;
 
-		FScopeLock Lock(&TaskIdMapLock);
-		for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
-		{
-			uint64 Id = Dependencies[DependencyIndex];
-			FGraphEventRef Task = TaskIdMap[Id];
-			// operator [] does a check that Task was found
-			Prerequisites.Add(Task);
-		}
+	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_RunJob);
+	
+	TArray<Private::FTaskBase*> Prerequisites;
+	Prerequisites.Reserve(NumDependencies);
+	for (int DependencyIndex = 0; DependencyIndex < NumDependencies; DependencyIndex++)
+	{
+		Prerequisites.Add(reinterpret_cast<Private::FTaskBase*>(Dependencies[DependencyIndex]));
 	}
 
-	// don't hold TaskIdMapLock while dispatching task
-
-	// Use AnyBackgroundThreadNormalTask priority so we don't use Foreground time in the Editor
-	// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
-	FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady(
-		[JobFunction, JobData]()
+	auto* Task{ new Private::FTaskBase };
+	Task->Init(TEXT("OodleJob"), 
+		[JobFunction, JobData]
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(OodleJob);
 			JobFunction(JobData);
-		}, TStatId(), &Prerequisites, IsInGameThread() ? ENamedThreads::AnyThread : ENamedThreads::AnyBackgroundThreadNormalTask);
-	
-	// scope lock for NextTaskId and TaskIdMap
-	TaskIdMapLock.Lock();
-	uint64 Id = NextTaskId++;
-	TaskIdMap.Add(Id, MoveTemp(Task));
-	TaskIdMapLock.Unlock();
+		}, 
+		// Use Background priority so we don't use Foreground time in the Editor
+		// @todo maybe it's better to inherit so the outer caller can tell us if we are high priority or not?
+		IsInGameThread() ? ETaskPriority::Normal : ETaskPriority::BackgroundNormal
+	);
+	Task->AddPrerequisites(Prerequisites);
+	Task->TryLaunch();
 
-	return Id;
+	return reinterpret_cast<uint64>(Task);
 }
 
 static void OODLE_CALLBACK TFO_WaitJob(OO_U64 JobHandle, void* UserPtr)
 {
-	TaskIdMapLock.Lock();
-	FGraphEventRef Task = TaskIdMap[JobHandle];
-	// TMap operator [] checks that value is found
-	// can remove immediately (task may still be running)
-	//	because once WaitJob is called this handle can never be referred to by calling code
-	TaskIdMap.Remove(JobHandle);
-	TaskIdMapLock.Unlock();
-	
-	// don't hold TaskIdMapLock while waiting
-	FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task);
+	using namespace UE::Tasks;
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(Oodle_WaitJob);
+
+	Private::FTaskBase* Task = reinterpret_cast<Private::FTaskBase*>(JobHandle);
+	Task->Wait();
+	Task->Release();
 }
 
 static OO_BOOL OODLE_CALLBACK TFO_OodleAssert(const char* file, const int line, const char* function, const char* message)
