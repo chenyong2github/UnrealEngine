@@ -153,3 +153,13 @@ void FAnimNode_SkeletalControlBase::EvaluateSkeletalControl_AnyThread(FComponent
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+void FAnimNode_SkeletalControlBase::SetAlpha(float InAlpha)
+{
+	Alpha = InAlpha;
+	ActualAlpha = InAlpha;
+}
+
+float FAnimNode_SkeletalControlBase::GetAlpha() const
+{
+	return ActualAlpha;
+}

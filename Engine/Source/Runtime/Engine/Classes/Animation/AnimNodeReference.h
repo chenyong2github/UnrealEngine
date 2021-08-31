@@ -37,7 +37,7 @@ public:
 	template<typename NodeType>
 	NodeType* GetAnimNodePtr() const
 	{
-		if(AnimNode && AnimNodeStruct && NodeType::StaticStruct()->IsChildOf(AnimNodeStruct))
+		if(AnimNode && AnimNodeStruct && AnimNodeStruct->IsChildOf(NodeType::StaticStruct()))
 		{
 			return static_cast<NodeType*>(AnimNode);
 		}
@@ -75,7 +75,7 @@ public:
 	{
 		static_assert(TIsDerivedFrom<OtherContextType, FAnimNodeReference>::IsDerived, "Argument ContextType must derive from FAnimNodeReference");
 		
-		if(InReference.AnimNodeStruct && OtherContextType::FInternalNodeType::StaticStruct()->IsChildOf(InReference.AnimNodeStruct))
+		if(InReference.AnimNodeStruct && InReference.AnimNodeStruct->IsChildOf(OtherContextType::FInternalNodeType::StaticStruct()))
 		{
 			OutResult = EAnimNodeReferenceConversionResult::Succeeded;
 			

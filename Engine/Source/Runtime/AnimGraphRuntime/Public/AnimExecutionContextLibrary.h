@@ -27,8 +27,8 @@ public:
 	void Prototype_ThreadSafeAnimUpdateCall(const FAnimUpdateContext& Context, const FAnimNodeReference& Node) {}	
 #endif
 	
-	/** Get the anim instance that hosts this anim node */
-	UFUNCTION(BlueprintPure, Category = "Anim Node", meta=(BlueprintThreadSafe))
+	/** Get the anim instance that hosts this context */
+	UFUNCTION(BlueprintPure, Category = "Execution Context", meta=(BlueprintThreadSafe))
 	static UAnimInstance* GetAnimInstance(const FAnimExecutionContext& Context);
 
 	/** Internal compiler use only - Get a reference to an anim node by index */
@@ -36,18 +36,26 @@ public:
 	static FAnimNodeReference GetAnimNodeReference(UAnimInstance* Instance, int32 Index);
 
 	/** Convert to an initialization context */
-	UFUNCTION(BlueprintCallable, Category = "Anim Node", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
-	FAnimInitializationContext ConvertToInitializationContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result);
+	UFUNCTION(BlueprintCallable, Category = "Initialization Context", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	static FAnimInitializationContext ConvertToInitializationContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result);
 	
 	/** Convert to an update context */
-	UFUNCTION(BlueprintCallable, Category = "Anim Node", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Update Context", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FAnimUpdateContext ConvertToUpdateContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result);
 
+	/** Get the current delta time in seconds */
+	UFUNCTION(BlueprintPure, Category = "Update Context", meta=(BlueprintThreadSafe))
+	static float GetDeltaTime(const FAnimUpdateContext& Context);
+
+	/** Get the current weight of this branch of the graph */
+	UFUNCTION(BlueprintPure, Category = "Update Context", meta=(BlueprintThreadSafe))
+	static float GetCurrentWeight(const FAnimUpdateContext& Context);
+	
 	/** Convert to a pose context */
-	UFUNCTION(BlueprintCallable, Category = "Anim Node", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Pose Context", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FAnimPoseContext ConvertToPoseContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result);
 
 	/** Convert to a component space pose context */
-	UFUNCTION(BlueprintCallable, Category = "Anim Node", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
+	UFUNCTION(BlueprintCallable, Category = "Component Space Pose Context", meta=(BlueprintThreadSafe, ExpandEnumAsExecs = "Result"))
 	static FAnimComponentSpacePoseContext ConvertToComponentSpacePoseContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result);
 };
