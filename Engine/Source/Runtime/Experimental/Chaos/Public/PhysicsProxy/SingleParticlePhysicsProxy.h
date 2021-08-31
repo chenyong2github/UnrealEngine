@@ -170,9 +170,6 @@ public:
 	{
 		return static_cast<const Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
-
-	/** Gets the owning external object for this solver object, never used internally */
-	virtual UObject* GetOwner() const override { return Owner; }
 	
 private:
 	int32 InitializedOnStep = INDEX_NONE;
@@ -182,8 +179,6 @@ protected:
 	FParticleHandle* Handle;
 
 private:
-
-	UObject* Owner;
 
 	//Used by interpolation code
 	int32 PullDataInterpIdx_External;

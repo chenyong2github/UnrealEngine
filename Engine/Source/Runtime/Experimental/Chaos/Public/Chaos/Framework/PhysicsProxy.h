@@ -44,14 +44,12 @@ public:
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
 	TPhysicsProxy()
-		: IPhysicsProxyBase(ConcreteType())
-		, Owner(nullptr)
+		: IPhysicsProxyBase(ConcreteType(), nullptr)
 	{
 	}
 
 	explicit TPhysicsProxy(UObject* InOwner)
-		: IPhysicsProxyBase(ConcreteType())
-		, Owner(InOwner)
+		: IPhysicsProxyBase(ConcreteType(), InOwner)
 	{
 	}
 
@@ -121,21 +119,7 @@ public:
 
 	bool IsDirty() { return static_cast<Concrete*>(this)->IsDirty(); }
 
-
-
-	/** Gets the owning external object for this solver object, never used internally */
-	virtual UObject* GetOwner() const override { return Owner; }
-
 	void* GetUserData() const { return nullptr; }
 
 	Chaos::FRigidTransform3 GetTransform() const { return Chaos::FRigidTransform3(); }
-
-
-private:
-
-	/** 
-	 * The owner for this solver object, essentially user-data managed by the caller 
-	 * @see GetOwner
-	 */
-	UObject* Owner;
 };
