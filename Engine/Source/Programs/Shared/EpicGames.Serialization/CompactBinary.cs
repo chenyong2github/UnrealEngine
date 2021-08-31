@@ -1124,7 +1124,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		public DateTime AsDateTime()
 		{
-			return AsDateTime(default);
+			return AsDateTime(new DateTime(0, DateTimeKind.Utc));
 		}
 
 		/// <summary>
