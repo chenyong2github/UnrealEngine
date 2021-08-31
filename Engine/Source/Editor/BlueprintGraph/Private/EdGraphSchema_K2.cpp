@@ -7468,7 +7468,7 @@ namespace ContextMenuConsoleVariables
 		ECVF_Default);
 
 	/** Weight that a match to a category search has */
-	static float CategoryWeight = 5.0f;
+	static float CategoryWeight = 4.0f;
 	static FAutoConsoleVariableRef CVarCategoryWeight(
 		TEXT("ContextMenu.CategoryWeight"), CategoryWeight,
 		TEXT("The amount of weight placed on categories that match what the user has typed in"),
@@ -7489,13 +7489,13 @@ namespace ContextMenuConsoleVariables
 		ECVF_Default);
 
 	/** The multiplier given if the keyword starts with a term the user typed in */
-	static float StartsWithBonusWeightMultiplier = 2.0f;
+	static float StartsWithBonusWeightMultiplier = 4.0f;
 	static FAutoConsoleVariableRef CVarStartsWithBonusWeightMultiplier(
 		TEXT("ContextMenu.StartsWithBonusWeightMultiplier"), StartsWithBonusWeightMultiplier,
 		TEXT("The multiplier given if the keyword starts with a term the user typed in"),
 		ECVF_Default);
 
-	/** The multiplier given if the keyword starts with a term the user typed in */
+	/** The multiplier given if the keyword contains a term the user typed in */
 	static float WordContainsLetterWeightMultiplier = 0.5f;
 	static FAutoConsoleVariableRef CVarWordContainsLetterWeightMultiplier(
 		TEXT("ContextMenu.WordContainsLetterWeightMultiplier"), WordContainsLetterWeightMultiplier,
