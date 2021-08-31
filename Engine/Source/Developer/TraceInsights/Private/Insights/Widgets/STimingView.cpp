@@ -21,6 +21,7 @@
 #include "Styling/CoreStyle.h"
 #include "Styling/SlateBrush.h"
 #include "TraceServices/AnalysisService.h"
+#include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SComboButton.h"
@@ -75,6 +76,8 @@
 // start auto generated ids from a big number (MSB set to 1) to avoid collisions with ids for gpu/cpu tracks based on 32bit timeline index
 uint64 FBaseTimingTrack::IdGenerator = (1ULL << 63);
 
+uint32 STimingView::TimingViewId = 0;
+
 const TCHAR* GetFileActivityTypeName(TraceServices::EFileActivityType Type);
 uint32 GetFileActivityTypeColor(TraceServices::EFileActivityType Type);
 
@@ -95,6 +98,7 @@ STimingView::STimingView()
 	, GraphTrack(MakeShared<FTimingGraphTrack>())
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, MainFont(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, QuickFindTabId(TEXT("QuickFind"), TimingViewId++)
 {
 	DefaultTimeMarker->SetName(TEXT(""));
 	DefaultTimeMarker->SetColor(FLinearColor(0.85f, 0.5f, 0.03f, 0.5f));
@@ -249,11 +253,15 @@ void STimingView::Construct(const FArguments& InArgs)
 		]
 	];
 
-	Insights::SQuickFind::RegisterQuickFindTab();
 	UpdateHorizontalScrollBar();
 	UpdateVerticalScrollBar();
 
 	BindCommands();
+
+	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(QuickFindTabId,
+		FOnSpawnTab::CreateSP(this, &STimingView::SpawnQuickFindTab))
+		.SetDisplayName(LOCTEXT("QuickFindTabTitle", "Quick Find"))
+		.SetMenuType(ETabSpawnerMenuType::Hidden);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -4204,7 +4212,46 @@ void STimingView::QuickFind_Execute()
 		QuickFindVm->GetOnClearFiltersEvent().AddSP(this, &STimingView::ClearFilters);
 	}
 
-	SQuickFind::CreateAndOpenQuickFilterWidget(QuickFindVm);
+	SAssignNew(QuickFindWidgetSharedPtr, SQuickFind, QuickFindVm);
+
+	if (FGlobalTabmanager::Get()->HasTabSpawner(QuickFindTabId))
+	{
+		FGlobalTabmanager::Get()->TryInvokeTab(QuickFindTabId);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<SDockTab> STimingView::SpawnQuickFindTab(const FSpawnTabArgs& Args)
+{
+	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
+		.TabRole(ETabRole::NomadTab);
+
+	if (!QuickFindWidgetSharedPtr.IsValid())
+	{
+		return DockTab;
+	}
+
+	DockTab->SetContent(QuickFindWidgetSharedPtr.ToSharedRef());
+	QuickFindWidgetSharedPtr->SetParentTab(DockTab);
+	QuickFindWidgetWeakPtr = QuickFindWidgetSharedPtr;
+	QuickFindWidgetSharedPtr.Reset();
+	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::CloseQuickFindTab()
+{
+	TSharedPtr<Insights::SQuickFind> QuickFindWidget = QuickFindWidgetWeakPtr.Pin();
+	if (QuickFindWidget)
+	{
+		TSharedPtr<SDockTab> QuickFindTab = QuickFindWidget->GetParentTab().Pin();
+		if (QuickFindTab.IsValid())
+		{
+			QuickFindTab->RequestCloseTab();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

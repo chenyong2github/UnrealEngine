@@ -29,11 +29,13 @@ class FFrameSharedState;
 class FLoadingSharedState;
 class FMarkersTimingTrack;
 class FMenuBuilder;
+class FSpawnTabArgs;
 class FThreadTimingSharedState;
 class FTimeRulerTrack;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class FUICommandList;
+class SDockTab;
 class SOverlay;
 class SScrollBar;
 
@@ -42,6 +44,7 @@ namespace Insights
 	class ITimingViewExtender;
 	class FTimeMarker;
 	class FQuickFind;
+	class SQuickFind;
 }
 
 /** A custom widget used to display timing events. */
@@ -355,6 +358,8 @@ public:
 
 	TSharedPtr<FUICommandList> GetCommandList() { return CommandList; }
 
+	void CloseQuickFindTab();
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
@@ -445,6 +450,8 @@ protected:
 	void FindPrevEvent();
 	void FilterAllTracks();
 	void ClearFilters();
+
+	TSharedRef<SDockTab> SpawnQuickFindTab(const FSpawnTabArgs& Args);
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
@@ -641,4 +648,10 @@ protected:
 	TArray<TUniquePtr<ITimingEventRelation>> CurrentRelations;
 
 	TSharedPtr<Insights::FQuickFind> QuickFindVm;
+	static uint32 TimingViewId;
+	const FName QuickFindTabId;
+	
+	// Used only between the creation of the widget and the spawning of the owning tab. When the tab is spawned, we relinquish ownership.
+	TSharedPtr<Insights::SQuickFind> QuickFindWidgetSharedPtr;
+	TWeakPtr<Insights::SQuickFind> QuickFindWidgetWeakPtr;
 };

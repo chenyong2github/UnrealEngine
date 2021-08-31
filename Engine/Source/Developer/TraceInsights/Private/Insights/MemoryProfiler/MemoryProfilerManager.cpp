@@ -377,6 +377,12 @@ void FMemoryProfilerManager::OnWindowClosedEvent()
 	if (Wnd.IsValid())
 	{
 		Wnd->CloseMemAllocTableTreeTabs();
+
+		TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+		if (TimingView.IsValid())
+		{
+			TimingView->CloseQuickFindTab();
+		}
 	}
 }
 
