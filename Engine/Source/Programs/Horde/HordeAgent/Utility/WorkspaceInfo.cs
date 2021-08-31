@@ -342,7 +342,7 @@ namespace HordeAgent.Utility
 			// if we're running a preflight
 			if (PreflightChange > 0)
 			{
-				await Repository.UnshelveAsync(PerforceClient, PreflightChange, CancellationToken);
+				await Repository.UnshelveAsync(PerforceClient, StreamName, PreflightChange, CancellationToken);
 			}
 		}
 
