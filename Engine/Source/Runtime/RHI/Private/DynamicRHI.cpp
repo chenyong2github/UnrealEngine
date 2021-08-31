@@ -219,7 +219,7 @@ void RHIInit(bool bHasEditorToken)
 {
 	if (!GDynamicRHI)
 	{
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 		FRHIResource::StartTrackingAllResources();
 #endif
 
@@ -345,7 +345,7 @@ void RHIExit()
 		delete GDynamicRHI;
 		GDynamicRHI = NULL;
 
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 		FRHIResource::StopTrackingAllResources();
 #endif
 	}

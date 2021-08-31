@@ -963,7 +963,7 @@ public:
 	FD3D12SyncPoint UploadResourceDataViaCopyQueue(FResourceArrayInterface* InResourceArray);
 
 	// FRHIResource overrides
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
 		OutResourceInfo = FRHIResourceInfo{};

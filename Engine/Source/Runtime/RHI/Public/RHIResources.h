@@ -26,9 +26,17 @@
 #include "Containers/ClosableMpscQueue.h"
 #include "Misc/CoreDelegates.h"
 
+// RHI_WANT_RESOURCE_INFO should be controlled by the RHI module.
 #ifndef RHI_WANT_RESOURCE_INFO
 #define RHI_WANT_RESOURCE_INFO 0
 #endif
+
+// RHI_FORCE_DISABLE_RESOURCE_INFO can be defined anywhere else, like in GlobalDefinitions.
+#ifndef RHI_FORCE_DISABLE_RESOURCE_INFO
+#define RHI_FORCE_DISABLE_RESOURCE_INFO 0
+#endif
+
+#define RHI_ENABLE_RESOURCE_INFO (RHI_WANT_RESOURCE_INFO && !RHI_FORCE_DISABLE_RESOURCE_INFO)
 
 #ifndef RHI_RESOURCE_LIFETIME_VALIDATION
 #define RHI_RESOURCE_LIFETIME_VALIDATION 0
@@ -54,7 +62,7 @@ public:
 	FRHIResource(ERHIResourceType InResourceType)
 		: ResourceType(InResourceType)
 	{
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 		BeginTrackingResource(this);
 #endif
 	}
@@ -65,7 +73,7 @@ public:
 		check(AtomicFlags.GetNumRefs(std::memory_order_relaxed) == 0); // this should not have any outstanding refs
 		CurrentlyDeleting = nullptr;
 
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 		EndTrackingResource(this);
 #endif
 	}
@@ -137,7 +145,7 @@ public:
 
 	inline ERHIResourceType GetType() const { return ResourceType; }
 
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	// Get resource info if available.
 	// Should return true if the ResourceInfo was filled with data.
 	virtual bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const
@@ -309,7 +317,7 @@ private:
 
 	const ERHIResourceType ResourceType;
 	bool bCommitted { true };
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	bool bBeingTracked { false };
 #endif
 

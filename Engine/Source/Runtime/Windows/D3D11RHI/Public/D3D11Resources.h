@@ -339,7 +339,7 @@ public:
 	virtual ~TD3D11Texture2D();
 
 	// FRHIResource overrides
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
 		OutResourceInfo = FRHIResourceInfo{};
@@ -444,7 +444,7 @@ public:
 	virtual ~FD3D11Texture3D();
 
 	// FRHIResource overrides
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
 		OutResourceInfo = FRHIResourceInfo{};
@@ -617,7 +617,7 @@ public:
 	}
 
 	// FRHIResource overrides
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 	bool GetResourceInfo(FRHIResourceInfo& OutResourceInfo) const override
 	{
 		OutResourceInfo = FRHIResourceInfo{};

@@ -17,7 +17,7 @@
 #include "Misc/BufferedOutputDevice.h"
 #include "Misc/OutputDeviceFile.h"
 
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 #include "HAL/FileManager.h"
 #endif
 
@@ -631,7 +631,7 @@ bool operator==(const FBlendStateInitializerRHI::FRenderTarget& A, const FBlendS
 	return bSame;
 }
 
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 
 static FCriticalSection GRHIResourceTrackingCriticalSection;
 static TSet<FRHIResource*> GRHITrackedResources;
@@ -1145,7 +1145,7 @@ static FAutoConsoleCommandWithWorldArgsAndOutputDevice GDumpRHIResourceMemoryCmd
 	BufferedOutput.RedirectTo(OutputDevice);
 }));
 
-#endif // RHI_WANT_RESOURCE_INFO
+#endif // RHI_ENABLE_RESOURCE_INFO
 
 bool FRHIResource::Bypass()
 {
