@@ -565,19 +565,24 @@ namespace HordeServer.Services.Impl
 			// Get the node associated with this step
 			INode Node = Graph.Groups[Batch.GroupIdx].Nodes[Step.NodeIdx];
 
+			// Gets the events for this step grouped by fingerprint
+			HashSet<NewEventGroup> EventGroups = await GetEventGroupsForStepAsync(Job, Batch, Step, Node);
+
 			// Figure out if we want notifications for this step
 			bool bNotifySuspects = Job.ShowUgsAlerts;
-			if(bNotifySuspects)
+			if (bNotifySuspects)
 			{
+				if (EventGroups.FirstOrDefault(Group => Group.Fingerprint.Type == "Compile" || Group.Fingerprint.Type == "Symbol" || Group.Fingerprint.Type == "Copyright") == null)
+				{
+					bNotifySuspects = false;
+				}
+				
 				string? StreamId = Job.StreamId.ToString();
 				if (StreamId != null && StreamId.StartsWith("fortnite-", StringComparison.Ordinal))
 				{
 					bNotifySuspects = false;
 				}
 			}
-
-			// Gets the events for this step grouped by fingerprint
-			HashSet<NewEventGroup> EventGroups = await GetEventGroupsForStepAsync(Job, Batch, Step, Node);
 
 			// Try to update all the events. We may need to restart this due to optimistic transactions, so keep track of any existing spans we do not need to check against.
 			HashSet<ObjectId> CheckedSpans = new HashSet<ObjectId>();
