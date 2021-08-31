@@ -582,4 +582,7 @@ public:
 	/* Additional random seeds */
 	UPROPERTY()
 	TArray<FInstancedStaticMeshRandomSeed> AdditionalRandomSeeds;
+
+	UPROPERTY()
+	bool bHasPerInstanceHitProxies;
 };

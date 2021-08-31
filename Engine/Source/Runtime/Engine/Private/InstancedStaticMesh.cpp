@@ -1926,6 +1926,9 @@ TStructOnScope<FActorComponentInstanceData> UInstancedStaticMeshComponent::GetCo
 	// Back up random seed
 	StaticMeshInstanceData->InstancingRandomSeed = InstancingRandomSeed;
 	StaticMeshInstanceData->AdditionalRandomSeeds = AdditionalRandomSeeds;
+
+	// Back up per-instance hit proxies
+	StaticMeshInstanceData->bHasPerInstanceHitProxies = bHasPerInstanceHitProxies;
 #endif
 	return InstanceData;
 }
@@ -1989,6 +1992,8 @@ void UInstancedStaticMeshComponent::ApplyComponentInstanceData(FInstancedStaticM
 
 	InstancingRandomSeed = InstancedMeshData->InstancingRandomSeed;
 	AdditionalRandomSeeds = InstancedMeshData->AdditionalRandomSeeds;
+
+	bHasPerInstanceHitProxies = InstancedMeshData->bHasPerInstanceHitProxies;
 
 	// Force recreation of the render data
 	InstanceUpdateCmdBuffer.Edit();
