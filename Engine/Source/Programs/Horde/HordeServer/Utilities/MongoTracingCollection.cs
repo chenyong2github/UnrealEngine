@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
 using System.Threading;
@@ -9,16 +9,16 @@ using MongoDB.Driver;
 using OpenTracing;
 using OpenTracing.Util;
 
-namespace HordeServer.Collections
+namespace HordeServer.Utiltiies
 {
 	/// <summary>
-	/// Wrap a IMongoCollection with Datadog tracing
+	/// Wrap a IMongoCollection with trace scopes
 	///
 	/// Will capture the entire invocation of MongoDB calls, including serialization.
 	/// The other command logging (not in this file) only deals with queries sent to the server at the protocol level.
 	/// </summary>
 	/// <typeparam name="T">A MongoDB document</typeparam>
-	public class DatadogTracingCollection<T> : IMongoCollection<T>
+	public class MongoTracingCollection<T> : IMongoCollection<T>
 	{
 		private readonly IMongoCollection<T> Collection;
 		private const string Prefix = "MongoCollection.";
@@ -27,7 +27,7 @@ namespace HordeServer.Collections
 		/// Constructor
 		/// </summary>
 		/// <param name="Collection">Collection to wrap with tracing</param>
-		public DatadogTracingCollection(IMongoCollection<T> Collection)
+		public MongoTracingCollection(IMongoCollection<T> Collection)
 		{
 			this.Collection = Collection;
 		}

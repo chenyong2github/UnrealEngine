@@ -413,6 +413,11 @@ namespace HordeServer
 		public int? GlobalThreadPoolMinSize { get; set; }
 
 		/// <summary>
+		/// Whether to enable Datadog integration for tracing
+		/// </summary>
+		public bool WithDatadog { get; set; }
+
+		/// <summary>
 		/// Path to the root config file
 		/// </summary>
 		public string ConfigPath { get; set; } = "Defaults/globals.json";
