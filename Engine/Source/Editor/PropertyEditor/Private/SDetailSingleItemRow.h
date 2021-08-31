@@ -93,10 +93,9 @@ private:
 	bool IsBlacklistChecked() const;
 
 
-	void OnArrayDragEnter(const FDragDropEvent& DragDropEvent);
 	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);
-	FReply OnArrayDrop(const FDragDropEvent& DragDropEvent);
-	FReply OnArrayHeaderDrop(const FDragDropEvent& DragDropEvent);
+	FReply OnArrayAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);
+	FReply OnArrayHeaderAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);
 
 	TOptional<EItemDropZone> OnArrayCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr< FDetailTreeNode > Type);
 
@@ -104,7 +103,7 @@ private:
 
 	/** Checks if the current drop event is being dropped into a valid location
 	 */
-	bool CheckValidDrop(const TSharedPtr<SDetailSingleItemRow> RowPtr) const;
+	bool CheckValidDrop(const TSharedPtr<SDetailSingleItemRow> RowPtr, EItemDropZone DropZone) const;
 	
 	TSharedPtr<FPropertyNode> GetPropertyNode() const;
 	TSharedPtr<IPropertyHandle> GetPropertyHandle() const;
@@ -115,7 +114,6 @@ private:
 	FDetailLayoutCustomization* Customization;
 	FDetailWidgetRow WidgetRow;
 	bool bAllowFavoriteSystem;
-	bool bIsHoveredDragTarget;
 	bool bIsDragDropObject;
 	bool bCachedResetToDefaultEnabled;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
@@ -129,19 +127,13 @@ public:
 
 	FArrayRowDragDropOp(TSharedPtr<SDetailSingleItemRow> InRow);
 
-	TSharedPtr<SWidget> DecoratorWidget;
+	/** Inits the tooltip, needs to be called after constructing */
+	void Init();
 
 	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override;
 
-	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
-	{
-		return DecoratorWidget;
-	}
+	/** Update the drag tool tip indicating whether the current drop target is valid */
+	void SetValidTarget(bool IsValidTarget);
 
 	TWeakPtr<SDetailSingleItemRow> Row;
-	bool IsValidTarget;
-
-private:
-	FText GetDecoratorText() const;
-	const FSlateBrush* GetDecoratorIcon() const;
 };
