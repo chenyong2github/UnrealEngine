@@ -6,6 +6,7 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/MeshTangents.h"
+#include "Image/ImageBuilder.h"
 
 namespace UE
 {
@@ -40,11 +41,23 @@ public:
 		DetailMesh = Mesh;
 		DetailSpatial = Spatial;
 	}
+	void SetDetailMeshTangents(const TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe>& Tangents)
+	{
+		DetailMeshTangents = Tangents;
+	}
+	void SetDetailMeshNormalMap(const TSharedPtr<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>& NormalMap)
+	{
+		DetailMeshNormalMap = NormalMap;
+	}
+	void SetDetailMeshNormalUVLayer(int32 Layer)
+	{
+		DetailMeshNormalUVLayer = Layer;
+	}
 	void SetTargetMesh(const FDynamicMesh3* Mesh)
 	{
 		TargetMesh = Mesh;
 	}
-	void SetTargetMeshTangents(const TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> Tangents)
+	void SetTargetMeshTangents(const TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe>& Tangents)
 	{
 		TargetMeshTangents = Tangents;
 	}
@@ -76,9 +89,9 @@ public:
 		check(TargetMesh && TargetMesh->HasAttributes());
 		return TargetMesh->Attributes()->PrimaryNormals();
 	}
-	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> GetTargetMeshTangents() const
+	const FMeshTangentsd* GetTargetMeshTangents() const
 	{
-		return TargetMeshTangents;
+		return TargetMeshTangents.Get();
 	}
 
 	// DetailMesh Getters
@@ -105,6 +118,18 @@ public:
 		check(DetailMesh && DetailMesh->HasAttributes());
 		return DetailMesh->Attributes()->PrimaryColors();
 	}
+	const FMeshTangentsd* GetDetailMeshTangents() const
+	{
+		return DetailMeshTangents.Get();
+	}
+	const TImageBuilder<FVector4f>* GetDetailMeshNormalMap() const
+	{
+		return DetailMeshNormalMap.Get();
+	}
+	int32 GetDetailMeshNormalUVLayer() const
+	{
+		return DetailMeshNormalUVLayer;
+	}
 
 	// Other Getters
 	int32 GetUVLayer() const
@@ -123,6 +148,10 @@ public:
 protected:
 	const FDynamicMesh3* DetailMesh = nullptr;
 	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
+	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> DetailMeshTangents;
+	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> DetailMeshNormalMap;
+	int32 DetailMeshNormalUVLayer = 0;
+	
 	const FDynamicMesh3* TargetMesh = nullptr;
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents;
 

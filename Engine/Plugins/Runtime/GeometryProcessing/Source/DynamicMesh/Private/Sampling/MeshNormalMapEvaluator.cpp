@@ -9,24 +9,30 @@ using namespace UE::Geometry;
 
 void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
-	Context.Evaluate = &EvaluateSample;
+	// Cache data from the baker
+	DetailMesh = Baker.GetDetailMesh();
+	DetailNormalOverlay = Baker.GetDetailMeshNormals();
+	checkSlow(DetailNormalOverlay);
+	const int32 DetailUVLayer = Baker.GetDetailMeshNormalUVLayer();
+	DetailUVOverlay = Baker.GetDetailMeshUVs(DetailUVLayer);
+	checkSlow(DetailUVOverlay);
+	BaseMeshTangents = Baker.GetTargetMeshTangents();
+	DetailMeshTangents = Baker.GetDetailMeshTangents();
+	DetailMeshNormalMap = Baker.GetDetailMeshNormalMap();
+
+	Context.Evaluate = DetailMeshNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float3 };
-
-	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
-	DetailNormalOverlay = Baker.GetDetailMeshNormals();
-	checkSlow(DetailNormalOverlay);
-	BaseMeshTangents = Baker.GetTargetMeshTangents().Get();
 }
 
+template <bool bUseDetailNormalMap>
 void FMeshNormalMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
 	FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
-	const FVector3f SampleResult = Eval->SampleFunction(Sample);
+	const FVector3f SampleResult = Eval->SampleFunction<bUseDetailNormalMap>(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
 
@@ -45,9 +51,11 @@ void FMeshNormalMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVect
 	In += 3;
 }
 
+template <bool bUseDetailNormalMap>
 FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData) const
 {
-	int32 DetailTriID = SampleData.DetailTriID;
+	FVector3f Result = FVector3f::UnitZ();
+	const int32 DetailTriID = SampleData.DetailTriID;
 	if (DetailMesh->IsTriangle(DetailTriID))
 	{
 		// get tangents on base mesh
@@ -61,13 +69,42 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 		FVector3d DetailNormal;
 		DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
 		Normalize(DetailNormal);
+		
+		if constexpr (bUseDetailNormalMap)
+		{
+			FVector3d DetailTangentX, DetailTangentY;
+			DetailMeshTangents->GetInterpolatedTriangleTangent(
+				SampleData.DetailTriID,
+				SampleData.DetailBaryCoords,
+				DetailTangentX, DetailTangentY);
+			
+			FVector2d DetailUV;
+        	DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
+			const FVector4f DetailNormalColor4 = SampleNormalMapFunction(DetailUV);
+
+			// Map color space [0,1] to normal space [-1,1]
+			const FVector3f DetailNormalColor(DetailNormalColor4.X, DetailNormalColor4.Y, DetailNormalColor4.Z);
+			const FVector3f DetailNormalTangentSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
+
+			// Convert detail normal tangent space to object space
+			FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * DetailTangentX + DetailNormalTangentSpace.Y * DetailTangentY + DetailNormalTangentSpace.Z * DetailNormal;
+			Normalize(DetailNormalObjectSpace);
+			DetailNormal = DetailNormalObjectSpace;
+		}
 
 		// compute normal in tangent space
-		double dx = DetailNormal.Dot(BaseTangentX);
-		double dy = DetailNormal.Dot(BaseTangentY);
-		double dz = DetailNormal.Dot(SampleData.BaseNormal);
+		const double dx = DetailNormal.Dot(BaseTangentX);
+		const double dy = DetailNormal.Dot(BaseTangentY);
+		const double dz = DetailNormal.Dot(SampleData.BaseNormal);
 
-		return FVector3f((float)dx, (float)dy, (float)dz);
+		Result = FVector3f((float)dx, (float)dy, (float)dz);
 	}
-	return FVector3f::UnitZ();
+	return Result;
 }
+
+FVector4f FMeshNormalMapEvaluator::SampleNormalMapFunction(const FVector2d& UVCoord) const
+{
+	return DetailMeshNormalMap->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
+}
+
+

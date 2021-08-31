@@ -178,6 +178,9 @@ protected:
 	TObjectPtr<UBakeMeshAttributeMapsToolProperties> Settings;
 
 	UPROPERTY()
+	TObjectPtr<UDetailMeshToolProperties> DetailMeshProps;
+
+	UPROPERTY()
 	TObjectPtr<UBakedNormalMapToolProperties> NormalMapProps;
 
 	UPROPERTY()
@@ -222,6 +225,7 @@ protected:
 
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> DetailMeshTangents;
 	int32 DetailMeshTimestamp = 0;
 	void UpdateDetailMesh();
 	bool bDetailMeshValid = false;
@@ -264,6 +268,10 @@ protected:
 	TArray<TObjectPtr<UTexture2D>> CachedMaps;
 	using CachedMapIndex = TMap<EBakeMapType, int32>;
 	CachedMapIndex CachedMapIndices;
+
+	FDetailMeshSettings CachedDetailMeshSettings;
+	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> CachedDetailNormalMap;
+	EBakeOpState UpdateResult_DetailNormalMap();
 
 	FNormalMapSettings CachedNormalMapSettings;
 	EBakeOpState UpdateResult_Normal();

@@ -111,9 +111,12 @@ TArray<FString> UBakeMeshAttributeMapsToolProperties::GetUVLayerNamesFunc()
 class FMeshMapBakerOp : public TGenericDataOperator<FMeshMapBaker>
 {
 public:
+	using ImagePtr = TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>;
+	
 	// General bake settings
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
 	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> DetailMeshTangents;
 	UE::Geometry::FDynamicMesh3* BaseMesh;
 	TUniquePtr<UE::Geometry::FMeshMapBaker> Baker;
 	UBakeMeshAttributeMapsTool::FBakeCacheSettings BakeCacheSettings;
@@ -127,8 +130,11 @@ public:
 	FMeshPropertyMapSettings PropertySettings;
 	FTexture2DImageSettings TextureSettings;
 
+	// NormalMap settings
+	ImagePtr DetailMeshNormalMap;
+	int32 DetailMeshNormalUVLayer = 0;
+
 	// Texture2DImage & MultiTexture settings
-	using ImagePtr = TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>;
 	const FDynamicMeshUVOverlay* UVOverlay = nullptr;
 	ImagePtr TextureImage;
 	TMap<int32, ImagePtr> MaterialToTextureImageMap;
@@ -147,6 +153,9 @@ public:
 		Baker->SetThickness(BakeCacheSettings.Thickness);
 		Baker->SetMultisampling(BakeCacheSettings.Multisampling);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
+		Baker->SetDetailMeshTangents(DetailMeshTangents);
+		Baker->SetDetailMeshNormalMap(DetailMeshNormalMap);
+		Baker->SetDetailMeshNormalUVLayer(DetailMeshNormalUVLayer);
 
 		for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
 		{
@@ -355,6 +364,27 @@ void UBakeMeshAttributeMapsTool::Setup()
 	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bDetailMeshValid = false; bInputsDirty = true; });
 	Settings->WatchProperty(Settings->Thickness, [this](float) { bInputsDirty = true; });
 	Settings->WatchProperty(Settings->Multisampling, [this](EBakeMultisampling) { bInputsDirty = true; });
+
+
+	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
+	IStaticMeshBackedTarget* DetailStaticMeshTarget = Cast<IStaticMeshBackedTarget>(DetailTarget);
+	UStaticMesh* DetailStaticMesh = DetailStaticMeshTarget ? DetailStaticMeshTarget->GetStaticMesh() : nullptr;
+
+	DetailMeshProps = NewObject<UDetailMeshToolProperties>(this);
+	AddToolPropertySource(DetailMeshProps);
+	SetToolPropertySourceEnabled(DetailMeshProps, true);
+	DetailMeshProps->DetailMesh = DetailStaticMesh;
+	DetailMeshProps->DetailMeshNormalMap = nullptr;
+	DetailMeshProps->WatchProperty(DetailMeshProps->DetailNormalUVLayer, [this](int) { bInputsDirty = true; });
+	DetailMeshProps->WatchProperty(DetailMeshProps->DetailMeshNormalMap, [this](UTexture2D*)
+	{
+		// Only invalidate detail mesh if we need to recompute tangents.
+		if (!DetailMeshTangents)
+		{
+			bDetailMeshValid = false;
+		}
+		bInputsDirty = true;
+	});
 	
 
 	NormalMapProps = NewObject<UBakedNormalMapToolProperties>(this);
@@ -449,10 +479,17 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 	Op->BaseMesh = &BaseMesh;
 	Op->BakeCacheSettings = CachedBakeCacheSettings;
 
-	const EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormalMap | EBakeMapType::BentNormal;
+	constexpr EBakeMapType RequiresTangents = EBakeMapType::TangentSpaceNormalMap | EBakeMapType::BentNormal;
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & RequiresTangents))
 	{
 		Op->BaseMeshTangents = BaseMeshTangents;
+	}
+
+	if (CachedDetailNormalMap)
+	{
+		Op->DetailMeshTangents = DetailMeshTangents;
+		Op->DetailMeshNormalMap = CachedDetailNormalMap;
+		Op->DetailMeshNormalUVLayer = CachedDetailMeshSettings.UVLayer;
 	}
 
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormalMap))
@@ -721,19 +758,31 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 {
 	UToolTarget* DetailTarget = Targets[bIsBakeToSelf ? 0 : 1];
 
-	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(UE::ToolTarget::GetDynamicMeshCopy(DetailTarget));
+	const bool bWantMeshTangents = (DetailMeshProps->DetailMeshNormalMap != nullptr);
+	DetailMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(UE::ToolTarget::GetDynamicMeshCopy(DetailTarget, bWantMeshTangents));
 
 	if (Settings->bUseWorldSpace && bIsBakeToSelf == false)
 	{
 		using FTransform3d = UE::Geometry::FTransform3d;
-		FTransform3d DetailToWorld = UE::ToolTarget::GetLocalToWorldTransform(DetailTarget);
+		const FTransform3d DetailToWorld = UE::ToolTarget::GetLocalToWorldTransform(DetailTarget);
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
-		FTransform3d WorldToBase = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+		const FTransform3d WorldToBase = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
 		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
 	}
 	
 	DetailSpatial = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>();
 	DetailSpatial->SetMesh(DetailMesh.Get(), true);
+
+	// Extract tangents if a DetailMesh normal map was provided.
+	if (bWantMeshTangents)
+	{
+		DetailMeshTangents = MakeShared<FMeshTangentsd, ESPMode::ThreadSafe>(DetailMesh.Get());
+		DetailMeshTangents->CopyTriVertexTangents(*DetailMesh);
+	}
+	else
+	{
+		DetailMeshTangents = nullptr;
+	}
 
 	GetTexturesFromDetailMesh(UE::ToolTarget::GetTargetComponent(DetailTarget));
 
@@ -799,6 +848,8 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	// Clear our invalid bitflag to check again for valid inputs.
 	OpState = EBakeOpState::Evaluate;
 
+	OpState |= UpdateResult_DetailNormalMap();
+
 	// Update map type settings
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::TangentSpaceNormalMap))
 	{
@@ -853,6 +904,43 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 	bInputsDirty = false;
 }
 
+
+EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_DetailNormalMap()
+{
+	EBakeOpState ResultState = EBakeOpState::Complete;
+	
+	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(DetailMeshProps->DetailNormalUVLayer);
+	if (UVOverlay == nullptr)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Detail Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
+		return EBakeOpState::Invalid;
+	}
+	
+	UTexture2D* DetailMeshNormalMap = DetailMeshProps->DetailMeshNormalMap; 
+	if (DetailMeshNormalMap)
+	{
+		CachedDetailNormalMap = MakeShared<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>();
+		if (!UE::AssetUtils::ReadTexture(DetailMeshNormalMap, *CachedDetailNormalMap, bPreferPlatformData))
+		{
+			// Report the failed texture read as a warning, but permit the bake to continue.
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the detail normal map texture"), EToolMessageLevel::UserWarning);
+		}
+	}
+	else
+	{
+		CachedDetailNormalMap = nullptr;
+	}
+
+	FDetailMeshSettings DetailMeshSettings;
+	DetailMeshSettings.UVLayer = DetailMeshProps->DetailNormalUVLayer;
+
+	if (!(CachedDetailMeshSettings == DetailMeshSettings))
+	{
+		CachedDetailMeshSettings = DetailMeshSettings;
+		ResultState = EBakeOpState::Evaluate;
+	}
+	return ResultState;
+}
 
 
 EBakeOpState UBakeMeshAttributeMapsTool::UpdateResult_Normal()
