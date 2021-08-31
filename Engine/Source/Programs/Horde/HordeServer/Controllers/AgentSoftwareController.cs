@@ -147,7 +147,8 @@ namespace HordeServer.Controllers
 				return NotFound();
 			}
 
-			return new FileStreamResult(new MemoryStream(Data), new MediaTypeHeaderValue("application/octet-stream"));
+			return new FileStreamResult(new MemoryStream(Data), new MediaTypeHeaderValue("application/octet-stream")) { FileDownloadName = $"HordeAgent.zip" };
+			
 		}
 	}
 }

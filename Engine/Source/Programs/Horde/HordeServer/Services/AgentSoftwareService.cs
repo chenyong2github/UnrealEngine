@@ -126,12 +126,6 @@ namespace HordeServer.Services
 		LazyCachedValue<Task<AgentSoftwareChannels>> ChannelsDocument;
 
 		/// <summary>
-		/// Singleton instance of the client service
-		/// </summary>
-		private readonly SoftwareService SoftwareService;
-
-
-		/// <summary>
 		/// The server settings
 		/// </summary>
 		IOptionsMonitor<ServerSettings> Settings;
@@ -146,15 +140,13 @@ namespace HordeServer.Services
 		/// Constructor
 		/// </summary>
 		/// <param name="Collection">The software collection</param>
-		/// <param name="Singleton">The channels singleton</param>
-		/// <param name="SoftwareService">The software service</param>
+		/// <param name="Singleton">The channels singleton</param>		
 		/// <param name="Settings">The settings monitor</param>		
 		/// <param name="Logger">The logger instance</param>
-		public AgentSoftwareService(IAgentSoftwareCollection Collection, ISingletonDocument<AgentSoftwareChannels> Singleton, SoftwareService SoftwareService, IOptionsMonitor<ServerSettings> Settings, ILogger<AgentSoftwareService> Logger)
+		public AgentSoftwareService(IAgentSoftwareCollection Collection, ISingletonDocument<AgentSoftwareChannels> Singleton, IOptionsMonitor<ServerSettings> Settings, ILogger<AgentSoftwareService> Logger)
 		{
 			this.Collection = Collection;
 			this.Singleton = Singleton;
-			this.SoftwareService = SoftwareService;
 			this.Settings = Settings;
 			this.Logger = Logger;
 
@@ -346,10 +338,9 @@ namespace HordeServer.Services
 				Logger.LogError(Ex, "Error checking default agent software, {Message}", Ex.Message);
 			}
 
-			using (System.IO.Stream Stream = File.OpenRead(AgentZip.ToString()))
-			{
-				await SoftwareService.CreateSoftwareAsync(Stream, null, true);
-			}
+            byte[] Bytes = await File.ReadAllBytesAsync(AgentZip.ToString());
+
+			string Version = await SetArchiveAsync(new AgentSoftwareChannelName("default"), null, Bytes);
 
 			if (!DirectoryReference.Exists(AgentHashFile.Directory))
 			{
