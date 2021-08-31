@@ -1988,6 +1988,19 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 
 	const bool bIsCameraActor = BoundActor ? BoundActor->IsA(ACameraActor::StaticClass()) : BoundComponent ? BoundComponent->IsA(UCameraComponent::StaticClass()) : false;
 
+	// If this actor has attached actors, and the bound component isn't the root component, skip the 3d transform track because we don't want the 
+	// component transform to be assigned to the actor, which would subsequently apply to the attached children 
+	if (Actor && Actor->GetRootComponent() != BoundComponent)
+	{
+		TArray<AActor*> AttachedActors;
+		Actor->GetAttachedActors(AttachedActors);
+
+		if (AttachedActors.Num() != 0)
+		{
+			bSkip3DTransformTrack = true;		
+		}
+	}
+
 	// If there's more than one transform track for this actor (ie. on the actor and on the root component) or if there's more than one section, evaluate baked
 	if (bIsCameraActor || TransformTracks.Num() > 1 || (TransformTracks.Num() != 0 && TransformTracks[0].Get()->GetAllSections().Num() > 1))
 	{
@@ -2126,6 +2139,10 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 		// this doesn't work with skeletalmeshcomponent
 		FbxNode* ParentNode = FindActor(ParentActor, &NodeNameAdapter);
 		FVector ActorLocation, ActorRotation, ActorScale;
+
+		TArray<AActor*> AttachedActors;
+		Actor->GetAttachedActors(AttachedActors);
+		const bool bHasAttachedActors = AttachedActors.Num() != 0;
 
 		// For cameras and lights: always add a rotation to get the correct coordinate system.
         FTransform RotationDirectionConvert = FTransform::Identity;
@@ -2266,7 +2283,8 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 					ExportNode = CompNode;
 					ActorNode->AddChild(CompNode);
 				}
-				else if(Component != Actor->GetRootComponent())
+				// If this actor has attached actors, don't allow its non root component components to contribute to the transform
+				else if(Component != Actor->GetRootComponent() && !bHasAttachedActors)
 				{
 					// Merge the component relative transform in the ActorNode transform since this is the only component to export and its not the root
 					const FTransform RelativeTransform = RotationDirectionConvert * Component->GetComponentToWorld().GetRelativeTransform(Actor->GetTransform());
@@ -2306,13 +2324,14 @@ FbxNode* FFbxExporter::ExportActor(AActor* Actor, bool bExportComponents, INodeN
 				{
 					ExportSkeletalMeshComponent(SkelMeshComp, *SkelMeshComp->GetName(), ExportNode, NodeNameAdapter, bSaveAnimSeq);
 				}
-				else if (Component->IsA(UCameraComponent::StaticClass()))
+				// If this actor has attached actors, don't allow a camera component to determine the node attributes because that would alter the transform
+				else if (Component->IsA(UCameraComponent::StaticClass()) && !bHasAttachedActors)
 				{
 					FbxCamera* Camera = FbxCamera::Create(Scene, TCHAR_TO_UTF8(*Component->GetName()));
 					FillFbxCameraAttribute(ActorNode, Camera, Cast<UCameraComponent>(Component));
 					ExportNode->SetNodeAttribute(Camera);
 				}
-				else if (Component->IsA(ULightComponent::StaticClass()))
+				else if (Component->IsA(ULightComponent::StaticClass()) && !bHasAttachedActors)
 				{
 					FbxLight* Light = FbxLight::Create(Scene, TCHAR_TO_UTF8(*Component->GetName()));
 					FillFbxLightAttribute(Light, ActorNode, Cast<ULightComponent>(Component));
@@ -3226,7 +3245,7 @@ void FFbxExporter::ExportLevelSequenceBaked3DTransformTrack(IAnimTrackAdapter& A
 		}
 	}
 
-	TArray<FTransform> WorldTransforms;
+	TArray<FTransform> RelativeTransforms;
 	int32 LocalStartFrame = FFrameRate::TransformTime(FFrameTime(DiscreteInclusiveLower(InPlaybackRange)), TickResolution, DisplayRate).RoundToFrame().Value;
 	int32 AnimationLength = FFrameRate::TransformTime(FFrameTime(FFrameNumber(DiscreteSize(InPlaybackRange))), TickResolution, DisplayRate).RoundToFrame().Value + 1; // Add one so that we export a key for the end frame
 
@@ -3262,13 +3281,27 @@ void FFbxExporter::ExportLevelSequenceBaked3DTransformTrack(IAnimTrackAdapter& A
 			Child = Child->GetAttachParent();
 		}
 		
-		FTransform WorldTransform = InterrogatedComponent->GetComponentToWorld();
-		WorldTransforms.Add(WorldTransform);
-	}
+		// Get the relative transform for this component. This can be complicated because we don't export scene components in the hierarchy. For example,
+		// ParentActor
+		// ChildActor
+		//    SceneComponent
+		//        CameraComponent
+		// When exporting CameraComponent, we don't export SceneComponent, so we need to get CameraComponent's world transform relative to ParentActor
+		// 
+		AActor* InterrogatedOwner = InterrogatedComponent->GetOwner();
+		AActor* AttachParentActor = InterrogatedOwner ? InterrogatedOwner->GetAttachParentActor() : nullptr;
+		FTransform ParentTransform = AttachParentActor ? AttachParentActor->GetTransform() : FTransform::Identity;
+		FTransform RelativeTransform = InterrogatedComponent->GetComponentToWorld().GetRelativeTransform(ParentTransform);
 
-	for (int32 TransformIndex = 0; TransformIndex < WorldTransforms.Num(); ++TransformIndex)
+		RelativeTransforms.Add(RelativeTransform);
+	}
+		
+	// Reset 
+	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
+
+	for (int32 TransformIndex = 0; TransformIndex < RelativeTransforms.Num(); ++TransformIndex)
 	{
-		FTransform RelativeTransform = RotationDirectionConvert * WorldTransforms[TransformIndex];
+		FTransform RelativeTransform = RotationDirectionConvert * RelativeTransforms[TransformIndex];
 
 		FbxVector4 KeyTrans = Converter.ConvertToFbxPos(RelativeTransform.GetTranslation());
 		FbxVector4 KeyRot = Converter.ConvertToFbxRot(RelativeTransform.GetRotation().Euler());
