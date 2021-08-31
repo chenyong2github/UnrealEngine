@@ -89,6 +89,7 @@ protected:
 	bool bShowGroupActors;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
+	FVector2D LastMouseCursorPosWorldDrag;
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
 	FBox SelectBox;
