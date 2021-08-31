@@ -379,4 +379,19 @@ void FLoadingProfilerManager::ShowHideRequestsTreeView(const bool bIsVisible)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FLoadingProfilerManager::OnWindowClosedEvent()
+{
+	TSharedPtr<SLoadingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd)
+	{
+		TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
+		if (TimingView.IsValid())
+		{
+			TimingView->CloseQuickFindTab();
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 #undef LOCTEXT_NAMESPACE

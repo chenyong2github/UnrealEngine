@@ -28,11 +28,6 @@ namespace Insights
 // SQuickFind
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FName const SQuickFind::QuickFindTabId(TEXT("QuickFilter"));
-TSharedPtr<SQuickFind> SQuickFind::PendingWidget;
-bool SQuickFind::bIsTabRegistered = false;
-
-
 SQuickFind::SQuickFind()
 {
 }
@@ -185,56 +180,6 @@ FReply SQuickFind::ClearFilters_OnClicked()
 	QuickFindViewModel->GetOnClearFiltersEvent().Broadcast();
 
 	return FReply::Handled();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void SQuickFind::RegisterQuickFindTab()
-{
-	if (bIsTabRegistered)
-	{
-		return;
-	}
-
-	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(QuickFindTabId,
-		FOnSpawnTab::CreateStatic(&SQuickFind::SpawnTab))
-		.SetDisplayName(LOCTEXT("FilterConfiguratorTabTitle", "Filter Configurator"))
-		.SetMenuType(ETabSpawnerMenuType::Hidden);
-
-	bIsTabRegistered = true;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedRef<SDockTab> SQuickFind::SpawnTab(const FSpawnTabArgs& Args)
-{
-	const TSharedRef<SDockTab> DockTab = SNew(SDockTab)
-		.TabRole(ETabRole::NomadTab);
-
-	if (!PendingWidget.IsValid())
-	{
-		return DockTab;
-	}
-
-	DockTab->SetContent(PendingWidget.ToSharedRef());
-	PendingWidget->SetParentTab(DockTab);
-
-	PendingWidget = nullptr;
-	return DockTab;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-TSharedPtr<SQuickFind> SQuickFind::CreateAndOpenQuickFilterWidget(TSharedPtr<FQuickFind> InQuickFindViewModel)
-{
-	SAssignNew(PendingWidget, SQuickFind, InQuickFindViewModel);
-
-	if (FGlobalTabmanager::Get()->HasTabSpawner(QuickFindTabId))
-	{
-		FGlobalTabmanager::Get()->TryInvokeTab(QuickFindTabId);
-	}
-
-	return PendingWidget;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
