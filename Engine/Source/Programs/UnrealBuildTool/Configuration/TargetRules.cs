@@ -212,8 +212,10 @@ namespace UnrealBuildTool
 
 		/// <summary>
 		/// File containing this target
+		/// Nullable, but expected to be set before the constructor of this object is run see e.g. RulesAssembly.CreateTargetRulesInstance()
+		/// Every use of this property can be null-forgiven i.e. File!
 		/// </summary>
-		internal FileReference File { get; set; }
+		internal FileReference? File { get; set; }
 
 		/// <summary>
 		/// Platform that this target is being built for.
@@ -259,7 +261,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Tracks a list of config values read while constructing this target
 		/// </summary>
-		internal ConfigValueTracker ConfigValueTracker = new ConfigValueTracker();
+		internal readonly ConfigValueTracker ConfigValueTracker;
 
 		/// <summary>
 		/// Whether the target uses Steam.
@@ -1492,7 +1494,7 @@ namespace UnrealBuildTool
 				{
 					return BuildEnvironmentOverride.Value;
 				}
-				if (Type == TargetType.Program && ProjectFile != null && File.IsUnderDirectory(ProjectFile.Directory))
+				if (Type == TargetType.Program && ProjectFile != null && File!.IsUnderDirectory(ProjectFile.Directory))
 				{
 					return TargetBuildEnvironment.Unique;
 				}
@@ -1638,13 +1640,14 @@ namespace UnrealBuildTool
 		[ConfigSubObject]
 		public HoloLensTargetRules HoloLensPlatform;
 
-#nullable disable
 		/// <summary>
 		/// Constructor.
 		/// </summary>
 		/// <param name="Target">Information about the target being built</param>
 		public TargetRules(TargetInfo Target)
 		{
+			// it is expected that this.File has been set before this constructor is invoked
+
 			this.DefaultName = Target.Name;
 			this.Platform = Target.Platform;
 			this.Configuration = Target.Configuration;
@@ -1655,15 +1658,17 @@ namespace UnrealBuildTool
 			this.HoloLensPlatform = new HoloLensTargetRules(Target);
 
 			// Read settings from config files
+			Dictionary<ConfigDependencyKey, IReadOnlyList<string>?> ConfigValues = new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>();
 			foreach (object ConfigurableObject in GetConfigurableObjects())
 			{
-				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValueTracker);
+				ConfigCache.ReadSettings(DirectoryReference.FromFile(ProjectFile), Platform, ConfigurableObject, ConfigValues);
 				XmlConfig.ApplyTo(ConfigurableObject);
 				if (Target.Arguments != null)
 				{
 					Target.Arguments.ApplyTo(ConfigurableObject);
 				}
 			}
+			ConfigValueTracker = new ConfigValueTracker(ConfigValues);
 
 			// If we've got a changelist set, set that we're making a formal build
 			bFormalBuild = (Version.Changelist != 0 && Version.IsPromotedBuild);
@@ -1688,8 +1693,8 @@ namespace UnrealBuildTool
 			// Get the directory to use for crypto settings. We can build engine targets (eg. UHT) with 
 			// a project file, but we can't use that to determine crypto settings without triggering
 			// constant rebuilds of UHT.
-			DirectoryReference CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
-			if (CryptoSettingsDir != null && File != null && !File.IsUnderDirectory(CryptoSettingsDir))
+			DirectoryReference? CryptoSettingsDir = DirectoryReference.FromFile(ProjectFile);
+			if (CryptoSettingsDir != null && !File!.IsUnderDirectory(CryptoSettingsDir))
 			{
 				CryptoSettingsDir = null;
 			}
@@ -1714,7 +1719,6 @@ namespace UnrealBuildTool
 				ProjectDefinitions.Add("IMPLEMENT_SIGNING_KEY_REGISTRATION()=");
 			}
 		}
-#nullable restore
 
 		/// <summary>
 		/// Formats an array of bytes as a sequence of values
@@ -1894,7 +1898,7 @@ namespace UnrealBuildTool
 						Diagnostics.Add(String.Format(FormatString, ModifiedSetting.Item1, ModifiedSetting.Item2));
 					}
 				}
-				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{1};' in {2}, and explicitly overriding settings that differ from the new defaults.", Version, (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File.GetFileName()));
+				Diagnostics.Add(String.Format("[Upgrade] Suppress this message by setting 'DefaultBuildSettings = BuildSettingsVersion.{1};' in {2}, and explicitly overriding settings that differ from the new defaults.", Version, (BuildSettingsVersion)(BuildSettingsVersion.Latest - 1), File!.GetFileName()));
 				Diagnostics.Add("[Upgrade]");
 			}
 		}
@@ -1941,7 +1945,7 @@ namespace UnrealBuildTool
 
 		internal FileReference File
 		{
-			get { return Inner.File; }
+			get { return Inner.File!; }
 		}
 
 		public UnrealTargetPlatform Platform

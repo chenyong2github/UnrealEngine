@@ -294,8 +294,8 @@ namespace UnrealBuildTool
 		/// <param name="ProjectDir">Path to the project directory</param>
 		/// <param name="Platform">The platform being built</param>
 		/// <param name="TargetObject">Object to receive the settings</param>
-		/// <param name="Tracker">Tracks the set of config values that were retrieved. May be null.</param>
-		internal static void ReadSettings(DirectoryReference ProjectDir, UnrealTargetPlatform Platform, object TargetObject, ConfigValueTracker? Tracker)
+		/// <param name="ConfigValues">Will be populated with config values that were retrieved. May be null.</param>
+		internal static void ReadSettings(DirectoryReference? ProjectDir, UnrealTargetPlatform Platform, object TargetObject, Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>? ConfigValues)
 		{
 			List<ConfigField> Fields = FindConfigFieldsForType(TargetObject.GetType());
 			foreach(ConfigField Field in Fields)
@@ -338,9 +338,10 @@ namespace UnrealBuildTool
 				}
 
 				// Save the dependency
-				if (Tracker != null)
+				if (ConfigValues != null)
 				{
-					Tracker.Add(Field.Attribute.ConfigType, ProjectDir, Platform, Field.Attribute.SectionName, KeyName, Values);
+					ConfigDependencyKey Key = new ConfigDependencyKey(Field.Attribute.ConfigType, ProjectDir, Platform, Field.Attribute.SectionName, KeyName);
+					ConfigValues[Key] = Values;
 				}
 			}
 		}
