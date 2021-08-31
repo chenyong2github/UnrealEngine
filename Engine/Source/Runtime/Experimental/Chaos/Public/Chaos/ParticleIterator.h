@@ -103,47 +103,61 @@ class TConstHandleIterator
 {
 public:
 	using THandle = typename TSOA::THandleType;
-	TConstHandleIterator(const TArray<THandle*>& InHandles, int32 StartOffset = 0)
-		: Handles(InHandles)
+
+	TConstHandleIterator()
+		: Handles(nullptr)
 		, CurIdx(0)
 	{
-		Advance(StartOffset);
 	}
 
-	operator bool() const { return CurIdx < Handles.Num(); }
+	TConstHandleIterator(const TArray<THandle*>& InHandles)
+		: Handles(&InHandles)
+		, CurIdx(0)
+	{
+		while(CurrentIsLightWeightDisabled())
+		{
+			operator++();
+		}
+	}
+
+	operator bool() const { return Handles && CurIdx < Handles->Num(); }
 	TConstHandleIterator<TSOA>& operator++()
 	{
-		++CurIdx;
-		return *this;
-	}
-
-	TConstHandleIterator<TSOA>& Advance(int32 Offset)
-	{
-		CurIdx = FMath::Min(CurIdx + Offset, Handles.Num());
+		bool bFindNextHandle = true;
+		while(bFindNextHandle)
+		{
+			++CurIdx;
+			bFindNextHandle = CurrentIsLightWeightDisabled();
+		}
 		return *this;
 	}
 
 	const THandle& operator*() const
 	{
-		return static_cast<const THandle&>(*Handles[CurIdx]);
+		return static_cast<const THandle&>(*(*Handles)[CurIdx]);
 	}
 
 	const THandle* operator->() const
 	{
-		return static_cast<const THandle*>(Handles[CurIdx]);
+		return static_cast<const THandle*>((*Handles)[CurIdx]);
 	}
 
 	int32 ComputeSize() const
 	{
-		return Handles.Num();
+		return Handles->Num();
 	}
 
 protected:
 	template <typename TSOA2>
 	friend class TConstHandleView;
 
-	const TArray<THandle*>& Handles;
+	const TArray<THandle*>* Handles;
 	int32 CurIdx;
+
+	bool CurrentIsLightWeightDisabled() const
+	{
+		return operator bool() && operator*().LightWeightDisabled();
+	}
 };
 
 template <typename TSOA>
@@ -155,19 +169,24 @@ public:
 	using Base::Handles;
 	using Base::CurIdx;
 
-	THandleIterator(const TArray<THandle*>& InHandles, int32 StartOffset = 0)
-		: Base(InHandles, StartOffset)
+	THandleIterator()
+		: Base()
+	{
+	}
+
+	THandleIterator(const TArray<THandle*>& InHandles)
+		: Base(InHandles)
 	{
 	}
 
 	THandle& operator*() const
 	{
-		return static_cast<THandle&>(*Handles[CurIdx]);
+		return static_cast<THandle&>(*(*Handles)[CurIdx]);
 	}
 
 	THandle* operator->() const
 	{
-		return static_cast<THandle*>(Handles[CurIdx]);
+		return static_cast<THandle*>((*Handles)[CurIdx]);
 	}
 
 	template <typename TSOA2>
@@ -208,7 +227,7 @@ public:
 	TConstHandleIterator<TSOA> Begin() const { return MakeConstHandleIterator(Handles); }
 	TConstHandleIterator<TSOA> begin() const { return Begin(); }
 
-	TConstHandleIterator<TSOA> End() const { return TConstHandleIterator<TSOA>(Handles, Num()); }
+	TConstHandleIterator<TSOA> End() const { return TConstHandleIterator<TSOA>(); }
 	TConstHandleIterator<TSOA> end() const { return End(); }
 
 	template <typename TParticleView, typename Lambda>
@@ -247,7 +266,7 @@ public:
 	THandleIterator<TSOA> Begin() const { return MakeHandleIterator(Handles); }
 	THandleIterator<TSOA> begin() const { return Begin(); }
 
-	THandleIterator<TSOA> End() const { return THandleIterator<TSOA>(Handles, Num()); }
+	THandleIterator<TSOA> End() const { return THandleIterator<TSOA>(); }
 	THandleIterator<TSOA> end() const { return End(); }
 
 	template <typename Lambda>
@@ -321,6 +340,10 @@ public:
 #endif
 	{
 		SeekNonEmptySOA();
+		while(CurrentIsLightWeightDisabled())
+		{
+			operator++();
+		}
 	}
 
 	TConstParticleIterator(const TConstParticleIterator& Rhs) = default;
@@ -333,32 +356,39 @@ public:
 	TConstParticleIterator<TSOA>& operator++()
 	{
 		RangedForValidation();
-		if (CurHandlesArray == nullptr)
+		bool bFindNextEnabledParticle = true;
+		while (bFindNextEnabledParticle)
 		{
-			//SOA is packed efficiently for iteration
-			++TransientHandle.ParticleIdx;
-			if (TransientHandle.ParticleIdx >= static_cast<int32>(CurSOASize))
+			if (CurHandlesArray == nullptr)
 			{
-				IncSOAIdx();
-			}
-		}
-		else
-		{
-			++CurHandleIdx;
-			if (CurHandleIdx < CurHandlesArray->Num())
-			{
-				// Reconstruct the TransientHandle so that it has a chance to update
-				// other data members, like the particle type in the case of geometry 
-				// particles.
-				THandle* HandlePtr = (*CurHandlesArray)[CurHandleIdx];
-				THandleBase Handle(HandlePtr->GeometryParticles, HandlePtr->ParticleIdx);
-				TransientHandle = static_cast<TTransientHandle&>(Handle);
+				//SOA is packed efficiently for iteration
+				++TransientHandle.ParticleIdx;
+				if (TransientHandle.ParticleIdx >= static_cast<int32>(CurSOASize))
+				{
+					IncSOAIdx();
+				}
 			}
 			else
 			{
-				IncSOAIdx();
+				++CurHandleIdx;
+				if (CurHandleIdx < CurHandlesArray->Num())
+				{
+					// Reconstruct the TransientHandle so that it has a chance to update
+					// other data members, like the particle type in the case of geometry 
+					// particles.
+					THandle* HandlePtr = (*CurHandlesArray)[CurHandleIdx];
+					THandleBase Handle(HandlePtr->GeometryParticles, HandlePtr->ParticleIdx);
+					TransientHandle = static_cast<TTransientHandle&>(Handle);
+				}
+				else
+				{
+					IncSOAIdx();
+				}
 			}
+
+			bFindNextEnabledParticle = CurrentIsLightWeightDisabled();
 		}
+
 		return *this;
 	}
 	
@@ -375,6 +405,11 @@ public:
 	}
 
 protected:
+
+	bool CurrentIsLightWeightDisabled() const
+	{
+		return operator bool() && (operator*()).LightWeightDisabled();
+	}
 
 	void MoveToEnd()
 	{
@@ -611,7 +646,7 @@ TParticleView<TSOA> MakeParticleView(TSOA* SOA)
 // The non-parallel implementation of iteration should not deviate in behavior from
 // this parallel implementation.  They must be kept in sync.
 template <typename TParticleView, typename Lambda>
-void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Func)
+void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& UserFunc)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParticleViewParallelForImp);
 
@@ -619,6 +654,14 @@ void ParticleViewParallelForImp(const TParticleView& Particles, const Lambda& Fu
 	using THandle = typename TSOA::THandleType;
 	using THandleBase = typename THandle::THandleBase;
 	using TTransientHandle = typename THandle::TTransientHandle;
+
+	auto Func = [&UserFunc](auto& Handle, const int32 Idx)
+	{
+		if (!Handle.LightWeightDisabled())
+		{
+			UserFunc(Handle, Idx);
+		}
+	};
 
 	// Loop over every SOA in this view, skipping empty ones
 	int32 ParticleIdxOff = 0;
@@ -672,7 +715,10 @@ void HandleViewParallelForImp(const THandleView& HandleView, const Lambda& Func)
 	const int32 HandleCount = HandleView.Handles.Num();
 	::ParallelFor(HandleCount, [&HandleView, &Func](const int32 Index)
 	{
-		Func(static_cast<THandle&>(*HandleView.Handles[Index]), Index);
+		if (!HandleView.Handles[Index]->LightWeightDisabled())
+		{
+			Func(static_cast<THandle&>(*HandleView.Handles[Index]), Index);
+		}
 	});
 }
 
