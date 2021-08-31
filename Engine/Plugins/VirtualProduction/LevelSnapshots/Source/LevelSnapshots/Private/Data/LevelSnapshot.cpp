@@ -14,6 +14,7 @@
 #include "SnapshotRestorability.h"
 #include "CustomSerialization/CustomObjectSerializationWrapper.h"
 #include "CustomSerialization/CustomSerializationDataManager.h"
+#include "Misc/ScopeExit.h"
 #include "UObject/Package.h"
 #include "UObject/TextProperty.h"
 #include "UObject/UnrealType.h"
@@ -115,8 +116,15 @@ void ULevelSnapshot::ApplySnapshotToWorld(UWorld* TargetWorld, const FPropertySe
 		UE_LOG(LogLevelSnapshots, Error, TEXT("This snapshot was taken for world '%s' and cannot be applied to world '%s': snapshots currently only support applying to the world they were taken in. "), *MapPath.ToString(), *TargetWorld->GetPathName());
 		return;
 	}
+
+	UE_LOG(LogLevelSnapshots, Log, TEXT("Applying snapshot %s to world %s"), *GetPathName(), *TargetWorld->GetPathName());
+	ON_SCOPE_EXIT
+	{
+		UE_LOG(LogLevelSnapshots, Log, TEXT("Finished applying snapshot"));
+	};
 	
 	EnsureWorldInitialised();
+	
 #if WITH_EDITOR
 	FScopedTransaction Transaction(FText::FromString("Loading Level Snapshot."));
 #endif
