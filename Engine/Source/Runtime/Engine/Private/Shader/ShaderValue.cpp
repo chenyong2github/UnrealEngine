@@ -47,7 +47,7 @@ struct FCastBool
 		{
 		case EValueComponentType::Float: return Component.Float != 0.0f;
 		case EValueComponentType::Int: return Component.Int != 0;
-		case EValueComponentType::Bool: return Component.Bool;
+		case EValueComponentType::Bool: return Component.AsBool();
 		default: return false;
 		}
 	}
@@ -84,6 +84,44 @@ void CastValue(const Operation& Op, const FValue& Value, ResultType& OutResult)
 } // namespace Shader
 } // namespace UE
 
+UE::Shader::FValue UE::Shader::FValue::FromMemoryImage(EValueType Type, const void* Data, uint32* OutSizeInBytes)
+{
+	FValue Result(Type);
+	const uint8* Bytes = static_cast<const uint8*>(Data);
+	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(Result.ComponentType);
+	if (ComponentSizeInBytes > 0u)
+	{
+		for (int32 i = 0u; i < Result.NumComponents; ++i)
+		{
+			FMemory::Memcpy(&Result.Component[i].Packed, Bytes, ComponentSizeInBytes);
+			Bytes += ComponentSizeInBytes;
+		}
+	}
+	if (OutSizeInBytes)
+	{
+		*OutSizeInBytes = (uint32)(Bytes - static_cast<const uint8*>(Data));
+	}
+	return Result;
+}
+
+UE::Shader::FMemoryImageValue UE::Shader::FValue::AsMemoryImage() const
+{
+	FMemoryImageValue Result;
+	uint8* Bytes = Result.Bytes;
+	const uint32 ComponentSizeInBytes = GetComponentTypeSizeInBytes(ComponentType);
+	if (ComponentSizeInBytes > 0u)
+	{
+		for (int32 i = 0u; i < NumComponents; ++i)
+		{
+			FMemory::Memcpy(Bytes, &Component[i].Packed, ComponentSizeInBytes);
+			Bytes += ComponentSizeInBytes;
+		}
+	}
+	Result.Size = (uint32)(Bytes - Result.Bytes);
+	check(Result.Size <= FMemoryImageValue::MaxSize);
+	return Result;
+}
+
 UE::Shader::FFloatValue UE::Shader::FValue::AsFloat() const
 {
 	FFloatValue Result;
@@ -111,6 +149,13 @@ UE::Shader::FBoolValue UE::Shader::FValue::AsBool() const
 	return Result;
 }
 
+float UE::Shader::FValue::AsFloatScalar() const
+{
+	FFloatValue Result;
+	Private::CastValue(Private::FCastFloat(), *this, Result);
+	return Result[0];
+}
+
 bool UE::Shader::FValue::AsBoolScalar() const
 {
 	const FBoolValue Result = AsBool();
@@ -122,6 +167,19 @@ bool UE::Shader::FValue::AsBoolScalar() const
 		}
 	}
 	return false;
+}
+
+uint32 UE::Shader::GetComponentTypeSizeInBytes(EValueComponentType Type)
+{
+	switch (Type)
+	{
+	case EValueComponentType::Void: return 0u;
+	case EValueComponentType::Float: return sizeof(float);
+	case EValueComponentType::Int: return sizeof(int32);
+	case EValueComponentType::Bool: return 1u;
+	case EValueComponentType::MaterialAttributes: return 0u;
+	default: checkNoEntry(); return 0u;
+	}
 }
 
 UE::Shader::FValueTypeDescription UE::Shader::GetValueTypeDescription(EValueType Type)
@@ -440,6 +498,26 @@ bool UE::Shader::operator==(const FValue& Lhs, const FValue& Rhs)
 		}
 	}
 	return true;
+}
+
+uint32 UE::Shader::GetTypeHash(const FValue& Value)
+{
+	uint32 Result = ::GetTypeHash(Value.ComponentType);
+	Result = HashCombine(Result, ::GetTypeHash(Value.NumComponents));
+	for (int32 i = 0u; i < Value.NumComponents; ++i)
+	{
+		const FValueComponent& Component = Value.Component[i];
+		uint32 ComponentHash = 0u;
+		switch (Value.ComponentType)
+		{
+		case EValueComponentType::Float: ComponentHash = ::GetTypeHash(Component.Float); break;
+		case EValueComponentType::Int: ComponentHash = ::GetTypeHash(Component.Int); break;
+		case EValueComponentType::Bool: ComponentHash = ::GetTypeHash(Component.Bool); break;
+		default: checkNoEntry(); break;
+		}
+		Result = HashCombine(Result, ComponentHash);
+	}
+	return Result;
 }
 
 UE::Shader::FValue UE::Shader::Abs(const FValue& Value)

@@ -140,44 +140,25 @@ void FMaterialUniformExpression::WriteNumberOpcodes(UE::Shader::FPreshaderData& 
 	OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ConstantZero);
 }
 
-void FUniformParameterOverrides::SetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride)
+void FUniformParameterOverrides::SetNumericOverride(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride)
 {
+	const FNumericParameterKey Key{ ParameterInfo, Type };
 	if (bOverride)
 	{
-		ScalarOverrides.FindOrAdd(ParameterInfo) = Value;
+		const UE::Shader::EValueType ShaderType = GetShaderValueType(Type);
+		check(ShaderType == Value.GetType());
+		NumericOverrides.FindOrAdd(Key) = Value;
 	}
 	else
 	{
-		ScalarOverrides.Remove(ParameterInfo);
+		NumericOverrides.Remove(Key);
 	}
 }
 
-void FUniformParameterOverrides::SetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride)
+bool FUniformParameterOverrides::GetNumericOverride(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, UE::Shader::FValue& OutValue) const
 {
-	if (bOverride)
-	{
-		VectorOverrides.FindOrAdd(ParameterInfo) = Value;
-	}
-	else
-	{
-		VectorOverrides.Remove(ParameterInfo);
-	}
-}
-
-bool FUniformParameterOverrides::GetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const
-{
-	const float* Result = ScalarOverrides.Find(ParameterInfo);
-	if (Result)
-	{
-		OutValue = *Result;
-		return true;
-	}
-	return false;
-}
-
-bool FUniformParameterOverrides::GetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const
-{
-	const FLinearColor* Result = VectorOverrides.Find(ParameterInfo);
+	const FNumericParameterKey Key{ ParameterInfo, Type };
+	const UE::Shader::FValue* Result = NumericOverrides.Find(Key);
 	if (Result)
 	{
 		OutValue = *Result;
@@ -240,8 +221,7 @@ bool FUniformExpressionSet::IsEmpty() const
 		}
 	}
 
-	return UniformVectorParameters.Num() == 0
-		&& UniformScalarParameters.Num() == 0
+	return UniformNumericParameters.Num() == 0
 		&& UniformVectorPreshaders.Num() == 0
 		&& UniformScalarPreshaders.Num() == 0
 		&& UniformExternalTextureParameters.Num() == 0
@@ -259,8 +239,7 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 		}
 	}
 
-	if (UniformScalarParameters.Num() != ReferenceSet.UniformScalarParameters.Num()
-		|| UniformVectorParameters.Num() != ReferenceSet.UniformVectorParameters.Num()
+	if (UniformNumericParameters.Num() != ReferenceSet.UniformNumericParameters.Num()
 		|| UniformScalarPreshaders.Num() != ReferenceSet.UniformScalarPreshaders.Num()
 		|| UniformVectorPreshaders.Num() != ReferenceSet.UniformVectorPreshaders.Num()
 		|| UniformExternalTextureParameters.Num() != ReferenceSet.UniformExternalTextureParameters.Num()
@@ -270,17 +249,9 @@ bool FUniformExpressionSet::operator==(const FUniformExpressionSet& ReferenceSet
 		return false;
 	}
 
-	for (int32 i = 0; i < UniformScalarParameters.Num(); i++)
+	for (int32 i = 0; i < UniformNumericParameters.Num(); i++)
 	{
-		if (UniformScalarParameters[i] != ReferenceSet.UniformScalarParameters[i])
-		{
-			return false;
-		}
-	}
-
-	for (int32 i = 0; i < UniformVectorParameters.Num(); i++)
-	{
-		if (UniformVectorParameters[i] != ReferenceSet.UniformVectorParameters[i])
+		if (UniformNumericParameters[i] != ReferenceSet.UniformNumericParameters[i])
 		{
 			return false;
 		}
@@ -588,64 +559,6 @@ void FMaterialUniformExpression::GetNumberValue(const struct FMaterialRenderCont
 	UE::Shader::FValue Value;
 	PreshaderData.Evaluate(nullptr, Context, Value);
 	OutValue = Value.AsLinearColor();
-}
-
-const FMaterialVectorParameterInfo* FUniformExpressionSet::FindVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo) const
-{
-	for (const FMaterialVectorParameterInfo& Parameter : UniformVectorParameters)
-	{
-		if (Parameter.ParameterInfo == ParameterInfo)
-		{
-			return &Parameter;
-		}
-	}
-	return nullptr;
-}
-
-const FMaterialScalarParameterInfo* FUniformExpressionSet::FindScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo) const
-{
-	for (const FMaterialScalarParameterInfo& Parameter : UniformScalarParameters)
-	{
-		if (Parameter.ParameterInfo == ParameterInfo)
-		{
-			return &Parameter;
-		}
-	}
-	return nullptr;
-}
-
-int32 FUniformExpressionSet::FindOrAddScalarParameter(const FHashedMaterialParameterInfo& ParameterInfo, float DefaultValue)
-{
-	for (int32 i = 0; i < UniformScalarParameters.Num(); ++i)
-	{
-		if (UniformScalarParameters[i].ParameterInfo == ParameterInfo)
-		{
-			return i;
-		}
-	}
-
-	const int32 Index = UniformScalarParameters.Num();
-	FMaterialScalarParameterInfo& Parameter = UniformScalarParameters.AddDefaulted_GetRef();
-	Parameter.ParameterInfo = ParameterInfo;
-	Parameter.DefaultValue = DefaultValue;
-	return Index;
-}
-
-int32 FUniformExpressionSet::FindOrAddVectorParameter(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& DefaultValue)
-{
-	for (int32 i = 0; i < UniformVectorParameters.Num(); ++i)
-	{
-		if (UniformVectorParameters[i].ParameterInfo == ParameterInfo)
-		{
-			return i;
-		}
-	}
-
-	const int32 Index = UniformVectorParameters.Num();
-	FMaterialVectorParameterInfo& Parameter = UniformVectorParameters.AddDefaulted_GetRef();
-	Parameter.ParameterInfo = ParameterInfo;
-	Parameter.DefaultValue = DefaultValue;
-	return Index;
 }
 
 int32 FUniformExpressionSet::FindOrAddTextureParameter(EMaterialTextureParameterType Type, const FMaterialTextureParameterInfo& Info)
@@ -1414,72 +1327,6 @@ bool FMaterialUniformExpressionExternalTextureParameter::IsIdentical(const FMate
 	return ParameterName == Other->ParameterName && Super::IsIdentical(OtherExpression);
 }
 
-void FMaterialScalarParameterInfo::GetGameThreadNumberValue(const UMaterialInterface* SourceMaterialToCopyFrom, float& OutValue) const
-{
-	check(IsInGameThread());
-	checkSlow(SourceMaterialToCopyFrom);
-
-	const UMaterialInterface* It = SourceMaterialToCopyFrom;
-
-	for (;;)
-	{
-		const UMaterialInstance* MatInst = Cast<UMaterialInstance>(It);
-
-		if (MatInst)
-		{
-			const FScalarParameterValue* ParameterValue = GameThread_FindParameterByName(MatInst->ScalarParameterValues, ParameterInfo);
-			if (ParameterValue)
-			{
-				OutValue = ParameterValue->ParameterValue;
-				break;
-			}
-
-			// go up the hierarchy
-			It = MatInst->Parent;
-		}
-		else
-		{
-			// we reached the base material
-			// get the copy form the base material
-			GetDefaultValue(OutValue);
-			break;
-		}
-	}
-}
-
-void FMaterialVectorParameterInfo::GetGameThreadNumberValue(const UMaterialInterface* SourceMaterialToCopyFrom, FLinearColor& OutValue) const
-{
-	check(IsInGameThread());
-	checkSlow(SourceMaterialToCopyFrom);
-
-	const UMaterialInterface* It = SourceMaterialToCopyFrom;
-
-	for (;;)
-	{
-		const UMaterialInstance* MatInst = Cast<UMaterialInstance>(It);
-
-		if (MatInst)
-		{
-			const FVectorParameterValue* ParameterValue = GameThread_FindParameterByName(MatInst->VectorParameterValues, ParameterInfo);
-			if (ParameterValue)
-			{
-				OutValue = ParameterValue->ParameterValue;
-				break;
-			}
-
-			// go up the hierarchy
-			It = MatInst->Parent;
-		}
-		else
-		{
-			// we reached the base material
-			// get the copy form the base material
-			GetDefaultValue(OutValue);
-			break;
-		}
-	}
-}
-
 void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const
 {
 	if (!ParameterInfo.Name.IsNone())
@@ -1587,8 +1434,7 @@ class FMaterialUniformExpressionRuntimeVirtualTextureParameter_DEPRECATED : publ
 
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTexture);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionConstant);
-IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionVectorParameter);
-IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionScalarParameter);
+IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionGenericParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionTextureParameter);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTextureBase);
 IMPLEMENT_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionExternalTexture);

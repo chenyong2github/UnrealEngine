@@ -218,13 +218,13 @@ private:
 
 /**
  */
-class FMaterialUniformExpressionVectorParameter: public FMaterialUniformExpression
+class FMaterialUniformExpressionGenericParameter : public FMaterialUniformExpression
 {
-	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionVectorParameter);
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionGenericParameter);
 public:
 
-	FMaterialUniformExpressionVectorParameter() {}
-	FMaterialUniformExpressionVectorParameter(const FMaterialParameterInfo& InParameterInfo, int32 InParameterIndex)
+	FMaterialUniformExpressionGenericParameter() {}
+	FMaterialUniformExpressionGenericParameter(const FMaterialParameterInfo& InParameterInfo, int32 InParameterIndex)
 		: ParameterInfo(InParameterInfo)
 		, ParameterIndex(InParameterIndex)
 	{
@@ -234,7 +234,7 @@ public:
 	// FMaterialUniformExpression interface.
 	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
-		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::VectorParameter);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Parameter);
 		OutData.Write((uint16)ParameterIndex);
 	}
 
@@ -259,62 +259,9 @@ public:
 		{
 			return false;
 		}
-		FMaterialUniformExpressionVectorParameter* OtherParameter = (FMaterialUniformExpressionVectorParameter*)OtherExpression;
+		FMaterialUniformExpressionGenericParameter* OtherParameter = (FMaterialUniformExpressionGenericParameter*)OtherExpression;
 		return ParameterInfo == OtherParameter->ParameterInfo && ParameterIndex == OtherParameter->ParameterIndex;
 	}
-
-private:
-	FHashedMaterialParameterInfo ParameterInfo;
-	int32 ParameterIndex;
-};
-
-/**
- */
-class FMaterialUniformExpressionScalarParameter: public FMaterialUniformExpression
-{
-	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionScalarParameter);
-public:
-
-	FMaterialUniformExpressionScalarParameter() {}
-	FMaterialUniformExpressionScalarParameter(const FMaterialParameterInfo& InParameterInfo, int32 InParameterIndex)
-		: ParameterInfo(InParameterInfo)
-		, ParameterIndex(InParameterIndex)
-	{
-		check(InParameterIndex >= 0 && InParameterIndex <= 0xffff);
-	}
-
-	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
-	{
-		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ScalarParameter);
-		OutData.Write((uint16)ParameterIndex);
-	}
-
-	virtual bool IsConstant() const
-	{
-		return false;
-	}
-
-	const FHashedMaterialParameterInfo& GetParameterInfo() const
-	{
-		return ParameterInfo;
-	}
-
-	FName GetParameterName() const
-	{
-		return ParameterInfo.GetName();
-	}
-
-	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const
-	{
-		if (GetType() != OtherExpression->GetType())
-		{
-			return false;
-		}
-		FMaterialUniformExpressionScalarParameter* OtherParameter = (FMaterialUniformExpressionScalarParameter*)OtherExpression;
-		return ParameterInfo == OtherParameter->ParameterInfo && ParameterIndex == OtherParameter->ParameterIndex;
-	}
-
 private:
 	FHashedMaterialParameterInfo ParameterInfo;
 	int32 ParameterIndex;

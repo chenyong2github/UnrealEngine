@@ -6,6 +6,16 @@
 
 #if WITH_EDITOR
 
+namespace UE
+{
+namespace Shader
+{
+struct FValue;
+}
+}
+
+enum class EMaterialParameterType : uint8;
+
 /** 
  * FEditorSupportDelegates
  * Delegates that are needed for proper editor functionality, but are accessed or triggered in engine code.
@@ -22,10 +32,8 @@ struct ENGINE_API FEditorSupportDelegates
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnWindowsMessage, class FViewport*, uint32);
 	/** delegate type for material usage flags change events ( Params: UMaterial* material, int32 FlagThatChanged ) */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnMaterialUsageFlagsChanged, class UMaterial*, int32); 
-	/** delegate type for vector parameter default change event */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnVectorParameterDefaultChanged, class UMaterialExpression*, FName, const FLinearColor&); 
-	/** delegate type for scalar parameter default change event */
-	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnScalarParameterDefaultChanged, class UMaterialExpression*, FName, float); 
+	/** delegate type for numeric parameter default change event */
+	DECLARE_MULTICAST_DELEGATE_FourParams(FOnNumericParameterDefaultChanged, class UMaterialExpression*, EMaterialParameterType, FName, const UE::Shader::FValue&);
 
 	/** Called when all viewports need to be redrawn */
 	static FSimpleMulticastDelegate RedrawAllViewports;
@@ -47,10 +55,8 @@ struct ENGINE_API FEditorSupportDelegates
 	static FOnWindowsMessage PostWindowsMessage;
 	/** Sent after the usages flags on a material have changed*/
 	static FOnMaterialUsageFlagsChanged MaterialUsageFlagsChanged;
-	/** Sent after vector param default changed */
-	static FOnVectorParameterDefaultChanged VectorParameterDefaultChanged;
-	/** Sent after scalar param default changed */
-	static FOnScalarParameterDefaultChanged ScalarParameterDefaultChanged;
+	/** Sent after numeric param default changed */
+	static FOnNumericParameterDefaultChanged NumericParameterDefaultChanged;
 };
 
 #endif // WITH_EDITOR

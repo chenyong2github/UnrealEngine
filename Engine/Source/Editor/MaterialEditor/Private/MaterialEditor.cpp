@@ -464,8 +464,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	FMaterialEditorSpawnNodeCommands::Register();
 
 	FEditorSupportDelegates::MaterialUsageFlagsChanged.AddRaw(this, &FMaterialEditor::OnMaterialUsageFlagsChanged);
-	FEditorSupportDelegates::VectorParameterDefaultChanged.AddRaw(this, &FMaterialEditor::OnVectorParameterDefaultChanged);
-	FEditorSupportDelegates::ScalarParameterDefaultChanged.AddRaw(this, &FMaterialEditor::OnScalarParameterDefaultChanged);
+	FEditorSupportDelegates::NumericParameterDefaultChanged.AddRaw(this, &FMaterialEditor::OnNumericParameterDefaultChanged);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	
@@ -776,20 +775,14 @@ FMaterialEditor::~FMaterialEditor()
 	// Broadcast that this editor is going down to all listeners
 	OnMaterialEditorClosed().Broadcast();
 
-	for (int32 ParameterIndex = 0; ParameterIndex < OverriddenVectorParametersToRevert.Num(); ParameterIndex++)
+	for (const auto& It : OverriddenNumericParametersToRevert)
 	{
-		SetVectorParameterDefaultOnDependentMaterials(OverriddenVectorParametersToRevert[ParameterIndex], FLinearColor::Black, false);
-	}
-
-	for (int32 ParameterIndex = 0; ParameterIndex < OverriddenScalarParametersToRevert.Num(); ParameterIndex++)
-	{
-		SetScalarParameterDefaultOnDependentMaterials(OverriddenScalarParametersToRevert[ParameterIndex], 0, false);
+		SetNumericParameterDefaultOnDependentMaterials(It.Key, It.Value, UE::Shader::FValue(), false);
 	}
 
 	// Unregister this delegate
 	FEditorSupportDelegates::MaterialUsageFlagsChanged.RemoveAll(this);
-	FEditorSupportDelegates::VectorParameterDefaultChanged.RemoveAll(this);
-	FEditorSupportDelegates::ScalarParameterDefaultChanged.RemoveAll(this);
+	FEditorSupportDelegates::NumericParameterDefaultChanged.RemoveAll(this);
 
 	// Null out the expression preview material so they can be GC'ed
 	ExpressionPreviewMaterial = NULL;
@@ -4445,7 +4438,7 @@ void FMaterialEditor::OnMaterialUsageFlagsChanged(UMaterial* MaterialThatChanged
 	}
 }
 
-void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName ParameterName, const FLinearColor& Value, bool bOverride)
+void FMaterialEditor::SetNumericParameterDefaultOnDependentMaterials(EMaterialParameterType Type, FName ParameterName, const UE::Shader::FValue& Value, bool bOverride)
 {
 	TArray<UMaterial*> MaterialsToOverride;
 
@@ -4487,7 +4480,7 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 	{
 		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
 
-		CurrentMaterial->OverrideVectorParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
+		CurrentMaterial->OverrideNumericParameterDefault(Type, ParameterName, Value, bOverride, FeatureLevel);
 	}
 
 	// Update MI's that reference any of the materials affected
@@ -4503,99 +4496,20 @@ void FMaterialEditor::SetVectorParameterDefaultOnDependentMaterials(FName Parame
 
 			if (MaterialsToOverride.Contains(BaseMaterial))
 			{
-				CurrentMaterialInstance->OverrideVectorParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
+				CurrentMaterialInstance->OverrideNumericParameterDefault(Type, ParameterName, Value, bOverride, FeatureLevel);
 			}
 		}
 	}
 }
 
-void FMaterialEditor::OnVectorParameterDefaultChanged(class UMaterialExpression* Expression, FName ParameterName, const FLinearColor& Value)
+void FMaterialEditor::OnNumericParameterDefaultChanged(class UMaterialExpression* Expression, EMaterialParameterType Type, FName ParameterName, const UE::Shader::FValue& Value)
 {
 	check(Expression);
 
 	if (Expression->Material == Material && OriginalMaterial)
 	{
-		SetVectorParameterDefaultOnDependentMaterials(ParameterName, Value, true);
-
-		OverriddenVectorParametersToRevert.AddUnique(ParameterName);
-	}
-
-	OnParameterDefaultChanged();
-}
-
-void FMaterialEditor::SetScalarParameterDefaultOnDependentMaterials(FName ParameterName, float Value, bool bOverride)
-{
-	TArray<UMaterial*> MaterialsToOverride;
-
-	if (MaterialFunction)
-	{
-		// Find all materials that reference this function
-		for (TObjectIterator<UMaterial> It; It; ++It)
-		{
-			UMaterial* CurrentMaterial = *It;
-
-			if (CurrentMaterial != Material)
-			{
-				bool bUpdate = false;
-
-				for (int32 FunctionIndex = 0; FunctionIndex < CurrentMaterial->GetCachedExpressionData().FunctionInfos.Num(); FunctionIndex++)
-				{
-					if (CurrentMaterial->GetCachedExpressionData().FunctionInfos[FunctionIndex].Function == MaterialFunction->ParentFunction)
-					{
-						bUpdate = true;
-						break;
-					}
-				}
-
-				if (bUpdate)
-				{
-					MaterialsToOverride.Add(CurrentMaterial);
-				}
-			}
-		}
-	}
-	else
-	{
-		MaterialsToOverride.Add(OriginalMaterial);
-	}
-
-	const ERHIFeatureLevel::Type FeatureLevel = GEditor->GetEditorWorldContext().World()->FeatureLevel;
-
-	for (int32 MaterialIndex = 0; MaterialIndex < MaterialsToOverride.Num(); MaterialIndex++)
-	{
-		UMaterial* CurrentMaterial = MaterialsToOverride[MaterialIndex];
-
-		CurrentMaterial->OverrideScalarParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
-	}
-
-	// Update MI's that reference any of the materials affected
-	for (TObjectIterator<UMaterialInstance> It; It; ++It)
-	{
-		UMaterialInstance* CurrentMaterialInstance = *It;
-
-		// Only care about MI's with static parameters, because we are overriding parameter defaults, 
-		// And only MI's with static parameters contain uniform expressions, which contain parameter defaults
-		if (CurrentMaterialInstance->bHasStaticPermutationResource)
-		{
-			UMaterial* BaseMaterial = CurrentMaterialInstance->GetMaterial();
-
-			if (MaterialsToOverride.Contains(BaseMaterial))
-			{
-				CurrentMaterialInstance->OverrideScalarParameterDefault(ParameterName, Value, bOverride, FeatureLevel);
-			}
-		}
-	}
-}
-
-void FMaterialEditor::OnScalarParameterDefaultChanged(class UMaterialExpression* Expression, FName ParameterName, float Value)
-{
-	check(Expression);
-
-	if (Expression->Material == Material && OriginalMaterial)
-	{
-		SetScalarParameterDefaultOnDependentMaterials(ParameterName, Value, true);
-
-		OverriddenScalarParametersToRevert.AddUnique(ParameterName);
+		SetNumericParameterDefaultOnDependentMaterials(Type, ParameterName, Value, true);
+		OverriddenNumericParametersToRevert.Add(MakeTuple(Type, ParameterName));
 	}
 
 	OnParameterDefaultChanged();

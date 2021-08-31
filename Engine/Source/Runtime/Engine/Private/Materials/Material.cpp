@@ -408,30 +408,18 @@ public:
 		return Material;
 	}
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override
 	{
 		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
-		if(MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
-		{
-			return false;
-		}
-		else
-		{
-			return GetFallbackRenderProxy().GetVectorValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const
-	{
-		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
-		if(MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
+		if (MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
 		{
 			static FName NameSubsurfaceProfile(TEXT("__SubsurfaceProfile"));
-			if (ParameterInfo.Name == NameSubsurfaceProfile)
+			if (Type == EMaterialParameterType::Scalar && ParameterInfo.Name == NameSubsurfaceProfile)
 			{
 				const USubsurfaceProfile* MySubsurfaceProfileRT = GetSubsurfaceProfileRT();
 
 				int32 AllocationId = 0;
-				if(MySubsurfaceProfileRT)
+				if (MySubsurfaceProfileRT)
 				{
 					// can be optimized (cached)
 					AllocationId = GSubsurfaceProfileTextureObject.FindAllocationId(MySubsurfaceProfileRT);
@@ -442,8 +430,7 @@ public:
 					AllocationId = 0;
 				}
 
-				*OutValue = AllocationId / 255.0f;
-
+				OutValue = AllocationId / 255.0f;
 				return true;
 			}
 
@@ -451,32 +438,7 @@ public:
 		}
 		else
 		{
-			return GetFallbackRenderProxy().GetScalarValue(ParameterInfo, OutValue, Context);
-		}
-	}
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo,const UTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
-		if(MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
-		{
-			return false;
-		}
-		else
-		{
-			return GetFallbackRenderProxy().GetTextureValue(ParameterInfo,OutValue,Context);
-		}
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const
-	{
-		const FMaterialResource* MaterialResource = Material->GetMaterialResource(Context.Material.GetFeatureLevel());
-		if (MaterialResource && MaterialResource->GetRenderingThreadShaderMap())
-		{
-			return false;
-		}
-		else
-		{
-			return GetFallbackRenderProxy().GetTextureValue(ParameterInfo, OutValue, Context);
+			return GetFallbackRenderProxy().GetParameterValue(Type, ParameterInfo, OutValue, Context);
 		}
 	}
 
@@ -1103,23 +1065,26 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 			if (MaterialInstance)
 			{
 				// Also look for any scalar parameters that are acting as lookups for an atlas texture, and store the atlas texture
-				const TArrayView<const FMaterialScalarParameterInfo> AtlasExpressions[1] =
+				const TArrayView<const FMaterialNumericParameterInfo> AtlasExpressions[1] =
 				{
-					CurrentResource->GetUniformScalarParameterExpressions()
+					CurrentResource->GetUniformNumericParameterExpressions()
 				};
+
 				for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(AtlasExpressions); TypeIndex++)
 				{
 					// Iterate over each of the material's texture expressions.
-					for (const FMaterialScalarParameterInfo& Parameter : AtlasExpressions[TypeIndex])
+					for (const FMaterialNumericParameterInfo& Parameter : AtlasExpressions[TypeIndex])
 					{
-						bool bIsUsedAsAtlasPosition;
-						TSoftObjectPtr<class UCurveLinearColor> Curve;
-						TSoftObjectPtr<class UCurveLinearColorAtlas> Atlas;
-						MaterialInstance->IsScalarParameterUsedAsAtlasPosition(Parameter.ParameterInfo, bIsUsedAsAtlasPosition, Curve, Atlas);
-
-						if (Atlas)
+						if (Parameter.ParameterType == EMaterialParameterType::Scalar)
 						{
-							OutTextures.AddUnique(Atlas.Get());
+							bool bIsUsedAsAtlasPosition;
+							TSoftObjectPtr<class UCurveLinearColor> Curve;
+							TSoftObjectPtr<class UCurveLinearColorAtlas> Atlas;
+							MaterialInstance->IsScalarParameterUsedAsAtlasPosition(Parameter.ParameterInfo, bIsUsedAsAtlasPosition, Curve, Atlas);
+							if (Atlas)
+							{
+								OutTextures.AddUnique(Atlas.Get());
+							}
 						}
 					}
 				}
@@ -1275,48 +1240,20 @@ void UMaterial::OverrideTexture(const UTexture* InTextureToOverride, UTexture* O
 #endif // WITH_EDITOR
 }
 
-void UMaterial::OverrideVectorParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
+void UMaterial::OverrideNumericParameterDefault(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, const UE::Shader::FValue& Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
 {
 #if WITH_EDITOR
 	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
 	if (Resource)
 	{
-		Resource->TransientOverrides.SetVectorOverride(ParameterInfo, Value, bOverride);
+		Resource->TransientOverrides.SetNumericOverride(Type, ParameterInfo, Value, bOverride);
 
-		const TArrayView<const FMaterialVectorParameterInfo> Parameters = Resource->GetUniformVectorParameterExpressions();
+		const TArrayView<const FMaterialNumericParameterInfo> Parameters = Resource->GetUniformNumericParameterExpressions();
 		bool bShouldRecacheMaterialExpressions = false;
 		// Iterate over each of the material's vector expressions.
 		for (int32 i = 0; i < Parameters.Num(); ++i)
 		{
-			const FMaterialVectorParameterInfo& Parameter = Parameters[i];
-			if (Parameter.ParameterInfo == ParameterInfo)
-			{
-				bShouldRecacheMaterialExpressions = true;
-			}
-		}
-
-		if (bShouldRecacheMaterialExpressions)
-		{
-			RecacheUniformExpressions(false);
-		}
-	}
-#endif // #if WITH_EDITOR
-}
-
-void UMaterial::OverrideScalarParameterDefault(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride, ERHIFeatureLevel::Type InFeatureLevel)
-{
-#if WITH_EDITOR
-	FMaterialResource* Resource = GetMaterialResource(InFeatureLevel);
-	if (Resource)
-	{
-		Resource->TransientOverrides.SetScalarOverride(ParameterInfo, Value, bOverride);
-
-		const TArrayView<const FMaterialScalarParameterInfo> Parameters = Resource->GetUniformScalarParameterExpressions();
-		bool bShouldRecacheMaterialExpressions = false;
-		// Iterate over each of the material's vector expressions.
-		for (int32 i = 0; i < Parameters.Num(); ++i)
-		{
-			const FMaterialScalarParameterInfo& Parameter = Parameters[i];
+			const FMaterialNumericParameterInfo& Parameter = Parameters[i];
 			if (Parameter.ParameterInfo == ParameterInfo)
 			{
 				bShouldRecacheMaterialExpressions = true;

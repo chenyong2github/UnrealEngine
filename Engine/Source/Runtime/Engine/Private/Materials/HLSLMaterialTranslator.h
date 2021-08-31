@@ -30,6 +30,7 @@
 #include "VT/RuntimeVirtualTexture.h"
 #include "Field/FieldSystemTypes.h"
 #include "Containers/Map.h"
+#include "Shader/ShaderTypes.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Materials/MaterialExpressionSceneTexture.h"
@@ -277,6 +278,7 @@ protected:
 	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformTextureExpressions[NumMaterialTextureParameterTypes];
 	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture>> UniformExternalTextureExpressions;
+	TMap<UE::Shader::FValue, uint32> DefaultUniformValues;
 
 	/** Parameter collections referenced by this material.  The position in this array is used as an index on the shader parameter. */
 	TArray<UMaterialParameterCollection*> ParameterCollections;
@@ -674,10 +676,7 @@ protected:
 
 	virtual int32 AccessCollectionParameter(UMaterialParameterCollection* ParameterCollection, int32 ParameterIndex, int32 ComponentIndex) override;
 
-	virtual int32 ScalarParameter(FName ParameterName, float DefaultValue) override;
-
-	virtual int32 VectorParameter(FName ParameterName, const FLinearColor& DefaultValue) override;
-
+	virtual int32 GenericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue) override;
 	virtual int32 Constant(float X) override;
 	virtual int32 Constant2(float X, float Y) override;
 	virtual int32 Constant3(float X, float Y, float Z) override;

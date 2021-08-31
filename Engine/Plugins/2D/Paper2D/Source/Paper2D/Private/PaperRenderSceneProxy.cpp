@@ -106,41 +106,29 @@ public:
 		return Parent->GetFallback(InFeatureLevel);
 	}
 
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const
 	{
-		return Parent->GetVectorValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetScalarValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		if (ParameterInfo.Name == TextureParameterName)
+		if (Type == EMaterialParameterType::Texture)
 		{
-			*OutValue = ApplyEditorOverrides(BaseTexture);
-			return true;
-		}
-
-		for (int32 AdditionalSlotIndex = 0; AdditionalSlotIndex < AdditionalTextures.Num(); ++AdditionalSlotIndex)
-		{
-			FName AdditionalSlotName = AdditionalTextureParameterRootName;
-			AdditionalSlotName.SetNumber(AdditionalSlotIndex + 1);
-			if (ParameterInfo.Name == AdditionalSlotName)
+			if (ParameterInfo.Name == TextureParameterName)
 			{
-				*OutValue = ApplyEditorOverrides(AdditionalTextures[AdditionalSlotIndex]);
+				OutValue = ApplyEditorOverrides(BaseTexture);
 				return true;
+			}
+
+			for (int32 AdditionalSlotIndex = 0; AdditionalSlotIndex < AdditionalTextures.Num(); ++AdditionalSlotIndex)
+			{
+				FName AdditionalSlotName = AdditionalTextureParameterRootName;
+				AdditionalSlotName.SetNumber(AdditionalSlotIndex + 1);
+				if (ParameterInfo.Name == AdditionalSlotName)
+				{
+					OutValue = ApplyEditorOverrides(AdditionalTextures[AdditionalSlotIndex]);
+					return true;
+				}
 			}
 		}
 
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
-	}
-
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override
-	{
-		return Parent->GetTextureValue(ParameterInfo, OutValue, Context);
+		return Parent->GetParameterValue(Type, ParameterInfo, OutValue, Context);
 	}
 
 #if WITH_EDITOR

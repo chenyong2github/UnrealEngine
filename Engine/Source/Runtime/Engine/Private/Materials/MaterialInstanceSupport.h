@@ -98,10 +98,7 @@ public:
 	virtual const FMaterialRenderProxy* GetFallback(ERHIFeatureLevel::Type InFeatureLevel) const override;
 	virtual UMaterialInterface* GetMaterialInterface() const override;
 	
-	virtual bool GetVectorValue(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor* OutValue, const FMaterialRenderContext& Context) const override;
-	virtual bool GetScalarValue(const FHashedMaterialParameterInfo& ParameterInfo, float* OutValue, const FMaterialRenderContext& Context) const override;
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const UTexture** OutValue, const FMaterialRenderContext& Context) const override;
-	virtual bool GetTextureValue(const FHashedMaterialParameterInfo& ParameterInfo, const URuntimeVirtualTexture** OutValue, const FMaterialRenderContext& Context) const override;
+	virtual bool GetParameterValue(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue, const FMaterialRenderContext& Context) const override;
 
 	void GameThread_SetParent(UMaterialInterface* ParentMaterialInterface);
 
@@ -151,21 +148,20 @@ public:
 	 * Retrieves a parameter by name.
 	 */
 	template <typename ValueType>
-	const ValueType* RenderThread_FindParameterByName(const FHashedMaterialParameterInfo& ParameterInfo) const
+	bool RenderThread_GetParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, FMaterialParameterValue& OutValue) const
 	{
-		const TArray<TNamedParameter<ValueType> >& ValueArray = GetValueArray<ValueType>();
-		const int32 ParameterCount = ValueArray.Num();
-		for (int32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+		const TArray<TNamedParameter<ValueType>>& ValueArray = GetValueArray<ValueType>();
+		for (const TNamedParameter<ValueType>& Parameter : ValueArray)
 		{
-			const TNamedParameter<ValueType>& Parameter = ValueArray[ParameterIndex];
 			if (Parameter.Info == ParameterInfo)
 			{
-				return &Parameter.Value;
+				OutValue = Parameter.Value;
+				return true;
 			}
 		}
-		return NULL;
+		return false;
 	}
-	
+
 private:
 	/**
 	 * Retrieves the array of values for a given type.

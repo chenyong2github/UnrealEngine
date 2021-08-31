@@ -19,8 +19,7 @@ enum class EPreshaderOpcode : uint8
 	Nop,
 	ConstantZero,
 	Constant,
-	ScalarParameter,
-	VectorParameter,
+	Parameter,
 	Add,
 	Sub,
 	Mul,
@@ -88,6 +87,9 @@ public:
 
 	template<>
 	FPreshaderData& Write<FScriptName>(const FScriptName& Value) { WriteName(Value); return *this; }
+
+	template<>
+	FPreshaderData& Write<FValue>(const FValue& Value);
 
 	/** Can't write FName, use FScriptName instead */
 	template<>
