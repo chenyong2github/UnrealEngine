@@ -289,8 +289,14 @@ FReply SWorldPartitionEditorGrid2D::OnMouseMove(const FGeometry& MyGeometry, con
 
 		if (bIsDragging || (bIsRightMouseButtonDown && (CursorDelta.Size() > 1.0f)))
 		{
-			bIsDragging = true;
-			Trans += ScreenToWorld.TransformVector(CursorDelta);
+			if (!bIsDragging)
+			{
+				LastMouseCursorPosWorldDrag = MouseCursorPosWorld;
+				bIsDragging = true;
+			}
+
+			Trans += (MouseCursorPosWorld - LastMouseCursorPosWorldDrag);
+
 			UpdateTransform();
 			return FReply::Handled();
 		}
