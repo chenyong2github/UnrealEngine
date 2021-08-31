@@ -2077,7 +2077,7 @@ void FFileIoStats::OnFilesystemReadsQueued(uint64 BytesToRead, int32 NumReads)
 	QueuedFilesystemReads += NumReads;
 #endif
 
-	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReads, NumReads)
+	TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendQueuedFilesystemReads)
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesToRead);
 #endif
 }
@@ -2145,7 +2145,6 @@ void FFileIoStats::OnReadComplete(int64 BytesRead)
 
 	TRACE_COUNTER_SUBTRACT(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesRead);
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesRead, BytesRead);
-	TRACE_COUNTER_DECREMENT(IoDispatcherFileBackendQueuedFilesystemReads);
 #endif
 }
 
