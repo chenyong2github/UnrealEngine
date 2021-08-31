@@ -121,6 +121,8 @@ private:
 	void OnWaterBrushActorChanged(const IWaterBrushActorInterface::FWaterBrushActorChangedEventParams& InParams);
 	void OnActorChanged(AActor* Actor, bool bWeightmapSettingsChanged, bool bRebuildMesh);
 	void OnActorsAffectingLandscapeChanged();
+	void OnLevelActorAdded(AActor* InActor);
+	void OnLevelActorRemoved(AActor* InActor);
 
 	TArray<TWeakInterfacePtr<IWaterBrushActorInterface>> ActorsAffectingLandscape;
 	FDelegateHandle OnWorldPostInitHandle;
@@ -129,6 +131,10 @@ private:
 	FDelegateHandle OnLevelActorAddedHandle;
 	FDelegateHandle OnLevelActorDeletedHandle;
 	FDelegateHandle OnActorMovedHandle;
+#if WITH_EDITOR
+	FDelegateHandle OnLoadedActorAddedToLevelEventHandle;
+	FDelegateHandle OnLoadedActorRemovedFromLevelEventHandle;
+#endif // WITH_EDITOR
 
 	UPROPERTY(Transient, DuplicateTransient, VisibleAnywhere, AdvancedDisplay, meta = (Category = "Debug"))
 	TMap<TWeakObjectPtr<AActor>, UObject*> Cache;
