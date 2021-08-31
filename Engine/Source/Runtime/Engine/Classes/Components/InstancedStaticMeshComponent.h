@@ -584,5 +584,5 @@ public:
 	TArray<FInstancedStaticMeshRandomSeed> AdditionalRandomSeeds;
 
 	UPROPERTY()
-	bool bHasPerInstanceHitProxies;
+	bool bHasPerInstanceHitProxies = false;
 };
