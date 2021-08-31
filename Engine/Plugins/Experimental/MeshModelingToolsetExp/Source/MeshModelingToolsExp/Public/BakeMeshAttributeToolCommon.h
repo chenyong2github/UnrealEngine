@@ -18,6 +18,26 @@ using UE::Geometry::TImageBuilder;
  * Bake tool property sets
  */
 
+
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UDetailMeshToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** The detail mesh to sample */
+	UPROPERTY(VisibleAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
+	TObjectPtr<UStaticMesh> DetailMesh = nullptr;
+
+	/** The detail mesh normal map to sample. If empty, the geometric normals will be used. */
+	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
+	TObjectPtr<UTexture2D> DetailMeshNormalMap = nullptr;
+
+	/** UV layer to sample from on the detail mesh */
+	UPROPERTY(EditAnywhere, Category = DetailMesh, meta = (TransientToolProperty))
+	int32 DetailNormalUVLayer = 0;
+};
+
+
 UENUM()
 enum class ENormalMapSpace
 {
@@ -212,6 +232,16 @@ public:
 /**
  * Bake tool property settings structs
  */
+
+struct FDetailMeshSettings
+{
+	int32 UVLayer = 0;
+	
+	bool operator==(const FDetailMeshSettings& Other) const
+	{
+		return UVLayer == Other.UVLayer;
+	}
+};
 
 struct FNormalMapSettings
 {

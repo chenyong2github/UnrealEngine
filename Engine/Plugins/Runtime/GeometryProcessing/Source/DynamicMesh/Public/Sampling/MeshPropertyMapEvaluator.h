@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Sampling/MeshMapEvaluator.h"
+#include "DynamicMesh/MeshTangents.h"
+#include "Image/ImageBuilder.h"
 
 namespace UE
 {
@@ -34,6 +36,7 @@ public:
 	virtual EMeshMapEvaluatorType Type() const override { return EMeshMapEvaluatorType::Property; }
 	// End FMeshMapEvaluator interface
 
+	template <bool bUseDetailNormalMap>
 	static void EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
 	static void EvaluateDefault(float*& Out, void* EvalData);
@@ -46,6 +49,8 @@ protected:
 	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
 	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
 	const FDynamicMeshColorOverlay* DetailColorOverlay = nullptr;
+	const TMeshTangents<double>* DetailMeshTangents = nullptr;
+	const TImageBuilder<FVector4f>* DetailMeshNormalMap = nullptr;
 	FAxisAlignedBox3d Bounds;
 	FVector3f DefaultValue = FVector3f::Zero();
 
@@ -70,7 +75,10 @@ private:
 		return (FVector3f)FVector3d(X, Y, Z);
 	}
 
+	template <bool bUseDetailNormalMap>
 	FVector3f SampleFunction(const FCorrespondenceSample& Sample);
+
+	FVector4f SampleNormalMapFunction(const FVector2d& UVCoord) const;
 };
 
 } // end namespace UE::Geometry

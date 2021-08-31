@@ -9,19 +9,22 @@ using namespace UE::Geometry;
 
 void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
-	Context.Evaluate = &EvaluateSample;
-	Context.EvaluateDefault = &EvaluateDefault;
-	Context.EvaluateColor = &EvaluateColor;
-	Context.EvalData = this;
-	Context.AccumulateMode = EAccumulateMode::Add;
-	Context.DataLayout = { EComponents::Float3 };
-
 	// Cache data from the baker
 	DetailMesh = Baker.GetDetailMesh();
 	DetailNormalOverlay = Baker.GetDetailMeshNormals();
 	check(DetailNormalOverlay);
 	DetailUVOverlay = Baker.GetDetailMeshUVs();
 	DetailColorOverlay = Baker.GetDetailMeshColors();
+	DetailMeshTangents = Baker.GetDetailMeshTangents();
+	DetailMeshNormalMap = Baker.GetDetailMeshNormalMap();
+
+	const bool bHasDetailNormalMap = DetailMeshNormalMap != nullptr;
+	Context.Evaluate = bHasDetailNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
+	Context.EvaluateDefault = &EvaluateDefault;
+	Context.EvaluateColor = &EvaluateColor;
+	Context.EvalData = this;
+	Context.AccumulateMode = EAccumulateMode::Add;
+	Context.DataLayout = { EComponents::Float3 };
 
 	Bounds = DetailMesh->GetBounds();
 	for (int32 j = 0; j < 3; ++j)
@@ -41,8 +44,14 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 		DefaultValue = PositionToColor(Bounds.Center(), Bounds);
 		break;
 	case EMeshPropertyMapType::FacetNormal:
+		DefaultValue = NormalToColor(FVector3d::UnitZ());
+		break;
 	case EMeshPropertyMapType::Normal:
 		DefaultValue = NormalToColor(FVector3d::UnitZ());
+		if (bHasDetailNormalMap)
+		{
+			DetailUVOverlay = Baker.GetDetailMeshUVs(Baker.GetDetailMeshNormalUVLayer());
+		}
 		break;
 	case EMeshPropertyMapType::UVPosition:
 		DefaultValue = UVToColor(FVector2d::Zero());
@@ -56,10 +65,11 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	}
 }
 
+template <bool bUseDetailNormalMap>
 void FMeshPropertyMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
 	FMeshPropertyMapEvaluator* Eval = static_cast<FMeshPropertyMapEvaluator*>(EvalData);
-	FVector3f SampleResult = Eval->SampleFunction(Sample);
+	const FVector3f SampleResult = Eval->SampleFunction<bUseDetailNormalMap>(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
 
@@ -75,6 +85,7 @@ void FMeshPropertyMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVe
 	In += 3;
 }
 
+template <bool bUseDetailNormalMap>
 FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)
 {
 	FVector3f Color = DefaultValue;
@@ -102,6 +113,29 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 				FVector3d DetailNormal;
 				DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
 				Normalize(DetailNormal);
+
+				if constexpr (bUseDetailNormalMap)
+				{
+					FVector3d DetailTangentX, DetailTangentY;
+					DetailMeshTangents->GetInterpolatedTriangleTangent(
+						SampleData.DetailTriID,
+						SampleData.DetailBaryCoords,
+						DetailTangentX, DetailTangentY);
+			
+					FVector2d DetailUV;
+					DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
+					const FVector4f DetailNormalColor4 = SampleNormalMapFunction(DetailUV);
+
+					// Map color space [0,1] to normal space [-1,1]
+					const FVector3f DetailNormalColor(DetailNormalColor4.X, DetailNormalColor4.Y, DetailNormalColor4.Z);
+					const FVector3f DetailNormalTangentSpace = (DetailNormalColor * 2.0f) - FVector3f::One();
+
+					// Convert detail normal tangent space to object space
+					FVector3f DetailNormalObjectSpace = DetailNormalTangentSpace.X * DetailTangentX + DetailNormalTangentSpace.Y * DetailTangentY + DetailNormalTangentSpace.Z * DetailNormal;
+					Normalize(DetailNormalObjectSpace);
+					DetailNormal = DetailNormalObjectSpace;
+				}
+				
 				Color = NormalToColor(DetailNormal);
 			}
 		}
@@ -140,4 +174,10 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 	}
 	return Color;
 }
+
+FVector4f FMeshPropertyMapEvaluator::SampleNormalMapFunction(const FVector2d& UVCoord) const
+{
+	return DetailMeshNormalMap->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
+}
+
 

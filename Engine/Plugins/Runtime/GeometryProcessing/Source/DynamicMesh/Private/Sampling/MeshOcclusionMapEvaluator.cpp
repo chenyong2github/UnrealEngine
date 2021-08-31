@@ -82,7 +82,7 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 
 	if (WANT_BENT_NORMAL(OcclusionType) && NormalSpace == ESpace::Tangent)
 	{
-		BaseMeshTangents = Baker.GetTargetMeshTangents().Get();
+		BaseMeshTangents = Baker.GetTargetMeshTangents();
 	}
 
 	BiasDotThreshold = FMathd::Cos(FMathd::Clamp(90.0 - BiasAngleDeg, 0.0, 90.0) * FMathd::DegToRad);
