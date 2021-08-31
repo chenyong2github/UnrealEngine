@@ -5,8 +5,9 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Count.h"
 #include "AssetCompilingManager.h"
+#include "Cooker/CookPlatformManager.h"
+#include "Cooker/CookRequestCluster.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
-#include "CookPlatformManager.h"
 #include "Containers/StringView.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/FileManager.h"
@@ -30,8 +31,7 @@ namespace Cook
 	//////////////////////////////////////////////////////////////////////////
 	// FPackageData
 	FPackageData::FPlatformData::FPlatformData()
-		: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bTargetDomainLookupAttempted(false)
-		, bExistsInTargetDomain(false)
+		: bRequested(false), bCookAttempted(false), bCookSucceeded(false), bExplored(false)
 	{
 	}
 
@@ -128,7 +128,41 @@ namespace Cook
 	{
 		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
-			if (!Pair.Value.bCookAttempted || (!bAllowFailedCooks && !Pair.Value.bCookSucceeded))
+			if (Pair.Value.bRequested && (!Pair.Value.bCookAttempted || (!bAllowFailedCooks && !Pair.Value.bCookSucceeded)))
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool FPackageData::AreAllRequestedPlatformsExplored() const
+	{
+		for (const TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
+		{
+			if (Pair.Value.bRequested && !Pair.Value.bExplored)
+			{
+				return false;
+			}
+		}
+		return true;
+	}
+
+	bool FPackageData::HasAllExploredPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const
+	{
+		if (Platforms.Num() == 0)
+		{
+			return true;
+		}
+		if (PlatformDatas.Num() == 0)
+		{
+			return false;
+		}
+
+		for (const ITargetPlatform* QueryPlatform : Platforms)
+		{
+			const FPlatformData* PlatformData = FindPlatformData(QueryPlatform);
+			if (!PlatformData || !PlatformData->bExplored)
 			{
 				return false;
 			}
@@ -147,7 +181,7 @@ namespace Cook
 	}
 
 	void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms,
-		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags)
+		bool bInIsUrgent, FCompletionCallback&& InCompletionCallback)
 	{
 		if (IsInProgress())
 		{
@@ -165,20 +199,19 @@ namespace Cook
 				// Send back to the Request state (canceling any current operations) and then add the new platforms
 				if (GetState() != EPackageState::Request)
 				{
-					check(SendFlags == ESendFlags::QueueAddAndRemove);
 					SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 				}
 				SetPlatformsRequested(InRequestedPlatforms, true);
 			}
-			else if (bUrgencyChanged && SendFlags == ESendFlags::QueueAddAndRemove)
+			else if (bUrgencyChanged)
 			{
-				SendToState(GetState(), SendFlags);
+				SendToState(GetState(), ESendFlags::QueueAddAndRemove);
 			}
 		}
 		else if (InRequestedPlatforms.Num() > 0)
 		{
 			SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback));
-			SendToState(EPackageState::Request, SendFlags);
+			SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
 		}
 	}
 
@@ -225,10 +258,12 @@ namespace Cook
 	{
 		bool bHasAnyOthers = false;
 		bool bModified = false;
+		bool bExists = false;
 		for (TPair<const ITargetPlatform*, FPlatformData>& Pair : PlatformDatas)
 		{
 			if (Pair.Key == TargetPlatform)
 			{
+				bExists = true;
 				bModified = bModified | (Pair.Value.bCookAttempted == false);
 				Pair.Value.bCookAttempted = true;
 				Pair.Value.bCookSucceeded = bSucceeded;
@@ -237,6 +272,13 @@ namespace Cook
 			{
 				bHasAnyOthers = bHasAnyOthers | (Pair.Value.bCookAttempted != false);
 			}
+		}
+		if (!bExists)
+		{
+			FPlatformData& Value = PlatformDatas.FindOrAdd(TargetPlatform);
+			Value.bCookAttempted = true;
+			Value.bCookSucceeded = bSucceeded;
+			bModified = true;
 		}
 		if (bModified && !bHasAnyOthers)
 		{
@@ -293,6 +335,21 @@ namespace Cook
 	const TSortedMap<const ITargetPlatform*, FPackageData::FPlatformData>& FPackageData::GetPlatformDatas() const
 	{
 		return PlatformDatas;
+	}
+
+	FPackageData::FPlatformData& FPackageData::FindOrAddPlatformData(const ITargetPlatform* TargetPlatform)
+	{
+		return PlatformDatas.FindOrAdd(TargetPlatform);
+	}
+
+	FPackageData::FPlatformData* FPackageData::FindPlatformData(const ITargetPlatform* TargetPlatform)
+	{
+		return PlatformDatas.Find(TargetPlatform);
+	}
+
+	const FPackageData::FPlatformData* FPackageData::FindPlatformData(const ITargetPlatform* TargetPlatform) const
+	{
+		return PlatformDatas.Find(TargetPlatform);
 	}
 
 	bool FPackageData::HasAnyCookedPlatform() const
@@ -604,6 +661,10 @@ namespace Cook
 
 	void FPackageData::OnExitIdle()
 	{
+		if (PackageDatas.GetLogDiscoveredPackages())
+		{
+			UE_LOG(LogCook, Warning, TEXT("Missing dependency: Package %s discovered after initial dependency search."), *WriteToString<256>(PackageName));
+		}
 	}
 
 	void FPackageData::OnEnterRequest()
@@ -1850,21 +1911,42 @@ namespace Cook
 
 	uint32 FRequestQueue::Num() const
 	{
-		return NormalRequests.Num() + UrgentRequests.Num();
+		uint32 Count = UnclusteredRequests.Num() + ReadyRequestsNum();
+		for (const FRequestCluster& RequestCluster : RequestClusters)
+		{
+			Count += RequestCluster.NumPackageDatas();
+		}
+		return Count;
 	}
 
 	bool FRequestQueue::Contains(const FPackageData* InPackageData) const
 	{
 		FPackageData* PackageData = const_cast<FPackageData*>(InPackageData);
-		return NormalRequests.Contains(PackageData) || UrgentRequests.Contains(PackageData);
+		if (UnclusteredRequests.Contains(PackageData) || NormalRequests.Contains(PackageData) || UrgentRequests.Contains(PackageData))
+		{
+			return true;
+		}
+		for (const FRequestCluster& RequestCluster : RequestClusters)
+		{
+			if (RequestCluster.Contains(PackageData))
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	uint32 FRequestQueue::RemoveRequest(FPackageData* PackageData)
 	{
-		uint32 OriginalNum = NormalRequests.Num() + UrgentRequests.Num();
+		uint32 OriginalNum = Num();
+		UnclusteredRequests.Remove(PackageData);
 		NormalRequests.Remove(PackageData);
 		UrgentRequests.Remove(PackageData);
-		uint32 Result = OriginalNum - (NormalRequests.Num() + UrgentRequests.Num());
+		for (FRequestCluster& RequestCluster : RequestClusters)
+		{
+			RequestCluster.RemovePackageData(PackageData);
+		}
+		uint32 Result = OriginalNum - Num();
 		check(Result == 0 || Result == 1);
 		return Result;
 	}
@@ -1874,7 +1956,17 @@ namespace Cook
 		return RemoveRequest(PackageData);
 	}
 
-	FPackageData* FRequestQueue::PopRequest()
+	bool FRequestQueue::IsReadyRequestsEmpty() const
+	{
+		return ReadyRequestsNum() == 0;
+	}
+
+	uint32 FRequestQueue::ReadyRequestsNum() const
+	{
+		return UrgentRequests.Num() + NormalRequests.Num();
+	}
+
+	FPackageData* FRequestQueue::PopReadyRequest()
 	{
 		for (FPackageData* PackageData : UrgentRequests)
 		{
@@ -1890,6 +1982,18 @@ namespace Cook
 	}
 
 	void FRequestQueue::AddRequest(FPackageData* PackageData, bool bForceUrgent)
+	{
+		if (!PackageData->AreAllRequestedPlatformsExplored())
+		{
+			UnclusteredRequests.Add(PackageData);
+		}
+		else
+		{
+			AddReadyRequest(PackageData, bForceUrgent);
+		}
+	}
+
+	void FRequestQueue::AddReadyRequest(FPackageData* PackageData, bool bForceUrgent)
 	{
 		if (bForceUrgent || PackageData->GetIsUrgent())
 		{

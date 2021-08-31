@@ -173,7 +173,6 @@ static FAutoConsoleVariableRef CVarCookDisplayWarnBusyTime(
 /// Cook on the fly server
 ///////////////////////////////////////////////////////////////
 
-constexpr uint32 ExpectedMaxNumPlatforms = 32;
 constexpr float TickCookableObjectsFrameTime = .100f;
 
 namespace UE
@@ -605,6 +604,7 @@ bool UCookOnTheFlyServer::StartCookOnTheFly(FCookOnTheFlyOptions InCookOnTheFlyO
 	}
 	PlatformManager->SetArePlatformsPrepopulated(true);
 
+	SetBeginCookConfigSettings();
 	CreateSandboxFile();
 	GenerateAssetRegistry();
 	for (FName NeverCookPackage : GetNeverCookPackageFileNames(TArrayView<const FString>()))
@@ -731,11 +731,8 @@ void UCookOnTheFlyServer::AddCookOnTheFlyPlatformFromGameThread(ITargetPlatform*
 
 	// When cooking on the fly the full registry is saved at the beginning
 	// in cook by the book asset registry is saved after the cook is finished
-	FAssetRegistryGenerator* Generator = PlatformData->RegistryGenerator.Get();
-	if (Generator)
-	{
-		Generator->SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true);
-	}
+	FAssetRegistryGenerator& Generator = *PlatformData->RegistryGenerator;
+	Generator.SaveAssetRegistry(GetSandboxAssetRegistryFilename(), true);
 	check(PlatformData->bIsSandboxInitialized); // This should have been set by BeginCookSandbox, and it is what we use to determine whether a platform has been initialized
 }
 
@@ -1166,7 +1163,6 @@ FString UCookOnTheFlyServer::GetContentDirectoryForDLC() const
 	return GetBaseDirectoryForDLC() / TEXT("Content");
 }
 
-
 // allow for a command line to start async preloading a Development AssetRegistry if requested
 static FEventRef GPreloadAREvent(EEventMode::ManualReset);
 static FEventRef GPreloadARInfoEvent(EEventMode::ManualReset);
@@ -1310,9 +1306,6 @@ uint32 UCookOnTheFlyServer::TickCookOnTheSide(const float TimeSlice, uint32 &Coo
 			bool bBusy;
 			switch (CookAction)
 			{
-			case ECookAction::RequestCluster:
-				PumpRequestClusters(StackData);
-				break;
 			case ECookAction::Request:
 				PumpRequests(StackData, NumPushed);
 				if (NumPushed > 0)
@@ -1636,9 +1629,10 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		return ECookAction::YieldTick;
 	}
 
-	if (RequestClusters.Num())
+	UE::Cook::FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
+	if (RequestQueue.GetRequestClusters().Num() != 0 || RequestQueue.GetUnclusteredRequests().Num() != 0)
 	{
-		return ECookAction::RequestCluster;
+		return ECookAction::Request;
 	}
 
 	UE::Cook::FPackageDataMonitor& Monitor = PackageDatas->GetMonitor();
@@ -1680,9 +1674,7 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		return ECookAction::LoadLimited;
 	}
 
-	int32 NumRequests = PackageDatas->GetRequestQueue().Num();
-	bool bRequestAvailable = NumRequests > 0;
-	if (bRequestAvailable)
+	if (!RequestQueue.IsReadyRequestsEmpty())
 	{
 		return ECookAction::Request;
 	}
@@ -1761,34 +1753,21 @@ void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& Coo
 			}
 #endif
 			bool bRequestsAreUrgent = IsCookOnTheFlyMode();
-			UE::Cook::FRequestCluster::AddClusters(*this, MoveTemp(BuildRequests), bRequestsAreUrgent,
-				RequestClusters);
+			TRingBuffer<UE::Cook::FRequestCluster>& RequestClusters = PackageDatas->GetRequestQueue().GetRequestClusters();
+			UE::Cook::FRequestCluster::AddClusters(*this, MoveTemp(BuildRequests), bRequestsAreUrgent, RequestClusters);
 		}
 	}
 }
 
-void UCookOnTheFlyServer::PumpRequestClusters(UE::Cook::FTickStackData& StackData)
+bool UCookOnTheFlyServer::TryCreateRequestCluster(UE::Cook::FPackageData& PackageData)
 {
 	using namespace UE::Cook;
-
-	const FCookerTimer& CookerTimer = StackData.Timer;
-	while (RequestClusters.Num() > 0 && !CookerTimer.IsTimeUp())
+	if (!PackageData.AreAllRequestedPlatformsExplored())
 	{
-		FRequestCluster& RequestCluster = RequestClusters.First();
-		bool bComplete = false;
-		RequestCluster.Process(CookerTimer, bComplete);
-		if (bComplete)
-		{
-			for (FRequestCluster::FRequest& Request : RequestCluster.GetRequests())
-			{
-				FPackageData& PackageData(PackageDatas->FindOrAddPackageData(Request.PackageName, Request.FileName));
-				PackageData.UpdateRequestData(RequestCluster.GetPlatforms(), Request.bIsUrgent,
-					MoveTemp(Request.CompletionCallback));
-			}
-
-			RequestClusters.PopFront();
-		}
+		PackageData.SendToState(EPackageState::Request, ESendFlags::QueueAdd);
+		return true;
 	}
+	return false;
 }
 
 void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed)
@@ -1798,186 +1777,80 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 
 	OutNumPushed = 0;
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	COOK_STAT(DetailedCookStats::PeakRequestQueueSize = FMath::Max(DetailedCookStats::PeakRequestQueueSize, static_cast<int32>(RequestQueue.Num())));
-	if (!RequestQueue.IsEmpty())
+	FPackageDataSet& UnclusteredRequests = RequestQueue.GetUnclusteredRequests();
+	TRingBuffer<FRequestCluster>& RequestClusters = RequestQueue.GetRequestClusters();
+	const FCookerTimer& CookerTimer = StackData.Timer;
+	if (!UnclusteredRequests.IsEmpty())
 	{
-		FPackageData* PackageData = RequestQueue.PopRequest();
-		FPoppedPackageDataScope Scope(*PackageData);
-		int32 NumPushed;
-		ProcessRequest(*PackageData, StackData, NumPushed);
-		OutNumPushed += NumPushed;
-	}
-}
-
-void UCookOnTheFlyServer::ProcessRequest(UE::Cook::FPackageData& PackageData, UE::Cook::FTickStackData& StackData, int32& OutNumPushed)
-{
-	using namespace UE::Cook;
-	OutNumPushed = 0;
-
-	if (PackageData.AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */))
-	{
-#if DEBUG_COOKONTHEFLY
-		UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *PackageData.GetFileName().ToString());
-#endif
-		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
-		return;
-	}
-
-	const FName& BuildFileName = PackageData.GetFileName();
-	FString BuildFileNameString = BuildFileName.ToString();
-	if (IsCookByTheBookMode() && CookByTheBookOptions->bErrorOnEngineContentUse)
-	{
-		check(IsCookingDLC());
-		FString DLCPath = FPaths::Combine(*GetBaseDirectoryForDLC(), TEXT("Content"));
-		FPaths::MakeStandardFilename(DLCPath);
-		if (BuildFileNameString.StartsWith(DLCPath) == false) // if we don't start with the dlc path then we shouldn't be cooking this data 
+		FRequestCluster::AddClusters(*this, UnclusteredRequests, RequestClusters, RequestQueue);
+		UnclusteredRequests.Empty();
+		if (CookerTimer.IsTimeUp())
 		{
-			UE_LOG(LogCook, Error, TEXT("Engine or Game content %s is being referenced by DLC!"), *BuildFileNameString);
-			RejectPackageToLoad(PackageData, TEXT("is base Game/Engine content and we are building DLC that is not allowed to refer to it"));
 			return;
 		}
 	}
 
-	if (PackageTracker->NeverCookPackageList.Contains(BuildFileName))
+	while (RequestClusters.Num() > 0)
 	{
-#if DEBUG_COOKONTHEFLY
-		UE_LOG(LogCook, Display, TEXT("Package %s requested but is in the never cook package list, discarding request"), *BuildFileNameString);
-#else
-		UE_LOG(LogCook, Verbose, TEXT("Package %s requested but is in the never cook package list, discarding request"), *BuildFileNameString);
-#endif
-		RejectPackageToLoad(PackageData, TEXT("is in the never cook list"));
-		return;
-	}
-
-
-	if (!PackageData.GetIsUrgent() && (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipHardReferences))
-	{
-		// TODO: We need to AddDependenciesToLoadQueue only for requests that did not already do so
-		// because they were part of a CookRequestCluster
-		int32 NumPushed;
-		AddDependenciesToLoadQueue(PackageData, NumPushed);
-		OutNumPushed += NumPushed;
-	}
-	// AddDependenciesToLoadQueue is supposed to add the dependencies only and not add the passed-in packagedata, so it should still be in request
-	check(PackageData.GetState() == EPackageState::Request);
-	PackageData.SendToState(EPackageState::LoadPrepare, ESendFlags::QueueAdd);
-	++OutNumPushed;
-}
-
-void UCookOnTheFlyServer::AddDependenciesToLoadQueue(UE::Cook::FPackageData& PackageData, int32& OutNumPushed)
-{
-	using namespace UE::Cook;
-	OutNumPushed = 0;
-
-	struct FPackageAndDependencies
-	{
-		FPackageData& PackageData;
-		TArray<FPackageData*> Dependencies;
-		int NextDependency = 0;
-
-		explicit FPackageAndDependencies(FPackageData& InPackageData, TArray<FName>& AssetDependenciesScratch, IAssetRegistry* AssetRegistry, FPackageDatas& PackageDatas)
-			: PackageData(InPackageData)
+		FRequestCluster& RequestCluster = RequestClusters.First();
+		bool bComplete = false;
+		RequestCluster.Process(CookerTimer, bComplete);
+		if (bComplete)
 		{
-			check(!PackageData.GetIsVisited());
-			PackageData.SetIsVisited(true);
-
-			AssetDependenciesScratch.Reset();
-			// TODO EditorOnly References: We only load Game dependencies, because if we explicitly load an EditorOnly dependency, that causes StaticLoadObjectInternal to SetLoadedByEditorPropertiesOnly(false), and we do not want to impact that value with our preloading of required packages 
-			if (AssetRegistry->GetDependencies(PackageData.GetPackageName(), AssetDependenciesScratch, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard | UE::AssetRegistry::EDependencyQuery::Game))
+			TArray<FPackageData*> RequestsToLoad;
+			TArray<FPackageData*> RequestsToDemote;
+			RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
+			for (FPackageData* PackageData : RequestsToLoad)
 			{
-				Dependencies.Reserve(AssetDependenciesScratch.Num());
-				for (const FName& DependencyName : AssetDependenciesScratch)
+				RequestQueue.AddReadyRequest(PackageData);
+			}
+			for (FPackageData* PackageData : RequestsToDemote)
+			{
+				PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			}
+			RequestClusters.PopFront();
+			if (IsCookByTheBookMode() && bHybridIterativeDebug)
+			{
+				for (FPackageData* PackageData : *PackageDatas)
 				{
-					TStringBuilder<256> NameBuffer;
-					DependencyName.ToString(NameBuffer);
-					if (FPackageName::IsScriptPackage(NameBuffer))
+					if (!PackageData->AreAllRequestedPlatformsExplored())
 					{
-						continue;
+						UE_LOG(LogCook, Warning, TEXT("Missing dependency: existing requested Package %s was not explored in the first cluster."),
+							*WriteToString<256>(PackageData->GetPackageName()));
 					}
-					FPackageData* DependencyData = PackageDatas.TryAddPackageDataByPackageName(DependencyName);
-					if (!DependencyData || DependencyData == &PackageData)
-					{
-						continue;
-					}
-					Dependencies.Add(DependencyData);
 				}
+				PackageDatas->SetLogDiscoveredPackages(true); // Turn this on for the rest of the cook after the initial cluster
 			}
 		}
+		if (CookerTimer.IsTimeUp())
+		{
+			return;
+		}
+	}
 
-		FPackageAndDependencies(FPackageAndDependencies&& Other) = default;
-		
-		FPackageAndDependencies(const FPackageAndDependencies& Other) = delete;
-		FPackageAndDependencies& operator=(const FPackageAndDependencies& Other) = delete;
-		FPackageAndDependencies& operator=(FPackageAndDependencies&& Other) = delete;
-	};
-	TRingBuffer<FPackageAndDependencies> LoadStack;
-	TArray<FName> AssetDependenciesScratch;
-	const TArray<const ITargetPlatform*>& SessionPlatforms = PlatformManager->GetSessionPlatforms();
-	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-
-	LoadStack.AddFront(FPackageAndDependencies(PackageData, AssetDependenciesScratch, AssetRegistry, *PackageDatas));
-
-	while (!LoadStack.IsEmpty())
+	COOK_STAT(DetailedCookStats::PeakRequestQueueSize = FMath::Max(DetailedCookStats::PeakRequestQueueSize, static_cast<int32>(RequestQueue.ReadyRequestsNum())));
+	uint32 NumInBatch = 0;
+	while (!RequestQueue.IsReadyRequestsEmpty() && NumInBatch < RequestBatchSize)
 	{
-		FPackageAndDependencies& PackageAndDependencies(LoadStack.First());
-		FPackageData& CurrentPackageData(PackageAndDependencies.PackageData);
-		TArray<FPackageData*>& Dependencies(PackageAndDependencies.Dependencies);
-		int32& NextDependency(PackageAndDependencies.NextDependency);
-
-		// We search in DFS order so that we end up with a topological sort (or a mostly topological sort when there are cycles)
-		bool bAddedDependency = false;
-		while (NextDependency < Dependencies.Num())
+		FPackageData* PackageData = RequestQueue.PopReadyRequest();
+		FPoppedPackageDataScope Scope(*PackageData);
+		// Exploring dependencies in ReadRequests is legacy behavior and is allowed even if bPreexploreDependenciesEnabled  is false
+		if (TryCreateRequestCluster(*PackageData))
 		{
-			FPackageData& DependencyData(*Dependencies[NextDependency++]);
-			if (DependencyData.GetState() >= EPackageState::LoadPrepare || DependencyData.GetIsVisited())
-			{
-				// If it's already been visited, or it's already loading or saving, don't add it again
-				// Skipping the add if it's already been visited is how we make sure we still terminate even with cycles in the dependency graph
-				continue;
-			}
-			if (FindObjectFast<UPackage>(nullptr, DependencyData.GetPackageName(), false /* ExactClass */, false /* AnyPackage */))
-			{
-				// If it's already loaded, no work to do for it
-				continue;
-			}
-
-			// Move the dependency into the request state and push it onto the DependencyStack, closer to front than the current PackageData that depends on it.
-			// Note that since we're moving it into the LoadQueue before we return, we do not need to spend time to add it to (or leave it in) the RequestQueue
-			bool bIsUrgent = false;
-			if (DependencyData.GetState() == EPackageState::Request)
-			{
-				RequestQueue.RemoveRequest(&DependencyData);
-				DependencyData.UpdateRequestData(SessionPlatforms, bIsUrgent, FCompletionCallback(), ESendFlags::QueueNone);
-			}
-			else
-			{
-				DependencyData.UpdateRequestData(SessionPlatforms, bIsUrgent, FCompletionCallback(), ESendFlags::QueueRemove);
-			}
-			LoadStack.AddFront(FPackageAndDependencies(DependencyData, AssetDependenciesScratch, AssetRegistry, *PackageDatas));
-			// PackageAndDependencies is now invalidated
-			bAddedDependency = true;
-			break;
-		}
-		if (bAddedDependency)
-		{
-			// PackageAndDependencies is now invalidated
 			continue;
 		}
-		LoadStack.PopFront();
-		// PackageAndDependencies is now invalidated
-
-		check(CurrentPackageData.GetIsVisited());
-		CurrentPackageData.SetIsVisited(false);
-		if (&CurrentPackageData != &PackageData) // Caller is responsible for queueing the original PackageData; this function just queues dependencies
+		if (PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */))
 		{
-			// We only record dependencies that were in idle or request, and we push idle to request when adding it to the dependency stack. If a package is no longer in request at this point, then there is a bug up above and we have pushed it into load twice
-			check(CurrentPackageData.GetState() == EPackageState::Request); 
-			// Send the package to the load queue
-			CurrentPackageData.SendToState(EPackageState::LoadPrepare, ESendFlags::QueueAdd);
-			++OutNumPushed;
-			COOK_STAT(++DetailedCookStats::NumPreloadedDependencies);
+#if DEBUG_COOKONTHEFLY
+			UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *PackageData.GetFileName().ToString());
+#endif
+			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			continue;
 		}
+		PackageData->SendToState(EPackageState::LoadPrepare, ESendFlags::QueueAdd);
+		++NumInBatch;
 	}
+	OutNumPushed += NumInBatch;
 }
 
 void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy)
@@ -2018,6 +1891,11 @@ void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 
 
 		FPackageData& PackageData(*LoadReadyQueue.PopFrontValue());
 		FPoppedPackageDataScope Scope(PackageData);
+		if (bPreexploreDependenciesEnabled && TryCreateRequestCluster(PackageData))
+		{
+			continue;
+		}
+
 		int32 NumPushed;
 		LoadPackageInQueue(PackageData, StackData.ResultFlags, NumPushed);
 		OutNumPushed += NumPushed;
@@ -2058,6 +1936,10 @@ void UCookOnTheFlyServer::PumpPreloadStarts()
 	while (!EntryQueue.IsEmpty() && Monitor.GetNumPreloadAllocated() < static_cast<int32>(MaxPreloadAllocated))
 	{
 		FPackageData* PackageData = EntryQueue.PopFrontValue();
+		if (bPreexploreDependenciesEnabled  && TryCreateRequestCluster(*PackageData))
+		{
+			continue;
+		}
 		if (bLocalPreloadingEnabled)
 		{
 			PackageData->TryPreload();
@@ -2245,7 +2127,7 @@ void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageDat
 
 //////////////////////////////////////////////////////////////////////////
 
-UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Package)
+UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Package, bool* bOutWasInProgress)
 {
 	check(Package != nullptr);
 
@@ -2255,6 +2137,10 @@ UE::Cook::FPackageData* UCookOnTheFlyServer::QueueDiscoveredPackage(UPackage* Pa
 		return nullptr;	// if we have name none that means we are in core packages or something...
 	}
 	UE::Cook::FPackageData& PackageData = PackageDatas->FindOrAddPackageData(Package->GetFName(), FileName);
+	if (bOutWasInProgress)
+	{
+		*bOutWasInProgress = PackageData.IsInProgress();
+	}
 	QueueDiscoveredPackageData(PackageData, true /* bIsLoadReady */);
 	return &PackageData;
 }
@@ -3084,7 +2970,7 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 	return bSuccess;
 }
 
-void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
+void UCookOnTheFlyServer::ProcessUnsolicitedPackages(TArray<FName>* OutDiscoveredPackageNames)
 {
 	// Ensure sublevels are loaded by iterating all recently loaded packages and invoking
 	// PostLoadPackageFixup
@@ -3098,10 +2984,15 @@ void UCookOnTheFlyServer::ProcessUnsolicitedPackages()
 		{
 			if (!IsCookByTheBookMode() || !CookByTheBookOptions->bSkipSoftReferences)
 			{
-				PostLoadPackageFixup(Package);
+				PostLoadPackageFixup(Package, OutDiscoveredPackageNames);
 			}
 
-			QueueDiscoveredPackage(Package);
+			bool bWasInProgress;
+			UE::Cook::FPackageData* PackageData = QueueDiscoveredPackage(Package, &bWasInProgress);
+			if (OutDiscoveredPackageNames && PackageData && !bWasInProgress)
+			{
+				OutDiscoveredPackageNames->Add(PackageData->GetPackageName());
+			}
 		}
 	}
 }
@@ -3172,6 +3063,11 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	while (SaveQueue.Num() > static_cast<int32>(DesiredQueueLength))
 	{
 		FPackageData& PackageData(*SaveQueue.PopFrontValue());
+		if (bPreexploreDependenciesEnabled  && TryCreateRequestCluster(PackageData))
+		{
+			continue;
+		}
+
 		FPoppedPackageDataScope PoppedScope(PackageData);
 		UPackage* Package = PackageData.GetPackage();
 		
@@ -3358,43 +3254,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 	}
 }
 
-void UCookOnTheFlyServer::UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const UPackage& Package, FSavePackageResultStruct& SavePackageResult)
-{
-	if (!Generator)
-		return;
-
-	const bool bSaveSucceeded = SavePackageResult.IsSuccessful();
-
-	if (bSaveSucceeded)
-	{
-		// Ensure all assets in the package are recorded in the registry
-		Generator->CreateOrFindAssetDatas(Package);
-
-		const FName PackageName = Package.GetFName();
-		FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(PackageName);
-		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
-		// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
-		// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
-		if (SavePackageResult.CookedHash.IsValid())
-		{
-			SavePackageResult.CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
-			{
-				// Store the cooked hash in the Asset Registry when it is done computing in another thread.
-				// NOTE: For this to work, we rely on:
-				// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
-				// 2) AssetPackageData must continue to be a valid pointer - the asset registry allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
-					AssetPackageData->CookedHash = CookedHash;
-			});
-		}
-	}
-
-	// Set the package flags to zero to indicate that the package failed to save
-	const uint32 PackageFlags = bSaveSucceeded ? SavePackageResult.SerializedPackageFlags : 0;
-	const bool bUpdated = Generator->UpdateAssetPackageFlags(Package.GetFName(), PackageFlags);
-	UE_CLOG(!bUpdated && bSaveSucceeded, LogCook, Warning, TEXT("Trying to update asset package flags in package '%s' that does not exist"), *Package.GetName());
-}
-
-void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
+void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames)
 {
 	if (Package->ContainsMap() == false)
 	{
@@ -3444,11 +3304,16 @@ void UCookOnTheFlyServer::PostLoadPackageFixup(UPackage* Package)
 
 	for (const FString& PackageName : NewPackagesToCook)
 	{
-		UE::Cook::FPackageData* NewPackageData = PackageDatas->TryAddPackageDataByPackageName(FName(*PackageName));
-		if (NewPackageData)
+		FName PackageFName(*PackageName);
+		UE::Cook::FPackageData* NewPackageData = PackageDatas->TryAddPackageDataByPackageName(PackageFName);
+		if (NewPackageData && !NewPackageData->IsInProgress())
 		{
 			bool bIsUrgent = false;
 			NewPackageData->UpdateRequestData(PlatformManager->GetSessionPlatforms(), bIsUrgent, UE::Cook::FCompletionCallback());
+			if (OutDiscoveredPackageNames)
+			{
+				OutDiscoveredPackageNames->Add(PackageFName);
+			}
 		}
 	}
 }
@@ -3976,11 +3841,15 @@ void UCookOnTheFlyServer::PreGarbageCollect()
 
 		FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
 		TArray<FPackageData*> Requests;
-		Requests.Reserve(RequestQueue.Num());
-		while (!RequestQueue.IsEmpty())
+		Requests.Reserve(RequestQueue.ReadyRequestsNum());
+		while (!RequestQueue.IsReadyRequestsEmpty())
 		{
-			Requests.Add(RequestQueue.PopRequest());
+			Requests.Add(RequestQueue.PopReadyRequest());
 		}
+		// We are not looking at UnclusteredRequests or RequestClusters from the RequestQueue. These are supposed to 
+		// be quickly processed and should usually be empty, so failing to account for them will only rarely cause
+		// a performance issue (and will not cause a behavior issue)
+		
 		// Sort the cook requests by the packages which are loaded first
 		// then sort by the number of dependencies which are referenced by the package
 		// we want to process the packages with the highest dependencies so that they can
@@ -4607,18 +4476,15 @@ void FSaveCookedPackageContext::FinishPlatform()
 	bool bSuccessful = SavePackageResult.IsSuccessful();
 	bool bLocalReferencedOnlyByEditorOnlyData = SavePackageResult == ESavePackageResult::ReferencedOnlyByEditorOnlyData;
 
+	FAssetRegistryGenerator& Generator = *(COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
 	if (bPlatformSetupSuccessful)
 	{
-		FAssetRegistryGenerator* Generator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
-		FAssetPackageData* AssetPackageData = Generator->GetAssetPackageData(Package->GetFName());
+		FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
 		check(AssetPackageData);
 
 		FCbObject TargetDomainDependencies;
-		if (COTFS.bTargetDomainEnabled)
-		{
-			UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
-			TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
-		}
+		UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
+		TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
 
 		ICookedPackageWriter::FCommitPackageInfo Info;
 		Info.bSucceeded = bSuccessful;
@@ -4634,8 +4500,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 	// Update asset registry
 	if (COTFS.CookByTheBookOptions)
 	{
-		FAssetRegistryGenerator* Generator = COTFS.PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
-		COTFS.UpdateAssetRegistryPackageData(Generator, *Package, SavePackageResult);
+		Generator.UpdateAssetRegistryPackageData(*Package, SavePackageResult);
 	}
 
 	// In success or failure we want to mark the package as cooked, unless the failure was due to being referenced only
@@ -4840,6 +4705,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MaxPreloadAllocated = 16;
 	DesiredSaveQueueLength = 8;
 	DesiredLoadQueueLength = 8;
+	RequestBatchSize = 16;
 
 	MinFreeUObjectIndicesBeforeGC = 100000;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeUObjectIndicesBeforeGC"), MinFreeUObjectIndicesBeforeGC, GEditorIni);
@@ -4861,8 +4727,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 		bPreloadingEnabled = true;
 		FLinkerLoad::SetPreloadingEnabled(true);
 	}
-	GConfig->GetBool(TEXT("TargetDomain"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
-	GConfig->GetBool(TEXT("CookSettings"), TEXT("ExploreSoftReferencesOnStart"), bExploreSoftReferencesOnStart, GEditorIni);
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("PreexploreDependenciesEnabled"), bPreexploreDependenciesEnabled, GEditorIni);
 
 	{
 		const FConfigSection* CacheSettings = GConfig->GetSectionPrivate(TEXT("CookPlatformDataCacheSettings"), false, true, GEditorIni);
@@ -4892,6 +4757,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 				UE_LOG(LogCook, Verbose, TEXT("Cooker startup package %s"), *It->GetName());
 			}
 		}
+		bHybridIterativeDebug = FParse::Param(FCommandLine::Get(), TEXT("hybriditerativedebug"));
 	}
 	
 	UE_LOG(LogCook, Display, TEXT("Mobile HDR setting %d"), IsMobileHDR());
@@ -5796,6 +5662,7 @@ FAsyncIODelete& UCookOnTheFlyServer::GetAsyncIODelete()
 
 void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatform* const> TargetPlatforms)
 {
+	using namespace UE::Cook;
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::PopulateCookedPackages);
 
 	struct FPreviousAssetPackageData
@@ -5819,109 +5686,124 @@ void UCookOnTheFlyServer::PopulateCookedPackages(TArrayView<const ITargetPlatfor
 				AssetPackageDataMap.Add(CookedPackageInfo.PackageName, &AssetPackageData);
 			}
 		}
+		TMap<FName, const FAssetPackageData*>& GetConstAssetPackageDataMap()
+		{
+			return reinterpret_cast<TMap<FName, const FAssetPackageData*>&>(AssetPackageDataMap);
+		}
 
 		TArray<FAssetPackageData> AssetPackageDatas;
-		TMap<FName, const FAssetPackageData*> AssetPackageDataMap;
+		TMap<FName, FAssetPackageData*> AssetPackageDataMap;
 	};
 
+	// TODO: NumPackagesIterativelySkipped is only counted for the first platform; to count all platforms we would
+	// have to check whether each one is already cooked.
+	bool bFirstPlatform = true;
+	COOK_STAT(DetailedCookStats::NumPackagesIterativelySkipped = 0);
 	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 	{
-		UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
-		FAssetRegistryGenerator* PlatformAssetRegistry = PlatformData->RegistryGenerator.Get();
-		UE::Cook::FCookSavePackageContext& CookSavePackageContext = FindOrCreateSaveContext(TargetPlatform);
+		FAssetRegistryGenerator& PlatformAssetRegistry = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
+		FCookSavePackageContext& CookSavePackageContext = FindOrCreateSaveContext(TargetPlatform);
 		ICookedPackageWriter& PackageWriter = *CookSavePackageContext.PackageWriter;
-		check(PlatformData);
-		check(PlatformAssetRegistry);
 		UE_LOG(LogCook, Display, TEXT("Populating cooked package(s) from %s package store on platform '%s'"),
 			*CookSavePackageContext.WriterDebugName, *TargetPlatform->PlatformName());
 
 		TArray<ICookedPackageWriter::FCookedPackageInfo> CookedPackages;
 		PackageWriter.GetCookedPackages(CookedPackages);
-		
+		// TODO: Implementation ReleasePreviousAssetRegistry for all PackageWriters and add an assertion here instead of handling null.
+		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.ReleasePreviousAssetRegistry());
+
 		UE_LOG(LogCook, Display, TEXT("Found '%d' cooked package(s) in package store"), CookedPackages.Num());
 
 		FPreviousAssetPackageData PreviousAssetPackageData(CookedPackages);
 
-		FAssetRegistryGenerator::FComputeDifferenceOptions Options;
-		Options.bRecurseModifications		= true;
-		Options.bRecurseScriptModifications	= !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
-		
-		FAssetRegistryGenerator::FAssetRegistryDifference Difference;
-		PlatformAssetRegistry->ComputePackageDifferences(Options, PreviousAssetPackageData.AssetPackageDataMap, Difference);
+		if (bHybridIterativeEnabled)
+		{
+			// HybridIterative does the equivalent operation of bRecurseModifications=true and bRecurseScriptModifications=true,
+			// but checks for out-of-datedness are done by FRequestCluster using the TargetDomainKey (which is built
+			// from dependencies), so we do not need to check for out-of-datedness here
+		}
+		else
+		{
+			// Without hybrid iterative, we use the AssetRegistry graph of dependencies to find out of date packages
+			// We also implement other legacy -iterate behaviors:
+			//  *) Remove modified packages from the PackageWriter in addition to the no-longer-exist packages
+			//  *) Skip packages that failed to cook on the previous cook
+			//  *) Cook all modified packages even if the requested cook packages don't reference them
+			FAssetRegistryGenerator::FComputeDifferenceOptions Options;
+			Options.bRecurseModifications = true;
+			Options.bRecurseScriptModifications = !IsCookFlagSet(ECookInitializationFlags::IgnoreScriptPackagesOutOfDate);
+			FAssetRegistryGenerator::FAssetRegistryDifference Difference;
+			PlatformAssetRegistry.ComputePackageDifferences(Options, PreviousAssetPackageData.GetConstAssetPackageDataMap(), Difference);
 
-		TArray<FName> PackagesToRemove;
-		PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num() + Difference.IdenticalUncookedPackages.Num());
-		for (FName PackageToRemove : Difference.ModifiedPackages)
-		{
-			PackagesToRemove.Add(PackageToRemove);
-		}
-		for (FName PackageToRemove : Difference.RemovedPackages)
-		{
-			PackagesToRemove.Add(PackageToRemove);
-		}
-		for (FName PackageToRemove : Difference.IdenticalUncookedPackages)
-		{
-			PackagesToRemove.Add(PackageToRemove);
-		}
-		
-		UE_LOG(LogCook, Display, TEXT("Keeping '%d' and removing '%d' cooked package(s)"), Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num());
-		
-		PackageWriter.RemoveCookedPackages(PackagesToRemove);
-		
-		TArray<FName> PackagesToKeep;
-		for (const FName& IdenticalPackage : Difference.IdenticalCookedPackages)
-		{
-			// Mark this package as cooked so that we don't unnecessarily try to cook it again
-			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackage);
-			if (PackageData)
+			TArray<FName> PackagesToRemove;
+			PackagesToRemove.Reserve(Difference.ModifiedPackages.Num() + Difference.RemovedPackages.Num() + Difference.IdenticalUncookedPackages.Num());
+			for (FName PackageToRemove : Difference.ModifiedPackages)
 			{
-				PackageData->SetPlatformCooked(TargetPlatform, true /* bSucceeded */);
-				PackagesToKeep.Add(IdenticalPackage);
+				PackagesToRemove.Add(PackageToRemove);
 			}
-		}
-		for (FName UncookedPackage : Difference.IdenticalUncookedPackages)
-		{
-			// Mark this failed-to-cook package as cooked so that we don't unnecessarily try to cook it again
-			UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(UncookedPackage);
-			if (PackageData)
+			for (FName PackageToRemove : Difference.RemovedPackages)
 			{
-				ensure(!PackageData->HasAnyCookedPlatforms({ TargetPlatform }, /* bIncludeFailed */ false));
-				PackageData->SetPlatformCooked(TargetPlatform, false /* bSucceeded */);
-				PackagesToKeep.Add(UncookedPackage);
+				PackagesToRemove.Add(PackageToRemove);
 			}
-		}
-		if (IsCookByTheBookMode())
-		{
-			for (const FName& RemovePackageName : Difference.ModifiedPackages)
+			for (FName PackageToRemove : Difference.IdenticalUncookedPackages)
 			{
-				// cook on the fly will requeue this package when it wants it, but for cook on the book we force cook the modified file
-				// so that the output set of packages is up to date (even if the user is currently cooking only a subset)
-				UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(RemovePackageName);
+				PackagesToRemove.Add(PackageToRemove);
+			}
+
+			UE_LOG(LogCook, Display, TEXT("Keeping '%d' and removing '%d' cooked package(s)"), Difference.IdenticalCookedPackages.Num(), PackagesToRemove.Num());
+
+			PackageWriter.RemoveCookedPackages(PackagesToRemove);
+
+			if (bFirstPlatform)
+			{
+				COOK_STAT(DetailedCookStats::NumPackagesIterativelySkipped += Difference.IdenticalCookedPackages.Num());
+				bFirstPlatform = false;
+			}
+			for (const FName& IdenticalPackage : Difference.IdenticalCookedPackages)
+			{
+				// Mark this package as cooked so that we don't unnecessarily try to cook it again
+				FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(IdenticalPackage);
 				if (PackageData)
 				{
-					ExternalRequests->EnqueueUnique(UE::Cook::FFilePlatformRequest(PackageData->GetFileName(),
-						TConstArrayView<const ITargetPlatform*>{ TargetPlatform }));
+					PackageData->SetPlatformCooked(TargetPlatform, true /* bSucceeded */);
+				}
+			}
+			for (FName UncookedPackage : Difference.IdenticalUncookedPackages)
+			{
+				// Mark this failed-to-cook package as cooked so that we don't unnecessarily try to cook it again
+				FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(UncookedPackage);
+				if (PackageData)
+				{
+					ensure(!PackageData->HasAnyCookedPlatforms({ TargetPlatform }, /* bIncludeFailed */ false));
+					PackageData->SetPlatformCooked(TargetPlatform, false /* bSucceeded */);
+				}
+			}
+			if (IsCookByTheBookMode())
+			{
+				for (const FName& RemovePackageName : Difference.ModifiedPackages)
+				{
+					// cook on the fly will requeue this package when it wants it, but for cook on the book we force cook the modified file
+					// so that the output set of packages is up to date (even if the user is currently cooking only a subset)
+					FPackageData* PackageData = PackageDatas->TryAddPackageDataByPackageName(RemovePackageName);
+					if (PackageData)
+					{
+						ExternalRequests->EnqueueUnique(FFilePlatformRequest(PackageData->GetFileName(),
+							TConstArrayView<const ITargetPlatform*>{ TargetPlatform }));
+					}
 				}
 			}
 		}
 
-		TUniquePtr<FAssetRegistryState> PreviousAssetRegistry(PackageWriter.ReleasePreviousAssetRegistry());
-		if (PreviousAssetRegistry)
+		TArray<FName> TombstonePackages;
+		PlatformAssetRegistry.SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry),
+			MoveTemp(PreviousAssetPackageData.AssetPackageDataMap), TombstonePackages);
+
+		if (bHybridIterativeEnabled)
 		{
-			// SetPreviousAssetRegistry is needed for UpdateKeptPackagesAssetData, which is called at the end
-			// of the cook for any packages that were kept from the previous cook and not cooked in this cook
-			PlatformAssetRegistry->SetPreviousAssetRegistry(MoveTemp(PreviousAssetRegistry));
-			PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep);
-		}
-		else
-		{
-			// TODO: Implementation ReleasePreviousAssetRegistry for all PackageWriters and add an assertion here instead of handling null.
-			PlatformAssetRegistry->UpdateKeptPackages(PackagesToKeep, [&PreviousAssetPackageData](const FName& PackageName, FAssetPackageData* Current)
-				{
-					const FAssetPackageData* Previous = PreviousAssetPackageData.AssetPackageDataMap.FindRef(PackageName);
-					Current->CookedHash = Previous->CookedHash;
-					Current->DiskSize = Previous->DiskSize;
-				});
+			// Remove packages that no longer exist in the WorkspaceDomain from the TargetDomain. We have to
+			// check this for all packages in the previous cook rather than just the currently referenced
+			// set because when packages are removed the references to them are usually also removed.
+			PackageWriter.RemoveCookedPackages(TombstonePackages);
 		}
 	}
 }
@@ -6967,7 +6849,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 			for (const ITargetPlatform* TargetPlatform : PlatformManager->GetSessionPlatforms())
 			{
 				UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
-				FAssetRegistryGenerator& Generator = *PlatformData->RegistryGenerator.Get();
+				FAssetRegistryGenerator& Generator = *PlatformData->RegistryGenerator;
 				TArray<FName> CookedPackagesFilenames;
 				TArray<FName> IgnorePackageFilenames;
 
@@ -7280,9 +7162,32 @@ void UCookOnTheFlyServer::CancelAllQueues()
 		LoadPrepareQueue.PopFront()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 	}
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
-	while (!RequestQueue.IsEmpty())
+	FPackageDataSet& UnclusteredRequests = RequestQueue.GetUnclusteredRequests();
+	for (FPackageData* PackageData : UnclusteredRequests)
 	{
-		RequestQueue.PopRequest()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+	}
+	UnclusteredRequests.Empty();
+	TRingBuffer<FRequestCluster>& RequestClusters = RequestQueue.GetRequestClusters();
+	for (FRequestCluster& RequestCluster : RequestClusters)
+	{
+		TArray<FPackageData*> RequestsToLoad;
+		TArray<FPackageData*> RequestsToDemote;
+		RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
+		for (FPackageData* PackageData : RequestsToLoad)
+		{
+			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		}
+		for (FPackageData* PackageData : RequestsToDemote)
+		{
+			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		}
+	}
+	RequestClusters.Empty();
+
+	while (!RequestQueue.IsReadyRequestsEmpty())
+	{
+		RequestQueue.PopReadyRequest()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 	}
 
 	SetLoadBusy(false);
@@ -7296,23 +7201,42 @@ void UCookOnTheFlyServer::ClearPlatformCookedData(const ITargetPlatform* TargetP
 	{
 		return;
 	}
-	ResetCookResults({ TargetPlatform });
+	ResetCook({ TPair<const ITargetPlatform*,bool>{TargetPlatform, true /* bResetResults */}});
 
 	FindOrCreatePackageWriter(TargetPlatform).RemoveCookedPackages();
 }
 
-void UCookOnTheFlyServer::ResetCookResults(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
+void UCookOnTheFlyServer::ResetCook(TConstArrayView<TPair<const ITargetPlatform*, bool>> TargetPlatforms)
 {
 	for (UE::Cook::FPackageData* PackageData : *PackageDatas.Get())
 	{
-		PackageData->SetPlatformsNotCooked(TargetPlatforms);
+		for (const TPair<const ITargetPlatform*, bool>& Pair : TargetPlatforms)
+		{
+			const ITargetPlatform* TargetPlatform = Pair.Key;
+			UE::Cook::FPackageData::FPlatformData* PlatformData = PackageData->FindPlatformData(TargetPlatform);
+			if (PlatformData)
+			{
+				bool bResetResults = Pair.Value;
+				PlatformData->bExplored = false;
+				if (bResetResults)
+				{
+					PlatformData->bCookAttempted = false;
+					PlatformData->bCookSucceeded = false;
+				}
+			}
+		}
 	}
 
 	TArray<FName> PackageNames;
-	for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
+	for (const TPair<const ITargetPlatform*, bool>& Pair : TargetPlatforms)
 	{
-		PackageNames.Reset();
-		PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, PackageNames);
+		const ITargetPlatform* TargetPlatform = Pair.Key;
+		bool bResetResults = Pair.Value;
+		if (bResetResults)
+		{
+			PackageNames.Reset();
+			PackageTracker->UnsolicitedCookedPackages.GetPackagesForPlatformAndRemove(TargetPlatform, PackageNames);
+		}
 	}
 }
 
@@ -7364,6 +7288,15 @@ void UCookOnTheFlyServer::CreateSandboxFile()
 	SandboxFile->Initialize(&FPlatformFileManager::Get().GetPlatformFile(), *FString::Printf(TEXT("-sandbox=\"%s\""), *OutputDirectory));
 }
 
+void UCookOnTheFlyServer::SetBeginCookConfigSettings()
+{
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("HybridIterativeEnabled"), bHybridIterativeEnabled, GEditorIni);
+	// TODO: HybridIterative is not yet implemented for DLC
+	bHybridIterativeEnabled &= !IsCookingDLC();
+	// HybridIterative uses TargetDomain storage of dependencies which is only implemented in ZenStore
+	bHybridIterativeEnabled &= IsUsingZenStore();
+}
+
 void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms)
 {
 #if OUTPUT_COOKTIMING
@@ -7378,9 +7311,9 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 		}
 
 		const bool bIsDiffOnly = FParse::Param(FCommandLine::Get(), TEXT("DIFFONLY"));
-		const bool bIsIterativeCook = IsCookFlagSet(ECookInitializationFlags::Iterative);
+		const bool bIterative = !FParse::Param(FCommandLine::Get(), TEXT("noiterate")) && (bHybridIterativeEnabled || IsCookFlagSet(ECookInitializationFlags::Iterative));
 		const bool bIsSharedIterativeCook = IsCookFlagSet(ECookInitializationFlags::IterateSharedBuild);
-		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
+		TArray<TPair<const ITargetPlatform*,bool>, TInlineAllocator<ExpectedMaxNumPlatforms>> ResetPlatforms;
 		TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> PopulatePlatforms;
 
 		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
@@ -7388,7 +7321,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 			UE::Cook::FPlatformData* PlatformData = PlatformManager->GetPlatformData(TargetPlatform);
 			ICookedPackageWriter& PackageWriter = FindOrCreatePackageWriter(TargetPlatform);
 			bool bIterateSharedBuild = false;
-			if (bIsIterativeCook && bIsSharedIterativeCook && !PlatformData->bIsSandboxInitialized)
+			if (bIterative && bIsSharedIterativeCook && !PlatformData->bIsSandboxInitialized)
 			{
 				// see if the shared build is newer then the current cooked content in the local directory
 				FString SharedCookedAssetRegistry = FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("SharedIterativeBuild"),
@@ -7422,7 +7355,7 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 				// When looking for deterministic cooking differences in cooked packages, don't delete the packages on disk
 				bShouldClearCookedContent = false;
 			}
-			else if (bIsIterativeCook || PlatformData->bIsSandboxInitialized)
+			else if (bIterative || PlatformData->bIsSandboxInitialized)
 			{
 				if (!bIsIniSettingsOutOfDate)
 				{
@@ -7453,14 +7386,15 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 			CookInfo.CookMode = IsCookOnTheFlyMode() ? ICookedPackageWriter::FCookInfo::CookOnTheFlyMode : ICookedPackageWriter::FCookInfo::CookByTheBookMode;
 			CookInfo.bCleanBuild = false;
 			CookInfo.bIterateSharedBuild = bIterateSharedBuild && !bShouldClearCookedContent;
+			bool bResetResults = false;
 			if (bShouldClearCookedContent)
 			{
 				CookInfo.bCleanBuild = true;
-				ResetPlatforms.Add(TargetPlatform);
+				bResetResults = true;
 			}
 			else if (!PlatformData->bIsSandboxInitialized)
 			{
-				ResetPlatforms.Add(TargetPlatform);
+				bResetResults = true;
 				// Reset but don't populate if we are looking for deterministic cooking differences; start from an empty list of cooked packages
 				if (!bIsDiffOnly)
 				{
@@ -7468,13 +7402,12 @@ void UCookOnTheFlyServer::BeginCookSandbox(TConstArrayView<const ITargetPlatform
 				}
 			}
 			PackageWriter.BeginCook(CookInfo);
+			PlatformData->bCleanBuild = CookInfo.bCleanBuild;
 			PlatformData->bIsSandboxInitialized = true;
+			ResetPlatforms.Emplace(TargetPlatform, bResetResults);
 		}
 
-		if (ResetPlatforms.Num())
-		{
-			ResetCookResults(ResetPlatforms);
-		}
+		ResetCook(ResetPlatforms);
 		if (PopulatePlatforms.Num())
 		{
 			PopulateCookedPackages(PopulatePlatforms);
@@ -7685,6 +7618,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		UE_LOG(LogCook, Warning, TEXT("Setting bSkipSoftReferences to true since bSkipHardReferences is true and skipping hard references requires skipping soft references."));
 		CookByTheBookOptions->bSkipSoftReferences = true;
 	}
+	SetBeginCookConfigSettings();
 
 	GenerateAssetRegistry();
 	if (!IsCookingInEditor())
@@ -7779,8 +7713,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		{
 			for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 			{
-				FAssetRegistryGenerator* RegistryGenerator = PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
-				RegistryGenerator->RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(RegistryGenerator->GetPakchunkIndex(PackagingSettings->LocalizationTargetCatchAllChunkId), LocalizationTargetsToChunk, AllCulturesToCook));
+				FAssetRegistryGenerator& RegistryGenerator = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
+				RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FLocalizationChunkDataGenerator>(RegistryGenerator.GetPakchunkIndex(PackagingSettings->LocalizationTargetCatchAllChunkId), LocalizationTargetsToChunk, AllCulturesToCook));
 			}
 		}
 	}
@@ -7812,7 +7746,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	}
 	
 	FindOrCreateSaveContexts(TargetPlatforms);
-	BeginCookSandbox(TargetPlatforms); // This will either delete the sandbox or iteratively clean it
+	// TODO: Fix the elements of StartCookByTheBook that rely on BeginCookSandbox being called early, and remove this call to BeginCookSandbox
+	if (!bHybridIterativeEnabled)
+	{
+		BeginCookSandbox(TargetPlatforms); // This will either delete the sandbox or iteratively clean it
+	}
 	InitializeTargetPlatforms(TargetPlatforms);
 
 	if (CurrentCookMode == ECookMode::CookByTheBook && !IsCookFlagSet(ECookInitializationFlags::Iterative))
@@ -7956,8 +7894,8 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	{
 		for (const ITargetPlatform* TargetPlatform : TargetPlatforms)
 		{
-			FAssetRegistryGenerator* RegistryGenerator = PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator.Get();
-			RegistryGenerator->RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(TargetPlatform));
+			FAssetRegistryGenerator& RegistryGenerator = *(PlatformManager->GetPlatformData(TargetPlatform)->RegistryGenerator);
+			RegistryGenerator.RegisterChunkDataGenerator(MakeShared<FShaderLibraryChunkDataGenerator>(TargetPlatform));
 		}
 	}
 
@@ -8007,7 +7945,11 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	
 	CollectFilesToCook(FilesInPath, CookMaps, CookDirectories, IniMapSections, CookOptions, TargetPlatforms, GameDefaultObjects);
 
-	// Add string asset packages after collecting files, to avoid accidentally activating the behavior to cook all maps if none are specified
+	// Add soft/hard startup references after collecting requested files and handling empty requests
+	if (bPreexploreDependenciesEnabled && !CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bFullLoadAndSave)
+	{
+		ProcessUnsolicitedPackages(&FilesInPath);
+	}
 	for (FName SoftObjectPackage : StartupSoftObjectPackages)
 	{
 		TMap<FName, FName> RedirectedPaths;
@@ -8047,7 +7989,7 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		UE_SCOPED_HIERARCHICAL_COOKTIMER(GenerateLongPackageName);
 		GenerateLongPackageNames(FilesInPath);
 	}
-	// add all the files for the requested platform to the cook list
+	// add all the files to the cook list for the requested platforms
 	for ( const FName& FileFName : FilesInPath )
 	{
 		if (FileFName == NAME_None)
@@ -8067,7 +8009,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 			LogCookerMessage( FString::Printf(TEXT("Unable to find package for cooking %s"), *FileName), EMessageSeverity::Warning );
 		}	
 	}
-
 
 	if (!IsCookingDLC())
 	{
@@ -8094,6 +8035,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 				}
 			}
 		}
+	}
+
+	if (bHybridIterativeEnabled)
+	{
+		BeginCookSandbox(TargetPlatforms);
+	}
+	if (bHybridIterativeDebug)
+	{
+		// Discoveries during the processing of the initial cluster are expected, so LogDiscoveredPackages must be off.
+		PackageDatas->SetLogDiscoveredPackages(false);
 	}
 }
 
@@ -8846,8 +8797,9 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 							}
 						}
 
-						FAssetRegistryGenerator* Generator = PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get();
-						UpdateAssetRegistryPackageData(Generator, *Package, SaveResult);
+						// Update asset registry
+						FAssetRegistryGenerator& Generator = *(PlatformManager->GetPlatformData(Target)->RegistryGenerator);
+						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult);
 
 						if (SaveResult.IsSuccessful())
 						{

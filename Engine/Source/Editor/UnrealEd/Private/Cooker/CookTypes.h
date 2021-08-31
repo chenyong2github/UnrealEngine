@@ -61,6 +61,11 @@ namespace UE::Cook
 	/** A function that is called when a requested package finishes cooking (when successful, failed, or skipped) */
 	typedef TUniqueFunction<void(FPackageData*)> FCompletionCallback;
 
+	class FPackageDataSet : public TFastPointerSet<FPackageData*>
+	{
+		using TFastPointerSet<FPackageData*>::TFastPointerSet;
+	};
+
 	/** External Requests to the cooker can either by cook requests for a specific file, or arbitrary callbacks that need to execute within the Scheduler's lock. */
 	enum class EExternalRequestType
 	{
@@ -230,4 +235,5 @@ public:
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);
 const FString& GetDevelopmentAssetRegistryFilename();
+constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")

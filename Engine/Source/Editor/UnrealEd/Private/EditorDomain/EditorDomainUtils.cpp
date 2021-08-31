@@ -39,16 +39,10 @@ FClassDigestMap& GetClassDigests()
 }
 
 TSet<FName> GEditorClassBlockList;
-const TSet<FName>& GetEditorClassBlockList()
-{
-	return GEditorClassBlockList;
-}
-
 TSet<FName> GEditorPackageBlockList;
-const TSet<FName>& GetEditorPackageBlockList()
-{
-	return GEditorPackageBlockList;
-}
+TSet<FName> GTargetDomainClassBlockList;
+bool GTargetDomainClassUseAllowList = true;
+bool GTargetDomainClassEmptyAllowList = false;
 
 // Change to a new guid when EditorDomain needs to be invalidated
 const TCHAR* EditorDomainVersion = TEXT("86E449B024FD412BB80DB1397EFAE34D");
@@ -206,10 +200,18 @@ void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassD
 		
 		FClassData& ClassData = ClassDatas.Emplace_GetRef();
 		ClassData.Name = ClassName;
-		ClassData.DigestData.bEditorDomainEnabled = !GetEditorClassBlockList().Contains(ClassName);
+		ClassData.DigestData.bEditorDomainEnabled = !GEditorClassBlockList.Contains(ClassName);
 		if (LookupName != ClassName)
 		{
-			ClassData.DigestData.bEditorDomainEnabled &= !GetEditorClassBlockList().Contains(LookupName);
+			ClassData.DigestData.bEditorDomainEnabled &= !GEditorClassBlockList.Contains(LookupName);
+		}
+		if (!GTargetDomainClassUseAllowList)
+		{
+			ClassData.DigestData.bTargetIterativeEnabled = !GTargetDomainClassBlockList.Contains(ClassName);
+			if (LookupName != ClassName)
+			{
+				ClassData.DigestData.bTargetIterativeEnabled &= !GTargetDomainClassBlockList.Contains(LookupName);
+			}
 		}
 
 		if (Struct)
@@ -273,6 +275,10 @@ void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassD
 				if (ParentDigest)
 				{
 					ClassData.DigestData.bEditorDomainEnabled &= ParentDigest->bEditorDomainEnabled;
+					if (!GTargetDomainClassUseAllowList)
+					{
+						ClassData.DigestData.bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
+					}
 				}
 				else
 				{
@@ -356,6 +362,10 @@ void PrecacheClassDigests(TConstArrayView<FName> ClassNames, TMap<FName, FClassD
 		if (ParentDigest)
 		{
 			ClassData.DigestData.bEditorDomainEnabled &= ParentDigest->bEditorDomainEnabled;
+			if (!GTargetDomainClassUseAllowList)
+			{
+				ClassData.DigestData.bTargetIterativeEnabled &= ParentDigest->bTargetIterativeEnabled;
+			}
 		}
 	};
 	for (TPair<FName, FClassData>& RemainingPair : RemainingBatch)
@@ -511,6 +521,30 @@ void UtilsInitialize()
 	GEditorClassBlockList = ConstructClassBlockList();
 	GEditorPackageBlockList = ConstructPackageNameBlockList();
 
+	bool bTargetDomainClassUseBlockList = true;
+	if (FParse::Param(FCommandLine::Get(), TEXT("noiterate")))
+	{
+		// Allow list is marked as used, but is initialized empty
+		bTargetDomainClassUseBlockList = false;
+		GTargetDomainClassUseAllowList = true;
+		GTargetDomainClassEmptyAllowList = true;
+	}
+	else if (FParse::Param(FCommandLine::Get(), TEXT("iterate")))
+	{
+		bTargetDomainClassUseBlockList = false;
+		GTargetDomainClassUseAllowList = false;
+	}
+	else
+	{
+		GConfig->GetBool(TEXT("TargetDomain"), TEXT("IterativeClassAllowListEnabled"), GTargetDomainClassUseAllowList, GEditorIni);
+		GTargetDomainClassEmptyAllowList = false;
+	}
+
+	if (!GTargetDomainClassUseAllowList && bTargetDomainClassUseBlockList)
+	{
+		GTargetDomainClassBlockList = ConstructTargetIterativeClassBlockList();
+	}
+
 	// Constructing allowlists requires use of UStructs, and the early SetPackageResourceManager
 	// where UtilsInitialize is called is too early; trying to call UStruct->GetSchemaHash at that
 	// time will break the UClass. Defer the construction of allowlist-based data until OnPostEngineInit
@@ -523,7 +557,10 @@ void UtilsPostEngineInit()
 	GUtilsPostInitDelegate.Reset();
 
 	// Note that constructing AllowLists depends on all BlockLists having been parsed already
-	ConstructTargetIterativeClassAllowList();
+	if (GTargetDomainClassUseAllowList && !GTargetDomainClassEmptyAllowList)
+	{
+		ConstructTargetIterativeClassAllowList();
+	}
 }
 
 EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName PackageName,
@@ -551,7 +588,7 @@ EPackageDigestResult AppendPackageDigest(IAssetRegistry& AssetRegistry, FName Pa
 		return EPackageDigestResult::FileDoesNotExist;
 	}
 	EPackageDigestResult Result = AppendPackageDigest(Builder, bOutEditorDomainEnabled, OutErrorMessage, *PackageData, PackageName);
-	bOutEditorDomainEnabled &= !GetEditorPackageBlockList().Contains(PackageName);
+	bOutEditorDomainEnabled &= !GEditorPackageBlockList.Contains(PackageName);
 	return Result;
 }
 
