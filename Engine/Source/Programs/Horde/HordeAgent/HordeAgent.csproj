@@ -124,7 +124,7 @@
     <ItemGroup>
       <OutputFiles Include="$(OutDir)**" />
       <BinaryFilesBase Include="$(OutDir)\*.dll" />
-      <BinaryFiles Include="@(BinaryFilesBase)" Condition="Exists('%(RelativeDir)%(FileName).pdb')" />
+      <BinaryFiles Include="@(BinaryFilesBase)" Condition="Exists('%(RelativeDir)%(FileName).pdb') And '%(FileName)' != 'EpicGames.Perforce.Native'" />
     </ItemGroup>
 
     <MakeDir Directories="$(FullSymbolsDir)" />
