@@ -103,7 +103,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FRDGExternalBuffer DebugAttributeBuffer;
 		FHairGroupInstanceModifer Modifier;
 
-		UMaterialInterface* Material = nullptr;
 		FHairStrandsVertexFactory* VertexFactory = nullptr;
 	} Strands;
 
@@ -133,7 +132,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 
 			FStrandsBaseWithInterpolation Guides;
 
-			UMaterialInterface* Material = nullptr;
 			FHairCardsUniformBuffer UniformBuffer;
 			FHairCardsVertexFactory* VertexFactory = nullptr;
 			FHairCardsVertexFactory* GetVertexFactory() const
@@ -167,7 +165,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 			bool RaytracingResourceOwned = false;
 			#endif
 
-			UMaterialInterface* Material = nullptr;
 			FHairCardsUniformBuffer UniformBuffer;
 			FHairCardsVertexFactory* VertexFactory = nullptr;
 			FHairCardsVertexFactory* GetVertexFactory() const 
