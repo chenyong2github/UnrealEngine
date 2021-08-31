@@ -174,6 +174,9 @@ public:
 	inline const VkSurfaceTransformFlagBitsKHR GetQCOMRenderPassTransform() const { return QCOMRenderPassTransform; }
 
 protected:
+	VkImageLayout GetVRSImageLayout() const;
+
+protected:
 	VkSurfaceTransformFlagBitsKHR QCOMRenderPassTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
 	VkAttachmentReference ColorReferences[MaxSimultaneousRenderTargets];
 	VkAttachmentReference DepthStencilReference;
@@ -867,6 +870,38 @@ namespace VulkanRHI
 inline bool UseVulkanDescriptorCache()
 {
 	return (PLATFORM_ANDROID)|| GMaxRHIFeatureLevel <= ERHIFeatureLevel::ES3_1;
+}
+
+inline bool ValidateShadingRateDataType()
+{
+	switch (GRHIVariableRateShadingImageDataType)
+	{
+	case VRSImage_Palette:
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		return true;
+#else
+		checkf(false, TEXT("GRHIVariableRateShadingImageDataType was specified as VRSImage_Palette, but the VK_KHR_fragment_shading_rate extension is not supported on this platform."));
+		break;
+#endif
+
+	case VRSImage_Fractional:
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		return true;
+#else
+		checkf(false, TEXT("GRHIVariableRateShadingImageDataType was specified as VRSImage_Fractional, but the VK_EXT_fragment_density_map extension is not supported on this platform."));
+		break;
+#endif
+
+	case VRSImage_NotSupported:
+		checkf(false, TEXT("A texture was marked as a shading rate source but attachment VRS is not supported on this device. Ensure GRHISupportsAttachmentVariableRateShading and GRHIAttachmentVariableRateShadingEnabled are true before specifying a shading rate attachment."));
+		break;
+
+	default:
+		checkf(false, TEXT("Unrecognized shading rate image data type. Specified type was %d"), (int)GRHIVariableRateShadingImageDataType);
+		break;
+	}
+
+	return false;
 }
 
 extern int32 GVulkanSubmitAfterEveryEndRenderPass;

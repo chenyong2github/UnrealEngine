@@ -895,6 +895,26 @@ struct FRenderPassFullHashableStruct
 #endif
 };
 
+VkImageLayout FVulkanRenderTargetLayout::GetVRSImageLayout() const
+{
+	if (ValidateShadingRateDataType())
+	{
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+		{
+			return VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+		}
+#endif
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+		{
+			return VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		}
+#endif
+	}
+
+	return VK_IMAGE_LAYOUT_UNDEFINED;
+}
 
 FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, const FRHISetRenderTargetsInfo& RTInfo)
 	: NumAttachmentDescriptions(0)
@@ -1073,16 +1093,18 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		}
 	}
 
-	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RTInfo.ShadingRateTexture)
+	if (GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RTInfo.ShadingRateTexture)
 	{
 		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RTInfo.ShadingRateTexture);
 		check(Texture);
+		check(Texture->GetRHITexture());
+		check(Texture->GetRHITexture()->GetFormat() == GRHIVariableRateShadingImageFormat);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		FMemory::Memzero(CurrDesc);
 
-		const VkImageLayout FragmentDensityLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
-
+		const VkImageLayout VRSLayout = GetVRSImageLayout();
+		
 		CurrDesc.flags = 0;
 		CurrDesc.format = UEToVkTextureFormat(RTInfo.ShadingRateTexture->GetFormat(), false);
 		CurrDesc.samples = static_cast<VkSampleCountFlagBits>(RTInfo.ShadingRateTexture->GetNumSamples());
@@ -1090,16 +1112,16 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		CurrDesc.initialLayout = FragmentDensityLayout;
-		CurrDesc.finalLayout = FragmentDensityLayout;
+		CurrDesc.initialLayout = VRSLayout;
+		CurrDesc.finalLayout = VRSLayout;
 
 		FragmentDensityReference.attachment = NumAttachmentDescriptions;
-		FragmentDensityReference.layout = FragmentDensityLayout;
+		FragmentDensityReference.layout = VRSLayout;
 
 		FullHashInfo.LoadOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilLoadOp;
 		FullHashInfo.StoreOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilStoreOp;
 #if VULKAN_USE_REAL_RENDERPASS_COMPATIBILITY
-		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = FragmentDensityLayout;
+		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = VRSLayout;
 #endif
 		CompatibleHashInfo.Formats[MaxSimultaneousRenderTargets + 1] = CurrDesc.format;
 
@@ -1352,15 +1374,17 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		Extent.Extent3D.depth = 1;
 	}
 
-	if (InDevice.GetOptionalExtensions().HasEXTFragmentDensityMap && RPInfo.ShadingRateTexture)
+	if (GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RPInfo.ShadingRateTexture)
 	{
 		FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(RPInfo.ShadingRateTexture);
 		check(Texture);
+		check(Texture->GetRHITexture());
+		check(Texture->GetRHITexture()->GetFormat() == GRHIVariableRateShadingImageFormat);
 
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		FMemory::Memzero(CurrDesc);
 
-		const VkImageLayout FragmentDensityLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		const VkImageLayout VRSLayout = GetVRSImageLayout();
 
 		CurrDesc.flags = 0;
 		CurrDesc.format = UEToVkTextureFormat(RPInfo.ShadingRateTexture->GetFormat(), false);
@@ -1369,16 +1393,16 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(FVulkanDevice& InDevice, co
 		CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		CurrDesc.initialLayout = FragmentDensityLayout;
-		CurrDesc.finalLayout = FragmentDensityLayout;
+		CurrDesc.initialLayout = VRSLayout;
+		CurrDesc.finalLayout = VRSLayout;
 
 		FragmentDensityReference.attachment = NumAttachmentDescriptions;
-		FragmentDensityReference.layout = FragmentDensityLayout;
+		FragmentDensityReference.layout = VRSLayout;
 
 		FullHashInfo.LoadOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilLoadOp;
 		FullHashInfo.StoreOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilStoreOp;
 #if VULKAN_USE_REAL_RENDERPASS_COMPATIBILITY
-		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = FragmentDensityLayout;
+		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = VRSLayout;
 #endif
 		CompatibleHashInfo.Formats[MaxSimultaneousRenderTargets + 1] = CurrDesc.format;
 
@@ -1525,25 +1549,27 @@ FVulkanRenderTargetLayout::FVulkanRenderTargetLayout(const FGraphicsPipelineStat
 		VkAttachmentDescription& CurrDesc = Desc[NumAttachmentDescriptions];
 		FMemory::Memzero(CurrDesc);
 
-		const VkImageLayout FragmentDensityLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		const VkImageLayout VRSLayout = GetVRSImageLayout();
+
+		check(GRHIVariableRateShadingImageFormat != PF_Unknown);
 
 		CurrDesc.flags = 0;
-		CurrDesc.format = VK_FORMAT_R8G8_UNORM;
+		CurrDesc.format = UEToVkTextureFormat(GRHIVariableRateShadingImageFormat, false);
 		CurrDesc.samples = VK_SAMPLE_COUNT_1_BIT;
 		CurrDesc.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
 		CurrDesc.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		CurrDesc.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		CurrDesc.initialLayout = FragmentDensityLayout;
-		CurrDesc.finalLayout = FragmentDensityLayout;
+		CurrDesc.initialLayout = VRSLayout;
+		CurrDesc.finalLayout = VRSLayout;
 
 		FragmentDensityReference.attachment = NumAttachmentDescriptions;
-		FragmentDensityReference.layout = FragmentDensityLayout;
+		FragmentDensityReference.layout = VRSLayout;
 
 		FullHashInfo.LoadOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilLoadOp;
 		FullHashInfo.StoreOps[MaxSimultaneousRenderTargets + 2] = CurrDesc.stencilStoreOp;
 #if VULKAN_USE_REAL_RENDERPASS_COMPATIBILITY
-		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = FragmentDensityLayout;
+		FullHashInfo.InitialLayout[MaxSimultaneousRenderTargets + 1] = VRSLayout;
 #endif
 		CompatibleHashInfo.Formats[MaxSimultaneousRenderTargets + 1] = CurrDesc.format;
 

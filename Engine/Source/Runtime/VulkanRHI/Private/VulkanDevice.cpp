@@ -1040,22 +1040,16 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
-	// TODO: the VK_KHR_fragment_shading_rate extension is dependent on vkCreateRenderPass2, VkRenderPassCreateInfo2, VkAttachmentDescription2 and VkSubpassDescription2.
-	// Disabling this path for now; adding this support in a later checkin.
 	if (GetOptionalExtensions().HasKHRFragmentShadingRate)
 	{
-		GRHISupportsAttachmentVariableRateShading = FragmentShadingRateFeatures.attachmentFragmentShadingRate ? true : false;
-		GRHISupportsPipelineVariableRateShading = FragmentShadingRateFeatures.pipelineFragmentShadingRate ? true : false;
-
 		GRHIVariableRateShadingImageTileMinWidth = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.width;
 		GRHIVariableRateShadingImageTileMinHeight = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.height;
 		GRHIVariableRateShadingImageTileMaxWidth = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.width;
 		GRHIVariableRateShadingImageTileMaxHeight = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.height;
 
-		GRHIVariableRateShadingImageDataType = VRSImage_Palette;
-		GRHIVariableRateShadingImageFormat = PF_R8_UINT;
+		// todo: We don't currently care much about the other properties here, but at some point in the future we probably will.
 
-		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via KHRFragmentShadingRate extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
+		UE_LOG(LogVulkanRHI, Verbose, TEXT("Image-based Variable Rate Shading supported via KHRFragmentShadingRate extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
 	}
 #endif
 
@@ -1268,6 +1262,25 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 	if (OptionalDeviceExtensions.HasEXTValidationCache)
 	{
 		LoadValidationCache(Device, ValidationCache);
+	}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	if (GetOptionalExtensions().HasKHRFragmentShadingRate)
+	{
+		GRHISupportsAttachmentVariableRateShading = FragmentShadingRateFeatures.attachmentFragmentShadingRate ? true : false;
+		GRHISupportsPipelineVariableRateShading = FragmentShadingRateFeatures.pipelineFragmentShadingRate ? true : false;
+
+		if (GRHISupportsAttachmentVariableRateShading)
+		{
+			GRHIVariableRateShadingImageDataType = VRSImage_Palette;
+			GRHIVariableRateShadingImageFormat = PF_R8_UINT;
+		}
+		else
+		{
+			GRHIVariableRateShadingImageDataType = VRSImage_NotSupported;
+			GRHIVariableRateShadingImageFormat = PF_Unknown;
+		}
 	}
 #endif
 

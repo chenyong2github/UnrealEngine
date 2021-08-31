@@ -63,9 +63,17 @@ static VkAccessFlags GetVkAccessMaskForLayout(VkImageLayout Layout)
 			Flags = 0;
 			break;
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
 			Flags = VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT;
 			break;
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
+			Flags = VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
+			break;
+#endif
 
 		case VK_IMAGE_LAYOUT_GENERAL:
 		case VK_IMAGE_LAYOUT_UNDEFINED:
@@ -126,10 +134,18 @@ static VkPipelineStageFlags GetVkStageFlagsForLayout(VkImageLayout Layout)
 			Flags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 			break;
 
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 		case VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT:
 			Flags = VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
 			break;
+#endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		case VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR:
+			Flags = VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+			break;
+#endif
+			
 		case VK_IMAGE_LAYOUT_GENERAL:
 		case VK_IMAGE_LAYOUT_UNDEFINED:
 			Flags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -332,6 +348,31 @@ static void GetVkStageAndAccessFlags(ERHIAccess RHIAccess, FRHITransitionInfo::E
 		}
 
 		ProcessedRHIFlags |= (uint32)(ERHIAccess::CopySrc | ERHIAccess::ResolveSrc);
+	}
+
+	if (EnumHasAnyFlags(RHIAccess, ERHIAccess::ShadingRateSource) && ValidateShadingRateDataType())
+	{
+		checkf(ResourceType == FRHITransitionInfo::EType::Texture, TEXT("A non-texture resource was tagged as a shading rate source; only textures (Texture2D and Texture2DArray) can be used for this purpose."));
+		
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+		{
+			StageFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+			AccessFlags = VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
+			Layout = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+		{
+			StageFlags = VK_PIPELINE_STAGE_FRAGMENT_DENSITY_PROCESS_BIT_EXT;
+			AccessFlags = VK_ACCESS_FRAGMENT_DENSITY_MAP_READ_BIT_EXT;
+			Layout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		}
+#endif
+
+		ProcessedRHIFlags |= (uint32)ERHIAccess::ShadingRateSource;
 	}
 
 	uint32 RemainingFlags = (uint32)RHIAccess & (~ProcessedRHIFlags);
@@ -1658,11 +1699,26 @@ void FVulkanLayoutManager::BeginRenderPass(FVulkanCommandListContext& Context, F
 	}
 
 	FRHITexture* ShadingRateTexture = RPInfo.ShadingRateTexture;
-	if (ShadingRateTexture)
+	if (ShadingRateTexture && ValidateShadingRateDataType())
 	{
 		FVulkanSurface& Surface = FVulkanTextureBase::Cast(ShadingRateTexture)->Surface;
 		VkImageLayout& DSLayout = FindOrAddLayoutRW(Surface, VK_IMAGE_LAYOUT_UNDEFINED);
-		VkImageLayout ExpectedLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		
+		VkImageLayout ExpectedLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+		{
+			ExpectedLayout = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+		{
+			ExpectedLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+		}
+#endif
 
 		// transition shading rate textures to the fragment density map layout for rendering
 		if (DSLayout != ExpectedLayout)

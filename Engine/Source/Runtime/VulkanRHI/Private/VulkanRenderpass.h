@@ -127,6 +127,11 @@ struct FVulkanSubpassDescription<VkSubpassDescription>
 		pInputAttachments = static_cast<VkAttachmentReference*>(InputAttachmentReferences);
 		inputAttachmentCount = NumInputAttachmentReferences;
 	}
+
+	void SetShadingRateAttachment(void* /* ShadingRateAttachmentInfo */)
+	{
+		// No-op without VK_KHR_create_renderpass2
+	}
 };
 
 #if VULKAN_SUPPORTS_RENDERPASS2
@@ -165,6 +170,11 @@ struct FVulkanSubpassDescription<VkSubpassDescription2>
 	{
 		pInputAttachments = static_cast<VkAttachmentReference2*>(InputAttachmentReferences);
 		inputAttachmentCount = NumInputAttachmentReferences;
+	}
+
+	void SetShadingRateAttachment(void* ShadingRateAttachmentInfo)
+	{
+		pNext = ShadingRateAttachmentInfo;
 	}
 };
 #endif
@@ -289,6 +299,23 @@ struct FVulkanRenderPassCreateInfo<VkRenderPassCreateInfo2>
 		VkRenderPass Handle = VK_NULL_HANDLE;
 		VERIFYVULKANRESULT_EXPANDED(VulkanRHI::vkCreateRenderPass2KHR(Device.GetInstanceHandle(), this, VULKAN_CPU_ALLOCATOR, &Handle));
 		return Handle;
+	}
+};
+
+struct FVulkanFragmentShadingRateAttachmentInfo
+	: public VkFragmentShadingRateAttachmentInfoKHR
+{
+	FVulkanFragmentShadingRateAttachmentInfo()
+	{
+		ZeroVulkanStruct(*this, VK_STRUCTURE_TYPE_FRAGMENT_SHADING_RATE_ATTACHMENT_INFO_KHR);
+		// For now, just use the smallest tile-size available. TODO: Add a setting to allow prioritizing either higher resolution/larger shading rate attachment targets 
+		// or lower-resolution/smaller attachments.
+		shadingRateAttachmentTexelSize = { (uint32)GRHIVariableRateShadingImageTileMinWidth, (uint32)GRHIVariableRateShadingImageTileMinHeight };
+	}
+
+	void SetReference(FVulkanAttachmentReference<VkAttachmentReference2>* AttachmentReference)
+	{
+		pFragmentShadingRateAttachment = AttachmentReference;
 	}
 };
 #endif

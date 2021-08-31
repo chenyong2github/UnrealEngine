@@ -28,6 +28,17 @@ public:
 
 		const bool bDeferredShadingSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DeferredShadingSubpass;
 		const bool bDepthReadSubpass = RTLayout.GetSubpassHint() == ESubpassHint::DepthReadSubpass;
+		const bool bApplyFragmentShadingRate =  GRHISupportsAttachmentVariableRateShading && GRHIVariableRateShadingEnabled && GRHIAttachmentVariableRateShadingEnabled && RTLayout.GetFragmentDensityAttachmentReference() != nullptr;
+
+#if VULKAN_SUPPORTS_RENDERPASS2
+		FVulkanAttachmentReference<VkAttachmentReference2> ShadingRateAttachmentReference;
+		FVulkanFragmentShadingRateAttachmentInfo FragmentShadingRateAttachmentInfo;
+		if (bApplyFragmentShadingRate)
+		{
+			ShadingRateAttachmentReference.SetAttachment(*RTLayout.GetFragmentDensityAttachmentReference(), VkImageAspectFlagBits::VK_IMAGE_ASPECT_COLOR_BIT);
+			FragmentShadingRateAttachmentInfo.SetReference(&ShadingRateAttachmentReference);
+		}
+#endif
 
 		// Grab (and optionally convert) attachment references.
 		for (uint32 ColorAttachment = 0; ColorAttachment < RTLayout.GetNumColorAttachments(); ++ColorAttachment)
@@ -54,6 +65,13 @@ public:
 			{
 				SubpassDesc.SetDepthStencilAttachment(&DepthStencilAttachmentReference);
 			}
+
+#if VULKAN_SUPPORTS_RENDERPASS2
+			if (bApplyFragmentShadingRate)
+			{
+				SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
+			}
+#endif
 		}
 
 		// Color write and depth read sub-pass
@@ -78,6 +96,13 @@ public:
 			// depth attachment is same as input attachment
 			SubpassDesc.SetDepthStencilAttachment(InputAttachments1);
 
+#if VULKAN_SUPPORTS_RENDERPASS2
+			if (bApplyFragmentShadingRate)
+			{
+				SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
+			}
+#endif
+			
 			TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
 			SubpassDep.srcSubpass = 0;
 			SubpassDep.dstSubpass = 1;
@@ -109,8 +134,14 @@ public:
 				SubpassDesc.SetDepthStencilAttachment(&DepthStencilAttachment);
 				SubpassDesc.SetInputAttachments(&DepthStencilAttachment, 1);
 
+#if VULKAN_SUPPORTS_RENDERPASS2
+				if (bApplyFragmentShadingRate)
+				{
+					SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
+				}
+#endif
+				
 				// depth as Input0
-
 				TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
 				SubpassDep.srcSubpass = 0;
 				SubpassDep.dstSubpass = 1;
@@ -143,6 +174,12 @@ public:
 				}
 
 				SubpassDesc.SetInputAttachments(InputAttachments2, 5);
+#if VULKAN_SUPPORTS_RENDERPASS2
+				if (bApplyFragmentShadingRate)
+				{
+					SubpassDesc.SetShadingRateAttachment(&FragmentShadingRateAttachmentInfo);
+				}
+#endif
 
 				TSubpassDependencyClass& SubpassDep = SubpassDependencies[NumDependencies++];
 				SubpassDep.srcSubpass = 1;
