@@ -104,7 +104,7 @@ namespace EpicGames.Perforce
 		/// <inheritdoc/>
 		public ValueTask DisposeAsync()
 		{
-			DisposeAsync();
+			Dispose();
 			return new ValueTask(Task.CompletedTask);
 		}
 
