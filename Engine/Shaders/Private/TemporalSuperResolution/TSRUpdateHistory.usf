@@ -53,6 +53,7 @@ Texture2D<taa_half3> InputSceneColorTexture;
 Texture2D<uint2> InputSceneStencilTexture;
 Texture2D<taa_half4> InputSceneTranslucencyTexture;
 
+Texture2D<taa_half> InterferenceWeightTexture;
 Texture2D<taa_half> HistoryRejectionTexture;
 Texture2D<taa_half> TranslucencyRejectionTexture;
 
@@ -233,6 +234,7 @@ void MainCS(
 	taa_half2 LowFrequencyRejection = taa_half(1.0).xx;
 	taa_half2 TranslucencyRejection = taa_half(1.0).xx;
 	taa_half2 OutputPixelVelocity = taa_half(0.0).xx;
+	taa_half2 MoireWeight = taa_half(1.0).xx;
 	taa_subpixel_payload2 ParallaxFactorBits = taa_subpixel_payload(0x0).xx;
 	bool2 bIsResponsiveAAPixel = false;
 
@@ -314,6 +316,12 @@ void MainCS(
 			SceneStencilRef |= dpv_interleave_registers(
 				InputSceneStencilTexture.Load(int3(dpv_lo(SampleInputPixelPos), 0)) STENCIL_COMPONENT_SWIZZLE, 
 				InputSceneStencilTexture.Load(int3(dpv_hi(SampleInputPixelPos), 0)) STENCIL_COMPONENT_SWIZZLE);
+			
+			#if DIM_MOIRE_HEURISTIC
+				MoireWeight = min(MoireWeight, dpv_interleave_registers(
+					InterferenceWeightTexture[dpv_lo(SampleInputPixelPos)],
+					InterferenceWeightTexture[dpv_hi(SampleInputPixelPos)]));
+			#endif
 		}
 
 		TranslucencyRejection = max(TranslucencyRejection, taa_half(MinTranslucencyRejection));
@@ -695,6 +703,10 @@ void MainCS(
 			PrevHighFrequencyYCoCg, InputMinColor, InputMaxColor,
 			MeasureBackbufferLDRQuantizationErrorFromHDRLuma(max(PrevYCoCg[0], ClampedPrevYCoCg[0])));
 		
+		#if DIM_MOIRE_HEURISTIC
+			HighFrequencyRejection = max(HighFrequencyRejection, 1.0 - MoireWeight);
+		#endif
+
 		//PrevHighFrequencyColor = dpv_scale(PrevHighFrequencyColor, HighFrequencyRejection);
 		PrevHighFrequencyColor = dpv_scale(clamp(NormalizedPrevHighFrequencyColor, PrevHistoryMommentMin, PrevHistoryMommentMax), HighFrequencyRejection * PrevHistoryValidity);
 		PrevHistoryValidity *= HighFrequencyRejection;

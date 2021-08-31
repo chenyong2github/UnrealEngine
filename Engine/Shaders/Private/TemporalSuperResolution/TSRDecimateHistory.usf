@@ -11,8 +11,6 @@
 
 #define CONFIG_OUTPUT_HALF_RES (DIM_OUTPUT_HALF_RES)
 
-#define CONFIG_OUTPUT_INTERFERENCE_SEEDS 0
-
 
 //------------------------------------------------------- PARAMETERS
 
@@ -31,6 +29,9 @@ Texture2D<taa_half3> PrevHistory_HighFrequency;
 Texture2D<taa_half2> PrevHistory_Metadata;
 Texture2D<taa_half4> PrevHistory_Translucency;
 Texture2D<taa_subpixel_details> PrevHistory_SubpixelDetails;
+
+Texture2D<half> PrevHistory_LowResTextures_0;
+Texture2D<uint> PrevHistory_SuperResTextures_0;
 
 RWTexture2D<taa_half3> HalfResSceneColorOutput;
 RWTexture2D<taa_half3> HalfResPredictionSceneColorOutput;
@@ -169,7 +170,7 @@ void MainCS(
 		
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevOutputScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 
-		#if CONFIG_OUTPUT_INTERFERENCE_SEEDS
+		#if DIM_MOIRE_HEURISTIC
 		{
 			const uint KernelSize = 4;
 
@@ -177,6 +178,9 @@ void MainCS(
 
 			uint ClosestPayload = ~0;
 			uint ClosestAge = 0;
+			taa_half ClosestDistanceToSeed = 0.2;
+
+			Debug.r = InputInterferenceSeed;
 
 			// Sample the super res history and find an aproximative age of the input pixel.
 			UNROLL
@@ -201,11 +205,14 @@ void MainCS(
 
 					taa_half DistanceToSeed = abs(InputInterferenceSeed - UnpackedSubpixel.InterferenceSeed);
 
+					// UnpackedSubpixel.Age >= ClosestAge && 
+
 					FLATTEN
-					if (DistanceToSeed < 0.1 && UnpackedSubpixel.Age > ClosestAge)
+					if (DistanceToSeed < ClosestDistanceToSeed)
 					{
 						ClosestPayload = SubpixelPayload;
 						ClosestAge = UnpackedSubpixel.Age;
+						ClosestDistanceToSeed = DistanceToSeed;
 					}
 				}
 			}
@@ -239,20 +246,23 @@ void MainCS(
 			// average of min and max that turns out interference free.
 			IntegratedInterferenceSeed = (MinInterferenceSeed + MaxInterferenceSeed) * 0.5;
 		}
-		#endif
+		#endif // DIM_MOIRE_HEURISTIC
 
-		//taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
-		//taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
+		taa_half PrevUninterferenceSeed = PrevHistory_LowResTextures_0.SampleLevel(GlobalBilinearClampedSampler, PrevInputBufferUV, 0);
+		taa_half PrevUninterferenceLuma = PrevUninterferenceSeed * HdrWeightInvY(PrevUninterferenceSeed);
 
-		#if !CONFIG_OUTPUT_INTERFERENCE_SEEDS
+		PrevUninterferenceLuma /= MoireInvExposure;
+
+		#if !DIM_MOIRE_HEURISTIC || 2
 		{
 			DecimatedColor = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, KernelHistoryBufferUV, 0);
 			
 			// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
-			//if (bEnableInterferenceHeuristic)
-			//{
-			//	DecimatedColor *= PrevUninterferenceLuma * SafeRcp(Luma4(DecimatedColor));
-			//}
+			#if DIM_MOIRE_HEURISTIC && 1
+			{
+				DecimatedColor *= PrevUninterferenceLuma * SafeRcp(Luma4(DecimatedColor));
+			}
+			#endif
 		}
 		#else
 		{
@@ -271,10 +281,11 @@ void MainCS(
 				taa_half3 HistorySample = PrevHistory_LowFrequency.SampleLevel(GlobalBilinearClampedSampler, SampleBufferUV, 0);
 
 				// Cancels out the flickering Luma component with the interference free luma from the inteference seed of the history.
-				if (bEnableInterferenceHeuristic)
+				#if DIM_MOIRE_HEURISTIC
 				{
 					HistorySample *= PrevUninterferenceLuma * SafeRcp(Luma4(HistorySample));
 				}
+				#endif
 
 				DecimatedColor += HistorySample;
 			}
@@ -404,7 +415,7 @@ void MainCS(
 		
 		ParallaxRejectionMaskOutput[InputPixelPos] = ParallaxRejectionMask;
 
-		#if CONFIG_OUTPUT_INTERFERENCE_SEEDS
+		#if DIM_MOIRE_HEURISTIC
 		{
 			InterferenceSeedOutput[InputPixelPos] = taa_half4(ClosestInterferenceSeed, IntegratedInterferenceSeed, MinInterferenceSeed, MaxInterferenceSeed);
 		}
