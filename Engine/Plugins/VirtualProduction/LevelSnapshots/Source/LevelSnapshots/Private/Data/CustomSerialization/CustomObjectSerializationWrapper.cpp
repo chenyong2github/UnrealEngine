@@ -47,13 +47,10 @@ namespace
 					UE_LOG(LogLevelSnapshots, Warning, TEXT("FindOrRecreateSubobjectInSnapshotWorld did not return any valid subobject. Skipping subobject restoration..."));
 					return;
 				}
-				
+
+				// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
+				const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);});
 				FSnapshotArchive::ApplyToSnapshotWorldObject(SerializationDataGetter()->Subobjects[i], WorldData, SnapshotSubobject, LocalisationSnapshotPackage);
-				{
-					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-					const FRestoreObjectScope FinishRestore = PreObjectRestore_SnapshotWorld(SnapshotSubobject, WorldData, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);});
-				}
-				
 				CustomSerializer->OnPostSerializeSnapshotSubobject(SnapshotSubobject, *MetaData, SerializationDataReader);
 			}
 
@@ -86,28 +83,31 @@ namespace
 			for (int32 i = 0; i < SerializationDataReader.GetNumSubobjects(); ++i)
 			{	
 				const TSharedPtr<ISnapshotSubobjectMetaData> MetaData = SerializationDataReader.GetSubobjectMetaData(i);
-				UObject* EditorSubobject = CustomSerializer->FindOrRecreateSubobjectInSnapshotWorld(EditorObject, *MetaData, SerializationDataReader);
+				UObject* EditorSubobject = CustomSerializer->FindOrRecreateSubobjectInEditorWorld(EditorObject, *MetaData, SerializationDataReader);
 				UObject* SnapshotSubobject = CustomSerializer->FindOrRecreateSubobjectInSnapshotWorld(SnapshotObject, *MetaData, SerializationDataReader);
-				if (!EditorSubobject || !SnapshotSubobject || !ensure(EditorSubobject->IsIn(EditorObject) && SnapshotSubobject->IsIn(SnapshotObject)))
+				if (!SnapshotSubobject || !ensure(SnapshotSubobject->IsIn(SnapshotObject)))
 				{
-					UE_LOG(LogLevelSnapshots, Warning, TEXT("FindOrRecreateSubobjectInSnapshotWorld did not return any valid subobject. Skipping subobject restoration..."));
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("FindOrRecreateSubobjectInSnapshotWorld did not return any valid snapshot subobject. Skipping this subobject for %s"), *EditorObject->GetPathName());
+					continue;
+				}
+				if (!EditorSubobject || !ensure(EditorSubobject->IsIn(EditorObject)))
+				{
+					UE_LOG(LogLevelSnapshots, Warning, TEXT("FindOrRecreateSubobjectInSnapshotWorld did not return any valid editor subobject. Skipping this subobject for %s"), *EditorObject->GetPathName());
 					continue;
 				}
 
 				if (const FPropertySelection* SelectedProperties = SelectionMap.GetSelectedProperties(EditorSubobject))
 				{
+					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
+					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
+				
 					FCustomSerializationData* SerializationData = SerializationDataGetter();
 					FApplySnapshotDataArchiveV2::ApplyToExistingEditorWorldObject(SerializationData->Subobjects[i], WorldData, EditorSubobject, SnapshotSubobject, SelectionMap, *SelectedProperties);
 					CustomSerializer->OnPostSerializeEditorSubobject(EditorSubobject, *MetaData, SerializationDataReader);
-					// Recursively check whether subobjects also have a registered ICustomObjectSnapshotSerializer
-					const FRestoreObjectScope FinishRestore = PreObjectRestore_EditorWorld(SnapshotSubobject, EditorSubobject, WorldData, SelectionMap, LocalisationSnapshotPackage, [&WorldData, OriginalPath = MetaData->GetOriginalPath()](){ return WorldData.GetCustomSubobjectData_ForSubobject(OriginalPath);} );
-				}
-				else
-				{
-					UE_LOG(LogLevelSnapshots, Verbose, TEXT("There were no changes to the custom serialized subobject"));	
+					continue;
 				}
 				
-				CustomSerializer->OnPostSerializeSnapshotSubobject(EditorSubobject, *MetaData, SerializationDataReader);
+				UE_LOG(LogLevelSnapshots, Warning, TEXT("Editor subobject %s was not restored"), *EditorSubobject->GetPathName());	
 			}
 
 			CustomSerializer->PostApplySnapshotProperties(EditorObject, SerializationDataReader);
