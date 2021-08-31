@@ -2508,7 +2508,7 @@ FString ULevel::GetExternalActorsPath(UPackage* InLevelPackage, const FString& I
 
 const TCHAR* ULevel::GetExternalActorsFolderName()
 {
-	return TEXT("__ExternalActors__");
+	return FPackagePath::GetExternalActorsFolderName();
 }
 
 #if WITH_EDITOR

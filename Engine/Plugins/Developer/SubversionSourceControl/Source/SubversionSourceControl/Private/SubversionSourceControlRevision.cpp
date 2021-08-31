@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SubversionSourceControlRevision.h"
+
 #include "HAL/FileManager.h"
+#include "ISourceControlModule.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
@@ -11,8 +13,13 @@
 
 #define LOCTEXT_NAMESPACE "SubversionSourceControl"
 
-bool FSubversionSourceControlRevision::Get( FString& InOutFilename ) const
+bool FSubversionSourceControlRevision::Get(FString& InOutFilename, EConcurrency::Type InConcurrency) const
 {
+	if (InConcurrency != EConcurrency::Synchronous)
+	{
+		UE_LOG(LogSourceControl, Warning, TEXT("Only EConcurrency::Synchronous is tested/supported for this operation."));
+	}
+
 	SubversionSourceControlUtils::CheckFilename(Filename);
 
 	FSubversionSourceControlModule& SubversionSourceControl = FModuleManager::LoadModuleChecked<FSubversionSourceControlModule>( "SubversionSourceControl" );

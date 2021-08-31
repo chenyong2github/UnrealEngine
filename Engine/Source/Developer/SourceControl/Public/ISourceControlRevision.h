@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "ISourceControlProvider.h"
+
 /**
  * A single line of an annotated file
  */
@@ -36,9 +38,10 @@ public:
 	/** 
 	 * Get this revision of the file & store it in a temp file.
 	 * @param	InOutFilename		The filename that the revision will be written to. If this is empty a temp filename will be generated and returned in this string.
+	 * @param	InConcurrency		The concurrency type of the get operation. Should be used when the revision is not requested from the main thread.
 	 * @return true if the operation succeeded.
 	 */
-	virtual bool Get( FString& InOutFilename ) const = 0;
+	virtual bool Get(FString& InOutFilename, EConcurrency::Type InConcurrency = EConcurrency::Synchronous) const = 0;
 
 	/** 
 	 * Get an annotated revision of the file & store it in a temp file.

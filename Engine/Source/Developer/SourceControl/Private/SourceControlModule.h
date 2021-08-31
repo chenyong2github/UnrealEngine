@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "ISourceControlModule.h"
+#include "SourceControlAssetDataCache.h"
 #include "SourceControlSettings.h"
 #include "DefaultSourceControlProvider.h"
 
@@ -33,6 +34,7 @@ public:
 	virtual void QueueStatusUpdate(const FString& InFilename) override;
 	virtual bool IsEnabled() const override;
 	virtual ISourceControlProvider& GetProvider() const override;
+	virtual FSourceControlAssetDataCache& GetAssetDataCache() override;
 	virtual void SetProvider( const FName& InName ) override;
 	virtual void ShowLoginDialog(const FSourceControlLoginClosed& InOnSourceControlLoginClosed, ELoginWindowMode::Type InLoginWindowMode, EOnLoginWindowStartup::Type InOnLoginWindowStartup = EOnLoginWindowStartup::ResetProviderToNone) override;
 	virtual bool GetUseGlobalSettings() const override;
@@ -125,4 +127,7 @@ private:
 
 	/** To call when doing pre-submit data validation */
 	FSourceControlPreSubmitDataValidationDelegate OnSourceControlPreSubmitDataValidation;
+
+	/** Used to cache source controlled AssetData information */
+	FSourceControlAssetDataCache AssetDataCache;
 };

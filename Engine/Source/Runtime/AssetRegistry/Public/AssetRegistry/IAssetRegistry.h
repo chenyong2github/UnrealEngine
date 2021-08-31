@@ -599,6 +599,13 @@ public:
 	typedef TFunction<EAssetSetManagerResult::Type(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
 		UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags)> ShouldSetManagerPredicate;
 
+	/** 
+	 *	Indicates if path should be beautified before presented to the user.
+	 * @param InAssetPath	Path of the asset to check
+	 * @return True if the path should be beautified
+	 */
+	virtual bool IsPathBeautificationNeeded(const FString& InAssetPath) const = 0;
+
 protected:
 	// Functions specifically for calling from the asset manager
 	friend class UAssetManager;

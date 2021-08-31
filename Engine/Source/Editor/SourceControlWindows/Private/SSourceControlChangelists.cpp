@@ -302,7 +302,7 @@ void SSourceControlChangelistsWidget::Refresh()
 			ElementsToProcess += UncontrolledChangelistState->GetOfflineFiles().Num();
 		}
 
-		FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Beautifying Changelist Tree Items Paths"));
+		FScopedSlowTask SlowTask(ElementsToProcess, LOCTEXT("SourceControl_RebuildTree", "Refreshing Tree Items"));
 		SlowTask.MakeDialog(/*bShowCancelButton=*/true);
 
 		bool bBeautifyPaths = true;
