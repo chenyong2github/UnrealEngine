@@ -1740,12 +1740,8 @@ FText UK2Node_CallFunction::GetDefaultCategoryForFunction(const UFunction* Funct
 
 FText UK2Node_CallFunction::GetKeywordsForFunction(const UFunction* Function)
 {
-	// If the friendly name and real function name do not match add the real function name friendly name as a keyword.
-	FString Keywords;
-	if( Function->GetName() != GetUserFacingFunctionName(Function).ToString() )
-	{
-		Keywords = Function->GetName();
-	}
+	// Always add the real function name as the first keyword, even if it matches the display name we don't want to penalize one word function names in later searches
+	FString Keywords = Function->GetName();
 
 	if (ShouldDrawCompact(Function))
 	{
