@@ -16,6 +16,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "MeshDescription.h"
 #include "ModelingToolTargetUtil.h"
+#include "Operations/PNTriangles.h"
 
 // needed to disable normals recalculation on the underlying asset
 #include "AssetUtils/MeshDescriptionUtil.h"
@@ -263,14 +264,15 @@ namespace DisplaceMeshToolLocals{
 	class FSubdivideMeshOp : public FDynamicMeshOperator
 	{
 	public:
-		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
+		FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, ESubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap);
 		void CalculateResult(FProgressCancel* Progress) final;
 	private:
+		ESubdivisionType SubdivisionType;
 		int SubdivisionsCount;
 	};
 
-	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
-		: SubdivisionsCount(SubdivisionsCountIn)
+	FSubdivideMeshOp::FSubdivideMeshOp(const FDynamicMesh3& SourceMesh, ESubdivisionType SubdivisionTypeIn, int SubdivisionsCountIn, TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap)
+		: SubdivisionType(SubdivisionTypeIn), SubdivisionsCount(SubdivisionsCountIn)
 	{
 		ResultMesh->Copy(SourceMesh);
 
@@ -300,10 +302,29 @@ namespace DisplaceMeshToolLocals{
 		using namespace DisplaceMeshToolLocals;
 
 		// calculate subdivisions (todo: move to elsewhere)
-		for (int ri = 0; ri < SubdivisionsCount; ri++)
+		if (SubdivisionType == ESubdivisionType::Loop) 
 		{
-			if (ProgressCancel && ProgressCancel->Cancelled()) return;
-			SubdivideMesh(*ResultMesh, ProgressCancel);
+			for (int ri = 0; ri < SubdivisionsCount; ri++)
+			{
+				if (ProgressCancel && ProgressCancel->Cancelled()) return;
+				SubdivideMesh(*ResultMesh, ProgressCancel);
+			} 
+		}
+		else if (SubdivisionType == ESubdivisionType::PNTriangles) 
+		{
+			FPNTriangles PNTriangles(ResultMesh.Get());
+			PNTriangles.Progress = ProgressCancel;
+			PNTriangles.TesselationLevel = SubdivisionsCount;
+
+			if (PNTriangles.Validate() == EOperationValidationResult::Ok)
+			{
+				PNTriangles.Compute(); 
+			}
+		}
+		else 
+		{
+			// Unsupported subdivision type
+			checkNoEntry();
 		}
 	}
 
@@ -311,32 +332,48 @@ namespace DisplaceMeshToolLocals{
 	{
 	public:
 		FSubdivideMeshOpFactory(FDynamicMesh3& SourceMeshIn,
+			ESubdivisionType SubdivisionTypeIn,
 			int SubdivisionsCountIn,
 			TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn)
-			: SourceMesh(SourceMeshIn), SubdivisionsCount(SubdivisionsCountIn), WeightMap(WeightMapIn)
+			: SourceMesh(SourceMeshIn), SubdivisionType(SubdivisionTypeIn), SubdivisionsCount(SubdivisionsCountIn), WeightMap(WeightMapIn)
 		{
 		}
+
+		void SetSubdivisionType(ESubdivisionType SubdivisionTypeIn);
+		ESubdivisionType GetSubdivisionType() const;
+
 		void SetSubdivisionsCount(int SubdivisionsCountIn);
-		int  GetSubdivisionsCount();
+		int  GetSubdivisionsCount() const;
 
 		void SetWeightMap(TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMapIn);
 
 		TUniquePtr<FDynamicMeshOperator> MakeNewOperator() final
 		{
-			return MakeUnique<FSubdivideMeshOp>(SourceMesh, SubdivisionsCount, WeightMap);
+			return MakeUnique<FSubdivideMeshOp>(SourceMesh, SubdivisionType, SubdivisionsCount, WeightMap);
 		}
 	private:
 		const FDynamicMesh3& SourceMesh;
+		ESubdivisionType SubdivisionType;
 		int SubdivisionsCount;
 		TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> WeightMap;
 	};
+
+	void FSubdivideMeshOpFactory::SetSubdivisionType(ESubdivisionType SubdivisionTypeIn) 
+	{
+		SubdivisionType = SubdivisionTypeIn;
+	}
+
+	ESubdivisionType FSubdivideMeshOpFactory::GetSubdivisionType() const
+	{
+		return SubdivisionType;
+	}
 
 	void FSubdivideMeshOpFactory::SetSubdivisionsCount(int SubdivisionsCountIn)
 	{
 		SubdivisionsCount = SubdivisionsCountIn;
 	}
 
-	int FSubdivideMeshOpFactory::GetSubdivisionsCount()
+	int FSubdivideMeshOpFactory::GetSubdivisionsCount() const
 	{
 		return SubdivisionsCount;
 	}
@@ -852,7 +889,7 @@ void UDisplaceMeshTool::Setup()
 									} );
 
 	ValidateSubdivisions();
-	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, CommonProperties->Subdivisions, ActiveWeightMap);
+	Subdivider = MakeUnique<FSubdivideMeshOpFactory>(OriginalMesh, CommonProperties->SubdivisionType, CommonProperties->Subdivisions, ActiveWeightMap);
 
 	StartComputation();
 
@@ -966,7 +1003,19 @@ void UDisplaceMeshTool::OnPropertyModified(UObject* PropertySet, FProperty* Prop
 	
 		bNeedsDisplaced = true;
 
-		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, Subdivisions))
+		if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, SubdivisionType))
+		{
+			if (CommonProperties->SubdivisionType != SubdividerDownCast->GetSubdivisionType())
+			{
+				SubdividerDownCast->SetSubdivisionType(CommonProperties->SubdivisionType);
+				bNeedsSubdivided = true;
+			}
+			else
+			{
+				return;
+			}
+		}
+		else if (PropName == GET_MEMBER_NAME_CHECKED(UDisplaceMeshCommonProperties, Subdivisions))
 		{
 			ValidateSubdivisions();
 			if (CommonProperties->Subdivisions != SubdividerDownCast->GetSubdivisionsCount())
