@@ -686,4 +686,5 @@ private:
 	friend class FControlRigGraphDetails;
 	friend class FControlRigEditorModule;
 	friend class UControlRigComponent;
+	friend struct FControlRigGraphSchemaAction_PromoteToVariable;
 };

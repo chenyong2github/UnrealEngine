@@ -127,6 +127,141 @@ bool FControlRigGraphSchemaAction_LocalVar::IsVariableUsed()
 	return false;
 }
 
+FControlRigGraphSchemaAction_PromoteToVariable::FControlRigGraphSchemaAction_PromoteToVariable(UEdGraphPin* InEdGraphPin, bool InLocalVariable)
+: FEdGraphSchemaAction(	FText(), 
+						InLocalVariable ? LOCTEXT("PromoteToLocalVariable", "Promote to local variable") : LOCTEXT("PromoteToVariable", "Promote to variable"),
+						InLocalVariable ? LOCTEXT("PromoteToLocalVariable", "Promote to local variable") : LOCTEXT("PromoteToVariable", "Promote to variable"),
+						1)
+, EdGraphPin(InEdGraphPin)
+, bLocalVariable(InLocalVariable)
+{
+}
+
+UEdGraphNode* FControlRigGraphSchemaAction_PromoteToVariable::PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin,
+	const FVector2D Location, bool bSelectNewNode)
+{
+	UControlRigGraph* RigGraph = Cast<UControlRigGraph>(ParentGraph);
+	if(RigGraph == nullptr)
+	{
+		return nullptr;
+	}
+
+	UControlRigBlueprint* Blueprint = RigGraph->GetBlueprint();
+	URigVMGraph* Model = RigGraph->GetModel();
+	URigVMPin* ModelPin = Model->FindPin(FromPin->GetName());
+	URigVMController* Controller = RigGraph->GetController();
+	if((Blueprint == nullptr) ||
+		(Model == nullptr) ||
+		(Controller == nullptr))
+	{
+		return nullptr;
+	}
+
+	FName VariableName(NAME_None);
+
+	const FScopedTransaction Transaction(
+		bLocalVariable ?
+		LOCTEXT("GraphEd_PromoteToLocalVariable", "Promote Pin To Local Variable") :
+		LOCTEXT("GraphEd_PromoteToVariable", "Promote Pin To Variable"));
+
+	if(bLocalVariable)
+	{
+		const FRigVMGraphVariableDescription VariableDescription = Controller->AddLocalVariable(
+			*ModelPin->GetPinPath(),
+			ModelPin->GetCPPType(),
+			ModelPin->GetCPPTypeObject(),
+			ModelPin->GetDefaultValue(),
+			true,
+			true
+		);
+
+		VariableName = VariableDescription.Name;
+	}
+	else
+	{
+		Blueprint->Modify();
+
+		FString DefaultValue = ModelPin->GetDefaultValue();
+		if(!DefaultValue.IsEmpty())
+		{
+			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(ModelPin->GetCPPTypeObject()))
+			{
+				if(ScriptStruct == TBaseStructure<FVector2D>::Get())
+				{
+					FVector2D Value = FVector2D::ZeroVector;
+					ScriptStruct->ImportText(*DefaultValue, &Value, nullptr, PPF_None, nullptr, FString());
+					DefaultValue = Value.ToString();
+				}
+				if(ScriptStruct == TBaseStructure<FVector>::Get())
+				{
+					FVector Value = FVector::ZeroVector;
+					ScriptStruct->ImportText(*DefaultValue, &Value, nullptr, PPF_None, nullptr, FString());
+					DefaultValue = Value.ToString();
+				}
+				if(ScriptStruct == TBaseStructure<FQuat>::Get())
+				{
+					FQuat Value = FQuat::Identity;
+					ScriptStruct->ImportText(*DefaultValue, &Value, nullptr, PPF_None, nullptr, FString());
+					DefaultValue = Value.ToString();
+				}
+				if(ScriptStruct == TBaseStructure<FRotator>::Get())
+				{
+					FRotator Value = FRotator::ZeroRotator;
+					ScriptStruct->ImportText(*DefaultValue, &Value, nullptr, PPF_None, nullptr, FString());
+					DefaultValue = Value.ToString();
+				}
+				if(ScriptStruct == TBaseStructure<FTransform>::Get())
+				{
+					FTransform Value = FTransform::Identity;
+					ScriptStruct->ImportText(*DefaultValue, &Value, nullptr, PPF_None, nullptr, FString());
+					DefaultValue = Value.ToString();
+				}
+			}
+		}
+
+		FRigVMExternalVariable ExternalVariable;
+		ExternalVariable.Name = FromPin->GetFName();
+		ExternalVariable.bIsArray = ModelPin->IsArray();
+		ExternalVariable.TypeName = ModelPin->IsArray() ? *ModelPin->GetArrayElementCppType() : *ModelPin->GetCPPType();
+		ExternalVariable.TypeObject = ModelPin->GetCPPTypeObject();
+		
+		VariableName = Blueprint->AddCRMemberVariableFromExternal(
+			ExternalVariable,
+			DefaultValue
+		);
+	}
+
+	if(!VariableName.IsNone())
+	{
+		URigVMNode* ModelNode = Controller->AddVariableNode(
+			VariableName,
+			ModelPin->GetCPPType(),
+			ModelPin->GetCPPTypeObject(),
+			FromPin->Direction == EGPD_Input,
+			ModelPin->GetDefaultValue(),
+			Location,
+			FString(),
+			true,
+			true
+		);
+
+		if(ModelNode)
+		{
+			if(FromPin->Direction == EGPD_Input)
+			{
+				Controller->AddLink(ModelNode->FindPin(TEXT("Value")), ModelPin, true);
+			}
+			else
+			{
+				Controller->AddLink(ModelPin, ModelNode->FindPin(TEXT("Value")), true);
+			}
+			return RigGraph->FindNodeForModelNodeName(ModelNode->GetFName());
+		}
+	}
+	
+	return nullptr;
+}
+
 FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class SWidget >& Panel, FVector2D ScreenPosition, FVector2D GraphPosition, UEdGraph& Graph)
 {
 	// For local variables
@@ -524,6 +659,38 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 	}
 	
 	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
+}
+
+void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBlueprints, TArray<UEdGraph*> EdGraphs,
+	TArray<UEdGraphPin*> EdGraphPins, FGraphActionListBuilderBase& OutAllActions) const
+{
+	Super::InsertAdditionalActions(InBlueprints, EdGraphs, EdGraphPins, OutAllActions);
+
+	if(EdGraphPins.Num() > 0)
+	{
+		if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(EdGraphPins[0]->GetOwningNode()))
+		{
+			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(EdGraphPins[0]->GetName()))
+			{
+				if(!ModelPin->IsExecuteContext())
+				{
+					if(!ModelPin->GetNode()->IsA<URigVMVariableNode>())
+					{
+						OutAllActions.AddAction(TSharedPtr<FControlRigGraphSchemaAction_PromoteToVariable>(
+							new FControlRigGraphSchemaAction_PromoteToVariable(EdGraphPins[0], false)
+						));
+
+						if(!ModelPin->GetGraph()->IsRootGraph())
+						{
+							OutAllActions.AddAction(TSharedPtr<FControlRigGraphSchemaAction_PromoteToVariable>(
+								new FControlRigGraphSchemaAction_PromoteToVariable(EdGraphPins[0], true)
+							));
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 bool UControlRigGraphSchema::SupportsPinType(UScriptStruct* ScriptStruct) const
