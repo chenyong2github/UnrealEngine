@@ -4,6 +4,7 @@
 
 #include "PacketHandler.h"
 
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptor
 {
 public:
@@ -25,6 +26,7 @@ protected:
 };
 
 /* Stream Encryptor Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FStreamEncryptorModuleInterface : public IModuleInterface
 {
 public:
@@ -34,6 +36,7 @@ public:
 /*
 * Symmetric block cipher handler component using AES as the cipher
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class STREAMENCRYPTIONHANDLERCOMPONENT_API StreamEncryptionHandlerComponent : public HandlerComponent
 {
 public:
@@ -69,6 +72,7 @@ protected:
 };
 
 /* Stream Encryption Handler Component Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FStreamEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 public:

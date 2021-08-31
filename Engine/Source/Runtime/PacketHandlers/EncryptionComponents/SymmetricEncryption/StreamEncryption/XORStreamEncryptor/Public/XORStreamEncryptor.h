@@ -3,6 +3,7 @@
 #include "StreamEncryptionHandlerComponent.h"
 
 /* XOR Stream Encryptor Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FXORStreamEncryptorModuleInterface : public FStreamEncryptorModuleInterface
 {
 public:
@@ -12,6 +13,7 @@ public:
 /*
 * XOR Block encryption
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class XORSTREAMENCRYPTOR_API XORStreamEncryptor : public StreamEncryptor
 {
 public:

@@ -5,6 +5,7 @@
 #include "BlockEncryptionHandlerComponent.h"
 
 /* XOR Block Encryptor Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FXORBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
 {
 	virtual BlockEncryptor* CreateBlockEncryptorInstance() override;
@@ -13,6 +14,7 @@ class FXORBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
 /*
 * XOR Block encryption
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class XORBLOCKENCRYPTOR_API XORBlockEncryptor : public BlockEncryptor
 {
 public:
