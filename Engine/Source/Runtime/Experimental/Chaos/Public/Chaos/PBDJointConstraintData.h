@@ -47,6 +47,7 @@ namespace Chaos
 		bool IsDirty() const { return MDirtyFlags.IsDirty(); }
 		bool IsDirty(const EJointConstraintFlags CheckBits) const { return MDirtyFlags.IsDirty(CheckBits); }
 		void ClearDirtyFlags() { MDirtyFlags.Clear(); }
+		FJointConstraintDirtyFlags GetDirtyFlags() const { return MDirtyFlags; }
 
 		const FData& GetJointSettings()const { return JointSettings; }
 
