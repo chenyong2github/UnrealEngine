@@ -133,7 +133,8 @@ private:
 	{
 		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 		{
-			return HandleClick();
+			FReply Reply = HandleClick();
+			return Reply.PreventThrottling();
 		}
 		
 		return FReply::Unhandled();
