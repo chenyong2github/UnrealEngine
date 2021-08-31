@@ -1445,7 +1445,7 @@ bool FPackageName::DoesPackageExist(const FPackagePath& PackagePath, const FGuid
 			return IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
 		}
 		else
-	{
+		{
 			return IPackageResourceManager::Get().DoesPackageExist(PackagePath, OutPackagePath);
 		}
 	}
@@ -1480,32 +1480,32 @@ FPackageName::EPackageLocationFilter FPackageName::DoesPackageExistEx(const FPac
 	// Used when I/O dispatcher is enabled
 	if (((uint8)Filter & (uint8)EPackageLocationFilter::Cooked))
 	{
-	    // For Cooked locations, return false for local filenames that are in unmounted directories
-	    if (PackagePath.IsMountedPath())
-	    {
-	        // Used when I/O dispatcher is enabled
-	        if (DoesPackageExistOverrideDelegate.IsBound())
-	        {
-		        if (DoesPackageExistOverrideDelegate.Execute(FName(*PackageName)))
-		        {
-			        if (OutPackagePath)
-			        {
-				        *OutPackagePath = PackagePath;
-				        if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
-				        {
-					        OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
-				        }
-			        }
+		// For Cooked locations, return false for local filenames that are in unmounted directories
+		if (PackagePath.IsMountedPath())
+		{
+			// Used when I/O dispatcher is enabled
+			if (DoesPackageExistOverrideDelegate.IsBound())
+			{
+				if (DoesPackageExistOverrideDelegate.Execute(FName(*PackageName)))
+				{
+					if (OutPackagePath)
+					{
+						*OutPackagePath = PackagePath;
+						if (OutPackagePath->GetHeaderExtension() == EPackageExtension::Unspecified)
+						{
+							OutPackagePath->SetHeaderExtension(EPackageExtension::EmptyString);
+						}
+					}
 
 					// note that the file was found in Cooked (IOStore) location
-				    Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::Cooked);
+					Result = EPackageLocationFilter((uint8)Result | (uint8)EPackageLocationFilter::Cooked);
 
-				    // if we just want to find any existence, then we are done and we can skip the on disk check lower
-				    if (Filter == EPackageLocationFilter::Any)
-				    {
-					    return Result;
-				    }
-		        }
+					// if we just want to find any existence, then we are done and we can skip the on disk check lower
+					if (Filter == EPackageLocationFilter::Any)
+					{
+						return Result;
+					}
+				}
 			}
 		}
 	}
@@ -1513,57 +1513,57 @@ FPackageName::EPackageLocationFilter FPackageName::DoesPackageExistEx(const FPac
 	if ((uint8)Filter & (uint8)EPackageLocationFilter::Uncooked)
 	{
 		bool bFoundUncooked = false;
-	    // On consoles, we don't support package downloading, so no need to waste any extra cycles/disk io dealing with it
-	    if (!FPlatformProperties::RequiresCookedData() && Guid != nullptr)
-	    {
-		    // @todo: If we could get to list of linkers here, it would be faster to check
-		    // then to open the file and read it
-		    FPackagePath LocalPackagePath;
-		    FOpenPackageResult OpenPackageResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, &LocalPackagePath);
-		    TUniquePtr<FArchive>& PackageReader = OpenPackageResult.Archive;
-		    if (!PackageReader || OpenPackageResult.Format != EPackageFormat::Binary)
-		    {
-			    if (PackageReader)
-			    {
-				    UE_LOG(LogPackageName, Error, TEXT("DoesPackageExist: DoesPackageExist with Guid FAILED: '%s' exists on disk with TextFormat, and we cannot read guids from TextFormat packages."),
-					    *PackagePath.GetDebugName());
-			    }
-		    }
+		// On consoles, we don't support package downloading, so no need to waste any extra cycles/disk io dealing with it
+		if (!FPlatformProperties::RequiresCookedData() && Guid != nullptr)
+		{
+			// @todo: If we could get to list of linkers here, it would be faster to check
+			// then to open the file and read it
+			FPackagePath LocalPackagePath;
+			FOpenPackageResult OpenPackageResult = IPackageResourceManager::Get().OpenReadPackage(PackagePath, &LocalPackagePath);
+			TUniquePtr<FArchive>& PackageReader = OpenPackageResult.Archive;
+			if (!PackageReader || OpenPackageResult.Format != EPackageFormat::Binary)
+			{
+				if (PackageReader)
+				{
+					UE_LOG(LogPackageName, Error, TEXT("DoesPackageExist: DoesPackageExist with Guid FAILED: '%s' exists on disk with TextFormat, and we cannot read guids from TextFormat packages."),
+						*PackagePath.GetDebugName());
+				}
+			}
 			else
 			{
-		        // Read in the package summary
-		        FPackageFileSummary Summary;
-		        *PackageReader << Summary;
+				// Read in the package summary
+				FPackageFileSummary Summary;
+				*PackageReader << Summary;
 
-		        // Compare Guids
-		        PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		        if (!PackageReader->IsError() && Summary.Guid == *Guid)
-		        PRAGMA_ENABLE_DEPRECATION_WARNINGS
+				// Compare Guids
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
+				if (!PackageReader->IsError() && Summary.Guid == *Guid)
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				{
-		            PackageReader.Reset();
-            
-		            if (bMatchCaseOnDisk)
-		            {
-			            IPackageResourceManager::Get().TryMatchCaseOnDisk(LocalPackagePath, &LocalPackagePath);
-		            }
-		            if (OutPackagePath)
-		            {
-			            *OutPackagePath = LocalPackagePath;
-		            }
+					PackageReader.Reset();
+
+					if (bMatchCaseOnDisk)
+					{
+						IPackageResourceManager::Get().TryMatchCaseOnDisk(LocalPackagePath, &LocalPackagePath);
+					}
+					if (OutPackagePath)
+					{
+						*OutPackagePath = LocalPackagePath;
+					}
 				}
-			    
+
 				// note that we found it uncooked (on disk/pak) location
 				bFoundUncooked = true;
 			}
-	    }
-	    else
-	    {
-		    if (bMatchCaseOnDisk)
-		    {
-			    bFoundUncooked = IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
-		    }
-		    else
-		    {
+		}
+		else
+		{
+			if (bMatchCaseOnDisk)
+			{
+				bFoundUncooked = IPackageResourceManager::Get().TryMatchCaseOnDisk(PackagePath, OutPackagePath);
+			}
+			else
+			{
 				bFoundUncooked = IPackageResourceManager::Get().DoesPackageExist(PackagePath, OutPackagePath);
 			}
 		}
