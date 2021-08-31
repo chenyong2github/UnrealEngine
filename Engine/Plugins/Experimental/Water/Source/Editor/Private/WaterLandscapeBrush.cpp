@@ -274,21 +274,20 @@ void AWaterLandscapeBrush::PostInitProperties()
 			}
 		});
 
-		OnLevelActorAddedHandle = GEngine->OnLevelActorAdded().AddLambda([this](AActor* Actor)
-		{
-			const UWorld* ThisWorld = GetWorld();
-			const bool bTriggerEvent = true;
-			const bool bModify = true;
-			AddActorInternal(Actor, ThisWorld, nullptr, bTriggerEvent, bModify);
-		});
+		OnLevelActorAddedHandle = GEngine->OnLevelActorAdded().AddUObject(this, &AWaterLandscapeBrush::OnLevelActorAdded);
+		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AWaterLandscapeBrush::OnLevelActorRemoved);
 
-		OnLevelActorDeletedHandle = GEngine->OnLevelActorDeleted().AddLambda([this](AActor* Actor)
+#if WITH_EDITOR
+		// in world partition, actors don't belong to levels and the on loaded/removed callbacks are different :
+		if (UWorld* World = GetWorld())
 		{
-			if (IsActorAffectingLandscape(Actor))
+			if (World->PersistentLevel)
 			{
-				RemoveActorInternal(Actor);
+				OnLoadedActorAddedToLevelEventHandle = World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddLambda([this](AActor& InActor) { OnLevelActorAdded(&InActor); });
+				OnLoadedActorRemovedFromLevelEventHandle = World->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddLambda([this](AActor& InActor) { OnLevelActorRemoved(&InActor); });
 			}
-		});
+		}
+#endif // WITH_EDITOR
 
 		OnActorMovedHandle = GEngine->OnActorMoved().AddLambda([this](AActor* Actor)
 		{
@@ -303,6 +302,25 @@ void AWaterLandscapeBrush::PostInitProperties()
 
 	// If we are loading do not trigger events
 	UpdateActors(!GIsEditorLoadingPackage);
+}
+
+void AWaterLandscapeBrush::OnLevelActorAdded(AActor* InActor)
+{
+	if (InActor->GetWorld() == GetWorld())
+	{
+		AddActorInternal(InActor, GetWorld(), /*InCache = */nullptr, /*bTriggerEvent = */true, /*bModify = */true);
+	}
+}
+
+void AWaterLandscapeBrush::OnLevelActorRemoved(AActor* InActor)
+{
+	if (InActor->GetWorld() == GetWorld())
+	{
+		if (IsActorAffectingLandscape(InActor))
+		{
+			RemoveActorInternal(InActor);
+		}
+	}
 }
 
 void AWaterLandscapeBrush::OnConstruction(const FTransform& Transform)
@@ -342,6 +360,20 @@ void AWaterLandscapeBrush::BeginDestroy()
 
 		GEngine->OnActorMoved().Remove(OnActorMovedHandle);
 		OnActorMovedHandle.Reset();
+
+#if WITH_EDITOR
+		// Unregister callbacks
+		if (UWorld* World = GetWorld())
+		{
+			if (World->PersistentLevel)
+			{
+				World->PersistentLevel->OnLoadedActorAddedToLevelEvent.Remove(OnLoadedActorAddedToLevelEventHandle);
+				World->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.Remove(OnLoadedActorRemovedFromLevelEventHandle);
+			}
+		}
+		OnLoadedActorAddedToLevelEventHandle.Reset();
+		OnLoadedActorRemovedFromLevelEventHandle.Reset();
+#endif // WITH_EDITOR
 
 		IWaterBrushActorInterface::GetOnWaterBrushActorChangedEvent().RemoveAll(this);
 	}
