@@ -68,6 +68,7 @@ TArrayView<const FPaletteItem> UAssetPlacementSettings::GetActivePaletteItems() 
 
 void UAssetPlacementSettings::ClearActivePaletteItems()
 {
+	ActivePalette->Modify();
 	ActivePalette->PaletteItems.Empty();
 }
 
