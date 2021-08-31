@@ -283,3 +283,16 @@ void UFractureModalTool::PostEditChangeChainProperty(struct FPropertyChangedChai
 	FractureContextChanged();
 }
 
+
+void UFractureModalTool::OnComponentTransformChangedInternal(USceneComponent* InRootComponent, ETeleportType Teleport)
+{
+	if (UGeometryCollectionComponent* GeomColl = Cast<UGeometryCollectionComponent>(InRootComponent))
+	{
+		bool bIsSel = GeomColl->IsSelected();
+		bool bActorIsSel = GeomColl->GetOwner()->IsSelected();
+		if (bIsSel || bActorIsSel)
+		{
+			OnComponentTransformChanged(GeomColl);
+		}
+	}
+}

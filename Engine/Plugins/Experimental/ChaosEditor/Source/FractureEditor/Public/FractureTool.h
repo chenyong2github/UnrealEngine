@@ -114,10 +114,26 @@ public:
 	virtual void SelectedBonesChanged() {}
 
 	// Called when the modal tool is entered
-	virtual void Setup() {}
+	virtual void Setup()
+	{
+		GEngine->OnComponentTransformChanged().AddUObject(this, &UFractureModalTool::OnComponentTransformChangedInternal);
+	}
 
 	// Called when the modal tool is exited (on switching to a new modal tool or exiting the fracture editor mode)
-	virtual void Shutdown() {}
+	virtual void Shutdown() 
+	{
+		GEngine->OnComponentTransformChanged().RemoveAll(this);
+	}
+
+	// Called when a selected geometry collection component is moved in the scene
+	virtual void OnComponentTransformChanged(UGeometryCollectionComponent* Component)
+	{
+		FractureContextChanged();
+	}
+
+protected:
+	
+	void OnComponentTransformChangedInternal(USceneComponent* InRootComponent, ETeleportType Teleport);
 
 };
 
