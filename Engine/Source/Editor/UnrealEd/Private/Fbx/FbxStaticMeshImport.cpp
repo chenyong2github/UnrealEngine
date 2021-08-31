@@ -1648,16 +1648,16 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		}
 	}
 
-	FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
-
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 	if (MeshDescription == nullptr)
 	{
 		MeshDescription = StaticMesh->CreateMeshDescription(LODIndex);
 		check(MeshDescription != nullptr);
 		StaticMesh->CommitMeshDescription(LODIndex);
+
 		//Make sure an imported mesh do not get reduce if there was no mesh data before reimport.
 		//In this case we have a generated LOD convert to a custom LOD
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
 		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
 		SrcModel.ReductionSettings.PercentVertices = 1.0f;
@@ -1863,6 +1863,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		}
 
 		// @todo This overrides restored values currently but we need to be able to import over the existing settings if the user chose to do so.
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		SrcModel.BuildSettings.bRemoveDegenerates = ImportOptions->bRemoveDegenerates;
 		SrcModel.BuildSettings.bBuildAdjacencyBuffer = ImportOptions->bBuildAdjacencyBuffer;
 		SrcModel.BuildSettings.bBuildReversedIndexBuffer = ImportOptions->bBuildReversedIndexBuffer;
@@ -1893,6 +1894,20 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 		if (ExistMeshDataPtr && InStaticMesh)
 		{
+			// Patch existing mesh settings to reflect new parameters from import settings
+			FExistingStaticMeshData* MutableExistMeshDataPtr = const_cast<FExistingStaticMeshData*>(ExistMeshDataPtr);
+			FMeshBuildSettings& ExistingBuildSettings = MutableExistMeshDataPtr->ExistingLODData[LODIndex].ExistingBuildSettings;
+			ExistingBuildSettings.bRemoveDegenerates = SrcModel.BuildSettings.bRemoveDegenerates;
+			ExistingBuildSettings.bBuildAdjacencyBuffer = SrcModel.BuildSettings.bBuildAdjacencyBuffer;
+			ExistingBuildSettings.bBuildReversedIndexBuffer = SrcModel.BuildSettings.bBuildReversedIndexBuffer;
+			ExistingBuildSettings.bRecomputeNormals = SrcModel.BuildSettings.bRecomputeNormals;
+			ExistingBuildSettings.bRecomputeTangents = SrcModel.BuildSettings.bRecomputeTangents;
+			ExistingBuildSettings.bUseMikkTSpace = SrcModel.BuildSettings.bUseMikkTSpace;
+			ExistingBuildSettings.bComputeWeightedNormals = SrcModel.BuildSettings.bComputeWeightedNormals;
+			ExistingBuildSettings.bGenerateLightmapUVs = SrcModel.BuildSettings.bGenerateLightmapUVs;
+			ExistingBuildSettings.DstLightmapIndex = SrcModel.BuildSettings.DstLightmapIndex;
+			MutableExistMeshDataPtr->ExistingLightMapCoordinateIndex = SrcModel.BuildSettings.DstLightmapIndex;
+
 			StaticMeshImportUtils::RestoreExistingMeshSettings(ExistMeshDataPtr, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
 		}
 
