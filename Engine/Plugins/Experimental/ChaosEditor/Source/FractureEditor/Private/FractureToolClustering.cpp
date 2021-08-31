@@ -51,13 +51,12 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 				TArray<int32> LeafBones;
 				FGeometryCollectionClusteringUtility::GetLeafBones(Context.GetGeometryCollection().Get(), ClusterIndex, true, LeafBones);
 				FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(Context.GetGeometryCollection().Get(), ClusterIndex, LeafBones);
-
-				// Cleanup: Remove any clusters remaining in the flattened branch.
-				FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
-
 			}
 
-			Refresh(Context, Toolkit);
+			// Cleanup: Remove any clusters remaining in the flattened branch.
+			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+
+			Refresh(Context, Toolkit, true);
 		}
 
 		SetOutlinerComponents(Contexts, Toolkit);
@@ -176,7 +175,8 @@ void UFractureToolUncluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTool
 
 			FGeometryCollectionClusteringUtility::CollapseHierarchyOneLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
 			
-			Refresh(Context, Toolkit);
+			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+			Refresh(Context, Toolkit, true);
 		}
 		
 		SetOutlinerComponents(Contexts, Toolkit);
@@ -218,7 +218,8 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 		{
 			Context.ConvertSelectionToRigidNodes();
 			FGeometryCollectionClusteringUtility::MoveUpOneHierarchyLevel(Context.GetGeometryCollection().Get(), Context.GetSelection());
-			Refresh(Context, Toolkit);
+			FGeometryCollectionClusteringUtility::RemoveDanglingClusters(Context.GetGeometryCollection().Get());
+			Refresh(Context, Toolkit, true);
 		}
 		
 		SetOutlinerComponents(Contexts, Toolkit);

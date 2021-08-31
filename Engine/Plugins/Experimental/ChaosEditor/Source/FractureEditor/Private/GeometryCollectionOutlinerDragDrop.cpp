@@ -121,6 +121,7 @@ bool FGeometryCollectionBoneDragDrop::ReparentBones(const FGeometryCollection* O
 		}
 
 		FGeometryCollectionClusteringUtility::ClusterBonesUnderExistingNode(GeometryCollection.Get(), OtherBone, BonePayload);
+		FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeometryCollection.Get());
 	}
 
 	return bValid;
