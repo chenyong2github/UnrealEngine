@@ -17,7 +17,8 @@
 			"LoadingPhase": "PostConfigInit",
 			"BlacklistPlatforms": [
 				"LinuxArm64",
-				"Hololens"
+				"Hololens",
+				"TVOS"
 			]
 		}
 	],
