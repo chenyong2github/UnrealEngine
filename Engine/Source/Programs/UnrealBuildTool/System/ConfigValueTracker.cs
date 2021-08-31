@@ -128,14 +128,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// The dependencies list
 		/// </summary>
-		Dictionary<ConfigDependencyKey, IReadOnlyList<string>?> Dependencies;
+		readonly IReadOnlyDictionary<ConfigDependencyKey, IReadOnlyList<string>?> Dependencies;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public ConfigValueTracker()
+		public ConfigValueTracker(IReadOnlyDictionary<ConfigDependencyKey, IReadOnlyList<string>?> ConfigValues)
 		{
-			Dependencies = new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>();
+			Dependencies = new Dictionary<ConfigDependencyKey, IReadOnlyList<string>?>(ConfigValues);
 		}
 
 		/// <summary>
@@ -154,21 +154,6 @@ namespace UnrealBuildTool
 		public void Write(BinaryArchiveWriter Writer)
 		{
 			Writer.WriteDictionary(Dependencies, Key => Key.Write(Writer), Value => Writer.WriteList(Value, x => Writer.WriteString(x)));
-		}
-
-		/// <summary>
-		/// Adds a new configuration value
-		/// </summary>
-		/// <param name="Type">The config hierarchy type</param>
-		/// <param name="ProjectDir">The project directory</param>
-		/// <param name="Platform">The platform being built</param>
-		/// <param name="SectionName">Name of the config file section</param>
-		/// <param name="KeyName">Name of the config file key</param>
-		/// <param name="Values">Current values for this key</param>
-		public void Add(ConfigHierarchyType Type, DirectoryReference ProjectDir, UnrealTargetPlatform Platform, string SectionName, string KeyName, IReadOnlyList<string>? Values)
-		{
-			ConfigDependencyKey Key = new ConfigDependencyKey(Type, ProjectDir, Platform, SectionName, KeyName);
-			Dependencies[Key] = Values;
 		}
 
 		/// <summary>

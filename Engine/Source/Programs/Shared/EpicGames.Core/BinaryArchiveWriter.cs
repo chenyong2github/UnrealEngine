@@ -424,7 +424,7 @@ namespace EpicGames.Core
 		/// <param name="Dictionary">The dictionary to write</param>
 		/// <param name="WriteKey">Delegate used to read a single key</param>
 		/// <param name="WriteValue">Delegate used to read a single value</param>
-		public void WriteDictionary<K, V>(IDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue)
+		public void WriteDictionary<K, V>(IReadOnlyDictionary<K, V> Dictionary, Action<K> WriteKey, Action<V> WriteValue)
 		{
 			if (Dictionary == null)
 			{
