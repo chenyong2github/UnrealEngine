@@ -209,6 +209,12 @@ public:
 
 	static IBulkDataIORequest* CreateStreamingRequestForRange(const BulkDataRangeArray& RangeArray, EAsyncIOPriorityAndFlags Priority, FBulkDataIORequestCallBack* CompleteCallback);
 
+	/**
+	 * Clears/removes any currently allocated data payload.
+	 *
+	 * Note that once this has been called, the bulkdata object will no longer be able to reload
+	 * it's payload from disk!
+	 */
 	void RemoveBulkData();
 
 	/**
