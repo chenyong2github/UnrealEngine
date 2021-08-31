@@ -56,5 +56,6 @@ private:
 
 	bool IsAvailableToMapToCurve(const FName& PropertyName, bool bInput) const;
 	bool IsInputProperty(const FName& PropertyName) const;
+	FRigControlElement* FindControlElement(const FName& InControlName) const;
 };
 

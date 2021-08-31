@@ -127,6 +127,7 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 	FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 	InputToCurveMappingUIDs.Reset();
+	InputToControlIndex.Reset();
 
 	if(RequiredBones.IsValid())
 	{
@@ -134,36 +135,50 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 		
 		TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
 
-		auto CacheCurveMappingUIDs = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
-			const FAnimationCacheBonesContext& InContext)
+		auto CacheMapping = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
+			const FAnimationCacheBonesContext& InContext, URigHierarchy* InHierarchy)
 		{
 			for (auto Iter = Mapping.CreateConstIterator(); Iter; ++Iter)
 			{
 				// we need to have list of variables using pin
 				const FName SourcePath = Iter.Key();
-				const FName CurveName = Iter.Value();
+				const FName TargetPath = Iter.Value();
 
-				if (SourcePath != NAME_None && CurveName != NAME_None)
+				if (SourcePath != NAME_None && TargetPath != NAME_None)
 				{
-					int32 Found = InUIDToNameLookUpTable.Find(CurveName);
+					int32 Found = InUIDToNameLookUpTable.Find(TargetPath);
 					if (Found != INDEX_NONE)
 					{
 						// set value - sound should be UID
 						InputToCurveMappingUIDs.Add(Iter.Value()) = Found;
+						continue;
 					}
-					else
+					else if(InHierarchy)
 					{
-						UE_LOG(LogAnimation, Warning, TEXT("Curve %s Not Found from the Skeleton %s"), 
-							*CurveName.ToString(), *GetNameSafe(InContext.AnimInstanceProxy->GetSkeleton()));
+						const FRigElementKey Key(TargetPath, ERigElementType::Control);
+						if(const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(Key))
+						{
+							InputToControlIndex.Add(TargetPath, ControlElement->GetIndex());
+							continue;
+						}
 					}
+
+					UE_LOG(LogAnimation, Warning, TEXT("Curve %s Not Found from the Skeleton %s"), 
+						*TargetPath.ToString(), *GetNameSafe(InContext.AnimInstanceProxy->GetSkeleton()));
 				}
 
 				// @todo: should we clear the item if not found?
 			}
 		};
 
-		CacheCurveMappingUIDs(InputMapping, UIDToNameLookUpTable, Context);
-		CacheCurveMappingUIDs(OutputMapping, UIDToNameLookUpTable, Context);
+		URigHierarchy* Hierarchy = nullptr;
+		if(UControlRig* CurrentControlRig = GetControlRig())
+		{
+			Hierarchy = CurrentControlRig->GetHierarchy();
+		}
+
+		CacheMapping(InputMapping, UIDToNameLookUpTable, Context, Hierarchy);
+		CacheMapping(OutputMapping, UIDToNameLookUpTable, Context, Hierarchy);
 	}
 }
 
@@ -388,44 +403,180 @@ void FAnimNode_ControlRig::PropagateInputProperties(const UObject* InSourceInsta
 		{
 			FProperty* CallerProperty = SourceProperties[PropIdx];
 
-			FRigVMExternalVariable Variable = TargetControlRig->GetPublicVariableByName(DestPropertyNames[PropIdx]);
-			if (Variable.bIsReadOnly)
+			if(FRigControlElement* ControlElement = TargetControlRig->FindControl(DestPropertyNames[PropIdx]))
 			{
+				const uint8* SrcPtr = CallerProperty->ContainerPtrToValuePtr<uint8>(InSourceInstance);
+
+				bool bIsValid = false;
+				FRigControlValue Value;
+				switch(ControlElement->Settings.ControlType)
+				{
+					case ERigControlType::Bool:
+					{
+						if(ensure(CastField<FBoolProperty>(CallerProperty)))
+						{
+							Value = FRigControlValue::Make<bool>(*(bool*)SrcPtr);
+							bIsValid = true;
+						}
+						break;
+					}
+					case ERigControlType::Float:
+					{
+						if(ensure(CastField<FFloatProperty>(CallerProperty)))
+						{
+							Value = FRigControlValue::Make<float>(*(float*)SrcPtr);
+							bIsValid = true;
+						}
+						break;
+					}
+					case ERigControlType::Integer:
+					{
+						if(ensure(CastField<FIntProperty>(CallerProperty)))
+						{
+							Value = FRigControlValue::Make<int32>(*(int32*)SrcPtr);
+							bIsValid = true;
+						}
+						break;
+					}
+					case ERigControlType::Vector2D:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FVector2D>::Get()))
+							{
+								const FVector2D& SrcVector = *(FVector2D*)SrcPtr;
+								Value = FRigControlValue::Make<FVector2D>(SrcVector);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					case ERigControlType::Position:
+					case ERigControlType::Scale:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FVector>::Get()))
+							{
+								const FVector& SrcVector = *(FVector*)SrcPtr;  
+								Value = FRigControlValue::Make<FVector>(SrcVector);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					case ERigControlType::Rotator:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FRotator>::Get()))
+							{
+								const FRotator& SrcRotator = *(FRotator*)SrcPtr;
+								Value = FRigControlValue::Make<FRotator>(SrcRotator);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					case ERigControlType::Transform:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FTransform>::Get()))
+							{
+								const FTransform& SrcTransform = *(FTransform*)SrcPtr;  
+								Value = FRigControlValue::Make<FTransform>(SrcTransform);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					case ERigControlType::TransformNoScale:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FTransform>::Get()))
+							{
+								const FTransform& SrcTransform = *(FTransform*)SrcPtr;  
+								Value = FRigControlValue::Make<FTransformNoScale>(SrcTransform);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					case ERigControlType::EulerTransform:
+					{
+						FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty);
+						if(ensure(StructProperty))
+						{
+							if(ensure(StructProperty->Struct == TBaseStructure<FTransform>::Get()))
+							{
+								const FTransform& SrcTransform = *(FTransform*)SrcPtr;  
+								Value = FRigControlValue::Make<FEulerTransform>(SrcTransform);
+								bIsValid = true;
+							}
+						}
+						break;
+					}
+					default:
+					{
+						checkNoEntry();
+					}
+				}
+
+				if(bIsValid)
+				{
+					TargetControlRig->GetHierarchy()->SetControlValue(ControlElement, Value, ERigControlValueType::Current);
+				}
 				continue;
 			}
 
-			const uint8* SrcPtr = CallerProperty->ContainerPtrToValuePtr<uint8>(InSourceInstance);
-
-			if (CastField<FBoolProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("bool"))
+			FRigVMExternalVariable Variable = TargetControlRig->GetPublicVariableByName(DestPropertyNames[PropIdx]);
+			if(Variable.IsValid())
 			{
-				const bool Value = *(const bool*)SrcPtr;
-				Variable.SetValue<bool>(Value);
-			}
-			else if (CastField<FFloatProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("float"))
-			{
-				const float Value = *(const float*)SrcPtr;
-				Variable.SetValue<float>(Value);
-			}
-			else if (CastField<FIntProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("int32"))
-			{
-				const int32 Value = *(const int32*)SrcPtr;
-				Variable.SetValue<int32>(Value);
-			}
-			else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FName"))
-			{
-				const FName Value = *(const FName*)SrcPtr;
-				Variable.SetValue<FName>(Value);
-			}
-			else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FString"))
-			{
-				const FString Value = *(const FString*)SrcPtr;
-				Variable.SetValue<FString>(Value);
-			}
-			else if (FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty))
-			{
-				if (StructProperty->Struct == Variable.TypeObject)
+				if (Variable.bIsReadOnly)
 				{
-					StructProperty->Struct->CopyScriptStruct(Variable.Memory, SrcPtr, 1);
+					continue;
+				}
+
+				const uint8* SrcPtr = CallerProperty->ContainerPtrToValuePtr<uint8>(InSourceInstance);
+
+				if (CastField<FBoolProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("bool"))
+				{
+					const bool Value = *(const bool*)SrcPtr;
+					Variable.SetValue<bool>(Value);
+				}
+				else if (CastField<FFloatProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("float"))
+				{
+					const float Value = *(const float*)SrcPtr;
+					Variable.SetValue<float>(Value);
+				}
+				else if (CastField<FIntProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("int32"))
+				{
+					const int32 Value = *(const int32*)SrcPtr;
+					Variable.SetValue<int32>(Value);
+				}
+				else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FName"))
+				{
+					const FName Value = *(const FName*)SrcPtr;
+					Variable.SetValue<FName>(Value);
+				}
+				else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FString"))
+				{
+					const FString Value = *(const FString*)SrcPtr;
+					Variable.SetValue<FString>(Value);
+				}
+				else if (FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty))
+				{
+					if (StructProperty->Struct == Variable.TypeObject)
+					{
+						StructProperty->Struct->CopyScriptStruct(Variable.Memory, SrcPtr, 1);
+					}
 				}
 			}
 		}
