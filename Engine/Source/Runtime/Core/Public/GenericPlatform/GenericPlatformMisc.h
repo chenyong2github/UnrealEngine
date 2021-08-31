@@ -1178,7 +1178,6 @@ public:
 
 	FORCEINLINE static void SetBrightness(float bBright) { }
 	FORCEINLINE static float GetBrightness() { return 1.0f; }
-	FORCEINLINE static void ResetBrightness() { } // resets brightness to brightness application started with
 	FORCEINLINE static bool SupportsBrightness() { return false; }
 
 	FORCEINLINE static bool IsInLowPowerMode() { return false;}

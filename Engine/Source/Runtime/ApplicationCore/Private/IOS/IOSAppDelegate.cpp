@@ -1277,8 +1277,6 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 FCriticalSection RenderSuspend;
 - (void)applicationWillResignActive:(UIApplication *)application
 {
-    FIOSPlatformMisc::ResetBrightness();
-    
     /*
 		Sent when the application is about to move from active to inactive
 		state. This can occur for certain types of temporary interruptions (such

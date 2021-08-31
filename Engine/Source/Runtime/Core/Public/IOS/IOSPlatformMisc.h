@@ -61,7 +61,6 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static int32 GetDeviceVolume();
 	static void SetBrightness(float Brightness);
 	static float GetBrightness();
-	static void ResetBrightness(); //reset brightness to original value the application started with
 	static bool SupportsBrightness() { return true; }
     static bool IsInLowPowerMode();
 

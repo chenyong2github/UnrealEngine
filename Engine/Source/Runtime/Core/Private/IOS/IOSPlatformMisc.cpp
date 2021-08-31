@@ -64,7 +64,6 @@ void (* GMemoryWarningHandler)(const FGenericMemoryWarningContext& Context) = NU
 
 /** global for showing the splash screen */
 bool GShowSplashScreen = true;
-float GOriginalBrightness = -1.0f;
 
 static int32 GetFreeMemoryMB()
 {
@@ -75,8 +74,6 @@ static int32 GetFreeMemoryMB()
 void FIOSPlatformMisc::PlatformInit()
 {
 	FAppEntry::PlatformInit();
-    
-    GOriginalBrightness = FIOSPlatformMisc::GetBrightness();
 
 	// Increase the maximum number of simultaneously open files
 	struct rlimit Limit;
@@ -245,14 +242,6 @@ void FIOSPlatformMisc::SetBrightness(float Brightness)
 #if !PLATFORM_TVOS
 	[UIScreen mainScreen].brightness = Brightness;
 #endif // !PLATFORM_TVOS
-}
-
-void FIOSPlatformMisc::ResetBrightness()
-{
-	if (GOriginalBrightness >= 0.f)
-	{
-		SetBrightness(GOriginalBrightness);
-	}
 }
 
 bool FIOSPlatformMisc::IsRunningOnBattery()
