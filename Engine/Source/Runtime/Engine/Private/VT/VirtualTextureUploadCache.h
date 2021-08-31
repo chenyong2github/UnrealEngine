@@ -94,6 +94,7 @@ private:
 		/** Memory pointer to locked GPU buffer if used on platform, or to allocated CPU heap memory if not. */
 		void* Memory = nullptr;
 		uint32 TileSize = 0u;
+		uint32 TileSizeAligned = 0u;
 		uint32 NumTiles = 0u;
 		/** List of tile indices that haven't been allocated. */
 		TArray<uint16> TileFreeList;
