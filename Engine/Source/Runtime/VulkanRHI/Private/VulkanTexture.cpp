@@ -341,6 +341,23 @@ void FVulkanSurface::GenerateImageCreateInfo(
 		ImageCreateInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
 	}
 
+	if (EnumHasAnyFlags(UEFlags, TexCreate_Foveation) && ValidateShadingRateDataType())
+	{
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+		{
+			ImageCreateInfo.usage |= VK_IMAGE_USAGE_FRAGMENT_SHADING_RATE_ATTACHMENT_BIT_KHR;
+		}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+		if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+		{
+			ImageCreateInfo.usage |= VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT;
+		}
+#endif
+	}
+	
 	if (EnumHasAnyFlags(UEFlags, TexCreate_UAV))
 	{
 		//cannot have the storage bit on a memoryless texture
@@ -905,7 +922,7 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 #endif
 		VULKAN_SET_DEBUG_NAME(InDevice, VK_OBJECT_TYPE_IMAGE, Image, TEXT("(FVulkanSurface*)0x%p"), this);
 
-		VkImageLayout InitialLayout;
+		VkImageLayout InitialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		bool bOnlyAddToLayoutManager, bDoInitialClear;
 		if (EnumHasAnyFlags(UEFlags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable))
 		{
@@ -913,10 +930,23 @@ FVulkanSurface::FVulkanSurface(FVulkanDevice& InDevice, VkImageViewType Resource
 			bOnlyAddToLayoutManager = false;
 			bDoInitialClear = true;
 		}
-		else if (EnumHasAnyFlags(UEFlags, TexCreate_Foveation))
+		else if (EnumHasAnyFlags(UEFlags, TexCreate_Foveation) && ValidateShadingRateDataType())
 		{
-			// If it's a foveation texture, do not clear but add to layoutmgr, and set correct foveation layout. 
-			InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+			// If it's a shading rate attachment texture, do not clear but add to layoutmgr, and set correct shading rate layout.
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+			if (GRHIVariableRateShadingImageDataType == VRSImage_Palette)
+			{
+				InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_SHADING_RATE_ATTACHMENT_OPTIMAL_KHR;
+			}
+#endif
+
+#if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
+			if (GRHIVariableRateShadingImageDataType == VRSImage_Fractional)
+			{
+				InitialLayout = VK_IMAGE_LAYOUT_FRAGMENT_DENSITY_MAP_OPTIMAL_EXT;
+			}
+#endif
+
 			bOnlyAddToLayoutManager = true;
 			bDoInitialClear = false;
 		}
