@@ -12,6 +12,7 @@
 #include "MetasoundRouter.h"
 #include "MetasoundUObjectRegistry.h"
 #include "Serialization/Archive.h"
+#include "UObject/ObjectSaveContext.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Algo/Transform.h"
@@ -77,18 +78,43 @@ namespace Metasound
 #endif // WITH_EDITOR
 
 	template <typename TMetaSoundObject>
-	void PreSaveAsset(TMetaSoundObject& InMetaSound)
+	void PreSaveAsset(TMetaSoundObject& InMetaSound, FObjectPreSaveContext InSaveContext)
 	{
+		// If not editor and cooking, no need to force re-registering as if its already registered,
+		// no edits have been made between last registration and this one if a parent asset has requested
+		// it to register.
+		FMetaSoundAssetRegistrationOptions NonEditorCookRegistrationOptions;
+		NonEditorCookRegistrationOptions.bForceReregister = false;
+		NonEditorCookRegistrationOptions.bRegisterDependencies = true;
+
 #if WITH_EDITORONLY_DATA
 		if (UMetasoundEditorGraphBase* MetaSoundGraph = Cast<UMetasoundEditorGraphBase>(InMetaSound.GetGraph()))
 		{
-			const bool bClearUpdateNotes = true;
-			const bool bIsValid = MetaSoundGraph->Validate(bClearUpdateNotes);
-			if (bIsValid)
+			// When cooking, validate after registration to avoid reporting false errors
+			if (InSaveContext.IsCooking())
 			{
-				MetaSoundGraph->RegisterGraphWithFrontend();
+				// Non-editor builds use explicit options above as opposed to using
+				// editor variant via the MetaSoundEdGraph.
+				if (GIsEditor)
+				{
+					MetaSoundGraph->RegisterGraphWithFrontend();
+				}
+				else
+				{
+					InMetaSound.RegisterGraphWithFrontend(NonEditorCookRegistrationOptions);
+				}
+				MetaSoundGraph->Validate(false /* bInClearUpdateNotes */);
+			}
+			else
+			{
+				if (MetaSoundGraph->Validate(true /* bInClearUpdateNotes */))
+				{
+					MetaSoundGraph->RegisterGraphWithFrontend();
+				}
 			}
 		}
+#else
+		InMetaSound.RegisterGraphWithFrontend(NonEditorCookRegistrationOptions);
 #endif // WITH_EDITORONLY_DATA
 	}
 

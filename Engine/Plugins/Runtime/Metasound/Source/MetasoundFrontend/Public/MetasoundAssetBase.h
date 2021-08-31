@@ -46,7 +46,8 @@ struct METASOUNDFRONTEND_API FMetaSoundAssetRegistrationOptions
 	// If true, recursively attempts to register dependencies.
 	bool bRegisterDependencies = false;
 
-	// Attempt to auto-update (only runs if class not registered or set to force re-register)
+	// Attempt to auto-update (Only runs if class not registered or set to force re-register.
+	// Will not respect being set to true if project-level MetaSoundSettings specify to not run auto-update.)
 	bool bAutoUpdate = true;
 
 	// Attempt to rebuild referenced class keys (only run if class not registered or set to force re-register)
