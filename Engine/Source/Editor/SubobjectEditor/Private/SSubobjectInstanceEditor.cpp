@@ -8,7 +8,6 @@
 #include "Editor/EditorEngine.h"
 #include "ISCSEditorUICustomization.h"	// #TODO_BH Rename this to subobject
 #include "SubobjectEditorExtensionContext.h"
-
 #include "Styling/SlateIconFinder.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -17,6 +16,8 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SComponentClassCombo.h"
 #include "SEditorHeaderButton.h"
+#include "SSimpleButton.h"
+#include "SSimpleComboButton.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Subsystems/PanelExtensionSubsystem.h"	// SExtensionPanel
 #include "Kismet2/ComponentEditorUtils.h"
@@ -91,10 +92,9 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 
 	+ SHorizontalBox::Slot()
 	.VAlign(VAlign_Center)
-	.Padding(0.0f,0.0f,4.0f,0.0f)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SSimpleButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.ConvertToBlueprint")))
 		.Visibility(this, &SSubobjectInstanceEditor::GetPromoteToBlueprintButtonVisibility)
 		.OnClicked(this, &SSubobjectInstanceEditor::OnPromoteToBlueprintClicked)
@@ -109,7 +109,7 @@ void SSubobjectInstanceEditor::Construct(const FArguments& InArgs)
 	.VAlign(VAlign_Center)
 	.AutoWidth()
 	[
-		SNew(SEditorHeaderButton)
+		SNew(SSimpleComboButton)
 		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Actor.EditBlueprint")))
 		.Visibility(this, &SSubobjectInstanceEditor::GetEditBlueprintButtonVisibility)
 		.ToolTipText(LOCTEXT("EditActorBlueprint_Tooltip", "Edit the Blueprint for this Actor"))

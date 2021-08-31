@@ -93,7 +93,7 @@ void SModeWidget::Construct(const FArguments& InArgs, const FText& InText, const
 	.VAlign(VAlign_Fill)
 	[
 		SNew(SCheckBox)
-		.Style(FAppStyle::Get(), "SegmentedCombo.ButtonOnly")
+		.Style(FAppStyle::Get(), "ToggleButtonCheckbox")
 		.IsChecked(this, &SModeWidget::GetModeCheckState)
 		.OnCheckStateChanged(this, &SModeWidget::OnModeTabClicked)
 		[

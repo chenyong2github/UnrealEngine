@@ -125,19 +125,18 @@ void SSearchBox::Construct( const FArguments& InArgs )
 			SNew(SImage)
 			.Visibility(this, &SSearchBox::GetSearchGlassVisibility)
 			.Image(&InArgs._Style->GlassImage)
-			.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.Foreground"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 	// Add an X to clear the search whenever there is some text typed into it
 	Box->InsertSlot(SlotIndex++)
 	.AutoWidth()
-	.Padding(InArgs._Style->ImagePadding)
 	.HAlign(HAlign_Center)
 	.VAlign(VAlign_Center)
 	[
 		SNew(SButton)
 		.Visibility(this, &SSearchBox::GetXVisibility)
-		.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-		.ContentPadding(0.f)
+		.ButtonStyle(FAppStyle::Get(), "HoverOnlyButton")
+		.ContentPadding(FMargin(2.f, 0.0f))
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		.OnClicked(this, &SSearchBox::OnClearSearch)
@@ -146,8 +145,8 @@ void SSearchBox::Construct( const FArguments& InArgs )
 		.IsFocusable(true)
 		[
 			SNew(SImage)
-			.Image( &InArgs._Style->ClearImage )
-			.ColorAndOpacity( FSlateColor::UseForeground() )
+			.Image(&InArgs._Style->ClearImage)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 	];
 }

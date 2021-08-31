@@ -12,6 +12,7 @@
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
 #if WITH_ACCESSIBILITY
 #include "Widgets/Accessibility/SlateAccessibleWidgets.h"
 #endif
@@ -65,14 +66,17 @@ public:
 
 		SButton::Construct(
 			SButton::FArguments()
-			.Text( InArgs._Text )
-			.ContentPadding( Padding )
-			.ButtonStyle( UnderlineStyle )
-			.TextStyle( TextStyle )
+			.ContentPadding(Padding)
+			.ButtonStyle(UnderlineStyle)
 			.OnClicked(this, &SHyperlink::Hyperlink_OnClicked)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.TextShapingMethod( InArgs._TextShapingMethod )
-			.TextFlowDirection( InArgs._TextFlowDirection )
+			.TextShapingMethod(InArgs._TextShapingMethod)
+			.TextFlowDirection(InArgs._TextFlowDirection)
+			[
+				SNew(STextBlock)
+				.TextStyle(TextStyle)
+				.Text(InArgs._Text)
+			]
 		);
 	}
 

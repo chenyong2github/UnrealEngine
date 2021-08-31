@@ -202,7 +202,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	{
 		ViewOptions =
 			SNew(SComboButton)
-			.ContentPadding(0)
 			.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 			.OnGetMenuContent(AssetViewPtr.ToSharedRef(), &SAssetView::GetViewButtonContent)
 			.HasDownArrow(false)
@@ -344,6 +343,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				.AutoWidth()
 				.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
 				[
 					ViewOptions
 				]
@@ -646,7 +646,6 @@ TSharedRef<SWidget> SContentBrowser::CreateLockButton(const FContentBrowserConfi
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("LockToggleTooltip", "Toggle lock. If locked, this browser will ignore Find in Content Browser requests."))
-			.ContentPadding(FMargin(1, 0))
 			.OnClicked(this, &SContentBrowser::ToggleLockClicked)
 			.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserLock")))
 			.Visibility(this, &SContentBrowser::GetLockButtonVisibility)
@@ -717,7 +716,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 				.Padding(5, 0, 0, 0)
 				[
 					SNew(SComboButton)
-					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
+					.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButtonWithIcon"))
 					.ForegroundColor(FSlateColor::UseStyle())
 					.ToolTipText(LOCTEXT("AddFilterToolTip", "Add an asset filter."))
 					.OnGetMenuContent(this, &SContentBrowser::MakeAddFilterMenu)
@@ -888,7 +887,6 @@ TSharedRef<SWidget> SContentBrowser::CreateDrawerDockButton(const FContentBrowse
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("DockInLayout_Tooltip", "Docks this content browser in the current layout, copying all settings from the drawer.\nThe drawer will still be usable as a temporary browser."))
-			.ContentPadding(FMargin(1, 0))
 			.OnClicked(this, &SContentBrowser::DockInLayoutClicked)
 			[
 				SNew(SHorizontalBox)

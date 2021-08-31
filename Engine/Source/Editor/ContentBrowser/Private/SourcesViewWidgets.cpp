@@ -225,13 +225,6 @@ FSlateColor SAssetTreeItem::GetFolderColor() const
 			}
 		}
 
-		if(FoundColor == ContentBrowserUtils::GetDefaultColor() && IsSelected.IsBound() && IsSelected.Execute())
-		{
-			static const FSlateColor InvertedForeground = FAppStyle::Get().GetSlateColor("Colors.ForegroundInverted");
-
-			return InvertedForeground;
-		}
-
 		return FoundColor;
 	}
 	

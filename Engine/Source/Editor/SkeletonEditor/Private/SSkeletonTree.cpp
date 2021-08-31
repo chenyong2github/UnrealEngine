@@ -66,6 +66,7 @@
 #include "Widgets/Views/STreeView.h"
 #include "IPinnedCommandList.h"
 #include "PersonaModule.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "SSkeletonTree"
 
@@ -218,34 +219,9 @@ void SSkeletonTree::Construct(const FArguments& InArgs, const TSharedRef<FEditab
 				.VAlign(VAlign_Center)
 				.Padding(FMargin(6.f, 0.0))
 				[
-					SAssignNew(FilterComboButton, SComboButton)
-					.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SecondaryButton"))
-					.ForegroundColor(FSlateColor::UseStyle())
-					.HasDownArrow(false)
+					SNew(SEditorHeaderButton)
 					.OnGetMenuContent( this, &SSkeletonTree::CreateNewMenu )
-					// .AddMetaData<FTagMetaData>(TEXT("SkelTree.Bones"))
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage)
-							.Image(FAppStyle::Get().GetBrush("Icons.Plus"))
-							.ColorAndOpacity(FSlateColor::UseForeground())
-						]
-						+ SHorizontalBox::Slot()
-						.Padding(FMargin(7.f, 0.f, 0.0, 0.0))
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						[
-							SNew(STextBlock)
-							.TextStyle(FAppStyle::Get(), "SmallButtonText")
-							.Text(LOCTEXT("NewButton", "ADD"))
-						]
-					]
+					.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
 				]
 
 				+SHorizontalBox::Slot()

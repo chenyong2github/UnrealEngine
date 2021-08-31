@@ -110,47 +110,47 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 	/* CheckBox appearance when the CheckBox is unchecked (normal) */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UncheckedImage;
-	FCheckBoxStyle & SetUncheckedImage( const FSlateBrush& InUncheckedImage ){ UncheckedImage = InUncheckedImage; return *this; }
+	FCheckBoxStyle& SetUncheckedImage( const FSlateBrush& InUncheckedImage ){ UncheckedImage = InUncheckedImage; return *this; }
 
 	/* CheckBox appearance when the CheckBox is unchecked and hovered */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UncheckedHoveredImage;
-	FCheckBoxStyle & SetUncheckedHoveredImage( const FSlateBrush& InUncheckedHoveredImage ){ UncheckedHoveredImage = InUncheckedHoveredImage; return *this; }
+	FCheckBoxStyle& SetUncheckedHoveredImage( const FSlateBrush& InUncheckedHoveredImage ){ UncheckedHoveredImage = InUncheckedHoveredImage; return *this; }
 
 	/* CheckBox appearance when the CheckBox is unchecked and hovered */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UncheckedPressedImage;
-	FCheckBoxStyle & SetUncheckedPressedImage( const FSlateBrush& InUncheckedPressedImage ){ UncheckedPressedImage = InUncheckedPressedImage; return *this; }
+	FCheckBoxStyle& SetUncheckedPressedImage( const FSlateBrush& InUncheckedPressedImage ){ UncheckedPressedImage = InUncheckedPressedImage; return *this; }
 
 	/* CheckBox appearance when the CheckBox is checked */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush CheckedImage;
-	FCheckBoxStyle & SetCheckedImage( const FSlateBrush& InCheckedImage ){ CheckedImage = InCheckedImage; return *this; }
+	FCheckBoxStyle& SetCheckedImage( const FSlateBrush& InCheckedImage ){ CheckedImage = InCheckedImage; return *this; }
 
 	/* CheckBox appearance when checked and hovered */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush CheckedHoveredImage;
-	FCheckBoxStyle & SetCheckedHoveredImage( const FSlateBrush& InCheckedHoveredImage ){ CheckedHoveredImage = InCheckedHoveredImage; return *this; }
+	FCheckBoxStyle& SetCheckedHoveredImage( const FSlateBrush& InCheckedHoveredImage ){ CheckedHoveredImage = InCheckedHoveredImage; return *this; }
 
 	/* CheckBox appearance when checked and pressed */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush CheckedPressedImage;
-	FCheckBoxStyle & SetCheckedPressedImage( const FSlateBrush& InCheckedPressedImage ){ CheckedPressedImage = InCheckedPressedImage; return *this; }
+	FCheckBoxStyle& SetCheckedPressedImage( const FSlateBrush& InCheckedPressedImage ){ CheckedPressedImage = InCheckedPressedImage; return *this; }
 	
 	/* CheckBox appearance when the CheckBox is undetermined */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UndeterminedImage;
-	FCheckBoxStyle & SetUndeterminedImage( const FSlateBrush& InUndeterminedImage ){ UndeterminedImage = InUndeterminedImage; return *this; }
+	FCheckBoxStyle& SetUndeterminedImage( const FSlateBrush& InUndeterminedImage ){ UndeterminedImage = InUndeterminedImage; return *this; }
 
 	/* CheckBox appearance when CheckBox is undetermined and hovered */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UndeterminedHoveredImage;
-	FCheckBoxStyle & SetUndeterminedHoveredImage( const FSlateBrush& InUndeterminedHoveredImage ){ UndeterminedHoveredImage = InUndeterminedHoveredImage; return *this; }
+	FCheckBoxStyle& SetUndeterminedHoveredImage( const FSlateBrush& InUndeterminedHoveredImage ){ UndeterminedHoveredImage = InUndeterminedHoveredImage; return *this; }
 
 	/* CheckBox appearance when CheckBox is undetermined and pressed */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush UndeterminedPressedImage;
-	FCheckBoxStyle & SetUndeterminedPressedImage( const FSlateBrush& InUndeterminedPressedImage ){ UndeterminedPressedImage = InUndeterminedPressedImage; return *this; }
+	FCheckBoxStyle& SetUndeterminedPressedImage( const FSlateBrush& InUndeterminedPressedImage ){ UndeterminedPressedImage = InUndeterminedPressedImage; return *this; }
 
 	/** Padding */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -160,17 +160,17 @@ struct SLATECORE_API FCheckBoxStyle : public FSlateWidgetStyle
 	/** Background appearance */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush BackgroundImage;
-	FCheckBoxStyle & SetBackgroundImage( const FSlateBrush& InBackgroundImage ){ BackgroundImage = InBackgroundImage; return *this; }
+	FCheckBoxStyle& SetBackgroundImage( const FSlateBrush& InBackgroundImage ){ BackgroundImage = InBackgroundImage; return *this; }
 
 	/** Background appearance when hovered */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush BackgroundHoveredImage;
-	FCheckBoxStyle & SetBackgroundHoveredImage( const FSlateBrush& InBackgroundHoveredImage ){ BackgroundHoveredImage = InBackgroundHoveredImage; return *this; }
+	FCheckBoxStyle& SetBackgroundHoveredImage( const FSlateBrush& InBackgroundHoveredImage ){ BackgroundHoveredImage = InBackgroundHoveredImage; return *this; }
 
 	/** Background appearance when pressed */
 	UPROPERTY( EditAnywhere, BlueprintReadWrite, Category = Appearance )
 	FSlateBrush BackgroundPressedImage;
-	FCheckBoxStyle & SetBackgroundPressedImage( const FSlateBrush& InBackgroundPressedImage ){ BackgroundPressedImage = InBackgroundPressedImage; return *this; }
+	FCheckBoxStyle& SetBackgroundPressedImage( const FSlateBrush& InBackgroundPressedImage ){ BackgroundPressedImage = InBackgroundPressedImage; return *this; }
 
 	/** The normal unchecked foreground color */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1375,6 +1375,10 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
 	FSlateBrush BackgroundBrush;
 	FSpinBoxStyle& SetBackgroundBrush( const FSlateBrush& InBackgroundBrush ){ BackgroundBrush = InBackgroundBrush; return *this; }
 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateBrush ActiveBackgroundBrush;
+	FSpinBoxStyle& SetActiveBackgroundBrush(const FSlateBrush& InBackgroundBrush) { ActiveBackgroundBrush = InBackgroundBrush; return *this; }
+
 	/** Brush used to draw the background of the spinbox when it's hovered over */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush HoveredBackgroundBrush;
@@ -1384,6 +1388,11 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
 	FSlateBrush ActiveFillBrush;
 	FSpinBoxStyle& SetActiveFillBrush( const FSlateBrush& InActiveFillBrush ){ ActiveFillBrush = InActiveFillBrush; return *this; }
+
+	/** Brush used to fill the spinbox when it's hovered and not active */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FSlateBrush HoveredFillBrush;
+	FSpinBoxStyle& SetHoveredFillBrush(const FSlateBrush& InHoveredBrush) { HoveredFillBrush = InHoveredBrush; return *this; }
 
 	/** Brush used to fill the spinbox when it's inactive */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
@@ -1405,6 +1414,11 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
 	FMargin TextPadding;
 	FSpinBoxStyle& SetTextPadding( const FMargin& InTextPadding ){ TextPadding = InTextPadding; return *this; }
 
+	/** Padding between the background brush and the fill brush */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FMargin InsetPadding;
+	FSpinBoxStyle& SetInsetPadding(const FMargin& InInsetPadding) { InsetPadding = InInsetPadding; return *this; }
+
 	/**
 	 * Unlinks all colors in this style.
 	 * @see FSlateColor::Unlink
@@ -1413,7 +1427,9 @@ struct SLATECORE_API FSpinBoxStyle : public FSlateWidgetStyle
 	{
 		BackgroundBrush.UnlinkColors();
 		HoveredBackgroundBrush.UnlinkColors();
+		ActiveBackgroundBrush.UnlinkColors();
 		ActiveFillBrush.UnlinkColors();
+		HoveredFillBrush.UnlinkColors();
 		InactiveFillBrush.UnlinkColors();
 		ArrowsImage.UnlinkColors();
 		ForegroundColor.Unlink();

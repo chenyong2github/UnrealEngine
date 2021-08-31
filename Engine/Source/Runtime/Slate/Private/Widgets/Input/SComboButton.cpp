@@ -59,7 +59,7 @@ void SComboButton::Construct( const FArguments& InArgs )
 
 				+SHorizontalBox::Slot()
 				.AutoWidth()
-				.HAlign( HAlign_Center )
+				.HAlign( HAlign_Right )
 				.VAlign(InArgs._HasDownArrow ? (EVerticalAlignment) InArgs._ComboButtonStyle->DownArrowAlign : VAlign_Center)
 				.Padding(InArgs._HasDownArrow ? InArgs._ComboButtonStyle->DownArrowPadding : FMargin(0))
 				[

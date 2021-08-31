@@ -421,9 +421,6 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	SetupComboButtonStyles(Style);
 	SetupCheckboxStyles(Style);
 
-	const FButtonStyle& Button = Style->GetWidgetStyle<FButtonStyle>("Button");
-	const FButtonStyle& SimpleButton = Style->GetWidgetStyle<FButtonStyle>("SimpleButton");
-
 	// SMessageLogListing
 	{
 		FComboButtonStyle MessageLogListingComboButton = FComboButtonStyle()
@@ -480,8 +477,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	{
 		Style->Set("ProgressBar", FProgressBarStyle()
 			.SetBackgroundImage(FSlateColorBrush(FStyleColors::Foldout))
-			.SetFillImage(IMAGE_BRUSH("Starship/CoreWidgets/ProgressBar/ProgressMarquee", FVector2D(20.f, 12.f), FStyleColors::Primary, ESlateBrushTileType::Horizontal))
-			.SetMarqueeImage(IMAGE_BRUSH("Starship/CoreWidgets/ProgressBar/ProgressMarquee", FVector2D(20.f, 12.f), FStyleColors::Primary, ESlateBrushTileType::Horizontal))
+			.SetFillImage(IMAGE_BRUSH("Starship/CoreWidgets/ProgressBar/ProgressMarquee", FVector2D(20.f, 12.f), FStyleColors::PrimaryHover, ESlateBrushTileType::Horizontal))
+			.SetMarqueeImage(IMAGE_BRUSH("Starship/CoreWidgets/ProgressBar/ProgressMarquee", FVector2D(20.f, 12.f), FStyleColors::PrimaryHover, ESlateBrushTileType::Horizontal))
 			.SetEnableFillAnimation(true)
 		);
 	}
@@ -508,7 +505,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		FSliderStyle SliderStyle = FSliderStyle()
 			.SetNormalBarImage(   FSlateRoundedBoxBrush(FStyleColors::Input, 2.0f, FStyleColors::Input, 1.0f))
 			.SetHoveredBarImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 2.0f, FStyleColors::Input, 1.0f))
-			.SetNormalThumbImage(  FSlateRoundedBoxBrush(FStyleColors::Hover2, Icon8x8) )
+			.SetNormalThumbImage(  FSlateRoundedBoxBrush(FStyleColors::Foreground, Icon8x8) )
 			.SetHoveredThumbImage( FSlateRoundedBoxBrush(FStyleColors::ForegroundHover, Icon8x8) )
 			.SetBarThickness(4.0f);
 		Style->Set("Slider", SliderStyle);
@@ -523,43 +520,33 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 		);
 	}
 
-	// SSpinBox defaults...
+	// SpinBox defaults...
 	{
-		Style->Set("SpinBox", FSpinBoxStyle()
+		// SSpinBox
+		FSpinBoxStyle DefaultSpinBox =
+			FSpinBoxStyle()
 			.SetBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness))
 			.SetHoveredBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness))
-
-			.SetActiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
-			.SetInactiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Secondary, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
+			.SetActiveBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Primary, InputFocusThickness))
+			.SetActiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Primary, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
+			.SetHoveredFillBrush(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
+			.SetInactiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
 			.SetArrowsImage(FSlateNoResource())
 			.SetForegroundColor(FStyleColors::ForegroundHover)
-			.SetTextPadding(FMargin(10.f, 3.5f, 10.f, 4.f))
-		);
-	}
+			.SetTextPadding(FMargin(7.f, 2.5f, 7.f, 2.5f))
+			.SetInsetPadding(FMargin(1));
 
-	// SNumericEntryBox defaults...
-	{
-		Style->Set("NumericEntrySpinBox", FSpinBoxStyle()
-			.SetBackgroundBrush(FSlateNoResource())
-			.SetHoveredBackgroundBrush(FSlateNoResource())
+		Style->Set("SpinBox", DefaultSpinBox);
 
-			.SetActiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
-			.SetInactiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Secondary, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
-
-			.SetArrowsImage(FSlateNoResource())
-			.SetTextPadding(FMargin(0.f))
-			.SetForegroundColor(FStyleColors::ForegroundHover)
-		);
+		// SNumericEntryBox
+		Style->Set("NumericEntrySpinBox", DefaultSpinBox);
 
 		Style->Set("NumericEntrySpinBox_Dark", FSpinBoxStyle()
 			.SetBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness))
 			.SetHoveredBackgroundBrush(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness))
-
 			.SetActiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
 			.SetInactiveFillBrush(FSlateRoundedBoxBrush(FStyleColors::Secondary, InputFocusRadius, FLinearColor::Transparent, InputFocusThickness))
-
 			.SetArrowsImage(FSlateNoResource())
-
 			.SetTextPadding(FMargin(0.f))
 			.SetForegroundColor(FStyleColors::ForegroundHover)
 		);
@@ -1048,7 +1035,7 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		.SetBackgroundImageFocused(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Primary, InputFocusThickness))
 		.SetBackgroundImageReadOnly(FSlateRoundedBoxBrush(FStyleColors::Header, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness))
 		.SetFont(StyleFonts.Normal)
-		.SetPadding(FMargin(12.f, 4.0f, 12.f, 5.0f)) // The padding should be 4 top, 5 bottom
+		.SetPadding(FMargin(8.0f, 3.0f, 8.0f, 4.0f)) 
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetBackgroundColor(FStyleColors::White)
 		.SetReadOnlyForegroundColor(FSlateColor::UseForeground())
@@ -1074,7 +1061,7 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/chevron-down", Icon16x16, FStyleColors::Foreground))
 			.SetGlassImage(IMAGE_BRUSH_SVG("Starship/Common/search", Icon16x16))
 			.SetClearImage(IMAGE_BRUSH_SVG("Starship/Common/close", Icon16x16))
-			.SetImagePadding(FMargin(3.f, 0.f, -2.f, 0.f))
+			.SetImagePadding(FMargin(3.f, 0.f, 0.f, 0.f))
 			.SetLeftAlignButtons(true)
 		);
 	}
@@ -1084,12 +1071,9 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		// Normal Editable Text 
 		FTextBlockStyle InlineEditableTextBlockReadOnly = FTextBlockStyle(NormalText);
 
-		FEditableTextBoxStyle InlineEditableTextBlockEditable = FEditableTextBoxStyle(NormalEditableTextBoxStyle)
-			.SetPadding(FMargin(6.f, 4.5f, 6.f, 4.5f));
-
 		FInlineEditableTextBlockStyle InlineEditableTextBlockStyle = FInlineEditableTextBlockStyle()
 			.SetTextStyle(InlineEditableTextBlockReadOnly)
-			.SetEditableTextBoxStyle(InlineEditableTextBlockEditable);
+			.SetEditableTextBoxStyle(NormalEditableTextBoxStyle);
 
 		Style->Set("InlineEditableTextBlockStyle", InlineEditableTextBlockStyle);
 
@@ -1097,7 +1081,7 @@ void FStarshipCoreStyle::SetupTextStyles(TSharedRef<FStyle>& Style)
 		FTextBlockStyle InlineEditableTextBlockSmallReadOnly = FTextBlockStyle(InlineEditableTextBlockReadOnly)
 			.SetFont(StyleFonts.Small);
 
-		FEditableTextBoxStyle InlineEditableTextBlockSmallEditable = FEditableTextBoxStyle(InlineEditableTextBlockEditable)
+		FEditableTextBoxStyle InlineEditableTextBlockSmallEditable = FEditableTextBoxStyle(NormalEditableTextBoxStyle)
 			.SetFont(StyleFonts.Small);
 
 		FInlineEditableTextBlockStyle InlineEditableTextBlockSmallStyle = FInlineEditableTextBlockStyle()
@@ -1117,52 +1101,63 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 {
 	// SButton defaults
 	const FButtonStyle PrimaryButton = FButtonStyle()
-		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f, FStyleColors::Hover, InputFocusThickness))
-		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::PrimaryPress, 4.0f, FStyleColors::Hover, InputFocusThickness))
-		.SetNormalForeground(FStyleColors::Panel)
-		.SetHoveredForeground(FStyleColors::Panel)
-		.SetPressedForeground(FStyleColors::Panel)
-		.SetDisabledForeground(FStyleColors::Panel)
-		.SetNormalPadding(ButtonMargins)
-		.SetPressedPadding(ButtonMargins);
-
-
-	const FButtonStyle Button = FButtonStyle()
-		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Hover, InputFocusThickness))
-		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Hover, InputFocusThickness))
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::PrimaryPress, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::Recessed, InputFocusThickness))
 		.SetNormalForeground(FStyleColors::ForegroundHover)
 		.SetHoveredForeground(FStyleColors::ForegroundHover)
 		.SetPressedForeground(FStyleColors::ForegroundHover)
 		.SetDisabledForeground(FStyleColors::Foreground)
 		.SetNormalPadding(ButtonMargins)
-		.SetPressedPadding(ButtonMargins);
+		.SetPressedPadding(PressedButtonMargins);
 
-	const FButtonStyle SimpleButton = FButtonStyle()
-		.SetNormal(FSlateNoResource())
-		.SetHovered(FSlateNoResource())
-		.SetPressed(FSlateNoResource())
-		.SetDisabled(FSlateNoResource())
-		.SetNormalForeground(FStyleColors::Foreground)
+
+	const FButtonStyle Button = FButtonStyle()
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::Input, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::Recessed, InputFocusThickness))
+		.SetNormalForeground(FStyleColors::ForegroundHover)
 		.SetHoveredForeground(FStyleColors::ForegroundHover)
 		.SetPressedForeground(FStyleColors::ForegroundHover)
 		.SetDisabledForeground(FStyleColors::Foreground)
-		.SetNormalPadding(FMargin(2.f, 2.f, 2.f, 2.f))
-		.SetPressedPadding(FMargin(2.f, 3.f, 2.f, 1.f));
+		.SetNormalPadding(ButtonMargins)
+		.SetPressedPadding(PressedButtonMargins);
 
-
+	// @todo Recolor - Get rid of this, it is a copy of button
 	const FButtonStyle SecondaryButton = FButtonStyle()
-		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f))
-		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f))
-		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f))
-		.SetDisabled(FSlateNoResource())
+		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
 		.SetNormalForeground(FStyleColors::ForegroundHover)
 		.SetHoveredForeground(FStyleColors::ForegroundHover)
 		.SetPressedForeground(FStyleColors::ForegroundHover)
 		.SetDisabledForeground(FStyleColors::Foreground)
 		.SetNormalPadding(FMargin(8.f, 4.5f, 8.f, 3.5f))
 		.SetPressedPadding(FMargin(8.f, 5.f, 6.f, 3.f));
+
+
+	const FButtonStyle SimpleButton = FButtonStyle()
+		.SetNormal(FSlateNoResource())
+		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f))
+		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f))
+		.SetDisabled(FSlateNoResource())
+		.SetNormalForeground(FStyleColors::Foreground)
+		.SetHoveredForeground(FStyleColors::ForegroundHover)
+		.SetPressedForeground(FStyleColors::ForegroundHover)
+		.SetDisabledForeground(FStyleColors::Foreground)
+		.SetNormalPadding(ButtonMargins)
+		.SetPressedPadding(PressedButtonMargins);
+
+	const FButtonStyle SimpleButtonLabelAndIcon = FButtonStyle(SimpleButton)
+		.SetNormalPadding(FMargin(4.f, 1.f, 4.f, 1.f))
+		.SetPressedPadding(FMargin(4.f, 2.0f, 4.f, 0.0f));
+
+	FButtonStyle SimpleButtonIconOnly = FButtonStyle(SimpleButton)
+		.SetNormalPadding(FMargin(2.f, 1.f, 2.f, 1.f))
+		.SetPressedPadding(FMargin(2.f, 2.0f, 2.f, 0.0f));
 	{
 
 		const FTextBlockStyle& NormalText = Style->GetWidgetStyle<FTextBlockStyle>("NormalText");
@@ -1171,17 +1166,18 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 
 		Style->Set("PrimaryButton", PrimaryButton);
 		Style->Set("Button", Button);
-		Style->Set("SimpleButton", SimpleButton);
+		Style->Set("SimpleButton", SimpleButtonIconOnly);
+		Style->Set("SimpleButtonLabelAndIcon", SimpleButtonLabelAndIcon);
 		Style->Set("SecondaryButton", SecondaryButton);
 
-
-		Style->Set("DialogButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold).SetTransformPolicy(ETextTransformPolicy::ToUpper));
-
+		//@todo Recolor - This is reundant with button text now.
+		Style->Set("DialogButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold));
 
 		FSlateFontInfo AddFont = FStyleFonts::Get().SmallBold;
 		AddFont.LetterSpacing = 200;
 
-		Style->Set("SmallButtonText", FTextBlockStyle(NormalText).SetFont(AddFont).SetTransformPolicy(ETextTransformPolicy::ToUpper));
+		//@todo Recolor - Rename to simple button text
+		Style->Set("SmallButtonText", FTextBlockStyle(NormalText));
 
 		// A button that only responds to clicks and displays nothing
 		const FButtonStyle InvisibleButton = FButtonStyle()
@@ -1197,6 +1193,14 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 			.SetPressedPadding(FMargin(0.f));
 
 		Style->Set("InvisibleButton", InvisibleButton);
+
+		SimpleButtonIconOnly
+			.SetHovered(FSlateNoResource())
+			.SetPressed(FSlateNoResource())
+			.SetNormalPadding(FMargin(2.f, 0))
+			.SetPressedPadding(FMargin(2.0f, 0.f));
+
+		Style->Set("HoverOnlyButton", SimpleButtonIconOnly);
 	}
 }
 
@@ -1207,19 +1211,20 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::InputOutline, InputFocusThickness))
 		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness))
 		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius, FStyleColors::Hover, InputFocusThickness))
+		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, InputFocusRadius))
 		.SetNormalForeground(FStyleColors::Foreground)
 		.SetHoveredForeground(FStyleColors::ForegroundHover)
 		.SetPressedForeground(FStyleColors::ForegroundHover)
-		.SetDisabledForeground(FStyleColors::White25)
-		.SetNormalPadding(FMargin(8.f, 2.f, 4.f, 2.f))
-		.SetPressedPadding(FMargin(8.f, 2.f, 4.f, 2.f));
+		.SetDisabledForeground(FStyleColors::ForegroundHover)
+		.SetNormalPadding(ComboButtonMargin)
+		.SetPressedPadding(PressedComboButtonMargin);
 
 
 	// SComboBox 
 	FComboButtonStyle ComboButton = FComboButtonStyle()
 		.SetButtonStyle(ComboButtonButton)
 		.SetContentPadding(0.f)
-		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/wide-chevron-down", FVector2D(20.f, 16.f)))
+		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/wide-chevron-down", FVector2D(16.f, 16.f)))
 		.SetMenuBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0f, FStyleColors::DropdownOutline, 1.0f))
 		.SetMenuBorderPadding(0.f);
 	Style->Set("ComboButton", ComboButton);
@@ -1231,27 +1236,26 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetComboButtonStyle(ComboButton);
 	Style->Set("ComboBox", ComboBox);
 
-	const FButtonStyle& SimpleButton = Style->GetWidgetStyle<FButtonStyle>("SimpleButton");
+	const FButtonStyle& SimpleButton = Style->GetWidgetStyle<FButtonStyle>("SimpleButtonLabelAndIcon");
 
 	// Simple Combo Box  (borderless)
 	FComboButtonStyle SimpleComboButton = FComboButtonStyle()
 		.SetButtonStyle(SimpleButton)
 		.SetContentPadding(0.f)
+		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/wide-chevron-down", FVector2D(16.f, 16.f)))
 		.SetShadowOffset(FVector2D(0.0f, 0.0f))
-		.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/ComboBox/corner-dropdown", FVector2D(7.0f, 7.0f)))
-		.SetDownArrowPadding(FMargin(0.0f))
-		.SetDownArrowAlignment(EVerticalAlignment::VAlign_Bottom)
 		.SetMenuBorderBrush(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0f, FStyleColors::DropdownOutline, 1.0f))
 		.SetMenuBorderPadding(0.0f);
 	Style->Set("SimpleComboButton", SimpleComboButton);
 
+	SimpleComboButton.SetButtonStyle(Style->GetWidgetStyle<FButtonStyle>("SimpleButton"));
+	Style->Set("SimpleComboButtonWithIcon", SimpleComboButton);
 
 	FComboBoxStyle SimpleComboBox = FComboBoxStyle()
 		.SetContentPadding(0.f)
 		.SetMenuRowPadding(FMargin(8.0f, 2.f))
 		.SetComboButtonStyle(SimpleComboButton);
 	Style->Set("SimpleComboBox", SimpleComboBox);
-
 
 	const FTableRowStyle ComboBoxRow = FTableRowStyle()
 		.SetEvenRowBackgroundBrush(FSlateNoResource())
@@ -1302,54 +1306,28 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 	const FCheckBoxStyle BasicCheckBoxStyle = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
 
-		.SetForegroundColor(FStyleColors::Foreground)
+		.SetForegroundColor(FStyleColors::ForegroundHover)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Foreground)
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
 		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetUndeterminedForegroundColor(FStyleColors::Foreground)
+		.SetUndeterminedForegroundColor(FStyleColors::ForegroundHover)
 
 		.SetUncheckedImage(FSlateNoResource())
 		.SetUncheckedHoveredImage(FSlateNoResource())
 		.SetUncheckedPressedImage(FSlateNoResource())
 		.SetCheckedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::Primary))
 		.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::PrimaryHover))
-		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::Primary))
+		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::PrimaryPress))
 		.SetUndeterminedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::Primary))
 		.SetUndeterminedHoveredImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::PrimaryHover))
-		.SetUndeterminedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::Primary))
-		.SetBackgroundImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::InputOutline, CheckboxOutlineThickness, Icon18x18))
+		.SetUndeterminedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::PrimaryPress))
+		.SetBackgroundImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::Secondary, CheckboxOutlineThickness, Icon18x18))
 		.SetBackgroundHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::Hover, CheckboxOutlineThickness, Icon18x18))
-		.SetBackgroundPressedImage(FSlateRoundedBoxBrush(FStyleColors::Foldout, CheckboxCornerRadius, FStyleColors::Hover, CheckboxOutlineThickness, Icon18x18));
+		.SetBackgroundPressedImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::Hover, CheckboxOutlineThickness, Icon18x18));
 
 	Style->Set("Checkbox", BasicCheckBoxStyle);
-
-	const FCheckBoxStyle SimplifiedCheckBoxStyle = FCheckBoxStyle()
-		.SetCheckBoxType(ESlateCheckBoxType::CheckBox)
-
-		.SetForegroundColor(FLinearColor::White)
-		.SetHoveredForegroundColor(FLinearColor::White)
-		.SetPressedForegroundColor(FLinearColor::White)
-		.SetCheckedForegroundColor(FLinearColor::White)
-		.SetCheckedHoveredForegroundColor(FLinearColor::White)
-		.SetCheckedPressedForegroundColor(FLinearColor::White)
-		.SetUndeterminedForegroundColor(FLinearColor::White)
-
-		.SetUncheckedImage(FSlateNoResource())
-		.SetUncheckedHoveredImage(FSlateNoResource())
-		.SetUncheckedPressedImage(FSlateNoResource())
-		.SetCheckedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::Foreground))
-		.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::ForegroundHover))
-		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/check", Icon16x16, FStyleColors::Foreground))
-		.SetUndeterminedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::Foreground))
-		.SetUndeterminedHoveredImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::ForegroundHover))
-		.SetUndeterminedPressedImage(IMAGE_BRUSH_SVG("Starship/CoreWidgets/CheckBox/indeterminate", Icon16x16, FStyleColors::Foreground))
-		.SetBackgroundImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::InputOutline, CheckboxOutlineThickness, Icon18x18))
-		.SetBackgroundHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Input, CheckboxCornerRadius, FStyleColors::Hover, CheckboxOutlineThickness, Icon18x18))
-		.SetBackgroundPressedImage(FSlateRoundedBoxBrush(FStyleColors::Foldout, CheckboxCornerRadius, FStyleColors::Hover, CheckboxOutlineThickness, Icon18x18));
-
-	Style->Set("SimplifiedCheckbox", SimplifiedCheckBoxStyle);
 
 	/* Set images for various transparent SCheckBox states ... */
 	const FCheckBoxStyle BasicTransparentCheckBoxStyle = FCheckBoxStyle()
@@ -1364,25 +1342,30 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetUndeterminedHoveredImage(FSlateNoResource())
 		.SetUndeterminedPressedImage(FSlateNoResource())
 		.SetForegroundColor(FStyleColors::Foreground)
-		.SetHoveredForegroundColor(FStyleColors::ForegroundHover);
+		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover);
 
 	Style->Set("TransparentCheckBox", BasicTransparentCheckBoxStyle);
 
 	/* Default Style for a toggleable button */
 	const FCheckBoxStyle ToggleButtonStyle = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetCheckedImage(FSlateNoResource())
-		.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius))
-		.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius))
+		.SetCheckedImage(FSlateRoundedBoxBrush(FStyleColors::Primary, 4.0f))
+		.SetCheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, 4.0f))
+		.SetCheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f))
 		.SetUncheckedImage(FSlateNoResource())
-		.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, InputFocusRadius))
-		.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Input, InputFocusRadius))
+		.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f))
+		.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f))
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
-		.SetPadding(DefaultMargins);
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetPadding(ToggleButtonMargins);
 
 	Style->Set("ToggleButtonCheckbox", ToggleButtonStyle);
 
@@ -1400,67 +1383,73 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
 		.SetCheckedForegroundColor(FStyleColors::Primary)
 		.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover)
-		.SetPadding(DefaultMargins);
+		.SetPadding(ToggleButtonMargins);
 
+	//@todo Recolor - Get rid of this. ToggleButtonCheckbox is what we should use
 	Style->Set("ToggleButtonCheckboxAlt", ToggleButtonAltStyle);
 
+	FMargin SegmentedControlMargins(8, 3);
 	/* Style for a segmented box */
-	const FCheckBoxStyle SegmentedBoxLeft = FCheckBoxStyle()
+	FCheckBoxStyle SegmentedBoxLeft = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
 
-		.SetUncheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
+		.SetUncheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
 		.SetUncheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Hover))
 		.SetUncheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
-		.SetCheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
-		.SetCheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
-		.SetCheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
+		.SetCheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Dropdown))
+		.SetCheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Hover))
+		.SetCheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Header))
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::Primary)
-		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
-		.SetPadding(DefaultMargins);
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetPadding(SegmentedControlMargins);
 
 
 	const FCheckBoxStyle SegmentedBoxCenter = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetUncheckedImage(FSlateColorBrush(FStyleColors::Secondary))
+		.SetUncheckedImage(FSlateColorBrush(FStyleColors::Input))
 		.SetUncheckedHoveredImage(FSlateColorBrush(FStyleColors::Hover))
 		.SetUncheckedPressedImage(FSlateColorBrush(FStyleColors::Secondary))
-		.SetCheckedImage(FSlateColorBrush(FStyleColors::Input))
-		.SetCheckedHoveredImage(FSlateColorBrush(FStyleColors::Input))
-		.SetCheckedPressedImage(FSlateColorBrush(FStyleColors::Input))
+		.SetCheckedImage(FSlateColorBrush(FStyleColors::Dropdown))
+		.SetCheckedHoveredImage(FSlateColorBrush(FStyleColors::Hover))
+		.SetCheckedPressedImage(FSlateColorBrush(FStyleColors::Header))
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::Primary)
-		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
-		.SetPadding(DefaultMargins);
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetPadding(SegmentedControlMargins);
 
 
 	const FCheckBoxStyle SegmentedBoxRight = FCheckBoxStyle()
 		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetUncheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
+		.SetUncheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
 		.SetUncheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Hover))
-		.SetUncheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Secondary))
-		.SetCheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
-		.SetCheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
-		.SetCheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Input))
+		.SetUncheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Header))
+		.SetCheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Dropdown))
+		.SetCheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Hover))
+		.SetCheckedPressedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Header))
 		.SetForegroundColor(FStyleColors::Foreground)
 		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
 		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::Primary)
-		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
-		.SetPadding(DefaultMargins);
+		.SetCheckedForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedHoveredForegroundColor(FStyleColors::ForegroundHover)
+		.SetCheckedPressedForegroundColor(FStyleColors::ForegroundHover)
+		.SetPadding(SegmentedControlMargins);
 
 	Style->Set("SegmentedControl", FSegmentedControlStyle()
 		.SetControlStyle(SegmentedBoxCenter)
 		.SetFirstControlStyle(SegmentedBoxLeft)
 		.SetLastControlStyle(SegmentedBoxRight)
 	);
+
+	SegmentedBoxLeft.SetUncheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Dropdown));
+	SegmentedBoxLeft.SetCheckedImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/left", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::Primary));
+	SegmentedBoxLeft.SetCheckedHoveredImage(BOX_BRUSH("/Starship/CoreWidgets/SegmentedBox/right", FVector2D(16.f, 16.f), FMargin(4.0f / 16.0f), FStyleColors::PrimaryHover));
 
 	Style->Set("SegmentedCombo.Left", SegmentedBoxLeft);
 
@@ -1485,35 +1474,13 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 
 	// Button that looks/behaves like a SegmentedCombo for cases where SegmentedCombos and 
 	// buttons are placed adjacent
-	const FCheckBoxStyle SegmentedBoxLeftOnly = FCheckBoxStyle()
-		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetUncheckedImage(       FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.f) )
+	const FCheckBoxStyle SegmentedBoxButtonOnly = FCheckBoxStyle(ToggleButtonStyle)
+		.SetUncheckedImage(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.f))
 		.SetUncheckedHoveredImage(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.f))
-		.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.f))
-		.SetCheckedImage(         FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
-		.SetCheckedHoveredImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
-		.SetCheckedPressedImage(  FSlateRoundedBoxBrush(FStyleColors::Input, 4.f))
-		.SetForegroundColor(FStyleColors::Foreground)
-		.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-		.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-		.SetCheckedForegroundColor(FStyleColors::Primary)
-		.SetCheckedHoveredForegroundColor(FStyleColors::Primary)
-		.SetCheckedPressedForegroundColor(FStyleColors::Primary)
-		.SetPadding(DefaultMargins);
-	Style->Set("SegmentedCombo.ButtonOnly", SegmentedBoxLeftOnly);
+		.SetUncheckedPressedImage(FSlateRoundedBoxBrush(FStyleColors::Header, 4.f));
 
-	/* Style for a toggleable button that mimics the coloring and look of a Table Row */
-	/*
-	const FCheckBoxStyle ToggleButtonRowStyle = FCheckBoxStyle()
-		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetUncheckedImage(FSlateNoResource())
-		.SetUncheckedHoveredImage(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
-		.SetUncheckedPressedImage(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
-		.SetCheckedImage(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetCheckedHoveredImage(IMAGE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
-		.SetCheckedPressedImage(BOX_BRUSH("Common/Selector", 4.0f / 16.0f, SelectorColor));
-	Style->Set("ToggleButtonRowStyle", ToggleButtonRowStyle);
-	*/
+	Style->Set("SegmentedCombo.ButtonOnly", SegmentedBoxButtonOnly);
+
 
 	/* A radio button is actually just a SCheckBox box with different images */
 	/* Set images for various radio button (SCheckBox) states ... */
@@ -1528,12 +1495,12 @@ void FStarshipCoreStyle::SetupCheckboxStyles(TSharedRef<FStyle>& Style)
 		.SetCheckedPressedForegroundColor(FLinearColor::White)
 		.SetUndeterminedForegroundColor(FLinearColor::White)
 
-		.SetUncheckedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::White25))
-		.SetUncheckedHoveredImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::ForegroundHover))
-		.SetUncheckedPressedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::ForegroundHover))
+		.SetUncheckedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::Dropdown))
+		.SetUncheckedHoveredImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::Hover))
+		.SetUncheckedPressedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::Dropdown))
 		.SetCheckedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FStyleColors::Primary))
-		.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FStyleColors::Primary))
-		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::Primary))
+		.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FStyleColors::PrimaryHover))
+		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FStyleColors::Primary))
 		.SetUndeterminedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::White25))
 		.SetUndeterminedHoveredImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::ForegroundHover))
 		.SetUndeterminedPressedImage(IMAGE_BRUSH_SVG("/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FStyleColors::ForegroundHover))
@@ -1765,7 +1732,7 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::SelectParent))// This is the parent highlight
 
 		.SetTextColor(FStyleColors::Foreground)
-		.SetSelectedTextColor(FStyleColors::ForegroundInverted)
+		.SetSelectedTextColor(FStyleColors::ForegroundHover)
 
 		.SetDropIndicator_Above(BOX_BRUSH("Common/DropZoneIndicator_Above", FMargin(10.0f / 16.0f, 10.0f / 16.0f, 0.f, 0.f), SelectionColor))
 		.SetDropIndicator_Onto(BOX_BRUSH("Common/DropZoneIndicator_Onto", FMargin(4.0f / 16.0f), SelectionColor))
@@ -1920,74 +1887,85 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		Style->Set("ToolBar", NormalToolbarStyle);
 
 		// Slim Toolbar
+		const FButtonStyle& SimpleButtonStyle = Style->GetWidgetStyle<FButtonStyle>("SimpleButton");
 
-		FButtonStyle SlimToolBarButton = FButtonStyle(ToolbarButton)
-			.SetPressed(FSlateNoResource())
-			.SetHovered(FSlateNoResource())
+		FButtonStyle SlimToolBarButton = FButtonStyle(SimpleButtonStyle)
 			.SetNormalForeground(FStyleColors::Foreground)
 			.SetPressedForeground(FStyleColors::ForegroundHover)
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
-			.SetDisabledForeground(FStyleColors::Foreground);
+			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalPadding(FMargin(8.f, 4.f, 8.f, 4.f))
+			.SetPressedPadding(FMargin(8.f, 5.f, 8.f, 3.f));
 
 
 		FComboButtonStyle SlimToolBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
-			.SetButtonStyle(SlimToolBarButton)
-			.SetDownArrowPadding(FMargin(1.f, 0.f, 2.f, 5.f));
+			.SetDownArrowPadding(FMargin(1.f, 0.f, 2.f, 0.f));
 
 		FToolBarStyle SlimToolbarStyle =
 			FToolBarStyle()
 			.SetBackground(FSlateColorBrush(FStyleColors::Panel))
-			.SetBackgroundPadding(FMargin(0.f, 4.f, 0.f, 4.f))
+			.SetBackgroundPadding(FMargin(4.f, 6.f, 0.f, 6.f))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
-			.SetComboButtonPadding(FMargin(6.0f, 0.0f))
-			.SetButtonPadding(FMargin(4.0f, 4.0f))
+			.SetComboButtonPadding(FMargin(0.0f, 0.0f))
+			.SetButtonPadding(FMargin(4.0f, 0.0f))
 			.SetCheckBoxPadding(FMargin(8.0f, 0.0f))
 			.SetSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
 			.SetSeparatorPadding(FMargin(8.f, -4.0f))
 			.SetLabelStyle(FTextBlockStyle(NormalText))
 			.SetComboButtonStyle(SlimToolBarComboButton)
-			.SetLabelPadding(FMargin(5.f, 0.f, 0.f, 0.f))
+			.SetLabelPadding(FMargin(4.f, 0.f, 0.f, 0.f))
 			.SetEditableTextStyle(FEditableTextBoxStyle(NormalEditableTextBoxStyle));
 
-		FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle()
-			.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-			.SetUncheckedImage(FSlateNoResource())
-			.SetUncheckedPressedImage(FSlateNoResource())
-			.SetUncheckedHoveredImage(FSlateNoResource())
-			.SetCheckedImage(FSlateNoResource())
-			.SetCheckedHoveredImage(FSlateNoResource())
-			.SetCheckedPressedImage(FSlateNoResource())
-			.SetForegroundColor(FStyleColors::Foreground)
-			.SetPressedForegroundColor(FStyleColors::ForegroundHover)
-			.SetHoveredForegroundColor(FStyleColors::ForegroundHover)
-			.SetCheckedForegroundColor(FStyleColors::Primary)
-			.SetCheckedPressedForegroundColor(FStyleColors::PrimaryPress)
-			.SetCheckedHoveredForegroundColor(FStyleColors::PrimaryHover);
+		FCheckBoxStyle SlimToolBarToggleButtonCheckBoxStyle = FCheckBoxStyle(Style->GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckbox"))
+			.SetPadding(FMargin(8.f, 4.f, 8.f, 4.f));
 
 		SlimToolbarStyle.SetToggleButtonStyle(SlimToolBarToggleButtonCheckBoxStyle);
 		SlimToolbarStyle.SetButtonStyle(SlimToolBarButton);
 
-		FComboButtonStyle SlimToolBarSettingsComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("ComboButton"))
-			.SetContentPadding(0)
-			.SetButtonStyle(SlimToolBarButton)
-			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 24)));
+		FButtonStyle SlimToolBarButtonSettingsRegion = FButtonStyle(SimpleButtonStyle)
+			.SetPressed(FSlateNoResource())
+			.SetHovered(FSlateNoResource())
+			.SetNormal(FSlateNoResource())
+			.SetNormalForeground(FStyleColors::Foreground)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
+			.SetDisabledForeground(FStyleColors::Foreground)
+			.SetNormalPadding(FMargin(8.f, 4.f, 8.f, 4.f))
+			.SetPressedPadding(FMargin(8.f, 5.f, 8.f, 3.f));
 
-		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarSettingsComboButton);
+
+		FCheckBoxStyle SettingsToggleButtonStyle = FCheckBoxStyle(Style->GetWidgetStyle<FCheckBoxStyle>("TransparentCheckBox"))
+			.SetPadding(FMargin(8.f, 4.f, 8.f, 4.f));
+
+		SlimToolbarStyle.SetSettingsButtonStyle(SlimToolBarButtonSettingsRegion);
+		SlimToolbarStyle.SetSettingsToggleButtonStyle(SettingsToggleButtonStyle);
 		SlimToolbarStyle.SetIconSize(Icon20x20);
 
-		Style->Set("ToolbarSettingsRegion.LeftHover", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f)));
-		Style->Set("ToolbarSettingsRegion.RightHover", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f)));
-		Style->Set("ToolbarSettingsRegion.Left", new FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Header, 1.0f));
-		Style->Set("ToolbarSettingsRegion.Right", new FSlateRoundedBoxBrush(FStyleColors::Header, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Header, 1.0f));
+		SlimToolBarButtonSettingsRegion
+			.SetNormalPadding(FMargin(4.f, 4.f, 4.f, 4.f))
+			.SetPressedPadding(FMargin(4.f, 5.f, 4.f, 3.f));
+
+		FComboButtonStyle SlimToolBarSettingsComboButton = FComboButtonStyle(SlimToolBarComboButton)
+			.SetContentPadding(0)
+			.SetButtonStyle(SlimToolBarButtonSettingsRegion)
+			.SetDownArrowImage(IMAGE_BRUSH_SVG("Starship/Common/ellipsis-vertical-narrow", FVector2D(6, 20)));
+
+		SlimToolbarStyle.SetSettingsComboButtonStyle(SlimToolBarSettingsComboButton);
+
+
+		Style->Set("ToolbarSettingsRegion.LeftHover", new FSlateRoundedBoxBrush(FStyleColors::Hover, FVector4(4.0f, 0.0f, 0.0f, 4.0f)));
+		Style->Set("ToolbarSettingsRegion.RightHover", new FSlateRoundedBoxBrush(FStyleColors::Hover, FVector4(0.0f, 4.0f, 4.0f, 0.0f)));
+		Style->Set("ToolbarSettingsRegion.Left", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(4.0f, 0.0f, 0.0f, 4.0f), FStyleColors::Header, 1.0f));
+		Style->Set("ToolbarSettingsRegion.Right", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, FVector4(0.0f, 4.0f, 4.0f, 0.0f), FStyleColors::Header, 1.0f));
+		Style->Set("ToolbarSettingsRegion.LeftToggleHover", new FSlateRoundedBoxBrush(FStyleColors::PrimaryHover, FVector4(4.0f, 0.0f, 0.0f, 4.0f)));
+		Style->Set("ToolbarSettingsRegion.LeftToggle", new FSlateRoundedBoxBrush(FStyleColors::Primary, FVector4(4.0f, 0.0f, 0.0f, 4.0f)));
+
 
 		Style->Set("SlimToolBar", SlimToolbarStyle);
 
-		SlimToolbarStyle.SetComboButtonPadding(FMargin(4.0f, 0.0f));
-		SlimToolbarStyle.SetButtonPadding(FMargin(4.0f, 4.0f));
-		SlimToolbarStyle.SetCheckBoxPadding(FMargin(8.0f, 0.0f));
+
 		SlimToolbarStyle.SetShowLabels(false);
-		SlimToolbarStyle.SetLabelPadding(FMargin(5, 0, 0, 0));
-	
+		
 		Style->Set("AssetEditorToolbar", SlimToolbarStyle);
 
 		// Callout Toolbar - Used to "call out" the toolbar button with text
@@ -2070,14 +2048,14 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		/* This radio button is actually just a check box with different images */
 		/* Set images for various Menu radio button (SCheckBox) states... */
 		const FCheckBoxStyle BasicMenuRadioButtonStyle = FCheckBoxStyle()
-			.SetUncheckedImage(           FSlateRoundedBoxBrush(FStyleColors::Header,  Icon8x8))
-			.SetUncheckedHoveredImage(    FSlateRoundedBoxBrush(FStyleColors::Hover2, Icon8x8))
-			.SetUncheckedPressedImage(    FSlateRoundedBoxBrush(FStyleColors::White,   Icon8x8))
+			.SetUncheckedImage(           FSlateRoundedBoxBrush(FStyleColors::Input,  Icon8x8))
+			.SetUncheckedHoveredImage(    FSlateRoundedBoxBrush(FStyleColors::Input, Icon8x8))
+			.SetUncheckedPressedImage(    FSlateRoundedBoxBrush(FStyleColors::Hover2,   Icon8x8))
 			.SetCheckedImage(             FSlateRoundedBoxBrush(FStyleColors::White,   Icon8x8))
 			.SetCheckedHoveredImage(      FSlateRoundedBoxBrush(FStyleColors::White,   Icon8x8))
 			.SetCheckedPressedImage(      FSlateRoundedBoxBrush(FStyleColors::White,   Icon8x8))
-			.SetUndeterminedImage(        FSlateRoundedBoxBrush(FStyleColors::Header,  Icon8x8))
-			.SetUndeterminedHoveredImage( FSlateRoundedBoxBrush(FStyleColors::Hover2, Icon8x8))
+			.SetUndeterminedImage(        FSlateRoundedBoxBrush(FStyleColors::Input,  Icon8x8))
+			.SetUndeterminedHoveredImage( FSlateRoundedBoxBrush(FStyleColors::White, Icon8x8))
 			.SetUndeterminedPressedImage( FSlateRoundedBoxBrush(FStyleColors::White,   Icon8x8));
 
 		/* ...and set new style */
@@ -2101,7 +2079,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			.SetNormal(FSlateNoResource())
 			.SetPressed(FSlateColorBrush(FStyleColors::Primary))
 			.SetHovered(FSlateColorBrush(FStyleColors::Primary))
-			.SetHoveredForeground(FStyleColors::Black)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
 			.SetNormalPadding(FMargin(0, 2))
 			.SetPressedPadding(FMargin(0, 3, 0, 1));
 
@@ -2117,7 +2095,7 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 			FButtonStyle(MenuButton)
 			.SetHovered(FSlateColorBrush(FStyleColors::Hover))
 			.SetHoveredForeground(FStyleColors::ForegroundHover)
-			.SetPressedForeground(FStyleColors::Black)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
 			.SetNormalForeground(FStyleColors::Foreground);
 
 		// For menu bars we need to ignore the button style
