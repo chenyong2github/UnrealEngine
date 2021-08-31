@@ -393,7 +393,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			.WidthOverride(SelectorType == ESelectorType::Full ? 125.f : FOptionalSize())
 			[
 				SAssignNew(TypeComboButton, SComboButton)
-				.ComboButtonStyle(FAppStyle::Get(), SelectorType == ESelectorType::Full ? "ComboButton" : "BlueprintEditor.CompactVariableTypeSelector")
+				.ComboButtonStyle(FAppStyle::Get(), SelectorType == ESelectorType::Full ? "ComboButton" : "ComboButton")
 				.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, false)
 				.ContentPadding(0)
 				.ToolTipText(this, &SPinTypeSelector::GetToolTipForComboBoxType)
@@ -441,13 +441,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			HBox->AddSlot()
 			[
 				SNew(SBox)
-				.Visibility(
-					TAttribute<EVisibility>::Create(
-						TAttribute<EVisibility>::FGetter::CreateLambda(
-							[this]() {return this->TargetPinType.Get().IsMap() == true ? EVisibility::Visible : EVisibility::Collapsed; }
-						)
-					)
-				)
+				.Visibility_Lambda([this]() {return this->TargetPinType.Get().IsMap() == true ? EVisibility::Visible : EVisibility::Collapsed; })
 				[
 					SAssignNew( SecondaryTypeComboButton, SComboButton )
 					.OnGetMenuContent(this, &SPinTypeSelector::GetMenuContent, true )
@@ -488,6 +482,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 		SNew(SWidgetSwitcher)
 		.WidgetIndex_Lambda([this](){return ReadOnly.Get() ? 1 : 0; })
 		+ SWidgetSwitcher::Slot()
+		.Padding(SelectorType == ESelectorType::Partial ? FMargin(-6.0f, 0.0f,0.0f,0.0f) : FMargin(0))
 		[
 			Widget.ToSharedRef()
 		]
@@ -498,7 +493,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 			+ SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
-			.Padding(FMargin(0.0f, 2.0f, 2.0f, 2.0f))
+			.Padding(FMargin(2.0f, 3.0f, 0.0f, 3.0f))
 			.AutoWidth()
 			[
 				SNew(SImage)
@@ -514,7 +509,7 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				SNew(STextBlock)
 				.Text(this, &SPinTypeSelector::GetTypeDescription)
 				.Font(InArgs._Font)
-				.ColorAndOpacity(FSlateColor::UseSubduedForeground())
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]	
 	];

@@ -474,18 +474,23 @@ const FInlineTextImageStyle& FInlineTextImageStyle::GetDefault()
 }
 
 FSpinBoxStyle::FSpinBoxStyle()
-	: ForegroundColor(FSlateColor::UseForeground())
+	: ActiveBackgroundBrush(FSlateOptionalBrush())
+	, HoveredFillBrush(FSlateOptionalBrush())
+	, ForegroundColor(FSlateColor::UseForeground())
 	, TextPadding(FMargin(1.0f,2.0f))
+	, InsetPadding(FMargin(0))
 {
 }
 
 void FSpinBoxStyle::GetResources( TArray< const FSlateBrush* >& OutBrushes ) const
 {
-	OutBrushes.Add( &BackgroundBrush );
-	OutBrushes.Add( &HoveredBackgroundBrush );
-	OutBrushes.Add( &ActiveFillBrush );
-	OutBrushes.Add( &InactiveFillBrush );
-	OutBrushes.Add( &ArrowsImage );
+	OutBrushes.Add(&BackgroundBrush);
+	OutBrushes.Add(&HoveredBackgroundBrush);
+	OutBrushes.Add(&ActiveBackgroundBrush);
+	OutBrushes.Add(&ActiveFillBrush);
+	OutBrushes.Add(&HoveredFillBrush);
+	OutBrushes.Add(&InactiveFillBrush);
+	OutBrushes.Add(&ArrowsImage);
 }
 
 const FName FSpinBoxStyle::TypeName( TEXT("FSpinBoxStyle") );

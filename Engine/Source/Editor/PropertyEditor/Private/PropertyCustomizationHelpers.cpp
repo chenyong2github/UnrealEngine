@@ -67,8 +67,8 @@ namespace PropertyCustomizationHelpers
 				SNew(SBox)
 				.HAlign(HAlign_Center)
 				.VAlign(VAlign_Center)
-				.WidthOverride(20)
-				.HeightOverride(20)
+				.WidthOverride(22)
+				.HeightOverride(22)
 				[
 					SNew(SButton)
 					.ButtonStyle( FAppStyle::Get(), "SimpleButton" )

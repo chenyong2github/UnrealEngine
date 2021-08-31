@@ -4,6 +4,7 @@
 #include "SComponentClassCombo.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
+#include "Styling/StyleColors.h"
 
 void SEditorHeaderButton::Construct(const FArguments& InArgs)
 {
@@ -19,7 +20,7 @@ void SEditorHeaderButton::Construct(const FArguments& InArgs)
 		[
 			SNew(SImage)
 			.Image(InArgs._Icon)
-			.ColorAndOpacity(FSlateColor::UseForeground())
+			.ColorAndOpacity(FStyleColors::AccentGreen)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(3, 0, 0, 0))
@@ -27,7 +28,7 @@ void SEditorHeaderButton::Construct(const FArguments& InArgs)
 		.AutoWidth()
 		[
 			SNew(STextBlock)
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			.TextStyle(FAppStyle::Get(), "SmallButtonText")
 			.Text(InArgs._Text)
 			.Visibility_Lambda([Text]() { return Text.Get(FText::GetEmpty()).IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
 		];
@@ -37,13 +38,11 @@ void SEditorHeaderButton::Construct(const FArguments& InArgs)
 		ChildSlot
 		[
 			SAssignNew(Button, SButton)
-			.ButtonStyle(FAppStyle::Get(), "RoundedButton")
 			.ForegroundColor(FSlateColor::UseStyle())
 			.IsEnabled(InArgs._IsEnabled)
 			.ToolTipText(InArgs._ToolTipText)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			.ContentPadding(0)
 			.OnClicked(InArgs._OnClicked)
 			[
 				ButtonContent
@@ -55,7 +54,9 @@ void SEditorHeaderButton::Construct(const FArguments& InArgs)
 		ChildSlot
 		[
 			SAssignNew(ComboButton, SComboButton)
-			.ComboButtonStyle(FAppStyle::Get(), "RoundedComboButton")
+			.HasDownArrow(false)
+			.ContentPadding(FMargin(2.0f, 3.0f))
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
 			.ForegroundColor(FSlateColor::UseStyle())
 			.IsEnabled(InArgs._IsEnabled)
 			.ToolTipText(InArgs._ToolTipText)

@@ -21,6 +21,7 @@
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerActorInfoColumn"
 
@@ -119,7 +120,7 @@ const TSharedRef< SWidget > FTypeInfoColumn::ConstructRowWidget( FSceneOutlinerT
 		MainText
 	];
 
-	auto Hyperlink = ConstructClassHyperlink(*TreeItem);
+	TSharedPtr<SWidget> Hyperlink = ConstructClassHyperlink(*TreeItem);
 	if (Hyperlink.IsValid())
 	{
 		// If we got a hyperlink, disable hide default text, and show the hyperlink
@@ -134,9 +135,9 @@ const TSharedRef< SWidget > FTypeInfoColumn::ConstructRowWidget( FSceneOutlinerT
 			// Make sure that the hyperlink shows as black (by multiplying black * desired color) when selected so it is readable against the orange background even if blue/green/etc... normally
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-			.ColorAndOpacity_Static([](TWeakPtr<const STableRow<FSceneOutlinerTreeItemPtr>> WeakRow)->FLinearColor{
+			.ForegroundColor_Static([](TWeakPtr<const STableRow<FSceneOutlinerTreeItemPtr>> WeakRow)->FSlateColor{
 				auto TableRow = WeakRow.Pin();
-				return TableRow.IsValid() && TableRow->IsSelected() ? FLinearColor::Black : FLinearColor::White;
+				return TableRow.IsValid() && TableRow->IsSelected() ? FStyleColors::ForegroundHover : FSlateColor::UseStyle();
 			}, TWeakPtr<const STableRow<FSceneOutlinerTreeItemPtr>>(StaticCastSharedRef<const STableRow<FSceneOutlinerTreeItemPtr>>(Row.AsShared())))
 			[
 				Hyperlink.ToSharedRef()

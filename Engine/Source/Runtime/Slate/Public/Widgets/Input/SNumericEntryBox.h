@@ -192,7 +192,7 @@ public:
 			CachedValueString = Interface->ToString(CachedExternalValue.GetValue());
 		}
 
-		TAttribute<FMargin> TextMargin = InArgs._OverrideTextMargin.IsSet() ? InArgs._OverrideTextMargin : InArgs._EditableTextBoxStyle->Padding;
+
 		const bool bAllowSpin = InArgs._AllowSpin;
 		TSharedPtr<SWidget> FinalWidget;
 
@@ -201,7 +201,6 @@ public:
 			SAssignNew(SpinBox, SSpinBox<NumericType>)
 				.Style(InArgs._SpinBoxStyle)
 				.Font(InArgs._Font.IsSet() ? InArgs._Font : InArgs._EditableTextBoxStyle->Font)
-				.ContentPadding(TextMargin)
 				.Value(this, &SNumericEntryBox<NumericType>::OnGetValueForSpinBox)
 				.Delta(InArgs._Delta)
 				.ShiftMouseMovePixelPerDelta(InArgs._ShiftMouseMovePixelPerDelta)
@@ -250,6 +249,9 @@ public:
 					SpinBox.ToSharedRef()
 				];
 		}
+
+
+		TAttribute<FMargin> TextMargin = InArgs._OverrideTextMargin.IsSet() ? InArgs._OverrideTextMargin : InArgs._EditableTextBoxStyle->Padding;
 
 		Overlay->AddSlot()
 			.HAlign(HAlign_Fill) 

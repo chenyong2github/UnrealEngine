@@ -198,6 +198,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	TSharedRef<SLayeredImage> IconWidget =
 		SNew(SLayeredImage)
 		.ColorAndOpacity(this, &SToolBarButtonBlock::GetIconForegroundColor)
+		.Visibility(EVisibility::HitTestInvisible)
 		.Image(this, &SToolBarButtonBlock::GetIconBrush);
 
 	IconWidget->AddLayer(TAttribute<const FSlateBrush*>(this, &SToolBarButtonBlock::GetOverlayIconBrush));
@@ -274,15 +275,19 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	if( UserInterfaceType == EUserInterfaceActionType::Button )
 	{
 		FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join( StyleName, ".Button" ), BlockLocation);
-		const FButtonStyle& ButtonStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ButtonStyle : StyleSet->GetWidgetStyle<FButtonStyle>(BlockStyle);
+		const FButtonStyle* ToolbarButtonStyle = BlockLocation == EMultiBlockLocation::None ? &ToolBarStyle.ButtonStyle : &StyleSet->GetWidgetStyle<FButtonStyle>(BlockStyle);
+
+		if (OptionsBlockWidget.IsValid())
+		{
+			ToolbarButtonStyle = &ToolBarStyle.SettingsButtonStyle;
+		}
 
 		ChildSlot
 		[
 			// Create a button
 			SNew(SButton)
 			.ContentPadding(0.f)
-			// Use the tool bar item style for this button
-			.ButtonStyle(&ButtonStyle)
+			.ButtonStyle(ToolbarButtonStyle)
 			.IsEnabled(this, &SToolBarButtonBlock::IsEnabled)
 			.OnClicked(this, &SToolBarButtonBlock::OnClicked)
 			.ToolTip(FMultiBoxSettings::ToolTipConstructor.Execute(ActualToolTip, nullptr, Action.Pin()))
@@ -296,20 +301,24 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	{
 		FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join( StyleName, ".ToggleButton" ), BlockLocation);
 	
-		const FCheckBoxStyle& CheckStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ToggleButton : StyleSet->GetWidgetStyle<FCheckBoxStyle>(BlockStyle);
+		const FCheckBoxStyle* CheckStyle = BlockLocation == EMultiBlockLocation::None ? &ToolBarStyle.ToggleButton : &StyleSet->GetWidgetStyle<FCheckBoxStyle>(BlockStyle);
+
+		if (OptionsBlockWidget.IsValid())
+		{
+			CheckStyle = &ToolBarStyle.SettingsToggleButton;
+		}
 
 		ChildSlot
 		[
 			// Create a check box
 			SNew(SCheckBox)
 			// Use the tool bar style for this check box
-			.Style(&CheckStyle)
+			.Style(CheckStyle)
 			.IsFocusable(bIsFocusable)
 			.ToolTip( FMultiBoxSettings::ToolTipConstructor.Execute( ActualToolTip, nullptr, Action.Pin()))		
 			.OnCheckStateChanged(this, &SToolBarButtonBlock::OnCheckStateChanged )
-			.IsChecked(this, &SToolBarButtonBlock::OnIsChecked)
+			.IsChecked(this, &SToolBarButtonBlock::GetCheckState)
 			.IsEnabled(this, &SToolBarButtonBlock::IsEnabled)
-			.Padding(ToolBarStyle.CheckBoxPadding)
 			[
 				ButtonContent
 			]
@@ -326,7 +335,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 			.AutoWidth()
 			[
 				SAssignNew(ButtonBorder, SBorder)
-				.Padding(FMargin(10.0f, 0.0f,2.0f, 0.0f))
+				.Padding(0)
 				.BorderImage(this, &SToolBarButtonBlock::GetOptionsBlockLeftBrush)
 				.VAlign(VAlign_Center)
 				[
@@ -334,11 +343,11 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 				]
 			]
 			+ SHorizontalBox::Slot()
-			.Padding(0.0f,0.0f)
+	
 			.AutoWidth()
 			[
 				SAssignNew(OptionsBorder, SBorder)
-				.Padding(FMargin(0.0f, 0.0f, 2.0f, 0.0f))
+				.Padding(0)
 				.BorderImage(this, &SToolBarButtonBlock::GetOptionsBlockRightBrush)
 				.VAlign(VAlign_Center)
 				[
@@ -349,6 +358,7 @@ void SToolBarButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	}
 	else
 	{
+		// Space between buttons. It does not make the buttons larger
 		ChildSlot.Padding(ToolBarStyle.ButtonPadding);
 	}
 
@@ -405,10 +415,10 @@ void SToolBarButtonBlock::OnCheckStateChanged( const ECheckBoxState NewCheckedSt
  *
  * @return ECheckBoxState::Checked if it should be checked, ECheckBoxState::Unchecked if not.
  */
-ECheckBoxState SToolBarButtonBlock::OnIsChecked() const
+ECheckBoxState SToolBarButtonBlock::GetCheckState() const
 {
-	TSharedPtr< const FUICommandList > ActionList = MultiBlock->GetActionList();
-	TSharedPtr< const FUICommandInfo > Action = MultiBlock->GetAction();
+	TSharedPtr<const FUICommandList> ActionList = MultiBlock->GetActionList();
+	TSharedPtr<const FUICommandInfo> Action = MultiBlock->GetAction();
 	const FUIAction& DirectActions = MultiBlock->GetDirectActions();
 
 	ECheckBoxState CheckState = ECheckBoxState::Unchecked;
@@ -474,7 +484,7 @@ EVisibility SToolBarButtonBlock::GetBlockVisibility() const
 
 EVisibility SToolBarButtonBlock::GetIconVisibility(bool bIsASmallIcon) const
 {
-	return ((bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ^ bIsASmallIcon) ? EVisibility::Collapsed : EVisibility::Visible;
+	return ((bForceSmallIcons || FMultiBoxSettings::UseSmallToolBarIcons.Get()) ^ bIsASmallIcon) ? EVisibility::Collapsed : EVisibility::HitTestInvisible;
 }
 
 const FSlateBrush* SToolBarButtonBlock::GetIconBrush() const
@@ -557,19 +567,23 @@ FSlateColor SToolBarButtonBlock::GetIconForegroundColor() const
 
 const FSlateBrush* SToolBarButtonBlock::GetOptionsBlockLeftBrush() const
 {
+	static const FName ToggledLeft("ToolbarSettingsRegion.LeftToggle");
+
 	if (ButtonBorder->IsHovered())
 	{
 		static const FName LeftHover("ToolbarSettingsRegion.LeftHover");
-		return FAppStyle::Get().GetBrush(LeftHover);
+		static const FName ToggledLeftHover("ToolbarSettingsRegion.LeftToggleHover");
+
+		return GetCheckState() == ECheckBoxState::Checked ? FAppStyle::Get().GetBrush(ToggledLeftHover) : FAppStyle::Get().GetBrush(LeftHover);
 	}
 	else if (OptionsBorder->IsHovered())
 	{
 		static const FName Left("ToolbarSettingsRegion.Left");
-		return FAppStyle::Get().GetBrush(Left);
+		return GetCheckState() == ECheckBoxState::Checked ? FAppStyle::Get().GetBrush(ToggledLeft) : FAppStyle::Get().GetBrush(Left);
 	}
 	else
 	{
-		return FStyleDefaults::GetNoBrush();
+		return GetCheckState() == ECheckBoxState::Checked ? FAppStyle::Get().GetBrush(ToggledLeft) : FStyleDefaults::GetNoBrush();
 	}
 
 }
@@ -581,7 +595,7 @@ const FSlateBrush* SToolBarButtonBlock::GetOptionsBlockRightBrush() const
 		static const FName RightHover("ToolbarSettingsRegion.RightHover");
 		return FAppStyle::Get().GetBrush(RightHover);
 	}
-	else if (ButtonBorder->IsHovered())
+	else if (ButtonBorder->IsHovered() || GetCheckState() == ECheckBoxState::Checked)
 	{
 		static const FName Right("ToolbarSettingsRegion.Right");
 		return FAppStyle::Get().GetBrush(Right);

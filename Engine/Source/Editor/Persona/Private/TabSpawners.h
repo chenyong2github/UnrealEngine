@@ -288,7 +288,6 @@ private:
 	/** Delegates to customize tab look based on selected mode */
 	EVisibility IsEditorVisible(EAnimBlueprintEditorMode::Type Mode) const;
 	ECheckBoxState IsChecked(EAnimBlueprintEditorMode::Type Mode) const;
-	const FSlateBrush* GetBorderBrushByMode(EAnimBlueprintEditorMode::Type Mode) const;
 
 	/** Handle changing of editor mode */
 	void OnCheckedChanged(ECheckBoxState NewType, EAnimBlueprintEditorMode::Type Mode);

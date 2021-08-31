@@ -175,7 +175,7 @@ public:
 							// Add a menu for displaying all textures 
 							SNew(SComboButton)
 							.OnGetMenuContent(this, &FMaterialItemView::OnGetTexturesMenuForMaterial)
-							.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
+							.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButtonWithIcon")
 							.VAlign(VAlign_Center)
 							.IsEnabled( this, &FMaterialItemView::IsTexturesMenuEnabled )
 							.Visibility(bShowUsedTextures ? EVisibility::Visible : EVisibility::Hidden)

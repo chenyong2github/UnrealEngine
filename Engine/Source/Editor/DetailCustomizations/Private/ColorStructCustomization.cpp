@@ -102,7 +102,7 @@ TSharedRef<SWidget> FColorStructCustomization::CreateColorWidget(TWeakPtr<IPrope
 					.ShowBackgroundForAlpha(true)
 					.AlphaDisplayMode(bIgnoreAlpha ? EColorBlockAlphaDisplayMode::Ignore : EColorBlockAlphaDisplayMode::Separate)
 					.OnMouseButtonDown(this, &FColorStructCustomization::OnMouseButtonDownColorBlock)
-					.Size(FVector2D(70.0f, 22.0f))
+					.Size(FVector2D(70.0f, 20.0f))
 					.CornerRadius(FVector4(4.0f,4.0f,4.0f,4.0f))
 					.IsEnabled(this, &FColorStructCustomization::IsValueEnabled, StructWeakHandlePtr)
 				]

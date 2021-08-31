@@ -20,6 +20,7 @@ FSlateBrush::FSlateBrush()
 	, ImageType(ESlateBrushImageType::NoImage)
 	, bIsDynamicallyLoaded(false)
 	, bHasUObject_DEPRECATED(false)
+	, bIsSet(true)
 {
 }
 
@@ -48,6 +49,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
 	, Mirroring( ESlateBrushMirrorType::NoMirror )
 	, ImageType( InImageType )
 	, bIsDynamicallyLoaded( bInDynamicallyLoaded )
+	, bIsSet(true)
 {
 	bHasUObject_DEPRECATED = (InObjectResource != nullptr) || InResourceName.ToString().StartsWith(FSlateBrush::UTextureIdentifier());
 
@@ -83,6 +85,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
 	, Mirroring( ESlateBrushMirrorType::NoMirror )
 	, ImageType( InImageType )
 	, bIsDynamicallyLoaded( bInDynamicallyLoaded )
+	, bIsSet(true)
 {
 	bHasUObject_DEPRECATED = (InObjectResource != nullptr) || InResourceName.ToString().StartsWith(FSlateBrush::UTextureIdentifier());
 
@@ -117,6 +120,7 @@ FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType,
 	, Mirroring( ESlateBrushMirrorType::NoMirror )
 	, ImageType(InImageType)
 	, bIsDynamicallyLoaded(bInDynamicallyLoaded)
+	, bIsSet(true)
 {
 	bHasUObject_DEPRECATED = (InObjectResource != nullptr) || InResourceName.ToString().StartsWith(FSlateBrush::UTextureIdentifier());
 

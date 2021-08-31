@@ -464,47 +464,37 @@ TSharedRef<SWidget> FAnimBlueprintPreviewEditorSummoner::CreateTabBody(const FWo
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
-				.Padding(FMargin( 0.f, 0.f, 2.f, 0.f ))
+				.AutoWidth()
+				.Padding(FMargin( 5.f, 0.f, 2.f, 0.f ))
 				[
-					SNew(SBorder)
-					.BorderImage(this, &FAnimBlueprintPreviewEditorSummoner::GetBorderBrushByMode, EAnimBlueprintEditorMode::PreviewMode)
-					.Padding(0)
+					SNew(SCheckBox)
+					.Style(FEditorStyle::Get(), "RadioButton")
+					.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::PreviewMode)
+					.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::PreviewMode)
+					.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorPreviewMode", "Switch to editing the preview instance properties"),
+																	NULL,
+																	TEXT("Shared/Editors/Persona"),
+																	TEXT("AnimBlueprintPropertyEditorPreviewMode")))
 					[
-						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "RadioButton")
-						.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::PreviewMode)
-						.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::PreviewMode)
-						.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorPreviewMode", "Switch to editing the preview instance properties"),
-																		NULL,
-																		TEXT("Shared/Editors/Persona"),
-																		TEXT("AnimBlueprintPropertyEditorPreviewMode")))
-						[
-							SNew( STextBlock )
-							.Font( FCoreStyle::GetDefaultFontStyle("Bold", 9) )
-							.Text( LOCTEXT("AnimBlueprintDefaultsPreviewMode", "Edit Preview") )
-						]
+						SNew( STextBlock )
+						.Text( LOCTEXT("AnimBlueprintDefaultsPreviewMode", "Edit Preview") )
 					]
 				]
 				+SHorizontalBox::Slot()
+				.AutoWidth()
 				.Padding(FMargin( 2.f, 0.f, 0.f, 0.f ))
 				[
-					SNew(SBorder)
-					.BorderImage(this, &FAnimBlueprintPreviewEditorSummoner::GetBorderBrushByMode, EAnimBlueprintEditorMode::DefaultsMode)
-					.Padding(0)
+					SNew(SCheckBox)
+					.Style(FEditorStyle::Get(), "RadioButton")
+					.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::DefaultsMode)
+					.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::DefaultsMode)
+					.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorDefaultMode", "Switch to editing the class defaults"),
+																	NULL,
+																	TEXT("Shared/Editors/Persona"),
+																	TEXT("AnimBlueprintPropertyEditorDefaultMode")))
 					[
-						SNew(SCheckBox)
-						.Style(FEditorStyle::Get(), "RadioButton")
-						.IsChecked(this, &FAnimBlueprintPreviewEditorSummoner::IsChecked, EAnimBlueprintEditorMode::DefaultsMode)
-						.OnCheckStateChanged(const_cast<FAnimBlueprintPreviewEditorSummoner*>(this), &FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged, EAnimBlueprintEditorMode::DefaultsMode)
-						.ToolTip(IDocumentation::Get()->CreateToolTip(	LOCTEXT("AnimBlueprintPropertyEditorDefaultMode", "Switch to editing the class defaults"),
-																		NULL,
-																		TEXT("Shared/Editors/Persona"),
-																		TEXT("AnimBlueprintPropertyEditorDefaultMode")))
-						[
-							SNew( STextBlock )
-							.Font( FCoreStyle::GetDefaultFontStyle("Bold", 9) )
-							.Text( LOCTEXT("AnimBlueprintDefaultsDefaultsMode", "Edit Defaults") )
-						]
+						SNew( STextBlock )
+						.Text( LOCTEXT("AnimBlueprintDefaultsDefaultsMode", "Edit Defaults") )
 					]
 				]
 			]
@@ -549,17 +539,6 @@ ECheckBoxState FAnimBlueprintPreviewEditorSummoner::IsChecked(EAnimBlueprintEdit
 	return CurrentMode == Mode ? ECheckBoxState::Checked: ECheckBoxState::Unchecked;
 }
 
-const FSlateBrush* FAnimBlueprintPreviewEditorSummoner::GetBorderBrushByMode(EAnimBlueprintEditorMode::Type Mode) const
-{
-	if(Mode == CurrentMode)
-	{
-		return FEditorStyle::GetBrush("ModeSelector.ToggleButton.Pressed");
-	}
-	else
-	{
-		return FEditorStyle::GetBrush("ModeSelector.ToggleButton.Normal");
-	}
-}
 
 void FAnimBlueprintPreviewEditorSummoner::OnCheckedChanged(ECheckBoxState NewType, EAnimBlueprintEditorMode::Type Mode)
 {

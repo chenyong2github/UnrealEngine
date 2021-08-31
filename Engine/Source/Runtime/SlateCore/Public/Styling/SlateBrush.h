@@ -404,6 +404,8 @@ public:
 		return ResourceHandle;
 	}
 
+	bool IsSet() const { return bIsSet; }
+
 #if WITH_EDITOR
 	void InvalidateResourceHandle()
 	{
@@ -465,6 +467,9 @@ protected:
 	/** Whether or not the brush has a UTexture resource */
 	UPROPERTY()
 	uint8 bHasUObject_DEPRECATED:1;
+
+	/** This is true for all constructed brushes except for optional brushes */
+	uint8 bIsSet : 1;
 
 	/** 
 	 * This constructor is protected; use one of the deriving classes instead.

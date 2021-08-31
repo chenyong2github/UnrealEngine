@@ -60,10 +60,10 @@ class SSpinBox
 public:
 
 	/** Notification for numeric value change */
-	DECLARE_DELEGATE_OneParam( FOnValueChanged, NumericType );
+	DECLARE_DELEGATE_OneParam(FOnValueChanged, NumericType);
 
 	/** Notification for numeric value committed */
-	DECLARE_DELEGATE_TwoParams( FOnValueCommitted, NumericType, ETextCommit::Type);
+	DECLARE_DELEGATE_TwoParams(FOnValueCommitted, NumericType, ETextCommit::Type);
 
 	/** Notification when the max/min spinner values are changed (only apply if SupportDynamicSliderMaxValue or SupportDynamicSliderMinValue are true) */
 	DECLARE_DELEGATE_FourParams(FOnDynamicSliderMinMaxValueChanged, NumericType, TWeakPtr<SWidget>, bool, bool);
@@ -86,21 +86,21 @@ public:
 		, _ClearKeyboardFocusOnCommit(false)
 		, _SelectAllTextOnCommit(true)
 		, _MinDesiredWidth(0.0f)
-		{}
+	{}
 
-		/** The style used to draw this spinbox */
-		SLATE_STYLE_ARGUMENT( FSpinBoxStyle, Style )
+	/** The style used to draw this spinbox */
+	SLATE_STYLE_ARGUMENT(FSpinBoxStyle, Style)
 
 		/** The value to display */
-		SLATE_ATTRIBUTE( NumericType, Value )
+		SLATE_ATTRIBUTE(NumericType, Value)
 		/** The minimum value that can be entered into the text edit box */
-		SLATE_ATTRIBUTE( TOptional< NumericType >, MinValue )
+		SLATE_ATTRIBUTE(TOptional< NumericType >, MinValue)
 		/** The maximum value that can be entered into the text edit box */
-		SLATE_ATTRIBUTE( TOptional< NumericType >, MaxValue )
+		SLATE_ATTRIBUTE(TOptional< NumericType >, MaxValue)
 		/** The minimum value that can be specified by using the slider, defaults to MinValue */
-		SLATE_ATTRIBUTE( TOptional< NumericType >, MinSliderValue )
+		SLATE_ATTRIBUTE(TOptional< NumericType >, MinSliderValue)
 		/** The maximum value that can be specified by using the slider, defaults to MaxValue */
-		SLATE_ATTRIBUTE( TOptional< NumericType >, MaxSliderValue )
+		SLATE_ATTRIBUTE(TOptional< NumericType >, MaxSliderValue)
 		/** The minimum fractional digits the spin box displays, defaults to 1 */
 		SLATE_ATTRIBUTE(TOptional< int32 >, MinFractionalDigits)
 		/** The maximum fractional digits the spin box displays, defaults to 6 */
@@ -108,49 +108,49 @@ public:
 		/** Whether typed values should use delta snapping, defaults to false */
 		SLATE_ATTRIBUTE(bool, AlwaysUsesDeltaSnap)
 		/** Delta to increment the value as the slider moves.  If not specified will determine automatically */
-		SLATE_ATTRIBUTE( NumericType, Delta )
+		SLATE_ATTRIBUTE(NumericType, Delta)
 		/** How many pixel the mouse must move to change the value of the delta step */
-		SLATE_ATTRIBUTE( int32, ShiftMouseMovePixelPerDelta )
+		SLATE_ATTRIBUTE(int32, ShiftMouseMovePixelPerDelta)
 		/** If we're an unbounded spinbox, what value do we divide mouse movement by before multiplying by Delta. Requires Delta to be set. */
-		SLATE_ATTRIBUTE( int32, LinearDeltaSensitivity)
+		SLATE_ATTRIBUTE(int32, LinearDeltaSensitivity)
 		/** Tell us if we want to support dynamically changing of the max value using ctrl */
 		SLATE_ATTRIBUTE(bool, SupportDynamicSliderMaxValue)
 		/** Tell us if we want to support dynamically changing of the min value using ctrl */
 		SLATE_ATTRIBUTE(bool, SupportDynamicSliderMinValue)
 		/** Called right after the max slider value is changed (only relevant if SupportDynamicSliderMaxValue is true) */
-		SLATE_EVENT( FOnDynamicSliderMinMaxValueChanged, OnDynamicSliderMaxValueChanged )
+		SLATE_EVENT(FOnDynamicSliderMinMaxValueChanged, OnDynamicSliderMaxValueChanged)
 		/** Called right after the min slider value is changed (only relevant if SupportDynamicSliderMinValue is true) */
-		SLATE_EVENT( FOnDynamicSliderMinMaxValueChanged, OnDynamicSliderMinValueChanged )
+		SLATE_EVENT(FOnDynamicSliderMinMaxValueChanged, OnDynamicSliderMinValueChanged)
 		/** Use exponential scale for the slider */
-		SLATE_ATTRIBUTE( float, SliderExponent )
+		SLATE_ATTRIBUTE(float, SliderExponent)
 		/** When use exponential scale for the slider which is the neutral value */
-		SLATE_ATTRIBUTE( NumericType, SliderExponentNeutralValue )
+		SLATE_ATTRIBUTE(NumericType, SliderExponentNeutralValue)
 		/** Font used to display text in the slider */
-		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
+		SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 		/** Padding to add around this widget and its internal widgets */
-		SLATE_ATTRIBUTE( FMargin, ContentPadding )
+		SLATE_ATTRIBUTE(FMargin, ContentPadding)
 		/** Called when the value is changed by slider or typing */
-		SLATE_EVENT( FOnValueChanged, OnValueChanged )
+		SLATE_EVENT(FOnValueChanged, OnValueChanged)
 		/** Called when the value is committed (by pressing enter) */
-		SLATE_EVENT( FOnValueCommitted, OnValueCommitted )
+		SLATE_EVENT(FOnValueCommitted, OnValueCommitted)
 		/** Called right before the slider begins to move */
-		SLATE_EVENT( FSimpleDelegate, OnBeginSliderMovement )
+		SLATE_EVENT(FSimpleDelegate, OnBeginSliderMovement)
 		/** Called right after the slider handle is released by the user */
-		SLATE_EVENT( FOnValueChanged, OnEndSliderMovement )
+		SLATE_EVENT(FOnValueChanged, OnEndSliderMovement)
 		/** Whether to clear keyboard focus when pressing enter to commit changes */
-		SLATE_ATTRIBUTE( bool, ClearKeyboardFocusOnCommit )
+		SLATE_ATTRIBUTE(bool, ClearKeyboardFocusOnCommit)
 		/** Whether to select all text when pressing enter to commit changes */
-		SLATE_ATTRIBUTE( bool, SelectAllTextOnCommit )
+		SLATE_ATTRIBUTE(bool, SelectAllTextOnCommit)
 		/** Minimum width that a spin box should be */
-		SLATE_ATTRIBUTE( float, MinDesiredWidth )
+		SLATE_ATTRIBUTE(float, MinDesiredWidth)
 		/** How should the value be justified in the spinbox. */
-		SLATE_ATTRIBUTE( ETextJustify::Type, Justification )
+		SLATE_ATTRIBUTE(ETextJustify::Type, Justification)
 		/** Provide custom type conversion functionality to this spin box */
-		SLATE_ARGUMENT( TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface )
+		SLATE_ARGUMENT(TSharedPtr< INumericTypeInterface<NumericType> >, TypeInterface)
 		/** If refresh requests for the viewport should happen for all value changes **/
 		SLATE_ARGUMENT(bool, PreventThrottling)
 		/** Menu extender for the right-click context menu */
-		SLATE_EVENT( FMenuExtensionDelegate, ContextMenuExtender )
+		SLATE_EVENT(FMenuExtensionDelegate, ContextMenuExtender)
 
 	SLATE_END_ARGS()
 
@@ -163,14 +163,14 @@ public:
 	 *
 	 * @param InArgs   A declaration from which to construct the widget
 	 */
-	void Construct( const FArguments& InArgs )
+	void Construct(const FArguments& InArgs)
 	{
 		check(InArgs._Style);
 
 		Style = InArgs._Style;
 
 		SetForegroundColor(InArgs._Style->ForegroundColor);
-		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShareable( new TDefaultNumericTypeInterface<NumericType> );
+		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShareable(new TDefaultNumericTypeInterface<NumericType>);
 
 		ValueAttribute = InArgs._Value;
 		OnValueChanged = InArgs._OnValueChanged;
@@ -227,8 +227,12 @@ public:
 
 		BackgroundHoveredBrush = &InArgs._Style->HoveredBackgroundBrush;
 		BackgroundBrush = &InArgs._Style->BackgroundBrush;
+		BackgroundActiveBrush = InArgs._Style->ActiveBackgroundBrush.IsSet() ? &InArgs._Style->ActiveBackgroundBrush : BackgroundHoveredBrush;
+
 		ActiveFillBrush = &InArgs._Style->ActiveFillBrush;
+		HoveredFillBrush = InArgs._Style->HoveredFillBrush.IsSet() ? &InArgs._Style->HoveredFillBrush : ActiveFillBrush;
 		InactiveFillBrush = &InArgs._Style->InactiveFillBrush;
+
 		const FMargin& TextMargin = InArgs._Style->TextPadding;
 
 		bDragging = false;
@@ -237,68 +241,67 @@ public:
 		bIsTextChanging = false;
 
 		this->ChildSlot
-		.Padding( InArgs._ContentPadding )
+		.Padding(InArgs._ContentPadding)
 		[
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
-			.Padding( TextMargin )
-			.HAlign(HAlign_Fill) 
+			.Padding(TextMargin)
+			.HAlign(HAlign_Fill)
 			.VAlign(VAlign_Center)
 			[
 				SAssignNew(TextBlock, STextBlock)
 				.Font(InArgs._Font)
-				.Text( this, &SSpinBox<NumericType>::GetValueAsText )
-				.MinDesiredWidth( this, &SSpinBox<NumericType>::GetTextMinDesiredWidth )
+				.Text(this, &SSpinBox<NumericType>::GetValueAsText)
+				.MinDesiredWidth(this, &SSpinBox<NumericType>::GetTextMinDesiredWidth)
 				.Justification(InArgs._Justification)
 			]
-
 			+ SHorizontalBox::Slot()
 			.FillWidth(1.0f)
-			.Padding( TextMargin )
-			.HAlign(HAlign_Fill) 
-			.VAlign(VAlign_Center) 
+			.Padding(TextMargin)
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
 			[
 				SAssignNew(EditableText, SEditableText)
-				.Visibility( EVisibility::Collapsed )
+				.Visibility(EVisibility::Collapsed)
 				.Font(InArgs._Font)
-				.SelectAllTextWhenFocused( true )
-				.Text( this, &SSpinBox<NumericType>::GetValueAsText )
+				.SelectAllTextWhenFocused(true)
+				.Text(this, &SSpinBox<NumericType>::GetValueAsText)
 				.OnIsTypedCharValid(this, &SSpinBox<NumericType>::IsCharacterValid)
-				.OnTextChanged( this, &SSpinBox<NumericType>::TextField_OnTextChanged )
-				.OnTextCommitted( this, &SSpinBox<NumericType>::TextField_OnTextCommitted )
-				.ClearKeyboardFocusOnCommit( InArgs._ClearKeyboardFocusOnCommit )
-				.SelectAllTextOnCommit( InArgs._SelectAllTextOnCommit )
-				.MinDesiredWidth( this, &SSpinBox<NumericType>::GetTextMinDesiredWidth )
+				.OnTextChanged(this, &SSpinBox<NumericType>::TextField_OnTextChanged)
+				.OnTextCommitted(this, &SSpinBox<NumericType>::TextField_OnTextCommitted)
+				.ClearKeyboardFocusOnCommit(InArgs._ClearKeyboardFocusOnCommit)
+				.SelectAllTextOnCommit(InArgs._SelectAllTextOnCommit)
+				.MinDesiredWidth(this, &SSpinBox<NumericType>::GetTextMinDesiredWidth)
 				.VirtualKeyboardType(EKeyboardType::Keyboard_Number)
 				.Justification(InArgs._Justification)
 				.VirtualKeyboardTrigger(EVirtualKeyboardTrigger::OnAllFocusEvents)
-				.ContextMenuExtender( InArgs._ContextMenuExtender )
+				.ContextMenuExtender(InArgs._ContextMenuExtender)
 			]
-
-			+SHorizontalBox::Slot()
+			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.HAlign(HAlign_Fill) 
-			.VAlign(VAlign_Center) 
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.Image( &InArgs._Style->ArrowsImage )
-				.ColorAndOpacity( FSlateColor::UseForeground())
+				.Image(&InArgs._Style->ArrowsImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
 	}
 
-	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override
+	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
-		const bool bActiveFeedback = IsHovered() || bDragging;
 
-		const FSlateBrush* BackgroundImage = bActiveFeedback ?
+		const bool bActiveFeedback = bDragging;
+
+		const FSlateBrush* BackgroundImage = bActiveFeedback ? BackgroundActiveBrush : IsHovered() ?
 			BackgroundHoveredBrush :
 			BackgroundBrush;
 
 		const FSlateBrush* FillImage = bActiveFeedback ?
-			ActiveFillBrush :
+			ActiveFillBrush : IsHovered() ? HoveredFillBrush : 
 			InactiveFillBrush;
 
 		const int32 BackgroundLayer = LayerId;
@@ -313,7 +316,7 @@ public:
 			BackgroundImage,
 			DrawEffects,
 			BackgroundImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-			);
+		);
 
 		const int32 FilledLayer = BackgroundLayer + 1;
 
@@ -342,18 +345,18 @@ public:
 					FractionFilled = 1.0f - FMath::Pow(1.0f - FractionFilled, CachedSliderExponent);
 				}
 			}
-			const FVector2D FillSize( AllottedGeometry.GetLocalSize().X * FractionFilled, AllottedGeometry.GetLocalSize().Y );
+			const FVector2D FillSize(AllottedGeometry.GetLocalSize().X * FractionFilled, AllottedGeometry.GetLocalSize().Y);
 
-			if ( ! IsInTextMode() )
+			if (!IsInTextMode())
 			{
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,
 					FilledLayer,
-					AllottedGeometry.ToPaintGeometry(FVector2D(0.0f, 0.0f), FillSize),
+					AllottedGeometry.ToPaintGeometry(Style->InsetPadding.GetTopLeft(), FillSize - FVector2D(Style->InsetPadding.GetTotalSpaceAlong<Orient_Horizontal>(), Style->InsetPadding.GetTotalSpaceAlong<Orient_Vertical>())),
 					FillImage,
 					DrawEffects,
 					FillImage->GetTint(InWidgetStyle) * InWidgetStyle.GetColorAndOpacityTint()
-					);
+				);
 			}
 		}
 
@@ -367,9 +370,9 @@ public:
 	 * @param MouseEvent Information about the input event
 	 * @return Whether the event was handled along with possible requests for the system to take action.
 	 */
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PointerDraggingSliderIndex == INDEX_NONE )
+		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PointerDraggingSliderIndex == INDEX_NONE)
 		{
 			DistanceDragged = 0.f;
 			PreDragValue = ValueAttribute.Get();
@@ -398,11 +401,11 @@ public:
 	 * @param MouseEvent Information about the input event
 	 * @return Whether the event was handled along with possible requests for the system to take action.
 	 */
-	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PointerDraggingSliderIndex == MouseEvent.GetPointerIndex() )
+		if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PointerDraggingSliderIndex == MouseEvent.GetPointerIndex())
 		{
-			if ( !this->HasMouseCapture() )
+			if (!this->HasMouseCapture())
 			{
 				// Lost Capture - ensure reset
 				bDragging = false;
@@ -411,7 +414,7 @@ public:
 				return FReply::Unhandled();
 			}
 
-			if ( bDragging )
+			if (bDragging)
 			{
 				NumericType CurrentDelta = Delta.Get();
 				if (CurrentDelta != NumericType())
@@ -428,12 +431,12 @@ public:
 
 			FReply Reply = FReply::Handled().ReleaseMouseCapture();
 
-			if ( !MouseEvent.IsTouchEvent() )
+			if (!MouseEvent.IsTouchEvent())
 			{
 				Reply.SetMousePos(CachedMousePosition);
 			}
 
-			if ( DistanceDragged < FSlateApplication::Get().GetDragTriggerDistance() )
+			if (DistanceDragged < FSlateApplication::Get().GetDragTriggerDistance())
 			{
 				EnterTextMode();
 				Reply.SetUserFocus(EditableText.ToSharedRef(), EFocusCause::SetDirectly);
@@ -506,11 +509,11 @@ public:
 	 * @param MouseEvent Information about the input event
 	 * @return Whether the event was handled along with possible requests for the system to take action.
 	 */
-	virtual FReply OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override
+	virtual FReply OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		if ( PointerDraggingSliderIndex == MouseEvent.GetPointerIndex() )
+		if (PointerDraggingSliderIndex == MouseEvent.GetPointerIndex())
 		{
-			if(!this->HasMouseCapture())
+			if (!this->HasMouseCapture())
 			{
 				// Lost the mouse capture - ensure reset
 				bDragging = false;
@@ -641,11 +644,11 @@ public:
 		return FReply::Unhandled();
 	}
 
-	virtual FCursorReply OnCursorQuery( const FGeometry& MyGeometry, const FPointerEvent& CursorEvent ) const override
+	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override
 	{
-		return bDragging ? 
-			FCursorReply::Cursor( EMouseCursor::None ) :
-			FCursorReply::Cursor( EMouseCursor::ResizeLeftRight );
+		return bDragging ?
+			FCursorReply::Cursor(EMouseCursor::None) :
+			FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
 	}
 
 	virtual bool SupportsKeyboardFocus() const override
@@ -655,9 +658,9 @@ public:
 	}
 
 
-	virtual FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent ) override
+	virtual FReply OnFocusReceived(const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent) override
 	{
-		if ( !bDragging && (InFocusEvent.GetCause() == EFocusCause::Navigation || InFocusEvent.GetCause() == EFocusCause::SetDirectly) )
+		if (!bDragging && (InFocusEvent.GetCause() == EFocusCause::Navigation || InFocusEvent.GetCause() == EFocusCause::SetDirectly))
 		{
 			EnterTextMode();
 			return FReply::Handled().SetUserFocus(EditableText.ToSharedRef(), InFocusEvent.GetCause());
@@ -668,10 +671,10 @@ public:
 		}
 	}
 
-	virtual FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
+	virtual FReply OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override
 	{
 		const FKey Key = InKeyEvent.GetKey();
-		if ( Key == EKeys::Escape && HasMouseCapture())
+		if (Key == EKeys::Escape && HasMouseCapture())
 		{
 			bDragging = false;
 			PointerDraggingSliderIndex = INDEX_NONE;
@@ -680,7 +683,7 @@ public:
 			NotifyValueCommitted(PreDragValue);
 			return FReply::Handled().ReleaseMouseCapture().SetMousePos(CachedMousePosition);
 		}
-		else if ( Key == EKeys::Up || Key == EKeys::Right )
+		else if (Key == EKeys::Up || Key == EKeys::Right)
 		{
 			const NumericType LocalValueAttribute = ValueAttribute.Get();
 			const NumericType LocalDelta = Delta.Get();
@@ -689,7 +692,7 @@ public:
 			ExitTextMode();
 			return FReply::Handled();
 		}
-		else if ( Key == EKeys::Down || Key == EKeys::Left )
+		else if (Key == EKeys::Down || Key == EKeys::Left)
 		{
 			const NumericType LocalValueAttribute = ValueAttribute.Get();
 			const NumericType LocalDelta = Delta.Get();
@@ -698,7 +701,7 @@ public:
 			ExitTextMode();
 			return FReply::Handled();
 		}
-		else if ( Key == EKeys::Enter )
+		else if (Key == EKeys::Enter)
 		{
 			InternalValue = (double)ValueAttribute.Get();
 			EnterTextMode();
@@ -721,16 +724,16 @@ public:
 
 	/** See the Value attribute */
 	NumericType GetValue() const { return ValueAttribute.Get(); }
-	void SetValue(const TAttribute<NumericType>& InValueAttribute) 
+	void SetValue(const TAttribute<NumericType>& InValueAttribute)
 	{
-		ValueAttribute = InValueAttribute; 
+		ValueAttribute = InValueAttribute;
 		const NumericType LocalValueAttribute = ValueAttribute.Get();
 		CommitValue(LocalValueAttribute, (double)LocalValueAttribute, ECommitMethod::CommittedViaCode, ETextCommit::Default);
 	}
 
 	/** See the MinValue attribute */
 	NumericType GetMinValue() const { return MinValue.Get().Get(std::numeric_limits<NumericType>::lowest()); }
-	void SetMinValue(const TAttribute<TOptional<NumericType>>& InMinValue) 
+	void SetMinValue(const TAttribute<TOptional<NumericType>>& InMinValue)
 	{
 		MinValue = InMinValue;
 		UpdateIsSpinRangeUnlimited();
@@ -738,9 +741,9 @@ public:
 
 	/** See the MaxValue attribute */
 	NumericType GetMaxValue() const { return MaxValue.Get().Get(std::numeric_limits<NumericType>::max()); }
-	void SetMaxValue(const TAttribute<TOptional<NumericType>>& InMaxValue) 
+	void SetMaxValue(const TAttribute<TOptional<NumericType>>& InMaxValue)
 	{
-		MaxValue = InMaxValue; 
+		MaxValue = InMaxValue;
 		UpdateIsSpinRangeUnlimited();
 	}
 
@@ -748,7 +751,7 @@ public:
 	bool IsMinSliderValueBound() const { return MinSliderValue.IsBound(); }
 
 	NumericType GetMinSliderValue() const { return MinSliderValue.Get().Get(std::numeric_limits<NumericType>::lowest()); }
-	void SetMinSliderValue(const TAttribute<TOptional<NumericType>>& InMinSliderValue) 
+	void SetMinSliderValue(const TAttribute<TOptional<NumericType>>& InMinSliderValue)
 	{
 		MinSliderValue = (InMinSliderValue.Get().IsSet()) ? InMinSliderValue : MinValue;
 		UpdateIsSpinRangeUnlimited();
@@ -758,7 +761,7 @@ public:
 	bool IsMaxSliderValueBound() const { return MaxSliderValue.IsBound(); }
 
 	NumericType GetMaxSliderValue() const { return MaxSliderValue.Get().Get(std::numeric_limits<NumericType>::max()); }
-	void SetMaxSliderValue(const TAttribute<TOptional<NumericType>>& InMaxSliderValue) 
+	void SetMaxSliderValue(const TAttribute<TOptional<NumericType>>& InMaxSliderValue)
 	{
 		MaxSliderValue = (InMaxSliderValue.Get().IsSet()) ? InMaxSliderValue : MaxValue;;
 		UpdateIsSpinRangeUnlimited();
@@ -784,7 +787,7 @@ public:
 
 	/** See the Delta attribute */
 	NumericType GetDelta() const { return Delta.Get(); }
-	void SetDelta(NumericType InDelta) { Delta.Set( InDelta ); }
+	void SetDelta(NumericType InDelta) { Delta.Set(InDelta); }
 
 	/** See the SliderExponent attribute */
 	float GetSliderExponent() const { return SliderExponent.Get(); }
@@ -798,15 +801,15 @@ protected:
 	/** Make the spinbox switch to keyboard-based input mode. */
 	void EnterTextMode()
 	{
-		TextBlock->SetVisibility( EVisibility::Collapsed );
-		EditableText->SetVisibility( EVisibility::Visible );
+		TextBlock->SetVisibility(EVisibility::Collapsed);
+		EditableText->SetVisibility(EVisibility::Visible);
 	}
 
 	/** Make the spinbox switch to mouse-based input mode. */
 	void ExitTextMode()
 	{
-		TextBlock->SetVisibility( EVisibility::Visible );
-		EditableText->SetVisibility( EVisibility::Collapsed );
+		TextBlock->SetVisibility(EVisibility::Visible);
+		EditableText->SetVisibility(EVisibility::Collapsed);
 	}
 
 	/** @return the value being observed by the spinbox as a string */
@@ -865,7 +868,7 @@ protected:
 	 * @param NewText		The value of text coming from the editable text field.
 	 * @param CommitInfo	Information about the source of the commit
 	 */
-	void TextField_OnTextCommitted( const FText& NewText, ETextCommit::Type CommitInfo )
+	void TextField_OnTextCommitted(const FText& NewText, ETextCommit::Type CommitInfo)
 	{
 		if (CommitInfo != ETextCommit::OnEnter)
 		{
@@ -1035,8 +1038,10 @@ private:
 	const FSpinBoxStyle* Style;
 
 	const FSlateBrush* BackgroundHoveredBrush;
+	const FSlateBrush* BackgroundActiveBrush;
 	const FSlateBrush* BackgroundBrush;
 	const FSlateBrush* ActiveFillBrush;
+	const FSlateBrush* HoveredFillBrush;
 	const FSlateBrush* InactiveFillBrush;
 
 	float DistanceDragged;
@@ -1081,7 +1086,7 @@ private:
 		constexpr bool bCanBeRepresentedInDouble = std::numeric_limits<double>::digits >= std::numeric_limits<NumericType>::digits;
 		if (bIsIntegral && !bCanBeRepresentedInDouble)
 		{
-			return (NumericType)FMath::Clamp<double>(FMath::FloorToDouble(ValueToRound + 0.5), -1.0*(double)(1ll << std::numeric_limits<double>::digits), (double)(1ll << std::numeric_limits<double>::digits));
+			return (NumericType)FMath::Clamp<double>(FMath::FloorToDouble(ValueToRound + 0.5), -1.0 * (double)(1ll << std::numeric_limits<double>::digits), (double)(1ll << std::numeric_limits<double>::digits));
 		}
 		else if (bIsIntegral)
 		{

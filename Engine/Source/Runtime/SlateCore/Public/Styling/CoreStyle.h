@@ -105,7 +105,12 @@ namespace CoreStyleConstants
 	// Common Margins
 	const FMargin DefaultMargins(8.f, 4.f);
 	// Buttons already have a built in (4., 2.) padding - adding to that a little
-	const FMargin ButtonMargins(20.f, 2.f, 20.f, 3.f);
+	const FMargin ButtonMargins(12.f, 1.f, 12.f, 1.f);
+
+	const FMargin PressedButtonMargins(12.f, 2.0f, 12.f, 0.0f);
+	const FMargin ToggleButtonMargins(16.0f, 2.0f);
+	const FMargin ComboButtonMargin(8.f, 1.f, 8.f, 1.f);
+	const FMargin PressedComboButtonMargin(8.f, 2.f, 8.f, 0.f);
 
 	const float InputFocusRadius = 4.f;
 	const float InputFocusThickness = 1.0f;

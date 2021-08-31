@@ -118,7 +118,7 @@ public:
 
 	SLATE_BEGIN_ARGS( SSegmentedControl<OptionType> )
 		: _Style(&FAppStyle::Get().GetWidgetStyle<FSegmentedControlStyle>("SegmentedControl"))
-		, _TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
+		, _TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("SmallButtonText"))
 		, _MaxSegmentsPerLine(0)
 	{}
 		/** Slot type supported by this panel */

@@ -179,15 +179,16 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 		
 	EMultiBlockLocation::Type BlockLocation = GetMultiBlockLocation();
 	FName BlockStyle = EMultiBlockLocation::ToName(ISlateStyle::Join(StyleName, ".Button"), BlockLocation);
-	const FButtonStyle& ButtonStyle = BlockLocation == EMultiBlockLocation::None ? ToolBarStyle.ButtonStyle : StyleSet->GetWidgetStyle<FButtonStyle>(BlockStyle);
-
-	OpenForegroundColor = ButtonStyle.HoveredForeground;
+	const FButtonStyle* ButtonStyle = BlockLocation == EMultiBlockLocation::None ? &ToolBarStyle.ButtonStyle : &StyleSet->GetWidgetStyle<FButtonStyle>(BlockStyle);
 
 	const FComboButtonStyle* ComboStyle = &ToolBarStyle.ComboButtonStyle;
 	if (ToolBarComboButtonBlock->bSimpleComboBox)
 	{
 		ComboStyle = &ToolBarStyle.SettingsComboButton;
+		ButtonStyle = &ComboStyle->ButtonStyle;
 	}
+
+	OpenForegroundColor = ButtonStyle->HoveredForeground;
 
 	ChildSlot
 	[
@@ -195,7 +196,7 @@ void SToolBarComboButtonBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet
 		.AddMetaData<FTagMetaData>(FTagMetaData(TagName))
 		.ContentPadding(0.f)
 		.ComboButtonStyle(ComboStyle)
-		.ButtonStyle(&ButtonStyle)
+		.ButtonStyle(ButtonStyle)
 		.ToolTipText(ToolBarComboButtonBlock->ToolTip)
 		.ForegroundColor(this, &SToolBarComboButtonBlock::OnGetForegroundColor)
 		// Route the content generator event

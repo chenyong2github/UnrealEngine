@@ -623,7 +623,6 @@ void SStatusBar::Construct(const FArguments& InArgs, FName InStatusBarName, cons
 					SNew(SBorder)
 					.Padding(0.0f)
 					.BorderImage(StatusBarBackground)
-					.VAlign(VAlign_Center)
 					[
 						MakeStatusBarToolBarWidget()
 					]

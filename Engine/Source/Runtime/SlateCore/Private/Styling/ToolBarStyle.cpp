@@ -42,6 +42,8 @@ void FToolBarStyle::GetResources(TArray<const FSlateBrush*>& OutBrushes) const
 	EditableTextStyle.GetResources(OutBrushes);
 	ToggleButton.GetResources(OutBrushes);
 	SettingsComboButton.GetResources(OutBrushes);
+	SettingsToggleButton.GetResources(OutBrushes);
+	SettingsButtonStyle.GetResources(OutBrushes);
 	ButtonStyle.GetResources(OutBrushes);
 }
 

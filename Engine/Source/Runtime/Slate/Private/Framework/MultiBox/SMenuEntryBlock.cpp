@@ -13,6 +13,7 @@
 #include "Widgets/SToolTip.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Styling/StyleColors.h"
 
 
 FMenuEntryBlock::FMenuEntryBlock( const FName& InExtensionHook, const TSharedPtr< const FUICommandInfo > InCommand, TSharedPtr< const FUICommandList > InCommandList, const TAttribute<FText>& InLabelOverride, const TAttribute<FText>& InToolTipOverride, const FSlateIcon& InIconOverride, bool bInCloseSelfOnly, bool bInShouldCloseWindowAfterMenuSelection)
@@ -527,7 +528,6 @@ TSharedRef< SWidget > SMenuEntryBlock::BuildMenuEntryWidget( const FMenuEntryBui
 	else if (UserInterfaceType == EUserInterfaceActionType::RadioButton)
 	{
 		CheckBoxStyle = ISlateStyle::Join( StyleName, ".RadioButton" );
-		CheckBoxForegroundColor = TAttribute<FSlateColor>::Create( TAttribute<FSlateColor>::FGetter::CreateRaw( this, &SMenuEntryBlock::TintOnHover ) );
 	}
 
 
@@ -711,7 +711,7 @@ private:
 	{
 		if ( this->IsHovered() )
 		{
-			return FLinearColor::Black;
+			return FStyleColors::ForegroundHover;
 		}
 		else
 		{

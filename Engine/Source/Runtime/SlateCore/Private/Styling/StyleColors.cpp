@@ -80,7 +80,7 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Input, COLOR("0F0F0FFF"));
-	SetDefaultColor(EStyleColor::InputOutline, COLOR("454545FF"));
+	SetDefaultColor(EStyleColor::InputOutline, COLOR("383838FF"));
 	SetDefaultColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
 	SetDefaultColor(EStyleColor::Panel, COLOR("#242424FF"));
 	SetDefaultColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
@@ -91,11 +91,11 @@ void USlateThemeManager::InitalizeDefaults()
 
 	SetDefaultColor(EStyleColor::White, COLOR("#FFFFFFFF"));
 	SetDefaultColor(EStyleColor::White25, COLOR("#FFFFFF40"));
-	SetDefaultColor(EStyleColor::Highlight, COLOR("#0078D7FF"));
+	SetDefaultColor(EStyleColor::Highlight, COLOR("#0070E0FF"));
 
-	SetDefaultColor(EStyleColor::Primary, COLOR("#26BBFFFF"));
-	SetDefaultColor(EStyleColor::PrimaryHover, COLOR("#6FD2FFFF"));
-	SetDefaultColor(EStyleColor::PrimaryPress, COLOR("#1989BCFF"));
+	SetDefaultColor(EStyleColor::Primary, COLOR("#0070E0FF"));
+	SetDefaultColor(EStyleColor::PrimaryHover, COLOR("#0E86FFFF"));
+	SetDefaultColor(EStyleColor::PrimaryPress, COLOR("#0050A0FF"));
 	SetDefaultColor(EStyleColor::Secondary, COLOR("#383838FF"));
 
 	SetDefaultColor(EStyleColor::Foreground, COLOR("#C0C0C0FF"));
@@ -104,7 +104,7 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::ForegroundHeader, COLOR("#C8C8C8FF"));
 
 	SetDefaultColor(EStyleColor::Select, GetDefaultColor(EStyleColor::Primary));
-	SetDefaultColor(EStyleColor::SelectInactive, COLOR("#99B3BFFF"));
+	SetDefaultColor(EStyleColor::SelectInactive, COLOR("#40576F"));
 	SetDefaultColor(EStyleColor::SelectParent, COLOR("#2C323AFF"));
 	SetDefaultColor(EStyleColor::SelectHover, GetDefaultColor(EStyleColor::Panel));
 
@@ -364,7 +364,8 @@ void USlateThemeManager::EnsureValidCurrentTheme()
 	DefaultDarkTheme.DisplayName = NSLOCTEXT("StyleColors", "DefaultDarkTheme", "Dark");
 	// If you change this you invalidate the default dark theme forcing the default theme to be reset and the existing dark theme to become a user theme
 	// In general you should not do this. You should instead update the default "dark.json" file 
-	DefaultDarkTheme.Id = FGuid(0xE431F929, 0x452C4686, 0xAB5C0FE1, 0x2910653A);
+
+	DefaultDarkTheme.Id = FGuid(0x13438026, 0x5FBB4A9C, 0xA00A1DC9, 0x770217B8);
 	DefaultDarkTheme.Filename = FPaths::EngineContentDir() / TEXT("Slate/Themes/Dark.json");
 
 	int32 ThemeIndex = Themes.AddUnique(DefaultDarkTheme);
