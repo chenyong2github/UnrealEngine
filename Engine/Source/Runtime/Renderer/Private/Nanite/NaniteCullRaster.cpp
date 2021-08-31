@@ -1907,7 +1907,6 @@ static void AllocateNodesAndBatchesBuffers(FRDGBuilder& GraphBuilder, FGlobalSha
 		if (MainAndPostNodesAndClusterBatchesBuffer.IsValid())
 		{
 			*MainAndPostNodesAndClusterBatchesBufferRef = GraphBuilder.RegisterExternalBuffer(MainAndPostNodesAndClusterBatchesBuffer, TEXT("Nanite.MainAndPostNodesAndClusterBatchesBuffer"));
-			AddPassInitNodesAndClusterBatchesUAV(GraphBuilder, ShaderMap, GraphBuilder.CreateUAV(*MainAndPostNodesAndClusterBatchesBufferRef));
 		}
 		else
 		{
