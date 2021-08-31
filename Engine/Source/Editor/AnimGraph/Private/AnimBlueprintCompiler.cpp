@@ -196,6 +196,11 @@ void FAnimBlueprintCompilerContext::CreateClassVariablesFromBlueprint()
 			}
 		};
 
+		for (UEdGraph* UbergraphPage : Blueprint->UbergraphPages)
+		{
+			ForAllSubGraphs(UbergraphPage, ProcessGraph);
+		}
+
 		for (UEdGraph* Graph : Blueprint->FunctionGraphs)
 		{
 			ForAllSubGraphs(Graph, ProcessGraph);
