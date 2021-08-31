@@ -80,7 +80,7 @@ TSharedPtr<FTabManager> FAssetEditorModeUILayer::GetTabManager()
 }
 
 
-TSharedPtr<FWorkspaceItem> FAssetEditorModeUILayer::GetModeMenuCategory()
+TSharedPtr<FWorkspaceItem> FAssetEditorModeUILayer::GetModeMenuCategory() const
 {
 	return TSharedPtr<FWorkspaceItem>();
 }
@@ -104,6 +104,7 @@ void FAssetEditorModeUILayer::RegisterModeTabSpawner(const FName TabID)
 		FCanSpawnTab::CreateSP(this, &FAssetEditorModeUILayer::CanSpawnStoredTab, TabID))
 		.SetDisplayNameAttribute(MakeAttributeSP(this, &FAssetEditorModeUILayer::GetTabSpawnerName, TabID))
 		.SetTooltipTextAttribute(MakeAttributeSP(this, &FAssetEditorModeUILayer::GetTabSpawnerTooltip, TabID))
+		.SetIcon(GetTabSpawnerIcon(TabID))
 		.SetAutoGenerateMenuEntry(bShowMenuOption)
 		.SetGroup(MenuGroup);
 }
@@ -161,6 +162,16 @@ FText FAssetEditorModeUILayer::GetTabSpawnerTooltip(const FName TabID) const
 		return RequestedTabInfo[TabID].TabTooltip;
 	}
 	return FText::GetEmpty();
+}
+
+const FSlateIcon& FAssetEditorModeUILayer::GetTabSpawnerIcon(const FName TabID) const
+{
+	if (RequestedTabInfo[TabID].TabIcon.IsSet())
+	{
+		return RequestedTabInfo[TabID].TabIcon;
+	}
+
+	return GetModeMenuCategory()->GetIcon();
 }
 
 #undef LOCTEXT_NAMESPACE
