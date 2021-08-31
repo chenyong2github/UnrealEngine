@@ -48,6 +48,18 @@ struct SLATECORE_API FSegmentedControlStyle: public FSlateWidgetStyle
 	FCheckBoxStyle LastControlStyle;
 	FSegmentedControlStyle& SetLastControlStyle( const FCheckBoxStyle& InStyle ){ LastControlStyle = InStyle; return *this; }
 
+	/** Background of the segmented control */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	FSlateBrush BackgroundBrush;
+	FSegmentedControlStyle& SetBackgroundBrush(const FSlateBrush& InBrush) { BackgroundBrush = InBrush; return *this; }
+
+	/**
+	 * Padding between each control
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Appearance)
+	FMargin UniformPadding;
+	FSegmentedControlStyle& SetUniformPadding(const FMargin& InMargin) { UniformPadding = InMargin; return *this; }
+
 	/**
 	 * Unlinks all colors in this style.
 	 * @see FSlateColor::Unlink
@@ -57,6 +69,7 @@ struct SLATECORE_API FSegmentedControlStyle: public FSlateWidgetStyle
 		ControlStyle.UnlinkColors();
 		FirstControlStyle.UnlinkColors();
 		LastControlStyle.UnlinkColors();
+		BackgroundBrush.UnlinkColors();
 	}
 
 };

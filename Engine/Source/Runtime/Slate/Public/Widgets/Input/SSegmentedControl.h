@@ -168,7 +168,11 @@ public:
 
 	void RebuildChildren()
 	{
-		TSharedPtr<SUniformGridPanel> UniformBox = SNew(SUniformGridPanel);
+		// The right padding will be applied later at the end so we dont accumulate left+right padding between all buttons
+		FMargin SlotPadding = Style->UniformPadding;
+		SlotPadding.Right = 0.0f;
+
+		TSharedPtr<SUniformGridPanel> UniformBox = SNew(SUniformGridPanel).SlotPadding(SlotPadding);
 
 		const int32 NumSlots = Children.Num();
 		for ( int32 SlotIndex = 0; SlotIndex < NumSlots; ++SlotIndex )
@@ -240,7 +244,12 @@ public:
 
 		ChildSlot
 		[
-			UniformBox.ToSharedRef()
+			SNew(SBorder)
+			.BorderImage(&Style->BackgroundBrush)
+			.Padding(FMargin(0,0,Style->UniformPadding.Right,0))
+			[
+				UniformBox.ToSharedRef()
+			]
 		];
 
 	}
