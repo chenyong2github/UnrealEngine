@@ -133,10 +133,9 @@ private:
 
 	void ProcessInstanceRangeInvalidation(
 		FRDGBuilder& GraphBuilder,
-		const TArray<FInstanceSceneDataRange,
-		SceneRenderingAllocator>& InstanceRangesLarge,
-		const TArray<FInstanceSceneDataRange,
-		SceneRenderingAllocator>& InstanceRangesSmall,
+		const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesLarge,
+		const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesSmall,
+		int32 TotalInstanceCount,
 		const FGPUScene& GPUScene);
 
 	void ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray);
