@@ -143,6 +143,13 @@ bool FTSTickerTest::RunTest(const FString& Parameters)
 		Ticker.Tick(0.0f);
 	}
 
+	{	// same delegate removed multiple times (used to be an assert)
+		FTSTicker Ticker;
+		FTSTicker::FDelegateHandle DelegateHandle = Ticker.AddTicker(UE_SOURCE_LOCATION, 0.0f, [](float) { return true; /* keep ticking*/ });
+		FTSTicker::RemoveTicker(DelegateHandle);
+		FTSTicker::RemoveTicker(DelegateHandle);
+	}
+
 	// multithreaded stress test
 	{
 		using namespace UE::Tasks;
