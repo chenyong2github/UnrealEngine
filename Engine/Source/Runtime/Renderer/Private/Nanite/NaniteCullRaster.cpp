@@ -1629,13 +1629,13 @@ void AddPass_Rasterize(
 		auto MeshShader = RasterContext.ShaderMap->GetShader<FHWRasterizeMS>(PermutationVectorMS);
 
 		GraphBuilder.AddPass(
-			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
+			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[MeshShader, PixelShader, RasterPassParameters, ViewRect, RPInfo, bMainPass](FRHICommandList& RHICmdList)
 		{
 			
-			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: Rasterize") : TEXT("Post Pass: Rasterize"));
+			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1681,12 +1681,12 @@ void AddPass_Rasterize(
 		auto VertexShader = RasterContext.ShaderMap->GetShader<FHWRasterizeVS>(PermutationVectorVS);
 
 		GraphBuilder.AddPass(
-			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
+			bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
 			RasterPassParameters,
 			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 			[VertexShader, PixelShader, RasterPassParameters, ViewRect, bUsePrimitiveShader, RPInfo, bMainPass](FRHICommandList& RHICmdList)
 		{
-			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: Rasterize") : TEXT("Post Pass: Rasterize"));
+			RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 
 			FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -1731,7 +1731,7 @@ void AddPass_Rasterize(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			bMainPass ? RDG_EVENT_NAME("Main Pass: Rasterize") : RDG_EVENT_NAME("Post Pass: Rasterize"),
+			bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
 			ComputePassFlags,
 			ComputeShader,
 			CommonPassParameters,
