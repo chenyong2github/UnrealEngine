@@ -225,10 +225,11 @@ bool UInterchangeGenericAssetsPipeline::ExecutePostImportPipeline(const UInterch
 {
 	//We do not use the provided base container since ExecutePreImportPipeline cache it
 	//We just make sure the same one is pass in parameter
-	if (!InBaseNodeContainer || !ensure(InBaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
+	if (!InBaseNodeContainer || !ensure(BaseNodeContainer == InBaseNodeContainer) || !CreatedAsset)
 	{
 		return false;
 	}
+
 	UInterchangeBaseNode* Node = BaseNodeContainer->GetNode(NodeKey);
 	if (!Node)
 	{
