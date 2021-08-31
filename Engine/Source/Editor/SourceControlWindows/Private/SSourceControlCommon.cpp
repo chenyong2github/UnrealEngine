@@ -5,14 +5,14 @@
 #include "AssetData.h"
 #include "AssetToolsModule.h"
 #include "EditorStyleSet.h"
+#include "ISourceControlModule.h"
+#include "SourceControlAssetDataCache.h"
 #include "SourceControlHelpers.h"
 
 #include "Widgets/SOverlay.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/Layout/SBox.h"
-
-#include "Engine/Level.h"
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
@@ -50,53 +50,48 @@ FText FShelvedChangelistTreeItem::GetDisplayText() const
 //////////////////////////////////////////////////////////////////////////
 FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths, bool bIsShelvedFile)
 	: FileState(InFileState)
+	, MinTimeBetweenUpdate(FTimespan::FromSeconds(5.f))
+	, LastUpdateTime()
+	, bAssetsUpToDate(false)
 {
 	Type = (bIsShelvedFile ? IChangelistTreeItem::ShelvedFile : IChangelistTreeItem::File);
 	CheckBoxState = ECheckBoxState::Checked;
 
 	// Initialize asset data first
-	FString Filename = FileState->GetFilename();
 
-	if (!FileState->IsDeleted())
+	if (bBeautifyPaths)
 	{
-		USourceControlHelpers::GetAssetData(Filename, Assets);
+		FSourceControlAssetDataCache& AssetDataCache = ISourceControlModule::Get().GetAssetDataCache();
+		bAssetsUpToDate = AssetDataCache.GetAssetDataArray(FileState, Assets);
+	}
+	else
+	{
+		// We do not need to wait for AssetData from the cache.
+		bAssetsUpToDate = true;
 	}
 
-	// For deleted items, the file is not on disk anymore so the only way we can get the asset data is by getting the file from the depot.
-	// For shelved files, if the file still exists locally, it will have been found before, otherwise, the history of the shelved file state will point to the remote version
-	if (bBeautifyPaths && (FileState->IsDeleted() || (bIsShelvedFile && Assets.Num() == 0)))
-	{
-		// At the moment, getting the asset data from non-external assets yields issues with the package path
-		// so we will fall down to our recovery (below) instead
-		if (Filename.Contains(ULevel::GetExternalActorsFolderName()))
-		{
-			const int64 MaxFetchSize = (1 << 20); // 1MB
-			// In the case of shelved "marked for delete", we'll piggy back on the non-shelved file
-			if (bIsShelvedFile && FileState->IsDeleted())
-			{
-				USourceControlHelpers::GetAssetDataFromFileHistory(Filename, Assets, nullptr, MaxFetchSize);
-			}
-			else
-			{
-				USourceControlHelpers::GetAssetDataFromFileHistory(FileState, Assets, nullptr, MaxFetchSize);
-			}
-		}
-	}
+	RefreshAssetInformation();
+}
 
+void FFileTreeItem::RefreshAssetInformation()
+{
 	// Initialize display-related members
+	FString Filename = FileState->GetFilename();
 	FString TempAssetName = SSourceControlCommon::GetDefaultAssetName().ToString();
 	FString TempAssetPath = Filename;
 	FString TempAssetType = SSourceControlCommon::GetDefaultAssetType().ToString();
 	FString TempPackageName = Filename;
 	FColor TempAssetColor = FColor(		// Copied from ContentBrowserCLR.cpp
-		127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
-		127 + FColor::Red.G / 2,
-		127 + FColor::Red.B / 2,
-		200); // Opacity
+								   127 + FColor::Red.R / 2,	// Desaturate the colors a bit (GB colors were too.. much)
+								   127 + FColor::Red.G / 2,
+								   127 + FColor::Red.B / 2,
+								   200); // Opacity
 
-	if (Assets.Num() > 0)
+	if (Assets.IsValid() && (Assets->Num() > 0))
 	{
-		TempAssetPath = Assets[0].ObjectPath.ToString();
+		FAssetData& AssetData = (*Assets)[0];
+
+		TempAssetPath = AssetData.ObjectPath.ToString();
 
 		// Strip asset name from object path
 		int32 LastDot = -1;
@@ -106,22 +101,22 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 		}
 
 		// Find name, asset type & color only if there is exactly one asset
-		if (Assets.Num() == 1)
+		if (Assets->Num() == 1)
 		{
 			static FName NAME_ActorLabel(TEXT("ActorLabel"));
-			if (Assets[0].FindTag(NAME_ActorLabel))
+			if (AssetData.FindTag(NAME_ActorLabel))
 			{
-				Assets[0].GetTagValue(NAME_ActorLabel, TempAssetName);
+				AssetData.GetTagValue(NAME_ActorLabel, TempAssetName);
 			}
 			else
 			{
-				TempAssetName = Assets[0].AssetName.ToString();
+				TempAssetName = AssetData.AssetName.ToString();
 			}
 
-			TempAssetType = Assets[0].AssetClass.ToString();
+			TempAssetType = AssetData.AssetClass.ToString();
 
 			const FAssetToolsModule& AssetToolsModule = FModuleManager::LoadModuleChecked<FAssetToolsModule>(TEXT("AssetTools"));
-			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(Assets[0].GetClass()).Pin();
+			const TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetToolsModule.Get().GetAssetTypeActionsForClass(AssetData.GetClass()).Pin();
 			if (AssetTypeActions.IsValid())
 			{
 				TempAssetColor = AssetTypeActions->GetTypeColor();
@@ -165,6 +160,25 @@ FFileTreeItem::FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyP
 	AssetType = FText::FromString(TempAssetType);
 	AssetTypeColor = TempAssetColor;
 	PackageName = FText::FromString(TempPackageName);
+}
+
+FText FFileTreeItem::GetAssetName()
+{
+	const FTimespan CurrentTime = FTimespan::FromSeconds(FPlatformTime::Seconds());
+
+	if ((!bAssetsUpToDate) && ((CurrentTime - LastUpdateTime) > MinTimeBetweenUpdate))
+	{
+		FSourceControlAssetDataCache& AssetDataCache = ISourceControlModule::Get().GetAssetDataCache();
+		LastUpdateTime = CurrentTime;
+
+		if (AssetDataCache.GetAssetDataArray(FileState, Assets))
+		{
+			bAssetsUpToDate = true;
+			RefreshAssetInformation();
+		}
+	}
+
+	return AssetName;
 }
 
 //////////////////////////////////////////////////////////////////////////

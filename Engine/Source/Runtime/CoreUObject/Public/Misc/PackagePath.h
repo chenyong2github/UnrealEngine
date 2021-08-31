@@ -360,6 +360,12 @@ public:
 	 */
 	COREUOBJECT_API static EPackageExtension ParseExtension(FStringView Filename, int32* OutExtensionStart = nullptr);
 
+	/**
+	 * Get the folder name from which all external actors paths are created
+	 * @return folder name
+	 */
+	COREUOBJECT_API static const TCHAR* GetExternalActorsFolderName();
+
 public:
 	// Internal API used by low-level PackageResourceManager users
 

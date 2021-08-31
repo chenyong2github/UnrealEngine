@@ -322,6 +322,11 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	Broadcast(Context.Events);
 }
 
+bool UAssetRegistryImpl::IsPathBeautificationNeeded(const FString& InAssetPath) const
+{
+	return InAssetPath.Contains(FPackagePath::GetExternalActorsFolderName());
+}
+
 namespace UE::AssetRegistry
 {
 

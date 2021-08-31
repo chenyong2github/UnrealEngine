@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Styling/SlateColor.h"
 #include "Styling/SlateTypes.h"
+#include "SourceControlAssetDataCache.h"
 #include "ISourceControlProvider.h"
 #include "UncontrolledChangelistState.h"
 
@@ -113,8 +114,11 @@ struct FFileTreeItem : public IChangelistTreeItem
 {
 	explicit FFileTreeItem(FSourceControlStateRef InFileState, bool bBeautifyPaths = true, bool bIsShelvedFile = false);
 
+	/** Updates informations based on AssetData */
+	void RefreshAssetInformation();
+
 	/** Returns the asset name of the item */
-	FText GetAssetName() const { return AssetName; }
+	FText GetAssetName();
 
 	/** Returns the asset path of the item */
 	FText GetAssetPath() const { return AssetPath; }
@@ -157,7 +161,7 @@ struct FFileTreeItem : public IChangelistTreeItem
 
 	const TArray<FAssetData>& GetAssetData() const
 	{
-		return Assets;
+		return *Assets;
 	}
 
 	bool IsShelved() const { return GetTreeItemType() == IChangelistTreeItem::ShelvedFile; }
@@ -186,7 +190,16 @@ private:
 	FText PackageName;
 
 	/** Matching asset(s) to facilitate Locate in content browser */
-	TArray<FAssetData> Assets;
+	FAssetDataArrayPtr Assets;
+
+	/** Represents the minimum amount of time between to attempt to refresh AssetData */
+	const FTimespan MinTimeBetweenUpdate;
+
+	/** Timestamp representing the time at which the last information update was made */
+	FTimespan LastUpdateTime;
+
+	/** True if informations returned from the cache are up to date */
+	bool bAssetsUpToDate;
 };
 
 struct FOfflineFileTreeItem : public IChangelistTreeItem

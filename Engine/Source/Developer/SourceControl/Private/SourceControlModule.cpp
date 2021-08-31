@@ -5,6 +5,7 @@
 #include "SSourceControlLogin.h"
 #include "SourceControlOperations.h"
 #include "SourceControlHelpers.h"
+#include "SourceControlAssetDataCache.h"
 
 #if SOURCE_CONTROL_WITH_SLATE
 	#include "Widgets/DeclarativeSyntaxSupport.h"
@@ -61,10 +62,13 @@ void FSourceControlModule::StartupModule()
 	FMessageLogModule& MessageLogModule = FModuleManager::LoadModuleChecked<FMessageLogModule>("MessageLog");
 	MessageLogModule.RegisterLogListing("SourceControl", LOCTEXT("SourceControlLogLabel", "Source Control"));
 #endif
+
+	AssetDataCache.Startup();
 }
 
 void FSourceControlModule::ShutdownModule()
 {
+	AssetDataCache.Shutdown();
 	// close the current provider
 	GetProvider().Close();
 
@@ -93,6 +97,9 @@ void FSourceControlModule::SaveSettings()
 void FSourceControlModule::ShowLoginDialog(const FSourceControlLoginClosed& InOnSourceControlLoginClosed, ELoginWindowMode::Type InLoginWindowMode, EOnLoginWindowStartup::Type InOnLoginWindowStartup)
 {
 #if SOURCE_CONTROL_WITH_SLATE
+	// Avoid continue running tasks while the dialog is displayed. Any change in textboxes could affect the connection status.
+	AssetDataCache.OnSourceControlDialogShown();
+
 	// Get Active Provider Name
 	ActiveProviderName = GetProvider().GetName().ToString();
 
@@ -184,6 +191,8 @@ void FSourceControlModule::OnSourceControlDialogClosed(const TSharedRef<SWindow>
 		ActiveProviderName = NewProvider;
 	}
 #endif
+
+	AssetDataCache.OnSourceControlDialogClosed();
 }
 
 void FSourceControlModule::InitializeSourceControlProviders()
@@ -235,6 +244,8 @@ void FSourceControlModule::Tick()
 
 		// tick the provider, so any operation results can be read back
 		Provider.Tick();
+
+		AssetDataCache.Tick();
 
 		// don't allow background status updates when temporarily disabled for login
 		if(!bTemporarilyDisabled)
@@ -320,6 +331,11 @@ bool FSourceControlModule::IsEnabled() const
 ISourceControlProvider& FSourceControlModule::GetProvider() const
 {
 	return *CurrentSourceControlProvider;
+}
+
+FSourceControlAssetDataCache& FSourceControlModule::GetAssetDataCache()
+{
+	return AssetDataCache;
 }
 
 void FSourceControlModule::SetProvider( const FName& InName )

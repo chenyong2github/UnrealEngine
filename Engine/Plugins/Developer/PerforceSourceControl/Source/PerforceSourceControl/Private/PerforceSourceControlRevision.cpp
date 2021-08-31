@@ -11,11 +11,11 @@
 
 #define LOCTEXT_NAMESPACE "PerforceSourceControl"
 
-bool FPerforceSourceControlRevision::Get( FString& InOutFilename ) const
+bool FPerforceSourceControlRevision::Get( FString& InOutFilename, EConcurrency::Type InConcurrency) const
 {
 	bool bCommandOK = false;
 	FPerforceSourceControlModule& PerforceSourceControl = FModuleManager::LoadModuleChecked<FPerforceSourceControlModule>("PerforceSourceControl");
-	FScopedPerforceConnection ScopedConnection(EConcurrency::Synchronous, PerforceSourceControl.AccessSettings().GetConnectionInfo());
+	FScopedPerforceConnection ScopedConnection(InConcurrency, PerforceSourceControl.AccessSettings().GetConnectionInfo());
 	if(ScopedConnection.IsValid())
 	{
 		FPerforceConnection& Connection = ScopedConnection.GetConnection();

@@ -9,6 +9,7 @@
 
 class ISourceControlProvider;
 class ISourceControlChangelist;
+class FSourceControlAssetDataCache;
 typedef TSharedPtr<class ISourceControlChangelist, ESPMode::ThreadSafe> FSourceControlChangelistPtr;
 
 SOURCECONTROL_API DECLARE_LOG_CATEGORY_EXTERN(LogSourceControl, Log, All);
@@ -99,6 +100,11 @@ public:
 	 * Get the source control provider that is currently in use.
 	 */
 	virtual ISourceControlProvider& GetProvider() const = 0;
+
+	/**
+	 * Get the source control AssetData information cache.
+	 */
+	virtual FSourceControlAssetDataCache& GetAssetDataCache() = 0;
 
 	/**
 	 * Set the current source control provider to the one specified here by name.

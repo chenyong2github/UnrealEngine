@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "ISourceControlProvider.h"
 #include "ISourceControlRevision.h"
 
 class FSubversionSourceControlRevision : public ISourceControlRevision, public TSharedFromThis<FSubversionSourceControlRevision, ESPMode::ThreadSafe>
@@ -15,7 +16,7 @@ public:
 	}
 
 	/** ISourceControlRevision interface */
-	virtual bool Get( FString& InOutFilename ) const override;
+	virtual bool Get(FString& InOutFilename, EConcurrency::Type InConcurrency = EConcurrency::Synchronous) const override;
 	virtual bool GetAnnotated( TArray<FAnnotationLine>& OutLines ) const override;
 	virtual bool GetAnnotated( FString& InOutFilename ) const override;
 	virtual const FString& GetFilename() const override;
