@@ -66,7 +66,7 @@ void UMetaSound::BeginDestroy()
 void UMetaSound::PreSave(FObjectPreSaveContext InSaveContext)
 {
 	Super::PreSave(InSaveContext);
-	Metasound::PreSaveAsset(*this);
+	Metasound::PreSaveAsset(*this, InSaveContext);
 }
 
 void UMetaSound::Serialize(FArchive& InArchive)
