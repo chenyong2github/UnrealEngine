@@ -48,12 +48,7 @@ public:
 			{
 				UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
 			}
-			bool bTargetDomainEnabled = true;
-			GConfig->GetBool(TEXT("TargetDomain"), TEXT("TargetDomainEnabled"), bTargetDomainEnabled, GEditorIni);
-			if (bEditorDomainEnabled || bTargetDomainEnabled)
-			{
-				UE::EditorDomain::UtilsInitialize();
-			}
+			UE::EditorDomain::UtilsInitialize();
 			if (bEditorDomainEnabled)
 			{
 				// Set values for config settings EditorDomain depends on

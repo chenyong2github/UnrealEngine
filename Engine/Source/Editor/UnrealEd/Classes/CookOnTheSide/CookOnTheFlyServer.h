@@ -209,6 +209,8 @@ private:
 	 * This allows us to have enough population in the LoadPrepareQueue to get benefit from the asynchronous work done on packages in the LoadPrepareQueue.
 	 */
 	uint32 DesiredLoadQueueLength;
+	/** A knob to tune performance - how many packages to pull off in each call to PumpRequests. */
+	uint32 RequestBatchSize;
 
 	ECookInitializationFlags CookFlags = ECookInitializationFlags::None;
 	TUniquePtr<class FSandboxPlatformFile> SandboxFile;
@@ -302,7 +304,6 @@ private:
 	enum class ECookAction
 	{
 		Done,			// The cook is complete; no requests remain in any non-idle state
-		RequestCluster,	// Process the RequestClusters
 		Request,		// Process the RequestQueue
 		Load,			// Process the LoadQueue
 		LoadLimited,	// Process the LoadQueue, stopping when loadqueuelength reaches the desired population level
@@ -315,14 +316,10 @@ private:
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
 	/** Execute any existing external callbacks and push any existing external cook requests into new RequestClusters. */
 	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
-	/** Pull off each RequestCluster and find all transitive dependencies and push them into the RequestQueue. */
-	void PumpRequestClusters(UE::Cook::FTickStackData& StackData);
+	/** Send the PackageData back to request state to create a request cluster, if it has not yet been explored. */
+	bool TryCreateRequestCluster(UE::Cook::FPackageData& PackageData);
 	/** Inspect the next package in the RequestQueue and push it on to its next state. Report the number of PackageDatas that were pushed to load. */
 	void PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
-	/** Handle the requested PackageData that has been peeled off of the RequestQueue, e.g. by sending it on to the LoadQueue. Report the number of PackageDatas that were pushed to load (includes dependencies, so may be more than 1). */
-	void ProcessRequest(UE::Cook::FPackageData& PackageData, UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
-	/** Get the list of unloaded Packages the load of the given PackageData is dependent upon, and add their PackageDatas to the load queue. Report the number of PackageDatass that were pushed to the load queue */
-	void AddDependenciesToLoadQueue(UE::Cook::FPackageData& PackageData, int32& OutNumPushed);
 
 	/** Load all packages in the LoadQueue until it's time to break. Report the number of loads that were pushed to save. */
 	void PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
@@ -341,9 +338,10 @@ private:
 	 * Inspect the given package and queue it for saving if necessary.
 	 *
 	 * @param Package				The package to be considered for saving.
+	 * @param bOutWasInProgress		Report whether the package was already in progress.
 	 * @return						Returns the PackageData for this queued package.
 	 */
-	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package);
+	UE::Cook::FPackageData* QueueDiscoveredPackage(UPackage* Package, bool* bOutWasInProgress = nullptr);
 	/**
 	 * Inspect the given package and queue it for saving if necessary.
 	 *
@@ -467,11 +465,8 @@ public:
 	UE_DEPRECATED(4.26, "Unsolicited packages are now added directly to the savequeue and are not marked as unsolicited")
 	TArray<UPackage*> GetUnsolicitedPackages(const TArray<const ITargetPlatform*>& TargetPlatforms) const;
 
-	/**
-	* PostLoadPackageFixup
-	* after a package is loaded we might want to fix up some stuff before it gets saved
-	*/
-	void PostLoadPackageFixup(UPackage* Package);
+	/** Execute class-specific special case cook postloads and reference discovery on a given package. */
+	void PostLoadPackageFixup(UPackage* Package, TArray<FName>* OutDiscoveredPackageNames = nullptr);
 
 	/**
 	* Handles cook package requests until there are no more requests, then returns
@@ -512,8 +507,13 @@ public:
 	UE_DEPRECATED(4.25, "Use version that takes const ITargetPlatform* instead")
 	void ClearPlatformCookedData(const FString& PlatformName);
 
-	/** Clear all in-process flags that indicate packages have been cooked for the given platforms. */
-	void ResetCookResults(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+	/**
+	 * Clear platforms' explored flags for all PackageDatas and optionally clear the cookresult flags.
+	 *
+	 * @param TargetPlatforms List of pairs with targetplatforms to reset and bool bResetResults indicating whether
+	 *        the platform should clear bCookAttempted in addition to clearing bExplored.
+	 */
+	void ResetCook(TConstArrayView<TPair<const ITargetPlatform*, bool>> TargetPlatforms);
 
 	/**
 	* Recompile any global shader changes 
@@ -768,18 +768,9 @@ private:
 	//////////////////////////////////////////////////////////////////////////
 	// general functions
 
-	/**
-	 * Attempts to update the metadata for a package in an asset registry generator
-	 *
-	 * @param Generator The asset registry generator to update
-	 * @param Package The package to update info on
-	 * @param SavePackageResult The metadata to associate with the given package name
-	 */
-	void UpdateAssetRegistryPackageData(FAssetRegistryGenerator* Generator, const UPackage& Package, FSavePackageResultStruct& SavePackageResult);
-
 	/** Perform any special processing for freshly loaded packages 
 	 */
-	void ProcessUnsolicitedPackages();
+	void ProcessUnsolicitedPackages(TArray<FName>* OutDiscoveredPackageNames = nullptr);
 
 	/**
 	 * Loads a package and prepares it for cooking
@@ -798,6 +789,9 @@ private:
 	* Initialize the sandbox for a new cook session with @param TargetPlatforms
 	*/
 	void BeginCookSandbox(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
+
+	/** Set parameters that rely on config and CookByTheBook settings. */
+	void SetBeginCookConfigSettings();
 
 	/**
 	* Finalize the package store
@@ -1093,13 +1087,12 @@ private:
 	bool bSaveBusy = false;
 	/** If preloading is enabled, we call TryPreload until it returns true before sending the package to LoadReady, otherwise we skip TryPreload and it goes immediately. */
 	bool bPreloadingEnabled = false;
-	/** If TargetDomain is enabled, we load/save TargetDomainKey hashes and use those to test whether packages have already been cooked in hybrid-iterative builds. */
-	bool bTargetDomainEnabled = true;
-	/**
-	 * Following soft dependencies in request clusters can cause editor-only packages to be cooked due to lack of robust editor-only reference detection.
-	 * Projects can disable it to prevent cooking those packages, at the cost of lower cook performance.
-	 */
-	bool bExploreSoftReferencesOnStart = true;
+	/** If enabled, we load/save TargetDomainKey hashes and use those to test whether packages have already been cooked in hybrid-iterative builds. */
+	bool bHybridIterativeEnabled = true;
+	/** Whether to explore transitive dependencies up front, or discover them as we load packages. */
+	bool bPreexploreDependenciesEnabled = true;
+	/** Test mode for the debug of hybrid iterative dependencies. */
+	bool bHybridIterativeDebug = false;
 
 	/** Timers for tracking how long we have been busy, to manage retries and warnings of deadlock */
 	float SaveBusyTimeLastRetry = 0.f;
@@ -1113,7 +1106,6 @@ private:
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
 	TUniquePtr<UE::Cook::FPackageDatas> PackageDatas;
 	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
-	TRingBuffer<UE::Cook::FRequestCluster> RequestClusters;
 
 	TArray<UE::Cook::FCookSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */

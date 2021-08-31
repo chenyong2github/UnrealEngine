@@ -29,13 +29,12 @@ class UCookOnTheFlyServer;
 class UObject;
 class UPackage;
 
-namespace UE
+namespace UE::Cook
 {
-namespace Cook
-{
+	class FPackageDataQueue;
+	class FRequestCluster;
 	struct FGeneratorPackage;
 	struct FPackageDataMonitor;
-	class FPackageDataQueue;
 	struct FPendingCookedPlatformDataCancelManager;
 
 	extern const TCHAR* GeneratedPackageSubPath;
@@ -125,8 +124,7 @@ namespace Cook
 			bool bRequested : 1;
 			bool bCookAttempted : 1;
 			bool bCookSucceeded : 1;
-			bool bTargetDomainLookupAttempted : 1;
-			bool bExistsInTargetDomain : 1;
+			bool bExplored : 1;
 		};
 
 		FPackageData(FPackageDatas& PackageDatas, const FName& InPackageName, const FName& InFileName);
@@ -175,11 +173,19 @@ namespace Cook
 		 */
 		bool HasAllRequestedPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
 
-		/** Return whether all Platforms that have been requested in this PackageData have also been cooked
+		/**
+		 * Return whether all Platforms requested have also been cooked.
 		 * 
 		 * @param bAllowFailedCooks Iff false, failed cooks cause function to return false.
 		 */
 		bool AreAllRequestedPlatformsCooked(bool bAllowFailedCooks) const;
+
+		/** Return whether all Platforms requested have also been explored for transitive references. */
+		bool AreAllRequestedPlatformsExplored() const;
+
+		/** Return true if and only if every element of Platforms has been explored. Returns true if Platforms is empty. */
+		bool HasAllExploredPlatforms(const TArrayView<const ITargetPlatform* const>& Platforms) const;
+
 		/**
 		 * Get the flag for whether this InProgress PackageData has been marked as an urgent request
 		 * (e.g. because it has been requested from the game client during cookonthefly.).
@@ -193,11 +199,9 @@ namespace Cook
 		 * If the PackageData is not in progress, just calls SetRequestData; skipped if InRequestedPlatforms is empty.
 		 * If the PackageData is in progress it is demoted back to an earlier state if necessary.
 		 * RequestData is set to the union of the previous and new values.
-		 
-		 * @param SendFlags If the PackageData needs to change state, specify whether to remove/add to state containers.
 		 */
 		void UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms, bool bInIsUrgent,
-			FCompletionCallback&& InCompletionCallback, ESendFlags SendFlags = ESendFlags::QueueAddAndRemove);
+			FCompletionCallback&& InCompletionCallback);
 		/*
 		 * Set the given data onto the existing request data.
 		 * It is invalid to call with empty InRequestedPlatforms.
@@ -230,6 +234,15 @@ namespace Cook
 		/** Access the information about platforms interacted with by *this. */
 		const TSortedMap<const ITargetPlatform*, FPlatformData>& GetPlatformDatas() const;
 
+		/** Add a platform if not already existing and return a writable pointer to its flags. */
+		FPlatformData& FindOrAddPlatformData(const ITargetPlatform* TargetPlatform);
+
+		/** Find a platform if it exists and return a writable pointer to its flags. */
+		FPlatformData* FindPlatformData(const ITargetPlatform* TargetPlatform);
+
+		/** Find a platform if it exists and return a writable pointer to its flags. */
+		const FPlatformData* FindPlatformData(const ITargetPlatform* TargetPlatform) const;
+
 		/** Return true if and only if at least one platform has been cooked. */
 		bool HasAnyCookedPlatform() const;
 		/**
@@ -252,6 +265,7 @@ namespace Cook
 		 * returns ECookResult::Unseen, otherwise returns Succeeded or Failed depending on its success flag.
 		 */
 		ECookResult GetCookResults(const ITargetPlatform* Platform) const;
+
 		/** Empties and then sets OutPlatforms to contain all platforms that have been requested and not cook-attempted. */
 		template <typename ArrayType>
 		void GetUncookedPlatforms(ArrayType& OutPlatforms)
@@ -718,11 +732,6 @@ namespace Cook
 		using TRingBuffer<FPackageData*>::TRingBuffer;
 	};
 
-	class FPackageDataSet : public TFastPointerSet<FPackageData*>
-	{
-		using TFastPointerSet<FPackageData*>::TFastPointerSet;
-	};
-
 	/**
 	 * A monitor class held by an FPackageDatas to provide reporting and decision making based on aggregated-data
 	 * across all InProgress or completed FPackageData.
@@ -774,7 +783,8 @@ namespace Cook
 
 	/**
 	 * A container for FPackageDatas in the Request state. This container needs to support fast find and remove,
-	 * and FIFO AddRequest/PopRequest that is overridden for urgent requests to push them to the front.
+	 * RequestClusters, staging for packages not yet in request clusters, and a FIFO for ready requests
+	 * using AddRequest/PopRequest that is overridden for urgent requests to push them to the front.
 	 */
 	class FRequestQueue
 	{
@@ -785,11 +795,19 @@ namespace Cook
 		bool Contains(const FPackageData* PackageData) const;
 		void Empty();
 
-		FPackageData* PopRequest();
 		void AddRequest(FPackageData* PackageData, bool bForceUrgent=false);
+
+		uint32 ReadyRequestsNum() const;
+		bool IsReadyRequestsEmpty() const;
+		FPackageData* PopReadyRequest();
+		void AddReadyRequest(FPackageData* PackageData, bool bForceUrgent = false);
 		uint32 RemoveRequest(FPackageData* PackageData);
 
+		FPackageDataSet& GetUnclusteredRequests() { return UnclusteredRequests; }
+		TRingBuffer<FRequestCluster>& GetRequestClusters() { return RequestClusters; }
 	private:
+		FPackageDataSet UnclusteredRequests;
+		TRingBuffer<FRequestCluster> RequestClusters;
 		FPackageDataSet UrgentRequests;
 		FPackageDataSet NormalRequests;
 	};
@@ -955,6 +973,9 @@ namespace Cook
 		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
 		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
+		/** Get/Set whether to log newly discovered packages to debug missing transitive references. */
+		void SetLogDiscoveredPackages(bool bLog) { bLogDiscoveredPackages = bLog; }
+		bool GetLogDiscoveredPackages() const { return bLogDiscoveredPackages; }
 	private:
 		/**
 		 * Construct a new FPackageData with the given PackageName and FileName and store references to it in the maps.
@@ -974,6 +995,7 @@ namespace Cook
 		FPackageDataQueue LoadReadyQueue;
 		FPackageDataQueue SaveQueue;
 		UCookOnTheFlyServer& CookOnTheFlyServer;
+		bool bLogDiscoveredPackages = false;
 	};
 
 	/**
@@ -990,5 +1012,4 @@ namespace Cook
 		FPackageData& PackageData;
 #endif
 	};
-}
-}
+} // namespace UE::Cook

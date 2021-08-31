@@ -47,6 +47,9 @@ namespace Cook
 		/* Whether BeginCookSandbox has been called for this platform.  If we have already initialized the sandbox we can take a faster refresh path on future sessions. */
 		bool bIsSandboxInitialized = false;
 
+		/* Whether BeginCookSandbox specified a clean build for this platform. */
+		bool bCleanBuild = false;
+
 		/*
 		 * The last FPlatformTime::GetSeconds() at which this platform was requested in a CookOnTheFly request.
 		 * If equal to 0, the platform was not requested in a CookOnTheFly since the last clear.

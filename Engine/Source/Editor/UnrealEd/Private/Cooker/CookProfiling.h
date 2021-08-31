@@ -95,6 +95,7 @@ namespace DetailedCookStats
 
 	// Stats tracked through FAutoRegisterCallback
 	extern uint32 NumPreloadedDependencies;
+	extern uint32 NumPackagesIterativelySkipped;
 	extern int32 PeakRequestQueueSize;
 	extern int32 PeakLoadQueueSize;
 	extern int32 PeakSaveQueueSize;

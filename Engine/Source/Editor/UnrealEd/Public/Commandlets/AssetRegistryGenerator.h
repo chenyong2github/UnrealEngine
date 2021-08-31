@@ -44,16 +44,18 @@ public:
 	/** 
 	 * Sets asset registry from a previous run that is used for iterative or DLC cooking
 	 */
-	void SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& PreviousState);
-	
+	void SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& PreviousState,
+		TMap<FName, FAssetPackageData*>&& PreviousAssetPackageData, TArray<FName>& OutTombstonePackages);
+
 	/**
 	 * Options when computing the differences between current and previous state.
 	 */
 	struct FComputeDifferenceOptions
 	{
+		/** if true, modified packages are recursed to X in X->Y->Z chains. Otherwise, only Y and Z are seen as modified */
 		bool bRecurseModifications;
+		/** if true, modified script / c++ packages are recursed, if false only asset references are recursed */
 		bool bRecurseScriptModifications;
-		bool bIgnoreDiskSize = false;
 	};
 
 	/**
@@ -61,10 +63,15 @@ public:
 	 */
 	struct FAssetRegistryDifference
 	{
+		/** ModifiedPackages list of packages which existed beforeand now, but need to be recooked */
 		TSet<FName> ModifiedPackages;
+		/** NewPackages list of packages that did not exist before, but exist now */
 		TSet<FName> NewPackages;
+		/** RemovedPackages list of packages that existed before, but do not any more */
 		TSet<FName> RemovedPackages;
+		/** IdenticalCookedPackages list of cooked packages that have not changed */
 		TSet<FName> IdenticalCookedPackages;
+		/** IdenticalUncookedPackages list of uncooked packages that have not changed.These were filtered out by platform or editor only */
 		TSet<FName> IdenticalUncookedPackages;
 	};
 
@@ -76,26 +83,6 @@ public:
 	 * @param OutDifference the differences between the current and the previous state
 	 */
 	void ComputePackageDifferences(const FComputeDifferenceOptions& Options, const TMap<FName, const FAssetPackageData*>& PreviousAssetPackageDataMap, FAssetRegistryDifference& OutDifference);
-
-	/**
-	 * Computes differences between the previous asset registry and the current one 
-	 *
-	 * @param ModifiedPackages list of packages which existed before and now, but need to be recooked
-	 * @param NewPackages list of packages that did not exist before, but exist now
-	 * @param RemovedPackages list of packages that existed before, but do not any more
-	 * @param IdenticalCookedPackages list of cooked packages that have not changed
-	 * @param IdenticalUncookedPackages list of uncooked packages that have not changed. These were filtered out by platform or editor only
-	 * @param bRecurseModifications if true, modified packages are recursed to X in X->Y->Z chains. Otherwise, only Y and Z are seen as modified
-	* @param bRecurseModifications if true, modified script/c++ packages are recursed, if false only asset references are recursed
-	 */
-	void ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications);
-
-	/**
-	 * Tracks packages that were kept from a previous cook.
-	 * Updates the current asset registry from the previous one for all kept packages.
-	 */
-	void UpdateKeptPackages(const TArray<FName>& InKeptPackages);
-	void UpdateKeptPackages(const TArray<FName>& InKeptPackages, TFunction<void(const FName&, FAssetPackageData*)>&& Update);
 
 	/**
 	 * GenerateChunkManifest 
@@ -206,6 +193,15 @@ public:
 	void GetChunkAssignments(TArray<TSet<FName>>& OutAssignments) const;
 
 	/**
+	 * Attempts to update the metadata for a package in an asset registry generator
+	 *
+	 * @param Package The package to update info on
+	 * @param SavePackageResult The metadata to associate with the given package name
+	 */
+	void UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult);
+
+private:
+	/**
 	 * Ensures all assets in the input package are present in the registry
 	 * @param Package - Package to process
 	 * @return - Array of FAssetData entries for all assets in the input package
@@ -222,14 +218,16 @@ public:
 	 */
 	bool UpdateAssetPackageFlags(const FName& PackageName, const uint32 PackageFlags);
 
-private:
+	/**
+	 * Updates AssetData with previous TagsAndValues, and updates PackageData values with previous PackageData,
+	 * for all packages kept from a previous cook.
+	 */
+	void UpdateKeptPackages();
 
 	/** State of the asset registry that is being built for this platform */
 	FAssetRegistryState State;
 
-	/** Base state, which is either a release build or an iterative cook */
-	FAssetRegistryState PreviousState;
-
+	TMap<FName, TPair<TArray<FAssetData>, FAssetPackageData>> PreviousPackagesToUpdate;
 	/** List of packages that were loaded at startup */
 	TSet<FName> StartupPackages;
 	/** List of packages that were successfully cooked */
@@ -294,18 +292,6 @@ private:
 		FName		PackageName;
 		uint32		ParentNodeIndex;
 	};
-
-	/**
-	 * Updates disk data with CookedHash and DiskSize from previous asset registry
-	 * for all packages kept from a previous cook.
-	 */
-	void UpdateKeptPackagesDiskData(const TArray<FName>& InKeptPackages);
-
-	/**
-	 * Updates AssetData with TagsAndValues from previous asset registry
-	 * for all packages kept from a previous cook.
-	 */
-	void UpdateKeptPackagesAssetData();
 
 	/**
 	 * Updates AssetData with TagsAndValues corresponding to any collections 

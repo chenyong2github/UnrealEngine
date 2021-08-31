@@ -795,15 +795,52 @@ void FAssetRegistryGenerator::CleanManifestDirectories()
 	CleanTempPackagingDirectory(TargetPlatform->PlatformName());
 }
 
-void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& InPreviousState)
+void FAssetRegistryGenerator::SetPreviousAssetRegistry(TUniquePtr<FAssetRegistryState>&& InPreviousState,
+	TMap<FName, FAssetPackageData*>&& PreviousAssetPackageData, TArray<FName>& OutTombstonePackages)
 {
+	OutTombstonePackages.Reset();
 	if (InPreviousState)
 	{
-		PreviousState = MoveTemp(*InPreviousState);
+		for (const TPair<FName, const FAssetPackageData*>& Pair : InPreviousState->GetAssetPackageDataMap())
+		{
+			FName PackageName = Pair.Key;
+			const FAssetPackageData& PreviousPackageData = *Pair.Value;
+			if (!State.GetAssetPackageData(PackageName))
+			{
+				// Tombstone means a package from the previous cook no longer exists in perforce
+				OutTombstonePackages.Add(PackageName);
+				continue;
+			}
+			TArrayView<FAssetData const * const> PreviousAssetDatas = InPreviousState->GetAssetsByPackageName(PackageName);
+			TPair<TArray<FAssetData>, FAssetPackageData>& UpdateData = PreviousPackagesToUpdate.FindOrAdd(PackageName);
+			if (PreviousAssetDatas.Num() > 0)
+			{
+				TArray<FAssetData>& UpdateAssetDatas = UpdateData.Get<0>();
+				UpdateAssetDatas.Reserve(PreviousAssetDatas.Num());
+				for (const FAssetData* AssetData : PreviousAssetDatas)
+				{
+					UpdateAssetDatas.Add(FAssetData(*AssetData));
+				}
+			}
+			UpdateData.Get<1>() = PreviousPackageData;
+		}
 	}
 	else
 	{
-		PreviousState.Reset();
+		for (TPair<FName, FAssetPackageData*>& Pair : PreviousAssetPackageData)
+		{
+			FName PackageName = Pair.Key;
+			FAssetPackageData& PreviousPackageData = *Pair.Value;
+			if (!State.GetAssetPackageData(PackageName))
+			{
+				// Tombstone means a package from the previous cook no longer exists in perforce
+				OutTombstonePackages.Add(PackageName);
+				continue;
+			}
+			TPair<TArray<FAssetData>, FAssetPackageData>& UpdateData = PreviousPackagesToUpdate.FindOrAdd(PackageName);
+			// No AssetDatas available in this case
+			UpdateData.Get<1>() = MoveTemp(PreviousPackageData);
+		}
 	}
 }
 
@@ -928,43 +965,18 @@ FAssetPackageData* FAssetRegistryGenerator::GetAssetPackageData(const FName& Pac
 	return State.CreateOrGetAssetPackageData(PackageName);
 }
 
-void FAssetRegistryGenerator::UpdateKeptPackagesDiskData(const TArray<FName>& InKeptPackages)
+void FAssetRegistryGenerator::UpdateKeptPackages()
 {
-	for (const FName& PackageName : InKeptPackages)
+	for (TPair<FName, TPair<TArray<FAssetData>, FAssetPackageData>>& Pair : PreviousPackagesToUpdate)
 	{
-		// Get mutable PackageData without creating it when it does not exist
-		FAssetPackageData* PackageData =
-			State.GetAssetPackageData(PackageName) ?
-			State.CreateOrGetAssetPackageData(PackageName) :
-			nullptr;
-		const FAssetPackageData* PreviousPackageData =
-			PreviousState.GetAssetPackageData(PackageName);
-
-		if (!PackageData || !PreviousPackageData)
+		for (const FAssetData& PreviousAssetData : Pair.Value.Get<0>())
 		{
-			continue;
+			State.UpdateAssetData(PreviousAssetData);
 		}
-
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		if (PackageData->PackageGuid != PreviousPackageData->PackageGuid)
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		{
-			continue;
-		}
-
-		PackageData->CookedHash = PreviousPackageData->CookedHash;
-		PackageData->DiskSize = PreviousPackageData->DiskSize;
-	}
-}
-
-void FAssetRegistryGenerator::UpdateKeptPackagesAssetData()
-{
-	for (FName PackageName : KeptPackages)
-	{
-		for (const FAssetData* PreviousAssetData : PreviousState.GetAssetsByPackageName(PackageName))
-		{
-			State.UpdateAssetData(*PreviousAssetData);
-		}
+		FAssetPackageData& PackageData = *State.CreateOrGetAssetPackageData(Pair.Key);
+		FAssetPackageData& PreviousPackageData = Pair.Value.Get<1>();
+		PackageData.CookedHash = PreviousPackageData.CookedHash;
+		PackageData.DiskSize = PreviousPackageData.DiskSize;
 	}
 }
 
@@ -1083,7 +1095,7 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
-			if (!Options.bIgnoreDiskSize && PreviousPackageData->DiskSize < 0)
+			if (PreviousPackageData->DiskSize < 0)
 			{
 				OutDifference.IdenticalUncookedPackages.Add(PackageName);
 			}
@@ -1148,45 +1160,6 @@ void FAssetRegistryGenerator::ComputePackageDifferences(const FComputeDifference
 				}
 			}
 		}
-	}
-}
-
-void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPackages, TSet<FName>& NewPackages, TSet<FName>& RemovedPackages, TSet<FName>& IdenticalCookedPackages, TSet<FName>& IdenticalUncookedPackages, bool bRecurseModifications, bool bRecurseScriptModifications)
-{
-	FComputeDifferenceOptions Options;
-	Options.bRecurseModifications		= bRecurseModifications;
-	Options.bRecurseScriptModifications	= bRecurseScriptModifications;
-	
-	FAssetRegistryDifference Difference;
-	ComputePackageDifferences(Options, PreviousState.GetAssetPackageDataMap(), Difference);
-
-	ModifiedPackages			= MoveTemp(Difference.ModifiedPackages);
-	NewPackages					= MoveTemp(Difference.NewPackages);
-	RemovedPackages				= MoveTemp(Difference.RemovedPackages);
-	IdenticalCookedPackages		= MoveTemp(Difference.IdenticalCookedPackages);
-	IdenticalUncookedPackages	= MoveTemp(Difference.IdenticalUncookedPackages);
-}
-
-void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPackages)
-{
-	KeptPackages.Append(InKeptPackages);
-	// Update disk data right away, disk data is only updated when packages are saved, and kept packages are never saved
-	UpdateKeptPackagesDiskData(InKeptPackages);
-	// Delay update of AssetData with TagsAndValues, this data may be modified up until serialization in SaveAssetRegistry
-}
-
-void FAssetRegistryGenerator::UpdateKeptPackages(const TArray<FName>& InKeptPackages, TFunction<void(const FName&, FAssetPackageData*)>&& Update)
-{
-	KeptPackages.Append(InKeptPackages);
-
-	for (const FName& PackageName : InKeptPackages)
-	{
-		// Get mutable PackageData without creating it when it does not exist
-		FAssetPackageData* PackageData = State.GetAssetPackageData(PackageName)
-			? State.CreateOrGetAssetPackageData(PackageName)
-			: nullptr;
-
-		Update(PackageName, PackageData);
 	}
 }
 
@@ -1416,8 +1389,8 @@ bool FAssetRegistryGenerator::SaveAssetRegistry(const FString& SandboxPath, bool
 	// First flush the asset registry and make sure the asset data is in sync, as it may have been updated during cook
 	AssetRegistry.Tick(-1.0f);
 	AssetRegistry.InitializeTemporaryAssetRegistryState(State, SaveOptions, true);
-	// Then possibly apply AssetData with TagsAndValues from a previous AssetRegistry for packages kept from a previous cook
-	UpdateKeptPackagesAssetData();
+	// Then possibly apply previous AssetData and AssetPackageData data for packages kept from a previous cook
+	UpdateKeptPackages();
 	UpdateCollectionAssetData();
 
 	if (DevelopmentSaveOptions.bSerializeAssetRegistry && bSerializeDevelopmentAssetRegistry)
@@ -2351,6 +2324,41 @@ const FAssetData* FAssetRegistryGenerator::CreateOrFindAssetData(UObject& Object
 		return NewAssetData;
 	}
 	return AssetData;
+}
+
+void FAssetRegistryGenerator::UpdateAssetRegistryPackageData(const UPackage& Package, FSavePackageResultStruct& SavePackageResult)
+{
+	const FName PackageName = Package.GetFName();
+	PreviousPackagesToUpdate.Remove(PackageName);
+
+	bool bSaveSucceeded = SavePackageResult.IsSuccessful();
+	if (bSaveSucceeded)
+	{
+		// Ensure all assets in the package are recorded in the registry
+		CreateOrFindAssetDatas(Package);
+
+		FAssetPackageData* AssetPackageData = GetAssetPackageData(PackageName);
+		AssetPackageData->DiskSize = SavePackageResult.TotalFileSize;
+		// If there is no hash (e.g.: when SavePackageResult == ESavePackageResult::ReplaceCompletely), don't attempt to setup a continuation to update
+		// the AssetRegistry entry with it later.  Just leave the asset registry entry with a default constructed FMD5Hash which is marked as invalid.
+		if (SavePackageResult.CookedHash.IsValid())
+		{
+			SavePackageResult.CookedHash.Next([AssetPackageData](const FMD5Hash& CookedHash)
+				{
+					// Store the cooked hash in the Asset Registry when it is done computing in another thread.
+					// NOTE: For this to work, we rely on:
+					// 1) UPackage::WaitForAsyncFileWrites to have been called before any use of the CookedHash - it is called in CookByTheBookFinished before the registry does any work with the registries
+					// 2) AssetPackageData must continue to be a valid pointer - CreateOrFindAssetDatas allocates the FAssetPackageData individually and doesn't relocate or delete them until pruning, which happens after WaitForAsyncFileWrites
+					AssetPackageData->CookedHash = CookedHash;
+				});
+		}
+	}
+
+	// Set the package flags to zero to indicate that the package failed to save
+	const uint32 PackageFlags = bSaveSucceeded ? SavePackageResult.SerializedPackageFlags : 0;
+	const bool bUpdated = UpdateAssetPackageFlags(PackageName, PackageFlags);
+	UE_CLOG(!bUpdated && bSaveSucceeded, LogAssetRegistryGenerator, Warning,
+		TEXT("Trying to update asset package flags in package '%s' that does not exist"), *PackageName.ToString());
 }
 
 bool FAssetRegistryGenerator::UpdateAssetPackageFlags(const FName& PackageName, const uint32 PackageFlags)

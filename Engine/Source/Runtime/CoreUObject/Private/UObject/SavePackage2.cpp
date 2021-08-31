@@ -2250,8 +2250,8 @@ FText GetSlowTaskStatusMessage(const FSaveContext& SaveContext)
 
 FSavePackageResultStruct UPackage::Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs)
 {
-	//COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
-	//COOK_STAT(FSavePackageStats::NumPackagesSaved++);
+	COOK_STAT(FScopedDurationTimer FuncSaveTimer(FSavePackageStats::SavePackageTimeSec));
+	COOK_STAT(FSavePackageStats::NumPackagesSaved++);
 	SCOPED_SAVETIMER(UPackage_Save2);
 	FSaveContext SaveContext(InPackage, InAsset, InFilename, SaveArgs);
 

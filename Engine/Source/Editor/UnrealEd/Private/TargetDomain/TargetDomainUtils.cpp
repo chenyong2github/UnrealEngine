@@ -104,9 +104,20 @@ bool TryCollectKeyAndDependencies(UPackage* Package, const ITargetPlatform* Targ
 
 	TArray<FName> SortedBuild;
 	SortedBuild = BuildDependencies.Array();
+	TStringBuilder<256> StringBuffer;
+	FName TransientPackageName = GetTransientPackage()->GetFName();
+	auto IsTransientPackageName = [&StringBuffer, TransientPackageName](FName PackageName)
+	{
+		PackageName.ToString(StringBuffer);
+		return PackageName == TransientPackageName ||
+			FPackageName::IsMemoryPackage(StringBuffer) ||
+			FPackageName::IsScriptPackage(StringBuffer);
+	};
+	SortedBuild.RemoveAllSwap(IsTransientPackageName, false /* bAllowShrinking */);
 	SortedBuild.Sort(FNameLexicalLess());
 	TArray<FName> SortedRuntimeOnly;
 	SortedRuntimeOnly = RuntimeOnlyDependencies.Array();
+	SortedRuntimeOnly.RemoveAllSwap(IsTransientPackageName, false /* bAllowShrinking */);
 	SortedRuntimeOnly.Sort(FNameLexicalLess());
 
 	if (!TryCreateKey(PackageName, SortedBuild, OutHash, OutErrorMessage))
