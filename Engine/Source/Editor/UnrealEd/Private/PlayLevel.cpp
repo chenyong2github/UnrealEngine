@@ -371,12 +371,12 @@ void UEditorEngine::EndPlayMap()
 	// mark everything contained in the PIE worlds to be deleted
 	for (UWorld* World : WorldsBeingCleanedUp)
 	{
+		// Because of the seamless travel the world might still be in the root set, so clear that
+		World->RemoveFromRoot();
+
 		// Occasionally during seamless travel the Levels array won't yet be populated so mark this world first
 		// then pick up the sub-levels via the level iterator
 		World->MarkObjectsPendingKill();
-		
-		// Because of the seamless travel the world might still be in the root set too, so also clear that
-		World->RemoveFromRoot();
 
 		for (auto LevelIt(World->GetLevelIterator()); LevelIt; ++LevelIt)
 		{
