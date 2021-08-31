@@ -127,7 +127,7 @@ private:
 	bool bErrorOnEngineContentUse = false;
 	bool bPackageNamesComplete = false;
 	bool bDependenciesComplete = false;
-	bool bCleanBuild = false;
+	bool bFullBuild = false;
 
 
 	/** Data used during the reentrant dependencies and topological sort operation of FRequestCluster. */

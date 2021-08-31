@@ -194,7 +194,7 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 	}
 
 	PackageWriters.Reserve(Platforms.Num());
-	bCleanBuild = false;
+	bFullBuild = false;
 	bool bFirst = true;
 	for (const ITargetPlatform* TargetPlatform : Platforms)
 	{
@@ -202,15 +202,15 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		FPlatformData* PlatformData = COTFS.PlatformManager->GetPlatformData(TargetPlatform);
 		if (bFirst)
 		{
-			bCleanBuild = PlatformData->bCleanBuild;
+			bFullBuild = PlatformData->bFullBuild;
 			bFirst = false;
 		}
 		else
 		{
-			if (PlatformData->bCleanBuild != bCleanBuild)
+			if (PlatformData->bFullBuild != bFullBuild)
 			{
-				UE_LOG(LogCook, Warning, TEXT("Clean build is requested for some platforms but not others, but this is not supported. All platforms will be built clean."));
-				bCleanBuild = true;
+				UE_LOG(LogCook, Warning, TEXT("Full build is requested for some platforms but not others, but this is not supported. All platforms will be built full."));
+				bFullBuild = true;
 			}
 		}
 	}
@@ -650,7 +650,7 @@ void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>*
 		}
 		AssetRegistry.GetDependencies(PackageName, BuildDependencies,
 			UE::AssetRegistry::EDependencyCategory::Package, DependencyQuery);
-		if (bHybridIterativeEnabled && !bCleanBuild)
+		if (bHybridIterativeEnabled && !bFullBuild)
 		{
 			bool bExists = false;
 			for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)

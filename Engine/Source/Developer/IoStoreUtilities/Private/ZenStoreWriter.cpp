@@ -423,9 +423,9 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 	{
 		FString ProjectId = FApp::GetProjectName();
 		FString OplogId = TargetPlatform.PlatformName();
-		HttpClient->EstablishWritableOpLog(ProjectId, OplogId, Info.bCleanBuild);
+		HttpClient->EstablishWritableOpLog(ProjectId, OplogId, Info.bFullBuild);
 
-		if (!Info.bCleanBuild)
+		if (!Info.bFullBuild)
 		{
 			UE_LOG(LogZenStoreWriter, Display, TEXT("Fetching oplog..."), *ProjectId, *OplogId);
 
@@ -505,7 +505,7 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 	}
 	else
 	{
-		if (Info.bCleanBuild)
+		if (Info.bFullBuild)
 		{
 			RemoveCookedPackages();
 		}
