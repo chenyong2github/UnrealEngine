@@ -85,6 +85,12 @@ public:
 	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	// End of FAnimNode_Base interface
 
+	// Set the alpha of this node
+	void SetAlpha(float InAlpha);
+
+	// Get the alpha of this node
+	float GetAlpha() const;
+	
 protected:
 	// Interface for derived skeletal controls to implement
 	// use this function to update for skeletal control base

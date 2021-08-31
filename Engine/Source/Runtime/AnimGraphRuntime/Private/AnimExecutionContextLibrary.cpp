@@ -5,6 +5,7 @@
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimNodeBase.h"
 #include "Animation/AnimClassInterface.h"
+#include "Animation/AnimInstanceProxy.h"
 
 UAnimInstance* UAnimExecutionContextLibrary::GetAnimInstance(const FAnimExecutionContext& Context)
 {
@@ -29,6 +30,26 @@ FAnimInitializationContext UAnimExecutionContextLibrary::ConvertToInitialization
 FAnimUpdateContext UAnimExecutionContextLibrary::ConvertToUpdateContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
 {
 	return FAnimExecutionContext::ConvertToType<FAnimUpdateContext>(Context, Result);
+}
+
+float UAnimExecutionContextLibrary::GetDeltaTime(const FAnimUpdateContext& UpdateContext)
+{
+	if(FAnimationUpdateContext* Context = UpdateContext.GetContext())
+	{
+		return Context->GetDeltaTime();
+	}
+
+	return 0.0f;
+}
+
+float UAnimExecutionContextLibrary::GetCurrentWeight(const FAnimUpdateContext& UpdateContext)
+{
+	if(FAnimationUpdateContext* Context = UpdateContext.GetContext())
+	{
+		return Context->GetFinalBlendWeight();
+	}
+
+	return 0.0f;
 }
 
 FAnimPoseContext UAnimExecutionContextLibrary::ConvertToPoseContext(const FAnimExecutionContext& Context, EAnimExecutionContextConversionResult& Result)
