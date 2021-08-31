@@ -6,6 +6,7 @@
 #include "CryptoPP/5.6.5/include/aes.h"
 
 /* AES Block Encryptor Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FAESBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
 {
 	virtual BlockEncryptor* CreateBlockEncryptorInstance() override;
@@ -14,6 +15,7 @@ class FAESBlockEncryptorModuleInterface : public FBlockEncryptorModuleInterface
 /*
 * AES Block encryption
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class AESBLOCKENCRYPTOR_API AESBlockEncryptor : public BlockEncryptor
 {
 public:

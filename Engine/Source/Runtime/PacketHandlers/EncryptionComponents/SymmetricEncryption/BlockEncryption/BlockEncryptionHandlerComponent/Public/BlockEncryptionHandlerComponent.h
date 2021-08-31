@@ -9,6 +9,7 @@
 /*
 * Abstract class for block encryptors
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptor
 {
 public:
@@ -36,6 +37,7 @@ protected:
 };
 
 /* Block Encryptor Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FBlockEncryptorModuleInterface : public IModuleInterface
 {
 public:
@@ -45,6 +47,7 @@ public:
 /*
 * Symmetric block cipher handler component using AES as the cipher
 */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class BLOCKENCRYPTIONHANDLERCOMPONENT_API BlockEncryptionHandlerComponent : public HandlerComponent
 {
 public:
@@ -80,6 +83,7 @@ protected:
 };
 
 /* Block Encryption Handler Component Module Interface */
+UE_DEPRECATED(5.0, "This Encryptor Is Now Deprecated");
 class FBlockEncryptionHandlerComponentModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 public:

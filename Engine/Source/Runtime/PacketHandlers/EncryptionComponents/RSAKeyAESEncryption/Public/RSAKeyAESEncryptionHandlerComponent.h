@@ -19,6 +19,7 @@ THIRD_PARTY_INCLUDES_END
 /**
  * Module Interface
  */
+UE_DEPRECATED(5.0, "This Handler Is Now Deprecated");
 class FRSAKeyAESEncryptionModuleInterface : public FPacketHandlerComponentModuleInterface
 {
 public:
@@ -39,6 +40,7 @@ namespace ERSAKeyAESEncryptionHandler
 /**
  * Exchanges a key using RSA as the handshake, and implements symmetric encryption with that key using AES
  */
+UE_DEPRECATED(5.0, "This Handler Is Now Deprecated");
 class RSAKEYAESENCRYPTION_API RSAKeyAESEncryptionHandlerComponent : public HandlerComponent
 {
 public:
