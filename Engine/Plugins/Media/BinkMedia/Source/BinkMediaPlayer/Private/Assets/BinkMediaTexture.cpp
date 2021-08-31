@@ -27,8 +27,6 @@ UBinkMediaTexture::UBinkMediaTexture( const FObjectInitializer& ObjectInitialize
 		PixelFormat = PF_B8G8R8A8;
 		DecodeSRGB = false;
 	}
-
-	UpdateResource();
 }
 
 UBinkMediaTexture::~UBinkMediaTexture() 
@@ -89,7 +87,7 @@ void UBinkMediaTexture::PostLoad()
 
 void UBinkMediaTexture::PreEditChange( FProperty* PropertyAboutToChange ) 
 {
-	// this will release the FMediaTextureResource
+	// this will release the FBinkMediaTextureResource
 	Super::PreEditChange(PropertyAboutToChange);
 
 	FlushRenderingCommands();
@@ -100,7 +98,7 @@ void UBinkMediaTexture::PostEditChangeProperty( FPropertyChangedEvent& PropertyC
 {
 	InitializeTrack();
 
-	// this will recreate the FMediaTextureResource
+	// this will recreate the FBinkMediaTextureResource
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
@@ -124,16 +122,19 @@ void UBinkMediaTexture::InitializeTrack()
 		}	
 	}
 
-	if (MediaPlayer) 
+	if (MediaPlayer)
 	{
 		CachedDimensions = MediaPlayer->GetDimensions();
+		if (CachedDimensions.X != 0 || CachedDimensions.Y != 0)
+		{
+			UpdateResource();
+		}
 	}
-	else 
-	{
+	else if (CachedDimensions.X != 0 || CachedDimensions.Y != 0)
+	{ 
 		CachedDimensions = FIntPoint(ForceInit);
+		UpdateResource();
 	}
-
-	UpdateResource();
 }
 
 void UBinkMediaTexture::HandleMediaPlayerMediaChanged() 
@@ -143,9 +144,6 @@ void UBinkMediaTexture::HandleMediaPlayerMediaChanged()
 
 FTextureResource* UBinkMediaTexture::CreateResource() 
 { 
-	if (CachedDimensions.X == 0 || CachedDimensions.Y == 0)
-	{
-		return nullptr;
-	}
+	//UE_LOG(LogBink, Log, TEXT("Create resource %s"), *this->GetName());
 	return new FBinkMediaTextureResource(this, PixelFormat); 
 }
