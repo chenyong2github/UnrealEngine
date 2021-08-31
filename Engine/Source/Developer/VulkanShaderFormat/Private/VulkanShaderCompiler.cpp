@@ -40,99 +40,6 @@ enum VkDescriptorType {
 
 DEFINE_LOG_CATEGORY_STATIC(LogVulkanShaderCompiler, Log, All); 
 
-static TArray<ANSICHAR> ParseIdentifierANSI(const FString& Str)
-{
-	TArray<ANSICHAR> Result;
-	Result.Reserve(Str.Len());
-	for (int32 Index = 0; Index < Str.Len(); ++Index)
-	{
-		Result.Add(FChar::ToLower((ANSICHAR)Str[Index]));
-	}
-	Result.Add('\0');
-
-	return Result;
-}
-
-
-inline const ANSICHAR * CStringEndOfLine(const ANSICHAR * Text)
-{
-	const ANSICHAR * LineEnd = FCStringAnsi::Strchr(Text, '\n');
-	if (nullptr == LineEnd)
-	{
-		LineEnd = Text + FCStringAnsi::Strlen(Text);
-	}
-	return LineEnd;
-}
-
-inline bool CStringIsBlankLine(const ANSICHAR * Text)
-{
-	while (!FCharAnsi::IsLinebreak(*Text))
-	{
-		if (!FCharAnsi::IsWhitespace(*Text))
-		{
-			return false;
-		}
-		++Text;
-	}
-	return true;
-}
-
-inline void AppendCString(TArray<ANSICHAR> & Dest, const ANSICHAR * Source)
-{
-	if (Dest.Num() > 0)
-	{
-		Dest.Insert(Source, FCStringAnsi::Strlen(Source), Dest.Num() - 1);;
-	}
-	else
-	{
-		Dest.Append(Source, FCStringAnsi::Strlen(Source) + 1);
-	}
-}
-
-inline bool MoveHashLines(TArray<ANSICHAR> & Dest, TArray<ANSICHAR> & Source)
-{
-	// Walk through the lines to find the first non-# line...
-	const ANSICHAR * LineStart = Source.GetData();
-	for (bool FoundNonHashLine = false; !FoundNonHashLine;)
-	{
-		const ANSICHAR * LineEnd = CStringEndOfLine(LineStart);
-		if (LineStart[0] != '#' && !CStringIsBlankLine(LineStart))
-		{
-			FoundNonHashLine = true;
-		}
-		else if (LineEnd[0] == '\n')
-		{
-			LineStart = LineEnd + 1;
-		}
-		else
-		{
-			LineStart = LineEnd;
-		}
-	}
-	// Copy the hash lines over, if we found any. And delete from
-	// the source.
-	if (LineStart > Source.GetData())
-	{
-		int32 LineLength = LineStart - Source.GetData();
-		if (Dest.Num() > 0)
-		{
-			Dest.Insert(Source.GetData(), LineLength, Dest.Num() - 1);
-		}
-		else
-		{
-			Dest.Append(Source.GetData(), LineLength);
-			Dest.Append("", 1);
-		}
-		if (Dest.Last(1) != '\n')
-		{
-			Dest.Insert("\n", 1, Dest.Num() - 1);
-		}
-		Source.RemoveAt(0, LineStart - Source.GetData());
-		return true;
-	}
-	return false;
-}
-
 static bool Match(const ANSICHAR* &Str, ANSICHAR Char)
 {
 	if (*Str == Char)
@@ -197,54 +104,6 @@ uint32 ParseNumber(const T* Str, bool bEmptyIsZero = false)
 
 	return Num;
 }
-
-static inline FString GetExtension(EHlslShaderFrequency Frequency, bool bAddDot = true)
-{
-	const TCHAR* Name = nullptr;
-	switch (Frequency)
-	{
-	default:
-		check(0);
-		// fallthrough...
-
-	case HSF_PixelShader:		Name = TEXT(".frag"); break;
-	case HSF_VertexShader:		Name = TEXT(".vert"); break;
-	case HSF_ComputeShader:		Name = TEXT(".comp"); break;
-	case HSF_GeometryShader:	Name = TEXT(".geom"); break;
-	case HSF_HullShader:		Name = TEXT(".tesc"); break;
-	case HSF_DomainShader:		Name = TEXT(".tese"); break;
-	}
-
-	if (!bAddDot)
-	{
-		++Name;
-	}
-	return FString(Name);
-}
-
-static uint32 GetTypeComponents(const FString& Type)
-{
-	static const FString TypePrefix[] = { "f", "i", "u" };
-	uint32 Components = 0;
-	int32 PrefixLength = 0;
-	for (uint32 i = 0; i<UE_ARRAY_COUNT(TypePrefix); i++)
-	{
-		const FString& Prefix = TypePrefix[i];
-		const int32 CmpLength = Type.Contains(Prefix, ESearchCase::CaseSensitive, ESearchDir::FromStart);
-		if (CmpLength == Prefix.Len())
-		{
-			PrefixLength = CmpLength;
-			break;
-		}
-	}
-
-	check(PrefixLength > 0);
-	Components = ParseNumber(*Type + PrefixLength);
-
-	check(Components > 0);
-	return Components;
-}
-
 
 static bool ContainsBinding(const FVulkanBindingTable& BindingTable, const FString& Name)
 {
@@ -1071,17 +930,6 @@ static void BuildShaderOutput(
 				OLDHeader.SerializedBindings.InOutMask.EnableField(Index + AttributeIndex);
 			}
 		}
-#if 0
-		// Record user-defined input varyings
-		else if (!Input.Name.StartsWith(GL_Prefix))
-		{
-			FVulkanShaderVarying Var;
-			Var.Location = Input.Index;
-			Var.Varying = ParseIdentifierANSI(Input.Name);
-			Var.Components = GetTypeComponents(Input.Type);
-			Header.SerializedBindings.InputVaryings.Add(Var);
-		}
-#endif
 	}
 
 	static const FString TargetPrefix = "out_Target";
@@ -1099,17 +947,6 @@ static void BuildShaderOutput(
 		{
 			OLDHeader.SerializedBindings.InOutMask.EnableField(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex);
 		}
-#if 0
-		// Record user-defined output varyings
-		else if (!Output.Name.StartsWith(GL_Prefix))
-		{
-			FVulkanShaderVarying Var;
-			Var.Location = Output.Index;
-			Var.Varying = ParseIdentifierANSI(Output.Name);
-			Var.Components = GetTypeComponents(Output.Type);
-			Header.SerializedBindings.OutputVaryings.Add(Var);
-		}
-#endif
 	}
 
 
@@ -1522,161 +1359,6 @@ static void BuildShaderOutput(
 	CullGlobalUniformBuffers(ShaderInput.Environment.UniformBufferMap, ShaderOutput.ParameterMap);
 }
 
-static char* PatchGLSLVersionPosition(const char* InSourceGLSL)
-{
-	if(!InSourceGLSL)
-	{
-		return nullptr;
-	}
-
-	const int32 InSrcLength = FCStringAnsi::Strlen(InSourceGLSL);
-	if(InSrcLength <= 0)
-	{
-		return nullptr;
-	}
-
-	char* GlslSource = (char*)malloc(InSrcLength+1);
-	check(GlslSource);
-	memcpy(GlslSource, InSourceGLSL, InSrcLength+1);
-
-	// Find begin of "#version" line
-	char* VersionBegin = strstr(GlslSource, "#version");
-
-	// Find end of "#version line"
-	char* VersionEnd = VersionBegin ? strstr(VersionBegin, "\n") : nullptr;
-
-	if(VersionEnd)
-	{
-		// Add '\n' character
-		VersionEnd++;
-
-		const int32 VersionLineLength = VersionEnd - VersionBegin - 1;
-
-		// Copy version line into a temporary buffer (+1 for term-char).
-		const int32 TmpStrBytes = (VersionEnd - VersionBegin) + 1;
-		char* TmpVersionLine = (char*)malloc(TmpStrBytes);
-		check(TmpVersionLine);
-		memset(TmpVersionLine, 0, TmpStrBytes);
-		memcpy(TmpVersionLine, VersionBegin, VersionEnd - VersionBegin);
-
-		// Erase current version number, just replace it with spaces...
-		for(char* str=VersionBegin; str<(VersionEnd-1); str++)
-		{
-			*str=' ';
-		}
-
-		// Allocate new source buffer to place version string on the first line.
-		char* NewSource = (char*)malloc(InSrcLength + TmpStrBytes);
-		check(NewSource);
-
-		// Copy version line
-		memcpy(NewSource, TmpVersionLine, TmpStrBytes);
-
-		// Copy original source after the source line
-		// -1 to offset back from the term-char
-		memcpy(NewSource + TmpStrBytes - 1, GlslSource, InSrcLength + 1);
-
-		free(TmpVersionLine);
-		TmpVersionLine = nullptr;
-							
-		// Update string pointer
-		free(GlslSource);
-		GlslSource = NewSource;
-	}
-
-	return GlslSource;
-}
-
-static void PatchForToWhileLoop(char** InOutSourceGLSL)
-{
-	//checkf(InOutSourceGLSL, TEXT("Attempting to patch an invalid glsl source-string"));
-
-	char* srcGlsl = *InOutSourceGLSL;
-	//checkf(srcGlsl, TEXT("Attempting to patch an invalid glsl source-string"));
-
-	const size_t InSrcLength = strlen(srcGlsl);
-	//checkf(InSrcLength > 0, TEXT("Attempting to patch an empty glsl source-string."));
-
-	// This is what we are relacing
-	const char* srcPatchable = "for (;;)";
-	const size_t srcPatchableLength = strlen(srcPatchable);
-
-	// This is where we are replacing with
-	const char* dstPatchable = "while(true)";
-	const size_t dstPatchableLength = strlen(dstPatchable);
-	
-	// Find number of occurances
-	int numNumberOfOccurances = 0;
-	for(char* dstReplacePos = strstr(srcGlsl, srcPatchable);
-		dstReplacePos != NULL;
-		dstReplacePos = strstr(dstReplacePos+srcPatchableLength, srcPatchable))
-	{
-		numNumberOfOccurances++;
-	}
-
-	// No patching needed
-	if(numNumberOfOccurances == 0)
-	{
-		return;
-	}
-
-	// Calc new required string-length
-	const size_t newLength = InSrcLength + (dstPatchableLength-srcPatchableLength)*numNumberOfOccurances;
-
-	// Allocate destination buffer + 1 char for terminating character
-	char* GlslSource = (char*)malloc(newLength+1);
-	check(GlslSource);
-	memset(GlslSource, 0, sizeof(char)*(newLength+1));
-	memcpy(GlslSource, srcGlsl, InSrcLength);
-
-	// Scan and replace
-	char* dstReplacePos = strstr(GlslSource, srcPatchable);
-	char* srcReplacePos = strstr(srcGlsl, srcPatchable);
-	int bytesRemaining = (int)newLength;
-	while(dstReplacePos != NULL && srcReplacePos != NULL)
-	{
-		// Replace the string
-		bytesRemaining = (int)newLength - (int)(dstReplacePos - GlslSource);
-		memcpy(dstReplacePos, dstPatchable, dstPatchableLength);
-		
-		// Increment positions
-		dstReplacePos+=dstPatchableLength;
-		srcReplacePos+=srcPatchableLength;
-
-		// Append remaining code
-		int bytesToCopy = InSrcLength - (int)(srcReplacePos - srcGlsl);
-		memcpy(dstReplacePos, srcReplacePos, bytesToCopy);
-
-		dstReplacePos = strstr(dstReplacePos, srcPatchable);
-		srcReplacePos = strstr(srcReplacePos, srcPatchable);
-	}
-
-	free(*InOutSourceGLSL);
-
-	*InOutSourceGLSL = GlslSource;
-}
-
-static FString CreateShaderCompileCommandLine(FCompilerInfo& CompilerInfo, EHlslCompileTarget Target)
-{
-	FString CmdLine;
-	FString GLSLFile = CompilerInfo.Input.DumpDebugInfoPath / (TEXT("Output") + GetExtension(CompilerInfo.Frequency));
-	FString SPVFile = CompilerInfo.Input.DumpDebugInfoPath / TEXT("Output.spv");
-	FString SPVDisasmFile = CompilerInfo.Input.DumpDebugInfoPath / TEXT("Output.spvasm");
-
-	CmdLine += TEXT("\n\"");
-#if PLATFORM_WINDOWS
-	CmdLine += *(FPaths::RootDir() / TEXT("Engine/Binaries/ThirdParty/glslang/glslangValidator.exe"));
-#elif PLATFORM_LINUX
-	CmdLine += *(FPaths::RootDir() / TEXT("Engine/Binaries/ThirdParty/glslang/glslangValidator"));
-#endif
-	CmdLine += TEXT("\"");
-	CmdLine += TEXT(" -V -H -r -o \"") + SPVFile + TEXT("\" \"") + GLSLFile + TEXT("\" > \"" + SPVDisasmFile + "\"");
-	CmdLine += TEXT("\npause\n");
-
-	return CmdLine;
-}
-
-
 FCompilerInfo::FCompilerInfo(const FShaderCompilerInput& InInput, const FString& InWorkingDirectory, EHlslShaderFrequency InFrequency) :
 	Input(InInput),
 	WorkingDirectory(InWorkingDirectory),
@@ -1749,84 +1431,6 @@ static bool CompileUsingInternal(FCompilerInfo& CompilerInfo, const FVulkanBindi
 	}
 }
 
-
-static bool CompileWithHlslcc(const FString& PreprocessedShader, FVulkanBindingTable& BindingTable, FCompilerInfo& CompilerInfo, FString& EntryPointName, EHlslCompileTarget HlslCompilerTarget, FShaderCompilerOutput& Output, TArray<ANSICHAR>& OutGlsl)
-{
-	char* GlslShaderSource = nullptr;
-	char* ErrorLog = nullptr;
-
-	auto InnerFunction = [&]()
-	{
-		// Call hlslcc
-		FVulkanCodeBackend VulkanBackend(CompilerInfo.CCFlags, BindingTable, HlslCompilerTarget);
-		FHlslCrossCompilerContext CrossCompilerContext(CompilerInfo.CCFlags, CompilerInfo.Frequency, HlslCompilerTarget);
-
-		const bool bShareSamplers = true;
-		const bool bRequiresOESExtensions = true;
-
-		FVulkanLanguageSpec VulkanLanguageSpec(bShareSamplers, bRequiresOESExtensions);
-		int32 Result = 0;
-		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*CompilerInfo.Input.VirtualSourceFilePath), &VulkanLanguageSpec))
-		{
-			Result = CrossCompilerContext.Run(
-				TCHAR_TO_ANSI(*PreprocessedShader),
-				TCHAR_TO_ANSI(*EntryPointName),
-				&VulkanBackend,
-				&GlslShaderSource,
-				&ErrorLog
-				) ? 1 : 0;
-		}
-
-		if (Result == 0)
-		{
-			FString Tmp = ANSI_TO_TCHAR(ErrorLog);
-			TArray<FString> ErrorLines;
-			Tmp.ParseIntoArray(ErrorLines, TEXT("\n"), true);
-			for (int32 LineIndex = 0; LineIndex < ErrorLines.Num(); ++LineIndex)
-			{
-				const FString& Line = ErrorLines[LineIndex];
-				CrossCompiler::ParseHlslccError(Output.Errors, Line, CompilerInfo.Input.bSkipPreprocessedCache);
-			}
-
-			return false;
-		}
-
-		check(GlslShaderSource);
-
-		// Patch GLSL source
-		PatchForToWhileLoop(&GlslShaderSource);
-
-		if (CompilerInfo.bDebugDump)
-		{
-			FString DumpedGlslFile = CompilerInfo.Input.DumpDebugInfoPath / (TEXT("Output") + GetExtension(CompilerInfo.Frequency));
-			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedGlslFile)))
-			{
-				FileWriter->Serialize(GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource));
-				FileWriter->Close();
-			}
-		}
-
-		int32 Length = FCStringAnsi::Strlen(GlslShaderSource);
-		OutGlsl.AddUninitialized(Length + 1);
-		FCStringAnsi::Strcpy(OutGlsl.GetData(), Length + 1, GlslShaderSource);
-
-		return true;
-	};
-
-	bool bResult = InnerFunction();
-
-	if (ErrorLog)
-	{
-		free(ErrorLog);
-	}
-
-	if (GlslShaderSource)
-	{
-		free(GlslShaderSource);
-	}
-
-	return bResult;
-}
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 
@@ -2429,7 +2033,6 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const bool bIsSM5 = (Version == EVulkanShaderVersion::SM5);
 	const bool bIsMobile = (Version == EVulkanShaderVersion::ES3_1 || Version == EVulkanShaderVersion::ES3_1_ANDROID);
 	const bool bStripReflect = (IsVulkanMobilePlatform(ShaderPlatform) || IsVulkanMobileSM5Platform(ShaderPlatform)) || Input.IsRayTracingShader();
-	const bool bForceDXC = Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
 
 	const EHlslShaderFrequency FrequencyTable[] =
 	{
@@ -2570,39 +2173,9 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	bool bSuccess = false;
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
-	if (bForceDXC)
-	{
-		// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
-		bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bStripReflect);
-	}
-	else
+	// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
+	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bStripReflect);
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
-	{
-		if (CompilerInfo.bDebugDump)
-		{
-			if (Input.bGenerateDirectCompileFile)
-			{
-				FFileHelper::SaveStringToFile(CreateShaderCompilerWorkerDirectCommandLine(Input), *(Input.DumpDebugInfoPath / TEXT("DirectCompile.txt")));
-			}
-
-			const FString BatchFileContents = CreateShaderCompileCommandLine(CompilerInfo, HlslCompilerTarget);
-			FFileHelper::SaveStringToFile(BatchFileContents, *(CompilerInfo.Input.DumpDebugInfoPath / TEXT("CompileSPIRV.bat")));
-		}
-
-		// Cross-compile shader via HLSLcc
-		if (CompileWithHlslcc(PreprocessedShaderSource, BindingTable, CompilerInfo, EntryPointName, HlslCompilerTarget, Output, GeneratedGlslSource))
-		{
-			// For debugging: if you hit an error from Glslang/Spirv, use the SourceNoHeader for line numbers
-			auto* SourceWithHeader = GeneratedGlslSource.GetData();
-			char* SourceNoHeader = strstr(SourceWithHeader, "#version");
-			bSuccess = CompileUsingInternal(CompilerInfo, BindingTable, GeneratedGlslSource, Output);
-			if (bDirectCompile)
-			{
-				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Success: %d\n%s\n"), bSuccess, ANSI_TO_TCHAR(SourceWithHeader));
-			}
-		}
-	}
-
 	
 	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);
 	
