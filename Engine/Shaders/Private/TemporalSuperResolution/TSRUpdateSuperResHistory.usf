@@ -135,7 +135,7 @@ void MainCS(
 				BestKernelToSampleDistSquare = KernelToSampleDistSquare;
 			}
 
-			bool bIsCloseEnough = abs(UnpackedSubpixel.InterferenceSeed - ClosestInterferenceSeed) < 0.1;
+			bool bIsCloseEnough = abs(UnpackedSubpixel.InterferenceSeed - ClosestInterferenceSeed) < 0.2;
 
 			if (bIsCloseEnough)
 			{
@@ -160,7 +160,7 @@ void MainCS(
 
 		SubpixelHistory.TexelToSample = clamp(CurrentTexelToSample, SUPERRES_OFFSET_MIN, SUPERRES_OFFSET_MAX);
 		SubpixelHistory.Age = bOffScreen ? 0 : OldestAge;
-		SubpixelHistory.InterferenceSeed = saturate(ClosestInterferenceSeed + (E.x - 0.5) * rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK)));
+		SubpixelHistory.InterferenceSeed = saturate(ClosestInterferenceSeed + (E.x) * rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK)));
 	}
 
 	#if 1

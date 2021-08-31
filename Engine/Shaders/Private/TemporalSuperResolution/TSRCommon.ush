@@ -280,7 +280,7 @@ FScreenTransform ScreenPosToPrevHistoryBufferUV;
 float HistoryPreExposureCorrection;
 
 uint bCameraCut;
-uint bEnableInterferenceHeuristic;
+float MoireInvExposure;
 
 #if DEBUG_OUTPUT
 	RWTexture2D<float4> DebugOutput;
@@ -893,6 +893,8 @@ taa_half UncompressParallaxFactor(taa_subpixel_payload CompressedParallaxFactor)
 
 taa_half LumaToInterferenceSeed(taa_half Luma)
 {
+	Luma *= taa_half(MoireInvExposure);
+
 	return Luma * HdrWeightY(Luma);
 }
 
