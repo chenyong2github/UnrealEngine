@@ -122,7 +122,9 @@ TOptional<ULevelSnapshot*> ULevelSnapshotsEditorData::GetActiveSnapshot() const
 
 UWorld* ULevelSnapshotsEditorData::GetEditorWorld()
 {
-	if (GEditor)
+	// If this function is called very early during startup, the initial editor GWorld may not have been created yet!
+	const bool bIsEngineInitialised = GEditor && GEditor->GetWorldContexts().Num() > 0;
+	if (bIsEngineInitialised)
 	{
 		if (UWorld* World = GEditor->GetEditorWorldContext().World())
 		{
