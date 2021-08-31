@@ -783,6 +783,134 @@ FName URigHierarchy::GetSafeNewName(const FString& InPotentialNewName, ERigEleme
 	return *Name;
 }
 
+FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlElement) const
+{
+	check(InControlElement);
+
+	// local copy of UEdGraphSchema_K2::PC_ ... static members
+	static const FName PC_Boolean(TEXT("bool"));
+	static const FName PC_Float(TEXT("float"));
+	static const FName PC_Int(TEXT("int"));
+	static const FName PC_Struct(TEXT("struct"));
+
+	FEdGraphPinType PinType;
+
+	switch(InControlElement->Settings.ControlType)
+	{
+		case ERigControlType::Bool:
+		{
+			PinType.PinCategory = PC_Boolean;
+			break;
+		}
+		case ERigControlType::Float:
+		{
+			PinType.PinCategory = PC_Float;
+			break;
+		}
+		case ERigControlType::Integer:
+		{
+			PinType.PinCategory = PC_Int;
+			break;
+		}
+		case ERigControlType::Vector2D:
+		{
+			PinType.PinCategory = PC_Struct;
+			PinType.PinSubCategoryObject = TBaseStructure<FVector2D>::Get();
+			break;
+		}
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		{
+			PinType.PinCategory = PC_Struct;
+			PinType.PinSubCategoryObject = TBaseStructure<FVector>::Get();
+			break;
+		}
+		case ERigControlType::Rotator:
+		{
+			PinType.PinCategory = PC_Struct;
+			PinType.PinSubCategoryObject = TBaseStructure<FRotator>::Get();
+			break;
+		}
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		case ERigControlType::EulerTransform:
+		{
+			PinType.PinCategory = PC_Struct;
+			PinType.PinSubCategoryObject = TBaseStructure<FTransform>::Get();
+			break;
+		}
+	}
+
+	return PinType;
+}
+
+FString URigHierarchy::GetControlPinDefaultValue(FRigControlElement* InControlElement, bool bForEdGraph, ERigControlValueType InValueType) const
+{
+	check(InControlElement);
+
+	FRigControlValue Value = GetControlValue(InControlElement, InValueType);
+	switch(InControlElement->Settings.ControlType)
+	{
+		case ERigControlType::Bool:
+		{
+			return Value.ToString<bool>();
+		}
+		case ERigControlType::Float:
+		{
+			return Value.ToString<float>();
+		}
+		case ERigControlType::Integer:
+		{
+			return Value.ToString<int32>();
+		}
+		case ERigControlType::Vector2D:
+		{
+			if(bForEdGraph)
+			{
+				const FVector3f Vector = Value.Get<FVector3f>();
+				return FVector2D(Vector.X, Vector.Y).ToString();
+			}
+			return Value.ToString<FVector2D>();
+		}
+		case ERigControlType::Position:
+		case ERigControlType::Scale:
+		{
+			if(bForEdGraph)
+			{
+				return FVector(Value.Get<FVector3f>()).ToString();
+			}
+			return Value.ToString<FVector>();
+		}
+		case ERigControlType::Rotator:
+		{
+				if(bForEdGraph)
+				{
+					const FRotator Rotator = FRotator::MakeFromEuler(Value.GetRef<FVector3f>());
+					return Rotator.ToString();
+				}
+				return Value.ToString<FRotator>();
+		}
+		case ERigControlType::Transform:
+		case ERigControlType::TransformNoScale:
+		case ERigControlType::EulerTransform:
+		{
+			const FTransform Transform = Value.GetAsTransform(
+				InControlElement->Settings.ControlType,
+				InControlElement->Settings.PrimaryAxis);
+				
+			if(bForEdGraph)
+			{
+				return Transform.ToString();
+			}
+
+			FString Result;
+			TBaseStructure<FTransform>::Get()->ExportText(Result, &Transform, nullptr, nullptr, PPF_None, nullptr);
+			return Result;
+		}
+	}
+	return FString();
+}
+
 TArray<FRigElementKey> URigHierarchy::GetChildren(FRigElementKey InKey, bool bRecursive) const
 {
 	FRigBaseElementChildrenArray LocalChildren;

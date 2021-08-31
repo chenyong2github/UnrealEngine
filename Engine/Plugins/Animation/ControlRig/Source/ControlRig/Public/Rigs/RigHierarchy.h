@@ -6,6 +6,7 @@
 #include "RigHierarchyElements.h"
 #include "RigHierarchyPose.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+#include "EdGraph/EdGraphPin.h"
 #include "RigHierarchy.generated.h"
 
 class URigHierarchy;
@@ -1177,6 +1178,22 @@ public:
 	{
 		return GetInitialControlValue(InElementIndex).Get<T>();
 	}
+
+	/**
+	 * Returns the pin type to use for a control
+	 * @param InControlElement The control to return the pin type for
+	 * @return The pin type
+	 */
+	FEdGraphPinType GetControlPinType(FRigControlElement* InControlElement) const;
+
+	/**
+	 * Returns the default value to use for a pin for a control
+	 * @param InControlElement The control to return the pin default value for
+	 * @param bForEdGraph If this is true to the math types' ::ToString will be used rather than text export
+	 * @param InValueType The type of value to return
+	 * @return The pin default value
+	 */
+	FString GetControlPinDefaultValue(FRigControlElement* InControlElement, bool bForEdGraph, ERigControlValueType InValueType = ERigControlValueType::Initial) const;
 
 	/**
 	 * Sets a control's current value given its key

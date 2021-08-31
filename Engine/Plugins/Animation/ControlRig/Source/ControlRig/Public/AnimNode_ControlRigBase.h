@@ -119,6 +119,7 @@ protected:
 	TMap<FName, uint16> ControlRigCurveMappingByName;
 
 	TMap<FName, uint16> InputToCurveMappingUIDs;
+	TMap<FName, int32> InputToControlIndex;
 
 	/** Node Mapping Container */
 	UPROPERTY(transient)

@@ -997,6 +997,29 @@ inline FRigControlValue FRigControlValue::Make(FEulerTransform InValue)
 	return Make<FEulerTransform_Float>(InValue);
 }
 
+template<>
+inline FString FRigControlValue::ToString<bool>() const
+{
+	const bool Value = Get<bool>();
+	static const FString True = TEXT("True");
+	static const FString False = TEXT("False");
+	return Value ? True : False;
+}
+
+template<>
+inline FString FRigControlValue::ToString<int32>() const
+{
+	const int32 Value = Get<int32>();
+	return FString::FromInt(Value);
+}
+
+template<>
+inline FString FRigControlValue::ToString<float>() const
+{
+	const float Value = Get<float>();
+	return FString::SanitizeFloat(Value);
+}
+
 #if !UE_LARGE_WORLD_COORDINATES_DISABLED
 
 template<>
@@ -1005,6 +1028,16 @@ inline FString FRigControlValue::ToString<FVector>() const
 	FVector Value = GetRef<FVector3f>();
 	FString Result;
 	TBaseStructure<FVector>::Get()->ExportText(Result, &Value, nullptr, nullptr, PPF_None, nullptr);
+	return Result;
+}
+
+template<>
+inline FString FRigControlValue::ToString<FVector2D>() const
+{
+	const FVector3f Value = GetRef<FVector3f>();
+	FVector2D Value2D(Value.X, Value.Y);
+	FString Result;
+	TBaseStructure<FVector2D>::Get()->ExportText(Result, &Value2D, nullptr, nullptr, PPF_None, nullptr);
 	return Result;
 }
 
