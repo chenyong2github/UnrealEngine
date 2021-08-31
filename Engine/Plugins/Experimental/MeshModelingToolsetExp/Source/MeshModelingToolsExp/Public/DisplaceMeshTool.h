@@ -43,6 +43,19 @@ enum class EDisplaceMeshToolDisplaceType : uint8
 	SineWave UMETA(DisplayName = "Sine Wave"),
 };
 
+UENUM() 
+enum class ESubdivisionType : uint8  
+{
+	/** Subdivide the mesh using loop-style subdivision. */
+	Loop UMETA(DisplayName = "Loop"),
+	
+	/** Subdivide the mesh using PN triangles which replace each original flat triangle by a curved shape that is 
+		retriangulated into a number of small subtriangles. The geometry of a PN triangle is defined as one cubic Bezier 
+		patch using control points. The patch matches the point and normal information at the vertices of the original 
+		flat triangle.*/
+	PNTriangles UMETA(DisplayName = "PN Triangles"),
+};
+
 /** The basic set of properties shared by (more or less) all DisplacementTypes. */
 UCLASS()
 class MESHMODELINGTOOLSEXP_API UDisplaceMeshCommonProperties : public UInteractiveToolPropertySet
@@ -63,6 +76,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options,
 		meta = (EditCondition = "DisplacementType == EDisplaceMeshToolDisplaceType::RandomNoise || DisplacementType == EDisplaceMeshToolDisplaceType::PerlinNoise"))
 	int RandomSeed = 31337;
+
+	/** Type of the  mesh subdivision. */
+	UPROPERTY(EditAnywhere, Category = Options)
+	ESubdivisionType SubdivisionType = ESubdivisionType::Loop;
 
 	/** Number of times to subdivide the mesh before displacing it. */
 	UPROPERTY(EditAnywhere, Category = Options,
