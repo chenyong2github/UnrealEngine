@@ -34,9 +34,8 @@ void FTSTicker::RemoveTicker(FDelegateHandle Handle)
 	if (FElementPtr Element = Handle.Pin())
 	{
 		// mark the element as removed and if it's being ticked atm, spin-wait until its execution is finished
-		uint64 PrevState = Element->State.fetch_add(FElement::RemovedState, std::memory_order_acquire); // "acquire" to prevent potential 
+		uint64 PrevState = Element->State.fetch_or(FElement::RemovedState, std::memory_order_acquire); // "acquire" to prevent potential 
 		// resource release after RemoveTicker() to be reordered before it
-		checkf((PrevState & 0x1) == FElement::DefaultState, TEXT("The delegate is already removed (%u)"), PrevState);
 		uint32 ExecutingThreadId = GetThreadId(PrevState);
 		
 		while (ExecutingThreadId != 0 && // is being executed right now
