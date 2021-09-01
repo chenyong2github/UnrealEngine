@@ -527,7 +527,7 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 #define TILE_CLASSIFICATION_SUPPORT_ALL 2
 #define TILE_CLASSIFICATION_NUM 3
 
-RWStructuredBuffer<uint> RWIntegrateIndirectArgs;
+RWBuffer<uint> RWIntegrateIndirectArgs;
 RWTexture2D<float4> RWDiffuseIndirect;
 RWTexture2D<float3> RWRoughSpecularIndirect;
 RWTexture2D<uint> RWTileClassificationModes;
