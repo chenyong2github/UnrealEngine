@@ -14,6 +14,7 @@
 #include "Chaos/PerParticleGravity.h"
 #include "Chaos/PerParticleInitForce.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
+#include "Chaos/PBDSuspensionConstraints.h"
 
 namespace Chaos
 {
@@ -87,6 +88,10 @@ namespace Chaos
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = FPerParticleExternalForces;
 		using FRigidClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
+		using FJointConstraintsRule = TPBDConstraintIslandRule<FPBDJointConstraints>;
+		using FSuspensionConstraintsRule = TPBDConstraintIslandRule<FPBDSuspensionConstraints>;
+		using FJointConstraints = FPBDJointConstraints;
+		using FJointConstraintRule = TPBDConstraintIslandRule<FJointConstraints>;
 
 		// Default iteration counts
 		static constexpr int32 DefaultNumIterations = 8;
@@ -161,6 +166,12 @@ namespace Chaos
 
 		FORCEINLINE const TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() const { return Clustering; }
 		FORCEINLINE TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() { return Clustering; }
+
+		FORCEINLINE FJointConstraints& GetJointConstraints() { return JointConstraints; }
+		FORCEINLINE const FJointConstraints& GetJointConstraints() const { return JointConstraints; }
+
+		FORCEINLINE FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
+		FORCEINLINE const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
 
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
@@ -257,6 +268,11 @@ namespace Chaos
 		}
 
 		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints> Clustering;
+
+		FPBDJointConstraints JointConstraints;
+		TPBDConstraintIslandRule<FPBDJointConstraints> JointConstraintRule;
+		FPBDSuspensionConstraints SuspensionConstraints;
+		TPBDConstraintIslandRule<FPBDSuspensionConstraints> SuspensionConstraintRule;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;

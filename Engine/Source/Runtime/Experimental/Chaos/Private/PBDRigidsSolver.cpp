@@ -195,11 +195,6 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDeferNarrowPhase(TEXT("p.Chaos.S
 int32 ChaosSolverCollisionUseManifolds = 1;
 FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifolds in collision."));
 
-int32 ChaosSolverJointPriority = 0;
-FAutoConsoleVariableRef CVarChaosSolverJointPriority(TEXT("p.Chaos.Solver.Joint.Priority"), ChaosSolverJointPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
-
-int32 ChaosSolverSuspensionPriority = 0;
-FAutoConsoleVariableRef CVarChaosSolverSuspensionPriority(TEXT("p.Chaos.Solver.Suspension.Priority"), ChaosSolverSuspensionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 
 // Joint cvars
 float ChaosSolverJointMinSolverStiffness = 1.0f;
@@ -407,14 +402,11 @@ namespace Chaos
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
-		, JointConstraintRule(JointConstraints, ChaosSolverJointPriority)
-		, SuspensionConstraintRule(SuspensionConstraints, ChaosSolverSuspensionPriority)
+
 		, PerSolverField(nullptr)
 	{
 		UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("PBDRigidsSolver::PBDRigidsSolver()"));
 		Reset();
-		MEvolution->AddConstraintRule(&JointConstraintRule);
-		MEvolution->AddConstraintRule(&SuspensionConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
 			[this](const Chaos::FGeometryParticleHandle* OldParticle, Chaos::FGeometryParticleHandle* NewParticle) 
@@ -743,7 +735,7 @@ namespace Chaos
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bDeferUpdate = (ChaosSolverCollisionDeferNarrowPhase != 0);
 		MEvolution->GetCollisionDetector().GetNarrowPhase().GetContext().bAllowManifolds = (ChaosSolverCollisionUseManifolds != 0);
 		
-		FPBDJointSolverSettings JointsSettings = JointConstraints.GetSettings();
+		FPBDJointSolverSettings JointsSettings = MEvolution->GetJointConstraints().GetSettings();
 		JointsSettings.MinSolverStiffness = ChaosSolverJointMinSolverStiffness;
 		JointsSettings.MaxSolverStiffness = ChaosSolverJointMaxSolverStiffness;
 		JointsSettings.NumIterationsAtMaxSolverStiffness = ChaosSolverJointNumIterationsAtMaxSolverStiffness;
@@ -751,7 +743,7 @@ namespace Chaos
 		JointsSettings.AngleTolerance = ChaosSolverJointAngleTolerance;
 		JointsSettings.MinParentMassRatio = ChaosSolverJointMinParentMassRatio;
 		JointsSettings.MaxInertiaRatio = ChaosSolverJointMaxInertiaRatio;
-		JointConstraints.SetSettings(JointsSettings);
+		MEvolution->GetJointConstraints().SetSettings(JointsSettings);
 
 		// Apply CVAR overrides if set
 		{
@@ -1296,7 +1288,7 @@ namespace Chaos
 
 	int32 FPBDRigidsSolver::NumJointConstraints() const
 	{
-		return JointConstraints.NumConstraints();
+		return MEvolution->GetJointConstraints().NumConstraints();
 	}
 	
 	int32 FPBDRigidsSolver::NumCollisionConstraints() const
@@ -1385,7 +1377,7 @@ namespace Chaos
 		}
 		if (ChaosSolverDrawJoints == 1)
 		{
-			DebugDraw::DrawJointConstraints(FRigidTransform3(), JointConstraints, 1.0f, ChaosSolverDrawJointFeatures, &ChaosSolverDebugDebugDrawSettings);
+			DebugDraw::DrawJointConstraints(FRigidTransform3(), MEvolution->GetJointConstraints(), 1.0f, ChaosSolverDrawJointFeatures, &ChaosSolverDebugDebugDrawSettings);
 		}
 		if (ChaosSolverDebugDrawCollidingShapes == 1)
 		{
