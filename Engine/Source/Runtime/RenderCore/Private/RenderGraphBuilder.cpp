@@ -2115,7 +2115,7 @@ void FRDGBuilder::SetupBufferUploads()
 
 	for (FUploadedBuffer& UploadedBuffer : UploadedBuffers)
 	{
-		if (UploadedBuffer.bUseCallbacks)
+		if (UploadedBuffer.bUseDataCallbacks)
 		{
 			UploadedBuffer.Data = UploadedBuffer.DataCallback();
 			UploadedBuffer.DataSize = UploadedBuffer.DataSizeCallback();
@@ -2158,6 +2158,11 @@ void FRDGBuilder::SubmitBufferUploads()
 				void* DestPtr = RHICmdList.LockBuffer(UploadedBuffer.Buffer->GetRHI(), 0, UploadedBuffer.DataSize, RLM_WriteOnly);
 				FMemory::Memcpy(DestPtr, UploadedBuffer.Data, UploadedBuffer.DataSize);
 				RHICmdList.UnlockBuffer(UploadedBuffer.Buffer->GetRHI());
+			}
+
+			if (UploadedBuffer.bUseFreeCallbacks)
+			{
+				UploadedBuffer.DataFreeCallback(UploadedBuffer.Data);
 			}
 		}
 	}

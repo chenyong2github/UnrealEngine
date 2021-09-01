@@ -590,4 +590,5 @@ class FRDGTrace;
 using FRDGBufferNumElementsCallback = TFunction<uint32()>;
 using FRDGBufferInitialDataCallback = TFunction<const void*()>;
 using FRDGBufferInitialDataSizeCallback = TFunction<uint64()>;
+using FRDGBufferInitialDataFreeCallback = TFunction<void(const void* InData)>;
 using FRDGDispatchGroupCountCallback = TFunction<FIntVector()>;
