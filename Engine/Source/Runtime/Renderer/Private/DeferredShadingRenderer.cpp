@@ -860,8 +860,10 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					}
 					for (int32 SegmentIndex = 0; SegmentIndex < Instance.Materials.Num(); SegmentIndex++)
 					{
-						FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
-						RayTracingInstance.bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
+						const FMeshBatch& MeshBatch = Instance.Materials[SegmentIndex];
+						const FMaterialRenderProxy* FallbackMaterialRenderProxy = nullptr;
+						const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxy);
+						RayTracingInstance.bDoubleSided |= MeshBatch.bDisableBackfaceCulling || Material.IsTwoSided();
 					}
 
 					uint32 InstanceIndex = ReferenceView.RayTracingGeometryInstances.Add(RayTracingInstance);
