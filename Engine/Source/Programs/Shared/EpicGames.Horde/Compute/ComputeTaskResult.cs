@@ -23,19 +23,19 @@ namespace EpicGames.Horde.Compute
 		/// Hash of the stdout data
 		/// </summary>
 		[CbField("so")]
-		public IoHash? StdOutHash { get; set; }
+		public CbBinaryAttachment? StdOutHash { get; set; }
 
 		/// <summary>
 		/// Hash of the stderr data
 		/// </summary>
 		[CbField("se")]
-		public IoHash? StdErrHash { get; set; }
+		public CbBinaryAttachment? StdErrHash { get; set; }
 
 		/// <summary>
 		/// Hash of the output <see cref="DirectoryTree"/> stored in the CAS. Only items matching the output paths in the action will be included.
 		/// </summary>
 		[CbField("o")]
-		public IoHash? OutputHash { get; set; }
+		public CbObjectAttachment? OutputHash { get; set; }
 
 		/// <summary>
 		/// Constructor
