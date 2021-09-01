@@ -1172,6 +1172,12 @@ void ULevelInstanceSubsystem::OnActorDeleted(AActor* Actor)
 			return;
 		}
 
+		// Unregistered Level Instance Actor nothing to do.
+		if (!LevelInstanceActor->HasValidLevelInstanceID())
+		{
+			return;
+		}
+
 		const bool bIsEditingLevelInstance = IsEditingLevelInstance(LevelInstanceActor);
 		if (!bIsEditingLevelInstance && LevelInstanceActor->IsA<APackedLevelInstance>())
 		{

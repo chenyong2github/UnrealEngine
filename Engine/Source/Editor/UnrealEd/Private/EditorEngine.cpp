@@ -4994,6 +4994,10 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 		ULevel* Level = OldActor->GetLevel();
 		AActor* NewActor = NULL;
 
+		// Unregister this actors components because we are effectively replacing it with an actor sharing the same ActorGuid.
+		// This allows it to be unregistered before a new actor with the same guid gets registered avoiding conflicts.
+		OldActor->UnregisterAllComponents();
+
 		const FName OldActorName = OldActor->GetFName();
 		const FName OldActorReplacedNamed = MakeUniqueObjectName(OldActor->GetOuter(), OldActor->GetClass(), *FString::Printf(TEXT("%s_REPLACED"), *OldActorName.ToString()));
 		
@@ -5120,6 +5124,7 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 		{
 			// If creating the new Actor failed, put the old Actor's name back
 			OldActor->UObject::Rename(*OldActorName.ToString(), OldActor->GetOuter(), REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+			OldActor->RegisterAllComponents();
 		}
 	}
 
