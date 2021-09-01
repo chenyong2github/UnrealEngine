@@ -797,6 +797,10 @@ public:
 		bCanStartAsyncTasks = bInCanStartAsyncTasks;
 	}
 
+	CHAOS_API void DisableParticleWithRemovalEvent(FGeometryParticleHandle* Particle);
+	const TArray<FRemovalData>& GetAllRemovals() { return MAllRemovals; }
+	void ResetAllRemovals() { MAllRemovals.Reset(); }
+
 protected:
 	int32 NumConstraints() const
 	{
@@ -928,6 +932,8 @@ protected:
 	TQueue<int32, EQueueMode::Mpsc> IslandsToWake;
 
 	TArray<FUniqueIdx> UniqueIndicesPendingRelease;
+
+	TArray<FRemovalData> MAllRemovals;
 public:
 	//The latest external timestamp we consumed inputs from, assigned to evolution when solver task executes, is used to stamp output data.
 	int32 LatestExternalTimestampConsumed_Internal;	

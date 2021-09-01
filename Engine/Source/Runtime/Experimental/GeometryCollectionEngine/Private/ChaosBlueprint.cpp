@@ -10,7 +10,7 @@
 #define DISPATCH_BLUEPRINTS_IMMEDIATE 1
 
 UChaosDestructionListener::UChaosDestructionListener(FObjectInitializer const& ObjectInitializer)
-	: Super(ObjectInitializer), LastCollisionDataTimeStamp(-1.f), LastBreakingDataTimeStamp(-1.f), LastTrailingDataTimeStamp(-1.f)
+	: Super(ObjectInitializer), LastCollisionDataTimeStamp(-1.f), LastBreakingDataTimeStamp(-1.f), LastTrailingDataTimeStamp(-1.f), LastRemovalDataTimeStamp(-1.f)
 {
 	bUseAttachParentBound = true;
 	bAutoActivate = true;	
@@ -25,6 +25,7 @@ UChaosDestructionListener::UChaosDestructionListener(FObjectInitializer const& O
 	SetCollisionFilter(MakeShareable(new FChaosCollisionEventFilter(&CollisionEventRequestSettings)));
 	SetBreakingFilter(MakeShareable(new FChaosBreakingEventFilter(&BreakingEventRequestSettings)));
 	SetTrailingFilter(MakeShareable(new FChaosTrailingEventFilter(&TrailingEventRequestSettings)));
+	SetRemovalFilter(MakeShareable(new FChaosRemovalEventFilter(&RemovalEventRequestSettings)));
 }
 
 void UChaosDestructionListener::ClearEvents()
@@ -125,7 +126,8 @@ bool UChaosDestructionListener::IsEventListening() const
 {
 	return  bIsCollisionEventListeningEnabled ||
 			bIsBreakingEventListeningEnabled  ||
-			bIsTrailingEventListeningEnabled;
+			bIsTrailingEventListeningEnabled  ||
+			bIsRemovalEventListeningEnabled;
 }
 
 void UChaosDestructionListener::UpdateTransformSettings()
@@ -135,7 +137,8 @@ void UChaosDestructionListener::UpdateTransformSettings()
 	{
 		bWantsOnUpdateTransform = CollisionEventRequestSettings.SortMethod == EChaosCollisionSortMethod::SortByNearestFirst ||
 								  BreakingEventRequestSettings.SortMethod == EChaosBreakingSortMethod::SortByNearestFirst ||
-							      TrailingEventRequestSettings.SortMethod == EChaosTrailingSortMethod::SortByNearestFirst;
+							      TrailingEventRequestSettings.SortMethod == EChaosTrailingSortMethod::SortByNearestFirst ||
+								  RemovalEventRequestSettings.SortMethod == EChaosRemovalSortMethod::SortByNearestFirst;
 	}
 	else
 	{
@@ -346,6 +349,12 @@ void UChaosDestructionListener::SetTrailingEventRequestSettings(const FChaosTrai
 	UpdateTransformSettings();
 }
 
+void UChaosDestructionListener::SetRemovalEventRequestSettings(const FChaosRemovalEventRequestSettings& InSettings)
+{
+	RemovalEventRequestSettings = InSettings;
+	UpdateTransformSettings();
+}
+
 void UChaosDestructionListener::SetCollisionEventEnabled(bool bIsEnabled)
 {
 	bIsCollisionEventListeningEnabled = bIsEnabled;
@@ -361,6 +370,12 @@ void UChaosDestructionListener::SetBreakingEventEnabled(bool bIsEnabled)
 void UChaosDestructionListener::SetTrailingEventEnabled(bool bIsEnabled)
 {
 	bIsTrailingEventListeningEnabled = bIsEnabled;
+	UpdateTransformSettings();
+}
+
+void UChaosDestructionListener::SetRemovalEventEnabled(bool bIsEnabled)
+{
+	bIsRemovalEventListeningEnabled = bIsEnabled;
 	UpdateTransformSettings();
 }
 
@@ -388,6 +403,14 @@ void UChaosDestructionListener::SortTrailingEvents(TArray<FChaosTrailingEventDat
 	}
 }
 
+void UChaosDestructionListener::SortRemovalEvents(TArray<FChaosRemovalEventData>& RemovalEvents, EChaosRemovalSortMethod SortMethod)
+{
+	if (ChaosRemovalFilter.IsValid())
+	{
+		ChaosRemovalFilter->SortEvents(RemovalEvents, SortMethod, GetComponentTransform());
+	}
+}
+
 void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 {
 #if WITH_CHAOS
@@ -396,6 +419,7 @@ void UChaosDestructionListener::RegisterChaosEvents(FPhysScene* Scene)
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
 	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
 	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
+	EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosDestructionListener::HandleRemovalEvents);
 #endif
 }
 
@@ -407,6 +431,7 @@ void UChaosDestructionListener::UnregisterChaosEvents(FPhysScene* Scene)
 	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Removal, this);
 #endif
 }
 
@@ -418,6 +443,7 @@ void UChaosDestructionListener::RegisterChaosEvents(TSharedPtr<FPhysScene_Chaos>
 	EventManager->RegisterHandler<Chaos::FCollisionEventData>(Chaos::EEventType::Collision, this, &UChaosDestructionListener::HandleCollisionEvents);
 	EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, this, &UChaosDestructionListener::HandleBreakingEvents);
 	EventManager->RegisterHandler<Chaos::FTrailingEventData>(Chaos::EEventType::Trailing, this, &UChaosDestructionListener::HandleTrailingEvents);
+	EventManager->RegisterHandler<Chaos::FRemovalEventData>(Chaos::EEventType::Removal, this, &UChaosDestructionListener::HandleRemovalEvents);
 #endif
 }
 
@@ -429,6 +455,7 @@ void UChaosDestructionListener::UnregisterChaosEvents(TSharedPtr<FPhysScene_Chao
 	EventManager->UnregisterHandler(Chaos::EEventType::Collision, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Breaking, this);
 	EventManager->UnregisterHandler(Chaos::EEventType::Trailing, this);
+	EventManager->UnregisterHandler(Chaos::EEventType::Removal, this);
 #endif
 }
 
@@ -496,6 +523,28 @@ void UChaosDestructionListener::HandleTrailingEvents(const Chaos::FTrailingEvent
 			}
 		}
 		RawTrailingDataArray.Reset();
+#endif
+	}
+}
+
+void UChaosDestructionListener::HandleRemovalEvents(const Chaos::FRemovalEventData& Event)
+{
+	if (bIsRemovalEventListeningEnabled)
+	{
+		int NumRemovals = Event.RemovalData.AllRemovalArray.Num();
+		RawRemovalDataArray.Append(Event.RemovalData.AllRemovalArray.GetData(), NumRemovals);
+
+#if DISPATCH_BLUEPRINTS_IMMEDIATE
+		if (ChaosRemovalFilter.IsValid())
+		{
+			ChaosRemovalFilter->FilterEvents(ChaosComponentTransform, RawRemovalDataArray);
+
+			if (ChaosRemovalFilter->GetNumEvents() > 0 && OnRemovalEvents.IsBound())
+			{
+				OnRemovalEvents.Broadcast(ChaosRemovalFilter->GetFilteredResults());
+			}
+		}
+		RawRemovalDataArray.Reset();
 #endif
 	}
 }

@@ -14,6 +14,7 @@ namespace Chaos
 	struct FCollisionEventData;
 	struct FBreakingEventData;
 	struct FSleepingEventData;
+	struct FRemovalEventData;
 }
 
 USTRUCT(BlueprintType)
@@ -41,6 +42,25 @@ public:
 	float Mass;
 };
 
+USTRUCT(BlueprintType)
+struct CHAOSSOLVERENGINE_API FChaosRemovalEvent
+{
+	GENERATED_BODY()
+
+public:
+
+	FChaosRemovalEvent();
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	TObjectPtr<UPrimitiveComponent> Component = nullptr;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	FVector Location;
+
+	UPROPERTY(BlueprintReadOnly, Category = "Removal Event")
+	float Mass;
+};
+
 
 typedef TFunction<void(const FChaosBreakEvent&)> FOnBreakEventCallback;
 
@@ -52,6 +72,18 @@ struct CHAOSSOLVERENGINE_API FBreakEventCallbackWrapper
 
 public:
 	FOnBreakEventCallback BreakEventCallback;
+};
+
+typedef TFunction<void(const FChaosRemovalEvent&)> FOnRemovalEventCallback;
+
+/** UStruct wrapper so we can store the TFunction in a TMap */
+USTRUCT()
+struct CHAOSSOLVERENGINE_API FRemovalEventCallbackWrapper
+{
+	GENERATED_BODY()
+
+public:
+	FOnRemovalEventCallback RemovalEventCallback;
 };
 
 /** UStruct wrapper so we can store the TSet in a TMap */
@@ -133,6 +165,9 @@ public:
 	void RegisterForBreakEvents(UPrimitiveComponent* Component, FOnBreakEventCallback InFunc);
 	void UnRegisterForBreakEvents(UPrimitiveComponent* Component);
 
+	void RegisterForRemovalEvents(UPrimitiveComponent* Component, FOnRemovalEventCallback InFunc);
+	void UnRegisterForRemovalEvents(UPrimitiveComponent* Component);
+
 private:
 
  	UPROPERTY()
@@ -141,8 +176,12 @@ private:
 	UPROPERTY()
 	TMap<TObjectPtr<UPrimitiveComponent>, FBreakEventCallbackWrapper> BreakEventRegistrations;
 
+	UPROPERTY()
+	TMap<TObjectPtr<UPrimitiveComponent>, FRemovalEventCallbackWrapper> RemovalEventRegistrations;
+
 	float LastCollisionDataTime = -1.f;
 	float LastBreakingDataTime = -1.f;
+	float LastRemovalDataTime = -1.f;
 
 	void DispatchPendingCollisionNotifies();
 	void DispatchPendingWakeNotifies();
@@ -155,6 +194,7 @@ private:
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
 	void HandleSleepingEvents(const Chaos::FSleepingEventData& SleepingData);
 	void AddPendingSleepingNotify(FBodyInstance* BodyInstance, ESleepEvent SleepEventType);
+	void HandleRemovalEvents(const Chaos::FRemovalEventData& RemovalData);
 
 };
 

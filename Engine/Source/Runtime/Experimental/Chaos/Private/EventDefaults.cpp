@@ -23,6 +23,7 @@ namespace Chaos
 		RegisterBreakingEvent(EventManager);
 		RegisterTrailingEvent(EventManager);
 		RegisterSleepingEvent(EventManager);
+		RegisterRemovalEvent(EventManager);
 	}
 
 	void FEventDefaults::RegisterCollisionEvent(FEventManager& EventManager)
@@ -437,5 +438,44 @@ namespace Chaos
 
 
 		});
+	}
+
+	void FEventDefaults::RegisterRemovalEvent(FEventManager& EventManager)
+	{
+		EventManager.template RegisterEvent<FRemovalEventData>(EEventType::Removal, []
+		(const Chaos::FPBDRigidsSolver* Solver, FRemovalEventData& RemovalEventData)
+			{
+				check(Solver);
+				ensure(IsInPhysicsThreadContext());
+
+				
+				FRemovalDataArray& AllRemovalDataArray = RemovalEventData.RemovalData.AllRemovalArray;
+				TMap<IPhysicsProxyBase*, TArray<int32>>& AllRemovalIndicesByPhysicsProxy = RemovalEventData.PhysicsProxyToRemovalIndices.PhysicsProxyToIndicesMap;
+
+				if (RemovalEventData.RemovalData.TimeCreated != Solver->MTime)
+				{
+					AllRemovalDataArray.Reset();
+					AllRemovalIndicesByPhysicsProxy.Reset();
+					RemovalEventData.RemovalData.TimeCreated = Solver->MTime;
+				}
+
+				const TArray<FRemovalData>& AllRemovalsArray = Solver->GetEvolution()->GetAllRemovals();
+				
+				for (int32 Idx = 0; Idx < AllRemovalsArray.Num(); ++Idx)
+				{
+					FRemovalData RemovalData;
+					RemovalData.Location = AllRemovalsArray[Idx].Location;
+					RemovalData.Mass = AllRemovalsArray[Idx].Mass;
+					RemovalData.Proxy = AllRemovalsArray[Idx].Proxy;
+					RemovalData.BoundingBox = AllRemovalsArray[Idx].BoundingBox;
+
+					int32 NewIdx = AllRemovalDataArray.Add(FRemovalData());
+					FRemovalData& RemovalDataArrayItem = AllRemovalDataArray[NewIdx];
+					RemovalDataArrayItem = RemovalData;
+
+					AllRemovalIndicesByPhysicsProxy.FindOrAdd(RemovalData.Proxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
+				}
+			
+			});
 	}
 }

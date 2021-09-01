@@ -12,6 +12,7 @@
 #include "GeometryCollection/GeometryCollectionSQAccelerator.h"
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionCache.h"
 #include "GeometryCollection/GeometryCollectionActor.h"
 #include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
@@ -234,6 +235,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, CachePlayback(false)
 	, bNotifyBreaks(false)
 	, bNotifyCollisions(false)
+	, bNotifyRemovals(false)
 	, bShowBoneColors(false)
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(false)
@@ -614,6 +616,15 @@ void UGeometryCollectionComponent::SetNotifyBreaks(bool bNewNotifyBreaks)
 	}
 }
 
+void UGeometryCollectionComponent::SetNotifyRemovals(bool bNewNotifyRemovals)
+{
+	if (bNotifyRemovals != bNewNotifyRemovals)
+	{
+		bNotifyRemovals = bNewNotifyRemovals;
+		UpdateRemovalEventRegistration();
+	}
+}
+
 FBodyInstance* UGeometryCollectionComponent::GetBodyInstance(FName BoneName /*= NAME_None*/, bool bGetWelded /*= true*/, int32 Index /*=INDEX_NONE*/) const
 {
 	return nullptr;// const_cast<FBodyInstance*>(&DummyBodyInstance);
@@ -650,6 +661,18 @@ void UGeometryCollectionComponent::DispatchBreakEvent(const FChaosBreakEvent& Ev
 	if (OnChaosBreakEvent.IsBound())
 	{
 		OnChaosBreakEvent.Broadcast(Event);
+	}
+}
+
+void UGeometryCollectionComponent::DispatchRemovalEvent(const FChaosRemovalEvent& Event)
+{
+	// native
+	NotifyRemoval(Event);
+
+	// bp
+	if (OnChaosRemovalEvent.IsBound())
+	{
+		OnChaosRemovalEvent.Broadcast(Event);
 	}
 }
 
@@ -1002,6 +1025,14 @@ static void DispatchGeometryCollectionBreakEvent(const FChaosBreakEvent& Event)
 	}
 }
 
+static void DispatchGeometryCollectionRemovalEvent(const FChaosRemovalEvent& Event)
+{
+	if (UGeometryCollectionComponent* const GC = Cast<UGeometryCollectionComponent>(Event.Component))
+	{
+		GC->DispatchRemovalEvent(Event);
+	}
+}
+
 void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(const FChaosPhysicsCollisionInfo& CollisionInfo)
 {
 	ReceivePhysicsCollision(CollisionInfo);
@@ -1011,7 +1042,7 @@ void UGeometryCollectionComponent::DispatchChaosPhysicsCollisionBlueprintEvents(
 // call when first registering
 void UGeometryCollectionComponent::RegisterForEvents()
 {
-	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions)
+	if (BodyInstance.bNotifyRigidBodyCollision || bNotifyBreaks || bNotifyCollisions || bNotifyRemovals)
 	{
 		Chaos::FPhysicsSolver* Solver = GetWorld()->GetPhysicsScene()->GetSolver();
 		if (Solver)
@@ -1033,6 +1064,17 @@ void UGeometryCollectionComponent::RegisterForEvents()
 				Solver->EnqueueCommandImmediate([Solver]()
 					{
 						Solver->SetGenerateBreakingData(true);
+					});
+
+			}
+
+			if (bNotifyRemovals)
+			{
+				EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
+
+				Solver->EnqueueCommandImmediate([Solver]()
+					{
+						Solver->SetGenerateRemovalData(true);
 					});
 
 			}
@@ -1061,6 +1103,18 @@ void UGeometryCollectionComponent::UpdateBreakEventRegistration()
 	else
 	{
 		EventDispatcher->UnRegisterForBreakEvents(this);
+	}
+}
+
+void UGeometryCollectionComponent::UpdateRemovalEventRegistration()
+{
+	if (bNotifyRemovals)
+	{
+		EventDispatcher->RegisterForRemovalEvents(this, &DispatchGeometryCollectionRemovalEvent);
+	}
+	else
+	{
+		EventDispatcher->UnRegisterForRemovalEvents(this);
 	}
 }
 
@@ -1640,6 +1694,11 @@ void UGeometryCollectionComponent::TickComponent(float DeltaTime, enum ELevelTic
 		// In editor mode we have no DynamicCollection so this test is necessary
 		if(DynamicCollection) //, TEXT("No dynamic collection available for component %s during tick."), *GetName()))
 		{
+			if (RestCollection->bRemoveOnMaxSleep)
+			{ 
+				IncrementSleepTimer(DeltaTime);
+			}
+
 			if (RestCollection->HasVisibleGeometry() || DynamicCollection->IsDirty())
 			{
 				// #todo review: When we've made changes to ISMC, we need to move this function call to SetRenderDynamicData_Concurrent
@@ -1715,6 +1774,22 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 		GetChildrenArrayCopyOnWrite();
 		GetSimulationTypeArrayCopyOnWrite();
 		GetStatusFlagsArrayCopyOnWrite();
+
+		if (RestCollection->bRemoveOnMaxSleep)
+		{
+			if (!DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& SleepTimer = DynamicCollection->AddAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
+				SleepTimer.Fill(0.f);
+			}
+
+			if (!DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
+			{
+				TManagedArray<float>& UniformScale = DynamicCollection->AddAttribute<float>("UniformScale", FGeometryCollection::TransformGroup);
+				UniformScale.Fill(1.f);
+			}
+		}
+
 		SetRenderStateDirty();
 	}
 
@@ -1892,6 +1967,7 @@ void UGeometryCollectionComponent::RegisterAndInitializePhysicsProxy()
 		SimulationParameters.bGenerateBreakingData = bNotifyBreaks;
 		SimulationParameters.bGenerateCollisionData = bNotifyCollisions;
 		SimulationParameters.bGenerateTrailingData = bNotifyTrailing;
+		SimulationParameters.bGenerateRemovalsData = bNotifyRemovals;
 		SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 		SimulationParameters.WorldTransform = GetComponentToWorld();
 		SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
@@ -2280,6 +2356,7 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 			if (ensureMsgf(GeometryCollectionPtr->HasAttribute("Proximity", FGeometryCollection::GeometryGroup),
 				TEXT("Must build breaking group for neighbor based selection")))
 			{
+				FGeometryCollectionProximityUtility::UpdateProximity(GeometryCollectionPtr.Get());
 
 				const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
 				const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;
@@ -2700,7 +2777,25 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 		else
 		{
 			// Have to fully rebuild
-			GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);
+			if (DynamicCollection && RestCollection->bRemoveOnMaxSleep && DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup) && DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
+			{
+				const TManagedArray<float>& SleepTimer = DynamicCollection->GetAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
+				TManagedArray<float>& UniformScale = DynamicCollection->GetAttribute<float>("UniformScale", FGeometryCollection::TransformGroup);
+				
+				for (int32 Idx = 0; Idx < GetTransformArray().Num(); ++Idx)
+				{
+					if (SleepTimer[Idx] > RestCollection->MaximumSleepTime)
+					{
+						UniformScale[Idx] = 1.0 - FMath::Min(1.0, (SleepTimer[Idx] - RestCollection->MaximumSleepTime) / RestCollection->RemovalDuration);
+					}
+				}
+				
+				GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), UniformScale, DynamicCollection->MassToLocal, GlobalMatrices);
+			}
+			else
+			{ 
+				GeometryCollectionAlgo::GlobalMatrices(GetTransformArray(), GetParentArray(), GlobalMatrices);		
+			}
 		}
 	}
 	
@@ -2883,6 +2978,39 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 
 		CalculateGlobalMatrices();
 		RefreshEmbeddedGeometry();
+	}
+}
+
+void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
+{
+	// If a particle is sleeping, increment its sleep timer, otherwise reset it.
+	if (DynamicCollection && PhysicsProxy && DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup))
+	{
+		TManagedArray<float>& SleepTimer = DynamicCollection->GetAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
+		TArray<int32> ToDisable;
+		for (int32 TransformIdx = 0; TransformIdx < SleepTimer.Num(); ++TransformIdx)
+		{
+			bool PreviouslyAwake = SleepTimer[TransformIdx] < RestCollection->MaximumSleepTime;
+			if (SleepTimer[TransformIdx] < (RestCollection->MaximumSleepTime + RestCollection->RemovalDuration))
+			{
+				SleepTimer[TransformIdx] = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) ? SleepTimer[TransformIdx] + DeltaTime : 0.0f;
+
+				if (SleepTimer[TransformIdx] > RestCollection->MaximumSleepTime)
+				{ 
+					DynamicCollection->MakeDirty();
+					if (PreviouslyAwake)
+					{
+						// Disable the particle if it has been asleep for the requisite time
+						ToDisable.Add(TransformIdx);
+					}
+				}
+			}
+		}
+
+		if (ToDisable.Num())
+		{
+			PhysicsProxy->DisableParticles(ToDisable);	
+		}
 	}
 }
 

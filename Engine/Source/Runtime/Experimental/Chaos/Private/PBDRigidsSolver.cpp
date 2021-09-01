@@ -242,7 +242,7 @@ namespace Chaos
 				MSolver->ApplyCallbacks_Internal(MSolver->GetSolverTime(), MDeltaTime);	//question: is SolverTime the right thing to pass in here?
 			}
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
-
+			
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
 				Chaos::FPBDPositionConstraints PositionTarget; // Dummy for now
@@ -346,6 +346,7 @@ namespace Chaos
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FillProducerData);
 					MSolver->GetEventManager()->FillProducerData(MSolver);
+					MSolver->GetEvolution()->ResetAllRemovals();
 				}
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FlipBuffersIfRequired);

@@ -97,6 +97,30 @@
 
 	};
 
+	USTRUCT(BlueprintType)
+	struct CHAOS_API FSolverRemovalFilterSettings
+	{
+		GENERATED_USTRUCT_BODY()
+
+		FSolverRemovalFilterSettings()
+			: FilterEnabled(false)
+			, MinMass(0.0f)
+			, MinVolume(0.0f)
+		{}
+
+		/** Filter is enabled. */
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|BreakingData Generation")
+		bool FilterEnabled;
+
+		/** The minimum mass threshold for the results (compared with min of particle 1 mass and particle 2 mass). */
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|BreakingData Generation", meta = (DisplayName = "Min Mass Threshold"))
+		float MinMass;
+
+		UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|BreakingData Generation", meta = (DisplayName = "Min Volume Threshold"))
+		float MinVolume;
+
+	};
+
 
 namespace Chaos
 {
@@ -106,6 +130,8 @@ namespace Chaos
 	struct FTrailingData;
 
 	struct FBreakingData;
+
+	struct FRemovalData;
 
 	class CHAOS_API FSolverCollisionEventFilter
 	{
@@ -146,6 +172,19 @@ namespace Chaos
 		FSolverBreakingFilterSettings Settings;
 	};
 
+	class CHAOS_API FSolverRemovalEventFilter
+	{
+	public:
+		FSolverRemovalEventFilter() {}
+		FSolverRemovalEventFilter(const FSolverRemovalFilterSettings& InSettings) : Settings(InSettings) {}
+
+		bool Pass(const Chaos::FRemovalData& InData) const;
+		bool Enabled() const { return Settings.FilterEnabled; }
+		void UpdateFilterSettings(const FSolverRemovalFilterSettings& InSettings) { Settings = InSettings; }
+
+		FSolverRemovalFilterSettings Settings;
+	};
+
 
 	/**
 	 * Container for the Solver Event Filters that have settings exposed through the Solver Actor
@@ -157,38 +196,46 @@ namespace Chaos
 			: CollisionFilter(new FSolverCollisionEventFilter())
 			, BreakingFilter(new FSolverBreakingEventFilter())
 			, TrailingFilter(new FSolverTrailingEventFilter())
+			, RemovalFilter(new FSolverRemovalEventFilter())
 			, CollisionEventsEnabled(false)
 			, BreakingEventsEnabled(false)
 			, TrailingEventsEnabled(false)
+			, RemovalEventsEnabled(false)
 		{}
 
 		void SetGenerateCollisionEvents(bool bDoGenerate) { CollisionEventsEnabled = bDoGenerate; }
 		void SetGenerateBreakingEvents(bool bDoGenerate) { BreakingEventsEnabled = bDoGenerate; }
 		void SetGenerateTrailingEvents(bool bDoGenerate) { TrailingEventsEnabled = bDoGenerate; }
+		void SetGenerateRemovalEvents(bool bDoGenerate) { RemovalEventsEnabled = bDoGenerate; }
 
 		/* Const access */
 		FSolverCollisionEventFilter* GetCollisionFilter() const { return CollisionFilter.Get(); }
 		FSolverBreakingEventFilter* GetBreakingFilter() const { return BreakingFilter.Get(); }
 		FSolverTrailingEventFilter* GetTrailingFilter() const { return TrailingFilter.Get(); }
+		FSolverRemovalEventFilter* GetRemovalFilter() const { return RemovalFilter.Get(); }
 
 		/* non-const access */
 		FSolverCollisionEventFilter* GetCollisionFilter() { return CollisionFilter.Get(); }
 		FSolverBreakingEventFilter* GetBreakingFilter() { return BreakingFilter.Get(); }
 		FSolverTrailingEventFilter* GetTrailingFilter() { return TrailingFilter.Get(); }
+		FSolverRemovalEventFilter* GetRemovalFilter() { return RemovalFilter.Get(); }
 
 		bool IsCollisionEventEnabled() const { return CollisionEventsEnabled; }
 		bool IsBreakingEventEnabled() const { return BreakingEventsEnabled; }
 		bool IsTrailingEventEnabled() const { return TrailingEventsEnabled; }
+		bool IsRemovalEventEnabled() const { return RemovalEventsEnabled; }
 
 	private:
 
 		TUniquePtr<FSolverCollisionEventFilter> CollisionFilter;
 		TUniquePtr<FSolverBreakingEventFilter> BreakingFilter;
 		TUniquePtr<FSolverTrailingEventFilter> TrailingFilter;
+		TUniquePtr<FSolverRemovalEventFilter> RemovalFilter;
 
 		bool CollisionEventsEnabled;
 		bool BreakingEventsEnabled;
 		bool TrailingEventsEnabled;
+		bool RemovalEventsEnabled;
 	};
 
 

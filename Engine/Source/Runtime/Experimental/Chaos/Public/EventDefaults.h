@@ -32,8 +32,15 @@ namespace Chaos
 		 */
 		static void RegisterTrailingEvent(FEventManager& EventManager);
 
-
+		/**
+		 * Register sleeping event gathering function & data type
+		 */
 		static void RegisterSleepingEvent(FEventManager& EventManager);
+
+		/**
+		 * Register removal event gathering function & data type
+		 */
+		static void RegisterRemovalEvent(FEventManager& EventManager);
 
 	};
 }
