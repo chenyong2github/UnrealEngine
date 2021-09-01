@@ -16,25 +16,27 @@ int32 UCheckAndroidDeviceProfileCommandlet::Main(const FString& RawCommandLine)
 	IDeviceProfileSelectorModule* AndroidDeviceProfileSelector = FModuleManager::LoadModulePtr<IDeviceProfileSelectorModule>("AndroidDeviceProfileSelector");
 	if (ensure(AndroidDeviceProfileSelector != nullptr))
 	{
-		TMap<FString, FString> DeviceParameters;
-		DeviceParameters.Add(TEXT("GPUFamily"), Params.FindRef(TEXT("GPUFamily")));
-		DeviceParameters.Add(TEXT("GLVersion"), Params.FindRef(TEXT("GLVersion")));
-		DeviceParameters.Add(TEXT("VulkanAvailable"), Params.FindRef(TEXT("VulkanAvailable")));
-		DeviceParameters.Add(TEXT("VulkanVersion"), Params.FindRef(TEXT("VulkanVersion")));
-		DeviceParameters.Add(TEXT("AndroidVersion"), Params.FindRef(TEXT("AndroidVersion")));
-		DeviceParameters.Add(TEXT("DeviceMake"),
+		TMap<FName, FString> DeviceParameters;
+		DeviceParameters.Add(FName(TEXT("SRC_GPUFamily")), Params.FindRef(TEXT("GPUFamily")));
+		DeviceParameters.Add(FName(TEXT("SRC_GLVersion")), Params.FindRef(TEXT("GLVersion")));
+		DeviceParameters.Add(FName(TEXT("SRC_VulkanAvailable")), Params.FindRef(TEXT("VulkanAvailable")));
+		DeviceParameters.Add(FName(TEXT("SRC_VulkanVersion")), Params.FindRef(TEXT("VulkanVersion")));
+		DeviceParameters.Add(FName(TEXT("SRC_AndroidVersion")), Params.FindRef(TEXT("AndroidVersion")));
+		DeviceParameters.Add(FName(TEXT("SRC_DeviceMake")),
 			Tokens.Num() == 2 ? Tokens[0] :
 			Params.FindRef(TEXT("DeviceMake")));
-		DeviceParameters.Add(TEXT("DeviceModel"),
+		DeviceParameters.Add(FName(TEXT("SRC_DeviceModel")),
 			Tokens.Num() == 1 ? Tokens[0] :
 			Tokens.Num() == 2 ? Tokens[1] : 
 			Params.FindRef(TEXT("DeviceModel")));
-		DeviceParameters.Add(TEXT("DeviceBuildNumber"), Params.FindRef(TEXT("DeviceBuildNumber")));
-		DeviceParameters.Add(TEXT("UsingHoudini"), Params.FindRef(TEXT("UsingHoudini")));
-		DeviceParameters.Add(TEXT("Hardware"), Params.FindRef(TEXT("Hardware")));
-		DeviceParameters.Add(TEXT("Chipset"), Params.FindRef(TEXT("Chipset")));
+		DeviceParameters.Add(FName(TEXT("SRC_DeviceBuildNumber")), Params.FindRef(TEXT("DeviceBuildNumber")));
+		DeviceParameters.Add(FName(TEXT("SRC_UsingHoudini")), Params.FindRef(TEXT("UsingHoudini")));
+		DeviceParameters.Add(FName(TEXT("SRC_Hardware")), Params.FindRef(TEXT("Hardware")));
+		DeviceParameters.Add(FName(TEXT("SRC_Chipset")), Params.FindRef(TEXT("Chipset")));
+		DeviceParameters.Add(FName(TEXT("SRC_TotalPhysicalGB")), Params.FindRef(TEXT("TotalPhysicalGB")));
 
-		FString ProfileName = AndroidDeviceProfileSelector->GetDeviceProfileName(DeviceParameters);
+		AndroidDeviceProfileSelector->SetSelectorProperties(DeviceParameters);
+		FString ProfileName = AndroidDeviceProfileSelector->GetDeviceProfileName();
 
 		UE_LOG(LogCheckAndroidDeviceProfile, Display, TEXT("Selected Device Profile: %s"), *ProfileName);
 	}

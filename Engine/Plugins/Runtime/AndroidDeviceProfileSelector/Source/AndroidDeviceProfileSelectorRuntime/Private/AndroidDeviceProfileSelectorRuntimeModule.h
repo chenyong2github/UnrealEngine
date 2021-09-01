@@ -15,6 +15,7 @@ public:
 
 	//~ Begin IDeviceProfileSelectorModule Interface
 	virtual const FString GetRuntimeDeviceProfileName() override;
+	virtual bool GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT) override;
 	//~ End IDeviceProfileSelectorModule Interface
 
 

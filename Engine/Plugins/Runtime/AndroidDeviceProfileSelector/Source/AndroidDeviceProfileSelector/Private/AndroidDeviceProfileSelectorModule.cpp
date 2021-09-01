@@ -25,40 +25,38 @@ const FString FAndroidDeviceProfileSelectorModule::GetRuntimeDeviceProfileName()
 	return FString();
 }
 
-const FString FAndroidDeviceProfileSelectorModule::GetDeviceProfileName(const TMap<FString, FString>& DeviceParameters)
+const FString FAndroidDeviceProfileSelectorModule::GetDeviceProfileName()
 {
 	FString ProfileName; 
 
-	// Pull out required device parameters:
-	FString GPUFamily = DeviceParameters.FindChecked("GPUFamily");
-	FString GLVersion = DeviceParameters.FindChecked("GLVersion");
-	FString VulkanAvailable = DeviceParameters.FindChecked("VulkanAvailable");
-	FString VulkanVersion = DeviceParameters.FindChecked("VulkanVersion");
-	FString AndroidVersion = DeviceParameters.FindChecked("AndroidVersion");
-	FString DeviceMake = DeviceParameters.FindChecked("DeviceMake");
-	FString DeviceModel = DeviceParameters.FindChecked("DeviceModel");
-	FString DeviceBuildNumber = DeviceParameters.FindChecked("DeviceBuildNumber");
-	FString UsingHoudini = DeviceParameters.FindChecked("UsingHoudini");
-	FString Hardware = DeviceParameters.FindChecked("Hardware");
-	FString Chipset = DeviceParameters.FindChecked("Chipset");
+	// ensure SelectorProperties does actually contain our parameters
+	check(FAndroidDeviceProfileSelector::GetSelectorProperties().Num() > 0);
 
 	UE_LOG(LogAndroidDPSelector, Log, TEXT("Checking %d rules from DeviceProfile ini file."), FAndroidDeviceProfileSelector::GetNumProfiles() );
 	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Default profile: %s"), *ProfileName);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  GpuFamily: %s"), *GPUFamily);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  GlVersion: %s"), *GLVersion);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  VulkanAvailable: %s"), *VulkanAvailable);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  VulkanVersion: %s"), *VulkanVersion);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  AndroidVersion: %s"), *AndroidVersion);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceMake: %s"), *DeviceMake);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceModel: %s"), *DeviceModel);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  DeviceBuildNumber: %s"), *DeviceBuildNumber);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  UsingHoudini: %s"), *UsingHoudini);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Hardware: %s"), *Hardware);
-	UE_LOG(LogAndroidDPSelector, Log, TEXT("  Chipset: %s"), *Chipset);
+	for (const TTuple<FName,FString>& MapIt : FAndroidDeviceProfileSelector::GetSelectorProperties())
+	{
+		UE_LOG(LogAndroidDPSelector, Log, TEXT("  %s: %s"), *MapIt.Key.ToString(), *MapIt.Value);
+	}
 
-	ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(GPUFamily, GLVersion, AndroidVersion, DeviceMake, DeviceModel, DeviceBuildNumber, VulkanAvailable, VulkanVersion, UsingHoudini, Hardware, Chipset, ProfileName);
+	ProfileName = FAndroidDeviceProfileSelector::FindMatchingProfile(ProfileName);
 
 	UE_LOG(LogAndroidDPSelector, Log, TEXT("Selected Device Profile: [%s]"), *ProfileName);
 
 	return ProfileName;
+}
+
+bool FAndroidDeviceProfileSelectorModule::GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT)
+{
+	if (const FString* Found = FAndroidDeviceProfileSelector::GetSelectorProperties().Find(PropertyType))
+	{
+		PropertyValueOUT = *Found;
+		return true;
+	}
+	return false;
+}
+
+void FAndroidDeviceProfileSelectorModule::SetSelectorProperties(const TMap<FName, FString>& SelectorPropertiesIn)
+{
+	FAndroidDeviceProfileSelector::SetSelectorProperties(SelectorPropertiesIn);
 }
