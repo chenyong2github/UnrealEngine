@@ -41,6 +41,8 @@ public:
 
 	virtual void InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const override;
 
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
 protected:
 	virtual const TSharedPtr<const ITimingEvent> GetEvent(double InTime, double SecondsPerPixel, int32 Depth) const override;
 

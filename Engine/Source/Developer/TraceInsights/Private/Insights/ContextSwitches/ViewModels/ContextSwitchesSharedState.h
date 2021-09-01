@@ -9,7 +9,10 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FBaseTimingTrack;
 class FMenuBuilder;
+class FThreadTimingTrack;
+class ITimingEvent;
 class STimingView;
 
 namespace TraceServices
@@ -23,6 +26,30 @@ namespace Insights
 class FCpuCoreTimingTrack;
 class FContextSwitchesTimingTrack;
 class ITimingViewSession;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FContextSwitchesStateCommands : public TCommands<FContextSwitchesStateCommands>
+{
+public:
+	FContextSwitchesStateCommands();
+	virtual ~FContextSwitchesStateCommands();
+	virtual void RegisterCommands() override;
+
+	// Commands for the Tracks Filter menu.
+	TSharedPtr<FUICommandInfo> Command_ShowCoreTracks;
+	TSharedPtr<FUICommandInfo> Command_ShowContextSwitches;
+	TSharedPtr<FUICommandInfo> Command_ShowOverlays;
+	TSharedPtr<FUICommandInfo> Command_ShowExtendedLines;
+
+	// Commands for a Cpu Core track (context menu).
+	TSharedPtr<FUICommandInfo> Command_NavigateToCpuThreadEvent;
+	TSharedPtr<FUICommandInfo> Command_DockCpuThreadTrackToBottom;
+
+	// Commands for a Cpu Thread track (context menu).
+	TSharedPtr<FUICommandInfo> Command_NavigateToCpuCoreEvent;
+	TSharedPtr<FUICommandInfo> Command_DockCpuCoreTrackToTop;
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -70,7 +97,16 @@ public:
 	void ToggleExtendedLines() { SetExtendedLinesVisible(!bAreExtendedLinesVisible); }
 	void SetExtendedLinesVisible(bool bOnOff);
 
+	void SetTargetTimingEvent(const TSharedPtr<const ITimingEvent> InEvent)
+	{
+		TargetTimingEvent = InEvent;
+	}
+
 	void AddCommands();
+
+	void GetThreadInfo(uint32 InSystemThreadId, uint32& OutThreadId, const TCHAR*& OutThreadName) const;
+	TSharedPtr<FThreadTimingTrack> GetThreadTimingTrack(uint32 ThreadId) const;
+	TSharedPtr<Insights::FCpuCoreTimingTrack> GetCpuCoreTimingTrack(uint32 CoreNumber) const;
 
 private:
 	void AddCoreTracks();
@@ -81,21 +117,36 @@ private:
 
 	void BuildSubMenu(FMenuBuilder& InMenuBuilder);
 
-	void ContextMenu_ShowCoreTracks_Execute() { ToggleCoreTracks(); }
-	bool ContextMenu_ShowCoreTracks_CanExecute() const { return AreContextSwitchesAvailable(); }
-	bool ContextMenu_ShowCoreTracks_IsChecked() const { return AreCoreTracksVisible(); }
+	void Command_ShowCoreTracks_Execute() { ToggleCoreTracks(); }
+	bool Command_ShowCoreTracks_CanExecute() const { return AreContextSwitchesAvailable(); }
+	bool Command_ShowCoreTracks_IsChecked() const { return AreCoreTracksVisible(); }
 
-	void ContextMenu_ShowContextSwitches_Execute() { ToggleContextSwitches(); }
-	bool ContextMenu_ShowContextSwitches_CanExecute() const { return AreContextSwitchesAvailable(); }
-	bool ContextMenu_ShowContextSwitches_IsChecked() const { return AreContextSwitchesVisible(); }
+	void Command_ShowContextSwitches_Execute() { ToggleContextSwitches(); }
+	bool Command_ShowContextSwitches_CanExecute() const { return AreContextSwitchesAvailable(); }
+	bool Command_ShowContextSwitches_IsChecked() const { return AreContextSwitchesVisible(); }
 
-	void ContextMenu_ShowOverlays_Execute() { ToggleOverlays(); }
-	bool ContextMenu_ShowOverlays_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible(); }
-	bool ContextMenu_ShowOverlays_IsChecked() const { return AreOverlaysVisible(); }
+	void Command_ShowOverlays_Execute() { ToggleOverlays(); }
+	bool Command_ShowOverlays_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible(); }
+	bool Command_ShowOverlays_IsChecked() const { return AreOverlaysVisible(); }
 
-	void ContextMenu_ShowExtendedLines_Execute() { ToggleExtendedLines(); }
-	bool ContextMenu_ShowExtendedLines_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible() && AreOverlaysVisible(); }
-	bool ContextMenu_ShowExtendedLines_IsChecked() const { return AreExtendedLinesVisible(); }
+	void Command_ShowExtendedLines_Execute() { ToggleExtendedLines(); }
+	bool Command_ShowExtendedLines_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible() && AreOverlaysVisible(); }
+	bool Command_ShowExtendedLines_IsChecked() const { return AreExtendedLinesVisible(); }
+
+	bool IsValidCpuCoreEventSelected() const;
+	bool IsValidContextSwitchEventSelected() const;
+
+	void Command_NavigateToCpuThreadEvent_Execute();
+	bool Command_NavigateToCpuThreadEvent_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible() && IsValidCpuCoreEventSelected(); }
+
+	void Command_DockCpuThreadTrackToBottom_Execute();
+	bool Command_DockCpuThreadTrackToBottom_CanExecute() const { return AreContextSwitchesAvailable() && AreContextSwitchesVisible() && IsValidCpuCoreEventSelected(); }
+
+	void Command_NavigateToCpuCoreEvent_Execute();
+	bool Command_NavigateToCpuCoreEvent_CanExecute() const { return AreContextSwitchesAvailable() && AreCoreTracksVisible() && IsValidContextSwitchEventSelected(); }
+
+	void Command_DockCpuCoreTrackToTop_Execute();
+	bool Command_DockCpuCoreTrackToTop_CanExecute() const { return AreContextSwitchesAvailable() && AreCoreTracksVisible() && IsValidContextSwitchEventSelected(); }
 
 private:
 	STimingView* TimingView;
@@ -112,6 +163,8 @@ private:
 	bool bAreExtendedLinesVisible;
 
 	bool bSyncWithProviders;
+
+	TSharedPtr<const ITimingEvent> TargetTimingEvent;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

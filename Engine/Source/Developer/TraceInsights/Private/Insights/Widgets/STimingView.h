@@ -8,6 +8,7 @@
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
 #include "Styling/SlateTypes.h"
+#include "Templates/Function.h"
 #include "TraceServices/AnalysisService.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -280,7 +281,8 @@ public:
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	static const TCHAR* GetLocationName(ETimingTrackLocation Location);
+	// The callback should return 'true' to continue the enumeration.
+	void EnumerateAllTracks(TFunctionRef<bool(TSharedPtr<FBaseTimingTrack>&)> Callback);
 
 	const TArray<TSharedPtr<FBaseTimingTrack>>& GetTrackList(ETimingTrackLocation TrackLocation) const
 	{
@@ -294,6 +296,11 @@ public:
 			default:                                 return EmptyTrackList;
 		}
 	}
+
+	static const TCHAR* GetLocationName(ETimingTrackLocation Location);
+
+	void ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation);
+	bool CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const;
 
 	void UpdateScrollableTracksOrder();
 	int32 GetFirstScrollableTrackOrder() const;
@@ -322,6 +329,8 @@ public:
 	bool IsTimeSelectedInclusive(double Time) const { return Time >= SelectionStartTime && Time <= SelectionEndTime; }
 
 	void ScrollAtPosY(float ScrollPosY);
+	void BringIntoViewY(float InTopY, float InBottomY);
+	void BringScrollableTrackIntoView(const FBaseTimingTrack& Track);
 	void ScrollAtTime(double StartTime);
 	void CenterOnTimeInterval(double IntervalStartTime, double IntervalDuration);
 	void ZoomOnTimeInterval(double IntervalStartTime, double IntervalDuration);
@@ -341,6 +350,9 @@ public:
 
 	const TSharedPtr<FBaseTimingTrack> GetSelectedTrack() const { return SelectedTrack; }
 	const TSharedPtr<const ITimingEvent> GetSelectedEvent() const { return SelectedEvent; }
+
+	void SelectTimingTrack(const TSharedPtr<FBaseTimingTrack> InTrack, bool bBringTrackIntoView);
+	void SelectTimingEvent(const TSharedPtr<const ITimingEvent> InEvent, bool bBringEventIntoView);
 
 	const TSharedPtr<ITimingEventFilter> GetEventFilter() const { return TimingEventFilter; }
 	void SetEventFilter(const TSharedPtr<ITimingEventFilter> InEventFilter);
@@ -368,9 +380,6 @@ protected:
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
 	void CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<FBaseTimingTrack> Track);
-
-	void ChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation);
-	bool CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETimingTrackLocation NewLocation) const;
 
 	/** Binds our UI commands to delegates. */
 	void BindCommands();

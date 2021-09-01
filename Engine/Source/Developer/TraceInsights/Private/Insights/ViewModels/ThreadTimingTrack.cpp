@@ -15,6 +15,7 @@
 #include "Insights/Common/PaintUtils.h"
 #include "Insights/Common/TimeUtils.h"
 #include "Insights/InsightsManager.h"
+#include "Insights/InsightsStyle.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/Filters.h"
@@ -506,8 +507,8 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 	{
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllGpuTracks", "GPU Track - Y"),
-			LOCTEXT("ShowAllGpuTracks_Tooltip", "Show/hide the GPU track"),
+			LOCTEXT("ShowAllGpuTracks", "GPU Track(s) - Y"),
+			LOCTEXT("ShowAllGpuTracks_Tooltip", "Show/hide the GPU track(s)."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllGpuTracks),
 					  FCanExecuteAction(),
@@ -519,7 +520,7 @@ void FThreadTimingSharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 		//TODO: MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
 		InOutMenuBuilder.AddMenuEntry(
 			LOCTEXT("ShowAllCpuTracks", "CPU Thread Tracks - U"),
-			LOCTEXT("ShowAllCpuTracks_Tooltip", "Show/hide all CPU tracks (and all CPU thread groups)"),
+			LOCTEXT("ShowAllCpuTracks_Tooltip", "Show/hide all CPU tracks (and all CPU thread groups)."),
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateSP(this, &FThreadTimingSharedState::ShowHideAllCpuTracks),
 					  FCanExecuteAction(),
@@ -1232,15 +1233,15 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::GetEvent(float InPosX, 
 
 	float TopLaneY = 0.0f;
 	float TrackLanesHeight = 0.0f;
-	if (ChildTrack.IsValid())
+	if (ChildTrack.IsValid() && ChildTrack->GetHeight() > 0.0f)
 	{
 		const float HeaderDY = InPosY - ChildTrack->GetPosY();
-		if (HeaderDY >= 0 && HeaderDY < ChildTrack->GetHeight())
+		if (HeaderDY >= 0.0f && HeaderDY < ChildTrack->GetHeight())
 		{
 			return ChildTrack->GetEvent(InPosX, InPosY, Viewport);
 		}
 		TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY + ChildTrack->GetHeight() + Layout.ChildTimelineDY;
-		TrackLanesHeight = GetHeight() - ChildTrack->GetHeight() - 1.0f - 2 * Layout.TimelineDY - Layout.ChildTimelineDY;
+		TrackLanesHeight = GetHeight() - ChildTrack->GetHeight() - 1.0f - 2.0f * Layout.TimelineDY - Layout.ChildTimelineDY;
 	}
 	else
 	{
@@ -1252,7 +1253,7 @@ const TSharedPtr<const ITimingEvent> FThreadTimingTrack::GetEvent(float InPosX, 
 		else
 		{
 			TopLaneY = GetPosY() + 1.0f + Layout.TimelineDY;
-			TrackLanesHeight = GetHeight() - 1.0f - 2 * Layout.TimelineDY;
+			TrackLanesHeight = GetHeight() - 1.0f - 2.0f * Layout.TimelineDY;
 		}
 	}
 
@@ -1386,26 +1387,10 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 {
 	if (GetGroupName() != nullptr)
 	{
-		MenuBuilder.BeginSection(TEXT("Options"));
-		{
-			FExecuteAction FilterTrackAction;
-			FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);
-
-			MenuBuilder.AddMenuEntry(
-				(LOCTEXT("FilterTrack", "Filter Track")),
-				FText(),
-				FSlateIcon(),
-				FUIAction(FilterTrackAction, FCanExecuteAction::CreateLambda([]() { return true; })),
-				NAME_None,
-				EUserInterfaceActionType::Button
-			);
-		}
-		MenuBuilder.EndSection();
-
-		MenuBuilder.BeginSection(TEXT("Misc"));
+		MenuBuilder.BeginSection("CpuThread", LOCTEXT("CpuThreadSection", "CPU Thread"));
 		{
 			MenuBuilder.AddMenuEntry(
-				FText::Format(LOCTEXT("CpuThreadGroupFmt", "CPU Thread Group: {0}"), FText::FromString(GetGroupName())),
+				FText::Format(LOCTEXT("CpuThreadGroupFmt", "Group: {0}"), FText::FromString(GetGroupName())),
 				FText(),
 				FSlateIcon(),
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([]() { return false; })),
@@ -1425,6 +1410,29 @@ void FThreadTimingTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		}
 		MenuBuilder.EndSection();
 	}
+
+	if (ChildTrack.IsValid())
+	{
+		ChildTrack->BuildContextMenu(MenuBuilder);
+	}
+
+	MenuBuilder.AddSeparator();
+
+	MenuBuilder.BeginSection("Options");
+	{
+		FExecuteAction FilterTrackAction;
+		FilterTrackAction.BindSP(this, &FThreadTimingTrack::OnFilterTrackClicked);
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterTrack", "Filter Track..."),
+			FText(),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			FUIAction(FilterTrackAction, FCanExecuteAction::CreateLambda([]() { return true; })),
+			NAME_None,
+			EUserInterfaceActionType::Button
+		);
+	}
+	MenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
