@@ -54,20 +54,32 @@ namespace EpicGames.Perforce
 		public ReadOnlyMemory<byte> Data => Buffer.AsMemory(0, BufferEnd);
 
 		/// <summary>
+		/// Temp file containing file arguments
+		/// </summary>
+		string? TempFileName;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Command"></param>
 		/// <param name="Arguments">Command line arguments</param>
+		/// <param name="FileArguments">File arguments, which may be placed in a response file</param>
 		/// <param name="InputData">Input data to pass to the child process</param>
 		/// <param name="GlobalOptions"></param>
 		/// <param name="Logger">Logging device</param>
-		public PerforceChildProcess(string Command, IReadOnlyList<string> Arguments, byte[]? InputData, IReadOnlyList<string> GlobalOptions, ILogger Logger)
+		public PerforceChildProcess(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData, IReadOnlyList<string> GlobalOptions, ILogger Logger)
 		{
 			string PerforceFileName = GetExecutable();
 
 			List<string> FullArguments = new List<string>();
 			FullArguments.Add("-G");
 			FullArguments.AddRange(GlobalOptions);
+			if (FileArguments != null)
+			{
+				TempFileName = Path.GetTempFileName();
+				File.WriteAllLines(TempFileName, FileArguments);
+				FullArguments.Add($"-x{TempFileName}");
+			}
 			FullArguments.Add(Command);
 			FullArguments.AddRange(Arguments);
 
@@ -125,6 +137,11 @@ namespace EpicGames.Perforce
 			{
 				Scope.Dispose();
 				Scope = null!;
+			}
+			if (TempFileName != null)
+			{
+				try { File.Delete(TempFileName); } catch { }
+				TempFileName = null;
 			}
 		}
 

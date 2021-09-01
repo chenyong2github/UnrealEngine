@@ -24,9 +24,10 @@ namespace EpicGames.Perforce
 		/// </summary>
 		/// <param name="Command">The command name</param>
 		/// <param name="Arguments">Arguments for the command</param>
+		/// <param name="FileArguments">File arguments (may be put into a response file)</param>
 		/// <param name="InputData">Input data to be passed to the command</param>
 		/// <returns>Response object</returns>
-		Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, byte[]? InputData);
+		Task<IPerforceOutput> CommandAsync(string Command, IReadOnlyList<string> Arguments, IReadOnlyList<string>? FileArguments, byte[]? InputData);
 
 		/// <summary>
 		/// Execute the 'login' command
