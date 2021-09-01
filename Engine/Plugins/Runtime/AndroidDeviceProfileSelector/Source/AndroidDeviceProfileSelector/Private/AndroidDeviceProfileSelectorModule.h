@@ -7,6 +7,7 @@
 
 /**
  * Implements the Android Device Profile Selector module.
+ * Used to emulate an android device's IDeviceProfileSelectorModule behaviour.
  */
 class FAndroidDeviceProfileSelectorModule
 	: public IDeviceProfileSelectorModule
@@ -14,10 +15,13 @@ class FAndroidDeviceProfileSelectorModule
 public:
 
 	//~ Begin IDeviceProfileSelectorModule Interface
-	virtual const FString GetDeviceProfileName(const TMap<FString, FString>& DeviceParameters) override;
+	virtual const FString GetDeviceProfileName() override;
 	virtual const FString GetRuntimeDeviceProfileName() override;
-	//~ End IDeviceProfileSelectorModule Interface
 
+	// Set the device parameters this selector will use.
+	virtual void SetSelectorProperties(const TMap<FName, FString>& SelectorProperties) override;
+	virtual bool GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT) override;
+	//~ End IDeviceProfileSelectorModule Interface
 
 	//~ Begin IModuleInterface Interface
 	virtual void StartupModule() override;

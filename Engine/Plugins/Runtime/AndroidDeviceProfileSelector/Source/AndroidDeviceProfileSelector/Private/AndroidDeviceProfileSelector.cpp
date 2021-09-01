@@ -36,10 +36,41 @@ static UAndroidDeviceProfileMatchingRules* GetAndroidDeviceProfileMatchingRules(
 	return Rules;
 }
 
-FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFamily, const FString& GLVersion, const FString& AndroidVersion, const FString& DeviceMake, const FString& DeviceModel, const FString& DeviceBuildNumber, const FString& VulkanAvailable, const FString& VulkanVersion, const FString& UsingHoudini, const FString& Hardware, const FString& Chipset, const FString& ProfileName)
+TMap<FName, FString> FAndroidDeviceProfileSelector::SelectorProperties;
+
+void FAndroidDeviceProfileSelector::VerifySelectorParams()
 {
-	FString OutProfileName = ProfileName;
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_GPUFamily));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_GLVersion));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_AndroidVersion));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_DeviceMake));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_DeviceModel));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_DeviceBuildNumber));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_VulkanVersion));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_UsingHoudini));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_VulkanAvailable));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_Hardware));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_Chipset));
+	check(SelectorProperties.Find(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB));
+}
+
+FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& FallbackProfileName)
+{
+	FString OutProfileName = FallbackProfileName;
 	FString CommandLine = FCommandLine::Get();
+	
+	FString GPUFamily			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_GPUFamily);
+	FString GLVersion			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_GLVersion);
+	FString AndroidVersion		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_AndroidVersion);
+	FString DeviceMake			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_DeviceMake);
+	FString DeviceModel			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_DeviceModel);
+	FString DeviceBuildNumber	= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_DeviceBuildNumber);
+	FString VulkanVersion		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_VulkanVersion);
+	FString UsingHoudini		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_UsingHoudini);
+	FString VulkanAvailable		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_VulkanAvailable);
+	FString Hardware			= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_Hardware);
+	FString Chipset				= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_Chipset);
+	FString TotalPhysicalGB		= SelectorProperties.FindChecked(FAndroidProfileSelectorSourceProperties::SRC_TotalPhysicalGB);
 
 	for (const FProfileMatch& Profile : GetAndroidDeviceProfileMatchingRules()->MatchProfile)
 	{
@@ -52,46 +83,46 @@ FString FAndroidDeviceProfileSelector::FindMatchingProfile(const FString& GPUFam
 			FString MatchString = Item.MatchString;
 			switch (Item.SourceType)
 			{
-			case SRC_PreviousRegexMatch:
+			case ESourceType::SRC_PreviousRegexMatch:
 				SourceString = &PreviousRegexMatch;
 				break;
-			case SRC_GpuFamily:
+			case ESourceType::SRC_GpuFamily:
 				SourceString = &GPUFamily;
 				break;
-			case SRC_GlVersion:
+			case ESourceType::SRC_GlVersion:
 				SourceString = &GLVersion;
 				break;
-			case SRC_AndroidVersion:
+			case ESourceType::SRC_AndroidVersion:
 				SourceString = &AndroidVersion;
 				break;
-			case SRC_DeviceMake:
+			case ESourceType::SRC_DeviceMake:
 				SourceString = &DeviceMake;
 				break;
-			case SRC_DeviceModel:
+			case ESourceType::SRC_DeviceModel:
 				SourceString = &DeviceModel;
 				break;
-			case SRC_DeviceBuildNumber:
+			case ESourceType::SRC_DeviceBuildNumber:
 				SourceString = &DeviceBuildNumber;
 				break;
-			case SRC_VulkanVersion:
+			case ESourceType::SRC_VulkanVersion:
 				SourceString = &VulkanVersion;
 				break;
-			case SRC_UsingHoudini:
+			case ESourceType::SRC_UsingHoudini:
 				SourceString = &UsingHoudini;
 				break;
-			case SRC_VulkanAvailable:
+			case ESourceType::SRC_VulkanAvailable:
 				SourceString = &VulkanAvailable;
 				break;
-			case SRC_CommandLine:
+			case ESourceType::SRC_CommandLine:
 				SourceString = &CommandLine;
 				break;
-			case SRC_Hardware:
+			case ESourceType::SRC_Hardware:
 				SourceString = &Hardware;
 				break;
-			case SRC_Chipset:
+			case ESourceType::SRC_Chipset:
 				SourceString = &Chipset;
 				break;
-			case SRC_ConfigRuleVar:
+			case ESourceType::SRC_ConfigRuleVar:
 				{
 					// expected Matchstring contents for configrulevar is "configrule_varname|matchstring"
 					// sourcestring is set to the configrule variable content. 

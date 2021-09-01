@@ -424,20 +424,22 @@ FString FPIEPreviewDevice::GetProfile() const
 			{
 				FPIEAndroidDeviceProperties& AndroidProperties = DeviceSpecs->AndroidProperties;
 
-				TMap<FString, FString> DeviceParameters;
-				DeviceParameters.Add("GPUFamily", AndroidProperties.GPUFamily);
-				DeviceParameters.Add("GLVersion", AndroidProperties.GLVersion);
-				DeviceParameters.Add("VulkanAvailable", AndroidProperties.VulkanAvailable ? "true" : "false");
-				DeviceParameters.Add("VulkanVersion", AndroidProperties.VulkanVersion);
-				DeviceParameters.Add("AndroidVersion", AndroidProperties.AndroidVersion);
-				DeviceParameters.Add("DeviceMake", AndroidProperties.DeviceMake);
-				DeviceParameters.Add("DeviceModel", AndroidProperties.DeviceModel);
-				DeviceParameters.Add("DeviceBuildNumber", AndroidProperties.DeviceBuildNumber);
-				DeviceParameters.Add("UsingHoudini", AndroidProperties.UsingHoudini ? "true" : "false");
-				DeviceParameters.Add("Hardware", AndroidProperties.Hardware);
-				DeviceParameters.Add("Chipset", AndroidProperties.Chipset);
+				TMap<FName, FString> DeviceParameters;
+				DeviceParameters.Add(FName(TEXT("SRC_GPUFamily")), AndroidProperties.GPUFamily);
+				DeviceParameters.Add(FName(TEXT("SRC_GLVersion")), AndroidProperties.GLVersion);
+				DeviceParameters.Add(FName(TEXT("SRC_VulkanAvailable")), AndroidProperties.VulkanAvailable ? "true" : "false");
+				DeviceParameters.Add(FName(TEXT("SRC_VulkanVersion")), AndroidProperties.VulkanVersion);
+				DeviceParameters.Add(FName(TEXT("SRC_AndroidVersion")), AndroidProperties.AndroidVersion);
+				DeviceParameters.Add(FName(TEXT("SRC_DeviceMake")), AndroidProperties.DeviceMake);
+				DeviceParameters.Add(FName(TEXT("SRC_DeviceModel")), AndroidProperties.DeviceModel);
+				DeviceParameters.Add(FName(TEXT("SRC_DeviceBuildNumber")), AndroidProperties.DeviceBuildNumber);
+				DeviceParameters.Add(FName(TEXT("SRC_UsingHoudini")), AndroidProperties.UsingHoudini ? "true" : "false");
+				DeviceParameters.Add(FName(TEXT("SRC_Hardware")), AndroidProperties.Hardware);
+				DeviceParameters.Add(FName(TEXT("SRC_Chipset")), AndroidProperties.Chipset);
+				DeviceParameters.Add(FName(TEXT("SRC_TotalPhysicalGB")), AndroidProperties.TotalPhysicalGB);
 
-				FString PIEProfileName = AndroidDeviceProfileSelector->GetDeviceProfileName(DeviceParameters);
+				AndroidDeviceProfileSelector->SetSelectorProperties(DeviceParameters);
+				FString PIEProfileName = AndroidDeviceProfileSelector->GetDeviceProfileName();
 				if (!PIEProfileName.IsEmpty())
 				{
 					Profile = PIEProfileName;
