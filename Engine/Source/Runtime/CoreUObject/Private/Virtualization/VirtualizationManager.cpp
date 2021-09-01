@@ -107,15 +107,22 @@ TArray<FString> ParseEntries(const FString& Data)
 namespace Profiling
 {
 #if ENABLE_COOK_STATS
+	TMap<FString, FCookStats::CallStats> CacheStats;
 	TMap<FString, FCookStats::CallStats> PushStats;
 	TMap<FString, FCookStats::CallStats> PullStats;
 
 	void CreateStats(const IVirtualizationBackend& Backend)
 	{
+		CacheStats.Add(Backend.GetDebugString());	
 		PushStats.Add(Backend.GetDebugString());
 		PullStats.Add(Backend.GetDebugString());
 	}
 
+	FCookStats::CallStats& GetCacheStats(const IVirtualizationBackend& Backend)
+	{
+		return *CacheStats.Find(Backend.GetDebugString());
+	}
+	
 	FCookStats::CallStats& GetPushStats(const IVirtualizationBackend& Backend)
 	{
 		return *PushStats.Find(Backend.GetDebugString());
@@ -147,7 +154,7 @@ namespace Profiling
 			return false;
 		};
 
-		return HasAccumulatedData(PushStats) || HasAccumulatedData(PullStats);
+		return HasAccumulatedData(CacheStats) || HasAccumulatedData(PushStats) || HasAccumulatedData(PullStats);
 	}
 
 	void LogStats()
@@ -160,6 +167,27 @@ namespace Profiling
 		UE_LOG(LogVirtualization, Log, TEXT(""));
 		UE_LOG(LogVirtualization, Log, TEXT("Virtualization ProfileData"));
 		UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+
+		if (CacheStats.Num() > 0)
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("%-40s|%17s|%12s|%14s|"), TEXT("Caching Data"), TEXT("TotalSize (MB)"), TEXT("TotalTime(s)"), TEXT("DataRate(MB/S)"));
+			UE_LOG(LogVirtualization, Log, TEXT("----------------------------------------|-----------------|------------|--------------|"));
+
+			for (const auto& Iterator : CacheStats)
+			{
+				const double Time = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles) * FPlatformTime::GetSecondsPerCycle();
+				const int64 DataSizeMB = Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes) / (1024 * 1024);
+				const double MBps = Time != 0.0 ? (DataSizeMB / Time) : 0.0;
+
+				UE_LOG(LogVirtualization, Log, TEXT("%-40.40s|%17" UINT64_FMT "|%12.3f|%14.3f|"),
+					*Iterator.Key,
+					DataSizeMB,
+					Time,
+					MBps);
+			}
+
+			UE_LOG(LogVirtualization, Log, TEXT("======================================================================================="));
+		}
 
 		if (PushStats.Num() > 0)
 		{
@@ -330,7 +358,7 @@ bool FVirtualizationManager::PushData(const FPayloadId& Id, const FCompressedBuf
 		}
 	}
 
-	UE_CLOG(!bWasPayloadPushed, LogVirtualization, Fatal, TEXT("Payload '%s' failed to be pushed to any backend'"), *Id.ToString());
+	UE_CLOG(!bWasPayloadPushed, LogVirtualization, Error, TEXT("Payload '%s' failed to be pushed to any backend'"), *Id.ToString());
 
 	return bWasPayloadPushed;
 }
@@ -389,6 +417,13 @@ FPayloadActivityInfo FVirtualizationManager::GetPayloadActivityInfo() const
 	FPayloadActivityInfo Info;
 
 #if ENABLE_COOK_STATS
+	for (const auto& Iterator : Profiling::CacheStats)
+	{
+		Info.Cache.PayloadCount += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
+		Info.Cache.TotalBytes += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Bytes);
+		Info.Cache.CyclesSpent += Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Cycles);
+	}
+
 	for (const auto& Iterator : Profiling::PushStats)
 	{
 		Info.Push.PayloadCount	+= Iterator.Value.GetAccumulatedValueAnyThread(FCookStats::CallStats::EHitOrMiss::Hit, FCookStats::CallStats::EStatType::Counter);
@@ -640,12 +675,34 @@ void FVirtualizationManager::CachePayload(const FPayloadId& Id, const FCompresse
 			return; // No point going past BackendSource
 		}
 
-		EPushResult Result = BackendToCache->PushData(Id, Payload);
-		UE_CLOG(Result == EPushResult::Failed, LogVirtualization, Warning,
-			TEXT("Failed to cache payload '%s' to backend '%s'"),
-			*Id.ToString(),
-			*BackendToCache->GetDebugString());
+		bool bResult = TryCacheDataToBackend(*BackendToCache, Id, Payload);
+		UE_CLOG(	!bResult, LogVirtualization, Warning,
+					TEXT("Failed to cache payload '%s' to backend '%s'"),
+					*Id.ToString(),
+					*BackendToCache->GetDebugString());
+
+		// Debugging operation where we immediately try to pull the payload after each push (when possible) and assert 
+		// that the pulled payload is the same as the original
+		if (bValidateAfterPushOperation && bResult && BackendToCache->SupportsPullOperations())
+		{
+			FCompressedBuffer PulledPayload = PullDataFromBackend(*BackendToCache, Id);
+			checkf(Payload.GetRawHash() == PulledPayload.GetRawHash(), TEXT("[%s] Failed to pull payload '%s' after it was cached to backend"),
+				*BackendToCache->GetDebugString(), *Id.ToString());
+		}
 	}
+}
+
+bool FVirtualizationManager::TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
+{
+	COOK_STAT(FCookStats::FScopedStatsCounter Timer(Profiling::GetCacheStats(Backend)));
+	const EPushResult Result = Backend.PushData(Id, Payload);
+
+	if (Result == EPushResult::Success)
+	{
+		COOK_STAT(Timer.AddHit(Payload.GetCompressedSize()));
+	}
+
+	return Result != EPushResult::Failed;
 }
 
 bool FVirtualizationManager::TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload)
