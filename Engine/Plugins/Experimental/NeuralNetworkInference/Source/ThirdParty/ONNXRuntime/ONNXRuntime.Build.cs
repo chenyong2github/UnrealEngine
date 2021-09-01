@@ -151,9 +151,9 @@ public class ONNXRuntime : ModuleRules
 			PublicDefinitions.Add("NOMINMAX");
 			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 			PublicDefinitions.Add("PLATFORM_WIN64");
-			PublicDefinitions.Add("PLATFORM_WINDOWS");
-			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST"); // @todo-for-Paco: Repeated
-			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST = 1"); // @todo-for-Paco: Repeated
+			PublicDefinitions.Add("PLATFORM_WINDOWS"); // @todo-for-Paco: This one is not consistent with UE's PLATFORM_WINDOWS define (which also includes WinGDK, etc)
+			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST"); // @todo-for-Paco: Repeated, remove 1 of the 2
+			PublicDefinitions.Add("DML_TARGET_VERSION_USE_LATEST = 1"); // @todo-for-Paco: Repeated, remove 1 of the 2
 			PublicDefinitions.Add("USE_DML = 1");
 		}
 	}
