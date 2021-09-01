@@ -130,10 +130,10 @@ void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_Gro
 		const uint StrideInBits		= BatchHeader.IndexBits + NumPositionBits + (BatchHeader.bTangents ? NumTangentBits : 0);
 
 		const uint CompileTimeMaxBits = INDEX_MAX_BITS + 3 * POSITION_MAX_BITS + 3 * TANGENTZ_MAX_BITS;
-		FBitStreamReaderStateRO InputStream = BitStreamReader_Create_Aligned_RO(MorphDataBuffer, BatchHeader.DataOffset, GroupThreadIndex * StrideInBits, CompileTimeMaxBits);
-		const uint DestVertexIndex = BitStreamReader_Read(InputStream, BatchHeader.IndexBits, INDEX_MAX_BITS) + BatchHeader.IndexMin + GroupThreadIndex;
+		FBitStreamReaderState InputStream = BitStreamReader_Create_Aligned(BatchHeader.DataOffset, GroupThreadIndex * StrideInBits, CompileTimeMaxBits);
+		const uint DestVertexIndex = BitStreamReader_Read_RO(MorphDataBuffer, InputStream, BatchHeader.IndexBits, INDEX_MAX_BITS) + BatchHeader.IndexMin + GroupThreadIndex;
 		
-		const int3 LocalPosition = BitStreamReader_Read3(InputStream, BatchHeader.PositionBits, POSITION_MAX_BITS);
+		const int3 LocalPosition = BitStreamReader_Read3_RO(MorphDataBuffer, InputStream, BatchHeader.PositionBits, POSITION_MAX_BITS);
 		const float3 PositionDelta = float3(LocalPosition + BatchHeader.PositionMin) * Precision.x;
 		const int3 QuantizedPositionOffset = (int3)round(PositionDelta * Weight * PositionScale.xyz);
 
@@ -144,7 +144,7 @@ void GPUMorphUpdateCS(uint3 GroupId : SV_GroupID, uint GroupThreadIndex : SV_Gro
 
 		if (BatchHeader.bTangents)
 		{
-			const int3 LocalTangent = BitStreamReader_Read3(InputStream, BatchHeader.TangentZBits, TANGENTZ_MAX_BITS);
+			const int3 LocalTangent = BitStreamReader_Read3_RO(MorphDataBuffer, InputStream, BatchHeader.TangentZBits, TANGENTZ_MAX_BITS);
 			const float3 TangentZDelta = float3(LocalTangent + BatchHeader.TangentZMin) * Precision.y;
 			const int3 QuantizedTangentZOffset = (int3)round(TangentZDelta * Weight * PositionScale.w);
 			InterlockedAdd(MorphVertexBuffer[DestVertexAddress + 3], asuint(QuantizedTangentZOffset.x));
