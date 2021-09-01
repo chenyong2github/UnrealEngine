@@ -16,9 +16,11 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Channels;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using EpicGames.Core;
 using EpicGames.Perforce;
+using HordeCommon;
 using HordeServer.Models;
 using HordeServer.Utilities;
 using Microsoft.AspNetCore.Hosting;
@@ -261,7 +263,7 @@ namespace HordeServer
 		/// Gets the certificate to use for Grpc endpoints
 		/// </summary>
 		/// <returns>Custom certificate to use for Grpc endpoints, or null for the default.</returns>
-		static X509Certificate2? ReadGrpcCertificate(ServerSettings HordeSettings)
+		public static X509Certificate2? ReadGrpcCertificate(ServerSettings HordeSettings)
 		{
 			if (HordeSettings.ServerPrivateCert == null)
 			{
@@ -269,7 +271,18 @@ namespace HordeServer
 			}
 			else
 			{
-				return new X509Certificate2(FileReference.ReadAllBytes(FileReference.Combine(AppDir, HordeSettings.ServerPrivateCert)));
+				FileReference? ServerPrivateCert = null;
+
+				if (!Path.IsPathRooted(HordeSettings.ServerPrivateCert))
+				{
+					ServerPrivateCert = FileReference.Combine(AppDir, HordeSettings.ServerPrivateCert);
+				}
+				else
+				{
+					ServerPrivateCert = new FileReference(HordeSettings.ServerPrivateCert);
+				}
+				
+				return new X509Certificate2(FileReference.ReadAllBytes(ServerPrivateCert));
 			}
 		}
 
@@ -299,26 +312,57 @@ namespace HordeServer
 			return DirectoryReference.Combine(GetAppDir(), "Data");
 		}
 
+		/// <summary>
+		/// Handles bootstrapping of defaults for local servers, which can't be generated during build/installation process (or are better handled here where they can be updated)
+		/// This stuff will change as we get settings into database and could be considered discovery for installer/dockerfile builds 
+		/// </summary>		
 		static void InitializeDefaults(ServerSettings Settings)
-		{
+		{			
 			if (Settings.SingleInstance)
 			{
 				FileReference GlobalConfig = FileReference.Combine(Program.DataDir, "Config/globals.json");
 
-				if (!FileReference.Exists(UserConfigFile))
-				{
-					DirectoryReference.CreateDirectory(UserConfigFile.Directory);
-					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"configPath\" : \"{GlobalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\"}}}}");
-				}
-				
 				if (!FileReference.Exists(GlobalConfig))
 				{
 					DirectoryReference.CreateDirectory(GlobalConfig.Directory);
 					FileReference.WriteAllText(GlobalConfig, "{}");
 				}
 
-			}
+				FileReference PrivateCertFile = FileReference.Combine(Program.DataDir, "Agent/ServerToAgent.pfx");
+				string PrivateCertFileJsonPath = PrivateCertFile.ToString().Replace("\\", "/", StringComparison.Ordinal);
 
+				if (!FileReference.Exists(UserConfigFile))
+				{
+					// create new user configuration
+					DirectoryReference.CreateDirectory(UserConfigFile.Directory);
+					FileReference.WriteAllText(UserConfigFile, $"{{\"Horde\": {{ \"ConfigPath\" : \"{GlobalConfig.ToString().Replace("\\", "/", StringComparison.Ordinal)}\", \"ServerPrivateCert\" : \"{PrivateCertFileJsonPath}\", \"HttpPort\": 8080}}}}");
+				}
+
+				// make sure the cert exists
+				if (!FileReference.Exists(PrivateCertFile))
+				{
+					string DnsName = System.Net.Dns.GetHostName();
+					Serilog.Log.Logger.Information("Creating certificate for {DnsName}", DnsName);
+
+					byte[] PrivateCertData = AgentUtilities.CreateAgentCert(DnsName);
+					
+					Serilog.Log.Logger.Information("Writing private cert: {PrivateCert}", PrivateCertFile.FullName);
+
+					if (!DirectoryReference.Exists(PrivateCertFile.Directory))
+					{
+						DirectoryReference.CreateDirectory(PrivateCertFile.Directory);
+					}
+
+					FileReference.WriteAllBytes(PrivateCertFile, PrivateCertData);
+				}
+
+				// note: this isn't great, though we need it early in server startup, and this is only hit on first server boot where the grpc cert isn't generated/set 
+				if (Settings.ServerPrivateCert == null)
+				{
+					Settings.ServerPrivateCert = PrivateCertFile.ToString();
+				}				
+
+			}
 		}
 	}
 }

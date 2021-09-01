@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeCommon;
 using HordeServer.Collections;
 using HordeServer.Models;
 using HordeServer.Utilities;
@@ -19,6 +20,7 @@ using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Options;
 using System.IO.Compression;
+using System.Security.Cryptography.X509Certificates;
 
 namespace HordeServer.Services
 {
@@ -217,36 +219,6 @@ namespace HordeServer.Services
 		}
 
 		/// <summary>
-		/// Reads the version number from an archive
-		/// </summary>
-		/// <param name="Data">The archive data</param>
-		/// <returns></returns>
-		static string ReadVersion(byte[] Data)
-		{
-			MemoryStream InputStream = new MemoryStream(Data);
-			using (ZipArchive InputArchive = new ZipArchive(InputStream, ZipArchiveMode.Read, true))
-			{
-				foreach (ZipArchiveEntry InputEntry in InputArchive.Entries)
-				{
-					if (InputEntry.FullName.Equals("HordeAgent.dll", StringComparison.OrdinalIgnoreCase))
-					{
-						string TempFile = Path.GetTempFileName();
-						try
-						{
-							InputEntry.ExtractToFile(TempFile, true);
-							return FileVersionInfo.GetVersionInfo(TempFile).ProductVersion;
-						}
-						finally
-						{
-							File.Delete(TempFile);
-						}
-					}
-				}
-			}
-			throw new Exception("Unable to find HordeAgent.dll in archive");
-		}
-
-		/// <summary>
 		/// Updates a new software revision
 		/// </summary>
 		/// <param name="Name">Name of the channel</param>
@@ -256,7 +228,7 @@ namespace HordeServer.Services
 		public async Task<string> SetArchiveAsync(AgentSoftwareChannelName Name, string? Author, byte[] Data)
 		{
 			// Upload the software
-			string Version = ReadVersion(Data);
+			string Version = AgentUtilities.ReadVersion(Data);
 			await Collection.AddAsync(Version, Data);
 
 			// Update the channel
@@ -306,10 +278,9 @@ namespace HordeServer.Services
 		{
 			return Collection.GetAsync(Version);
 		}
-
 		async Task RegisterDefaultAgent(int DelayMs)
 		{
-			await Task.Delay(DelayMs);			
+			await Task.Delay(DelayMs);
 
 			// Check whether we have an installed agent zip
 			FileReference AgentZip = FileReference.Combine(Program.AppDir, "DefaultAgent/Agent.zip");
@@ -323,10 +294,10 @@ namespace HordeServer.Services
 			string AgentHash = ContentHash.MD5(AgentZip).ToString();
 
 			FileReference AgentHashFile = FileReference.Combine(Program.DataDir, "Agent/DefaultAgentHash");
-			
-			try 
+
+			try
 			{
-				
+
 				if (FileReference.Exists(AgentHashFile) && FileReference.ReadAllText(AgentHashFile).Trim() == AgentHash)
 				{
 					Logger.LogInformation("Default agent software is up to date");
@@ -339,6 +310,27 @@ namespace HordeServer.Services
 			}
 
             byte[] Bytes = await File.ReadAllBytesAsync(AgentZip.ToString());
+
+			using X509Certificate2? GrpcCertificate = Program.ReadGrpcCertificate(Settings.CurrentValue);
+
+			if (GrpcCertificate == null)
+			{
+				throw new Exception("Unable to register default agent without valid grpc certicate");
+			}
+
+			// construct agent app settings
+			
+			string ProfileName = "Default";
+
+			string ServerUrl = $"https://{System.Net.Dns.GetHostName()}:{Settings.CurrentValue.HttpsPort}";			
+
+			Dictionary<string, object> DefaultProfile = new Dictionary<string, object>() { { "Name", ProfileName }, { "Environment", "prod" }, { "Thumbprint", GrpcCertificate.Thumbprint }, { "Url", ServerUrl } };
+
+			List<object> ServerProfiles = new List<object>() { DefaultProfile };
+
+			Dictionary<string, object> AgentSettings = new Dictionary<string, object>() { { "ServerProfiles", ServerProfiles }, { "Server", ProfileName }};
+
+			Bytes = AgentUtilities.UpdateAppSettings(Bytes, AgentSettings);
 
 			string Version = await SetArchiveAsync(new AgentSoftwareChannelName("default"), null, Bytes);
 

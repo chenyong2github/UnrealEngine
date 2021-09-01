@@ -34,19 +34,21 @@ namespace HordeServer.Collections.Impl
 			[BsonId]
 			public string Id { get; set; }
 
-			public byte[] Data { get; set; } = null!;
+			[BsonIgnoreIfNull]
+			public byte[]? Data { get; set; }
 
-            public List<string>? ChunkIds { get; set; } = null;
+			[BsonIgnoreIfNull]
+            public List<string>? ChunkIds { get; set; }
 
             [BsonConstructor]
 			private AgentSoftwareDocument()
 			{
 				this.Id = null!;
-				this.Data = null!;
-                this.ChunkIds = null;
+				this.Data = null;
+                this.ChunkIds = null;			
             }
 
-			public AgentSoftwareDocument(string Id, byte[] Data, List<string>? ChunkIds = null)
+			public AgentSoftwareDocument(string Id, byte[]? Data, List<string>? ChunkIds = null)
 			{
 				this.Id = Id;
 				this.Data = Data;
@@ -145,7 +147,7 @@ namespace HordeServer.Collections.Impl
             // insert the chunks
             await AgentChunks.InsertManyAsync(Chunks);
 
-            Document = new AgentSoftwareDocument(Version, Array.Empty<byte>(), Chunks.Select( Chunk => Chunk.Id).ToList());
+            Document = new AgentSoftwareDocument(Version, null, Chunks.Select( Chunk => Chunk.Id).ToList());
 			await Collection.InsertOneAsync(Document);
             return true;
         }
@@ -177,7 +179,7 @@ namespace HordeServer.Collections.Impl
                 return null;
             }
 
-			if (Software.Data.Length > 0)
+			if (Software.Data != null && Software.Data.Length > 0)
 			{
                 return Software.Data;
             }
