@@ -2,6 +2,7 @@
 
 #include "ContextSwitchesTimingTrack.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "TraceServices/Model/ContextSwitches.h"
 
 // Insights
