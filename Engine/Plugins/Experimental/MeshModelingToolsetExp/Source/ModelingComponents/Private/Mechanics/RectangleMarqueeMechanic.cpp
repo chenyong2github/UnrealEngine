@@ -137,10 +137,13 @@ void URectangleMarqueeMechanic::Setup(UInteractiveTool* ParentToolIn)
 {
 	UInteractionMechanic::Setup(ParentToolIn);
 
-	ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
-	ClickDragBehavior->SetDefaultPriority(BasePriority);
-	ClickDragBehavior->Initialize(this);
-	ParentTool->AddInputBehavior(ClickDragBehavior, this);
+	if (bUseExternalClickDragBehavior == false)
+	{
+		ClickDragBehavior = NewObject<UClickDragInputBehavior>(this);
+		ClickDragBehavior->SetDefaultPriority(BasePriority);
+		ClickDragBehavior->Initialize(this);
+		ParentTool->AddInputBehavior(ClickDragBehavior, this);
+	}
 	SetIsEnabled(true);
 }
 
@@ -212,6 +215,7 @@ void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 	FRay DragCurrentWorldRay = DragPos.WorldRay;
 
 	FCameraRectangle Rectangle(CachedCameraState, DragStartWorldRay, DragCurrentWorldRay);
+	LastRectangle = Rectangle;
 
 	OnDragRectangleChanged.Broadcast(Rectangle);
 }
@@ -219,13 +223,13 @@ void URectangleMarqueeMechanic::OnClickDrag(const FInputDeviceRay& DragPos)
 void URectangleMarqueeMechanic::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	bIsDragging = false;
-	OnDragRectangleFinished.Broadcast();
+	OnDragRectangleFinished.Broadcast(LastRectangle, false);
 }
 
 void URectangleMarqueeMechanic::OnTerminateDragSequence()
 {
 	bIsDragging = false;
-	OnDragRectangleFinished.Broadcast();
+	OnDragRectangleFinished.Broadcast(LastRectangle, true);
 }
 
 

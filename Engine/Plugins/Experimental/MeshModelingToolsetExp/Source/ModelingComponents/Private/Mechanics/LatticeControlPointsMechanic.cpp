@@ -663,7 +663,7 @@ void ULatticeControlPointsMechanic::OnDragRectangleChanged(const FCameraRectangl
 	UpdateDrawables();
 }
 
-void ULatticeControlPointsMechanic::OnDragRectangleFinished()
+void ULatticeControlPointsMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
 	ParentTool->GetToolManager()->BeginUndoTransaction(LatticePointSelectionTransactionText);
 

@@ -176,7 +176,7 @@ protected:
 	TArray<int32> CurrentDragSelection;
 	void OnDragRectangleStarted();
 	void OnDragRectangleChanged(const FCameraRectangle& Rectangle);
-	void OnDragRectangleFinished();
+	void OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled);
 
 	// We need the selected point start positions so we can move multiple points appropriately.
 	TMap<int32, FVector3d> SelectedPointStartPositions;
