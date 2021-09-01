@@ -803,7 +803,6 @@ private:
 	uint64	RequestedOffset = 0;
 	uint64	RequestedSize = ~uint64(0);
 	void* TargetVa = nullptr;
-	uint32	Flags = 0;
 };
 
 //////////////////////////////////////////////////////////////////////////
