@@ -17,6 +17,7 @@ using HordeServer.Utilities;
 using EpicGames.Core;
 using HordeServer.Storage.Collections;
 using EpicGames.Serialization;
+using System.Net;
 
 namespace HordeServer.Storage.Controllers
 {
@@ -63,6 +64,17 @@ namespace HordeServer.Storage.Controllers
 		/// List of of objects that the client needs
 		/// </summary>
 		public List<IoHash> Need { get; set; } = new List<IoHash>();
+	}
+
+	/// <summary>
+	/// Request for retrieving a tree of objects
+	/// </summary>
+	public class GetObjectTreeRequest
+	{
+		/// <summary>
+		/// List of objects that the client already has
+		/// </summary>
+		public List<IoHash> Have { get; set; } = new List<IoHash>();
 	}
 
 	/// <summary>
@@ -138,6 +150,80 @@ namespace HordeServer.Storage.Controllers
 		public Task<ActionResult<FindObjectDeltaResponse>> FindObjectDeltaAsync(NamespaceId NamespaceId, IoHash Hash, [FromBody] FindObjectDeltaRequest Request)
 		{
 			throw new NotImplementedException();
+		}
+
+		/// <summary>
+		/// Gets an object tree underneath a given root
+		/// </summary>
+		/// <param name="NamespaceId">Namespace for the operation</param>
+		/// <param name="Hash">The root object hash</param>
+		/// <param name="Request">Request object</param>
+		[HttpPost]
+		[Route("/api/v1/objects/{NamespaceId}/{Hash}/tree")]
+		public async Task GetObjectTreeAsync(NamespaceId NamespaceId, IoHash Hash, [FromBody] GetObjectTreeRequest Request)
+		{
+			if (!await NamespaceCollection.AuthorizeAsync(NamespaceId, User, AclAction.ReadBlobs))
+			{
+				Response.StatusCode = (int)HttpStatusCode.Forbidden;
+				return;
+			}
+
+			CbObject? Object = await ObjectCollection.GetAsync(NamespaceId, Hash);
+			if (Object == null)
+			{
+				Response.StatusCode = (int)HttpStatusCode.NotFound;
+				return;
+			}
+
+			Response.StatusCode = 200;
+			await Response.StartAsync(HttpContext.RequestAborted);
+
+			HashSet<IoHash> HaveHashes = new HashSet<IoHash>(Request.Have);
+			if (!HaveHashes.Contains(Hash))
+			{
+				List<IoHash> RequestHashes = new List<IoHash>();
+				for (; ; )
+				{
+					CbWriter Writer = new CbWriter();
+					Writer.WriteObjectAttachmentValue(Hash);
+					await Response.BodyWriter.WriteAsync(Writer.ToByteArray());
+
+					if (Object != null)
+					{
+						await Response.BodyWriter.WriteAsync(Object.GetView());
+
+						List<CbBinaryAttachment> BinaryAttachments = new List<CbBinaryAttachment>();
+						Object.IterateAttachments(Field =>
+						{
+							if (Field.IsBinaryAttachment())
+							{
+								BinaryAttachments.Add(Field.AsBinaryAttachment());
+							}
+							else if (Field.IsObjectAttachment() && HaveHashes.Add(Field.AsObjectAttachment()))
+							{
+								RequestHashes.Add(Field.AsObjectAttachment());
+							}
+						});
+
+						foreach (CbBinaryAttachment BinaryAttachment in BinaryAttachments)
+						{
+							CbWriter BinaryWriter = new CbWriter();
+							BinaryWriter.WriteBinaryAttachmentValue(BinaryAttachment);
+							await Response.BodyWriter.WriteAsync(BinaryWriter.ToByteArray());
+						}
+					}
+
+					if (RequestHashes.Count == 0)
+					{
+						break;
+					}
+
+					Hash = RequestHashes[RequestHashes.Count - 1];
+					RequestHashes.RemoveAt(RequestHashes.Count - 1);
+
+					Object = await ObjectCollection.GetAsync(NamespaceId, Hash);
+				}
+			}
 		}
 
 		/// <summary>

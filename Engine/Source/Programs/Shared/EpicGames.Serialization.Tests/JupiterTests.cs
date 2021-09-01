@@ -45,7 +45,7 @@ namespace EpicGames.Serialization.Tests
 			Writer2.EndObject();
 
 			CbObject Object2 = Writer2.ToObject();
-			Assert.AreEqual(Object2.GetSize(), 22);
+			Assert.AreEqual(21, Object2.GetSize());
 		}
 
 		[TestMethod]
