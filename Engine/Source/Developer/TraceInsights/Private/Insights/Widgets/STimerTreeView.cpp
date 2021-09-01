@@ -108,41 +108,35 @@ void STimerTreeView::Construct(const FArguments& InArgs, const FText& InViewName
 		.FillWidth(1.0f)
 		.Padding(0.0f)
 		[
-			SNew(SScrollBox)
-			.Orientation(Orient_Horizontal)
+			SNew(SOverlay)
 
-			+ SScrollBox::Slot()
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
 			[
-				SNew(SOverlay)
+				SAssignNew(TreeView, STreeView<FTimerNodePtr>)
+				.ExternalScrollbar(ExternalScrollbar)
+				.SelectionMode(ESelectionMode::Multi)
+				.TreeItemsSource(&TreeNodes)
+				.OnGetChildren(this, &STimerTreeView::TreeView_OnGetChildren)
+				.OnGenerateRow(this, &STimerTreeView::TreeView_OnGenerateRow)
+				//.OnSelectionChanged(this, &STimerTreeView::TreeView_OnSelectionChanged)
+				//.OnMouseButtonDoubleClick(this, &STimerTreeView::TreeView_OnMouseButtonDoubleClick)
+				.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimerTreeView::TreeView_GetMenuContent))
+				.ItemHeight(12.0f)
+				.HeaderRow
+				(
+					SAssignNew(TreeViewHeaderRow, SHeaderRow)
+					.Visibility(EVisibility::Visible)
+				)
+			]
 
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				[
-					SAssignNew(TreeView, STreeView<FTimerNodePtr>)
-					.ExternalScrollbar(ExternalScrollbar)
-					.SelectionMode(ESelectionMode::Multi)
-					.TreeItemsSource(&TreeNodes)
-					.OnGetChildren(this, &STimerTreeView::TreeView_OnGetChildren)
-					.OnGenerateRow(this, &STimerTreeView::TreeView_OnGenerateRow)
-					//.OnSelectionChanged(this, &STimerTreeView::TreeView_OnSelectionChanged)
-					//.OnMouseButtonDoubleClick(this, &STimerTreeView::TreeView_OnMouseButtonDoubleClick)
-					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimerTreeView::TreeView_GetMenuContent))
-					.ItemHeight(12.0f)
-					.HeaderRow
-					(
-						SAssignNew(TreeViewHeaderRow, SHeaderRow)
-						.Visibility(EVisibility::Visible)
-					)
-				]
-
-				+ SOverlay::Slot()
-				.HAlign(HAlign_Right)
-				.VAlign(VAlign_Bottom)
-				.Padding(16.0f)
-				[
-					SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, TimerButterflyAggregator)
-				]
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Bottom)
+			.Padding(16.0f)
+			[
+				SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, TimerButterflyAggregator)
 			]
 		]
 
@@ -831,8 +825,8 @@ void STimerTreeView::ShowColumn(const FName ColumnId)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &STimerTreeView::GetSortModeForColumn, Column.GetId())
 		.OnSort(this, &STimerTreeView::OnSortModeChanged)
-		.ManualWidth(Column.GetInitialWidth())
-		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.FillWidth(Column.GetInitialWidth())
+		//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
 			SNew(SBox)
