@@ -134,7 +134,7 @@ namespace EpicGames.Perforce
 			// Update the buffer contents
 			if (BufferEnd == Buffer.Length)
 			{
-				Array.Resize(ref Buffer, Buffer.Length + 65536);
+				Array.Resize(ref Buffer, Math.Min(Buffer.Length + (32 * 1024 * 1024), Buffer.Length * 2));
 			}
 
 			// Try to read more data
