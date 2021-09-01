@@ -65,7 +65,7 @@ public:
 
 	virtual bool IsSessionValid() override
 	{
-		return FCTSession::IsSessionValid();
+		return FCTSession::IsCoreTechSessionValid();
 	}
 
 	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const CADLibrary::FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload) const

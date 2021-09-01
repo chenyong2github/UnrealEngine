@@ -437,7 +437,7 @@ uint64 BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)
 
 bool FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
 {
-	if (!IsSessionValid())
+	if (!IsCoreTechSessionValid())
 	{
 		ensureMsgf(false, TEXT("bad session init"));
 		return false;

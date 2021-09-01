@@ -42,7 +42,7 @@ namespace CoreTechSurface
 	bool LoadFile(const FString& FileName, const CADLibrary::FImportParameters& ImportParameters, const CADLibrary::FMeshParameters& MeshParameters, FMeshDescription& MeshDescription)
 	{
 		CADLibrary::FCoreTechSessionBase Session(TEXT("CoreTechMeshLoader::LoadFile"));
-		if (!Session.IsSessionValid())
+		if (!Session.IsCoreTechSessionValid())
 		{
 			return false;
 		}
