@@ -1037,12 +1037,15 @@ static void MakeTurnkeyPlatformMenu(FMenuBuilder& MenuBuilder, FName IniPlatform
 		}
 		MenuBuilder.EndSection();
 
-		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-		// Remove empty "Build Targets" menu item for content projects.
-		if (DesktopPlatform->GetTargetsForCurrentProject().Num() > 0)
-		{
-			TArray<FTargetInfo> Targets = DesktopPlatform->GetTargetsForCurrentProject();
+		// Collect build targets. Content-only projects use Engine targets
+		FProjectStatus ProjectStatus;
+		bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
 
+		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+		TArray<FTargetInfo> Targets = bHasCode ? DesktopPlatform->GetTargetsForCurrentProject() : DesktopPlatform->GetTargetsForProject(FString());
+
+		if (Targets.Num() > 0)
+		{
 			Targets.Sort([](const FTargetInfo& A, const FTargetInfo& B) { return A.Name < B.Name; });
 			
 			const TArray<FTargetInfo> ValidTargets = Targets.FilterByPredicate([](const FTargetInfo& Target)

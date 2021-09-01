@@ -217,9 +217,16 @@ const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfo() const
 
 const FTargetInfo* UProjectPackagingSettings::GetBuildTargetInfoForPlatform(FName PlatformName) const
 {
+	// Collect build targets. Content-only projects use Engine targets.
+	FProjectStatus ProjectStatus;
+	bool bHasCode = IProjectManager::Get().QueryStatusForCurrentProject(ProjectStatus) && ProjectStatus.bCodeBasedProject;
+	
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	const TArray<FTargetInfo>& TargetsRef = bHasCode ? DesktopPlatform->GetTargetsForCurrentProject() : DesktopPlatform->GetTargetsForProject(FString());
+
 	const FTargetInfo* DefaultGameTarget = nullptr;
 	const FTargetInfo* DefaultClientTarget = nullptr;
-	for (const FTargetInfo& Target : FDesktopPlatformModule::Get()->GetTargetsForCurrentProject())
+	for (const FTargetInfo& Target : TargetsRef)
 	{
 		if (Target.Name == GetBuildTargetForPlatform(PlatformName))
 		{
