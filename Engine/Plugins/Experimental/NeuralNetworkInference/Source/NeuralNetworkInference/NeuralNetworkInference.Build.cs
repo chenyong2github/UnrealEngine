@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class NeuralNetworkInference : ModuleRules
 {
@@ -41,6 +42,7 @@ public class NeuralNetworkInference : ModuleRules
 				"NeuralNetworkInferenceShaders",
 				"RenderCore",
 				"RHI",
+				"RHICore",
 				// ORT-related
 				"Projects",
 				"ThirdPartyHelperAndDLLLoader"
@@ -60,6 +62,26 @@ public class NeuralNetworkInference : ModuleRules
 
 		if (bIsORTSupported)
 		{
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				// Borrowed from Plugins\Media\ImgMedia (we need to use FD3D12DynamicRHI
+				PrivateIncludePaths.AddRange(
+					new string[]{
+						//required for "D3D12RHIPrivate.h"
+						Path.Combine(EngineDirectory, "Source/Runtime/D3D12RHI/Private"),
+						Path.Combine(EngineDirectory, "Source/Runtime/D3D12RHI/Private/Windows")
+					});
+
+				PrivateDependencyModuleNames.AddRange
+					(
+					new string[] {
+						"D3D12RHI",
+						"DirectML"
+					}
+				);
+
+				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
+			}
 
 			PrivateDependencyModuleNames.AddRange
 				(
