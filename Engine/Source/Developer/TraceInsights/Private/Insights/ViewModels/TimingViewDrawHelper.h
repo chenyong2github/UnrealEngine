@@ -143,10 +143,12 @@ class FTimingViewDrawHelper final : public ITimingViewDrawHelper
 private:
 	enum class EDrawLayer : int32
 	{
+		TrackBackground,
 		EventBorder,
 		EventFill,
 		EventText,
 		EventHighlight,
+		RelationBackground,
 		Relation,
 		HeaderBackground,
 		HeaderText,

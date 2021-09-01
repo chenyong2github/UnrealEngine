@@ -318,7 +318,7 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 		{
 			TopLaneY += OffsetY + Layout.TimelineDY;
 		}
-		if (Track.GetChildTrack().IsValid())
+		if (Track.GetChildTrack().IsValid() && Track.ChildTrack->GetHeight() > 0.0f)
 		{
 			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
 		}
@@ -367,13 +367,25 @@ void FTimingViewDrawHelper::DrawEvents(const FTimingEventsTrackDrawState& DrawSt
 		}
 
 		// Draw texts.
-		if (Layout.EventH > 10.0f)
+		constexpr float TextMinEventH = 7.0f;
+		if (Layout.EventH > TextMinEventH)
 		{
+			float TextOpacity = 1.0f;
+			if (Layout.EventH < FTimingViewLayout::NormalLayoutEventH)
+			{
+				TextOpacity = (Layout.EventH - TextMinEventH + 1.0f) / (FTimingViewLayout::NormalLayoutEventH - TextMinEventH + 1.0f);
+			}
+			const FLinearColor WhiteColor(1.0f, 1.0f, 1.0f, TextOpacity);
+			const FLinearColor BlackColor(0.0f, 0.0f, 0.0f, TextOpacity);
+
+			const float TextY0 = TopLaneY + 1.0f - (FTimingViewLayout::NormalLayoutEventH - Layout.EventH) / 2.0f;
+			const float TextDY = Layout.EventH + Layout.EventDY;
+
 			const int32 EventTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventText);
 			for (const FTimingEventsTrackDrawState::FTextPrimitive& Text : DrawState.Texts)
 			{
-				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Text.Depth + 1.0f;
-				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? FLinearColor::White : FLinearColor::Black);
+				const float Y = TextY0 + TextDY * Text.Depth;
+				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? WhiteColor : BlackColor);
 			}
 			NumDrawTexts += DrawState.Texts.Num();
 		}
@@ -397,7 +409,7 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 		{
 			TopLaneY += OffsetY + Layout.TimelineDY;
 		}
-		if (Track.GetChildTrack().IsValid())
+		if (Track.GetChildTrack().IsValid() && Track.ChildTrack->GetHeight() > 0.0f)
 		{
 			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
 		}
@@ -447,15 +459,24 @@ void FTimingViewDrawHelper::DrawFadedEvents(const FTimingEventsTrackDrawState& D
 		}
 
 		// Draw texts.
-		if (Layout.EventH > 10.0f)
+		constexpr float TextMinEventH = 7.0f;
+		if (Layout.EventH > TextMinEventH)
 		{
-			const FLinearColor WhiteColor(1.0f, 1.0f, 1.0f, Opacity);
-			const FLinearColor BlackColor(0.0f, 0.0f, 0.0f, Opacity);
+			float TextOpacity = Opacity;
+			if (Layout.EventH < FTimingViewLayout::NormalLayoutEventH)
+			{
+				TextOpacity *= (Layout.EventH - TextMinEventH + 1.0f) / (FTimingViewLayout::NormalLayoutEventH - TextMinEventH + 1.0f);
+			}
+			const FLinearColor WhiteColor(1.0f, 1.0f, 1.0f, TextOpacity);
+			const FLinearColor BlackColor(0.0f, 0.0f, 0.0f, TextOpacity);
+
+			const float TextY0 = TopLaneY + 1.0f - (FTimingViewLayout::NormalLayoutEventH - Layout.EventH) / 2.0f;
+			const float TextDY = Layout.EventH + Layout.EventDY;
 
 			const int32 EventTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventText);
 			for (const FTimingEventsTrackDrawState::FTextPrimitive& Text : DrawState.Texts)
 			{
-				const float Y = TopLaneY + (Layout.EventH + Layout.EventDY) * Text.Depth + 1.0f;
+				const float Y = TextY0 + (TextDY) * Text.Depth;
 				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.bWhite ? WhiteColor : BlackColor);
 			}
 			NumDrawTexts += DrawState.Texts.Num();
@@ -481,7 +502,7 @@ void FTimingViewDrawHelper::DrawLineEvents(const FTimingEventsTrackDrawState& Dr
 		{
 			TopLaneY += OffsetY + Layout.TimelineDY;
 		}
-		if (Track.GetChildTrack().IsValid())
+		if (Track.GetChildTrack().IsValid() && Track.ChildTrack->GetHeight() > 0.0f)
 		{
 			TopLaneY += Track.ChildTrack->GetHeight() + Layout.ChildTimelineDY;
 		}
@@ -528,13 +549,21 @@ void FTimingViewDrawHelper::DrawLineEvents(const FTimingEventsTrackDrawState& Dr
 		}
 
 		// Draw texts.
-		if (Layout.EventH > 10.0f)
+		constexpr float TextMinEventH = 7.0f;
+		if (Layout.EventH > TextMinEventH)
 		{
+			float TextOpacity = 1.0f;
+			if (Layout.EventH < FTimingViewLayout::NormalLayoutEventH)
+			{
+				TextOpacity *= (Layout.EventH - TextMinEventH + 1.0f) / (FTimingViewLayout::NormalLayoutEventH - TextMinEventH + 1.0f);
+			}
+
+			const float TextY = TopLaneY - (FTimingViewLayout::NormalLayoutEventH - Layout.EventH) / 2.0f;
+
 			const int32 EventTextLayerId = ReservedLayerId + ToInt32(EDrawLayer::EventText);
-			const float Y = TopLaneY;
 			for (const FTimingEventsTrackDrawState::FTextPrimitive& Text : DrawState.Texts)
 			{
-				DrawContext.DrawText(EventTextLayerId, Text.X, Y, Text.Text, EventFont, Text.Color);
+				DrawContext.DrawText(EventTextLayerId, Text.X, TextY, Text.Text, EventFont, Text.Color.CopyWithNewOpacity(Text.Color.A * TextOpacity));
 			}
 			NumDrawTexts += DrawState.Texts.Num();
 		}
@@ -663,10 +692,11 @@ void FTimingViewDrawHelper::DrawTrackHeader(const FBaseTimingTrack& Track, const
 
 	if (TrackH > 0.0f)
 	{
-		// Draw a horizontal line between timelines (top line of a track).
-		DrawContext.DrawBox(HeaderLayerId, 0.0f, TrackY, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
+		// Draw a horizontal line between tracks (top line of a track).
+		const int32 TrackBackgroundLayerId = HeaderLayerId - ToInt32(EDrawLayer::HeaderBackground) + ToInt32(EDrawLayer::TrackBackground);
+		DrawContext.DrawBox(TrackBackgroundLayerId, 0.0f, TrackY, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 
-		// Draw header with name of timeline.
+		// Draw header with name of tracks.
 		if (TrackH > 4.0f)
 		{
 			const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
@@ -721,6 +751,8 @@ void FTimingViewDrawHelper::EndDrawTracks() const
 {
 	if (Viewport.GetWidth() > 0.0f)
 	{
+		const int32 TrackBackgroundLayerId = ReservedLayerId + ToInt32(EDrawLayer::TrackBackground);
+
 		const float TopY = Viewport.GetTopOffset();
 		const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
 
@@ -732,7 +764,7 @@ void FTimingViewDrawHelper::EndDrawTracks() const
 			if (Y >= TopY && Y < BottomY)
 			{
 				// Draw a last horizontal line.
-				DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), 0.0f, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
+				DrawContext.DrawBox(TrackBackgroundLayerId, 0.0f, Y, Viewport.GetWidth(), 1.0f, WhiteBrush, EdgeColor);
 			}
 
 			// Note: ValidAreaX and ValidAreaW are computed in DrawBackground.
@@ -742,14 +774,14 @@ void FTimingViewDrawHelper::EndDrawTracks() const
 				if (TopInvalidAreaH > 0.0f)
 				{
 					// Draw invalid area (top).
-					DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, TopY, ValidAreaW, TopInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+					DrawContext.DrawBox(TrackBackgroundLayerId, ValidAreaX, TopY, ValidAreaW, TopInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
 				}
 
 				const float BottomInvalidAreaH = FMath::Min(BottomY - Y - 1.0f, Viewport.GetScrollableAreaHeight());
 				if (BottomInvalidAreaH > 0.0f)
 				{
 					// Draw invalid area (bottom).
-					DrawContext.DrawBox(ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground), ValidAreaX, BottomY - BottomInvalidAreaH, ValidAreaW, BottomInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
+					DrawContext.DrawBox(TrackBackgroundLayerId, ValidAreaX, BottomY - BottomInvalidAreaH, ValidAreaW, BottomInvalidAreaH, BackgroundAreaBrush, InvalidAreaColor);
 				}
 			}
 		}

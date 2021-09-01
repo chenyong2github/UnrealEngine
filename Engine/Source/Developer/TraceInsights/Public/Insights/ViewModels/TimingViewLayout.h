@@ -12,8 +12,8 @@ struct TRACEINSIGHTS_API FTimingViewLayout
 
 	static constexpr float NormalLayoutEventH = 14.0f;
 	static constexpr float NormalLayoutEventDY = 2.0f;
-	static constexpr float NormalLayoutTimelineDY = 10.0f;
-	static constexpr float NormalLayoutChildTimelineDY = 5.0f;
+	static constexpr float NormalLayoutTimelineDY = 2.0f;
+	static constexpr float NormalLayoutChildTimelineDY = 4.0f;
 	static constexpr float NormalLayoutMinTimelineH = 0.0f;
 
 	static constexpr float CompactLayoutEventH = 4.0f;
@@ -49,12 +49,12 @@ struct TRACEINSIGHTS_API FTimingViewLayout
 	}
 
 	/* The layout of a track:
-	*	1.0f - Line between tracks
+	*	1.0f // the line between tracks
 	*	TimelineDY
-	*	HeaderLanes
-	*	ChildTimelineDY
+	*	[ChildTrack]
+	*	[ChildTimelineDY] // if ChildTrack is valid and ChildTrack.Height > 0
 	*	TrackLanes
-	*	TimelineDY 
+	*	TimelineDY
 	*/
 
 	float ComputeTrackHeight(int32 NumLanes) const
@@ -67,7 +67,7 @@ struct TRACEINSIGHTS_API FTimingViewLayout
 		{
 			// 1.0f is for horizontal line between timelines
 			float TrackHeight = 1.0f + TimelineDY + (EventH + EventDY) * NumLanes - EventDY + TimelineDY;
-				
+
 			if (TrackHeight < FTimingViewLayout::RealMinTimelineH)
 			{
 				return FTimingViewLayout::RealMinTimelineH;
@@ -85,7 +85,6 @@ struct TRACEINSIGHTS_API FTimingViewLayout
 		}
 		else //if (NumLanes > 0)
 		{
-			// 1.0f is for horizontal line between timelines
 			const float TrackHeight = (EventH + EventDY) * NumLanes - EventDY;
 
 			if (TrackHeight < FTimingViewLayout::RealMinTimelineH)
