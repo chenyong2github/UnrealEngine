@@ -72,6 +72,8 @@ public:
 	 *  Equilateral triangles have value 1; Smaller values -> lower quality
 	 */
 	double TryToImproveTriQualityThreshold = .25;
+	/** Prevent simplification from distorting triangle groups */
+	bool bPreserveTriangleGroups = true;
 	/** Prevent simplification from distorting vertex UVs */
 	bool bPreserveVertexUVs = true;
 	/** Prevent simplification from distorting overlay UVs */

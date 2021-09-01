@@ -86,6 +86,8 @@ public:
 	 *  Equilateral triangles have value 1; Smaller values -> lower quality
 	 */
 	double TryToImproveTriQualityThreshold = .5;
+	/** Prevent simplification from distorting triangle groups */
+	bool bPreserveTriangleGroups = true;
 	/** Prevent simplification from distorting vertex UVs */
 	bool bPreserveVertexUVs = true;
 	/** Prevent simplification from distorting overlay UVs */
@@ -216,12 +218,13 @@ public:
 	);
 
 	/**
-	 * Test if a given edge collapse would change the mesh shape or UVs unacceptably
+	 * Test if a given edge collapse would change the mesh shape, mesh triangle group shape, or UVs unacceptably
 	 */
 	static bool CollapseWouldChangeShapeOrUVs(
 		const FDynamicMesh3& Mesh, const TSet<int>& CutBoundaryEdgeSet, double DotTolerance, int SourceEID,
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
-		const FVector3d& EdgeDir, bool bPreserveUVsForMesh, bool bPreserveVertexUVs, bool bPreserveOverlayUVs, float UVToleranceSq);
+		const FVector3d& EdgeDir, bool bPreserveTriangleGroups, bool bPreserveUVsForMesh,
+		bool bPreserveVertexUVs, bool bPreserveOverlayUVs, float UVToleranceSq);
 };
 
 
