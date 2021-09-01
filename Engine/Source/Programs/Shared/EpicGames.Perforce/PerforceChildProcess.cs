@@ -138,14 +138,17 @@ namespace EpicGames.Perforce
 			}
 
 			// Try to read more data
-			int Count = await ChildProcess!.ReadAsync(Buffer, BufferEnd, Buffer.Length - BufferEnd, CancellationToken);
-			if (Count == 0)
+			int PrevBufferEnd = BufferEnd;
+			while (BufferEnd < Buffer.Length)
 			{
-				return false;
+				int Count = await ChildProcess!.ReadAsync(Buffer, BufferEnd, Buffer.Length - BufferEnd, CancellationToken);
+				if (Count == 0)
+				{
+					break;
+				}
+				BufferEnd += Count;
 			}
-
-			BufferEnd += Count;
-			return true;
+			return BufferEnd > PrevBufferEnd;
 		}
 
 		/// <inheritdoc/>
