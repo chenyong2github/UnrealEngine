@@ -72,7 +72,7 @@ static FAutoConsoleVariableRef CVarRayTracingSpecializeStateObjects(
 	ECVF_ReadOnly
 );
 
-static int32 GRayTracingAllowSpecializedStateObjects = 0;
+static int32 GRayTracingAllowSpecializedStateObjects = 1;
 static FAutoConsoleVariableRef CVarRayTracingAllowSpecializedStateObjects(
 	TEXT("r.D3D12.RayTracing.AllowSpecializedStateObjects"),
 	GRayTracingAllowSpecializedStateObjects,
