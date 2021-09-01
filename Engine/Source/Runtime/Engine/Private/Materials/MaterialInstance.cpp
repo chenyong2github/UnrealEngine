@@ -1464,7 +1464,7 @@ void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInte
 				ParameterValue.Value = FMaterialParameterValue(Parameter.ParameterType, DefaultValue);
 			}
 
-			SetParameterValueInternal(FMaterialParameterInfo(Parameter.ParameterInfo), ParameterValue);
+			AddParameterValueInternal(FMaterialParameterInfo(Parameter.ParameterInfo), ParameterValue);
 		}
 
 		// now, init the resources
@@ -1530,90 +1530,25 @@ void UMaterialInstance::CopyMaterialInstanceParameters(UMaterialInterface* Sourc
 		//setup some arrays to use
 		TArray<FMaterialParameterInfo> OutParameterInfo;
 		TArray<FGuid> Guids;
+
+		for (int32 ParameterTypeIndex = 0; ParameterTypeIndex < NumMaterialParameterTypes; ++ParameterTypeIndex)
+		{
+			const EMaterialParameterType ParameterType = (EMaterialParameterType)ParameterTypeIndex;
+			if (!IsStaticMaterialParameter(ParameterType))
+			{
+				GetAllParameterInfoOfType(ParameterType, OutParameterInfo, Guids);
+				ReserveParameterValuesInternal(ParameterType, OutParameterInfo.Num());
+				for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
+				{
+					FMaterialParameterMetadata SourceValue;
+					if (Source->GetParameterValue(ParameterType, ParameterInfo, SourceValue, EMaterialGetParameterValueFlags::CheckAll))
+					{
+						AddParameterValueInternal(ParameterInfo, SourceValue, EMaterialSetParameterValueFlags::SetCurveAtlas);
+					}
+				}
+			}
+		}
 		
-		// Handle all the fonts
-		GetAllFontParameterInfo(OutParameterInfo, Guids);
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			UFont* FontValue = nullptr;
-			int32 FontPage;
-			if (Source->GetFontParameterValue(ParameterInfo, FontValue, FontPage))
-			{
-				FFontParameterValue* ParameterValue = new(FontParameterValues) FFontParameterValue;
-				ParameterValue->ParameterInfo = ParameterInfo;
-				ParameterValue->ExpressionGUID.Invalidate();
-				ParameterValue->FontValue = FontValue;
-				ParameterValue->FontPage = FontPage;
-			}
-		}
-
-		// Now do the scalar params
-		OutParameterInfo.Reset();
-		Guids.Reset();
-		GetAllScalarParameterInfo(OutParameterInfo, Guids);
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			float ScalarValue = 1.0f;
-			if (Source->GetScalarParameterValue(ParameterInfo, ScalarValue))
-			{
-				FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
-				ParameterValue->ParameterInfo = ParameterInfo;
-				ParameterValue->ExpressionGUID.Invalidate();
-				ParameterValue->ParameterValue = ScalarValue;
-#if WITH_EDITOR
-				IsScalarParameterUsedAsAtlasPosition(ParameterValue->ParameterInfo, ParameterValue->AtlasData.bIsUsedAsAtlasPosition, ParameterValue->AtlasData.Curve, ParameterValue->AtlasData.Atlas);
-#endif
-			}
-		}
-
-		// Now do the vector params
-		OutParameterInfo.Reset();
-		Guids.Reset();
-		GetAllVectorParameterInfo(OutParameterInfo, Guids);
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			FLinearColor VectorValue;
-			if (Source->GetVectorParameterValue(ParameterInfo, VectorValue))
-			{
-				FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;
-				ParameterValue->ParameterInfo = ParameterInfo;
-				ParameterValue->ExpressionGUID.Invalidate();
-				ParameterValue->ParameterValue = VectorValue;
-			}
-		}
-
-		// Now do the texture params
-		OutParameterInfo.Reset();
-		Guids.Reset();
-		GetAllTextureParameterInfo(OutParameterInfo, Guids);
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			UTexture* TextureValue = nullptr;
-			if (Source->GetTextureParameterValue(ParameterInfo, TextureValue))
-			{
-				FTextureParameterValue* ParameterValue = new(TextureParameterValues) FTextureParameterValue;
-				ParameterValue->ParameterInfo = ParameterInfo;
-				ParameterValue->ExpressionGUID.Invalidate();
-				ParameterValue->ParameterValue = TextureValue;
-			}
-		}
-
-		// Now do the runtime virtual texture params
-		OutParameterInfo.Reset();
-		Guids.Reset();
-		GetAllRuntimeVirtualTextureParameterInfo(OutParameterInfo, Guids);
-		for (const FMaterialParameterInfo& ParameterInfo : OutParameterInfo)
-		{
-			URuntimeVirtualTexture* Value = nullptr;
-			if (Source->GetRuntimeVirtualTextureParameterValue(ParameterInfo, Value))
-			{
-				FRuntimeVirtualTextureParameterValue* ParameterValue = new(RuntimeVirtualTextureParameterValues) FRuntimeVirtualTextureParameterValue;
-				ParameterValue->ParameterInfo = ParameterInfo;
-				ParameterValue->ExpressionGUID.Invalidate();
-				ParameterValue->ParameterValue = Value;
-			}
-		}
-
 		// Now, init the resources
 		InitResources();
 
@@ -3000,6 +2935,45 @@ void FMaterialInstanceParameterUpdateContext::SetBasePropertyOverrides(const FMa
 }
 #endif // WITH_EDITORONLY_DATA
 
+void UMaterialInstance::ReserveParameterValuesInternal(EMaterialParameterType Type, int32 Capacity)
+{
+	switch (Type)
+	{
+	case EMaterialParameterType::Scalar: ScalarParameterValues.Reserve(Capacity); break;
+	case EMaterialParameterType::Vector: VectorParameterValues.Reserve(Capacity); break;
+	case EMaterialParameterType::Texture: TextureParameterValues.Reserve(Capacity); break;
+	case EMaterialParameterType::Font: FontParameterValues.Reserve(Capacity); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: RuntimeVirtualTextureParameterValues.Reserve(Capacity); break;
+	default: checkNoEntry();
+	}
+}
+
+void UMaterialInstance::AddParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
+{
+	const bool bUseAtlas = EnumHasAnyFlags(Flags, EMaterialSetParameterValueFlags::SetCurveAtlas);
+	const FMaterialParameterValue& Value = Meta.Value;
+	FScalarParameterAtlasInstanceData AtlasData;
+	switch (Value.Type)
+	{
+	case EMaterialParameterType::Scalar:
+#if WITH_EDITORONLY_DATA
+		if (bUseAtlas)
+		{
+			AtlasData.bIsUsedAsAtlasPosition = Meta.bUsedAsAtlasPosition;
+			AtlasData.Atlas = Meta.ScalarAtlas;
+			AtlasData.Curve = Meta.ScalarCurve;
+		}
+#endif // WITH_EDITORONLY_DATA
+		ScalarParameterValues.Emplace(ParameterInfo, Value.AsScalar(), AtlasData);
+		break;
+	case EMaterialParameterType::Vector: VectorParameterValues.Emplace(ParameterInfo, Value.AsLinearColor()); break;
+	case EMaterialParameterType::Texture: TextureParameterValues.Emplace(ParameterInfo, Value.Texture); break;
+	case EMaterialParameterType::Font: FontParameterValues.Emplace(ParameterInfo, Value.Font.Value, Value.Font.Page); break;
+	case EMaterialParameterType::RuntimeVirtualTexture: RuntimeVirtualTextureParameterValues.Emplace(ParameterInfo, Value.RuntimeVirtualTexture); break;
+	default: checkNoEntry();
+	}
+}
+
 void UMaterialInstance::SetParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags)
 {
 	const bool bUseAtlas = EnumHasAnyFlags(Flags, EMaterialSetParameterValueFlags::SetCurveAtlas);
@@ -4301,22 +4275,8 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					for (const FMaterialNumericParameterInfo& Parameter : MaterialResource->GetUniformNumericParameterExpressions())
 					{
 						const UE::Shader::FValue DefaultValue = MaterialResource->GetUniformExpressions().GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset);
-						if (Parameter.ParameterType == EMaterialParameterType::Scalar)
-						{
-							FScalarParameterValue* ParameterValue = new(ScalarParameterValues) FScalarParameterValue;
-							ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
-							ParameterValue->ParameterValue = DefaultValue.AsFloatScalar();
-						}
-						else if (Parameter.ParameterType == EMaterialParameterType::Vector)
-						{
-							FVectorParameterValue* ParameterValue = new(VectorParameterValues) FVectorParameterValue;
-							ParameterValue->ParameterInfo.Name = Parameter.ParameterInfo.GetName();
-							ParameterValue->ParameterValue = DefaultValue.AsLinearColor();
-						}
-						else
-						{
-							ensure(false);
-						}
+						const FMaterialParameterMetadata Meta(Parameter.ParameterType, DefaultValue);
+						AddParameterValueInternal(Parameter.ParameterInfo.GetName(), Meta);
 					}
 
 					// Textures
