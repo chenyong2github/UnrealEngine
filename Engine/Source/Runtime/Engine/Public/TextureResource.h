@@ -67,7 +67,11 @@ struct FTexture2DMipMap
 	/** The file region type appropriate for this mip's pixel format. */
 	EFileRegionType FileRegionType = EFileRegionType::None;
 
-	bool IsPagedToDerivedData() const { return BulkData.GetBulkDataSize() == 0; }
+	/** Whether this mip is stored in the derived data cache. */
+	bool bPagedToDerivedData = false;
+
+	bool IsPagedToDerivedData() const { return bPagedToDerivedData; }
+	void SetPagedToDerivedData(bool InValue) { bPagedToDerivedData = InValue; }
 
 	/**
 	 * Place mip-map data in the derived data cache associated with the provided
@@ -77,7 +81,6 @@ struct FTexture2DMipMap
 
 #endif // #if WITH_EDITORONLY_DATA
 private:
-
 	void SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipIndex, bool bBulkDataConditionalOnKey);
 };
 
