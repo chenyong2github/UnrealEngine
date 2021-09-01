@@ -47,7 +47,7 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
 			bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
 			bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
-			bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
+			bDoubleSided |= MeshBatch.bDisableBackfaceCulling || Material.IsTwoSided();
 		}
 	}
 
