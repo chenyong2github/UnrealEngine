@@ -105,5 +105,18 @@ public:
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
 
+template<>
+inline FPreshaderData& FPreshaderData::Write<FValue>(const FValue& Value)
+{
+	const EValueType Type = Value.GetType();
+	FMemoryImageValue MemoryValue = Value.AsMemoryImage();
+	Data.Add((uint8)Type);
+	if (MemoryValue.Size > 0u)
+	{
+		Data.Append(MemoryValue.Bytes, MemoryValue.Size);
+	}
+	return *this;
+}
+
 } // namespace Shader
 } // namespace UE
