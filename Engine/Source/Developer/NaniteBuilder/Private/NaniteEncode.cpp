@@ -2147,7 +2147,7 @@ static float BVH_Cost(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32>
 	return Bound.GetSurfaceArea();
 }
 
-static void BVH_SortNodes(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32> NodeIndices, TArray<uint32>& ChildSizes)
+static void BVH_SortNodes(const TArray<FIntermediateNode>& Nodes, TArrayView<uint32> NodeIndices, const TArray<uint32>& ChildSizes)
 {
 	// Perform MAX_BVH_NODE_FANOUT_BITS binary splits
 	for (uint32 Level = 0; Level < MAX_BVH_NODE_FANOUT_BITS; Level++)
