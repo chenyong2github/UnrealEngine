@@ -301,6 +301,10 @@ namespace DatasmithRuntime
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FSceneImporter::CreateStaticMesh);
 
+#ifdef LIVEUPDATE_TIME_LOGGING
+		Timer __Timer(GlobalStartTime, "CreateStaticMesh");
+#endif
+
 		TSharedRef< IDatasmithMeshElement > MeshElement = StaticCastSharedPtr< IDatasmithMeshElement >(Elements[ElementId]).ToSharedRef();
 
 		TFunction<bool()> MaterialRequiresAdjacency;
@@ -333,14 +337,8 @@ namespace DatasmithRuntime
 			return false;
 		}
 
-		TRACE_CPUPROFILER_EVENT_SCOPE(FDatasmithRuntimeModel::CreateStaticMesh);
-
 		FDatasmithMeshElementPayload MeshPayload;
 		{
-			// Prevent GC from running while loading meshes.
-			// FDatasmithNativeTranslator::LoadStaticMesh is creating UDatasmithMesh objects
-			FGCScopeGuard GCGuard;
-
 			if (!Translator->LoadStaticMesh(MeshElement, MeshPayload))
 			{
 				// If mesh cannot be loaded, add scene's resource path if valid and retry
@@ -386,21 +384,6 @@ namespace DatasmithRuntime
 			return true;
 		}
 
-		// #ue_datasmithruntime: Cleanup mesh descriptions
-		//FDatasmithStaticMeshImporter::CleanupMeshDescriptions(MeshDescriptions);
-		for (FMeshDescription& MeshDescription : MeshDescriptions)
-		{
-			if (ShouldRecomputeNormals(MeshDescription, 0))
-			{
-				FStaticMeshOperations::ComputePolygonTangentsAndNormals(MeshDescription);
-				FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, EComputeNTBsFlags::UseMikkTSpace);
-			}
-		}
-
-		//#ue_datasmithruntime: Implement task to build better lightmap sizes - See Dataprep operation
-		int32 MinLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue(EDatasmithImportLightmapMin::LIGHTMAP_64);
-		int32 MaxLightmapSize = FDatasmithStaticMeshImportOptions::ConvertLightmapEnumToValue(EDatasmithImportLightmapMax::LIGHTMAP_512);
-
 		// 4. Collisions
 		StaticMesh->GetBodySetup()->AggGeom.EmptyElements();
 		if (ImportOptions.BuildCollisions != ECollisionEnabled::NoCollision && ImportOptions.CollisionType != ECollisionTraceFlag::CTF_UseComplexAsSimple)
@@ -419,113 +402,28 @@ namespace DatasmithRuntime
 		{
 			FMeshDescription& MeshDescription = MeshDescriptions[LodIndex];
 
-			// UV Channels
-			int32 SourceIndex = 0;
-			int32 DestinationIndex = 1;
-			bool bUseImportedLightmap = false;
-			bool bGenerateLightmapUVs = true /* Default value for StaticMeshImportOptions.bGenerateLightmapUVs*/;
-			const int32 FirstOpenUVChannel = GetNextOpenUVChannel(MeshDescription);
-
-			// if a custom lightmap coordinate index was imported, disable lightmap generation
-			if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapCoordinateIndex()))
-			{
-				bUseImportedLightmap = true;
-				bGenerateLightmapUVs = false;
-				DestinationIndex = MeshElement->GetLightmapCoordinateIndex();
-			}
-			else
-			{
-				if (MeshElement->GetLightmapCoordinateIndex() >= 0)
-				{
-					UE_LOG(LogDatasmithRuntime, Error, TEXT("CreateStaticMesh: The lightmap coordinate index '%d' used for the mesh '%s' is invalid"), MeshElement->GetLightmapCoordinateIndex(), MeshElement->GetLabel());
-				}
-
-				DestinationIndex = FirstOpenUVChannel;
-			}
-
-			// Set the source lightmap index to the imported mesh data lightmap source if any, otherwise use the first open channel.
-			if (DatasmithMeshHelper::HasUVData(MeshDescription, MeshElement->GetLightmapSourceUV()))
-			{
-				SourceIndex = MeshElement->GetLightmapSourceUV();
-			}
-			else
-			{
-				//If the lightmap source index was not set, we set it to the first open UV channel as it will be generated.
-				//Also, it's okay to set both the source and the destination to be the same index as they are for different containers.
-				SourceIndex = FirstOpenUVChannel;
-			}
-
-			if (bGenerateLightmapUVs)
-			{
-				if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
-				{
-					UE_LOG(LogDatasmithRuntime, Error, TEXT("CreateStaticMesh: Lightmap generation error for mesh %s: Specified source, %d, is invalid"), MeshElement->GetLabel(), MeshElement->GetLightmapSourceUV());
-					bGenerateLightmapUVs = false;
-				}
-				else if (!FMath::IsWithin<int32>(DestinationIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
-				{
-					UE_LOG(LogDatasmithRuntime, Error, TEXT("CreateStaticMesh: Lightmap generation error for mesh %s: Cannot find an available destination channel."), MeshElement->GetLabel());
-					bGenerateLightmapUVs = false;
-				}
-
-				if (!bGenerateLightmapUVs)
-				{
-					UE_LOG(LogDatasmithRuntime, Error, TEXT("CreateStaticMesh: Lightmap UVs for mesh %s won't be generated."), MeshElement->GetLabel());
-				}
-			}
-
 			// We should always have some UV data in channel 0 because it is used in the mesh tangent calculation during the build.
 			if (!DatasmithMeshHelper::HasUVData(MeshDescription, 0))
 			{
 				DatasmithMeshHelper::CreateDefaultUVs(MeshDescription);
 			}
 
-			if (bGenerateLightmapUVs && !DatasmithMeshHelper::HasUVData(MeshDescription, SourceIndex))
-			{
-				//If no UV data exist at the source index we generate unwrapped UVs.
-				//Do this before calling DatasmithMeshHelper::CreateDefaultUVs() as the UVs may be unwrapped at channel 0.
-				//UUVGenerationFlattenMapping::GenerateUVs(MeshDescription, SourceIndex, true);
-				// #ue_datasmithruntime: Find runtime code to unwrap UVs
-				// For the time being, just copy channel 0 to SourceIndex
-				{
-					TMeshAttributesRef<FVertexInstanceID, FVector2D> UVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-					if (UVs.GetNumIndices() <= SourceIndex)
-					{
-						UVs.SetNumIndices(SourceIndex + 1);
-					}
+			// We should always have valid normals, tangents and binormals
+			bool bHasInvalidNormals;
+			bool bHasInvalidTangents;
+			FStaticMeshOperations::AreNormalsAndTangentsValid(MeshDescription, bHasInvalidNormals, bHasInvalidTangents);
 
-					for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
-					{
-						UVs.Set(VertexInstanceID, SourceIndex, UVs.Get(VertexInstanceID, 0));
-					}
-				}
+			// If normals are invalid, compute normals and tangents at polygon level then vertex level
+			if (bHasInvalidNormals)
+			{
+				FStaticMeshOperations::ComputePolygonTangentsAndNormals(MeshDescription, THRESH_POINTS_ARE_SAME);
+
+				const EComputeNTBsFlags ComputeFlags = EComputeNTBsFlags::Normals | EComputeNTBsFlags::Tangents | EComputeNTBsFlags::UseMikkTSpace;
+				FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, ComputeFlags);
 			}
-
-			FVector BuildScale3D(1.0f, 1.0f, 1.0f);
-#if WITH_EDITOR
-			FMeshBuildSettings& BuildSettings = StaticMesh->GetSourceModel(LodIndex).BuildSettings;
-
-			BuildSettings.bUseMikkTSpace = true;
-			BuildSettings.bRecomputeNormals = ShouldRecomputeNormals(MeshDescription, MeshData.Requirements);
-			BuildSettings.bRecomputeTangents = ShouldRecomputeTangents(MeshDescription, MeshData.Requirements);
-			BuildSettings.bRemoveDegenerates = true /* Default value of StaticMeshImportOptions.bRemoveDegenerates */;
-			BuildSettings.bUseHighPrecisionTangentBasis = true;
-			BuildSettings.bUseFullPrecisionUVs = true;
-			BuildSettings.bGenerateLightmapUVs = bGenerateLightmapUVs;
-			BuildSettings.SrcLightmapIndex = SourceIndex;
-			BuildSettings.DstLightmapIndex = DestinationIndex;
-			BuildSettings.MinLightmapResolution = MinLightmapSize;
-			BuildScale3D = BuildSettings.BuildScale3D;
-
-			// Don't build adjacency buffer for meshes with over 500 000 triangles because it's too slow
-			BuildSettings.bBuildAdjacencyBuffer = MeshDescription.Polygons().Num() < 500000 ? MaterialRequiresAdjacency() : false;
-#endif
-			if (DatasmithMeshHelper::IsMeshValid(MeshDescription, BuildScale3D))
+			else if (bHasInvalidTangents)
 			{
-				if (bGenerateLightmapUVs && DatasmithMeshHelper::RequireUVChannel(MeshDescription, DestinationIndex))
-				{
-					GenerateLightmapUVResolution(MeshDescription, SourceIndex, MinLightmapSize);
-				}
+				FStaticMeshOperations::ComputeMikktTangents(MeshDescription, true);
 			}
 		}
 
@@ -536,8 +434,6 @@ namespace DatasmithRuntime
 		}
 
 		{
-			FGCScopeGuard GCGuard;
-
 			UStaticMesh::FBuildMeshDescriptionsParams Params;
 			Params.bUseHashAsGuid = true;
 			// Do not mark the package dirty since MarkPackageDirty is not thread safe

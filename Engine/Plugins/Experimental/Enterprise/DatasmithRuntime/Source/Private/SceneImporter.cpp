@@ -390,7 +390,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::DeleteComponent))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "DeleteComponent");
+			Timer __Timer(GlobalStartTime, "DeleteComponent");
 #endif
 
 			FActionTask ActionTask;
@@ -421,7 +421,7 @@ namespace DatasmithRuntime
 			}
 
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "GarbageCollect");
+			Timer __Timer(GlobalStartTime, "GarbageCollect");
 #endif
 
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
@@ -433,7 +433,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::DeleteAsset))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "DeleteAsset");
+			Timer __Timer(GlobalStartTime, "DeleteAsset");
 #endif
 
 			FActionTask ActionTask;
@@ -462,7 +462,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::UpdateElement))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "UpdateElement");
+			Timer __Timer(GlobalStartTime, "UpdateElement");
 #endif
 
 			ProcessQueue(EQueueTask::UpdateQueue, EndTime, EWorkerTask::UpdateElement, EWorkerTask::SetupTasks);
@@ -487,7 +487,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::MeshCreate))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "MeshCreate");
+			Timer __Timer(GlobalStartTime, "MeshCreate");
 #endif
 
 			ProcessQueue(EQueueTask::MeshQueue, EndTime, EWorkerTask::MeshCreate);
@@ -498,7 +498,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::MaterialCreate))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "MaterialCreate");
+			Timer __Timer(GlobalStartTime, "MaterialCreate");
 #endif
 
 			FActionTask ActionTask;
@@ -524,7 +524,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::TextureLoad))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "TextureLoad");
+			Timer __Timer(GlobalStartTime, "TextureLoad");
 #endif
 
 			ProcessQueue(EQueueTask::TextureQueue, EndTime, EWorkerTask::TextureLoad);
@@ -535,7 +535,7 @@ namespace DatasmithRuntime
 		if (bContinue && EnumHasAnyFlags(TasksToComplete, EWorkerTask::NonAsyncTasks))
 		{
 #ifdef LIVEUPDATE_TIME_LOGGING
-			Timer(GlobalStartTime, "NonAsyncTasks");
+			Timer __Timer(GlobalStartTime, "GameThreadTasks");
 #endif
 
 			FActionTask ActionTask;
@@ -551,13 +551,14 @@ namespace DatasmithRuntime
 					break;
 				}
 
-				if (DirectLink::InvalidId == ActionTask.GetAssetId())
+				const FSceneGraphId AssetId = ActionTask.GetAssetId();
+				if (DirectLink::InvalidId == AssetId)
 				{
 					ActionTask.Execute(FAssetData::EmptyAsset);
 				}
 				else
 				{
-					if (ActionTask.Execute(AssetDataList[ActionTask.GetAssetId()]) == EActionResult::Retry)
+					if (ActionTask.Execute(AssetDataList[AssetId]) == EActionResult::Retry)
 					{
 						ActionQueues[EQueueTask::NonAsyncQueue].Enqueue(MoveTemp(ActionTask));
 						continue;

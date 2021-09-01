@@ -34,10 +34,15 @@ bool FDatasmithNativeTranslator::LoadScene(TSharedRef<IDatasmithScene> OutScene)
 
 namespace DatasmithNativeTranslatorImpl
 {
-
-	TArray< UDatasmithMesh* > GetDatasmithMeshFromMeshElement( const TSharedRef< IDatasmithMeshElement > MeshElement )
+	struct FDatasmithMeshInternal
 	{
-		TArray< UDatasmithMesh* > Result;
+		bool bIsCollisionMesh = false;
+		TArray< FDatasmithMeshSourceModel > SourceModels;
+	};
+
+	TArray< FDatasmithMeshInternal > GetDatasmithMeshFromMeshElement( const TSharedRef< IDatasmithMeshElement > MeshElement )
+	{
+		TArray< FDatasmithMeshInternal > Result;
 
 		TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(MeshElement->GetFile()) );
 		if ( !Archive.IsValid() )
@@ -48,13 +53,20 @@ namespace DatasmithNativeTranslatorImpl
 		int32 NumMeshes = 0;
 		*Archive << NumMeshes;
 
+		UDatasmithMesh* DatasmithMesh = nullptr;
+		{
+			// Make sure the new UDatasmithMesh object is not created while a garbage collection is performed
+			FGCScopeGuard GCGuard;
+			// Setting the RF_Standalone bitmask on the new UDatasmithMesh object, to make sure it is not garbage collected 
+			// while loading and processing the udsmesh file. This can happen on very big meshes (5M+ triangles)
+			DatasmithMesh = NewObject< UDatasmithMesh >(GetTransientPackage(), NAME_None, RF_Standalone);
+		}
+
 		// Currently we only have 1 mesh per file. If there's a second mesh, it will be a CollisionMesh
 		while ( NumMeshes-- > 0)
 		{
 			TArray< uint8 > Bytes;
 			*Archive << Bytes;
-
-			UDatasmithMesh* DatasmithMesh = NewObject< UDatasmithMesh >();
 
 			FMemoryReader MemoryReader( Bytes, true );
 			MemoryReader.ArIgnoreClassRef = false;
@@ -62,8 +74,15 @@ namespace DatasmithNativeTranslatorImpl
 			MemoryReader.SetWantBinaryPropertySerialization(true);
 			DatasmithMesh->Serialize( MemoryReader );
 
-			Result.Emplace( DatasmithMesh );
+			FDatasmithMeshInternal& SourceModels = Result.AddDefaulted_GetRef();
+
+			SourceModels.bIsCollisionMesh = DatasmithMesh->bIsCollisionMesh;
+			SourceModels.SourceModels = MoveTemp(DatasmithMesh->SourceModels);
 		}
+
+		// Tell the garbage collector DatasmithMesh can now be deleted.
+		DatasmithMesh->ClearInternalFlags(EInternalObjectFlags::Async);
+		DatasmithMesh->ClearFlags(RF_Standalone);
 
 		return Result;
 	}
@@ -128,11 +147,11 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 	}
 
 	int32 ExtractionFailure = 0;
-	for (UDatasmithMesh* DatasmithMesh : GetDatasmithMeshFromMeshElement( MeshElement ))
+	for (FDatasmithMeshInternal& DatasmithMesh : GetDatasmithMeshFromMeshElement( MeshElement ))
 	{
-		if (DatasmithMesh->bIsCollisionMesh)
+		if (DatasmithMesh.bIsCollisionMesh)
 		{
-			for (FDatasmithMeshSourceModel& SourceModel : DatasmithMesh->SourceModels)
+			for (FDatasmithMeshSourceModel& SourceModel : DatasmithMesh.SourceModels)
 			{
 				FRawMesh RawMesh;
 				SourceModel.RawMeshBulkData.LoadRawMesh( RawMesh );
@@ -146,7 +165,7 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 		}
 		else
 		{
-			for (FDatasmithMeshSourceModel& SourceModel : DatasmithMesh->SourceModels)
+			for (FDatasmithMeshSourceModel& SourceModel : DatasmithMesh.SourceModels)
 			{
 				if (TOptional<FMeshDescription> Mesh = ExtractMeshDescription(SourceModel))
 				{
@@ -158,10 +177,7 @@ bool FDatasmithNativeTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshE
 		}
 
 		// Do not wait until garbage collection to free memory of the models
-		DatasmithMesh->SourceModels.Reset();
-		
-		// Object has been created on another thread, tell the garbage collector it can now be deleted.
-		DatasmithMesh->ClearInternalFlags(EInternalObjectFlags::Async);
+		DatasmithMesh.SourceModels.Reset();
 	}
 
 	return ExtractionFailure == 0;
