@@ -14,19 +14,6 @@ void UE::Shader::FPreshaderData::WriteData(const void* Value, uint32 Size)
 	Data.Append((uint8*)Value, Size);
 }
 
-template<>
-UE::Shader::FPreshaderData& UE::Shader::FPreshaderData::Write<UE::Shader::FValue>(const FValue& Value)
-{
-	const EValueType Type = Value.GetType();
-	FMemoryImageValue MemoryValue = Value.AsMemoryImage();
-	Data.Add((uint8)Type);
-	if (MemoryValue.Size > 0u)
-	{
-		Data.Append(MemoryValue.Bytes, MemoryValue.Size);
-	}
-	return *this;
-}
-
 void UE::Shader::FPreshaderData::WriteName(const FScriptName& Name)
 {
 	int32 Index = Names.Find(Name);
