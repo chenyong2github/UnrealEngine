@@ -94,7 +94,7 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 	if (DataLayer && DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
 	{
 		const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		DataLayerStateText = FText::Format(LOCTEXT("DataLayerActive", " ({0})"), StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)DataLayerSubsystem->GetDataLayerState(DataLayer)));
+		DataLayerStateText = FText::Format(LOCTEXT("DataLayerActive", " ({0})"), FTextStringHelper::CreateFromBuffer(GetDataLayerStateName(DataLayerSubsystem->GetDataLayerState(DataLayer))));
 	}
 	
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");

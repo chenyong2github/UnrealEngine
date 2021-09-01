@@ -19,6 +19,18 @@ enum class EDataLayerState : uint8
 	Activated
 };
 
+const inline TCHAR* GetDataLayerStateName(EDataLayerState DataLayerState)
+{
+	switch(DataLayerState)
+	{
+	case EDataLayerState::Unloaded: return TEXT("Unloaded");
+	case EDataLayerState::Loaded: return TEXT("Loaded");
+	case EDataLayerState::Activated: return TEXT("Activated");
+	default: check(0);
+	}
+	return TEXT("Invalid");
+}
+
 static_assert(EDataLayerState::Unloaded < EDataLayerState::Loaded && EDataLayerState::Loaded < EDataLayerState::Activated, "Streaming Query code is dependent on this being true");
 
 UCLASS(Config = Engine, PerObjectConfig, Within = WorldDataLayers, BlueprintType)
