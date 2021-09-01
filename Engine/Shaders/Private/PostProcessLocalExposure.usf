@@ -1,0 +1,18 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+#include "ScreenPass.ush"
+#include "PostProcessHistogramCommon.ush"
+
+SCREEN_PASS_TEXTURE_VIEWPORT(Input)
+Texture2D InputTexture;
+
+RWTexture2D<float> Output2DFRW;
+
+[numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
+void SetupLogLuminanceCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	float3 SceneColor = InputTexture.Load(uint3(Input_ViewportMin + DispatchThreadId.xy, 0)).rgb * View.OneOverPreExposure;
+	float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor);
+	Output2DFRW[DispatchThreadId.xy] = log2(LuminanceVal);
+}

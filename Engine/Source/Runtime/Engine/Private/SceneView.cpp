@@ -1436,6 +1436,11 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 		LERP_PP(AutoExposureBias);
 		LERP_PP(HistogramLogMin);
 		LERP_PP(HistogramLogMax);
+		LERP_PP(LocalExposureContrastReduction);
+		LERP_PP(LocalExposureDetailStrength);
+		LERP_PP(LocalExposureBlurredLuminanceBlend);
+		LERP_PP(LocalExposureBlurredLuminanceKernelSizePercent);
+		LERP_PP(LocalExposureMiddleGreyBias);
 		LERP_PP(LensFlareIntensity);
 		LERP_PP(LensFlareTint);
 		LERP_PP(LensFlareBokehSize);
@@ -1866,6 +1871,18 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	}
 
 	{
+		static const auto LocalExposureCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.LocalExposure"));
+
+		int Value = LocalExposureCVar->GetValueOnGameThread();
+
+		if (Value <= 0)
+		{
+			FinalPostProcessSettings.LocalExposureContrastReduction = 1.0f;
+			FinalPostProcessSettings.LocalExposureDetailStrength = 1.0f;
+		}
+	}
+
+	{
 		static const auto BloomQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BloomQuality"));
 
 		int Value = BloomQualityCVar->GetValueOnGameThread();
@@ -1879,6 +1896,12 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if(!Family->EngineShowFlags.Bloom)
 	{
 		FinalPostProcessSettings.BloomIntensity = 0.0f;
+	}
+
+	if (!Family->EngineShowFlags.LocalExposure)
+	{
+		FinalPostProcessSettings.LocalExposureContrastReduction = 1.0f;
+		FinalPostProcessSettings.LocalExposureDetailStrength = 1.0f;
 	}
 
 	// scale down tone mapper shader permutation

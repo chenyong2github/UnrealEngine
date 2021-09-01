@@ -16,15 +16,13 @@ TAutoConsoleVariable<int32> CVarUseAtomicHistogram(
 namespace
 {
 
-class FHistogramCS : public FGlobalShader
+template <uint32 ThreadGroupSizeX, uint32 ThreadGroupSizeY, uint32 HistogramSize, bool BilateralGrid>
+class THistogramCS : public FGlobalShader
 {
 public:
 	// Changing these numbers requires Histogram.usf to be recompiled.
-	static const uint32 ThreadGroupSizeX = 8;
-	static const uint32 ThreadGroupSizeY = 4;
 	static const uint32 LoopCountX = 8;
 	static const uint32 LoopCountY = 8;
-	static const uint32 HistogramSize = 64;
 
 	// /4 as we store 4 buckets in one ARGB texel.
 	static const uint32 HistogramTexelCount = HistogramSize / 4;
@@ -32,8 +30,8 @@ public:
 	// The number of texels on each axis processed by a single thread group.
 	static const FIntPoint TexelsPerThreadGroup;
 
-	DECLARE_GLOBAL_SHADER(FHistogramCS);
-	SHADER_USE_PARAMETER_STRUCT(FHistogramCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(THistogramCS);
+	SHADER_USE_PARAMETER_STRUCT(THistogramCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
@@ -41,6 +39,7 @@ public:
 		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramRWTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float2>, BilateralGridRWTexture)
 		SHADER_PARAMETER(FIntPoint, ThreadGroupCount)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -57,6 +56,7 @@ public:
 		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), LoopCountX);
 		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), LoopCountY);
 		OutEnvironment.SetDefine(TEXT("HISTOGRAM_SIZE"), HistogramSize);
+		OutEnvironment.SetDefine(TEXT("BILATERAL_GRID"), BilateralGrid);
 		OutEnvironment.CompilerFlags.Add( CFLAG_StandardOptimization );
 	}
 
@@ -174,9 +174,17 @@ public:
 	}
 };
 
-const FIntPoint FHistogramCS::TexelsPerThreadGroup(ThreadGroupSizeX* LoopCountX, ThreadGroupSizeY* LoopCountY);
+typedef THistogramCS<8, 4, 64, false> FHistogramCS;
+IMPLEMENT_SHADER_TYPE(template<>, FHistogramCS, TEXT("/Engine/Private/PostProcessHistogram.usf"), TEXT("MainCS"), SF_Compute);
+template<>
+const FIntPoint FHistogramCS::TexelsPerThreadGroup(8 * LoopCountX, 4 * LoopCountY);
 
-IMPLEMENT_GLOBAL_SHADER(FHistogramCS, "/Engine/Private/PostProcessHistogram.usf", "MainCS", SF_Compute);
+static const uint32 BilateralGridDepth = 32;
+typedef THistogramCS<8, 8, BilateralGridDepth, true> FHistogramBilateralGridCS;
+IMPLEMENT_SHADER_TYPE(template<>, FHistogramBilateralGridCS, TEXT("/Engine/Private/PostProcessHistogram.usf"), TEXT("MainCS"), SF_Compute);
+template<>
+const FIntPoint FHistogramBilateralGridCS::TexelsPerThreadGroup(8 * LoopCountX, 8 * LoopCountY);
+
 IMPLEMENT_GLOBAL_SHADER(FHistogramReducePS, "/Engine/Private/PostProcessHistogramReduce.usf", "MainPS", SF_Pixel);
 
 IMPLEMENT_GLOBAL_SHADER(FHistogramAtomicCS,        "/Engine/Private/Histogram.usf", "MainAtomicCS", SF_Compute);
@@ -404,7 +412,52 @@ FRDGTextureRef AddHistogramPass(
 	}
 }
 
-FIntPoint GetHistogramTexelsPerGroup()
+FRDGTextureRef AddLocalExposurePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	FScreenPassTexture SceneColor)
 {
-	return FHistogramCS::TexelsPerThreadGroup;
+	check(SceneColor.IsValid());
+
+	const FIntPoint TileSize(64, 64);
+	const FIntPoint ThreadGroupSize(8, 8);
+	const FIntPoint NumTiles = FIntPoint::DivideAndRoundUp(SceneColor.ViewRect.Size(), FHistogramBilateralGridCS::TexelsPerThreadGroup);
+	const FIntPoint ThreadGroupCount = FIntPoint::DivideAndRoundUp(SceneColor.ViewRect.Size(), FHistogramBilateralGridCS::TexelsPerThreadGroup);
+
+	FRDGTextureRef LocalExposureTexture = nullptr;
+
+	RDG_EVENT_SCOPE(GraphBuilder, "LocalExposure");
+
+	{
+		const FIntVector TextureExtent = FIntVector(NumTiles.X, NumTiles.Y, BilateralGridDepth);
+
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create3D(
+			TextureExtent,
+			PF_G32R32F,
+			FClearValueBinding::None,
+			TexCreate_UAV | TexCreate_ShaderResource);
+
+		LocalExposureTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("LocalExposure"));
+
+		auto* PassParameters = GraphBuilder.AllocParameters<FHistogramBilateralGridCS::FParameters>();
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->EyeAdaptation = EyeAdaptationParameters;
+		PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneColor));
+		PassParameters->InputTexture = SceneColor.Texture;
+		PassParameters->BilateralGridRWTexture = GraphBuilder.CreateUAV(LocalExposureTexture);
+		PassParameters->ThreadGroupCount = ThreadGroupCount;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FHistogramBilateralGridCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("FLocalExposure %dx%d (CS)", SceneColor.ViewRect.Width(), SceneColor.ViewRect.Height()),
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
+			ComputeShader,
+			PassParameters,
+			FIntVector(ThreadGroupCount.X, ThreadGroupCount.Y, 1));
+	}
+
+	return LocalExposureTexture;
 }

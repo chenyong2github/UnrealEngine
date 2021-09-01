@@ -927,6 +927,21 @@ struct FPostProcessSettings
 	uint8 bOverride_HistogramLogMax:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_LocalExposureContrastReduction:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_LocalExposureDetailStrength:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_LocalExposureBlurredLuminanceBlend:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_LocalExposureBlurredLuminanceKernelSizePercent:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
+	uint8 bOverride_LocalExposureMiddleGreyBias:1;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
 	uint8 bOverride_LensFlareIntensity:1;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Overrides, meta=(PinHiddenByDefault, InlineEditConditionToggle))
@@ -1722,6 +1737,45 @@ struct FPostProcessSettings
 	/** Calibration constant for 18% albedo, deprecating this value. */
 	UPROPERTY()
 	float AutoExposureCalibrationConstant_DEPRECATED;
+
+	/** 
+	 * Local Exposure decomposes luminance of the frame into a base layer and a detail layer.
+	 * Contrast of the base layer is reduced based on this value.
+	 * Value less than 1 will enable local exposure.
+	 * Good values are usually in the range 0.6 .. 1.0.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Local Exposure", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_LocalExposureContrastReduction", DisplayName = "Contrast Reduction"))
+	float LocalExposureContrastReduction;
+
+	/**
+	 * Local Exposure decomposes luminance of the frame into a base layer and a detail layer.
+	 * Value different than 1 will enable local exposure.
+	 * This value should be set to 1 in most cases.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Local Exposure", meta=(UIMin = "0.0", UIMax = "4.0", editcondition = "bOverride_LocalExposureDetailStrength", DisplayName = "Detail Strength"))
+	float LocalExposureDetailStrength;
+
+	/**
+	 * Local Exposure decomposes luminance of the frame into a base layer and a detail layer.
+	 * Blend between bilateral filtered and blurred luminance as the base layer.
+	 * Blurred luminance helps preserve image appearance and specular highlights, and reduce ringing.
+	 * Good values are usually in the range 0.4 .. 0.6
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Local Exposure", meta=(UIMin = "0.0", UIMax = "1.0", editcondition = "bOverride_LocalExposureBlurredLuminanceBlend", DisplayName = "Blurred Luminance Blend"))
+	float LocalExposureBlurredLuminanceBlend;
+
+	/**
+	 * Kernel size (percentage of screen) used to blur frame luminance.
+	*/
+	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Local Exposure", meta=(UIMin = "0.0", UIMax = "100.0", editcondition = "bOverride_LocalExposureBlurredLuminanceKernelSizePercent", DisplayName = "Blurred Luminance Kernel Size Percent"))
+	float LocalExposureBlurredLuminanceKernelSizePercent;
+
+	/**
+	 * Logarithmic adjustment for the local exposure middle grey.
+	 * 0: no adjustment, -1:2x darker, -2:4x darker, 1:2x brighter, 2:4x brighter, ...
+	 */
+	UPROPERTY(interp, BlueprintReadWrite, Category = "Lens|Local Exposure", meta = (UIMin = "-15.0", UIMax = "15.0", editcondition = "bOverride_LocalExposureMiddleGreyBias", DisplayName = "Middle Grey Bias"))
+	float LocalExposureMiddleGreyBias;
 
 	/** Brightness scale of the image cased lens flares (linear) */
 	UPROPERTY(interp, BlueprintReadWrite, Category="Lens|Lens Flares", meta=(UIMin = "0.0", UIMax = "16.0", editcondition = "bOverride_LensFlareIntensity", DisplayName = "Intensity"))

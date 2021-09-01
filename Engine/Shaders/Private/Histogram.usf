@@ -150,7 +150,7 @@ void CalculateBucketsAndWeights(in uint2 TexelPos, out float Weight0, out float 
 	float4 SceneColor = InputTexture.Load(int3(TexelPos, 0));
 	SceneColor.xyz *= View.OneOverPreExposure;
 
-	float LuminanceVal = max(dot(SceneColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+	float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.xyz);
 	float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
 	// Map the normalized histogram position into texels.
 	float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE-1);

@@ -53,6 +53,15 @@ struct FTonemapInputs
 	// [Required] Filtered bloom texture to composite with tonemapped scene color. This should be transparent black for no bloom.
 	FBloomOutputs Bloom;
 
+	// [Optional] Luminance bilateral grid. If this is null, local exposure is disabled.
+	FRDGTextureRef LocalExposureTexture = nullptr;
+
+	// [Optional] Blurred luminance texture used to calculate local exposure.
+	FRDGTextureRef BlurredLogLuminanceTexture = nullptr;
+
+	// [Required] Eye adaptation parameters.
+	const FEyeAdaptationParameters* EyeAdaptationParameters = nullptr;
+
 	// [Required] Color grading texture used to remap colors.
 	FRDGTextureRef ColorGradingTexture = nullptr;
 

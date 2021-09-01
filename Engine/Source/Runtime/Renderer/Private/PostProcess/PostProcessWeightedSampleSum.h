@@ -24,6 +24,8 @@ struct FGaussianBlurInputs
 
 	// The filter kernel size in percentage of the screen.
 	float KernelSizePercent = 0.0f;
+
+	bool UseMirrorAddressMode = false;
 };
 
 using FGaussianBlurOutputs = FScreenPassTexture;

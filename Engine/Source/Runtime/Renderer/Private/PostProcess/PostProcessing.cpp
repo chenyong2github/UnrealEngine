@@ -12,7 +12,9 @@
 #include "PostProcess/PostProcessMobile.h"
 #include "PostProcess/PostProcessDownsample.h"
 #include "PostProcess/PostProcessHistogram.h"
+#include "PostProcess/PostProcessLocalExposure.h"
 #include "PostProcess/PostProcessVisualizeHDR.h"
+#include "PostProcess/PostProcessVisualizeLocalExposure.h"
 #include "PostProcess/VisualizeShadingModels.h"
 #include "PostProcess/PostProcessSelectionOutline.h"
 #include "PostProcess/PostProcessVisualizeLevelInstance.h"
@@ -357,6 +359,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 	// Histogram defaults to black because the histogram eye adaptation pass is used for the manual metering mode.
 	FRDGTextureRef HistogramTexture = BlackDummy.Texture;
 
+	FRDGTextureRef LocalExposureTexture = nullptr;
+	FRDGTextureRef LocalExposureBlurredLogLumTexture = BlackDummy.Texture;
+
 	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
 	const bool bVisualizeHDR = EngineShowFlags.VisualizeHDR;
 	const bool bViewFamilyOutputInHDR = GRHISupportsHDROutput && IsHDREnabled();
@@ -384,6 +389,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		VisualizeSubsurface,
 		VisualizeGBufferOverview,
 		VisualizeHDR,
+		VisualizeLocalExposure,
 		PixelInspector,
 		HMDDistortion,
 		HighResolutionScreenshotMask,
@@ -424,6 +430,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		TEXT("VisualizeSubsurface"),
 		TEXT("VisualizeGBufferOverview"),
 		TEXT("VisualizeHDR"),
+		TEXT("VisualizeLocalExposure"),
 		TEXT("PixelInspector"),
 		TEXT("HMDDistortion"),
 		TEXT("HighResolutionScreenshotMask"),
@@ -531,6 +538,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			// Skip if we don't have any exposure range to generate (eye adaptation will clamp).
 			View.FinalPostProcessSettings.AutoExposureMinBrightness < View.FinalPostProcessSettings.AutoExposureMaxBrightness);
 
+		const bool bLocalExposureEnabled =
+			EngineShowFlags.VisualizeLocalExposure || 
+			View.FinalPostProcessSettings.LocalExposureContrastReduction < 1.0 ||
+			!FMath::IsNearlyEqual(View.FinalPostProcessSettings.LocalExposureDetailStrength, 1.0f);
+
 		const bool bBloomEnabled = View.FinalPostProcessSettings.BloomIntensity > 0.0f;
 
 
@@ -547,6 +559,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassSequence.SetEnabled(EPass::FXAA, AntiAliasingMethod == AAM_FXAA);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, PostProcessMaterialAfterTonemappingChain.Num() != 0);
 		PassSequence.SetEnabled(EPass::VisualizeDepthOfField, bVisualizeDepthOfField);
+		PassSequence.SetEnabled(EPass::VisualizeLocalExposure, EngineShowFlags.VisualizeLocalExposure);
 
 		for (int32 ViewExt = 0; ViewExt < View.Family->ViewExtensions.Num(); ++ViewExt)
 		{
@@ -774,6 +787,11 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			GraphBuilder.QueueTextureExtraction(DownsampledSceneColor.Texture, &View.ViewState->PrevFrameViewInfo.HalfResTemporalAAHistory);
 		}
 
+		if (bLocalExposureEnabled)
+		{
+			LocalExposureTexture = AddLocalExposurePass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor);
+		}
+
 		if (bHistogramEnabled)
 		{
 			HistogramTexture = AddHistogramPass(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, LastEyeAdaptationTexture);
@@ -781,12 +799,18 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 
 		const bool bFFTBloomEnabled = IsFFTBloomEnabled(View);
 		const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
+		const bool bLocalExposureBlurredLum = bLocalExposureEnabled && View.FinalPostProcessSettings.LocalExposureBlurredLuminanceBlend > 0.0f;
 
 		FSceneDownsampleChain SceneDownsampleChain;
-		if (bBasicEyeAdaptationEnabled || (bBloomEnabled && bFFTBloomEnabled))
+		if (bBasicEyeAdaptationEnabled || (bBloomEnabled && bFFTBloomEnabled) || bLocalExposureBlurredLum)
 		{
 			const bool bLogLumaInAlpha = true;
 			SceneDownsampleChain.Init(GraphBuilder, View, EyeAdaptationParameters, DownsampledSceneColor, DownsampleQuality, bLogLumaInAlpha);
+		}
+
+		if (bLocalExposureBlurredLum)
+		{
+			LocalExposureBlurredLogLumTexture = AddLocalExposureBlurredLogLuminancePass(GraphBuilder, View, EyeAdaptationParameters, SceneDownsampleChain.GetTexture(4));
 		}
 
 		if (bBasicEyeAdaptationEnabled)
@@ -913,6 +937,9 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 				PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, PassInputs.OverrideOutput);
 				PassInputs.SceneColor = SceneColor;
 				PassInputs.Bloom = Bloom;
+				PassInputs.LocalExposureTexture = LocalExposureTexture;
+				PassInputs.BlurredLogLuminanceTexture = LocalExposureBlurredLogLumTexture;
+				PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 				PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
 				PassInputs.ColorGradingTexture = ColorGradingTexture;
 				PassInputs.bWriteAlphaChannel = AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported();
@@ -970,6 +997,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassSequence.SetEnabled(EPass::FXAA, false);
 		PassSequence.SetEnabled(EPass::PostProcessMaterialAfterTonemapping, false);
 		PassSequence.SetEnabled(EPass::VisualizeDepthOfField, false);
+		PassSequence.SetEnabled(EPass::VisualizeLocalExposure, false);
 		PassSequence.Finalize();
 
 		// Compose separate translucency passes
@@ -997,6 +1025,7 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 			FTonemapInputs PassInputs;
 			PassSequence.AcceptOverrideIfLastPass(EPass::Tonemap, PassInputs.OverrideOutput);
 			PassInputs.SceneColor = SceneColor;
+			PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 			PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
 			PassInputs.bOutputInHDR = bViewFamilyOutputInHDR;
 			PassInputs.bGammaOnly = true;
@@ -1139,6 +1168,20 @@ void AddPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo& View, c
 		PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 
 		SceneColor = AddVisualizeHDRPass(GraphBuilder, View, PassInputs);
+	}
+
+	if (PassSequence.IsEnabled(EPass::VisualizeLocalExposure))
+	{
+		FVisualizeLocalExposureInputs PassInputs;
+		PassSequence.AcceptOverrideIfLastPass(EPass::VisualizeLocalExposure, PassInputs.OverrideOutput);
+		PassInputs.SceneColor = SceneColor;
+		PassInputs.HDRSceneColor = SceneColorBeforeTonemap;
+		PassInputs.LumBilateralGridTexture = LocalExposureTexture;
+		PassInputs.BlurredLumTexture = LocalExposureBlurredLogLumTexture;
+		PassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
+		PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
+
+		SceneColor = AddVisualizeLocalExposurePass(GraphBuilder, View, PassInputs);
 	}
 
 #if WITH_EDITOR
@@ -1412,13 +1455,16 @@ void AddDebugViewPostProcessingPasses(FRDGBuilder& GraphBuilder, const FViewInfo
 
 	if (PassSequence.IsEnabled(EPass::TonemapAfter))
 	{
+		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
+
 		FTonemapInputs PassInputs;
 		PassSequence.AcceptOverrideIfLastPass(EPass::TonemapAfter, PassInputs.OverrideOutput);
 		PassInputs.SceneColor = SceneColor;
 		PassInputs.bOutputInHDR = bViewFamilyOutputInHDR;
 		PassInputs.bGammaOnly = true;
 		// Do eye adaptation in ray tracing debug modes to match raster buffer visualization modes
-		PassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);;
+		PassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
+		PassInputs.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 		SceneColor = AddTonemapPass(GraphBuilder, View, PassInputs);
 	}
@@ -2192,6 +2238,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 			
 		TonemapperInputs.SceneColor = SceneColor;
 		TonemapperInputs.Bloom.Bloom = BloomOutput;
+		TonemapperInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
 		TonemapperInputs.EyeAdaptationTexture = nullptr;
 		TonemapperInputs.ColorGradingTexture = ColorGradingTexture;
 		TonemapperInputs.bWriteAlphaChannel = View.AntiAliasingMethod == AAM_FXAA || IsPostProcessingWithAlphaChannelSupported() || bUseMobileDof || IsMobilePropagateAlphaEnabled(View.GetShaderPlatform());

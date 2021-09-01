@@ -501,6 +501,12 @@ FPostProcessSettings::FPostProcessSettings()
 
 	AutoExposureApplyPhysicalCameraExposure = 1;
 
+	LocalExposureContrastReduction = 1.0f;
+	LocalExposureDetailStrength = 1.0f;
+	LocalExposureBlurredLuminanceBlend = 0.6f;
+	LocalExposureBlurredLuminanceKernelSizePercent = 50.0f;
+	LocalExposureMiddleGreyBias = 0.0f;
+
 	// next value might get overwritten by r.DefaultFeature.LensFlare
 	LensFlareIntensity = 1.0f;
 	LensFlareTint = FLinearColor(1.0f, 1.0f, 1.0f);
@@ -713,6 +719,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_AutoExposureApplyPhysicalCameraExposure(Settings.bOverride_AutoExposureApplyPhysicalCameraExposure)
 	, bOverride_HistogramLogMin(Settings.bOverride_HistogramLogMin)
 	, bOverride_HistogramLogMax(Settings.bOverride_HistogramLogMax)
+	, bOverride_LocalExposureContrastReduction(Settings.bOverride_LocalExposureContrastReduction)
+	, bOverride_LocalExposureDetailStrength(Settings.bOverride_LocalExposureDetailStrength)
+	, bOverride_LocalExposureBlurredLuminanceBlend(Settings.bOverride_LocalExposureBlurredLuminanceBlend)
+	, bOverride_LocalExposureBlurredLuminanceKernelSizePercent(Settings.bOverride_LocalExposureBlurredLuminanceKernelSizePercent)
+	, bOverride_LocalExposureMiddleGreyBias(Settings.bOverride_LocalExposureMiddleGreyBias)
 	, bOverride_LensFlareIntensity(Settings.bOverride_LensFlareIntensity)
 	, bOverride_LensFlareTint(Settings.bOverride_LensFlareTint)
 	, bOverride_LensFlareTints(Settings.bOverride_LensFlareTints)
@@ -918,6 +929,11 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, HistogramLogMin(Settings.HistogramLogMin)
 	, HistogramLogMax(Settings.HistogramLogMax)
 	, AutoExposureCalibrationConstant_DEPRECATED(Settings.AutoExposureCalibrationConstant_DEPRECATED)
+	, LocalExposureContrastReduction(Settings.LocalExposureContrastReduction)
+	, LocalExposureDetailStrength(Settings.LocalExposureDetailStrength)
+	, LocalExposureBlurredLuminanceBlend(Settings.LocalExposureBlurredLuminanceBlend)
+	, LocalExposureBlurredLuminanceKernelSizePercent(Settings.LocalExposureBlurredLuminanceKernelSizePercent)
+	, LocalExposureMiddleGreyBias(Settings.LocalExposureMiddleGreyBias)
 	, LensFlareIntensity(Settings.LensFlareIntensity)
 	, LensFlareTint(Settings.LensFlareTint)
 	, LensFlareBokehSize(Settings.LensFlareBokehSize)

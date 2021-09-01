@@ -2246,6 +2246,12 @@ static TAutoConsoleVariable<int32> CVarSetClearSceneMethod(
 	TEXT(" 2: Quad at max z"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarLocalExposure(
+	TEXT("r.LocalExposure"),
+	1,
+	TEXT("Whether to support local exposure"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarBloomQuality(
 	TEXT("r.BloomQuality"),
 	5,
@@ -2262,7 +2268,7 @@ static TAutoConsoleVariable<int32> CVarSceneColorFringeQuality(
 	TEXT("r.SceneColorFringeQuality"),
 	1,
 	TEXT(" 0: off but best for performance\n")
-	TEXT(" 1: 3 texture samples (default)n"),
+	TEXT(" 1: 3 texture samples (default)"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 

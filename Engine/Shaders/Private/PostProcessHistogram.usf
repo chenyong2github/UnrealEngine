@@ -12,14 +12,23 @@ SCREEN_PASS_TEXTURE_VIEWPORT(Input)
 
 Texture2D InputTexture;
 
+#if BILATERAL_GRID
+// Output bilateral grid texture (UAV)
+RWTexture3D<float2> BilateralGridRWTexture;
+#else
 // Output histogram texture (UAV)
 RWTexture2D<float4> HistogramRWTexture;
+#endif
 
 // Number of thread groups in the dispatch
 uint2 ThreadGroupCount;
 
 // THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms of the size HISTOGRAM_SIZE
 groupshared float SharedHistogram[HISTOGRAM_SIZE][THREADGROUP_SIZEX][THREADGROUP_SIZEY];
+
+#if BILATERAL_GRID
+groupshared float SharedLuminanceSum[HISTOGRAM_SIZE][THREADGROUP_SIZEX][THREADGROUP_SIZEY];
+#endif
 
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void MainCS(
@@ -33,6 +42,9 @@ void MainCS(
 	UNROLL for (uint i = 0; i < HISTOGRAM_SIZE; ++i)
 	{
 		SharedHistogram[i][GroupThreadId.x][GroupThreadId.y] = 0.0f;
+#if BILATERAL_GRID
+		SharedLuminanceSum[i][GroupThreadId.x][GroupThreadId.y] = 0.0f;
+#endif
 	}
 	
 	GroupMemoryBarrierWithGroupSync();
@@ -59,14 +71,16 @@ void MainCS(
 
 				SceneColor.xyz *= View.OneOverPreExposure;
 
-				float LuminanceVal = max(dot(SceneColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+				float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.xyz);
 
-				float LogLuminance = ComputeHistogramPositionFromLuminance(LuminanceVal);
+				float LogLuminance = log2(LuminanceVal);
+				float LogLuminanceHist = ComputeHistogramPositionFromLogLuminance(LogLuminance);
+
 				float2 ScreenUV = (TexelPos.xy - Input_ViewportMin) * InvViewSize;
 				float ScreenWeight = AdaptationWeightTexture(ScreenUV);
 
 				// Map the normalized histogram position into texels.
-				float fBucket = saturate(LogLuminance) * (HISTOGRAM_SIZE-1);// * 0.9999f;
+				float fBucket = saturate(LogLuminanceHist) * (HISTOGRAM_SIZE-1);// * 0.9999f;
 
 				// Find two discrete buckets that straddle the continuous histogram position.
 				uint Bucket0 = (uint)(fBucket);
@@ -79,6 +93,7 @@ void MainCS(
 				float Weight1 = frac(fBucket);
 				float Weight0 = 1.0f - Weight1;
 
+#if !BILATERAL_GRID
 				// When EyeAdaptation_BlackHistogramBucketInfluence=.0, we will ignore the last bucket. The main use
 				// case is so the black background pixels in the editor have no effect. But if we have cases where
 				// pixel values can actually be black, we want to set EyeAdaptation_LastHistogramBucketInfluence=1.0.
@@ -88,9 +103,18 @@ void MainCS(
 					Weight0 *= EyeAdaptation_BlackHistogramBucketInfluence;
 				}
 
+				Weight0 *= ScreenWeight;
+				Weight1 *= ScreenWeight;
+#endif
+
 				// Accumulate the weight to the nearby history buckets.
-				SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0 * ScreenWeight;
-				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1 * ScreenWeight;
+				SharedHistogram[Bucket0][GroupThreadId.x][GroupThreadId.y] += Weight0;
+				SharedHistogram[Bucket1][GroupThreadId.x][GroupThreadId.y] += Weight1;
+
+#if BILATERAL_GRID
+				SharedLuminanceSum[Bucket0][GroupThreadId.x][GroupThreadId.y] += LogLuminance * Weight0;
+				SharedLuminanceSum[Bucket1][GroupThreadId.x][GroupThreadId.y] += LogLuminance * Weight1;
+#endif
 			}
 		}
 	}
@@ -101,6 +125,9 @@ void MainCS(
 	if (GroupIndex < HISTOGRAM_SIZE / 4) 
 	{
 		float4 Sum = 0;
+#if BILATERAL_GRID
+		float4 SumLuminance = 0;
+#endif
 
 		LOOP for (uint y = 0; y < THREADGROUP_SIZEY; ++y)
 		{
@@ -111,9 +138,23 @@ void MainCS(
 					SharedHistogram[GroupIndex * 4 + 1][x][y],
 					SharedHistogram[GroupIndex * 4 + 2][x][y],
 					SharedHistogram[GroupIndex * 4 + 3][x][y]);
+
+#if BILATERAL_GRID
+				SumLuminance += float4(
+					SharedLuminanceSum[GroupIndex * 4 + 0][x][y],
+					SharedLuminanceSum[GroupIndex * 4 + 1][x][y],
+					SharedLuminanceSum[GroupIndex * 4 + 2][x][y],
+					SharedLuminanceSum[GroupIndex * 4 + 3][x][y]);
+#endif
 			}
 		}
 
+#if BILATERAL_GRID
+		BilateralGridRWTexture[uint3(GroupId.xy, GroupIndex * 4 + 0)] = float2(SumLuminance.x, Sum.x);
+		BilateralGridRWTexture[uint3(GroupId.xy, GroupIndex * 4 + 1)] = float2(SumLuminance.y, Sum.y);
+		BilateralGridRWTexture[uint3(GroupId.xy, GroupIndex * 4 + 2)] = float2(SumLuminance.z, Sum.z);
+		BilateralGridRWTexture[uint3(GroupId.xy, GroupIndex * 4 + 3)] = float2(SumLuminance.w, Sum.w);
+#else
 		float2 MaxExtent = Input_ViewportSize;
 		float Area = MaxExtent.x * MaxExtent.y;
 	
@@ -122,5 +163,6 @@ void MainCS(
 
 		// Output texture with one histogram per line, x and y unwrapped into all the lines
 		HistogramRWTexture[uint2(GroupIndex, GroupId.x + GroupId.y * ThreadGroupCount.x)] = Sum * NormalizeFactor;
+#endif
 	}
 }

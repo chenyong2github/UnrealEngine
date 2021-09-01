@@ -343,7 +343,8 @@ FScreenPassTexture AddGaussianBlurPass(
 	FScreenPassTexture Filter,
 	FScreenPassTexture Additive,
 	TArrayView<const FVector2D> SampleOffsets,
-	TArrayView<const FLinearColor> SampleWeights)
+	TArrayView<const FLinearColor> SampleWeights,
+	bool UseMirrorAddressMode)
 {
 	check(!OutputViewport.IsEmpty());
 	check(Filter.IsValid());
@@ -360,7 +361,16 @@ FScreenPassTexture AddGaussianBlurPass(
 
 	const uint32 StaticSampleCount = GetStaticSampleCount(SampleCount);
 
-	FRHISamplerState* SamplerState = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Clamp>::GetRHI();
+	FRHISamplerState* SamplerState;
+
+	if (UseMirrorAddressMode)
+	{
+		SamplerState = TStaticSamplerState<SF_Bilinear, AM_Mirror, AM_Mirror, AM_Clamp>::GetRHI();
+	}
+	else
+	{
+		SamplerState = TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Clamp>::GetRHI();
+	}
 
 	const FScreenPassTextureInput FilterInput = GetScreenPassTextureInput(Filter, SamplerState);
 
@@ -507,7 +517,8 @@ FScreenPassTexture AddGaussianBlurPass(
 			Inputs.Filter,
 			Additive,
 			TArrayView<const FVector2D>(SampleOffsets, SampleCount),
-			TArrayView<const FLinearColor>(SampleWeights, SampleCount));
+			TArrayView<const FLinearColor>(SampleWeights, SampleCount),
+			Inputs.UseMirrorAddressMode);
 	}
 
 	// Vertical Pass
@@ -541,6 +552,7 @@ FScreenPassTexture AddGaussianBlurPass(
 			HorizontalOutput,
 			Inputs.Additive,
 			TArrayView<const FVector2D>(SampleOffsets, SampleCount),
-			TArrayView<const FLinearColor>(SampleWeights, SampleCount));
+			TArrayView<const FLinearColor>(SampleWeights, SampleCount),
+			Inputs.UseMirrorAddressMode);
 	}
 }

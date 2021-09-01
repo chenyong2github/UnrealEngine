@@ -540,6 +540,7 @@ void EngineShowFlagOverride(EShowFlagInitMode ShowFlagInitMode, EViewModeIndex V
 		{
 			EngineShowFlags.SetRayTracingDebug(true);
 			EngineShowFlags.SetVisualizeHDR(false);
+			EngineShowFlags.SetVisualizeLocalExposure(false);
 			EngineShowFlags.SetVisualizeMotionBlur(false);
 			EngineShowFlags.SetDepthOfField(false);
 			EngineShowFlags.SetPostProcessMaterial(false);
