@@ -1030,7 +1030,11 @@ namespace iPhonePackager
                         }
                         break;
 
-                    default:
+					case "cleanprovisions":
+						MobileProvision.CleanMobileProvisions();
+						break;
+
+					default:
                         // Commands by themself default to packaging for the device
                         if (CheckArguments())
                         {

@@ -39,11 +39,10 @@ namespace iPhonePackager
         public static void CacheMobileProvisions()
         {
             Program.Log("Caching provisions");
-            string LocalProvisionFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/MobileDevice/Provisioning Profiles");
-            if (!Directory.Exists(LocalProvisionFolder))
+            if (!Directory.Exists(Config.ProvisionDirectory))
             {
-                Program.Log("Local Provision Folder {0} doesn't exist, creating..", LocalProvisionFolder);
-                Directory.CreateDirectory(LocalProvisionFolder);
+                Program.Log("Provision Folder {0} doesn't exist, creating..", Config.ProvisionDirectory);
+                Directory.CreateDirectory(Config.ProvisionDirectory);
             }
 
 			List<string> ProvisionCopySrcDirectories = new List<string>();
@@ -104,7 +103,24 @@ namespace iPhonePackager
 			}
         }
 
-        public static string FindCompatibleProvision(string CFBundleIdentifier, out bool bNameMatch, bool bCheckCert = true, bool bCheckIdentifier = true, bool bCheckDistro = true)
+		public static void CleanMobileProvisions()
+		{
+			if (!Directory.Exists(Config.ProvisionDirectory))
+			{
+				Program.Log("Provision Folder {0} doesn't exist, nothing to do.", Config.ProvisionDirectory);
+			}
+			else
+			{
+				Program.Log("Cleaning out contents of  Provision Folder {0}", Config.ProvisionDirectory);
+				foreach (string Provision in Directory.GetFiles(Config.ProvisionDirectory))
+				{
+					File.Delete(Provision);
+				}
+			}
+		}
+
+
+		public static string FindCompatibleProvision(string CFBundleIdentifier, out bool bNameMatch, bool bCheckCert = true, bool bCheckIdentifier = true, bool bCheckDistro = true)
         {
             bNameMatch = false;
 
