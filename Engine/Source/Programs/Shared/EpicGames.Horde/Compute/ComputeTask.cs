@@ -41,13 +41,13 @@ namespace EpicGames.Horde.Compute
 		/// Hash of a <see cref="DirectoryTree"/> object encoded as a CbObject and stored in the CAS
 		/// </summary>
 		[CbField("s")]
-		public IoHash SandboxHash { get; set; }
+		public CbObjectAttachment SandboxHash { get; set; }
 
 		/// <summary>
 		/// Requirements for the agent to execute the work
 		/// </summary>
 		[CbField("r")]
-		public IoHash RequirementsHash { get; set; } = IoHash.Zero;
+		public CbObjectAttachment RequirementsHash { get; set; } = CbObjectAttachment.Zero;
 
 		/// <summary>
 		/// List of output paths to be captured on completion of the action. These may be files or directories.
@@ -69,7 +69,7 @@ namespace EpicGames.Horde.Compute
 		/// <param name="Arguments">Arguments for the executable to run</param>
 		/// <param name="WorkingDirectory">Working directory for execution</param>
 		/// <param name="SandboxHash">Hash of the sandbox</param>
-		public ComputeTask(Utf8String Executable, List<Utf8String> Arguments, Utf8String WorkingDirectory, IoHash SandboxHash)
+		public ComputeTask(Utf8String Executable, List<Utf8String> Arguments, Utf8String WorkingDirectory, CbObjectAttachment SandboxHash)
 		{
 			this.Executable = Executable;
 			this.Arguments = Arguments;

@@ -101,7 +101,7 @@ namespace EpicGames.Serialization
 		/// Boolean false value. Payload is empty. 
 		/// </summary>
 		BoolFalse = 0x0c,
-		
+
 		/// <summary>
 		/// Boolean true value. Payload is empty. 
 		/// </summary>
@@ -186,6 +186,94 @@ namespace EpicGames.Serialization
 		/// A persisted flag which indicates that the field has a name stored before the payload. 
 		/// </summary>
 		HasFieldName = 0x80,
+	}
+
+	/// <summary>
+	/// A binary attachment, referenced by <see cref="IoHash"/>
+	/// </summary>
+	[DebuggerDisplay("{Hash}")]
+	public struct CbBinaryAttachment
+	{
+		/// <summary>
+		/// Attachment with a hash of zero
+		/// </summary>
+		public static CbBinaryAttachment Zero { get; } = new CbBinaryAttachment(IoHash.Zero);
+
+		/// <summary>
+		/// Hash of the referenced object
+		/// </summary>
+		public IoHash Hash;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Hash">Hash of the referenced object</param>
+		public CbBinaryAttachment(IoHash Hash)
+		{
+			this.Hash = Hash;
+		}
+
+		/// <summary>
+		/// Convert a hash to a binary attachment 
+		/// </summary>
+		/// <param name="Hash">The attachment to convert</param>
+		public static implicit operator CbBinaryAttachment(IoHash Hash)
+		{
+			return new CbBinaryAttachment(Hash);
+		}
+
+		/// <summary>
+		/// Use a binary attachment as a hash
+		/// </summary>
+		/// <param name="Attachment">The attachment to convert</param>
+		public static implicit operator IoHash(CbBinaryAttachment Attachment)
+		{
+			return Attachment.Hash;
+		}
+	}
+
+	/// <summary>
+	/// An object attachment, referenced by <see cref="IoHash"/>
+	/// </summary>
+	[DebuggerDisplay("{Hash}")]
+	public struct CbObjectAttachment
+	{
+		/// <summary>
+		/// Attachment with a hash of zero
+		/// </summary>
+		public static CbObjectAttachment Zero { get; } = new CbObjectAttachment(IoHash.Zero);
+
+		/// <summary>
+		/// Hash of the referenced object
+		/// </summary>
+		public IoHash Hash;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="Hash">Hash of the referenced object</param>
+		public CbObjectAttachment(IoHash Hash)
+		{
+			this.Hash = Hash;
+		}
+
+		/// <summary>
+		/// Use an object attachment as a hash
+		/// </summary>
+		/// <param name="Attachment">The attachment to convert</param>
+		public static implicit operator CbObjectAttachment(IoHash Hash)
+		{
+			return new CbObjectAttachment(Hash);
+		}
+
+		/// <summary>
+		/// Use an object attachment as a hash
+		/// </summary>
+		/// <param name="Attachment">The attachment to convert</param>
+		public static implicit operator IoHash(CbObjectAttachment Attachment)
+		{
+			return Attachment.Hash;
+		}
 	}
 
 	/// <summary>
@@ -647,9 +735,11 @@ namespace EpicGames.Serialization
 					case CbFieldType.BoolTrue:
 						return true;
 					case CbFieldType.ObjectAttachment:
+						return AsObjectAttachment();
 					case CbFieldType.BinaryAttachment:
+						return AsBinaryAttachment();
 					case CbFieldType.Hash:
-						return AsAttachment();
+						return AsHash();
 					case CbFieldType.Uuid:
 						return AsUuid();
 					case CbFieldType.DateTime:
@@ -976,14 +1066,14 @@ namespace EpicGames.Serialization
 		/// Access the field as a hash referencing an object attachment. Returns the provided default on error.
 		/// </summary>
 		/// <returns>Value of the field</returns>
-		public IoHash AsObjectAttachment() => AsObjectAttachment(IoHash.Zero);
+		public CbObjectAttachment AsObjectAttachment() => AsObjectAttachment(CbObjectAttachment.Zero);
 
 		/// <summary>
 		/// Access the field as a hash referencing an object attachment. Returns the provided default on error.
 		/// </summary>
 		/// <param name="Default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public IoHash AsObjectAttachment(IoHash Default)
+		public CbObjectAttachment AsObjectAttachment(CbObjectAttachment Default)
 		{
 			if (CbFieldUtils.IsObjectAttachment(TypeWithFlags))
 			{
@@ -1002,14 +1092,14 @@ namespace EpicGames.Serialization
 		/// </summary>
 		/// <param name="Default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public IoHash AsBinaryAttachment() => AsBinaryAttachment(IoHash.Zero);
+		public CbBinaryAttachment AsBinaryAttachment() => AsBinaryAttachment(CbBinaryAttachment.Zero);
 
 		/// <summary>
 		/// Access the field as a hash referencing a binary attachment. Returns the provided default on error.
 		/// </summary>
 		/// <param name="Default">Default value</param>
 		/// <returns>Value of the field</returns>
-		public IoHash AsBinaryAttachment(IoHash Default)
+		public CbBinaryAttachment AsBinaryAttachment(CbBinaryAttachment Default)
 		{
 			if (CbFieldUtils.IsBinaryAttachment(TypeWithFlags))
 			{

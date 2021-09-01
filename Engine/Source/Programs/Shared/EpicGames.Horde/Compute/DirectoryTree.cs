@@ -41,7 +41,7 @@ namespace EpicGames.Horde.Compute
 		/// Hash of bulk data for the file stored in CAS.
 		/// </summary>
 		[CbField("h")]
-		public IoHash Hash { get; set; }
+		public CbBinaryAttachment Hash { get; set; }
 
 		/// <summary>
 		/// Size of the file
@@ -65,7 +65,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public FileNode(Utf8String Name, IoHash Hash, long Size, int Attributes)
+		public FileNode(Utf8String Name, CbBinaryAttachment Hash, long Size, int Attributes)
 		{
 			this.Name = Name;
 			this.Hash = Hash;
@@ -89,7 +89,7 @@ namespace EpicGames.Horde.Compute
 		/// Hash of a <see cref="CbObject"/> encoded <see cref="DirectoryTree"/> stored in CAS.
 		/// </summary>
 		[CbField("h")]
-		public IoHash Hash { get; set; }
+		public CbObjectAttachment Hash { get; set; }
 
 		/// <summary>
 		/// Private constructor for serialization
@@ -101,7 +101,7 @@ namespace EpicGames.Horde.Compute
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public DirectoryNode(Utf8String Name, IoHash Hash)
+		public DirectoryNode(Utf8String Name, CbObjectAttachment Hash)
 		{
 			this.Name = Name;
 			this.Hash = Hash;
