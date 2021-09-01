@@ -231,12 +231,12 @@ int32 FMaterialCompiler::Errorf(const TCHAR* Format,...)
 
 int32 FMaterialCompiler::ScalarParameter(FName ParameterName, float DefaultValue)
 {
-	return GenericParameter(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
+	return NumericParameter(EMaterialParameterType::Scalar, ParameterName, DefaultValue);
 }
 
 int32 FMaterialCompiler::VectorParameter(FName ParameterName, const FLinearColor& DefaultValue)
 {
-	return GenericParameter(EMaterialParameterType::Vector, ParameterName, DefaultValue);
+	return NumericParameter(EMaterialParameterType::Vector, ParameterName, DefaultValue);
 }
 
 IMPLEMENT_STRUCT(ExpressionInput);

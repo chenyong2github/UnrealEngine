@@ -4012,7 +4012,7 @@ int32 FHLSLMaterialTranslator::AccessCollectionParameter(UMaterialParameterColle
 		ComponentIndex == -1 ? true : ComponentIndex % 4 == 3);
 }
 
-int32 FHLSLMaterialTranslator::GenericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue)
+int32 FHLSLMaterialTranslator::NumericParameter(EMaterialParameterType ParameterType, FName ParameterName, const UE::Shader::FValue& DefaultValue)
 {
 	const UE::Shader::EValueType ValueType = GetShaderValueType(ParameterType);
 	check(DefaultValue.GetType() == ValueType);
@@ -4025,35 +4025,15 @@ int32 FHLSLMaterialTranslator::GenericParameter(EMaterialParameterType Parameter
 	}
 	else
 	{
-		DefaultOffset = MaterialCompilationOutput.UniformExpressionSet.DefaultValues.Num();
+		DefaultOffset = MaterialCompilationOutput.UniformExpressionSet.AddDefaultParameterValue(DefaultValue);
 		DefaultUniformValues.Add(DefaultValue, DefaultOffset);
-		UE::Shader::FMemoryImageValue DefaultValueMemory = DefaultValue.AsMemoryImage();
-		MaterialCompilationOutput.UniformExpressionSet.DefaultValues.Append(DefaultValueMemory.Bytes, DefaultValueMemory.Size);
 	}
 
 	FMaterialParameterInfo ParameterInfo = GetParameterAssociationInfo();
 	ParameterInfo.Name = ParameterName;
 
-	int32 ParameterIndex = INDEX_NONE;
-	for (int32 i = 0; i < MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.Num(); ++i)
-	{
-		const FMaterialNumericParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters[i];
-		if (Parameter.ParameterType == ParameterType && Parameter.ParameterInfo == ParameterInfo)
-		{
-			ParameterIndex = i;
-			break;
-		}
-	}
-	if (ParameterIndex == INDEX_NONE)
-	{
-		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.Num();
-		FMaterialNumericParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformNumericParameters.AddDefaulted_GetRef();
-		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.ParameterType = ParameterType;
-		Parameter.DefaultValueOffset = DefaultOffset;
-	}
-
-	return AddUniformExpression(new FMaterialUniformExpressionGenericParameter(ParameterInfo, ParameterIndex), GetMaterialValueType(ParameterType), TEXT(""));
+	const int32 ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.FindOrAddNumericParameter(ParameterType, ParameterInfo, DefaultOffset);
+	return AddUniformExpression(new FMaterialUniformExpressionNumericParameter(ParameterInfo, ParameterIndex), GetMaterialValueType(ParameterType), TEXT(""));
 }
 
 int32 FHLSLMaterialTranslator::Constant(float X)

@@ -218,13 +218,13 @@ private:
 
 /**
  */
-class FMaterialUniformExpressionGenericParameter : public FMaterialUniformExpression
+class FMaterialUniformExpressionNumericParameter : public FMaterialUniformExpression
 {
-	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionGenericParameter);
+	DECLARE_MATERIALUNIFORMEXPRESSION_TYPE(FMaterialUniformExpressionNumericParameter);
 public:
 
-	FMaterialUniformExpressionGenericParameter() {}
-	FMaterialUniformExpressionGenericParameter(const FMaterialParameterInfo& InParameterInfo, int32 InParameterIndex)
+	FMaterialUniformExpressionNumericParameter() {}
+	FMaterialUniformExpressionNumericParameter(const FMaterialParameterInfo& InParameterInfo, int32 InParameterIndex)
 		: ParameterInfo(InParameterInfo)
 		, ParameterIndex(InParameterIndex)
 	{
@@ -259,7 +259,7 @@ public:
 		{
 			return false;
 		}
-		FMaterialUniformExpressionGenericParameter* OtherParameter = (FMaterialUniformExpressionGenericParameter*)OtherExpression;
+		FMaterialUniformExpressionNumericParameter* OtherParameter = (FMaterialUniformExpressionNumericParameter*)OtherExpression;
 		return ParameterInfo == OtherParameter->ParameterInfo && ParameterIndex == OtherParameter->ParameterIndex;
 	}
 private:

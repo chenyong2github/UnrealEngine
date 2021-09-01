@@ -682,11 +682,6 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FExpression::Visit(FNodeVisitor& Vi
 	return Visitor.OnExpression(*this);
 }
 
-UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FParameterDeclaration::Visit(FNodeVisitor& Visitor)
-{
-	return Visitor.OnParameterDeclaration(*this);
-}
-
 UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit(FNodeVisitor& Visitor)
 {
 	return Visitor.OnTextureParameterDeclaration(*this);
@@ -925,12 +920,6 @@ UE::HLSLTree::FScope* UE::HLSLTree::FTree::NewScope(FScope& Scope)
 	NewScope->NestedLevel = Scope.NestedLevel + 1;
 	NewScope->NumPreviousScopes = 0;
 	return NewScope;
-}
-
-UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaration(const FName& Name, const Shader::FValue& DefaultValue)
-{
-	FParameterDeclaration* Declaration = NewNode<FParameterDeclaration>(Name, DefaultValue);
-	return Declaration;
 }
 
 UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue)

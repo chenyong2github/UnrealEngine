@@ -82,14 +82,13 @@ bool UE::HLSLTree::FExpressionConstant::EmitCode(FEmitContext& Context, FExpress
 	return true;
 }
 
-bool UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
+bool UE::HLSLTree::FExpressionMaterialParameter::EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	OutResult.Type = Declaration->DefaultValue.GetType();
-
-	if (OutResult.Type == Shader::EValueType::Bool1)
+	OutResult.Type = GetShaderValueType(ParameterType);
+	if (ParameterType == EMaterialParameterType::StaticSwitch)
 	{
-		const FMaterialParameterInfo ParameterInfo(Declaration->Name);
-		bool bValue = Declaration->DefaultValue.Component[0].AsBool();
+		const FMaterialParameterInfo ParameterInfo(ParameterName);
+		bool bValue = DefaultValue.Component[0].AsBool();
 		for (const FStaticSwitchParameter& Parameter : Context.StaticParameters->StaticSwitchParameters)
 		{
 			if (Parameter.ParameterInfo == ParameterInfo)
@@ -101,21 +100,23 @@ bool UE::HLSLTree::FExpressionParameter::EmitCode(FEmitContext& Context, FExpres
 		OutResult.EvaluationType = EExpressionEvaluationType::Constant;
 		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Shader::FValue(bValue));
 	}
-	else if (OutResult.Type == Shader::EValueType::Float1)
-	{
-		/*const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddScalarParameter(Declaration->Name, Declaration->DefaultValue.Component[0].Float);
-		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
-		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
-		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ScalarParameter).Write((uint16)ParameterIndex);*/
-		check(false);
-	}
 	else
 	{
-		/*const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddVectorParameter(Declaration->Name, Declaration->DefaultValue.AsLinearColor());
+		const uint32* PrevDefaultOffset = Context.DefaultUniformValues.Find(DefaultValue);
+		uint32 DefaultOffset;
+		if (PrevDefaultOffset)
+		{
+			DefaultOffset = *PrevDefaultOffset;
+		}
+		else
+		{
+			DefaultOffset = Context.MaterialCompilationOutput->UniformExpressionSet.AddDefaultParameterValue(DefaultValue);
+			Context.DefaultUniformValues.Add(DefaultValue, DefaultOffset);
+		}
+		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddNumericParameter(ParameterType, ParameterName, DefaultOffset);
 		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
 		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
-		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::VectorParameter).Write((uint16)ParameterIndex);*/
-		check(false);
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Parameter).Write((uint16)ParameterIndex); 
 	}
 	return true;
 }

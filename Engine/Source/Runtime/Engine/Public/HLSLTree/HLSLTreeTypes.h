@@ -13,7 +13,6 @@ namespace HLSLTree
 
 class FNode;
 class FExpression;
-class FParameterDeclaration;
 class FTextureParameterDeclaration;
 class FStatement;
 class FScope;
