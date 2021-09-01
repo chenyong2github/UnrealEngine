@@ -64,6 +64,7 @@ struct FPayloadActivityInfo
 
 	FActivity Pull;
 	FActivity Push;
+	FActivity Cache;
 };
 
 /** Describes the type of storage to use for a given action */
@@ -135,6 +136,7 @@ private:
 
 	void CachePayload(const FPayloadId& Id, const FCompressedBuffer& Payload, const IVirtualizationBackend* BackendSource);
 
+	bool TryCacheDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
 	bool TryPushDataToBackend(IVirtualizationBackend& Backend, const FPayloadId& Id, const FCompressedBuffer& Payload);
 	FCompressedBuffer PullDataFromBackend(IVirtualizationBackend& Backend, const FPayloadId& Id);
 
