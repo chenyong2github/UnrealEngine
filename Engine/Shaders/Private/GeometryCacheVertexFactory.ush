@@ -69,6 +69,8 @@ struct FVertexFactoryInput
 		#error Too many texture coordinate sets defined on Geometry cache vertex input. Max: 4.
 	#endif
 #endif
+
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(13)
 };
 
 // RHI_RAYTRACING
@@ -105,6 +107,8 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 	#endif
 #endif
 
+	VF_GPUSCENE_SET_INPUT_FOR_RT(Input, GetInstanceUserData(), 0U);
+
 	return Input;
 }
 #endif
@@ -112,32 +116,34 @@ FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexI
 struct FPositionOnlyVertexFactoryInput
 {
 	float4	Position	: ATTRIBUTE0;
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(1)
 };
 
 struct FPositionAndNormalOnlyVertexFactoryInput
 {
 	float4	Position	: ATTRIBUTE0;
 	float4	Normal		: ATTRIBUTE1;
+	VF_GPUSCENE_DECLARE_INPUT_BLOCK(2)
 };
 
 /** for depth-only pass */
 float4 VertexFactoryGetWorldPosition(FPositionOnlyVertexFactoryInput Input)
 {
-	float4 Position = Input.Position;
-	return TransformLocalToTranslatedWorld(Position.xyz);
+	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	return TransformLocalToTranslatedWorld(Input.Position.xyz, SceneData.InstanceData.LocalToWorld);
 }
 
 /** for shadow pass (used for slope bias) */
 float4 VertexFactoryGetWorldPosition(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	float4 Position = Input.Position;
-	return TransformLocalToTranslatedWorld(Position.xyz);
+	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	return TransformLocalToTranslatedWorld(Input.Position.xyz, SceneData.InstanceData.LocalToWorld);
 }
 
 float3 VertexFactoryGetWorldNormal(FPositionAndNormalOnlyVertexFactoryInput Input)
 {
-	float4 Normal = Input.Normal;
-	return RotateLocalToWorld(Normal.xyz);
+	FSceneDataIntermediates SceneData = VF_GPUSCENE_GET_INTERMEDIATES(Input);
+	return RotateLocalToWorld(Input.Normal.xyz, SceneData.InstanceData.LocalToWorld, SceneData.InstanceData.InvNonUniformScale);
 }
 
 struct FVertexFactoryInterpolantsVSToPS
@@ -153,6 +159,10 @@ struct FVertexFactoryInterpolantsVSToPS
 
 #if INSTANCED_STEREO
 	nointerpolation uint EyeIndex : PACKED_EYE_INDEX;
+#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	nointerpolation uint PrimitiveId : PRIMITIVE_ID;
 #endif
 
 	TANGENTTOWORLD_INTERPOLATOR_BLOCK
@@ -211,6 +221,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.VertexColor = 0;
 #endif
 	Result.TwoSidedSign = 1;
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Result.PrimitiveId = Interpolants.PrimitiveId;
+#endif
+
 	return Result;
 }
 
@@ -261,6 +276,11 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.TexCoords[3] = Input.TexCoords3;
 	#endif
 #endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Result.PrimitiveId = Intermediates.SceneData.PrimitiveId;
+#endif
+
 	return Result;
 }
 
@@ -269,7 +289,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 */
 float3 UnpackedPosition( FVertexFactoryInput Input )
 {
-		return float3(Input.Position.xyz * GeomCache.MeshExtension + GeomCache.MeshOrigin);
+	return float3(Input.Position.xyz * GeomCache.MeshExtension + GeomCache.MeshOrigin);
 }
 
 /**
@@ -298,7 +318,7 @@ half3x3 CalcTangentToLocal(FVertexFactoryInput Input)
 
 void CalcTangentToWorld(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, out float3 TangentToWorld0, out float4 TangentToWorld2)
 {
-	float3x3 LocalToWorld = GetLocalToWorld3x3();
+	float3x3 LocalToWorld = (float3x3)Intermediates.SceneData.InstanceData.LocalToWorld;
 
 	// Remove scaling.
 	half3 InvScale = GetPrimitiveData(Intermediates).InvNonUniformScale;
@@ -350,7 +370,7 @@ float3x3 VertexFactoryGetTangentToLocal( FVertexFactoryInput Input, FVertexFacto
 
 float4 VertexFactoryGetWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
 {
-	return TransformLocalToTranslatedWorld(Intermediates.UnpackedPosition);
+	return TransformLocalToTranslatedWorld(Intermediates.UnpackedPosition, Intermediates.SceneData.InstanceData.LocalToWorld);
 }
 
 float4 VertexFactoryGetRasterizedWorldPosition(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates, float4 InWorldPosition)
@@ -395,6 +415,10 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 
 #if INSTANCED_STEREO
 	Interpolants.EyeIndex = 0;
+#endif
+
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.PrimitiveId = Intermediates.SceneData.PrimitiveId;
 #endif
 
 	return Interpolants;
@@ -467,6 +491,10 @@ FVertexFactoryRayTracingInterpolants VertexFactoryInterpolate(FVertexFactoryRayT
 	}
 #endif
 
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	O.InterpolantsVSToPS.PrimitiveId = a.InterpolantsVSToPS.PrimitiveId;
+#endif
+
 	return O;
 }
 #endif // #if NEEDS_VERTEX_FACTORY_INTERPOLATION
@@ -478,7 +506,11 @@ float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolant
 
 uint VertexFactoryGetPrimitiveId(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
+#if VF_USE_PRIMITIVE_SCENE_DATA
+	return Interpolants.PrimitiveId;
+#else // VF_USE_PRIMITIVE_SCENE_DATA
 	return 0;
+#endif // VF_USE_PRIMITIVE_SCENE_DATA
 }
 
 #include "VertexFactoryDefaultInterface.ush"

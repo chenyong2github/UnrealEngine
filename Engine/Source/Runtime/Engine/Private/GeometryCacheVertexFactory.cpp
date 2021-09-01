@@ -87,6 +87,11 @@ FGPUSkinPassthroughVertexFactory
 void FGeometryCacheVertexVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
 	Super::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+	const bool bUseGPUScene = UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)) && GetMaxSupportedFeatureLevel(Parameters.Platform) > ERHIFeatureLevel::ES3_1;
+	const bool bSupportsPrimitiveIdStream = Parameters.VertexFactoryType->SupportsPrimitiveIdStream();
+
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), bSupportsPrimitiveIdStream && bUseGPUScene);
 }
 
 void FGeometryCacheVertexVertexFactory::SetData(const FDataType& InData)
@@ -167,6 +172,7 @@ void FGeometryCacheVertexVertexFactory::InitRHI()
 		{
 			FVertexDeclarationElementList PositionOnlyStreamElements;
 			PositionOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionOnly));
+			AddPrimitiveIdStreamElement(EVertexInputStreamType::PositionOnly, PositionOnlyStreamElements, 1, 0xff); // TODO: support instancing on mobile
 			InitDeclaration(PositionOnlyStreamElements, EVertexInputStreamType::PositionOnly);
 		}
 
@@ -174,6 +180,7 @@ void FGeometryCacheVertexVertexFactory::InitRHI()
 			FVertexDeclarationElementList PositionAndNormalOnlyStreamElements;
 			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.PositionComponent, 0, EVertexInputStreamType::PositionAndNormalOnly));
 			PositionAndNormalOnlyStreamElements.Add(AccessStreamComponent(Data.TangentBasisComponents[1], 1, EVertexInputStreamType::PositionAndNormalOnly));
+			AddPrimitiveIdStreamElement(EVertexInputStreamType::PositionAndNormalOnly, PositionAndNormalOnlyStreamElements, 2, 0xff); // TODO: support instancing on mobile
 			InitDeclaration(PositionAndNormalOnlyStreamElements, EVertexInputStreamType::PositionAndNormalOnly);
 		}
 	}
@@ -236,6 +243,8 @@ void FGeometryCacheVertexVertexFactory::InitRHI()
 			));
 		}
 	}
+
+	AddPrimitiveIdStreamElement(EVertexInputStreamType::Default, Elements, 13, 0xff); // TODO: support instancing on mobile
 
 	check(Streams.Num() > 0);
 	check(PositionStreamIndex >= 0);
@@ -342,4 +351,5 @@ IMPLEMENT_VERTEX_FACTORY_TYPE(FGeometryCacheVertexVertexFactory, "/Engine/Privat
 	| EVertexFactoryFlags::SupportsDynamicLighting
 	| EVertexFactoryFlags::SupportsPositionOnly
 	| EVertexFactoryFlags::SupportsRayTracing
+	| EVertexFactoryFlags::SupportsPrimitiveIdStream
 );
