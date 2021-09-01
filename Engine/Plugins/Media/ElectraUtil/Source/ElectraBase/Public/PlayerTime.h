@@ -13,7 +13,7 @@ class FTimeFraction;
 /**
  * Keeps a time value in hundred nanoseconds (HNS).
  */
-class FTimeValue
+class ELECTRABASE_API FTimeValue
 {
 public:
 	static FTimeValue GetInvalid()
@@ -479,7 +479,7 @@ struct FTimeRange
 /**
  * Keeps a time value as a fractional.
  */
-class FTimeFraction
+class ELECTRABASE_API FTimeFraction
 {
 public:
 	static const FTimeFraction& GetInvalid()
@@ -594,20 +594,4 @@ private:
 
 
 }
-
-
-
-/**
- * System wallclock time (UTC)
-**/
-class MEDIAutcTime
-{
-public:
-	static Electra::FTimeValue Current()
-	{
-		return Electra::FTimeValue(Electra::FTimeValue::MillisecondsToHNS(CurrentMSec()));
-	}
-	static int64 CurrentMSec();
-};
-
 
