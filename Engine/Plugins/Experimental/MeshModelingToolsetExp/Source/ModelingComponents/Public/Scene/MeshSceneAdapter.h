@@ -142,8 +142,8 @@ public:
 	/** Collect a set of seed points from this Mesh, mapped through LocalToWorldFunc to world space. Must be callable in parallel from any thread. */
 	virtual void CollectSeedPoints(TArray<FVector3d>& WorldPoints, TFunctionRef<FVector3d(const FVector3d&)> LocalToWorldFunc) = 0;
 
-	/** apply ProcessFunc to each vertex in world space */
-	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) = 0;
+	/** apply ProcessFunc to each vertex in world space. Return false from ProcessFunc to terminate iteration. Returns true if iteration completed. */
+	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) = 0;
 
 	/** Append the geometry represented by this wrapper to the accumulated AppendTo mesh, under the given world transform */
 	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) = 0;
@@ -327,7 +327,25 @@ public:
 	/** @return world-space bounding box for the Scene Mesh of the specified Component and ComponentIndex. Requires that SpatialEvaluationCache is available. */
 	virtual FAxisAlignedBox3d GetMeshBoundingBox(UActorComponent* Component, int32 ComponentIndex = -1);
 
-
+	/**
+	 * Run a custom query across all world-transformed scene mesh vertices. Requires that SpatialEvaluationCache is available.
+	 * The internal loop is run as:
+	 *  ParallelFor(SceneMesh, {
+	 *    if ( MeshFilterFunc(SceneMesh) ) {
+	 *      for ( FVector3d Vtx in Scene Mesh ) { PerVertexFunc(Vtx) }
+	 *    }
+	 *  }
+	 * 
+	 * @param InitializeFunc called with the total number of scene meshes. MeshIndex in later queries will be < NumMeshes  Return false to terminate query.
+	 * @param MeshFilterFunc called once for each scene mesh, with unique MeshIndex per scene mesh. Return false to skip this scene mesh.
+	 * @param PerVertexFunc called for each worldspace-transformed scene mesh vertex. Return false to terminate enumeration over this scene mesh.
+	 */
+	virtual void ParallelMeshVertexEnumeration(
+		TFunctionRef<bool(int32 NumMeshes)> InitializeFunc,
+		TFunctionRef<bool(int32 MeshIndex, AActor* SourceActor, const FActorChildMesh* ChildMeshInfo, const FAxisAlignedBox3d& WorldBounds)> MeshFilterFunc,
+		TFunctionRef<bool(int32 MeshIndex, AActor* SourceActor, const FActorChildMesh* ChildMeshInfo, const FVector3d& WorldPos)> PerVertexFunc,
+		bool bForceSingleThreaded = false
+	);
 
 protected:
 	// top-level list of ActorAdapters, which represent each Actor and set of Components
