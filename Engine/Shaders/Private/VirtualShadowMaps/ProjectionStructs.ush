@@ -2,10 +2,7 @@
 
 #pragma once
 
-// Must match C++ structure in VirtualShadowMapArray.h
-// While we currently load/unpack it manually in GetVirtualShadowMapProjectionData,
-// the intention is to turn this back into a simple structure load once the compiler
-// infrastructure is broadly available.
+// Rougly the same structure as in VirtualShadowMapArray.h
 struct FVirtualShadowMapProjectionShaderData
 {
 	float4x4 TranslatedWorldToShadowViewMatrix;
@@ -17,7 +14,7 @@ struct FVirtualShadowMapProjectionShaderData
 	uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.ush
 
 	float3 ClipmapWorldOrigin;
-	int VirtualShadowMapId;
+	float LightSourceRadius;
 
 	int2 ClipmapCornerOffset;
 	int ClipmapIndex;		// 0..ClipmapLevelCount-1
@@ -25,11 +22,15 @@ struct FVirtualShadowMapProjectionShaderData
 
 	int ClipmapLevelCount;	
 	float ClipmapResolutionLodBias;
+
+	// Derived data for convenience when passing the structure around
+	int VirtualShadowMapId;
 };
 
 FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int VirtualShadowMapId)
 {
 	FVirtualShadowMapProjectionShaderData Result;
+	Result.VirtualShadowMapId = VirtualShadowMapId;
 
 	// Seems the FMatrix forces 16-byte alignment, so ensure padding matches the C++ structure size
 	const uint Stride = 16 * 20;
@@ -58,7 +59,7 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int Virt
 	Result.LightType						=		 (VirtualShadowMap.ProjectionData.Load (Base + (16*16 + 4*3)));
 
 	Result.ClipmapWorldOrigin				= asfloat(VirtualShadowMap.ProjectionData.Load3(Base + (16*17 + 4*0)));
-	Result.VirtualShadowMapId				= asint	 (VirtualShadowMap.ProjectionData.Load (Base + (16*17 + 4*3)));
+	Result.LightSourceRadius				= asfloat(VirtualShadowMap.ProjectionData.Load (Base + (16*17 + 4*3)));
 
 	Result.ClipmapCornerOffset				= asint  (VirtualShadowMap.ProjectionData.Load2(Base + (16*18 + 4*0)));
 	Result.ClipmapIndex						= asint  (VirtualShadowMap.ProjectionData.Load (Base + (16*18 + 4*2)));

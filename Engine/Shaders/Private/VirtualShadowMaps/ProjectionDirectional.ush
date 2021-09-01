@@ -144,6 +144,13 @@ float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
 	return normalize(RayDir);
 }
 
+// Normal and LightDirection should be normalized
+bool IsBackfaceToDirectionalLight(half3 Normal, half3 LightDirection, half LightSourceRadius)
+{
+	half SinAlpha = abs(LightSourceRadius);
+	return dot(Normal, LightDirection) < -SinAlpha;
+}
+
 FVirtualShadowMapSampleResult TraceDirectional(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
@@ -155,22 +162,18 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	uint SamplesPerRay,
 	float RayLengthScale,
 	const half Noise,
-	bool bCullBackface)
+	bool bCullBackface,
+	half3 WorldNormal)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 	float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
 	float DistanceFromViewOrigin = length(ViewPosition);
 
-	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
-	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius));
-	half SinAlpha = sqrt(SinAlphaSqr);
-	bool bBackFace = dot( N, Light.Direction ) < -SinAlpha;
-
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
-	Result.bValid = true;	// TODO: false if all samples of all rays miss?
+	Result.bValid = true;	// TODO: false if all samples of all rays miss pages?
 	Result.ShadowFactor = 0.0f;
 
-	if (!bBackFace || !bCullBackface)
+	if (!bCullBackface || !IsBackfaceToDirectionalLight(WorldNormal, Light.Direction, Light.SourceRadius))
 	{
 		// Compute max ray length based on view depth
 		// This affects both how far we are willing to trace across the shadow map (for clipmaps this is related to view depth)

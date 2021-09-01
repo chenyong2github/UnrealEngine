@@ -88,8 +88,10 @@ struct FVirtualShadowMapProjectionShaderData
 	FVector3f ShadowPreViewTranslation;
 	uint32 LightType = ELightComponentType::LightType_Directional;
 	
+	// TODO: There are more local lights than directional
+	// We should move the directional-specific stuff out to its own structure.
 	FVector3f ClipmapWorldOrigin;
-	int32 VirtualShadowMapId = INDEX_NONE;
+	float LightSourceRadius;				// This should live in shared light structure...
 	
 	FIntPoint ClipmapCornerOffset;
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1
@@ -181,8 +183,7 @@ public:
 		const TArray<FViewInfo> &Views, 
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
-		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
-		bool bPostBasePass);
+		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults);
 
 	bool IsAllocated() const
 	{
@@ -212,9 +213,8 @@ public:
 
 	void GetPageTableParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapPageTableParameters& OutParameters);
 
-	bool bInitialized = false;
-	// Are virtual shadow maps enabled? We store this at the start of the frame to centralize the logic.
-	bool bEnabled = false;
+	bool ShouldCullBackfacingPixels() const { return bCullBackfacingPixels; }
+
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
 
@@ -236,15 +236,6 @@ public:
 	// HPageFlags is a hierarchy over the PageFlags for quick query
 	FRDGBufferRef HPageFlagsRDG = nullptr;
 
-	static constexpr uint32 NumStats = 5;
-	// 0 - allocated pages
-	// 1 - re-usable pages
-	// 2 - Touched by dynamic
-	// 3 - NumSms
-	// 4 - RandRobin invalidated
-
-	FRDGBufferRef StatsBufferRDG = nullptr;
-
 	// Allocation info for each page.
 	FRDGBufferRef CachedPageInfosRDG = nullptr;
 	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
@@ -263,11 +254,26 @@ public:
 	FRDGTextureRef HZBPhysical = nullptr;
 	TMap<int32, FVirtualShadowMapHZBMetadata> HZBMetadata;
 
-	// Convert also
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
+	static constexpr uint32 NumStats = 5;
+	// 0 - allocated pages
+	// 1 - re-usable pages
+	// 2 - Touched by dynamic
+	// 3 - NumSms
+	// 4 - RandRobin invalidated
+	FRDGBufferRef StatsBufferRDG = nullptr;
 
+	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
 	int DebugOutputType = 0;	// 0 = Disabled
-	// Base ID of the light that the user has selected for debug output (if present)
+								// Base ID of the light that the user has selected for debug output (if present)
 	int DebugVirtualShadowMapId = INDEX_NONE;
 	FRDGTextureRef DebugVisualizationProjectionOutput = nullptr;
+
+private:
+	bool bInitialized = false;
+
+	// Are virtual shadow maps enabled? We store this at the start of the frame to centralize the logic.
+	bool bEnabled = false;
+
+	// Is backface culling of pixels enabled? We store this here to keep it consistent between projection and generation
+	bool bCullBackfacingPixels = false;
 };
