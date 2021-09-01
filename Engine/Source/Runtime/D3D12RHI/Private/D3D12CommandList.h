@@ -446,7 +446,7 @@ public:
 #if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
 	ID3D12GraphicsCommandList6* GraphicsCommandList6() const
 	{
-		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT));
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
 		return CommandListData->CommandList6.GetReference();
 	}
 #endif
