@@ -119,12 +119,16 @@ private:
 	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
 
 private:
+	void AddSectionLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InSectionName) const;
+	TSharedRef<SWidget> CreateTextBox(const TAttribute<FText>& InText, bool bMultiLine) const;
 	void AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue, bool bMultiLine = false) const;
+	void AddSimpleInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const TAttribute<FText>& InValue, bool bMultiLine = false) const;
 
 	TSharedRef<SDockTab> SpawnTab_SessionInfo(const FSpawnTabArgs& Args);
 	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	FText GetSessionNameText() const;
+	FText GetSessionNameText() const { return SessionNameText; }
+	FText GetUriText() const { return UriText; }
 
 	FText GetPlatformText() const { return PlatformText; }
 	FText GetAppNameText() const { return AppNameText; }
@@ -135,9 +139,9 @@ private:
 	FText GetBuildTargetText() const { return BuildTargetTypeText; }
 	FText GetCommandLineText() const { return CommandLineText; }
 
-	FText GetUriText() const;
 	FText GetFileSizeText() const;
 	FText GetStatusText() const;
+
 	FText GetModulesText() const;
 
 public:
@@ -151,6 +155,9 @@ private:
 	/** Holds the tab manager that manages the front-end's tabs. */
 	TSharedPtr<FTabManager> TabManager;
 
+	FText SessionNameText;
+	FText UriText;
+
 	FText PlatformText;
 	FText AppNameText;
 	FText BranchText;
@@ -160,9 +167,4 @@ private:
 	FText BuildTargetTypeText;
 	FText CommandLineText;
 	bool bIsSessionInfoSet = false;
-
-	//FText Uri;
-	//FDateTime Timestamp;
-	//uint64 Size;
-	//bool bIsLive;
 };
