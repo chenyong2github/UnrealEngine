@@ -322,6 +322,11 @@ namespace HordeServer.Collections.Impl
 		}
 
 		/// <summary>
+		/// Maximum number of times a step can be retried (after the original run)
+		/// </summary>
+		const int MaxRetries = 2;
+
+		/// <summary>
 		/// The jobs collection
 		/// </summary>
 		IMongoCollection<JobDocument> Jobs;
@@ -651,14 +656,13 @@ namespace HordeServer.Collections.Impl
 				{
 					if (Step.State == JobStepState.Ready || Step.State == JobStepState.Waiting)
 					{
-						NodeRef NodeRef = new NodeRef(Batch.GroupIdx, Step.NodeIdx);
-						if (JobDocument.RetriedNodes != null && JobDocument.RetriedNodes.Contains(NodeRef))
+						if (CanRetryNode(JobDocument, Batch.GroupIdx, Step.NodeIdx))
 						{
-							Step.State = JobStepState.Skipped;
+							RetriedNodes.Add(new NodeRef(Batch.GroupIdx, Step.NodeIdx));
 						}
 						else
 						{
-							RetriedNodes.Add(NodeRef);
+							Step.State = JobStepState.Skipped;
 						}
 						bUpdateState = true;
 					}
@@ -1198,7 +1202,7 @@ namespace HordeServer.Collections.Impl
 					{
 						FailedNodes.Remove(Node);
 					}
-					else if (Step.State == JobStepState.Skipped && Node.InputDependencies.Any(x => FailedNodes.Contains(Graph.GetNode(x))))
+					else if (Step.State == JobStepState.Skipped && (Node.InputDependencies.Any(x => FailedNodes.Contains(Graph.GetNode(x))) || !CanRetryNode(Job, Batch.GroupIdx, Step.NodeIdx)))
 					{
 						FailedNodes.Add(Node);
 					}
@@ -1437,6 +1441,14 @@ namespace HordeServer.Collections.Impl
 					NodeExecutionCount[Node] = Count + 1;
 				}
 			}
+		}
+
+		/// <summary>
+		/// Tests whether a node can be retried again
+		/// </summary>
+		static bool CanRetryNode(JobDocument Job, int GroupIdx, int NodeIdx)
+		{
+			return Job.RetriedNodes == null || Job.RetriedNodes.Count(x => x.GroupIdx == GroupIdx && x.NodeIdx == NodeIdx) < MaxRetries;
 		}
 
 		/// <summary>
