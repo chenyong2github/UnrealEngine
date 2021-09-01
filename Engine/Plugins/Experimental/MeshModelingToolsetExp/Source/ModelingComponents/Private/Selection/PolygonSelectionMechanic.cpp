@@ -642,7 +642,7 @@ void UPolygonSelectionMechanic::OnDragRectangleChanged(const FCameraRectangle& C
 	}
 }
 
-void UPolygonSelectionMechanic::OnDragRectangleFinished()
+void UPolygonSelectionMechanic::OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled)
 {
 	if (!(PersistentSelection == PreDragPersistentSelection))
 	{

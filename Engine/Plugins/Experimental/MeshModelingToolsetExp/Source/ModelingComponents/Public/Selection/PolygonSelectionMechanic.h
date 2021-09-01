@@ -312,7 +312,7 @@ protected:
 	// These get bound to marquee mechanic delegates.
 	virtual void OnDragRectangleStarted();
 	virtual void OnDragRectangleChanged(const FCameraRectangle& CurrentRectangle);
-	virtual void OnDragRectangleFinished();
+	virtual void OnDragRectangleFinished(const FCameraRectangle& Rectangle, bool bCancelled);
 
 	virtual void UpdateMarqueeEnabled();
 
