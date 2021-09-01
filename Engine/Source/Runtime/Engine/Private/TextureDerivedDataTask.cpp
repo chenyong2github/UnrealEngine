@@ -447,6 +447,7 @@ void FTextureCacheDerivedDataWorker::ConsumeBuildFunctionOutput(const UE::Derive
 				void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
 				MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
 				Mip.BulkData.Unlock();
+				Mip.SetPagedToDerivedData(false);
 			}
 		}
 
@@ -1393,6 +1394,7 @@ private:
 					void* MipAllocData = Mip.BulkData.Realloc(int64(MipSize));
 					MakeMemoryView(MipAllocData, MipSize).CopyFrom(MipData);
 					Mip.BulkData.Unlock();
+					Mip.SetPagedToDerivedData(false);
 				}
 			}
 			else

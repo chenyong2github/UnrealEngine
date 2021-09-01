@@ -26,7 +26,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogTextureBuildFunction, Log, All);
 // MUST have a corresponding change to this version. Individual texture formats have a version to
 // change that is specific to the format. A merge conflict affecting the version MUST be resolved
 // by generating a new version.
-static const FGuid TextureDerivedDataVersion(TEXT("0b123ca4-66c4-4ea4-b269-550de0c32eb1"));
+static const FGuid TextureDerivedDataVersion(TEXT("392f5367-8112-4305-8cef-ae7897844779"));
 
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);
@@ -425,15 +425,8 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 			EFileRegionType FileRegion = FFileRegion::SelectType(EPixelFormat(CompressedMip.PixelFormat));
 			MipFooterWriter << FileRegion;
 
-			TStringBuilder<512> DerivedDataKey;
-			if (!bIsInlineMip)
-			{
-				// This has to match the behavior in GetTextureDerivedMipKey in TextureDerivedData.cpp
-				DerivedDataKey << MipKeyPrefix;
-				DerivedDataKey.Appendf(TEXT("_MIP%u_%dx%d"), MipIndex, CompressedMip.SizeX, CompressedMip.SizeY);
-			}
-			FString DerivedDataKeyFinal(DerivedDataKey.ToString());
-			MipFooterWriter << DerivedDataKeyFinal;
+			bool bExistsInDerivedData = !bIsInlineMip;
+			MipFooterWriter << bExistsInDerivedData;
 
 			CurrentOffset += MipFooter.Num();
 			OrderedBuffers.Add(MakeSharedBufferFromArray(MoveTemp(MipFooter)));

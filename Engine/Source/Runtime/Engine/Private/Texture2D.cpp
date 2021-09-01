@@ -165,17 +165,7 @@ void FTexture2DMipMap::SerializeCommon(FArchive& Ar, UObject* Owner, int32 MipId
 	if (!bCooked)
 	{
 		Ar << FileRegionType;
-
-		FString LegacyDDCKeyString;
-		if (Ar.IsSaving())
-		{
-			if (IsPagedToDerivedData())
-			{
-				LegacyDDCKeyString = TEXT("DummyLegacyKey");
-			}
-		}
-
-		Ar << LegacyDDCKeyString;
+		Ar << bPagedToDerivedData;
 	}
 #endif // #if WITH_EDITORONLY_DATA
 }
@@ -206,6 +196,7 @@ uint32 FTexture2DMipMap::StoreInDerivedDataCache(const FString& InDerivedDataKey
 	}
 	const uint32 Result = DerivedData.Num();
 	GetDerivedDataCacheRef().Put(*InDerivedDataKey, DerivedData, TextureName, bReplaceExistingDDC);
+	bPagedToDerivedData = true;
 	BulkData.RemoveBulkData();
 	return Result;
 }
