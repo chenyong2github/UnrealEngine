@@ -966,6 +966,7 @@ protected:
 
 private:
 	// Access functions
+	const FAnimNodeFunctionRef& GetInitialUpdateFunction() const;
 	const FAnimNodeFunctionRef& GetBecomeRelevantFunction() const;
 	const FAnimNodeFunctionRef& GetUpdateFunction() const;
 	
@@ -983,6 +984,10 @@ private:
 	const FAnimNodeData* NodeData = nullptr;
 
 #if WITH_EDITORONLY_DATA
+	// Function called on initial update
+	UPROPERTY(meta=(FoldProperty))
+	FAnimNodeFunctionRef InitialUpdateFunction;
+
 	// Function called on become relevant
 	UPROPERTY(meta=(FoldProperty))
 	FAnimNodeFunctionRef BecomeRelevantFunction;

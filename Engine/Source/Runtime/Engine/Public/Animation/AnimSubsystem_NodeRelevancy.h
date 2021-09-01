@@ -51,6 +51,16 @@ private:
 	float CurrentWeight = 0.0f;
 };
 
+// Initialization status of a node
+enum class EAnimNodeInitializationStatus
+{
+	NotUpdated = 0,
+	
+	InitialUpdate,
+
+	Updated,
+};
+
 /** Allows anim node's relevancy (when they receive and lose weight in the graph) to be tracked */
 USTRUCT()
 struct ENGINE_API FAnimSubsystemInstance_NodeRelevancy : public FAnimSubsystemInstance
@@ -63,15 +73,15 @@ struct ENGINE_API FAnimSubsystemInstance_NodeRelevancy : public FAnimSubsystemIn
 	// Update the relevancy of the passed-in node using the supplied context
 	FAnimNodeRelevancyStatus UpdateNodeRelevancy(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
 
-	// Update the relevancy of the passed-in instance using the supplied context
-	FAnimNodeRelevancyStatus UpdateInstanceRelevancy(const FAnimationUpdateContext& InContext, const UAnimInstance& InInstance);
-	
 	// Get the tracked relevancy of the passed-in node. If the node is not tracked the relevancy will be default (zero weighted).
 	FAnimNodeRelevancyStatus GetNodeRelevancy(const FAnimNode_Base& InNode) const;
 
-	// Get the tracked relevancy of the passed-in instance. If the instance is not tracked the relevancy will be default (zero weighted).
-	FAnimNodeRelevancyStatus GetInstanceRelevancy(const UAnimInstance& InInstance) const;
+	// Update the initialization state of the passed-in node using the supplied context
+	EAnimNodeInitializationStatus UpdateNodeInitializationStatus(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode);
 
+	// Get the tracked initialization state of the passed-in node. If the node is not tracked the initialization state will be default (NotUpdated)
+	EAnimNodeInitializationStatus GetNodeInitializationStatus(const FAnimNode_Base& InNode) const;
+	
 private:
 	// Tracks the relevancy of a node
 	struct FTracker
@@ -86,4 +96,7 @@ private:
 private:
 	// Map of tracked anim nodes
 	TMap<const FAnimNode_Base*, FTracker> NodeTrackers;
+
+	// Map of tracked anim nodes initialization
+	TMap<const FAnimNode_Base*, EAnimNodeInitializationStatus> NodeInitTrackers;
 };
