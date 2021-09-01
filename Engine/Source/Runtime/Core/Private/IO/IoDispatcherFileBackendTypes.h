@@ -87,10 +87,10 @@ struct FFileIoStoreCompressedBlock
 	FFileIoStoreCompressedBlock* Next = nullptr;
 	FFileIoStoreBlockKey Key;
 	FName CompressionMethod;
-	uint64 RawOffset;
-	uint32 UncompressedSize;
-	uint32 CompressedSize;
-	uint32 RawSize;
+	uint64 RawOffset = uint64(-1);
+	uint32 UncompressedSize = uint32(-1);
+	uint32 CompressedSize = uint32(-1);
+	uint32 RawSize = uint32(-1);
 	uint32 RefCount = 0;
 	uint32 UnfinishedRawBlocksCount = 0;
 	TArray<struct FFileIoStoreReadRequest*, TInlineAllocator<2>> RawBlocks;
@@ -132,6 +132,7 @@ struct FFileIoStoreReadRequest
 	uint64 CreationTime;	// Potentially used to circuit break request ordering optimizations when outstanding requests have been delayed too long
 	FFileIoStoreBlockScatter ImmediateScatter;
 	uint32 BytesUsed = 0;
+	bool bIsCustomRequest = false;
 	bool bFailed = false;
 	bool bCancelled = false;
 	EQueueStatus QueueStatus = QueueStatus_NotInQueue;
@@ -516,8 +517,10 @@ public:
 	void Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment);
 	FFileIoStoreBuffer* AllocBuffer();
 	void FreeBuffer(FFileIoStoreBuffer* Buffer);
+	uint64 GetBufferSize() const { return BufferSize; }
 
 private:
+	uint64 BufferSize = 0;
 	uint8* BufferMemory = nullptr;
 	FCriticalSection BuffersCritical;
 	FFileIoStoreBuffer* FirstFreeBuffer = nullptr;
