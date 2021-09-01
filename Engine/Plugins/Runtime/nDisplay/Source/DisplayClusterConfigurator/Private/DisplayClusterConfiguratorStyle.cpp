@@ -59,6 +59,8 @@ const FSlateBrush* FDisplayClusterConfiguratorStyle::GetBrush(FName PropertyName
 #define IMAGE_BRUSH( RelativePath, ... ) FSlateImageBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
 #define BORDER_BRUSH( RelativePath, ... ) FSlateBorderBrush( Style->RootToContentDir( RelativePath, TEXT(".png") ), __VA_ARGS__ )
+#define EDITOR_BOX_BRUSH( RelativePath, ... ) FSlateBoxBrush( FPaths::EngineContentDir() / "Editor/Slate" / RelativePath + TEXT(".png"), __VA_ARGS__ )
+#define DEFAULT_FONT(...) FCoreStyle::GetDefaultFontStyle(__VA_ARGS__)
 
 const FVector2D Icon128x128(128.0f, 128.0f);
 const FVector2D Icon64x64(64.0f, 64.0f);
@@ -252,12 +254,23 @@ TSharedRef< FSlateStyleSet > FDisplayClusterConfiguratorStyle::Create()
 		}
 	}
 
+	// New Asset Dialog
+	{
+		const FTextBlockStyle DefaultTextStyle = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+		Style->Set("DisplayClusterConfigurator.NewAssetDialog.OptionText", FTextBlockStyle(DefaultTextStyle).SetFont(DEFAULT_FONT("Bold", 11)));
+		Style->Set("DisplayClusterConfigurator.NewAssetDialog.SubBorder", new EDITOR_BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f)));
+		Style->Set("DisplayClusterConfigurator.NewAssetDialog.ActiveOptionBorderColor", FLinearColor(FColor(96, 96, 96)));
+	}
+
 	return Style;
 }
 
 #undef IMAGE_BRUSH
 #undef BOX_BRUSH
 #undef BORDER_BRUSH
+#undef EDITOR_BOX_BRUSH
+#undef DEFAULT_FONT
 
 void FDisplayClusterConfiguratorStyle::ReloadTextures()
 {

@@ -12,6 +12,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SUniformGridPanel.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorNewClusterItemDialog"
 
@@ -230,9 +232,9 @@ void SDisplayClusterConfiguratorNewClusterItemDialog::Construct(const FArguments
 						.HAlign(HAlign_Fill)
 						.Padding(0.0f, 4.0f, 0.0f, 2.0f)
 						[
-							SNew(SBorder)
-							.Padding(FEditorStyle::GetMargin(TEXT("Menu.Separator.Padding")))
-							.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Separator")))
+							SNew(SSeparator)
+							.SeparatorImage(FAppStyle::Get().GetBrush("Menu.Separator"))
+							.Thickness(1.0f)
 						]
 
 						+SVerticalBox::Slot()
@@ -259,34 +261,27 @@ void SDisplayClusterConfiguratorNewClusterItemDialog::Construct(const FArguments
 			.AutoHeight()
 			.Padding(2)
 			[
-				SNew(SHorizontalBox)
-				
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2)
+				SNew(SUniformGridPanel)
+				.MinDesiredSlotHeight(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotHeight"))
+				.MinDesiredSlotWidth(FAppStyle::Get().GetFloat("StandardDialog.MinDesiredSlotWidth"))
+				.SlotPadding(FAppStyle::Get().GetMargin("StandardDialog.SlotPadding"))
+
+				+SUniformGridPanel::Slot(0, 0)
 				[
-					SNew(SBox)
-					.WidthOverride(64)
-					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("AddItemLabel", "Add"))
-						.OnClicked(this, &SDisplayClusterConfiguratorNewClusterItemDialog::OnAddButtonClicked)
-					]
+					SNew(SButton)
+					.ContentPadding(FAppStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+					.HAlign(HAlign_Center)
+					.Text(LOCTEXT("AddItemLabel", "Add"))
+					.OnClicked(this, &SDisplayClusterConfiguratorNewClusterItemDialog::OnAddButtonClicked)
 				]
 
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2)
+				+SUniformGridPanel::Slot(1, 0)
 				[
-					SNew(SBox)
-					.WidthOverride(64)
-					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
-						.Text(LOCTEXT("CancelLabel", "Cancel"))
-						.OnClicked(this, &SDisplayClusterConfiguratorNewClusterItemDialog::OnCancelButtonClicked)
-					]
+					SNew(SButton)
+					.ContentPadding(FAppStyle::Get().GetMargin("StandardDialog.ContentPadding"))
+					.HAlign(HAlign_Center)
+					.Text(LOCTEXT("CancelLabel", "Cancel"))
+					.OnClicked(this, &SDisplayClusterConfiguratorNewClusterItemDialog::OnCancelButtonClicked)
 				]
 			]
 		]
