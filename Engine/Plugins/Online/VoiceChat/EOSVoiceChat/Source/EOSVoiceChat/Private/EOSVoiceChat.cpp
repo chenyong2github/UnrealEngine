@@ -1125,6 +1125,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS CREATEUSER failed, single user set."));
+					return true;
 				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("CREATESINGLEUSER")))
@@ -1143,6 +1144,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS CREATESINGLEUSER failed, VoiceChatUsers not empty."));
+					return true;
 				}
 			}
 			else
@@ -1164,6 +1166,11 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 							return User->Exec(InWorld, Cmd, Ar);
 						}
 					}
+					else
+					{
+						EOS_EXEC_LOG(TEXT("EOS RELEASEUSER UserIndex=%d not found, VoiceChatUsers.Num=%d"), UserIndex, VoiceChatUsers.Num());
+						return true;
+					}
 				}
 				else if (SingleUserVoiceChatUser)
 				{
@@ -1172,6 +1179,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS User index not specified, and no single user created. Either CREATEUSER and specify UserIndex=n in subsequent commands, or CREATESINGLEUSER (no UserIndex=n necessary in subsequent commands)"));
+					return true;
 				}
 			}
 #endif // !UE_BUILD_SHIPPING
