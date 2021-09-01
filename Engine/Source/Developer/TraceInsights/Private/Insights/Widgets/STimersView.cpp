@@ -244,41 +244,35 @@ void STimersView::Construct(const FArguments& InArgs)
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				SNew(SScrollBox)
-				.Orientation(Orient_Horizontal)
+				SNew(SOverlay)
 
-				+ SScrollBox::Slot()
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
-					SNew(SOverlay)
+					SAssignNew(TreeView, STreeView<FTimerNodePtr>)
+					.ExternalScrollbar(ExternalScrollbar)
+					.SelectionMode(ESelectionMode::Multi)
+					.TreeItemsSource(&FilteredGroupNodes)
+					.OnGetChildren(this, &STimersView::TreeView_OnGetChildren)
+					.OnGenerateRow(this, &STimersView::TreeView_OnGenerateRow)
+					.OnSelectionChanged(this, &STimersView::TreeView_OnSelectionChanged)
+					.OnMouseButtonDoubleClick(this, &STimersView::TreeView_OnMouseButtonDoubleClick)
+					.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimersView::TreeView_GetMenuContent))
+					.ItemHeight(12.0f)
+					.HeaderRow
+					(
+						SAssignNew(TreeViewHeaderRow, SHeaderRow)
+						.Visibility(EVisibility::Visible)
+					)
+				]
 
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					[
-						SAssignNew(TreeView, STreeView<FTimerNodePtr>)
-						.ExternalScrollbar(ExternalScrollbar)
-						.SelectionMode(ESelectionMode::Multi)
-						.TreeItemsSource(&FilteredGroupNodes)
-						.OnGetChildren(this, &STimersView::TreeView_OnGetChildren)
-						.OnGenerateRow(this, &STimersView::TreeView_OnGenerateRow)
-						.OnSelectionChanged(this, &STimersView::TreeView_OnSelectionChanged)
-						.OnMouseButtonDoubleClick(this, &STimersView::TreeView_OnMouseButtonDoubleClick)
-						.OnContextMenuOpening(FOnContextMenuOpening::CreateSP(this, &STimersView::TreeView_GetMenuContent))
-						.ItemHeight(12.0f)
-						.HeaderRow
-						(
-							SAssignNew(TreeViewHeaderRow, SHeaderRow)
-							.Visibility(EVisibility::Visible)
-						)
-					]
-
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Right)
-					.VAlign(VAlign_Bottom)
-					.Padding(16.0f)
-					[
-						SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, Aggregator)
-					]
+				+ SOverlay::Slot()
+				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Bottom)
+				.Padding(16.0f)
+				[
+					SAssignNew(AsyncOperationStatus, Insights::SAsyncOperationStatus, Aggregator)
 				]
 			]
 
@@ -1537,8 +1531,8 @@ void STimersView::ShowColumn(const FName ColumnId)
 		.VAlignCell(VAlign_Fill)
 		.SortMode(this, &STimersView::GetSortModeForColumn, Column.GetId())
 		.OnSort(this, &STimersView::OnSortModeChanged)
-		.ManualWidth(Column.GetInitialWidth())
-		.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
+		.FillWidth(Column.GetInitialWidth())
+		//.FixedWidth(Column.IsFixedWidth() ? Column.GetInitialWidth() : TOptional<float>())
 		.HeaderContent()
 		[
 			SNew(SBox)
