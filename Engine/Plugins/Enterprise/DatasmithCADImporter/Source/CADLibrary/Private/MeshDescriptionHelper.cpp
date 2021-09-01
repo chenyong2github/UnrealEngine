@@ -454,8 +454,13 @@ namespace CADLibrary
 					VertexIndex[1] = Tessellation.PositionIndices[Tessellation.VertexIndices[Index + Orientation[1]]];
 					VertexIndex[2] = Tessellation.PositionIndices[Tessellation.VertexIndices[Index + Orientation[2]]];
 
-					// Verify the 3 input indices are not defining a degenerated triangle
 					if (VertexIndex[0] == INDEX_NONE || VertexIndex[1] == INDEX_NONE || VertexIndex[2] == INDEX_NONE)
+					{
+						continue;
+					}
+
+					// Verify the 3 input indices are not defining a degenerated triangle
+					if (VertexIndex[0] == VertexIndex[1] || VertexIndex[0] == VertexIndex[2] || VertexIndex[1] == VertexIndex[2])
 					{
 						continue;
 					}
