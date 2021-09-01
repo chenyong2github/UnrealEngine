@@ -95,7 +95,6 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 		FNiagaraDataInterfaceProxy::PreStage(RHICmdList, Context);
 
 #if RHI_RAYTRACING
-
 		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
 		{
 			//Accumulate the total ray requests for this DI for all dispatches in the stage.
@@ -106,14 +105,25 @@ struct FNiagaraDataIntefaceProxyCollisionQuery : public FNiagaraDataInterfacePro
 #endif
 	}
 
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+#if RHI_RAYTRACING
+	virtual bool RequiresPreStageFinalize() const override
 	{
+		return true;
 	}
 
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override
+	virtual void FinalizePreStage(FRHICommandList& RHICmdList, const NiagaraEmitterInstanceBatcher* Batcher) override
 	{
-		FNiagaraDataInterfaceProxy::PostSimulate(RHICmdList, Context);
+		FNiagaraRayTracingHelper& RTHelper = Batcher->GetRayTracingHelper();
+		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && MaxTracesPerParticle > 0)
+		{
+			RTHelper.BuildDispatch(RHICmdList, this);
+		}
+		else
+		{
+			RTHelper.BuildDummyDispatch(RHICmdList);
+		}
 	}
+#endif
 
 	void RenderThreadInitialize(int32 InMaxTracesPerParticle, uint32 InMaxRetraces)
 	{
@@ -968,42 +978,53 @@ public:
 		}
 
 #if RHI_RAYTRACING
+		const bool HasRayTracingParametersBound = RayRequestsParam.IsUAVBound()
+			|| IntersectionResultsParam.IsBound()
+			|| RayTraceCountsParam.IsBound();
 
-		FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
-		const FNiagaraRayTraceDispatchInfo* DispatchInfo = nullptr;
-		if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && QueryDI->MaxTracesPerParticle > 0)
+		if ((IsRayTracingEnabled() && GEnableGPUHWRTCollisions) || HasRayTracingParametersBound)
 		{
-			DispatchInfo = &RTHelper.GetDispatch(QueryDI, RHICmdList);
+			FNiagaraRayTracingHelper& RTHelper = Context.Batcher->GetRayTracingHelper();
+			const FNiagaraRayTraceDispatchInfo* DispatchInfo = nullptr;
+			if (IsRayTracingEnabled() && GEnableGPUHWRTCollisions && QueryDI->MaxTracesPerParticle > 0)
+			{
+				DispatchInfo = &RTHelper.GetDispatch(QueryDI);
+			}
+			else
+			{
+				DispatchInfo = &RTHelper.GetDummyDispatch();
+			}
+
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() && GEnableGPUHWRTCollisions ? 1 : 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, DispatchInfo->MaxRays);
+
+			if (RayRequestsParam.IsUAVBound())
+			{
+				check(DispatchInfo->RayRequests.IsValid());
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), DispatchInfo->RayRequests.Buffer->UAV);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, RayRequestOffsetParam, DispatchInfo->RayRequests.Offset);
+			}
+
+			if (IntersectionResultsParam.IsBound())
+			{
+				check(DispatchInfo->LastFrameRayTraceIntersections.IsValid());
+
+				SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, DispatchInfo->LastFrameRayTraceIntersections.Buffer->SRV);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, IntersectionResultOffsetParam, DispatchInfo->LastFrameRayTraceIntersections.Offset);
+			}
+
+			if (RayTraceCountsParam.IsUAVBound())
+			{
+				check(DispatchInfo->RayCounts.IsValid());
+
+				RHICmdList.SetUAVParameter(ComputeShaderRHI, RayTraceCountsParam.GetUAVIndex(), DispatchInfo->RayCounts.Buffer->UAV);
+				SetShaderValue(RHICmdList, ComputeShaderRHI, RayTraceCountsOffsetParam, DispatchInfo->RayCounts.Offset);
+			}
 		}
 		else
 		{
-			DispatchInfo = &RTHelper.GetDummyDispatch(RHICmdList);
-		}
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, IsRayTracingEnabled() && GEnableGPUHWRTCollisions ? 1 : 0);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, DispatchInfo->MaxRays);
-
-		if (RayRequestsParam.IsUAVBound())
-		{
-			check(DispatchInfo->RayRequests.IsValid());
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayRequestsParam.GetUAVIndex(), DispatchInfo->RayRequests.Buffer->UAV);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RayRequestOffsetParam, DispatchInfo->RayRequests.Offset);
-		}
-
-		if (IntersectionResultsParam.IsBound())
-		{
-			check(DispatchInfo->LastFrameRayTraceIntersections.IsValid());
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, IntersectionResultsParam, DispatchInfo->LastFrameRayTraceIntersections.Buffer->SRV);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, IntersectionResultOffsetParam, DispatchInfo->LastFrameRayTraceIntersections.Offset);
-		}
-
-		if (RayTraceCountsParam.IsUAVBound())
-		{
-			check(DispatchInfo->RayCounts.IsValid());
-
-			RHICmdList.SetUAVParameter(ComputeShaderRHI, RayTraceCountsParam.GetUAVIndex(), DispatchInfo->RayCounts.Buffer->UAV);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTraceCountsOffsetParam, DispatchInfo->RayCounts.Offset);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, RayTracingEnabledParam, 0);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, MaxRayTraceCountParam, 0);
 		}
 #endif
 	}

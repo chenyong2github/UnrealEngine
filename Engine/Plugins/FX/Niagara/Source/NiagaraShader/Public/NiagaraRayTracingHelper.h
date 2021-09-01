@@ -451,7 +451,7 @@ struct FNiagaraRayTraceDispatchInfo
 	/** Max number or times rays can be re-traced in a shader if they hit something that is invalid/filtered. */
 	uint32 MaxRetraces = 0;
 
-	FORCEINLINE bool IsValid(){ return MaxRays > 0; }
+	FORCEINLINE bool IsValid() const { return MaxRays > 0; }
 	FORCEINLINE void Reset()
 	{
 		RayRequests = FGPUScratchPadStructured<FNiagaraRayData>::FAllocation();
@@ -476,17 +476,23 @@ public:
 		void IssueRayTraces(FRHICommandList& RHICmdList, FScene* Scene, const FIntPoint& RayTraceCounts, uint32 MaxRetraces, FRHIShaderResourceView* RayTraceRequests, FRWBuffer* IndirectArgsBuffer, uint32 IndirectArgsOffset, FRHIUnorderedAccessView* RayTraceResults);
 		bool IsValid() const;
 		
-		void BeginFrame(FRHICommandList& RHICmdList);
-		void EndFrame(FRHICommandList& RHICmdList, FScene* Scene);
+		void BeginFrame(FRHICommandList& RHICmdList, bool HasRayTracingScene);
+		void EndFrame(FRHICommandList& RHICmdList, bool HasRayTracingScene, FScene* Scene);
 
 		/** Accumulates ray requests from user DIs into single dispatches per DI. */
 		void AddToDispatch(FNiagaraDataInterfaceProxy* DispatchKey, uint32 MaxRays, int32 MaxRetraces);
-		
-		/** Returns the final buffers for each DI for use in simulations and RT dispatches. This will allocated buffers where needed. */
-		const FNiagaraRayTraceDispatchInfo& GetDispatch(FNiagaraDataInterfaceProxy* DispatchKey, FRHICommandList& RHICmdList);
+
+		/** Ensures that the final buffers for the provided proxy have been allocated. */
+		void BuildDispatch(FRHICommandList& RHICmdList, FNiagaraDataInterfaceProxy* DispatchKey);
+
+		/** Ensures that buffers for a dummy buffer have been allocated. */
+		void BuildDummyDispatch(FRHICommandList& RHICmdList);
+
+		/** Returns the final buffers for each DI for use in simulations and RT dispatches. */
+		const FNiagaraRayTraceDispatchInfo& GetDispatch(FNiagaraDataInterfaceProxy* DispatchKey) const;
 
 		/** Returns a dummy dispatch to allow shaders to still bind to valid buffers. */
-		const FNiagaraRayTraceDispatchInfo& GetDummyDispatch(FRHICommandList& RHICmdList);
+		const FNiagaraRayTraceDispatchInfo& GetDummyDispatch() const;
 
 		/** Adds a primitive to a collision group. This data is sent to the GPU on the start of the next frame. */
 		void SetPrimitiveCollisionGroup(FPrimitiveSceneInfo& Primitive, uint32 CollisionGroup);
