@@ -200,5 +200,54 @@ namespace HordeServerTests
 				Assert.AreEqual(2, NewJob.Batches[2].Steps[1].NodeIdx);
 			}
 		}
+
+		[TestMethod]
+		public async Task IncompleteBatchAsync()
+		{
+			Mock<ITemplate> TemplateMock = new Mock<ITemplate>(MockBehavior.Strict);
+			TemplateMock.SetupGet(x => x.InitialAgentType).Returns((string?)null);
+
+			IGraph BaseGraph = await GraphCollection.AddAsync(TemplateMock.Object);
+
+			List<string> Arguments = new List<string>();
+			Arguments.Add("-Target=Step 1");
+			Arguments.Add("-Target=Step 3");
+
+			IJob Job = await JobCollection.AddAsync(ObjectId.GenerateNewId(), new StreamId("ue4-main"), new TemplateRefId("test-build"), ContentHash.SHA1("hello"), BaseGraph, "Test job", 123, 123, null, null, null, "Ben", null, null, null, null, false, false, null, null, null, Arguments);
+			Assert.AreEqual(1, Job.Batches.Count);
+
+			await StartBatch(Job, BaseGraph, 0);
+			Assert.IsTrue(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[0].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+
+			Job = (await JobCollection.GetAsync(Job.Id))!;
+			Assert.AreEqual(2, Job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
+			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Ready, Job.Batches[1].State);
+			Assert.AreEqual(1, Job.Batches[1].Steps.Count);
+
+			Assert.IsTrue(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[1].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+
+			Job = (await JobCollection.GetAsync(Job.Id))!;
+			Assert.AreEqual(3, Job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
+			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[1].State);
+			Assert.AreEqual(0, Job.Batches[1].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Ready, Job.Batches[2].State);
+			Assert.AreEqual(1, Job.Batches[2].Steps.Count);
+
+			Assert.IsTrue(await JobCollection.TryUpdateBatchAsync(Job, BaseGraph, Job.Batches[2].Id, null, JobStepBatchState.Complete, JobStepBatchError.Incomplete));
+
+			Job = (await JobCollection.GetAsync(Job.Id))!;
+			Assert.AreEqual(3, Job.Batches.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[0].State);
+			Assert.AreEqual(0, Job.Batches[0].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[1].State);
+			Assert.AreEqual(0, Job.Batches[1].Steps.Count);
+			Assert.AreEqual(JobStepBatchState.Complete, Job.Batches[2].State);
+			Assert.AreEqual(1, Job.Batches[2].Steps.Count);
+			Assert.AreEqual(JobStepState.Skipped, Job.Batches[2].Steps[0].State);
+		}
 	}
 }
