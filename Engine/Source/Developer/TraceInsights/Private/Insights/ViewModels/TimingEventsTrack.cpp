@@ -171,11 +171,11 @@ void FTimingEventsTrack::UpdateTrackHeight(const ITimingTrackUpdateContext& Cont
 	else
 	{
 		DesiredTrackHeight = Viewport.GetLayout().ComputeTrackHeight(NumLanes);
-		if (ChildTrack.IsValid() && ChildTrack->GetHeight() > Viewport.GetLayout().MinTimelineH)
+		if (ChildTrack.IsValid() && ChildTrack->GetHeight() > 0.0f)
 		{
-			if (DesiredTrackHeight == Viewport.GetLayout().MinTimelineH)
+			if (DesiredTrackHeight == 0.0f)
 			{
-				DesiredTrackHeight += 1.0f + 2.0 * Viewport.GetLayout().TimelineDY;
+				DesiredTrackHeight += 1.0f + 2.0f * Viewport.GetLayout().TimelineDY;
 			}
 			DesiredTrackHeight += ChildTrack->GetHeight() + Viewport.GetLayout().ChildTimelineDY;
 		}
@@ -343,7 +343,7 @@ void FTimingEventsTrack::DrawEvent(const ITimingTrackDrawContext& Context, const
 		const FTimingEvent& TrackEvent = InTimingEvent.As<FTimingEvent>();
 		const FTimingViewLayout& Layout = Context.GetViewport().GetLayout();
 		float Y = TrackEvent.GetTrack()->GetPosY();
-		if (ChildTrack.IsValid())
+		if (ChildTrack.IsValid() && ChildTrack->GetHeight() > 0.0f)
 		{
 			Y += ChildTrack->GetHeight() + Layout.ChildTimelineDY;
 		}
@@ -369,7 +369,7 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 
 	float TopLaneY = 0.0f;
 	float TrackLanesHeight = 0.0f;
-	if (ChildTrack.IsValid())
+	if (ChildTrack.IsValid() && ChildTrack->GetHeight() > 0.0f)
 	{
 		const float HeaderDY = InPosY - ChildTrack->GetPosY();
 		if (HeaderDY >= 0 && HeaderDY < ChildTrack->GetHeight())

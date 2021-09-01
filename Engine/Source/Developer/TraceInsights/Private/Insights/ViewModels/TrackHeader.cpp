@@ -122,7 +122,7 @@ void FTrackHeader::Draw(const ITimingTrackDrawContext& Context) const
 	{
 		FDrawContext& DrawContext = Context.GetDrawContext();
 
-		// Draw a horizontal line between timelines (top line of a track).
+		// Draw a horizontal line between tracks (top line of a track).
 		DrawContext.DrawBox(0.0f, ParentTrack.GetPosY(), Context.GetViewport().GetWidth(), 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 		DrawInternal(Context, false);
