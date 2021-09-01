@@ -507,7 +507,7 @@ void DrawBasePass(
 		ERDGPassFlags RDGPassFlags = ERDGPassFlags::Raster;
 
 		// Skip render pass when parallel because that's taken care of by the FRDGParallelCommandListSet
-		bool bParallelBasePassBuild = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0;
+		bool bParallelBasePassBuild = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePassBuild.GetValueOnRenderThread() != 0 && FParallelMeshDrawCommandPass::IsOnDemandShaderCreationEnabled();
 		if (bParallelBasePassBuild)
 		{
 			RDGPassFlags |= ERDGPassFlags::SkipRenderPass;
