@@ -63,4 +63,8 @@ protected:
 	TSharedPtr<SWidget> ViewportOverlayWidget;
 
 	FText ActiveToolName;
+
+	void UpdateActiveToolProperties();
+	void InvalidateCachedDetailPanelState(UObject* ChangedObject);
+
 };

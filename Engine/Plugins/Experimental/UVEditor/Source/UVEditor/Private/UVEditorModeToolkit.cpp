@@ -323,10 +323,28 @@ void FUVEditorModeToolkit::SetBackgroundSettings(UObject* InSettingsObject)
 }
 
 
+void FUVEditorModeToolkit::UpdateActiveToolProperties()
+{
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (CurTool != nullptr)
+	{
+		DetailsView->SetObjects(CurTool->GetToolProperties(true));
+	}
+}
+
+void FUVEditorModeToolkit::InvalidateCachedDetailPanelState(UObject* ChangedObject)
+{
+	DetailsView->InvalidateCachedState();
+}
+
 void FUVEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	FModeToolkit::OnToolStarted(Manager, Tool);
 	
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	CurTool->OnPropertySetsModified.AddSP(this, &FUVEditorModeToolkit::UpdateActiveToolProperties);
+	CurTool->OnPropertyModifiedDirectlyByTool.AddSP(this, &FUVEditorModeToolkit::InvalidateCachedDetailPanelState);
+
 	ActiveToolName = Tool->GetToolInfo().ToolDisplayName;
 
 	if (GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept())
@@ -354,6 +372,13 @@ void FUVEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UIntera
 	if (IsHosted())
 	{
 		GetToolkitHost()->RemoveViewportOverlayWidget(ViewportOverlayWidget.ToSharedRef());
+	}
+
+	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (CurTool)
+	{
+		CurTool->OnPropertySetsModified.RemoveAll(this);
+		CurTool->OnPropertyModifiedDirectlyByTool.RemoveAll(this);
 	}
 }
 
