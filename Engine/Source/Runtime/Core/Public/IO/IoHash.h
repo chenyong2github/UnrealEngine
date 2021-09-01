@@ -19,8 +19,8 @@
  * Only the leading 160 bits of the 256-bit hash are used, to provide strong collision resistance
  * while minimizing the size of the hash.
  *
- * When the data to hash is not in a contiguous region of memory, FBlake3 can be used to hash the
- * data in blocks with FBlake3::Update(Block) followed by FIoHash(FBlake3::Finalize()).
+ * When the data to hash is not in a contiguous region of memory, use FIoHashBuilder to hash data
+ * in blocks with FIoHashBuilder::Update(Block) followed by FIoHashBuilder::Finalize().
  */
 struct FIoHash
 {
@@ -113,17 +113,17 @@ inline bool FIoHash::IsZero() const
 
 inline FIoHash FIoHash::HashBuffer(FMemoryView View)
 {
-	return FIoHash(FBlake3::HashBuffer(View));
+	return FBlake3::HashBuffer(View);
 }
 
 inline FIoHash FIoHash::HashBuffer(const void* Data, uint64 Size)
 {
-	return FIoHash(FBlake3::HashBuffer(Data, Size));
+	return FBlake3::HashBuffer(Data, Size);
 }
 
 inline FIoHash FIoHash::HashBuffer(const FCompositeBuffer& Buffer)
 {
-	return FIoHash(FBlake3::HashBuffer(Buffer));
+	return FBlake3::HashBuffer(Buffer);
 }
 
 inline bool operator==(const FIoHash& A, const FIoHash& B)
@@ -167,3 +167,22 @@ inline void LexFromString(FIoHash& OutHash, const TCHAR* Buffer)
 
 /** Convert a hash to a 40-character hex string. */
 [[nodiscard]] CORE_API FString LexToString(const FIoHash& Hash);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/** Calculates a BLAKE3-160 hash. */
+class FIoHashBuilder : public FBlake3
+{
+public:
+	/**
+	 * Finalize the hash of the input data.
+	 *
+	 * May be called any number of times, and more input may be added after.
+	 */
+	[[nodiscard]] inline FIoHash Finalize() const { return FBlake3::Finalize(); }
+
+	/** Calculate the hash of the buffer. */
+	[[nodiscard]] inline static FIoHash HashBuffer(FMemoryView View) { return FBlake3::HashBuffer(View); }
+	[[nodiscard]] inline static FIoHash HashBuffer(const void* Data, uint64 Size) { return FBlake3::HashBuffer(Data, Size); }
+	[[nodiscard]] inline static FIoHash HashBuffer(const FCompositeBuffer& Buffer) { return FBlake3::HashBuffer(Buffer); }
+};
