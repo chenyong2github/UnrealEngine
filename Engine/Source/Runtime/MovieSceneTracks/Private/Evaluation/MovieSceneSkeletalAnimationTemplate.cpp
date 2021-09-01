@@ -398,6 +398,11 @@ namespace MovieScene
 		{
 			for (USceneComponent* Child : SkeletalMeshComponent->GetAttachChildren())
 			{
+				if (!Child)
+				{
+					continue;
+				}
+
 				FName SocketName = Child->GetAttachSocketName();
 				if (SocketName != NAME_None)
 				{
