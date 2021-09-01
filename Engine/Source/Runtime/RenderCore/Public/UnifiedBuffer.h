@@ -14,23 +14,45 @@ class FRDGBuilder;
  * Float4 versions exist for platforms that don't yet support byte address buffers.
  */
 
+struct FMemsetResourceParams
+{
+	uint32 Value;
+	uint32 Count;
+	uint32 DstOffset;
+};
+
+struct FMemcpyResourceParams
+{
+	uint32 Count;
+	uint32 SrcOffset;
+	uint32 DstOffset;
+};
+
+struct FResizeResourceSOAParams
+{
+	uint32 NumBytes;
+	uint32 NumArrays;
+};
+
 template<typename ResourceType>
-extern RENDERCORE_API void MemsetResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, uint32 Value, uint32 NumBytes, uint32 DstOffset = 0);
+extern RENDERCORE_API void MemsetResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const FMemsetResourceParams& Params);
 template<typename ResourceType>
-extern RENDERCORE_API void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const ResourceType& SrcBuffer, uint32 NumBytes, uint32 DstOffset = 0, uint32 SrcOffset = 0, bool bAlreadyInUAVOverlap = false);
+extern RENDERCORE_API void MemcpyResource(FRHICommandList& RHICmdList, const ResourceType& DstBuffer, const ResourceType& SrcBuffer, const FMemcpyResourceParams& Params, bool bAlreadyInUAVOverlap = false);
+
+template<typename ResourceType>
+extern RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, const FResizeResourceSOAParams& Params, const TCHAR* DebugName);
 template<typename ResourceType>
 extern RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, const TCHAR* DebugName);
-template<typename ResourceType>
-extern RENDERCORE_API bool ResizeResourceSOAIfNeeded( FRHICommandList& RHICmdList, ResourceType& Texture, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName );
+RENDERCORE_API bool ResizeResourceIfNeeded(FRHICommandList& RHICmdList, FRWBuffer& Buffer, EPixelFormat Format, uint32 NumElements, const TCHAR* DebugName);
 
 
 /**
  * This version will resize/allocate the buffer at once and add a RDG pass to perform the copy on the RDG time-line if there was previous data).
  */
-RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, uint32 NumArrays, const TCHAR* DebugName);
+RENDERCORE_API bool ResizeResourceSOAIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, const FResizeResourceSOAParams& Params, const TCHAR* DebugName);
 RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBufferStructured& Buffer, uint32 NumBytes, const TCHAR* DebugName);
 RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWByteAddressBuffer& Buffer, uint32 NumBytes, const TCHAR* DebugName);
-
+RENDERCORE_API bool ResizeResourceIfNeeded(FRDGBuilder& GraphBuilder, FRWBuffer& Buffer, EPixelFormat Format, uint32 NumElements, const TCHAR* DebugName);
 
 class FScatterUploadBuffer
 {
