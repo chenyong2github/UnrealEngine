@@ -549,11 +549,22 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 		{
 			// LHS is linear, but RHS is warping. Since transforms are supposed to apply from right to left,
 			// we need to append LHS at the "bottom" of RHS, i.e. add a new nested transform that's LHS. However
-			// if LHS is identity, we have nothing to do.
+			// if LHS is identity, we have nothing to do, and if both LHS and RHS' deeper transform are linear,
+			// we can combine both.
 			FMovieSceneSequenceTransform Result(RHS);
 			if (!LHS.LinearTransform.IsIdentity())
 			{
-				Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+				const int32 NumNestedTransforms = RHS.NestedTransforms.Num();
+				check(NumNestedTransforms > 0);
+				const FMovieSceneNestedSequenceTransform& LastNested = RHS.NestedTransforms[NumNestedTransforms - 1];
+				if (LastNested.IsWarping())
+				{
+					Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));
+				}
+				else
+				{
+					Result.NestedTransforms[NumNestedTransforms - 1] = LHS.LinearTransform * LastNested.LinearTransform;
+				}
 			}
 			return Result;
 		}
@@ -576,7 +587,6 @@ inline FMovieSceneSequenceTransform operator*(const FMovieSceneSequenceTransform
 			// struct.
 			FMovieSceneSequenceTransform Result(RHS);
 			const bool bHasOnlyNested = LHS.LinearTransform.IsIdentity();
-			ensure(bHasOnlyNested);
 			if (!bHasOnlyNested)
 			{
 				Result.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(LHS.LinearTransform));

@@ -129,18 +129,34 @@ private:
 		FMovieSceneWarpCounter LoopCounter;
 		FMovieSceneSequenceTransform RootToLocalTransform;
 
-		for (const FTransformStep& Step : TransformStack)
+		for (int32 Index = 0; Index < TransformStack.Num(); ++Index)
 		{
+			const FTransformStep& Step(TransformStack[Index]);
 			FMovieSceneSequenceTransform StepTransform;
 			StepTransform.LinearTransform = Step.LinearTransform;
 			if (Step.Warping.IsValid())
 			{
 				StepTransform.NestedTransforms.Add(FMovieSceneNestedSequenceTransform(Step.Warping));
 			}
+
+			const bool bWasRootToLocalTransformWarping = RootToLocalTransform.IsWarping();
 			RootToLocalTransform = StepTransform * RootToLocalTransform;
 
 			ensure(Step.WarpCounter == FMovieSceneTimeWarping::InvalidWarpCount || Step.Warping.IsValid());
-			LoopCounter.AddWarpingLevel(Step.WarpCounter);
+
+			// The linear part of StepTransform will be added as a nested transform only if it's 
+			// actually doing something (non identity), and if RootToLocalTransform was warping already
+			// (meaning that StepTransform's linear part couldn't be "merged" into an existing linear
+			// transform).
+			if (!StepTransform.LinearTransform.IsIdentity() && bWasRootToLocalTransformWarping)
+			{
+				LoopCounter.AddNonWarpingLevel();
+			}
+			// If StepTransform is warping, we need to add the loop index for it.
+			if (Step.Warping.IsValid())
+			{
+				LoopCounter.AddWarpingLevel(Step.WarpCounter);
+			}
 		}
 
 		CachedInverseTransform = RootToLocalTransform.InverseFromWarp(LoopCounter);

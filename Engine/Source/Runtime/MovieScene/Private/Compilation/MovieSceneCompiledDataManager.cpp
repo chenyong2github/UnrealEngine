@@ -148,7 +148,19 @@ struct FGatherParameters
 		SubParams.SequenceID                = InSubSequenceID;
 		SubParams.LocalClampRange			= SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
 
-		SubParams.RootToSequenceWarpCounter.AddWarpingLevel(WarpIndex);
+		if (WarpIndex != FMovieSceneTimeWarping::InvalidWarpCount)
+		{
+			SubParams.RootToSequenceWarpCounter.AddWarpingLevel(WarpIndex);
+		}
+		else
+		{
+			const int32 NumWarpCounts = SubParams.RootToSequenceWarpCounter.NumWarpCounts();
+			const int32 NumNestedTransforms = SubParams.RootToSequenceTransform.NestedTransforms.Num();
+			if (NumNestedTransforms > NumWarpCounts)
+			{
+				SubParams.RootToSequenceWarpCounter.AddNonWarpingLevel();
+			}
+		}
 
 		return SubParams;
 	}
