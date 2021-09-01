@@ -788,7 +788,10 @@ namespace HordeServer
 
 			App.UseEndpoints(Endpoints =>
 			{
+				Endpoints.MapGrpcService<HealthService>();
 				Endpoints.MapGrpcService<RpcService>();
+				
+				// Google Remote Execution API
 				Endpoints.MapGrpcService<ActionRpcService>();
 				Endpoints.MapGrpcService<ActionCacheService>();
 				Endpoints.MapGrpcService<ByteStreamService>();

@@ -72,6 +72,7 @@
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\storage\ref_service.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Server" />
     <Protobuf Include="..\..\Shared\EpicGames.Horde.Common\Protos\horde\storage\blob_service.proto" ProtoRoot="..\..\Shared\EpicGames.Horde.Common\Protos" GrpcServices="Server" />
     <Protobuf Include="..\HordeCommon\Protos\horde\horde_rpc.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Server" />
+    <Protobuf Include="..\HordeCommon\Protos\grpc\health\v1\health.proto" ProtoRoot="..\HordeCommon\Protos" GrpcServices="Server" />
   </ItemGroup>
 
   <ItemGroup>
