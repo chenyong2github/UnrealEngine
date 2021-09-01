@@ -92,7 +92,7 @@ void UpdateCacheForUsedProbesCS(
 		if (LastFrameProbeIndex != INVALID_PROBE_INDEX)
 		{
 			float3 ProbeWorldPosition = LastFrameProbeCoord * LastFrameRadianceProbeCoordToWorldPositionScale[ClipmapIndex] + LastFrameRadianceProbeCoordToWorldPositionBias[ClipmapIndex];
-			int3 ProbeCoord = ProbeWorldPosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+			int3 ProbeCoord = ProbeWorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 			bool bReused = false;
 
@@ -164,7 +164,7 @@ void AllocateUsedProbesCS(
 		uint ProbeUsedMarker = RWRadianceProbeIndirectionTexture[DispatchThreadId];
 
 		uint3 ProbeCoord = uint3(DispatchThreadId.x - ClipmapIndex * RadianceProbeClipmapResolution, DispatchThreadId.y, DispatchThreadId.z);
-		float3 ProbeWorldPosition = ProbeCoord * RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+		float3 ProbeWorldPosition = ProbeCoord * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + GetRadianceProbeCoordToWorldPositionBias(ClipmapIndex);
 
 		bool bTraceProbe;
 
@@ -303,7 +303,7 @@ void ComputeProbeWorldOffsetsCS(
 	GetProbeTraceDataNoOffset(ProbeTraceIndex, ProbeWorldCenter, ClipmapIndex, ProbeIndex);
 
 	float DistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter);
-	float TooCloseThreshold = .05f * RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
+	float TooCloseThreshold = .05f * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex);
 
 	if (DistanceToSurface < TooCloseThreshold)
 	{
@@ -313,7 +313,7 @@ void ComputeProbeWorldOffsetsCS(
 		uint Y = (GroupThreadId % 16) / 4;
 		uint Z = GroupThreadId / 16;
 		{
-			float3 Offset = (float3(X, Y, Z) * 2.0f / 3.0f - 1.0f) * MaxVoxelOffset * RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
+			float3 Offset = (float3(X, Y, Z) * 2.0f / 3.0f - 1.0f) * MaxVoxelOffset * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex);
 			float SampleDistanceToSurface = GetDistanceToNearestSurfaceGlobal(ProbeWorldCenter + Offset);
 			SharedBestOffset[GroupThreadId] = float4(Offset, SampleDistanceToSurface);
 		}
@@ -404,7 +404,7 @@ void ScatterScreenProbeBRDFToRadianceProbesCS(
 
 			if (ClipmapIndex < NumRadianceProbeClipmaps)
 			{
-				int3 BottomCornerProbeCoord = WorldPosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex] - .5f;
+				int3 BottomCornerProbeCoord = WorldPosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex) - .5f;
 				int3 IndirectionTextureCoord = BottomCornerProbeCoord + int3(ClipmapIndex * RadianceProbeClipmapResolution, 0, 0);
 				uint ProbeIndex = RadianceProbeIndirectionTexture[IndirectionTextureCoord + int3(GroupThreadId.x & 0x1, (GroupThreadId.x & 0x2) >> 1, (GroupThreadId.x & 0x4) >> 2)];
 
@@ -999,7 +999,7 @@ void FilterProbeRadianceWithGatherCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	int3 ProbeCoord = ProbeWorldCenter * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+	int3 ProbeCoord = ProbeWorldCenter * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 	uint2 RandSeed = Rand3DPCG16(int3(ProbeWorldCenter / 10.0f)).xy;
 	uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
 
@@ -1038,11 +1038,11 @@ void FilterProbeRadianceWithGatherCS(
 				float3 ToNeighborHit = NeighborHitPosition - ProbeWorldCenter;
 				uint2 ProbeTexelCoordForNeighborHit = ( UnitVectorToOctahedron(ToNeighborHit) * 0.5 + 0.5 ) * RadianceProbeResolution;
 				float ProbeDepthForNeighborHit = DepthProbeAtlasTexture[ProbeTexelCoordForNeighborHit + ProbeAtlasBaseCoord];
-				float VoxelRadius = sqrt(3.0f) / WorldPositionToRadianceProbeCoordScale[ClipmapIndex];
+				float VoxelRadius = sqrt(3.0f) / GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex);
 
 				float DistanceWeight = 1.0f;
 
-				if (ProbeDepthForNeighborHit < 1.0f * (RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + VoxelRadius))
+				if (ProbeDepthForNeighborHit < 1.0f * (GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + VoxelRadius))
 				{
 					//@todo - need to trace through neighbor probe depths to see if the ray is occluded near the origin to stop leaking
 					DistanceWeight = 0;
@@ -1105,7 +1105,7 @@ void FilterProbeRadianceWithGatherCS(
 		float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)RadianceProbeResolution;
 		float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
-		int3 ProbeCoord = ProbeWorldCenter * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+		int3 ProbeCoord = ProbeWorldCenter * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 		int3 Offsets[6];
 		Offsets[0] = int3(-1, 0, 0);
@@ -1134,7 +1134,7 @@ void FilterProbeRadianceWithGatherCS(
 					{
 						// Test a nearby position along the neighbor ray's path, if occluded then discard the neighbor radiance to reduce leaking
 						// We can't test occlusion of the neighbor probe, because it is closer than GetRadianceProbeTMin
-						float VoxelRadius = sqrt(3.0f) / WorldPositionToRadianceProbeCoordScale[ClipmapIndex];
+						float VoxelRadius = sqrt(3.0f) / GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex);
 						float OcclusionDistance = max(GetRadianceProbeTMin(ClipmapIndex), VoxelRadius);
 						float3 NeighborOcclusionTestPosition = NeighborWorldPosition + 2 * OcclusionDistance * WorldConeDirection;
 						float3 ToNeighborOcclusionPosition = NeighborOcclusionTestPosition - ProbeWorldCenter;
