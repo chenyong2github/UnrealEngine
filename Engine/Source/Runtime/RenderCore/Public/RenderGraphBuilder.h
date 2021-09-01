@@ -195,10 +195,20 @@ public:
 		QueueBufferUpload(Buffer, Container.GetData(), Container.Num() * sizeof(ElementType), InitialDataFlags);
 	}
 
+	/** Queues a buffer upload operation prior to execution. The resource lifetime is extended and the data is uploaded prior to executing passes. */
+	void QueueBufferUpload(FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, FRDGBufferInitialDataFreeCallback&& InitialDataFreeCallback);
+
+	template <typename ElementType>
+	inline void QueueBufferUpload(FRDGBufferRef Buffer, TArrayView<ElementType, int32> Container, FRDGBufferInitialDataFreeCallback&& InitialDataFreeCallback)
+	{
+		QueueBufferUpload(Buffer, Container.GetData(), Container.Num() * sizeof(ElementType), InitialDataFreeCallback);
+	}
+
 	/** A variant where InitialData and InitialDataSize are supplied through callbacks. This allows queuing an upload with information unknown at
 	 *  creation time. The callbacks are called before RDG pass execution so data must be ready before that.
 	 */
 	void QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferInitialDataCallback&& InitialDataCallback, FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback);
+	void QueueBufferUpload(FRDGBufferRef Buffer, FRDGBufferInitialDataCallback&& InitialDataCallback, FRDGBufferInitialDataSizeCallback&& InitialDataSizeCallback, FRDGBufferInitialDataFreeCallback&& InitialDataFreeCallback);
 
 	/** Queues a pooled render target extraction to happen at the end of graph execution. For graph-created textures, this extends
 	 *  the lifetime of the GPU resource until execution, at which point the pointer is filled. If specified, the texture is transitioned
@@ -477,25 +487,47 @@ private:
 		FUploadedBuffer() = default;
 
 		FUploadedBuffer(FRDGBuffer* InBuffer, const void* InData, uint64 InDataSize)
-			: bUseCallbacks(false)
+			: bUseDataCallbacks(false)
+			, bUseFreeCallbacks(false)
 			, Buffer(InBuffer)
 			, Data(InData)
 			, DataSize(InDataSize)
 		{}
 
+		FUploadedBuffer(FRDGBuffer* InBuffer, const void* InData, uint64 InDataSize, FRDGBufferInitialDataFreeCallback&& InDataFreeCallback)
+			: bUseDataCallbacks(false)
+			, bUseFreeCallbacks(true)
+			, Buffer(InBuffer)
+			, Data(InData)
+			, DataSize(InDataSize)
+			, DataFreeCallback(MoveTemp(InDataFreeCallback))
+		{}
+
 		FUploadedBuffer(FRDGBuffer* InBuffer, FRDGBufferInitialDataCallback&& InDataCallback, FRDGBufferInitialDataSizeCallback&& InDataSizeCallback)
-			: bUseCallbacks(true)
+			: bUseDataCallbacks(true)
+			, bUseFreeCallbacks(false)
 			, Buffer(InBuffer)
 			, DataCallback(MoveTemp(InDataCallback))
 			, DataSizeCallback(MoveTemp(InDataSizeCallback))
 		{}
 
-		bool bUseCallbacks = false;
+		FUploadedBuffer(FRDGBuffer* InBuffer, FRDGBufferInitialDataCallback&& InDataCallback, FRDGBufferInitialDataSizeCallback&& InDataSizeCallback, FRDGBufferInitialDataFreeCallback&& InDataFreeCallback)
+			: bUseDataCallbacks(true)
+			, bUseFreeCallbacks(true)
+			, Buffer(InBuffer)
+			, DataCallback(MoveTemp(InDataCallback))
+			, DataSizeCallback(MoveTemp(InDataSizeCallback))
+			, DataFreeCallback(MoveTemp(InDataFreeCallback))
+		{}
+
+		bool bUseDataCallbacks = false;
+		bool bUseFreeCallbacks = false;
 		FRDGBuffer* Buffer{};
 		const void* Data{};
 		uint64 DataSize{};
 		FRDGBufferInitialDataCallback DataCallback;
 		FRDGBufferInitialDataSizeCallback DataSizeCallback;
+		FRDGBufferInitialDataFreeCallback DataFreeCallback;
 	};
 
 	TArray<FUploadedBuffer, FRDGArrayAllocator> UploadedBuffers;
