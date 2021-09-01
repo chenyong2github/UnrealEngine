@@ -278,17 +278,17 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 	const uint BitsPerAttribute = bIsParentRef ? SrcCluster.BitsPerAttribute : ((SrcCluster.BitsPerAttribute + 7) & ~7u);
 	const uint Address = bIsParentRef ? (BaseAddress + SrcCluster.AttributeOffset) : (SrcPageBaseOffset + SrcClusterDiskHeader.AttributeDataOffset);
 
-	FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBaseOffset + Cluster.AttributeOffset, VertexIndex * Cluster.BitsPerAttribute);	
-	FBitStreamReaderState InputStream = BitStreamReader_Create(Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
+	FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBuffer, DstPageBaseOffset + Cluster.AttributeOffset, VertexIndex * Cluster.BitsPerAttribute);	
+	FBitStreamReaderStateRORW InputStream = BitStreamReader_Create_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, Address, SrcCodedVertexIndex * BitsPerAttribute, CompileTimeMaxVertexBits);
 
 	// Normal
-    uint PackedNormal = BitStreamReader_Read_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-    BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedNormal, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+    uint PackedNormal = BitStreamReader_Read(InputStream, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+    BitStreamWriter_Writer(OutputStream, PackedNormal, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 
 	// Color
     {
         uint4 SrcComponentBits = UnpackToUint4(SrcCluster.ColorBits, 4);
-        uint4 SrcColorDelta = BitStreamReader_Read4_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, SrcComponentBits,  8 );
+        uint4 SrcColorDelta = BitStreamReader_Read4(InputStream, SrcComponentBits,  8 );
 
         if (Cluster.ColorMode == VERTEX_COLOR_MODE_VARIABLE)
         {
@@ -303,7 +303,7 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
                                     (BitFieldExtractU32(DstPackedColorDelta, 8, 16) << (DstComponentBits.x + DstComponentBits.y)) |
                                     (BitFieldExtractU32(DstPackedColorDelta, 8, 24) << (DstComponentBits.x + DstComponentBits.y + DstComponentBits.z));
 
-            BitStreamWriter_Writer(DstPageBuffer, OutputStream, PackedDeltaColor, DstComponentBits.x + DstComponentBits.y + DstComponentBits.z + DstComponentBits.w, 4 * MAX_COLOR_QUANTIZATION_BITS);
+            BitStreamWriter_Writer(OutputStream, PackedDeltaColor, DstComponentBits.x + DstComponentBits.y + DstComponentBits.z + DstComponentBits.w, 4 * MAX_COLOR_QUANTIZATION_BITS);
         }
     }
 
@@ -317,7 +317,7 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 		const uint DstU_NumBits		= BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 0);
 		const uint DstV_NumBits		= BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4);
 
-		const int2 SrcPackedUV		= BitStreamReader_Read2_RORW(SrcPageBuffer, DstPageBuffer, bIsParentRef, InputStream, int2(SrcU_NumBits, SrcV_NumBits), MAX_TEXCOORD_QUANTIZATION_BITS);
+		const int2 SrcPackedUV		= BitStreamReader_Read2(InputStream, int2(SrcU_NumBits, SrcV_NumBits), MAX_TEXCOORD_QUANTIZATION_BITS);
         
 		FUVRange SrcUVRange;
 		if (bIsParentRef)
@@ -340,10 +340,10 @@ void TranscodeVertexAttributes(FPageDiskHeader PageDiskHeader, FCluster Cluster,
 		DstPackedUV				= bOverMid ? (DstPackedUV - UVRange.GapLength) : DstPackedUV;
 		DstPackedUV				= fastClamp(DstPackedUV, RangeMin, RangeMax);
 		
-		BitStreamWriter_Writer(DstPageBuffer, OutputStream, (DstPackedUV.y << DstU_NumBits) | DstPackedUV.x, DstU_NumBits + DstV_NumBits, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+		BitStreamWriter_Writer(OutputStream, (DstPackedUV.y << DstU_NumBits) | DstPackedUV.x, DstU_NumBits + DstV_NumBits, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
 	}
 
-    BitStreamWriter_Flush(DstPageBuffer, OutputStream);
+    BitStreamWriter_Flush(OutputStream);
 }
 
 groupshared uint GroupNumRefsInPrevDwords8888[2];	// Packed byte counts: 8:8:8:8
@@ -389,8 +389,8 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 #if USE_STRIP_INDICES
 			uint3 Indices = UnpackStripIndices(SrcPageBaseOffset, PageDiskHeader, ClusterDiskHeader, LocalClusterIndex, TriangleIndex);
 #else
-			FBitStreamReaderState InputStream = BitStreamReader_Create(SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset, TriangleIndex * 24, 24);
-			uint Indices24 = BitStreamReader_Read_RO(SrcPageBuffer, InputStream, 24, 24);
+			FBitStreamReaderStateRO InputStream = BitStreamReader_Create_RO(SrcPageBuffer, SrcPageBaseOffset + ClusterDiskHeader.IndexDataOffset, TriangleIndex * 24, 24);
+			uint Indices24 = BitStreamReader_Read(InputStream, 24, 24);
 			uint3 Indices = uint3(Indices24 & 0xFF, (Indices24 >> 8) & 0xFF, (Indices24 >> 16) & 0xFF);
 #endif
 			// Rotate triangle so first vertex has the lowest index
@@ -515,25 +515,25 @@ void TranscodePageToGPU(uint2	GroupID	: SV_GroupID,
 				{
 					uint BaseAddress = GPUPageIndexToGPUOffset(ParentGPUPageIndex) + SrcCluster.PositionOffset;
 					uint SrcPositionBitsPerVertex = SrcCluster.PosBits.x + SrcCluster.PosBits.y + SrcCluster.PosBits.z;
-					FBitStreamReaderState InputStream = BitStreamReader_Create(BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
-					SrcPosition = BitStreamReader_Read3_RW(DstPageBuffer, InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
+					FBitStreamReaderStateRW InputStream = BitStreamReader_Create_RW(DstPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
+					SrcPosition = BitStreamReader_Read3(InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
 				}
 				else
 				{
 					uint BaseAddress = SrcPageBaseOffset + SrcClusterDiskHeader.PositionDataOffset;
 					uint SrcPositionBitsPerVertex = (SrcCluster.PosBits.x + SrcCluster.PosBits.y + SrcCluster.PosBits.z + 7) & ~7u;
-					FBitStreamReaderState InputStream = BitStreamReader_Create(BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
-					SrcPosition = BitStreamReader_Read3_RO(SrcPageBuffer, InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
+					FBitStreamReaderStateRO InputStream = BitStreamReader_Create_RO(SrcPageBuffer, BaseAddress, SrcCodedVertexIndex * SrcPositionBitsPerVertex, 3 * MAX_POSITION_QUANTIZATION_BITS);
+					SrcPosition = BitStreamReader_Read3(InputStream, SrcCluster.PosBits, MAX_POSITION_QUANTIZATION_BITS);
 				}
 
 				int3 DstPosition = SrcPosition + SrcCluster.PosStart - Cluster.PosStart;
 				const uint PositionBitsPerVertex = Cluster.PosBits.x + Cluster.PosBits.y + Cluster.PosBits.z;
 				
-				FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBaseOffset + Cluster.PositionOffset, VertexIndex * PositionBitsPerVertex);
-				BitStreamWriter_Writer(DstPageBuffer, OutputStream, DstPosition.x, Cluster.PosBits.x, MAX_POSITION_QUANTIZATION_BITS);
-				BitStreamWriter_Writer(DstPageBuffer, OutputStream, DstPosition.y, Cluster.PosBits.y, MAX_POSITION_QUANTIZATION_BITS);
-				BitStreamWriter_Writer(DstPageBuffer, OutputStream, DstPosition.z, Cluster.PosBits.z, MAX_POSITION_QUANTIZATION_BITS);
-				BitStreamWriter_Flush(DstPageBuffer, OutputStream);
+				FBitStreamWriterState OutputStream = BitStreamWriter_Create_Aligned(DstPageBuffer, DstPageBaseOffset + Cluster.PositionOffset, VertexIndex * PositionBitsPerVertex);
+				BitStreamWriter_Writer(OutputStream, DstPosition.x, Cluster.PosBits.x, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Writer(OutputStream, DstPosition.y, Cluster.PosBits.y, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Writer(OutputStream, DstPosition.z, Cluster.PosBits.z, MAX_POSITION_QUANTIZATION_BITS);
+				BitStreamWriter_Flush(OutputStream);
 			}
 
 			// Specialize vertex transcoding codegen for each of the possible values for NumTexCoords
