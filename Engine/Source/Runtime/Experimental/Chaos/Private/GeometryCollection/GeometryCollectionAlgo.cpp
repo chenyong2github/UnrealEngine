@@ -297,51 +297,83 @@ namespace GeometryCollectionAlgo
 		}
 	}
 
-	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FMatrix>& OutGlobalTransforms)
+	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, const TManagedArray<float>* Scales, const TManagedArray<FTransform>* MassToLocals, TArray<FMatrix>& OutGlobalTransforms)
 	{
 		if (!IsTransformComputed[Index])
 		{
 			FMatrix Result = Transform[Index].ToMatrixWithScale();
 			if (Parents[Index] != FGeometryCollection::Invalid)
 			{
-				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, OutGlobalTransforms);
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, Scales, MassToLocals, OutGlobalTransforms);
 				Result *= OutGlobalTransforms[Parents[Index]];
 			}
 
-			OutGlobalTransforms[Index] = Result;
+			if (Scales && !FMath::IsNearlyEqual((*Scales)[Index], 1.0f))
+			{
+				check (MassToLocals);
+				OutGlobalTransforms[Index] = (*MassToLocals)[Index].ToInverseMatrixWithScale() * FTransform(FQuat::Identity, FVector(), FVector((*Scales)[Index])).ToMatrixWithScale() * (*MassToLocals)[Index].ToMatrixWithScale() * Result;
+			}
+			else
+			{ 
+				OutGlobalTransforms[Index] = Result;
+			}
+			
 			IsTransformComputed[Index] = true;
 		}
 	}
 
 	// #note: this verison returns an FTransform to support functionality for getting global matrices for an array of indices.
-	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FTransform>& OutGlobalTransforms)
+	void GlobalMatricesRecursive(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, const TManagedArray<float>* Scales, const TManagedArray<FTransform>* MassToLocals, TArray<FTransform>& OutGlobalTransforms)
 	{
 		if (!IsTransformComputed[Index])
 		{
 			FTransform Result = Transform[Index];
 			if (Parents[Index] != FGeometryCollection::Invalid)
 			{
-				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, OutGlobalTransforms);
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, Scales, MassToLocals, OutGlobalTransforms);
 				Result *= OutGlobalTransforms[Parents[Index]];
 			}
 
-			OutGlobalTransforms[Index] = Result;
+			if (Scales && !FMath::IsNearlyEqual((*Scales)[Index], 1.0f))
+			{
+				if(MassToLocals)
+				{ 
+					OutGlobalTransforms[Index] = (*MassToLocals)[Index].Inverse() * FTransform(FQuat::Identity, FVector(), FVector((*Scales)[Index])) * (*MassToLocals)[Index] * Result;
+				}
+				else
+				{
+					OutGlobalTransforms[Index] = FTransform(FQuat::Identity, FVector(), FVector((*Scales)[Index])) * Result;
+				}
+			}
+			else
+			{
+				OutGlobalTransforms[Index] = Result;
+			}
+			
 			IsTransformComputed[Index] = true;
 		}
 	}
 
-	FTransform GlobalMatricesRecursiveForIndices(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, TArray<FTransform>& TransformCache)
+	FTransform GlobalMatricesRecursiveForIndices(const int32 Index, const TManagedArray<int32>& Parents, const TManagedArray<FTransform>& Transform, TArray<bool>& IsTransformComputed, const TManagedArray<float>* Scales, const TManagedArray<FTransform>* MassToLocals, TArray<FTransform>& TransformCache)
 	{
 		if (!IsTransformComputed[Index])
 		{
 			FTransform Result = Transform[Index];
 			if (Parents[Index] != FGeometryCollection::Invalid)
 			{
-				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, TransformCache);
+				GlobalMatricesRecursive(Parents[Index], Parents, Transform, IsTransformComputed, Scales, MassToLocals, TransformCache);
 				Result *= TransformCache[Parents[Index]];
 			}
 
-			TransformCache[Index] = Result;
+			if (Scales && !FMath::IsNearlyEqual((*Scales)[Index], 1.0f))
+			{
+				TransformCache[Index] = (*MassToLocals)[Index].Inverse() * FTransform(FQuat::Identity, FVector(), FVector((*Scales)[Index])) * (*MassToLocals)[Index] * Result;
+			}
+			else
+			{
+				TransformCache[Index] = Result;
+			}
+
 			IsTransformComputed[Index] = true;
 		}
 
@@ -366,6 +398,22 @@ namespace GeometryCollectionAlgo
 		return Transform;
 	}
 
+	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TArray<int32>& Indices, const TManagedArray<float>& Scales, const TManagedArray<FTransform>& MassToLocals, TArray<FTransform>& OutGlobalTransforms)
+	{
+		check(Scales.Num() == RelativeTransforms.Num());
+		TArray<bool> IsTransformComputed;
+		IsTransformComputed.AddDefaulted(RelativeTransforms.Num());
+
+		TArray<FTransform> TransformCache;
+		TransformCache.SetNumUninitialized(RelativeTransforms.Num(), false);
+
+		OutGlobalTransforms.SetNumUninitialized(Indices.Num(), false);
+		for (int Idx = 0; Idx < Indices.Num(); Idx++)
+		{
+			OutGlobalTransforms[Idx] = GlobalMatricesRecursiveForIndices(Indices[Idx], Parents, RelativeTransforms, IsTransformComputed, &Scales, &MassToLocals, TransformCache);
+		}
+	}
+
 	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TArray<int32>& Indices, TArray<FTransform>& OutGlobalTransforms)
 	{
 		TArray<bool> IsTransformComputed;
@@ -377,7 +425,7 @@ namespace GeometryCollectionAlgo
 		OutGlobalTransforms.SetNumUninitialized(Indices.Num(), false);
 		for (int Idx = 0; Idx < Indices.Num(); Idx++)
 		{
-			OutGlobalTransforms[Idx] = GlobalMatricesRecursiveForIndices(Indices[Idx], Parents, RelativeTransforms, IsTransformComputed, TransformCache);
+			OutGlobalTransforms[Idx] = GlobalMatricesRecursiveForIndices(Indices[Idx], Parents, RelativeTransforms, IsTransformComputed, nullptr, nullptr, TransformCache);
 		}
 	}
 
@@ -396,6 +444,24 @@ namespace GeometryCollectionAlgo
 	}
 
 	template<typename MatrixType>
+	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, const TManagedArray<float>& Scales, const TManagedArray<FTransform>& MassToLocals, TArray<MatrixType>& OutGlobalTransforms)
+	{
+		int32 NumTransforms = RelativeTransforms.Num();
+		check(Scales.Num() == NumTransforms);
+		check(MassToLocals.Num() == NumTransforms);
+
+		TArray<bool> IsTransformComputed;
+		IsTransformComputed.AddDefaulted(NumTransforms);
+
+		OutGlobalTransforms.SetNumUninitialized(NumTransforms, false);
+
+		for (int BoneIdx = 0; BoneIdx < NumTransforms; ++BoneIdx)
+		{
+			GlobalMatricesRecursive(BoneIdx, Parents, RelativeTransforms, IsTransformComputed, &Scales, &MassToLocals, OutGlobalTransforms);
+		}
+	}
+
+	template<typename MatrixType>
 	void GlobalMatrices(const TManagedArray<FTransform>& RelativeTransforms, const TManagedArray<int32>& Parents, TArray<MatrixType>& OutGlobalTransforms)
 	{
 		int32 NumTransforms = RelativeTransforms.Num();
@@ -407,10 +473,12 @@ namespace GeometryCollectionAlgo
 
 		for (int BoneIdx = 0; BoneIdx < NumTransforms; ++BoneIdx)
 		{
-			GlobalMatricesRecursive(BoneIdx, Parents, RelativeTransforms, IsTransformComputed, OutGlobalTransforms);
+			GlobalMatricesRecursive(BoneIdx, Parents, RelativeTransforms, IsTransformComputed, nullptr, nullptr, OutGlobalTransforms);
 		}
 	}
+	template void CHAOS_API GlobalMatrices<FTransform>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, const TManagedArray<float>&, const TManagedArray<FTransform>&, TArray<FTransform>&);
 	template void CHAOS_API GlobalMatrices<FTransform>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, TArray<FTransform>&);
+	template void CHAOS_API GlobalMatrices<FMatrix>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, const TManagedArray<float>&, const TManagedArray<FTransform>&, TArray<FMatrix>&);
 	template void CHAOS_API GlobalMatrices<FMatrix>(const TManagedArray<FTransform>&, const TManagedArray<int32>&, TArray<FMatrix>&);
 
 	void FloodForOverlappedPairs(int Level, int32 BoneIndex, TMap<int32, int32> &BoneToGroup, const TManagedArray<int32>& Levels, const TMap<int32, FBox>& BoundingBoxes, TSet<TTuple<int32, int32>>& OutOverlappedPairs)

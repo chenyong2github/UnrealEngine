@@ -79,6 +79,7 @@ namespace Chaos
 		using Base::AddForceFunction;
 		using Base::AddConstraintRule;
 		using Base::ParticleUpdatePosition;
+		using Base::GetAllRemovals;
 
 		using FGravityForces = FPerParticleGravity;
 		using FCollisionConstraints = FPBDCollisionConstraints;

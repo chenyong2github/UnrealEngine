@@ -24,7 +24,8 @@ namespace Chaos
 		Collision = 0,
 		Breaking = 1,
 		Trailing = 2,
-		Sleeping = 3
+		Sleeping = 3,
+		Removal = 4
 	};
 
 	typedef int32 FEventID;

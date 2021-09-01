@@ -825,4 +825,29 @@ namespace Chaos
 		DisableConstraints(InParticles);
 	}
 
+	void FPBDRigidsEvolutionBase::DisableParticleWithRemovalEvent(FGeometryParticleHandle* Particle)
+	{
+		// Record removal for event generation
+		const int32 NewIdx = MAllRemovals.Add(FRemovalData());
+		FRemovalData& Removal = MAllRemovals[NewIdx];
+		Removal.Proxy = Particle->PhysicsProxy();
+		Removal.Location = Particle->X();
+		
+		if (Chaos::FPBDRigidParticleHandle* RigidParticle = Particle->CastToRigidParticle())
+		{
+			Removal.Mass = RigidParticle->M();
+		}
+		else
+		{
+			Removal.Mass = 0.0;
+		}
+		
+		if (Particle->Geometry()->HasBoundingBox())
+		{
+			Removal.BoundingBox = Particle->Geometry()->BoundingBox();
+		}
+		
+		DisableParticle(Particle);
+	}
+
 }

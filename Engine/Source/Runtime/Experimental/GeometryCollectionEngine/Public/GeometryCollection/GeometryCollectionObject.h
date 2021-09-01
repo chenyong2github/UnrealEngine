@@ -535,6 +535,18 @@ public:
 	int32 MaximumCollisionParticles_DEPRECATED;
 #endif
 
+	/** Remove particle from simulation and dissolve rendered geometry once sleep threshold has been exceeded. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (DisplayName = "RemoveOnMaxSleep"))
+	bool bRemoveOnMaxSleep;
+	
+	/** How long may the particle sleep before initiating removal (in seconds). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (ClampMin = 0.001))
+	float MaximumSleepTime;
+
+	/** How long does the removal process take (in seconds). */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Removal, meta = (ClampMin = 0.0))
+	float RemovalDuration;
+
 	/*
 	* Size Specfic Data reflects the default geometry to bind to rigid bodies smaller
 	* than the max size volume. This can also be empty to reflect no collision geometry

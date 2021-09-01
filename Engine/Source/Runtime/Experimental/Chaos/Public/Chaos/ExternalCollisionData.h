@@ -353,6 +353,83 @@ namespace Chaos
 		bool Sleeping;	// if !Sleeping == Awake
 	};
 
+	/*
+	RemovalData passed from the physics solver to subsystems
+	*/
+	struct FRemovalData
+	{
+		FRemovalData()
+			: Location(FVec3((FReal)0.0))
+			, Mass((FReal)0.0)
+			, Proxy(nullptr)
+			, BoundingBox(FAABB3(FVec3((FReal)0.0), FVec3((FReal)0.0)))
+		{}
+
+		FRemovalData(FVec3 InLocation, FReal InMass, IPhysicsProxyBase* InProxy, Chaos::TAABB<FReal, 3>& InBoundingBox)
+			: Location(InLocation)
+			, Mass(InMass)
+			, Proxy(InProxy)
+			, BoundingBox(InBoundingBox)
+		{}
+
+		FVec3 Location;
+		FReal Mass;
+
+		// The pointer to the proxy should be used with caution on the Game Thread.
+		// Ideally we only ever use this as a table key when acquiring related structures.
+		// If we genuinely need to dereference the pointer for any reason, test if it is deleted (nullptr) or
+		// pending deletion: if a call to FPhysScene_Chaos::GetOwningComponent<UPrimitiveComponent>() returns
+		// nullptr, the proxy should not be used.
+		IPhysicsProxyBase* Proxy;
+
+		Chaos::FAABB3 BoundingBox;
+	};
+
+	/*
+	RemovalData used in subsystems
+	*/
+	struct FRemovalDataExt
+	{
+		FRemovalDataExt()
+			: Location(FVec3((FReal)0.0))
+			, Mass((FReal)0.0)
+			, BoundingboxVolume((FReal)-1.0)
+			, BoundingboxExtentMin((FReal)-1.0)
+			, BoundingboxExtentMax((FReal)-1.0)
+			, SurfaceType(-1)
+		{}
+
+		FRemovalDataExt(FVec3 InLocation
+			, FReal InMass
+			, FGeometryParticleHandle* InParticle
+			, FReal InBoundingboxVolume
+			, FReal InBoundingboxExtentMin
+			, FReal InBoundingboxExtentMax
+			, int32 InSurfaceType)
+			: Location(InLocation)
+			, Mass(InMass)
+			, BoundingboxVolume(InBoundingboxVolume)
+			, BoundingboxExtentMin(InBoundingboxExtentMin)
+			, BoundingboxExtentMax(InBoundingboxExtentMax)
+			, SurfaceType(InSurfaceType)
+		{}
+
+		FRemovalDataExt(const FRemovalData& InRemovalData)
+			: Location(InRemovalData.Location)
+			, Mass(InRemovalData.Mass)
+			, BoundingboxVolume((FReal)-1.0)
+			, BoundingboxExtentMin((FReal)-1.0)
+			, BoundingboxExtentMax((FReal)-1.0)
+			, SurfaceType(-1)
+		{}
+
+		FVec3 Location;
+		FReal Mass;
+		FReal BoundingboxVolume;
+		FReal BoundingboxExtentMin, BoundingboxExtentMax;
+		int32 SurfaceType;
+	};
+
 	template<class T, int d>
 	using TCollisionData UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FCollidingData instead") = FCollidingData;
 

@@ -12,6 +12,7 @@
 #include "ChaosCollisionEventFilter.h"
 #include "ChaosBreakingEventFilter.h"
 #include "ChaosTrailingEventFilter.h"
+#include "ChaosRemovalEventFilter.h"
 #include "ChaosBlueprint.generated.h"
 
 class AGeometryCollectionActor;
@@ -30,6 +31,11 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakingEvents, const TArray
 * Called when new trailing events are available for breaks. Trailing listening must be enabled to get callbacks on this delegate.
 */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosTrailingEvents, const TArray<FChaosTrailingEventData>&, TrailingEvents);
+
+/**
+* Called when new destruction events are available for removals. Removal listening must be enabled to get callbacks on this delegate.
+*/
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosRemovalEvents, const TArray<FChaosRemovalEventData>&, RemovalEvents);
 
 
 /** Object allowing for retrieving Chaos Destruction data. */
@@ -63,6 +69,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trailing Events")
 	uint8 bIsTrailingEventListeningEnabled : 1;
 
+	// Whether or not removal event listening is enabled
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Removal Events")
+	uint8 bIsRemovalEventListeningEnabled : 1;
+
 	// The settings to use for collision event listening
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Collision Events", meta = (EditCondition = "bIsCollisionEventListeningEnabled"))
 	FChaosCollisionEventRequestSettings CollisionEventRequestSettings;
@@ -74,6 +84,10 @@ public:
 	// The settings to use for trailing event listening
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Trailing Events", meta = (EditCondition = "bIsTrailingEventListeningEnabled"))
 	FChaosTrailingEventRequestSettings TrailingEventRequestSettings;
+
+	// The settings to use for removal event listening
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Removal Events", meta = (EditCondition = "bIsRemovalEventListeningEnabled"))
+	FChaosRemovalEventRequestSettings RemovalEventRequestSettings;
 
 	// Which chaos solver actors we're using. If empty, this listener will fallback to the "world" solver.
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Solvers")
@@ -111,6 +125,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SetTrailingEventRequestSettings(const FChaosTrailingEventRequestSettings& InSettings);
 
+	// Sets removal event request settings dynamically
+	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
+	void SetRemovalEventRequestSettings(const FChaosRemovalEventRequestSettings& InSettings);
+
 	// Enables or disables collision event listening
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SetCollisionEventEnabled(bool bIsEnabled);
@@ -119,9 +137,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SetBreakingEventEnabled(bool bIsEnabled);
 
-	// Enables or disables breaking event listening
+	// Enables or disables trailing event listening
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SetTrailingEventEnabled(bool bIsEnabled);
+
+	// Enables or disables removal event listening
+	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
+	void SetRemovalEventEnabled(bool bIsEnabled);
 
 	// Returns if the destruction listener is listening to any events
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
@@ -139,6 +161,10 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnChaosTrailingEvents OnTrailingEvents;
 
+	/** Called when new trailing events are available. */
+	UPROPERTY(BlueprintAssignable)
+	FOnChaosRemovalEvents OnRemovalEvents;
+
 	// Sorts collision events according to the given sort method	
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SortCollisionEvents(UPARAM(ref) TArray<FChaosCollisionEventData>& CollisionEvents, EChaosCollisionSortMethod SortMethod);
@@ -150,6 +176,10 @@ public:
 	// Sorts trailing events according to the given sort method	
 	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
 	void SortTrailingEvents(UPARAM(ref) TArray<FChaosTrailingEventData>& TrailingEvents, EChaosTrailingSortMethod SortMethod);
+
+	// Sorts removal events according to the given sort method	
+	UFUNCTION(BlueprintCallable, Category = "Destruction Listener", meta = (WorldContext = "WorldContextObject"))
+	void SortRemovalEvents(UPARAM(ref) TArray<FChaosRemovalEventData>& RemovalEvents, EChaosRemovalSortMethod SortMethod);
 
 private:
 	// Updates the scene component transform settings
@@ -181,6 +211,7 @@ protected:
 	Chaos::FCollisionDataArray RawCollisionDataArray;
 	Chaos::FBreakingDataArray RawBreakingDataArray;
 	Chaos::FTrailingDataArray RawTrailingDataArray;
+	Chaos::FRemovalDataArray RawRemovalDataArray;
 
 	FTransform ChaosComponentTransform;
 
@@ -189,6 +220,7 @@ protected:
 	float LastCollisionDataTimeStamp;
 	float LastBreakingDataTimeStamp;
 	float LastTrailingDataTimeStamp;
+	float LastRemovalDataTimeStamp;
 
 	// The list of rigid body solvers, used to retrieve destruction events
 	TSet<Chaos::FPhysicsSolver*> Solvers;
@@ -199,6 +231,7 @@ protected:
 	TSharedPtr<FChaosCollisionEventFilter> ChaosCollisionFilter;
 	TSharedPtr<FChaosBreakingEventFilter> ChaosBreakingFilter;
 	TSharedPtr<FChaosTrailingEventFilter> ChaosTrailingFilter;
+	TSharedPtr<FChaosRemovalEventFilter> ChaosRemovalFilter;
 
 public:
 	void SetCollisionFilter(TSharedPtr<FChaosCollisionEventFilter> InCollisionFilter)
@@ -216,6 +249,11 @@ public:
 		ChaosTrailingFilter = InTrailingFilter;
 	}
 
+	void SetRemovalFilter(TSharedPtr<FChaosRemovalEventFilter> InRemovalFilter)
+	{
+		ChaosRemovalFilter = InRemovalFilter;
+	}
+
 	void RegisterChaosEvents(FPhysScene* Scene);
 	void UnregisterChaosEvents(FPhysScene* Scene);
 
@@ -227,4 +265,5 @@ public:
 	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
 	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
 	void HandleTrailingEvents(const Chaos::FTrailingEventData& TrailingData);
+	void HandleRemovalEvents(const Chaos::FRemovalEventData& RemovalData);
 };
