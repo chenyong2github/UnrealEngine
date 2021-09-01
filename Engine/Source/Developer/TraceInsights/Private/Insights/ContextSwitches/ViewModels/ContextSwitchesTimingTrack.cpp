@@ -12,6 +12,7 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "FContextSwitchesTimingTrack"
 
@@ -245,6 +246,31 @@ void FContextSwitchesTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, c
 	InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(InTooltipEvent.GetDuration()));
 
 	InOutTooltip.UpdateLayout();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuBuilder)
+{
+	if (SharedState.GetTimingView())
+	{
+		const TSharedPtr<const ITimingEvent> HoveredEvent = SharedState.GetTimingView()->GetHoveredEvent();
+		if (HoveredEvent.IsValid() &&
+			&HoveredEvent->GetTrack().Get() == this &&
+			HoveredEvent->Is<FContextSwitchTimingEvent>())
+		{
+			const FContextSwitchTimingEvent& CpuCoreEvent = HoveredEvent->As<FContextSwitchTimingEvent>();
+			const uint32 CoreNumber = CpuCoreEvent.GetCoreNumber();
+
+			SharedState.SetTargetTimingEvent(HoveredEvent);
+
+			FString SectionName = FString::Printf(TEXT("Core %d"), CoreNumber);
+			InOutMenuBuilder.BeginSection("CpuCore", FText::FromString(SectionName));
+			InOutMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_NavigateToCpuCoreEvent);
+			InOutMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_DockCpuCoreTrackToTop);
+			InOutMenuBuilder.EndSection();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

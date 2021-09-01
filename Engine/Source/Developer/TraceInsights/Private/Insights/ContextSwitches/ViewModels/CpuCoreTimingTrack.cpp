@@ -13,6 +13,7 @@
 #include "Insights/ViewModels/TimingTrackViewport.h"
 #include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
+#include "Insights/Widgets/STimingView.h"
 
 #define LOCTEXT_NAMESPACE "FCpuCoreTimingTrack"
 
@@ -243,33 +244,11 @@ void FCpuCoreTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITi
 	const FCpuCoreTimingEvent& CpuCoreEvent = InTooltipEvent.As<FCpuCoreTimingEvent>();
 
 	const uint32 SystemThreadId = CpuCoreEvent.GetSystemThreadId();
-	uint32 ThreadId = ~0;
-	const TCHAR* ThreadName = nullptr;
-	{
-		TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-		if (Session.IsValid())
-		{
-			TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-			const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
-			if (ContextSwitchesProvider)
-			{
-				if (ContextSwitchesProvider->GetThreadId(SystemThreadId, ThreadId))
-				{
-					const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
-					ThreadName = ThreadProvider.GetThreadName(ThreadId);
-				}
-			}
-		}
-	}
-	if (ThreadName)
-	{
-		InOutTooltip.AddTitle(ThreadName);
-	}
-	else
-	{
-		InOutTooltip.AddTitle(TEXT("Unknown Thread"));
-	}
+	uint32 ThreadId;
+	const TCHAR* ThreadName;
+	SharedState.GetThreadInfo(SystemThreadId, ThreadId, ThreadName);
 
+	InOutTooltip.AddTitle(ThreadName);
 	InOutTooltip.AddNameValueTextLine(TEXT("System Thread Id:"), FString::Printf(TEXT("%d"), SystemThreadId));
 	if (ThreadId != ~0)
 	{
@@ -281,6 +260,40 @@ void FCpuCoreTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITi
 	InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(InTooltipEvent.GetDuration()));
 
 	InOutTooltip.UpdateLayout();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FCpuCoreTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuBuilder)
+{
+	if (SharedState.GetTimingView())
+	{
+		const TSharedPtr<const ITimingEvent> HoveredEvent = SharedState.GetTimingView()->GetHoveredEvent();
+		if (HoveredEvent.IsValid() &&
+			&HoveredEvent->GetTrack().Get() == this &&
+			HoveredEvent->Is<FCpuCoreTimingEvent>())
+		{
+			const FCpuCoreTimingEvent& CpuCoreEvent = HoveredEvent->As<FCpuCoreTimingEvent>();
+			const uint32 SystemThreadId = CpuCoreEvent.GetSystemThreadId();
+			uint32 ThreadId;
+			const TCHAR* ThreadName;
+			SharedState.GetThreadInfo(SystemThreadId, ThreadId, ThreadName);
+
+			if (ThreadId != ~0)
+			{
+				SharedState.SetTargetTimingEvent(HoveredEvent);
+			}
+			else
+			{
+				SharedState.SetTargetTimingEvent(nullptr);
+			}
+
+			InOutMenuBuilder.BeginSection("CpuThread", FText::FromString(ThreadName));
+			InOutMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_NavigateToCpuThreadEvent);
+			InOutMenuBuilder.AddMenuEntry(FContextSwitchesStateCommands::Get().Command_DockCpuThreadTrackToBottom);
+			InOutMenuBuilder.EndSection();
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

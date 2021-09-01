@@ -11,6 +11,7 @@
 // Insights
 #include "Insights/ContextSwitches/ContextSwitchesProfilerManager.h"
 #include "Insights/ContextSwitches/ViewModels/ContextSwitchesTimingTrack.h"
+#include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
 #include "Insights/ContextSwitches/ViewModels/CpuCoreTimingTrack.h"
 #include "Insights/ITimingViewSession.h"
 #include "Insights/InsightsManager.h"
@@ -28,40 +29,82 @@ namespace Insights
 // FContextSwitchesStateCommands
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FContextSwitchesStateCommands : public TCommands<FContextSwitchesStateCommands>
+FContextSwitchesStateCommands::FContextSwitchesStateCommands()
+	: TCommands<FContextSwitchesStateCommands>(
+		TEXT("FContextSwitchesStateCommands"),
+		NSLOCTEXT("FContextSwitchesStateCommands", "Context Switches State Commands", "Context Switches Commands"),
+		NAME_None,
+		FEditorStyle::Get().GetStyleSetName())
 {
-public:
-	FContextSwitchesStateCommands()
-		: TCommands<FContextSwitchesStateCommands>(TEXT("FContextSwitchesStateCommands"), NSLOCTEXT("FContextSwitchesStateCommands", "Context Switches State Commands", "Context Switches Commands"), NAME_None, FEditorStyle::Get().GetStyleSetName())
-	{
-	}
+}
 
-	virtual ~FContextSwitchesStateCommands()
-	{
-	}
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	// UI_COMMAND takes long for the compiler to optimize
-	PRAGMA_DISABLE_OPTIMIZATION
-	virtual void RegisterCommands() override
-	{
-		UI_COMMAND(Command_ShowCoreTracks, "Core Tracks", "Show/hide the Cpu Core tracks.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Alt, EKeys::C));
-		UI_COMMAND(Command_ShowContextSwitches, "Context Switches", "Show/hide context switches on top of cpu timing tracks.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::C));
-		UI_COMMAND(Command_ShowOverlays, "Overlays", "Extend the visualisation of context switches over the cpu timing tracks.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::O));
-		UI_COMMAND(Command_ShowExtendedLines, "Extended Lines", "Show/hide the extended vertical lines at edges of each context switch event.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::L));
-	}
-	PRAGMA_ENABLE_OPTIMIZATION
+FContextSwitchesStateCommands::~FContextSwitchesStateCommands()
+{
+}
 
-	TSharedPtr<FUICommandInfo> Command_ShowCoreTracks;
-	TSharedPtr<FUICommandInfo> Command_ShowContextSwitches;
-	TSharedPtr<FUICommandInfo> Command_ShowOverlays;
-	TSharedPtr<FUICommandInfo> Command_ShowExtendedLines;
-};
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+// UI_COMMAND takes long for the compiler to optimize
+PRAGMA_DISABLE_OPTIMIZATION
+void FContextSwitchesStateCommands::RegisterCommands()
+{
+	UI_COMMAND(Command_ShowCoreTracks,
+		"Core Tracks",
+		"Shows/hides the Cpu Core tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Alt, EKeys::C));
+
+	UI_COMMAND(Command_ShowContextSwitches,
+		"Context Switches",
+		"Shows/hides the context switches on top of cpu timing tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Shift, EKeys::C));
+
+	UI_COMMAND(Command_ShowOverlays,
+		"Overlays",
+		"Extends the visualisation of context switches over the cpu timing tracks.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Shift, EKeys::O));
+
+	UI_COMMAND(Command_ShowExtendedLines,
+		"Extended Lines",
+		"Shows/hides the extended vertical lines at edges of each context switch event.",
+		EUserInterfaceActionType::ToggleButton,
+		FInputChord(EModifierKey::Shift, EKeys::L));
+
+	UI_COMMAND(Command_NavigateToCpuThreadEvent,
+		"Go To Cpu Thread Track",
+		"Selects the context switch event in the corresponding Cpu Thread track.",
+		EUserInterfaceActionType::Button,
+		FInputChord(/*EModifierKey::Control, EKeys::Tab*/));
+
+	UI_COMMAND(Command_DockCpuThreadTrackToBottom,
+		"Dock Cpu Thread Track To Bottom",
+		"Docks the corresponding Cpu Thread track to the bottom of the Timing view.",
+		EUserInterfaceActionType::Button,
+		FInputChord());
+
+	UI_COMMAND(Command_NavigateToCpuCoreEvent,
+		"Go To Cpu Core Track",
+		"Selects the timing event in the corresponding Cpu Core track.",
+		EUserInterfaceActionType::Button,
+		FInputChord(EModifierKey::Control, EKeys::Tab));
+
+	UI_COMMAND(Command_DockCpuCoreTrackToTop,
+		"Dock Cpu Core Track To Top",
+		"Docks the corresponding Cpu Core track to the top of the Timing view.",
+		EUserInterfaceActionType::Button,
+		FInputChord());
+}
+PRAGMA_ENABLE_OPTIMIZATION
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FContextSwitchesSharedState
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FContextSwitchesSharedState::FContextSwitchesSharedState(STimingView* InTimingView) 
+FContextSwitchesSharedState::FContextSwitchesSharedState(STimingView* InTimingView)
 	: TimingView(InTimingView)
 	, ThreadsSerial(0)
 	, CpuCoresSerial(0)
@@ -208,27 +251,47 @@ void FContextSwitchesSharedState::AddCommands()
 
 	CommandList->MapAction(
 		FContextSwitchesStateCommands::Get().Command_ShowCoreTracks,
-		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_Execute),
-		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_CanExecute),
-		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowCoreTracks_IsChecked));
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowCoreTracks_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowCoreTracks_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::Command_ShowCoreTracks_IsChecked));
 
 	CommandList->MapAction(
 		FContextSwitchesStateCommands::Get().Command_ShowContextSwitches,
-		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_Execute),
-		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_CanExecute),
-		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowContextSwitches_IsChecked));
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowContextSwitches_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowContextSwitches_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::Command_ShowContextSwitches_IsChecked));
 
 	CommandList->MapAction(
 		FContextSwitchesStateCommands::Get().Command_ShowOverlays,
-		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_Execute),
-		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_CanExecute),
-		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowOverlays_IsChecked));
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowOverlays_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowOverlays_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::Command_ShowOverlays_IsChecked));
 
 	CommandList->MapAction(
 		FContextSwitchesStateCommands::Get().Command_ShowExtendedLines,
-		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_Execute),
-		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_CanExecute),
-		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::ContextMenu_ShowExtendedLines_IsChecked));
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowExtendedLines_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_ShowExtendedLines_CanExecute),
+		FIsActionChecked::CreateSP(this, &FContextSwitchesSharedState::Command_ShowExtendedLines_IsChecked));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_NavigateToCpuThreadEvent,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_NavigateToCpuThreadEvent_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_NavigateToCpuThreadEvent_CanExecute));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_DockCpuThreadTrackToBottom,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_DockCpuThreadTrackToBottom_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_DockCpuThreadTrackToBottom_CanExecute));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_NavigateToCpuCoreEvent,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_NavigateToCpuCoreEvent_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_NavigateToCpuCoreEvent_CanExecute));
+
+	CommandList->MapAction(
+		FContextSwitchesStateCommands::Get().Command_DockCpuCoreTrackToTop,
+		FExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_DockCpuCoreTrackToTop_Execute),
+		FCanExecuteAction::CreateSP(this, &FContextSwitchesSharedState::Command_DockCpuCoreTrackToTop_CanExecute));
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -430,6 +493,234 @@ void FContextSwitchesSharedState::SetOverlaysVisible(bool bOnOff)
 void FContextSwitchesSharedState::SetExtendedLinesVisible(bool bOnOff)
 {
 	bAreExtendedLinesVisible = bOnOff;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::IsValidCpuCoreEventSelected() const
+{
+	if (TimingView == nullptr)
+	{
+		return false;
+	}
+	if (TargetTimingEvent.IsValid())
+	{
+		return TargetTimingEvent->Is<FCpuCoreTimingEvent>();
+	}
+	return TimingView->GetSelectedEvent().IsValid() && TimingView->GetSelectedEvent()->Is<FCpuCoreTimingEvent>();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FContextSwitchesSharedState::IsValidContextSwitchEventSelected() const
+{
+	if (TimingView == nullptr)
+	{
+		return false;
+	}
+	if (TargetTimingEvent.IsValid())
+	{
+		return TargetTimingEvent->Is<FContextSwitchTimingEvent>();
+	}
+	return TimingView->GetSelectedEvent().IsValid() && TimingView->GetSelectedEvent()->Is<FContextSwitchTimingEvent>();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::Command_NavigateToCpuThreadEvent_Execute()
+{
+	if (TimingView && ensure(IsValidCpuCoreEventSelected()))
+	{
+		if (!TargetTimingEvent.IsValid())
+		{
+			TargetTimingEvent = TimingView->GetSelectedEvent();
+		}
+
+		if (ensure(TargetTimingEvent.IsValid() && TargetTimingEvent->Is<FCpuCoreTimingEvent>()))
+		{
+			const FCpuCoreTimingEvent& CpuCoreEvent = TargetTimingEvent->As<FCpuCoreTimingEvent>();
+			const uint32 SystemThreadId = CpuCoreEvent.GetSystemThreadId();
+			uint32 ThreadId;
+			const TCHAR* ThreadName;
+			GetThreadInfo(SystemThreadId, ThreadId, ThreadName);
+			if (ThreadId != ~0)
+			{
+				TSharedPtr<FThreadTimingTrack> ThreadTimingTrack = GetThreadTimingTrack(ThreadId);
+				if (ThreadTimingTrack.IsValid() && ThreadTimingTrack->IsVisible())
+				{
+					TimingView->SelectTimingTrack(ThreadTimingTrack, true);
+					//TODO: ThreadTimingTrack->SearchEvent(..); + TimingView->SelectTimingEvent(..)
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::Command_DockCpuThreadTrackToBottom_Execute()
+{
+	if (TimingView && ensure(IsValidCpuCoreEventSelected()))
+	{
+		if (!TargetTimingEvent.IsValid())
+		{
+			TargetTimingEvent = TimingView->GetSelectedEvent();
+		}
+
+		if (ensure(TargetTimingEvent.IsValid() && TargetTimingEvent->Is<FCpuCoreTimingEvent>()))
+		{
+			const FCpuCoreTimingEvent& CpuCoreEvent = TargetTimingEvent->As<FCpuCoreTimingEvent>();
+			const uint32 SystemThreadId = CpuCoreEvent.GetSystemThreadId();
+			uint32 ThreadId;
+			const TCHAR* ThreadName;
+			GetThreadInfo(SystemThreadId, ThreadId, ThreadName);
+			if (ThreadId != ~0)
+			{
+				TSharedPtr<FThreadTimingTrack> ThreadTimingTrack = GetThreadTimingTrack(ThreadId);
+				if (ThreadTimingTrack.IsValid())
+				{
+					TimingView->ChangeTrackLocation(ThreadTimingTrack.ToSharedRef(), ETimingTrackLocation::BottomDocked);
+					if (!ThreadTimingTrack->IsVisible())
+					{
+						ThreadTimingTrack->Show();
+						TimingView->OnTrackVisibilityChanged();
+					}
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::Command_NavigateToCpuCoreEvent_Execute()
+{
+	if (TimingView && ensure(IsValidContextSwitchEventSelected()))
+	{
+		if (!TargetTimingEvent.IsValid())
+		{
+			TargetTimingEvent = TimingView->GetSelectedEvent();
+		}
+
+		if (ensure(TargetTimingEvent.IsValid() && TargetTimingEvent->Is<FContextSwitchTimingEvent>()))
+		{
+			const FContextSwitchTimingEvent& ContextSwitchEvent = TargetTimingEvent->As<FContextSwitchTimingEvent>();
+			const uint32 CoreNumber = ContextSwitchEvent.GetCoreNumber();
+			if (CoreNumber != ~0)
+			{
+				TSharedPtr<FCpuCoreTimingTrack> CpuCoreTimingTrack = GetCpuCoreTimingTrack(CoreNumber);
+				if (CpuCoreTimingTrack.IsValid() && CpuCoreTimingTrack->IsVisible())
+				{
+					TimingView->SelectTimingTrack(CpuCoreTimingTrack, true);
+					//TODO: CpuCoreTimingTrack->SearchEvent(..); + TimingView->SelectTimingEvent(..)
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::Command_DockCpuCoreTrackToTop_Execute()
+{
+	if (TimingView && ensure(IsValidContextSwitchEventSelected()))
+	{
+		if (!TargetTimingEvent.IsValid())
+		{
+			TargetTimingEvent = TimingView->GetSelectedEvent();
+		}
+
+		if (ensure(TargetTimingEvent.IsValid() && TargetTimingEvent->Is<FContextSwitchTimingEvent>()))
+		{
+			const FContextSwitchTimingEvent& ContextSwitchEvent = TargetTimingEvent->As<FContextSwitchTimingEvent>();
+			const uint32 CoreNumber = ContextSwitchEvent.GetCoreNumber();
+			if (CoreNumber != ~0)
+			{
+				TSharedPtr<FCpuCoreTimingTrack> CpuCoreTimingTrack = GetCpuCoreTimingTrack(CoreNumber);
+				if (CpuCoreTimingTrack.IsValid())
+				{
+					if (TimingView->CanChangeTrackLocation(CpuCoreTimingTrack.ToSharedRef(), ETimingTrackLocation::TopDocked))
+					{
+						TimingView->ChangeTrackLocation(CpuCoreTimingTrack.ToSharedRef(), ETimingTrackLocation::TopDocked);
+					}
+					if (!CpuCoreTimingTrack->IsVisible())
+					{
+						CpuCoreTimingTrack->Show();
+						TimingView->OnTrackVisibilityChanged();
+					}
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FContextSwitchesSharedState::GetThreadInfo(uint32 InSystemThreadId, uint32& OutThreadId, const TCHAR*& OutThreadName) const
+{
+	OutThreadId = ~0;
+	OutThreadName = TEXT("Unknown Thread");
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid())
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		const TraceServices::IContextSwitchesProvider* ContextSwitchesProvider = TraceServices::ReadContextSwitchesProvider(*Session.Get());
+		if (ContextSwitchesProvider)
+		{
+			if (ContextSwitchesProvider->GetThreadId(InSystemThreadId, OutThreadId))
+			{
+				const TraceServices::IThreadProvider& ThreadProvider = TraceServices::ReadThreadProvider(*Session.Get());
+				OutThreadName = ThreadProvider.GetThreadName(OutThreadId);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FThreadTimingTrack> FContextSwitchesSharedState::GetThreadTimingTrack(uint32 ThreadId) const
+{
+	TSharedPtr<FThreadTimingTrack> FoundTrack;
+
+	if (TimingView)
+	{
+		TimingView->EnumerateAllTracks([&FoundTrack, ThreadId](TSharedPtr<FBaseTimingTrack>& Track) -> bool
+		{
+			if (Track->Is<FThreadTimingTrack>() &&
+				Track->As<FThreadTimingTrack>().GetThreadId() == ThreadId)
+			{
+				FoundTrack = StaticCastSharedPtr<FThreadTimingTrack>(Track);
+				return false;
+			}
+			return true;
+		});
+	}
+
+	return FoundTrack;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<Insights::FCpuCoreTimingTrack> FContextSwitchesSharedState::GetCpuCoreTimingTrack(uint32 CoreNumber) const
+{
+	TSharedPtr<FCpuCoreTimingTrack> FoundTrack;
+
+	if (TimingView)
+	{
+		TimingView->EnumerateAllTracks([&FoundTrack, CoreNumber](TSharedPtr<FBaseTimingTrack>& Track) -> bool
+		{
+			if (Track->Is<Insights::FCpuCoreTimingTrack>() &&
+				Track->As<Insights::FCpuCoreTimingTrack>().GetCoreNumber() == CoreNumber)
+			{
+				FoundTrack = StaticCastSharedPtr<Insights::FCpuCoreTimingTrack>(Track);
+				return false;
+			}
+			return true;
+		});
+	}
+
+	return FoundTrack;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

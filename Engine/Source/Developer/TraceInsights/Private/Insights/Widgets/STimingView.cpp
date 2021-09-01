@@ -2806,7 +2806,11 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		bHasAnyActions = true;
 	}
 
-	MenuBuilder.AddMenuEntry(Commands.QuickFind);
+	MenuBuilder.AddMenuEntry(Commands.QuickFind,
+		NAME_None,
+		TAttribute<FText>(),
+		TAttribute<FText>(),
+		FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Find"));
 
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
@@ -2945,6 +2949,40 @@ void STimingView::CreateTrackLocationMenu(FMenuBuilder& MenuBuilder, TSharedRef<
 				NAME_None,
 				EUserInterfaceActionType::Button
 			);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::EnumerateAllTracks(TFunctionRef<bool(TSharedPtr<FBaseTimingTrack>&)> Callback)
+{
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
+	{
+		if (!Callback(TrackPtr))
+		{
+			return;
+		}
+	}
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		if (!Callback(TrackPtr))
+		{
+			return;
+		}
+	}
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
+	{
+		if (!Callback(TrackPtr))
+		{
+			return;
+		}
+	}
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
+	{
+		if (!Callback(TrackPtr))
+		{
+			return;
 		}
 	}
 }
@@ -3208,6 +3246,33 @@ void STimingView::ScrollAtPosY(float ScrollPosY)
 	{
 		Viewport.SetScrollPosY(ScrollPosY);
 		UpdateVerticalScrollBar();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::BringIntoViewY(float InTopY, float InBottomY)
+{
+	const float ScrollY = Viewport.GetScrollPosY();
+	const float ScrollH = Viewport.GetScrollableAreaHeight();
+	if (ScrollY > InTopY)
+	{
+		ScrollAtPosY(InTopY);
+	}
+	else if (ScrollY + ScrollH < InBottomY)
+	{
+		ScrollAtPosY(FMath::Min(InTopY, InBottomY - ScrollH));
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::BringScrollableTrackIntoView(const FBaseTimingTrack& InTrack)
+{
+	if (ensure(InTrack.GetLocation() == ETimingTrackLocation::Scrollable))
+	{
+		const float TopY = Viewport.GetScrollPosY() - Viewport.GetTopOffset() + InTrack.GetPosY();
+		BringIntoViewY(TopY, TopY + InTrack.GetHeight());
 	}
 }
 
@@ -3601,25 +3666,60 @@ void STimingView::OnSelectedTimingEventChanged()
 
 void STimingView::SelectHoveredTimingTrack()
 {
-	if (SelectedTrack != HoveredTrack)
-	{
-		SelectedTrack = HoveredTrack;
-		OnSelectedTrackChangedDelegate.Broadcast(SelectedTrack);
-	}
+	SelectTimingTrack(HoveredTrack, false);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void STimingView::SelectHoveredTimingEvent()
 {
-	if (SelectedEvent != HoveredEvent)
+	SelectTimingEvent(HoveredEvent, true);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SelectTimingTrack(const TSharedPtr<FBaseTimingTrack> InTrack, bool bBringTrackIntoView)
+{
+	if (SelectedTrack != InTrack)
 	{
-		SelectedEvent = HoveredEvent;
+		SelectedTrack = InTrack;
+
+		if (SelectedTrack.IsValid())
+		{
+			if (bBringTrackIntoView &&
+				SelectedTrack->GetLocation() == ETimingTrackLocation::Scrollable)
+			{
+				TSharedPtr<FBaseTimingTrack> ParentTrack = SelectedTrack->GetParentTrack().Pin();
+				if (ParentTrack.IsValid())
+				{
+					BringScrollableTrackIntoView(*ParentTrack);
+				}
+				else
+				{
+					BringScrollableTrackIntoView(*SelectedTrack);
+				}
+			}
+		}
+
+		OnSelectedTrackChangedDelegate.Broadcast(SelectedTrack);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::SelectTimingEvent(const TSharedPtr<const ITimingEvent> InEvent, bool bBringEventIntoView)
+{
+	if (SelectedEvent != InEvent)
+	{
+		SelectedEvent = InEvent;
 
 		if (SelectedEvent.IsValid())
 		{
 			LastSelectionType = ESelectionType::TimingEvent;
-			BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+			if (bBringEventIntoView)
+			{
+				BringIntoView(SelectedEvent->GetStartTime(), SelectedEvent->GetEndTime());
+			}
 		}
 
 		OnSelectedTimingEventChanged();
@@ -3803,6 +3903,10 @@ void STimingView::FrameSelection()
 		if (EndTime == StartTime)
 		{
 			EndTime += 1.0 / Viewport.GetScaleX(); // +1px
+		}
+		if (SelectedEvent->GetTrack()->GetLocation() == ETimingTrackLocation::Scrollable)
+		{
+			BringScrollableTrackIntoView(*SelectedEvent->GetTrack());
 		}
 	}
 	else

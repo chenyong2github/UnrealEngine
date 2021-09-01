@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Insights/ContextSwitches/ViewModels/ContextSwitchTimingEvent.h"
+#include "ContextSwitchTimingEvent.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FContextSwitchTimingEvent
