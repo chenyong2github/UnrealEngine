@@ -474,7 +474,7 @@ private:
 
 	// Called by the compiler to make sure that data tables are initialized. This is needed to patch the sparse class
 	// data for child anim BP overrides 
-	void InitializeAnimNodeData(UObject* DefaultObject);
+	void InitializeAnimNodeData(UObject* DefaultObject, bool bForce);
 	
 public:
 #if WITH_EDITORONLY_DATA

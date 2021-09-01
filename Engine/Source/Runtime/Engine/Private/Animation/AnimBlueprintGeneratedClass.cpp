@@ -672,27 +672,8 @@ void UAnimBlueprintGeneratedClass::GenerateAnimationBlueprintFunctions()
 	}
 }
 
-void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject)
+void UAnimBlueprintGeneratedClass::InitializeAnimNodeData(UObject* DefaultObject, bool bForce)
 {
-	// Link functions to their nodes
-	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
-	{
-		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
-
-		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
-		{
-			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
-			Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
-		}
-	}
-}
-
-void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)
-{
-	PreUpdateNodeProperties.Empty();
-	DynamicResetNodeProperties.Empty();
-	InitializationNodeProperties.Empty();
-
 	// Link functions to their nodes
 	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
 	{
@@ -703,11 +684,33 @@ void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* De
 			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
 
 			// This function is called on child->parent hierarchies in postload. We dont want to overwrite child data
-			// with parent data so skip if the node data has already been set up by a previous call.
-			if(Node->NodeData == nullptr)
+			// with parent data so skip if the node data has already been set up by a previous call.	
+			if(bForce || Node->NodeData == nullptr)
 			{
 				Node->SetNodeData(AnimNodeData[AnimNodeIndex]);
 			}
+		}
+	}
+}
+
+void UAnimBlueprintGeneratedClass::LinkFunctionsToDefaultObjectNodes(UObject* DefaultObject)
+{
+	PreUpdateNodeProperties.Empty();
+	DynamicResetNodeProperties.Empty();
+	InitializationNodeProperties.Empty();
+
+	// Perform node init as a first pass as root nodes (needed for function names)
+	// may not be initialized in sparse class data before they need to be patched
+	InitializeAnimNodeData(DefaultObject, false);
+	
+	// Link functions to their nodes
+	for(int32 AnimNodeIndex = 0; AnimNodeIndex < AnimNodeProperties.Num(); ++AnimNodeIndex)
+	{
+		FStructProperty* StructProperty = AnimNodeProperties[AnimNodeIndex];
+
+		if(StructProperty->Struct->IsChildOf(FAnimNode_Base::StaticStruct()))
+		{
+			FAnimNode_Base* Node = StructProperty->ContainerPtrToValuePtr<FAnimNode_Base>(DefaultObject);
 
 			if(Node->NeedsDynamicReset())
 			{

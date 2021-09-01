@@ -763,7 +763,7 @@ void FAnimBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObject* Def
 		}
 		
 		// Re-initialize node data tables (they would be overwritten in the loop above)
-		NewAnimBlueprintClass->InitializeAnimNodeData(DefaultObject);
+		NewAnimBlueprintClass->InitializeAnimNodeData(DefaultObject, true);
 	}
 
 	// Give game-specific logic a chance to replace animations
