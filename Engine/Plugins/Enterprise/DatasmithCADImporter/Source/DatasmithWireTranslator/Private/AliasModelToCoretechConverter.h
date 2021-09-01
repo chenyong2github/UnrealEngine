@@ -22,13 +22,9 @@ class FAliasModelToCoretechConverter : public FCADModelToCoretechConverterBase, 
 {
 public:
 
-	FAliasModelToCoretechConverter(const TCHAR* InOwner)
-		: FCADModelToCoretechConverterBase(InOwner)
+	FAliasModelToCoretechConverter(const TCHAR* InOwner, CADLibrary::FImportParameters InImportParameters)
+		: FCADModelToCoretechConverterBase(InOwner, InImportParameters)
 	{
-		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
-		ImportParams.MetricUnit = 0.01;
-		ImportParams.ScaleFactor = 1;
-		ImportParams.bEnableKernelIOTessellation = true;
 	}
 
 	virtual bool AddBRep(AlDagNode& DagNode, EAliasObjectReference ObjectReference) override;

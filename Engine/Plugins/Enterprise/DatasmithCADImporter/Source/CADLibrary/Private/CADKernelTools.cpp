@@ -389,13 +389,14 @@ namespace CADLibrary
 
 		if (ImportParameters.MaxEdgeLength > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.MaxEdgeLength);
+
+			TSharedPtr<CADKernel::FCriterion> MaxSizeCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::MaxSize, ImportParameters.MaxEdgeLength / ImportParameters.ScaleFactor);
 			MeshModel->AddCriterion(MaxSizeCriterion);
 		}
 
 		if (ImportParameters.ChordTolerance > SMALL_NUMBER)
 		{
-			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.ChordTolerance);
+			TSharedPtr<CADKernel::FCriterion> ChordCriterion = CADKernel::FCriterion::CreateCriterion(CADKernel::ECriterion::Sag, ImportParameters.ChordTolerance / ImportParameters.ScaleFactor);
 			MeshModel->AddCriterion(ChordCriterion);
 		}
 

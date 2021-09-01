@@ -32,7 +32,8 @@ class FAliasModelToCADKernelConverter : public FCADModelToCADKernelConverterBase
 {
 
 public:
-	FAliasModelToCADKernelConverter()
+	FAliasModelToCADKernelConverter(CADLibrary::FImportParameters InImportParameters)
+		: FCADModelToCADKernelConverterBase(InImportParameters)
 	{
 	}
 

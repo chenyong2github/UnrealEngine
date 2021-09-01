@@ -46,58 +46,56 @@ using namespace CADKernel;
 namespace AliasToCADKernelUtils
 {
 	template<typename Surface_T>
-	TSharedPtr<FSurface> AddNurbsSurface(double GeometricTolerance, Surface_T& AliasSurface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
+	TSharedPtr<FSurface> AddNURBSSurface(double GeometricTolerance, Surface_T& AliasSurface, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix)
 	{
-		FNurbsSurfaceHomogeneousData NurbsData;
-		NurbsData.bSwapUV= true;
-		NurbsData.bIsRational = true;
+		FNurbsSurfaceHomogeneousData NURBSData;
+		NURBSData.bSwapUV= true;
+		NURBSData.bIsRational = true;
 
-		NurbsData.PoleUCount = AliasSurface.uNumberOfCVsInclMultiples();
-		NurbsData.PoleVCount = AliasSurface.vNumberOfCVsInclMultiples();
+		NURBSData.PoleUCount = AliasSurface.uNumberOfCVsInclMultiples();
+		NURBSData.PoleVCount = AliasSurface.vNumberOfCVsInclMultiples();
 
-		NurbsData.UDegree = AliasSurface.uDegree();  // U order of the surface
-		NurbsData.VDegree = AliasSurface.vDegree();  // V order of the surface
+		NURBSData.UDegree = AliasSurface.uDegree();  // U order of the surface
+		NURBSData.VDegree = AliasSurface.vDegree();  // V order of the surface
 
 		int32 KnotSizeU = AliasSurface.realuNumberOfKnots() + 2;
 		int32 KnotSizeV = AliasSurface.realvNumberOfKnots() + 2;
 
-		NurbsData.UNodalVector.SetNumUninitialized(KnotSizeU);
-		NurbsData.VNodalVector.SetNumUninitialized(KnotSizeV);
+		NURBSData.UNodalVector.SetNumUninitialized(KnotSizeU);
+		NURBSData.VNodalVector.SetNumUninitialized(KnotSizeV);
 
-		AliasSurface.realuKnotVector(NurbsData.UNodalVector.GetData() + 1);
-		AliasSurface.realvKnotVector(NurbsData.VNodalVector.GetData() + 1);
+		AliasSurface.realuKnotVector(NURBSData.UNodalVector.GetData() + 1);
+		AliasSurface.realvKnotVector(NURBSData.VNodalVector.GetData() + 1);
 
-		NurbsData.UNodalVector[0] = NurbsData.UNodalVector[1];
-		NurbsData.UNodalVector[KnotSizeU - 1] = NurbsData.UNodalVector[KnotSizeU - 2];
-		NurbsData.VNodalVector[0] = NurbsData.VNodalVector[1];
-		NurbsData.VNodalVector[KnotSizeV - 1] = NurbsData.VNodalVector[KnotSizeV - 2];
+		NURBSData.UNodalVector[0] = NURBSData.UNodalVector[1];
+		NURBSData.UNodalVector[KnotSizeU - 1] = NURBSData.UNodalVector[KnotSizeU - 2];
+		NURBSData.VNodalVector[0] = NURBSData.VNodalVector[1];
+		NURBSData.VNodalVector[KnotSizeV - 1] = NURBSData.VNodalVector[KnotSizeV - 2];
 
-		const int32 CoordinateCount = NurbsData.PoleUCount * NurbsData.PoleVCount * 4;
-		NurbsData.HomogeneousPoles.SetNumUninitialized(CoordinateCount);
+		const int32 CoordinateCount = NURBSData.PoleUCount * NURBSData.PoleVCount * 4;
+		NURBSData.HomogeneousPoles.SetNumUninitialized(CoordinateCount);
 
 		if (InObjectReference == EAliasObjectReference::WorldReference)
 		{
-			AliasSurface.CVsWorldPositionInclMultiples(NurbsData.HomogeneousPoles.GetData());
+			AliasSurface.CVsWorldPositionInclMultiples(NURBSData.HomogeneousPoles.GetData());
 		}
 		else if (InObjectReference == EAliasObjectReference::ParentReference)
 		{
 			AlTM TranformMatrix(InAlMatrix);
-			AliasSurface.CVsAffectedPositionInclMultiples(TranformMatrix, NurbsData.HomogeneousPoles.GetData());
+			AliasSurface.CVsAffectedPositionInclMultiples(TranformMatrix, NURBSData.HomogeneousPoles.GetData());
 		}
 		else  // EAliasObjectReference::LocalReference
 		{
-			AliasSurface.CVsUnaffectedPositionInclMultiples(NurbsData.HomogeneousPoles.GetData());
+			AliasSurface.CVsUnaffectedPositionInclMultiples(NURBSData.HomogeneousPoles.GetData());
 		}
 
-		return FEntity::MakeShared<FNURBSSurface>(GeometricTolerance, NurbsData);
+		return FEntity::MakeShared<FNURBSSurface>(GeometricTolerance, NURBSData);
 	}
 }
 
 TSharedPtr<FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge(const AlTrimCurve& AliasTrimCurve, TSharedPtr<FSurface>& CarrierSurface)
 {
 	FNurbsCurveData NurbsCurveData;
-
-	curveFormType Form = AliasTrimCurve.form();
 
 	NurbsCurveData.Degree = AliasTrimCurve.degree();
 	int ControlPointCount = AliasTrimCurve.numberOfCVs();
@@ -155,15 +153,6 @@ TSharedPtr<FTopologicalLoop> FAliasModelToCADKernelConverter::AddLoop(const AlTr
 	TArray<TSharedPtr<FTopologicalEdge>> Edges;
 	TArray<CADKernel::EOrientation> Directions;
 
-	int32 EdgeCount = 0;
-	for(TUniquePtr<AlTrimCurve> TrimCurve(TrimBoundary.firstCurve()); TrimCurve.IsValid(); TrimCurve = TUniquePtr<AlTrimCurve>(TrimCurve->nextCurve()))
-	{
-		EdgeCount++;
-	}
-
-	Edges.Reserve(EdgeCount);
-	Directions.Reserve(EdgeCount);
-
 	for (TUniquePtr<AlTrimCurve> TrimCurve(TrimBoundary.firstCurve()); TrimCurve.IsValid(); TrimCurve = TUniquePtr<AlTrimCurve>(TrimCurve->nextCurve()))
 	{
 		TSharedPtr<FTopologicalEdge> Edge = AddEdge(*TrimCurve, CarrierSurface);
@@ -185,50 +174,20 @@ TSharedPtr<FTopologicalLoop> FAliasModelToCADKernelConverter::AddLoop(const AlTr
 
 TSharedPtr<FTopologicalFace> FAliasModelToCADKernelConverter::AddTrimRegion(const AlTrimRegion& TrimRegion, EAliasObjectReference InObjectReference, const AlMatrix4x4& InAlMatrix, bool bInOrientation)
 {
-	TSharedPtr<FSurface> Surface = AliasToCADKernelUtils::AddNurbsSurface(GeometricTolerance, TrimRegion, InObjectReference, InAlMatrix);
+	TSharedPtr<FSurface> Surface = AliasToCADKernelUtils::AddNURBSSurface(GeometricTolerance, TrimRegion, InObjectReference, InAlMatrix);
 	if (!Surface.IsValid())
 	{
 		return TSharedPtr<FTopologicalFace>();
 	}
 
 	TArray<TSharedPtr<FTopologicalLoop>> Loops;
-	int32 LoopCount = 0;
-	for (TUniquePtr<AlTrimBoundary> TrimBoundary(TrimRegion.firstBoundary()); TrimBoundary.IsValid(); TrimBoundary = TUniquePtr<AlTrimBoundary>(TrimBoundary->nextBoundary()))
-	{
-		LoopCount++;
-	}
-	Loops.Reserve(LoopCount);
-
 	for (TUniquePtr<AlTrimBoundary> TrimBoundary(TrimRegion.firstBoundary()); TrimBoundary.IsValid(); TrimBoundary = TUniquePtr<AlTrimBoundary>(TrimBoundary->nextBoundary()))
 	{
 		TSharedPtr<FTopologicalLoop> Loop = AddLoop(*TrimBoundary, Surface);
-		if (!Loop.IsValid())
+		if (Loop.IsValid())
 		{
-			continue;
+			Loops.Add(Loop);
 		}
-
-		TArray<FPoint2D> LoopSampling;
-		Loop->Get2DSampling(LoopSampling);
-		FAABB2D Boundary;
-		Boundary += LoopSampling;
-		Loop->Boundary.Set(Boundary.GetMin(), Boundary.GetMax());
-
-		// Check if the loop is not composed with only degenerated edge
-		bool bDegeneratedLoop = true;
-		for (const FOrientedEdge& Edge : Loop->GetEdges())
-		{
-			if (!Edge.Entity->IsDegenerated())
-			{
-				bDegeneratedLoop = false;
-				break;
-			}
-		}
-		if (bDegeneratedLoop)
-		{
-			continue;
-		}
-
-		Loops.Add(Loop);
 	}
 
 	if (Loops.Num() == 0)
@@ -260,7 +219,7 @@ void FAliasModelToCADKernelConverter::AddFace(const AlSurface& Surface, EAliasOb
 		return;
 	}
 
-	TSharedPtr<FSurface> CADKernelSurface = AliasToCADKernelUtils::AddNurbsSurface(GeometricTolerance, Surface, InObjectReference, InAlMatrix);
+	TSharedPtr<FSurface> CADKernelSurface = AliasToCADKernelUtils::AddNURBSSurface(GeometricTolerance, Surface, InObjectReference, InAlMatrix);
 	if (CADKernelSurface.IsValid())
 	{
 		TSharedRef<FTopologicalFace> Face = FEntity::MakeShared<FTopologicalFace>(CADKernelSurface);

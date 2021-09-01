@@ -2,9 +2,12 @@
 
 #pragma once
 
-#ifdef USE_OPENNURBS
 #include "CoreMinimal.h"
 
+#ifdef USE_OPENNURBS
+
+#include "OpenNurbsBRepConverter.h"
+#include "CADModelToCoretechConverterBase.h"
 #include "CTSession.h"
 
 class ON_Brep;
@@ -13,10 +16,10 @@ class ON_BrepFace;
 class ON_BoundingBox;
 class ON_3dVector;
 
-class BRepToKernelIOBodyTranslator
+class FBRepToKernelIOBodyTranslator
 {
 public:
-	BRepToKernelIOBodyTranslator(ON_Brep& InBRep)
+	FBRepToKernelIOBodyTranslator(ON_Brep& InBRep)
 		: BRep(InBRep)
 	{}
 
@@ -33,23 +36,21 @@ private:
 	TArray<uint64> BrepTrimToCoedge;
 };
 
-
-
-class FRhinoCoretechWrapper : public CADLibrary::FCTSession
+class FOpenNurbsBRepToCoretechConverter : public FCADModelToCoretechConverterBase, public IOpenNurbsBRepConverter
 {
 public:
+
 	/**
 	 * Make sure CT is initialized, and a main object is ready.
 	 * Handle input file unit and an output unit
 	 * @param InOwner
-	 * @param FileMetricUnit number of meters per file unit.
-	 * @param ScaleFactor scale factor to apply to the mesh to be in UnrealEditor unit (cm).
-	 * eg. For a file in inches, arg should be 0.0254
 	 */
-	FRhinoCoretechWrapper(const TCHAR* InOwner)
-		: FCTSession(InOwner)
+	explicit FOpenNurbsBRepToCoretechConverter(const TCHAR* InOwner, const CADLibrary::FImportParameters& ImportParameters)
+		: FCADModelToCoretechConverterBase(InOwner, ImportParameters)
 	{
 	}
+
+	virtual ~FOpenNurbsBRepToCoretechConverter() = default;
 
 	/**
 	 * Set BRep to tessellate, offsetting it prior to tessellation(used to set mesh pivot at the center of the surface bounding box)
@@ -59,12 +60,6 @@ public:
 	 */
 	bool AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
 	
-	static TSharedPtr<FRhinoCoretechWrapper> GetSharedSession();
-
-	bool Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
-
-protected:
-	static TWeakPtr<FRhinoCoretechWrapper> SharedSession;
 };
 
 #endif // USE_OPENNURBS

@@ -132,45 +132,5 @@ void FNURBSSurface::FillNurbs(FNurbsSurfaceHomogeneousData& NurbsData)
 	Finalize();
 }
 
-void FNURBSSurface::FillNurbs(FNurbsSurfaceData& NurbsData)
-{
-	bIsRational = (NurbsData.Weights.Num() > 0);
-
-	PoleUCount = NurbsData.PoleUCount;
-	PoleVCount = NurbsData.PoleVCount;
-
-	UDegree = NurbsData.UDegree;
-	VDegree = NurbsData.VDegree;
-
-	Swap(UNodalVector, NurbsData.UNodalVector);
-	Swap(VNodalVector, NurbsData.VNodalVector);
-
-	int32 PoleCount = PoleUCount * PoleVCount;
-
-	Poles.Reserve(PoleCount);
-	for (int32 Vndex = 0; Vndex < PoleVCount; ++Vndex)
-	{
-		int32 Index = Vndex;
-		for (int32 Undex = 0; Undex < PoleUCount; ++Undex, Index += PoleVCount)
-		{
-			Poles.Emplace(NurbsData.Poles[Index]);
-		}
-	}
-
-	if (bIsRational)
-	{
-		Weights.Reserve(PoleCount);
-		for (int32 Vndex = 0; Vndex < PoleVCount; ++Vndex)
-		{
-			int32 Index = Vndex;
-			for (int32 Undex = 0; Undex < PoleUCount; ++Undex, Index += PoleVCount)
-			{
-				Weights.Emplace(NurbsData.Weights[Index]);
-			}
-		}
-	}
-
-	Finalize();
-}
 
 

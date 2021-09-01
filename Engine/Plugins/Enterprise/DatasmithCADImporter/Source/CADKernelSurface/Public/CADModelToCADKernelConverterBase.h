@@ -20,14 +20,12 @@ class FCADModelToCADKernelConverterBase : public CADLibrary::ICADModelConverter
 {
 public:
 
-	FCADModelToCADKernelConverterBase()
-		// Unit is set to cm, 0.01, because Wire's unit is cm.
-		: CADKernelSession(0.00001 / 0.01)
-		, GeometricTolerance(0.00001 / 0.01)
+	FCADModelToCADKernelConverterBase(CADLibrary::FImportParameters InImportParameters)
+		: CADKernelSession(0.00001 / InImportParameters.MetricUnit)
+		, ImportParameters(InImportParameters)
+		, GeometricTolerance(0.00001 / InImportParameters.MetricUnit)
 		, SquareTolerance(GeometricTolerance* GeometricTolerance)
 	{
-		ImportParameters.MetricUnit = 0.01;
-		ImportParameters.ScaleFactor = 1;
 		ImportParameters.bEnableKernelIOTessellation = false;
 	}
 
@@ -56,14 +54,28 @@ public:
 		return CADLibrary::FCADKernelTools::Tessellate(CADKernelEntity, ImportParameters, InMeshParameters, OutMeshDescription);
 	}
 
-	virtual void SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) override
+	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) override
 	{
 		ImportParameters.ChordTolerance = ChordTolerance;
 		ImportParameters.MaxEdgeLength = MaxEdgeLength;
 		ImportParameters.MaxNormalAngle = NormalTolerance;
 		ImportParameters.StitchingTechnique = StitchingTechnique;
 		ImportParameters.bScaleUVMap = bScaleUVMap;
-		ImportParameters.bEnableKernelIOTessellation = false;
+	}
+
+	virtual void SetMetricUnit(double NewMetricUnit) override
+	{
+		ImportParameters.SetMetricUnit(NewMetricUnit);
+	}
+
+	virtual double GetScaleFactor() const override
+	{
+		return ImportParameters.ScaleFactor;
+	}
+
+	virtual double GetMetricUnit() const override
+	{
+		return ImportParameters.MetricUnit;
 	}
 
 	virtual bool IsSessionValid() override

@@ -14,13 +14,9 @@ class FCADModelToCoretechConverterBase : public CADLibrary::FCTSession, public C
 {
 public:
 
-	FCADModelToCoretechConverterBase(const TCHAR* InOwner)
-		: CADLibrary::FCTSession(InOwner)
+	FCADModelToCoretechConverterBase(const TCHAR* InOwner, const CADLibrary::FImportParameters& InImportParameters)
+		: CADLibrary::FCTSession(InOwner, InImportParameters)
 	{
-		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
-		ImportParams.MetricUnit = 0.01;
-		ImportParams.ScaleFactor = 1;
-		ImportParams.bEnableKernelIOTessellation = true;
 	}
 
 	virtual bool Tessellate(const CADLibrary::FMeshParameters& InMeshParameters, FMeshDescription& OutMeshDescription) override
@@ -57,10 +53,24 @@ public:
 		return false;
 	}
 
-	virtual void SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) override
+	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap) override
 	{
 		FCTSession::SetImportParameters(ChordTolerance, MaxEdgeLength, NormalTolerance, StitchingTechnique, bScaleUVMap);
-		ImportParams.bEnableKernelIOTessellation = true;
+	}
+
+	virtual void SetMetricUnit(double NewMetricUnit) override
+	{
+		ImportParams.SetMetricUnit(NewMetricUnit);
+	}
+
+	virtual double GetScaleFactor() const override
+	{
+		return ImportParams.ScaleFactor;
+	}
+
+	virtual double GetMetricUnit() const override
+	{
+		return ImportParams.MetricUnit;
 	}
 
 	virtual bool IsSessionValid() override

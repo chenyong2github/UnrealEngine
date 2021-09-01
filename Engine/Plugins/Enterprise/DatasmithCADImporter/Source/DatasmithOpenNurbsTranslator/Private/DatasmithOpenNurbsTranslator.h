@@ -6,12 +6,13 @@
 
 #include "DatasmithTranslator.h"
 #include "DatasmithOpenNurbsImportOptions.h"
+#include "ParametricSurfaceTranslator.h"
 
 #include "CoreMinimal.h"
 
 class FOpenNurbsTranslatorImpl;
 
-class FDatasmithOpenNurbsTranslator : public IDatasmithTranslator
+class FDatasmithOpenNurbsTranslator : public FParametricSurfaceTranslator
 {
 public:
 	virtual FName GetFName() const override { return "DatasmithOpenNurbsTranslator"; }
