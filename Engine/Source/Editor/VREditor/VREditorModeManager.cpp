@@ -218,7 +218,7 @@ bool FVREditorModeManager::IsVREditorAvailable() const
 		// TODO: UE-71871/UE-73237 Work around for avoiding starting VRMode when using WMR
 		FName SystemName = GEngine->XRSystem->GetSystemName();
 		const bool bIsWMR = SystemName == WMRSytemName || SystemName == OXRSytemName;
-		return !bIsWMR && !GEditor->bIsSimulatingInEditor;
+		return !bIsWMR && !GEditor->IsPlayingSessionInEditor();
 	}
 	else
 	{
