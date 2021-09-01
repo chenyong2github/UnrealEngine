@@ -785,16 +785,19 @@ template<typename RealType, int ElementSize>
 int TDynamicMeshOverlay<RealType, ElementSize>::CountVertexElements(int vid, bool bBruteForce) const
 {
 	TArray<int> VertexElements;
+	FIndex3i Triangle;
 	if (bBruteForce) 
 	{
 		for (int tid : ParentMesh->TriangleIndicesItr())
 		{
-			FIndex3i Triangle = GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			if (GetTriangleIfValid(tid, Triangle))
 			{
-				if (ParentVertices[Triangle[j]] == vid)
+				for (int j = 0; j < 3; ++j)
 				{
-					VertexElements.AddUnique(Triangle[j]);
+					if (ParentVertices[Triangle[j]] == vid)
+					{
+						VertexElements.AddUnique(Triangle[j]);
+					}
 				}
 			}
 		}
@@ -803,12 +806,14 @@ int TDynamicMeshOverlay<RealType, ElementSize>::CountVertexElements(int vid, boo
 	{
 		for (int tid : ParentMesh->VtxTrianglesItr(vid))
 		{
-			FIndex3i Triangle = GetTriangle(tid);
-			for (int j = 0; j < 3; ++j)
+			if (GetTriangleIfValid(tid, Triangle))
 			{
-				if (ParentVertices[Triangle[j]] == vid)
+				for (int j = 0; j < 3; ++j)
 				{
-					VertexElements.AddUnique(Triangle[j]);
+					if (ParentVertices[Triangle[j]] == vid)
+					{
+						VertexElements.AddUnique(Triangle[j]);
+					}
 				}
 			}
 		}
