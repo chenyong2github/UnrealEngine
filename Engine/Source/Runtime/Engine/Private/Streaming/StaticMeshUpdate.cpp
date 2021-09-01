@@ -218,7 +218,7 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 
 #if RHI_RAYTRACING
 		// Must happen after the batched updates have been flushed
-		if (IsRayTracingEnabled())
+		if (IsRayTracingEnabled() && Context.Mesh->bSupportRayTracing)
 		{
 			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
