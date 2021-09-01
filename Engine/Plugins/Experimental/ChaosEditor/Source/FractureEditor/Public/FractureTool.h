@@ -73,7 +73,6 @@ protected:
 	static void Refresh(FFractureToolContext& Context, FFractureEditorModeToolkit* Toolkit, bool bClearSelection=false);
 	static void SetOutlinerComponents(TArray<FFractureToolContext>& InContexts, FFractureEditorModeToolkit* Toolkit);
 	static void ClearProximity(FGeometryCollection* GeometryCollection);
-	static void GenerateProximityIfNecessary(FGeometryCollection* GeometryCollection);
 
 
 protected:
