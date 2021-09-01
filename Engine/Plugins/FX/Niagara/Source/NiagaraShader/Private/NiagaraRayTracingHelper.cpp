@@ -204,7 +204,7 @@ void FNiagaraRayTracingHelper::Reset()
 	ViewUniformBuffer = nullptr;
 }
 
-void FNiagaraRayTracingHelper::BeginFrame(FRHICommandList& RHICmdList)
+void FNiagaraRayTracingHelper::BeginFrame(FRHICommandList& RHICmdList, bool HasRayTracingScene)
 {
 	//Store off last frames dispatches so we can still access the previous results buffers for reading in this frame's simulations.
 	PreviousFrameDispatches = MoveTemp(Dispatches);
@@ -234,17 +234,21 @@ void FNiagaraRayTracingHelper::BeginFrame(FRHICommandList& RHICmdList)
 	ViewUniformBuffer = nullptr;
 }
 
-void FNiagaraRayTracingHelper::EndFrame(FRHICommandList& RHICmdList, FScene* Scene)
+void FNiagaraRayTracingHelper::EndFrame(FRHICommandList& RHICmdList, bool HasRayTracingScene, FScene* Scene)
 {
-	RayRequests.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Ray trace dispatches will read the ray requests.
-	RayTraceIntersections.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Ray trace dispatches will write new results.
-	RayTraceCounts.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute);//Ray trace dispatches read these counts and use them for indirect dispatches.
+	// skip everything if we don't have a ray tracing scene
+	if (HasRayTracingScene)
+	{
+		RayRequests.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Ray trace dispatches will read the ray requests.
+		RayTraceIntersections.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Ray trace dispatches will write new results.
+		RayTraceCounts.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute);//Ray trace dispatches read these counts and use them for indirect dispatches.
 	
-	IssueRayTraces(RHICmdList, Scene);
+		IssueRayTraces(RHICmdList, Scene);
 
-	RayRequests.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame, simulations will write new ray trace requests.
-	RayTraceIntersections.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Next frame these results will be read by simulations shaders.
-	RayTraceCounts.Transition(RHICmdList, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame these counts will be written by simulation shaders.
+		RayRequests.Transition(RHICmdList, ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame, simulations will write new ray trace requests.
+		RayTraceIntersections.Transition(RHICmdList, ERHIAccess::UAVCompute, ERHIAccess::SRVCompute);//Next frame these results will be read by simulations shaders.
+		RayTraceCounts.Transition(RHICmdList, ERHIAccess::IndirectArgs | ERHIAccess::SRVCompute, ERHIAccess::UAVCompute);//Next frame these counts will be written by simulation shaders.
+	}
 }
 
 void FNiagaraRayTracingHelper::AddToDispatch(FNiagaraDataInterfaceProxy* DispatchKey, uint32 MaxRays, int32 MaxRetraces)
@@ -254,7 +258,7 @@ void FNiagaraRayTracingHelper::AddToDispatch(FNiagaraDataInterfaceProxy* Dispatc
 	Dispatch.MaxRetraces = MaxRetraces;
 }
 
-const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDispatch(FNiagaraDataInterfaceProxy* DispatchKey, FRHICommandList& RHICmdList)
+void FNiagaraRayTracingHelper::BuildDispatch(FRHICommandList& RHICmdList, FNiagaraDataInterfaceProxy* DispatchKey)
 {
 	FNiagaraRayTraceDispatchInfo& Dispatch = Dispatches.FindChecked(DispatchKey);
 
@@ -288,11 +292,9 @@ const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDispatch(FNiaga
 			Dispatch.LastFrameRayTraceIntersections = Dispatch.RayTraceIntersections;
 		}
 	}
-	
-	return Dispatch;
 }
 
-const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDummyDispatch(FRHICommandList& RHICmdList)
+void FNiagaraRayTracingHelper::BuildDummyDispatch(FRHICommandList& RHICmdList)
 {
 	if (DummyDispatch.IsValid() == false)
 	{
@@ -314,6 +316,23 @@ const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDummyDispatch(F
 		DummyDispatch.MaxRays = 0;
 		DummyDispatch.MaxRetraces = 0;
 	}
+}
+
+const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDispatch(FNiagaraDataInterfaceProxy* DispatchKey) const
+{
+	const FNiagaraRayTraceDispatchInfo& Dispatch = Dispatches.FindChecked(DispatchKey);
+
+	// make sure that the buffer is valid (that BuildDispatch has been called)
+	check(Dispatch.RayRequests.IsValid());
+
+	return Dispatch;
+}
+
+const FNiagaraRayTraceDispatchInfo& FNiagaraRayTracingHelper::GetDummyDispatch() const
+{
+	// make sure that the buffers are valid (that BuildDummyDispatch has been called)
+	check(DummyDispatch.RayRequests.IsValid());
+
 	return DummyDispatch;
 }
 

@@ -1654,10 +1654,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool
 		PrepareAllTicks(GraphBuilder.RHICmdList);
 		
 #if RHI_RAYTRACING
-		if (HasRayTracingScene())
-		{
-			RayTracingHelper->BeginFrame(GraphBuilder.RHICmdList);
-		}
+		RayTracingHelper->BeginFrame(GraphBuilder.RHICmdList, HasRayTracingScene());
 #endif
 
 		if ( NiagaraEmitterInstanceBatcherLocal::GDebugLogging)
@@ -1747,10 +1744,7 @@ void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, 
 			FinishDispatches();
 
 #if RHI_RAYTRACING
-			if(HasRayTracingScene())
-			{
-				RayTracingHelper->EndFrame(RHICmdList, GetScene());
-			}
+			RayTracingHelper->EndFrame(RHICmdList, HasRayTracingScene(), GetScene());
 #endif
 
 			// Clear CurrentPassViews
