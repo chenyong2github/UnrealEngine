@@ -968,7 +968,17 @@ public:
 				// Object might have been invalidated by the previous TestOrFinalizeOngoingChange invocation.
 				if (ObjectAccess.Object.IsValid())
 				{
-					ObjectAccess.Property->InitializeValue_InContainer(TargetAddress);
+					if (UStruct* Struct = ObjectAccess.Property->GetOwnerStruct())
+					{
+						FStructOnScope PropertyOwnerStruct{Struct};
+						ObjectAccess.Property->CopyCompleteValue_InContainer(TargetAddress, PropertyOwnerStruct.GetStructMemory());
+					}
+					else
+					{
+						// Default to reseting using the property's type default value.
+						ObjectAccess.Property->InitializeValue_InContainer(TargetAddress);
+					}
+
 				}
 			}
 
