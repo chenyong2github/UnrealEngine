@@ -829,7 +829,9 @@ namespace HordeServer
 			IServerAddressesFeature Feature = App.ServerFeatures.Get<IServerAddressesFeature>();
 			if (Feature.Addresses.Count > 0)
 			{
-				Process.Start(new ProcessStartInfo { FileName = Feature.Addresses.First(), UseShellExecute = true });
+				// with a development cert, host will be set by default to localhost, otherwise there will be no host in address
+				string Address = Feature.Addresses.First().Replace("[::]", System.Net.Dns.GetHostName(), StringComparison.OrdinalIgnoreCase);
+				Process.Start(new ProcessStartInfo { FileName = Address, UseShellExecute = true });
 			}
 		}
 	}

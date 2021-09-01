@@ -796,7 +796,7 @@ namespace HordeServer.Services
 			catch (Exception Ex)
 			{
 				Response.Errors.Add($"Exception while updating settings: {Ex.Message}");
-				Logger.LogError("{0}: {1}", Response.Errors.Last(), Ex.StackTrace ?? "");
+				Logger.LogError(Ex, "{Error}", Response.Errors.Last());
 			}
 
 			if (Response.Errors.Count != 0)
@@ -814,12 +814,12 @@ namespace HordeServer.Services
 				// This will trigger a setting update as the user config json is set to reload on change
 				try
 				{
-					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true }));
+					await FileReference.WriteAllBytesAsync(Program.UserConfigFile, JsonSerializer.SerializeToUtf8Bytes(NewLocalSettings, new JsonSerializerOptions { WriteIndented = true, IgnoreNullValues  = true }));
 				}
 				catch (Exception Ex)
 				{
 					Response.Errors.Add($"Unable to serialize json settings to {Program.UserConfigFile.ToString()}, {Ex.Message}");
-					Logger.LogError("Unable to serialize json settings to {0}, {1} : {2}", Program.UserConfigFile.ToString(), Ex.Message, Ex.StackTrace ?? "");
+					Logger.LogError(Ex, "Unable to serialize json settings to {ConfigFile}, {Message}", Program.UserConfigFile.ToString(), Ex.Message);
 				}
 
 				if (Response.Errors.Count == 0)

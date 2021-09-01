@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using HordeCommon;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System;
@@ -75,32 +76,16 @@ namespace HordeAgent.Commands.Certs
 			}
 
 			Logger.LogInformation("Creating certificate for {DnsName}", DnsName);
-			using (RSA Algorithm = RSA.Create(2048))
-			{
-				X500DistinguishedName distinguishedName = new X500DistinguishedName($"CN={DnsName}");
-				CertificateRequest Request = new CertificateRequest(distinguishedName, Algorithm, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-				Request.CertificateExtensions.Add(new X509BasicConstraintsExtension(false, false, 0, true));
-				Request.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.KeyEncipherment | X509KeyUsageFlags.DigitalSignature, true));
-				Request.CertificateExtensions.Add(new X509EnhancedKeyUsageExtension(new OidCollection { new Oid("1.3.6.1.5.5.7.3.1") }, true));
+			byte[] PrivateCertData = AgentUtilities.CreateAgentCert(DnsName);
 
-				SubjectAlternativeNameBuilder AlternativeNameBuilder = new SubjectAlternativeNameBuilder();
-				AlternativeNameBuilder.AddDnsName(DnsName);
-				Request.CertificateExtensions.Add(AlternativeNameBuilder.Build(true));
+			Logger.LogInformation("Writing private cert: {PrivateCert}", new FileReference(PrivateCertFile).FullName);
+			File.WriteAllBytes(PrivateCertFile, PrivateCertData);
 
-				// NB: MacOS requires 825 days or fewer (https://support.apple.com/en-us/HT210176)
-				using (X509Certificate2 Certificate = Request.CreateSelfSigned(new DateTimeOffset(DateTime.UtcNow.AddDays(-1)), new DateTimeOffset(DateTime.UtcNow.AddDays(800))))
-				{
-					Certificate.FriendlyName = "Horde Server";
+			using X509Certificate2 Certificate = new X509Certificate2(PrivateCertData);
+			Logger.LogInformation("Certificate thumbprint is {Thumbprint}", Certificate.Thumbprint);
+			Logger.LogInformation("Add this thumbprint to list of trusted servers in appsettings.json to trust this server.");
 
-					byte[] PrivateCertData = Certificate.Export(X509ContentType.Pkcs12); // Note: Need to reimport this to use immediately, otherwise key is ephemeral
-					Logger.LogInformation("Writing private cert: {PrivateCert}", new FileReference(PrivateCertFile).FullName);
-					File.WriteAllBytes(PrivateCertFile, PrivateCertData);
-
-					Logger.LogInformation("Certificate thumbprint is {Thumbprint}", Certificate.Thumbprint);
-					Logger.LogInformation("Add this thumbprint to list of trusted servers in appsettings.json to trust this server.");
-				}
-			}
 			return Task.FromResult(0);
 		}
 	}
