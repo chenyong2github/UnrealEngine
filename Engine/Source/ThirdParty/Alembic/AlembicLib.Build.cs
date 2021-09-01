@@ -88,7 +88,7 @@ public class AlembicLib : ModuleRules
 				ReqLibraryNames.AddRange
 				(
 					new string[] {
-					"hdf5",
+					"libhdf5-static",
 					"libAlembic"
 				  });
 
