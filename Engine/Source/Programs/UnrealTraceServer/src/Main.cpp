@@ -1027,6 +1027,9 @@ int main(int ArgC, char** ArgV)
 				return (Dispatch.Entry)(ArgC - 1, ArgV + 1);
 			}
 		}
+
+		printf("Unknown command '%s'\n", ArgV[1]);
+		return 127;
 	}
 
 	return MainFork(ArgC, ArgV);
