@@ -3,6 +3,8 @@
 
 #include "HLSLTree/HLSLTree.h"
 
+enum class EMaterialParameterType : uint8;
+
 namespace UE
 {
 namespace HLSLTree
@@ -46,24 +48,16 @@ public:
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
-class FExpressionParameter : public FExpression
+class FExpressionMaterialParameter : public FExpression
 {
 public:
-	explicit FExpressionParameter(FParameterDeclaration* InDeclaration)
-		: Declaration(InDeclaration)
+	explicit FExpressionMaterialParameter(EMaterialParameterType InType, const FName& InName, const Shader::FValue& InDefaultValue)
+		: ParameterName(InName), DefaultValue(InDefaultValue), ParameterType(InType)
 	{}
 
-	FParameterDeclaration* Declaration;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FExpression::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Declaration);
-		}
-		return Result;
-	}
+	FName ParameterName;
+	Shader::FValue DefaultValue;
+	EMaterialParameterType ParameterType;
 
 	virtual bool EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };

@@ -270,6 +270,7 @@ public:
 	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
 	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
+	TMap<Shader::FValue, uint32> DefaultUniformValues;
 	int32 TotalCodeLength = 0;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;
@@ -311,7 +312,6 @@ public:
 	virtual ENodeVisitResult OnScope(FScope& Scope) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnStatement(FStatement& Statement) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnExpression(FExpression& Expression) { return ENodeVisitResult::VisitDependentNodes; }
-	virtual ENodeVisitResult OnParameterDeclaration(FParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnTextureParameterDeclaration(FTextureParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& FunctionCall) { return ENodeVisitResult::VisitDependentNodes; }
 };
@@ -377,20 +377,6 @@ public:
 	FScope* Scopes[MaxNumPreviousScopes];
 	FExpression* Values[MaxNumPreviousScopes];
 	int32 NumValues;
-};
-
-/**
- * Represents an HLSL parameter.  This is a uniform constant passed to the generated shader
- */
-class FParameterDeclaration final : public FNode
-{
-public:
-	FParameterDeclaration(const FName& InName, const Shader::FValue& InDefaultValue) : Name(InName), DefaultValue(InDefaultValue) {}
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
-	FName Name;
-	Shader::FValue DefaultValue;
 };
 
 /**
@@ -497,7 +483,6 @@ public:
 	}
 
 	FScope* NewScope(FScope& Scope);
-	FParameterDeclaration* NewParameterDeclaration(const FName& Name, const Shader::FValue& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(const FName& Name, const FTextureDescription& DefaultValue);
 
 	FFunctionCall* NewFunctionCall(FScope& Scope,
