@@ -3089,7 +3089,8 @@ namespace EpicGames.Perforce
 		public static Task<PerforceResponseList<UserRecord>> TryGetUserAsync(this IPerforceConnection Connection, string UserName, CancellationToken CancellationToken = default)
 		{
 			List<string> Arguments = new List<string>();
-			Arguments.Add($"-o{UserName}");
+			Arguments.Add("-o");
+			Arguments.Add(UserName);
 			return CommandAsync<UserRecord>(Connection, "user", Arguments, null, CancellationToken);
 		}
 
