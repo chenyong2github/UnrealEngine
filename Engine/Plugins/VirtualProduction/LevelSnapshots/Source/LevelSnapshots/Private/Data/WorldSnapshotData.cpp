@@ -256,11 +256,11 @@ int32 FWorldSnapshotData::GetNumSavedActors() const
 	return ActorData.Num();
 }
 
-void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const
+void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPath&, const FActorSnapshotData&)> HandleOriginalActorPath) const
 {
 	for (auto OriginalPathIt = ActorData.CreateConstIterator(); OriginalPathIt; ++OriginalPathIt)
 	{
-		HandleOriginalActorPath(OriginalPathIt->Key);
+		HandleOriginalActorPath(OriginalPathIt->Key, OriginalPathIt->Value);
 	}	
 }
 
@@ -652,6 +652,29 @@ void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyT
 #endif
 }
 
+namespace
+{
+	void DeleteActor(AActor* ActorToDespawn)
+	{
+		check(ActorToDespawn);
+
+		if (!ActorToDespawn->IsPendingKill())
+		{
+#if WITH_EDITOR
+			GEditor->SelectActor(ActorToDespawn, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+			const bool bVerifyDeletionCanHappen = true;
+			const bool bWarnAboutReferences = false;
+			GEditor->edactDeleteSelected(ActorToDespawn->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+#else
+			ActorToDespawn->Destroy(true, true);
+#endif
+		}
+
+		const FName NewName = MakeUniqueObjectName(ActorToDespawn->GetWorld(), ActorToDespawn->GetClass());
+		ActorToDespawn->Rename(*NewName.ToString(), nullptr, REN_NonTransactional);
+	}
+}
+
 void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 {
 	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_RecreateActors);
@@ -678,13 +701,10 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			continue;
 		}
 		
-		// The actor may have just been removed and still exist in memory
-		if (UObject* StillExistingRemovedActor = OriginalRemovedActorPath.ResolveObject())
+		if (UObject* NameClash = OriginalRemovedActorPath.ResolveObject())
 		{
-			AActor* Actor = Cast<AActor>(StillExistingRemovedActor);
-			// We need to rename the trash object otherwise SpawnActor will have a name collision and assert.
-			const FName NewName = MakeUniqueObjectName(Actor->GetWorld(), ActorClass, *Actor->GetName().Append(TEXT("_TRASH")));
-			Actor->Rename(*NewName.ToString());
+			AActor* Actor = Cast<AActor>(NameClash);
+			DeleteActor(Actor);
 		}
 		
 		// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
@@ -715,7 +735,11 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			SpawnParameters.Name = FName(*ActorName);
 			SpawnParameters.bNoFail = true;
 			SpawnParameters.Template = Cast<AActor>(GetClassDefault(ActorClass));
-			RecreatedActors.Add(OriginalRemovedActorPath, OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters));
+			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+			if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
+			{
+				RecreatedActors.Add(OriginalRemovedActorPath, RecreatedActor);
+			}
 		}
 	}
 	

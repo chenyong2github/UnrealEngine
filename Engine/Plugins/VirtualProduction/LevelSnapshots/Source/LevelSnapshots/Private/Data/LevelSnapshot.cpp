@@ -334,6 +334,12 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	{
 		return;
 	}
+	UE_LOG(LogLevelSnapshots, Log, TEXT("Diffing snapshot %s in world %s"), *GetPathName(), *World->GetPathName());
+	ON_SCOPE_EXIT
+	{
+		UE_LOG(LogLevelSnapshots, Log, TEXT("Finished diffing snapshot"));
+	};
+
 
 	// Find actors that are not present in the snapshot
 	TSet<AActor*> AllActors;
@@ -358,11 +364,12 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 	}
 	
 
+
 	// Try to find world actors and call appropriate callback
 	{
 		SCOPED_SNAPSHOT_CORE_TRACE(DiffWorld_IteratorAllActors);
 		
-		SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &AllActors](const FSoftObjectPath& OriginalActorPath)
+		SerializedData.ForEachOriginalActor([&HandleMatchedActor, &HandleRemovedActor, &HandleAddedActor, &AllActors](const FSoftObjectPath& OriginalActorPath, const FActorSnapshotData& SavedData)
 		{
 			// TODO: we need to check whether the actor's class was blacklisted in the project settings
 			UObject* ResolvedActor = OriginalActorPath.ResolveObject();
@@ -373,6 +380,21 @@ void ULevelSnapshot::DiffWorld(UWorld* World, FActorPathConsumer HandleMatchedAc
 			if (bWasRemovedFromWorld)
 			{
 				HandleRemovedActor.Execute(OriginalActorPath);
+				return;
+			}
+
+			UClass* ActorClass = SavedData.GetActorClass().TryLoadClass<AActor>();
+			if (!ActorClass)
+			{
+				UE_LOG(LogLevel, Warning, TEXT("Cannot find class %s. Saved actor %s will not be restored."), *SavedData.GetActorClass().ToString(), *OriginalActorPath.ToString());
+				return;
+			}
+
+			// Possible scenario: Right-click actor > Replace Selected Actors with; deletes the original and replaces it with new actor.
+			if (ResolvedActor->GetClass() != ActorClass)
+			{
+				HandleRemovedActor.Execute(OriginalActorPath);
+				HandleAddedActor.Execute(Cast<AActor>(ResolvedActor));
 			}
 			else
 			{

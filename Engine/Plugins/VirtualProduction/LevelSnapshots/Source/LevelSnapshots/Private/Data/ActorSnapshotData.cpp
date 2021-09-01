@@ -93,8 +93,8 @@ TOptional<AActor*> FActorSnapshotData::GetPreallocated(UWorld* SnapshotWorld, FW
 	if (!CachedSnapshotActor.IsValid())
 	{
 		const FSoftClassPath SoftClassPath(ActorClass);
-		UClass* TargetClass = SoftClassPath.ResolveClass();
-		if (!ensureAlways(TargetClass))
+		UClass* TargetClass = SoftClassPath.TryLoadClass<AActor>();
+		if (!TargetClass)
 		{
 			UE_LOG(LogLevelSnapshots, Error, TEXT("Unknown class %s. The snapshot is mostly likely referencing a class that was deleted."), *SoftClassPath.ToString());
 			return {};
