@@ -36,6 +36,19 @@ namespace Electra
 	};
 
 
+	/**
+	 * System wallclock time (UTC)
+	**/
+	class MEDIAutcTime
+	{
+	public:
+		static Electra::FTimeValue Current()
+		{
+			return Electra::FTimeValue(Electra::FTimeValue::MillisecondsToHNS(CurrentMSec()));
+		}
+		static int64 CurrentMSec();
+	};
+
 } // namespace Electra
 
 

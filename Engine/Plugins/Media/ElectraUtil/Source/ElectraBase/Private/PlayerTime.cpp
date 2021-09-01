@@ -3,11 +3,61 @@
 #include "PlayerTime.h"
 
 #include "Math/BigInt.h"
-#include "Utilities/StringHelpers.h"
 
 
 namespace Electra
 {
+
+	namespace TimeStringHelpers
+	{
+		int32 FindFirstNotOf(const FString& InString, const FString& InNotOfChars, int32 FirstPos = 0)
+		{
+			for (int32 i = FirstPos; i < InString.Len(); ++i)
+			{
+				bool bFoundCharFromNotOfChars = false;
+				for (int32 j = 0; j < InNotOfChars.Len(); ++j)
+				{
+					if (InString[i] == InNotOfChars[j])
+					{
+						// We found a character from the "NOT of" list. Check next...
+						bFoundCharFromNotOfChars = true;
+						break;
+					}
+				}
+				if (!bFoundCharFromNotOfChars)
+				{
+					// We did not find any of the characters. This is what we are looking for and return the index of the first "not of" character
+					return i;
+				}
+			}
+			return INDEX_NONE;
+		}
+
+		int32 FindLastNotOf(const FString& InString, const FString& InNotOfChars, int32 InStartPos = MAX_int32)
+		{
+			InStartPos = FMath::Min(InStartPos, InString.Len() - 1);
+			for (int32 i = InStartPos; i >= 0; --i)
+			{
+				bool bFoundCharFromNotOfChars = false;
+				for (int32 j = 0; j < InNotOfChars.Len(); ++j)
+				{
+					if (InString[i] == InNotOfChars[j])
+					{
+						// We found a character from the "NOT of" list. Check next...
+						bFoundCharFromNotOfChars = true;
+						break;
+					}
+				}
+				if (!bFoundCharFromNotOfChars)
+				{
+					// We did not find any of the characters. This is what we are looking for and return the index of the first "not of" character
+					return i;
+				}
+			}
+			return INDEX_NONE;
+		}
+	}
+
 
 	FTimeValue& FTimeValue::SetFromTimeFraction(const FTimeFraction& TimeFraction)
 	{
@@ -103,7 +153,7 @@ namespace Electra
 		// The string value must consist only of a sign, decimal digits and an optional period.
 		static const FString kTextDigitsEtc(TEXT("0123456789.-+"));
 		static const FString kTextZero(TEXT("0"));
-		if (StringHelpers::FindFirstNotOf(InString, kTextDigitsEtc) == INDEX_NONE) 
+		if (TimeStringHelpers::FindFirstNotOf(InString, kTextDigitsEtc) == INDEX_NONE) 
 		{
 			Denominator = 1;
 			int32 DotIndex;
@@ -118,7 +168,7 @@ namespace Electra
 				LexFromString(Numerator, *(InString.Mid(0, DotIndex)));
 				FString frc = InString.Mid(DotIndex + 1);
 				// Remove all trailing zeros
-				int32 last0 = StringHelpers::FindLastNotOf(frc, kTextZero);
+				int32 last0 = TimeStringHelpers::FindLastNotOf(frc, kTextZero);
 				if (last0 != INDEX_NONE)
 				{
 					frc.MidInline(0, last0 + 1);

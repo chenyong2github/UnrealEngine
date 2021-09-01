@@ -1,6 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PlayerTime.h"
+#include "SynchronizedClock.h"
+
+namespace Electra
+{
 
 int64 MEDIAutcTime::CurrentMSec()
 {
@@ -8,3 +11,4 @@ int64 MEDIAutcTime::CurrentMSec()
 	return (int64)localTime.GetTotalMilliseconds();
 };
 
+}
