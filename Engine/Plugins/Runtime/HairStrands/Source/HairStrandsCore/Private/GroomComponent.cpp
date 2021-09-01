@@ -43,6 +43,10 @@ static FAutoConsoleVariableRef CVarHairBindingValidationEnable(TEXT("r.HairStran
 static bool GUseGroomCacheStreaming = true;
 static FAutoConsoleVariableRef CVarGroomCacheStreamingEnable(TEXT("GroomCache.EnableStreaming"), GUseGroomCacheStreaming, TEXT("Enable groom cache streaming and prebuffering. Do not switch while groom caches are in use."));
 
+static bool GUseProxyLocalToWorld = false;
+static FAutoConsoleVariableRef CVarUseProxyLocalToWorld(TEXT("GroomCache.UseProxyLocalToWorld"), GUseProxyLocalToWorld, TEXT("Enable the use of the groom proxy local to world instead of extracting it from the game thread."));
+
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 #define USE_HAIR_TRIANGLE_STRIP 1
@@ -421,9 +425,13 @@ public:
 			}
 
 			// Initialization of the default skel. mesh transform (refresh during ticking).
-			HairInstance->Debug.SkeletalLocalToWorld = HairInstance->Debug.MeshComponent ? HairInstance->Debug.MeshComponent->GetComponentTransform() : FTransform();
-			HairInstance->Debug.SkeletalPreviousLocalToWorld = HairInstance->Debug.SkeletalLocalToWorld;
-			HairInstance->LocalToWorld = HairInstance->Debug.SkeletalLocalToWorld;
+			HairInstance->Debug.SkinningCurrentLocalToWorld = HairInstance->Debug.MeshComponent ? HairInstance->Debug.MeshComponent->GetComponentTransform() : FTransform();
+			HairInstance->Debug.SkinningPreviousLocalToWorld = HairInstance->Debug.SkinningCurrentLocalToWorld;
+
+			HairInstance->Debug.RigidCurrentLocalToWorld = Component->GetComponentTransform();
+			HairInstance->Debug.RigidPreviousLocalToWorld = HairInstance->Debug.RigidCurrentLocalToWorld;
+
+			HairInstance->LocalToWorld = HairInstance->GetCurrentLocalToWorld();
 		}
 	}
 
@@ -479,31 +487,20 @@ public:
 
 	virtual void OnTransformChanged() override
 	{
-		const FTransform HairLocalToWorld = FTransform(GetLocalToWorld());
-		for (FHairGroupInstance* Instance : HairGroupInstances)
+		if (GUseProxyLocalToWorld)
 		{
-			Instance->LocalToWorld = HairLocalToWorld;
-			if (Instance->BindingType == EHairBindingType::Skinning)
+			const FTransform RigidLocalToWorld = FTransform(GetLocalToWorld());
+			for (FHairGroupInstance* Instance : HairGroupInstances)
 			{
-				Instance->LocalToWorld = Instance->Debug.SkeletalLocalToWorld;
+				Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
+				Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
 			}
 		}
 	}
 
-	void GetOverrideLocalToTransform(const FHairGroupInstance* Instance, FMatrix& OutLocalToWorld) const
+	FORCEINLINE bool UseProxyLocalToWorld(const FHairGroupInstance* Instance) const
 	{
-		if (Instance->BindingType == EHairBindingType::Skinning)
-		{
-			OutLocalToWorld = Instance->Debug.SkeletalLocalToWorld.ToMatrixWithScale();
-		}
-	}
-
-	void GetOverridePreviousLocalToTransform(const FHairGroupInstance* Instance, FMatrix& OutPreviousLocalToWorld) const
-	{
-		if (Instance->BindingType == EHairBindingType::Skinning)
-		{
-			OutPreviousLocalToWorld = Instance->Debug.SkeletalPreviousLocalToWorld.ToMatrixWithScale();
-		}
+		return (GUseProxyLocalToWorld && (Instance->BindingType != EHairBindingType::Skinning));
 	}
 
 #if RHI_RAYTRACING
@@ -531,8 +528,8 @@ public:
 		{
 			FHairGroupInstance* Instance = HairGroupInstances[GroupIt];
 			check(Instance->GetRefCount() > 0);
-			FMatrix OverrideLocalToWorld = GetLocalToWorld();
-			GetOverrideLocalToTransform(Instance, OverrideLocalToWorld);
+
+			FMatrix OverrideLocalToWorld = UseProxyLocalToWorld(Instance) ? GetLocalToWorld() : Instance->GetCurrentLocalToWorld().ToMatrixWithScale();
 
 			const EHairGeometryType GeometryType = Instance->HairGroupPublicData->VFInput.GeometryType;
 			const uint32 LODIndex = Instance->HairGroupPublicData->GetIntLODIndex();
@@ -828,12 +825,13 @@ public:
 		bool bDrawVelocity = bOutputVelocity; // Velocity vector is done in a custom fashion
 		GetScene().GetPrimitiveUniformShaderParameters_RenderThread(GetPrimitiveSceneInfo(), bHasPrecomputedVolumetricLightmap, PreviousLocalToWorld, SingleCaptureIndex, bOutputVelocity);
 
-		FMatrix OverrideLocalToWorld = GetLocalToWorld();
-		GetOverrideLocalToTransform(Instance, OverrideLocalToWorld);
-		GetOverridePreviousLocalToTransform(Instance, PreviousLocalToWorld);
+		const bool bUseProxy = UseProxyLocalToWorld(Instance);
+
+		FMatrix CurrentLocalToWorld = bUseProxy ? GetLocalToWorld() : Instance->GetCurrentLocalToWorld().ToMatrixWithScale();
+		PreviousLocalToWorld = bUseProxy ? PreviousLocalToWorld : Instance->GetPreviousLocalToWorld().ToMatrixWithScale();
 
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
-		DynamicPrimitiveUniformBuffer.Set(OverrideLocalToWorld, PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, false, bDrawVelocity, bOutputVelocity);
+		DynamicPrimitiveUniformBuffer.Set(CurrentLocalToWorld, PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, false, bDrawVelocity, bOutputVelocity);
 		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 		BatchElement.FirstIndex = 0;
@@ -1648,24 +1646,28 @@ void UGroomComponent::SetBindingAsset(UGroomBindingAsset* InBinding)
 
 void UGroomComponent::SetEnableSimulation(bool bInEnableSimulation)
 {
-	if (SimulationSettings.SolverSettings.bEnableSimulation != bInEnableSimulation)
+	if (SimulationSettings.bOverrideSettings)
 	{
-		SimulationSettings.SolverSettings.bEnableSimulation = bInEnableSimulation;
+		if (SimulationSettings.SolverSettings.bEnableSimulation != bInEnableSimulation)
+		{
+			SimulationSettings.SolverSettings.bEnableSimulation = bInEnableSimulation;
 
-		ReleaseResources();
-		UpdateHairGroupsDesc();
-		UpdateHairSimulation();
-		InitResources();
+			ReleaseResources();
+			UpdateHairGroupsDesc();
+			UpdateHairSimulation();
+			InitResources();
+		}
+	}
+	else
+	{
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - To be able to enable/disable the simulation from component you must enable the overide settings boolean in the simulatin settings."), *GetPathName());
 	}
 }
 
 void UGroomComponent::ResetSimulation()
 {
-	if (SimulationSettings.SolverSettings.bEnableSimulation)
-	{
-		bResetSimulation = true;
-		bInitSimulation = true;
-	}
+	bResetSimulation = true;
+	bInitSimulation = true;
 }
 
 void UGroomComponent::UpdateHairGroupsDescAndInvalidateRenderState(bool bInvalid)
@@ -3152,18 +3154,25 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		UpdateGroomCache(ElapsedTime);
 	}
 
-	const FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
+	const FTransform SkinningLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
+	const FTransform RigidLocalToWorld = GetComponentTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		[Id, SkinningLocalToWorld, RigidLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
 	{
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
 		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
 		{
-			Instance->Debug.SkeletalPreviousLocalToWorld = Instance->Debug.SkeletalLocalToWorld;
-			Instance->Debug.SkeletalLocalToWorld = SkinLocalToWorld;
+			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
+			Instance->Debug.SkinningCurrentLocalToWorld = SkinningLocalToWorld;
+
+			if (!GUseProxyLocalToWorld)
+			{
+				Instance->Debug.RigidPreviousLocalToWorld = Instance->Debug.RigidCurrentLocalToWorld;
+				Instance->Debug.RigidCurrentLocalToWorld = RigidLocalToWorld;
+			}
 		}
 	});
 }

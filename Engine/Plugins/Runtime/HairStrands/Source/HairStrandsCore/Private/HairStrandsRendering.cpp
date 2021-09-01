@@ -2140,10 +2140,7 @@ void ComputeHairStrandsInterpolation(
 	}
 
 	Instance->HairGroupPublicData->VFInput.GeometryType = InstanceGeometryType;
-	if (Instance->BindingType == EHairBindingType::Skinning)
-		Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->Debug.SkeletalLocalToWorld;
-	else
-		Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->LocalToWorld;
+	Instance->HairGroupPublicData->VFInput.LocalToWorldTransform = Instance->GetCurrentLocalToWorld();
 	Instance->HairGroupPublicData->bSupportVoxelization = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 
 	ResourceAccessFinalizer.Finalize(GraphBuilder);

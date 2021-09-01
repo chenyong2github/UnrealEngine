@@ -194,8 +194,10 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		UMeshComponent*			MeshComponent = nullptr;
 		FString					MeshComponentName;
 		const UGroomComponent*	GroomComponentForDebug = nullptr; // For debug only, shouldn't be deferred on the rendering thread
-		FTransform				SkeletalLocalToWorld = FTransform::Identity;
-		FTransform				SkeletalPreviousLocalToWorld = FTransform::Identity;
+		FTransform				RigidCurrentLocalToWorld = FTransform::Identity;
+		FTransform				SkinningCurrentLocalToWorld = FTransform::Identity;
+		FTransform				RigidPreviousLocalToWorld = FTransform::Identity;
+		FTransform				SkinningPreviousLocalToWorld = FTransform::Identity;
 		bool					bDrawCardsGuides = false;
 
 		TSharedPtr<class IGroomCacheBuffers, ESPMode::ThreadSafe> GroomCacheBuffers;
@@ -223,5 +225,19 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	bool IsValid() const 
 	{
 		return Meshes.IsValid() || Cards.IsValid() || Strands.IsValid();
+	}
+
+	/** Get the current local to world transform according to the internal binding type */
+	FORCEINLINE const FTransform& GetCurrentLocalToWorld() const
+	{
+		return (BindingType == EHairBindingType::Skinning) ? Debug.SkinningCurrentLocalToWorld: 
+															 Debug.RigidCurrentLocalToWorld;
+	}
+
+	/** Get the previous local to world transform according to the internal binding type */
+	FORCEINLINE const FTransform& GetPreviousLocalToWorld() const
+	{
+		return (BindingType == EHairBindingType::Skinning) ? Debug.SkinningPreviousLocalToWorld :
+															 Debug.RigidPreviousLocalToWorld;
 	}
 };
