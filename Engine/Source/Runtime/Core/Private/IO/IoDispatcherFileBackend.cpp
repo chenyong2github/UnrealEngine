@@ -128,11 +128,12 @@ private:
 	IMappedFileHandle* SharedMappedFileHandle;
 };
 
-void FFileIoStoreBufferAllocator::Initialize(uint64 MemorySize, uint64 BufferSize, uint32 BufferAlignment)
+void FFileIoStoreBufferAllocator::Initialize(uint64 InMemorySize, uint64 InBufferSize, uint32 InBufferAlignment)
 {
-	uint64 BufferCount = MemorySize / BufferSize;
-	MemorySize = BufferCount * BufferSize;
-	BufferMemory = reinterpret_cast<uint8*>(FMemory::Malloc(MemorySize, BufferAlignment));
+	uint64 BufferCount = InMemorySize / InBufferSize;
+	uint64 MemorySize = BufferCount * InBufferSize;
+	BufferMemory = reinterpret_cast<uint8*>(FMemory::Malloc(MemorySize, InBufferAlignment));
+	BufferSize = InBufferSize;
 	for (uint64 BufferIndex = 0; BufferIndex < BufferCount; ++BufferIndex)
 	{
 		FFileIoStoreBuffer* Buffer = new FFileIoStoreBuffer();
@@ -2077,7 +2078,7 @@ void FFileIoStats::OnFilesystemReadsQueued(uint64 BytesToRead, int32 NumReads)
 	QueuedFilesystemReads += NumReads;
 #endif
 
-	TRACE_COUNTER_INCREMENT(IoDispatcherFileBackendQueuedFilesystemReads)
+	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReads, NumReads)
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesToRead);
 #endif
 }
@@ -2145,6 +2146,7 @@ void FFileIoStats::OnReadComplete(int64 BytesRead)
 
 	TRACE_COUNTER_SUBTRACT(IoDispatcherFileBackendQueuedFilesystemReadBytes, BytesRead);
 	TRACE_COUNTER_ADD(IoDispatcherFileBackendTotalBytesRead, BytesRead);
+	TRACE_COUNTER_DECREMENT(IoDispatcherFileBackendQueuedFilesystemReads);
 #endif
 }
 
