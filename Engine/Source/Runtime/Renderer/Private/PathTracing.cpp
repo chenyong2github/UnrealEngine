@@ -561,13 +561,16 @@ RENDERER_API void PrepareSkyTexture_Internal(
 		PF_A32B32G32R32F, // half precision might be ok?
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV);
+
 	SkylightTexture = GraphBuilder.CreateTexture(SkylightTextureDesc, TEXT("PathTracer.Skylight"), ERDGTextureFlags::None);
+
 	FRDGTextureDesc SkylightPdfDesc = FRDGTextureDesc::Create2D(
 		FIntPoint(Size, Size),
 		PF_R32_FLOAT, // half precision might be ok?
 		FClearValueBinding::None,
 		TexCreate_ShaderResource | TexCreate_UAV,
 		FMath::CeilLogTwo(Size) + 1);
+
 	SkylightPdf = GraphBuilder.CreateTexture(SkylightPdfDesc, TEXT("PathTracer.SkylightPdf"), ERDGTextureFlags::None);
 
 	SkylightInvResolution = 1.0f / Size;
@@ -709,6 +712,9 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 	FLinearColor SkyColor = Scene->SkyLight->GetEffectiveLightColor();
 	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels
 	uint32 Size = FMath::RoundUpToPowerOfTwo(2 * Scene->SkyLight->CaptureCubeMapResolution);
+	
+	RDG_GPU_MASK_SCOPE(GraphBuilder, 
+		IsSkylightCachingEnabled ? FRHIGPUMask::All() : GraphBuilder.RHICmdList.GetGPUMask());
 
 	PrepareSkyTexture_Internal(
 		GraphBuilder,

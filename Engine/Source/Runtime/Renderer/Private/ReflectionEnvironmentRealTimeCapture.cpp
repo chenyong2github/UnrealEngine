@@ -291,16 +291,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		return;
 	}
 
-	// Only run for the first viewfamily of each frame, for efficiency and consistency.
-	{
-		const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
-		RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
-
-		if (!bIsNewFrame)
-		{
-			return;
-		}
-	}
+	const bool bIsNewFrame = GFrameNumberRenderThread != RealTimeSlicedReflectionCaptureFrameNumber;
+	RealTimeSlicedReflectionCaptureFrameNumber = GFrameNumberRenderThread;
 
 	RDG_EVENT_SCOPE(GraphBuilder, "CaptureConvolveSkyEnvMap");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CaptureConvolveSkyEnvMap);
@@ -853,18 +845,22 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// Update the firt frame detection state variable
 	if (bTimeSlicedRealTimeCapture)
 	{
-		switch (RealTimeSlicedReflectionCaptureFirstFrameState)
+		// Go to next state iff this is a new frame
+		if (bIsNewFrame)
 		{
-		case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
-			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
-			break;
+			switch (RealTimeSlicedReflectionCaptureFirstFrameState)
+			{
+				case ERealTimeSlicedReflectionCaptureFirstFrameState::INIT:
+					RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME;
+					break;
 
-		case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
-			RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
-			break;
+				case ERealTimeSlicedReflectionCaptureFirstFrameState::FIRST_FRAME:
+					RealTimeSlicedReflectionCaptureFirstFrameState = ERealTimeSlicedReflectionCaptureFirstFrameState::BEYOND_FIRST_FRAME;
+					break;
 
-		default:
-			break;
+				default:
+					break;
+			}
 		}
 	}
 	else
@@ -911,21 +907,11 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		const int32 ConvolvedSkyRenderTargetWorkIndex = 1 - ConvolvedSkyRenderTargetReadyIndex;
 		const int32 TimeSliceCount = 12;
 
-		// Update the current time-slicing state.
-		if (RealTimeSlicedReflectionCaptureState == -1)
+		// Update the current time-slicing state if this is a new frame
+		// Note: RealTimeSlicedReflectionCaptureState will initially be -1.
+		if (bIsNewFrame)
 		{
-			// RealTimeSlicedReflectionCaptureState can be -1 to indicate this is the first time-slicing iteration
-
-			// 0 is the first actuable state
-			RealTimeSlicedReflectionCaptureState = 0;
-		}
-		else
-		{
-			// State should never go past the max value.
-			checkSlow(RealTimeSlicedReflectionCaptureState < TimeSliceCount);
-
-			// Advance the time-sliced state
-			if (++RealTimeSlicedReflectionCaptureState == TimeSliceCount)
+			if (++RealTimeSlicedReflectionCaptureState >= TimeSliceCount)
 			{
 				RealTimeSlicedReflectionCaptureState = 0;
 			}
@@ -938,7 +924,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		{
 #endif 
 
-		if (RealTimeSlicedReflectionCaptureState == 0)
+		if (RealTimeSlicedReflectionCaptureState <= 0)
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "RenderSky");
 			RenderCubeFaces_SkyCloud(true, false, CapturedSkyRenderTarget);
