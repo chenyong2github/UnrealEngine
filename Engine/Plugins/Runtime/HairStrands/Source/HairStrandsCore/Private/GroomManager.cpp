@@ -779,7 +779,7 @@ static void RunHairLODSelection(
 		}
 
 		// Update the local-to-world transform based on the binding type 
-		Instance->LocalToWorld = Instance->BindingType == EHairBindingType::Skinning ? Instance->Debug.SkeletalLocalToWorld : Instance->LocalToWorld;
+		Instance->LocalToWorld = Instance->GetCurrentLocalToWorld();
 	}
 }
 

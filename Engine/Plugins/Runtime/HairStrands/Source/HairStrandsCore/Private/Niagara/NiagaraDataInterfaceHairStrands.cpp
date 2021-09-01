@@ -638,7 +638,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		const bool bIsHairValid = ProxyData != nullptr && ProxyData->HairStrandsBuffer && ProxyData->HairStrandsBuffer->IsInitialized();
 		const bool bHasSkinningBinding = bIsHairValid && ProxyData->HairGroupInstance && ProxyData->HairGroupInstance->BindingType == EHairBindingType::Skinning;
 		const bool bIsRootValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedRootResources && ProxyData->HairStrandsBuffer->SourceDeformedRootResources->IsInitialized() && bHasSkinningBinding;
-		const bool bIsRestValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceRestResources && 
+		const bool bIsRestValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceRestResources && ProxyData->HairStrandsBuffer->SourceRestResources->IsInitialized() &&
 
 			// SourceRestResources->PositionBuffer is lazily allocated, when the instance LOD is scheduled (this happens after this called). So this is why this check is here. 
 			// This code should be refactor so that it reflects the lazy allocation scheme
@@ -647,7 +647,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 			ProxyData->HairStrandsBuffer->CurvesOffsetsBuffer.SRV && ProxyData->HairStrandsBuffer->ParamsScaleBuffer.SRV && ProxyData->HairStrandsBuffer->BoundingBoxBuffer.UAV;
 
 		const bool bIsDeformedValid = bIsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedResources && ProxyData->HairStrandsBuffer->SourceDeformedResources->IsInitialized();
-		const bool bHasLODSwitched = bIsHairValid && ProxyData->HairGroupInstance && ProxyData->HairGroupInstance->HairGroupPublicData && ProxyData->HairGroupInstance->HairGroupPublicData->VFInput.bHasLODSwitch;
+		const bool bHasLODSwitched = bIsHairValid && ProxyData->HairGroupInstance&& ProxyData->HairGroupInstance->HairGroupPublicData&& ProxyData->HairGroupInstance->HairGroupPublicData->VFInput.bHasLODSwitch;
 
 		if (bIsHairValid && bIsRestValid)
 		{
@@ -697,18 +697,21 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 
 			// Simulation setup
 			const int32 NeedResetValue = bHasLODSwitched || (ProxyData->TickCount <= GHairSimulationMaxDelay);
-			const int32 RestUpdateValue = GHairSimulationRestUpdate;
+			const int32 RestUpdateValue = GHairSimulationRestUpdate || NeedResetValue;
 			const int32 LocalSimulationValue = ProxyData->LocalSimulation;
 			
 			// Offsets / Transforms
 			FVector3f RestPositionOffsetValue = ProxyData->HairStrandsBuffer->SourceRestResources->GetPositionOffset();
 
-			FMatrix44f WorldTransformFloat = ProxyData->HairGroupInstance ? (ProxyData->HairGroupInstance->BindingType == EHairBindingType::Skinning) ?
-				ProxyData->HairGroupInstance->Debug.SkeletalLocalToWorld.ToMatrixWithScale() :
-				ProxyData->HairGroupInstance->LocalToWorld.ToMatrixWithScale() :
-				ProxyData->WorldTransform.ToMatrixWithScale();
-
+			FMatrix44f WorldTransformFloat = ProxyData->HairGroupInstance ? ProxyData->HairGroupInstance->GetCurrentLocalToWorld().ToMatrixWithScale() :
+																			ProxyData->WorldTransform.ToMatrixWithScale();
 			FMatrix44f BoneTransformFloat = ProxyData->BoneTransform.ToMatrixWithScale();
+
+			if (!bIsRootValid && bHasSkinningBinding)
+			{
+				UE_LOG(LogHairStrands, Log, TEXT("FNDIHairStrandsParametersCS() Groom Asset %s from component %s is set to use skinning interpolation but the skin resources are not valid"),
+					 *ProxyData->HairGroupInstance->Debug.GroomAssetName, *ProxyData->HairGroupInstance->Debug.MeshComponentName);
+			}
 
 			FRHITransitionInfo Transitions[] = {
 				FRHITransitionInfo(DeformedPositionBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
