@@ -117,6 +117,8 @@ public:
 
 	FString GetProfile() const;
 
+	bool GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT) const;
+
 	UTexture2D *GetBezelTexture();
 };
 
