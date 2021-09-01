@@ -1838,7 +1838,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		{
 			//hack: find a better place for this
 			UGeometryCollection* RestCollectionMutable = const_cast<UGeometryCollection*>(ToRawPtr(RestCollection));
-			RestCollectionMutable->EnsureDataIsCooked();
+			RestCollectionMutable->CreateSimulationData();
 		}
 #endif
 		const bool bValidWorld = GetWorld() && GetWorld()->IsGameWorld();
