@@ -26,19 +26,19 @@ public:
 	}
 
 	// The name of the variable
-	UPROPERTY(BlueprintReadOnly, Category = RigVMGraphVariableDescription)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RigVMGraphVariableDescription)
 	FName Name;
 
 	// The C++ data type of the variable
-	UPROPERTY(BlueprintReadOnly, Category = RigVMGraphVariableDescription)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RigVMGraphVariableDescription)
 	FString CPPType;
 
 	// The Struct of the C++ data type of the variable (or nullptr)
-	UPROPERTY(BlueprintReadOnly, Category = RigVMGraphVariableDescription)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RigVMGraphVariableDescription)
 	TObjectPtr<UObject> CPPTypeObject = nullptr;
 
 	// The default value of the variable
-	UPROPERTY(BlueprintReadOnly, Category = RigVMGraphVariableDescription)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = RigVMGraphVariableDescription)
 	FString DefaultValue;
 
 	// Returns nullptr external variable matching this description
@@ -66,7 +66,7 @@ public:
 		return ExternalVariable;
 	}
 
-	FORCEINLINE FEdGraphPinType ToPinType()
+	FORCEINLINE FEdGraphPinType ToPinType() const
 	{
 		FEdGraphPinType PinType;
 		PinType.ResetToDefaults();
@@ -160,13 +160,24 @@ public:
 		}
 		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
 		{
-			OutCPPType = Prefix + TEXT("struct") + Suffix;
-			OutCPPTypeObject = InPinType.PinSubCategoryObject.Get();
+			if (UScriptStruct* Struct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
+			{
+				OutCPPType = Prefix + *Struct->GetStructCPPName() + Suffix;
+				OutCPPTypeObject = Struct;
+			}
 		}
-		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+		else if (InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte ||
+			InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum)
 		{
-			OutCPPType = Prefix + TEXT("byte") + Suffix;
-			OutCPPTypeObject = InPinType.PinSubCategoryObject.Get();
+			if (UEnum* Enum = Cast<UEnum>(InPinType.PinSubCategoryObject))
+			{
+				OutCPPType = Prefix + Enum->GetFName().ToString() + Suffix;
+				OutCPPTypeObject = Enum;
+			}
+			else
+			{
+				OutCPPType = Prefix + TEXT("uint8") + Suffix;
+			}
 		}
 		else
 		{

@@ -717,6 +717,9 @@ public:
 	/** Returns an instanced namespace helper utility object that corresponds to the given Blueprint. */
 	TSharedRef<FBlueprintNamespaceHelper> GetOrCreateNamespaceHelperForBlueprint(const UBlueprint* InBlueprint);
 
+	/** Selects a local variable to load in the details panel. */
+	virtual bool SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName) { return false; }
+
 protected:
 	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
 	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) {}

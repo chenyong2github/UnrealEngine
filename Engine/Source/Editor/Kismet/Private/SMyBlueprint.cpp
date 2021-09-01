@@ -1958,7 +1958,7 @@ void SMyBlueprint::OnActionSelected( const TArray< TSharedPtr<FEdGraphSchemaActi
 	OnActionSelectedHelper(InAction, BlueprintEditorPtr, Blueprint, CurrentInspector.ToSharedRef());
 }
 
-void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAction, TWeakPtr< FBlueprintEditor > InBlueprintEditor, UBlueprint* Blueprint, TSharedRef<SKismetInspector> Inspector)
+void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAction, TWeakPtr< FBlueprintEditor > InBlueprintEditor, UBlueprint* CurrentBlueprint, TSharedRef<SKismetInspector> CurrentInspector)
 {
 	if (InAction.IsValid())
 	{
@@ -1972,7 +1972,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 				const UEdGraphSchema* Schema = GraphAction->EdGraph->GetSchema();
 				check(Schema != nullptr);
 				Schema->GetGraphDisplayInformation(*GraphAction->EdGraph, DisplayInfo);
-				Inspector->ShowDetailsForSingleObject(GraphAction->EdGraph, SKismetInspector::FShowDetailsOptions(DisplayInfo.PlainName));
+				CurrentInspector->ShowDetailsForSingleObject(GraphAction->EdGraph, SKismetInspector::FShowDetailsOptions(DisplayInfo.PlainName));
 			}
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Delegate::StaticGetTypeId())
@@ -1980,7 +1980,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			FEdGraphSchemaAction_K2Delegate* DelegateAction = (FEdGraphSchemaAction_K2Delegate*)InAction.Get();
 			if (FMulticastDelegateProperty* Property = DelegateAction->GetDelegateProperty())
 			{
-				Inspector->ShowDetailsForSingleObject(Property->GetUPropertyWrapper(), SKismetInspector::FShowDetailsOptions(FText::FromString(Property->GetName())));
+				CurrentInspector->ShowDetailsForSingleObject(Property->GetUPropertyWrapper(), SKismetInspector::FShowDetailsOptions(FText::FromString(Property->GetName())));
 			}
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Var::StaticGetTypeId())
@@ -1992,7 +1992,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 
 			FProperty* Prop = VarAction->GetProperty();
 			UPropertyWrapper* PropWrap = (Prop ? Prop->GetUPropertyWrapper() : nullptr);
-			Inspector->ShowDetailsForSingleObject(PropWrap, Options);
+			CurrentInspector->ShowDetailsForSingleObject(PropWrap, Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 		{
@@ -2002,7 +2002,18 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 
 			FProperty* Prop = VarAction->GetProperty();
 			UPropertyWrapper* PropWrap = (Prop ? Prop->GetUPropertyWrapper() : nullptr);
-			Inspector->ShowDetailsForSingleObject(PropWrap, Options);
+			CurrentInspector->ShowDetailsForSingleObject(PropWrap, Options);
+		}
+		else if (InAction->IsAVariable())
+		{
+			FEdGraphSchemaAction_BlueprintVariableBase* VarAction = (FEdGraphSchemaAction_BlueprintVariableBase*)InAction.Get();
+			if (UEdGraph* Graph = GetFocusedGraph())
+			{
+				if (BlueprintEditorPtr.IsValid())
+				{
+					BlueprintEditorPtr.Pin()->SelectLocalVariable(Graph, VarAction->GetVariableName());	
+				}
+			}
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Enum::StaticGetTypeId())
 		{
@@ -2011,7 +2022,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(EnumAction->GetPathName()));
 			Options.bForceRefresh = true;
 
-			Inspector->ShowDetailsForSingleObject(EnumAction->Enum, Options);
+			CurrentInspector->ShowDetailsForSingleObject(EnumAction->Enum, Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2Struct::StaticGetTypeId())
 		{
@@ -2020,7 +2031,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(StructAction->GetPathName()));
 			Options.bForceRefresh = true;
 
-			Inspector->ShowDetailsForSingleObject(StructAction->Struct, Options);
+			CurrentInspector->ShowDetailsForSingleObject(StructAction->Struct, Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2TargetNode::StaticGetTypeId() ||
 			InAction->GetTypeId() == FEdGraphSchemaAction_K2Event::StaticGetTypeId() ||
@@ -2032,16 +2043,16 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			check(NodeTemplate != nullptr)
 
 			SKismetInspector::FShowDetailsOptions Options(NodeTemplate->GetNodeTitle(ENodeTitleType::EditableTitle));
-			Inspector->ShowDetailsForSingleObject(NodeTemplate, Options);
+			CurrentInspector->ShowDetailsForSingleObject(NodeTemplate, Options);
 		}
 		else
 		{
-			Inspector->ShowDetailsForObjects(TArray<UObject*>());
+			CurrentInspector->ShowDetailsForObjects(TArray<UObject*>());
 		}
 	}
 	else
 	{
-		Inspector->ShowDetailsForObjects(TArray<UObject*>());
+		CurrentInspector->ShowDetailsForObjects(TArray<UObject*>());
 	}
 }
 

@@ -1587,6 +1587,28 @@ public:
 };
 
 /**
+* An action to change the default value of a local variable.
+*/
+USTRUCT()
+struct FRigVMChangeLocalVariableDefaultValueAction : public FRigVMBaseAction
+{
+	GENERATED_BODY()
+
+public:
+	FRigVMChangeLocalVariableDefaultValueAction();
+	FRigVMChangeLocalVariableDefaultValueAction(const FRigVMGraphVariableDescription& InLocalVariable, const FString& InDefaultValue);
+	virtual ~FRigVMChangeLocalVariableDefaultValueAction() {};
+	virtual bool Undo(URigVMController* InController) override;
+	virtual bool Redo(URigVMController* InController) override;
+
+	UPROPERTY()
+	FRigVMGraphVariableDescription LocalVariable;
+
+	UPROPERTY()
+	FString DefaultValue;
+};
+
+/**
 * An action adding a array node to the graph.
 */
 USTRUCT()

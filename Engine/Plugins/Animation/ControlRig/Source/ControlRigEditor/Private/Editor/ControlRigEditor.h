@@ -157,6 +157,7 @@ public:
 	UControlRigBlueprint* GetControlRigBlueprint() const;
 
 	void SetDetailObjects(const TArray<UObject*>& InObjects);
+	void SetDetailObjects(const TArray<UObject*>& InObjects, bool bChangeUISelectionState);
 	void SetDetailViewForRigElements();
 	void SetDetailViewForGraph(URigVMGraph* InGraph);
 	void SetDetailViewForFocusedGraph();
@@ -167,7 +168,7 @@ public:
 	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
 	bool DetailViewShowsRigUnit(URigVMNode* InNode) const;
 
-	void ClearDetailObject();
+	void ClearDetailObject(bool bChangeUISelectionState = true);
 
 	/** Get the persona toolkit */
 	TSharedRef<IPersonaToolkit> GetPersonaToolkit() const { return PersonaToolkit.ToSharedRef(); }
@@ -194,6 +195,8 @@ public:
 
 	DECLARE_EVENT_OneParam(FControlRigEditor, FPreviewControlRigUpdated, FControlRigEditor*);
 	FPreviewControlRigUpdated& OnPreviewControlRigUpdated() { return PreviewControlRigUpdated;  }
+
+	virtual bool SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName) override;
 
 private:
 
