@@ -360,7 +360,14 @@ public:
 	/** Sets the value of PlayerId without causing other side effects to this instance. */
 	void SetPlayerId(const int32 NewId);
 
-	/** Gets the literal value of Ping. */
+	/** Gets the value of ping in milliseconds. */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
+	int32 GetPingInMilliseconds() const
+	{
+		return Ping * 4;
+	}
+
+	/** Gets the literal value of Ping.  This is the compressed ping, sent through replication (real ping / 4) */
 	uint8 GetPing() const
 	{
 		return Ping;
