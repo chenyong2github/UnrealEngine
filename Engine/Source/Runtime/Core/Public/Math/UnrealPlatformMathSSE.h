@@ -244,6 +244,12 @@ struct TUnrealPlatformMathSSEBase : public Base
 	}
 
 	template<typename T>
+	static FORCEINLINE int64 FloorToInt64(T F)
+	{
+		return UE4::SSE::FloorToInt64(F);
+	}
+
+	template<typename T>
 	static FORCEINLINE int32 CeilToInt(T F)
 	{
 		return UE4::SSE::CeilToInt(F);

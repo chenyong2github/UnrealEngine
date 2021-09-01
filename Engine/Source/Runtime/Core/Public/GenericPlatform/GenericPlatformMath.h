@@ -241,7 +241,13 @@ struct FGenericPlatformMath
 		I -= ((float)I > F);
 		return I;
 	}
-
+	static FORCEINLINE int64 FloorToInt64(double F)
+	{
+		int64 I = (int64)F;
+		I -= ((double)I > F);
+		return I;
+	}
+	
 	/**
 	* Converts a float to the nearest less or equal integer.
 	* @param F		Floating point value to convert
