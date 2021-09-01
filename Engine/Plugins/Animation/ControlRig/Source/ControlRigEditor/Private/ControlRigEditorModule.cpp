@@ -71,6 +71,7 @@
 #include "ControlRigCompilerDetails.h"
 #include "ControlRigDrawingDetails.h"
 #include "ControlRigGraphDetails.h"
+#include "ControlRigLocalVariableDetails.h"
 #include "ControlRigInfluenceMapDetails.h"
 #include "Animation/AnimSequence.h"
 #include "Editor/SControlRigProfilingView.h"
@@ -235,6 +236,10 @@ void FControlRigEditorModule::StartupModule()
 	PropertiesToUnregisterOnShutdown.Add(FRigNullElement::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigNullElementDetails::MakeInstance));
 
+	PropertiesToUnregisterOnShutdown.Add(FRigVMGraphVariableDescription::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomPropertyTypeLayout(PropertiesToUnregisterOnShutdown.Last(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FRigVMLocalVariableDetails::MakeInstance));
+
+
 	// Register asset tools
 	auto RegisterAssetTypeAction = [this](const TSharedRef<IAssetTypeActions>& InAssetTypeAction)
 	{
@@ -383,6 +388,7 @@ void FControlRigEditorModule::ShutdownModule()
 		if (BlueprintEditorModule)
 		{
 			BlueprintEditorModule->UnregisterVariableCustomization(FProperty::StaticClass());
+			BlueprintEditorModule->UnregisterLocalVariableCustomization(FProperty::StaticClass());
 			BlueprintEditorModule->UnregisterGraphCustomization(GetDefault<UControlRigGraphSchema>());
 		}
 	}

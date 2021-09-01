@@ -66,7 +66,7 @@
 #include "EdGraphNode_Comment.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "SNodePanel.h"
-#include "Kismet/Private/SMyBlueprint.h"
+#include "SMyBlueprint.h"
 #include "Kismet/Private/SBlueprintEditorSelectedDebugObjectWidget.h"
 #include "Exporters/Exporter.h"
 #include "UnrealExporter.h"
@@ -1330,6 +1330,11 @@ public:
 
 void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 {
+	SetDetailObjects(InObjects, true);
+}
+
+void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool bChangeUISelectionState)
+{
 	if(bSuspendDetailsPanelRefresh)
 	{
 		return;
@@ -1380,7 +1385,7 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects)
 	}
 #endif
 
-	ClearDetailObject();
+	ClearDetailObject(bChangeUISelectionState);
 
 	if (InObjects.Num() == 1)
 	{
@@ -1653,7 +1658,7 @@ bool FControlRigEditor::DetailViewShowsRigUnit(URigVMNode* InNode) const
 	return false;
 }
 
-void FControlRigEditor::ClearDetailObject()
+void FControlRigEditor::ClearDetailObject(bool bChangeUISelectionState)
 {
 	if(bSuspendDetailsPanelRefresh)
 	{
@@ -1675,7 +1680,10 @@ void FControlRigEditor::ClearDetailObject()
 	Inspector->ShowDetailsForObjects(TArray<UObject*>());
 	Inspector->ShowSingleStruct(TSharedPtr<FStructOnScope>());
 
-	SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
+	if (bChangeUISelectionState)
+	{
+		SetUISelectionState(FBlueprintEditor::SelectionState_Graph);
+	}
 }
 
 
@@ -2045,7 +2053,9 @@ void FControlRigEditor::OnAddNewLocalVariable()
 		return;
 	}
 
-	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(TEXT("NewLocalVar"), TEXT("bool"), nullptr, TEXT("0"), true, true);
+	FRigVMGraphVariableDescription LastTypeVar;
+	LastTypeVar.ChangeType(MyBlueprintWidget->GetLastPinTypeUsed());
+	FRigVMGraphVariableDescription NewVar = GetFocusedController()->AddLocalVariable(TEXT("NewLocalVar"), LastTypeVar.CPPType, LastTypeVar.CPPTypeObject, LastTypeVar.DefaultValue, true, true);
 	if(NewVar.Name.IsNone())
 	{
 		LogSimpleMessage( LOCTEXT("AddLocalVariable_Error", "Adding new local variable failed.") );
@@ -4425,8 +4435,7 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			ControlRigBP->MarkPackageDirty();
 		}
 	}
-	
-	if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigUnit::StaticStruct()))
+	else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigUnit::StaticStruct()))
 	{
 		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
 		
@@ -4445,6 +4454,55 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			FString PinPath = FString::Printf(TEXT("%s.%s"), *Node->GetName(), *RootPinName.ToString());
 			GetFocusedController()->SetPinDefaultValue(PinPath, DefaultValue, true, true, false, true);
 		}
+	}
+	else if(InWrapperObject->GetWrappedStruct()->IsChildOf(FRigVMGraphVariableDescription::StaticStruct()))
+	{
+		check(InWrapperObject->GetWrappedStruct() == WrapperObjects[0]->GetWrappedStruct());
+		check(PropertyPath.RemoveFromStart(StoredStructString));
+		
+		FRigVMGraphVariableDescription* VariableDescription = InWrapperObject->GetContent<FRigVMGraphVariableDescription>();
+		URigVMGraph* Graph = CastChecked<URigVMGraph>(InWrapperObject->GetOuter());
+		URigVMController* Controller = ControlRigBP->GetController(Graph);
+		if (PropertyPath == TEXT("Name") && MyBlueprintWidget.IsValid())
+		{
+			if (FEdGraphSchemaAction_BlueprintVariableBase* VariableAcion = MyBlueprintWidget->SelectionAsBlueprintVariable())
+			{
+				const FName OldVariableName = VariableAcion->GetVariableName();
+				if (!OldVariableName.IsNone())
+				{
+					for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+					{
+						if (Variable.Name == OldVariableName)
+						{
+							Controller->RenameLocalVariable(OldVariableName, VariableDescription->Name);
+						}
+					}
+				}
+			}
+			RefreshMyBlueprint();	
+		}
+		else if (PropertyPath == TEXT("CPPType") || PropertyPath == TEXT("CPPTypeObject"))
+		{			
+			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+			{
+				if (Variable.Name == VariableDescription->Name)
+				{
+					Controller->SetLocalVariableType(Variable.Name, VariableDescription->CPPType, VariableDescription->CPPTypeObject);
+				}
+			}
+		}
+		else if (PropertyPath == TEXT("DefaultValue"))
+		{			
+			for (FRigVMGraphVariableDescription& Variable : Graph->GetLocalVariables())
+			{
+				if (Variable.Name == VariableDescription->Name)
+				{
+					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription->DefaultValue);
+				}
+			}
+		}
+		
+		
 	}
 }
 
@@ -4530,6 +4588,31 @@ void FControlRigEditor::UpdateDefaultValueForVariable(FBPVariableDescription& In
 			}
 		}
 	}
+}
+
+bool FControlRigEditor::SelectLocalVariable(const UEdGraph* Graph, const FName& VariableName)
+{
+	if (const UControlRigGraph* ControlRigGraph = Cast<UControlRigGraph>(Graph))
+	{
+		if (URigVMGraph* RigVMGraph = ControlRigGraph->GetModel())
+		{
+			for (FRigVMGraphVariableDescription& Variable : RigVMGraph->GetLocalVariables())
+			{
+				if (Variable.Name == VariableName)
+				{
+					UDetailsViewWrapperObject* WrapperObject = UDetailsViewWrapperObject::MakeInstance(
+						Variable.StaticStruct(), (uint8*)&Variable, RigVMGraph);
+					WrapperObject->GetWrappedPropertyChangedChainEvent().AddSP(this, &FControlRigEditor::OnWrappedPropertyChangedChainEvent);
+					WrapperObject->AddToRoot();
+
+					TArray<UObject*> Objects = {WrapperObject};
+					SetDetailObjects(Objects, false);
+					return true;
+				}
+			}
+		}
+	}
+	return false;
 }
 
 void FControlRigEditor::OnCreateComment()

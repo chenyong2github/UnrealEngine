@@ -1891,6 +1891,36 @@ bool FRigVMChangeLocalVariableTypeAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
+FRigVMChangeLocalVariableDefaultValueAction::FRigVMChangeLocalVariableDefaultValueAction()
+	: LocalVariable()
+	, DefaultValue()
+{
+}
+
+FRigVMChangeLocalVariableDefaultValueAction::FRigVMChangeLocalVariableDefaultValueAction(
+	const FRigVMGraphVariableDescription& InLocalVariable, const FString& InDefaultValue)
+		: LocalVariable(InLocalVariable), DefaultValue(InDefaultValue)
+{
+}
+
+bool FRigVMChangeLocalVariableDefaultValueAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->SetLocalVariableDefaultValue(LocalVariable.Name, LocalVariable.DefaultValue, false);
+}
+
+bool FRigVMChangeLocalVariableDefaultValueAction::Redo(URigVMController* InController)
+{
+	if (!InController->SetLocalVariableDefaultValue(LocalVariable.Name, DefaultValue, false))
+	{
+		return false;		
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
 FRigVMAddArrayNodeAction::FRigVMAddArrayNodeAction()
 	: OpCode(ERigVMOpCode::Invalid)
 	, CPPType()

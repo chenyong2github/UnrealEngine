@@ -26,6 +26,9 @@ class FSubobjectEditorTreeNode;
 /** Delegate used to customize variable display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetVariableCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
 
+/** Delegate used to customize local variable display */
+DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetLocalVariableCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
+
 /** Delegate used to customize graph display */
 DECLARE_DELEGATE_RetVal_OneParam(TSharedPtr<IDetailCustomization>, FOnGetGraphCustomizationInstance, TSharedPtr<IBlueprintEditor> /*BlueprintEditor*/);
 
@@ -215,6 +218,19 @@ public:
 	virtual void UnregisterVariableCustomization(FFieldClass* InFieldClass);
 
 	/** 
+	* Register a customization for for Blueprint local variables
+	* @param	InFieldClass				The type of the variable to create the customization for
+	* @param	InOnGetLocalVariableCustomization	The delegate used to create customization instances
+	*/
+	virtual void RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization);
+
+	/** 
+	* Unregister a previously registered customization for BP local variables
+	* @param	InFieldClass				The type to create the customization for
+	*/
+	virtual void UnregisterLocalVariableCustomization(FFieldClass* InFieldClass);
+
+	/** 
 	 * Register a customization for for Blueprint graphs
 	 * @param	InGraphSchema				The schema of the graph to create the customization for
 	 * @param	InOnGetDetailCustomization	The delegate used to create customization instances
@@ -278,6 +294,9 @@ private:
 
 	/** Customizations for Blueprint variables */
 	TMap<FFieldClass*, FOnGetVariableCustomizationInstance> VariableCustomizations;
+
+	/** Customizations for Blueprint local variables */
+	TMap<FFieldClass*, FOnGetLocalVariableCustomizationInstance> LocalVariableCustomizations;
 
 	/** Customizations for Blueprint graphs */
 	TMap<const UEdGraphSchema*, FOnGetGraphCustomizationInstance> GraphCustomizations;

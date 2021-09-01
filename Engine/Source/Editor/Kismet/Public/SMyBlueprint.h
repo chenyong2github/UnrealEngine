@@ -55,7 +55,7 @@ public:
 	virtual void RegisterCommands() override;
 };
 
-class SMyBlueprint : public SCompoundWidget
+class KISMET_API SMyBlueprint : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SMyBlueprint ) {}
@@ -168,7 +168,7 @@ private:
 	FReply OnActionDragged(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions, const FPointerEvent& MouseEvent);
 	FReply OnCategoryDragged(const FText& InCategory, const FPointerEvent& MouseEvent);
 	void OnActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions);
-	static void OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAction, TWeakPtr< FBlueprintEditor > InBlueprintEditor, UBlueprint* Blueprint, TSharedRef<SKismetInspector> Inspector);
+	void OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAction, TWeakPtr< FBlueprintEditor > InBlueprintEditor, UBlueprint* Blueprint, TSharedRef<SKismetInspector> Inspector);
 	void OnGlobalActionSelected(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions, ESelectInfo::Type InSelectionType);
 	void OnActionDoubleClicked(const TArray< TSharedPtr<FEdGraphSchemaAction> >& InActions);
 	void ExecuteAction(TSharedPtr<FEdGraphSchemaAction> InAction);

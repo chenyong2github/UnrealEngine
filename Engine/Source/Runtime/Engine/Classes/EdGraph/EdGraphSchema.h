@@ -295,6 +295,9 @@ public:
 		return InType == GetTypeId();
 	}
 
+	// Returns true if the action refers to a member or local variable
+	virtual bool IsAVariable() const { return false; }
+
 private:
 	void UpdateSearchText();
 };

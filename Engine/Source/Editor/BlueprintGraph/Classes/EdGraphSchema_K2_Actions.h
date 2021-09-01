@@ -542,6 +542,7 @@ public:
 	virtual int32 GetReorderIndexInContainer() const override;
 	virtual bool ReorderToBeforeAction(TSharedRef<FEdGraphSchemaAction> OtherAction) override;
 	virtual FEdGraphSchemaActionDefiningObject GetPersistentItemDefiningObject() const override;
+	virtual bool IsAVariable() const { return true; }
 	// End of FEdGraphSchemaAction interface
 
 	UBlueprint* GetSourceBlueprint() const;

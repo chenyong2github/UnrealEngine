@@ -4269,35 +4269,48 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 			{
 				if(URigVMLibraryNode* OuterFunction = OuterLibrary->FindFunctionForNode(Graph->GetTypedOuter<URigVMCollapseNode>()))
 				{
-					TArray<FRigVMExternalVariable> ExternalVariablesWithoutVariableNode;
-					{
-						URigVMGraph* EditedGraph = InNode->GetGraph();
-						TGuardValue<TArray<URigVMNode*>> TemporaryRemoveNodes(EditedGraph->Nodes, TArray<URigVMNode*>());
-						ExternalVariablesWithoutVariableNode = EditedGraph->GetExternalVariables();
-					}
-
 					const FName VariableToRemove = VariableNode->GetVariableName();
-					bool bFoundExternalVariable = false;
-					for(const FRigVMExternalVariable& ExternalVariable : ExternalVariablesWithoutVariableNode)
+					bool bIsLocalVariable = false;
+					for (FRigVMGraphVariableDescription VariableDescription : OuterFunction->GetContainedGraph()->LocalVariables)
 					{
-						if(ExternalVariable.Name == VariableToRemove)
+						if (VariableDescription.Name == VariableToRemove)
 						{
-							bFoundExternalVariable = true;
+							bIsLocalVariable = true;
 							break;
 						}
 					}
 
-					if(!bFoundExternalVariable)
+					if (!bIsLocalVariable)
 					{
-						FRigVMControllerGraphGuard Guard(this, OuterFunction->GetContainedGraph(), false);
-						if(RequestBulkEditDialogDelegate.IsBound())
+						TArray<FRigVMExternalVariable> ExternalVariablesWithoutVariableNode;
 						{
-							FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::RemoveVariable);
-							if(Result.bCanceled)
+							URigVMGraph* EditedGraph = InNode->GetGraph();
+							TGuardValue<TArray<URigVMNode*>> TemporaryRemoveNodes(EditedGraph->Nodes, TArray<URigVMNode*>());
+							ExternalVariablesWithoutVariableNode = EditedGraph->GetExternalVariables();
+						}
+
+						bool bFoundExternalVariable = false;
+						for(const FRigVMExternalVariable& ExternalVariable : ExternalVariablesWithoutVariableNode)
+						{
+							if(ExternalVariable.Name == VariableToRemove)
 							{
-								return false;
+								bFoundExternalVariable = true;
+								break;
 							}
-							bSetupUndoRedo = Result.bSetupUndoRedo;
+						}
+
+						if(!bFoundExternalVariable)
+						{
+							FRigVMControllerGraphGuard Guard(this, OuterFunction->GetContainedGraph(), false);
+							if(RequestBulkEditDialogDelegate.IsBound())
+							{
+								FRigVMController_BulkEditResult Result = RequestBulkEditDialogDelegate.Execute(OuterFunction, ERigVMControllerBulkEditType::RemoveVariable);
+								if(Result.bCanceled)
+								{
+									return false;
+								}
+								bSetupUndoRedo = Result.bSetupUndoRedo;
+							}
 						}
 					}
 				}
@@ -8003,6 +8016,10 @@ bool URigVMController::SetLocalVariableType(const FName& InVariableName, const F
 		CreateDefaultValueForStructIfRequired(ScriptStruct, DefaultValue);
 		LocalVariables[FoundIndex].DefaultValue = DefaultValue;
 	}
+	else
+	{
+		LocalVariables[FoundIndex].DefaultValue = FString();
+	}
 
 	// Change pin types on variable nodes
 	TArray<URigVMNode*> Nodes = Graph->GetNodes();
@@ -8058,6 +8075,79 @@ bool URigVMController::SetLocalVariableTypeFromObjectPath(const FName& InVariabl
 	}
 
 	return SetLocalVariableType(InVariableName, InCPPType, CPPTypeObject, bSetupUndoRedo, bPrintPythonCommand);
+}
+
+bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
+{
+	if (!IsValidGraph())
+	{
+		return false;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	TArray<FRigVMGraphVariableDescription>& LocalVariables = Graph->LocalVariables;
+	int32 FoundIndex = INDEX_NONE;
+	for (int32 Index = 0; Index < LocalVariables.Num(); ++Index)
+	{
+		if (LocalVariables[Index].Name == InVariableName)
+		{
+			FoundIndex = Index;
+			break;
+		}
+	}
+
+	if (FoundIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (bSetupUndoRedo)
+	{
+		FRigVMInverseAction InverseAction;
+		InverseAction.Title = FString::Printf(TEXT("Change Local Variable %s default value"), *InVariableName.ToString());
+
+		ActionStack->BeginAction(InverseAction);
+		ActionStack->AddAction(FRigVMChangeLocalVariableDefaultValueAction(LocalVariables[FoundIndex], InDefaultValue));
+		ActionStack->EndAction(InverseAction);
+	}	
+	
+	LocalVariables[FoundIndex].DefaultValue = InDefaultValue;
+	
+	// Refresh variable nodes to reflect change in default value
+	TArray<URigVMNode*> Nodes = Graph->GetNodes();
+	for (URigVMNode* Node : Nodes)
+	{
+		if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(Node))
+		{
+			if (URigVMPin* VariablePin = VariableNode->FindPin(URigVMVariableNode::VariableName))
+			{
+				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
+				{
+					VariableNode->FindPin(URigVMVariableNode::ValueName)->DefaultValue = InDefaultValue;
+					Notify(ERigVMGraphNotifType::VariableRenamed, VariableNode);
+					continue;
+				}
+			}
+		}
+	}
+
+	if (!bSuspendNotifications)
+	{
+		Graph->MarkPackageDirty();
+	}
+
+	if (bPrintPythonCommand)
+	{
+		RigVMPythonUtils::Print(GetGraph()->GetRootGraph()->GetOuter()->GetFName().ToString(), 
+			FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_local_variable_default_value('%s', '%s')"),
+				*GetGraph()->GetGraphName(),
+				*InVariableName.ToString(),
+				*InDefaultValue));
+	}
+	
+	return true;
 }
 
 TArray<TSoftObjectPtr<URigVMFunctionReferenceNode>> URigVMController::GetAffectedReferences(ERigVMControllerBulkEditType InEditType, bool bForceLoad, bool bNotify)

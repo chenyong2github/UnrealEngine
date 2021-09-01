@@ -370,6 +370,16 @@ void FBlueprintEditorModule::UnregisterVariableCustomization(FFieldClass* InFiel
 	VariableCustomizations.Remove(InFieldClass);
 }
 
+void FBlueprintEditorModule::RegisterLocalVariableCustomization(FFieldClass* InFieldClass, FOnGetLocalVariableCustomizationInstance InOnGetLocalVariableCustomization)
+{
+	LocalVariableCustomizations.Add(InFieldClass, InOnGetLocalVariableCustomization);
+}
+
+void FBlueprintEditorModule::UnregisterLocalVariableCustomization(FFieldClass* InFieldClass)
+{
+	LocalVariableCustomizations.Remove(InFieldClass);
+}
+
 void FBlueprintEditorModule::RegisterGraphCustomization(const UEdGraphSchema* InGraphSchema, FOnGetGraphCustomizationInstance InOnGetGraphCustomization)
 {
 	GraphCustomizations.Add(InGraphSchema, InOnGetGraphCustomization);

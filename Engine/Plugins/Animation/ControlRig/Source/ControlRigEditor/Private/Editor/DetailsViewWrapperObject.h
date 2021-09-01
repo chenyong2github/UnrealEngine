@@ -33,7 +33,7 @@ public:
 	template<typename T>
 	void SetContent(const T* InStructMemory)
 	{
-		SetCOntent((const uint8*)InStructMemory, T::StaticStruct()->GetStructureSize());
+		SetContent((const uint8*)InStructMemory, T::StaticStruct()->GetStructureSize());
 	}
 
 	FWrappedPropertyChangedChainEvent& GetWrappedPropertyChangedChainEvent() { return WrappedPropertyChangedChainEvent; }
