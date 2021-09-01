@@ -449,11 +449,16 @@ namespace UnrealBuildTool
 			Element.MinOccurs = 0;
 			Element.MaxOccurs = 1;
 
-			if(Type == typeof(string))
+			if (TryGetNullableStructType(Type, out Type? InnerType))
+			{
+				Type = InnerType;
+			}
+
+			if (Type == typeof(string))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.String).QualifiedName;
 			}
-			else if(Type == typeof(bool) || Type == typeof(bool?))
+			else if(Type == typeof(bool))
 			{
 				Element.SchemaTypeName = XmlSchemaType.GetBuiltInSimpleType(XmlTypeCode.Boolean).QualifiedName;
 			}
@@ -545,7 +550,24 @@ namespace UnrealBuildTool
 				File.WriteAllText(Location.FullName, OutputText);
 			}
 		}
-		
+
+		/// <summary>
+		/// Tests whether a type is a nullable struct, and extracts the inner type if it is
+		/// </summary>
+		static bool TryGetNullableStructType(Type Type, [NotNullWhen(true)] out Type? InnerType)
+		{
+			if (Type.IsGenericType && Type.GetGenericTypeDefinition() == typeof(Nullable<>))
+			{
+				InnerType = Type.GetGenericArguments()[0];
+				return true;
+			}
+			else
+			{
+				InnerType = null;
+				return false;
+			}
+		}
+
 		/// <summary>
 		/// Reads an XML config file and merges it to the given cache
 		/// </summary>
@@ -576,9 +598,13 @@ namespace UnrealBuildTool
 						{
 							// Parse the corresponding value
 							object Value;
-							if(Field.FieldType == typeof(string[]))
+							if (Field.FieldType == typeof(string[]))
 							{
 								Value = KeyElement.ChildNodes.OfType<XmlElement>().Where(x => x.Name == "Item").Select(x => x.InnerText).ToArray();
+							}
+							else if (TryGetNullableStructType(Field.FieldType, out Type? StructType))
+							{
+								Value = ParseValue(StructType, KeyElement.InnerText);
 							}
 							else
 							{
