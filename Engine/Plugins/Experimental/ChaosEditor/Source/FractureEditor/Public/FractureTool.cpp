@@ -179,14 +179,6 @@ void UFractureActionTool::ClearProximity(FGeometryCollection* GeometryCollection
 	}
 }
 
-void UFractureActionTool::GenerateProximityIfNecessary(FGeometryCollection* GeometryCollection)
-{
-	if (!GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
-	{
-		FGeometryCollectionProximityUtility::UpdateProximity(GeometryCollection);
-	}
-}
-
 TArray<FFractureToolContext> UFractureActionTool::GetFractureToolContexts() const
 {
 	TArray<FFractureToolContext> Contexts;

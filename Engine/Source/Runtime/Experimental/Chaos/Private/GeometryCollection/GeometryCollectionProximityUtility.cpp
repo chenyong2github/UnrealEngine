@@ -5,605 +5,283 @@
 #include "Async/ParallelFor.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
-#include "Math/GenericOctreePublic.h"
-#include "Math/GenericOctree.h"
-#include "GeometryCollection/GeometryCollectionClusteringUtility.h"
-
-#include <chrono>
-
-#if WITH_EDITOR
-#include "Misc/ScopedSlowTask.h"
-#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogChaosProximity, Verbose, All);
 
-#define USE_OLD_METHOD 1
-
-struct FProximityTriangle
+FGeometryCollectionProximityUtility::FGeometryCollectionProximityUtility(FGeometryCollection* InCollection)
+	: Collection(InCollection)
 {
-	int32 ArrayIndex;
-	FVector Vertices[3];
-	FVector Normal;
-	FBoxCenterAndExtent BoxCenterAndExtent;
-	FBox Bounds;
-};
-
-/** Semantics for the simple mesh paint octree */
-struct FMeshProximityTriangleOctreeSemantics
-{
-	enum { MaxElementsPerLeaf = 16 };
-	enum { MinInclusiveElementsPerNode = 7 };
-	enum { MaxNodeDepth = 12 };
-
-	typedef TInlineAllocator<MaxElementsPerLeaf> ElementAllocator;
-
-	/**
-	* Get the bounding box of the provided octree element. In this case, the box
-	* is merely the point specified by the element.
-	*
-	* @param	Element	Octree element to get the bounding box for
-	*
-	* @return	Bounding box of the provided octree element
-	*/
-	FORCEINLINE static FBoxCenterAndExtent GetBoundingBox(const FProximityTriangle& Element)
-	{
-		return Element.BoxCenterAndExtent;
-	}
-
-
-	/**
-	* Determine if two octree elements are equal
-	*
-	* @param	A	First octree element to check
-	* @param	B	Second octree element to check
-	*
-	* @return	true if both octree elements are equal, false if they are not
-	*/
-	FORCEINLINE static bool AreElementsEqual(const FProximityTriangle& A, const FProximityTriangle& B)
-	{
-		return (A.ArrayIndex == B.ArrayIndex);
-	}
-
-	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FProximityTriangle& Element, FOctreeElementId2 Id)
-	{
-
-	}
-};
-typedef TOctree2<FProximityTriangle, FMeshProximityTriangleOctreeSemantics> FProximityTriangleOctree;
-
-
-bool FGeometryCollectionProximityUtility::IsPointInsideOfTriangle(const FVector& P, const FVector& Vertex0, const FVector& Vertex1, const FVector& Vertex2, float Threshold)
-{
-	FVector::FReal FaceArea  = 0.5f * FVector::CrossProduct((Vertex1 - Vertex0), (Vertex2 - Vertex0)).SizeSquared();
-	FVector::FReal Face1Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex2 - P)).SizeSquared();
-	FVector::FReal Face2Area = 0.5f * FVector::CrossProduct((Vertex0 - P),(Vertex1 - P)).SizeSquared();
-	FVector::FReal Face3Area = 0.5f * FVector::CrossProduct((Vertex2 - P),(Vertex1 - P)).SizeSquared();
-
-	return (FMath::Abs(Face1Area + Face2Area + Face3Area - FaceArea) < Threshold * Threshold);
+	check(Collection);
+	
+	// We quantize surface normals into 20 uniform bins on a unit sphere surface, ie an icosahedron
+	BinNormals.SetNum(NumBins);
+	
+	BinNormals[0] = FVector3f(0.171535f, -0.793715f, 0.583717f);
+	BinNormals[1] = FVector3f(0.627078f, -0.778267f, 0.034524f);
+	BinNormals[2] = FVector3f(-0.491358f, -0.810104f, 0.319894f);
+	BinNormals[3] = FVector3f(-0.445554f, -0.804788f, -0.392214f);
+	BinNormals[4] = FVector3f(0.245658f, -0.785111f, -0.568669f);
+	BinNormals[5] = FVector3f(0.984880f, -0.161432f, 0.062144f);
+	BinNormals[6] = FVector3f(0.247864f, -0.186425f, 0.950708f);
+	BinNormals[7] = FVector3f(-0.824669f, -0.212942f, 0.523975f);
+	BinNormals[8] = FVector3f(-0.750546f, -0.204339f, -0.628411f);
+	BinNormals[9] = FVector3f(0.367791f, -0.172505f, -0.913787f);
+	BinNormals[10] = -BinNormals[0];
+	BinNormals[11] = -BinNormals[1];
+	BinNormals[12] = -BinNormals[2];
+	BinNormals[13] = -BinNormals[3];
+	BinNormals[14] = -BinNormals[4];
+	BinNormals[15] = -BinNormals[5];
+	BinNormals[16] = -BinNormals[6];
+	BinNormals[17] = -BinNormals[7];
+	BinNormals[18] = -BinNormals[8];
+	BinNormals[19] = -BinNormals[9];
+	
+	NumFaces = Collection->NumElements(FGeometryCollection::FacesGroup);
+	PrepFaceData();
 }
 
-void FGeometryCollectionProximityUtility::UpdateProximity(FGeometryCollection* GeometryCollection)
+void FGeometryCollectionProximityUtility::UpdateProximity()
 {
-	check(GeometryCollection);
-	if (!GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	/*
+	*	For each face, we generate the surface normal and put the normal into a set of bins that discretize the surface
+	*	of the unit sphere. We know that any face can only contact other faces with opposite surface normal, which 
+	*	means that we need only compare a face with the bin of faces on the antipode of the sphere. We determine contact first
+	*	by testing if the normal is opposite, then if the faces are coplanar, then if the 2D triangles overlap.
+	*	Once we have face pairs, we can extend this to geometry indices and form the proximity structure
+	*	which is a map from geometry to geometry, one-to-many.
+	*/
+
+	BinFaces();
+	FindContactingFaces();
+	ExtendFaceProximityToGeometry();
+}
+
+
+void FGeometryCollectionProximityUtility::PrepFaceData()
+{	
+	GenerateFaceToGeometry();
+	TransformVertices();
+	GenerateSurfaceNormals();
+}
+
+void FGeometryCollectionProximityUtility::BinFaces()
+{
+	// We estimate that each bin will contain approximately 1/20th of the faces -- we double that to provide a decent buffer
+	Bins.SetNum(NumBins);
+	for (int32 BinIdx = 0; BinIdx < NumBins; ++BinIdx)
 	{
-		// Proximity attribute
-		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
-		GeometryCollection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
+		Bins[BinIdx].Reserve(2 * (NumFaces/NumBins));
 	}
 
-	if (!GeometryCollection->HasGroup(FGeometryCollection::BreakingGroup))
+	for (int32 FaceIdx = 0; FaceIdx < NumFaces; ++FaceIdx)
 	{
-		// Breaking Group
-		GeometryCollection->AddAttribute<int32>("BreakingFaceIndex", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<int32>("BreakingSourceTransformIndex", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<int32>("BreakingTargetTransformIndex", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<FVector3f>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<FVector3f>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
-		GeometryCollection->AddAttribute<float>("BreakingRegionRadius", FGeometryCollection::BreakingGroup);
-	}
-
-	auto start = std::chrono::high_resolution_clock::now();
-
-	const TManagedArray<FVector3f>& VertexArray = GeometryCollection->Vertex;
-	const TManagedArray<int32>& BoneMapArray = GeometryCollection->BoneMap;
-	const TManagedArray<FIntVector>& IndicesArray = GeometryCollection->Indices;
-	const TManagedArray<int32>& TransformIndexArray = GeometryCollection->TransformIndex;
-
-	// Breaking Data
-	TManagedArray<TSet<int32>>& ProximityArray = GeometryCollection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
-	TManagedArray<int32>& BreakingFaceIndexArray = GeometryCollection->GetAttribute<int32>("BreakingFaceIndex", FGeometryCollection::BreakingGroup);
-	TManagedArray<int32>& BreakingSourceTransformIndexArray = GeometryCollection->GetAttribute<int32>("BreakingSourceTransformIndex", FGeometryCollection::BreakingGroup);
-	TManagedArray<int32>& BreakingTargetTransformIndexArray = GeometryCollection->GetAttribute<int32>("BreakingTargetTransformIndex", FGeometryCollection::BreakingGroup);
-	TManagedArray<FVector3f>& BreakingRegionCentroidArray = GeometryCollection->GetAttribute<FVector3f>("BreakingRegionCentroid", FGeometryCollection::BreakingGroup);
-	TManagedArray<FVector3f>& BreakingRegionNormalArray = GeometryCollection->GetAttribute<FVector3f>("BreakingRegionNormal", FGeometryCollection::BreakingGroup);
-	TManagedArray<float>& BreakingRegionRadiusArray = GeometryCollection->GetAttribute<float>("BreakingRegionRadius", FGeometryCollection::BreakingGroup);
-
-	float DistanceThreshold = 1e-2f;
-	float DistanceThresholdSquared = DistanceThreshold * DistanceThreshold;
-	TArray<FFaceTransformData> FaceTransformDataArray;
-	FaceTransformDataArray.Empty();
-
-
-	//
-	// Create a FaceTransformDataArray for fast <FaceIndex, TransformIndex. lookup
-	// It only contains faces for GEOMETRY && RIGID, ie. not embedded geometry and not clustered
-	//
-	int32 NumFaces = GeometryCollection->NumElements(FGeometryCollection::FacesGroup);
-	for (int32 IdxFace = 0; IdxFace < NumFaces; ++IdxFace)
-	{
-		int32 TransformIndex = BoneMapArray[IndicesArray[IdxFace][0]];
-
-		//		UE_LOG(LogChaosProximity, Log, TEXT("IdxFace = %d, TransformIndex = %d>"), IdxFace, TransformIndex);
-
-		if (GeometryCollection->IsGeometry(TransformIndex) && GeometryCollection->IsRigid(TransformIndex))
-		{
-			//			UE_LOG(LogChaosProximity, Log, TEXT("ADDING TO FACETRANSFORMDATAARRAY"));
-
-			FFaceTransformData FaceData{ IdxFace,
-				TransformIndex
-			};
-			FaceTransformDataArray.Add(FaceData);
+		if (SurfaceNormals[FaceIdx].IsUnit())
+		{ 
+			int32 BestFitBin = FindBestBin(SurfaceNormals[FaceIdx]);
+			Bins[BestFitBin].Add(FaceIdx);
 		}
-		//		else
-		//		{
-		//			UE_LOG(LogChaosProximity, Log, TEXT("NOT VALID"));
-		//		}
 	}
-	NumFaces = FaceTransformDataArray.Num();
+}
 
-#if WITH_EDITOR
-	// Create progress indicator dialog
-	static const FText SlowTaskText = NSLOCTEXT("ProximityUpdate", "UpdatingProximityBreakingText", "Updating proximity & breaking data...");
+int32 FGeometryCollectionProximityUtility::FindBestBin(const FVector3f& SurfaceNormal) const
+{
+	// We select the bin with the highest alignment with the surface normal
+	float BestAlignment = -1.0;
+	int32 BestBin = INDEX_NONE;
 
-	const int32 UnitProgressOutOfLoop = FMath::Max(1, (NumFaces / 50));  // One progress frame is equivalent to a minimum of 2% of the loop progress
-	const int32 NumProgressOutOfLoop = 5 * UnitProgressOutOfLoop;  // 5 tasks out of loop
-	const int32 NumProgressInLoop = NumFaces;
-
-	FScopedSlowTask SlowTask(float(NumProgressOutOfLoop + NumProgressInLoop), SlowTaskText);
-	SlowTask.MakeDialog();
-
-	// Declare progress shortcut lambdas
-	auto EnterProgressFrame = [&SlowTask, UnitProgressOutOfLoop]()
+	for (int32 BinIdx = 0; BinIdx < NumBins; ++BinIdx)
 	{
-		SlowTask.EnterProgressFrame(float(UnitProgressOutOfLoop));
-	};
-	int32 PrevLoopCounter = 0;
-	auto EnterProgressFrameParallelLoop = [&SlowTask, &PrevLoopCounter](int32 LoopCounter)
-	{
-		if (IsInGameThread())
+		float Alignment = FVector3f::DotProduct(SurfaceNormal, BinNormals[BinIdx]);
+		if (Alignment > BestAlignment)
 		{
-			SlowTask.EnterProgressFrame(float(LoopCounter - PrevLoopCounter));
-			PrevLoopCounter = LoopCounter;
+			BestAlignment = Alignment;
+			BestBin = BinIdx;
 		}
-	};
-#else
-	auto EnterProgressFrame = []() {};
-	auto EnterProgressFrameParallelLoop = [](int32 /*LoopCounter*/) {};
-#endif
-
-	// Build reverse map between TransformIdx and GeometryGroup index
-	// #todo We already have this? TransformToGeometryIndex
-	EnterProgressFrame();
-	TMap<int32, int32> GeometryGroupIndexMap;
-	int32 NumGeometries = GeometryCollection->NumElements(FGeometryCollection::GeometryGroup);
-	for (int32 Idx = 0; Idx < NumGeometries; ++Idx)
-	{
-		GeometryGroupIndexMap.Add(TransformIndexArray[Idx], Idx);
 	}
 
-	// Transform vertices into world space
-	EnterProgressFrame();
+	return BestBin;
+}
+
+void FGeometryCollectionProximityUtility::FindContactingFaces()
+{
+	FaceContacts.SetNum(NumFaces);
+	
+	// The bin hemispheres are symmetrical so we only need to iterate half of them.
+	// We are comparing antipodal bins.
+	ParallelFor((NumBins / 2), [this](int32 BinIdx)
+		{ 
+			FindContactPairs(BinIdx, (NumBins/2) + BinIdx); 
+		});
+}
+
+void FGeometryCollectionProximityUtility::FindContactPairs(int32 Zenith, int32 Nadir)
+{
+	for (int32 ZenithIdx : Bins[Zenith])
+	{
+		for (int32 NadirIdx : Bins[Nadir])
+		{
+			// Are the faces parallel?
+			if (AreNormalsOpposite(SurfaceNormals[ZenithIdx], SurfaceNormals[NadirIdx]))
+			{
+				// Are faces co-planar?
+				if (AreFacesCoPlanar(ZenithIdx, NadirIdx))
+				{
+					// Do triangles overlap?
+					if (DoFacesOverlap(ZenithIdx, NadirIdx))
+					{
+						// Add contacts to both faces
+						FaceContacts[ZenithIdx].Add(NadirIdx);
+						FaceContacts[NadirIdx].Add(ZenithIdx);
+					}
+				}
+			}
+		}
+	}
+}
+
+bool FGeometryCollectionProximityUtility::AreNormalsOpposite(const FVector3f& Normal0, const FVector3f& Normal1) const
+{
+	return FVector3f::DotProduct(Normal0, Normal1) < (-1.0f + KINDA_SMALL_NUMBER);
+}
+
+bool FGeometryCollectionProximityUtility::AreFacesCoPlanar(int32 Idx0, int32 Idx1) const
+{
+	// Assumes that faces have already been determined to be parallel.
+
+	const TManagedArray<FIntVector>& Indices = Collection->Indices;
+
+	FVector3f SamplePoint = TransformedVertices[Indices[Idx0].X];
+	FVector3f PlaneOrigin = TransformedVertices[Indices[Idx1].X];
+	FVector3f PlaneNormal = SurfaceNormals[Idx1];
+
+	return FMath::Abs(FVector3f::DotProduct((SamplePoint - PlaneOrigin), PlaneNormal)) < KINDA_SMALL_NUMBER;
+}
+
+bool FGeometryCollectionProximityUtility::DoFacesOverlap(int32 Idx0, int32 Idx1) const
+{
+	// Assumes that the faces are coplanar
+
+	const TManagedArray<FIntVector>& Indices = Collection->Indices;
+	
+	// Project the first triangle into its normal plane
+	FVector3f Basis0 = TransformedVertices[Indices[Idx0].Y] - TransformedVertices[Indices[Idx0].X];
+	Basis0.Normalize();
+	FVector3f Basis1 = FVector3f::CrossProduct(SurfaceNormals[Idx0], Basis0);
+	Basis1.Normalize();
+	
+	TStaticArray<FVector2D,3> T0; 
+	// T0[0] is the origin of the system
+	T0[0] = FVector2D(0.f, 0.f);
+	T0[1] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y], Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y], Basis1));
+	T0[2] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z], Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z], Basis1));
+
+	// Project the second triangle into these coordinates. We reverse the winding order to flip the normal.
+	FVector3f Point0 = TransformedVertices[Indices[Idx1].Z] - TransformedVertices[Indices[Idx0].Z];
+	FVector3f Point1 = TransformedVertices[Indices[Idx1].Y] - TransformedVertices[Indices[Idx0].Y];
+	FVector3f Point2 = TransformedVertices[Indices[Idx1].X] - TransformedVertices[Indices[Idx0].X];
+	TStaticArray<FVector2D,3> T1;
+	T1[0] = FVector2D(FVector3f::DotProduct(Point0, Basis0), FVector3f::DotProduct(Point0, Basis1));
+	T1[1] = FVector2D(FVector3f::DotProduct(Point1, Basis0), FVector3f::DotProduct(Point1, Basis1));
+	T1[2] = FVector2D(FVector3f::DotProduct(Point2, Basis0), FVector3f::DotProduct(Point2, Basis1));
+
+	return TrianglesIntersect(T0, T1);
+}
+
+bool FGeometryCollectionProximityUtility::TrianglesIntersect(const TStaticArray<FVector2D,3>& T0, const TStaticArray<FVector2D,3>& T1)
+{
+	// Test if one of the triangles has a side with all of the other triangle's points on the outside.
+	float Normal0 = (T0[1].X - T0[0].X) * (T0[2].Y - T0[0].Y) - (T0[1].Y - T0[0].Y) * (T0[2].X - T0[0].X);
+	float Normal1 = (T1[1].X - T1[0].X) * (T1[2].Y - T1[0].Y) - (T1[1].Y - T1[0].Y) * (T1[2].X - T1[0].X);
+
+	return !(Cross(T1, T0[0], T0[1], Normal0) ||
+		Cross(T1, T0[1], T0[2], Normal0) ||
+		Cross(T1, T0[2], T0[0], Normal0) ||
+		Cross(T0, T1[0], T1[1], Normal1) ||
+		Cross(T0, T1[1], T1[2], Normal1) ||
+		Cross(T0, T1[1], T1[0], Normal1));
+}
+
+bool FGeometryCollectionProximityUtility::Cross(const TStaticArray<FVector2D,3>& Points, const FVector2D& B, const FVector2D& C, float Normal)
+{
+	float CyBy = C.Y - B.Y;
+	float CxBx = C.X - B.X;
+	const FVector2D& Pa = Points[0];
+	const FVector2D& Pb = Points[1];
+	const FVector2D& Pc = Points[2];
+
+	return !(
+		(((Pa.X - B.X) * CyBy - (Pa.Y - B.Y) * CxBx) * Normal < 0) ||
+		(((Pb.X - B.X) * CyBy - (Pb.Y - B.Y) * CxBx) * Normal < 0) ||
+		(((Pc.X - B.X) * CyBy - (Pc.Y - B.Y) * CxBx) * Normal < 0));
+}
+
+void FGeometryCollectionProximityUtility::GenerateSurfaceNormals()
+{
+	// Generate surface normal for each face
+	SurfaceNormals.SetNum(NumFaces);
+	ParallelFor(NumFaces, [this](int32 FaceIdx)
+		{
+			const TManagedArray<FIntVector>& Indices = Collection->Indices;
+
+			FVector3f Edge0 = (TransformedVertices[Indices[FaceIdx].X] - TransformedVertices[Indices[FaceIdx].Y]);
+			FVector3f Edge1 = (TransformedVertices[Indices[FaceIdx].Z] - TransformedVertices[Indices[FaceIdx].Y]);
+			SurfaceNormals[FaceIdx] = FVector3f::CrossProduct(Edge0, Edge1);
+			SurfaceNormals[FaceIdx].Normalize();
+		});
+}
+
+void FGeometryCollectionProximityUtility::GenerateFaceToGeometry()
+{
+	// Create a map from face back to geometry
+	const TManagedArray<int32>& FaceStart = Collection->FaceStart;
+	const TManagedArray<int32>& FaceCount = Collection->FaceCount;
+
+	FaceToGeometry.Init(INDEX_NONE, NumFaces);
+	for (int32 GeometryIdx = 0; GeometryIdx < Collection->NumElements(FGeometryCollection::GeometryGroup); ++GeometryIdx)
+	{
+		for (int32 FaceOffset = 0; FaceOffset < FaceCount[GeometryIdx]; ++FaceOffset)
+		{
+			int32 FaceIdx = FaceStart[GeometryIdx] + FaceOffset;
+			FaceToGeometry[FaceIdx] = GeometryIdx;
+		}
+	}
+}
+
+void FGeometryCollectionProximityUtility::TransformVertices()
+{
+	TransformedVertices.SetNum(Collection->NumElements(FGeometryCollection::VerticesGroup));
+
 	TArray<FTransform> GlobalTransformArray;
-	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
-
-	TArray<FVector> VertexInWorldArray;
-	int32 NumVertices = GeometryCollection->NumElements(FGeometryCollection::VerticesGroup);
-	VertexInWorldArray.SetNum(NumVertices);
-
-	FBox WorldBounds;
-	WorldBounds.IsValid = false;
-
-	for (int32 IdxVertex = 0; IdxVertex < NumVertices; ++IdxVertex)
-	{
-		FTransform Transform = GlobalTransformArray[BoneMapArray[IdxVertex]];
-		FVector VertexInWorld = Transform.TransformPosition(VertexArray[IdxVertex]);
-
-		VertexInWorldArray[IdxVertex] = VertexInWorld;
-		WorldBounds += VertexInWorld;
-	}
-
-	// Make an Octree
-	EnterProgressFrame();
-	TUniquePtr<FProximityTriangleOctree> MeshTriOctree = MakeUnique<FProximityTriangleOctree>(WorldBounds.GetCenter(), WorldBounds.GetExtent().GetMax());
-
-	for (int32 ii = 0; ii < FaceTransformDataArray.Num(); ++ii)
-	{
-		auto& FaceTransformDataRef = FaceTransformDataArray[ii];
-		int32 TriIndex = FaceTransformDataRef.FaceIdx;
-		// Grab the vertex indices and points for this triangle
-		FProximityTriangle MeshTri;
-
-		MeshTri.Vertices[0] = VertexInWorldArray[IndicesArray[TriIndex][0]];
-		MeshTri.Vertices[1] = VertexInWorldArray[IndicesArray[TriIndex][1]];
-		MeshTri.Vertices[2] = VertexInWorldArray[IndicesArray[TriIndex][2]];
-		MeshTri.Normal = FVector::CrossProduct(MeshTri.Vertices[1] - MeshTri.Vertices[0], MeshTri.Vertices[2] - MeshTri.Vertices[0]).GetSafeNormal();
-		MeshTri.ArrayIndex = ii;
-
-		FBox &TriBox = MeshTri.Bounds;
-		TriBox.Min.X = FMath::Min3(MeshTri.Vertices[0].X, MeshTri.Vertices[1].X, MeshTri.Vertices[2].X);
-		TriBox.Min.Y = FMath::Min3(MeshTri.Vertices[0].Y, MeshTri.Vertices[1].Y, MeshTri.Vertices[2].Y);
-		TriBox.Min.Z = FMath::Min3(MeshTri.Vertices[0].Z, MeshTri.Vertices[1].Z, MeshTri.Vertices[2].Z);
-
-		TriBox.Max.X = FMath::Max3(MeshTri.Vertices[0].X, MeshTri.Vertices[1].X, MeshTri.Vertices[2].X);
-		TriBox.Max.Y = FMath::Max3(MeshTri.Vertices[0].Y, MeshTri.Vertices[1].Y, MeshTri.Vertices[2].Y);
-		TriBox.Max.Z = FMath::Max3(MeshTri.Vertices[0].Z, MeshTri.Vertices[1].Z, MeshTri.Vertices[2].Z);
-
-		FaceTransformDataRef.Bounds = TriBox;
-
-		MeshTri.BoxCenterAndExtent = FBoxCenterAndExtent(TriBox);
-		MeshTriOctree->AddElement(MeshTri);
-	}
-
-	FCriticalSection Mutex;
-	TSet<FOverlappingFacePair> OverlappingFacePairSet;
-
-	ParallelFor(FaceTransformDataArray.Num(), [&](int32 FaceTransformArrayIdx) {
-		EnterProgressFrameParallelLoop(FaceTransformArrayIdx);
-
-		const auto& FaceTransformDataRef = FaceTransformDataArray[FaceTransformArrayIdx];
-		TSet<FOverlappingFacePair> LocalOverlappingFacePairSet;
-		FVertexPair VertexPairArray[9];
-
-		int32 IdxFace = FaceTransformDataRef.FaceIdx;
-
-		VertexPairArray[0].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][0]];
-		VertexPairArray[1].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][0]];
-		VertexPairArray[2].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][0]];
-
-		VertexPairArray[3].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][1]];
-		VertexPairArray[4].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][1]];
-		VertexPairArray[5].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][1]];
-
-		VertexPairArray[6].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][2]];
-		VertexPairArray[7].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][2]];
-		VertexPairArray[8].Vertex1 = VertexInWorldArray[IndicesArray[IdxFace][2]];
-
-		const FBox& ThisFaceBounds = FaceTransformDataRef.Bounds;
-		TArray<FFaceTransformData> OtherFaceTransformDataArray;
-
-		// 	Query the Octree
-		OtherFaceTransformDataArray.Reserve(NumFaces);
-
-		MeshTriOctree->FindElementsWithBoundsTest(ThisFaceBounds, [&OtherFaceTransformDataArray, &FaceTransformDataArray](const FProximityTriangle& OctreePolygon)
+	GeometryCollectionAlgo::GlobalMatrices(Collection->Transform, Collection->Parent, GlobalTransformArray);
+	
+	ParallelFor(Collection->NumElements(FGeometryCollection::VerticesGroup), [this, &GlobalTransformArray](int32 VertIdx)
 		{
-			OtherFaceTransformDataArray.Add(FaceTransformDataArray[OctreePolygon.ArrayIndex]);
+			const TManagedArray<int32>& BoneMap = Collection->BoneMap;
+			const TManagedArray<FVector3f>& Vertex = Collection->Vertex;
+
+			const FTransform& GlobalTransform = GlobalTransformArray[BoneMap[VertIdx]];
+			TransformedVertices[VertIdx] = GlobalTransform.TransformPosition(Vertex[VertIdx]);
 		});
 
-		for (auto& OtherFaceTransformDataRef : OtherFaceTransformDataArray)
-		{
-			int32 IdxOtherFace = OtherFaceTransformDataRef.FaceIdx;
-
-			if (FaceTransformDataRef.TransformIndex != OtherFaceTransformDataRef.TransformIndex)
-			{
-				//
-				// Vertex coincidence test
-				//
-				bool VertexCoincidenceTestFoundOverlappingFaces = false;
-				{
-					VertexPairArray[0].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][0]];
-					VertexPairArray[1].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][1]];
-					VertexPairArray[2].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][2]];
-
-					VertexPairArray[3].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][0]];
-					VertexPairArray[4].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][1]];
-					VertexPairArray[5].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][2]];
-
-					VertexPairArray[6].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][0]];
-					VertexPairArray[7].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][1]];
-					VertexPairArray[8].Vertex2 = VertexInWorldArray[IndicesArray[IdxOtherFace][2]];
-
-					int32 NumCoincideVertices = 0;
-					for (int32 Idx = 0, ni = 9; Idx < ni; ++Idx)
-					{
-						if (VertexPairArray[Idx].DistanceSquared() < DistanceThresholdSquared)
-						{
-							NumCoincideVertices++;
-						}
-					}
-
-					if (NumCoincideVertices >= 3)
-					{
-						VertexCoincidenceTestFoundOverlappingFaces = true;
-
-						if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
-						{
-							LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
-						}
-					}
-				}
-
-				//
-				// FaceN and OtherFaceN are parallel and points of Face are in OtherFace test
-				//
-				if (!VertexCoincidenceTestFoundOverlappingFaces)
-				{
-					FVector Edge1(VertexInWorldArray[IndicesArray[IdxFace][1]] - VertexInWorldArray[IndicesArray[IdxFace][0]]);
-					FVector Edge2(VertexInWorldArray[IndicesArray[IdxFace][2]] - VertexInWorldArray[IndicesArray[IdxFace][0]]);
-					FVector FaceN(Edge1 ^ Edge2);
-
-					FVector OtherEdge1(VertexInWorldArray[IndicesArray[IdxOtherFace][1]] - VertexInWorldArray[IndicesArray[IdxOtherFace][0]]);
-					FVector OtherEdge2(VertexInWorldArray[IndicesArray[IdxOtherFace][2]] - VertexInWorldArray[IndicesArray[IdxOtherFace][0]]);
-					FVector OtherFaceN(OtherEdge1 ^ OtherEdge2);
-
-					if (FVector::Parallel(FaceN, OtherFaceN, 1e-1f))
-					{
-						FVector FaceCenter((VertexInWorldArray[IndicesArray[IdxFace][0]] + VertexInWorldArray[IndicesArray[IdxFace][1]] + VertexInWorldArray[IndicesArray[IdxFace][2]]) / 3.f);
-						FVector OtherFaceCenter = (VertexInWorldArray[IndicesArray[IdxOtherFace][0]] + VertexInWorldArray[IndicesArray[IdxOtherFace][1]] + VertexInWorldArray[IndicesArray[IdxOtherFace][2]]) / 3.f;
-						FVector PointInFace1((VertexInWorldArray[IndicesArray[IdxFace][0]] + FaceCenter) / 2.f);
-						FVector PointInFace2((VertexInWorldArray[IndicesArray[IdxFace][1]] + FaceCenter) / 2.f);
-						FVector PointInFace3((VertexInWorldArray[IndicesArray[IdxFace][2]] + FaceCenter) / 2.f);
-
-						FVector PointInFaceA[3] = { VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]] };
-						FVector PointInFaceB[3] = { VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]] };
-
-						int32 CoincidentVerts = 0;
-						for (int32 ii = 0; ii < 3; ++ii)
-						{
-							for (int32 kk = 0; kk < 3; ++kk)
-							{
-								if ((PointInFaceA[ii] - PointInFaceB[kk]).SizeSquared() < 1e-1)
-								{
-									++CoincidentVerts;
-								}
-							}
-						}
-
-						if (CoincidentVerts > 1)
-						{
-							if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
-							{
-								LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
-							}
-						}
-
-						// Check if points in Face are in OtherFace
-						else if ((FaceCenter - OtherFaceCenter).SizeSquared() < 1e-1)
-						{
-							if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
-							{
-								LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
-							}
-						}
-						else if (IsPointInsideOfTriangle(FaceCenter, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
-							IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
-							IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f) ||
-							IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxOtherFace][0]], VertexInWorldArray[IndicesArray[IdxOtherFace][1]], VertexInWorldArray[IndicesArray[IdxOtherFace][2]], 1e-1f))
-						{
-							if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
-							{
-								LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
-							}
-						}
-						else
-						{
-							PointInFace1 = (VertexInWorldArray[IndicesArray[IdxOtherFace][0]] + OtherFaceCenter) / 2.f;
-							PointInFace2 = (VertexInWorldArray[IndicesArray[IdxOtherFace][1]] + OtherFaceCenter) / 2.f;
-							PointInFace3 = (VertexInWorldArray[IndicesArray[IdxOtherFace][2]] + OtherFaceCenter) / 2.f;
-
-							// Check if points in OtherFace are in Face
-							if (IsPointInsideOfTriangle(OtherFaceCenter, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
-								IsPointInsideOfTriangle(PointInFace1, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
-								IsPointInsideOfTriangle(PointInFace2, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f) ||
-								IsPointInsideOfTriangle(PointInFace3, VertexInWorldArray[IndicesArray[IdxFace][0]], VertexInWorldArray[IndicesArray[IdxFace][1]], VertexInWorldArray[IndicesArray[IdxFace][2]], 1e-1f))
-							{
-								if (!LocalOverlappingFacePairSet.Contains(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) }))
-								{
-									LocalOverlappingFacePairSet.Add(FOverlappingFacePair{ FMath::Min(IdxFace, IdxOtherFace), FMath::Max(IdxFace, IdxOtherFace) });
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		Mutex.Lock();
-		OverlappingFacePairSet.Append(LocalOverlappingFacePairSet);
-		Mutex.Unlock();
-	});
-
-	if (!OverlappingFacePairSet.Num())
-	{
-		return;
-	}
-
-	// Populate Proximity, BreakingFaceIndex, BreakingSourceTransformIndex, BreakingTargetTransformIndex structures
-	EnterProgressFrame();
-	for (int32 IdxGeometry = 0; IdxGeometry < NumGeometries; ++IdxGeometry)
-	{
-		ProximityArray[IdxGeometry].Empty();
-	}
-
-	TArray<int32> AllBreakingFaceIndexArray;
-	TArray<int32> AllBreakingSourceTransformIndexArray;
-	TArray<int32> AllBreakingTargetTransformIndexArray;
-
-	int32 NewArraySize = 2 * OverlappingFacePairSet.Num();
-	AllBreakingFaceIndexArray.SetNum(NewArraySize);
-	AllBreakingSourceTransformIndexArray.SetNum(NewArraySize);
-	AllBreakingTargetTransformIndexArray.SetNum(NewArraySize);
-
-	//
-	// Create the {BreakingSourceTransformIndex, BreakingTargetTransformIndex} <-> FaceIndex data in the
-	// AllBreakingFaceIndexArray, AllBreakingSourceTransformIndexArray, AllBreakingTargetTransformIndexArray arrays
-	// This contains every connected face pairs, a lot of data
-	//
-	int32 IdxBreak = 0;
-	for (auto& OverlappingFacePair : OverlappingFacePairSet)
-	{
-		int32 TransformIndex1 = BoneMapArray[IndicesArray[OverlappingFacePair.FaceIdx1][0]];
-		int32 TransformIndex2 = BoneMapArray[IndicesArray[OverlappingFacePair.FaceIdx2][0]];
-
-		check(GeometryCollection->IsGeometry(TransformIndex1) && !GeometryCollection->IsClustered(TransformIndex1));
-		check(GeometryCollection->IsGeometry(TransformIndex2) && !GeometryCollection->IsClustered(TransformIndex2));
-
-		if (!ProximityArray[GeometryGroupIndexMap[TransformIndex1]].Contains(GeometryGroupIndexMap[TransformIndex2]))
-		{
-			ProximityArray[GeometryGroupIndexMap[TransformIndex1]].Add(GeometryGroupIndexMap[TransformIndex2]);
-		}
-
-		AllBreakingFaceIndexArray[IdxBreak] = OverlappingFacePair.FaceIdx1;
-		AllBreakingSourceTransformIndexArray[IdxBreak] = TransformIndex1;
-		AllBreakingTargetTransformIndexArray[IdxBreak] = TransformIndex2;
-		IdxBreak++;
-
-		if (!ProximityArray[GeometryGroupIndexMap[TransformIndex2]].Contains(GeometryGroupIndexMap[TransformIndex1]))
-		{
-			ProximityArray[GeometryGroupIndexMap[TransformIndex2]].Add(GeometryGroupIndexMap[TransformIndex1]);
-		}
-
-		AllBreakingFaceIndexArray[IdxBreak] = OverlappingFacePair.FaceIdx2;
-		AllBreakingSourceTransformIndexArray[IdxBreak] = TransformIndex2;
-		AllBreakingTargetTransformIndexArray[IdxBreak] = TransformIndex1;
-		IdxBreak++;
-	}
-
-	//
-	// Store the data as a MultiMap<{BreakingSourceTransformIndex, BreakingTargetTransformIndex}, FaceIndex>
-	//
-	EnterProgressFrame();
-	TMultiMap<FOverlappingFacePairTransformIndex, int32> FaceByConnectedTransformsMap;
-	FaceByConnectedTransformsMap.Reserve(NumFaces);
-	if (AllBreakingFaceIndexArray.Num())
-	{
-		for (int32 Idx = 0, ni = AllBreakingFaceIndexArray.Num(); Idx < ni; ++Idx)
-		{
-			FaceByConnectedTransformsMap.Add(FOverlappingFacePairTransformIndex{ AllBreakingSourceTransformIndexArray[Idx], AllBreakingTargetTransformIndexArray[Idx] },
-				AllBreakingFaceIndexArray[Idx]);
-		}
-	}
-
-	//
-	// Get all the keys from the MultiMap
-	//
-	TArray<FOverlappingFacePairTransformIndex> FaceByConnectedTransformsMapKeys;
-	FaceByConnectedTransformsMap.GenerateKeyArray(FaceByConnectedTransformsMapKeys);
-
-	//
-	// Delete all the duplicates
-	//
-	TSet<FOverlappingFacePairTransformIndex> FaceByConnectedTransformsMapKeysSet;
-	for (int32 Idx = 0; Idx < FaceByConnectedTransformsMapKeys.Num(); ++Idx)
-	{
-		if (!FaceByConnectedTransformsMapKeysSet.Contains(FaceByConnectedTransformsMapKeys[Idx]))
-		{
-			FaceByConnectedTransformsMapKeysSet.Add(FaceByConnectedTransformsMapKeys[Idx]);
-		}
-	}
-
-	int LastIndex = GeometryCollection->AddElements(FaceByConnectedTransformsMapKeysSet.Num() - BreakingFaceIndexArray.Num(), FGeometryCollection::BreakingGroup);
-
-	//
-	// Get one Face for every {BreakingSourceTransformIndex, BreakingTargetTransformIndex} pair and store the data in
-	// BreakingFaceIndexArray, BreakingSourceTransformIndexArray, BreakingTargetTransformIndexArray
-	//
-	IdxBreak = 0;
-	for (auto& Elem : FaceByConnectedTransformsMapKeysSet)
-	{
-		TArray<int32> FaceIndexArray;
-		FaceByConnectedTransformsMap.MultiFind(Elem, FaceIndexArray);
-
-		// Find the centroid of the region and save it into BreakingRegionCentroidArray
-		FVector3f Centroid = FVector3f(ForceInitToZero);
-		float TotalArea = 0.f;
-		for (int32 LocalIdxFace = 0; LocalIdxFace < FaceIndexArray.Num(); ++LocalIdxFace)
-		{
-			const FVector3f& Vertex0 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][0]];
-			const FVector3f& Vertex1 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][1]];
-			const FVector3f& Vertex2 = VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][2]];
-
-			FVector3f FaceCentroid((Vertex0 + Vertex1 + Vertex2) / 3.f);
-			float FaceArea = 0.5f * ((Vertex1 - Vertex0) ^ (Vertex2 - Vertex0)).Size();
-
-			Centroid = (TotalArea * Centroid + FaceArea * FaceCentroid) / (TotalArea + FaceArea);
-
-			TotalArea += FaceArea;
-		}
-		BreakingRegionCentroidArray[IdxBreak] = Centroid;
-
-		// Find the inner radius of the region and save it into BreakingRegionRadiusArray
-		float RadiusMin = FLT_MAX;
-		float RadiusMax = FLT_MIN;
-
-		TArray<FVector3f> TestPoints;
-		for (int32 LocalIdxFace = 0; LocalIdxFace < FaceIndexArray.Num(); ++LocalIdxFace)
-		{
-			for (int32 Idx = 0; Idx < 3; Idx++)
-			{
-				TestPoints.Add(VertexArray[IndicesArray[FaceIndexArray[LocalIdxFace]][Idx]]);
-			}
-		}
-
-		for (int32 IdxPoint = 0; IdxPoint < TestPoints.Num(); ++IdxPoint)
-		{
-			float Distance = (Centroid - TestPoints[IdxPoint]).Size();
-			if (Distance < RadiusMin)
-			{
-				RadiusMin = Distance;
-			}
-			if (Distance > RadiusMax)
-			{
-				RadiusMax = Distance;
-			}
-		}
-		BreakingRegionRadiusArray[IdxBreak] = RadiusMin;
-
-		// Normal
-		const FVector3f& VertexA = VertexArray[IndicesArray[FaceIndexArray[0]][0]];
-		const FVector3f& VertexB = VertexArray[IndicesArray[FaceIndexArray[0]][1]];
-		const FVector3f& VertexC = VertexArray[IndicesArray[FaceIndexArray[0]][2]];
-		BreakingRegionNormalArray[IdxBreak] = ((VertexA - VertexB) ^ (VertexC - VertexB)).GetSafeNormal();
-
-		// grab the first face from the region and save it into BreakingFaceIndexArray
-		BreakingFaceIndexArray[IdxBreak] = FaceIndexArray[0];
-		BreakingSourceTransformIndexArray[IdxBreak] = Elem.TransformIdx1;
-		BreakingTargetTransformIndexArray[IdxBreak] = Elem.TransformIdx2;
-		IdxBreak++;
-	}
-	auto finish = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed = finish - start;
-	UE_LOG(LogChaosProximity, Log, TEXT("Elapsed Time = %fs>"), elapsed.count());
 }
 
-
-void CollectTopNodeConnections(FGeometryCollection* GeometryCollection, int32 Index, TSet<int32>& OutConnections, int32 OperatingLevel)
+void FGeometryCollectionProximityUtility::ExtendFaceProximityToGeometry()
 {
-	const TManagedArray<int32>& Level = GeometryCollection->GetAttribute<int32>("Level", FGeometryCollection::TransformGroup);
-	if (OperatingLevel < 0)
+	if (!Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
 	{
-		OperatingLevel = Level[Index];
+		Collection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	}
-	
-	const TManagedArray<TSet<int32>>& Children = GeometryCollection->Children;
-	if (GeometryCollection->IsRigid(Index)) // leaf node
-	{
-		const TManagedArray<TSet<int32>>& Proximity = GeometryCollection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
-		const TManagedArray<int32>& GeometryToTransformIndex = GeometryCollection->TransformIndex;
-		const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollection->TransformToGeometryIndex;
 
+	TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
-		for (int32 Neighbor : Proximity[TransformToGeometryIndex[Index]])
-		{
-			int32 NeighborTransformIndex = GeometryToTransformIndex[Neighbor];
-			OutConnections.Add(FGeometryCollectionClusteringUtility::GetParentOfBoneAtSpecifiedLevel(GeometryCollection, NeighborTransformIndex, OperatingLevel));
-		}
-	}
-	else
+	for (int32 FaceIdx = 0; FaceIdx < NumFaces; ++FaceIdx)
 	{
-		for (int32 ChildIndex : Children[Index])
+		TSet<int32>& CurrentContactList = Proximity[FaceToGeometry[FaceIdx]];
+		for (int32 ContactFaceIdx : FaceContacts[FaceIdx])
 		{
-			CollectTopNodeConnections(GeometryCollection, ChildIndex, OutConnections, OperatingLevel);
+			CurrentContactList.Add(FaceToGeometry[ContactFaceIdx]);
 		}
 	}
 }
+

@@ -696,7 +696,8 @@ void FGeometryCollectionCommands::BuildProximityDatabase(const TArray<FString>& 
 
 				if (2 <= RestCollection->GetGeometryCollection().Get()->NumElements(FGeometryCollection::GeometryGroup))
 				{
-					FGeometryCollectionProximityUtility::UpdateProximity(RestCollection->GetGeometryCollection().Get());
+					FGeometryCollectionProximityUtility ProximityUtility(RestCollection->GetGeometryCollection().Get());
+					ProximityUtility.UpdateProximity();
 				}
 			}
 		}

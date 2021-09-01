@@ -8,6 +8,7 @@
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 
 #define LOCTEXT_NAMESPACE "FractureToolConvex"
 
@@ -152,7 +153,8 @@ int32 UFractureToolConvex::ExecuteFracture(const FFractureToolContext& FractureC
 	if (FractureContext.GetGeometryCollection().IsValid())
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
-		GenerateProximityIfNecessary(&Collection);
+		FGeometryCollectionProximityUtility ProximityUtility(&Collection);
+		ProximityUtility.UpdateProximity();
 		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(&Collection, ConvexSettings->FractionAllowRemove);
 	}
 

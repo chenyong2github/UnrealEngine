@@ -8,6 +8,7 @@
 
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "Math/NumericLimits.h"
 
@@ -80,7 +81,8 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 
 				if (AutoClusterSettings->bEnforceConnectivity)
 				{
-					GenerateProximityIfNecessary(GeometryCollection);
+					FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
+					ProximityUtility.UpdateProximity();
 					VoronoiPartition.SplitDisconnectedPartitions(GeometryCollection);
 				}
 					

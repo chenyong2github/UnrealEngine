@@ -891,7 +891,8 @@ int32 MergeBones(
 
 	FTransform CellsToWorld = FTransform::Identity;
 
-	FGeometryCollectionProximityUtility::UpdateProximity(&Collection);
+	FGeometryCollectionProximityUtility ProximityUtility(&Collection);
+	ProximityUtility.UpdateProximity();
 	TManagedArray<TSet<int32>>& Proximity = Collection.GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 
 	// local array so we can populate it with all transforms if input was empty

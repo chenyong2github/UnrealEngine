@@ -2353,35 +2353,32 @@ void FScopedColorEdit::SelectBones(GeometryCollection::ESelectionMode SelectionM
 
 		case GeometryCollection::ESelectionMode::Neighbors:
 		{
-			if (ensureMsgf(GeometryCollectionPtr->HasAttribute("Proximity", FGeometryCollection::GeometryGroup),
-				TEXT("Must build breaking group for neighbor based selection")))
+			FGeometryCollectionProximityUtility ProximityUtility(GeometryCollectionPtr.Get());
+			ProximityUtility.UpdateProximity();
+
+			const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
+			const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;
+			const TManagedArray<TSet<int32>>& Proximity = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+
+			const TArray<int32> SelectedBones = GetSelectedBones();
+
+			TArray<int32> NewSelection;
+			for (int32 Bone : SelectedBones)
 			{
-				FGeometryCollectionProximityUtility::UpdateProximity(GeometryCollectionPtr.Get());
-
-				const TManagedArray<int32>& TransformIndex = GeometryCollectionPtr->TransformIndex;
-				const TManagedArray<int32>& TransformToGeometryIndex = GeometryCollectionPtr->TransformToGeometryIndex;
-				const TManagedArray<TSet<int32>>& Proximity = GeometryCollectionPtr->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
-
-				const TArray<int32> SelectedBones = GetSelectedBones();
-
-				TArray<int32> NewSelection;
-				for (int32 Bone : SelectedBones)
+				NewSelection.AddUnique(Bone);
+				int32 GeometryIdx = TransformToGeometryIndex[Bone];
+				if (GeometryIdx != INDEX_NONE)
 				{
-					NewSelection.AddUnique(Bone);
-					int32 GeometryIdx = TransformToGeometryIndex[Bone];
-					if (GeometryIdx != INDEX_NONE)
+					const TSet<int32>& Neighbors = Proximity[GeometryIdx];
+					for (int32 NeighborGeometryIndex : Neighbors)
 					{
-						const TSet<int32>& Neighbors = Proximity[GeometryIdx];
-						for (int32 NeighborGeometryIndex : Neighbors)
-						{
-							NewSelection.AddUnique(TransformIndex[NeighborGeometryIndex]);
-						}
+						NewSelection.AddUnique(TransformIndex[NeighborGeometryIndex]);
 					}
 				}
-
-				ResetBoneSelection();
-				AppendSelectedBones(NewSelection);
 			}
+
+			ResetBoneSelection();
+			AppendSelectedBones(NewSelection);
 		}
 		break;
 

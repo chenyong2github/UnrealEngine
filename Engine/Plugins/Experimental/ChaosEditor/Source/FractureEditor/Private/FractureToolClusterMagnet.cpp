@@ -164,7 +164,8 @@ bool UFractureToolClusterMagnet::CheckPresenceOfNecessaryAttributes(const FGeome
 
 TMap<int32, TSet<int32>> UFractureToolClusterMagnet::InitializeConnectivity(const TSet<int32>& TopNodes, FGeometryCollectionPtr GeometryCollection, int32 OperatingLevel) const
 {
-	FGeometryCollectionProximityUtility::UpdateProximity(GeometryCollection.Get());
+	FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection.Get());
+	ProximityUtility.UpdateProximity();
 
 	TMap<int32, TSet<int32>> ConnectivityMap;
 	for (int32 Index : TopNodes)
