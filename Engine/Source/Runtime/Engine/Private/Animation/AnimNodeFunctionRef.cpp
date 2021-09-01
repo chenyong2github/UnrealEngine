@@ -48,6 +48,23 @@ static void CallFunctionHelper(const FAnimNodeFunctionRef& InFunction, ContextTy
 		InFunction.Call(AnimInstance, &Params);
 	}
 }
+
+void FNodeFunctionCaller::InitialUpdate(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
+{
+	if(InNode.NodeData != nullptr)
+	{
+		const FAnimNodeFunctionRef& Function = InNode.GetInitialUpdateFunction();
+		if(Function.IsValid())
+		{
+			FAnimSubsystemInstance_NodeRelevancy& RelevancySubsystem = CastChecked<UAnimInstance>(InContext.GetAnimInstanceObject())->GetSubsystem<FAnimSubsystemInstance_NodeRelevancy>();
+			const EAnimNodeInitializationStatus Status = RelevancySubsystem.UpdateNodeInitializationStatus(InContext, InNode);
+			if(Status == EAnimNodeInitializationStatus::InitialUpdate)
+			{
+				CallFunctionHelper<FAnimUpdateContext>(Function, InContext, InNode);
+			}
+		}
+	}
+}
 	
 void FNodeFunctionCaller::BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode)
 {

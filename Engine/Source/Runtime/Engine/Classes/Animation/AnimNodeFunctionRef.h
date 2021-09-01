@@ -66,6 +66,9 @@ private:
 	friend struct ::FComponentSpacePoseLink;
 	friend struct ::FAnimInstanceProxy;
 	
+	// Call the InitialUpdate function of this node
+	static void InitialUpdate(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
+
 	// Call the BecomeRelevant function of this node
 	static void BecomeRelevant(const FAnimationUpdateContext& InContext, FAnimNode_Base& InNode);
 

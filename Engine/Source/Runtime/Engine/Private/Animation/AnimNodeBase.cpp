@@ -149,6 +149,11 @@ void FAnimNode_Base::ResetDynamics(ETeleportType InTeleportType)
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
+const FAnimNodeFunctionRef& FAnimNode_Base::GetInitialUpdateFunction() const
+{
+	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, InitialUpdateFunction);
+}
+
 const FAnimNodeFunctionRef& FAnimNode_Base::GetBecomeRelevantFunction() const
 {
 	return GET_ANIM_NODE_DATA(FAnimNodeFunctionRef, BecomeRelevantFunction);
@@ -314,6 +319,7 @@ void FPoseLinkBase::Update(const FAnimationUpdateContext& InContext)
 	{
 		FAnimationUpdateContext LinkContext(InContext.WithNodeId(LinkID));
 		TRACE_SCOPED_ANIM_NODE(LinkContext);
+		UE::Anim::FNodeFunctionCaller::InitialUpdate(LinkContext, *LinkedNode);
 		UE::Anim::FNodeFunctionCaller::BecomeRelevant(LinkContext, *LinkedNode);
 		UE::Anim::FNodeFunctionCaller::Update(LinkContext, *LinkedNode);
 		LinkedNode->Update_AnyThread(LinkContext);

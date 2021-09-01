@@ -59,6 +59,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(const FAnimationUpdateCont
 			UpdateCounter.Increment();
 		}
 
+		UE::Anim::FNodeFunctionCaller::InitialUpdate(InContext, *InRootNode);
 		UE::Anim::FNodeFunctionCaller::BecomeRelevant(InContext, *InRootNode);
 		UE::Anim::FNodeFunctionCaller::Update(InContext, *InRootNode);
 		InRootNode->Update_AnyThread(InContext);

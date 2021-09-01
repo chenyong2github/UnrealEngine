@@ -76,3 +76,26 @@ FAnimNodeRelevancyStatus FAnimSubsystemInstance_NodeRelevancy::GetNodeRelevancy(
 
 	return FAnimNodeRelevancyStatus();
 }
+
+EAnimNodeInitializationStatus FAnimSubsystemInstance_NodeRelevancy::UpdateNodeInitializationStatus(const FAnimationUpdateContext& InContext, const FAnimNode_Base& InNode)
+{
+	EAnimNodeInitializationStatus& Status = NodeInitTrackers.FindOrAdd(&InNode);
+
+	switch(Status)
+	{
+	case EAnimNodeInitializationStatus::NotUpdated:
+		Status = EAnimNodeInitializationStatus::InitialUpdate;
+		break;
+	default:
+	case EAnimNodeInitializationStatus::InitialUpdate:
+		Status = EAnimNodeInitializationStatus::Updated;
+		break;
+	}
+
+	return Status;
+}
+
+EAnimNodeInitializationStatus FAnimSubsystemInstance_NodeRelevancy::GetNodeInitializationStatus(const FAnimNode_Base& InNode) const
+{
+	return NodeInitTrackers.FindRef(&InNode);
+}
