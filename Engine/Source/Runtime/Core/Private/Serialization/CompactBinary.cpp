@@ -469,14 +469,14 @@ uint64 FCbFieldView::GetValueSize() const
 	}
 }
 
-FBlake3Hash FCbFieldView::GetHash() const
+FIoHash FCbFieldView::GetHash() const
 {
-	FBlake3 Hash;
+	FIoHashBuilder Hash;
 	AppendHash(Hash);
 	return Hash.Finalize();
 }
 
-void FCbFieldView::AppendHash(FBlake3& Builder) const
+void FCbFieldView::AppendHash(FIoHashBuilder& Builder) const
 {
 	const ECbFieldType SerializedType = FCbFieldType::GetSerializedType(TypeWithFlags);
 	Builder.Update(&SerializedType, sizeof(SerializedType));
@@ -595,14 +595,14 @@ uint64 FCbArrayView::GetSize() const
 	return sizeof(ECbFieldType) + GetValueSize();
 }
 
-FBlake3Hash FCbArrayView::GetHash() const
+FIoHash FCbArrayView::GetHash() const
 {
-	FBlake3 Hash;
+	FIoHashBuilder Hash;
 	AppendHash(Hash);
 	return Hash.Finalize();
 }
 
-void FCbArrayView::AppendHash(FBlake3& Builder) const
+void FCbArrayView::AppendHash(FIoHashBuilder& Builder) const
 {
 	const ECbFieldType SerializedType = GetType();
 	Builder.Update(&SerializedType, sizeof(SerializedType));
@@ -675,14 +675,14 @@ uint64 FCbObjectView::GetSize() const
 	return sizeof(ECbFieldType) + GetValueSize();
 }
 
-FBlake3Hash FCbObjectView::GetHash() const
+FIoHash FCbObjectView::GetHash() const
 {
-	FBlake3 Hash;
+	FIoHashBuilder Hash;
 	AppendHash(Hash);
 	return Hash.Finalize();
 }
 
-void FCbObjectView::AppendHash(FBlake3& Builder) const
+void FCbObjectView::AppendHash(FIoHashBuilder& Builder) const
 {
 	const ECbFieldType SerializedType = GetType();
 	Builder.Update(&SerializedType, sizeof(SerializedType));
@@ -749,15 +749,15 @@ uint64 TCbFieldIterator<FieldType>::GetRangeSize() const
 }
 
 template <typename FieldType>
-FBlake3Hash TCbFieldIterator<FieldType>::GetRangeHash() const
+FIoHash TCbFieldIterator<FieldType>::GetRangeHash() const
 {
-	FBlake3 Hash;
+	FIoHashBuilder Hash;
 	AppendRangeHash(Hash);
 	return Hash.Finalize();
 }
 
 template <typename FieldType>
-void TCbFieldIterator<FieldType>::AppendRangeHash(FBlake3& Builder) const
+void TCbFieldIterator<FieldType>::AppendRangeHash(FIoHashBuilder& Builder) const
 {
 	FMemoryView View;
 	if (TryGetRangeView(View))
