@@ -1481,7 +1481,7 @@ void FHairCardsInterpolationBulkData::Serialize(FArchive& Ar)
 }
 
 FHairCardsInterpolationResource::FHairCardsInterpolationResource(FHairCardsInterpolationBulkData& InBulkData, const FHairResourceName& InResourceName) :
-	FHairCommonResource(EHairStrandsAllocationType::Immediate, InResourceName),
+	FHairCommonResource(EHairStrandsAllocationType::Deferred, InResourceName),
 	InterpolationBuffer(), BulkData(InBulkData)
 {
 }
@@ -1528,6 +1528,7 @@ void FHairStrandsRaytracingResource::InternalRelease()
 {
 	PositionBuffer.Release();
 	RayTracingGeometry.ReleaseResource();
+	bIsRTGeometryInitialized = false;
 }
 #endif
 
