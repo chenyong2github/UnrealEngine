@@ -2,10 +2,11 @@
 
 #include "Common.ush"
 
-#define RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER	(0)
-#define RESOURCE_TYPE_UINT_BUFFER				(1)
-#define RESOURCE_TYPE_UINT4_ALIGNED_BUFFER		(2)
-#define RESOURCE_TYPE_FLOAT4_TEXTURE			(3)
+#define RESOURCE_TYPE_FLOAT4_BUFFER				(0)
+#define RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER	(1)
+#define RESOURCE_TYPE_UINT_BUFFER				(2)
+#define RESOURCE_TYPE_UINT4_ALIGNED_BUFFER		(3)
+#define RESOURCE_TYPE_FLOAT4_TEXTURE			(4)
 
 uint Value;
 uint Size;
@@ -14,7 +15,12 @@ uint NumScatters;
 uint SrcOffset;
 uint DstOffset;
 
-#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
+	StructuredBuffer<uint>			ScatterStructuredBuffer;
+	Buffer<float4>					SrcBuffer;
+	StructuredBuffer<float4>		UploadStructuredBuffer;
+	RWBuffer<float4>				DstBuffer;
+#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
 	StructuredBuffer<uint>			ScatterStructuredBuffer;
 	StructuredBuffer<float4>		SrcStructuredBuffer;
 	StructuredBuffer<float4>		UploadStructuredBuffer;
@@ -34,7 +40,13 @@ uint DstOffset;
 [numthreads(64, 1, 1)]
 void MemsetBufferCS( uint ThreadId : SV_DispatchThreadID ) 
 {
-#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
+	// Size is in float4s
+	if (ThreadId < Size)
+	{
+		DstBuffer[DstOffset + ThreadId] = asfloat(Value);
+	}
+#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
 	// Size is in float4s
 	if( ThreadId < Size )
 	{
@@ -77,7 +89,13 @@ void MemsetBufferCS( uint ThreadId : SV_DispatchThreadID )
 [numthreads(64, 1, 1)]
 void MemcpyCS( uint ThreadId : SV_DispatchThreadID ) 
 {
-#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
+	// Size is in float4s
+	if (ThreadId < Size)
+	{
+		DstBuffer[DstOffset + ThreadId] = SrcBuffer[SrcOffset + ThreadId];
+	}
+#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
 	// Size is in float4s
 	if( ThreadId < Size )
 	{
@@ -119,7 +137,7 @@ void MemcpyCS( uint ThreadId : SV_DispatchThreadID )
 		DstByteAddressBuffer.Store( DstIndex * 4, SrcData );
 	}
 #else
-#error "Not implemented"
+	#error "Not implemented"
 #endif
 }
 
@@ -133,7 +151,11 @@ void ScatterCopyCS( uint DispatchThreadId : SV_DispatchThreadID )
 
 	if( ScatterIndex < NumScatters )
 	{
-#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
+#if RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_BUFFER
+		uint DstIndex = ScatterStructuredBuffer[ScatterIndex] * Size + ScatterOffset;
+		uint SrcIndex = ThreadId;
+		DstBuffer[DstIndex] = UploadStructuredBuffer[SrcIndex];
+#elif RESOURCE_TYPE == RESOURCE_TYPE_FLOAT4_STRUCTURED_BUFFER
 		uint DstIndex = ScatterStructuredBuffer[ ScatterIndex ] * Size + ScatterOffset;
 		uint SrcIndex = ThreadId;
 		DstStructuredBuffer[ DstIndex ] = UploadStructuredBuffer[ SrcIndex ];
@@ -157,7 +179,7 @@ void ScatterCopyCS( uint DispatchThreadId : SV_DispatchThreadID )
 		uint SrcData = UploadByteAddressBuffer.Load( SrcIndex * 4 );
 		DstByteAddressBuffer.Store(DstIndex * 4, SrcData);
 #else
-#error "Not implemented"
+	#error "Not implemented"
 #endif
 	}
 }

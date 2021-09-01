@@ -761,9 +761,12 @@ FGPUSceneBufferState FGPUScene::UpdateBufferState(FRDGBuilder& GraphBuilder, FSc
 	BufferState.bResizedPrimitiveData = ResizeResourceIfNeeded(GraphBuilder, PrimitiveBuffer, SizeReserve * sizeof(FPrimitiveSceneShaderData::Data), TEXT("GPUScene.PrimitiveData"));
 	BufferState.PrimitiveBuffer = PrimitiveBuffer;
 
-	const uint32 InstanceSceneDataNumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
 	const uint32 InstanceSceneDataSizeReserve = FMath::RoundUpToPowerOfTwo(FMath::Max(InstanceSceneDataAllocator.GetMaxSize(), InitialBufferSize));
-	BufferState.bResizedInstanceSceneData = ResizeResourceSOAIfNeeded(GraphBuilder, InstanceSceneDataBuffer, InstanceSceneDataSizeReserve * sizeof(FInstanceSceneShaderData::Data), InstanceSceneDataNumArrays, TEXT("GPUScene.InstanceSceneData"));
+	FResizeResourceSOAParams ResizeParams;
+	ResizeParams.NumBytes = InstanceSceneDataSizeReserve * sizeof(FInstanceSceneShaderData::Data);
+	ResizeParams.NumArrays = FInstanceSceneShaderData::DataStrideInFloat4s;
+
+	BufferState.bResizedInstanceSceneData = ResizeResourceSOAIfNeeded(GraphBuilder, InstanceSceneDataBuffer, ResizeParams, TEXT("GPUScene.InstanceSceneData"));
 	BufferState.InstanceSceneDataBuffer = InstanceSceneDataBuffer;
 	InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
 	BufferState.InstanceSceneDataSOAStride = InstanceSceneDataSizeReserve;
