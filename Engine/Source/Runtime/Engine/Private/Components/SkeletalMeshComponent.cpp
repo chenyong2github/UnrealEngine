@@ -2865,6 +2865,10 @@ void USkeletalMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRe
 		UpdateHasValidBodies();
 		ClearMorphTargets();
 
+		// Make sure that required bones are invalidated as we have just changed our mesh
+		// RecalcRequiredBones will be called by InitAnim below
+		bRequiredBonesUpToDate = false;
+		
 		InitAnim(bReinitPose);
 
 #if WITH_APEX_CLOTHING || WITH_CHAOS_CLOTHING
