@@ -3,6 +3,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsTileCommon.ush"
 
 #define TILE_SIZE 8
 #define GROUP_THREAD_COUNT (TILE_SIZE*TILE_SIZE)
@@ -71,13 +72,13 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 		if ((s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileCountBuffer[0], 1, WriteToIndex);
+			InterlockedAdd(TileCountBuffer[HAIRTILE_HAIR], 1, WriteToIndex);
 			TileDataBuffer[WriteToIndex] = GroupId.xy;
 		}
 		else
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileCountBuffer[1], 1, WriteToIndex);
+			InterlockedAdd(TileCountBuffer[HAIRTILE_CLEAR], 1, WriteToIndex);
 			TileClearBuffer[WriteToIndex] = GroupId.xy;
 		}
 	}
@@ -94,39 +95,37 @@ Buffer<uint> TileCountBuffer;
 RWBuffer<uint> TileIndirectDrawBuffer;
 RWBuffer<uint> TileIndirectDispatchBuffer;
 RWBuffer<uint> TilePerThreadIndirectDispatchBuffer;
-RWBuffer<uint> TileClearIndirectDrawBuffer;
+
+void FillIndirectBuffers(uint TileType)
+{
+	const uint TileCount = TileCountBuffer[TileType];
+	
+	// Indirect draw
+	TileIndirectDrawBuffer[TileType * 4 + 0] = bRectPrimitive > 0 ? 4 : 6;  // VertexCountPerInstance
+	TileIndirectDrawBuffer[TileType * 4 + 1] = TileCount;  // InstanceCount
+	TileIndirectDrawBuffer[TileType * 4 + 2] = 0;  // StartVertexLocation
+	TileIndirectDrawBuffer[TileType * 4 + 3] = 0;  // StartInstanceLocation
+
+	// Indirect dispatch
+	TileIndirectDispatchBuffer[TileType * 3 + 0] = TileCount >= TileCountXY.x ? TileCountXY.x : TileCount;
+	TileIndirectDispatchBuffer[TileType * 3 + 1] = (TileCount + TileCountXY.x - 1) / TileCountXY.x;
+	TileIndirectDispatchBuffer[TileType * 3 + 2] = 1;
+
+	// Indirect dispatch with one thread
+	// At 4k, with 8x8 tiles: 4096 x 4096 / 8 x 8 = 512 x 512 tiles 
+	// With a group size of 64 (8x8), the total dispatch count should be 512 x 512 / 8 x 8 = 64 x 64 = 4096, which is below the 65k limit per dimension
+	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 0] = (TileCount + TilePerThread_GroupSize - 1) / TilePerThread_GroupSize;
+	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 1] = 1;
+	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 2] = 1;
+}
 
 [numthreads(1, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
 	if (all(DispatchThreadId == 0))
 	{
-		const uint TileCount = TileCountBuffer[0];
-
-		// Indirect draw
-		TileIndirectDrawBuffer[0] = bRectPrimitive > 0 ? 4 : 6;  // VertexCountPerInstance
-		TileIndirectDrawBuffer[1] = TileCount;  // InstanceCount
-		TileIndirectDrawBuffer[2] = 0;  // StartVertexLocation
-		TileIndirectDrawBuffer[3] = 0;  // StartInstanceLocation
-
-		// Indirect dispatch
-		TileIndirectDispatchBuffer[0] = TileCount >= TileCountXY.x ? TileCountXY.x : TileCount;
-		TileIndirectDispatchBuffer[1] = (TileCount+TileCountXY.x-1) / TileCountXY.x;
-		TileIndirectDispatchBuffer[2] = 1;
-
-		// Indirect dispatch with one thread
-		// At 4k, with 8x8 tiles: 4096 x 4096 / 8 x 8 = 512 x 512 tiles 
-		// With a group size of 64 (8x8), the total dispatch count should be 512 x 512 / 8 x 8 = 64 x 64 = 4096, which is below the 65k limit per dimension
-		TilePerThreadIndirectDispatchBuffer[0] = (TileCount + TilePerThread_GroupSize -1) / TilePerThread_GroupSize;
-		TilePerThreadIndirectDispatchBuffer[1] = 1;
-		TilePerThreadIndirectDispatchBuffer[2] = 1;
-
-		const uint TileClearCount = TileCountBuffer[1];
-
-		TileClearIndirectDrawBuffer[0] = bRectPrimitive > 0 ? 4 : 6;  // VertexCountPerInstance
-		TileClearIndirectDrawBuffer[1] = TileClearCount;  // InstanceCount
-		TileClearIndirectDrawBuffer[2] = 0;  // StartVertexLocation
-		TileClearIndirectDrawBuffer[3] = 0;  // StartInstanceLocation
+		FillIndirectBuffers(HAIRTILE_HAIR);
+		FillIndirectBuffers(HAIRTILE_CLEAR);
 	}
 }
 #endif // SHADER_TILE_COPY_ARGS
@@ -158,6 +157,7 @@ int2 MaxResolution;
 uint TileGroupSize;
 uint TileSize;
 uint TileCount;
+uint TileType;
 int2 TileCountXY;
 uint bRectPrimitive;
 
@@ -179,7 +179,22 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	Pos = ShaderPrint(Pos, TileCountXY, FontEmerald);
 	AddNewLine(OriginalPos, Pos);
 
-	const uint ActiveTileCount = HairStrands.HairTileCount[0];
+	Pos = ShaderPrintText(Pos, TEXT("Tile type    : "), FontWhite);
+	if (TileType == HAIRTILE_HAIR)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair"), FontOrange);
+	}
+	else if (TileType == HAIRTILE_CLEAR)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Clear"), FontOrange);
+	}
+	else
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Unknown"), FontOrange);
+	}
+	AddNewLine(OriginalPos, Pos);
+
+	const uint ActiveTileCount = HairStrands.HairTileCount[TileType];
 	Pos = ShaderPrintText(Pos, TEXT("Tile Count   : "), FontWhite);
 	Pos = ShaderPrint(Pos, ActiveTileCount, FontYellow);
 	Pos = ShaderPrint(Pos, 100.f * float(ActiveTileCount)/float(TileCount), FontOrange);
@@ -209,6 +224,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 #if SHADER_TILE_VS
 int2 ViewMin;
 float2 ViewInvSize;
+uint TileType;
 Buffer<uint2> TileDataBuffer;
 
 void MainVS(

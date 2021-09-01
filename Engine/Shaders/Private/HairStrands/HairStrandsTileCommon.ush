@@ -1,0 +1,7 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+// Tile types
+#define HAIRTILE_HAIR 0 
+#define HAIRTILE_CLEAR 1

@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush" 
+#include "HairStrandsTileCommon.ush" 
 
 #if PERMUTATION_GROUPSIZE == 0
 #define TILE_PIXEL_SIZE_X 8
@@ -86,7 +87,7 @@ void MainCS(
 	}
 
 #if PERMUTATION_TILE
-	const uint TileCount = TileCountBuffer[0];
+	const uint TileCount = TileCountBuffer[HAIRTILE_HAIR];
 	const uint LinearIndex = GroupId.x + GroupId.y * TileCountXY.x;
 	if (LinearIndex >= TileCount)
 	{

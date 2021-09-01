@@ -412,6 +412,7 @@ float2 HairStrandsInvResolution;
 uint HairStrandsMip;
 
 #if PERMUTATION_USETILE
+#include "../HairStrands/HairStrandsTileCommon.ush"
 [numthreads(64, 1, 1)]
 #else
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -422,7 +423,7 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 	#if PERMUTATION_USETILE
 	{
 		const uint TileLinearIndex = DispatchThreadId.x;
-		const uint TileCount = HairStrands.HairTileCount[0];
+		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR];
 		if (TileLinearIndex >= TileCount)
 			return;
 
