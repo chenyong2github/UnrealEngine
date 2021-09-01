@@ -15,6 +15,7 @@
 #include "MoviePipelineMasterConfig.h"
 #include "EngineModule.h"
 #include "Engine/LocalPlayer.h"
+#include "Engine/RendererSettings.h"
 
 // For Cine Camera Variables in Metadata
 #include "CineCameraActor.h"
@@ -138,9 +139,13 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 	{
 		if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
 		{
-			// Auto exposure is not allowed
-			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
-			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+			const URendererSettings* RenderSettings = GetDefault<URendererSettings>();
+			if (RenderSettings->bDefaultFeatureAutoExposure != false)
+			{
+				// Auto exposure is not allowed
+				UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
+				View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
+			}
 		}
 	}
 
