@@ -62,6 +62,8 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 , MaterialRelevance(Component->GetMaterialRelevance(GetScene().GetFeatureLevel()))
 , CreateTrackProxy(TrackProxyCreator)
 {
+	const ERHIFeatureLevel::Type FeatureLevel = GetScene().GetFeatureLevel();
+
 	Time = Component->GetAnimationTime();
 	bLooping = Component->IsLooping();
 	bExtrapolateFrames = Component->IsExtrapolatingFrames();
@@ -69,6 +71,10 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 	PlaybackSpeed = (Component->IsPlaying()) ? Component->GetPlaybackSpeed() : 0.0f;
 	MotionVectorScale = Component->GetMotionVectorScale();
 	UpdatedFrameNum = 0;
+
+	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel) || (FeatureLevel == ERHIFeatureLevel::ES3_1);
+
+	bCanSkipRedundantTransformUpdates = false;
 
 	// Copy each section
 	const int32 NumTracks = Component->TrackSections.Num();
@@ -379,7 +385,7 @@ void FGeometryCacheSceneProxy::CreateMeshBatch(
 	const FMatrix& LocalToWorldTransform = TrackProxy->WorldMatrix * GetLocalToWorld();
 
 	DynamicPrimitiveUniformBuffer.Set(LocalToWorldTransform, LocalToWorldTransform, GetBounds(), GetLocalBounds(), true, false, DrawsVelocity(), false);
-	BatchElement.PrimitiveUniformBuffer = DynamicPrimitiveUniformBuffer.UniformBuffer.GetUniformBufferRHI();
+	BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
 
 	const FGeometryCacheMeshData* MeshData = TrackProxy->bNextFrameMeshDataSelected ? TrackProxy->NextFrameMeshData : TrackProxy->MeshData;
 

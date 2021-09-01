@@ -114,9 +114,9 @@ void UGeometryCacheComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 		if (bUpdatedBoundsOrMatrix)
 		{
 			UpdateLocalBounds();
-			// Mark the transform as dirty, so the bounds are updated and sent to the render thread
-			MarkRenderTransformDirty();
 		}
+		// Mark the transform as dirty, so the bounds are updated and sent to the render thread
+		MarkRenderTransformDirty();
 
 		// The actual current playback speed. The PlaybackSpeed variable contains the speed it would
 		// play back at if it were running regardless of if we're running or not. The renderer
