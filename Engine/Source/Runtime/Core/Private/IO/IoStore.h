@@ -44,7 +44,7 @@ struct FIoStoreTocHeader
 	EIoContainerFlags ContainerFlags;
 	uint8	Reserved3 = 0;
 	uint16	Reserved4 = 0;
-	uint32	Reserved5 = 0;
+	uint32	TocChunkHashSeedsCount = 0;
 	uint64	PartitionSize = 0;
 	uint64	Reserved6[6] = { 0 };
 
