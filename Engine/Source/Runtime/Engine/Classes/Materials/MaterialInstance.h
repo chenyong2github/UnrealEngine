@@ -88,8 +88,8 @@ struct FScalarParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	FScalarParameterValue()
-		: ParameterValue(0)
+	explicit FScalarParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), float InValue = 0.0f, const FScalarParameterAtlasInstanceData& InAtlasData = FScalarParameterAtlasInstanceData())
+		: AtlasData(InAtlasData), ParameterInfo(InParameterInfo), ParameterValue(InValue)
 	{
 	}
 
@@ -142,8 +142,8 @@ struct FVectorParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	FVectorParameterValue()
-		: ParameterValue(ForceInit)
+	explicit FVectorParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), const FLinearColor& InValue = FLinearColor(ForceInit))
+		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
 	{
 	}
 
@@ -193,8 +193,8 @@ struct FTextureParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	FTextureParameterValue()
-		: ParameterValue(NULL)
+	explicit FTextureParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), class UTexture* InValue = nullptr)
+		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
 	{
 	}
 
@@ -239,8 +239,8 @@ struct FRuntimeVirtualTextureParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	FRuntimeVirtualTextureParameterValue()
-		: ParameterValue(NULL)
+	explicit FRuntimeVirtualTextureParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), class URuntimeVirtualTexture* InValue = nullptr)
+		: ParameterInfo(InParameterInfo), ParameterValue(InValue)
 	{
 	}
 
@@ -293,9 +293,8 @@ struct FFontParameterValue
 	UPROPERTY()
 	FGuid ExpressionGUID;
 
-	FFontParameterValue()
-		: FontValue(nullptr)
-		, FontPage(0)
+	explicit FFontParameterValue(const FMaterialParameterInfo& InParameterInfo = FMaterialParameterInfo(), class UFont* InFont = nullptr, int32 InPage = 0)
+		: ParameterInfo(InParameterInfo), FontValue(InFont), FontPage(InPage)
 	{
 	}
 
@@ -816,6 +815,8 @@ protected:
 	/**
 	 * Internal interface for setting / updating values for material instances.
 	 */
+	void ReserveParameterValuesInternal(EMaterialParameterType Type, int32 Capacity);
+	void AddParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
 	void SetParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, const FMaterialParameterMetadata& Meta, EMaterialSetParameterValueFlags Flags = EMaterialSetParameterValueFlags::None);
 	void SetVectorParameterValueInternal(const FMaterialParameterInfo& ParameterInfo, FLinearColor Value);
 	bool SetVectorParameterByIndexInternal(int32 ParameterIndex, FLinearColor Value);

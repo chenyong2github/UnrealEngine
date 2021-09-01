@@ -178,6 +178,10 @@ struct FMaterialParameterMetadata
 {
 	FMaterialParameterValue Value;
 
+	FMaterialParameterMetadata() = default;
+	FMaterialParameterMetadata(const FMaterialParameterValue& InValue) : Value(InValue) {}
+	FMaterialParameterMetadata(EMaterialParameterType Type, const UE::Shader::FValue& InValue) : Value(Type, InValue) {}
+
 #if WITH_EDITORONLY_DATA
 	/** Name of channels, for Vectors/Textures */
 	FText ChannelName[4];
