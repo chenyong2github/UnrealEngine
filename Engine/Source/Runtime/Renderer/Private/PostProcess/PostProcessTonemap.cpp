@@ -112,6 +112,7 @@ namespace TonemapperPermutation
 // Shared permutation dimensions between deferred and mobile renderer.
 class FTonemapperBloomDim          : SHADER_PERMUTATION_BOOL("USE_BLOOM");
 class FTonemapperGammaOnlyDim      : SHADER_PERMUTATION_BOOL("USE_GAMMA_ONLY");
+class FTonemapperLocalExposureDim : SHADER_PERMUTATION_BOOL("USE_LOCAL_EXPOSURE");
 class FTonemapperVignetteDim       : SHADER_PERMUTATION_BOOL("USE_VIGNETTE");
 class FTonemapperSharpenDim        : SHADER_PERMUTATION_BOOL("USE_SHARPEN");
 class FTonemapperFilmGrainDim      : SHADER_PERMUTATION_BOOL("USE_FILM_GRAIN");
@@ -122,6 +123,7 @@ class FTonemapperEyeAdaptationDim  : SHADER_PERMUTATION_BOOL("EYEADAPTATION_EXPO
 using FCommonDomain = TShaderPermutationDomain<
 	FTonemapperBloomDim,
 	FTonemapperGammaOnlyDim,
+	FTonemapperLocalExposureDim,
 	FTonemapperVignetteDim,
 	FTonemapperSharpenDim,
 	FTonemapperFilmGrainDim,
@@ -146,6 +148,7 @@ bool ShouldCompileCommonPermutation(const FGlobalShaderPermutationParameters& Pa
 	if (PermutationVector.Get<FTonemapperGammaOnlyDim>())
 	{
 		return !PermutationVector.Get<FTonemapperBloomDim>() &&
+			!PermutationVector.Get<FTonemapperLocalExposureDim>() &&
 			!PermutationVector.Get<FTonemapperVignetteDim>() &&
 			!PermutationVector.Get<FTonemapperSharpenDim>() &&
 			!PermutationVector.Get<FTonemapperFilmGrainDim>() &&
@@ -155,7 +158,7 @@ bool ShouldCompileCommonPermutation(const FGlobalShaderPermutationParameters& Pa
 }
 
 // Common conversion of engine settings into.
-FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnly, bool bSwitchVerticalAxis, bool bMetalMSAAHDRDecode)
+FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnly, bool bLocalExposure, bool bSwitchVerticalAxis, bool bMetalMSAAHDRDecode)
 {
 	const FSceneViewFamily* Family = View.Family;
 
@@ -173,6 +176,7 @@ FCommonDomain BuildCommonPermutationDomain(const FViewInfo& View, bool bGammaOnl
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
 	PermutationVector.Set<FTonemapperVignetteDim>(Settings.VignetteIntensity > 0.0f);
 	PermutationVector.Set<FTonemapperBloomDim>(Settings.BloomIntensity > 0.0);
+	PermutationVector.Set<FTonemapperLocalExposureDim>(bLocalExposure);
 	PermutationVector.Set<FTonemapperFilmGrainDim>(View.FilmGrainTexture != nullptr);
 	PermutationVector.Set<FTonemapperSharpenDim>(CVarTonemapperSharpen.GetValueOnRenderThread() > 0.0f);	
 	PermutationVector.Set<FTonemapperSwitchAxis>(bSwitchVerticalAxis);
@@ -334,6 +338,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FTonemapperOutputDeviceParameters, OutputDevice)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Color)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Output)
+	SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ColorTexture)
 
 	// Bloom texture
@@ -344,6 +349,11 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTonemapParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BloomTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, BloomSampler)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, BloomApplyParameters)
+
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, LumBilateralGrid)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, BlurredLogLum)
+	SHADER_PARAMETER_SAMPLER(SamplerState, LumBilateralGridSampler)
+	SHADER_PARAMETER_SAMPLER(SamplerState, BlurredLogLumSampler)
 
 	// SM5 and above use Texture2D for EyeAdaptationTexture
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
@@ -764,7 +774,12 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	CommonParameters.Color = GetScreenPassTextureViewportParameters(SceneColorViewport);
 	CommonParameters.Output = GetScreenPassTextureViewportParameters(OutputViewport);
 	CommonParameters.ColorTexture = Inputs.SceneColor.Texture;
+	CommonParameters.LumBilateralGrid = Inputs.LocalExposureTexture;
+	CommonParameters.BlurredLogLum = Inputs.BlurredLogLuminanceTexture;
+	CommonParameters.LumBilateralGridSampler = BilinearClampSampler;
+	CommonParameters.BlurredLogLumSampler = BilinearClampSampler;
 	CommonParameters.EyeAdaptationTexture = Inputs.EyeAdaptationTexture;
+	CommonParameters.EyeAdaptation = *Inputs.EyeAdaptationParameters;
 	CommonParameters.ColorGradingLUT = Inputs.ColorGradingTexture;
 	CommonParameters.BloomDirtMaskTexture = BloomDirtMaskTexture;
 	CommonParameters.ColorSampler = BilinearClampSampler;
@@ -847,7 +862,7 @@ FScreenPassTexture AddTonemapPass(FRDGBuilder& GraphBuilder, const FViewInfo& Vi
 	TonemapperPermutation::FDesktopDomain DesktopPermutationVector;
 
 	{
-		TonemapperPermutation::FCommonDomain CommonDomain = TonemapperPermutation::BuildCommonPermutationDomain(View, Inputs.bGammaOnly, Inputs.bFlipYAxis, Inputs.bMetalMSAAHDRDecode);
+		TonemapperPermutation::FCommonDomain CommonDomain = TonemapperPermutation::BuildCommonPermutationDomain(View, Inputs.bGammaOnly, Inputs.LocalExposureTexture != nullptr, Inputs.bFlipYAxis, Inputs.bMetalMSAAHDRDecode);
 		DesktopPermutationVector.Set<TonemapperPermutation::FCommonDomain>(CommonDomain);
 
 		if (!CommonDomain.Get<TonemapperPermutation::FTonemapperGammaOnlyDim>())

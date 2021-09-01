@@ -15,6 +15,7 @@
 #include "PostProcessCommon.ush"
 #include "TonemapCommon.ush"
 #include "EyeAdaptationCommon.ush"
+#include "PostProcessHistogramCommon.ush"
 #include "PixelQuadMessagePassing.ush"
 #include "ScreenPass.ush"
 #if SUPPORTS_BLOOM_APPLY_PARAMETERS
@@ -62,6 +63,10 @@ SamplerState BloomSampler;
 	StructuredBuffer<FBloomApplyInfo> BloomApplyParameters;
 #endif
 
+Texture3D LumBilateralGrid;
+Texture2D BlurredLogLum;
+SamplerState LumBilateralGridSampler;
+SamplerState BlurredLogLumSampler;
 
 // xyz:SceneColorTint.rgb, w:unused
 float4 ColorScale0;
@@ -227,7 +232,7 @@ float4 ChromaticAberrationParams;
 void TonemapCommonVS(
 	in	float4 Position,
 	in	float2 TexCoord,
-	out	float3 OutExposureScaleVignette,
+	out	float4 OutExposureScaleVignette,
 	out	float4 OutGrainUV,
 	out	float2 OutScreenPos,
 	out	float2 OutFullViewUV
@@ -244,14 +249,17 @@ void TonemapCommonVS(
 #if EYEADAPTATION_EXPOSURE_FIX == 1
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 		// texture can be GWhiteTexture which is 1x1. It's important we don't read outside bounds.
-		OutExposureScaleVignette.x = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
+		OutExposureScaleVignette.xy = EyeAdaptationTexture.Load(int3(0, 0, 0)).xw;
 	#else
-		OutExposureScaleVignette.x = EyeAdaptationBuffer[0].x;
+		OutExposureScaleVignette.xy = EyeAdaptationBuffer[0].xw;
 	#endif
 #else
 	// If eye adaptation is disabled (e.g. fixed exposure level ) or  not available.  
-	OutExposureScaleVignette.x = DefaultEyeExposure;
+	OutExposureScaleVignette.xy = DefaultEyeExposure;
 #endif
+
+	// Middle grey lum value adjusted by exposure compensation
+	OutExposureScaleVignette.y = log2(0.18 * OutExposureScaleVignette.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
 
 	const float AspectRatio = Output_ViewportSize.y * Output_ViewportSizeInverse.x;
 
@@ -259,7 +267,7 @@ void TonemapCommonVS(
 
 	// Scale vignette to always be a circle with consistent corner intensity.
 	float2 LensViewportPos = ConvertScreenViewportSpaceToLensViewportSpace(ColorViewportPos);
-	OutExposureScaleVignette.yz = VignetteSpace(LensViewportPos, AspectRatio);
+	OutExposureScaleVignette.zw = VignetteSpace(LensViewportPos, AspectRatio);
 
 	// Grain
 	OutGrainUV.xy = TexCoord + Color_ExtentInverse * float2(-0.5,0.5);
@@ -274,7 +282,7 @@ void MainVS(
 	in 					float4 InPosition 				: ATTRIBUTE0,
 	in 					float2 InTexCoord 				: ATTRIBUTE1,
 	out noperspective 	float2 OutTexCoord 				: TEXCOORD0,
-	out noperspective 	float3 OutExposureScaleVignette : TEXCOORD1,
+	out noperspective 	float4 OutExposureScaleVignette : TEXCOORD1,
 	out noperspective 	float4 OutGrainUV 				: TEXCOORD2,
 	out noperspective 	float2 OutScreenPos 			: TEXCOORD3,
 	out noperspective 	float2 OutFullViewUV 			: TEXCOORD4,
@@ -405,7 +413,7 @@ float4 SampleSceneColor(float2 SceneUV)
 
 float4 TonemapCommonPS(
 	float2 UV,
-	float3 ExposureScaleVignette,
+	float4 ExposureScaleVignette,
 	float4 GrainUV,
 	float2 ScreenPos, // [-1, 1]x[-1, 1]
 	float2 FullViewUV,
@@ -469,6 +477,18 @@ float4 TonemapCommonPS(
 	SceneColor.rgb *= View.OneOverPreExposure;
 
 	float ExposureScale = ExposureScaleVignette.x;
+
+#if USE_LOCAL_EXPOSURE
+	float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb);
+	float LogLuminance = log2(LuminanceVal);
+	float MiddleGreyLumValue = ExposureScaleVignette.y;
+
+	float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, EyeAdaptation_LocalExposureBlurredLuminanceBlend, ExposureScale, FullViewUV, LumBilateralGrid, BlurredLogLum, LumBilateralGridSampler, BlurredLogLumSampler);
+	float LocalExposure = CalculateLocalExposure(LogLuminance + log2(ExposureScale), BaseLogLum, MiddleGreyLumValue, EyeAdaptation_LocalExposureContrastReduction, EyeAdaptation_LocalExposureDetailStrength);
+
+	// Apply before bloom
+	SceneColor.rgb *= LocalExposure;
+#endif
 
 #if DEBUG_TONEMAPPER
 	if (all(DebugTile == int2(-1, 1)))
@@ -637,7 +657,7 @@ float4 TonemapCommonPS(
 		LinearColor *= ExposureScale;
 
 		#if USE_VIGNETTE
-			LinearColor.rgb *= ComputeVignetteMask( ExposureScaleVignette.yz, TonemapperParams.x );
+			LinearColor.rgb *= ComputeVignetteMask( ExposureScaleVignette.zw, TonemapperParams.x );
 		#endif
 
 		#if USE_FILM_GRAIN
@@ -738,7 +758,7 @@ float4 TonemapCommonPS(
 // pixel shader entry point
 void MainPS(
 	in noperspective float2 UV : TEXCOORD0,
-	in noperspective float3 InExposureScaleVignette : TEXCOORD1,
+	in noperspective float4 InExposureScaleVignette : TEXCOORD1,
 	in noperspective float4 GrainUV : TEXCOORD2,
 	in noperspective float2 ScreenPos : TEXCOORD3,
 	in noperspective float2 FullViewUV : TEXCOORD4,
@@ -764,7 +784,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		return;
 	}
 
-	float3 ExposureScaleVignette;
+	float4 ExposureScaleVignette;
 	float4 GrainUV;
 	float2 FullViewUV, ScreenPos;	
 	TonemapCommonVS(InScreenPos, UV, ExposureScaleVignette, GrainUV, ScreenPos, FullViewUV);

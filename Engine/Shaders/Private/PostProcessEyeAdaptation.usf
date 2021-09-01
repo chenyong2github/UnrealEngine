@@ -147,7 +147,7 @@ void BasicEyeAdaptationSetupPS(
 	OutColor = Texture2DSample(ColorTexture, ColorSampler, UV);
 
 	// Use max to ensure intensity is never zero (so the following log is well behaved)
-	const float Intensity = max(dot(OutColor.xyz, float3(1.0f, 1.0f, 1.0f)/3.0f), EyeAdaptation_LuminanceMin);
+	const float Intensity = CalculateEyeAdaptationLuminance(OutColor.xyz);
 	const float LogIntensity = clamp(log2(Intensity),-10.0f,20.0f);
 
 	// Store log intensity in the alpha channel: scale to 0,1 range.

@@ -278,6 +278,14 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	float ExposureCompensationCurve = GetAutoExposureCompensationFromCurve(View);
 	const float BlackHistogramBucketInfluence = CVarEyeAdaptationBlackHistogramBucketInfluence.GetValueOnRenderThread();
 
+	float LocalExposureMiddleGreyExposureCompensation = FMath::Pow(2.0f, View.FinalPostProcessSettings.LocalExposureMiddleGreyBias);
+
+	if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
+	{
+		// when using manual exposure cancel exposure compensation setting and curve from middle grey used by local exposure.
+		LocalExposureMiddleGreyExposureCompensation /= (ExposureCompensationSettings * ExposureCompensationCurve);
+	}
+
 	const float kMiddleGrey = 0.18f;
 
 	// AEM_Histogram and AEM_Basic adjust their ExposureCompensation to middle grey (0.18). AEM_Manual ExposureCompensation is already calibrated to 1.0.
@@ -393,6 +401,10 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIF
 	Parameters.HistogramScale = HistogramScale;
 	Parameters.HistogramBias = HistogramBias;
 	Parameters.LuminanceMin = LuminanceMin;
+	Parameters.LocalExposureContrastReduction = Settings.LocalExposureContrastReduction;
+	Parameters.LocalExposureDetailStrength = Settings.LocalExposureDetailStrength;
+	Parameters.LocalExposureBlurredLuminanceBlend = Settings.LocalExposureBlurredLuminanceBlend;
+	Parameters.LocalExposureMiddleGreyExposureCompensation = LocalExposureMiddleGreyExposureCompensation;
 	Parameters.BlackHistogramBucketInfluence = BlackHistogramBucketInfluence; // no calibration constant because it is now baked into ExposureCompensation
 	Parameters.GreyMult = GreyMult;
 	Parameters.ExponentialDownM = ExponentialDownM;

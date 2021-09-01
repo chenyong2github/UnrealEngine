@@ -365,6 +365,7 @@ private:
 
 		// The following code sets what should be off by default.
 		SetVisualizeHDR(false);
+		SetVisualizeLocalExposure(false);
 		SetVisualizeShadingModels(false);
 		SetOverrideDiffuseAndSpecular(false);
 		SetLightingOnlyOverride(false);
