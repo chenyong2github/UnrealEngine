@@ -746,7 +746,7 @@ namespace UnrealBuildTool
 		/// Whether to include PerfCounters support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-        public bool bWithPerfCounters
+		public bool bWithPerfCounters
 		{
 			get { return bWithPerfCountersOverride ?? (Type == TargetType.Editor || Type == TargetType.Server); }
 			set { bWithPerfCountersOverride = value; }
@@ -1009,14 +1009,26 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Default treatment of uncategorized warnings
 		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public WarningLevel DefaultWarningLevel = WarningLevel.Warning;
+		public WarningLevel DefaultWarningLevel
+		{
+			get => DefaultWarningLevelPrivate ?? (bWarningsAsErrors ? WarningLevel.Error : WarningLevel.Error);
+			set => DefaultWarningLevelPrivate = value;
+		}
+
+		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(DefaultWarningLevel))]
+		private WarningLevel? DefaultWarningLevelPrivate;
 
 		/// <summary>
-		/// Whether to treat all warnings as errors. UE generally treats most warnings as errors, with the exception of deprecation warnings,
+		/// Level to report deprecation warnings as errors
 		/// </summary>
-		[XmlConfigFile(Category = "BuildConfiguration")]
-		public WarningLevel DeprecationWarningLevel = WarningLevel.Warning;
+		public WarningLevel DeprecationWarningLevel
+		{
+			get => DeprecationWarningLevelPrivate ?? DefaultWarningLevel;
+			set => DeprecationWarningLevelPrivate = value;
+		}
+
+		[XmlConfigFile(Category = "BuildConfiguration", Name = nameof(DeprecationWarningLevel))]
+		private WarningLevel? DeprecationWarningLevelPrivate;
 
 		/// <summary>
 		/// Forces shadow variable warnings to be treated as errors on platforms that support it.
