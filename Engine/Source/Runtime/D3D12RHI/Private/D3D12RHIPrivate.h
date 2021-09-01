@@ -206,6 +206,24 @@ struct FD3D12UpdateTexture3DData
 	bool bComputeShaderCopy;
 };
 
+/**
+* Structure that represents various RTPSO properties (0 if unknown).
+* These can be used to report performance characteristics, sort shaders by occupancy, etc.
+*/
+struct FD3D12RayTracingPipelineInfo
+{
+	static constexpr uint32 MaxPerformanceGroups = 10;
+
+	// Estimated RTPSO group based on occupancy or other platform-specific heuristics.
+	// Group 0 is expected to be performing worst, 9 (MaxPerformanceGroups-1) is expected to be the best.
+	uint32 PerformanceGroup = 0;
+
+	uint32 NumVGPR = 0;
+	uint32 NumSGPR = 0;
+	uint32 StackSize = 0;
+	uint32 ScratchSize = 0;
+};
+
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 

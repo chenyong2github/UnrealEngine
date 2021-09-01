@@ -15,6 +15,7 @@ class FD3D12RayTracingPipelineCache;
 class FD3D12RayTracingCompactionRequestHandler;
 class FD3D12TimedIntervalQueryTracker;
 class FD3D12LinearQueryHeap;
+struct FD3D12RayTracingPipelineInfo;
 
 class FD3D12Device : public FD3D12SingleNodeGPUObject, public FNoncopyable, public FD3D12AdapterChild
 {
@@ -55,6 +56,10 @@ public:
 	FD3D12RayTracingPipelineCache*			GetRayTracingPipelineCache() { return RayTracingPipelineCache; }
 	FD3D12RayTracingCompactionRequestHandler* GetRayTracingCompactionRequestHandler() { return RayTracingCompactionRequestHandler; }
 	TRefCountPtr<ID3D12StateObject>			DeserializeRayTracingStateObject(D3D12_SHADER_BYTECODE Bytecode, ID3D12RootSignature* RootSignature);
+
+	/** Queries ray tracing pipeline state object metrics such as VGPR usage (if available/supported). Returns true if query succeeded. */
+	bool GetRayTracingPipelineInfo(ID3D12StateObject* Pipeline, FD3D12RayTracingPipelineInfo* OutInfo);
+
 #endif // D3D12_RHI_RAYTRACING
 
 	FD3D12DynamicRHI* GetOwningRHI();

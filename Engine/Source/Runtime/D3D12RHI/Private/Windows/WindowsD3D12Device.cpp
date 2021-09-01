@@ -1249,6 +1249,16 @@ TRefCountPtr<ID3D12StateObject> FD3D12Device::DeserializeRayTracingStateObject(D
 	TRefCountPtr<ID3D12StateObject> Result;
 	return Result;
 }
+
+bool FD3D12Device::GetRayTracingPipelineInfo(ID3D12StateObject* Pipeline, FD3D12RayTracingPipelineInfo* OutInfo)
+{
+	// Return a safe default result on Windows, as there is no API to query interesting pipeline metrics.
+	FD3D12RayTracingPipelineInfo Result = {};
+	*OutInfo = Result;
+
+	return false;
+}
+
 #endif // D3D12_RHI_RAYTRACING
 
 /**
