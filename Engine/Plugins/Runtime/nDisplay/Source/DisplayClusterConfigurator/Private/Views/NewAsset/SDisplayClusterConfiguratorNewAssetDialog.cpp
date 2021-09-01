@@ -2,6 +2,7 @@
 
 #include "Views/NewAsset/SDisplayClusterConfiguratorNewAssetDialog.h"
 #include "Settings/DisplayClusterConfiguratorSettings.h"
+#include "DisplayClusterConfiguratorStyle.h"
 
 #include "AssetData.h"
 
@@ -59,6 +60,7 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 			.AutoHeight()
 			[
 				SNew(SBorder)
+				.BorderImage(FDisplayClusterConfiguratorStyle::Get().GetBrush("DisplayClusterConfigurator.NewAssetDialog.SubBorder"))
 				.BorderBackgroundColor(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionBorderColor, OptionIndex)
 				[
 						SNew(SCheckBox)
@@ -68,24 +70,31 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 						.OnCheckStateChanged(this, &SDisplayClusterConfiguratorNewAssetDialog::OptionCheckBoxStateChanged, OptionIndex)
 						.Content()
 						[
-							SNew(SVerticalBox)
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							.Padding(5, 2)
-							[		
-								SNew(STextBlock)
-								.ColorAndOpacity(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionTextColor, OptionIndex)
-								.Text(Option.OptionText)
-								.AutoWrapText(true)
-							]
-							+ SVerticalBox::Slot()
-							.AutoHeight()
-							.Padding(5, 2, 5, 7)
+							// this border catches the double click before the checkbox can
+							SNew(SBorder)
+							.BorderImage(FEditorStyle::Get().GetBrush("NoBorder"))
+							.OnMouseDoubleClick(this, &SDisplayClusterConfiguratorNewAssetDialog::OnOptionDoubleClicked, OptionIndex)
 							[
-								SNew(STextBlock)
-								.ColorAndOpacity(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionTextColor, OptionIndex)
-								.Text(Option.OptionDescription)
-								.AutoWrapText(true)
+								SNew(SVerticalBox)
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(5, 2)
+								[		
+									SNew(STextBlock)
+									.TextStyle(FDisplayClusterConfiguratorStyle::Get(), "DisplayClusterConfigurator.NewAssetDialog.OptionText")
+									.ColorAndOpacity(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionTextColor, OptionIndex)
+									.Text(Option.OptionText)
+									.AutoWrapText(true)
+								]
+								+ SVerticalBox::Slot()
+								.AutoHeight()
+								.Padding(5, 2, 5, 7)
+								[
+									SNew(STextBlock)
+									.ColorAndOpacity(this, &SDisplayClusterConfiguratorNewAssetDialog::GetOptionTextColor, OptionIndex)
+									.Text(Option.OptionDescription)
+									.AutoWrapText(true)
+								]
 							]
 						]
 					
@@ -97,26 +106,24 @@ void SDisplayClusterConfiguratorNewAssetDialog::Construct(const FArguments& InAr
 	SWindow::Construct(SWindow::FArguments()
 		.Title(FText::Format(LOCTEXT("NewConfigurationDialogTitle", "Pick a starting point for your {0}"), AssetTypeDisplayName))
 		.SizingRule(ESizingRule::UserSized)
-		.ClientSize(FVector2D(400.f, 400.f))
+		.ClientSize(FVector2D(480.f, 600.f))
 		.SupportsMaximize(false)
 		.SupportsMinimize(false)
 		[
-			SNew(SWizard)
+			SAssignNew(Wizard, SWizard)
 			.OnCanceled(this, &SDisplayClusterConfiguratorNewAssetDialog::OnCancelButtonClicked)
 			.OnFinished(this, &SDisplayClusterConfiguratorNewAssetDialog::OnOkButtonClicked)
 			.CanFinish(this, &SDisplayClusterConfiguratorNewAssetDialog::IsOkButtonEnabled)
 			.ShowPageList(false)
-			.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-			.CancelButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-			.FinishButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-			.ButtonTextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+
 			+SWizard::Page()
 			.CanShow(true)
 			.OnEnter(this, &SDisplayClusterConfiguratorNewAssetDialog::ResetStage)
 			[
 				RootBox
 			]
-			+ SWizard::Page()
+
+			+SWizard::Page()
 			.CanShow(this, &SDisplayClusterConfiguratorNewAssetDialog::HasAssetPage)
 			.OnEnter(this, &SDisplayClusterConfiguratorNewAssetDialog::GetAssetPicker)
 			[
@@ -181,7 +188,7 @@ void SDisplayClusterConfiguratorNewAssetDialog::OnWindowClosed(const TSharedRef<
 FSlateColor SDisplayClusterConfiguratorNewAssetDialog::GetOptionBorderColor(int32 OptionIndex) const
 {
 	return SelectedOptionIndex == OptionIndex
-		? FSlateColor(FLinearColor::Blue)
+		? FDisplayClusterConfiguratorStyle::Get().GetColor("DisplayClusterConfigurator.NewAssetDialog.ActiveOptionBorderColor")
 		: FSlateColor(FLinearColor::Transparent);
 }
 
@@ -207,6 +214,27 @@ void SDisplayClusterConfiguratorNewAssetDialog::OptionCheckBoxStateChanged(EChec
 		Settings->NewAssetIndex = SelectedOptionIndex;
 	
 	}
+}
+
+FReply SDisplayClusterConfiguratorNewAssetDialog::OnOptionDoubleClicked(const FGeometry& Geometry, const FPointerEvent& PointerEvent, int32 OptionIndex)
+{
+	SelectedOptionIndex = OptionIndex;
+	if (Wizard->CanShowPage(Wizard->GetCurrentPageIndex() + 1))
+	{
+		Wizard->AdvanceToPage(Wizard->GetCurrentPageIndex() + 1);
+		return FReply::Handled();
+	}
+	// if we can't advance, we attempt to finish instead
+	else
+	{
+		if (IsOkButtonEnabled())
+		{
+			OnOkButtonClicked();
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 FText SDisplayClusterConfiguratorNewAssetDialog::GetAssetPickersLabelText() const

@@ -22,6 +22,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SComboButton.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "SDisplayClusterConfiguratorViewTree"
 
@@ -88,35 +89,12 @@ void SDisplayClusterConfiguratorViewTree::Construct(const FArguments& InArgs,
 						.VAlign(VAlign_Center)
 						[
 					
-							SNew(SComboButton)
-							.ContentPadding(FMargin(5, 0))
-							.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
-							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-							.ForegroundColor(FLinearColor::White)
+							SNew(SEditorHeaderButton)
+							.Text(LOCTEXT("AddNewItem", "Add New"))
+							.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+							.ToolTipText(LOCTEXT("AddNewClusterItemTooltip", "Adds a new Cluster Item to the Cluster"))
 							.Visibility(this, &SDisplayClusterConfiguratorViewTree::GetAddNewComboButtonVisibility)
 							.OnGetMenuContent(this, &SDisplayClusterConfiguratorViewTree::CreateAddNewMenuContent)
-							.ButtonContent()
-							[
-								SNew(SHorizontalBox)
-								+SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.AutoWidth()
-								.Padding(1.f,1.f)
-								[
-									SNew(STextBlock)
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-									.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-									.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-								]
-								+ SHorizontalBox::Slot()
-								.VAlign(VAlign_Center)
-								.Padding(1.f)
-								[
-									SNew(STextBlock)
-									.Text(LOCTEXT("AddNewItem", "Add New"))
-									.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-								]
-							]
 						]
 
 						+SHorizontalBox::Slot()

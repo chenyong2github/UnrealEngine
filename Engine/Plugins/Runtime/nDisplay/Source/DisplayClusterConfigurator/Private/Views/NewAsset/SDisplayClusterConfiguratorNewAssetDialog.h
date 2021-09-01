@@ -11,6 +11,7 @@
 #include "AssetRegistry/AssetData.h"
 
 class FDisplayClusterConfiguratorBlueprintEditor;
+class SWizard;
 
 class SDisplayClusterConfiguratorNewAssetDialog : public SWindow
 {
@@ -70,6 +71,8 @@ private:
 	void OptionCheckBoxStateChanged(ECheckBoxState InCheckBoxState, int32 OptionIndex);
 	FSlateColor GetOptionTextColor(int32 OptionIndex) const;
 
+	FReply OnOptionDoubleClicked(const FGeometry& Geometry, const FPointerEvent& PointerEvent, int32 OptionIndex);
+
 	FText GetAssetPickersLabelText() const;
 	bool IsOkButtonEnabled() const;
 	void OnOkButtonClicked();
@@ -77,6 +80,7 @@ private:
 	bool HasAssetPage() const;
 
 private:
+	TSharedPtr<SWizard> Wizard;
 	TArray<FDisplayClusterConfiguratorNewAssetDialogOption> Options;
 	int32 SelectedOptionIndex;
 	bool bUserConfirmedSelection;
