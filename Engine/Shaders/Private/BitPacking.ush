@@ -43,25 +43,72 @@ float4 Unpack_R10G10B10A2_UNORM_To_Float4(uint Packed)
 }
 
 // Implement BitStreamReader for ByteAddressBuffer (RO), RWByteAddressBuffer (RW) and dynamic choice (RORW).
+struct FBitStreamReaderState
+{
+	uint	AlignedByteAddress;
+	int		BitOffsetFromAddress;
+
+	uint4	BufferBits;
+	int		BufferOffset;
+
+	int		CompileTimeMinBufferBits;
+	int		CompileTimeMinDwordBits;
+	int		CompileTimeMaxRemainingBits;
+};
+
+FBitStreamReaderState BitStreamReader_Create_Aligned(uint AlignedByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
+{
+	FBitStreamReaderState State;
+
+	State.AlignedByteAddress = AlignedByteAddress;
+	State.BitOffsetFromAddress = BitOffset;
+
+	State.BufferBits = 0;
+	State.BufferOffset = 0;
+
+	State.CompileTimeMinBufferBits = 0;
+	State.CompileTimeMinDwordBits = 0;
+	State.CompileTimeMaxRemainingBits = CompileTimeMaxRemainingBits;
+
+	return State;
+}
+
+FBitStreamReaderState BitStreamReader_Create(uint ByteAddress, uint BitOffset, uint CompileTimeMaxRemainingBits)
+{
+	uint AlignedByteAddress = ByteAddress & ~3u;
+	BitOffset += (ByteAddress & 3u) << 3;
+	return BitStreamReader_Create_Aligned(AlignedByteAddress, BitOffset, CompileTimeMaxRemainingBits);
+}
+
 #define TYPE_SUFFIX RO
-#define RO_ENABLED 1
+#define RORW_ENABLED 0
+#define INPUT_BUFFER_PARAMS ByteAddressBuffer InputBuffer
+#define INPUT_BUFFER_ARGS InputBuffer
 #include "BitStreamReaderImplementation.ush"
 #undef TYPE_SUFFIX
-#undef RO_ENABLED
+#undef RORW_ENABLED
+#undef INPUT_BUFFER_PARAMS
+#undef INPUT_BUFFER_ARGS
 
 #define TYPE_SUFFIX RW
-#define RW_ENABLED 1
+#define RORW_ENABLED 0
+#define INPUT_BUFFER_PARAMS RWByteAddressBuffer InputBuffer
+#define INPUT_BUFFER_ARGS InputBuffer
 #include "BitStreamReaderImplementation.ush"
 #undef TYPE_SUFFIX
-#undef RW_ENABLED
+#undef RORW_ENABLED
+#undef INPUT_BUFFER_PARAMS
+#undef INPUT_BUFFER_ARGS
 
 #define TYPE_SUFFIX RORW
-#define RO_ENABLED 1
-#define RW_ENABLED 1
+#define RORW_ENABLED 1
+#define INPUT_BUFFER_PARAMS ByteAddressBuffer InputBufferRO, RWByteAddressBuffer InputBufferRW, bool bRW
+#define INPUT_BUFFER_ARGS InputBufferRO, InputBufferRW, bRW
 #include "BitStreamReaderImplementation.ush"
 #undef TYPE_SUFFIX
-#undef RO_ENABLED
-#undef RW_ENABLED
+#undef RORW_ENABLED
+#undef INPUT_BUFFER_PARAMS
+#undef INPUT_BUFFER_ARGS
 
 // Put bits to ByteAddressBuffer at bit offset. NumBits must be <= 31.
 void PutBits(RWByteAddressBuffer Output, uint AlignedBaseAddress, uint BitOffset, uint Value, uint NumBits)
@@ -88,18 +135,16 @@ void PutBits(RWByteAddressBuffer Output, uint AlignedBaseAddress, uint BitOffset
 
 struct FBitStreamWriterState
 {
-	RWByteAddressBuffer Output;
 	uint AlignedByteAddress;
    	uint BufferBits;
     uint BufferOffset;
     uint BufferMask;
 };
 
-FBitStreamWriterState BitStreamWriter_Create_Aligned(RWByteAddressBuffer Output, uint AlignedBaseAddressInBytes, uint BitOffset)
+FBitStreamWriterState BitStreamWriter_Create_Aligned(uint AlignedBaseAddressInBytes, uint BitOffset)
 {
 	FBitStreamWriterState State;
 
-	State.Output = Output;
 	State.AlignedByteAddress = AlignedBaseAddressInBytes + ((BitOffset >> 5) << 2);
 	BitOffset &= 31u;
 
@@ -110,7 +155,7 @@ FBitStreamWriterState BitStreamWriter_Create_Aligned(RWByteAddressBuffer Output,
 	return State;
 }
 
-void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int NumBits, int CompileTimeMaxBits)
+void BitStreamWriter_Writer(RWByteAddressBuffer Output, inout FBitStreamWriterState State, uint Value, int NumBits, int CompileTimeMaxBits)
 {
     State.BufferBits |= Value << State.BufferOffset;
 
@@ -119,8 +164,8 @@ void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int N
     
     if (NextBufferOffset >= 32)
     {
-        State.Output.InterlockedAnd(State.AlignedByteAddress, State.BufferMask);
-        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
+        Output.InterlockedAnd(State.AlignedByteAddress, State.BufferMask);
+        Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
 		State.BufferMask = 0;
 		
 		// Shifts are mod 32, so we need special handling when shift could be >= 32.
@@ -135,13 +180,13 @@ void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int N
 	State.BufferOffset = NextBufferOffset & 31;
 }
 
-void BitStreamWriter_Flush(inout FBitStreamWriterState State)
+void BitStreamWriter_Flush(RWByteAddressBuffer Output, inout FBitStreamWriterState State)
 {
     if (State.BufferOffset > 0)
     {
         uint Mask = State.BufferMask | ~BitFieldMaskU32(State.BufferOffset, 0);
-        State.Output.InterlockedAnd(State.AlignedByteAddress, Mask);
-        State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
+        Output.InterlockedAnd(State.AlignedByteAddress, Mask);
+        Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
     }
 }
 

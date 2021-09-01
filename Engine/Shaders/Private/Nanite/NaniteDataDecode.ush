@@ -563,11 +563,11 @@ uint3 ReadTriangleIndices(FCluster Cluster, uint TriIndex)
 {
 	const uint BitsPerTriangle = Cluster.BitsPerIndex + 2 * 5;
 
-	FBitStreamReaderStateRO BitStreamReader = BitStreamReader_Create_Aligned_RO(ClusterPageData, Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * BitsPerTriangle, 8 + 2*5);
+	FBitStreamReaderState BitStreamReader = BitStreamReader_Create_Aligned(Cluster.PageBaseAddress + Cluster.IndexOffset, TriIndex * BitsPerTriangle, 8 + 2*5);
 
-	uint BaseIndex = BitStreamReader_Read(BitStreamReader, Cluster.BitsPerIndex, 8);
-	uint Delta0 = BitStreamReader_Read(BitStreamReader, 5, 5);
-	uint Delta1 = BitStreamReader_Read(BitStreamReader, 5, 5);
+	uint BaseIndex = BitStreamReader_Read_RO(ClusterPageData, BitStreamReader, Cluster.BitsPerIndex, 8);
+	uint Delta0 = BitStreamReader_Read_RO(ClusterPageData, BitStreamReader, 5, 5);
+	uint Delta1 = BitStreamReader_Read_RO(ClusterPageData, BitStreamReader, 5, 5);
 
 	return BaseIndex + uint3(0, Delta0, Delta1);
 }
