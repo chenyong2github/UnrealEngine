@@ -227,6 +227,11 @@ namespace CADLibrary
 		}
 	}
 
+	bool FCoreTechSessionBase::IsCoreTechSessionValid() const
+	{
+		return Owner != nullptr && MainObjectId != 0;
+	}
+
 	FCoreTechSessionBase::~FCoreTechSessionBase()
 	{
 		if (Owner != nullptr)

@@ -258,7 +258,7 @@ namespace CADLibrary
 		 * Make sure CT is initialized, and a main object is ready.
 		 */
 		FCoreTechSessionBase(const TCHAR* Owner);
-		bool IsSessionValid() { return Owner != nullptr && MainObjectId != 0; }
+		bool IsCoreTechSessionValid() const;
 		virtual ~FCoreTechSessionBase();
 
 	protected:
