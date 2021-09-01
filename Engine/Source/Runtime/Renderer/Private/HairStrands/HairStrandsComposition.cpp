@@ -62,7 +62,7 @@ void InternalCommonDrawPass(
 	const bool bUseTile = TileData.IsValid();
 	if (TileData.IsValid())
 	{
-		PassParamters->TileData = GetHairStrandsTileParameters(View, TileData);
+		PassParamters->TileData = GetHairStrandsTileParameters(View, TileData, FHairStrandsTiles::ETileType::Hair);
 	}
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(EventName),
@@ -140,7 +140,7 @@ void InternalCommonDrawPass(
 		{
 			SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(PassParamters->TileData.TileIndirectBuffer->GetRHI(), 0);
+			RHICmdList.DrawPrimitiveIndirect(PassParamters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(FHairStrandsTiles::ETileType::Hair));
 		}
 		else
 		{

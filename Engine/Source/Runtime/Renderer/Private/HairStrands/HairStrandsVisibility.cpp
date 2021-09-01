@@ -1430,9 +1430,11 @@ static void AddClearGraphicPass(
 	check(OutTarget);
 	const bool bUseTile = TileData.IsValid();
 
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
+
 	FClearUIntGraphicPS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearUIntGraphicPS::FParameters>();
 	Parameters->ClearValue = ClearValue;
-	Parameters->TileData = GetHairStrandsTileParameters(*View, TileData, FHairStrandsTiles::ETileType::Hair);
+	Parameters->TileData = GetHairStrandsTileParameters(*View, TileData, TileType);
 	Parameters->RenderTargets[0] = FRenderTargetBinding(OutTarget, ERenderTargetLoadAction::ENoAction, 0);
 
 	FClearUIntGraphicPS::FPermutationDomain PermutationVector;
@@ -1457,7 +1459,7 @@ static void AddClearGraphicPass(
 		Forward<FRDGEventName>(PassName),
 		Parameters,
 		ERDGPassFlags::Raster,
-		[Parameters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, bUseTile](FRHICommandList& RHICmdList)
+		[Parameters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, bUseTile, TileType](FRHICommandList& RHICmdList)
 	{
 		FHairStrandsTilePassVS::FParameters ParametersVS = Parameters->TileData;
 
@@ -1478,7 +1480,7 @@ static void AddClearGraphicPass(
 		{
 			SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), 0);
+			RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(TileType));
 		}
 		else
 		{
@@ -1736,12 +1738,13 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 	}
 
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
 	if (bUseTile)
 	{
 		PassParameters->TileCountXY			= TileData.TileCountXY;
 		PassParameters->TileSize			= FHairStrandsTiles::TileSize;
 		PassParameters->TileCountBuffer		= GraphBuilder.CreateSRV(TileData.TileCountBuffer, PF_R32_UINT);
-		PassParameters->TileDataBuffer		= TileData.TileDataSRV;;
+		PassParameters->TileDataBuffer		= TileData.GetTileBufferSRV(TileType);
 		PassParameters->IndirectBufferArgs	= TileData.TileIndirectDispatchBuffer;
 	}
  
@@ -1754,7 +1757,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 			ComputeShader,
 			PassParameters,
 			TileData.TileIndirectDispatchBuffer,
-			0);
+			FHairStrandsTiles::GetIndirectDispatchArgOffset(TileType));
 	}
 	else
 	{
@@ -1868,6 +1871,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 
 	// Select render node count according to current mode
 	const bool bUseTile = TileData.IsValid();
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
 	const uint32 MSAASampleCount = GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility ? GetMaxSamplePerPixel() : 1;
 	const uint32 PPLLMaxRenderNodePerPixel = GetMaxSamplePerPixel();
 	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(Resolution);
@@ -1898,7 +1902,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 		PassParameters->TileCountXY = TileData.TileCountXY;
 		PassParameters->TileSize = FHairStrandsTiles::TileSize;
 		PassParameters->TileCountBuffer = GraphBuilder.CreateSRV(TileData.TileCountBuffer, PF_R32_UINT);
-		PassParameters->TileDataBuffer = TileData.TileDataSRV;;
+		PassParameters->TileDataBuffer = TileData.GetTileBufferSRV(TileType);
 		PassParameters->IndirectBufferArgs = TileData.TileIndirectDispatchBuffer;
 	}
 
@@ -1916,7 +1920,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 			ComputeShader,
 			PassParameters,
 			TileData.TileIndirectDispatchBuffer,
-			0);
+			FHairStrandsTiles::GetIndirectDispatchArgOffset(TileType));
 	}
 	else
 	{
@@ -1967,10 +1971,11 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	check(GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility);
 
 	const bool bUseTile = TileData.IsValid();
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
 	FRDGTextureRef OutVisibilityDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_D24, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1, GetMaxSamplePerPixel()), TEXT("Hair.VisibilityDepthTexture"));
 
 	FHairVisibilityFillOpaqueDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFillOpaqueDepthPS::FParameters>();
-	Parameters->TileData = GetHairStrandsTileParameters(View, TileData, FHairStrandsTiles::ETileType::Hair);
+	Parameters->TileData = GetHairStrandsTileParameters(View, TileData, TileType);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->SceneDepthTexture = SceneDepthTexture;
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
@@ -1993,7 +1998,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 			RDG_EVENT_NAME("HairStrands::FillVisibilityDepth(Tile)"),
 			Parameters,
 			ERDGPassFlags::Raster,
-			[Parameters, TileVertexShader, PixelShader, Viewport](FRHICommandList& RHICmdList)
+			[Parameters, TileVertexShader, PixelShader, Viewport, TileType](FRHICommandList& RHICmdList)
 			{
 				FHairStrandsTilePassVS::FParameters ParametersVS = Parameters->TileData;
 
@@ -2014,7 +2019,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 				RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 				SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
 				RHICmdList.SetStreamSource(0, nullptr, 0);
-				RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), 0);
+				RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(TileType));
 			});
 
 	}
@@ -2489,9 +2494,11 @@ static void AddHairAuxilaryPass(
 	FRDGTextureRef OutDepthTexture,
 	FRDGTextureRef OutLightChannelMaskTexture)
 {
+	const FHairStrandsTiles::ETileType TileType = (PassType == EHairAuxilaryPassType::DepthClear) ? FHairStrandsTiles::ETileType::Other : FHairStrandsTiles::ETileType::Hair;
+
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->bClear = PassType == EHairAuxilaryPassType::DepthClear ? 1u : 0u;
-	Parameters->TileData = GetHairStrandsTileParameters(View, TileData, PassType == EHairAuxilaryPassType::DepthClear ?  FHairStrandsTiles::ETileType::Other : FHairStrandsTiles::ETileType::Hair);
+	Parameters->TileData = GetHairStrandsTileParameters(View, TileData, TileType);
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->CoverageTexture = CoverageTexture;
 	Parameters->HairSampleOffset = HairSampleOffset;
@@ -2547,7 +2554,7 @@ static void AddHairAuxilaryPass(
 		RDG_EVENT_NAME("ComputeHairAuxilary(%s)(%s)", Method, bUseTile ? TEXT("Tile") : TEXT("Screen")),
 		Parameters,
 		ERDGPassFlags::Raster,
-		[Parameters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, bUseTile, bDepthTested](FRHICommandList& RHICmdList)
+		[Parameters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, bUseTile, bDepthTested, TileType](FRHICommandList& RHICmdList)
 	{
 		FHairStrandsTilePassVS::FParameters ParametersVS = Parameters->TileData;
 
@@ -2572,7 +2579,7 @@ static void AddHairAuxilaryPass(
 		{
 			SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), 0);
+			RHICmdList.DrawPrimitiveIndirect(Parameters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(TileType));
 		}
 		else
 		{

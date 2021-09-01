@@ -13,6 +13,7 @@
 #include "../MortonCode.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
+#include "../HairStrands/HairStrandsTileCommon.ush"
 #include "PageAccessCommon.ush"
 #include "PageCacheCommon.ush"
 #include "PageOverlap.ush"
@@ -200,9 +201,9 @@ void GeneratePageFlagsFromPixels(
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
 #if PERMUTATION_INPUT_TYPE == INPUT_TYPE_HAIRSTRANDS
 	uint2 GroupId		= InGroupId.xy;
-	const uint TileCount= HairStrands.HairTileCount[0];
 	if (HairStrands.bHairTileValid>0)
 	{
+		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR];
 		const uint LinearIndex  = InGroupId.x + InGroupId.y * HairStrands.HairTileCountXY.x;
 		if (LinearIndex >= TileCount)
 		{

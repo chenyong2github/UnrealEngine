@@ -41,7 +41,8 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FHairStrandsTiles
 {
-	enum class ETileType : uint8 { Hair, Other };
+	enum class ETileType : uint8 { Hair, Other, Count };
+	static const uint32 TileTypeCount = uint32(ETileType::Count);
 
 	FIntPoint			BufferResolution = FIntPoint(0, 0);
 	static const uint32 GroupSize = 64;
@@ -51,19 +52,27 @@ struct FHairStrandsTiles
 	FIntPoint			TileCountXY = FIntPoint(0, 0);
 	bool				bRectPrimitive = false;
 
-	FRDGBufferSRVRef	TileDataSRV = nullptr;
-	FRDGBufferRef		TileDataBuffer = nullptr;
+	// Buffers per tile types
+	FRDGBufferSRVRef	TileDataSRV[TileTypeCount] = { nullptr, nullptr };
+	FRDGBufferRef		TileDataBuffer[TileTypeCount] = { nullptr, nullptr };
+
+	// Buffer shared for all tile types 
+	FRDGBufferSRVRef	TileCountSRV = nullptr;
 	FRDGBufferRef		TileCountBuffer = nullptr;
+
 	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
 	FRDGBufferRef		TilePerThreadIndirectDispatchBuffer = nullptr;
 
-	FRDGBufferSRVRef	TileClearSRV = nullptr;
-	FRDGBufferRef		TileClearBuffer = nullptr;
-	FRDGBufferRef		TileClearIndirectDrawBuffer = nullptr;
+	static FORCEINLINE uint32 GetIndirectDrawArgOffset(ETileType Type)		{ return uint32(Type) * sizeof(FRHIDrawIndirectParameters);	}
+	static FORCEINLINE uint32 GetIndirectDispatchArgOffset(ETileType Type)	{ return uint32(Type) * sizeof(FRHIDispatchIndirectParameters); } 
 
-	bool IsValid() const { return TileCount > 0 && TileDataBuffer != nullptr; }
+	bool IsValid() const										{ return TileCount > 0 && TileDataBuffer[uint32(ETileType::Hair)] != nullptr; }
+	FRDGBufferRef GetTileBuffer(ETileType Type) const			{ const uint32 Index = uint32(Type); check(TileDataBuffer[Index] != nullptr); return TileDataBuffer[Index];}
+	FRDGBufferSRVRef GetTileBufferSRV(ETileType Type) const		{ const uint32 Index = uint32(Type); check(TileDataSRV[Index] != nullptr); return TileDataSRV[Index];}
 };
+FORCEINLINE uint32 ToIndex(FHairStrandsTiles::ETileType Type) { return uint32(Type); }
+const TCHAR* ToString(FHairStrandsTiles::ETileType Type);
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Visibility Data

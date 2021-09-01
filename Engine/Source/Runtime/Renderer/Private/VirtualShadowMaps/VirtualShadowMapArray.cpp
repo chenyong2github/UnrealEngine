@@ -921,7 +921,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 								ComputeShader,
 								PassParameters,
 								View.HairStrandsViewData.VisibilityData.TileData.TileIndirectDispatchBuffer,
-								0);
+								View.HairStrandsViewData.VisibilityData.TileData.GetIndirectDispatchArgOffset(FHairStrandsTiles::ETileType::Hair));
 						}
 						else
 						{
