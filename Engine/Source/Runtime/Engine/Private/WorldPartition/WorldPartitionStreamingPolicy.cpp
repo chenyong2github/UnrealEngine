@@ -48,11 +48,11 @@ static FAutoConsoleVariableRef CMaxLoadingStreamingCells(
 	GMaxLoadingStreamingCells,
 	TEXT("Used to limit the number of concurrent loading world partition streaming cells."));
 
-static int32 GBlockOnSlowStreaming = 1;
-static FAutoConsoleCommand CVarBlockOnSlowStreaming(
-	TEXT("wp.Runtime.ToggleBlockOnSlowStreaming"),
-	TEXT("Toggles if streaming needs to block when to slow to catchup."),
-	FConsoleCommandDelegate::CreateLambda([] { GBlockOnSlowStreaming = !GBlockOnSlowStreaming; }));
+int32 GBlockOnSlowStreaming = 1;
+static FAutoConsoleVariableRef CVarBlockOnSlowStreaming(
+	TEXT("wp.Runtime.BlockOnSlowStreaming"),
+	GBlockOnSlowStreaming,
+	TEXT("Set if streaming needs to block when to slow to catchup."));
 
 
 UWorldPartitionStreamingPolicy::UWorldPartitionStreamingPolicy(const FObjectInitializer& ObjectInitializer)
