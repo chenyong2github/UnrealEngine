@@ -73,7 +73,7 @@ public class AlembicLib : ModuleRules
 				ReqLibraryNames.AddRange
 				(
 					new string[] {
-					(bDebug && bAllowDynamicLibs) ? "hdf5_" : "hdf5",
+					(bDebug && bAllowDynamicLibs) ? "libhdf5_" : "libhdf5",
 					"libAlembic"
 				  });
 
