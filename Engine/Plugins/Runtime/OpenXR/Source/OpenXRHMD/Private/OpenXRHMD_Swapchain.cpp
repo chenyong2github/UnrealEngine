@@ -206,7 +206,7 @@ FXRSwapChainPtr CreateSwapchain_D3D11(XrSession InSession, uint8 Format, uint32 
 		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
 		PlatformFormat = ::FindDepthStencilDXGIFormat(PlatformFormat);
 
-		// UE4 renders a gamma-corrected image so we need to use an sRGB format if available
+		// UE renders a gamma-corrected image so we need to use an sRGB format if available
 		PlatformFormat = ::FindShaderResourceDXGIFormat(PlatformFormat, true);
 		return PlatformFormat;
 	};
@@ -244,7 +244,7 @@ FXRSwapChainPtr CreateSwapchain_D3D12(XrSession InSession, uint8 Format, uint32 
 		DXGI_FORMAT PlatformFormat = (DXGI_FORMAT)GPixelFormats[InFormat].PlatformFormat;
 		PlatformFormat = D3D12RHI::FindDepthStencilDXGIFormat(PlatformFormat);
 
-		// UE4 renders a gamma-corrected image so we need to use an sRGB format if available
+		// UE renders a gamma-corrected image so we need to use an sRGB format if available
 		PlatformFormat = D3D12RHI::FindShaderResourceDXGIFormat(PlatformFormat, true);
 		return PlatformFormat;
 	};
@@ -307,7 +307,7 @@ FXRSwapChainPtr CreateSwapchain_Vulkan(XrSession InSession, uint8 Format, uint32
 {
 	TFunction<uint32(uint8)> ToPlatformFormat = [](uint8 InFormat)
 	{
-		// UE4 renders a gamma-corrected image so we need to use an sRGB format if available
+		// UE renders a gamma-corrected image so we need to use an sRGB format if available
 		return UEToVkTextureFormat(GPixelFormats[InFormat].UnrealFormat, true);
 	};
 	Format = FOpenXRSwapchain::GetNearestSupportedSwapchainFormat(InSession, Format, ToPlatformFormat);

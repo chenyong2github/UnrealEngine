@@ -2318,7 +2318,7 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 {
 	check(IsInRenderingThread());
 
-	// FIXME: UE4 constantly calls this function even when there is no reason to reallocate the depth texture
+	// FIXME: UE constantly calls this function even when there is no reason to reallocate the depth texture
 	FReadScopeLock Lock(SessionHandleMutex);
 	if (!Session || !bDepthExtensionSupported)
 	{
