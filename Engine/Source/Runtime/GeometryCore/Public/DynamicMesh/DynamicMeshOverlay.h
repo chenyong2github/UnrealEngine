@@ -399,6 +399,19 @@ public:
 		return FIndex3i(ElementTriangles[i], ElementTriangles[i + 1], ElementTriangles[i + 2]);
 	}
 
+	/** If the triangle is set to valid element indices, return the indices in TriangleOut and return true, otherwise return false */
+	inline bool GetTriangleIfValid(int TriangleID, FIndex3i& TriangleOut) const 
+	{
+		int i = 3 * TriangleID;
+		int a = ElementTriangles[i];
+		if ( a >= 0 )
+		{
+			TriangleOut = FIndex3i(a, ElementTriangles[i+1], ElementTriangles[i+2]);
+			checkSlow(TriangleOut.B >= 0 && TriangleOut.C >= 0);
+			return true;
+		}
+		return false;
+	}
 
 	/** Set the element at a given index */
 	inline void SetElement(int ElementID, const RealType* Data)
