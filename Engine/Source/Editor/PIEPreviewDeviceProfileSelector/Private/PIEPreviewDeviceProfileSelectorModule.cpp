@@ -31,17 +31,10 @@ IMPLEMENT_MODULE(FPIEPreviewDeviceModule, PIEPreviewDeviceProfileSelector);
 void FPIEPreviewDeviceModule::StartupModule()
 {
 	// Parse the json file specified on the command line
-
-	if (FParse::Value(FCommandLine::Get(), GetPreviewDeviceCommandSwitch(), PreviewDevice))
+	FString PreviewDeviceCmdLine;
+	if (FParse::Value(FCommandLine::Get(), GetPreviewDeviceCommandSwitch(), PreviewDeviceCmdLine))
 	{
-		const FString Filename = FindDeviceSpecificationFilePath(PreviewDevice);
-
-		FString Json;
-		if (FFileHelper::LoadFileToString(Json, *Filename))
-		{
-			TSharedRef<TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(Json);
-			FJsonSerializer::Deserialize(JsonReader, JsonRootObject);
-		}
+		SetPreviewDevice(PreviewDeviceCmdLine);
 	}
 }
 
@@ -70,6 +63,21 @@ void FPIEPreviewDeviceModule::ShutdownModule()
 	}
 }
 
+void FPIEPreviewDeviceModule::SetPreviewDevice(const FString& DeviceName)
+{
+	PreviewDevice = DeviceName;
+	const FString Filename = FindDeviceSpecificationFilePath(PreviewDevice);
+
+	FString Json;
+	if (FFileHelper::LoadFileToString(Json, *Filename))
+	{
+		TSharedRef<TJsonReader<> > JsonReader = TJsonReaderFactory<>::Create(Json);
+		FJsonSerializer::Deserialize(JsonReader, JsonRootObject);
+	}
+
+	InitPreviewDevice();
+}
+
 void FPIEPreviewDeviceModule::ApplyCommandLineOverrides()
 {
 	// Here we need to parse the json directly as we have not yet initialized the UObject system
@@ -93,6 +101,11 @@ FString const FPIEPreviewDeviceModule::GetRuntimeDeviceProfileName()
 	return DeviceProfile;
 }
 
+bool FPIEPreviewDeviceModule::GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT)
+{ 
+	return Device->GetSelectorPropertyValue(PropertyType, PropertyValueOUT);
+}
+
 void FPIEPreviewDeviceModule::InitPreviewDevice()
 {
 	bInitialized = true;
@@ -106,7 +119,11 @@ void FPIEPreviewDeviceModule::InitPreviewDevice()
 	bool bReadSuccess = ReadDeviceSpecification();
 	checkf(bReadSuccess, TEXT("Unable to read PIE Preview Device specification"));
 
-	Device->ApplyRHIPrerequisitesOverrides();
+	// Do not apply RHI overrides when using the editor
+	if(!GIsEditor)
+	{
+		Device->ApplyRHIPrerequisitesOverrides();
+	}
 	DeviceProfile = Device->GetProfile();
 }
 

@@ -53,5 +53,6 @@ class IPIEPreviewDeviceModule : public IDeviceProfileSelectorModule
 		{
 		}
 
+		virtual void SetPreviewDevice(const FString& DeviceName) = 0;
 		//~ End IDeviceProfileSelectorModule Interface
 };

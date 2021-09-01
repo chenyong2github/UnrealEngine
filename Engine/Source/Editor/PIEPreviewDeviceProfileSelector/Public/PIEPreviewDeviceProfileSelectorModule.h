@@ -23,6 +23,7 @@ public:
 
 	//~ Begin IDeviceProfileSelectorModule Interface
 	virtual const FString GetRuntimeDeviceProfileName() override;
+	virtual bool GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT) override;
 	//~ End IDeviceProfileSelectorModule Interface
 
 	//~ Begin IModuleInterface Interface
@@ -60,6 +61,8 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FAddToDevicePreviewMenu, const FText& DeviceCategoryName, class FMenuBuilder& MenuBuilder);
 	FAddToDevicePreviewMenu AddToDevicePreviewMenuDelegates;
+
+	virtual void SetPreviewDevice(const FString& DeviceName) override;
 
 private:
 	static const TCHAR* GetPreviewDeviceCommandSwitch()

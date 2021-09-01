@@ -411,6 +411,24 @@ void FPIEPreviewDevice::ApplyRHIOverrides() const
 	}
 }
 
+bool FPIEPreviewDevice::GetSelectorPropertyValue(const FName& PropertyType, FString& PropertyValueOUT) const
+{
+	switch (DeviceSpecs->DevicePlatform)
+	{
+		case EPIEPreviewDeviceType::Android:
+		{
+			IDeviceProfileSelectorModule* AndroidDeviceProfileSelector = FModuleManager::LoadModulePtr<IDeviceProfileSelectorModule>("AndroidDeviceProfileSelector");
+			if (AndroidDeviceProfileSelector)
+			{
+				return AndroidDeviceProfileSelector->GetSelectorPropertyValue(PropertyType, PropertyValueOUT);
+			}
+		}
+		break;
+	}
+	return false;
+}
+
+
 FString FPIEPreviewDevice::GetProfile() const
 {
 	FString Profile;
