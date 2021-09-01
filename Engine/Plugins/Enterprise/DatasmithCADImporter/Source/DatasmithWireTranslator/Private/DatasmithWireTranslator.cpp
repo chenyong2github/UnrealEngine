@@ -10,6 +10,7 @@
 #include "DatasmithUtils.h"
 #include "HAL/ConsoleManager.h"
 #include "DatasmithWireTranslatorModule.h"
+#include "HAL/ConsoleManager.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -149,15 +150,19 @@ public:
 			bEnableKernelIOTessellation = CVar->GetInt() != 0;
 		}
 
+		CADLibrary::FImportParameters ImportParameters;
+		ImportParameters.MetricUnit = 0.01;
+		ImportParameters.ScaleFactor = 1;
+
 		if (bEnableKernelIOTessellation)
 		{
-			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"));
+			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
 			CADModelConverter = AliasToCoretechConverter;
 			AliasBRepConverter = AliasToCoretechConverter;
 		}
 		else
 		{
-			TSharedRef<FAliasModelToCADKernelConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCADKernelConverter>();
+			TSharedRef<FAliasModelToCADKernelConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCADKernelConverter>(ImportParameters);
 			CADModelConverter = AliasToCoretechConverter;
 			AliasBRepConverter = AliasToCoretechConverter;
 		}
@@ -176,11 +181,6 @@ public:
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
 
 	bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions);
-
-	void AddSurfaceDataForMesh(const TCHAR* InFilePath, const FMeshParameters& InMeshParameters, const FDatasmithTessellationOptions& InTessellationOptions, FDatasmithMeshElementPayload& OutMeshPayload) const
-	{
-		CADModelConverter->AddSurfaceDataForMesh(InFilePath, InMeshParameters, InTessellationOptions, OutMeshPayload);
-	}
 
 private:
 
@@ -2031,7 +2031,7 @@ bool FWireTranslatorImpl::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement>
 	if (TOptional<FMeshDescription> Mesh = GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-		AddSurfaceDataForMesh(MeshElement->GetFile(), MeshParameters, InTessellationOptions, OutMeshPayload);
+		CADModelConverter->AddSurfaceDataForMesh(MeshElement->GetFile(), MeshParameters, InTessellationOptions, OutMeshPayload);
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }

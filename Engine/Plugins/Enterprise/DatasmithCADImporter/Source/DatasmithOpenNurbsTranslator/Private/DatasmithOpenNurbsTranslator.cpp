@@ -5,9 +5,9 @@
 
 #ifdef USE_OPENNURBS // The whole translation unit is skipped without OpenNurbs TPS library
 
-#include "RhinoCoretechWrapper.h"
-
 #include "CADInterfacesModule.h"
+#include "CADKernelSurfaceExtension.h"
+#include "CADModelConverter.h"
 #include "CoreTechSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 #include "DatasmithImportOptions.h"
@@ -17,6 +17,9 @@
 #include "DatasmithSceneFactory.h"
 #include "DatasmithSceneSource.h"
 #include "DatasmithUtils.h"
+#include "OpenNurbsBRepConverter.h"
+#include "OpenNurbsBRepToCADKernelConverter.h"
+#include "OpenNurbsBRepToCoretechConverter.h" // requires CoreTech as public dependency
 #include "Utility/DatasmithMeshHelper.h"
 
 #if WITH_EDITOR
@@ -160,7 +163,7 @@ namespace DatasmithOpenNurbsTranslatorUtils
 		}
 	}
 
-	bool CheckForCRCErrors(ON_BinaryArchive& archive, /*ON_TextLog* error_log,*/ const char* sSection, int& NumCRCErrors)
+	bool CheckForCRCErrors(ON_BinaryArchive& archive, const char* sSection, int& NumCRCErrors)
 	{
 		// returns true if new CRC errors are found
 		bool bHasCRCErrors = false;
@@ -168,11 +171,6 @@ namespace DatasmithOpenNurbsTranslatorUtils
 
 		if (NumCRCErrors != CRCCount)
 		{
-			//if (error_log)
-			//{
-			//	error_log->Print("ERROR: Corrupt %s. (CRC errors).\n", sSection);
-			//	error_log->Print("-- Attempting to continue.\n");
-			//}
 			NumCRCErrors = CRCCount;
 			bHasCRCErrors = true;
 		}
@@ -640,8 +638,6 @@ public:
 		, FileVersion(0)
 		, ArchiveOpenNurbsVersion(0)
 		, FileLength(0)
-		, MetricUnit(0.001)
-		, ScalingFactor(0.1)
 		, NumCRCErrors(0)
 	{
 		if (!TranslationCache.IsValid())
@@ -649,13 +645,33 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		LocalSession = FRhinoCoretechWrapper::GetSharedSession();
+		bool bEnableKernelIOTessellation = true;
+		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableKernelIOTessellation")))
+		{
+			bEnableKernelIOTessellation = CVar->GetInt() != 0;
+		}
+
+		CADLibrary::FImportParameters ImportParameters;
+		ImportParameters.MetricUnit = 0.001;
+		ImportParameters.ScaleFactor = 0.1;
+		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
+
+		if (bEnableKernelIOTessellation)
+		{
+			TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
+			CADModelConverter = OpenNurbsBRepToCoretechConverter;
+			OpenNurbsBRepConverter = OpenNurbsBRepToCoretechConverter;
+		}
+		else
+		{
+			TSharedRef<FOpenNurbsBRepToCADKernelConverter> OpenNurbsBRepToCADKernelConverter = MakeShared<FOpenNurbsBRepToCADKernelConverter>(ImportParameters);
+			CADModelConverter = OpenNurbsBRepToCADKernelConverter;
+			OpenNurbsBRepConverter = OpenNurbsBRepToCADKernelConverter;
+		}
 	}
 
 	~FOpenNurbsTranslatorImpl()
 	{
-		LocalSession.Reset();
-
 		for (FOpenNurbsTranslatorImpl* ChildTranslator : ChildTranslators)
 		{
 			delete ChildTranslator;
@@ -669,10 +685,10 @@ public:
 	void SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions);
 	void SetOpenNurbsOptions(const FDatasmithOpenNurbsOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
-	double GetScalingFactor() const { return ScalingFactor; }
-	double GetMetricUnit() const { return MetricUnit; }
-
+	
 	void ShowMessageLog(const FString& Filename);
+
+	bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions);
 
 private:
 	void TranslateTextureMappingTable(const ON_ObjectArray<ON_TextureMapping>& TextureMappingTable);
@@ -712,7 +728,7 @@ private:
 
 	void SetMaterialToMeshElement(TSharedPtr<IDatasmithMeshElement> MeshElement, TSharedPtr<IDatasmithBaseMaterialElement> MaterialElement, int32 SlotId);
 
-	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
+	bool TranslateBRep(ON_Brep* brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal);
 
 
 	bool ComputeObjectGeometryCenter(const FOpenNurbsObjectWrapper& Object, ON_3dVector& OutGeometryCenter);
@@ -730,6 +746,11 @@ private:
 		return -Offset;
 	}
 
+	double GetScaleFactor() const
+	{
+		return CADModelConverter->GetScaleFactor();
+	}
+
 private:
 	TArray<FOpenNurbsTranslatorImpl*> ChildTranslators;
 	TSharedRef<IDatasmithScene> Scene;
@@ -740,8 +761,6 @@ private:
 	FDatasmithOpenNurbsOptions OpenNurbsOptions;
 	uint32 OpenNurbsOptionsHash;
 	FDatasmithImportBaseOptions BaseOptions;
-
-	TSharedPtr<FRhinoCoretechWrapper> LocalSession;
 
 private:
 	// For OpenNurbs archive parsing
@@ -772,9 +791,6 @@ private:
 
 	// length of archive returned by ON_BinaryArchive::Read3dmEndMark()
 	size_t FileLength;
-
-	double MetricUnit; // meters per file unit (m/u) eg 0.0254 for files in inches
-	double ScalingFactor;
 
 	// Number of crc errors found during archive reading.
 	// If > 0, then the archive is corrupt.
@@ -821,6 +837,10 @@ private:
 	TMap< TSharedPtr< IDatasmithMeshElement >, ON_3dVector > MeshElementToGeometryCenter;
 
 	TArray<FString> MissingRenderMeshes;
+
+	TSharedPtr<CADLibrary::ICADModelConverter> CADModelConverter;
+	TSharedPtr<IOpenNurbsBRepConverter> OpenNurbsBRepConverter;
+
 };
 
 void FOpenNurbsTranslatorImpl::ShowMessageLog(const FString& Filename)
@@ -1299,7 +1319,7 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 			LightType == EDatasmithElementType::SpotLight)
 		{
 			FVector Location(LightObj.Location().x, LightObj.Location().y, LightObj.Location().z);
-			Location *= ScalingFactor;
+			Location *= GetScaleFactor();
 			Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Location);
 			LightElement->SetTranslation(Location);
 		}
@@ -1318,14 +1338,14 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 		{
 			TSharedRef<IDatasmithAreaLightElement> AreaLightElement = StaticCastSharedRef<IDatasmithAreaLightElement>(LightElement.ToSharedRef());
 
-			double Length = LightObj.Length().Length() * ScalingFactor;
+			double Length = LightObj.Length().Length() * GetScaleFactor();
 			AreaLightElement->SetLength(Length);
 
 			ON_3dVector Center = LightObj.Location() + 0.5 * LightObj.Length();
 			if (LightStyle == ON::light_style::world_rectangular_light)
 			{
 				Center += 0.5 * LightObj.Width();
-				double Width = LightObj.Width().Length() * ScalingFactor;
+				double Width = LightObj.Width().Length() * GetScaleFactor();
 
 				AreaLightElement->SetWidth(Width);
 				AreaLightElement->SetLightShape(EDatasmithLightShape::Rectangle);
@@ -1352,7 +1372,7 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 			FTransform Transform(Matrix);
 			FTransform CorrectedTransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Transform);
 
-			AreaLightElement->SetTranslation(CorrectedTransform.GetTranslation() * ScalingFactor);
+			AreaLightElement->SetTranslation(CorrectedTransform.GetTranslation() * GetScaleFactor());
 			AreaLightElement->SetScale(CorrectedTransform.GetScale3D());
 			AreaLightElement->SetRotation(CorrectedTransform.GetRotation());
 		}
@@ -1369,8 +1389,8 @@ void FOpenNurbsTranslatorImpl::TranslateLightTable(const ON_ClassArray<FOpenNurb
 			double OuterRadius;
 			LightObj.GetSpotLightRadii(&InnerRadius, &OuterRadius);
 
-			InnerRadius *= ScalingFactor;
-			OuterRadius *= ScalingFactor;
+			InnerRadius *= GetScaleFactor();
+			OuterRadius *= GetScaleFactor();
 
 			float OuterAngle = FMath::Atan(OuterRadius * FMath::Tan(FMath::DegreesToRadians(InnerAngleDegree)) / InnerRadius);
 			SpotLightElement->SetOuterConeAngle(FMath::RadiansToDegrees(OuterAngle));
@@ -1865,7 +1885,7 @@ bool FOpenNurbsTranslatorImpl::TranslateInstance(const FOpenNurbsObjectWrapper& 
 	FTransform Transform(Matrix);
 	FTransform CorrectedTransform = FDatasmithUtils::ConvertTransform(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Transform);
 
-	ContainerElement->SetTranslation(CorrectedTransform.GetTranslation() * ScalingFactor);
+	ContainerElement->SetTranslation(CorrectedTransform.GetTranslation() * GetScaleFactor());
 	ContainerElement->SetScale(CorrectedTransform.GetScale3D());
 	ContainerElement->SetRotation(CorrectedTransform.GetRotation());
 	bool bIsPartOfInstanceDefinition = false;
@@ -2037,7 +2057,7 @@ TSharedPtr<IDatasmithMeshActorElement> FOpenNurbsTranslatorImpl::GetMeshActorEle
 	if (ComputeObjectGeometryCenter(Object, GeometryCenter))
 	{
 		MeshElementToGeometryCenter.Add(MeshElement.ToSharedRef(), GeometryCenter);
-		FVector ActorOffset = ScalingFactor * FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, GeometryCenter);
+		FVector ActorOffset = GetScaleFactor() * FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, GeometryCenter);
 		ActorElement->SetTranslation(ActorOffset);
 	}
 
@@ -2083,7 +2103,7 @@ TSharedPtr<IDatasmithActorElement> FOpenNurbsTranslatorImpl::GetPointActorElemen
 	}
 
 	FVector Location(pointObj->point.x, pointObj->point.y, pointObj->point.z);
-	Location *= ScalingFactor;
+	Location *= GetScaleFactor();
 	Location = FDatasmithUtils::ConvertVector(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy, Location);
 
 	ActorElement->SetTranslation(Location);
@@ -2286,7 +2306,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	// Step 1: REQUIRED - Read Start Section
 	if (!Archive.Read3dmStartSection(&FileVersion, StartSectionComments))
 	{
-		//if (error_log) error_log->Print("ERROR: Unable to read start section. (ON_BinaryArchive::Read3dmStartSection() returned false.)\n");
 		return false;
 	}
 	else if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, nullptr, NumCRCErrors))
@@ -2297,7 +2316,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	// Step 2: REQUIRED - Read properties table
 	if (!Archive.Read3dmProperties(Properties))
 	{
-		//if (error_log) error_log->Print("ERROR: Unable to read properties section. (ON_BinaryArchive::Read3dmProperties() returned false.)\n");
 		return false;
 	}
 	else if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "properties section", NumCRCErrors))
@@ -2317,7 +2335,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	// Step 3: REQUIRED - Read settings table
 	if (!Archive.Read3dmSettings(Settings))
 	{
-		//if (error_log) error_log->Print("ERROR: Unable to read settings section. (ON_BinaryArchive::Read3dmSettings() returned false.)\n");
 		return false;
 	}
 	else if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "settings section", NumCRCErrors))
@@ -2325,10 +2342,8 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		bResult = false;
 	}
 
-	// 	ScalingFactor is defined according to input Rhino file unit. CT don't modify CAD input according to the set file unit.
-	ScalingFactor = 100 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
-	MetricUnit = 1 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
-	LocalSession->SetScaleFactor(ScalingFactor);
+	double MetricUnit = 1 / Settings.m_ModelUnitsAndTolerances.Scale(ON::LengthUnitSystem::Meters);
+	CADModelConverter->SetMetricUnit(MetricUnit);
 
 	// Step 4: REQUIRED - Read bitmap table (it can be empty)
 	int Count = 0;
@@ -2350,23 +2365,13 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt bitmap found. (ON_BinaryArchive::Read3dmBitmap() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				bResult = false;
 			}
-			//BitmapTable.Append(pBitmap);
 		}
 
 		// EndRead3dmBitmapTable() must be called when BeginRead3dmBitmapTable() returns true
 		if (!Archive.EndRead3dmBitmapTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt bitmap table. (ON_BinaryArchive::EndRead3dmBitmapTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "bitmap table", NumCRCErrors))
@@ -2376,11 +2381,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt bitmap table. (ON_BinaryArchive::BeginRead3dmBitmapTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2399,14 +2399,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt render texture_mapping found. (ON_BinaryArchive::Read3dmTextureMapping() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				continue;
 			}
 			ON_UserDataHolder ud;
@@ -2421,7 +2413,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmTextureMappingTable() must be called when BeginRead3dmTextureMappingTable() returns true.
 		if (!Archive.EndRead3dmTextureMappingTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt render texture_mapping table. (ON_BinaryArchive::EndRead3dmTextureMappingTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "render texture_mapping table", NumCRCErrors))
@@ -2431,11 +2422,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt render texture_mapping table. (ON_BinaryArchive::BeginRead3dmTextureMappingTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2454,14 +2440,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt render material found. (ON_BinaryArchive::Read3dmMaterial() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pMaterial = new ON_Material; // use default
 				pMaterial->SetIndex(Count);
 			}
@@ -2476,7 +2454,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmMaterialTable() must be called when BeginRead3dmMaterialTable() returns true.
 		if (!Archive.EndRead3dmMaterialTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt render material table. (ON_BinaryArchive::EndRead3dmMaterialTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "render material table", NumCRCErrors))
@@ -2486,11 +2463,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt render material table. (ON_BinaryArchive::BeginRead3dmMaterialTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2512,14 +2484,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt render linetype found. (ON_BinaryArchive::Read3dmLinetype() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pLinetype = new ON_Linetype; // use default
 				pLinetype->SetIndex(Count);
 			}
@@ -2534,7 +2498,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmLinetypeTable() must be called when BeginRead3dmLinetypeTable() returns true.
 		if (!Archive.EndRead3dmLinetypeTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt render linetype table. (ON_BinaryArchive::EndRead3dmLinetypeTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "render linetype table", NumCRCErrors))
@@ -2544,11 +2507,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt render linetype table. (ON_BinaryArchive::BeginRead3dmLinetypeTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2568,14 +2526,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt layer found. (ON_BinaryArchive::Read3dmLayer() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pLayer = new ON_Layer; // use default
 				pLayer->SetIndex(Count);
 			}
@@ -2590,7 +2540,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmLayerTable() must be called when BeginRead3dmLayerTable() returns true.
 		if (!Archive.EndRead3dmLayerTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt render layer table. (ON_BinaryArchive::EndRead3dmLayerTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "layer table", NumCRCErrors))
@@ -2600,11 +2549,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt layer table. (ON_BinaryArchive::BeginRead3dmLayerTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2624,14 +2568,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt group found. (ON_BinaryArchive::Read3dmGroup() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pGroup = new ON_Group; // use default
 				pGroup->SetIndex(-1);
 			}
@@ -2646,7 +2582,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmGroupTable() must be called when BeginRead3dmGroupTable() returns true.
 		if (!Archive.EndRead3dmGroupTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt group table. (ON_BinaryArchive::EndRead3dmGroupTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "group table", NumCRCErrors))
@@ -2656,11 +2591,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt group table. (ON_BinaryArchive::BeginRead3dmGroupTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2684,14 +2614,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt dimstyle found. (ON_BinaryArchive::Read3dmDimStyle() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pDimStyle = new ON_DimStyle; // use default
 				pDimStyle->SetIndex(Count);
 			}
@@ -2707,7 +2629,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// then you MUST call EndRead3dmDimStyleTable().
 		if (!Archive.EndRead3dmDimStyleTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt dimstyle table. (ON_BinaryArchive::EndRead3dmDimStyleTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "dimstyle table", NumCRCErrors))
@@ -2717,11 +2638,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt dimstyle table. (ON_BinaryArchive::BeginRead3dmDimStyleTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2742,14 +2658,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt render light found. (ON_BinaryArchive::Read3dmLight() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				continue;
 			}
 
@@ -2761,7 +2669,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmLightTable() must be called when BeginRead3dmLightTable() returns true.
 		if (!Archive.EndRead3dmLightTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt render light table. (ON_BinaryArchive::EndRead3dmLightTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "render light table", NumCRCErrors))
@@ -2771,11 +2678,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt render light table. (ON_BinaryArchive::BeginRead3dmLightTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2809,14 +2711,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt hatchpattern found. (ON_BinaryArchive::Read3dmHatchPattern() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				pHatchPattern = new ON_HatchPattern; // use default
 				pHatchPattern->SetIndex(Count);
 			}
@@ -2831,7 +2725,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmHatchPatternTable() must be called when BeginRead3dmHatchPatternTable() returns true.
 		if (!Archive.EndRead3dmHatchPatternTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt hatchpattern table. (ON_BinaryArchive::EndRead3dmHatchPatternTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "hatchpattern table", NumCRCErrors))
@@ -2841,11 +2734,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt hatchpattern table. (ON_BinaryArchive::BeginRead3dmHatchPatternTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2864,29 +2752,14 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Corrupt instance definition found. (ON_BinaryArchive::Read3dmInstanceDefinition() < 0.)\n");
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				continue;
 			}
-			// Note that pIDef is deleted later after step 15
-			////ON_UserDataHolder ud;
-			////ud.MoveUserDataFrom(*pIDef);
-			////m_idef_table.Append(*pIDef);
-			////ud.MoveUserDataTo(*m_idef_table.Last(), false);
-			////delete pIDef;
 			InstanceDefinitionTable.Add(pIDef);
 		}
 
 		// EndRead3dmInstanceDefinitionTable() must be called when BeginRead3dmInstanceDefinitionTable() returns true.
 		if (!Archive.EndRead3dmInstanceDefinitionTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt instance definition table. (ON_BinaryArchive::EndRead3dmInstanceDefinitionTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "instance definition table", NumCRCErrors))
@@ -2896,11 +2769,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt instance definition table. (ON_BinaryArchive::BeginRead3dmInstanceDefinitionTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -2926,49 +2794,19 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: Object table entry %d is corrupt. (ON_BinaryArchive::Read3dmObject() < 0.)\n", count);
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				continue;
 			}
-			//if (m_crc_error_count != archive.BadCRCCount())
-			//{
-			//	if (error_log)
-			//	{
-			//		error_log->Print("ERROR: Object table entry %d is corrupt. (CRC errors).\n", count);
-			//		error_log->Print("-- Attempting to continue.\n");
-			//	}
-			//	m_crc_error_count = archive.BadCRCCount();
-			//}
 			if (pObject)
 			{
 				FOpenNurbsObjectWrapper& mo = ObjectTable.AppendNew();
 				mo.ObjectPtr = pObject;
 				mo.Attributes = attributes;
 			}
-			else
-			{
-				//if (error_log)
-				//{
-				//	if (rc == 2)
-				//		error_log->Print("WARNING: Skipping object table entry %d because it's filtered.\n", count);
-				//	else if (rc == 3)
-				//		error_log->Print("WARNING: Skipping object table entry %d because it's newer than this code.  Update your OpenNURBS toolkit.\n", count);
-				//	else
-				//		error_log->Print("WARNING: Skipping object table entry %d for unknown reason.\n", count);
-				//}
-			}
 		}
 
 		// EndRead3dmObjectTable() must be called when BeginRead3dmObjectTable() returns true.
 		if (!Archive.EndRead3dmObjectTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt object light table. (ON_BinaryArchive::EndRead3dmObjectTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "object table", NumCRCErrors))
@@ -2978,11 +2816,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt object table. (ON_BinaryArchive::BeginRead3dmObjectTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -3008,42 +2841,18 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 			}
 			if (ReturnCode < 0)
 			{
-				//if (error_log)
-				//{
-				//	error_log->Print("ERROR: History record table entry %d is corrupt. (ON_BinaryArchive::Read3dmHistoryRecord() < 0.)\n", count);
-				//	error_count++;
-				//	if (error_count > max_error_count)
-				//		return false;
-				//	error_log->Print("-- Attempting to continue.\n");
-				//}
 				continue;
 			}
-			//if (m_crc_error_count != archive.BadCRCCount())
-			//{
-			//	if (error_log)
-			//	{
-			//		error_log->Print("ERROR: History record table entry %d is corrupt. (CRC errors).\n", count);
-			//		error_log->Print("-- Attempting to continue.\n");
-			//	}
-			//	m_crc_error_count = archive.BadCRCCount();
-			//}
+
 			if (pHistoryRecord)
 			{
 				HistoryRecordTable.Append(pHistoryRecord);
-			}
-			else
-			{
-				//if (error_log)
-				//{
-				//	error_log->Print("WARNING: Skipping history record table entry %d for unknown reason.\n", count);
-				//}
 			}
 		}
 
 		// EndRead3dmHistoryRecordTable() must be called when BeginRead3dmHistoryRecordTable() returns true.
 		if (!Archive.EndRead3dmHistoryRecordTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt object light table. (ON_BinaryArchive::EndRead3dmObjectTable() returned false.)\n");
 			return false;
 		}
 		if (DatasmithOpenNurbsTranslatorUtils::CheckForCRCErrors(Archive, "history record table", NumCRCErrors))
@@ -3053,11 +2862,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	}
 	else
 	{
-		//if (error_log)
-		//{
-		//	error_log->Print("WARNING: Missing or corrupt history record table. (ON_BinaryArchive::BeginRead3dmHistoryRecordTable() returned false.)\n");
-		//	error_log->Print("-- Attempting to continue.\n");
-		//}
 		bResult = false;
 	}
 
@@ -3122,7 +2926,6 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 
 		if (!Archive.Read3dmAnonymousUserTable(usertable_3dm_version, usertable_opennurbs_version, ud.m_goo))
 		{
-			//if (error_log) error_log->Print("ERROR: User data table entry %d is corrupt. (ON_BinaryArchive::Read3dmAnonymousUserTable() is false.)\n", count);
 			break;
 		}
 
@@ -3130,20 +2933,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 		// EndRead3dmUserTable() must be called when BeginRead3dmObjectTable() returns true.
 		if (!Archive.EndRead3dmUserTable())
 		{
-			//if (error_log) error_log->Print("ERROR: Corrupt user data table. (ON_BinaryArchive::EndRead3dmUserTable() returned false.)\n");
 			break;
-		}
-	}
-
-	// Nothing to do
-
-	// Step 18: OPTIONAL when reading: EndMark
-	if (!Archive.Read3dmEndMark(&FileLength))
-	{
-		if (Archive.Archive3dmVersion() != 1)
-		{
-			// some v1 files are missing end-of-archive markers
-			//if (error_log) error_log->Print("ERROR: ON_BinaryArchive::Read3dmEndMark(&m_file_length) returned false.\n");
 		}
 	}
 
@@ -3167,7 +2957,7 @@ bool FOpenNurbsTranslatorImpl::Read(ON_BinaryFile& Archive, TSharedRef<IDatasmit
 	return true;
 }
 
-bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, const TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal)
+bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAttributes& Attributes, FMeshDescription& OutMesh, TSharedRef< IDatasmithMeshElement >& MeshElement, const FString& Name, bool& bHasNormal)
 {
 	if (Brep == nullptr)
 	{
@@ -3181,24 +2971,17 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 	{
 		// Ref. visitBRep
 		const FDatasmithOpenNurbsOptions& TessellationOptions = OpenNurbsOptions;
-		LocalSession->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
-		LocalSession->SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
+		CADModelConverter->SetImportParameters(TessellationOptions.ChordTolerance, TessellationOptions.MaxEdgeLength, TessellationOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) TessellationOptions.StitchingTechnique, false);
 
-		LocalSession->ClearData();
-		LocalSession->SetSceneUnit(GetMetricUnit());
+		CADModelConverter->InitializeProcess(CADModelConverter->GetMetricUnit());
 
-		LocalSession->AddBRep(*Brep, Offset);
+		OpenNurbsBRepConverter->AddBRep(*Brep, Offset);
+		CADModelConverter->RepairTopology();
 
-		FString FilePath = FPaths::Combine(OutputPath, Name) += TEXT(".ct");
-		if (LocalSession->SaveBrep(FilePath))
-		{
-			MeshElement->SetFile(*FilePath);
-		}
-
-		LocalSession->TopoFixes();
+		CADModelConverter->SaveBRep(*OutputPath, MeshElement);
 
 		CADLibrary::FMeshParameters MeshParameters;
-		return LocalSession->Tessellate(OutMesh, MeshParameters);
+		return CADModelConverter->Tessellate(MeshParameters, OutMesh);
 	}
 	else
 	{
@@ -3237,7 +3020,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		}
 		if (bHasFaceMaterialChannel)
 		{
-			if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(RenderMeshes, RenderMeshes.Count(), OutMesh, bHasNormal, ScalingFactor, Offset, bHasFaceMaterialChannel, FaceMaterialChannel.GetData()))
+			if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(RenderMeshes, RenderMeshes.Count(), OutMesh, bHasNormal, GetScaleFactor(), Offset, bHasFaceMaterialChannel, FaceMaterialChannel.GetData()))
 			{
 				return false;
 			}
@@ -3247,7 +3030,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 			ON_Mesh Mesh;
 			Mesh.Append(RenderMeshes.Count(), RenderMeshes);
 
-			if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(&Mesh, OutMesh, bHasNormal, ScalingFactor, Offset))
+			if (!DatasmithOpenNurbsTranslatorUtils::TranslateMesh(&Mesh, OutMesh, bHasNormal, GetScaleFactor(), Offset))
 			{
 				return false;
 			}
@@ -3357,7 +3140,7 @@ TOptional<FMeshDescription> FOpenNurbsTranslatorImpl::GetMeshDescription(TShared
 	if (Object.ObjectPtr->IsKindOf(&ON_Mesh::m_ON_Mesh_class_rtti))
 	{
 		ON_3dVector Offset = GetGeometryOffset(MeshElement);
-		bIsValid = DatasmithOpenNurbsTranslatorUtils::TranslateMesh(ON_Mesh::Cast(Object.ObjectPtr), MeshDescription, bHasNormal, SelectedTranslator->ScalingFactor, Offset);
+		bIsValid = DatasmithOpenNurbsTranslatorUtils::TranslateMesh(ON_Mesh::Cast(Object.ObjectPtr), MeshDescription, bHasNormal, SelectedTranslator->GetScaleFactor(), Offset);
 	}
 	else if (Object.ObjectPtr->IsKindOf(&ON_Brep::m_ON_Brep_class_rtti))
 	{
@@ -3370,7 +3153,7 @@ TOptional<FMeshDescription> FOpenNurbsTranslatorImpl::GetMeshDescription(TShared
 			ON_3dVector Offset = GetGeometryOffset(MeshElement);
 			if (const ON_Mesh* Mesh = extrusion->m_mesh_cache.Mesh(ON::mesh_type::render_mesh))
 			{
-				if (DatasmithOpenNurbsTranslatorUtils::TranslateMesh(Mesh, MeshDescription, bHasNormal, ScalingFactor, Offset))
+				if (DatasmithOpenNurbsTranslatorUtils::TranslateMesh(Mesh, MeshDescription, bHasNormal, GetScaleFactor(), Offset))
 				{
 					return MeshDescription;
 				}
@@ -3495,27 +3278,21 @@ void FDatasmithOpenNurbsTranslator::UnloadScene()
 
 bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload)
 {
-	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement))
+	if (Translator)
 	{
-		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-
-		CADLibrary::FImportParameters ImportParameters;
-		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
-		ImportParameters.MetricUnit = Translator->GetMetricUnit();
-		ImportParameters.ScaleFactor = Translator->GetScalingFactor();
-
-		CADLibrary::FMeshParameters MeshParameters;
-
-		if (ImportParameters.bEnableKernelIOTessellation)
-		{
-			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
-		}
-		else
-		{
-			//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, OpenNurbsOptions, OutMeshPayload);
-		}
+		return Translator->LoadStaticMesh(MeshElement, OutMeshPayload, GetCommonTessellationOptions());
 	}
+	return false;
+}
 
+bool FOpenNurbsTranslatorImpl::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload & OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions)
+{
+	if (TOptional<FMeshDescription> Mesh = GetMeshDescription(MeshElement))
+	{
+		CADLibrary::FMeshParameters MeshParameters;
+		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
+		CADModelConverter->AddSurfaceDataForMesh(MeshElement->GetFile(), MeshParameters, InTessellationOptions, OutMeshPayload);
+	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 }
 

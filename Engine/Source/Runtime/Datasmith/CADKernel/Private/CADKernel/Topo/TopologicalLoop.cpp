@@ -2,6 +2,7 @@
 
 #include "CADKernel/Topo/TopologicalLoop.h"
 
+#include "Algo/AllOf.h"
 #include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
 #include "CADKernel/Math/SlopeUtils.h"
@@ -30,20 +31,9 @@ TSharedPtr<FTopologicalLoop> FTopologicalLoop::Make(const TArray<TSharedPtr<FTop
 	LoopBoundary += LoopSampling;
 	Loop->Boundary.Set(LoopBoundary.GetMin(), LoopBoundary.GetMax());
 
-	// Check if the loop is not composed with only degenerated edge
-	bool bDegeneratedLoop = true;
-	for (const FOrientedEdge& Edge : Loop->GetEdges())
+	if (Algo::AllOf(Loop->GetEdges(), [](const FOrientedEdge& Edge) { return Edge.Entity->IsDegenerated(); }))
 	{
-		if (!Edge.Entity->IsDegenerated())
-		{
-			bDegeneratedLoop = false;
-			break;
-		}
-	}
-
-	if (bDegeneratedLoop)
-	{
-		TSharedPtr<FTopologicalLoop>();
+		return TSharedPtr<FTopologicalLoop>();
 	}
 	return Loop;
 }
@@ -390,51 +380,6 @@ void FTopologicalLoop::ReplaceEdges(TArray<FOrientedEdge>& OldEdges, TSharedPtr<
 	}
 	ensureCADKernel(false);
 }
-
-// Need to be reviewed
-/*void FTopologicalLoop::ReplaceEdgesWithMergedEdge(TArray<TSharedPtr<FTopologicalEdge>>& OldEdges, TSharedPtr<FTopologicalVertex>& MiddleVertex, TSharedPtr<FTopologicalEdge>& NewEdge)
-{
-	ensureCADKernel(OldEdges.Num() == 2);
-	ensureCADKernel(EdgeCount() != 2);
-
-	NewEdge->SetLoop(StaticCastSharedRef<FTopologicalLoop>(AsShared()));
-	for (TSharedPtr<FTopologicalEdge> Edge : OldEdges)
-	{
-		Edge->RemoveLoop();
-		Edge->GetStartVertex()->RemoveConnectedEdge(Edge.ToSharedRef());
-		Edge->GetEndVertex()->RemoveConnectedEdge(Edge.ToSharedRef());
-	}
-
-	int32 IndexFirstOldEdge = GetEdgeIndex(OldEdges[0]);
-	int32 IndexLastOldEdge = GetEdgeIndex(OldEdges[1]);
-
-	ensureCADKernel(IndexFirstOldEdge != INDEX_NONE && IndexLastOldEdge != INDEX_NONE);
-
-	Sort(IndexFirstOldEdge, IndexLastOldEdge);
-	if (IndexFirstOldEdge == 0 && IndexLastOldEdge != 1)
-	{
-		IndexLastOldEdge = 0;
-		IndexFirstOldEdge = EdgeCount() - 1;
-	}
-	int32 PreviousEdgeIndex = IndexFirstOldEdge ? IndexFirstOldEdge - 1 : EdgeCount() - 1;
-	TSharedPtr<FTopologicalVertex> PreviousVertex = Edges[PreviousEdgeIndex].Direction == EOrientation::Front ? Edges[PreviousEdgeIndex].Entity->GetEndVertex() : Edges[PreviousEdgeIndex].Entity->GetStartVertex();
-	EOrientation NewEdgeOrientation = NewEdge->GetStartVertex() == PreviousVertex ? EOrientation::Front : EOrientation::Back;
-
-	if (IndexLastOldEdge)
-	{
-		Edges.RemoveAt(IndexFirstOldEdge);
-		Edges.RemoveAt(IndexFirstOldEdge + 1);
-		Edges.EmplaceAt(IndexFirstOldEdge, NewEdge, NewEdgeOrientation);
-	}
-	else
-	{
-		Edges.RemoveAt(0);
-		Edges.Pop();
-		Edges.Emplace(NewEdge, NewEdgeOrientation);
-	}
-}*/
-
-
 
 void FTopologicalLoop::FindSurfaceCorners(TArray<TSharedPtr<FTopologicalVertex>>& OutCorners, TArray<int32>& OutStartSideIndex) const
 {

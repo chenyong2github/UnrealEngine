@@ -47,6 +47,12 @@ namespace CADLibrary
 		bool bEnableKernelIOTessellation = true;
 		bool bEnableTimeControl = true;
 
+		void SetMetricUnit(double NewMetricUnit)
+		{
+			MetricUnit = NewMetricUnit;
+			ScaleFactor = NewMetricUnit / 0.01;
+		}
+
 		uint32 GetHash() const
 		{
 			uint32 Hash = 0; 

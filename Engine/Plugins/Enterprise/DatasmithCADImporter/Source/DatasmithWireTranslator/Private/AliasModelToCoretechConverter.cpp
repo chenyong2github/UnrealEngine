@@ -85,7 +85,6 @@ uint64 FAliasModelToCoretechConverter::AddTrimCurve(const AlTrimCurve& TrimCurve
 {
 	FNurbsCurve CTCurve;
 
-	curveFormType Form = TrimCurve.form();
 	CTCurve.Order = TrimCurve.degree() + 1;
 	CTCurve.ControlPointSize = TrimCurve.numberOfCVs();
 	CTCurve.ControlPointDimension = 3;

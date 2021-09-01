@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RhinoCoretechWrapper.h"
-
+#include "OpenNurbsBRepToCoretechConverter.h"
 
 #ifdef USE_OPENNURBS
 #include "CoreTechSurfaceHelper.h"
@@ -19,24 +18,13 @@
 // current fix will split the uv plane in two parts.
 #define FIX_HOLE_IN_WHOLE_FACE 1
 
-TWeakPtr<FRhinoCoretechWrapper> FRhinoCoretechWrapper::SharedSession;
-
-template<class T>
-void MarkUninitializedMemory(std::vector<T>& VectorOfT)
-{
-#if MARK_UNINITIALIZED_MEMORY
-	for (auto& Value : VectorOfT)
-		Value = T(-1);
-#endif // MARK_UNINITIALIZED_MEMORY
-};
-
 // Handle surface state without u/v duplication
 // #ue_opennurbs : Remove SurfaceInfo and use CADLibrary::FNurbsSurface directly 
 struct SurfaceInfo
 {
-	ON_NurbsSurface& surf;
+	ON_NurbsSurface& OpenNurbssSurface;
 
-	enum Axis { U, V };
+	enum EAxis { U, V };
 	struct PerAxisInfo
 	{
 		uint32 Order; // Degree + 1
@@ -44,13 +32,13 @@ struct SurfaceInfo
 		uint32 KnotSize;  // ON knots
 		uint32 KnotCount; // CT knots
 
-		TArray<uint32> KnotsMult; // from ON, not relevant as we send n-plicated knots to CT (dbg only)
-		TArray<uint32> KnotMul; // array of '1' for CT...
+		TArray<uint32> KnotMultiplicities; // from ON, not relevant as we send n-plicated knots to CT (dbg only)
+		TArray<uint32> CTKnotMultiplicityArray; // array of '1' for CT...
 		TArray<double> Knots; // t values with superflux values
 
-		PerAxisInfo(Axis InA, ON_NurbsSurface& InSurf)
-			: surf(InSurf)
-			, a(InA)
+		PerAxisInfo(EAxis InA, ON_NurbsSurface& InSurf)
+			: OpenNurbsSurface(InSurf)
+			, Axis(InA)
 		{
 			Populate();
 		}
@@ -59,14 +47,14 @@ struct SurfaceInfo
 		// This can fix exotic nurbs
 		void IncreaseDegree()
 		{
-			surf.IncreaseDegree(a, surf.Degree(a) + 1);
+			OpenNurbsSurface.IncreaseDegree(Axis, OpenNurbsSurface.Degree(Axis) + 1);
 			Populate();
 		}
 
 		// detect cases not handled by CT, that is knot vectors with multiplicity < order on either end
 		bool FixMultiplicity()
 		{
-			if (KnotsMult[0] + 1 < Order || KnotsMult.Last() + 1 < Order)
+			if (KnotMultiplicities[0] + 1 < Order || KnotMultiplicities.Last() + 1 < Order)
 			{
 				IncreaseDegree();
 				return true;
@@ -77,54 +65,56 @@ struct SurfaceInfo
 	private:
 		void Populate()
 		{
-			Order = surf.Order(a);
-			CtrlVertCount = surf.CVCount(a);
+			Order = OpenNurbsSurface.Order(Axis);
+			CtrlVertCount = OpenNurbsSurface.CVCount(Axis);
 			KnotSize = Order + CtrlVertCount;
-			KnotCount = surf.KnotCount(a);
+			KnotCount = OpenNurbsSurface.KnotCount(Axis);
 
-			KnotsMult.Init(-1, KnotSize - 2);
-			//MarkUninitializedMemory(KnotsMult);
-			for (uint32 i = 0; i < KnotSize - 2; ++i)
-				KnotsMult[i] = surf.KnotMultiplicity(a, i); // 0 and < Order + CV_count - 2
+			KnotMultiplicities.Init(-1, KnotSize - 2);
+			for (uint32 Index = 0; Index < KnotSize - 2; ++Index)
+			{
+				KnotMultiplicities[Index] = OpenNurbsSurface.KnotMultiplicity(Axis, Index); // 0 and < Order + CV_count - 2
+			}
 
 			Knots.Init(-1, KnotSize);
-			//MarkUninitializedMemory(Knots);
-			Knots[0] = surf.SuperfluousKnot(a, 0);
-			for (uint32 i = 0; i < KnotCount; ++i)
-				Knots[i + 1] = surf.Knot(a, i);
-			Knots.Last() = surf.SuperfluousKnot(a, 1);
+			Knots[0] = OpenNurbsSurface.SuperfluousKnot(Axis, 0);
+			for (uint32 Index = 0; Index < KnotCount; ++Index)
+			{
+				Knots[Index + 1] = OpenNurbsSurface.Knot(Axis, Index);
+			}
+			Knots.Last() = OpenNurbsSurface.SuperfluousKnot(Axis, 1);
 
-			KnotMul.Init(1, KnotSize);
+			CTKnotMultiplicityArray.Init(1, KnotSize);
 		}
 
-		ON_NurbsSurface& surf;
-		Axis a;
+		ON_NurbsSurface& OpenNurbsSurface;
+		EAxis Axis;
 	};
 
-	PerAxisInfo u;
-	PerAxisInfo v;
-	int CtrlVertDim; // Number of doubles per ctrl vertex
-	TArray<double> CtrlHull; // [xyzw...]
+	PerAxisInfo UInfo;
+	PerAxisInfo VInfo;
+	int ControlPointDimension; // Number of doubles per ctrl vertex
+	TArray<double> ControlPoints; // [xyzw...]
 
 	SurfaceInfo(ON_NurbsSurface& inSurf)
-		: surf(inSurf)
-		, u(U, surf)
-		, v(V, surf)
-		, CtrlVertDim(surf.CVSize())
+		: OpenNurbssSurface(inSurf)
+		, UInfo(U, OpenNurbssSurface)
+		, VInfo(V, OpenNurbssSurface)
+		, ControlPointDimension(OpenNurbssSurface.CVSize())
 	{
 		BuildHull();
 	}
 
 	void BuildHull()
 	{
-		CtrlHull.Init(-1, u.CtrlVertCount * v.CtrlVertCount * CtrlVertDim);
-		double* CtrlHullPtr = CtrlHull.GetData();
-		ON::point_style pt_style = surf.IsRational() ? ON::point_style::euclidean_rational : ON::point_style::not_rational;
-		for (uint32 UIndex = 0; UIndex < u.CtrlVertCount; ++UIndex)
+		ControlPoints.Init(-1, UInfo.CtrlVertCount * VInfo.CtrlVertCount * ControlPointDimension);
+		double* CtrlHullPtr = ControlPoints.GetData();
+		ON::point_style pt_style = OpenNurbssSurface.IsRational() ? ON::point_style::euclidean_rational : ON::point_style::not_rational;
+		for (uint32 UIndex = 0; UIndex < UInfo.CtrlVertCount; ++UIndex)
 		{
-			for (uint32 VIndex = 0; VIndex < v.CtrlVertCount; ++VIndex, CtrlHullPtr += CtrlVertDim)
+			for (uint32 VIndex = 0; VIndex < VInfo.CtrlVertCount; ++VIndex, CtrlHullPtr += ControlPointDimension)
 			{
-				surf.GetCV(UIndex, VIndex, pt_style, CtrlHullPtr);
+				OpenNurbssSurface.GetCV(UIndex, VIndex, pt_style, CtrlHullPtr);
 			}
 		}
 	}
@@ -132,24 +122,24 @@ struct SurfaceInfo
 	// CT doesn't allow weights < 0
 	void FixNegativeWeights()
 	{
-		if (surf.IsRational())
+		if (OpenNurbssSurface.IsRational())
 		{
-			bool hasNegativeWeight = false;
-			for (uint32 cvPointIndex = 0; cvPointIndex < u.CtrlVertCount * v.CtrlVertCount; ++cvPointIndex)
+			bool bHasNegativeWeight = false;
+			for (uint32 PointIndex = 0; PointIndex < UInfo.CtrlVertCount * VInfo.CtrlVertCount; ++PointIndex)
 			{
-				double pointDataOffset = cvPointIndex * CtrlVertDim;
-				double weight = CtrlHull[pointDataOffset + CtrlVertDim - 1];
-				if (weight < 0.)
+				double PointDataOffset = PointIndex * ControlPointDimension;
+				double Weight = ControlPoints[PointDataOffset + ControlPointDimension - 1];
+				if (Weight < 0.)
 				{
-					hasNegativeWeight = true;
+					bHasNegativeWeight = true;
 					break;
 				}
 			}
 
-			if (hasNegativeWeight)
+			if (bHasNegativeWeight)
 			{
-				u.IncreaseDegree();
-				v.IncreaseDegree();
+				UInfo.IncreaseDegree();
+				VInfo.IncreaseDegree();
 				BuildHull();
 			}
 		}
@@ -158,10 +148,12 @@ struct SurfaceInfo
 	// CT doesn't allow multiplicity < order
 	void FixUnsupportedMultiplicity()
 	{
-		bool uOrderIncreased = u.FixMultiplicity();
-		bool vOrderIncreased = v.FixMultiplicity();
-		if (uOrderIncreased || vOrderIncreased)
+		bool bUOrderIncreased = UInfo.FixMultiplicity();
+		bool bVOrderIncreased = VInfo.FixMultiplicity();
+		if (bUOrderIncreased || bVOrderIncreased)
+		{
 			BuildHull();
+	}
 	}
 
 	void FixUnsupportedParameters()
@@ -172,35 +164,35 @@ struct SurfaceInfo
 };
 
 
-uint64 BRepToKernelIOBodyTranslator::CreateCTSurface(ON_NurbsSurface& Surface)
+uint64 FBRepToKernelIOBodyTranslator::CreateCTSurface(ON_NurbsSurface& Surface)
 {
 	if (Surface.Dimension() < 3)
 		return 0;
 
-	SurfaceInfo si(Surface);
-	si.FixUnsupportedParameters();
+	SurfaceInfo SurfaceInfo(Surface);
+	SurfaceInfo.FixUnsupportedParameters();
 
 	CADLibrary::FNurbsSurface CTSurface;
 
-	CTSurface.OrderU = si.u.Order;
-	CTSurface.OrderV = si.v.Order;
-	CTSurface.KnotSizeU = si.u.KnotSize;
-	CTSurface.KnotSizeV = si.v.KnotSize;
-	CTSurface.ControlPointDimension = si.CtrlVertDim;
-	CTSurface.ControlPointSizeU = si.u.CtrlVertCount;
-	CTSurface.ControlPointSizeV = si.v.CtrlVertCount;
+	CTSurface.OrderU = SurfaceInfo.UInfo.Order;
+	CTSurface.OrderV = SurfaceInfo.VInfo.Order;
+	CTSurface.KnotSizeU = SurfaceInfo.UInfo.KnotSize;
+	CTSurface.KnotSizeV = SurfaceInfo.VInfo.KnotSize;
+	CTSurface.ControlPointDimension = SurfaceInfo.ControlPointDimension;
+	CTSurface.ControlPointSizeU = SurfaceInfo.UInfo.CtrlVertCount;
+	CTSurface.ControlPointSizeV = SurfaceInfo.VInfo.CtrlVertCount;
 
-	CTSurface.KnotValuesU = MoveTemp(si.u.Knots);
-	CTSurface.KnotValuesV = MoveTemp(si.v.Knots);
-	CTSurface.KnotMultiplicityU = MoveTemp(si.u.KnotMul);
-	CTSurface.KnotMultiplicityV = MoveTemp(si.v.KnotMul);
-	CTSurface.ControlPoints = MoveTemp(si.CtrlHull);
+	CTSurface.KnotValuesU = MoveTemp(SurfaceInfo.UInfo.Knots);
+	CTSurface.KnotValuesV = MoveTemp(SurfaceInfo.VInfo.Knots);
+	CTSurface.KnotMultiplicityU = MoveTemp(SurfaceInfo.UInfo.CTKnotMultiplicityArray);
+	CTSurface.KnotMultiplicityV = MoveTemp(SurfaceInfo.VInfo.CTKnotMultiplicityArray);
+	CTSurface.ControlPoints = MoveTemp(SurfaceInfo.ControlPoints);
 
 	uint64 CTSurfaceID = 0;
 	return CADLibrary::CTKIO_CreateNurbsSurface(CTSurface, CTSurfaceID) ? CTSurfaceID : 0;
 }
 
-void BRepToKernelIOBodyTranslator::CreateCTFace_internal(const ON_BrepFace& Face, TArray<uint64>& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner)
+void FBRepToKernelIOBodyTranslator::CreateCTFace_internal(const ON_BrepFace& Face, TArray<uint64>& dest, ON_BoundingBox& outerBBox, ON_NurbsSurface& Surface, bool ignoreInner)
 {
 	uint64 SurfaceID = CreateCTSurface(Surface);
 	if (SurfaceID == 0)
@@ -325,7 +317,7 @@ void BRepToKernelIOBodyTranslator::CreateCTFace_internal(const ON_BrepFace& Face
 	}
 }
 
-void BRepToKernelIOBodyTranslator::CreateCTFace(const ON_BrepFace& Face, TArray<uint64>& dest)
+void FBRepToKernelIOBodyTranslator::CreateCTFace(const ON_BrepFace& Face, TArray<uint64>& dest)
 {
 	const ON_BrepLoop* OuterLoop = Face.OuterLoop();
 	if (OuterLoop == nullptr)
@@ -396,13 +388,7 @@ void BRepToKernelIOBodyTranslator::CreateCTFace(const ON_BrepFace& Face, TArray<
 	CreateCTFace_internal(Face, dest, outerBBox, Surface, false);
 }
 
-
-bool FRhinoCoretechWrapper::Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters)
-{
-	return CoreTechSurface::Tessellate(MainObjectId, ImportParams, MeshParameters, Mesh);
-}
-
-uint64 BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)
+uint64 FBRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)
 {
 	BrepTrimToCoedge.SetNumZeroed(BRep.m_T.Count());
 
@@ -435,7 +421,7 @@ uint64 BRepToKernelIOBodyTranslator::CreateBody(const ON_3dVector& Offset)
 	return CADLibrary::CTKIO_CreateBody(FaceList, BodyID) ? BodyID : 0;
 }
 
-bool FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
+bool FOpenNurbsBRepToCoretechConverter::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
 {
 	if (!IsCoreTechSessionValid())
 	{
@@ -443,23 +429,10 @@ bool FRhinoCoretechWrapper::AddBRep(ON_Brep& Brep, const ON_3dVector& Offset)
 		return false;
 	}
 
-	BRepToKernelIOBodyTranslator BodyTranslator(Brep);
+	FBRepToKernelIOBodyTranslator BodyTranslator(Brep);
 	uint64 BodyID = BodyTranslator.CreateBody(Offset);
 
 	return BodyID ? CADLibrary::CTKIO_AddBodies({ BodyID }, MainObjectId) : false;
-}
-
-
-
-TSharedPtr<FRhinoCoretechWrapper> FRhinoCoretechWrapper::GetSharedSession()
-{
-	TSharedPtr<FRhinoCoretechWrapper> Session = SharedSession.Pin();
-	if (!Session.IsValid())
-	{
-		Session = MakeShared<FRhinoCoretechWrapper>(TEXT("Rh2CTSharedSession"));
-		SharedSession = Session;
-	}
-	return Session;
 }
 
 #endif // defined(USE_OPENNURBS)

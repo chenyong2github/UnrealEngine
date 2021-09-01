@@ -27,11 +27,11 @@ namespace CADLibrary
 
 	void FCTSession::SetSceneUnit(double InMetricUnit)
 	{
-		ImportParams.MetricUnit = InMetricUnit;
+		ImportParams.SetMetricUnit(InMetricUnit);
 		CTKIO_ChangeUnit(InMetricUnit);
 	}
 
-	void FCTSession::SetImportParameters(float ChordTolerance, float MaxEdgeLength, float NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap)
+	void FCTSession::SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique, bool bScaleUVMap)
 	{
 		ImportParams.ChordTolerance = ChordTolerance;
 		ImportParams.MaxEdgeLength = MaxEdgeLength;
