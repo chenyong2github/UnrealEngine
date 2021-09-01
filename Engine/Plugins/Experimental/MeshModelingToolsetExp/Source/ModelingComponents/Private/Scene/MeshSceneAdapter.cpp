@@ -384,22 +384,32 @@ public:
 	}
 
 
-	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
+	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
 	{
+		bool bContinue = true;
 		if (bHasBakedTransform)
 		{
 			for (FVector3d P : Mesh.VerticesItr())
 			{
-				ProcessFunc(P);
+				bContinue = ProcessFunc(P);
+				if (!bContinue)
+				{
+					break;
+				}
 			}
 		}
 		else
 		{
 			for (FVector3d P : Mesh.VerticesItr())
 			{
-				ProcessFunc(LocalToWorldTransform.TransformPosition(P));
+				bContinue = ProcessFunc(LocalToWorldTransform.TransformPosition(P));
+				if (!bContinue)
+				{
+					break;
+				}
 			}
 		}
+		return bContinue;
 	}
 
 
@@ -647,16 +657,18 @@ public:
 	}
 
 
-	virtual void ProcessVerticesInWorld(TFunctionRef<void(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
+	virtual bool ProcessVerticesInWorld(TFunctionRef<bool(const FVector3d&)> ProcessFunc, const FTransformSequence3d& LocalToWorldTransform) override
 	{
+		bool bContinue = true;
 		int32 NumVertices = (SourceMesh) ? Adapter->VertexCount() : 0;
-		for (int32 vi = 0; vi < NumVertices; ++vi)
+		for (int32 vi = 0; vi < NumVertices && bContinue; ++vi)
 		{
 			if (Adapter->IsVertex(vi))
 			{
-				ProcessFunc(LocalToWorldTransform.TransformPosition(Adapter->GetVertex(vi)));
+				bContinue = ProcessFunc(LocalToWorldTransform.TransformPosition(Adapter->GetVertex(vi)));
 			}
 		}
+		return bContinue;
 	}
 
 	virtual void AppendMesh(FDynamicMesh3& AppendTo, const FTransformSequence3d& TransformSeq) override
@@ -1821,6 +1833,7 @@ void FMeshSceneAdapter::GenerateBaseClosingMesh(double BaseHeight, double Extrud
 			{
 				LocalHullPoints.Add(FVector2d(WorldPos.X, WorldPos.Y));
 			}
+			return true;
 		}, ChildMesh->WorldTransform);
 
 		if (LocalHullPoints.Num() > 0)
@@ -1913,3 +1926,40 @@ void FMeshSceneAdapter::GenerateBaseClosingMesh(double BaseHeight, double Extrud
 
 }
 
+
+
+void FMeshSceneAdapter::ParallelMeshVertexEnumeration(
+	TFunctionRef<bool(int32 NumMeshes)> InitializeFunc,
+	TFunctionRef<bool(int32 MeshIndex, AActor* SourceActor, const FActorChildMesh* ChildMeshInfo, const FAxisAlignedBox3d& WorldBounds)> MeshFilterFunc,
+	TFunctionRef<bool(int32 MeshIndex, AActor* SourceActor, const FActorChildMesh* ChildMeshInfo, const FVector3d& WorldPos)> PerVertexFunc,
+	bool bForceSingleThreaded )
+{
+	int32 N = SortedSpatials.Num();
+	if (InitializeFunc(N) == false)
+	{
+		return;
+	}
+
+	bool bSingleThread = bForceSingleThreaded || (CVarMeshSceneAdapterDisableMultiThreading.GetValueOnAnyThread() != 0);
+
+	ParallelFor(N, [&](int32 Index)
+	{
+		const FSpatialCacheInfo& CacheInfo = SortedSpatials[Index];
+
+		bool bContinue = MeshFilterFunc(Index, CacheInfo.Actor->SourceActor, CacheInfo.ChildMesh, CacheInfo.Bounds);
+		if (!bContinue)
+		{
+			return;
+		}
+
+		FTransformSequence3d WorldTransform = CacheInfo.ChildMesh->WorldTransform;
+		CacheInfo.Spatial->ProcessVerticesInWorld([&](const FVector3d& WorldPos)
+		{
+			bool bContinue = PerVertexFunc(Index, CacheInfo.Actor->SourceActor, CacheInfo.ChildMesh, WorldPos);
+			return bContinue;
+		}, WorldTransform);
+
+	}, bSingleThread ? EParallelForFlags::ForceSingleThread : EParallelForFlags::Unbalanced );
+
+
+}
