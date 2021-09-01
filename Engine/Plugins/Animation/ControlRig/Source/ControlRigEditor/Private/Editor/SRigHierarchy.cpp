@@ -1312,6 +1312,11 @@ void SRigHierarchy::HandleDeleteItem()
  		check(Controller);
 
  		TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
+
+ 		// clear selection early here to make sure ControlRigEditMode can react to this deletion
+ 		// it cannot react to it during Controller->RemoveElement() later because bSuspendAllNotifications is true
+ 		Controller->ClearSelection();
+ 		
 		for (const FRigElementKey& SelectedKey : SelectedKeys)
 		{
 			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);

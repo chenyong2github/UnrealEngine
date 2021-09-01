@@ -1758,6 +1758,14 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 	}
 
 	const FRigElementKey OldKey = InElement->GetKey();
+
+	// deselect the key that no longer exists
+	// no need to trigger a reselect since we always clear selection after rename
+	if (Hierarchy->IsSelected(InElement))
+	{
+		DeselectElement(OldKey);
+	}
+	
 	InElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), InElement->GetType());
 	const FRigElementKey NewKey = InElement->GetKey();
 
