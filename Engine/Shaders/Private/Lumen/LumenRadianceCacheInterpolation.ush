@@ -35,11 +35,9 @@
 	#define RadianceCacheFinalRadianceAtlas  RadianceCacheInterpolation.RadianceCacheFinalRadianceAtlas
 	#define RadianceCacheFinalIrradianceAtlas  RadianceCacheInterpolation.RadianceCacheFinalIrradianceAtlas
 	#define RadianceCacheProbeOcclusionAtlas  RadianceCacheInterpolation.RadianceCacheProbeOcclusionAtlas
-	#define RadianceProbeClipmapTMin  RadianceCacheInterpolation.RadianceProbeClipmapTMin
-	#define WorldPositionToRadianceProbeCoordScale  RadianceCacheInterpolation.WorldPositionToRadianceProbeCoordScale
-	#define WorldPositionToRadianceProbeCoordBias  RadianceCacheInterpolation.WorldPositionToRadianceProbeCoordBias
-	#define RadianceProbeCoordToWorldPositionScale  RadianceCacheInterpolation.RadianceProbeCoordToWorldPositionScale
-	#define RadianceProbeCoordToWorldPositionBias  RadianceCacheInterpolation.RadianceProbeCoordToWorldPositionBias
+	#define RadianceProbeSettings RadianceCacheInterpolation.RadianceProbeSettings
+	#define PaddedWorldPositionToRadianceProbeCoordBias  RadianceCacheInterpolation.PaddedWorldPositionToRadianceProbeCoordBias
+	#define PaddedRadianceProbeCoordToWorldPositionBias  RadianceCacheInterpolation.PaddedRadianceProbeCoordToWorldPositionBias
 	#define ReprojectionRadiusScale  RadianceCacheInterpolation.ReprojectionRadiusScale
 	#define ProbeAtlasResolutionInProbes  RadianceCacheInterpolation.ProbeAtlasResolutionInProbes
 	#define InvProbeFinalRadianceAtlasResolution  RadianceCacheInterpolation.InvProbeFinalRadianceAtlasResolution
@@ -68,11 +66,9 @@
 	Texture2D<float> RadianceCacheDepthAtlas;
 	StructuredBuffer<float4> ProbeWorldOffset;
 
-	float RadianceProbeClipmapTMin[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float WorldPositionToRadianceProbeCoordScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float3 WorldPositionToRadianceProbeCoordBias[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float RadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
-	float3 RadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float4 RadianceProbeSettings[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float4 PaddedWorldPositionToRadianceProbeCoordBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+	float4 PaddedRadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
 
 	float ReprojectionRadiusScale;
 
@@ -99,9 +95,36 @@
 
 #endif
 
+float GetRadianceProbeTMin(uint ClipmapIndex)
+{
+	return RadianceProbeSettings[ClipmapIndex].x; // must match with LumenRadianceCacheInterpolation.h
+}
+
+float GetWorldPositionToRadianceProbeCoordScale(uint ClipmapIndex)
+{
+	return RadianceProbeSettings[ClipmapIndex].y; // must match with LumenRadianceCacheInterpolation.h
+}
+
+float GetRadianceProbeCoordToWorldPositionScale(uint ClipmapIndex)
+{
+	return RadianceProbeSettings[ClipmapIndex].z; // must match with LumenRadianceCacheInterpolation.h
+}
+
+float3 GetWorldPositionToRadianceProbeCoordBias(uint ClipmapIndex)
+{
+	return PaddedWorldPositionToRadianceProbeCoordBias[ClipmapIndex].xyz; // must match with LumenRadianceCacheInterpolation.h
+}
+
+float3 GetRadianceProbeCoordToWorldPositionBias(uint ClipmapIndex)
+{
+	return PaddedRadianceProbeCoordToWorldPositionBias[ClipmapIndex].xyz; // must match with LumenRadianceCacheInterpolation.h
+}
+
+
+
 float3 GetProbeWorldPosition(uint3 ProbeCoord, uint ClipmapIndex, uint ProbeIndex)
 {
-	float3 ProbeWorldPosition = ProbeCoord * RadianceProbeCoordToWorldPositionScale[ClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ClipmapIndex];
+	float3 ProbeWorldPosition = ProbeCoord * GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) + GetRadianceProbeCoordToWorldPositionBias(ClipmapIndex);
 	return ProbeWorldPosition + ProbeWorldOffset[ProbeIndex].xyz;
 }
 
@@ -115,7 +138,7 @@ uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
 	uint ClipmapIndex = 0;
 	for (; ClipmapIndex < NumRadianceProbeClipmaps; ++ClipmapIndex)
 	{
-		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+		float3 ProbeCoordFloat = WorldSpacePosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 		int3 ProbeMinCoord;
 		int3 ProbeMaxCoord;
@@ -138,11 +161,6 @@ uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
 }
 
 
-float GetRadianceProbeTMin(uint ClipmapIndex)
-{
-	return RadianceProbeClipmapTMin[ClipmapIndex];
-}
-
 float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float3 RayDirection, out bool bCoveredByRadianceCache)
 {
 	uint ClipmapIndex = GetRadianceProbeClipmap(RayOrigin);
@@ -151,7 +169,7 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 	{
 		bCoveredByRadianceCache = true;
 
-		float CellOcclusionDistance = RadianceProbeCoordToWorldPositionScale[ClipmapIndex] * sqrt(3.0f);
+		float CellOcclusionDistance = GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) * sqrt(3.0f);
 		return GetRadianceProbeTMin(ClipmapIndex) + CellOcclusionDistance;
 	}
 	else
@@ -242,7 +260,7 @@ float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSp
 
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{
-		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+		float3 ProbeCoordFloat = WorldSpacePosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 		//float ConeHalfAngle = acosFast(1.0f - NumTexels * NumTexels / (float)(RadianceProbeResolution * RadianceProbeResolution));
 		float NumTexels = sqrt(1.0f - cos(ConeHalfAngle)) * RadianceProbeResolution;
@@ -341,7 +359,7 @@ float3 SampleIrradianceCacheProbeCoord(uint3 ProbeCoord, uint ProbeClipmapIndex,
 
 float3 SampleIrradianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSpaceDirection, float3 BiasOffset, uint ClipmapIndex)
 {
-	float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+	float3 ProbeCoordFloat = WorldSpacePosition * GetWorldPositionToRadianceProbeCoordScale(ClipmapIndex) + GetWorldPositionToRadianceProbeCoordBias(ClipmapIndex);
 
 	float3 CornerProbeCoordFloat = ProbeCoordFloat - .5f;
 	int3 CornerProbeCoord = CornerProbeCoordFloat;

@@ -38,18 +38,44 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, RadianceCacheProbeOcclusionAtlas)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RadianceCacheDepthAtlas)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeWorldOffset)
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapTMin, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeClipmapSamplingJitter, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, WorldPositionToRadianceProbeCoordScale, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector3f, WorldPositionToRadianceProbeCoordBias, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [MaxClipmaps])
-		SHADER_PARAMETER_ARRAY(FVector3f, RadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4, RadianceProbeSettings, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4, PaddedWorldPositionToRadianceProbeCoordBias, [MaxClipmaps])
+		SHADER_PARAMETER_ARRAY(FVector4, PaddedRadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
 		SHADER_PARAMETER(FVector2D, InvProbeFinalRadianceAtlasResolution)
 		SHADER_PARAMETER(FVector2D, InvProbeFinalIrradianceAtlasResolution)
 		SHADER_PARAMETER(FVector2D, InvProbeDepthAtlasResolution)
 		SHADER_PARAMETER(uint32, OverrideCacheOcclusionLighting)
 		SHADER_PARAMETER(uint32, ShowBlackRadianceCacheLighting)
 	END_SHADER_PARAMETER_STRUCT()
+
+	// Packed in vector to satisfy 16 byte array element alignment :
+	// X=RadianceProbeClipmapTMin, Y=WorldPositionToRadianceProbeCoordScale, Z=RadianceProbeCoordToWorldPositionScale, W=[available]
+	// Must match with LumenRadianceCacheInterpolation.ush
+	inline void SetRadianceProbeClipmapTMin(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, float Value)
+	{
+		RadianceCacheInterpolationParameters.RadianceProbeSettings[Index].X = Value;
+	}
+	inline void SetWorldPositionToRadianceProbeCoordScale(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, float Value)
+	{
+		RadianceCacheInterpolationParameters.RadianceProbeSettings[Index].Y = Value;
+	}
+	inline void SetRadianceProbeCoordToWorldPositionScale(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, float Value)
+	{
+		RadianceCacheInterpolationParameters.RadianceProbeSettings[Index].Z = Value;
+	}
+
+	// Padded in vector to satisfy 16 byte array element alignment :
+	// WorldPositionToRadianceProbeCoordBias, RadianceProbeCoordToWorldPositionBias
+	// Must match with LumenRadianceCacheInterpolation.ush
+	inline void SetWorldPositionToRadianceProbeCoordBias(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, const FVector3f& Value)
+	{
+		RadianceCacheInterpolationParameters.PaddedWorldPositionToRadianceProbeCoordBias[Index] = FVector4(Value);
+	}
+	inline void SetRadianceProbeCoordToWorldPositionBias(FRadianceCacheInterpolationParameters& RadianceCacheInterpolationParameters, uint32 Index, const FVector3f& Value)
+	{
+		RadianceCacheInterpolationParameters.PaddedRadianceProbeCoordToWorldPositionBias[Index] = FVector4(Value);
+	}
+
 
 	void GetInterpolationParameters(
 		const FViewInfo& View, 

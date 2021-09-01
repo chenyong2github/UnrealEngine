@@ -24,7 +24,7 @@ void VisualizeRadianceCacheVS(
 	out float4 OutPosition : SV_POSITION
 )
 {
-	float VisualizeRadius = VisualizeProbeRadiusScale / WorldPositionToRadianceProbeCoordScale[ProbeClipmapIndex];
+	float VisualizeRadius = VisualizeProbeRadiusScale / GetWorldPositionToRadianceProbeCoordScale(ProbeClipmapIndex);
 
 	float3 LocalPosition;
 	LocalPosition.x = VertexId & 0x1 ? 1.0f : -1.0f;

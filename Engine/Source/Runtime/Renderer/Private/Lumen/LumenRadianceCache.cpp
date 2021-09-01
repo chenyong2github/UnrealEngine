@@ -132,11 +132,11 @@ namespace LumenRadianceCache
 		{
 			const FRadianceCacheClipmap& Clipmap = RadianceCacheState.Clipmaps[ClipmapIndex];
 
-			OutParameters.RadianceProbeClipmapTMin[ClipmapIndex] = Clipmap.ProbeTMin;
-			OutParameters.WorldPositionToRadianceProbeCoordScale[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordScale;
-			OutParameters.WorldPositionToRadianceProbeCoordBias[ClipmapIndex] = Clipmap.WorldPositionToProbeCoordBias;
-			OutParameters.RadianceProbeCoordToWorldPositionScale[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterScale;
-			OutParameters.RadianceProbeCoordToWorldPositionBias[ClipmapIndex] = Clipmap.ProbeCoordToWorldCenterBias;
+			SetRadianceProbeClipmapTMin(OutParameters, ClipmapIndex, Clipmap.ProbeTMin);
+			SetWorldPositionToRadianceProbeCoordScale(OutParameters, ClipmapIndex, Clipmap.WorldPositionToProbeCoordScale);
+			SetWorldPositionToRadianceProbeCoordBias(OutParameters, ClipmapIndex, Clipmap.WorldPositionToProbeCoordBias);
+			SetRadianceProbeCoordToWorldPositionScale(OutParameters, ClipmapIndex, Clipmap.ProbeCoordToWorldCenterScale);
+			SetRadianceProbeCoordToWorldPositionBias(OutParameters, ClipmapIndex, Clipmap.ProbeCoordToWorldCenterBias);
 		}
 
 		OutParameters.InvProbeFinalRadianceAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(RadianceCacheInputs.FinalProbeResolution * RadianceCacheInputs.ProbeAtlasResolutionInProbes);
