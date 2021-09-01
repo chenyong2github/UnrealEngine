@@ -123,6 +123,20 @@ namespace HordeServer
 	/// </summary>
 	public class ServerSettings
 	{
+		/// <summary>
+		/// Main port for serving HTTP
+		/// </summary>
+		public int HttpPort { get; set; } = 80;
+		
+		/// <summary>
+		/// Port for serving only HTTP/2
+		/// </summary>
+		public int Http2Port { get; set; } = 52103;
+		
+		/// <summary>
+		/// Port for serving HTTP with TLS enabled
+		/// </summary>
+		public int HttpsPort { get; set; } = 443;
 
 		/// <summary>
 		/// Whether the server is running as a single instance or with multiple instances, such as in k8s
