@@ -295,13 +295,13 @@ FNaniteAttributeData GetAttributeData(
 #else
 	const uint MaxAttributeBits = CalculateMaxAttributeBits(CompileTimeMaxTexCoords);
 
-	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
-	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.x * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.y * Cluster.BitsPerAttribute, MaxAttributeBits);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, TriIndices.z * Cluster.BitsPerAttribute, MaxAttributeBits);
 
-	uint NormalBits0 = BitStreamReader_Read_RO(ClusterPageData, AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-	uint NormalBits1 = BitStreamReader_Read_RO(ClusterPageData, AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
-	uint NormalBits2 = BitStreamReader_Read_RO(ClusterPageData, AttributeStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+	uint NormalBits0 = BitStreamReader_Read(AttributeStream0, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+	uint NormalBits1 = BitStreamReader_Read(AttributeStream1, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
+	uint NormalBits2 = BitStreamReader_Read(AttributeStream2, 2 * NORMAL_QUANTIZATION_BITS, 2 * NORMAL_QUANTIZATION_BITS);
 
 	float3 TangentZ0 = UnpackNormal(NormalBits0, NORMAL_QUANTIZATION_BITS);
 	float3 TangentZ1 = UnpackNormal(NormalBits1, NORMAL_QUANTIZATION_BITS);
@@ -323,9 +323,9 @@ FNaniteAttributeData GetAttributeData(
 	AttributeData.VertexColor = (Barycentrics.UVW.x * float4(Color0) + Barycentrics.UVW.y * float4(Color1) + Barycentrics.UVW.z * float4(Color2)) * (1.0f / 255.0f);
 #else
 	uint4 NumComponentBits = UnpackToUint4(Cluster.ColorBits, 4);
-	uint4 ColorDelta0 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream0, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
-	uint4 ColorDelta1 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream1, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
-	uint4 ColorDelta2 = BitStreamReader_Read4_RO(ClusterPageData, AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+	uint4 ColorDelta0 = BitStreamReader_Read4(AttributeStream0, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+	uint4 ColorDelta1 = BitStreamReader_Read4(AttributeStream1, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
+	uint4 ColorDelta2 = BitStreamReader_Read4(AttributeStream2, NumComponentBits, MAX_COLOR_QUANTIZATION_BITS);
 
 	AttributeData.VertexColor = float4(1.0f, 1.0f, 1.0f, 1.0f);
 	AttributeData.VertexColor_DDX = 0.0f;
@@ -355,9 +355,9 @@ FNaniteAttributeData GetAttributeData(
 		float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
 	#else
 		uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
-		uint2 Bits0_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-		uint2 Bits1_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-		uint2 Bits2_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+		uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
 	#endif
 
 		if (TexCoordIndex < Cluster.NumUVs)
@@ -470,9 +470,9 @@ FTexCoord GetTexCoord(
 
 	const uint BitOffset = 2 * NORMAL_QUANTIZATION_BITS + dot(NumColorComponentBits, 1u) + TexCoord_OffsetBits;
 
-	FBitStreamReaderState AttributeStream0 = BitStreamReader_Create_Aligned(AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderState AttributeStream1 = BitStreamReader_Create_Aligned(AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
-	FBitStreamReaderState AttributeStream2 = BitStreamReader_Create_Aligned(AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream0 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.x * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream1 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.y * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
+	FBitStreamReaderStateRO AttributeStream2 = BitStreamReader_Create_Aligned_RO(ClusterPageData, AttributeDataOffset, BitOffset + TriIndices.z * Cluster.BitsPerAttribute, 2 * MAX_TEXCOORD_QUANTIZATION_BITS);
 #endif
 
 #if USE_UNCOMPRESSED_VERTEX_DATA
@@ -481,9 +481,9 @@ FTexCoord GetTexCoord(
 	float2 TexCoord2 = asfloat(ClusterPageData.Load2(ReadOffset.z));
 #else
 	uint2 UVPrec = uint2(BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8), BitFieldExtractU32(Cluster.UV_Prec, 4, TexCoordIndex * 8 + 4));
-	uint2 Bits0_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-	uint2 Bits1_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
-	uint2 Bits2_UV = BitStreamReader_Read2_RO(ClusterPageData, AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	uint2 Bits0_UV = BitStreamReader_Read2(AttributeStream0, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	uint2 Bits1_UV = BitStreamReader_Read2(AttributeStream1, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
+	uint2 Bits2_UV = BitStreamReader_Read2(AttributeStream2, UVPrec, MAX_TEXCOORD_QUANTIZATION_BITS);
 
 	FUVRange UVRange = GetUVRange(ClusterPageData, DecodeInfoOffset, TexCoordIndex);
 	float2 TexCoord0 = UnpackTexCoord(Bits0_UV, UVRange);
