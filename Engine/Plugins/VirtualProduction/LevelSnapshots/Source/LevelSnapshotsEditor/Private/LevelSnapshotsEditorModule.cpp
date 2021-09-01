@@ -21,12 +21,10 @@
 #include "ISettingsModule.h"
 #include "LevelEditor.h"
 #include "Util/TakeSnapshotUtil.h"
-
 #include "UnrealEdMisc.h"
 #include "ToolMenus.h"
-#include "Framework/Notifications/NotificationManager.h"
 #include "Misc/ScopeExit.h"
-#include "Widgets/Notifications/SNotificationList.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "FLevelSnapshotsEditorModule"
 
