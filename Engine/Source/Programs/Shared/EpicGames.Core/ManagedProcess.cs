@@ -735,15 +735,11 @@ namespace EpicGames.Core
 					{
 						if (FrameworkStdOutThread != null)
 						{
-							FrameworkProcess.StandardOutput.BaseStream.Flush();
-							FrameworkProcess.StandardOutput.Close();
 							FrameworkStdOutThread.Join();
 							FrameworkStdOutThread = null;
 						}
 						if (FrameworkStdErrThread != null)
 						{
-							FrameworkProcess.StandardError.BaseStream.Flush();
-							FrameworkProcess.StandardError.Close();
 							FrameworkStdErrThread.Join();
 							FrameworkStdErrThread = null;
 						}
