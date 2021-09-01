@@ -419,6 +419,7 @@ void UMaterialGraph::LinkMaterialExpressionsFromGraph() const
 					{
 						UEdGraphPin* ConnectedPin = Pin->LinkedTo[0];
 						UMaterialGraphNode* ConnectedNode = CastChecked<UMaterialGraphNode>(ConnectedPin->GetOwningNode());
+						check(ConnectedPin->SourceIndex != INDEX_NONE);
 
 						if (!ConnectedNode->MaterialExpression->IsExpressionConnected(&MaterialInput, ConnectedPin->SourceIndex))
 						{
