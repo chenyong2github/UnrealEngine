@@ -4833,7 +4833,8 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 
 			if (bNeedsVirtualShadowMap)
 			{
-				FMatrix WorldToLight = FInverseRotationMatrix(LightSceneInfo.Proxy->GetDirection().GetSafeNormal().Rotation());
+				FVector LightDirection = LightSceneInfo.Proxy->GetDirection();
+				FMatrix WorldToLight = FInverseRotationMatrix(LightDirection.GetSafeNormal().Rotation());
 
 				TSharedPtr<FVirtualShadowMapClipmap> VirtualShadowMapClipmap = TSharedPtr<FVirtualShadowMapClipmap>(new FVirtualShadowMapClipmap(
 					VirtualShadowMapArray,

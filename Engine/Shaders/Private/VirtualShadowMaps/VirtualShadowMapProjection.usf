@@ -157,6 +157,7 @@ int DebugVirtualShadowMapId;
 #define INPUT_TYPE_GBUFFER 0
 #define INPUT_TYPE_HAIRSTRANDS 1
 uint InputType;
+uint bCullBackfacingPixels;
 
 FVirtualShadowMapSampleResult ProjectLight(
 	int VirtualShadowMapId,
@@ -177,8 +178,6 @@ FVirtualShadowMapSampleResult ProjectLight(
 #if DIRECTIONAL_LIGHT
 	uint LightType = LIGHT_TYPE_DIRECTIONAL;
 	float3 L = Light.Direction;
-	// TODO: Find a way to branch out backfacing surfaces again that doesn't make assumptions
-	// about the Gbuffer normal that break with hair
 	bool bInLightRegion = true;
 #else
 	uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
@@ -190,19 +189,19 @@ FVirtualShadowMapSampleResult ProjectLight(
 	bool bInLightRadius = InvDist >= Light.InvRadius;
 	bool bInLightCone = dot( L, Light.Direction ) >= Light.SpotAngles.x;
 	bool bInLightRegion = bInLightRadius && bInLightCone;
-	
 #endif // DIRECTIONAL_LIGHT
 
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 
+	const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
+	const bool bBackfaceCull = !bIsHair && (bCullBackfacingPixels != 0);
+	const bool bValidPixel = bIsHair || GetGBufferDataUint(PixelPos).ShadingModelID != SHADINGMODELID_UNLIT;
+
 	BRANCH
-	if (bInLightRegion)
+	if (bInLightRegion && bValidPixel)
 	{
-		const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
-		const bool bBackfaceCull = false;		// TODO
-		const half3 EstimatedGeoWorldNormal = bIsHair ? L : GBufferNormal;
-		
-		TranslatedWorldPosition += EstimatedGeoWorldNormal * NormalBiasLength;
+		const half3 WorldNormal = bIsHair ? L : GBufferNormal;
+		TranslatedWorldPosition += WorldNormal * NormalBiasLength;
 
 		if (SMRTRayCount > 0)
 		{
@@ -218,7 +217,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTSamplesPerRay,
 				SMRTRayLengthScale,
 				Noise,
-				bBackfaceCull);
+				bBackfaceCull,
+				WorldNormal);
 		#else
 			Result = TraceLocalLight(
 				VirtualShadowMapId,
@@ -232,7 +232,8 @@ FVirtualShadowMapSampleResult ProjectLight(
 				SMRTSamplesPerRay,
 				SMRTCotMaxRayAngleFromLight,
 				Noise,
-				bBackfaceCull);
+				bBackfaceCull,
+				WorldNormal);
 		#endif // DIRECTIONAL_LIGHT
 		}
 		else
@@ -241,7 +242,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				VirtualShadowMapId,
 				TranslatedWorldPosition - View.PreViewTranslation,
 				ContactShadowLengthWorld,
-				EstimatedGeoWorldNormal);
+				WorldNormal);
 		}
 
 		// Do not run contact shadow when computing the hair shadow mask (i.e. shadow mask applied on hair, has the scene 
@@ -287,6 +288,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 					Light,
 					PixelPos,
 					TranslatedWorldPosition,
+					WorldNormal,
 					SMRTCotMaxRayAngleFromLight,
 					RayIndex,
 					SMRTRayCount,

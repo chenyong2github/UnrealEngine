@@ -114,7 +114,14 @@ TAutoConsoleVariable<int32> CVarCoarsePagesIncludeNonNanite(
 static TAutoConsoleVariable<int32> CVarShowClipmapStats(
 	TEXT("r.Shadow.Virtual.ShowClipmapStats"),
 	-1,
-	TEXT("Set to the number of clipmap you want to show stats for (-1 == off)\n"),
+	TEXT("Set to the number of clipmap you want to show stats for (-1 == off)"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarCullBackfacingPixels(
+	TEXT("r.Shadow.Virtual.CullBackfacingPixels"),
+	1,
+	TEXT("When enabled does not generate shadow data for pixels that are backfacing to the light."),
 	ECVF_RenderThreadSafe
 );
 
@@ -236,6 +243,8 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 	bEnabled = bInEnabled;
 	CacheManager = InCacheManager;
 	check(!bEnabled || CacheManager);
+
+	bCullBackfacingPixels = CVarCullBackfacingPixels.GetValueOnRenderThread() != 0;
 
 	UniformParameters.NumShadowMaps = 0;
 	UniformParameters.NumDirectionalLights = 0;
@@ -404,6 +413,7 @@ class FGeneratePageFlagsFromPixelsCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER(uint32, bPostBasePass)
 		SHADER_PARAMETER(float, ResolutionLodBiasLocal)
 		SHADER_PARAMETER(float, PageDilationBorderSize)
+		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FGeneratePageFlagsFromPixelsCS, "/Engine/Private/VirtualShadowMaps/PageManagement.usf", "GeneratePageFlagsFromPixels", SF_Compute);
@@ -711,8 +721,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 	const TArray<FViewInfo>& Views,
 	const FSortedLightSetSceneInfo& SortedLightsInfo,
 	const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos,
-	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults,
-	bool bPostBasePass)
+	const TArray<Nanite::FRasterResults, TInlineAllocator<2>>& NaniteRasterResults)
 {
 	check(IsEnabled());
 	RDG_EVENT_SCOPE(GraphBuilder, "FVirtualShadowMapArray::BuildPageAllocation");
@@ -799,8 +808,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						Data.TranslatedWorldToShadowUVMatrix		= CalcTranslatedWorldToShadowUVMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
 						Data.TranslatedWorldToShadowUVNormalMatrix	= CalcTranslatedWorldToShadowUVNormalMatrix( ViewMatrices.GetTranslatedViewMatrix(), ViewMatrices.GetProjectionMatrix() );
 						Data.ShadowPreViewTranslation				= FVector(ProjectedShadowInfo->PreShadowTranslation);
-						Data.VirtualShadowMapId						= ID;
 						Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
+						Data.LightSourceRadius						= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetSourceRadius();
 					}
 
 				#if !UE_BUILD_SHIPPING
@@ -863,7 +872,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 		{
 			const FViewInfo &View = Views[ViewIndex];
-			FRDGTextureRef NaniteVisBuffer64 = ViewIndex < NaniteRasterResults.Num() ? NaniteRasterResults[ViewIndex].VisBuffer64 : nullptr;
 
 			// This view contained no local lights (that were stored in the light grid), and no directional lights, so nothing to do.
 			if (View.ForwardLightingResources->LocalLightVisibleLightInfosIndex.Num() + DirectionalLightIds.Num() == 0)
@@ -874,7 +882,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			FRDGBufferRef DirectionalLightIdsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.DirectionalLightIds"), DirectionalLightIds);
 
 			const FRDGSystemTextures& SystemTextures = FRDGSystemTextures::Get(GraphBuilder);
-			FRDGTextureRef VisBuffer64 = NaniteVisBuffer64 != nullptr ? NaniteVisBuffer64 : SystemTextures.Black;
 
 			FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
 			
@@ -887,8 +894,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					auto GeneratePageFlags = [&](bool bHairPass)
 					{
-						const bool bUseNaniteDepth = NaniteVisBuffer64 != nullptr && !bPostBasePass;
-						const uint32 InputType = bHairPass ? 2u : (bUseNaniteDepth ? 1u : 0u); // HairStrands, Nanite, or GBuffer
+						const uint32 InputType = bHairPass ? 1U : 0U; // HairStrands or GBuffer
 
 						FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
 						PermutationVector.Set<FGeneratePageFlagsFromPixelsCS::FInputType>(InputType);
@@ -896,9 +902,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
 
 						PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
-						PassParameters->bPostBasePass = bPostBasePass;
 
-						PassParameters->VisBuffer64 = VisBuffer64;
 						PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 						PassParameters->View = View.ViewUniformBuffer;
 						PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
@@ -906,6 +910,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						PassParameters->DirectionalLightIds = GraphBuilder.CreateSRV(DirectionalLightIdsRDG);
 						PassParameters->ResolutionLodBiasLocal = ResolutionLodBiasLocal;
 						PassParameters->PageDilationBorderSize = PageDilationBorderSize;
+						PassParameters->bCullBackfacingPixels = ShouldCullBackfacingPixels() ? 1 : 0;
 
 						auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
@@ -927,7 +932,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 						{
 							FComputeShaderUtils::AddPass(
 								GraphBuilder,
-								RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", bHairPass ? TEXT("HairStrands") : (bUseNaniteDepth ? TEXT("Nanite") : TEXT("GBuffer"))),
+								RDG_EVENT_NAME("GeneratePageFlagsFromPixels(%s)", bHairPass ? TEXT("HairStrands") : TEXT("GBuffer")),
 								ComputeShader,
 								PassParameters,
 								FIntVector(GridSize.X, GridSize.Y, 1));

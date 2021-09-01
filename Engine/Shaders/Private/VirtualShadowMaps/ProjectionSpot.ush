@@ -231,7 +231,40 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 	return (Result >> 8) * 5.96046447754e-08; // * 2^-24
 }
 
+// Normal should be normalized
+bool IsBackfaceToLocalLight(
+	float3 Position,
+	half3 Normal,
+	float3 LightPosition,
+	half LightSourceRadius,
+	out half3 OutConeAxis,
+	out half OutConeSin,
+	out half OutDistToLight)
+{
+	float3 ToLight = LightPosition - Position;
+	float DistSqr = dot(ToLight, ToLight);
+	float Falloff = rcp(DistSqr + 1);
+	float InvDist = rsqrt(DistSqr);
 
+	OutConeAxis = ToLight * InvDist;
+	OutConeSin = LightSourceRadius * InvDist;
+	OutDistToLight = DistSqr * InvDist;
+
+	half SinAlphaSqr = saturate(Pow2(LightSourceRadius) * Falloff);
+	half SinAlpha = sqrt(SinAlphaSqr);
+	bool bBackface = dot(Normal, OutConeAxis) < -SinAlpha;
+
+	return bBackface;
+}
+
+// Version without outputs
+bool IsBackfaceToLocalLight(float3 Position, half3 Normal, float3 LightPosition, half LightSourceRadius)
+{
+	half3 Dummy1;
+	half Dummy2;
+	half Dummy3;
+	return IsBackfaceToLocalLight(Position, Normal, LightPosition, LightSourceRadius, Dummy1, Dummy2, Dummy3);
+}
 
 FVirtualShadowMapSampleResult TraceLocalLight(
 	int VirtualShadowMapId,
@@ -245,35 +278,24 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	uint SamplesPerRay,
 	float CotMaxRayAngleFromLight,
 	const half Noise,
-	const bool bCullBackface)
+	const bool bCullBackface,
+	half3 WorldNormal)
 {
-	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
-	float3 ToLight = Light.Position - WorldPosition;
-	float DistSqr = dot(ToLight, ToLight);
-	float Falloff = rcp(DistSqr + 1);
-
-	float InvDist = rsqrt( DistSqr );
-	float DistToLight = DistSqr * InvDist;
-
-	half3 ConeAxis = ToLight * InvDist;
-
-	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
-	half SinAlpha = sqrt(SinAlphaSqr);
-	bool bBackFace = dot( N, ConeAxis ) < -SinAlpha;
+	half3 ConeAxis;
+	half ConeSin;
+	half DistToLight;	
+	bool bBackface = IsBackfaceToLocalLight(WorldPosition, WorldNormal, Light.Position, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
 
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 	Result.bValid = true;
 	Result.ShadowFactor = 0.0f;
 
 	half RayMissFactor = 0;
-	if (!bBackFace || !bCullBackface)
+	if (!bBackface || !bCullBackface)
 	{
 		float StepOffset = Noise;
-
-		half ConeSin = Light.SourceRadius * InvDist;
-		half ConeCos = sqrt( 1 - Pow2( ConeSin ) );
 
 		uint TileID = MortonEncode( PixelPos );
 
@@ -398,32 +420,21 @@ bool GenerateRayLocalLight(
 	uint2 PixelPos,
 	float3 TranslatedWorldPosition,
 	float CotMaxRayAngleFromLight,
+	half3 WorldNormal,
 	uint RayIndex,
 	uint RayCount,
 	inout float3 OutRayStart,
 	inout float3 OutRayEnd)
 {
-	const half3 N = GetGBufferDataUint(PixelPos, true).WorldNormal;
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
-	float3 ToLight = Light.Position - WorldPosition;
-	float DistSqr = dot(ToLight, ToLight);
-	float Falloff = rcp(DistSqr + 1);
-
-	float InvDist = rsqrt(DistSqr);
-	float DistToLight = DistSqr * InvDist;
-
-	half3 ConeAxis = ToLight * InvDist;
-
-	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
-	half SinAlpha = sqrt(SinAlphaSqr);
-	bool bBackFace = dot(N, ConeAxis) < -SinAlpha;
-
-	if (!bBackFace)
+	half3 ConeAxis;
+	half ConeSin;
+	half DistToLight;	
+	bool bBackface = IsBackfaceToLocalLight(WorldPosition, WorldNormal, Light.Position, Light.SourceRadius, ConeAxis, ConeSin, DistToLight);
+	
+	if (!bBackface)
 	{
-		half ConeSin = Light.SourceRadius * InvDist;
-		half ConeCos = sqrt(1 - Pow2(ConeSin));
-
 		uint TileID = MortonEncode(PixelPos);
 		RandomSequence RandSequence;
 		// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
@@ -450,5 +461,5 @@ bool GenerateRayLocalLight(
 		OutRayStart = WorldPosition;
 		OutRayEnd = WorldPosition + Dir * ClampedLength;
 	}
-	return !bBackFace;
+	return !bBackface;
 }
