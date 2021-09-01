@@ -1,12 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelProtoFileReader.h"
+#include "ModelProtoConverter.h"
 #include "ModelProtoFileReaderUtils.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
-// Protobuf includes
 #include <fstream>
-#include "ModelProtoConverter.h"
 
 
 

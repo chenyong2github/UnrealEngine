@@ -33,7 +33,7 @@ public class ONNXRuntime : ModuleRules
 		{
 			PublicIncludePaths.AddRange(
 				new string[] {
-					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen"),
+					System.IO.Path.Combine(ModuleDirectory, "../Deps/eigen")
 				}
 			);
 
