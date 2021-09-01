@@ -7,7 +7,7 @@ public class NeuralNetworkInference : ModuleRules
 {
 	public NeuralNetworkInference( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		// Define when ORT-based NNI is available
+		// Define when UEAndORT-based NNI is available
 		bool bIsORTSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux);
 		if (bIsORTSupported)
 		{
@@ -62,9 +62,18 @@ public class NeuralNetworkInference : ModuleRules
 
 		if (bIsORTSupported)
 		{
+			PrivateDependencyModuleNames.AddRange
+				(
+				new string[] {
+					"ONNXRuntime"				// Select this for open-source-based ONNX Runtime
+					//"ONNXRuntimeDLL",			// Select this for DLL-based ONNX Runtime (Win64-only)
+					//"ONNXRuntimeDLLHelper"	// Select this for DLL-based ONNX Runtime (Win64-only)
+				}
+			);
+
+			// Borrowed from Plugins/Media/ImgMedia (we need to use FD3D12DynamicRHI)
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
-				// Borrowed from Plugins\Media\ImgMedia (we need to use FD3D12DynamicRHI
 				PrivateIncludePaths.AddRange(
 					new string[]{
 						//required for "D3D12RHIPrivate.h"
@@ -82,15 +91,6 @@ public class NeuralNetworkInference : ModuleRules
 
 				AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 			}
-
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-				"ONNXRuntime"				// Select this for open-source-based ONNX Runtime
-				//"ONNXRuntimeDLL",			// Select this for DLL-based ONNX Runtime (Win64-only)
-				//"ONNXRuntimeDLLHelper"	// Select this for DLL-based ONNX Runtime (Win64-only)
-				}
-			);
 		}
 
 		// Win64-only

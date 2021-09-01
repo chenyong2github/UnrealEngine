@@ -31,18 +31,8 @@
 			"LoadingPhase": "PostConfigInit"
 		},
 		{
-			"Name": "NeuralNetworkInferenceEditor",
-			"Type": "Editor",
-			"LoadingPhase": "Default"
-		},
-		{
 			"Name": "NeuralNetworkInferenceQA",
 			"Type": "RuntimeAndProgram",
-			"LoadingPhase": "Default"
-		},
-		{
-			"Name": "NeuralNetworkInferenceQAEditor",
-			"Type": "Editor",
 			"LoadingPhase": "Default"
 		},
 		{
@@ -50,8 +40,7 @@
 			"Type": "RuntimeAndProgram",
 			"LoadingPhase": "Default",
 			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
+				"Win64", "Linux"
 			]
 		},
 		{
@@ -71,6 +60,16 @@
 		},
 		{
 			"Name": "ModelProtoConverter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "NeuralNetworkInferenceQAEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}
