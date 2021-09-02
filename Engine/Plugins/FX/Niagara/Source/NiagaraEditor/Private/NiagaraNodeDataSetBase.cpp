@@ -85,8 +85,9 @@ void UNiagaraNodeDataSetBase::PostLoad()
 	{
 		UE_LOG(LogNiagaraEditor, Display, TEXT("Niagara script '%s' references struct asset '%s'"), *GetFullName(), *ExternalStructAsset->GetFullName());
 	}*/
-	
-	if (!IsSynchronizedWithStruct(true, nullptr, true))
+
+	// The struct asset can still be nullptr, so make sure to synchronize only if it's valid
+	if (ExternalStructAsset != nullptr && !IsSynchronizedWithStruct(true, nullptr, true))
 	{
 		SynchronizeWithStruct();
 		ReallocatePins();
