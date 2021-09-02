@@ -1233,6 +1233,23 @@ float TanConeAngleToRoughness(float TanConeAngle)
 	return sqrt(saturate(TanConeAngle / (.5f * PI)));
 }
 
+float3 EvaluateSkyRadiance(float3 Direction, float TanConeAngle)
+{
+	float3 SkyRadiance = 0.0f;
+
+#if ENABLE_DYNAMIC_SKY_LIGHT
+	if (ReflectionStruct.SkyLightParameters.y > 0)
+	{
+		float SkyAverageBrightness = 1.0f;
+		float Roughness = TanConeAngleToRoughness(TanConeAngle);
+
+		SkyRadiance = GetSkyLightReflection(Direction, Roughness, SkyAverageBrightness);
+	}
+#endif
+
+	return SkyRadiance;
+}
+
 void EvaluateSkyRadianceForCone(
 	float3 ConeDirection, 
 	float TanConeAngle, 

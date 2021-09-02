@@ -12,6 +12,9 @@
 #include "IndirectLightRendering.h"
 #include "LumenProbeHierarchy.h"
 
+class FLumenCardTileScatterParameters;
+class FLumenCardUpdateContext;
+
 class FHemisphereDirectionSampleGenerator
 {
 public:
@@ -221,11 +224,6 @@ extern FRDGTextureRef InitializeOctahedralSolidAngleTexture(
 extern int32 GLumenIrradianceFieldGather;
 
 namespace LumenIrradianceFieldGather
-{
-	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
-}
-
-namespace LumenRadiosity
 {
 	LumenRadianceCache::FRadianceCacheInputs SetupRadianceCacheInputs();
 }

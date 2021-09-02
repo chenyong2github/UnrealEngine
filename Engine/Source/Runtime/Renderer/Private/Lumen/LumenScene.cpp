@@ -25,13 +25,13 @@ public:
 	enum { DataStrideInFloat4s = 5 };
 	enum { DataStrideInBytes = DataStrideInFloat4s * sizeof(FVector4) };
 
-	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, FVector2D InvPhysicalAtlasSize, FVector4* RESTRICT OutData)
+	static void FillData(const FLumenPageTableEntry& RESTRICT PageTableEntry, uint32 ResLevelPageTableOffset, FIntPoint ResLevelSizeInTiles, FVector2D InvPhysicalAtlasSize, FVector4* RESTRICT OutData)
 	{
 		// Layout must match GetLumenCardPageData in usf
 		const float SizeInTexelsX = PageTableEntry.PhysicalAtlasRect.Max.X - PageTableEntry.PhysicalAtlasRect.Min.X;
 		const float SizeInTexelsY = PageTableEntry.PhysicalAtlasRect.Max.Y - PageTableEntry.PhysicalAtlasRect.Min.Y;
 
-		OutData[0] = FVector4(*((float*)&PageTableEntry.CardIndex), 0.0f, SizeInTexelsX, SizeInTexelsY);
+		OutData[0] = FVector4(*(float*)&PageTableEntry.CardIndex, *(float*)&ResLevelPageTableOffset, SizeInTexelsX, SizeInTexelsY);
 		OutData[1] = PageTableEntry.CardUVRect;
 
 		OutData[2].X = PageTableEntry.PhysicalAtlasRect.Min.X * InvPhysicalAtlasSize.X;
@@ -41,11 +41,11 @@ public:
 
 		OutData[3].X = SizeInTexelsX > 0.0f ? ((PageTableEntry.CardUVRect.Z - PageTableEntry.CardUVRect.X) / SizeInTexelsX) : 0.0f;
 		OutData[3].Y = SizeInTexelsY > 0.0f ? ((PageTableEntry.CardUVRect.W - PageTableEntry.CardUVRect.Y) / SizeInTexelsY) : 0.0f;
-		OutData[3].Z = InvPhysicalAtlasSize.X;
-		OutData[3].W = InvPhysicalAtlasSize.Y;
+		OutData[3].Z = *(float*)&ResLevelSizeInTiles.X;
+		OutData[3].W = *(float*)&ResLevelSizeInTiles.Y;
 
 		const uint32 LastUpdateFrame = 0;
-		OutData[4] = FVector4(*((float*)&LastUpdateFrame), *((float*)&LastUpdateFrame), 0.0f, 0.0f);
+		OutData[4] = FVector4(*(float*)&LastUpdateFrame, *(float*)&LastUpdateFrame, 0.0f, 0.0f);
 
 		static_assert(DataStrideInFloat4s == 5, "Data stride doesn't match");
 	}
@@ -425,15 +425,30 @@ void FLumenSceneData::UploadPageTable(FRDGBuilder& GraphBuilder)
 			{
 				if (PageIndex < PageTable.Num())
 				{
+					uint32 ResLevelPageTableOffset = 0;
+					FIntPoint ResLevelSizeInTiles = FIntPoint(0, 0);
+
 					FVector4* Data = (FVector4*)UploadBuffer.Add_GetRef(PageIndex);
 
 					if (PageTable.IsAllocated(PageIndex) && PageTable[PageIndex].IsMapped())
 					{
-						FLumenCardPageGPUData::FillData(PageTable[PageIndex], InvPhysicalAtlasSize, Data);
+						const FLumenPageTableEntry& PageTableEntry = PageTable[PageIndex];
+						const FLumenCard& Card = Cards[PageTableEntry.CardIndex];
+						const FLumenSurfaceMipMap& MipMap = Card.GetMipMap(PageTableEntry.ResLevel);
+
+						ResLevelPageTableOffset = MipMap.PageTableSpanOffset;
+						ResLevelSizeInTiles = MipMap.GetSizeInPages() * (Lumen::PhysicalPageSize / Lumen::CardTileSize);
+
+						if (PageTableEntry.IsSubAllocation())
+						{
+							ResLevelSizeInTiles = PageTableEntry.SubAllocationSize / Lumen::CardTileSize;
+						}
+
+						FLumenCardPageGPUData::FillData(PageTableEntry, ResLevelPageTableOffset, ResLevelSizeInTiles, InvPhysicalAtlasSize, Data);
 					}
 					else
 					{
-						FLumenCardPageGPUData::FillData(NullPageTableEntry, InvPhysicalAtlasSize, Data);
+						FLumenCardPageGPUData::FillData(NullPageTableEntry, ResLevelPageTableOffset, ResLevelSizeInTiles, InvPhysicalAtlasSize, Data);
 					}
 				}
 			}
@@ -1114,6 +1129,7 @@ void FLumenSceneData::ReallocVirtualSurface(FLumenCard& Card, int32 CardIndex, i
 
 			FLumenPageTableEntry& PageTableEntry = PageTable[PageTableIndex];
 			PageTableEntry.CardIndex = CardIndex;
+			PageTableEntry.ResLevel = ResLevel;
 			PageTableEntry.SubAllocationSize = MipMapDesc.bSubAllocation ? MipMapDesc.Resolution : FIntPoint(-1, -1);
 			PageTableEntry.SampleAtlasBiasX = 0;
 			PageTableEntry.SampleAtlasBiasY = 0;

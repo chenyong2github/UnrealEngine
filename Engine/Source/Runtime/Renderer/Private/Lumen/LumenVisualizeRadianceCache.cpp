@@ -19,14 +19,6 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheVisualize(
 	ECVF_RenderThreadSafe
 );
 
-int32 GLumenVisualizeRadiosityIrradianceCache = 0;
-FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeRadiosity(
-	TEXT("r.LumenScene.Radiosity.IrradianceCache.Visualize"),
-	GLumenVisualizeRadiosityIrradianceCache,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
 int32 GLumenVisualizeTranslucencyVolumeRadianceCache = 0;
 FAutoConsoleVariableRef CVarLumenRadianceCacheVisualizeTranslucencyVolume(
 	TEXT("r.Lumen.TranslucencyVolume.RadianceCache.Visualize"),
@@ -118,11 +110,7 @@ END_SHADER_PARAMETER_STRUCT()
 
 LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputs()
 {
-	if (GLumenVisualizeRadiosityIrradianceCache)
-	{
-		return LumenRadiosity::SetupRadianceCacheInputs();
-	}
-	else if (GLumenVisualizeTranslucencyVolumeRadianceCache)
+	if (GLumenVisualizeTranslucencyVolumeRadianceCache)
 	{
 		return LumenTranslucencyVolumeRadianceCache::SetupRadianceCacheInputs();
 	}
@@ -156,9 +144,7 @@ void FDeferredShadingSceneRenderer::RenderLumenRadianceCacheVisualization(FRDGBu
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadianceCache");
 
-		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeRadiosityIrradianceCache 
-			? Views[0].ViewState->RadiosityRadianceCacheState 
-			: (GLumenVisualizeTranslucencyVolumeRadianceCache ? Views[0].ViewState->TranslucencyVolumeRadianceCacheState : Views[0].ViewState->RadianceCacheState);
+		const FRadianceCacheState& RadianceCacheState = GLumenVisualizeTranslucencyVolumeRadianceCache != 0 ? Views[0].ViewState->TranslucencyVolumeRadianceCacheState : Views[0].ViewState->RadianceCacheState;
 
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
