@@ -47,6 +47,16 @@ namespace UnrealBuildTool
 
 			// Parse all the targets being built
 			List<TargetDescriptor> TargetDescriptors = TargetDescriptor.ParseCommandLine(Arguments, BuildConfiguration.bUsePrecompiled, bSkipRulesCompile);
+
+			Clean(TargetDescriptors, BuildConfiguration);
+
+			return 0;
+		}
+
+		public void Clean(List<TargetDescriptor> TargetDescriptors, BuildConfiguration BuildConfiguration)
+		{
+			using ITimelineEvent ScopeEvent = Timeline.ScopeEvent("CleanMode.Clean()");
+
 			if (TargetDescriptors.Count == 0)
 			{
 				throw new BuildException("No targets specified to clean");
@@ -240,8 +250,6 @@ namespace UnrealBuildTool
 					RemoteMac.Clean(TargetDescriptor);
 				}
 			}
-
-			return 0;
 		}
 	}
 }

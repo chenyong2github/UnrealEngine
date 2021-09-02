@@ -172,6 +172,15 @@ namespace UnrealBuildTool
 					TargetDescriptors.RemoveAll(x => (x.Name == "ShaderCompileWorker" || x.Name == "LiveCodingConsole" || x.Name == "InterchangeWorker") && x.SpecificFilesToCompile.Count > 0);
 				}
 
+				// Clean any target that wanted to be cleaned before being rebuilt
+				if (TargetDescriptors.Any(D => D.bRebuild))
+				{
+					CleanMode CleanMode = new CleanMode();
+					CleanMode.bSkipPreBuildTargets = bSkipPreBuildTargets;
+					CleanMode.Clean(TargetDescriptors.Where(D => D.bRebuild).ToList(), BuildConfiguration);
+				}
+
+
 				// Handle remote builds
 				for (int Idx = 0; Idx < TargetDescriptors.Count; ++Idx)
 				{

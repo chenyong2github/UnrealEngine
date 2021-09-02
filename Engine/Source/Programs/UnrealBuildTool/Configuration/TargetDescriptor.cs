@@ -86,6 +86,12 @@ namespace UnrealBuildTool
 		public bool bQuiet;
 
 		/// <summary>
+		/// Clean the target before trying to build it
+		/// </summary>
+		[CommandLine("-Rebuild")]
+		public bool bRebuild;
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="ProjectFile">Path to the project file</param>
