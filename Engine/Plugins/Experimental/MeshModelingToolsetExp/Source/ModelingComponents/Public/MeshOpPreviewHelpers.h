@@ -216,6 +216,14 @@ public:
 	TObjectPtr<UMaterialInterface> SecondaryMaterial = nullptr;
 
 	UWorld* PreviewWorld;
+
+	/**
+	 * When true, the preview mesh is allowed to be temporarily updated using results that we know
+	 * are dirty (i.e., the preview was invalidated, but a result became available before the operation
+	 * was restarted, so we can at least show that while we wait for the new result). The change 
+	 * notifications will be fired as normal for these results, but HasValidResult will return false.
+	 */
+	bool bAllowDirtyResultUpdates = true;
 protected:
 	// state flag, if true then we have valid result
 	bool bResultValid = false;
@@ -374,7 +382,7 @@ protected:
 		if (BackgroundCompute)
 		{
 			UE::Geometry::EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
-			if (Status == UE::Geometry::EBackgroundComputeTaskStatus::NewResultAvailable)
+			if (Status == UE::Geometry::EBackgroundComputeTaskStatus::ValidResultAvailable)
 			{
 				TUniquePtr<OperatorType> ResultOp = BackgroundCompute->ExtractResult();
 				OnOpCompleted.Broadcast(ResultOp.Get());
