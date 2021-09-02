@@ -304,8 +304,6 @@ public:
 	/** Handles "Enable World Composition" option in WorldSettings */
 	bool EnableWorldComposition(UWorld* InWorld, bool bEnable);
 
-	bool EnableWorldPartition(UWorld* InWorld, bool bEnable);
-
 	/** Get the path to the executable that runs the editor */
 	FString GetProjectEditorBinaryPath();
 

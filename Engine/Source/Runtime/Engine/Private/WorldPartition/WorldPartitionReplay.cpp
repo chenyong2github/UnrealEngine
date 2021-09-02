@@ -84,9 +84,8 @@ void AWorldPartitionReplay::Initialize(UWorld* World)
 #if !UE_BUILD_SHIPPING
 	if (World->IsGameWorld())
 	{
-		check(World->GetWorldPartition());
 		UWorldPartition* WorldPartition = World->GetWorldPartition();
-
+		check(WorldPartition);
 		check(!WorldPartition->Replay);
 		FActorSpawnParameters SpawnParams;
 		SpawnParams.Name = AWorldPartitionReplay::StaticClass()->GetFName();
@@ -99,7 +98,7 @@ bool AWorldPartitionReplay::IsEnabled(UWorld* World)
 {
 #if !UE_BUILD_SHIPPING
 	check(World->IsGameWorld());
-	check(World->GetWorldPartition());
+	check(World->IsPartitionedWorld());
 	UWorldPartition* WorldPartition = World->GetWorldPartition();
 	return WorldPartition->Replay && WorldPartition->Replay->IsEnabled();
 #else
@@ -111,7 +110,7 @@ void AWorldPartitionReplay::BeginPlay()
 {
 	UWorld* World = GetWorld();
 	check(World->IsGameWorld());
-	check(World->GetWorldPartition());
+	check(World->IsPartitionedWorld());
 	ENetMode NetMode = World->GetNetMode();
 	
 	// Recording will happen only in NM_Standalone/NM_Client. Replay can happen on any net mode.
@@ -130,8 +129,7 @@ void AWorldPartitionReplay::PreReplication(IRepChangedPropertyTracker& ChangedPr
 	check(GetWorld()->IsRecordingReplay());
 	Super::PreReplication(ChangedPropertyTracker);
 	
-	UWorldPartition* WorldPartition = GetWorld()->GetWorldPartition();
-	check(WorldPartition);
+	check(GetWorld()->IsPartitionedWorld());
 
 	FWorldPartitionReplaySample Replay(this);
 	if (Replay.StreamingSources.Num())

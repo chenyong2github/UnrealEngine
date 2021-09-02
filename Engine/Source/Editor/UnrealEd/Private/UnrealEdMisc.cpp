@@ -530,7 +530,6 @@ void FUnrealEdMisc::OnInit()
 
 	// Handles "Enable World Composition" option in WorldSettings
 	UWorldComposition::EnableWorldCompositionEvent.BindRaw(this, &FUnrealEdMisc::EnableWorldComposition);
-	UWorldPartition::EnableWorldPartitionEvent.BindRaw(this, &FUnrealEdMisc::EnableWorldPartition);
 
 	const double TotalEditorStartupTime = (FStudioAnalytics::GetAnalyticSeconds() - GStartTime);
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Total Editor Startup Time, took %.3f"), TotalEditorStartupTime);
@@ -936,33 +935,6 @@ bool FUnrealEdMisc::EnableWorldComposition(UWorld* InWorld, bool bEnable)
 	return true;
 }
 
-bool FUnrealEdMisc::EnableWorldPartition(UWorld* InWorld, bool bEnable)
-{
-	if (InWorld == nullptr || InWorld->WorldType != EWorldType::Editor)
-	{
-		return false;
-	}
-			
-	if (!bEnable)
-	{
-		UWorldPartition::WorldPartitionChangedEvent.Broadcast(InWorld);
-		return false;
-	}
-	
-	FString RootPackageName = InWorld->GetOutermost()->GetName();
-
-	// Map should be saved to disk
-	if (!FPackageName::DoesPackageExist(RootPackageName))
-	{
-		FMessageDialog::Open(EAppMsgType::Ok, LOCTEXT("EnableWorldPartitionNotSaved_Message", "Please save your level to disk before enabling World Partition"));
-		return false;
-	}
-			
-	UWorldPartition::WorldPartitionChangedEvent.Broadcast(InWorld);
-	
-	return true;
-}
-
 /** Build and return the path to the current project (used for relaunching the editor.)	 */
 FString CreateProjectPath()
 {
@@ -1078,7 +1050,6 @@ void FUnrealEdMisc::OnExit()
 	ISourceControlModule::Get().GetProvider().Close();
 
 	UWorldComposition::EnableWorldCompositionEvent.Unbind();
-	UWorldPartition::EnableWorldPartitionEvent.Unbind();
 	
 	//Fbx dll is currently compile with a different windows platform sdk so we should use this memory bypass later when unreal ed will be using windows 10 platform sdk
 	//UnloadFBxLibraries();

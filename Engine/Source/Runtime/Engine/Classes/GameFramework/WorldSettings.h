@@ -469,15 +469,8 @@ public:
 	 * Enables tools for composing a tiled world. 
 	 * Level has to be saved and all sub-levels removed before enabling this option.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=World, meta=(EditConditionHides, EditCondition="WorldPartition == nullptr"))
 	uint8 bEnableWorldComposition:1;
-
-	/** 
-	 * Enables tools for creating a partitioned world. 
-	 * Level has to be saved and all sub-levels removed before enabling this option.
-	 */
-	UPROPERTY(BlueprintReadOnly, Category=WorldPartitionSetup)
-	uint8 bEnableWorldPartition:1;
 
 	/** Additional transform applied when applying LevelStreaming Transform to LevelInstance */
 	UPROPERTY()
@@ -540,7 +533,7 @@ protected:
 	UPROPERTY(Transient)
 	TObjectPtr<UNavigationSystemConfig> NavigationSystemConfigOverride;
 
-	UPROPERTY(EditAnywhere, Category=WorldPartitionSetup, NoClear, meta=(NoResetToDefault, HideEditConditionToggle, EditCondition = "bEnableWorldPartition"), Instanced)
+	UPROPERTY(VisibleAnywhere, Category=WorldPartitionSetup, Instanced)
 	TObjectPtr<UWorldPartition> WorldPartition;
 
 public:
@@ -766,6 +759,7 @@ public:
 	//~ End AActor Interface.
 
 	UWorldPartition* GetWorldPartition() const;
+	bool IsPartitionedWorld() const { return GetWorldPartition() != nullptr; }
 	void SetWorldPartition(UWorldPartition* InWorldPartition);
 
 	/**

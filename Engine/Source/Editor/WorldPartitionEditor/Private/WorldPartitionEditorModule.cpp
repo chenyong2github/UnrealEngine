@@ -100,8 +100,6 @@ void FWorldPartitionEditorModule::StartupModule()
 
 void FWorldPartitionEditorModule::ShutdownModule()
 {
-	UWorldPartition::WorldPartitionChangedEvent.RemoveAll(this);
-	
 	if (!IsRunningGame())
 	{
 		if (FLevelEditorModule* LevelEditorModule = FModuleManager::Get().GetModulePtr<FLevelEditorModule>("LevelEditor"))

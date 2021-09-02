@@ -251,7 +251,7 @@ void UEditorEngine::StartPlayUsingLauncherSession(FRequestPlaySessionParams& InR
 	{
 		// For now World Partition doesn't these cook modes
 		FWorldContext& EditorContext = GetEditorWorldContext();
-		if (EditorContext.World()->GetWorldPartition())
+		if (EditorContext.World()->IsPartitionedWorld())
 		{
 			FString ErrorMsg = FString::Printf(TEXT("Error launching map %s : Quick launch %s doesn't yet support partitioned worlds."), *EditorContext.World()->GetOutermost()->GetName(), (CurrentLauncherCookMode == ELauncherProfileCookModes::ByTheBookInEditor) ? TEXT("cook by the book") : TEXT("cook on the fly"));
 			UE_LOG(LogPlayLevel, Error, TEXT("%s"), *ErrorMsg);

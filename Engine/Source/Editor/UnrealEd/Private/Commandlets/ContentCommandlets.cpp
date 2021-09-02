@@ -2526,7 +2526,7 @@ int32 UWrangleContentCommandlet::Main( const FString& Params )
 				FLinkerLoad* Linker = LoadPackageLinker(nullptr, PackagePath, LOAD_Quiet | LOAD_NoWarn | LOAD_NoVerify);
 
 				UWorld* World = UWorld::FindWorldInPackage(Package);
-				if (World && World->GetWorldPartition())
+				if (World && World->IsPartitionedWorld())
 				{
 					TArray<FString> ExternalActorPackages = World->PersistentLevel->GetOnDiskExternalActorPackages();
 					if (ExternalActorPackages.Num())

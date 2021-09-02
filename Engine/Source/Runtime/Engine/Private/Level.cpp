@@ -2757,7 +2757,7 @@ bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 		}
 
 		// Can't set a partition if using world composition or partition
-		if (WorldSettings && (WorldSettings->bEnableWorldComposition || WorldSettings->bEnableWorldPartition))
+		if (WorldSettings && (WorldSettings->bEnableWorldComposition || WorldSettings->IsPartitionedWorld()))
 		{
 			return false;
 		}
