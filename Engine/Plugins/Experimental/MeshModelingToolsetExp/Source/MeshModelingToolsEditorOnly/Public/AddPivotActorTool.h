@@ -37,6 +37,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UAddPivotActorTool : public UMultiSelectio
 public:
 
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
+	virtual void SetPivotRepositionMode(AActor* PivotActor) { ExistingPivotActor = PivotActor; }
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -59,4 +60,7 @@ protected:
 	TObjectPtr<UTransformProxy> TransformProxy = nullptr;
 
 	TObjectPtr<UWorld> TargetWorld;
+	TWeakObjectPtr<AActor> ExistingPivotActor = nullptr;
+
+	FTransform ExistingPivotOriginalTransform;
 };
