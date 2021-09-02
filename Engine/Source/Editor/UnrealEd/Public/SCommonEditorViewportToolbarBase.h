@@ -9,6 +9,7 @@
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "SViewportToolBar.h"
+#include "IPreviewProfileController.h"
 
 // This is the interface that the host of a SCommonEditorViewportToolbarBase must implement
 class ICommonEditorViewportToolbarInfoProvider
@@ -67,10 +68,14 @@ class UNREALED_API SCommonEditorViewportToolbarBase : public SViewportToolBar
 public:
 	SLATE_BEGIN_ARGS(SCommonEditorViewportToolbarBase)
 		: _AddRealtimeButton(false)
+		, _PreviewProfileController(nullptr)
 		{}
 
 		SLATE_ARGUMENT(bool, AddRealtimeButton)
+		SLATE_ARGUMENT(TSharedPtr<IPreviewProfileController>, PreviewProfileController) // Should be null if the Preview doesn't require profile.
 	SLATE_END_ARGS()
+
+	virtual ~SCommonEditorViewportToolbarBase();
 
 	void Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider);
 
@@ -206,8 +211,27 @@ protected:
 	/** Called when the ScreenPercentage slider is adjusted in the viewport */
 	void OnScreenPercentageValueChanged(int32 NewValue);
 
+	/** Update the list of asset viewer profiles displayed by the combo box. */
+	void UpdateAssetViewerProfileList();
+	void UpdateAssetViewerProfileSelection();
+
+	/** Invoked when the asset viewer profile combo box selection changes. */
+	void OnAssetViewerProfileComboBoxSelectionChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type /*SelectInfo*/);
+
+	/** Creates and returns the asset viewr profile combo box.*/
+	TSharedRef<SWidget> MakeAssetViewerProfileComboBox();
+
 private:
 	/** The viewport that we are in */
 	TWeakPtr<class ICommonEditorViewportToolbarInfoProvider> InfoProviderPtr;
+
+	/** Interface to set/get/list the preview profiles. */
+	TSharedPtr<IPreviewProfileController> PreviewProfileController;
+
+	/** List of advanced preview profiles to fill up the Profiles combo box. */
+	TArray<TSharedPtr<FString>> AssetViewerProfileNames;
+
+	/** Displays/Selects the active advanced viewer profile. */
+	TSharedPtr<STextComboBox> AssetViewerProfileComboBox;
 };
 

@@ -4,6 +4,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "EditorStyleSet.h"
 #include "MaterialEditorActions.h"
+#include "PreviewProfileController.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditorViewportToolBar"
 
@@ -52,7 +53,7 @@ void SMaterialEditorViewportPreviewShapeToolBar::Construct(const FArguments& InA
 
 void SMaterialEditorViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class SMaterialEditor3DPreviewViewport> InViewport)
 {
-	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments(), InViewport);
+	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments().PreviewProfileController(MakeShared<FPreviewProfileController>()), InViewport);
 }
 
 TSharedRef<SWidget> SMaterialEditorViewportToolBar::GenerateShowMenu() const
