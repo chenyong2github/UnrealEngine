@@ -99,6 +99,8 @@ public:
 
 	SGameLayerManager();
 
+	virtual ~SGameLayerManager();
+
 	/**
 	 * Construct this widget
 	 *
@@ -131,11 +133,11 @@ public:
 
 public:
 
-	// Begin SWidget overrides
+	//~ Begin SWidget overrides
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	virtual bool OnVisualizeTooltip(const TSharedPtr<SWidget>& TooltipContent) override;
-	// End SWidget overrides
+	//~ End SWidget overrides
 
 	/**
 	 * Function will instruct internal DPI computations to use a provided reference viewport size instead of the actual viewport size.
@@ -148,6 +150,11 @@ public:
 private:
 	float GetGameViewportDPIScale() const;
 	FOptionalSize GetDefaultWindowTitleBarHeight() const;
+
+	//~ Functions for setting the visibility of different canvases containing HUD.
+	void ShowPlayerCanvas(bool bIsVisible);
+	void ShowDebugCanvas(bool bIsVisible);
+	void ShowViewportSlot(bool bIsVisible);
 
 private:
 
@@ -185,6 +192,7 @@ private:
 	TSharedPtr<SVerticalBox> WidgetHost;
 	TSharedPtr<SCanvas> PlayerCanvas;
 	TSharedPtr<SDebugCanvas> DebugCanvas;
+	TSharedPtr<SBox> ViewportSlotContainer;
 	TSharedPtr<STooltipPresenter> TooltipPresenter;
 
 	TSharedPtr<SWindowTitleBarArea> TitleBarAreaOverlay;
