@@ -854,9 +854,9 @@ void UConstraintInstanceBlueprintLibrary::SetAngularDriveParams(
 
 void UConstraintInstanceBlueprintLibrary::GetAngularDriveParams(
 	FConstraintInstanceAccessor& Accessor,
-	float OutPositionStrength,
-	float OutVelocityStrength,
-	float OutForceLimit
+	float& OutPositionStrength,
+	float& OutVelocityStrength,
+	float& OutForceLimit
 )
 {
 	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
