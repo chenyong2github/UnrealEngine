@@ -19,6 +19,7 @@
 #include "../RayTracing/RayTracingDeferredShadingCommon.ush"
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
+#include "LumenHardwareRayTracingPlatformCommon.ush"
 
 float3 CalcPrevWorldPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPUSceneInstanceIndex)
 {
@@ -38,6 +39,10 @@ float3 CalcLocalPositionFromGPUSceneInstanceIndex(float3 WorldPosition, uint GPU
 #ifndef ENABLE_NEAR_FIELD_TRACING
 #define ENABLE_NEAR_FIELD_TRACING 1
 #endif // ENABLE_NEAR_FIELD_TRACING
+
+#ifndef ENABLE_TRANSLUCENT_SKIP_COUNT
+#define ENABLE_TRANSLUCENT_SKIP_COUNT 0
+#endif // ENABLE_TRANSLUCENT_SKIP_COUNT
 
 // Lighting modes
 #define LIGHTING_FROM_SURFACE_CACHE 0
@@ -406,6 +411,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 #if ENABLE_NEAR_FIELD_TRACING
 	Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
 
+#if ENABLE_TRANSLUCENT_SKIP_COUNT
 	int TranslucentSkipCount = 0;
 	while (Result.bIsHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
 	{
@@ -414,6 +420,7 @@ FRayTracedLightingResult TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		Result.bIsHit = TraceLumenMinimalRay(Ray, Context, Payload);
 		TranslucentSkipCount++;
 	}
+#endif // ENABLE_TRANSLUCENT_SKIP_COUNT
 
 	if (Result.bIsHit)
 	{

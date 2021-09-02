@@ -134,68 +134,6 @@ struct FDeferredMaterialPayload : FMinimalPayload
 	uint   PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 };
 
-struct FLumenMinimalPayload : FMinimalPayload
-{
-	uint PackedData[4];
-
-	void SetIsTranslucent(uint bIsTranslucent)
-	{
-		PackedData[3] = (PackedData[3] & 0x7FFFFFFF) | ((bIsTranslucent & 0x01) << 31);
-	}
-
-	uint IsTranslucent()
-	{
-		uint bIsTranslucent = (PackedData[3] >> 31) & 0x1;
-		return bIsTranslucent;
-	}
-
-	void SetMaterialShaderIndex(uint MaterialShaderIndex)
-	{
-		PackedData[3] = (PackedData[3] & 0x80000000) | (MaterialShaderIndex & 0x7FFFFFFF);
-	}
-
-	uint GetMaterialShaderIndex()
-	{
-		uint MaterialShaderIndex = PackedData[3] & 0x7FFFFFFF;
-		return MaterialShaderIndex;
-	}
-
-	void SetWorldNormal(float3 WorldNormal)
-	{
-		float2 WorldNormalAsOctahedron = UnitVectorToOctahedron(WorldNormal);
-		uint2 QuantizedOctahedron = clamp((WorldNormalAsOctahedron * 0.5 + 0.5) * 65535.0 + 0.5, 0.0, 65535.0);
-		PackedData[2] = ((QuantizedOctahedron.x & 0xFFFF) << 16) | (QuantizedOctahedron.y & 0xFFFF);
-	}
-
-	float3 GetWorldNormal()
-	{
-		uint2 QuantizedOctahedron = uint2((PackedData[2] >> 16) & 0xFFFF, PackedData[2] & 0xFFFF);
-		float2 WorldNormalAsOctahedron = ((QuantizedOctahedron / 65535.0) - 0.5) * 2.0;
-		float3 WorldNormal = OctahedronToUnitVector(WorldNormalAsOctahedron);
-		return WorldNormal;
-	}
-
-	void SetPrimitiveIndex(int PrimitiveIndex)
-	{
-		PackedData[0] = PrimitiveIndex;
-	}
-
-	int GetPrimitiveIndex()
-	{
-		return asint(PackedData[0]);
-	}
-
-	void SetInstanceIndex(int InstanceIndex)
-	{
-		PackedData[1] = InstanceIndex;
-	}
-
-	int GetInstanceIndex()
-	{
-		return PackedData[1];
-	}
-};
-
 struct FDefaultAttributes
 {
 	float2 Barycentrics;
