@@ -921,9 +921,13 @@ void FMobileSceneRenderer::BuildInstanceCullingDrawParams(FRDGBuilder& GraphBuil
 {
 	if (Scene->GPUScene.IsEnabled())
 	{
+		if (!bIsFullDepthPrepassEnabled)
+		{
+			BuildMeshPassInstanceCullingDrawParams(GraphBuilder, Scene->GPUScene, View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass], *PassParameters, MeshPassInstanceCullingDrawParams[EMeshPass::DepthPass]);
+		}
+		
 		const EMeshPass::Type BaseMeshPasses[] = 
 		{
-			EMeshPass::DepthPass,
 			EMeshPass::BasePass,
 			EMeshPass::SkyPass,
 			StandardTranslucencyMeshPass,
