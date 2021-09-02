@@ -43,7 +43,6 @@
 #include "Engine/TextureLODSettings.h"
 #include "Engine/WorldComposition.h"
 #include "EngineGlobals.h"
-#include "FilePackageStoreWriter.h"
 #include "FileServerMessages.h"
 #include "GameDelegates.h"
 #include "GlobalShader.h"
@@ -1097,11 +1096,6 @@ bool UCookOnTheFlyServer::IsCookByTheBookMode() const
 bool UCookOnTheFlyServer::IsUsingShaderCodeLibrary() const
 {
 	return IsCookByTheBookMode() && AllowShaderCompiling();
-}
-
-bool UCookOnTheFlyServer::IsUsingIoStore() const
-{
-	return (IsCookByTheBookMode() && CookByTheBookOptions->bIoStore) || (IsCookOnTheFlyMode() && CookOnTheFlyOptions.bZenStore);
 }
 
 bool UCookOnTheFlyServer::IsUsingZenStore() const
@@ -7455,11 +7449,6 @@ UE::Cook::FCookSavePackageContext* UCookOnTheFlyServer::CreateSaveContext(const 
 		PackageWriter = new FZenStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
 		WriterDebugName = TEXT("ZenStore");
 	}
-	else if (IsUsingIoStore())
-	{
-		PackageWriter = new FFilePackageStoreWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform);
-		WriterDebugName = TEXT("IoStoreFileWriter");
-	}
 	else
 	{
 		PackageWriter = new FLooseCookedPackageWriter(ResolvedRootPath, MetadataDirectoryPath, TargetPlatform,
@@ -7604,7 +7593,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bSkipHardReferences = !!(CookOptions & ECookByTheBookOptions::SkipHardReferences);
 	CookByTheBookOptions->bSkipSoftReferences = !!(CookOptions & ECookByTheBookOptions::SkipSoftReferences);
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
-	CookByTheBookOptions->bIoStore = !!(CookOptions & ECookByTheBookOptions::IoStore);
 	CookByTheBookOptions->bZenStore = !!(CookOptions & ECookByTheBookOptions::ZenStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
 	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
