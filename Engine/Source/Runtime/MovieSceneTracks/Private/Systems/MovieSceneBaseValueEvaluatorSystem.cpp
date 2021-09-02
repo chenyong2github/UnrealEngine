@@ -14,13 +14,24 @@ namespace UE
 namespace MovieScene
 {
 
-struct FEvaluateBaseValues
+struct FEvaluateBaseFloatValues
 {
 	void ForEachEntity(FSourceFloatChannel FloatChannel, FFrameTime FrameTime, float& OutResult)
 	{
 		if (!FloatChannel.Source->Evaluate(FrameTime, OutResult))
 		{
 			OutResult = MIN_flt;
+		}
+	}
+};
+
+struct FEvaluateBaseDoubleValues
+{
+	void ForEachEntity(FSourceDoubleChannel DoubleChannel, FFrameTime FrameTime, double& OutResult)
+	{
+		if (!DoubleChannel.Source->Evaluate(FrameTime, OutResult))
+		{
+			OutResult = MIN_dbl;
 		}
 	}
 };
@@ -62,6 +73,23 @@ void UMovieSceneBaseValueEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrer
 		.Write(BaseFloat)
 		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
-		.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseValues());
+		.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseFloatValues());
+	}
+
+	static_assert(
+			UE_ARRAY_COUNT(BuiltInComponents->BaseDouble) == UE_ARRAY_COUNT(BuiltInComponents->DoubleChannel),
+			"There should be a matching number of double channels and double base values.");
+	for (size_t Index = 0; Index < UE_ARRAY_COUNT(BuiltInComponents->BaseDouble); ++Index)
+	{
+		const TComponentTypeID<double> BaseDouble = BuiltInComponents->BaseDouble[Index];
+		const TComponentTypeID<FSourceDoubleChannel> DoubleChannel = BuiltInComponents->DoubleChannel[Index];
+
+		FEntityTaskBuilder()
+		.Read(DoubleChannel)
+		.Read(BuiltInComponents->BaseValueEvalTime)
+		.Write(BaseDouble)
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.FilterNone({ BuiltInComponents->Tags.Ignored })
+		.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseDoubleValues());
 	}
 }
