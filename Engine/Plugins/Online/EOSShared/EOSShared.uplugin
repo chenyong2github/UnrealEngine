@@ -17,6 +17,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Android",
+				"IOS",
 				"Linux",
 				"Mac",
 				"Win64"
