@@ -2,6 +2,7 @@
 
 using EpicGames.Core;
 using EpicGames.Horde.Compute;
+using EpicGames.Serialization;
 using HordeServer.Models;
 using HordeServer.Storage;
 using HordeServer.Tasks;
@@ -36,7 +37,7 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// The input hash
 		/// </summary>
-		public IoHash TaskHash { get; }
+		public CbObjectAttachment TaskHash { get; }
 
 		/// <summary>
 		/// Timestamp for the event
@@ -61,7 +62,7 @@ namespace HordeServer.Compute
 		/// <summary>
 		/// Hash of the result, if complete
 		/// </summary>
-		public IoHash? ResultHash { get; }
+		public CbObjectAttachment? ResultHash { get; }
 	}
 
 	/// <summary>
@@ -77,7 +78,7 @@ namespace HordeServer.Compute
 		/// <param name="TaskHashes">List of task hashes</param>
 		/// <param name="ChannelId">Unique identifier of the client</param>
 		/// <returns>Async task</returns>
-		Task AddTasksAsync(NamespaceId NamespaceId, IoHash RequirementsHash, List<IoHash> TaskHashes, ChannelId ChannelId);
+		Task AddTasksAsync(NamespaceId NamespaceId, CbObjectAttachment RequirementsHash, List<CbObjectAttachment> TaskHashes, ChannelId ChannelId);
 
 		/// <summary>
 		/// Dequeue completed items from a queue and return immediately
@@ -109,9 +110,9 @@ namespace HordeServer.Compute
 		/// <param name="TaskHash">The task hash</param>
 		/// <param name="ChannelId"></param>
 		/// <returns></returns>
-		public static Task AddTaskAsync(this IComputeService ComputeService, NamespaceId NamespaceId, IoHash RequirementsHash, IoHash TaskHash, ChannelId ChannelId)
+		public static Task AddTaskAsync(this IComputeService ComputeService, NamespaceId NamespaceId, CbObjectAttachment RequirementsHash, CbObjectAttachment TaskHash, ChannelId ChannelId)
 		{
-			return ComputeService.AddTasksAsync(NamespaceId, RequirementsHash, new List<IoHash> { TaskHash }, ChannelId);
+			return ComputeService.AddTasksAsync(NamespaceId, RequirementsHash, new List<CbObjectAttachment> { TaskHash }, ChannelId);
 		}
 	}
 }

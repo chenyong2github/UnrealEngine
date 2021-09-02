@@ -48,7 +48,7 @@ namespace HordeServer.Compute.Impl
 	class ComputeTaskInfo
 	{
 		[CbField("h")]
-		public IoHash TaskHash { get; set; }
+		public CbObjectAttachment TaskHash { get; set; }
 
 		[CbField("c")]
 		public ChannelId ChannelId { get; set; }
@@ -57,7 +57,7 @@ namespace HordeServer.Compute.Impl
 		{
 		}
 
-		public ComputeTaskInfo(IoHash TaskHash, ChannelId ChannelId)
+		public ComputeTaskInfo(CbObjectAttachment TaskHash, ChannelId ChannelId)
 		{
 			this.TaskHash = TaskHash;
 			this.ChannelId = ChannelId;
@@ -72,7 +72,7 @@ namespace HordeServer.Compute.Impl
 	{
 		/// <inheritdoc/>
 		[CbField("h")]
-		public IoHash TaskHash { get; set; }
+		public CbObjectAttachment TaskHash { get; set; }
 
 		/// <inheritdoc/>
 		[CbField("t")]
@@ -92,7 +92,7 @@ namespace HordeServer.Compute.Impl
 
 		/// <inheritdoc/>
 		[CbField("r")]
-		public IoHash? ResultHash { get; set; }
+		public CbObjectAttachment? ResultHash { get; set; }
 
 		/// <inheritdoc/>
 		AgentId? IComputeTaskStatus.AgentId => AgentId.IsEmpty ? (AgentId?)null : new AgentId(AgentId.ToString());
@@ -108,7 +108,7 @@ namespace HordeServer.Compute.Impl
 		{
 		}
 
-		public ComputeTaskStatus(IoHash TaskHash, ComputeTaskState State)
+		public ComputeTaskStatus(CbObjectAttachment TaskHash, ComputeTaskState State)
 		{
 			this.TaskHash = TaskHash;
 			this.Time = DateTime.UtcNow;
@@ -149,10 +149,10 @@ namespace HordeServer.Compute.Impl
 		}
 
 		/// <inheritdoc/>
-		public async Task AddTasksAsync(NamespaceId NamespaceId, IoHash RequirementsHash, List<IoHash> TaskHashes, ChannelId ChannelId)
+		public async Task AddTasksAsync(NamespaceId NamespaceId, CbObjectAttachment RequirementsHash, List<CbObjectAttachment> TaskHashes, ChannelId ChannelId)
 		{
 			List<Task> Tasks = new List<Task>();
-			foreach (IoHash TaskHash in TaskHashes)
+			foreach (CbObjectAttachment TaskHash in TaskHashes)
 			{
 				ComputeTaskInfo TaskInfo = new ComputeTaskInfo(TaskHash, ChannelId);
 				Tasks.Add(TaskScheduler.EnqueueAsync(TaskInfo, RequirementsHash));
@@ -212,8 +212,8 @@ namespace HordeServer.Compute.Impl
 		{
 			ComputeTaskMessage ComputeTask = Payload.Unpack<ComputeTaskMessage>();
 
-			Logger.LogInformation("Task complete: {Hash}", (IoHash)ComputeTask.TaskHash);
 			ComputeTaskResultMessage Result = ComputeTaskResultMessage.Parser.ParseFrom(Output.ToArray());
+			Logger.LogInformation("Task complete: {Hash} -> {OutputHash}", (IoHash)(CbObjectAttachment)ComputeTask.TaskHash, (Result.OutputHash == null)? IoHash.Zero : (IoHash)(CbObjectAttachment)Result.OutputHash);
 
 			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Complete);
 			Status.LeaseId = LeaseId;
@@ -242,7 +242,7 @@ namespace HordeServer.Compute.Impl
 		{
 			NamespaceId NamespaceId = new NamespaceId(RpcRequest.NamespaceId);
 			ChannelId ChannelId = new ChannelId(RpcRequest.ChannelId);
-			await ComputeService.AddTasksAsync(NamespaceId, RpcRequest.RequirementsHash, RpcRequest.TaskHashes.Select(x => (IoHash)x).ToList(), ChannelId);
+			await ComputeService.AddTasksAsync(NamespaceId, RpcRequest.RequirementsHash, RpcRequest.TaskHashes.Select(x => (CbObjectAttachment)x).ToList(), ChannelId);
 			return new AddTasksRpcResponse();
 		}
 

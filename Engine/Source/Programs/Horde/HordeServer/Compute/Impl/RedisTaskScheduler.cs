@@ -38,14 +38,14 @@ namespace HordeServer.Compute.Impl
 		/// <summary>
 		/// Hash of the <see cref="Requirements"/> object in CAS for the agent to execute the task
 		/// </summary>
-		public IoHash RequirementsHash { get; }
+		public CbObjectAttachment RequirementsHash { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Item">The task item</param>
 		/// <param name="RequirementsHash">Requirements for executing the task</param>
-		public TaskSchedulerEntry(T Item, IoHash RequirementsHash)
+		public TaskSchedulerEntry(T Item, CbObjectAttachment RequirementsHash)
 		{
 			this.Item = Item;
 			this.RequirementsHash = RequirementsHash;
@@ -62,14 +62,14 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="Item">The item to add</param>
 		/// <param name="RequirementsHash">Hash of a <see cref="Requirements"/> object stored in the CAS which describes the agent to execute the task</param>
-		Task EnqueueAsync(T Item, IoHash RequirementsHash);
+		Task EnqueueAsync(T Item, CbObjectAttachment RequirementsHash);
 
 		/// <summary>
 		/// Inserts a previously dequeued task back at the front of the queue
 		/// </summary>
 		/// <param name="Item">The item to add</param>
 		/// <param name="RequirementsHash">Hash of a <see cref="Requirements"/> object stored in the CAS which describes the agent to execute the task</param>
-		Task RequeueAsync(T Item, IoHash RequirementsHash);
+		Task RequeueAsync(T Item, CbObjectAttachment RequirementsHash);
 
 		/// <summary>
 		/// Dequeues a task that the given agent can execute
@@ -157,7 +157,7 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="RequirementsHash"></param>
 		/// <returns></returns>
-		RedisKey GetQueueKey(IoHash RequirementsHash)
+		RedisKey GetQueueKey(CbObjectAttachment RequirementsHash)
 		{
 			return BaseKey.Append(RedisSerializer.Serialize(RequirementsHash).AsKey());
 		}
@@ -167,7 +167,7 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="RequirementsHash"></param>
 		/// <returns></returns>
-		RedisList<T> GetQueue(IoHash RequirementsHash)
+		RedisList<T> GetQueue(CbObjectAttachment RequirementsHash)
 		{
 			return new RedisList<T>(GetQueueKey(RequirementsHash));
 		}
@@ -176,7 +176,7 @@ namespace HordeServer.Compute.Impl
 		/// Adds a queue to the index, atomically checking that the queue exists
 		/// </summary>
 		/// <param name="RequirementsHash">Hash of the queue requirements objectadd</param>
-		async ValueTask AddQueueToIndexAsync(IoHash RequirementsHash)
+		async ValueTask AddQueueToIndexAsync(CbObjectAttachment RequirementsHash)
 		{
 			ITransaction Transaction = Redis.CreateTransaction();
 			Transaction.AddCondition(Condition.KeyExists(GetQueueKey(RequirementsHash)));
@@ -190,7 +190,7 @@ namespace HordeServer.Compute.Impl
 		/// Removes a queue from the index, atomically checking that it is empty
 		/// </summary>
 		/// <param name="RequirementsHash">Hash of the queue requirements objectadd</param>
-		async ValueTask RemoveQueueFromIndexAsync(IoHash RequirementsHash)
+		async ValueTask RemoveQueueFromIndexAsync(CbObjectAttachment RequirementsHash)
 		{
 			ITransaction Transaction = Redis.CreateTransaction();
 			Transaction.AddCondition(Condition.KeyNotExists(GetQueueKey(RequirementsHash)));
@@ -203,7 +203,7 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="Item">The item to be added</param>
 		/// <param name="RequirementsHash">Requirements for the task</param>
-		public async Task EnqueueAsync(T Item, IoHash RequirementsHash)
+		public async Task EnqueueAsync(T Item, CbObjectAttachment RequirementsHash)
 		{
 			RedisList<T> List = GetQueue(RequirementsHash);
 
@@ -219,7 +219,7 @@ namespace HordeServer.Compute.Impl
 		/// </summary>
 		/// <param name="Item">The item to be added</param>
 		/// <param name="RequirementsHash">Requirements for the task</param>
-		public async Task RequeueAsync(T Item, IoHash RequirementsHash)
+		public async Task RequeueAsync(T Item, CbObjectAttachment RequirementsHash)
 		{
 			RedisList<T> Queue = GetQueue(RequirementsHash);
 

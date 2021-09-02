@@ -26,6 +26,7 @@ using HordeCommon.Rpc;
 using EpicGames.Horde.Common.RemoteExecution;
 using EpicGames.Serialization;
 using EpicGames.Horde.Compute;
+using EpicGames.Horde.Common;
 
 namespace HordeAgent
 {
@@ -103,12 +104,12 @@ namespace HordeAgent
 		/// <returns>The action result</returns>
 		public async Task<ComputeTaskResultMessage> ExecuteAsync(string LeaseId, ComputeTaskMessage ComputeTaskMessage, DirectoryReference SandboxDir, CancellationToken CancellationToken)
 		{
-			ComputeTask? Task = await BlobStore.GetObjectAsync<ComputeTask>(ComputeTaskMessage.NamespaceId, ComputeTaskMessage.TaskHash);
+			ComputeTask? Task = await BlobStore.GetObjectAsync<ComputeTask>(ComputeTaskMessage.NamespaceId, (CbObjectAttachment)ComputeTaskMessage.TaskHash);
 			if (Task == null)
 			{
 				throw new RpcException(new Grpc.Core.Status(StatusCode.NotFound, "Unable to find action message"));
 			}
-			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", ComputeTaskMessage.TaskHash.Hash, LeaseId);
+			Logger.LogInformation("Executing task {Hash} for lease ID {LeaseId}", (IoHash)(CbObjectAttachment)ComputeTaskMessage.TaskHash, LeaseId);
 
 			DirectoryReference.CreateDirectory(SandboxDir);
 			FileUtils.ForceDeleteDirectoryContents(SandboxDir);
@@ -169,7 +170,7 @@ namespace HordeAgent
 					}
 
 					ResultMessage = new ComputeTaskResultMessage();
-					ResultMessage.OutputHash = await BlobStore.PutObjectAsync(ComputeTaskMessage.NamespaceId, Result);
+					ResultMessage.OutputHash = (CbObjectAttachment)await BlobStore.PutObjectAsync(ComputeTaskMessage.NamespaceId, Result);
 
 
 					/*

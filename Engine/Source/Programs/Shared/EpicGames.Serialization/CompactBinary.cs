@@ -6,7 +6,9 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -194,6 +196,7 @@ namespace EpicGames.Serialization
 	/// </summary>
 	[DebuggerDisplay("{Hash}")]
 	[JsonConverter(typeof(CbBinaryAttachmentJsonConverter))]
+	[TypeConverter(typeof(CbBinaryAttachmentTypeConverter))]
 	public struct CbBinaryAttachment
 	{
 		/// <summary>
@@ -215,23 +218,20 @@ namespace EpicGames.Serialization
 			this.Hash = Hash;
 		}
 
+		/// <inheritdoc/>
+		public override string ToString() => Hash.ToString();
+
 		/// <summary>
 		/// Convert a hash to a binary attachment 
 		/// </summary>
 		/// <param name="Hash">The attachment to convert</param>
-		public static implicit operator CbBinaryAttachment(IoHash Hash)
-		{
-			return new CbBinaryAttachment(Hash);
-		}
+		public static implicit operator CbBinaryAttachment(IoHash Hash) => new CbBinaryAttachment(Hash);
 
 		/// <summary>
 		/// Use a binary attachment as a hash
 		/// </summary>
 		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator IoHash(CbBinaryAttachment Attachment)
-		{
-			return Attachment.Hash;
-		}
+		public static implicit operator IoHash(CbBinaryAttachment Attachment) => Attachment.Hash;
 	}
 
 	/// <summary>
@@ -247,10 +247,23 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
+	/// Type converter from strings to IoHash objects
+	/// </summary>
+	sealed class CbBinaryAttachmentTypeConverter : TypeConverter
+	{
+		/// <inheritdoc/>
+		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+
+		/// <inheritdoc/>
+		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new CbBinaryAttachment(IoHash.Parse((string)Value));
+	}
+
+	/// <summary>
 	/// An object attachment, referenced by <see cref="IoHash"/>
 	/// </summary>
 	[DebuggerDisplay("{Hash}")]
 	[JsonConverter(typeof(CbObjectAttachmentJsonConverter))]
+	[TypeConverter(typeof(CbObjectAttachmentTypeConverter))]
 	public struct CbObjectAttachment
 	{
 		/// <summary>
@@ -272,23 +285,20 @@ namespace EpicGames.Serialization
 			this.Hash = Hash;
 		}
 
-		/// <summary>
-		/// Use an object attachment as a hash
-		/// </summary>
-		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator CbObjectAttachment(IoHash Hash)
-		{
-			return new CbObjectAttachment(Hash);
-		}
+		/// <inheritdoc/>
+		public override string ToString() => Hash.ToString();
 
 		/// <summary>
 		/// Use an object attachment as a hash
 		/// </summary>
 		/// <param name="Attachment">The attachment to convert</param>
-		public static implicit operator IoHash(CbObjectAttachment Attachment)
-		{
-			return Attachment.Hash;
-		}
+		public static implicit operator CbObjectAttachment(IoHash Hash) => new CbObjectAttachment(Hash);
+
+		/// <summary>
+		/// Use an object attachment as a hash
+		/// </summary>
+		/// <param name="Attachment">The attachment to convert</param>
+		public static implicit operator IoHash(CbObjectAttachment Attachment) => Attachment.Hash;
 	}
 
 	/// <summary>
@@ -301,6 +311,18 @@ namespace EpicGames.Serialization
 
 		/// <inheritdoc/>
 		public override void Write(Utf8JsonWriter Writer, CbObjectAttachment Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
+	}
+
+	/// <summary>
+	/// Type converter from strings to IoHash objects
+	/// </summary>
+	sealed class CbObjectAttachmentTypeConverter : TypeConverter
+	{
+		/// <inheritdoc/>
+		public override bool CanConvertFrom(ITypeDescriptorContext Context, Type SourceType) => SourceType == typeof(string);
+
+		/// <inheritdoc/>
+		public override object ConvertFrom(ITypeDescriptorContext Context, CultureInfo Culture, object Value) => new CbObjectAttachment(IoHash.Parse((string)Value));
 	}
 
 	/// <summary>
