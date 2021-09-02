@@ -16,6 +16,8 @@ template<typename OptionalType>
 struct TOptional
 {
 public:
+	using ElementType = OptionalType;
+	
 	/** Construct an OptionaType with a valid value. */
 	TOptional(const OptionalType& InValue)
 	{
