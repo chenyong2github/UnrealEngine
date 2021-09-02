@@ -106,11 +106,15 @@ void VirtualSmInvalidateInstancePagesCS(
 						for (int MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
 						{
 							int ViewDim = int(uint(VSM_VIRTUAL_MAX_RESOLUTION_XY) >> MipLevel);
-							FScreenRect Rect = GetScreenRect(int4(0, 0, ViewDim, ViewDim), Cull, 2);
+							FScreenRect Rect = GetScreenRect(int4(0, 0, ViewDim, ViewDim), Cull, 4);
 							// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
 							if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, float2(0.0f, 0.0f), Rect, VSM_ALLOCATED_FLAG))
 							{
 								uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+
+#if USE_HZB_OCCLUSION
+								FPageTestScreenRect HZBTestRect = SetupPageHZBRect(Rect);
+#endif // USE_HZB_OCCLUSION
 
 								// Clip to actually allocated pages
 								// TODO: move this to be done as part of or before the overlap test?
@@ -130,7 +134,12 @@ void VirtualSmInvalidateInstancePagesCS(
 
 											if (PageFlag != 0)
 											{
-												// Somewhere
+#if USE_HZB_OCCLUSION
+												if (!IsPageVisibleHZB(uint2(x, y), PageFlagOffset, HZBTestRect))
+												{
+													continue;
+												}
+#endif // USE_HZB_OCCLUSION
 												OutDynamicCasterFlags[PageFlagOffset] = 1;
 #if ENABLE_DEBUG_MODE
 												++PageInvalidationCount;
