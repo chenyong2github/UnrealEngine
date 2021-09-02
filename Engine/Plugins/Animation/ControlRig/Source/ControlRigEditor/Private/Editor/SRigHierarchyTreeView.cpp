@@ -3,7 +3,9 @@
 #include "SRigHierarchyTreeView.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "PropertyCustomizationHelpers.h"
 #include "Framework/Application/SlateApplication.h"
@@ -645,5 +647,68 @@ void SRigHierarchyItem::OnNameCommitted(const FText& InText, ETextCommit::Type I
 		}
 	}
 }
+
+//////////////////////////////////////////////////////////////
+/// SSearchableRigHierarchyTreeView
+///////////////////////////////////////////////////////////
+
+void SSearchableRigHierarchyTreeView::Construct(const FArguments& InArgs)
+{
+	FRigTreeDelegates TreeDelegates = InArgs._RigTreeDelegates;
+	SuperGetRigTreeDisplaySettings = TreeDelegates.OnGetDisplaySettings;
+
+	TreeDelegates.OnGetDisplaySettings.BindSP(this, &SSearchableRigHierarchyTreeView::GetDisplaySettings);
+	
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Fill)
+		.Padding(0.0f)
+		[
+			SNew(SSearchBox)
+			.InitialText(InArgs._InitialFilterText)
+			.OnTextChanged(this, &SSearchableRigHierarchyTreeView::OnFilterTextChanged)
+		]
+
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Fill)
+		.Padding(0.0f, 0.0f)
+		[
+			SNew(SScrollBox)
+			+ SScrollBox::Slot()
+			[
+				SNew(SBorder)
+				.Padding(2.0f)
+				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				[
+					SAssignNew(TreeView, SRigHierarchyTreeView)
+					.RigTreeDelegates(TreeDelegates)
+				]
+			]
+		]
+	];
+}
+
+const FRigTreeDisplaySettings& SSearchableRigHierarchyTreeView::GetDisplaySettings()
+{
+	if(SuperGetRigTreeDisplaySettings.IsBound())
+	{
+		Settings = SuperGetRigTreeDisplaySettings.Execute();
+	}
+	Settings.FilterText = FilterText;
+	return Settings;
+}
+
+void SSearchableRigHierarchyTreeView::OnFilterTextChanged(const FText& SearchText)
+{
+	FilterText = SearchText;
+	GetTreeView()->RefreshTreeView();
+}
+
 
 #undef LOCTEXT_NAMESPACE

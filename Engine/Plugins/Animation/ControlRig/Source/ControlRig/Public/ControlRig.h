@@ -414,7 +414,13 @@ public:
 	const FControlRigDrawContainer& GetDrawContainer() const { return DrawContainer; };
 	FControlRigDrawContainer& GetDrawContainer() { return DrawContainer; };
 
+	const FRigControlElementCustomization* GetControlCustomization(const FRigElementKey& InControl) const;
+	void SetControlCustomization(const FRigElementKey& InControl, const FRigControlElementCustomization& InCustomization);
+	
 private:
+
+	UPROPERTY()
+	TMap<FRigElementKey, FRigControlElementCustomization> ControlCustomizations;
 
 	UPROPERTY()
 	TObjectPtr<URigVM> VM;

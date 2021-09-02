@@ -306,6 +306,26 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 				ControlDetailsView.ToSharedRef()
 			]
 
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(PickerExpander, SExpandableArea)
+				.InitiallyCollapsed(true)
+				.AreaTitle(LOCTEXT("Picker_SpaceWidget", "Spaces"))
+				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
+				.Padding(FMargin(8.f))
+				.BodyContent()
+				[
+					SAssignNew(SpacePickerWidget, SRigSpacePickerWidget)
+					.AllowDelete(true)
+					.AllowReorder(true)
+					.AllowAdd(true)
+					.ShowBakeButton(true)
+					// todo: implement GetAdditionalSpacesDelegate to pull spaces from sequencer
+				]
+			]
+
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
@@ -324,6 +344,8 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 	];
 
 	HierarchyTreeView->RefreshTreeView(true);
+	SpacePickerWidget->OnActiveSpaceChanged().AddSP(this, &SControlRigEditModeTools::HandleActiveSpaceChanged);
+	SpacePickerWidget->OnSpaceListChanged().AddSP(this, &SControlRigEditModeTools::HandleSpaceListChanged);
 }
 
 void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
@@ -574,6 +596,59 @@ void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigCo
 			{
 				HierarchyTreeView->RequestScrollIntoView(SelectedItems.Last());
 			}
+		}
+	}
+
+	if (UControlRig* ControlRig = SequencerRig.Get())
+	{
+		// get the customization for this control
+		const FRigControlElementCustomization* ExistingCustomization = ControlRig->GetControlCustomization(Key);
+		check(ExistingCustomization);
+
+		ControlCustomization = *ExistingCustomization; 
+		SpacePickerWidget->SetControl(ControlRig->GetHierarchy(), Key, &ControlCustomization);
+	}
+}
+
+void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
+	const FRigElementKey& InSpaceKey)
+{
+	// todo: when the user picks a new space
+	// for now we'll just do it directly in the hierarchy
+	if(InSpaceKey == InHierarchy->GetWorldSpaceSocketKey())
+	{
+		InHierarchy->SwitchToWorldSpace(InControlKey);
+	}
+	else
+	{
+		InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
+	}
+}
+
+void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
+	const TArray<FRigElementKey>& InSpaceList)
+{
+	if (UControlRig* ControlRig = SequencerRig.Get())
+	{
+		if(const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+		{
+			const FRigControlElementCustomization* ExistingCustomization = ControlRig->GetControlCustomization(InControlKey);
+			ControlCustomization = *ExistingCustomization;	
+
+			ControlCustomization.AvailableSpaces = InSpaceList;
+			ControlCustomization.RemovedSpaces.Reset();
+
+			// remember  the elements which are in the asset's available list but removed by the user
+			for(const FRigElementKey& AvailableSpace : ControlElement->Settings.Customization.AvailableSpaces)
+			{
+				if(!ControlCustomization.AvailableSpaces.Contains(AvailableSpace))
+				{
+					ControlCustomization.RemovedSpaces.Add(AvailableSpace);
+				}
+			}
+
+			ControlRig->SetControlCustomization(InControlKey, ControlCustomization);
+			InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 		}
 	}
 }
