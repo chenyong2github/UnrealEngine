@@ -68,9 +68,9 @@ private:
 	void ClearApplyToClientTimer();
 	
 private:
-	/** Holds an handle to the timer used to apply a preset asynchronously with ApplyToClientLatent. */
-	FTimerHandle ApplyToClientTimerHandle;
+	/** Holds a handle to the OnEndFrame delegate used to apply a preset asynchronously with ApplyToClientLatent. */
+	FDelegateHandle ApplyToClientEndFrameHandle;
 
-	/** Holds the current ApplyToClient async operation. */
-	TPimplPtr<struct FApplyToClientPollingOperation> ApplyToClientPollingOperation;
+	/** Holds the current ApplyToClient async operation. Only one operation for all presets can be done at a time. */
+	static TPimplPtr<struct FApplyToClientPollingOperation> ApplyToClientPollingOperation;
 };

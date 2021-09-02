@@ -2,6 +2,7 @@
 
 #include "LiveLinkPreset.h"
 
+#include "Misc/CoreDelegates.h"
 #include "Engine/Engine.h"
 #include "Engine/LatentActionManager.h"
 #include "Features/IModularFeatures.h"
@@ -10,11 +11,7 @@
 #include "LiveLinkClient.h"
 #include "LiveLinkLog.h"
 #include "Misc/App.h"
-#include "TimerManager.h"
 
-#if WITH_EDITOR
-#include "Editor.h"
-#endif
 
 namespace
 {
@@ -23,21 +20,25 @@ namespace
 		TEXT("Apply a LiveLinkPreset. Use: LiveLink.Preset.Apply Preset=/Game/Folder/MyLiveLinkPreset.MyLiveLinkPreset"),
 		FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& Args)
 			{
-				for (const FString& Element : Args)
+				//LiveLinkModule now looks for this commandline argument when starting up. No need to execute it twice at launch
+				if (GFrameCounter > 1)
 				{
-					const TCHAR* PresetStr = TEXT("Preset=");
-					const int32 FoundElement = Element.Find(PresetStr);
-					if (FoundElement != INDEX_NONE)
+					for (const FString& Element : Args)
 					{
-						UObject* Object = StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *Element + FoundElement + FCString::Strlen(PresetStr));
-						if (Object)
+						const TCHAR* PresetStr = TEXT("Preset=");
+						const int32 FoundElement = Element.Find(PresetStr);
+						if (FoundElement != INDEX_NONE)
 						{
-							CastChecked<ULiveLinkPreset>(Object)->ApplyToClientLatent();
+							UObject* Object = StaticLoadObject(ULiveLinkPreset::StaticClass(), nullptr, *Element + FoundElement + FCString::Strlen(PresetStr));
+							if (Object)
+							{
+								CastChecked<ULiveLinkPreset>(Object)->ApplyToClientLatent();
+							}
 						}
 					}
 				}
 			})
-		);
+	);
 
 	static FAutoConsoleCommand LiveLinkPresetAddCmd(
 		TEXT("LiveLink.Preset.Add"),
@@ -59,39 +60,6 @@ namespace
 				}
 			})
 		);
-}
-
-namespace LiveLinkPresetUtils
-{
-	UWorld* GetWorld()
-	{
-		UWorld* World = nullptr;
-
-#if WITH_EDITOR
-		if (GEditor && FApp::CanEverRender())
-		{
-			World = GEditor->GetEditorWorldContext(false).World();
-		}
-#endif
-
-		if (World)
-		{
-			return World;
-		}
-
-		if (GEngine)
-		{
-			for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-			{
-				if (WorldContext.WorldType == EWorldType::Game)
-				{
-					return WorldContext.World();
-				}
-			}
-		}
-		
-		return nullptr;
-	}
 }
 
 struct FApplyToClientPollingOperation
@@ -173,6 +141,8 @@ struct FApplyToClientPollingOperation
 		return EApplyToClientUpdateResult::Pending;
 	}
 };
+
+TPimplPtr<FApplyToClientPollingOperation> ULiveLinkPreset::ApplyToClientPollingOperation;
 
 class FApplyToClientLatentAction : public FPendingLatentAction
 {
@@ -264,29 +234,23 @@ void ULiveLinkPreset::ApplyToClientLatent(TFunction<void(bool)> CompletionCallba
 
 	ApplyToClientPollingOperation = MakePimpl<FApplyToClientPollingOperation>(this);
 
-	if (UWorld* World = LiveLinkPresetUtils::GetWorld())
+	ApplyToClientEndFrameHandle = FCoreDelegates::OnEndFrame.AddLambda([WeakThis = TWeakObjectPtr<ULiveLinkPreset>(this), WrappedCallback = MoveTemp(CompletionCallback)]()
 	{
-		FTimerDelegate TimerDelegate;
-		TimerDelegate.BindLambda([WeakThis = TWeakObjectPtr<ULiveLinkPreset>(this), WrappedCallback = MoveTemp(CompletionCallback)]()
+		if (ensure(WeakThis->ApplyToClientPollingOperation))
 		{
-			if (ensure(WeakThis->ApplyToClientPollingOperation))
+			FApplyToClientPollingOperation::EApplyToClientUpdateResult Result = WeakThis->ApplyToClientPollingOperation->Update();
+			if (Result != FApplyToClientPollingOperation::EApplyToClientUpdateResult::Pending)
 			{
-				FApplyToClientPollingOperation::EApplyToClientUpdateResult Result = WeakThis->ApplyToClientPollingOperation->Update();
-				if (Result != FApplyToClientPollingOperation::EApplyToClientUpdateResult::Pending)
+				if (WrappedCallback != nullptr)
 				{
-					if (WrappedCallback != nullptr)
-					{
-						WrappedCallback(Result == FApplyToClientPollingOperation::EApplyToClientUpdateResult::Success ? true : false);
-					}
-
-					WeakThis->ApplyToClientPollingOperation.Reset();
-					WeakThis->ClearApplyToClientTimer();
+					WrappedCallback(Result == FApplyToClientPollingOperation::EApplyToClientUpdateResult::Success ? true : false);
 				}
+
+				WeakThis->ApplyToClientPollingOperation.Reset();
+				WeakThis->ClearApplyToClientTimer();
 			}
-		});
-		
-		World->GetTimerManager().SetTimer(ApplyToClientTimerHandle, MoveTemp(TimerDelegate), 0.01f, true);
-	}
+		}
+	});
 }
 
 bool ULiveLinkPreset::AddToClient(const bool bRecreatePresets) const
@@ -392,8 +356,8 @@ void ULiveLinkPreset::BuildFromClient()
 
 void ULiveLinkPreset::ClearApplyToClientTimer()
 {
-	if (UWorld* World = LiveLinkPresetUtils::GetWorld())
+	if (ApplyToClientEndFrameHandle.IsValid())
 	{
-		World->GetTimerManager().ClearTimer(ApplyToClientTimerHandle);
+		FCoreDelegates::OnEndFrame.Remove(ApplyToClientEndFrameHandle);
 	}
 }
