@@ -143,7 +143,7 @@ void FNiagaraSystemViewModel::Initialize(UNiagaraSystem& InSystem, FNiagaraSyste
 
 bool FNiagaraSystemViewModel::IsValid() const
 {
-	return SystemInstance != nullptr;
+	return System != nullptr;
 }
 
 void FNiagaraSystemViewModel::DumpToText(FString& ExportText)
