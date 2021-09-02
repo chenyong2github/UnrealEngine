@@ -48,9 +48,15 @@ namespace HordeServer.Compute.Impl
 		[HttpPost]
 		[Authorize]
 		[Route("/api/v1/compute/{ChannelId}")]
-		public async Task AddTasksAsync([FromRoute] ChannelId ChannelId, [FromBody] AddTasksRequest Request)
+		public async Task<ActionResult> AddTasksAsync([FromRoute] ChannelId ChannelId, [FromBody] AddTasksRequest Request)
 		{
+			if (Request.TaskHashes.Count == 0)
+			{
+				return BadRequest("No task hashes specified");
+			}
+
 			await ComputeService.AddTasksAsync(Impl.ComputeService.DefaultNamespaceId, Request.RequirementsHash, Request.TaskHashes, ChannelId);
+			return Ok();
 		}
 
 		/// <summary>
