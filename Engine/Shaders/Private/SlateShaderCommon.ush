@@ -84,9 +84,11 @@ float4 GetRoundedBoxElementColorInternal(float2 size, float2 UV, float thickness
 	float din  = GetRoundedBoxDistance(pos, center, max(radius - thickness, 0), thickness);
 
 	// Compute the border intensity and fill intensity with a smooth transition
-	float spread = 0.5;
-	float bi = smoothstep(spread, -spread, dext);
-	float fi = smoothstep(spread, -spread, din);
+	float bi_spread = 1.0;
+	float bi = smoothstep(bi_spread, -bi_spread, dext);
+
+	float fi_spread = .5;
+	float fi = smoothstep(fi_spread, -fi_spread, din);
 
 	float4 fill = fillColor;
 	float4 border = borderColor;

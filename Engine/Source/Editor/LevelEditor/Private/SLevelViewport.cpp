@@ -1859,6 +1859,7 @@ TSharedPtr<SWidget> SLevelViewport::MakeViewportToolbar()
 		.Visibility( EVisibility::SelfHitTestInvisible )
 		+SVerticalBox::Slot()
 		.AutoHeight()
+		.Padding(0, 1.0f, 0, 0)
 		.VAlign(VAlign_Top)
 		[
 			ToolBar
