@@ -34,7 +34,6 @@ using Microsoft.OpenApi.Models;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Conventions;
-using System.Net.Http;
 using Microsoft.AspNetCore.HttpOverrides;
 using HordeServer.Utilities;
 using Grpc.Core.Interceptors;
@@ -82,6 +81,7 @@ using OpenTracing.Util;
 using EpicGames.Horde.Compute;
 using HordeServer.Compute.Impl;
 using HordeServer.Compute;
+using System.Net.Http.Headers;
 
 namespace HordeServer
 {
@@ -569,6 +569,8 @@ namespace HordeServer
 			{
 				Options.InputFormatters.Add(new CbInputFormatter());
 				Options.OutputFormatters.Add(new CbOutputFormatter());
+				Options.OutputFormatters.Insert(0, new CbPreferredOutputFormatter());
+				Options.FormatterMappings.SetMediaTypeMappingForFormat("uecb", CustomMediaTypeNames.UnrealCompactBinary);
 			});
 
 			Services.AddSwaggerGen(Config =>

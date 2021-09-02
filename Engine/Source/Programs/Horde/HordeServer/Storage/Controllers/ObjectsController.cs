@@ -18,6 +18,7 @@ using EpicGames.Core;
 using HordeServer.Storage.Collections;
 using EpicGames.Serialization;
 using System.Net;
+using System.Net.Mime;
 
 namespace HordeServer.Storage.Controllers
 {
@@ -92,6 +93,7 @@ namespace HordeServer.Storage.Controllers
 	/// </summary>
 	[ApiController]
 	[Authorize]
+	[FormatFilter]
 	[Route("[controller]")]
 	public class ObjectsController : ControllerBase
 	{
@@ -305,7 +307,7 @@ namespace HordeServer.Storage.Controllers
 		/// <param name="Hash">Hash of the blob. Must match the submitted data.</param>
 		/// <returns></returns>
 		[HttpGet]
-		[Route("/api/v1/objects/{NamespaceId}/{Hash}")]
+		[Route("/api/v1/objects/{NamespaceId}/{Hash}.{format?}")]
 		public async Task<ActionResult> GetObjectAsync(NamespaceId NamespaceId, IoHash Hash)
 		{
 			if (!await NamespaceCollection.AuthorizeAsync(NamespaceId, User, AclAction.ReadBlobs))
@@ -319,7 +321,7 @@ namespace HordeServer.Storage.Controllers
 				return NotFound();
 			}
 
-			return Ok(Object.GetView().ToArray());
+			return Ok(Object);
 		}
 
 		/// <summary>
