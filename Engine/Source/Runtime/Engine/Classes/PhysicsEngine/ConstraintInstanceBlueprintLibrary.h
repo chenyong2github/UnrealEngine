@@ -696,9 +696,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints", meta = (Keywords = "motor target orientation velocity strength max force"))
 	static void GetAngularDriveParams(
 		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
-		float OutPositionStrength,
-		float OutVelocityStrength,
-		float OutForceLimit
+		float& OutPositionStrength,
+		float& OutVelocityStrength,
+		float& OutForceLimit
 	);
 
 	/** Copies all properties from one constraint to another
