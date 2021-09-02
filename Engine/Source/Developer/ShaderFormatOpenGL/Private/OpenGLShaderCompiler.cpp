@@ -1865,7 +1865,7 @@ static bool CompileToGlslWithShaderConductor(
 			{
 				if (Var->storage_class == SpvStorageClassOutput && Var->built_in == -1 && !CrossCompiler::FShaderConductorContext::IsIntermediateSpirvOutputVariable(Var->name))
 				{
-					if (Frequency == HSF_PixelShader && strstr(Var->name, "SV_Target"))
+					if (Frequency == SF_Pixel && strstr(Var->name, "SV_Target"))
 					{
 						FString TypeQualifier;
 
@@ -2206,7 +2206,7 @@ static bool CompileToGlslWithShaderConductor(
 					std::string FBDFReplaceString = "_Globals_ARM_shader_framebuffer_fetch_depth_stencil";
 
 					size_t FramebufferDepthFetchPos = GlslSource.find(FBDFString);
-					bool UsesFramebufferDepthFetch = Frequency == HSF_PixelShader && GlslSource.find("_Globals.ARM_shader_framebuffer_fetch_depth_stencil") != std::string::npos;
+					bool UsesFramebufferDepthFetch = Frequency == SF_Pixel && GlslSource.find("_Globals.ARM_shader_framebuffer_fetch_depth_stencil") != std::string::npos;
 
 					if (UsesFramebufferDepthFetch)
 					{
@@ -2258,7 +2258,7 @@ static bool CompileToGlslWithShaderConductor(
 						{
 							GlslSource.erase(GlobalPos, GlobalEndPos - GlobalPos + GlobalsEndSearchString.length());
 
-							bool UsesFramebufferFetch = Frequency == HSF_PixelShader && GlslSource.find("_Globals.ARM_shader_framebuffer_fetch") != std::string::npos;
+							bool UsesFramebufferFetch = Frequency == SF_Pixel && GlslSource.find("_Globals.ARM_shader_framebuffer_fetch") != std::string::npos;
 
 							std::string GlobalVarString = "_Globals.";
 							size_t GlobalVarPos = 0;
