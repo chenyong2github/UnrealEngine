@@ -46,7 +46,7 @@ namespace AutomationToolDriver
 		/// <param name="bUseBuildRecords"></param>
 		/// <param name="bBuildSuccess"></param>
 		/// <returns></returns>
-		public static HashSet<FileReference> InitializeScriptModules(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders, bool bForceCompile, bool bUseBuildRecords, out bool bBuildSuccess)
+		public static HashSet<FileReference> InitializeScriptModules(string ScriptsForProjectFileName, List<string> AdditionalScriptsFolders, bool bForceCompile, bool bNoCompile, bool bUseBuildRecords, out bool bBuildSuccess)
 		{
 			WriteTimeCache WriteTimeCache = new WriteTimeCache();
 			
@@ -74,7 +74,7 @@ namespace AutomationToolDriver
 
 			// Fall back to the slower approach: use msbuild to load csproj files & build as necessary
 			RegisterMsBuildPath();
-			return BuildAllScriptPlugins(FoundAutomationProjects, bForceCompile, out bBuildSuccess, ref WriteTimeCache);
+			return BuildAllScriptPlugins(FoundAutomationProjects, bForceCompile, bNoCompile, out bBuildSuccess, ref WriteTimeCache);
 		}
 
 		// Acceleration structure:
@@ -569,7 +569,7 @@ namespace AutomationToolDriver
 #endif
             };
 
-		private static HashSet<FileReference> BuildAllScriptPlugins(HashSet<FileReference> FoundAutomationProjects, bool bForceCompile, out bool bBuildSuccess, ref WriteTimeCache Cache)
+		private static HashSet<FileReference> BuildAllScriptPlugins(HashSet<FileReference> FoundAutomationProjects, bool bForceCompile, bool bNoCompile, out bool bBuildSuccess, ref WriteTimeCache Cache)
 		{
 			// The -IgnoreBuildRecords prevents the loading & parsing of .uatbuildrecord files - but UATBuildRecord objects will be used in this function regardless
 			Dictionary<FileReference, UATBuildRecord> BuildRecords = new Dictionary<FileReference, UATBuildRecord>();
@@ -828,6 +828,13 @@ namespace AutomationToolDriver
 							OutOfDateQueue.Enqueue(Referee);
 						}
 					}
+				}
+
+				if (bNoCompile)
+				{
+					bBuildSuccess = true;
+					// return a list of all script modules that are up to date (without touching any uatbuildrecords)
+					return new HashSet<FileReference>(InputProjectGraph.EntryPointNodes.Where(P => !OutOfDateProjects.Contains(P)).Select(P => FileReference.FromString(P.ProjectInstance.GetPropertyValue("TargetPath"))));
 				}
 
 				if (OutOfDateProjects.Count > 0)
