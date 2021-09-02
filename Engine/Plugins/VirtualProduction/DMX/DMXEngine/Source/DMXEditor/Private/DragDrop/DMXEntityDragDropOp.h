@@ -12,7 +12,6 @@ class FDMXTreeNodeBase;
 class SDMXCategoryRow;
 class FDMXEntityTreeNode;
 class SDMXEntityRow;
-class SDMXEntityList;
 class UDMXEntity;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
@@ -25,39 +24,18 @@ class FDMXEntityDragDropOperation
 public:
 	DRAG_DROP_OPERATOR_TYPE(FDMXEntityDragDropOperation, FDragDropOperation)
 
-	/**
-	 * Constructs the entity drag drop operation
-	 *
-	 *
-	 *
-	 *
-	 */
+	/**  Constructs the entity drag drop operation */
 	FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, const TArray<TWeakObjectPtr<UDMXEntity>>& InEntities);
 
 protected:
 	/** Constructs the tooltip widget that follows the mouse */
 	virtual void Construct() override;
 
-	/** FGCObject interface */
+	//~ Begin FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
-	{
-		return TEXT("FDMXEntityDragDropOperation");
-	}
+	//~ End FGCObject interface
 
 public:
-	/** Handles op entering a category row */
-	void HandleDragEnterCategoryRow(const TSharedPtr<SDMXCategoryRow>& CategoryRow);
-
-	/** Handles dropping the op on a category row, returns true if successfully dropped */
-	bool HandleDropOnCategoryRow(const TSharedPtr<SDMXCategoryRow>& CategoryRow);
-
-	/** Handles op entering an entity row */
-	void HandleDragEnterEntityRow(const TSharedPtr<SDMXEntityRow>& EntityRow);
-
-	/** Handles dropping the op on an entity row, returns true if successfully dropped */
-	bool HandleDropOnEntityRow(const TSharedPtr<SDMXEntityRow>& EntityRow);
-
 	/** Returns the entities dragged with this drag drop op */
 	const TArray<TWeakObjectPtr<UDMXEntity>>& GetDraggedEntities() const { return DraggedEntities; }
 
@@ -80,45 +58,6 @@ public:
 	void SetCustomFeedbackWidget(const TSharedRef<SWidget>& Widget);
 
 private:
-	/** Returns the categories the entities were dragged out of */
-	TArray<TSharedPtr<FDMXTreeNodeBase>> GetDraggedFromCategories(const TSharedPtr<SDMXEntityList>& EntityList) const;
-	
-	/**
-	 * Tests if the drag drop op can be dropped on specified category row.
-	 * Updates Feedback Message if bShowFeedback.
-	 */
-	bool TestCanDropOnCategoryRow(const TSharedPtr<SDMXCategoryRow>& CategoryRow, bool bShowFeedback = true);
-
-	/**
-	 * Tests if the drag drop op can be dropped on specified entity row.
-	 * Updates Feedback Message if bShowFeedback.
-	 */
-	bool TestCanDropOnEntityRow(const TSharedPtr<SDMXEntityRow>& EntityRow, bool bShowFeedback = true);
-
-	/**
-	 * Tests if the drag drop op can be dropped on specified library.
-	 * Updates Feedback Message if bShowFeedback.
-	 */
-	bool TestLibraryEquals(UDMXLibrary* DragToLibrary, bool bShowFeedback = true);
-
-	/**
-	 * Tests if the entity is valid.
-	 * Updates Feedback Message if bShowFeedback.
-	*/
-	bool TestHasValidEntities(bool bShowFeedback = true);
-
-	/**
-	 * Tests if the entity is valid.
-	 * Updates Feedback Message if bShowFeedback.
-	*/
-	bool TestAreDraggedEntitiesOfClass(TSubclassOf<UDMXEntity> EntityClass, bool bShowFeedback = true);
-
-	/**
-	 * Tests if the drag drop op can be dropped on the hovered fixture patch 
-	 * Updates Feedback Message if bShowFeedback.
-	 */
-	bool TestCanDropOnFixturePatch(UDMXEntityFixturePatch* HoveredFixturePatch, bool bShowFeedback = true);
-
 	/** The library that the entites were dragged out from */
 	UDMXLibrary* DraggedFromLibrary;
 

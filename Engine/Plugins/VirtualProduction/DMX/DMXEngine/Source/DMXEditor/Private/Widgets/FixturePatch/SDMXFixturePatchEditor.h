@@ -5,11 +5,11 @@
 #include "Widgets/SDMXEntityEditor.h"
 
 #include "CoreMinimal.h"
-#include "Widgets/SDMXEntityList.h"
 
 class FDMXEditor;
 class SDMXEntityInspector;
 class SDMXFixturePatcher;
+class SDMXFixturePatchTree;
 class UDMXEntityFixturePatch;
 
 struct FPropertyChangedEvent;
@@ -28,7 +28,7 @@ public:
 
 	SLATE_END_ARGS()
 
-public:
+public:	
 	/** Constructs this widget */
 	void Construct(const FArguments& InArgs);
 
@@ -45,16 +45,16 @@ protected:
 	void SelectUniverse(int32 UniverseID);
 
 	/** Callback for when entities list changes the auto assign flag of a patch */
-	void OnEntitiyListChangedAutoAssignAddress(TArray<UDMXEntityFixturePatch*> ChangedPatches);
+	void OnFixturePatchTreeChangedAutoAssignAddress(TArray<UDMXEntityFixturePatch*> ChangedPatches);
 
 	/** Called when the entity list added entities to the library */
-	void OnEntityListAddedEntities();
+	void OnFixturePatchTreeAddedEntities();
 
 	/** Called when the entity list changed the entity order */
-	void OnEntityListChangedEntityOrder();
+	void OnFixturePatchTreeChangedEntityOrder();
 
 	/** Called when the entity list removed entities from the library */
-	void OnEntityListRemovedEntities();
+	void OnFixturePatchTreeRemovedEntities();
 
 	/** Called when the fixture patcher patched a fixture patch */
 	void OnFixturePatcherPatchedFixturePatch();
@@ -70,7 +70,7 @@ protected:
 	TWeakPtr<FDMXEditor> DMXEditorPtr;
 
 	/** Left child widget */
-	TSharedPtr<SDMXEntityList> EntityList;
+	TSharedPtr<SDMXFixturePatchTree> FixturePatchTree;
 
 	/** Right child widget */
 	TSharedPtr<SDMXEntityInspector> InspectorWidget;
