@@ -18,11 +18,11 @@ namespace EpicGames.Horde.Compute
 	{
 		/// <inheritdoc cref="AddTasksRpcRequest.RequirementsHash"/>
 		[Required, CbField("r")]
-		public IoHash RequirementsHash { get; set; }
+		public CbObjectAttachment RequirementsHash { get; set; }
 
 		/// <inheritdoc cref="AddTasksRpcRequest.TaskHashes"/>
 		[Required, CbField("t")]
-		public List<IoHash> TaskHashes { get; set; } = new List<IoHash>();
+		public List<CbObjectAttachment> TaskHashes { get; set; } = new List<CbObjectAttachment>();
 
 		/// <inheritdoc cref="AddTasksRpcRequest.DoNotCache"/>
 		[CbField("nc")]
@@ -48,7 +48,7 @@ namespace EpicGames.Horde.Compute
 	{
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.TaskHash"/>
 		[CbField("h")]
-		public IoHash TaskHash { get; set; }
+		public CbObjectAttachment TaskHash { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.Time"/>
 		[CbField("t")]
@@ -60,7 +60,7 @@ namespace EpicGames.Horde.Compute
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.ResultHash"/>
 		[CbField("r")]
-		public IoHash? ResultHash { get; set; }
+		public CbObjectAttachment? ResultHash { get; set; }
 
 		/// <inheritdoc cref="GetTaskUpdatesRpcResponse.AgentId"/>
 		[CbField("a")]
@@ -73,12 +73,12 @@ namespace EpicGames.Horde.Compute
 
 	partial class AddTasksRpcRequest
 	{
-		public AddTasksRpcRequest(string ChannelId, string NamespaceId, IoHash RequirementsHash, List<IoHash> TaskHashes, bool DoNotCache)
+		public AddTasksRpcRequest(string ChannelId, string NamespaceId, CbObjectAttachment RequirementsHash, List<CbObjectAttachment> TaskHashes, bool DoNotCache)
 		{
 			this.ChannelId = ChannelId;
 			this.NamespaceId = NamespaceId;
 			this.RequirementsHash = RequirementsHash;
-			this.TaskHashes.Add(TaskHashes.Select(x => (IoHashWrapper)x));
+			this.TaskHashes.Add(TaskHashes.Select(x => (CbObjectAttachmentWrapper)x));
 			this.DoNotCache = DoNotCache;
 		}
 	}

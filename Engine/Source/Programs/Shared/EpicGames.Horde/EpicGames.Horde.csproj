@@ -42,7 +42,9 @@
     <ProjectReference Include="..\EpicGames.Serialization\EpicGames.Serialization.csproj" />
   </ItemGroup>
   <ItemGroup>
+    <Protobuf Include="Protos\horde\common\cbbinaryattachment_wrapper.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\common\cbobject_wrapper.proto" ProtoRoot="Protos" />
+    <Protobuf Include="Protos\horde\common\cbobjectattachment_wrapper.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\common\iohash_wrapper.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\compute\compute_rpc_messages.proto" ProtoRoot="Protos" />
     <Protobuf Include="Protos\horde\storage\blob_store_messages.proto" ProtoRoot="Protos" />

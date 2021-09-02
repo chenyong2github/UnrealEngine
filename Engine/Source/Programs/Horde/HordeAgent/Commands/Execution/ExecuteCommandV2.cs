@@ -196,7 +196,7 @@ namespace HordeAgent.Commands
 			return Hash;
 		}
 
-		private async Task ExecuteAction(ILogger Logger, GrpcService GrpcService, IoHash TaskHash, IoHash RequirementsHash, Dictionary<IoHash, byte[]> UploadList)
+		private async Task ExecuteAction(ILogger Logger, GrpcService GrpcService, CbObjectAttachment TaskHash, CbObjectAttachment RequirementsHash, Dictionary<IoHash, byte[]> UploadList)
 		{
 			using GrpcChannel Channel = GrpcService.CreateGrpcChannel();
 
@@ -216,7 +216,7 @@ namespace HordeAgent.Commands
 			// Execute the action
 			ComputeRpc.ComputeRpcClient ComputeClient = new ComputeRpc.ComputeRpcClient(Channel);
 
-			AddTasksRpcRequest AddTasksRequest = new AddTasksRpcRequest(Guid.NewGuid().ToString(), NamespaceId, RequirementsHash, new List<IoHash> { TaskHash }, SkipCacheLookup);
+			AddTasksRpcRequest AddTasksRequest = new AddTasksRpcRequest(Guid.NewGuid().ToString(), NamespaceId, RequirementsHash, new List<CbObjectAttachment> { TaskHash }, SkipCacheLookup);
 			await ComputeClient.AddTasksAsync(AddTasksRequest);
 
 			using (AsyncDuplexStreamingCall<GetTaskUpdatesRpcRequest, GetTaskUpdatesRpcResponse> Call = ComputeClient.GetTaskUpdates())
@@ -229,10 +229,10 @@ namespace HordeAgent.Commands
 				while (await Call.ResponseStream.MoveNext())
 				{
 					GetTaskUpdatesRpcResponse Response = Call.ResponseStream.Current;
-					Logger.LogInformation("{OperationName}: Execution state: {State}", (IoHash)Response.TaskHash, Response.State.ToString());
+					Logger.LogInformation("{OperationName}: Execution state: {State}", (IoHash)(CbObjectAttachment)Response.TaskHash, Response.State.ToString());
 					if (!String.IsNullOrEmpty(Response.AgentId) || !String.IsNullOrEmpty(Response.LeaseId))
 					{
-						Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", (IoHash)Response.TaskHash, Response.AgentId, Response.LeaseId);
+						Logger.LogInformation("{OperationName}: Running on agent {AgentId} under lease {LeaseId}", (IoHash)(CbObjectAttachment)Response.TaskHash, Response.AgentId, Response.LeaseId);
 					}
 					if (Response.ResultHash != null)
 					{
@@ -248,7 +248,7 @@ namespace HordeAgent.Commands
 			}
 		}
 
-		async Task HandleCompleteTask(BlobStore.BlobStoreClient Client, string NamespaceId, IoHash Hash, ILogger Logger)
+		async Task HandleCompleteTask(BlobStore.BlobStoreClient Client, string NamespaceId, CbObjectAttachment Hash, ILogger Logger)
 		{
 			ComputeTaskResult Result = await Client.GetObjectAsync<ComputeTaskResult>(NamespaceId, Hash);
 			Logger.LogInformation("exit: {ExitCode}", Result.ExitCode);
