@@ -51,7 +51,8 @@ namespace Metasound
 		METASOUND_TRACE_CPUPROFILER_EVENT_SCOPE(AsyncMetaSoundBuilder::DoWork);
 		// Create an instance of the new graph
 		FOperatorBuilder OperatorBuilder(FOperatorBuilderSettings::GetDefaultSettings());
-		FBuildGraphParams BuildParams{*InitParams.Graph, InitParams.OperatorSettings, FDataReferenceCollection{}, InitParams.Environment};
+		FDataReferenceCollection DataReferenceCollection{};
+		FBuildGraphParams BuildParams{*InitParams.Graph, InitParams.OperatorSettings, DataReferenceCollection, InitParams.Environment};
 		TArray<IOperatorBuilder::FBuildErrorPtr> BuildErrors;
 
 		TUniquePtr<IOperator> GraphOperator = OperatorBuilder.BuildGraphOperator(BuildParams, BuildErrors);
