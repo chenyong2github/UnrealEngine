@@ -291,7 +291,7 @@ void FSceneRenderer::RenderVelocities(
 				ERenderTargetLoadAction::ELoad,
 				ExclusiveDepthStencil);
 
-			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, VelocityLoadAction);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Velocity, ViewIndex > 0 ? ERenderTargetLoadAction::ELoad : VelocityLoadAction);
 
 			if (bIsParallelVelocity)
 			{

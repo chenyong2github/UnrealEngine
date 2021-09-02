@@ -287,7 +287,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 
 		FPixelProjectedReflectionMobile_ReflectionPassPS::FParameters* PSShaderParameters = GraphBuilder.AllocParameters<FPixelProjectedReflectionMobile_ReflectionPassPS::FParameters>();
 
-		PSShaderParameters->RenderTargets[0] = FRenderTargetBinding(PixelProjectedReflectionTexture, ERenderTargetLoadAction::EClear);
+		PSShaderParameters->RenderTargets[0] = FRenderTargetBinding(PixelProjectedReflectionTexture, ViewIndex > 0 ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
 
 		PSShaderParameters->View = View.ViewUniformBuffer;
 		PSShaderParameters->SceneColorTexture = SceneColorTexture;

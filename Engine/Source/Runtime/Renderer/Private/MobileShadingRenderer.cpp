@@ -635,6 +635,12 @@ void FMobileSceneRenderer::RenderFullDepthPrepass(FRDGBuilder& GraphBuilder, FSc
 			continue;
 		}
 
+		if (ViewIndex > 0)
+		{
+			BasePassRenderTargets.DepthStencil.SetDepthLoadAction(ERenderTargetLoadAction::ELoad);
+			BasePassRenderTargets.DepthStencil.SetStencilLoadAction(ERenderTargetLoadAction::ELoad);
+		}
+
 		View.BeginRenderView();
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FMobileRenderPassParameters>();
