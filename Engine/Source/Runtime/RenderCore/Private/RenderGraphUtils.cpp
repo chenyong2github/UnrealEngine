@@ -790,6 +790,51 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 		FIntVector(FMath::DivideAndRoundUp<int32>(PassParameters->NumEntries, 64), 1, 1));
 }
 
+
+
+class FInitIndirectArgs1DCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FInitIndirectArgs1DCS);
+	SHADER_USE_PARAMETER_STRUCT(FInitIndirectArgs1DCS, FGlobalShader)
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, InputCountBuffer)
+		SHADER_PARAMETER(uint32, Multiplier)
+		SHADER_PARAMETER(uint32, Divisor)
+		SHADER_PARAMETER(uint32, InputCountOffset)
+
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer< uint >, IndirectDispatchArgsOut)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FInitIndirectArgs1DCS, "/Engine/Private/Tools/SetupIndirectArgs.usf", "InitIndirectArgs1DCS", SF_Compute);
+
+
+FRDGBufferRef FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(FRDGBuilder& GraphBuilder, FRDGBufferRef& InputCountBuffer, const TCHAR* OutputBufferName, uint32 Divisor, uint32 InputCountOffset, uint32 Multiplier)
+{
+	// 1. Add setup pass
+	FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(4), OutputBufferName);
+	{
+		FInitIndirectArgs1DCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitIndirectArgs1DCS::FParameters>();
+		PassParameters->InputCountBuffer = GraphBuilder.CreateSRV(InputCountBuffer);
+		PassParameters->Multiplier = Multiplier;
+		PassParameters->Divisor = Divisor;
+		PassParameters->InputCountOffset = InputCountOffset;
+		PassParameters->IndirectDispatchArgsOut = GraphBuilder.CreateUAV(IndirectArgsBuffer, PF_R32_UINT);
+
+		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FInitIndirectArgs1DCS>();
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("InitIndirectArgs1D"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1)
+		);
+	}
+
+	return IndirectArgsBuffer;
+}
+
+
 FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
 	const TCHAR* Name,

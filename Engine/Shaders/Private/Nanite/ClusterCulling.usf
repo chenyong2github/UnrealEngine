@@ -12,8 +12,6 @@
 #include "../ComputeShaderUtils.ush"
 #if VIRTUAL_TEXTURE_TARGET
 #include "../VirtualShadowMaps/PageOverlap.ush"
-
-RWStructuredBuffer<uint> OutDynamicCasterFlags;
 #endif
 
 #include "NaniteDataDecode.ush"
@@ -461,28 +459,6 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 
 		if( !bWasOccluded )
 		{
-#if VIRTUAL_TEXTURE_TARGET
-			// If the geometry has moved, record this information in a page flag array
-			// TODO: also find the previous rect and set that also, to ensure correct invalidation.
-			if ( DynamicData.bHasMoved )
-			{
-				uint PageTableLevelOffset = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
-				for (uint y = RectPages.y; y <= RectPages.w; y++)
-				{
-					for (uint x = RectPages.x; x <= RectPages.z; x++)
-					{
-						uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(NaniteView.TargetMipLevel, uint2(x, y));
-						uint PageFlag = PageFlags[PageFlagOffset];
-
-						if (PageFlag != 0)
-						{
-							OutDynamicCasterFlags[PageFlagOffset] = 1;
-						}
-					}
-				}
-			}
-#endif // VIRTUAL_TEXTURE_TARGET
-
 #if CLUSTER_PER_PAGE
 
 #if !VIRTUAL_TEXTURE_TARGET

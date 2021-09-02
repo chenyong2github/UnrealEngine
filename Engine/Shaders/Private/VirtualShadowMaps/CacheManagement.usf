@@ -29,6 +29,11 @@ uint InstanceSceneDataSOAStride;
 uint bDrawBounds;
 #endif
 
+#if INPUT_KIND == INPUT_KIND_GPU_INSTANCES
+StructuredBuffer<uint> InvalidatingInstances;
+uint NumInvalidatingInstanceSlots;
+#endif
+
 /**
  * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space 
  * and any overlapped pages are marked as invalid.
@@ -41,18 +46,25 @@ void VirtualSmInvalidateInstancePagesCS(
 {
 	bool bIsVisible = false;
 	bool bWasOccluded = false;
-#if PROCESS_LARGE_INSTANCE_COUNT_RANGES
+#if INPUT_KIND == INPUT_KIND_LARGE_RANGES
 	// Large instance count ranges use one group per range instead, and use a group-stride loop
 	FInstanceSceneDataRange InstanceSceneDataRange = InstanceSceneRanges[GroupId];
 	for (int InstanceId = InstanceSceneDataRange.InstanceSceneDataOffset + GroupThreadIndex; InstanceId < InstanceSceneDataRange.NumInstanceSceneDataEntries + InstanceSceneDataRange.InstanceSceneDataOffset; InstanceId += CS_1D_GROUP_SIZE_X)
-#else // PROCESS_LARGE_INSTANCE_COUNT_RANGES
+#elif INPUT_KIND == INPUT_KIND_SMALL_RANGES
 	if (DispatchIndex >= NumRemovedItems)
 	{
 		return;
 	}
 	FInstanceSceneDataRange InstanceSceneDataRange = InstanceSceneRanges[DispatchIndex];
 	for (int InstanceId = InstanceSceneDataRange.InstanceSceneDataOffset; InstanceId < InstanceSceneDataRange.NumInstanceSceneDataEntries + InstanceSceneDataRange.InstanceSceneDataOffset; ++InstanceId)
-#endif // PROCESS_LARGE_INSTANCE_COUNT_RANGES
+#else // INPUT_KIND == INPUT_KIND_GPU_INSTANCES
+	// The 0th index stores the total number appended
+	if (DispatchIndex >= InvalidatingInstances[0])
+	{
+		return;
+	}
+	int InstanceId = InvalidatingInstances[1 + DispatchIndex];
+#endif
 	{
 		FInstanceSceneData InstanceSceneData = GetInstanceSceneData(InstanceId, InstanceSceneDataSOAStride);
 

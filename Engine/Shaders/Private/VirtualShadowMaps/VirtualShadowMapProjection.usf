@@ -391,6 +391,14 @@ void OutputDebug( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 			Output = ColorMapViridis( 0.001f * Result.OccluderDistance );
 			//Output = Result.OccluderDistance > 1000.0f ? float3(1, 1, 1) : ColorMapViridis( 0.001f * Result.OccluderDistance );
 		}
+		else if ( DebugOutputType == 7 )	// Cached or not?
+		{
+			bool bCached = (PhysicalPageMetaData[VSMPhysicalPageAddressToIndex(pPage)].Flags & VSM_PHYSICAL_PAGE_FLAG_CACHED) != 0;
+			float3 Color = GreenToRedTurbo(1.0f - float(bCached));
+			float3 Color2 = IntToColor(vPage.x + (vPage.y << 10U));
+
+			Output = lerp(Color, Color2, 0.35f);
+		}
 	}
 
 	RWDebug[ PixelPos ] = float4( Output, 1.0f );

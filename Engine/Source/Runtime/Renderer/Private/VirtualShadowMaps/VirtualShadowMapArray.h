@@ -183,7 +183,9 @@ public:
 		const TArray<FViewInfo> &Views, 
 		const FSortedLightSetSceneInfo& SortedLights, 
 		const TArray<FVisibleLightInfo, SceneRenderingAllocator> &VisibleLightInfos, 
-		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults);
+		const TArray<Nanite::FRasterResults, TInlineAllocator<2>> &NaniteRasterResults, 
+
+		FScene& Scene);
 
 	bool IsAllocated() const
 	{
@@ -240,8 +242,15 @@ public:
 	FRDGBufferRef CachedPageInfosRDG = nullptr;
 	FRDGBufferRef PhysicalPageMetaDataRDG = nullptr;
 
-	// Buffer that stores flags marking each page that received dynamic geo.
+	// TODO: make transient - Buffer that stores flags marking each page that received dynamic geo.
 	FRDGBufferRef DynamicCasterPageFlagsRDG = nullptr;
+
+	// Buffer that stores flags marking each instance that needs to be invalidated the subsequent frame (handled by the cache manager).
+	// This covers things like WPO or GPU-side updates, and any other case where we determine an instance needs to invalidate its footprint. 
+	// Buffer of uints, organized as as follows: InvalidatingInstancesRDG[0] == count, InvalidatingInstancesRDG[1+MaxInstanceCount:1+MaxInstanceCount+MaxInstanceCount/32] == flags, 
+	// InvalidatingInstancesRDG[1:MaxInstanceCount] == growing compact array of instances that need invaldation
+	FRDGBufferRef InvalidatingInstancesRDG = nullptr;
+	int32 NumInvalidatingInstanceSlots = 0;
 	
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
@@ -264,7 +273,7 @@ public:
 
 	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
 	int DebugOutputType = 0;	// 0 = Disabled
-								// Base ID of the light that the user has selected for debug output (if present)
+	// Base ID of the light that the user has selected for debug output (if present)
 	int DebugVirtualShadowMapId = INDEX_NONE;
 	FRDGTextureRef DebugVisualizationProjectionOutput = nullptr;
 

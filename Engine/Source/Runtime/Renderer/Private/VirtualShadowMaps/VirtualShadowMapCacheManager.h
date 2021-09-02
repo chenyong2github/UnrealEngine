@@ -69,6 +69,9 @@ struct FVirtualShadowMapArrayFrameData
 
 	TRefCountPtr<IPooledRenderTarget>			HZBPhysical;
 	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
+
+	TRefCountPtr<FRDGPooledBuffer>				InvalidatingInstancesBuffer;
+	int32										NumInvalidatingInstanceSlots = 0;
 };
 
 class FVirtualShadowMapArrayCacheManager
@@ -137,6 +140,8 @@ private:
 		const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesSmall,
 		int32 TotalInstanceCount,
 		const FGPUScene& GPUScene);
+
+	void ProcessGPUInstanceInvalidations(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene);
 
 	void ExtractStats(FRDGBuilder& GraphBuilder, FVirtualShadowMapArray &VirtualShadowMapArray);
 

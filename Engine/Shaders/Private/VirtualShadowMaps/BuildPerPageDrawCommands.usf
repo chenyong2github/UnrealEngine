@@ -46,12 +46,31 @@ uint InstanceSceneDataSOAStride;
 uint DynamicInstanceIdOffset;
 uint DynamicInstanceIdMax;
 
-RWStructuredBuffer<uint> OutDynamicCasterFlags;
 
 StructuredBuffer<FDrawCommandDesc> DrawCommandDescs;
 
 RWBuffer<uint> DrawIndirectArgsBufferOut;
 
+RWStructuredBuffer<uint> OutInvalidatingInstances;
+uint NumInvalidatingInstanceSlots;
+
+void MarkInstanceForInvalidation(uint InstanceId)
+{
+	checkSlow(InstanceId < uint(NumInvalidatingInstanceSlots));
+
+	uint InstanceIdWordOffset = InstanceId / 32U;
+	uint InstanceIdWordMask = 1U << (InstanceId % 32);
+
+	uint PreviousWordMask = 0U;
+	InterlockedOr(OutInvalidatingInstances[1 + NumInvalidatingInstanceSlots + InstanceIdWordOffset], InstanceIdWordMask, PreviousWordMask);
+	// If the bit was not set, then we need to add it to the list of things to invaliate
+	if ((PreviousWordMask & InstanceIdWordMask) == 0U)
+	{
+		uint OutOffset = 0U;
+		WaveInterlockedAddScalar_(OutInvalidatingInstances[0], 1U, OutOffset);
+		OutInvalidatingInstances[1U + OutOffset] = InstanceId;
+	}
+}
 
 void WriteCmd(uint2 VirtualPage, uint MipViewId, uint InstanceId, uint IndirectArgIndex)
 {
@@ -139,31 +158,19 @@ void CullPerPageDrawCommandsCs(uint3 GroupId : SV_GroupID, int GroupThreadIndex 
 					RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
 					if (all(RectPages.zw >= RectPages.xy))
 					{
-						{
-							++ThreadTotalForAllViews;
-							WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
-							if (bHasMoved)
-							{
-								uint PageTableLevelOffset = CalcPageTableLevelOffset(VirtualShadowMapId, MipLevel);
-								for (uint y = RectPages.y; y <= RectPages.w; y += 1U)
-								{
-									for (uint x = RectPages.x; x <= RectPages.z; x += 1U)
-									{
-										uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
-										uint PageFlag = PageFlags[PageFlagOffset];
-
-										if ((PageFlag & PageFlagMask) != 0)
-										{
-											OutDynamicCasterFlags[PageFlagOffset] = 1;
-										}
-									}
-								}
-							}
-						}
+						++ThreadTotalForAllViews;
+						WriteCmd(RectPages.xy, MipViewId, InstanceId, IndirectArgIndex);
 					}
 				}
 			}
 		}
+	}
+
+	// If the instance has WPO or PDO and rendered to any mip, queue for invalidation. This will be processed the before next frame (after a new HZB is built)
+	// and invalidate any visible pages.
+	if (ThreadTotalForAllViews > 0U && DrawCommandDesc.bMaterialMayModifyPosition)
+	{
+		MarkInstanceForInvalidation(InstanceId);
 	}
 
 	// Accumulate total number of instances for each indirect argument, is also used to allocate space and output compact range of instances later
