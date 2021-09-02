@@ -567,19 +567,11 @@ namespace CADLibrary
 		}
 
 		// Ask the transformation of the instance
-		double Matrix[16];
-		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, Matrix) == IO_OK)
+		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, (double*) Instance.TransformMatrix.M) == IO_OK)
 		{
-			float* MatrixFloats = (float*) Instance.TransformMatrix.M;
-			for (int32 index = 0; index < 16; index++)
+			if (Instance.TransformMatrix.ContainsNaN())
 			{
-				// check if the matrix is not degenerate, otherwise return identity matrix
-				if (FMath::IsNaN(Matrix[index]) || !FMath::IsFinite(Matrix[index]))
-				{
-					Instance.TransformMatrix.SetIdentity();
-					break;
-				}
-				MatrixFloats[index] = (float)Matrix[index];
+				Instance.TransformMatrix.SetIdentity();
 			}
 		}
 	
