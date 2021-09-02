@@ -13,7 +13,7 @@
 #include "../FastMath.ush"
 
 #ifndef THREADGROUP_SIZE
-#define THREADGROUP_SIZE 0
+#define THREADGROUP_SIZE 1
 #endif
 
 float MaxRoughnessToTrace;
@@ -21,19 +21,16 @@ float MaxRoughnessToTrace;
 RWBuffer<uint> RWReflectionResolveTileIndirectArgs;
 RWBuffer<uint> RWReflectionTracingTileIndirectArgs;
 
-[numthreads(1, 1, 1)]
-void ReflectionClearTileIndirectArgsCS()
+[numthreads(64, 1, 1)]
+void ReflectionClearTileIndirectArgsCS(uint GroupThreadId : SV_GroupThreadID)
 {
-	RWReflectionResolveTileIndirectArgs[0] = 0;
-	RWReflectionResolveTileIndirectArgs[1] = 1;
-	RWReflectionResolveTileIndirectArgs[2] = 1;
-	RWReflectionTracingTileIndirectArgs[0] = 0;
-	RWReflectionTracingTileIndirectArgs[1] = 1;
-	RWReflectionTracingTileIndirectArgs[2] = 1;
+	if (GroupThreadId < 3)
+	{
+		RWReflectionResolveTileIndirectArgs[0] = GroupThreadId == 0 ? 0 : 1;
+		RWReflectionTracingTileIndirectArgs[0] = GroupThreadId == 0 ? 0 : 1;
+	}
 }
 
-RWBuffer<uint> RWReflectionResolveTileData;
-RWBuffer<uint> RWReflectionTracingTileData;
 RWTexture2D<float> RWDownsampledDepth;
 
 groupshared uint SharedTileNeedsResolve[4][4];
@@ -45,16 +42,30 @@ bool NeedRayTracedReflections(float Roughness, uint ShadingModelID)
 		&& (Roughness <= MaxRoughnessToTrace || ShadingModelID == SHADINGMODELID_CLEAR_COAT);
 }
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ReflectionGBufferTileClassificationCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
+// Must match cpp GReflectionResolveTileSize
+#define RESOLVE_TILE_SIZE 8
+
+RWTexture2D<uint> RWResolveTileUsed;
+
+groupshared uint SharedTileClassification;
+
+[numthreads(RESOLVE_TILE_SIZE, RESOLVE_TILE_SIZE, 1)] 
+void ReflectionTileClassificationMarkCS(
+	uint2 GroupId : SV_GroupID,
+	uint2 DispatchThreadId : SV_DispatchThreadID,
+	uint2 GroupThreadId : SV_GroupThreadID)
 {
-	// Each group corresponds to a single tracing tile, but may cover multiple resolve tiles due to downsampled tracing
-	SharedTileNeedsTracing = 0;
-	uint2 ResolveTileOffset = GroupThreadId.xy / REFLECTION_THREADGROUP_SIZE_2D;
-	SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] = 0;
+	if (DispatchThreadId.x < 3 && DispatchThreadId.y == 0)
+	{
+		// Clear indirect args for future pass
+		RWReflectionResolveTileIndirectArgs[DispatchThreadId.x] = (DispatchThreadId.x == 0) ? 0 : 1;
+		RWReflectionTracingTileIndirectArgs[DispatchThreadId.x] = (DispatchThreadId.x == 0) ? 0 : 1;
+	}
+
+	if (all(GroupThreadId == 0))
+	{
+		SharedTileClassification = 0;
+	}
 
 	GroupMemoryBarrierWithGroupSync();
 
@@ -66,33 +77,117 @@ void ReflectionGBufferTileClassificationCS(
 
 		if (NeedRayTracedReflections(ApplySmoothBias(GBufferData.Roughness), GBufferData.ShadingModelID))
 		{
-			SharedTileNeedsTracing = 1;
-			SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] = 1;
+			SharedTileClassification = 1;
 		}
 	}
 
 	GroupMemoryBarrierWithGroupSync();
 
-	if (GroupThreadId.x == 0 && GroupThreadId.y == 0 && SharedTileNeedsTracing > 0)
+	if (all(GroupThreadId == 0))
 	{
-		uint TileOffset;
-		InterlockedAdd(RWReflectionTracingTileIndirectArgs[0], 1, TileOffset);
-		RWReflectionTracingTileData[TileOffset] = GroupId.y << 16 | GroupId.x;
+		RWResolveTileUsed[GroupId] = SharedTileClassification;
 	}
 
-	if (all(GroupThreadId.xy == ResolveTileOffset * REFLECTION_THREADGROUP_SIZE_2D)
-		&& SharedTileNeedsResolve[ResolveTileOffset.x][ResolveTileOffset.y] > 0)
-	{
-		uint TileOffset;
-		InterlockedAdd(RWReflectionResolveTileIndirectArgs[0], 1, TileOffset);
-		uint2 TileCoord = GroupId.xy * ReflectionDownsampleFactor + ResolveTileOffset;
-		RWReflectionResolveTileData[TileOffset] = TileCoord.y << 16 | TileCoord.x;
-	}
-
+	// Clear tiles that the generate shader won't run on
 	uint2 ReflectionTracingCoord = ScreenCoord / ReflectionDownsampleFactor;
-	if (SharedTileNeedsTracing == 0 && all(ReflectionTracingCoord < ReflectionTracingViewSize))
+	if (SharedTileClassification == 0 && all(ReflectionTracingCoord < ReflectionTracingViewSize))
 	{
 		RWDownsampledDepth[ReflectionTracingCoord] = -1.0f;
+	}
+}
+
+RWBuffer<uint> RWReflectionTileIndirectArgs;
+RWBuffer<uint> RWReflectionTileData;
+Texture2D<uint> ResolveTileUsed;
+
+uint2 TileViewportDimensions;
+uint2 ResolveTileViewportDimensions;
+
+groupshared uint SharedNumTiles;
+groupshared uint SharedTileUsed[THREADGROUP_SIZE * THREADGROUP_SIZE];
+groupshared uint SharedTileData[THREADGROUP_SIZE * THREADGROUP_SIZE];
+groupshared uint SharedGlobalTileOffset;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)] 
+void ReflectionTileClassificationBuildListsCS(
+	uint2 GroupId : SV_GroupID,
+	uint2 GroupThreadId : SV_GroupThreadID)
+{
+	uint ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
+
+	// When generating downsampled trace tiles we need to downsample ResolveTileUsed to shared memory first
+#if SUPPORT_DOWNSAMPLE_FACTOR
+	SharedTileUsed[ThreadIndex] = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint TileUsed = 0;
+	uint2 TileCoordinate = GroupId * THREADGROUP_SIZE + GroupThreadId;
+
+	// Gather whether any of the resolve tiles corresponding to this tracing tile were used
+	for (uint Y = 0; Y < ReflectionDownsampleFactor; Y++)
+	{
+		for (uint X = 0; X < ReflectionDownsampleFactor; X++)
+		{
+			uint2 ResolveTileCoordinate = TileCoordinate * ReflectionDownsampleFactor + uint2(X, Y);
+
+			if (all(ResolveTileCoordinate < ResolveTileViewportDimensions))
+			{
+				TileUsed = TileUsed || ResolveTileUsed[ResolveTileCoordinate];
+			}
+		}
+	}
+
+	SharedTileUsed[ThreadIndex] = TileUsed;
+
+	GroupMemoryBarrierWithGroupSync();
+#endif
+
+	//@todo - parallel version
+	if (ThreadIndex == 0)
+	{
+		SharedNumTiles = 0;
+
+		for (uint x = 0; x < THREADGROUP_SIZE * THREADGROUP_SIZE; x++)
+		{
+			// ZOrder tiles to maximize screen locality after converting to 1d for compaction
+			// The tile locality ultimately affects trace coherency, since trace compaction pulls from neighboring tiles
+			uint2 ThreadOffset = ZOrder2D(x, log2(THREADGROUP_SIZE));
+			uint2 TileCoordinate = GroupId * THREADGROUP_SIZE + ThreadOffset;
+
+			if (all(TileCoordinate < TileViewportDimensions))
+			{
+				bool bTileUsed;
+
+				#if SUPPORT_DOWNSAMPLE_FACTOR
+					bTileUsed = SharedTileUsed[ThreadOffset.y * THREADGROUP_SIZE + ThreadOffset.x];
+				#else
+					bTileUsed = ResolveTileUsed[TileCoordinate];
+				#endif
+
+				if (bTileUsed)
+				{
+					uint TileOffset = SharedNumTiles;
+					uint PackedTileData = TileCoordinate.x | (TileCoordinate.y << 16);
+					SharedTileData[TileOffset] = PackedTileData;
+					SharedNumTiles = TileOffset + 1;
+				}
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex == 0)
+	{
+		InterlockedAdd(RWReflectionTileIndirectArgs[0], SharedNumTiles, SharedGlobalTileOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < SharedNumTiles)
+	{
+		RWReflectionTileData[SharedGlobalTileOffset + ThreadIndex] = SharedTileData[ThreadIndex];
 	}
 }
 

@@ -511,16 +511,6 @@ private:
 		const FSceneTextures& SceneTextures,
 		const FViewInfo& View);
 
-	void RenderScreenProbeGatherVisualizeTraces(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FMinimalSceneTextures& SceneTextures);
-
-	void RenderScreenProbeGatherVisualizeHardwareTraces(
-		FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const FMinimalSceneTextures& SceneTextures);
-
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,

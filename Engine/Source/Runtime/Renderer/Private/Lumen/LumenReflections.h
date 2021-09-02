@@ -13,7 +13,13 @@
 
 const static int32 ReflectionThreadGroupSize2D = 8;
 
+BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionsVisualizeTracesParameters, )
+	SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<float4>, RWVisualizeTracesData)
+	SHADER_PARAMETER(uint32, VisualizeTraceCoherency)
+END_SHADER_PARAMETER_STRUCT()
+
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionsVisualizeTracesParameters, VisualizeTracesParameters)
 	SHADER_PARAMETER(uint32, ReflectionDownsampleFactor)
 	SHADER_PARAMETER(FIntPoint, ReflectionTracingViewSize)
 	SHADER_PARAMETER(FIntPoint, ReflectionTracingBufferSize)

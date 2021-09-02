@@ -7,6 +7,7 @@
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "LumenScreenProbeCommon.ush"
+#include "LumenVisualizeTraces.ush"
 
 #define IS_SSGI_SHADER 0
 #include "../SSRT/SSRTRayCast.ush"
@@ -638,10 +639,6 @@ void ScreenProbeTraceVoxelsCS(
 	}
 }
 
-#define VISUALIZE_TRACE_DATA_STRIDE 3
-
-RWBuffer<float4> RWVisualizeTracesData;
-
 Texture2D TraceRadiance;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -712,43 +709,7 @@ void ScreenProbeSetupVisualizeTraces(
 
 		uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x;
 
-		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0] = float4(WorldPosition, 0);
-		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1] = float4(WorldConeDirection * TraceHitDistance, 0);
-
 		bool bVisualizeRefinementRays = false;
-		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2] = bVisualizeRefinementRays ? RefinementRay : TraceRadiance[TraceCoord];
+		WriteTraceForVisualization(TraceIndex, WorldPosition, WorldConeDirection, TraceHitDistance, bVisualizeRefinementRays ? RefinementRay : TraceRadiance[TraceCoord]);
 	}
-}
-
-Buffer<float4> VisualizeTracesData;
-
-struct FVisualizeTracesVertexOutput
-{
-	float3 TraceLighting : TEXCOORD0;
-};
-
-void VisualizeTracesVS(
-	uint VertexIndex : SV_VertexID,
-	out FVisualizeTracesVertexOutput Output,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	uint TraceIndex = VertexIndex / 2;
-	float3 WorldPosition = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0].xyz;
-
-	if (VertexIndex & 1)
-	{
-		WorldPosition += VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1].xyz;
-	}
-
-	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
-	Output.TraceLighting = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2].xyz;
-} 
-
-void VisualizeTracesPS(
-	FVisualizeTracesVertexOutput Input,
-	in float4 SVPos : SV_POSITION,
-	out float4 OutColor : SV_Target0)
-{
-	OutColor = float4(Input.TraceLighting, 0);
 }

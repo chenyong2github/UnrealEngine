@@ -7,6 +7,7 @@
 #include "LumenCardCommon.ush"
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
+#include "LumenVisualizeTraces.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -356,6 +357,21 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		Result.Radiance *= View.PreExposure;
 		RWTraceRadiance[TraceCoord] = Result.Radiance;
 		RWTraceHit[TraceCoord] = EncodeRayDistance(Result.TraceHitDistance, Result.bIsHit);
+
+		#define DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY 0
+		#if DEBUG_SUPPORT_VISUALIZE_TRACE_COHERENCY
+			if (VisualizeTraceCoherency != 0)
+			{
+				uint DebugGroupIndex = 10240;
+				// UE_RAY_TRACING_DISPATCH_1D
+				int DebugTraceIndex = (int)RayIndex - (int)DebugGroupIndex * 32;
+
+				if (DebugTraceIndex >= 0 && DebugTraceIndex < 32)
+				{
+					WriteTraceForVisualization(DebugTraceIndex, WorldPosition, RayData.Direction, Result.TraceHitDistance, /*Result.Radiance*/float3(1, 0, 0));
+				}
+			}
+		#endif
 #endif // DIM_WRITE_FINAL_LIGHTING
 	}
 }

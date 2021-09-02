@@ -392,6 +392,141 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenVoxelsCS", SF_Compute);
 
+
+class FVisualizeTracesVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisualizeTracesVS)
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeTracesVS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, VisualizeTracesData)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeTracesVS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeTracesVS", SF_Vertex);
+
+
+class FVisualizeTracesPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisualizeTracesPS)
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeTracesPS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeTracesPS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeTracesPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeTraces, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeTracesVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeTracesPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+
+class FVisualizeTracesVertexDeclaration : public FRenderResource
+{
+public:
+	FVertexDeclarationRHIRef VertexDeclarationRHI;
+
+	/** Destructor. */
+	virtual ~FVisualizeTracesVertexDeclaration() {}
+
+	virtual void InitRHI()
+	{
+		FVertexDeclarationElementList Elements;
+		VertexDeclarationRHI = RHICreateVertexDeclaration(Elements);
+	}
+
+	virtual void ReleaseRHI()
+	{
+		VertexDeclarationRHI.SafeRelease();
+	}
+};
+
+TGlobalResource<FVisualizeTracesVertexDeclaration> GVisualizeTracesVertexDeclaration;
+
+
+void RenderVisualizeTraces(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FMinimalSceneTextures& SceneTextures)
+{
+	extern void GetReflectionsVisualizeTracesBuffer(TRefCountPtr<FRDGPooledBuffer>& VisualizeTracesData);
+	extern void GetScreenProbeVisualizeTracesBuffer(TRefCountPtr<FRDGPooledBuffer>& VisualizeTracesData);
+
+	TRefCountPtr<FRDGPooledBuffer> PooledVisualizeTracesData;
+	GetReflectionsVisualizeTracesBuffer(PooledVisualizeTracesData);
+	GetScreenProbeVisualizeTracesBuffer(PooledVisualizeTracesData);
+
+	if (PooledVisualizeTracesData.IsValid())
+	{
+		FRDGBufferRef VisualizeTracesData = GraphBuilder.RegisterExternalBuffer(PooledVisualizeTracesData);
+
+		FVisualizeTraces* PassParameters = GraphBuilder.AllocParameters<FVisualizeTraces>();
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, ERenderTargetLoadAction::ELoad);
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilNop);
+		PassParameters->VS.View = View.ViewUniformBuffer;
+		PassParameters->VS.VisualizeTracesData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(VisualizeTracesData, PF_A32B32G32R32F));
+
+		auto VertexShader = View.ShaderMap->GetShader<FVisualizeTracesVS>();
+		auto PixelShader = View.ShaderMap->GetShader<FVisualizeTracesPS>();
+
+		const int32 NumPrimitives = LumenScreenProbeGather::GetTracingOctahedronResolution(View) * LumenScreenProbeGather::GetTracingOctahedronResolution(View);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("VisualizeTraces"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[PassParameters, VertexShader, PixelShader, &View, NumPrimitives](FRHICommandListImmediate& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI();
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB>::GetRHI();
+
+				GraphicsPSOInit.PrimitiveType = PT_LineList;
+
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GVisualizeTracesVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+			
+				RHICmdList.SetStreamSource(0, nullptr, 0);
+				RHICmdList.DrawPrimitive(0, NumPrimitives, 1);
+			});
+	}
+}
+
 LumenRadianceCache::FRadianceCacheInputs GetFinalGatherRadianceCacheInputsForVisualize()
 {
 	if (GLumenIrradianceFieldGather)
@@ -423,7 +558,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
 		FRDGTextureUAVRef SceneColorUAV = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(SceneColor));
 
-		RenderScreenProbeGatherVisualizeTraces(GraphBuilder, View, SceneTextures);
+		RenderVisualizeTraces(GraphBuilder, View, SceneTextures);
 
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View, /*bSurfaceCachaFeedback*/ GVisualizeLumenSceneSurfaceCacheFeedback != 0);
 

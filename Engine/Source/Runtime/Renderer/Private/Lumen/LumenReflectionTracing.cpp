@@ -56,6 +56,22 @@ FAutoConsoleVariableRef GVarLumenReflectionHairStrands_ScreenTrace(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenReflectionTraceCompactionGroupSizeInTiles = 16;
+FAutoConsoleVariableRef GVarLumenReflectionTraceCompactionGroupSizeInTiles(
+	TEXT("r.Lumen.Reflections.TraceCompaction.GroupSizeInTraceTiles"),
+	GLumenReflectionTraceCompactionGroupSizeInTiles,
+	TEXT("Size of the trace compaction threadgroup.  Larger group = better coherency in the compacted traces.  Currently only supported by WaveOps path."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+int32 GLumenReflectionTraceCompactionWaveOps = 1;
+FAutoConsoleVariableRef CVarLumenReflectionTraceCompactionWaveOps(
+	TEXT("r.Lumen.Reflections.TraceCompaction.WaveOps"),
+	GLumenReflectionTraceCompactionWaveOps,
+	TEXT("Whether to use Wave Ops path for trace compaction."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 class FReflectionClearTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionClearTracesCS)
@@ -113,6 +129,27 @@ class FReflectionTraceScreenTexturesCS : public FGlobalShader
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionTraceScreenTexturesCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceScreenTexturesCS", SF_Compute);
 
+class FSetupCompactionIndirectArgsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FSetupCompactionIndirectArgsCS)
+	SHADER_USE_PARAMETER_STRUCT(FSetupCompactionIndirectArgsCS, FGlobalShader)
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWReflectionCompactionIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileIndirectArgs)
+		SHADER_PARAMETER(uint32, CompactionThreadGroupSize)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FSetupCompactionIndirectArgsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "SetupCompactionIndirectArgsCS", SF_Compute);
+
+
 class FReflectionCompactTracesCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FReflectionCompactTracesCS)
@@ -125,18 +162,60 @@ class FReflectionCompactTracesCS : public FGlobalShader
 		SHADER_PARAMETER(float, CompactionMaxTraceDistance)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCompactedTraceTexelData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ReflectionTracingTileIndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FWaveOps>() && !RHISupportsWaveOperations(Parameters.Platform))
+		{
+			return false;
+		}
+
 		return DoesPlatformSupportLumenGI(Parameters.Platform);
 	}
+
+	static uint32 GetThreadGroupSize(uint32 GroupSizeInTracingTiles)
+	{
+		if (GroupSizeInTracingTiles == 1)
+		{
+			return 64;
+		}
+		else if (GroupSizeInTracingTiles == 2)
+		{
+			return 128;
+		}
+		else if (GroupSizeInTracingTiles <= 4)
+		{
+			return 256;
+		}
+		else if (GroupSizeInTracingTiles <= 8)
+		{
+			return 512;
+		}
+
+		return 1024;
+	}
+
+	class FWaveOps : SHADER_PERMUTATION_BOOL("WAVE_OPS");
+	class FThreadGroupSize : SHADER_PERMUTATION_SPARSE_INT("THREADGROUP_SIZE", 64, 128, 256, 512, 1024);
+	using FPermutationDomain = TShaderPermutationDomain<FWaveOps, FThreadGroupSize>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("DIFFUSE_TRACE_CARDS"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
+
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		if (PermutationVector.Get<FWaveOps>())
+		{
+			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
+		}
 	}
 };
 
@@ -237,15 +316,31 @@ FCompactedReflectionTraceParameters CompactTraces(
 	float CompactionTracingEndDistanceFromCamera,
 	float CompactionMaxTraceDistance)
 {
-	FCompactedReflectionTraceParameters CompactedTraceParameters;
 	FRDGBufferRef CompactedTraceTexelAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("Lumen.Reflections.CompactedTraceTexelAllocator"));
 	const int32 NumCompactedTraceTexelDataElements = ReflectionTracingParameters.ReflectionTracingBufferSize.X * ReflectionTracingParameters.ReflectionTracingBufferSize.Y;
 	FRDGBufferRef CompactedTraceTexelData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, NumCompactedTraceTexelDataElements), TEXT("Lumen.Reflections.CompactedTraceTexelData"));
 
-	CompactedTraceParameters.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.CompactTracingIndirectArgs"));
-	CompactedTraceParameters.RayTraceDispatchIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.CompactRayTraceDispatchIndirectArgs"));
+	const bool bWaveOps = GLumenReflectionTraceCompactionWaveOps != 0 && GRHISupportsWaveOperations && GRHIMinimumWaveSize >= 32 && RHISupportsWaveOperations(View.GetShaderPlatform());
+	// Only the wave ops path maintains trace order, switch to smaller groups without it to preserve coherency in the traces
+	const uint32 CompactionThreadGroupSize = FReflectionCompactTracesCS::GetThreadGroupSize(bWaveOps ? GLumenReflectionTraceCompactionGroupSizeInTiles : 1);
+	FRDGBufferRef ReflectionCompactionIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.CompactionIndirectArgs"));
 
-	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT), 0);
+	{
+		FSetupCompactionIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupCompactionIndirectArgsCS::FParameters>();
+		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
+		PassParameters->RWReflectionCompactionIndirectArgs = GraphBuilder.CreateUAV(ReflectionCompactionIndirectArgs, PF_R32_UINT);
+		PassParameters->ReflectionTracingTileIndirectArgs = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTileParameters.TracingIndirectArgs, PF_R32_UINT));
+		PassParameters->CompactionThreadGroupSize = CompactionThreadGroupSize;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FSetupCompactionIndirectArgsCS>(0);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("SetupCompactionIndirectArgs"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+	}
 
 	{
 		FReflectionCompactTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionCompactTracesCS::FParameters>();
@@ -253,19 +348,29 @@ FCompactedReflectionTraceParameters CompactTraces(
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
 		PassParameters->RWCompactedTraceTexelAllocator = GraphBuilder.CreateUAV(CompactedTraceTexelAllocator, PF_R32_UINT);
 		PassParameters->RWCompactedTraceTexelData = GraphBuilder.CreateUAV(CompactedTraceTexelData, PF_R32G32_UINT);
+		PassParameters->ReflectionTracingTileIndirectArgs = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ReflectionTileParameters.TracingIndirectArgs, PF_R32_UINT));
 		PassParameters->CompactionTracingEndDistanceFromCamera = CompactionTracingEndDistanceFromCamera;
 		PassParameters->CompactionMaxTraceDistance = CompactionMaxTraceDistance;
+		PassParameters->IndirectArgs = ReflectionCompactionIndirectArgs;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FReflectionCompactTracesCS>(0);
+		FReflectionCompactTracesCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set< FReflectionCompactTracesCS::FWaveOps >(bWaveOps);
+		PermutationVector.Set< FReflectionCompactTracesCS::FThreadGroupSize >(CompactionThreadGroupSize);
+		auto ComputeShader = View.ShaderMap->GetShader<FReflectionCompactTracesCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("CompactTraces"),
+			bWaveOps ? RDG_EVENT_NAME("CompactTracesOrderedWaveOps %u", CompactionThreadGroupSize) : RDG_EVENT_NAME("CompactTraces"),
 			ComputeShader,
 			PassParameters,
-			ReflectionTileParameters.TracingIndirectArgs,
+			ReflectionCompactionIndirectArgs,
 			0);
 	}
+
+	FCompactedReflectionTraceParameters CompactedTraceParameters;
+
+	CompactedTraceParameters.IndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.CompactTracingIndirectArgs"));
+	CompactedTraceParameters.RayTraceDispatchIndirectArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDispatchIndirectParameters>(1), TEXT("Lumen.Reflections.CompactRayTraceDispatchIndirectArgs"));
 
 	{
 		FSetupReflectionCompactedTracesIndirectArgsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupReflectionCompactedTracesIndirectArgsCS::FParameters>();
