@@ -306,7 +306,10 @@ FOpenPackageResult FEditorDomain::OpenReadPackage(const FPackagePath& PackagePat
 		return Workspace->OpenReadPackage(PackagePath, PackageSegment, OutUpdatedPath);
 	}
 
-	FEditorDomainReadArchive* Result = new FEditorDomainReadArchive(Locks, PackagePath, PackageSource);
+	// TODO: Change priority to High instead of Blocking once we have removed the GetPackageFormat below
+	// and don't need to block on the result before exiting this function
+	EPriority Priority = EPriority::Blocking;
+	FEditorDomainReadArchive* Result = new FEditorDomainReadArchive(Locks, PackagePath, PackageSource, Priority);
 	const FPackageDigest PackageSourceDigest = PackageSource->Digest;
 	const bool bHasEditorSource = (PackageSource->Source == EPackageSource::Editor);
 
