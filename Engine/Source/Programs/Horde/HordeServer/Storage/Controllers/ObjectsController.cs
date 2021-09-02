@@ -47,7 +47,8 @@ namespace HordeServer.Storage.Controllers
 		/// <summary>
 		/// List of objects that the client has
 		/// </summary>
-		public List<IoHash> Have { get; set; } = new List<IoHash>();
+		[CbField("h")]
+		public List<CbObjectAttachment> Have { get; set; } = new List<CbObjectAttachment>();
 	}
 
 	/// <summary>
@@ -58,7 +59,8 @@ namespace HordeServer.Storage.Controllers
 		/// <summary>
 		/// List of of objects that the client needs
 		/// </summary>
-		public List<IoHash> Need { get; set; } = new List<IoHash>();
+		[CbField("n")]
+		public List<CbObjectAttachment> Need { get; set; } = new List<CbObjectAttachment>();
 	}
 
 	/// <summary>
@@ -69,7 +71,8 @@ namespace HordeServer.Storage.Controllers
 		/// <summary>
 		/// List of objects that the client already has
 		/// </summary>
-		public List<IoHash> Have { get; set; } = new List<IoHash>();
+		[CbField("h")]
+		public List<CbObjectAttachment> Have { get; set; } = new List<CbObjectAttachment>();
 	}
 
 	/// <summary>
@@ -80,7 +83,8 @@ namespace HordeServer.Storage.Controllers
 		/// <summary>
 		/// List of missing hashes
 		/// </summary>
-		public IoHash Id { get; set; }
+		[CbField("id")]
+		public CbObjectAttachment Id { get; set; }
 	}
 
 	/// <summary>
@@ -159,7 +163,7 @@ namespace HordeServer.Storage.Controllers
 
 			FindObjectDeltaResponse Response = new FindObjectDeltaResponse();
 
-			HashSet<IoHash> SeenHashes = new HashSet<IoHash>(Request.Have);
+			HashSet<IoHash> SeenHashes = new HashSet<IoHash>(Request.Have.Select(x => x.Hash));
 			if (!SeenHashes.Contains(Hash))
 			{
 				SeenHashes.Add(IoHash.Zero); // Don't return empty fields
@@ -223,7 +227,7 @@ namespace HordeServer.Storage.Controllers
 			Response.StatusCode = 200;
 			await Response.StartAsync(HttpContext.RequestAborted);
 
-			HashSet<IoHash> HaveHashes = new HashSet<IoHash>(Request.Have);
+			HashSet<IoHash> HaveHashes = new HashSet<IoHash>(Request.Have.Select(x => x.Hash));
 			if (!HaveHashes.Contains(Hash))
 			{
 				List<IoHash> RequestHashes = new List<IoHash>();
