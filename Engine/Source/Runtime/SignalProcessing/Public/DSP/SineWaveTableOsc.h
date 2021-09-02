@@ -37,8 +37,6 @@ namespace Audio
 		// Sets the phase of the wave table oscillator.
 		void SetPhase(const float InPhase);
 
-		// Processes the wave table and outputs a sample 
-		void Generate(float* OutSample);
 		// Processes the wave table and fills a buffer
 		void Generate(float* OutBuffer, const int32 NumSamples);
 
@@ -63,7 +61,10 @@ namespace Audio
 		// The phase increment (based on frequency)
 		float PhaseIncrement = 0.0f;
 
-		// The initial phase, will be clamped to range 0.0 - 1.0f
+		// The initial/cached phase, will be clamped to range 0.0 - 1.0f
 		float InitialPhase = 0.0f;
+
+		// The instantaneous phase, clamped to range 0.0 - 1.0f
+		float InstantaneousPhase = 0.0f;
 	};
 }
