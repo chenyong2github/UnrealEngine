@@ -316,8 +316,7 @@ struct FAudioAsyncBatcher
 #if !WITH_EDITOR
 		if (GCVarEnableBatchProcessing)
 		{
-			if (WorkItems.Num() >= GBatchAudioAsyncBatchSize // collected enough work
-				|| LastBatch.IsCompleted()) // the previous batch is completed, kick off a new one
+			if (WorkItems.Num() >= GBatchAudioAsyncBatchSize) // collected enough work
 			{
 				Flush();
 			}
