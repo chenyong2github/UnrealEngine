@@ -547,6 +547,8 @@ void FConcertClientTransactionBridge::HandleTransactionStateChanged(const FTrans
 
 void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, const FTransactionObjectEvent& InTransactionEvent)
 {
+	SCOPED_CONCERT_TRACE(FConcertClientTransactionBridge_HandleObjectTransacted);
+
 	if (bIgnoreLocalTransactions)
 	{
 		return;
@@ -773,6 +775,8 @@ void FConcertClientTransactionBridge::OnEngineInitComplete()
 
 void FConcertClientTransactionBridge::OnEndFrame()
 {
+	SCOPED_CONCERT_TRACE(FConcertClientTransactionBridge_OnEndFrame);
+
 	for (auto OngoingTransactionsOrderIter = OngoingTransactionsOrder.CreateIterator(); OngoingTransactionsOrderIter; ++OngoingTransactionsOrderIter)
 	{
 		FOngoingTransaction* OngoingTransactionPtr = OngoingTransactions.Find(*OngoingTransactionsOrderIter);

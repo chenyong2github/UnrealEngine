@@ -9,7 +9,9 @@
 
 
 struct FDesktopPresenceUpdateEvent;
-
+class UMaterialInstanceDynamic;
+class USplineMeshComponent;
+class UStaticMeshComponent;
 
 /**
   * A AConcertClientDesktopPresenceActor is a child of AConcertClientPresenceActor that is used to represent users in desktop 
@@ -43,19 +45,19 @@ private:
 
 	/** The camera mesh component to show visually where the camera is placed */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* DesktopMeshComponent;
+	TObjectPtr<UStaticMeshComponent> DesktopMeshComponent;
 
 	/** Spline mesh representing laser */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (AllowPrivateAccess = "true"))
-	class USplineMeshComponent* LaserPointer;
+	TObjectPtr<USplineMeshComponent> LaserPointer;
 
 	/** Dynamic material for the laser */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* LaserMid;
+	TObjectPtr<UMaterialInstanceDynamic> LaserMid;
 
 	/** Dynamic material for the laser */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* LaserCoreMid;
+	TObjectPtr<UMaterialInstanceDynamic> LaserCoreMid;
 
 	UPROPERTY()
 	bool bMovingCamera;
