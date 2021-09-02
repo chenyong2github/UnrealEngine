@@ -1072,12 +1072,9 @@ namespace RuntimeVirtualTexture
 	};
 
 
-	bool IsSceneReadyToRender(FScene* Scene)
+	bool IsSceneReadyToRender(FSceneInterface* Scene)
 	{
-		// Test scene is loaded and has been updated once by main rendering passes
-		// This function gets called on the main thread, so accessing scene frame number is not strictly thread safe, but we can probably
-		// assume that frame number is always increasing, and so the test is conservative
-		return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GetFrameNumber() > 1;
+		return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GPUScene.IsRendering();
 	}
 
 	void RenderPage(

@@ -41,13 +41,9 @@ bool URuntimeVirtualTextureThumbnailRenderer::CanVisualizeAsset(UObject* Object)
 
 	// We need a matching URuntimeVirtualTextureComponent in a Scene to be able to render a thumbnail
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = FindComponent(RuntimeVirtualTexture);
-	if (RuntimeVirtualTextureComponent != nullptr)
+	if (RuntimeVirtualTextureComponent != nullptr && RuntimeVirtualTextureComponent->GetScene() != nullptr)
 	{
-		FSceneInterface* Scene = RuntimeVirtualTextureComponent->GetScene();
-		if (Scene != nullptr && RuntimeVirtualTexture::IsSceneReadyToRender(Scene->GetRenderScene()))
-		{
-			return true;
-		}
+		return true;
 	}
 
 	return false;

@@ -12,6 +12,7 @@ class FRDGBuilder;
 class FRDGTexture;
 class FRDGTextureUAV;
 class FScene;
+class FSceneInterface;
 class URuntimeVirtualTextureComponent;
 
 namespace RuntimeVirtualTexture
@@ -81,8 +82,8 @@ namespace RuntimeVirtualTexture
 		FRenderPageDesc PageDescs[EMaxRenderPageBatch];
 	};
 
-	/** Returns true if the FScene is initialized for rendering to runtime virtual textures. Always check this before calling RenderPages(). */
-	RENDERER_API bool IsSceneReadyToRender(FScene* Scene);
+	/** Returns true if the scene is initialized for rendering to runtime virtual textures. Always check this before calling RenderPages(). */
+	RENDERER_API bool IsSceneReadyToRender(FSceneInterface* Scene);
 
 	/** Render a batch of pages for a runtime virtual texture. */
 	RENDERER_API void RenderPages(FRDGBuilder& GraphBuilder, FRenderPageBatchDesc const& InDesc);
