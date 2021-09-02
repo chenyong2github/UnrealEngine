@@ -643,7 +643,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 			CrossCompiler::FShaderConductorContext CompilerContext;
 
 			// Load shader source into compiler context
-			const EHlslShaderFrequency Frequency = CrossCompiler::FShaderConductorContext::MapShaderFrequency(static_cast<EShaderFrequency>(Input.Target.Frequency));
+			const EShaderFrequency Frequency = (EShaderFrequency)Input.Target.Frequency;
 			CompilerContext.LoadSource(PreprocessedShaderSource, Input.VirtualSourceFilePath, EntryPointName, Frequency);
 
 			// Compile HLSL source to SPIR-V binary

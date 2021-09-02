@@ -1211,31 +1211,15 @@ FGlslLanguageSpec* FOpenGLFrontend::CreateLanguageSpec(GLSLVersion Version, bool
 
 #if DXC_SUPPORTED
 
-static const ANSICHAR* GetFrequencyPrefix(EHlslShaderFrequency Frequency)
+static const ANSICHAR* GetFrequencyPrefix(EShaderFrequency Frequency)
 {
 	switch (Frequency)
 	{
-	case HSF_VertexShader:		return "v";
-	case HSF_PixelShader:		return "p";
-	case HSF_GeometryShader:	return "g";
-	case HSF_HullShader:		return "h";
-	case HSF_DomainShader:		return "d";
-	case HSF_ComputeShader:		return "c";
-	default:					return "";
-	}
-}
-
-static const TCHAR* GetFrequencyFileExt(EHlslShaderFrequency Frequency)
-{
-	switch (Frequency)
-	{
-	case HSF_VertexShader:		return TEXT("vert");
-	case HSF_PixelShader:		return TEXT("frag");
-	case HSF_GeometryShader:	return TEXT("geom");
-	case HSF_HullShader:		return TEXT("tesc");
-	case HSF_DomainShader:		return TEXT("tese");
-	case HSF_ComputeShader:		return TEXT("comp");
-	default:					return TEXT("glsl");
+	case SF_Vertex:		return "v";
+	case SF_Pixel:		return "p";
+	case SF_Geometry:	return "g";
+	case SF_Compute:	return "c";
+	default:			return "";
 	}
 }
 
@@ -1463,7 +1447,7 @@ static bool CompileToGlslWithShaderConductor(
 	FShaderCompilerOutput&		Output,
 	const FString&				WorkingDirectory,
 	GLSLVersion					Version,
-	const EHlslShaderFrequency	Frequency,
+	const EShaderFrequency		Frequency,
 	uint32						CCFlags,
 	const FString&				PreprocessedShader,
 	char*&						OutGlslShaderSource)
@@ -2189,7 +2173,7 @@ static bool CompileToGlslWithShaderConductor(
 
 					GlslSource.insert(LayoutPos, DefineString);
 				}
-				if(!bEmulatedUBs)
+				/*if(!bEmulatedUBs)
 				{
 					for (auto const& Pair : UniformVarNames)
 					{
@@ -2201,7 +2185,7 @@ static bool CompileToGlslWithShaderConductor(
 
 						GlslSource.insert(LayoutPos, DefineString);
 					}
-				}
+				}*/
 			}
 
 
@@ -2452,14 +2436,14 @@ static bool CompileToGlslWithShaderConductor(
 				}
 			}
 
-			size_t GlslSourceLen = GlslSource.length();
+			const size_t GlslSourceLen = GlslSource.length();
 			if (GlslSourceLen > 0)
 			{
-				size_t SamplerPos = GlslSource.find("\nuniform ");
-
 				uint32 TextureIndex = 0;
 				for (const FString& Texture : Textures)
 				{
+					const size_t SamplerPos = GlslSource.find("\nuniform ");
+
 					TArray<FString> UsedSamplers;
 					FString SamplerString;
 					for (const FString& Sampler : Samplers)
@@ -2469,6 +2453,8 @@ static bool CompileToGlslWithShaderConductor(
 						size_t FindCombinedSampler = GlslSource.find(SamplerName.c_str());
 						if (FindCombinedSampler != std::string::npos)
 						{
+							checkf(SamplerPos != std::string::npos, TEXT("Generated GLSL shader is expected to have combined sampler '%s:%s' but no appropriate 'uniform' declaration could be found"), *Texture, *Sampler);
+
 							uint32 NewIndex = TextureIndex + UsedSamplers.Num();
 							std::string NewDefine = "#define ";
 							NewDefine += SamplerName;
@@ -2543,7 +2529,8 @@ static bool CompileToGlslWithShaderConductor(
 
 	if (bDumpDebugInfo && OutGlslShaderSource != nullptr)
 	{
-		DumpDebugShaderText(Input, OutGlslShaderSource, FCStringAnsi::Strlen(OutGlslShaderSource), GetFrequencyFileExt(Frequency));
+		const TCHAR* ShaderFileExt = CrossCompiler::FShaderConductorContext::GetShaderFileExt(CrossCompiler::EShaderConductorLanguage::Essl, Frequency);
+		DumpDebugShaderText(Input, OutGlslShaderSource, FCStringAnsi::Strlen(OutGlslShaderSource), ShaderFileExt);
 	}
 
 	return !bCompilationFailed;
@@ -2649,14 +2636,16 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 	};
 	static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
 
-	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
-	if (Frequency == HSF_InvalidFrequency)
+	const EShaderFrequency Frequency = (EShaderFrequency)Input.Target.Frequency;
+
+	const EHlslShaderFrequency HlslFrequency = FrequencyTable[Frequency];
+	if (HlslFrequency == HSF_InvalidFrequency)
 	{
 		Output.bSucceeded = false;
 		FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 		NewError->StrippedErrorMessage = FString::Printf(
 			TEXT("%s shaders not supported for use in OpenGL."),
-			CrossCompiler::GetFrequencyName((EShaderFrequency)Input.Target.Frequency)
+			CrossCompiler::GetFrequencyName(Frequency)
 			);
 		return;
 	}
@@ -2703,7 +2692,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		bool bDefaultPrecisionIsHalf = (CCFlags & HLSLCC_UseFullPrecisionInPS) == 0;
 		FGlslLanguageSpec* LanguageSpec = CreateLanguageSpec(Version, bDefaultPrecisionIsHalf);
 
-		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, Frequency, HlslCompilerTarget);
+		FHlslCrossCompilerContext CrossCompilerContext(CCFlags, HlslFrequency, HlslCompilerTarget);
 		if (CrossCompilerContext.Init(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath), LanguageSpec))
 		{
 			bCompilationSucceeded = CrossCompilerContext.Run(
@@ -2720,7 +2709,8 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 
 		if (bDumpDebugInfo && bCompilationSucceeded && GlslShaderSource != nullptr)
 		{
-			DumpDebugShaderText(Input, GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource), GetFrequencyFileExt(Frequency));
+			const TCHAR* ShaderFileExt = CrossCompiler::FShaderConductorContext::GetShaderFileExt(CrossCompiler::EShaderConductorLanguage::Essl, Frequency);
+			DumpDebugShaderText(Input, GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource), ShaderFileExt);
 		}
 	}
 
@@ -2733,7 +2723,7 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 		}
 
 #if VALIDATE_GLSL_WITH_DRIVER
-		PrecompileShader(Output, Input, GlslShaderSource, Version, Frequency);
+		PrecompileShader(Output, Input, GlslShaderSource, Version, HlslFrequency);
 #else // VALIDATE_GLSL_WITH_DRIVER
 		int32 SourceLen = FCStringAnsi::Strlen(GlslShaderSource); //-V595
 		Output.Target = Input.Target;
@@ -2742,7 +2732,8 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 
 		if (bDumpDebugInfo)
 		{
-			FString DumpedGlslFile = *Input.DumpDebugInfoPath / (TEXT("Output") + GetExtension(Frequency));
+			const TCHAR* ShaderFileExt = CrossCompiler::FShaderConductorContext::GetShaderFileExt(CrossCompiler::EShaderConductorLanguage::Essl, Frequency);
+			FString DumpedGlslFile = FString::Printf(TEXT("%s/Output.%s"), *Input.DumpDebugInfoPath, ShaderFileExt);
 			if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*DumpedGlslFile)))
 			{
 				FileWriter->Serialize(GlslShaderSource, FCStringAnsi::Strlen(GlslShaderSource));

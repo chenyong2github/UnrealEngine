@@ -132,30 +132,10 @@ struct FMetalShaderPreprocessed
 	}
 };
 
-struct FMetalShaderOutputJob
-{
-	const FShaderCompilerInput& Input;
-	FShaderCompilerOutput& Output;
-	const FString& WorkingDirectory;
-	FString PreprocessedShader;
-	FSHAHash GUIDHash;
-	uint8 VersionEnum;
-	uint32 CCFlags;
-	EHlslCompileTarget HlslCompilerTarget;
-	EHlslCompileTarget MetalCompilerTarget;
-	EMetalGPUSemantics Semantics;
-	EMetalTypeBufferMode TypeMode;
-	uint32 MaxUnrollLoops;
-	EHlslShaderFrequency Frequency;
-	bool bDumpDebugInfo;
-	FString Standard;
-	FString MinOSVersion;
-};
-
 class FMetalShaderOutputCooker : public FDerivedDataPluginInterface
 {
 public:
-	FMetalShaderOutputCooker(const FShaderCompilerInput& _Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory, FString PreprocessedShader, FSHAHash GUIDHash, uint8 VersionEnum, uint32 CCFlags, EHlslCompileTarget HlslCompilerTarget, EHlslCompileTarget MetalCompilerTarget, EMetalGPUSemantics Semantics, EMetalTypeBufferMode TypeMode, uint32 MaxUnrollLoops, EHlslShaderFrequency Frequency, bool bDumpDebugInfo, FString Standard, FString MinOSVersion);
+	FMetalShaderOutputCooker(const FShaderCompilerInput& _Input,FShaderCompilerOutput& Output,const FString& WorkingDirectory, FString PreprocessedShader, FSHAHash GUIDHash, uint8 VersionEnum, uint32 CCFlags, EHlslCompileTarget HlslCompilerTarget, EHlslCompileTarget MetalCompilerTarget, EMetalGPUSemantics Semantics, EMetalTypeBufferMode TypeMode, uint32 MaxUnrollLoops, EShaderFrequency Frequency, bool bDumpDebugInfo, FString Standard, FString MinOSVersion);
 	virtual ~FMetalShaderOutputCooker();
 
 #if PLATFORM_MAC || PLATFORM_IOS
@@ -181,7 +161,7 @@ private:
 	EMetalGPUSemantics Semantics;
 	EMetalTypeBufferMode TypeMode;
 	uint32 MaxUnrollLoops;
-	EHlslShaderFrequency Frequency;
+	EShaderFrequency Frequency;
 	bool bDumpDebugInfo;
 	FString Standard;
 	FString MinOSVersion;
