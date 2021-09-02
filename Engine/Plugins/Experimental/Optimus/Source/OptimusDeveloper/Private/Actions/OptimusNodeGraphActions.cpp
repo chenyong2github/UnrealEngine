@@ -255,6 +255,109 @@ bool FOptimusNodeGraphAction_AddNode::Undo(IOptimusNodeGraphCollectionOwner* InR
 }
 
 
+// ---- Duplicate node
+
+
+FOptimusNodeGraphAction_DuplicateNode::FOptimusNodeGraphAction_DuplicateNode(
+	UOptimusNodeGraph* InTargetGraph,
+	UOptimusNode* InSourceNode,
+	FName InNodeName,
+	TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
+	)
+{
+	if (ensure(InTargetGraph != nullptr) && ensure(InSourceNode != nullptr))
+	{
+		GraphPath = InTargetGraph->GetGraphPath();
+		NodeName = InNodeName;
+		NodeClassPath = InSourceNode->GetClass()->GetPathName();
+		ConfigureNodeFunc = InConfigureNodeFunc;
+		
+		// Photocopy any non-transient property data
+		{
+			FMemoryWriter NodeArchive(NodeData);
+			FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+					NodeArchive, /* bInLoadIfFindFails=*/ false);
+			InSourceNode->SerializeScriptProperties(NodeProxyArchive);
+		}
+	}
+}
+
+
+UOptimusNode* FOptimusNodeGraphAction_DuplicateNode::GetNode(
+	IOptimusNodeGraphCollectionOwner* InRoot
+	) const
+{
+	return InRoot->ResolveNodePath(NodePath);
+}
+
+
+bool FOptimusNodeGraphAction_DuplicateNode::Do(
+	IOptimusNodeGraphCollectionOwner* InRoot
+	)
+{
+	auto BootstrapNodeFunc = [this](UOptimusNode* InNode) -> bool
+	{
+		{
+			FMemoryReader NodeArchive(NodeData);
+			FObjectAndNameAsStringProxyArchive NodeProxyArchive(
+					NodeArchive, /* bInLoadIfFindFails=*/true);
+			InNode->SerializeScriptProperties(NodeProxyArchive);
+		}
+		if (!ConfigureNodeFunc)
+		{
+			return true;
+		}
+		return ConfigureNodeFunc(InNode);
+	};
+
+	UClass* NodeClass = Optimus::FindObjectInPackageOrGlobal<UClass>(NodeClassPath);
+	if (!NodeClass)
+	{
+		return false;
+	}
+	
+	UOptimusNodeGraph* Graph = InRoot->ResolveGraphPath(GraphPath);
+	if (!Graph)
+	{
+		return false;
+	}
+
+	UOptimusNode* Node = Graph->CreateNodeDirect(NodeClass, NodeName, BootstrapNodeFunc);
+	if (!Node)
+	{
+		return false;
+	}
+
+	// Inform the node that it has been photocopied, and so it can do any fix-ups related to it.
+	Node->PostDuplicate(EDuplicateMode::Normal);
+
+	NodeName = Node->GetFName();
+	NodePath = Node->GetNodePath();
+
+	return true;
+}
+
+
+bool FOptimusNodeGraphAction_DuplicateNode::Undo(
+	IOptimusNodeGraphCollectionOwner* InRoot
+	)
+{
+	UOptimusNode* Node = InRoot->ResolveNodePath(NodePath);
+	if (!Node)
+	{
+		return false;
+	}
+
+	UOptimusNodeGraph* Graph = Node->GetOwningGraph();
+	if (!ensure(Graph))
+	{
+		return false;
+	}
+
+	return Graph->RemoveNodeDirect(Node);
+}
+
+
 // ---- Remove node
 
 FOptimusNodeGraphAction_RemoveNode::FOptimusNodeGraphAction_RemoveNode(UOptimusNode* InNode)
@@ -330,7 +433,7 @@ bool FOptimusNodeGraphAction_RemoveNode::Undo(IOptimusNodeGraphCollectionOwner* 
 }
 
 
-// ---- Add/remoe link base
+// ---- Add/remove link base
 
 FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 	UOptimusNodePin* InNodeOutputPin, 
@@ -348,6 +451,19 @@ FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
 		NodeInputPinPath = InNodeInputPin->GetPinPath();
 	}
 }
+
+
+FOptimusNodeGraphAction_AddRemoveLink::FOptimusNodeGraphAction_AddRemoveLink(
+	const FString& InNodeOutputPinPath,
+	const FString& InNodeInputPinPath)
+{
+	if (ensure(!InNodeOutputPinPath.IsEmpty()) && ensure(!InNodeInputPinPath.IsEmpty()))
+	{
+		NodeOutputPinPath = InNodeOutputPinPath;
+		NodeInputPinPath = InNodeInputPinPath;
+	}
+}
+
 
 bool FOptimusNodeGraphAction_AddRemoveLink::AddLink(IOptimusNodeGraphCollectionOwner* InRoot)
 {
@@ -396,6 +512,16 @@ FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
 	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPin, InNodeInputPin)
 {
 	// FIXME: Prettier name.
+	SetTitlef(TEXT("Add Link"));
+}
+
+
+FOptimusNodeGraphAction_AddLink::FOptimusNodeGraphAction_AddLink(
+	const FString& InNodeOutputPinPath,
+	const FString& InNodeInputPinPath
+	) :
+	FOptimusNodeGraphAction_AddRemoveLink(InNodeOutputPinPath, InNodeInputPinPath)
+{
 	SetTitlef(TEXT("Add Link"));
 }
 

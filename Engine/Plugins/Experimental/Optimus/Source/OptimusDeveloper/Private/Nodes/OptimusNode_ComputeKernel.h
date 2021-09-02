@@ -173,6 +173,9 @@ public:
 	void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif
 
+protected:
+	void ConstructNode() override;;
+
 private:
 	void UpdatePinTypes(
 		EOptimusNodePinDirection InPinDirection

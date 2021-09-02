@@ -158,6 +158,52 @@ private:
 
 
 USTRUCT()
+struct FOptimusNodeGraphAction_DuplicateNode : 
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeGraphAction_DuplicateNode() = default;
+
+	FOptimusNodeGraphAction_DuplicateNode(
+		UOptimusNodeGraph* InTargetGraph,
+		UOptimusNode* InSourceNode,
+		FName InNodeName,
+		TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
+		);
+
+	/// Called to retrieve the node that was created by DoImpl after it has been called.
+	UOptimusNode* GetNode(IOptimusNodeGraphCollectionOwner* InRoot) const;
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+
+private:
+	// The path of the graph the node should be added to.
+	FString GraphPath;
+	
+	// The name of the node to create. The original name of the node is used as a template but
+	// will be updated to avoid namespace collisions when first created.
+	FName NodeName;
+	
+	// The class path of the node to add.
+	FString NodeClassPath;
+
+	// An optional function called to configure the node after it gets created, but before it
+	// gets added to the graph.
+	TFunction<bool(UOptimusNode*)> ConfigureNodeFunc;
+
+	// The stored node data to copy into the new node.
+	TArray<uint8> NodeData;
+
+	// Path to the node that gets created through duplication.
+	FString NodePath;
+};
+
+
+USTRUCT()
 struct FOptimusNodeGraphAction_RemoveNode :
 	public FOptimusAction
 {
@@ -206,6 +252,11 @@ struct FOptimusNodeGraphAction_AddRemoveLink :
 		UOptimusNodePin* InNodeInputPin
 		);
 
+	FOptimusNodeGraphAction_AddRemoveLink(
+		const FString& InNodeOutputPinPath,
+		const FString& InNodeInputPinPath
+		);
+
 protected:
 	bool AddLink(IOptimusNodeGraphCollectionOwner* InRoot);
 	bool RemoveLink(IOptimusNodeGraphCollectionOwner* InRoot);
@@ -243,6 +294,11 @@ struct FOptimusNodeGraphAction_AddLink :
 		UOptimusNodePin* InNodeOutputPin,
 		UOptimusNodePin* InNodeInputPin
 	);
+
+	FOptimusNodeGraphAction_AddLink(
+		const FString& InNodeOutputPinPath,
+		const FString& InNodeInputPinPath
+		);
 
 protected:
 	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override { return AddLink(InRoot); }

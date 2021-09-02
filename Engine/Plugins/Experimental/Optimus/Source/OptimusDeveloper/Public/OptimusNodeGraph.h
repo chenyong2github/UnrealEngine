@@ -28,6 +28,7 @@ enum class EOptimusNodeGraphType
 	Setup,
 	Update,
 	ExternalTrigger,
+	Transient
 };
 
 
@@ -90,7 +91,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	UOptimusNode* AddVariableGetNode(
 	    UOptimusVariableDescription* InVariableDesc,
-	    const FVector2D& InPosition);
+	    const FVector2D& InPosition
+	    );
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool RemoveNode(
@@ -99,9 +101,32 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool RemoveNodes(
-		const TArray<UOptimusNode*> &InNodes
+		const TArray<UOptimusNode*>& InNodes
+	);
+	bool RemoveNodes(
+		const TArray<UOptimusNode*>& InNodes,
+		const FString& InActionName
 	);
 
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	UOptimusNode* DuplicateNode(
+		UOptimusNode* InNode,
+	    const FVector2D& InPosition
+	);
+
+	/// Duplicate a collection of nodes from the same graph, using the InPosition position
+	/// to be the top-left origin of the pasted nodes.
+	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
+	bool DuplicateNodes(
+		const TArray<UOptimusNode*> &InNodes,
+		const FVector2D& InPosition
+	);
+	bool DuplicateNodes(
+		const TArray<UOptimusNode*> &InNodes,
+		const FVector2D& InPosition,
+		const FString& InActionName
+	);
+	
 	UFUNCTION(BlueprintCallable, Category = OptimusNodeGraph)
 	bool AddLink(
 		UOptimusNodePin* InNodeOutputPin, UOptimusNodePin* InNodeInputPin
@@ -121,30 +146,6 @@ public:
 	);
 
 #endif
-
-	// Direct edit functions. Used by the actions.
-	UOptimusNode* CreateNodeDirect(
-		const UClass* InNodeClass,
-		FName InName,
-	    TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
-		);
-
-	bool AddNodeDirect(
-		UOptimusNode* InNode
-	);
-
-	// Remove a node directly. If a node still has connections this call will fail. 
-	bool RemoveNodeDirect(
-		UOptimusNode* InNode,		
-		bool bFailIfLinks = true);
-
-	bool AddLinkDirect(UOptimusNodePin* InNodeOutputPin, UOptimusNodePin* InNodeInputPin);
-
-	bool RemoveLinkDirect(UOptimusNodePin* InNodeOutputPin, UOptimusNodePin* InNodeInputPin);
-
-	bool RemoveAllLinksToPinDirect(UOptimusNodePin* InNodePin);
-
-	bool RemoveAllLinksToNodeDirect(UOptimusNode* InNode);
 
 	TArray<UOptimusNodePin *> GetConnectedPins(const UOptimusNodePin* InNodePin) const;
 	TArray<const UOptimusNodeLink *> GetPinLinks(const UOptimusNodePin* InNodePin) const;
@@ -166,7 +167,36 @@ protected:
 	friend class UOptimusDeformer;
 	friend class UOptimusNode;
 	friend class UOptimusNodePin;
+	friend class UOptimusClipboardContent;
+	friend struct FOptimusNodeGraphAction_AddNode;
+	friend struct FOptimusNodeGraphAction_DuplicateNode;
+	friend struct FOptimusNodeGraphAction_RemoveNode;
+	friend struct FOptimusNodeGraphAction_AddRemoveLink;
 
+	// Direct edit functions. Used by the actions.
+	UOptimusNode* CreateNodeDirect(
+		const UClass* InNodeClass,
+		FName InName,
+		TFunction<bool(UOptimusNode*)> InConfigureNodeFunc
+		);
+
+	bool AddNodeDirect(
+		UOptimusNode* InNode
+	);
+
+	// Remove a node directly. If a node still has connections this call will fail. 
+	bool RemoveNodeDirect(
+		UOptimusNode* InNode,		
+		bool bFailIfLinks = true);
+
+	bool AddLinkDirect(UOptimusNodePin* InNodeOutputPin, UOptimusNodePin* InNodeInputPin);
+
+	bool RemoveLinkDirect(UOptimusNodePin* InNodeOutputPin, UOptimusNodePin* InNodeInputPin);
+
+	bool RemoveAllLinksToPinDirect(UOptimusNodePin* InNodePin);
+
+	bool RemoveAllLinksToNodeDirect(UOptimusNode* InNode);
+	
 	// FIXME: Remove this.
 	void SetGraphType(EOptimusNodeGraphType InType)
 	{
@@ -177,7 +207,7 @@ protected:
 
 	// The type of graph this represents. 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Overview)
-	EOptimusNodeGraphType GraphType;
+	EOptimusNodeGraphType GraphType = EOptimusNodeGraphType::Transient;
 
 private:
 #if defined(WITH_EDITOR)
