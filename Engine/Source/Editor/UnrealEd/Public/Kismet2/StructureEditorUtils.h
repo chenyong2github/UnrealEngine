@@ -103,12 +103,26 @@ public:
 
 	static bool ChangeSaveGameEnabled(UUserDefinedStruct* Struct, FGuid VarGuid, bool bInSaveGame);
 
-	enum EMoveDirection
+	enum EMovePosition
 	{
-		MD_Up,
-		MD_Down,
+		PositionAbove,
+		PositionBelow,
 	};
-	static bool MoveVariable(UUserDefinedStruct* Struct, FGuid VarGuid, EMoveDirection MoveDirection);
+
+	/**
+	 * Move the variable with the given guid in the struct to be immediately above or below another variable.
+	 * 
+	 * @param Struct         The struct containing the variable to move.
+	 * @param MoveVarGuid    The guid of the variable being moved.
+	 * @param RelativeToGuid The guid of the variable above/below which MoveVarGuid is being moved.
+	 * @param Position       Whether to put MoveVarGuid above or below RelativeToGuid.
+	 * 
+	 * @return Whether the variable was actually moved.
+	 */
+	static bool MoveVariable(UUserDefinedStruct* Struct, FGuid MoveVarGuid, FGuid RelativeToGuid, EMovePosition Position);
+
+	/** Checks whether MoveVariable can actually move the variable with the given guid. */
+	static bool CanMoveVariable(UUserDefinedStruct* Struct, FGuid MoveVarGuid, FGuid RelativeToGuid, EMovePosition Position);
 
 	//Multi-line text
 	static bool CanEnableMultiLineText(const UUserDefinedStruct* Struct, FGuid VarGuid);

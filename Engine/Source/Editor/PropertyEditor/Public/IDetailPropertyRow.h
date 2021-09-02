@@ -13,6 +13,7 @@
 
 class FDetailWidgetRow;
 class FDetailWidgetDecl;
+class IDetailDragDropHandler;
 
 class FDetailColumnSizeData
 {
@@ -304,6 +305,13 @@ public:
 	 * @param ResetToDefault	Contains the delegates needed to override the behavior of reset to default
 	 */
 	virtual IDetailPropertyRow& OverrideResetToDefault(const FResetToDefaultOverride& ResetToDefault) = 0;
+
+	/**
+	 * Sets a handler for this property row to be a source or target of drag-and-drop operations
+	 * 
+	 * @param InDragDropHandler	Handler used when starting a drag or accepting a drop operation
+	 */
+	virtual IDetailPropertyRow& DragDropHandler(TSharedPtr<IDetailDragDropHandler> InDragDropHandler) = 0;
 
 	/**
 	 * Returns the name and value widget of this property row.  You can use this widget to apply further customization to existing widgets (by using this  with CustomWidget)

@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 #include "Editor.h"
 #include "EditorMetadataOverrides.h"
+#include "IDetailDragDropHandler.h"
 #include "IDetailKeyframeHandler.h"
 #include "IDetailPropertyExtensionHandler.h"
 #include "ObjectPropertyNode.h"
@@ -56,7 +57,7 @@ namespace SDetailSingleItemRow_Helper
 	}
 }
 
-void SDetailSingleItemRow::OnArrayDragLeave(const FDragDropEvent& DragDropEvent)
+void SDetailSingleItemRow::OnArrayOrCustomDragLeave(const FDragDropEvent& DragDropEvent)
 {
 	TSharedPtr<FDecoratedDragDropOp> DecoratedOp = DragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
 	if (DecoratedOp.IsValid())
@@ -197,8 +198,31 @@ TOptional<EItemDropZone> SDetailSingleItemRow::OnArrayCanAcceptDrop(const FDragD
 
 FReply SDetailSingleItemRow::OnArrayHeaderAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr< FDetailTreeNode > Type)
 {
-	OnArrayDragLeave(DragDropEvent);
+	OnArrayOrCustomDragLeave(DragDropEvent);
 	return FReply::Handled();
+}
+
+FReply SDetailSingleItemRow::OnCustomAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem)
+{
+	// This should only be registered as a delegate if there's a custom handler
+	if (ensure(WidgetRow.CustomDragDropHandler))
+	{
+		if (WidgetRow.CustomDragDropHandler->AcceptDrop(DragDropEvent, DropZone))
+		{
+			return FReply::Handled();
+		}
+	}
+	return FReply::Unhandled();
+}
+
+TOptional<EItemDropZone> SDetailSingleItemRow::OnCustomCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> Type)
+{
+	// This should only be registered as a delegate if there's a custom handler
+	if (ensure(WidgetRow.CustomDragDropHandler))
+	{
+		return WidgetRow.CustomDragDropHandler->CanAcceptDrop(DragDropEvent, DropZone);
+	}
+	return TOptional<EItemDropZone>();
 }
 
 TSharedPtr<FPropertyNode> SDetailSingleItemRow::GetPropertyNode() const
@@ -279,9 +303,9 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 
 	TSharedRef<SWidget> Widget = SNullWidget::NullWidget;
 
-	FOnTableRowDragLeave ArrayDragLeaveDelegate;
-	FOnAcceptDrop ArrayAcceptDropDelegate;
-	FOnCanAcceptDrop ArrayCanAcceptDropDelegate;
+	FOnTableRowDragLeave DragLeaveDelegate;
+	FOnAcceptDrop AcceptDropDelegate;
+	FOnCanAcceptDrop CanAcceptDropDelegate;
 
 	FDetailColumnSizeData& ColumnSizeData = InOwnerTreeNode->GetDetailsView()->GetColumnSizeData();
 
@@ -359,18 +383,30 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					SNew(SDetailRowIndent, SharedThis(this))
 				];
 
-			TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode();
-			if (PropertyNode.IsValid())
+			if (WidgetRow.CustomDragDropHandler)
+			{
+				TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
+				TSharedRef<SWidget> ReorderHandle = PropertyEditorHelpers::MakePropertyReorderHandle(InRow, IsEnabledAttribute);
+				
+				NameColumnBox->AddSlot()
+					.HAlign(HAlign_Left)
+					.VAlign(VAlign_Center)
+					.Padding(-2, 0, -10, 0)
+					.AutoWidth()
+					[
+						ReorderHandle
+					];
+
+				DragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayOrCustomDragLeave);
+				AcceptDropDelegate = FOnAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnCustomAcceptDrop);
+				CanAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnCustomCanAcceptDrop);
+			}
+			else if (TSharedPtr<FPropertyNode> PropertyNode = Customization->GetPropertyNode())
 			{
 				if (PropertyNode->IsReorderable())
 				{
 					TSharedPtr<SDetailSingleItemRow> InRow = SharedThis(this);
-					TSharedRef<SWidget> ArrayHandle = PropertyEditorHelpers::MakePropertyReorderHandle(PropertyNode.ToSharedRef(), InRow);
-					ArrayHandle->SetEnabled(IsEnabledAttribute);
-					ArrayHandle->SetVisibility(TAttribute<EVisibility>::Create([this]() 
-					{
-						return this->IsHovered() ? EVisibility::Visible : EVisibility::Hidden;
-					}));
+					TSharedRef<SWidget> ArrayHandle = PropertyEditorHelpers::MakePropertyReorderHandle(InRow, IsEnabledAttribute);
 
 					NameColumnBox->AddSlot()
 						.HAlign(HAlign_Left)
@@ -388,9 +424,9 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 					(CastField<FArrayProperty>(PropertyNode->GetProperty()) != nullptr && 
 					CastField<FObjectProperty>(CastField<FArrayProperty>(PropertyNode->GetProperty())->Inner) != nullptr)) // Is an object array
 				{
-					ArrayDragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayDragLeave);
-					ArrayAcceptDropDelegate = FOnAcceptDrop::CreateSP(this, PropertyNode->IsReorderable() ? &SDetailSingleItemRow::OnArrayAcceptDrop : &SDetailSingleItemRow::OnArrayHeaderAcceptDrop);
-					ArrayCanAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
+					DragLeaveDelegate = FOnTableRowDragLeave::CreateSP(this, &SDetailSingleItemRow::OnArrayOrCustomDragLeave);
+					AcceptDropDelegate = FOnAcceptDrop::CreateSP(this, PropertyNode->IsReorderable() ? &SDetailSingleItemRow::OnArrayAcceptDrop : &SDetailSingleItemRow::OnArrayHeaderAcceptDrop);
+					CanAcceptDropDelegate = FOnCanAcceptDrop::CreateSP(this, &SDetailSingleItemRow::OnArrayCanAcceptDrop);
 				}
 			}
 
@@ -604,9 +640,9 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 		STableRow::FArguments()
 			.Style(FEditorStyle::Get(), "DetailsView.TreeView.TableRow")
 			.ShowSelection(false)
-			.OnDragLeave(ArrayDragLeaveDelegate)
-			.OnAcceptDrop(ArrayAcceptDropDelegate)
-			.OnCanAcceptDrop(ArrayCanAcceptDropDelegate),
+			.OnDragLeave(DragLeaveDelegate)
+			.OnAcceptDrop(AcceptDropDelegate)
+			.OnCanAcceptDrop(CanAcceptDropDelegate),
 		InOwnerTableView
 	);
 }
@@ -658,7 +694,7 @@ FSlateColor SDetailSingleItemRow::GetInnerBackgroundColor() const
 		return FAppStyle::Get().GetSlateColor("Colors.Header");
 	}
 	
-	if (bIsDragDropObject)
+	if (DragOperation.IsValid())
 	{
 		return FAppStyle::Get().GetSlateColor("Colors.Hover");
 	}
@@ -1131,9 +1167,21 @@ bool SDetailSingleItemRow::IsHighlighted() const
 	return OwnerTreeNodePtr.IsValid() ? OwnerTreeNodePtr->IsHighlighted() : false;
 }
 
-void SDetailSingleItemRow::SetIsDragDrop(bool bInIsDragDrop)
+TSharedPtr<FDragDropOperation> SDetailSingleItemRow::CreateDragDropOperation()
 {
-	bIsDragDropObject = bInIsDragDrop;
+	if (WidgetRow.CustomDragDropHandler)
+	{
+		TSharedPtr<FDragDropOperation> DragOp = WidgetRow.CustomDragDropHandler->CreateDragDropOperation();
+		DragOperation = DragOp;
+		return DragOp;
+	}
+	else
+	{
+		TSharedPtr<FArrayRowDragDropOp> ArrayDragOp = MakeShareable(new FArrayRowDragDropOp(SharedThis(this)));
+		ArrayDragOp->Init();
+		DragOperation = ArrayDragOp;
+		return ArrayDragOp;
+	}
 }
 
 void SDetailSingleItemRow::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -1155,7 +1203,7 @@ FReply SArrayRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPoint
 {
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
 	{
-		TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
+		TSharedPtr<FDragDropOperation> DragDropOp = ParentRow.Pin()->CreateDragDropOperation();
 		if (DragDropOp.IsValid())
 		{
 			return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
@@ -1165,21 +1213,10 @@ FReply SArrayRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPoint
 	return FReply::Unhandled();
 }
 
-TSharedPtr<FArrayRowDragDropOp> SArrayRowHandle::CreateDragDropOperation(TSharedPtr<SDetailSingleItemRow> InRow)
-{
-	TSharedPtr<FArrayRowDragDropOp> Operation = MakeShareable(new FArrayRowDragDropOp(InRow));
-	Operation->Init();
-
-	return Operation;
-}
-
 FArrayRowDragDropOp::FArrayRowDragDropOp(TSharedPtr<SDetailSingleItemRow> InRow)
 {
 	check(InRow.IsValid());
 	Row = InRow;
-
-	// mark row as being used for drag and drop
-	InRow->SetIsDragDrop(true);
 }
 
 void FArrayRowDragDropOp::Init()
@@ -1187,18 +1224,6 @@ void FArrayRowDragDropOp::Init()
 	SetValidTarget(false);
 	SetupDefaults();
 	Construct();
-}
-
-void FArrayRowDragDropOp::OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent)
-{
-	FDecoratedDragDropOp::OnDrop(bDropWasHandled, MouseEvent);
-
-	TSharedPtr<SDetailSingleItemRow> RowPtr = Row.Pin();
-	if (RowPtr.IsValid())
-	{
-		// reset value
-		RowPtr->SetIsDragDrop(false);
-	}
 }
 
 void FArrayRowDragDropOp::SetValidTarget(bool IsValidTarget)

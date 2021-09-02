@@ -20,10 +20,12 @@
 #include "PropertyEditorModule.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IDetailChildrenBuilder.h"
+#include "IDetailDragDropHandler.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 
 #include "PropertyCustomizationHelpers.h"
 #include "SPinTypeSelector.h"
@@ -569,6 +571,140 @@ enum EMemberFieldPosition
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////
+// FUserDefinedStructureFieldDragDropOp
+
+/** Provides information about the source row (single field) being dragged */
+class FUserDefinedStructureFieldDragDropOp : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FUserDefinedStructureFieldDragDropOp, FDecoratedDragDropOp);
+
+	FUserDefinedStructureFieldDragDropOp(TWeakPtr<FUserDefinedStructureDetails> InStructureDetails, const FGuid& InFieldGuid)
+		: StructureDetails(InStructureDetails)
+		, FieldGuid(InFieldGuid)
+	{
+		if (TSharedPtr<FUserDefinedStructureDetails> StructureDetailsSP = InStructureDetails.Pin())
+		{
+			VariableFriendlyName = FStructureEditorUtils::GetVariableFriendlyName(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid);
+		}
+	}
+
+	void Init()
+	{
+		SetValidTarget(false);
+		SetupDefaults();
+		Construct();
+	}
+
+	void SetValidTarget(bool IsValidTarget)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("StructVariableName"), FText::FromString(VariableFriendlyName));
+
+		if (IsValidTarget)
+		{
+			CurrentHoverText = FText::Format(LOCTEXT("MoveVariableHere", "Move '{StructVariableName}' Here"), Args);
+			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.OK");
+		}
+		else
+		{
+			CurrentHoverText = FText::Format(LOCTEXT("CannotMoveVariableHere", "Cannot Move '{StructVariableName}' Here"), Args);
+			CurrentIconBrush = FEditorStyle::GetBrush("Graph.ConnectorFeedback.Error");
+		}
+	}
+
+	const TWeakPtr<FUserDefinedStructureDetails>& GetStructureDetails() const
+	{
+		return StructureDetails;
+	}
+
+	const FGuid& GetFieldGuid() const
+	{
+		return FieldGuid;
+	}
+
+private:
+	TWeakPtr<FUserDefinedStructureDetails> StructureDetails;
+	FGuid FieldGuid;
+	FString VariableFriendlyName;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
+// FUserDefinedStructureFieldDragDropHandler
+
+/** Handles drag-and-drop (as both source and target) for a single field's widget row */
+class FUserDefinedStructureFieldDragDropHandler : public IDetailDragDropHandler
+{
+public:
+	FUserDefinedStructureFieldDragDropHandler(TWeakPtr<FUserDefinedStructureDetails> InStructureDetails, const FGuid& InFieldGuid)
+		: StructureDetails(InStructureDetails)
+		, FieldGuid(InFieldGuid)
+	{
+	}
+
+	virtual TSharedPtr<FDragDropOperation> CreateDragDropOperation() const override
+	{
+		TSharedPtr<FUserDefinedStructureFieldDragDropOp> DragOp = MakeShared<FUserDefinedStructureFieldDragDropOp>(StructureDetails, FieldGuid);
+		DragOp->Init();
+		return DragOp;
+	}
+
+	virtual TOptional<EItemDropZone> CanAcceptDrop(const FDragDropEvent& DragDropSource, EItemDropZone DropZone) const override
+	{
+		const TSharedPtr<FUserDefinedStructureFieldDragDropOp> DragOp = DragDropSource.GetOperationAs<FUserDefinedStructureFieldDragDropOp>();
+		if (!DragOp.IsValid())
+		{
+			return TOptional<EItemDropZone>();
+		}
+
+		// Struct must match between drag source and drop target
+		const TSharedPtr<FUserDefinedStructureDetails> OtherStructureDetailsSP = DragOp->GetStructureDetails().Pin();
+		const TSharedPtr<FUserDefinedStructureDetails> MyStructureDetailsSP = StructureDetails.Pin();
+		if (!OtherStructureDetailsSP.IsValid() || !MyStructureDetailsSP.IsValid() || OtherStructureDetailsSP->GetUserDefinedStruct() != MyStructureDetailsSP->GetUserDefinedStruct())
+		{
+			DragOp->SetValidTarget(false);
+			return TOptional<EItemDropZone>();
+		}
+
+		// Struct fields must be moved above or below, so don't allow dropping directly onto a row
+		const EItemDropZone OverrideZone = (DropZone == EItemDropZone::BelowItem) ? EItemDropZone::BelowItem : EItemDropZone::AboveItem;
+		const FStructureEditorUtils::EMovePosition MovePosition = (OverrideZone == EItemDropZone::BelowItem) ? FStructureEditorUtils::PositionBelow : FStructureEditorUtils::PositionAbove;
+		if (!FStructureEditorUtils::CanMoveVariable(MyStructureDetailsSP->GetUserDefinedStruct(), DragOp->GetFieldGuid(), FieldGuid, MovePosition))
+		{
+			DragOp->SetValidTarget(false);
+			return TOptional<EItemDropZone>();
+		}
+
+		DragOp->SetValidTarget(true);
+		return OverrideZone;
+	}
+
+	virtual bool AcceptDrop(const FDragDropEvent& DragDropSource, EItemDropZone DropZone) const override
+	{
+		const TSharedPtr<FUserDefinedStructureFieldDragDropOp> DragOp = DragDropSource.GetOperationAs<FUserDefinedStructureFieldDragDropOp>();
+		if (!DragOp.IsValid())
+		{
+			return false;
+		}
+
+		// Struct must match between drag source and drop target
+		const TSharedPtr<FUserDefinedStructureDetails> OtherStructureDetailsSP = DragOp->GetStructureDetails().Pin();
+		const TSharedPtr<FUserDefinedStructureDetails> MyStructureDetailsSP = StructureDetails.Pin();
+		if (!OtherStructureDetailsSP.IsValid() || !MyStructureDetailsSP.IsValid() || OtherStructureDetailsSP->GetUserDefinedStruct() != MyStructureDetailsSP->GetUserDefinedStruct())
+		{
+			return false;
+		}
+
+		const FStructureEditorUtils::EMovePosition MovePosition = (DropZone == EItemDropZone::BelowItem) ? FStructureEditorUtils::PositionBelow : FStructureEditorUtils::PositionAbove;
+		return FStructureEditorUtils::MoveVariable(MyStructureDetailsSP->GetUserDefinedStruct(), DragOp->GetFieldGuid(), FieldGuid, MovePosition);
+	}
+
+private:
+	TWeakPtr<FUserDefinedStructureDetails> StructureDetails;
+	FGuid FieldGuid;
+};
+
+///////////////////////////////////////////////////////////////////////////////////////
 // FUserDefinedStructureFieldLayout
 
 //Represents single field
@@ -846,33 +982,13 @@ public:
 		}
 	}
 
-	FReply OnMoveUp()
-	{
-		auto StructureDetailsSP = StructureDetails.Pin();
-		if (StructureDetailsSP.IsValid() && !(PositionFlags & EMemberFieldPosition::MFP_First))
-		{
-			FStructureEditorUtils::MoveVariable(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid, FStructureEditorUtils::MD_Up);
-		}
-		return FReply::Handled();
-	}
-
-	FReply OnMoveDown()
-	{
-		auto StructureDetailsSP = StructureDetails.Pin();
-		if (StructureDetailsSP.IsValid() && !(PositionFlags & EMemberFieldPosition::MFP_Last))
-		{
-			FStructureEditorUtils::MoveVariable(StructureDetailsSP->GetUserDefinedStruct(), FieldGuid, FStructureEditorUtils::MD_Down);
-		}
-		return FReply::Handled();
-	}
-
 	virtual void GenerateHeaderRowContent( FDetailWidgetRow& NodeRow ) override 
 	{
 		auto K2Schema = GetDefault<UEdGraphSchema_K2>();
 
 		TSharedPtr<SImage> ErrorIcon;
 
-		const float ValueContentWidth = 250.0f;
+		const float ValueContentWidth = 200.0f;
 
 		NodeRow
 		.NameContent()
@@ -915,34 +1031,6 @@ public:
 				.TypeTreeFilter(ETypeTreeFilter::None)
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
 			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SButton)
-				.ContentPadding(0)
-				.OnClicked(this, &FUserDefinedStructureFieldLayout::OnMoveUp)
-				.IsEnabled(!(EMemberFieldPosition::MFP_First & PositionFlags))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronUp"))
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SButton)
-				.ContentPadding(0)
-				.OnClicked(this, &FUserDefinedStructureFieldLayout::OnMoveDown)
-				.IsEnabled(!(EMemberFieldPosition::MFP_Last & PositionFlags))
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("Icons.ChevronDown"))
-				]
-			]
 			+SHorizontalBox::Slot()
 			.AutoWidth()
 			.HAlign(HAlign_Right)
@@ -953,7 +1041,9 @@ public:
 					LOCTEXT("RemoveVariable", "Remove member variable"),
 					TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FUserDefinedStructureFieldLayout::IsRemoveButtonEnabled)))
 			]
-		];
+		]
+		.DragDropHandler(MakeShared<FUserDefinedStructureFieldDragDropHandler>(StructureDetails, FieldGuid))
+		;
 
 		if (ErrorIcon.IsValid())
 		{

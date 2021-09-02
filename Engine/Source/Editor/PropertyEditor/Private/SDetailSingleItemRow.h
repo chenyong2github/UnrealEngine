@@ -37,7 +37,6 @@ public:
 	};
 
 	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
-	TSharedPtr<class FArrayRowDragDropOp> CreateDragDropOperation(TSharedPtr<SDetailSingleItemRow> InRow);
 
 private:
 	TWeakPtr<SDetailSingleItemRow> ParentRow;
@@ -61,7 +60,7 @@ public:
 	 */
 	void Construct( const FArguments& InArgs, FDetailLayoutCustomization* InCustomization, bool bHasMultipleColumns, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView );
 
-	void SetIsDragDrop(bool bInIsDragDrop);
+	TSharedPtr<FDragDropOperation> CreateDragDropOperation();
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime);
 protected:
@@ -93,13 +92,14 @@ private:
 	bool IsBlacklistChecked() const;
 
 
-	void OnArrayDragLeave(const FDragDropEvent& DragDropEvent);
+	void OnArrayOrCustomDragLeave(const FDragDropEvent& DragDropEvent);
 	FReply OnArrayAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);
 	FReply OnArrayHeaderAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);
 
 	TOptional<EItemDropZone> OnArrayCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr< FDetailTreeNode > Type);
 
-	TSharedPtr<FPropertyNode> GetCopyPastePropertyNode() const;
+	FReply OnCustomAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> TargetItem);
+	TOptional<EItemDropZone> OnCustomCanAcceptDrop(const FDragDropEvent& DragDropEvent, EItemDropZone DropZone, TSharedPtr<FDetailTreeNode> Type);
 
 	/** Checks if the current drop event is being dropped into a valid location
 	 */
@@ -114,10 +114,10 @@ private:
 	FDetailLayoutCustomization* Customization;
 	FDetailWidgetRow WidgetRow;
 	bool bAllowFavoriteSystem;
-	bool bIsDragDropObject;
 	bool bCachedResetToDefaultEnabled;
 	TSharedPtr<FPropertyNode> SwappablePropertyNode;
 	TSharedPtr<SButton> ExpanderArrow;
+	TWeakPtr<FDragDropOperation> DragOperation; // last drag initiated by this widget
 };
 
 class FArrayRowDragDropOp : public FDecoratedDragDropOp
@@ -129,8 +129,6 @@ public:
 
 	/** Inits the tooltip, needs to be called after constructing */
 	void Init();
-
-	virtual void OnDrop(bool bDropWasHandled, const FPointerEvent& MouseEvent) override;
 
 	/** Update the drag tool tip indicating whether the current drop target is valid */
 	void SetValidTarget(bool IsValidTarget);
