@@ -161,21 +161,13 @@ public class GooglePlayStoreHelper implements StoreHelper
 						List<SkuDetails> skuDetailsList) 
 					{
 						// Process the result.
-						ArrayList<GooglePlayProductDescription> productDescriptions = new ArrayList<GooglePlayProductDescription>();
 						int response = billingResult.getResponseCode();
-						Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::QueryInAppPurchases - Response " + response + " SkuDetails:" + skuDetailsList.toString());
 
-						// Should we send JSON, or somehow serialize this so we can have random access fields?
-						ArrayList<String> productIds = new ArrayList<String>();
-						ArrayList<String> titles = new ArrayList<String>();
-						ArrayList<String> descriptions = new ArrayList<String>();
-						ArrayList<String> prices = new ArrayList<String>();
-						ArrayList<Float> pricesRaw = new ArrayList<Float>();
-						ArrayList<String> currencyCodes = new ArrayList<String>();
-						ArrayList<String> originalJson = new ArrayList<String>();
-
-						if(response == BillingClient.BillingResponseCode.OK)
+						if(response == BillingClient.BillingResponseCode.OK && skuDetailsList != null)
 						{
+							Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::QueryInAppPurchases - Response " + response + " SkuDetails:" + skuDetailsList.toString());
+							
+							ArrayList<GooglePlayProductDescription> productDescriptions = new ArrayList<GooglePlayProductDescription>();
 							for (SkuDetails thisSku : skuDetailsList)
 							{
 								GooglePlayProductDescription newDescription = new GooglePlayProductDescription();
@@ -189,6 +181,15 @@ public class GooglePlayStoreHelper implements StoreHelper
 								newDescription.originalJson = thisSku.getOriginalJson();
 								productDescriptions.add(newDescription);
 							}
+
+							// Should we send JSON, or somehow serialize this so we can have random access fields?
+							ArrayList<String> productIds = new ArrayList<String>();
+							ArrayList<String> titles = new ArrayList<String>();
+							ArrayList<String> descriptions = new ArrayList<String>();
+							ArrayList<String> prices = new ArrayList<String>();
+							ArrayList<Float> pricesRaw = new ArrayList<Float>();
+							ArrayList<String> currencyCodes = new ArrayList<String>();
+							ArrayList<String> originalJson = new ArrayList<String>();
 						
 							for (GooglePlayProductDescription product : productDescriptions)
 							{
@@ -214,6 +215,15 @@ public class GooglePlayStoreHelper implements StoreHelper
 								Log.debug("[GooglePlayStoreHelper] - original_json: " + product.originalJson);
 
 							}
+
+							float[] pricesRawPrimitive = new float[pricesRaw.size()];
+							for (int i = 0; i < pricesRaw.size(); i++)
+							{
+								pricesRawPrimitive[i] = pricesRaw.get(i);
+							}
+
+							Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::QueryInAppPurchases " + productIds.size() + " items - Success!");
+							nativeQueryComplete(BillingClient.BillingResponseCode.OK, productIds.toArray(new String[productIds.size()]), titles.toArray(new String[titles.size()]), descriptions.toArray(new String[descriptions.size()]), prices.toArray(new String[prices.size()]), pricesRawPrimitive, currencyCodes.toArray(new String[currencyCodes.size()]), originalJson.toArray(new String[originalJson.size()]));
 						}
 						else
 						{
@@ -222,14 +232,6 @@ public class GooglePlayStoreHelper implements StoreHelper
 							nativeQueryComplete(response, null, null, null, null, null, null, null);
 						}
 						
-						float[] pricesRawPrimitive = new float[pricesRaw.size()];
-						for (int i = 0; i < pricesRaw.size(); i++)
-						{
-							pricesRawPrimitive[i] = pricesRaw.get(i);
-						}
-
-						Log.debug("[GooglePlayStoreHelper] - GooglePlayStoreHelper::QueryInAppPurchases " + productIds.size() + " items - Success!");
-						nativeQueryComplete(BillingClient.BillingResponseCode.OK, productIds.toArray(new String[productIds.size()]), titles.toArray(new String[titles.size()]), descriptions.toArray(new String[descriptions.size()]), prices.toArray(new String[prices.size()]), pricesRawPrimitive, currencyCodes.toArray(new String[currencyCodes.size()]), originalJson.toArray(new String[originalJson.size()]));
 						Log.debug("[GooglePlayStoreHelper] - nativeQueryComplete done!");
 					}
 				}
@@ -272,7 +274,7 @@ public class GooglePlayStoreHelper implements StoreHelper
 				List<SkuDetails> skuDetailsList) 
 			{
 				int response = billingResult.getResponseCode();
-				if(response == BillingClient.BillingResponseCode.OK)
+				if(response == BillingClient.BillingResponseCode.OK && skuDetailsList != null)
 				{
 					for(SkuDetails skuDetails : skuDetailsList)
 					{
