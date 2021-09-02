@@ -78,6 +78,7 @@ struct FMobileShadingModelContext
 	half3 EnvBrdf;
 
 	half NoV;
+	float3 DiffuseDir;
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	half BaseMaterialCoverageOverWater;
@@ -153,6 +154,7 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 
 	// This is to prevent Vis to get inf when both NoL and NoV are 0.
 	ShadingModelContext.NoV = saturate(abs(NoV) + 1e-5);
+	ShadingModelContext.DiffuseDir = GBuffer.WorldNormal;
 
 #if NONMETAL
 	GBuffer.DiffuseColor = GBuffer.BaseColor;
@@ -213,6 +215,15 @@ void InitShadingModelContext(inout FMobileShadingModelContext ShadingModelContex
 		half RoughnessLerpFactor = saturate(ShadingModelContext.Opacity * 10.0f);
 		ShadingModelContext.Lobe0Roughness = lerp(1.0f, ShadingModelContext.Lobe0Roughness, RoughnessLerpFactor);
 		ShadingModelContext.Lobe1Roughness = lerp(1.0f, ShadingModelContext.Lobe1Roughness, RoughnessLerpFactor);
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+	{
+		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+		float3 N = GBuffer.WorldNormal;
+		float3 V = CameraVector;
+		float3 L = normalize(V - N * dot(V, N));
+		ShadingModelContext.DiffuseDir = L;
+		ShadingModelContext.DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
 	}
 #endif
 
@@ -344,12 +355,14 @@ FMobileDirectLighting MobileClearCoatBxDF(FMobileShadingModelContext ShadingMode
 
 FMobileDirectLighting MobileHairBxDF(FMobileShadingModelContext ShadingModelContext, FGBufferData GBuffer, half NoL, half NoH, half VoH, half3 V, half3 L, half Shadow)
 {
+	FHairTransmittanceData HairTransmittance = InitHairTransmittanceData();
+	const float3 BsdfValue = HairShading(GBuffer, L, V, GBuffer.WorldNormal, Shadow, HairTransmittance, 1, 0, uint2(0, 0));
+
+	half3 Transmission = BsdfValue * PI; // multiply PI since the LightColor is divided by PI in C++;
+
 	FMobileDirectLighting Lighting;
-
-	// TODO transmittance
-	Lighting.Specular = half3(0, 0, 0);
-	Lighting.Diffuse = half3(0, 0, 0);
-
+	Lighting.Diffuse = Transmission * Shadow;
+	Lighting.Specular = 0;
 	return Lighting;
 }
 
