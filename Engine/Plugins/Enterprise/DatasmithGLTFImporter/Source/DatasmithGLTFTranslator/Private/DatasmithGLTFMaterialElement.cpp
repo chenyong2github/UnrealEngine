@@ -42,6 +42,35 @@ void FDatasmithGLTFMaterialElement::SetTwoSided(bool bTwoSided)
 	MaterialElement->SetTwoSided(bTwoSided);
 }
 
+void FDatasmithGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel)
+{
+	EDatasmithShadingModel DatasmithShadingModel;
+
+	switch (InShadingModel)
+	{
+		case GLTF::EGLTFMaterialShadingModel::ClearCoat: 
+			DatasmithShadingModel = EDatasmithShadingModel::ClearCoat; 
+			break;
+		case GLTF::EGLTFMaterialShadingModel::Subsurface:
+			DatasmithShadingModel = EDatasmithShadingModel::Subsurface;
+			break;
+		case GLTF::EGLTFMaterialShadingModel::ThinTranslucent:
+			DatasmithShadingModel = EDatasmithShadingModel::ThinTranslucent;
+			break;
+		case GLTF::EGLTFMaterialShadingModel::DefaultLit:
+			DatasmithShadingModel = EDatasmithShadingModel::DefaultLit;
+			break;
+		default: DatasmithShadingModel = EDatasmithShadingModel::DefaultLit;
+	}
+
+	MaterialElement->SetShadingModel(DatasmithShadingModel);
+}
+
+void FDatasmithGLTFMaterialElement::SetTranslucencyLightingMode(int InLightingMode)
+{
+	MaterialElement->SetTranslucencyLightingMode(InLightingMode);
+}
+
 void FDatasmithGLTFMaterialElement::Finalize()
 {
 	check(!bIsFinal);

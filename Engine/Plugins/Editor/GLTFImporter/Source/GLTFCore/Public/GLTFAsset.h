@@ -17,6 +17,9 @@ namespace GLTF
 	{
 		KHR_MaterialsPbrSpecularGlossiness,
 		KHR_MaterialsUnlit,
+		KHR_MaterialsClearCoat,
+		KHR_MaterialsTransmission,
+		KHR_MaterialsSheen,
 		KHR_TextureTransform,
 		KHR_DracoMeshCompression,
 		KHR_LightsPunctual,

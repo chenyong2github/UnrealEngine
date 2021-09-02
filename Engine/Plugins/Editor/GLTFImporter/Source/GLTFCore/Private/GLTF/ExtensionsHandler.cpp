@@ -82,10 +82,14 @@ namespace GLTF
 		{
 			KHR_materials_pbrSpecularGlossiness = 0,
 			KHR_materials_unlit,
+			KHR_materials_clearcoat,
+			KHR_materials_transmission,
+			KHR_materials_sheen,
 			MSFT_packing_occlusionRoughnessMetallic,
 			MSFT_packing_normalRoughnessMetallic,
 		};
-		static const TArray<FString> Extensions = {TEXT("KHR_materials_pbrSpecularGlossiness"), TEXT("KHR_materials_unlit"),
+		static const TArray<FString> Extensions = {TEXT("KHR_materials_pbrSpecularGlossiness"), TEXT("KHR_materials_unlit"), TEXT("KHR_materials_clearcoat"),
+												   TEXT("KHR_materials_transmission"), TEXT("KHR_materials_sheen"),
 		                                           TEXT("MSFT_packing_occlusionRoughnessMetallic"), TEXT("MSFT_packing_normalRoughnessMetallic")};
 
 		const FJsonObject& ExtensionsObj = *Object.GetObjectField(TEXT("extensions"));
@@ -117,6 +121,45 @@ namespace GLTF
 				{
 					Material.bIsUnlitShadingModel = true;
 					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsUnlit);
+				}
+				break;
+				case KHR_materials_clearcoat:
+				{
+					const FJsonObject& ClearCoat = ExtObj;
+
+					Material.bHasClearCoat = true;
+
+					Material.ClearCoat.ClearCoatFactor = GetScalar(ClearCoat, TEXT("clearcoatFactor"), 1.0f);
+					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatTexture"), nullptr, Asset->Textures, Material.ClearCoat.ClearCoatMap);
+
+					Material.ClearCoat.Roughness = GetScalar(ClearCoat, TEXT("clearcoatRoughnessFactor"), 0.0f);
+					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatRoughnessTexture"), nullptr, Asset->Textures, Material.ClearCoat.RoughnessMap);
+
+					GLTF::SetTextureMap(ClearCoat, TEXT("clearcoatNormalTexture"), nullptr, Asset->Textures, Material.ClearCoat.NormalMap);
+
+					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsClearCoat);
+				}
+				break;
+				case KHR_materials_transmission:
+				{
+					const FJsonObject& Transm = ExtObj;
+
+					Material.bHasTransmission = true;
+
+					Material.Transmission.TransmissionFactor = GetScalar(Transm, TEXT("transmissionFactor"), 0.0f);
+					GLTF::SetTextureMap(Transm, TEXT("transmissionTexture"), nullptr, Asset->Textures, Material.Transmission.TransmissionMap);
+
+					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsTransmission);
+				}
+				break;
+				case KHR_materials_sheen:
+				{
+					const FJsonObject& Sheen = ExtObj;
+
+					Material.bHasSheen = true;
+					Material.Sheen.SheenColorFactor = GetVec3(Sheen, TEXT("sheenColorFactor"));
+
+					Asset->ExtensionsUsed.Add(EExtension::KHR_MaterialsSheen);
 				}
 				break;
 				case MSFT_packing_occlusionRoughnessMetallic:

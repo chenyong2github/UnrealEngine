@@ -239,6 +239,10 @@ public:
 	virtual float GetOpacityMaskClipValue() const = 0;
 	virtual void SetOpacityMaskClipValue(float InClipValue) = 0;
 
+	virtual int GetTranslucencyLightingMode() const = 0;
+	/** InMode must match the values of ETranslucencyLightingMode from EngineTypes.h */
+	virtual void SetTranslucencyLightingMode(int InMode) = 0;
+
 	virtual int32 GetExpressionsCount() const = 0;
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) = 0;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const = 0;

@@ -208,6 +208,12 @@ namespace GLTF
 				return TEXT("KHR_Materials_PbrSpecularGlossiness");
 			case GLTF::EExtension::KHR_MaterialsUnlit:
 				return TEXT("KHR_Materials_Unlit");
+			case GLTF::EExtension::KHR_MaterialsClearCoat:
+				return TEXT("KHR_MaterialsClearCoat");
+			case GLTF::EExtension::KHR_MaterialsSheen:
+				return TEXT("KHR_MaterialsSheen");
+			case GLTF::EExtension::KHR_MaterialsTransmission:
+				return TEXT("KHR_MaterialsTransmission");
 			case GLTF::EExtension::KHR_TextureTransform:
 				return TEXT("KHR_Texture_Transform");
 			case GLTF::EExtension::KHR_DracoMeshCompression:
