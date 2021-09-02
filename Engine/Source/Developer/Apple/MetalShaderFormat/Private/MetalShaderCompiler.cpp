@@ -807,17 +807,6 @@ void BuildMetalShaderOutput(
 	External interface.
 ------------------------------------------------------------------------------*/
 
-static const EHlslShaderFrequency FrequencyTable[] =
-{
-	HSF_VertexShader,
-	HSF_InvalidFrequency,
-	HSF_InvalidFrequency,
-	HSF_PixelShader,
-	HSF_InvalidFrequency,
-	HSF_ComputeShader
-};
-static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
-
 FString CreateRemoteDataFromEnvironment(const FShaderCompilerEnvironment& Environment)
 {
 	FString Line = TEXT("\n#if 0 /*BEGIN_REMOTE_SERVER*/\n");
@@ -1143,14 +1132,14 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	char* MetalShaderSource = NULL;
 	char* ErrorLog = NULL;
 
-	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
-	if (Frequency == HSF_InvalidFrequency)
+	const EShaderFrequency Frequency = Input.Target.Frequency;
+	if (!(Frequency == SF_Vertex || Frequency == SF_Pixel || Frequency == SF_Compute))
 	{
 		Output.bSucceeded = false;
 		FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 		NewError->StrippedErrorMessage = FString::Printf(
 			TEXT("%s shaders not supported for use in Metal."),
-			CrossCompiler::GetFrequencyName((EShaderFrequency)Input.Target.Frequency)
+			CrossCompiler::GetFrequencyName(Frequency)
 			);
 		return;
 	}

@@ -163,7 +163,7 @@ bool FMetalShaderBytecodeCooker::Build(TArray<uint8>& OutData)
 	return bSuccess;
 }
 
-FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _Input, FShaderCompilerOutput& _Output, const FString& _WorkingDirectory, FString _PreprocessedShader, FSHAHash _GUIDHash, uint8 _VersionEnum, uint32 _CCFlags, EHlslCompileTarget _HlslCompilerTarget, EHlslCompileTarget _MetalCompilerTarget, EMetalGPUSemantics _Semantics, EMetalTypeBufferMode _TypeMode, uint32 _MaxUnrollLoops, EHlslShaderFrequency _Frequency, bool _bDumpDebugInfo, FString _Standard, FString _MinOSVersion)
+FMetalShaderOutputCooker::FMetalShaderOutputCooker(const FShaderCompilerInput& _Input, FShaderCompilerOutput& _Output, const FString& _WorkingDirectory, FString _PreprocessedShader, FSHAHash _GUIDHash, uint8 _VersionEnum, uint32 _CCFlags, EHlslCompileTarget _HlslCompilerTarget, EHlslCompileTarget _MetalCompilerTarget, EMetalGPUSemantics _Semantics, EMetalTypeBufferMode _TypeMode, uint32 _MaxUnrollLoops, EShaderFrequency _Frequency, bool _bDumpDebugInfo, FString _Standard, FString _MinOSVersion)
 	: Input(_Input)
 	, Output(_Output)
 	, WorkingDirectory(_WorkingDirectory)
@@ -381,7 +381,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 
 		// Always disable FMA pass for Pixel and Compute shader,
 		// otherwise determine whether [[position, invariant]] qualifier is available in Metal or not.
-		if (Frequency == HSF_PixelShader || Frequency == HSF_ComputeShader)
+		if (Frequency == SF_Pixel || Frequency == SF_Compute)
 		{
 			Options.bEnableFMAPass = false;
 		}
@@ -423,7 +423,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		
 		CrossCompiler::FHlslccHeaderWriter CCHeaderWriter;
 
-		EHlslShaderFrequency Freq = Frequency;
 		FString ALNString;
 		uint32 IABOffsetIndex = 0;
 		uint64 BufferIndices = 0xffffffffffffffff;
@@ -542,7 +541,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					switch (Mode->mode) {
 						case SpvExecutionModeLocalSize:
 						case SpvExecutionModeLocalSizeHint:
-							if (Frequency == HSF_ComputeShader)
+							if (Frequency == SF_Compute)
 							{
 								check(Mode->operands_count == 3);
 								CCHeaderWriter.WriteNumThreads(Mode->operands[0], Mode->operands[1], Mode->operands[2]);
@@ -923,7 +922,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				}
 			}
 			
-			if (Frequency == HSF_PixelShader)
+			if (Frequency == SF_Pixel)
 			{
 				ReflectionBindings.GatherOutputAttributes(Reflection);
 				for (auto const& Var : ReflectionBindings.OutputAttributes)
@@ -960,7 +959,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				}
 			}
 			
-			if (Frequency == HSF_VertexShader)
+			if (Frequency == SF_Vertex)
 			{
 				uint32 AssignedInputs = 0;
 

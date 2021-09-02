@@ -1947,6 +1947,7 @@ static bool BuildShaderOutputFromSpirv(
 static bool CompileWithShaderConductor(
 	const FString&			PreprocessedShader,
 	const FString&			EntryPointName,
+	EShaderFrequency		Frequency,
 	const FCompilerInfo&	CompilerInfo,
 	EHlslCompileTarget		HlslCompilerTarget,
 	FShaderCompilerOutput&	Output,
@@ -1971,7 +1972,7 @@ static bool CompileWithShaderConductor(
 	}
 
 	// Load shader source into compiler context
-	CompilerContext.LoadSource(PreprocessedShader, Input.VirtualSourceFilePath, EntryPointName, CompilerInfo.Frequency, &AdditionalDefines);
+	CompilerContext.LoadSource(PreprocessedShader, Input.VirtualSourceFilePath, EntryPointName, Frequency, &AdditionalDefines);
 
 	// Initialize compilation options for ShaderConductor
 	CrossCompiler::FShaderConductorOptions Options;
@@ -2048,14 +2049,16 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 		bIsSM5 ? HSF_RayCallable : HSF_InvalidFrequency,
 	};
 
-	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
-	if (Frequency == HSF_InvalidFrequency)
+	const EShaderFrequency Frequency = (EShaderFrequency)Input.Target.Frequency;
+
+	const EHlslShaderFrequency HlslFrequency = FrequencyTable[Input.Target.Frequency];
+	if (HlslFrequency == HSF_InvalidFrequency)
 	{
 		Output.bSucceeded = false;
 		FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
 		NewError->StrippedErrorMessage = FString::Printf(
 			TEXT("%s shaders not supported for use in Vulkan."),
-			CrossCompiler::GetFrequencyName((EShaderFrequency)Input.Target.Frequency));
+			CrossCompiler::GetFrequencyName(Frequency));
 		return;
 	}
 
@@ -2129,7 +2132,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 	RemoveUniformBuffersFromSource(Input.Environment, PreprocessedShaderSource);
 
-	FCompilerInfo CompilerInfo(Input, WorkingDirectory, Frequency);
+	FCompilerInfo CompilerInfo(Input, WorkingDirectory, HlslFrequency);
 
 	// Setup hlslcc flags. Needed here as it will be used when dumping debug info
 	{
@@ -2174,7 +2177,7 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 
 #if PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	// Cross-compile shader via ShaderConductor (DXC, SPIRV-Tools, SPIRV-Cross)
-	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bStripReflect);
+	bSuccess = CompileWithShaderConductor(PreprocessedShaderSource, EntryPointName, Frequency, CompilerInfo, HlslCompilerTarget, Output, BindingTable, bStripReflect);
 #endif // PLATFORM_MAC || PLATFORM_WINDOWS || PLATFORM_LINUX
 	
 	ShaderParameterParser.ValidateShaderParameterTypes(Input, Output);

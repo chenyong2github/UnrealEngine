@@ -169,24 +169,26 @@ namespace CrossCompiler
 		return false;
 	}
 
-	static ShaderConductor::ShaderStage ToShaderConductorShaderStage(EHlslShaderFrequency Frequency)
+	static ShaderConductor::ShaderStage ToShaderConductorShaderStage(EShaderFrequency Frequency)
 	{
-		check(Frequency >= HSF_VertexShader && Frequency <= HSF_RayCallable);
+		check(Frequency >= SF_Vertex && Frequency <= SF_RayCallable);
 		switch (Frequency)
 		{
-		case HSF_VertexShader:		return ShaderConductor::ShaderStage::VertexShader;
-		case HSF_PixelShader:		return ShaderConductor::ShaderStage::PixelShader;
-		case HSF_GeometryShader:	return ShaderConductor::ShaderStage::GeometryShader;
-		case HSF_HullShader:		return ShaderConductor::ShaderStage::HullShader;
-		case HSF_DomainShader:		return ShaderConductor::ShaderStage::DomainShader;
-		case HSF_ComputeShader:		return ShaderConductor::ShaderStage::ComputeShader;
+		case SF_Vertex:			return ShaderConductor::ShaderStage::VertexShader;
+		case SF_Mesh:			checkf(0, TEXT("SF_Mesh not support in ShaderConductor")); break;
+		case SF_Amplification:	checkf(0, TEXT("SF_Amplification not support in ShaderConductor")); break;
+		case SF_Pixel:			return ShaderConductor::ShaderStage::PixelShader;
+		case SF_Geometry:		return ShaderConductor::ShaderStage::GeometryShader;
+		case SF_Compute:		return ShaderConductor::ShaderStage::ComputeShader;
 
-		case HSF_RayGen:			return ShaderConductor::ShaderStage::RayGen;
-		case HSF_RayMiss:			return ShaderConductor::ShaderStage::RayMiss;
-		case HSF_RayHitGroup:		return ShaderConductor::ShaderStage::RayHitGroup;
-		case HSF_RayCallable:		return ShaderConductor::ShaderStage::RayCallable;
-		default:					return ShaderConductor::ShaderStage::NumShaderStages;
+		case SF_RayGen:			return ShaderConductor::ShaderStage::RayGen;
+		case SF_RayMiss:		return ShaderConductor::ShaderStage::RayMiss;
+		case SF_RayHitGroup:	return ShaderConductor::ShaderStage::RayHitGroup;
+		case SF_RayCallable:	return ShaderConductor::ShaderStage::RayCallable;
+
+		default: break;
 		}
+		return ShaderConductor::ShaderStage::NumShaderStages;
 	}
 
 	static ShaderConductor::Compiler::ShaderModel ToShaderConductorShaderModel(EHlslCompileTarget Target)
@@ -483,7 +485,7 @@ namespace CrossCompiler
 		return *this;
 	}
 
-	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		// Convert FString to ANSI string and store them as intermediates
 		ConvertFStringToAnsiString(ShaderSource, Intermediates->ShaderSource);
@@ -507,7 +509,7 @@ namespace CrossCompiler
 		return true;
 	}
 
-	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		// Store ANSI strings as intermediates
 		CopyAnsiString(ShaderSource, Intermediates->ShaderSource);
@@ -838,12 +840,12 @@ namespace CrossCompiler
 		return *this; // Dummy
 	}
 
-	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
+	bool FShaderConductorContext::LoadSource(const FString& ShaderSource, const FString& Filename, const FString& EntryPoint, EShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		return false; // Dummy
 	}
 
-	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EHlslShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
+	bool FShaderConductorContext::LoadSource(const ANSICHAR* ShaderSource, const ANSICHAR* Filename, const ANSICHAR* EntryPoint, EShaderFrequency ShaderStage, const FShaderCompilerDefinitions* Definitions, const TArray<FString>* ExtraDxcArgs)
 	{
 		return false; // Dummy
 	}
@@ -917,23 +919,35 @@ namespace CrossCompiler
 		return IdentifierTable;
 	}
 
-	EHlslShaderFrequency FShaderConductorContext::MapShaderFrequency(EShaderFrequency Frequency)
+	static const TCHAR* GetGlslShaderFileExt(EShaderFrequency ShaderStage)
 	{
-		const EHlslShaderFrequency FrequencyTable[] =
+		switch (ShaderStage)
 		{
-			HSF_VertexShader,		// SF_Vertex
-			HSF_InvalidFrequency,	// SF_Mesh
-			HSF_InvalidFrequency,	// SF_Amplification
-			HSF_PixelShader,		// SF_Pixel
-			HSF_GeometryShader,		// SF_Geometry
-			HSF_ComputeShader,		// SF_Compute
-			HSF_RayGen,				// SF_RayGen
-			HSF_RayMiss,			// SF_RayMiss
-			HSF_RayHitGroup,		// SF_RayHitGroup
-			HSF_RayCallable,		// SF_RayCallable
-		};
-		const uint32 FrequencyIndex = static_cast<uint32>(Frequency);
-		return (FrequencyIndex < UE_ARRAY_COUNT(FrequencyTable) ? FrequencyTable[FrequencyIndex] : HSF_InvalidFrequency);
+		case SF_Vertex:			return TEXT("vert");
+		case SF_Mesh:			return TEXT("mesh");
+		case SF_Amplification:	return TEXT("task");
+		case SF_Pixel:			return TEXT("frag");
+		case SF_Geometry:		return TEXT("geom");
+		case SF_Compute:		return TEXT("comp");
+		case SF_RayGen:			return TEXT("rgen");
+		case SF_RayMiss:		return TEXT("rmiss");
+		case SF_RayHitGroup:	return TEXT("rahit"); // rahit/rchit
+		case SF_RayCallable:	return TEXT("rcall");
+		default:				return TEXT("glsl");
+		}
+	}
+
+	const TCHAR* FShaderConductorContext::GetShaderFileExt(EShaderConductorLanguage Language, EShaderFrequency ShaderStage)
+	{
+		switch (Language)
+		{
+		case EShaderConductorLanguage::Hlsl:		return TEXT("hlsl");
+		case EShaderConductorLanguage::Glsl:		[[fallthrough]];
+		case EShaderConductorLanguage::Essl:		return GetGlslShaderFileExt(ShaderStage);
+		case EShaderConductorLanguage::Metal_macOS: [[fallthrough]];
+		case EShaderConductorLanguage::Metal_iOS:	return TEXT("metal");
+		default:									return TEXT("");
+		}
 	}
 
 } // namespace CrossCompiler
