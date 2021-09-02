@@ -1376,7 +1376,7 @@ void FHLSLMaterialTranslator::ValidateShadingModelsForFeatureLevel(const FMateri
 {
 	if (FeatureLevel <= ERHIFeatureLevel::ES3_1)
 	{
-		const TArray<EMaterialShadingModel>& InvalidShadingModels = { MSM_Hair, MSM_Eye };
+		const TArray<EMaterialShadingModel>& InvalidShadingModels = { MSM_Eye };
 		for (EMaterialShadingModel InvalidShadingModel : InvalidShadingModels)
 		{
 			if (ShadingModels.HasShadingModel(InvalidShadingModel))

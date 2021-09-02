@@ -736,19 +736,6 @@ void Main(
 	}
 #endif
 	InitShadingModelContext(ShadingModelContext, GBuffer, MaterialParameters.CameraVector);
-	float3 DiffuseDir = MaterialParameters.WorldNormal;
-
-#if MATERIAL_SHADINGMODEL_HAIR && MOBILE_SHADINGMODEL_SUPPORT
-	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
-	{
-		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
-		float3 N = MaterialParameters.WorldNormal;
-		float3 V = MaterialParameters.CameraVector;
-		float3 L = normalize(V - N * dot(V, N));
-		DiffuseDir = L;
-		ShadingModelContext.DiffuseColor = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
-	}
-#endif
 
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
 #if LIGHTMAP_VT_ENABLED
@@ -780,7 +767,7 @@ void Main(
 #endif
 
 	// Apply MaterialAO since we don't have the DiffuseIndirectComposite pass on mobile deferred.
-	ComputeIndirect(LightmapVTPageTableResult, Interpolants, DiffuseDir, DiffuseColorForIndirect, MaterialAO, IndirectIrradiance, MobileLightAccumulator);
+	ComputeIndirect(LightmapVTPageTableResult, Interpolants, ShadingModelContext.DiffuseDir, DiffuseColorForIndirect, MaterialAO, IndirectIrradiance, MobileLightAccumulator);
 
 	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
