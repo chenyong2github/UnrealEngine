@@ -307,37 +307,26 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 
 			TSharedPtr<SWidget> ExtensionWidget = WidgetRow.ExtensionWidget.Widget;
 
-			TAttribute<bool> IsEnabledAttribute;
-			if (WidgetRow.IsEnabledAttr.IsSet() || WidgetRow.IsEnabledAttr.IsBound())
-			{
-				TAttribute<bool> RowEnabledAttr = WidgetRow.IsEnabledAttr;
-				TAttribute<bool> PropertyEnabledAttr = InOwnerTreeNode->IsPropertyEditingEnabled();
-				IsEnabledAttribute = TAttribute<bool>::Create(
-					[RowEnabledAttr, PropertyEnabledAttr]()
-					{
-						return RowEnabledAttr.Get() && PropertyEnabledAttr.Get();
-					});
-			}
-			else
-			{
-				IsEnabledAttribute = InOwnerTreeNode->IsPropertyEditingEnabled();
-			}
+			// copies of attributes for lambda captures
+			TAttribute<bool> PropertyEnabledAttribute = InOwnerTreeNode->IsPropertyEditingEnabled();
+			TAttribute<bool> RowEditConditionAttribute = WidgetRow.EditConditionValue;
+			TAttribute<bool> RowIsEnabledAttribute = WidgetRow.IsEnabledAttr;
 
-			TAttribute<bool> IsValueWidgetEnabledAttribute;
-			if (WidgetRow.IsValueEnabledAttr.IsSet() || WidgetRow.IsValueEnabledAttr.IsBound()) {
-				TAttribute<bool> ValueEnabledAttr = WidgetRow.IsValueEnabledAttr;
-				IsValueWidgetEnabledAttribute = TAttribute<bool>::Create(
-					[IsEnabledAttribute, ValueEnabledAttr]()
-					{
-						return IsEnabledAttribute.Get() && ValueEnabledAttr.Get();
-					});
-			}
-			else {
-				IsValueWidgetEnabledAttribute = IsEnabledAttribute;
-			}
+			TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::CreateLambda(
+				[PropertyEnabledAttribute, RowIsEnabledAttribute, RowEditConditionAttribute]()
+				{
+					return PropertyEnabledAttribute.Get() && RowIsEnabledAttribute.Get(true) && RowEditConditionAttribute.Get(true);
+				});
+
+			TAttribute<bool> RowIsValueEnabledAttribute = WidgetRow.IsValueEnabledAttr;
+			TAttribute<bool> IsValueEnabledAttribute = TAttribute<bool>::CreateLambda(
+				[IsEnabledAttribute, RowIsValueEnabledAttribute]()
+				{
+					return IsEnabledAttribute.Get() && RowIsValueEnabledAttribute.Get(true);
+				});
 
 			NameWidget->SetEnabled(IsEnabledAttribute);
-			ValueWidget->SetEnabled(IsValueWidgetEnabledAttribute);
+			ValueWidget->SetEnabled(IsValueEnabledAttribute);
 			ExtensionWidget->SetEnabled(IsEnabledAttribute);
 
 			TSharedRef<SSplitter> Splitter = SNew(SSplitter)

@@ -279,7 +279,7 @@ void FDetailPropertyRow::OnItemNodeInitialized( TSharedRef<FDetailCategoryImpl> 
 		FixEmptyHeaderRowInContainers(PropertyHandle, CustomPropertyWidget);
 
 		// set initial value of enabled attribute to settings from struct customization
-		if (CustomPropertyWidget->IsEnabledAttr.IsBound())
+		if (CustomPropertyWidget->IsEnabledAttr.IsSet())
 		{
 			CustomIsEnabledAttrib = CustomPropertyWidget->IsEnabledAttr;
 		}		
@@ -332,12 +332,7 @@ void FDetailPropertyRow::OnGenerateChildren( FDetailNodeList& OutChildren )
 void FDetailPropertyRow::GenerateChildrenForPropertyNode( TSharedPtr<FPropertyNode>& RootPropertyNode, FDetailNodeList& OutChildren )
 {
 	// Children should be disabled if we are disabled
-	TAttribute<bool> ParentEnabledState = CustomIsEnabledAttrib;
-	if( IsParentEnabled.IsBound() || HasEditCondition() )
-	{
-		// Bind a delegate to the edit condition so our children will be disabled if the edit condition fails
-		ParentEnabledState.Bind( this, &FDetailPropertyRow::GetEnabledState );
-	}
+	TAttribute<bool> ParentEnabledState = TAttribute<bool>::CreateSP(this, &FDetailPropertyRow::GetEnabledState);
 
 	if( PropertyTypeLayoutBuilder.IsValid() && bShowCustomPropertyChildren )
 	{
@@ -636,14 +631,18 @@ bool FDetailPropertyRow::GetEnabledState() const
 {
 	bool Result = IsParentEnabled.Get();
 
-	if (CustomEditConditionValue.IsSet())
+	Result = Result && CustomIsEnabledAttrib.Get(true);
+
+	if (HasEditCondition())
 	{
-		Result = Result && CustomEditConditionValue.Get();
-	}
-	
-	if (CustomIsEnabledAttrib.IsSet())
-	{
-		Result = Result && CustomIsEnabledAttrib.Get();
+		if (CustomEditConditionValue.IsSet())
+		{
+			Result = Result && CustomEditConditionValue.Get();
+		}
+		else
+		{
+			Result = Result && PropertyEditor->IsEditConditionMet();
+		}
 	}
 
 	return Result;
@@ -692,7 +691,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 {
 	// set edit condition handlers - use customized if provided
 	TAttribute<bool> EditConditionValue = CustomEditConditionValue;
-	if (!EditConditionValue.IsSet() && !EditConditionValue.IsBound())
+	if (!EditConditionValue.IsSet())
 	{
 		EditConditionValue = TAttribute<bool>(PropertyEditor.ToSharedRef(), &FPropertyEditor::IsEditConditionMet);
 	}
@@ -710,6 +709,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 	}
 
 	Row.EditCondition(EditConditionValue, OnEditConditionValueChanged);
+	Row.IsEnabled(CustomIsEnabledAttrib);
 	Row.CustomResetToDefault = CustomResetToDefault;
 	Row.PropertyHandles.Add(GetPropertyHandle());
 
@@ -742,15 +742,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		HorizontalAlignment = InCustomRow->NameWidget.HorizontalAlignment;
 	}
 
-	TAttribute<bool> IsEnabledAttrib; 
-	if (CustomIsEnabledAttrib.IsBound() || CustomIsEnabledAttrib.IsSet())
-	{
-		IsEnabledAttrib = CustomIsEnabledAttrib;
-	}
-	else
-	{
-		IsEnabledAttrib.Bind( this, &FDetailPropertyRow::GetEnabledState );
-	}
+	TAttribute<bool> IsEnabledAttrib = TAttribute<bool>::CreateSP( this, &FDetailPropertyRow::GetEnabledState );
 
 	TSharedRef<SHorizontalBox> NameHorizontalBox = SNew(SHorizontalBox)
 		.Clipping(EWidgetClipping::OnDemand);
@@ -840,15 +832,7 @@ void FDetailPropertyRow::MakeValueWidget( FDetailWidgetRow& Row, const TSharedPt
 		HorizontalAlignment = InCustomRow->ValueWidget.HorizontalAlignment;
 	}
 
-	TAttribute<bool> IsEnabledAttrib; 
-	if (CustomIsEnabledAttrib.IsBound() || CustomIsEnabledAttrib.IsSet())
-	{
-		IsEnabledAttrib = CustomIsEnabledAttrib;
-	}
-	else
-	{
-		IsEnabledAttrib.Bind( this, &FDetailPropertyRow::GetEnabledState );
-	}
+	TAttribute<bool> IsEnabledAttrib = TAttribute<bool>::CreateSP( this, &FDetailPropertyRow::GetEnabledState );
 
 	TSharedRef<SHorizontalBox> ValueWidget = 
 		SNew( SHorizontalBox )
