@@ -266,11 +266,8 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 		// We make some slight modifications to the row here before giving it to OutRow
 		if (HasMultiColumnWidget())
 		{
-			TSharedPtr<SWidget> NameWidget;
-			TSharedPtr<SWidget> ValueWidget;
-
-			NameWidget = Row.NameWidget.Widget;
-			ValueWidget =
+			TSharedPtr<SWidget> NameWidget = Row.NameWidget.Widget;
+			TSharedPtr<SWidget> ValueWidget =
 				SNew(SConstrainedBox)
 				.MinWidth(Row.ValueWidget.MinWidth)
 				.MaxWidth(Row.ValueWidget.MaxWidth)
@@ -278,10 +275,38 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 					Row.ValueWidget.Widget
 				];
 
-			if (Row.IsEnabledAttr.IsSet() || Row.IsEnabledAttr.IsBound())
+			if (Row.IsEnabledAttr.IsSet() || Row.IsValueEnabledAttr.IsSet() || Row.EditConditionValue.IsSet())
 			{
-				NameWidget->SetEnabled(Row.IsEnabledAttr);
-				ValueWidget->SetEnabled(Row.IsEnabledAttr);
+				// copies of attributes for lambda captures
+				TAttribute<bool> PropertyEnabledAttribute = IsPropertyEditingEnabled();
+				TAttribute<bool> RowIsEnabledAttribute = Row.IsEnabledAttr;
+				TAttribute<bool> RowEditConditionAttribute = Row.EditConditionValue;
+
+				TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::CreateLambda(
+					[PropertyEnabledAttribute, RowIsEnabledAttribute, RowEditConditionAttribute]()
+					{
+						return PropertyEnabledAttribute.Get() && RowIsEnabledAttribute.Get(true) && RowEditConditionAttribute.Get(true);
+					});
+
+				// there's an unavoidable conflict here if the user customizes the widget to have a custom IsEnabled,
+				// and a custom EditCondition/IsEnabled on the widget row - we choose to favor the row in this case
+				NameWidget->SetEnabled(IsEnabledAttribute);
+
+				if (Row.IsValueEnabledAttr.IsSet())
+				{
+					TAttribute<bool> RowIsValueEnabledAttribute = Row.IsValueEnabledAttr;
+					TAttribute<bool> IsValueWidgetEnabledAttribute = TAttribute<bool>::CreateLambda(
+						[IsEnabledAttribute, RowIsValueEnabledAttribute]()
+						{
+							return IsEnabledAttribute.Get() && RowIsValueEnabledAttribute.Get(true);
+						});
+
+					ValueWidget->SetEnabled(IsValueWidgetEnabledAttribute);
+				}
+				else
+				{
+					ValueWidget->SetEnabled(IsEnabledAttribute);
+				}
 			}
 
 			OutRow.NameContent()
@@ -303,7 +328,7 @@ bool FDetailItemNode::GenerateStandaloneWidget(FDetailWidgetRow& OutRow) const
 		}
 
 		OutRow.CustomResetToDefault = Row.CustomResetToDefault;
-
+		OutRow.IsEnabledAttr = Row.IsEnabledAttr;
 		OutRow.EditConditionValue = Row.EditConditionValue;
 		OutRow.OnEditConditionValueChanged = Row.OnEditConditionValueChanged;
 
