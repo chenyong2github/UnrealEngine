@@ -6,7 +6,7 @@
 #include "UObject/GCObject.h"
 #include "Chaos/Core.h"
 
-enum EPhysicsProxyType
+enum class EPhysicsProxyType : uint32
 {
 	NoneType = 0,
 	StaticMeshType = 1,

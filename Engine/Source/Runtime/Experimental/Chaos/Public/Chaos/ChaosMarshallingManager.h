@@ -59,8 +59,8 @@ public:
 	{
 		if(Base->GetDirtyIdx() == INDEX_NONE)
 		{
-			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[Base->GetType()];
-			++DirtyProxyBucketInfo.Num[Base->GetType()];
+			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[(uint32)Base->GetType()];
+			++DirtyProxyBucketInfo.Num[(uint32)Base->GetType()];
 			++DirtyProxyBucketInfo.TotalNum;
 
 			const int32 Idx = Bucket.ProxiesData.Num();
@@ -76,7 +76,7 @@ public:
 	{
 		if(ProxiesArray.Num())
 		{
-			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[ProxiesArray[0]->GetType()];
+			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[(uint32)ProxiesArray[0]->GetType()];
 			int32 Idx = Bucket.ProxiesData.Num();
 			Bucket.ProxiesData.Append(ProxiesArray);
 
@@ -86,7 +86,7 @@ public:
 				ensure(ProxiesArray[0]->GetType() == Proxy->GetType());
 			}
 
-			DirtyProxyBucketInfo.Num[ProxiesArray[0]->GetType()] += ProxiesArray.Num();
+			DirtyProxyBucketInfo.Num[(uint32)ProxiesArray[0]->GetType()] += ProxiesArray.Num();
 			DirtyProxyBucketInfo.TotalNum += ProxiesArray.Num();
 		}
 		
@@ -98,12 +98,12 @@ public:
 		const int32 Idx = Base->GetDirtyIdx();
 		if(Idx != INDEX_NONE)
 		{
-			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[Base->GetType()];
+			FDirtyProxiesBucket& Bucket = DirtyProxyBuckets[(uint32)Base->GetType()];
 			if(Idx == Bucket.ProxiesData.Num() - 1)
 			{
 				//last element so just pop
 				Bucket.ProxiesData.Pop(/*bAllowShrinking=*/false);
-				--DirtyProxyBucketInfo.Num[Base->GetType()];
+				--DirtyProxyBucketInfo.Num[(uint32)Base->GetType()];
 				--DirtyProxyBucketInfo.TotalNum;
 			}
 			else if(Bucket.ProxiesData.IsValidIndex(Idx))
@@ -111,7 +111,7 @@ public:
 				//update other proxy's idx
 				Bucket.ProxiesData.RemoveAtSwap(Idx);
 				Bucket.ProxiesData[Idx].SetDirtyIdx(Idx);
-				--DirtyProxyBucketInfo.Num[Base->GetType()];
+				--DirtyProxyBucketInfo.Num[(uint32)Base->GetType()];
 				--DirtyProxyBucketInfo.TotalNum;
 			}
 
@@ -134,7 +134,7 @@ public:
 	int32 NumDirtyShapes() const { return ShapesData.Num(); }
 
 	FShapeDirtyData* GetShapesDirtyData(){ return ShapesData.GetData(); }
-	FDirtyProxy& GetDirtyProxyAt(EPhysicsProxyType ProxyType, int32 Idx) { return DirtyProxyBuckets[ProxyType].ProxiesData[Idx]; }
+	FDirtyProxy& GetDirtyProxyAt(EPhysicsProxyType ProxyType, int32 Idx) { return DirtyProxyBuckets[(uint32)ProxyType].ProxiesData[Idx]; }
 
 	template <typename Lambda>
 	void ParallelForEachProxy(const Lambda& Func)
@@ -161,7 +161,7 @@ public:
 	template <typename Lambda>
 	void ForEachProxy(const Lambda& Func)
 	{
-		for(int32 BucketIdx = 0; BucketIdx < EPhysicsProxyType::Count; ++BucketIdx)
+		for(int32 BucketIdx = 0; BucketIdx < (uint32)EPhysicsProxyType::Count; ++BucketIdx)
 		{
 			int32 Idx = 0;
 			for (FDirtyProxy& Dirty : DirtyProxyBuckets[BucketIdx].ProxiesData)
@@ -174,7 +174,7 @@ public:
 	template <typename Lambda>
 	void ForEachProxy(const Lambda& Func) const
 	{
-		for (int32 BucketIdx = 0; BucketIdx < EPhysicsProxyType::Count; ++BucketIdx)
+		for (int32 BucketIdx = 0; BucketIdx < (uint32)EPhysicsProxyType::Count; ++BucketIdx)
 		{
 			int32 Idx = 0;
 			for (const FDirtyProxy& Dirty : DirtyProxyBuckets[BucketIdx].ProxiesData)
@@ -187,7 +187,7 @@ public:
 	void AddShape(IPhysicsProxyBase* Proxy,int32 ShapeIdx)
 	{
 		Add(Proxy);
-		FDirtyProxy& Dirty = DirtyProxyBuckets[Proxy->GetType()].ProxiesData[Proxy->GetDirtyIdx()];
+		FDirtyProxy& Dirty = DirtyProxyBuckets[(uint32)Proxy->GetType()].ProxiesData[(uint32)Proxy->GetDirtyIdx()];
 		for(int32 NewShapeIdx = Dirty.ShapeDataIndices.Num(); NewShapeIdx <= ShapeIdx; ++NewShapeIdx)
 		{
 			const int32 ShapeDataIdx = ShapesData.Add(FShapeDirtyData(NewShapeIdx));
@@ -198,7 +198,7 @@ public:
 	void SetNumDirtyShapes(IPhysicsProxyBase* Proxy,int32 NumShapes)
 	{
 		Add(Proxy);
-		FDirtyProxy& Dirty = DirtyProxyBuckets[Proxy->GetType()].ProxiesData[Proxy->GetDirtyIdx()];
+		FDirtyProxy& Dirty = DirtyProxyBuckets[(uint32)Proxy->GetType()].ProxiesData[Proxy->GetDirtyIdx()];
 
 		if(NumShapes < Dirty.ShapeDataIndices.Num())
 		{
@@ -215,7 +215,7 @@ public:
 
 private:
 	FDirtyProxiesBucketInfo DirtyProxyBucketInfo;
-	FDirtyProxiesBucket DirtyProxyBuckets[EPhysicsProxyType::Count];
+	FDirtyProxiesBucket DirtyProxyBuckets[(uint32)EPhysicsProxyType::Count];
 	TArray<FShapeDirtyData> ShapesData;
 };
 

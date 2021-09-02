@@ -148,8 +148,8 @@ namespace ChaosTest {
 
 		// joint Proxy has been created, should be in dirty proxy list to be sent to physics thread.
 		// Note that we expect three dirty proxies, 2 for particles, 1 for joint.
-		EXPECT_EQ(Solver->GetDirtyProxyBucketInfo_External().Num[EPhysicsProxyType::SingleParticleProxy], 2);
-		EXPECT_EQ(Solver->GetDirtyProxyBucketInfo_External().Num[EPhysicsProxyType::JointConstraintType], 1);
+		EXPECT_EQ(Solver->GetDirtyProxyBucketInfo_External().Num[(uint32)EPhysicsProxyType::SingleParticleProxy], 2);
+		EXPECT_EQ(Solver->GetDirtyProxyBucketInfo_External().Num[(uint32)EPhysicsProxyType::JointConstraintType], 1);
 
 		// Although proxy exists, it should not have been added to physics thread only proxy array yet, as doing so from game thread code is wrong.
 		// Confirm game thread did not add it.
