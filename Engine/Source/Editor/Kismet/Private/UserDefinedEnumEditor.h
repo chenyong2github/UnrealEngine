@@ -157,12 +157,6 @@ private:
 	virtual bool InitiallyCollapsed() const override { return false; }
 
 private:
-	/** Moves the enumerator up in the list */
-	FReply OnMoveEnumeratorUp();
-	
-	/** Moves the enumerator down in the list */
-	FReply OnMoveEnumeratorDown();
-
 	/** Deletes the enumerator */
 	void OnEnumeratorRemove();
 

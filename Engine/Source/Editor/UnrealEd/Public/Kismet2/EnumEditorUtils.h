@@ -51,8 +51,11 @@ public:
 	/** Removes enumerator from enum*/
 	static void RemoveEnumeratorFromUserDefinedEnum(class UUserDefinedEnum* Enum, int32 EnumeratorIndex);
 
-	/** Reorder enumerators in enum. Swap an enumerator with given name, with previous or next (based on bDirectionUp parameter) */
-	static void MoveEnumeratorInUserDefinedEnum(class UUserDefinedEnum* Enum, int32 EnumeratorIndex, bool bDirectionUp);
+	/**
+	 * Reorder enumerators in enum. Moves the enumerator at the given initial index to a new target index, shifting other enumerators as needed.
+	 * E.g. with enum [A, B, C, D, E], moving index 1 to index 3 results in [A, C, D, B, E].
+	 */
+	static void MoveEnumeratorInUserDefinedEnum(class UUserDefinedEnum* Enum, int32 InitialEnumeratorIndex, int32 TargetIndex);
 
 	/** Check if the enumerator-as-bitflags meta data is set */
 	static bool IsEnumeratorBitflagsType(class UUserDefinedEnum* Enum);
