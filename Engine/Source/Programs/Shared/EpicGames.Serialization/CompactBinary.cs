@@ -11,6 +11,7 @@ using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EpicGames.Serialization
 {
@@ -192,6 +193,7 @@ namespace EpicGames.Serialization
 	/// A binary attachment, referenced by <see cref="IoHash"/>
 	/// </summary>
 	[DebuggerDisplay("{Hash}")]
+	[JsonConverter(typeof(CbBinaryAttachmentJsonConverter))]
 	public struct CbBinaryAttachment
 	{
 		/// <summary>
@@ -233,9 +235,22 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
+	/// Type converter for IoHash to and from JSON
+	/// </summary>
+	sealed class CbBinaryAttachmentJsonConverter : JsonConverter<CbBinaryAttachment>
+	{
+		/// <inheritdoc/>
+		public override CbBinaryAttachment Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => IoHash.Parse(Reader.ValueSpan);
+
+		/// <inheritdoc/>
+		public override void Write(Utf8JsonWriter Writer, CbBinaryAttachment Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
+	}
+
+	/// <summary>
 	/// An object attachment, referenced by <see cref="IoHash"/>
 	/// </summary>
 	[DebuggerDisplay("{Hash}")]
+	[JsonConverter(typeof(CbObjectAttachmentJsonConverter))]
 	public struct CbObjectAttachment
 	{
 		/// <summary>
@@ -274,6 +289,18 @@ namespace EpicGames.Serialization
 		{
 			return Attachment.Hash;
 		}
+	}
+
+	/// <summary>
+	/// Type converter for IoHash to and from JSON
+	/// </summary>
+	sealed class CbObjectAttachmentJsonConverter : JsonConverter<CbObjectAttachment>
+	{
+		/// <inheritdoc/>
+		public override CbObjectAttachment Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options) => IoHash.Parse(Reader.ValueSpan);
+
+		/// <inheritdoc/>
+		public override void Write(Utf8JsonWriter Writer, CbObjectAttachment Value, JsonSerializerOptions Options) => Writer.WriteStringValue(Value.Hash.ToUtf8String().Span);
 	}
 
 	/// <summary>
