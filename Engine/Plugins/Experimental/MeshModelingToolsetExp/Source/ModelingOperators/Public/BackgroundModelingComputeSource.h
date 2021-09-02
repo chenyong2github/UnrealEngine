@@ -73,13 +73,21 @@ protected:
 enum class EBackgroundComputeTaskStatus
 {
 	/** Computation of a result has finished and is waiting to be returned */
-	NewResultAvailable = 0,
+	ValidResultAvailable,
+
+	/**
+	 * We have a result available, but a recompute has been requested. The status is not yet 
+	 * InProgress only because there is a delay of CancelActiveOpDelaySeconds between the
+	 * request and operation restart, and we have not yet restarted.
+	 */
+	 DirtyResultAvailable,
+
 	/** Last active computation was canceled and nothing new has happend yet*/
-	Aborted = 1,
+	Aborted,
 	/** Computation is currently running */
-	InProgress = 2,
+	InProgress,
 	/** Not running active computation, and last result has already been returned, so no new results to report */
-	NotComputing = 3
+	NotComputing
 };
 
 
@@ -259,21 +267,23 @@ void TBackgroundModelingComputeSource<OpType, OpTypeFactory>::NotifyActiveComput
 template<typename OpType, typename OpTypeFactory>
 EBackgroundComputeTaskStatus TBackgroundModelingComputeSource<OpType, OpTypeFactory>::CheckStatus() const
 {
-	if (ActiveBackgroundTask != nullptr)
+	if (ActiveBackgroundTask == nullptr)
 	{
-		if (ActiveBackgroundTask->IsDone())
-		{
-			return ActiveBackgroundTask->GetTask().IsAborted() ?
-				EBackgroundComputeTaskStatus::Aborted : EBackgroundComputeTaskStatus::NewResultAvailable;
-		}
-		else
-		{
-			return EBackgroundComputeTaskStatus::InProgress;
-		}
+		return EBackgroundComputeTaskStatus::NotComputing;
+	}
+	else if (!ActiveBackgroundTask->IsDone())
+	{
+		return EBackgroundComputeTaskStatus::InProgress;
+	}
+	else if (ActiveBackgroundTask->GetTask().IsAborted())
+	{
+		return EBackgroundComputeTaskStatus::Aborted;
 	}
 	else
 	{
-		return EBackgroundComputeTaskStatus::NotComputing;
+		// Task is done and not aborted, but we may be waiting to start a new one
+		return TaskState == EBackgroundComputeTaskState::WaitingToCancel ? EBackgroundComputeTaskStatus::DirtyResultAvailable
+			: EBackgroundComputeTaskStatus::ValidResultAvailable;
 	}
 }
 

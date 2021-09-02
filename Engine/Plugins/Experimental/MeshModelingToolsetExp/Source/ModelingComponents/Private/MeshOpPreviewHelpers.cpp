@@ -111,7 +111,8 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 	LastComputeStatus = BackgroundCompute ? BackgroundCompute->CheckStatus()
 		: EBackgroundComputeTaskStatus::NotComputing;
 
-	if (LastComputeStatus == EBackgroundComputeTaskStatus::NewResultAvailable)
+	if (LastComputeStatus == EBackgroundComputeTaskStatus::ValidResultAvailable
+		|| (bAllowDirtyResultUpdates && LastComputeStatus == EBackgroundComputeTaskStatus::DirtyResultAvailable))
 	{
 		TUniquePtr<FDynamicMeshOperator> MeshOp = BackgroundCompute->ExtractResult();
 		OnOpCompleted.Broadcast(MeshOp.Get());
@@ -127,7 +128,7 @@ void UMeshOpPreviewWithBackgroundCompute::UpdateResults()
 		bMeshInitialized = true;
 
 		PreviewMesh->SetVisible(bVisible);
-		bResultValid = true;
+		bResultValid = (LastComputeStatus == EBackgroundComputeTaskStatus::ValidResultAvailable);
 
 		OnMeshUpdated.Broadcast(this);
 	}
