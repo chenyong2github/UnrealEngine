@@ -202,7 +202,11 @@ FLogging::FLogging()
 	uint32 LogIndex = ExistingLogs.empty() ? 0 : ExistingLogs.back().Index;
 	for (uint32 n = LogIndex + 10; File == nullptr && LogIndex < n;)
 	{
-		std::filesystem::path LogPath = LogDir / std::format("Server_{}.log", LogIndex);
+		++LogIndex;
+		char LogName[128];
+		snprintf(LogName, TS_ARRAY_COUNT(LogName), "Server_%d.log", LogIndex);
+		std::filesystem::path LogPath = LogDir / LogName;
+
 #if TS_USING(TS_PLATFORM_WINDOWS)
 		File = _wfopen(LogPath.c_str(), L"wbxN");
 #else
