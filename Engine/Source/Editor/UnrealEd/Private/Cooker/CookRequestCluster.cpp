@@ -158,6 +158,7 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& U
 			// MRUCluster points to data inside AddedClusters, so we have to recalculate MRUCluster whenever we add
 			MRUCluster = FindOrAddClusterForPlatforms();
 		}
+		CA_ASSUME(MRUCluster);
 
 		MRUCluster->Requests.Add(PackageData);
 	}
