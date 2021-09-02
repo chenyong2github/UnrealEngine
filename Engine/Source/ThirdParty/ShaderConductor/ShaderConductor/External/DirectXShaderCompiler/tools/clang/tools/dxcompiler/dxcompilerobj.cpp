@@ -1236,17 +1236,6 @@ public:
     compiler.createDiagnostics(diagPrinter, false);
     // don't output warning to stderr/file if "/no-warnings" is present.
     compiler.getDiagnostics().setIgnoreAllWarnings(!Opts.OutputWarnings);
-    // UE Change Begin: Allow changing diagnostics format
-    if (Opts.DiagnosticsFormat == "clang")
-      compiler.getDiagnosticOpts().setFormat(DiagnosticOptions::Clang);
-    else if (Opts.DiagnosticsFormat == "msvc")
-      compiler.getDiagnosticOpts().setFormat(DiagnosticOptions::MSVC);
-    else if (Opts.DiagnosticsFormat == "msvc-fallback") {
-      compiler.getDiagnosticOpts().setFormat(DiagnosticOptions::MSVC);
-      compiler.getDiagnosticOpts().CLFallbackMode = true;
-    } else if (Opts.DiagnosticsFormat == "vi")
-      compiler.getDiagnosticOpts().setFormat(DiagnosticOptions::Vi);
-    // UE Change End: Allow changing diagnostics format
     compiler.createFileManager();
     compiler.createSourceManager(compiler.getFileManager());
     compiler.setTarget(
