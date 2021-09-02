@@ -2749,6 +2749,12 @@ bool FAsyncLoadingThread2::CreateAsyncPackagesFromQueue(FAsyncLoadingThreadState
 				{
 					UE_ASYNC_PACKAGE_LOG(Verbose, PackageDesc, TEXT("CreateAsyncPackages: AddPackage"),
 						TEXT("Start loading package."));
+#if !UE_BUILD_SHIPPING
+						if (FileOpenLogWrapper)
+						{
+							FileOpenLogWrapper->AddPackageToOpenLog(*PackageDesc.UPackageName.ToString());
+						}
+#endif
 				}
 				else
 				{
