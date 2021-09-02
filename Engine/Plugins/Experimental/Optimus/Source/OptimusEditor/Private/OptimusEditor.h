@@ -124,7 +124,18 @@ private:
 	/// Returns \c true if all the nodes can be selected.
 	bool CanDeleteSelectedNodes() const;
 
+	void CopySelectedNodes();
+	bool CanCopyNodes() const;
 
+	void CutSelectedNodes();
+	bool CanCutNodes() const;
+	
+	void PasteNodes();
+	bool CanPasteNodes();
+	
+	void DuplicateNodes();
+	bool CanDuplicateNodes();
+	
 	// ----------------------------------------------------------------------------------------
 	// Graph event listeners
 	void OnSelectedNodesChanged(const TSet<class UObject*>& NewSelection);
@@ -156,6 +167,8 @@ private:
 	void CreateWidgets();
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
+
+	TArray<UOptimusNode*> GetSelectedModelNodes() const;
 
 	void OnDeformerModified(
 		EOptimusGlobalNotifyType InNotifyType, 

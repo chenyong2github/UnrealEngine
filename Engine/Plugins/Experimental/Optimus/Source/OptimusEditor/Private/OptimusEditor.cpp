@@ -2,40 +2,42 @@
 
 #include "OptimusEditor.h"
 
-#include "AnimationEditorPreviewActor.h"
+#include "OptimusEditorClipboard.h"
+#include "OptimusEditorCommands.h"
 #include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphNode.h"
 #include "OptimusEditorGraphSchema.h"
-#include "OptimusEditorCommands.h"
-#include "OptimusNode.h"
-#include "OptimusNodeGraph.h"
+#include "OptimusEditorModule.h"
 #include "SOptimusGraphTitleBar.h"
 
-#include "OptimusDeformer.h"
 #include "OptimusActionStack.h"
 #include "OptimusCoreNotify.h"
+#include "OptimusDeformer.h"
+#include "OptimusNode.h"
+#include "OptimusNodeGraph.h"
 
+#include "Animation/DebugSkelMeshComponent.h"
+#include "AnimationEditorPreviewActor.h"
+#include "ComputeFramework/ComputeGraphComponent.h"
+#include "Engine/StaticMeshActor.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "GraphEditor.h"
-#include "IPersonaViewport.h"
-#include "Kismet2/BlueprintEditorUtils.h"
-#include "Materials/Material.h"
-#include "MessageLogModule.h"
-#include "Modules/ModuleManager.h"
-#include "ToolMenus.h"
 #include "IAssetFamily.h"
 #include "IMessageLogListing.h"
 #include "IPersonaPreviewScene.h"
 #include "IPersonaToolkit.h"
+#include "IPersonaViewport.h"
+#include "ISkeletonEditorModule.h"
+#include "Kismet2/BlueprintEditorUtils.h"
+#include "Materials/Material.h"
+#include "MessageLogModule.h"
+#include "Misc/UObjectToken.h"
+#include "Modules/ModuleManager.h"
 #include "OptimusEditorMode.h"
 #include "PersonaModule.h"
 #include "PersonaTabs.h"
 #include "SkeletalRenderPublic.h"
-#include "Animation/DebugSkelMeshComponent.h"
-#include "ComputeFramework/ComputeGraphComponent.h"
-#include "Engine/StaticMeshActor.h"
-#include "ISkeletonEditorModule.h"
-#include "Misc/UObjectToken.h"
+#include "ToolMenus.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusEditor"
@@ -371,16 +373,94 @@ void FOptimusEditor::DeleteSelectedNodes()
 
 bool FOptimusEditor::CanDeleteSelectedNodes() const
 {
+	if (GraphEditorWidget->GetSelectedNodes().IsEmpty())
+	{
+		return false;
+	}
+	
 	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
 	{
 		UEdGraphNode* GraphNode = Cast<UEdGraphNode>(Object);
-		if (GraphNode && GraphNode->CanUserDeleteNode())
+		if (GraphNode && !GraphNode->CanUserDeleteNode())
 		{
-			return true;
+			return false;
 		}
 	}
 
-	return false;
+	return true;
+}
+
+
+void FOptimusEditor::CopySelectedNodes()
+{
+	FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
+
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();
+	UOptimusClipboardContent* Content = UOptimusClipboardContent::Create(EditorGraph->GetModelGraph(), ModelNodes);
+	Clipboard.SetClipboardContent(Content);
+}
+
+
+bool FOptimusEditor::CanCopyNodes() const
+{
+	return !GetSelectedModelNodes().IsEmpty();
+}
+
+
+void FOptimusEditor::CutSelectedNodes()
+{
+	FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
+
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();
+	UOptimusClipboardContent* Content = UOptimusClipboardContent::Create(ModelGraph, ModelNodes);
+	Clipboard.SetClipboardContent(Content);
+
+	ModelGraph->RemoveNodes(ModelNodes, TEXT("Cut"));
+}
+
+
+bool FOptimusEditor::CanCutNodes() const
+{
+	return CanDeleteSelectedNodes() && CanCopyNodes();
+}
+
+
+void FOptimusEditor::PasteNodes()
+{
+	const FOptimusEditorClipboard& Clipboard = FOptimusEditorModule::Get().GetClipboard();
+	const UOptimusClipboardContent* Content = Clipboard.GetClipboardContent();
+	if (!Content)
+	{
+		return;
+	}
+
+	UOptimusNodeGraph* TransientGraph = Content->GetGraphFromClipboardContent();
+
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	ModelGraph->DuplicateNodes(
+		TransientGraph->GetAllNodes(), GraphEditorWidget->GetPasteLocation(), TEXT("Paste"));
+}
+
+
+bool FOptimusEditor::CanPasteNodes()
+{
+	return FOptimusEditorModule::Get().GetClipboard().HasValidClipboardContent();
+}
+
+
+void FOptimusEditor::DuplicateNodes()
+{
+	UOptimusNodeGraph* ModelGraph = EditorGraph->GetModelGraph();
+	const TArray<UOptimusNode*> ModelNodes = GetSelectedModelNodes();
+
+	ModelGraph->DuplicateNodes(ModelNodes, GraphEditorWidget->GetPasteLocation());
+}
+
+
+bool FOptimusEditor::CanDuplicateNodes()
+{
+	return !GetSelectedModelNodes().IsEmpty();
 }
 
 
@@ -716,15 +796,9 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanDeleteSelectedNodes)
 		);
 
-#if 0
 		GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::CopySelectedNodes),
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanCopyNodes)
-		);
-
-		GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
-			FExecuteAction::CreateSP(this, &FOptimusEditor::PasteNodes),
-			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanPasteNodes)
 		);
 
 		GraphEditorCommands->MapAction(FGenericCommands::Get().Cut,
@@ -732,10 +806,16 @@ TSharedRef<SGraphEditor> FOptimusEditor::CreateGraphEditorWidget()
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanCutNodes)
 		);
 
+		GraphEditorCommands->MapAction(FGenericCommands::Get().Paste,
+			FExecuteAction::CreateSP(this, &FOptimusEditor::PasteNodes),
+			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanPasteNodes)
+		);
+
 		GraphEditorCommands->MapAction(FGenericCommands::Get().Duplicate,
 			FExecuteAction::CreateSP(this, &FOptimusEditor::DuplicateNodes),
 			FCanExecuteAction::CreateSP(this, &FOptimusEditor::CanDuplicateNodes)
 		);
+#if 0
 
 		// Graph Editor Commands
 		GraphEditorCommands->MapAction(FGraphEditorCommands::Get().CreateComment,
@@ -815,6 +895,22 @@ FGraphAppearanceInfo FOptimusEditor::GetGraphAppearance() const
 	FGraphAppearanceInfo Appearance;
 	Appearance.CornerText = LOCTEXT("AppearanceCornerText_DeformerGraph", "DEFORMER GRAPH");
 	return Appearance;
+}
+
+
+TArray<UOptimusNode*> FOptimusEditor::GetSelectedModelNodes() const
+{
+	TArray<UOptimusNode*> Nodes;
+
+	for (UObject* Object: GraphEditorWidget->GetSelectedNodes())
+	{
+		UOptimusEditorGraphNode* GraphNode = Cast<UOptimusEditorGraphNode>(Object);
+		if (GraphNode)
+		{
+			Nodes.Add(GraphNode->ModelNode);
+		}
+	}
+	return Nodes;
 }
 
 

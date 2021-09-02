@@ -496,7 +496,6 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 		{
 			UpdatePinContextAndDimensionality(EOptimusNodePinDirection::Input);
 			UpdatePreamble();
-			return;
 		}
 		else
 		{
@@ -605,6 +604,27 @@ void UOptimusNode_ComputeKernel::PostEditChangeProperty(
 				UpdatePreamble();
 			}
 		}
+	}
+}
+
+
+void UOptimusNode_ComputeKernel::ConstructNode()
+{
+	// After a duplicate, the kernel node has no pins, so we need to reconstruct them from
+	// the bindings. We can assume that all naming clashes have already been dealt with.
+	for (const FOptimus_ShaderBinding& Binding: Parameters)
+	{
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, {}, Binding.DataType);
+	}
+	for (const FOptimus_ShaderContextBinding& Binding: InputBindings)
+	{
+		const FOptimusNodePinStorageConfig StorageConfig{Binding.Contexts.Num(), TEXT("Vertex")};
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Input, StorageConfig, Binding.DataType);
+	}
+	for (const FOptimus_ShaderContextBinding& Binding: OutputBindings)
+	{
+		const FOptimusNodePinStorageConfig StorageConfig{Binding.Contexts.Num(), TEXT("Vertex")};
+		AddPinDirect(Binding.Name, EOptimusNodePinDirection::Output, StorageConfig, Binding.DataType);
 	}
 }
 

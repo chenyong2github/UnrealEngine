@@ -11,8 +11,8 @@
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
 #include "SOptimusEditorGraphExplorer.h"
-#include "OptimusDetailsCustomization.h"
 #include "OptimusComputeComponentBroker.h"
+#include "OptimusEditorClipboard.h"
 
 #include "Types/OptimusType_ShaderText.h"
 
@@ -25,6 +25,13 @@
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
 DEFINE_LOG_CATEGORY(LogOptimusEditor);
+
+
+FOptimusEditorModule::FOptimusEditorModule() :
+	Clipboard(MakeShared<FOptimusEditorClipboard>())
+{
+}
+
 
 void FOptimusEditorModule::StartupModule()
 {
@@ -84,6 +91,11 @@ TSharedRef<IOptimusEditor> FOptimusEditorModule::CreateEditor(const EToolkitMode
 	return OptimusEditor;
 }
 
+
+FOptimusEditorClipboard& FOptimusEditorModule::GetClipboard() const
+{
+	return Clipboard.Get();
+}
 
 
 void FOptimusEditorModule::RegisterPropertyCustomizations()

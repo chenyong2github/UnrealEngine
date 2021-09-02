@@ -13,7 +13,8 @@ class IAssetTypeActions;
 class FOptimusEditorModule : public IOptimusEditorModule
 {
 public:
-
+	FOptimusEditorModule();
+	
 	// IModuleInterface implementations
 	void StartupModule() override;
 	void ShutdownModule() override;
@@ -24,6 +25,8 @@ public:
 		const TSharedPtr<IToolkitHost>& InitToolkitHost, 
 		UOptimusDeformer* DeformerObject
 	) override;
+
+	FOptimusEditorClipboard& GetClipboard() const override;
 
 private:
 	void RegisterPropertyCustomizations();
@@ -36,5 +39,7 @@ private:
 	TSharedPtr<FOptimusEditorGraphNodeFactory> GraphNodeFactory;
 	TSharedPtr<FOptimusEditorGraphPinFactory> GraphPinFactory;
 
-	TArray<FName> CustomizedProperties; 
+	TArray<FName> CustomizedProperties;
+
+	TSharedRef<FOptimusEditorClipboard> Clipboard;
 };

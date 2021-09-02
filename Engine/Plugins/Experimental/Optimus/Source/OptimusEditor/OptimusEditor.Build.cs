@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
                 {
                     "Core",
 					"CoreUObject",
+					"ApplicationCore",
 					"SlateCore",
 					"Slate",
 					"EditorStyle",
@@ -33,7 +34,7 @@ namespace UnrealBuildTool.Rules
 					"AssetTools",
 					"AdvancedPreviewScene",
 					"InputCore",
-					"RHI",
+					"RHI", 
 					"ToolMenus",
 					"OptimusCore",
 					"OptimusDeveloper",

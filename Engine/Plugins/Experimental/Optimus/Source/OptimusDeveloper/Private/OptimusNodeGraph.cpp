@@ -7,6 +7,8 @@
 #include "OptimusNodeLink.h"
 #include "OptimusNodePin.h"
 #include "OptimusActionStack.h"
+#include "OptimusDeveloperModule.h"
+#include "OptimusHelpers.h"
 #include "Actions/OptimusNodeGraphActions.h"
 #include "Nodes/OptimusNode_GetResource.h"
 #include "Nodes/OptimusNode_GetVariable.h"
@@ -17,6 +19,8 @@
 #include "Nodes/OptimusNode_DataInterface.h"
 #include "Templates/Function.h"
 #include "UObject/Package.h"
+
+#include <limits>
 
 FString UOptimusNodeGraph::GetGraphPath() const
 {
@@ -156,6 +160,11 @@ bool UOptimusNodeGraph::RemoveNode(UOptimusNode* InNode)
 
 bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*> &InNodes)
 {
+	return RemoveNodes(InNodes, TEXT("Remove"));
+}
+
+bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*>& InNodes, const FString& InActionName)
+{
 	// Validate the input set.
 	if (InNodes.Num() == 0)
 	{
@@ -173,11 +182,11 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*> &InNodes)
 	FOptimusCompoundAction* Action = new FOptimusCompoundAction;
 	if (InNodes.Num() == 1)
 	{
-		Action->SetTitlef(TEXT("Remove Node"));
+		Action->SetTitlef(TEXT("%s Node"), *InActionName);
 	}
 	else
 	{
-		Action->SetTitlef(TEXT("Remove %d Nodes"), InNodes.Num());
+		Action->SetTitlef(TEXT("%s %d Nodes"), *InActionName, InNodes.Num());
 	}
 
 	TSet<int32> AllLinkIndexes;
@@ -196,6 +205,141 @@ bool UOptimusNodeGraph::RemoveNodes(const TArray<UOptimusNode*> &InNodes)
 	for (UOptimusNode* Node : InNodes)
 	{
 		Action->AddSubAction<FOptimusNodeGraphAction_RemoveNode>(Node);
+	}
+
+	return GetActionStack()->RunAction(Action);
+}
+
+
+UOptimusNode* UOptimusNodeGraph::DuplicateNode(
+	UOptimusNode* InNode,
+	const FVector2D& InPosition
+	)
+{
+	if (!InNode)
+	{
+		return nullptr;
+	}
+	
+	const FName NodeName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNode::StaticClass(), InNode->GetFName());
+	
+	FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
+		this, InNode, NodeName,
+		[InPosition](UOptimusNode *InNode) {
+			return InNode->SetGraphPositionDirect(InPosition, /*Notify=*/false); 
+		});
+	if (!GetActionStack()->RunAction(DuplicateNodeAction))
+	{
+		return nullptr;
+	}
+
+	return DuplicateNodeAction->GetNode(GetActionStack()->GetGraphCollectionRoot());
+}
+
+
+bool UOptimusNodeGraph::DuplicateNodes(
+	const TArray<UOptimusNode*> &InNodes,
+	const FVector2D& InPosition
+	)
+{
+	return DuplicateNodes(InNodes, InPosition, TEXT("Duplicate"));
+}
+
+bool UOptimusNodeGraph::DuplicateNodes(
+	const TArray<UOptimusNode*>& InNodes,
+	const FVector2D& InPosition,
+	const FString& InActionName
+	)
+{
+	// Make sure all the nodes come from the same graph.
+	UOptimusNodeGraph* SourceGraph = nullptr;
+	for (const UOptimusNode* Node: InNodes)
+	{
+		if (SourceGraph == nullptr)
+		{
+			SourceGraph = Node->GetOwningGraph();
+		}
+		else if (SourceGraph != Node->GetOwningGraph())
+		{
+			UE_LOG(LogOptimusDeveloper, Warning, TEXT("Nodes to duplicate have to all belong to the same graph."));
+			return false;
+		}
+	}
+
+	// Figure out the non-clashing names to use, to avoid collisions during actual execution.
+	TSet<FName> ExistingObjects;
+	for (const UOptimusNode* Node: Nodes)
+	{
+		ExistingObjects.Add(Node->GetFName());
+	}
+
+	auto MakeUniqueNodeName = [&ExistingObjects](FName InName)
+	{
+		while(ExistingObjects.Contains(InName))
+		{
+			InName.SetNumber(InName.GetNumber() + 1);
+		}
+		ExistingObjects.Add(InName);
+		return InName;
+	};
+
+	using FloatType = decltype(FVector2D::X);
+	FVector2D TopLeft{std::numeric_limits<FloatType>::max()};
+	TMap<UOptimusNode*, FName> NewNodeNameMap;
+	for (UOptimusNode* Node: InNodes)
+	{
+		TopLeft = FVector2D::Min(TopLeft, Node->GraphPosition);
+		NewNodeNameMap.Add(Node, MakeUniqueNodeName(Node->GetFName()));
+	}
+	FVector2D NodeOffset = InPosition - TopLeft;
+
+	/// Collect the links between these existing nodes. 
+	TArray<TPair<FString, FString>> NodeLinks;
+	const FString GraphPath = GetGraphPath();
+	for (const UOptimusNodeLink* Link: SourceGraph->GetAllLinks())
+	{
+		const UOptimusNode *OutputNode = Link->GetNodeOutputPin()->GetNode();
+		const UOptimusNode *InputNode = Link->GetNodeInputPin()->GetNode();
+
+		if (NewNodeNameMap.Contains(OutputNode) && NewNodeNameMap.Contains(InputNode))
+		{
+			// FIXME: This should be a utility function, along with all the other path creation
+			// functions.
+			FString NodeOutputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+				*GraphPath, *NewNodeNameMap[OutputNode].ToString(), *Link->GetNodeOutputPin()->GetUniqueName().ToString());
+			FString NodeInputPinPath = FString::Printf(TEXT("%s/%s.%s"),
+				*GraphPath, *NewNodeNameMap[InputNode].ToString(), *Link->GetNodeInputPin()->GetUniqueName().ToString());
+
+			NodeLinks.Add(MakeTuple(NodeOutputPinPath, NodeInputPinPath));
+		}
+	}
+
+	FOptimusCompoundAction *Action = new FOptimusCompoundAction;
+	if (InNodes.Num() == 1)
+	{
+		Action->SetTitlef(TEXT("%s Node"), *InActionName);
+	}
+	else
+	{
+		Action->SetTitlef(TEXT("%s %d Nodes"), *InActionName, InNodes.Num());
+	}
+
+	// Duplicate the nodes and place them correctly
+	for (UOptimusNode* Node: InNodes)
+	{
+		FOptimusNodeGraphAction_DuplicateNode *DuplicateNodeAction = new FOptimusNodeGraphAction_DuplicateNode(
+			this, Node, NewNodeNameMap[Node],
+			[InPosition, Node, NodeOffset](UOptimusNode *InNode) {
+				return InNode->SetGraphPositionDirect(Node->GraphPosition + NodeOffset, /*Notify=*/false); 
+		});
+		
+		Action->AddSubAction(DuplicateNodeAction);
+	}
+
+	// Add any links that the nodes may have had.
+	for (const TTuple<FString, FString>& LinkInfo: NodeLinks)
+	{
+		Action->AddSubAction<FOptimusNodeGraphAction_AddLink>(LinkInfo.Key, LinkInfo.Value);
 	}
 
 	return GetActionStack()->RunAction(Action);
@@ -262,7 +406,6 @@ bool UOptimusNodeGraph::RemoveLink(UOptimusNodePin* InNodeOutputPin, UOptimusNod
 	{
 		Swap(InNodeOutputPin, InNodeInputPin);
 	}
-
 
 	for (UOptimusNodeLink* Link: Links)
 	{

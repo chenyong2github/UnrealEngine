@@ -1083,7 +1083,7 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 	TOptional<int32> InInsertBefore
 	)
 {
-	if (InType == EOptimusNodeGraphType::Update)
+	if (InType == EOptimusNodeGraphType::Update || InType == EOptimusNodeGraphType::Transient)
 	{
 		return nullptr;
 	}
