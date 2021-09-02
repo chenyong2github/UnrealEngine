@@ -54,7 +54,7 @@ namespace P4VUtils.Commands
 				return 1;
 			}
 
-			List<FStatRecord> OpenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, null, CancellationToken.None);
+			List<FStatRecord> OpenedRecords = await Perforce.GetOpenFilesAsync(OpenedOptions.None, Change, null, null, -1, FileSpecList.Empty, CancellationToken.None);
 
 			if (OpenedRecords.Count > 0)
 			{
