@@ -5,10 +5,11 @@
 #include "Widgets/SDMXEntityEditor.h"
 
 #include "CoreMinimal.h"
-#include "Widgets/SDMXEntityList.h"
 
 class FDMXEditor;
 class SDMXEntityInspector;
+class SDMXFixtureTypeTree;
+
 struct FPropertyChangedEvent;
 
 
@@ -38,7 +39,7 @@ public:
 
 protected:
 	/** Callback for when entities list selection changes */
-	virtual void OnSelectionUpdated(TArray<UDMXEntity*> InSelectedEntities);
+	virtual void OnSelectionChanged(const TArray<UDMXEntity*>& InSelectedEntities);
 
 	/** Callback for when some property has changed in the inspector */
 	virtual void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
@@ -47,8 +48,8 @@ protected:
 	/** Pointer back to the DMXEditor tool that owns us */
 	TWeakPtr<FDMXEditor> DMXEditor;
 
-	/** List of Fixture Types */
-	TSharedPtr<SDMXEntityList> EntityList;
+	/** Tree of Fixture Types */
+	TSharedPtr<SDMXFixtureTypeTree> FixtureTypeTree;
 
 	/** Inspector for the selected Fixture(s) Settings */
 	TSharedPtr<SDMXEntityInspector> FixtureSettingsInspector;

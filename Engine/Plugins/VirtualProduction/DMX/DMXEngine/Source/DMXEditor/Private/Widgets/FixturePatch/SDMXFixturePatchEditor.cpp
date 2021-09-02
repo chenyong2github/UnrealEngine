@@ -6,11 +6,16 @@
 #include "DMXFixturePatchSharedData.h"
 #include "SDMXFixturePatcher.h"
 #include "SDMXFixturePatchInspector.h"
+#include "SDMXFixturePatchTree.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Widgets/SDMXEntityList.h"
 
 #include "Widgets/Layout/SSplitter.h"
+
+#include "DMXSubsystem.h"
+#include "IO/DMXPortManager.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXOutputPortReference.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXFixturePatcher"
@@ -42,12 +47,12 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 			+SSplitter::Slot()			
 			.Value(0.38f)
 			[
-				SAssignNew(EntityList, SDMXEntityList, UDMXEntityFixturePatch::StaticClass())
+				SAssignNew(FixturePatchTree, SDMXFixturePatchTree)
 				.DMXEditor(DMXEditorPtr)
-				.OnAutoAssignAddressChanged(this, &SDMXFixturePatchEditor::OnEntitiyListChangedAutoAssignAddress)
-				.OnEntitiesAdded(this, &SDMXFixturePatchEditor::OnEntityListAddedEntities)
-				.OnEntityOrderChanged(this, &SDMXFixturePatchEditor::OnEntityListChangedEntityOrder)
-				.OnEntitiesRemoved(this, &SDMXFixturePatchEditor::OnEntityListRemovedEntities)
+				.OnAutoAssignAddressChanged(this, &SDMXFixturePatchEditor::OnFixturePatchTreeChangedAutoAssignAddress)
+				.OnEntitiesAdded(this, &SDMXFixturePatchEditor::OnFixturePatchTreeAddedEntities)
+				.OnEntityOrderChanged(this, &SDMXFixturePatchEditor::OnFixturePatchTreeChangedEntityOrder)
+				.OnEntitiesRemoved(this, &SDMXFixturePatchEditor::OnFixturePatchTreeRemovedEntities)
 			]
 	
 			+SSplitter::Slot()
@@ -73,32 +78,31 @@ void SDMXFixturePatchEditor::Construct(const FArguments& InArgs)
 
 void SDMXFixturePatchEditor::RequestRenameOnNewEntity(const UDMXEntity* InEntity, ESelectInfo::Type SelectionType)
 {
-	check(EntityList.IsValid());
+	check(FixturePatchTree.IsValid());
 
-	EntityList->UpdateTree();
-	EntityList->SelectItemByEntity(InEntity, SelectionType);
-	EntityList->OnRenameNode();
+	FixturePatchTree->SelectItemByEntity(InEntity, SelectionType);
+	FixturePatchTree->UpdateTree();
 }
 
 void SDMXFixturePatchEditor::SelectEntity(UDMXEntity* InEntity, ESelectInfo::Type InSelectionType /*= ESelectInfo::Type::Direct*/)
 {
-	check(EntityList.IsValid());
+	check(FixturePatchTree.IsValid());
 
-	EntityList->SelectItemByEntity(InEntity, InSelectionType);
+	FixturePatchTree->SelectItemByEntity(InEntity, InSelectionType);
 }
 
 void SDMXFixturePatchEditor::SelectEntities(const TArray<UDMXEntity*>& InEntities, ESelectInfo::Type InSelectionType /*= ESelectInfo::Type::Direct*/)
 {
-	check(EntityList.IsValid());
+	check(FixturePatchTree.IsValid());
 
-	EntityList->SelectItemsByEntity(InEntities, InSelectionType);
+	FixturePatchTree->SelectItemsByEntities(InEntities, InSelectionType);
 }
 
 TArray<UDMXEntity*> SDMXFixturePatchEditor::GetSelectedEntities() const
 {
-	check(EntityList.IsValid());
+	check(FixturePatchTree.IsValid());
 
-	return EntityList->GetSelectedEntities();
+	return FixturePatchTree->GetSelectedEntities();
 }
 
 void SDMXFixturePatchEditor::SelectUniverse(int32 UniverseID)
@@ -114,7 +118,7 @@ void SDMXFixturePatchEditor::SelectUniverse(int32 UniverseID)
 	}
 }
 
-void SDMXFixturePatchEditor::OnEntitiyListChangedAutoAssignAddress(TArray<UDMXEntityFixturePatch*> ChangedPatches)
+void SDMXFixturePatchEditor::OnFixturePatchTreeChangedAutoAssignAddress(TArray<UDMXEntityFixturePatch*> ChangedPatches)
 {
 	check(FixturePatcher.IsValid());
 	check(ChangedPatches.Num() > 0);
@@ -140,20 +144,20 @@ void SDMXFixturePatchEditor::OnEntitiyListChangedAutoAssignAddress(TArray<UDMXEn
 	}
 }
 
-void SDMXFixturePatchEditor::OnEntityListAddedEntities()
+void SDMXFixturePatchEditor::OnFixturePatchTreeAddedEntities()
 {
 	check(FixturePatcher.IsValid());
 	FixturePatcher->RefreshFromLibrary();
 }
 
-void SDMXFixturePatchEditor::OnEntityListChangedEntityOrder()
+void SDMXFixturePatchEditor::OnFixturePatchTreeChangedEntityOrder()
 {
 	check(FixturePatcher.IsValid());
 	FixturePatcher->RefreshFromProperties();
 	FixturePatcher->SelectUniverseThatContainsSelectedPatches();
 }	
 
-void SDMXFixturePatchEditor::OnEntityListRemovedEntities()
+void SDMXFixturePatchEditor::OnFixturePatchTreeRemovedEntities()
 {
 	check(FixturePatcher.IsValid());
 	FixturePatcher->RefreshFromLibrary();
@@ -161,16 +165,16 @@ void SDMXFixturePatchEditor::OnEntityListRemovedEntities()
 
 void SDMXFixturePatchEditor::OnFixturePatcherPatchedFixturePatch()
 {
-	check(EntityList.IsValid());
-	EntityList->UpdateTree();
+	check(FixturePatchTree.IsValid());
+	FixturePatchTree->UpdateTree();
 }
 
 void SDMXFixturePatchEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	check(EntityList.IsValid());
+	check(FixturePatchTree.IsValid());
 	check(FixturePatcher.IsValid());
 
-	EntityList->UpdateTree();
+	FixturePatchTree->UpdateTree();
 	FixturePatcher->NotifyPropertyChanged(PropertyChangedEvent);
 }
 

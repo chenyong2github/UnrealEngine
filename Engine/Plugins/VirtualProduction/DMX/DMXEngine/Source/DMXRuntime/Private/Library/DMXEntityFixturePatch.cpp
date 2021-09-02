@@ -227,9 +227,9 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 {
 	OutReason = FText::GetEmpty();
 
-	if (ParentFixtureTypeTemplate == nullptr)
+	if (!ParentFixtureTypeTemplate)
 	{
-		OutReason = LOCTEXT("InvalidReason_NullParentTemplate", "Fixture Template is null");
+		OutReason = LOCTEXT("InvalidReason_NullParentTemplate", "Fixture Type is null");
 	}
 	else if ((GetStartingChannel() + GetChannelSpan() - 1) > DMX_UNIVERSE_SIZE)
 	{
@@ -246,28 +246,27 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName())
 		);
 	}	
-	else
+	else if (!ParentFixtureTypeTemplate->Modes.IsValidIndex(ActiveMode))
 	{
-		int32 IdxExistingFunction = ParentFixtureTypeTemplate->Modes.IndexOfByPredicate([](const FDMXFixtureMode& Mode) {
-			return 
-				Mode.Functions.Num() > 0 ||
-				Mode.FixtureMatrixConfig.CellAttributes.Num() > 0;
-			});
-
-		if (IdxExistingFunction == INDEX_NONE)
-		{
-			OutReason = FText::Format(
-				LOCTEXT("InvalidReason_NoFunctionsDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does not define any Functions."),
-				FText::FromString(GetDisplayName()),
-				FText::FromString(ParentFixtureTypeTemplate->GetDisplayName()));
-		}
-		else if (GetChannelSpan() == 0)
-		{
-			OutReason = FText::Format(
-				LOCTEXT("InvalidReason_ParentChannelSpanIsZero", "'{0}' cannot be assigned as its parent Fixture Type '{1}' overrides channel span with 0."),
-				FText::FromString(GetDisplayName()),
-				FText::FromString(ParentFixtureTypeTemplate->GetDisplayName()));
-		}
+		OutReason = FText::Format(
+			LOCTEXT("InvalidReason_NoModesDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does no longer contain Active Mode."),
+			FText::FromString(GetDisplayName()),
+			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName())
+		);
+	}
+	else if (ParentFixtureTypeTemplate->Modes[ActiveMode].Functions.Num() == 0)
+	{
+		OutReason = FText::Format(
+			LOCTEXT("InvalidReason_NoFunctionsDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' does not define any Functions in the Active Mode."),
+			FText::FromString(GetDisplayName()),
+			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName()));
+	}
+	else if (GetChannelSpan() == 0)
+	{
+		OutReason = FText::Format(
+			LOCTEXT("InvalidReason_ParentChannelSpanIsZero", "'{0}' cannot be assigned as its parent Fixture Type '{1}' overrides channel span with 0."),
+			FText::FromString(GetDisplayName()),
+			FText::FromString(ParentFixtureTypeTemplate->GetDisplayName()));
 	}
 
 	return OutReason.IsEmpty();
