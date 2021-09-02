@@ -954,7 +954,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				{
 					RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 					PostProcessingInputs.SceneTextures = MobileSceneTexturesPerView[ViewIndex];
-					AddMobilePostProcessingPasses(GraphBuilder, Views[ViewIndex], PostProcessingInputs);
+					AddMobilePostProcessingPasses(GraphBuilder, Views[ViewIndex], PostProcessingInputs, NumMSAASamples > 1);
 				}
 			}
 		}
