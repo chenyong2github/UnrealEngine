@@ -423,7 +423,7 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 	#if PERMUTATION_USETILE
 	{
 		const uint TileLinearIndex = DispatchThreadId.x;
-		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR];
+		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR_ALL];
 		if (TileLinearIndex >= TileCount)
 			return;
 
