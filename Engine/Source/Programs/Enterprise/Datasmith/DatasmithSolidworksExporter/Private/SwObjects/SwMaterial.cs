@@ -10,6 +10,7 @@ using System.Text;
 using System.Globalization;
 using SolidWorks.Interop.sldworks;
 using SolidworksDatasmith.Geometry;
+using System.Security.Cryptography;
 
 namespace SolidworksDatasmith.SwObjects
 {
@@ -493,7 +494,7 @@ namespace SolidworksDatasmith.SwObjects
 		{
 		}
 
-		public SwMaterial(RenderMaterial m, IModelDocExtension ext, int IDoffset)
+		public SwMaterial(RenderMaterial m, IModelDocExtension ext)
 		{
 			if (m != null)
 			{
@@ -502,7 +503,9 @@ namespace SolidworksDatasmith.SwObjects
 				Type = _source.IlluminationShaderType;
 
 				FileName = _source.FileName;
-				ID = m.MaterialID + IDoffset;
+
+				ID = GetMaterialID(m);
+
 				Name = Path.GetFileNameWithoutExtension(FileName) + "<" + ID + ">";
 
 				BumpMap = _source.BumpMap;
@@ -835,6 +838,23 @@ namespace SolidworksDatasmith.SwObjects
 					res += file[pos++];
 			}
 			return res;
+		}
+
+		public static int GetMaterialID(RenderMaterial Material)
+		{
+			string MaterialStringID = Material.FileName;
+
+			// Simple color materials need to be distinguished in another way than the file path (which is always the same)
+			string MaterialFileName = Path.GetFileNameWithoutExtension(Material.FileName);
+			if (MaterialFileName == "color")
+			{
+				MaterialStringID = Material.PrimaryColor.ToString();
+			}
+
+			MD5 MD5Hasher = MD5.Create();
+			byte[] Hashed = MD5Hasher.ComputeHash(Encoding.UTF8.GetBytes(MaterialStringID));
+			int ID = Math.Abs(BitConverter.ToInt32(Hashed, 0));
+			return ID;
 		}
 
 		public override string ToString()

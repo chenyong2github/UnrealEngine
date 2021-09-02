@@ -33,8 +33,8 @@ namespace SolidworksDatasmith.SwObjects
 
 		private uint FaceCounter = 1;
 		public uint NewFaceID { get { return FaceCounter++; } }
-		private Dictionary<int, SwMaterial> _swMatID2Mat = new Dictionary<int, SwMaterial>();
-		public Dictionary<int, SwMaterial> SwMatID2Mat { get { return _swMatID2Mat; } }
+
+		public Dictionary<int, SwMaterial> SwMatID2Mat { get; } = new Dictionary<int, SwMaterial>();
 
 		private Processor _processor = null;
 		public Processor Processor { get { return _processor; } }
@@ -58,22 +58,6 @@ namespace SolidworksDatasmith.SwObjects
 
 		// accessory used during export
 		public HashSet<int> AddedMaterials = new HashSet<int>();
-
-		private int MaterialIDOffset = 0; // we offset material IDs on a per-document basis, to avoid material ID conflicts
-		private Dictionary<string, int> MaterialIDOffsets = new Dictionary<string, int>();
-
-		private int GetMaterialOffset(ModelDoc2 doc)
-		{
-			string path = doc.GetPathName();
-			int offset = 0;
-			if (!MaterialIDOffsets.TryGetValue(path, out offset))
-			{
-				MaterialIDOffsets.Add(path, MaterialIDOffset);
-				offset = MaterialIDOffset;
-				MaterialIDOffset += 1000;
-			}
-			return offset;
-		}
 
 		public void AddDocument(PartDoc doc)
 		{
@@ -122,10 +106,10 @@ namespace SolidworksDatasmith.SwObjects
 			_processor.AddCommand(cmd);
 		}
 
-		public string GetBodyPath(IBody2 body, IModelDoc2 doc)
+		static public string GetBodyPath(IBody2 body, IModelDoc2 doc)
 		{
 			string path = "";
-			if (body != null && _doc != null)
+			if (body != null && doc != null)
 			{
 				var title = doc.GetPathName();
 				var name = body.Name;
@@ -134,10 +118,10 @@ namespace SolidworksDatasmith.SwObjects
 			return path;
 		}
 
-		public string GetFeaturePath(IFeature feature, IModelDoc2 doc)
+		static public string GetFeaturePath(IFeature feature, IModelDoc2 doc)
 		{
 			string path = "";
-			if (feature != null && _doc != null)
+			if (feature != null && doc != null)
 			{
 				var title = doc.GetPathName();
 				string name = feature.Name;
@@ -146,17 +130,17 @@ namespace SolidworksDatasmith.SwObjects
 			return path;
 		}
 
-		public void ResetFaceID(IFace2 face)
+		static public void ResetFaceID(IFace2 face)
 		{
 			face.SetFaceId(0);
 		}
 
-		public void SetFaceID(IFace2 face, uint id)
+		static public void SetFaceID(IFace2 face, uint id)
 		{
 			face.SetFaceId(unchecked((int)id));
 		}
 
-		public uint GetFaceID(IFace2 face)
+		static public uint GetFaceID(IFace2 face)
 		{
 			uint id = unchecked((uint)face.GetFaceId());
 			return id;
@@ -167,8 +151,6 @@ namespace SolidworksDatasmith.SwObjects
 		{
 			if (doc == null)
 				doc = Doc;
-
-			int IDoffset = GetMaterialOffset(doc);
 
 			IModelDocExtension ext = doc.Extension;
 
@@ -185,10 +167,12 @@ namespace SolidworksDatasmith.SwObjects
 					{
 						SwSingleton.FireProgressEvent("Extracting Material " + Path.GetFileNameWithoutExtension(mm.FileName));
 
-						SwMaterial mat = MaterialMapper.AddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.AddMaterial(mm, ext);
 
-						if (!_swMatID2Mat.ContainsKey(mat.ID))
-							_swMatID2Mat.Add(mat.ID, mat);
+						if (!SwMatID2Mat.ContainsKey(mat.ID))
+						{
+							SwMatID2Mat.Add(mat.ID, mat);
+						}
 						else
 						{
 							// todo: decide what should happen
@@ -255,8 +239,6 @@ namespace SolidworksDatasmith.SwObjects
 		// assigning a material to the component name. Note that only difference from the default configuration is stored.
 		public void CollectMaterialsForConfiguration(ModelDoc2 doc, string[] displayStates, Dictionary<string, SwMaterial> materialMapping)
 		{
-			int IDoffset = GetMaterialOffset(doc);
-
 			IModelDocExtension ext = doc.Extension;
 
 			int numMaterials = ext.GetRenderMaterialsCount2((int)swDisplayStateOpts_e.swSpecifyDisplayState, displayStates);
@@ -271,7 +253,7 @@ namespace SolidworksDatasmith.SwObjects
 					int numUsers = mm.GetEntitiesCount();
 					if (numUsers > 0)
 					{
-						SwMaterial mat = MaterialMapper.FindOrAddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.FindOrAddMaterial(mm, ext);
 
 						object[] users = mm.GetEntities();
 						foreach (var user in users)
@@ -850,7 +832,7 @@ namespace SolidworksDatasmith.SwObjects
 					// Materials here are ones which assigned to parts, ordered by hierarchy.
 					// Get the last one in the list as the prioritized override.
 					RenderMaterial partMaterial = swMaterials[swMaterials.Length - 1] as RenderMaterial;
-					SwMaterial swMaterial = MaterialMapper.FindOrAddMaterial(partMaterial, Doc.Extension, GetMaterialOffset(Doc));
+					SwMaterial swMaterial = MaterialMapper.FindOrAddMaterial(partMaterial, Doc.Extension);
 					newNode.CommonConfig.SetMaterial(swMaterial);
 				}
 			}
@@ -984,7 +966,7 @@ namespace SolidworksDatasmith.SwObjects
 						int NumUsers = RenderMat.GetEntitiesCount();
 						if (NumUsers > 0)
 						{
-							SwMaterial SwMat = MaterialMapper.FindOrAddMaterial(RenderMat, Ext, 0);
+							SwMaterial SwMat = MaterialMapper.FindOrAddMaterial(RenderMat, Ext);
 
 							object[] Users = RenderMat.GetEntities();
 							foreach (var User in Users)

@@ -49,7 +49,9 @@ namespace SolidworksDatasmith.Geometry
 
             int matID = -1;
             if (material != null)
+			{
                 matID = material.ID;
+			}
 
             j = 0;
             for (int i = 0; i < indices.Length; i += 3)

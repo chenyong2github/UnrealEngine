@@ -88,7 +88,7 @@ namespace SolidworksDatasmith.SwObjects
 				doc2.Name = Name;
 				doc2.PathName = PathName;
 				doc2.LoadBodies();
-				areSame = IsSame(doc2);
+				areSame = bInIsDirectLinkUpdate && IsSame(doc2);
 			}
 
 			if (!areSame)
@@ -156,18 +156,26 @@ namespace SolidworksDatasmith.SwObjects
 
 		public bool IsSame(SwPartDoc doc2)
 		{
-			if (Bodies.Count != doc2.Bodies.Count) return false;
+			if (Bodies.Count != doc2.Bodies.Count)
+			{
+				return false;
+			}
+
 			for (int i = 0; i < Bodies.Count; i++)
 			{
-				if (Bodies[i].Faces.Count != doc2.Bodies[i].Faces.Count) return false;
+				if (Bodies[i].Faces.Count != doc2.Bodies[i].Faces.Count)
+				{
+					return false;
+				}
+
 				for (int j = 0; j < Bodies[i].Faces.Count; j++)
 				{
 					try
 					{
 						Face2 face1 = Bodies[i].Faces[j].Face;
 						Face2 face2 = doc2.Bodies[i].Faces[j].Face;
-						uint id1 = SwSingleton.CurrentScene.GetFaceID(face1);
-						uint id2 = SwSingleton.CurrentScene.GetFaceID(face2);
+						uint id1 = SwScene.GetFaceID(face1);
+						uint id2 = SwScene.GetFaceID(face2);
 						if (id1 != id2)
 						{
 							return false;

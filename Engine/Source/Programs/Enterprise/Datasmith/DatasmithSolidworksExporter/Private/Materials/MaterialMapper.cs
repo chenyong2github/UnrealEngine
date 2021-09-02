@@ -56,12 +56,17 @@ namespace SolidworksDatasmith.Materials
                 case EntityType.MU_BODY: users = MaterialUsers_bodies; break;
                 case EntityType.MU_FEATURE: users = MaterialUsers_features; break;
             }
+
             if (users != null)
             {
                 if (users.ContainsKey(id))
+				{
                     users[id] = mat;
+				}
                 else
+				{
                     users.Add(id, mat);
+				}
             }
         }
 
@@ -113,25 +118,25 @@ namespace SolidworksDatasmith.Materials
             }
         }
 
-        public SwMaterial AddMaterial(RenderMaterial mat, IModelDocExtension ext, int IDoffset)
+        public SwMaterial AddMaterial(RenderMaterial mat, IModelDocExtension ext)
         {
             SwMaterial swmat = null;
             if (mat != null)
             {
-                swmat = new SwMaterial(mat, ext, IDoffset);
+                swmat = new SwMaterial(mat, ext);
                 Materials.Add(swmat);
             }
             return swmat;
         }
 
-		public SwMaterial FindOrAddMaterial(RenderMaterial mat, IModelDocExtension ext, int IDoffset)
+		public SwMaterial FindOrAddMaterial(RenderMaterial mat, IModelDocExtension ext)
 		{
-			SwMaterial swmat = Materials.FirstOrDefault(x => x.Source == mat && x.ID == mat.MaterialID + IDoffset);
+			SwMaterial swmat = Materials.FirstOrDefault(x => x.Source == mat && x.ID == SwMaterial.GetMaterialID(mat));
 			if (swmat != null)
 				return swmat;
 
 			// The exactly matching material is not found, let's create a new one (even if it will be immediately removed)
-			swmat = new SwMaterial(mat, ext, IDoffset);
+			swmat = new SwMaterial(mat, ext);
 
 			// The identical material still could exist, so we'll check the existing materials list
 			SwMaterial found = Materials.FirstOrDefault(x => SwMaterial.AreTheSame(x, swmat, true));
