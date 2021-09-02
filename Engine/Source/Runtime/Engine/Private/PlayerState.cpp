@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PlayerState.cpp: 
-=============================================================================*/
-
 #include "GameFramework/PlayerState.h"
 #include "Engine/World.h"
 #include "GameFramework/Controller.h"
@@ -141,7 +137,7 @@ void APlayerState::RecalculateAvgPing()
 
 	if (bShouldUpdateReplicatedPing || !HasAuthority())
 	{
-		SetPing(FMath::Min(255, (int32)(ExactPing * 0.25f)));
+		SetCompressedPing(FMath::Min(255, (int32)(ExactPing * 0.25f)));
 	}
 }
 
@@ -169,7 +165,7 @@ void APlayerState::OverrideWith(APlayerState* PlayerState)
 void APlayerState::CopyProperties(APlayerState* PlayerState)
 {
 	PlayerState->SetScore(GetScore());
-	PlayerState->SetPing(GetPing());
+	PlayerState->SetCompressedPing(GetCompressedPing());
 	PlayerState->ExactPing = ExactPing;
 	PlayerState->SetPlayerId(GetPlayerId());
 	PlayerState->SetUniqueId(GetUniqueId().GetUniqueNetId());
@@ -462,7 +458,7 @@ void APlayerState::GetLifetimeReplicatedProps(TArray< FLifetimeProperty > & OutL
 	DOREPLIFETIME_WITH_PARAMS_FAST(APlayerState, PlayerNamePrivate, SharedParams);
 
 	SharedParams.Condition = COND_SkipOwner;
-	DOREPLIFETIME_WITH_PARAMS_FAST(APlayerState, Ping, SharedParams);
+	DOREPLIFETIME_WITH_PARAMS_FAST(APlayerState, CompressedPing, SharedParams);
 
 	SharedParams.Condition = COND_InitialOnly;
 	DOREPLIFETIME_WITH_PARAMS_FAST(APlayerState, PlayerId, SharedParams);
@@ -485,10 +481,24 @@ void APlayerState::SetPlayerId(const int32 NewId)
 	PlayerId = NewId;
 }
 
-void APlayerState::SetPing(const uint8 NewPing)
+void APlayerState::SetCompressedPing(const uint8 NewPing)
 {
-	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, Ping, this);
-	Ping = NewPing;
+	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, CompressedPing, this);
+	CompressedPing = NewPing;
+}
+
+float APlayerState::GetPingInMilliseconds() const
+{
+	if (ExactPing > 0.0f)
+	{
+		// Prefer the exact ping if set (only on the server or for the local players)
+		return ExactPing;
+	}
+	else
+	{
+		// Otherwise, use the replicated compressed ping
+		return CompressedPing * 4.0f;
+	}
 }
 
 void APlayerState::SetIsSpectator(const bool bNewSpectator)

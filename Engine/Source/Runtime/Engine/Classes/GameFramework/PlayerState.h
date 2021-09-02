@@ -82,17 +82,16 @@ class ENGINE_API APlayerState : public AInfo
 	UPROPERTY(ReplicatedUsing=OnRep_PlayerId, BlueprintReadOnly, Category=PlayerState)
 	int32 PlayerId;
 
-	/** Replicated compressed ping for this player (holds ping in msec divided by 4) */
-	UE_DEPRECATED(4.25, "This member will be made private. Use GetPing or SetPing instead.")
-	UPROPERTY(Replicated, BlueprintReadOnly, Category=PlayerState)
-	uint8 Ping;
-
 private:
+	/** Replicated compressed ping for this player (holds ping in msec divided by 4) */
+	UPROPERTY(Replicated, BlueprintReadOnly, Category=PlayerState, meta=(AllowPrivateAccess))
+	uint8 CompressedPing;
+
 	/** The current PingBucket index that is being filled */
-	uint8			CurPingBucket;
+	uint8 CurPingBucket;
 
 	/**
-	 * Whether or not this player's replicated Ping value is updated automatically.
+	 * Whether or not this player's replicated CompressedPing value is updated automatically.
 	 * Since player states are always relevant by default, in cases where there are many players replicating,
 	 * replicating the ping value can cause additional unnecessary overhead on servers if the value isn't
 	 * needed on clients.
@@ -144,7 +143,7 @@ public:
 	UPROPERTY()
 	TSubclassOf<class ULocalMessage> EngineMessageClass;
 
-	/** Exact ping as float (rounded and compressed in replicated Ping) */
+	/** Exact ping as float (rounded and compressed in replicated CompressedPing) */
 	float ExactPing;
 
 	UE_DEPRECATED(4.27, "Please use ExactPing instead.")
@@ -360,14 +359,30 @@ public:
 	/** Sets the value of PlayerId without causing other side effects to this instance. */
 	void SetPlayerId(const int32 NewId);
 
-	/** Gets the literal value of Ping. */
-	uint8 GetPing() const
+	/** Gets the literal value of the compressed Ping value (Ping = PingInMS / 4). */
+	uint8 GetCompressedPing() const
 	{
-		return Ping;
+		return CompressedPing;
 	}
 
-	/** Sets the value of Ping without causing other side effects to this instance. */
-	void SetPing(const uint8 NewPing);
+	UE_DEPRECATED(5.0, "Use GetPingInMilliseconds() or GetCompressedPing() instead")
+	uint8 GetPing() const { return GetCompressedPing(); }
+
+	/** Sets the value of CompressedPing without causing other side effects to this instance. */
+	void SetCompressedPing(const uint8 NewPing);
+
+	/**
+	 * Returns the ping (in milliseconds)
+	 *
+	 * Returns ExactPing if available (local players or when running on the server), and
+	 * the replicated CompressedPing (converted back to milliseconds) otherwise.
+	 * 
+	 * Note that replication of CompressedPing is controlled by bShouldUpdateReplicatedPing,
+	 * and if disabled then this will return 0 or a stale value on clients for player states
+	 * that aren't related to local players
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PlayerState")
+	float GetPingInMilliseconds() const;
 
 	/** Gets the literal value of bIsSpectator. */
 	bool IsSpectator() const
