@@ -1,0 +1,63 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Animation/CurveSequence.h"
+
+class FDerivedDataStatusBarMenuCommands : public TCommands<FDerivedDataStatusBarMenuCommands>
+{
+public:
+
+	FDerivedDataStatusBarMenuCommands();
+
+	virtual void RegisterCommands() override;
+
+private:
+
+
+	static void ChangeSettings_Clicked();
+	static void ViewCacheStatistics_Clicked();
+	static void ViewResourceUsage_Clicked();
+
+
+public:
+
+	TSharedPtr< FUICommandInfo > ChangeSettings;
+	TSharedPtr< FUICommandInfo > ViewResourceUsage;
+	TSharedPtr< FUICommandInfo > ViewCacheStatistics;
+
+	static TSharedRef<FUICommandList> ActionList;
+};
+
+
+class SDerivedDataStatusBarWidget : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SDerivedDataStatusBarWidget) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+
+private:
+
+	static FText				GetTitleToolTipText();
+	static FText				GetRemoteCacheToolTipText();
+	static FText				GetTitleText();
+	TSharedRef<SWidget>			CreateStatusBarMenu();
+	EActiveTimerReturnType		UpdateBusyIndicator(double InCurrentTime, float InDeltaTime);
+	EActiveTimerReturnType		UpdateWarnings(double InCurrentTime, float InDeltaTime);
+
+	double LastDDCGetTime = 0;
+	double LastDDCPutTime = 0;
+
+	bool bGetActive = false;
+	bool bPutActive = false;
+	bool bBusy = false;
+
+	FCurveSequence BusyPulseSequence;
+	FCurveSequence FadeGetSequence;
+	FCurveSequence FadePutSequence;
+};

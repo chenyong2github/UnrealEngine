@@ -72,6 +72,7 @@ public:
 		void SetupMyBlueprintStyles();
 		void SetupStatusBarStyle();
 		void SetupColorPickerStyle();
+		void SetupDerivedDataStyle();
 
 		void SettingsChanged(UObject* ChangedObject, FPropertyChangedEvent& PropertyChangedEvent);
 		void SyncSettings();

@@ -1066,7 +1066,8 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("StaticMeshEditor"),
 			TEXT("EditorFramework"),
 			TEXT("WorldPartitionEditor"),
-			TEXT("EditorConfig")
+			TEXT("EditorConfig"),
+			TEXT("DerivedDataEditor")
 		};
 
 		FScopedSlowTask ModuleSlowTask(UE_ARRAY_COUNT(ModuleNames));
