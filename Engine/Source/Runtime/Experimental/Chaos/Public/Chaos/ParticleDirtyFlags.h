@@ -16,6 +16,7 @@
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
 #include "Framework/PhysicsProxyBase.h"
+#include "PBDJointConstraintTypes.h"
 
 #ifndef CHAOS_DEBUG_NAME
 #define CHAOS_DEBUG_NAME 0
@@ -740,19 +741,19 @@ inline FChaosArchive& operator<<(FChaosArchive& Ar,FMaterialData& Data)
   * as well as how to go from a contiguous index into a per bucket index */
 struct FDirtyProxiesBucketInfo
 {
-	int32 Num[EPhysicsProxyType::Count] = {};
+	int32 Num[(uint32)(EPhysicsProxyType::Count)] = {};
 	int32 TotalNum = 0;
 
 	void Reset()
 	{
-		for (int32 Idx = 0; Idx < EPhysicsProxyType::Count; ++Idx) { Num[Idx] = 0; }
+		for (int32 Idx = 0; Idx < (uint32)EPhysicsProxyType::Count; ++Idx) { Num[Idx] = 0; }
 		TotalNum = 0;
 	}
 
 	void GetBucketIdx(int32 Idx, int32& OutBucketIdx, int32& InnerIdx) const
 	{
 		int32 Remaining = Idx;
-		for (int32 BucketIdx = 0; BucketIdx < EPhysicsProxyType::Count; ++BucketIdx)
+		for (int32 BucketIdx = 0; BucketIdx < (uint32)EPhysicsProxyType::Count; ++BucketIdx)
 		{
 			if (Remaining < Num[BucketIdx])
 			{
@@ -777,7 +778,7 @@ public:
 
 	void PrepareBuckets(const FDirtyProxiesBucketInfo& DirtyProxiesBucketInfo)
 	{
-#define CHAOS_PROPERTY(PropName, Type, ProxyType) PropName##Pool.SetNum(DirtyProxiesBucketInfo.Num[ProxyType]);
+#define CHAOS_PROPERTY(PropName, Type, ProxyType) PropName##Pool.SetNum(DirtyProxiesBucketInfo.Num[(uint32)ProxyType]);
 #include "ParticleProperties.inl"
 #undef CHAOS_PROPERTY
 	}
