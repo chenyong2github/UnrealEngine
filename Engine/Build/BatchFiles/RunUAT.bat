@@ -29,7 +29,7 @@ if not defined ARGUMENT goto ParseArguments_Done
 set ARGUMENT=%ARGUMENT:"=%
 if /I "%ARGUMENT%" == "-msbuild-verbose" set MSBUILD_LOGLEVEL=normal
 if /I "%ARGUMENT%" == "-compile" set FORCECOMPILE_UAT=FORCE
-if /I "%ARGUMENT%" == "-nocompile" set NOCOMPILE_UAT=1
+if /I "%ARGUMENT%" == "-nocompileuat" set NOCOMPILE_UAT=1
 if /I "%ARGUMENT%" == "-noturnkeyvariables" set SET_TURNKEY_VARIABLES=0
 shift
 goto ParseArguments
