@@ -242,14 +242,6 @@ void SPropertyEditorCombo::SendToObjects( const FString& NewValue )
 			check(Index != INDEX_NONE);
 
 			Value = Enum->GetNameStringByIndex(Index);
-
-			FText ToolTipValue = Enum->GetToolTipTextByIndex(Index);
-			FText ToolTipText = Property->GetToolTipText();
-			if (!ToolTipValue.IsEmpty())
-			{
-				ToolTipText = FText::Format(FText::FromString(TEXT("{0}\n\n{1}")), ToolTipText, ToolTipValue);
-			}
-			SetToolTipText(ToolTipText);
 		}
 
 		ComboArgs.PropertyHandle->SetValueFromFormattedString(Value);
