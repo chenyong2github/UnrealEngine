@@ -4,6 +4,7 @@
 
 #include "Algo/Sort.h"
 #include "Algo/Unique.h"
+#include "AssetRegistry/IAssetRegistry.h"
 #include "Cooker/CookPackageData.h"
 #include "Cooker/CookPlatformManager.h"
 #include "Cooker/CookProfiling.h"
@@ -12,6 +13,8 @@
 #include "Cooker/PackageNameCache.h"
 #include "Cooker/PackageTracker.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataRequestOwner.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/StringBuilder.h"
@@ -243,6 +246,11 @@ void FRequestCluster::Process(const FCookerTimer& CookerTimer, bool& bOutComplet
 		return;
 	}
 	FetchDependencies(CookerTimer, bOutComplete);
+	if (!bOutComplete)
+	{
+		return;
+	}
+	StartAsync(CookerTimer, bOutComplete);
 }
 
 void FRequestCluster::FetchPackageNames(const FCookerTimer& CookerTimer, bool& bOutComplete)
@@ -478,6 +486,51 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 	bDependenciesComplete = true;
 }
 
+void FRequestCluster::StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete)
+{
+	if (bStartAsyncComplete)
+	{
+		return;
+	}
+
+	if (FEditorDomain::Get())
+	{
+		// Disable BatchDownload until cache storage implements fetch-head requests in response to a Get with SkipData
+		bool bBatchDownloadEnabled = false;
+		GConfig->GetBool(TEXT("EditorDomain"), TEXT("BatchDownloadEnabled"), bBatchDownloadEnabled, GEditorIni);
+		if (bBatchDownloadEnabled)
+		{
+			// If the EditorDomain is active, then batch-download all packages to cook from remote cache into local
+			TArray<UE::DerivedData::FCacheKey> CacheKeys;
+			FString ErrorMessage;
+			CacheKeys.Reserve(Requests.Num());
+			for (FPackageData* PackageData : Requests)
+			{
+				UE::EditorDomain::FPackageDigest PackageDigest;
+				bool bEditorDomainEnabled;
+				UE::EditorDomain::EPackageDigestResult Result = UE::EditorDomain::GetPackageDigest(AssetRegistry,
+					PackageData->GetPackageName(), PackageDigest, bEditorDomainEnabled, ErrorMessage);
+				if (Result == UE::EditorDomain::EPackageDigestResult::Success && bEditorDomainEnabled)
+				{
+					CacheKeys.Add(UE::EditorDomain::GetEditorDomainPackageKey(PackageDigest));
+				}
+			}
+
+			if (CacheKeys.Num() > 0)
+			{
+				UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
+				UE::DerivedData::ECachePolicy CachePolicy = UE::DerivedData::ECachePolicy::Default | UE::DerivedData::ECachePolicy::SkipData;
+				UE::DerivedData::FRequestOwner Owner(UE::DerivedData::EPriority::Highest);
+				Owner.KeepAlive();
+				Cache.Get(CacheKeys, TEXT("RequestClusterEditorDomainDownload"_SV), CachePolicy, Owner,
+					[](UE::DerivedData::FCacheGetCompleteParams&& Params) {});
+			}
+		}
+	}
+
+	bStartAsyncComplete = true;
+}
+
 int32 FRequestCluster::NumPackageDatas() const
 {
 	return OwnedPackageDatas.Num();
@@ -502,7 +555,7 @@ bool FRequestCluster::Contains(FPackageData* PackageData) const
 
 void FRequestCluster::ClearAndDetachOwnedPackageDatas(TArray<FPackageData*>& OutRequestsToLoad, TArray<FPackageData*>& OutRequestsToDemote)
 {
-	if (bDependenciesComplete)
+	if (bStartAsyncComplete)
 	{
 		check(TransitiveRequests.Num() == 0 && Segment.Num() == 0);
 		OutRequestsToLoad = MoveTemp(Requests);

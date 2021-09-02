@@ -40,7 +40,8 @@ public:
 	};
 
 	FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
+		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
+		UE::DerivedData::EPriority Priority);
 	~FEditorDomainPackageSegments();
 
 	/** Get the request owner for requests that will feed this archive. */
@@ -197,7 +198,8 @@ class FEditorDomainReadArchive : public FArchive
 {
 public:
 	FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource);
+		const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
+		UE::DerivedData::EPriority Priority);
 
 	/** Get the request owner for requests that will feed this archive. */
 	UE::DerivedData::IRequestOwner& GetRequestOwner() { return Segments.GetRequestOwner(); }

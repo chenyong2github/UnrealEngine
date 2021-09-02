@@ -614,12 +614,19 @@ void RequestEditorDomainPackage(const FPackagePath& PackagePath,
 	const FPackageDigest& PackageDigest, UE::DerivedData::ECachePolicy SkipFlags, UE::DerivedData::IRequestOwner& Owner,
 	UE::DerivedData::FOnCacheGetComplete&& Callback)
 {
-	UE::DerivedData::ICache& Cache = UE::DerivedData::GetCache();
-	checkf((SkipFlags & (~UE::DerivedData::ECachePolicy::SkipData)) == UE::DerivedData::ECachePolicy::None,
+	using namespace UE::DerivedData;
+
+	ICache& Cache = GetCache();
+	checkf((SkipFlags & (~ECachePolicy::SkipData)) == ECachePolicy::None,
 		TEXT("SkipFlags should only contain ECachePolicy::Skip* flags"));
-	Cache.Get({ GetEditorDomainPackageKey(PackageDigest) },
-		PackagePath.GetDebugName(),
-		SkipFlags | UE::DerivedData::ECachePolicy::QueryLocal, Owner, MoveTemp(Callback));
+
+	// Set the CachePolicy to only query from local; we do not want to wait for download from remote.
+	// Downloading from remote is done in batch  see FRequestCluster::StartAsync.
+	// But set the CachePolicy to store into remote. This will cause the CacheStore to push
+	// any existing local value into upstream storage and refresh the last-used time in the upstream.
+	ECachePolicy CachePolicy = SkipFlags | ECachePolicy::Local | ECachePolicy::StoreRemote;
+	Cache.Get({ GetEditorDomainPackageKey(PackageDigest) }, PackagePath.GetDebugName(),
+		CachePolicy, Owner, MoveTemp(Callback));
 }
 
 /** Stores data from SavePackage in accessible fields */
@@ -841,7 +848,7 @@ bool TrySavePackage(UPackage* Package)
 
 	RecordBuilder.SetMeta(MetaData.Save().AsObject());
 	FRequestOwner Owner(EPriority::Normal);
-	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Local, Owner);
+	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();
 	return true;
 }

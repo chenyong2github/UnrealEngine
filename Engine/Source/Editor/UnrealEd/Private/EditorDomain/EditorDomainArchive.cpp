@@ -17,9 +17,9 @@
 #include "Serialization/CompactBinary.h"
 
 FEditorDomainPackageSegments::FEditorDomainPackageSegments(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
+	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource, UE::DerivedData::EPriority Priority)
 	: EditorDomainLocks(InLocks)
-	, RequestOwner(UE::DerivedData::EPriority::Normal)
+	, RequestOwner(Priority)
 	, PackagePath(InPackagePath)
 	, PackageSource(InPackageSource)
 	, PackageDigest(InPackageSource->Digest)
@@ -434,8 +434,9 @@ void FEditorDomainPackageSegments::SendSegmentRequest(FSegment& Segment)
 }
 
 FEditorDomainReadArchive::FEditorDomainReadArchive(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
-	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
-	: Segments(InLocks, InPackagePath, InPackageSource)
+	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource,
+	UE::DerivedData::EPriority Priority)
+	: Segments(InLocks, InPackagePath, InPackageSource, Priority)
 {
 	this->SetIsLoading(true);
 	this->SetIsPersistent(true);
@@ -729,7 +730,7 @@ protected:
 
 FEditorDomainAsyncReadFileHandle::FEditorDomainAsyncReadFileHandle(const TRefCountPtr<FEditorDomain::FLocks>& InLocks,
 	const FPackagePath& InPackagePath, const TRefCountPtr<FEditorDomain::FPackageSource>& InPackageSource)
-	: Segments(InLocks, InPackagePath, InPackageSource)
+	: Segments(InLocks, InPackagePath, InPackageSource, UE::DerivedData::EPriority::Normal)
 {
 }
 

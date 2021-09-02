@@ -93,6 +93,7 @@ private:
 	void Initialize(UCookOnTheFlyServer& COTFS);
 	void FetchPackageNames(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	void FetchDependencies(const FCookerTimer& CookerTimer, bool& bOutComplete);
+	void StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	bool TryTakeOwnership(FPackageData& PackageData, bool bUrgent, FCompletionCallback&& CompletionCallback);
 	void VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bAlreadyCooked);
 	bool IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData);
@@ -127,6 +128,7 @@ private:
 	bool bErrorOnEngineContentUse = false;
 	bool bPackageNamesComplete = false;
 	bool bDependenciesComplete = false;
+	bool bStartAsyncComplete = false;
 	bool bFullBuild = false;
 
 
