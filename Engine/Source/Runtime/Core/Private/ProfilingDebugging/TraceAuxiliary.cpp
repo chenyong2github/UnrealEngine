@@ -507,19 +507,20 @@ static void LaunchUnrealTraceInternal()
 		return;
 	}
 
-	FString BinPath = "\"";
-	BinPath += FPaths::EngineDir();
-	BinPath += "/Binaries/Win64/UnrealTraceServer.exe\"";
+	FString CommandLine = "\"";
+	CommandLine += FPaths::EngineDir();
+	CommandLine += "/Binaries/Win64/UnrealTraceServer.exe\"";
+	CommandLine += " fork";
 
-	uint32 Flags = 0x0100'0000; // CREATE_BREAKAWAY_FROM_JOB
+	uint32 Flags = CREATE_BREAKAWAY_FROM_JOB|DETACHED_PROCESS;
 	STARTUPINFOW StartupInfo = { sizeof(STARTUPINFOW) };
 	PROCESS_INFORMATION ProcessInfo = {};
-	BOOL bOk = CreateProcessW(nullptr, LPWSTR(*BinPath), nullptr, nullptr,
+	BOOL bOk = CreateProcessW(nullptr, LPWSTR(*CommandLine), nullptr, nullptr,
 		false, Flags, nullptr, nullptr, &StartupInfo, &ProcessInfo);
 
 	if (!bOk)
 	{
-		UE_LOG(LogCore, Display, TEXT("UnrealTraceServer: Unable to launch the trace store from '%s' (%08x)"), *BinPath, GetLastError());
+		UE_LOG(LogCore, Display, TEXT("UnrealTraceServer: Unable to launch the trace store with '%s' (%08x)"), *CommandLine, GetLastError());
 		return;
 	}
 
