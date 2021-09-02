@@ -9,7 +9,6 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/IPlatformFileModule.h"
 #include "Templates/UniquePtr.h"
-#include "IO/IoDispatcherBackend.h"
 
 DEFINE_LOG_CATEGORY(SandboxFile);
 
@@ -181,31 +180,6 @@ bool FSandboxPlatformFile::Initialize(IPlatformFile* Inner, const TCHAR* CmdLine
 			{
 				FCommandLine::AddToSubprocessCommandline(*FString::Printf(TEXT("-Sandbox=%s"), *SandboxDirectory));
 			}
-		}
-	}
-
-	FString GlobalUTocPath = FString::Printf(TEXT("%sglobal.utoc"), *SandboxDirectory);
-	if (FileExists(*GlobalUTocPath))
-	{
-		FIoStatus IoDispatcherInitStatus = FIoDispatcher::Initialize();
-		if (IoDispatcherInitStatus.IsOk())
-		{
-			FIoDispatcher& IoDispatcher = FIoDispatcher::Get();
-			TSharedRef<IIoDispatcherFileBackend> IoDispatcherFileBackend = CreateIoDispatcherFileBackend();
-			IoDispatcher.Mount(IoDispatcherFileBackend);
-			TIoStatusOr<FIoContainerId> IoDispatcherMountStatus = IoDispatcherFileBackend->Mount(*FPaths::ChangeExtension(GlobalUTocPath, TEXT("")), 0, FGuid(), FAES::FAESKey());
-			if (IoDispatcherMountStatus.IsOk())
-			{
-				UE_LOG(LogInit, Display, TEXT("Initialized I/O dispatcher"));
-			}
-			else
-			{
-				UE_LOG(LogInit, Error, TEXT("Failed to mount I/O dispatcher container: '%s'"), *IoDispatcherMountStatus.Status().ToString());
-			}
-		}
-		else
-		{
-			UE_LOG(LogInit, Error, TEXT("Failed to initialize I/O dispatcher: '%s'"), *IoDispatcherInitStatus.ToString());
 		}
 	}
 

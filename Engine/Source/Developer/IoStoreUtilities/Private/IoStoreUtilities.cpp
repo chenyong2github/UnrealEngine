@@ -3,7 +3,6 @@
 #include "IoStoreUtilities.h"
 
 #if !UE_BUILD_SHIPPING
-#include "FilePackageStoreWriter.h"
 #include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Hash/CityHash.h"
@@ -376,15 +375,9 @@ public:
 		}
 		else
 		{
-			TUniquePtr<FIoStoreReaderDataSource> IoStoreReaderDataSource = MakeUnique<FIoStoreReaderDataSource>();
-			Status = IoStoreReaderDataSource->Initialize(*(CookedDirectory / TEXT("global")));
-			if (!Status.IsOk())
-			{
-				return Status;
-			}
-			DataSource = MoveTemp(IoStoreReaderDataSource);
+			return FIoStatusBuilder(EIoErrorCode::NotFound) << TEXT("Missing ZenServerInfo in package store manifest");
 		}
-
+		
 		FIoContainerId ContainerId = FIoContainerId::FromName(TEXT("global"));
 
 		TIoStatusOr<FIoBuffer> HeaderBuffer = DataSource->ReadChunk(CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader), FIoReadOptions());
@@ -531,35 +524,6 @@ private:
 		virtual ~IDataSource() = default;
 		virtual TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId) = 0;
 		virtual TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions) = 0;
-	};
-
-	class FIoStoreReaderDataSource
-		: public IDataSource
-	{
-	public:
-		FIoStatus Initialize(const TCHAR* ContainerPath)
-		{
-			using FEncryptionKeys = TMap<FGuid, FAES::FAESKey>;
-			return IoStoreReader.Initialize(ContainerPath, FEncryptionKeys());
-		}
-
-		virtual TIoStatusOr<uint64> GetChunkSize(const FIoChunkId& ChunkId) override
-		{
-			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = IoStoreReader.GetChunkInfo(ChunkId);
-			if (!ChunkInfo.IsOk())
-			{
-				return ChunkInfo.Status();
-			}
-			return ChunkInfo.ValueOrDie().Size;
-		}
-
-		virtual TIoStatusOr<FIoBuffer> ReadChunk(const FIoChunkId& ChunkId, const FIoReadOptions& ReadOptions) override
-		{
-			return IoStoreReader.Read(ChunkId, ReadOptions);
-		}
-
-	private:
-		FIoStoreReader IoStoreReader;
 	};
 
 	class FZenStoreDataSource

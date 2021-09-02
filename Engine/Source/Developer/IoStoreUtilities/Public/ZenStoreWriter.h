@@ -8,7 +8,8 @@
 #include "Serialization/CompactBinary.h"
 #include "Serialization/PackageWriter.h"
 #include "IO/PackageStore.h"
-#include "FilePackageStoreWriter.h"
+#include "PackageStoreWriter.h"
+#include "PackageStoreManifest.h"
 
 namespace UE {
 	class FZenStoreHttpClient;
