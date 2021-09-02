@@ -466,7 +466,7 @@ FLinearColor FTimeMarkerTrackBuilder::GetColorByVerbosity(const ELogVerbosity::T
 	{
 		FLinearColor(0.0f, 0.0f, 0.0f, 1.0f), // NoLogging
 		FLinearColor(1.0f, 0.0f, 0.0f, 1.0f), // Fatal
-		FLinearColor(1.0f, 0.3f, 0.0f, 1.0f), // Error
+		FLinearColor(1.0f, 0.1f, 0.1f, 1.0f), // Error
 		FLinearColor(0.7f, 0.5f, 0.0f, 1.0f), // Warning
 		FLinearColor(0.0f, 0.7f, 0.0f, 1.0f), // Display
 		FLinearColor(0.0f, 0.7f, 1.0f, 1.0f), // Log
