@@ -15,7 +15,10 @@
 #include "LumenRadianceCache.h"
 #include "LumenSceneLighting.h"
 #include "LumenTracingUtils.h"
-#include "LumenHardwareRaytracingCommon.h"
+
+#if RHI_RAYTRACING
+	#include "LumenHardwareRaytracingCommon.h"
+#endif
 
 int32 GLumenRadiosity = 1;
 FAutoConsoleVariableRef CVarLumenRadiosity(
