@@ -243,7 +243,7 @@ void BuildMetalShaderOutput(
 		UE_LOG(LogMetalShaderCompiler, Fatal, TEXT("Bad hlslcc header found"));
 	}
 	
-	EShaderFrequency Frequency = (EShaderFrequency)ShaderOutput.Target.Frequency;
+	const EShaderFrequency Frequency = (EShaderFrequency)ShaderOutput.Target.Frequency;
 
 	//TODO read from toolchain
 	const bool bIsMobile = (ShaderInput.Target.Platform == SP_METAL || ShaderInput.Target.Platform == SP_METAL_MRT || ShaderInput.Target.Platform == SP_METAL_TVOS || ShaderInput.Target.Platform == SP_METAL_MRT_TVOS);
@@ -1132,7 +1132,7 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	char* MetalShaderSource = NULL;
 	char* ErrorLog = NULL;
 
-	const EShaderFrequency Frequency = Input.Target.Frequency;
+	const EShaderFrequency Frequency = (EShaderFrequency)Input.Target.Frequency;
 	if (!(Frequency == SF_Vertex || Frequency == SF_Pixel || Frequency == SF_Compute))
 	{
 		Output.bSucceeded = false;
