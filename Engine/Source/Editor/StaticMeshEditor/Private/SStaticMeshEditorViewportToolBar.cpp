@@ -19,6 +19,7 @@
 #include "Engine/StaticMeshSocket.h"
 #include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
 #include "StaticMeshViewportLODCommands.h"
+#include "PreviewProfileController.h"
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditorViewportToolbar"
 
@@ -28,7 +29,7 @@
 
 void SStaticMeshEditorViewportToolbar::Construct(const FArguments& InArgs, TSharedPtr<class ICommonEditorViewportToolbarInfoProvider> InInfoProvider)
 {
-	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments(), InInfoProvider);
+	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments().PreviewProfileController(MakeShared<FPreviewProfileController>()), InInfoProvider);
 }
 
 // SCommonEditorViewportToolbarBase interface

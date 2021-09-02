@@ -434,7 +434,14 @@ void FAdvancedPreviewScene::HandleTogglePostProcessing()
 
 void FAdvancedPreviewScene::OnAssetViewerSettingsRefresh(const FName& InPropertyName)
 {
-	if (DefaultSettings->Profiles.IsValidIndex(CurrentProfileIndex))
+	// If the profile was changed, update the current index and the scene.
+	if (InPropertyName == GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, ProfileName))
+	{
+		CurrentProfileIndex = GetDefault<UEditorPerProjectUserSettings>()->AssetViewerProfileIndex;
+		CurrentProfileIndex = DefaultSettings->Profiles.IsValidIndex(CurrentProfileIndex) ? CurrentProfileIndex : 0;
+		UpdateScene(DefaultSettings->Profiles[CurrentProfileIndex]);
+	}
+	else if (DefaultSettings->Profiles.IsValidIndex(CurrentProfileIndex))
 	{
 		const bool bNameNone = InPropertyName == NAME_None;
 

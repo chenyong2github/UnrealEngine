@@ -7,6 +7,7 @@
 #include "EditorViewportCommands.h"
 #include "NiagaraEditorSettings.h"
 #include "SEditorViewportToolBarButton.h"
+#include "PreviewProfileController.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemViewportToolBar"
 
@@ -17,7 +18,7 @@
 void SNiagaraSystemViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class SNiagaraSystemViewport> InViewport)
 {
 	// we don't want a realtime button here as we create a custom one by extending the left menu
-	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments().AddRealtimeButton(true), InViewport);
+	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments().AddRealtimeButton(true).PreviewProfileController(MakeShared<FPreviewProfileController>()), InViewport);
 	Sequencer = InArgs._Sequencer;
 }
 

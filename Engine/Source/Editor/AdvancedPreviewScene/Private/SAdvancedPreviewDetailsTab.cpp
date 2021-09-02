@@ -232,7 +232,7 @@ void SAdvancedPreviewDetailsTab::OnAssetViewerSettingsRefresh(const FName& InPro
 {
 	if (InPropertyName == GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, ProfileName) || InPropertyName == GET_MEMBER_NAME_CHECKED(FPreviewSceneProfile, bSharedProfile))
 	{
-		UpdateProfileNames();
+		Refresh();
 	}
 }
 
