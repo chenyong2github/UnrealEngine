@@ -18,6 +18,11 @@
 		{
 			"Name": "Takes",
 			"Enabled": true
+		},
+		{
+			"Name": "ConcertSyncClient",
+			"Enabled": true,
+			"Optional": true
 		}
 	],
 	"Modules": [
@@ -50,6 +55,11 @@
 			"Name": "LiveLinkSequencer",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LiveLinkMultiUser",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostEngineInit"
 		}
 	]
 }

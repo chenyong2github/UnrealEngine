@@ -11,6 +11,9 @@
 class FStructOnScope;
 class IConcertClientSession;
 class FConcertClientPresenceMode;
+class UStaticMeshComponent;
+class UTextRenderComponent;
+class UMaterialInstanceDynamic;
 
 /**
  * A ConcertClientPresenceActor is a transient actor representing other client presences during a concert client session.
@@ -76,19 +79,19 @@ protected:
 
 	/** The camera mesh component to show visually where the camera is placed */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* PresenceMeshComponent;
+	TObjectPtr<UStaticMeshComponent> PresenceMeshComponent;
 	
 	/** The text render component to display the associated client's name */
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Rendering", meta = (AllowPrivateAccess = "true"))
-	class UTextRenderComponent* PresenceTextComponent;
+	TObjectPtr<UTextRenderComponent> PresenceTextComponent;
 
 	/** Dynamic material for the presence actor */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* PresenceMID;
+	TObjectPtr<UMaterialInstanceDynamic> PresenceMID;
 
 	/** Dynamic material for the presence text */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* TextMID;
+	TObjectPtr<UMaterialInstanceDynamic> TextMID;
 
 	/** Movement object to interpolate presence movement between update events.*/
 	TOptional<FConcertClientMovement> PresenceMovement;

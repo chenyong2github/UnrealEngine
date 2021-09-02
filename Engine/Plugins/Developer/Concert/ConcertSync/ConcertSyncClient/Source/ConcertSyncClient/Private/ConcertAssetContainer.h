@@ -30,48 +30,48 @@ public:
 	//
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GenericDesktopMesh;
+	TObjectPtr<UStaticMesh> GenericDesktopMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GenericHMDMesh;
+	TObjectPtr<UStaticMesh> GenericHMDMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* VivePreControllerMesh;
+	TObjectPtr<UStaticMesh> VivePreControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* OculusControllerMesh;
+	TObjectPtr<UStaticMesh> OculusControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* GenericControllerMesh;
+	TObjectPtr<UStaticMesh> GenericControllerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerMesh;
+	TObjectPtr<UStaticMesh> LaserPointerMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerEndMesh;
+	TObjectPtr<UStaticMesh> LaserPointerEndMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	UStaticMesh* LaserPointerStartMesh;
+	TObjectPtr<UStaticMesh> LaserPointerStartMesh;
 
 	//
 	// Materials
 	//
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* PresenceMaterial;
+	TObjectPtr<UMaterialInterface> PresenceMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* TextMaterial;
+	TObjectPtr<UMaterialInterface> TextMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Desktop)
-	UMaterialInterface* HeadMaterial;
+	TObjectPtr<UMaterialInterface> HeadMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* LaserCoreMaterial;
+	TObjectPtr<UMaterialInterface> LaserCoreMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* LaserMaterial;
+	TObjectPtr<UMaterialInterface> LaserMaterial;
 
 	UPROPERTY(EditAnywhere, Category = Material)
-	UMaterialInterface* PresenceFadeMaterial;
+	TObjectPtr<UMaterialInterface> PresenceFadeMaterial;
 };

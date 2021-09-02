@@ -8,6 +8,10 @@
 #include "Engine/Scene.h"
 #include "ConcertClientVRPresenceActor.generated.h"
 
+class UMaterialInstanceDynamic;
+class USplineComponent;
+class UStaticMeshComponent;
+
 /**
   * A ConcertClientVRPresenceActor is a child of AConcertClientPresenceActor that is used to represent users in VR 
   */
@@ -27,19 +31,19 @@ public:
 
 	/** The left controller mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* LeftControllerMeshComponent;
+	TObjectPtr<UStaticMeshComponent> LeftControllerMeshComponent;
 
 	/** The right controller mesh */
 	UPROPERTY()
-	class UStaticMeshComponent* RightControllerMeshComponent;
+	TObjectPtr<UStaticMeshComponent> RightControllerMeshComponent;
 
 	/** Dynamic material for the laser */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* LaserMid;
+	TObjectPtr<UMaterialInstanceDynamic> LaserMid;
 
 	/** Dynamic material for the laser */
 	UPROPERTY()
-	class UMaterialInstanceDynamic* LaserCoreMid;
+	TObjectPtr<UMaterialInstanceDynamic> LaserCoreMid;
 
 	UPROPERTY(BlueprintReadWrite, Category="Laser")
 	float LaserThickness = 0.5f;
@@ -62,19 +66,19 @@ private:
 
 	/** Spline for the left laser pointer, if any */
 	UPROPERTY()
-	class USplineComponent* LeftLaserSplineComponent;
+	TObjectPtr<USplineComponent> LeftLaserSplineComponent;
 
 	/** Spline meshes for the left curved laser, if any */
 	UPROPERTY()
-	TArray<class USplineMeshComponent*> LeftLaserSplineMeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> LeftLaserSplineMeshComponents;
 
 	/** Spline for the right laser pointer, if any */
 	UPROPERTY()
-	class USplineComponent* RightLaserSplineComponent;
+	TObjectPtr<USplineComponent> RightLaserSplineComponent;
 
 	/** Spline meshes for the right curved laser, if any */
 	UPROPERTY()
-	TArray<class USplineMeshComponent*> RightLaserSplineMeshComponents;
+	TArray<TObjectPtr<USplineMeshComponent>> RightLaserSplineMeshComponents;
 
 	UPROPERTY()
 	bool bIsLeftControllerVisible;
