@@ -41,7 +41,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 struct FHairStrandsTiles
 {
-	enum class ETileType : uint8 { Hair, Other, Count };
+	enum class ETileType : uint8 { HairAll, HairFull, HairPartial, Other, Count };
 	static const uint32 TileTypeCount = uint32(ETileType::Count);
 
 	FIntPoint			BufferResolution = FIntPoint(0, 0);
@@ -62,12 +62,14 @@ struct FHairStrandsTiles
 
 	FRDGBufferRef		TileIndirectDrawBuffer = nullptr;
 	FRDGBufferRef		TileIndirectDispatchBuffer = nullptr;
+	FRDGBufferRef		TileIndirectRayDispatchBuffer = nullptr;
 	FRDGBufferRef		TilePerThreadIndirectDispatchBuffer = nullptr;
 
-	static FORCEINLINE uint32 GetIndirectDrawArgOffset(ETileType Type)		{ return uint32(Type) * sizeof(FRHIDrawIndirectParameters);	}
-	static FORCEINLINE uint32 GetIndirectDispatchArgOffset(ETileType Type)	{ return uint32(Type) * sizeof(FRHIDispatchIndirectParameters); } 
+	static FORCEINLINE uint32 GetIndirectDrawArgOffset(ETileType Type)			{ return uint32(Type) * sizeof(FRHIDrawIndirectParameters);	}
+	static FORCEINLINE uint32 GetIndirectDispatchArgOffset(ETileType Type)		{ return uint32(Type) * sizeof(FRHIDispatchIndirectParameters); } 
+	static FORCEINLINE uint32 GetIndirectRayDispatchArgOffset(ETileType Type)	{ return uint32(Type) * sizeof(FRHIDispatchIndirectParameters); }
 
-	bool IsValid() const										{ return TileCount > 0 && TileDataBuffer[uint32(ETileType::Hair)] != nullptr; }
+	bool IsValid() const										{ return TileCount > 0 && TileDataBuffer[uint32(ETileType::HairAll)] != nullptr; }
 	FRDGBufferRef GetTileBuffer(ETileType Type) const			{ const uint32 Index = uint32(Type); check(TileDataBuffer[Index] != nullptr); return TileDataBuffer[Index];}
 	FRDGBufferSRVRef GetTileBufferSRV(ETileType Type) const		{ const uint32 Index = uint32(Type); check(TileDataSRV[Index] != nullptr); return TileDataSRV[Index];}
 };

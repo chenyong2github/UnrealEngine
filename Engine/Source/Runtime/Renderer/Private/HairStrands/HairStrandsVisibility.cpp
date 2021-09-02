@@ -282,6 +282,10 @@ float GetHairWriteVelocityCoverageThreshold()
 	return FMath::Clamp(GHairStrandsWriteVelocityCoverageThreshold, 0.f, 1.f);
 }
 
+float GetHairStrandsFullCoverageThreshold()
+{
+	return FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
+}
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FHairLightSampleClearVS : public FGlobalShader
@@ -1430,7 +1434,7 @@ static void AddClearGraphicPass(
 	check(OutTarget);
 	const bool bUseTile = TileData.IsValid();
 
-	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 
 	FClearUIntGraphicPS::FParameters* Parameters = GraphBuilder.AllocParameters<FClearUIntGraphicPS::FParameters>();
 	Parameters->ClearValue = ClearValue;
@@ -1719,7 +1723,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	PassParameters->VelocityType = VelocityPermutation;
 	PassParameters->MaxNodeCount = MaxRenderNodeCount;
 	PassParameters->bSortSampleByDepth = GHairStrandsSortHairSampleByDepth > 0 ? 1 : 0;
-	PassParameters->CoverageThreshold = FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
+	PassParameters->CoverageThreshold = GetHairStrandsFullCoverageThreshold();
 	PassParameters->DepthTheshold = FMath::Clamp(GHairStrandsMaterialCompactionDepthThreshold, 0.f, 100.f);
 	PassParameters->CosTangentThreshold = FMath::Cos(FMath::DegreesToRadians(FMath::Clamp(GHairStrandsMaterialCompactionTangentThreshold, 0.f, 90.f)));
 	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
@@ -1738,7 +1742,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 	}
 
-	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 	if (bUseTile)
 	{
 		PassParameters->TileCountXY			= TileData.TileCountXY;
@@ -1871,7 +1875,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 
 	// Select render node count according to current mode
 	const bool bUseTile = TileData.IsValid();
-	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 	const uint32 MSAASampleCount = GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility ? GetMaxSamplePerPixel() : 1;
 	const uint32 PPLLMaxRenderNodePerPixel = GetMaxSamplePerPixel();
 	const uint32 MaxRenderNodeCount = GetTotalSampleCountForAllocation(Resolution);
@@ -1888,7 +1892,7 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	PassParameters->ViewTransmittanceTexture= InTransmittanceTexture;
 	PassParameters->OutputResolution		= Resolution;
 	PassParameters->MaxNodeCount			= MaxRenderNodeCount;
-	PassParameters->CoverageThreshold		= FMath::Clamp(GHairStrandsFullCoverageThreshold, 0.1f, 1.f);
+	PassParameters->CoverageThreshold		= GetHairStrandsFullCoverageThreshold();
 	PassParameters->ViewUniformBuffer		= View.ViewUniformBuffer;
 	PassParameters->SceneTexturesStruct		= CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 	PassParameters->OutCompactNodeCounter	= GraphBuilder.CreateUAV(OutCompactCounter);
@@ -1971,7 +1975,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	check(GetHairVisibilityRenderMode() == HairVisibilityRenderMode_MSAA_Visibility);
 
 	const bool bUseTile = TileData.IsValid();
-	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::Hair;
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 	FRDGTextureRef OutVisibilityDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_D24, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, 1, GetMaxSamplePerPixel()), TEXT("Hair.VisibilityDepthTexture"));
 
 	FHairVisibilityFillOpaqueDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFillOpaqueDepthPS::FParameters>();
@@ -2494,7 +2498,7 @@ static void AddHairAuxilaryPass(
 	FRDGTextureRef OutDepthTexture,
 	FRDGTextureRef OutLightChannelMaskTexture)
 {
-	const FHairStrandsTiles::ETileType TileType = (PassType == EHairAuxilaryPassType::DepthClear) ? FHairStrandsTiles::ETileType::Other : FHairStrandsTiles::ETileType::Hair;
+	const FHairStrandsTiles::ETileType TileType = (PassType == EHairAuxilaryPassType::DepthClear) ? FHairStrandsTiles::ETileType::Other : FHairStrandsTiles::ETileType::HairAll;
 
 	FHairVisibilityDepthPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityDepthPS::FParameters>();
 	Parameters->bClear = PassType == EHairAuxilaryPassType::DepthClear ? 1u : 0u;

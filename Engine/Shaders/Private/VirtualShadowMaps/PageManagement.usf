@@ -174,7 +174,7 @@ void GeneratePageFlagsFromPixels(
 	uint2 GroupId		= InGroupId.xy;
 	if (HairStrands.bHairTileValid>0)
 	{
-		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR];
+		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR_ALL];
 		const uint LinearIndex  = InGroupId.x + InGroupId.y * HairStrands.HairTileCountXY.x;
 		if (LinearIndex >= TileCount)
 		{

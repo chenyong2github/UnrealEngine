@@ -26,7 +26,7 @@ static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHai
 
 		if (In->TileData.IsValid())
 		{
-			Parameters->HairTileData = In->TileData.GetTileBufferSRV(FHairStrandsTiles::ETileType::Hair);
+			Parameters->HairTileData = In->TileData.GetTileBufferSRV(FHairStrandsTiles::ETileType::HairAll);
 			Parameters->HairTileCount = In->TileData.TileCountSRV;
 			Parameters->HairTileCountXY = In->TileData.TileCountXY;
 			Parameters->bHairTileValid = true;

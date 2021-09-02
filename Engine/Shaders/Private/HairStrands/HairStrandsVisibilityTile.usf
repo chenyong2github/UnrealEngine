@@ -13,73 +13,112 @@
 #if SHADER_TILE_GENERATION
 int2 BufferResolution;
 uint bUintTexture;
+float TransmittanceThreshold;
+uint IntCoverageThreshold;
 Texture2D<float> InputFloatTexture;
 Texture2D<uint> InputUintTexture;
 RWBuffer<uint> TileCountBuffer;
-RWBuffer<uint2> TileDataBuffer;
-RWBuffer<uint2> TileClearBuffer;
 
-groupshared bool s_HasTileHair[GROUP_THREAD_COUNT];
+RWBuffer<uint2> TileHairAllBuffer;
+RWBuffer<uint2> TileHairFullBuffer;
+RWBuffer<uint2> TileHairPartialBuffer;
+RWBuffer<uint2> TileOtherBuffer;
+
+// 8x8 bit mask
+groupshared uint2 s_fMask[GROUP_THREAD_COUNT];
+groupshared uint2 s_pMask[GROUP_THREAD_COUNT];
 
 [numthreads(TILE_SIZE, TILE_SIZE, 1)]
 void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex : SV_GroupIndex, uint3 GroupId : SV_GroupID)
 {
 	const uint2 PixelCoord = DispatchThreadId;
 
-	bool bHasHairData = false;
+	bool fHair = false;
+	bool pHair = false;
 	if (all(PixelCoord < uint2(BufferResolution)))
 	{
 		if (bUintTexture)
 		{
-			bHasHairData = InputUintTexture.Load(uint3(PixelCoord, 0)) > 0;
+			const uint Coverage = InputUintTexture.Load(uint3(PixelCoord, 0));
+			fHair = Coverage >= IntCoverageThreshold;
+			pHair = Coverage > 0 && Coverage < IntCoverageThreshold;
 		}
 		else
 		{
-			bHasHairData = InputFloatTexture.Load(uint3(PixelCoord, 0)) < 1.0f;
+			const float Transmittance = InputFloatTexture.Load(uint3(PixelCoord, 0));
+			fHair = Transmittance <= TransmittanceThreshold;
+			pHair = Transmittance < 1.f && Transmittance > 0.f;
 		}
 	}
-	s_HasTileHair[LinearIndex] = bHasHairData;
+
+	const uint2 Mask = LinearIndex < 32 ? uint2(1u << LinearIndex, 0u) : uint2(0u, 1u << (LinearIndex - 32u));
+	s_fMask[LinearIndex] = fHair ? Mask : 0u;
+	s_pMask[LinearIndex] = pHair ? Mask : 0u;
 
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 32)
 	{
-		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 32];
+		s_fMask[LinearIndex] = s_fMask[LinearIndex] | s_fMask[LinearIndex + 32];
+		s_pMask[LinearIndex] = s_pMask[LinearIndex] | s_pMask[LinearIndex + 32];
 	}
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 16)
 	{
-		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 16];
+		s_fMask[LinearIndex] = s_fMask[LinearIndex] | s_fMask[LinearIndex + 16];
+		s_pMask[LinearIndex] = s_pMask[LinearIndex] | s_pMask[LinearIndex + 16];
 	}
 	GroupMemoryBarrierWithGroupSync();
 
 	if (LinearIndex < 8)
 	{
-		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 8];
+		s_fMask[LinearIndex] = s_fMask[LinearIndex] | s_fMask[LinearIndex + 8];
+		s_pMask[LinearIndex] = s_pMask[LinearIndex] | s_pMask[LinearIndex + 8];
 	}
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 4)
 	{
-		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 4];
+		s_fMask[LinearIndex] = s_fMask[LinearIndex] | s_fMask[LinearIndex + 4];
+		s_pMask[LinearIndex] = s_pMask[LinearIndex] | s_pMask[LinearIndex + 4];
 	}
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 2)
 	{
-		s_HasTileHair[LinearIndex] = s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 2];
+		s_fMask[LinearIndex] = s_fMask[LinearIndex] | s_fMask[LinearIndex + 2];
+		s_pMask[LinearIndex] = s_pMask[LinearIndex] | s_pMask[LinearIndex + 2];
 	}
 	GroupMemoryBarrierWithGroupSync();
 	if (LinearIndex < 1)
 	{
-		if ((s_HasTileHair[LinearIndex] || s_HasTileHair[LinearIndex + 1]))
+		const uint2 fMask = s_fMask[LinearIndex] | s_fMask[LinearIndex + 1];
+		const uint2 pMask = s_pMask[LinearIndex] | s_pMask[LinearIndex + 1];
+
+		const bool bIsFull = all(fMask == 0xFFFFFFFF);
+		const bool bIsPartial = any(pMask > 0);
+
+		if (bIsFull || bIsPartial)
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileCountBuffer[HAIRTILE_HAIR], 1, WriteToIndex);
-			TileDataBuffer[WriteToIndex] = GroupId.xy;
+			InterlockedAdd(TileCountBuffer[HAIRTILE_HAIR_ALL], 1, WriteToIndex);
+			TileHairAllBuffer[WriteToIndex] = GroupId.xy;
+		}
+
+		if (bIsFull)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileCountBuffer[HAIRTILE_HAIR_FULL], 1, WriteToIndex);
+			TileHairFullBuffer[WriteToIndex] = GroupId.xy;
+		}
+		else if (bIsPartial)
+		{
+			uint WriteToIndex;
+			InterlockedAdd(TileCountBuffer[HAIRTILE_HAIR_PARTIAL], 1, WriteToIndex);
+			TileHairPartialBuffer[WriteToIndex] = GroupId.xy;
 		}
 		else
 		{
 			uint WriteToIndex;
-			InterlockedAdd(TileCountBuffer[HAIRTILE_CLEAR], 1, WriteToIndex);
-			TileClearBuffer[WriteToIndex] = GroupId.xy;
+			InterlockedAdd(TileCountBuffer[HAIRTILE_OTHER], 1, WriteToIndex);
+			TileOtherBuffer[WriteToIndex] = GroupId.xy;
 		}
 	}
 }
@@ -90,11 +129,13 @@ void TileMainCS(uint2 DispatchThreadId : SV_DispatchThreadID, uint LinearIndex :
 #if SHADER_TILE_COPY_ARGS
 uint2 TileCountXY;
 uint  TilePerThread_GroupSize;
-uint bRectPrimitive;
+uint  bRectPrimitive;
+uint  TileSize;
 Buffer<uint> TileCountBuffer;
 RWBuffer<uint> TileIndirectDrawBuffer;
 RWBuffer<uint> TileIndirectDispatchBuffer;
 RWBuffer<uint> TilePerThreadIndirectDispatchBuffer;
+RWBuffer<uint> TileIndirectRayDispatchBuffer;
 
 void FillIndirectBuffers(uint TileType)
 {
@@ -117,15 +158,21 @@ void FillIndirectBuffers(uint TileType)
 	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 0] = (TileCount + TilePerThread_GroupSize - 1) / TilePerThread_GroupSize;
 	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 1] = 1;
 	TilePerThreadIndirectDispatchBuffer[TileType * 3 + 2] = 1;
+
+	// Indrect ray dispatch
+	// Ray tracing dispatch dimensions are defined simply in terms of threads/rays, not thread groups.
+	TileIndirectRayDispatchBuffer[TileType * 3 + 0] = TileCount * TileSize;
+	TileIndirectRayDispatchBuffer[TileType * 3 + 1] = TileSize;
+	TileIndirectRayDispatchBuffer[TileType * 3 + 2] = 1;
 }
 
-[numthreads(1, 1, 1)]
+[numthreads(HAIRTILE_COUNT, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	if (all(DispatchThreadId == 0))
+	if (DispatchThreadId.y == 0 && DispatchThreadId.x < HAIRTILE_COUNT)
 	{
-		FillIndirectBuffers(HAIRTILE_HAIR);
-		FillIndirectBuffers(HAIRTILE_CLEAR);
+		uint HairTileType = DispatchThreadId.x; // HairAll, HairFull, HairPartial, Other
+		FillIndirectBuffers(HairTileType);
 	}
 }
 #endif // SHADER_TILE_COPY_ARGS
@@ -133,6 +180,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #if SHADER_TILE_DEBUG
+
+float3 DebugColor;
 
 void MainPS(
 	in FScreenVertexOutput Input,
@@ -143,7 +192,7 @@ void MainPS(
 	const bool bTileY = (InTileCoord.y & 1) == 0;
 	const bool bChecker = (bTileX && bTileY) || (!bTileX && !bTileY);
 	OutColor0 = 255;
-	OutColor0 = bChecker ? float4(0.0f, 0.5f, 0.f, 1.0f) : float4(0.f, 1.0f, 0.f, 1.0f);
+	OutColor0 = bChecker ? float4(DebugColor * 0.5f, 1.0f) : float4(DebugColor * 1.0f, 1.0f);
 }
 
 #endif //SHADER_TILE_DEBUG
@@ -166,6 +215,38 @@ void AddNewLine(float2 OriginalPos, inout float2 Pos)
 	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
 }
 
+void AddTileCountLine(float2 OriginalPos, inout float2 Pos, uint TileType)
+{
+	const uint ActiveTileCount = HairStrands.HairTileCount[TileType];
+	Pos = ShaderPrintText(Pos, TEXT("Count "), FontWhite);
+	if (TileType == HAIRTILE_HAIR_ALL)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair(All)    "), FontEmerald);
+	}
+	else if (TileType == HAIRTILE_HAIR_FULL)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair(Full)   "), FontEmerald);
+	}
+	else if (TileType == HAIRTILE_HAIR_PARTIAL)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair(Partial)"), FontEmerald);
+	}
+	else if (TileType == HAIRTILE_OTHER)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Clear        "), FontEmerald);
+	}
+	else
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Unknown      "), FontEmerald);
+	}
+	Pos = ShaderPrintText(Pos, TEXT(": "), FontWhite);
+	
+	Pos = ShaderPrint(Pos, ActiveTileCount, FontYellow);
+	Pos = ShaderPrint(Pos, 100.f * float(ActiveTileCount) / float(TileCount), FontOrange);
+	Pos = ShaderPrintText(Pos, TEXT("%"), FontOrange);
+	AddNewLine(OriginalPos, Pos);
+}
+
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
 {
@@ -175,46 +256,61 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	float2 OriginalPos = float2(50, 50) / float2(MaxResolution);
 	float2 Pos = OriginalPos;
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile Count XY: "), FontWhite);
+	Pos = ShaderPrintText(Pos, TEXT("Tile Count XY      : "), FontWhite);
 	Pos = ShaderPrint(Pos, TileCountXY, FontEmerald);
 	AddNewLine(OriginalPos, Pos);
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile type    : "), FontWhite);
-	if (TileType == HAIRTILE_HAIR)
+	Pos = ShaderPrintText(Pos, TEXT("Tile type          : "), FontWhite);
+	FFontColor HairAllColor = FontOrange;
+	FFontColor HairFullColor = FontOrange;
+	FFontColor HairPartialColor = FontOrange;
+	FFontColor OtherColor = FontOrange;
+	if (TileType == HAIRTILE_HAIR_ALL)
 	{
-		Pos = ShaderPrintText(Pos, TEXT("Hair"), FontOrange);
+		Pos = ShaderPrintText(Pos, TEXT("Hair(All)"), FontOrange);
+		HairAllColor = FontOrange;
 	}
-	else if (TileType == HAIRTILE_CLEAR)
+	else if (TileType == HAIRTILE_HAIR_FULL)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair(Full)"), FontOrange);
+		HairFullColor = FontOrange;
+	}
+	else if (TileType == HAIRTILE_HAIR_PARTIAL)
+	{
+		Pos = ShaderPrintText(Pos, TEXT("Hair(Partial)"), FontOrange);
+		HairPartialColor = FontOrange;
+	}
+	else if (TileType == HAIRTILE_OTHER)
 	{
 		Pos = ShaderPrintText(Pos, TEXT("Clear"), FontOrange);
+		OtherColor = FontOrange;
 	}
 	else
 	{
 		Pos = ShaderPrintText(Pos, TEXT("Unknown"), FontOrange);
 	}
 	AddNewLine(OriginalPos, Pos);
-
-	const uint ActiveTileCount = HairStrands.HairTileCount[TileType];
-	Pos = ShaderPrintText(Pos, TEXT("Tile Count   : "), FontWhite);
-	Pos = ShaderPrint(Pos, ActiveTileCount, FontYellow);
-	Pos = ShaderPrint(Pos, 100.f * float(ActiveTileCount)/float(TileCount), FontOrange);
-	Pos = ShaderPrintText(Pos, TEXT("%"), FontOrange);
-	AddNewLine(OriginalPos, Pos);
-
-	Pos = ShaderPrintText(Pos, TEXT("Tile Size    : "), FontWhite);
+	Pos = ShaderPrintText(Pos, TEXT("Tile Size          : "), FontWhite);
 	Pos = ShaderPrint(Pos, TileSize, FontYellow);
 	AddNewLine(OriginalPos, Pos);
 
-	Pos = ShaderPrintText(Pos, TEXT("Tile Threads : "), FontWhite);
+	Pos = ShaderPrintText(Pos, TEXT("Tile Threads       : "), FontWhite);
 	Pos = ShaderPrint(Pos, TileGroupSize, FontYellow);
 	AddNewLine(OriginalPos, Pos);
 
-	Pos = ShaderPrintText(Pos, TEXT("Primitive    : "), FontWhite);
+	Pos = ShaderPrintText(Pos, TEXT("Primitive          : "), FontWhite);
 	if (bRectPrimitive)
 		Pos = ShaderPrintText(Pos, TEXT("Rect."), FontOrange);
 	else
 		Pos = ShaderPrintText(Pos, TEXT("Triangle"), FontOrange);
 	AddNewLine(OriginalPos, Pos);
+
+	AddNewLine(OriginalPos, Pos);
+	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_ALL);
+	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_FULL);
+	AddTileCountLine(OriginalPos, Pos, HAIRTILE_HAIR_PARTIAL);
+	AddTileCountLine(OriginalPos, Pos, HAIRTILE_OTHER);
+
 }
 
 #endif //SHADER_TILE_DEBUG_PRINT

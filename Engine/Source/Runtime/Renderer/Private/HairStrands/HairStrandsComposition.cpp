@@ -59,16 +59,17 @@ void InternalCommonDrawPass(
 	TShaderMapRef<FPostProcessVS> ScreenVertexShader(View.ShaderMap);
 	TShaderMapRef<FHairStrandsTilePassVS> TileVertexShader(View.ShaderMap);
 
+	const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 	const bool bUseTile = TileData.IsValid();
 	if (TileData.IsValid())
 	{
-		PassParamters->TileData = GetHairStrandsTileParameters(View, TileData, FHairStrandsTiles::ETileType::Hair);
+		PassParamters->TileData = GetHairStrandsTileParameters(View, TileData, TileType);
 	}
 	GraphBuilder.AddPass(
 		Forward<FRDGEventName>(EventName),
 		PassParamters,
 		ERDGPassFlags::Raster,
-		[PassParamters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, Type, bWriteDepth, bUseTile](FRHICommandList& RHICmdList)
+		[PassParamters, ScreenVertexShader, TileVertexShader, PixelShader, Viewport, Resolution, Type, bWriteDepth, bUseTile, TileType](FRHICommandList& RHICmdList)
 	{
 		FHairStrandsTilePassVS::FParameters ParametersVS = PassParamters->TileData;
 
@@ -140,7 +141,7 @@ void InternalCommonDrawPass(
 		{
 			SetShaderParameters(RHICmdList, TileVertexShader, TileVertexShader.GetVertexShader(), ParametersVS);
 			RHICmdList.SetStreamSource(0, nullptr, 0);
-			RHICmdList.DrawPrimitiveIndirect(PassParamters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(FHairStrandsTiles::ETileType::Hair));
+			RHICmdList.DrawPrimitiveIndirect(PassParamters->TileData.TileIndirectBuffer->GetRHI(), FHairStrandsTiles::GetIndirectDrawArgOffset(TileType));
 		}
 		else
 		{
