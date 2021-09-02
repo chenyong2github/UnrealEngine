@@ -955,12 +955,15 @@ void UClothingAssetCommon::PostLoad()
 
 	// Cache tethers and reference bone index should already have been calculated
 	const int32 FrostyMainBranchObjectVersion = GetLinkerCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
-	if (FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothAddTethersToCachedData)
+	if (FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothRemoveKinematicTethers)
 	{
 		ClothingCachedDataFlags |= EClothingCachedDataFlagsCommon::Tethers;
 
-		// ReferenceBoneIndex is only required when rebinding the cloth.
-		CalculateReferenceBoneIndex();
+		if (FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothAddTethersToCachedData)
+		{
+			// ReferenceBoneIndex is only required when rebinding the cloth.
+			CalculateReferenceBoneIndex();
+		}
 	}
 
 	// After fixing the content, we are ready to call functions that rely on it

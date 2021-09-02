@@ -6,6 +6,7 @@ class FClothTetherDataPrivate
 {
 public:
 	static constexpr int32 MaxNumAttachments = 4;  // Max recommended number of tethers per point, could eventually been specified by config
+	static constexpr float KinematicDistanceThreshold = 0.1f;  // Particles which are barely allowed to move around should be considered kinematic
 
 	typedef TTuple<int32, int32, float> FTether;
 
@@ -60,7 +61,7 @@ void FClothTetherData::GenerateTethers(
 	const TArray<TArray<FClothTetherDataPrivate::FTether>>& TetherSlots = ClothTetherData.GetTetherSlots();
 	const TArray<int32> TetherNums = ClothTetherData.GetTetherNums();
 
-	// Reorganize the multiple tethers per node array into a single sequencial batches of tethers more suitable for parallel processing
+	// Reorganize the multiple tethers per node array into a single sequential batches of tethers more suitable for parallel processing
 	const int32 NumDynamicNodes = TetherSlots.Num();
 	const int32 MaxNumUsedSlots = TetherNums.Num();
 	Tethers.Reset(MaxNumUsedSlots);
@@ -124,7 +125,7 @@ FClothTetherDataPrivate::FClothTetherDataPrivate(
 	KinematicNodes.Reserve(Nodes.Num() / 3);  // Start at 33% of the number of nodes to minimize this array's reallocations
 	for (const int32 Node : Nodes)
 	{
-		if (MaxDistances[Node])
+		if (MaxDistances[Node] >= KinematicDistanceThreshold)
 		{
 			DynamicNodes.Add(Node);
 		}
@@ -336,7 +337,7 @@ void FClothTetherDataPrivate::GenerateGeodesicTethers(const TConstArrayView<FVec
 			const TSet<int32>& Neighbors = NodeToNeighbors[KinematicNode];
 			for (const int32 Neighbor : Neighbors)
 			{
-				if (MaxDistances[Neighbor])
+				if (MaxDistances[Neighbor] >= KinematicDistanceThreshold)
 				{
 					SeedIslands[IslandIndex].Add(KinematicNode);
 					++NumSeeds;
@@ -415,7 +416,7 @@ void FClothTetherDataPrivate::GenerateGeodesicTethers(const TConstArrayView<FVec
 				check(NeighborNode != ParentNode);
 
 				// Do not progress onto kinematic nodes
-				if (!MaxDistances[NeighborNode])
+				if (MaxDistances[NeighborNode] < KinematicDistanceThreshold)
 				{
 					continue;
 				}

@@ -27,6 +27,9 @@ struct CORE_API FUE5PrivateFrostyStreamObjectVersion
 		// Changed world partition HLODs cells from FSotObjectPath to FName
 		ConvertWorldPartitionHLODsCellsToName,
 
+		// Re-calculate the long range attachment to prevent kinematic tethers.
+		ChaosClothRemoveKinematicTethers,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
