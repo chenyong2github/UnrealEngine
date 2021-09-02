@@ -15,6 +15,7 @@
 #include "SlateOptMacros.h"
 #include "SocketSubsystem.h"
 #include "Styling/CoreStyle.h"
+#include "Styling/StyleColors.h"
 #include "Trace/Analysis.h"
 #include "Trace/Analyzer.h"
 #include "Trace/ControlClient.h"
@@ -398,18 +399,20 @@ public:
 		TSharedPtr<FTraceViewModel> TracePin = WeakTrace.Pin();
 		if (TracePin.IsValid())
 		{
-			TSharedRef<ITypedTableView<TSharedPtr<FTraceViewModel>>> OwnerWidget = OwnerTablePtr.Pin().ToSharedRef();
-			const TSharedPtr<FTraceViewModel>* MyItem = OwnerWidget->Private_ItemFromWidget(this);
-			const bool IsSelected = OwnerWidget->Private_IsItemSelected(*MyItem);
-
-			if (IsSelected)
-			{
-				return FSlateColor(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f));
-			}
-			else if (TracePin->Size < 1024ULL * 1024ULL)
+			if (TracePin->Size < 1024ULL * 1024ULL)
 			{
 				// < 1 MiB
-				return FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+				TSharedRef<ITypedTableView<TSharedPtr<FTraceViewModel>>> OwnerWidget = OwnerTablePtr.Pin().ToSharedRef();
+				const TSharedPtr<FTraceViewModel>* MyItem = OwnerWidget->Private_ItemFromWidget(this);
+				const bool IsSelected = OwnerWidget->Private_IsItemSelected(*MyItem);
+				if (IsSelected)
+				{
+					return FSlateColor(FLinearColor(0.75f, 0.75f, 0.75f, 1.0f));
+				}
+				else
+				{
+					return FSlateColor(FLinearColor(0.5f, 0.5f, 0.5f, 1.0f));
+				}
 			}
 			else if (TracePin->Size < 1024ULL * 1024ULL * 1024ULL)
 			{
@@ -633,7 +636,7 @@ SStartPageWindow::~SStartPageWindow()
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
-		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Insights.StartPage"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Insights.Usage.SessionBrowser"), FAnalyticsEventAttribute(TEXT("Duration"), DurationActive));
 	}
 #endif // WITH_EDITOR
 }
@@ -660,6 +663,22 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 				.ColorAndOpacity(FLinearColor(0.15f, 0.15f, 0.15f, 1.0f))
 			]
 
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Fill)
+			.Padding(0.0f, 0.0f, 0.0f, 0.0f)
+			[
+				SNew(SBox)
+				[
+					SNew(SBorder)
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
+					.Padding(0.0f)
+					.BorderImage(FCoreStyle::Get().GetBrush("WhiteBrush"))
+					.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
+				]
+			]
+
 			// Overlay slot for the main window area
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Fill)
@@ -669,35 +688,28 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Fill)
-				.FillHeight(1.0f)
-				.Padding(3.0f, 3.0f)
+				.AutoHeight()
+				.Padding(12.0f, 8.0f, 12.0f, 4.0f)
 				[
-					SNew(SBox)
-					[
-						SNew(SBorder)
-						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
-						.Padding(8.0f)
-						[
-							ConstructSessionsPanel()
-						]
-					]
+					ConstructTraceStoreDirectoryPanel()
 				]
 
 				+ SVerticalBox::Slot()
 				.HAlign(HAlign_Fill)
-				.AutoHeight()
-				.Padding(3.0f, 3.0f)
+				.VAlign(VAlign_Fill)
+				.FillHeight(1.0f)
+				.Padding(3.0f, 4.0f)
 				[
-					SNew(SBox)
-					[
-						SNew(SBorder)
-						.BorderImage(FCoreStyle::Get().GetBrush("PopupText.Background"))
-						.Padding(8.0f)
-						[
-							ConstructTraceStoreDirectoryPanel()
-						]
-					]
+					ConstructSessionsPanel()
+				]
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.AutoHeight()
+				.Padding(12.0f, 4.0f)
+				[
+					ConstructLoadPanel()
 				]
 
 				+ SVerticalBox::Slot()
@@ -773,25 +785,7 @@ void SStartPageWindow::Construct(const FArguments& InArgs)
 
 TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 {
-	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
-
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.HAlign(HAlign_Left)
-	.Padding(0.0f, 2.0f)
-	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("SessionsPanelTitle", "Trace Sessions"))
-		.Font(FCoreStyle::GetDefaultFontStyle("Bold", 11))
-		.ColorAndOpacity(FLinearColor::Gray)
-	]
-
-	+ SVerticalBox::Slot()
-	.HAlign(HAlign_Fill)
-	.VAlign(VAlign_Fill)
-	.Padding(0.0f, 1.0f, 0.0f, 2.0f)
-	[
-		SAssignNew(TraceListView, SListView<TSharedPtr<FTraceViewModel>>)
+	TSharedRef<SWidget> Widget = SAssignNew(TraceListView, SListView<TSharedPtr<FTraceViewModel>>)
 		.IsFocusable(true)
 		.ItemHeight(20.0f)
 		.SelectionMode(ESelectionMode::Single)
@@ -836,28 +830,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructSessionsPanel()
 			.HAlignHeader(HAlign_Right)
 			.HAlignCell(HAlign_Right)
 			.DefaultLabel(LOCTEXT("StatusColumn", "Status"))
-		)
-	]
-
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.HAlign(HAlign_Fill)
-	.Padding(0.0f, 4.0f, 0.0f, 6.0f)
-	[
-		SNew(SSeparator)
-		.Orientation(Orient_Horizontal)
-		.SeparatorImage(FInsightsStyle::Get().GetBrush("WhiteBrush"))
-		.ColorAndOpacity(FLinearColor::Black)
-		.Thickness(1.0f)
-	]
-
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.HAlign(HAlign_Fill)
-	.Padding(0.0f, 2.0f)
-	[
-		ConstructLoadPanel()
-	];
+		);
 
 	return Widget;
 }
@@ -882,6 +855,7 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 	.AutoWidth()
 	[
 		SNew(SButton)
+		.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
 		.IsEnabled(this, &SStartPageWindow::Open_IsEnabled)
 		.OnClicked(this, &SStartPageWindow::Open_OnClicked)
 		.ToolTipText(LOCTEXT("OpenButtonTooltip", "Start analysis for selected trace session."))
@@ -889,22 +863,23 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 		.Content()
 		[
 			SNew(SHorizontalBox)
-
+			//+ SHorizontalBox::Slot()
+			//.AutoWidth()
+			//.VAlign(VAlign_Center)
+			//[
+			//	SNew(SImage)
+			//	.VAlign(VAlign_Center)
+			//	.Image(FInsightsStyle::GetBrush("Open.Icon.Small"))
+			//]
 			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SImage)
-					.Image(FInsightsStyle::GetBrush("Open.Icon.Small"))
-				]
-
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("OpenButtonText", "Open"))
-					.TextStyle(FAppStyle::Get(), "ButtonText")
-				]
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DialogButtonText"))
+				.Justification(ETextJustify::Center)
+				.Text(LOCTEXT("OpenButtonText", "Open Trace"))
+			]
 		]
 	]
 
@@ -930,46 +905,59 @@ TSharedRef<SWidget> SStartPageWindow::ConstructLoadPanel()
 
 TSharedRef<SWidget> SStartPageWindow::ConstructTraceStoreDirectoryPanel()
 {
-	TSharedRef<SWidget> Widget = SNew(SVerticalBox)
+	TSharedRef<SWidget> Widget =
 
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.HAlign(HAlign_Left)
-	.Padding(0.0f, 0.0f)
-	[
-		SNew(STextBlock)
-		.Text(LOCTEXT("TraceStoreDirText", "Trace Store Directory:"))
-		.ColorAndOpacity(FLinearColor::Gray)
-	]
-
-	+ SVerticalBox::Slot()
-	.AutoHeight()
-	.HAlign(HAlign_Fill)
-	.Padding(0.0f, 0.0f)
-	[
 		SNew(SHorizontalBox)
 
 		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		.Padding(0.0f, 0.0f)
-		.HAlign(HAlign_Fill)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
+			.Text(LOCTEXT("TraceStoreDirText", "Trace Store Directory"))
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SEditableTextBox)
+			.IsReadOnly(true)
+			.BackgroundColor(FSlateColor(EStyleColor::Background))
 			.Text(this, &SStartPageWindow::GetTraceStoreDirectory)
 		]
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
 		.Padding(4.0f, 0.0f, 0.0f, 0.0f)
-		.HAlign(HAlign_Right)
 		.VAlign(VAlign_Center)
 		[
 			SNew(SButton)
-			.Text(LOCTEXT("ExploreTraceStoreDirButton", "Explore"))
+			.ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SimpleButton"))
 			.ToolTipText(LOCTEXT("ExploreTraceStoreDirButtonToolTip", "Explore the Trace Store Directory"))
 			.OnClicked(this, &SStartPageWindow::ExploreTraceStoreDirectory_OnClicked)
-		]
-	];
+			[
+				//SNew(SHorizontalBox)
+				//+ SHorizontalBox::Slot()
+				//.AutoWidth()
+				//[
+					SNew(SImage)
+					.Image(FInsightsStyle::Get().GetBrush("FolderExplore.Icon.Small"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
+				//]
+				//+ SHorizontalBox::Slot()
+				//.AutoWidth()
+				//.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				//[
+				//	SNew(STextBlock)
+				//	.TextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
+				//	.Text(LOCTEXT("ExploreTraceStoreDirButton", "Explore"))
+				//	.ColorAndOpacity(FSlateColor::UseForeground())
+				//]
+			]
+		];
 
 	return Widget;
 }
@@ -1140,11 +1128,11 @@ TSharedRef<SWidget> SStartPageWindow::ConstructConnectPanel()
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(0.0f, 0.0f, 2.0f, 0.0f)
+		.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(LOCTEXT("HostTitle", "Running instance IP:"))
+			.Text(LOCTEXT("HostTitle", "Running instance IP"))
 			.ColorAndOpacity(FLinearColor::Gray)
 		]
 

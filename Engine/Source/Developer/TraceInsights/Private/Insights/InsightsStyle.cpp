@@ -11,6 +11,10 @@
 #define BOX_BRUSH_SVG(RelativePath, ...)    FSlateVectorBoxBrush   (Style.RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define BORDER_BRUSH_SVG(RelativePath, ...) FSlateVectorBorderBrush(Style.RootToContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 
+#define CORE_IMAGE_BRUSH(RelativePath, ...)  FSlateVectorImageBrush (Style.RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define CORE_BOX_BRUSH(RelativePath, ...)    FSlateVectorBoxBrush   (Style.RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+#define CORE_BORDER_BRUSH(RelativePath, ...) FSlateVectorBorderBrush(Style.RootToCoreContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
+
 #define CORE_IMAGE_BRUSH_SVG(RelativePath, ...)  FSlateVectorImageBrush (Style.RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define CORE_BOX_BRUSH_SVG(RelativePath, ...)    FSlateVectorBoxBrush   (Style.RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
 #define CORE_BORDER_BRUSH_SVG(RelativePath, ...) FSlateVectorBorderBrush(Style.RootToCoreContentDir(RelativePath, TEXT(".svg")), __VA_ARGS__)
@@ -45,6 +49,7 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	const FVector2D Icon20x20(20.0f, 20.0f);
 	const FVector2D Icon24x24(24.0f, 24.0f);
 	const FVector2D Icon32x32(32.0f, 32.0f);
+	const FVector2D Icon40x40(40.0f, 40.0f);
 
 	TSharedRef<FSlateStyleSet> StyleRef = MakeShared<FSlateStyleSet>(FInsightsStyle::GetStyleSetName());
 	StyleRef->SetContentRoot(FPaths::EngineContentDir() / TEXT("Editor/Slate"));
@@ -64,11 +69,13 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("HoveredEventBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
 	Style.Set("SelectedEventBorder", new FSlateBorderBrush(NAME_None, FMargin(2.0f)));
 
+	Style.Set("RoundedBackground", new FSlateRoundedBoxBrush(FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), Icon24x24));
+
 	//////////////////////////////////////////////////
 	// Icons for major components
 
-	Style.Set("SessionInfo.Icon.Large", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon32x32));
-	Style.Set("SessionInfo.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon16x16));
+	Style.Set("SessionInfo.Icon.Large", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Info", Icon32x32));
+	Style.Set("SessionInfo.Icon.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/Info", Icon16x16));
 
 	Style.Set("Toolbar.Icon.Large", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon32x32));
 	Style.Set("Toolbar.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon16x16));
@@ -76,8 +83,8 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	//////////////////////////////////////////////////
 	// Start Page buttons
 
-	Style.Set("StartPage.Icon.Large", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon32x32));
-	Style.Set("StartPage.Icon.Small", new IMAGE_BRUSH("Icons/icon_tab_Tools_16x", Icon16x16));
+	Style.Set("StartPage.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon32x32));
+	Style.Set("StartPage.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Home", Icon16x16));
 
 	Style.Set("Open.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_LoadMultiple_Profiler_40x", Icon32x32));
 	Style.Set("Open.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Load_Profiler_40x", Icon16x16));
@@ -85,33 +92,29 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	Style.Set("OpenFile.Icon.Large", new IMAGE_BRUSH("Icons/LV_Load", Icon32x32));
 	Style.Set("OpenFile.Icon.Small", new IMAGE_BRUSH("Icons/LV_Load", Icon16x16));
 	
-
-	Style.Set("Menu.Icon.Large", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon32x32));
-	Style.Set("Menu.Icon.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon16x16));
-
 	//////////////////////////////////////////////////
 	// Timing Insights
 
-	Style.Set("TimingProfiler.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("TimingProfiler.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("TimingProfiler.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Recent", Icon32x32));
+	Style.Set("TimingProfiler.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Recent", Icon16x16));
 
-	Style.Set("FramesTrack.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("FramesTrack.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("FramesTrack.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Statistics", Icon32x32));
+	Style.Set("FramesTrack.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Statistics", Icon16x16));
 
 	Style.Set("GraphTrack.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
 	Style.Set("GraphTrack.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
 
-	Style.Set("TimingView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon32x32));
-	Style.Set("TimingView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_stats_40x", Icon16x16));
+	Style.Set("TimingView.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Timeline", Icon32x32));
+	Style.Set("TimingView.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Timeline", Icon16x16));
 
-	Style.Set("TimersView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon32x32));
-	Style.Set("TimersView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon16x16));
+	Style.Set("TimersView.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Realtime", Icon32x32));
+	Style.Set("TimersView.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Realtime", Icon16x16));
 
-	Style.Set("StatsCountersView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon32x32));
-	Style.Set("StatsCountersView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon16x16));
+	Style.Set("StatsCountersView.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Profile", Icon32x32));
+	Style.Set("StatsCountersView.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Profile", Icon16x16));
 
-	Style.Set("LogView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/profiler_CopyToClipboard_32x", Icon32x32));
-	Style.Set("LogView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/profiler_CopyToClipboard_32x", Icon16x16));
+	Style.Set("LogView.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Log", Icon32x32));
+	Style.Set("LogView.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/Log", Icon16x16));
 
 	Style.Set("TableTreeView.Icon.Large", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon32x32));
 	Style.Set("TableTreeView.Icon.Small", new IMAGE_BRUSH("Icons/Profiler/Profiler_Data_Capture_40x", Icon16x16));
@@ -158,9 +161,24 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 	//////////////////////////////////////////////////
 
 	Style.Set("FindFirst", new IMAGE_BRUSH("Animation/backward_end", Icon20x20));
-	Style.Set("FindPrevious", new IMAGE_BRUSH("Animation/backward", Icon20x20));
-	Style.Set("FindNext", new IMAGE_BRUSH("Animation/forward", Icon20x20));
+	//Style.Set("FindPrevious", new IMAGE_BRUSH("Animation/backward", Icon20x20));
+	Style.Set("FindPrevious", new IMAGE_BRUSH("../../Editor/Slate/Icons/GeneralTools/Previous_40x", Icon20x20));
+	//Style.Set("FindNext", new IMAGE_BRUSH("Animation/forward", Icon20x20));
+	Style.Set("FindNext", new IMAGE_BRUSH("../../Editor/Slate/Icons/GeneralTools/Next_40x", Icon20x20));
 	Style.Set("FindLast", new IMAGE_BRUSH("Animation/forward_end", Icon20x20));
+
+	//////////////////////////////////////////////////
+
+	Style.Set("Menu.Icon.Large", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon32x32));
+	Style.Set("Menu.Icon.Small", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon16x16));
+
+	Style.Set("Icon.Dummy", new CORE_IMAGE_BRUSH_SVG("Starship/Common/dummy", Icon24x24));
+
+	Style.Set("Icon.Filter", new CORE_IMAGE_BRUSH_SVG("Starship/Common/filter", Icon24x24));
+	Style.Set("Icon.Find", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/TraceDataFiltering", Icon24x24));
+
+	Style.Set("FolderExplore.Icon.Large", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon32x32));
+	Style.Set("FolderExplore.Icon.Small", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/ContentBrowser", Icon16x16));
 
 	Style.Set("Icon.Bug", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/bug", Icon24x24));
 

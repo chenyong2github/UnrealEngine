@@ -15,6 +15,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "Logging/MessageLog.h"
 #include "SlateOptMacros.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Layout/SScrollBox.h"
@@ -525,6 +526,52 @@ void SLogView::Construct(const FArguments& InArgs)
 	SAssignNew(ExternalScrollbar, SScrollBar)
 	.AlwaysShowScrollbar(true);
 
+	FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None);
+
+	ToolbarBuilder.BeginSection("Filters");
+	{
+		// Verbosity Threshold
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &SLogView::MakeVerbosityThresholdMenu),
+			LOCTEXT("VerbosityThresholdText", "Verbosity Threshold"),
+			LOCTEXT("VerbosityThresholdToolTip", "Filter log messages by verbosity threshold."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			false
+		);
+
+		// Category Filter
+		ToolbarBuilder.AddComboButton(
+			FUIAction(),
+			FOnGetContent::CreateSP(this, &SLogView::MakeCategoryFilterMenu),
+			LOCTEXT("CategoryFilterText", "Category Filter"),
+			LOCTEXT("CategoryFilterToolTip", "Filter log messages by category."),
+			FSlateIcon(FInsightsStyle::GetStyleSetName(), "Icon.Filter"),
+			false
+		);
+
+		// Text Filter (Search Box)
+		ToolbarBuilder.AddWidget(
+			SAssignNew(FilterTextBox, SSearchBox)
+			.HintText(LOCTEXT("FilterTextBoxHint", "Search log messages"))
+			.ToolTipText(LOCTEXT("FilterTextBoxToolTip", "Type here to filter the list of log messages."))
+			.OnTextChanged(this, &SLogView::FilterTextBox_OnTextChanged)
+		);
+
+		// Stats Text (number of logs)
+		ToolbarBuilder.AddWidget(
+			SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
+			[
+				SNew(STextBlock)
+				.Text(this, &SLogView::GetStatsText)
+				.ColorAndOpacity(this, &SLogView::GetStatsTextColor)
+			]
+		);
+	}
+	ToolbarBuilder.EndSection();
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -533,126 +580,11 @@ void SLogView::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
-
-			// Icon
-			//+ SHorizontalBox::Slot()
-			//.VAlign(VAlign_Center)
-			//.AutoWidth()
-			//[
-			//	SNew(SImage)
-			//	.Image(FEditorStyle::GetBrush(TEXT("Log.TabIcon")))
-			//]
-			//
-			//// Label
-			//+ SHorizontalBox::Slot()
-			//.VAlign(VAlign_Center)
-			//.Padding(2.0f, 0.0f)
-			//.AutoWidth()
-			//[
-			//	SNew(STextBlock)
-			//	.Text(LOCTEXT("LogViewLabel", "Log View"))
-			//]
-
-			// Verbosity Threshold Filter
-			+SHorizontalBox::Slot()
-			//.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
+			SNew(SBorder)
+			.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+			.Padding(4.0f)
 			[
-				SNew(SComboButton)
-				.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-				.ForegroundColor(FLinearColor::White)
-				.ContentPadding(0)
-				.ToolTipText(LOCTEXT("VerbosityThresholdFilterToolTip", "Filter log messages by verbosity threshold."))
-				.OnGetMenuContent(this, &SLogView::MakeVerbosityThresholdMenu)
-				.HasDownArrow(true)
-				.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 0.0f))
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					.Padding(0.0f)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-						.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
-					]
-
-					+SHorizontalBox::Slot()
-					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-						.Text(LOCTEXT("VerbosityThresholdFilter", "Verbosity Threshold"))
-					]
-				]
-			]
-
-			// Category Filter
-			+SHorizontalBox::Slot()
-			.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SComboButton)
-				.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-				.ForegroundColor(FLinearColor::White)
-				.ContentPadding(0)
-				.ToolTipText(LOCTEXT("CategoryFilterToolTip", "Filter log messages by category."))
-				.OnGetMenuContent(this, &SLogView::MakeCategoryFilterMenu)
-				.HasDownArrow(true)
-				.ContentPadding(FMargin(1.0f, 1.0f, 1.0f, 0.0f))
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-
-					+SHorizontalBox::Slot()
-					.Padding(0.0f)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-						.Text(FText::FromString(FString(TEXT("\xf0b0"))) /*fa-filter*/)
-					]
-
-					+SHorizontalBox::Slot()
-					.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-						.Text(LOCTEXT("CategoryFilter", "Category Filter"))
-					]
-				]
-			]
-
-			// Text Filter (Search Box)
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 0.0f)
-			.AutoWidth()
-			[
-				SAssignNew(FilterTextBox, SSearchBox)
-				.HintText(LOCTEXT("FilterTextBoxHint", "Search log messages"))
-				.ToolTipText(LOCTEXT("FilterTextBoxToolTip", "Type here to filter the list of log messages."))
-				.OnTextChanged(this, &SLogView::FilterTextBox_OnTextChanged)
-			]
-
-			// Stats Text
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2.0f, 0.0f)
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(this, &SLogView::GetStatsText)
-				.ColorAndOpacity(this, &SLogView::GetStatsTextColor)
+				ToolbarBuilder.MakeWidget()
 			]
 		]
 
@@ -1224,7 +1156,7 @@ TSharedRef<SWidget> SLogView::MakeVerbosityThresholdMenu()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void  SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
+void SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
 {
 	struct FVerbosityThresholdInfo
 	{
@@ -1249,15 +1181,34 @@ void  SLogView::CreateVerbosityThresholdMenuSection(FMenuBuilder& MenuBuilder)
 		const FVerbosityThresholdInfo& Threshold = VerbosityThresholds[Index];
 
 		const TSharedRef<SWidget> TextBlock = SNew(SHorizontalBox)
+#if 0 // shadow
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			[
 				SNew(STextBlock)
 				.Text(Threshold.Label)
-				.ShadowColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f, 1.0f))
-				.ShadowOffset(FVector2D(1.0f, 1.0f))
 				.ColorAndOpacity(FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(Threshold.Verbosity)))
+				.ShadowColorAndOpacity(FLinearColor(0.02f, 0.02f, 0.02f, 1.0f))
+				.ShadowOffset(FVector2D(1.0f, 1.0f))
 			]
+#else // rounded background
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(FMargin(0.0f, -2.0f, 0.0f, -2.0f))
+			[
+				SNew(SBorder)
+				.BorderImage(FInsightsStyle::Get().GetBrush("RoundedBackground"))
+				.BorderBackgroundColor(FLinearColor(0.03f, 0.03f, 0.03f, 1.0f))
+				.Padding(FMargin(12.0f, 2.0f, 12.0f, 2.0f))
+				[
+					SNew(STextBlock)
+					.Text(Threshold.Label)
+					.ColorAndOpacity(FSlateColor(FTimeMarkerTrackBuilder::GetColorByVerbosity(Threshold.Verbosity)))
+					.ShadowColorAndOpacity(FLinearColor(0.02f, 0.02f, 0.02f, 1.0f))
+					.ShadowOffset(FVector2D(1.0f, 1.0f))
+				]
+			]
+#endif
 			+ SHorizontalBox::Slot()
 			.Padding(2.0f, 0.0f)
 			.VAlign(VAlign_Center)
