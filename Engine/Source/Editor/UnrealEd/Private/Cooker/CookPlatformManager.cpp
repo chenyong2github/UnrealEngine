@@ -86,7 +86,8 @@ namespace Cook
 			FRWScopeLock PlatformDatasScopeLock(PlatformDatasLock, FRWScopeLockType::SLT_Write);
 			for (TPair<const ITargetPlatform*, FPlatformData*>& kvpair : PlatformDatas)
 			{
-				delete kvpair.Value;
+				FPlatformData* Value = kvpair.Value;
+				delete Value;
 			}
 			PlatformDatas.Empty();
 			PlatformDatasByName.Empty();
