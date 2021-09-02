@@ -371,7 +371,11 @@ namespace SolidworksDatasmith.SwObjects
 				componentTransform = component.Transform2;
 
 			var cmd = new LightweightComponentCommand();
-			cmd.Name = componentName;
+
+			string[] NameComponents = componentName.Split('/');
+			Debug.Assert(NameComponents.Length > 0);
+
+			cmd.Name = NameComponents.Last();
 			cmd.ParentName = parentComponentName;
 			if (componentTransform != null)
 				cmd.Transform = MathUtil.ConvertFromSolidworksTransform(componentTransform);
