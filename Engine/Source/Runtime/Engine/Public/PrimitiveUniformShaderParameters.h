@@ -65,6 +65,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 #define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
 
 #define NANITE_INVALID_RESOURCE_ID			0xFFFFFFFFu
 #define NANITE_INVALID_HIERARCHY_OFFSET		0xFFFFFFFFu
@@ -88,6 +89,7 @@ public:
 		bHasCapsuleRepresentation					= false;
 		bHasPreSkinnedLocalBounds					= false;
 		bHasPreviousLocalToWorld					= false;
+		bHasNaniteImposterData						= false;
 
 		// Invalid indices
 		Parameters.LightmapDataIndex				= INDEX_NONE;
@@ -116,6 +118,7 @@ public:
 	inline FPrimitiveUniformShaderParametersBuilder& VARIABLE_NAME(INPUT_TYPE In##VARIABLE_NAME) { b##VARIABLE_NAME = In##VARIABLE_NAME; return *this; }
 
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			ReceivesDecals);
+	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasNaniteImposterData);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			HasCapsuleRepresentation);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			CastContactShadow);
 	PRIMITIVE_UNIFORM_BUILDER_FLAG_METHOD(bool,			UseSingleSampleShadowFromStationaryLights);
@@ -228,6 +231,7 @@ public:
 		Parameters.Flags |= ((LightingChannels & 0x2) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1 : 0u;
 		Parameters.Flags |= ((LightingChannels & 0x4) != 0) ? PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2 : 0u;
 		Parameters.Flags |= bVisibleInRaster ? PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER : 0u;
+		Parameters.Flags |= bHasNaniteImposterData ? PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER : 0u;
 
 		Parameters.WorldToLocal = Parameters.LocalToWorld.Inverse();
 
@@ -285,6 +289,7 @@ private:
 	uint32 bHasCustomData : 1;
 	uint32 bHasPreviousLocalToWorld : 1;
 	uint32 bVisibleInRaster : 1;
+	uint32 bHasNaniteImposterData : 1;
 };
 
 inline TUniformBufferRef<FPrimitiveUniformShaderParameters> CreatePrimitiveUniformBufferImmediate(

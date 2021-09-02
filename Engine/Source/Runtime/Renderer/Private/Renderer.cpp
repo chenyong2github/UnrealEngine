@@ -168,7 +168,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 				SinglePrimitiveStructured.PrimitiveSceneData = FPrimitiveSceneShaderData(PrimitiveParams);
 				SinglePrimitiveStructured.ShaderPlatform = View.GetShaderPlatform();
 
-				uint32 InstanceFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+				uint32 InstanceFlags = 0;
 				if (PrimitiveParams.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN)
 				{
 					InstanceFlags |= INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN;

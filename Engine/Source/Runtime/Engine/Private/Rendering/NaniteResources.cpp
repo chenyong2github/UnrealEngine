@@ -508,7 +508,7 @@ FSceneProxy::FSceneProxy(UStaticMeshComponent* Component)
 	Instance.LocalToPrimitive.SetIdentity();
 	Instance.LocalBounds                = Component->GetStaticMesh()->GetBounds();
 	Instance.NaniteHierarchyOffset      = 0u;
-	Instance.Flags = bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
+	Instance.Flags = 0u;
 }
 
 FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
@@ -532,7 +532,6 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	bHasPerInstanceLMSMUVBias = InstanceLightShadowUVBias.Num() > 0; // TODO: Only allocate if static lighting is enabled for the project
 
 	uint32 InstanceDataFlags = 0;
-	InstanceDataFlags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 	InstanceDataFlags |= bHasPerInstanceLMSMUVBias ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
 	InstanceDataFlags |= bHasPerInstanceDynamicData ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
 	InstanceDataFlags |= bHasPerInstanceCustomData ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;
@@ -629,21 +628,11 @@ void FSceneProxy::CreateRenderThreadResources()
 	// These couldn't be copied on the game thread because they are initialized
 	// by the streaming manager on the render thread - initialize them now.
 	check(Resources->RuntimeResourceID != NANITE_INVALID_RESOURCE_ID && Resources->HierarchyOffset != NANITE_INVALID_HIERARCHY_OFFSET);
-	const bool bHasImposter = Resources->ImposterAtlas.Num() > 0;
 
 	for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
 	{
 		// Regular static mesh instances only use hierarchy offset on primitive.
 		InstanceSceneData[InstanceIndex].NaniteHierarchyOffset = 0;
-
-		if (bHasImposter)
-		{
-			InstanceSceneData[InstanceIndex].Flags |= INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
-		}
-		else
-		{
-			InstanceSceneData[InstanceIndex].Flags &= ~INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER;
-		}
 	}
 }
 

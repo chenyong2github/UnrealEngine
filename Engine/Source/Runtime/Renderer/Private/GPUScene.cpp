@@ -497,7 +497,6 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 				uint32      LastUpdateSceneFrameNumber;
 				uint32      NaniteRuntimeResourceID;
 				uint32      NaniteHierarchyOffset;
-				bool        NaniteHasImposter;
 				float       PerInstanceRandom;
 				FVector4    LightMapAndShadowMapUVBias;
 				bool        ValidInstance;
@@ -555,8 +554,6 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 					//InstanceSceneData.PerInstanceRandom = LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).W;
 
 					//InstanceSceneData.LightMapAndShadowMapUVBias = LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
-
-					InstanceSceneData.NaniteHasImposter = (InstanceSceneData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
 				}
 
 				return InstanceSceneData;

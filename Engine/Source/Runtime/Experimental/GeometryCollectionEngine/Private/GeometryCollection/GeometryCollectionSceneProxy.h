@@ -382,7 +382,7 @@ public:
 	virtual void OnTransformChanged() override;
 
 	// FSceneProxyBase interface.
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const override;
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const override;
 
 	/** Called on render thread to setup static geometry for rendering */
 	void SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit = false);

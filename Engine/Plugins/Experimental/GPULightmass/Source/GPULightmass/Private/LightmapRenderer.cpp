@@ -318,7 +318,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 
 				InstanceDataOriginalOffsets[InstanceIndex] = InstanceIndex;
 
-				uint32 InstanceSceneDataFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+				uint32 InstanceSceneDataFlags = 0;
 				InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
 
 				InstanceSceneData[InstanceIndex]  = FInstanceSceneShaderData(
@@ -469,7 +469,7 @@ void FCachedRayTracingSceneData::SetupViewUniformBufferFromSceneRenderState(FSce
 				LightmapSceneData[LightmapSceneDataStartOffsets[PrimitiveId] + LODIndex] = FLightmapSceneShaderData(LightmapParams);
 			}
 
-			uint32 InstanceSceneDataFlags = INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS;
+			uint32 InstanceSceneDataFlags = 0;
 			InstanceSceneDataFlags |= (PrimitiveUniformShaderParameters.Flags & PRIMITIVE_SCENE_DATA_FLAG_DETERMINANT_SIGN) ? INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN : 0u;
 
 			InstanceSceneData.Add(FInstanceSceneShaderData(
