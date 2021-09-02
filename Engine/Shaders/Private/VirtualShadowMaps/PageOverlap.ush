@@ -126,3 +126,56 @@ bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
 
 	return false;
 }
+
+/**
+ * Wrapper type to make misuse slightly harder.
+ */
+struct FPageTestScreenRect
+{
+	FScreenRect ScreenRect;
+	uint HZBLevelPageSizeShift;
+	int HZBLevelPageSizeInclusive;
+};
+
+
+/**
+ * Set up a screen rect and pre-computed data for testing pages against HZB, this assumes a 4x4-HZB FScreenRect
+ * as input. The resulting rect has been clamped to the mip level where a page is 4x4 texels, as higher mips are meaningless.
+ */
+FPageTestScreenRect SetupPageHZBRect(FScreenRect ScreenRect)
+{
+	FPageTestScreenRect Result;
+	Result.ScreenRect = ScreenRect;
+	// Clamp to level where a page is 4x4 (HZB mip 0 is half-size)
+	if (Result.ScreenRect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3U)
+	{
+		// Adjust HZB texel rect to match new mip level, this will be too large, but is clipped below.
+		Result.ScreenRect.HZBTexels = int4(Result.ScreenRect.Pixels.xy, max(Result.ScreenRect.Pixels.xy, Result.ScreenRect.Pixels.zw)) >> (VSM_LOG2_PAGE_SIZE - 2U);
+		Result.ScreenRect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3U;
+	}
+	Result.HZBLevelPageSizeShift = VSM_LOG2_PAGE_SIZE - 1U - Result.ScreenRect.HZBLevel;
+	Result.HZBLevelPageSizeInclusive = (1 << Result.HZBLevelPageSizeShift) - 1;
+	return Result;
+}
+
+
+bool IsPageVisibleHZB(uint2 vPage, uint PageFlagOffset, FPageTestScreenRect PageTestScreenRect)
+{
+	FShadowPhysicalPage pPage = ShadowDecodePageTable(ShadowHZBPageTable[PageFlagOffset]);
+
+	if (pPage.bThisLODValid)
+	{
+		FScreenRect HZBTestRect = PageTestScreenRect.ScreenRect;
+
+		// Move to page local (in mip level) space and clamp rect to page size.
+		HZBTestRect.HZBTexels -= (vPage << PageTestScreenRect.HZBLevelPageSizeShift).xyxy;
+		HZBTestRect.HZBTexels = clamp(HZBTestRect.HZBTexels, 0, PageTestScreenRect.HZBLevelPageSizeInclusive);
+		// Translate to physical address space
+		HZBTestRect.HZBTexels += (pPage.PhysicalAddress << PageTestScreenRect.HZBLevelPageSizeShift).xyxy;
+
+		// Skip invalidation if the instance is occluded
+		return IsVisibleHZB(HZBTestRect, true);
+	}
+
+	return true;
+}

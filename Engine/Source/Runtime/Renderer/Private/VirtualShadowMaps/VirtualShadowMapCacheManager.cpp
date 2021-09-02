@@ -34,6 +34,12 @@ static TAutoConsoleVariable<int32> CVarDrawInvalidatingBounds(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarCacheVsmUseHzb(
+	TEXT("r.Shadow.Virtual.Cache.InvalidateUseHZB"),
+	1,
+	TEXT("Enables testing HZB for Virtual Shadow Map invalidations."),
+	ECVF_RenderThreadSafe);
+
 void FVirtualShadowMapCacheEntry::UpdateClipmap(
 	int32 VirtualShadowMapId,
 	const FMatrix &WorldToLight,
@@ -513,7 +519,8 @@ class FVirtualSmInvalidateInstancePagesCS : public FGlobalShader
 
 	class FDebugDim : SHADER_PERMUTATION_BOOL("ENABLE_DEBUG_MODE");
 	class FInputKindDim : SHADER_PERMUTATION_INT("INPUT_KIND", EInputKind_Num);
-	using FPermutationDomain = TShaderPermutationDomain<FDebugDim, FInputKindDim>;
+	class FUseHzbDim : SHADER_PERMUTATION_BOOL("USE_HZB_OCCLUSION");
+	using FPermutationDomain = TShaderPermutationDomain<FUseHzbDim, FDebugDim, FInputKindDim>;
 
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -533,6 +540,11 @@ public:
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, InstanceSceneDataSOAStride)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, ShadowHZBPageTable)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
+		SHADER_PARAMETER( FVector2D,	HZBSize )
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, InvalidatingInstances)
 		SHADER_PARAMETER(uint32, NumInvalidatingInstanceSlots)
@@ -569,7 +581,9 @@ TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> FVirtualShadowMapArrayC
 	return GraphBuilder.CreateUniformBuffer(VersionedParameters);
 }
 
-static bool SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* CacheManager, int32 TotalInstanceCount, const FGPUScene& GPUScene, FVirtualSmInvalidateInstancePagesCS::FParameters& OutPassParameters)
+static void SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapArrayCacheManager* CacheManager, int32 TotalInstanceCount, const FGPUScene& GPUScene, 
+	FVirtualSmInvalidateInstancePagesCS::FParameters& OutPassParameters,
+	FVirtualSmInvalidateInstancePagesCS::FPermutationDomain &OutPermutationVector)
 {
 
 	auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
@@ -618,7 +632,19 @@ static bool SetupCommonParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapAr
 		ShaderDrawDebug::SetParameters(GraphBuilder, OutPassParameters.ShaderDrawUniformBuffer);
 	}
 
-	return bUseDebugPermutation;
+	const bool bUseHZB = (CVarCacheVsmUseHzb.GetValueOnRenderThread() != 0);
+	const TRefCountPtr<IPooledRenderTarget> PrevHZBPhysical = bUseHZB ? PrevBuffers.HZBPhysical : nullptr;
+	if (PrevHZBPhysical)
+	{
+		// Same, since we are not producing a new frame just yet
+		OutPassParameters.ShadowHZBPageTable = CacheManager->PrevUniformParameters.PageTable;
+		OutPassParameters.HZBTexture = GraphBuilder.RegisterExternalTexture(PrevHZBPhysical);
+		OutPassParameters.HZBSize = PrevHZBPhysical->GetDesc().Extent;
+		OutPassParameters.HZBSampler = TStaticSamplerState< SF_Point, AM_Clamp, AM_Clamp, AM_Clamp >::GetRHI();
+
+	}
+	OutPermutationVector.Set<FVirtualSmInvalidateInstancePagesCS::FDebugDim>(bUseDebugPermutation);
+	OutPermutationVector.Set<FVirtualSmInvalidateInstancePagesCS::FUseHzbDim>(PrevHZBPhysical != nullptr);
 }
 
 void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesLarge, const TArray<FInstanceSceneDataRange, SceneRenderingAllocator>& InstanceRangesSmall, int32 TotalInstanceCount, const FGPUScene& GPUScene)
@@ -633,10 +659,9 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 
 
 	FVirtualSmInvalidateInstancePagesCS::FParameters PassParametersTmp;
-	bool bUseDebugPermutation = SetupCommonParameters(GraphBuilder, this, TotalInstanceCount, GPUScene, PassParametersTmp);
-
 	FVirtualSmInvalidateInstancePagesCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FVirtualSmInvalidateInstancePagesCS::FDebugDim>(bUseDebugPermutation);
+	SetupCommonParameters(GraphBuilder, this, TotalInstanceCount, GPUScene, PassParametersTmp, PermutationVector);
+
 	if (InstanceRangesSmall.Num())
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d small-ranges]", InstanceRangesSmall.Num());
@@ -691,15 +716,14 @@ void FVirtualShadowMapArrayCacheManager::ProcessGPUInstanceInvalidations(FRDGBui
 		FRDGBufferRef InvalidatingInstancesBufferRDG = GraphBuilder.RegisterExternalBuffer(PrevBuffers.InvalidatingInstancesBuffer, TEXT("Shadow.Virtual.PrevInvalidatingInstancesBuffer"));
 		FRDGBufferRef IndirectArgs = FComputeShaderUtils::AddIndirectArgsSetupCsPass1D(GraphBuilder, InvalidatingInstancesBufferRDG, TEXT("Shadow.Virtual.ProcessGPUInstanceInvalidationsIndirectArgs"), FVirtualSmInvalidateInstancePagesCS::Cs1dGroupSizeX);
 
+		FVirtualSmInvalidateInstancePagesCS::FPermutationDomain PermutationVector;
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
-		bool bUseDebugPermutation = SetupCommonParameters(GraphBuilder, this, 16*1024, GPUScene, *PassParameters);
+		SetupCommonParameters(GraphBuilder, this, 16*1024, GPUScene, *PassParameters, PermutationVector);
 
 		PassParameters->IndirectArgs = IndirectArgs;
 		PassParameters->InvalidatingInstances = GraphBuilder.CreateSRV(InvalidatingInstancesBufferRDG);
 		PassParameters->NumInvalidatingInstanceSlots = PrevBuffers.NumInvalidatingInstanceSlots;
 
-		FVirtualSmInvalidateInstancePagesCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVirtualSmInvalidateInstancePagesCS::FDebugDim>(bUseDebugPermutation);
 		PermutationVector.Set<FVirtualSmInvalidateInstancePagesCS::FInputKindDim>(FVirtualSmInvalidateInstancePagesCS::EInputKind_GPUInstances);
 		auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmInvalidateInstancePagesCS>(PermutationVector);
 
