@@ -634,7 +634,7 @@ void ScreenProbeTileClassificationMarkCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	uint MaxTileClassification = 0xFFFF;
+	uint MaxTileClassification = 0xFF;
 
 	UNROLL
 	for (uint i = 0; i < TILE_CLASSIFICATION_NUM; i++)
@@ -651,7 +651,7 @@ void ScreenProbeTileClassificationMarkCS(
 	}
 
 	// Clear tiles that the integration shader won't run on
-	if (MaxTileClassification == 0xFFFF && all(DispatchThreadId < (uint2)View.ViewSizeAndInvSize.xy))
+	if (MaxTileClassification == 0xFF && all(DispatchThreadId < (uint2)View.ViewSizeAndInvSize.xy))
 	{
 		RWDiffuseIndirect[DispatchThreadId.xy] = 0;
 		RWRoughSpecularIndirect[DispatchThreadId.xy] = 0;
@@ -690,7 +690,7 @@ void ScreenProbeTileClassificationBuildListsCS(
 			{
 				uint Mode = TileClassificationModes[TileCoordinate];
 
-				if (Mode != 0xFFFF)
+				if (Mode != 0xFF)
 				{
 					uint TileOffset = SharedNumTiles[Mode];
 					uint PackedTileData = TileCoordinate.x | (TileCoordinate.y << 16);

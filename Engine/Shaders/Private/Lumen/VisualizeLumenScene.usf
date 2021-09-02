@@ -11,6 +11,7 @@
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
+#include "LumenVisualizeTraces.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../SHCommon.ush"
 #include "../ShaderPrintCommon.ush"
@@ -33,6 +34,10 @@ float CardInterpolateInfluenceRadius;
 
 RWTexture2D<float4> RWSceneColor;
 Buffer<uint> CulledCardGridHeader;
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 0
+#endif
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void VisualizeQuadsCS(
@@ -287,7 +292,7 @@ void VisualizeLumenVoxelsCS(
 
 
 		// Next clipmap if we are out of bounds
-		if (any(VoxelCoord < 0) || any(VoxelCoord >= VoxelLightingGridResolution))
+		if (any(VoxelCoord < 0) || any((uint3)VoxelCoord >= VoxelLightingGridResolution))
 		{
 			++VoxelClipmapIndex;
 
@@ -319,4 +324,38 @@ void VisualizeLumenVoxelsCS(
 	TraceResult.Lighting *= View.PreExposure;
 
 	RWSceneColor[PixelPos] = float4(TraceResult.Lighting, 1.0f);
+}
+
+
+Buffer<float4> VisualizeTracesData;
+
+struct FVisualizeTracesVertexOutput
+{
+	float3 TraceLighting : TEXCOORD0;	
+};
+
+void VisualizeTracesVS(
+	uint VertexIndex : SV_VertexID,
+	out FVisualizeTracesVertexOutput Output,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	uint TraceIndex = VertexIndex / 2;
+	float3 WorldPosition = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0].xyz;
+
+	if (VertexIndex & 1)
+	{
+		WorldPosition += VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1].xyz;
+	}
+
+	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
+	Output.TraceLighting = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2].xyz;
+} 
+
+void VisualizeTracesPS(
+	FVisualizeTracesVertexOutput Input,
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = float4(Input.TraceLighting, 0);
 }
