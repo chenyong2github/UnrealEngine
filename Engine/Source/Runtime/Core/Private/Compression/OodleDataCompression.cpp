@@ -314,6 +314,16 @@ bool CORE_API Decompress(
 	return true;
 }
 					
+static void* OodleAlloc(OO_SINTa Size, OO_S32 Alignment)
+{
+	return FMemory::Malloc(SIZE_T(Size), uint32(Alignment));
+}
+
+static void OodleFree(void* Ptr)
+{
+	FMemory::Free(Ptr);
+}
+
 void CORE_API StartupPreInit(void)
 {
 	// called from LaunchEngineLoop at "PreInit" time
@@ -327,6 +337,7 @@ void CORE_API StartupPreInit(void)
 	// UE5 will always read/write Oodle v9 binary data :
 	OodleConfig.m_OodleLZ_BackwardsCompatible_MajorVersion = 9;
 	Oodle_SetConfigValues(&OodleConfig);
+	OodleCore_Plugins_SetAllocators(OodleAlloc, OodleFree);
 }
 
 };
