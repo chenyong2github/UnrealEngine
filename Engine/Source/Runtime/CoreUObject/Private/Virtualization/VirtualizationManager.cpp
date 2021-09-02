@@ -549,6 +549,11 @@ void FVirtualizationManager::MountBackends()
 
 	const TCHAR* GraphName = *BackendGraphName;
 
+	if(!GConfig->DoesSectionExist(GraphName, GEngineIni))
+	{
+		UE_LOG(LogVirtualization, Fatal, TEXT("Unable to find the backend graph: '%s' [ini=%s]."), GraphName, *GEngineIni);
+	}
+
 	UE_LOG(LogVirtualization, Log, TEXT("Using backend graph: '%s'"), GraphName);
 
 	// It is important to parse the local storage hierarchy first so those backends will show up before the
