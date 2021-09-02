@@ -227,24 +227,25 @@ TArray<FPushPhysicsData*> FChaosMarshallingManager::StealHistory_Internal(int32 
 void FPushPhysicsData::CopySubstepData(const FPushPhysicsData& FirstStepData)
 {
 	const FDirtyPropertiesManager& FirstManager = FirstStepData.DirtyPropertiesManager;
-	DirtyPropertiesManager.SetNumParticles(FirstStepData.DirtyProxiesDataBuffer.NumDirtyProxies());
+	DirtyPropertiesManager.PrepareBuckets(FirstStepData.DirtyProxiesDataBuffer.GetDirtyProxyBucketInfo());
 	FirstStepData.DirtyProxiesDataBuffer.ForEachProxy([this, &FirstManager](int32 FirstDataIdx, const FDirtyProxy& Dirty)
 	{
-		if (Dirty.ParticleData.GetParticleBufferType() == EParticleType::Rigid)
+		//todo: use bucket type directly instead of iterating over each proxy
+		if (Dirty.Proxy->GetType() == EPhysicsProxyType::SingleParticleProxy && Dirty.PropertyData.GetParticleBufferType() == EParticleType::Rigid)
 		{
-			if (const FParticleDynamics* DynamicsData = Dirty.ParticleData.FindDynamics(FirstManager, FirstDataIdx))
+			if (const FParticleDynamics* DynamicsData = Dirty.PropertyData.FindDynamics(FirstManager, FirstDataIdx))
 			{
 				if (DynamicsData->F() != FVec3(0) || DynamicsData->Torque() != FVec3(0))	//don't bother interpolating 0. This is important because the input dirtys rewind data
 				{
 					DirtyProxiesDataBuffer.Add(Dirty.Proxy);
-					FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetParticlePool<FParticleDynamics, EParticleProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
+					FParticleDynamics& SubsteppedDynamics = DirtyPropertiesManager.GetChaosPropertyPool<FParticleDynamics, EChaosProperty::Dynamics>().GetElement(Dirty.Proxy->GetDirtyIdx());
 					SubsteppedDynamics = *DynamicsData;
 					//we don't want to sub-step impulses so those are cleared in the sub-step
 					SubsteppedDynamics.SetAngularImpulse(FVec3(0));
 					SubsteppedDynamics.SetLinearImpulse(FVec3(0));
-					FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetDirtyIdx());
-					NewDirtyProxy.ParticleData.DirtyFlag(EParticleFlags::Dynamics);
-					NewDirtyProxy.ParticleData.SetParticleBufferType(EParticleType::Rigid);
+					FDirtyProxy& NewDirtyProxy = DirtyProxiesDataBuffer.GetDirtyProxyAt(Dirty.Proxy->GetType(), Dirty.Proxy->GetDirtyIdx());
+					NewDirtyProxy.PropertyData.DirtyFlag(EChaosPropertyFlags::Dynamics);
+					NewDirtyProxy.PropertyData.SetParticleBufferType(EParticleType::Rigid);
 				}
 			}
 

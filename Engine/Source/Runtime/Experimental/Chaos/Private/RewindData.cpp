@@ -15,11 +15,11 @@ FVec3 FGeometryParticleStateBase::ZeroVector = FVec3(0);
 
 void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Manager,const TPBDRigidParticleHandle<FReal,3>& Rigid)
 {
-	FParticleDirtyFlags Flags;
-	Flags.MarkDirty(EParticleFlags::XR);
-	Flags.MarkDirty(EParticleFlags::Velocities);
-	Flags.MarkDirty(EParticleFlags::DynamicMisc);
-	FParticleDirtyData Dirty;
+	FDirtyChaosPropertyFlags Flags;
+	Flags.MarkDirty(EChaosPropertyFlags::XR);
+	Flags.MarkDirty(EChaosPropertyFlags::Velocities);
+	Flags.MarkDirty(EChaosPropertyFlags::DynamicMisc);
+	FDirtyChaosProperties Dirty;
 	Dirty.SetFlags(Flags);
 
 #if 0
@@ -47,7 +47,7 @@ void FGeometryParticleStateBase::SyncSimWritablePropsFromSim(FDirtyPropData Mana
 #endif
 }
 
-void FGeometryParticleStateBase::SyncDirtyDynamics(FDirtyPropData& DestManager,const FParticleDirtyData& Dirty,const FConstDirtyPropData& SrcManager)
+void FGeometryParticleStateBase::SyncDirtyDynamics(FDirtyPropData& DestManager,const FDirtyChaosProperties& Dirty,const FConstDirtyPropData& SrcManager)
 {
 #if 0
 	FParticleDirtyData DirtyFlags;
@@ -441,33 +441,33 @@ void FRewindData::PushGTDirtyData(const FDirtyPropertiesManager& SrcManager,cons
 		if(Info.InitializedOnStep < CurFrame)
 		{
 			const FFrameAndPhase PrePushData = FFrameAndPhase{ CurFrame, FFrameAndPhase::PrePushData };
-			auto DirtyPropHelper = [this, &Dirty](auto& Property, const EParticleFlags PropName, const auto& Particle)
+			auto DirtyPropHelper = [this, &Dirty](auto& Property, const EChaosPropertyFlags PropName, const auto& Particle)
 			{
-				if (Dirty.ParticleData.IsDirty(PropName))
+				if (Dirty.PropertyData.IsDirty(PropName))
 				{
 					auto& Data = Property.WriteAccessMonotonic(FFrameAndPhase{ CurFrame, FFrameAndPhase::PrePushData }, PropertiesPool);
 					Data.CopyFrom(Particle);
 				}
 			};
 
-			DirtyPropHelper(Latest.ParticlePositionRotation, EParticleFlags::XR, *PTParticle);
-			DirtyPropHelper(Latest.NonFrequentData, EParticleFlags::NonFrequentData, *PTParticle);
+			DirtyPropHelper(Latest.ParticlePositionRotation, EChaosPropertyFlags::XR, *PTParticle);
+			DirtyPropHelper(Latest.NonFrequentData, EChaosPropertyFlags::NonFrequentData, *PTParticle);
 
 			if (auto Kinematic = PTParticle->CastToKinematicParticle())
 			{
-				DirtyPropHelper(Latest.Velocities, EParticleFlags::Velocities, *Kinematic);
-				DirtyPropHelper(Latest.KinematicTarget, EParticleFlags::KinematicTarget, *Kinematic);
+				DirtyPropHelper(Latest.Velocities, EChaosPropertyFlags::Velocities, *Kinematic);
+				DirtyPropHelper(Latest.KinematicTarget, EChaosPropertyFlags::KinematicTarget, *Kinematic);
 
 				if (auto Rigid = Kinematic->CastToRigidParticle())
 				{
-					DirtyPropHelper(Latest.DynamicsMisc, EParticleFlags::DynamicMisc, *Rigid);
-					DirtyPropHelper(Latest.MassProps, EParticleFlags::MassProps, *Rigid);
+					DirtyPropHelper(Latest.DynamicsMisc, EChaosPropertyFlags::DynamicMisc, *Rigid);
+					DirtyPropHelper(Latest.MassProps, EChaosPropertyFlags::MassProps, *Rigid);
 				}
 			}
 		}
 
 		//Dynamics are not available at head (sim zeroes them out), so we have to record them as PostPushData (since they're applied as part of PushData)
-		if (auto NewData = Dirty.ParticleData.FindDynamics(SrcManager, SrcDataIdx))
+		if (auto NewData = Dirty.PropertyData.FindDynamics(SrcManager, SrcDataIdx))
 		{
 			Latest.Dynamics.WriteAccessMonotonic(FFrameAndPhase{ CurFrame, FFrameAndPhase::PostPushData }, PropertiesPool) = *NewData;
 			Info.DirtyDynamics = CurFrame;	//Need to save the dirty dynamics into the next phase as well (it's possible a callback will stomp the dynamics value, so that's why it's pending)

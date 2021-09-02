@@ -824,13 +824,13 @@ namespace Chaos
 		FDirtySet* DirtyProxiesData = &PushData->DirtyProxiesDataBuffer;
 		FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
 
-		Manager->SetNumParticles(DirtyProxiesData->NumDirtyProxies());
+		Manager->PrepareBuckets(DirtyProxiesData->GetDirtyProxyBucketInfo());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
 		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
 		{
 			auto Particle = Proxy->GetParticle_LowLevel();
-			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.ParticleData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
+			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.PropertyData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
 			Proxy->ClearAccumulatedData();
 			Proxy->ResetDirtyIdx();
 		};
@@ -934,7 +934,7 @@ namespace Chaos
 			const bool bIsNew = !Proxy->IsInitialized();
 			if(bIsNew)
 			{
-				const auto* NonFrequentData = Dirty.ParticleData.FindNonFrequentData(*Manager,DataIdx);
+				const auto* NonFrequentData = Dirty.PropertyData.FindNonFrequentData(*Manager,DataIdx);
 				const FUniqueIdx* UniqueIdx = NonFrequentData ? &NonFrequentData->UniqueIdx() : nullptr;
 				Proxy->SetHandle(CreateHandleFunc(UniqueIdx));
 
@@ -988,7 +988,7 @@ namespace Chaos
 					auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
 					ProcessProxyPT(Proxy, DataIdx, Dirty, [this, &Dirty](const FUniqueIdx* UniqueIdx) -> TGeometryParticleHandle<FReal,3>*
 					{
-						switch (Dirty.ParticleData.GetParticleBufferType())
+						switch (Dirty.PropertyData.GetParticleBufferType())
 						{
 							case EParticleType::Static: return Particles.CreateStaticParticles(1, UniqueIdx)[0];
 							case EParticleType::Kinematic: return Particles.CreateKinematicParticles(1, UniqueIdx)[0];

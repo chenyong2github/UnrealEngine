@@ -1872,12 +1872,12 @@ public:
 		return MDirtyFlags.IsClean();
 	}
 
-	bool IsDirty(const EParticleFlags CheckBits) const
+	bool IsDirty(const EChaosPropertyFlags CheckBits) const
 	{
 		return MDirtyFlags.IsDirty(CheckBits);
 	}
 
-	const FParticleDirtyFlags& DirtyFlags() const
+	const FDirtyChaosPropertyFlags& DirtyFlags() const
 	{
 		return MDirtyFlags;
 	}
@@ -1908,7 +1908,7 @@ public:
 		return nullptr;
 	}
 
-	void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FParticleDirtyData& RemoteData, const TArray<int32>& ShapeDataIndices, FShapeDirtyData* ShapesRemoteData) const
+	void SyncRemoteData(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData, const TArray<int32>& ShapeDataIndices, FShapeDirtyData* ShapesRemoteData) const
 	{
 		RemoteData.SetParticleBufferType(Type);
 		RemoteData.SetFlags(MDirtyFlags);
@@ -1992,8 +1992,8 @@ protected:
 	}
 private:
 
-	TParticleProperty<FParticlePositionRotation, EParticleProperty::XR> MXR;
-	TParticleProperty<FParticleNonFrequentData,EParticleProperty::NonFrequentData> MNonFrequentData;
+	TChaosProperty<FParticlePositionRotation, EChaosProperty::XR> MXR;
+	TChaosProperty<FParticleNonFrequentData,EChaosProperty::NonFrequentData> MNonFrequentData;
 	void* MUserData;
 
 	FShapesArray MShapesArray;
@@ -2017,9 +2017,9 @@ private:
 protected:
 
 	EParticleType Type;
-	FParticleDirtyFlags MDirtyFlags;
+	FDirtyChaosPropertyFlags MDirtyFlags;
 
-	void MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate = true);
+	void MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate = true);
 
 	void UpdateShapesArray()
 	{
@@ -2027,7 +2027,7 @@ protected:
 		MapImplicitShapes();
 	}
 
-	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
+	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{
 		MXR.SyncRemote(Manager, DataIdx, RemoteData);
 		MNonFrequentData.SyncRemote(Manager, DataIdx, RemoteData);
@@ -2121,11 +2121,11 @@ public:
 
 
 private:
-	TParticleProperty<FParticleVelocities, EParticleProperty::Velocities> MVelocities;
-	TParticleProperty<FKinematicTarget, EParticleProperty::KinematicTarget> MKinematicTarget;
+	TChaosProperty<FParticleVelocities, EChaosProperty::Velocities> MVelocities;
+	TChaosProperty<FKinematicTarget, EChaosProperty::KinematicTarget> MKinematicTarget;
 
 protected:
-	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
+	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
 		MVelocities.SyncRemote(Manager, DataIdx, RemoteData);
@@ -2397,7 +2397,7 @@ public:
 			// have been buffered. If another force is added after the object is put to sleep, the old forces
 			// will remain and the new ones will accumulate and re-dirty the dynamic properties which will
 			// wake the body.
-			MDirtyFlags.MarkClean(ParticlePropToFlag(EParticleProperty::Dynamics));
+			MDirtyFlags.MarkClean(ChaosPropertyToFlag(EChaosProperty::Dynamics));
 		}
 
 		MMiscData.Modify(bInvalidate,MDirtyFlags,Proxy,[&InState](auto& Data){ Data.SetObjectState(InState);});
@@ -2433,9 +2433,9 @@ public:
 	}
 
 private:
-	TParticleProperty<FParticleMassProps,EParticleProperty::MassProps> MMassProps;
-	TParticleProperty<FParticleDynamics, EParticleProperty::Dynamics> MDynamics;
-	TParticleProperty<FParticleDynamicMisc,EParticleProperty::DynamicMisc> MMiscData;
+	TChaosProperty<FParticleMassProps,EChaosProperty::MassProps> MMassProps;
+	TChaosProperty<FParticleDynamics, EChaosProperty::Dynamics> MDynamics;
+	TChaosProperty<FParticleDynamicMisc,EChaosProperty::DynamicMisc> MMiscData;
 
 	int32 MIsland;
 	bool MToBeRemovedOnFracture;
@@ -2443,7 +2443,7 @@ private:
 	EWakeEventEntry MWakeEvent;
 
 protected:
-	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
+	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{
 		Base::SyncRemoteDataImp(Manager,DataIdx,RemoteData);
 		MMassProps.SyncRemote(Manager,DataIdx,RemoteData);
@@ -2576,7 +2576,7 @@ TGeometryParticle<T, d>* TGeometryParticle<T, d>::SerializationFactory(FChaosArc
 }
 
 template <>
-CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate);
+CHAOS_API void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate);
 
 FORCEINLINE_DEBUGGABLE FAccelerationStructureHandle::FAccelerationStructureHandle(FGeometryParticleHandle* InHandle)
 	: ExternalGeometryParticle(InHandle->GTGeometryParticle())
