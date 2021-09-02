@@ -24,5 +24,15 @@ namespace IncludeTool.Support
 		{
 			WriteLine(String.Format(Format, Args));
 		}
+
+		public void WriteWarning(FileReference File, string Message)
+		{
+			WriteLine("{0}: warning: {1}", File, Message);
+		}
+
+		public void WriteWarning(FileReference File, string Message, params object[] Args)
+		{
+			WriteWarning(File, String.Format(Message, Args));
+		}
 	}
 }
