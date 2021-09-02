@@ -335,7 +335,7 @@ FIntVector FSkeletalMeshReadDataProviderProxy::GetDispatchDim(int32 InvocationIn
 	FSkeletalMeshRenderData const& SkeletalMeshRenderData = SkeletalMeshObject->GetSkeletalMeshRenderData();
 	FSkeletalMeshLODRenderData const* LodRenderData = SkeletalMeshRenderData.GetPendingFirstLOD(0);
 	FSkelMeshRenderSection const& RenderSection = LodRenderData->RenderSections[InvocationIndex];
-	const int32 NumVertices = RenderSection.NumTriangles;
+	const int32 NumVertices = RenderSection.GetNumVertices();
 	const int32 NumGroupThreads = GroupDim.X * GroupDim.Y * GroupDim.Z;
 	const int32 NumGroups = FMath::DivideAndRoundUp(NumVertices, NumGroupThreads);
 	return FIntVector(NumGroups, 1, 1);
