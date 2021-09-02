@@ -128,6 +128,12 @@ IDetailPropertyRow& FDetailPropertyRow::OverrideResetToDefault(const FResetToDef
 	return *this;
 }
 
+IDetailPropertyRow& FDetailPropertyRow::DragDropHandler(TSharedPtr<IDetailDragDropHandler> InDragDropHandler)
+{
+	CustomDragDropHandler = InDragDropHandler;
+	return *this;
+}
+
 void FDetailPropertyRow::GetDefaultWidgets( TSharedPtr<SWidget>& OutNameWidget, TSharedPtr<SWidget>& OutValueWidget, bool bAddWidgetDecoration )
 {
 	FDetailWidgetRow Row;
@@ -711,6 +717,7 @@ void FDetailPropertyRow::SetWidgetRowProperties(FDetailWidgetRow& Row) const
 	Row.EditCondition(EditConditionValue, OnEditConditionValueChanged);
 	Row.IsEnabled(CustomIsEnabledAttrib);
 	Row.CustomResetToDefault = CustomResetToDefault;
+	Row.CustomDragDropHandler = CustomDragDropHandler;
 	Row.PropertyHandles.Add(GetPropertyHandle());
 
 	// set custom actions and reset to default

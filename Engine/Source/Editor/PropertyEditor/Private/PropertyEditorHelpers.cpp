@@ -816,7 +816,7 @@ namespace PropertyEditorHelpers
 		return PropertyNode.IsValid() ? !PropertyNode.Pin()->IsEditConst() : false;
 	}
 
-	TSharedRef<SWidget> MakePropertyReorderHandle(const TSharedRef<FPropertyNode>& PropertyNode, TSharedPtr<SDetailSingleItemRow> InParentRow)
+	TSharedRef<SWidget> MakePropertyReorderHandle(TSharedPtr<SDetailSingleItemRow> InParentRow, TAttribute<bool> InEnabledAttr)
 	{
 		TSharedRef<SArrayRowHandle> Handle = SNew(SArrayRowHandle)
 			.Content()
@@ -831,11 +831,9 @@ namespace PropertyEditorHelpers
 					.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))
 				]
 			]
-		.ParentRow(InParentRow);
-		TWeakPtr<FPropertyNode> NodePtr(PropertyNode);
-		TAttribute<bool>::FGetter IsPropertyButtonEnabledDelegate = TAttribute<bool>::FGetter::CreateStatic(&IsPropertyButtonEnabled, NodePtr);
-		TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(IsPropertyButtonEnabledDelegate);
-		Handle->SetEnabled(IsEnabledAttribute);
+		.ParentRow(InParentRow)
+		.IsEnabled(InEnabledAttr)
+		.Visibility_Lambda([InParentRow]() { return InParentRow->IsHovered() ? EVisibility::Visible : EVisibility::Hidden; });
 		return Handle;
 	}
 

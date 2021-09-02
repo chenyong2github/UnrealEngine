@@ -15,6 +15,7 @@
 
 class FDetailWidgetRow;
 class FResetToDefaultOverride;
+class IDetailDragDropHandler;
 
 /** Widget declaration for custom widgets in a widget row */
 class FDetailWidgetDecl
@@ -127,6 +128,7 @@ public:
 		WholeRowWidget = FDetailWidgetDecl(*this, Other.WholeRowWidget);
 		VisibilityAttr = Other.VisibilityAttr;
 		IsEnabledAttr = Other.IsEnabledAttr;
+		IsValueEnabledAttr = Other.IsValueEnabledAttr;
 		FilterTextString = Other.FilterTextString;
 		CopyMenuAction = Other.CopyMenuAction;
 		PasteMenuAction = Other.PasteMenuAction;
@@ -135,6 +137,7 @@ public:
 		CustomResetToDefault = Other.CustomResetToDefault;
 		EditConditionValue = Other.EditConditionValue;
 		OnEditConditionValueChanged = Other.OnEditConditionValueChanged;
+		CustomDragDropHandler = Other.CustomDragDropHandler;
 		PropertyHandles = Other.PropertyHandles;
 		return *this;
 	}
@@ -314,6 +317,15 @@ public:
 	}
 	
 	/**
+	 * Sets a handler for the row to be a source or target of drag-and-drop operations.
+	 */
+	FDetailWidgetRow& DragDropHandler(TSharedPtr<IDetailDragDropHandler> InDragDropHandler)
+	{
+		CustomDragDropHandler = InDragDropHandler;
+		return *this;
+	}
+
+	/**
 	* Used to provide all the property handles this WidgetRow represent
 	*/
 	FDetailWidgetRow& PropertyHandleList(const TArray<TSharedPtr<IPropertyHandle>>& InPropertyHandles)
@@ -373,6 +385,8 @@ public:
 	TAttribute<bool> EditConditionValue;
 	/** Custom edit condition value changed handler. */
 	FOnBooleanValueChanged OnEditConditionValueChanged;
+	/** Custom handler for drag-and-drop of the row */
+	TSharedPtr<IDetailDragDropHandler> CustomDragDropHandler;
 	/* All property handle that this custom widget represent */
 	TArray<TSharedPtr<IPropertyHandle>> PropertyHandles;
 };

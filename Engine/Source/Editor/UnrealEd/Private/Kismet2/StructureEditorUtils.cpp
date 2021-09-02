@@ -753,26 +753,91 @@ bool FStructureEditorUtils::ChangeSaveGameEnabled(UUserDefinedStruct* Struct, FG
 	return false;
 }
 
-bool FStructureEditorUtils::MoveVariable(UUserDefinedStruct* Struct, FGuid VarGuid, EMoveDirection MoveDirection)
+/** Compute the initial and new indices to move the specified variable above/below another variable. */
+static bool ComputeIndicesForMove(
+	const TArray<FStructVariableDescription>& DescArray,
+	const FGuid& MoveVarGuid,
+	const FGuid& RelativeToGuid,
+	FStructureEditorUtils::EMovePosition Position,
+	int32& OutInitialIndex,
+	int32& OutNewIndex)
+{
+	int32 InitialIndex = DescArray.IndexOfByPredicate(
+		[MoveVarGuid](const FStructVariableDescription& Desc)
+		{
+			return Desc.VarGuid == MoveVarGuid;
+		});
+	int32 NewIndex = DescArray.IndexOfByPredicate(
+		[RelativeToGuid](const FStructVariableDescription& Desc)
+		{
+			return Desc.VarGuid == RelativeToGuid;
+		});
+	if (InitialIndex == INDEX_NONE || NewIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	if (Position == FStructureEditorUtils::PositionBelow)
+	{
+		// If moving below a variable, then we actually move it to the next variable's index
+		NewIndex++;
+	}
+
+	if (InitialIndex < NewIndex)
+	{
+		// When the element is removed from the array, all the other elements below it are shifted by one,
+		// so moving an element down the array causes its new index to shift by one
+		NewIndex--;
+	}
+
+	if (InitialIndex == NewIndex)
+	{
+		// No move is happening because the index didn't change.
+		return false;
+	}
+
+	if (!ensure(NewIndex >= 0 && NewIndex < DescArray.Num()))
+	{
+		// New index is out of bounds - this shouldn't happen!
+		return false;
+	}
+
+	OutInitialIndex = InitialIndex;
+	OutNewIndex = NewIndex;
+	return true;
+}
+
+bool FStructureEditorUtils::MoveVariable(UUserDefinedStruct* Struct, FGuid MoveVarGuid, FGuid RelativeToGuid, EMovePosition Position)
 {
 	if (Struct)
 	{
-		const bool bMoveUp = (EMoveDirection::MD_Up == MoveDirection);
 		TArray<FStructVariableDescription>& DescArray = GetVarDesc(Struct);
-		const int32 InitialIndex = bMoveUp ? 1 : 0;
-		const int32 IndexLimit = DescArray.Num() - (bMoveUp ? 0 : 1);
-		for (int32 Index = InitialIndex; Index < IndexLimit; ++Index)
+		int32 InitialIndex, NewIndex;
+		if (!ComputeIndicesForMove(DescArray, MoveVarGuid, RelativeToGuid, Position, InitialIndex, NewIndex))
 		{
-			if (DescArray[Index].VarGuid == VarGuid)
-			{
-				const FScopedTransaction Transaction(LOCTEXT("ReorderVariables", "Variables reordered"));
-				ModifyStructData(Struct);
-
-				DescArray.Swap(Index, Index + (bMoveUp ? -1 : 1));
-				OnStructureChanged(Struct, EStructureEditorChangeInfo::MovedVariable);
-				return true;
-			}
+			return false;
 		}
+
+		const FScopedTransaction Transaction(LOCTEXT("ReorderVariables", "Variables reordered"));
+		ModifyStructData(Struct);
+
+		FStructVariableDescription MoveDesc = DescArray[InitialIndex];
+		DescArray.RemoveAt(InitialIndex);
+		DescArray.Insert(MoveDesc, NewIndex);
+
+		OnStructureChanged(Struct, EStructureEditorChangeInfo::MovedVariable);
+		return true;
+	}
+	return false;
+}
+
+bool FStructureEditorUtils::CanMoveVariable(UUserDefinedStruct* Struct, FGuid MoveVarGuid, FGuid RelativeToGuid, EMovePosition Position)
+{
+	if (Struct)
+	{
+		TArray<FStructVariableDescription>& DescArray = GetVarDesc(Struct);
+		int32 OldIndex, NewIndex; // populated but unused
+		return ComputeIndicesForMove(DescArray, MoveVarGuid, RelativeToGuid, Position, OldIndex, NewIndex);
 	}
 	return false;
 }
