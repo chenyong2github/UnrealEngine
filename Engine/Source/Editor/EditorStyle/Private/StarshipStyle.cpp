@@ -1138,6 +1138,20 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 		);
 	}
 
+	// Derived Data
+	{
+		Set("DerivedData.CacheSettings", new CORE_IMAGE_BRUSH_SVG("Starship/Common/settings", Icon16x16, FStyleColors::Foreground));
+		Set("DerivedData.CacheStatistics", new IMAGE_BRUSH_SVG("Starship/Common/Statistics", Icon16x16, FLinearColor::White));
+		Set("DerivedData.ResourceUsage", new CORE_IMAGE_BRUSH_SVG("Starship/Common/layout-spreadsheet", Icon16x16, FLinearColor::White));
+		
+		Set("DerivedData.Uploading", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-up", Icon16x16, FStyleColors::AccentGreen));
+		Set("DerivedData.Downloading", new CORE_IMAGE_BRUSH_SVG("Starship/Common/arrow-down", Icon16x16, FStyleColors::AccentGreen));
+	
+		Set("DerivedData.RemoteStorage.Connected", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentGreen));
+		Set("DerivedData.RemoteStorage.Disconnected", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentYellow));
+		Set("DerivedData.RemoteStorage.Unavailable", new CORE_IMAGE_BRUSH_SVG("Starship/Common/world", Icon16x16, FStyleColors::AccentGray));
+	}
+
 	// Scene Outliner
 	{
 		Set( "SceneOutliner.NewFolderIcon", new CORE_IMAGE_BRUSH_SVG("Starship/Common/folder-plus", Icon16x16 ) );

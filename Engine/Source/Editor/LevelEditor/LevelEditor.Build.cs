@@ -84,6 +84,7 @@ public class LevelEditor : ModuleRules
 				"TranslationEditor",
 				"SubobjectEditor",
 				"SubobjectDataInterface",
+				"DerivedDataEditor",
 			}
 		);
 
