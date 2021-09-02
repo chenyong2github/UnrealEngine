@@ -4,6 +4,8 @@
 
 #include "WinHttp/WinHttpWebSocketsManager.h"
 #include "WinHttp/WinHttpWebSocket.h"
+#include "WinHttp/WinHttpHttpManager.h"
+#include "Http.h"
 #include "Modules/ModuleManager.h"
 #include "HttpModule.h"
 #include "Containers/BackgroundableTicker.h"
@@ -13,14 +15,32 @@ void FWinHttpWebSocketsManager::InitWebSockets(TArrayView<const FString> Protoco
 {
 	(void)FModuleManager::LoadModuleChecked<FHttpModule>(TEXT("Http"));
 
+	if (FWinHttpHttpManager::GetManager() == nullptr)
+	{
+		InitHttpManager();
+	}
+
 	if (ensure(!TickHandle.IsValid()))
 	{
 		TickHandle = FTSBackgroundableTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FWinHttpWebSocketsManager::GameThreadTick), 0.0f);
 	}
 }
 
+void FWinHttpWebSocketsManager::InitHttpManager()
+{
+	HttpManager = FPlatformHttp::CreateWinHttpHttpManager();
+	check(HttpManager);
+	HttpManager->Initialize();
+}
+
 void FWinHttpWebSocketsManager::ShutdownWebSockets()
 {
+	if (HttpManager)
+	{
+		delete HttpManager;
+		HttpManager = nullptr;
+	}
+
 	for (TWeakPtr<FWinHttpWebSocket>& WeakWebSocket : ActiveWebSockets)
 	{
 		if (TSharedPtr<FWinHttpWebSocket> StrongWebSocket = WeakWebSocket.Pin())
