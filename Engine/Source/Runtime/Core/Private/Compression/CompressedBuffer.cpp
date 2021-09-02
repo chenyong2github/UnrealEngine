@@ -10,7 +10,6 @@
 #include "Misc/Crc.h"
 #include "Serialization/Archive.h"
 #include "Templates/Function.h"
-#include "UObject/NameTypes.h"
 
 THIRD_PARTY_INCLUDES_START
 #include "Compression/lz4.h"
@@ -476,7 +475,7 @@ bool FBlockDecoder::TryDecompressTo(const FHeader& Header, const FCompositeBuffe
 class FOodleEncoder final : public FBlockEncoder
 {
 public:
-	FOodleEncoder(FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InCompressionLevel)
+	FOodleEncoder(ECompressedBufferCompressor InCompressor, ECompressedBufferCompressionLevel InCompressionLevel)
 		: Compressor(InCompressor)
 		, CompressionLevel(InCompressionLevel)
 	{
@@ -503,8 +502,8 @@ protected:
 	}
 
 private:
-	const FOodleDataCompression::ECompressor Compressor;
-	const FOodleDataCompression::ECompressionLevel CompressionLevel;
+	const ECompressedBufferCompressor Compressor;
+	const ECompressedBufferCompressionLevel CompressionLevel;
 };
 
 class FOodleDecoder final : public FBlockDecoder
@@ -588,41 +587,6 @@ static const FDecoder* GetDecoder(EMethod Method)
 	}
 }
 
-static const FEncoder* GetEncoder(FName FormatName)
-{
-	static FNoneEncoder None;
-	static FOodleEncoder Oodle(FOodleDataCompression::ECompressor::Mermaid, FOodleDataCompression::ECompressionLevel::VeryFast);
-	static FLZ4Encoder LZ4;
-	if (FormatName.IsNone())
-	{
-		return &None;
-	}
-	if (FormatName == NAME_Oodle)
-	{
-		return &Oodle;
-	}
-	if (FormatName == NAME_LZ4 || FormatName == NAME_Default)
-	{
-		return &LZ4;
-	}
-	return nullptr;
-}
-
-static FName GetMethodName(EMethod Method)
-{
-	switch (Method)
-	{
-	default:
-		return NAME_Error;
-	case EMethod::None:
-		return NAME_None;
-	case EMethod::Oodle:
-		return NAME_Oodle;
-	case EMethod::LZ4:
-		return NAME_LZ4;
-	}
-}
-
 template <typename BufferType>
 inline FCompositeBuffer ValidBufferOrEmpty(BufferType&& CompressedData)
 {
@@ -658,7 +622,7 @@ bool FHeader::IsValid(const FCompositeBuffer& CompressedData)
 
 FCompressedBuffer FCompressedBuffer::Compress(const FCompositeBuffer& RawData)
 {
-	return Compress(RawData, FOodleDataCompression::ECompressor::Mermaid, FOodleDataCompression::ECompressionLevel::VeryFast);
+	return Compress(RawData, ECompressedBufferCompressor::Mermaid, ECompressedBufferCompressionLevel::VeryFast);
 }
 
 FCompressedBuffer FCompressedBuffer::Compress(const FSharedBuffer& RawData)
@@ -668,8 +632,8 @@ FCompressedBuffer FCompressedBuffer::Compress(const FSharedBuffer& RawData)
 
 FCompressedBuffer FCompressedBuffer::Compress(
 	const FCompositeBuffer& RawData,
-	FOodleDataCompression::ECompressor Compressor,
-	FOodleDataCompression::ECompressionLevel CompressionLevel,
+	ECompressedBufferCompressor Compressor,
+	ECompressedBufferCompressionLevel CompressionLevel,
 	uint64 BlockSize)
 {
 	using namespace UE::CompressedBuffer;
@@ -680,7 +644,7 @@ FCompressedBuffer FCompressedBuffer::Compress(
 	}
 
 	FCompressedBuffer Local;
-	if (CompressionLevel == FOodleDataCompression::ECompressionLevel::None)
+	if (CompressionLevel == ECompressedBufferCompressionLevel::None)
 	{
 		Local.CompressedData = FNoneEncoder().Compress(RawData, BlockSize);
 	}
@@ -693,27 +657,11 @@ FCompressedBuffer FCompressedBuffer::Compress(
 
 FCompressedBuffer FCompressedBuffer::Compress(
 	const FSharedBuffer& RawData,
-	FOodleDataCompression::ECompressor Compressor,
-	FOodleDataCompression::ECompressionLevel CompressionLevel,
+	ECompressedBufferCompressor Compressor,
+	ECompressedBufferCompressionLevel CompressionLevel,
 	uint64 BlockSize)
 {
 	return Compress(FCompositeBuffer(RawData), Compressor, CompressionLevel, BlockSize);
-}
-
-FCompressedBuffer FCompressedBuffer::Compress(FName FormatName, const FCompositeBuffer& RawData)
-{
-	using namespace UE::CompressedBuffer;
-	FCompressedBuffer Local;
-	if (const FEncoder* const Encoder = GetEncoder(FormatName))
-	{
-		Local.CompressedData = Encoder->Compress(RawData, DefaultBlockSize);
-	}
-	return Local;
-}
-
-FCompressedBuffer FCompressedBuffer::Compress(FName FormatName, const FSharedBuffer& RawData)
-{
-	return Compress(FormatName, FCompositeBuffer(RawData));
 }
 
 FCompressedBuffer FCompressedBuffer::FromCompressed(const FCompositeBuffer& InCompressedData)
@@ -779,15 +727,9 @@ FBlake3Hash FCompressedBuffer::GetRawHash() const
 	return CompressedData ? UE::CompressedBuffer::FHeader::Read(CompressedData).RawHash : FBlake3Hash();
 }
 
-FName FCompressedBuffer::GetFormatName() const
-{
-	using namespace UE::CompressedBuffer;
-	return CompressedData ? GetMethodName(FHeader::Read(CompressedData).Method) : NAME_None;
-}
-
 bool FCompressedBuffer::TryGetCompressParameters(
-	FOodleDataCompression::ECompressor& OutCompressor,
-	FOodleDataCompression::ECompressionLevel& OutCompressionLevel) const
+	ECompressedBufferCompressor& OutCompressor,
+	ECompressedBufferCompressionLevel& OutCompressionLevel) const
 {
 	using namespace UE::CompressedBuffer;
 	if (CompressedData)
@@ -795,12 +737,12 @@ bool FCompressedBuffer::TryGetCompressParameters(
 		switch (const FHeader Header = FHeader::Read(CompressedData); Header.Method)
 		{
 		case EMethod::None:
-			OutCompressor = FOodleDataCompression::ECompressor::NotSet;
-			OutCompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+			OutCompressor = ECompressedBufferCompressor::NotSet;
+			OutCompressionLevel = ECompressedBufferCompressionLevel::None;
 			return true;
 		case EMethod::Oodle:
-			OutCompressor = FOodleDataCompression::ECompressor(Header.Compressor);
-			OutCompressionLevel = FOodleDataCompression::ECompressionLevel(Header.CompressionLevel);
+			OutCompressor = ECompressedBufferCompressor(Header.Compressor);
+			OutCompressionLevel = ECompressedBufferCompressionLevel(Header.CompressionLevel);
 			return true;
 		default:
 			break;

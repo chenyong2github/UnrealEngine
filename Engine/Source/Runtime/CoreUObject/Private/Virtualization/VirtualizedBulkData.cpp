@@ -84,8 +84,8 @@ namespace Private
 {
 
 FCompressionSettings::FCompressionSettings()
-	: Compressor(FOodleDataCompression::ECompressor::NotSet)
-	, CompressionLevel(FOodleDataCompression::ECompressionLevel::None)
+	: Compressor(ECompressedBufferCompressor::NotSet)
+	, CompressionLevel(ECompressedBufferCompressionLevel::None)
 	, bIsSet(false)
 {
 
@@ -98,8 +98,8 @@ FCompressionSettings::FCompressionSettings(const FCompressedBuffer& Buffer)
 	if (!Buffer.TryGetCompressParameters(Compressor, CompressionLevel))
 	{
 		bIsSet = true;
-		Compressor = FOodleDataCompression::ECompressor::NotSet;
-		CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+		Compressor = ECompressedBufferCompressor::NotSet;
+		CompressionLevel = ECompressedBufferCompressionLevel::None;
 	}
 }
 
@@ -117,12 +117,12 @@ bool FCompressionSettings::operator != (const FCompressionSettings& Other) const
 
 void FCompressionSettings::Reset()
 {
-	Compressor = FOodleDataCompression::ECompressor::NotSet;
-	CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+	Compressor = ECompressedBufferCompressor::NotSet;
+	CompressionLevel = ECompressedBufferCompressionLevel::None;
 	bIsSet = false;
 }
 
-void FCompressionSettings::Set(FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InCompressionLevel)
+void FCompressionSettings::Set(ECompressedBufferCompressor InCompressor, ECompressedBufferCompressionLevel InCompressionLevel)
 {
 	Compressor = InCompressor;
 	CompressionLevel = InCompressionLevel;
@@ -131,15 +131,15 @@ void FCompressionSettings::Set(FOodleDataCompression::ECompressor InCompressor, 
 
 void FCompressionSettings::SetToDefault()
 {
-	Compressor = FOodleDataCompression::ECompressor::Kraken;
-	CompressionLevel = FOodleDataCompression::ECompressionLevel::Fast;
+	Compressor = ECompressedBufferCompressor::Kraken;
+	CompressionLevel = ECompressedBufferCompressionLevel::Fast;
 	bIsSet = true;
 }
 
 void FCompressionSettings::SetToDisabled()
 {
-	Compressor = FOodleDataCompression::ECompressor::NotSet;
-	CompressionLevel = FOodleDataCompression::ECompressionLevel::None;
+	Compressor = ECompressedBufferCompressor::NotSet;
+	CompressionLevel = ECompressedBufferCompressionLevel::None;
 	bIsSet = true;
 }
 
@@ -150,15 +150,15 @@ bool FCompressionSettings::IsSet() const
 
 bool FCompressionSettings::IsCompressed() const
 {
-	return bIsSet == true && CompressionLevel != FOodleDataCompression::ECompressionLevel::None;
+	return bIsSet == true && CompressionLevel != ECompressedBufferCompressionLevel::None;
 }
 
-FOodleDataCompression::ECompressor FCompressionSettings::GetCompressor() const
+ECompressedBufferCompressor FCompressionSettings::GetCompressor() const
 {
 	return Compressor;
 }
 
-FOodleDataCompression::ECompressionLevel FCompressionSettings::GetCompressionLevel()
+ECompressedBufferCompressionLevel FCompressionSettings::GetCompressionLevel()
 {
 	return CompressionLevel;
 }
@@ -407,7 +407,7 @@ void FVirtualizedUntypedBulkData::Serialize(FArchive& Ar, UObject* Owner, bool b
 			{
 				if (bPayloadInArchive)
 				{
-					FCompressedBuffer CompressedPayload = FCompressedBuffer::Compress(NAME_None, Payload);
+					FCompressedBuffer CompressedPayload = FCompressedBuffer::Compress(Payload, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
 					SerializeData(Ar, CompressedPayload, Flags);
 				}
 			}
@@ -908,7 +908,7 @@ bool FVirtualizedUntypedBulkData::SerializeData(FArchive& Ar, FCompressedBuffer&
 			Ar.Serialize(LoadPayload.GetData(), Size);
 		}
 
-		InPayload = FCompressedBuffer::Compress(NAME_None, LoadPayload.MoveToShared());
+		InPayload = FCompressedBuffer::Compress(LoadPayload.MoveToShared(), ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
 
 		return true;
 	}
@@ -1087,7 +1087,7 @@ FCompressedBuffer FVirtualizedUntypedBulkData::GetDataInternal() const
 	// Check if we already have the data in memory
 	if (Payload)
 	{
-		return FCompressedBuffer::Compress(NAME_None, Payload);
+		return FCompressedBuffer::Compress(Payload, ECompressedBufferCompressor::NotSet, ECompressedBufferCompressionLevel::None);
 	}
 
 	if (IsDataVirtualized())
@@ -1168,7 +1168,7 @@ void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressionOptions Opti
 		checkNoEntry();
 	}
 
-	if (CompressionSettings.GetCompressionLevel() == FOodleDataCompression::ECompressionLevel::None)
+	if (CompressionSettings.GetCompressionLevel() == ECompressedBufferCompressionLevel::None)
 	{
 		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
 	}
@@ -1178,11 +1178,11 @@ void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressionOptions Opti
 	}
 }
 
-void FVirtualizedUntypedBulkData::SetCompressionOptions(FOodleDataCompression::ECompressor Compressor, FOodleDataCompression::ECompressionLevel CompressionLevel)
+void FVirtualizedUntypedBulkData::SetCompressionOptions(ECompressedBufferCompressor Compressor, ECompressedBufferCompressionLevel CompressionLevel)
 {
 	CompressionSettings.Set(Compressor, CompressionLevel);
 
-	if (CompressionSettings.GetCompressionLevel() == FOodleDataCompression::ECompressionLevel::None)
+	if (CompressionSettings.GetCompressionLevel() == ECompressedBufferCompressionLevel::None)
 	{
 		EnumAddFlags(Flags, EFlags::DisablePayloadCompression);
 	}
