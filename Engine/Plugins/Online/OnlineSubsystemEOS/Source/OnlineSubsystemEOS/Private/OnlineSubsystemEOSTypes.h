@@ -139,7 +139,7 @@ PACKAGE_SCOPE:
 
 	FString EpicAccountIdStr;
 	FString ProductUserIdStr;
-	uint8 RawBytes[EOS_ID_BYTE_SIZE];
+	uint8 RawBytes[EOS_ID_BYTE_SIZE] = { 0 };
 private:
 	FUniqueNetIdEOS()
 		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
