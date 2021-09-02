@@ -205,7 +205,7 @@ void FActorBrowsingMode::Rebuild()
 	ApplicableUnloadedActors.Empty();
 	ApplicableActors.Empty();
 
-	bRepresentingWorldPartitionedWorld = RepresentingWorld.IsValid() && RepresentingWorld->GetWorldPartition() != nullptr;
+	bRepresentingWorldPartitionedWorld = RepresentingWorld.IsValid() && RepresentingWorld->IsPartitionedWorld();
 
 	if (bRepresentingWorldPartitionedWorld)
 	{

@@ -18,7 +18,7 @@ REGISTER_COOKPACKAGE_SPLITTER(FWorldPartitionCookPackageSplitter, UWorld);
 bool FWorldPartitionCookPackageSplitter::ShouldSplit(UObject* SplitData)
 {
 	UWorld* World = Cast<UWorld>(SplitData);
-	return World && !!World->GetWorldPartition();
+	return World && World->IsPartitionedWorld();
 }
 
 bool FWorldPartitionCookPackageSplitter::UseDeferredPopulate()
@@ -71,7 +71,7 @@ UWorld* FWorldPartitionCookPackageSplitter::ValidateDataObject(UObject* SplitDat
 	UWorld* PartitionedWorld = CastChecked<UWorld>(SplitData);
 	check(PartitionedWorld);
 	check(PartitionedWorld->PersistentLevel);
-	check(PartitionedWorld->PersistentLevel->GetWorldPartition());
+	check(PartitionedWorld->IsPartitionedWorld());
 	return PartitionedWorld;
 }
 

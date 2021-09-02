@@ -87,11 +87,6 @@ public:
 	static UWorldPartition* CreateWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
 
 private:
-	DECLARE_DELEGATE_RetVal_TwoParams(bool, FEnableWorldPartitionEvent, UWorld*, bool);
-	static FEnableWorldPartitionEvent EnableWorldPartitionEvent;
-
-	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
-	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
 
 	void SavePerUserSettings();
 		

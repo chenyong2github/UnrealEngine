@@ -3930,7 +3930,7 @@ EVisibility SLevelViewport::GetCurrentLevelTextVisibility() const
 	return (&GetLevelViewportClient() == GCurrentLevelEditingViewportClient) 
 		&& !IsPlayInEditorViewportActive() 
 		&& GetWorld() && GetWorld()->GetCurrentLevel()->OwningWorld->GetLevels().Num() > 1
-		&& !GetWorld()->GetWorldPartition()
+		&& !GetWorld()->IsPartitionedWorld()
 		?  ContentVisibility : EVisibility::Collapsed;
 }
 

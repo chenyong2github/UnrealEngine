@@ -611,7 +611,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 			}
 		}
 
-		if (World && World->GetWorldPartition())
+		if (World && World->IsPartitionedWorld())
 		{
 			bDisplayBrowse = false;
 		}
@@ -717,7 +717,7 @@ SPropertyEditorAsset::EActorReferenceState SPropertyEditorAsset::GetActorReferen
 				UWorld* World = Cast<UWorld>(MapObject);
 
 				// In a partitioned world, the world object will exist but the actor itself can be unloaded
-				if (World && World->GetWorldPartition())
+				if (World && World->IsPartitionedWorld())
 				{
 					UObject* Object = nullptr;
 					if (World->ResolveSubobject(*Value.ObjectPath.GetSubPathString(), Object, /*bLoadIfExists*/false))

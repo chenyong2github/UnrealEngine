@@ -2517,6 +2517,11 @@ public:
 	UWorldPartition* GetWorldPartition() const;
 
 	/**
+	* Returns true if world contains an associated UWorldPartition object.
+	*/
+	bool IsPartitionedWorld() const { return GetWorldPartition() != nullptr; }
+
+	/**
 	 * Returns the current levels BSP model.
 	 *
 	 * @return BSP UModel

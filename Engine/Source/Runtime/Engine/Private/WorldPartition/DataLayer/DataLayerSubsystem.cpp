@@ -26,7 +26,7 @@ bool UDataLayerSubsystem::ShouldCreateSubsystem(UObject* Outer) const
 
 	if (UWorld* WorldOuter = Cast<UWorld>(Outer))
 	{
-		return WorldOuter->GetWorldPartition() != nullptr;
+		return WorldOuter->IsPartitionedWorld();
 	}
 
 	return false;

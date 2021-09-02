@@ -831,7 +831,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Make sure the world isn't already partitioned
 	AWorldSettings* MainWorldSettings = MainWorld->GetWorldSettings();
-	if (MainWorldSettings->GetWorldPartition())
+	if (MainWorldSettings->IsPartitionedWorld())
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Level '%s' is already partitionned"), *Tokens[0]);
 		return 1;

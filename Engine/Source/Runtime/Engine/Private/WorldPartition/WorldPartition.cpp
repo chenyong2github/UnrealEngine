@@ -223,8 +223,6 @@ struct FWorldPartionCellUpdateContext
 
 int32 FWorldPartionCellUpdateContext::UpdatesInProgress = 0;
 
-UWorldPartition::FEnableWorldPartitionEvent UWorldPartition::EnableWorldPartitionEvent;
-UWorldPartition::FWorldPartitionChangedEvent UWorldPartition::WorldPartitionChangedEvent;
 #endif
 
 UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)

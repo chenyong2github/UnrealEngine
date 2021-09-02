@@ -209,7 +209,7 @@ void AWorldSettings::PostRegisterAllComponents()
 
 UWorldPartition* AWorldSettings::GetWorldPartition() const
 {
-	return bEnableWorldPartition ? WorldPartition : nullptr;
+	return WorldPartition;
 }
 
 void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
@@ -217,7 +217,6 @@ void AWorldSettings::SetWorldPartition(UWorldPartition* InWorldPartition)
 	check(!WorldPartition);
 	check(InWorldPartition);
 	WorldPartition = InWorldPartition;
-	bEnableWorldPartition = true;
 	bEnableWorldComposition = false;
 }
 
@@ -601,7 +600,7 @@ bool AWorldSettings::CanEditChange(const FProperty* InProperty) const
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, bEnableWorldComposition))
 		{
-			return !bEnableWorldPartition;
+			return !IsPartitionedWorld();
 		}
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(AWorldSettings, InstancedFoliageGridSize))
 		{
