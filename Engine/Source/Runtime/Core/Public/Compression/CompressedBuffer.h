@@ -6,11 +6,13 @@
 #include "Memory/MemoryFwd.h"
 
 class FArchive;
-class FName;
 struct FBlake3Hash;
 
 namespace FOodleDataCompression { enum class ECompressionLevel : int8; }
 namespace FOodleDataCompression { enum class ECompressor : uint8; }
+
+using ECompressedBufferCompressionLevel = FOodleDataCompression::ECompressionLevel;
+using ECompressedBufferCompressor = FOodleDataCompression::ECompressor;
 
 /**
  * A compressed buffer stores compressed data in a self-contained format.
@@ -44,24 +46,14 @@ public:
 	 */
 	[[nodiscard]] CORE_API static FCompressedBuffer Compress(
 		const FCompositeBuffer& RawData,
-		FOodleDataCompression::ECompressor Compressor,
-		FOodleDataCompression::ECompressionLevel CompressionLevel,
+		ECompressedBufferCompressor Compressor,
+		ECompressedBufferCompressionLevel CompressionLevel,
 		uint64 BlockSize = 0);
 	[[nodiscard]] CORE_API static FCompressedBuffer Compress(
 		const FSharedBuffer& RawData,
-		FOodleDataCompression::ECompressor Compressor,
-		FOodleDataCompression::ECompressionLevel CompressionLevel,
+		ECompressedBufferCompressor Compressor,
+		ECompressedBufferCompressionLevel CompressionLevel,
 		uint64 BlockSize = 0);
-
-	/**
-	 * Compress the buffer using the requested compression format.
-	 *
-	 * @param FormatName   One of NAME_None, NAME_Default, NAME_LZ4.
-	 * @param RawData      Raw data to compress. NAME_None will reference owned raw data.
-	 * @return An owned compressed buffer, or null on error.
-	 */
-	[[nodiscard]] CORE_API static FCompressedBuffer Compress(FName FormatName, const FCompositeBuffer& RawData);
-	[[nodiscard]] CORE_API static FCompressedBuffer Compress(FName FormatName, const FSharedBuffer& RawData);
 
 	/**
 	 * Construct from a compressed buffer previously created by Compress().
@@ -104,17 +96,6 @@ public:
 	[[nodiscard]] CORE_API FBlake3Hash GetRawHash() const;
 
 	/**
-	 * Returns the name of the compression format used by this buffer.
-	 *
-	 * The format name may differ from the format name specified when creating the compressed buffer
-	 * because an incompressible buffer is stored with NAME_None, and a request of NAME_Default will
-	 * be stored in a specific format such as NAME_LZ4.
-	 *
-	 * @return The format name, or NAME_None if this null, or NAME_Error if the format is unknown.
-	 */
-	[[nodiscard]] CORE_API FName GetFormatName() const;
-
-	/**
 	 * Returns the compressor and compression level used by this buffer.
 	 *
 	 * The compressor and compression level may differ from those specified when creating the buffer
@@ -124,8 +105,8 @@ public:
 	 * @return True if parameters were written, otherwise false.
 	 */
 	[[nodiscard]] CORE_API bool TryGetCompressParameters(
-		FOodleDataCompression::ECompressor& OutCompressor,
-		FOodleDataCompression::ECompressionLevel& OutCompressionLevel) const;
+		ECompressedBufferCompressor& OutCompressor,
+		ECompressedBufferCompressionLevel& OutCompressionLevel) const;
 
 	/**
 	 * Decompress into a memory view that is exactly GetRawSize() bytes.

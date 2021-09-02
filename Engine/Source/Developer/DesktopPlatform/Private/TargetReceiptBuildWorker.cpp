@@ -113,8 +113,8 @@ public:
 							{
 								FileDataBuffers.Emplace(FCompressedBuffer::Compress(
 										MutableBuffer.MoveToShared(),
-										FOodleDataCompression::ECompressor::NotSet,
-										FOodleDataCompression::ECompressionLevel::None
+										ECompressedBufferCompressor::NotSet,
+										ECompressedBufferCompressionLevel::None
 									));
 							}
 						}

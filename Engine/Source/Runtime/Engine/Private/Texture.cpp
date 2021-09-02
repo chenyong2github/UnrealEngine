@@ -1323,7 +1323,7 @@ void FTextureSource::Compress()
 	if ( ( CompressionFormat == TSCF_PNG && bUseOodleOnPNGz0 ) ||
 		CompressionFormat == TSCF_None )
 	{
-		BulkData.SetCompressionOptions(FOodleDataCompression::ECompressor::Kraken,FOodleDataCompression::ECompressionLevel::Fast);
+		BulkData.SetCompressionOptions(ECompressedBufferCompressor::Kraken,ECompressedBufferCompressionLevel::Fast);
 	}
 	else
 	{

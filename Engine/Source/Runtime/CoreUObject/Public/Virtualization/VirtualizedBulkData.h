@@ -33,20 +33,20 @@ struct FCompressionSettings
 
 	void Reset();
 
-	void Set(FOodleDataCompression::ECompressor InCompressor, FOodleDataCompression::ECompressionLevel InCompressionLevel);
+	void Set(ECompressedBufferCompressor InCompressor, ECompressedBufferCompressionLevel InCompressionLevel);
 	void SetToDefault();
 	void SetToDisabled();
 
 	[[nodiscard]] bool IsSet() const;
 	[[nodiscard]] bool IsCompressed() const;
 
-	[[nodiscard]] FOodleDataCompression::ECompressor GetCompressor() const;
-	[[nodiscard]] FOodleDataCompression::ECompressionLevel GetCompressionLevel();
+	[[nodiscard]] ECompressedBufferCompressor GetCompressor() const;
+	[[nodiscard]] ECompressedBufferCompressionLevel GetCompressionLevel();
 
 private:
 
-	FOodleDataCompression::ECompressor Compressor;
-	FOodleDataCompression::ECompressionLevel CompressionLevel;
+	ECompressedBufferCompressor Compressor;
+	ECompressedBufferCompressionLevel CompressionLevel;
 
 	bool bIsSet;
 };
@@ -233,10 +233,10 @@ public:
 	 * These settings will continue to be used until the bulkdata object is reset, a subsequent
 	 * call to ::SetCompressionOptions is made or the owning package is serialized to disk.
 	 * 
-	 * @param Compressor		The Oodle compressor to use. @see FOodleDataCompression::ECompressor
-	 * @param CompressionLevel	The Oodle compression level to use. @see FOodleDataCompression::ECompressionLevel
+	 * @param Compressor		The Oodle compressor to use. @see ECompressedBufferCompressor
+	 * @param CompressionLevel	The Oodle compression level to use. @see ECompressedBufferCompressionLevel
 	 */
-	void SetCompressionOptions(FOodleDataCompression::ECompressor Compressor, FOodleDataCompression::ECompressionLevel CompressionLevel);
+	void SetCompressionOptions(ECompressedBufferCompressor Compressor, ECompressedBufferCompressionLevel CompressionLevel);
 
 	/**
 	* Get the CustomVersions used in the file containing the payload. Currently this is assumed
