@@ -12,6 +12,8 @@ template <typename T>
 class TUniqueObj
 {
 public:
+	using ElementType = T;
+
 	TUniqueObj(const TUniqueObj& other)
 		: Obj(MakeUnique<T>(*other))
 	{
