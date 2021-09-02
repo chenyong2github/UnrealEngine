@@ -136,7 +136,11 @@ float4 ViewRectMin;
 
 half2 TexturePosToBufferUV(int2 TexturePos)
 {
+#if HORIZONSEARCH_INTEGRAL_PIXEL_SHADER || SPATIALFILTER_PIXEL_SHADER
+	half2 BufferUV = (TexturePos + half2(0.5f, 0.5f)) * BufferSizeAndInvSize.zw;
+#else
 	half2 BufferUV = (TexturePos + half2(0.5f, 0.5f) + ViewRectMin.xy) * BufferSizeAndInvSize.zw;
+#endif
 
 	return BufferUV;
 }
@@ -596,7 +600,7 @@ half4 GTAOSpatialFilter(half2 TextureUV, int2 ThreadPos, int2 PixelPos)
 void GTAOSpatialFilter(int2 ThreadPos, int2 PixelPos)
 #endif
 {
-	if (any(PixelPos >= (int2)ViewSizeAndInvSize.xy))
+	if (any(PixelPos >= int2(ViewRectMin.xy + ViewSizeAndInvSize.xy)))
 	{
 #if SPATIALFILTER_PIXEL_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER
 		return 1.0f;
@@ -767,7 +771,7 @@ void GTAOSpatialFilter(int2 ThreadPos, int2 PixelPos)
 #if SPATIALFILTER_PIXEL_SHADER || HORIZONSEARCH_INTEGRAL_PIXEL_SHADER
 	return SumAO;
 #else
-	OutTexture[PixelPos] = SumAO;
+	OutTexture[PixelPos + ViewRectMin.xy] = SumAO;
 #endif
 }
 #endif
@@ -904,7 +908,7 @@ void GTAOHorizonSearchIntegralCS(
 
 	half4 EncodeZ = EncodeFloatRGBA(DeviceZ);
 	EncodeZ.a = GTAO;
-	OutTexture[TexturePos] = EncodeZ;
+	OutTexture[TexturePos + ViewRectMin.xy] = EncodeZ;
 }
 #endif
 
