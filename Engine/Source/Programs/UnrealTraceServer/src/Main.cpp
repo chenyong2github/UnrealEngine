@@ -200,7 +200,7 @@ FLogging::FLogging()
 
 	// Open the log file (note; can race other instances)
 	uint32 LogIndex = ExistingLogs.empty() ? 0 : ExistingLogs.back().Index;
-	for (; LogIndex++, File == nullptr;)
+	for (uint32 n = LogIndex + 10; File == nullptr && LogIndex < n;)
 	{
 		std::filesystem::path LogPath = LogDir / std::format("Server_{}.log", LogIndex);
 #if TS_USING(TS_PLATFORM_WINDOWS)
