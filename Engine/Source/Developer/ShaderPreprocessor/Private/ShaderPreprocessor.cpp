@@ -102,9 +102,7 @@ private:
 			{
 				// Adds a #line 1 "<Absolute file path>" on top of every file content to have nice absolute virtual source
 				// file path in error messages.
-				FString ShaderFilePath = GetShaderSourceFilePath(VirtualFilePath);
-				ShaderFilePath.ReplaceCharWithEscapedCharInline();
-				FileContents = FString::Printf(TEXT("#line 1 \"%s\"\n%s"), *ShaderFilePath, *FileContents);
+				FileContents = FString::Printf(TEXT("#line 1 \"%s\"\n%s"), *VirtualFilePath, *FileContents);
 
 				CachedContents = &This->CachedFileContents.Add(VirtualFilePath, StringToArray<ANSICHAR>(*FileContents, FileContents.Len() + 1));
 			}

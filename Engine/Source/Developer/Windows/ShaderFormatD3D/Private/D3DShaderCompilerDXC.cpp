@@ -675,7 +675,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	const bool bGenerateSymbols = Input.Environment.CompilerFlags.Contains(CFLAG_GenerateSymbols);
 	const bool bSymbolsBasedOnSource = Input.Environment.CompilerFlags.Contains(CFLAG_AllowUniqueSymbols);
-	const bool bDiagnosticsFormatMsvc = (bool)PLATFORM_WINDOWS;
 
 	FDxcArguments Args
 	(
@@ -687,7 +686,6 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 		bEnable16BitTypes,
 		bGenerateSymbols,
 		bSymbolsBasedOnSource,
-		bDiagnosticsFormatMsvc,
 		DXCFlags,
 		AutoBindingSpace,
 		ValidatorVersion
