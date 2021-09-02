@@ -213,7 +213,6 @@ FLogging::FLogging()
 		File = fopen(LogPath.c_str(), "wbx");
 #endif
 	}
-	while (File == nullptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
