@@ -644,6 +644,7 @@ namespace EpicGames.Serialization
 	/// </summary>
 	[DebuggerDisplay("{DebugValue,nq}")]
 	[DebuggerTypeProxy(typeof(CbFieldDebugView))]
+	[JsonConverter(typeof(CbFieldJsonConverter))]
 	public class CbField : IEquatable<CbField>, IEnumerable<CbField>
 	{
 		/// <summary>
@@ -1620,6 +1621,176 @@ namespace EpicGames.Serialization
 		public static CbField MakeView(CbField Other) => Other;
 
 		#endregion
+	}
+
+	/// <summary>
+	/// Converter to and from JSON objects
+	/// </summary>
+	public class CbFieldJsonConverter : JsonConverter<CbField>
+	{
+		/// <inheritdoc/>
+		public override CbField Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+		{
+			throw new NotImplementedException();
+		}
+
+		/// <inheritdoc/>
+		public override void Write(Utf8JsonWriter Writer, CbField Field, JsonSerializerOptions Options)
+		{
+			switch (Field.GetType())
+			{
+				case CbFieldType.Null:
+					if (Field.HasName())
+					{
+						Writer.WriteNull(Field.Name.Span);
+					}
+					else
+					{
+						Writer.WriteNullValue();
+					}
+					break;
+				case CbFieldType.Object:
+				case CbFieldType.UniformObject:
+					if (Field.HasName())
+					{
+						Writer.WriteStartObject(Field.Name.Span);
+					}
+					else
+					{
+						Writer.WriteStartObject();
+					}
+
+					foreach (CbField Member in Field.AsObject())
+					{
+						Write(Writer, Member, Options);
+					}
+					Writer.WriteEndObject();
+					break;
+				case CbFieldType.Array:
+				case CbFieldType.UniformArray:
+					if (Field.HasName())
+					{
+						Writer.WriteStartArray(Field.Name.Span);
+					}
+					else
+					{
+						Writer.WriteStartArray();
+					}
+
+					foreach (CbField Element in Field.AsArray())
+					{
+						Write(Writer, Element, Options);
+					}
+					Writer.WriteEndArray();
+					break;
+				case CbFieldType.Binary:
+					if (Field.HasName())
+					{
+						Writer.WriteBase64String(Field.Name.Span, Field.AsBinary().Span);
+					}
+					else
+					{
+						Writer.WriteBase64StringValue(Field.AsBinary().Span);
+					}
+					break;
+				case CbFieldType.String:
+					if (Field.HasName())
+					{
+						Writer.WriteString(Field.Name.Span, Field.AsString().Span);
+					}
+					else
+					{
+						Writer.WriteStringValue(Field.AsString().Span);
+					}
+					break;
+				case CbFieldType.IntegerPositive:
+					if (Field.HasName())
+					{
+						Writer.WriteNumber(Field.Name.Span, Field.AsUInt64());
+					}
+					else
+					{
+						Writer.WriteNumberValue(Field.AsUInt64());
+					}
+					break;
+				case CbFieldType.IntegerNegative:
+					if (Field.HasName())
+					{
+						Writer.WriteNumber(Field.Name.Span, Field.AsInt64());
+					}
+					else
+					{
+						Writer.WriteNumberValue(Field.AsInt64());
+					}
+					break;
+				case CbFieldType.Float32:
+				case CbFieldType.Float64:
+					if (Field.HasName())
+					{
+						Writer.WriteNumber(Field.Name.Span, Field.AsDouble());
+					}
+					else
+					{
+						Writer.WriteNumberValue(Field.AsDouble());
+					}
+					break;
+				case CbFieldType.BoolFalse:
+				case CbFieldType.BoolTrue:
+					if (Field.HasName())
+					{
+						Writer.WriteBoolean(Field.Name.Span, Field.AsBool());
+					}
+					else
+					{
+						Writer.WriteBooleanValue(Field.AsBool());
+					}
+					break;
+				case CbFieldType.ObjectAttachment:
+				case CbFieldType.BinaryAttachment:
+				case CbFieldType.Hash:
+					if (Field.HasName())
+					{
+						Writer.WriteString(Field.Name.Span, Field.AsHash().ToString());
+					}
+					else
+					{
+						Writer.WriteStringValue(Field.AsHash().ToString());
+					}
+					break;
+				case CbFieldType.Uuid:
+					if (Field.HasName())
+					{
+						Writer.WriteString(Field.Name.Span, Field.AsUuid().ToString());
+					}
+					else
+					{
+						Writer.WriteStringValue(Field.AsUuid().ToString());
+					}
+					break;
+				case CbFieldType.DateTime:
+					if (Field.HasName())
+					{
+						Writer.WriteNumber(Field.Name.Span, Field.AsDateTimeTicks());
+					}
+					else
+					{
+						Writer.WriteNumberValue(Field.AsDateTimeTicks());
+					}
+					break;
+				case CbFieldType.TimeSpan:
+					if (Field.HasName())
+					{
+						Writer.WriteNumber(Field.Name.Span, Field.AsTimeSpanTicks());
+					}
+					else
+					{
+						Writer.WriteNumberValue(Field.AsTimeSpanTicks());
+					}
+					break;
+				default:
+					throw new NotImplementedException($"Unhandled type in cb-json converter");
+			}
+		}
 	}
 
 	public class CbFieldEnumerator : IEnumerator<CbField>

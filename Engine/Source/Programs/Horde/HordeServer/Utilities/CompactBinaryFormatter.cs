@@ -10,9 +10,21 @@ using System.IO;
 using EpicGames.Serialization;
 using EpicGames.Serialization.Converters;
 using System.Reflection;
+using System.Net.Mime;
 
 namespace HordeServer.Utilities
 {
+	/// <summary>
+	/// Global constants
+	/// </summary>
+	public static partial class CustomMediaTypeNames
+	{
+		/// <summary>
+		/// Media type for compact binary
+		/// </summary>
+		public const string UnrealCompactBinary = "application/x-ue-cb";
+	}
+
 	/// <summary>
 	/// Converter to allow reading compact binary objects as request bodies
 	/// </summary>
@@ -23,7 +35,7 @@ namespace HordeServer.Utilities
 		/// </summary>
 		public CbInputFormatter()
 		{
-			SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/x-ue-cb"));
+			SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse(CustomMediaTypeNames.UnrealCompactBinary));
 		}
 
 		/// <inheritdoc/>
@@ -58,7 +70,7 @@ namespace HordeServer.Utilities
 		/// </summary>
 		public CbOutputFormatter()
 		{
-			SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse("application/x-ue-cb"));
+			SupportedMediaTypes.Add(MediaTypeHeaderValue.Parse(CustomMediaTypeNames.UnrealCompactBinary));
 		}
 
 		/// <inheritdoc/>
@@ -70,8 +82,29 @@ namespace HordeServer.Utilities
 		/// <inheritdoc/>
 		public override async Task WriteResponseBodyAsync(OutputFormatterWriteContext Context)
 		{
-			ReadOnlyMemory<byte> Data = CbSerializer.Serialize(Context.ObjectType, Context.Object).GetView();
+			ReadOnlyMemory<byte> Data;
+			if (Context.Object is CbObject Object)
+			{
+				Data = Object.GetView();
+			}
+			else
+			{
+				Data = CbSerializer.Serialize(Context.ObjectType, Context.Object).GetView();
+			}
 			await Context.HttpContext.Response.BodyWriter.WriteAsync(Data);
+		}
+	}
+
+	/// <summary>
+	/// Special version of <see cref="CbOutputFormatter"/> which returns native CbObject encoded data. Can be 
+	/// inserted at a high priority in the output formatter list to prevent transcoding to json.
+	/// </summary>
+	public class CbPreferredOutputFormatter : CbOutputFormatter
+	{
+		/// <inheritdoc/>
+		protected override bool CanWriteType(Type Type)
+		{
+			return Type == typeof(CbObject);
 		}
 	}
 }
