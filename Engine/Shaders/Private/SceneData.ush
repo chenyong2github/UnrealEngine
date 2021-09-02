@@ -44,18 +44,18 @@
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_1				0x800
 #define PRIMITIVE_SCENE_DATA_FLAG_LIGHTING_CHANNEL_2				0x1000
 #define PRIMITIVE_SCENE_DATA_FLAG_VISIBLE_IN_RASTER					0x2000
+#define PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER				0x4000
 
 // GPUCULL_TODO: Eventually we need to remove this workaround
 #define VF_TREAT_INSTANCE_ID_OFFSET_AS_PRIMITIVE_ID_FLAG (1U << 31U)
 
-#define INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS				0x1
-#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x2
-#define INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER				0x4
-#define INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM					0x8
-#define INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			0x10
-#define INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			0x20
-#define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x40
-#define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x80
+// Must match InstanceUniformShaderParameters.h
+#define INSTANCE_SCENE_DATA_FLAG_DETERMINANT_SIGN			0x1
+#define INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM					0x2
+#define INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA			0x4
+#define INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA			0x8
+#define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x10
+#define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
 
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
@@ -303,7 +303,6 @@ struct FInstanceSceneData
 	uint     LastUpdateSceneFrameNumber;
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
-	bool     NaniteHasImposter;
 #if USES_PER_INSTANCE_RANDOM
 	float    PerInstanceRandom;
 #endif
@@ -362,7 +361,7 @@ float4 LoadInstancePayloadDataElement(uint Index)
 #endif
 }
 
-void ComputeIstanceDerivedData(inout FInstanceSceneData InstanceData)
+void ComputeInstanceDerivedData(inout FInstanceSceneData InstanceData)
 {
 	//
 	// Do not put any load operations here!
@@ -388,9 +387,6 @@ void ComputeIstanceDerivedData(inout FInstanceSceneData InstanceData)
 	InstanceData.WorldToLocal								= transpose(InstanceData.WorldToLocal);
 	InstanceData.WorldToLocal[3].xyz						= mul(float4(-InstanceData.LocalToWorld[3].xyz, 0.0f), InstanceData.WorldToLocal).xyz;
 
-	// TODO: Uploading not fully functional
-	// InstanceData.CastShadows								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS);
-	InstanceData.NaniteHasImposter							= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_IMPOSTER);
 	InstanceData.HasRandomID								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_RANDOM);
 	InstanceData.HasCustomData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA);
 	InstanceData.HasDynamicData								= (InstanceData.Flags & INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA);
@@ -440,7 +436,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 
 		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
 
-		ComputeIstanceDerivedData(InstanceData);
+		ComputeInstanceDerivedData(InstanceData);
 
 		// TODO: Temporary hack!
 	#if USES_PER_INSTANCE_CUSTOM_DATA
@@ -599,7 +595,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	InstanceData.PerInstanceRandom = InstanceTransform3.w;
 	#endif
 
-	ComputeIstanceDerivedData(InstanceData);
+	ComputeInstanceDerivedData(InstanceData);
 
 	//
 	FSceneDataIntermediates Intermediates = (FSceneDataIntermediates)0;

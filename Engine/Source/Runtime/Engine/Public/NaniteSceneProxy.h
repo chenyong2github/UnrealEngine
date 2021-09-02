@@ -144,10 +144,11 @@ public:
 
 	virtual void OnTransformChanged() override;
 
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const override
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const override
 	{
 		ResourceID = Resources->RuntimeResourceID;
 		HierarchyOffset = Resources->HierarchyOffset;
+		bHasImposterData = Resources->ImposterAtlas.Num() > 0;
 	}
 
 	const UStaticMesh* GetStaticMesh() const

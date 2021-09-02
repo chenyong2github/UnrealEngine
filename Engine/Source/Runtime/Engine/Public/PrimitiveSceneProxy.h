@@ -760,10 +760,11 @@ public:
 		return InstanceLightShadowUVBias;
 	}
 
-	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
+	virtual void GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const
 	{
 		ResourceID = NANITE_INVALID_RESOURCE_ID;
 		HierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+		bHasImposterData = false;
 	}
 
 	inline uint32 GetPayloadDataCount() const

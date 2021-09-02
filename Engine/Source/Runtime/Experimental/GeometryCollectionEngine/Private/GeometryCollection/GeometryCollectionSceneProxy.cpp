@@ -1292,10 +1292,11 @@ void FNaniteGeometryCollectionSceneProxy::OnTransformChanged()
 {
 }
 
-void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset) const
+void FNaniteGeometryCollectionSceneProxy::GetNaniteResourceInfo(uint32& ResourceID, uint32& HierarchyOffset, bool& bHasImposterData) const
 {
 	ResourceID = NaniteResourceID;
 	HierarchyOffset = NaniteHierarchyOffset;
+	bHasImposterData = false;
 }
 
 void FNaniteGeometryCollectionSceneProxy::SetConstantData_RenderThread(FGeometryCollectionConstantData* NewConstantData, bool ForceInit)

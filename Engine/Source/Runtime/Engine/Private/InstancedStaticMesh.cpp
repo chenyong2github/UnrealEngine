@@ -1277,7 +1277,6 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 		//check(InComponent->NumCustomDataFloats == 0 || (InstanceCustomData.Num() / InComponent->NumCustomDataFloats == InComponent->GetInstanceCount()));
 
 		uint32 InstanceDataFlags = 0;
-		InstanceDataFlags |= bCastDynamicShadow ? INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS : 0u;
 		InstanceDataFlags |= InstanceLightShadowUVBias.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS : 0u;
 		InstanceDataFlags |= InstanceDynamicData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_DYNAMIC_DATA : 0u;
 		InstanceDataFlags |= InstanceCustomData.Num() > 0 ? INSTANCE_SCENE_DATA_FLAG_HAS_CUSTOM_DATA : 0u;

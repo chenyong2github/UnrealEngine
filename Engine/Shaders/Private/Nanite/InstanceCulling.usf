@@ -146,9 +146,6 @@ void InstanceCull(
 		FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
 		const bool bCastShadows = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAST_SHADOWS) != 0u;
 
-		// JonO/Note: Depth-Only pass indicates its a shadow map... but this may not technically always be the case?
-		//if(OnlyCastShadowsPrimitives && !InstanceData.CastShadows) 
-
 		BRANCH
 		if (OnlyCastShadowsPrimitives && !bCastShadows) 
 		{
@@ -251,7 +248,8 @@ void InstanceCull(
 
 #if CULLING_PASS != CULLING_PASS_EXPLICIT_LIST
 			// Draw imposters
-			if( InstanceData.NaniteHasImposter && bIsVisible && !bWasOccluded )
+			const bool bHasNaniteImposter = (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_HAS_NANITE_IMPOSTER) != 0u;
+			if (bHasNaniteImposter && bIsVisible && !bWasOccluded)
 			{
 				FScreenRect Rect = GetScreenRect( NaniteView.ViewRect, Cull, 4 );
 

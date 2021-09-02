@@ -124,9 +124,10 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 
 	uint32 NaniteResourceID = NANITE_INVALID_RESOURCE_ID;
 	uint32 NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
+	bool bHasNaniteImposterData = false;
 	if (Proxy->IsNaniteMesh())
 	{
-		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset);
+		Proxy->GetNaniteResourceInfo(NaniteResourceID, NaniteHierarchyOffset, bHasNaniteImposterData);
 	}
 
 	Setup(
@@ -157,6 +158,7 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 			.NaniteResourceID(NaniteResourceID)
 			.NaniteHierarchyOffset(NaniteHierarchyOffset)
 			.VisibleInRaster(Proxy->IsVisibleInRaster())
+			.HasNaniteImposterData(bHasNaniteImposterData)
 		.Build()
 	);
 }
