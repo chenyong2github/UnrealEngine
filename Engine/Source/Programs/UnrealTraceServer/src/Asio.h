@@ -9,6 +9,9 @@
 			_Pragma("GCC diagnostic ignored \"-Wdeprecated-declarations\"")
 #		define TS_ASIO_INCLUDE_END \
 			_Pragma("GCC diagnostic pop")
+#	else
+#		define TS_ASIO_INCLUDE_BEGIN
+#		define TS_ASIO_INCLUDE_END
 #	endif
 #else
 #	define TS_ASIO_INCLUDE_BEGIN
