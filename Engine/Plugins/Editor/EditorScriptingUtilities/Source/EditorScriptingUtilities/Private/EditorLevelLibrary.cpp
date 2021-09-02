@@ -35,7 +35,6 @@
 #include "AssetData.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
-#include "StaticMeshEditorSubsystem.h"
 #include "Subsystems/EditorActorSubsystem.h"
 #include "LevelEditorSubsystem.h"
 #include "Subsystems/UnrealEditorSubsystem.h"
@@ -450,6 +449,32 @@ bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshAct
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->CreateProxyMeshActor(ActorsToMerge, InternalEditorLevelLibrary::ConvertCreateProxyStaticMeshActorsOptions(MergeOptions), OutMergedActor) : false;
+}
+
+// The functions below are BP exposed copies of functions that use deprecated structs, updated to the new structs in StaticMeshEditorSubsytem
+// The old structs redirect to the new ones, so this makes blueprints that use the old structs still work
+// The old functions are still available as an overload, which makes old code that uses them compatible
+
+AActor* UEditorLevelLibrary::JoinStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FJoinStaticMeshActorsOptions& JoinOptions)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->JoinStaticMeshActors(ActorsToMerge, JoinOptions) : nullptr;
+}
+
+bool UEditorLevelLibrary::MergeStaticMeshActors(const TArray<AStaticMeshActor*>& ActorsToMerge, const FMergeStaticMeshActorsOptions& MergeOptions, AStaticMeshActor*& OutMergedActor)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->MergeStaticMeshActors(ActorsToMerge, MergeOptions, OutMergedActor) : false;
+
+}
+
+bool UEditorLevelLibrary::CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->CreateProxyMeshActor(ActorsToMerge, MergeOptions, OutMergedActor) : false;
 }
 
 #undef LOCTEXT_NAMESPACE

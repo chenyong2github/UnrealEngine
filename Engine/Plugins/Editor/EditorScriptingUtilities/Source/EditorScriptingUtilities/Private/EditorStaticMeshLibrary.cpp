@@ -364,4 +364,22 @@ bool UDEPRECATED_EditorStaticMeshLibrary::GenerateBoxUVChannel(UStaticMesh* Stat
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GenerateBoxUVChannel(StaticMesh, LODIndex, UVChannelIndex, Position, Orientation, Size) : false;
 }
 
+// The functions below are BP exposed copies of functions that use deprecated structs, updated to the new structs in StaticMeshEditorSubsytem
+// The old structs redirect to the new ones, so this makes blueprints that use the old structs still work
+// The old functions are still available as an overload, which makes old code that uses them compatible
+
+int32 UDEPRECATED_EditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, ReductionOptions, bApplyChanges) : -1;
+}
+
+int32 UDEPRECATED_EditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges)
+{
+	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification(StaticMesh, ShapeType, bApplyChanges) : INDEX_NONE;
+}
+
 #undef LOCTEXT_NAMESPACE

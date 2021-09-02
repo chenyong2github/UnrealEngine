@@ -94,14 +94,12 @@ public:
 	 * No action will be performed if ReductionOptions.ReductionSettings is empty
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, bool bApplyChanges );
 
 	/**
 	 * Same as SetLodsWithNotification but changes are applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 SetLods(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -227,14 +225,12 @@ public:
 	 * A negative value indicates the addition failed.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType_Deprecated ShapeType, bool bApplyChanges);
 
 	/**
 	 * Same as AddSimpleCollisionsWithNotification but changes are automatically applied.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType_Deprecated ShapeType)
 	{
 		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
@@ -504,5 +500,45 @@ public:
 
 	// Converts the deprecated EScriptingCollisionShapeType_Deprecated to the new EScriptCollisionShapeType
 	static EScriptCollisionShapeType ConvertCollisionShape(const EScriptingCollisionShapeType_Deprecated& CollisionShape);
+
+
+
+	public:
+
+	// The functions below are BP exposed copies of functions that use deprecated structs, updated to the new structs in StaticMeshEditorSubsytem
+	// The old structs redirect to the new ones, so this makes blueprints that use the old structs still work
+	// The old functions are still available as an overload, which makes old code that uses them compatible
+
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static int32 SetLodsWithNotification(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions, bool bApplyChanges );
+
+	/**
+	 * Same as SetLodsWithNotification but changes are applied.
+	 */
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static int32 SetLods(UStaticMesh* StaticMesh, const FStaticMeshReductionOptions& ReductionOptions)
+	{
+		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+		return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetLods(StaticMesh, ReductionOptions) : -1;
+	}
+
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static int32 AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType, bool bApplyChanges);
+
+	/**
+	 * Same as AddSimpleCollisionsWithNotification but changes are automatically applied.
+	 */
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | StaticMesh", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static int32 AddSimpleCollisions(UStaticMesh* StaticMesh, const EScriptCollisionShapeType ShapeType)
+	{
+		UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
+
+		return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisions(StaticMesh, ShapeType) : INDEX_NONE;
+	}
 
 };

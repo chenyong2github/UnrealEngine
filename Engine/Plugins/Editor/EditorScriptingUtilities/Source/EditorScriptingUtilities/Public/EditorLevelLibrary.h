@@ -6,6 +6,7 @@
 #include "Engine/MeshMerging.h"
 #include "GameFramework/Actor.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
+#include "StaticMeshEditorSubsystem.h"
 
 #include "EditorLevelLibrary.generated.h"
 
@@ -363,7 +364,6 @@ public:
 	 * @return The new created actor.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FEditorScriptingJoinStaticMeshActorsOptions_Deprecated& JoinOptions);
 
 	/**
@@ -376,7 +376,6 @@ public:
 	 * @return	if the operation is successful.
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingMergeStaticMeshActorsOptions_Deprecated& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 
 	/**
@@ -387,7 +386,50 @@ public:
 	 * @return  Success of the proxy creation
 	 */
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
-	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
 	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FEditorScriptingCreateProxyMeshActorOptions_Deprecated& MergeOptions, class AStaticMeshActor*& OutMergedActor);
+
+
+
+	public:
+
+	// The functions below are BP exposed copies of functions that use deprecated structs, updated to the new structs in StaticMeshEditorSubsytem
+	// The old structs redirect to the new ones, so this makes blueprints that use the old structs still work
+	// The old functions are still available as an overload, which makes old code that uses them compatible
+
+	/**
+	 * Create a new Actor in the level that contains a duplicate of all the Actors Static Meshes Component.
+	 * The ActorsToJoin need to be in the same Level.
+	 * This will have a low impact on performance but may help the edition by grouping the meshes under a single Actor.
+	 * @param	ActorsToJoin			List of Actors to join.
+	 * @param	JoinOptions				Options on how to join the actors.
+	 * @return The new created actor.
+	 */
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static class AActor* JoinStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToJoin, const FJoinStaticMeshActorsOptions& JoinOptions);
+
+	/**
+	 * Merge the meshes into a unique mesh with the provided StaticMeshActors. There are multiple options on how to merge the meshes and their materials.
+	 * The ActorsToMerge need to be in the same Level.
+	 * This may have a high impact on performance depending of the MeshMergingSettings options.
+	 * @param	ActorsToMerge			List of Actors to merge.
+	 * @param	MergeOptions			Options on how to merge the actors.
+	 * @param	OutMergedActor			The new created actor, if requested.
+	 * @return	if the operation is successful.
+	 */
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static bool MergeStaticMeshActors(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FMergeStaticMeshActorsOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
+
+	/**
+	 * Build a proxy mesh actor that can replace a set of mesh actors.
+	 * @param   ActorsToMerge  List of actors to build a proxy for.
+	 * @param   MergeOptions
+	 * @param   OutMergedActor generated actor if requested
+	 * @return  Success of the proxy creation
+	 */
+	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem")
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Dataprep", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Static Mesh Editor Subsystem"))
+	static bool CreateProxyMeshActor(const TArray<class AStaticMeshActor*>& ActorsToMerge, const FCreateProxyMeshActorOptions& MergeOptions, class AStaticMeshActor*& OutMergedActor);
 };
 
