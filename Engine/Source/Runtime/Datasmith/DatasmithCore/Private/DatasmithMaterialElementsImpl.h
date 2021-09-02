@@ -691,6 +691,9 @@ public:
 	virtual float GetOpacityMaskClipValue() const override { return OpacityMaskClipValue; }
 	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
 
+	virtual int GetTranslucencyLightingMode() const { return TranslucencyLightingMode; }
+	virtual void SetTranslucencyLightingMode(int InMode) { TranslucencyLightingMode = InMode; }
+
 	virtual int32 GetExpressionsCount() const override { return Expressions.View().Num(); }
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
@@ -727,6 +730,7 @@ protected:
 	TReflected<bool> bUseMaterialAttributes;
 	TReflected<bool> bMaterialFunctionOnly;
 	TReflected<float> OpacityMaskClipValue;
+	TReflected<int> TranslucencyLightingMode;
 
 	TReflected<FString> ParentLabel;
 	TReflected<EDatasmithShadingModel, uint8> ShadingModel;

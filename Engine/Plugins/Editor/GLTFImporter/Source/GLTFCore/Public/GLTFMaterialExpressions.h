@@ -22,6 +22,14 @@ namespace GLTF
 		TextureCoordinate,
 	};
 
+	enum class EGLTFMaterialShadingModel
+	{
+		DefaultLit,
+		Subsurface,
+		ClearCoat,
+		ThinTranslucent
+	};
+
 	class GLTFCORE_API ITextureElement
 	{
 	public:
@@ -314,6 +322,8 @@ namespace GLTF
 		virtual void SetBlendMode(int InBlendMode) = 0;
 		virtual bool GetTwoSided() const           = 0;
 		virtual void SetTwoSided(bool bTwoSided)   = 0;
+		virtual void SetShadingModel(EGLTFMaterialShadingModel InShadingModel) = 0;
+		virtual void SetTranslucencyLightingMode(int InLightingMode) = 0;
 
 		virtual void Finalize() = 0;
 
@@ -332,6 +342,8 @@ namespace GLTF
 		FMaterialExpressionInput& GetWorldDisplacement();
 		FMaterialExpressionInput& GetRefraction();
 		FMaterialExpressionInput& GetAmbientOcclusion();
+		FMaterialExpressionInput& GetClearCoat();
+		FMaterialExpressionInput& GetClearCoatRoughness();
 
 		int32                GetExpressionsCount() const;
 		FMaterialExpression* GetExpression(int32 Index);
@@ -352,8 +364,12 @@ namespace GLTF
 		FMaterialExpressionInput WorldDisplacement;
 		FMaterialExpressionInput Refraction;
 		FMaterialExpressionInput AmbientOcclusion;
+		FMaterialExpressionInput ClearCoat;
+		FMaterialExpressionInput ClearCoatRoughness;
 
 		TArray<FMaterialExpression*> Expressions;
+
+		FMaterialExpression* ThinTranslucentMaterialOutput;
 
 		bool bIsFinal;
 
@@ -404,6 +420,14 @@ namespace GLTF
 	inline FMaterialExpressionInput& FMaterialElement::GetAmbientOcclusion()
 	{
 		return AmbientOcclusion;
+	}
+	inline FMaterialExpressionInput& FMaterialElement::GetClearCoat()
+	{
+		return ClearCoat;
+	}
+	inline FMaterialExpressionInput& FMaterialElement::GetClearCoatRoughness()
+	{
+		return ClearCoatRoughness;
 	}
 
 	template <>

@@ -82,6 +82,36 @@ namespace GLTF
 			{
 			}
 		};
+		struct FClearCoat
+		{
+			float ClearCoatFactor;
+			FTextureMap ClearCoatMap;
+
+			float Roughness;
+			FTextureMap RoughnessMap;
+
+			FTextureMap NormalMap;
+
+			FClearCoat()
+				: ClearCoatFactor(1.0f)
+				, Roughness(0.0f)
+			{
+			}
+		};
+		struct FTransmission
+		{
+			float TransmissionFactor;
+			FTextureMap TransmissionMap;
+
+			FTransmission()
+				: TransmissionFactor(0.0f)
+			{
+			}
+		};
+		struct FSheen
+		{
+			FVector SheenColorFactor = FVector::Zero();
+		};
 
 		struct FPacking
 		{
@@ -103,6 +133,9 @@ namespace GLTF
 		EShadingModel       ShadingModel;
 		FMetallicRoughness  MetallicRoughness;
 		FSpecularGlossiness SpecularGlossiness;
+		FClearCoat			ClearCoat;
+		FTransmission		Transmission;
+		FSheen				Sheen;
 
 		// base properties
 		FTextureMap Normal;
@@ -120,6 +153,9 @@ namespace GLTF
 		// extension properties
 		FPacking Packing;
 		bool     bIsUnlitShadingModel;
+		bool     bHasClearCoat;
+		bool     bHasSheen;
+		bool     bHasTransmission;
 
 		FMaterial(const FString& Name)
 		    : Name(Name)
@@ -132,6 +168,9 @@ namespace GLTF
 		    , AlphaMode(EAlphaMode::Opaque)
 		    , AlphaCutoff(0.5f)
 		    , bIsUnlitShadingModel(false)
+			, bHasClearCoat(false)
+			, bHasSheen(false)
+			, bHasTransmission(false)
 		{
 		}
 

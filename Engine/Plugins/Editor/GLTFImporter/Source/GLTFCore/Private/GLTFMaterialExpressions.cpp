@@ -153,6 +153,9 @@ namespace GLTF
 	    , WorldDisplacement(TEXT("WorldDisplacement"))
 	    , Refraction(TEXT("Refraction"))
 	    , AmbientOcclusion(TEXT("AmbientOcclusion"))
+		, ClearCoat(TEXT("ClearCoat"))
+		, ClearCoatRoughness(TEXT("ClearCoatRoughness"))
+		, ThinTranslucentMaterialOutput(nullptr)
 	    , bIsFinal(false)
 	{
 	}

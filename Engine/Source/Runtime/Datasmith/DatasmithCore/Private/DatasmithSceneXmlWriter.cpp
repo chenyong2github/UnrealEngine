@@ -1435,6 +1435,7 @@ void FDatasmithSceneXmlWriterImpl::WriteUEPbrMaterialElement( const TSharedRef< 
 	}
 	WriteValue( Archive, Indent + 1, DATASMITH_BLENDMODE, MaterialElement->GetBlendMode() );
 	WriteValue( Archive, Indent + 1, DATASMITH_OPACITYMASKCLIPVALUE, MaterialElement->GetOpacityMaskClipValue() );
+	WriteValue( Archive, Indent + 1, DATASMITH_TRANSLUCENCYLIGHTINGMODE, MaterialElement->GetTranslucencyLightingMode() );
 
 	if ( MaterialElement->GetShadingModel() != EDatasmithShadingModel::DefaultLit && (int32)MaterialElement->GetShadingModel() < UE_ARRAY_COUNT( DatasmithShadingModelStrings ) )
 	{

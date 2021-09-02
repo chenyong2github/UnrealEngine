@@ -1934,6 +1934,10 @@ void FDatasmithSceneXmlReader::ParseUEPbrMaterial(FXmlNode* InNode, TSharedPtr< 
 		{
 			OutElement->SetOpacityMaskClipValue( DatasmithSceneXmlReaderImpl::ValueFromString< float >( ChildNode->GetAttribute( TEXT("value") ) ) );
 		}
+		else if (ChildNode->GetTag() == DATASMITH_TRANSLUCENCYLIGHTINGMODE)
+		{
+			OutElement->SetTranslucencyLightingMode(DatasmithSceneXmlReaderImpl::ValueFromString< int >(ChildNode->GetAttribute(TEXT("value"))));
+		}
 		else if ( ChildNode->GetTag() == DATASMITH_FUNCTIONLYVALUENAME )
 		{
 			OutElement->SetMaterialFunctionOnly( DatasmithSceneXmlReaderImpl::ValueFromString< bool >( ChildNode->GetAttribute( TEXT("enabled") ) ) );

@@ -14,6 +14,7 @@
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
+#include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 
 namespace GLTFImporterImpl
 {
@@ -233,6 +234,32 @@ void FGLTFMaterialElement::SetTwoSided(bool bTwoSided)
 	Material->TwoSided = bTwoSided;
 }
 
+void FGLTFMaterialElement::SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel)
+{
+	EMaterialShadingModel MaterialShadingModel;
+
+	switch (InShadingModel)
+	{
+		case GLTF::EGLTFMaterialShadingModel::ClearCoat:
+			MaterialShadingModel = EMaterialShadingModel::MSM_ClearCoat;
+			break;
+		case GLTF::EGLTFMaterialShadingModel::Subsurface:
+			MaterialShadingModel = EMaterialShadingModel::MSM_Subsurface;
+			break;
+		case GLTF::EGLTFMaterialShadingModel::ThinTranslucent:
+			MaterialShadingModel = EMaterialShadingModel::MSM_ThinTranslucent;
+			break;
+		default: MaterialShadingModel = EMaterialShadingModel::MSM_DefaultLit;
+
+	};
+	Material->SetShadingModel(MaterialShadingModel);
+}
+
+void FGLTFMaterialElement::SetTranslucencyLightingMode(int InLightingMode)
+{
+	Material->TranslucencyLightingMode = static_cast<ETranslucencyLightingMode>( InLightingMode );
+}
+
 void FGLTFMaterialElement::Finalize()
 {
 	check(!bIsFinal);
@@ -249,6 +276,26 @@ void FGLTFMaterialElement::Finalize()
 	ConnectInput(Normal, MaterialExpressions, Material->Normal);
 	ConnectInput(AmbientOcclusion, MaterialExpressions, Material->AmbientOcclusion);
 
+	// Handle transmission materials (they add a special output node to the graph)
+	if (ThinTranslucentMaterialOutput)
+	{
+		GLTF::FMaterialExpressionInput* Input = ThinTranslucentMaterialOutput->GetInput(0);
+		check(Input);
+
+		if (GLTF::FMaterialExpression* BaseColorExpr = Input->GetExpression())
+		{
+			const int32 ThinTranslucentExpressionIndex = Expressions.Find(ThinTranslucentMaterialOutput);
+			check(ThinTranslucentExpressionIndex != INDEX_NONE);
+			TStrongObjectPtr<UMaterialExpression> ThinTranslucentMaterialExpression = MaterialExpressions[ThinTranslucentExpressionIndex];
+
+			const int32 BaseColorExpressionIndex = Expressions.Find(BaseColorExpr);
+			check(BaseColorExpressionIndex != INDEX_NONE);
+			TStrongObjectPtr<UMaterialExpression> BaseColorMaterialExpression = MaterialExpressions[BaseColorExpressionIndex];
+
+			BaseColorMaterialExpression->ConnectExpression(ThinTranslucentMaterialExpression->GetInput(0), Input->GetOutputIndex());
+		}
+	}
+
 	UMaterialEditingLibrary::LayoutMaterialExpressions(Material);
 
 	Material->MarkPackageDirty();
@@ -258,11 +305,11 @@ void FGLTFMaterialElement::Finalize()
 	bIsFinal = true;
 }
 
-void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialExpression> >& MaterialExpressions) const
+void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialExpression> >& MaterialExpressions)
 {
 	MaterialExpressions.Empty(Expressions.Num());
 
-	for (const GLTF::FMaterialExpression* Expression : Expressions)
+	for (GLTF::FMaterialExpression* Expression : Expressions)
 	{
 		using namespace GLTFImporterImpl;
 
@@ -296,6 +343,11 @@ void FGLTFMaterialElement::CreateExpressions(TArray<TStrongObjectPtr<UMaterialEx
 		check(MaterialExpression);
 
 		MaterialExpressions.Add(TStrongObjectPtr<UMaterialExpression>(MaterialExpression));
+
+		if (MaterialExpression->GetClass() == UMaterialExpressionThinTranslucentMaterialOutput::StaticClass())
+		{
+			ThinTranslucentMaterialOutput = Expression;
+		}
 	}
 }
 

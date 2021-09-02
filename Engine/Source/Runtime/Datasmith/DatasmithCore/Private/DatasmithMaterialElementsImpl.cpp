@@ -207,6 +207,7 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	, bUseMaterialAttributes( false )
 	, bMaterialFunctionOnly ( false )
 	, OpacityMaskClipValue( 0.3333f )
+	, TranslucencyLightingMode( 0 )
 	, ShadingModel( EDatasmithShadingModel::DefaultLit )
 {
 	RegisterReferenceProxy( BaseColor, "BaseColor" );

@@ -32,6 +32,8 @@ public:
 	virtual void SetBlendMode(int InBlendMode) override;
 	virtual bool GetTwoSided() const override;
 	virtual void SetTwoSided(bool bTwoSided) override;
+	virtual void SetShadingModel(GLTF::EGLTFMaterialShadingModel InShadingModel);
+	virtual void SetTranslucencyLightingMode(int InLightingMode) override;
 	virtual void Finalize() override;
 
 	TSharedRef<IDatasmithUEPbrMaterialElement> GetMaterial() const;
