@@ -7,6 +7,7 @@
 #include "IDetailKeyframeHandler.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "SRigHierarchyTreeView.h"
+#include "SRigSpacePickerWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
 class FControlRigEditMode;
@@ -59,6 +60,10 @@ private:
 	/** Hierarchy picker for controls*/
 	TSharedPtr<SRigHierarchyTreeView> HierarchyTreeView;
 
+	/** Hierarchy picker for controls*/
+	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
+	FRigControlElementCustomization ControlCustomization;
+
 	/** Special picker for controls, no longer used */
 	TSharedPtr<SControlPicker> ControlPicker;
 	TSharedPtr<SExpandableArea> PickerExpander;
@@ -77,6 +82,9 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 	void OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
+
+	void HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey);
+	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 
 	EVisibility GetRigOptionExpanderVisibility() const;
 

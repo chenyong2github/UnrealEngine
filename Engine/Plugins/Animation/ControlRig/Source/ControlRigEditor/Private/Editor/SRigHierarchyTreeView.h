@@ -257,3 +257,27 @@ private:
 
 	friend class SRigHierarchy;
 };
+
+class SSearchableRigHierarchyTreeView : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SSearchableRigHierarchyTreeView) {}
+		SLATE_ARGUMENT(FRigTreeDelegates, RigTreeDelegates)
+		SLATE_ARGUMENT(FText, InitialFilterText)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	virtual ~SSearchableRigHierarchyTreeView() {}
+	TSharedRef<SRigHierarchyTreeView> GetTreeView() const { return TreeView.ToSharedRef(); }
+	const FRigTreeDisplaySettings& GetDisplaySettings();
+
+private:
+
+	void OnFilterTextChanged(const FText& SearchText);
+
+	FOnGetRigTreeDisplaySettings SuperGetRigTreeDisplaySettings;
+	FText FilterText;
+	FRigTreeDisplaySettings Settings;
+	TSharedPtr<SRigHierarchyTreeView> TreeView;
+};

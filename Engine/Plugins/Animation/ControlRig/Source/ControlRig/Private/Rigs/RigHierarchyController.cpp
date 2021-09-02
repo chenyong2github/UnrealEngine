@@ -1679,7 +1679,8 @@ bool URigHierarchyController::RemoveElement(FRigBaseElement* InElement)
 	{
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
 		{
-			ControlElement->Settings.SpaceFavorites.Remove(InElement->GetKey());
+			ControlElement->Settings.Customization.AvailableSpaces.Remove(InElement->GetKey());
+			ControlElement->Settings.Customization.RemovedSpaces.Remove(InElement->GetKey());
 		}
 	}
 	
@@ -1788,7 +1789,7 @@ bool URigHierarchyController::RenameElement(FRigBaseElement* InElement, const FN
 
 		if(FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
 		{
-			for(FRigElementKey& Favorite : ControlElement->Settings.SpaceFavorites)
+			for(FRigElementKey& Favorite : ControlElement->Settings.Customization.AvailableSpaces)
 			{
 				if(Favorite == OldKey)
 				{

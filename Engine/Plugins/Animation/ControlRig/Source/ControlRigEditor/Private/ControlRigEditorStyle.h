@@ -6,6 +6,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/StyleColors.h"
+#include "Brushes/SlateRoundedBoxBrush.h"
 
 #define TTF_FONT(RelativePath, ...) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".ttf")), __VA_ARGS__)
 #define OTF_FONT(RelativePath, ...) FSlateFontInfo(RootToContentDir(RelativePath, TEXT(".otf")), __VA_ARGS__)
@@ -143,6 +144,11 @@ public:
 			Set("ControlRig.Hierarchy.Menu", TTF_FONT("Fonts/Roboto-Regular", 12));
 		}
 
+		// Space picker
+		SpacePickerSelectColor = FStyleColors::Select;
+		{
+			Set("ControlRig.SpacePicker.RoundedRect", new FSlateRoundedBoxBrush(FStyleColors::White, 4.0f, FStyleColors::Transparent, 0.0f));
+		}
 
 		FSlateStyleRegistry::RegisterSlateStyle(*this);
 	}
@@ -157,6 +163,8 @@ public:
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*this);
 	}
+
+	FSlateColor SpacePickerSelectColor;
 };
 
 #undef IMAGE_BRUSH

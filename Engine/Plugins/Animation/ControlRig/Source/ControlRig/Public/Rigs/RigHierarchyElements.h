@@ -836,6 +836,18 @@ protected:
 };
 
 USTRUCT(BlueprintType)
+struct FRigControlElementCustomization
+{
+	GENERATED_BODY()
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Customization)
+	TArray<FRigElementKey> AvailableSpaces;
+
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Customization)
+	TArray<FRigElementKey> RemovedSpaces;
+};
+
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigControlSettings
 {
 	GENERATED_BODY()
@@ -910,11 +922,12 @@ struct CONTROLRIG_API FRigControlSettings
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control)
 	TObjectPtr<UEnum> ControlEnum;
 
-	/** The favorite spaces for this control.
-	 * This will be used as the default content for the space picker
+	/**
+	 * The User interface customization used for a control
+	 * This will be used as the default content for the space picker and other widgets
 	 */
-	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation)
-	TArray<FRigElementKey> SpaceFavorites;
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Animation, meta = (DisplayName = "Customization"))
+	FRigControlElementCustomization Customization;
 
 	/** Applies the limits expressed by these settings to a value */
 	FORCEINLINE void ApplyLimits(FRigControlValue& InOutValue) const

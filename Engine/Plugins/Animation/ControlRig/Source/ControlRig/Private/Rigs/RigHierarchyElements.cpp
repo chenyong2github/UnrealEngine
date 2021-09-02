@@ -422,7 +422,7 @@ FRigControlSettings::FRigControlSettings()
 , GizmoColor(FLinearColor::Red)
 , bIsTransientControl(false)
 , ControlEnum(nullptr)
-, SpaceFavorites()
+, Customization()
 {
 }
 
@@ -459,7 +459,7 @@ void FRigControlSettings::Save(FArchive& Ar)
 	Ar << GizmoColor;
 	Ar << bIsTransientControl;
 	Ar << ControlEnumPathName;
-	Ar << SpaceFavorites;
+	Ar << Customization.AvailableSpaces;
 }
 
 void FRigControlSettings::Load(FArchive& Ar)
@@ -515,11 +515,11 @@ void FRigControlSettings::Load(FArchive& Ar)
 
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::RigHierarchyControlSpaceFavorites)
 	{
-		Ar << SpaceFavorites;
+		Ar << Customization.AvailableSpaces;
 	}
 	else
 	{
-		SpaceFavorites.Reset();
+		Customization.AvailableSpaces.Reset();
 	}
 }
 
@@ -589,7 +589,7 @@ bool FRigControlSettings::operator==(const FRigControlSettings& InOther) const
 	{
 		return false;
 	}
-	if(SpaceFavorites != InOther.SpaceFavorites)
+	if(Customization.AvailableSpaces != InOther.Customization.AvailableSpaces)
 	{
 		return false;
 	}

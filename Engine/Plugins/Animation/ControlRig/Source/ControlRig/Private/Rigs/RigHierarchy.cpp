@@ -1412,21 +1412,23 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* In
 	if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(InChild))
 	{
 		int32 ParentIndex = INDEX_NONE;
-		if(const int32* ParentIndexPtr = MultiParentElement->IndexLookup.Find(InParent->GetKey()))
+		if(InParent)
 		{
-			ParentIndex = *ParentIndexPtr;
-		}
-		else
-		{
-			if(URigHierarchyController* Controller = GetController(true))
+			if(const int32* ParentIndexPtr = MultiParentElement->IndexLookup.Find(InParent->GetKey()))
 			{
-				if(Controller->AddParent(InChild, InParent, 0.f, true, false))
+				ParentIndex = *ParentIndexPtr;
+			}
+			else
+			{
+				if(URigHierarchyController* Controller = GetController(true))
 				{
-					ParentIndex = MultiParentElement->IndexLookup.FindChecked(InParent->GetKey());
+					if(Controller->AddParent(InChild, InParent, 0.f, true, false))
+					{
+						ParentIndex = MultiParentElement->IndexLookup.FindChecked(InParent->GetKey());
+					}
 				}
 			}
 		}
-
 		return SwitchToParent(InChild, ParentIndex, bInitial, bAffectChildren);
 	}
 	return false;
@@ -1435,13 +1437,12 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, FRigBaseElement* In
 bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, int32 InParentIndex, bool bInitial, bool bAffectChildren)
 {
 	TArray<FRigElementWeight> Weights = GetParentWeightArray(InChild, bInitial);
+	FMemory::Memzero(Weights.GetData(), Weights.GetAllocatedSize());
 	if(Weights.IsValidIndex(InParentIndex))
 	{
-		FMemory::Memzero(Weights.GetData(), Weights.GetAllocatedSize());
 		Weights[InParentIndex] = 1.f;
-		return SetParentWeightArray(InChild, Weights, bInitial, bAffectChildren);
 	}
-	return false;
+	return SetParentWeightArray(InChild, Weights, bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToDefaultParent(FRigElementKey InChild, bool bInitial, bool bAffectChildren)

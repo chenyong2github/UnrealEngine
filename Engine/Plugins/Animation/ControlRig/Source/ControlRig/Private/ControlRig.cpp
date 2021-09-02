@@ -2760,6 +2760,33 @@ void UControlRig::SetBoneInitialTransformsFromCompactPose(FCompactPose* InCompac
 	RequestSetup();
 }
 
+const FRigControlElementCustomization* UControlRig::GetControlCustomization(const FRigElementKey& InControl) const
+{
+	check(InControl.Type == ERigElementType::Control);
+
+	if(const FRigControlElementCustomization* Customization = ControlCustomizations.Find(InControl))
+	{
+		return Customization;
+	}
+
+	if(DynamicHierarchy)
+	{
+		if(const FRigControlElement* ControlElement = DynamicHierarchy->Find<FRigControlElement>(InControl))
+		{
+			return &ControlElement->Settings.Customization;
+		}
+	}
+
+	return nullptr;
+}
+
+void UControlRig::SetControlCustomization(const FRigElementKey& InControl, const FRigControlElementCustomization& InCustomization)
+{
+	check(InControl.Type == ERigElementType::Control);
+	
+	ControlCustomizations.FindOrAdd(InControl) = InCustomization;
+}
+
 void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)
 {
 	if(InKey.Type == ERigElementType::Control)
