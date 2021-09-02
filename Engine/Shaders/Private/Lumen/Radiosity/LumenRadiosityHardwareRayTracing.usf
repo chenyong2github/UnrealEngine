@@ -1,0 +1,88 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenRadiosityProbeGatherHardwareRayTracing.usf
+=============================================================================*/
+
+// TODO: Remove hair dependency
+#include "../../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
+
+#include "../../Common.ush"
+#include "../../MonteCarlo.ush"
+#include "../../MortonCode.ush"
+#include "../../SceneTextureParameters.ush"
+
+#include "../LumenCardCommon.ush"
+#include "../LumenTracingCommon.ush"
+#include "../LumenHardwareRayTracingCommon.ush"
+#include "../LumenCardTile.ush"
+#include "LumenRadiosity.ush"
+
+RaytracingAccelerationStructure TLAS;
+
+float MinTraceDistance;
+float MaxTraceDistance;
+float MinTraceDistanceToSampleSurface;
+float SurfaceBias;
+uint NumThreadsToDispatch;
+float TanRadiosityRayConeHalfAngle;
+
+RAY_TRACING_ENTRY_RAYGEN(LumenRadiosityHardwareRayTracingRGS)
+{	
+	for (uint GlobalThreadIndex = DispatchRaysIndex().x;
+		GlobalThreadIndex < CardTileAllocator[0] * NumTracesPerTexel * RADIOSITY_TILE_SIZE * RADIOSITY_TILE_SIZE;
+		GlobalThreadIndex += NumThreadsToDispatch)
+	{
+		// Run one trace per thread
+		uint CardTileIndex = 0;
+		uint2 CoordInCardTile = 0;
+		uint TraceIndex = 0;
+		UnswizzleTexelTraceCoords(GlobalThreadIndex, CardTileIndex, CoordInCardTile, TraceIndex);
+
+		FRadiosityTexel RadiosityTexel = GetRadiosityTexel(CardTileIndex, CoordInCardTile);
+		if (RadiosityTexel.bInsideAtlas)
+		{
+			float3 Radiance = 0.0f;
+
+			if (RadiosityTexel.Opacity > 0.0f)
+			{
+				float3 WorldPosition = RadiosityTexel.WorldPosition;
+				float3 WorldNormal = RadiosityTexel.WorldNormal;
+				float3 WorldRayDirection = GetWorldRayDirection(RadiosityTexel, CoordInCardTile, TraceIndex);
+
+				RayDesc Ray;
+				Ray.Origin = WorldPosition + WorldNormal * SurfaceBias;
+				Ray.Direction = WorldRayDirection;
+				Ray.TMin = MinTraceDistance;
+				Ray.TMax = MaxTraceDistance;
+
+				FRayCone RayCone = (FRayCone)0;
+				float ConeHalfAngle = acosFast(1.0f - 1.0f / NumTracesPerTexel);
+				RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
+
+				const uint LinearCoord = CoordInCardTile.y * CARD_TILE_SIZE + CoordInCardTile.x;
+				const bool bCullBackFacingTriangles = true;
+				FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, CoordInCardTile, LinearCoord, bCullBackFacingTriangles);
+
+				FRayTracedLightingResult RayResult = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context);
+
+				if (RayResult.TraceHitDistance < MinTraceDistanceToSampleSurface)
+				{
+					RayResult.Radiance = 0.0f;
+				}
+
+				if (RayResult.bIsHit)
+				{
+					Radiance = RayResult.Radiance;
+				}
+				else
+				{
+					Radiance = EvaluateSkyRadiance(WorldRayDirection, TanRadiosityRayConeHalfAngle);
+				}
+			}
+
+			uint2 TraceAtlasCoord = GetRadiosityTraceAtlasCoord(CardTileIndex, CoordInCardTile, TraceIndex);
+			RWTraceRadianceBuffer[TraceAtlasCoord] = Radiance;
+		}
+	}
+}

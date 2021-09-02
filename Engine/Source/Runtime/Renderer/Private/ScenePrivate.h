@@ -1081,7 +1081,6 @@ public:
 	
 	FRadianceCacheState RadianceCacheState;
 	FRadianceCacheState TranslucencyVolumeRadianceCacheState;
-	FRadianceCacheState RadiosityRadianceCacheState;
 
 	/** Timestamp queries around separate translucency, used for auto-downsampling. */
 	FRenderQueryPoolRHIRef TimerQueryPool;

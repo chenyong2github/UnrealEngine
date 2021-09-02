@@ -80,7 +80,14 @@ FLumenCardData GetLumenCardData(uint CardId)
 struct FLumenCardPageData
 {
 	uint CardIndex;
+	bool bMapped;
+
+	uint ResLevelPageTableOffset;
+	uint2 ResLevelSizeInTiles;
+
 	float2 SizeInTexels;
+	float2 PhysicalAtlasCoord;
+
 	float4 CardUVRect;
 	float4 PhysicalAtlasUVRect;
 	float2 CardUVTexelScale;
@@ -110,14 +117,20 @@ FLumenCardPageData GetLumenCardPageData(uint CardPageId)
 	float4 Vector4 = LumenCardPageDataBuffer[BaseOffset + 4];
 
 	CardPageData.CardIndex = asuint(Vector0.x);
+	CardPageData.ResLevelPageTableOffset = asuint(Vector0.y);
 	CardPageData.SizeInTexels = Vector0.zw;
 	CardPageData.CardUVRect = Vector1;
 	CardPageData.PhysicalAtlasUVRect = Vector2;
 	CardPageData.CardUVTexelScale = Vector3.xy;
-	CardPageData.PhysicalAtlasUVTexelScale = Vector3.zw;
+	CardPageData.ResLevelSizeInTiles = asuint(Vector3.zw);
 
 	CardPageData.LastDirectLightingUpdateFrameIndex = asuint(Vector4.x);
 	CardPageData.LastIndirectLightingUpdateFrameIndex = asuint(Vector4.y);
+
+	// Derived properties
+	CardPageData.bMapped = CardPageData.SizeInTexels.x > 0;
+	CardPageData.PhysicalAtlasCoord = CardPageData.PhysicalAtlasUVRect.xy * LumenCardScene.PhysicalAtlasSize;
+	CardPageData.PhysicalAtlasUVTexelScale = LumenCardScene.InvPhysicalAtlasSize;
 
 	return CardPageData;
 }

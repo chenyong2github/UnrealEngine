@@ -216,6 +216,7 @@ struct FLumenPageTableEntry
 
 	// CardPage for atlas operations
 	int32 CardIndex = -1;
+	uint8 ResLevel = 0;
 	FVector4 CardUVRect;
 
 	FIntPoint SubAllocationSize = FIntPoint(-1, -1);
@@ -389,6 +390,11 @@ public:
 	TRefCountPtr<IPooledRenderTarget> DirectLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> IndirectLightingAtlas;
 	TRefCountPtr<IPooledRenderTarget> FinalLightingAtlas;
+
+	// Radiosity probes
+	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHRedAtlas;
+	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHGreenAtlas;
+	TRefCountPtr<IPooledRenderTarget> RadiosityProbeSHBlueAtlas;
 
 	// Virtual surface cache feedback
 	FLumenSurfaceCacheFeedback SurfaceCacheFeedback;
