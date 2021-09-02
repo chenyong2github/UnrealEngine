@@ -3,6 +3,7 @@
 #pragma once
 
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "Async/TaskTrace.h"
 #include "Containers/Array.h"
 
