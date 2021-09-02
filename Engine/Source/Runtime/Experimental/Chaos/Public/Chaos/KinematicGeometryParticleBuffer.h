@@ -42,10 +42,10 @@ public:
 	EObjectStateType ObjectState() const;
 
 private:
-	TParticleProperty<FParticleVelocities, EParticleProperty::Velocities> MVelocities;
+	TChaosProperty<FParticleVelocities, EChaosProperty::Velocities> MVelocities;
 
 protected:
-	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& RemoteData) const
+	virtual void SyncRemoteDataImp(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData) const
 	{
 		FGeometryParticleBuffer::SyncRemoteDataImp(Manager, DataIdx, RemoteData);
 		MVelocities.SyncRemote(Manager, DataIdx, RemoteData);

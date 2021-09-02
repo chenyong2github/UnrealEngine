@@ -47,7 +47,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 	constexpr bool bHasDynamicData = ParticleType == EParticleType::Rigid;
 	auto KinematicHandle = bHasKinematicData ? static_cast<Chaos::FKinematicGeometryParticleHandle*>(Handle) : nullptr;
 	auto RigidHandle = bHasDynamicData ? static_cast<Chaos::FPBDRigidParticleHandle*>(Handle) : nullptr;
-	const FParticleDirtyData& ParticleData = Dirty.ParticleData;
+	const FDirtyChaosProperties& ParticleData = Dirty.PropertyData;
 
 	if (bResimInitialized)	//todo: assumes particles are always initialized as enabled. This is not true in future versions of code, so check PushData
 	{
@@ -188,7 +188,7 @@ void FSingleParticlePhysicsProxy::PushToPhysicsState(const Chaos::FDirtyProperti
 	const int32 CurFrame = static_cast<FPBDRigidsSolver*>(Solver)->GetCurrentFrame();
 	const FRewindData* RewindData = static_cast<FPBDRigidsSolver*>(Solver)->GetRewindData();
 	const bool bResimInitialized = RewindData && RewindData->IsResim() && CurFrame == InitializedOnStep;
-	switch(Dirty.ParticleData.GetParticleBufferType())
+	switch(Dirty.PropertyData.GetParticleBufferType())
 	{
 		
 	case EParticleType::Static: PushToPhysicsStateImp<EParticleType::Static>(Manager, Handle, DataIdx, Dirty, ShapesData, Evolution, bResimInitialized, ExternalDt); break;

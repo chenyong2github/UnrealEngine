@@ -6,7 +6,7 @@
 #include "UObject/GCObject.h"
 #include "Chaos/Core.h"
 
-enum class EPhysicsProxyType
+enum EPhysicsProxyType
 {
 	NoneType = 0,
 	StaticMeshType = 1,
@@ -15,7 +15,8 @@ enum class EPhysicsProxyType
 	SkeletalMeshType = 4,
 	JointConstraintType = 8,	//left gap when removed some types in case these numbers actually matter to someone, should remove
 	SuspensionConstraintType = 9,
-	SingleParticleProxy
+	SingleParticleProxy,
+	Count
 };
 
 namespace Chaos

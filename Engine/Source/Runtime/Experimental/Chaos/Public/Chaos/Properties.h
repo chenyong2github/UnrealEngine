@@ -9,39 +9,39 @@
 namespace Chaos
 {
 
-template <typename T, EParticleProperty PropName>
-class TParticleProperty
+template <typename T, EChaosProperty PropName>
+class TChaosProperty
 {
 public:
-	TParticleProperty() = default;
-	TParticleProperty(const T& Val)
+	TChaosProperty() = default;
+	TChaosProperty(const T& Val)
 		: Property(Val)
 	{
 	}
 
 	//we don't support this because it could lead to bugs with values not being properly written to remote
-	TParticleProperty(const TParticleProperty<T,PropName>& Rhs) = delete;
+	TChaosProperty(const TChaosProperty<T,PropName>& Rhs) = delete;
 
-	bool IsDirty(const FParticleDirtyFlags& Flags) const
+	bool IsDirty(const FDirtyChaosPropertyFlags& Flags) const
 	{
 		return Flags.IsDirty(PropertyFlag);
 	}
 
 	const T& Read() const { return Property; }
-	void Write(const T& Val, bool bInvalidate, FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	void Write(const T& Val, bool bInvalidate, FDirtyChaosPropertyFlags& Dirty, IPhysicsProxyBase* Proxy)
 	{
 		Property = Val;
 		MarkDirty(bInvalidate, Dirty, Proxy);
 	}
 
 	template <typename Lambda>
-	void Modify(bool bInvalidate, FParticleDirtyFlags& Dirty,IPhysicsProxyBase* Proxy,const Lambda& LambdaFunc)
+	void Modify(bool bInvalidate, FDirtyChaosPropertyFlags& Dirty,IPhysicsProxyBase* Proxy,const Lambda& LambdaFunc)
 	{
 		LambdaFunc(Property);
 		MarkDirty(bInvalidate, Dirty, Proxy);
 	}
 
-	void Clear(FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	void Clear(FDirtyChaosPropertyFlags& Dirty, IPhysicsProxyBase* Proxy)
 	{
 		Dirty.MarkClean(PropertyFlag);
 		if (Proxy && Dirty.IsClean())
@@ -53,7 +53,7 @@ public:
 		}
 	}
 
-	void SyncRemote(FDirtyPropertiesManager& Manager, int32 DataIdx, const FParticleDirtyData& Remote) const
+	void SyncRemote(FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& Remote) const
 	{
 		Remote.SyncRemote<T,PropName>(Manager, DataIdx, Property);
 	}
@@ -65,9 +65,9 @@ public:
 
 private:
 	T Property;
-	static constexpr EParticleFlags PropertyFlag = ParticlePropToFlag(PropName);
+	static constexpr EChaosPropertyFlags PropertyFlag = ChaosPropertyToFlag(PropName);
 
-	void MarkDirty(bool bInvalidate, FParticleDirtyFlags& Dirty, IPhysicsProxyBase* Proxy)
+	void MarkDirty(bool bInvalidate, FDirtyChaosPropertyFlags& Dirty, IPhysicsProxyBase* Proxy)
 	{
 		if(bInvalidate)
 		{
@@ -84,11 +84,11 @@ private:
 	}
 
 	//we don't support this because it could lead to bugs with values not being properly written to remote
-	TParticleProperty<T,PropName>& operator=(const TParticleProperty<T,PropName>& Rhs) {}
+	TChaosProperty<T,PropName>& operator=(const TChaosProperty<T,PropName>& Rhs) {}
 };
 
-template <typename T, EParticleProperty PropName>
-FChaosArchive& operator<<(FChaosArchive& Ar, TParticleProperty<T, PropName>& Prop)
+template <typename T, EChaosProperty PropName>
+FChaosArchive& operator<<(FChaosArchive& Ar, TChaosProperty<T, PropName>& Prop)
 {
 	//TODO: should this only work with dirty flag? Not sure if this path really matters at this point
 	Prop.Serialize(Ar);

@@ -223,7 +223,7 @@ namespace Chaos
 	template class CHAOS_API TPBDRigidParticle<FReal, 3>;
 
 	template <>
-	void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EParticleFlags DirtyBits, bool bInvalidate )
+	void Chaos::TGeometryParticle<FReal, 3>::MarkDirty(const EChaosPropertyFlags DirtyBits, bool bInvalidate )
 	{
 		if (bInvalidate)
 		{

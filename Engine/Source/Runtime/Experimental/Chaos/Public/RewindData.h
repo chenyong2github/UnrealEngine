@@ -81,7 +81,7 @@ struct FPropertyInterval
 	FFrameAndPhase FrameAndPhase;
 };
 
-template <typename T, EParticleProperty PropName, bool bNoEntryIsHead = true>
+template <typename T, EChaosProperty PropName, bool bNoEntryIsHead = true>
 class TParticlePropertyBuffer
 {
 public:
@@ -684,17 +684,17 @@ public:
 	}
 
 	void SyncSimWritablePropsFromSim(FDirtyPropData Manager,const TPBDRigidParticleHandle<FReal,3>& Rigid);
-	void SyncDirtyDynamics(FDirtyPropData& DestManager,const FParticleDirtyData& Dirty,const FConstDirtyPropData& SrcManager);
+	void SyncDirtyDynamics(FDirtyPropData& DestManager,const FDirtyChaosProperties& Dirty,const FConstDirtyPropData& SrcManager);
 	
 private:
 
-	TParticlePropertyBuffer<FParticlePositionRotation,EParticleProperty::XR> ParticlePositionRotation;
-	TParticlePropertyBuffer<FParticleNonFrequentData,EParticleProperty::NonFrequentData> NonFrequentData;
-	TParticlePropertyBuffer<FParticleVelocities,EParticleProperty::Velocities> Velocities;
-	TParticlePropertyBuffer<FParticleDynamics,EParticleProperty::Dynamics, /*bNoEntryIsHead=*/false> Dynamics;
-	TParticlePropertyBuffer<FParticleDynamicMisc,EParticleProperty::DynamicMisc> DynamicsMisc;
-	TParticlePropertyBuffer<FParticleMassProps,EParticleProperty::MassProps> MassProps;
-	TParticlePropertyBuffer<FKinematicTarget, EParticleProperty::KinematicTarget> KinematicTarget;
+	TParticlePropertyBuffer<FParticlePositionRotation,EChaosProperty::XR> ParticlePositionRotation;
+	TParticlePropertyBuffer<FParticleNonFrequentData,EChaosProperty::NonFrequentData> NonFrequentData;
+	TParticlePropertyBuffer<FParticleVelocities,EChaosProperty::Velocities> Velocities;
+	TParticlePropertyBuffer<FParticleDynamics,EChaosProperty::Dynamics, /*bNoEntryIsHead=*/false> Dynamics;
+	TParticlePropertyBuffer<FParticleDynamicMisc,EChaosProperty::DynamicMisc> DynamicsMisc;
+	TParticlePropertyBuffer<FParticleMassProps,EChaosProperty::MassProps> MassProps;
+	TParticlePropertyBuffer<FKinematicTarget, EChaosProperty::KinematicTarget> KinematicTarget;
 
 	FShapesArrayStateBase ShapesArrayState;
 
