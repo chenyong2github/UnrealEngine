@@ -132,6 +132,7 @@ public:
 	FRigElementKey GetElementKey() const;
 	FText GetName() const;
 	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
+	bool OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage);
 
 	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
 	bool IsSetupModeEnabled() const;

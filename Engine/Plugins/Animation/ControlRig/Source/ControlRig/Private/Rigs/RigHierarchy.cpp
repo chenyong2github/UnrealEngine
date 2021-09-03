@@ -740,6 +740,15 @@ bool URigHierarchy::IsNameAvailable(const FString& InPotentialNewName, ERigEleme
 		return false;
 	}
 
+	if (UnsanitizedName == TEXT("None"))
+	{
+		if (OutErrorMessage)
+		{
+			*OutErrorMessage = TEXT("None is not a valid name.");
+		}
+		return false;
+	}
+
 	FString SanitizedName = UnsanitizedName;
 	SanitizeName(SanitizedName);
 
