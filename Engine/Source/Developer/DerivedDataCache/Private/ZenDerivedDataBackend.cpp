@@ -5,6 +5,7 @@
 
 #include "Algo/Accumulate.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataPayload.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CountersTrace.h"

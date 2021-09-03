@@ -4,6 +4,7 @@
 #include "Misc/Compression.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
+#include "DerivedDataPayload.h"
 
 namespace UE::DerivedData::Backends
 {

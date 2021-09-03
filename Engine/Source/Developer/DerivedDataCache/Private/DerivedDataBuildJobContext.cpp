@@ -7,6 +7,7 @@
 #include "DerivedDataBuildPrivate.h"
 #include "DerivedDataBuildTypes.h"
 #include "DerivedDataCache.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataPayloadPrivate.h"
 #include "DerivedDataRequestOwner.h"
 #include "Hash/Blake3.h"

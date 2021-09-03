@@ -15,6 +15,7 @@
 #include "Templates/Function.h"
 
 namespace UE::DerivedData { class FBuildOutputBuilder; }
+namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { class IBuildJob; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { enum class EBuildPolicy : uint8; }

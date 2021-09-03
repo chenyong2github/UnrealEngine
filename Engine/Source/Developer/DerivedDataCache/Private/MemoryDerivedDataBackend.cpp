@@ -4,6 +4,7 @@
 
 #include "Algo/Accumulate.h"
 #include "Algo/AllOf.h"
+#include "DerivedDataPayload.h"
 #include "Misc/ScopeExit.h"
 #include "Serialization/CompactBinary.h"
 #include "Templates/UniquePtr.h"

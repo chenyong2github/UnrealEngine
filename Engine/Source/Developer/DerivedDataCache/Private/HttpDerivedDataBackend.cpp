@@ -18,6 +18,7 @@
 #include "Containers/StaticArray.h"
 #include "Containers/Ticker.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataPayload.h"
 #include "Dom/JsonObject.h"
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "HAL/PlatformFileManager.h"
