@@ -65,6 +65,25 @@ static FAutoConsoleVariableRef CVarGLevelStreamingContinuouslyIncrementalGCWhile
 	ECVF_Default
 );
 
+static FAutoConsoleCommandWithOutputDevice GDumpStreamingSourcesCmd(
+	TEXT("wp.DumpstreamingSources"),
+	TEXT("Dumps active streaming sources to the log"),
+	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
+	{
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			UWorld* World = Context.World();
+			if (World && World->IsGameWorld())
+			{
+				if (const UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+				{				
+					WorldPartitionSubsystem->DumpStreamingSources(OutputDevice);
+				}
+			}
+		}
+	})
+);
+
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
 
@@ -220,6 +239,20 @@ bool UWorldPartitionSubsystem::IsStreamingCompleted(EWorldPartitionRuntimeCellSt
 	return true;
 }
 
+void UWorldPartitionSubsystem::DumpStreamingSources(FOutputDevice& OutputDevice) const
+{
+	const UWorldPartition* WorldPartition = GetMainWorldPartition();
+	const TArray<FWorldPartitionStreamingSource>* StreamingSources = WorldPartition ? &WorldPartition->GetStreamingSources() : nullptr;
+	if (StreamingSources && (StreamingSources->Num() > 0))
+	{
+		OutputDevice.Logf(TEXT("Streaming Sources:"));
+		for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
+		{
+			OutputDevice.Logf(TEXT("  - %s: %s"), *StreamingSource.Name.ToString(), *StreamingSource.ToString());
+		}
+	}
+}
+
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
 #if WITH_EDITOR
@@ -336,8 +369,7 @@ void UWorldPartitionSubsystem::Draw(UCanvas* Canvas, class APlayerController* PC
 			Pos = CurrentOffset + FVector2D(MaxTextWidth + 10, 0.f);
 			for (const FWorldPartitionStreamingSource& StreamingSource : *StreamingSources)
 			{
-				const FString Text = FString::Printf(TEXT("Priority: %d | Pos: %s | Rot: %s | Vel: %3.2f m/s (%d mph)"), StreamingSource.Priority, *StreamingSource.Location.ToString(), *StreamingSource.Rotation.ToString(), StreamingSource.Velocity, (int32)(StreamingSource.Velocity*2.23694f));
-				FWorldPartitionDebugHelper::DrawText(Canvas, Text, GEngine->GetSmallFont(), FColor::White, Pos);
+				FWorldPartitionDebugHelper::DrawText(Canvas, *StreamingSource.ToString(), GEngine->GetSmallFont(), FColor::White, Pos);
 			}
 			CurrentOffset.Y = Pos.Y;
 		}

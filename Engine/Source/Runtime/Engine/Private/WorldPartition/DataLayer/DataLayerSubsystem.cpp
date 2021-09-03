@@ -16,7 +16,7 @@
 
 static FAutoConsoleCommandWithOutputDevice GDumpDumpDataLayersCmd(
 	TEXT("wp.DumpDataLayers"),
-	TEXT("Dumps active data layers memory to the log"),
+	TEXT("Dumps active data layers to the log"),
 	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
 	{
 		for (const FWorldContext& Context : GEngine->GetWorldContexts())
@@ -26,24 +26,7 @@ static FAutoConsoleCommandWithOutputDevice GDumpDumpDataLayersCmd(
 			{
 				if (const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
 				{
-					auto DumpDataLayers = [&OutputDevice, DataLayerSubsystem](const TCHAR* StateName, const TSet<FName>& DataLayers)
-					{
-						if (DataLayers.Num())
-						{
-							OutputDevice.Logf(TEXT("  - %s Data Layers:"), StateName);
-							for (const FName& DataLayerName : DataLayers)
-							{
-								if (UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayerFromName(DataLayerName))
-								{
-									OutputDevice.Logf(TEXT("    - %s"), *DataLayer->GetDataLayerLabel().ToString());
-								}
-							}
-						}
-					};
-
-					OutputDevice.Logf(TEXT("Data Layers:"));
-					DumpDataLayers(TEXT("Loaded"), DataLayerSubsystem->GetLoadedDataLayerNames());
-					DumpDataLayers(TEXT("Active"), DataLayerSubsystem->GetActiveDataLayerNames());
+					DataLayerSubsystem->DumpDataLayers(OutputDevice);
 				}
 			}
 		}
@@ -331,6 +314,28 @@ TArray<UDataLayer*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld* World, 
 	}
 
 	return OutDataLayers.Array();
+}
+
+void UDataLayerSubsystem::DumpDataLayers(FOutputDevice& OutputDevice) const
+{
+	auto DumpDataLayers = [this, &OutputDevice](const TCHAR* StateName, const TSet<FName>& DataLayers)
+	{
+		if (DataLayers.Num())
+		{
+			OutputDevice.Logf(TEXT("  - %s Data Layers:"), StateName);
+			for (const FName& DataLayerName : DataLayers)
+			{
+				if (UDataLayer* DataLayer = GetDataLayerFromName(DataLayerName))
+				{
+					OutputDevice.Logf(TEXT("    - %s"), *DataLayer->GetDataLayerLabel().ToString());
+				}
+			}
+		}
+	};
+
+	OutputDevice.Logf(TEXT("Data Layers:"));
+	DumpDataLayers(TEXT("Loaded"), GetLoadedDataLayerNames());
+	DumpDataLayers(TEXT("Active"), GetActiveDataLayerNames());
 }
 
 FAutoConsoleCommand UDataLayerSubsystem::ToggleDataLayerActivation(

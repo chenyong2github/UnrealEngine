@@ -81,6 +81,8 @@ public:
 	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
 	static TArray<UDataLayer*> ConvertArgsToDataLayers(UWorld* World, const TArray<FString>& InArgs);
 
+	void DumpDataLayers(FOutputDevice& OutputDevice) const;
+
 #if WITH_EDITOR
 public:
 	FORCEINLINE const FDataLayerEditorContext& GetDataLayerEditorContext() const { return DataLayerEditorContext; }

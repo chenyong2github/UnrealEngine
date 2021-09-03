@@ -50,7 +50,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Streaming)
 	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
-	void ToggleDrawRuntimeHash2D();
+	void DumpStreamingSources(FOutputDevice& OutputDevice) const;
 
 private:
 	UWorldPartition* GetMainWorldPartition();
