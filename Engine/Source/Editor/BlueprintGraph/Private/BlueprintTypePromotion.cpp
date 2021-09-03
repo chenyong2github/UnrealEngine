@@ -591,4 +591,13 @@ void FTypePromotion::ClearNodeSpawners()
 	}
 }
 
+void FTypePromotion::RefreshPromotionTables()
+{
+	if(Instance)
+	{
+		Instance->OperatorTable.Empty();
+		Instance->CreateOpTable();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -130,7 +130,8 @@ void UBlueprintEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& Pro
 		PropertyName == GET_MEMBER_NAME_CHECKED(UBlueprintEditorSettings, TypePromotionPinBlacklist))
 	{
 		FTypePromotion::ClearNodeSpawners();
-
+		FTypePromotion::RefreshPromotionTables();
+		
 		bShouldRebuildRegistry = true;
 	}
 
