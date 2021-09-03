@@ -878,8 +878,11 @@ void FAutomationTestFramework::InternalStartTest( const FString& InTestToRun )
 
 		CurrentTest->SetTestContext(Parameters);
 
-		// Run the test!
-		bTestSuccessful = CurrentTest->RunTest(Parameters);
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("AutomationTest %s"), *CurrentTest->GetBeautifiedTestName()));
+			// Run the test!
+			bTestSuccessful = CurrentTest->RunTest(Parameters);
+		}
 	}
 }
 
