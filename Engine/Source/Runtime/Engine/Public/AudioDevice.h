@@ -796,7 +796,20 @@ public:
 	/**
 	* Finds the active sound for the specified audio component ID
 	*/
+	UE_DEPRECATED(5.0, "This call cannot be called from the GameThread & AudioComponents can now execute multiple ActiveSound instances at once.  Use 'SendCommandToActiveSounds' instead.")
 	FActiveSound* FindActiveSound(uint64 AudioComponentID);
+
+	/**
+	 * Whether a given Audio Component ID should be allowed to have multiple
+	 * associated Active Sounds
+	 */
+	bool CanHaveMultipleActiveSounds(uint64 AudioComponentID) const;
+
+	/**
+	 * Set whether a given Audio Component ID should be allowed to have multiple
+	 * associated Active Sounds
+	 */
+	void SetCanHaveMultipleActiveSounds(uint64 AudioComponentID, bool InCanHaveMultipleActiveSounds);
 
 	/**
 	 * Removes an active sound from the active sounds array
@@ -1325,6 +1338,9 @@ public:
 		return bIsBakedAnalysisEnabled;
 	}
 
+	/** Performs an operation on all active sounds requested to execute by an audio component */
+	void SendCommandToActiveSounds(uint64 InAudioComponentID, TUniqueFunction<void(FActiveSound&)> InFunc, const TStatId InStatId = TStatId());
+
 	virtual bool IsNonRealtime() const
 	{
 		return false;
@@ -1450,7 +1466,7 @@ protected:
 	 */
 	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
 
-private:
+	private:
 
 	/**
 	 * Adds an active sound to the audio device. Can be a new active sound or one provided by the re-triggering
@@ -2120,7 +2136,10 @@ private:
 	/** A set of sounds which need to be deleted but weren't able to be deleted due to pending async operations */
 	TArray<FActiveSound*> PendingSoundsToDelete;
 
-	TMap<uint64, FActiveSound*> AudioComponentIDToActiveSoundMap;
+	TMap<uint64, TArray<FActiveSound*>> AudioComponentIDToActiveSoundMap;
+
+	/** Used to determine if a given Audio Component should be allowed to have multiple simultaneous associated active sounds */
+	TMap<uint64, bool> AudioComponentIDToCanHaveMultipleActiveSoundsMap;
 
 	TMap<uint32, FAudioVolumeProxy> AudioVolumeProxies;
 
