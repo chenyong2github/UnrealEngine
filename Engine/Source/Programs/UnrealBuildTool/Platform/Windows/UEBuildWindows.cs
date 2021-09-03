@@ -78,6 +78,32 @@ namespace UnrealBuildTool
 		/// Use PVS-Studio for static analysis
 		/// </summary>
 		PVSStudio,
+		
+		/// <summary>
+		/// Use clang for static analysis. This forces the compiler to clang.
+		/// </summary>
+		Clang,
+	}
+
+	/// <summary>
+	/// Output type for the static analyzer. This currently only works for the Clang static analyzer.
+	/// The Clang static analyzer can do either Text, which prints the analysis to stdout, or
+	/// html, where it writes out a navigable HTML page for each issue that it finds, per file.
+	/// The HTML is output in the same directory as the object fil that would otherwise have
+	/// been generated. 
+	/// All other analyzers default automatically to Text. 
+	/// </summary>
+	public enum WindowsStaticAnalyzerOutputType
+	{
+		/// <summary>
+		/// Output the analysis to stdout.
+		/// </summary>
+		Text,
+
+		/// <summary>
+		/// Output the analysis to an HTML file in the object folder.
+		/// </summary>
+		Html,
 	}
 
 	/// <summary>
@@ -189,6 +215,13 @@ namespace UnrealBuildTool
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-StaticAnalyzer")]
 		public WindowsStaticAnalyzer StaticAnalyzer = WindowsStaticAnalyzer.None;
+
+		/// <summary>
+		/// The output type to use for the static analyzer.
+		/// </summary>
+		[XmlConfigFile(Category = "WindowsPlatform")]
+		[CommandLine("-StaticAnalyzerOutputType")]
+		public WindowsStaticAnalyzerOutputType StaticAnalyzerOutputType = WindowsStaticAnalyzerOutputType.Text;
 
 		/// <summary>
 		/// Enables address sanitizer (ASan). Only supported for Visual Studio 2019 16.7.0 and up.
@@ -498,6 +531,11 @@ namespace UnrealBuildTool
 		public WindowsStaticAnalyzer StaticAnalyzer
 		{
 			get { return Inner.StaticAnalyzer; }
+		}
+		
+		public WindowsStaticAnalyzerOutputType StaticAnalyzerOutputType
+		{
+			get { return Inner.StaticAnalyzerOutputType; }
 		}
 
 		public bool bEnableAddressSanitizer
@@ -838,6 +876,19 @@ namespace UnrealBuildTool
 			if (Target.GlobalDefinitions.Contains("USE_NULL_RHI=1"))
 			{				
 				Target.bCompileCEF3 = false;
+			}
+			
+			// If clang is selected for static analysis, switch compiler to clang and proceed
+			// as normal.
+			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Clang)
+			{
+				Target.WindowsPlatform.Compiler = WindowsCompiler.Clang;
+				Target.WindowsPlatform.StaticAnalyzer = WindowsStaticAnalyzer.Default;
+			}
+			else if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.None && 
+			         Target.WindowsPlatform.StaticAnalyzerOutputType != WindowsStaticAnalyzerOutputType.Text)
+			{
+				Log.TraceInformation("Defaulting static analyzer output type to text");
 			}
 
 			// Disable static analysis if not appropriate for the compiler.

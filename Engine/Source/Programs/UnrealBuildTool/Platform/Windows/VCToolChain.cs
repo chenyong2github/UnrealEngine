@@ -236,7 +236,18 @@ namespace UnrealBuildTool
 					Arguments.Add("-Xclang -analyze");
 
 					// Make sure we get textual output and not XML.
-					Arguments.Add("-Xclang -analyzer-output=text");
+					if (Target.WindowsPlatform.StaticAnalyzerOutputType == WindowsStaticAnalyzerOutputType.Html)
+					{
+						// Write out a pretty web page with navigation to understand how the analysis was derived.
+						Arguments.Add("-Xclang -analyzer-output=html");
+						
+						// If writing to HTML, use the source filename as a basis for the report filename. 
+						Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
+					}
+					else
+					{
+						Arguments.Add("-Xclang -analyzer-output=text");
+					}
 
 					// Make sure we check inside nested blocks (e.g. 'if ((foo = getchar()) == 0) {}')
 					Arguments.Add("-Xclang -analyzer-opt-analyze-nested-blocks");
