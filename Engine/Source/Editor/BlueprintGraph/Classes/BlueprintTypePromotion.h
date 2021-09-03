@@ -108,6 +108,11 @@ public:
 	static void ClearNodeSpawners();
 
 	/**
+	 * Clear out the promotion table and rebuild it, reassessing each available UFunction. 
+	 */
+	static void RefreshPromotionTables();
+
+	/**
 	* Get the "Primitive Promotion Table" which represents what base Pin types 
 	* can be promoted to others. 
 	*
