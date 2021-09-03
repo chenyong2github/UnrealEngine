@@ -73,7 +73,6 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 	[
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
 			ToggleControl
