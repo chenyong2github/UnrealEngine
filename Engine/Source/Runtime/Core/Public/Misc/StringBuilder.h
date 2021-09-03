@@ -370,10 +370,7 @@ protected:
 
 	inline void EnsureNulTerminated() const
 	{
-		if (*CurPos)
-		{
-			*CurPos = CharType(0);
-		}
+		*CurPos = CharType(0);
 	}
 
 	inline void EnsureAdditionalCapacity(int32 RequiredAdditionalCapacity)
@@ -393,9 +390,11 @@ protected:
 	CORE_API void*	AllocBuffer(SIZE_T CharCount);
 	CORE_API void	FreeBuffer(void* Buffer, SIZE_T CharCount);
 
-	CharType*	Base;
-	CharType*	CurPos;
-	CharType*	End;
+	static inline CharType EmptyBuffer[1]{};
+
+	CharType*	Base = EmptyBuffer;
+	CharType*	CurPos = Base;
+	CharType*	End = Base + 1;
 	bool		bIsDynamic = false;
 };
 

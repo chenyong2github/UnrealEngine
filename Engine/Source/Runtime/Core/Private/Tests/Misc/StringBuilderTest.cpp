@@ -26,6 +26,22 @@ static_assert(TIsContiguousContainer<TWideStringBuilder<128>>::Value, "TWideStri
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringBuilderTestAppendString, "System.Core.StringBuilder.AppendString", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
 bool FStringBuilderTestAppendString::RunTest(const FString& Parameters)
 {
+	// Empty Base
+	{
+		FStringBuilderBase Builder;
+		TestEqual(TEXT("Empty StringBuilderBase Len"), Builder.Len(), 0);
+		TestEqual(TEXT("Empty StringBuilderBase ToString"), Builder.ToString(), TEXT(""));
+		Builder << TEXT('A');
+		TestEqual(TEXT("Append Char to StringBuilderBase"), Builder.ToString(), TEXT("A"));
+	}
+
+	// Empty With Buffer
+	{
+		TStringBuilder<1024> Builder;
+		TestEqual(TEXT("Empty StringBuilderWithBuffer Len"), Builder.Len(), 0);
+		TestEqual(TEXT("Empty StringBuilderWithBuffer ToString"), Builder.ToString(), TEXT(""));
+	}
+
 	// Append Char
 	{
 		TStringBuilder<7> Builder;

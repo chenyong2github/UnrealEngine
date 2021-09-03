@@ -29,7 +29,7 @@ template <typename C>
 void TStringBuilderBase<C>::Extend(SIZE_T ExtraCapacity)
 {
 	const SIZE_T OldCapacity = End - Base;
-	const SIZE_T NewCapacity = NextPowerOfTwo(OldCapacity + ExtraCapacity);
+	const SIZE_T NewCapacity = FPlatformMath::Max<SIZE_T>(NextPowerOfTwo(OldCapacity + ExtraCapacity), 32);
 
 	C* NewBase = (C*)AllocBuffer(NewCapacity);
 
