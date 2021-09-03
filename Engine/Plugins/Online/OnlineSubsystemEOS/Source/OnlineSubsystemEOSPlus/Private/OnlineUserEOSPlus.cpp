@@ -515,16 +515,7 @@ void FOnlineUserEOSPlus::OnEOSLoginChanged(int32 LocalUserNum)
 
 void FOnlineUserEOSPlus::OnLoginStatusChanged(int32 LocalUserNum, ELoginStatus::Type OldStatus, ELoginStatus::Type NewStatus, const FUniqueNetId& NewId)
 {
-	if (NewStatus == ELoginStatus::UsingLocalProfile)
-	{
-		const FEOSSettings& EOSSettings = UEOSSettings::GetSettings();
-
-		if (!EOSSettings.bUseEAS && !EOSSettings.bUseEOSConnect)
-		{
-			EOSIdentityInterface->Logout(LocalUserNum);
-		}
-		TriggerOnLoginStatusChangedDelegates(LocalUserNum, OldStatus, NewStatus, NewId);
-	}
+	TriggerOnLoginStatusChangedDelegates(LocalUserNum, OldStatus, NewStatus, NewId);
 }
 
 void FOnlineUserEOSPlus::OnControllerPairingChanged(int32 LocalUserNum, FControllerPairingChangedUserInfo PreviousUser, FControllerPairingChangedUserInfo NewUser)

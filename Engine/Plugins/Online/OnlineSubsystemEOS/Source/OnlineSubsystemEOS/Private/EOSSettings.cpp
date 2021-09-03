@@ -52,7 +52,7 @@ inline bool ContainsWhitespace(const FString& Source)
 	return false;
 }
 
-/*FEOSArtifactSettings FArtifactSettings::ToNative() const
+FEOSArtifactSettings FArtifactSettings::ToNative() const
 {
 	FEOSArtifactSettings Native;
 
@@ -65,7 +65,7 @@ inline bool ContainsWhitespace(const FString& Source)
 	Native.SandboxId = SandboxId;
 
 	return Native;
-}*/
+}
 
 inline FString StripQuotes(const FString& Source)
 {
@@ -121,20 +121,20 @@ void FEOSArtifactSettings::ParseRawArrayEntry(const FString& RawLine)
 	}
 }
 
-const FEOSSettings& UEOSSettings::GetSettings()
+FEOSSettings UEOSSettings::GetSettings()
 {
-	/*if (UObjectInitialized())
+	if (UObjectInitialized())
 	{
 		return UEOSSettings::AutoGetSettings();
-	}*/
+	}
 
 	return UEOSSettings::ManualGetSettings();
 }
 
-/*FEOSSettings UEOSSettings::AutoGetSettings()
+FEOSSettings UEOSSettings::AutoGetSettings()
 {
 	return GetDefault<UEOSSettings>()->ToNative();
-}*/
+}
 
 const FEOSSettings& UEOSSettings::ManualGetSettings()
 {
@@ -164,7 +164,7 @@ const FEOSSettings& UEOSSettings::ManualGetSettings()
 	return *CachedSettings;
 }
 
-/*FEOSSettings UEOSSettings::ToNative() const
+FEOSSettings UEOSSettings::ToNative() const
 {
 	FEOSSettings Native;
 
@@ -185,14 +185,14 @@ const FEOSSettings& UEOSSettings::ManualGetSettings()
 	Native.TitleStorageTags = TitleStorageTags;
 
 	return Native;
-}*/
+}
 
 bool UEOSSettings::GetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
-	/*if (UObjectInitialized())
+	if (UObjectInitialized())
 	{
 		return UEOSSettings::AutoGetSettingsForArtifact(ArtifactName, OutSettings);
-	}*/
+	}
 	return UEOSSettings::ManualGetSettingsForArtifact(ArtifactName, OutSettings);
 }
 
@@ -252,7 +252,7 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 	return false;
 }
 
-/*bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
+bool UEOSSettings::AutoGetSettingsForArtifact(const FString& ArtifactName, FEOSArtifactSettings& OutSettings)
 {
 	const UEOSSettings* This = GetDefault<UEOSSettings>();
 	FString ArtifactNameOverride;
@@ -280,7 +280,7 @@ bool UEOSSettings::ManualGetSettingsForArtifact(const FString& ArtifactName, FEO
 	}
 	UE_LOG_ONLINE(Error, TEXT("UEOSSettings::AutoGetSettingsForArtifact() failed due to missing config object specified. Check your project settings"));
 	return false;
-}*/
+}
 
 #if WITH_EDITOR
 void UEOSSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
