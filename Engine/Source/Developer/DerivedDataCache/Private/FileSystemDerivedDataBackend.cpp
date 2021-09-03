@@ -26,6 +26,7 @@
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataPayload.h"
 #include "DDCCleanup.h"
 
 #include "ProfilingDebugging/CookStats.h"

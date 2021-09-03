@@ -25,6 +25,7 @@
 #include "Async/ParallelFor.h"
 #include "Serialization/MemoryReader.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataPayload.h"
 #include "Dom/JsonObject.h"
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"

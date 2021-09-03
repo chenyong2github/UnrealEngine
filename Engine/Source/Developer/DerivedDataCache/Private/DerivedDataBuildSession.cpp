@@ -8,6 +8,7 @@
 #include "DerivedDataBuildJob.h"
 #include "DerivedDataBuildOutput.h"
 #include "DerivedDataBuildPrivate.h"
+#include "DerivedDataPayload.h"
 
 namespace UE::DerivedData::Private
 {
