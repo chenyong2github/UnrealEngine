@@ -168,7 +168,7 @@ struct FMaterialPixelParameters
 
     /** 
      * Interpolated worldspace position of this pixel
-     * todo: Make this TranslatedWorldPosition and also rename the VS/DS/HS WorldPosition to be TranslatedWorldPosition
+     * todo: Make this TranslatedWorldPosition and also rename the VS WorldPosition to be TranslatedWorldPosition
      */
 	float3 AbsoluteWorldPosition;
 

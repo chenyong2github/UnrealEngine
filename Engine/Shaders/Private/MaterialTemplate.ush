@@ -294,7 +294,7 @@ struct FMaterialPixelParameters
 
 	/** 
 	 * Interpolated worldspace position of this pixel
-	 * todo: Make this TranslatedWorldPosition and also rename the VS/DS/HS WorldPosition to be TranslatedWorldPosition
+	 * todo: Make this TranslatedWorldPosition and also rename the VS WorldPosition to be TranslatedWorldPosition
 	 */
 	float3 AbsoluteWorldPosition;
 
@@ -345,6 +345,10 @@ struct FMaterialPixelParameters
 
 	// Index into View.PrimitiveSceneData
 	uint PrimitiveId;
+
+#if IS_NANITE_FACTORY
+	uint InstanceId;
+#endif
 
 #if IS_NANITE_FACTORY && USES_PER_INSTANCE_CUSTOM_DATA
 	uint CustomDataOffset;
@@ -976,25 +980,21 @@ float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, f
 float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, float DefaultValue)
 {
 #if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
-	if (InstanceVF.NumCustomDataFloats > 0)
+	const uint FloatIndex = uint(Index);
+	BRANCH
+	if (FloatIndex < InstanceVF.NumCustomDataFloats)
 	{
 	#if USE_INSTANCE_CULLING
-		int InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
+		const uint InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
 	#else
-		int InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
+		const uint InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
 	#endif
-
-		int BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
-		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
+		const uint BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
 		return InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex];
 	}
-	else
-	{
-		return DefaultValue;
-	}
-#else
-	return DefaultValue;
 #endif
+
+	return DefaultValue;
 }
 
 // Per Instance Custom Data Getter (Vertex Shader Only)
@@ -1002,27 +1002,24 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialVertexParameters Parameters, int Index, MaterialFloat3 DefaultValue)
 {
 #if (USE_INSTANCING || USE_INSTANCE_CULLING) && USES_PER_INSTANCE_CUSTOM_DATA
-	if (InstanceVF.NumCustomDataFloats > 0 && Index + 2 < InstanceVF.NumCustomDataFloats)
+	const uint FloatIndex = uint(Index);
+	BRANCH
+	if (FloatIndex + 2 < InstanceVF.NumCustomDataFloats)
 	{
 	#if USE_INSTANCE_CULLING
-		int InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
+		const uint InstanceDataIndex = Parameters.PrimitiveLocalInstanceIndex;
 	#else
-		int InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
+		const uint InstanceDataIndex = Parameters.InstanceId + Parameters.InstanceOffset;
 	#endif
 
-		int BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
-		int FloatIndex = clamp(Index, 0, InstanceVF.NumCustomDataFloats - 1);
+		const uint BufferStartIndex = InstanceDataIndex * InstanceVF.NumCustomDataFloats;
 		return float3(InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex], 
 		              InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex + 1],
 					  InstanceVF.InstanceCustomDataBuffer[BufferStartIndex + FloatIndex + 2]);
 	}
-	else
-	{
-		return DefaultValue;
-	}
-#else
-	return DefaultValue;
 #endif
+
+	return DefaultValue;
 }
 
 /** Transforms a vector from tangent space to world space, prescaling by an amount calculated previously */

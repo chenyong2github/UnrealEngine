@@ -18,6 +18,10 @@
 	#define USES_PER_INSTANCE_RANDOM 0
 #endif
 
+#ifndef NEEDS_LIGHTMAP_COORDINATE
+	#define NEEDS_LIGHTMAP_COORDINATE 0
+#endif
+
 // Whether to fetch primitive values (eg LocalToWorld) by dynamically indexing a scene-wide buffer, or to reference a single Primitive uniform buffer
 #if VF_SUPPORTS_PRIMITIVE_SCENE_DATA
 	#if FEATURE_LEVEL == FEATURE_LEVEL_ES3_1
@@ -57,6 +61,7 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x10
 #define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
 
+#define INVALID_PRIMITIVE_ID 0x000FFFFFu
 
 #define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
@@ -298,19 +303,22 @@ struct FInstanceSceneData
 	float    DeterminantSign;
 	float3   LocalBoundsCenter;
 	uint     PrimitiveId;
+	uint     RelativeId;
 	uint     PayloadDataOffset; // TODO: Implement payload data
 	float3   LocalBoundsExtent;
 	uint     LastUpdateSceneFrameNumber;
 	uint     NaniteRuntimeResourceID;
 	uint     NaniteHierarchyOffset;
 #if USES_PER_INSTANCE_RANDOM
-	float    PerInstanceRandom;
+	float    RandomID;
 #endif
-	float4   LightMapAndShadowMapUVBias;
 #if USES_PER_INSTANCE_CUSTOM_DATA
 	float    CustomDataFloat0;
 	uint     CustomDataOffset;
 	uint     NumCustomDataFloats;
+#endif
+#if 1 //NEEDS_LIGHTMAP_COORDINATE
+	float4   LightMapAndShadowMapUVBias;
 #endif
 	bool     ValidInstance;
 	bool     HasRandomID;
@@ -403,17 +411,20 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	//       Also, please update the GetInstanceSceneData function in GPUScene.cpp for validation purposes.
 	//
 
-	InstanceData.Flags										= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
-	InstanceData.PrimitiveId								= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
-	InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
-	InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w);
-
 	// Only process valid instances
-	InstanceData.ValidInstance								= InstanceData.PrimitiveId != 0xFFFFFFFFu;
+	const uint FlagsAndPrimitiveId	= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
+	InstanceData.PrimitiveId		= BitFieldExtractU32(FlagsAndPrimitiveId,  20, 0);  // Max of 1,048,576 primitives
+	InstanceData.Flags				= BitFieldExtractU32(FlagsAndPrimitiveId,  12, 20); // Max of 12 instance flags
+	InstanceData.ValidInstance		= InstanceData.PrimitiveId != INVALID_PRIMITIVE_ID;
 
 	BRANCH
 	if (InstanceData.ValidInstance)
 	{
+		const uint RelativeIdAndCustomDataCount					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).y);
+		InstanceData.RelativeId									= BitFieldExtractU32(RelativeIdAndCustomDataCount, 24, 0); // Max of 16,777,216 instances per primitive
+		InstanceData.NaniteHierarchyOffset						= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).z);
+		InstanceData.LastUpdateSceneFrameNumber					= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).w);
+
 		InstanceData.LocalToWorld			= transpose(float4x4(LoadInstanceSceneDataElement(1 * SOAStride + InstanceId),
 																 LoadInstanceSceneDataElement(2 * SOAStride + InstanceId),
 																 LoadInstanceSceneDataElement(3 * SOAStride + InstanceId),
@@ -431,10 +442,12 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 		InstanceData.PayloadDataOffset							= asuint(LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).z);
 
 	#if USES_PER_INSTANCE_RANDOM
-		InstanceData.PerInstanceRandom							= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).w;
+		InstanceData.RandomID									= LoadInstanceSceneDataElement(8 * SOAStride + InstanceId).w;
 	#endif
 
+	#if 1 //NEEDS_LIGHTMAP_COORDINATE
 		InstanceData.LightMapAndShadowMapUVBias					= LoadInstanceSceneDataElement(9 * SOAStride + InstanceId);
+	#endif
 
 		ComputeInstanceDerivedData(InstanceData);
 
@@ -457,45 +470,6 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 
 	return InstanceData;
 }
-
-// TODO: 
-#if 0
-FInstancePayloadData GetInstancePayloadData(FInstanceSceneData InstanceData)
-{
-	FInstancePayloadData PayloadData = (FInstancePayloadData)0;
-
-	// Deterministic packing/layout (all fields optional, 0 fetchable elements possible)
-	// PerInstanceRandom     float4.x
-	// CustomData Count      float4.y
-	// Reserved for future   float4.zw
-	// LightShadowUVBias     float4.xyzw
-
-	// Offsets in 32b dwords
-	const uint Offset_PerInstanceRandom = 0u;
-	const uint Offset_CustomDataHeader  = 0u;
-	const uint Offset_LightShadowUVBias = CondMask(InstanceData.HasPerInstanceRandom, 1u, 0u);
-	const uint Offset_CustomDataValues  = CondMask(InstanceData.HasLightShadowUVBias, Offset_LightShadowUVBias + 1, 0);
-
-	BRANCH
-	if (InstanceData.HasPerInstanceRandom)
-	{
-		PayloadData.PerInstanceRandom = LoadInstancePayloadElement(Offset_PerInstanceRandom).x;
-	}
-
-	BRANCH
-	if (InstanceData.HasCustomData)
-	{
-		PayloadData.CustomDataCount  = LoadInstancePayloadElement(Offset_CustomDataHeader).y;
-		PayloadData.CustomDataOffset = InstanceData.PayloadDataOffset + Offset_CustomDataValues;
-	}
-
-	BRANCH
-	if (InstanceData.HasLightShadowUVBias)
-	{
-		PayloadData.LightMapAndShadowMapUVBias = LoadInstancePayloadElement(Offset_LightShadowUVBias);
-	}
-}
-#endif // TODO
 
 struct FSceneDataIntermediates
 {
@@ -592,7 +566,7 @@ FSceneDataIntermediates GetSceneDataIntermediates(uint DrawInstanceId, float4 In
 	InstanceData.PrimitiveId = asuint(InstanceOrigin.w);
 	
 	#if USES_PER_INSTANCE_RANDOM
-	InstanceData.PerInstanceRandom = InstanceTransform3.w;
+	InstanceData.RandomID = InstanceTransform3.w;
 	#endif
 
 	ComputeInstanceDerivedData(InstanceData);

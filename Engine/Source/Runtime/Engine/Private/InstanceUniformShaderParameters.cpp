@@ -76,11 +76,18 @@ void FInstanceSceneShaderData::Setup(
 	// TODO: Temporary Hack!
 	float PayloadDataOffset = CustomDataFloat0;
 	//uint32 PayloadDataOffset = 0xFFFFFFFFu; // TODO: Implement payload data
+	const uint32 InstanceId = 123; // TODO
+	const uint32 Packed0 = (InstanceFlags   << 20u) | PrimitiveId;
+	const uint32 Packed1 = (/* TODO: CustomDataCount*/ 0u << 24u) | InstanceId;
 
-	Data[0].X  = *(const     float*)&InstanceFlags;
-	Data[0].Y  = *(const     float*)&PrimitiveId;
-	Data[0].Z  = *(const     float*)&Instance.NaniteHierarchyOffset;
-	Data[0].W  = *(const     float*)&LastUpdateFrame;
+	check((PrimitiveId		& 0x000FFFFF) == PrimitiveId);
+	check((InstanceFlags	& 0x00000FFF) == InstanceFlags);
+	check((InstanceId		& 0x00FFFFFF) == InstanceId);
+
+	Data[0].X  = *(const float*)&Packed0;
+	Data[0].Y  = *(const float*)&Packed1;
+	Data[0].Z  = *(const float*)&Instance.NaniteHierarchyOffset;
+	Data[0].W  = *(const float*)&LastUpdateFrame;
 
 	LocalToWorld.To3x4MatrixTranspose((float*)&Data[1]);
 	PrevLocalToWorld.To3x4MatrixTranspose((float*)&Data[4]);
@@ -107,7 +114,7 @@ ENGINE_API const FInstanceSceneShaderData& GetDummyInstanceSceneShaderData()
 			NANITE_INVALID_HIERARCHY_OFFSET,
 			0u /* Instance Flags */
 		),
-		0xFFFFFFFFu, /* Primitive Id */
+		INVALID_PRIMITIVE_ID,
 		FRenderTransform::Identity, /* Primitive LocalToWorld */
 		FRenderTransform::Identity,  /* Primitive PrevLocalToWorld */
 		FRenderTransform::Identity,  /* PrevLocalToPrimitive */

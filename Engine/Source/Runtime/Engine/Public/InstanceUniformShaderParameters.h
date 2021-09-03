@@ -19,8 +19,11 @@
 #define INSTANCE_SCENE_DATA_FLAG_HAS_LIGHTSHADOW_UV_BIAS	0x10
 #define INSTANCE_SCENE_DATA_FLAG_HAS_HIERARCHY_OFFSET		0x20
 
+#define INVALID_PRIMITIVE_ID 0x000FFFFFu
+
 #define INVALID_LAST_UPDATE_FRAME 0xFFFFFFFFu
 
+// TODO: Rename to FInstanceSceneData
 struct FPrimitiveInstance
 {
 	FRenderTransform		LocalToPrimitive;
@@ -50,6 +53,7 @@ struct FPrimitiveInstance
 	}
 };
 
+// TODO: Rename to FInstanceDynamicData
 struct FPrimitiveInstanceDynamicData
 {
 	FRenderTransform PrevLocalToPrimitive;
