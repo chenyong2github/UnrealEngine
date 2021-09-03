@@ -506,6 +506,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition)
 	uint32 bEnableStreamingSource:1;
 
+	/** Whether the PlayerController streaming source should activate cells after loading.  */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = WorldPartition, meta=(EditCondition="bEnableStreamingSource"))
+	uint32 bStreamingSourceShouldActivate:1;
+
 	/** Scale applied to force feedback values */
 	UPROPERTY(config)
 	float ForceFeedbackScale;
@@ -705,6 +709,14 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = WorldPartition)
 	virtual bool IsStreamingSourceEnabled() const { return bEnableStreamingSource; }
+
+	/**
+	* Whether the PlayerController streaming source should activate cells after loading.
+	* Default implementation returns bStreamingSourceShouldActivate but can be overriden in child classes.
+	* @return true if it should.
+	*/
+	UFUNCTION(BlueprintCallable, Category = WorldPartition)
+	virtual bool StreamingSourceShouldActivate() const { return bEnableStreamingSource && bStreamingSourceShouldActivate; }
 
 protected:
 	/** Pawn has been possessed, so changing state to NAME_Playing. Start it walking and begin playing with it. */

@@ -128,6 +128,8 @@ APlayerController::APlayerController(const FObjectInitializer& ObjectInitializer
 	bForceFeedbackEnabled = true;
 	ForceFeedbackScale = 1.f;
 
+	bStreamingSourceShouldActivate = true;
+
 	bAutoManageActiveCameraTarget = true;
 	bRenderPrimitiveComponents = true;
 	SmoothTargetViewRotationSpeed = 20.f;
