@@ -1451,6 +1451,105 @@ FString MakeInjectedShaderCodeBlock(const TCHAR* BlockName, const FString& CodeT
 	return FString::Printf(TEXT("#line 1 \"%s\"\n%s"), BlockName, *CodeToInject);
 }
 
+FString FShaderCompilerError::GetErrorStringWithSourceLocation() const
+{
+	if (!ErrorVirtualFilePath.IsEmpty() && !ErrorLineString.IsEmpty())
+	{
+		return ErrorVirtualFilePath + TEXT("(") + ErrorLineString + TEXT("): ") + StrippedErrorMessage;
+	}
+	else
+	{
+		return StrippedErrorMessage;
+	}
+}
+
+FString FShaderCompilerError::GetErrorStringWithLineMarker() const
+{
+	if (HasLineMarker())
+	{
+		// Append highlighted line and its marker to the same error message with line terminators
+		// to get a similar multiline error output as with DXC
+		return (GetErrorStringWithSourceLocation() + LINE_TERMINATOR + TEXT("\t") + HighlightedLine + LINE_TERMINATOR + TEXT("\t") + HighlightedLineMarker);
+	}
+	else
+	{
+		return GetErrorStringWithSourceLocation();
+	}
+}
+
+FString FShaderCompilerError::GetErrorString(bool bOmitLineMarker) const
+{
+	return bOmitLineMarker ? GetErrorStringWithSourceLocation() : GetErrorStringWithLineMarker();
+}
+
+static bool ExtractSourceLocationFromCompilerMessage(FString& CompilerMessage, FString& OutFilePath, int32& OutRow, int32& OutColumn, const TCHAR* LeftBracket, const TCHAR* MiddleBracket, const TCHAR* RightBracket)
+{
+	// Ignore ':' character from absolute paths in Windows format
+	const int32 StartPosition = (CompilerMessage.Len() >= 3 && FChar::IsAlpha(CompilerMessage[0]) && CompilerMessage[1] == TEXT(':') && (CompilerMessage[2] == TEXT('/') || CompilerMessage[2] == TEXT('\\')) ? 3 : 0);
+
+	const int32 LeftBracketLen = FCString::Strlen(LeftBracket);
+	const int32 LeftPosition = CompilerMessage.Find(LeftBracket, ESearchCase::IgnoreCase, ESearchDir::FromStart, StartPosition);
+	if (LeftPosition == INDEX_NONE || LeftPosition == StartPosition || LeftPosition + LeftBracketLen >= CompilerMessage.Len() || !FChar::IsDigit(CompilerMessage[LeftPosition + LeftBracketLen]))
+	{
+		return false;
+	}
+
+	const int32 MiddleBracketLen = FCString::Strlen(MiddleBracket);
+	const int32 MiddlePosition = CompilerMessage.Find(MiddleBracket, ESearchCase::IgnoreCase, ESearchDir::FromStart, LeftPosition + LeftBracketLen);
+	if (MiddlePosition == INDEX_NONE || MiddlePosition + MiddleBracketLen >= CompilerMessage.Len() || !FChar::IsDigit(CompilerMessage[MiddlePosition + MiddleBracketLen]))
+	{
+		return false;
+	}
+
+	const int32 RightBracketLen = FCString::Strlen(RightBracket);
+	const int32 RightPosition = CompilerMessage.Find(RightBracket, ESearchCase::IgnoreCase, ESearchDir::FromStart, MiddlePosition + MiddleBracketLen);
+	if (RightPosition == INDEX_NONE || RightPosition >= CompilerMessage.Len())
+	{
+		return false;
+	}
+
+	// Extract file path, row, and column from compiler message
+	OutFilePath = CompilerMessage.Left(LeftPosition);
+	LexFromString(OutRow, *CompilerMessage.Mid(LeftPosition + LeftBracketLen, MiddlePosition - LeftPosition - LeftBracketLen));
+	LexFromString(OutColumn, *CompilerMessage.Mid(MiddlePosition + MiddleBracketLen, RightPosition - MiddlePosition - MiddleBracketLen));
+
+	// Remove extracted information from compiler message
+	CompilerMessage = CompilerMessage.Right(CompilerMessage.Len() - RightPosition - RightBracketLen);
+
+	return true;
+}
+
+bool FShaderCompilerError::ExtractSourceLocation()
+{
+	// Ignore this call if a file path and line string is already provided
+	if (!StrippedErrorMessage.IsEmpty() && ErrorVirtualFilePath.IsEmpty() && ErrorLineString.IsEmpty())
+	{
+		auto ExtractSourceLineFromStrippedErrorMessage = [this](const TCHAR* LeftBracket, const TCHAR* MiddleBracket, const TCHAR* RightBracket) -> bool
+		{
+			int32 Row = 0, Column = 0;
+			if (ExtractSourceLocationFromCompilerMessage(StrippedErrorMessage, ErrorVirtualFilePath, Row, Column, LeftBracket, MiddleBracket, RightBracket))
+			{
+				// Format error line string to MSVC format to be able to jump to the source location with a double click in VisualStudio
+				ErrorLineString = FString::Printf(TEXT("%d,%d"), Row, Column);
+				return true;
+			}
+			return false;
+		};
+
+		// Extract from Clang format, e.g. "Filename:3:12: error:"
+		if (ExtractSourceLineFromStrippedErrorMessage(TEXT(":"), TEXT(":"), TEXT(": ")))
+		{
+			return true;
+		}
+
+		// Extract from MSVC format, e.g. "Filename(3,12) : error: "
+		if (ExtractSourceLineFromStrippedErrorMessage(TEXT("("), TEXT(","), TEXT(") : ")))
+		{
+			return true;
+		}
+	}
+	return false;
+}
 
 FString FShaderCompilerError::GetShaderSourceFilePath() const
 {

@@ -380,38 +380,13 @@ struct FShaderCompilerError
 	FString HighlightedLineMarker;
 
 	/** Returns the error message with source file and source line (if present), as well as a line marker separated with a LINE_TERMINATOR. */
-	FString GetErrorStringWithoutLineMarker() const
-	{
-		if (ErrorVirtualFilePath.IsEmpty())
-		{
-			return StrippedErrorMessage;
-		}
-		else
-		{
-			return ErrorVirtualFilePath + TEXT("(") + ErrorLineString + TEXT("): ") + StrippedErrorMessage;
-		}
-	}
+	FString RENDERCORE_API GetErrorStringWithSourceLocation() const;
 	
 	/** Returns the error message with source file and source line (if present), as well as a line marker separated with a LINE_TERMINATOR. */
-	FString GetErrorStringWithLineMarker() const
-	{
-		if (HasLineMarker())
-		{
-			// Append highlighted line and its marker to the same error message with line terminators
-			// to get a similar multiline error output as with DXC
-			return (GetErrorStringWithoutLineMarker() + LINE_TERMINATOR + TEXT("\t") + HighlightedLine + LINE_TERMINATOR + TEXT("\t") + HighlightedLineMarker);
-		}
-		else
-		{
-			return GetErrorStringWithoutLineMarker();
-		}
-	}
+	FString RENDERCORE_API GetErrorStringWithLineMarker() const;
 
 	/** Returns the error message with source file and source line (if present). */
-	FString GetErrorString(bool bOmitLineMarker = false) const
-	{
-		return bOmitLineMarker ? GetErrorStringWithoutLineMarker() : GetErrorStringWithLineMarker();
-	}
+	FString RENDERCORE_API GetErrorString(bool bOmitLineMarker = false) const;
 
 	/**
 	Returns true if this error message has a marker string for the highlighted source line where the error occurred. Example:
@@ -419,10 +394,13 @@ struct FShaderCompilerError
 		float b = a;
 				  ^
 	*/
-	bool HasLineMarker() const
+	FORCEINLINE bool HasLineMarker() const
 	{
 		return !HighlightedLine.IsEmpty() && !HighlightedLineMarker.IsEmpty();
 	}
+
+	/** Extracts the file path and source line from StrippedErrorMessage to ErrorVirtualFilePath and ErrorLineString. */
+	bool RENDERCORE_API ExtractSourceLocation();
 
 	/** Returns the path of the underlying source file relative to the process base dir. */
 	FString RENDERCORE_API GetShaderSourceFilePath() const;
