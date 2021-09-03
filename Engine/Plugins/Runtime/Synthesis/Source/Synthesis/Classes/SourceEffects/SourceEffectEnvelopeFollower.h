@@ -63,7 +63,7 @@ public:
 
 protected:
 
-	Audio::FEnvelopeFollower EnvelopeFollower;
+	Audio::FInlineEnvelopeFollower EnvelopeFollower;
 	float CurrentEnvelopeValue;
 	uint32 OwningPresetUniqueId;
 	uint32 InstanceId;

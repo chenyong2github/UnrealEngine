@@ -122,9 +122,13 @@ void FSourceEffectFilter::OnPresetChanged()
 					NewModData.MaxResModValue = BusModulationSettings.MaxResonanceModulation;
 					NewModData.EnvelopeGain = BusModulationSettings.EnvelopeGainMultiplier;
 
-					NewModData.AudioBusEnvelopeFollower.Init(SampleRate);
-					NewModData.AudioBusEnvelopeFollower.SetAttackTime(BusModulationSettings.EnvelopeFollowerAttackTimeMsec);
-					NewModData.AudioBusEnvelopeFollower.SetReleaseTime(BusModulationSettings.EnvelopeFollowerReleaseTimeMsec);
+					Audio::FEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+					EnvelopeFollowerInitParams.SampleRate = SampleRate;
+					EnvelopeFollowerInitParams.NumChannels = 1;
+					EnvelopeFollowerInitParams.AttackTimeMsec = BusModulationSettings.EnvelopeFollowerAttackTimeMsec;
+					EnvelopeFollowerInitParams.ReleaseTimeMsec = BusModulationSettings.EnvelopeFollowerReleaseTimeMsec;
+
+					NewModData.AudioBusEnvelopeFollower.Init(EnvelopeFollowerInitParams);
 				}
 			}
 		}
@@ -161,12 +165,27 @@ void FSourceEffectFilter::ProcessAudio(const FSoundEffectSourceInputData& InData
 			Audio::BufferSum2ChannelToMonoFast(ScratchModBuffer, ScratchEnvFollowerBuffer);
 			Audio::MultiplyBufferByConstantInPlace(ScratchEnvFollowerBuffer, 0.5f);
 
-			EnvelopeValue = Mod.AudioBusEnvelopeFollower.ProcessAudio(ScratchEnvFollowerBuffer.GetData(), InData.NumSamples);
+			Mod.AudioBusEnvelopeFollower.ProcessAudio(ScratchEnvFollowerBuffer.GetData(), InData.NumSamples);
+		}
+		else if (NumChannels == 1)
+		{
+			Mod.AudioBusEnvelopeFollower.ProcessAudio(ScratchModBuffer.GetData(), InData.NumSamples);
 		}
 		else
 		{
-			EnvelopeValue = Mod.AudioBusEnvelopeFollower.ProcessAudio(ScratchModBuffer.GetData(), InData.NumSamples);
+			checkNoEntry();
 		}
+
+		const TArray<float>& CurrentEnvelopeValues = Mod.AudioBusEnvelopeFollower.GetEnvelopeValues();
+		if (ensure(CurrentEnvelopeValues.Num() == 1))
+		{
+			EnvelopeValue = FMath::Clamp(CurrentEnvelopeValues[0], 0.f, 1.f);
+		}
+		else
+		{
+			EnvelopeValue = 0.f;
+		}
+
 
 		if (Mod.FilterParam == ESourceEffectFilterParam::FilterFrequency)
 		{

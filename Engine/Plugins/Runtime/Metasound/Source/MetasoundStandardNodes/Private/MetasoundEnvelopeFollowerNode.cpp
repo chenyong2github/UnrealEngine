@@ -2,6 +2,7 @@
 
 #include "MetasoundEnvelopeFollowerNode.h"
 
+#include "Algo/MaxElement.h"
 #include "Internationalization/Text.h"
 #include "MetasoundAudioBuffer.h"
 #include "MetasoundExecutableOperator.h"
@@ -106,7 +107,14 @@ namespace Metasound
 		PrevAttackTime = FMath::Max(FTime::ToMilliseconds(*AttackTimeInput), 0.0);
 		PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTimeInput), 0.0);
 
-		EnvelopeFollower.Init(InSettings.GetSampleRate(), PrevAttackTime, PrevReleaseTime);
+		Audio::FEnvelopeFollowerInitParams EnvelopeParamsInitParams;
+	
+		EnvelopeParamsInitParams.SampleRate = InSettings.GetSampleRate();
+		EnvelopeParamsInitParams.NumChannels = 1;
+		EnvelopeParamsInitParams.AttackTimeMsec = PrevAttackTime;
+		EnvelopeParamsInitParams.ReleaseTimeMsec = PrevReleaseTime;
+
+		EnvelopeFollower.Init(EnvelopeParamsInitParams);
 	}
 
 	FDataReferenceCollection FEnvelopeFollowerOperator::GetInputs() const
@@ -164,8 +172,15 @@ namespace Metasound
 		}
 
 		// Process the audio through the envelope follower
-		EnvelopeFollower.ProcessAudio(AudioInput->GetData(), EnvelopeAudioOutput->GetData(), AudioInput->Num());
-		*EnvelopeFloatOutput = EnvelopeFollower.GetCurrentValue();
+		EnvelopeFollower.ProcessAudio(AudioInput->GetData(), AudioInput->Num(), EnvelopeAudioOutput->GetData());
+		if (const float* MaxElement = Algo::MaxElement(EnvelopeFollower.GetEnvelopeValues()))
+		{
+			*EnvelopeFloatOutput = *MaxElement;
+		}
+		else
+		{
+			*EnvelopeFloatOutput = 0.f;
+		}
 	}
 
 	const FVertexInterface& FEnvelopeFollowerOperator::GetVertexInterface()

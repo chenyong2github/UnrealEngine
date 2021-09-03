@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TimeSynthComponent.h"
+
+#include "Algo/MaxElement.h"
 #include "AudioThread.h"
-#include "TimeSynthModule.h"
 #include "Containers/UnrealString.h"
+#include "TimeSynthModule.h"
 
 static const float MinAudibleLog = -55;
 
@@ -422,7 +424,10 @@ bool UTimeSynthComponent::Init(int32& InSampleRate)
 	DynamicsProcessor.SetProcessingMode(Audio::EDynamicsProcessingMode::Compressor);
 
 	// Init and update the envelope follower settings
-	EnvelopeFollower.Init(InSampleRate);
+	Audio::FEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+	EnvelopeFollowerInitParams.SampleRate = InSampleRate;
+	EnvelopeFollowerInitParams.NumChannels = NumChannels;
+	EnvelopeFollower.Init(EnvelopeFollowerInitParams);
 	UpdateEnvelopeFollower();
 
 	// Set the default quantization settings
@@ -492,7 +497,7 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	// Update the decoder
 	SoundWaveDecoder.UpdateRenderThread();
 
-	int32 NumFrames = NumSamples / NumChannels;
+	const int32 NumFrames = NumSamples / NumChannels;
 
 	// Perform event quantization notifications
 	// This will use the NumFramesPerCallback to evaluate what queued up events need 
@@ -612,10 +617,15 @@ int32 UTimeSynthComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 	// Feed audio through the envelope follower if it's enabled
 	if (bIsEnvelopeFollowerEnabled_AudioRenderThread)
 	{
-		for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex += NumChannels)
+		EnvelopeFollower.ProcessAudio(OutAudio, NumFrames);
+
+		if (const float* MaxEnvValue = Algo::MaxElement(EnvelopeFollower.GetEnvelopeValues()))
 		{
-			float InputSample = 0.5f * (OutAudio[SampleIndex] + OutAudio[SampleIndex + 1]);
-			CurrentEnvelopeValue = EnvelopeFollower.ProcessAudio(InputSample);
+			CurrentEnvelopeValue = FMath::Clamp(*MaxEnvValue, 0.f, 1.f);
+		}
+		else
+		{
+			CurrentEnvelopeValue = 0.f;
 		}
 	}
 

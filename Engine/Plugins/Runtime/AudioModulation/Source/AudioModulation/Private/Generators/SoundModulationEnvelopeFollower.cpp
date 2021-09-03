@@ -2,6 +2,7 @@
 
 #include "Generators/SoundModulationEnvelopeFollower.h"
 
+#include "Algo/MaxElement.h"
 #include "AudioDeviceManager.h"
 #include "AudioMixerDevice.h"
 #include "AudioModulation.h"
@@ -26,7 +27,7 @@ namespace AudioModulation
 
 		if (Params.AudioBus)
 		{
-			AudioRenderThreadCommand([this, DeviceId = InDeviceId, BusId = Params.AudioBus->GetUniqueID()]()
+			AudioRenderThreadCommand([this, DeviceId = InDeviceId, NumChannels = Params.AudioBus->GetNumChannels(), BusId = Params.AudioBus->GetUniqueID()]()
 			{
 				if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 				{
@@ -34,14 +35,23 @@ namespace AudioModulation
 					if (FMixerDevice* MixerDevice = static_cast<FMixerDevice*>(AudioDevice))
 					{
 						AudioBusPatch = MixerDevice->AddPatchForAudioBus(BusId, Params.Gain);
-						EnvelopeFollower = FEnvelopeFollower(MixerDevice->SampleRate, Params.AttackTime, Params.ReleaseTime, Audio::EPeakMode::Peak);
+
+						FEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+						EnvelopeFollowerInitParams.SampleRate = MixerDevice->SampleRate;
+						EnvelopeFollowerInitParams.NumChannels = NumChannels;
+						EnvelopeFollowerInitParams.AttackTimeMsec = Params.AttackTime;
+						EnvelopeFollowerInitParams.ReleaseTimeMsec = Params.ReleaseTime;
+						EnvelopeFollowerInitParams.Mode = EPeakMode::Peak;
+
+						EnvelopeFollower = FEnvelopeFollower(EnvelopeFollowerInitParams);
+
 						if (Params.bInvert)
 						{
-							CurrentValue = 1.0f - EnvelopeFollower.GetCurrentValue();
+							CurrentValue = 1.0f;
 						}
 						else
 						{
-							CurrentValue = EnvelopeFollower.GetCurrentValue();
+							CurrentValue = 0.f;
 						}
 					}
 				}
@@ -61,11 +71,11 @@ namespace AudioModulation
 
 	void FEnvelopeFollowerGenerator::Update(double InElapsed)
 	{
-		float Amp = 0.0f;
-
 		if (AudioBusPatch.IsValid())
 		{
-			int32 NumSamples = AudioBusPatch->GetNumSamplesAvailable();
+			const int32 NumSamples = AudioBusPatch->GetNumSamplesAvailable();
+			const int32 NumFrames = NumSamples / EnvelopeFollower.GetNumChannels();
+
 			if (NumSamples > 0)
 			{
 				TempBuffer.Reset();
@@ -73,40 +83,35 @@ namespace AudioModulation
 
 				AudioBusPatch->PopAudio(TempBuffer.GetData(), NumSamples, true /* bUseLatestAudio */);
 
-				// If NumSamples is below 4 samples, just take first sample
-				static const int32 SimdMultiple = 4;
-				if (NumSamples % SimdMultiple == 0)
-				{
-					Amp = Audio::BufferGetAverageAbsValue(TempBuffer.GetData(), NumSamples);
-				}
-				// If NumSamples is not a multiple of 4, do it the non-SIMD way
-				else
-				{
-					Amp = 0.0f;
-					for (int32 i = 0; i < NumSamples; ++i)
-					{
-						Amp += FMath::Abs(TempBuffer[i]);
-					}
-					Amp /= NumSamples;
-				}
+				EnvelopeFollower.ProcessAudio(TempBuffer.GetData(), NumFrames);
 			}
-		}
 
-		EnvelopeFollower.ProcessAudio(Amp);
-		if (Params.bInvert)
-		{
-			CurrentValue = 1.0f - EnvelopeFollower.GetCurrentValue();
+			float MaxValue = 0.f;
+			if (const float* MaxEnvelopePtr = Algo::MaxElement(EnvelopeFollower.GetEnvelopeValues()))
+			{
+				MaxValue = FMath::Clamp(*MaxEnvelopePtr, 0.f, 1.f);
+			}
+
+			if (Params.bInvert)
+			{
+				CurrentValue = 1.0f - MaxValue;
+			}
+			else
+			{
+				CurrentValue = MaxValue;
+			}
 		}
 		else
 		{
-			CurrentValue = EnvelopeFollower.GetCurrentValue();
+			CurrentValue = 0.f;
 		}
+
 	}
 
 #if !UE_BUILD_SHIPPING
 	void FEnvelopeFollowerGenerator::GetDebugValues(TArray<FString>& OutDebugValues) const
 	{
-		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), EnvelopeFollower.GetCurrentValue()));
+		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), GetValue()));
 		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.Gain));
 		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.AttackTime));
 		OutDebugValues.Add(FString::Printf(TEXT("%.4f"), Params.ReleaseTime));

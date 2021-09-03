@@ -7,6 +7,7 @@
 
 namespace Audio
 {
+	/** Sum all values in an array. */
 	SIGNALPROCESSING_API void ArraySum(TArrayView<const float> InValues, float& OutSum);
 	SIGNALPROCESSING_API void ArraySum(const FAlignedFloatBuffer& InValues, float& OutSum);
 
@@ -57,11 +58,14 @@ namespace Audio
 	/** Computes the EuclideanNorm of the InView. Same as calculating the energy in window. */
 	SIGNALPROCESSING_API void ArrayGetEuclideanNorm(TArrayView<const float> InView, float& OutEuclideanNorm);
 
+	/** Absolute value of array elements */
+	SIGNALPROCESSING_API void ArrayAbs(TArrayView<const float> InBuffer, TArrayView<float> OutBuffer);
+
 	/** Absolute value of array elements in place.
 	 *
-	 *  InView contains the data to be manipulated.
+	 *  InBuffer contains the data to be manipulated.
 	 */
-	SIGNALPROCESSING_API void ArrayAbsInPlace(TArrayView<float> InView);
+	SIGNALPROCESSING_API void ArrayAbsInPlace(TArrayView<float> InBuffer);
 
 	/** Clamp minimum value of array in place.
 	 *
@@ -148,6 +152,11 @@ namespace Audio
 	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(TArrayView<float> InValues, float InSubtrahend);
 	SIGNALPROCESSING_API void ArraySubtractByConstantInPlace(FAlignedFloatBuffer& InValues, float InSubtrahend);
 
+	/* Square values */
+	SIGNALPROCESSING_API void ArraySquare(TArrayView<const float> InValues, TArrayView<float> OutValues);
+
+	/** Square values in place. */
+	SIGNALPROCESSING_API void ArraySquareInPlace(TArrayView<float> InValues);
 
 	/** Take Square Root of values in place. */
 	SIGNALPROCESSING_API void ArraySqrtInPlace(TArrayView<float> InValues);

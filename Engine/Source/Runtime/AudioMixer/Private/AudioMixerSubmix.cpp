@@ -181,8 +181,6 @@ namespace Audio
 		, bIsBackgroundMuted(false)
 		, bIsSpectrumAnalyzing(false)
 	{
-		EnvelopeFollowers.Reset();
-		EnvelopeFollowers.AddDefaulted(AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 	}
 
 	FMixerSubmix::~FMixerSubmix()
@@ -1315,19 +1313,21 @@ namespace Audio
 			FScopeLock EnvelopeScopeLock(&EnvelopeCriticalSection);
 			FMemory::Memset(EnvelopeValues, sizeof(float) * AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 
-			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
+			if (NumChannels > 0)
 			{
-				// Get the envelope follower for the channel
-				FEnvelopeFollower& EnvFollower = EnvelopeFollowers[ChannelIndex];
-
-				// Track the last sample
-				for (int32 SampleIndex = ChannelIndex; SampleIndex < BufferSamples; SampleIndex += NumChannels)
+				const int32 NumFrames = BufferSamples / NumChannels;
+				if (EnvelopeFollower.GetNumChannels() != NumChannels)
 				{
-					const float SampleValue = AudioBufferPtr[SampleIndex];
-					EnvFollower.ProcessAudio(SampleValue);
+					EnvelopeFollower.SetNumChannels(NumChannels);
 				}
 
-				EnvelopeValues[ChannelIndex] = EnvFollower.GetCurrentValue();
+				EnvelopeFollower.ProcessAudio(AudioBufferPtr, NumFrames);
+				const TArray<float>& EnvValues = EnvelopeFollower.GetEnvelopeValues();
+
+				check(EnvValues.Num() == NumChannels);
+
+				FMemory::Memcpy(EnvelopeValues, EnvValues.GetData(), sizeof(float) * NumChannels);
+				Audio::ArrayClampInPlace(MakeArrayView(EnvelopeValues, NumChannels), 0.f, 1.f);
 			}
 
 			EnvelopeNumChannels = NumChannels;
@@ -1903,11 +1903,17 @@ namespace Audio
 	{
 		if (!bIsEnvelopeFollowing)
 		{
+			FEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+			EnvelopeFollowerInitParams.SampleRate = GetSampleRate(); 
+			EnvelopeFollowerInitParams.NumChannels = NumChannels; 
+			EnvelopeFollowerInitParams.AttackTimeMsec = static_cast<float>(AttackTime);
+			EnvelopeFollowerInitParams.ReleaseTimeMsec = static_cast<float>(ReleaseTime);
+			EnvelopeFollower.Init(EnvelopeFollowerInitParams);
+
 			// Zero out any previous envelope values which may have been in the array before starting up
 			for (int32 ChannelIndex = 0; ChannelIndex < AUDIO_MIXER_MAX_OUTPUT_CHANNELS; ++ChannelIndex)
 			{
 				EnvelopeValues[ChannelIndex] = 0.0f;
-				EnvelopeFollowers[ChannelIndex].Init(GetSampleRate(), AttackTime, ReleaseTime);
 			}
 
 			bIsEnvelopeFollowing = true;
@@ -2010,7 +2016,12 @@ namespace Audio
 						DelegateInfo.SpectrumBandExtractor->AddBand(NewExtractorBandSettings);
 
 						FSpectralAnalysisBandInfo NewBand;
-						NewBand.EnvelopeFollower.Init(DelegateInfo.DelegateSettings.UpdateRate, BandSettings.AttackTimeMsec, BandSettings.ReleaseTimeMsec);
+
+						FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+						EnvelopeFollowerInitParams.SampleRate = DelegateInfo.DelegateSettings.UpdateRate;
+						EnvelopeFollowerInitParams.AttackTimeMsec = static_cast<float>(BandSettings.AttackTimeMsec);
+						EnvelopeFollowerInitParams.ReleaseTimeMsec = static_cast<float>(BandSettings.ReleaseTimeMsec);
+						NewBand.EnvelopeFollower.Init(EnvelopeFollowerInitParams);
 					
 						DelegateInfo.SpectralBands.Add(NewBand);
 					}
@@ -2219,7 +2230,8 @@ namespace Audio
 							if (ensure(ResultIndex < DelegateInfo.SpectralBands.Num()))
 							{
 								FSpectralAnalysisBandInfo& BandInfo = DelegateInfo.SpectralBands[ResultIndex];
-								SpectralResults[ResultIndex] = BandInfo.EnvelopeFollower.ProcessAudioNonClamped(SpectralResults[ResultIndex]);
+
+								SpectralResults[ResultIndex] = BandInfo.EnvelopeFollower.ProcessSample(SpectralResults[ResultIndex]);
 							}
 						}
 

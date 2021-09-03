@@ -290,6 +290,21 @@ namespace Audio
 		OutEuclideanNorm = FMath::Sqrt(OutEuclideanNorm);
 	}
 
+	void ArrayAbs(TArrayView<const float> InBuffer, TArrayView<float> OutBuffer)
+	{
+		const int32 Num = InBuffer.Num();
+		check(OutBuffer.Num() == Num);
+
+		const float* InData = InBuffer.GetData();
+		float* OutData = OutBuffer.GetData();
+
+		for (int32 i = 0; i < Num; i++)
+		{
+			OutData[i] = FMath::Abs(InData[i]);
+		}
+	}
+
+
 	void ArrayAbsInPlace(TArrayView<float> InView)
 	{
 		const int32 Num = InView.Num();
@@ -702,6 +717,49 @@ namespace Audio
 	void ArraySubtract(const FAlignedFloatBuffer& InMinuend, const FAlignedFloatBuffer& InSubtrahend, FAlignedFloatBuffer& OutArray)
 	{
 		BufferSubtractFast(InMinuend, InSubtrahend, OutArray);
+	}
+
+	void ArraySquare(TArrayView<const float> InValues, TArrayView<float> OutValues)
+	{
+		check(InValues.Num() == OutValues.Num());
+
+		const uint32 Num = InValues.Num();
+		const uint32 NumToSimd = Num & MathIntrinsics::SimdMask;
+
+		const float* InData = InValues.GetData();
+		float* OutData = OutValues.GetData();
+
+		for (uint32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister4Float VectorData = VectorLoad(&InData[i]);
+			VectorData = VectorMultiply(VectorData, VectorData);
+			VectorStore(VectorData, &OutData[i]);
+		}
+
+		for (uint32 i = NumToSimd; i < Num; i++)
+		{
+			OutData[i] = InData[i] * InData[i];
+		}
+	}
+
+	void ArraySquareInPlace(TArrayView<float> InValues)
+	{
+		const uint32 Num = InValues.Num();
+		const uint32 NumToSimd = Num & MathIntrinsics::SimdMask;
+
+		float* InData = InValues.GetData();
+
+		for (uint32 i = 0; i < NumToSimd; i += 4)
+		{
+			VectorRegister4Float VectorData = VectorLoad(&InData[i]);
+			VectorData = VectorMultiply(VectorData, VectorData);
+			VectorStore(VectorData, &InData[i]);
+		}
+
+		for (uint32 i = NumToSimd; i < Num; i++)
+		{
+			InData[i] = InData[i] * InData[i];
+		}
 	}
 
 	void ArraySqrtInPlace(TArrayView<float> InValues)

@@ -409,7 +409,7 @@ namespace Audio
 			FAudioPluginSourceOutputData AudioPluginOutputData;
 
 			// A DSP object which tracks the amplitude envelope of a source.
-			Audio::FEnvelopeFollower SourceEnvelopeFollower;
+			Audio::FInlineEnvelopeFollower SourceEnvelopeFollower;
 			float SourceEnvelopeValue;
 
 			// Modulation destinations
