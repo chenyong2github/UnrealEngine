@@ -109,7 +109,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 bool FControlRigEditorEditMode::GetCameraTarget(FSphere& OutTarget) const
 {
 	FBox Box(ForceInit);
-
+	TArray<FRigElementKey> SelectedRigElements = GetSelectedRigElements();
 	for (int32 Index = 0; Index < SelectedRigElements.Num(); ++Index)
 	{
 		static const float Radius = 20.f;
