@@ -410,7 +410,7 @@ namespace HordeServerTests
 			Assert.IsTrue(await TestSetup.JobCollection.TryAssignLeaseAsync(TestSetup.Fixture.Job1, 0, new PoolId("foo"),
 				new AgentId("test"), SessionId,
 				ObjectId.GenerateNewId(), ObjectId.GenerateNewId()));
-
+/*
 			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
 			Task<UploadArtifactResponse> Call = TestSetup.RpcService.UploadArtifact(RequestStream,  Context);
 			RequestStream.AddMessage(new UploadArtifactRequest { Metadata = Metadata });
@@ -421,9 +421,9 @@ namespace HordeServerTests
 			// Aborting the upload here and retry in next code section below.
 			RequestStream.Complete();
 			await Task.Delay(500);
-			
-			RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
-			Call = TestSetup.RpcService.UploadArtifact(RequestStream,  Context);
+*/			
+			TestAsyncStreamReader<UploadArtifactRequest> RequestStream = new TestAsyncStreamReader<UploadArtifactRequest>(Context);
+			Task<UploadArtifactResponse> Call = TestSetup.RpcService.UploadArtifact(RequestStream,  Context);
 			RequestStream.AddMessage(new UploadArtifactRequest { Metadata = Metadata });
 			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[0]) });
 			RequestStream.AddMessage(new UploadArtifactRequest { Data = ByteString.CopyFromUtf8(Data[1]) });
