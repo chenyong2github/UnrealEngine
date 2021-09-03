@@ -188,6 +188,9 @@ public:
 	/** Frame a list of provided items*/
    	void FrameItems(const TArray<FRigElementKey>& InItems);
 
+	/** Opens up the space picker widget */
+	void OpenSpacePickerWidget();
+
 private:
 	
 	/** Whether or not we should Frame Selection or not*/

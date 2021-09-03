@@ -55,7 +55,7 @@
 #include "ToolMenus.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
-
+#include "SRigSpacePickerWidget.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -1927,6 +1927,10 @@ void FControlRigEditMode::BindCommands()
 	CommandBindings->MapAction(
 		Commands.ToggleGizmoTransformEdit,
 		FExecuteAction::CreateRaw(this, &FControlRigEditMode::ToggleGizmoTransformEdit));
+
+	CommandBindings->MapAction(
+		Commands.OpenSpacePickerWidget,
+		FExecuteAction::CreateRaw(this, &FControlRigEditMode::OpenSpacePickerWidget));
 }
 
 bool FControlRigEditMode::IsControlSelected() const
@@ -2087,6 +2091,104 @@ void FControlRigEditMode::ToggleGizmoTransformEdit()
 	{
 		bIsChangingGizmoTransform = true;
 	}
+}
+
+void FControlRigEditMode::OpenSpacePickerWidget()
+{
+	UControlRig* RuntimeRig = GetControlRig(false);
+	if (RuntimeRig == nullptr)
+	{
+		return;
+	}
+
+	URigHierarchy* Hierarchy = RuntimeRig->GetHierarchy();
+	TArray<FRigElementKey> SelectedControls = Hierarchy->GetSelectedKeys(ERigElementType::Control);
+
+	TSharedRef<SRigSpacePickerWidget> PickerWidget =
+	SNew(SRigSpacePickerWidget)
+	.Hierarchy(Hierarchy)
+	.Controls(SelectedControls)
+	.Title(LOCTEXT("PickSpace", "Pick Space"))
+	.AllowDelete(!IsInLevelEditor())
+	.AllowReorder(!IsInLevelEditor())
+	.AllowAdd(!IsInLevelEditor())
+	.GetControlCustomization_Lambda([this, RuntimeRig](URigHierarchy*, const FRigElementKey& InControlKey)
+	{
+		return RuntimeRig->GetControlCustomization(InControlKey);
+	})
+	.OnActiveSpaceChanged_Lambda([this, SelectedControls](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey)
+	{
+		check(SelectedControls.Contains(InControlKey));
+		
+		const FTransform Transform = InHierarchy->GetGlobalTransform(InControlKey);
+		InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
+		InHierarchy->SetGlobalTransform(InControlKey, Transform);
+		
+	})
+	.OnSpaceListChanged_Lambda([this, SelectedControls, RuntimeRig](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList)
+	{
+		check(SelectedControls.Contains(InControlKey));
+
+		// check if we are in the control rig editor or in the level
+		if(!IsInLevelEditor())
+		{
+			if (UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(RuntimeRig->GetClass()->ClassGeneratedBy))
+			{
+				if(URigHierarchy* Hierarchy = Blueprint->Hierarchy)
+				{
+					// update the settings in the control element
+					if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(InControlKey))
+					{
+						Blueprint->Modify();
+						FScopedTransaction Transaction(LOCTEXT("ControlChangeAvailableSpaces", "Edit Available Spaces"));
+
+						ControlElement->Settings.Customization.AvailableSpaces = InSpaceList;
+						Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+					}
+
+					// also update the debugged instance
+					if(Hierarchy != InHierarchy)
+					{
+						if(FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+						{
+							ControlElement->Settings.Customization.AvailableSpaces = InSpaceList;
+							InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			// update the settings in the control element
+			if(FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
+			{
+				FScopedTransaction Transaction(LOCTEXT("ControlChangeAvailableSpaces", "Edit Available Spaces"));
+
+				InHierarchy->Modify();
+
+				FRigControlElementCustomization ControlCustomization = *RuntimeRig->GetControlCustomization(InControlKey);	
+				ControlCustomization.AvailableSpaces = InSpaceList;
+				ControlCustomization.RemovedSpaces.Reset();
+
+				// remember  the elements which are in the asset's available list but removed by the user
+				for(const FRigElementKey& AvailableSpace : ControlElement->Settings.Customization.AvailableSpaces)
+				{
+					if(!ControlCustomization.AvailableSpaces.Contains(AvailableSpace))
+					{
+						ControlCustomization.RemovedSpaces.Add(AvailableSpace);
+					}
+				}
+
+				RuntimeRig->SetControlCustomization(InControlKey, ControlCustomization);
+				InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
+			}
+		}
+
+	});
+	// todo: implement GetAdditionalSpacesDelegate to pull spaces from sequencer
+
+	PickerWidget->OpenDialog(false);
 }
 
 FText FControlRigEditMode::GetToggleGizmoTransformEditHotKey() const

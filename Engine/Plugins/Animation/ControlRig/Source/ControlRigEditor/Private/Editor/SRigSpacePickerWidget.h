@@ -9,6 +9,8 @@
 #include "Widgets/Layout/SBox.h"
 #include "Rigs/RigSpaceHierarchy.h"
 
+DECLARE_DELEGATE_RetVal_TwoParams(FRigElementKey, FRigSpacePickerGetActiveSpace, URigHierarchy*, const FRigElementKey&);
+DECLARE_DELEGATE_RetVal_TwoParams(const FRigControlElementCustomization*, FRigSpacePickerGetControlCustomization, URigHierarchy*, const FRigElementKey&);
 DECLARE_EVENT_ThreeParams(SRigSpacePickerWidget, FRigSpacePickerActiveSpaceChanged, URigHierarchy*, const FRigElementKey&, const FRigElementKey&);
 DECLARE_EVENT_ThreeParams(SRigSpacePickerWidget, FRigSpacePickerSpaceListChanged, URigHierarchy*, const FRigElementKey&, const TArray<FRigElementKey>&);
 DECLARE_DELEGATE_RetVal_TwoParams(TArray<FRigElementKey>, FRigSpacePickerGetAdditionalSpaces, URigHierarchy*, const FRigElementKey&);
@@ -20,8 +22,7 @@ public:
 
 	SLATE_BEGIN_ARGS(SRigSpacePickerWidget)
 		: _Hierarchy(nullptr)
-		, _Control()
-		, _Customization(nullptr)
+		, _Controls()
 		, _ShowDefaultSpaces(true)
 		, _ShowFavoriteSpaces(true)
 		, _ShowAdditionalSpaces(true)
@@ -33,8 +34,7 @@ public:
 		, _BackgroundBrush(FEditorStyle::GetBrush("Menu.Background"))
 		{}
 		SLATE_ARGUMENT(URigHierarchy*, Hierarchy)
-		SLATE_ARGUMENT(FRigElementKey, Control)
-		SLATE_ARGUMENT(FRigControlElementCustomization*, Customization)
+		SLATE_ARGUMENT(TArray<FRigElementKey>, Controls)
 		SLATE_ARGUMENT(bool, ShowDefaultSpaces)
 		SLATE_ARGUMENT(bool, ShowFavoriteSpaces)
 		SLATE_ARGUMENT(bool, ShowAdditionalSpaces)
@@ -44,14 +44,19 @@ public:
 		SLATE_ARGUMENT(bool, ShowBakeButton)
 		SLATE_ARGUMENT(FText, Title)
 		SLATE_ARGUMENT(const FSlateBrush*, BackgroundBrush)
-		SLATE_ARGUMENT(FRigSpacePickerGetAdditionalSpaces, GetAdditionalSpacesDelegate)
+	
+		SLATE_EVENT(FRigSpacePickerGetActiveSpace, GetActiveSpace)
+		SLATE_EVENT(FRigSpacePickerGetControlCustomization, GetControlCustomization)
+		SLATE_EVENT(FRigSpacePickerActiveSpaceChanged::FDelegate, OnActiveSpaceChanged)
+		SLATE_EVENT(FRigSpacePickerSpaceListChanged::FDelegate, OnSpaceListChanged)
+		SLATE_ARGUMENT(FRigSpacePickerGetAdditionalSpaces, GetAdditionalSpaces)
 		SLATE_EVENT( FOnClicked, OnBakeButtonClicked )
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 	virtual ~SRigSpacePickerWidget() override;
 
-	void SetControl(URigHierarchy* InHierarchy, const FRigElementKey& InControl, FRigControlElementCustomization* InCustomization = nullptr);
+	void SetControls(URigHierarchy* InHierarchy, const TArray<FRigElementKey>& InControls);
 
 	FReply OpenDialog(bool bModal = true);
 	void CloseDialog();
@@ -60,7 +65,7 @@ public:
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	const FRigElementKey& GetActiveSpace() const;
+	const TArray<FRigElementKey>& GetActiveSpaces() const;
 	TArray<FRigElementKey> GetDefaultSpaces() const;
 	TArray<FRigElementKey> GetSpaceList(bool bIncludeDefaultSpaces = false) const;
 	FRigSpacePickerActiveSpaceChanged& OnActiveSpaceChanged() { return ActiveSpaceChangedEvent; }
@@ -85,7 +90,7 @@ private:
 
 	void RepopulateItemSpaces();
 	void ClearListBox(TSharedPtr<SVerticalBox> InListBox);
-	void UpdateActiveSpace();
+	void UpdateActiveSpaces();
 	bool IsValidKey(const FRigElementKey& InKey) const;
 	bool IsDefaultSpace(const FRigElementKey& InKey) const;
 
@@ -103,19 +108,18 @@ private:
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
 	FSlateColor GetButtonColor(ESpacePickerType InType, FRigElementKey InKey) const;
-	TArray<FRigElementKey> GetCurrentParents(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey) const;
+	FRigElementKey GetActiveSpace_Private(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey) const;
+	TArray<FRigElementKey> GetCurrentParents_Private(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey) const;
 	
 	FRigSpacePickerActiveSpaceChanged ActiveSpaceChangedEvent;
 	FRigSpacePickerSpaceListChanged SpaceListChangedEvent;
 
 	URigHierarchy* Hierarchy;
-	FRigElementKey ControlKey;
-	FRigElementKey DefaultParentKey;
-	FRigElementKey WorldSocketKey;
+	TArray<FRigElementKey> ControlKeys;
 	TArray<FRigElementKey> CurrentSpaceKeys;
+	TArray<FRigElementKey> ActiveSpaceKeys;
 	bool bRepopulateRequired;
 
-	FRigControlElementCustomization* Customization;
 	bool bShowDefaultSpaces;
 	bool bShowFavoriteSpaces;
 	bool bShowAdditionalSpaces;
@@ -125,6 +129,8 @@ private:
 	bool bShowBakeButton;
 	bool bLaunchingContextMenu;
 
+	FRigSpacePickerGetControlCustomization GetControlCustomizationDelegate;
+	FRigSpacePickerGetActiveSpace GetActiveSpaceDelegate;
 	FRigSpacePickerGetAdditionalSpaces GetAdditionalSpacesDelegate; 
 	TArray<FRigElementKey> AdditionalSpaces;
 
@@ -133,7 +139,6 @@ private:
 	TSharedPtr<SHorizontalBox> BottomButtonsListBox;
 	TWeakPtr<SWindow> DialogWindow;
 	TWeakPtr<IMenu> ContextMenu;
-	FRigElementKey ActiveSpace;
 	FDelegateHandle HierarchyModifiedHandle;
 	FDelegateHandle ActiveSpaceChangedWindowHandle;
 

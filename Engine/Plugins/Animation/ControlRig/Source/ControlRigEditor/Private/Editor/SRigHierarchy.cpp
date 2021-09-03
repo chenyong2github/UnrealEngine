@@ -2210,72 +2210,10 @@ bool SRigHierarchy::FindClosestBone(const FVector& Point, FName& OutRigElementNa
 
 void SRigHierarchy::HandleTestSpaceSwitching()
 {
-	for(const FRigElementKey& ControlKey : GetSelectedKeys())
+	if (FControlRigEditorEditMode* EditMode = ControlRigEditor.Pin()->GetEditMode())
 	{
-		if(ControlKey.Type == ERigElementType::Control)
-		{
-			TSharedRef<SRigSpacePickerWidget> PickerWidget =
-				SNew(SRigSpacePickerWidget)
-				.Hierarchy(GetDebuggedHierarchy())
-				.Control(ControlKey)
-				.AllowDelete(true)
-				.AllowReorder(true)
-				.AllowAdd(true)
-				.Title(LOCTEXT("PickSpace", "Pick Space"));
-
-			PickerWidget->OnActiveSpaceChanged().AddLambda([this, ControlKey](URigHierarchy*, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey)
-			{
-				check(ControlKey == InControlKey);
-				
-				if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
-				{
-					const FTransform Transform = Hierarchy->GetGlobalTransform(ControlKey);
-					if(InSpaceKey == Hierarchy->GetWorldSpaceSocketKey())
-					{
-						Hierarchy->SwitchToWorldSpace(ControlKey);
-					}
-					else
-					{
-						Hierarchy->SwitchToParent(ControlKey, InSpaceKey);
-					}
-					Hierarchy->SetGlobalTransform(ControlKey, Transform);
-				}
-			});
-
-			PickerWidget->OnSpaceListChanged().AddLambda([this, ControlKey](URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList)
-			{
-				check(ControlKey == InControlKey);
-
-				if(UControlRigBlueprint* RigBlueprint = ControlRigBlueprint.Get())
-				{
-					if(URigHierarchy* Hierarchy = RigBlueprint->Hierarchy)
-					{
-						// update the settings in the control element
-						if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(ControlKey))
-						{
-							RigBlueprint->Modify();
-							FScopedTransaction Transaction(LOCTEXT("ControlChangeAvailableSpaces", "Edit Available Spaces"));
-
-							ControlElement->Settings.Customization.AvailableSpaces = InSpaceList;
-							Hierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-						}
-
-						// also update the debugged instance
-						if(Hierarchy != InHierarchy)
-						{
-							if(FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(ControlKey))
-							{
-								ControlElement->Settings.Customization.AvailableSpaces = InSpaceList;
-								InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
-							}
-						}
-					}
-				}
-			});
-
-			PickerWidget->OpenDialog(false);
-			break;
-		}
+		/// toooo centralize code here
+		EditMode->OpenSpacePickerWidget();
 	}
 }
 
