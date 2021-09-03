@@ -26,7 +26,6 @@ bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOpe
 	return bResult;
 }
 
-#if WITH_EDITOR
 bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& OutTensorManager, const FGraphProto& InGraphProto,
 	const FString& InModelPath)
 {
@@ -124,7 +123,6 @@ bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOpe
 	}
 	return bWasSuccessful;
 }
-#endif //WITH_EDITOR
 
 
 
@@ -159,7 +157,6 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			// FNeuralTensor was never modified, so it must come from a weight tensor (regardless of whether it is also an absolute output of the network)
 			else
 			{
-#if WITH_EDITOR
 				const FTensorProto& TensorProto = *FModelProto::FindElementInArray(InputTensorName, InGraphProto.Initializer, /*bMustValueBeFound*/true);
 				// Is it also an absolute output of the network?
 				const int64 TensorIndex = InOutTensors.Num();
@@ -185,10 +182,6 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				// Update InOutNameIndexMap and OperatorInputTensors
 				InOutNameIndexMap.Add(InputTensorName, TensorIndex);
 				OperatorInputTensors.Push(&NewTensor);
-#else
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(): This code should never be called in non-Editor mode."));
-				return false;
-#endif //WITH_EDITOR
 			}
 		}
 		// Nodes that can be replaced for inlined functions and do not need to be executed

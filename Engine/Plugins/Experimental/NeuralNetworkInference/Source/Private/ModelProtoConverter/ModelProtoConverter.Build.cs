@@ -7,9 +7,10 @@ public class ModelProtoConverter : ModuleRules
 {
 	public ModelProtoConverter( ReadOnlyTargetRules Target ) : base( Target )
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		// Define when ModelProtoConverter is available
+		bool bIsModelProtoConverterSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac);
 
-		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
+		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PublicIncludePaths.AddRange(
 			new string[] {
@@ -17,20 +18,31 @@ public class ModelProtoConverter : ModuleRules
 			}
 		);
 
+		PrivateIncludePaths.Add(Path.Combine(ModuleDirectory, "Generated"));
+
 		PublicDependencyModuleNames.AddRange
 			(
 			new string[] {
 				"Core",
 				"ModelProto"
 			}
-        );
+		);
 
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
-				"Protobuf",
-                "ThirdPartyHelperAndDLLLoader"
-            }
+				"ThirdPartyHelperAndDLLLoader"
+			}
 		);
+
+		if (bIsModelProtoConverterSupported)
+		{
+			PrivateDependencyModuleNames.AddRange
+				(
+				new string[] {
+					"Protobuf"
+				}
+			);
+		}
 	}
 }

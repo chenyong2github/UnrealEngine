@@ -1,3 +1,5 @@
+#if WITH_EDITOR
+
 //-V::568,590
 #ifdef WITH_PROTOBUF
 #include "CoreMinimal.h"

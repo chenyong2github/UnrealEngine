@@ -39,6 +39,7 @@ public class NeuralNetworkInference : ModuleRules
 			(
 			new string[] {
 				// Backend-related
+				"ModelProtoFileReader",
 				"NeuralNetworkInferenceShaders",
 				"RenderCore",
 				"RHI",
@@ -48,17 +49,6 @@ public class NeuralNetworkInference : ModuleRules
 				"ThirdPartyHelperAndDLLLoader"
 			}
 		);
-
-		// Editor-only
-		if (Target.bBuildEditor)
-		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"ModelProtoFileReader"
-				}
-			);
-		}
 
 		if (bIsORTSupported)
 		{
