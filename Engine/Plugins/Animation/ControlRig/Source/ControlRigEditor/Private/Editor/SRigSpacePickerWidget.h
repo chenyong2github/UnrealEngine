@@ -8,15 +8,44 @@
 #include "SRigHierarchy.h"
 #include "Widgets/Layout/SBox.h"
 #include "Rigs/RigSpaceHierarchy.h"
+#include "IStructureDetailsView.h"
+#include "SRigSpacePickerWidget.generated.h"
+
+USTRUCT()
+struct CONTROLRIGEDITOR_API FRigSpacePickerBakeSettings
+{
+	GENERATED_BODY();
+
+	FRigSpacePickerBakeSettings()
+	{
+		TargetSpace = FRigElementKey();
+		StartFrame = 1.f;
+		EndFrame = 100.f;
+		bKeyEveryFrame = true;
+	}
+
+	UPROPERTY()
+	FRigElementKey TargetSpace;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float StartFrame;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float EndFrame;
+
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	bool bKeyEveryFrame;
+};
 
 DECLARE_DELEGATE_RetVal_TwoParams(FRigElementKey, FRigSpacePickerGetActiveSpace, URigHierarchy*, const FRigElementKey&);
 DECLARE_DELEGATE_RetVal_TwoParams(const FRigControlElementCustomization*, FRigSpacePickerGetControlCustomization, URigHierarchy*, const FRigElementKey&);
 DECLARE_EVENT_ThreeParams(SRigSpacePickerWidget, FRigSpacePickerActiveSpaceChanged, URigHierarchy*, const FRigElementKey&, const FRigElementKey&);
 DECLARE_EVENT_ThreeParams(SRigSpacePickerWidget, FRigSpacePickerSpaceListChanged, URigHierarchy*, const FRigElementKey&, const TArray<FRigElementKey>&);
 DECLARE_DELEGATE_RetVal_TwoParams(TArray<FRigElementKey>, FRigSpacePickerGetAdditionalSpaces, URigHierarchy*, const FRigElementKey&);
+DECLARE_DELEGATE_RetVal_ThreeParams(FReply, SRigSpacePickerOnBake, URigHierarchy*, TArray<FRigElementKey> /* Controls */, FRigSpacePickerBakeSettings);
 
 /** Widget allowing picking of a space source for space switching */
-class SRigSpacePickerWidget : public SCompoundWidget
+class CONTROLRIGEDITOR_API SRigSpacePickerWidget : public SCompoundWidget
 {
 public:
 
@@ -65,12 +94,16 @@ public:
 	virtual bool SupportsKeyboardFocus() const override;
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
+	URigHierarchy* GetHierarchy() const { return Hierarchy; }
+	const URigHierarchy* GetHierarchyConst() const { return Hierarchy; }
+	const TArray<FRigElementKey>& GetControls() const { return ControlKeys; }
 	const TArray<FRigElementKey>& GetActiveSpaces() const;
 	TArray<FRigElementKey> GetDefaultSpaces() const;
 	TArray<FRigElementKey> GetSpaceList(bool bIncludeDefaultSpaces = false) const;
 	FRigSpacePickerActiveSpaceChanged& OnActiveSpaceChanged() { return ActiveSpaceChangedEvent; }
 	FRigSpacePickerSpaceListChanged& OnSpaceListChanged() { return SpaceListChangedEvent; }
-
+	void RefreshContents();
+	
 private:
 
 	enum ESpacePickerType
@@ -103,7 +136,6 @@ private:
 	FReply HandleAddElementClicked();
 	bool IsSpaceMoveUpEnabled(FRigElementKey InKey) const;
 	bool IsSpaceMoveDownEnabled(FRigElementKey InKey) const;
-	const URigHierarchy* GetHierarchy() const { return Hierarchy; }
 
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 
@@ -143,4 +175,37 @@ private:
 	FDelegateHandle ActiveSpaceChangedWindowHandle;
 
 	static FRigElementKey InValidKey;
+};
+
+/** Widget allowing baking controls from one space to another */
+class CONTROLRIGEDITOR_API SRigSpacePickerBakeWidget : public SCompoundWidget
+{
+public:
+
+	SLATE_BEGIN_ARGS(SRigSpacePickerBakeWidget)
+	: _Hierarchy(nullptr)
+	, _Controls()
+	{}
+	SLATE_ARGUMENT(URigHierarchy*, Hierarchy)
+	SLATE_ARGUMENT(TArray<FRigElementKey>, Controls)
+	SLATE_EVENT(FRigSpacePickerGetControlCustomization, GetControlCustomization)
+	SLATE_ARGUMENT(FRigSpacePickerBakeSettings, Settings)
+	SLATE_EVENT(SRigSpacePickerOnBake, OnBake)
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs);
+	virtual ~SRigSpacePickerBakeWidget() override {}
+
+	FReply OpenDialog(bool bModal = true);
+	void CloseDialog();
+
+private:
+
+	FRigSpacePickerBakeSettings Settings;
+	FRigControlElementCustomization Customization;
+	
+	TWeakPtr<SWindow> DialogWindow;
+	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
+	TSharedPtr<IStructureDetailsView> DetailsView;
 };

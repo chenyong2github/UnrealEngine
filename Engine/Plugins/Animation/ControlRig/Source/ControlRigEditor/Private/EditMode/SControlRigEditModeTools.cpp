@@ -325,6 +325,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 					.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
 					.OnActiveSpaceChanged(this, &SControlRigEditModeTools::HandleActiveSpaceChanged)
 					.OnSpaceListChanged(this, &SControlRigEditModeTools::HandleSpaceListChanged)
+					.OnBakeButtonClicked(this, &SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked)
 					// todo: implement GetAdditionalSpacesDelegate to pull spaces from sequencer
 				]
 			]
@@ -333,7 +334,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 			.AutoHeight()
 			[
 				SAssignNew(RigOptionExpander, SExpandableArea)
-				.InitiallyCollapsed(true)
+				.InitiallyCollapsed(false)
 				.Visibility(this, &SControlRigEditModeTools::GetRigOptionExpanderVisibility)
 				.AreaTitle(LOCTEXT("RigOption_Header", "Rig Options"))
 				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
@@ -649,6 +650,37 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 			InHierarchy->Notify(ERigHierarchyNotification::ControlSettingChanged, ControlElement);
 		}
 	}
+}
+
+FReply SControlRigEditModeTools::OnBakeControlsToNewSpaceButtonClicked()
+{
+	if(SpacePickerWidget->GetHierarchy() == nullptr)
+	{
+		return FReply::Unhandled();
+	}
+	if(SpacePickerWidget->GetControls().Num() == 0)
+	{
+		return FReply::Unhandled();
+	}
+
+	FRigSpacePickerBakeSettings Settings;
+	// todoo pick the default target space... parent?
+	Settings.TargetSpace = URigHierarchy::GetDefaultParentSocketKey();
+	// todoooo determine the range
+
+	TSharedRef<SRigSpacePickerBakeWidget> BakeWidget =
+		SNew(SRigSpacePickerBakeWidget)
+		.Settings(Settings)
+		.Hierarchy(SpacePickerWidget->GetHierarchy())
+		.Controls(SpacePickerWidget->GetControls())
+		.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
+		.OnBake_Lambda([](URigHierarchy* InHierarchy, TArray<FRigElementKey> InControls, FRigSpacePickerBakeSettings InSettings)
+		{
+			// todoo react to the bake
+			return FReply::Handled();
+		});
+
+	return BakeWidget->OpenDialog(true);
 }
 
 EVisibility SControlRigEditModeTools::GetRigOptionExpanderVisibility() const

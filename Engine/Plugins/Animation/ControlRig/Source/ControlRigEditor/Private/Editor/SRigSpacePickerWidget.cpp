@@ -357,6 +357,12 @@ TArray<FRigElementKey> SRigSpacePickerWidget::GetSpaceList(bool bIncludeDefaultS
 	return CurrentSpaceKeys;
 }
 
+void SRigSpacePickerWidget::RefreshContents()
+{
+	UpdateActiveSpaces();
+	RepopulateItemSpaces();
+}
+
 void SRigSpacePickerWidget::AddSpacePickerRow(
 	TSharedPtr<SVerticalBox> InListBox,
 	ESpacePickerType InType,
@@ -578,7 +584,7 @@ void SRigSpacePickerWidget::HandleSpaceDelete(FRigElementKey InKey)
 FReply SRigSpacePickerWidget::HandleAddElementClicked()
 {
 	FRigTreeDelegates TreeDelegates;
-	TreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SRigSpacePickerWidget::GetHierarchy);
+	TreeDelegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SRigSpacePickerWidget::GetHierarchyConst);
 	TreeDelegates.OnMouseButtonClick = FOnRigTreeMouseButtonClick::CreateLambda([this](TSharedPtr<FRigTreeElement> InItem)
 	{
 		if(InItem.IsValid())
@@ -927,26 +933,10 @@ void SRigSpacePickerWidget::UpdateActiveSpaces()
 	for(int32 ControlIndex=0;ControlIndex<ControlKeys.Num();ControlIndex++)
 	{
 		ActiveSpaceKeys.Add(URigHierarchy::GetDefaultParentSocketKey());
-		
-		const FRigElementKey& ControlKey = ControlKeys[ControlIndex];
-		const TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(ControlKey);
-		if(ParentWeights.Num() > 0)
-		{
-			const TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(ControlKey);
-			check(ParentKeys.Num() == ParentWeights.Num());
-			for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
-			{
-				if(ParentWeights[ParentIndex].IsAlmostZero())
-				{
-					continue;
-				}
 
-				if(ParentIndex > 0 || IsDefaultSpace(ParentKeys[ParentIndex]))
-				{
-					ActiveSpaceKeys[ControlIndex] = ParentKeys[ParentIndex];
-				}
-				break;
-			}
+		if(GetActiveSpaceDelegate.IsBound())
+		{
+			ActiveSpaceKeys[ControlIndex] = GetActiveSpaceDelegate.Execute(Hierarchy, ControlKeys[ControlIndex]);
 		}
 	}
 }
@@ -971,6 +961,181 @@ bool SRigSpacePickerWidget::IsDefaultSpace(const FRigElementKey& InKey) const
 		return InKey == URigHierarchy::GetDefaultParentSocketKey() || InKey == URigHierarchy::GetWorldSpaceSocketKey();
 	}
 	return false;
+}
+
+//////////////////////////////////////////////////////////////
+/// SRigSpacePickerBakeWidget
+///////////////////////////////////////////////////////////
+
+void SRigSpacePickerBakeWidget::Construct(const FArguments& InArgs)
+{
+	check(InArgs._Hierarchy);
+	check(InArgs._Controls.Num() > 0);
+	check(InArgs._OnBake.IsBound());
+	
+	Settings = InArgs._Settings;
+
+	FStructureDetailsViewArgs StructureViewArgs;
+	StructureViewArgs.bShowObjects = true;
+	StructureViewArgs.bShowAssets = true;
+	StructureViewArgs.bShowClasses = true;
+	StructureViewArgs.bShowInterfaces = true;
+
+	FDetailsViewArgs ViewArgs;
+	ViewArgs.bAllowSearch = false;
+	ViewArgs.bHideSelectionTip = false;
+	ViewArgs.bShowObjectLabel = false;
+
+	TSharedPtr<FStructOnScope> StructToDisplay = MakeShareable(new FStructOnScope(FRigSpacePickerBakeSettings::StaticStruct(), (uint8*)&Settings));
+	FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	DetailsView = EditModule.CreateStructureDetailView(ViewArgs, StructureViewArgs, StructToDisplay, LOCTEXT("Struct", "Struct View"));
+
+	ChildSlot
+	[
+		SNew(SBorder)
+		.Visibility(EVisibility::Visible)
+		[
+			SNew(SVerticalBox)
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(SpacePickerWidget, SRigSpacePickerWidget)
+				.Hierarchy(InArgs._Hierarchy)
+				.Controls(InArgs._Controls)
+				.AllowDelete(false)
+				.AllowReorder(false)
+				.AllowAdd(true)
+				.ShowBakeButton(false)
+				.GetControlCustomization_Lambda([this] (URigHierarchy*, const FRigElementKey)
+				{
+					return &Customization;
+				})
+				.OnSpaceListChanged_Lambda([this](URigHierarchy*, const FRigElementKey&, const TArray<FRigElementKey>& InSpaceList)
+				{
+					if(Customization.AvailableSpaces != InSpaceList)
+					{
+						Customization.AvailableSpaces = InSpaceList;
+						SpacePickerWidget->RefreshContents();
+					}
+				})
+				.GetActiveSpace_Lambda([this](URigHierarchy*, const FRigElementKey&)
+				{
+					return Settings.TargetSpace;
+				})
+				.OnActiveSpaceChanged_Lambda([this] (URigHierarchy*, const FRigElementKey&, const FRigElementKey InSpaceKey)
+				{
+					if(Settings.TargetSpace != InSpaceKey)
+					{
+						Settings.TargetSpace = InSpaceKey;	
+						SpacePickerWidget->RefreshContents();
+					}
+				})
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.f, 8.f, 0.f, 0.f)
+			[
+				DetailsView->GetWidget().ToSharedRef()
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(0.f, 16.f, 0.f, 0.f)
+			[
+				SNew(SHorizontalBox)
+
+				+SHorizontalBox::Slot()
+				.FillWidth(1.f)
+				[
+					SNew(SSpacer)
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(8.f, 0.f, 0.f, 0.f)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("OK", "OK"))
+					.OnClicked_Lambda([this, InArgs]()
+					{
+						return InArgs._OnBake.Execute(SpacePickerWidget->GetHierarchy(), SpacePickerWidget->GetControls(), Settings);
+					})
+					.IsEnabled_Lambda([this]()
+					{
+						return Settings.TargetSpace.IsValid();
+					})
+				]
+
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Center)
+				.Padding(8.f, 0.f, 16.f, 0.f)
+				[
+					SNew(SButton)
+					.HAlign(HAlign_Center)
+					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					.Text(LOCTEXT("Cancel", "Cancel"))
+					.OnClicked_Lambda([this]()
+					{
+						CloseDialog();
+						return FReply::Handled();
+					})
+				]
+			]
+		]
+	];
+}
+
+FReply SRigSpacePickerBakeWidget::OpenDialog(bool bModal)
+{
+	check(!DialogWindow.IsValid());
+		
+	const FVector2D CursorPos = FSlateApplication::Get().GetCursorPos();
+
+	TSharedRef<SRigSpaceDialogWindow> Window = SNew(SRigSpaceDialogWindow)
+	.Title( LOCTEXT("SRigSpacePickerBakeWidgetTitle", "Bake Controls to new space") )
+	.CreateTitleBar(true)
+	.Type(EWindowType::Normal)
+	.SizingRule( ESizingRule::Autosized )
+	.ScreenPosition(CursorPos)
+	.FocusWhenFirstShown(true)
+	.ActivationPolicy(EWindowActivationPolicy::FirstShown)
+	[
+		AsShared()
+	];
+	
+	Window->SetWidgetToFocusOnActivate(AsShared());
+	
+	DialogWindow = Window;
+
+	Window->MoveWindowTo(CursorPos);
+
+	if(bModal)
+	{
+		GEditor->EditorAddModalWindow(Window);
+	}
+	else
+	{
+		FSlateApplication::Get().AddWindow( Window );
+	}
+
+	return FReply::Handled();
+}
+
+void SRigSpacePickerBakeWidget::CloseDialog()
+{
+	if ( DialogWindow.IsValid() )
+	{
+		DialogWindow.Pin()->RequestDestroyWindow();
+		DialogWindow.Reset();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
