@@ -5,8 +5,10 @@
 #include "MeshProcessingNodes/MeshProcessingBaseNodes.h"
 #include "MeshProcessingNodes/MeshProcessingDataTypes.h"
 
+#include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
+#include "ProjectionTargets.h"
 
 
 namespace UE
@@ -27,7 +29,8 @@ enum class EMeshSimplifyTargetType
 {
 	TriangleCount = 0,
 	VertexCount = 1,
-	TrianglePercentage = 2
+	TrianglePercentage = 2,
+	GeometricDeviation = 3
 };
 
 struct FMeshSimplifySettings
@@ -39,6 +42,7 @@ struct FMeshSimplifySettings
 
 	int TargetCount = 100;
 	float TargetFraction = 0.5;
+	float GeometricTolerance = 0.5;
 
 	bool bDiscardAttributes = false;
 	bool bPreventNormalFlips = true;
@@ -128,6 +132,19 @@ public:
 		else if (Settings.TargetType == EMeshSimplifyTargetType::VertexCount)
 		{
 			Simplifier.SimplifyToVertexCount( FMath::Max(3, Settings.TargetCount) );
+		}
+		else if (Settings.TargetType == EMeshSimplifyTargetType::GeometricDeviation)
+		{
+			// need to create projection target to measure error
+			FDynamicMesh3 MeshCopy;
+			MeshCopy.Copy(*TargetMesh, false, false, false, false);
+			FDynamicMeshAABBTree3 MeshCopySpatial(&MeshCopy, true);
+			FMeshProjectionTarget ProjTarget(&MeshCopy, &MeshCopySpatial);
+			Simplifier.SetProjectionTarget(&ProjTarget);
+
+			Simplifier.GeometricErrorConstraint = SimplifierType::EGeometricErrorCriteria::PredictedPointToProjectionTarget;
+			Simplifier.GeometricErrorTolerance = Settings.GeometricTolerance;
+			Simplifier.SimplifyToVertexCount(3);
 		}
 		else
 		{

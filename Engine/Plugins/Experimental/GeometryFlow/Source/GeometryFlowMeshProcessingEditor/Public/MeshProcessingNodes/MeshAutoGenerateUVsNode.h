@@ -11,13 +11,38 @@ namespace GeometryFlow
 {
 
 
+enum class EAutoUVMethod : uint8
+{
+	PatchBuilder = 0,
+	UVAtlas = 1,
+	XAtlas = 2
+};
+
+
+
 struct GEOMETRYFLOWMESHPROCESSINGEDITOR_API FMeshAutoGenerateUVsSettings
 {
 	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypesEditor::MeshAutoGenerateUVsSettings);
 
-	double Stretch = 0.5;
-	int NumCharts = 0;
+	EAutoUVMethod Method = EAutoUVMethod::PatchBuilder;
 
+	// UVAtlas parameters
+	double UVAtlasStretch = 0.5;
+	int UVAtlasNumCharts = 0;
+
+	// XAtlas parameters
+	int XAtlasMaxIterations = 1;
+
+	// PatchBuilder parameters
+	int NumInitialPatches = 100;
+	double CurvatureAlignment = 1.0;
+	double MergingThreshold = 1.5;
+	double MaxAngleDeviationDeg = 45.0;
+	int SmoothingSteps = 5;
+	double SmoothingAlpha = 0.25;
+
+	bool bAutoPack = false;
+	int PackingTargetWidth = 512;
 };
 GEOMETRYFLOW_DECLARE_SETTINGS_TYPES(FMeshAutoGenerateUVsSettings, MeshAutoGenerateUVs);
 

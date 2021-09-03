@@ -50,16 +50,12 @@ protected:
 };
 
 
-/**
- * Standard properties
- */
+
 UCLASS()
-class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolProperties : public UInteractiveToolPropertySet
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolOutputProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
-
 public:
-
 	/** Whether to modify the static mesh in place or create a new one. */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
 	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::UpdateExistingAsset;
@@ -75,9 +71,36 @@ public:
 	/** If this is checked and the asset doesn't already have a HiRes source, the input mesh will be stored as the HiRes source */
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
 	bool bSaveInputAsHiResSource = true;
+};
+
+
+/**
+ * Standard properties
+ */
+UCLASS()
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcess_PreprocessSettings Preprocessing;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
-	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
+	FGenerateStaticMeshLODProcessSettings MeshGeneration;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcess_SimplifySettings Simplification;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcess_TextureSettings TextureBaking;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcess_UVSettings UVGeneration;
+
+	UPROPERTY(EditAnywhere, Category = Settings)
+	FGenerateStaticMeshLODProcess_CollisionSettings SimpleCollision;
+
 
 	// ------------
 	// Code copied from UPolygroupLayersProperties
@@ -151,6 +174,9 @@ public:
 protected:
 
 	friend class GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorFactory;
+
+	UPROPERTY()
+	UGenerateStaticMeshLODAssetToolOutputProperties* OutputProperties;
 
 	UPROPERTY()
 	UGenerateStaticMeshLODAssetToolProperties* BasicProperties;

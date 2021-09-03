@@ -107,8 +107,8 @@ protected:
 	UE::GeometryFlow::FGraph::FHandle AutoUVSettingsNode;
 	UE::GeometryFlow::FMeshAutoGenerateUVsSettings CurrentAutoUVSettings;
 
-	UE::GeometryFlow::FGraph::FHandle RecomputeUVNode;
-	UE::GeometryFlow::FGraph::FHandle RecomputeUVSettingsNode;
+	//UE::GeometryFlow::FGraph::FHandle RecomputeUVNode;
+	//UE::GeometryFlow::FGraph::FHandle RecomputeUVSettingsNode;
 
 	UE::GeometryFlow::FGraph::FHandle RepackUVNode;
 	UE::GeometryFlow::FGraph::FHandle RepackUVSettingsNode;
