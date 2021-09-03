@@ -7,7 +7,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "IRewindDebuggerView.h"
 #include "RewindDebuggerModule.h"
-#include "RewindDebuggerTimeSliderController.h"
 #include "SRewindDebuggerComponentTree.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -20,7 +19,7 @@ class SRewindDebugger : public SCompoundWidget
 	typedef TBindablePropertyInitializer<FString, BindingType_Out> DebugTargetInitializer;
 
 public:
-	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, float, bool )
+	DECLARE_DELEGATE_TwoParams( FOnScrubPositionChanged, double, bool )
 	DECLARE_DELEGATE_OneParam( FOnDebugTargetChanged, TSharedPtr<FString> )
 	DECLARE_DELEGATE_OneParam( FOnComponentDoubleClicked, TSharedPtr<FDebugObjectInfo> )
 	DECLARE_DELEGATE_OneParam( FOnComponentSelectionChanged, TSharedPtr<FDebugObjectInfo> )
@@ -31,7 +30,7 @@ public:
 		SLATE_ARGUMENT(DebugTargetInitializer, DebugTargetActor);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<double>, TraceTime);
 		SLATE_ARGUMENT(TBindablePropertyInitializer<float>, RecordingDuration);
-		SLATE_ATTRIBUTE(float, ScrubTime);
+		SLATE_ATTRIBUTE(double, ScrubTime);
 		SLATE_EVENT( FOnScrubPositionChanged, OnScrubPositionChanged);
 		SLATE_EVENT( FBuildComponentContextMenu, BuildComponentContextMenu );
 		SLATE_EVENT( FOnComponentDoubleClicked, OnComponentDoubleClicked );
@@ -59,13 +58,13 @@ public:
 	void TrackCursor(bool bReverse);
 	void RefreshDebugComponents();
 private:
-	TSharedPtr<FTimeSliderController> TimeSliderController;
-
-	TAttribute<float> ScrubTimeAttribute;
+	// Time Slider
+	TAttribute<double> ScrubTimeAttribute;
 	TAttribute<bool> TrackScrubbingAttribute;
 	FOnScrubPositionChanged OnScrubPositionChanged;
-	FBuildComponentContextMenu BuildComponentContextMenu;
-	FOnComponentSelectionChanged OnComponentSelectionChanged;
+	TRange<double> ViewRange;
+	TBindableProperty<double> TraceTime;
+	TBindableProperty<float> RecordingDuration;
 
 	// debug actor selector
 	TSharedRef<SWidget> MakeSelectActorMenu();
@@ -73,8 +72,6 @@ private:
 	FReply OnSelectActorClicked();
 
 	TBindableProperty<FString, BindingType_Out> DebugTargetActor;
-	TBindableProperty<double> TraceTime;
-	TBindableProperty<float> RecordingDuration;
 	TBindableProperty<float> DebugTargetAnimInstanceId;
 
 	void TraceTimeChanged(double Time);
@@ -86,6 +83,8 @@ private:
 	TArray<TSharedPtr<FDebugObjectInfo>>* DebugComponents;
 	TSharedPtr<FDebugObjectInfo> SelectedComponent;
     void ComponentSelectionChanged(TSharedPtr<FDebugObjectInfo> SelectedItem, ESelectInfo::Type SelectInfo);
+	FBuildComponentContextMenu BuildComponentContextMenu;
+	FOnComponentSelectionChanged OnComponentSelectionChanged;
 	
 	TSharedPtr<SRewindDebuggerComponentTree> ComponentTreeView;
 	TSharedPtr<SWidget> OnContextMenuOpening();
