@@ -2,14 +2,11 @@
 
 #include "NeuralNetworkImplBackEndUEOnly.h"
 #include "GraphProtoToNeuralNetworkConverter.h"
+#include "ModelProtoFileReader.h"
 #include "NeuralNetworkInferenceUtils.h"
 #include "RenderGraphBuilder.h"
 #include "RenderingThread.h"
 #include "RHI.h"
-
-#if WITH_EDITOR
-#include "ModelProtoFileReader.h"
-#endif //WITH_EDITOR
 
 
 
@@ -18,7 +15,6 @@
 
 bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const FString& InModelFilePath)
 {
-#if WITH_EDITOR
 	// Initialize InOutImplBackEndUEOnly
 	if (!InOutImplBackEndUEOnly.IsValid())
 	{
@@ -42,11 +38,6 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 	}
 	// Load successful
 	return true;
-
-#else //WITH_EDITOR
-	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): Only implemented for Editor mode."));
-	return false;
-#endif //WITH_EDITOR
 }
 
 //bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, FNeuralTensorManager& InTensorManager, const TArray<TSharedPtr<FNeuralOperator>>& InOperators)

@@ -18,12 +18,10 @@ public:
 	 *
 	 * 2 alternatives:
 	 * Without InModelPath, InOutTensorManager is assumed to be a const input variable (assuming the tensors are all already loaded, e.g., on de-serialization).
-	 * With InModelPath (Editor-only function), InOutTensorManager is assumed to be an output variable that will be filled based on InModelPath.
+	 * With InModelPath, InOutTensorManager is assumed to be an output variable that will be filled based on InModelPath.
 	 */
 	static bool Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& InTensorManager, const FGraphProto& InGraphProto);
-#if WITH_EDITOR
 	static bool Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& OutTensorManager, const FGraphProto& InGraphProto, const FString& InModelPath);
-#endif //WITH_EDITOR
 
 private:
 	/**

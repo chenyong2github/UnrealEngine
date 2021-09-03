@@ -7,6 +7,8 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
+#if WITH_EDITOR
+
 //-V::568,590
 #ifdef WITH_PROTOBUF
 #include "CoreMinimal.h"
@@ -6624,4 +6626,6 @@ PROTOBUF_NAMESPACE_CLOSE
 #include <google/protobuf/port_undef.inc>
 
 NNI_THIRD_PARTY_INCLUDES_END
-#endif
+#endif //WITH_PROTOBUF
+
+#endif //WITH_EDITOR

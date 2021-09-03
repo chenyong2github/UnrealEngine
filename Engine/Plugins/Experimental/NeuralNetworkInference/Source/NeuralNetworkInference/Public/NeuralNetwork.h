@@ -23,7 +23,6 @@ enum class ENeuralNetworkSynchronousMode : uint8
  *
  * See the following examples to learn how to read any ONNX model and run inference (i.e., a forward pass) on it.
  * 1. Constructing a UNeuralNetwork from an ONNX file (Editor-only):
- *	#if WITH_EDITOR
  *		// Create the UNeuralNetwork object
  *		UNeuralNetwork* Network = NewObject<UNeuralNetwork>((UObject*)GetTransientPackage(), UNeuralNetwork::StaticClass());
  *		// Try to load the network and set the device (CPU/GPU)
@@ -32,7 +31,6 @@ enum class ENeuralNetworkSynchronousMode : uint8
  *		{
  *			Network->SetDeviceType(ENeuralDeviceType::CPU); // Set to CPU/GPU mode
  *		}
- *	#endif
  *
  * 2. Loading a UNeuralNetwork from a previously-created UAsset (in Editor or in Game):
  *		// Create and load the UNeuralNetwork object from a UAsset

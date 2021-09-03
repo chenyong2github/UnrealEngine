@@ -131,11 +131,7 @@ bool UNeuralNetwork::Load()
 	// UEOnly
 	else if (BackEndForCurrentPlatform == ENeuralBackEnd::UEOnly)
 	{
-#if WITH_EDITOR
 		bIsLoaded = UNeuralNetwork::FImplBackEndUEOnly::Load(ImplBackEndUEOnly, /*ModelReadFromFileInBytes*/ ModelFullFilePath);
-#else //WITH_EDITOR
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load(const FString& InModelFilePath) only supported in Editor (WITH_EDITOR) for ENeuralBackEnd::UEOnly."));
-#endif //WITH_EDITOR
 	}
 	// Unknown
 	else

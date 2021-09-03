@@ -3,22 +3,23 @@
 #include "ModelProtoConverter.h"
 #include "ModelProtoConverterUtils.h"
 
+#if WITH_EDITOR // @todo: Workaround to avoid linking error when compiled in-game with UEAndORT back end, Build.cs file also modified
+
 // Protobuf includes
 #ifdef WITH_PROTOBUF
 #include "ThirdPartyWarningDisabler.h"
 NNI_THIRD_PARTY_INCLUDES_START
 #undef TEXT
 #undef check
-#include "onnx.proto3.pb.h"
+#include "onnx.proto3.pb.h" // From this module, but it causes conflicts when cooking the game and also using ONNXRuntime/ONNX
+// #include "onnx/onnx.pb.h" // From "Proto" module, if we want to avoid linking errors when cooking the game and also using ONNXRuntime/ONNX
 NNI_THIRD_PARTY_INCLUDES_END
-#endif //WITH_PROTOBUF
 
 
 
 /* FPrivateModelProtoConverter public functions
 *****************************************************************************/
 
-#ifdef WITH_PROTOBUF
 
 class FPrivateModelProtoConverter
 {
@@ -175,13 +176,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAsset(FGraphProto& OutGraphPro
 		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): ConvertProto3ToUAsset(TensorAnnotation) failed."));
 		return false;
 	}
-
-	if (false /* If something went wrong at any point, this is a template warning message*/)
-	{
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FPrivateModelProtoConverter::ConvertProto3ToUAsset(): FGraphProto could not be read from onnx::GraphProto."));
-		return false;
-	}
-
+	// No warnings occurred, conversion successful
 	return true;
 }
 
@@ -487,6 +482,7 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetProtoArrays(TArray<T1>& O
 }
 
 #endif //WITH_PROTOBUF
+#endif //WITH_EDITOR
 
 
 
@@ -495,13 +491,20 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetProtoArrays(TArray<T1>& O
 
 bool FModelProtoConverter::ConvertFromONNXProto3Ifstream(FModelProto& OutModelProto, std::istream& InIfstream)
 {
-#ifdef WITH_PROTOBUF
-	// Protobuf onnx::ModelProto from Ifstream
-	onnx::ModelProto ModelProto;
-	ModelProto.ParseFromIstream(&InIfstream);
-	return FPrivateModelProtoConverter::ConvertProto3ToUAsset(OutModelProto, ModelProto);
-#else //WITH_PROTOBUF
-	UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): WITH_PROTOBUF was not defined."));
-	return false
-#endif //WITH_PROTOBUF
+#if WITH_EDITOR // @todo: Workaround to avoid linking error when compiled in-game with UEAndORT back end, Schema*.txt files also modified
+	#ifdef WITH_PROTOBUF
+		// Protobuf onnx::ModelProto from Ifstream
+		onnx::ModelProto ModelProto;
+		ModelProto.ParseFromIstream(&InIfstream);
+		return FPrivateModelProtoConverter::ConvertProto3ToUAsset(OutModelProto, ModelProto);
+	#else //WITH_PROTOBUF
+		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): WITH_PROTOBUF was not defined."));
+		return false;
+	#endif //WITH_PROTOBUF
+#else //WITH_EDITOR
+	UE_LOG(LogModelProtoConverter, Warning,
+		TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): Due to a known linking error when used together with the UEAndORT back end during game mode,"
+			" this function is only available on Editor mode (WITH_EDITOR) for now."));
+	return false;
+#endif //WITH_EDITOR
 }
