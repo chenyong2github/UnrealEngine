@@ -51,7 +51,7 @@ static FAutoConsoleVariableRef CVarFreezeWaves(
 	ECVF_Cheat
 );
 
-static TAutoConsoleVariable<int32> CVarOverrideWavesTime(
+static TAutoConsoleVariable<float> CVarOverrideWavesTime(
 	TEXT("r.Water.OverrideWavesTime"),
 	-1.0f,
 	TEXT("Forces the time used for waves if >= 0.0"),
