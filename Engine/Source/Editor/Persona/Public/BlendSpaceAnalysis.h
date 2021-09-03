@@ -45,21 +45,21 @@ public:
 UENUM()
 enum class EAnalysisSpace : uint8
 {
-	World,
-	Fixed,
-	Changing,
-	Moving,
+	World    UMETA(ToolTip = "Analysis is done in world space (relative to the root of the character)"),
+	Fixed    UMETA(ToolTip = "Analysis is done in the space of the specified bone or socket based on the first frame of the animation used"),
+	Changing UMETA(ToolTip = "Analysis is done in the space of the specified bone or socket based, but velocities are calculated as if this space is not moving"),
+	Moving   UMETA(ToolTip = "Analysis is done in the space of the specified bone or socket"),
 };
 
 UENUM()
 enum class EAnalysisLinearAxis : uint8
 {
-	PlusX UMETA(DisplayName = "+X"),
-	PlusY UMETA(DisplayName = "+Y"),
-	PlusZ UMETA(DisplayName = "+Z"),
-	MinusX UMETA(DisplayName = "-X"),
-	MinusY UMETA(DisplayName = "-Y"),
-	MinusZ UMETA(DisplayName = "-Z"),
+	PlusX UMETA(DisplayName = "+X", ToolTip = "The axis points in the positive X direction"),
+	PlusY UMETA(DisplayName = "+Y", ToolTip = "The axis points in the positive Y direction"),
+	PlusZ UMETA(DisplayName = "+Z", ToolTip = "The axis points in the positive Z direction"),
+	MinusX UMETA(DisplayName = "-X", ToolTip = "The axis points in the negative X direction"),
+	MinusY UMETA(DisplayName = "-Y", ToolTip = "The axis points in the negative Y direction"),
+	MinusZ UMETA(DisplayName = "-Z", ToolTip = "The axis points in the negative Z direction"),
 };
 
 UENUM()
