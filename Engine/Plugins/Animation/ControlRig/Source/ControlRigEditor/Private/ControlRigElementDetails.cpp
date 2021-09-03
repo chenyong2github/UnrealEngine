@@ -775,6 +775,7 @@ void FRigBaseElementDetails::CustomizeChildren(TSharedRef<class IPropertyHandle>
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(this, &FRigBaseElementDetails::GetName)
 		.OnTextCommitted(this, &FRigBaseElementDetails::SetName)
+		.OnVerifyTextChanged(this, &FRigBaseElementDetails::OnVerifyNameChanged)
 		.IsEnabled(ObjectsBeingCustomized.Num() == 1)
 	];
 }
@@ -821,6 +822,43 @@ void FRigBaseElementDetails::SetName(const FText& InNewText, ETextCommit::Type I
 		check(Controller);
 		Controller->RenameElement(GetElementKey(), *InNewText.ToString(), true, true);
 	}
+}
+
+bool FRigBaseElementDetails::OnVerifyNameChanged(const FText& InText, FText& OutErrorMessage)
+{
+	if(ObjectsBeingCustomized.Num() > 1)
+	{
+		return false;
+	}
+
+	URigHierarchy* Hierarchy = nullptr;
+	if (BlueprintBeingCustomized)
+	{
+		Hierarchy = BlueprintBeingCustomized->Hierarchy;
+	}
+	else
+	{
+		Hierarchy = GetHierarchy();
+	}
+
+	if (!Hierarchy)
+	{
+		return false;
+	}
+
+	if (*GetElementKey().Name.ToString() == InText.ToString())
+	{
+		return true;
+	}
+
+	FString OutErrorMessageStr;
+	if (!Hierarchy->IsNameAvailable(InText.ToString(), GetElementKey().Type, &OutErrorMessageStr))
+	{
+		OutErrorMessage = FText::FromString(OutErrorMessageStr);
+		return false;
+	}
+
+	return true;
 }
 
 void FRigBaseElementDetails::OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities)
