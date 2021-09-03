@@ -4,6 +4,8 @@
 
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementListProxy.h"
+#include "UObject/Interface.h"
+
 #include "TypedElementSelectionInterface.generated.h"
 
 UENUM()
@@ -127,8 +129,13 @@ private:
 	FTypedHandleTypeId TypeId = 0;
 };
 
-UCLASS(Abstract)
-class TYPEDELEMENTRUNTIME_API UTypedElementSelectionInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementSelectionInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class TYPEDELEMENTRUNTIME_API ITypedElementSelectionInterface
 {
 	GENERATED_BODY()
 
@@ -136,19 +143,19 @@ public:
 	/**
 	 * Test to see whether the given element is currently considered selected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual bool IsElementSelected(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions);
 
 	/**
 	 * Test to see whether the given element can be selected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual bool CanSelectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return true; }
 
 	/**
 	 * Test to see whether the given element can be deselected.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual bool CanDeselectElement(const FTypedElementHandle& InElementHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return true; }
 
 	/**
@@ -168,13 +175,13 @@ public:
 	/**
 	 * Test to see whether selection modifiers (Ctrl or Shift) are allowed while selecting this element.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual bool AllowSelectionModifiers(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InSelectionSet) { return true; }
 
 	/**
 	 * Given an element, return the element that should actually perform a selection operation.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Selection")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Selection")
 	virtual FTypedElementHandle GetSelectionElement(const FTypedElementHandle& InElementHandle, const FTypedElementListProxy InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementHandle; }
 
 	/**
@@ -217,7 +224,7 @@ protected:
 };
 
 template <>
-struct TTypedElement<UTypedElementSelectionInterface> : public TTypedElementBase<UTypedElementSelectionInterface>
+struct TTypedElement<ITypedElementSelectionInterface> : public TTypedElementBase<ITypedElementSelectionInterface>
 {
 	bool IsElementSelected(FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) const { return InterfacePtr->IsElementSelected(*this, InSelectionSet, InSelectionOptions); }
 	bool CanSelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return InterfacePtr->CanSelectElement(*this, InSelectionOptions); }

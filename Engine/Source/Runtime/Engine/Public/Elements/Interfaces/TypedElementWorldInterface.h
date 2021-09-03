@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Interface.h"
+
 #include "TypedElementWorldInterface.generated.h"
 
 class ULevel;
@@ -43,8 +45,13 @@ private:
 	bool bWarnAboutSoftReferences = true;
 };
 
-UCLASS(Abstract)
-class ENGINE_API UTypedElementWorldInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementWorldInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class ENGINE_API ITypedElementWorldInterface
 {
 	GENERATED_BODY()
 
@@ -52,43 +59,43 @@ public:
 	/**
 	 * Is this element considered a template within its world (eg, a CDO or archetype).
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool IsTemplateElement(const FTypedElementHandle& InElementHandle) { return false; }
 
 	/**
 	 * Can this element actually be edited in the world?
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanEditElement(const FTypedElementHandle& InElementHandle) { return true; }
 
 	/**
 	 * Get the owner level associated with this element, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual ULevel* GetOwnerLevel(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
 	 * Get the owner world associated with this element, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual UWorld* GetOwnerWorld(const FTypedElementHandle& InElementHandle) { return nullptr; }
 
 	/**
 	 * Get the bounds of this element, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetBounds(const FTypedElementHandle& InElementHandle, FBoxSphereBounds& OutBounds) { return false; }
 
 	/**
 	 * Can the given element be moved within the world?
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool CanMoveElement(const FTypedElementHandle& InElementHandle, const ETypedElementWorldType InWorldType) { return false; }
 
 	/**
 	 * Get the transform of this element within its owner world, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetWorldTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) { return false; }
 	
 	/**
@@ -100,7 +107,7 @@ public:
 	/**
 	 * Get the transform of this element relative to its parent, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetRelativeTransform(const FTypedElementHandle& InElementHandle, FTransform& OutTransform) { return GetWorldTransform(InElementHandle, OutTransform); }
 	
 	/**
@@ -112,7 +119,7 @@ public:
 	/**
 	 * Get the local space offset of this element that should be added to its pivot location, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|World")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
 	virtual bool GetPivotOffset(const FTypedElementHandle& InElementHandle, FVector& OutPivotOffset) { return false; }
 
 	/**
@@ -206,7 +213,7 @@ public:
 };
 
 template <>
-struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTypedElementWorldInterface>
+struct TTypedElement<ITypedElementWorldInterface> : public TTypedElementBase<ITypedElementWorldInterface>
 {
 	bool IsTemplateElement() const { return InterfacePtr->IsTemplateElement(*this); }
 	bool CanEditElement() const { return InterfacePtr->CanEditElement(*this); }

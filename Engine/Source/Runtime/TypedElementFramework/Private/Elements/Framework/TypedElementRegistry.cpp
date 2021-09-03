@@ -85,7 +85,7 @@ void UTypedElementRegistry::AddReferencedObjects(UObject* InThis, FReferenceColl
 	{
 		if (RegisteredElementType)
 		{
-			for (auto& InterfacesPair : RegisteredElementType->Interfaces)
+			for (TPair<FName, UObject*>& InterfacesPair : RegisteredElementType->Interfaces)
 			{
 				Collector.AddReferencedObject(InterfacesPair.Value);
 			}
@@ -116,9 +116,9 @@ void UTypedElementRegistry::RegisterElementTypeImpl(const FName InElementTypeNam
 	AddRegisteredElementType(MoveTemp(InRegisteredElementType));
 }
 
-void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTypeName, UTypedElementInterface* InElementInterface, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType, const bool InAllowOverride)
+void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTypeName, UObject* InElementInterface, const TSubclassOf<UInterface>& InBaseInterfaceType, const bool InAllowOverride)
 {
-	checkf(InElementInterface->IsA(InBaseInterfaceType), TEXT("Interface '%s' of type '%s' does not derive from '%s'!"), *InElementInterface->GetPathName(), *InElementInterface->GetClass()->GetName(), *InBaseInterfaceType->GetName());
+	checkf(InElementInterface->GetClass()->ImplementsInterface(InBaseInterfaceType), TEXT("Interface '%s' of type '%s' does not derive from '%s'!"), *InElementInterface->GetPathName(), *InElementInterface->GetClass()->GetName(), *InBaseInterfaceType->GetName());
 
 	FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromName(InElementTypeName);
 	checkf(RegisteredElementType, TEXT("Element type '%s' has not been registered!"), *InElementTypeName.ToString());
@@ -127,7 +127,7 @@ void UTypedElementRegistry::RegisterElementInterfaceImpl(const FName InElementTy
 	RegisteredElementType->Interfaces.Add(InBaseInterfaceType->GetFName(), InElementInterface);
 }
 
-UTypedElementInterface* UTypedElementRegistry::GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+UObject* UTypedElementRegistry::GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	if (!InElementTypeId)
 	{

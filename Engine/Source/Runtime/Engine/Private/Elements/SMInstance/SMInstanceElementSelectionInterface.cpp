@@ -8,7 +8,7 @@
 bool USMInstanceElementSelectionInterface::SelectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	if (SMInstance && Super::SelectElement(InElementHandle, InSelectionSet, InSelectionOptions))
+	if (SMInstance && ITypedElementSelectionInterface::SelectElement(InElementHandle, InSelectionSet, InSelectionOptions))
 	{
 		SMInstance.NotifySMInstanceSelectionChanged(/*bIsSelected*/true);
 		return true;
@@ -19,7 +19,7 @@ bool USMInstanceElementSelectionInterface::SelectElement(const FTypedElementHand
 bool USMInstanceElementSelectionInterface::DeselectElement(const FTypedElementHandle& InElementHandle, FTypedElementListProxy InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions)
 {
 	FSMInstanceManager SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
-	if (SMInstance && Super::DeselectElement(InElementHandle, InSelectionSet, InSelectionOptions))
+	if (SMInstance && ITypedElementSelectionInterface::DeselectElement(InElementHandle, InSelectionSet, InSelectionOptions))
 	{
 		SMInstance.NotifySMInstanceSelectionChanged(/*bIsSelected*/false);
 		return true;

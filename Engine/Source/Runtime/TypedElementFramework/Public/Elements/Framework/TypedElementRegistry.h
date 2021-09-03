@@ -2,12 +2,16 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/ScopeRWLock.h"
+#include <type_traits>
+
 #include "Containers/ArrayView.h"
 #include "Containers/SortedMap.h"
+#include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementHandle.h"
 #include "Elements/Framework/TypedElementList.h"
+#include "Misc/ScopeRWLock.h"
+#include "UObject/ScriptInterface.h"
+
 #include "TypedElementRegistry.generated.h"
 
 /**
@@ -110,9 +114,10 @@ public:
 	 * Register that an element interface is supported for the given type, which must have previously been registered via RegisterElementType.
 	 */
 	template <typename BaseInterfaceType>
-	FORCEINLINE void RegisterElementInterface(const FName InElementTypeName, UTypedElementInterface* InElementInterface, const bool InAllowOverride = false)
+	FORCEINLINE void RegisterElementInterface(const FName InElementTypeName, UObject* InElementInterface, const bool InAllowOverride = false)
 	{
-		RegisterElementInterfaceImpl(InElementTypeName, InElementInterface, BaseInterfaceType::StaticClass(), InAllowOverride);
+		checkf(InElementInterface->GetClass()->ImplementsInterface(BaseInterfaceType::UClassType::StaticClass()), TEXT("The InElementInterface pass must implement the interface to register."));
+		RegisterElementInterfaceImpl(InElementTypeName, InElementInterface, BaseInterfaceType::UClassType::StaticClass(), InAllowOverride);
 	}
 
 	/**
@@ -121,7 +126,7 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedHandleTypeId InElementTypeId) const
 	{
-		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementTypeId, BaseInterfaceType::StaticClass()));
+		return Cast<BaseInterfaceType>(GetElementInterfaceImpl(InElementTypeId, BaseInterfaceType::UClassType::StaticClass()));
 	}
 
 	/**
@@ -130,14 +135,14 @@ public:
 	template <typename BaseInterfaceType>
 	FORCEINLINE BaseInterfaceType* GetElementInterface(const FTypedElementHandle& InElementHandle) const
 	{
-		return static_cast<BaseInterfaceType*>(GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), BaseInterfaceType::StaticClass()));
+		return Cast<BaseInterfaceType>(GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), BaseInterfaceType::UClassType::StaticClass()));
 	}
 
 	/**
 	 * Get the element interface supported by the given handle, or null if there is no support for this interface.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry")
-	FORCEINLINE UTypedElementInterface* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+	UFUNCTION(BlueprintPure, Category="TypedElementFramework|Registry", meta = (DeterminesOutputType = "InBaseInterfaceType"))
+	FORCEINLINE UObject* GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 	{
 		return GetElementInterfaceImpl(InElementHandle.GetId().GetTypeId(), InBaseInterfaceType);
 	}
@@ -200,7 +205,7 @@ public:
 	/**
 	 * Get an element that implements the given interface from its minimal ID.
 	 */
-	FORCEINLINE FTypedElement GetElement(const FTypedElementId& InElementId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+	FORCEINLINE FTypedElement GetElement(const FTypedElementId& InElementId, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 	{
 		FTypedElement Element;
 		GetElementImpl(InElementId, InBaseInterfaceType, Element);
@@ -214,14 +219,14 @@ public:
 	FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const FTypedElementId& InElementId) const
 	{
 		TTypedElement<BaseInterfaceType> Element;
-		GetElementImpl(InElementId, BaseInterfaceType::StaticClass(), Element);
+		GetElementImpl(InElementId, BaseInterfaceType::UClassType::StaticClass(), Element);
 		return Element;
 	}
 
 	/**
 	 * Get an element that implements the given interface from its handle.
 	 */
-	FORCEINLINE FTypedElement GetElement(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+	FORCEINLINE FTypedElement GetElement(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 	{
 		FTypedElement Element;
 		GetElementImpl(InElementHandle, InBaseInterfaceType, Element);
@@ -235,7 +240,7 @@ public:
 	FORCEINLINE TTypedElement<BaseInterfaceType> GetElement(const FTypedElementHandle& InElementHandle) const
 	{
 		TTypedElement<BaseInterfaceType> Element;
-		GetElementImpl(InElementHandle, BaseInterfaceType::StaticClass(), Element);
+		GetElementImpl(InElementHandle, BaseInterfaceType::UClassType::StaticClass(), Element);
 		return Element;
 	}
 
@@ -290,7 +295,7 @@ public:
 	}
 
 	// Note: Access for FTypedElementList
-	FORCEINLINE void Private_GetElementImpl(const FTypedElementHandle& InElementHandle, const UClass* InBaseInterfaceType, FTypedElement& OutElement) const
+	FORCEINLINE void Private_GetElementImpl(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, FTypedElement& OutElement) const
 	{
 		GetElementImpl(InElementHandle, InBaseInterfaceType, OutElement);
 	}
@@ -336,7 +341,8 @@ private:
 
 		FTypedHandleTypeId TypeId = 0;
 		FName TypeName;
-		TSortedMap<FName, UTypedElementInterface*, FDefaultAllocator, FNameFastLess> Interfaces;
+
+		TSortedMap<FName, UObject*, FDefaultAllocator, FNameFastLess> Interfaces;
 	};
 
 	template <typename ElementDataType>
@@ -402,8 +408,8 @@ private:
 	};
 
 	void RegisterElementTypeImpl(const FName InElementTypeName, TUniquePtr<FRegisteredElementType>&& InRegisteredElementType);
-	void RegisterElementInterfaceImpl(const FName InElementTypeName, UTypedElementInterface* InElementInterface, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType, const bool InAllowOverride);
-	UTypedElementInterface* GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const;
+	void RegisterElementInterfaceImpl(const FName InElementTypeName, UObject* InElementInterface, const TSubclassOf<UInterface>& InBaseInterfaceType, const bool InAllowOverride);
+	UObject* GetElementInterfaceImpl(const FTypedHandleTypeId InElementTypeId, const TSubclassOf<UInterface>& InBaseInterfaceType) const;
 
 	template <typename ElementDataType>
 	TTypedElementOwner<ElementDataType> CreateElementImpl(const FName InElementTypeName, const FTypedHandleElementId InElementId)
@@ -433,7 +439,7 @@ private:
 	}
 
 	template <typename BaseInterfaceType>
-	void GetElementImpl(const FTypedElementId& InElementId, const UClass* InBaseInterfaceType, TTypedElement<BaseInterfaceType>& OutElement) const
+	void GetElementImpl(const FTypedElementId& InElementId, const TSubclassOf<UInterface>& InBaseInterfaceType, TTypedElement<BaseInterfaceType>& OutElement) const
 	{
 		OutElement.Private_DestroyReleaseRef();
 
@@ -442,12 +448,21 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementId.GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementId.GetTypeId());
 
-			OutElement.Private_InitializeAddRef(RegisteredElementType->GetDataForElement(InElementId.GetElementId()), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
+			UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
+			const FTypedElementInternalData& TypedElementInternalData = RegisteredElementType->GetDataForElement(InElementId.GetElementId());
+			if constexpr (std::is_void<BaseInterfaceType>::value)
+			{ 
+				OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
+			}
+			else
+			{
+				OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+			}
 		}
 	}
 
 	template <typename BaseInterfaceType>
-	void GetElementImpl(const FTypedElementHandle& InElementHandle, const UClass* InBaseInterfaceType, TTypedElement<BaseInterfaceType>& OutElement) const
+	void GetElementImpl(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, TTypedElement<BaseInterfaceType>& OutElement) const
 	{
 		OutElement.Private_DestroyReleaseRef();
 
@@ -456,7 +471,16 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementHandle.GetId().GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementHandle.GetId().GetTypeId());
 
-			OutElement.Private_InitializeAddRef(*InElementHandle.Private_GetInternalData(), static_cast<BaseInterfaceType*>(RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName())));
+			UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
+			const FTypedElementInternalData& TypedElementInternalData = *InElementHandle.Private_GetInternalData();
+			if constexpr (std::is_void<BaseInterfaceType>::value)
+			{
+				OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
+			}
+			else
+			{
+				OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+			}
 		}
 	}
 

@@ -3,6 +3,8 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Interface.h"
+
 #include "TypedElementDetailsInterface.generated.h"
 
 /**
@@ -26,8 +28,13 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) {}
 };
 
-UCLASS(Abstract)
-class EDITORFRAMEWORK_API UTypedElementDetailsInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementDetailsInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class EDITORFRAMEWORK_API ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 
@@ -46,7 +53,7 @@ public:
 };
 
 template <>
-struct TTypedElement<UTypedElementDetailsInterface> : public TTypedElementBase<UTypedElementDetailsInterface>
+struct TTypedElement<ITypedElementDetailsInterface> : public TTypedElementBase<ITypedElementDetailsInterface>
 {
 	bool IsTopLevelElement() const { return InterfacePtr->IsTopLevelElement(*this); }
 	TUniquePtr<ITypedElementDetailsObject> GetDetailsObject() const { return InterfacePtr->GetDetailsObject(*this); }

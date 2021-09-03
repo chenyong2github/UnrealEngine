@@ -18,8 +18,8 @@ public:
 	virtual ~FTypedElementCommonActionsCustomization() = default;
 
 	//~ See UTypedElementCommonActions for API docs
-	virtual bool DeleteElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
-	virtual void DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements);
+	virtual bool DeleteElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions);
+	virtual void DuplicateElements(ITypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements);
 };
 
 /**
@@ -30,7 +30,7 @@ struct ENGINE_API FTypedElementCommonActionsElement
 public:
 	FTypedElementCommonActionsElement() = default;
 
-	FTypedElementCommonActionsElement(TTypedElement<UTypedElementWorldInterface> InElementWorldHandle, FTypedElementCommonActionsCustomization* InCommonActionsCustomization)
+	FTypedElementCommonActionsElement(TTypedElement<ITypedElementWorldInterface> InElementWorldHandle, FTypedElementCommonActionsCustomization* InCommonActionsCustomization)
 		: ElementWorldHandle(MoveTemp(InElementWorldHandle))
 		, CommonActionsCustomization(InCommonActionsCustomization)
 	{
@@ -56,7 +56,7 @@ public:
 	//~ See UTypedElementCommonActions for API docs
 
 private:
-	TTypedElement<UTypedElementWorldInterface> ElementWorldHandle;
+	TTypedElement<ITypedElementWorldInterface> ElementWorldHandle;
 	FTypedElementCommonActionsCustomization* CommonActionsCustomization = nullptr;
 };
 

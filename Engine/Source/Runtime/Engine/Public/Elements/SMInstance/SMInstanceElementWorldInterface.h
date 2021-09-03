@@ -6,7 +6,7 @@
 #include "SMInstanceElementWorldInterface.generated.h"
 
 UCLASS()
-class ENGINE_API USMInstanceElementWorldInterface : public UTypedElementWorldInterface
+class ENGINE_API USMInstanceElementWorldInterface : public UObject, public ITypedElementWorldInterface
 {
 	GENERATED_BODY()
 

@@ -5,7 +5,7 @@
 #include <type_traits>
 #include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementData.h"
-#include "Elements/Interfaces/TypedElementInterface.h"
+
 #include "TypedElementHandle.generated.h"
 
 /**
@@ -327,24 +327,6 @@ public:
 	}
 
 	/**
-	 * Test to see whether the interface stored within this element is of the given type.
-	 */
-	template <typename InterfaceType>
-	FORCEINLINE bool HasInterface() const
-	{
-		return HasInterface(InterfaceType::StaticClass());
-	}
-
-	/**
-	 * Test to see whether the interface stored within this element is of the given type.
-	 */
-	FORCEINLINE bool HasInterface(const UClass* InInterfaceType) const
-	{
-		return InterfacePtr
-			&& InterfacePtr->IsA(InInterfaceType);
-	}
-
-	/**
 	 * Attempt to access the interface stored within this element, returning null if it isn't set.
 	 */
 	FORCEINLINE BaseInterfaceType* GetInterface() const
@@ -355,8 +337,10 @@ public:
 	/**
 	 * Attempt to access the interface stored within this element, asserting if it isn't set.
 	 */
-	FORCEINLINE BaseInterfaceType& GetInterfaceChecked() const
+	template <typename U = BaseInterfaceType, std::enable_if_t<!std::is_void<U>::value>* = nullptr>
+	FORCEINLINE U& GetInterfaceChecked() const
 	{
+		static_assert(std::is_same<U, BaseInterfaceType>::value, "Don't explicitly specify U!");
 		checkf(InterfacePtr, TEXT("Interface is null!"));
 		return *InterfacePtr;
 	}
@@ -414,111 +398,9 @@ template <typename BaseInterfaceType>
 struct TTypedElement : public TTypedElementBase<BaseInterfaceType>
 {
 };
-using FTypedElement = TTypedElement<UTypedElementInterface>;
 
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE TTypedElement<OtherInterfaceType> CastTypedElement(const TTypedElement<ThisInterfaceType>& InElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement && InElement.template HasInterface<OtherInterfaceType>())
-	{
-		return reinterpret_cast<const TTypedElement<OtherInterfaceType>&>(InElement);
-	}
-	return TTypedElement<OtherInterfaceType>();
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE void CastTypedElement(const TTypedElement<ThisInterfaceType>& InElement, TTypedElement<OtherInterfaceType>& OutCastElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement && InElement.template HasInterface<OtherInterfaceType>())
-	{
-		OutCastElement = reinterpret_cast<const TTypedElement<OtherInterfaceType>&>(InElement);
-	}
-	else
-	{
-		OutCastElement.Private_DestroyReleaseRef();
-	}
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE TTypedElement<OtherInterfaceType> CastTypedElement(TTypedElement<ThisInterfaceType>&& InElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement && InElement.template HasInterface<OtherInterfaceType>())
-	{
-		return reinterpret_cast<TTypedElement<OtherInterfaceType>&&>(InElement);
-	}
-	return TTypedElement<OtherInterfaceType>();
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE void CastTypedElement(TTypedElement<ThisInterfaceType>&& InElement, TTypedElement<OtherInterfaceType>& OutCastElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement && InElement.template HasInterface<OtherInterfaceType>())
-	{
-		OutCastElement = reinterpret_cast<TTypedElement<OtherInterfaceType>&&>(InElement);
-	}
-	else
-	{
-		OutCastElement.Private_DestroyReleaseRef();
-	}
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE TTypedElement<OtherInterfaceType> CastTypedElementChecked(const TTypedElement<ThisInterfaceType>& InElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement)
-	{
-		checkf(InElement.template HasInterface<OtherInterfaceType>(), TEXT("Element does not implement the required interface for this cast!"));
-		return reinterpret_cast<const TTypedElement<OtherInterfaceType>&>(InElement);
-	}
-	return TTypedElement<OtherInterfaceType>();
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE void CastTypedElementChecked(const TTypedElement<ThisInterfaceType>& InElement, TTypedElement<OtherInterfaceType>& OutCastElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement)
-	{
-		checkf(InElement.template HasInterface<OtherInterfaceType>(), TEXT("Element does not implement the required interface for this cast!"));
-		OutCastElement = reinterpret_cast<const TTypedElement<OtherInterfaceType>&>(InElement);
-	}
-	else
-	{
-		OutCastElement.Private_DestroyReleaseRef();
-	}
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE TTypedElement<OtherInterfaceType> CastTypedElementChecked(TTypedElement<ThisInterfaceType>&& InElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement)
-	{
-		checkf(InElement.template HasInterface<OtherInterfaceType>(), TEXT("Element does not implement the required interface for this cast!"));
-		return reinterpret_cast<TTypedElement<OtherInterfaceType>&&>(InElement);
-	}
-	return TTypedElement<OtherInterfaceType>();
-}
-
-template <typename OtherInterfaceType, typename ThisInterfaceType>
-FORCEINLINE void CastTypedElementChecked(TTypedElement<ThisInterfaceType>&& InElement, TTypedElement<OtherInterfaceType>& OutCastElement)
-{
-	static_assert(sizeof(TTypedElement<ThisInterfaceType>) == sizeof(TTypedElement<OtherInterfaceType>), "All TTypedElement instances must be the same size for this cast implementation to work!");
-	if (InElement)
-	{
-		checkf(InElement.template HasInterface<OtherInterfaceType>(), TEXT("Element does not implement the required interface for this cast!"));
-		OutCastElement = reinterpret_cast<TTypedElement<OtherInterfaceType>&&>(InElement);
-	}
-	else
-	{
-		OutCastElement.Private_DestroyReleaseRef();
-	}
-}
+// The typed element InterfacePtr will points toward the vtable of the interface
+using FTypedElement = TTypedElement<void>;
 
 /**
  * A representation of the owner of an element that includes its mutable handle data.

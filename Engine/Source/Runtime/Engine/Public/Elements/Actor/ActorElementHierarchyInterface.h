@@ -6,7 +6,7 @@
 #include "ActorElementHierarchyInterface.generated.h"
 
 UCLASS()
-class ENGINE_API UActorElementHierarchyInterface : public UTypedElementHierarchyInterface
+class ENGINE_API UActorElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 

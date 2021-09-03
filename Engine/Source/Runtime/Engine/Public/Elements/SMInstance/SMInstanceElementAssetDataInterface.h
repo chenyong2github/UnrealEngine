@@ -7,7 +7,7 @@
 #include "SMInstanceElementAssetDataInterface.generated.h"
 
 UCLASS()
-class ENGINE_API USMInstanceElementAssetDataInterface : public UTypedElementAssetDataInterface
+class ENGINE_API USMInstanceElementAssetDataInterface : public UObject, public ITypedElementAssetDataInterface
 {
 	GENERATED_BODY()
 

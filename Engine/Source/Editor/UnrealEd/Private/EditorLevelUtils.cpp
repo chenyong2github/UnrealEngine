@@ -1212,8 +1212,8 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 		{
 			TArray<FTypedElementHandle> LevelElementHandles;
 			
-			ActorSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>(
-				[Level, &LevelElementHandles](const TTypedElement<UTypedElementWorldInterface>& Element)
+			ActorSelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>(
+				[Level, &LevelElementHandles](const TTypedElement<ITypedElementWorldInterface>& Element)
 			{
 				if (Element.GetOwnerLevel() == Level)
 				{

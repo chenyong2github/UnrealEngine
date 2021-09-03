@@ -6,7 +6,7 @@
 #include "ActorElementDetailsInterface.generated.h"
 
 UCLASS()
-class UActorElementDetailsInterface : public UTypedElementDetailsInterface
+class UActorElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 

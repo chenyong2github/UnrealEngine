@@ -25,7 +25,7 @@ void FTypedElementCounter::AddElement(const FTypedElementHandle& InElementHandle
 
 	IncrementCounter(GetElementTypeCategoryName(), InElementHandle.GetId().GetTypeId());
 	
-	if (const TTypedElement<UTypedElementCounterInterface> ElementCounterHandle = RegistryPtr->GetElement<UTypedElementCounterInterface>(InElementHandle))
+	if (const TTypedElement<ITypedElementCounterInterface> ElementCounterHandle = RegistryPtr->GetElement<ITypedElementCounterInterface>(InElementHandle))
 	{
 		ElementCounterHandle.IncrementCountersForElement(*this);
 	}
@@ -41,7 +41,7 @@ void FTypedElementCounter::RemoveElement(const FTypedElementHandle& InElementHan
 
 	DecrementCounter(GetElementTypeCategoryName(), InElementHandle.GetId().GetTypeId());
 
-	if (const TTypedElement<UTypedElementCounterInterface> ElementCounterHandle = RegistryPtr->GetElement<UTypedElementCounterInterface>(InElementHandle))
+	if (const TTypedElement<ITypedElementCounterInterface> ElementCounterHandle = RegistryPtr->GetElement<ITypedElementCounterInterface>(InElementHandle))
 	{
 		ElementCounterHandle.DecrementCountersForElement(*this);
 	}

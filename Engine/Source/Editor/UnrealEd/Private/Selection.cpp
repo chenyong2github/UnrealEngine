@@ -167,7 +167,7 @@ bool USelection::IsValidObjectToSelect(const UObject* InObject) const
 
 	if (bIsValid && ElementSelectionSet)
 	{
-		TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(SelectionElementBridge->GetElementHandleForObject(InObject));
+		TTypedElement<ITypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(SelectionElementBridge->GetElementHandleForObject(InObject));
 		if (ObjectElement)
 		{
 			bIsValid &= ObjectElement.GetObject() == InObject;
@@ -186,7 +186,7 @@ UObject* USelection::GetObjectForElementHandle(const FTypedElementHandle& InElem
 {
 	check(InElementHandle && ElementSelectionSet);
 
-	if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InElementHandle))
+	if (TTypedElement<ITypedElementObjectInterface> ObjectElement = ElementSelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(InElementHandle))
 	{
 		UObject* Object = ObjectElement.GetObject();
 		if (Object && SelectionElementBridge->IsValidObjectType(Object))

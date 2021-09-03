@@ -253,9 +253,9 @@ void SActorDetails::RefreshSelection(const bool bForceRefresh)
 		return;
 	}
 
-	TArray<TTypedElement<UTypedElementDetailsInterface>> DetailsElements;
+	TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElements;
 	DetailsElements.Reserve(SelectionSet->GetNumSelectedElements());
-	SelectionSet->ForEachSelectedElement<UTypedElementDetailsInterface>([&DetailsElements](const TTypedElement<UTypedElementDetailsInterface>& InDetailsElement)
+	SelectionSet->ForEachSelectedElement<ITypedElementDetailsInterface>([&DetailsElements](const TTypedElement<ITypedElementDetailsInterface>& InDetailsElement)
 	{
 		DetailsElements.Add(InDetailsElement);
 		return true;
@@ -271,13 +271,13 @@ void SActorDetails::OverrideSelection(const TArray<AActor*>& InActors, const boo
 {
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
-	TArray<TTypedElement<UTypedElementDetailsInterface>> DetailsElements;
+	TArray<TTypedElement<ITypedElementDetailsInterface>> DetailsElements;
 	DetailsElements.Reserve(SelectionSet->GetNumSelectedElements());
 	for (AActor* Actor : InActors)
 	{
 		if (FTypedElementHandle ActorElementHandle = UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor))
 		{
-			if (TTypedElement<UTypedElementDetailsInterface> ActorDetailsHandle = Registry->GetElement<UTypedElementDetailsInterface>(ActorElementHandle))
+			if (TTypedElement<ITypedElementDetailsInterface> ActorDetailsHandle = Registry->GetElement<ITypedElementDetailsInterface>(ActorElementHandle))
 			{
 				DetailsElements.Add(MoveTemp(ActorDetailsHandle));
 			}
@@ -290,7 +290,7 @@ void SActorDetails::OverrideSelection(const TArray<AActor*>& InActors, const boo
 	RefreshTopLevelElements(DetailsElements, bForceRefresh, /*bOverrideLock*/false);
 }
 
-void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<UTypedElementDetailsInterface>> InDetailsElements, const bool bForceRefresh, const bool bOverrideLock)
+void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<ITypedElementDetailsInterface>> InDetailsElements, const bool bForceRefresh, const bool bOverrideLock)
 {
 	// Nothing to do if this view is locked!
 	if (DetailsView->IsLocked() && !bOverrideLock)
@@ -300,7 +300,7 @@ void SActorDetails::RefreshTopLevelElements(TArrayView<const TTypedElement<UType
 
 	// Build the array of top-level elements to edit
 	TopLevelElements.Reset(InDetailsElements.Num());
-	for (const TTypedElement<UTypedElementDetailsInterface>& DetailsElement : InDetailsElements)
+	for (const TTypedElement<ITypedElementDetailsInterface>& DetailsElement : InDetailsElements)
 	{
 		if (DetailsElement.IsTopLevelElement())
 		{
@@ -380,7 +380,7 @@ void SActorDetails::RefreshSubobjectTreeElements(TArrayView<const FSubobjectEdit
 		{
 			if (FTypedElementHandle ComponentElementHandle = UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component))
 			{
-				if (TTypedElement<UTypedElementDetailsInterface> ComponentDetailsHandle = Registry->GetElement<UTypedElementDetailsInterface>(ComponentElementHandle))
+				if (TTypedElement<ITypedElementDetailsInterface> ComponentDetailsHandle = Registry->GetElement<ITypedElementDetailsInterface>(ComponentElementHandle))
 				{
 					if (TUniquePtr<ITypedElementDetailsObject> ElementDetailsObject = ComponentDetailsHandle.GetDetailsObject())
 					{

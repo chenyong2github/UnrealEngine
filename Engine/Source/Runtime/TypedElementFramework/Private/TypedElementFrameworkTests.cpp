@@ -38,6 +38,32 @@ bool UTestTypedElementInterfaceA_ImplUntyped::SetDisplayName(const FTypedElement
 	return false;
 }
 
+bool UTestTypedElementInterfaceBAndC_Typed::MarkAsTested(const FTypedElementHandle& InElementHandle)
+{
+	const FTestTypedElementData* ElementData = InElementHandle.GetData<FTestTypedElementData>();
+	if (ElementData)
+	{
+		return false;
+	}
+
+	// this shouldn't happen during the test
+	check(false);
+	return false;
+}
+
+bool UTestTypedElementInterfaceBAndC_Typed::GetIsTested(const FTypedElementHandle& InElementHandle) const
+{
+	const FTestTypedElementData* ElementData = InElementHandle.GetData<FTestTypedElementData>();
+	if (ElementData)
+	{
+		return false;
+	}
+
+	// this shouldn't happen during the test
+	check(false);
+	return false;
+}
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTypedElementRegistrySmokeTest, "System.Runtime.TypedElementRegistry.SmokeTest", EAutomationTestFlags::EditorContext | EAutomationTestFlags::SmokeFilter)
@@ -45,7 +71,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 {
 	UTypedElementRegistry* Registry = NewObject<UTypedElementRegistry>();
 	
-	auto TestInterfaceAHandle = [](const TTypedElement<UTestTypedElementInterfaceA>& InElementDataInterfaceHandle)
+	auto TestInterfaceAHandle = [](const TTypedElement<ITestTypedElementInterfaceA>& InElementDataInterfaceHandle)
 	{
 		// Proxy API added via specialization
 		InElementDataInterfaceHandle.SetDisplayName(FText());
@@ -56,44 +82,77 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 		InElementDataInterfaceHandle.GetInterfaceChecked().GetDisplayName(InElementDataInterfaceHandle);
 	};
 
-	auto TestInterfaceAccess = [&Registry, &TestInterfaceAHandle](const FTypedElementHandle& InElementHandle)
+	auto TestInterfaceBHandle = [](TTypedElement<ITestTypedElementInterfaceB>& InElementDataInterfaceHandle)
+	{
+		// Proxy API added via specialization
+		InElementDataInterfaceHandle.MarkAsTested();
+
+
+		// Verbose API
+		InElementDataInterfaceHandle.GetInterfaceChecked().MarkAsTested(InElementDataInterfaceHandle);
+	};
+
+	auto TestInterfaceCHandle = [](const TTypedElement<ITestTypedElementInterfaceC>& InElementDataInterfaceHandle)
+	{
+		// Proxy API added via specialization
+		InElementDataInterfaceHandle.GetIsTested();
+
+		// Verbose API
+		InElementDataInterfaceHandle.GetInterfaceChecked().GetIsTested(InElementDataInterfaceHandle);
+	};
+
+	auto TestInterfaceAccess = [&Registry, &TestInterfaceAHandle, &TestInterfaceBHandle, &TestInterfaceCHandle](const FTypedElementHandle& InElementHandle)
 	{
 		// Get the interface and the element handle in two calls - this is how scripting might work
-		if (UTestTypedElementInterfaceA* Interface = Registry->GetElementInterface<UTestTypedElementInterfaceA>(InElementHandle))
+		if (ITestTypedElementInterfaceA* Interface = Registry->GetElementInterface<ITestTypedElementInterfaceA>(InElementHandle))
 		{
 			Interface->SetDisplayName(InElementHandle, FText());
 			Interface->GetDisplayName(InElementHandle);
 		}
 
 		// Get the interface and the element handle in a single call - this is how C++ might work
-		if (TTypedElement<UTestTypedElementInterfaceA> Element = Registry->GetElement<UTestTypedElementInterfaceA>(InElementHandle))
+		if (TTypedElement<ITestTypedElementInterfaceA> Element = Registry->GetElement<ITestTypedElementInterfaceA>(InElementHandle))
 		{
 			TestInterfaceAHandle(Element);
 		}
+
+		// Get the interface and the element handle in two calls - this is how scripting might work
+		if (ITestTypedElementInterfaceB* Interface = Registry->GetElementInterface<ITestTypedElementInterfaceB>(InElementHandle))
+		{
+			Interface->MarkAsTested(InElementHandle);
+		}
+
+		// Get the interface and the element handle in a single call - this is how C++ might work
+		if (TTypedElement<ITestTypedElementInterfaceB> Element = Registry->GetElement<ITestTypedElementInterfaceB>(InElementHandle))
+		{
+			TestInterfaceBHandle(Element);
+		}
+
+		// Get the interface and the element handle in two calls - this is how scripting might work
+		if (ITestTypedElementInterfaceC* Interface = Registry->GetElementInterface<ITestTypedElementInterfaceC>(InElementHandle))
+		{
+			Interface->GetIsTested(InElementHandle);
+		}
+
+		// Get the interface and the element handle in a single call - this is how C++ might work
+		if (TTypedElement<ITestTypedElementInterfaceC> Element = Registry->GetElement<ITestTypedElementInterfaceC>(InElementHandle))
+		{
+			TestInterfaceCHandle(Element);
+		}
 	};
-
-	// Test that all the cast variants compile
-	{
-		FTypedElement DummyElement;
-		CastTypedElement<UTestTypedElementInterfaceA>(DummyElement);
-		CastTypedElement<UTestTypedElementInterfaceA>(FTypedElement());
-		CastTypedElementChecked<UTestTypedElementInterfaceA>(DummyElement);
-		CastTypedElementChecked<UTestTypedElementInterfaceA>(FTypedElement());
-
-		TTypedElement<UTestTypedElementInterfaceA> DummyCastedElement;
-		CastTypedElement<UTestTypedElementInterfaceA>(DummyElement, DummyCastedElement);
-		CastTypedElement<UTestTypedElementInterfaceA>(FTypedElement(), DummyCastedElement);
-		CastTypedElementChecked<UTestTypedElementInterfaceA>(DummyElement, DummyCastedElement);
-		CastTypedElementChecked<UTestTypedElementInterfaceA>(FTypedElement(), DummyCastedElement);
-	}
 
 	const FName DummyElementType_Typed = "DummyElementType_Typed";
 	Registry->RegisterElementType<FTestTypedElementData>(DummyElementType_Typed);
-	Registry->RegisterElementInterface<UTestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
+
+	UObject* TypedElementInterfaceBAndC =  NewObject<UTestTypedElementInterfaceBAndC_Typed>();
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceB>(DummyElementType_Typed, TypedElementInterfaceBAndC);
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceC>(DummyElementType_Typed, TypedElementInterfaceBAndC);
+
 
 	const FName DummyElementType_Untyped = "DummyElementType_Untyped";
 	Registry->RegisterElementType(DummyElementType_Untyped);
-	Registry->RegisterElementInterface<UTestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
 
 	TTypedElementOwner<FTestTypedElementData> TypedElement1 = Registry->CreateElement<FTestTypedElementData>(DummyElementType_Typed);
 	TypedElement1.GetDataChecked().InternalElementId = "TypedElement1";
@@ -123,7 +182,7 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 		return true;
 	});
 	
-	ElementList->ForEachElement<UTestTypedElementInterfaceA>([&TestInterfaceAHandle](const TTypedElement<UTestTypedElementInterfaceA>& InElementHandle)
+	ElementList->ForEachElement<ITestTypedElementInterfaceA>([&TestInterfaceAHandle](const TTypedElement<ITestTypedElementInterfaceA>& InElementHandle)
 	{
 		TestInterfaceAHandle(InElementHandle);
 		return true;
@@ -154,11 +213,11 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 
 	const FName DummyElementType_Typed = "DummyElementType_Typed";
 	Registry->RegisterElementType<FTestTypedElementData>(DummyElementType_Typed);
-	Registry->RegisterElementInterface<UTestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Typed, NewObject<UTestTypedElementInterfaceA_ImplTyped>());
 
 	const FName DummyElementType_Untyped = "DummyElementType_Untyped";
 	Registry->RegisterElementType(DummyElementType_Untyped);
-	Registry->RegisterElementInterface<UTestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
+	Registry->RegisterElementInterface<ITestTypedElementInterfaceA>(DummyElementType_Untyped, NewObject<UTestTypedElementInterfaceA_ImplUntyped>());
 
 	TArray<TTypedElementOwner<FTestTypedElementData>> TypedOwnerHandles;
 	TArray<FTypedElementOwner> UntypedOwnerHandles;
@@ -201,7 +260,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Finding %d interfaces from list"), ElementList->Num()));
 		ElementList->ForEachElementHandle([Registry](const FTypedElementHandle& InElementHandle)
 		{
-			Registry->GetElementInterface<UTestTypedElementInterfaceA>(InElementHandle);
+			Registry->GetElementInterface<ITestTypedElementInterfaceA>(InElementHandle);
 			return true;
 		});
 	}
@@ -211,7 +270,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Finding %d elements from list"), ElementList->Num()));
 		ElementList->ForEachElementHandle([Registry](const FTypedElementHandle& InElementHandle)
 		{
-			Registry->GetElement<UTestTypedElementInterfaceA>(InElementHandle);
+			Registry->GetElement<ITestTypedElementInterfaceA>(InElementHandle);
 			return true;
 		});
 	}
@@ -219,7 +278,7 @@ bool FTypedElementRegistryPerfTest::RunTest(const FString& Parameters)
 	// Enumerate all elements that implement an interface
 	{
 		FScopedDurationTimeLogger Timer(FString::Printf(TEXT("Enumerating %d elements in list"), ElementList->Num()));
-		ElementList->ForEachElement<UTestTypedElementInterfaceA>([Registry](const TTypedElement<UTestTypedElementInterfaceA>& InElementHandle)
+		ElementList->ForEachElement<ITestTypedElementInterfaceA>([Registry](const TTypedElement<ITestTypedElementInterfaceA>& InElementHandle)
 		{
 			return true;
 		});

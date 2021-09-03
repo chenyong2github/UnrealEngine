@@ -3530,7 +3530,7 @@ void FLevelEditorViewportClient::CacheElementsToManipulate(const bool bForceRefr
 		SelectionSet->GetNormalizedSelection(NormalizationOptions, CachedElementsToManipulate);
 
 		// Remove any elements that cannot be moved
-		CachedElementsToManipulate->RemoveAll<UTypedElementWorldInterface>([this](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+		CachedElementsToManipulate->RemoveAll<ITypedElementWorldInterface>([this](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 		{
 			if (!InWorldElement.CanMoveElement(bIsSimulateInEditorViewport ? ETypedElementWorldType::Game : ETypedElementWorldType::Editor))
 			{

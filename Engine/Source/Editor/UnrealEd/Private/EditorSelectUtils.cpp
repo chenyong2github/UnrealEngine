@@ -204,10 +204,10 @@ void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bI
 	FVector Widget2DWorldXAxis = FVector::ZeroVector;
 
 	// Pick a new common pivot, or not.
-	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
+	TTypedElement<ITypedElementWorldInterface> SingleWorldElement;
 
 	FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
-	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&NumElements, &TranslateRotateWidgetWorldXAxis, &Widget2DWorldXAxis, &SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+	ElementsToManipulate->ForEachElement<ITypedElementWorldInterface>([&NumElements, &TranslateRotateWidgetWorldXAxis, &Widget2DWorldXAxis, &SingleWorldElement](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 	{
 		if (NumElements == 0)
 		{
@@ -237,7 +237,7 @@ void UUnrealEdEngine::SetPivot( FVector NewPivot, bool bSnapPivotToGrid, bool bI
 	
 	if (bAssignPivot && UActorGroupingUtils::IsGroupingActive())
 	{
-		if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
+		if (TTypedElement<ITypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<ITypedElementObjectInterface>(SingleWorldElement))
 		{
 			if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
 			{
@@ -326,10 +326,10 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 	}
 
 	// Pick a new common pivot, or not.
-	TTypedElement<UTypedElementWorldInterface> SingleWorldElement;
+	TTypedElement<ITypedElementWorldInterface> SingleWorldElement;
 	
 	FTypedElementListConstRef ElementsToManipulate = GCurrentLevelEditingViewportClient->GetElementsToManipulate();
-	ElementsToManipulate->ForEachElement<UTypedElementWorldInterface>([&SingleWorldElement](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+	ElementsToManipulate->ForEachElement<ITypedElementWorldInterface>([&SingleWorldElement](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 	{
 #if DO_CHECK
 		if (ULevel* OwnerLevel = InWorldElement.GetOwnerLevel())
@@ -365,7 +365,7 @@ void UUnrealEdEngine::UpdatePivotLocationForSelection( bool bOnChange )
 			// If grouping is active, see if this element is an actor that's part of a locked group and use that pivot instead
 			if (UActorGroupingUtils::IsGroupingActive())
 			{
-				if (TTypedElement<UTypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<UTypedElementObjectInterface>(SingleWorldElement))
+				if (TTypedElement<ITypedElementObjectInterface> ObjectElement = ElementsToManipulate->GetElement<ITypedElementObjectInterface>(SingleWorldElement))
 				{
 					if (AActor* SingleActor = Cast<AActor>(ObjectElement.GetObject()))
 					{

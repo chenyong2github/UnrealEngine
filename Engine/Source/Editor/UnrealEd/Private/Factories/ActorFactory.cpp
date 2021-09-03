@@ -320,7 +320,7 @@ void UActorFactory::PostPlaceAsset(TArrayView<const FTypedElementHandle> InEleme
 {
 	for (const FTypedElementHandle& PlacedElement : InElementHandles)
 	{
-		if (TTypedElement<UTypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(PlacedElement))
+		if (TTypedElement<ITypedElementObjectInterface> ObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementObjectInterface>(PlacedElement))
 		{
 			if (AActor* CreatedActor = ObjectInterface.GetObjectAs<AActor>())
 			{
@@ -347,7 +347,7 @@ FAssetData UActorFactory::GetAssetDataFromElementHandle(const FTypedElementHandl
 	}
 
 	// Check if the handle is the type of actor created by this factory, and use the factory to find the wrapped asset data if possible.
-	if (TTypedElement<UTypedElementObjectInterface> ElementObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementObjectInterface>(InHandle))
+	if (TTypedElement<ITypedElementObjectInterface> ElementObjectInterface = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementObjectInterface>(InHandle))
 	{
 		if (AActor* RawElementActorPtr = ElementObjectInterface.GetObjectAs<AActor>(GetDefaultActorClass(FAssetData())))
 		{
@@ -359,7 +359,7 @@ FAssetData UActorFactory::GetAssetDataFromElementHandle(const FTypedElementHandl
 	}
 
 	// Check if any of the referenced content is created by this factory.
-	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InHandle))
+	if (TTypedElement<ITypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementAssetDataInterface>(InHandle))
 	{
 		TArray<FAssetData> ContentAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
 		for (FAssetData& AssetData : ContentAssetDatas)

@@ -6,7 +6,7 @@
 #include "ComponentElementWorldInterface.generated.h"
 
 UCLASS()
-class ENGINE_API UComponentElementWorldInterface : public UTypedElementWorldInterface
+class ENGINE_API UComponentElementWorldInterface : public UObject, public ITypedElementWorldInterface
 {
 	GENERATED_BODY()
 

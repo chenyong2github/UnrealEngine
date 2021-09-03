@@ -8,7 +8,7 @@
 struct FCollisionQueryParams;
 
 UCLASS()
-class ENGINE_API UActorElementWorldInterface : public UTypedElementWorldInterface
+class ENGINE_API UActorElementWorldInterface : public UObject, public ITypedElementWorldInterface
 {
 	GENERATED_BODY()
 
