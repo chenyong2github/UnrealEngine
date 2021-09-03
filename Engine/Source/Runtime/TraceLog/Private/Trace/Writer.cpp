@@ -53,17 +53,11 @@ void			Writer_ShutdownControl();
 
 
 ////////////////////////////////////////////////////////////////////////////////
-UE_TRACE_EVENT_BEGIN($Trace, NewTrace, NoSync)
+UE_TRACE_EVENT_BEGIN($Trace, NewTrace, Important|NoSync)
 	UE_TRACE_EVENT_FIELD(uint64, StartCycle)
 	UE_TRACE_EVENT_FIELD(uint64, CycleFrequency)
-	UE_TRACE_EVENT_FIELD(uint32, Serial)
-	UE_TRACE_EVENT_FIELD(uint16, UserUidBias)
 	UE_TRACE_EVENT_FIELD(uint16, Endian)
 	UE_TRACE_EVENT_FIELD(uint8, PointerSize)
-	UE_TRACE_EVENT_FIELD(uint8, FeatureSet)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN($Trace, SerialSync, NoSync)
 UE_TRACE_EVENT_END()
 
 
@@ -233,7 +227,6 @@ void Writer_MemoryFree(void* Address, uint32 Size)
 
 ////////////////////////////////////////////////////////////////////////////////
 static UPTRINT					GDataHandle;		// = 0
-static bool						GSerialSyncPending;	// = false
 UPTRINT							GPendingDataHandle;	// = 0
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -354,14 +347,6 @@ static void Writer_DescribeAnnounce()
 ////////////////////////////////////////////////////////////////////////////////
 static void Writer_LogHeader()
 {
-	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
-		<< NewTrace.Serial(AtomicLoadRelaxed(&GLogSerial))
-		<< NewTrace.UserUidBias(EKnownEventUids::User)
-		<< NewTrace.Endian(0x524d)
-		<< NewTrace.PointerSize(sizeof(void*))
-		<< NewTrace.StartCycle(GStartCycle)
-		<< NewTrace.CycleFrequency(TimeGetFrequency())
-		<< NewTrace.FeatureSet(1);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -398,7 +383,6 @@ static bool Writer_UpdateConnection()
 	{
 		IoClose(GPendingDataHandle);
 		GPendingDataHandle = 0;
-		GSerialSyncPending = false;
 		return false;
 	}
 
@@ -443,16 +427,10 @@ static bool Writer_UpdateConnection()
 	FEventNode::OnConnect();
 	Writer_DescribeEvents();
 
-	// Send the header event
-	TWriteBufferRedirect<512> HeaderEvents;
-	Writer_LogHeader();
-	HeaderEvents.Close();
-	Writer_SendData(ETransportTid::Internal, HeaderEvents.GetData(), HeaderEvents.GetSize());
-
+	// Send cached events (i.e. importants) and the tail of recent events
 	Writer_CacheOnConnect();
 	Writer_TailOnConnect();
 
-	GSerialSyncPending = true;
 	return true;
 }
 
@@ -470,17 +448,6 @@ static void Writer_WorkerUpdate()
 	Writer_DescribeAnnounce();
 	Writer_UpdateSharedBuffers();
 	Writer_DrainBuffers();
-
-	if (GSerialSyncPending)
-	{
-		GSerialSyncPending = false;
-
-		// When analysis receives the "serial sync" event the starting serial
-		// can be established from preceding synced events.
-		TWriteBufferRedirect<32> SideBuffer;
-		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
-		Writer_SendData(ETransportTid::Internal, SideBuffer.GetData(), SideBuffer.GetSize());
-	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -542,15 +509,11 @@ static void Writer_InternalInitializeImpl()
 	Writer_InitializePool();
 	Writer_InitializeControl();
 
-	// The order of the events at the beginning of a trace is a little sensitive,
-	// especially for the two following events that are added to the trace stream
-	// at very specific points. By dummy-tracing them we invoke the code to IDs
-	// and can guarantee the events are described on connection. It's not pretty.
-	{
-		TWriteBufferRedirect<64> TempBuffer;
-		UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel);
-		UE_TRACE_LOG($Trace, SerialSync, TraceLogChannel);
-	}
+	UE_TRACE_LOG($Trace, NewTrace, TraceLogChannel)
+		<< NewTrace.StartCycle(GStartCycle)
+		<< NewTrace.CycleFrequency(TimeGetFrequency())
+		<< NewTrace.Endian(0x524d)
+		<< NewTrace.PointerSize(sizeof(void*));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

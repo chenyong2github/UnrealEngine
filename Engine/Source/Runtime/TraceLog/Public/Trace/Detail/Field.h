@@ -114,6 +114,7 @@ template <int InIndex, int InOffset, typename Type> struct TField;
 
 enum class EIndexPack
 {
+	NumFieldsMax	= 1 << FAuxHeader::FieldBits,
 	NumFieldsShift	= 8,
 	NumFieldsMask	= (1 << NumFieldsShift) - 1,
 	AuxFieldCounter	= 1 << NumFieldsShift,
@@ -128,7 +129,7 @@ enum class EIndexPack
 			Tid		= TFieldType<Type>::Tid, \
 			Size	= TFieldType<Type>::Size, \
 		}; \
-		static_assert((Index & int(EIndexPack::NumFieldsMask)) <= 127, "Trace events may only have up to a maximum of 127 fields"); \
+		static_assert((Index & int(EIndexPack::NumFieldsMask)) < int(EIndexPack::NumFieldsMax), "Trace events may only have up to EIndexPack::NumFieldsMax fields"); \
 	private: \
 		FFieldDesc FieldDesc; \
 	public: \

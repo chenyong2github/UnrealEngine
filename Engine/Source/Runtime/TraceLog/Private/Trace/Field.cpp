@@ -14,20 +14,27 @@ namespace Private {
 template <typename CallbackType>
 static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback)
 {
-	static_assert(sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader), "FWriteBuffer::Overflow is not large enough");
+	static_assert(
+		sizeof(Private::FWriteBuffer::Overflow) >= sizeof(FAuxHeader) + sizeof(uint8 /*AuxDataTerminal*/),
+		"FWriteBuffer::Overflow is not large enough"
+	);
+
+	// Early-out if there would be nothing to write
+	if (Size == 0)
+	{
+		return;
+	}
 
 	// Header
-	const int bMaybeHasAux = true;
 	FWriteBuffer* Buffer = Writer_GetBuffer();
-	Buffer->Cursor += sizeof(FAuxHeader) - bMaybeHasAux;
-
-	auto* Header = (FAuxHeader*)(Buffer->Cursor - sizeof(FAuxHeader));
-	Header->Size = Size << 8;
-	Header->FieldIndex = uint8(0x80 | (Index & int(EIndexPack::NumFieldsMask)));
-
-	bool bCommit = ((uint8*)Header + bMaybeHasAux == Buffer->Committed);
+	auto* Header = (FAuxHeader*)(Buffer->Cursor);
+	Header->Pack = Size << FAuxHeader::SizeShift;
+	Header->Pack |= Index << FAuxHeader::FieldShift;
+	Header->Uid = uint8(EKnownEventUids::AuxData) << EKnownEventUids::_UidShift;
+	Buffer->Cursor += sizeof(FAuxHeader);
 
 	// Array data
+	bool bCommit = ((uint8*)Header == Buffer->Committed);
 	while (true)
 	{
 		if (Buffer->Cursor >= (uint8*)Buffer)
@@ -54,10 +61,6 @@ static void Field_WriteAuxData(uint32 Index, int32 Size, CallbackType&& Callback
 			break;
 		}
 	}
-
-	// The auxilary data null terminator.
-	Buffer->Cursor[0] = 0;
-	Buffer->Cursor++;
 
 	if (bCommit)
 	{

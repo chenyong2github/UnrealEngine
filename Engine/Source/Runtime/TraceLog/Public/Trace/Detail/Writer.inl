@@ -11,9 +11,8 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 struct FWriteBuffer
 {
-	uint32						Overflow;
+	uint8						Overflow[6];
 	uint16						Size;
-	uint16						ThreadId;
 	uint64						PrevTimestamp;
 	FWriteBuffer* __restrict	NextThread;
 	FWriteBuffer* __restrict	NextBuffer;
@@ -21,7 +20,8 @@ struct FWriteBuffer
 	uint8* __restrict volatile	Committed;
 	uint8* __restrict			Reaped;
 	int32 volatile				EtxOffset;
-	int32						Partial;
+	int16						Partial;
+	uint16						ThreadId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////

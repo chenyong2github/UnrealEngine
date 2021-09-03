@@ -13,34 +13,46 @@ namespace Trace {
 namespace Private {
 
 struct FWriteBuffer;
+template <bool bMaybeHasAux> class TLogScope;
 
 ////////////////////////////////////////////////////////////////////////////////
 class FLogScope
 {
+	friend class FEventNode;
+
 public:
 	template <typename EventType>
-	static FLogScope		Enter(uint32 ExtraSize=0);
+	static auto				Enter();
 	template <typename EventType>
-	static FLogScope		ScopedEnter(uint32 ExtraSize=0);
+	static auto				ScopedEnter();
 	template <typename EventType>
-	static FLogScope		ScopedStampedEnter(uint32 ExtraSize=0);
+	static auto				ScopedStampedEnter();
 	void*					GetPointer() const			{ return Ptr; }
-	void					Commit() const;
-	void					operator += (const FLogScope&) const;
 	const FLogScope&		operator << (bool) const	{ return *this; }
 	constexpr explicit		operator bool () const		{ return true; }
 
 	template <typename FieldMeta, typename Type>
 	struct FFieldSet;
 
+protected:
+	void					Commit() const;
+
 private:
 	template <uint32 Flags>
-	static FLogScope		EnterImpl(uint32 Uid, uint32 Size);
-	template <class T> void	EnterPrelude(uint32 Size, bool bMaybeHasAux);
-	void					Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux);
-	void					EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux);
+	static auto				EnterImpl(uint32 Uid, uint32 Size);
+	template <class T> void	EnterPrelude(uint32 Size);
+	void					Enter(uint32 Uid, uint32 Size);
+	void					EnterNoSync(uint32 Uid, uint32 Size);
 	uint8*					Ptr;
 	FWriteBuffer*			Buffer;
+};
+
+template <bool bMaybeHasAux>
+class TLogScope
+	: public FLogScope
+{
+public:
+	void					operator += (const FLogScope&) const;
 };
 
 

@@ -117,20 +117,17 @@ void FEventNode::Describe() const
 	}
 
 	// Allocate the new event event in the log stream.
-	uint16 EventSize = sizeof(FNewEventEvent);
+	uint32 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
 
-	struct FNewEventDummy
-	{
-		static constexpr uint32 GetSize()	{ return 0; }
-		static constexpr uint32 GetUid()	{ return 0; }
-		enum { EventFlags = FEventInfo::Flag_NoSync };
-	};
-	FLogScope LogScope = FLogScope::Enter<FNewEventDummy>(EventSize);
-	auto& Event = *(FNewEventEvent*)(LogScope.GetPointer());
+	FLogScope LogScope = FLogScope::EnterImpl<FEventInfo::Flag_NoSync>(0, EventSize + sizeof(uint16));
+	auto* Ptr = (uint16*)(LogScope.GetPointer());
+	Ptr[-1] = EKnownEventUids::NewEvent; // Make event look like an important one. Ideally they are sent
+	Ptr[ 0] = uint16(EventSize);		 // as important and not Writer_DescribeEvents()'s redirected buf.
 
 	// Write event's main properties.
+	auto& Event = *(FNewEventEvent*)(Ptr + 1);
 	Event.EventUid = uint16(Uid) >> EKnownEventUids::_UidShift;
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
