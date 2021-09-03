@@ -281,8 +281,12 @@ FWindowsMixedRealityViewport::FWindowsMixedRealityViewport(FD3D11DynamicRHI* InD
 	OffscreenBackBuffer = FD3D11Viewport::GetSwapChainSurface(D3DRHI, PixelFormat, SizeX, SizeY, nullptr);
 	UpdateBackBuffer();
 
-	BeginInitResource(&FrameSyncEvent);
-
+	ENQUEUE_RENDER_COMMAND(FD3D11Viewport)(
+	[this](FRHICommandListImmediate& RHICmdList)
+	{
+		// Initialize the query by issuing an initial event.
+		FrameSyncEvent.IssueEvent();
+	});
 }
 
 void FWindowsMixedRealityViewport::UpdateBackBuffer()
