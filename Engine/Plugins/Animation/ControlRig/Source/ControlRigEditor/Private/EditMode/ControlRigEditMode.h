@@ -270,7 +270,8 @@ protected:
 	FSimpleMulticastDelegate OnAnimSystemInitializedDelegate;
 	FControlRigAddedOrRemoved OnControlRigAddedOrRemovedDelegate;
 
-	TArray<FRigElementKey> SelectedRigElements;
+	/** GetSelectedRigElements */
+	TArray<FRigElementKey> GetSelectedRigElements() const;
 
 	/* Flag to recreate gizmos during tick */
 	bool bRecreateGizmosRequired;
