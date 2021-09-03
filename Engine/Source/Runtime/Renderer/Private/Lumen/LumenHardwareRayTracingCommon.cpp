@@ -77,6 +77,4 @@ void SetLumenHardwareRayTracingSharedParameters(
 	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);
 }
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, "RadianceCacheInterpolation");
-
 #endif // RHI_RAYTRACING

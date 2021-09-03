@@ -61,7 +61,7 @@ class FLumenTranslucencyVolumeHardwareRayTracingRGS : public FLumenHardwareRayTr
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, RWVolumeTraceRadiance)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWVolumeTraceHitDistance)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FRGSRadianceCacheParameters, RGSRadianceCacheParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingVolumeParameters, VolumeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenTranslucencyLightingVolumeTraceSetupParameters, TraceSetupParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -120,9 +120,7 @@ void HardwareRayTraceTranslucencyVolume(
 		PassParameters->VolumeParameters = VolumeParameters;
 		PassParameters->TraceSetupParameters = TraceSetupParameters;
 
-		FRGSRadianceCacheParameters* RGSRadianceCacheParameters = GraphBuilder.AllocParameters<FRGSRadianceCacheParameters>();
-		RGSRadianceCacheParameters->InterpolationParameters = RadianceCacheParameters;
-		PassParameters->RGSRadianceCacheParameters = GraphBuilder.CreateUniformBuffer(RGSRadianceCacheParameters);
+		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 
 		FLumenTranslucencyVolumeHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenTranslucencyVolumeHardwareRayTracingRGS::FRadianceCache>(RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr);

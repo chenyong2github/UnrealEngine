@@ -27,6 +27,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenReflectionTracingParameters, )
 	SHADER_PARAMETER(float, ReflectionSmoothBias)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, RayBuffer)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, RayTraceDistance)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledDepth)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, TraceHit)
@@ -61,7 +62,9 @@ extern void TraceReflections(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters, 
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters);
+	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
+	bool bUseRadianceCache,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
 
 class FLumenReflectionTracingParameters;
 class FLumenReflectionTileParameters;
@@ -74,4 +77,6 @@ extern void RenderLumenHardwareRayTracingReflections(
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenCardTracingInputs& TracingInputs,
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
-	float MaxTraceDistance);
+	float MaxTraceDistance,
+	bool bUseRadianceCache,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);

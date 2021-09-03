@@ -61,10 +61,17 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 			float TraceDistance = MaxTraceDistance;
-			bool bCoveredByRadianceCache = false;
+
+			FRadianceCacheCoverage Coverage;
+			Coverage.bValid = false;
+
 #if USE_RADIANCE_CACHE
-			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, float3(0, 0, 0), bCoveredByRadianceCache);
-			TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+				
+			if (Coverage.bValid)
+			{
+				TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+			}
 #endif
 			RayDesc Ray;
 			Ray.Origin = WorldPosition;
@@ -95,7 +102,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenTranslucencyVolumeHardwareRayTracingRGS)
 				float Transparency = 1.0f;
 
 #if USE_RADIANCE_CACHE
-				if (bCoveredByRadianceCache)
+				if (Coverage.bValid)
 				{
 					SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceLightingResult.Radiance, Transparency);
 				}

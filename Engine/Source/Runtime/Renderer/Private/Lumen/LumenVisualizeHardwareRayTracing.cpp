@@ -527,7 +527,6 @@ void VisualizeHardwareRayTracing(
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
-	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef SceneColor
 )
 #if RHI_RAYTRACING

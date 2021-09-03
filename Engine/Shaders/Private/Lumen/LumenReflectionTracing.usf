@@ -58,8 +58,7 @@ void ReflectionTraceScreenTexturesCS(
 		if (SceneDepth > 0.0f)
 		{
 			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-			FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
-			float TraceDistance = MaxTraceDistance;
+			FRayData RayData = GetRayData(ReflectionTracingCoord);
 
 			bool bHit;
 			bool bUncertain;
@@ -68,7 +67,7 @@ void ReflectionTraceScreenTexturesCS(
 			TraceScreen(
 				WorldPosition + View.PreViewTranslation,
 				RayData.Direction,
-				TraceDistance,
+				RayData.TraceDistance,
 				HZBUvFactorAndInvFactor,
 				MaxHierarchicalScreenTraceIterations, 
 				RelativeDepthThickness,
@@ -87,7 +86,7 @@ void ReflectionTraceScreenTexturesCS(
 				TraceHairScreen(
 					WorldPosition + View.PreViewTranslation,
 					RayData.Direction,
-					TraceDistance,
+					RayData.TraceDistance,
 					HZBUvFactorAndInvFactor,
 					MaxHierarchicalScreenTraceIterations,
 					RelativeDepthThickness,
@@ -355,13 +354,13 @@ void TraceMeshSDFs(
 	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
-	FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
+	FRayData RayData = GetRayData(ReflectionTracingCoord);
 	bool bHit = false;
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, TraceHitDistance, MaxTraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, TraceHitDistance, RayData.TraceDistance, 1.0f);
 	TraceInput.VoxelStepFactor = 1.0f;
 	TraceInput.VoxelTraceStartDistance = MaxMeshSDFTraceDistance;
 
@@ -442,17 +441,16 @@ void TraceVoxels(
 
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 	float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
-	FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
+	FRayData RayData = GetRayData(ReflectionTracingCoord);
 
 	bool bHit = false;
 
 	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
 
-	float TraceDistance = MaxTraceDistance;
 	float MinTraceDistance = 0;
 
 	FConeTraceInput TraceInput;
-	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, MinTraceDistance, TraceDistance, 1.0f);
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, MinTraceDistance, RayData.TraceDistance, 1.0f);
 	TraceInput.VoxelStepFactor = 1.0f;
 	TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance);
 	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
@@ -471,7 +469,7 @@ void TraceVoxels(
 	{
 		// Use WorldPosition instead of SamplePosition, as the bias is too strong otherwise. This is not an issue as 
 		// the voxel structure does not cause any self shadowing issue
-		TraceHairVoxels(ReflectionTracingCoord, SceneDepth, WorldPosition, RayData.Direction, TraceDistance, true, TraceResult);
+		TraceHairVoxels(ReflectionTracingCoord, SceneDepth, WorldPosition, RayData.Direction, RayData.TraceDistance, true, TraceResult);
 	}
 	#endif
 
@@ -485,8 +483,22 @@ void TraceVoxels(
 		TraceHitDistance = GetMaxHitDistance();
 	}
 
-	EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
-	
+	if (!bHit)
+	{
+#if RADIANCE_CACHE
+		if (RayData.TraceDistance < MaxTraceDistance * .99f)
+		{
+			SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			TraceHitDistance = RayData.TraceDistance;
+		}
+		else
+#endif
+		{
+			TraceHitDistance = MaxTraceDistance;
+			EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+		}
+	}
+
 	TraceResult.Lighting *= View.PreExposure;
 	float MaxLighting = max3(TraceResult.Lighting.x, TraceResult.Lighting.y, TraceResult.Lighting.z);
 

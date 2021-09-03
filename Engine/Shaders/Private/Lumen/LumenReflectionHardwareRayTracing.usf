@@ -8,6 +8,7 @@
 #include "LumenTracingCommon.ush"
 #include "LumenReflectionCommon.ush"
 #include "LumenVisualizeTraces.ush"
+#include "LumenRadianceCacheCommon.ush"
 
 #ifndef THREADGROUP_SIZE_2D
 #define THREADGROUP_SIZE_2D 8
@@ -292,14 +293,14 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 		float3 WorldNormal = DecodeNormal(GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
 
-		FRayData RayData = DecodeRayData(RayBuffer[TraceCoord]);
+		FRayData RayData = GetRayData(TraceCoord);
 
 		RayDesc Ray;
 		Ray.Origin = WorldPosition;
 		Ray.Direction = RayData.Direction;
 		float RayBias = 0.05;
 		Ray.TMin = max(TraceHitDistance - PullbackBias, RayBias);
-		Ray.TMax = MaxTraceDistance;
+		Ray.TMax = RayData.TraceDistance;
 
 		float NormalBias = 0.05;
 		ApplyPositionBias(Ray.Origin, Ray.Direction, WorldNormal, NormalBias);
@@ -335,17 +336,29 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 
 #endif // DIM_LIGHTING_MODE
 
-#if DIM_APPLY_SKY_LIGHT
+#if DIM_WRITE_FINAL_LIGHTING
 		if (!Result.bIsHit)
 		{
 			FConeTraceResult TraceResult;
 			TraceResult.Lighting = Result.Radiance;
 			TraceResult.Transparency = 1;
 
-			EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+#if DIM_RADIANCE_CACHE
+			if (RayData.TraceDistance < MaxTraceDistance * .99f)
+			{
+				SampleRadianceCacheAndApply(WorldPosition, RayData.Direction, RayData.ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+
+				Result.TraceHitDistance = RayData.TraceDistance;
+			}
+			else
+#endif
+			{
+				Result.TraceHitDistance = MaxTraceDistance;
+				EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+			}
 
 			Result.Radiance = TraceResult.Lighting;
-			Result.TraceHitDistance = MaxTraceDistance;
+			Result.bIsHit = true;
 		}
 #endif // DIM_LIGHTING_MODE
 
@@ -355,6 +368,14 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 
 #if DIM_WRITE_FINAL_LIGHTING
 		Result.Radiance *= View.PreExposure;
+
+		float MaxLighting = max3(Result.Radiance.x, Result.Radiance.y, Result.Radiance.z);
+
+		if (MaxLighting > MaxRayIntensity)
+		{
+			Result.Radiance *= MaxRayIntensity / MaxLighting;
+		}
+
 		RWTraceRadiance[TraceCoord] = Result.Radiance;
 		RWTraceHit[TraceCoord] = EncodeRayDistance(Result.TraceHitDistance, Result.bIsHit);
 

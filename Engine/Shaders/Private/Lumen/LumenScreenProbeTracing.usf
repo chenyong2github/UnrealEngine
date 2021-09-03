@@ -97,8 +97,12 @@ void ScreenProbeTraceScreenTexturesCS(
 				float TraceDistance = MaxTraceDistance;
 				bool bCoveredByRadianceCache = false;
 				#if RADIANCE_CACHE
-					float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
-					TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+					FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+
+					if (Coverage.bValid)
+					{
+						TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+					}
 				#endif
 
 
@@ -536,10 +540,15 @@ void TraceVoxels(
 			SamplePosition += SurfaceBias * SceneNormal;
 
 			float TraceDistance = MaxTraceDistance;
-			bool bCoveredByRadianceCache = false;
+			FRadianceCacheCoverage Coverage;
+			Coverage.bValid = false;
 #if RADIANCE_CACHE
-			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
-			TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+
+			if (Coverage.bValid)
+			{
+				TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+			}
 #endif
 
 			FConeTraceInput TraceInput;
@@ -578,7 +587,7 @@ void TraceVoxels(
 			}
 
 #if RADIANCE_CACHE
-			if (bCoveredByRadianceCache)
+			if (Coverage.bValid)
 			{
 				if (TraceResult.Transparency > .5f)
 				{

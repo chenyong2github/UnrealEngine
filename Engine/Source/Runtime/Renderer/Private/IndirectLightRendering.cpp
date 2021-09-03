@@ -795,6 +795,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			check(ViewPipelineState.DiffuseIndirectDenoiser == IScreenSpaceDenoiser::EMode::Disabled);
 
 			FLumenMeshSDFGridParameters MeshSDFGridParameters;
+			LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 
 			DenoiserOutputs = RenderLumenScreenProbeGather(
 				GraphBuilder, 
@@ -803,7 +804,8 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				View,
 				&View.PrevViewInfo,
 				bLumenUseDenoiserComposite,
-				MeshSDFGridParameters);
+				MeshSDFGridParameters,
+				RadianceCacheParameters);
 
 			if (ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen)
 			{
@@ -812,6 +814,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 					View,
 					SceneTextures, 
 					MeshSDFGridParameters,
+					RadianceCacheParameters,
 					LumenReflectionCompositeParameters);
 			}
 

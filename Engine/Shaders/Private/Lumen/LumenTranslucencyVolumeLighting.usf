@@ -68,10 +68,16 @@ void TranslucencyVolumeTraceVoxelsCS(
 			float3 WorldConeDirection = OctahedronToUnitVector(ProbeUV * 2.0 - 1.0);
 
 			float TraceDistance = MaxTraceDistance;
-			bool bCoveredByRadianceCache = false;
+			FRadianceCacheCoverage Coverage;
+			Coverage.bValid = false;
+
 #if USE_RADIANCE_CACHE
-			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, float3(0, 0, 0), bCoveredByRadianceCache);
-			TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+			Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+				
+			if (Coverage.bValid)
+			{
+				TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+			}
 #endif
 			float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxMeshSDFTraceDistance, false) * VoxelTraceStartDistanceScale;
 
@@ -94,7 +100,7 @@ void TranslucencyVolumeTraceVoxelsCS(
 			}
 
 #if USE_RADIANCE_CACHE
-			if (bCoveredByRadianceCache)
+			if (Coverage.bValid)
 			{
 				SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
 			}
