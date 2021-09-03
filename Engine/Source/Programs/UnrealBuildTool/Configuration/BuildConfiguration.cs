@@ -142,6 +142,12 @@ namespace UnrealBuildTool
 		public bool bSkipRulesCompile = false;
 
 		/// <summary>
+		/// Whether to force compiling rules assemblies, regardless of whether they are valid
+		/// </summary>
+		[CommandLine("-ForceRulesCompile")]
+		public bool bForceRulesCompile = false;
+
+		/// <summary>
 		/// Maximum recommended root path length.
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
