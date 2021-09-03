@@ -74,47 +74,7 @@ namespace HordeServer
 			{
 				Configuration = Configuration.Enrich.With<DatadogLogEnricher>();
 			}
-			if (!Settings.LogSessionRequests)
-			{
-				Configuration = Configuration.Filter.ByExcluding(IsSessionLogEvent);
-			}
 			return Configuration;
-		}
-
-		static bool IsSessionLogEvent(LogEvent Event)
-		{
-			if (Event.Level <= LogEventLevel.Information)
-			{
-				LogEventPropertyValue? PropertyValue;
-				if (Event.Properties.TryGetValue("RequestPath", out PropertyValue))
-				{
-					ScalarValue? ScalarPropertyValue = PropertyValue as ScalarValue;
-					if (ScalarPropertyValue != null)
-					{
-						string? RequestPath = ScalarPropertyValue.Value as string;
-						if (RequestPath != null)
-						{
-							if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
-							{
-								return true;
-							}
-							if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
-							{
-								return true;
-							}
-							if (RequestPath.Equals("/Horde.HordeRpc/CreateEvents", StringComparison.OrdinalIgnoreCase))
-							{
-								return true;
-							}
-							if (RequestPath.Equals("/Horde.HordeRpc/WriteOutput", StringComparison.OrdinalIgnoreCase))
-							{
-								return true;
-							}
-						}
-					}
-				}
-			}
-			return false;
 		}
 	}
 
