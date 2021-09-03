@@ -491,20 +491,55 @@ bool FPrivateModelProtoConverter::ConvertProto3ToUAssetProtoArrays(TArray<T1>& O
 
 bool FModelProtoConverter::ConvertFromONNXProto3Ifstream(FModelProto& OutModelProto, std::istream& InIfstream)
 {
+	return ConvertFromONNXProto3(OutModelProto, &InIfstream, nullptr);
+}
+
+bool FModelProtoConverter::ConvertFromONNXProto3Array(FModelProto& OutModelProto, const TArray<uint8>& InModelReadFromFileInBytes)
+{
+	return ConvertFromONNXProto3(OutModelProto, nullptr, &InModelReadFromFileInBytes);
+}
+
+
+
+/* FModelProtoConverter private functions
+*****************************************************************************/
+
+bool FModelProtoConverter::ConvertFromONNXProto3(FModelProto& OutModelProto, std::istream* InIfstream, const TArray<uint8>* InModelReadFromFileInBytes)
+{
 #if WITH_EDITOR // @todo: Workaround to avoid linking error when compiled in-game with UEAndORT back end, Schema*.txt files also modified
 	#ifdef WITH_PROTOBUF
-		// Protobuf onnx::ModelProto from Ifstream
+		// Sanity checks
+		if ((InIfstream == nullptr) == (InModelReadFromFileInBytes == nullptr))
+		{
+			UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Both InIfstream & InModelReadFromFileInBytes were nullptr or both were not nullptr. However, only 1 of them should not be a nullptr."));
+			return false;
+		}
+		// Protobuf onnx::ModelProto from Ifstream/InModelReadFromFileInBytes
 		onnx::ModelProto ModelProto;
-		ModelProto.ParseFromIstream(&InIfstream);
+		if (InIfstream)
+		{
+			ModelProto.ParseFromIstream(InIfstream);
+		}
+		else
+		{
+			if (InModelReadFromFileInBytes->IsEmpty())
+			{
+				UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Input InModelReadFromFileInBytes was empty."));
+				return false;
+			}
+			ModelProto.ParseFromArray(InModelReadFromFileInBytes->GetData(), InModelReadFromFileInBytes->Num());
+		}
+		// FModelProto from Protobuf onnx::ModelProto
 		return FPrivateModelProtoConverter::ConvertProto3ToUAsset(OutModelProto, ModelProto);
+
 	#else //WITH_PROTOBUF
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): Platform not compatible (WITH_PROTOBUF was not defined)."));
+		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Platform not compatible (WITH_PROTOBUF was not defined)."));
 		return false;
 	#endif //WITH_PROTOBUF
+
 #else //WITH_EDITOR
 	UE_LOG(LogModelProtoConverter, Warning,
-		TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): Due to a known linking error when used together with the UEAndORT back end during game mode,"
-			" this function is only available on Editor mode (WITH_EDITOR) for now."));
+		TEXT("FModelProtoConverter::ConvertFromONNXProto3(): Due to a known linking error when used together with the UEAndORT back end during game mode, this function is only available on Editor mode (WITH_EDITOR) for now."));
 	return false;
 #endif //WITH_EDITOR
 }

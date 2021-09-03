@@ -60,7 +60,7 @@ void UNeuralNetworkLegacy::PostLoad()
 			bIsLoaded = false;
 		}
 		// Turn ModelProto into Operators
-		else if (!FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph()))
+		else if (!FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), /*bInIsTensorManagerConst*/true))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::PostLoad(): UNeuralNetworkLegacy could not be configured from its FModelProto."));
 		}
@@ -131,7 +131,7 @@ bool UNeuralNetworkLegacy::Load(const FString& InModelFilePath)
 		return false;
 	}
 	// Turn ModelProto into Operators
-	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), InModelFilePath);
+	bIsLoaded = FGraphProtoToNeuralNetworkConverter::Translate(Operators, TensorManager, ModelProto.GetGraph(), /*bInIsTensorManagerConst*/false);
 	if (!TensorManager.IsLoaded())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetworkLegacy::Load(): TensorManager could not be loaded from %s."), *InModelFilePath);
