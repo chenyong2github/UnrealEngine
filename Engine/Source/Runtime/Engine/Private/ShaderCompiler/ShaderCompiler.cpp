@@ -1317,6 +1317,9 @@ static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& 
 			// This unique error is being processed, remove it from the array
 			UniqueErrors.RemoveAt(UniqueError);
 
+			// Extract source location from error message if the shader backend doesn't provide it separated from the stripped message
+			CurrentError.ExtractSourceLocation();
+
 			// Remap filenames
 			if (CurrentError.ErrorVirtualFilePath == TEXT("/Engine/Generated/Material.ush"))
 			{
@@ -1372,12 +1375,12 @@ static void ProcessErrors(const FShaderCompileJob& CurrentJob, TArray<FString>& 
 					*CurrentJob.Input.VirtualSourceFilePath);
 			}
 
-			FString UniqueErrorString = UniqueErrorPrefix + CurrentError.StrippedErrorMessage + TEXT("\n");
+			FString UniqueErrorString = UniqueErrorPrefix + CurrentError.GetErrorStringWithLineMarker() + TEXT("\n");
 
 			if (GIsBuildMachine)
 			{
 				// Format everything on one line, and with the correct verbosity, so we can display proper errors in the failure logs.
-				UE_LOG(LogShaderCompilers, Error, TEXT("%s%s"), *UniqueErrorPrefix.Replace(TEXT("\n"), TEXT("")), *CurrentError.StrippedErrorMessage);
+				UE_LOG(LogShaderCompilers, Error, TEXT("%s%s"), *UniqueErrorPrefix.Replace(TEXT("\n"), TEXT("")), *CurrentError.GetErrorStringWithLineMarker());
 			}
 			else if (FPlatformMisc::IsDebuggerPresent())
 			{
