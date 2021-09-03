@@ -71,23 +71,25 @@ bool FIPv4AddressTest::RunTest( const FString& Parameters )
 	// site local addresses must be recognized
 	FIPv4Address a8_1 = FIPv4Address(10, 0, 0, 1);
 	FIPv4Address a8_2 = FIPv4Address(172, 16, 0, 1);
-	FIPv4Address a8_3 = FIPv4Address(192, 168, 0, 1);
+	FIPv4Address a8_3 = FIPv4Address(172, 31, 0, 1);
+	FIPv4Address a8_4 = FIPv4Address(192, 168, 0, 1);
 
 	TestTrue(TEXT("10.0.0.1 must be a site local address"), a8_1.IsSiteLocalAddress());
 	TestTrue(TEXT("172.16.0.1 must be a site local address"), a8_2.IsSiteLocalAddress());
-	TestTrue(TEXT("192.168.0.1 must be a site local address"), a8_3.IsSiteLocalAddress());
+	TestTrue(TEXT("172.31.0.1 must be a site local address"), a8_3.IsSiteLocalAddress());
+	TestTrue(TEXT("192.168.0.1 must be a site local address"), a8_4.IsSiteLocalAddress());
 
-	FIPv4Address a8_4 = FIPv4Address(11, 0, 0, 1);
-	FIPv4Address a8_5 = FIPv4Address(173, 16, 0, 1);
-	FIPv4Address a8_6 = FIPv4Address(172, 17, 0, 1);
-	FIPv4Address a8_7 = FIPv4Address(193, 168, 0, 1);
-	FIPv4Address a8_8 = FIPv4Address(192, 169, 0, 1);
+	FIPv4Address a8_5 = FIPv4Address(11, 0, 0, 1);
+	FIPv4Address a8_6 = FIPv4Address(173, 16, 0, 1);
+	FIPv4Address a8_7 = FIPv4Address(172, 32, 0, 1);
+	FIPv4Address a8_8 = FIPv4Address(193, 168, 0, 1);
+	FIPv4Address a8_9 = FIPv4Address(192, 169, 0, 1);
 
-	TestFalse(TEXT("11.0.0.1 must not be a site local address"), a8_4.IsSiteLocalAddress());
-	TestFalse(TEXT("173.16.0.1 must not be a site local address"), a8_5.IsSiteLocalAddress());
-	TestFalse(TEXT("172.17.0.1 must not be a site local address"), a8_6.IsSiteLocalAddress());
-	TestFalse(TEXT("193.168.0.1 must not be a site local address"), a8_7.IsSiteLocalAddress());
-	TestFalse(TEXT("192.169.0.1 must not be a site local address"), a8_8.IsSiteLocalAddress());
+	TestFalse(TEXT("11.0.0.1 must not be a site local address"), a8_5.IsSiteLocalAddress());
+	TestFalse(TEXT("173.16.0.1 must not be a site local address"), a8_6.IsSiteLocalAddress());
+	TestFalse(TEXT("172.32.0.1 must not be a site local address"), a8_7.IsSiteLocalAddress());
+	TestFalse(TEXT("193.168.0.1 must not be a site local address"), a8_8.IsSiteLocalAddress());
+	TestFalse(TEXT("192.169.0.1 must not be a site local address"), a8_9.IsSiteLocalAddress());
 
 	// host byte order integer constructor
 #if PLATFORM_LITTLE_ENDIAN
