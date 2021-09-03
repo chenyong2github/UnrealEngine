@@ -3,7 +3,7 @@
 	"Version" : 1,
 	"VersionName" : "1.0",
 	"FriendlyName" : "Composure",
-	"Description" : "Plugin design to make compositing easier in UE4.",
+	"Description" : "Plugin design to make compositing easier in Unreal Engine.",
 	"Category" : "Compositing",
 	"CreatedBy" : "Epic Games, Inc.",
 	"CreatedByURL" : "http://epicgames.com",

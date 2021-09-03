@@ -85,7 +85,7 @@ public:
 			+ SHeaderRow::Column(CompElementsView::ColumnID_Alpha)
 				.HAlignCell(HAlign_Right)
 				.HAlignHeader(HAlign_Right)
-				.FixedWidth(66.f)
+				.FixedWidth(114.f)
 				.DefaultLabel(LOCTEXT("Column_AlphaNameLabel", "Alpha"))
 
 			+ SHeaderRow::Column(CompElementsView::ColumnID_MediaCapture)
