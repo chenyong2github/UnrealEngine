@@ -799,16 +799,16 @@ float3 InterpolateFromScreenProbes(float3 ConeDirection, float MipLevel, uint2 S
 #endif
 
 	float2 UV0 = ScreenProbeAtlasCoord[0] * AtlasUVMul + AtlasUVAdd;
-	float3 InterpolatedRadiance = InterpolationWeights.x > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV0, MipLevel).xyz * InterpolationWeights.x : 0;
+	float3 InterpolatedRadiance = ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV0, MipLevel).xyz * InterpolationWeights.x;
 
 	float2 UV1 = ScreenProbeAtlasCoord[1] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += InterpolationWeights.y > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV1, MipLevel).xyz * InterpolationWeights.y : 0;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV1, MipLevel).xyz * InterpolationWeights.y;
 
 	float2 UV2 = ScreenProbeAtlasCoord[2] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += InterpolationWeights.z > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV2, MipLevel).xyz * InterpolationWeights.z : 0;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV2, MipLevel).xyz * InterpolationWeights.z;
 
 	float2 UV3 = ScreenProbeAtlasCoord[3] * AtlasUVMul + AtlasUVAdd;
-	InterpolatedRadiance += InterpolationWeights.w > 0 ? ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV3, MipLevel).xyz * InterpolationWeights.w : 0;
+	InterpolatedRadiance += ScreenProbeRadianceWithBorder.SampleLevel(GlobalBilinearClampedSampler, UV3, MipLevel).xyz * InterpolationWeights.w;
 	return InterpolatedRadiance;
 }
 
