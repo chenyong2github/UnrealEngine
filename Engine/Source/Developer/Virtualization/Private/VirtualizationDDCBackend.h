@@ -1,0 +1,56 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once 
+
+#include "Virtualization/IVirtualizationBackend.h"
+
+namespace UE::DerivedData { enum class ECachePolicy : uint8; }
+
+namespace UE::Virtualization
+{
+/**
+ * A backend that uses the DDC2 as it's storage mechanism. It is intended to be used as a local caching
+ * system to speed up operations rather than for use as persistent storage.
+ * 
+ * Ini file setup:
+ * 'Name'=(Type=DDCBackend, Bucket="XXX", LocalStorage=True/False, RemoteStorage=True/False)
+ * 
+ * Required Values:
+ * 'Name': The backend name in the hierarchy.
+ * 
+ * Optional Values:
+ * Bucket: An alphanumeric identifier used to group the payloads together in storage. [Default="BulkData"]
+ * LocalStorage: When set to true, the payloads can be stored locally. [Default=true]
+ * RemoteStorage: When set to true, the payloads can be stored remotely. [Default=true]
+ */
+class FDDCBackend : public IVirtualizationBackend
+{
+public:
+	explicit FDDCBackend(FStringView ConfigName);
+	virtual ~FDDCBackend() = default;
+
+protected:
+
+	virtual bool Initialize(const FString& ConfigEntry) override;
+
+	virtual EPushResult PushData(const FPayloadId& Id, const FCompressedBuffer& Payload) override;
+
+	virtual FCompressedBuffer PullData(const FPayloadId& Id) override;
+
+	virtual FString GetDebugString() const override;
+
+	bool DoesExist(const FPayloadId& Id) const;
+	
+	/** Debug name used to identify the backend */
+	FString DebugName;
+
+	/** The bucket being used to group together the virtualized payloads in storage */
+	FString BucketName;
+
+	/** The policy to use when uploading or downloading data from the cache */
+	UE::DerivedData::ECachePolicy TransferPolicy;
+	/** The policy to use when querying the cache for information */
+	UE::DerivedData::ECachePolicy QueryPolicy;
+};
+
+} // namespace UE::Virtualization

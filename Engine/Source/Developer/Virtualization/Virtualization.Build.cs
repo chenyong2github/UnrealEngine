@@ -10,7 +10,10 @@ public class Virtualization : ModuleRules
 		PrivateDependencyModuleNames.Add("Core");
 
 		// Remove this when we move the rest of the Virtualization code to this module
-		PrivateDependencyModuleNames.Add("CoreUObject"); 
+		PrivateDependencyModuleNames.Add("CoreUObject");
+
+		//  Dependency for DDC2
+		PrivateDependencyModuleNames.Add("DerivedDataCache");
 
 		// Dependencies for the Jupiter service backend
 		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json", "SourceControl" });
