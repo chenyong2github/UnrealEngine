@@ -66,18 +66,38 @@ TArrayView<const FPaletteItem> UAssetPlacementSettings::GetActivePaletteItems() 
 	return ActivePalette ? MakeArrayView(ActivePalette->PaletteItems) : TArrayView<const FPaletteItem>();
 }
 
+FSoftObjectPath UAssetPlacementSettings::GetActivePalettePath() const
+{
+	return FSoftObjectPath(ActivePalette);
+}
+
+const FGuid UAssetPlacementSettings::GetActivePaletteGuid() const
+{
+	if (ActivePalette)
+	{
+		return ActivePalette->GridGuid;
+	}
+
+	return FGuid();
+}
+
 void UAssetPlacementSettings::ClearActivePaletteItems()
 {
 	ActivePalette->Modify();
 	ActivePalette->PaletteItems.Empty();
 }
 
-void UAssetPlacementSettings::Restore()
+void UAssetPlacementSettings::LoadSettings()
 {
 	LoadConfig();
 
 	UserPalette = NewObject<UPlacementPaletteAsset>(this);
-	UserPalette->LoadConfig();
+	if (!UserGridGuid.IsValid())
+	{
+		FGuid::Parse(FPlatformMisc::GetLoginId(), UserGridGuid);
+	}
+
+	UserPalette->GridGuid = UserGridGuid;
 
 	ActivePalette = Cast<UPlacementPaletteAsset>(LastActivePalettePath.TryLoad());
 	if (!ActivePalette)
@@ -98,7 +118,7 @@ void UAssetPlacementSettings::SaveActivePalette()
 	}
 }
 
-void UAssetPlacementSettings::Save()
+void UAssetPlacementSettings::SaveSettings()
 {
 	UPackageTools::SavePackagesForObjects(TArray<UObject*>({ActivePalette}));
 	UserPalette->SaveConfig();

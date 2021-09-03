@@ -124,10 +124,12 @@ public:
 	void SetPaletteAsset(UPlacementPaletteAsset* InPaletteAsset);
 	void AddItemToActivePalette(const FPaletteItem& InPaletteItem);
 	TArrayView<const FPaletteItem> GetActivePaletteItems() const;
+	const FGuid GetActivePaletteGuid() const;
 	void ClearActivePaletteItems();
 	void SaveActivePalette();
-	void Restore();
-	void Save();
+	FSoftObjectPath GetActivePalettePath() const;
+	void LoadSettings();
+	void SaveSettings();
 
 protected:
 
@@ -136,6 +138,9 @@ protected:
 
 	UPROPERTY(Transient)
 	TObjectPtr<UPlacementPaletteAsset> UserPalette;
+
+	UPROPERTY(config)
+	FGuid UserGridGuid;
 
 	UPROPERTY(config)
 	FSoftObjectPath LastActivePalettePath;

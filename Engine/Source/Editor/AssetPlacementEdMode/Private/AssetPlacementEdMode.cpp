@@ -46,10 +46,13 @@ UAssetPlacementEdMode::~UAssetPlacementEdMode()
 
 void UAssetPlacementEdMode::Enter()
 {
-	// Set the settings object before we call Super::Enter, since we're using a shared one from the subsystem.
-	SettingsObject = const_cast<UAssetPlacementSettings*>(GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject());
-
 	Super::Enter();
+	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
+	{
+		SettingsObjectAsPlacementSettings = PlacementModeSubsystem->GetMutableModeSettingsObject();
+		SettingsObjectAsPlacementSettings->LoadSettings();
+		Toolkit->SetModeSettingsObject(SettingsObjectAsPlacementSettings.Get());
+	}
 
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
 	RegisterTool(PlacementModeCommands.Select, UPlacementModeSelectTool::ToolName, NewObject<UPlacementModeSelectToolBuilder>(this));
@@ -73,16 +76,16 @@ void UAssetPlacementEdMode::Exit()
 {
 	Super::Exit();
 
+	SettingsObjectAsPlacementSettings->SaveSettings();
+	SettingsObjectAsPlacementSettings.Reset();
+
 	// Restore the selection to the original state after all the tools have shutdown in UEdMode::Exit()
 	// Since they can continue messing with selection states.
 	Owner->RestoreSelection(AssetPlacementEdModeID);
-
-	SettingsObjectAsPlacementSettings.Reset();
 }
 
 void UAssetPlacementEdMode::CreateToolkit()
 {
-	SettingsObjectAsPlacementSettings = Cast<UAssetPlacementSettings>(SettingsObject);
 	Toolkit = MakeShared<FAssetPlacementEdModeToolkit>();
 }
 

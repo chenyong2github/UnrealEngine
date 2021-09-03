@@ -70,16 +70,18 @@ void UPlacementModePlaceSingleTool::OnClickPress(const FInputDeviceRay& PressPos
 {
 	Super::OnClickPress(PressPos);
 
-	// Place the Preview data if we managed to get to a valid handled click.
-	FPlacementOptions PlacementOptions;
-	PlacementOptions.bPreferBatchPlacement = true;
-	PlacementOptions.InstancedPlacementGridGuid = UPlacementSubsystem::GetUserGridGuid();
-
 	LastBrushStamp.Radius = 100.0f * LastBrushStampWorldToPixelScale;
-	
+
+	UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>();
+	const UAssetPlacementSettings* PlacementSettings = PlacementModeSubsystem ? PlacementModeSubsystem->GetModeSettingsObject() : nullptr;
 	UPlacementSubsystem* PlacementSubsystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>();
-	if (PlacementSubsystem)
+	if (PlacementSubsystem && PlacementSettings)
 	{
+		// Place the Preview data if we managed to get to a valid handled click.
+		FPlacementOptions PlacementOptions;
+		PlacementOptions.bPreferBatchPlacement = true;
+		PlacementOptions.InstancedPlacementGridGuid = PlacementSettings->GetActivePaletteGuid();
+
 		FAssetPlacementInfo FinalizedPlacementInfo = *PlacementInfo;
 		FinalizedPlacementInfo.FinalizedTransform = FinalizeTransform(
 			FTransform(PlacementInfo->FinalizedTransform.GetRotation(), LastBrushStamp.WorldPosition, PlacementInfo->FinalizedTransform.GetScale3D()),
