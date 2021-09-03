@@ -103,14 +103,6 @@ void UAssetPlacementEdMode::BindCommands()
 {
 	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
 	const FAssetPlacementEdModeCommands& PlacementModeCommands = FAssetPlacementEdModeCommands::Get();
-
-	CommandList->MapAction(PlacementModeCommands.Deselect,
-		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::ClearSelection),
-		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasActiveSelection));
-
-	CommandList->MapAction(PlacementModeCommands.Delete,
-		FExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::DeleteSelection),
-		FCanExecuteAction::CreateUObject(this, &UAssetPlacementEdMode::HasActiveSelection));
 }
 
 bool UAssetPlacementEdMode::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
@@ -198,18 +190,6 @@ bool UAssetPlacementEdMode::ShouldDrawWidget() const
 bool UAssetPlacementEdMode::IsEnabled()
 {
 	return SMInstanceElementDataUtil::SMInstanceElementsEnabled() && GetDefault<ULevelEditorMiscSettings>()->bEnableAssetPlacementMode;
-}
-
-void UAssetPlacementEdMode::DeleteSelection()
-{
-	GetToolManager()->BeginUndoTransaction(LOCTEXT("PlacementDeleteAllSelected", "Delete Selected Assets"));
-
-	if (UTypedElementCommonActions* CommonActions = Owner->GetToolkitHost()->GetCommonActions())
-	{
-		CommonActions->DeleteSelectedElements(Owner->GetEditorSelectionSet(), GetWorld(), FTypedElementDeletionOptions());
-	}
-
-	GetToolManager()->EndUndoTransaction();
 }
 
 void UAssetPlacementEdMode::ClearSelection()

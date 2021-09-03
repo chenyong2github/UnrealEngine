@@ -49,10 +49,6 @@ FAssetPlacementEdModeStyle::FAssetPlacementEdModeStyle()
 
 	Set("AssetPlacementEdMode.Select",                      new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Select.Small",                new IMAGE_BRUSH("Icons/GeneralTools/Select_40x", Icon20x20));
-	Set("AssetPlacementEdMode.SelectAll",                   new IMAGE_BRUSH("Icons/GeneralTools/SelectAll_40x", Icon20x20));
-	Set("AssetPlacementEdMode.SelectAll.Small",             new IMAGE_BRUSH("Icons/GeneralTools/SelectAll_40x", Icon20x20));
-	Set("AssetPlacementEdMode.Deselect",                    new IMAGE_BRUSH("Icons/GeneralTools/Deselect_40x", Icon20x20));
-	Set("AssetPlacementEdMode.Deselect.Small",              new IMAGE_BRUSH("Icons/GeneralTools/Deselect_40x", Icon20x20));
 	Set("AssetPlacementEdMode.SelectInvalid",               new IMAGE_BRUSH("Icons/GeneralTools/SelectInvalid_40x", Icon20x20));
 	Set("AssetPlacementEdMode.SelectInvalid.Small",         new IMAGE_BRUSH("Icons/GeneralTools/SelectInvalid_40x", Icon20x20));
 	Set("AssetPlacementEdMode.LassoSelect",                 new IMAGE_BRUSH("Icons/GeneralTools/Lasso_40x", Icon20x20));
@@ -65,8 +61,6 @@ FAssetPlacementEdModeStyle::FAssetPlacementEdModeStyle()
 	Set("AssetPlacementEdMode.ReapplySettings.Small",       new IMAGE_BRUSH("Icons/GeneralTools/Repaint_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Fill",                        new IMAGE_BRUSH("Icons/GeneralTools/PaintBucket_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Fill.Small",                  new IMAGE_BRUSH("Icons/GeneralTools/PaintBucket_40x", Icon20x20));
-	Set("AssetPlacementEdMode.Delete",                      new IMAGE_BRUSH("Icons/GeneralTools/Delete_40x", Icon20x20));
-	Set("AssetPlacementEdMode.Delete.Small",                new IMAGE_BRUSH("Icons/GeneralTools/Delete_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Erase",                       new IMAGE_BRUSH("Icons/GeneralTools/Erase_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Erase.Small",                 new IMAGE_BRUSH("Icons/GeneralTools/Erase_40x", Icon20x20));
 	Set("AssetPlacementEdMode.Filter",                      new IMAGE_BRUSH("Icons/GeneralTools/Filter_40x", Icon20x20));

@@ -16,20 +16,16 @@ FAssetPlacementEdModeCommands::FAssetPlacementEdModeCommands()
 void FAssetPlacementEdModeCommands::RegisterCommands()
 {
 	TArray <TSharedPtr<FUICommandInfo>>& ToolCommands = Commands.FindOrAdd(NAME_Default);
-	UI_COMMAND(Select, "Select", "Select", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(Select, "Select", "Select by clicking single assets matching the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Select);
-	UI_COMMAND(Deselect, "Deselect", "Clears the Current Selection.", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ToolCommands.Add(Deselect);
-	UI_COMMAND(LassoSelect, "Lasso", "Select Assets with a Brush Tool.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(LassoSelect, "Lasso", "Selects asset by painting the area to select.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(LassoSelect);
-	UI_COMMAND(Place, "Place", "Place Assets from the Palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(Place, "Paint", "Paint mutliple assets from the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Place);
-	UI_COMMAND(PlaceSingle, "Single", "Place a Single Asset from the Palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(PlaceSingle, "Stamp", "Stamp a random asset from the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(PlaceSingle);
-	UI_COMMAND(Erase, "Erase", "Erases Assets Matching the Palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(Erase, "Erase", "Paint to erase assets matching the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Erase);
-	UI_COMMAND(Delete, "Delete", "Deletes Assets in the Current Selection.", EUserInterfaceActionType::ToggleButton, FInputChord());
-	ToolCommands.Add(Delete);
 }
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> FAssetPlacementEdModeCommands::GetCommands()
