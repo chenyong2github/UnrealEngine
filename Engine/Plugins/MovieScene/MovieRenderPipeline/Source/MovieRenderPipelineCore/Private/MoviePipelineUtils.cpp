@@ -222,6 +222,15 @@ namespace MoviePipeline
 
 					Node->EvaluationType = Node->MovieScene->GetEvaluationType();
 				}
+
+				// Unlock the movie scene so we can make changes to sections below, it'll get re-locked later if needed.
+				// This has to be done each iteration of the loop because we iterate through leaves, so the first leaf 
+				// can end up re-locking a MovieScene higher up in the hierarchy, and then when subsequent leaves try
+				// to restore their hierarchy the now-locked MovieScene prevents full restoration.
+				if (!bInSave)
+				{
+					Node->MovieScene->SetReadOnly(false);
+				}
 			}
 
 			if (Node->Section.IsValid())
