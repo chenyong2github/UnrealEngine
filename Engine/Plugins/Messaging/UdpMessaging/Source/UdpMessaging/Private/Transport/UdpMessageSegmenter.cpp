@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/UdpMessageSegmenter.h"
+#include "HAL/Platform.h"
 #include "UdpMessagingPrivate.h"
 #include "Serialization/Archive.h"
 
@@ -147,17 +148,41 @@ EMessageFlags FUdpMessageSegmenter::GetMessageFlags() const
 	return SerializedMessage->GetFlags();
 }
 
+void FUdpMessageSegmenter::MarkAsSent(uint32 SegmentId)
+{
+	if (SegmentId < (uint32)PendingSendSegments.Num() && PendingSendSegments[SegmentId])
+	{
+		--PendingSendSegmentsCount;
+		PendingSendSegments[SegmentId] = false;
+		UE_LOG(LogUdpMessaging, Verbose, TEXT("Marking segment %d of %d as sent (%d outstanding)"), SegmentId+1, PendingSendSegments.Num(), PendingSendSegmentsCount);
+	}
+}
+
 void FUdpMessageSegmenter::MarkAsSent(const TArray<uint32>& Segments)
 {
-	for (const auto& Segment : Segments)
+	for (uint32 Segment : Segments)
 	{
-		if (Segment < (uint32)PendingSendSegments.Num() && PendingSendSegments[Segment])
-		{
-			--PendingSendSegmentsCount;
-			PendingSendSegments[Segment] = false;
-		
-			UE_LOG(LogUdpMessaging, Verbose, TEXT("Marking segment %d of %d as sent (%d outstanding)"), Segment+1, PendingSendSegments.Num(), PendingSendSegmentsCount);
-		}
+		MarkAsSent(Segment);
+	}
+}
+
+void FUdpMessageSegmenter::MarkAsAcknowledged(uint32 Segment)
+{
+	// Mark this segment as acknowledged. There's a chance segments could be acknowledged
+	// twice so we need to check state
+	if (Segment < (uint32)AcknowledgeSegments.Num() && !AcknowledgeSegments[Segment])
+	{
+		++AcknowledgeSegmentsCount;
+		AcknowledgeSegments[Segment] = true;
+		UE_LOG(LogUdpMessaging, Verbose, TEXT("Marked segment %d of %d as acknowledged (%d outstanding)"), Segment + 1, AcknowledgeSegments.Num(), AcknowledgeSegments.Num() - AcknowledgeSegmentsCount);
+	}
+
+	// We may have queued a segment to be resent, if so there's now no need to resend it
+	if (Segment < (uint32)PendingSendSegments.Num() && PendingSendSegments[Segment])
+	{
+		--PendingSendSegmentsCount;
+		PendingSendSegments[Segment] = false;
+		UE_LOG(LogUdpMessaging, Verbose, TEXT("Received acknowledgment for segment %d that was queued or requeued for transmission. Will skip send"), Segment + 1);
 	}
 }
 
@@ -167,42 +192,29 @@ void FUdpMessageSegmenter::MarkAsAcknowledged(const TArray<uint32>& Segments)
 	{
 		for (const auto& Segment : Segments)
 		{
-			// Mark this segment as acknowledged. There's a chance segments could be acknowledged
-			// twice so we need to check state
-			if (Segment < (uint32)AcknowledgeSegments.Num() && !AcknowledgeSegments[Segment])
-			{
-				++AcknowledgeSegmentsCount;
-				AcknowledgeSegments[Segment] = true;
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("Marked segment %d of %d as acknowledged (%d outstanding)"), Segment + 1, AcknowledgeSegments.Num(), AcknowledgeSegments.Num() - AcknowledgeSegmentsCount);
-			}
-
-			// We may have queued a segment to be resent, if so there's now no need to resend it
-			if (Segment < (uint32)PendingSendSegments.Num() && PendingSendSegments[Segment])
-			{
-				--PendingSendSegmentsCount;
-				PendingSendSegments[Segment] = false;
-				UE_LOG(LogUdpMessaging, Log, TEXT("Received acknowledgment for segment %d that was queued or requeued for transmission. Will skip send"), Segment + 1);
-			}
+			MarkAsAcknowledged(Segment);
 		}
 	}
 }
 
+void FUdpMessageSegmenter::MarkForRetransmission(uint32 SegmentId)
+{
+	if (SegmentId < (uint32)PendingSendSegments.Num() && !PendingSendSegments[SegmentId])
+	{
+		UE_LOG(LogUdpMessaging, Verbose, TEXT("Marking segment %d of %d for retransmission"), SegmentId+1, PendingSendSegments.Num());
+
+		++PendingSendSegmentsCount;
+		PendingSendSegments[SegmentId] = true;
+		// Note - we don't need to clear acknowledgments. If any segment is in transit and acknowledged after this
+		// call we'll do that and if possible stop the pending send, and if not we don't need to wait for the ack
+	}
+}
 
 void FUdpMessageSegmenter::MarkForRetransmission(const TArray<uint16>& Segments)
 {
-	for (const auto& Segment : Segments)
+	for (uint16 Segment : Segments)
 	{
-		UE_LOG(LogUdpMessaging, Verbose, TEXT("Marking segment %d of %d for retransmission"), Segment+1, PendingSendSegments.Num());
-
-		// mark this as pending send once again
-		if (Segment < PendingSendSegments.Num() && !PendingSendSegments[Segment])
-		{
-			++PendingSendSegmentsCount;
-			PendingSendSegments[Segment] = true;
-		}
-
-		// Note - we don't need to clear acknowledgments. If any segment is in transit and acknowledged after this 
-		// call we'll do that and if possible stop the pending send, and if not we don't need to wait for the ack
+		MarkForRetransmission(Segment);
 	}
 }
 
@@ -253,8 +265,9 @@ bool FUdpMessageSegmenter::NeedSending(const FDateTime& CurrentTime)
 				++PendingSendSegmentsCount;
 			}
 		}
+		LastSentTime = CurrentTime;
 		++SentNumber;
-		UE_LOG(LogUdpMessaging, Warning, TEXT("Waiting for ack too long. Re-sending."), AcknowledgeSegments.Num() - AcknowledgeSegmentsCount);
+		UE_LOG(LogUdpMessaging, Warning, TEXT("Waiting for ack too long. Re-sending %d segments."), AcknowledgeSegments.Num() - AcknowledgeSegmentsCount);
 		return true;
 	}
 

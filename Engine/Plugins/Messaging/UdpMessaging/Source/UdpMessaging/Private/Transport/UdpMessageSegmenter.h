@@ -170,11 +170,25 @@ public:
 	EMessageFlags GetMessageFlags() const;
 
 	/**
+	* Marks the given segment id as sent.
+	*
+	* @param Segment id.
+	*/
+	void MarkAsSent(uint32 SegmentId);
+
+	/**
 	* Marks the specified segments as sent
 	*
 	* @param Segments The acknowledged segments.
 	*/
 	void MarkAsSent(const TArray<uint32>& Segments);
+
+	/**
+	* Marks the given segment id as acknowledged.
+	*
+	* @param Segment id.
+	*/
+	void MarkAsAcknowledged(uint32 SegmentId);
 
 	/**
 	* Marks the specified segments as acknowledged.
@@ -187,6 +201,12 @@ public:
 	 * Marks the entire message for retransmission. This does not reset acknowledgements as we only need an acknowledgment for a segement once
 	 */
 	void MarkForRetransmission();
+
+	/**
+	 * Marks a given segment id for retransmission
+	 */
+	void MarkForRetransmission(uint32 SegmentId);
+
 	/**
 	 * Marks the specified segments for retransmission.
 	 *

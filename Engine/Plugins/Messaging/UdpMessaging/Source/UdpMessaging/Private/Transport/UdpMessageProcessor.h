@@ -2,13 +2,17 @@
 
 #pragma once
 
+#include "Algo/RemoveIf.h"
 #include "CoreTypes.h"
 #include "Common/UdpSocketReceiver.h"
 #include "Containers/Map.h"
 #include "Containers/Queue.h"
 
+#include "GenericPlatform/GenericPlatformMisc.h"
 #include "HAL/Runnable.h"
+#include "IMessageContext.h"
 #include "IMessageTransport.h"
+
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "Misc/DateTime.h"
 #include "Misc/Guid.h"
@@ -16,9 +20,9 @@
 #include "Misc/Timespan.h"
 #include "Templates/SharedPointer.h"
 
+#include "UdpMessageSegmenter.h"
 #include "UdpMessagingPrivate.h"
 #include "Shared/UdpMessageSegment.h"
-#include "Transport/UdpMessageResequencer.h"
 #include "Transport/UdpCircularQueue.h"
 
 class FArrayReader;
@@ -34,6 +38,76 @@ class IMessageAttachment;
 enum class EUdpMessageFormat : uint8;
 
 constexpr const uint16 MessageProcessorWorkQueueSize{1024};
+
+/**
+ * Running statistics as known by the UdpMessageProcessor. This will be per endpoint.
+ */
+struct FUdpMessageTransportStatistics
+{
+	uint64 BytesSent    = 0;
+	uint64 SegmentsLost = 0;
+	uint64 AcksReceived = 0;
+	uint64 SegmentsSent = 0;
+	uint64 SegmentsReceived = 0;
+
+	int32 SegmentsInFlight = 0;
+	uint32 WindowSize = 0;
+
+	FTimespan AverageRTT{0};
+	FIPv4Endpoint IpAddress;
+};
+
+/** Holds the current statistics for a given message segmenter. */
+struct FUdpSegmenterStats
+{
+	FGuid  NodeId;
+	int32  MessageId     = 0;
+	uint32 SegmentsSent  = 0;
+	uint32 SegmentsAcked = 0;
+	uint32 TotalSegments = 0;
+};
+
+/** Information about what was sent over the wire.  */
+struct FSentData
+{
+	int32 MessageId = 0;
+	uint32 SegmentNumber = 0;
+
+	uint64 SequenceNumber = 0;
+	bool bIsReliable = false;
+
+	FDateTime TimeSent;
+};
+
+/** Returned by the segment processor. It provides details on what was sent and how it was sent. */
+struct FSentSegmentInfo
+{
+	uint64 SequenceNumber = 0;
+	uint32 BytesSent = 0;
+
+	bool bIsReliable = false;
+	bool bRequiresRequeue = false;
+	bool bSendSocketError = false;
+
+	/** Converts FSentSegmentInfo into a FSentData struct. */
+	FSentData AsSentData(int32 MessageId, uint32 SegmentNumber, const FDateTime& CurrentTime)
+	{
+		return {
+			MessageId,
+			SegmentNumber,
+			SequenceNumber,
+			bIsReliable,
+			CurrentTime
+		};
+	}
+
+	bool WasSent() const
+	{
+		return BytesSent > 0;
+	}
+};
+
+DECLARE_DELEGATE_OneParam(FOnSegmenterUpdated, FUdpSegmenterStats)
 
 /**
  * Implements a message processor for UDP messages.
@@ -60,21 +134,248 @@ class FUdpMessageProcessor
 		/** Holds the collection of reassembled messages. */
 		TMap<int32, TSharedPtr<FUdpReassembledMessage, ESPMode::ThreadSafe>> ReassembledMessages;
 
-		/** Holds the message resequencer. */
-		FUdpMessageResequencer Resequencer;
-
 		/** Holds the collection of message segmenters. */
 		TMap<int32, TSharedPtr<FUdpMessageSegmenter>> Segmenters;
 
 		/** Holds of queue of MessageIds to send. They are processed in round-robin fashion. */
 		TUdpCircularQueue<int32> WorkQueue{MessageProcessorWorkQueueSize};
 
+		/** A map from sequence id to information about what was sent. The size of this map is the size of our sending window. */
+		TMap<uint64, FSentData> InflightSegments;
+
+		/** Unique sequence id for every packet sent. */
+		uint64 SequenceId = 0;
+
+		/** Average time from when the packet was sent to ack received. */
+		FTimespan AvgRoundTripTime = FTimespan::FromMilliseconds(20);
+
+		/** Maximum number of segments we can have in flight. Start with a small value and let it grow based on performance. */
+		uint64 WindowSize = 64;
+
+		/** Various transport statistics for this endpoint */
+		FUdpMessageTransportStatistics Statistics;
+
 		/** Default constructor. */
 		FNodeInfo()
 			: LastSegmentReceivedTime(FDateTime::MinValue())
 			, NodeId()
 			, ProtocolVersion(UDP_MESSAGING_TRANSPORT_PROTOCOL_VERSION)
-		{ }
+		{
+			ComputeWindowSize(0,0);
+		}
+
+		/**
+		 * Remap a MessageId and SegmentId pair into a 64 bit number using Szudzik pairing calculation.
+		 */
+		uint64 Remap(uint32 MessageId, uint32 SegmentId)
+		{
+			// http://szudzik.com/ElegantPairing.pdf
+			// a >= b ? a * a + a + b : a + b * b
+			//
+			if (MessageId >= SegmentId)
+			{
+				return MessageId * MessageId + MessageId + SegmentId;
+			}
+			else
+			{
+				return SegmentId * SegmentId + MessageId;
+			}
+		}
+
+		/**
+		 * Update the segmenter with the given acts. If all acks have been received then remove it from the list of segmenters.
+		 */
+		TSharedPtr<FUdpMessageSegmenter> MarkAcksOnSegmenter(int32 MessageId, const TArray<uint32>& Segments, const FDateTime& InCurrentTime)
+		{
+			TSharedPtr<FUdpMessageSegmenter> Segmenter = Segmenters.FindRef(MessageId);
+			if (Segmenter.IsValid())
+			{
+				Segmenter->MarkAsAcknowledged(Segments);
+				Segmenter->UpdateSentTime(InCurrentTime);
+				if (Segmenter->IsSendingComplete() && Segmenter->AreAcknowledgementsComplete())
+				{
+					UE_LOG(LogUdpMessaging, Verbose, TEXT("Segmenter for %s is now complete. Removing"), *NodeId.ToString());
+					Segmenters.Remove(MessageId);
+				}
+			}
+			else
+			{
+				UE_LOG(LogUdpMessaging, Verbose, TEXT("No such segmenter for message %d"), MessageId);
+			}
+			return Segmenter;
+		}
+
+		/**
+		 * Helper template to allow us to remove types of segments in flight.
+		 */
+		template <typename PredFunc>
+		void RemoveInflightIf(PredFunc&& Pred)
+		{
+			for (TMap<uint64, FSentData>::TIterator ItRemove = InflightSegments.CreateIterator(); ItRemove; ++ItRemove)
+			{
+				if (Pred(ItRemove.Value()))
+				{
+					ItRemove.RemoveCurrent();
+				}
+			}
+		}
+
+		/**
+		 * Update the calcuated round trip time based on the computed span of inflight packet.
+		 */
+		void CalculateNewRTT(const FTimespan& NewSpan)
+		{
+			const float Weight = 0.6f;
+			Statistics.AverageRTT = Weight * Statistics.AverageRTT + (1-Weight) * NewSpan;
+		}
+
+		/**
+		 * Remove any unreliables that are too old.  Too old is based on the average round trip time of a packet.
+		 */
+		void RemoveOldUnreliables(const FDateTime& InCurrentTime)
+		{
+			// Remove any unreliable packets that fall outside of our average RTT
+			RemoveInflightIf([InCurrentTime, this](const FSentData& Data)
+			{
+				return ((InCurrentTime - Data.TimeSent) > Statistics.AverageRTT) && !Data.bIsReliable;
+			});
+		}
+
+		/** 
+		 * Compute the new window size for the connection.  We use a AIMD algorithm:
+		 * https://en.wikipedia.org/wiki/Additive_increase/multiplicative_decrease
+		 */
+		void ComputeWindowSize(uint32 NumAcks, uint32 SegmentLoss)
+		{
+			const uint64 MinimumWindowSize = 64;
+			const uint64 MaximumWindowSize = 2048;
+			if (SegmentLoss == 0)
+			{
+				// If we did not get any packet loss increase our window size.
+				WindowSize = FGenericPlatformMath::Min<uint64>(WindowSize+NumAcks, MaximumWindowSize);
+			}
+			else
+			{
+				// In the case of segment loss half our window size to a minimum value.
+				WindowSize = FGenericPlatformMath::Max<uint64>(WindowSize/2, MinimumWindowSize);
+			}
+			Statistics.AcksReceived += NumAcks;
+			Statistics.WindowSize = WindowSize;
+		}
+
+		/**
+		 * Remove all segments in the inflight buffer that match the given MessageId.
+		 */
+		uint32 RemoveAllInflightFromMessageId(int32 MessageId)
+		{
+			int32 BeforeRemove = InflightSegments.Num();
+			RemoveInflightIf([MessageId](const FSentData& Data)
+			{
+				return Data.MessageId == MessageId;
+			});
+			return BeforeRemove - InflightSegments.Num();
+		}
+
+		/**
+		 * Make a given MessageId as complete and recompute the desired window size based
+		 * on any loss / acks received.
+		 */
+		void MarkComplete(int32 MessageId, const FDateTime& InCurrentTime)
+		{
+			uint32 AckSegments = RemoveAllInflightFromMessageId(MessageId);
+			uint32 SegmentLoss = RemoveLostSegments(InCurrentTime);
+			ComputeWindowSize(AckSegments, SegmentLoss);
+		}
+
+		/**
+		 * For a given list of segments to acknowledge record how long it took to receive a response and update our
+		 * average round trip time. We also use this opportunity to calculate any loss and update our window size.
+		 */
+		void MarkAcks(int32 MessageId, const TArray<uint32>& Segments, const FDateTime& InCurrentTime)
+		{
+			TSharedPtr<FUdpMessageSegmenter> Segmenter = MarkAcksOnSegmenter(MessageId, Segments, InCurrentTime);
+			uint64 MaxSequenceId = 0;
+			FTimespan MaxSpan(0);
+			uint32 Acks = 0;
+			for (uint32 SegmentId : Segments)
+			{
+				uint64 Id = Remap(MessageId,SegmentId);
+				FSentData SentData;
+				if (InflightSegments.RemoveAndCopyValue(Id,SentData))
+				{
+					MaxSpan = FGenericPlatformMath::Max<FTimespan>(InCurrentTime - SentData.TimeSent, MaxSpan);
+					MaxSequenceId = FGenericPlatformMath::Max<uint64>(SentData.SequenceNumber,MaxSequenceId);
+					++Acks;
+				}
+			}
+			if (MaxSpan > 0)
+			{
+				CalculateNewRTT(MaxSpan);
+			}
+
+			uint32 SegmentLoss = RemoveLostSegments(InCurrentTime);
+			ComputeWindowSize(Acks, SegmentLoss);
+		}
+
+		/**
+		 * Mark a segment for retransmission because it was deemed lost.
+		 */
+		void MarkSegmenterSegmentLoss(const FSentData& Data)
+		{
+			TSharedPtr<FUdpMessageSegmenter> Segmenter = Segmenters.FindRef(Data.MessageId);
+			if (Segmenter.IsValid())
+			{
+				Segmenter->MarkForRetransmission(Data.SegmentNumber);
+			}
+		}
+
+		/**
+		 * Iterate over all segments and discover any potential segments that may be lost.  A lost segment is determined
+		 * using 2 times the average round trip time.  If an ack has not been received in that time frame then it is
+		 * lost and we must resend it.
+		 */
+		uint32 RemoveLostSegments(const FDateTime& InCurrentTime)
+		{
+			uint32 SegmentsLost = 0;
+
+			// We use 2 times the average round trip time to determine if a segment has been lost.
+			RemoveInflightIf([&SegmentsLost, InCurrentTime, this](const FSentData& Data)
+			{
+				const bool bIsLost = ((InCurrentTime - Data.TimeSent) > 2*AvgRoundTripTime) && Data.bIsReliable;
+				if (bIsLost)
+				{
+					MarkSegmenterSegmentLoss(Data);
+					SegmentsLost++;
+				}
+				return bIsLost;
+			});
+			Statistics.SegmentsLost += SegmentsLost;
+			return SegmentsLost;
+		}
+
+		/**
+		 * Does this node have any segmenters that can send data for the current time frame.
+		 */
+		bool HasSegmenterThatCanSend(const FDateTime& InCurrentTime)
+		{
+			using FSegmenterTuple = TTuple<int32,TSharedPtr<FUdpMessageSegmenter>>;
+			for (FSegmenterTuple& Segmenter : Segmenters)
+			{
+				if (Segmenter.Value->IsInitialized() && Segmenter.Value->NeedSending(InCurrentTime))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Do we still have room in our outbound window to send data.
+		 */
+		bool CanSendSegments() const
+		{
+			return InflightSegments.Num() < WindowSize;
+		}
 
 		/** Resets the endpoint info. */
 		void ResetIfRestarted(const FGuid& NewNodeId)
@@ -82,7 +383,6 @@ class FUdpMessageProcessor
 			if (NewNodeId != NodeId)
 			{
 				ReassembledMessages.Reset();
-				Resequencer.Reset();
 
 				NodeId = NewNodeId;
 			}
@@ -119,15 +419,38 @@ class FUdpMessageProcessor
 		/** Holds the recipients. */
 		TArray<FGuid> RecipientIds;
 
+		EMessageFlags MessageFlags;
+
 		/** Default constructor. */
 		FOutboundMessage() { }
 
 		/** Creates and initializes a new instance. */
-		FOutboundMessage(TSharedPtr<FUdpSerializedMessage, ESPMode::ThreadSafe> InSerializedMessage, const TArray<FGuid>& InRecipientIds)
+		FOutboundMessage(TSharedPtr<FUdpSerializedMessage, ESPMode::ThreadSafe> InSerializedMessage, const TArray<FGuid>& InRecipientIds, EMessageFlags InFlags)
 			: SerializedMessage(InSerializedMessage)
 			, RecipientIds(InRecipientIds)
+			, MessageFlags(InFlags)
 		{ }
 	};
+
+	FUdpMessageSegment::FDataChunk GetDataChunk(FNodeInfo& NodeInfo, TSharedPtr<FUdpMessageSegmenter>& Segmenter, int32 MessageId);
+
+	/** Returns an initialized segment ready for sending or ready to receive ack. */
+	TSharedPtr<FUdpMessageSegmenter>* GetInitializedSegmenter(FNodeInfo& NodeInfo, int32 MessageId);
+
+	/** Get a Sent Data structure for the outbound datachunk. */
+	FSentData GetSentDataFromInfo(const FSentSegmentInfo &Info, const FUdpMessageSegment::FDataChunk& Chunk);
+
+	/** Send one segment out for the given message id.  Send state is provided by the return value. */
+	FSentSegmentInfo SendNextSegmentForMessageId(FNodeInfo& NodeInfo, FUdpMessageSegment::FHeader& Header, int32 MessageId);
+
+	/** Remove any nodes we have not heard from in  while. */
+	void RemoveDeadNodes();
+
+	/** Update network statistics table that callers can use to gather info about running connections. */
+	void UpdateNetworkStatistics();
+
+	/** Send a segmenter stats to listeners  */
+	void SendSegmenterStatsToListeners(int32 MessageId, FGuid NodeId, const TSharedPtr<FUdpMessageSegmenter>& Segmenter);
 
 public:
 
@@ -142,8 +465,6 @@ public:
 
 	/** Virtual destructor. */
 	virtual ~FUdpMessageProcessor();
-
-public:
 
 	/**
 	 * Add a static endpoint to the processor
@@ -199,6 +520,11 @@ public:
 	 */
 	void WaitAsyncTaskCompletion();
 
+	/**
+	 * Get the current running network statistics for the given node.
+	 */
+	FUdpMessageTransportStatistics GetStats(FGuid Node) const;
+
 public:
 
 	// @todo gmp: remove the need for this typedef
@@ -249,6 +575,14 @@ public:
 	FOnError& OnError()
 	{
 		return ErrorDelegate;
+	}
+
+	/**
+	 * Delegate is invoked whenever a segmenter is added/removed or updated.
+	 */
+	FOnSegmenterUpdated& OnSegmenterUpdated()
+	{
+		return SegmenterUpdatedDelegate;
 	}
 
 public:
@@ -407,10 +741,9 @@ protected:
 	 * Updates all segmenters of the specified node.
 	 *
 	 * @param NodeInfo Details for the node to update.
-	 * @param MaxSendBytes the approximate max number of bytes allowed to be sent to that node. can be exceeded by up to 1k since we don't send partial segments.
 	 * @return The actual number of bytes written or -1 if error
 	 */
-	int32 UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSendBytes);
+	int32 UpdateSegmenters(FNodeInfo& NodeInfo);
 
 	/**
 	 * Updates all reassemblers of the specified node.
@@ -430,6 +763,9 @@ protected:
 	virtual void Tick() override;
 
 private:
+
+	/** Checks all known nodes to see if any segmenters have NeedSending set to true. */
+	bool MoreToSend();
 
 	/** Consume an Outbound Message for processing. A result of true will be returned if it was added for processing. */
 	bool ConsumeOneOutboundMessage(const FOutboundMessage& OutboundMessage);
@@ -451,6 +787,12 @@ private:
 
 	/** Holds the protocol version that can be communicated in. */
 	TArray<uint8> SupportedProtocolVersions;
+
+	/** Mutex protecting access to the Statistics map. */
+	mutable FCriticalSection StatisticsCS;
+
+	/** Map that holds latest statistics for network transmission */
+	TMap<FGuid, FUdpMessageTransportStatistics> NodeStats;
 
 	/** Mutex protecting access to the NodeVersions map. */
 	mutable FCriticalSection NodeVersionCS;
@@ -477,7 +819,7 @@ private:
 	FUdpSocketSender* volatile SocketSender;
 
 	/** Holds a flag indicating that the thread is stopping. */
-	bool Stopping;
+	bool bStopping;
 
 	/** Holds the thread object. */
 	FRunnableThread* Thread;
@@ -496,6 +838,9 @@ private:
 
 	/** Holds a delegate to be invoked when a socket error happen. */
 	FOnError ErrorDelegate;
+
+	/** Holds the segmenter updated delegate */
+	FOnSegmenterUpdated SegmenterUpdatedDelegate;
 
 	/** The configured message format (from UUdpMessagingSettings). */
 	EUdpMessageFormat MessageFormat;
