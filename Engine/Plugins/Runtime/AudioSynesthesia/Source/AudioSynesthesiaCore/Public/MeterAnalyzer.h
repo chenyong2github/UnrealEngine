@@ -53,7 +53,8 @@ namespace Audio
 
 	protected:
 		// Envelope follower per channel
-		TArray<TUniquePtr<FEnvelopeFollower>> MeterEnvelopeFollowers;
+		FEnvelopeFollower EnvelopeFollower;
+		FAlignedFloatBuffer EnvelopeBuffer;
 
 		// Per-channel clipping data
 		struct FClippingData
@@ -65,31 +66,25 @@ namespace Audio
 		TArray<FClippingData> ClippingDataPerChannel;
 
 		// State to track the peak data
-		struct FPeakData
+		struct FEnvelopeData
 		{
-			float Value = 0.0f;
-			float StartTime = 0.0f;
-		};
-		// Per-channel peak data
-		TArray<FPeakData> PeakDataPerChannel;
-
-		struct FPeakEnvelopeData
-		{
-			// Current envelope data
-			float Value = 0.0f;
-
-			// Running sample count of the envelope data
-			int32 SampleCount = 0;
+			float MaxEnvelopeValue = 0.f;
+			float PeakValue = 0.0f;
+			int32 FramesUntilPeakReset = 0;
 
 			// Current slope of the envelope
-			bool bEnvelopeSlopeIsPositive = false;
+			float PriorEnvelopeValue = 0.f;
+			bool bPriorEnvelopeSlopeIsPositive = false;
 		};
-		// Per-channel envelope data
-		TArray<FPeakEnvelopeData> PeakEnvDataPerChannel;
+		// Per-channel peak data
+		TArray<FEnvelopeData> EnvelopeDataPerChannel;
+
 
 		FMeterAnalyzerSettings Settings;
 		float SampleRate = 0.0f;
 		int32 NumChannels = 0;
+		int32 PeakHoldFrames = 0;
+		int64 FrameCounter = 0;
 	};
 }
 

@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DSP/DynamicsProcessor.h"
+#include "SignalProcessingModule.h"
 
 namespace Audio
 {
 	FDynamicsProcessor::FDynamicsProcessor()
 		: ProcessingMode(EDynamicsProcessingMode::Compressor)
-		, EnvelopeFollowerPeakMode(EPeakMode::RootMeanSquared)
+		, EnvelopeFollowerPeakMode(EPeakMode::Peak)
 		, LookaheedDelayMsec(10.0f)
 		, AttackTimeMsec(20.0f)
 		, ReleaseTimeMsec(1000.0f)
@@ -45,7 +46,7 @@ namespace Audio
 			LookaheadDelay[Channel].Init(SampleRate, 0.1f);
 			LookaheadDelay[Channel].SetDelayMsec(LookaheedDelayMsec);
 
-			EnvFollower[Channel].Init(SampleRate, AttackTimeMsec, ReleaseTimeMsec, EPeakMode::RootMeanSquared, bIsAnalogMode);
+			EnvFollower[Channel].Init(FInlineEnvelopeFollowerInitParams{SampleRate, AttackTimeMsec, ReleaseTimeMsec, EnvelopeFollowerPeakMode, bIsAnalogMode});
 		}
 
 		InputLowshelfFilter.Init(SampleRate, InNumChannels, EBiquadFilter::LowShelf);
@@ -161,11 +162,10 @@ namespace Audio
 		if (InNumChannels != EnvFollower.Num())
 		{
 			EnvFollower.Reset();
-			EnvFollower.AddDefaulted(InNumChannels);
 
 			for (int32 Channel = 0; Channel < InNumChannels; ++Channel)
 			{
-				EnvFollower[Channel].Init(SampleRate, AttackTimeMsec, ReleaseTimeMsec, EnvelopeFollowerPeakMode, bIsAnalogMode);
+				EnvFollower.Emplace(FInlineEnvelopeFollowerInitParams{SampleRate, AttackTimeMsec, ReleaseTimeMsec, EnvelopeFollowerPeakMode, bIsAnalogMode});
 			}
 		}
 
@@ -231,7 +231,7 @@ namespace Audio
 		EnvelopeFollowerPeakMode = InEnvelopeFollowerModeType;
 		for (int32 Channel = 0; Channel < EnvFollower.Num(); ++Channel)
 		{
-			EnvFollower[Channel].SetMode(InEnvelopeFollowerModeType);
+			EnvFollower[Channel].SetMode(EnvelopeFollowerPeakMode);
 		}
 	}
 
@@ -383,8 +383,9 @@ namespace Audio
 
 		for (int32 Channel = 0; Channel < KeyNumChannels; ++Channel)
 		{
-			DetectorOuts[Channel] = EnvFollower[Channel].ProcessAudio(DetectorGain * KeyIn[Channel]);
+			DetectorOuts[Channel] = EnvFollower[Channel].ProcessSample(DetectorGain * KeyIn[Channel]);
 		}
+		ArrayClampInPlace(DetectorOuts, 0.f, 1.f);
 
 		switch (LinkMode)
 		{

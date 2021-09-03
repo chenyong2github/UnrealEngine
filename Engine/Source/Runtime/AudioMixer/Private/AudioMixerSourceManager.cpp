@@ -245,7 +245,13 @@ namespace Audio
 
 			SourceInfo.SourceEffectChainId = INDEX_NONE;
 
-			SourceInfo.SourceEnvelopeFollower = Audio::FEnvelopeFollower(MixerDevice->SampleRate, 10, 100, Audio::EPeakMode::Peak);
+			Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+			EnvelopeFollowerInitParams.SampleRate = MixerDevice->SampleRate;
+			EnvelopeFollowerInitParams.AttackTimeMsec = 10.f;
+			EnvelopeFollowerInitParams.ReleaseTimeMsec = 100.f;
+			EnvelopeFollowerInitParams.Mode = EPeakMode::Peak;
+			SourceInfo.SourceEnvelopeFollower = Audio::FInlineEnvelopeFollower(EnvelopeFollowerInitParams);
+
 			SourceInfo.SourceEnvelopeValue = 0.0f;
 			SourceInfo.bEffectTailsDone = false;
 		
@@ -770,7 +776,12 @@ namespace Audio
 			SourceInfo.LowPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
 			SourceInfo.HighPassFilter.Init(MixerDevice->SampleRate, InitParams.NumInputChannels);
 
-			SourceInfo.SourceEnvelopeFollower = Audio::FEnvelopeFollower(MixerDevice->SampleRate / NumOutputFrames, (float)InitParams.EnvelopeFollowerAttackTime, (float)InitParams.EnvelopeFollowerReleaseTime, Audio::EPeakMode::Peak);
+			Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+			EnvelopeFollowerInitParams.SampleRate = MixerDevice->SampleRate / NumOutputFrames;
+			EnvelopeFollowerInitParams.AttackTimeMsec = (float)InitParams.EnvelopeFollowerAttackTime;
+			EnvelopeFollowerInitParams.ReleaseTimeMsec = (float)InitParams.EnvelopeFollowerReleaseTime;
+			EnvelopeFollowerInitParams.Mode = EPeakMode::Peak;
+			SourceInfo.SourceEnvelopeFollower = Audio::FInlineEnvelopeFollower(EnvelopeFollowerInitParams);
 
 			SourceInfo.VolumeModulation = VolumeModulation;
 			SourceInfo.PitchModulation = PitchModulation;
@@ -2310,10 +2321,8 @@ namespace Audio
 			{
 				// Compute the source envelope using pre-distance attenuation buffer
 				float AverageSampleValue = Audio::BufferGetAverageAbsValue(PreDistanceAttenBufferPtr, NumSamples);
-				SourceInfo.SourceEnvelopeFollower.ProcessAudio(AverageSampleValue);
-
-				// Copy the current value of the envelope follower (block-rate value)
-				SourceInfo.SourceEnvelopeValue = SourceInfo.SourceEnvelopeFollower.GetCurrentValue();
+				SourceInfo.SourceEnvelopeValue = SourceInfo.SourceEnvelopeFollower.ProcessSample(AverageSampleValue);
+				SourceInfo.SourceEnvelopeValue = FMath::Clamp(SourceInfo.SourceEnvelopeValue, 0.f, 1.f);
 
 				SourceInfo.bEffectTailsDone = SourceInfo.bEffectTailsDone || SourceInfo.SourceEnvelopeValue < ENVELOPE_TAIL_THRESHOLD;
 			}

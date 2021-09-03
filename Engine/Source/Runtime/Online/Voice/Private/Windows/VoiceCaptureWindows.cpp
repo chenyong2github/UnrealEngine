@@ -123,7 +123,14 @@ bool FVoiceCaptureWindows::Init(const FString& DeviceName, int32 SampleRate, int
 	static IConsoleVariable* SilenceDetectionReleaseCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("voice.SilenceDetectionReleaseTime"));
 	check(SilenceDetectionReleaseCVar);				
 
-	MicLevelDetector.Init(SampleRate, SilenceDetectionAttackCVar->GetFloat(), SilenceDetectionReleaseCVar->GetFloat(), MicSilenceDetectionConfig::LevelDetectionMode, MicSilenceDetectionConfig::IsAnalog);
+	Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+	EnvelopeFollowerInitParams.SampleRate = SampleRate;
+	EnvelopeFollowerInitParams.AttackTimeMsec = SilenceDetectionAttackCVar->GetFloat();
+	EnvelopeFollowerInitParams.ReleaseTimeMsec = SilenceDetectionReleaseCVar->GetFloat();
+	EnvelopeFollowerInitParams.Mode = Audio::EPeakMode::Peak;
+	EnvelopeFollowerInitParams.bIsAnalog = MicSilenceDetectionConfig::IsAnalog;
+
+	MicLevelDetector.Init(EnvelopeFollowerInitParams);
 	
 	const int32 AttackInSamples = SampleRate * SilenceDetectionAttackCVar->GetFloat() * 0.001f;
 	LookaheadBuffer.Init(AttackInSamples + 1);
@@ -476,13 +483,14 @@ void FVoiceCaptureWindows::ProcessData()
 					Temp += InputBuffer[FrameIndex + ChannelIndex];
 				}
 
-				MicLevelDetector.ProcessAudio(Temp);
+				
+				float Envelope = MicLevelDetector.ProcessSample(Temp / 32768.f);
 				LookaheadBuffer.ProcessSample(Temp, Temp);
 
-				bIsMicActive = MicLevelDetector.GetCurrentValue() > MicSilenceThreshold;
+				bIsMicActive = Envelope > MicSilenceThreshold;
 
 				// If we have just crossed the noise gate threshold, begin interpoloating to 1.0 or 0.0
-				const bool bIsMicAboveNoiseGateThreshold = MicLevelDetector.GetCurrentValue() > MicNoiseGateThreshold;
+				const bool bIsMicAboveNoiseGateThreshold = Envelope > MicNoiseGateThreshold;
 
 				if (bIsMicAboveNoiseGateThreshold && !bWasMicAboveNoiseGateThreshold)
 				{
@@ -555,13 +563,14 @@ void FVoiceCaptureWindows::ProcessData()
 					Temp += InputBuffer[FrameIndex + ChannelIndex];
 				}
 				
-				MicLevelDetector.ProcessAudio(Temp);
+				
+				float Envelope = MicLevelDetector.ProcessSample(static_cast<float>(Temp) / 32768.f);
 				LookaheadBuffer.ProcessSample(Temp, Temp);
 
-				bIsMicActive = MicLevelDetector.GetCurrentValue() > MicSilenceThreshold;
+				bIsMicActive = Envelope > MicSilenceThreshold;
 
 				// If we have just crossed the noise gate threshold, begin interpoloating to 1.0 or 0.0
-				const bool bIsMicAboveNoiseGateThreshold = MicLevelDetector.GetCurrentValue() > MicNoiseGateThreshold;
+				const bool bIsMicAboveNoiseGateThreshold = Envelope > MicNoiseGateThreshold;
 
 				if (bIsMicAboveNoiseGateThreshold && !bWasMicAboveNoiseGateThreshold)
 				{
@@ -713,10 +722,10 @@ EVoiceCaptureState::Type FVoiceCaptureWindows::GetVoiceData(uint8* OutVoiceBuffe
 
 		if (FPlatformTime::Seconds() - TimeLastPrinted > AmplitudeStringDisplayRate)
 		{
-			const float MicLevel = MicLevelDetector.GetCurrentValue();
+			const float MicLevel = MicLevelDetector.GetValue();
 			FString PrintString = FString::Printf(TEXT("Mic Amp: %.2f"), MicLevel);
 
-			int32 NumTicks = FMath::FloorToInt(MicLevelDetector.GetCurrentValue() * TotalNumTicks);
+			int32 NumTicks = FMath::FloorToInt(MicLevel * TotalNumTicks);
 
 			for (int32 Iteration = 0; Iteration < NumTicks; Iteration++)
 			{
@@ -819,7 +828,7 @@ bool FVoiceCaptureWindows::Tick(float DeltaTime)
 
 float FVoiceCaptureWindows::GetCurrentAmplitude() const
 {
-	return MicLevelDetector.GetCurrentValue();
+	return MicLevelDetector.GetValue();
 }
 
 void FVoiceCaptureWindows::DumpState() const

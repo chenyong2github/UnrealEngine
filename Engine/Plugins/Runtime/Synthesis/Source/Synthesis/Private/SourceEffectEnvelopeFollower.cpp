@@ -220,9 +220,12 @@ void FSourceEffectEnvelopeFollower::Init(const FSoundEffectSourceInitData& InitD
 	FramesToNotify = 1024;
 	FrameCount = 0;
 	bIsActive = true;
-	EnvelopeFollower.Init(InitData.SampleRate);
 	CurrentEnvelopeValue = 0.0f;
 	NumChannels = InitData.NumSourceChannels;
+
+	Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+	EnvelopeFollowerInitParams.SampleRate = InitData.SampleRate;
+	EnvelopeFollower.Init(EnvelopeFollowerInitParams);
 }
 
 FSourceEffectEnvelopeFollower::~FSourceEffectEnvelopeFollower()
@@ -258,11 +261,11 @@ void FSourceEffectEnvelopeFollower::ProcessAudio(const FSoundEffectSourceInputDa
 			SampleValue *= 0.5f;
 		}
 
-		CurrentEnvelopeValue = EnvelopeFollower.ProcessAudio(SampleValue);
+		CurrentEnvelopeValue = EnvelopeFollower.ProcessSample(SampleValue);
 
 		if ((FrameCount++ & (FramesToNotify - 1)) == 0)
 		{
-			SourceEffectEnvFollowerNotifier->UpdateEnvFollowerInstance(OwningPresetUniqueId, InstanceId, CurrentEnvelopeValue);
+			SourceEffectEnvFollowerNotifier->UpdateEnvFollowerInstance(OwningPresetUniqueId, InstanceId, FMath::Clamp(CurrentEnvelopeValue, 0.f, 1.f));
 		}
 	}
 }

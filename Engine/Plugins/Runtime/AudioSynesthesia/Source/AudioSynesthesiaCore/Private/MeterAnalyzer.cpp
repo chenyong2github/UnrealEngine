@@ -10,74 +10,119 @@
 namespace Audio
 {
 	FMeterAnalyzer::FMeterAnalyzer(float InSampleRate, int32 InNumChannels, const FMeterAnalyzerSettings& InSettings)
+	: EnvelopeFollower(FEnvelopeFollowerInitParams{InSampleRate, InNumChannels, static_cast<float>(InSettings.MeterAttackTime), static_cast<float>(InSettings.MeterReleaseTime), InSettings.MeterPeakMode, true /* bInIsAnalog */})
+	, Settings(InSettings)
+	, SampleRate(InSampleRate)
+	, NumChannels(InNumChannels)
 	{
-		NumChannels = InNumChannels;
-		SampleRate = InSampleRate;
-		Settings = InSettings;
-		check(NumChannels > 0);
-		check(SampleRate > 0.0f);
-
-		PeakEnvDataPerChannel.AddDefaulted(NumChannels);
-		PeakDataPerChannel.AddDefaulted(NumChannels);
-		ClippingDataPerChannel.AddDefaulted(NumChannels);
-
-		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
+		if (!ensure(NumChannels > 0))
 		{
-			MeterEnvelopeFollowers.Add(MakeUnique<FEnvelopeFollower>(InSampleRate, (float)InSettings.MeterAttackTime, (float)InSettings.MeterReleaseTime, InSettings.MeterPeakMode, true));
+			NumChannels = 1;
 		}
+		if (!ensure(SampleRate > 0.f))
+		{
+			SampleRate = 48000.f;
+		}
+
+		EnvelopeDataPerChannel.AddDefaulted(NumChannels);
+		ClippingDataPerChannel.AddDefaulted(NumChannels);
+		PeakHoldFrames = FMath::Max(1, FMath::RoundToInt(static_cast<float>(InSettings.PeakHoldTime) * SampleRate / 1000.f));
 	}
 
 	FMeterAnalyzerResults FMeterAnalyzer::ProcessAudio(TArrayView<const float> InSampleView)
 	{
 		// Feed audio through the envelope followers
-		for (int32 SampleIndex = 0; SampleIndex < InSampleView.Num(); SampleIndex += NumChannels)
+		const float* InData = InSampleView.GetData();
+		const int32 NumSamples = InSampleView.Num();
+		const int32 NumFrames = NumSamples / NumChannels;
+
+		check((NumSamples % NumChannels) == 0);
+
+		// Reset the clipping data for next block of audio
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
 		{
-			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
+			ClippingDataPerChannel[ChannelIndex].ClippingValue = 0.0f;
+			ClippingDataPerChannel[ChannelIndex].NumSamplesClipping = 0;
+		}
+
+		for (int32 i = 0; i < NumSamples; i++)
+		{
+			if (FMath::Abs(InData[i]) > Settings.ClippingThreshold)
 			{
-				float Sample = InSampleView[SampleIndex + ChannelIndex];
-
-				// Check for clipping in this block of audio
+				const int32 ChannelIndex = i % NumChannels;
 				FClippingData& ClippingData = ClippingDataPerChannel[ChannelIndex];
-				if (Sample > Settings.ClippingThreshold)
-				{
-					// Track how many samples clipped in this block
-					ClippingData.NumSamplesClipping++;
 
-					// Track the max clipping value in this block of audio
-					ClippingData.ClippingValue = FMath::Max(ClippingData.ClippingValue, Sample);
-				}
+				// Track how many samples clipped in this block
+				ClippingData.NumSamplesClipping++;
 
-				TUniquePtr<FEnvelopeFollower>& MeterEnvelopeFollower = MeterEnvelopeFollowers[ChannelIndex];
-				float NewPeakEnvValue = MeterEnvelopeFollower->ProcessAudio(Sample);
+				// Track the max clipping value in this block of audio
+				ClippingData.ClippingValue = FMath::Max(ClippingData.ClippingValue, InData[i]);
+			}
+		}
 
-				FPeakEnvelopeData& PeakEnvData = PeakEnvDataPerChannel[ChannelIndex];
-				FPeakData& PeakData = PeakDataPerChannel[ChannelIndex];
+		EnvelopeBuffer.Reset(NumSamples);
+		EnvelopeBuffer.AddUninitialized(NumSamples);
+		EnvelopeFollower.ProcessAudio(InData, NumFrames, EnvelopeBuffer.GetData());
+
+		// Find peaks in the envelope.
+		const float* Envelope = EnvelopeBuffer.GetData();
+		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ChannelIndex++)
+		{
+			FEnvelopeData& EnvelopeData = EnvelopeDataPerChannel[ChannelIndex];
+			// Reset max envelope data. 
+			EnvelopeData.MaxEnvelopeValue = 0.f;
+			if (EnvelopeData.FramesUntilPeakReset < 1)
+			{
+				EnvelopeData.PeakValue = 0;
+			}
+
+			// Temp variables to hold onto prior frame's envelope info.
+			float PriorValue = EnvelopeData.PriorEnvelopeValue;
+			bool bPriorSlopeIsPositive = EnvelopeData.bPriorEnvelopeSlopeIsPositive;
+
+			for (int32 SampleIndex = ChannelIndex; SampleIndex < NumSamples; SampleIndex += NumChannels)
+			{
+				// Get maximum value in envelope.
+				EnvelopeData.MaxEnvelopeValue = FMath::Max(Envelope[SampleIndex], EnvelopeData.MaxEnvelopeValue);
 
 				// Positive if we're rising
-				bool bNewSlopeIsPositive = (NewPeakEnvValue - PeakEnvData.Value) > 0.0f;
+				bool bNewSlopeIsNegative = (Envelope[SampleIndex] - PriorValue) >= 0.0f;
+				bool bIsPeak = bNewSlopeIsNegative && bPriorSlopeIsPositive;
 
 				// Detect if the new peak envelope value is less than the previous peak envelope value (i.e. local maximum)
-				if (!bNewSlopeIsPositive && PeakEnvData.bEnvelopeSlopeIsPositive)
+				if (bIsPeak)
 				{
-					// Get the current time
-					float CurrentTimeSec = (PeakEnvData.SampleCount + SampleIndex) / SampleRate;
+					const int32 FrameIndex = SampleIndex / NumChannels;
 
 					// Check if the peak value is larger than the current peak value or if enough time has elapsed to store a new peak
-					if (PeakData.Value < PeakEnvData.Value || (CurrentTimeSec - PeakData.StartTime) >= (0.001f * Settings.PeakHoldTime))
+					if ((EnvelopeData.PeakValue < Envelope[SampleIndex]) || (FrameIndex > EnvelopeData.FramesUntilPeakReset))
 					{
-						PeakData.Value = PeakEnvData.Value;
-						PeakData.StartTime = CurrentTimeSec;
+						EnvelopeData.PeakValue = Envelope[SampleIndex];
+						EnvelopeData.FramesUntilPeakReset = FrameIndex + PeakHoldFrames;
 					}
 				}
 
 				// Update the current peak envelope data to the new value
-				PeakEnvData.Value = NewPeakEnvValue;
-				PeakEnvData.bEnvelopeSlopeIsPositive = bNewSlopeIsPositive;
+				PriorValue = Envelope[SampleIndex];
+				bPriorSlopeIsPositive = !bNewSlopeIsNegative;
+			}
+
+			// Save for next call
+			EnvelopeData.PriorEnvelopeValue = PriorValue;
+			EnvelopeData.bPriorEnvelopeSlopeIsPositive = bPriorSlopeIsPositive;
+
+			if (EnvelopeData.FramesUntilPeakReset > 0)
+			{
+				// Decrement frame counters for next call.
+				EnvelopeData.FramesUntilPeakReset -= NumFrames;
 			}
 		}
 
 		// Build the results data
 		FMeterAnalyzerResults Results;
+
+		FrameCounter += NumFrames;
+		Results.TimeSec = static_cast<float>(FrameCounter) / SampleRate;
 
 		for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 		{
@@ -87,21 +132,11 @@ namespace Audio
 			Results.ClippingValues.Add(ClippingData.ClippingValue);
 			Results.NumSamplesClipping.Add(ClippingData.NumSamplesClipping);
 
-			// Reset the clipping data for next block of audio
-			ClippingData.ClippingValue = 0.0f;
-			ClippingData.NumSamplesClipping = 0;
-
 			// update sample count of the env data
-			FPeakEnvelopeData& PeakEnvData = PeakEnvDataPerChannel[ChannelIndex];
-			PeakEnvData.SampleCount += InSampleView.Num();
+			const FEnvelopeData& EnvData = EnvelopeDataPerChannel[ChannelIndex];
 
-			TUniquePtr<FEnvelopeFollower>& MeterEnvelopeFollower = MeterEnvelopeFollowers[ChannelIndex];
-			Results.MeterValues.Add(MeterEnvelopeFollower->GetCurrentValue());
-
-			FPeakData& PeakData = PeakDataPerChannel[ChannelIndex];
-			Results.PeakValues.Add(PeakData.Value);
-
-			Results.TimeSec = PeakEnvData.SampleCount / SampleRate;
+			Results.MeterValues.Add(EnvData.MaxEnvelopeValue);
+			Results.PeakValues.Add(EnvData.PeakValue);
 		}
 
 		return Results;

@@ -169,7 +169,7 @@ private:
 	* Envelope following DSP object.
 	* Configured using the MicSilenceDetectionConfig namespace in VoiceConfig.h and the CVars defined in VoiceConfig.cpp.
 	*/
-	Audio::FEnvelopeFollower MicLevelDetector;
+	Audio::FInlineEnvelopeFollower MicLevelDetector;
 	/*
 	* Whether the microphone level is above the threshold set 
 	*/

@@ -95,7 +95,7 @@ namespace Audio
 		TArray<FDelay> LookaheadDelay;
 
 		// Envelope followers
-		TArray<FEnvelopeFollower> EnvFollower;
+		TArray<FInlineEnvelopeFollower> EnvFollower;
 
 		// Points in the knee used for lagrangian interpolation
 		TArray<FVector2D> KneePoints;

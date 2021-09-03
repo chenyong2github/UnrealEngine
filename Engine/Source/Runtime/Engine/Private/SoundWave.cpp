@@ -1617,12 +1617,15 @@ void USoundWave::BakeFFTAnalysis()
 		}
 
 		// Prepare the spectral envelope followers
-		TArray<Audio::FEnvelopeFollower> SpectralEnvelopeFollowers;
-		SpectralEnvelopeFollowers.AddDefaulted(FrequenciesToAnalyze.Num());
+		Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+		EnvelopeFollowerInitParams.SampleRate = static_cast<float>(RawDataSampleRate) / static_cast<float>(FMath::Max(1, FFTAnalysisFrameSize));
+		EnvelopeFollowerInitParams.AttackTimeMsec = static_cast<float>(FFTAnalysisAttackTime);
+		EnvelopeFollowerInitParams.ReleaseTimeMsec = static_cast<float>(FFTAnalysisReleaseTime);
 
-		for (Audio::FEnvelopeFollower& EnvFollower : SpectralEnvelopeFollowers)
+		TArray<Audio::FInlineEnvelopeFollower> SpectralEnvelopeFollowers;
+		for (int32 i = 0; i < FrequenciesToAnalyze.Num(); i++)
 		{
-			EnvFollower.Init((float)RawDataSampleRate / FFTAnalysisFrameSize, FFTAnalysisAttackTime, FFTAnalysisReleaseTime);
+			SpectralEnvelopeFollowers.Emplace(EnvelopeFollowerInitParams);
 		}
 
 		// Build a new spectrum analyzer
@@ -1668,7 +1671,7 @@ void USoundWave::BakeFFTAnalysis()
 					DataEntry.Magnitude = SpectrumAnalyzer.GetMagnitudeForFrequency(Frequency);
 
 					// Feed the magnitude through the spectral envelope follower for this band
-					DataEntry.Magnitude = SpectralEnvelopeFollowers[Index].ProcessAudioNonClamped(DataEntry.Magnitude);
+					DataEntry.Magnitude = SpectralEnvelopeFollowers[Index].ProcessSample(DataEntry.Magnitude);
 
 					// Track the max magnitude so we can later set normalized magnitudes
 					if (DataEntry.Magnitude > MaximumMagnitude)
@@ -1784,8 +1787,11 @@ void USoundWave::BakeEnvelopeAnalysis()
 		const uint32 NumFrames = (RawImportedWaveData.Num() / sizeof(int16)) / RawDataNumChannels;
 		int16* InputData = (int16*)RawImportedWaveData.GetData();
 
-		Audio::FEnvelopeFollower EnvelopeFollower;
-		EnvelopeFollower.Init(RawDataSampleRate, EnvelopeFollowerAttackTime, EnvelopeFollowerReleaseTime);
+		Audio::FInlineEnvelopeFollowerInitParams EnvelopeFollowerInitParams;
+		EnvelopeFollowerInitParams.SampleRate = RawDataSampleRate; 
+		EnvelopeFollowerInitParams.AttackTimeMsec = static_cast<float>(EnvelopeFollowerAttackTime);
+		EnvelopeFollowerInitParams.ReleaseTimeMsec = static_cast<float>(EnvelopeFollowerReleaseTime);
+		Audio::FInlineEnvelopeFollower EnvelopeFollower(EnvelopeFollowerInitParams);
 
 		for (uint32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 		{
@@ -1797,7 +1803,10 @@ void USoundWave::BakeEnvelopeAnalysis()
 			}
 			SampleValue /= RawDataNumChannels;
 
-			float Output = EnvelopeFollower.ProcessAudio(SampleValue);
+			float Output = EnvelopeFollower.ProcessSample(SampleValue);
+			Output = FMath::Clamp(Output, 0.f, 1.f);
+			
+
 
 			// Until we reached the frame size
 			if (FrameIndex % EnvelopeFollowerFrameSize == 0)

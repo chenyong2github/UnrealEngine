@@ -806,6 +806,22 @@ namespace Audio
 			SetCapacity(0);
 		}
 
+		TCircularAudioBuffer(const TCircularAudioBuffer<SampleType, Alignment>& InOther)
+		{
+			*this = InOther;
+		}
+
+		TCircularAudioBuffer& operator=(const TCircularAudioBuffer<SampleType, Alignment>& InOther)
+		{
+			InternalBuffer = InOther.InternalBuffer;
+			Capacity = InOther.Capacity;
+			ReadCounter.Set(InOther.ReadCounter.GetValue());
+			WriteCounter.Set(InOther.WriteCounter.GetValue());
+
+			return *this;
+		}
+
+
 		TCircularAudioBuffer(uint32 InCapacity)
 		{
 			SetCapacity(InCapacity);
@@ -849,6 +865,12 @@ namespace Audio
 				ReadCounter.Set(0);
 				WriteCounter.Set(0);
 			}
+		}
+
+		/** Push an array of values into circular buffer. */
+		int32 Push(TArrayView<SampleType> InBuffer)
+		{
+			return Push(InBuffer.GetData(), InBuffer.Num());
 		}
 
 		// Pushes some amount of samples into this circular buffer.

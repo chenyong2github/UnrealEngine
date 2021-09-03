@@ -343,6 +343,11 @@ bool UMediaSoundComponent::Init(int32& SampleRate)
 
 	Resampler->Initialize(NumChannels, SampleRate);
 
+	Audio::FEnvelopeFollowerInitParams EnvelopeInitParams;
+	EnvelopeInitParams.SampleRate = SampleRate;
+	EnvelopeInitParams.NumChannels = 1; //EnvelopeFollower uses mixed down mono buffer 
+	EnvelopeFollower.Init(EnvelopeInitParams);
+
 	return true;
 }
 
@@ -432,12 +437,17 @@ int32 UMediaSoundComponent::OnGenerateAudio(float* OutAudio, int32 NumSamples)
 						bEnvelopeFollowerSettingsChanged = false;
 					}
 
-					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
-					{
-						EnvelopeFollower.ProcessAudio(BufferToUseForAnalysis[FrameIndex]);
-					}
+					EnvelopeFollower.ProcessAudio(BufferToUseForAnalysis, NumFrames);
 
-					CurrentEnvelopeValue = EnvelopeFollower.GetCurrentValue();
+					const TArray<float>& EnvelopeValues = EnvelopeFollower.GetEnvelopeValues();
+					if (ensure(EnvelopeValues.Num() > 0))
+					{
+						CurrentEnvelopeValue = FMath::Clamp(EnvelopeValues[0], 0.f, 1.f);
+					}
+					else
+					{
+						CurrentEnvelopeValue = 0.f;
+					}
 				}
 			}
 		}
