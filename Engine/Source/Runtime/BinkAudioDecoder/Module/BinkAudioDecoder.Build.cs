@@ -24,7 +24,7 @@ public class BinkAudioDecoder : ModuleRules
         }
         if (Target.Platform == UnrealTargetPlatform.IOS)
         {
-            return Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_ios_static.a");
+            return null;//Path.Combine(ModuleDirectory, "..", "SDK", "BinkAudio", "Lib", "libbinka_ue_decode_ios_static.a");
         }
         if (Target.Platform == UnrealTargetPlatform.Android)
         {
