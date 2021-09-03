@@ -769,23 +769,7 @@ void FLumenCard::Initialize(float InResolutionScale, const FMatrix& LocalToWorld
 void FLumenCard::SetTransform(const FMatrix44f& LocalToWorld, const FLumenCardOBB& InLocalOBB)
 {
 	LocalOBB = InLocalOBB;
-
-	WorldOBB.Origin = LocalToWorld.TransformPosition(InLocalOBB.Origin);
-
-	const FVector3f ScaledXAxis = LocalToWorld.TransformVector(InLocalOBB.AxisX);
-	const FVector3f ScaledYAxis = LocalToWorld.TransformVector(InLocalOBB.AxisY);
-	const FVector3f ScaledZAxis = LocalToWorld.TransformVector(InLocalOBB.AxisZ);
-	const float XAxisLength = ScaledXAxis.Size();
-	const float YAxisLength = ScaledYAxis.Size();
-	const float ZAxisLength = ScaledZAxis.Size();
-
-	WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
-	WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
-	WorldOBB.AxisX = FVector::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
-	FVector3f::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
-
-	WorldOBB.Extent = InLocalOBB.Extent * FVector(XAxisLength, YAxisLength, ZAxisLength);
-	WorldOBB.Extent.Z = FMath::Max(WorldOBB.Extent.Z, 1.0f);
+	WorldOBB = InLocalOBB.Transform(LocalToWorld);	
 }
 
 FCardPageRenderData::FCardPageRenderData(const FViewInfo& InMainView,
@@ -1627,8 +1611,6 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 		{
 			LumenSceneData.RemoveAllMeshCards();
 		}
-
-		LumenScenePDIVisualization();
 
 		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, GetNumLumenVoxelClipmaps() - 1);
 		const float MaxCardUpdateDistanceFromCamera = ComputeMaxCardUpdateDistanceFromCamera();
