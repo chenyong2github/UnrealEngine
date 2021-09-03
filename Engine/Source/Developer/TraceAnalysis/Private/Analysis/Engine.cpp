@@ -56,7 +56,7 @@ struct FAuxData
 
 ////////////////////////////////////////////////////////////////////////////////
 struct FAuxDataCollector
-: public TArray<FAuxData>
+: public TArray<FAuxData, TInlineAllocator<8>>
 {
 };
 
