@@ -1,0 +1,83 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "Common.ush"
+#include "SceneData.ush"
+#include "ShaderDrawDebug.ush"
+
+int NumInstances;
+int NumScenePrimitives;
+int bDrawAll;
+int bDrawUpdatedOnly;
+
+uint InstanceDataSOAStride;
+int2 InputCoord;
+float3 PickingRayStart;
+float3 PickingRayEnd;
+float DrawRange;
+
+StructuredBuffer<uint> SelectedPrimitiveFlags;
+
+[numthreads(NUM_THREADS_PER_GROUP, 1, 1)]
+void GPUSceneDebugRenderCS(uint InstanceID : SV_DispatchThreadID)
+{
+	if (InstanceID >= NumInstances)
+	{
+		return;
+	}
+
+	FInstanceSceneData InstanceData = GetInstanceSceneData(InstanceID, InstanceDataSOAStride);
+
+	// Early out on invalid ID
+	if (InstanceData.PrimitiveId == 0xFFFFFFFFu)
+	{
+		return;
+	}
+
+	// Only show updated
+	if (bDrawUpdatedOnly && InstanceData.LastUpdateSceneFrameNumber != GetGPUSceneFrameNumber())
+	{
+		return;
+	}
+
+	float3 LocalRayStart = mul(float4(PickingRayStart, 1.0f), InstanceData.WorldToLocal).xyz;
+
+	// Skip if beyond draw range
+	if (DrawRange > 0.0f && length(InstanceData.LocalBoundsCenter - LocalRayStart) > DrawRange)
+	{
+		return;
+	}
+
+	float3 LocalRayEnd = mul(float4(PickingRayEnd, 1.0f), InstanceData.WorldToLocal).xyz;
+	float2 RayResult = LineBoxIntersect(LocalRayStart, LocalRayEnd, InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent);
+	bool bIsMouseOver = RayResult.x <= RayResult.y;
+	// Only draw selected
+	const uint BitsPerWord = 32U;
+	const uint Mask = 1U << (InstanceData.PrimitiveId % BitsPerWord);
+
+	bool bIsSelected = (InstanceData.PrimitiveId < NumScenePrimitives && (SelectedPrimitiveFlags[InstanceData.PrimitiveId / BitsPerWord] & Mask) != 0U);
+
+	FPrimitiveSceneData PrimitiveData = GetPrimitiveData(InstanceData.PrimitiveId);
+
+	//float4 InstanceBoundColor = InstanceData.PrimitiveId < NumScenePrimitives ? float4(0.3f, 1.0f, 0.5f, 1.0f) : float4(0.3f, 0.3f, 0.3f, 0.5f);
+	float4 InstanceBoundColor = float4(0.3f, 0.3f, 0.3f, 0.5f);
+
+	if (bIsSelected || bDrawAll)
+	{
+		InstanceBoundColor = float4(0.5f, 0.75f, 0.5f, 1.0f);
+	}
+	
+	if (bIsMouseOver)
+	{
+		InstanceBoundColor = float4(0.75f, 1.0f, 0.75f, 1.0f);
+	}
+	
+	if (bDrawUpdatedOnly)
+	{
+		InstanceBoundColor.x = 1.0f;
+		InstanceBoundColor.z = 1.0f;
+	}
+	if (bIsMouseOver || bIsSelected || bDrawAll != 0)
+	{
+		AddOBB(InstanceData.LocalBoundsCenter - InstanceData.LocalBoundsExtent, InstanceData.LocalBoundsCenter + InstanceData.LocalBoundsExtent, InstanceBoundColor, InstanceData.LocalToWorld);
+	}
+}

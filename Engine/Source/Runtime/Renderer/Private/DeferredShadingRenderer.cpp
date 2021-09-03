@@ -2074,6 +2074,8 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 			Scene->GPUScene.UploadDynamicPrimitiveShaderDataForView(GraphBuilder, Scene, View);
+
+			Scene->GPUScene.DebugRender(GraphBuilder, *Scene, View);
 		}
 
 		{
