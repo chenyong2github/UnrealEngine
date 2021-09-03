@@ -4,12 +4,12 @@
 
 #include "Elements/Framework/TypedElementRegistry.h"
 
-UObject* UTypedElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
+UObject* ITypedElementObjectInterface::GetObject(const FTypedElementHandle& InElementHandle)
 {
 	return nullptr;
 }
 
-UClass* UTypedElementObjectInterface::GetObjectClass(const FTypedElementHandle& InElementHandle)
+UClass* ITypedElementObjectInterface::GetObjectClass(const FTypedElementHandle& InElementHandle)
 {
 	UObject* HandleAsObject = GetObject(InElementHandle);
 	return HandleAsObject ? HandleAsObject->GetClass() : nullptr;

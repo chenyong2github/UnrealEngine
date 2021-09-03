@@ -6,7 +6,7 @@
 #include "ObjectElementCounterInterface.generated.h"
 
 UCLASS()
-class ENGINE_API UObjectElementCounterInterface : public UTypedElementCounterInterface
+class ENGINE_API UObjectElementCounterInterface : public UObject, public ITypedElementCounterInterface
 {
 	GENERATED_BODY()
 

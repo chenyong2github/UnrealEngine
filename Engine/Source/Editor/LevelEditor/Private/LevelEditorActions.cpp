@@ -1534,7 +1534,7 @@ bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 		bool bCanDuplicate = false;
 
 		const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
-		SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([&bCanDuplicate](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+		SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([&bCanDuplicate](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 		{
 			bCanDuplicate |= InWorldElement.CanDuplicateElement();
 			return !bCanDuplicate;
@@ -1572,7 +1572,7 @@ bool FLevelEditorActionCallbacks::Delete_CanExecute()
 		bool bCanDelete = false;
 
 		const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
-		SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([&bCanDelete](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+		SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([&bCanDelete](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 		{
 			bCanDelete |= InWorldElement.CanDeleteElement();
 			return !bCanDelete;
@@ -2861,7 +2861,7 @@ void FLevelEditorActionCallbacks::MoveElementsToElement_Clicked(bool InAlign)
 	// TODO: Ideally this would come from some level editor context
 	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		if (const TTypedElement<UTypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		if (const TTypedElement<ITypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MoveElementsToElement", "Snap Origin to Element"));
 			MoveTo_Clicked(SelectionSet, InAlign, /*bPerElement*/false, DestElement);
@@ -2869,7 +2869,7 @@ void FLevelEditorActionCallbacks::MoveElementsToElement_Clicked(bool InAlign)
 	}
 }
 
-void FLevelEditorActionCallbacks::MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<UTypedElementWorldInterface>& InDestination )
+void FLevelEditorActionCallbacks::MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<ITypedElementWorldInterface>& InDestination )
 {
 	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
 	FScopedLevelDirtied		LevelDirtyCallback;
@@ -2900,7 +2900,7 @@ void FLevelEditorActionCallbacks::MoveTo_Clicked( const UTypedElementSelectionSe
 		}
 	}
 
-	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([InAlign, InPerElement, &InDestination, &Delta, &NewLocation, &NewRotation, &LevelDirtyCallback](const TTypedElement<UTypedElementWorldInterface>& InElement)
+	InSelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([InAlign, InPerElement, &InDestination, &Delta, &NewLocation, &NewRotation, &LevelDirtyCallback](const TTypedElement<ITypedElementWorldInterface>& InElement)
 	{
 		// Skip moving the destination element
 		if (InElement == InDestination)
@@ -3078,7 +3078,7 @@ void FLevelEditorActionCallbacks::SnapElementsToElement_Clicked( bool InAlign, b
 	// TODO: Ideally this would come from some level editor context
 	if (const UTypedElementSelectionSet* SelectionSet = GEditor->GetSelectedActors()->GetElementSelectionSet())
 	{
-		if (const TTypedElement<UTypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		if (const TTypedElement<ITypedElementWorldInterface> DestElement = SelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
 		{
 			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "SnapElementsToElement", "Snap Elements to Element"));
 			SnapTo_Clicked(SelectionSet, InAlign, InUseLineTrace, InUseBounds, InUsePivot, DestElement);
@@ -3086,7 +3086,7 @@ void FLevelEditorActionCallbacks::SnapElementsToElement_Clicked( bool InAlign, b
 	}
 }
 
-void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<UTypedElementWorldInterface>& InDestination )
+void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<ITypedElementWorldInterface>& InDestination )
 {
 	// Fires ULevel::LevelDirtiedEvent when falling out of scope.
 	FScopedLevelDirtied		LevelDirtyCallback;
@@ -3095,7 +3095,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSe
 	// TODO: Should this also take an element?
 	{
 		AActor* DestinationActor = nullptr;
-		if (TTypedElement<UTypedElementObjectInterface> DestinationObjectHandle = InSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InDestination))
+		if (TTypedElement<ITypedElementObjectInterface> DestinationObjectHandle = InSelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(InDestination))
 		{
 			DestinationActor = Cast<AActor>(DestinationObjectHandle.GetObject());
 		}
@@ -3111,7 +3111,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSe
 
 	// Snap each selected element
 	bool bSnappedElements = false;
-	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([InAlign, InUseLineTrace, InUseBounds, InUsePivot, &InDestination, &ElementsToIgnore, &LevelDirtyCallback, &bSnappedElements](const TTypedElement<UTypedElementWorldInterface>& InElement)
+	InSelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([InAlign, InUseLineTrace, InUseBounds, InUsePivot, &InDestination, &ElementsToIgnore, &LevelDirtyCallback, &bSnappedElements](const TTypedElement<ITypedElementWorldInterface>& InElement)
 	{
 		if (GEditor->SnapElementTo(InElement, InAlign, InUseLineTrace, InUseBounds, InUsePivot, InDestination, ElementsToIgnore))
 		{
@@ -3124,7 +3124,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSe
 	// Update the pivot location
 	if (bSnappedElements)
 	{
-		if (TTypedElement<UTypedElementWorldInterface> LastElement = InSelectionSet->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		if (TTypedElement<ITypedElementWorldInterface> LastElement = InSelectionSet->GetBottomSelectedElement<ITypedElementWorldInterface>())
 		{
 			FTransform LastElementTransform;
 			if (LastElement.GetWorldTransform(LastElementTransform))
@@ -3133,7 +3133,7 @@ void FLevelEditorActionCallbacks::SnapTo_Clicked( const UTypedElementSelectionSe
 
 				if (UActorGroupingUtils::IsGroupingActive())
 				{
-					if (TTypedElement<UTypedElementObjectInterface> LastObjectElement = InSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(LastElement))
+					if (TTypedElement<ITypedElementObjectInterface> LastObjectElement = InSelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(LastElement))
 					{
 						if (AActor* LastActor = Cast<AActor>(LastObjectElement.GetObject()))
 						{

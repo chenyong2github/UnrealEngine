@@ -18,11 +18,11 @@ UTransformProxy* FEditorGizmoSelectionBuilderHelper::CreateTransformProxyForSele
 			bool bHasSelectedElements = false;
 			UTransformProxy* TransformProxy = NewObject<UTransformProxy>();
 
-			SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([TransformProxy, SelectionSet, &bHasSelectedElements](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
+			SelectionSet->ForEachSelectedElement<ITypedElementWorldInterface>([TransformProxy, SelectionSet, &bHasSelectedElements](const TTypedElement<ITypedElementWorldInterface>& InWorldElement)
 				{
 					if (InWorldElement.CanMoveElement(ETypedElementWorldType::Editor))
 					{
-						if (TTypedElement<UTypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(InWorldElement))
+						if (TTypedElement<ITypedElementObjectInterface> ObjectTypedElement = SelectionSet->GetElementList()->GetElement<ITypedElementObjectInterface>(InWorldElement))
 						{
 							if (AActor* Actor = ObjectTypedElement.GetObjectAs<AActor>())
 							{

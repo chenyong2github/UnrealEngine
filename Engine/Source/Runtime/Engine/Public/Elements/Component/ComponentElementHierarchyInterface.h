@@ -6,7 +6,7 @@
 #include "ComponentElementHierarchyInterface.generated.h"
 
 UCLASS()
-class ENGINE_API UComponentElementHierarchyInterface : public UTypedElementHierarchyInterface
+class ENGINE_API UComponentElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 

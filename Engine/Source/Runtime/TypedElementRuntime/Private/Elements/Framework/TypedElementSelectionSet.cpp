@@ -8,12 +8,12 @@
 #include "Serialization/ObjectReader.h"
 #include "Serialization/ObjectWriter.h"
 
-void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements)
+void FTypedElementSelectionCustomization::GetNormalizedElements(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements)
 {
 	// Don't include this element in the normalized selection if it has a parent element that is also selected
 	{
 		FTypedElementHandle ElementToTest = InElementSelectionHandle;
-		while (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = InSelectionSet->GetElement<UTypedElementHierarchyInterface>(ElementToTest))
+		while (TTypedElement<ITypedElementHierarchyInterface> ElementHierarchyHandle = InSelectionSet->GetElement<ITypedElementHierarchyInterface>(ElementToTest))
 		{
 			ElementToTest = ElementHierarchyHandle.GetParentElement();
 			if (ElementToTest && InSelectionSet->Contains(ElementToTest))
@@ -68,7 +68,7 @@ bool UTypedElementSelectionSet::Modify(bool bAlwaysMarkDirty)
 	if (GUndo && CanModify())
 	{
 		bool bCanModify = true;
-		ElementList->ForEachElement<UTypedElementSelectionInterface>([&bCanModify](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
+		ElementList->ForEachElement<ITypedElementSelectionInterface>([&bCanModify](const TTypedElement<ITypedElementSelectionInterface>& InSelectionElement)
 		{
 			bCanModify = !InSelectionElement.ShouldPreventTransactions();
 			return bCanModify;
@@ -138,7 +138,7 @@ void UTypedElementSelectionSet::Serialize(FArchive& Ar)
 			FTypedHandleTypeId TypeId = 0;
 			Ar << TypeId;
 
-			UTypedElementSelectionInterface* ElementTypeSelectionInterface = Registry->GetElementInterface<UTypedElementSelectionInterface>(TypeId);
+			ITypedElementSelectionInterface* ElementTypeSelectionInterface = Registry->GetElementInterface<ITypedElementSelectionInterface>(TypeId);
 			checkf(ElementTypeSelectionInterface, TEXT("Failed to find selection interface for a previously transacted element type!"));
 
 			TUniquePtr<ITypedElementTransactedElement> TransactedElement = ElementTypeSelectionInterface->CreateTransactedElement(TypeId);
@@ -187,7 +187,7 @@ bool UTypedElementSelectionSet::SelectElement(const FTypedElementHandle& InEleme
 
 	if (InSelectionOptions.GetChildElementInclusionMethod() != ETypedElementChildInclusionMethod::None)
 	{
-		if (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<UTypedElementHierarchyInterface>(InElementHandle))
+		if (TTypedElement<ITypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<ITypedElementHierarchyInterface>(InElementHandle))
 		{
 			const FTypedElementSelectionOptions ChildSelectionOptions = FTypedElementSelectionOptions(InSelectionOptions)
 				.SetChildElementInclusionMethod(InSelectionOptions.GetChildElementInclusionMethod() == ETypedElementChildInclusionMethod::Immediate ? ETypedElementChildInclusionMethod::None : InSelectionOptions.GetChildElementInclusionMethod());
@@ -252,7 +252,7 @@ bool UTypedElementSelectionSet::DeselectElement(const FTypedElementHandle& InEle
 
 	if (InSelectionOptions.GetChildElementInclusionMethod() != ETypedElementChildInclusionMethod::None)
 	{
-		if (TTypedElement<UTypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<UTypedElementHierarchyInterface>(InElementHandle))
+		if (TTypedElement<ITypedElementHierarchyInterface> ElementHierarchyHandle = ElementList->GetElement<ITypedElementHierarchyInterface>(InElementHandle))
 		{
 			const FTypedElementSelectionOptions ChildSelectionOptions = FTypedElementSelectionOptions(InSelectionOptions)
 				.SetChildElementInclusionMethod(InSelectionOptions.GetChildElementInclusionMethod() == ETypedElementChildInclusionMethod::Immediate ? ETypedElementChildInclusionMethod::None : InSelectionOptions.GetChildElementInclusionMethod());
@@ -395,7 +395,7 @@ FTypedElementListRef UTypedElementSelectionSet::GetNormalizedElementList(FTypedE
 void UTypedElementSelectionSet::GetNormalizedElementList(FTypedElementListConstRef InElementList, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const
 {
 	OutNormalizedElements->Reset();
-	InElementList->ForEachElement<UTypedElementSelectionInterface>([this, InElementList, &InNormalizationOptions, OutNormalizedElements](const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle)
+	InElementList->ForEachElement<ITypedElementSelectionInterface>([this, InElementList, &InNormalizationOptions, OutNormalizedElements](const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle)
 	{
 		// Note: FTypedElementSelectionSetElement needs a non-const FTypedElementList, but we won't call anything that will modify it...
 		FTypedElementSelectionSetElement SelectionSetElement(InElementSelectionHandle, ConstCastSharedRef<FTypedElementList>(InElementList), GetInterfaceCustomizationByTypeId(InElementSelectionHandle.GetId().GetTypeId()));
@@ -412,7 +412,7 @@ FTypedElementSelectionSetState UTypedElementSelectionSet::GetCurrentSelectionSta
 	CurrentState.CreatedFromSelectionSet = this;
 
 	CurrentState.TransactedElements.Reserve(ElementList->Num());
-	ElementList->ForEachElement<UTypedElementSelectionInterface>([&CurrentState](const TTypedElement<UTypedElementSelectionInterface>& InSelectionElement)
+	ElementList->ForEachElement<ITypedElementSelectionInterface>([&CurrentState](const TTypedElement<ITypedElementSelectionInterface>& InSelectionElement)
 	{
 		if (TUniquePtr<ITypedElementTransactedElement> TransactedElement = InSelectionElement.CreateTransactedElement())
 		{
@@ -457,7 +457,7 @@ void UTypedElementSelectionSet::RestoreSelectionState(const FTypedElementSelecti
 FTypedElementSelectionSetElement UTypedElementSelectionSet::ResolveSelectionSetElement(const FTypedElementHandle& InElementHandle) const
 {
 	return InElementHandle
-		? FTypedElementSelectionSetElement(ElementList->GetElement<UTypedElementSelectionInterface>(InElementHandle), ElementList, GetInterfaceCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
+		? FTypedElementSelectionSetElement(ElementList->GetElement<ITypedElementSelectionInterface>(InElementHandle), ElementList, GetInterfaceCustomizationByTypeId(InElementHandle.GetId().GetTypeId()))
 		: FTypedElementSelectionSetElement();
 }
 

@@ -4980,7 +4980,7 @@ void UEditorEngine::MoveViewportCamerasToComponent(const USceneComponent* Compon
 
 void UEditorEngine::MoveViewportCamerasToElement(const UTypedElementSelectionSet* SelectionSet, bool bActiveViewportOnly) const
 {
-	if (!SelectionSet || !SelectionSet->HasSelectedElements(UTypedElementWorldInterface::StaticClass()))
+	if (!SelectionSet || !SelectionSet->HasSelectedElements(ITypedElementWorldInterface::UClassType::StaticClass()))
 	{
 		return;
 	}
@@ -5069,7 +5069,7 @@ bool UEditorEngine::SnapElementTo(const FTypedElementHandle& InElementHandle, co
 
 	const UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
-	TTypedElement<UTypedElementWorldInterface> ElementWorldHandle = Registry->GetElement<UTypedElementWorldInterface>(InElementHandle);
+	TTypedElement<ITypedElementWorldInterface> ElementWorldHandle = Registry->GetElement<ITypedElementWorldInterface>(InElementHandle);
 	if (!ElementWorldHandle)
 	{
 		return false;
@@ -5088,7 +5088,7 @@ bool UEditorEngine::SnapElementTo(const FTypedElementHandle& InElementHandle, co
 	}
 
 	ABrush* Brush = nullptr;
-	if (TTypedElement<UTypedElementObjectInterface> ElementObjectHandle = Registry->GetElement<UTypedElementObjectInterface>(InElementHandle))
+	if (TTypedElement<ITypedElementObjectInterface> ElementObjectHandle = Registry->GetElement<ITypedElementObjectInterface>(InElementHandle))
 	{
 		Brush = Cast<ABrush>(ElementObjectHandle.GetObject());
 	}
@@ -5142,7 +5142,7 @@ bool UEditorEngine::SnapElementTo(const FTypedElementHandle& InElementHandle, co
 	}
 
 	FVector Direction = FVector(0.f, 0.f, -1.f);
-	if (TTypedElement<UTypedElementWorldInterface> DestinationWorldHandle = Registry->GetElement<UTypedElementWorldInterface>(InDestination))	// If a destination actor was specified, work out the direction
+	if (TTypedElement<ITypedElementWorldInterface> DestinationWorldHandle = Registry->GetElement<ITypedElementWorldInterface>(InDestination))	// If a destination actor was specified, work out the direction
 	{
 		FTransform DestinationTransform;
 		if (!DestinationWorldHandle.GetWorldTransform(DestinationTransform))
@@ -5244,7 +5244,7 @@ void UEditorEngine::MoveActorInFrontOfCamera( AActor& InActor, const FVector& In
 
 void UEditorEngine::SnapViewTo(const FTypedElementHandle& InElementHandle)
 {
-	if (TTypedElement<UTypedElementWorldInterface> ElementWorldHandle = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(InElementHandle))
+	if (TTypedElement<ITypedElementWorldInterface> ElementWorldHandle = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(InElementHandle))
 	{
 		FTransform ElementTransform;
 		if (ElementWorldHandle.GetWorldTransform(ElementTransform))

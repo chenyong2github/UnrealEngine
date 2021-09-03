@@ -6,7 +6,7 @@
 #include "SMInstanceElementHierarchyInterface.generated.h"
 
 UCLASS()
-class ENGINE_API USMInstanceElementHierarchyInterface : public UTypedElementHierarchyInterface
+class ENGINE_API USMInstanceElementHierarchyInterface : public UObject, public ITypedElementHierarchyInterface
 {
 	GENERATED_BODY()
 

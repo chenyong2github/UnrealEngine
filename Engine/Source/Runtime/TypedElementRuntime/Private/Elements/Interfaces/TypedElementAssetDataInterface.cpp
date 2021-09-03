@@ -2,7 +2,7 @@
 
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 
-TArray<FAssetData> UTypedElementAssetDataInterface::GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle)
+TArray<FAssetData> ITypedElementAssetDataInterface::GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle)
 {
 	TArray<FAssetData> AssetDatas;
 
@@ -15,7 +15,7 @@ TArray<FAssetData> UTypedElementAssetDataInterface::GetAllReferencedAssetDatas(c
 	return AssetDatas;
 }
 
-FAssetData UTypedElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
+FAssetData ITypedElementAssetDataInterface::GetAssetData(const FTypedElementHandle& InElementHandle)
 {
 	return FAssetData();
 }

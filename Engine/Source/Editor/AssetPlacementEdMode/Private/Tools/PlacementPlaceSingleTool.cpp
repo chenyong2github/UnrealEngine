@@ -347,7 +347,7 @@ void UPlacementModePlaceSingleTool::UpdateElementTransforms(TArrayView<const FTy
 	// Update the transform positions for the preview elements.
 	for (const FTypedElementHandle& ElementHandle : InElements)
 	{
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(ElementHandle))
+		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(ElementHandle))
 		{
 			bLocalTransform ? WorldInterfaceElement.SetRelativeTransform(InTransform) : WorldInterfaceElement.SetWorldTransform(InTransform);
 			WorldInterfaceElement.NotifyMovementOngoing();
@@ -360,7 +360,7 @@ void UPlacementModePlaceSingleTool::NotifyMovementStarted(TArrayView<const FType
 	// Notify Movement started
 	for (const FTypedElementHandle& PreviewElement : PreviewElements)
 	{
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
+		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(PreviewElement))
 		{
 			WorldInterfaceElement.NotifyMovementStarted();
 		}
@@ -383,7 +383,7 @@ void UPlacementModePlaceSingleTool::NotifyMovementEnded(TArrayView<const FTypedE
 
 	for (const FTypedElementHandle& PreviewElement : PreviewElements)
 	{
-		if (TTypedElement<UTypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementWorldInterface>(PreviewElement))
+		if (TTypedElement<ITypedElementWorldInterface> WorldInterfaceElement = UTypedElementRegistry::GetInstance()->GetElement<ITypedElementWorldInterface>(PreviewElement))
 		{
 			WorldInterfaceElement.NotifyMovementEnded();
 			WorldInterfaceElement.DeleteElement(WorldInterfaceElement.GetOwnerWorld(), SelectionSet, FTypedElementDeletionOptions());

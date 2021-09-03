@@ -3,10 +3,17 @@
 #pragma once
 
 #include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Interface.h"
+
 #include "TypedElementObjectInterface.generated.h"
 
-UCLASS(Abstract)
-class TYPEDELEMENTRUNTIME_API UTypedElementObjectInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementObjectInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class TYPEDELEMENTRUNTIME_API ITypedElementObjectInterface
 {
 	GENERATED_BODY()
 
@@ -14,14 +21,14 @@ public:
 	/**
 	 * Get the object instance that this handle represents, if any.
 	 */
-	UFUNCTION(BlueprintPure, Category="TypedElementInterfaces|Object")
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|Object")
 	virtual UObject* GetObject(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Gets the object instance's class that the handle represents, if any. 
 	 */
-	UFUNCTION(BlueprintPure, Category = "TypedElementInterfaces|Object")
-	UClass* GetObjectClass(const FTypedElementHandle& InElementHandle);
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|Object")
+	virtual UClass* GetObjectClass(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Attempts to cast the given handle to another class.
@@ -59,7 +66,7 @@ public:
 };
 
 template <>
-struct TTypedElement<UTypedElementObjectInterface> : public TTypedElementBase<UTypedElementObjectInterface>
+struct TTypedElement<ITypedElementObjectInterface> : public TTypedElementBase<ITypedElementObjectInterface>
 {
 	UObject* GetObject() const { return InterfacePtr->GetObject(*this); }
 	UClass* GetObjectClass() const { return InterfacePtr->GetObjectClass(*this); }

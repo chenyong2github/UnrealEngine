@@ -6,7 +6,7 @@
 #include "ObjectElementDetailsInterface.generated.h"
 
 UCLASS()
-class UObjectElementDetailsInterface : public UTypedElementDetailsInterface
+class UObjectElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 

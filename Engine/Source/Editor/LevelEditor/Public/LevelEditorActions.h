@@ -1356,7 +1356,7 @@ private:
 	 * Moves the selected elements.
 	 * @param InDestination		The destination element we want to move this element to, or invalid to move to the grid
 	 */
-	static void MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<UTypedElementWorldInterface>& InDestination = TTypedElement<UTypedElementWorldInterface>() );
+	static void MoveTo_Clicked( const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, bool InPerElement, const TTypedElement<ITypedElementWorldInterface>& InDestination = TTypedElement<ITypedElementWorldInterface>() );
 
 	/** 
 	 * Snaps the selected elements. Optionally will align with the trace normal.
@@ -1366,7 +1366,7 @@ private:
 	 * @param InUsePivot		Whether or not to use the pivot position.
 	 * @param InDestination		The destination element we want to move this actor to, or invalid to go towards the floor
 	 */
-	static void SnapTo_Clicked(const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<UTypedElementWorldInterface>& InDestination = TTypedElement<UTypedElementWorldInterface>() );
+	static void SnapTo_Clicked(const UTypedElementSelectionSet* InSelectionSet, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, const TTypedElement<ITypedElementWorldInterface>& InDestination = TTypedElement<ITypedElementWorldInterface>() );
 
 	/** 
 	 * Create and apply animation to the SkeletalMeshComponent if Simulating

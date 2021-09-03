@@ -934,7 +934,7 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 	// If there isn't an active mode overriding the local coordinate system, create it by looking at the current selection.
 	if (!CustomCoordinateSystemProvided && GetEditorSelectionSet())
 	{
-		if (TTypedElement<UTypedElementWorldInterface> BottomSelected = GetEditorSelectionSet()->GetBottomSelectedElement<UTypedElementWorldInterface>())
+		if (TTypedElement<ITypedElementWorldInterface> BottomSelected = GetEditorSelectionSet()->GetBottomSelectedElement<ITypedElementWorldInterface>())
 		{
 			FTransform RelativeTransform;
 			BottomSelected.GetRelativeTransform(RelativeTransform);

@@ -6,10 +6,10 @@
 namespace TypedElementListObjectUtil
 {
 
-UObject* GetObjectOfType(const TTypedElement<UTypedElementObjectInterface>& InObjectElement, const UClass* InRequiredClass)
+UObject* GetObjectOfType(const TTypedElement<ITypedElementObjectInterface>& InObjectElement, const UClass* InRequiredClass)
 {
 	UObject* ElementObject = InObjectElement ? InObjectElement.GetObject() : nullptr;
-	return (ElementObject && (!InRequiredClass || ElementObject->IsA(InRequiredClass)))
+	return (ElementObject && (!InRequiredClass || ElementObject->GetClass()->ImplementsInterface(InRequiredClass)))
 		? ElementObject
 		: nullptr;
 }
@@ -42,7 +42,7 @@ int32 CountObjects(FTypedElementListConstRef InElementList, const UClass* InRequ
 
 void ForEachObject(FTypedElementListConstRef InElementList, TFunctionRef<bool(UObject*)> InCallback, const UClass* InRequiredClass)
 {
-	InElementList->ForEachElement<UTypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<UTypedElementObjectInterface>& InObjectElement)
+	InElementList->ForEachElement<ITypedElementObjectInterface>([&InCallback, InRequiredClass](const TTypedElement<ITypedElementObjectInterface>& InObjectElement)
 	{
 		if (UObject* ElementObject = GetObjectOfType(InObjectElement, InRequiredClass))
 		{
@@ -68,7 +68,7 @@ TArray<UObject*> GetObjects(FTypedElementListConstRef InElementList, const UClas
 
 UObject* GetTopObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
-	TTypedElement<UTypedElementObjectInterface> TempElement;
+	TTypedElement<ITypedElementObjectInterface> TempElement;
 	for (int32 ElementIndex = 0; ElementIndex < InElementList->Num(); ++ElementIndex)
 	{
 		InElementList->GetElementAt(ElementIndex, TempElement);
@@ -84,7 +84,7 @@ UObject* GetTopObject(FTypedElementListConstRef InElementList, const UClass* InR
 
 UObject* GetBottomObject(FTypedElementListConstRef InElementList, const UClass* InRequiredClass)
 {
-	TTypedElement<UTypedElementObjectInterface> TempElement;
+	TTypedElement<ITypedElementObjectInterface> TempElement;
 	for (int32 ElementIndex = InElementList->Num() - 1; ElementIndex >= 0; --ElementIndex)
 	{
 		InElementList->GetElementAt(ElementIndex, TempElement);

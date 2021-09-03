@@ -14,7 +14,7 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 
-bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
+bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, FVector& OutPivotLocation)
 {
 	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
 	{
@@ -25,7 +25,7 @@ bool FActorElementEditorViewportInteractionCustomization::GetGizmoPivotLocation(
 	return FTypedElementViewportInteractionCustomization::GetGizmoPivotLocation(InElementWorldHandle, InWidgetMode, OutPivotLocation);
 }
 
-void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
+void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDeltaUpdate(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const UE::Widget::EWidgetMode InWidgetMode, const EAxisList::Type InDragAxis, const FInputDeviceState& InInputState, const FTransform& InDeltaTransform, const FVector& InPivotLocation)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -36,7 +36,7 @@ void FActorElementEditorViewportInteractionCustomization::GizmoManipulationDelta
 	FActorElementEditorViewportInteractionCustomization::ApplyDeltaToActor(Actor, /*bDelta*/true, &DeltaTranslation, &DeltaRotation, &DeltaScale3D, InPivotLocation, InInputState);
 }
 
-void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
+void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, const FVector& InMirrorScale, const FVector& InPivotLocation)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
@@ -57,7 +57,7 @@ void FActorElementEditorViewportInteractionCustomization::MirrorElement(const TT
 	Actor->MarkPackageDirty();
 }
 
-bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, FBoxSphereBounds& OutBounds)
+bool FActorElementEditorViewportInteractionCustomization::GetFocusBounds( const TTypedElement<ITypedElementWorldInterface>& InElementWorldHandle, FBoxSphereBounds& OutBounds)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementWorldHandle);
 	if (!Actor)

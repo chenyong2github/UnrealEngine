@@ -6,7 +6,7 @@
 #include "SMInstanceElementSelectionInterface.generated.h"
 
 UCLASS()
-class ENGINE_API USMInstanceElementSelectionInterface : public UTypedElementSelectionInterface
+class ENGINE_API USMInstanceElementSelectionInterface : public UObject, public ITypedElementSelectionInterface
 {
 	GENERATED_BODY()
 

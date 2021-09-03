@@ -39,10 +39,10 @@ void RegisterEngineObjectElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FObjectElementData>(NAME_Object);
-	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_Object, NewObject<UObjectElementAssetDataInterface>());
-	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Object, NewObject<UObjectElementObjectInterface>());
-	Registry->RegisterElementInterface<UTypedElementCounterInterface>(NAME_Object, NewObject<UObjectElementCounterInterface>());
-	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Object, NewObject<UObjectElementSelectionInterface>());
+	Registry->RegisterElementInterface<ITypedElementAssetDataInterface>(NAME_Object, NewObject<UObjectElementAssetDataInterface>());
+	Registry->RegisterElementInterface<ITypedElementObjectInterface>(NAME_Object, NewObject<UObjectElementObjectInterface>());
+	Registry->RegisterElementInterface<ITypedElementCounterInterface>(NAME_Object, NewObject<UObjectElementCounterInterface>());
+	Registry->RegisterElementInterface<ITypedElementSelectionInterface>(NAME_Object, NewObject<UObjectElementSelectionInterface>());
 }
 
 void RegisterEngineActorElements()
@@ -50,12 +50,12 @@ void RegisterEngineActorElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FActorElementData>(NAME_Actor);
-	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_Actor, NewObject<UActorElementAssetDataInterface>());
-	Registry->RegisterElementInterface<UTypedElementHierarchyInterface>(NAME_Actor, NewObject<UActorElementHierarchyInterface>());
-	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Actor, NewObject<UActorElementObjectInterface>());
-	Registry->RegisterElementInterface<UTypedElementCounterInterface>(NAME_Actor, NewObject<UActorElementCounterInterface>());
-	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Actor, NewObject<UActorElementWorldInterface>());
-	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementSelectionInterface>());
+	Registry->RegisterElementInterface<ITypedElementAssetDataInterface>(NAME_Actor, NewObject<UActorElementAssetDataInterface>());
+	Registry->RegisterElementInterface<ITypedElementHierarchyInterface>(NAME_Actor, NewObject<UActorElementHierarchyInterface>());
+	Registry->RegisterElementInterface<ITypedElementObjectInterface>(NAME_Actor, NewObject<UActorElementObjectInterface>());
+	Registry->RegisterElementInterface<ITypedElementCounterInterface>(NAME_Actor, NewObject<UActorElementCounterInterface>());
+	Registry->RegisterElementInterface<ITypedElementWorldInterface>(NAME_Actor, NewObject<UActorElementWorldInterface>());
+	Registry->RegisterElementInterface<ITypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementSelectionInterface>());
 }
 
 void RegisterEngineComponentElements()
@@ -63,11 +63,11 @@ void RegisterEngineComponentElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FComponentElementData>(NAME_Components);
-	Registry->RegisterElementInterface<UTypedElementHierarchyInterface>(NAME_Components, NewObject<UComponentElementHierarchyInterface>());
-	Registry->RegisterElementInterface<UTypedElementObjectInterface>(NAME_Components, NewObject<UComponentElementObjectInterface>());
-	Registry->RegisterElementInterface<UTypedElementCounterInterface>(NAME_Components, NewObject<UComponentElementCounterInterface>());
-	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_Components, NewObject<UComponentElementWorldInterface>());
-	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Components, NewObject<UComponentElementSelectionInterface>());
+	Registry->RegisterElementInterface<ITypedElementHierarchyInterface>(NAME_Components, NewObject<UComponentElementHierarchyInterface>());
+	Registry->RegisterElementInterface<ITypedElementObjectInterface>(NAME_Components, NewObject<UComponentElementObjectInterface>());
+	Registry->RegisterElementInterface<ITypedElementCounterInterface>(NAME_Components, NewObject<UComponentElementCounterInterface>());
+	Registry->RegisterElementInterface<ITypedElementWorldInterface>(NAME_Components, NewObject<UComponentElementWorldInterface>());
+	Registry->RegisterElementInterface<ITypedElementSelectionInterface>(NAME_Components, NewObject<UComponentElementSelectionInterface>());
 }
 
 void RegisterEngineSMInstanceElements()
@@ -75,10 +75,10 @@ void RegisterEngineSMInstanceElements()
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
 	Registry->RegisterElementType<FSMInstanceElementData>(NAME_SMInstance);
-	Registry->RegisterElementInterface<UTypedElementHierarchyInterface>(NAME_SMInstance, NewObject<USMInstanceElementHierarchyInterface>());
-	Registry->RegisterElementInterface<UTypedElementWorldInterface>(NAME_SMInstance, NewObject<USMInstanceElementWorldInterface>());
-	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_SMInstance, NewObject<USMInstanceElementSelectionInterface>());
-	Registry->RegisterElementInterface<UTypedElementAssetDataInterface>(NAME_SMInstance, NewObject<USMInstanceElementAssetDataInterface>());
+	Registry->RegisterElementInterface<ITypedElementHierarchyInterface>(NAME_SMInstance, NewObject<USMInstanceElementHierarchyInterface>());
+	Registry->RegisterElementInterface<ITypedElementWorldInterface>(NAME_SMInstance, NewObject<USMInstanceElementWorldInterface>());
+	Registry->RegisterElementInterface<ITypedElementSelectionInterface>(NAME_SMInstance, NewObject<USMInstanceElementSelectionInterface>());
+	Registry->RegisterElementInterface<ITypedElementAssetDataInterface>(NAME_SMInstance, NewObject<USMInstanceElementAssetDataInterface>());
 }
 
 void RegisterEngineElements()

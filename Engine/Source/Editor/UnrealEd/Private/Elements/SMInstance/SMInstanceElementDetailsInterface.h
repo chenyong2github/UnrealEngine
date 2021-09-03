@@ -6,7 +6,7 @@
 #include "SMInstanceElementDetailsInterface.generated.h"
 
 UCLASS()
-class USMInstanceElementDetailsInterface : public UTypedElementDetailsInterface
+class USMInstanceElementDetailsInterface : public UObject, public ITypedElementDetailsInterface
 {
 	GENERATED_BODY()
 

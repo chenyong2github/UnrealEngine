@@ -2,13 +2,19 @@
 
 #pragma once
 
-#include "Elements/Framework/TypedElementHandle.h"
 #include "AssetRegistry/AssetData.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Interface.h"
 
 #include "TypedElementAssetDataInterface.generated.h"
 
-UCLASS(Abstract)
-class TYPEDELEMENTRUNTIME_API UTypedElementAssetDataInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, BlueprintType, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementAssetDataInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class TYPEDELEMENTRUNTIME_API ITypedElementAssetDataInterface
 {
 	GENERATED_BODY()
 
@@ -19,18 +25,18 @@ public:
 	 *
 	 * @returns An array of valid asset datas.
 	 */
-	UFUNCTION(BlueprintPure, Category = "TypedElementInterfaces|AssetData")
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
 	virtual TArray<FAssetData> GetAllReferencedAssetDatas(const FTypedElementHandle& InElementHandle);
 
 	/**
 	 * Returns the asset data for the given handle, if it exists.
 	 */
-	UFUNCTION(BlueprintPure, Category = "TypedElementInterfaces|AssetData")
+	UFUNCTION(BlueprintCallable, Category = "TypedElementInterfaces|AssetData")
 	virtual FAssetData GetAssetData(const FTypedElementHandle& InElementHandle);
 };
 
 template <>
-struct TTypedElement<UTypedElementAssetDataInterface> : public TTypedElementBase<UTypedElementAssetDataInterface>
+struct TTypedElement<ITypedElementAssetDataInterface> : public TTypedElementBase<ITypedElementAssetDataInterface>
 {
 	TArray<FAssetData> GetAllReferencedAssetDatas() const { return InterfacePtr->GetAllReferencedAssetDatas(*this); }
 	FAssetData GetAssetData() const { return InterfacePtr->GetAssetData(*this); }

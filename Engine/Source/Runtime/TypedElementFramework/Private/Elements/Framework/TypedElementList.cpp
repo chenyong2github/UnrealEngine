@@ -6,7 +6,7 @@
 namespace TypedElementList_Private
 {
 
-void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle, const UClass* InBaseInterfaceType, FTypedElement& OutElement)
+void GetElementImpl(const UTypedElementRegistry* InRegistry, const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType, FTypedElement& OutElement)
 {
 	if (InRegistry)
 	{
@@ -148,7 +148,7 @@ FTypedElementListRef FTypedElementList::Clone() const
 	return ClonedElementList;
 }
 
-UTypedElementInterface* FTypedElementList::GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+UObject* FTypedElementList::GetElementInterface(const FTypedElementHandle& InElementHandle, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	UTypedElementRegistry* RegistryPtr = Registry.Get();
 	return RegistryPtr
@@ -156,7 +156,7 @@ UTypedElementInterface* FTypedElementList::GetElementInterface(const FTypedEleme
 		: nullptr;
 }
 
-bool FTypedElementList::HasElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+bool FTypedElementList::HasElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	bool bHasFilteredElements = false;
 
@@ -176,7 +176,7 @@ bool FTypedElementList::HasElements(const TSubclassOf<UTypedElementInterface>& I
 	return bHasFilteredElements;
 }
 
-int32 FTypedElementList::CountElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+int32 FTypedElementList::CountElements(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	int32 NumFilteredElements = 0;
 
@@ -224,7 +224,7 @@ int32 FTypedElementList::CountElementsOfType(const FTypedHandleTypeId InElementT
 	return ElementCounts.GetCounterValue(FTypedElementCounter::GetElementTypeCategoryName(), InElementTypeId);
 }
 
-TArray<FTypedElementHandle> FTypedElementList::GetElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+TArray<FTypedElementHandle> FTypedElementList::GetElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	TArray<FTypedElementHandle> FilteredElementHandles;
 	FilteredElementHandles.Reserve(ElementHandles.Num());
@@ -238,7 +238,7 @@ TArray<FTypedElementHandle> FTypedElementList::GetElementHandles(const TSubclass
 	return FilteredElementHandles;
 }
 
-void FTypedElementList::ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType) const
+void FTypedElementList::ForEachElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType) const
 {
 	for (const FTypedElementHandle& ElementHandle : ElementHandles)
 	{

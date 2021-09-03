@@ -3,9 +3,11 @@
 #pragma once
 
 #include <type_traits>
-#include "CoreMinimal.h"
 #include "Containers/SortedMap.h"
+#include "CoreMinimal.h"
 #include "Elements/Framework/TypedElementHandle.h"
+#include "UObject/Interface.h"
+
 #include "TypedElementCounter.generated.h"
 
 class UTypedElementRegistry;
@@ -272,8 +274,13 @@ private:
 	TSortedMap<FName, TUniquePtr<ICounterCategory>, FDefaultAllocator, FNameFastLess> CounterCategories;
 };
 
-UCLASS(Abstract)
-class TYPEDELEMENTFRAMEWORK_API UTypedElementCounterInterface : public UTypedElementInterface
+UINTERFACE(MinimalAPI, meta = (CannotImplementInterfaceInBlueprint))
+class UTypedElementCounterInterface : public UInterface
+{
+	GENERATED_BODY()
+};
+
+class TYPEDELEMENTFRAMEWORK_API ITypedElementCounterInterface
 {
 	GENERATED_BODY()
 
@@ -290,7 +297,7 @@ public:
 };
 
 template <>
-struct TTypedElement<UTypedElementCounterInterface> : public TTypedElementBase<UTypedElementCounterInterface>
+struct TTypedElement<ITypedElementCounterInterface> : public TTypedElementBase<ITypedElementCounterInterface>
 {
 	void IncrementCountersForElement(FTypedElementCounter& InOutCounter) const { InterfacePtr->IncrementCountersForElement(*this, InOutCounter); }
 	void DecrementCountersForElement(FTypedElementCounter& InOutCounter) const { InterfacePtr->DecrementCountersForElement(*this, InOutCounter); }

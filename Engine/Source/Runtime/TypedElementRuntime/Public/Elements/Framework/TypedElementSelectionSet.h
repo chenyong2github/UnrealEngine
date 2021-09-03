@@ -37,15 +37,15 @@ class TYPEDELEMENTRUNTIME_API FTypedElementSelectionCustomization
 public:
 	virtual ~FTypedElementSelectionCustomization() = default;
 
-	//~ See UTypedElementSelectionInterface for API docs
-	virtual bool IsElementSelected(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) { return InElementSelectionHandle.IsElementSelected(InSelectionSet, InSelectionOptions); }
-	virtual bool CanSelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.CanSelectElement(InSelectionOptions); }
-	virtual bool CanDeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.CanDeselectElement(InSelectionOptions); }
-	virtual bool SelectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListRef InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions); }
-	virtual bool DeselectElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListRef InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions); }
-	virtual bool AllowSelectionModifiers(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet) { return InElementSelectionHandle.AllowSelectionModifiers(InSelectionSet); }
-	virtual FTypedElementHandle GetSelectionElement(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementSelectionHandle.GetSelectionElement(InCurrentSelection, InSelectionMethod); }
-	virtual void GetNormalizedElements(const TTypedElement<UTypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements);
+	//~ See ITypedElementSelectionInterface for API docs
+	virtual bool IsElementSelected(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementIsSelectedOptions& InSelectionOptions) { return InElementSelectionHandle.IsElementSelected(InSelectionSet, InSelectionOptions); }
+	virtual bool CanSelectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.CanSelectElement(InSelectionOptions); }
+	virtual bool CanDeselectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.CanDeselectElement(InSelectionOptions); }
+	virtual bool SelectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListRef InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.SelectElement(InSelectionSet, InSelectionOptions); }
+	virtual bool DeselectElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListRef InSelectionSet, const FTypedElementSelectionOptions& InSelectionOptions) { return InElementSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions); }
+	virtual bool AllowSelectionModifiers(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet) { return InElementSelectionHandle.AllowSelectionModifiers(InSelectionSet); }
+	virtual FTypedElementHandle GetSelectionElement(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InCurrentSelection, const ETypedElementSelectionMethod InSelectionMethod) { return InElementSelectionHandle.GetSelectionElement(InCurrentSelection, InSelectionMethod); }
+	virtual void GetNormalizedElements(const TTypedElement<ITypedElementSelectionInterface>& InElementSelectionHandle, FTypedElementListConstRef InSelectionSet, const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements);
 };
 
 /**
@@ -56,7 +56,7 @@ struct TYPEDELEMENTRUNTIME_API FTypedElementSelectionSetElement
 public:
 	FTypedElementSelectionSetElement() = default;
 
-	FTypedElementSelectionSetElement(TTypedElement<UTypedElementSelectionInterface> InElementSelectionHandle, FTypedElementListPtr InElementList, FTypedElementSelectionCustomization* InSelectionCustomization)
+	FTypedElementSelectionSetElement(TTypedElement<ITypedElementSelectionInterface> InElementSelectionHandle, FTypedElementListPtr InElementList, FTypedElementSelectionCustomization* InSelectionCustomization)
 		: ElementSelectionHandle(MoveTemp(InElementSelectionHandle))
 		, ElementList(InElementList)
 		, SelectionCustomization(InSelectionCustomization)
@@ -81,7 +81,7 @@ public:
 			&& SelectionCustomization;
 	}
 
-	//~ See UTypedElementSelectionInterface for API docs
+	//~ See ITypedElementSelectionInterface for API docs
 	bool IsElementSelected(const FTypedElementIsSelectedOptions& InSelectionOptions) const { return SelectionCustomization->IsElementSelected(ElementSelectionHandle, ElementList.ToSharedRef(), InSelectionOptions); }
 	bool CanSelectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->CanSelectElement(ElementSelectionHandle, InSelectionOptions); }
 	bool CanDeselectElement(const FTypedElementSelectionOptions& InSelectionOptions) const { return SelectionCustomization->CanDeselectElement(ElementSelectionHandle, InSelectionOptions); }
@@ -92,7 +92,7 @@ public:
 	void GetNormalizedElements(const FTypedElementSelectionNormalizationOptions& InNormalizationOptions, FTypedElementListRef OutNormalizedElements) const { return SelectionCustomization->GetNormalizedElements(ElementSelectionHandle, ElementList.ToSharedRef(), InNormalizationOptions, OutNormalizedElements); }
 
 private:
-	TTypedElement<UTypedElementSelectionInterface> ElementSelectionHandle;
+	TTypedElement<ITypedElementSelectionInterface> ElementSelectionHandle;
 	FTypedElementListPtr ElementList;
 	FTypedElementSelectionCustomization* SelectionCustomization = nullptr;
 };
@@ -268,7 +268,7 @@ public:
 	 * Test whether there selected elements, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	bool HasSelectedElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	bool HasSelectedElements(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->HasElements(InBaseInterfaceType);
 	}
@@ -277,7 +277,7 @@ public:
 	 * Count the number of selected elements, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	int32 CountSelectedElements(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	int32 CountSelectedElements(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->CountElements(InBaseInterfaceType);
 	}
@@ -286,7 +286,7 @@ public:
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure=false, Category="TypedElementFramework|Selection")
-	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	TArray<FTypedElementHandle> GetSelectedElementHandles(const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		return ElementList->GetElementHandles(InBaseInterfaceType);
 	}
@@ -295,7 +295,7 @@ public:
 	 * Get the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 */
 	template <typename ArrayAllocator>
-	void GetSelectedElementHandles(TArray<FTypedElementHandle, ArrayAllocator>& OutArray, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	void GetSelectedElementHandles(TArray<FTypedElementHandle, ArrayAllocator>& OutArray, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		ElementList->GetElementHandles(OutArray, InBaseInterfaceType);
 	}
@@ -304,7 +304,7 @@ public:
 	 * Enumerate the handle of every selected element, optionally filtering to elements that implement the given interface.
 	 * @note Return true from the callback to continue enumeration.
 	 */
-	void ForEachSelectedElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UTypedElementInterface>& InBaseInterfaceType = nullptr) const
+	void ForEachSelectedElementHandle(TFunctionRef<bool(const FTypedElementHandle&)> InCallback, const TSubclassOf<UInterface>& InBaseInterfaceType = nullptr) const
 	{
 		ElementList->ForEachElementHandle(InCallback, InBaseInterfaceType);
 	}

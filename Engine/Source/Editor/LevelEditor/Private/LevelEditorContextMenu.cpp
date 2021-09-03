@@ -609,7 +609,7 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	ContextObject->CurrentSelection = LevelEditorPtr->GetElementSelectionSet();
 	ContextObject->HitProxyElement = HitProxyElement;
 	{
-		TTypedElement<UTypedElementObjectInterface> HitProxyObjectElement = ContextObject->CurrentSelection->GetElementList()->GetElement<UTypedElementObjectInterface>(ContextObject->HitProxyElement);
+		TTypedElement<ITypedElementObjectInterface> HitProxyObjectElement = ContextObject->CurrentSelection->GetElementList()->GetElement<ITypedElementObjectInterface>(ContextObject->HitProxyElement);
 		ContextObject->HitProxyActor = HitProxyObjectElement ? Cast<AActor>(HitProxyObjectElement.GetObject()) : nullptr;
 	}
 	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
