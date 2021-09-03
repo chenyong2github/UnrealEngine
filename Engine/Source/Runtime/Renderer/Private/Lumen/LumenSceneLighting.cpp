@@ -209,7 +209,7 @@ class FBuildCardTilesCS : public FGlobalShader
 
 	static int32 GetGroupSize()
 	{
-		return 8;
+		return 64;
 	}
 };
 

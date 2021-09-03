@@ -497,15 +497,32 @@ StructuredBuffer<uint> QuadData;
 RWStructuredBuffer<uint> RWCardTileAllocator;
 RWStructuredBuffer<uint> RWCardTileData;
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+groupshared uint SharedTileAllocator;
+groupshared uint SharedGlobalTileOffset;
+
+/**
+ * Build a coherent list of 8x8 tiles, based on the input list of card pages
+ */
+[numthreads(THREADGROUP_SIZE, 1, 1)]
 void BuildCardTilesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
+	SharedTileAllocator = 0;
+	SharedGlobalTileOffset = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Every group works on a single page, which has up to 128 tiles
+	// Every thread works on 2x2 tiles in that page
 	uint QuadIndex = GroupId.x;
-	uint2 TileInQuadBaseCoord = 2 * GroupThreadId.xy;
+	uint2 TileInQuadBaseCoord = 2 * ZOrder2D(GroupThreadId.x, log2(8));
 	uint NumQuads = QuadAllocator[CardScatterInstanceIndex];
+
+	uint PackedTileData[4];
+	uint NumPackedTiles = 0;
+	uint TileOffset = 0;
 
 	if (QuadIndex < NumQuads)
 	{
@@ -521,42 +538,52 @@ void BuildCardTilesCS(
 
 			const uint2 SizeInTiles = CardPage.SizeInTexels / CARD_TILE_SIZE;
 
-			for (uint TileCoordOffsetY = 0; TileCoordOffsetY < 2; ++TileCoordOffsetY)
+			for (uint LinearTileCoordOffset = 0; LinearTileCoordOffset < 4; ++LinearTileCoordOffset)
 			{
-				for (uint TileCoordOffsetX = 0; TileCoordOffsetX < 2; ++TileCoordOffsetX)
+				const uint2 TileCoord = TileInQuadBaseCoord + uint2(LinearTileCoordOffset % 2, LinearTileCoordOffset / 2);
+
+				if (all(TileCoord < SizeInTiles))
 				{
-					const uint TileCoordX = TileCoordOffsetX + TileInQuadBaseCoord.x;
-					const uint TileCoordY = TileCoordOffsetY + TileInQuadBaseCoord.y;
+					FCardTileData CardTile;
+					CardTile.CardPageIndex = CardPageIndex;
+					CardTile.TileCoord = TileCoord;
 
-					if (TileCoordX < SizeInTiles.x && TileCoordY < SizeInTiles.y)
+					float2 UVMin = float2(CardTile.TileCoord) / SizeInTiles;
+					float2 UVMax = float2(CardTile.TileCoord + 1) / SizeInTiles;
+
+					float SwapY = UVMin.y;
+					UVMin.y = 1.0f - UVMax.y;
+					UVMax.y = 1.0f - SwapY;
+
+					bool bLightAffectsCard = DoesLightAffectCardPageUVRange(SHAPE_TYPE, LightCullingParameters, CardPage, Card, UVMin, UVMax);
+					if (bLightAffectsCard)
 					{
-						FCardTileData CardTile;
-						CardTile.CardPageIndex = CardPageIndex;
-						CardTile.TileCoord.x = TileCoordX;
-						CardTile.TileCoord.y = TileCoordY;
-
-						float2 UVMin = float2(CardTile.TileCoord) / SizeInTiles;
-						float2 UVMax = float2(CardTile.TileCoord + 1) / SizeInTiles;
-
-						float SwapY = UVMin.y;
-						UVMin.y = 1.0f - UVMax.y;
-						UVMax.y = 1.0f - SwapY;
-
-						bool bLightAffectsCard = DoesLightAffectCardPageUVRange(SHAPE_TYPE, LightCullingParameters, CardPage, Card, UVMin, UVMax);
-						if (bLightAffectsCard)
-						{
-							uint NextTileOffset = 0;
-							InterlockedAdd(RWCardTileAllocator[CardScatterInstanceIndex], 1, NextTileOffset);
-
-							if (NextTileOffset < MaxCardTilesPerScatterInstance)
-							{
-								RWCardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + NextTileOffset] = PackCardTileData(CardTile);
-							}
-						}
+						PackedTileData[NumPackedTiles] = PackCardTileData(CardTile);
+						++NumPackedTiles;
 					}
 				}
 			}
+
+			InterlockedAdd(SharedTileAllocator, NumPackedTiles, TileOffset);
 		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Allocate memory
+	if (all(GroupThreadId.xy == 0) && SharedTileAllocator > 0)
+	{
+		uint GlobalTileOffset = 0;
+		InterlockedAdd(RWCardTileAllocator[CardScatterInstanceIndex], SharedTileAllocator, GlobalTileOffset);
+		SharedGlobalTileOffset = GlobalTileOffset;
+	}	
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// Write tiles to memory
+	for (uint TileIndex = 0; TileIndex < NumPackedTiles; ++TileIndex)
+	{
+		RWCardTileData[CardScatterInstanceIndex * MaxCardTilesPerScatterInstance + SharedGlobalTileOffset + TileOffset + TileIndex] = PackedTileData[TileIndex];
 	}
 }
 
