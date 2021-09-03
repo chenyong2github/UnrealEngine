@@ -25,7 +25,7 @@ public:
 		: FCoreTechSessionBase(InOwner)
 		, ImportParams(InImportParameters)
 	{
-		ImportParams.bEnableKernelIOTessellation = true;
+		ImportParams.bDisableCADKernelTessellation = true;
 	}
 
 	void ClearData();

@@ -10,7 +10,6 @@
 #include "DatasmithUtils.h"
 #include "HAL/ConsoleManager.h"
 #include "DatasmithWireTranslatorModule.h"
-#include "HAL/ConsoleManager.h"
 #include "IDatasmithSceneElements.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
@@ -144,17 +143,11 @@ public:
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
 		DatasmithScene->SetProductVersion(TEXT("Alias 2022"));
 
-		bool bEnableKernelIOTessellation = true;
-		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableKernelIOTessellation")))
-		{
-			bEnableKernelIOTessellation = CVar->GetInt() != 0;
-		}
-
 		CADLibrary::FImportParameters ImportParameters;
 		ImportParameters.MetricUnit = 0.01;
 		ImportParameters.ScaleFactor = 1;
 
-		if (bEnableKernelIOTessellation)
+		if(CADLibrary::bGDisableCADKernelTessellation)
 		{
 			TSharedRef<FAliasModelToCoretechConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
 			CADModelConverter = AliasToCoretechConverter;
@@ -162,9 +155,9 @@ public:
 		}
 		else
 		{
-			TSharedRef<FAliasModelToCADKernelConverter> AliasToCoretechConverter = MakeShared<FAliasModelToCADKernelConverter>(ImportParameters);
-			CADModelConverter = AliasToCoretechConverter;
-			AliasBRepConverter = AliasToCoretechConverter;
+			TSharedRef<FAliasModelToCADKernelConverter> AliasToCADKernelConverter = MakeShared<FAliasModelToCADKernelConverter>(ImportParameters);
+			CADModelConverter = AliasToCADKernelConverter;
+			AliasBRepConverter = AliasToCADKernelConverter;
 		}
 	}
 

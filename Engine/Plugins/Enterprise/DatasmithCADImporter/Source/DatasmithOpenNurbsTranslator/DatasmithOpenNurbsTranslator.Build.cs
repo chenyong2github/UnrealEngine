@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 					"CADKernel",
 					"CADKernelSurface",
 					"CADLibrary",
+					"CADTools",
 					"CoreTechSurface",
 					"DatasmithCore",
 					"DatasmithContent",

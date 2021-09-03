@@ -324,7 +324,6 @@ namespace CADLibrary
 			return ECoreTechParsingResult::ProcessFailed;
 		}
 
-#ifndef DATASMITH_CAD_IGNORE_CACHE
 		if (!Context.CachePath.IsEmpty())
 		{
 			uint32 FileHash = FileDescription.GetFileHash();
@@ -338,11 +337,10 @@ namespace CADLibrary
 				CT_IO_ERROR SaveResult = CT_KERNEL_IO::SaveFile(ObjectList, *CTFilePath, L"Ct");
 			}
 		}
-#endif
 
 		CoreTechFileReaderUtils::AddFaceIdAttribut(MainId);
 
-		if (Context.ImportParameters.StitchingTechnique != StitchingNone && Context.ImportParameters.bEnableKernelIOTessellation)
+		if (Context.ImportParameters.StitchingTechnique != StitchingNone && Context.ImportParameters.bDisableCADKernelTessellation)
 		{
 			CADLibrary::CTKIO_Repair(MainId, Context.ImportParameters.StitchingTechnique, 10.);
 		}
@@ -444,7 +442,7 @@ namespace CADLibrary
 		}
 
 		// 3dxml file is zipped files, it's full managed by Kernel_io. We cannot read it in sequential mode
-		if (MainFileExt != TEXT("3dxml") && Context.ImportParameters.bEnableCacheUsage)
+		if (MainFileExt != TEXT("3dxml") && Context.ImportParameters.bEnableSequentialImport)
 		{
 			Flags &= ~CT_LOAD_FLAGS_LOAD_EXTERNAL_REF;
 		}
@@ -529,7 +527,7 @@ namespace CADLibrary
 			CT_FLAGS BodyProperties;
 			CT_BODY_IO::AskProperties(BodyId, BodyProperties);
 
-			if (Context.ImportParameters.bEnableKernelIOTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
+			if (Context.ImportParameters.bDisableCADKernelTessellation || !(BodyProperties & CT_BODY_PROP_EXACT))
 			{
 				if (ReadKioBody(BodyId, ComponentId, DefaultMaterialHash, false))
 				{
@@ -570,8 +568,8 @@ namespace CADLibrary
 		if (CT_INSTANCE_IO::AskTransformation(InstanceNodeId, (double*) Instance.TransformMatrix.M) == IO_OK)
 		{
 			if (Instance.TransformMatrix.ContainsNaN())
-			{
-				Instance.TransformMatrix.SetIdentity();
+				{
+					Instance.TransformMatrix.SetIdentity();
 			}
 		}
 	

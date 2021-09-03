@@ -8,6 +8,7 @@
 #include "CADInterfacesModule.h"
 #include "CADKernelSurfaceExtension.h"
 #include "CADModelConverter.h"
+#include "CADOptions.h"
 #include "CoreTechSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 #include "DatasmithImportOptions.h"
@@ -645,18 +646,12 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		bool bEnableKernelIOTessellation = true;
-		if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("ds.CADTranslator.EnableKernelIOTessellation")))
-		{
-			bEnableKernelIOTessellation = CVar->GetInt() != 0;
-		}
-
 		CADLibrary::FImportParameters ImportParameters;
 		ImportParameters.MetricUnit = 0.001;
 		ImportParameters.ScaleFactor = 0.1;
 		ImportParameters.ModelCoordSys = FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy;
 
-		if (bEnableKernelIOTessellation)
+		if (CADLibrary::bGDisableCADKernelTessellation)
 		{
 			TSharedRef<FOpenNurbsBRepToCoretechConverter> OpenNurbsBRepToCoretechConverter = MakeShared<FOpenNurbsBRepToCoretechConverter>(TEXT("Al2CTSharedSession"), ImportParameters);
 			CADModelConverter = OpenNurbsBRepToCoretechConverter;
@@ -685,7 +680,7 @@ public:
 	void SetBaseOptions(const FDatasmithImportBaseOptions& InBaseOptions);
 	void SetOpenNurbsOptions(const FDatasmithOpenNurbsOptions& Options);
 	void SetOutputPath(const FString& Path) { OutputPath = Path; }
-	
+
 	void ShowMessageLog(const FString& Filename);
 
 	bool LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions);
@@ -3285,7 +3280,7 @@ bool FDatasmithOpenNurbsTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMe
 	return false;
 }
 
-bool FOpenNurbsTranslatorImpl::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload & OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions)
+bool FOpenNurbsTranslatorImpl::LoadStaticMesh(const TSharedRef<IDatasmithMeshElement> MeshElement, FDatasmithMeshElementPayload& OutMeshPayload, const FDatasmithTessellationOptions& InTessellationOptions)
 {
 	if (TOptional<FMeshDescription> Mesh = GetMeshDescription(MeshElement))
 	{

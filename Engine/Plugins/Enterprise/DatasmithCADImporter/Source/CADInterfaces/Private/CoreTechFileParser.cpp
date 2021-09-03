@@ -123,7 +123,7 @@ namespace CADLibrary
 
 		bool bNeedToProceed = true;
 
-		if (ImportParameters.bEnableCacheUsage && IFileManager::Get().FileExists(*CTFilePath))
+		if (!ImportParameters.bOverwriteCache && IFileManager::Get().FileExists(*CTFilePath))
 		{
 			if (IFileManager::Get().FileExists(*MeshArchiveFilePath)) // the file has been proceed with same meshing parameters
 			{

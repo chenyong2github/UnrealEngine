@@ -19,6 +19,7 @@
 
 #include "CADData.h"
 #include "CADToolsModule.h"
+#include "CADKernelSurfaceExtension.h"
 #include "CoreTechSurfaceExtension.h"
 #include "CoreTechSurfaceHelper.h"
 #include "DatasmithAdditionalData.h"
@@ -304,13 +305,13 @@ namespace PlmXml
 			{
 				OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
 
-				if (ImportParameters.bEnableKernelIOTessellation)
+				if (ImportParameters.bDisableCADKernelTessellation)
 				{
 					CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
 				}
 				else
 				{
-					//CADKernelSurface::AddSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
+					CADKernelSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, TessellationOptions, OutMeshPayload);
 				}
 
 				return true;
