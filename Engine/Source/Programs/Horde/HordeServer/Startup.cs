@@ -82,6 +82,7 @@ using EpicGames.Horde.Compute;
 using HordeServer.Compute.Impl;
 using HordeServer.Compute;
 using System.Net.Http.Headers;
+using Serilog.Events;
 
 namespace HordeServer
 {
@@ -750,7 +751,7 @@ namespace HordeServer
 			App.UseSwagger();
 
 			// Enable serilog request logging
-			App.UseSerilogRequestLogging();
+			App.UseSerilogRequestLogging(Options => Options.GetLevel = GetRequestLoggingLevel);
 
 			// Include the source IP address with requests
 			App.Use(async (Context, Next) => {
@@ -835,6 +836,31 @@ namespace HordeServer
 				string Address = Feature.Addresses.First().Replace("[::]", System.Net.Dns.GetHostName(), StringComparison.OrdinalIgnoreCase);
 				Process.Start(new ProcessStartInfo { FileName = Address, UseShellExecute = true });
 			}
+		}
+
+		static LogEventLevel GetRequestLoggingLevel(HttpContext Context, double ElapsedMs, Exception Ex)
+		{
+			if (Context.Request != null && Context.Request.Path.HasValue)
+			{
+				string RequestPath = Context.Request.Path;
+				if (RequestPath.Equals("/Horde.HordeRpc/QueryServerStateV2", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Verbose;
+				}
+				if (RequestPath.Equals("/Horde.HordeRpc/UpdateSession", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Verbose;
+				}
+				if (RequestPath.Equals("/Horde.HordeRpc/CreateEvents", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Verbose;
+				}
+				if (RequestPath.Equals("/Horde.HordeRpc/WriteOutput", StringComparison.OrdinalIgnoreCase))
+				{
+					return LogEventLevel.Verbose;
+				}
+			}
+			return LogEventLevel.Information;
 		}
 	}
 }
