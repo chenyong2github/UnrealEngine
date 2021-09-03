@@ -537,16 +537,10 @@ struct FAudioSectionExecutionToken : IMovieSceneExecutionToken
 			if (FAudioDevice* AudioDevice = AudioComponent.GetAudioDevice())
 			{
 				DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.MovieSceneUpdateAudioTransform"), STAT_MovieSceneUpdateAudioTransform, STATGROUP_TaskGraphTasks);
-
-				const FTransform ActorTransform = AudioComponent.GetComponentTransform();
-				const uint64 ActorComponentID = AudioComponent.GetAudioComponentID();
-				FAudioThread::RunCommandOnAudioThread([AudioDevice, ActorComponentID, ActorTransform]()
+				AudioDevice->SendCommandToActiveSounds(AudioComponent.GetAudioComponentID(), [ActorTransform = AudioComponent.GetComponentTransform()](FActiveSound& ActiveSound)
 				{
-					if (FActiveSound* ActiveSound = AudioDevice->FindActiveSound(ActorComponentID))
-					{
-						ActiveSound->bLocationDefined = true;
-						ActiveSound->Transform = ActorTransform;
-					}
+					ActiveSound.bLocationDefined = true;
+					ActiveSound.Transform = ActorTransform;
 				}, GET_STATID(STAT_MovieSceneUpdateAudioTransform));
 			}
 		}

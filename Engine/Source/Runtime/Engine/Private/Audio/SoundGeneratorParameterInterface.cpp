@@ -5,7 +5,6 @@
 #include "Audio.h"
 #include "AudioDevice.h"
 #include "AudioThread.h"
-#include "Components/AudioComponent.h"
 #include "IAudioExtensionPlugin.h"
 
 
@@ -23,16 +22,17 @@ void ISoundGeneratorParameterInterface::ResetParameters()
 {
 	if (FAudioDevice* AudioDevice = GetAudioDevice())
 	{
-		FAudioThread::RunCommandOnAudioThread([AudioDevice, InstanceID = GetInstanceID()]() mutable
+		if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
 		{
-			if (FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InstanceID))
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.ResetParameters"), STAT_AudioResetParameters, STATGROUP_AudioThreadCommands);
+			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [] (FActiveSound& ActiveSound)
 			{
-				if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
+				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
 				{
 					Transmitter->Reset();
 				}
-			}
-		});
+			}, GET_STATID(STAT_AudioResetParameters));
+		}
 	}
 }
 
@@ -99,7 +99,7 @@ void ISoundGeneratorParameterInterface::SetParameter(FAudioParameter&& InValue)
 
 void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& InValues)
 {
-	for (FAudioParameter& Value : InValues)
+	for (const FAudioParameter& Value : InValues)
 	{
 		TArray<FAudioParameter>& InstanceParameters = GetInstanceParameters();
 		if (FAudioParameter* CurrentParam = FAudioParameter::FindOrAddParam(InstanceParameters, Value.ParamName))
@@ -108,7 +108,7 @@ void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& 
 		}
 	}
 
-	if (IsPlaying())
+	if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
@@ -121,17 +121,18 @@ void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& 
 			ParamsToSet = MoveTemp(InValues);
 
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.SetParameters"), STAT_AudioSetParameters, STATGROUP_AudioThreadCommands);
-
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, InstanceID = GetInstanceID(), Params { MoveTemp(ParamsToSet) }]() mutable
+			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Params = MoveTemp(ParamsToSet)](FActiveSound& ActiveSound)
 			{
-				if (FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InstanceID))
+				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
 				{
-					if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
+					for (const FAudioParameter& Param : Params)
 					{
-						for (FAudioParameter& Param : Params)
+						const FName ParamName = Param.ParamName;
+						if (!ParamName.IsNone())
 						{
-							const FName ParamName = Param.ParamName;
-							if (!Transmitter->SetParameter(MoveTemp(Param)))
+							// Must be copied as original version must be preserved in case command is called on multiple ActiveSounds.
+							FAudioParameter TempParam = Param;
+							if (!Transmitter->SetParameter(MoveTemp(TempParam)))
 							{
 								UE_LOG(LogAudio, Warning, TEXT("Failed to set parameter '%s'"), *ParamName.ToString());
 							}
@@ -145,7 +146,7 @@ void ISoundGeneratorParameterInterface::SetParameters(TArray<FAudioParameter>&& 
 
 void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& InParam)
 {
-	if (!InParam.ParamName.IsValid())
+	if (InParam.ParamName.IsNone())
 	{
 		return;
 	}
@@ -156,7 +157,7 @@ void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& I
 		CurrentParam->Merge(InParam, false /* bInTakeName */);
 	}
 
-	if (IsPlaying())
+	if (IsPlaying() && !GetDisableParameterUpdatesWhilePlaying())
 	{
 		if (FAudioDevice* AudioDevice = GetAudioDevice())
 		{
@@ -174,17 +175,17 @@ void ISoundGeneratorParameterInterface::SetParameterInternal(FAudioParameter&& I
 
 			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SoundGenerator.SetParameter"), STAT_AudioSetParameter, STATGROUP_AudioThreadCommands);
 
-			FAudioThread::RunCommandOnAudioThread([AudioDevice, InstanceID = GetInstanceID(), Param { MoveTemp(ParamToSet) }]() mutable
+			AudioDevice->SendCommandToActiveSounds(GetInstanceOwnerID(), [AudioDevice, Param = MoveTemp(ParamToSet)](FActiveSound& ActiveSound)
 			{
-				if (FActiveSound* ActiveSound = AudioDevice->FindActiveSound(InstanceID))
+				if (Audio::IParameterTransmitter* Transmitter = ActiveSound.GetTransmitter())
 				{
-					if (Audio::IParameterTransmitter* Transmitter = ActiveSound->GetTransmitter())
+					const FName ParamName = Param.ParamName;
+
+					// Must be copied as original version must be preserved in case command is called on multiple ActiveSounds.
+					FAudioParameter TempParam = Param;
+					if (!Transmitter->SetParameter(MoveTemp(TempParam)))
 					{
-						const FName ParamName = Param.ParamName;
-						if (!Transmitter->SetParameter(MoveTemp(Param)))
-						{
-							UE_LOG(LogAudio, Warning, TEXT("Failed to set parameter '%s'"), *ParamName.ToString());
-						}
+						UE_LOG(LogAudio, Warning, TEXT("Failed to set parameter '%s'"), *ParamName.ToString());
 					}
 				}
 			}, GET_STATID(STAT_AudioSetParameter));

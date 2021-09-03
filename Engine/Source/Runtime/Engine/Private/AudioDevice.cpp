@@ -1117,7 +1117,7 @@ void FAudioDevice::ShowSoundClassHierarchy(FOutputDevice& Ar, USoundClass* InSou
 		{
 			Ar.Logf(TEXT("%s"), *SoundClass->GetName());
 		}
-		for (int i = 0; i < SoundClass->ChildClasses.Num(); ++i)
+		for (int32 i = 0; i < SoundClass->ChildClasses.Num(); ++i)
 		{
 			if (SoundClass->ChildClasses[i])
 			{
@@ -4885,7 +4885,8 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& InNewActiveSoun
 
 	if (ActiveSound->GetAudioComponentID() > 0)
 	{
-		AudioComponentIDToActiveSoundMap.Add(ActiveSound->GetAudioComponentID(), ActiveSound);
+		TArray<FActiveSound*>& ActiveSoundArray = AudioComponentIDToActiveSoundMap.FindOrAdd(ActiveSound->GetAudioComponentID());
+		ActiveSoundArray.Add(ActiveSound);
 	}
 }
 
@@ -4957,15 +4958,27 @@ void FAudioDevice::AddVirtualLoop(const FAudioVirtualLoop& InVirtualLoop)
 	const int64 ComponentID = ActiveSound.GetAudioComponentID();
 	if (ComponentID > 0)
 	{
-		if (FActiveSound* ExistingSound = AudioComponentIDToActiveSoundMap.FindRef(ComponentID))
+		if (TArray<FActiveSound*>* ExistingSounds = AudioComponentIDToActiveSoundMap.Find(ComponentID))
 		{
-			UE_LOG(LogAudio, Warning, TEXT("Adding ComponentID for Sound '%s' when map already contains ID for Sound '%s'."),
-				ActiveSound.Sound ? *ActiveSound.Sound->GetName() : TEXT("N/A"),
-				ExistingSound->Sound ? *ExistingSound->Sound->GetName() : TEXT("N/A")
-				);
-			AudioComponentIDToActiveSoundMap.Remove(ComponentID);
+			if (!CanHaveMultipleActiveSounds(ComponentID))
+			{
+				// if we can't have more than one sound, we should have only one element (or less) here
+				ensure(ExistingSounds->Num() <= 1);
+				for (int32 i = ExistingSounds->Num() - 1; i >= 0; --i)
+				{
+					const FActiveSound* ExistingSound = (*ExistingSounds)[i];
+					if (ensure(ExistingSound))
+					{
+						UE_LOG(LogAudio, Warning, TEXT("Attempting to add Sound '%s' to ComponentID when map already contains ID for Sound '%s', and ID can only reference one active sound."),
+							ActiveSound.Sound ? *ActiveSound.Sound->GetName() : TEXT("N/A"),
+							ExistingSound->Sound ? *ExistingSound->Sound->GetName() : TEXT("N/A")
+						);
+						ExistingSounds->RemoveAtSwap(i, 1, false /* bAllowShrinking */);
+					}
+				}
+			}	
+			ExistingSounds->AddUnique(&ActiveSound);
 		}
-		AudioComponentIDToActiveSoundMap.Add(ComponentID, &ActiveSound);
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -5175,11 +5188,21 @@ void FAudioDevice::StopActiveSound(const uint64 AudioComponentID)
 		return;
 	}
 
-	FActiveSound* ActiveSound = FindActiveSound(AudioComponentID);
-	if (ActiveSound)
+	const Audio::FDeviceId AudioDeviceID = DeviceID;
+
+	SendCommandToActiveSounds(AudioComponentID, [AudioDeviceID](FActiveSound& ActiveSound)
 	{
-		AddSoundToStop(ActiveSound);
-	}
+		FAudioDeviceManager* AudioDeviceManager = GEngine->GetAudioDeviceManager();
+			
+		if (AudioDeviceManager)
+		{
+			FAudioDeviceHandle AudioDevice = AudioDeviceManager->GetAudioDevice(AudioDeviceID);
+			if (AudioDevice.IsValid())
+			{
+				AudioDevice->AddSoundToStop(&ActiveSound);
+			}
+		}
+	});
 }
 
 void FAudioDevice::StopActiveSound(FActiveSound* ActiveSound)
@@ -5191,11 +5214,11 @@ void FAudioDevice::StopActiveSound(FActiveSound* ActiveSound)
 void FAudioDevice::PauseActiveSound(const uint64 AudioComponentID, const bool bInIsPaused)
 {
 	check(IsInAudioThread());
-	FActiveSound* ActiveSound = FindActiveSound(AudioComponentID);
-	if (ActiveSound)
+	
+	SendCommandToActiveSounds(AudioComponentID, [bInIsPaused](FActiveSound& ActiveSound)
 	{
-		ActiveSound->bIsPaused = bInIsPaused;
-	}
+		ActiveSound.bIsPaused = bInIsPaused;
+	});
 }
 
 void FAudioDevice::NotifyActiveSoundOcclusionTraceDone(FActiveSound* InActiveSound, bool bIsOccluded)
@@ -5210,10 +5233,69 @@ void FAudioDevice::NotifyActiveSoundOcclusionTraceDone(FActiveSound* InActiveSou
 
 FActiveSound* FAudioDevice::FindActiveSound(const uint64 AudioComponentID)
 {
-	check(IsInAudioThread());
+	ensure(IsInAudioThread());
 
-	// find the active sound corresponding to this audio component
-	return AudioComponentIDToActiveSoundMap.FindRef(AudioComponentID);
+	if (TArray<FActiveSound*>* ActiveSoundsInComponent = AudioComponentIDToActiveSoundMap.Find(AudioComponentID))
+	{
+		// return the first active sound corresponding to this audio component, if it exists, or a nullptr if not
+		if (!ActiveSoundsInComponent->IsEmpty())
+		{
+			return (*ActiveSoundsInComponent)[0];
+		}
+	}
+
+	return nullptr;
+}
+
+void FAudioDevice::SendCommandToActiveSounds(uint64 InAudioComponentID, TUniqueFunction<void(FActiveSound&)> InFunc, const TStatId InStatId)
+{
+	if (!IsInAudioThread())
+	{
+		FAudioThread::RunCommandOnAudioThread([this, InAudioComponentID, Func = MoveTemp(InFunc)]() mutable
+		{
+			SendCommandToActiveSounds(InAudioComponentID, MoveTemp(Func));
+		}, InStatId);
+		return;
+	}
+
+	// Must cache active sounds as the AudioComponentIDToActiveSoundMap can potentially be modified by the command function provided
+	// (ex. when stopping a sound or array of sounds).
+	const TArray<FActiveSound*> CachedActiveSounds = AudioComponentIDToActiveSoundMap.FindRef(InAudioComponentID);
+	for (FActiveSound* ActiveSound : CachedActiveSounds)
+	{
+		// This should never be null
+		if (ensure(ActiveSound))
+		{
+			InFunc(*ActiveSound);
+		}
+	}
+}
+
+bool FAudioDevice::CanHaveMultipleActiveSounds(uint64 AudioComponentID) const
+{
+	ensure(IsInAudioThread());
+
+	if (const bool* bCanHaveMultipleActiveSounds = AudioComponentIDToCanHaveMultipleActiveSoundsMap.Find(AudioComponentID))
+	{
+		return *bCanHaveMultipleActiveSounds;
+	}
+
+	return false;
+}
+
+void FAudioDevice::SetCanHaveMultipleActiveSounds(uint64 InAudioComponentID, bool InCanHaveMultipleActiveSounds)
+{
+	if (!IsInAudioThread())
+	{
+		FAudioThread::RunCommandOnAudioThread([this, ComponentID = InAudioComponentID, bNewValue = InCanHaveMultipleActiveSounds]()
+		{
+			SetCanHaveMultipleActiveSounds(ComponentID, bNewValue);
+		});
+
+		return;
+	}
+
+	AudioComponentIDToCanHaveMultipleActiveSoundsMap.FindOrAdd(InAudioComponentID, InCanHaveMultipleActiveSounds) = InCanHaveMultipleActiveSounds;
 }
 
 void FAudioDevice::RemoveActiveSound(FActiveSound* ActiveSound)
@@ -5615,7 +5697,29 @@ void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSo
 	const uint64 AudioComponentID = InActiveSound.GetAudioComponentID();
 	if (AudioComponentID > 0)
 	{
-		AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
+		if (TArray<FActiveSound*>* ActiveSoundsInComponent = AudioComponentIDToActiveSoundMap.Find(AudioComponentID))
+		{
+			for (int32 i = ActiveSoundsInComponent->Num() - 1; i >= 0; --i)
+			{
+				const FActiveSound* ActiveSound = (*ActiveSoundsInComponent)[i];
+				
+				if (ensure(ActiveSound))
+				{
+					if (ActiveSound->GetInstanceID() == InActiveSound.GetInstanceID())
+					{
+						ActiveSoundsInComponent->RemoveAtSwap(i, 1, false);
+						break;
+					}
+				}
+			}
+			
+			if (ActiveSoundsInComponent->IsEmpty())
+			{
+				AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
+				AudioComponentIDToCanHaveMultipleActiveSoundsMap.Remove(AudioComponentID);
+			}
+		}
+
 	}
 }
 

@@ -102,7 +102,6 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FOnAudioMultiEnvelopeValue, const
 DECLARE_MULTICAST_DELEGATE_FourParams(FOnAudioMultiEnvelopeValueNative, const UAudioComponent*, const float, const float, const int32);
 
 
-
 /** Type of fade to use when adjusting the audio component's volume. */
 UENUM(BlueprintType)
 enum class EAudioFaderCurve : uint8
@@ -160,22 +159,22 @@ class UInitialActiveSoundParams : public UObject
  * @see https://docs.unrealengine.com/latest/INT/Audio/Overview/index.html
  * @see USoundBase
  */
-UCLASS(ClassGroup=(Audio, Common), hidecategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
+UCLASS(ClassGroup=(Audio, Common), HideCategories=(Object, ActorComponent, Physics, Rendering, Mobility, LOD), ShowCategories=Trigger, meta=(BlueprintSpawnableComponent))
 class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGeneratorParameterInterface
 {
 	GENERATED_UCLASS_BODY()
 
 	/** The sound to be played */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
 	TObjectPtr<USoundBase> Sound;
 
 	/** Array of per-instance parameters for this AudioComponent. Direct changes to this array from Blueprint (as opposed to updates
 	  * made via the Set functions) will not be forwarded to the sound if the component is actively playing. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters, meta = (DisplayAfter = "bDisableParameterUpdatesWhilePlaying"))
 	TArray<FAudioParameter> InstanceParameters;
 
 	/** SoundClass that overrides that set on the referenced SoundBase when component is played. */
-	UPROPERTY(EditAnywhere, Category=Sound, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Sound, AdvancedDisplay)
 	TObjectPtr<USoundClass> SoundClassOverride;
 
 	/** Auto destroy this component on completion */
@@ -191,31 +190,41 @@ class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGenerato
 	uint8 bShouldRemainActiveIfDropped:1;
 
 	/** Overrides spatialization enablement in either the attenuation asset or on this audio component's attenuation settings override. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attenuation)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	uint8 bAllowSpatialization:1;
 
 	/** Allows defining attenuation settings directly on this audio component without using an attenuation settings asset. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attenuation)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation)
 	uint8 bOverrideAttenuation:1;
 
 	/** Whether or not to override the sound's subtitle priority. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Subtitles, meta = (InlineEditConditionToggle))
 	uint8 bOverrideSubtitlePriority:1;
 
 	/** Whether or not this sound plays when the game is paused in the UI */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, AdvancedDisplay)
 	uint8 bIsUISound : 1;
 
 	/** Whether or not to apply a low-pass filter to the sound that plays in this audio component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Filter)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (InlineEditConditionToggle, DisplayAfter = "PitchMultiplier"))
 	uint8 bEnableLowPassFilter : 1;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	/** Whether or not to override the priority of the given sound with the value provided. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (InlineEditConditionToggle, DisplayAfter = "LowPassFilterFrequency"))
 	uint8 bOverridePriority:1;
 
 	/** If true, subtitles in the sound data will be ignored. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Subtitles)
 	uint8 bSuppressSubtitles:1;
+
+	/** If true, the Audio Component will play multiple sound instances at once. Switching sounds or calling play while already playing
+	  * will not stop already active instances. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (DisplayName = "Play Multiple Instances", DisplayAfter = "Priority"))
+	uint8 bCanPlayMultipleInstances:1;
+
+	/** If true, the Audio Component will ignore parameter updates for already-playing sound(s). */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Parameters)
+	uint8 bDisableParameterUpdatesWhilePlaying : 1;
 
 	/** Whether this audio component is previewing a sound */
 	uint8 bPreviewComponent:1;
@@ -256,7 +265,7 @@ class ENGINE_API UAudioComponent : public USceneComponent, public ISoundGenerato
 	* This also disables attachment on dedicated servers, where we don't actually activate even if bAutoActivate is true.
 	* @see AutoAttachParent, AutoAttachSocketName, AutoAttachLocationType
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Attachment)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
 	uint8 bAutoManageAttachment:1;
 
 private:
@@ -272,47 +281,47 @@ public:
 	FName AudioComponentUserID;
 
 	/** The lower bound to use when randomly determining a pitch multiplier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "Randomization|Pitch", meta = (DisplayName = "Pitch (Min)"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Randomization|Pitch", meta = (DisplayName = "Pitch (Min)"))
 	float PitchModulationMin;
 
 	/** The upper bound to use when randomly determining a pitch multiplier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Randomization|Pitch", meta = (DisplayName = "Pitch (Max)"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Randomization|Pitch", meta = (DisplayName = "Pitch (Max)"))
 	float PitchModulationMax;
 
 	/** The lower bound to use when randomly determining a volume multiplier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "Randomization|Volume", meta = (DisplayName = "Volume (Min)"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Randomization|Volume", meta = (DisplayName = "Volume (Min)"))
 	float VolumeModulationMin;
 
 	/** The upper bound to use when randomly determining a volume multiplier */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= "Randomization|Volume", meta = (DisplayName = "Volume (Max)"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Randomization|Volume", meta = (DisplayName = "Volume (Max)"))
 	float VolumeModulationMax;
 
 	/** A volume multiplier to apply to sounds generated by this component */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (DisplayAfter = "Sound"))
 	float VolumeMultiplier;
 
 	/** The attack time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the 
-	 *  envelope value of sounds played with this audio component. Only used in audio mixer. 
+	 *  envelope value of sounds played with this audio component.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Analysis, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerAttackTime;
 
 	/** The release time in milliseconds for the envelope follower. Delegate callbacks can be registered to get the
-	 *  envelope value of sounds played with this audio component. Only used in audio mixer. 
+	 *  envelope value of sounds played with this audio component.
 	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0", UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Analysis, meta = (ClampMin = "0", UIMin = "0"))
 	int32 EnvelopeFollowerReleaseTime;
 
-	/** A priority value that is used for sounds that play on this component that scales against final output volume. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverridePriority"))
+	/** If enabled, overrides the priority of the selected sound with the value provided. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverridePriority", DisplayAfter = "LowPassFilterFrequency"))
 	float Priority;
 
 	/** Used by the subtitle manager to prioritize subtitles wave instances spawned by this component. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverrideSubtitlePriority"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Subtitles, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bOverrideSubtitlePriority", DisplayAfter = "SuppressSubtitles"))
 	float SubtitlePriority;
 
 	/** The chain of Source Effects to apply to the sounds playing on the Audio Component */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (DisplayAfter = "CanPlayMultipleInstances"))
 	TObjectPtr<USoundEffectSourcePresetChain> SourceEffectChain;
 
 #if WITH_EDITORONLY_DATA
@@ -324,22 +333,22 @@ public:
 #endif
 
 	/** A pitch multiplier to apply to sounds generated by this component */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Sound)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (DisplayAfter = "VolumeMultiplier"))
 	float PitchMultiplier;
 
-	/** The frequency of the Lowpass Filter (in Hz) to apply to this voice. A frequency of 0.0 is the device sample rate and will bypass the filter. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Filter, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableLowPassFilter"))
+	/** If enabled, the frequency of the Lowpass Filter (in Hz) to apply to this voice. A frequency of 0.0 is the device sample rate and will bypass the filter. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Sound, meta = (ClampMin = "0.0", UIMin = "0.0", EditCondition = "bEnableLowPassFilter", DisplayAfter = "PitchMultiplier"))
 	float LowPassFilterFrequency;
 
 	/** A count of how many times we've started playing */
 	int32 ActiveCount;
 
 	/** If bOverrideSettings is false, the asset to use to determine attenuation properties for sounds generated by this component */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Attenuation, meta=(EditCondition="!bOverrideAttenuation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation, meta = (EditCondition = "!bOverrideAttenuation", DisplayAfter = "bOverrideAttenuation", EditConditionHides))
 	TObjectPtr<class USoundAttenuation> AttenuationSettings;
 
 	/** If bOverrideSettings is true, the attenuation properties to use for sounds generated by this component */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category= Attenuation, meta=(EditCondition="bOverrideAttenuation"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Attenuation, meta = (EditCondition = "bOverrideAttenuation", DisplayAfter = "bOverrideAttenuation", EditConditionHides))
 	struct FSoundAttenuationSettings AttenuationOverrides;
 
 	/** What sound concurrency to use for sounds generated by this audio component */
@@ -383,7 +392,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Modulation)
 	FSoundModulationDefaultRoutingSettings ModulationRouting;
 
-	/** This function returns the Targeted Audio Component’s current Play State.
+	/** This function returns the Targeted Audio Component's current Play State.
 	  * Playing, if the sound is currently playing.
 	  * Stopped, if the sound is stopped.
 	  * Paused, if the sound is currently playing, but paused.
@@ -438,7 +447,7 @@ public:
 
 	// Set what sound is played by this component
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
-	void SetSound( USoundBase* NewSound );
+	void SetSound(USoundBase* NewSound);
 
 	/**
 	 * This function allows designers to call Play on an Audio Component instance while applying a volume curve over time. 
@@ -462,14 +471,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio", meta = (AdvancedDisplay = 1))
 	virtual	void FadeOut(float FadeOutDuration, float FadeVolumeLevel, const EAudioFaderCurve FadeCurve = EAudioFaderCurve::Linear);
 
-	/** Begins playing the targeted Audio Component’s sound at the designated Start Time, seeking into a sound. 
+	/** Begins playing the targeted Audio Component's sound at the designated Start Time, seeking into a sound.
 	 * @param StartTime The offset, in seconds, to begin reading the sound at
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	virtual void Play(float StartTime = 0.0f);
 
 	/** Start a sound playing on an audio component on a given quantization boundary with the handle to an existing clock */
-	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta=(WorldContext = "WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play", AutoCreateRefTerm = "InDelegate"))
+	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio", meta = (WorldContext = "WorldContextObject", AdvancedDisplay = "3", UnsafeDuringActorConstruction = "true", Keywords = "play", AutoCreateRefTerm = "InDelegate"))
 	virtual void PlayQuantized(
 		  const UObject* WorldContextObject
 		, UPARAM(ref) UQuartzClockHandle*& InClockHandle
@@ -493,7 +502,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|Components|Audio")
 	void SetPaused(bool bPause);
 
-	/** Returns TRUE if the targeted Audio Component’s sound is playing. 
+	/** Returns TRUE if the targeted Audio Component’s sound is playing.
 	 *  Doesn't indicate if the sound is paused or fading in/out. Use GetPlayState() to get the full play state.
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
@@ -639,6 +648,8 @@ public:
 
 	static void PlaybackCompleted(uint64 AudioComponentID, bool bFailedToStart);
 
+	bool GetDisableParameterUpdatesWhilePlaying() const override { return static_cast<bool>(bDisableParameterUpdatesWhilePlaying); }
+
 private:
 	/** Called by the ActiveSound to inform the component that playback is finished */
 	void PlaybackCompleted(bool bFailedToStart);
@@ -712,7 +723,7 @@ public:
 	/** SoundGeneratorParameterInterface Implementation */
 	FAudioDevice* GetAudioDevice() const override;
 	TArray<FAudioParameter>& GetInstanceParameters() override { return InstanceParameters; }
-	uint64 GetInstanceID() const override { return AudioComponentID; }
+	uint64 GetInstanceOwnerID() const override { return AudioComponentID; }
 	USoundBase* GetSound() override { return Sound; }
 
 public:
@@ -790,7 +801,7 @@ private:
 protected:
 
 	/** Utility function called by Play and FadeIn to start a sound playing. */
-	void PlayInternal(const PlayInternalRequestData& InPlayRequestData);
+	void PlayInternal(const PlayInternalRequestData& InPlayRequestData, USoundBase * InSound = nullptr);
 
 #if WITH_EDITORONLY_DATA
 	/** Utility function that updates which texture is displayed on the sprite dependent on the properties of the Audio Component. */

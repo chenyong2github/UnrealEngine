@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "UObject/Object.h"
 #include "AudioParameterInterface.h"
+#include "CoreMinimal.h"
+#include "UObject/Object.h"
 
 #include "SoundGeneratorParameterInterface.generated.h"
 
@@ -10,6 +11,7 @@
 // Forward Declarations
 class FAudioDevice;
 class USoundBase;
+struct FActiveSound;
 
 UINTERFACE()
 class ENGINE_API USoundGeneratorParameterInterface : public UAudioParameterInterface
@@ -43,8 +45,8 @@ public:
 	/** Returns the active audio device to use for this component based on whether or not the component is playing in a world. */
 	virtual FAudioDevice* GetAudioDevice() const = 0;
 
-	/** Returns the id of the sound instance associated with the parameter interface. */
-	virtual uint64 GetInstanceID() const = 0;
+	/** Returns the id of the sound owner's instance associated with the parameter interface. */
+	virtual uint64 GetInstanceOwnerID() const = 0;
 
 	/** Returns the Game Thread copy of parameters to modify in place. */
 	virtual TArray<FAudioParameter>& GetInstanceParameters() = 0;
@@ -53,6 +55,8 @@ public:
 	virtual USoundBase* GetSound() = 0;
 
 	virtual bool IsPlaying() const = 0;
+
+	virtual bool GetDisableParameterUpdatesWhilePlaying() const = 0;
 
 private:
 	void SetParameterInternal(FAudioParameter&& InValue);

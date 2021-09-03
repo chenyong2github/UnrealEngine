@@ -286,6 +286,8 @@ public:
 	bool IsPreviewSound() const override { return bIsPreviewSound; }
 	void Stop() override;
 
+	/** Returns a unique identifier for this active sound object */
+	uint32 GetInstanceID() const { return PlayOrder; }
 
 	uint64 GetAudioComponentID() const { return AudioComponentID; }
 	FName GetAudioComponentUserID() const { return AudioComponentUserID; }
