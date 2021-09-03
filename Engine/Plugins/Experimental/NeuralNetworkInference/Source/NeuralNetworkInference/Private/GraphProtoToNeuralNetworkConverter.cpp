@@ -12,116 +12,119 @@
 /* FGraphProtoToNeuralNetworkConverter public functions
  *****************************************************************************/
 
-bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& InTensorManager, const FGraphProto& InGraphProto)
+bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& InOrOutTensorManager, const FGraphProto& InGraphProto, const bool bInIsTensorManagerConst)
 {
-	TMap<FString, int32> NameIndexMap = InTensorManager.GetNameIndexMap();
-	TMap<FString, int32> DummyOutputNameIndexMap;
-	const bool bResult = CreateOperatorsAndEditTensorArray(OutOperators, DummyOutputNameIndexMap, InTensorManager.GetTensorsMutable(), NameIndexMap, InTensorManager.GetInputNameIndexMap(),
-		InTensorManager.GetOutputNameIndexMap(), InGraphProto);
-	if (NameIndexMap.Num() != InTensorManager.GetNameIndexMap().Num())
+	// InOrOutTensorManager is const, i.e., InTensorManager
+	if (bInIsTensorManagerConst)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): NameIndexMap changed its size, it must not (%d != %d)."),
-			NameIndexMap.Num(), InTensorManager.GetNameIndexMap().Num());
-	}
-	return bResult;
-}
-
-bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, FNeuralTensorManager& OutTensorManager, const FGraphProto& InGraphProto,
-	const FString& InModelPath)
-{
-	// MaxNumberTensorsInNetwork is required to avoid the bug of resizing and invalidating all pointers given to the operators
-	int32 MaxNumberTensorsInNetwork = 0;
-	{
-		// Quickly estimate the number of FNeuralTensor's of the UNeuralNetworkLegacy for Tensors.Reserve(...)
-		// Number FNeuralTensor's = Number (unique) input FNeuralTensors + number (unique) output FNeuralTensors
-		// Uniqueness guaranteed by using the TSet
-		TSet<FString> TensorNameSet;
-		for (const FNodeProto& NodeProto : InGraphProto.Node)
+		TMap<FString, int32> NameIndexMap = InOrOutTensorManager.GetNameIndexMap();
+		TMap<FString, int32> DummyOutputNameIndexMap;
+		const bool bResult = CreateOperatorsAndEditTensorArray(OutOperators, DummyOutputNameIndexMap, InOrOutTensorManager.GetTensorsMutable(), NameIndexMap, InOrOutTensorManager.GetInputNameIndexMap(),
+			InOrOutTensorManager.GetOutputNameIndexMap(), InGraphProto, bInIsTensorManagerConst);
+		if (NameIndexMap.Num() != InOrOutTensorManager.GetNameIndexMap().Num())
 		{
-			// Check input tensors
-			for (const FString& TensorName : NodeProto.Input)
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): NameIndexMap changed its size, it must not (%d != %d)."),
+				NameIndexMap.Num(), InOrOutTensorManager.GetNameIndexMap().Num());
+		}
+		return bResult;
+	}
+	// InOrOutTensorManager is not const, i.e., OutTensorManager
+	else // if (!bInIsTensorManagerConst)
+	{
+		// MaxNumberTensorsInNetwork is required to avoid the bug of resizing and invalidating all pointers given to the operators
+		int32 MaxNumberTensorsInNetwork = 0;
+		{
+			// Quickly estimate the number of FNeuralTensor's of the UNeuralNetworkLegacy for Tensors.Reserve(...)
+			// Number FNeuralTensor's = Number (unique) input FNeuralTensors + number (unique) output FNeuralTensors
+			// Uniqueness guaranteed by using the TSet
+			TSet<FString> TensorNameSet;
+			for (const FNodeProto& NodeProto : InGraphProto.Node)
 			{
-				if (TensorNameSet.Find(TensorName) == nullptr)
+				// Check input tensors
+				for (const FString& TensorName : NodeProto.Input)
 				{
-					TensorNameSet.Add(TensorName);
+					if (TensorNameSet.Find(TensorName) == nullptr)
+					{
+						TensorNameSet.Add(TensorName);
+					}
+				}
+				// Check output tensors
+				for (const FString& TensorName : NodeProto.Output)
+				{
+					if (TensorNameSet.Find(TensorName) == nullptr)
+					{
+						TensorNameSet.Add(TensorName);
+					}
 				}
 			}
-			// Check output tensors
-			for (const FString& TensorName : NodeProto.Output)
+			MaxNumberTensorsInNetwork = TensorNameSet.Num()
+			// Add maximum number possible of auxiliary tensors. A conservative estimate is the number of operators times the maximum possible number of auxiliary tensors per operator
+				+ InGraphProto.Node.Num() * FNeuralOperator::GetMaximumPossibleNumberAuxiliaryTensorsPerOperator();
+		}
+		TArray<FNeuralTensor> Tensors;
+		Tensors.Reserve(MaxNumberTensorsInNetwork);
+		TMap<FString, int32> NameIndexMap;
+
+		// Read input tensors
+		TMap<FString, int32> InputNameIndexMap;
+		for (const FValueInfoProto& GraphProtoInput : InGraphProto.Input)
+		{
+			// Create tensor
+			const TArray<FTensorShapeProtoDimension>& Dimensions = GraphProtoInput.Type.TensorType.Shape.Dim;
+			TArray<int64> DimensionsAsTArray;
+			for (const FTensorShapeProtoDimension& Dimension : Dimensions)
 			{
-				if (TensorNameSet.Find(TensorName) == nullptr)
-				{
-					TensorNameSet.Add(TensorName);
-				}
+				DimensionsAsTArray.Emplace(Dimension.DimValue);
 			}
+			// Add operator name to TMap
+			NameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
+			InputNameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
+			// Add tensor to TMap
+			Tensors.Emplace(FNeuralTensor(ENeuralDataType::Float, DimensionsAsTArray, GraphProtoInput.Name, ENeuralTensorTypeGPU::Input));
 		}
-		MaxNumberTensorsInNetwork = TensorNameSet.Num()
-		// Add maximum number possible of auxiliary tensors. A conservative estimate is the number of operators times the maximum possible number of auxiliary tensors per operator
-			+ InGraphProto.Node.Num() * FNeuralOperator::GetMaximumPossibleNumberAuxiliaryTensorsPerOperator();
-	}
-	TArray<FNeuralTensor> Tensors;
-	Tensors.Reserve(MaxNumberTensorsInNetwork);
-	TMap<FString, int32> NameIndexMap;
 
-	// Read input tensors
-	TMap<FString, int32> InputNameIndexMap;
-	for (const FValueInfoProto& GraphProtoInput : InGraphProto.Input)
-	{
-		// Create tensor
-		const TArray<FTensorShapeProtoDimension>& Dimensions = GraphProtoInput.Type.TensorType.Shape.Dim;
-		TArray<int64> DimensionsAsTArray;
-		for (const FTensorShapeProtoDimension& Dimension : Dimensions)
+		// Read output tensor names (but do not create them yet, it has to happen simultaneously with the operator creation and tensor inlining)
+		// Issue: For inlining to work properly, output tensors cannot be created until after inlining operators (i.e., CreateOperatorsAndEditTensorArray).
+		// Otherwise, the following failing case could happen with a network like: InputTensor --> Gemm --> IntermediateTensor --> Relu --> OutputTensor
+		// 1. Inputs and outputs are created before hand, i.e., InputTensor and OutputTensor
+		// 2. CreateOperatorsAndEditTensorArray() is run
+		//   2.1. Gemm and IntermediateTensor would be created (because Gemm cannot be inlined)
+		//   2.2. Relu would be created, Relu would verify its input can be inlined, but both IntermediateTensor and OutputTensor are already created at this point, so it cannot inline them (crash/bug)
+		TMap<FString, int32> OutputNameDummyIndexMap;
+		for (const FValueInfoProto& GraphProtoOutput : InGraphProto.Output)
 		{
-			DimensionsAsTArray.Emplace(Dimension.DimValue);
+			// Add operator name to TMap
+			if (NameIndexMap.Find(GraphProtoOutput.Name))
+			{
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): A FNeuralTensor of the UNeuralNetworkLegacy is a global Input and Output simultaneously."));
+			}
+			OutputNameDummyIndexMap.Add(GraphProtoOutput.Name, -1);
 		}
-		// Add operator name to TMap
-		NameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
-		InputNameIndexMap.Add(GraphProtoInput.Name, Tensors.Num());
-		// Add tensor to TMap
-		Tensors.Emplace(FNeuralTensor(ENeuralDataType::Float, DimensionsAsTArray, GraphProtoInput.Name, ENeuralTensorTypeGPU::Input));
-	}
 
-	// Read output tensor names (but do not create them yet, it has to happen simultaneously with the operator creation and tensor inlining)
-	// Issue: For inlining to work properly, output tensors cannot be created until after inlining operators (i.e., CreateOperatorsAndEditTensorArray).
-	// Otherwise, the following failing case could happen with a network like: InputTensor --> Gemm --> IntermediateTensor --> Relu --> OutputTensor
-	// 1. Inputs and outputs are created before hand, i.e., InputTensor and OutputTensor
-	// 2. CreateOperatorsAndEditTensorArray() is run
-	//   2.1. Gemm and IntermediateTensor would be created (because Gemm cannot be inlined)
-	//   2.2. Relu would be created, Relu would verify its input can be inlined, but both IntermediateTensor and OutputTensor are already created at this point, so it cannot inline them (crash/bug)
-	TMap<FString, int32> OutputNameDummyIndexMap;
-	for (const FValueInfoProto& GraphProtoOutput : InGraphProto.Output)
-	{
-		// Add operator name to TMap
-		if (NameIndexMap.Find(GraphProtoOutput.Name))
+		// Fill operators
+		TMap<FString, int32> OutputNameIndexMap;
+		bool bWasSuccessful = CreateOperatorsAndEditTensorArray(OutOperators, OutputNameIndexMap, Tensors, NameIndexMap, InputNameIndexMap, OutputNameDummyIndexMap, InGraphProto, bInIsTensorManagerConst);
+		if (Tensors.Num() <= NameIndexMap.Num())
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): A FNeuralTensor of the UNeuralNetworkLegacy is a global Input and Output simultaneously."));
+			UE_LOG(LogNeuralNetworkInference, Display, TEXT("Auto-inlining: %d initial tensors compressed into %d (%d tensors merged)."),
+				NameIndexMap.Num(), Tensors.Num(), NameIndexMap.Num() - Tensors.Num());
 		}
-		OutputNameDummyIndexMap.Add(GraphProtoOutput.Name, -1);
-	}
+		// Sanity check
+		if (Tensors.Num() > MaxNumberTensorsInNetwork)
+		{
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): Tensors.Num() <= MaxNumberTensorsInNetwork failed (%d vs. %d). A resize of Tensors"
+				" might have occurred, invalidating all TArray<FNeuralTensor*> FOperator variables. Report this error (so we can fix MaxNumberTensorsInNetwork to be big enough)."),
+				Tensors.Num(), MaxNumberTensorsInNetwork);
+			bWasSuccessful = false;
+		}
 
-	// Fill operators
-	TMap<FString, int32> OutputNameIndexMap;
-	bool bWasSuccessful = CreateOperatorsAndEditTensorArray(OutOperators, OutputNameIndexMap, Tensors, NameIndexMap, InputNameIndexMap, OutputNameDummyIndexMap, InGraphProto, InModelPath);
-	if (Tensors.Num() <= NameIndexMap.Num())
-	{
-		UE_LOG(LogNeuralNetworkInference, Display, TEXT("Auto-inlining: %d initial tensors compressed into %d (%d tensors merged)."),
-			NameIndexMap.Num(), Tensors.Num(), NameIndexMap.Num() - Tensors.Num());
+		// Set InOrOutTensorManager
+		if (bWasSuccessful)
+		{
+			return InOrOutTensorManager.Load(Tensors, NameIndexMap, InputNameIndexMap, OutputNameIndexMap);
+		}
+		return bWasSuccessful;
 	}
-	// Sanity check
-	if (Tensors.Num() > MaxNumberTensorsInNetwork)
-	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FGraphProtoToNeuralNetworkConverter::Translate(): Tensors.Num() <= MaxNumberTensorsInNetwork failed (%d vs. %d). A resize of Tensors"
-			" might have occurred, invalidating all TArray<FNeuralTensor*> FOperator variables. Report this error (so we can fix MaxNumberTensorsInNetwork to be big enough)."),
-			Tensors.Num(), MaxNumberTensorsInNetwork);
-		bWasSuccessful = false;
-	}
-
-	// Set OutTensorManager
-	if (bWasSuccessful)
-	{
-		return OutTensorManager.Load(Tensors, NameIndexMap, InputNameIndexMap, OutputNameIndexMap);
-	}
-	return bWasSuccessful;
 }
 
 
@@ -131,9 +134,8 @@ bool FGraphProtoToNeuralNetworkConverter::Translate(TArray<TSharedPtr<FNeuralOpe
 
 bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArray<TSharedPtr<FNeuralOperator>>& OutOperators, TMap<FString, int32>& OutputNameIndexMap,
 	TArray<FNeuralTensor>& InOutTensors, TMap<FString, int32>& InOutNameIndexMap, const TMap<FString, int32>& InInputNameDummyIndexMap,
-	const TMap<FString, int32>& InOutputNameDummyIndexMap, const FGraphProto& InGraphProto, const FString& InModelPath)
+	const TMap<FString, int32>& InOutputNameDummyIndexMap, const FGraphProto& InGraphProto, const bool bInIsTensorManagerConst)
 {
-	const bool bConvertingFromSerializedData = (InModelPath.Len() == 0);
 	const int64 InOutTensorsNumInit = InOutTensors.Num();
 	const int64 InOutNameIndexMapNumInit = InOutNameIndexMap.Num();
 	// Create operators sequentially
@@ -160,7 +162,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				const FTensorProto& TensorProto = *FModelProto::FindElementInArray(InputTensorName, InGraphProto.Initializer, /*bMustValueBeFound*/true);
 				// Is it also an absolute output of the network?
 				const int64 TensorIndex = InOutTensors.Num();
-				if (!bConvertingFromSerializedData && InOutputNameDummyIndexMap.Find(InputTensorName))
+				if (!bInIsTensorManagerConst && InOutputNameDummyIndexMap.Find(InputTensorName))
 				{
 					OutputNameIndexMap.Add(InputTensorName, TensorIndex);
 				}
@@ -169,7 +171,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				FNeuralTensor& NewTensor = InOutTensors.Last();
 				// Deprecated code for otxt files, if added back, add before the 2 for loops for speedup
 				// FString PathPart, FilenamePart, ExtensionPart;
-				// if (!bConvertingFromSerializedData)
+				// if (!bInIsTensorManagerConst)
 				// {
 				// 	FPaths::Split(InModelPath, PathPart, FilenamePart, ExtensionPart);
 				// }
@@ -194,8 +196,8 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				return false;
 			}
 			const FString& OutputTensorName = NodeProto.Output[0];
-			// Case 1: bConvertingFromSerializedData
-			if (bConvertingFromSerializedData)
+			// Case 1: bInIsTensorManagerConst
+			if (bInIsTensorManagerConst)
 			{
 				// Sanity check
 				if (!InOutNameIndexMap.Find(OutputTensorName))
@@ -205,7 +207,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				}
 				// Do nothing else
 			}
-			// Case 2: !bConvertingFromSerializedData
+			// Case 2: !bInIsTensorManagerConst
 			else
 			{
 				// Sanity check
@@ -243,7 +245,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			// Create and configure operator
 			TSharedPtr<FNeuralOperator> Operator = CreateOperator(NodeProto, OperatorInputTensorNames, InInputNameDummyIndexMap, InOutputNameDummyIndexMap, InGraphProto);
 			// ConvTranspose requires flipping OperatorInputTensors[1], so we expect for now a Weight type, so it can be flipped beforehand
-			if (!bConvertingFromSerializedData && NodeProto.OperatorType == TEXT("ConvTranspose")) //if (NodeProto.OperatorType.Contains(TEXT("Conv"), ESearchCase::CaseSensitive))
+			if (!bInIsTensorManagerConst && NodeProto.OperatorType == TEXT("ConvTranspose")) //if (NodeProto.OperatorType.Contains(TEXT("Conv"), ESearchCase::CaseSensitive))
 			{
 				UE_LOG(LogNeuralNetworkInference, Display, TEXT("Flipping FConvTranspose weights. This is a temporary measurement but it will keep the weights flipped for now."));
 				// Sanity check
@@ -264,10 +266,10 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			const int32 InlinedTensorIndex = Operator->SetInputTensorsAndGetInlinedIndex(OperatorInputTensors);
 			// Read/set output tensors
 			// 2 different cases for OperatorOutputTensors:
-				// Case 1/2: bConvertingFromSerializedData --> All FNeuralTensors already exist
+				// Case 1/2: bInIsTensorManagerConst --> All FNeuralTensors already exist
 					// Subcase 1/2: InlinedTensorIndex > -1 --> Do nothing
 					// Subcase 2/2: InlinedTensorIndex < 0 --> Fill OperatorOutputTensors from known index
-				// Case 2/2: !bConvertingFromSerializedData
+				// Case 2/2: !bInIsTensorManagerConst
 					// Subcase 1/3: ExistingTensorIndex is found --> FNeuralTensor already exists
 					// Subcase 2/3: InlinedTensorIndex < 0 --> Output tensor must be created because operator creates its own output
 					// Subcase 3/3: InlinedTensorIndex > -1 --> Output tensor is the same than 1 of the input tensors of that operator (inlined operator)
@@ -280,8 +282,8 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			TArray<FNeuralTensor*> OperatorOutputTensors;
 			for (const FString& OutputTensorName : NodeProto.Output)
 			{
-				// Case 1: bConvertingFromSerializedData
-				if (bConvertingFromSerializedData)
+				// Case 1: bInIsTensorManagerConst
+				if (bInIsTensorManagerConst)
 				{
 					// Subcase 1/2: Do nothing
 					// Subcase 2/2: Fill OperatorOutputTensors from known index
@@ -291,10 +293,10 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 						OperatorOutputTensors.Push(&InOutTensors[ExistingTensorIndex]);
 					}
 				}
-				// Case 2: !bConvertingFromSerializedData
+				// Case 2: !bInIsTensorManagerConst
 				else
 				{
-					// Subcase 1/3: FNeuralTensor already exists (i.e., absolute output of the UNeuralNetworkLegacy or bConvertingFromSerializedData == true)
+					// Subcase 1/3: FNeuralTensor already exists (i.e., absolute output of the UNeuralNetworkLegacy or bInIsTensorManagerConst == true)
 					if (const int32* const ExistingTensorIndex = InOutNameIndexMap.Find(OutputTensorName))
 					{
 						if (InlinedTensorIndex > -1)
@@ -365,7 +367,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 				{
 					const FString AuxiliaryTensorName = NodeProto.Name + TEXT("-") + Operator->GetName() + TEXT("-Aux") + FString::FromInt(AuxiliaryTensorIndex);
 					// Uasset file
-					if (bConvertingFromSerializedData)
+					if (bInIsTensorManagerConst)
 					{
 						// Find and push auxiliary tensor
 						if (const int32* const AuxiliaryTensorAbsoluteIndex = InOutNameIndexMap.Find(AuxiliaryTensorName))
@@ -408,8 +410,8 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			OutOperators.Push(Operator);
 		}
 	}
-	// Sanity checks for bConvertingFromSerializedData
-	if (bConvertingFromSerializedData)
+	// Sanity checks for bInIsTensorManagerConst
+	if (bInIsTensorManagerConst)
 	{
 		if (OutputNameIndexMap.Num() > 0)
 		{
@@ -433,7 +435,7 @@ bool FGraphProtoToNeuralNetworkConverter::CreateOperatorsAndEditTensorArray(TArr
 			return false;
 		}
 	}
-	// Sanity check for !bConvertingFromSerializedData
+	// Sanity check for !bInIsTensorManagerConst
 	else if (OutputNameIndexMap.Num() != InOutputNameDummyIndexMap.Num())
 	{
 		UE_LOG(LogNeuralNetworkInference, Warning,

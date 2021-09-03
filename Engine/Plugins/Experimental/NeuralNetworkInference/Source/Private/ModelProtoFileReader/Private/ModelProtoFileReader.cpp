@@ -70,6 +70,11 @@ bool FModelProtoFileReader::ReadModelProtoFromFile(FModelProto& OutModelProto, c
 	return false;
 }
 
+bool FModelProtoFileReader::ReadModelProtoFromArray(FModelProto& OutModelProto, const TArray<uint8>& InModelReadFromFileInBytes)
+{
+	return FModelProtoConverter::ConvertFromONNXProto3Array(OutModelProto, InModelReadFromFileInBytes);
+}
+
 bool FModelProtoFileReader::ReadWeightsFromOtxtBinaryFile(char* OutBinaryWeights, const int32 InBinaryWeightsByteSize, const FString& InFilePath)
 {
 	// Note:
