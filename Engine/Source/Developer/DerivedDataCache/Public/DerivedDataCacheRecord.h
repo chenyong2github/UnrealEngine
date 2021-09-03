@@ -3,7 +3,7 @@
 #pragma once
 
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataPayloadId.h"
 #include "Memory/SharedBuffer.h"
 #include "Templates/Function.h"
 #include "Templates/RefCounting.h"
@@ -16,6 +16,7 @@ class FCbPackage;
 
 namespace UE::DerivedData { class FCacheRecord; }
 namespace UE::DerivedData { class FOptionalCacheRecord; }
+namespace UE::DerivedData { class FPayload; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>; }
 

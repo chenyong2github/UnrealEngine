@@ -2,6 +2,7 @@
 
 #include "DerivedDataBackendAsyncPutWrapper.h"
 
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "DerivedDataRequestOwner.h"
 #include "MemoryDerivedDataBackend.h"

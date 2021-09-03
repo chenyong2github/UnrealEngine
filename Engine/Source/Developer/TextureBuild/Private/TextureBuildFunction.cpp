@@ -3,7 +3,7 @@
 #include "TextureBuildFunction.h"
 
 #include "DerivedDataCache.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataPayloadId.h"
 #include "Engine/TextureDefines.h"
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
