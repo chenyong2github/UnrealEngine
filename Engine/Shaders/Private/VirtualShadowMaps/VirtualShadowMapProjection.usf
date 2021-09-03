@@ -193,9 +193,11 @@ FVirtualShadowMapSampleResult ProjectLight(
 
 	FVirtualShadowMapSampleResult Result = InitVirtualShadowMapSampleResult();
 
+	const uint ShadingModelID = GetGBufferDataUint(PixelPos).ShadingModelID;
+
 	const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
-	const bool bBackfaceCull = !bIsHair && (bCullBackfacingPixels != 0);
-	const bool bValidPixel = bIsHair || GetGBufferDataUint(PixelPos).ShadingModelID != SHADINGMODELID_UNLIT;
+	const bool bBackfaceCull = (bCullBackfacingPixels != 0) && !bIsHair && !IsSubsurfaceModel(ShadingModelID);
+	const bool bValidPixel = bIsHair || ShadingModelID != SHADINGMODELID_UNLIT;
 
 	BRANCH
 	if (bInLightRegion && bValidPixel)
