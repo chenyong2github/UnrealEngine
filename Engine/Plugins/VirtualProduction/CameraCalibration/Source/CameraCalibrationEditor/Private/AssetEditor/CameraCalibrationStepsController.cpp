@@ -579,7 +579,7 @@ void FCameraCalibrationStepsController::CreateComp()
 		return;
 	}
 
-	RenderTarget->RenderTargetFormat = RTF_RGBA8;
+	RenderTarget->RenderTargetFormat = RTF_RGBA16f;
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->bAutoGenerateMips = true;
 	RenderTarget->InitAutoFormat(1920, 1080);
