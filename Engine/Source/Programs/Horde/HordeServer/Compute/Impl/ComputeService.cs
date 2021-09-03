@@ -164,7 +164,7 @@ namespace HordeServer.Compute.Impl
 		/// <inheritdoc/>
 		public async Task<AgentLease?> TryAssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
-			if (!Agent.Enabled)
+			if (!Agent.Enabled || Agent.Id.ToString().StartsWith("REMOTE-EXEC-", StringComparison.OrdinalIgnoreCase))
 			{
 				await Task.Delay(-1, CancellationToken);
 				return null;
