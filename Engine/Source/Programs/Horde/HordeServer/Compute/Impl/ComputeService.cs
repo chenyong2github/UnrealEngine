@@ -164,6 +164,12 @@ namespace HordeServer.Compute.Impl
 		/// <inheritdoc/>
 		public async Task<AgentLease?> TryAssignLeaseAsync(IAgent Agent, CancellationToken CancellationToken)
 		{
+			if (!Agent.Enabled)
+			{
+				await Task.Delay(-1, CancellationToken);
+				return null;
+			}
+
 			TaskSchedulerEntry<ComputeTaskInfo>? Entry = await TaskScheduler.DequeueAsync(Agent, CancellationToken);
 			if(Entry != null)
 			{
