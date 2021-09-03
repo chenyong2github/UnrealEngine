@@ -232,6 +232,7 @@ void FLogging::LogImpl(const char* String) const
 	if (File != nullptr)
 	{
 		fputs(String, File);
+		fflush(File);
 	}
 
 	fputs(String, stdout);
