@@ -1,11 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ModelProtoFileReaderTester.h"
-#include "NeuralNetworkInferenceQAUtils.h"
-
-#if WITH_EDITOR
 #include "ModelProtoFileReader.h"
-#endif //WITH_EDITOR
+#include "NeuralNetworkInferenceQAUtils.h"
 
 
 
@@ -23,7 +20,7 @@ bool FModelProtoFileReaderTester::Test(const FString& InONNXModelFileName)
 	ensureMsgf(ModelProto.IsLoaded(), TEXT("FModelProtoFileReaderTester::ONNXReadNetworkTest() failed, FModelProto could not be read from InONNXModelFileName: %s."), *InONNXModelFileName);
 	return ModelProto.IsLoaded();
 #else //WITH_EDITOR
-	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ONNXReadNetworkTest test skipped (only in Editor)."));
+	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("ONNXReadNetworkTest test skipped (only if WITH_EDITOR enabled)."));
 	return true;
 #endif //WITH_EDITOR
 }

@@ -29,19 +29,9 @@ public class NeuralNetworkInferenceQA : ModuleRules
 			(
 			new string[] {
 				"ModelProto",
+				"ModelProtoFileReader",
 				"NeuralNetworkInferenceCore"
 			}
 		);
-
-		// Editor-only
-		if (Target.bBuildEditor)
-		{
-			PrivateDependencyModuleNames.AddRange
-				(
-				new string[] {
-					"ModelProtoFileReader"
-				}
-			);
-		}
 	}
 }

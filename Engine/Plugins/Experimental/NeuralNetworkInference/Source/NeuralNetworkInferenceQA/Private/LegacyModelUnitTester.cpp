@@ -126,7 +126,7 @@ UNeuralNetworkLegacy* FLegacyModelUnitTester::NetworkONNXLoadTest(const FString&
 		return nullptr;
 	}
 	return Network;
-#else
+#else //WITH_EDITOR
 	UE_LOG(LogNeuralNetworkInferenceQA, Display, TEXT("--------------- NetworkONNXLoadTest test skipped (only in Editor)."));
 	return nullptr;
 #endif //WITH_EDITOR
