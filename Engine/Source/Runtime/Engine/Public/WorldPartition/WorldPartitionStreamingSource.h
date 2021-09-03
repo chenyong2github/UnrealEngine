@@ -321,8 +321,7 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		, Priority(InPriority)
 		, Velocity(InVelocity)
 		, TargetGrid(NAME_None)
-	{
-	}
+	{}
 
 	FColor GetDebugColor() const { return FColor::MakeRedToGreenColorFromScalar(FRandomStream(Name).GetFraction()); }
 
@@ -374,6 +373,20 @@ struct ENGINE_API FWorldPartitionStreamingSource
 		{
 			FStreamingSourceShapeHelper::ForEachShape(InGridLoadingRange, InGridLoadingRange, bInProjectIn2D, Location, Rotation, Shapes, InOperation);
 		}
+	}
+
+	FString ToString() const
+	{
+		const FVector Direction = Rotation.Euler();
+		return FString::Printf(
+			TEXT("Priority: %d | %s | Pos: X=%d,Y=%d,Z=%d | Rot: X=%d,Y=%d,Z=%d | Vel: %3.2f m/s (%d mph)"), 
+			Priority, 
+			bBlockOnSlowLoading ? TEXT("Blocking") : TEXT("NonBlocking"),
+			(int32)Location.X, (int32)Location.Y, (int32)Location.Z, 
+			(int32)Direction.X, (int32)Direction.Y, (int32)Direction.Z, 
+			Velocity, 
+			(int32)(Velocity*2.23694f)
+		);
 	}
 };
 
