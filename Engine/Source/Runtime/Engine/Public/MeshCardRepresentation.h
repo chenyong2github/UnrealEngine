@@ -80,6 +80,29 @@ public:
 		return ::ComputeSquaredDistanceFromBoxToPoint(-Extent, Extent, CardPositon);
 	}
 
+	FLumenCardOBB Transform(FMatrix44f LocalToWorld) const
+	{
+		FLumenCardOBB WorldOBB;
+		WorldOBB.Origin = LocalToWorld.TransformPosition(Origin);
+
+		const FVector3f ScaledXAxis = LocalToWorld.TransformVector(AxisX);
+		const FVector3f ScaledYAxis = LocalToWorld.TransformVector(AxisY);
+		const FVector3f ScaledZAxis = LocalToWorld.TransformVector(AxisZ);
+		const float XAxisLength = ScaledXAxis.Size();
+		const float YAxisLength = ScaledYAxis.Size();
+		const float ZAxisLength = ScaledZAxis.Size();
+
+		WorldOBB.AxisY = ScaledYAxis / FMath::Max(YAxisLength, DELTA);
+		WorldOBB.AxisZ = ScaledZAxis / FMath::Max(ZAxisLength, DELTA);
+		WorldOBB.AxisX = FVector::CrossProduct(WorldOBB.AxisZ, WorldOBB.AxisY);
+		FVector3f::CreateOrthonormalBasis(WorldOBB.AxisX, WorldOBB.AxisY, WorldOBB.AxisZ);
+
+		WorldOBB.Extent = Extent * FVector(XAxisLength, YAxisLength, ZAxisLength);
+		WorldOBB.Extent.Z = FMath::Max(WorldOBB.Extent.Z, 1.0f);
+
+		return WorldOBB;
+	}
+
 	friend FArchive& operator<<(FArchive& Ar, FLumenCardOBB& Data)
 	{
 		Ar << Data.AxisX;
