@@ -153,8 +153,9 @@ void UKismetArrayLibrary::GenericArray_Append(void* TargetArray, const FArrayPro
 		{
 			FProperty* InnerProp = TargetArrayProp->Inner;
 
+			const int32 EndIdx = SourceArrayHelper.Num();
 			int32 StartIdx = TargetArrayHelper.AddValues(SourceArrayHelper.Num());
-			for(int32 x = 0; x < SourceArrayHelper.Num(); ++x, ++StartIdx)
+			for(int32 x = 0; x < EndIdx; ++x, ++StartIdx)
 			{
 				InnerProp->CopySingleValueToScriptVM(TargetArrayHelper.GetRawPtr(StartIdx), SourceArrayHelper.GetRawPtr(x));
 			}
