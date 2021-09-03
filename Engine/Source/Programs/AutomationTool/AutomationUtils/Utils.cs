@@ -1172,31 +1172,6 @@ namespace AutomationTool
 		/// <summary>
 		/// Doc
 		/// </summary>
-        public void SetAssemblyInformationalVersion(string NewInformationalVersion)
-		{
-            // This searches for the AssemblyInformationalVersion string. Most the mess is to allow whitespace in places that are possible.
-            // Captures the string into a group called "Ver" for replacement.
-            var regex = new Regex(@"\[assembly:\s+AssemblyInformationalVersion\s*\(\s*""(?<Ver>.*)""\s*\)\s*]", RegexOptions.IgnoreCase | RegexOptions.ExplicitCapture);
-            foreach (var Index in Enumerable.Range(0, Lines.Count))
-            {
-                var line = Lines[Index];
-                var match = regex.Match(line);
-                if (match.Success)
-                {
-                    var verGroup = match.Groups["Ver"];
-                    var sb = new StringBuilder(line);
-                    sb.Remove(verGroup.Index, verGroup.Length);
-                    sb.Insert(verGroup.Index, NewInformationalVersion);
-                    Lines[Index] = sb.ToString();
-                    return;
-                }
-            }
-            throw new AutomationException("Failed to find the AssemblyInformationalVersion attribute in {1}", MyFile.FullName);
-		}
-
-		/// <summary>
-		/// Doc
-		/// </summary>
 		public void Commit()
 		{
 			bool bDifferent = Lines.Count != OriginalLines.Count;
