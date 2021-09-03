@@ -18,6 +18,161 @@ class UMaterialInstanceDynamic;
 struct FMeshDescription;
 using UE::Geometry::FDynamicMesh3;
 
+
+
+
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcessSettings
+{
+	GENERATED_BODY()
+
+	// Solidify settings
+
+	/** Target number of voxels along the maximum dimension for Solidify operation */
+	UPROPERTY(EditAnywhere, Category = Solidify, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024", DisplayName="Voxel Resolution"))
+	int SolidifyVoxelResolution = 128;
+
+	/** Winding number threshold to determine what is considered inside the mesh during Solidify */
+	UPROPERTY(EditAnywhere, Category = Solidify, AdvancedDisplay, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10"))
+	float WindingThreshold = 0.5f;
+
+
+	// Morphology settings
+
+	/** Offset distance in the Morpohological Closure operation */
+	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Closure Distance"))
+	float ClosureDistance = 1.0f;
+
+};
+
+
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcess_PreprocessSettings
+{
+	GENERATED_BODY()
+
+	// Filter settings
+
+	/** Group layer to use for filtering out detail before processing */
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filter Group Layer"))
+	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
+
+	// Thicken settings
+
+	/** Weight map used during mesh thickening */
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken Weight Map"))
+	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
+
+	/** Amount to thicken the mesh prior to Solidifying. The thicken weight map values are multiplied by this value. */
+	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
+	float ThickenAmount = 0.0f;
+};
+
+
+
+
+UENUM()
+enum class EGenerateStaticMeshLODProcess_SimplifyMethod : uint8
+{
+	// note: must keep in sync with UE::GeometryFlow::EMeshSimplifyTargetType
+	TriangleCount = 0,
+	VertexCount = 1,
+	TrianglePercentage = 2,
+	GeometricTolerance = 3
+};
+
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcess_SimplifySettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = Simplify, meta = (DisplayName = "Simplification Target"))
+	EGenerateStaticMeshLODProcess_SimplifyMethod Method = EGenerateStaticMeshLODProcess_SimplifyMethod::GeometricTolerance;
+
+	/** Target triangle/vertex count after simplification */
+	UPROPERTY(EditAnywhere, Category = Simplify, meta = (UIMin = "1", ClampMin = "1", EditConditionHides, EditCondition = "Method == EGenerateStaticMeshLODProcess_SimplifyMethod::TriangleCount || Method == EGenerateStaticMeshLODProcess_SimplifyMethod::VertexCount"))
+	int TargetCount = 500;
+
+	/** Target triangle/vertex count after simplification */
+	UPROPERTY(EditAnywhere, Category = Simplify, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "100", EditConditionHides, EditCondition = "Method == EGenerateStaticMeshLODProcess_SimplifyMethod::TrianglePercentage"))
+	float TargetPercentage = 5.0;
+
+	/** Deviation in World Units (Centimeters) */
+	UPROPERTY(EditAnywhere, Category = Simplify, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "100", EditConditionHides, EditCondition = "Method == EGenerateStaticMeshLODProcess_SimplifyMethod::GeometricTolerance"))
+	float Tolerance = 0.5;
+};
+
+
+
+UENUM()
+enum class EGenerateStaticMeshLODProcess_AutoUVMethod : uint8
+{
+	PatchBuilder = 0,
+	UVAtlas = 1,
+	XAtlas = 2
+};
+
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcess_UVSettings_PatchBuilder
+{
+	GENERATED_BODY()
+
+	/** This parameter controls alignment of the initial patches to creases in the mesh */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0.1", UIMax = "2.0", ClampMin = "0.01", ClampMax = "100.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	float CurvatureAlignment = 1.0f;
+
+	/** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	int SmoothingSteps = 5;
+
+	/** Smoothing parameter, larger values result in faster smoothing in each step */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	float SmoothingAlpha = 0.25f;
+};
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcess_UVSettings
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere, Category = UVGeneration, meta = (DisplayName = "UV Method"))
+	EGenerateStaticMeshLODProcess_AutoUVMethod UVMethod = EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder;
+
+	/** Maximum number of charts to create in UVAtlas */
+	UPROPERTY(EditAnywhere, Category = "UVAtlas", meta = (DisplayName = "Max Charts", UIMin = 0, UIMax = 1000, EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::UVAtlas"))
+	int NumUVAtlasCharts = 0;
+
+	/** Number of initial patches mesh will be split into before computing island merging */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1", UIMax = "1000", ClampMin = "1", ClampMax = "99999999", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	int NumInitialPatches = 100;
+
+	/** Distortion/Stretching Threshold for island merging - larger values increase the allowable UV stretching */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "1.0", UIMax = "5.0", ClampMin = "1.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	float MergingThreshold = 1.5f;
+
+	/** UV islands will not be merged if their average face normals deviate by larger than this amount */
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	float MaxAngleDeviation = 45.0f;
+
+	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (DisplayName = "UV - PatchBuilder", UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	FGenerateStaticMeshLODProcess_UVSettings_PatchBuilder PatchBuilder;
+
+	///** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
+	//UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	//int SmoothingSteps = 5;
+
+	///** Smoothing parameter, larger values result in faster smoothing in each step */
+	//UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
+	//float SmoothingAlpha = 0.25f;
+};
+
+
+
+
 UENUM()
 enum class EGenerateStaticMeshLODBakeResolution
 {
@@ -32,6 +187,28 @@ enum class EGenerateStaticMeshLODBakeResolution
 	Resolution4096 = 4096 UMETA(DisplayName = "4096 x 4096"),
 	Resolution8192 = 8192 UMETA(DisplayName = "8192 x 8192")
 };
+
+
+
+USTRUCT()
+struct FGenerateStaticMeshLODProcess_TextureSettings
+{
+	GENERATED_BODY()
+
+	/** Resolution for normal map and texture baking */
+	UPROPERTY(EditAnywhere, Category = Baking , meta = (DisplayName = "Bake Image Res"))
+	EGenerateStaticMeshLODBakeResolution BakeResolution = EGenerateStaticMeshLODBakeResolution::Resolution512;
+
+	/** How far away from the output mesh to search for input mesh during baking */
+	UPROPERTY(EditAnywhere, Category = Baking, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Bake Thickness"))
+	float BakeThickness = 5.0f;
+
+	UPROPERTY(EditAnywhere, Category = Baking, meta = (DisplayName = "Combine Textures"))
+	bool bCombineTextures = true;
+};
+
+
+
 
 UENUM()
 enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
@@ -61,71 +238,11 @@ enum class EGenerateStaticMeshLODProjectedHullAxisMode : uint8
 };
 
 
+
 USTRUCT()
-struct FGenerateStaticMeshLODProcessSettings
+struct FGenerateStaticMeshLODProcess_CollisionSettings
 {
 	GENERATED_BODY()
-
-	// Filter settings
-
-	/** Group layer to use for filtering out detail before processing */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Detail Filter Group Layer"))
-	FName FilterGroupLayer = FName(TEXT("PreFilterGroups"));
-
-	// Thicken settings
-
-	/** Weight map used during mesh thickening */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (DisplayName = "Thicken Weight Map"))
-	FName ThickenWeightMapName = FName(TEXT("ThickenWeightMap"));
-
-	/** Amount to thicken the mesh prior to Solidifying. The thicken weight map values are multiplied by this value. */
-	UPROPERTY(EditAnywhere, Category = DetailFilter, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000"))
-	float ThickenAmount = 0.0f;
-
-	// Solidify settings
-
-	/** Target number of voxels along the maximum dimension for Solidify operation */
-	UPROPERTY(EditAnywhere, Category = Solidify, meta = (UIMin = "8", UIMax = "1024", ClampMin = "8", ClampMax = "1024", DisplayName="Voxel Resolution"))
-	int SolidifyVoxelResolution = 64;
-
-	/** Winding number threshold to determine what is considered inside the mesh during Solidify */
-	UPROPERTY(EditAnywhere, Category = Solidify, AdvancedDisplay, meta = (UIMin = "0.1", UIMax = ".9", ClampMin = "-10", ClampMax = "10"))
-	float WindingThreshold = 0.5f;
-
-
-	// Morphology settings
-
-	/** Offset distance in the Morpohological Closure operation */
-	UPROPERTY(EditAnywhere, Category = Morphology, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Closure Distance"))
-	float ClosureDistance = 1.0f;
-
-
-	// Simplify settings
-	/** Target triangle count after simplification */
-	UPROPERTY(EditAnywhere, Category = Simplify, meta = (UIMin = "1", ClampMin = "1", DisplayName = "Simplify Tri Count"))
-	int SimplifyTriangleCount = 500;
-
-
-	// UV settings
-	/** Maximum number of charts to create in AutoUV */
-	UPROPERTY(EditAnywhere, Category = AutoUV, meta = (DisplayName = "Max AutoUV Charts", UIMin = 0, UIMax = 1000))
-	int NumAutoUVCharts = 0;
-
-
-	// Bake Settings
-	/** Resolution for normal map and texture baking */
-	UPROPERTY(EditAnywhere, Category = Baking , meta = (DisplayName = "Bake Image Res"))
-	EGenerateStaticMeshLODBakeResolution BakeResolution = EGenerateStaticMeshLODBakeResolution::Resolution512;
-
-	/** How far away from the output mesh to search for input mesh during baking */
-	UPROPERTY(EditAnywhere, Category = Baking, meta = (UIMin = "0", UIMax = "100", ClampMin = "0", ClampMax = "1000", DisplayName = "Bake Thickness"))
-	float BakeThickness = 5.0f;
-
-	UPROPERTY(EditAnywhere, Category = Baking, meta = (DisplayName = "Combine Textures"))
-	bool bCombineTextures = true;
-
-
-	// Simple collision generator settings
 
 	// Transient property, not set directly by the user. The user controls a CollisionGroupLayerName dropdown property
 	// on the Tool and that value is copied here.
@@ -137,6 +254,7 @@ struct FGenerateStaticMeshLODProcessSettings
 	EGenerateStaticMeshLODSimpleCollisionGeometryType CollisionType = EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls;
 
 	// Convex Hull Settings
+
 	/** Target triangle count for each convex hull after simplification */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (NoSpinbox = "true", DisplayName = "Convex Tri Count",
 														  EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::ConvexHulls"))
@@ -152,6 +270,7 @@ struct FGenerateStaticMeshLODProcessSettings
 
 
 	// Swept Convex Hull Settings
+
 	/** Whether to simplify polygons used for swept convex hulls */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	bool bSimplifyPolygons = true;
@@ -164,8 +283,8 @@ struct FGenerateStaticMeshLODProcessSettings
 	/** Which axis to sweep along when computing swept convex hulls */
 	UPROPERTY(EditAnywhere, Category = Collision, meta = (EditCondition = "CollisionType == EGenerateStaticMeshLODSimpleCollisionGeometryType::SweptHulls"))
 	EGenerateStaticMeshLODProjectedHullAxisMode SweepAxis = EGenerateStaticMeshLODProjectedHullAxisMode::SmallestVolume;
-
 };
+
 
 
 UCLASS(Transient)
@@ -176,8 +295,24 @@ public:
 
 	bool Initialize(UStaticMesh* SourceMesh, FProgressCancel* Progress = nullptr);
 
+	const FGenerateStaticMeshLODProcess_PreprocessSettings& GetCurrentPreprocessSettings() const { return CurrentSettings_Preprocess; }
+	void UpdatePreprocessSettings(const FGenerateStaticMeshLODProcess_PreprocessSettings& NewSettings);
+
 	const FGenerateStaticMeshLODProcessSettings& GetCurrentSettings() const { return CurrentSettings; }
 	void UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewSettings);
+
+	const FGenerateStaticMeshLODProcess_SimplifySettings& GetCurrentSimplifySettings() const { return CurrentSettings_Simplify; }
+	void UpdateSimplifySettings(const FGenerateStaticMeshLODProcess_SimplifySettings& NewSettings);
+
+	const FGenerateStaticMeshLODProcess_TextureSettings& GetCurrentTextureSettings() const { return CurrentSettings_Texture; }
+	void UpdateTextureSettings(const FGenerateStaticMeshLODProcess_TextureSettings& NewSettings);
+
+	const FGenerateStaticMeshLODProcess_UVSettings& GetCurrentUVSettings() const { return CurrentSettings_UV; }
+	void UpdateUVSettings(const FGenerateStaticMeshLODProcess_UVSettings& NewSettings);
+
+	const FGenerateStaticMeshLODProcess_CollisionSettings& GetCurrentCollisionSettings() const { return CurrentSettings_Collision; }
+	void UpdateCollisionSettings(const FGenerateStaticMeshLODProcess_CollisionSettings& NewSettings);
+
 
 
 	UStaticMesh* GetSourceStaticMesh() const { return SourceStaticMesh; }
@@ -315,7 +450,13 @@ protected:
 	TUniquePtr<FGenerateMeshLODGraph> Generator;			// active LODGenerator Graph
 	bool InitializeGenerator();
 
+	FGenerateStaticMeshLODProcess_PreprocessSettings CurrentSettings_Preprocess;
 	FGenerateStaticMeshLODProcessSettings CurrentSettings;
+	FGenerateStaticMeshLODProcess_SimplifySettings CurrentSettings_Simplify;
+	FGenerateStaticMeshLODProcess_TextureSettings CurrentSettings_Texture;
+	FGenerateStaticMeshLODProcess_UVSettings CurrentSettings_UV;
+	FGenerateStaticMeshLODProcess_CollisionSettings CurrentSettings_Collision;
+	
 
 	bool WriteDerivedTexture(UTexture2D* SourceTexture, UTexture2D* DerivedTexture, bool bCreatingNewStaticMeshAsset);
 	bool WriteDerivedTexture(UTexture2D* DerivedTexture, FString BaseTexName, bool bCreatingNewStaticMeshAsset);

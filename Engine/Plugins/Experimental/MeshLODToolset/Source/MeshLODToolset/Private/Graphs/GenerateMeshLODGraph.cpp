@@ -320,13 +320,15 @@ void FGenerateMeshLODGraph::BuildGraph()
 	AutoUVSettingsNode = Graph->AddNodeOfType<FMeshAutoGenerateUVsSettingsSourceNode>(TEXT("AutoUVSettings"));
 	Graph->InferConnection(AutoUVSettingsNode, AutoUVNode);
 
-	RecomputeUVNode = Graph->AddNodeOfType<FMeshRecalculateUVsNode>(TEXT("RecalcUV"));
-	Graph->InferConnection(AutoUVNode, RecomputeUVNode);
-	RecomputeUVSettingsNode = Graph->AddNodeOfType<FMeshRecalculateUVsSettingsSourceNode>(TEXT("RecalcUVSettings"));
-	Graph->InferConnection(RecomputeUVSettingsNode, RecomputeUVNode);
+	// disable RecomputeUVNode for now
+	//RecomputeUVNode = Graph->AddNodeOfType<FMeshRecalculateUVsNode>(TEXT("RecalcUV"));
+	//Graph->InferConnection(AutoUVNode, RecomputeUVNode);
+	//RecomputeUVSettingsNode = Graph->AddNodeOfType<FMeshRecalculateUVsSettingsSourceNode>(TEXT("RecalcUVSettings"));
+	//Graph->InferConnection(RecomputeUVSettingsNode, RecomputeUVNode);
 
 	RepackUVNode = Graph->AddNodeOfType<FMeshRepackUVsNode>(TEXT("RepackUV"));
-	Graph->InferConnection(RecomputeUVNode, RepackUVNode);
+	//Graph->InferConnection(RecomputeUVNode, RepackUVNode);
+	Graph->InferConnection(AutoUVNode, RepackUVNode);
 	RepackUVSettingsNode = Graph->AddNodeOfType<FMeshRepackUVsSettingsSourceNode>(TEXT("RepackUVSettings"));
 	Graph->InferConnection(RepackUVSettingsNode, RepackUVNode);
 
@@ -404,16 +406,22 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdatePreFilterSettings(PreFilterSettings);
 
 	FMeshSolidifySettings SolidifySettings;
+	SolidifySettings.VoxelResolution = 128;
 	UpdateSolidifySettings(SolidifySettings);
 
 	FVoxClosureSettings MorphologySettings;
+	MorphologySettings.VoxelResolution = SolidifySettings.VoxelResolution;
 	MorphologySettings.Distance = 5.0;
 	UpdateMorphologySettings(MorphologySettings);
 
+	// TODO: can use simpler settings if there is only one material...
 	FMeshSimplifySettings SimplifySettings;
 	SimplifySettings.bDiscardAttributes = false;
 	SimplifySettings.SimplifyType = EMeshSimplifyType::AttributeAware;
-	SimplifySettings.TargetType = EMeshSimplifyTargetType::TriangleCount;
+	//SimplifySettings.TargetType = EMeshSimplifyTargetType::TriangleCount;
+	//SimplifySettings.TargetCount = 500;
+	SimplifySettings.TargetType = EMeshSimplifyTargetType::GeometricDeviation;
+	SimplifySettings.GeometricTolerance = 0.5;
 	SimplifySettings.TargetCount = 500;
 	SimplifySettings.MaterialBorderConstraints = EEdgeRefineFlags::NoFlip;
 	UpdateSimplifySettings(SimplifySettings);
@@ -424,12 +432,22 @@ void FGenerateMeshLODGraph::BuildGraph()
 	UpdateSettingsSourceNodeValue(*Graph, NormalsSettingsNode, NormalsSettings);
 
 	FMeshAutoGenerateUVsSettings AutoUVSettings;
-	AutoUVSettings.NumCharts = 20;
-	AutoUVSettings.Stretch = 0.1;
+	AutoUVSettings.Method = EAutoUVMethod::PatchBuilder;
+	AutoUVSettings.UVAtlasNumCharts = 20;
+	AutoUVSettings.UVAtlasStretch = 0.1;
+	AutoUVSettings.XAtlasMaxIterations = 1;
+	AutoUVSettings.NumInitialPatches = 100;
+	AutoUVSettings.CurvatureAlignment = 1.0;
+	AutoUVSettings.MergingThreshold = 1.5;
+	AutoUVSettings.MaxAngleDeviationDeg = 45.0;
+	AutoUVSettings.SmoothingSteps = 5;
+	AutoUVSettings.SmoothingAlpha = 0.25;
+	AutoUVSettings.bAutoPack = false;
+	AutoUVSettings.PackingTargetWidth = 512;
 	UpdateAutoUVSettings(AutoUVSettings);
 
-	FMeshRecalculateUVsSettings RecomputeUVSettings;
-	UpdateSettingsSourceNodeValue(*Graph, RecomputeUVSettingsNode, RecomputeUVSettings);
+	//FMeshRecalculateUVsSettings RecomputeUVSettings;
+	//UpdateSettingsSourceNodeValue(*Graph, RecomputeUVSettingsNode, RecomputeUVSettings);
 
 	FMeshRepackUVsSettings RepackUVSettings;
 	UpdateSettingsSourceNodeValue(*Graph, RepackUVSettingsNode, RepackUVSettings);

@@ -70,7 +70,12 @@ namespace GenerateStaticMeshLODAssetLocals
 
 		// Inputs
 		UGenerateStaticMeshLODProcess* GenerateProcess;
-		FGenerateStaticMeshLODProcessSettings GeneratorSettings;
+		FGenerateStaticMeshLODProcess_PreprocessSettings GeneratorSettings_Preprocess;
+		FGenerateStaticMeshLODProcessSettings GeneratorSettings_MeshGeneration;
+		FGenerateStaticMeshLODProcess_SimplifySettings GeneratorSettings_Simplify;
+		FGenerateStaticMeshLODProcess_TextureSettings GeneratorSettings_Texture;
+		FGenerateStaticMeshLODProcess_UVSettings GeneratorSettings_UV;
+		FGenerateStaticMeshLODProcess_CollisionSettings GeneratorSettings_Collision;
 		
 		// Outputs
 		// Inherited: 	TUniquePtr<FDynamicMesh3> ResultMesh;
@@ -92,7 +97,12 @@ namespace GenerateStaticMeshLODAssetLocals
 					return;
 				}
 
-				GenerateProcess->UpdateSettings(GeneratorSettings);
+				GenerateProcess->UpdatePreprocessSettings(GeneratorSettings_Preprocess);
+				GenerateProcess->UpdateSettings(GeneratorSettings_MeshGeneration);
+				GenerateProcess->UpdateSimplifySettings(GeneratorSettings_Simplify);
+				GenerateProcess->UpdateTextureSettings(GeneratorSettings_Texture);
+				GenerateProcess->UpdateUVSettings(GeneratorSettings_UV);
+				GenerateProcess->UpdateCollisionSettings(GeneratorSettings_Collision);
 
 				if (Progress && Progress->Cancelled())
 				{
@@ -139,8 +149,13 @@ namespace GenerateStaticMeshLODAssetLocals
 			check(AutoLODTool);
 			TUniquePtr<FGenerateStaticMeshLODAssetOperatorOp> Op = MakeUnique<FGenerateStaticMeshLODAssetOperatorOp>();		
 			Op->GenerateProcess = AutoLODTool->GenerateProcess;
-			Op->GeneratorSettings = AutoLODTool->BasicProperties->GeneratorSettings;
-			Op->GeneratorSettings.CollisionGroupLayerName = AutoLODTool->BasicProperties->CollisionGroupLayerName;
+			Op->GeneratorSettings_Preprocess = AutoLODTool->BasicProperties->Preprocessing;
+			Op->GeneratorSettings_MeshGeneration = AutoLODTool->BasicProperties->MeshGeneration;
+			Op->GeneratorSettings_Simplify = AutoLODTool->BasicProperties->Simplification;
+			Op->GeneratorSettings_Texture = AutoLODTool->BasicProperties->TextureBaking;
+			Op->GeneratorSettings_UV = AutoLODTool->BasicProperties->UVGeneration;
+			Op->GeneratorSettings_Collision.CollisionGroupLayerName = AutoLODTool->BasicProperties->CollisionGroupLayerName;
+			Op->GeneratorSettings_Collision = AutoLODTool->BasicProperties->SimpleCollision;
 			Op->SetResultTransform(ResultTransform);
 			return Op;
 		}
@@ -237,36 +252,28 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 			EToolMessageLevel::UserError);
 	}
 
-	
+	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(StaticMesh);
+	OutputProperties = NewObject<UGenerateStaticMeshLODAssetToolOutputProperties>(this);
+	AddToolPropertySource(OutputProperties);
+	OutputProperties->NewAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
+	OutputProperties->GeneratedSuffix = TEXT("_AutoLOD");
+	OutputProperties->RestoreProperties(this);
 
 	SlowTask.EnterProgressFrame(1);
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
+	BasicProperties->Preprocessing = GenerateProcess->GetCurrentPreprocessSettings();
+	BasicProperties->MeshGeneration = GenerateProcess->GetCurrentSettings();
+	BasicProperties->Simplification = GenerateProcess->GetCurrentSimplifySettings();
+	BasicProperties->TextureBaking = GenerateProcess->GetCurrentTextureSettings();
+	BasicProperties->UVGeneration = GenerateProcess->GetCurrentUVSettings();
+	BasicProperties->SimpleCollision = GenerateProcess->GetCurrentCollisionSettings();
+	// if we defer restore to here, then on first run we get the defaults, but afterwards we get the restored values
 	BasicProperties->RestoreProperties(this);
-	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(StaticMesh);
-	BasicProperties->NewAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
-	BasicProperties->GeneratedSuffix = TEXT("_AutoLOD");
-	BasicProperties->GeneratorSettings = GenerateProcess->GetCurrentSettings();
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.FilterGroupLayer, [this](FName) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ThickenWeightMapName, [this](FName) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ThickenAmount, [this](float) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SolidifyVoxelResolution, [this](int) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.WindingThreshold, [this](float) { OnSettingsModified(); });
-	//BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.MorphologyVoxelResolution, [this](int) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ClosureDistance, [this](float) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SimplifyTriangleCount, [this](int) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.NumAutoUVCharts, [this](int) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.BakeResolution, [this](EGenerateStaticMeshLODBakeResolution) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.BakeThickness, [this](float) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.bCombineTextures, [this](bool) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.CollisionType, [this](EGenerateStaticMeshLODSimpleCollisionGeometryType) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.ConvexTriangleCount, [this](int) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.bPrefilterVertices, [this](bool) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.PrefilterGridResolution, [this](float) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.bSimplifyPolygons, [this](bool) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.HullTolerance, [this](float) { OnSettingsModified(); });
-	BasicProperties->WatchProperty(BasicProperties->GeneratorSettings.SweepAxis, [this](EGenerateStaticMeshLODProjectedHullAxisMode) { OnSettingsModified(); });
-	
+
+	// assume this is an Editor-only Tool, so we can rely on this
+	BasicProperties->GetOnModified().AddLambda([this](UObject*, FProperty*) { OnSettingsModified(); });
+
 	// Collision layer name property
 	BasicProperties->WatchProperty(BasicProperties->CollisionGroupLayerName, [this](FName) { OnSettingsModified(); });
 	BasicProperties->InitializeGroupLayers(&(GenerateProcess->GetSourceMesh()));
@@ -353,6 +360,7 @@ void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	OutputProperties->SaveProperties(this);
 	BasicProperties->SaveProperties(this);
 	CollisionVizSettings->SaveProperties(this);
 
@@ -361,7 +369,7 @@ void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
-		if (BasicProperties->OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset)
+		if (OutputProperties->OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset)
 		{
 			UpdateExistingAsset();
 		}
@@ -415,7 +423,7 @@ void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
 void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(BasicProperties->NewAssetName, BasicProperties->GeneratedSuffix);
+	GenerateProcess->CalculateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 	GenerateProcess->WriteDerivedAssetData();
@@ -427,13 +435,13 @@ void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(BasicProperties->NewAssetName, BasicProperties->GeneratedSuffix);
+	GenerateProcess->CalculateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 
 	// only updated HD source if we have no HD source asset. Otherwise we are overwriting with existing lowpoly LOD0.
 	bool bUpdateHDSource =
-		BasicProperties->bSaveInputAsHiResSource &&
+		OutputProperties->bSaveInputAsHiResSource &&
 		(GenerateProcess->GetSourceStaticMesh()->IsHiResMeshDescriptionValid() == false);
 
 	GenerateProcess->UpdateSourceAsset(bUpdateHDSource);

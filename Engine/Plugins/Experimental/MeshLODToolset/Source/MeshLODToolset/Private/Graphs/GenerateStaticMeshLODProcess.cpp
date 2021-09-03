@@ -553,7 +553,7 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 
 	// read back default settings
 
-	CurrentSettings.FilterGroupLayer = Generator->GetCurrentPreFilterSettings().FilterGroupLayerName;
+	CurrentSettings_Preprocess.FilterGroupLayer = Generator->GetCurrentPreFilterSettings().FilterGroupLayerName;
 
 	CurrentSettings.SolidifyVoxelResolution = Generator->GetCurrentSolidifySettings().VoxelResolution;
 	CurrentSettings.WindingThreshold = Generator->GetCurrentSolidifySettings().WindingThreshold;
@@ -561,22 +561,32 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 	//CurrentSettings.MorphologyVoxelResolution = Generator->GetCurrentMorphologySettings().VoxelResolution;
 	CurrentSettings.ClosureDistance = Generator->GetCurrentMorphologySettings().Distance;
 
-	CurrentSettings.SimplifyTriangleCount = Generator->GetCurrentSimplifySettings().TargetCount;
+	CurrentSettings_Simplify.Method = static_cast<EGenerateStaticMeshLODProcess_SimplifyMethod>(Generator->GetCurrentSimplifySettings().TargetType);
+	CurrentSettings_Simplify.TargetCount = Generator->GetCurrentSimplifySettings().TargetCount;
+	CurrentSettings_Simplify.TargetPercentage = Generator->GetCurrentSimplifySettings().TargetFraction * 100.0f;
+	CurrentSettings_Simplify.Tolerance = Generator->GetCurrentSimplifySettings().GeometricTolerance;
 
-	CurrentSettings.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
-	CurrentSettings.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
+	CurrentSettings_Texture.BakeResolution = (EGenerateStaticMeshLODBakeResolution)Generator->GetCurrentBakeCacheSettings().Dimensions.GetWidth();
+	CurrentSettings_Texture.BakeThickness = Generator->GetCurrentBakeCacheSettings().Thickness;
 
-	
+	CurrentSettings_UV.UVMethod = static_cast<EGenerateStaticMeshLODProcess_AutoUVMethod>(Generator->GetCurrentAutoUVSettings().Method);
+	CurrentSettings_UV.NumUVAtlasCharts = Generator->GetCurrentAutoUVSettings().UVAtlasNumCharts;
+	CurrentSettings_UV.NumInitialPatches = Generator->GetCurrentAutoUVSettings().NumInitialPatches;
+	CurrentSettings_UV.MergingThreshold = Generator->GetCurrentAutoUVSettings().MergingThreshold;
+	CurrentSettings_UV.MaxAngleDeviation = Generator->GetCurrentAutoUVSettings().MaxAngleDeviationDeg;
+	CurrentSettings_UV.PatchBuilder.CurvatureAlignment = Generator->GetCurrentAutoUVSettings().CurvatureAlignment;
+	CurrentSettings_UV.PatchBuilder.SmoothingSteps = Generator->GetCurrentAutoUVSettings().SmoothingSteps;
+	CurrentSettings_UV.PatchBuilder.SmoothingAlpha = Generator->GetCurrentAutoUVSettings().SmoothingAlpha;
+
 	const UE::GeometryFlow::FGenerateSimpleCollisionSettings& SimpleCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
-	CurrentSettings.CollisionType = static_cast<EGenerateStaticMeshLODSimpleCollisionGeometryType>(SimpleCollisionSettings.Type);
-	CurrentSettings.ConvexTriangleCount = SimpleCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount;
-	CurrentSettings.bPrefilterVertices = SimpleCollisionSettings.ConvexHullSettings.bPrefilterVertices;
-	CurrentSettings.PrefilterGridResolution = SimpleCollisionSettings.ConvexHullSettings.PrefilterGridResolution;
-	CurrentSettings.bSimplifyPolygons = SimpleCollisionSettings.SweptHullSettings.bSimplifyPolygons;
-	CurrentSettings.HullTolerance = SimpleCollisionSettings.SweptHullSettings.HullTolerance;
-
+	CurrentSettings_Collision.CollisionType = static_cast<EGenerateStaticMeshLODSimpleCollisionGeometryType>(SimpleCollisionSettings.Type);
+	CurrentSettings_Collision.ConvexTriangleCount = SimpleCollisionSettings.ConvexHullSettings.SimplifyToTriangleCount;
+	CurrentSettings_Collision.bPrefilterVertices = SimpleCollisionSettings.ConvexHullSettings.bPrefilterVertices;
+	CurrentSettings_Collision.PrefilterGridResolution = SimpleCollisionSettings.ConvexHullSettings.PrefilterGridResolution;
+	CurrentSettings_Collision.bSimplifyPolygons = SimpleCollisionSettings.SweptHullSettings.bSimplifyPolygons;
+	CurrentSettings_Collision.HullTolerance = SimpleCollisionSettings.SweptHullSettings.HullTolerance;
 	FMeshSimpleShapeApproximation::EProjectedHullAxisMode RHSMode = SimpleCollisionSettings.SweptHullSettings.SweepAxis;
-	CurrentSettings.SweepAxis = static_cast<EGenerateStaticMeshLODProjectedHullAxisMode>(RHSMode);
+	CurrentSettings_Collision.SweepAxis = static_cast<EGenerateStaticMeshLODProjectedHullAxisMode>(RHSMode);
 
 
 	return true;
@@ -585,39 +595,6 @@ bool UGenerateStaticMeshLODProcess::InitializeGenerator()
 
 void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODProcessSettings& NewCombinedSettings)
 {
-
-	if (NewCombinedSettings.FilterGroupLayer != CurrentSettings.FilterGroupLayer)
-	{
-		FMeshLODGraphPreFilterSettings NewPreFilterSettings = Generator->GetCurrentPreFilterSettings();
-		NewPreFilterSettings.FilterGroupLayerName = NewCombinedSettings.FilterGroupLayer;
-		Generator->UpdatePreFilterSettings(NewPreFilterSettings);
-	}
-
-	if (NewCombinedSettings.ThickenAmount != CurrentSettings.ThickenAmount)
-	{
-		UE::GeometryFlow::FMeshThickenSettings NewThickenSettings = Generator->GetCurrentThickenSettings();
-		NewThickenSettings.ThickenAmount = NewCombinedSettings.ThickenAmount;
-		Generator->UpdateThickenSettings(NewThickenSettings);
-	}
-
-	if (NewCombinedSettings.ThickenWeightMapName != CurrentSettings.ThickenWeightMapName)
-	{
-		FIndexedWeightMap1f WeightMap;
-		float DefaultValue = 0.0f;
-		bool bOK = UE::WeightMaps::GetVertexWeightMap(SourceMeshDescription.Get(), NewCombinedSettings.ThickenWeightMapName, WeightMap, DefaultValue);
-
-		if (bOK)
-		{
-			Generator->UpdateThickenWeightMap(WeightMap.Values);
-		}
-		else
-		{
-			Generator->UpdateThickenWeightMap(TArray<float>());
-		}
-	}
-
-	
-
 	bool bSharedVoxelResolutionChanged = (NewCombinedSettings.SolidifyVoxelResolution != CurrentSettings.SolidifyVoxelResolution);
 	if ( bSharedVoxelResolutionChanged
 		|| (NewCombinedSettings.WindingThreshold != CurrentSettings.WindingThreshold))
@@ -638,25 +615,73 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateMorphologySettings(NewClosureSettings);
 	}
 
+	CurrentSettings = NewCombinedSettings;
+}
 
-	if (NewCombinedSettings.SimplifyTriangleCount != CurrentSettings.SimplifyTriangleCount)
+
+
+void UGenerateStaticMeshLODProcess::UpdatePreprocessSettings(const FGenerateStaticMeshLODProcess_PreprocessSettings& NewCombinedSettings)
+{
+	if (NewCombinedSettings.FilterGroupLayer != CurrentSettings_Preprocess.FilterGroupLayer)
+	{
+		FMeshLODGraphPreFilterSettings NewPreFilterSettings = Generator->GetCurrentPreFilterSettings();
+		NewPreFilterSettings.FilterGroupLayerName = NewCombinedSettings.FilterGroupLayer;
+		Generator->UpdatePreFilterSettings(NewPreFilterSettings);
+	}
+
+	if (NewCombinedSettings.ThickenAmount != CurrentSettings_Preprocess.ThickenAmount)
+	{
+		UE::GeometryFlow::FMeshThickenSettings NewThickenSettings = Generator->GetCurrentThickenSettings();
+		NewThickenSettings.ThickenAmount = NewCombinedSettings.ThickenAmount;
+		Generator->UpdateThickenSettings(NewThickenSettings);
+	}
+
+	if (NewCombinedSettings.ThickenWeightMapName != CurrentSettings_Preprocess.ThickenWeightMapName)
+	{
+		FIndexedWeightMap1f WeightMap;
+		float DefaultValue = 0.0f;
+		bool bOK = UE::WeightMaps::GetVertexWeightMap(SourceMeshDescription.Get(), NewCombinedSettings.ThickenWeightMapName, WeightMap, DefaultValue);
+
+		if (bOK)
+		{
+			Generator->UpdateThickenWeightMap(WeightMap.Values);
+		}
+		else
+		{
+			Generator->UpdateThickenWeightMap(TArray<float>());
+		}
+	}
+
+	CurrentSettings_Preprocess = NewCombinedSettings;
+}
+
+
+
+void UGenerateStaticMeshLODProcess::UpdateSimplifySettings(const FGenerateStaticMeshLODProcess_SimplifySettings& NewCombinedSettings)
+{
+	if (NewCombinedSettings.Method != CurrentSettings_Simplify.Method || 
+		NewCombinedSettings.TargetCount != CurrentSettings_Simplify.TargetCount ||
+		NewCombinedSettings.TargetPercentage != CurrentSettings_Simplify.TargetPercentage ||
+		NewCombinedSettings.Tolerance != CurrentSettings_Simplify.Tolerance )
 	{
 		UE::GeometryFlow::FMeshSimplifySettings NewSimplifySettings = Generator->GetCurrentSimplifySettings();
-		NewSimplifySettings.TargetCount = NewCombinedSettings.SimplifyTriangleCount;
+		NewSimplifySettings.TargetType = static_cast<UE::GeometryFlow::EMeshSimplifyTargetType>(NewCombinedSettings.Method);
+		NewSimplifySettings.TargetCount = NewCombinedSettings.TargetCount;
+		NewSimplifySettings.TargetFraction = NewCombinedSettings.TargetPercentage / 100.0f;
+		NewSimplifySettings.GeometricTolerance = NewCombinedSettings.Tolerance;
 		Generator->UpdateSimplifySettings(NewSimplifySettings);
 	}
 
-	if (NewCombinedSettings.NumAutoUVCharts != CurrentSettings.NumAutoUVCharts)
-	{
-		UE::GeometryFlow::FMeshAutoGenerateUVsSettings NewAutoUVSettings = Generator->GetCurrentAutoUVSettings();
-		NewAutoUVSettings.NumCharts = NewCombinedSettings.NumAutoUVCharts;
-		Generator->UpdateAutoUVSettings(NewAutoUVSettings);
-	}
+	CurrentSettings_Simplify = NewCombinedSettings;
+}
 
 
-	if ( (NewCombinedSettings.BakeResolution != CurrentSettings.BakeResolution) ||
-		 (NewCombinedSettings.BakeThickness != CurrentSettings.BakeThickness) || 
-		 (NewCombinedSettings.bCombineTextures != CurrentSettings.bCombineTextures))
+
+void UGenerateStaticMeshLODProcess::UpdateTextureSettings(const FGenerateStaticMeshLODProcess_TextureSettings& NewCombinedSettings)
+{
+	if ( (NewCombinedSettings.BakeResolution != CurrentSettings_Texture.BakeResolution) ||
+		 (NewCombinedSettings.BakeThickness != CurrentSettings_Texture.BakeThickness) || 
+		 (NewCombinedSettings.bCombineTextures != CurrentSettings_Texture.bCombineTextures))
 	{
 		UE::GeometryFlow::FMeshMakeBakingCacheSettings NewBakeSettings = Generator->GetCurrentBakeCacheSettings();
 		NewBakeSettings.Dimensions = FImageDimensions((int32)NewCombinedSettings.BakeResolution, (int32)NewCombinedSettings.BakeResolution);
@@ -664,18 +689,59 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateBakeCacheSettings(NewBakeSettings);
 	}
 
-	if (NewCombinedSettings.CollisionGroupLayerName != CurrentSettings.CollisionGroupLayerName)
+	CurrentSettings_Texture = NewCombinedSettings;
+}
+
+
+
+
+void UGenerateStaticMeshLODProcess::UpdateUVSettings(const FGenerateStaticMeshLODProcess_UVSettings& NewCombinedSettings)
+{
+	if (NewCombinedSettings.UVMethod != CurrentSettings_UV.UVMethod
+		|| NewCombinedSettings.NumUVAtlasCharts != CurrentSettings_UV.NumUVAtlasCharts
+		|| NewCombinedSettings.NumInitialPatches != CurrentSettings_UV.NumInitialPatches
+		|| NewCombinedSettings.MergingThreshold != CurrentSettings_UV.MergingThreshold
+		|| NewCombinedSettings.MaxAngleDeviation != CurrentSettings_UV.MaxAngleDeviation
+		|| NewCombinedSettings.PatchBuilder.CurvatureAlignment != CurrentSettings_UV.PatchBuilder.CurvatureAlignment
+		|| NewCombinedSettings.PatchBuilder.SmoothingSteps != CurrentSettings_UV.PatchBuilder.SmoothingSteps
+		|| NewCombinedSettings.PatchBuilder.SmoothingAlpha != CurrentSettings_UV.PatchBuilder.SmoothingAlpha  ) 
+	{
+		UE::GeometryFlow::FMeshAutoGenerateUVsSettings NewAutoUVSettings = Generator->GetCurrentAutoUVSettings();
+		NewAutoUVSettings.Method = (EAutoUVMethod)(int)NewCombinedSettings.UVMethod;
+		//NewAutoUVSettings.UVAtlasStretch = 0.5;
+		NewAutoUVSettings.UVAtlasNumCharts = NewCombinedSettings.NumUVAtlasCharts;
+		//NewAutoUVSettings.XAtlasMaxIterations = 1;
+		NewAutoUVSettings.NumInitialPatches = NewCombinedSettings.NumInitialPatches;
+		NewAutoUVSettings.CurvatureAlignment = NewCombinedSettings.PatchBuilder.CurvatureAlignment;
+		NewAutoUVSettings.MergingThreshold = NewCombinedSettings.MergingThreshold;
+		NewAutoUVSettings.MaxAngleDeviationDeg = NewCombinedSettings.MaxAngleDeviation;
+		NewAutoUVSettings.SmoothingSteps = NewCombinedSettings.PatchBuilder.SmoothingSteps;
+		NewAutoUVSettings.SmoothingAlpha = NewCombinedSettings.PatchBuilder.SmoothingAlpha;
+		//NewAutoUVSettings.bAutoPack = false;
+		//NewAutoUVSettings.PackingTargetWidth = 512;
+		Generator->UpdateAutoUVSettings(NewAutoUVSettings);
+	}
+
+	CurrentSettings_UV = NewCombinedSettings;
+}
+
+
+
+
+void UGenerateStaticMeshLODProcess::UpdateCollisionSettings(const FGenerateStaticMeshLODProcess_CollisionSettings& NewCombinedSettings)
+{
+	if (NewCombinedSettings.CollisionGroupLayerName != CurrentSettings_Collision.CollisionGroupLayerName)
 	{
 		Generator->UpdateCollisionGroupLayerName(NewCombinedSettings.CollisionGroupLayerName);
 	}
 
-	if (NewCombinedSettings.ConvexTriangleCount != CurrentSettings.ConvexTriangleCount ||
-		NewCombinedSettings.bPrefilterVertices != CurrentSettings.bPrefilterVertices ||
-		NewCombinedSettings.PrefilterGridResolution != CurrentSettings.PrefilterGridResolution ||
-		NewCombinedSettings.bSimplifyPolygons != CurrentSettings.bSimplifyPolygons ||
-		NewCombinedSettings.HullTolerance != CurrentSettings.HullTolerance ||
-		NewCombinedSettings.SweepAxis != CurrentSettings.SweepAxis ||
-		NewCombinedSettings.CollisionType != CurrentSettings.CollisionType)
+	if (NewCombinedSettings.ConvexTriangleCount != CurrentSettings_Collision.ConvexTriangleCount ||
+		NewCombinedSettings.bPrefilterVertices != CurrentSettings_Collision.bPrefilterVertices ||
+		NewCombinedSettings.PrefilterGridResolution != CurrentSettings_Collision.PrefilterGridResolution ||
+		NewCombinedSettings.bSimplifyPolygons != CurrentSettings_Collision.bSimplifyPolygons ||
+		NewCombinedSettings.HullTolerance != CurrentSettings_Collision.HullTolerance ||
+		NewCombinedSettings.SweepAxis != CurrentSettings_Collision.SweepAxis ||
+		NewCombinedSettings.CollisionType != CurrentSettings_Collision.CollisionType)
 	{
 		UE::GeometryFlow::FGenerateSimpleCollisionSettings NewGenCollisionSettings = Generator->GetCurrentGenerateSimpleCollisionSettings();
 		NewGenCollisionSettings.Type = static_cast<UE::GeometryFlow::ESimpleCollisionGeometryType>(NewCombinedSettings.CollisionType);
@@ -688,9 +754,8 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 		Generator->UpdateGenerateSimpleCollisionSettings(NewGenCollisionSettings);
 	}
 
-	CurrentSettings = NewCombinedSettings;
+	CurrentSettings_Collision = NewCombinedSettings;
 }
-
 
 
 
@@ -782,7 +847,7 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 		{
 			const FTextureInfo& SourceTex = SourceMaterialInfo.SourceTextures[ti];
 
-			if (CurrentSettings.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
+			if (CurrentSettings_Texture.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
 			{
 				continue;
 			}
@@ -815,7 +880,7 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 	MaterialSetOut.Textures.Add(PreviewNormalMapTex);
 
 	// create multi-texture bake result
-	if (CurrentSettings.bCombineTextures)
+	if (CurrentSettings_Texture.bCombineTextures)
 	{
 		bool bConvertToSRGB = true;
 
@@ -848,7 +913,7 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 			// rewrite texture parameters to new textures
 			UpdateMaterialTextureParameters(GeneratedMID, SourceMaterialInfo, SourceToPreviewTexMap, PreviewNormalMapTex);
 
-			if (CurrentSettings.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+			if (CurrentSettings_Texture.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
 			{
 				FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
 				GeneratedMID->SetTextureParameterValueByInfo(ParamInfo, DerivedMultiTextureBakeResult);
@@ -884,7 +949,7 @@ void UGenerateStaticMeshLODProcess::UpdateMaterialTextureParameters(
 		}
 		else if (SourceTex.bShouldBakeTexture)
 		{
-			if (CurrentSettings.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
+			if (CurrentSettings_Texture.bCombineTextures && SourceTex.bIsUsedInMultiTextureBaking)
 			{
 				continue;
 			}
@@ -1064,7 +1129,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 
 
 	// write multi-texture bake result
-	if (CurrentSettings.bCombineTextures)
+	if (CurrentSettings_Texture.bCombineTextures)
 	{
 		bool bConvertToSRGB = true;
 		
@@ -1238,7 +1303,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedMaterials(bool bCreatingNewStati
 		DerivedMaterialInfo.DerivedMaterial.MaterialSlotName = FName(FString::Printf(TEXT("GeneratedMat%d"), mi));
 		DerivedMaterialInfo.DerivedMaterial.ImportedMaterialSlotName = DerivedMaterialInfo.DerivedMaterial.MaterialSlotName;
 
-		if (CurrentSettings.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
+		if (CurrentSettings_Texture.bCombineTextures && DerivedMultiTextureBakeResult && MultiTextureParameterName.Contains(mi))
 		{
 			FMaterialParameterInfo ParamInfo(MultiTextureParameterName[mi]);
 			GeneratedMIC->SetTextureParameterValueEditorOnly(ParamInfo, DerivedMultiTextureBakeResult);
