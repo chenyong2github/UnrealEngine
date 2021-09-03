@@ -412,6 +412,7 @@ FInstanceSceneData GetInstanceSceneData(uint InstanceId, uint SOAStride)
 	//
 
 	// Only process valid instances
+	// Note: keep primitive ID packing in sync with GPUSceneWriter.ush
 	const uint FlagsAndPrimitiveId	= asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).x);
 	InstanceData.PrimitiveId		= BitFieldExtractU32(FlagsAndPrimitiveId,  20, 0);  // Max of 1,048,576 primitives
 	InstanceData.Flags				= BitFieldExtractU32(FlagsAndPrimitiveId,  12, 20); // Max of 12 instance flags

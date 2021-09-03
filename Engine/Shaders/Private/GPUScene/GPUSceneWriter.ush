@@ -31,7 +31,9 @@ void StoreInstanceSceneDataElement(uint InstanceId, uint ElementIndex, float4 Da
 void WriteInstancePrimitiveId(uint InstanceId, uint NewPrimitiveId)
 {
 	float4 DataElement = LoadInstanceSceneDataElement(0 * GPUSceneInstanceSceneDataSOAStride + InstanceId);
-	DataElement.y = asfloat(NewPrimitiveId);
+	const uint InstanceFlags = BitFieldExtractU32(asuint(DataElement.x),  12, 20); // Max of 12 instance flags
+	const uint Packed0 = (InstanceFlags << 20u) | NewPrimitiveId;
+	DataElement.x = asfloat(Packed0);
 	checkSlow(InstanceId < GPUSceneNumAllocatedInstances);
 	StoreInstanceSceneDataElement(InstanceId, 0, DataElement);
 }
