@@ -9,6 +9,10 @@ public class ModelProtoConverter : ModuleRules
 	{
 		// Define when ModelProtoConverter is available
 		bool bIsModelProtoConverterSupported = (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux || Target.Platform == UnrealTargetPlatform.Mac);
+		// if (bIsModelProtoConverterSupported)
+		// {
+		// 	PublicDefinitions.Add("WITH_MODEL_PROTO_CONVERTER_SUPPORT");
+		// }
 
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
@@ -31,6 +35,7 @@ public class ModelProtoConverter : ModuleRules
 		PrivateDependencyModuleNames.AddRange
 			(
 			new string[] {
+				// "ONNXRuntimeProto",
 				"ThirdPartyHelperAndDLLLoader"
 			}
 		);

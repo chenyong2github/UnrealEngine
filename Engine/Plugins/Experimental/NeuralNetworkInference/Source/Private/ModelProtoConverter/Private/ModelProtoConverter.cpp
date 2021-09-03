@@ -498,7 +498,7 @@ bool FModelProtoConverter::ConvertFromONNXProto3Ifstream(FModelProto& OutModelPr
 		ModelProto.ParseFromIstream(&InIfstream);
 		return FPrivateModelProtoConverter::ConvertProto3ToUAsset(OutModelProto, ModelProto);
 	#else //WITH_PROTOBUF
-		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): WITH_PROTOBUF was not defined."));
+		UE_LOG(LogModelProtoConverter, Warning, TEXT("FModelProtoConverter::ConvertFromONNXProto3Ifstream(): Platform not compatible (WITH_PROTOBUF was not defined)."));
 		return false;
 	#endif //WITH_PROTOBUF
 #else //WITH_EDITOR
