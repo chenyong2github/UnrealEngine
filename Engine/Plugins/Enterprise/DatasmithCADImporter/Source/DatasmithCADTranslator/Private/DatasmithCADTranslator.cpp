@@ -9,6 +9,7 @@
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
+#include "DatasmithTranslator.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 
@@ -69,6 +70,16 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("dgn"), TEXT("MicroStation files") });
 
 	OutCapabilities.SupportedFileFormats.Add(FFileFormatInfo{ TEXT("ct"), TEXT("Kernel_IO files") });
+}
+
+bool FDatasmithCADTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
+{
+	if (Source.GetSourceFileExtension() != TEXT("xml"))
+	{
+		return true;
+	}
+
+	return Datasmith::CheckXMLFileSchema(Source.GetSourceFile(), TEXT("XPDMXML"), TEXT("ns3:Uos"));
 }
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)

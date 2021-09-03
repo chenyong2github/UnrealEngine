@@ -20,6 +20,7 @@ public:
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };
 
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
+	virtual bool IsSourceSupported(const FDatasmithSceneSource& Source) override;
 
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
 
