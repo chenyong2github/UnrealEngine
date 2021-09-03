@@ -3,12 +3,20 @@
 #pragma once
 
 #include "DatasmithUtils.h"
+#include "HAL/IConsoleManager.h"
 #include "Math/Vector.h"
 #include "Misc/Paths.h"
 #include "Templates/TypeHash.h"
 
 namespace CADLibrary
 {
+	CADTOOLS_API extern bool bGDisableCADKernelTessellation;
+	CADTOOLS_API extern bool bGEnableCADCache;
+	CADTOOLS_API extern bool bGEnableTimeControl;
+	CADTOOLS_API extern bool bGOverwriteCache;
+	CADTOOLS_API extern int32 GMaxImportThreads;
+	CADTOOLS_API extern FString GCADLibrary;
+
 	enum EStitchingTechnique
 	{
 		StitchingNone = 0,
@@ -43,8 +51,9 @@ namespace CADLibrary
 		EDisplayDataPropagationMode Propagation = EDisplayDataPropagationMode::TopDown;
 		EDisplayPreference DisplayPreference = EDisplayPreference::MaterialPrefered;
 		bool bScaleUVMap = true;
-		bool bEnableCacheUsage = true;
-		bool bEnableKernelIOTessellation = true;
+		bool bEnableSequentialImport = true;
+		bool bOverwriteCache = false;
+		bool bDisableCADKernelTessellation = false;
 		bool bEnableTimeControl = true;
 
 		void SetMetricUnit(double NewMetricUnit)
@@ -80,15 +89,16 @@ namespace CADLibrary
 			Ar << (uint8&) ImportParameters.Propagation;
 			Ar << (uint8&) ImportParameters.DisplayPreference;
 			Ar << ImportParameters.bScaleUVMap;
-			Ar << ImportParameters.bEnableCacheUsage;
-			Ar << ImportParameters.bEnableKernelIOTessellation;
+			Ar << ImportParameters.bEnableSequentialImport;
+			Ar << ImportParameters.bOverwriteCache;
+			Ar << ImportParameters.bDisableCADKernelTessellation;
 			return Ar;
 		}
 
 		FString DefineCADFilePath(const TCHAR* FolderPath, const TCHAR* InFileName) const
 		{
 			FString OutFileName = FPaths::Combine(FolderPath, InFileName);
-			if (bEnableKernelIOTessellation)
+			if (bDisableCADKernelTessellation)
 			{
 				OutFileName += TEXT(".ct");
 			}

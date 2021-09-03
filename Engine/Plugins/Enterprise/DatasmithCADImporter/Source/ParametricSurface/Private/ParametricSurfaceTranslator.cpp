@@ -7,7 +7,7 @@
 void FParametricSurfaceTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
 {
 	FString Extension = GetSource().GetSourceFileExtension();
-	if (Extension == "cgr" || Extension == "3dxml")
+	if (Extension == TEXT("cgr") || Extension == TEXT("3dxml"))
 	{
 		return;
 	}

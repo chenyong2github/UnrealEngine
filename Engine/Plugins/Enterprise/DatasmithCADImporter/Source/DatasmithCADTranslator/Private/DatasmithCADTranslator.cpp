@@ -12,18 +12,6 @@
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
 
-static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
-	TEXT("ds.CADTranslator.EnableThreadedImport"),
-	1,
-	TEXT("Activate to parallelise CAD file processing.\n"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
-	TEXT("ds.CADTranslator.EnableKernelIOTessellation"),
-	1,
-	TEXT("Activate to use KernelIO Tessellation.\n"),
-	ECVF_Default);
-
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
@@ -85,7 +73,7 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
-	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
+	ImportParameters.bDisableCADKernelTessellation = CADLibrary::bGDisableCADKernelTessellation;
 
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
@@ -130,26 +118,41 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
 	}
 
-	ImportParameters.bEnableCacheUsage = false;
+	ImportParameters.bEnableTimeControl = CADLibrary::bGEnableTimeControl;
+	if (CADLibrary::GMaxImportThreads == 1)
+	{
+		ImportParameters.bEnableSequentialImport = CADLibrary::bGEnableCADCache;
+	}
+	else
+	{
+		ImportParameters.bEnableSequentialImport = true;
+	}
+
 	FString CachePath = FDatasmithCADTranslatorModule::Get().GetCacheDir();
 	if (!CachePath.IsEmpty())
 	{
 		CachePath = FPaths::ConvertRelativePathToFull(CachePath);
-		ImportParameters.bEnableCacheUsage = true;
+	}
+	else
+	{
+		// Sequential Import is disabling because it needs CADCache
+		ImportParameters.bEnableSequentialImport = false;
 	}
 
-	// Only use multi-processed translation if it is required and cache's usage is enabled
-	if (ImportParameters.bEnableCacheUsage)
+	// Use sequential translation (multi-processed or not)
+	if (ImportParameters.bEnableSequentialImport)
 	{
-		bool bWithProcessor = (CVarStaticCADTranslatorEnableThreadedImport.GetValueOnAnyThread() != 0);
-
 		TMap<uint32, FString> CADFileToUEFileMap;
-		int32 NumCores = FPlatformMisc::NumberOfCores();
 		{
+			int32 NumCores = FPlatformMisc::NumberOfCores();
+			if (CADLibrary::GMaxImportThreads > 1)
+			{
+				NumCores = FMath::Min(CADLibrary::GMaxImportThreads, NumCores);
+			}
 			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescription);
 
-			Dispatcher.Process(bWithProcessor);
+			Dispatcher.Process(CADLibrary::GMaxImportThreads != 1);
 		}
 
 		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUEFileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
@@ -159,8 +162,6 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 
 		return true;
 	}
-
-	ImportParameters.bEnableCacheUsage = false;
 
 	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, *FPaths::EnginePluginsDir());
 	if (FileParser.ProcessFile(FileDescription) != CADLibrary::ECoreTechParsingResult::ProcessOk)
@@ -195,7 +196,7 @@ bool FDatasmithCADTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshElem
 	if (TOptional< FMeshDescription > Mesh = MeshBuilderPtr->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-		if(ImportParameters.bEnableKernelIOTessellation)
+		if(ImportParameters.bDisableCADKernelTessellation)
 		{
 			CoreTechSurface::AddSurfaceDataForMesh(MeshElement->GetFile(), ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
 		}

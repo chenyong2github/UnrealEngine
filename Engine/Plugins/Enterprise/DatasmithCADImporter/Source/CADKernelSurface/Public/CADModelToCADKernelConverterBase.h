@@ -26,7 +26,7 @@ public:
 		, GeometricTolerance(0.00001 / InImportParameters.MetricUnit)
 		, SquareTolerance(GeometricTolerance* GeometricTolerance)
 	{
-		ImportParameters.bEnableKernelIOTessellation = false;
+		ImportParameters.bDisableCADKernelTessellation = false;
 	}
 
 	virtual void InitializeProcess(double InMetricUnit) override

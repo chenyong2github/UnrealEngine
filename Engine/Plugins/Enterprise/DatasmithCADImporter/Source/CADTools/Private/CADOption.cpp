@@ -1,0 +1,57 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#include "CADOptions.h"
+
+namespace CADLibrary
+{
+
+FString GCADLibrary = TEXT("KernelIO");
+FAutoConsoleVariableRef GCADTranslatorLibrary(
+	TEXT("ds.CADTranslator.CADLibrary"),
+	GCADLibrary,
+	TEXT("Define the used library to import CAD file i.e. \"TechSoft\" or \"KernelIO\".\n"),
+	ECVF_Default);
+
+bool bGDisableCADKernelTessellation = true;
+FAutoConsoleVariableRef GCADTranslatorDisableCADKernelTessellation(
+	TEXT("ds.CADTranslator.DisableCADKernelTessellation"),
+	bGDisableCADKernelTessellation,
+	TEXT("Disable to use CAD import library tessellator.\n"),
+	ECVF_Default);
+
+int32 GMaxImportThreads = 0;
+FAutoConsoleVariableRef GCADTranslatorMaxImportThreads(
+	TEXT("ds.CADTranslator.MaxImportThreads"),
+	GMaxImportThreads,
+	TEXT("\
+CAD file parallel processing\n\
+Default is MaxImportThreads = 0\n\
+0: multi - processing, n : multi - processing limited to n process.CADCache is mandatory.\n\
+1: -if CADCache is enable, the scene is read in a sequential mode with cache i.e.cache is used for sub - file already read,\n\
+   -if CADCache is disable, the scene is read all at once\n"),
+	ECVF_Default);
+
+bool bGEnableCADCache = true;
+FAutoConsoleVariableRef GCADTranslatorEnableCADCache(
+	TEXT("ds.CADTranslator.EnableCADCache"),
+	bGEnableCADCache,
+	TEXT("\
+Enable/disable temporary CAD processing file cache. These file will be use in a next import to avoid CAD file processing.\n\
+If MaxImportThreads != 1, EnableCADCache value is ignored\n\
+Default is enable\n"),
+ECVF_Default);
+
+bool bGOverwriteCache = false;
+FAutoConsoleVariableRef GCADTranslatorOverwriteCache(
+	TEXT("ds.CADTranslator.OverwriteCache"),
+	bGOverwriteCache,
+	TEXT("Overwrite any existing cache associated with the file being imported.\n"),
+	ECVF_Default);
+
+bool bGEnableTimeControl = true;
+FAutoConsoleVariableRef GCADTranslatorEnableTimeControl(
+	TEXT("ds.CADTranslator.EnableTimeControl"),
+	bGEnableTimeControl,
+	TEXT("Enable the timer that kill the worker if the import time is unusually long. With this time control, the load of the corrupted file is canceled but the rest of the scene is imported.\n"),
+	ECVF_Default);
+
+}
