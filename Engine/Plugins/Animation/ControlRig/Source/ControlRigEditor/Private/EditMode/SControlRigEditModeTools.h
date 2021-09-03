@@ -62,7 +62,6 @@ private:
 
 	/** Hierarchy picker for controls*/
 	TSharedPtr<SRigSpacePickerWidget> SpacePickerWidget;
-	FRigControlElementCustomization ControlCustomization;
 
 	/** Special picker for controls, no longer used */
 	TSharedPtr<SControlPicker> ControlPicker;
@@ -83,6 +82,7 @@ private:
 	void HandleSelectionChanged(TSharedPtr<FRigTreeElement> Selection, ESelectInfo::Type SelectInfo);
 	void OnRigElementSelected(UControlRig* Subject, FRigControlElement* ControlElement, bool bSelected);
 
+	const FRigControlElementCustomization* HandleGetControlElementCustomization(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey);
 	void HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const FRigElementKey& InSpaceKey);
 	void HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey, const TArray<FRigElementKey>& InSpaceList);
 

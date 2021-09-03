@@ -47,6 +47,9 @@ public:
 	/** Toggle Gizmo Transform Edit*/
 	TSharedPtr< FUICommandInfo > ToggleGizmoTransformEdit;
 
+	/** Opens up the space picker widget */
+	TSharedPtr< FUICommandInfo > OpenSpacePickerWidget;
+
 	/**
 	 * Initialize commands
 	 */

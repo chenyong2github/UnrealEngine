@@ -322,6 +322,9 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 					.AllowReorder(true)
 					.AllowAdd(true)
 					.ShowBakeButton(true)
+					.GetControlCustomization(this, &SControlRigEditModeTools::HandleGetControlElementCustomization)
+					.OnActiveSpaceChanged(this, &SControlRigEditModeTools::HandleActiveSpaceChanged)
+					.OnSpaceListChanged(this, &SControlRigEditModeTools::HandleSpaceListChanged)
 					// todo: implement GetAdditionalSpacesDelegate to pull spaces from sequencer
 				]
 			]
@@ -344,8 +347,6 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 	];
 
 	HierarchyTreeView->RefreshTreeView(true);
-	SpacePickerWidget->OnActiveSpaceChanged().AddSP(this, &SControlRigEditModeTools::HandleActiveSpaceChanged);
-	SpacePickerWidget->OnSpaceListChanged().AddSP(this, &SControlRigEditModeTools::HandleSpaceListChanged);
 }
 
 void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
@@ -601,13 +602,19 @@ void SControlRigEditModeTools::OnRigElementSelected(UControlRig* Subject, FRigCo
 
 	if (UControlRig* ControlRig = SequencerRig.Get())
 	{
-		// get the customization for this control
-		const FRigControlElementCustomization* ExistingCustomization = ControlRig->GetControlCustomization(Key);
-		check(ExistingCustomization);
-
-		ControlCustomization = *ExistingCustomization; 
-		SpacePickerWidget->SetControl(ControlRig->GetHierarchy(), Key, &ControlCustomization);
+		// get the selected controls
+		TArray<FRigElementKey> SelectedControls = ControlRig->GetHierarchy()->GetSelectedKeys(ERigElementType::Control);
+		SpacePickerWidget->SetControls(ControlRig->GetHierarchy(), SelectedControls);
 	}
+}
+
+const FRigControlElementCustomization* SControlRigEditModeTools::HandleGetControlElementCustomization(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey)
+{
+	if (UControlRig* ControlRig = SequencerRig.Get())
+	{
+		return ControlRig->GetControlCustomization(InControlKey);
+	}
+	return nullptr;
 }
 
 void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
@@ -615,14 +622,7 @@ void SControlRigEditModeTools::HandleActiveSpaceChanged(URigHierarchy* InHierarc
 {
 	// todo: when the user picks a new space
 	// for now we'll just do it directly in the hierarchy
-	if(InSpaceKey == InHierarchy->GetWorldSpaceSocketKey())
-	{
-		InHierarchy->SwitchToWorldSpace(InControlKey);
-	}
-	else
-	{
-		InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
-	}
+	InHierarchy->SwitchToParent(InControlKey, InSpaceKey);
 }
 
 void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy, const FRigElementKey& InControlKey,
@@ -632,9 +632,7 @@ void SControlRigEditModeTools::HandleSpaceListChanged(URigHierarchy* InHierarchy
 	{
 		if(const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
 		{
-			const FRigControlElementCustomization* ExistingCustomization = ControlRig->GetControlCustomization(InControlKey);
-			ControlCustomization = *ExistingCustomization;	
-
+			FRigControlElementCustomization ControlCustomization = *ControlRig->GetControlCustomization(InControlKey);	
 			ControlCustomization.AvailableSpaces = InSpaceList;
 			ControlCustomization.RemovedSpaces.Reset();
 

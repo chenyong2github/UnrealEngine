@@ -752,7 +752,14 @@ bool URigHierarchy::IsNameAvailable(const FString& InPotentialNewName, ERigEleme
 		return false;
 	}
 
-	if (GetIndex(FRigElementKey(*InPotentialNewName, InType)) != INDEX_NONE)
+	// check for fixed keywords
+	const FRigElementKey PotentialKey(*InPotentialNewName, InType);
+	if(PotentialKey == URigHierarchy::GetDefaultParentSocketKey())
+	{
+		return false;
+	}
+
+	if (GetIndex(PotentialKey) != INDEX_NONE)
 	{
 		if (OutErrorMessage)
 		{
@@ -1403,6 +1410,22 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArray
 
 bool URigHierarchy::SwitchToParent(FRigElementKey InChild, FRigElementKey InParent, bool bInitial, bool bAffectChildren)
 {
+	if(InParent == GetWorldSpaceSocketKey())
+	{
+		InParent = GetOrAddWorldSpaceSocket();
+	}
+	else if(InParent == GetDefaultParentSocketKey())
+	{
+		const FRigElementKey FirstParent = GetFirstParent(InChild);
+		if(FirstParent == GetWorldSpaceSocketKey())
+		{
+			InParent = FRigElementKey();
+		}
+		else
+		{
+			InParent = FirstParent;
+		}
+	}
 	return SwitchToParent(Find(InChild), Find(InParent), bInitial, bAffectChildren);
 }
 
@@ -1447,28 +1470,25 @@ bool URigHierarchy::SwitchToParent(FRigBaseElement* InChild, int32 InParentIndex
 
 bool URigHierarchy::SwitchToDefaultParent(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
 {
-	return SwitchToDefaultParent(Find(InChild), bInitial, bAffectChildren);
+	return SwitchToParent(InChild, GetDefaultParentSocketKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToDefaultParent(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
 {
 	// we assume that the first stored parent is the default parent
-	return SwitchToParent(InChild, 0, bInitial, bAffectChildren);
+	check(InChild);
+	return SwitchToParent(InChild->GetKey(), GetDefaultParentSocketKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToWorldSpace(FRigElementKey InChild, bool bInitial, bool bAffectChildren)
 {
-	return SwitchToWorldSpace(Find(InChild), bInitial, bAffectChildren);
+	return SwitchToParent(InChild, GetWorldSpaceSocketKey(), bInitial, bAffectChildren);
 }
 
 bool URigHierarchy::SwitchToWorldSpace(FRigBaseElement* InChild, bool bInitial, bool bAffectChildren)
 {
-	FRigElementKey WorldSocket = GetOrAddWorldSpaceSocket();
-	if(FRigBaseElement* Parent = Find(WorldSocket))
-	{
-		return SwitchToParent(InChild, Parent, bInitial, bAffectChildren);
-	}
-	return false;
+	check(InChild);
+	return SwitchToParent(InChild->GetKey(), GetWorldSpaceSocketKey(), bInitial, bAffectChildren);
 }
 
 FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
@@ -1493,7 +1513,13 @@ FRigElementKey URigHierarchy::GetOrAddWorldSpaceSocket()
 	return FRigElementKey();
 }
 
-FRigElementKey URigHierarchy::GetWorldSpaceSocketKey() const
+FRigElementKey URigHierarchy::GetDefaultParentSocketKey()
+{
+	static const FName DefaultParentSocketName = TEXT("DefaultParent");
+	return FRigElementKey(DefaultParentSocketName, ERigElementType::Socket); 
+}
+
+FRigElementKey URigHierarchy::GetWorldSpaceSocketKey()
 {
 	static const FName WorldSpaceSocketName = TEXT("WorldSpace");
 	return FRigElementKey(WorldSpaceSocketName, ERigElementType::Socket); 
