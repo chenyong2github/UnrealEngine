@@ -1139,6 +1139,11 @@ private:
 	static const FRecastQueryFilter* NamedFilters[ERecastNamedFilter::NamedFiltersCount];
 #endif // WITH_RECAST
 
+public:
+	//----------------------------------------------------------------------//
+	// Blueprint functions
+	//----------------------------------------------------------------------//
+
 	/** @return true if any polygon/link has been touched */
 	UFUNCTION(BlueprintCallable, Category = NavMesh, meta = (DisplayName = "ReplaceAreaInTileBounds"))
 	bool K2_ReplaceAreaInTileBounds(FBox Bounds, TSubclassOf<UNavArea> OldArea, TSubclassOf<UNavArea> NewArea, bool ReplaceLinks = true);
