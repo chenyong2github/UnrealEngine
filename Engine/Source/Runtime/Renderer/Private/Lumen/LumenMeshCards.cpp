@@ -45,6 +45,18 @@ FAutoConsoleVariableRef CVarLumenMeshCardsMergeInstances(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+float GLumenMeshCardsMergedCardMinSurfaceArea = 0.05f;
+FAutoConsoleVariableRef CVarLumenMeshCardsMergedCardMinSurfaceArea(
+	TEXT("r.LumenScene.SurfaceCache.MeshCardsMergedCardMinSurfaceArea"),
+	GLumenMeshCardsMergedCardMinSurfaceArea,
+	TEXT("Minimum area to spawn a merged card."),
+	FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+	{
+		FGlobalComponentRecreateRenderStateContext Context;
+	}),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 int32 GLumenMeshCardsMaxLOD = 1;
 FAutoConsoleVariableRef CVarLumenMeshCardsMaxLOD(
 	TEXT("r.LumenScene.SurfaceCache.MeshCardsMaxLOD"),
@@ -118,6 +130,20 @@ FAutoConsoleVariableRef CVarLumenMeshCardsDebugSingleCard(
 );
 
 extern int32 GLumenSceneUploadEveryFrame;
+
+namespace LumenMeshCards
+{
+	FVector3f GetAxisAlignedDirection(uint32 AxisAlignedDirectionIndex);
+};
+
+FVector3f LumenMeshCards::GetAxisAlignedDirection(uint32 AxisAlignedDirectionIndex)
+{
+	const uint32 AxisIndex = AxisAlignedDirectionIndex / 2;
+
+	FVector3f Direction(0.0f, 0.0f, 0.0f);
+	Direction[AxisIndex] = AxisAlignedDirectionIndex & 1 ? 1.0f : -1.0f;
+	return Direction;
+}
 
 class FLumenCardGPUData
 {
@@ -423,6 +449,55 @@ void UpdateLumenMeshCards(FScene& Scene, const FDistanceFieldSceneData& Distance
 	LumenSceneData.PrimitivesToUpdateMeshCards.Empty(1024);
 }
 
+class FLumenMergedMeshCards
+{
+public:
+	FLumenMergedMeshCards()
+	{
+		MergedBounds.Init();
+
+		for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+		{
+			InstanceCardAreaPerDirection[AxisAlignedDirectionIndex] = 0;
+		}
+	}
+
+	void AddInstance(FBox InstanceBox, FMatrix InstanceToMerged, const FMeshCardsBuildData& MeshCardsBuildData)
+	{
+		MergedBounds += InstanceBox.TransformBy(InstanceToMerged);
+
+		const int32 LODLevel = FMath::Clamp(GLumenMeshCardsMaxLOD, 0, MeshCardsBuildData.MaxLODLevel);
+
+		for (const FLumenCardBuildData& CardBuildData : MeshCardsBuildData.CardBuildData)
+		{
+			if (CardBuildData.LODLevel == LODLevel)
+			{
+				const FVector3f AxisX = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisX);
+				const FVector3f AxisY = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisY);
+				const FVector3f AxisZ = InstanceToMerged.TransformVector(CardBuildData.OBB.AxisZ);
+				const FVector3f Extent = CardBuildData.OBB.Extent * FVector(AxisX.Length(), AxisY.Length(), AxisZ.Length());
+
+				const float InstanceCardArea = Extent.X * Extent.Y;
+				const FVector3f CardDirection = AxisZ.GetUnsafeNormal();
+
+				for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+				{
+					const FVector3f AxisDirection = LumenMeshCards::GetAxisAlignedDirection(AxisAlignedDirectionIndex);
+					const float AxisProjection = CardDirection.Dot(AxisDirection);
+
+					if (AxisProjection > 0.0f)
+					{
+						InstanceCardAreaPerDirection[AxisAlignedDirectionIndex] += AxisProjection * InstanceCardArea;
+					}
+				}
+			}
+		}
+	}
+
+	FBox MergedBounds;
+	float InstanceCardAreaPerDirection[Lumen::NumAxisAlignedDirections];
+};
+
 void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveGroup, FMeshCardsBuildData& MeshCardsBuildData, FMatrix& MeshCardsLocalToWorld)
 {
 	MeshCardsLocalToWorld.SetIdentity();
@@ -456,59 +531,80 @@ void BuildMeshCardsDataForMergedInstances(const FLumenPrimitiveGroup& PrimitiveG
 	MeshCardsBuildData.MaxLODLevel = 0;
 	MeshCardsBuildData.Bounds.Init();
 
-	FBox MergedMeshCardsBounds;
-	MergedMeshCardsBounds.Init();
+	FLumenMergedMeshCards MergedMeshCards;
 
 	for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitiveGroup.Primitives)
 	{
-		const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
-		const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+		const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
 
-		const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveToWorld * WorldToMeshCardsLocal;
-
-		if (InstanceSceneData.Num() > 0)
+		if (CardRepresentationData)
 		{
-			for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+			const FMatrix& PrimitiveToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
+			const TConstArrayView<FPrimitiveInstance> InstanceSceneData = PrimitiveSceneInfo->Proxy->GetInstanceSceneData();
+			const FMeshCardsBuildData& PrimitiveMeshCardsBuildData = CardRepresentationData->MeshCardsBuildData;
+			const FMatrix PrimitiveLocalToMeshCardsLocal = PrimitiveToWorld * WorldToMeshCardsLocal;
+
+			if (InstanceSceneData.Num() > 0)
 			{
-				const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
-				MergedMeshCardsBounds += Instance.LocalBounds.ToBox().TransformBy(Instance.LocalToPrimitive.ToMatrix() * PrimitiveLocalToMeshCardsLocal);
+				for (int32 InstanceIndex = 0; InstanceIndex < InstanceSceneData.Num(); ++InstanceIndex)
+				{
+					const FPrimitiveInstance& Instance = InstanceSceneData[InstanceIndex];
+					MergedMeshCards.AddInstance(
+						Instance.LocalBounds.ToBox(),
+						Instance.LocalToPrimitive.ToMatrix() * PrimitiveLocalToMeshCardsLocal,
+						PrimitiveMeshCardsBuildData);
+				}
 			}
-		}
-		else
-		{
-			MergedMeshCardsBounds += PrimitiveSceneInfo->Proxy->GetLocalBounds().GetBox().TransformBy(PrimitiveLocalToMeshCardsLocal);
+			else
+			{
+				MergedMeshCards.AddInstance(
+					PrimitiveSceneInfo->Proxy->GetLocalBounds().GetBox(),
+					PrimitiveLocalToMeshCardsLocal,
+					PrimitiveMeshCardsBuildData);
+			}
 		}
 	}
 
-	if (MergedMeshCardsBounds.IsValid)
+	// Spawn cards only on faces passing min area threshold
+	TArray<int32, TInlineAllocator<Lumen::NumAxisAlignedDirections>> AxisAlignedDirectionsToSpawnCards;
+	for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+	{
+		FVector3f MergedExtent = MergedMeshCards.MergedBounds.GetExtent();
+		MergedExtent[AxisAlignedDirectionIndex / 2] = 1.0f;
+		const float MergedFaceArea = MergedExtent.X * MergedExtent.Y * MergedExtent.Z;
+
+		if (MergedMeshCards.InstanceCardAreaPerDirection[AxisAlignedDirectionIndex] > GLumenMeshCardsMergedCardMinSurfaceArea * MergedFaceArea)
+		{
+			AxisAlignedDirectionsToSpawnCards.Add(AxisAlignedDirectionIndex);
+		}
+	}
+
+	if (MergedMeshCards.MergedBounds.IsValid && AxisAlignedDirectionsToSpawnCards.Num() > 0)
 	{
 		// Make sure BBox isn't empty and we can generate card representation for it. This handles e.g. infinitely thin planes.
-		const FVector SafeCenter = MergedMeshCardsBounds.GetCenter();
-		const FVector SafeExtent = FVector::Max(MergedMeshCardsBounds.GetExtent() + 1.0f, FVector(5.0f));
-		MergedMeshCardsBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
+		const FVector SafeCenter = MergedMeshCards.MergedBounds.GetCenter();
+		const FVector SafeExtent = FVector::Max(MergedMeshCards.MergedBounds.GetExtent() + 1.0f, FVector(5.0f));
+		const FBox SafeMergedBounds = FBox(SafeCenter - SafeExtent, SafeCenter + SafeExtent);
 
 		MeshCardsBuildData.MaxLODLevel = 0;
-		MeshCardsBuildData.Bounds = MergedMeshCardsBounds;
+		MeshCardsBuildData.Bounds = SafeMergedBounds;
 
-		MeshCardsBuildData.CardBuildData.SetNum(Lumen::NumAxisAlignedDirections);
-		for (int32 AxisAlignedDirectionIndex = 0; AxisAlignedDirectionIndex < Lumen::NumAxisAlignedDirections; ++AxisAlignedDirectionIndex)
+		MeshCardsBuildData.CardBuildData.SetNum(AxisAlignedDirectionsToSpawnCards.Num());
+		uint32 CardBuildDataIndex = 0;
+
+		for (int32 AxisAlignedDirectionIndex : AxisAlignedDirectionsToSpawnCards)
 		{
-			FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[AxisAlignedDirectionIndex];
+			FLumenCardBuildData& CardBuildData = MeshCardsBuildData.CardBuildData[CardBuildDataIndex];
+			++CardBuildDataIndex;
 
 			// Set rotation
-			{
-				const int32 AxisIndex = AxisAlignedDirectionIndex / 2;
+			CardBuildData.OBB.AxisZ = LumenMeshCards::GetAxisAlignedDirection(AxisAlignedDirectionIndex);
+			CardBuildData.OBB.AxisZ.FindBestAxisVectors(CardBuildData.OBB.AxisX, CardBuildData.OBB.AxisY);
+			CardBuildData.OBB.AxisX = FVector::CrossProduct(CardBuildData.OBB.AxisZ, CardBuildData.OBB.AxisY);
+			CardBuildData.OBB.AxisX.Normalize();
 
-				CardBuildData.OBB.AxisZ = FVector3f(0.0f, 0.0f, 0.0f);
-				CardBuildData.OBB.AxisZ[AxisIndex] = AxisAlignedDirectionIndex & 1 ? 1.0f : -1.0f;
-
-				CardBuildData.OBB.AxisZ.FindBestAxisVectors(CardBuildData.OBB.AxisX, CardBuildData.OBB.AxisY);
-				CardBuildData.OBB.AxisX = FVector::CrossProduct(CardBuildData.OBB.AxisZ, CardBuildData.OBB.AxisY);
-				CardBuildData.OBB.AxisX.Normalize();
-			}
-			
-			CardBuildData.OBB.Origin = MergedMeshCardsBounds.GetCenter();
-			CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard(MergedMeshCardsBounds.GetExtent() + FVector(1.0f)).GetAbs();
+			CardBuildData.OBB.Origin = SafeMergedBounds.GetCenter();
+			CardBuildData.OBB.Extent = CardBuildData.OBB.RotateLocalToCard(SafeMergedBounds.GetExtent() + FVector(1.0f)).GetAbs();
 
 			CardBuildData.AxisAlignedDirectionIndex = AxisAlignedDirectionIndex;
 			CardBuildData.LODLevel = 0;
