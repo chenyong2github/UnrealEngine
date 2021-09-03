@@ -15,12 +15,10 @@ public:
 
 	TSharedPtr<FUICommandInfo> Select;
 	TSharedPtr<FUICommandInfo> SelectAll;
-	TSharedPtr<FUICommandInfo> Deselect;
 	TSharedPtr<FUICommandInfo> LassoSelect;
 	TSharedPtr<FUICommandInfo> Place;
 	TSharedPtr<FUICommandInfo> PlaceSingle;
 	TSharedPtr<FUICommandInfo> Erase;
-	TSharedPtr<FUICommandInfo> Delete;
 
 protected:
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;

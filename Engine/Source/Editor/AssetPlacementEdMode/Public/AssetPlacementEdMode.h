@@ -45,13 +45,6 @@ public:
 	static bool IsEnabled();
 
 protected:
-	enum class ESelectMode
-	{
-		Select,
-		Deselect,
-	};
-
-	void DeleteSelection();
 	void ClearSelection();
 	bool HasAnyAssetsInPalette() const;
 	bool HasActiveSelection() const;
