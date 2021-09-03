@@ -150,7 +150,7 @@ public:
 		return *this;
 	}
 
-	inline FPrimitiveUniformShaderParametersBuilder& LightingChannelMask(const FVector3f& InObjectBounds)
+	inline FPrimitiveUniformShaderParametersBuilder& ObjectBounds(const FVector3f& InObjectBounds)
 	{
 		Parameters.ObjectBoundsX = InObjectBounds.X;
 		Parameters.ObjectBoundsY = InObjectBounds.Y;
