@@ -131,7 +131,7 @@ public:
 	bool bEnableTypePromotion;
 
 	/** If a pin type is within this blacklist, then it will never be marked as a possible promotable function. */
-	UPROPERTY(config, EditAnywhere, Category = Workflow)
+	UPROPERTY(config, EditAnywhere, Category = Workflow, meta=(EditCondition="bEnableTypePromotion"))
 	TSet<FName> TypePromotionPinBlacklist;
 
 // Experimental
