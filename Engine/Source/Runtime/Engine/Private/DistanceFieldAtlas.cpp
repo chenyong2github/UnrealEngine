@@ -307,35 +307,9 @@ FDistanceFieldAsyncQueue::~FDistanceFieldAsyncQueue()
 
 void FDistanceFieldAsyncQueue::OnPostReachabilityAnalysis()
 {
-	FScopeLock Lock(&CriticalSection);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelUnreachableMeshes);
 
-	if (ReferencedTasks.Num() || PendingTasks.Num())
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelUnreachableMeshes);
-
-		TArray<FAsyncDistanceFieldTask*> TasksToCancel;
-		for (auto Iterator = ReferencedTasks.CreateIterator(); Iterator; ++Iterator)
-		{
-			FAsyncDistanceFieldTask* Task = *Iterator;
-			if (IsTaskInvalid(Task))
-			{
-				Iterator.RemoveCurrent();
-				TasksToCancel.Add(Task);
-			}
-		}
-
-		for (auto Iterator = PendingTasks.CreateIterator(); Iterator; ++Iterator)
-		{
-			FAsyncDistanceFieldTask* Task = *Iterator;
-			if (IsTaskInvalid(Task))
-			{
-				Iterator.RemoveCurrent();
-			}
-		}
-
-		Lock.Unlock();
-		CancelAndDeleteBackgroundTask(TasksToCancel);
-	}
+	CancelAndDeleteTaskByPredicate([this](FAsyncDistanceFieldTask* Task) { return IsTaskInvalid(Task); });
 }
 
 void FAsyncDistanceFieldTaskWorker::DoWork()
@@ -390,9 +364,43 @@ bool FDistanceFieldAsyncQueue::IsTaskInvalid(FAsyncDistanceFieldTask* Task) cons
 	return (Task->StaticMesh && Task->StaticMesh->IsUnreachable()) || (Task->GenerateSource && Task->GenerateSource->IsUnreachable());
 }
 
-void FDistanceFieldAsyncQueue::CancelAndDeleteBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks)
+void FDistanceFieldAsyncQueue::CancelAndDeleteTaskByPredicate(TFunctionRef<bool (FAsyncDistanceFieldTask*)> InShouldCancelPredicate)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelAndDeleteBackgroundTask);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelAndDeleteTaskByPredicate);
+
+	FScopeLock Lock(&CriticalSection);
+
+	if (ReferencedTasks.Num() || PendingTasks.Num() || CompletedTasks.Num())
+	{
+		TSet<FAsyncDistanceFieldTask*> Removed;
+
+		auto RemoveByPredicate =
+			[&InShouldCancelPredicate, &Removed](TSet<FAsyncDistanceFieldTask*>& Tasks)
+		{
+			for (auto It = Tasks.CreateIterator(); It; ++It)
+			{
+				FAsyncDistanceFieldTask* Task = *It;
+				if (InShouldCancelPredicate(Task))
+				{
+					Removed.Add(Task);
+					It.RemoveCurrent();
+				}
+			}
+		};
+
+		RemoveByPredicate(PendingTasks);
+		RemoveByPredicate(ReferencedTasks);
+		RemoveByPredicate(CompletedTasks);
+
+		Lock.Unlock();
+
+		CancelAndDeleteTask(Removed);
+	}
+}
+
+void FDistanceFieldAsyncQueue::CancelAndDeleteTask(const TSet<FAsyncDistanceFieldTask*>& Tasks)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelAndDeleteTask);
 
 	// Do all the cancellation first to make sure none of these tasks
 	// get scheduled as we're waiting for completion.
@@ -421,6 +429,15 @@ void FDistanceFieldAsyncQueue::CancelAndDeleteBackgroundTask(TArray<FAsyncDistan
 			BeginCleanup(Task->GeneratedVolumeData);
 		}
 
+#if DO_GUARD_SLOW
+		{
+			FScopeLock Lock(&CriticalSection);
+			check(!PendingTasks.Contains(Task));
+			check(!ReferencedTasks.Contains(Task));
+			check(!CompletedTasks.Contains(Task));
+		}
+#endif
+
 		delete Task;
 	}
 }
@@ -435,16 +452,15 @@ void FDistanceFieldAsyncQueue::StartBackgroundTask(FAsyncDistanceFieldTask* Task
 void FDistanceFieldAsyncQueue::ProcessPendingTasks()
 {
 	FScopeLock Lock(&CriticalSection);
-	TArray<FAsyncDistanceFieldTask*> Tasks = MoveTemp(PendingTasks);
-	for (FAsyncDistanceFieldTask* Task : Tasks)
+
+	for (auto It = PendingTasks.CreateIterator(); It; ++It)
 	{
-		if (Task->GenerateSource && Task->GenerateSource->IsCompiling())
-		{
-			PendingTasks.Add(Task);
-		}
-		else
+		FAsyncDistanceFieldTask* Task = *It;
+		if (Task->GenerateSource == nullptr || 
+			Task->GenerateSource->IsCompiling() == false)
 		{
 			StartBackgroundTask(Task);
+			It.RemoveCurrent();
 		}
 	}
 }
@@ -456,7 +472,7 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 	// Simply delete the task if the static mesh are being garbage collected
 	if (IsTaskInvalid(Task))
 	{
-		CancelAndDeleteBackgroundTask({Task});
+		CancelAndDeleteTask({Task});
 		return;
 	}
 
@@ -465,96 +481,75 @@ void FDistanceFieldAsyncQueue::AddTask(FAsyncDistanceFieldTask* Task)
 		MeshUtilities = &FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
 	}
 	
+	const bool bUseAsyncBuild = GUseAsyncDistanceFieldBuildQueue || !IsInGameThread();
+	const bool bIsCompiling = Task->GenerateSource->IsCompiling();
 	{
 		// Array protection when called from multiple threads
 		FScopeLock Lock(&CriticalSection);
+		check(!CompletedTasks.Contains(Task)); // reusing same pointer for a new task that is marked completed but has been canceled...
 		ReferencedTasks.Add(Task);
-	}
 
-	// The Source Mesh's RenderData is not yet ready, postpone the build
-	if (Task->GenerateSource->IsCompiling())
-	{
-		// Array protection when called from multiple threads
-		FScopeLock Lock(&CriticalSection);
-		PendingTasks.Add(Task);
-	}
-	else
-	{
-		// If we're already in worker threads, there is no need to launch an async task.
-		if (GUseAsyncDistanceFieldBuildQueue || !IsInGameThread())
+		// The Source Mesh's RenderData is not ready yet, postpone the build
+		if (bIsCompiling)
 		{
+			PendingTasks.Add(Task);
+		}
+		else if (bUseAsyncBuild)
+		{
+			// Make sure the Task is launched while we hold the lock to avoid
+			// race with cancellation
 			StartBackgroundTask(Task);
 		}
-		else
-		{
-			// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
-			// Put on background thread to avoid interfering with game-thread bound tasks
-			FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
-			Build(Task, TaskGraphWrapper);
-		}
+	}
+	
+	if (!bIsCompiling && !bUseAsyncBuild)
+	{
+		// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
+		// Put on background thread to avoid interfering with game-thread bound tasks
+		FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
+		Build(Task, TaskGraphWrapper);
 	}
 #else
 	UE_LOG(LogStaticMesh,Fatal,TEXT("Tried to build a distance field without editor support (this should have been done during cooking)"));
 #endif
 }
 
-void FDistanceFieldAsyncQueue::CancelBuild(UStaticMesh* StaticMesh)
+void FDistanceFieldAsyncQueue::CancelBuild(UStaticMesh* InStaticMesh)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelBuild)
+	CancelBuilds({ InStaticMesh });
+}
 
-	TArray<FAsyncDistanceFieldTask*> TasksToCancel;
-	{
-		FScopeLock Lock(&CriticalSection);
-		TArray<FAsyncDistanceFieldTask*> Tasks = MoveTemp(PendingTasks);
-		PendingTasks.Reserve(Tasks.Num());
-		for (FAsyncDistanceFieldTask* Task : Tasks)
+void FDistanceFieldAsyncQueue::CancelBuilds(const TSet<UStaticMesh*>& InStaticMeshes)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelBuilds)
+
+	CancelAndDeleteTaskByPredicate(
+		[&InStaticMeshes](FAsyncDistanceFieldTask* Task)
 		{
-			if (Task->GenerateSource != StaticMesh && Task->StaticMesh != StaticMesh)
-			{
-				PendingTasks.Add(Task);
-			}
+			return InStaticMeshes.Contains(Task->GenerateSource) || InStaticMeshes.Contains(Task->StaticMesh);
 		}
-
-		Tasks = MoveTemp(ReferencedTasks);
-		ReferencedTasks.Reserve(Tasks.Num());
-		for (FAsyncDistanceFieldTask* Task : Tasks)
-		{
-			if (Task->GenerateSource != StaticMesh && Task->StaticMesh != StaticMesh)
-			{
-				ReferencedTasks.Add(Task);
-			}
-			else
-			{
-				TasksToCancel.Add(Task);
-			}
-		}
-	}
-
-	CancelAndDeleteBackgroundTask(TasksToCancel);
+	);
 }
 
 void FDistanceFieldAsyncQueue::CancelAllOutstandingBuilds()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FDistanceFieldAsyncQueue::CancelAllOutstandingBuilds)
 
-	TArray<FAsyncDistanceFieldTask*> OutstandingTasks;
+	TSet<FAsyncDistanceFieldTask*> OutstandingTasks;
 	{
 		FScopeLock Lock(&CriticalSection);
-		PendingTasks.Empty();
+		PendingTasks.Reset();
 		OutstandingTasks = MoveTemp(ReferencedTasks);
 	}
 
-	CancelAndDeleteBackgroundTask(OutstandingTasks);
+	CancelAndDeleteTask(OutstandingTasks);
 }
 
 void FDistanceFieldAsyncQueue::RescheduleBackgroundTask(FAsyncDistanceFieldTask* InTask, EQueuedWorkPriority InPriority)
 {
-	if (InTask->AsyncTask)
+	if (InTask->AsyncTask && InTask->AsyncTask->GetPriority() != InPriority)
 	{
-		if (InTask->AsyncTask->GetPriority() != InPriority)
-		{
-			InTask->AsyncTask->Reschedule(GThreadPool, InPriority);
-		}
+		InTask->AsyncTask->Reschedule(GThreadPool, InPriority);
 	}
 }
 
@@ -582,10 +577,10 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 		// Reschedule the tasks we're waiting on as highest prio
 		{
 			FScopeLock Lock(&CriticalSection);
-			for (int TaskIndex = 0; TaskIndex < ReferencedTasks.Num(); TaskIndex++)
+			for (FAsyncDistanceFieldTask* Task : ReferencedTasks)
 			{
-				if (ReferencedTasks[TaskIndex]->StaticMesh == StaticMesh ||
-					ReferencedTasks[TaskIndex]->GenerateSource == StaticMesh)
+				if (Task->StaticMesh == StaticMesh ||
+					Task->GenerateSource == StaticMesh)
 				{
 					bReferenced = true;
 
@@ -593,20 +588,20 @@ void FDistanceFieldAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticMesh, 
 					// we need to force finish them too.
 #if WITH_EDITOR
 					
-					if (ReferencedTasks[TaskIndex]->GenerateSource != nullptr &&
-						ReferencedTasks[TaskIndex]->GenerateSource->IsCompiling())
+					if (Task->GenerateSource != nullptr &&
+						Task->GenerateSource->IsCompiling())
 					{
-						RequiredFinishCompilation.Add(ReferencedTasks[TaskIndex]->GenerateSource);
+						RequiredFinishCompilation.Add(Task->GenerateSource);
 					}
 
-					if (ReferencedTasks[TaskIndex]->StaticMesh != nullptr &&
-						ReferencedTasks[TaskIndex]->StaticMesh->IsCompiling())
+					if (Task->StaticMesh != nullptr &&
+						Task->StaticMesh->IsCompiling())
 					{
-						RequiredFinishCompilation.Add(ReferencedTasks[TaskIndex]->StaticMesh);
+						RequiredFinishCompilation.Add(Task->StaticMesh);
 					}
 #endif
 
-					RescheduleBackgroundTask(ReferencedTasks[TaskIndex], EQueuedWorkPriority::Highest);
+					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
 				}
 			}
 		}
@@ -657,9 +652,9 @@ void FDistanceFieldAsyncQueue::BlockUntilAllBuildsComplete()
 		// Reschedule as highest prio since we're explicitly waiting on them
 		{
 			FScopeLock Lock(&CriticalSection);
-			for (int TaskIndex = 0; TaskIndex < ReferencedTasks.Num(); TaskIndex++)
+			for (FAsyncDistanceFieldTask* Task : ReferencedTasks)
 			{
-				RescheduleBackgroundTask(ReferencedTasks[TaskIndex], EQueuedWorkPriority::Highest);
+				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
 			}
 		}
 
@@ -695,7 +690,15 @@ void FDistanceFieldAsyncQueue::Build(FAsyncDistanceFieldTask* Task, FQueuedThrea
 			*Task->GeneratedVolumeData);
 	}
 
-    CompletedTasks.Push(Task);
+	{
+		FScopeLock Lock(&CriticalSection);
+		// Avoid adding to the completed list if the task has been canceled
+		if (ReferencedTasks.Contains(Task))
+		{
+			CompletedTasks.Add(Task);
+		}
+	}
+
 #endif
 }
 
@@ -711,7 +714,20 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 	double StartTime = FPlatformTime::Seconds();
 	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
 	{
-		FAsyncDistanceFieldTask* Task = CompletedTasks.Pop();
+		FAsyncDistanceFieldTask* Task = nullptr;
+		{
+			FScopeLock Lock(&CriticalSection);
+			if (CompletedTasks.Num() > 0)
+			{
+				// Pop any element from the set
+				auto Iterator = CompletedTasks.CreateIterator();
+				Task = *Iterator;
+				Iterator.RemoveCurrent();
+
+				verify(ReferencedTasks.Remove(Task));
+			}
+		}
+
 		if (Task == nullptr)
 		{
 			break;
@@ -719,17 +735,6 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 		// We want to count each resource built from a DDC miss, so count each iteration of the loop separately.
 		COOK_STAT(auto Timer = DistanceFieldCookStats::UsageStats.TimeSyncWork());
-
-		bool bWasCancelled = false;
-		{
-			FScopeLock Lock(&CriticalSection);
-			bWasCancelled = ReferencedTasks.Remove(Task) == 0;
-		}
-
-		if (bWasCancelled)
-		{
-			continue;
-		}
 
 		if (Task->AsyncTask)
 		{
@@ -740,6 +745,8 @@ void FDistanceFieldAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg FProperty or serialized)
 		if (Task->StaticMesh)
 		{
+			check(!Task->StaticMesh->IsCompiling());
+
 			Task->GeneratedVolumeData->bAsyncBuilding = false;
 
 			FStaticMeshRenderData* RenderData = Task->StaticMesh->GetRenderData();

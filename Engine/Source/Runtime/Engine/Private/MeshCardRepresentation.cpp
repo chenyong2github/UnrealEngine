@@ -223,35 +223,9 @@ FCardRepresentationAsyncQueue::~FCardRepresentationAsyncQueue()
 
 void FCardRepresentationAsyncQueue::OnPostReachabilityAnalysis()
 {
-	FScopeLock Lock(&CriticalSection);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelUnreachableMeshes);
 
-	if (ReferencedTasks.Num() || PendingTasks.Num())
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelUnreachableMeshes);
-
-		TArray<FAsyncCardRepresentationTask*> TasksToCancel;
-		for (auto Iterator = ReferencedTasks.CreateIterator(); Iterator; ++Iterator)
-		{
-			FAsyncCardRepresentationTask* Task = *Iterator;
-			if (IsTaskInvalid(Task))
-			{
-				Iterator.RemoveCurrent();
-				TasksToCancel.Add(Task);
-			}
-		}
-
-		for (auto Iterator = PendingTasks.CreateIterator(); Iterator; ++Iterator)
-		{
-			FAsyncCardRepresentationTask* Task = *Iterator;
-			if (IsTaskInvalid(Task))
-			{
-				Iterator.RemoveCurrent();
-			}
-		}
-
-		Lock.Unlock();
-		CancelAndDeleteBackgroundTask(TasksToCancel);
-	}
+	CancelAndDeleteTaskByPredicate([this](FAsyncCardRepresentationTask* Task) { return IsTaskInvalid(Task); });
 }
 void FAsyncCardRepresentationTaskWorker::DoWork()
 {
@@ -296,9 +270,43 @@ bool FCardRepresentationAsyncQueue::IsTaskInvalid(FAsyncCardRepresentationTask* 
 	return (Task->StaticMesh && Task->StaticMesh->IsUnreachable()) || (Task->GenerateSource && Task->GenerateSource->IsUnreachable());
 }
 
-void FCardRepresentationAsyncQueue::CancelAndDeleteBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks)
+void FCardRepresentationAsyncQueue::CancelAndDeleteTaskByPredicate(TFunctionRef<bool (FAsyncCardRepresentationTask*)> InShouldCancelPredicate)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelAndDeleteBackgroundTask);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelAndDeleteTaskByPredicate);
+
+	FScopeLock Lock(&CriticalSection);
+
+	if (ReferencedTasks.Num() || PendingTasks.Num() || CompletedTasks.Num())
+	{
+		TSet<FAsyncCardRepresentationTask*> Removed;
+
+		auto RemoveByPredicate =
+			[&InShouldCancelPredicate, &Removed](TSet<FAsyncCardRepresentationTask*>& Tasks)
+		{
+			for (auto It = Tasks.CreateIterator(); It; ++It)
+			{
+				FAsyncCardRepresentationTask* Task = *It;
+				if (InShouldCancelPredicate(Task))
+				{
+					Removed.Add(Task);
+					It.RemoveCurrent();
+				}
+			}
+		};
+
+		RemoveByPredicate(PendingTasks);
+		RemoveByPredicate(ReferencedTasks);
+		RemoveByPredicate(CompletedTasks);
+
+		Lock.Unlock();
+
+		CancelAndDeleteTask(Removed);
+	}
+}
+
+void FCardRepresentationAsyncQueue::CancelAndDeleteTask(const TSet<FAsyncCardRepresentationTask*>& Tasks)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelAndDeleteTask);
 
 	// Do all the cancellation first to make sure none of these tasks
 	// get scheduled as we're waiting for completion.
@@ -327,6 +335,14 @@ void FCardRepresentationAsyncQueue::CancelAndDeleteBackgroundTask(TArray<FAsyncC
 			BeginCleanup(Task->GeneratedCardRepresentation);
 		}
 
+#if DO_GUARD_SLOW
+		{
+			FScopeLock Lock(&CriticalSection);
+			check(!PendingTasks.Contains(Task));
+			check(!ReferencedTasks.Contains(Task));
+			check(!CompletedTasks.Contains(Task));
+		}
+#endif
 		delete Task;
 	}
 }
@@ -341,16 +357,15 @@ void FCardRepresentationAsyncQueue::StartBackgroundTask(FAsyncCardRepresentation
 void FCardRepresentationAsyncQueue::ProcessPendingTasks()
 {
 	FScopeLock Lock(&CriticalSection);
-	TArray<FAsyncCardRepresentationTask*> Tasks = MoveTemp(PendingTasks);
-	for (FAsyncCardRepresentationTask* Task : Tasks)
+
+	for (auto It = PendingTasks.CreateIterator(); It; ++It)
 	{
-		if (Task->GenerateSource && Task->GenerateSource->IsCompiling())
-		{
-			PendingTasks.Add(Task);
-		}
-		else
+		FAsyncCardRepresentationTask* Task = *It;
+		if (Task->GenerateSource == nullptr || 
+			Task->GenerateSource->IsCompiling() == false)
 		{
 			StartBackgroundTask(Task);
+			It.RemoveCurrent();
 		}
 	}
 }
@@ -362,7 +377,7 @@ void FCardRepresentationAsyncQueue::AddTask(FAsyncCardRepresentationTask* Task)
 	// Simply delete the task if the static mesh are being garbage collected
 	if (IsTaskInvalid(Task))
 	{
-		CancelAndDeleteBackgroundTask({ Task });
+		CancelAndDeleteTask({ Task });
 		return;
 	}
 
@@ -370,97 +385,76 @@ void FCardRepresentationAsyncQueue::AddTask(FAsyncCardRepresentationTask* Task)
 	{
 		MeshUtilities = &FModuleManager::Get().LoadModuleChecked<IMeshUtilities>(TEXT("MeshUtilities"));
 	}
-	
-	{
-		// Array protection when called from multiple threads
-		FScopeLock Lock(&CriticalSection);
-		ReferencedTasks.Add(Task);
-	}
 
-	// The Source Mesh's RenderData is not yet ready, postpone the build
-	if (Task->GenerateSource->IsCompiling())
+	const bool bUseAsyncBuild = GUseAsyncCardRepresentationBuildQueue || !IsInGameThread();
+	const bool bIsCompiling = Task->GenerateSource->IsCompiling();
 	{
 		// Array protection when called from multiple threads
 		FScopeLock Lock(&CriticalSection);
-		PendingTasks.Add(Task);
-	}
-	else
-	{
-		// If we're already in worker threads there is no need to launch an async task.
-		if (GUseAsyncCardRepresentationBuildQueue || !IsInGameThread())
+		check(!CompletedTasks.Contains(Task)); // reusing same pointer for a new task that is marked completed but has been canceled...
+		ReferencedTasks.Add(Task);
+
+		// The Source Mesh's RenderData is not ready yet, postpone the build
+		if (bIsCompiling)
 		{
+			PendingTasks.Add(Task);
+		}
+		else if (bUseAsyncBuild)
+		{
+			// Make sure the Task is launched while we hold the lock to avoid
+			// race with cancellation
 			StartBackgroundTask(Task);
 		}
-		else
-		{
-			// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
-			// Put on background thread to avoid interfering with game-thread bound tasks
-			FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
-			Build(Task, TaskGraphWrapper);
-		}
+	}
+
+	if (!bIsCompiling && !bUseAsyncBuild)
+	{
+		// To avoid deadlocks, we must queue the inner build tasks on another thread pool, so use the task graph.
+		// Put on background thread to avoid interfering with game-thread bound tasks
+		FQueuedThreadPoolTaskGraphWrapper TaskGraphWrapper(ENamedThreads::AnyBackgroundThreadNormalTask);
+		Build(Task, TaskGraphWrapper);
 	}
 #else
 	UE_LOG(LogStaticMesh,Fatal,TEXT("Tried to build a card representation without editor support (this should have been done during cooking)"));
 #endif
 }
 
-void FCardRepresentationAsyncQueue::CancelBuild(UStaticMesh* StaticMesh)
+void FCardRepresentationAsyncQueue::CancelBuild(UStaticMesh* InStaticMesh)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelBuild);
+	CancelBuilds({ InStaticMesh });
+}
 
-	TArray<FAsyncCardRepresentationTask*> TasksToCancel;
-	{
-		FScopeLock Lock(&CriticalSection);
-		TArray<FAsyncCardRepresentationTask*> Tasks = MoveTemp(PendingTasks);
-		PendingTasks.Reserve(Tasks.Num());
-		for (FAsyncCardRepresentationTask* Task : Tasks)
+void FCardRepresentationAsyncQueue::CancelBuilds(const TSet<UStaticMesh*>& InStaticMeshes)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelBuilds);
+
+	CancelAndDeleteTaskByPredicate(
+		[&InStaticMeshes](FAsyncCardRepresentationTask* Task) 
 		{
-			if (Task->GenerateSource != StaticMesh && Task->StaticMesh != StaticMesh)
-			{
-				PendingTasks.Add(Task);
-			}
+			return InStaticMeshes.Contains(Task->GenerateSource) || InStaticMeshes.Contains(Task->StaticMesh);
 		}
-
-		Tasks = MoveTemp(ReferencedTasks);
-		ReferencedTasks.Reserve(Tasks.Num());
-		for (FAsyncCardRepresentationTask* Task : Tasks)
-		{
-			if (Task->GenerateSource != StaticMesh && Task->StaticMesh != StaticMesh)
-			{
-				ReferencedTasks.Add(Task);
-			}
-			else
-			{
-				TasksToCancel.Add(Task);
-			}
-		}
-	}
-
-	CancelAndDeleteBackgroundTask(TasksToCancel);
+	);
 }
 
 void FCardRepresentationAsyncQueue::CancelAllOutstandingBuilds()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FCardRepresentationAsyncQueue::CancelAllOutstandingBuilds);
 
-	TArray<FAsyncCardRepresentationTask*> OutstandingTasks;
+	TSet<FAsyncCardRepresentationTask*> OutstandingTasks;
 	{
 		FScopeLock Lock(&CriticalSection);
-		PendingTasks.Empty();
+		PendingTasks.Reset();
 		OutstandingTasks = MoveTemp(ReferencedTasks);
 	}
 
-	CancelAndDeleteBackgroundTask(OutstandingTasks);
+	CancelAndDeleteTask(OutstandingTasks);
 }
 
 void FCardRepresentationAsyncQueue::RescheduleBackgroundTask(FAsyncCardRepresentationTask* InTask, EQueuedWorkPriority InPriority)
 {
-	if (InTask->AsyncTask)
+	if (InTask->AsyncTask && InTask->AsyncTask->GetPriority() != InPriority)
 	{
-		if (InTask->AsyncTask->GetPriority() != InPriority)
-		{
-			InTask->AsyncTask->Reschedule(GThreadPool, InPriority);
-		}
+		InTask->AsyncTask->Reschedule(GThreadPool, InPriority);
 	}
 }
 
@@ -479,6 +473,7 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 	FStaticMeshCompilingManager::Get().FinishCompilation({ StaticMesh });
 #endif
 
+	TSet<UStaticMesh*> RequiredFinishCompilation;
 	do 
 	{
 		ProcessAsyncTasks();
@@ -487,16 +482,43 @@ void FCardRepresentationAsyncQueue::BlockUntilBuildComplete(UStaticMesh* StaticM
 
 		{
 			FScopeLock Lock(&CriticalSection);
-			for (int TaskIndex = 0; TaskIndex < ReferencedTasks.Num(); TaskIndex++)
+			for (FAsyncCardRepresentationTask* Task : ReferencedTasks)
 			{
-				if (ReferencedTasks[TaskIndex]->StaticMesh == StaticMesh ||
-					ReferencedTasks[TaskIndex]->GenerateSource == StaticMesh)
+				if (Task->StaticMesh == StaticMesh ||
+					Task->GenerateSource == StaticMesh)
 				{
 					bReferenced = true;
-					RescheduleBackgroundTask(ReferencedTasks[TaskIndex], EQueuedWorkPriority::Highest);
+
+					// If the task we are waiting on depends on other static meshes
+					// we need to force finish them too.
+#if WITH_EDITOR
+					
+					if (Task->GenerateSource != nullptr &&
+						Task->GenerateSource->IsCompiling())
+					{
+						RequiredFinishCompilation.Add(Task->GenerateSource);
+					}
+
+					if (Task->StaticMesh != nullptr &&
+						Task->StaticMesh->IsCompiling())
+					{
+						RequiredFinishCompilation.Add(Task->StaticMesh);
+					}
+#endif
+
+					RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
 				}
 			}
 		}
+
+#if WITH_EDITOR
+		// Call the finish compilation outside of the critical section since those compilations
+		// might need to register new distance field tasks which also uses the critical section.
+		if (RequiredFinishCompilation.Num())
+		{
+			FStaticMeshCompilingManager::Get().FinishCompilation(RequiredFinishCompilation.Array());
+		}
+#endif
 
 		if (bReferenced)
 		{
@@ -535,9 +557,9 @@ void FCardRepresentationAsyncQueue::BlockUntilAllBuildsComplete()
 		// Reschedule as highest prio since we're explicitly waiting on them
 		{
 			FScopeLock Lock(&CriticalSection);
-			for (int TaskIndex = 0; TaskIndex < ReferencedTasks.Num(); TaskIndex++)
+			for (FAsyncCardRepresentationTask* Task : ReferencedTasks)
 			{
-				RescheduleBackgroundTask(ReferencedTasks[TaskIndex], EQueuedWorkPriority::Highest);
+				RescheduleBackgroundTask(Task, EQueuedWorkPriority::Highest);
 			}
 		}
 
@@ -575,7 +597,14 @@ void FCardRepresentationAsyncQueue::Build(FAsyncCardRepresentationTask* Task, FQ
 			*Task->GeneratedCardRepresentation);
 	}
 
-    CompletedTasks.Push(Task);
+	{
+		FScopeLock Lock(&CriticalSection);
+		// Avoid adding to the completed list if the task has been canceled
+		if (ReferencedTasks.Contains(Task))
+		{
+			CompletedTasks.Add(Task);
+		}
+	}
 
 #endif
 }
@@ -592,7 +621,20 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 	double StartTime = FPlatformTime::Seconds();
 	while (!bLimitExecutionTime || (FPlatformTime::Seconds() - StartTime) < MaxProcessingTime)
 	{
-		FAsyncCardRepresentationTask* Task = CompletedTasks.Pop();
+		FAsyncCardRepresentationTask* Task = nullptr;
+		{
+			FScopeLock Lock(&CriticalSection);
+			if (CompletedTasks.Num() > 0)
+			{
+				// Pop any element from the set
+				auto Iterator = CompletedTasks.CreateIterator();
+				Task = *Iterator;
+				Iterator.RemoveCurrent();
+
+				verify(ReferencedTasks.Remove(Task));
+			}
+		}
+
 		if (Task == nullptr)
 		{
 			break;
@@ -600,17 +642,6 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 
 		// We want to count each resource built from a DDC miss, so count each iteration of the loop separately.
 		COOK_STAT(auto Timer = CardRepresentationCookStats::UsageStats.TimeSyncWork());
-
-		bool bWasCancelled = false;
-		{
-			FScopeLock Lock(&CriticalSection);
-			bWasCancelled = ReferencedTasks.Remove(Task) == 0;
-		}
-
-		if (bWasCancelled)
-		{
-			continue;
-		}
 
 		if (Task->AsyncTask)
 		{
@@ -621,6 +652,8 @@ void FCardRepresentationAsyncQueue::ProcessAsyncTasks(bool bLimitExecutionTime)
 		// Editor 'force delete' can null any UObject pointers which are seen by reference collecting (eg UProperty or serialized)
 		if (Task->StaticMesh && Task->bSuccess)
 		{
+			check(!Task->StaticMesh->IsCompiling());
+
 			FStaticMeshRenderData* RenderData = Task->StaticMesh->GetRenderData();
 			FCardRepresentationData* OldCardData = RenderData->LODResources[0].CardRepresentationData;
 

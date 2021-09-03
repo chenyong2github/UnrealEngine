@@ -288,7 +288,10 @@ public:
 	/** Cancel the build on this specific static mesh or block until it is completed if already started. */
 	ENGINE_API void CancelBuild(UStaticMesh* StaticMesh);
 
-	/** Blocks the main thread until the async build are either cancelled or completed. */
+	/** Cancel the build on these meshes or block until they are completed if already started. */
+	ENGINE_API void CancelBuilds(const TSet<UStaticMesh*>& InStaticMeshes);
+
+	/** Blocks the main thread until the async build are either canceled or completed. */
 	ENGINE_API void CancelAllOutstandingBuilds();
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
@@ -334,23 +337,26 @@ private:
 	/** Task will be sent to a background worker. */
 	void StartBackgroundTask(FAsyncCardRepresentationTask* Task);
 
-	/** Cancel or finish any background work for the given task. */
-	static void CancelAndDeleteBackgroundTask(TArray<FAsyncCardRepresentationTask*> Tasks);
+	/** Cancel or finish any work for any task matching the predicate. */
+	void CancelAndDeleteTaskByPredicate(TFunctionRef<bool(FAsyncCardRepresentationTask*)> ShouldCancelPredicate);
 
-	/** Return whether the task has become invalid and should be cancelled (i.e. reference unreachable objects) */
+	/** Cancel or finish any work for the given task. */
+	void CancelAndDeleteTask(const TSet<FAsyncCardRepresentationTask*>& Tasks);
+
+	/** Return whether the task has become invalid and should be canceled (i.e. reference unreachable objects) */
 	bool IsTaskInvalid(FAsyncCardRepresentationTask* Task) const;
 
 	/** Used to cancel tasks that are not needed anymore when garbage collection occurs */
 	void OnPostReachabilityAnalysis();
 
 	/** Game-thread managed list of tasks in the async system. */
-	TArray<FAsyncCardRepresentationTask*> ReferencedTasks;
+	TSet<FAsyncCardRepresentationTask*> ReferencedTasks;
 
 	/** Tasks that are waiting on static mesh compilation to proceed */
-	TArray<FAsyncCardRepresentationTask*> PendingTasks;
+	TSet<FAsyncCardRepresentationTask*> PendingTasks;
 
 	/** Tasks that have completed processing. */
-	TLockFreePointerListLIFO<FAsyncCardRepresentationTask> CompletedTasks;
+	TSet<FAsyncCardRepresentationTask*> CompletedTasks;
 
 	FDelegateHandle PostReachabilityAnalysisHandle;
 

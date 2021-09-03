@@ -46,6 +46,9 @@ private:
 	/** Handler for when RemoveVertexColors is selected */
 	void ExecuteRemoveVertexColors(TArray<TWeakObjectPtr<UStaticMesh>> Objects);
 
+	/** Handler for when NaniteEnable is modified */
+	void ModifyNaniteEnable(TArray<TWeakObjectPtr<UStaticMesh>> Objects, bool bNaniteEnable);
+
 	/** Handler for when NaniteEnable is selected */
 	void ExecuteNaniteEnable(TArray<TWeakObjectPtr<UStaticMesh>> Objects);
 
