@@ -149,7 +149,7 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 	CurrentConfigData->bFollowLocalPlayerCamera = ConfigData->bFollowLocalPlayerCamera;
 	CurrentConfigData->bExitOnEsc = ConfigData->bExitOnEsc;
 
-	// Override Scene but without changing its name
+	// Override Scene, but without changing its name to avoid the Editor not being able to control it via MultiUser.
 	{
 		FName SceneName = NAME_None;
 
@@ -164,19 +164,96 @@ void ADisplayClusterRootActor::OverrideFromConfig(UDisplayClusterConfigurationDa
 		CurrentConfigData->Scene = DuplicateObject(ConfigData->Scene, CurrentConfigData, SceneName);
 	}
 
-	// Override Cluster but without changing its name
+	// Override Cluster
+	if (CurrentConfigData->Cluster)
 	{
-		FName ClusterName = NAME_None;
+		CurrentConfigData->Cluster->MasterNode = ConfigData->Cluster->MasterNode;
+		CurrentConfigData->Cluster->Sync = ConfigData->Cluster->Sync;
+		CurrentConfigData->Cluster->Network = ConfigData->Cluster->Network;
 
-		if (CurrentConfigData->Cluster)
+		// Remove nodes in current config that are not in the new config
+
+		for (auto CurrentNodeIt = CurrentConfigData->Cluster->Nodes.CreateIterator(); CurrentNodeIt; ++CurrentNodeIt)
 		{
-			ClusterName = CurrentConfigData->Cluster->GetFName();
-
-			const FName DeadName = MakeUniqueObjectName(CurrentConfigData, UDisplayClusterConfigurationCluster::StaticClass(), "DEAD_DisplayClusterConfigurationCluster");
-			CurrentConfigData->Cluster->Rename(*DeadName.ToString());
+			if (!ConfigData->Cluster->Nodes.Find(CurrentNodeIt->Key))
+			{
+				CurrentNodeIt.RemoveCurrent();
+			}
 		}
 
-		CurrentConfigData->Cluster = DuplicateObject(ConfigData->Cluster, CurrentConfigData, ClusterName);
+		// Go over new nodes and override the current ones (or add new ones that didn't exist)
+
+		for (auto NewNodeIt = ConfigData->Cluster->Nodes.CreateConstIterator(); NewNodeIt; ++NewNodeIt)
+		{
+			UDisplayClusterConfigurationClusterNode** CurrentNodePtr = CurrentConfigData->Cluster->Nodes.Find(NewNodeIt->Key);
+
+			// Add the node if it doesn't exist
+			if (!CurrentNodePtr)
+			{
+				CurrentConfigData->Cluster->Nodes.Add(
+					NewNodeIt->Key,
+					DuplicateObject(NewNodeIt->Value, CurrentConfigData->Cluster, NewNodeIt->Value->GetFName())
+				);
+
+				continue;
+			}
+
+			UDisplayClusterConfigurationClusterNode* CurrentNode = *CurrentNodePtr;
+			check(CurrentNode);
+
+			const UDisplayClusterConfigurationClusterNode* NewNode = NewNodeIt->Value;
+			check(NewNode);
+
+			// Override Node settings
+
+			CurrentNode->Host = NewNode->Host;
+			CurrentNode->bIsSoundEnabled = NewNode->bIsSoundEnabled;
+			CurrentNode->bIsFullscreen = NewNode->bIsFullscreen;
+			CurrentNode->WindowRect = NewNode->WindowRect;
+			CurrentNode->Postprocess = NewNode->Postprocess;
+			CurrentNode->OutputRemap = NewNode->OutputRemap;
+
+			// Remove viewports in current node that are not in the new node
+
+			for (auto CurrentViewportIt = CurrentNode->Viewports.CreateIterator(); CurrentViewportIt; ++CurrentViewportIt)
+			{
+				if (!NewNode->Viewports.Find(CurrentViewportIt->Key))
+				{
+					CurrentViewportIt.RemoveCurrent();
+				}
+			}
+
+			// Go over viewport and override the current ones (or add new ones that didn't exist)
+
+			for (auto NewViewportIt = NewNode->Viewports.CreateConstIterator(); NewViewportIt; ++NewViewportIt)
+			{
+				UDisplayClusterConfigurationViewport** CurrentViewportPtr = CurrentNode->Viewports.Find(NewViewportIt->Key);
+
+				// Add the viewport if it doesn't exist
+				if (!CurrentViewportPtr)
+				{
+					CurrentNode->Viewports.Add(
+						NewViewportIt->Key,
+						DuplicateObject(NewViewportIt->Value, CurrentNode, NewViewportIt->Value->GetFName())
+					);
+					continue;
+				}
+
+				UDisplayClusterConfigurationViewport* CurrentViewport = *CurrentViewportPtr;
+				check(CurrentViewport);
+
+				const UDisplayClusterConfigurationViewport* NewViewport = NewViewportIt->Value;
+				check(NewViewport);
+
+				// Override viewport settings
+
+				CurrentViewport->Camera = NewViewport->Camera;
+				CurrentViewport->RenderSettings.BufferRatio = NewViewport->RenderSettings.BufferRatio;
+				CurrentViewport->GPUIndex = NewViewport->GPUIndex;
+				CurrentViewport->Region = NewViewport->Region;
+				CurrentViewport->ProjectionPolicy = NewViewport->ProjectionPolicy;
+			}
+		}
 	}
 
 	// There is no sense to call BuildHierarchy because it works for non-BP root actors.
