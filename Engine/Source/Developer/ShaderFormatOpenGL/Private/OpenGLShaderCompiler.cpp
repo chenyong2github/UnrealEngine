@@ -698,6 +698,8 @@ void FOpenGLFrontend::BuildShaderOutput(
 	for (auto& UniformBlock : CCHeader.UniformBlocks)
 	{
 		uint16 UBIndex = UniformBlock.Index;
+
+		UsedUniformBufferSlots[UBIndex] = true;
 		
 		if (OutputTrueParameterNames())
 		{
