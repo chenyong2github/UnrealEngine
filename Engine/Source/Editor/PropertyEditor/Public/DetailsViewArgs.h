@@ -103,7 +103,7 @@ public:
 		, NotifyHook(nullptr)
 		, NameAreaSettings(ActorsUseNameArea)
 		, ColumnWidth(.65f)
-		, RightColumnMinWidth(24)
+		, RightColumnMinWidth(30)
 		, bUpdatesFromSelection(false)
 		, bLockable(false)
 		, bAllowSearch(true)
