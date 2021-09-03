@@ -267,43 +267,37 @@ public:
 			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().Show3DViewportNames);
 
 			ViewportsMenuBuilder.AddWidget(
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("PreviewResolution_Label", "Preview Resolution"))
-				]
-
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Bottom)
-				.AutoWidth()
+				SNew(SBox)
+				.HAlign(HAlign_Right)
 				[
 					SNew(SBox)
-					.MinDesiredWidth(64)
+					.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
+					.WidthOverride(100.0f)
 					[
-						SNew(SNumericEntryBox<float>)
-						.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetPreviewResolutionScale)
-						.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetPreviewResolutionScale)
-						.OnValueCommitted_Lambda([this](const float InValue, ETextCommit::Type)
-						{
-							if (ViewportClient.IsValid())
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+						.Padding(FMargin(1.0f))
+						[
+							SNew(SNumericEntryBox<float>)
+							.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetPreviewResolutionScale)
+							.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetPreviewResolutionScale)
+							.OnValueCommitted_Lambda([this](const float InValue, ETextCommit::Type)
 							{
-								ViewportClient->Invalidate();
-							}
-						})
+								if (ViewportClient.IsValid())
+								{
+									ViewportClient->Invalidate();
+								}
+							})
 
-						.MinValue(0.05f)
-						.MaxValue(1.f)
-						.MinSliderValue(0.05f)
-						.MaxSliderValue(1.f)
-						.AllowSpin(true)
+							.MinValue(0.05f)
+							.MaxValue(1.f)
+							.MinSliderValue(0.05f)
+							.MaxSliderValue(1.f)
+							.AllowSpin(true)
+						]
 					]
 				],
-				FText::GetEmpty()
+				LOCTEXT("PreviewResolution_Label", "Preview Resolution")
 		);
 		}
 		ViewportsMenuBuilder.EndSection();
@@ -313,35 +307,33 @@ public:
 			ViewportsMenuBuilder.AddMenuEntry(FDisplayClusterConfiguratorCommands::Get().ToggleShowXformGizmos);
 
 			ViewportsMenuBuilder.AddWidget(
-				SNew(SHorizontalBox)
-
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.VAlign(VAlign_Center)
-				.Padding(FMargin(0.f, 0.f, 5.f, 0.f))
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("XformGizmoScale_Label", "Xform Gizmo Scale"))
-				]
-
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Bottom)
-				.AutoWidth()
+				SNew(SBox)
+				.HAlign(HAlign_Right)
 				[
 					SNew(SBox)
-					.MinDesiredWidth(64)
+					.Padding(FMargin(8.0f, 0.0f, 0.0f, 0.0f))
+					.WidthOverride(100.0f)
 					[
-						SNew(SNumericEntryBox<float>)
-						.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetXformGizmoScale)
-						.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetXformGizmoScale)
-						.MinValue(0)
-						.MaxValue(FLT_MAX)
-						.MinSliderValue(0)
-						.MaxSliderValue(2)
-						.AllowSpin(true)
+						SNew(SBorder)
+						.BorderImage(FAppStyle::Get().GetBrush("Menu.WidgetBorder"))
+						.Padding(FMargin(1.0f))
+						[
+							SNew(SBox)
+							.MinDesiredWidth(64)
+							[
+								SNew(SNumericEntryBox<float>)
+								.Value(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::GetXformGizmoScale)
+								.OnValueChanged(ViewportClient.Get(), &FDisplayClusterConfiguratorSCSEditorViewportClient::SetXformGizmoScale)
+								.MinValue(0)
+								.MaxValue(FLT_MAX)
+								.MinSliderValue(0)
+								.MaxSliderValue(2)
+								.AllowSpin(true)
+							]
+						]
 					]
 				],
-				FText::GetEmpty()
+				LOCTEXT("XformGizmoScale_Label", "Xform Gizmo Scale")
 			);
 		}
 		ViewportsMenuBuilder.EndSection();
