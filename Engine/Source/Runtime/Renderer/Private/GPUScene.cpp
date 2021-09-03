@@ -20,6 +20,7 @@
 #include "NaniteSceneProxy.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/LowLevelMemStats.h"
+#include "ShaderDebug.h"
 
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
@@ -67,6 +68,25 @@ FAutoConsoleVariableRef CVarGPUSceneInstanceBVH(
 	GGPUSceneInstanceBVH,
 	TEXT("Add instances to BVH. (WIP)"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly
+);
+
+static TAutoConsoleVariable<int32> CVarGPUSceneDebugMode(
+	TEXT("r.GPUScene.DebugMode"),
+	0,
+	TEXT("Debug Rendering Mode:\n")
+	TEXT("0 - (show nothing, decault)\n")
+	TEXT(" 1 - Draw All\n")
+	TEXT(" 2 - Draw Selected (in the editor)\n")
+	TEXT(" 3 - Draw Updated (updated this frame)\n")
+	TEXT("You can use r.GPUScene.DebugDrawRange to limit the range\n"),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<float> CVarGPUSceneDebugDrawRange(
+	TEXT("r.GPUScene.DebugDrawRange"),
+	-1.0f,
+	TEXT("Maximum distance the to draw instance bounds, the default is -1.0 <=> infinite range."),
+	ECVF_RenderThreadSafe
 );
 
 LLM_DECLARE_TAG_API(GPUScene, RENDERER_API);
@@ -1553,6 +1573,113 @@ void FGPUScene::FreeInstancePayloadDataSlots(int32 InstancePayloadDataOffset, in
 		InstancePayloadDataAllocator.Free(InstancePayloadDataOffset, NumInstancePayloadFloat4Entries);
 	}
 }
+
+class FGPUSceneDebugRenderCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGPUSceneDebugRenderCS);
+	SHADER_USE_PARAMETER_STRUCT(FGPUSceneDebugRenderCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderParameters, ShaderDrawUniformBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
+		SHADER_PARAMETER(int32, NumInstances)
+		SHADER_PARAMETER(int32, NumScenePrimitives)
+		SHADER_PARAMETER(int32, bDrawAll)
+		SHADER_PARAMETER(int32, bDrawUpdatedOnly)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint32 >, SelectedPrimitiveFlags)
+		SHADER_PARAMETER(FVector, PickingRayStart)
+		SHADER_PARAMETER(FVector, PickingRayEnd)
+		SHADER_PARAMETER(float, DrawRange)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static constexpr uint32 NumThreadsPerGroup = 128U;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) 
+	{ 
+		return UseGPUScene(Parameters.Platform) && ShaderDrawDebug::IsSupported(Parameters.Platform);;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("NUM_THREADS_PER_GROUP"), NumThreadsPerGroup);
+
+		// Skip optimization for avoiding long compilation time due to large UAV writes
+		OutEnvironment.CompilerFlags.Add(CFLAG_Debug);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGPUSceneDebugRenderCS, "/Engine/Private/GPUSceneDebugRender.usf", "GPUSceneDebugRenderCS", SF_Compute);
+
+
+void FGPUScene::DebugRender(FRDGBuilder& GraphBuilder, FScene& Scene, FViewInfo& View)
+{
+	int32 DebugMode = CVarGPUSceneDebugMode.GetValueOnRenderThread();
+	if (DebugMode > 0)
+	{
+		ShaderDrawDebug::SetEnabled(true);
+
+		int32 NumInstances = InstanceSceneDataAllocator.GetMaxSize();
+		if (ShaderDrawDebug::IsEnabled(View) && NumInstances > 0)
+		{
+			// This lags by one frame, so may miss some in one frame, also overallocates since we will cull a lot.
+			ShaderDrawDebug::RequestSpaceForElements(NumInstances * 12);
+
+			FGPUSceneDebugRenderCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGPUSceneDebugRenderCS::FParameters>();
+
+			TArray<uint32> SelectedPrimitiveFlags;
+			const int32 BitsPerWord = (sizeof(uint32) * 8U);
+			SelectedPrimitiveFlags.Init(0U, FMath::DivideAndRoundUp(Scene.Primitives.Num(), BitsPerWord));
+			for (int32 PrimitiveID = 0; PrimitiveID < Scene.PrimitiveSceneProxies.Num(); ++PrimitiveID)
+			{
+				if (Scene.PrimitiveSceneProxies[PrimitiveID]->IsSelected())
+				{
+					SelectedPrimitiveFlags[PrimitiveID / BitsPerWord] |= 1U << uint32(PrimitiveID % BitsPerWord);
+				}
+			}
+			FRDGBufferRef SelectedPrimitiveFlagsRDG = CreateStructuredBuffer(GraphBuilder, TEXT("GPUScene.Debug.SelectedPrimitiveFlags"), SelectedPrimitiveFlags);
+
+			ShaderDrawDebug::SetParameters(GraphBuilder, View.ShaderDrawData, PassParameters->ShaderDrawUniformBuffer);
+			PassParameters->GPUSceneInstanceSceneData = InstanceSceneDataBuffer.SRV;
+			PassParameters->GPUScenePrimitiveSceneData = PrimitiveBuffer.SRV;
+			PassParameters->InstanceDataSOAStride = InstanceSceneDataSOAStride;
+			PassParameters->GPUSceneFrameNumber = GetSceneFrameNumber();
+			PassParameters->bDrawUpdatedOnly = DebugMode == 3;
+			PassParameters->bDrawAll = DebugMode != 2;
+			PassParameters->NumInstances = NumInstances;
+			PassParameters->SelectedPrimitiveFlags = GraphBuilder.CreateSRV(SelectedPrimitiveFlagsRDG);
+			PassParameters->NumScenePrimitives = NumScenePrimitives;
+			PassParameters->DrawRange = CVarGPUSceneDebugDrawRange.GetValueOnRenderThread();
+
+			FVector PickingRayStart(ForceInit);
+			FVector PickingRayDir(ForceInit);
+			View.DeprojectFVector2D(View.CursorPos, PickingRayStart, PickingRayDir);
+
+			PassParameters->PickingRayStart = PickingRayStart;
+			PassParameters->PickingRayEnd = PickingRayStart + PickingRayDir * WORLD_MAX;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FGPUSceneDebugRenderCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GPUSceneDebugRender"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(NumInstances, FGPUSceneDebugRenderCS::NumThreadsPerGroup)
+			);
+		}
+	}
+}
+
+
+
 
 TRange<int32> FGPUScene::CommitPrimitiveCollector(FGPUScenePrimitiveCollector& PrimitiveCollector)
 {
