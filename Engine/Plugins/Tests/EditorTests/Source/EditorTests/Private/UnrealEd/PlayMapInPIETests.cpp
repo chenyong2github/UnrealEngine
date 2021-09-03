@@ -77,6 +77,12 @@ public:
 	 */
 	virtual void GetTests(TArray<FString>& OutBeautifiedNames, TArray<FString>& OutTestCommands) const override
 	{
+		const UAutomationTestSettings* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
+		if (!AutomationTestSettings->bUseAllProjectMapsToPlayInPIE)
+		{
+			return;
+		}
+
 		IAssetRegistry& AssetRegistry = FModuleManager::Get().LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 
 		if (!AssetRegistry.IsLoadingAssets())

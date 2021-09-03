@@ -380,6 +380,12 @@ public:
 	TArray<FString> MapsToPIETest;
 
 	/**
+	 * Use all Maps from project for PlayMapInPIE test
+	 */
+	UPROPERTY(EditAnywhere, config, Category = "Play all project Maps In PIE")
+	bool bUseAllProjectMapsToPlayInPIE;
+
+	/**
 	* Editor build promotion test settings
 	*/
 	UPROPERTY(EditAnywhere, config, Category = Automation)
