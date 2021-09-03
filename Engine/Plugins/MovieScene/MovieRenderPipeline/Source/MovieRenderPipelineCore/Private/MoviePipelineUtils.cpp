@@ -227,10 +227,12 @@ namespace MoviePipeline
 				// This has to be done each iteration of the loop because we iterate through leaves, so the first leaf 
 				// can end up re-locking a MovieScene higher up in the hierarchy, and then when subsequent leaves try
 				// to restore their hierarchy the now-locked MovieScene prevents full restoration.
+#if WITH_EDITOR
 				if (!bInSave)
 				{
 					Node->MovieScene->SetReadOnly(false);
 				}
+#endif
 			}
 
 			if (Node->Section.IsValid())
