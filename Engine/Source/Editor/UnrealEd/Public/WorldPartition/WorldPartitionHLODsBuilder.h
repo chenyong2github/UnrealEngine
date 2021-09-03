@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Misc/EnumClassFlags.h"
 #include "WorldPartition/WorldPartitionBuilder.h"
 #include "WorldPartitionHLODsBuilder.generated.h"
 
@@ -57,6 +58,17 @@ private:
 	TSet<FString> Files[NumFileOperations];
 };
 
+enum class EHLODBuildStep : uint8
+{
+	None		= 0,
+	HLOD_Setup	= 1 << 0,
+	HLOD_Build	= 1 << 1,
+	HLOD_Submit = 1 << 2,
+	HLOD_Delete = 1 << 3,
+	HLOD_Stats	= 1 << 4
+};
+ENUM_CLASS_FLAGS(EHLODBuildStep);
+
 UCLASS()
 class UWorldPartitionHLODsBuilder : public UWorldPartitionBuilder
 {
@@ -74,7 +86,7 @@ protected:
 	bool IsUsingBuildManifest() const { return !BuildManifest.IsEmpty(); }
 	bool ValidateParams() const;
 
-	bool SetupHLODActors(bool bCreateOnly);
+	bool SetupHLODActors();
 	bool BuildHLODActors();
 	bool DeleteHLODActors();
 	bool SubmitHLODActors();
@@ -89,24 +101,22 @@ protected:
 	bool CopyFilesToWorkingDir(const FString& TargetDir, const FHLODModifiedFiles& ModifiedFiles, TArray<FString>& BuildProducts);
 	bool CopyFilesFromWorkingDir(const FString& SourceDir);
 
+	bool ShouldRunStep(const EHLODBuildStep BuildStep) const;
+
 private:
 	class UWorldPartition* WorldPartition;
 	class FSourceControlHelper* SourceControlHelper;
 
 	// Options --
-	bool bSetupHLODs;
-	bool bBuildHLODs;
-	bool bDeleteHLODs;
-	bool bSubmitHLODs;
-	bool bDumpStats;
-	bool bSingleBuildStep;
-	bool bAutoSubmit;
+	EHLODBuildStep BuildOptions;
+
 	bool bDistributedBuild;
 	FString BuildManifest;
 	int32 BuilderIdx;
 	int32 BuilderCount;
 	bool bResumeBuild;
 	int32 ResumeBuildIndex;
+	int32 HLODLevelToBuild;
 
 
 	const FString DistributedBuildWorkingDir;
