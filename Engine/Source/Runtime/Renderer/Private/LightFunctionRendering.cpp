@@ -409,7 +409,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 					}
 
 					// Render a bounding light sphere.
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 					VertexShader->SetParameters(RHICmdList, View, LightSceneInfo);
 					PixelShader->SetParameters(RHICmdList, View, LightSceneInfo, MaterialProxyForRendering, *MaterialForRendering, bRenderingPreviewShadowsIndicator, FadeAlpha);
 

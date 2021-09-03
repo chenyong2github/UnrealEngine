@@ -977,9 +977,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				{
 					SetStateForView(RHICmdList);
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-					RHICmdList.SetStencilRef(StencilRef);
 
 					FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
 
@@ -1016,9 +1015,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 				{
 					SetStateForView(RHICmdList);
 					RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 					SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-					RHICmdList.SetStencilRef(StencilRef);
 
 					FIntPoint ResolutionWithBorder = FIntPoint(ResolutionX + 2 * BorderSize, ResolutionY + 2 * BorderSize);
 
@@ -1080,9 +1078,8 @@ void FProjectedShadowInfo::CopyCachedShadowMap(
 
 				SetStateForView(RHICmdList);
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-				RHICmdList.SetStencilRef(StencilRef);
 
 				DrawRectangle(
 					RHICmdList,

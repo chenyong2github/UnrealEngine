@@ -364,6 +364,7 @@ private:
 	void PrepareShaders(
 		FRHICommandList& RHICmdList,
 		FGraphicsPipelineStateInitializer& GraphicsPSOInit,
+		uint32 StencilRef,
 		ERHIFeatureLevel::Type FeatureLevel,
 		ESimpleElementBlendMode BlendMode,
 		const FMatrix& Transform,

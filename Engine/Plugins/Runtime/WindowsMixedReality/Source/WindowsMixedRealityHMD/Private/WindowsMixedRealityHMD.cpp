@@ -802,7 +802,7 @@ namespace WindowsMixedReality
 				TShaderMapRef<FScreenPSsRGBSource> PixelShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 				PixelShader->SetParameters(RHICmdList, PixelSampler, SrcTexture);
 			}
 			else
@@ -810,7 +810,7 @@ namespace WindowsMixedReality
 				TShaderMapRef<FScreenPS> PixelShader(ShaderMap);
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 				PixelShader->SetParameters(RHICmdList, PixelSampler, SrcTexture);
 			}
 
@@ -1866,7 +1866,7 @@ namespace WindowsMixedReality
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = pixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			pixelShader->SetParameters(RHICmdList, depthFRHITexture);
 

@@ -73,8 +73,7 @@ static void ClearQuadSetup( FRHICommandList& RHICmdList, bool bClearColor, int32
 		PSOModifier(GraphicsPSOInit);
 	}
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	RHICmdList.SetStencilRef(Stencil);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, Stencil);
 
 	VertexShader->SetDepthParameter(RHICmdList, Depth);
 	PixelShader->SetColors(RHICmdList, ClearColorArray, NumClearColors);

@@ -555,7 +555,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = HorizonSearchIntegralShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				SetShaderParameters(RHICmdList, HorizonSearchIntegralShader, HorizonSearchIntegralShader.GetPixelShader(), *HorizonSearchIntegralParameters);
 
@@ -601,7 +601,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = SpatialFilterShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				SetShaderParameters(RHICmdList, SpatialFilterShader, SpatialFilterShader.GetPixelShader(), *SpatialFilterParameters);
 
@@ -930,7 +930,7 @@ static void AddMobileAmbientOcclusionPass(
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 			GraphicsPSOInit.bDepthBounds = bDepthBoundsTestEnabled;
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 

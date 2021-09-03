@@ -1311,7 +1311,7 @@ public:
 			InRHICmdList.SetViewport(View->UnscaledViewRect.Min.X, View->UnscaledViewRect.Min.Y, 0.0f, View->UnscaledViewRect.Max.X, View->UnscaledViewRect.Max.Y, 1.0f);
 
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
 			VertexShader->SetParameters(InRHICmdList, ProjectionMatrix);
@@ -1329,14 +1329,13 @@ public:
 			InRHICmdList.SetViewport(0.0f, 0.0f, 0.0f, WriteRenderTargetSize.X, WriteRenderTargetSize.Y, 1.0f);
 
 			InRHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 			// Set shader params
 			VertexShader->SetParameters(InRHICmdList, ProjectionMatrix);
 			PixelShader->SetParameters(InRHICmdList, ShaderParams);
 		}
 
-		InRHICmdList.SetStencilRef(0);
 		InRHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 		InRHICmdList.SetStreamSource(0, VertexBufferResource.VertexBufferRHI, 0);
 
@@ -2020,7 +2019,7 @@ void ALandscape::CopyTexturePS(const FString& InSourceDebugName, FTextureResourc
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		PixelShader->SetParameters(RHICmdList, InSourceResource->TextureRHI);
 

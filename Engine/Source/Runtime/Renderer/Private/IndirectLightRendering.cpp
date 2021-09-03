@@ -1101,7 +1101,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				uint32 Count = View.FinalPostProcessSettings.ContributingCubemaps.Num();
 				for (const FFinalPostProcessSettings::FCubemapEntry& CubemapEntry : View.FinalPostProcessSettings.ContributingCubemaps)
@@ -1334,12 +1334,8 @@ static void AddSkyReflectionPass(
 			GraphicsPSOInit.PrimitiveType = StrataTilePrimitiveType;
 		}
 
-		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, bEnableStrataStencilTest && StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0x0);
 		SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
-		if (bEnableStrataStencilTest)
-		{
-			InRHICmdList.SetStencilRef(StrataTileMaterialType == EStrataTileMaterialType::ESimple ? Strata::StencilBit : 0x0);
-		}
 
 		if (!bEnableStrataTiledPass)
 		{

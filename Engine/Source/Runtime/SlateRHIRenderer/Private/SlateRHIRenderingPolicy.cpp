@@ -453,7 +453,7 @@ static bool UpdateScissorRect(
 					WriteMaskPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					WriteMaskPSOInit.PrimitiveType = PT_TriangleStrip;
 
-					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit);
+					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, MaskingID + 1);
 
 					VertexShader->SetViewProjection(RHICmdList, ViewProjection);
 					VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
@@ -461,8 +461,6 @@ static bool UpdateScissorRect(
 					// Draw the first stencil using SO_Replace, so that we stomp any pixel with a MaskingID + 1.
 					{
 						const FSlateClippingZone& MaskQuad = StencilQuads[0];
-
-						RHICmdList.SetStencilRef(MaskingID + 1);
 
 						SCOPE_CYCLE_COUNTER(STAT_SlateRTStencilDrawCall);
 
@@ -495,7 +493,7 @@ static bool UpdateScissorRect(
 							, /*StencilWriteMask*/ 0xFF>::GetRHI();
 
 
-						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit);
+						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, 0);
 
 						VertexShader->SetViewProjection(RHICmdList, ViewProjection);
 						VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
@@ -848,9 +846,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = GetRHIPrimitiveType(RenderBatch.DrawPrimitiveType);
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-				RHICmdList.SetStencilRef(StencilRef);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 #if WITH_SLATE_VISUALIZERS
 				if (CVarShowSlateBatching.GetValueOnRenderThread() != 0)
@@ -1094,9 +1090,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 							GraphicsPSOInit.PrimitiveType = GetRHIPrimitiveType(RenderBatch.DrawPrimitiveType);
 
-							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-							RHICmdList.SetStencilRef(StencilRef);
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 							{
 								QUICK_SCOPE_CYCLE_COUNTER(Slate_SetMaterialShaderParams);
@@ -1183,9 +1177,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						true);
 				};
 
-				RectParams.RestoreStateFuncPostPipelineState = [&]() {
-					RHICmdList.SetStencilRef(StencilRef);
-				};
+				RectParams.StencilRef = StencilRef;
 
 				FBlurRectParams BlurParams;
 				BlurParams.KernelSize = ShaderParams.PixelParams2.X;

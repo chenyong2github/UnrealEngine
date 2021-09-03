@@ -344,12 +344,14 @@ struct FScreenPassPipelineState
 		const TShaderRef<FShader>& InPixelShader,
 		FRHIBlendState* InBlendState = FDefaultBlendState::GetRHI(),
 		FRHIDepthStencilState* InDepthStencilState = FDefaultDepthStencilState::GetRHI(),
+		uint32 InStencilRef = 0,
 		FRHIVertexDeclaration* InVertexDeclaration = GFilterVertexDeclaration.VertexDeclarationRHI)
 		: VertexShader(InVertexShader)
 		, PixelShader(InPixelShader)
 		, BlendState(InBlendState)
 		, DepthStencilState(InDepthStencilState)
 		, VertexDeclaration(InVertexDeclaration)
+		, StencilRef(InStencilRef)
 	{}
 
 	void Validate() const
@@ -366,6 +368,7 @@ struct FScreenPassPipelineState
 	FRHIBlendState* BlendState = nullptr;
 	FRHIDepthStencilState* DepthStencilState = nullptr;
 	FRHIVertexDeclaration* VertexDeclaration = nullptr;
+	uint32 StencilRef{};
 };
 
 // Helper function which sets the pipeline state object on the command list prior to invoking a screen pass.

@@ -606,7 +606,7 @@ void AddMotionBlurVelocityPass(
 					GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_Greater>::GetRHI();
 				}
 
-				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 				PassParameters->ScatterPass = ScatterPassIndex;
 

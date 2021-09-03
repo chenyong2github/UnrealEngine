@@ -137,7 +137,7 @@ void FD3D11DynamicRHI::ResolveTextureUsingShader(
 	GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 
 	CurrentDepthTexture = DestTexture;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 	RHICmdList.SetBlendFactor(FLinearColor::White);
 
 	ResolveVertexShader->SetParameters(RHICmdList, SourceRect, DestRect, ResolveTargetDesc.Width, ResolveTargetDesc.Height);

@@ -1140,10 +1140,8 @@ void RenderScreenSpaceReflections(
 			// Clobers the stencil to pixel that should not compute SSR
 			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always, true, CF_Always, SO_Replace, SO_Replace, SO_Replace>::GetRHI();
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x80);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-
-			RHICmdList.SetStencilRef(0x80);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -1248,10 +1246,8 @@ void RenderScreenSpaceReflections(
 				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always, true, CF_Equal, SO_Keep, SO_Keep, SO_Keep>::GetRHI();
 			}
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x80);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-
-			RHICmdList.SetStencilRef(0x80);
 
 			FPixelShaderUtils::DrawFullscreenTriangle(RHICmdList);
 		});
@@ -1290,11 +1286,9 @@ void RenderScreenSpaceReflections(
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0x80);
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), *PassParameters);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
-
-			RHICmdList.SetStencilRef(0x80);
 
 			PassParameters->IndirectDrawParameter->MarkResourceAsUsed();
 

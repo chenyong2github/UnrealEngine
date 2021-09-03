@@ -1024,8 +1024,10 @@ void FMeshDrawCommand::SubmitDrawBegin(
 	{
 		FGraphicsPipelineStateInitializer GraphicsPSOInit = MeshPipelineState.AsGraphicsPipelineStateInitializer();
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		// We can set the new StencilRef here to avoid the set below
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, MeshDrawCommand.StencilRef);
 		StateCache.SetPipelineState(MeshDrawCommand.CachedPipelineId.GetId());
+		StateCache.StencilRef = MeshDrawCommand.StencilRef;
 	}
 
 	if (MeshDrawCommand.StencilRef != StateCache.StencilRef)

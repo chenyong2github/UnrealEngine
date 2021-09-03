@@ -617,7 +617,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 					GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
 					GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 
 					SetShaderParameters(InRHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
 					SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
@@ -641,7 +641,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 					// Premultiplied alpha where alpha is transmittance.
 					GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha>::GetRHI();
 
-					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(InRHICmdList, GraphicsPSOInit, 0);
 					SetShaderParameters(InRHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
 					FPixelShaderUtils::DrawFullscreenTriangle(InRHICmdList);
 				});

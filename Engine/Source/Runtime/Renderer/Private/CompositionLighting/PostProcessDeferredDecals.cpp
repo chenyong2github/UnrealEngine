@@ -264,7 +264,6 @@ static bool RenderPreStencil(FRHICommandList& RHICmdList, const FViewInfo& View,
 	>::GetRHI();
 
 	DecalRendering::SetVertexShaderOnly(RHICmdList, GraphicsPSOInit, View, FrustumComponentToClip);
-	RHICmdList.SetStencilRef(0);
 
 	// Set stream source after updating cached strides
 	RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
@@ -508,8 +507,7 @@ void AddDeferredDecalPass(
 				GraphicsPSOInit.BlendState = DecalRendering::GetDecalBlendState(DecalData.DecalBlendDesc, DecalRenderStage, RenderTargetMode);
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				DecalRendering::SetShader(RHICmdList, GraphicsPSOInit, View, DecalData, DecalRenderStage, FrustumComponentToClip);
-				RHICmdList.SetStencilRef(StencilRef);
+				DecalRendering::SetShader(RHICmdList, GraphicsPSOInit, StencilRef, View, DecalData, DecalRenderStage, FrustumComponentToClip);
 				RHICmdList.DrawIndexedPrimitive(GetUnitCubeIndexBuffer(), 0, 0, 8, 0, UE_ARRAY_COUNT(GCubeIndices) / 3, 1);
 			}
 		});

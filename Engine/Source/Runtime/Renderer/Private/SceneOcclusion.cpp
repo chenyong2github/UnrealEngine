@@ -1085,7 +1085,7 @@ void FHZBOcclusionTester::Submit(FRDGBuilder& GraphBuilder, const FViewInfo& Vie
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			PixelShader->SetParameters(RHICmdList, View, BoundsCenterTexture->GetRHI(), BoundsExtentTexture->GetRHI());
 
@@ -1317,7 +1317,7 @@ static void BeginOcclusionTests(
 			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA>::GetRHI();
 		}
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		if (FeatureLevel > ERHIFeatureLevel::ES3_1)
 		{

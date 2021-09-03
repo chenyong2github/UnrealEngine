@@ -150,7 +150,7 @@ static void PicpBlurPostProcess_RenderThread(
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		// Blur X
 		PixelShader->SetParameters(RHICmdList, InShaderTexture, FVector2D(InSettings.KernelScale / TargetSizeXY.X, 0.0f), InSettings.KernelRadius);

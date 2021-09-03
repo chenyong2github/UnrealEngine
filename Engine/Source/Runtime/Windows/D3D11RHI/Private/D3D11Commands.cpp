@@ -185,10 +185,10 @@ void FD3D11DynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 	StateCache.SetRasterizerState(NewState->Resource);
 }
 
-void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState)
+void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState)
 {
 	FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
-	IRHICommandContextPSOFallback::RHISetGraphicsPipelineState(GraphicsState, bApplyAdditionalState);
+	IRHICommandContextPSOFallback::RHISetGraphicsPipelineState(GraphicsState, StencilRef, bApplyAdditionalState);
 	const FGraphicsPipelineStateInitializer& PsoInit = FallbackGraphicsState->Initializer;
 
 	if (bApplyAdditionalState)

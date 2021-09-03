@@ -228,7 +228,7 @@ void CopySceneCaptureComponentToTarget(
 			{
 				FGraphicsPipelineStateInitializer LocalGraphicsPSOInit = GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(LocalGraphicsPSOInit);
-				SetGraphicsPipelineState(RHICmdList, LocalGraphicsPSOInit);
+				SetGraphicsPipelineState(RHICmdList, LocalGraphicsPSOInit, 0);
 				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 				
 				CopyCaptureToTargetSetViewportFn(RHICmdList);
@@ -553,7 +553,7 @@ static void ODSCapture_RenderThread(
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 		const FIntPoint& TargetSize = OutputTexture->Desc.Extent;
 		RHICmdList.SetViewport(0, 0, 0.0f, TargetSize.X, TargetSize.Y, 1.0f);

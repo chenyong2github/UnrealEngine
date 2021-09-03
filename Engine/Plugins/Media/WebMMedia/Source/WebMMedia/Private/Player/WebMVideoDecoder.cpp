@@ -275,7 +275,7 @@ void FWebMVideoDecoder::ConvertYUVToRGBAndSubmit(const FConvertParams& Params)
 				GraphicsPSOInit.PrimitiveType = PT_TriangleStrip;
 			}
 
-			SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
+			SetGraphicsPipelineState(CommandList, GraphicsPSOInit, 0);
 			PixelShader->SetParameters(CommandList, DecodedY->GetTexture2D(), DecodedU->GetTexture2D(), DecodedV->GetTexture2D(), FIntPoint(Image->d_w, Image->d_h), MediaShaders::YuvToRgbRec709Scaled, MediaShaders::YUVOffset8bits, true);
 
 			// draw full-size quad

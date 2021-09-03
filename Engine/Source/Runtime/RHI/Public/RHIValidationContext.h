@@ -549,7 +549,7 @@ public:
 		RHIContext->RHISetScissorRect(bEnable, MinX, MinY, MaxX, MaxY);
 	}
 
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState) override final
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState) override final
 	{
 		checkf(State.bInsideBeginRenderPass, TEXT("Graphics PSOs can only be set inside a RenderPass!"));
 		State.bGfxPSOSet = true;
@@ -575,7 +575,7 @@ public:
 		Tracker->ResetUAVState(RHIValidation::EUAVMode::Graphics);
 
 		State.GlobalUniformBuffers.bInSetPipelineStateCall = true;
-		RHIContext->RHISetGraphicsPipelineState(GraphicsState, bApplyAdditionalState);
+		RHIContext->RHISetGraphicsPipelineState(GraphicsState, StencilRef, bApplyAdditionalState);
 		State.GlobalUniformBuffers.bInSetPipelineStateCall = false;
 	}
 

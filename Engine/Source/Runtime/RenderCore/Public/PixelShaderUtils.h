@@ -73,8 +73,7 @@ struct RENDERCORE_API FPixelShaderUtils
 		GraphicsPSOInit.RasterizerState = RasterizerState ? RasterizerState : GraphicsPSOInit.RasterizerState;
 		GraphicsPSOInit.DepthStencilState = DepthStencilState ? DepthStencilState : GraphicsPSOInit.DepthStencilState;
 
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-		RHICmdList.SetStencilRef(StencilRef);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters);
 
@@ -162,9 +161,7 @@ struct RENDERCORE_API FPixelShaderUtils
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-			RHICmdList.SetStencilRef(StencilRef);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), Parameters->VS);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), Parameters->PS);

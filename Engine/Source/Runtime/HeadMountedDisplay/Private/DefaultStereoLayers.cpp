@@ -117,7 +117,7 @@ void FDefaultStereoLayers::StereoLayerRender(FRHICommandListImmediate& RHICmdLis
 		if (bPipelineStateNeedsUpdate)
 		{
 			// Updater render state
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 		}
 
 		FMatrix LayerMatrix = ConvertTransform(Layer.Transform);

@@ -248,7 +248,7 @@ void FMetalRHICommandContext::RHISetScissorRect(bool bEnable,uint32 MinX,uint32 
 	}
 }
 
-void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState)
+void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, uint32 StencilRef, bool bApplyAdditionalState)
 {
 	@autoreleasepool {
 		FMetalGraphicsPipelineState* PipelineState = ResourceCast(GraphicsState);
@@ -258,7 +258,7 @@ void FMetalRHICommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineSt
 		}
 		Context->GetCurrentState().SetGraphicsPipelineState(PipelineState);
 
-		RHISetStencilRef(0);
+		RHISetStencilRef(StencilRef);
 		RHISetBlendFactor(FLinearColor(1.0f, 1.0f, 1.0f));
 
 		if (bApplyAdditionalState)
