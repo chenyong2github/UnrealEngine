@@ -26,33 +26,26 @@ inline void FLogScope::Commit() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void FLogScope::operator += (const FLogScope&) const
-{
-	Commit();
-}
-
-////////////////////////////////////////////////////////////////////////////////
 template <uint32 Flags>
-inline FLogScope FLogScope::EnterImpl(uint32 Uid, uint32 Size)
+inline auto FLogScope::EnterImpl(uint32 Uid, uint32 Size)
 {
-	FLogScope Ret;
-	bool bMaybeHasAux = (Flags & FEventInfo::Flag_MaybeHasAux) != 0;
+	TLogScope<(Flags & FEventInfo::Flag_MaybeHasAux) != 0> Ret;
 	if ((Flags & FEventInfo::Flag_NoSync) != 0)
 	{
-		Ret.EnterNoSync(Uid, Size, bMaybeHasAux);
+		Ret.EnterNoSync(Uid, Size);
 	}
 	else
 	{
-		Ret.Enter(Uid, Size, bMaybeHasAux);
+		Ret.Enter(Uid, Size);
 	}
 	return Ret;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class HeaderType>
-inline void FLogScope::EnterPrelude(uint32 Size, bool bMaybeHasAux)
+inline void FLogScope::EnterPrelude(uint32 Size)
 {
-	uint32 AllocSize = sizeof(HeaderType) + Size + int32(bMaybeHasAux);
+	uint32 AllocSize = sizeof(HeaderType) + Size;
 
 	Buffer = Writer_GetBuffer();
 	Buffer->Cursor += AllocSize;
@@ -61,37 +54,50 @@ inline void FLogScope::EnterPrelude(uint32 Size, bool bMaybeHasAux)
 		Buffer = Writer_NextBuffer(AllocSize);
 	}
 
-	// The auxilary data null terminator.
-	if (bMaybeHasAux)
-	{
-		Buffer->Cursor[-1] = 0;
-	}
-
-	Ptr = Buffer->Cursor - Size - int32(bMaybeHasAux);
+	Ptr = Buffer->Cursor - Size;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void FLogScope::Enter(uint32 Uid, uint32 Size, bool bMaybeHasAux)
+inline void FLogScope::Enter(uint32 Uid, uint32 Size)
 {
-	EnterPrelude<FEventHeaderSync>(Size, bMaybeHasAux);
+	EnterPrelude<FEventHeaderSync>(Size);
 
 	// Event header
 	auto* Header = (uint16*)(Ptr - sizeof(FEventHeaderSync::SerialHigh));
 	*(uint32*)(Header - 1) = uint32(AtomicAddRelaxed(&GLogSerial, 1u));
-	Header[-2] = uint16(Size);
-	Header[-3] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
+	Header[-2] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size, bool bMaybeHasAux)
+inline void FLogScope::EnterNoSync(uint32 Uid, uint32 Size)
 {
-	EnterPrelude<FEventHeader>(Size, bMaybeHasAux);
+	EnterPrelude<FEventHeader>(Size);
 
 	// Event header
 	auto* Header = (uint16*)(Ptr);
-	Header[-1] = uint16(Size);
-	Header[-2] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
+	Header[-1] = uint16(Uid)|int32(EKnownEventUids::Flag_TwoByteUid);
 }
+
+
+
+////////////////////////////////////////////////////////////////////////////////
+template </*bMaybeHasAux*/>
+inline void TLogScope<false>::operator += (const FLogScope&) const
+{
+	Commit();
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template </*bMaybeHasAux*/>
+inline void TLogScope<true>::operator += (const FLogScope&) const
+{
+	FWriteBuffer* LatestBuffer = Writer_GetBuffer();
+	LatestBuffer->Cursor[0] = uint8(EKnownEventUids::AuxDataTerminal << EKnownEventUids::_UidShift);
+	LatestBuffer->Cursor++;
+
+	Commit();
+}
+
 
 
 
@@ -103,7 +109,7 @@ inline FScopedLogScope::~FScopedLogScope()
 		return;
 	}
 
-	uint8 LeaveUid = uint8(EKnownEventUids::LeaveScope) << EKnownEventUids::_UidShift;
+	uint8 LeaveUid = uint8(EKnownEventUids::LeaveScope << EKnownEventUids::_UidShift);
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor)) < int32(sizeof(LeaveUid)))
@@ -159,19 +165,19 @@ inline void FScopedStampedLogScope::SetActive()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-template <class T>
-FORCENOINLINE FLogScope FLogScope::Enter(uint32 ExtraSize)
+template <class EventType>
+FORCENOINLINE auto FLogScope::Enter()
 {
-	uint32 Size = T::GetSize() + ExtraSize;
-	uint32 Uid = T::GetUid();
-	return EnterImpl<T::EventFlags>(Uid, Size);
+	uint32 Size = EventType::GetSize();
+	uint32 Uid = EventType::GetUid();
+	return EnterImpl<EventType::EventFlags>(Uid, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-template <class T>
-FORCENOINLINE FLogScope FLogScope::ScopedEnter(uint32 ExtraSize)
+template <class EventType>
+FORCENOINLINE auto FLogScope::ScopedEnter()
 {
-	uint8 EnterUid = uint8(EKnownEventUids::EnterScope) << EKnownEventUids::_UidShift;
+	uint8 EnterUid = uint8(EKnownEventUids::EnterScope << EKnownEventUids::_UidShift);
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
 	if (UNLIKELY(int32((uint8*)Buffer - Buffer->Cursor)) < int32(sizeof(EnterUid)))
@@ -184,12 +190,12 @@ FORCENOINLINE FLogScope FLogScope::ScopedEnter(uint32 ExtraSize)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter<T>(ExtraSize);
+	return Enter<EventType>();
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-template <class T>
-FORCENOINLINE FLogScope FLogScope::ScopedStampedEnter(uint32 ExtraSize)
+template <class EventType>
+FORCENOINLINE auto FLogScope::ScopedStampedEnter()
 {
 	uint64 Stamp;
 
@@ -207,7 +213,7 @@ FORCENOINLINE FLogScope FLogScope::ScopedStampedEnter(uint32 ExtraSize)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter<T>(ExtraSize);
+	return Enter<EventType>();
 }
 
 
@@ -229,7 +235,7 @@ struct FLogScope::FFieldSet<FieldMeta, Type[]>
 {
 	static void Impl(FLogScope*, Type const* Data, int32 Num)
 	{
-		static const uint32 Index = FieldMeta::Index & 0x7f;
+		static const uint32 Index = FieldMeta::Index & int32(EIndexPack::NumFieldsMask);
 		int32 Size = (Num * sizeof(Type)) & (FAuxHeader::SizeLimit - 1) & ~(sizeof(Type) - 1);
 		Field_WriteAuxData(Index, (const uint8*)Data, Size);
 	}
@@ -255,7 +261,7 @@ struct FLogScope::FFieldSet<FieldMeta, AnsiString>
 			Length = int32(strlen(String));
 		}
 
-		static const uint32 Index = FieldMeta::Index & 0x7f;
+		static const uint32 Index = FieldMeta::Index & int32(EIndexPack::NumFieldsMask);
 		Field_WriteStringAnsi(Index, String, Length);
 	}
 
@@ -267,7 +273,7 @@ struct FLogScope::FFieldSet<FieldMeta, AnsiString>
 			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
-		static const uint32 Index = FieldMeta::Index & 0x7f;
+		static const uint32 Index = FieldMeta::Index & int32(EIndexPack::NumFieldsMask);
 		Field_WriteStringAnsi(Index, String, Length);
 	}
 };
@@ -284,7 +290,7 @@ struct FLogScope::FFieldSet<FieldMeta, WideString>
 			for (const WIDECHAR* c = String; *c; ++c, ++Length);
 		}
 
-		static const uint32 Index = FieldMeta::Index & 0x7f;
+		static const uint32 Index = FieldMeta::Index & int32(EIndexPack::NumFieldsMask);
 		Field_WriteStringWide(Index, String, Length);
 	}
 };

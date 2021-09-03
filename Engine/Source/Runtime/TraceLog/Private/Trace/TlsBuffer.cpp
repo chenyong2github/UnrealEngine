@@ -44,7 +44,7 @@ UE_TRACE_EVENT_END()
 
 ////////////////////////////////////////////////////////////////////////////////
 #define T_ALIGN alignas(PLATFORM_CACHE_LINE_SIZE)
-static FWriteBuffer						GNullWriteBuffer	= { 0, 0, 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
+static FWriteBuffer						GNullWriteBuffer	= { {}, 0, 0, nullptr, nullptr, (uint8*)&GNullWriteBuffer };
 thread_local FWriteBuffer*				GTlsWriteBuffer		= &GNullWriteBuffer;
 static FWriteBuffer* __restrict			GActiveThreadList;	// = nullptr;
 T_ALIGN static FWriteBuffer* volatile	GNewThreadList;		// = nullptr;

@@ -6,6 +6,7 @@
 #include "Containers/ArrayView.h"
 #include "CoreGlobals.h"
 #include "HAL/UnrealMemory.h"
+#include "Logging/LogMacros.h"
 #include "StreamReader.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Analysis.h"
@@ -2434,6 +2435,648 @@ int32 FProtocol4Stage::OnDataKnown(
 
 
 
+// {{{1 protocol-5 -------------------------------------------------------------
+
+////////////////////////////////////////////////////////////////////////////////
+DEFINE_LOG_CATEGORY_STATIC(LogTraceAnalysis, Log, All)
+
+#if 0
+#	define TRACE_ANALYSIS_DEBUG(Format, ...) \
+		do { UE_LOG(LogTraceAnalysis, Log, TEXT(Format), __VA_ARGS__) } while (0)
+#else
+#	define TRACE_ANALYSIS_DEBUG(...)
+#endif
+
+////////////////////////////////////////////////////////////////////////////////
+class FProtocol5Stage
+	: public FAnalysisMachine::FStage
+{
+public:
+							FProtocol5Stage(FTransport* InTransport);
+
+private:
+	struct alignas(16) FEventDesc
+	{
+		int32				Serial;
+		uint16				Uid			: 15;
+		uint16				bHasAux		: 1;
+		uint16				AuxKey;
+		const uint8*		Data;
+	};
+	static_assert(sizeof(FEventDesc) == 16, "");
+
+	enum ESerial : int32 
+	{
+		Bits		= 24,
+		Mask		= (1 << Bits) - 1,
+		Range		= 1 << Bits,
+		HalfRange	= Range >> 1,
+		Ignored		= Range << 2, // far away so proper serials always compare less-than
+		Terminal,
+	};
+
+	using EventDescArray	= TArray<FEventDesc>;
+	using EKnownUids		= Protocol5::EKnownEventUids;
+
+
+	virtual EStatus			OnData(FStreamReader& Reader, const FMachineContext& Context) override;
+	EStatus					OnDataImportant(const FMachineContext& Context);
+	EStatus					OnDataNormal(const FMachineContext& Context);
+	int32					ParseImportantEvents(FStreamReader& Reader, EventDescArray& OutEventDescs);
+	int32					ParseEvents(FStreamReader& Reader, EventDescArray& OutEventDescs);
+	int32					ParseEventsWithAux(FStreamReader& Reader, EventDescArray& OutEventDescs);
+	int32					ParseEvent(FStreamReader& Reader, FEventDesc& OutEventDesc);
+	int						DispatchEvents(FAnalysisBridge& Bridge, const FEventDesc* EventDesc, uint32 Count);
+	FTypeRegistry			TypeRegistry;
+	FTidPacketTransport&	Transport;
+	EventDescArray			EventDescs;
+};
+
+////////////////////////////////////////////////////////////////////////////////
+FProtocol5Stage::FProtocol5Stage(FTransport* InTransport)
+: Transport(*(FTidPacketTransport*)InTransport)
+{
+	EventDescs.Reserve(8 << 10);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FProtocol5Stage::EStatus FProtocol5Stage::OnData(
+	FStreamReader& Reader,
+	const FMachineContext& Context)
+{
+	Transport.SetReader(Reader);
+	Transport.Update();
+
+	EStatus Ret = OnDataImportant(Context);
+	if (Ret != EStatus::Eof)
+	{
+		return Ret;
+	}
+
+	return OnDataNormal(Context);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FProtocol5Stage::EStatus FProtocol5Stage::OnDataImportant(const FMachineContext& Context)
+{
+	// New and important event packets
+
+	EventDescs.Reset();
+	bool bNotEnoughData = false;
+
+	for (uint32 i = 0, n = ETransportTid::Bias; i < n; ++i)
+	{
+		FStreamReader* ThreadReader = Transport.GetThreadStream(i);
+		if (ThreadReader->IsEmpty())
+		{
+			continue;
+		}
+
+		if (ParseImportantEvents(*ThreadReader, EventDescs) < 0)
+		{
+			return EStatus::Error;
+		}
+
+		bNotEnoughData |= !ThreadReader->IsEmpty();
+	}
+
+	// Dispatch and filter out new-event events 
+	for (uint32 j = 0, k = 0, m = EventDescs.Num(); ; ++j)
+	{
+		if (j >= m)
+		{
+			EventDescs.SetNum(k);
+			break;
+		}
+
+		const FEventDesc& EventDesc = EventDescs[j];
+		if (EventDesc.Uid != EKnownUids::NewEvent)
+		{
+			EventDescs[k] = EventDesc;
+			++k;
+			continue;
+		}
+
+		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Add(EventDesc.Data);
+		Context.Bridge.OnNewType(TypeInfo);
+	}
+
+	if (EventDescs.Num() <= 0)
+	{
+		return bNotEnoughData ? EStatus::NotEnoughData : EStatus::Eof;
+	}
+
+	// Dispatch looks ahead to the next desc looking for runs of aux blobs. As
+	// such we should add a terminal desc for it to read. Note the "- 1" too.
+	FEventDesc& EventDesc = EventDescs.Emplace_GetRef();
+	EventDesc.Serial = ESerial::Terminal;
+
+	Context.Bridge.SetActiveThread(ETransportTid::Importants);
+	if (DispatchEvents(Context.Bridge, EventDescs.GetData(), EventDescs.Num() - 1) < 0)
+	{
+		return EStatus::Error;
+	}
+
+	return bNotEnoughData ? EStatus::NotEnoughData : EStatus::Eof;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FProtocol5Stage::ParseImportantEvents(FStreamReader& Reader, EventDescArray& OutEventDescs)
+{
+	using namespace Protocol5;
+
+	while (true)
+	{
+		int32 Remaining = Reader.GetRemaining();
+		if (Remaining < sizeof(FImportantEventHeader))
+		{
+			return 1;
+		}
+
+		const auto* Header = Reader.GetPointerUnchecked<FImportantEventHeader>();
+		if (Remaining < int32(Header->Size) + sizeof(FImportantEventHeader))
+		{
+			return 1;
+		}
+
+		uint32 Uid = Header->Uid;
+
+		FEventDesc EventDesc;
+		EventDesc.Uid = Uid;
+		EventDesc.Data = Header->Data;
+		EventDesc.Serial = ESerial::Ignored;
+
+		// Special case for new events. It would work to add a 0 type to the
+		// registry but this way avoid raveling things together.
+		if (Uid == EKnownUids::NewEvent)
+		{
+			OutEventDescs.Add(EventDesc);
+			Reader.Advance(sizeof(*Header) + Header->Size);
+			continue;
+		}
+
+		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Get(Uid);
+		if (TypeInfo == nullptr)
+		{
+			UE_LOG(LogTraceAnalysis, Log, TEXT("Unknown event UID: %08x"), Uid);
+			return 1;
+		}
+
+		OutEventDescs.Add(EventDesc);
+
+		if (TypeInfo->Flags & FTypeRegistry::FTypeInfo::Flag_MaybeHasAux)
+		{
+			EventDesc.bHasAux = 1;
+
+			const uint8* Cursor = Header->Data + TypeInfo->EventSize;
+			const uint8* End = Header->Data + Header->Size;
+			while (Cursor <= End)
+			{
+				if (Cursor[0] == uint8(EKnownUids::AuxDataTerminal))
+				{
+					break;
+				}
+
+				const auto* AuxHeader = (FAuxHeader*)Cursor;
+
+				FEventDesc& AuxDesc = OutEventDescs.Emplace_GetRef();
+				AuxDesc.Uid = uint8(EKnownUids::AuxData);
+				AuxDesc.Data = AuxHeader->Data;
+
+				Cursor = AuxHeader->Data + (AuxHeader->Pack >> FAuxHeader::SizeShift);
+			}
+
+			if (Cursor[0] != uint8(EKnownUids::AuxDataTerminal))
+			{
+				UE_LOG(LogTraceAnalysis, Warning, TEXT("Expecting AuxDataTerminal event"));
+				return -1;
+			}
+		}
+
+		Reader.Advance(sizeof(*Header) + Header->Size);
+	}
+
+	return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+FProtocol5Stage::EStatus FProtocol5Stage::OnDataNormal(const FMachineContext& Context)
+{
+	// Ordinary events
+
+	EventDescs.Reset();
+	bool bNotEnoughData = false;
+
+	struct FEventDescStream
+	{
+		uint32				ThreadId;
+		uint32				Index;
+		const FEventDesc*	EventDescs;
+	};
+	TArray<FEventDescStream> EventDescHeap;
+	EventDescHeap.Reserve(Transport.GetThreadCount());
+
+	for (uint32 i = ETransportTid::Bias, n = Transport.GetThreadCount(); i < n; ++i)
+	{
+		uint32 NumEventDescs = EventDescs.Num();
+
+		TRACE_ANALYSIS_DEBUG("Thread: %03d Id:%04x", i, Transport.GetThreadId(i));
+		
+		// Extract all the events in the stream for this thread
+		FStreamReader* ThreadReader = Transport.GetThreadStream(i);
+		if (ParseEvents(*ThreadReader, EventDescs) < 0)
+		{
+			return EStatus::Error;
+		}
+
+		bNotEnoughData |= !ThreadReader->IsEmpty();
+
+		if (uint32(EventDescs.Num()) != NumEventDescs)
+		{
+			// Add a dummy event to delineate the end of this thread's events
+			FEventDesc& EventDesc = EventDescs.Emplace_GetRef();
+			EventDesc.Serial = ESerial::Terminal;
+
+			EventDescHeap.Add({Transport.GetThreadId(i), NumEventDescs});
+		}
+
+		TRACE_ANALYSIS_DEBUG("Thread: %03d bNotEnoughData:%d", i, bNotEnoughData);
+	}
+
+	// Early out if there isn't any events available.
+	if (UNLIKELY(EventDescHeap.IsEmpty()))
+	{
+		return bNotEnoughData ? EStatus::NotEnoughData : EStatus::Eof;
+	}
+
+	// Now EventDescs is stable we can convert the indices into pointers
+	for (FEventDescStream& Stream : EventDescHeap)
+	{
+		Stream.EventDescs = EventDescs.GetData() + Stream.Index;
+	}
+
+	// Provided that less than approximately "SerialRange * BytesPerSerial"
+	// is buffered there should never be more that "SerialRange / 2" serial
+	// numbers. Thus if the distance between any two serial numbers is larger
+	// than half the serial space, they have wrapped.
+
+	// A min-heap is used to peel off groups of events by lowest serial
+	auto Comparison = [] (const FEventDescStream& Lhs, const FEventDescStream& Rhs)
+	{
+		int32 Delta = Rhs.EventDescs->Serial - Lhs.EventDescs->Serial;
+		int32 Wrapped = uint32(Delta + ESerial::HalfRange - 1) >= uint32(ESerial::Range - 2);
+		return (Wrapped ^ (Delta > 0)) != 0;
+	};
+	EventDescHeap.Heapify(Comparison);
+
+	do
+	{
+		const FEventDescStream& Stream = EventDescHeap.HeapTop();
+		const FEventDesc* StartDesc = Stream.EventDescs;
+		const FEventDesc* EndDesc = StartDesc;
+
+		Context.Bridge.SetActiveThread(Stream.ThreadId);
+
+		// Extract a run of consecutive events (plus runs of unsynchronised ones)
+		for (; EndDesc->Serial == ESerial::Ignored; ++EndDesc);
+		if (EndDesc->Serial != ESerial::Terminal)
+		{
+			uint32 NextSerial = EndDesc->Serial;
+			do
+			{
+				do
+				{
+					++EndDesc;
+				}
+				while (EndDesc->Serial == ESerial::Ignored);
+
+				++NextSerial;
+			}
+			while (EndDesc->Serial == NextSerial);
+		}
+
+		// Update the heap
+		if (EndDesc->Serial != ESerial::Terminal)
+		{
+			EventDescHeap.Add({Stream.ThreadId, 0, EndDesc});
+		}
+		EventDescHeap.HeapPopDiscard(Comparison);
+
+		// Dispatch.
+		int32 DescNum = int32(UPTRINT(EndDesc - StartDesc));
+		check(DescNum > 0);
+		if (DispatchEvents(Context.Bridge, StartDesc, DescNum) < 0)
+		{
+			return EStatus::Error;
+		}
+	}
+	while (!EventDescHeap.IsEmpty());
+
+	return bNotEnoughData ? EStatus::NotEnoughData : EStatus::Eof;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FProtocol5Stage::ParseEvents(FStreamReader& Reader, EventDescArray& OutEventDescs)
+{
+	while (!Reader.IsEmpty())
+	{
+		FEventDesc EventDesc;
+		int32 Size = ParseEvent(Reader, EventDesc);
+		if (Size <= 0)
+		{
+			return Size;
+		}
+
+		TRACE_ANALYSIS_DEBUG("Event: %04d Uid:%04x Serial:%08x", OutEventDescs.Num(), EventDesc.Uid, EventDesc.Serial);
+		OutEventDescs.Add(EventDesc);
+
+		if (EventDesc.bHasAux)
+		{
+			uint32 RewindDescsNum = OutEventDescs.Num() - 1;
+			auto RewindMark = Reader.SaveMark();
+
+			Reader.Advance(Size);
+
+			int Ok = ParseEventsWithAux(Reader, OutEventDescs);
+			if (Ok < 0)
+			{
+				return Ok;
+			}
+
+			if (Ok == 0)
+			{
+				OutEventDescs.SetNum(RewindDescsNum);
+				Reader.RestoreMark(RewindMark);
+				break;
+			}
+
+			continue;
+		}
+
+		Reader.Advance(Size);
+	}
+
+	return 0;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FProtocol5Stage::ParseEventsWithAux(FStreamReader& Reader, EventDescArray& OutEventDescs)
+{
+	// We are now "in" the scope of an event with zero or more aux-data blocks.
+	// We will consume events until we leave this scope (a aux-data-terminal).
+	// A running key is assigned to each event with a gap left following events
+	// that may have aux-data blocks. Aux-data blocks are assigned a key that
+	// fits in these gaps. Once sorted by this key, events maintain their order
+	// while aux-data blocks are moved to directly follow their owners.
+
+	TArray<uint16, TInlineAllocator<8>> AuxKeyStack = { 0 };
+	uint32 AuxKey = 2;
+
+	uint32 FirstDescIndex = OutEventDescs.Num();
+	bool bUnsorted = false;
+
+	while (!Reader.IsEmpty())
+	{
+		FEventDesc EventDesc;
+
+		int32 Size = ParseEvent(Reader, EventDesc);
+		if (Size <= 0)
+		{
+			return Size;
+		}
+
+		TRACE_ANALYSIS_DEBUG("Event: %04d Uid:%04x Serial:%08x", OutEventDescs.Num(), EventDesc.Uid, EventDesc.Serial);
+
+		Reader.Advance(Size);
+
+		if (EventDesc.Uid == EKnownUids::AuxDataTerminal)
+		{
+			// Leave the scope of an aux-owning event.
+			if (AuxKeyStack.Pop() == 0)
+			{
+				break;
+			}
+			continue;
+		}
+		else if (EventDesc.Uid == EKnownUids::AuxData)
+		{
+			// Move an aux-data block to follow its owning event
+			EventDesc.AuxKey = AuxKeyStack.Last() + 1;
+		}
+		else
+		{
+			EventDesc.AuxKey = uint16(AuxKey);
+
+			// Maybe it is time to create a new aux-data owner scope
+			if (EventDesc.bHasAux)
+			{
+				AuxKeyStack.Add(uint16(AuxKey));
+				bUnsorted = true;
+
+				++AuxKey; // Add a gap for aux-blocks to sort into
+			}
+		}
+
+		OutEventDescs.Add(EventDesc);
+
+		++AuxKey;
+	}
+
+	if (AuxKeyStack.Num() > 0)
+	{
+		// There was not enough data available to complete the outer most scope
+		return 0;
+	}
+
+	checkf((AuxKey & 0xffff0000) == 0, TEXT("AuxKey overflow (%08x)"), AuxKey);
+
+	// Sort to get all aux-blocks contiguous with their owning event
+	if (bUnsorted)
+	{
+		uint32 NumDescs = OutEventDescs.Num() - FirstDescIndex;
+		TArrayView<FEventDesc> DescsView(OutEventDescs.GetData() + FirstDescIndex, NumDescs);
+		Algo::Sort(
+			DescsView,
+			[] (const FEventDesc& Lhs, const FEventDesc& Rhs)
+			{
+				return Lhs.AuxKey < Rhs.AuxKey;
+			}
+		);
+	}
+
+	return 1;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32 FProtocol5Stage::ParseEvent(FStreamReader& Reader, FEventDesc& EventDesc)
+{
+	using namespace Protocol5;
+
+	// No need to aggressively bounds check here. Events are never fragmented
+	// due to the way that data is transported (aux payloads can be though).
+	const uint8* Cursor = Reader.GetPointerUnchecked<uint8>();
+
+	// Parse the event's ID
+	uint32 Uid = *Cursor;
+	if (Uid & EKnownUids::Flag_TwoByteUid)
+	{
+		Uid = *(uint16*)Cursor;
+		++Cursor;
+	}
+	Uid >>= EKnownUids::_UidShift;
+	++Cursor;
+
+	// Calculate the size of the event
+	uint32 Serial = uint32(ESerial::Ignored);
+	uint32 EventSize = 0;
+	if (Uid < EKnownUids::User)
+	{
+		/* Well-known event */
+
+		if (Uid == Protocol5::EKnownEventUids::AuxData)
+		{
+			--Cursor; // FAuxHeader includes the one-byte Uid
+			const auto* AuxHeader = (FAuxHeader*)Cursor;
+
+			uint32 Remaining = Reader.GetRemaining();
+			uint32 Size = AuxHeader->Pack >> FAuxHeader::SizeShift;
+			if (Remaining < Size + sizeof(FAuxHeader))
+			{
+				return 0;
+			}
+
+			EventSize = Size;
+			Cursor += sizeof(FAuxHeader);
+		}
+		else
+		{
+			switch (Uid)
+			{
+			case EKnownUids::EnterScope_T:
+			case EKnownUids::LeaveScope_T:
+				EventSize = 7;
+			};
+		}
+
+		EventDesc.bHasAux = 0;
+	}
+	else
+	{
+		/* Ordinary events */
+
+		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Get(Uid);
+		if (TypeInfo == nullptr)
+		{
+			UE_LOG(LogTraceAnalysis, Log, TEXT("Unknown event UID: %08x"), Uid);
+			return 0;
+		}
+
+		EventSize = TypeInfo->EventSize;
+		EventDesc.bHasAux = !!(TypeInfo->Flags & FTypeRegistry::FTypeInfo::Flag_MaybeHasAux);
+
+		if ((TypeInfo->Flags & FDispatch::Flag_NoSync) == 0)
+		{
+			memcpy(&Serial, Cursor, sizeof(int32));
+			Serial &= ESerial::Mask;
+			Cursor += 3;
+		}
+	}
+
+	EventDesc.Serial = Serial;
+	EventDesc.Uid = Uid;
+	EventDesc.Data = Cursor;
+
+	uint32 HeaderSize = uint32(UPTRINT(Cursor - Reader.GetPointer<uint8>()));
+	return HeaderSize + EventSize;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int FProtocol5Stage::DispatchEvents(
+	FAnalysisBridge& Bridge,
+	const FEventDesc* EventDesc, uint32 Count)
+{
+	using namespace Protocol5;
+
+	FAuxDataCollector AuxCollector;
+
+	for (const FEventDesc *Cursor = EventDesc, *End = EventDesc + Count; Cursor < End; ++Cursor)
+	{
+		// Maybe this is a "well-known" event that is handled a little different?
+		switch (Cursor->Uid)
+		{
+		case EKnownUids::EnterScope_T:
+		{
+			uint64 Timestamp = *(uint64*)(Cursor->Data - 1) >> 8;
+			Bridge.EnterScope(Timestamp);
+			continue;
+		}
+
+		case EKnownUids::LeaveScope_T:
+		{
+			uint64 Timestamp = *(uint64*)(Cursor->Data - 1) >> 8;
+			Bridge.LeaveScope(Timestamp);
+			continue;
+		}
+
+		case EKnownUids::EnterScope: Bridge.EnterScope(); continue;
+		case EKnownUids::LeaveScope: Bridge.LeaveScope(); continue;
+
+		case EKnownUids::AuxData:
+		case EKnownUids::AuxDataTerminal:
+			continue;
+
+		default:
+			if (!TypeRegistry.IsUidValid(Cursor->Uid))
+			{
+				UE_LOG(LogTraceAnalysis, Warning, TEXT("Unexpected event UID: %08x"), Cursor->Uid);
+				return -1;
+			}
+			break;
+		}
+
+		// It is a normal event.
+		const FTypeRegistry::FTypeInfo* TypeInfo = TypeRegistry.Get(Cursor->Uid);
+		FEventDataInfo EventDataInfo = {
+			Cursor->Data,
+			*TypeInfo,
+			&AuxCollector,
+			TypeInfo->EventSize,
+		};
+
+		// Gather its auxiliary data blocks into a collector.
+		if (Cursor->bHasAux)
+		{
+			while (true)
+			{
+				++Cursor;
+
+				if (Cursor->Uid != EKnownUids::AuxData)
+				{
+					--Cursor; // Read off too much. Put it back.
+					break;
+				}
+
+				const auto* AuxHeader = ((FAuxHeader*)(Cursor->Data)) - 1;
+
+				FAuxData AuxData;
+				AuxData.Data = AuxHeader->Data;
+				AuxData.DataSize = (AuxHeader->Pack >> FAuxHeader::SizeShift);
+				AuxData.FieldIndex = AuxHeader->FieldIndex_Size & FAuxHeader::FieldMask;
+				// AuxData.FieldSizeAndType = ... - this is assigned on demand in GetData()
+				AuxCollector.Add(AuxData);
+			}
+		}
+
+		Bridge.OnEvent(EventDataInfo);
+
+		AuxCollector.Reset();
+	}
+
+	return 0;
+}
+
+
+
 // {{{1 est.-transport ---------------------------------------------------------
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2486,6 +3129,11 @@ FEstablishTransportStage::EStatus FEstablishTransportStage::OnData(
 
 	case Protocol4::EProtocol::Id:
 		Context.Machine.QueueStage<FProtocol4Stage>(ProtocolVersion, Transport);
+		Context.Machine.Transition();
+		break;
+
+	case Protocol5::EProtocol::Id:
+		Context.Machine.QueueStage<FProtocol5Stage>(Transport);
 		Context.Machine.Transition();
 		break;
 
