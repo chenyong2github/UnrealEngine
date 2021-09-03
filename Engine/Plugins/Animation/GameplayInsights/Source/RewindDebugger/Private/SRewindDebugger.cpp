@@ -12,7 +12,7 @@
 #include "ObjectTrace.h"
 #include "RewindDebuggerStyle.h"
 #include "RewindDebuggerCommands.h"
-#include "SRewindDebuggerTimeSlider.h"
+#include "SSimpleTimeSlider.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "SceneOutlinerModule.h"
 #include "Selection.h"
@@ -33,6 +33,7 @@
 
 SRewindDebugger::SRewindDebugger() 
 	: SCompoundWidget()
+	, ViewRange(0,10)
 	, DebugComponents(nullptr)
 { 
 }
@@ -44,11 +45,11 @@ SRewindDebugger::~SRewindDebugger()
 void SRewindDebugger::TrackCursor(bool bReverse)
 {
 	float ScrubTime = ScrubTimeAttribute.Get();
-	TRange<float> CurrentViewRange = TimeSliderController->GetTimeSliderArgs().ViewRange.Get();
+	TRange<double> CurrentViewRange = ViewRange;
 	float ViewSize = CurrentViewRange.GetUpperBoundValue() - CurrentViewRange.GetLowerBoundValue();
 
-	static const float LeadingEdgeSize = 0.05f;
-	static const float TrailingEdgeThreshold = 0.01f;
+	static const double LeadingEdgeSize = 0.05;
+	static const double TrailingEdgeThreshold = 0.01;
 
 	if(bReverse)
 	{
@@ -79,8 +80,7 @@ void SRewindDebugger::TrackCursor(bool bReverse)
 		}
 	}
 
-
-	TimeSliderController->GetTimeSliderArgs().ViewRange = CurrentViewRange;
+	ViewRange = CurrentViewRange;
 }
 
 void SRewindDebugger::SetDebugTargetActor(AActor* Actor)
@@ -212,28 +212,7 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 	}
 	ToolBarBuilder.EndSection();
 
-	FTimeSliderArgs InitArgs;
-	InitArgs.CursorSize = 0.0f;
-	InitArgs.OnScrubPositionChanged = FTimeSliderArgs::FOnScrubPositionChanged::CreateLambda(
-		[this](float NewScrubTime, bool bIsScrubbing)
-		{
-			if (bIsScrubbing)
-			{
-				OnScrubPositionChanged.ExecuteIfBound( NewScrubTime, bIsScrubbing );
-			}
-		}
-	);
-
-	InitArgs.ScrubPosition = ScrubTimeAttribute;
-
-	InitArgs.ClampRange = InitArgs.ClampRange.CreateLambda(
-		[this]()
-		{ 
-			return TRange<float>(0.0f,RecordingDuration.Get());
-		} );
-
-	TimeSliderController = MakeShared<FTimeSliderController>(InitArgs);
-    TSharedRef<STimeSlider> TimeSlider = SNew(STimeSlider, TimeSliderController.ToSharedRef());
+   
 
 	ComponentTreeView =	SNew(SRewindDebuggerComponentTree)
 				.DebugComponents(InArgs._DebugComponents)
@@ -398,7 +377,25 @@ void SRewindDebugger::Construct(const FArguments& InArgs, TSharedRef<FUICommandL
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot().AutoHeight()
 			[
-				TimeSlider
+				SNew(SSimpleTimeSlider)
+					.ClampRangeHighlightSize(0.15f)
+					.ClampRangeHighlightColor(FLinearColor::Red.CopyWithNewOpacity(0.5f))
+					.ScrubPosition(ScrubTimeAttribute)
+					.ViewRange_Lambda([this](){ return ViewRange; })
+					.OnViewRangeChanged_Lambda([this](TRange<double> NewRange) { ViewRange = NewRange; })
+					.ClampRange_Lambda(
+							[this]()
+							{ 
+								return TRange<double>(0.0f,RecordingDuration.Get());
+							})	
+					.OnScrubPositionChanged_Lambda(
+						[this](double NewScrubTime, bool bIsScrubbing)
+								{
+									if (bIsScrubbing)
+									{
+										OnScrubPositionChanged.ExecuteIfBound( NewScrubTime, bIsScrubbing );
+									}
+								})
 			]
 			+SVerticalBox::Slot().FillHeight(1.0f)
 			[

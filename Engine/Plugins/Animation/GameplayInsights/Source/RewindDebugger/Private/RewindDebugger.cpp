@@ -491,7 +491,7 @@ void FRewindDebugger::StepBackward()
 }
 
 
-void FRewindDebugger::ScrubToTime(float ScrubTime, bool bIsScrubbing)
+void FRewindDebugger::ScrubToTime(double ScrubTime, bool bIsScrubbing)
 {
 	if (CanScrub())
 	{
@@ -523,7 +523,7 @@ UWorld* FRewindDebugger::GetWorldToVisualize() const
 	return World;
 }
 
-void  FRewindDebugger::SetCurrentScrubTime(float Time)
+void  FRewindDebugger::SetCurrentScrubTime(double Time)
 {
 	CurrentScrubTime = Time;
 	UpdateTraceTime();

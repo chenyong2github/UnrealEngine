@@ -80,8 +80,8 @@ public:
 	void StepBackward();
 
 	bool CanScrub() const;
-	void ScrubToTime(float ScrubTime, bool bIsScrubbing);
-	float GetScrubTime() { return CurrentScrubTime; }
+	void ScrubToTime(double ScrubTime, bool bIsScrubbing);
+	double GetScrubTime() { return CurrentScrubTime; }
 
 	// Tick function: While recording, update recording duration.  While paused, and we have recorded data, update skinned mesh poses for the current frame, and handle playback.
 	void Tick(float DeltaTime);
@@ -114,7 +114,7 @@ private:
 
 
 	bool UpdateComponentList(uint64 ParentId, TArray<TSharedPtr<FDebugObjectInfo>>& NewComponentList, bool bAddController = false);
-	void SetCurrentScrubTime(float Time);
+	void SetCurrentScrubTime(double Time);
 	void UpdateTraceTime();
 
 	TBindableProperty<double> TraceTime;
@@ -140,7 +140,7 @@ private:
 	bool bRecording;
 
 	float PlaybackRate;
-	float CurrentScrubTime;
+	double CurrentScrubTime;
 	int64 ScrubFrameIndex;
 	uint16 RecordingIndex;
 

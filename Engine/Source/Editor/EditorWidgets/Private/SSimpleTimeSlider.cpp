@@ -1,15 +1,52 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RewindDebuggerTimeSliderController.h"
+#include "SSimpleTimeSlider.h"
 #include "EditorStyleSet.h"
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 
+#define LOCTEXT_NAMESPACE "SSimpleTimeSlider"
 
-#define LOCTEXT_NAMESPACE "TimeSlider"
 
+void SSimpleTimeSlider::Construct( const SSimpleTimeSlider::FArguments& InArgs )
+{
+    ScrubPosition = InArgs._ScrubPosition;
+    ViewRange = InArgs._ViewRange;
+	ClampRange = InArgs._ClampRange;
+    AllowZoom = InArgs._AllowZoom;
+    AllowPan = InArgs._AllowPan;
+	CursorSize = InArgs._CursorSize;
+	MirrorLabels = InArgs._MirrorLabels;
+    OnScrubPositionChanged = InArgs._OnScrubPositionChanged;
+    OnViewRangeChanged = InArgs._OnViewRangeChanged;
+	ClampRangeHighlightColor = InArgs._ClampRangeHighlightColor;
+	ClampRangeHighlightSize = InArgs._ClampRangeHighlightSize;
+	
+	DistanceDragged = 0.0f;
+	bDraggingScrubber = false;
+	bPanning = false;
+
+	// set clipping on by default, since the OnPaint function is drawing outside the bounds
+	Clipping = EWidgetClipping::ClipToBounds;
+
+	ScrubHandleUp = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
+	ScrubHandleDown = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
+	CursorBackground = FEditorStyle::GetBrush("Sequencer.SectionArea.Background");
+}
+
+int32 SSimpleTimeSlider::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+{
+	int32 NewLayer = OnPaintTimeSlider( MirrorLabels.Get(), AllottedGeometry, MyCullingRect, OutDrawElements, LayerId, InWidgetStyle, bParentEnabled );
+
+	return FMath::Max( NewLayer, SCompoundWidget::OnPaint(Args, AllottedGeometry, MyCullingRect, OutDrawElements, NewLayer, InWidgetStyle, ShouldBeEnabled( bParentEnabled ) ) );
+}
+
+FVector2D SSimpleTimeSlider::ComputeDesiredSize( float ) const
+{
+	return FVector2D(100, 22);
+}
 
 namespace ScrubConstants
 {
@@ -22,15 +59,15 @@ namespace ScrubConstants
 
 
 /** Utility struct for converting between scrub range space and local/absolute screen space */
-struct FTimeSliderController::FScrubRangeToScreen
+struct SSimpleTimeSlider::FScrubRangeToScreen
 {
 	FVector2D WidgetSize;
 
-	TRange<float> ViewInput;
+	TRange<double> ViewInput;
 	float ViewInputRange;
 	float PixelsPerInput;
 
-	FScrubRangeToScreen(TRange<float> InViewInput, const FVector2D& InWidgetSize )
+	FScrubRangeToScreen(TRange<double> InViewInput, const FVector2D& InWidgetSize )
 	{
 		WidgetSize = InWidgetSize;
 
@@ -73,42 +110,36 @@ static float GetNextSpacing( uint32 CurrentStep )
 	}
 }
 
-FTimeSliderController::FTimeSliderController(const FTimeSliderArgs& InArgs)
-	: TimeSliderArgs( InArgs )
-	, DistanceDragged( 0.0f )
-	, bDraggingScrubber( false )
-	, bPanning( false )
-{
-	ScrubHandleUp = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleUp" ) ); 
-	ScrubHandleDown = FEditorStyle::GetBrush( TEXT( "Sequencer.Timeline.VanillaScrubHandleDown" ) );
-	CursorBackground = FEditorStyle::GetBrush("Sequencer.SectionArea.Background");
-}
-
-float FTimeSliderController::DetermineOptimalSpacing(float InPixelsPerInput, uint32 MinTick, float MinTickSpacing) const
+/**
+* Determines the optimal spacing between tick marks in the slider for a given pixel density
+* Increments until a minimum amount of slate units specified by MinTick is reached
+*
+* @param InPixelsPerInput	The density of pixels between each input
+* @param MinTick			The minimum slate units per tick allowed
+* @param MinTickSpacing	The minimum tick spacing in time units allowed
+* @return the optimal spacing in time units
+*/
+static double DetermineOptimalSpacing(float InPixelsPerInput, uint32 InMinTick, double InMinTickSpacing)
 {
 	if (InPixelsPerInput == 0.0f)
-		return MinTickSpacing;
+		return InMinTickSpacing;
 
 	uint32 CurStep = 0;
 
 	// Start with the smallest spacing
-	float Spacing = MinTickSpacing;
+	double Spacing = InMinTickSpacing;
+	double MinTick = InMinTick;
 
 	while( Spacing * InPixelsPerInput < MinTick )
 	{
-		Spacing = MinTickSpacing * GetNextSpacing( CurStep );
+		Spacing = InMinTickSpacing * GetNextSpacing( CurStep );
 		CurStep++;
 	}
 
 	return Spacing;
 }
 
-void FTimeSliderController::SetTimesliderArgs(const FTimeSliderArgs& InArgs)
-{
-	TimeSliderArgs = InArgs;
-}
-
-struct FTimeSliderController::FDrawTickArgs
+struct SSimpleTimeSlider::FDrawTickArgs
 {
 	/** Geometry of the area */
 	FGeometry AllottedGeometry;
@@ -131,12 +162,11 @@ struct FTimeSliderController::FDrawTickArgs
 	
 };
 
-void FTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawElements, const struct FScrubRangeToScreen& RangeToScreen, FDrawTickArgs& InArgs ) const
+void SSimpleTimeSlider::DrawTicks( FSlateWindowElementList& OutDrawElements, const struct FScrubRangeToScreen& RangeToScreen, FDrawTickArgs& InArgs ) const
 {
 	const float Spacing = DetermineOptimalSpacing( RangeToScreen.PixelsPerInput, ScrubConstants::MinPixelsPerDisplayTick, ScrubConstants::MinDisplayTickSpacing );
 
 	// Sub divisions
-	// @todo Sequencer may need more robust calculation
 	const int32 Divider = 10;
 	// For slightly larger halfway tick mark
 	const int32 HalfDivider = Divider / 2;
@@ -148,7 +178,7 @@ void FTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawElements,
 	TArray<FVector2D> LinePoints;
 	LinePoints.AddUninitialized(2);
 
-	float Seconds = 0;
+	double Seconds = 0;
 	while( (Seconds = OffsetNum*Spacing) < RangeToScreen.ViewInput.GetUpperBoundValue() )
 	{
 		// X position local to start of the widget area
@@ -225,13 +255,12 @@ void FTimeSliderController::DrawTicks( FSlateWindowElementList& OutDrawElements,
 	}
 }
 
-
-int32 FTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
+int32 SSimpleTimeSlider::OnPaintTimeSlider( bool bMirrorLabels, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
 	const bool bEnabled = bParentEnabled;
 	const ESlateDrawEffect DrawEffects = bEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 
-	TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
+	TRange<double> LocalViewRange = ViewRange.Get();
 	const float LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
 	const float LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
 	const float LocalSequenceLength = LocalViewRangeMax-LocalViewRangeMin;
@@ -240,6 +269,31 @@ int32 FTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FGeome
 	if ( LocalSequenceLength > 0)
 	{
 		FScrubRangeToScreen RangeToScreen( LocalViewRange, AllottedGeometry.GetLocalSize() );
+		
+		// Draw ClampRange 
+
+		float LeftClamp =  RangeToScreen.InputToLocalX(ClampRange.Get().GetLowerBoundValue());
+		float RightClamp =  RangeToScreen.InputToLocalX(ClampRange.Get().GetUpperBoundValue());
+		float Height = AllottedGeometry.GetLocalSize().Y * ClampRangeHighlightSize.Get();
+
+		FPaintGeometry RangeGeometry;
+		if (bMirrorLabels)
+		{
+			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(LeftClamp, 0), FVector2D(RightClamp-LeftClamp, Height));
+		}
+		else
+		{
+			RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(LeftClamp, AllottedGeometry.GetLocalSize().Y - Height), FVector2D(RightClamp-LeftClamp, AllottedGeometry.GetLocalSize().Y ));
+		}
+
+		FSlateDrawElement::MakeBox(
+			OutDrawElements,
+			++LayerId,
+			RangeGeometry,
+			CursorBackground,
+			DrawEffects,
+			ClampRangeHighlightColor.Get()
+			);
 	
 		const float MajorTickHeight = 9.0f;
 	
@@ -260,10 +314,10 @@ int32 FTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FGeome
 		float HalfSize = FMath::TruncToFloat(HandleSize/2.0f);
 
 		// Draw the scrub handle
-		const float XPos = RangeToScreen.InputToLocalX( TimeSliderArgs.ScrubPosition.Get() );
+		const float XPos = RangeToScreen.InputToLocalX( ScrubPosition.Get() );
 
 		// Draw cursor size
-		const float CursorHalfSize = TimeSliderArgs.CursorSize.Get() * 0.5f;
+		const float CursorHalfSize = CursorSize.Get() * 0.5f;
 		const int32 CursorLayer = LayerId + 2;
 		const float CursorHalfLength = AllottedGeometry.GetLocalSize().X * CursorHalfSize;
 		FPaintGeometry CursorGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(XPos - CursorHalfLength, 0), FVector2D(2 * CursorHalfLength, AllottedGeometry.GetLocalSize().Y));
@@ -280,6 +334,8 @@ int32 FTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FGeome
 			DrawEffects,
 			CursorColor
 			);
+		
+
 
 		// Should draw above the text
 		const int32 ArrowLayer = LayerId + 3;
@@ -299,60 +355,42 @@ int32 FTimeSliderController::OnPaintTimeSlider( bool bMirrorLabels, const FGeome
 			ScrubColor
 			);
 
-		// Draw ClampRange 
-
-		float LeftClamp =  RangeToScreen.InputToLocalX(TimeSliderArgs.ClampRange.Get().GetLowerBoundValue());
-		float RightClamp =  RangeToScreen.InputToLocalX(TimeSliderArgs.ClampRange.Get().GetUpperBoundValue());
-
-		FPaintGeometry RangeGeometry = AllottedGeometry.ToPaintGeometry(FVector2D(LeftClamp, AllottedGeometry.GetLocalSize().Y - 3), FVector2D(RightClamp-LeftClamp, AllottedGeometry.GetLocalSize().Y ));
-
-		FSlateDrawElement::MakeBox(
-			OutDrawElements,
-			++LayerId,
-			RangeGeometry,
-			CursorBackground,
-			DrawEffects,
-			FLinearColor::Red.CopyWithNewOpacity(0.5f)
-			);
-
 
 		return ArrowLayer;
 	}
 
-
-
 	return LayerId;
 }
 
-FReply FTimeSliderController::OnMouseButtonDown( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SSimpleTimeSlider::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton;
-	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && TimeSliderArgs.AllowZoom;
+	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && AllowPan.Get();
 	
 	DistanceDragged = 0;
 
 	if ( bHandleLeftMouseButton )
 	{
 		// Always capture mouse if we left or right click on the widget
-		FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.GetLocalSize());
+		FScrubRangeToScreen RangeToScreen(ViewRange.Get(), MyGeometry.GetLocalSize());
 		FVector2D CursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
 		float NewValue = RangeToScreen.LocalXToInput(CursorPos.X);
 
 		CommitScrubPosition(NewValue, /*bIsScrubbing=*/false);
-		return FReply::Handled().CaptureMouse( WidgetOwner.AsShared() ).PreventThrottling();
+		return FReply::Handled().CaptureMouse(AsShared()).PreventThrottling();
 	}
 	else if ( bHandleRightMouseButton )
 	{
-		return FReply::Handled().CaptureMouse(WidgetOwner.AsShared());
+		return FReply::Handled().CaptureMouse(AsShared());
 	}
 
 	return FReply::Unhandled();
 }
 
-FReply FTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SSimpleTimeSlider::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && WidgetOwner.HasMouseCapture();
-	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && WidgetOwner.HasMouseCapture() && TimeSliderArgs.AllowZoom;
+	bool bHandleLeftMouseButton = MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HasMouseCapture();
+	bool bHandleRightMouseButton = MouseEvent.GetEffectingButton() == EKeys::RightMouseButton && HasMouseCapture() && AllowPan.Get();
 	
 	if ( bHandleRightMouseButton )
 	{
@@ -367,13 +405,9 @@ FReply FTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const FGeom
 	}
 	else if ( bHandleLeftMouseButton )
 	{
-		if( bDraggingScrubber )
+		if( !bDraggingScrubber )
 		{
-			TimeSliderArgs.OnEndScrubberMovement.ExecuteIfBound();
-		}
-		else
-		{
-			FScrubRangeToScreen RangeToScreen( TimeSliderArgs.ViewRange.Get(), MyGeometry.GetLocalSize() );
+			FScrubRangeToScreen RangeToScreen( ViewRange.Get(), MyGeometry.GetLocalSize() );
 			FVector2D CursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
 			float NewValue = RangeToScreen.LocalXToInput(CursorPos.X);
 
@@ -388,14 +422,14 @@ FReply FTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const FGeom
 	return FReply::Unhandled();
 }
 
-float FTimeSliderController::GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const
+float SSimpleTimeSlider::GetTimeAtCursorPosition(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) const
 {
-	FScrubRangeToScreen RangeToScreen(TimeSliderArgs.ViewRange.Get(), MyGeometry.GetLocalSize());
+	FScrubRangeToScreen RangeToScreen(ViewRange.Get(), MyGeometry.GetLocalSize());
 	FVector2D CursorPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
 	float NewValue = RangeToScreen.LocalXToInput(CursorPos.X);
 
-	float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-	float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
+	float LocalClampMin = ClampRange.Get().GetLowerBoundValue();
+	float LocalClampMax = ClampRange.Get().GetUpperBoundValue();
 
 	if (NewValue < LocalClampMin)
 	{
@@ -410,9 +444,9 @@ float FTimeSliderController::GetTimeAtCursorPosition(const FGeometry& MyGeometry
 	return NewValue;
 }
 
-FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SSimpleTimeSlider::OnMouseMove( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
-	if ( WidgetOwner.HasMouseCapture() )
+	if ( HasMouseCapture() )
 	{
 		if (MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton))
 		{
@@ -421,7 +455,7 @@ FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry
 				DistanceDragged += FMath::Abs( MouseEvent.GetCursorDelta().X );
 				if ( DistanceDragged > FSlateApplication::Get().GetDragTriggerDistance() )
 				{
-					FReply::Handled().CaptureMouse(WidgetOwner.AsShared()).UseHighPrecisionMouseMovement(WidgetOwner.AsShared());
+					FReply::Handled().CaptureMouse(AsShared()).UseHighPrecisionMouseMovement(AsShared());
 					SoftwareCursorPosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
 					bPanning = true;
 				}
@@ -430,8 +464,8 @@ FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry
 			{
 				SoftwareCursorPosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetLastScreenSpacePosition());
 
-				TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-				float LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
+				TRange<double> LocalViewRange = ViewRange.Get();
+				double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
 				float LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
 
 				FScrubRangeToScreen ScaleInfo( LocalViewRange, MyGeometry.GetLocalSize() );
@@ -439,25 +473,15 @@ FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry
 				FVector2D InputDelta;
 				InputDelta.X = ScreenDelta.X/ScaleInfo.PixelsPerInput;
 
-				const TRange<float> NewViewRange = TRange<float>(LocalViewRangeMin - InputDelta.X, LocalViewRangeMax - InputDelta.X);
-				TRange<float> LocalClampRange = TimeSliderArgs.ClampRange.Get();
+				const TRange<double> NewViewRange = TRange<double>(LocalViewRangeMin - InputDelta.X, LocalViewRangeMax - InputDelta.X);
+				TRange<double> LocalClampRange = ClampRange.Get();
 
-				// Do not try to pan outside the clamp range to prevent undesired zoom
-				//if (LocalClampRange.Contains(NewViewRange))
+				OnViewRangeChanged.ExecuteIfBound(NewViewRange);
+
+				if (!ViewRange.IsBound())
 				{
-					TimeSliderArgs.OnViewRangeChanged.ExecuteIfBound(NewViewRange);
-					if (Scrollbar.IsValid())
-					{
-						float InOffsetFraction = (NewViewRange.GetLowerBoundValue() - LocalClampRange.GetLowerBoundValue()) / LocalClampRange.Size<float>();
-						float InThumbSizeFraction = NewViewRange.Size<float>() / LocalClampRange.Size<float>();
-						Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
-					}
-
-					if (!TimeSliderArgs.ViewRange.IsBound())
-					{
-						// The  output is not bound to a delegate so we'll manage the value ourselves
-						TimeSliderArgs.ViewRange.Set(NewViewRange);
-					}
+					// The  output is not bound to a delegate so we'll manage the value ourselves
+					ViewRange.Set(NewViewRange);
 				}
 			}
 		}
@@ -469,7 +493,6 @@ FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry
 				if ( DistanceDragged > 0/*FSlateApplication::Get().GetDragTriggerDistance()*/ )
 				{
 					bDraggingScrubber = true;
-					TimeSliderArgs.OnBeginScrubberMovement.ExecuteIfBound();
 				}
 			}
 			else
@@ -484,18 +507,18 @@ FReply FTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeometry
 	return FReply::Unhandled();
 }
 
-void FTimeSliderController::CommitScrubPosition( float NewValue, bool bIsScrubbing )
+void SSimpleTimeSlider::CommitScrubPosition( float NewValue, bool bIsScrubbing )
 {
 	// Manage the scrub position ourselves if its not bound to a delegate
-	if ( !TimeSliderArgs.ScrubPosition.IsBound() )
+	if ( !ScrubPosition.IsBound() )
 	{
-		TimeSliderArgs.ScrubPosition.Set( NewValue );
+		ScrubPosition.Set( NewValue );
 	}
 
-	if (!TimeSliderArgs.ViewRange.IsBound())
+	if (!ViewRange.IsBound())
 	{
-		TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-		const float RangeSize = LocalViewRange.Size<float>();
+		TRange<double> LocalViewRange = ViewRange.Get();
+		const double RangeSize = LocalViewRange.Size<double>();
 		if (NewValue < LocalViewRange.GetLowerBoundValue())
 		{
 			SetTimeRange(NewValue, NewValue + RangeSize);
@@ -506,129 +529,56 @@ void FTimeSliderController::CommitScrubPosition( float NewValue, bool bIsScrubbi
 		}
 	}
 
-	TimeSliderArgs.OnScrubPositionChanged.ExecuteIfBound( NewValue, bIsScrubbing );
+	OnScrubPositionChanged.ExecuteIfBound( NewValue, bIsScrubbing );
 }
 
-void FTimeSliderController::SetExternalScrollbar(TSharedRef<SScrollBar> InScrollbar) 
-{ 
-	Scrollbar = InScrollbar;
-	Scrollbar->SetOnUserScrolled(FOnUserScrolled::CreateRaw(this, &FTimeSliderController::HorizontalScrollBar_OnUserScrolled)); 
-};
-
-void FTimeSliderController::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
+void SSimpleTimeSlider::SetTimeRange(double NewViewOutputMin, double NewViewOutputMax)
 {
-	if (!TimeSliderArgs.ViewRange.IsBound())
+	if (!ViewRange.IsBound())
 	{
-		TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-		float LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
-		float LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
-		float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-		float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
+		ViewRange.Set(TRange<double>(NewViewOutputMin, NewViewOutputMax));
+	}
+	
+	OnViewRangeChanged.ExecuteIfBound(TRange<double>(NewViewOutputMin, NewViewOutputMax));
+}
 
-		float InThumbSizeFraction = (LocalViewRangeMax - LocalViewRangeMin) / (LocalClampMax - LocalClampMin);
-
-		float NewViewOutputMin = LocalClampMin + ScrollOffset * (LocalClampMax - LocalClampMin);
-		// The  output is not bound to a delegate so we'll manage the value ourselves
-		float NewViewOutputMax = FMath::Min<float>(NewViewOutputMin + (LocalViewRangeMax - LocalViewRangeMin), LocalClampMax);
-		NewViewOutputMin = NewViewOutputMax - (LocalViewRangeMax - LocalViewRangeMin);
-
-		float InOffsetFraction = (NewViewOutputMin - LocalClampMin) / (LocalClampMax - LocalClampMin);
-		//if (InOffsetFraction + InThumbSizeFraction <= 1)
-		{
-			TimeSliderArgs.ViewRange.Set(TRange<float>(NewViewOutputMin, NewViewOutputMax));
-			Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
-		}
+void SSimpleTimeSlider::SetClampRange(double MinValue, double MaxValue)
+{
+	if (!ClampRange.IsBound())
+	{
+		ClampRange.Set(TRange<double>(MinValue, MaxValue));
 	}
 }
 
-void FTimeSliderController::SetTimeRange(float NewViewOutputMin, float NewViewOutputMax)
-{
-	TimeSliderArgs.ViewRange.Set(TRange<float>(NewViewOutputMin, NewViewOutputMax));
-
-	float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-	float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
-
-	const float InOffsetFraction = (NewViewOutputMin - LocalClampMin) / (LocalClampMax - LocalClampMin);
-	const float InThumbSizeFraction = (NewViewOutputMax - NewViewOutputMin) / (LocalClampMax - LocalClampMin);
-	if(Scrollbar.IsValid())
-	{
-		Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
-	}
-}
-
-void FTimeSliderController::SetClampRange(float MinValue, float MaxValue)
-{
-	TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-	float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-	float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
-	const float CurrentDistance = LocalClampMax - LocalClampMin;
-	const float ZoomDelta = (LocalViewRange.GetUpperBoundValue() - LocalViewRange.GetLowerBoundValue()) / CurrentDistance;
-
-	MaxValue = MinValue + (MaxValue - MinValue < 2 ? CurrentDistance : MaxValue - MinValue);
-
-	TimeSliderArgs.ClampRange = TRange<float>(MinValue, MaxValue);
-
-	const float LocalViewRangeMin = FMath::Clamp(LocalViewRange.GetLowerBoundValue(), MinValue, MaxValue);
-	const float LocalViewRangeMax = FMath::Clamp(LocalViewRange.GetUpperBoundValue(), MinValue, MaxValue);
-	SetTimeRange(ZoomDelta >= 1 ? MinValue : LocalViewRangeMin, ZoomDelta >= 1 ? MaxValue : LocalViewRangeMax);
-}
-
-FReply FTimeSliderController::OnMouseWheel( SWidget& WidgetOwner, const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
+FReply SSimpleTimeSlider::OnMouseWheel( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	FReply ReturnValue = FReply::Unhandled();
 
-	// if (MouseEvent.IsLeftShiftDown())
-	// {
-	// 	const float ZoomDelta = 0.025f * MouseEvent.GetWheelDelta();
-	// 	TimeSliderArgs.CursorSize.Set(FMath::Clamp(TimeSliderArgs.CursorSize.Get() + ZoomDelta, 0.0f, 1.0f));
-
-	// 	ReturnValue = FReply::Handled();
-	// }
-	// else
-	if ( TimeSliderArgs.AllowZoom )
+	if ( AllowZoom.Get() )
 	{
 		const float ZoomDelta = -0.1f * MouseEvent.GetWheelDelta();
 
+		float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
+
+		TRange<double> LocalViewRange = ViewRange.Get();
+		double LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
+		double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
+		const double OutputViewSize = LocalViewRangeMax - LocalViewRangeMin;
+		const double OutputChange = OutputViewSize * ZoomDelta;
+
+		double NewViewOutputMin = LocalViewRangeMin - (OutputChange * MouseFractionX);
+		double NewViewOutputMax = LocalViewRangeMax + (OutputChange * (1.0f - MouseFractionX));
+
+		if (NewViewOutputMin < NewViewOutputMax)
 		{
-			float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
+			double LocalClampMin = ClampRange.Get().GetLowerBoundValue();
+			double LocalClampMax = ClampRange.Get().GetUpperBoundValue();
 
-			TRange<float> LocalViewRange = TimeSliderArgs.ViewRange.Get();
-			float LocalViewRangeMax = LocalViewRange.GetUpperBoundValue();
-			float LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();
-			const float OutputViewSize = LocalViewRangeMax - LocalViewRangeMin;
-			const float OutputChange = OutputViewSize * ZoomDelta;
-
-			float NewViewOutputMin = LocalViewRangeMin - (OutputChange * MouseFractionX);
-			float NewViewOutputMax = LocalViewRangeMax + (OutputChange * (1.0f - MouseFractionX));
-
-			if (NewViewOutputMin < NewViewOutputMax)
-			{
-				float LocalClampMin = TimeSliderArgs.ClampRange.Get().GetLowerBoundValue();
-				float LocalClampMax = TimeSliderArgs.ClampRange.Get().GetUpperBoundValue();
-
-				// // Clamp the range if clamp values are set
-				// if ( NewViewOutputMin < LocalClampMin )
-				// {
-				// 	NewViewOutputMin = LocalClampMin;
-				// }
-				
-				// if ( NewViewOutputMax > LocalClampMax )
-				// {
-				// 	NewViewOutputMax = LocalClampMax;
-				// }
-
-				TimeSliderArgs.OnViewRangeChanged.ExecuteIfBound(TRange<float>(NewViewOutputMin, NewViewOutputMax));
-				if (Scrollbar.IsValid())
-				{
-					float InOffsetFraction = (NewViewOutputMin - LocalClampMin) / (LocalClampMax - LocalClampMin);
-					float InThumbSizeFraction = (NewViewOutputMax - NewViewOutputMin) / (LocalClampMax - LocalClampMin);
-					Scrollbar->SetState(InOffsetFraction, InThumbSizeFraction);
-				}
-				if( !TimeSliderArgs.ViewRange.IsBound() )
-				{	
-					// The  output is not bound to a delegate so we'll manage the value ourselves
-					TimeSliderArgs.ViewRange.Set( TRange<float>( NewViewOutputMin, NewViewOutputMax ) );
-				}
+			OnViewRangeChanged.ExecuteIfBound(TRange<double>(NewViewOutputMin, NewViewOutputMax));
+			if( !ViewRange.IsBound() )
+			{	
+				// The  output is not bound to a delegate so we'll manage the value ourselves
+				ViewRange.Set( TRange<double>( NewViewOutputMin, NewViewOutputMax ) );
 			}
 		}
 
