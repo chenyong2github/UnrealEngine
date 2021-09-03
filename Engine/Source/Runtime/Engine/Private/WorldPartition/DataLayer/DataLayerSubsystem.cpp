@@ -14,6 +14,42 @@
 #include "WorldPartition/DataLayer/IDataLayerEditorModule.h"
 #endif
 
+static FAutoConsoleCommandWithOutputDevice GDumpDumpDataLayersCmd(
+	TEXT("wp.DumpDataLayers"),
+	TEXT("Dumps active data layers memory to the log"),
+	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
+	{
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			UWorld* World = Context.World();
+			if (World && World->IsGameWorld())
+			{
+				if (const UDataLayerSubsystem* DataLayerSubsystem = World->GetSubsystem<UDataLayerSubsystem>())
+				{
+					auto DumpDataLayers = [&OutputDevice, DataLayerSubsystem](const TCHAR* StateName, const TSet<FName>& DataLayers)
+					{
+						if (DataLayers.Num())
+						{
+							OutputDevice.Logf(TEXT("  - %s Data Layers:"), StateName);
+							for (const FName& DataLayerName : DataLayers)
+							{
+								if (UDataLayer* DataLayer = DataLayerSubsystem->GetDataLayerFromName(DataLayerName))
+								{
+									OutputDevice.Logf(TEXT("    - %s"), *DataLayer->GetDataLayerLabel().ToString());
+								}
+							}
+						}
+					};
+
+					OutputDevice.Logf(TEXT("Data Layers:"));
+					DumpDataLayers(TEXT("Loaded"), DataLayerSubsystem->GetLoadedDataLayerNames());
+					DumpDataLayers(TEXT("Active"), DataLayerSubsystem->GetActiveDataLayerNames());
+				}
+			}
+		}
+	})
+);
+
 UDataLayerSubsystem::UDataLayerSubsystem()
 {}
 
