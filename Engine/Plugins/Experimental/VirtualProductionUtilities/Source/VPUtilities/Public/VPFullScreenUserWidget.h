@@ -218,6 +218,7 @@ protected:
 
 private:
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
+	void OnWorldCleanup(UWorld* InWorld, bool bSessionEnded, bool bCleanupResources);
 
 protected:
 	/** The display type when the world is an editor world. */
