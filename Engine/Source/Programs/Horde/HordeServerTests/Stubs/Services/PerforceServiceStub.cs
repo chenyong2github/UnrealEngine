@@ -173,7 +173,7 @@ namespace HordeServerTests.Stubs.Services
 
 		public Task<ChangeDetails> GetChangeDetailsAsync(string ClusterName, string StreamName, int ChangeNumber)
 		{
-			throw new NotImplementedException();
+			return Task.FromResult(Changes[StreamName][ChangeNumber]);
 		}
 	}
 }
