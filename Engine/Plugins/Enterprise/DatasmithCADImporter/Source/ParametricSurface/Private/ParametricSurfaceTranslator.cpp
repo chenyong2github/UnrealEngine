@@ -30,16 +30,3 @@ void FParametricSurfaceTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr
 	}
 }
 
-bool FParametricSurfaceTranslator::IsSourceSupported(const FDatasmithSceneSource& Source)
-{
-	if (Source.GetSourceFileExtension() != TEXT("xml"))
-	{
-		return true;
-	}
-
-	return Datasmith::CheckXMLFileSchema(Source.GetSourceFile(), TEXT("XPDMXML"), TEXT("ns3:Uos"));
-}
-
-
-
-
