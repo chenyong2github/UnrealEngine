@@ -701,13 +701,16 @@ void ScreenProbeFixupBordersCS(
 		&& ScreenProbeAtlasCoord.x < ScreenProbeAtlasViewSize.x)
 	{
 		float SceneDepth = GetScreenProbeDepth(ScreenProbeAtlasCoord);
+		float3 ProbeRadiance = float3(0.0f, 0.0f, 0.0f);
 
 		if (SceneDepth > 0.0f)
 		{
 			uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoordWithBorder, ScreenProbeGatherOctahedronResolutionWithBorder, 1u << (uint)ScreenProbeGatherMaxMip);
 			uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
-			RWScreenProbeRadiance[DispatchThreadId.xy] = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
+			ProbeRadiance = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
 		}
+
+		RWScreenProbeRadiance[DispatchThreadId.xy] = ProbeRadiance;
 	}
 }
 
