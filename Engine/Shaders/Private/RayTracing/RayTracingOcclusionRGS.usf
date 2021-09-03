@@ -1,5 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+// Bump to force a rebuild of this shader (when changing related C++ code). Generate unique value on merge conflict.
+#define RAY_TRACING_OCCLUSION_RGS_VERSION 0x8219847B
+
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
 #include "../DeferredShadingCommon.ush"
@@ -42,6 +45,7 @@ uint bTransmissionSamplingDistanceCulling;
 uint TransmissionSamplingTechnique;
 uint RejectionSamplingTrials;
 uint bAcceptFirstHit;
+uint bTwoSidedGeometry;
 
 #define TransmissionSampling_ConstantTrackingInfiniteDomain 0
 #define TransmissionSampling_ConstantTrackingFiniteDomain 1
@@ -418,9 +422,10 @@ FOcclusionResult ComputeOcclusion(
 
 		uint RayFlags = 0;
 
-	#if !ENABLE_TWO_SIDED_GEOMETRY
-		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
-	#endif
+		if (bTwoSidedGeometry != 0)
+		{
+			RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+		}
 
 	#if USE_HAIR_LIGHTING
 		if (ShadingModelID == SHADINGMODELID_HAIR)
