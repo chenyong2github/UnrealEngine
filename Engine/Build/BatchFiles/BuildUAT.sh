@@ -47,6 +47,7 @@ elif [ -f ../Intermediate/Build/AutomationToolLastBuildTime ]; then
   fi
 
   UPDATED_AUTOMATIONTOOL_FILES="$(find \
+    Programs/Shared \
     Programs/AutomationTool \
     -maxdepth 1 \
     -type f \

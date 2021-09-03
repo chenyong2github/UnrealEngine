@@ -340,7 +340,7 @@ namespace AutomationTool
 				Version = new BuildVersion();
 			}
 
-			List<FileReference> Result = new List<FileReference>();
+			List<FileReference> Result = new List<FileReference>(1);
 			{
 				if (bDoUpdateVersionFiles)
 				{
@@ -379,34 +379,6 @@ namespace AutomationTool
 				}
 				Result.Add(BuildVersionFile);
 			}
-
-            {
-                // Use Version.h data to update MetaData.cs so the assemblies match the engine version.
-				FileReference MetaDataFile = FileReference.Combine(Unreal.EngineDirectory, "Source", "Programs", "Shared", "MetaData.cs");
-
-				if (bDoUpdateVersionFiles)
-                {
-					// Get the revision to sync files to before 
-					if(CommandUtils.P4Enabled && ChangelistNumber > 0)
-					{
-						CommandUtils.P4.Sync(String.Format("-f \"{0}@{1}\"", MetaDataFile, ChangelistNumber), false, false);
-					}
-
-                    // Get the MAJOR/MINOR/PATCH from the Engine Version file, as it is authoritative. The rest we get from the P4Env.
-                    string NewInformationalVersion = String.Format("{0}.{1}.{2}-{3}+{4}", Version.MajorVersion, Version.MinorVersion, Version.PatchVersion, Version.Changelist.ToString(), Version.BranchName);
-
-                    CommandUtils.LogLog("Updating {0} with AssemblyInformationalVersion: {1}", MetaDataFile, NewInformationalVersion);
-
-                    VersionFileUpdater VersionH = new VersionFileUpdater(MetaDataFile);
-                    VersionH.SetAssemblyInformationalVersion(NewInformationalVersion);
-                    VersionH.Commit();
-                }
-                else
-                {
-                    CommandUtils.LogVerbose("{0} will not be updated because P4 is not enabled.", MetaDataFile);
-                }
-                Result.Add(MetaDataFile);
-            }
 
 			return Result;
 		}

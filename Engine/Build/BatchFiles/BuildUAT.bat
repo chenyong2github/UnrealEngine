@@ -31,6 +31,7 @@ dir /s^
 
 rem note: no /s
 dir ^
+ Programs\Shared\MetaData.cs^
  Programs\AutomationTool\*.cs^
  Programs\AutomationTool\*.csproj^
  | find ".cs" >>..\Intermediate\Build\AutomationToolFiles.txt
