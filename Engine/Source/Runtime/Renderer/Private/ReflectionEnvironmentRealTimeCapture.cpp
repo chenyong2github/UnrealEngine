@@ -656,7 +656,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 									GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 									GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 									GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-									SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit);
+									SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit, 0);
 
 									FRenderRealTimeReflectionHeightFogVS::FParameters VsPassParameters;
 									VsPassParameters.ViewUniformBuffer = PsPassParameters->ViewUniformBuffer;

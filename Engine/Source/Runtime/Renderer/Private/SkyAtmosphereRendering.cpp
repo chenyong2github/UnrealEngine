@@ -1801,7 +1801,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 				RHICmdListLambda.SetDepthBounds(Values.MinDepth, Values.MaxDepth);
 			}
 
-			SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit, 0);
 
 			SetShaderParameters(RHICmdListLambda, PixelShader, PixelShader.GetPixelShader(), *PsPassParameters);
 

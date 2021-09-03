@@ -247,7 +247,7 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 	FMobileDirectLightFunctionPS::FParameters PassParameters;
 	PassParameters.Forward = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
@@ -294,8 +294,6 @@ static void RenderDirectLight(FRHICommandListImmediate& RHICmdList, const FScene
 	}
 	FMobileDirectLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
 	
-	RHICmdList.SetStencilRef(StencilRef);
-			
 	const FIntPoint TargetSize = GetSceneTextureExtent();
 	
 	DrawRectangle(
@@ -371,9 +369,8 @@ static void RenderLocalLight_StencilMask(FRHICommandListImmediate& RHICmdList, c
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = nullptr;
 
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 1);
 	VertexShader->SetParameters(RHICmdList, View, &LightSceneInfo);
-	RHICmdList.SetStencilRef(1);
 
 	if (LightType == LightType_Point)
 	{
@@ -451,7 +448,10 @@ static void RenderLocalLight(
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+	// Shade only MSM_DefaultLit pixels
+	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, StencilRef);
 
 	VertexShader->SetParameters(RHICmdList, View, &LightSceneInfo);
 
@@ -469,10 +469,6 @@ static void RenderLocalLight(
 	PassParameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	PassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShader, View, LightMaterial.MaterialProxy, *LightMaterial.Material, PassParameters);
-
-	// Shade only MSM_DefaultLit pixels
-	uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
-	RHICmdList.SetStencilRef(StencilRef);
 
 	if (LightType == LightType_Point)
 	{
@@ -563,9 +559,8 @@ static void RenderSimpleLights(
 		}
 
 		// Render light mask
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOLightMask);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOLightMask, 1);
 		VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);
-		RHICmdList.SetStencilRef(1);
 		StencilingGeometry::DrawSphere(RHICmdList);
 
 		// Render light
@@ -575,21 +570,21 @@ static void RenderSimpleLights(
 		PassParameters.DeferredLightUniforms = TUniformBufferRef<FDeferredLightUniformStruct>::CreateUniformBufferImmediate(DeferredLightUniformsValue, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		PassParameters.IESTexture = GWhiteTexture->TextureRHI;
 		PassParameters.IESTextureSampler = GWhiteTexture->SamplerStateRHI;
+
+		// Shade only MSM_DefaultLit pixels
+		uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
+
 		if (SimpleLight.Exponent == 0)
 		{
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[1]);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[1], StencilRef);
 			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders[1], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
 		}
 		else
 		{
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[0]);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOLight[0], StencilRef);
 			FMobileRadialLightFunctionPS::SetParameters(RHICmdList, PixelShaders[0], View, DefaultMaterial.MaterialProxy, *DefaultMaterial.Material, PassParameters);
 		}
 		VertexShader->SetSimpleLightParameters(RHICmdList, View, LightBounds);
-
-		// Shade only MSM_DefaultLit pixels
-		uint8 StencilRef = GET_STENCIL_MOBILE_SM_MASK(MSM_DefaultLit);
-		RHICmdList.SetStencilRef(StencilRef);
 
 		// Apply the point or spot light with some approximately bounding geometry,
 		// So we can get speedups from depth testing and not processing pixels outside of the light's influence.

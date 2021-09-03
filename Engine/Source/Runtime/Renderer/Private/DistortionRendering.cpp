@@ -747,6 +747,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
 			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 			kStencilMaskBit, kStencilMaskBit>::GetRHI();
+		PipelineState.StencilRef = kStencilMaskBit;
 
 		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
@@ -772,7 +773,6 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PipelineState, PassParameters,
 				[ApplyPixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
-				RHICmdList.SetStencilRef(kStencilMaskBit);
 				SetShaderParameters(RHICmdList, ApplyPixelShader, ApplyPixelShader.GetPixelShader(), *PassParameters);
 			});
 
@@ -795,6 +795,7 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
 			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 			kStencilMaskBit, kStencilMaskBit>::GetRHI();
+		PipelineState.StencilRef = kStencilMaskBit;
 
 		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 		{
@@ -813,7 +814,6 @@ void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, 
 			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PipelineState, PassParameters,
 				[MergePixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
-				RHICmdList.SetStencilRef(kStencilMaskBit);
 				SetShaderParameters(RHICmdList, MergePixelShader, MergePixelShader.GetPixelShader(), *PassParameters);
 			});
 		}

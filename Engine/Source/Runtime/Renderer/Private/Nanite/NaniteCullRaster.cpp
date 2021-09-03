@@ -1652,7 +1652,7 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.BoundShaderState.MeshShaderRHI = MeshShader.GetMeshShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-			SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 			
 			SetShaderParameters(RHICmdList, MeshShader, MeshShader.GetMeshShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);
@@ -1703,7 +1703,7 @@ void AddPass_Rasterize(
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 
-			SetGraphicsPipelineState( RHICmdList, GraphicsPSOInit );
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 			SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), RasterPassParameters->Common);
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *RasterPassParameters);

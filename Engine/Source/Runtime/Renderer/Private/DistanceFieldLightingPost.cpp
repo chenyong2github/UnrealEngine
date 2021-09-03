@@ -487,7 +487,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 
 		TShaderMapRef<FGeometryAwareUpsamplePS> PixelShader(View.ShaderMap);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), BentNormalInterpolation->GetRHI(), Parameters);
 
 		DrawRectangle(
@@ -579,7 +579,7 @@ void UpdateHistory(
 					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 					GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 					PixelShader->SetParameters(RHICmdList, View, PrevHistoryViewRect,
 						DistanceFieldNormal->GetRHI(),
@@ -643,7 +643,7 @@ void UpdateHistory(
 						TShaderMapRef<TFilterHistoryPS<false> > PixelShader(View.ShaderMap);
 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), NewBentNormalHistory->GetRHI());
 					}
 					else
@@ -651,7 +651,7 @@ void UpdateHistory(
 						TShaderMapRef<TFilterHistoryPS<true> > PixelShader(View.ShaderMap);
 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), NewBentNormalHistory->GetRHI());
 					}
 
@@ -807,7 +807,7 @@ void UpsampleBentNormalAO(
 			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 			PixelShader->SetParameters(RHICmdList, View, DistanceFieldAOBentNormal->GetRHI());
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 

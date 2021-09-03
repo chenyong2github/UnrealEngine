@@ -17,7 +17,7 @@ struct FPostProcessRectParams
 	FVector4 CornerRadius;
 	FIntPoint SourceTextureSize;
 	TFunction<void(FRHICommandListImmediate&, FGraphicsPipelineStateInitializer&)> RestoreStateFunc;
-	TFunction<void()> RestoreStateFuncPostPipelineState;
+	uint32 StencilRef{};
 };
 
 struct FBlurRectParams

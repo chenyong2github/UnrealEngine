@@ -49,7 +49,7 @@ static void Bink_DrawOverlays_Internal(FRHICommandListImmediate &RHICmdList, con
 	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 	RHICmdList.SetViewport(0, 0, 0, screenSize.X, screenSize.Y, 1);
 
 	RHICmdList.EnqueueLambda([backbuffer,screenSize](FRHICommandListImmediate& RHICmdList) {
