@@ -57,11 +57,12 @@ void VisualizeQuadsCS(
 	bool bCoveredByRadianceCache = false;
 
 #if RADIANCE_CACHE
-	float Noise2 = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8 + 1);
-	float Noise3 = InterleavedGradientNoise(PixelPos, View.StateFrameIndexMod8 + 2);
-	float3 ProbeNoise = float3(Noise, Noise2, Noise3);
-	float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(View.WorldCameraOrigin, CameraVector, bCoveredByRadianceCache);
-	TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+	FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(View.WorldCameraOrigin, CameraVector);
+				
+	if (Coverage.bValid)
+	{
+		TraceDistance = min(TraceDistance, Coverage.MinTraceDistanceBeforeInterpolation);
+	}
 #endif
 
 	FConeTraceInput TraceInput;
@@ -116,7 +117,7 @@ void VisualizeQuadsCS(
 #endif
 
 #if RADIANCE_CACHE
-	TraceResult.Lighting += SampleRadianceCacheInterpolated(View.WorldCameraOrigin, CameraVector, PreviewConeAngle, ProbeNoise).xyz * TraceResult.Transparency;
+	TraceResult.Lighting += SampleRadianceCacheInterpolated(View.WorldCameraOrigin, CameraVector, PreviewConeAngle, 0).xyz * TraceResult.Transparency;
 	TraceResult.Transparency = 0.0f;
 #else
 

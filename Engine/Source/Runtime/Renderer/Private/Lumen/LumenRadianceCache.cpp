@@ -119,11 +119,11 @@ namespace LumenRadianceCache
 	{
 		OutParameters.RadianceCacheInputs = RadianceCacheInputs;
 		OutParameters.RadianceCacheInputs.NumProbeTracesBudget = GRadianceCacheForceFullUpdate ? 1000000 : OutParameters.RadianceCacheInputs.NumProbeTracesBudget;
-		OutParameters.RadianceProbeIndirectionTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-		OutParameters.RadianceCacheFinalRadianceAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		OutParameters.RadianceCacheFinalIrradianceAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		OutParameters.RadianceCacheProbeOcclusionAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
-		OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		OutParameters.RadianceProbeIndirectionTexture = nullptr;
+		OutParameters.RadianceCacheFinalRadianceAtlas = nullptr;
+		OutParameters.RadianceCacheFinalIrradianceAtlas = nullptr;
+		OutParameters.RadianceCacheProbeOcclusionAtlas = nullptr;
+		OutParameters.RadianceCacheDepthAtlas = nullptr;
 		OutParameters.ProbeWorldOffset = nullptr;
 		OutParameters.OverrideCacheOcclusionLighting = GRadianceCacheOverrideCacheOcclusionLighting;
 		OutParameters.ShowBlackRadianceCacheLighting = GRadianceCacheShowBlackRadianceCacheLighting;
@@ -158,9 +158,9 @@ namespace LumenRadianceCache
 		OutParameters.RadianceCacheFinalRadianceAtlas = RadianceCacheState.FinalRadianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalRadianceAtlas, TEXT("Lumen.RadianceCacheFinalRadianceAtlas")) : nullptr;
 		OutParameters.RadianceCacheFinalIrradianceAtlas = RadianceCacheState.FinalIrradianceAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.FinalIrradianceAtlas, TEXT("Lumen.RadianceCacheFinalIrradianceAtlas")) : nullptr;
 		OutParameters.RadianceCacheProbeOcclusionAtlas = RadianceCacheState.ProbeOcclusionAtlas ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.ProbeOcclusionAtlas, TEXT("Lumen.RadianceCacheProbeOcclusionAtlas")) : nullptr;
-		OutParameters.RadianceCacheDepthAtlas = GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("Lumen.RadianceCacheDepthAtlas"));
-		FRDGBufferRef ProbeWorldOffset = GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeWorldOffset);
-		OutParameters.ProbeWorldOffset = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeWorldOffset, PF_A32B32G32R32F));
+		OutParameters.RadianceCacheDepthAtlas = RadianceCacheState.DepthProbeAtlasTexture ? GraphBuilder.RegisterExternalTexture(RadianceCacheState.DepthProbeAtlasTexture, TEXT("Lumen.RadianceCacheDepthAtlas")) : nullptr;
+		FRDGBufferRef ProbeWorldOffset = RadianceCacheState.ProbeWorldOffset ? GraphBuilder.RegisterExternalBuffer(RadianceCacheState.ProbeWorldOffset) : nullptr;
+		OutParameters.ProbeWorldOffset = ProbeWorldOffset ? GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeWorldOffset, PF_A32B32G32R32F)) : nullptr;
 	}
 
 	FRadianceCacheMarkParameters GetMarkParameters(

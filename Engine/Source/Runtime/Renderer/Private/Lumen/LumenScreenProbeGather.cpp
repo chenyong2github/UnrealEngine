@@ -1252,7 +1252,8 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	FViewInfo& View,
 	FPreviousViewInfo* PreviousViewInfos,
 	bool& bLumenUseDenoiserComposite,
-	FLumenMeshSDFGridParameters& MeshSDFGridParameters)
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -1448,8 +1449,6 @@ FSSDSignalTextures FDeferredShadingSceneRenderer::RenderLumenScreenProbeGather(
 	GenerateBRDF_PDF(GraphBuilder, View, SceneTextures, BRDFProbabilityDensityFunction, BRDFProbabilityDensityFunctionSH, ScreenProbeParameters);
 
 	const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = LumenScreenProbeGatherRadianceCache::SetupRadianceCacheInputs();
-
-	LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
 
 	if (LumenScreenProbeGather::UseRadianceCache(View))
 	{

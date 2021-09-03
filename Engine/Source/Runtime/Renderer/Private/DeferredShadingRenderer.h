@@ -504,7 +504,8 @@ private:
 		FViewInfo& View,
 		FPreviousViewInfo* PreviousViewInfos,
 		bool& bLumenUseDenoiserComposite,
-		class FLumenMeshSDFGridParameters& MeshSDFGridParameters);
+		class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters);
 
 	FSSDSignalTextures RenderLumenIrradianceFieldGather(
 		FRDGBuilder& GraphBuilder,
@@ -529,6 +530,7 @@ private:
 		const FViewInfo& View,
 		const FSceneTextures& SceneTextures,
 		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		const class LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 		FLumenReflectionCompositeParameters& OutCompositeParameters);
 
 	void RenderLumenSceneVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures);

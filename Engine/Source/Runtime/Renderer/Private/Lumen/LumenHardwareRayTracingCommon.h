@@ -32,11 +32,6 @@ namespace Lumen
 		bool bUseDeferredMaterial;
 	};
 }
-// Hack for RGS to access array declaration:
-// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRGSRadianceCacheParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, InterpolationParameters)
-END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 class FLumenHardwareRayTracingRGS : public FGlobalShader
 {

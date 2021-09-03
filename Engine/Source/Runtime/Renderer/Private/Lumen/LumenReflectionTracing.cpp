@@ -287,11 +287,12 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualVoxelParameters, HairStrandsVoxel)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FHairStrands : SHADER_PERMUTATION_BOOL("USE_HAIRSTRANDS_VOXEL");
-	using FPermutationDomain = TShaderPermutationDomain<FDynamicSkyLight, FHairStrands>;
+	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FHairStrands, FRadianceCache>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -306,7 +307,6 @@ class FReflectionTraceVoxelsCS : public FGlobalShader
 };
 
 IMPLEMENT_GLOBAL_SHADER(FReflectionTraceVoxelsCS, "/Engine/Private/Lumen/LumenReflectionTracing.usf", "ReflectionTraceVoxelsCS", SF_Compute);
-
 
 FCompactedReflectionTraceParameters CompactTraces(
 	FRDGBuilder& GraphBuilder,
@@ -504,7 +504,9 @@ void TraceReflections(
 	const FLumenCardTracingInputs& TracingInputs,
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
-	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters)
+	const FLumenMeshSDFGridParameters& InMeshSDFGridParameters,
+	bool bUseRadianceCache,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters)
 {
 	{
 		FReflectionClearTracesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionClearTracesCS::FParameters>();
@@ -570,6 +572,7 @@ void TraceReflections(
 	}
 	
 	bool bNeedTraceHairVoxel = HairStrands::HasViewHairStrandsVoxelData(View) && GLumenReflectionHairStrands_VoxelTrace > 0;
+
 	if (Lumen::UseHardwareRayTracedReflections())
 	{
 		FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
@@ -589,7 +592,10 @@ void TraceReflections(
 			ReflectionTileParameters,
 			TracingInputs,
 			CompactedTraceParameters,
-			IndirectTracingParameters.MaxTraceDistance);
+			IndirectTracingParameters.MaxTraceDistance,
+			bUseRadianceCache,
+			RadianceCacheParameters
+			);
 	}
 	else 
 	{
@@ -651,8 +657,7 @@ void TraceReflections(
 			ReflectionTracingParameters,
 			ReflectionTileParameters,
 			WORLD_MAX,
-			// Make sure the shader runs on all misses to apply radiance cache + skylight
-			IndirectTracingParameters.MaxTraceDistance + 1);
+			IndirectTracingParameters.MaxTraceDistance);
 
 		{
 			FReflectionTraceVoxelsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTraceVoxelsCS::FParameters>();
@@ -661,14 +666,15 @@ void TraceReflections(
 			PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 			PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 			PassParameters->CompactedTraceParameters = CompactedTraceParameters;
+			PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 			if (bNeedTraceHairVoxel)
 			{
 				PassParameters->HairStrandsVoxel = HairStrands::BindHairStrandsVoxelUniformParameters(View);
 			}
 
 			FReflectionTraceVoxelsCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set< FReflectionTraceVoxelsCS::FDynamicSkyLight >(Lumen::ShouldHandleSkyLight(Scene, *View.Family));
 			PermutationVector.Set< FReflectionTraceVoxelsCS::FHairStrands >(bNeedTraceHairVoxel);
+			PermutationVector.Set< FReflectionTraceVoxelsCS::FRadianceCache >(bUseRadianceCache);
 			auto ComputeShader = View.ShaderMap->GetShader<FReflectionTraceVoxelsCS>(PermutationVector);
 
 			FComputeShaderUtils::AddPass(

@@ -50,6 +50,22 @@ FAutoConsoleVariableRef CVarLumenReflectionsSurfaceCacheFeedback(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+int32 GLumenReflectionsUseRadianceCache = 0;
+FAutoConsoleVariableRef CVarLumenReflectionsUseRadianceCache(
+	TEXT("r.Lumen.Reflections.RadianceCache"),
+	GLumenReflectionsUseRadianceCache,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenReflectionRadianceCacheAngleThresholdScale = 1.0f;
+FAutoConsoleVariableRef CVarLumenReflectionRadianceCacheAngleThresholdScale(
+	TEXT("r.Lumen.Reflections.RadianceCache.AngleThresholdScale"),
+	GLumenReflectionRadianceCacheAngleThresholdScale,
+	TEXT("Controls when the Radiance Cache is used for distant lighting.  A value of 1 means only use the Radiance Cache when appropriate for the reflection cone, lower values are more aggressive."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 float GLumenReflectionMaxRoughnessToTrace = .4f;
 FAutoConsoleVariableRef GVarLumenReflectionMaxRoughnessToTrace(
 	TEXT("r.Lumen.Reflections.MaxRoughnessToTrace"),
@@ -337,13 +353,20 @@ class FReflectionGenerateRaysCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWRayBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWDownsampledDepth)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, RWRayTraceDistance)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(float, MaxRoughnessToTrace)
+		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(float, RadianceCacheAngleThresholdScale)
 		SHADER_PARAMETER(float, GGXSamplingBias)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 	END_SHADER_PARAMETER_STRUCT()
+
+	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
+	using FPermutationDomain = TShaderPermutationDomain<FRadianceCache>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -667,7 +690,7 @@ void UpdateHistoryReflections(
 
 		{
 			FRDGTextureRef OldSpecularIndirectHistory = GraphBuilder.RegisterExternalTexture(*SpecularIndirectHistoryState);
-			FRDGTextureRef ResolveVarianceHistory = GraphBuilder.RegisterExternalTexture(*ResolveVarianceHistoryState);
+			FRDGTextureRef ResolveVarianceHistory = GraphBuilder.RegisterExternalTexture(ResolveVarianceHistoryState->IsValid() ? *ResolveVarianceHistoryState : GSystemTextures.BlackDummy);
 
 			FReflectionTemporalReprojectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionTemporalReprojectionCS::FParameters>();
 			PassParameters->RWSpecularIndirect = GraphBuilder.CreateUAV(FinalSpecularIndirect);
@@ -756,6 +779,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	const FViewInfo& View,
 	const FSceneTextures& SceneTextures,
 	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FLumenReflectionCompositeParameters& OutCompositeParameters)
 {
 	OutCompositeParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
@@ -784,24 +808,35 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 	FRDGTextureDesc DownsampledDepthDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
 	ReflectionTracingParameters.DownsampledDepth = GraphBuilder.CreateTexture(DownsampledDepthDesc, TEXT("Lumen.Reflections.ReflectionDownsampledDepth"));
 
+	FRDGTextureDesc RayTraceDistanceDesc(FRDGTextureDesc::Create2D(ReflectionTracingParameters.ReflectionTracingBufferSize, PF_R16F, FClearValueBinding::Black, TexCreate_ShaderResource | TexCreate_UAV));
+	ReflectionTracingParameters.RayTraceDistance = GraphBuilder.CreateTexture(RayTraceDistanceDesc, TEXT("Lumen.Reflections.RayTraceDistance"));
+
 	FBlueNoise BlueNoise;
 	InitializeBlueNoise(BlueNoise);
 	ReflectionTracingParameters.BlueNoise = CreateUniformBufferImmediate(BlueNoise, EUniformBufferUsage::UniformBuffer_SingleDraw);
 
 	FLumenReflectionTileParameters ReflectionTileParameters = ReflectionTileClassification(GraphBuilder, View, SceneTextures, ReflectionTracingParameters);
 
+	const bool bUseRadianceCache = GLumenReflectionsUseRadianceCache != 0 && RadianceCacheParameters.RadianceProbeIndirectionTexture != nullptr;
+
 	{
 		FReflectionGenerateRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReflectionGenerateRaysCS::FParameters>();
 		PassParameters->RWRayBuffer = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.RayBuffer));
 		PassParameters->RWDownsampledDepth = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.DownsampledDepth));
+		PassParameters->RWRayTraceDistance = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ReflectionTracingParameters.RayTraceDistance));
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
+		PassParameters->MaxTraceDistance = Lumen::GetMaxTraceDistance();
+		PassParameters->RadianceCacheAngleThresholdScale = FMath::Clamp<float>(GLumenReflectionRadianceCacheAngleThresholdScale, .05f, 4.0f);
 		PassParameters->GGXSamplingBias = GLumenReflectionGGXSamplingBias;
 		PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FReflectionGenerateRaysCS>(0);
+		FReflectionGenerateRaysCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FReflectionGenerateRaysCS::FRadianceCache>(bUseRadianceCache);
+		auto ComputeShader = View.ShaderMap->GetShader<FReflectionGenerateRaysCS>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -831,7 +866,9 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderLumenReflections(
 		TracingInputs,
 		ReflectionTracingParameters,
 		ReflectionTileParameters,
-		MeshSDFGridParameters);
+		MeshSDFGridParameters,
+		bUseRadianceCache,
+		RadianceCacheParameters);
 	
 	if (VisualizeTracesData)
 	{

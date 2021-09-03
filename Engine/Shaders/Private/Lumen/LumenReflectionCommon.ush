@@ -19,6 +19,8 @@ float ReflectionSmoothBias;
 // Note: negative if invalid ray
 Texture2D DownsampledDepth;
 Texture2D<float4> RayBuffer;
+// The distance to trace each ray before interpolating from the Radiance Cache
+Texture2D<float> RayTraceDistance;
 
 Texture2D<float3> TraceRadiance;
 Texture2D<float> TraceHit;
@@ -87,18 +89,22 @@ float DecodeProbeRayDistance(float Encoded)
 struct FRayData
 {
 	float3 Direction;
+	float TraceDistance;
 	float PDF;
 	float ConeHalfAngle;
 };
 
 const static float MinReflectionConeAngle = .00001f;
 
-FRayData DecodeRayData(float4 PackedRayData)
+FRayData GetRayData(uint2 TracingCoord)
 {
+	float4 PackedRayData = RayBuffer[TracingCoord];
+
 	FRayData RayData;
 	RayData.Direction = PackedRayData.xyz;
 	RayData.ConeHalfAngle = PackedRayData.w;
 	RayData.PDF = 1.0f / max(PackedRayData.w, MinReflectionConeAngle);
+	RayData.TraceDistance = RayTraceDistance[TracingCoord];
 	return RayData;
 }
 

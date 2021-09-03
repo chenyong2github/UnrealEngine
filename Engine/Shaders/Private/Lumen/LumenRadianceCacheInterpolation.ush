@@ -12,21 +12,10 @@
 #define RADIANCE_CACHE_USE_INTERPOLATION 1
 #define INVALID_PROBE_INDEX 0xFFFFFFFF
 
-#ifndef LUMEN_HARDWARE_RAYTRACING
-#define LUMEN_HARDWARE_RAYTRACING 0
-#endif
-
 #if IS_MATERIAL_SHADER
 	#define RADIANCE_CACHE_PARAMETERS_IN_UB 1
 #else
 	#define RADIANCE_CACHE_PARAMETERS_IN_UB 0
-#endif
-
-#if LUMEN_HARDWARE_RAYTRACING
-	// Temporary hack to access SHADER_PARAMETER_ARRAY in RGS
-	// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
-	#undef RADIANCE_CACHE_PARAMETERS_IN_UB
-	#define RADIANCE_CACHE_PARAMETERS_IN_UB 1
 #endif
 
 #if RADIANCE_CACHE_PARAMETERS_IN_UB
@@ -160,23 +149,35 @@ uint GetRadianceProbeClipmap(float3 WorldSpacePosition)
 	return NumRadianceProbeClipmaps;
 }
 
-
-float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float3 RayDirection, out bool bCoveredByRadianceCache)
+struct FRadianceCacheCoverage
 {
+	// Whether the Radiance Cache covers the queried position
+	bool bValid;
+
+	// The minimum distance that must be traced before interpolating from the Radiance Cache, to prevent leaking
+	float MinTraceDistanceBeforeInterpolation;
+};
+
+// Only positions that were marked during FMarkUsedRadianceCacheProbes can be queried, this version does not check if the position was marked correctly
+// See UnmappedDebugColor for visualizing these errors
+// GetRadianceCacheCoverageWithUncertainCoverage can be used for interpolating to positions with uncertain coverage
+FRadianceCacheCoverage GetRadianceCacheCoverage(float3 RayOrigin, float3 RayDirection)
+{
+	FRadianceCacheCoverage Coverage;
+	Coverage.bValid = false;
+	Coverage.MinTraceDistanceBeforeInterpolation = 10000000.0f;
+
 	uint ClipmapIndex = GetRadianceProbeClipmap(RayOrigin);
 
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{
-		bCoveredByRadianceCache = true;
+		Coverage.bValid = true;
 
 		float CellOcclusionDistance = GetRadianceProbeCoordToWorldPositionScale(ClipmapIndex) * sqrt(3.0f);
-		return GetRadianceProbeTMin(ClipmapIndex) + CellOcclusionDistance;
+		Coverage.MinTraceDistanceBeforeInterpolation = GetRadianceProbeTMin(ClipmapIndex) + CellOcclusionDistance;
 	}
-	else
-	{
-		bCoveredByRadianceCache = false;
-		return 10000000.0f;
-	}
+
+	return Coverage;
 }
 
 float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, float MipLevel)
@@ -195,8 +196,8 @@ float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, flo
 	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvProbeFinalRadianceAtlasResolution;
 
 	float3 UnmappedDebugColor = 0.0f;
-	// Show bright green when an unallocated probe is sampled
-	UnmappedDebugColor = float3(0.0f, 10.0f, 0.0f);
+	// Uncomment to show bright green when an unallocated probe is sampled
+	//UnmappedDebugColor = float3(0.0f, 10.0f, 0.0f);
 	return ProbeIndex == INVALID_PROBE_INDEX ? UnmappedDebugColor : RadianceCacheFinalRadianceAtlas.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, MipLevel);
 #endif
 }

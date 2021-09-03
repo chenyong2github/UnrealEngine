@@ -111,9 +111,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 
 			if (DIM_RADIANCE_CACHE)
 			{
-				bool bCoveredByRadianceCache = false;
-				float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
-				Ray.TMax = min(Ray.TMax, ProbeOcclusionDistance);
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+				
+				if (Coverage.bValid)
+				{
+					Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
+				}
 			}
 
 			float3 Radiance = 0.0;
@@ -193,9 +196,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 
 	if (DIM_RADIANCE_CACHE)
 	{
-		bool bCoveredByRadianceCache = false;
-		float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
-		Ray.TMax = min(Ray.TMax, ProbeOcclusionDistance);
+		FRadianceCacheCoverage Coverage = GetRadianceCacheCoverage(WorldPosition, WorldConeDirection);
+				
+		if (Coverage.bValid)
+		{
+			Ray.TMax = min(Ray.TMax, Coverage.MinTraceDistanceBeforeInterpolation);
+		}
 	}
 
 	FRayCone RayCone = (FRayCone)0;

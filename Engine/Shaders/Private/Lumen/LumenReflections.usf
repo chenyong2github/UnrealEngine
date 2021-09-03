@@ -11,6 +11,7 @@
 #include "LumenReflectionCommon.ush"
 #include "../ClearCoatCommon.ush"
 #include "../FastMath.ush"
+#include "LumenRadianceCacheCommon.ush"
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -193,7 +194,10 @@ void ReflectionTileClassificationBuildListsCS(
 
 float InvRoughnessFadeLength;
 float GGXSamplingBias;
+float MaxTraceDistance;
+float RadianceCacheAngleThresholdScale;
 
+RWTexture2D<float> RWRayTraceDistance;
 RWTexture2D<float4> RWRayBuffer;
 
 [numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
@@ -251,6 +255,24 @@ void ReflectionGenerateRaysCS(
 			}
 
 			RWRayBuffer[ReflectionTracingCoord] = float4(RayDirection, ConeAngle);
+
+			float TraceDistance = MaxTraceDistance;
+#if RADIANCE_CACHE
+			float RadianceCacheConeHalfAngle = RadianceCacheAngleThresholdScale * acosFast(1.0f - 1 / (float)(RadianceProbeResolution * RadianceProbeResolution));
+
+			if (ConeAngle > RadianceCacheConeHalfAngle)
+			{
+				FRadianceCacheCoverage Coverage = GetRadianceCacheCoverageWithUncertainCoverage(WorldPosition, RayDirection);
+				
+				if (Coverage.bValid)
+				{
+					float FadeAlpha = saturate((ConeAngle - RadianceCacheConeHalfAngle) / RadianceCacheConeHalfAngle);
+					TraceDistance = lerp(MaxTraceDistance, min(Coverage.MinTraceDistanceBeforeInterpolation, MaxTraceDistance), FadeAlpha);
+				}
+			}
+#endif
+
+			RWRayTraceDistance[ReflectionTracingCoord] = TraceDistance;
 		}
 		else
 		{
@@ -380,7 +402,7 @@ void ReflectionResolveCS(
 						if (NeighborSceneDepth > 0.0f)
 						{
 							float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
-							FRayData RayData = DecodeRayData(RayBuffer[NeighborTracingCoord]);
+							FRayData RayData = GetRayData(NeighborTracingCoord);
 
 							bool bHit;
 							float TraceHitDistance = DecodeRayDistance(TraceHit[NeighborTracingCoord].x, bHit);

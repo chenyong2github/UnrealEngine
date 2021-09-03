@@ -607,9 +607,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 				IndirectTracingParameters.MinTraceDistance = VisualizeParameters.MinTraceDistance;
 				IndirectTracingParameters.MaxTraceDistance = VisualizeParameters.MaxTraceDistance;
 				IndirectTracingParameters.MaxMeshSDFTraceDistance = VisualizeParameters.MaxMeshSDFTraceDistance;
-				LumenRadianceCache::FRadianceCacheInterpolationParameters RadianceCacheParameters;
-				LumenRadianceCache::GetInterpolationParameters(View, GraphBuilder, RadianceCacheState, RadianceCacheInputs, RadianceCacheParameters);
-				
+
 				VisualizeHardwareRayTracing(
 					GraphBuilder,
 					Scene,
@@ -617,7 +615,6 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 					View,
 					TracingInputs,
 					IndirectTracingParameters,
-					RadianceCacheParameters,
 					SceneColor);
 			}
 			else
