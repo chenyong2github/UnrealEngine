@@ -9,6 +9,7 @@
 #include "AssetTools.h"
 #include "Editor/StaticMeshEditor/Public/StaticMeshEditorModule.h"
 #include "FbxMeshUtils.h"
+#include "StaticMeshCompiler.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Misc/MessageDialog.h"
@@ -287,34 +288,44 @@ void FAssetTypeActions_StaticMesh::ExecuteRemoveVertexColors(TArray<TWeakObjectP
 	}
 }
 
-void FAssetTypeActions_StaticMesh::ExecuteNaniteEnable(TArray<TWeakObjectPtr<UStaticMesh>> Objects)
+void FAssetTypeActions_StaticMesh::ModifyNaniteEnable(TArray<TWeakObjectPtr<UStaticMesh>> Objects, bool bNaniteEnable)
 {
-	for (auto StaticMeshPtr : Objects)
+	TArray<UStaticMesh*> Meshes;
+	Meshes.Reserve(Objects.Num());
+
+	for (TWeakObjectPtr<UStaticMesh>& StaticMeshPtr : Objects)
 	{
 		UStaticMesh* Mesh = StaticMeshPtr.Get();
-		if (Mesh)
+		if (Mesh && Mesh->NaniteSettings.bEnabled != bNaniteEnable)
 		{
-			Mesh->NaniteSettings.bEnabled = true;
-			Mesh->Build();
-			Mesh->MarkPackageDirty();
-			Mesh->OnMeshChanged.Broadcast();
+			Meshes.Add(Mesh);
 		}
 	}
+
+	FStaticMeshCompilingManager::Get().FinishCompilation(Meshes);
+
+	for (UStaticMesh* Mesh : Meshes)
+	{
+		Mesh->NaniteSettings.bEnabled = bNaniteEnable;
+	}
+
+	UStaticMesh::BatchBuild(Meshes);
+
+	for (UStaticMesh* Mesh : Meshes)
+	{
+		Mesh->MarkPackageDirty();
+		Mesh->OnMeshChanged.Broadcast();
+	}
+}
+
+void FAssetTypeActions_StaticMesh::ExecuteNaniteEnable(TArray<TWeakObjectPtr<UStaticMesh>> Objects)
+{
+	ModifyNaniteEnable(Objects, true);
 }
 
 void FAssetTypeActions_StaticMesh::ExecuteNaniteDisable(TArray<TWeakObjectPtr<UStaticMesh>> Objects)
 {
-	for (auto StaticMeshPtr : Objects)
-	{
-		UStaticMesh* Mesh = StaticMeshPtr.Get();
-		if (Mesh)
-		{
-			Mesh->NaniteSettings.bEnabled = false;
-			Mesh->Build();
-			Mesh->MarkPackageDirty();
-			Mesh->OnMeshChanged.Broadcast();
-		}
-	}
+	ModifyNaniteEnable(Objects, false);
 }
 
 #undef LOCTEXT_NAMESPACE

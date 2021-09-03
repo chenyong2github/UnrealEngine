@@ -351,7 +351,10 @@ public:
 	/** Cancel the build on this specific static mesh or block until it is completed if already started. */
 	ENGINE_API void CancelBuild(UStaticMesh* StaticMesh);
 
-	/** Blocks the main thread until the async build are either cancelled or completed. */
+	/** Cancel the build on these meshes or block until they are completed if already started. */
+	ENGINE_API void CancelBuilds(const TSet<UStaticMesh*>& InStaticMeshes);
+
+	/** Blocks the main thread until the async build are either canceled or completed. */
 	ENGINE_API void CancelAllOutstandingBuilds();
 
 	/** Blocks the main thread until the async build of the specified mesh is complete. */
@@ -396,8 +399,11 @@ private:
 	/** Task will be sent to a background worker. */
 	void StartBackgroundTask(FAsyncDistanceFieldTask* Task);
 
-	/** Cancel or finish any background work for the given task. */
-	static void CancelAndDeleteBackgroundTask(TArray<FAsyncDistanceFieldTask*> Tasks);
+	/** Cancel or finish any work for any task matching the predicate. */
+	void CancelAndDeleteTaskByPredicate(TFunctionRef<bool(FAsyncDistanceFieldTask*)> ShouldCancelPredicate);
+
+	/** Cancel or finish any work for the given task. */
+	void CancelAndDeleteTask(const TSet<FAsyncDistanceFieldTask*>& Tasks);
 
 	/** Return whether the task has become invalid and should be cancelled (i.e. reference unreachable objects) */
 	bool IsTaskInvalid(FAsyncDistanceFieldTask* Task) const;
@@ -409,14 +415,13 @@ private:
 	void OnAssetPostCompile(const TArray<FAssetCompileData>& CompiledAssets);
 
 	/** Game-thread managed list of tasks in the async system. */
-	TArray<FAsyncDistanceFieldTask*> ReferencedTasks;
+	TSet<FAsyncDistanceFieldTask*> ReferencedTasks;
 
 	/** Tasks that are waiting on static mesh compilation to proceed */
-	TArray<FAsyncDistanceFieldTask*> PendingTasks;
+	TSet<FAsyncDistanceFieldTask*> PendingTasks;
 
 	/** Tasks that have completed processing. */
-	// consider changing this from FIFO to Unordered, which may be faster
-	TLockFreePointerListLIFO<FAsyncDistanceFieldTask> CompletedTasks;
+	TSet<FAsyncDistanceFieldTask*> CompletedTasks;
 
 	FDelegateHandle PostReachabilityAnalysisHandle;
 

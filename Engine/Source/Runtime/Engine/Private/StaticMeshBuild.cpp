@@ -172,22 +172,14 @@ void UStaticMesh::BatchBuild(const TArray<UStaticMesh*>& InStaticMeshes, bool bI
 			IMeshBuilderModule::GetForPlatform(TargetPlatform);
 		}
 
-		for (UStaticMesh* StaticMesh : StaticMeshesToProcess)
+		if (GDistanceFieldAsyncQueue)
 		{
-			if (StaticMesh->GetRenderData())
-			{
-				// Cancel any previous async builds before modifying RenderData
-				// This can happen during import as the mesh is rebuilt redundantly
-				if (GDistanceFieldAsyncQueue)
-				{
-					GDistanceFieldAsyncQueue->CancelBuild(StaticMesh);
-				}
+			GDistanceFieldAsyncQueue->CancelBuilds(StaticMeshesToProcess);
+		}
 
-				if (GCardRepresentationAsyncQueue)
-				{
-					GCardRepresentationAsyncQueue->CancelBuild(StaticMesh);
-				}
-			}
+		if (GCardRepresentationAsyncQueue)
+		{
+			GCardRepresentationAsyncQueue->CancelBuilds(StaticMeshesToProcess);
 		}
 		
 		TMap<UStaticMesh*, TArray<UStaticMeshComponent*>> StaticMeshComponents;
