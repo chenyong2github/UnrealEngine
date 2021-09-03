@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataPayloadId.h"
 #include "IO/IoHash.h"
 #include "Templates/TypeHash.h"
 

@@ -5,7 +5,7 @@
 #include "Async/AsyncFileHandle.h"
 #include "Containers/Array.h"
 #include "DerivedDataCache.h"
-#include "DerivedDataPayload.h"
+#include "DerivedDataPayloadId.h"
 #include "DerivedDataRequestOwner.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"

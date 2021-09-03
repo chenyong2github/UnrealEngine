@@ -2,16 +2,17 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Containers/ArrayView.h"
+#include "DerivedDataBackendAsyncPutWrapper.h"
 #include "DerivedDataBackendInterface.h"
-#include "ProfilingDebugging/CookStats.h"
 #include "DerivedDataCacheRecord.h"
 #include "DerivedDataCacheUsageStats.h"
-#include "DerivedDataBackendAsyncPutWrapper.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "Misc/ScopeRWLock.h"
+#include "ProfilingDebugging/CookStats.h"
 #include "Templates/UniquePtr.h"
-#include "Containers/ArrayView.h"
 
 extern bool GVerifyDDC;
 

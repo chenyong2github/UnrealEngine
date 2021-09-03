@@ -4,6 +4,7 @@
 
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataPayloadPrivate.h"
 #include "HAL/CriticalSection.h"
 #include "Misc/ScopeExit.h"

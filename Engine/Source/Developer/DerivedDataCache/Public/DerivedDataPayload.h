@@ -4,74 +4,11 @@
 
 #include "CoreTypes.h"
 #include "Compression/CompressedBuffer.h"
-#include "Containers/StringFwd.h"
-#include "Containers/StringView.h"
+#include "DerivedDataPayloadId.h"
 #include "IO/IoHash.h"
-#include "Memory/MemoryView.h"
-#include "String/BytesToHex.h"
-
-#define UE_API DERIVEDDATACACHE_API
-
-class FCbObjectId;
 
 namespace UE::DerivedData
 {
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-/** A 12-byte value that uniquely identifies a payload in the context that it was created. */
-struct FPayloadId
-{
-public:
-	using ByteArray = uint8[12];
-
-	/** Construct a null ID. */
-	FPayloadId() = default;
-
-	/** Construct an ID from an array of 12 bytes. */
-	inline explicit FPayloadId(const ByteArray& Id);
-
-	/** Construct an ID from a view of 12 bytes. */
-	UE_API explicit FPayloadId(FMemoryView Id);
-
-	/** Construct an ID from a Compact Binary Object ID. */
-	UE_API FPayloadId(const FCbObjectId& Id);
-
-	/** Returns the ID as a Compact Binary Object ID. */
-	UE_API operator FCbObjectId() const;
-
-	/** Construct an ID from a non-zero hash. */
-	[[nodiscard]] UE_API static FPayloadId FromHash(const FIoHash& Hash);
-
-	/** Construct an ID from a non-empty name. */
-	[[nodiscard]] UE_API static FPayloadId FromName(FAnsiStringView Name);
-	[[nodiscard]] UE_API static FPayloadId FromName(FWideStringView Name);
-
-	/** Returns a reference to the raw byte array for the ID. */
-	inline const ByteArray& GetBytes() const { return Bytes; }
-	inline operator const ByteArray&() const { return Bytes; }
-
-	/** Returns a view of the raw byte array for the ID. */
-	inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
-
-	/** Whether this is null. */
-	inline bool IsNull() const;
-	/** Whether this is not null. */
-	inline bool IsValid() const { return !IsNull(); }
-
-	/** Reset this to null. */
-	inline void Reset() { *this = FPayloadId(); }
-
-	/** A null ID. */
-	static const FPayloadId Null;
-
-private:
-	alignas(uint32) ByteArray Bytes{};
-};
-
-inline const FPayloadId FPayloadId::Null;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
  * A payload is described by an ID and by the hash and size of its raw buffer (uncompressed).
@@ -132,15 +69,6 @@ private:
 
 inline const FPayload FPayload::Null;
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline FPayloadId::FPayloadId(const ByteArray& Id)
-{
-	FMemory::Memcpy(Bytes, Id, sizeof(ByteArray));
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 inline FPayload::FPayload(const FPayloadId& InId)
 	: Id(InId)
 {
@@ -173,43 +101,6 @@ inline FPayload::FPayload(const FPayloadId& InId, FCompressedBuffer&& InData)
 	checkf(Id.IsValid(), TEXT("A valid ID is required to construct a payload."));
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-inline bool operator==(const FPayloadId& A, const FPayloadId& B)
-{
-	return A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator!=(const FPayloadId& A, const FPayloadId& B)
-{
-	return !A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator<(const FPayloadId& A, const FPayloadId& B)
-{
-	return A.GetView().CompareBytes(B.GetView()) < 0;
-}
-
-inline uint32 GetTypeHash(const FPayloadId& Id)
-{
-	return *reinterpret_cast<const uint32*>(Id.GetView().GetData());
-}
-
-/** Convert the ID to a 24-character hex string. */
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FPayloadId& Id)
-{
-	UE::String::BytesToHexLower(Id.GetBytes(), Builder);
-	return Builder;
-}
-
-inline bool FPayloadId::IsNull() const
-{
-	return *this == FPayloadId();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /** Compare payloads by their ID and the hash and size of their raw buffer. */
 inline bool operator==(const FPayload& A, const FPayload& B)
 {
@@ -226,8 +117,4 @@ inline bool operator<(const FPayload& A, const FPayload& B)
 	return !(IdA == IdB) ? IdA < IdB : !(HashA == HashB) ? HashA < HashB : A.GetRawSize() < B.GetRawSize();
 }
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
 } // UE::DerivedData
-
-#undef UE_API

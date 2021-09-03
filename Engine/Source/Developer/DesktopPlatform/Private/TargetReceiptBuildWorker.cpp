@@ -2,6 +2,7 @@
 
 #include "TargetReceiptBuildWorker.h"
 
+#include "Compression/CompressedBuffer.h"
 #include "Compression/OodleDataCompression.h"
 #include "DerivedDataBuildWorker.h"
 #include "Features/IModularFeatures.h"

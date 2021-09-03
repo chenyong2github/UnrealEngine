@@ -35,6 +35,7 @@
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
 #include "DerivedDataCacheKey.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataRequestTypes.h"
 #include "Interfaces/ITargetPlatform.h"
