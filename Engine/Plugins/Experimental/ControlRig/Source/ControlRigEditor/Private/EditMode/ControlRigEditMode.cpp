@@ -45,6 +45,7 @@
 #include "ControlRigComponent.h"
 #include "EngineUtils.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+
 //#include "IPersonaPreviewScene.h"
 //#include "Animation/DebugSkelMeshComponent.h"
 //#include "Persona/Private/AnimationEditorViewportClient.h"
@@ -1103,51 +1104,6 @@ bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
 
 bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
 {
-	float StartX = TNumericLimits<float>::Max();
-	float StartY = TNumericLimits<float>::Max();
-	float EndX = TNumericLimits<float>::Lowest();
-	float EndY = TNumericLimits<float>::Lowest();
-
-	// Frustum sides are in the first four indices
-	// Find intersection points and project to screen space to determine the bounding rectangle of the selection box
-	for (int32 PlaneIndex = 0; PlaneIndex < 4; ++PlaneIndex)
-	{
-		const FPlane& Plane1 = InFrustum.Planes[PlaneIndex];
-		const FPlane& Plane2 = InFrustum.Planes[(PlaneIndex + 1) % 4];
-		FVector I, D;
-		if (FMath::IntersectPlanes2(I, D, Plane1, Plane2))
-		{
-			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(InViewportClient->Viewport, InViewportClient->GetScene(), InViewportClient->EngineShowFlags));
-			FSceneView* SceneView = InViewportClient->CalcSceneView(&ViewFamily);
-
-			FVector2D V;
-			if (SceneView->WorldToPixel(I, V))
-			{
-				StartX = FMath::Min(StartX, V.X);
-				StartY = FMath::Min(StartY, V.Y);
-				EndX = FMath::Max(EndX, V.X);
-				EndY = FMath::Max(EndY, V.Y);
-			}
-		}
-	}
-	const int32 ViewportSizeX = InViewportClient->Viewport->GetSizeXY().X;
-	const int32 ViewportSizeY = InViewportClient->Viewport->GetSizeXY().Y;
-
-	if( StartX > EndX )
-	{
-		Swap( StartX, EndX );
-	}
-
-	if( StartY > EndY )
-	{
-		Swap( StartY, EndY );
-	}
-
-	FIntRect BoxRect(FIntPoint(FMath::Max(0.0f, StartX), FMath::Max(0.0f, StartY)), FIntPoint(FMath::Min(ViewportSizeX, FMath::TruncToInt(EndX + 1)), FMath::Min(ViewportSizeY, FMath::TruncToInt(EndY + 1))));
-
-	TSet<AActor*> HitActors;
-	TSet<UModel*> HitModels;
-	InViewportClient->Viewport->GetActorsAndModelsInHitProxy(BoxRect, HitActors, HitModels);
 	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
 	bool bSomethingSelected(false);
 	const bool bShiftDown = InViewportClient->Viewport->KeyState(EKeys::LeftShift) || InViewportClient->Viewport->KeyState(EKeys::RightShift);
@@ -1155,23 +1111,22 @@ bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 	{
 		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
 	}
-	for (AActor* Actor : HitActors)
-	{
-		if (Actor->IsA<AControlRigGizmoActor>())
-		{
-			AControlRigGizmoActor* GizmoActor = CastChecked<AControlRigGizmoActor>(Actor);
-			if (GizmoActor->IsSelectable())
-			{
-				bSomethingSelected = true;
-				const FName& ControlName = GizmoActor->ControlName;
-				SetRigElementSelection(ERigElementType::Control, ControlName, true);
 
-				if (bShiftDown)
+	for (AControlRigGizmoActor* GizmoActor : GizmoActors)
+	{
+		for (UActorComponent* Component : GizmoActor->GetComponents())
+		{
+			UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
+			if (PrimitiveComponent && PrimitiveComponent->IsRegistered() && PrimitiveComponent->IsVisibleInEditor())
+			{
+				if (PrimitiveComponent->ComponentIsTouchingSelectionFrustum(InFrustum, InViewportClient->EngineShowFlags, false /*only bsp*/, false/*encompass entire*/))
 				{
-				}
-				else
-				{
-					SetRigElementSelection(ERigElementType::Control, ControlName, true);
+					if (GizmoActor->IsSelectable())
+					{
+						bSomethingSelected = true;
+						const FName& ControlName = GizmoActor->ControlName;
+						SetRigElementSelection(ERigElementType::Control, ControlName, true);
+					}
 				}
 			}
 		}
@@ -1180,7 +1135,6 @@ bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 	{
 		return true;
 	}
-	
 	ScopedTransaction.Cancel();
 	return FEdMode::FrustumSelect(InFrustum, InViewportClient, InSelect);
 }
@@ -1407,14 +1361,14 @@ void FControlRigEditMode::SetRigElementSelection(ERigElementType Type, const TAr
 {
 	if (!bSelecting)
 	{
-TGuardValue<bool> ReentrantGuard(bSelecting, true);
+		TGuardValue<bool> ReentrantGuard(bSelecting, true);
 
-for (const FName& ElementName : InRigElementNames)
-{
-	SetRigElementSelectionInternal(Type, ElementName, bSelected);
-}
+		for (const FName& ElementName : InRigElementNames)
+		{
+			SetRigElementSelectionInternal(Type, ElementName, bSelected);
+		}
 
-HandleSelectionChanged();
+		HandleSelectionChanged();
 	}
 }
 
