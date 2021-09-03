@@ -7,6 +7,7 @@
 #pragma once
 
 #define CARD_TILE_SIZE 8
+#define NULL_PACKED_CARD_TILE 0xFFFFFFFF
 
 struct FCardTileData
 {
