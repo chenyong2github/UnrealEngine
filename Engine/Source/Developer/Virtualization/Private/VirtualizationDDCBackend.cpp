@@ -6,6 +6,7 @@
 #include "Virtualization/PayloadId.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheRecord.h"
+#include "DerivedDataPayload.h"
 #include "DerivedDataRequestOwner.h"
 
 namespace UE::Virtualization
