@@ -12,7 +12,7 @@ struct FTypedElementHandle;
 class UAssetPlacementSettings;
 class UPlacementPaletteAsset;
 
-UCLASS(Transient)
+UCLASS()
 class UPlacementModeSubsystem : public UEditorSubsystem
 {
 	GENERATED_BODY()
@@ -49,4 +49,6 @@ public:
 protected:
 	UPROPERTY()
 	TObjectPtr<UAssetPlacementSettings> ModeSettings;
+
+	void SaveSettings() const;
 };

@@ -16,12 +16,13 @@
 void UPlacementModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	ModeSettings = NewObject<UAssetPlacementSettings>(this);
-	ModeSettings->Restore();
+	ModeSettings->LoadSettings();
+
+	FCoreDelegates::OnEnginePreExit.AddUObject(this, &UPlacementModeSubsystem::SaveSettings);
 }
 
 void UPlacementModeSubsystem::Deinitialize()
 {
-	ModeSettings->Save();
 	ModeSettings = nullptr;
 }
 
@@ -98,4 +99,12 @@ FPaletteItem UPlacementModeSubsystem::CreatePaletteItem(const FAssetData& InAsse
 void UPlacementModeSubsystem::SetUseContentBrowserAsPalette(bool bInUseContentBrowser)
 {
 	ModeSettings->bUseContentBrowserSelection = bInUseContentBrowser;
+}
+
+void UPlacementModeSubsystem::SaveSettings() const
+{
+	if (ModeSettings)
+	{
+		ModeSettings->SaveSettings();
+	}
 }

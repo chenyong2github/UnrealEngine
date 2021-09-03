@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
+class IAssetTypeActions;
+
 class FAssetPlacementEdMode : public IModuleInterface
 {
 public:
@@ -12,5 +14,5 @@ public:
 	virtual void ShutdownModule() override;
 
 protected:
-	void OnPostEngineInit();
+	TSharedPtr<IAssetTypeActions> PaletteAssetActions;
 };

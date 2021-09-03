@@ -210,7 +210,7 @@ private:
 	bool bShowFullTooltips = true;
 	bool bIsRebuildTimerRegistered = true;
 	bool bIsRefreshTimerRegistered = true;
-	bool bIsMirroringContentBrowser = true;
+	bool bIsMirroringContentBrowser = false;
 	EViewMode ActiveViewMode;
 	EColumnSortMode::Type ActiveSortOrder = EColumnSortMode::Type::Ascending;
 

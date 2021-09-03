@@ -61,7 +61,15 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 
 	const FText BlankText = FText::GetEmpty();
 
-	SetToLocalUserPalette();
+	// Load initial settings for the palette widget to use
+	if (UPlacementModeSubsystem* PlacementModeSubystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
+	{
+		if (const UAssetPlacementSettings* PlacementSettings = PlacementModeSubystem->GetModeSettingsObject())
+		{
+			bIsMirroringContentBrowser = !PlacementSettings->bUseContentBrowserSelection;
+			OnSetPaletteAsset(PlacementSettings->GetActivePalettePath().TryLoad());
+		}
+	}
 
 	ChildSlot
 	[
@@ -113,14 +121,14 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 							.VAlign(VAlign_Center)
 							.AutoWidth()
 							[
-								PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnResetPaletteAssetClicked), LOCTEXT("ResetPaletteAssetTooltip", "Clear the current palette asset, and use the user's local palette."))
+								PropertyCustomizationHelpers::MakeClearButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnResetPaletteAssetClicked), LOCTEXT("ResetPaletteAssetTooltip", "Clear the current palette asset, and use the user's local palette."), TAttribute<bool>::CreateLambda([this]() { return PalettePath.IsValid(); }))
 							]
 							+ SHorizontalBox::Slot()
 							.VAlign(VAlign_Center)
 							.AutoWidth()
 							.Padding(2.0f, 0.0f)
 							[
-								PropertyCustomizationHelpers::MakeSaveButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnSavePaletteAssetClicked), LOCTEXT("SaveAssetPaletteTooltip", "Save changes to the current palette asset"))
+								PropertyCustomizationHelpers::MakeSaveButton(FSimpleDelegate::CreateSP(this, &SAssetPlacementPalette::OnSavePaletteAssetClicked), LOCTEXT("SaveAssetPaletteTooltip", "Save changes to the current palette asset"), TAttribute<bool>::CreateLambda([this]() { return PalettePath.IsValid(); }))
 							]
 						]
 					]
@@ -184,7 +192,7 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 					SNew(STextBlock)
 					.Visibility(this, &SAssetPlacementPalette::GetDropHintTextVisibility)
 					.Text(LOCTEXT("Placement_AddPlacementMesh", "Drop Assets Here"))
-					.ShadowOffset(FVector2D(1.f, 1.f))
+					.TextStyle(FAppStyle::Get(), "HintText")
 				]
 			]
 		]
@@ -372,8 +380,7 @@ bool SAssetPlacementPalette::ShouldFilterAsset(const FAssetData& InAssetData)
 
 void SAssetPlacementPalette::OnResetPaletteAssetClicked()
 {
-	PalettePath.Reset();
-	SetToLocalUserPalette();
+	OnSetPaletteAsset(FAssetData());
 	UpdatePalette(true);
 }
 
@@ -440,21 +447,19 @@ FString SAssetPlacementPalette::GetPalettePath() const
 void SAssetPlacementPalette::OnSetPaletteAsset(const FAssetData& InAssetData)
 {
 	FSoftObjectPath NewAssetPath = InAssetData.ToSoftObjectPath();
-	if (NewAssetPath.IsValid() && (NewAssetPath != PalettePath))
+	if ((NewAssetPath != PalettePath) || !InAssetData.IsValid())
 	{
-		if (UPlacementPaletteAsset* PaletteAsset = Cast<UPlacementPaletteAsset>(InAssetData.GetAsset()))
+		UPlacementPaletteAsset* PaletteAsset = Cast<UPlacementPaletteAsset>(InAssetData.GetAsset());
+		if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
 		{
-			if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
-			{
-				PlacementModeSubsystem->GetMutableModeSettingsObject()->SetPaletteAsset(PaletteAsset);
+			PlacementModeSubsystem->GetMutableModeSettingsObject()->SetPaletteAsset(PaletteAsset);
 
-				PalettePath = NewAssetPath;
+			PalettePath = NewAssetPath;
 
-				// Shutdown content browser mirroring if needed
-				SetupContentBrowserMirroring(false);
+			// Setup content browser mirroring if this is the user palette
+			SetupContentBrowserMirroring(PalettePath.IsValid() ? false : PlacementModeSubsystem->GetModeSettingsObject()->bUseContentBrowserSelection);
 
-				SetPaletteItems(PlacementModeSubsystem->GetModeSettingsObject()->GetActivePaletteItems());
-			}
+			SetPaletteItems(PlacementModeSubsystem->GetModeSettingsObject()->GetActivePaletteItems());
 		}
 	}
 }
@@ -481,21 +486,6 @@ void SAssetPlacementPalette::SetPaletteItems(TArrayView<const FPaletteItem> InPa
 
 	// Update the palette view to match contained items
 	UpdatePalette(true);
-}
-
-void SAssetPlacementPalette::SetToLocalUserPalette()
-{
-	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
-	{
-		PlacementModeSubsystem->GetMutableModeSettingsObject()->SetPaletteAsset(nullptr);
-
-		SetPaletteItems(PlacementModeSubsystem->GetModeSettingsObject()->GetActivePaletteItems());
-
-		// Force a reset on the content browser mirroring if necessary.
-		const UAssetPlacementSettings* PlacementSettings = PlacementModeSubsystem->GetModeSettingsObject();
-		bIsMirroringContentBrowser = !PlacementSettings->bUseContentBrowserSelection;
-		SetupContentBrowserMirroring(PlacementSettings->bUseContentBrowserSelection);
-	}
 }
 
 void SAssetPlacementPalette::SetViewMode(EViewMode NewViewMode)

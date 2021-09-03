@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Engine/DataAsset.h"
+#include "UObject/Object.h"
 #include "Factories/Factory.h"
 #include "PlacementPaletteItem.h"
 
@@ -10,14 +10,17 @@
 
 class UPlacementPaletteAsset;
 
-UCLASS(NotPlaceable, config = EditorPerProjectUserSettings)
-class UPlacementPaletteAsset : public UDataAsset
+UCLASS(NotPlaceable)
+class UPlacementPaletteAsset : public UObject
 {
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(config, EditAnywhere, Category=Items)
+	UPROPERTY(EditAnywhere, Category=Items)
 	TArray<FPaletteItem> PaletteItems;
+
+	UPROPERTY()
+	FGuid GridGuid;
 };
 
 UCLASS(hideCategories=Object)
@@ -28,4 +31,5 @@ class UPlacementPaletteAssetFactory : public UFactory
 public:
 	virtual UObject* FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn) override;
 	virtual bool ShouldShowInNewMenu() const override;
+	virtual FText GetToolTip() const override;
 };

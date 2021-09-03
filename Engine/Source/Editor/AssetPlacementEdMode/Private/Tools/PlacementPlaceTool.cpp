@@ -108,7 +108,7 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 			{
 				FPlacementOptions PlacementOptions;
 				PlacementOptions.bPreferBatchPlacement = true;
-				PlacementOptions.InstancedPlacementGridGuid = UPlacementSubsystem::GetUserGridGuid();
+				PlacementOptions.InstancedPlacementGridGuid = PlacementSettings->GetActivePaletteGuid();
 				PlacementSubsystem->PlaceAssets(DesiredInfoSpawnLocations, PlacementOptions);
 			}
 		}
