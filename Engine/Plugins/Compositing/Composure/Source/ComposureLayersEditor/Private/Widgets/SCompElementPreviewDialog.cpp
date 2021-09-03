@@ -86,8 +86,7 @@ void SCompElementPreviewDialog::Construct(const FArguments& InArgs)
 	ChildSlot
 	[
 		SNew(SBorder)
-			.Padding(FMargin(0.f))
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"))
+			.Padding(FMargin(2.f))
 			.Content()
 		[
 			GeneratePreviewContent()	

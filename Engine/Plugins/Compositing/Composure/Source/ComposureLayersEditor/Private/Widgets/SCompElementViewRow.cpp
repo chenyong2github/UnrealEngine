@@ -163,8 +163,8 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		};
 
 		TableRowContent = SNew(SBox)
-			.MinDesiredWidth(66.f)
-			.MaxDesiredWidth(66.f)
+			.MinDesiredWidth(114.f)
+			.MaxDesiredWidth(114.f)
 			[
 				SNew(SComboButton)
 					.ContentPadding(FMargin(0, 0, 5, 0))
@@ -206,7 +206,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		TableRowContent =
 			SAssignNew(MediaCaptureToggle, SContextMenuButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("MediaCaptureToggleTooltip", "Turn Media Capture On/Off"))
 			.OnClicked(this, &SCompElementViewRow::OnToggleMediaCapture)
 			.IsEnabled(this, &SCompElementViewRow::IsMediaCaptureToggleEnabled)
@@ -230,7 +230,7 @@ TSharedRef<SWidget> SCompElementViewRow::GenerateWidgetForColumn(const FName& Co
 		TableRowContent =
 			SAssignNew(FreezeFrameButton, SButton)
 			.ContentPadding(0)
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ButtonStyle(FEditorStyle::Get(), "NoBorder")
 			.ToolTipText(LOCTEXT("FreezeToggleTooltip", "Toggle Freeze Framing"))
 			.OnClicked(this, &SCompElementViewRow::OnToggleFreezeFrame)
 			.IsEnabled(this, &SCompElementViewRow::IsFreezeFrameToggleEnabled)
