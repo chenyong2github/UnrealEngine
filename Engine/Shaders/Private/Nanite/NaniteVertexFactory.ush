@@ -187,7 +187,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 	#if USES_PER_INSTANCE_RANDOM
 		// X = per-instance random, Y = per-instance fade out amount, Z = hide/show flag, W = dither fade cutoff
-		Result.PerInstanceParams = float4(InstanceData.PerInstanceRandom, 0.0f, 0.0f, 0.0f);
+		Result.PerInstanceParams = float4(InstanceData.RandomID, 0.0f, 0.0f, 0.0f);
 	#endif
 
 	#if NEEDS_LIGHTMAP_COORDINATE
@@ -196,7 +196,6 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 		const uint LightMapDataIndex = PrimitiveData.LightmapDataIndex;
 		const uint LightMapUVIndex   = PrimitiveData.LightmapUVIndex;
-		//UnpackLightmapDataAndUVIndex(PrimitiveData.LightmapDataAndUVIndex, LightmapDataIndex, LightmapUVIndex);
 
 		float2 LightMapCoordinateInput;
 		float2 LightMapCoordinateInput_DDX;
@@ -258,6 +257,7 @@ FMaterialPixelParameters GetMaterialPixelParameters(FNaniteView NaniteView, inou
 
 		Result.TwoSidedSign = 1;
 		Result.PrimitiveId = InstanceData.PrimitiveId;
+		Result.InstanceId  = InstanceData.RelativeId;
 	}
 
 	return Result;

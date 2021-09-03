@@ -295,7 +295,6 @@ struct FUploadDataSourceAdapterScenePrimitives
 				InstanceUploadInfo.DummyInstance.LocalBounds = PrimitiveSceneProxy->GetLocalBounds();
 				InstanceUploadInfo.DummyInstance.NaniteHierarchyOffset = NANITE_INVALID_HIERARCHY_OFFSET;
 
-				// TODO: Set INSTANCE_SCENE_DATA_FLAG_CAST_SHADOWS when appropriate
 				InstanceUploadInfo.DummyInstance.Flags = 0;
 
 				InstanceUploadInfo.PrimitiveInstances = TConstArrayView<FPrimitiveInstance>(&InstanceUploadInfo.DummyInstance, 1);
@@ -442,7 +441,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 
 		UploadGeneral<FUploadDataSourceAdapterScenePrimitives>(RHICmdList, &Scene, Adapter, BufferState);
 
-#if DO_CHECK
+#if DO_CHECK && 0
 		// Validate the scene primitives are identical to the uploaded data (not the dynamic ones).
 		if (GGPUSceneValidatePrimitiveBuffer && BufferState.PrimitiveBuffer.NumBytes > 0)
 		{
@@ -538,7 +537,7 @@ void FGPUScene::UpdateInternal(FRDGBuilder& GraphBuilder, FScene& Scene)
 				InstanceSceneData.LastUpdateSceneFrameNumber = asuint(LoadInstanceSceneDataElement(0 * SOAStride + InstanceId).W);
 
 				// Only process valid instances
-				InstanceSceneData.ValidInstance = InstanceSceneData.PrimitiveId != 0xFFFFFFFFu;
+				InstanceSceneData.ValidInstance = InstanceSceneData.PrimitiveId != INVALID_PRIMITIVE_ID;
 
 				if (InstanceSceneData.ValidInstance)
 				{
@@ -1064,7 +1063,7 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 		}
 #endif
 
-		// Clears count toward the total instance data uploads - batched together for efficiency.
+		// Clears count toward the total instance scene data uploads - batched together for efficiency.
 		NumInstanceSceneDataUploads += InstancesToClear.Num();
 
 		// GPUCULL_TODO: May this not skip clears? E.g. if something is removed?
