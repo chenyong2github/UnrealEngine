@@ -117,7 +117,8 @@ public:
 
 	void OnExplodedViewValueChanged();
 	void OnLevelViewValueChanged();
-	void OnHideUnselectedChanged(bool bHide);
+	void OnHideUnselectedChanged();
+	void UpdateHideForComponent(UGeometryCollectionComponent* Component);
 
 	// Update any View Property Changes 
 	void OnObjectPostEditChange( UObject* Object, FPropertyChangedEvent& PropertyChangedEvent );
