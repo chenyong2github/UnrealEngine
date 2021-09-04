@@ -300,43 +300,24 @@ void UFractureToolBrick::GenerateBrickTransforms(const FBox& Bounds)
 
 void UFractureToolBrick::UpdateBrickTransforms()
 {
-	FBox Bounds(ForceInitToZero);
+	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
-	USelection* SelectionSet = GEditor->GetSelectedActors();
+	ClearVisualizations();
 
-	TArray<AActor*> SelectedActors;
-	SelectedActors.Reserve(SelectionSet->Num());
-
-
-	FBox SelectedMeshBounds(ForceInit);
-
-	SelectionSet->GetSelectedObjects(SelectedActors);
-	BrickTransforms.Empty();
-	Edges.Empty();
-
-	for (AActor* Actor : SelectedActors)
+	for (const FFractureToolContext& FractureContext : FractureContexts)
 	{
-		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents;
-		Actor->GetComponents(PrimitiveComponents);
-		for (UPrimitiveComponent* PrimitiveComponent : PrimitiveComponents)
+		if (!FractureContext.GetBounds().IsValid) // skip contexts w/ invalid bounds
 		{
-			FVector Origin;
-			FVector BoxExtent;
-			Actor->GetActorBounds(false, Origin, BoxExtent);
-
-			if (CutterSettings->bGroupFracture)
-			{
-				Bounds += FBox::BuildAABB(Origin, BoxExtent);
-			}
-			else
-			{
-				GenerateBrickTransforms(FBox::BuildAABB(Origin, BoxExtent));
-			}
+			continue;
 		}
-	}
+		int32 CollectionIdx = VisualizedCollections.Emplace(FractureContext.GetGeometryCollectionComponent());
+		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
+		BricksMappings.AddMapping(CollectionIdx, BoneIdx, BrickTransforms.Num());
+		EdgesMappings.AddMapping(CollectionIdx, BoneIdx, Edges.Num());
 
-	if (CutterSettings->bGroupFracture)
-	{
+		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
+
+		const FBox Bounds = FractureContext.GetWorldBounds();
 		GenerateBrickTransforms(Bounds);
 	}
 }
@@ -354,20 +335,19 @@ void UFractureToolBrick::FractureContextChanged()
 
 void UFractureToolBrick::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	//TODO :Plane cutting drawing
-
-	for (const FTransform& Transform : BrickTransforms)
+	EnumerateVisualizationMapping(BricksMappings, BrickTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
-		PDI->DrawPoint(Transform.GetLocation(), FLinearColor::Green, 4.f, SDPG_Foreground);
-	}
+		const FTransform& Transform = BrickTransforms[Idx];
+		PDI->DrawPoint(Transform.GetLocation() + ExplodedVector, FLinearColor::Green, 4.f, SDPG_Foreground);
+	});
 
 	if (CutterSettings->bDrawDiagram)
 	{
 		PDI->AddReserveLines(SDPG_Foreground, Edges.Num(), false, false);
-		for (int32 ii = 0, ni = Edges.Num(); ii < ni; ++ii)
+		EnumerateVisualizationMapping(EdgesMappings, Edges.Num(), [&](int32 Idx, FVector ExplodedVector)
 		{
-			PDI->DrawLine(Edges[ii].Get<0>(), Edges[ii].Get<1>(), FLinearColor(255, 0, 0), SDPG_Foreground);
-		}
+			PDI->DrawLine(Edges[Idx].Get<0>() + ExplodedVector, Edges[Idx].Get<1>() + ExplodedVector, FLinearColor(255, 0, 0), SDPG_Foreground);
+		});
 	}
 
 }

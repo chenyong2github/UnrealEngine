@@ -99,6 +99,16 @@ public:
 
 	void GenerateBrickTransforms(const FBox& Bounds);
 
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		BrickTransforms.Empty();
+		Edges.Empty();
+		Boxes.Empty();
+		BricksMappings.Empty();
+		EdgesMappings.Empty();
+	}
 
 private:
 	UPROPERTY()
@@ -111,4 +121,5 @@ private:
 	TArray<FTransform> BrickTransforms;
 	TArray<TTuple<FVector, FVector>> Edges;
 	TArray<TTuple<FVector, FVector>> Boxes;
+	FVisualizationMappings BricksMappings, EdgesMappings;
 };

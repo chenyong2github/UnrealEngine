@@ -195,6 +195,21 @@ TArray<FFractureToolContext> UFractureActionTool::GetFractureToolContexts() cons
 }
 
 
+void UFractureModalTool::EnumerateVisualizationMapping(const FVisualizationMappings& Mappings, int32 ArrayNum, TFunctionRef<void(int32 Idx, FVector ExplodedVector)> Func) const
+{
+	for (int32 MappingIdx = 0; MappingIdx < Mappings.Mappings.Num(); MappingIdx++)
+	{
+		const FVisualizationMappings::FIndexMapping& Mapping = Mappings.Mappings[MappingIdx];
+		FVector Offset = Mappings.GetExplodedVector(MappingIdx, VisualizedCollections[Mapping.CollectionIdx]);
+		int32 EndIdx = Mappings.GetEndIdx(MappingIdx, ArrayNum);
+		for (int32 Idx = Mapping.StartIdx; Idx < EndIdx; Idx++)
+		{
+			Func(Idx, Offset);
+		}
+	}
+}
+
+
 void UFractureModalTool::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
 	if (InToolkit.IsValid())
@@ -287,4 +302,20 @@ void UFractureModalTool::OnComponentTransformChangedInternal(USceneComponent* In
 			OnComponentTransformChanged(GeomColl);
 		}
 	}
+}
+
+
+FVector FVisualizationMappings::GetExplodedVector(int32 MappingIdx, const UGeometryCollectionComponent* CollectionComponent) const
+{
+	int32 BoneIdx = Mappings[MappingIdx].BoneIdx;
+	if (BoneIdx != INDEX_NONE && CollectionComponent)
+	{
+		const FGeometryCollection& Collection = *CollectionComponent->GetRestCollection()->GetGeometryCollection();
+		if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
+		{
+			FVector Offset = Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup)[BoneIdx];
+			return CollectionComponent->GetOwner()->GetActorTransform().TransformVector(Offset);
+		}
+	}
+	return FVector::ZeroVector;
 }

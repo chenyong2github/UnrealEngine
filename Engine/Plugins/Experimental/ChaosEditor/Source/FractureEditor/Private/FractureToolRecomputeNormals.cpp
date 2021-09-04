@@ -44,9 +44,9 @@ void UFractureToolRecomputeNormals::Render(const FSceneView* View, FViewport* Vi
 {
 	if (NormalsSettings->bShowTangents || NormalsSettings->bShowNormals)
 	{
-		for (int32 Idx = 0; Idx < DisplayVertices.Num(); Idx++)
+		EnumerateVisualizationMapping(PointsMappings, DisplayVertices.Num(), [&](int32 Idx, FVector ExplodedVector)
 		{
-			FVector Point = DisplayVertices[Idx];
+			FVector Point = DisplayVertices[Idx] + ExplodedVector;
 			FVector Normal = DisplayNormals[Idx] * NormalsSettings->Length;
 			FVector TanU = DisplayTanUs[Idx] * NormalsSettings->Length;
 			FVector TanV = DisplayTanVs[Idx] * NormalsSettings->Length;
@@ -59,7 +59,7 @@ void UFractureToolRecomputeNormals::Render(const FSceneView* View, FViewport* Vi
 				PDI->DrawLine(Point, Point + TanU, FLinearColor::Green, SDPG_Foreground);
 				PDI->DrawLine(Point, Point + TanV, FLinearColor::Blue, SDPG_Foreground);
 			}
-		}
+		});
 	}
 }
 
@@ -75,10 +75,8 @@ void UFractureToolRecomputeNormals::FractureContextChanged()
 {
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
-	DisplayVertices.Reset();
-	DisplayNormals.Reset();
-	DisplayTanUs.Reset();
-	DisplayTanVs.Reset();
+	ClearVisualizations();
+
 	for (const FFractureToolContext& FractureContext : FractureContexts)
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
@@ -87,13 +85,10 @@ void UFractureToolRecomputeNormals::FractureContextChanged()
 		FTransform OuterTransform = FractureContext.GetTransform();
 		for (int32 TransformIdx : FractureContext.GetSelection())
 		{
+			int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
+			PointsMappings.AddMapping(CollectionIdx, TransformIdx, DisplayVertices.Num());
+
 			FTransform InnerTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TransformIdx);
-			if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FVector3f>& ExplodedVectors = Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-				InnerTransform = InnerTransform * FTransform(ExplodedVectors[TransformIdx]);
-			}
-			
 			FTransform CombinedTransform = InnerTransform * OuterTransform;
 			int32 GeometryIdx = Collection.TransformToGeometryIndex[TransformIdx];
 			if (GeometryIdx > -1)

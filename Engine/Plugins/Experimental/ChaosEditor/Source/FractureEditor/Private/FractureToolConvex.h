@@ -63,6 +63,16 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureConvexSettings> ConvexSettings;
 
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		HullPoints.Empty();
+		HullEdges.Empty();
+		EdgesMappings.Empty();
+	}
+
 	TArray<FVector> HullPoints;
 	TArray<TPair<int32, int32>> HullEdges;
+	FVisualizationMappings EdgesMappings;
+
 };

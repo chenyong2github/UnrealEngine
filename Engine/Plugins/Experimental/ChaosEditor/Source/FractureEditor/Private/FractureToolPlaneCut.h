@@ -51,6 +51,14 @@ public:
 	virtual void Setup() override;
 	virtual void Shutdown() override;
 
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		RenderCuttingPlanesTransforms.Empty();
+		PlanesMappings.Empty();
+	}
+
 private:
 	// Slicing
 	UPROPERTY(EditAnywhere, Category = Slicing)
@@ -63,6 +71,7 @@ private:
 
 	float RenderCuttingPlaneSize;
 	TArray<FTransform> RenderCuttingPlanesTransforms;
+	FVisualizationMappings PlanesMappings;
 };
 
 

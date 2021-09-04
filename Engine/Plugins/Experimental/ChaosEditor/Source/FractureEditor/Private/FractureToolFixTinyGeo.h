@@ -72,16 +72,21 @@ public:
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		ToRemoveBounds.Empty();
+		ToRemoveMappings.Empty();
+	}
+
 private:
 
 	UPROPERTY(EditAnywhere, Category = FixGeo)
 	TObjectPtr<UFractureTinyGeoSettings> TinyGeoSettings;
 
-	TArray<TPair<int32, int32>> ToRemoveCollectionBones; // Pairs of [index into VisCollections, bone index]
 	TArray<FBox> ToRemoveBounds; // Bounds in global space but without exploded vectors applied
-	TArray<TObjectPtr<const UGeometryCollection>> VisCollections; // source geometry collections
-
-	const TManagedArray<FVector3f>* GetExplodedVectors(const UGeometryCollection* GeometryCollectionObject);
+	FVisualizationMappings ToRemoveMappings;
 
 	double GetMinVolume(TArray<double>& Volumes);
 	const double VolDimScale = .01; // compute volumes in meters instead of cm, for saner units at typical scales

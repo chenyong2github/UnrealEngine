@@ -40,11 +40,11 @@ void UFractureToolResample::RegisterUICommand( FFractureEditorCommands* BindingC
 
 void UFractureToolResample::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	for (FVector Point : GeneratedPoints)
+	EnumerateVisualizationMapping(PointsMappings, GeneratedPoints.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
-		PDI->DrawPoint(Point, FLinearColor::Green, 2.f, SDPG_Foreground);
-	}
-	
+		FVector Point = GeneratedPoints[Idx];
+		PDI->DrawPoint(Point + ExplodedVector, FLinearColor::Green, 2.f, SDPG_Foreground);
+	});
 }
 
 TArray<UObject*> UFractureToolResample::GetSettingsObjects() const
@@ -60,7 +60,8 @@ void UFractureToolResample::FractureContextChanged()
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
-	GeneratedPoints.Reset();
+	ClearVisualizations();
+
 	for (const FFractureToolContext& FractureContext : FractureContexts)
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
@@ -69,13 +70,10 @@ void UFractureToolResample::FractureContextChanged()
 		FTransform OuterTransform = FractureContext.GetTransform();
 		for (int32 TransformIdx : FractureContext.GetSelection())
 		{
+			int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
+			PointsMappings.AddMapping(CollectionIdx, TransformIdx, GeneratedPoints.Num());
+
 			FTransform InnerTransform = GeometryCollectionAlgo::GlobalMatrix(Collection.Transform, Collection.Parent, TransformIdx);
-			if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FVector3f>& ExplodedVectors = Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-				InnerTransform = InnerTransform * FTransform(ExplodedVectors[TransformIdx]);
-			}
-			
 			FTransform CombinedTransform = InnerTransform * OuterTransform;
 			int32 GeometryIdx = Collection.TransformToGeometryIndex[TransformIdx];
 			int32 VertStart = Collection.VertexStart[GeometryIdx];

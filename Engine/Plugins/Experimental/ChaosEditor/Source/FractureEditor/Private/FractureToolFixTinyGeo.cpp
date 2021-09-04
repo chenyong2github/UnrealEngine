@@ -40,45 +40,13 @@ void UFractureToolFixTinyGeo::RegisterUICommand( FFractureEditorCommands* Bindin
 	BindingContext->FixTinyGeo = UICommandInfo;
 }
 
-const TManagedArray<FVector3f>* UFractureToolFixTinyGeo::GetExplodedVectors(const UGeometryCollection* GeometryCollectionObject)
-{
-	if (GeometryCollectionObject)
-	{
-		const FGeometryCollection& Collection = *GeometryCollectionObject->GetGeometryCollection();
-		if (Collection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
-		{
-			return &Collection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-		}
-	}
-	return nullptr;
-}
-
 void UFractureToolFixTinyGeo::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
-	if (!ensure(ToRemoveCollectionBones.Num() == ToRemoveBounds.Num()))
+	EnumerateVisualizationMapping(ToRemoveMappings, ToRemoveBounds.Num(), [&](int32 Idx, FVector ExplodedVector)
 	{
-		return;
-	}
-	const TManagedArray<FVector3f>* ExplodedVectors = nullptr;
-
-	int32 LastCollectionIdx = INDEX_NONE;
-	for (int32 Idx = 0; Idx < ToRemoveBounds.Num(); Idx++)
-	{
-		TPair<int32, int32> CollectBones = ToRemoveCollectionBones[Idx];
-		if (CollectBones.Key != LastCollectionIdx)
-		{
-			ExplodedVectors = GetExplodedVectors(VisCollections[CollectBones.Key]);
-			LastCollectionIdx = CollectBones.Key;
-		}
-		int32 BoneIdx = CollectBones.Value;
 		const FBox& Box = ToRemoveBounds[Idx];
-		FVector Offset = FVector::ZeroVector;
-		if (ExplodedVectors && BoneIdx < ExplodedVectors->Num())
-		{
-			Offset = (*ExplodedVectors)[BoneIdx];
-		}
-		FVector B000 = Box.Min + Offset;
-		FVector B111 = Box.Max + Offset;
+		FVector B000 = Box.Min + ExplodedVector;
+		FVector B111 = Box.Max + ExplodedVector;
 		FVector B011(B000.X, B111.Y, B111.Z);
 		FVector B101(B111.X, B000.Y, B111.Z);
 		FVector B110(B111.X, B111.Y, B000.Z);
@@ -97,7 +65,7 @@ void UFractureToolFixTinyGeo::Render(const FSceneView* View, FViewport* Viewport
 		PDI->DrawLine(B110, B010, FLinearColor::Red, SDPG_Foreground, 0.0f, 0.001f);
 		PDI->DrawLine(B100, B101, FLinearColor::Red, SDPG_Foreground, 0.0f, 0.001f);
 		PDI->DrawLine(B010, B011, FLinearColor::Red, SDPG_Foreground, 0.0f, 0.001f);
-	}
+	});
 	
 }
 
@@ -115,14 +83,12 @@ void UFractureToolFixTinyGeo::FractureContextChanged()
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
-	ToRemoveCollectionBones.Reset();
-	ToRemoveBounds.Reset();
-	VisCollections.Reset();
+	ClearVisualizations();
 
 	for (const FFractureToolContext& FractureContext : FractureContexts)
 	{
 		FGeometryCollection& Collection = *FractureContext.GetGeometryCollection();
-		int CollectionIdx = VisCollections.Emplace(FractureContext.GetGeometryCollectionComponent()->GetRestCollection());
+		int CollectionIdx = VisualizedCollections.Emplace(FractureContext.GetGeometryCollectionComponent());
 
 		TArray<double> Volumes;
 		FindBoneVolumes(
@@ -164,7 +130,7 @@ void UFractureToolFixTinyGeo::FractureContextChanged()
 			{
 				Bounds += CombinedTransform.TransformPosition(Collection.Vertex[VIdx]);
 			}
-			ToRemoveCollectionBones.Add(TPair<int32, int32>(CollectionIdx, TransformIdx));
+			ToRemoveMappings.AddMapping(CollectionIdx, TransformIdx, ToRemoveBounds.Num());
 			ToRemoveBounds.Add(Bounds);
 		}
 	}
