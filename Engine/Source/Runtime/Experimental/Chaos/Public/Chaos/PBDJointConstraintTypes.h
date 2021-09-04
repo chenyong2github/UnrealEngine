@@ -186,6 +186,8 @@ namespace Chaos
 		FReal AngularBreakTorque;
 		FReal AngularPlasticityLimit;
 
+		FReal ContactTransferScale;
+
 		void* UserData;
 	};
 

@@ -298,6 +298,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
 	void SetAngularPlasticity(bool bAngularPlasticity, float AngularPlasticityThreshold);
 
+	/** Sets the contact transfer scale properties
+	*	@param ContactTransferScale		   Set the contact transfer scale for the parent of the joint
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
+	void SetContactTransferScale(float ContactTransferScale);
+
 	/** Gets the current Angular Twist of the constraint */
 	UFUNCTION(BlueprintCallable, Category = "Physics|Components|PhysicsConstraint")
 	float GetCurrentTwist() const;

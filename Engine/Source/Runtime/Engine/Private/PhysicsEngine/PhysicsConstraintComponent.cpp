@@ -697,6 +697,11 @@ void UPhysicsConstraintComponent::SetAngularPlasticity(bool bAngularPlasticity, 
 	ConstraintInstance.SetAngularPlasticity(bAngularPlasticity, AngularPlasticityThreshold);
 }
 
+void UPhysicsConstraintComponent::SetContactTransferScale(float ContactTransferScale)
+{
+	ConstraintInstance.SetContactTransferScale(ContactTransferScale);
+}
+
 float UPhysicsConstraintComponent::GetCurrentTwist() const
 {
 	const float CurrentTwistRads = ConstraintInstance.GetCurrentTwist();

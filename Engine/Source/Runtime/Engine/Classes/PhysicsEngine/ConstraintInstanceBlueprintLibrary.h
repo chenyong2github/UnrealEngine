@@ -210,7 +210,7 @@ public:
 			TEnumAsByte<EConstraintPlasticityType> PlasticityType
 		);
 
-	/** Sets Constraint Linear Plasticity properties
+	/** Gets Constraint Linear Plasticity properties
 	*	@param Accessor						Constraint accessor to query
 	*	@param bAngularPlasticity			Whether it is possible to reset the target position from the linear displacement
 	*	@param AngularPlasticityThreshold	Delta from target needed to reset the target joint
@@ -222,6 +222,32 @@ public:
 			float& LinearPlasticityThreshold,
 			TEnumAsByte<EConstraintPlasticityType>& PlasticityType
 		);
+
+	//---------------------------------------------------------------------------------------------------
+	//
+	// Contact Transfer
+	//
+	//---------------------------------------------------------------------------------------------------
+
+	/** Gets Constraint Contact Transfer Scale properties
+	*	@param Accessor						Constraint accessor to query
+	*	@param ContactTransferScale			Scale for transfer of child energy to parent.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+		static void GetContactTransferScale(
+			UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+			float& ContactTransferScale
+		);
+
+	/** Set Contact Transfer Scale
+	*	@param Accessor						Constraint accessor to change
+	*	@param ContactTransferScale			Set Contact Transfer Scale onto joints parent
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Physics|Constraints")
+	static void SetContactTransferScale(
+		UPARAM(ref) FConstraintInstanceAccessor& Accessor,
+		float ContactTransferScale
+	);
 
 	//---------------------------------------------------------------------------------------------------
 	//

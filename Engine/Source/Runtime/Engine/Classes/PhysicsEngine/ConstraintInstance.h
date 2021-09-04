@@ -58,6 +58,10 @@ struct ENGINE_API FConstraintProfileProperties
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Angular, meta = (editcondition = "bAngularPlasticity", ClampMin = "0.0"))
 	float AngularPlasticityThreshold;
 
+	/** [Chaos Only] Colliison transfer on parent from the joints child. Range is 0.0-MAX*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Linear, meta = (ClampMin = "0.0"))
+	float ContactTransferScale;
+
 	UPROPERTY(EditAnywhere, Category = Linear)
 	FLinearConstraint LinearLimit;
 
@@ -135,6 +139,9 @@ struct ENGINE_API FConstraintProfileProperties
 
 	/** Updates joint breakable properties (threshold, etc...)*/
 	void UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
+
+	/** Updates joint linear mass scales.*/
+	void UpdateContactTransferScale_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
 
 	/** Updates joint flag based on profile properties */
 	void UpdateConstraintFlags_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const;
@@ -579,6 +586,21 @@ public:
 		return ProfileInstance.LinearPlasticityType;
 	}
 
+	/** Sets the Contact Transfer Scale properties
+	*	@param InContactTransferScale 	Contact transfer scale to joints parent
+	*/
+	void SetContactTransferScale(float InContactTransferScale)
+	{
+		ProfileInstance.ContactTransferScale = InContactTransferScale;
+		UpdateContactTransferScale();
+	}
+
+	/** Get the Contact Transfer Scale for the parent of the joint */
+	float GetContactTransferScale() const
+	{
+		return ProfileInstance.ContactTransferScale;
+	}
+
 	/** Sets the Angular Breakable properties
 	*	@param bInAngularBreakable		Whether it is possible to break the joint with angular force
 	*	@param InAngularBreakThreshold	Torque needed to break the joint
@@ -956,6 +978,7 @@ private:
 
 	void UpdateBreakable();
 	void UpdatePlasticity();
+	void UpdateContactTransferScale();
 	void UpdateDriveTarget();
 
 public:

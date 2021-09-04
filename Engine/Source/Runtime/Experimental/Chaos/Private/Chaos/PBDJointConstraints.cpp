@@ -183,6 +183,7 @@ namespace Chaos
 		, LinearPlasticityInitialDistanceSquared(FLT_MAX)
 		, AngularBreakTorque(FLT_MAX)
 		, AngularPlasticityLimit(FLT_MAX)
+		, ContactTransferScale(0.f)
 		, UserData(nullptr)
 	{
 	}
