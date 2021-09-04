@@ -71,7 +71,7 @@ void UFractureEditorMode::Enter()
 	if (FFractureEditorModeToolkit* FractureToolkit = static_cast<FFractureEditorModeToolkit*>(Toolkit.Get()))
 	{
 		FractureToolkit->SetInitialPalette();
-		FractureToolkit->OnHideUnselectedChanged(FractureToolkit->GetHideUnselectedValue());
+		FractureToolkit->OnHideUnselectedChanged();
 	}
 	
 	OnActorSelectionChanged(SelectedObjects, false);
