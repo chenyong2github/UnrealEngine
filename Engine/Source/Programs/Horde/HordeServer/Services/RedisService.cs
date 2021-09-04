@@ -93,11 +93,11 @@ namespace HordeServer.Services
 			{
 				if (IsRunningOnDefaultPort())
 				{
-					ConnectionString = "localhost";
+					ConnectionString = $"localhost:{RedisPort}";
 				}
 				else if (TryStartRedisServer())
 				{
-					ConnectionString = "localhost";
+					ConnectionString = $"localhost:{RedisPort}";
 				}
 				else
 				{
