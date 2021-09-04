@@ -34,11 +34,18 @@ public:
 	virtual void FractureContextChanged() override;
 	virtual int32 ExecuteFracture(const FFractureToolContext& FractureContext) override;
 
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		GeneratedPoints.Empty();
+		PointsMappings.Empty();
+	}
+
 private:
 
-
 	TArray<FVector> GeneratedPoints;
-
+	FVisualizationMappings PointsMappings;
 };
 
 

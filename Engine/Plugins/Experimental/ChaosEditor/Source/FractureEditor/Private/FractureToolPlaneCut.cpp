@@ -61,9 +61,9 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 	if (CutterSettings->bDrawDiagram)
 	{
 		// Draw a point centered at plane origin, and a square on the plane around it.
-		auto DrawPlane = [&PDI](const FTransform& Transform, float PlaneSize)
+		auto DrawPlane = [&PDI](const FTransform& Transform, float PlaneSize, FVector Offset)
 		{
-			FVector Center = Transform.GetLocation();
+			FVector Center = Transform.GetLocation() + Offset;
 			FVector X = (PlaneSize * .5) * Transform.GetUnitAxis(EAxis::X);
 			FVector Y = (PlaneSize * .5) * Transform.GetUnitAxis(EAxis::Y);
 			FVector Corners[4]
@@ -83,14 +83,18 @@ void UFractureToolPlaneCut::Render(const FSceneView* View, FViewport* Viewport, 
 		if (GizmoSettings->IsGizmoEnabled())
 		{
 			const FTransform& Transform = GizmoSettings->GetTransform();
-			DrawPlane(Transform, 100.f);
+			EnumerateVisualizationMapping(PlanesMappings, RenderCuttingPlanesTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
+			{
+				DrawPlane(Transform, 100.f, ExplodedVector);
+			});
 		}
 		else // draw from computed transforms
 		{
-			for (const FTransform& Transform : RenderCuttingPlanesTransforms)
+			EnumerateVisualizationMapping(PlanesMappings, RenderCuttingPlanesTransforms.Num(), [&](int32 Idx, FVector ExplodedVector)
 			{
-				DrawPlane(Transform, RenderCuttingPlaneSize);
-			}
+				const FTransform& Transform = RenderCuttingPlanesTransforms[Idx];
+				DrawPlane(Transform, RenderCuttingPlaneSize, ExplodedVector);
+			});
 		}
 	}
 }
@@ -110,17 +114,20 @@ void UFractureToolPlaneCut::FractureContextChanged()
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
-	RenderCuttingPlanesTransforms.Empty();
+	ClearVisualizations();
 
 	RenderCuttingPlaneSize = FLT_MAX;
 	for (FFractureToolContext& FractureContext : FractureContexts)
 	{
-		// Move the local bounds to the actor so we we'll draw in the correct location
 		FBox Bounds = FractureContext.GetWorldBounds();
 		if (!Bounds.IsValid)
 		{
 			continue;
 		}
+		int32 CollectionIdx = VisualizedCollections.Add(FractureContext.GetGeometryCollectionComponent());
+		int32 BoneIdx = FractureContext.GetSelection().Num() == 1 ? FractureContext.GetSelection()[0] : INDEX_NONE;
+		PlanesMappings.AddMapping(CollectionIdx, BoneIdx, RenderCuttingPlanesTransforms.Num());
+
 		GenerateSliceTransforms(FractureContext, RenderCuttingPlanesTransforms);
 
 		if (Bounds.GetExtent().GetMax() < RenderCuttingPlaneSize)

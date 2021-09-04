@@ -80,6 +80,42 @@ protected:
 
 };
 
+// Helper structure to correspond a UFractureModalTool's VisualizedCollections with elements of the tool's visualizations
+struct FVisualizationMappings
+{
+	// helper structure to map visualized geometry to source geometry and the bone that it corresponds to (if applicable)
+	struct FIndexMapping
+	{
+		int32 CollectionIdx = INDEX_NONE; // index into VisualizedCollections
+		int32 BoneIdx = INDEX_NONE; // transform (bone) index in geometry collection that corresponds to the visualization
+		int32 StartIdx = INDEX_NONE; // index of first element of visualization-related array that uses this map (e.g. index into VoronoiSites)
+	};
+
+	TArray<FIndexMapping> Mappings;
+
+	FVector GetExplodedVector(int32 MappingIdx, const UGeometryCollectionComponent* Collection) const;
+
+	void Empty()
+	{
+		Mappings.Empty();
+	}
+
+	void AddMapping(int32 CollectionIdx, int32 BoneIdx, int32 StartIdx = INDEX_NONE)
+	{
+		Mappings.Add({ CollectionIdx, BoneIdx, StartIdx });
+	}
+	int32 GetEndIdx(int32 CorrespondIdx, int32 ArrayNum) const
+	{
+		if (CorrespondIdx + 1 < Mappings.Num())
+		{
+			return Mappings[CorrespondIdx + 1].StartIdx;
+		}
+		else
+		{
+			return ArrayNum;
+		}
+	}
+};
 
 /** Tools derived from this class provide parameter details and operate modally. */
 UCLASS(Abstract)
@@ -122,6 +158,7 @@ public:
 	virtual void Shutdown() 
 	{
 		GEngine->OnComponentTransformChanged().RemoveAll(this);
+		ClearVisualizations();
 	}
 
 	// Called when a selected geometry collection component is moved in the scene
@@ -131,6 +168,17 @@ public:
 	}
 
 protected:
+
+	// Geometry collection components referenced by visualizations
+	UPROPERTY()
+	TArray<TObjectPtr<const UGeometryCollectionComponent>> VisualizedCollections;
+
+	virtual void ClearVisualizations()
+	{
+		VisualizedCollections.Empty();
+	}
+
+	void EnumerateVisualizationMapping(const FVisualizationMappings& Mappings, int32 ArrayNum, TFunctionRef<void(int32 Idx, FVector ExplodedVector)> Func) const;
 	
 	void OnComponentTransformChangedInternal(USceneComponent* InRootComponent, ETeleportType Teleport);
 

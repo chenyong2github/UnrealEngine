@@ -73,7 +73,16 @@ public:
 	UPROPERTY(EditAnywhere, Category = Slicing)
 	TObjectPtr<UFractureSliceSettings> SliceSettings;
 
+protected:
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		RenderCuttingPlanesTransforms.Empty();
+		PlanesMappings.Empty();
+	}
+
 private:
 	float RenderCuttingPlaneSize;
 	TArray<FTransform> RenderCuttingPlanesTransforms;
+	FVisualizationMappings PlanesMappings;
 };

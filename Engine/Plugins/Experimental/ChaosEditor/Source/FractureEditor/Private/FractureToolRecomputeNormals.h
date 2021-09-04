@@ -72,10 +72,21 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UFractureRecomputeNormalsSettings> NormalsSettings;
 
+	virtual void ClearVisualizations() override
+	{
+		Super::ClearVisualizations();
+		DisplayVertices.Empty();
+		DisplayNormals.Empty();
+		DisplayTanUs.Empty();
+		DisplayTanVs.Empty();
+		PointsMappings.Empty();
+	}
+
 	TArray<FVector> DisplayVertices;
 	TArray<FVector> DisplayNormals;
 	TArray<FVector> DisplayTanUs;
 	TArray<FVector> DisplayTanVs;
+	FVisualizationMappings PointsMappings;
 
 };
 

@@ -158,11 +158,23 @@ protected:
 
 	FBox GetVoronoiBounds(const FFractureToolContext& FractureContext, const TArray<FVector>& Sites) const;
 
+	virtual void ClearVisualizations()
+	{
+		Super::ClearVisualizations();
+		CellMember.Empty();
+		VoronoiEdges.Empty();
+		VoronoiSites.Empty();
+		SitesMappings.Empty();
+		EdgesMappings.Empty();
+	}
+
 private:
 	TArray<int32> CellMember;
 	TArray<TTuple<FVector, FVector>> VoronoiEdges;
 	TArray<FVector> VoronoiSites;
 	TArray<FLinearColor> Colors;
+
+	FVisualizationMappings SitesMappings, EdgesMappings;
 };
 
 
