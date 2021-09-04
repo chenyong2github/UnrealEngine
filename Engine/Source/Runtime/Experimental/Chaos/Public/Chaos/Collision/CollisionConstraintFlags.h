@@ -18,6 +18,7 @@ namespace Chaos
 	{
 		CCF_None                       = 0x0,
 		CCF_BroadPhaseIgnoreCollisions = 0x1,
+		CCF_DoBufferCollisions         = 0x2,
 		CCF_DummyFlag
 	};
 

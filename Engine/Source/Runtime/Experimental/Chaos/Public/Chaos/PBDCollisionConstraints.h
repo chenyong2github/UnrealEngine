@@ -50,7 +50,7 @@ public:
 	// For use by dependent types
 	using FPointContactConstraint = FRigidBodyPointContactConstraint;
 	using FConstraintContainerHandle = FPBDCollisionConstraintHandle;
-
+	using FParticleHandle = TGeometryParticleHandle<FReal, 3>;
 
 	FPBDCollisionConstraints(const FPBDRigidsSOAs& InParticles, 
 		TArrayCollectionArray<bool>& Collided, 
@@ -340,6 +340,9 @@ public:
 	//Sort constraints based on particle indices so that we have a deterministic solve order
 	void SortConstraints();
 
+	TMap<FParticleHandle*, TArray<FPBDCollisionConstraintHandle*> >& GetParticleCollisionsMap() { return ParticleCollisionsMap; }
+	const TMap<FParticleHandle*, TArray<FPBDCollisionConstraintHandle*> >& GetParticleCollisionsMap() const { return ParticleCollisionsMap; }
+
 protected:
 	using Base::GetConstraintIndex;
 	using Base::SetConstraintIndex;
@@ -363,6 +366,9 @@ private:
 #endif
 	TArray<FPBDCollisionConstraintHandle*> Handles;
 	FConstraintHandleAllocator HandleAllocator;
+
+	TMap<FParticleHandle*,TArray<FPBDCollisionConstraintHandle*> > ParticleCollisionsMap;
+
 
 	TArrayCollectionArray<bool>& MCollided;
 	const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& MPhysicsMaterials;

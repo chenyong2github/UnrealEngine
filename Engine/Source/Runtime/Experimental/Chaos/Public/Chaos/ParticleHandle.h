@@ -566,6 +566,11 @@ public:
 		return GeometryParticles->ParticleConstraints(ParticleIdx);
 	}
 
+	const FConstraintHandleArray& ParticleConstraints() const
+	{
+		return GeometryParticles->ParticleConstraints(ParticleIdx);
+	}
+
 	void AddConstraintHandle(FConstraintHandle* InConstraintHandle )
 	{
 		return GeometryParticles->AddConstraintHandle(ParticleIdx, InConstraintHandle);
@@ -680,6 +685,7 @@ class TPBDRigidParticleHandleImp : public TKinematicGeometryParticleHandleImp<T,
 public:
 	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleIdx;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::PBDRigidParticles;
+	using TGeometryParticleHandleImp<T, d, bPersistent>::ParticleConstraints;
 	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::V;
 	using TKinematicGeometryParticleHandleImp<T, d, bPersistent>::W;
 	using TGeometryParticleHandleImp<T, d, bPersistent>::Type;
