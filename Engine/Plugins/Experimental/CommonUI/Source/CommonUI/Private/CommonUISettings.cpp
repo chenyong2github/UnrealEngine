@@ -38,6 +38,7 @@ void UCommonUISettings::PostReloadConfig(FProperty* PropertyThatWasLoaded)
 	Super::PostReloadConfig(PropertyThatWasLoaded);
 
 	RebuildTraitContainer();
+	AutoLoadData();
 }
 
 void UCommonUISettings::PostInitProperties()
@@ -45,6 +46,7 @@ void UCommonUISettings::PostInitProperties()
 	Super::PostInitProperties();
 
 	RebuildTraitContainer();
+	AutoLoadData();
 }
 
 void UCommonUISettings::LoadEditorData()
