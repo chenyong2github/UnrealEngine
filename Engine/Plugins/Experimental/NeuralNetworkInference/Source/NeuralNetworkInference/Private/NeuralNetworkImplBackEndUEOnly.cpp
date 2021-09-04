@@ -13,7 +13,7 @@
 /* FImplBackEndUEOnly public functions
  *****************************************************************************/
 
-bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFilePath)
+bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& InOutImplBackEndUEOnly, const TArray<uint8>& InModelReadFromFileInBytes)
 {
 	// Initialize InOutImplBackEndUEOnly
 	if (!InOutImplBackEndUEOnly.IsValid())
@@ -21,19 +21,32 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 		InOutImplBackEndUEOnly = MakeShared<FImplBackEndUEOnly>();
 	}
 	// Clean previous networks
-	InOutImplBackEndUEOnly->Operators.Empty();
-	InOutImplBackEndUEOnly->ModelProto = FModelProto();
-	InOutImplBackEndUEOnly->bAreTensorsInGpu = false;
-	// Read ModelProto
-	if (!FModelProtoFileReader::ReadModelProtoFromFile(InOutImplBackEndUEOnly->ModelProto, InModelFilePath) || !InOutImplBackEndUEOnly->ModelProto.IsLoaded())
+	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): Model could not be loaded from %s."), *InModelFilePath);
+		InOutImplBackEndUEOnly->Operators.Empty();
+		InOutImplBackEndUEOnly->ModelProto = FModelProto();
+		InOutImplBackEndUEOnly->bAreTensorsInGpu = false;
+	}
+	// Read ModelProto
+	if (!FModelProtoFileReader::ReadModelProtoFromArray(InOutImplBackEndUEOnly->ModelProto, InModelReadFromFileInBytes))
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): ReadModelProtoFromFile failed."));
+		return false;
+	}
+	if (!InOutImplBackEndUEOnly->ModelProto.IsLoaded())
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): ModelProto.IsLoaded() returned false."));
 		return false;
 	}
 	// Turn ModelProto into Operators
-	if (!FGraphProtoToNeuralNetworkConverter::Translate(InOutImplBackEndUEOnly->Operators, InOutImplBackEndUEOnly->TensorManager, InOutImplBackEndUEOnly->ModelProto.GetGraph(), /*bInIsTensorManagerConst*/false) || !InOutImplBackEndUEOnly->TensorManager.IsLoaded())
+	if (!FGraphProtoToNeuralNetworkConverter::Translate(InOutImplBackEndUEOnly->Operators, InOutImplBackEndUEOnly->TensorManager, InOutImplBackEndUEOnly->ModelProto.GetGraph(), /*bInIsTensorManagerConst*/false))
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): TensorManager could not be loaded from %s."), *InModelFilePath);
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): Translate failed."));
+		return false;
+	}
+	if (!InOutImplBackEndUEOnly->TensorManager.IsLoaded())
+	{
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): TensorManager.IsLoaded() returned false."));
 		return false;
 	}
 	// Load successful
@@ -50,7 +63,7 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 //	// Load
 //	if (!InTensorManager.IsLoaded())
 //	{
-//		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Load(): TensorManager could not be loaded."));
+//		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Load(): TensorManager could not be loaded."));
 //	}
 //	Swap(InOutImplBackEndUEOnly->TensorManager, InTensorManager);
 //	InOutImplBackEndUEOnly->Operators = InOperators;
@@ -59,7 +72,7 @@ bool UNeuralNetwork::FImplBackEndUEOnly::Load(TSharedPtr<FImplBackEndUEOnly>& In
 
 void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncRunCompletedDelegate, const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
 {
-	// Run UNeuralNetworkLegacy
+	// Run UNeuralNetwork::UEOnly
 	if (Operators.Num() > 0)
 	{
 		// Run graph
@@ -83,7 +96,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 			// Sanity check
 			if (TensorManager.GetTensorsMutable().Num() < 1)
 			{
-				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Run(): Tensors.Num() = %d (should be > 0)."), TensorManager.GetTensorsMutable().Num());
+				UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Run(): Tensors.Num() = %d (should be > 0)."), TensorManager.GetTensorsMutable().Num());
 				return;
 			}
 
@@ -91,12 +104,12 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 			ENQUEUE_RENDER_COMMAND(UNeuralNetwork_UEOnly_Run_RenderThread)(
 				[this, &InOutOnAsyncRunCompletedDelegate, InSynchronousMode, InInputDeviceType, InOutputDeviceType](FRHICommandListImmediate& RHICmdList)
 				{
-					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("UNeuralNetwork::FImplBackEndUEOnly::Run()"));
+					FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("FImplBackEndUEOnly::Run()"));
 
 					// Move memory from CPU to GPU
 					TArray<FNeuralTensor>& Tensors = TensorManager.GetTensorsMutable();
 					const bool bIsInputInCPU = (InInputDeviceType == ENeuralDeviceType::CPU);
-					// Move only input tensors to GPU (once per UNeuralNetwork::FImplBackEndUEOnly::Run())
+					// Move only input tensors to GPU (once per FImplBackEndUEOnly::Run())
 					if (bAreTensorsInGpu)
 					{
 						// If input is on CPU, move inputs to GPU
@@ -121,7 +134,7 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 						}
 					}
 					// Move all (input, intermediate, weight, output) tensors to GPU and also call Operators.ToGPU() to move their auxiliary memory into GPU
-					// Only once per UNeuralNetworkLegacy instance, or until Load() is called again
+					// Only once per UNeuralNetwork instance, or until Load() is called again
 					else
 					{
 						// If input is on CPU, move inputs to GPU
@@ -201,12 +214,12 @@ void UNeuralNetwork::FImplBackEndUEOnly::Run(FOnAsyncRunCompleted& InOutOnAsyncR
 		}
 		else
 		{
-			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Run(): Unknown DeviceType = %d."), (int32)InDeviceType);
+			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Run(): Unknown DeviceType = %d."), (int32)InDeviceType);
 		}
 	}
 	else
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::FImplBackEndUEOnly::Run() called with an empty model."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEOnly::Run() called with an empty model."));
 	}
 }
 
