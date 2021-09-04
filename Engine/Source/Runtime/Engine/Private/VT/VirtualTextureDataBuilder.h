@@ -16,6 +16,7 @@ struct FVTSourceTileEntry
 {
 	int32 BlockIndex;
 	int32 TileIndex;
+	int32 MipIndex;
 	int32 MipIndexInBlock;
 	int32 TileInBlockX;
 	int32 TileInBlockY;

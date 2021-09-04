@@ -96,7 +96,6 @@ struct FTranscodeTask
 		const uint32 NumLayers = Params.VTData->GetNumLayers();
 		const uint8 vLevel = Params.vLevel;
 		const uint32 vAddress = Params.vAddress;
-		const uint32 TileIndex = Params.VTData->GetTileIndex(vLevel, vAddress);
 
 		// code must be fully loaded by the time we start transcoding
 		check(!Params.Codec || Params.Codec->IsCreationComplete());
@@ -116,8 +115,8 @@ struct FTranscodeTask
 				continue;
 			}
 
-			const uint32 TileLayerOffset = Params.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex);
-			const uint32 NextTileLayerOffset = Params.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex + 1u);
+			const uint32 TileLayerOffset = Params.VTData->GetTileOffset(vLevel, vAddress,  LayerIndex);
+			const uint32 NextTileLayerOffset = Params.VTData->GetTileOffset(vLevel, vAddress, LayerIndex + 1u);
 			if (TileBaseOffset == ~0u)
 			{
 				TileBaseOffset = TileLayerOffset;
@@ -406,7 +405,6 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 	}
 
 	const uint32 ChunkIndex = InParams.ChunkIndex;
-	const uint32 TileIndex = InParams.VTData->GetTileIndex(InParams.vLevel, InParams.vAddress);
 	const FVirtualTextureDataChunk& Chunk = InParams.VTData->Chunks[ChunkIndex];
 	const uint32 TilePixelSize = InParams.VTData->GetPhysicalTileSize();
 	FVTUploadTileBuffer StagingBuffer[VIRTUALTEXTURE_SPACE_MAXLAYERS];
@@ -422,8 +420,8 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(FVirtualTexture
 			const EPixelFormat LayerFormat = InParams.VTData->LayerTypes[LayerIndex];
 			FVTUploadTileBuffer& StagingBufferForLayer = StagingBuffer[LayerIndex];
 
-			const uint32 TileLayerOffset = InParams.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex);
-			const uint32 NextTileLayerOffset = InParams.VTData->GetTileOffset(ChunkIndex, TileIndex + LayerIndex + 1u);
+			const uint32 TileLayerOffset = InParams.VTData->GetTileOffset(InParams.vLevel, InParams.vAddress, LayerIndex);
+			const uint32 NextTileLayerOffset = InParams.VTData->GetTileOffset(InParams.vLevel, InParams.vAddress, LayerIndex + 1u);
 			if (TileBaseOffset == ~0u)
 			{
 				TileBaseOffset = TileLayerOffset;

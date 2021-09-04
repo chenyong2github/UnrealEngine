@@ -1,10 +1,75 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VirtualTextureBuiltData.h"
+
+#include "DerivedDataCacheInterface.h"
+#include "Misc/CoreMisc.h"
 #include "Serialization/CustomVersion.h"
 #include "Serialization/MemoryWriter.h"
-#include "Misc/CoreMisc.h"
-#include "DerivedDataCacheInterface.h"
+
+#if WITH_EDITOR
+
+void FVirtualTextureTileOffsetData::Init(uint32 InWidth, uint32 InHeight)
+{
+	Width = FMath::Max(InWidth, 1u);
+	Height = FMath::Max(InHeight, 1u);
+
+	const uint32 SizePadded = FMath::RoundUpToPowerOfTwo(FMath::Max(Width, Height));
+	MaxAddress = SizePadded * SizePadded;
+
+	Addresses.Empty();
+	Offsets.Empty();
+	TileStates.Empty(MaxAddress);
+	TileStates.Add(false, MaxAddress);
+}
+
+void FVirtualTextureTileOffsetData::AddTile(uint32 InAddress)
+{
+	TileStates[InAddress] = true;
+}
+
+void FVirtualTextureTileOffsetData::Finalize()
+{
+	uint32 Offset = 0;
+	uint32 StartAddress = 0;
+	bool bCurrentState = TileStates[0];
+
+	Addresses.Add(StartAddress);
+	Offsets.Add(bCurrentState ? Offset : ~0u);
+
+	for (uint32 Address = 1; Address < MaxAddress; ++Address)
+	{
+		const bool bState = TileStates[Address];
+		if (bState != bCurrentState)
+		{
+			Offset += bCurrentState ? Address - StartAddress : 0;
+
+			StartAddress = Address;
+			bCurrentState = bState;
+
+			Addresses.Add(StartAddress);
+			Offsets.Add(bCurrentState ? Offset : ~0u);
+		}
+	}
+
+	TileStates.Empty();
+}
+
+#endif // WITH_EDITOR
+
+uint32 FVirtualTextureTileOffsetData::GetTileOffset(uint32 InAddress) const
+{
+	const int32 BlockIndex = Algo::UpperBound(Addresses, InAddress) - 1;
+	const uint32 BaseOffset = Offsets[BlockIndex];
+	if (BaseOffset == ~0u)
+	{
+		// Address is in empty space.
+		return ~0u;
+	}
+	const uint32 BaseAddress = Addresses[BlockIndex];
+	const uint32 LocalOffset = InAddress - BaseAddress;
+	return BaseOffset + LocalOffset;
+}
 
 uint64 FVirtualTextureBuiltData::GetDiskMemoryFootprint() const
 {
@@ -33,12 +98,123 @@ uint32 FVirtualTextureBuiltData::GetMemoryFootprint() const
 
 uint32 FVirtualTextureBuiltData::GetTileMemoryFootprint() const
 {
-	return TileOffsetInChunk.GetAllocatedSize() + TileIndexPerChunk.GetAllocatedSize() + TileIndexPerMip.GetAllocatedSize();
+	uint32 TotalSize = 0;
+
+	// Legacy tile offsets are used if tiles are compressed.
+	TotalSize += TileOffsetInChunk.GetAllocatedSize();
+	TotalSize += TileIndexPerChunk.GetAllocatedSize();
+	TotalSize += TileIndexPerMip.GetAllocatedSize();
+
+	// Implicit tile offsets are used if tiles are uncompressed.
+	TotalSize += ChunkIndexPerMip.GetAllocatedSize();
+	TotalSize += BaseOffsetPerMip.GetAllocatedSize();
+	for (FVirtualTextureTileOffsetData const& Data : TileOffsetData)
+	{
+		TotalSize += Data.Addresses.GetAllocatedSize();
+		TotalSize += Data.Offsets.GetAllocatedSize();
+	}
+
+	return TotalSize;
 }
 
 uint32 FVirtualTextureBuiltData::GetNumTileHeaders() const
 {
 	return TileOffsetInChunk.Num();
+}
+
+bool FVirtualTextureBuiltData::IsLegacyData() const
+{
+	return TileOffsetInChunk.Num() > 0;
+}
+
+uint32 FVirtualTextureBuiltData::GetTileIndex_Legacy(uint8 vLevel, uint32 vAddress) const
+{
+	check(vLevel < NumMips);
+	const uint32 TileIndex = TileIndexPerMip[vLevel] + vAddress * NumLayers;
+	if (TileIndex >= TileIndexPerMip[vLevel + 1])
+	{
+		// vAddress is out of bounds for this texture/mip level
+		return ~0u;
+	}
+	return TileIndex;
+}
+
+uint32 FVirtualTextureBuiltData::GetTileOffset_Legacy(uint32 ChunkIndex, uint32 TileIndex) const
+{
+	check(TileIndex >= TileIndexPerChunk[ChunkIndex]);
+	if (TileIndex < TileIndexPerChunk[ChunkIndex + 1])
+	{
+		return TileOffsetInChunk[TileIndex];
+	}
+
+	// If TileIndex is past the end of chunk, return the size of chunk
+	// This allows us to determine size of region by asking for start/end offsets
+	return Chunks[ChunkIndex].SizeInBytes;
+}
+
+bool FVirtualTextureBuiltData::IsValidAddress(uint32 vLevel, uint32 vAddress)
+{
+	bool bIsValid = false;
+
+	if (IsLegacyData())
+	{
+		bIsValid = GetTileIndex_Legacy(vLevel, vAddress) != ~0u;
+	}
+	else
+	{
+		if (TileOffsetData.IsValidIndex(vLevel))
+		{
+			const uint32 X = FMath::ReverseMortonCode2(vAddress);
+			const uint32 Y = FMath::ReverseMortonCode2(vAddress >> 1);
+			bIsValid = X < TileOffsetData[vLevel].Width && Y < TileOffsetData[vLevel].Height;
+		}
+	}
+
+	return bIsValid;
+}
+
+int32 FVirtualTextureBuiltData::GetChunkIndex(uint8 vLevel) const
+{
+	return ChunkIndexPerMip.IsValidIndex(vLevel) ? ChunkIndexPerMip[vLevel] : -1;
+}
+
+uint32 FVirtualTextureBuiltData::GetTileOffset(uint32 vLevel, uint32 vAddress, uint32 LayerIndex) const
+{
+	uint32 Offset = ~0u;
+
+	if (IsLegacyData())
+	{
+		const uint32 TileIndex = GetTileIndex_Legacy(vLevel, vAddress);
+		if (TileIndex != ~0u)
+		{
+			// If size of the tile is 0 we return ~0u to indicate that there is no data present.
+			const int32 ChunkIndex = GetChunkIndex(vLevel);
+			const uint32 TileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex);
+			const uint32 NextTileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex + GetNumLayers());
+			if (TileOffset != NextTileOffset)
+			{
+				Offset = GetTileOffset_Legacy(ChunkIndex, TileIndex + LayerIndex);
+			}
+		}
+	}
+	else
+	{
+		if (BaseOffsetPerMip.IsValidIndex(vLevel) && TileOffsetData.IsValidIndex(vLevel))
+		{
+			// If the tile offset is ~0u there is no data present so we return ~0u to indicate that.
+			const uint32 TileOffset = TileOffsetData[vLevel].GetTileOffset(vAddress);
+			if (TileOffset != ~0u)
+			{
+				const uint32 BaseOffset = BaseOffsetPerMip[vLevel];
+				const uint32 TileDataSize = TileDataOffsetPerLayer.Last();
+				const uint32 LayerDataOffset = LayerIndex == 0 ? 0 : TileDataOffsetPerLayer[LayerIndex - 1];
+				
+				Offset = BaseOffset + (TileOffset * TileDataSize) + LayerDataOffset;
+			}
+		}
+	}
+
+	return Offset;
 }
 
 void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 FirstMipToSerialize)
@@ -57,12 +233,16 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	Ar << HeightInBlocks;
 	Ar << TileSize;
 	Ar << TileBorderSize;
+	Ar << TileDataOffsetPerLayer;
 
 	if (!bStripMips)
 	{
 		Ar << NumMips;
 		Ar << Width;
 		Ar << Height;
+		Ar << ChunkIndexPerMip;
+		Ar << BaseOffsetPerMip;
+		Ar << TileOffsetData;
 		Ar << TileIndexPerChunk;
 		Ar << TileIndexPerMip;
 		Ar << TileOffsetInChunk;
@@ -70,51 +250,72 @@ void FVirtualTextureBuiltData::Serialize(FArchive& Ar, UObject* Owner, int32 Fir
 	else
 	{
 		check((uint32)FirstMipToSerialize < NumMips);
-		const uint32 NumTilesToStrip = TileIndexPerMip[FirstMipToSerialize];
-		check(NumTilesToStrip < (uint32)TileOffsetInChunk.Num());
-		for (int32 ChunkIndex = 0; ChunkIndex < Chunks.Num(); ++ChunkIndex)
-		{
-			if (TileIndexPerChunk[ChunkIndex + 1] <= NumTilesToStrip)
-			{
-				++NumChunksToStrip;
-			}
-			else
-			{
-				break;
-			}
-		}
+		NumChunksToStrip = ChunkIndexPerMip[FirstMipToSerialize];
 
 		uint32 NumMipsToSerialize = NumMips - FirstMipToSerialize;
 		uint32 WidthToSerialize = Width >> FirstMipToSerialize;
 		uint32 HeightToSerialize = Height >> FirstMipToSerialize;
+
+		TArray<uint32> StrippedChunkIndexPerMip;
+		TArray<uint32> StrippedBaseOffsetPerMip;
+		TArray<FVirtualTextureTileOffsetData> StrippedTileOffsetData;
 		TArray<uint32> StrippedTileIndexPerChunk;
 		TArray<uint32> StrippedTileIndexPerMip;
 		TArray<uint32> StrippedTileOffsetInChunk;
 
-		StrippedTileIndexPerChunk.Reserve(TileIndexPerChunk.Num() - NumChunksToStrip);
-		for (int32 i = NumChunksToStrip; i < TileIndexPerChunk.Num(); ++i)
+		StrippedChunkIndexPerMip.Reserve(ChunkIndexPerMip.Num() - FirstMipToSerialize);
+		for (int32 i = FirstMipToSerialize; i < ChunkIndexPerMip.Num(); ++i)
 		{
-			// Since we can only exclude data by chunk, it's possible that the first chunk we need to include will contain some initial tiles from mip that's been exclude
-			StrippedTileIndexPerChunk.Add(TileIndexPerChunk[i] - FMath::Min(NumTilesToStrip, TileIndexPerChunk[i]));
+			check(ChunkIndexPerMip[i] >= NumChunksToStrip);
+			StrippedChunkIndexPerMip.Add(ChunkIndexPerMip[i] - NumChunksToStrip);
+		}
+		
+		StrippedBaseOffsetPerMip.Reserve(BaseOffsetPerMip.Num() - FirstMipToSerialize);
+		for (int32 i = FirstMipToSerialize; i < BaseOffsetPerMip.Num(); ++i)
+		{
+			StrippedBaseOffsetPerMip.Add(BaseOffsetPerMip[i]);
 		}
 
-		StrippedTileIndexPerMip.Reserve(TileIndexPerMip.Num() - FirstMipToSerialize);
-		for (int32 i = FirstMipToSerialize; i < TileIndexPerMip.Num(); ++i)
+		StrippedTileOffsetData.Reserve(TileOffsetData.Num() - FirstMipToSerialize);
+		for (int32 i = FirstMipToSerialize; i < TileOffsetData.Num(); ++i)
 		{
-			check(TileIndexPerMip[i] >= NumTilesToStrip);
-			StrippedTileIndexPerMip.Add(TileIndexPerMip[i] - NumTilesToStrip);
+			StrippedTileOffsetData.Add(TileOffsetData[i]);
 		}
 
-		StrippedTileOffsetInChunk.Reserve(TileOffsetInChunk.Num() - NumTilesToStrip);
-		for (int32 i = NumTilesToStrip; i < TileOffsetInChunk.Num(); ++i)
+		const bool bHasLegacyData = TileOffsetInChunk.Num() > 0;
+		if (bHasLegacyData)
 		{
-			// offsets within each chunk are unchanged...we are removing chunks that are no longer referenced, but not truncating any existing chunks
-			StrippedTileOffsetInChunk.Add(TileOffsetInChunk[i]);
+			const uint32 NumTilesToStrip = TileIndexPerMip[FirstMipToSerialize];
+			check(NumTilesToStrip < (uint32)TileOffsetInChunk.Num());
+
+			StrippedTileIndexPerChunk.Reserve(TileIndexPerChunk.Num() - NumChunksToStrip);
+			for (int32 i = NumChunksToStrip; i < TileIndexPerChunk.Num(); ++i)
+			{
+				// Since we can only exclude data by chunk, it's possible that the first chunk we need to include will contain some initial tiles from a mip that's been excluded
+				StrippedTileIndexPerChunk.Add(TileIndexPerChunk[i] - FMath::Min(NumTilesToStrip, TileIndexPerChunk[i]));
+			}
+
+			StrippedTileIndexPerMip.Reserve(TileIndexPerMip.Num() - FirstMipToSerialize);
+			for (int32 i = FirstMipToSerialize; i < TileIndexPerMip.Num(); ++i)
+			{
+				check(TileIndexPerMip[i] >= NumTilesToStrip);
+				StrippedTileIndexPerMip.Add(TileIndexPerMip[i] - NumTilesToStrip);
+			}
+
+			StrippedTileOffsetInChunk.Reserve(TileOffsetInChunk.Num() - NumTilesToStrip);
+			for (int32 i = NumTilesToStrip; i < TileOffsetInChunk.Num(); ++i)
+			{
+				// offsets within each chunk are unchanged...we are removing chunks that are no longer referenced, but not truncating any existing chunks
+				StrippedTileOffsetInChunk.Add(TileOffsetInChunk[i]);
+			}
 		}
 
 		Ar << NumMipsToSerialize;
 		Ar << WidthToSerialize;
 		Ar << HeightToSerialize;
+		Ar << StrippedChunkIndexPerMip;
+		Ar << StrippedBaseOffsetPerMip;
+		Ar << StrippedTileOffsetData;
 		Ar << StrippedTileIndexPerChunk;
 		Ar << StrippedTileIndexPerMip;
 		Ar << StrippedTileOffsetInChunk;
@@ -253,7 +454,7 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 			break;
 		}
 
-		if (bValidateCompression)
+		if (bValidateCompression && IsLegacyData())
 		{
 			uint32 TileIndex = TileIndexPerChunk[ChunkIndex];
 			while (bResult && TileIndex < TileIndexPerChunk[ChunkIndex + 1])
@@ -269,8 +470,8 @@ bool FVirtualTextureBuiltData::ValidateData(FStringView const& InDDCDebugContext
 
 					if (VTCodec == EVirtualTextureCodec::ZippedGPU)
 					{
-						const uint32 TileOffset = GetTileOffset(ChunkIndex, TileIndex);
-						const uint32 NextTileOffset = GetTileOffset(ChunkIndex, TileIndex + 1);
+						const uint32 TileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex);
+						const uint32 NextTileOffset = GetTileOffset_Legacy(ChunkIndex, TileIndex + 1);
 						check(NextTileOffset >= TileOffset);
 						if (NextTileOffset > TileOffset)
 						{
@@ -349,4 +550,5 @@ uint32 FVirtualTextureDataChunk::StoreInDerivedDataCache(const FString& InDerive
 	BulkData.RemoveBulkData();
 	return BulkDataSizeInBytes;
 }
+
 #endif // WITH_EDITORONLY_DATA
