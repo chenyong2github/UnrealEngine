@@ -399,6 +399,15 @@ namespace LLMPrivate
 			}
 		}
 
+		LLMAllocFunction GetPlatformAlloc()
+		{
+			return PlatformAlloc;
+		}
+		LLMFreeFunction GetPlatformFree()
+		{
+			return PlatformFree;
+		}
+
 	private:
 		void* AllocPages(size_t Size);
 		void FreePages(void* Ptr, size_t Size);

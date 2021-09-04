@@ -96,6 +96,8 @@ private:
 	virtual void			DumpAllocatorStats(FOutputDevice& Ar) override				{ InnerMalloc->DumpAllocatorStats(Ar); }
 	virtual bool			ValidateHeap() override										{ return InnerMalloc->ValidateHeap(); }
 	virtual bool			GetAllocationSize(void* Address, SIZE_T &SizeOut) override	{ return InnerMalloc->GetAllocationSize(Address, SizeOut); }
+	virtual void			SetupTLSCachesOnCurrentThread() override					{ return InnerMalloc->SetupTLSCachesOnCurrentThread(); }
+
 	FMalloc*				InnerMalloc;
 	bool					bLight;
 };
