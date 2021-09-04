@@ -108,11 +108,13 @@ namespace HordeServer.Compute.Impl
 		{
 		}
 
-		public ComputeTaskStatus(CbObjectAttachment TaskHash, ComputeTaskState State)
+		public ComputeTaskStatus(CbObjectAttachment TaskHash, ComputeTaskState State, AgentId AgentId, ObjectId LeaseId)
 		{
 			this.TaskHash = TaskHash;
 			this.Time = DateTime.UtcNow;
 			this.State = State;
+			this.AgentId = AgentId.ToString();
+			this.LeaseIdBytes = LeaseId.ToByteArray();
 		}
 	}
 
@@ -215,7 +217,7 @@ namespace HordeServer.Compute.Impl
 			ComputeTaskMessage ComputeTask = Payload.Unpack<ComputeTaskMessage>();
 			Logger.LogInformation("Compute lease started (lease: {LeaseId}, task: {TaskHash}, agent: {AgentId}, channel: {ChannelId})", LeaseId, ComputeTask.TaskHash, Agent.Id, ComputeTask.ChannelId);
 
-			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Executing);
+			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Executing, Agent.Id, LeaseId);
 			return MessageQueue.PostAsync(ComputeTask.ChannelId, Status);
 		}
 
@@ -225,8 +227,7 @@ namespace HordeServer.Compute.Impl
 
 			ComputeTaskResultMessage Result = ComputeTaskResultMessage.Parser.ParseFrom(Output.ToArray());
 
-			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Complete);
-			Status.LeaseId = LeaseId;
+			ComputeTaskStatus Status = new ComputeTaskStatus(ComputeTask.TaskHash, ComputeTaskState.Complete, Agent.Id, LeaseId);
 			if (Result.OutputHash != null)
 			{
 				Status.ResultHash = Result.OutputHash;
