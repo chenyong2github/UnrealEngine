@@ -135,6 +135,7 @@ FConstraintProfileProperties::FConstraintProfileProperties()
 	, LinearPlasticityThreshold(0.1f)
 	, AngularBreakThreshold(500.f)
 	, AngularPlasticityThreshold(10.f)
+	, ContactTransferScale(0.f)
 	, bDisableCollision(false)
 	, bParentDominates(false)
 	, bEnableProjection(true)
@@ -188,6 +189,16 @@ void FConstraintInstance::UpdatePlasticity()
 		});
 }
 
+void FConstraintInstance::UpdateContactTransferScale()
+{
+#if WITH_CHAOS
+	FPhysicsInterface::ExecuteOnUnbrokenConstraintReadWrite(ConstraintHandle, [&](const FPhysicsConstraintHandle& InConstraint)
+		{
+			ProfileInstance.UpdateContactTransferScale_AssumesLocked(InConstraint);
+		});
+#endif
+}
+
 void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
 {
 #if WITH_CHAOS
@@ -195,6 +206,13 @@ void FConstraintProfileProperties::UpdatePlasticity_AssumesLocked(const FPhysics
 	const float AngularPlasticityLimit = bAngularPlasticity ? FMath::DegreesToRadians(AngularPlasticityThreshold) : MAX_FLT;
 
 	FPhysicsInterface::SetPlasticityLimits_AssumesLocked(InConstraintRef, LinearPlasticityLimit, AngularPlasticityLimit, LinearPlasticityType);
+#endif
+}
+
+void FConstraintProfileProperties::UpdateContactTransferScale_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef) const
+{
+#if WITH_CHAOS
+	FPhysicsInterface::SetContactTransferScale_AssumesLocked(InConstraintRef, ContactTransferScale);
 #endif
 }
 
@@ -534,6 +552,7 @@ void FConstraintProfileProperties::Update_AssumesLocked(const FPhysicsConstraint
 
 	UpdateBreakable_AssumesLocked(InConstraintRef);
 	UpdatePlasticity_AssumesLocked(InConstraintRef);
+	UpdateContactTransferScale_AssumesLocked(InConstraintRef);
 
 	// Target
 	FPhysicsInterface::UpdateDriveTarget_AssumesLocked(InConstraintRef, LinearDrive, AngularDrive, InInitialize);

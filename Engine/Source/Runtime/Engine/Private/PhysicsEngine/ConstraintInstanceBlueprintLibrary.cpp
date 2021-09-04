@@ -266,6 +266,39 @@ void UConstraintInstanceBlueprintLibrary::GetLinearPlasticity(
 
 //---------------------------------------------------------------------------------------------------
 //
+// Contact Transfer Scale
+//
+//---------------------------------------------------------------------------------------------------
+
+void UConstraintInstanceBlueprintLibrary::SetContactTransferScale(
+	FConstraintInstanceAccessor& Accessor,
+	float ContactTransferScale
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		Accessor.Modify();
+		ConstraintInstance->SetContactTransferScale(ContactTransferScale);
+	}
+}
+
+void UConstraintInstanceBlueprintLibrary::GetContactTransferScale(
+	FConstraintInstanceAccessor& Accessor,
+	float& ContactTransferScale
+)
+{
+	if (FConstraintInstance* ConstraintInstance = Accessor.Get())
+	{
+		ContactTransferScale = ConstraintInstance->GetContactTransferScale();
+	}
+	else
+	{
+		ContactTransferScale = 0.f;
+	}
+}
+
+//---------------------------------------------------------------------------------------------------
+//
 // ANGULAR LIMITS 
 //
 //---------------------------------------------------------------------------------------------------

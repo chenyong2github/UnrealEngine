@@ -162,7 +162,9 @@ namespace Chaos
 		//void SetLinearDriveDamping(FReal InLinearDriveStffness);
 		//FReal GetLinearDriveDamping() const
 
-
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ContactTransferScale, EJointConstraintFlags::LinearDrive, JointSettings.ContactTransferScale);
+		//void SetContactTransferScale(FReal InContactTransferScale);
+		//FReal GetContactTransferScale() const
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(bool, AngularSLerpPositionDriveEnabled, EJointConstraintFlags::AngularDrive, JointSettings.bAngularSLerpPositionDriveEnabled);
 		//void SetAngularSLerpPositionDriveEnabled(bool InAngularSLerpPositionDriveEnabled);
