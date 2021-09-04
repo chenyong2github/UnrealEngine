@@ -79,6 +79,10 @@ namespace Chaos
 	int32 CollisionCanNeverDisableContacts = 0;
 	FAutoConsoleVariableRef CVarCollisionCanNeverDisableContacts(TEXT("p.CollisionCanNeverDisableContacts"), CollisionCanNeverDisableContacts, TEXT("Collision culling will never be able to permanently disable contacts"));
 
+	bool CollisionsAllowParticleTracking = true;
+	FAutoConsoleVariableRef CVarCollisionsAllowParticleTracking(TEXT("p.Chaos.Collision.AllowParticleTracking"), CollisionsAllowParticleTracking, TEXT("Allow particles to track their collisions constraints when their DoBufferCollisions flag is enable [def:true]"));
+
+
 #if INTEL_ISPC
 	bool bChaos_Collision_ISPC_Enabled = false;
 	FAutoConsoleVariableRef CVarChaosCollisionISPCEnabled(TEXT("p.Chaos.Collision.ISPC"), bChaos_Collision_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in the Collision Solver"));
@@ -276,7 +280,7 @@ namespace Chaos
 
 			check(Handle != nullptr);
 			Handles.Add(Handle);
-
+				
 #if CHAOS_COLLISION_PERSISTENCE_ENABLED
 			check(!Manifolds.Contains(Handle->GetKey()));
 			Manifolds.Add(Handle->GetKey(), Handle);
@@ -359,6 +363,7 @@ namespace Chaos
 		}
 		Constraints.Reset();
 		Handles.Reset();
+		ParticleCollisionsMap.Reset();
 #endif
 
 		bUseCCD = false;
@@ -737,6 +742,35 @@ namespace Chaos
 
 			NewHandle->GetContact().Timestamp = -INT_MAX;
 			Constraints->SinglePointConstraints[NumBeginSingle + HandleIndex].SetConstraintHandle(NewHandle);
+
+			if (CollisionsAllowParticleTracking)
+			{
+				// Add reverse mappings for particles that require it. 
+				using FHandle = FPBDCollisionConstraintHandle;
+				using FParticle = TPBDRigidParticleHandleImp<FReal, 3, true>;
+
+				auto AddToParticleCollisionsMap = [](FHandle* InHandle, FGeometryParticleHandle* InParticle, TMap<FParticleHandle*, FHandles >& InParticleCollisionsMap)
+				{
+					if (InParticle)
+					{
+						if (FParticle* RigidParticle = InParticle->CastToRigidParticle())
+						{
+							if (RigidParticle->HasCollisionConstraintFlag(ECollisionConstraintFlags::CCF_DoBufferCollisions))
+							{
+								FHandles* HandleArray = InParticleCollisionsMap.Find(RigidParticle);
+								if (!HandleArray)
+								{
+									InParticleCollisionsMap.Add(RigidParticle, FHandles());
+									HandleArray = InParticleCollisionsMap.Find(RigidParticle);
+								}
+								HandleArray->Add(InHandle);
+							}
+						}
+					}
+				};
+				AddToParticleCollisionsMap(NewHandle, NewHandle->GetConstrainedParticles()[0], Owner->GetParticleCollisionsMap());
+				AddToParticleCollisionsMap(NewHandle, NewHandle->GetConstrainedParticles()[1], Owner->GetParticleCollisionsMap());
+			}
 		}
 		HandlesBeginIndex += NumAddedSingle;
 
