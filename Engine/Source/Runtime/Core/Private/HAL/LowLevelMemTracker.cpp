@@ -442,7 +442,6 @@ namespace LLMPrivate
 
 		FCriticalSection PendingThreadStatesGuard;
 		TArray<FLLMThreadState*, FDefaultLLMAllocator> PendingThreadStates;
-		FCriticalSection AllocationMapLock;
 
 		int64 TrackedTotal GCC_ALIGN(8);
 
@@ -2993,7 +2992,6 @@ namespace LLMPrivate
 			LLMCheck(Size <= 0x0000'ffff'ffff'ffff);
 			uint32 SizeLow = uint32(Size);
 			uint16 SizeHigh = uint16(Size >> 32ull);
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
 			PointerKey Key(Ptr, SizeHigh);
 			AllocationMap.Add(Key, SizeLow, AllocInfo);
 		}
@@ -3004,7 +3002,6 @@ namespace LLMPrivate
 		// look up the pointer in the tracking map
 		FLLMAllocMap::Values Values;
 		{
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
 			if (!AllocationMap.Remove(PointerKey(Ptr), Values))
 			{
 				return;
@@ -3040,7 +3037,6 @@ namespace LLMPrivate
 	{
 		FLLMAllocMap::Values Values;
 		{
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
 			if (!AllocationMap.Remove(PointerKey(Source), Values))
 			{
 				return;
@@ -3141,10 +3137,8 @@ namespace LLMPrivate
 			LLMRef.Allocator.Delete(ThreadState);
 		ThreadStates.Empty();
 
-		{
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
-			AllocationMap.Clear();
-		}
+		AllocationMap.Clear();
+
 		CsvWriter.Clear();
 		TraceWriter.Clear();
 		CsvProfilerWriter.Clear();
@@ -3166,7 +3160,6 @@ namespace LLMPrivate
 		{
 			LastTrimTime = CurrentTime;
 			{
-				FScopeLock AllocationScopeLock(&AllocationMapLock);
 				AllocationMap.Trim();
 			}
 		}
@@ -3283,11 +3276,12 @@ namespace LLMPrivate
 		{
 			// Each allocation references the tag by its index, which we have just remapped.
 			// Remap each allocation's tag index to the new index for the tag
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
+			AllocationMap.LockAll();
 			for (const FLLMAllocMap::FTuple& Tuple : AllocationMap)
 			{
 				Tuple.Value2.SetCompressedTag(OldTagDatas[Tuple.Value2.GetCompressedTag()]->GetIndex());
 			}
+			AllocationMap.UnlockAll();
 		}
 #else
 		// Values in AllocationMap are ELLMTags, and don't depend on the Index of the tagdatas
@@ -3330,7 +3324,6 @@ namespace LLMPrivate
 		FLLMThreadState* State = GetOrCreateState();
 		FLowLevelAllocInfo AllocInfo;
 		{
-			FScopeLock AllocationScopeLock(&AllocationMapLock);
 			uint32* Size;
 			FLowLevelAllocInfo* AllocInfoPtr;
 			AllocationMap.Find(PointerKey(Ptr), Size, AllocInfoPtr);

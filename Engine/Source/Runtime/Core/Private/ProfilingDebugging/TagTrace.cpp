@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "ProfilingDebugging/TagTrace.h"
 
+#include "Experimental/Containers/GrowOnlyLockFreeHash.h"
 #include "Containers/Set.h"
 #include "CoreTypes.h"
 #include "MemoryTrace.h"
@@ -135,53 +136,24 @@ public:
 	int32 			AnnounceFNameTag(const FName& TagName);
 
 private:
-	/**
-	 * Allocator used to allocate from the untracked FMalloc instance.
-	 */
-	class FTagAllocator : public TSizedHeapAllocator<32>
+
+	struct FTagNameSetEntry
 	{
-	public:
+		std::atomic_int32_t Data;
 
-		class ForAnyElementType : public TSizedHeapAllocator<32>::ForAnyElementType
+		int32 GetKey() const { return Data.load(std::memory_order_relaxed); }
+		bool GetValue() const { return true; }
+		bool IsEmpty() const { return Data.load(std::memory_order_relaxed) == 0; }			// NAME_None is treated as empty
+		void SetKeyValue(int32 Key, bool Value) { Data.store(Key, std::memory_order_relaxed); }
+		static uint32 KeyHash(int32 Key) { return static_cast<uint32>(Key); }
+		static void ClearEntries(FTagNameSetEntry* Entries, int32 EntryCount)
 		{
-		public:
-			ForAnyElementType()
-				: Data(nullptr)
-			{}
-
-			FORCEINLINE FScriptContainerElement* GetAllocation() const { return Data; }
-			FORCEINLINE bool HasAllocation() const { return !!Data; }
-			void ResizeAllocation(SizeType PreviousNumElements, SizeType NumElements, SIZE_T NumBytesPerElement)
-			{
-				check(FTagTrace::Malloc);
-				if (Data || NumElements)
-				{
-					Data = (FScriptContainerElement*)FTagTrace::Malloc->Realloc(Data, NumElements * NumBytesPerElement);
-				}
-			}
-
-		private:
-			FScriptContainerElement* Data;
-		};
-
-		template<typename ElementType>
-		class ForElementType : public ForAnyElementType
-		{
-		public:
-			FORCEINLINE ElementType* GetAllocation() const
-			{
-				return (ElementType*)ForAnyElementType::GetAllocation();
-			}
-		};
-
+			memset(Entries, 0, EntryCount * sizeof(FTagNameSetEntry));
+		}
 	};
-	typedef TSparseArrayAllocator<FTagAllocator> FTagSparseArrayAllocator;
-	typedef TInlineAllocator<1,FTagAllocator> FTagHashAllocator; 
-	typedef TSetAllocator<FTagSparseArrayAllocator, FTagHashAllocator> FTagSetAllocator;
-	typedef TSet<int32, DefaultKeyFuncs<int32>, FTagSetAllocator> FTagSet;
+	typedef TGrowOnlyLockFreeHash<FTagNameSetEntry, int32, bool> FTagNameSet;
 
-	FCriticalSection		Cs;
-	FTagSet 				AnnouncedNames;
+	FTagNameSet				AnnouncedNames;
 	static FMalloc* 		Malloc;
 };
 
@@ -189,7 +161,8 @@ FMalloc* FTagTrace::Malloc = nullptr;
 static FTagTrace* GTagTrace = nullptr;
 
 ////////////////////////////////////////////////////////////////////////////////
-FTagTrace::FTagTrace(FMalloc* InMalloc) 
+FTagTrace::FTagTrace(FMalloc* InMalloc)
+	: AnnouncedNames(InMalloc)
 {
 	Malloc = InMalloc;
 	AnnouncedNames.Reserve(1024);
@@ -240,14 +213,24 @@ void FTagTrace::OnAnnounceTagDeclaration(FLLMTagDeclaration& TagDeclaration)
 ////////////////////////////////////////////////////////////////////////////////
 int32 FTagTrace::AnnounceFNameTag(const FName& Name)
 {
-	FScopeLock _(&Cs);
 	const int32 NameIndex = Name.GetDisplayIndex().ToUnstableInt();
-	if (AnnouncedNames.Contains(NameIndex))
+
+	// Don't announce NAME_None, if we happen to get that passed in.  The "AnnouncedNames" container
+	// is not allowed to hold "NAME_None", as zero represents an invalid key.
+	if (!NameIndex)
 	{
 		return NameIndex;
 	}
 
-	AnnouncedNames.Emplace(NameIndex);
+	// Find or add the item
+	bool bAlreadyInTable;
+	AnnouncedNames.FindOrAdd(NameIndex, true, &bAlreadyInTable);
+	if (bAlreadyInTable)
+	{
+		return NameIndex;
+	}
+
+	// First time encountering this name, announce it
 	ANSICHAR NameString[NAME_SIZE];
 	Name.GetPlainANSIString(NameString);
 	return AnnounceCustomTag(NameIndex, -1, NameString);

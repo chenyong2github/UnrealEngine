@@ -21,11 +21,14 @@
 #include "HAL/PlatformProcess.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CallstackTrace.h"
+#include "Experimental/Containers/GrowOnlyLockFreeHash.h"
 
 #include <atomic>
 
 // 0=off, 1=stats, 2=validation, 3=truth_compare
 #define BACKTRACE_DBGLVL 0
+
+#define BACKTRACE_LOCK_FREE (1 && (BACKTRACE_DBGLVL == 0))
 
 /*
  * Windows' x64 binaries contain a ".pdata" section that describes the location
@@ -143,6 +146,37 @@ private:
 		FModule				Module;
 	};
 
+	struct FFunctionLookupSetEntry
+	{
+		// Bottom 48 bits are key (pointer), top 16 bits are data (RSP bias for function)
+		std::atomic_uint64_t Data;
+
+		inline uint64 GetKey() const { return Data.load(std::memory_order_relaxed) & 0xffffffffffffull; }
+		inline int32 GetValue() const { return static_cast<int64>(Data.load(std::memory_order_relaxed)) >> 48; }
+		inline bool IsEmpty() const { return Data.load(std::memory_order_relaxed) == 0; }
+		inline void SetKeyValue(uint64 Key, int32 Value)
+		{
+			Data.store(Key | (static_cast<int64>(Value) << 48), std::memory_order_relaxed);
+		}
+		static inline uint32 KeyHash(uint64 Key)
+		{
+			// 64 bit pointer to 32 bit hash
+			Key = (~Key) + (Key << 21);
+			Key = Key ^ (Key >> 24);
+			Key = Key * 265;
+			Key = Key ^ (Key >> 14);
+			Key = Key * 21;
+			Key = Key ^ (Key >> 28);
+			Key = Key + (Key << 31);
+			return static_cast<uint32>(Key);
+		}
+		static void ClearEntries(FFunctionLookupSetEntry* Entries, int32 EntryCount)
+		{
+			memset(Entries, 0, EntryCount * sizeof(FFunctionLookupSetEntry));
+		}
+	};
+	typedef TGrowOnlyLockFreeHash<FFunctionLookupSetEntry, uint64, int32> FFunctionLookupSet;
+
 	const FFunction*		LookupFunction(UPTRINT Address, FLookupState& State) const;
 	static FBacktracer*		Instance;
 	mutable FCriticalSection Lock;
@@ -151,6 +185,9 @@ private:
 	int32					ModulesCapacity;
 	FMalloc*				Malloc;
 	FCallstackTracer*		CallstackTracer;
+#if BACKTRACE_LOCK_FREE
+	mutable FFunctionLookupSet	FunctionLookups;
+#endif
 #if BACKTRACE_DBGLVL >= 1
 	mutable uint32			NumFpTruncations = 0;
 	mutable uint32			TotalFunctions = 0;
@@ -163,14 +200,20 @@ FBacktracer* FBacktracer::Instance = nullptr;
 ////////////////////////////////////////////////////////////////////////////////
 FBacktracer::FBacktracer(FMalloc* InMalloc)
 	: Malloc(InMalloc)
+#if BACKTRACE_LOCK_FREE
+	, FunctionLookups(InMalloc)
+#endif
 {
+#if BACKTRACE_LOCK_FREE
+	FunctionLookups.Reserve(512 * 1024);		// 4 MB
+#endif
 	ModulesCapacity = 8;
 	ModulesNum = 0;
 	Modules = (FModule*)Malloc->Malloc(sizeof(FModule) * ModulesCapacity);
 
 	Instance = this;
 	CallstackTracer = (FCallstackTracer*) Malloc->Malloc(sizeof(FCallstackTracer), alignof(FCallstackTracer));
-	CallstackTracer = new(CallstackTracer) FCallstackTracer();
+	CallstackTracer = new(CallstackTracer) FCallstackTracer(InMalloc);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -528,7 +571,12 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	uint64 BacktraceId = 0;
 	uint32 FrameIdx = 0;
 
+#if BACKTRACE_LOCK_FREE
+	// When running lock free, we defer the lock until a lock free function lookup fails
+	bool Locked = false;
+#else
 	FScopeLock _(&Lock);
+#endif
 	do
 	{
 		UPTRINT RetAddr = *StackPointer;
@@ -540,11 +588,41 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 		BacktraceId += RetAddr;
 		BacktraceId *= 0x30be8efa499c249dull;
 
+#if BACKTRACE_LOCK_FREE
+		int32 RspBias;
+		bool bIsAlreadyInTable;
+		FunctionLookups.Find(RetAddr, &RspBias, &bIsAlreadyInTable);
+		if (bIsAlreadyInTable)
+		{
+			if (RspBias < 0)
+			{
+				break;
+			}
+			else
+			{
+				StackPointer += RspBias;
+				continue;
+			}
+		}
+		if (!Locked)
+		{
+			Lock.Lock();
+			Locked = true;
+		}
+#endif  // BACKTRACE_LOCK_FREE
+
 		const FFunction* Function = LookupFunction(RetAddr, LookupState);
 		if (Function == nullptr)
 		{
+#if BACKTRACE_LOCK_FREE
+			FunctionLookups.Emplace(RetAddr, -1);
+#endif
 			break;
 		}
+
+#if BACKTRACE_LOCK_FREE
+		FunctionLookups.Emplace(RetAddr, Function->RspBias);
+#endif
 
 #if BACKTRACE_DBGLVL >= 2
 		if (NumBacktrace < 1024)
@@ -586,6 +664,12 @@ void* FBacktracer::GetBacktraceId(void* AddressOfReturnAddress) const
 	}
 #endif
 
+#if BACKTRACE_LOCK_FREE
+	if (Locked)
+	{
+		Lock.Unlock();
+	}
+#endif
 	// Add to queue to be processed. This might block until there is room in the
 	// queue (i.e. the processing thread has caught up processing).
 	CallstackTracer->AddCallstack(BacktraceEntry);
