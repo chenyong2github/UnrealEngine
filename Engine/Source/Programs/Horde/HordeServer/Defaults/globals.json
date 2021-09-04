@@ -4,5 +4,12 @@
 			"id": "ue5",
 			"path": "ue5.project.json"
 		}
-	]
+	],
+	"storage": {
+		"namespaces": [
+			{
+				"id": "default"
+			}
+		]
+	}
 }

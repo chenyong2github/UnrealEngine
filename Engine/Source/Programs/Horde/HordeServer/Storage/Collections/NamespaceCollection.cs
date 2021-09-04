@@ -36,9 +36,11 @@ namespace HordeServer.Storage
 
 		IMongoCollection<Namespace> Namespaces;
 		LazyCache<NamespaceId, INamespace?> NamespaceCache;
+		AclService AclService;
 
-		public NamespaceCollection(DatabaseService DatabaseService)
+		public NamespaceCollection(DatabaseService DatabaseService, AclService AclService)
 		{
+			this.AclService = AclService;
 			this.Namespaces = DatabaseService.GetCollection<Namespace>("Storage.Namespaces");
 			this.NamespaceCache = new LazyCache<NamespaceId, INamespace?>(GetAsync, new LazyCacheOptions { });
 		}
@@ -80,12 +82,12 @@ namespace HordeServer.Storage
 			}
 
 			bool? Result = Namespace.Acl?.Authorize(Action, User);
-			if (Result == null)
+			if (Result != null)
 			{
-				return false;
+				return Result.Value;
 			}
 
-			return Result.Value;
+			return await AclService.AuthorizeAsync(Action, User);
 		}
 	}
 }
