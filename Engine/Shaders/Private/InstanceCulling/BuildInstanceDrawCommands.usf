@@ -159,7 +159,7 @@ void WritePackedInstanceData(uint Offset, uint InstanceId, FInstanceSceneData In
 	
 	InstanceTransform1.w = asfloat(PackedPrimitiveFlags); 
 	InstanceTransform2.w = InstanceAuxData1; 
-	InstanceTransform3.w = InstanceData.PerInstanceRandom;
+	InstanceTransform3.w = InstanceData.RandomID;
 		
 	InstanceIdsBufferOutMobile[Offset*5 + 0] = InstanceOriginAndId;
 	InstanceIdsBufferOutMobile[Offset*5 + 1] = InstanceTransform1;
