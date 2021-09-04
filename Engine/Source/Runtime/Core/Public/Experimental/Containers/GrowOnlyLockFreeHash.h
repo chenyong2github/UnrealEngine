@@ -2,6 +2,7 @@
 
 #pragma once
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
 
 // Hash table with fast lock free reads, that only supports insertion of items, and no modification of
 // values.  KeyType must be an integer.  EntryType should be a POD with an identifiable "empty" state
