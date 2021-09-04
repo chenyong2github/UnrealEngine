@@ -71,6 +71,59 @@ struct FVirtualTextureDataChunk
 #endif // WITH_EDITORONLY_DATA
 };
 
+
+/** 
+ * Compact structure to find tile offsets within a sparse chunk. 
+ * The tiles are stored in Morton order inside the chunks. But for UDIM textures some areas of a mip level may be empty and so some tiles don't exist.
+ * We could store one chunk offset per tile, but that uses a large amount of memory.
+ * So we need a fast, but memory efficient way to get from tile index to chunk location.
+ * This structure splits the space into contiguous blocks of empty or non-empty tiles.
+ * If a block is non-empty it has an offset into the chunk, and if it is empty it has a special "empty" offset.
+ * Within a non-empty block, all tiles exist and are contiguous.
+ * Because the tiles are in Morton order and UDIMs are aligned on power of 2 boundaries the sequences are not usually very fragmented, so textures can be described with a low number of blocks.
+ * Lookup of tile index is done at the cost of a binary search of Morton address through the stored block addresses.
+ */
+struct FVirtualTextureTileOffsetData
+{
+#if WITH_EDITOR
+	/* Call at start of building the data before any calls to AddTile(). The entire area is initialized as empty. */
+	void Init(uint32 InWidth, uint32 InHeight);
+	/* Call to mark a tile as non-empty. */
+	void AddTile(uint32 InAddress);
+	/* Call after all calls to AddTile() to build the final blocks and offsets. */
+	void Finalize();
+#endif // WITH_EDITOR
+
+	/** Call at runtime to get the final tile offset in the chunk. */
+	uint32 GetTileOffset(uint32 InAddress) const;
+
+	/** Serialization helper. */
+	friend FArchive& operator<<(FArchive& Ar, FVirtualTextureTileOffsetData& TileOffsetData)
+	{
+		Ar << TileOffsetData.Width;
+		Ar << TileOffsetData.Height;
+		Ar << TileOffsetData.MaxAddress;
+		Ar << TileOffsetData.Addresses;
+		Ar << TileOffsetData.Offsets;
+		return Ar;
+	}
+
+	uint32 Width = 0;
+	uint32 Height = 0;
+	/** Upper bound Morton address for managed area. */
+	uint32 MaxAddress = 0;
+	/** Sorted list of contiguous tile block addresses. */
+	TArray<uint32> Addresses;
+	/** Offset for each block in Addresses. An empty block is marked with ~0u. */
+	TArray<uint32> Offsets;
+	
+#if WITH_EDITOR
+	/** Tile state scratch buffer. Created in Init() and destroyed in Finalize(). */
+	TBitArray<> TileStates;
+#endif
+};
+
+
 struct FVirtualTextureBuiltData
 {
 	uint32 NumLayers;
@@ -94,6 +147,22 @@ struct FVirtualTextureBuiltData
 	 */
 	TArray<FVirtualTextureDataChunk> Chunks;
 
+	/** 
+	 * Per layer tile data offset in bytes. 
+	 * This is empty if compression (zlib etc) is used, since in that case offsets will vary per tile.
+	 * Each value is the sum of the packed tile data sizes for the current and the preceding layers.
+	 */
+	TArray<uint32> TileDataOffsetPerLayer;
+
+	/** Chunk index that contains the mip. */
+	TArray<uint32> ChunkIndexPerMip;
+
+	/** Base offset in chunk for the mip. */
+	TArray<uint32> BaseOffsetPerMip;
+
+	/** Holds the tile to chunk offset lookup data. One array entry per mip level. */
+	TArray<FVirtualTextureTileOffsetData> TileOffsetData;
+
 	/** Index of the first tile within each chunk */
 	TArray<uint32> TileIndexPerChunk;
 
@@ -102,7 +171,7 @@ struct FVirtualTextureBuiltData
 
 	/**
 	 * Info for the tiles organized per level. Within a level tile info is organized in Morton order.
-	 * This is in morton order which can waste a lot of space in this array for non-square images
+	 * This is in Morton order which can waste a lot of space in this array for non-square images
 	 * e.g.:
 	 * - An 8x1 tile image will allocate 8x4 indexes in this array.
 	 * - An 1x8 tile image will allocate 8x8 indexes in this array.
@@ -133,72 +202,26 @@ struct FVirtualTextureBuiltData
 	uint32 GetTileMemoryFootprint() const;
 	uint64 GetDiskMemoryFootprint() const;
 	uint32 GetNumTileHeaders() const;
+	
 	void Serialize(FArchive& Ar, UObject* Owner, int32 FirstMipToSerialize);
 
-	/**
-	 * Return the index of the given tile
-	 */
-	inline uint32 GetTileIndex(uint8 vLevel, uint32 vAddress) const
-	{
-		check(vLevel < NumMips);
-		const uint32 TileIndex = TileIndexPerMip[vLevel] + vAddress * NumLayers;
-		if (TileIndex >= TileIndexPerMip[vLevel + 1])
-		{
-			// vAddress is out of bounds for this texture/mip level
-			return ~0u;
-		}
-		return TileIndex;
-	}
+	/** Returns false if the address isn't inside the texture bounds. */
+	bool IsValidAddress(uint32 vLevel, uint32 vAddress);
 
-	/**
-	 * Return the index of the chunk that contains the given tile
-	 */
-	inline int32 GetChunkIndex(uint32 TileIndex) const
-	{
-		if (TileIndex >= (uint32)TileOffsetInChunk.Num())
-		{
-			return -1;
-		}
+	/** Return the index of the chunk that contains the given mip level. Returns -1 if the mip level doesn't exist. */
+	int32 GetChunkIndex(uint8 vLevel) const;
 
-		for (int ChunkIndex = 0; ChunkIndex < TileIndexPerChunk.Num(); ++ChunkIndex)
-		{
-			if (TileIndex < TileIndexPerChunk[ChunkIndex + 1])
-			{
-				const uint32 NextTileOffset = GetTileOffset(ChunkIndex, TileIndex + GetNumLayers());
-				if (TileOffsetInChunk[TileIndex] == NextTileOffset)
-				{
-					// Size of the tile is 0, this means the given tile is not valid for this virtual texture
-					// This can happen since tile offset are stored with morton encoding, so non-square VTs will have some empty tiles allocated
-					return -1;
-				}
-
-				return ChunkIndex;
-			}
-		}
-
-		checkNoEntry();
-		return -1;
-	}
-
-	/**
-	* Return the offset of this tile within the chunk
-	*/
-	inline uint32 GetTileOffset(uint32 ChunkIndex, uint32 TileIndex) const
-	{
-		check(TileIndex >= TileIndexPerChunk[ChunkIndex]);
-		if (TileIndex < TileIndexPerChunk[ChunkIndex + 1])
-		{
-			return TileOffsetInChunk[TileIndex];
-		}
-
-		// If TileIndex is past the end of chunk, return the size of chunk
-		// This allows us to determine size of region by asking for start/end offsets
-		return Chunks[ChunkIndex].SizeInBytes;
-	}
+	/** Return the byte offset of a tile within a chunk. Returns ~0u if the tile doesn't exist. */
+	uint32 GetTileOffset(uint32 vLevel, uint32 vAddress, uint32 LayerIndex) const;
 
 	/**
 	* Validates the VT data
 	* If bValidateCompression is true, attempts to decompress every VT tile, to verify data is valid. This will be very slow
 	*/
 	bool ValidateData(FStringView const& InDDCDebugContext, bool bValidateCompression) const;
+
+private:
+	bool IsLegacyData() const;
+	uint32 GetTileIndex_Legacy(uint8 vLevel, uint32 vAddress) const;
+	uint32 GetTileOffset_Legacy(uint32 ChunkIndex, uint32 TileIndex) const;
 };

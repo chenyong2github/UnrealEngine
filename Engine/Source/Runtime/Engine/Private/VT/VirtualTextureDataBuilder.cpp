@@ -352,9 +352,15 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	OutData.WidthInBlocks = InSourceData.SizeInBlocksX;
 	OutData.HeightInBlocks = InSourceData.SizeInBlocksY;
 
+	OutData.TileDataOffsetPerLayer.Empty();
+	OutData.ChunkIndexPerMip.Empty();
+	OutData.BaseOffsetPerMip.Empty();
+	OutData.TileOffsetData.Empty();
+
 	OutData.TileIndexPerChunk.Empty();
 	OutData.TileIndexPerMip.Empty();
 	OutData.TileOffsetInChunk.Empty();
+
 	OutData.Chunks.Empty();
 
 	const uint32 Size = FMath::Max(SizeX, SizeY);
@@ -384,6 +390,31 @@ void FVirtualTextureDataBuilder::BuildPagesForChunk(const TArray<FVTSourceTileEn
 		BuildTiles(ActiveTileList, LayerIndex, LayerData[LayerIndex], bAllowAsync);
 	}
 
+	// Fill out tile offsets per layer if we haven't yet and if all layers are raw uncompressed data.
+	if (OutData.TileDataOffsetPerLayer.Num() == 0)
+	{
+		bool bIsRawGPUData = true;
+		for (int32 LayerIndex = 0; LayerIndex < LayerData.Num(); LayerIndex++)
+		{
+			if (LayerData[LayerIndex].Codec != EVirtualTextureCodec::RawGPU)
+			{
+				bIsRawGPUData = false;
+				break;
+			}
+		}
+		if (bIsRawGPUData)
+		{
+			uint32 TileDataOffset = 0;
+			OutData.TileDataOffsetPerLayer.Reserve(LayerData.Num());
+			for (int32 LayerIndex = 0; LayerIndex < LayerData.Num(); LayerIndex++)
+			{
+				TileDataOffset += LayerData[LayerIndex].TilePayload[0].Num();
+				OutData.TileDataOffsetPerLayer.Add(TileDataOffset);
+			}
+		}
+	}
+
+	// Write tiles out to chunk.
 	PushDataToChunk(ActiveTileList, LayerData);
 }
 
@@ -409,16 +440,19 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 		MipHeightInTiles = FMath::DivideAndRoundUp(MipHeightInTiles, 2u);
 	}
 
+	// loop over each macro block and assemble the tiles
 	FScopedSlowTask BuildTask(NumTiles);
 
-	//
 	TArray<FVTSourceTileEntry> TilesInChunk;
 	TilesInChunk.Reserve(NumTiles);
 
-	// loop over each macro block and assemble the tiles
 	{
 		uint32 TileIndex = 0u;
 		bool bInFinalChunk = false;
+
+		OutData.ChunkIndexPerMip.Reserve(OutData.NumMips);
+		OutData.BaseOffsetPerMip.Reserve(OutData.NumMips);
+		OutData.TileOffsetData.Reserve(OutData.NumMips);
 
 		OutData.TileOffsetInChunk.Init(~0u, NumTiles * NumLayers);
 		OutData.TileIndexPerChunk.Reserve(OutData.NumMips + 1);
@@ -430,14 +464,20 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 		MipHeightInTiles = FMath::DivideAndRoundUp(SizeY, TileSize);
 		for (uint32 Mip = 0; Mip < OutData.NumMips; ++Mip)
 		{
+			FVirtualTextureTileOffsetData& OffsetData = OutData.TileOffsetData.AddDefaulted_GetRef();
+			OffsetData.Init(MipWidthInTiles, MipHeightInTiles);
+
+			OutData.ChunkIndexPerMip.Add(OutData.Chunks.Num());
+			OutData.TileIndexPerMip.Add(TileIndex);
+
 			const int32 MipBlockSizeInTilesX = FMath::Max(BlockSizeInTilesX >> Mip, 1);
 			const int32 MipBlockSizeInTilesY = FMath::Max(BlockSizeInTilesY >> Mip, 1);
 			const uint32 MaxTileInMip = FMath::MortonCode2(MipWidthInTiles - 1) | (FMath::MortonCode2(MipHeightInTiles - 1) << 1);
 
-			OutData.TileIndexPerMip.Add(TileIndex);
-
 			for (uint32 TileIndexInMip = 0u; TileIndexInMip <= MaxTileInMip; ++TileIndexInMip)
 			{
+				BuildTask.EnterProgressFrame();
+
 				const uint32 TileX = FMath::ReverseMortonCode2(TileIndexInMip);
 				const uint32 TileY = FMath::ReverseMortonCode2(TileIndexInMip >> 1);
 				if (TileX < MipWidthInTiles && TileY < MipHeightInTiles)
@@ -448,19 +488,22 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 					const int32 BlockIndex = FindSourceBlockIndex(Mip, BlockX, BlockY);
 					if (BlockIndex != INDEX_NONE)
 					{
-						BuildTask.EnterProgressFrame();
-
 						const FTextureSourceBlockData& Block = SourceBlocks[BlockIndex];
 						FVTSourceTileEntry* TileEntry = new(TilesInChunk) FVTSourceTileEntry;
 						TileEntry->BlockIndex = BlockIndex;
 						TileEntry->TileIndex = TileIndex;
+						TileEntry->MipIndex = Mip;
 						TileEntry->MipIndexInBlock = Mip - Block.MipBias;
 						TileEntry->TileInBlockX = TileX - Block.BlockX * MipBlockSizeInTilesX;
 						TileEntry->TileInBlockY = TileY - Block.BlockY * MipBlockSizeInTilesY;
+
+						OffsetData.AddTile(TileIndexInMip);
 					}
 				}
 				TileIndex += NumLayers;
 			}
+
+			OffsetData.Finalize();
 
 			if (!bInFinalChunk && TilesInChunk.Num() >= (int32)MinTilesPerChunk)
 			{
@@ -485,31 +528,49 @@ void FVirtualTextureDataBuilder::BuildPagesMacroBlocks(bool bAllowAsync)
 		{
 			BuildPagesForChunk(TilesInChunk, bAllowAsync);
 		}
+
+		check(OutData.BaseOffsetPerMip.Num() == OutData.NumMips);
 	}
 
-	// Patch holes left in offset array
-	for (int32 ChunkIndex = 0; ChunkIndex < OutData.Chunks.Num(); ++ChunkIndex)
+	// Use compact tile offsets if we have fixed tile sizes on every layer (raw GPU codecs).
+	// Otherwise use legacy data.
+	const bool bUseLegacyData = OutData.TileDataOffsetPerLayer.Num() != NumLayers;
+	if (bUseLegacyData)
 	{
-		uint32 CurrentOffset = OutData.Chunks[ChunkIndex].SizeInBytes;
-		for (int32 TileIndex = OutData.TileIndexPerChunk[ChunkIndex + 1] - 1u; TileIndex >= (int32)OutData.TileIndexPerChunk[ChunkIndex]; --TileIndex)
+		// Using legacy data from now on so remove the compact data.
+		OutData.TileOffsetData.Empty();
+
+		// Patch holes left in offset array
+		for (int32 ChunkIndex = 0; ChunkIndex < OutData.Chunks.Num(); ++ChunkIndex)
 		{
-			const uint32 TileOffset = OutData.TileOffsetInChunk[TileIndex];
-			if (TileOffset > CurrentOffset)
+			uint32 CurrentOffset = OutData.Chunks[ChunkIndex].SizeInBytes;
+			for (int32 TileIndex = OutData.TileIndexPerChunk[ChunkIndex + 1] - 1u; TileIndex >= (int32)OutData.TileIndexPerChunk[ChunkIndex]; --TileIndex)
 			{
-				check(TileOffset == ~0u);
-				OutData.TileOffsetInChunk[TileIndex] = CurrentOffset;
-			}
-			else
-			{
-				CurrentOffset = TileOffset;
+				const uint32 TileOffset = OutData.TileOffsetInChunk[TileIndex];
+				if (TileOffset > CurrentOffset)
+				{
+					check(TileOffset == ~0u);
+					OutData.TileOffsetInChunk[TileIndex] = CurrentOffset;
+				}
+				else
+				{
+					CurrentOffset = TileOffset;
+				}
 			}
 		}
-	}
 
-	for (int32 TileIndex = 0u; TileIndex < OutData.TileOffsetInChunk.Num(); ++TileIndex)
+		for (int32 TileIndex = 0u; TileIndex < OutData.TileOffsetInChunk.Num(); ++TileIndex)
+		{
+			const uint32 TileOffset = OutData.TileOffsetInChunk[TileIndex];
+			check(TileOffset != ~0u);
+		}
+	}
+	else
 	{
-		const uint32 TileOffset = OutData.TileOffsetInChunk[TileIndex];
-		check(TileOffset != ~0u);
+		// We can remove legacy data and only reference the compact data from now on.
+		OutData.TileIndexPerChunk.Empty();
+		OutData.TileIndexPerMip.Empty();
+		OutData.TileOffsetInChunk.Empty();
 	}
 }
 
@@ -786,7 +847,13 @@ void FVirtualTextureDataBuilder::PushDataToChunk(const TArray<FVTSourceTileEntry
 	for (int32 TileIdx = 0; TileIdx < Tiles.Num(); ++TileIdx)
 	{
 		const FVTSourceTileEntry& Tile = Tiles[TileIdx];
-		uint32 TileIndex = Tile.TileIndex;
+		const int32 MipIndex = Tile.MipIndex;
+		if (MipIndex >= OutData.BaseOffsetPerMip.Num())
+		{
+			check(MipIndex == OutData.BaseOffsetPerMip.Num());
+			OutData.BaseOffsetPerMip.Add(ChunkOffset);
+		}
+		int32 TileIndex = Tile.TileIndex;
 		for (int32 Layer = 0; Layer < NumLayers; ++Layer)
 		{
 			check(OutData.TileOffsetInChunk[TileIndex] == ~0u);

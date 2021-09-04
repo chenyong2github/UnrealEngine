@@ -67,9 +67,8 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 	SCOPE_CYCLE_COUNTER(STAT_VTP_RequestTile);
 
 	const FVirtualTextureBuiltData* VTData = VTexture->GetVTData();
-	const uint32 TileIndex = VTData->GetTileIndex(vLevel, vAddress);
-	const int32 ChunkIndex = VTData->GetChunkIndex(TileIndex);
-	if (ChunkIndex == -1)
+	const uint32 TileOffset = VTData->GetTileOffset(vLevel, vAddress, 0);
+	if (TileOffset == ~0u)
 	{
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VT.Verbose"));
 		if (CVar->GetValueOnRenderThread())
@@ -79,6 +78,9 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 
 		return EVTRequestPageStatus::Invalid;
 	}
+
+	const int32 ChunkIndex = VTData->GetChunkIndex(vLevel);
+	check(ChunkIndex >= 0);
 
 	// tile is being transcoded/is done transcoding
 	const FVTTranscodeKey TranscodeKey = FVirtualTextureTranscodeCache::GetKey(ProducerHandle, LayerMask, vLevel, vAddress);
@@ -117,8 +119,8 @@ FVTRequestPageResult FVirtualTextureChunkStreamingManager::RequestTile(FUploadin
 	}
 
 	// make a single read request that covers region of all requested tiles
-	const uint32 OffsetStart = VTData->GetTileOffset(ChunkIndex, TileIndex + MinLayerIndex);
-	const uint32 OffsetEnd = VTData->GetTileOffset(ChunkIndex, TileIndex + MaxLayerIndex + 1u);
+	const uint32 OffsetStart = VTData->GetTileOffset(vLevel, vAddress, MinLayerIndex);
+	const uint32 OffsetEnd = VTData->GetTileOffset(vLevel, vAddress, MaxLayerIndex + 1u);
 	const uint32 RequestSize = OffsetEnd - OffsetStart;
 
 	const FVTDataAndStatus TileDataResult = VTexture->ReadData(GraphCompletionEvents, ChunkIndex, OffsetStart, RequestSize, Priority);

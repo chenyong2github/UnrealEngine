@@ -60,7 +60,7 @@
 
 // This GUID is mixed into DDC version for virtual textures only, this allows updating DDC version for VT without invalidating DDC for all textures
 // This is useful during development, but once large numbers of VT are present in shipped content, it will have the same problem as TEXTURE_DERIVEDDATA_VER
-#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("E541C13E65B24669B01DDE3DF18C7312")
+#define TEXTURE_VT_DERIVEDDATA_VER	TEXT("93F54B64FA524F78BCA4EA2CD30B1E9F")
 
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
