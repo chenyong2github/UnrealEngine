@@ -132,7 +132,7 @@ void UVCamComponent::NotifyComponentWasReplaced(UVCamComponent* ReplacementCompo
 bool UVCamComponent::CanUpdate() const
 {
 	UWorld* World = GetWorld();
-	if (bEnabled && !IsPendingKill() && !bIsEditorObjectButPIEIsRunning && World)
+	if (bEnabled && IsValid(this) && !bIsEditorObjectButPIEIsRunning && World)
 	{
 		// Check for an Inactive type of world which means nothing should ever execute on this object
 		// @TODO: This is far from optimal as it means a zombie object has been created that never gets GC'ed

@@ -15,6 +15,8 @@
 
 void FnDisplaySupportForLevelSnapshotsModule::StartupModule()
 {
+	UE_LOG(LogTemp, Log, TEXT("Starting Level Snapshot support for nDisplay..."));
+	
 	ILevelSnapshotsModule& LevelSnapshotsModule = static_cast<ILevelSnapshotsModule&>(FModuleManager::Get().LoadModuleChecked("LevelSnapshots"));
 
 	// Need to blacklist properties through which subobjects can be found
@@ -30,23 +32,7 @@ void FnDisplaySupportForLevelSnapshotsModule::StartupModule()
 }
 
 void FnDisplaySupportForLevelSnapshotsModule::ShutdownModule()
-{
-	if (!FModuleManager::Get().IsModuleLoaded("Level Snapshots"))
-	{
-		return;
-	}
-	ILevelSnapshotsModule& LevelSnapshotsModule = ILevelSnapshotsModule::Get();
-	
-	LevelSnapshotsModule.UnregisterCustomObjectSerializer(ADisplayClusterRootActor::StaticClass());
-	LevelSnapshotsModule.UnregisterCustomObjectSerializer(UDisplayClusterConfigurationData::StaticClass());
-	LevelSnapshotsModule.UnregisterCustomObjectSerializer(UDisplayClusterConfigurationCluster::StaticClass());
-	LevelSnapshotsModule.UnregisterCustomObjectSerializer(UDisplayClusterConfigurationClusterNode::StaticClass());
-
-	FDisplayClusterRootActorSerializer::UnblacklistCustomProperties(LevelSnapshotsModule);
-	FDisplayClusterConfigurationDataSerializer::UnblacklistCustomProperties(LevelSnapshotsModule);
-	FDisplayClusterConfigurationClusterSerializer::UnblacklistCustomProperties(LevelSnapshotsModule);
-	FDisplayClusterConfigurationClusterNodeSerializer::UnblacklistCustomProperties(LevelSnapshotsModule);
-}
+{}
 
 #undef LOCTEXT_NAMESPACE
 	

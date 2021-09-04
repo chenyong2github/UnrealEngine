@@ -18,7 +18,7 @@ void UVCamEditorLibrary::GetAllVCamComponentsInLevel(TArray<UVCamComponent*>& VC
 	for (TObjectIterator<UVCamComponent> It(ExcludeFlags, true, EInternalObjectFlags::PendingKill); It; ++It)
 	{
 		UVCamComponent* VCamComponent = *It;
-		if (VCamComponent && !VCamComponent->IsPendingKill())
+		if (IsValid(VCamComponent))
 		{
 			// Ensure the object lives in the editor world
 			UWorld* World = VCamComponent->GetWorld();

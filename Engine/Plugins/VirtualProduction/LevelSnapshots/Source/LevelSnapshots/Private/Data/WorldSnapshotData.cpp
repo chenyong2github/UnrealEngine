@@ -6,7 +6,6 @@
 #include "Archive/ClassDefaults/ApplyClassDefaulDataArchive.h"
 #include "Archive/ClassDefaults/TakeClassDefaultObjectSnapshotArchive.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsStats.h"
 #include "PropertySelectionMap.h"
 #include "Restorability/SnapshotRestorability.h"
 
@@ -182,8 +181,6 @@ void FWorldSnapshotData::OnDestroySnapshotWorld()
 
 void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SnapshotWorld"), STAT_SnapshotWorld, STATGROUP_LevelSnapshots);
-
 	ClassDefaults.Empty();
 	ActorData.Empty();
 	SerializedNames.Empty();
@@ -214,7 +211,6 @@ void FWorldSnapshotData::SnapshotWorld(UWorld* World)
 
 void FWorldSnapshotData::ApplyToWorld(UWorld* WorldToApplyTo, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplySnapshotToWorld"), STAT_ApplySnapshotToWorld, STATGROUP_LevelSnapshots);
 	if (WorldToApplyTo == nullptr)
 	{
 		return;
@@ -260,11 +256,11 @@ int32 FWorldSnapshotData::GetNumSavedActors() const
 	return ActorData.Num();
 }
 
-void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPath& ActorPath)> HandleOriginalActorPath) const
+void FWorldSnapshotData::ForEachOriginalActor(TFunction<void(const FSoftObjectPath&, const FActorSnapshotData&)> HandleOriginalActorPath) const
 {
 	for (auto OriginalPathIt = ActorData.CreateConstIterator(); OriginalPathIt; ++OriginalPathIt)
 	{
-		HandleOriginalActorPath(OriginalPathIt->Key);
+		HandleOriginalActorPath(OriginalPathIt->Key, OriginalPathIt->Value);
 	}	
 }
 
@@ -608,6 +604,8 @@ UObject* FWorldSnapshotData::ResolveExternalReference(const FSoftObjectPath& Obj
 
 void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyTo, const FPropertySelectionMap& PropertiesToSerialize)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_RemoveActors)
+	
 #if WITH_EDITOR
 	const TSet<TWeakObjectPtr<AActor>>& ActorsToDespawn = PropertiesToSerialize.GetNewActorsToDespawn();
 	const bool bShouldDespawnActors = ActorsToDespawn.Num() > 0;
@@ -654,8 +652,33 @@ void FWorldSnapshotData::ApplyToWorld_HandleRemovingActors(UWorld* WorldToApplyT
 #endif
 }
 
+namespace
+{
+	void DeleteActor(AActor* ActorToDespawn)
+	{
+		check(ActorToDespawn);
+
+		if ( IsValid(ActorToDespawn) )
+		{
+#if WITH_EDITOR
+			GEditor->SelectActor(ActorToDespawn, /*bSelect =*/true, /*bNotifyForActor =*/false, /*bSelectEvenIfHidden =*/true);
+			const bool bVerifyDeletionCanHappen = true;
+			const bool bWarnAboutReferences = false;
+			GEditor->edactDeleteSelected(ActorToDespawn->GetWorld(), bVerifyDeletionCanHappen, bWarnAboutReferences, bWarnAboutReferences);
+#else
+			ActorToDespawn->Destroy(true, true);
+#endif
+		}
+
+		const FName NewName = MakeUniqueObjectName(ActorToDespawn->GetWorld(), ActorToDespawn->GetClass());
+		ActorToDespawn->Rename(*NewName.ToString(), nullptr, REN_NonTransactional);
+	}
+}
+
 void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& EvaluatedActors, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_RecreateActors);
+	
 #if WITH_EDITOR
 	FScopedSlowTask RecreateActors(PropertiesToSerialize.GetDeletedActorsToRespawn().Num(), LOCTEXT("ApplyToWorld.RecreateActorsKey", "Re-creating actors"));
 	RecreateActors.MakeDialogDelayed(1.f, false);
@@ -671,20 +694,17 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			continue;	
 		}
 
-		UClass* ActorClass = ActorSnapshot->GetActorClass().ResolveClass();
-		if (!ensure(ActorClass))
+		UClass* ActorClass = ActorSnapshot->GetActorClass().TryLoadClass<AActor>();
+		if (!ActorClass)
 		{
 			UE_LOG(LogLevelSnapshots, Warning, TEXT("Failed to resolve class '%s'. Was it removed?"), *ActorSnapshot->GetActorClass().ToString());
 			continue;
 		}
 		
-		// The actor may have just been removed and still exist in memory
-		if (UObject* StillExistingRemovedActor = OriginalRemovedActorPath.ResolveObject())
+		if (UObject* NameClash = OriginalRemovedActorPath.ResolveObject())
 		{
-			AActor* Actor = Cast<AActor>(StillExistingRemovedActor);
-			// We need to rename the trash object otherwise SpawnActor will have a name collision and assert.
-			const FName NewName = MakeUniqueObjectName(Actor->GetWorld(), ActorClass, *Actor->GetName().Append(TEXT("_TRASH")));
-			Actor->Rename(*NewName.ToString());
+			AActor* Actor = Cast<AActor>(NameClash);
+			DeleteActor(Actor);
 		}
 		
 		// Example: /Game/MapName.MapName:PersistentLevel.StaticMeshActor_42.StaticMeshComponent becomes /Game/MapName.MapName
@@ -715,7 +735,11 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 			SpawnParameters.Name = FName(*ActorName);
 			SpawnParameters.bNoFail = true;
 			SpawnParameters.Template = Cast<AActor>(GetClassDefault(ActorClass));
-			RecreatedActors.Add(OriginalRemovedActorPath, OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters));
+			SpawnParameters.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_ErrorAndReturnNull;
+			if (AActor* RecreatedActor = OwningLevelWorld->SpawnActor(ActorClass, nullptr, SpawnParameters))
+			{
+				RecreatedActors.Add(OriginalRemovedActorPath, RecreatedActor);
+			}
 		}
 	}
 	
@@ -728,11 +752,15 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 		if (FActorSnapshotData* ActorSnapshot = ActorData.Find(OriginalRemovedActorPath))
 		{
 			AActor** RecreatedActor = RecreatedActors.Find(OriginalRemovedActorPath);
-			if (ensure(RecreatedActor))
+			if (RecreatedActor)
 			{
 				// Mark it, otherwise we'll serialize it again when we look for world actors matching the snapshot
 				EvaluatedActors.Add(*RecreatedActor);
 				ActorSnapshot->DeserializeIntoRecreatedEditorWorldActor(TempActorWorld.Get(), *RecreatedActor, *this, LocalisationSnapshotPackage, PropertiesToSerialize);
+			}
+			else
+			{
+				UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to recreate actor %s"), *OriginalRemovedActorPath.ToString());
 			}
 		}
 	}
@@ -740,6 +768,8 @@ void FWorldSnapshotData::ApplyToWorld_HandleRecreatingActors(TSet<AActor*>& Eval
 
 void FWorldSnapshotData::ApplyToWorld_HandleSerializingMatchingActors(TSet<AActor*>& EvaluatedActors, const TArray<FSoftObjectPath>& SelectedPaths, UPackage* LocalisationSnapshotPackage, const FPropertySelectionMap& PropertiesToSerialize)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(ApplyToWorld_SerializeMatchedActors);
+	
 #if WITH_EDITOR
 	FScopedSlowTask ExitingActorTask(SelectedPaths.Num(), LOCTEXT("ApplyToWorld.MatchingPropertiesKey", "Writing existing actors"));
 	ExitingActorTask.MakeDialogDelayed(1.f, true);

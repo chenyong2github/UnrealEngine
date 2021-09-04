@@ -64,6 +64,6 @@ private:
 	UPROPERTY(EditAnywhere, Category = "Filter")
 	bool bIgnoreFilter = false;
 	
-	UPROPERTY()
+	UPROPERTY(Instanced)
 	ULevelSnapshotFilter* ChildFilter;
 };

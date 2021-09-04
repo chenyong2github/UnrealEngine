@@ -2,8 +2,8 @@
 
 #include "Restorability/SnapshotRestorability.h"
 
+#include "LevelSnapshotsLog.h"
 #include "LevelSnapshotsModule.h"
-#include "LevelSnapshotsStats.h"
 
 #include "Components/ActorComponent.h"
 #include "Components/BillboardComponent.h"
@@ -76,7 +76,7 @@ namespace
 
 bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsActorDesirableForCapture"), STAT_IsActorDesirableForCapture, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(IsActorDesirableForCapture);
 	
 	bool bSomebodyAllowed = false;
 	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
@@ -112,7 +112,7 @@ bool FSnapshotRestorability::IsActorDesirableForCapture(const AActor* Actor)
 
 bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponent* Component)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsComponentDesirableForCapture"), STAT_IsComponentDesirableForCapture, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(IsComponentDesirableForCapture);
 	
 	bool bSomebodyAllowed = false;
 	const TArray<TSharedRef<ISnapshotRestorabilityOverrider>>& Overrides = FLevelSnapshotsModule::GetInternalModuleInstance().GetOverrides(); 
@@ -140,11 +140,13 @@ bool FSnapshotRestorability::IsComponentDesirableForCapture(const UActorComponen
 
 bool FSnapshotRestorability::IsPropertyBlacklistedForCapture(const FProperty* Property)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyBlacklisted);
 	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyBlacklisted(Property);
 }
 
 bool FSnapshotRestorability::IsPropertyWhitelistedForCapture(const FProperty* Property)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(IsPropertyWhitelisted);
 	return FLevelSnapshotsModule::GetInternalModuleInstance().IsPropertyWhitelisted(Property);
 }
 
@@ -155,7 +157,7 @@ bool FSnapshotRestorability::ShouldConsiderNewActorForRemoval(const AActor* Acto
 
 bool FSnapshotRestorability::IsRestorableProperty(const FProperty* LeafProperty)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("IsRestorableProperty"), STAT_IsRestorableProperty, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(IsRestorableProperty);
 	
 	// Subobjects are currently not supported
 	const uint64 InstancedFlags = CPF_InstancedReference | CPF_ContainsInstancedReference | CPF_PersistentInstance;

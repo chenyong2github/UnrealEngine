@@ -1,16 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "LevelSnapshotsEditorData.h"
-#include "SLevelSnapshotsEditorInput.h"
-
-#include "Editor.h"
-#include "Engine/World.h"
-#include "UObject/UObjectGlobals.h"
 
 #include "FavoriteFilterContainer.h"
 #include "FilterLoader.h"
 #include "FilteredResults.h"
-#include "SnapshotRestorability.h"
+#include "LevelSnapshotsLog.h"
+
+#include "Editor.h"
+#include "Engine/World.h"
+#include "UObject/UObjectGlobals.h"
 
 ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer)
 {
@@ -22,7 +21,6 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
 		this,
 		TEXT("UserDefinedFilters")
 		);
-	UserDefinedFilters->SetFlags(RF_Transactional);
 
 	TrackedFilterModifiedHandle = UserDefinedFilters->OnFilterModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleFilterChange);
 	
@@ -53,22 +51,40 @@ ULevelSnapshotsEditorData::ULevelSnapshotsEditorData(const FObjectInitializer& O
         TEXT("FilterResults")
         );
 	FilterResults->SetUserFilters(UserDefinedFilters);
+}
 
-	OnWorldCleanup = FWorldDelegates::OnWorldCleanup.AddLambda([this](UWorld* World, bool bSessionEnded, bool bCleanupResources)
-    {
-        ClearActiveSnapshot();
-    });
+void ULevelSnapshotsEditorData::PostInitProperties()
+{
+	Super::PostInitProperties();
 
-	// Dirty filter state when an actor that is desirable for capture is modified.
-	OnObjectsEdited = FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleWorldActorsEdited);
+	// Class default should not register to global events
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UserDefinedFilters->MarkTransactional();
+		OnObjectsEdited = FCoreUObjectDelegates::OnObjectModified.AddUObject(this, &ULevelSnapshotsEditorData::HandleWorldActorsEdited);
+		
+		OnWorldCleanup = FWorldDelegates::OnWorldCleanup.AddLambda([this](UWorld* World, bool bSessionEnded, bool bCleanupResources)
+		{
+			ClearActiveSnapshot();
+		});
+	}
 }
 
 void ULevelSnapshotsEditorData::BeginDestroy()
 {
 	Super::BeginDestroy();
-	
-	FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanup);
-	FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectsEdited);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FWorldDelegates::OnWorldCleanup.Remove(OnWorldCleanup);
+		FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectsEdited);
+		
+		OnWorldCleanup.Reset();
+		OnObjectsEdited.Reset();
+	}
+
+	check(!OnWorldCleanup.IsValid());
+	check(!OnObjectsEdited.IsValid());
 }
 
 void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
@@ -85,8 +101,9 @@ void ULevelSnapshotsEditorData::CleanupAfterEditorClose()
 
 void ULevelSnapshotsEditorData::SetActiveSnapshot(const TOptional<ULevelSnapshot*>& NewActiveSnapshot)
 {
+	SCOPED_SNAPSHOT_EDITOR_TRACE(SetActiveSnapshot);
+	
 	ActiveSnapshot = NewActiveSnapshot.Get(nullptr) ? TStrongObjectPtr<ULevelSnapshot>(NewActiveSnapshot.GetValue()) : TOptional<TStrongObjectPtr<ULevelSnapshot>>();
-
 	FilterResults->SetActiveLevelSnapshot(NewActiveSnapshot.Get(nullptr));
 	OnActiveSnapshotChanged.Broadcast(GetActiveSnapshot());
 }
@@ -105,7 +122,9 @@ TOptional<ULevelSnapshot*> ULevelSnapshotsEditorData::GetActiveSnapshot() const
 
 UWorld* ULevelSnapshotsEditorData::GetEditorWorld()
 {
-	if (GEditor)
+	// If this function is called very early during startup, the initial editor GWorld may not have been created yet!
+	const bool bIsEngineInitialised = GEditor && GEditor->GetWorldContexts().Num() > 0;
+	if (bIsEngineInitialised)
 	{
 		if (UWorld* World = GEditor->GetEditorWorldContext().World())
 		{
@@ -153,7 +172,8 @@ UFilteredResults* ULevelSnapshotsEditorData::GetFilterResults() const
 
 void ULevelSnapshotsEditorData::HandleFilterChange(EFilterChangeType FilterChangeType)
 {
-	if (FilterChangeType != EFilterChangeType::RowAdded)
+	// Blank rows do not functionally change the filter
+	if (FilterChangeType != EFilterChangeType::BlankRowAdded)
 	{
 		SetIsFilterDirty(true);
 	}

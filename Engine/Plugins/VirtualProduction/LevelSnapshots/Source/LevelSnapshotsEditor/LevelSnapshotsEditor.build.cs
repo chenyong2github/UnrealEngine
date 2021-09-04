@@ -50,6 +50,7 @@ public class LevelSnapshotsEditor : ModuleRules
 				"EditorFramework",
 				"EditorStyle",
 				"EditorWidgets",
+				"GameProjectGeneration",
 				"InputCore",
 				"Kismet",
 				"LevelSnapshots",

@@ -60,6 +60,8 @@ FApplySnapshotFilter FApplySnapshotFilter::Make(ULevelSnapshot* Snapshot, AActor
 
 void FApplySnapshotFilter::ApplyFilterToFindSelectedProperties(FPropertySelectionMap& MapToAddTo)
 {
+	SCOPED_SNAPSHOT_CORE_TRACE(ApplyFilters);
+	
 	if (EnsureParametersAreValid() && FSnapshotRestorability::IsActorDesirableForCapture(WorldActor) && EFilterResult::CanInclude(Filter->IsActorValid({ DeserializedSnapshotActor, WorldActor })))
 	{
 		FilterActorPair(MapToAddTo);
@@ -98,14 +100,15 @@ bool FApplySnapshotFilter::EnsureParametersAreValid() const
 
 	UClass* WorldClass = WorldActor->GetClass();
 	UClass* DeserializedClass = DeserializedSnapshotActor->GetClass();
-	if (!ensure(WorldClass == DeserializedClass))
+	if (WorldClass != DeserializedClass)
 	{
 		UE_LOG(
             LogLevelSnapshots,
             Error,
-            TEXT("FApplySnapshotFilter::ApplyFilterToFindSelectedProperties: WorldActor class '%s' differs from DerserializedSnapshoatActor class '%s'. Differing classes are not supported."),
+            TEXT("FApplySnapshotFilter::ApplyFilterToFindSelectedProperties: WorldActor class '%s' differs from DerserializedSnapshoatActor class '%s'. Differing classes are not supported. (Actor: %s)"),
             *WorldActor->GetClass()->GetName(),
-            *DeserializedSnapshotActor->GetClass()->GetName()
+            *DeserializedSnapshotActor->GetClass()->GetName(),
+			*WorldActor->GetPathName()
         );
 		return false;
 	}

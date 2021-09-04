@@ -25,9 +25,9 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 void AColorCorrectRegion::BeginPlay()
 {	
 	Super::BeginPlay();
-	if (this->GetWorld())
+	if (const UWorld* World = GetWorld())
 	{
-		ColorCorrectRegionsSubsystem = Cast<UColorCorrectRegionsSubsystem>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
+		ColorCorrectRegionsSubsystem = World->GetSubsystem<UColorCorrectRegionsSubsystem>();
 	}
 
 	if (ColorCorrectRegionsSubsystem)
@@ -85,6 +85,13 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority))
 	{
+		if (!ColorCorrectRegionsSubsystem)
+		{
+			if (const UWorld* World = GetWorld())
+			{
+				ColorCorrectRegionsSubsystem = World->GetSubsystem<UColorCorrectRegionsSubsystem>();
+			}
+		}
 		if (ColorCorrectRegionsSubsystem)
 		{
 			ColorCorrectRegionsSubsystem->SortRegionsByPriority();

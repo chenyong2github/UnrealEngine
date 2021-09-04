@@ -8,10 +8,9 @@
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
-#include "LevelSnapshotsEditorStyle.h"
+#include "LevelSnapshotsLog.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/EditorStyle/Public/EditorStyleSet.h"
-#include "Framework/Commands/GenericCommands.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "Slate/Public/Framework/MultiBox/MultiBoxBuilder.h"
@@ -58,6 +57,8 @@ void SLevelSnapshotsEditorBrowser::Construct(const FArguments& InArgs, const TSh
 
 void SLevelSnapshotsEditorBrowser::SelectAsset(const FAssetData& InAssetData) const
 {
+	SCOPED_SNAPSHOT_EDITOR_TRACE(SelectSnapshotAsset);
+	
 	FScopedSlowTask SelectSnapshot(100.f, LOCTEXT("SelectSnapshotKey", "Loading snapshot"));
 	SelectSnapshot.EnterProgressFrame(60.f);
 	SelectSnapshot.MakeDialog();

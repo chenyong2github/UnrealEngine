@@ -516,7 +516,7 @@ void FCameraCalibrationStepsController::CreateComp()
 						break;
 					}
 				}
-		}
+			}
 		}
 
 		// Break since don't need to look at more UMediaTextureCompositingInputs.
@@ -579,7 +579,7 @@ void FCameraCalibrationStepsController::CreateComp()
 		return;
 	}
 
-	RenderTarget->RenderTargetFormat = RTF_RGBA8;
+	RenderTarget->RenderTargetFormat = RTF_RGBA16f;
 	RenderTarget->ClearColor = FLinearColor::Black;
 	RenderTarget->bAutoGenerateMips = true;
 	RenderTarget->InitAutoFormat(1920, 1080);
@@ -732,12 +732,12 @@ void FCameraCalibrationStepsController::EnableDistortionInCG()
 		// the CG layer will automatically pick it up and start using it.
 		if (DistortionHandler)
 		{
-		CaptureBase->SetDistortionHandler(DistortionHandler);
-	}
+			CaptureBase->SetDistortionHandler(DistortionHandler);
+		}
 		else
 		{
 			UE_LOG(LogCameraCalibrationEditor, Warning, TEXT("Could not find a distortion handler in the selected camera"));
-}
+		}
 	}
 }
 

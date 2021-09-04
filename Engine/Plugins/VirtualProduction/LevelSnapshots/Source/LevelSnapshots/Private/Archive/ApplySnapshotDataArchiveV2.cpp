@@ -4,8 +4,6 @@
 
 #include "LevelSnapshotsLog.h"
 #include "Data/PropertySelection.h"
-#include "LevelSnapshotsStats.h"
-#include "Archive/ClassDefaults/TakeClassDefaultObjectSnapshotArchive.h"
 #include "WorldSnapshotData.h"
 #include "ClassDefaults/ApplyClassDefaulDataArchive.h"
 
@@ -180,7 +178,7 @@ void FApplySnapshotDataArchiveV2::ApplyToRecreatedEditorWorldObject(FObjectSnaps
 
 bool FApplySnapshotDataArchiveV2::ShouldSkipProperty(const FProperty* InProperty) const
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ShouldSkipProperty_Loading"), STAT_ShouldSkipProperty_Loading, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(ShouldSkipProperty);
 	
 	bool bShouldSkipProperty = Super::ShouldSkipProperty(InProperty);
 	

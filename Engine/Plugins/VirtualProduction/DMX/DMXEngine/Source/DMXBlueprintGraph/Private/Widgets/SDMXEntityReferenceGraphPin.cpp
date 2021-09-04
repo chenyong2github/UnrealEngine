@@ -95,7 +95,7 @@ FDMXEntityReference SDMXEntityReferenceGraphPin::GetPinValue() const
 	{
 		FDMXEntityReference::StaticStruct()->ImportText(*EntityRefStr, &EntityReference, nullptr, EPropertyPortFlags::PPF_None, GLog, FDMXEntityReference::StaticStruct()->GetName());
 	}
-	else if (!GraphPinObj->IsPendingKill() && !GraphPinObj->GetSchema()->IsPendingKill() && GraphPinObj->GetDefaultAsString().IsEmpty())
+	else if (!GraphPinObj->IsPendingKill() && IsValid(GraphPinObj->GetSchema()) && GraphPinObj->GetDefaultAsString().IsEmpty())
 	{
 		// Defaults are empty and, no matter the type of Entity Ref, we would return UDMXEntity as type because
 		// we are creating a FDMXEntityReference to return.
