@@ -370,7 +370,7 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			* Alternative is to get all component ids from ViewFamily.Scene and compare with actor's 
 			*	Region->ActiveMeshComponent->ComponentId ComponentIdSearchTable.Contains(RegionPrimitiveComponentId)
 			*/
-			if (Region->IsPendingKill() || 
+			if (!IsValid(Region) || 
 				Region->IsActorBeingDestroyed() ||
 				!Region->Enabled || 
 				Region->IsHidden() ||

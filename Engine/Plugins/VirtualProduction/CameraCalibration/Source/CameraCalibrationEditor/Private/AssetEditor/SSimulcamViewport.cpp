@@ -59,7 +59,7 @@ void SSimulcamViewport::Construct(const FArguments& InArgs, UTexture* InTexture)
 				Opacity.MaskA = 1;
 			}
 
-			Material->BlendMode = BLEND_AlphaComposite;
+			Material->BlendMode = BLEND_Opaque;
 
 			Material->Expressions.Add(TextureSampler);
 			Material->MaterialDomain = EMaterialDomain::MD_UI;

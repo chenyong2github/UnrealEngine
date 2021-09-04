@@ -5,7 +5,6 @@
 #include "LevelSnapshot.h"
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsFunctionLibrary.h"
-#include "LevelSnapshotsStats.h"
 
 #include "EngineUtils.h"
 #include "Stats/StatsMisc.h"
@@ -29,7 +28,6 @@ void UFilteredResults::SetUserFilters(ULevelSnapshotFilter* InUserFilters)
 
 void UFilteredResults::UpdateFilteredResults(UWorld* SelectedWorld)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UpdateFilteredResults"), STAT_UpdateFilteredResults, STATGROUP_LevelSnapshots);
 	if (!ensure(UserSelectedSnapshot.IsValid()) || !ensure(UserFilters.IsValid()) || !ensure(SelectedWorld))
 	{
 		return;

@@ -6,7 +6,6 @@
 #include "LevelSnapshotFilters.h"
 #include "LevelSnapshotsFunctionLibrary.h"
 #include "LevelSnapshotsLog.h"
-#include "LevelSnapshotsStats.h"
 
 #include "GameFramework/Actor.h"
 #include "Misc/ScopedSlowTask.h"
@@ -15,6 +14,8 @@
 
 void FFilterListData::UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnapshot, ULevelSnapshotFilter* FilterToApply)
 {
+	SCOPED_SNAPSHOT_EDITOR_TRACE(UpdateFilteredList);
+	
 	// We only track progress of HandleActorExistsInWorldAndSnapshot because the other two functions are relatively fast in comparison: deserialisation takes much longer.
 	const int32 ExpectedAmountOfWork = FromSnapshot->GetNumSavedActors();
 	FScopedSlowTask DiffDeserializedActors(ExpectedAmountOfWork, LOCTEXT("DiffingActorsKey", "Diffing actors"));
@@ -38,8 +39,6 @@ void FFilterListData::UpdateFilteredList(UWorld* World, ULevelSnapshot* FromSnap
 
 void FFilterListData::ApplyFilterToFindSelectedProperties(AActor* WorldActor, ULevelSnapshotFilter* FilterToApply)
 {
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("ApplyFilterToFindSelectedProperties"), STAT_ApplyFilterToFindSelectedProperties, STATGROUP_LevelSnapshots);
-	
 	const FPropertySelection* AllowedSelectedProperties = ModifiedActorsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
 	const FPropertySelection* DisallowedSelectedProperties = ModifiedActorsSelectedProperties_AllowedByFilter.GetSelectedProperties(WorldActor);
 	

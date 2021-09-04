@@ -176,7 +176,7 @@ void UTakeRecorderNearbySpawnedActorSource::HandleActorSpawned(AActor* Actor, cl
 		return;
 	}
 
-	UE_LOG(LogTakesCore, Log, TEXT("Actor: %s PendingKill: %d PendingKillOrUnreachable: %d PendingKillPending: %d"), *Actor->GetName(), Actor->IsPendingKill(), Actor->IsPendingKillOrUnreachable(), Actor->IsPendingKillPending());
+	UE_LOG(LogTakesCore, Log, TEXT("Actor: %s IsValid: %d PendingKillOrUnreachable: %d PendingKillPending: %d"), *Actor->GetName(), ::IsValid(Actor), Actor->IsPendingKillOrUnreachable(), Actor->IsPendingKillPending());
 
 	UTakeRecorderSources* Sources = InSequence->FindOrAddMetaData<UTakeRecorderSources>();
 

@@ -2,6 +2,7 @@
 
 #include "Views/Input/SLevelSnapshotsEditorInput.h"
 
+#include "Editor.h"
 #include "ILevelSnapshotsEditorView.h"
 #include "Views/Input/LevelSnapshotsEditorInput.h"
 #include "LevelSnapshotsEditorData.h"
@@ -17,7 +18,7 @@
 
 SLevelSnapshotsEditorInput::~SLevelSnapshotsEditorInput()
 {
-	FCoreUObjectDelegates::OnObjectModified.Remove(OnObjectModifiedDelegateHandle);
+	FEditorDelegates::OnMapOpened.Remove(OnMapOpenedDelegateHandle);
 }
 
 void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TSharedRef<FLevelSnapshotsEditorInput>& InEditorInput, const TSharedRef<FLevelSnapshotsEditorViewBuilder>& InBuilder)
@@ -27,16 +28,24 @@ void SLevelSnapshotsEditorInput::Construct(const FArguments& InArgs, const TShar
 
 	check(BuilderPtr.Pin()->EditorDataPtr.IsValid());
 
-	ChildSlot
-		[
-			SAssignNew(EditorInputOuterVerticalBox, SVerticalBox)
+	OnMapOpenedDelegateHandle = FEditorDelegates::OnMapOpened.AddLambda([this] (const FString& InFileName, const bool bAsTemplate)
+	{
+		check(BuilderPtr.IsValid());
+		check(BuilderPtr.Pin()->EditorDataPtr.IsValid());
+	
+		OverrideWorld(BuilderPtr.Pin()->EditorDataPtr->GetEditorWorld());
+	});
 
-			+ SVerticalBox::Slot()
-			[
-				SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InBuilder)
-				.OwningWorldPath(BuilderPtr.Pin()->EditorDataPtr->GetEditorWorld())
-			]
-		];
+	ChildSlot
+	[
+		SAssignNew(EditorInputOuterVerticalBox, SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		[
+			SAssignNew(EditorBrowserWidgetPtr, SLevelSnapshotsEditorBrowser, InBuilder)
+			.OwningWorldPath(BuilderPtr.Pin()->EditorDataPtr->GetEditorWorld())
+		]
+	];
 }
 
 void SLevelSnapshotsEditorInput::OpenLevelSnapshotsDialogWithAssetSelected(const FAssetData& InAssetData) const

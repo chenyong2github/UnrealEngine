@@ -31,6 +31,7 @@ public class LevelSnapshots : ModuleRules
             new string[]
             {
                 "Core",
+                "TraceLog"
             }
             );
 

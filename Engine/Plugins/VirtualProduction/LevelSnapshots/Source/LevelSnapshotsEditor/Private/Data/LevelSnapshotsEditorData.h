@@ -26,6 +26,7 @@ public:
 	ULevelSnapshotsEditorData(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UObject Interface
+	virtual void PostInitProperties() override;
 	virtual void BeginDestroy() override;
 	//~ End UObject Interface
 	

@@ -17,6 +17,7 @@
 #include "EditorStyleSet.h"
 #include "Framework/Docking/LayoutService.h"
 #include "Stats/StatsMisc.h"
+#include "Util/TakeSnapshotUtil.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -301,7 +302,7 @@ TSharedRef<SDockTab> FLevelSnapshotsEditorToolkit::SpawnTab_Results(const FSpawn
 
 FReply FLevelSnapshotsEditorToolkit::OnClickTakeSnapshot()
 {
-	FLevelSnapshotsEditorModule::Get().BuildPathsToSaveSnapshotWithOptionalForm();
+	SnapshotEditor::TakeSnapshotWithOptionalForm();
 	return FReply::Handled();
 }
 

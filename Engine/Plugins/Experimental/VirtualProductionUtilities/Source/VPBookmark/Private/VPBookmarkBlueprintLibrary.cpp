@@ -57,7 +57,7 @@ void UVPBookmarkBlueprintLibrary::GetAllVPBookmarkActors(const UObject* WorldCon
 				{
 					if (AActor* Actor = Bookmark->OwnedActor.Get())
 					{
-						if (!Bookmark->IsPendingKill() && !Actor->IsPendingKill())
+						if (IsValid(Bookmark) && IsValid(Actor))
 						{
 							OutActors.Add(Actor);
 						}
@@ -85,7 +85,7 @@ void UVPBookmarkBlueprintLibrary::GetAllVPBookmark(const UObject* WorldContextOb
 			{
 				if (UVPBookmark* Bookmark = Cast<UVPBookmark>(Base))
 				{
-					if (!Bookmark->IsPendingKill())
+					if (IsValid(Bookmark))
 					{
 						OutBookmarks.Add(Bookmark);
 					}

@@ -11,11 +11,13 @@
 #if WITH_EDITOR
 #include "Editor.h"
 #include "EditorAssetLibrary.h"
+#include "ITakeRecorderModule.h"
 #include "LevelEditor.h"
 #include "LevelEditorViewport.h"
 #include "SceneView.h"
 #include "SLevelViewport.h"
 #include "LevelSequenceEditorBlueprintLibrary.h"
+#include "TakePreset.h"
 #include "VPUtilitiesEditor/Public/VPUtilitiesEditorBlueprintLibrary.h"
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "LevelEditor/Public/LevelEditorSubsystem.h"
@@ -38,7 +40,20 @@ UVirtualCameraUserSettings* UVCamBlueprintFunctionLibrary::GetUserSettings()
 ULevelSequence* UVCamBlueprintFunctionLibrary::GetCurrentLevelSequence()
 {
 #if WITH_EDITOR
-	return ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+	ULevelSequence* LevelSequence = ULevelSequenceEditorBlueprintLibrary::GetCurrentLevelSequence();
+
+	//if there's no sequence open in sequencer, use take recorder's pending take
+	if (!LevelSequence)
+	{
+		ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+		UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
+		
+		if (TakePreset)
+		{
+			LevelSequence = TakePreset->GetLevelSequence();
+		}
+	}
+	return LevelSequence;
 #else
 	return nullptr;
 #endif

@@ -2,7 +2,7 @@
 
 #include "PropertySelectionMap.h"
 
-#include "LevelSnapshotsStats.h"
+#include "LevelSnapshotsLog.h"
 
 #include "GameFramework/Actor.h"
 #include "UObject/UObjectHash.h"
@@ -68,8 +68,7 @@ void FPropertySelectionMap::Empty(bool bCanShrink)
 
 TArray<UObject*> FPropertySelectionMap::GetDirectSubobjectsWithProperties(UObject* Root) const
 {
-	// TODO post 4.27: Profile this and possibly build a TMap<UObject*, TArray<UObject*>> as the map is created
-	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("GetDirectSubobjectsWithProperties"), STAT_GetDirectSubobjectsWithProperties, STATGROUP_LevelSnapshots);
+	SCOPED_SNAPSHOT_CORE_TRACE(GetDirectSubobjectsWithProperties);
 	
 	TArray<UObject*> Subobjects;
 	GetObjectsWithOuter(Root, Subobjects, true);

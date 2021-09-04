@@ -701,7 +701,7 @@ ACameraActor* ACompositingElement::FindTargetCamera() const
 		for (TActorIterator<ACineCameraActor> CamActorIt(GetWorld()); CamActorIt; ++CamActorIt)
 		{
 			ACineCameraActor* FoundActor = *CamActorIt;
-			if (!FoundActor->IsPendingKill())
+			if (IsValid(FoundActor))
 			{
 				return FoundActor;
 			}
@@ -710,7 +710,7 @@ ACameraActor* ACompositingElement::FindTargetCamera() const
 		for (TActorIterator<ACameraActor> CamActorIt(GetWorld()); CamActorIt; ++CamActorIt)
 		{
 			ACameraActor* FoundActor = *CamActorIt;
-			if (!FoundActor->IsPendingKill())
+			if (IsValid(FoundActor))
 			{
 				return FoundActor;
 			}
