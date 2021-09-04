@@ -17,6 +17,7 @@ namespace EpicGames.Serialization
 	/// <summary>
 	/// Attribute used to mark a property that should be serialized to compact binary
 	/// </summary>
+	[AttributeUsage(AttributeTargets.Property)]
 	public class CbFieldAttribute : Attribute
 	{
 		/// <summary>
