@@ -13,7 +13,6 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Views/STreeView.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXEntityTreeViewBase"
