@@ -7,6 +7,7 @@
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STreeView.h"
 
 class FDMXEditor;
 class UDMXLibrary;
