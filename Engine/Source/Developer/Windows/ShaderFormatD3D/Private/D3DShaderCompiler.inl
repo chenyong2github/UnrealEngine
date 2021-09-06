@@ -247,8 +247,11 @@ public:
 template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename D3D1x_SHADER_INPUT_BIND_DESC,
 	typename ID3D1xShaderReflectionConstantBuffer, typename D3D1x_SHADER_BUFFER_DESC,
 	typename ID3D1xShaderReflectionVariable, typename D3D1x_SHADER_VARIABLE_DESC>
-inline void ExtractParameterMapFromD3DShader(
-		uint32 TargetPlatform, uint32 BindingSpace, const FString& VirtualSourceFilePath, ID3D1xShaderReflection* Reflector, const D3D1x_SHADER_DESC& ShaderDesc,
+	inline void ExtractParameterMapFromD3DShader(
+		const FShaderCompilerInput& Input,
+		const FShaderParameterParser& ShaderParameterParser,
+		uint32 BindingSpace,
+		ID3D1xShaderReflection* Reflector, const D3D1x_SHADER_DESC& ShaderDesc,
 		bool& bGlobalUniformBufferUsed, bool& bDiagnosticBufferUsed, uint32& NumSamplers, uint32& NumSRVs, uint32& NumCBs, uint32& NumUAVs,
 		FShaderCompilerOutput& Output, TArray<FString>& UniformBufferNames, TBitArray<>& UsedUniformBufferSlots, TArray<FShaderCodeVendorExtension>& VendorExtensions)
 {
@@ -270,28 +273,99 @@ inline void ExtractParameterMapFromD3DShader(
 			D3D1x_SHADER_BUFFER_DESC CBDesc;
 			ConstantBuffer->GetDesc(&CBDesc);
 			bool bGlobalCB = (FCStringAnsi::Strcmp(CBDesc.Name, "$Globals") == 0);
+			const bool bIsRootCB = FCString::Strcmp(ANSI_TO_TCHAR(CBDesc.Name), FShaderParametersMetadata::kRootUniformBufferBindingName) == 0;
 
 			if (bGlobalCB)
 			{
-				// Track all of the variables in this constant buffer.
-				for (uint32 ConstantIndex = 0; ConstantIndex < CBDesc.Variables; ConstantIndex++)
+				if (ShouldUseStableConstantBuffer(Input))
 				{
-					ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
-					D3D1x_SHADER_VARIABLE_DESC VariableDesc;
-					Variable->GetDesc(&VariableDesc);
-					if (VariableDesc.uFlags & D3D_SVF_USED)
+					// Each member found in the global constant buffer means it was not in RootParametersStructure or
+					// it would have been moved by ShaderParameterParser.ParseAndMoveShaderParametersToRootConstantBuffer().
+					for (uint32 ConstantIndex = 0; ConstantIndex < CBDesc.Variables; ConstantIndex++)
 					{
-						bGlobalUniformBufferUsed = true;
+						ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
+						D3D1x_SHADER_VARIABLE_DESC VariableDesc;
+						Variable->GetDesc(&VariableDesc);
+						if (VariableDesc.uFlags & D3D_SVF_USED)
+						{
+							AddUnboundShaderParameterError(
+								Input,
+								ShaderParameterParser,
+								ANSI_TO_TCHAR(VariableDesc.Name),
+								Output);
+						}
+					}
+				}
+				else
+				{
+					// Track all of the variables in this constant buffer.
+					for (uint32 ConstantIndex = 0; ConstantIndex < CBDesc.Variables; ConstantIndex++)
+					{
+						ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
+						D3D1x_SHADER_VARIABLE_DESC VariableDesc;
+						Variable->GetDesc(&VariableDesc);
+						if (VariableDesc.uFlags & D3D_SVF_USED)
+						{
+							bGlobalUniformBufferUsed = true;
 
+							Output.ParameterMap.AddParameterAllocation(
+								ANSI_TO_TCHAR(VariableDesc.Name),
+								CBIndex,
+								VariableDesc.StartOffset,
+								VariableDesc.Size,
+								EShaderParameterType::LooseData
+							);
+							UsedUniformBufferSlots[CBIndex] = true;
+						}
+					}
+				}
+			}
+			else if (bIsRootCB && ShouldUseStableConstantBuffer(Input))
+			{
+				if (CBIndex == FShaderParametersMetadata::kRootCBufferBindingIndex)
+				{
+					int32 ConstantBufferSize = 0;
+
+					// Track all of the variables in this constant buffer.
+					for (uint32 ConstantIndex = 0; ConstantIndex < CBDesc.Variables; ConstantIndex++)
+					{
+						ID3D1xShaderReflectionVariable* Variable = ConstantBuffer->GetVariableByIndex(ConstantIndex);
+						D3D1x_SHADER_VARIABLE_DESC VariableDesc;
+						Variable->GetDesc(&VariableDesc);
+						if (VariableDesc.uFlags & D3D_SVF_USED)
+						{
+							FString MemberName(ANSI_TO_TCHAR(VariableDesc.Name));
+							int32 ReflectionSize = VariableDesc.Size;
+							int32 ReflectionOffset = VariableDesc.StartOffset;
+
+							ShaderParameterParser.ValidateShaderParameterType(Input, MemberName, ReflectionOffset, ReflectionSize, Output);
+
+							ConstantBufferSize = FMath::Max(ConstantBufferSize, ReflectionOffset + ReflectionSize);
+						}
+					}
+
+					if (ConstantBufferSize > 0)
+					{
 						Output.ParameterMap.AddParameterAllocation(
-							ANSI_TO_TCHAR(VariableDesc.Name),
-							CBIndex,
-							VariableDesc.StartOffset,
-							VariableDesc.Size,
-							EShaderParameterType::LooseData
-						);
+							FShaderParametersMetadata::kRootUniformBufferBindingName,
+							FShaderParametersMetadata::kRootCBufferBindingIndex,
+							/* Offset = */ uint16(0),
+							/* Size = */ uint16(ConstantBufferSize),
+							EShaderParameterType::LooseData);
+
+						bGlobalUniformBufferUsed = true;
 						UsedUniformBufferSlots[CBIndex] = true;
 					}
+				}
+				else
+				{
+					FString ErrorMessage = FString::Printf(
+						TEXT("Error: %s is expected to always be in the API slot %d, but is actually in slot %d."),
+						FShaderParametersMetadata::kRootUniformBufferBindingName,
+						FShaderParametersMetadata::kRootCBufferBindingIndex,
+						CBIndex);
+					Output.Errors.Add(FShaderCompilerError(*ErrorMessage));
+					Output.bSucceeded = false;
 				}
 			}
 			else
