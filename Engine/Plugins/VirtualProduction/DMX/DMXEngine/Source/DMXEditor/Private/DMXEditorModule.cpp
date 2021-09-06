@@ -6,25 +6,29 @@
 #include "DMXEditor.h"
 #include "DMXEditorStyle.h"
 #include "DMXEditorTabNames.h"
-#include "DMXProtocolTypes.h"
 #include "DMXProtocolBlueprintLibrary.h"
-#include "Library/DMXLibrary.h"
+#include "DMXProtocolTypes.h"
+#include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
+#include "Customizations/DMXEntityReferenceCustomization.h"
+#include "Customizations/DMXFixtureFunctionCustomization.h"
+#include "Customizations/DMXFixtureModeCustomization.h"
+#include "Customizations/DMXLibraryPortReferencesCustomization.h"
+#include "Customizations/DMXNameListCustomization.h"
+#include "Customizations/DMXPixelMappingDistributionCustomization.h"
+#include "Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
+#include "Commands/DMXEditorCommands.h"
+#include "Game/DMXComponent.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntity.h"
-#include "Game/DMXComponent.h"
-#include "Commands/DMXEditorCommands.h"
-#include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
-#include "Customizations/DMXEditorPropertyEditorCustomization.h"
-#include "Customizations/DMXLibraryPortReferencesCustomization.h"
+#include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXLibrary.h"
 #include "Sequencer/DMXLibraryTrackEditor.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
-#include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
 #include "Widgets/Monitors/SDMXActivityMonitor.h"
 #include "Widgets/Monitors/SDMXChannelsMonitor.h"
 #include "Widgets/OutputConsole/SDMXOutputConsole.h"
 #include "Widgets/PatchTool/SDMXPatchTool.h"
 
-#include "Templates/SharedPointer.h"
 #include "LevelEditor.h"
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
@@ -34,7 +38,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Toolkits/GlobalEditorCommonCommands.h"
+#include "Templates/SharedPointer.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -217,21 +221,33 @@ void FDMXEditorModule::RegisterAssetTypeActions()
 
 void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 {
-	// Customizations for the name lists of our custom types, like Fixture Categories
-	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXProtocolName>>));
-	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXFixtureCategory>>));
-	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
-	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelMappingDistributionCustomization>));
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-	// Customizations for the Entity Reference types
-	RegisterCustomPropertyTypeLayout(FDMXEntityFixtureTypeRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
-	RegisterCustomPropertyTypeLayout(FDMXEntityFixturePatchRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
+	// Property type customization for the DMXFixtureMode struct
+	FOnGetPropertyTypeCustomizationInstance FixtureModePropertyTypeCustomizationGetter = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXFixtureModeCustomization::MakeInstance);
+	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXFixtureMode::StaticStruct()->GetFName(), FixtureModePropertyTypeCustomizationGetter);
+
+	// Property type customization for the DMXFixtureFunction struct
+	FOnGetPropertyTypeCustomizationInstance FixtureFunctionPropertyTypeCustomizationGetter = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXFixtureFunctionCustomization::MakeInstance);
+	PropertyModule.RegisterCustomPropertyTypeLayout(FDMXFixtureFunction::StaticStruct()->GetFName(), FixtureFunctionPropertyTypeCustomizationGetter);
+
+	// Property type customization for the EDMXPixelMappingDistribution enum
+	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXPixelMappingDistributionCustomization::MakeInstance));
+
+	// Property type customization for Name List structs
+	RegisterCustomPropertyTypeLayout(FDMXProtocolName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXNameListCustomization<FDMXProtocolName>::MakeInstance));
+	RegisterCustomPropertyTypeLayout(FDMXFixtureCategory::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXNameListCustomization<FDMXFixtureCategory>::MakeInstance));
+	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXNameListCustomization<FDMXAttributeName>::MakeInstance));
+
+	// Customizations for the Entity Reference structs
+	RegisterCustomPropertyTypeLayout(FDMXEntityFixtureTypeRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXEntityReferenceCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout(FDMXEntityFixturePatchRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXEntityReferenceCustomization::MakeInstance));
 
 	// Customization for the DMXLibraryPortReferences struct type
-	RegisterCustomPropertyTypeLayout(FDMXLibraryPortReferences::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryPortReferencesCustomization>));
+	RegisterCustomPropertyTypeLayout(FDMXLibraryPortReferences::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXLibraryPortReferencesCustomization::MakeInstance));
 
 	// DMXLibrary TakeRecorder AddAllPatchesButton customization
-	RegisterCustomPropertyTypeLayout(FAddAllPatchesButton::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXLibraryRecorderAddAllPatchesButtonCustomization>));
+	RegisterCustomPropertyTypeLayout(FAddAllPatchesButton::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FTakeRecorderDMXLibrarySourceEditorCustomization::MakeInstance));
 }
 
 void FDMXEditorModule::RegisterSequencerTypes()

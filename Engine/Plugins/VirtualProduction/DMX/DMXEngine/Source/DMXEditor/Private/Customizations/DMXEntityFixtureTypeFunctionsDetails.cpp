@@ -18,6 +18,11 @@
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixtureTypeFunctionsDetails"
 
+TSharedRef<IDetailCustomization> FDMXEntityFixtureTypeFunctionsDetails::MakeInstance(TWeakPtr<FDMXEditor> InDMXEditorPtr)
+{
+	return MakeShared<FDMXEntityFixtureTypeFunctionsDetails>(InDMXEditorPtr);
+}
+
 void FDMXEntityFixtureTypeFunctionsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	DetailBuilder.HideCategory("Entity Properties");

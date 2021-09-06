@@ -10,6 +10,11 @@
 
 #define LOCTEXT_NAMESPACE "DMXEntityFixtureTypeFixtureSettingsDetails"
 
+TSharedRef<IDetailCustomization> FDMXEntityFixtureTypeFixtureSettingsDetails::MakeInstance(TWeakPtr<FDMXEditor> InDMXEditorPtr)
+{
+	return MakeShared<FDMXEntityFixtureTypeFixtureSettingsDetails>(InDMXEditorPtr);
+}
+
 void FDMXEntityFixtureTypeFixtureSettingsDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	DetailBuilder.HideProperty(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes));
