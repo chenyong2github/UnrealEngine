@@ -81,6 +81,7 @@ public:
 		MaxScaleX = 1.0E10; // 10ns between major tick marks
 		ScaleX = (5 * 20) / 5.0; // 5s between major tick marks
 
+		PosY = 0.0f;
 		TopOffset = 0.0f;
 		BottomOffset = 0.0f;
 		ScrollHeight = 1.0f;
@@ -182,6 +183,10 @@ public:
 	//////////////////////////////////////////////////
 	// Vertical axis
 
+	/** The Y position where it starts the top docked tracks (i.e. height of the toolbar), in pixels. [px] */
+	float GetPosY() const { return PosY; }
+	void SetPosY(float InPosY) { PosY = InPosY; }
+
 	/** Top offset (total height of the visible top docked tracks), in pixels. [px] */
 	float GetTopOffset() const { return TopOffset; }
 	void SetTopOffset(float InTopOffset) { TopOffset = InTopOffset; }
@@ -200,7 +205,7 @@ public:
 	float GetScrollPosY() const { return ScrollPosY; }
 	void SetScrollPosY(const float InScrollPosY) { ScrollPosY = InScrollPosY; }
 
-	float GetViewportY(const float Y) const { return TopOffset + Y - ScrollPosY; }
+	float GetViewportY(const float Y) const { return PosY + TopOffset + Y - ScrollPosY; }
 
 	const FTimingViewLayout& GetLayout() const { return Layout; }
 	void UpdateLayout();
@@ -260,6 +265,7 @@ private:
 	double MaxScaleX; // max scale factor; [px/s]
 	double ScaleX; // scale factor between seconds and pixels; [px/s]
 
+	float PosY; // position of top docked tracks == height of toolbar; [px]
 	float TopOffset; // top offset, in pixels; [px]
 	float BottomOffset; // bottom offset, in pixels; [px]
 	float ScrollHeight; // height of the vertical scrollable area, in pixels; [px]

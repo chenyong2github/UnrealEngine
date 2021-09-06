@@ -182,6 +182,11 @@ TSharedRef<FSlateStyleSet> FInsightsStyle::Create()
 
 	Style.Set("Icon.Bug", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/Common/bug", Icon24x24));
 
+	Style.Set("Icon.AutoScroll", new IMAGE_BRUSH_SVG("../../Editor/Slate/Starship/MainToolbar/play", Icon24x24));
+	Style.Set("Icon.AllTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
+	Style.Set("Icon.CpuGpuTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
+	Style.Set("Icon.OtherTracksMenu", new CORE_IMAGE_BRUSH_SVG("Starship/Common/menu", Icon24x24));
+
 	return StyleRef;
 }
 

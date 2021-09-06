@@ -20,7 +20,7 @@
 // FTimingProfilerMenuBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTimingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TSharedPtr< FUICommandInfo >& UICommandInfo, const FUIAction& UIAction)
+void FTimingProfilerMenuBuilder::AddMenuEntry(FMenuBuilder& MenuBuilder, const TSharedPtr<FUICommandInfo>& UICommandInfo, const FUIAction& UIAction)
 {
 	MenuBuilder.AddMenuEntry
 	(
@@ -103,7 +103,7 @@ void FTimingViewCommands::RegisterCommands()
 		FInputChord(EKeys::G));
 
 	UI_COMMAND(QuickFind,
-		"Quick Find",
+		"Quick Find...",
 		"Quick find or filter events in the timing view.",
 		EUserInterfaceActionType::Button,
 		FInputChord(EModifierKey::Control, EKeys::F));

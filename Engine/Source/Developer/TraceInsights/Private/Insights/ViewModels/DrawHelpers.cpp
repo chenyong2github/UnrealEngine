@@ -166,7 +166,7 @@ void FDrawHelpers::DrawTimeRangeSelection(
 
 		if (SelectionX1 <= MaxX && SelectionX2 >= MinX)
 		{
-			const float Y = 0.0f;
+			const float Y = Viewport.GetPosY();
 			const float H = Viewport.GetHeight();
 
 			const double Duration = EndTime - StartTime;

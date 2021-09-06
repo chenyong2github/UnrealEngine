@@ -185,7 +185,7 @@ void FMarkersTimingTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 	}
 	else
 	{
-		BoxY = 0.0f;
+		BoxY = Viewport.GetPosY();
 		BoxH = Viewport.GetHeight();
 	}
 

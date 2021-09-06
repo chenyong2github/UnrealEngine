@@ -119,12 +119,12 @@ void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Contex
 		{
 			case ETimingTrackLocation::Scrollable:
 			{
-				const float TopY = Viewport.GetTopOffset();
+				const float TopY = Viewport.GetPosY() + Viewport.GetTopOffset();
 				if (LineY1 < TopY)
 				{
 					LineY1 = TopY;
 				}
-				const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+				const float BottomY = Viewport.GetPosY() + Viewport.GetHeight() - Viewport.GetBottomOffset();
 				if (LineY2 > BottomY)
 				{
 					LineY2 = BottomY;
@@ -133,12 +133,12 @@ void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Contex
 			}
 			case ETimingTrackLocation::TopDocked:
 			{
-				const float TopY = 0.0f;
+				const float TopY = Viewport.GetPosY();
 				if (LineY1 < TopY)
 				{
 					LineY1 = TopY;
 				}
-				const float BottomY = Viewport.GetTopOffset();
+				const float BottomY = Viewport.GetPosY() + Viewport.GetTopOffset();
 				if (LineY2 > BottomY)
 				{
 					LineY2 = BottomY;
@@ -147,12 +147,12 @@ void FContextSwitchesTimingTrack::PostDraw(const ITimingTrackDrawContext& Contex
 			}
 			case ETimingTrackLocation::BottomDocked:
 			{
-				const float TopY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+				const float TopY = Viewport.GetPosY() + Viewport.GetHeight() - Viewport.GetBottomOffset();
 				if (LineY1 < TopY)
 				{
 					LineY1 = TopY;
 				}
-				const float BottomY = Viewport.GetHeight();
+				const float BottomY = Viewport.GetPosY() + Viewport.GetHeight();
 				if (LineY2 > BottomY)
 				{
 					LineY2 = BottomY;
