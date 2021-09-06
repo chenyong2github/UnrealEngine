@@ -96,6 +96,12 @@ void FAnimGraphNodeDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 		return;
 	}
 
+	// In the case of property row generators, we dont have a details view, so we can skip this work
+	if(DetailBuilder.GetDetailsView() == nullptr)
+	{
+		return;
+	}
+	
 	// customize anim graph node's own details if needed
 	AnimGraphNode->CustomizeDetails(DetailBuilder);
 

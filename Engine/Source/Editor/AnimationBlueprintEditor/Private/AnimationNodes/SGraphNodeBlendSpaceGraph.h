@@ -17,14 +17,11 @@ public:
 
 	void Construct(const FArguments& InArgs, class UAnimGraphNode_BlendSpaceGraphBase* InNode);
 
-	// SGraphNode interface
-	virtual void UpdateGraphNode() override;
-	// End of SGraphNode interface
-
 protected:
 	// SGraphNodeK2Composite interface
 	virtual UEdGraph* GetInnerGraph() const override;
-
+	virtual TSharedRef<SWidget> CreateNodeBody() override;
+	
 	// SGraphNode interface
 	TSharedPtr<SToolTip> GetComplexTooltip() override;
 };

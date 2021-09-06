@@ -8,6 +8,9 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimNode_SequencePlayer.h"
 #include "AnimGraphNode_SequencePlayer.h"
+#include "Styling/StyleColors.h"
+#include "SLevelOfDetailBranchNode.h"
+#include "Widgets/Layout/SSpacer.h"
 
 /////////////////////////////////////////////////////
 // SGraphNodeSequencePlayer
@@ -71,22 +74,35 @@ void SGraphNodeSequencePlayer::UpdateGraphNode()
 	SGraphNode::UpdateGraphNode();
 }
 
-void SGraphNodeSequencePlayer::CreateBelowWidgetControls(TSharedPtr<SVerticalBox> MainBox)
+void SGraphNodeSequencePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox)
 {
-	FLinearColor Yellow(0.9f, 0.9f, 0.125f);
-
-	MainBox->AddSlot()
+	SAnimationGraphNode::CreateBelowPinControls(MainBox);
+	
+	// Insert above the error reporting bar
+	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
 	.AutoHeight()
 	.VAlign( VAlign_Fill )
-	.Padding(FMargin(0, 4, 0, 0))
+	.Padding(FMargin(4))
 	[
-		SNew(SSlider)
-		.ToolTipText(this, &SGraphNodeSequencePlayer::GetPositionTooltip)
-		.Visibility(this, &SGraphNodeSequencePlayer::GetSliderVisibility)
-		.Value(this, &SGraphNodeSequencePlayer::GetSequencePositionRatio)
-		.OnValueChanged(this, &SGraphNodeSequencePlayer::SetSequencePositionRatio)
-		.Locked(false)
-		.SliderHandleColor(Yellow)
+		SNew(SLevelOfDetailBranchNode)
+		.UseLowDetailSlot(this, &SGraphNodeSequencePlayer::UseLowDetailNodeTitles)
+		.LowDetail()
+		[
+			SNew(SSpacer)
+			.Size(FVector2D(16.0f, 16.f))
+		]
+		.HighDetail()
+		[
+			SNew(SSlider)
+			.Style(&FEditorStyle::Get().GetWidgetStyle<FSliderStyle>("AnimBlueprint.AssetPlayerSlider"))
+			.ToolTipText(this, &SGraphNodeSequencePlayer::GetPositionTooltip)
+			.Visibility(this, &SGraphNodeSequencePlayer::GetSliderVisibility)
+			.Value(this, &SGraphNodeSequencePlayer::GetSequencePositionRatio)
+			.OnValueChanged(this, &SGraphNodeSequencePlayer::SetSequencePositionRatio)
+			.Locked(false)
+			.SliderHandleColor(FStyleColors::White)
+			.SliderBarColor(FStyleColors::Foreground)
+		]
 	];
 }
 
