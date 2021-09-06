@@ -387,6 +387,9 @@ public:
 	FORCEINLINE FGeometryCollectionEdit EditRestCollection(GeometryCollection::EEditUpdate EditUpdate = GeometryCollection::EEditUpdate::RestPhysics) { return FGeometryCollectionEdit(this, EditUpdate); }
 #if WITH_EDITOR
 	FORCEINLINE FScopedColorEdit EditBoneSelection() { return FScopedColorEdit(this); }
+
+	/** Propagate bone selection to embedded geometry components. */
+	void SelectEmbeddedGeometry();
 #endif
 
 	/** API for getting at geometry collection data */
@@ -660,6 +663,12 @@ public:
 	/** Update instanced static mesh components to reflect internal embedded geometry state. */
 	void RefreshEmbeddedGeometry();
 
+#if WITH_EDITOR
+	void SetEmbeddedGeometrySelectable(bool bSelectableIn);
+	int32 EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const;
+#endif
+
+	
 	// #todo should this only be available in editor?
 	void SetRestState(TArray<FTransform>&& InRestTransforms);
 
@@ -824,6 +833,11 @@ private:
 	/** The information of all the embedded instanced static meshes */
 	UPROPERTY()
 	TArray<TObjectPtr<UInstancedStaticMeshComponent>> EmbeddedGeometryComponents;
+
+#if WITH_EDITORONLY_DATA
+	TArray<TArray<int32>> EmbeddedBoneMaps;
+	TArray<int32> EmbeddedInstanceIndex;
+#endif
 
 	bool IsEmbeddedGeometryValid() const;
 	void ClearEmbeddedGeometry();

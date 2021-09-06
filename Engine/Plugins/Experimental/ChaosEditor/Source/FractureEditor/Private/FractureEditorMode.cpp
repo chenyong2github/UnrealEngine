@@ -26,6 +26,7 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
+#include "Components/InstancedStaticMeshComponent.h"
 
 
 #include "UnrealEdGlobals.h"
@@ -178,7 +179,6 @@ bool UFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 		{
 			TArray<int32> BoneIndices({GeometryCollectionProxy->BoneIndex});
 
-			FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), GeometryCollectionProxy->Component);
 			GeometryCollectionProxy->Component->Modify();
 			FFractureSelectionTools::ToggleSelectedBones(GeometryCollectionProxy->Component, BoneIndices, !(Click.IsControlDown()||Click.IsShiftDown()), Click.IsShiftDown());			
 
@@ -186,6 +186,33 @@ bool UFractureEditorMode::HandleClick(FEditorViewportClient* InViewportClient, H
 			{
 				FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
 				FractureToolkit->SetBoneSelection(GeometryCollectionProxy->Component, GeometryCollectionProxy->Component->GetSelectedBones(), true);
+			}
+
+			return true;
+		}
+	}
+	else if (HitProxy && HitProxy->IsA(HInstancedStaticMeshInstance::StaticGetType()))
+	{
+		HInstancedStaticMeshInstance* ISMProxy = ((HInstancedStaticMeshInstance*)HitProxy);
+		if (ISMProxy->Component)
+		{
+			// Get the hit ISMComp's GeometryCollection 
+			if (UGeometryCollectionComponent* OwningGC = Cast<UGeometryCollectionComponent>(ISMProxy->Component->GetAttachParent()))
+			{
+				int32 TransformIdx = OwningGC->EmbeddedIndexToTransformIndex(ISMProxy->Component, ISMProxy->InstanceIndex);
+				if (TransformIdx > INDEX_NONE)
+				{
+					TArray<int32> BoneIndices({ TransformIdx });
+
+					OwningGC->Modify();
+					FFractureSelectionTools::ToggleSelectedBones(OwningGC, BoneIndices, !(Click.IsControlDown() || Click.IsShiftDown()), Click.IsShiftDown());
+
+					if (Toolkit.IsValid())
+					{
+						FFractureEditorModeToolkit* FractureToolkit = (FFractureEditorModeToolkit*)Toolkit.Get();
+						FractureToolkit->SetBoneSelection(OwningGC, OwningGC->GetSelectedBones(), true);
+					}
+				}
 			}
 
 			return true;
@@ -337,6 +364,8 @@ void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 		
 		for(UGeometryCollectionComponent* GeometryCollectionComponent : GeometryCollectionComponents)
 		{
+			GeometryCollectionComponent->SetEmbeddedGeometrySelectable(true);
+			
 			// If collection does not already have guids, make them
 			FGeometryCollectionEdit RestCollectionEdit = GeometryCollectionComponent->EditRestCollection(GeometryCollection::EEditUpdate::None);
 			::GeometryCollection::GenerateTemporaryGuids(RestCollectionEdit.GetRestCollection()->GetGeometryCollection().Get());
@@ -358,6 +387,8 @@ void UFractureEditorMode::OnActorSelectionChanged(const TArray<UObject*>& NewSel
 
 			FScopedColorEdit ShowBoneColorsEdit(ExistingSelection);
 			ShowBoneColorsEdit.SetEnableBoneSelection(false);
+
+			ExistingSelection->SetEmbeddedGeometrySelectable(false);
 
 			// If we have a Hide array on the collection, remove it.
 			if (const UGeometryCollection* RestCollection = ExistingSelection->GetRestCollection())
