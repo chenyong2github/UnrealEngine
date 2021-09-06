@@ -830,6 +830,14 @@ uint BitAlignU32(uint High, uint Low, uint Shift)
 }
 #endif
 
+#ifndef COMPILER_SUPPORTS_BYTEALIGN
+#define COMPILER_SUPPORTS_BYTEALIGN 0
+uint ByteAlignU32(uint High, uint Low, uint Shift)
+{
+	return BitAlignU32(High, Low, Shift * 8);
+}
+#endif // #ifndef COMPILER_SUPPORTS_BYTEALIGN
+
 #if COMPILER_HLSLCC
 #define ddx_fine(x) ddx(x)
 #define ddy_fine(y) ddy(y)
