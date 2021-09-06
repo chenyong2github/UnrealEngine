@@ -41,6 +41,7 @@
 #include "ToolMenus.h"
 #include "ControlRigContextMenuContext.h"
 #include "SRigSpacePickerWidget.h"
+#include "Settings/ControlRigSettings.h"
 
 #define LOCTEXT_NAMESPACE "SRigHierarchy"
 
@@ -211,11 +212,27 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		.Padding(0.0f, 0.0f)
 		[
 			SNew(SBorder)
-			.Padding(2.0f)
-			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+			.Padding(0.0f)
+			.BorderImage(FControlRigEditorStyle::Get().GetBrush( "ControlRig.Viewport.Border"))
+			.BorderBackgroundColor_Lambda([this]()
+			{
+				FLinearColor Color = FLinearColor::Transparent;
+				if(DisplaySettings.bShowDynamicHierarchy)
+				{
+					Color = UControlRigEditorSettings::Get()->DynamicHierarchyBorderColor;
+				}
+				return Color;
+			})
+			.Padding(0.0f)
+			.ShowEffectWhenDisabled(false)
 			[
-				SAssignNew(TreeView, SRigHierarchyTreeView)
-				.RigTreeDelegates(Delegates)
+				SNew(SBorder)
+				.Padding(2.0f)
+				.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
+				[
+					SAssignNew(TreeView, SRigHierarchyTreeView)
+					.RigTreeDelegates(Delegates)
+				]
 			]
 		]
 
@@ -228,7 +245,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 			.Padding(2.0f)
 			.BorderImage(FEditorStyle::GetBrush("SCSEditor.TreePanel"))
 			[
-				SNew(SSpacer)
+			SNew(SSpacer)
 			]
 		]
 		*/

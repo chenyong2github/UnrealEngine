@@ -111,6 +111,12 @@ public:
 	FLinearColor BackwardsAndForwardsBorderColor;
 
 	/**
+	* The border color of the hierarchy tree in dynamic hierarchy mode
+	*/
+	UPROPERTY(EditAnywhere, config, Category = Viewport)
+	FLinearColor DynamicHierarchyBorderColor;
+
+	/**
 	* The default node snippet to create when pressing 1 + Left Mouse Button
 	*/
 	UPROPERTY(EditAnywhere, config, Category = Snippets, meta = (DisplayName = "1"))
