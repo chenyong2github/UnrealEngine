@@ -25,11 +25,19 @@ USTRUCT()
 
 		FVehicleAnimationInstanceProxy()
 		: FAnimInstanceProxy()
+		, WheelSpokeCount(0)
+		, MaxAngularVelocity(256.f)
+		, ShutterSpeed(30.f)
+		, StageCoachBlend(730.f)
 	{
 	}
 
 	FVehicleAnimationInstanceProxy(UAnimInstance* Instance)
 		: FAnimInstanceProxy(Instance)
+		, WheelSpokeCount(0)
+		, MaxAngularVelocity(256.f)
+		, ShutterSpeed(30.f)
+		, StageCoachBlend(730.f)
 	{
 	}
 
@@ -46,8 +54,22 @@ public:
 		return WheelInstances;
 	}
 
+	void SetStageCoachEffectParams(int InWheelSpokeCount, float InMaxAngularVelocity, float InShutterSpeed, float InStageCoachBlend)
+	{
+		WheelSpokeCount = InWheelSpokeCount;
+		MaxAngularVelocity = InMaxAngularVelocity;
+		ShutterSpeed = InShutterSpeed;
+		StageCoachBlend = InStageCoachBlend;
+	}
+
 private:
 	TArray<FWheelAnimationData> WheelInstances;
+
+	int WheelSpokeCount;			// Number of spokes visible on wheel
+	float MaxAngularVelocity;		// Wheel max rotation speed in degrees/second
+	float ShutterSpeed;				// Camera shutter speed in frames/second
+	float StageCoachBlend;			// Blend effect degrees/second
+
 };
 
 UCLASS(transient)
