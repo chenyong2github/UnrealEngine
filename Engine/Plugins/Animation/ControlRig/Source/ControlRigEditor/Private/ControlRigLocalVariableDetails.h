@@ -18,6 +18,12 @@ class IPropertyHandle;
 
 class FRigVMLocalVariableDetails : public IPropertyTypeCustomization
 {
+	FRigVMLocalVariableDetails()
+	: GraphBeingCustomized(nullptr)
+	, BlueprintBeingCustomized(nullptr)
+	{}
+
+	
 public:
 
 	// Makes a new instance of this detail layout class for a specific detail view requesting it
@@ -34,6 +40,7 @@ public:
 private:
 
 	URigVMGraph* GraphBeingCustomized;
+	UControlRigBlueprint* BlueprintBeingCustomized;
 	FRigVMGraphVariableDescription VariableDescription;
 	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
 

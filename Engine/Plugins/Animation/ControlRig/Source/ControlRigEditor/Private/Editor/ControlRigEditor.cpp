@@ -1576,6 +1576,25 @@ void FControlRigEditor::SetDetailViewForFocusedGraph()
 	SetDetailViewForGraph(Model);
 }
 
+void FControlRigEditor::SetDetailViewForLocalVariable()
+{
+	FName VariableName;
+	TArray< TWeakObjectPtr<UObject> > SelectedObjects = Inspector->GetSelectedObjects();
+	for (TWeakObjectPtr<UObject> SelectedObject : SelectedObjects)
+	{
+		if (SelectedObject.IsValid())
+		{
+			if(UDetailsViewWrapperObject* WrapperObject = Cast<UDetailsViewWrapperObject>(SelectedObject.Get()))
+			{
+				VariableName = WrapperObject->GetContent<FRigVMGraphVariableDescription>()->Name;
+				break;
+			}
+		}
+	}
+		
+	SelectLocalVariable(GetFocusedGraph(), VariableName);
+}
+
 void FControlRigEditor::RefreshDetailView()
 {
 	if(DetailViewShowsAnyRigElement())
@@ -1585,6 +1604,10 @@ void FControlRigEditor::RefreshDetailView()
 	else if(DetailViewShowsAnyRigUnit())
 	{
 		SetDetailViewForFocusedGraph();
+	}
+	else if(DetailViewShowsLocalVariable())
+	{
+		SetDetailViewForLocalVariable();	
 	}
 }
 
@@ -1596,6 +1619,11 @@ bool FControlRigEditor::DetailViewShowsAnyRigElement() const
 bool FControlRigEditor::DetailViewShowsAnyRigUnit() const
 {
 	return DetailViewShowsStruct(FRigUnit::StaticStruct());
+}
+
+bool FControlRigEditor::DetailViewShowsLocalVariable() const
+{
+	return DetailViewShowsStruct(FRigVMGraphVariableDescription::StaticStruct());
 }
 
 bool FControlRigEditor::DetailViewShowsStruct(UScriptStruct* InStruct) const
@@ -1677,6 +1705,7 @@ void FControlRigEditor::ClearDetailObject(bool bChangeUISelectionState)
 	}
 	WrapperObjects.Reset();
 	
+	Inspector->GetPropertyView()->SetObjects(TArray<UObject*>(), true); // clear property view synchronously
 	Inspector->ShowDetailsForObjects(TArray<UObject*>());
 	Inspector->ShowSingleStruct(TSharedPtr<FStructOnScope>());
 
@@ -4475,11 +4504,13 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 						if (Variable.Name == OldVariableName)
 						{
 							Controller->RenameLocalVariable(OldVariableName, VariableDescription->Name);
+							break;
 						}
 					}
 				}
 			}
-			RefreshMyBlueprint();	
+			RefreshMyBlueprint();
+			GetControlRigBlueprint()->RequestAutoVMRecompilation();
 		}
 		else if (PropertyPath == TEXT("CPPType") || PropertyPath == TEXT("CPPTypeObject"))
 		{			
@@ -4488,8 +4519,10 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 				if (Variable.Name == VariableDescription->Name)
 				{
 					Controller->SetLocalVariableType(Variable.Name, VariableDescription->CPPType, VariableDescription->CPPTypeObject);
+					break;
 				}
 			}
+			GetControlRigBlueprint()->RequestAutoVMRecompilation();
 		}
 		else if (PropertyPath == TEXT("DefaultValue"))
 		{			
@@ -4497,12 +4530,14 @@ void FControlRigEditor::OnWrappedPropertyChangedChainEvent(UDetailsViewWrapperOb
 			{
 				if (Variable.Name == VariableDescription->Name)
 				{
-					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription->DefaultValue);
+					Controller->SetLocalVariableDefaultValue(Variable.Name, VariableDescription->DefaultValue, true, true, false);
+					break;
 				}
 			}
-		}
-		
-		
+
+			// Do not recompile now! That destroys the object that is currently being displayed (the literal memory storage), and can cause a crash.
+			// The user has to manually trigger the recompilation.
+		}		
 	}
 }
 

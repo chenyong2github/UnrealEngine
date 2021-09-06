@@ -5571,10 +5571,12 @@ bool URigVMController::SetPinDefaultValue(const FString& InPinPath, const FStrin
 	return true;
 }
 
-bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction)
+bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDefaultValue, bool bResizeArrays, bool bSetupUndoRedo, bool bMergeUndoAction, bool bNotify)
 {
 	check(InPin);
 	ensure(!InDefaultValue.IsEmpty());
+
+	TGuardValue<bool> Guard(bSuspendNotifications, !bNotify);
 
 	if (InPin->GetDirection() == ERigVMPinDirection::Hidden)
 	{
@@ -8077,7 +8079,7 @@ bool URigVMController::SetLocalVariableTypeFromObjectPath(const FName& InVariabl
 	return SetLocalVariableType(InVariableName, InCPPType, CPPTypeObject, bSetupUndoRedo, bPrintPythonCommand);
 }
 
-bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand)
+bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName, const FString& InDefaultValue, bool bSetupUndoRedo, bool bPrintPythonCommand, bool bNotify)
 {
 	if (!IsValidGraph())
 	{
@@ -8112,8 +8114,9 @@ bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName,
 		ActionStack->AddAction(FRigVMChangeLocalVariableDefaultValueAction(LocalVariables[FoundIndex], InDefaultValue));
 		ActionStack->EndAction(InverseAction);
 	}	
-	
-	LocalVariables[FoundIndex].DefaultValue = InDefaultValue;
+
+	FRigVMGraphVariableDescription& VariableDescription = LocalVariables[FoundIndex];
+	VariableDescription.DefaultValue = InDefaultValue;
 	
 	// Refresh variable nodes to reflect change in default value
 	TArray<URigVMNode*> Nodes = Graph->GetNodes();
@@ -8125,9 +8128,7 @@ bool URigVMController::SetLocalVariableDefaultValue(const FName& InVariableName,
 			{
 				if (VariablePin->GetDefaultValue() == InVariableName.ToString())
 				{
-					VariableNode->FindPin(URigVMVariableNode::ValueName)->DefaultValue = InDefaultValue;
-					Notify(ERigVMGraphNotifType::VariableRenamed, VariableNode);
-					continue;
+					SetPinDefaultValue(VariableNode->FindPin(URigVMVariableNode::ValueName), InDefaultValue, true, true, true, bNotify);
 				}
 			}
 		}
@@ -11124,6 +11125,11 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 
 	UObject* CPPTypeObject = URigVMPin::FindObjectFromCPPTypeObjectPath(InCPPTypeObjectPath.ToString());
 	if (InPin->CPPType == InCPPType && InPin->CPPTypeObject == CPPTypeObject)
+	{
+		return false;
+	}
+
+	if (FRigVMPropertyDescription::RequiresCPPTypeObject(InCPPType) && !CPPTypeObject)
 	{
 		return false;
 	}

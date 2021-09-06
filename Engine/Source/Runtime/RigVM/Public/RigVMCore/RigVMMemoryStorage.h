@@ -353,7 +353,7 @@ public:
 	}
 
 	// Returns a property given its name (or nullptr if the name wasn't found)
-	const FProperty* FindPropertyByName(const FName& InName) const;
+	FProperty* FindPropertyByName(const FName& InName) const;
 
 	// Creates and returns a new operand for a property (and optionally a property path)
 	FRigVMOperand GetOperand(int32 InPropertyIndex, int32 InPropertyPathIndex = INDEX_NONE) const;
