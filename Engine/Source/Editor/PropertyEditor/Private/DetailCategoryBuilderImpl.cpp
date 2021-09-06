@@ -1,29 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailCategoryBuilderImpl.h"
-#include "ObjectPropertyNode.h"
-#include "Misc/ConfigCacheIni.h"
 
-#include "DetailCategoryGroupNode.h"
-#include "DetailItemNode.h"
 #include "DetailAdvancedDropdownNode.h"
-#include "DetailPropertyRow.h"
-#include "SDetailSingleItemRow.h"
-#include "DetailGroup.h"
-#include "StructurePropertyNode.h"
-#include "ItemPropertyNode.h"
-#include "IPropertyGenerationUtilities.h"
 #include "DetailBuilderTypes.h"
+#include "DetailCategoryGroupNode.h"
+#include "DetailGroup.h"
+#include "DetailItemNode.h"
+#include "DetailPropertyRow.h"
+#include "IPropertyGenerationUtilities.h"
+#include "ItemPropertyNode.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Modules/ModuleManager.h"
+#include "ObjectPropertyNode.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
 #include "PropertyEditorWhitelist.h"
+#include "SDetailCategoryTableRow.h"
+#include "SDetailSingleItemRow.h"
+#include "StructurePropertyNode.h"
 #include "Styling/StyleColors.h"
-
-namespace DetailLayoutConstants
-{
-	// Padding for each layout row
-	const FMargin RowPadding(10.0f, 2.0f);
-}
-
+ 
 void FDetailLayout::AddLayout(const FDetailLayoutCustomization& Layout)
 {
 	if (Layout.bAdvanced)
