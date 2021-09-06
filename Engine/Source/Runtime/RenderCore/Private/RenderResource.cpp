@@ -29,6 +29,13 @@ FAutoConsoleVariableRef CVarReadBufferNumFramesUnusedThresold(
 	GGlobalBufferNumFramesUnusedThresold ,
 	TEXT("Number of frames after which unused global resource allocations will be discarded. Set 0 to ignore. (default=30)"));
 
+int32 GVarDebugForceRuntimeBLAS = 0;
+FAutoConsoleVariableRef CVarDebugForceRuntimeBLAS(
+	TEXT("r.Raytracing.DebugForceRuntimeBLAS"),
+	GVarDebugForceRuntimeBLAS,
+	TEXT("Force building BLAS at runtime."),
+	ECVF_ReadOnly);
+
 FThreadSafeCounter FRenderResource::ResourceListIterationActive;
 
 TArray<int32>& GetFreeIndicesList()
@@ -381,6 +388,12 @@ void FRayTracingGeometry::CreateRayTracingGeometry(ERTAccelerationStructureBuild
 	if (RawData.Num())
 	{
 		Initializer.OfflineData = &RawData;
+	}
+
+	if (GVarDebugForceRuntimeBLAS && Initializer.OfflineData != nullptr)
+	{
+		Initializer.OfflineData->Discard();
+		Initializer.OfflineData = nullptr;
 	}
 
 	bool bAllSegmentsAreValid = Initializer.Segments.Num() > 0 || Initializer.OfflineData;
