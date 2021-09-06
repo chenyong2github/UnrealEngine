@@ -504,14 +504,15 @@ int32 SBlendSpaceGridWidget::OnPaint(const FPaintArgs& Args, const FGeometry& Al
 
 void SBlendSpaceGridWidget::PaintBackgroundAndGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32& DrawLayerId) const
 {
-	// Fill the background
-	FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(), BackgroundImage );
-
 	if(const UBlendSpace* BlendSpace = BlendSpaceBase.Get())
 	{
 		// Create the grid
 		const FVector2D GridSize = CachedGridRectangle.GetSize();
 		const FVector2D GridOffset = CachedGridRectangle.GetTopLeft();
+
+		// Fill the background of the grid
+		FSlateDrawElement::MakeBox( OutDrawElements, DrawLayerId + 1, AllottedGeometry.ToPaintGeometry(GridOffset, GridSize), BackgroundImage );
+		
 		TArray<FVector2D> LinePoints;
 
 		// Draw grid lines
@@ -1741,7 +1742,7 @@ const FVector SBlendSpaceGridWidget::ScreenPositionToSampleValue(const FVector2D
 
 const FSlateRect SBlendSpaceGridWidget::GetGridRectangleFromGeometry(const FGeometry& MyGeometry)
 {
-	const float TopOffset = 20.0f; // Ideally we'd get the size of the buttons (showing the label/triangulation etc)
+	const float TopOffset = bReadOnly ? 0.0f : 20.0f; // Ideally we'd get the size of the buttons (showing the label/triangulation etc)
 	FSlateRect WindowRect = FSlateRect(0, TopOffset, MyGeometry.GetLocalSize().X, MyGeometry.GetLocalSize().Y);
 	if (!bStretchToFit)
 	{

@@ -21,7 +21,7 @@ public:
 	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode);
 
 	// SGraphNode interface
-	virtual void CreateBelowWidgetControls(TSharedPtr<SVerticalBox> MainBox) override;
+	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
 	// End of SGraphNode interface
 
 protected:

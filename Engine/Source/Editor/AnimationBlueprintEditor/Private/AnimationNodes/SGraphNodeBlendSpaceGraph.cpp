@@ -9,6 +9,8 @@
 #include "IDocumentation.h"
 #include "SBlendSpacePreview.h"
 #include "AnimationNodes/SAnimationGraphNode.h"
+#include "SLevelOfDetailBranchNode.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "SGraphNodeBlendSpaceGraph"
 
@@ -106,41 +108,48 @@ TSharedPtr<SToolTip> SGraphNodeBlendSpaceGraph::GetComplexTooltip()
 
 }
 
-void SGraphNodeBlendSpaceGraph::UpdateGraphNode()
+TSharedRef<SWidget> SGraphNodeBlendSpaceGraph::CreateNodeBody()
 {
-	SGraphNodeK2Composite::UpdateGraphNode();
-
-	// Extend to add below-widget controls (composite nodes do not do this by default)
-	SNodePanel::SNode::FNodeSlot* Slot = GetSlot(ENodeZone::Center);
-	check(Slot);
-	TSharedPtr<SWidget> CenterWidget = Slot->DetachWidget();
-
+	TSharedRef<SWidget> NodeBody = SGraphNodeK2Composite::CreateNodeBody();
+	
 	UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = CastChecked<UAnimGraphNode_BlendSpaceGraphBase>(GraphNode);
 
-	(*Slot)
-	[
-		SNew(SVerticalBox)
+	return SNew(SVerticalBox)
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			CenterWidget.ToSharedRef()
+			NodeBody
 		]
 		+SVerticalBox::Slot()
 		.AutoHeight()
 		[
-			SNew(SBlendSpacePreview, CastChecked<UAnimGraphNode_Base>(GraphNode))
-			.OnGetBlendSpaceSampleName(FOnGetBlendSpaceSampleName::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](int32 InSampleIndex) -> FName
-			{
-				if(WeakBlendSpaceNode.Get())
+			SAnimationGraphNode::CreateNodeFunctionsWidget(BlendSpaceNode, MakeAttributeSP(this, &SGraphNodeBlendSpaceGraph::UseLowDetailNodeTitles))
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SLevelOfDetailBranchNode)
+			.UseLowDetailSlot(this, &SGraphNodeBlendSpaceGraph::UseLowDetailNodeTitles)
+			.LowDetail()
+			[
+				SNew(SSpacer)
+				.Size(FVector2D(100.0f, 100.f))
+			]
+			.HighDetail()
+			[
+				SNew(SBlendSpacePreview, CastChecked<UAnimGraphNode_Base>(GraphNode))
+				.OnGetBlendSpaceSampleName(FOnGetBlendSpaceSampleName::CreateLambda([this, WeakBlendSpaceNode = TWeakObjectPtr<UAnimGraphNode_BlendSpaceGraphBase>(BlendSpaceNode)](int32 InSampleIndex) -> FName
 				{
-					UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
-					return BlendSpaceNode->GetGraphs()[InSampleIndex]->GetFName();
-				}
+					if(WeakBlendSpaceNode.Get())
+					{
+						UAnimGraphNode_BlendSpaceGraphBase* BlendSpaceNode = WeakBlendSpaceNode.Get();
+						return BlendSpaceNode->GetGraphs()[InSampleIndex]->GetFName();
+					}
 
-				return NAME_None;
-			}))
-		]
-	];
+					return NAME_None;
+				}))
+			]
+		];
 }
 
 #undef LOCTEXT_NAMESPACE

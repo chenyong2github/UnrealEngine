@@ -25,7 +25,7 @@ public:
 
 	// SGraphNode interface
 	virtual void UpdateGraphNode() override;
-	virtual void CreateBelowWidgetControls(TSharedPtr<SVerticalBox> MainBox) override;
+	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
 	// End of SGraphNode interface
 
 protected:

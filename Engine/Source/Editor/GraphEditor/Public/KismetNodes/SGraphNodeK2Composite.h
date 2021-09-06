@@ -29,6 +29,5 @@ protected:
 	FText GetPreviewCornerText() const;
 	FText GetTooltipTextForNode() const;
 
-private:
-	TSharedRef<SWidget> CreateNodeBody();
+	virtual TSharedRef<SWidget> CreateNodeBody();
 };

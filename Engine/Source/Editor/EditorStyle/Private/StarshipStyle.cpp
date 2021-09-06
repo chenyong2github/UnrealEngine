@@ -5296,6 +5296,15 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("BlendSpaceEditor.LabelBackground", new FSlateRoundedBoxBrush(FStyleColors::Background, FStyleColors::Foreground, 1.0f));
 		Set("BlendSpaceEditor.ZoomToFit", new IMAGE_BRUSH("GenericCurveEditor/Icons/FramingSelected_48x", Icon16x16));
 
+		// Asset player slider
+		FSliderStyle AssetPlayerSliderStyle = FSliderStyle()
+			.SetNormalBarImage(   FSlateRoundedBoxBrush(FStyleColors::InputOutline, 2.0f, FStyleColors::InputOutline, 1.0f))
+			.SetHoveredBarImage(  FSlateRoundedBoxBrush(FStyleColors::InputOutline, 2.0f, FStyleColors::InputOutline, 1.0f))
+			.SetNormalThumbImage(  FSlateRoundedBoxBrush(FStyleColors::Foreground, Icon8x8) )
+			.SetHoveredThumbImage( FSlateRoundedBoxBrush(FStyleColors::ForegroundHover, Icon8x8) )
+			.SetBarThickness(4.0f);
+		Set("AnimBlueprint.AssetPlayerSlider", AssetPlayerSliderStyle);
+		
 		const FButtonStyle BlueprintContextTargetsButtonStyle = FButtonStyle()
 			.SetNormal(IMAGE_BRUSH("Common/TreeArrow_Collapsed_Hovered", Icon10x10, FLinearColor(0.2f, 0.2f, 0.2f, 1.f)))
 			.SetHovered(IMAGE_BRUSH("Common/TreeArrow_Collapsed_Hovered", Icon10x10, FLinearColor(0.4f, 0.4f, 0.4f, 1.f)))

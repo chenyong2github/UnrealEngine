@@ -5,6 +5,8 @@
 #include "AnimGraphNode_Base.h"
 #include "AnimGraphNode_BlendSpacePlayer.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "SLevelOfDetailBranchNode.h"
+#include "Widgets/Layout/SSpacer.h"
 
 void SGraphNodeBlendSpacePlayer::Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
 {
@@ -25,14 +27,27 @@ void SGraphNodeBlendSpacePlayer::Construct(const FArguments& InArgs, UAnimGraphN
 	}));
 }
 
-void SGraphNodeBlendSpacePlayer::CreateBelowWidgetControls(TSharedPtr<SVerticalBox> MainBox)
+void SGraphNodeBlendSpacePlayer::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox)
 {
-	MainBox->AddSlot()
+	SAnimationGraphNode::CreateBelowPinControls(MainBox);
+
+	// Insert above the error reporting bar
+	MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
 	.AutoHeight()
 	.VAlign(VAlign_Fill)
 	.Padding(0.0f)
 	[
-		SNew(SBlendSpacePreview, CastChecked<UAnimGraphNode_Base>(GraphNode))
+		SNew(SLevelOfDetailBranchNode)
+		.UseLowDetailSlot(this, &SGraphNodeBlendSpacePlayer::UseLowDetailNodeTitles)
+		.LowDetail()
+		[
+			SNew(SSpacer)
+			.Size(FVector2D(100.0f, 100.f))
+		]
+		.HighDetail()
+		[
+			SNew(SBlendSpacePreview, CastChecked<UAnimGraphNode_Base>(GraphNode))
+		]
 	];
 }
 

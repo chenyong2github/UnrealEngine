@@ -109,12 +109,6 @@ void SGraphNodeK2Composite::UpdateGraphNode()
 										NodeTitle.ToSharedRef()
 									]
 								]
-								+SVerticalBox::Slot()
-								.AutoHeight()
-								.Padding(1.0f)
-								[
-									ErrorReporting->AsWidget()
-								]
 							]
 						]
 					]
@@ -124,6 +118,12 @@ void SGraphNodeK2Composite::UpdateGraphNode()
 					.VAlign(VAlign_Top)
 					[
 						CreateNodeBody()
+					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(1.0f)
+					[
+						ErrorReporting->AsWidget()
 					]
 				]
 			]
