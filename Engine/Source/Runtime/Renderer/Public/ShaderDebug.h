@@ -10,9 +10,11 @@ class FViewInfo;
 
 struct FShaderDrawDebugData
 {
-	FIntPoint CursorPosition;
+	uint32 MaxElementCount = 0u;
+	FIntPoint CursorPosition = FIntPoint(-1,-1);
 	FRDGBufferRef Buffer = nullptr;
 	FRDGBufferRef IndirectBuffer = nullptr;
+	bool IsEnabled() const { return MaxElementCount > 0; }
 	bool IsValid() const { return Buffer != nullptr && IndirectBuffer != nullptr; }
 };
 
@@ -26,7 +28,6 @@ namespace ShaderDrawDebug
 
 	RENDERER_API void SetEnabled(bool bEnable);
 	RENDERER_API void SetMaxElementCount(uint32 MaxCount);
-	RENDERER_API uint32 GetMaxElementCount();
 
 	/**
 	 * Call to ensure enough space for some number of elements, is added cumulatively each frame, to make it possible for several systems to request a certain number independently.
