@@ -88,7 +88,43 @@
 				{
 					if (const UChaosVehicleWheel* VehicleWheel = WheeledVehicleComponent->Wheels[WheelIndex])
 					{
-						WheelInstance.RotOffset.Pitch = VehicleWheel->GetRotationAngle();
+						if (WheelSpokeCount > 0 && ShutterSpeed > 0 && MaxAngularVelocity > SMALL_NUMBER) // employ stagecoach effect
+						{
+							// normalized spoke transition value
+							float AngularVelocity = VehicleWheel->GetRotationAngularVelocity();
+							float DegreesPerFrame = AngularVelocity / ShutterSpeed;
+							float DegreesPerSpoke = 360.f / WheelSpokeCount;
+
+							float IntegerPart = 0;
+							float SpokeTransition = FMath::Modf(DegreesPerFrame / DegreesPerSpoke, &IntegerPart);
+							float StagecoachEffectVelocity = FMath::Sin(SpokeTransition * TWO_PI) * MaxAngularVelocity;
+
+							// blend
+							float OffsetVelocity = FMath::Abs(AngularVelocity) - MaxAngularVelocity;
+							if (OffsetVelocity < 0.f)
+							{
+								OffsetVelocity = 0.f;
+							}
+
+							float BlendAlpha = FMath::Clamp(OffsetVelocity / MaxAngularVelocity, 0.f, 1.f);
+
+							float CorrectedAngularVelocity = FMath::Lerp(AngularVelocity, StagecoachEffectVelocity, BlendAlpha);
+							CorrectedAngularVelocity = FMath::Clamp(CorrectedAngularVelocity, -MaxAngularVelocity, MaxAngularVelocity);
+
+							// integrate to angular position
+							float RotationDelta = CorrectedAngularVelocity * DeltaSeconds;
+							WheelInstance.RotOffset.Pitch += RotationDelta;
+
+							int ExcessRotations = (int)(WheelInstance.RotOffset.Pitch / 360.0f);
+							if (FMath::Abs(ExcessRotations) > 1)
+							{
+								WheelInstance.RotOffset.Pitch -= ExcessRotations * 360.0f;
+							}
+						}
+						else
+						{
+							WheelInstance.RotOffset.Pitch = VehicleWheel->GetRotationAngle();
+						}
 						WheelInstance.RotOffset.Yaw = VehicleWheel->GetSteerAngle();
 						WheelInstance.RotOffset.Roll = 0.f;
 

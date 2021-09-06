@@ -249,6 +249,9 @@ class UChaosWheeledVehicleMovementComponent;
 		float GetRotationAngle() const;
 
 		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
+		float GetRotationAngularVelocity() const;
+
+		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")
 		float GetSuspensionOffset() const;
 
 		UFUNCTION(BlueprintCallable, Category = "Game|Components|WheeledVehicleMovement")

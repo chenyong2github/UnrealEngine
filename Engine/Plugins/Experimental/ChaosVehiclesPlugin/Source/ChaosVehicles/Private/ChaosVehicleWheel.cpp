@@ -72,6 +72,15 @@ float UChaosVehicleWheel::GetRotationAngle() const
 	return RotationAngle;
 }
 
+float UChaosVehicleWheel::GetRotationAngularVelocity() const
+{
+	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
+	float RotationAngularVelocity = -1.0f * FMath::RadiansToDegrees(VehicleComponent->PhysicsVehicleOutput()->Wheels[WheelIndex].AngularVelocity);
+	ensure(!FMath::IsNaN(RotationAngularVelocity));
+	return RotationAngularVelocity;
+}
+
+
 float UChaosVehicleWheel::GetWheelRadius() const
 {
 	check(VehicleComponent && VehicleComponent->PhysicsVehicleOutput());
