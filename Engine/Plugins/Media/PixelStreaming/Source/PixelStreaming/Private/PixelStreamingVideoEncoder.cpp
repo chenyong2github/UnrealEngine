@@ -12,6 +12,7 @@
 #include "LatencyTester.h"
 #include "PlayerId.h"
 #include "IPixelStreamingSessions.h"
+#include "Async/Async.h"
 
 FPixelStreamingVideoEncoder::FPixelStreamingVideoEncoder(FPlayerId InOwnerPlayerId, const IPixelStreamingSessions* InPixelStreamingSessions, FEncoderContext* InContext)
 {
@@ -352,7 +353,15 @@ void FPixelStreamingVideoEncoder::CreateAVEncoder(TSharedPtr<AVEncoder::FVideoEn
 	checkf(Context->Encoder, TEXT("Pixel Streaming video encoder creation failed, check encoder config."));
 
 	FEncoderContext* ContextPtr = this->Context;
-	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) { OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); });
+	Context->Encoder->SetOnEncodedPacket([ContextPtr](uint32 InLayerIndex, const AVEncoder::FVideoEncoderInputFrame* InFrame, const AVEncoder::FCodecPacket& InPacket) 
+	{
+		// We do the actual work somewhere on the task graph so we are not locking up the encoder.
+		AsyncTask(ENamedThreads::AnyHiPriThreadHiPriTask, [ContextPtr, InLayerIndex, InFrame, &InPacket] ()
+		{
+			OnEncodedPacket(ContextPtr, InLayerIndex, InFrame, InPacket); 
+		}); 
+		
+	});
 }
 
 int32_t FPixelStreamingVideoEncoder::GetSmoothedAverageQP() const

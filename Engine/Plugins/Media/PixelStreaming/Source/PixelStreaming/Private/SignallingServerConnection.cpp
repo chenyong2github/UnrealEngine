@@ -37,9 +37,20 @@ DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
 	}\
 	while(false);
 
-FSignallingServerConnection::FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& InObserver, const FString& InStreamerId)
+FSignallingServerConnection::FSignallingServerConnection(FSignallingServerConnectionObserver& InObserver, const FString& InStreamerId)
 	: Observer(InObserver), StreamerId(InStreamerId)
 {
+	
+}
+
+void FSignallingServerConnection::Connect(const FString& Url)
+{
+	// Already have a websocket connection, no need to make another one
+	if(WS)
+	{
+		return;
+	}
+
 	WS = FWebSocketsModule::Get().CreateWebSocket(Url, TEXT(""));
 
 	OnConnectedHandle = WS->OnConnected().AddLambda([this]() { OnConnected(); });
@@ -51,7 +62,7 @@ FSignallingServerConnection::FSignallingServerConnection(const FString& Url, FSi
 	WS->Connect();
 }
 
-FSignallingServerConnection::~FSignallingServerConnection()
+void FSignallingServerConnection::Disconnect()
 {
 	if (!WS)
 	{
@@ -70,6 +81,11 @@ FSignallingServerConnection::~FSignallingServerConnection()
 
 	WS->Close();
 	WS = nullptr;
+}
+
+FSignallingServerConnection::~FSignallingServerConnection()
+{
+	this->Disconnect();
 }
 
 void FSignallingServerConnection::SendOffer(const webrtc::SessionDescriptionInterface& SDP)
@@ -493,14 +509,7 @@ void FSignallingServerConnection::OnPlayerIceCandidate(const FJsonObjectPtr& Jso
 		HANDLE_PLAYER_SS_ERROR(PlayerId, TEXT("Failed to get `candidate` from remote `iceCandidate` message\n%s"), *ToString(Json));
 	}
 
-	webrtc::SdpParseError Error;
-	std::unique_ptr<webrtc::IceCandidateInterface> Candidate(webrtc::CreateIceCandidate(to_string(SdpMid), SdpMLineIndex, to_string(CandidateStr), &Error));
-	if (!Candidate)
-	{
-		HANDLE_PLAYER_SS_ERROR(PlayerId, TEXT("Failed to parse remote `iceCandidate` message\n%s"), *ToString(Json));
-	}
-
-	Observer.OnRemoteIceCandidate(PlayerId, TUniquePtr<webrtc::IceCandidateInterface>{Candidate.release()});
+	Observer.OnRemoteIceCandidate(PlayerId, to_string(SdpMid), SdpMLineIndex, to_string(CandidateStr));
 }
 
 void FSignallingServerConnection::OnPlayerCount(const FJsonObjectPtr& Json)

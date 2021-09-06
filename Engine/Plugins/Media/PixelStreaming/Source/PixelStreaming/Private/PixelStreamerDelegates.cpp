@@ -4,8 +4,13 @@
 
 UPixelStreamerDelegates* UPixelStreamerDelegates::Singleton = nullptr;
 
-void UPixelStreamerDelegates::CreateInstance()
+UPixelStreamerDelegates* UPixelStreamerDelegates::CreateInstance()
 {
-	Singleton = NewObject<UPixelStreamerDelegates>();
-	Singleton->AddToRoot();
+	if(Singleton == nullptr)
+	{
+		Singleton = NewObject<UPixelStreamerDelegates>();
+		Singleton->AddToRoot();
+		return Singleton;
+	}
+	return Singleton;
 }

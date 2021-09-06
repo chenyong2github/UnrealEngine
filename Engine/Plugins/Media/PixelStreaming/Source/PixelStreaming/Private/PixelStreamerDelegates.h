@@ -50,7 +50,7 @@ public:
 	/**
 	 * Create the singleton.
 	 */
-	static void CreateInstance();
+	static UPixelStreamerDelegates* CreateInstance();
 
 	/**
 	 * Get the singleton. This allows application-specific blueprints to bind
@@ -59,6 +59,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pixel Streamer Delegates")
 	static UPixelStreamerDelegates* GetPixelStreamerDelegates()
 	{
+		if(Singleton == nullptr)
+		{
+			return CreateInstance();
+		}
 		return Singleton;
 	}
 

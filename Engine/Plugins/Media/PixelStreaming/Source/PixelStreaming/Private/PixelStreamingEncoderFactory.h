@@ -52,6 +52,8 @@ public:
 	void OnEncodedImage(const webrtc::EncodedImage& encoded_image, const webrtc::CodecSpecificInfo* codec_specific_info, const webrtc::RTPFragmentationHeader* fragmentation);
 	void ReleaseVideoEncoder(FPixelStreamingVideoEncoder* encoder);
 	void RemoveStaleEncoders();
+	void ForceKeyFrame();
+	double GetLatestQP();
 
 private:
 	FEncoderContext EncoderContext;

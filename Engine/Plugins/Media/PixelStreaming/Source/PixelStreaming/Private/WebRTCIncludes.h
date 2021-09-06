@@ -22,6 +22,7 @@ THIRD_PARTY_INCLUDES_START
 #include "api/rtp_receiver_interface.h"
 #include "api/media_types.h"
 #include "api/media_stream_interface.h"
+#include "api/data_channel_interface.h"
 #include "api/peer_connection_interface.h"
 #include "api/create_peerconnection_factory.h"
 #include "api/task_queue/default_task_queue_factory.h"

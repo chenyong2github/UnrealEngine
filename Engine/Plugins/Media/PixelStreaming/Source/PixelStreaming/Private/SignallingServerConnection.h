@@ -28,7 +28,7 @@ public:
 	// Streamer-only
 	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp)
 	{ unimplemented(); }
-	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate)
+	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp)
 	{ unimplemented(); }
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId)
 	{ unimplemented(); }
@@ -45,8 +45,10 @@ public:
 class FSignallingServerConnection final
 {
 public:
-	explicit FSignallingServerConnection(const FString& Url, FSignallingServerConnectionObserver& Observer, const FString& StreamerId);
+	explicit FSignallingServerConnection(FSignallingServerConnectionObserver& Observer, const FString& StreamerId);
 	~FSignallingServerConnection();
+	void Connect(const FString& Url);
+	void Disconnect();
 
 	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
 	void SendAnswer(FPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);

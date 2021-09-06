@@ -8,6 +8,7 @@
 #include "RHI.h"
 #include "HAL/Thread.h"
 #include "IPixelStreamingSessions.h"
+#include "ThreadSafePlayerSessions.h"
 
 
 class FVideoCapturer;
@@ -24,8 +25,9 @@ public:
 
 	void SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor);
 	void SendFreezeFrame(const TArray64<uint8>& JpegBytes);
-	void SendCachedFreezeFrameTo(FPlayerSession& Player); 
 	void SendUnfreezeFrame();
+	void ForceKeyFrame();
+	void OnDataChannelOpen(FPlayerId PlayerId, webrtc::DataChannelInterface* DataChannel);
 
 	bool IsStreaming() const { return bStreamingStarted; }
 	void SetStreamingStarted(bool started) { bStreamingStarted = started; }
@@ -37,21 +39,20 @@ public:
 
 	// Begin IPixelStreamingSessions interface.
 	virtual int GetNumPlayers() const override;
-	virtual int32 GetPlayers(TArray<FPlayerId> OutPlayerIds) const override;
 	virtual FPixelStreamingAudioSink* GetAudioSink(FPlayerId PlayerId) const override;
 	virtual FPixelStreamingAudioSink* GetUnlistenedAudioSink() const override;
 	virtual bool IsQualityController(FPlayerId PlayerId) const override;
-	virtual bool SetQualityController(FPlayerId PlayerId) override;
+	virtual void SetQualityController(FPlayerId PlayerId) override;
 	virtual bool SendMessage(FPlayerId PlayerId, PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor) const override;
-	virtual void SendLatestQP(FPlayerId PlayerId) const override;
-	virtual void AssociateVideoEncoder(FPlayerId AssociatedPlayerId, FPixelStreamingVideoEncoder* VideoEncoder) override;
+	virtual void SendLatestQP(FPlayerId PlayerId, int LatestQP) const override;
+	virtual void SendFreezeFrameTo(FPlayerId PlayerId, const TArray64<uint8>& JpegBytes) const override;
 	// End IPixelStreamingSessions interface.
 
-private:
+	void SendCachedFreezeFrameTo(FPlayerId PlayerId) const;
 
-	// Get the actual player session if the player exists, or nullptr if not. Note it is private because FPlayerSession should
-	// not be used outside of Streamer.
-	FPlayerSession* GetPlayerSession(FPlayerId PlayerId) const;
+	void SendLatestQPAllPlayers() const;
+
+private:
 
 	webrtc::AudioProcessing* SetupAudioProcessingModule();
 
@@ -62,17 +63,18 @@ private:
 	// ISignallingServerConnectionObserver impl
 	virtual void OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config) override;
 	virtual void OnOffer(FPlayerId PlayerId, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp) override;
-	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, TUniquePtr<webrtc::IceCandidateInterface> Candidate) override;
+	virtual void OnRemoteIceCandidate(FPlayerId PlayerId, const std::string& SdpMid, int SdpMLineIndex, const std::string& Sdp) override;
 	virtual void OnPlayerDisconnected(FPlayerId PlayerId) override;
 	virtual void OnSignallingServerDisconnected() override;
 
 	// own methods
-	void CreatePlayerSession(FPlayerId PlayerId);
+	void ModifyAudioTransceiverDirection(webrtc::PeerConnectionInterface* PeerConnection);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
-	void AddStreams(FPlayerId PlayerId);
-	void SetupVideoTrack(FPlayerSession* Session, FString const VideoStreamId, FString const VideoTrackLabel);
-	void SetupAudioTrack(FPlayerSession* Session, FString const AudioStreamId, FString const AudioTrackLabel);
+	void AddStreams(webrtc::PeerConnectionInterface* PeerConnection);
+	void SetupVideoTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const VideoStreamId, FString const VideoTrackLabel);
+	void SetupAudioTrack(webrtc::PeerConnectionInterface* PeerConnection, FString const AudioStreamId, FString const AudioTrackLabel);
+	void HandleOffer(FPlayerId PlayerId, webrtc::PeerConnectionInterface* PeerConnection, TUniquePtr<webrtc::SessionDescriptionInterface> Sdp);
 
 private:
 	FString SignallingServerUrl;
@@ -90,19 +92,13 @@ private:
 	rtc::scoped_refptr<FVideoCapturer> VideoSource;
 	rtc::scoped_refptr<webrtc::AudioSourceInterface> AudioSource;
 	cricket::AudioOptions AudioSourceOptions;
-
-	FPlayerId QualityControllingPlayer = ToPlayerId(FString(TEXT("No quality controlling peer.")));
-	mutable FCriticalSection QualityControllerCS;
-
-	TMap<FPlayerId, FPlayerSession*> Players;
-	// `Players` is modified only in WebRTC signalling thread, but can be accessed (along with contained `FPlayerSession` instances) 
-	// from other threads. All `Players` modifications in WebRTC thread and all accesses in other threads should be locked.
-	mutable FCriticalSection PlayersCS;
 	
 	// When we send a freeze frame we retain the data to handle connection
 	// scenarios.
 	TArray64<uint8> CachedJpegBytes;
 
 	FThreadSafeBool bStreamingStarted = false;
+
+	FThreadSafePlayerSessions PlayerSessions;
 };
 
