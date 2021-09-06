@@ -1071,7 +1071,9 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 			PreprocessedShaderSource);
 
 		PreprocessedShaderSource = MoveTemp(NewShaderCode);
-	}
+
+		bMovedLoosedParametersToRootConstantBuffer = true;
+	} // if (bMoveToRootConstantBuffer)
 
 	return bSuccess;
 }
@@ -1088,9 +1090,9 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	check(ParsedParameter.IsFound());
 	check(CompilerInput.RootParametersStructure);
 
-	if (ReflectionSize > 0)
+	if (ReflectionSize > 0 && bMovedLoosedParametersToRootConstantBuffer)
 	{
-		// Verify the offset of the parameter comming from shader reflections matches
+		// Verify the offset of the parameter coming from shader reflections honor the packoffset()
 		check(ReflectionOffset == ParsedParameter.ConstantBufferOffset);
 	}
 
