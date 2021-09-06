@@ -6,12 +6,49 @@
 #include "Animation/AnimNodeReference.h"
 #include "Animation/AnimSubsystem_NodeRelevancy.h"
 #include "Animation/AnimInstance.h"
+#include "EngineLogs.h"
+
+void FAnimNodeFunctionRef::SetFromFunction(UFunction* InFunction)
+{
+	if(InFunction)
+	{
+		FunctionName = InFunction->GetFName();
+		if(UClass* OwnerClass = InFunction->GetOwnerClass())
+		{
+			ensureAlwaysMsgf(OwnerClass->IsChildOf(UAnimInstance::StaticClass()) || OwnerClass->IsChildOf(UBlueprintFunctionLibrary::StaticClass()), TEXT("Function class must derive from either UAnimInstance or UBlueprintFunctionLibrary"));
+			ClassName = *OwnerClass->GetPathName();
+		}
+		else
+		{
+			ClassName = NAME_None;
+		}
+	}
+	else
+	{
+		FunctionName = NAME_None;
+		ClassName = NAME_None;
+	}
+}
 
 void FAnimNodeFunctionRef::Initialize(const UClass* InClass)
 {
+	const UClass* ClassToUse = InClass;
+	
+	if(ClassName != NAME_None)
+	{
+		if(UClass* FoundClass = FindObject<UClass>(nullptr, *ClassName.ToString()))
+		{
+			Class = ClassToUse = FoundClass;
+		}
+		else
+		{
+			UE_LOG(LogAnimation, Warning, TEXT("Could not find function class %s"), *ClassName.ToString());
+		}
+	}
+	
 	if(FunctionName != NAME_None)
 	{
-		Function = InClass->FindFunctionByName(FunctionName);
+		Function = ClassToUse->FindFunctionByName(FunctionName);
 	}
 }
 
@@ -19,7 +56,14 @@ void FAnimNodeFunctionRef::Call(UObject* InObject, void* InParameters) const
 {
 	if(IsValid())
 	{
-		InObject->ProcessEvent(Function, InParameters);
+		if(Class)
+		{
+			Class->GetDefaultObject()->ProcessEvent(Function, InParameters);
+		}
+		else
+		{
+			InObject->ProcessEvent(Function, InParameters);
+		}
 	}
 }
 

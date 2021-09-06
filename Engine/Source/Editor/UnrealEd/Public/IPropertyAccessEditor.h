@@ -187,9 +187,12 @@ struct FPropertyBindingWidgetArgs
 	/** Whether to generate pure bindings */
 	bool bGeneratePureBindings = true;
 
-	/** Whether to allow function bindings */
+	/** Whether to allow function bindings (to "this" class of the blueprint in question) */
 	bool bAllowFunctionBindings = true;
 
+	/** Whether to allow function library bindings in addition to the passed-in blueprint's class */
+	bool bAllowFunctionLibraryBindings = false;
+	
 	/** Whether to allow property bindings */
 	bool bAllowPropertyBindings = true;	
 	

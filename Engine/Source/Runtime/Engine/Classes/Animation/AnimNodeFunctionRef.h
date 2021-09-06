@@ -34,7 +34,7 @@ public:
 	void SetFromFunctionName(FName InName) { FunctionName = InName; }
 
 	// Set the function via a function
-	void SetFromFunction(UFunction* InFunction) { FunctionName = InFunction ? InFunction->GetFName() : NAME_None; }
+	void SetFromFunction(UFunction* InFunction);
 	
 	// Get the function name
 	FName GetFunctionName() const { return FunctionName; }
@@ -46,10 +46,18 @@ public:
 	bool IsValid() const { return Function != nullptr; }
 
 private:
+	// The name of the class to call the function with. If this is NAME_None, we assume this is a 'thiscall', if it is valid then we assume (and verify) we should call the function on a function library CDO.
+	UPROPERTY()
+	FName ClassName = NAME_None;
+
 	// The name of the function to call
 	UPROPERTY()
-	FName FunctionName = NAME_None;
+	FName FunctionName = NAME_None;	
 
+	// The class to use to call the function with, recovered by looking for a class of name FunctionName
+	UPROPERTY(Transient)
+	TObjectPtr<const UClass> Class = nullptr;
+	
 	// The function to call, recovered by looking for a function of name FunctionName
 	UPROPERTY(Transient)
 	TObjectPtr<UFunction> Function = nullptr;

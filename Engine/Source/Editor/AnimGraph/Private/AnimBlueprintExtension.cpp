@@ -78,7 +78,8 @@ void UAnimBlueprintExtension::RequestExtensionsForNode(UAnimGraphNode_Base* InAn
             UAnimBlueprintExtension_PropertyAccess::StaticClass()
         };
 
-		if(InAnimGraphNode->InitialUpdateFunction.GetMemberGuid().IsValid() || InAnimGraphNode->BecomeRelevantFunction.GetMemberGuid().IsValid())
+		if(InAnimGraphNode->InitialUpdateFunction.ResolveMember<UFunction>(InAnimGraphNode->GetBlueprintClassFromNode()) != nullptr ||
+			InAnimGraphNode->BecomeRelevantFunction.ResolveMember<UFunction>(InAnimGraphNode->GetBlueprintClassFromNode()) != nullptr)
 		{
 			ExtensionClasses.Add(UAnimBlueprintExtension_NodeRelevancy::StaticClass());
 		}

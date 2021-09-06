@@ -42,6 +42,8 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 			// Only function references are supported right now
 			return;
 		}
+
+		const bool bAllowFunctionLibraryReferences = InStructPropertyHandle->HasMetaData("AllowFunctionLibraries");
 		
 		// Try to find the prototype function
 		const FString& PrototypeFunctionName = InStructPropertyHandle->GetMetaData("PrototypeFunction");
@@ -116,7 +118,15 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 				
 				check(StructData);
 				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
-				MemberReference->SetFromField<UFunction>(InBindingChain[0].Field.Get<UFunction>(), true);
+				UFunction* Function = InBindingChain[0].Field.Get<UFunction>();
+				UClass* OwnerClass = Function ? Function->GetOwnerClass() : nullptr;
+				bool bSelfContext = false;
+				if(OwnerClass != nullptr)
+				{
+					bSelfContext = (Blueprint->GeneratedClass != nullptr && Blueprint->GeneratedClass->IsChildOf(OwnerClass)) ||
+									(Blueprint->SkeletonGeneratedClass != nullptr && Blueprint->SkeletonGeneratedClass->IsChildOf(OwnerClass));
+				}
+				MemberReference->SetFromField<UFunction>(Function, bSelfContext);
 
 				InStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			}
@@ -132,8 +142,7 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 				
 				check(StructData);
 				FMemberReference* MemberReference = static_cast<FMemberReference*>(StructData);
-				FGuid EmptyGuid;
-				MemberReference->SetSelfMember(NAME_None, EmptyGuid);
+				*MemberReference = FMemberReference();
 
 				InStructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 			}
@@ -232,6 +241,7 @@ void FBlueprintMemberReferenceDetails::CustomizeHeader(TSharedRef<IPropertyHandl
 		Args.CurrentBindingColor = FEditorStyle::GetSlateColor("Colors.Foreground").GetSpecifiedColor();
 		Args.bGeneratePureBindings = false;
 		Args.bAllowFunctionBindings = bFunctionReference;
+		Args.bAllowFunctionLibraryBindings = bAllowFunctionLibraryReferences;
 		Args.bAllowPropertyBindings = false;
 		Args.bAllowNewBindings = true;
 		Args.bAllowArrayElementBindings = false;

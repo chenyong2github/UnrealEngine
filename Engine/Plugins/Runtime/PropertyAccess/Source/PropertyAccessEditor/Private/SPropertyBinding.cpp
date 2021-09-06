@@ -25,6 +25,8 @@
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Algo/Transform.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "UObject/UObjectIterator.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #define LOCTEXT_NAMESPACE "PropertyBinding"
 
@@ -115,52 +117,70 @@ void SPropertyBinding::ForEachBindableFunction(UClass* FromClass, Predicate Pred
 {
 	if(Args.OnCanBindFunction.IsBound())
 	{
-		// Walk up class hierarchy for native functions and properties
-		for ( TFieldIterator<UFunction> FuncIt(FromClass, EFieldIteratorFlags::IncludeSuper); FuncIt; ++FuncIt )
+		auto CheckBindableClass = [this, &Pred](UClass* InBindableClass)
 		{
-			UFunction* Function = *FuncIt;
-
-			// Stop processing functions after reaching a base class that it doesn't make sense to go beyond.
-			if ( IsFieldFromBlackListedClass(Function) )
+			// Walk up class hierarchy for native functions and properties
+			for ( TFieldIterator<UFunction> FuncIt(InBindableClass, EFieldIteratorFlags::IncludeSuper); FuncIt; ++FuncIt )
 			{
-				break;
-			}
+				UFunction* Function = *FuncIt;
 
-			// Only allow binding pure functions if we're limited to pure function bindings.
-			if ( Args.bGeneratePureBindings && !Function->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure) )
-			{
-				continue;
-			}
-
-			// Only bind to functions that are callable from blueprints
-			if ( !UEdGraphSchema_K2::CanUserKismetCallFunction(Function) )
-			{
-				continue;
-			}
-
-			bool bValidObjectFunction = false;
-			if(Args.bAllowUObjectFunctions)
-			{
-				FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Function->GetReturnProperty());
-				if(ObjectPropertyBase != nullptr && Function->NumParms == 1)
+				// Stop processing functions after reaching a base class that it doesn't make sense to go beyond.
+				if ( IsFieldFromBlackListedClass(Function) )
 				{
-					bValidObjectFunction = true;
+					break;
+				}
+
+				// Only allow binding pure functions if we're limited to pure function bindings.
+				if ( Args.bGeneratePureBindings && !Function->HasAnyFunctionFlags(FUNC_Const | FUNC_BlueprintPure) )
+				{
+					continue;
+				}
+
+				// Only bind to functions that are callable from blueprints
+				if ( !UEdGraphSchema_K2::CanUserKismetCallFunction(Function) )
+				{
+					continue;
+				}
+
+				bool bValidObjectFunction = false;
+				if(Args.bAllowUObjectFunctions)
+				{
+					FObjectPropertyBase* ObjectPropertyBase = CastField<FObjectPropertyBase>(Function->GetReturnProperty());
+					if(ObjectPropertyBase != nullptr && Function->NumParms == 1)
+					{
+						bValidObjectFunction = true;
+					}
+				}
+
+				bool bValidStructFunction = false;
+				if(Args.bAllowStructFunctions)
+				{
+					FStructProperty* StructProperty = CastField<FStructProperty>(Function->GetReturnProperty());
+					if(StructProperty != nullptr && Function->NumParms == 1)
+					{
+						bValidStructFunction = true;
+					}
+				}
+
+				if(bValidObjectFunction || bValidStructFunction || Args.OnCanBindFunction.Execute(Function))
+				{
+					Pred(FFunctionInfo(Function));
 				}
 			}
+		};
 
-			bool bValidStructFunction = false;
-			if(Args.bAllowStructFunctions)
+		CheckBindableClass(FromClass);
+
+		if(Args.bAllowFunctionLibraryBindings)
+		{
+			// Iterate function libraries
+			for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 			{
-				FStructProperty* StructProperty = CastField<FStructProperty>(Function->GetReturnProperty());
-				if(StructProperty != nullptr && Function->NumParms == 1)
+				UClass* TestClass = *ClassIt;
+				if (!TestClass->IsNative() && TestClass->IsChildOf(UBlueprintFunctionLibrary::StaticClass()) && (!TestClass->HasAnyClassFlags(CLASS_Abstract)))
 				{
-					bValidStructFunction = true;
+					CheckBindableClass(TestClass);
 				}
-			}
-
-			if(bValidObjectFunction || bValidStructFunction || Args.OnCanBindFunction.Execute(Function))
-			{
-				Pred(FFunctionInfo(Function));
 			}
 		}
 	}
