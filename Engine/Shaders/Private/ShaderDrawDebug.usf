@@ -20,11 +20,11 @@ void ShaderDrawDebugVS(
 	out float4 Position : SV_POSITION,
 	out float4 ColorAlpha : TEXCOORD0)
 {
-	FPackedShaderDrawElement PackedLine = ShaderDrawDebugPrimitive[InstanceId];
-	FShaderDrawElement Line = UnpackShaderElement(PackedLine);
+	FPackedShaderDrawElement PackedItem = ShaderDrawDebugPrimitive[InstanceId];
+	FShaderDrawElement Item = UnpackShaderElement(PackedItem);
 
-	float4 VertexPosition = float4(VertexId == 0 ? Line.Pos0 : Line.Pos1, 1.0f);
-	float4 VertexColor = VertexId == 0 ? Line.Color0 : Line.Color1;
+	float4 VertexPosition = float4(VertexId == 0 ? Item.Pos0 : Item.Pos1, 1.0f);
+	float4 VertexColor = VertexId == 0 ? Item.Color0 : Item.Color1;
 
 	Position = mul(VertexPosition, View.WorldToClip);
 	ColorAlpha = VertexColor;
@@ -52,7 +52,7 @@ void ShaderDrawDebugPS(
 
 #if GPU_DEBUG_RENDERING_CLEAR_CS
 
-RWStructuredBuffer<FPackedShaderDrawElement>	DataBuffer;
+RWStructuredBuffer<FPackedShaderDrawElement> ElementBuffer; // Referenced so that the resource is marked as used
 RWBuffer<uint> IndirectBuffer;
 
 [numthreads(1, 1, 1)]

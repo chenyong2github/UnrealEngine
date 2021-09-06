@@ -48,7 +48,7 @@ namespace ShaderDrawDebug
 
 	bool IsSupported(const EShaderPlatform Platform)
 	{
-		return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && IsPCPlatform(Platform) && !IsOpenGLPlatform(Platform);
+		return RHISupportsComputeShaders(Platform) && !IsHlslccShaderPlatform(Platform);
 	}
 
 	void SetEnabled(bool bInEnabled)
@@ -60,12 +60,6 @@ namespace ShaderDrawDebug
 	{
 		GShaderDrawDebug_MaxElementCount = FMath::Max3(1024, GShaderDrawDebug_MaxElementCount, int32(MaxCount));
 	}
-
-	uint32 GetMaxElementCount()
-	{
-		return uint32(FMath::Max(1, GShaderDrawDebug_MaxElementCount));
-	}
-
 
 	void RequestSpaceForElements(uint32 MaxElementCount)
 	{
@@ -95,7 +89,7 @@ namespace ShaderDrawDebug
 		SHADER_USE_PARAMETER_STRUCT(FShaderDrawDebugClearCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, DataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer, ElementBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, IndirectBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -212,7 +206,7 @@ namespace ShaderDrawDebug
 		ClearUnusedGraphResources(VertexShader, &PassParameters->ShaderDrawVSParameters, { IndirectBuffer });
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ShaderDrawDebug"),
+			RDG_EVENT_NAME("ShaderDebug::Draw"),
 			PassParameters,
 			ERDGPassFlags::Raster,
 			[VertexShader, PixelShader, PassParameters, IndirectBuffer](FRHICommandList& RHICmdList)
@@ -241,41 +235,48 @@ namespace ShaderDrawDebug
 			});
 	}
 
-	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
+	static void AddShaderDrawDebugClearPass(FRDGBuilder& GraphBuilder, FViewInfo& View, FRDGBufferRef& DataBuffer, FRDGBufferRef& IndirectBuffer)
 	{
-		if (!IsEnabled(View))
-		{
-			return;
-		}
-
-		// Update max element count from the request count and reset
-		GShaderDrawDebug_MaxElementCount = FMath::Max(GShaderDrawDebug_MaxElementCount, int32(GElementRequestCount));
-		GElementRequestCount = 0;
-
-		FSceneViewState* ViewState = View.ViewState;
-
-		const bool bLockBufferThisFrame = IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked;
-		ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
-
-		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), GetMaxElementCount()), TEXT("ShaderDrawDataBuffer"), Flags);
-		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDrawDataIndirectBuffer"), Flags);
-
 		FShaderDrawDebugClearCS::FParameters* Parameters = GraphBuilder.AllocParameters<FShaderDrawDebugClearCS::FParameters>();
-		Parameters->DataBuffer = GraphBuilder.CreateUAV(DataBuffer);
-		Parameters->IndirectBuffer = GraphBuilder.CreateUAV(IndirectBuffer);
+		Parameters->ElementBuffer	= GraphBuilder.CreateUAV(DataBuffer);
+		Parameters->IndirectBuffer	= GraphBuilder.CreateUAV(IndirectBuffer);
 
 		TShaderMapRef<FShaderDrawDebugClearCS> ComputeShader(View.ShaderMap);
 
 		// Note: we do not call ClearUnusedGraphResources here as we want to for the allocation of DataBuffer
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ShaderDrawClear"),
+			RDG_EVENT_NAME("ShaderDebug::Clear"),
 			Parameters,
 			ERDGPassFlags::Compute,
 			[Parameters, ComputeShader](FRHICommandList& RHICmdList)
 		{
 			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *Parameters, FIntVector(1,1,1));
 		});
+	}
 
+	void BeginView(FRDGBuilder& GraphBuilder, FViewInfo& View)
+	{
+		View.ShaderDrawData = FShaderDrawDebugData();
+		if (!IsEnabled(View))
+		{
+			// Default resources
+			View.ShaderDrawData.Buffer			= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), 1), TEXT("ShaderDraw.DataBuffer(Dummy)"), ERDGBufferFlags::None);
+			View.ShaderDrawData.IndirectBuffer	= GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer(Dummy)"), ERDGBufferFlags::None);
+			return;
+		}
+
+		// Update max element count from the request count and reset
+		GShaderDrawDebug_MaxElementCount = FMath::Max3(1, GShaderDrawDebug_MaxElementCount, int32(GElementRequestCount));
+		View.ShaderDrawData.MaxElementCount = GShaderDrawDebug_MaxElementCount;
+		GElementRequestCount = 0;
+
+		FSceneViewState* ViewState = View.ViewState;
+		const bool bLockBufferThisFrame = IsShaderDrawLocked() && ViewState && !ViewState->ShaderDrawDebugStateData.bIsLocked;
+		ERDGBufferFlags Flags = bLockBufferThisFrame ? ERDGBufferFlags::MultiFrame : ERDGBufferFlags::None;
+
+		FRDGBufferRef DataBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(FPackedShaderDrawElement), View.ShaderDrawData.MaxElementCount), TEXT("ShaderDraw.DataBuffer"), Flags);
+		FRDGBufferRef IndirectBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc<FRHIDrawIndirectParameters>(1), TEXT("ShaderDraw.IndirectBuffer"), Flags);
+		AddShaderDrawDebugClearPass(GraphBuilder, View, DataBuffer, IndirectBuffer);
 
 		View.ShaderDrawData.Buffer = DataBuffer;
 		View.ShaderDrawData.IndirectBuffer = IndirectBuffer;
@@ -340,13 +341,10 @@ namespace ShaderDrawDebug
 		if (Data.Buffer == nullptr)
 			return;
 
-		FRDGBufferRef DataBuffer = Data.Buffer;
-		FRDGBufferRef IndirectBuffer = Data.IndirectBuffer;
-
-		OutParameters.ShaderDrawCursorPos = Data.CursorPosition;
-		OutParameters.ShaderDrawMaxElementCount = GetMaxElementCount();
-		OutParameters.OutShaderDrawPrimitive = GraphBuilder.CreateUAV(DataBuffer);
-		OutParameters.OutputShaderDrawIndirect = GraphBuilder.CreateUAV(IndirectBuffer);
+		OutParameters.ShaderDrawCursorPos		= Data.CursorPosition;
+		OutParameters.ShaderDrawMaxElementCount = Data.MaxElementCount;
+		OutParameters.OutShaderDrawPrimitive	= GraphBuilder.CreateUAV(Data.Buffer);
+		OutParameters.OutputShaderDrawIndirect	= GraphBuilder.CreateUAV(Data.IndirectBuffer);
 	}
 
 	// Returns true if the default view exists and has shader debug rendering enabled (this needs to be checked before using a permutation that requires the shader draw parameters)

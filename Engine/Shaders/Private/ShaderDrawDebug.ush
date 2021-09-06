@@ -67,7 +67,7 @@ RWStructuredBuffer<FPackedShaderDrawElement>OutShaderDrawPrimitive;
 RWBuffer<uint>								OutputShaderDrawIndirect;
 
 int2 ShaderDrawCursorPos;
-uint ShaderDrawMaxElementCount; 
+uint ShaderDrawMaxElementCount;
 
 int2 GetCursorPos()
 {
@@ -76,10 +76,15 @@ int2 GetCursorPos()
 
 void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 {
+	if (ShaderDrawMaxElementCount == 0)
+	{
+		return;
+	}
+
 	uint PreviousPrimitiveCount = 0;
 	InterlockedAdd(OutputShaderDrawIndirect[1], 1, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount+1) <= ShaderDrawMaxElementCount)
-    {
+	{
 		FShaderDrawElement Element;
 		Element.Pos0 = Pos0;
 		Element.Pos1 = Pos1;
@@ -87,7 +92,7 @@ void AddLine(float3 Pos0, float3 Pos1, float4 Color0, float4 Color1)
 		Element.Color1 = Color1;
 
 		OutShaderDrawPrimitive[PreviousPrimitiveCount] = PackShaderElement(Element);
-    }
+	}
 	else
 	{
 		InterlockedAdd(OutputShaderDrawIndirect[1], -1, PreviousPrimitiveCount);// Make sure we stay in the safe zone for indirect draw
@@ -101,6 +106,11 @@ void AddLine(float3 Pos0, float3 Pos1, float4 Color)
 
 void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 {
+	if (ShaderDrawMaxElementCount == 0)
+	{
+		return;
+	}
+
 	uint PreviousPrimitiveCount = 0;
 	InterlockedAdd(OutputShaderDrawIndirect[1], 4, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount+4) <= ShaderDrawMaxElementCount)
@@ -128,6 +138,11 @@ void AddQuad(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)
 
 void AddAABB(float3 Min, float3 Max, float4 Color)
 {
+	if (ShaderDrawMaxElementCount == 0)
+	{
+		return;
+	}
+
 	uint PreviousPrimitiveCount = 0;
 	InterlockedAdd(OutputShaderDrawIndirect[1], 12, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount + 12) <= ShaderDrawMaxElementCount)
@@ -205,6 +220,11 @@ void AddLineTriangle(float3 P0, float3 P1, float3 P2, float4 Color)
 
 void AddOBB(float3 Min, float3 Max, float4 Color, float4x4 Transform)
 {
+	if (ShaderDrawMaxElementCount == 0)
+	{
+		return;
+	}
+
 	uint PreviousPrimitiveCount = 0;
 	InterlockedAdd(OutputShaderDrawIndirect[1], 12, PreviousPrimitiveCount);
 	if ((PreviousPrimitiveCount + 12) <= ShaderDrawMaxElementCount)
