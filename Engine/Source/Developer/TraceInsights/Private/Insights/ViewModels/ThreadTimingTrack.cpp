@@ -977,7 +977,7 @@ void FThreadTimingTrack::DrawSelectedEventInfo(const FThreadTrackEvent& Selected
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const FVector2D Size = FontMeasureService->Measure(Str, Font);
 		const float X = Viewport.GetWidth() - Size.X - 23.0f;
-		const float Y = Viewport.GetHeight() - Size.Y - 18.0f;
+		const float Y = Viewport.GetPosY() + Viewport.GetHeight() - Size.Y - 18.0f;
 
 		const FLinearColor BackgroundColor(0.05f, 0.05f, 0.05f, 1.0f);
 		const FLinearColor TextColor(0.7f, 0.7f, 0.7f, 1.0f);

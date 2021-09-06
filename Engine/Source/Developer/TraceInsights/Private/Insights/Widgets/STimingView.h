@@ -71,6 +71,8 @@ public:
 	 */
 	void Construct(const FArguments& InArgs);
 
+	void CreateCompactMenuLine(FMenuBuilder& MenuBuilder, FText Label, TSharedRef<SWidget> InnerWidget) const;
+	TSharedRef<SWidget> MakeCompactAutoScrollOptionsMenu();
 	TSharedRef<SWidget> MakeAutoScrollOptionsMenu();
 
 	TSharedRef<SWidget> MakeTracksFilterMenu();
@@ -453,7 +455,7 @@ protected:
 	FReply AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	FReply AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 
-	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TopOffsetY) const;
+	void SetTrackPosY(TSharedPtr<FBaseTimingTrack>& TrackPtr, float TrackPosY) const;
 	
 	void FindNextEvent();
 	void FindPrevEvent();

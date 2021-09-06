@@ -293,7 +293,7 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 			{
 				X = SelectionX1 - W / 2;
 			}
-			MousePosTextForegroundColor = FLinearColor(FColor(32, 64, 128, 255));
+			MousePosTextForegroundColor = FLinearColor(0.01f, 0.05f, 0.2f, 1.0f);
 		}
 		else
 		{
@@ -301,10 +301,10 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 			//DrawContext.DrawBox(0.0f, MousePosition.Y, Viewport.Width, 1.0f, WhiteBrush, MousePosLineColor);
 
 			// Draw vertical line at mouse position.
-			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, Viewport.GetHeight(), WhiteBrush, MousePosLineColor);
+			DrawContext.DrawBox(MousePosition.X, Viewport.GetPosY(), 1.0f, Viewport.GetHeight(), WhiteBrush, MousePosLineColor);
 
 			// Stroke the vertical line above current time box.
-			DrawContext.DrawBox(MousePosition.X, 0.0f, 1.0f, TextY, WhiteBrush, MousePosTextBackgroundColor);
+			DrawContext.DrawBox(MousePosition.X, GetPosY(), 1.0f, TextY - GetPosY(), WhiteBrush, MousePosTextBackgroundColor);
 		}
 
 		// Fill the current time box.
@@ -342,13 +342,13 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 		return;
 	}
 
-	constexpr float TimeMarkerY = 0.0f;
+	const float TimeMarkerY = GetPosY();
 	constexpr float BoxHeight = 12.0f;
 
 	FDrawContext& DrawContext = Context.GetDrawContext();
 
 	// Draw the vertical line.
-	DrawContext.DrawBox(TimeMarkerX, TimeMarkerY, 1.0f, Viewport.GetHeight() - TimeMarkerY, WhiteBrush, TimeMarker.GetColor());
+	DrawContext.DrawBox(TimeMarkerX, TimeMarkerY, 1.0f, Viewport.GetPosY() + Viewport.GetHeight() - TimeMarkerY, WhiteBrush, TimeMarker.GetColor());
 	DrawContext.LayerId++;
 
 	const FVector2D& MousePosition = Context.GetMousePosition();

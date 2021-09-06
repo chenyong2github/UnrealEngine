@@ -296,7 +296,7 @@ FTimingViewDrawHelper::~FTimingViewDrawHelper()
 
 void FTimingViewDrawHelper::DrawBackground() const
 {
-	const float Y = 0.0f;
+	const float Y = Viewport.GetPosY();
 	const float H = FMath::CeilToFloat(Viewport.GetHeight());
 	FDrawHelpers::DrawBackground(DrawContext, BackgroundAreaBrush, Viewport, Y, H, ValidAreaX, ValidAreaW); // also computes ValidAreaX and ValidAreaW
 }
@@ -753,13 +753,13 @@ void FTimingViewDrawHelper::EndDrawTracks() const
 	{
 		const int32 TrackBackgroundLayerId = ReservedLayerId + ToInt32(EDrawLayer::TrackBackground);
 
-		const float TopY = Viewport.GetTopOffset();
-		const float BottomY = Viewport.GetHeight() - Viewport.GetBottomOffset();
+		const float TopY = Viewport.GetPosY() + Viewport.GetTopOffset();
+		const float BottomY = Viewport.GetPosY() + Viewport.GetHeight() - Viewport.GetBottomOffset();
 
 		if (TopY < BottomY)
 		{
 			// Y position of the first pixel below the last track.
-			const float Y = TopY + Viewport.GetScrollHeight() - Viewport.GetScrollPosY();
+			const float Y = TopY + Viewport.GetScrollHeight() - Viewport.GetScrollPosY() - 1.0f;
 
 			if (Y >= TopY && Y < BottomY)
 			{
