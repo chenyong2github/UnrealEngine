@@ -798,6 +798,17 @@ static const TCHAR* ToString(EHairBindingType In)
 	return TEXT("None");
 }
 
+static const TCHAR* ToString(EHairLODSelectionType In)
+{
+	switch (In)
+	{
+	case EHairLODSelectionType::Immediate:	return TEXT("Immed");
+	case EHairLODSelectionType::Predicted:	return TEXT("Predic");
+	case EHairLODSelectionType::Forced:		return TEXT("Forced");
+	}
+	return TEXT("None");
+}
+
 FCachedGeometry GetCacheGeometryForHair(
 	FRDGBuilder& GraphBuilder,
 	FHairGroupInstance* Instance,
@@ -869,12 +880,13 @@ void RunHairStrandsDebug(
 					}
 				}
 
-				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | Clip:%d(%1.2f) | VertexCount:%d | Name: %s"),
+				Line = FString::Printf(TEXT(" * Group:%d/%d | LOD:%1.2f/%d (%s) | GeometryType:%s | BindingType:%s | Sim:%d | RBF:%d | Clip:%d(%1.2f) | VertexCount:%d | Name: %s"),
 					Instance->Debug.GroupIndex,
 					Instance->Debug.GroupCount,
 
 					Instance->HairGroupPublicData->LODIndex,
 					Instance->HairGroupPublicData->GetLODScreenSizes().Num(),
+					ToString(Instance->Debug.LODSelectionTypeForDebug),
 
 					ToString(Instance->GeometryType),
 					ToString(Instance->BindingType),

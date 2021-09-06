@@ -25,13 +25,6 @@ enum class EHairInterpolationWeight : uint8
 	Unknown		UMETA(Hidden),
 };
 
-UENUM()
-enum class EHairLODSelectionType : uint8
-{
-	Cpu		UMETA(DisplayName = "CPU", ToolTip = "Use CPU information for computing the LOD selection. This used the CPU object bounds, which is not always accurate, especially when the groom is bound to a skeletal mesh."),
-	Gpu		UMETA(DisplayName = "GPU", ToolTip = "Use GPU information for computing the LOD selection. This use GPU hair clusters information which are more precise, but also more expensive to compute"),
-};
-
 UENUM(BlueprintType)
 enum class EGroomGeometryType : uint8
 {

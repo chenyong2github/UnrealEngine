@@ -607,40 +607,38 @@ static void RunHairLODSelection(
 		// Compute the view where the screen size is maximale
 		const float PrevLODIndex = Instance->HairGroupPublicData->GetLODIndex();
 		const float PrevMeshLODIndex = Instance->HairGroupPublicData->GetMeshLODIndex();
-		float LODIndex = Instance->Strands.Modifier.LODForcedIndex; // check where this is updated 
 
 		// Insure that MinLOD is necessary taken into account if a force LOD is request (i.e., LODIndex>=0). If a Force LOD 
 		// is not resquested (i.e., LODIndex<0), the MinLOD is applied after ViewLODIndex has been determined in the codeblock below
 		const float MinLOD = FMath::Max(0, GHairStrandsMinLOD);
-		LODIndex = Instance->bUseCPULODSelection && LODIndex >= 0 ? FMath::Max(LODIndex, MinLOD) : LODIndex;
-		if (LODIndex < 0 && Instance->bUseCPULODSelection)
+		float LODIndex = Instance->Debug.LODForcedIndex >= 0 ? FMath::Max(Instance->Debug.LODForcedIndex, MinLOD) : -1.0f;
+		float LODViewIndex = -1;
 		{
 			const FSphere SphereBound = Instance->ProxyBounds ? Instance->ProxyBounds->GetSphere() : FSphere(0);
 			for (const FSceneView* View : Views)
 			{
 				const float ScreenSize = ComputeBoundsScreenSize(FVector4(SphereBound.Center, 1), SphereBound.W, *View);
 				const float LODBias = Instance->Strands.Modifier.LODBias;
-				const float ViewLODIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
+				const float CurrLODViewIndex = FMath::Max(MinLOD, GetHairInstanceLODIndex(Instance->HairGroupPublicData->GetLODScreenSizes(), ScreenSize, LODBias));
 
 				// Select highest LOD accross all views
-				LODIndex = LODIndex == -1 ? ViewLODIndex : FMath::Min(LODIndex, ViewLODIndex);
+				LODViewIndex = LODViewIndex < 0 ? CurrLODViewIndex : FMath::Min(LODViewIndex, CurrLODViewIndex);
 			}
+		}
+		if (LODIndex < 0)
+		{
+			LODIndex = LODViewIndex;
 		}
 
 		const TArray<EHairGeometryType>& LODGeometryTypes = Instance->HairGroupPublicData->GetLODGeometryTypes();
 		const TArray<bool>& LODVisibilities = Instance->HairGroupPublicData->GetLODVisibilities();
 		const int32 LODCount = LODVisibilities.Num();
 
-		// CPU selection: insure the LOD index is in valid range 
-		// GPU selection: -1 means auto-selection based on GPU data, >=0 means forced LOD
-		if (Instance->bUseCPULODSelection)
-		{
-			LODIndex = FMath::Clamp(LODIndex, 0.f, float(LODCount - 1));
-		}
-		else
-		{
-			LODIndex = FMath::Clamp(LODIndex, -1.f, float(LODCount - 1));
-		}
+		LODIndex = FMath::Clamp(LODIndex, 0.f, float(LODCount - 1));
+
+		// Feedback game thread with LOD selection 
+		Instance->Debug.LODPredictedIndex = LODViewIndex;
+
 		const int32 IntLODIndex = FMath::Clamp(FMath::FloorToInt(LODIndex), 0, LODCount - 1);
 		const bool bIsVisible = LODVisibilities[IntLODIndex];
 		const bool bForceCards = GHairStrands_UseCards > 0 || Instance->bForceCards; // todo
