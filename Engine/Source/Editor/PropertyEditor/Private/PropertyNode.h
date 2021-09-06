@@ -1150,8 +1150,8 @@ public:
 	FComplexPropertyNode() : FPropertyNode() {}
 	virtual ~FComplexPropertyNode() {}
 
-	virtual FComplexPropertyNode* AsComplexNode() override{ return this; }
-	virtual const FComplexPropertyNode* AsComplexNode() const override{ return this; }
+	virtual FComplexPropertyNode* AsComplexNode() override { return this; }
+	virtual const FComplexPropertyNode* AsComplexNode() const override { return this; }
 
 	virtual class FStructurePropertyNode* AsStructureNode() { return nullptr; }
 	virtual const FStructurePropertyNode* AsStructureNode() const { return nullptr; }
@@ -1164,13 +1164,13 @@ public:
 	virtual TArray<const UStruct*> GetAllStructures() const = 0;
 
 	virtual int32 GetInstancesNum() const = 0;
-	virtual uint8* GetMemoryOfInstance(int32 Index) = 0;
+	virtual uint8* GetMemoryOfInstance(int32 Index) const = 0;
 
 	/**
 	 * Returns a pointer to the stored value of InProperty on InParentNode's Index'th instance.
 	 */
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) = 0;
-	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) = 0;
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, const FPropertyNode* InParentNode) const = 0;
+	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) const = 0;
 	virtual EPropertyType GetPropertyType() const = 0;
 
 	virtual void Disconnect() = 0;

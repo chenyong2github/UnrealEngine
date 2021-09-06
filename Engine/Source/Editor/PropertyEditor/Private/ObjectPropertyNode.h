@@ -88,11 +88,11 @@ public:
 	virtual TArray<const UStruct*> GetAllStructures() const override;
 
 	virtual int32 GetInstancesNum() const override{ return GetNumObjects(); }
-	virtual uint8* GetMemoryOfInstance(int32 Index) override
+	virtual uint8* GetMemoryOfInstance(int32 Index) const override
 	{
 		return (uint8*)GetUObject(Index);
 	}
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) override
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, const FPropertyNode* InParentNode) const override
 	{
 		if (InParentNode == nullptr || InProperty == nullptr)
 		{
@@ -113,7 +113,7 @@ public:
 
 		return InProperty->ContainerPtrToValuePtr<uint8>(ParentPtr);
 	}
-	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) override
+	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) const override
 	{
 		check(Objects.IsValidIndex(Index));
 		return Objects[Index];
