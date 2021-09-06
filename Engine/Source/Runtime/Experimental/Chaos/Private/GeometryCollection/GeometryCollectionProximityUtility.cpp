@@ -169,23 +169,55 @@ bool FGeometryCollectionProximityUtility::DoFacesOverlap(int32 Idx0, int32 Idx1)
 	Basis0.Normalize();
 	FVector3f Basis1 = FVector3f::CrossProduct(SurfaceNormals[Idx0], Basis0);
 	Basis1.Normalize();
+
+	FVector3f Origin = TransformedVertices[Indices[Idx0].X];
 	
 	TStaticArray<FVector2D,3> T0; 
 	// T0[0] is the origin of the system
 	T0[0] = FVector2D(0.f, 0.f);
-	T0[1] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y], Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y], Basis1));
-	T0[2] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z], Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z], Basis1));
+
+	T0[1] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Y] - Origin, Basis1));
+	T0[2] = FVector2D(FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis0), FVector3f::DotProduct(TransformedVertices[Indices[Idx0].Z] - Origin, Basis1));
 
 	// Project the second triangle into these coordinates. We reverse the winding order to flip the normal.
-	FVector3f Point0 = TransformedVertices[Indices[Idx1].Z] - TransformedVertices[Indices[Idx0].Z];
-	FVector3f Point1 = TransformedVertices[Indices[Idx1].Y] - TransformedVertices[Indices[Idx0].Y];
-	FVector3f Point2 = TransformedVertices[Indices[Idx1].X] - TransformedVertices[Indices[Idx0].X];
+	FVector3f Point0 = TransformedVertices[Indices[Idx1].Z] - Origin;
+	FVector3f Point1 = TransformedVertices[Indices[Idx1].Y] - Origin;
+	FVector3f Point2 = TransformedVertices[Indices[Idx1].X] - Origin;
 	TStaticArray<FVector2D,3> T1;
 	T1[0] = FVector2D(FVector3f::DotProduct(Point0, Basis0), FVector3f::DotProduct(Point0, Basis1));
 	T1[1] = FVector2D(FVector3f::DotProduct(Point1, Basis0), FVector3f::DotProduct(Point1, Basis1));
 	T1[2] = FVector2D(FVector3f::DotProduct(Point2, Basis0), FVector3f::DotProduct(Point2, Basis1));
 
-	return TrianglesIntersect(T0, T1);
+	return IdenticalTriangles(T0, T1) || TrianglesIntersect(T0, T1);
+}
+
+bool FGeometryCollectionProximityUtility::IdenticalTriangles(const TStaticArray<FVector2D, 3>& T0, const TStaticArray<FVector2D, 3>& T1)
+{
+	int32 FirstMatch = 0;
+	for (; FirstMatch < 3; ++FirstMatch)
+	{
+		if (T0[0] == T1[FirstMatch])
+		{
+			break;
+		}
+	}
+
+	if (FirstMatch == 3) // No match
+	{
+		return false;
+	}
+
+	if (T0[1] != T1[(FirstMatch + 1) % 3])
+	{
+		return false;
+	}
+
+	if (T0[2] != T1[(FirstMatch + 2) % 3])
+	{
+		return false;
+	}
+
+	return true;
 }
 
 bool FGeometryCollectionProximityUtility::TrianglesIntersect(const TStaticArray<FVector2D,3>& T0, const TStaticArray<FVector2D,3>& T1)
@@ -270,7 +302,8 @@ void FGeometryCollectionProximityUtility::ExtendFaceProximityToGeometry()
 {
 	if (!Collection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
 	{
-		Collection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
+		const FManagedArrayCollection::FConstructionParameters GeometryDependency(FGeometryCollection::GeometryGroup);
+		Collection->AddAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup, GeometryDependency);
 	}
 
 	TManagedArray<TSet<int32>>& Proximity = Collection->GetAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
