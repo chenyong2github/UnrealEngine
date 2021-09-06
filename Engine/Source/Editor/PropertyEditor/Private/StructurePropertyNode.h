@@ -117,19 +117,19 @@ public:
 	{ 
 		return HasValidStructData() ? 1 : 0;
 	}
-	virtual uint8* GetMemoryOfInstance(int32 Index) override
+	virtual uint8* GetMemoryOfInstance(int32 Index) const override
 	{ 
 		check(0 == Index);
 		return HasValidStructData() ? StructData->GetStructMemory() : NULL;
 	}
-	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, FPropertyNode* InParentNode) override
+	virtual uint8* GetValuePtrOfInstance(int32 Index, const FProperty* InProperty, const FPropertyNode* InParentNode) const override
 	{ 
 		check(0 == Index);
 		uint8* StructBaseAddress = HasValidStructData() ? StructData->GetStructMemory() : nullptr;
 		uint8* ParentBaseAddress = InParentNode ? InParentNode->GetValueAddress(StructBaseAddress, false) : nullptr;
 		return InProperty ? InProperty->ContainerPtrToValuePtr<uint8>(ParentBaseAddress) : nullptr;
 	}
-	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) override
+	virtual TWeakObjectPtr<UObject> GetInstanceAsUObject(int32 Index) const override
 	{
 		check(0 == Index);
 		return NULL;
