@@ -86,6 +86,12 @@ public:
 	/** Release Niagara components */
 	void ReleaseHairSimulation();
 
+	/** Create per Group/LOD the Niagara component */
+	void CreateHairSimulation(const int32 GroupIndex, const int32 LODIndex);
+
+	/** Enable/Disable hair simulation while transitioning from one LOD to another one */
+	void SwitchSimulationLOD(const int32 PreviousLOD, const int32 CurrentLOD);
+
 	/** Check if the simulation is enabled or not */
 	bool IsSimulationEnable(int32 GroupIndex, int32 LODIndex) const;
 
