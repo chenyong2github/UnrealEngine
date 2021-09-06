@@ -482,6 +482,7 @@ void FRigControlSettings::Load(FArchive& Ar)
 	Ar << bLimitScale;
 	Ar << bDrawLimits;
 
+	FTransform MinimumTransform, MaximumTransform;
 	if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::StorageMinMaxValuesAsFloatStorage)
 	{
 		Ar << MinimumValue;
@@ -489,13 +490,9 @@ void FRigControlSettings::Load(FArchive& Ar)
 	}
 	else
 	{
-		FTransform MinimumTransform, MaximumTransform;
 		Ar << MinimumTransform;
 		Ar << MaximumTransform;
-		MinimumValue.SetFromTransform(MinimumTransform, ControlType, PrimaryAxis);
-		MaximumValue.SetFromTransform(MaximumTransform, ControlType, PrimaryAxis);
 	}
-	
 
 	Ar << bGizmoEnabled;
 	Ar << bGizmoVisible;
@@ -506,6 +503,12 @@ void FRigControlSettings::Load(FArchive& Ar)
 
 	ControlType = (ERigControlType)ControlTypeEnum->GetValueByName(ControlTypeName);
 	PrimaryAxis = (ERigControlAxis)ControlAxisEnum->GetValueByName(PrimaryAxisName);
+
+	if (Ar.CustomVer(FControlRigObjectVersion::GUID) < FControlRigObjectVersion::StorageMinMaxValuesAsFloatStorage)
+	{
+		MinimumValue.SetFromTransform(MinimumTransform, ControlType, PrimaryAxis);
+		MaximumValue.SetFromTransform(MaximumTransform, ControlType, PrimaryAxis);
+	}
 
 	ControlEnum = nullptr;
 	if(!ControlEnumPathName.IsEmpty())
