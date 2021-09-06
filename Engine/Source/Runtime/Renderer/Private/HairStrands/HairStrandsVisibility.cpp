@@ -931,15 +931,18 @@ class FHairVelocityCS: public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVelocityCS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVelocityCS, FGlobalShader);
 
-	class FGroupSize : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_GROUPSIZE", 32, 64);
 	class FVelocity : SHADER_PERMUTATION_INT("PERMUTATION_VELOCITY", 4);
 	class FOuputFormat : SHADER_PERMUTATION_INT("PERMUTATION_OUTPUT_FORMAT", 2);
-	using FPermutationDomain = TShaderPermutationDomain<FGroupSize, FVelocity, FOuputFormat>;
+	class FTile : SHADER_PERMUTATION_BOOL("PERMUTATION_TILE");
+	using FPermutationDomain = TShaderPermutationDomain<FVelocity, FOuputFormat, FTile>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+
+		SHADER_PARAMETER(FIntPoint, Resolution)
 		SHADER_PARAMETER(FIntPoint, ResolutionOffset)
 		SHADER_PARAMETER(float, VelocityThreshold)
 		SHADER_PARAMETER(float, CoverageThreshold)
+		SHADER_PARAMETER(uint32, bNeedClear)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CoverageTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, NodeIndex)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, NodeVelocity)
@@ -948,6 +951,13 @@ class FHairVelocityCS: public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutResolveMaskTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+
+		SHADER_PARAMETER(FIntPoint, TileCountXY)
+		SHADER_PARAMETER(uint32, TileSize)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TileDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairTileCount)
+		RDG_BUFFER_ACCESS(TileIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -966,6 +976,7 @@ static void AddHairVelocityPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
+	const FHairStrandsTiles& TileData,
 	FRDGTextureRef& CoverageTexture,
 	FRDGTextureRef& NodeIndex,
 	FRDGBufferRef& NodeVis,
@@ -977,26 +988,35 @@ static void AddHairVelocityPass(
 	if (!bWriteOutVelocity)
 		return;
 
-	if (!HasBeenProduced(OutVelocityTexture))
+	// If velocity texture has not been created by the base-pass, clear it here
+	const bool bNeedClear = !HasBeenProduced(OutVelocityTexture);
+	if (bNeedClear)
 	{
-		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutVelocityTexture), 0.f);
+		if (!TileData.IsValid())
+		{
+			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(OutVelocityTexture), 0.f);
+		}
+		else
+		{
+			AddHairStrandsTileClearPass(GraphBuilder, View, TileData, FHairStrandsTiles::ETileType::Other, OutVelocityTexture);
+		}
 	}
 
+	const bool bUseTile = TileData.IsValid();
+
 	const FIntPoint Resolution = OutVelocityTexture->Desc.Extent;
-	{
-		FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(Resolution, PF_R8_UINT, FClearValueBinding::None, TexCreate_UAV);
-		OutResolveMaskTexture = GraphBuilder.CreateTexture(Desc, TEXT("Hair.VelocityResolveMaskTexture"));
-	}
+	OutResolveMaskTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Resolution, PF_R8_UINT, FClearValueBinding::None, TexCreate_UAV), TEXT("Hair.VelocityResolveMaskTexture"));
 
 	check(OutVelocityTexture->Desc.Format == PF_G16R16 || OutVelocityTexture->Desc.Format == PF_A16B16G16R16);
 	const bool bTwoChannelsOutput = OutVelocityTexture->Desc.Format == PF_G16R16;
 
 	FHairVelocityCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairVelocityCS::FGroupSize>(GetVendorOptimalGroupSize1D());
 	PermutationVector.Set<FHairVelocityCS::FVelocity>(bWriteOutVelocity ? FMath::Clamp(GHairVelocityType + 1, 0, 3) : 0);
 	PermutationVector.Set<FHairVelocityCS::FOuputFormat>(bTwoChannelsOutput ? 0 : 1);
+	PermutationVector.Set<FHairVelocityCS::FTile>(bUseTile);
 
 	FHairVelocityCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairVelocityCS::FParameters>();
+	PassParameters->bNeedClear = bNeedClear ? 1u : 0u;
 	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel);
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->VelocityThreshold = GetHairFastResolveVelocityThreshold(Resolution);
@@ -1008,29 +1028,44 @@ static void AddHairVelocityPass(
 	PassParameters->OutVelocityTexture = GraphBuilder.CreateUAV(OutVelocityTexture);
 	PassParameters->OutResolveMaskTexture = GraphBuilder.CreateUAV(OutResolveMaskTexture);
 
-	const FIntPoint GroupSize = GetVendorOptimalGroupSize2D();
-	// We don't use the CPU screen projection for running the velocity pass, as we need to clear the entire 
-	// velocity mask through the UAV write, otherwise the mask will be partially invalid.
-#if 1
-	FIntRect TotalRect = View.ViewRect; 
-#else
-	// Snap the rect onto thread group boundary
-	FIntRect TotalRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
-	TotalRect.Min.X = FMath::FloorToInt(float(TotalRect.Min.X) / float(GroupSize.X)) * GroupSize.X;
-	TotalRect.Min.Y = FMath::FloorToInt(float(TotalRect.Min.Y) / float(GroupSize.Y)) * GroupSize.Y;
-	TotalRect.Max.X = FMath::CeilToInt(float(TotalRect.Max.X) / float(GroupSize.X)) * GroupSize.X;
-	TotalRect.Max.Y = FMath::CeilToInt(float(TotalRect.Max.Y) / float(GroupSize.Y)) * GroupSize.Y;
-#endif
-	FIntPoint RectResolution(TotalRect.Width(), TotalRect.Height());
-	PassParameters->ResolutionOffset = FIntPoint(TotalRect.Min.X, TotalRect.Min.Y);
+	if (bUseTile)
+	{
+		const FHairStrandsTiles::ETileType TileType = FHairStrandsTiles::ETileType::HairAll;
 
-	TShaderMapRef<FHairVelocityCS> ComputeShader(View.ShaderMap, PermutationVector);
-	FComputeShaderUtils::AddPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("HairStrands::Velocity"),
-		ComputeShader,
-		PassParameters,
-		FComputeShaderUtils::GetGroupCount(RectResolution, GroupSize));
+		PassParameters->ResolutionOffset	= FIntPoint(0,0);
+		PassParameters->Resolution			= Resolution;
+		PassParameters->TileCountXY			= TileData.TileCountXY;
+		PassParameters->TileSize			= TileData.TileSize;
+		PassParameters->TileCountBuffer		= TileData.TileCountSRV;
+		PassParameters->TileDataBuffer		= TileData.GetTileBufferSRV(TileType);
+		PassParameters->TileIndirectArgs	= TileData.TileIndirectDispatchBuffer;
+
+		TShaderMapRef<FHairVelocityCS> ComputeShader(View.ShaderMap, PermutationVector);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HairStrands::Velocity(Tile)"),
+			ComputeShader,
+			PassParameters,
+			PassParameters->TileIndirectArgs, TileData.GetIndirectDispatchArgOffset(TileType));
+	}
+	else
+	{
+		// We don't use the CPU screen projection for running the velocity pass, as we need to clear the entire 
+		// velocity mask through the UAV write, otherwise the mask will be partially invalid.
+		const FIntRect TotalRect = View.ViewRect; 
+		const FIntPoint RectResolution(TotalRect.Width(), TotalRect.Height());
+
+		PassParameters->ResolutionOffset = FIntPoint(TotalRect.Min.X, TotalRect.Min.Y);
+		PassParameters->Resolution		 = RectResolution;
+
+		TShaderMapRef<FHairVelocityCS> ComputeShader(View.ShaderMap, PermutationVector);
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HairStrands::Velocity(Screen)"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(RectResolution, FIntPoint(8, 8)));
+	}
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
@@ -1643,7 +1678,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 	FRDGBufferRef& OutCompactNodeVis, // Or OutCompactNodeData for PPLL
 	FRDGBufferRef& OutCompactNodeCoord,
 	FRDGTextureRef& OutCoverageTexture,
-	FRDGTextureRef& OutVelocityTexture,
+	FRDGTextureRef OutVelocityTexture,
 	FRDGBufferRef& OutIndirectArgsBuffer,
 	uint32& OutMaxRenderNodeCount)
 {
@@ -1708,7 +1743,7 @@ static void AddHairVisibilityPrimitiveIdCompactionPass(
 		OutCompactNodeCoord = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxRenderNodeCount), TEXT("Hair.VisibilityNodeCoord"));
 	}
 
-	const bool bWriteOutVelocity = OutVelocityTexture != nullptr;
+	const bool bWriteOutVelocity = OutVelocityTexture != nullptr && bUsePPLL; // Velocity write out is only support with PPLL
 	const uint32 VelocityPermutation = bWriteOutVelocity ? FMath::Clamp(GHairVelocityType + 1, 0, 3) : 0;
 	FHairVisibilityPrimitiveIdCompactionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVisibilityPrimitiveIdCompactionCS::FGroupSize>(bUseTile ? FHairStrandsTiles::GroupSize : GetVendorOptimalGroupSize1D());
@@ -1847,7 +1882,6 @@ static void AddHairVisibilityCompactionComputeRasterPass(
 	FRDGBufferRef&  OutCompactNodeVis,
 	FRDGBufferRef&  OutCompactNodeCoord,
 	FRDGTextureRef& OutCoverageTexture,
-	FRDGTextureRef& OutVelocityTexture,
 	FRDGBufferRef&  OutIndirectArgsBuffer,
 	uint32& OutMaxRenderNodeCount)
 {	
@@ -3210,7 +3244,6 @@ void RenderHairStrandsVisibilityBuffer(
 							CompactNodeVis,
 							CompactNodeCoord,
 							CoverageTexture,
-							SceneVelocityTexture,
 							IndirectArgsBuffer,
 							VisibilityData.MaxNodeCount);
 
@@ -3236,6 +3269,7 @@ void RenderHairStrandsVisibilityBuffer(
 							GraphBuilder,
 							View,
 							MacroGroupDatas,
+							VisibilityData.TileData,
 							CoverageTexture,
 							CompactNodeIndex,
 							CompactNodeVis,
@@ -3380,7 +3414,7 @@ void RenderHairStrandsVisibilityBuffer(
 						CompactNodeVis,
 						CompactNodeCoord,
 						CoverageTexture,
-						SceneVelocityTexture,
+						nullptr, // Velocity output is only needed for PPLL
 						IndirectArgsBuffer,
 						VisibilityData.MaxNodeCount);
 
@@ -3409,6 +3443,7 @@ void RenderHairStrandsVisibilityBuffer(
 							GraphBuilder,
 							View,
 							MacroGroupDatas,
+							VisibilityData.TileData,
 							CoverageTexture,
 							CompactNodeIndex,
 							CompactNodeVis,

@@ -40,6 +40,13 @@ FHairStrandsTiles AddHairStrandsGenerateTilesPass(
 	const FViewInfo& View,
 	const FRDGTextureRef& InputTexture);
 
+void AddHairStrandsTileClearPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FHairStrandsTiles& TileData,
+	FHairStrandsTiles::ETileType TileType,
+	FRDGTextureRef OutTexture);
+
 void AddHairStrandsDebugTilePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
