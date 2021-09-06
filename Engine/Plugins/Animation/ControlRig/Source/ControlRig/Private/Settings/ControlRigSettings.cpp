@@ -30,5 +30,6 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 	SetupEventBorderColor = FLinearColor::Red;
 	BackwardsSolveBorderColor = FLinearColor::Yellow;
 	BackwardsAndForwardsBorderColor = FLinearColor::Blue;
+	DynamicHierarchyBorderColor = FLinearColor::Blue;
 #endif
 }
