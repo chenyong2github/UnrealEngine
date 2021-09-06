@@ -1859,8 +1859,8 @@ void ComputeHairStrandsInterpolation(
 
 			// 3. Compute cluster AABBs (used for LODing and voxelization)
 			{
-				// Optim: If an instance is using CPU selection and does not voxelize it's data, then there is no need for having valid AABB
-				bool bNeedAABB = !Instance->bUseCPULODSelection || (Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow);
+				// Optim: If an instance does not voxelize it's data, then there is no need for having valid AABB
+				bool bNeedAABB = Instance->Strands.Modifier.bSupportVoxelization && Instance->bCastShadow;
 
 				FHairStrandClusterData::FHairGroup* HairGroupCluster = nullptr;
 				if (CullingData.bCullingResultAvailable)

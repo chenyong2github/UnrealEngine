@@ -80,9 +80,5 @@ struct FHairGroupDesc
 	float HairLengthScale = 1.f;
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Overrides, meta = (PinHiddenByDefault, InlineEditConditionToggle))
 	bool HairLengthScale_Override = false;
-
-	/** Force a specific LOD index */
-	UPROPERTY()
-	int32 LODForcedIndex = -1;
 };
 typedef FHairGroupDesc FHairGroupInstanceModifer;

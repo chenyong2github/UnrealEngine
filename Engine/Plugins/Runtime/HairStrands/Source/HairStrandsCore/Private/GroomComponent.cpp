@@ -299,7 +299,6 @@ public:
 		check(Component->GroomAsset->GetNumHairGroups() > 0);
 		ComponentId = Component->ComponentId.PrimIDValue;
 		Strands_DebugMaterial = Component->Strands_DebugMaterial;
-		PredictedLODIndex = &Component->PredictedLODIndex;
 		bAlwaysHasVelocity = false;
 		if (IsHairStrandsBindingEnable() && Component->RegisteredMeshComponent)
 		{
@@ -322,7 +321,6 @@ public:
 			check(HairInstance->HairGroupPublicData);
 			HairInstance->ProxyBounds = &GetBounds();
 			HairInstance->ProxyLocalBounds = &GetLocalBounds();
-			HairInstance->bUseCPULODSelection = Component->GroomAsset->LODSelectionType == EHairLODSelectionType::Cpu;
 			HairInstance->bForceCards = Component->bUseCards;
 			HairInstance->bUpdatePositionOffset = Component->RegisteredMeshComponent != nullptr;
 			HairInstance->bCastShadow = Component->CastShadow;
@@ -832,7 +830,8 @@ public:
 
 		FDynamicPrimitiveUniformBuffer& DynamicPrimitiveUniformBuffer = Collector.AllocateOneFrameResource<FDynamicPrimitiveUniformBuffer>();
 		DynamicPrimitiveUniformBuffer.Set(CurrentLocalToWorld, PreviousLocalToWorld, GetBounds(), GetLocalBounds(), true, false, bDrawVelocity, bOutputVelocity);
-		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer;
+		BatchElement.PrimitiveUniformBufferResource = &DynamicPrimitiveUniformBuffer.UniformBuffer; // automatic copy to the gpu scene buffer
+		//primtiveid is set to 0
 
 		BatchElement.FirstIndex = 0;
 		BatchElement.NumInstances = 1;
@@ -921,7 +920,6 @@ private:
 	uint32 ComponentId = 0;
 	FMaterialRelevance MaterialRelevance;
 	UMaterialInterface* Strands_DebugMaterial = nullptr;
-	int32* PredictedLODIndex = nullptr;
 };
 
 /** GroomCacheBuffers implementation that hold copies of the GroomCacheAnimationData needed for playback */
@@ -1550,40 +1548,84 @@ bool UGroomComponent::GetIsHairLengthScaleEnabled()
 }
 
 
-void UGroomComponent::SetForcedLOD(int32 LODIndex)
+void UGroomComponent::SetForcedLOD(int32 CurrLODIndex)
 {
+	// Previous LOD state
+	EHairLODSelectionType PrevLODSelectionType = LODSelectionType;
+	float PrevLODIndex = -1;
+	if (PrevLODSelectionType == EHairLODSelectionType::Forced)			{ PrevLODIndex = LODForcedIndex; }
+	else if (PrevLODSelectionType == EHairLODSelectionType::Predicted)	{ PrevLODIndex = LODPredictedIndex; }
+
+	// Current LOD state
+	EHairLODSelectionType CurrLODSelectionType = EHairLODSelectionType::Immediate;
 	if (GroomAsset)
 	{
-		LODIndex = FMath::Clamp(LODIndex, -1, GroomAsset->GetLODCount() - 1);
+		CurrLODIndex = FMath::Clamp(CurrLODIndex, -1, GroomAsset->GetLODCount() - 1);
+		CurrLODSelectionType = EHairLODSelectionType::Forced;
 	}
 	else
 	{
-		LODIndex = -1;
+		CurrLODIndex = -1;
 	}
-	const bool bHasLODChanged = (GroomGroupsDesc.Num() > 0) ? 
-		(IsSimulationEnable(0, GetForcedLOD()) != IsSimulationEnable(0, LODIndex)) : false;
 
-	for (FHairGroupDesc& HairDesc : GroomGroupsDesc)
+	// Reset to non-forced LOD, and change LOD selection type to Predicted/Immediate
+	if (CurrLODIndex < 0)
 	{
-		HairDesc.LODForcedIndex = LODIndex;
+		// If one of the Group/LOD needs simulation, then we switch to predicted LOD to ensure LOD switch happen 
+		// on the game-thread so that the simulation component can do work at transition-time
+		bool bNeedSimulationNeed = false;
+		if (GroomAsset)
+		{
+			for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
+			{
+				for (uint32 LODIt = 0, LODCount = GroomAsset->GetLODCount(); LODIt < LODCount; ++LODIt)
+				{
+					if (IsSimulationEnable(GroupIt, LODIt))
+					{
+						bNeedSimulationNeed = true;
+						break;
+					}
+				}
+			}
+		}
+		CurrLODSelectionType = bNeedSimulationNeed ? EHairLODSelectionType::Predicted : EHairLODSelectionType::Immediate;
 	}
-	UpdateHairGroupsDesc();
 	
+	const bool bHasLODChanged = CurrLODIndex != PrevLODIndex;
+
+	// Inform simulation about LOD switch.
 	if (bHasLODChanged)
 	{
-		UpdateHairSimulation();
+		if (GroomAsset)
+		{
+			for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
+			{
+				if ((IsSimulationEnable(GroupIt, PrevLODIndex) != IsSimulationEnable(GroupIt, CurrLODIndex)))
+				{
+					// Sanity check. Simulation does not support immediate mode.
+					check(LODSelectionType != EHairLODSelectionType::Immediate);
+
+					UpdateHairSimulation();
+				}
+			}
+		}
 	}
 
-	// Do not invalidate completly the proxy, but just update LOD index on the rendering thread
-	FHairStrandsSceneProxy* GroomSceneProxy = (FHairStrandsSceneProxy*)SceneProxy;
-	if (GroomSceneProxy)
+	// Finally, update the forced LOD value and LOD selection type
+	LODForcedIndex	 = CurrLODIndex;
+	LODSelectionType = CurrLODSelectionType;
+
+	// Do not invalidate completly the proxy, but just update LOD index on the rendering thread	
+	if (FHairStrandsSceneProxy* GroomSceneProxy = (FHairStrandsSceneProxy*)SceneProxy)
 	{
+		const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 		ENQUEUE_RENDER_COMMAND(FHairComponentSendLODIndex)(
-		[GroomSceneProxy, LODIndex](FRHICommandListImmediate& RHICmdList)
+		[GroomSceneProxy, CurrLODIndex, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
 		{
 			for (FHairGroupInstance* Instance : GroomSceneProxy->HairGroupInstances)
 			{
-				Instance->Strands.Modifier.LODForcedIndex = LODIndex;
+				Instance->Debug.LODForcedIndex = CurrLODIndex;
+				Instance->Debug.LODSelectionTypeForDebug = LocalLODSelectionType;
 			}
 		});
 	}
@@ -1596,19 +1638,12 @@ int32 UGroomComponent::GetNumLODs() const
 
 int32 UGroomComponent::GetForcedLOD() const
 {
-	if (GroomGroupsDesc.Num() > 0)
-	{
-		return GroomGroupsDesc[0].LODForcedIndex;
-	}
-	else
-	{
-		return -1;
-	}
+	return int32(LODForcedIndex);
 }
 
 int32 UGroomComponent::GetDesiredSyncLOD() const
 {
-	return PredictedLODIndex;
+	return LODPredictedIndex;
 }
 
 void  UGroomComponent::SetSyncLOD(int32 InLODIndex)
@@ -2242,6 +2277,11 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 	const bool bHasNeedBindingData = bHasNeedSkinningBinding || bHasAnyNeedGlobalDeformation;
 
+	// LOD Selection type
+	// By default set to immediate, meaning the LOD selection will be done on the rendering thread based on the screen coverage of the groom
+	// If simulation is enabled, then the LOD selection will be done on the game thread based on feedback from the rendering thread.
+	LODSelectionType = bHasAnyNeedSimulation ? EHairLODSelectionType::Predicted : EHairLODSelectionType::Immediate;
+
 	// 2. Insure that the binding asset is compatible, otherwise no binding
 	UMeshComponent* ParentMeshComponent = GetAttachParent() ? Cast<UMeshComponent>(GetAttachParent()) : nullptr;
 	UMeshComponent* ValidatedMeshComponent = nullptr;
@@ -2344,6 +2384,10 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingMeshType::SkeletalMesh;
 		HairGroupInstance->Debug.GroomCacheType = GroomCache ? GroomCache->GetType() : EGroomCacheType::None;
 		HairGroupInstance->Debug.GroomCacheBuffers = GroomCacheBuffers;
+		HairGroupInstance->Debug.LODForcedIndex = LODForcedIndex;
+		HairGroupInstance->Debug.LODPredictedIndex = LODPredictedIndex;
+		HairGroupInstance->Debug.LODSelectionTypeForDebug = LODSelectionType;
+
 		if (RegisteredMeshComponent)
 		{
 			HairGroupInstance->Debug.MeshComponentName = RegisteredMeshComponent->GetPathName();
@@ -2450,7 +2494,6 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			check(GroupIt < GroomGroupsDesc.Num());
 
 			HairGroupInstance->Strands.Data = &GroupData.Strands.BulkData;
-//			HairGroupInstance->Strands.InterpolationData = &GroupData.Strands.InterpolationBulkData;
 
 			// (Lazy) Allocate interpolation resources, only if guides are required
 			if (bNeedGuides)
@@ -3154,17 +3197,57 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		UpdateGroomCache(ElapsedTime);
 	}
 
+	// Based on LOD selection type pick the effect LOD index. 
+	// When LOD prediction is used, we read from the rendering thread and use the smallest prediction accross all groups
+	float EffectiveForceLOD = -1;
+	if (LODSelectionType == EHairLODSelectionType::Predicted)
+	{
+		// 1. Compute the effective LOD (taking the min. LOD across all the groups)
+		for (const FHairGroupInstance* Instance : HairGroupInstances)
+		{
+			/* /!\ Access rendering thread data at that point /!\ */
+			const float LODPredictedIndex_Instance = Instance->Debug.LODPredictedIndex;
+			if (LODPredictedIndex_Instance > 0)
+			{
+				EffectiveForceLOD = EffectiveForceLOD < 0 ? LODPredictedIndex_Instance : FMath::Min(LODPredictedIndex_Instance, EffectiveForceLOD);
+			}
+		}
+
+		// 2. If there is a LOD change, update the simulation adequately 
+		if (FMath::Abs(LODPredictedIndex - EffectiveForceLOD) > KINDA_SMALL_NUMBER)
+		{
+			for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
+			{
+				if ((IsSimulationEnable(GroupIt, LODPredictedIndex) != IsSimulationEnable(GroupIt, EffectiveForceLOD)))
+				{
+					UpdateHairSimulation();
+				}
+			}
+		}
+
+		// 3. Update global predicted index (used for SyncLOD API)
+		LODPredictedIndex = EffectiveForceLOD;
+	}
+	else if (LODSelectionType == EHairLODSelectionType::Forced)
+	{
+		EffectiveForceLOD = LODForcedIndex;
+	}
+
 	const FTransform SkinningLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
 	const FTransform RigidLocalToWorld = GetComponentTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
+	const EHairLODSelectionType LocalLODSelectionType = LODSelectionType;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
-		[Id, SkinningLocalToWorld, RigidLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
+		[Id, SkinningLocalToWorld, RigidLocalToWorld, FeatureLevel, LocalHairGroupInstances, EffectiveForceLOD, LocalLODSelectionType](FRHICommandListImmediate& RHICmdList)
 	{
 		if (ERHIFeatureLevel::Num == FeatureLevel)
 			return;
 
 		for (FHairGroupInstance* Instance : LocalHairGroupInstances)
 		{
+			Instance->Debug.LODForcedIndex = EffectiveForceLOD;
+			Instance->Debug.LODSelectionTypeForDebug = LocalLODSelectionType;
+
 			Instance->Debug.SkinningPreviousLocalToWorld = Instance->Debug.SkinningCurrentLocalToWorld;
 			Instance->Debug.SkinningCurrentLocalToWorld = SkinningLocalToWorld;
 

@@ -379,7 +379,6 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	FProperty* P5 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMeshes));
 	FProperty* P6 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsMaterials));
 	FProperty* P7 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsInfo));
-	FProperty* P8 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, LODSelectionType));
 	FProperty* P9 = FindFProperty<FProperty>(GroomAsset->GetClass(), GET_MEMBER_NAME_CHECKED(UGroomAsset, AssetUserData));
 
 	P7->SetMetaData(TEXT("Category"), TEXT("Hidden"));
@@ -391,7 +390,6 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	P5->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P6->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P7->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
-	P8->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 	P9->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 
 	// Override the display name so that it show correct/readable name when the details view is displayed as grid view

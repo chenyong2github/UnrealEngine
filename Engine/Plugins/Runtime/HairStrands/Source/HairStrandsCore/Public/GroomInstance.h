@@ -40,6 +40,13 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FHairCardsVertexFactoryUniformShaderParameters> FHairCardsUniformBuffer;
 
+enum class EHairLODSelectionType
+{
+	Immediate,	// Done on the rendering thread, prior to render
+	Predicted,	// Predicted based on rendering->game thread feedback
+	Forced		// Forced LOD value
+};
+
 // Represent/Describe data & resources of a hair group belonging to a groom
 struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 {
@@ -188,6 +195,10 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 		FString					GroomAssetName;
 		uint32					LastFrameIndex = ~0;
 
+		float					LODPredictedIndex = -1.f;	// Computed on the rendering-thread, readback on the game-thread during tick()
+		float					LODForcedIndex = -1.f;		// Set by the game-thread, read on the rendering-thread to force a particular LOD
+		EHairLODSelectionType	LODSelectionTypeForDebug = EHairLODSelectionType::Immediate; // For debug only, not used
+
 		int32					MeshLODIndex = ~0;
 		EGroomBindingMeshType	GroomBindingType;
 		EGroomCacheType			GroomCacheType;
@@ -217,7 +228,6 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance : public FHairStrandsInstance
 	EHairBindingType		BindingType = EHairBindingType::NoneBinding;
 	const FBoxSphereBounds*	ProxyBounds = nullptr;
 	const FBoxSphereBounds* ProxyLocalBounds = nullptr;
-	bool					bUseCPULODSelection = true;
 	bool					bForceCards = false;
 	bool					bUpdatePositionOffset = false;
 	bool					bCastShadow = true;

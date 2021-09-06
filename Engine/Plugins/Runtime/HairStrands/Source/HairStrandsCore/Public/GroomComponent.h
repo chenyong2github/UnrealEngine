@@ -280,9 +280,13 @@ private:
 	FVector SkeletalPreviousPositionOffset;
 	bool bIsGroomAssetCallbackRegistered;
 	bool bIsGroomBindingAssetCallbackRegistered;
-	int32 PredictedLODIndex = -1;
 	bool bValidationEnable = true;
 	bool bPreviewMode = false;
+
+	// LOD selection
+	EHairLODSelectionType LODSelectionType = EHairLODSelectionType::Immediate;
+	float LODPredictedIndex = -1.f;
+	float LODForcedIndex = -1.f;
 
 	void InitResources(bool bIsBindingReloading=false);
 	void ReleaseResources();
