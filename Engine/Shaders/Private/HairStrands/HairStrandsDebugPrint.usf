@@ -1,10 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "../Common.ush"
+#include "../CommonViewUniformBuffer.ush"
+#include "../SceneTextureParameters.ush"
+#include "../DeferredShadingCommon.ush"
 #include "../ShaderPrintCommon.ush"
 #include "../ShaderDrawDebug.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+float3 ReconstructWorldPositionFromDepth(float2 UV, float Depth)
+{
+	float2 ScreenPosition = (UV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float4 HomogeneousWorldPosition = mul(float4(ScreenPosition * Depth, Depth, 1), View.ScreenToWorld);
+	float3 WorldPosition = HomogeneousWorldPosition.xyz / HomogeneousWorldPosition.w;
+
+	return WorldPosition;
+}
+
+void AddNewLine(float2 OriginalPos, inout float2 Pos)
+{
+	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_PRINT
 
 int2 PixelCoord;
 int2 MaxResolution;
@@ -16,7 +40,7 @@ uint HairVisibilityNodeGroupSize;
 Texture2D<float> HairCountTexture;
 Texture2D<uint> HairCountUintTexture;
 
-Texture2D<uint2> DepthStencilTexture;
+Texture2D<uint2> StencilTexture;
 SamplerState LinearSampler;
 Buffer<uint> HairVisibilityIndirectArgsBuffer;
 
@@ -24,11 +48,6 @@ Buffer<int> HairMacroGroupAABBBuffer;
 
 #define MATERIAL_DATA 1
 #define DETAIL_DATA 1
-
-void AddNewLine(float2 OriginalPos, inout float2 Pos)
-{
-	Pos = ShaderPrintNewline(Pos); Pos.x = OriginalPos.x;
-}
 
 [numthreads(1, 1, 1)]
 void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -129,7 +148,7 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 	AddNewLine(OriginalPos, Pos);
 
 	// Resolve type
-	const uint Stencil = DepthStencilTexture.Load(uint3(PixelPos,0)).y;
+	const uint Stencil = StencilTexture.Load(uint3(PixelPos,0)).y;
 	const bool bIsFastResolve = (Stencil & FastResolveMask) != 0;
 	Pos = ShaderPrintText(Pos, TEXT("Resolve         "));
 
@@ -221,3 +240,131 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		Pos = ShaderPrint(Pos, Sample.Coverage8bit, FontOrange);						AddNewLine(StartSamplePos, Pos);
 	}
 }
+
+#endif // SHADER_PRINT
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+#if SHADER_TANGENT
+uint TileSize;
+int2 TileCount;
+float2 OutputResolution;
+RWTexture2D<float4> OutputTexture;
+
+#define HAIR_TANGENT_INVALID 0
+#define HAIR_TANGENT_STRANDS 1
+#define HAIR_TANGENT_CARDS   2
+
+struct FTangentDesc
+{
+	float3 Tangent;
+	uint Type;
+};
+
+FTangentDesc AddTangentPlot(uint2 PixelCoord, float2 UV)
+{
+	FTangentDesc Out = (FTangentDesc)0;
+
+	// Strands
+	{
+		// Find closest
+		float3 Closest_Tangent = 0;
+		float  Closest_Depth = 0;
+
+		uint Total8BitCoverage = 0;
+		const FNodeDesc NodeDesc = DecodeNodeDesc(HairStrands.HairSampleOffset.Load(uint3(PixelCoord, 0)));
+		for (uint SampleIt0 = 0; SampleIt0 < NodeDesc.Count; SampleIt0++)
+		{
+			const uint LocalOffset = NodeDesc.Offset + SampleIt0;
+			const FPackedHairSample NodeData = HairStrands.HairSampleData[LocalOffset];
+			const FHairSample Sample = UnpackHairSample(NodeData);
+
+			if (Sample.Depth > Closest_Depth)
+			{
+				Closest_Depth = Sample.Depth;
+				Closest_Tangent = Sample.Tangent;
+			}
+		}
+
+		// Draw tangent vector (strands)
+		if (NodeDesc.Count > 0)
+		{
+			const float SceneDepth = ConvertFromDeviceZ(Closest_Depth);
+			const float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, SceneDepth);
+			AddLine(WorldPosition, WorldPosition + Closest_Tangent, ColorRed, ColorYellow);
+			Out.Type = 1;
+			Out.Tangent = Closest_Tangent;
+		}
+	}
+
+	// Cards
+	if (Out.Type == 0)
+	{
+		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);
+		const float SceneDepth = CalcSceneDepth(UV);
+		const float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, SceneDepth);
+		if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+		{
+			const float3 Tangent = ScreenSpaceData.GBuffer.WorldNormal;
+			AddLine(WorldPosition, WorldPosition + Tangent, ColorPurple, ColorYellow);
+			Out.Type = 2;
+			Out.Tangent = Tangent;
+		}
+	}
+
+	return Out;
+}
+
+void AddTangentText(float2 UV, float3 Tangent, uint TangentType)
+{
+	const float2 OriginalPos = UV;
+	float2 Pos = OriginalPos;
+	if (TangentType == HAIR_TANGENT_STRANDS)
+		Pos = ShaderPrintText(Pos, TEXT("Strands"), FontYellow);
+	else if (TangentType == HAIR_TANGENT_CARDS)
+		Pos = ShaderPrintText(Pos, TEXT("Cards "), FontYellow);
+	else if (TangentType == HAIR_TANGENT_CARDS)
+		Pos = ShaderPrintText(Pos, TEXT("Invalid"), FontRed);
+
+	AddNewLine(OriginalPos, Pos);
+
+	Pos = ShaderPrint(Pos, Tangent.x, FontRed);		AddNewLine(OriginalPos, Pos);
+	Pos = ShaderPrint(Pos, Tangent.y, FontGreen);	AddNewLine(OriginalPos, Pos);
+	Pos = ShaderPrint(Pos, Tangent.z, FontBlue);	AddNewLine(OriginalPos, Pos);
+}
+
+[numthreads(8, 8, 1)]
+void MainCS(int2 DispatchThreadId : SV_DispatchThreadID)
+{
+	// Cursor plot
+	if (all(DispatchThreadId == 0))
+	{
+		const float2 PixelCoord = GetCursorPos();// DispatchThreadId.xy + 0.5f;
+		const float2 UV = PixelCoord / float2(OutputResolution);
+		const float2 UVText = (PixelCoord + float2(20, 0)) / float2(OutputResolution);
+
+		FTangentDesc Desc = AddTangentPlot(PixelCoord, UV);
+		if (Desc.Type == HAIR_TANGENT_STRANDS)
+		{			
+			AddTangentText(UVText, Desc.Tangent, HAIR_TANGENT_STRANDS);
+		}
+		else if (Desc.Type == HAIR_TANGENT_CARDS)
+		{
+			AddTangentText(UVText, Desc.Tangent, HAIR_TANGENT_CARDS);
+		}
+	}
+
+	// Grid plot
+	if (all(DispatchThreadId.xy < TileCount))
+	{
+		const float2 PixelCoord = DispatchThreadId.xy * TileSize;
+		if (all(PixelCoord < OutputResolution))
+		{
+			const float2 UV = PixelCoord / float2(OutputResolution);
+			AddTangentPlot(PixelCoord, UV);
+		}
+	}
+}
+#endif // SHADER_TANGENT
+
+////////////////////////////////////////////////////////////////////////////////////////////////
