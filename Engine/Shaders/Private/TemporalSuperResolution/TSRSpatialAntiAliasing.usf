@@ -9,6 +9,8 @@
 
 #define CONFIG_MIN_LUMA_ALIASING 0.05
 
+#define CONFIG_COMPUTE_NOISE_FILTERING 1
+
 #if DIM_QUALITY_PRESET == 1
 	#define CONFIG_ITERATIONS 3
 
@@ -35,6 +37,7 @@
 Texture2D<taa_half> InputSceneColorLdrLumaTexture;
 
 RWTexture2D<uint> AntiAliasingOutput;
+RWTexture2D<taa_half> NoiseFilteringOutput;
 
 
 //------------------------------------------------------- FUNCTIONS
@@ -204,6 +207,7 @@ void MainCS(
 	//Debug[0] = 1.0;
 
 	taa_half2x2 TexelOffset = 0.0;
+	taa_half2 NoiseFiltering = 0.0;
 	{
 		#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION && 1
 			taa_half InputCache[3 * 4];
@@ -258,6 +262,18 @@ void MainCS(
 		taa_half2 TotalVarV  = abs(0.5 * (InputN  + InputS ) - InputC);
 		taa_half2 TotalVarVW = abs(0.5 * (InputNW + InputSW) - InputW);
 		
+		taa_half2 DiffN = abs(InputN - InputC);
+		taa_half2 DiffS = abs(InputS - InputC);
+		taa_half2 DiffE = abs(InputE - InputC);
+		taa_half2 DiffW = abs(InputW - InputC);
+
+		#if CONFIG_COMPUTE_NOISE_FILTERING
+		{
+			NoiseFiltering = max(NoiseFiltering, taa_half(2.0) * TotalVarH - max(DiffE, DiffW));
+			NoiseFiltering = max(NoiseFiltering, taa_half(2.0) * TotalVarV - max(DiffN, DiffS));
+		}
+		#endif
+
 		bBrowseVerticaly = (TotalVarHN + TotalVarH + TotalVarHS) > (TotalVarVE + TotalVarV + TotalVarVW);
 		BrowseDirection[0] = bBrowseVerticaly ? 0 : 1;
 		BrowseDirection[1] = bBrowseVerticaly ? 1 : 0;
@@ -265,25 +281,25 @@ void MainCS(
 		FLATTEN
 		if (bBrowseVerticaly[0])
 		{
-			EdgeSide[0][0] = abs(InputW[0] - InputC[0]) > abs(InputE[0] - InputC[0]) ? -1 : 1;
-			EdgeLuma[0] = abs(InputW[0] - InputC[0]) > abs(InputE[0] - InputC[0]) ? InputW[0] : InputE[0];
+			EdgeSide[0][0] = DiffW[0] > DiffE[0] ? -1 : 1;
+			EdgeLuma[0] = DiffW[0] > DiffE[0] ? InputW[0] : InputE[0];
 		}
 		else
 		{
-			EdgeSide[1][0] = abs(InputN[0] - InputC[0]) > abs(InputS[0] - InputC[0]) ? -1 : 1;
-			EdgeLuma[0] = abs(InputN[0] - InputC[0]) > abs(InputS[0] - InputC[0]) ? InputN[0] : InputS[0];
+			EdgeSide[1][0] = DiffN[0] > DiffS[0] ? -1 : 1;
+			EdgeLuma[0] = DiffN[0] > DiffS[0] ? InputN[0] : InputS[0];
 		}
 		
 		FLATTEN
 		if (bBrowseVerticaly[1])
 		{
-			EdgeSide[0][1] = abs(InputW[1] - InputC[1]) > abs(InputE[1] - InputC[1]) ? -1 : 1;
-			EdgeLuma[1] = abs(InputW[1] - InputC[1]) > abs(InputE[1] - InputC[1]) ? InputW[1] : InputE[1];
+			EdgeSide[0][1] = DiffW[1] > DiffE[1] ? -1 : 1;
+			EdgeLuma[1] = DiffW[1] > DiffE[1] ? InputW[1] : InputE[1];
 		}
 		else
 		{
-			EdgeSide[1][1] = abs(InputN[1] - InputC[1]) > abs(InputS[1] - InputC[1]) ? -1 : 1;
-			EdgeLuma[1] = abs(InputN[1] - InputC[1]) > abs(InputS[1] - InputC[1]) ? InputN[1] : InputS[1];
+			EdgeSide[1][1] = DiffN[1] > DiffS[1] ? -1 : 1;
+			EdgeLuma[1] = DiffN[1] > DiffS[1] ? InputN[1] : InputS[1];
 		}
 
 		taa_half2 LumaDelta = abs(EdgeLuma - InputC) * 0.5;
@@ -484,10 +500,12 @@ void MainCS(
 		
 		OutputPixelPos = InvalidateOutputPixelPos(OutputPixelPos, InputInfo_ViewportMax);
 		
-		AntiAliasingOutput[dpv_lo(OutputPixelPos)] = dpv_lo(EncodedTexelOffset); // dpv_lo(EncodedTexelOffset);
+		AntiAliasingOutput[dpv_lo(OutputPixelPos)] = dpv_lo(EncodedTexelOffset);
+		NoiseFilteringOutput[dpv_lo(OutputPixelPos)] = dpv_lo(NoiseFiltering);
 		
 		#if CONFIG_ENABLE_DUAL_PIXEL_VECTORIZATION
-			AntiAliasingOutput[dpv_hi(OutputPixelPos)] = dpv_hi(EncodedTexelOffset); // dpv_hi(EncodedTexelOffset);
+			AntiAliasingOutput[dpv_hi(OutputPixelPos)] = dpv_hi(EncodedTexelOffset);
+			NoiseFilteringOutput[dpv_hi(OutputPixelPos)] = dpv_hi(NoiseFiltering);
 		#endif
 
 		#if DEBUG_OUTPUT

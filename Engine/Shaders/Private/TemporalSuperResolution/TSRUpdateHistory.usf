@@ -61,12 +61,14 @@ Texture2D<float2> DilatedVelocityTexture;
 Texture2D<uint> ParallaxFactorTexture;
 Texture2D<taa_half> ParallaxRejectionMaskTexture;
 Texture2D<uint> AntiAliasingTexture;
+Texture2D<taa_half> NoiseFilteringTexture;
 
 float4 HistoryPixelPosToScreenPos;
 float4 HistoryPixelPosToPPCo;
 float3 HistoryQuantizationError;
 float MinTranslucencyRejection;
 float InvWeightClampingPixelSpeed;
+float InputToHistoryFactor;
 uint ResponsiveStencilMask;
 
 Texture2D<taa_half3> PrevHistory_LowFrequency;
@@ -235,6 +237,7 @@ void MainCS(
 	taa_half2 TranslucencyRejection = taa_half(1.0).xx;
 	taa_half2 OutputPixelVelocity = taa_half(0.0).xx;
 	taa_half2 MoireWeight = taa_half(1.0).xx;
+	taa_half2 NoiseFiltering = taa_half(0.0).xx;
 	taa_subpixel_payload2 ParallaxFactorBits = taa_subpixel_payload(0x0).xx;
 	bool2 bIsResponsiveAAPixel = false;
 
@@ -284,6 +287,10 @@ void MainCS(
 				AntiAliasingTexture[dpv_lo(InputPixelPos)],
 				AntiAliasingTexture[dpv_hi(InputPixelPos)]);
 			
+			NoiseFiltering = dpv_interleave_registers(
+				NoiseFilteringTexture[dpv_lo(InputPixelPos)],
+				NoiseFilteringTexture[dpv_hi(InputPixelPos)]);
+
 			taa_half2x2 TexelOffset = DecodeSpatialAntiAliasingOffset(EncodedInputTexelOffset);
 			
 			{
@@ -403,11 +410,12 @@ void MainCS(
 
 		taa_half2 FilteredInputColorWeight = taa_half(0.0);
 		
-		// TODO: UECON-464 - this causes shader warnings on XSX DXC.  Revisit once we have aged out the problem GDK versions.
-		taa_half InputToHistoryFactor = taa_half(HistoryInfo_ViewportSize.x * InputInfo_ViewportSizeInverse.x);
-		taa_half2 FinalInputToHistoryFactor = taa_half2(
-			bOffScreen.x ? taa_half(1.0) : InputToHistoryFactor,
-			bOffScreen.y ? taa_half(1.0) : InputToHistoryFactor);
+		// Soften the spatial kernel when there is high noise in the input to make parrallax disocclusion of detailed geometry less distracting.
+		taa_half2 OffScreenInputToHistoryFactor = taa_half(1.0) - taa_half(0.5) * NoiseFiltering;
+
+		taa_half2 KernelInputToHistoryFactor = taa_half2(
+			bOffScreen.x ? OffScreenInputToHistoryFactor.x : taa_half(InputToHistoryFactor),
+			bOffScreen.y ? OffScreenInputToHistoryFactor.y : taa_half(InputToHistoryFactor));
 
 		UNROLL_N(CONFIG_SAMPLES)
 		for (uint SampleId = 0; SampleId < CONFIG_SAMPLES; SampleId++)
@@ -432,7 +440,7 @@ void MainCS(
 			#endif
 
 			taa_half2x2 dPP = PixelOffset - dKO;
-			taa_half2 SampleSpatialWeight = ComputeSampleWeigth(FinalInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
+			taa_half2 SampleSpatialWeight = ComputeSampleWeigth(KernelInputToHistoryFactor, dPP, /* MinimalContribution = */ float(0.005));
 
 			taa_half2 ToneWeight = HdrWeight4(InputColor);
 
@@ -460,7 +468,7 @@ void MainCS(
 		
 		FilteredInputColor = dpv_scale(FilteredInputColor, rcp(FilteredInputColorWeight));
 
-		InputPixelAlignement = ComputeSampleWeigth(InputToHistoryFactor, dKO, /* MinimalContribution = */ float(0.0));
+		InputPixelAlignement = ComputeSampleWeigth(taa_half(InputToHistoryFactor), dKO, /* MinimalContribution = */ float(0.0));
 		
 		#if CONFIG_SCENE_COLOR_OVERFLOW
 		{
