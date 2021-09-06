@@ -161,9 +161,11 @@ public:
 	void SetDetailViewForRigElements();
 	void SetDetailViewForGraph(URigVMGraph* InGraph);
 	void SetDetailViewForFocusedGraph();
+	void SetDetailViewForLocalVariable();
 	void RefreshDetailView();
 	bool DetailViewShowsAnyRigElement() const;
 	bool DetailViewShowsAnyRigUnit() const;
+	bool DetailViewShowsLocalVariable() const;
 	bool DetailViewShowsStruct(UScriptStruct* InStruct) const;
 	bool DetailViewShowsRigElement(FRigElementKey InKey) const;
 	bool DetailViewShowsRigUnit(URigVMNode* InNode) const;

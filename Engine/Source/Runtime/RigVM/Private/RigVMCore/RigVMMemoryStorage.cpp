@@ -907,7 +907,7 @@ int32 URigVMMemoryStorage::GetPropertyIndexByName(const FName& InName) const
 	return GetPropertyIndex(Property);
 }
 
-const FProperty* URigVMMemoryStorage::FindPropertyByName(const FName& InName) const
+FProperty* URigVMMemoryStorage::FindPropertyByName(const FName& InName) const
 {
 	const FName SanitizedName = FRigVMPropertyDescription::SanitizeName(InName);
 	return GetClass()->FindPropertyByName(SanitizedName);

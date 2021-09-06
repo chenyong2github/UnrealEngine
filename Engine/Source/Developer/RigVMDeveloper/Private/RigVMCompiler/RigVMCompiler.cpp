@@ -260,6 +260,20 @@ bool URigVMCompiler::Compile(URigVMGraph* InGraph, URigVMController* InControlle
 
 	UE_LOG_RIGVMMEMORY(TEXT("RigVMCompiler: Begin '%s'..."), *InGraph->GetPathName());
 
+#if WITH_EDITOR
+	// If in editor, make sure we visit all the graphs to initialize local variables
+	// in case the user wants to edit default values
+	URigVMFunctionLibrary* FunctionLibrary = InGraph->GetDefaultFunctionLibrary();
+	for (URigVMLibraryNode* LibraryNode : FunctionLibrary->GetFunctions())
+	{
+		for (FRigVMGraphVariableDescription& Variable : LibraryNode->GetContainedGraph()->LocalVariables)
+		{
+			FString Path = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *LibraryNode->GetFName().ToString(), *Variable.Name.ToString());
+			FRigVMOperand Operand = WorkData.AddProperty(ERigVMMemoryType::Literal, *Path, Variable.CPPType, Variable.CPPTypeObject, Variable.DefaultValue);
+			WorkData.PinPathToOperand->Add(Path, Operand);
+		}
+	}
+#endif
 
 	// Look for all local variables to create the register with the default value in the literal memory
 	int32 IndexLocalVariable = 0;

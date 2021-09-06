@@ -9,61 +9,10 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Widgets/Input/STextComboBox.h"
+#include "ControlRigBlueprintGeneratedClass.h"
+#include "RigVMCore/RigVM.h"
 
 #define LOCTEXT_NAMESPACE "LocalVariableDetails"
-
-void LocalVariableDetails_GetCustomizedInfo(TSharedRef<IPropertyHandle> InStructPropertyHandle, UControlRigBlueprint*& OutBlueprint)
-{
-	TArray<UObject*> Objects;
-	InStructPropertyHandle->GetOuterObjects(Objects);
-	for (UObject* Object : Objects)
-	{
-		if (Object->IsA<UControlRigBlueprint>())
-		{
-			OutBlueprint = Cast<UControlRigBlueprint>(Object);
-			if (OutBlueprint)
-			{
-				break;
-			}
-		}
-	}
-
-	if (OutBlueprint == nullptr)
-	{
-		TArray<UPackage*> Packages;
-		InStructPropertyHandle->GetOuterPackages(Packages);
-		for (UPackage* Package : Packages)
-		{
-			if (Package == nullptr)
-			{
-				continue;
-			}
-
-			TArray<UObject*> SubObjects;
-			Package->GetDefaultSubobjects(SubObjects);
-			for (UObject* SubObject : SubObjects)
-			{
-				if (UControlRig* Rig = Cast<UControlRig>(SubObject))
-				{
-					UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Rig->GetClass()->ClassGeneratedBy);
-					if (Blueprint)
-					{
-						if(Blueprint->GetOutermost() == Package)
-						{
-							OutBlueprint = Blueprint;
-							break;
-						}
-					}
-				}
-			}
-
-			if (OutBlueprint)
-			{
-				break;
-			}
-		}
-	}
-}
 
 void FRigVMLocalVariableDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InStructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
@@ -81,6 +30,7 @@ void FRigVMLocalVariableDetails::CustomizeHeader(TSharedRef<IPropertyHandle> InS
 	{
 		VariableDescription = *ObjectsBeingCustomized[0]->GetContent<FRigVMGraphVariableDescription>();
 		GraphBeingCustomized = ObjectsBeingCustomized[0]->GetTypedOuter<URigVMGraph>();
+		BlueprintBeingCustomized = GraphBeingCustomized->GetTypedOuter<UControlRigBlueprint>();
 	}
 }
 
@@ -131,98 +81,39 @@ void FRigVMLocalVariableDetails::CustomizeChildren(TSharedRef<IPropertyHandle> I
 		];
 
 
-	IDetailCategoryBuilder& DefaultValueCategory = StructBuilder.GetParentCategory().GetParentLayout().EditCategory(TEXT("DefaultValueCategory"), LOCTEXT("DefaultValueCategoryHeading", "Default Value"));
-
-	if (!VariableDescription.CPPTypeObject)
+	if (BlueprintBeingCustomized)
 	{
-		if (VariableDescription.CPPType == "bool")
+		UControlRigBlueprintGeneratedClass* RigClass = BlueprintBeingCustomized->GetControlRigBlueprintGeneratedClass();
+		UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
+		if (CDO->GetVM() != nullptr)
 		{
-			DefaultValueCategory.AddCustomRow(LOCTEXT("DefaultValue", "Default Value"))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("DefaultValue", "Default Value"))
-				.Font(DetailFontInfo)
-			]
-			.ValueContent()
-			.MaxDesiredWidth(980.f)
-			[
-				SNew(SCheckBox)
-				.IsChecked(this, &FRigVMLocalVariableDetails::HandleBoolDefaultValueIsChecked)
-				.OnCheckStateChanged(this, &FRigVMLocalVariableDetails::OnBoolDefaultValueChanged)
-			];
-		}
-		else
-		{
-			DefaultValueCategory.AddCustomRow( LOCTEXT("LocalVariableDefaultValue", "Default Value") )
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LocalVariableDefaultValue", "Default Value"))
-				.Font(IDetailLayoutBuilder::GetDetailFont())
-			]
-			.ValueContent()
-			.MaxDesiredWidth(250.0f)
-			[
-				DefaultValueHandle->CreatePropertyValueWidget()
-			];
-		}
-	}
-	else
-	{
-		if(UEnum* Enum = Cast<UEnum>(VariableDescription.CPPTypeObject))
-		{
-			int32 CurrentValueIndex = 0;
-			for (int32 i = 0; i < Enum->NumEnums()-1; i++)
+#if UE_RIGVM_UCLASS_BASED_STORAGE_DISABLED
+			
+#else
+			FString SourcePath = FString::Printf(TEXT("LocalVariableDefault::%s|%s::Const"), *GraphBeingCustomized->GetGraphName(), *VariableDescription.Name.ToString());
+			URigVMMemoryStorage* LiteralMemory = CDO->GetVM()->GetLiteralMemory();
+			FProperty* Property = LiteralMemory->FindPropertyByName(*SourcePath);
+			if (Property)
 			{
-				if (!Enum->HasMetaData(TEXT("Hidden"), i))
-				{
-					FString DisplayName = Enum->GetDisplayNameTextByIndex(i).ToString();
-					EnumOptions.Add(MakeShareable(new FString(DisplayName)));
-					if (DisplayName == VariableDescription.DefaultValue)
-					{
-						CurrentValueIndex = i;
-					}					
-				}
-			}
+				IDetailCategoryBuilder& DefaultValueCategory = StructBuilder.GetParentCategory().GetParentLayout().EditCategory(TEXT("DefaultValueCategory"), LOCTEXT("DefaultValueCategoryHeading", "Default Value"));
+				Property->ClearPropertyFlags(CPF_EditConst);
 			
-			DefaultValueCategory.AddCustomRow(LOCTEXT("VariableReplicationConditionsLabel", "Replication Condition"))
-			.NameContent()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("LocalVariableDefaultValue", "Default Value"))
-				.Font(DetailFontInfo)
-			]
-			.ValueContent()
-			[
-				SNew(STextComboBox)
-				.OptionsSource(&EnumOptions)
-				.InitiallySelectedItem(EnumOptions[CurrentValueIndex])
-				.OnSelectionChanged_Lambda([this](TSharedPtr<FString> InValue, ESelectInfo::Type)
+				const FName SanitizedName = FRigVMPropertyDescription::SanitizeName(*SourcePath);
+				TArray<UObject*> Objects = {LiteralMemory};
+				IDetailPropertyRow* Row = DefaultValueCategory.AddExternalObjectProperty(Objects, SanitizedName);
+				Row->DisplayName(FText::FromName(VariableDescription.Name));
+
+				const FSimpleDelegate OnDefaultValueChanged = FSimpleDelegate::CreateLambda([this, Property, LiteralMemory]()
 				{
-					VariableDescription.DefaultValue = *InValue;
-					DefaultValueHandle->SetValue(VariableDescription.DefaultValue);					
-				})
-			];			
-		}
-		else if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(VariableDescription.CPPTypeObject))
-		{
-			TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(ScriptStruct));
-			IDetailPropertyRow* Row = DefaultValueCategory.AddExternalStructureProperty(StructOnScope, NAME_None);
-			Row->GetPropertyHandle()->SetValueFromFormattedString(VariableDescription.DefaultValue);
-			
-			Row->GetPropertyHandle()->SetOnChildPropertyValueChanged(FSimpleDelegate::CreateLambda(
-				[this, Row]()
-				{
-					VariableDescription.DefaultValue.Reset();
-					Row->GetPropertyHandle()->GetValueAsFormattedString(VariableDescription.DefaultValue);
+					VariableDescription.DefaultValue = LiteralMemory->GetDataAsString(LiteralMemory->GetPropertyIndex(Property));
 					DefaultValueHandle->SetValue(VariableDescription.DefaultValue);
-				}
-			));
-		}
-		else
-		{
-			checkNoEntry();
+				});
+
+				TSharedPtr<IPropertyHandle> Handle = Row->GetPropertyHandle();
+				Handle->SetOnPropertyValueChanged(OnDefaultValueChanged);
+				Handle->SetOnChildPropertyValueChanged(OnDefaultValueChanged);
+			}
+#endif
 		}
 	}
 }
@@ -239,8 +130,10 @@ FEdGraphPinType FRigVMLocalVariableDetails::OnGetPinInfo() const
 void FRigVMLocalVariableDetails::HandlePinInfoChanged(const FEdGraphPinType& PinType)
 {
 	VariableDescription.ChangeType(PinType);
+	BlueprintBeingCustomized->IncrementVMRecompileBracket();
 	TypeHandle->SetValue(VariableDescription.CPPType);
-	TypeObjectHandle->SetValue(VariableDescription.CPPTypeObject);
+	TypeObjectHandle->SetValue(VariableDescription.CPPTypeObject);	
+	BlueprintBeingCustomized->DecrementVMRecompileBracket();
 }
 
 ECheckBoxState FRigVMLocalVariableDetails::HandleBoolDefaultValueIsChecked() const
