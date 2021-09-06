@@ -10,14 +10,17 @@ class FReply;
 class IPropertyHandle;
 class UTakeRecorderDMXLibrarySource;
 
-class FDMXLibraryRecorderAddAllPatchesButtonCustomization
+class FTakeRecorderDMXLibrarySourceEditorCustomization
 	: public IPropertyTypeCustomization
 {
 public:
-	//~ IDetailCustomization interface
+	/** Creates an instance of this property type customization */
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	//~ Begin IPropertyTypeCustomization interface
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> PropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
-	//~
+	//~ End IPropertyTypeCustomization interface
 
 private:
 	/** Checks whether all selected DMX Take Recorders have valid DMX Libraries */

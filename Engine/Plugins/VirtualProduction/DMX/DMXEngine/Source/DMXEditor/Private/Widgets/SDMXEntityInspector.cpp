@@ -6,7 +6,6 @@
 #include "DMXEditorLog.h"
 #include "DMXProtocolConstants.h"
 
-#include "Customizations/DMXEditorPropertyEditorCustomization.h"
 #include "Customizations/DMXEntityFixtureTypeFixtureSettingsDetails.h"
 #include "Customizations/DMXEntityFixtureTypeModesDetails.h"
 #include "Customizations/DMXEntityFixtureTypeModePropertiesDetails.h"
@@ -140,33 +139,25 @@ void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs, EDMXFi
 	switch (Layout)
 	{
 	case EDMXFixtureTypeLayout::FixtureSettings:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFixtureSettingsDetails>, InArgs._DMXEditor);
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFixtureSettingsDetails::MakeInstance, InArgs._DMXEditor);
 		break;
 	case EDMXFixtureTypeLayout::Modes:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeModesDetails>, InArgs._DMXEditor);
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeModesDetails::MakeInstance, InArgs._DMXEditor);
 		break;
 	case EDMXFixtureTypeLayout::ModeProperties:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeModePropertiesDetails>, InArgs._DMXEditor);
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeModePropertiesDetails::MakeInstance, InArgs._DMXEditor);
 		break;
 	case EDMXFixtureTypeLayout::Functions:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFunctionsDetails>, InArgs._DMXEditor);
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFunctionsDetails::MakeInstance, InArgs._DMXEditor);
 		break;
 	case EDMXFixtureTypeLayout::FunctionProperties:
-		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityFixtureTypeFunctionPropertiesDetails>, InArgs._DMXEditor);
+		FixtureTypeDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixtureTypeFunctionPropertiesDetails::MakeInstance, InArgs._DMXEditor);
 		break;
 	default:
 		check(0); // Unhandled layout
 		return;
 	}
 	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixtureType::StaticClass(), FixtureTypeDetails);
-
-	// Register customization for Fixture Mode USTRUCT
-	FOnGetPropertyTypeCustomizationInstance FixtureModeDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureModeDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureMode::StaticStruct()->GetFName(), FixtureModeDetails);
-
-	// Register customization for Fixture Function USTRUCT
-	FOnGetPropertyTypeCustomizationInstance FixtureFunctionDetails = FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixtureFunctionDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyTypeLayout(FDMXFixtureFunction::StaticStruct()->GetFName(), FixtureFunctionDetails);
 }
 
 #undef LOCTEXT_NAMESPACE

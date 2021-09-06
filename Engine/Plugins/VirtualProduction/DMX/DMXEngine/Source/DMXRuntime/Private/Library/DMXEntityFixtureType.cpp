@@ -636,18 +636,18 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes))
 	{
 		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
-	{		
-		if (ParentLibrary != nullptr)
-		{
-			ParentLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
+		{		
+			if (ParentLibrary != nullptr)
 			{
-				if (Patch->GetFixtureType() == this)
+				ParentLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
 				{
-					Patch->ValidateActiveMode();					
-				}
-			});
+					if (Patch->GetFixtureType() == this)
+					{
+						Patch->ValidateActiveMode();					
+					}
+				});
+			}
 		}
-	}
 
 		int32 ChangedModeIndex = PropertyChangedEvent.GetArrayIndex(PropertyName.ToString());
 		if (Modes.IsValidIndex(ChangedModeIndex))

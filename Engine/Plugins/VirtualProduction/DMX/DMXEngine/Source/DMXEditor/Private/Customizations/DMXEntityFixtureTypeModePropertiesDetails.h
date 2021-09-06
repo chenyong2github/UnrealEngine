@@ -27,7 +27,12 @@ public:
 		: DMXEditorPtr(InDMXEditorPtr)
 	{}
 
+	/** Creates an instance of this details customization */
+	static TSharedRef<IDetailCustomization> MakeInstance(TWeakPtr<FDMXEditor> InDMXEditorPtr);
+	
+	//~ Begin IDetailCustomization interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	//~ End IDetailCustomization interface
 
 protected:
 	/** Called when modes were selected */

@@ -4,8 +4,7 @@
 
 #include "DMXEditor.h"
 #include "DMXFixturePatchSharedData.h"
-
-#include "Customizations/DMXEditorPropertyEditorCustomization.h"
+#include "Customizations/DMXEntityFixturePatchDetails.h"
 #include "Library/DMXEntityFixturePatch.h"
 
 
@@ -27,8 +26,8 @@ void SDMXFixturePatchInspector::Construct(const FArguments& InArgs)
 	}
 
 	// Register customization for UOBJECT
-	FOnGetDetailCustomizationInstance FixturePatchDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXFixturePatchesDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixturePatch::StaticClass(), FixturePatchDetails);
+	FOnGetDetailCustomizationInstance FixturePatchDetailCustomizationGetter = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXEntityFixturePatchDetails::MakeInstance, InArgs._DMXEditor);
+	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityFixturePatch::StaticClass(), FixturePatchDetailCustomizationGetter);
 }
 
 void SDMXFixturePatchInspector::OnFixturePatchesSelected()

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
+#include "Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 #include "Library/DMXLibrary.h"
 
@@ -15,9 +15,14 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SNullWidget.h"
 
-#define LOCTEXT_NAMESPACE "FDMXLibraryRecorderAddAllPatchesButtonCustomization"
+#define LOCTEXT_NAMESPACE "FTakeRecorderDMXLibrarySourceEditorCustomization"
 
-void FDMXLibraryRecorderAddAllPatchesButtonCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+TSharedRef<IPropertyTypeCustomization> FTakeRecorderDMXLibrarySourceEditorCustomization::MakeInstance()
+{
+	return MakeShared<FTakeRecorderDMXLibrarySourceEditorCustomization>();
+}
+
+void FTakeRecorderDMXLibrarySourceEditorCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> PropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
 	StructHandle = PropertyHandle;
 
@@ -53,8 +58,8 @@ void FDMXLibraryRecorderAddAllPatchesButtonCustomization::CustomizeHeader(TShare
 		.HAlign(HAlign_Left)
 		[
 			SNew(SButton)
-			.IsEnabled(this, &FDMXLibraryRecorderAddAllPatchesButtonCustomization::GetAddAllEnabled)
-			.OnClicked(this, &FDMXLibraryRecorderAddAllPatchesButtonCustomization::HandleOnClicked)
+			.IsEnabled(this, &FTakeRecorderDMXLibrarySourceEditorCustomization::GetAddAllEnabled)
+			.OnClicked(this, &FTakeRecorderDMXLibrarySourceEditorCustomization::HandleOnClicked)
 			.ToolTipText(LOCTEXT("ToolTip", "Add all Patches in the DMX Library to be recorded"))
 			.Content()
 			[
@@ -65,7 +70,7 @@ void FDMXLibraryRecorderAddAllPatchesButtonCustomization::CustomizeHeader(TShare
 		];
 }
 
-bool FDMXLibraryRecorderAddAllPatchesButtonCustomization::GetAddAllEnabled() const
+bool FTakeRecorderDMXLibrarySourceEditorCustomization::GetAddAllEnabled() const
 {
 	// All selected DMX recorders must have valid DMX Libraries to enable the button
 	for (TWeakObjectPtr<UTakeRecorderDMXLibrarySource> DMXRecorder : CustomizedDMXRecorders)
@@ -80,7 +85,7 @@ bool FDMXLibraryRecorderAddAllPatchesButtonCustomization::GetAddAllEnabled() con
 	return true;
 }
 
-FReply FDMXLibraryRecorderAddAllPatchesButtonCustomization::HandleOnClicked()
+FReply FTakeRecorderDMXLibrarySourceEditorCustomization::HandleOnClicked()
 {
 	check(StructHandle.IsValid() && StructHandle->IsValidHandle());
 

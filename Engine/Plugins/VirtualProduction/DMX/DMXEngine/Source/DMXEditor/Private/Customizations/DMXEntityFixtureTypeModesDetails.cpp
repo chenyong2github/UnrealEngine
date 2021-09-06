@@ -415,6 +415,11 @@ void SDMXModeItemListViewBox::OnRenameItem()
 	}
 }
 
+TSharedRef<IDetailCustomization> FDMXEntityFixtureTypeModesDetails::MakeInstance(TWeakPtr<FDMXEditor> InDMXEditorPtr)
+{
+	return MakeShared<FDMXEntityFixtureTypeModesDetails>(InDMXEditorPtr);
+}
+
 void FDMXEntityFixtureTypeModesDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	DetailBuilder.HideCategory("Entity Properties");

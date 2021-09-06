@@ -56,7 +56,7 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "20"), Category = "DMX")
 	FString Description;
 
-	/** Initial value for this function when no value is set */
+	/** The Default Value of the function, imported from GDTF. The plugin doesn't make use of this value, but it can be used in blueprints */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayPriority = "30"), Category = "DMX")
 	int64 DefaultValue;
 
@@ -79,14 +79,14 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 
 	/**
 	 * Least Significant Byte mode makes the individual bytes (channels) of the function be
-	 * interpreted with the first bytes being the lowest part of the number.
+	 * interpreted with the first bytes being the lowest part of the number (endianness).
 	 * 
 	 * E.g., given a 16 bit function with two channel values set to [0, 1],
-	 * they would be interpreted as the binary number 00000001 00000000, which means 256.
+	 * they would be interpreted as the binary number 0x01 0x00, which means 256.
 	 * The first byte (0) became the lowest part in binary form and the following byte (1), the highest.
 	 * 
 	 * Most Fixtures use MSB (Most Significant Byte) mode, which interprets bytes as highest first.
-	 * In MSB mode, the example above would be interpreted in binary as 00000000 00000001, which means 1.
+	 * In MSB mode, the example above would be interpreted in binary as 0x00 0x01, which means 1.
 	 * The first byte (0) became the highest part in binary form and the following byte (1), the lowest.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")

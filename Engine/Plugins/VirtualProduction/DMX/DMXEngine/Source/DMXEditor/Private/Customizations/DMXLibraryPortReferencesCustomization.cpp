@@ -169,6 +169,10 @@ namespace
 	};
 }
 
+TSharedRef<IPropertyTypeCustomization> FDMXLibraryPortReferencesCustomization::MakeInstance()
+{
+	return MakeShared<FDMXLibraryPortReferencesCustomization>();
+}
 
 void FDMXLibraryPortReferencesCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {

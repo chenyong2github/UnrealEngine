@@ -19,7 +19,7 @@ class FDMXLibraryPortReferencesCustomization
 {
 public:
 	/** Creates an instance of the property type customization */
-	static TSharedRef<IPropertyTypeCustomization> MakeInstance() { return MakeShared<FDMXLibraryPortReferencesCustomization>(); }
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 	// ~Begin IPropertyTypeCustomization Interface
 	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
