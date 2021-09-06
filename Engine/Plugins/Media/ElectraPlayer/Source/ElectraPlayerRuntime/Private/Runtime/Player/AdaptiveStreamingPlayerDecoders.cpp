@@ -169,6 +169,8 @@ bool FAdaptiveStreamingPlayer::CanDecodeSubtitle(const FString& MimeType, const 
 
 bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
 {
+	FScopeLock Lock(&PeriodCriticalSection);
+
 	TArray<FStreamCodecInformation> VideoCodecInfos;
 	TSharedPtrTS<ITimelineMediaAsset> Asset;
 
@@ -583,6 +585,7 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 
 		if (CurrentPos.IsValid() && RenderClock->IsRunning())
 		{
+			PeriodCriticalSection.Lock();
 			FTimeValue LocalPos;
 			for(int32 i=0, iMax=ActivePeriods.Num(); i<iMax; ++i)
 			{
@@ -592,6 +595,7 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 					break;
 				}
 			}
+			PeriodCriticalSection.Unlock();
 			SubtitleDecoder.Decoder->UpdatePlaybackPosition(CurrentPos, LocalPos);
 		}
 	}

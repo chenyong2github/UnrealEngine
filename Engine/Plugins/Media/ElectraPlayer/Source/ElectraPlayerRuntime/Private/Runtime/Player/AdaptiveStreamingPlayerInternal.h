@@ -1644,6 +1644,7 @@ private:
 	FLoopParam															CurrentLoopParam;
 	TMediaQueueDynamicNoLock<FPlayerLoopState>							NextLoopStates;
 
+	FCriticalSection													PeriodCriticalSection;
 	TArray<FPeriodInformation>											ActivePeriods;
 	TArray<FPeriodInformation>											UpcomingPeriods;
 	TSharedPtrTS<IManifest::IPlayPeriod>								InitialPlayPeriod;
