@@ -15,6 +15,7 @@ public class DMXEditor : ModuleRules
 				"DMXProtocol",
 				"DMXProtocolEditor",
 				"DMXRuntime",
+				"ToolMenus"
 			}
 		);
 

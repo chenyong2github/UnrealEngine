@@ -77,11 +77,8 @@ private:
 	/** Creates the level editor toolbar extender */
 	void ExtendLevelEditorToolbar();
 
-	/** Generates the DMX level editor toolbar extension */
-	void GenerateToolbarExtension(class FToolBarBuilder& InOutBuilder);
-
 	/** Generates the level editor toolbar DMX Menu */
-	TSharedRef<class SWidget> GenerateDMXLevelEditorToolbarMenu();
+	static TSharedRef<class SWidget> GenerateDMXLevelEditorToolbarMenu();
 
 protected:
 	/** Registers asset types categories */
