@@ -31,7 +31,6 @@ void URootMotionAnalysisProperties::InitializeFromCache(TObjectPtr<UCachedAnalys
 		CharacterUpAxis = CachedMotionAnalysisPropertiesPtr->CharacterUpAxis;
 		StartTimeFraction = CachedMotionAnalysisPropertiesPtr->StartTimeFraction;
 		EndTimeFraction = CachedMotionAnalysisPropertiesPtr->EndTimeFraction;
-		bLockAfterAnalysis = CachedMotionAnalysisPropertiesPtr->bLockAfterAnalysis;
 	}
 }
 
@@ -57,7 +56,6 @@ void URootMotionAnalysisProperties::MakeCache(TObjectPtr<UCachedAnalysisProperti
 	CachedMotionAnalysisPropertiesPtr->CharacterUpAxis = CharacterUpAxis;
 	CachedMotionAnalysisPropertiesPtr->StartTimeFraction = StartTimeFraction;
 	CachedMotionAnalysisPropertiesPtr->EndTimeFraction = EndTimeFraction;
-	CachedMotionAnalysisPropertiesPtr->bLockAfterAnalysis = bLockAfterAnalysis;
 }
 
 //======================================================================================================================

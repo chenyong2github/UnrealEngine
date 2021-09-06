@@ -638,42 +638,6 @@ void SBlendSpaceGridWidget::PaintSampleKeys(
 				PaintCircle(CirclePosition, 8.0f, 12, AllottedGeometry, IsolatedColor, IsolatedColor,
 							LabelBrush, OutDrawElements, SampleLayer - 1);
 			}
-
-			// Draw lines/boxes to indicated which axes are locked
-			if (!bReadOnly)
-			{
-				TArray<FVector2D> LinePoints;
-				LinePoints.SetNumUninitialized(2);
-				const float LockSizeScale = 0.5f; // Have the markers just poke out
-				const FVector2D SamplePosition = SampleValueToScreenPosition(Sample.SampleValue) + FVector2D(0.0, 0.0);
-				if (Sample.bLockX)
-				{
-					LinePoints[0] = FVector2D(SamplePosition - FVector2D(KeySize.X, -KeySize.Y) * LockSizeScale);
-					LinePoints[1] = FVector2D(SamplePosition - FVector2D(KeySize.X, +KeySize.Y) * LockSizeScale);
-					FSlateDrawElement::MakeLines(
-						OutDrawElements, SampleLayer - 1, AllottedGeometry.ToPaintGeometry(),
-						LinePoints, ESlateDrawEffect::None, InvalidColor.GetSpecifiedColor(), true, 1.0f);
-					LinePoints[0] = FVector2D(SamplePosition + FVector2D(KeySize.X, -KeySize.Y) * LockSizeScale);
-					LinePoints[1] = FVector2D(SamplePosition + FVector2D(KeySize.X, +KeySize.Y) * LockSizeScale);
-					FSlateDrawElement::MakeLines(
-						OutDrawElements, SampleLayer - 1, AllottedGeometry.ToPaintGeometry(),
-						LinePoints, ESlateDrawEffect::None, InvalidColor.GetSpecifiedColor(), true, 1.0f);
-				}
-				const bool b1DBlendSpace = BlendSpace->IsA<UBlendSpace1D>();
-				if (Sample.bLockY && !BlendSpace->IsA<UBlendSpace1D>())
-				{
-					LinePoints[0] = FVector2D(SamplePosition - FVector2D(-KeySize.X, KeySize.X) * LockSizeScale);
-					LinePoints[1] = FVector2D(SamplePosition - FVector2D(+KeySize.X, KeySize.X) * LockSizeScale);
-					FSlateDrawElement::MakeLines(
-						OutDrawElements, SampleLayer - 1, AllottedGeometry.ToPaintGeometry(),
-						LinePoints, ESlateDrawEffect::None, InvalidColor.GetSpecifiedColor(), true, 1.0f);
-					LinePoints[0] = FVector2D(SamplePosition + FVector2D(-KeySize.X, KeySize.X) * LockSizeScale);
-					LinePoints[1] = FVector2D(SamplePosition + FVector2D(+KeySize.X, KeySize.X) * LockSizeScale);
-					FSlateDrawElement::MakeLines(
-						OutDrawElements, SampleLayer - 1, AllottedGeometry.ToPaintGeometry(),
-						LinePoints, ESlateDrawEffect::None, InvalidColor.GetSpecifiedColor(), true, 1.0f);
-				}
-			}
 		}
 
 		// Always draw the filtered position which comes back from whatever is running
@@ -2503,9 +2467,6 @@ void SBlendSpaceGridWidget::Tick(const FGeometry& AllottedGeometry, const double
 				FVector SampleValue = ScreenPositionToSampleValueWithSnapping(LocalMousePosition, FSlateApplication::Get().GetModifierKeys().IsShiftDown());
 				// Only allow dragging on each axis if not locked
 				const FBlendSample& BlendSample = BlendSpace->GetBlendSample(DraggedSampleIndex);
-				SampleValue.X = BlendSample.bLockX ? BlendSample.SampleValue.X : SampleValue.X;
-				SampleValue.Y = BlendSample.bLockY ? BlendSample.SampleValue.Y : SampleValue.Y;
-				SampleValue.Z = BlendSample.bLockZ ? BlendSample.SampleValue.Z : SampleValue.Z;
 				if (SampleValue != LastDragPosition)
 				{
 					LastDragPosition = SampleValue;
