@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "Styling/SlateColor.h"
+#include "UObject/NameTypes.h"
+#include "Templates/SharedPointer.h"
 
 struct FSlateBrush;
 

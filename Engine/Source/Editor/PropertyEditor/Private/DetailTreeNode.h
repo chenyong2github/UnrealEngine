@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "PropertyPath.h"
 #include "IPropertyUtilities.h"
 #include "IDetailTreeNode.h"
 #include "PropertyCustomizationHelpers.h"
+#include "PropertyPath.h"
+#include "Misc/Attribute.h"
 
 class FDetailCategoryImpl;
 class IDetailsViewPrivate;
@@ -18,6 +17,8 @@ class FPropertyNode;
 class FComplexPropertyNode;
 struct FDetailFilter;
 
+typedef TArray<TSharedRef<class FDetailTreeNode>> FDetailNodeList;
+
 enum class ENodeVisibility : uint8
 {
 	// Hidden but can be visible if parent is visible due to filtering
@@ -27,9 +28,6 @@ enum class ENodeVisibility : uint8
 	// Always visible
 	Visible,
 };
-
-typedef TArray<TSharedRef<class FDetailTreeNode>> FDetailNodeList;
-
 
 class FDetailTreeNode : public IDetailTreeNode
 {

@@ -2,11 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "AssetThumbnail.h"
 #include "DetailTreeNode.h"
-#include "PropertyNode.h"
 #include "IDetailsView.h"
+#include "PropertyNode.h"
 
 class FEditConditionParser;
 class FNotifyHook;
