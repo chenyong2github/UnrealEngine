@@ -258,6 +258,8 @@ namespace Chaos
 
 		CHAOS_API FSpatialAccelerationBroadPhase& GetBroadPhase() { return BroadPhase; }
 
+		CHAOS_API void TransferJointConstraintCollisions();
+
 	protected:
 
 		CHAOS_API void AdvanceOneTimeStepImpl(const FReal dt, const FSubStepInfo& SubStepInfo);

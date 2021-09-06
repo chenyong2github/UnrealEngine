@@ -154,6 +154,7 @@ namespace Chaos
 			, Timestamp(-INT_MAX)
 			, ConstraintHandle(nullptr)
 			, Type(InType)
+			, Stiffness(1.0)
 		{
 			ImplicitTransform[0] = FRigidTransform3::Identity; ImplicitTransform[1] = FRigidTransform3::Identity;
 			Manifold.Implicit[0] = nullptr; Manifold.Implicit[1] = nullptr;
@@ -177,6 +178,7 @@ namespace Chaos
 			, Timestamp(InTimestamp)
 			, ConstraintHandle(nullptr)
 			, Type(InType)
+			, Stiffness(1.0)
 		{
 			ImplicitTransform[0] = Transform0; 
 			ImplicitTransform[1] = Transform1;
@@ -235,6 +237,8 @@ namespace Chaos
 		void SetInvInertiaScale1(const FReal InInvInertiaScale) { Manifold.InvInertiaScale1 = InInvInertiaScale; }
 		FReal GetInvInertiaScale1() const { return Manifold.InvInertiaScale1; }
 
+		void SetStiffness(FReal InStiffness) { Stiffness = InStiffness; }
+		FReal GetStiffness() const { return Stiffness; }
 
 		FString ToString() const;
 
@@ -252,6 +256,7 @@ namespace Chaos
 	private:
 		FPBDCollisionConstraintHandle* ConstraintHandle;
 		FType Type;
+		FReal Stiffness;
 	};
 
 
@@ -296,6 +301,7 @@ namespace Chaos
 
 		bool GetUseManifold() const { return bUseManifold; }
 
+		void SetManifoldPoints(const TArray<FManifoldPoint>& InManifoldPoints) { ManifoldPoints=InManifoldPoints; }
 		TArrayView<FManifoldPoint> GetManifoldPoints() { return MakeArrayView(ManifoldPoints); }
 		TArrayView<const FManifoldPoint> GetManifoldPoints() const { return MakeArrayView(ManifoldPoints); }
 		FManifoldPoint& SetActiveManifoldPoint(
@@ -316,6 +322,9 @@ namespace Chaos
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
 		void UpdateManifoldContacts(FReal Dt);
 		void ClearManifold();
+
+		//@todo(make protected) : Was exposed to support contact copying. 
+		void UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint);
 
 	protected:
 		// For use by derived types that can be used as point constraints in Update
@@ -347,7 +356,6 @@ namespace Chaos
 		int32 AddManifoldPoint(const FContactPoint& ContactPoint, const FReal Dt);
 		void InitManifoldPoint(FManifoldPoint& ManifoldPoint, FReal Dt);
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
-		void UpdateManifoldPointFromContact(FManifoldPoint& ManifoldPoint);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 		void GetWorldSpaceManifoldPoint(const FManifoldPoint& ManifoldPoint, const FVec3& P0, const FRotation3& Q0, const FVec3& P1, const FRotation3& Q1, FVec3& OutContactLocation, FVec3& OutContactNormal, FReal& OutContactPhi);
 
