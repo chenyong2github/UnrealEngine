@@ -6181,7 +6181,7 @@ static FString GGlobalShaderCacheOverrideDirectory;
 
 static FString GetGlobalShaderCacheOverrideFilename(EShaderPlatform Platform)
 {
-	FString DirectoryPrefix = FString(TEXT("Engine")) / TEXT("OverrideGlobalShaderCache-");
+	FString DirectoryPrefix = FPaths::EngineDir() / TEXT("OverrideGlobalShaderCache-");
 
 	if (!GGlobalShaderCacheOverrideDirectory.IsEmpty())
 	{
