@@ -39,7 +39,7 @@ FRigUnit_RandomFloat_Execute()
 
 	Result = FRigUnit_Random_Helper(LastSeed);
 	Result = FMath::Lerp<float>(Minimum, Maximum, Result);
-	TimeLeft = Duration;
+	TimeLeft = Duration < -SMALL_NUMBER ? FLT_MAX : Duration;
 	LastResult = Result;
 }
 
@@ -68,6 +68,6 @@ FRigUnit_RandomVector_Execute()
 	Result.X = FMath::Lerp<float>(Minimum, Maximum, FRigUnit_Random_Helper(LastSeed));
 	Result.Y = FMath::Lerp<float>(Minimum, Maximum, FRigUnit_Random_Helper(LastSeed));
 	Result.Z = FMath::Lerp<float>(Minimum, Maximum, FRigUnit_Random_Helper(LastSeed));
-	TimeLeft = Duration;
+	TimeLeft = Duration < -SMALL_NUMBER ? FLT_MAX : Duration;
 	LastResult = Result;
 }
