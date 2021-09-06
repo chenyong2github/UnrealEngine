@@ -379,3 +379,68 @@ void AddHairStrandsDebugTilePass(
 			FIntVector(1, 1, 1));
 	}
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FHairTileClearCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairTileClearCS);
+	SHADER_USE_PARAMETER_STRUCT(FHairTileClearCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntPoint, Resolution)
+		SHADER_PARAMETER(FIntPoint, TileCountXY)
+		SHADER_PARAMETER(uint32, TileSize)
+		SHADER_PARAMETER(uint32, TileType)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, TileDataBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, TileCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairTileCount)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
+		RDG_BUFFER_ACCESS(TileIndirectArgs, ERHIAccess::IndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsHairStrandsSupported(EHairStrandsShaderType::Strands, Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_TILE_CLEAR"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairTileClearCS, "/Engine/Private/HairStrands/HairStrandsVisibilityTile.usf", "TileMainCS", SF_Compute);
+
+void AddHairStrandsTileClearPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FHairStrandsTiles& TileData,
+	FHairStrandsTiles::ETileType TileType,
+	FRDGTextureRef OutTexture)
+{
+	if (!OutTexture || !TileData.IsValid() || TileType == FHairStrandsTiles::ETileType::Count) return;
+	
+
+	FHairTileClearCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHairTileClearCS::FParameters>();
+	PassParameters->Resolution = OutTexture->Desc.Extent;
+	PassParameters->TileCountXY = TileData.TileCountXY;
+	PassParameters->TileSize = TileData.TileSize;
+	PassParameters->TileType = ToIndex(TileType);
+	PassParameters->TileCountBuffer = TileData.TileCountSRV;
+	PassParameters->TileDataBuffer = TileData.GetTileBufferSRV(TileType);
+	PassParameters->TileIndirectArgs = TileData.TileIndirectDispatchBuffer;
+	PassParameters->OutTexture = GraphBuilder.CreateUAV(OutTexture);
+
+	FHairTileClearCS::FPermutationDomain PermutationVector;
+	TShaderMapRef<FHairTileClearCS> ComputeShader(View.ShaderMap, PermutationVector);
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("HairStrands::TileClear(%s)", ToString(TileType)),
+		ComputeShader,
+		PassParameters,
+		PassParameters->TileIndirectArgs, TileData.GetIndirectDispatchArgOffset(TileType));
+}

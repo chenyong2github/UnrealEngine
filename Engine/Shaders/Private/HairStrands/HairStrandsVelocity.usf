@@ -4,18 +4,20 @@
 
 #include "../Common.ush"
 #include "HairStrandsVisibilityCommon.ush"
+#include "HairStrandsTileCommon.ush"
 
-#if PERMUTATION_GROUPSIZE == 64
 #define TILE_PIXEL_SIZE_X 8
 #define TILE_PIXEL_SIZE_Y 8
-#elif PERMUTATION_GROUPSIZE == 32
-#define TILE_PIXEL_SIZE_X 8
-#define TILE_PIXEL_SIZE_Y 4
+
+#if (TILE_PIXEL_SIZE_X != HAIR_TILE_SIZE) || (TILE_PIXEL_SIZE_Y != HAIR_TILE_SIZE) 
+#error Tile size needs to match 
 #endif
 
-uint2 ResolutionOffset;
+int2 Resolution;
+int2 ResolutionOffset;
 float VelocityThreshold;
 float CoverageThreshold;
+uint bNeedClear;
 
 Texture2D<uint> NodeIndex;
 Buffer<float2> NodeVelocity;
@@ -24,7 +26,7 @@ Texture2D<float> CoverageTexture;
 
 #define VELOCITY_TYPE_NONE 0
 #define VELOCITY_TYPE_AVG 1  
-#define VELOCITY_TYPE_CLOSEST 2
+#define VELOCITY_TYPE_CLOSEST 2	
 #define VELOCITY_TYPE_MAX 3
 #if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
   #if PERMUTATION_OUTPUT_FORMAT == 0
@@ -32,6 +34,13 @@ Texture2D<float> CoverageTexture;
   #else
 	RWTexture2D<float4> OutVelocityTexture;
   #endif
+#endif
+
+#if PERMUTATION_TILE
+uint TileSize;
+int2 TileCountXY;
+Buffer<uint> TileCountBuffer;
+Buffer<uint2> TileDataBuffer;
 #endif
 
 RWTexture2D<uint> OutResolveMaskTexture;
@@ -43,11 +52,25 @@ float4 ToOutput(float2 In) { return float4(In, 0, 0); }
 #endif
 
 [numthreads(TILE_PIXEL_SIZE_X, TILE_PIXEL_SIZE_Y, 1)]
-void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_DispatchThreadID)
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint2 InGroupId : SV_GroupID, uint2 InGroupThreadId : SV_GroupThreadID)
 {
+#if PERMUTATION_TILE
+	const uint TileCount = TileCountBuffer[HAIRTILE_HAIR_ALL];
+	const uint TileIndex1D = InGroupId.x + InGroupId.y * TileCountXY.x;
+	if (TileIndex1D >= TileCount)
+	{
+		return;
+	}
+	const uint2 GroupId = TileDataBuffer[TileIndex1D];
+	const uint2 PixelCoord = GroupId * TileSize + InGroupThreadId;
+#else
 	const uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
+#endif
+
 	const FNodeDesc NodeDesc = DecodeNodeDesc(NodeIndex.Load(uint3(PixelCoord, 0)));
 	bool bNeedFastResolve = false;
+	bool bValidVelocity = NodeDesc.Count > 0;
+	float2 OutEncodedVelocity = 0;
 	if (NodeDesc.Count > 0)
 	{
 		// Store final sort node data 
@@ -103,18 +126,24 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 			}
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_AVG
-			OutVelocityTexture[PixelCoord] = ToOutput(EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy);
+			OutEncodedVelocity = EncodeVelocityToTexture(float3(AverageVelocity / max(NodeDesc.Count, 1u), 0.0)).xy;
 			#endif		
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_CLOSEST
-			OutVelocityTexture[PixelCoord] = ToOutput(ClosestEncodedVelocity);
+			OutEncodedVelocity = ClosestEncodedVelocity;
 			#endif		
 
 			#if PERMUTATION_VELOCITY == VELOCITY_TYPE_MAX
-			OutVelocityTexture[PixelCoord] = ToOutput(MaxEncodedVelocity);
+			OutEncodedVelocity = MaxEncodedVelocity;
 			#endif
 		}
 	}
 
+	#if PERMUTATION_VELOCITY != VELOCITY_TYPE_NONE
+	if (bValidVelocity || bNeedClear)
+	{
+		OutVelocityTexture[PixelCoord]  = bValidVelocity ? ToOutput(OutEncodedVelocity) : 0.f;
+	}
+	#endif
 	OutResolveMaskTexture[PixelCoord] = bNeedFastResolve ? 1 : 0;
 }
