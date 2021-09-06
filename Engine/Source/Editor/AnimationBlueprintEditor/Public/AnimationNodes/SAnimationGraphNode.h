@@ -25,6 +25,9 @@ public:
 	// Tweak any created pin widgets so they respond to bindings
 	static void ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TSharedRef<SGraphNode> InGraphNodeWidget, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin);
 
+	// Create below-widget controls for editing anim node functions
+	static TSharedRef<SWidget> CreateNodeFunctionsWidget(UAnimGraphNode_Base* InAnimNode, TAttribute<bool> InUseLowDetail);
+	
 protected:
 	// SWidget interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
@@ -56,10 +59,4 @@ private:
 	TSharedPtr<SNodeTitle> NodeTitle;
 
 	TWeakObjectPtr<class UPoseWatch> PoseWatch;
-
-	// Property row generator used to display function properties on nodes
-	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
-	
-	// Hold a reference to the root ptr of the details tree we use to display function properties
-	TArray<TSharedPtr<IDetailTreeNode>> DetailNodes;
 };

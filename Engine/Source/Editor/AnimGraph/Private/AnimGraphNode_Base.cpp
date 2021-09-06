@@ -203,21 +203,28 @@ void UAnimGraphNode_Base::ValidateAnimNodeDuringCompilation(USkeleton* ForSkelet
 		}
 	}
 
-	auto ValidateFunctionRef = [this, &MessageLog](const FMemberReference& InRef, const FText& InError)
+	auto ValidateFunctionRef = [this, &MessageLog](const FMemberReference& InRef, const FText& InFunctionName)
 	{
 		if(InRef.GetMemberName() != NAME_None)
 		{
 			UFunction* Function = InRef.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass);
 			if(Function == nullptr)
 			{
-				MessageLog.Error(*InError.ToString(), this);
+				MessageLog.Error(*FText::Format(LOCTEXT("CouldNotResolveFunctionErrorFormat", "Could not resolve {0} function @@"), InFunctionName).ToString(), this);
+			}
+			else
+			{
+				if(!FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("FunctionThreadSafetyErrorFormat", "{0} function is not thread safe @@"), InFunctionName).ToString(), this);
+				}
 			}
 		}
 	};
 	
-	ValidateFunctionRef(InitialUpdateFunction, LOCTEXT("MissingInitialUpdateFunction", "Could not resolve initial update function for @@"));
-	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("MissingBecomeRelevantFunction", "Could not resolve become relevant function for @@"));
-	ValidateFunctionRef(UpdateFunction, LOCTEXT("MissingUpdateFunction", "Could not resolve update function for @@"));
+	ValidateFunctionRef(InitialUpdateFunction, LOCTEXT("InitialUpdateFunctionName", "Initial Update"));
+	ValidateFunctionRef(BecomeRelevantFunction, LOCTEXT("BecomeRelevantFunctionName", "Become Relevant"));
+	ValidateFunctionRef(UpdateFunction, LOCTEXT("UpdateFunctionName", "Update"));
 }
 
 void UAnimGraphNode_Base::CopyTermDefaultsToDefaultObject(IAnimBlueprintCopyTermDefaultsContext& InCompilationContext, IAnimBlueprintNodeCopyTermDefaultsContext& InPerNodeContext, IAnimBlueprintGeneratedClassCompiledData& OutCompiledData)
@@ -501,9 +508,9 @@ void UAnimGraphNode_Base::ProcessDuringCompilation(IAnimBlueprintCompilationCont
 	Extension->ProcessNodePins(this, InCompilationContext, OutCompiledData);
 
 	// Resolve functions
-	GetFNode()->InitialUpdateFunction.SetFromFunction(InitialUpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));  
-	GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass));
-	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetAnimBlueprint()->SkeletonGeneratedClass)); 
+	GetFNode()->InitialUpdateFunction.SetFromFunction(InitialUpdateFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()));
+	GetFNode()->BecomeRelevantFunction.SetFromFunction(BecomeRelevantFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode()));
+	GetFNode()->UpdateFunction.SetFromFunction(UpdateFunction.ResolveMember<UFunction>(GetBlueprintClassFromNode())); 
 
 	// Call the override point
 	OnProcessDuringCompilation(InCompilationContext, OutCompiledData);

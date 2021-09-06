@@ -280,29 +280,44 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 {
 	if (UAnimGraphNode_Base* AnimNode = CastChecked<UAnimGraphNode_Base>(GraphNode, ECastCheckedType::NullAllowed))
 	{
-		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
-		PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
-		PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(FMemberReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintMemberReferenceDetails::MakeInstance));
-		PropertyRowGenerator->SetObjects({ AnimNode });
-
-		TSharedPtr<SGridPanel> GridPanel;
+		TSharedRef<SWidget> NodeFunctionsWidget = CreateNodeFunctionsWidget(AnimNode, MakeAttributeSP(this, &SAnimationGraphNode::UseLowDetailNodeTitles));
 		
-		MainBox->AddSlot()
+		// Insert above the error reporting bar
+		MainBox->InsertSlot(FMath::Max(0, MainBox->NumSlots() - 1))
 		.AutoHeight()
 		.Padding(4.0f)
 		[
-			SNew(SLevelOfDetailBranchNode)
-			.UseLowDetailSlot(this, &SAnimationGraphNode::UseLowDetailNodeTitles)
-			.LowDetail()
+			SNew(SBox)
+			.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
 			[
-				SNew(SSpacer)
-				.Size(FVector2D(17.0f, 17.f))
+				NodeFunctionsWidget
 			]
-			.HighDetail()
-			[
-				SAssignNew(GridPanel, SGridPanel)
-				.IsEnabled_Lambda([this](){ return IsNodeEditable(); })
-			]
+		];
+	}
+}
+
+// Widget used to allow functions to be viewed and edited on nodes
+class SAnimNodeFunctionsWidget : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SAnimNodeFunctionsWidget) {}
+
+	SLATE_ATTRIBUTE(bool, UseLowDetail)
+	
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UAnimGraphNode_Base* InNode)
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyRowGenerator = PropertyEditorModule.CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
+		PropertyRowGenerator->RegisterInstancedCustomPropertyTypeLayout(FMemberReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FBlueprintMemberReferenceDetails::MakeInstance));
+		PropertyRowGenerator->SetObjects({ InNode });
+
+		TSharedPtr<SGridPanel> GridPanel;
+
+		ChildSlot
+		[
+			SAssignNew(GridPanel, SGridPanel)
 		];
 
 		GridPanel->SetVisibility(EVisibility::Collapsed);
@@ -310,7 +325,7 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 		int32 RowIndex = 0;
 		
 		// Add bound functions
-		auto AddFunctionBindingWidget = [this, &GridPanel, &RowIndex](FName InCategory, FName InMemberName)
+		auto AddFunctionBindingWidget = [this, InNode, &GridPanel, &RowIndex](FName InCategory, FName InMemberName)
 		{
 			GridPanel->SetVisibility(EVisibility::Visible);
 			
@@ -332,9 +347,9 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 						{
 							DetailTreeNode = Children[ChildIdx];
 							PropertyHandle = ChildPropertyHandle;
-							PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]()
+							PropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([InNode]()
 							{
-								GraphNode->ReconstructNode();
+								InNode->ReconstructNode();
 							}));
 							break;
 						}
@@ -353,7 +368,17 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 				.VAlign(VAlign_Center)
 				.Padding(10.0f, 2.0f, 2.0f, 2.0f)
 				[
-					NodeWidgets.NameWidget.ToSharedRef()
+					SNew(SLevelOfDetailBranchNode)
+					.UseLowDetailSlot(UseLowDetail)
+					.LowDetail()
+					[
+						SNew(SSpacer)
+						.Size(FVector2D(24.0f, 24.f))
+					]
+					.HighDetail()
+					[
+						NodeWidgets.NameWidget.ToSharedRef()
+					]
 				];
 
 				GridPanel->AddSlot(1, RowIndex)
@@ -361,26 +386,51 @@ void SAnimationGraphNode::CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBo
 				.VAlign(VAlign_Center)
 				.Padding(2.0f, 2.0f, 10.0f, 2.0f)
 				[
-					NodeWidgets.ValueWidget.ToSharedRef()
+					SNew(SLevelOfDetailBranchNode)
+					.UseLowDetailSlot(UseLowDetail)
+					.LowDetail()
+					[
+						SNew(SSpacer)
+						.Size(FVector2D(24.0f, 24.f))
+					]
+					.HighDetail()
+					[	
+						NodeWidgets.ValueWidget.ToSharedRef()
+					]
 				];
 
 				RowIndex++;
 			}
 		};
 
-		if(AnimNode->InitialUpdateFunction.GetMemberGuid().IsValid())
+		if(InNode->InitialUpdateFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, InitialUpdateFunction));
 		}
-		if(AnimNode->BecomeRelevantFunction.GetMemberGuid().IsValid())
+		if(InNode->BecomeRelevantFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, BecomeRelevantFunction));
 		}
-		if(AnimNode->UpdateFunction.GetMemberGuid().IsValid())
+		if(InNode->UpdateFunction.ResolveMember<UFunction>(InNode->GetBlueprintClassFromNode()) != nullptr)
 		{
 			AddFunctionBindingWidget("Functions", GET_MEMBER_NAME_CHECKED(UAnimGraphNode_Base, UpdateFunction));
 		}
 	}
+
+	// Property row generator used to display function properties on nodes
+	TSharedPtr<IPropertyRowGenerator> PropertyRowGenerator;
+
+	// Hold a reference to the root ptr of the details tree we use to display function properties
+	TArray<TSharedPtr<IDetailTreeNode>> DetailNodes;
+
+	// Attribute allowing LOD
+	TAttribute<bool> UseLowDetail;
+};
+
+TSharedRef<SWidget> SAnimationGraphNode::CreateNodeFunctionsWidget(UAnimGraphNode_Base* InAnimNode, TAttribute<bool> InUseLowDetail)
+{
+	return SNew(SAnimNodeFunctionsWidget, InAnimNode)
+		.UseLowDetail(InUseLowDetail);
 }
 
 void SAnimationGraphNode::ReconfigurePinWidgetsForPropertyBindings(UAnimGraphNode_Base* InAnimGraphNode, TSharedRef<SGraphNode> InGraphNodeWidget, TFunctionRef<TSharedPtr<SGraphPin>(UEdGraphPin*)> InFindWidgetForPin)
