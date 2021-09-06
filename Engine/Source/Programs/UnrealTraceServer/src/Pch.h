@@ -73,8 +73,10 @@
 #	define WIN32_LEAN_AND_MEAN
 #	define NOMINMAX
 #	include <Windows.h>
+#	include <winsafer.h>
 #	include <Shlobj.h>
 #	include <shellapi.h>
+#	pragma comment(lib, "Advapi32.lib")
 #	pragma comment(lib, "Shell32.lib")
 #	pragma comment(lib, "User32.lib")
 #endif
