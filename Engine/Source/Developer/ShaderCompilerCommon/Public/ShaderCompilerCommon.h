@@ -95,9 +95,9 @@ public:
 	/** Validates the shader parameter in code is compatible with the shader parameter structure. */
 	void ValidateShaderParameterType(
 		const FShaderCompilerInput& CompilerInput,
-		const TCHAR* ShaderBindingName,
-		const FParsedShaderParameter& ParsedParameter,
-		int32 BoundSize,
+		const FString& ShaderBindingName,
+		int32 ReflectionOffset,
+		int32 ReflectionSize,
 		FShaderCompilerOutput& CompilerOutput) const;
 
 	/** Validates shader parameter map is compatible with the shader parameter structure. */

@@ -600,7 +600,10 @@ static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompi
 
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
-	const uint32 CompileFlags, const FShaderCompilerInput& Input, FString& EntryPointName,
+	const uint32 CompileFlags,
+	const FShaderCompilerInput& Input,
+	const FShaderParameterParser& ShaderParameterParser,
+	FString& EntryPointName,
 	const TCHAR* ShaderProfile, ELanguage Language, bool bProcessingSecondTime,
 	TArray<FString>& FilteredErrors, FShaderCompilerOutput& Output)
 {
@@ -793,7 +796,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 						ExtractParameterMapFromD3DShader<ID3D12FunctionReflection, D3D12_FUNCTION_DESC, D3D12_SHADER_INPUT_BIND_DESC,
 							ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 							ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
-								Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, FunctionReflection, FunctionDesc, 
+								Input, ShaderParameterParser,
+								AutoBindingSpace, FunctionReflection, FunctionDesc, 
 								bGlobalUniformBufferUsed, bDiagnosticBufferUsed,
 								NumSamplers, NumSRVs, NumCBs, NumUAVs,
 								Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
@@ -863,9 +867,10 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			ExtractParameterMapFromD3DShader<ID3D12ShaderReflection, D3D12_SHADER_DESC, D3D12_SHADER_INPUT_BIND_DESC,
 				ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 				ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
-					Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, ShaderReflection, ShaderDesc,
-						bGlobalUniformBufferUsed, bDiagnosticBufferUsed, 
-						NumSamplers, NumSRVs, NumCBs, NumUAVs,
+					Input, ShaderParameterParser,
+					AutoBindingSpace, ShaderReflection, ShaderDesc,
+					bGlobalUniformBufferUsed, bDiagnosticBufferUsed, 
+					NumSamplers, NumSRVs, NumCBs, NumUAVs,
 					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 

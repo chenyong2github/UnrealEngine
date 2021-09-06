@@ -1078,13 +1078,21 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 
 void FShaderParameterParser::ValidateShaderParameterType(
 	const FShaderCompilerInput& CompilerInput,
-	const TCHAR* ShaderBindingName,
-	const FParsedShaderParameter& ParsedParameter,
-	int32 BoundSize,
+	const FString& ShaderBindingName,
+	int32 ReflectionOffset,
+	int32 ReflectionSize,
 	FShaderCompilerOutput& CompilerOutput) const
 {
+	const FShaderParameterParser::FParsedShaderParameter& ParsedParameter = FindParameterInfos(ShaderBindingName);
+
 	check(ParsedParameter.IsFound());
 	check(CompilerInput.RootParametersStructure);
+
+	if (ReflectionSize > 0)
+	{
+		// Verify the offset of the parameter comming from shader reflections matches
+		check(ReflectionOffset == ParsedParameter.ConstantBufferOffset);
+	}
 
 	EShaderPlatform ShaderPlatform = EShaderPlatform(CompilerInput.Target.Platform);
 
@@ -1140,7 +1148,7 @@ void FShaderParameterParser::ValidateShaderParameterType(
 			Error.StrippedErrorMessage = FString::Printf(
 				TEXT("Error: Type %s of shader parameter %s in shader mismatch the shader parameter structure: %s expects a %s"),
 				*ParsedParameter.ParsedType,
-				ShaderBindingName,
+				*ShaderBindingName,
 				*CppCodeName,
 				*ExpectedShaderType);
 			GetParameterFileAndLine(ParsedParameter, Error.ErrorVirtualFilePath, Error.ErrorLineString);
@@ -1153,15 +1161,15 @@ void FShaderParameterParser::ValidateShaderParameterType(
 	}
 
 	// Validate parameter size, in case this is an array.
-	if (BoundSize > int32(ParsedParameter.Member->GetMemberSize()))
+	if (ReflectionSize > int32(ParsedParameter.Member->GetMemberSize()))
 	{
 		FString CppCodeName = CompilerInput.RootParametersStructure->GetFullMemberCodeName(ParsedParameter.ConstantBufferOffset);
 
 		FShaderCompilerError Error;
 		Error.StrippedErrorMessage = FString::Printf(
 			TEXT("Error: The size required to bind shader parameter %s is %i bytes, smaller than %s that is %i bytes in the parameter structure."),
-			ShaderBindingName,
-			BoundSize,
+			*ShaderBindingName,
+			ReflectionSize,
 			*CppCodeName,
 			ParsedParameter.Member->GetMemberSize());
 		GetParameterFileAndLine(ParsedParameter, Error.ErrorVirtualFilePath, Error.ErrorLineString);
@@ -1218,13 +1226,15 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 			return;
 		}
 
+		int32 BoundOffset = 0;
 		int32 BoundSize = 0;
 		if (const FParameterAllocation* ParameterAllocation = ParametersFoundByCompiler.Find(ShaderBindingName))
 		{
+			BoundOffset = ParameterAllocation->BaseIndex;
 			BoundSize = ParameterAllocation->Size;
 		}
 
-		ValidateShaderParameterType(CompilerInput, ShaderBindingName, ParsedParameter, BoundSize, CompilerOutput);
+		ValidateShaderParameterType(CompilerInput, ShaderBindingName, BoundOffset, BoundSize, CompilerOutput);
 	});
 }
 
