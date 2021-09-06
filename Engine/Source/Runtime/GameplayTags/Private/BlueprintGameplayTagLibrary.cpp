@@ -113,7 +113,7 @@ void UBlueprintGameplayTagLibrary::GetAllActorsOfClassMatchingTagQuery(UObject* 
 		{
 			AActor* Actor = *It;
 			check(Actor != nullptr);
-			if (!Actor->IsPendingKill())
+			if (IsValid(Actor))
 			{
 				IGameplayTagAssetInterface* GameplayTagAssetInterface = Cast<IGameplayTagAssetInterface>(Actor);
 				if (GameplayTagAssetInterface != nullptr)

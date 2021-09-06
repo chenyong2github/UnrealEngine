@@ -60,7 +60,7 @@ namespace SolidworksDatasmith.Engine
 
         private Dictionary<string, Mould> Moulds = new Dictionary<string, Mould>();
         
-        public void SetMould(Processor processor, string partPath, string partName, Geometry.StripGeometry stripGeom)
+        public void SetMould(Processor processor, string partPath, string partName, Geometry.StripGeometry stripGeom, bool exportMesh)
         {
             Mould previous = null;
             Moulds.TryGetValue(partPath, out previous);
@@ -83,7 +83,7 @@ namespace SolidworksDatasmith.Engine
                     processor.DatasmithScene.RemoveMesh(ii.MeshElement);
                     ii.MeshElement.Dispose();
                     ii.Mesh.Dispose();
-                    if (mesh != null && meshElement != null && processor.UseDirectLink)
+                    if (exportMesh && mesh != null && meshElement != null)
                     {
                         processor.DatasmithScene.ExportDatasmithMesh(meshElement, mesh);
                     }
@@ -191,7 +191,7 @@ namespace SolidworksDatasmith.Engine
             }
         }
 
-        public void ExportMeshes(Processor processor)
+        public void ExportMeshes(Processor processor, bool bForce)
         {
             var moulds = Moulds.ToArray();
             Parallel.For(0, moulds.Length, mm =>
@@ -199,7 +199,7 @@ namespace SolidworksDatasmith.Engine
                 var m = moulds[mm];
                 foreach (var i in m.Value.Instances)
                 {
-                    if (i.Dirty)
+                    if (i.Dirty || bForce)
                     {
                         processor.DatasmithScene.ExportDatasmithMesh(i.MeshElement, i.Mesh);
                         i.Dirty = false;

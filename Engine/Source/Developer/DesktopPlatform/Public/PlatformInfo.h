@@ -140,13 +140,6 @@ namespace PlatformInfo
 	* @return An array of FNames.
 	*/
 	DESKTOPPLATFORM_API const TArray<FName>& GetAllVanillaPlatformNames();
-
-	/**
-	* Returns a map of all preview platform shader format names to their menu items
-	* Used to generate the editor preview platform menu 
-	* @return the map of shader format names to the menu items
-	*/
-	DESKTOPPLATFORM_API const TArray<FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems();
 }
 
 #endif

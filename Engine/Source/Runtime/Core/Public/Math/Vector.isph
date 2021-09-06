@@ -1454,6 +1454,11 @@ inline FVector4 VectorAdd(const FVector4 &A, const FVector4 &B)
 	return A + B;
 }
 
+inline FVector4 VectorAdd(const FVector4 &A, const uniform FVector4 &B)
+{
+	return A + B;
+}
+
 inline uniform FVector4 VectorAdd(const uniform FVector4 &A, const uniform FVector4 &B)
 {
 	return A + B;
@@ -1485,6 +1490,11 @@ inline FVector4 VectorMultiply(const FVector4 &A, const FVector4 &B)
 }
 
 inline FVector4 VectorMultiply(const FVector4 &A, const uniform FVector4 &B)
+{
+	return A * B;
+}
+
+inline FVector4 VectorMultiply(const uniform FVector4 &A, const FVector4 &B)
 {
 	return A * B;
 }
@@ -1527,6 +1537,18 @@ inline FVector4 VectorMultiplyAdd(const FVector4& A, const FVector4 &B, const FV
 }
 
 inline FVector4 VectorMultiplyAdd(const FVector4& A, const uniform FVector4 &B, const FVector4 &C)
+{
+	FVector4 Result;
+
+	Result.V[0] = A.V[0] * B.V[0] + C.V[0];
+	Result.V[1] = A.V[1] * B.V[1] + C.V[1];
+	Result.V[2] = A.V[2] * B.V[2] + C.V[2];
+	Result.V[3] = A.V[3] * B.V[3] + C.V[3];
+
+	return Result;
+}
+
+inline FVector4 VectorMultiplyAdd(const uniform FVector4& A, const FVector4 &B, const FVector4 &C)
 {
 	FVector4 Result;
 
@@ -1638,6 +1660,11 @@ inline uniform FVector VectorAbs(const uniform FVector& A)
 	Result = VectorAbs(S0);
 
 	return *((uniform FVector *uniform)&Result);
+}
+
+inline bool IsVectorEqual(const FVector &A, const FVector &B)
+{
+	return A.V[0] == B.V[0] && A.V[1] == B.V[1] && A.V[2] == B.V[2];
 }
 
 inline bool IsVectorLessEqual(const FVector4 &A, const uniform FVector4 &B)
@@ -2164,6 +2191,38 @@ inline uniform float ReciprocalSqrtAccurate(const uniform float V)
 	return x2;
 }
 
+inline float ReciprocalSqrtAccurate(const float V)
+{
+	// Perform two passes of Newton-Raphson iteration on the hardware estimate
+	//    v^-0.5 = x
+	// => x^2 = v^-1
+	// => 1/(x^2) = v
+	// => F(x) = x^-2 - v
+	//    F'(x) = -2x^-3
+
+	//    x1 = x0 - F(x0)/F'(x0)
+	// => x1 = x0 + 0.5 * (x0^-2 - Vec) * x0^3
+	// => x1 = x0 + 0.5 * (x0 - Vec * x0^3)
+	// => x1 = x0 + x0 * (0.5 - 0.5 * Vec * x0^2)
+
+	const float DivBy2 = V * 0.5f;
+
+	// Initial estimate
+	const float x0 = rsqrt_fast(V);
+
+	// First iteration
+	float x1 = x0 * x0;
+	x1 = 0.5f - (DivBy2 * x1);
+	x1 = x0 * x1 + x0;
+
+	// Second iteration
+	float x2 = x1 * x1;
+	x2 = 0.5f - (DivBy2 * x2);
+	x2 = x1 * x2 + x1;
+
+	return x2;
+}
+
 /**
  * Replicates one element into all four elements and returns the new vector.
  *
@@ -2250,6 +2309,16 @@ inline uniform FVector4 VectorShuffle(const uniform FVector4 &Vec1, const unifor
  * @return		cross(Vec1.xyz, Vec2.xyz). W is set to 0.
  */
 inline FVector4 VectorCross(const FVector4& Vec1, const FVector4& Vec2)
+{
+	FVector4 Tmp0 = VectorSwizzle(Vec2, 1,2,0,3);
+	FVector4 Tmp1 = VectorSwizzle(Vec1, 1,2,0,3);
+	Tmp0 = Tmp0 * Vec1;
+	Tmp1 = Tmp1 * Vec2;
+	FVector4 Tmp2 = Tmp0 - Tmp1;
+	return VectorSwizzle(Tmp2, 1,2,0,3);
+}
+
+inline FVector4 VectorCross(const uniform FVector4& Vec1, const FVector4& Vec2)
 {
 	FVector4 Tmp0 = VectorSwizzle(Vec2, 1,2,0,3);
 	FVector4 Tmp1 = VectorSwizzle(Vec1, 1,2,0,3);
@@ -2600,6 +2669,14 @@ inline uniform FVector4 VectorNormalizeSafe2( const uniform FVector4& Vector, co
 	return VectorSelect(VNonZeroMask, NormalizedVector, DefaultValue);
 }
 
+inline FVector VectorNormalize(const varying FVector& Vector)
+{
+	const varying float SquareSum = VectorDot(Vector, Vector);
+	const varying bool bNonZeroMask = SquareSum > SMALL_NUMBER;
+	const varying float Scale = ReciprocalSqrtAccurate(SquareSum);
+	return VectorSelect(bNonZeroMask, Vector * Scale, Vector);
+}
+
 inline uniform FVector4 VectorTruncate(const uniform FVector4 &X)
 {
 	varying float S0, Result;
@@ -2789,6 +2866,16 @@ inline uniform FVector VectorReduceAdd(const FVector& A)
 inline uniform FVector4 VectorReduceAdd(const FVector4& A)
 {
 	return SetVector4(reduce_add(A.V[0]), reduce_add(A.V[1]), reduce_add(A.V[2]), reduce_add(A.V[3]));
+}
+
+inline uniform FVector VectorReduceMin(const FVector& A)
+{
+	return SetVector(reduce_min(A.V[0]), reduce_min(A.V[1]), reduce_min(A.V[2]));
+}
+
+inline uniform FVector VectorReduceMax(const FVector& A)
+{
+	return SetVector(reduce_max(A.V[0]), reduce_max(A.V[1]), reduce_max(A.V[2]));
 }
 
 inline FVector VectorGetSafeNormal(const FVector &V)

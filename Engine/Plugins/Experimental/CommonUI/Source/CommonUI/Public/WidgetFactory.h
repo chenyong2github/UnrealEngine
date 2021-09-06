@@ -231,6 +231,10 @@ public:
 		}
 		Collector.AddReferencedObjects<WidgetType>(InactiveWidgets, OwningWidget.Get());
 	}
+	virtual FString GetReferencerName() const override
+	{
+		return TEXT("TWidgetFactory");
+	}
 
 	template <class DerivedWidgetType = SObjectWidget,
 	          class                   = typename TEnableIf<TIsDerivedFrom<DerivedWidgetType, SObjectWidget>::IsDerived, DerivedWidgetType>::Type>

@@ -1105,9 +1105,9 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 			{
 				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is transient. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
 			}
-			if (!Index.IsNull() && ToTest->IsPendingKill())
+			if (!Index.IsNull() && !IsValid(ToTest))
 			{
-				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
+				UE_LOG(LogSavePackage, Warning, TEXT("A dependency '%s' of '%s' is in the linker table, but is pending kill or garbage. We will keep the dependency anyway (%d)."), *ToTest->GetFullName(), *ForObj->GetFullName(), CallSite);
 			}
 			bool bNotFiltered = !SaveContext.IsExcluded(ToTest);
 			if (bMandatory && !bNotFiltered)
@@ -1189,7 +1189,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 							}
 							SubObj = SubObjArch;
 						}
-						if (!SubObj->IsPendingKill())
+						if (IsValid(SubObj))
 						{
 							IncludeObjectAsDependency(2, SerializationBeforeCreateDependencies, SubObj, Export.Object, false, false);
 						}
@@ -1234,7 +1234,7 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 								}
 								SubObj = SubObjArch;
 							}
-							if (!SubObj->IsPendingKill())
+							if (IsValid(SubObj))
 							{
 								IncludeObjectAsDependency(5, SerializationBeforeSerializationDependencies, SubObj, Export.Object, false, false);
 							}

@@ -135,6 +135,8 @@ static FQualityLevels GScalabilityBackupQualityLevels;
 static FQualityLevels GScalabilityQualityLevelsOverride;
 static bool GScalabilityUsingTemporaryQualityLevels = false;
 
+TUniquePtr<FQualityLevels> PreviousScalabilityLevels;
+
 // Select a the correct quality level for the given benchmark value and thresholds
 int32 ComputeOptionFromPerfIndex(const FString& GroupName, float CPUPerfIndex, float GPUPerfIndex)
 {
@@ -744,7 +746,17 @@ void SetQualityLevels(const FQualityLevels& QualityLevels, bool bForce/* = false
 		CVarShadingQuality.AsVariable()->Set(ClampedLevels.ShadingQuality, ECVF_SetByScalability);
 	}
 
+	//Skip the broadcast if the levels were the same.
+	if (!PreviousScalabilityLevels.IsValid() || *PreviousScalabilityLevels != ClampedLevels || bForce)
+	{
+		if (!PreviousScalabilityLevels.IsValid())
+		{
+			PreviousScalabilityLevels = MakeUnique<FQualityLevels>();
+		}
+
+		*PreviousScalabilityLevels = ClampedLevels;
 	OnScalabilitySettingsChanged.Broadcast(ClampedLevels);
+}
 }
 
 FQualityLevels GetQualityLevels()

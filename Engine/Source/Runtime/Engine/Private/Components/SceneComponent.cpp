@@ -879,7 +879,7 @@ void USceneComponent::EndScopedMovementUpdate(class FScopedMovementUpdate& Compl
 					for (const FHitResult& Hit : CurrentScopedUpdate->BlockingHits)
 					{
 						// Overlaps may have caused us to be destroyed, as could other queued blocking hits.
-						if (PrimitiveThis->IsPendingKill())
+						if (!IsValid(PrimitiveThis))
 						{
 							break;
 						}
@@ -1104,7 +1104,7 @@ void USceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 						// We've gotten in to a bad state where the Child's AttachParent doesn't jive with the AttachChildren array
 						// so instead of crashing, gracefully handle and output an error. 
 						// We skip outputting the error if something is pending kill because this is likely a undo/redo situation that is not concerning.
-						if (!IsPendingKill() && !Child->IsPendingKill())
+						if (IsValid(this) && IsValid(Child))
 						{
 							UE_LOG(LogSceneComponent, Error, TEXT("Component '%s' has '%s' in its AttachChildren array, however, '%s' believes it is not attached to anything"), *GetFullName(), *Child->GetFullName(), *Child->GetFullName());
 						}
@@ -1164,7 +1164,7 @@ void USceneComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 						// We've gotten in to a bad state where the Child's AttachParent doesn't jive with the AttachChildren array
 						// so instead of crashing, gracefully handle and output an error. 
 						// We skip outputting the error if something is pending kill because this is likely a undo/redo situation that is not concerning.
-						if (!IsPendingKill() && !Child->IsPendingKill())
+						if (IsValid(this) && IsValid(Child))
 						{
 							UE_LOG(LogSceneComponent, Error, TEXT("Component '%s' has '%s' in its AttachChildren array, however, '%s' believes it is not attached to anything"), *GetFullName(), *Child->GetFullName(), *Child->GetFullName());
 						}
@@ -2308,7 +2308,7 @@ void FSceneComponentInstanceData::ApplyToComponent(UActorComponent* Component, c
 		USceneComponent* ChildComponent = ChildComponentPair.Key;
 		// If the ChildComponent now has a "good" attach parent it was set by the transaction and it means we are undoing/redoing attachment
 		// and so the rebuilt component should not take back attachment ownership
-		if (ChildComponent && (ChildComponent->GetAttachParent() == nullptr || ChildComponent->GetAttachParent()->IsPendingKill()))
+		if (ChildComponent && !IsValid(ChildComponent->GetAttachParent()))
 		{
 			ChildComponent->SetRelativeTransform_Direct(ChildComponentPair.Value);
 			ChildComponent->AttachToComponent(SceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
@@ -2604,7 +2604,7 @@ APhysicsVolume* USceneComponent::GetPhysicsVolume() const
 
 void USceneComponent::UpdatePhysicsVolume( bool bTriggerNotifiers )
 {
-	if ( bShouldUpdatePhysicsVolume && !IsPendingKill() )
+	if ( bShouldUpdatePhysicsVolume && IsValid(this) )
 	{
 		if (UWorld* MyWorld = GetWorld())
 		{
@@ -2896,7 +2896,7 @@ bool USceneComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRo
 	SCOPE_CYCLE_COUNTER(STAT_MoveComponentSceneComponentTime);
 
 	// static things can move before they are registered (e.g. immediately after streaming), but not after.
-	if (IsPendingKill() || CheckStaticMobilityAndWarn(SceneComponentStatics::MobilityWarnText))
+	if (!IsValid(this) || CheckStaticMobilityAndWarn(SceneComponentStatics::MobilityWarnText))
 	{
 		if (OutHit)
 		{

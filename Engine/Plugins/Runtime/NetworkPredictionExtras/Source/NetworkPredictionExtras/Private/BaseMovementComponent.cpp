@@ -97,7 +97,7 @@ void UBaseMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComp
 	if (UpdatedComponent && UpdatedComponent != NewUpdatedComponent)
 	{
 		UpdatedComponent->SetShouldUpdatePhysicsVolume(false);
-		if (!UpdatedComponent->IsPendingKill())
+		if (IsValid(UpdatedComponent))
 		{
 			UpdatedComponent->SetPhysicsVolume(NULL, true);
 			UpdatedComponent->PhysicsVolumeChangedDelegate.RemoveDynamic(this, &UBaseMovementComponent::PhysicsVolumeChanged);
@@ -113,11 +113,11 @@ void UBaseMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComp
 	}
 
 	// Don't assign pending kill components, but allow those to null out previous UpdatedComponent.
-	UpdatedComponent = IsValid(NewUpdatedComponent) ? NewUpdatedComponent : NULL;
+	UpdatedComponent = GetValid(NewUpdatedComponent);
 	UpdatedPrimitive = Cast<UPrimitiveComponent>(UpdatedComponent);
 
 	// Assign delegates
-	if (UpdatedComponent && !UpdatedComponent->IsPendingKill())
+	if (UpdatedComponent)
 	{
 		UpdatedComponent->SetShouldUpdatePhysicsVolume(true);
 		UpdatedComponent->PhysicsVolumeChangedDelegate.AddUniqueDynamic(this, &UBaseMovementComponent::PhysicsVolumeChanged);
@@ -132,7 +132,7 @@ void UBaseMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComp
 		UpdatedComponent->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick); 
 	}
 
-	if (UpdatedPrimitive && !UpdatedPrimitive->IsPendingKill())
+	if (IsValid(UpdatedPrimitive))
 	{
 		UpdatedPrimitive->OnComponentBeginOverlap.AddDynamic(this, &UBaseMovementComponent::OnBeginOverlap);
 	}

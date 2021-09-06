@@ -8,11 +8,28 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogStackTracker, Log, All);
 
+/** Constructor, initializing all member variables */
+FStackTracker::FStackTracker(StackTrackerUpdateFn InUpdateFn, StackTrackerReportFn InReportFn, StackTrackerDeleteUserDataFn InDeleteUserDataFn, bool bInIsEnabled)
+	: bAvoidCapturing(false)
+	, bIsEnabled(bInIsEnabled)
+	, StartFrameCounter(0)
+	, StopFrameCounter(0)
+	, UpdateFn(InUpdateFn)
+	, ReportFn(InReportFn)
+	, DeleteUserDataFn(InDeleteUserDataFn ? InDeleteUserDataFn : &FStackTracker::DefaultDeleteUserDataFn)
+{
+
+}
+
+void FStackTracker::DefaultDeleteUserDataFn(void* UserData)
+{
+	FMemory::Free(UserData);
+}
 
 /**
  * Captures the current stack and updates stack tracking information.
  * optionally stores a user data pointer that the tracker will take ownership of and delete upon reset
- * you must allocate the memory with FMemory::Malloc()
+ * you must allocate the memory with FMemory::Malloc() or provide a custom delete function
  */
 void FStackTracker::CaptureStackTrace(int32 EntriesToIgnore, void* UserData, int32 StackLen, bool bLookupStringsForAliasRemoval)
 {
@@ -92,7 +109,7 @@ void FStackTracker::CaptureStackTrace(int32 EntriesToIgnore, void* UserData, int
 			//and had a chance to update their data inside the above callback
 			if (UserData)
 			{
-				FMemory::Free(UserData);
+				DeleteUserDataFn(UserData);
 			}
 		}
 		// Encountered new call stack, add to array and set index mapping.
@@ -112,6 +129,10 @@ void FStackTracker::CaptureStackTrace(int32 EntriesToIgnore, void* UserData, int
 		// We're done capturing.
 		bAvoidCapturing = false;
 	}
+	else if (UserData)
+	{
+		DeleteUserDataFn(UserData);
+}
 }
 
 /**
@@ -231,7 +252,7 @@ void FStackTracker::ResetTracking()
 	{
 		if (CallStacks[i].UserData)
 		{
-			FMemory::Free(CallStacks[i].UserData);
+			DeleteUserDataFn(CallStacks[i].UserData);
 		}
 	}
 

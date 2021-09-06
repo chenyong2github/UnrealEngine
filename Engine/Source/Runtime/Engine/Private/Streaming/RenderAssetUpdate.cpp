@@ -85,7 +85,7 @@ void SuspendRenderAssetStreaming()
 				UStreamableRenderAsset* CurrentAsset = LockedAssets[LockedIndex];
 				if (CurrentAsset)
 				{
-					if (CurrentAsset->IsPendingKill() || CurrentAsset->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
+					if (!IsValid(CurrentAsset) || CurrentAsset->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed))
 					{
 						UE_LOG(LogContentStreaming, Error, TEXT("	%s"), *CurrentAsset->GetFullName());
 					}

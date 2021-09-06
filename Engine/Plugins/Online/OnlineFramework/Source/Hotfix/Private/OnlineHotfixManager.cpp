@@ -7,8 +7,6 @@
 #include "UObject/Package.h"
 #include "Http.h"
 
-#include "HAL/MemoryMisc.h"
-
 #include "Logging/LogSuppressionInterface.h"
 
 #include "Misc/NetworkVersion.h"
@@ -25,6 +23,8 @@
 #include "Engine/CurveTable.h"
 #include "Engine/DataTable.h"
 #include "Curves/CurveFloat.h"
+#include "Curves/CurveVector.h"
+#include "Curves/CurveLinearColor.h"
 #include "Engine/BlueprintGeneratedClass.h"
 
 #include "Serialization/AsyncLoadingFlushContext.h"
@@ -279,10 +279,6 @@ void UOnlineHotfixManager::Cleanup()
 void UOnlineHotfixManager::StartHotfixProcess()
 {
 	UE_LOG(LogHotfixManager, Log, TEXT("Starting Hotfix Process"));
-
-#if ENABLE_SHARED_MEMORY_TRACKER
-	FSharedMemoryTracker::PrintMemoryDiff(TEXT("StartHotfixProcess"));
-#endif
 
 	// Patching the editor this way seems like a bad idea
 	bool bShouldHotfix = IsRunningGame() || IsRunningDedicatedServer() || IsRunningClientOnly();
@@ -721,10 +717,6 @@ EHotfixResult UOnlineHotfixManager::ApplyHotfix()
 
 	for (const FCloudFileHeader& FileHeader : ChangedHotfixFileList)
 	{
-#if ENABLE_SHARED_MEMORY_TRACKER
-        FSharedMemoryTracker MemTracker(*FString::Printf(TEXT("ApplyHotfix - %s"), *FileHeader.FileName));
-#endif
-
 		if (!ApplyHotfixProcessing(FileHeader))
 		{
 			UE_LOG(LogHotfixManager, Error, TEXT("Couldn't apply hotfix file (%s)"), *FileHeader.FileName);
@@ -1096,7 +1088,7 @@ bool UOnlineHotfixManager::HotfixIniFile(const FString& FileName, const FString&
 			GetObjectsOfClass(Class, Objects, true, RF_NoFlags);
 			for (UObject* Object : Objects)
 			{
-				if (!Object->IsPendingKill())
+				if (IsValid(Object))
 				{
 					// Force a reload of the config vars
 					UE_LOG(LogHotfixManager, Verbose, TEXT("Reloading %s"), *Object->GetPathName());
@@ -1272,7 +1264,7 @@ bool UOnlineHotfixManager::HotfixPakIniFile(const FString& FileName)
 				GetObjectsOfClass(Class, Objects, true, RF_NoFlags);
 				for (UObject* Object : Objects)
 				{
-					if (!Object->IsPendingKill())
+					if (IsValid(Object))
 					{
 						// Force a reload of the config vars
 						Object->ReloadConfig();
@@ -1457,7 +1449,7 @@ void UOnlineHotfixManager::RestoreBackupIniFiles()
 				GetObjectsOfClass(Class, Objects, true, RF_NoFlags);
 				for (UObject* Object : Objects)
 				{
-					if (!Object->IsPendingKill())
+					if (IsValid(Object))
 					{
 						UE_LOG(LogHotfixManager, Verbose, TEXT("Restoring %s"), *Object->GetPathName());
 						Object->ReloadConfig();
@@ -1485,27 +1477,36 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 	FConfigSection* AssetHotfixConfigSection = GConfig->GetSectionPrivate(TEXT("AssetHotfix"), false, true, GGameIni);
 	if (AssetHotfixConfigSection != nullptr)
 	{
+		// These are the asset types we support patching right now
+		UClass* const PatchableAssetClasses[] = 
+		{ 
+			UCurveTable::StaticClass(), 
+			UDataTable::StaticClass(), 
+			UCurveFloat::StaticClass(),
+            UCurveVector::StaticClass(),
+			UCurveLinearColor::StaticClass(),
+		};
+
+		TSet<UDataTable*> ChangedTables;
+
 		for (FConfigSection::TIterator It(*AssetHotfixConfigSection); It; ++It)
 		{
 			FMoviePlayerProxy::BlockingTick();
 			++TotalPatchableAssets;
 
-			TArray<UClass*> PatchableAssetClasses;
-			{
-				// These are the asset types we support patching right now
-				PatchableAssetClasses.Add(UCurveTable::StaticClass());
-				PatchableAssetClasses.Add(UDataTable::StaticClass());
-				PatchableAssetClasses.Add(UCurveFloat::StaticClass());
-			}
-
-			// Make sure the entry has a valid class name that we supprt
+			// Make sure the entry has a valid class name that we support
 			UClass* AssetClass = nullptr;
+			FString PatchableAssetClassesStr;
 			for (UClass* PatchableAssetClass : PatchableAssetClasses)
 			{
-				if (PatchableAssetClass && (It.Key() == PatchableAssetClass->GetFName()))
+				if (PatchableAssetClass)
 				{
+					PatchableAssetClassesStr += PatchableAssetClass->GetFName().ToString() + TEXT(" ");
+
+					if (PatchableAssetClass->GetFName().IsEqual(It.Key()))
+					{
 					AssetClass = PatchableAssetClass;
-					break;
+					}
 				}
 			}
 
@@ -1532,6 +1533,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						{
 							const FString RowUpdate(TEXT("RowUpdate"));
 							const FString TableUpdate(TEXT("TableUpdate"));
+							const FString CurveUpdate(TEXT("CurveUpdate"));
 
 							if (HotfixType == RowUpdate && Tokens.Num() == 5)
 							{
@@ -1539,14 +1541,17 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 								//	+DataTable=<data table path>;RowUpdate;<row name>;<column name>;<new value>
 								//	+CurveTable=<curve table path>;RowUpdate;<row name>;<column name>;<new value>
 								//	+CurveFloat=<curve float path>;RowUpdate;None;<column name>;<new value>
-								HotfixRowUpdate(Asset, AssetPath, Tokens[2], Tokens[3], Tokens[4], ProblemStrings);
+								HotfixRowUpdate(Asset, AssetPath, Tokens[2], Tokens[3], Tokens[4], ProblemStrings, &ChangedTables);
 								bAddAssetToHotfixedList = ProblemStrings.Num() == 0;
 							}
-							else if (HotfixType == TableUpdate && Tokens.Num() == 3)
+							else if ((HotfixType == TableUpdate || HotfixType == CurveUpdate) && Tokens.Num() == 3)
 							{
 								// The hotfix line should be
 								//	+DataTable=<data table path>;TableUpdate;"<json data>"
 								//	+CurveTable=<curve table path>;TableUpdate;"<json data>"
+								//	+CurveFloat=<curve float path>;CurveUpdate;"<json data>"
+								//	+CurveVector=<curve vector path>;CurveUpdate;"<json data>"
+								//	+CurveLinearColor=<curve linear color path>;CurveUpdate;"<json data>"
 
 								// We have to read json data as quoted string because tokenizing it creates extra unwanted characters.
 								FString JsonData;
@@ -1562,7 +1567,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 							}
 							else
 							{
-								ProblemStrings.Add(TEXT("Expected a hotfix type of RowUpdate with 5 tokens or TableUpdate with 3 tokens."));
+								ProblemStrings.Add(TEXT("Expected a hotfix type of RowUpdate with 5 tokens or TableUpdate/CurveUpdate with 3 tokens."));
 							}
 						}
 						else
@@ -1578,7 +1583,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 						{
 							for (const FString& ProblemString : ProblemStrings)
 							{
-								UE_LOG(LogHotfixManager, Error, TEXT("%s: %s"), *GetPathNameSafe(Asset), *ProblemString);
+								UE_LOG(LogHotfixManager, Error, TEXT("[Item: %d] %s: %s"), TotalPatchableAssets, *GetPathNameSafe(Asset), *ProblemString);
 							}
 						}
 						else
@@ -1591,13 +1596,25 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 					}
 					else
 					{
-						UE_LOG(LogHotfixManager, Error, TEXT("Wasn't able to parse the data with semicolon separated values. Expecting 3 or 5 arguments."));
+						UE_LOG(LogHotfixManager, Error, TEXT("[Item: %d] Wasn't able to parse the data with semicolon separated values. Expecting 3 or 5 arguments but parsed %d."), TotalPatchableAssets, Tokens.Num());
 					}
 				}
+				else
+				{
+					UE_LOG(LogHotfixManager, Warning, TEXT("[Item: %d] Empty value given for '%s' entry!"), TotalPatchableAssets, *It.Key().ToString());
+				}
+					}
+			else
+			{
+				UE_LOG(LogHotfixManager, Error, TEXT("[Item: %d] Invalid patchable asset type '%s' - supported types: %s"), TotalPatchableAssets, *It.Key().ToString(), *PatchableAssetClassesStr);
+			}
+				}
 
-#if ENABLE_SHARED_MEMORY_TRACKER
-				FSharedMemoryTracker::PrintMemoryDiff(*FString::Printf(TEXT("AssetHotfix: %s"), *AssetClass->GetPathName()));
-#endif
+		for (UDataTable* Table : ChangedTables)
+		{
+			if (Table != nullptr)
+			{
+				Table->HandleDataTableChanged();
 			}
 		}
 	}
@@ -1617,7 +1634,7 @@ void UOnlineHotfixManager::PatchAssetsFromIniFiles()
 }
 
 
-void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetPath, const FString& RowName, const FString& ColumnName, const FString& NewValue, TArray<FString>& ProblemStrings)
+void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetPath, const FString& RowName, const FString& ColumnName, const FString& NewValue, TArray<FString>& ProblemStrings, TSet<UDataTable*>* ChangedTables)
 {
 	if (AssetPath.IsEmpty())
 	{
@@ -1764,7 +1781,14 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 		if (bWasDataTableChanged)
 		{
+			if (ChangedTables == nullptr)
+			{
 			DataTable->HandleDataTableChanged();
+		}
+			else
+			{
+				ChangedTables->Add(DataTable);
+			}
 		}
 	}
 	else if (CurveTable)
@@ -1891,6 +1915,9 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 	// Let's import over the object in place.
 	UCurveTable* CurveTable = Cast<UCurveTable>(Asset);
 	UDataTable* DataTable = Cast<UDataTable>(Asset);
+	UCurveFloat* CurveFloat = Cast<UCurveFloat>(Asset);
+	UCurveVector* CurveVector = Cast<UCurveVector>(Asset);
+	UCurveLinearColor* CurveLinearColor = Cast<UCurveLinearColor>(Asset);
 	if (CurveTable != nullptr)
 	{
 		ProblemStrings.Append(CurveTable->CreateTableFromJSONString(JsonData));
@@ -1901,9 +1928,24 @@ void UOnlineHotfixManager::HotfixTableUpdate(UObject* Asset, const FString& Asse
 		ProblemStrings.Append(DataTable->CreateTableFromJSONString(JsonData));
 		UE_LOG(LogHotfixManager, Log, TEXT("Data table %s updated."), *AssetPath);
 	}
+	else if (CurveFloat != nullptr)
+	{
+		CurveFloat->ImportFromJSONString(JsonData, ProblemStrings);
+		UE_LOG(LogHotfixManager, Log, TEXT("Curve float %s updated."), *AssetPath);
+	}
+	else if (CurveVector != nullptr)
+	{
+		CurveVector->ImportFromJSONString(JsonData, ProblemStrings);
+		UE_LOG(LogHotfixManager, Log, TEXT("Curve vector %s updated."), *AssetPath);
+	}
+	else if (CurveLinearColor != nullptr)
+	{
+		CurveLinearColor->ImportFromJSONString(JsonData, ProblemStrings);
+		UE_LOG(LogHotfixManager, Log, TEXT("Curve linear color %s updated."), *AssetPath);
+	}
 	else
 	{
-		ProblemStrings.Add(TEXT("We can't do a table update on this asset (for example, Curve Float cannot be table updated)."));
+		ProblemStrings.Add(TEXT("Unable to hotfix this asset type. Only DataTables, CurveTables and Curve data types are supported."));
 	}
 }
 

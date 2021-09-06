@@ -637,13 +637,8 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 	LightmassSettings.MaxOcclusionDistance = FMath::Max(LightmassSettings.MaxOcclusionDistance, 0.0f);
 	LightmassSettings.EnvironmentIntensity = FMath::Max(LightmassSettings.EnvironmentIntensity, 0.0f);
 
-#if WITH_EDITOR
 	const FName PropName = PropertyChangedEvent.GetPropertyName();
-	if (PropName == GET_MEMBER_NAME_CHECKED(FLightmassWorldInfoSettings, VolumetricLightmapDetailCellSize))
-	{
-		FStaticLightingSystemInterface::OnLightmassImportanceVolumeModified.Broadcast();
-	}
-	else if (PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableAISystem)
+	if (PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, bEnableAISystem)
 		|| PropName == GET_MEMBER_NAME_CHECKED(AWorldSettings, AISystemClass))
 	{
 		if (World)
@@ -651,8 +646,6 @@ void AWorldSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			World->CreateAISystem();
 		}
 	}
-
-#endif
 
 	// Ensure texture size is power of two between 512 and 4096.
 	PackedLightAndShadowMapTextureSize = FMath::Clamp<uint32>( FMath::RoundUpToPowerOfTwo( PackedLightAndShadowMapTextureSize ), 512, 4096 );

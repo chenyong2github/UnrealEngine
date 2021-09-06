@@ -19,6 +19,20 @@ enum class EIcmpResponseStatus
 	NotImplemented,
 };
 
+inline const TCHAR* LexToString(EIcmpResponseStatus ResponseStatus)
+{
+	switch (ResponseStatus)
+	{
+		case EIcmpResponseStatus::Success: return TEXT("Success");
+		case EIcmpResponseStatus::Timeout: return TEXT("Timeout");
+		case EIcmpResponseStatus::Unreachable: return TEXT("Unreachable");
+		case EIcmpResponseStatus::Unresolvable: return TEXT("Unresolvable");
+		case EIcmpResponseStatus::InternalError: return TEXT("InternalError");
+		case EIcmpResponseStatus::NotImplemented: return TEXT("NotImplemented");
+		default: return TEXT("Unknown");
+	}
+}
+
 struct FIcmpEchoResult
 {
 	/** Status of the final response */

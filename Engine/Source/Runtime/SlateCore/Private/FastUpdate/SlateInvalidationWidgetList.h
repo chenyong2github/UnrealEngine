@@ -135,9 +135,10 @@ public:
 
 	/**
 	 * Process widget that have a ChildOrder invalidation.
-	 * @returns true if the InvalidationWidget is still valid.
+	 * @note the Invalidation may break the reference. You shouldn't use the InvalidationWidget after this point.
+	 * @returns true if the WidgetIndex is still valid.
 	 */
-	bool ProcessChildOrderInvalidation(const InvalidationWidgetType& InvalidationWidget, IProcessChildOrderInvalidationCallback& Callback);
+	bool ProcessChildOrderInvalidation(FSlateInvalidationWidgetIndex WidgetIndex, IProcessChildOrderInvalidationCallback& Callback);
 
 
 	/** Test, then adds or removes from the registered attribute list. */

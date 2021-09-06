@@ -424,7 +424,7 @@ UMaterial* USceneCapturer::GetCurrentBlendableMaterial()
 UWorld* USceneCapturer::GetTickableGameObjectWorld() const 
 {
 	// Check SceneCapturer have CaptureComponents and parent scene component is not marked as pending kill.
-	if (LeftEyeCaptureComponents.Num() > 0 && !CaptureSceneComponent->IsPendingKill())
+	if (LeftEyeCaptureComponents.Num() > 0 && IsValid(CaptureSceneComponent))
 	{
 		return CaptureSceneComponent->GetWorld();
 	}

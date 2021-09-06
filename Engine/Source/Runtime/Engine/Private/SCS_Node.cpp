@@ -83,7 +83,7 @@ const FBlueprintCookedComponentInstancingData* USCS_Node::GetActualComponentTemp
 UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* ParentComponent, const FTransform* RootTransform, const FRotationConversionCache* RootRelativeRotationCache, bool bIsDefaultTransform)
 {
 	check(Actor != nullptr);
-	check((ParentComponent != nullptr && !ParentComponent->IsPendingKill()) || (RootTransform != nullptr)); // must specify either a parent component or a world transform
+	check(IsValid(ParentComponent) || (RootTransform != nullptr)); // must specify either a parent component or a world transform
 
 	// Create a new component instance based on the template
 	UActorComponent* NewActorComp = nullptr;
@@ -124,7 +124,7 @@ UActorComponent* USCS_Node::ExecuteNodeOnActor(AActor* Actor, USceneComponent* P
 			// If NULL is passed in, we are the root, so set transform and assign as RootComponent on Actor, similarly if the 
 			// NewSceneComp is the ParentComponent then we are the root component. This happens when the root component is recycled
 			// by StaticAllocateObject.
-			if (ParentComponent == nullptr || (ParentComponent && ParentComponent->IsPendingKill()) || ParentComponent == NewSceneComp)
+			if (!IsValid(ParentComponent) || ParentComponent == NewSceneComp)
 			{
 				FTransform WorldTransform = *RootTransform;
 				if(bIsDefaultTransform)

@@ -327,7 +327,7 @@ public:
 	template<typename KeyType>
 	FMovieSceneClipboardKeyTrack& FindOrAddKeyTrack(FName InName, UMovieSceneTrack& ParentTrack)
 	{
-		check(!ParentTrack.IsPendingKill());
+		check(IsValid(&ParentTrack));
 
 		TArray<FMovieSceneClipboardKeyTrack>& Tracks = TrackIndex.FindOrAdd(&ParentTrack);
 

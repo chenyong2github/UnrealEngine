@@ -210,7 +210,10 @@ FString UFontFace::GetCookedFilename() const
 {
 	// UFontFace assets themselves can't be localized, however that doesn't mean the package they're in isn't localized (ie, when they're upgraded into a UFont asset)
 	FString PackageName = GetOutermost()->GetName();
+	if (!GIsEditor)
+	{
 	PackageName = FPackageName::GetLocalizedPackagePath(PackageName);
+	}
 	
 	// Note: This must match the replacement logic in UFontFace::CookAdditionalFiles
 	const FString PackageFilename = FPackageName::LongPackageNameToFilename(PackageName, TEXT(".uasset"));

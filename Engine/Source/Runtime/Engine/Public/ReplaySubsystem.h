@@ -47,6 +47,7 @@ public:
 	 *
 	 * @return FString Name of relpay (session id, file name, etc)
 	 */
+	UFUNCTION(BlueprintCallable, Category=Replay)
 	FString GetActiveReplayName() const;
 
 	/**
@@ -54,6 +55,7 @@ public:
 	 *
 	 * @return float Current recording/playback time in seconds
 	 */
+	UFUNCTION(BlueprintCallable, Category=Replay)
 	float GetReplayCurrentTime() const;
 
 	/**
@@ -63,8 +65,12 @@ public:
 	 */
 	void AddUserToReplay(const FString& UserString);
 
+	UFUNCTION(BlueprintCallable, Category=Replay)
 	bool IsRecording() const;
+	
+	UFUNCTION(BlueprintCallable, Category=Replay)
 	bool IsPlaying() const;
+	
 	bool IsSavingCheckpoint() const;
 
 	/**
@@ -92,6 +98,13 @@ public:
 	 * @param InCheckpointSaveMaxMSPerFrame Time in milliseconds
 	 */
 	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
+
+	/**
+	 * Request a checkpoint write, if currently recording.
+	 *
+	*/
+	UFUNCTION(BlueprintCallable, Category=Replay)
+	void RequestCheckpoint();
 
 	/**
 	 * Whether to reload the default map when StopReplay is called.

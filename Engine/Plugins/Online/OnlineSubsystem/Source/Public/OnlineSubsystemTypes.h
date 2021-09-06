@@ -1280,6 +1280,11 @@ public:
 	 */
 	virtual FString GetAccessToken() const = 0;
 	/** 
+	 * Tests if token has exceeded its time-to-live, when applicable.  Default is true, i.e. always expire.
+	 * @return True, if access token has expired.
+	 */
+	virtual bool HasAccessTokenExpired(const FDateTime& Time) const { return true; }
+	/** 
 	 * @return Any additional auth data associated with a registered user
 	 */
 	virtual bool GetAuthAttribute(const FString& AttrName, FString& OutAttrValue) const = 0;

@@ -666,7 +666,7 @@ bool FHierarchicalLODBuilder::ShouldBuildHLODForLevel(const UWorld* InWorld, con
 
 bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 HLODLevelIndex)
 {
-	if (!Actor)
+	if (!IsValid(Actor))
 	{
 		return false;
 	}
@@ -920,6 +920,12 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 void FHierarchicalLODBuilder::DeleteEmptyHLODPackages(ULevel* InLevel)
 {
+	// Do not process HLOD packages when dealing with streamed levels.
+	if (!ShouldBuildHLODForLevel(InLevel->GetWorld(), InLevel))
+	{
+		return;
+	}
+
 	FHierarchicalLODUtilitiesModule& Module = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
@@ -944,6 +950,12 @@ void FHierarchicalLODBuilder::DeleteEmptyHLODPackages(ULevel* InLevel)
 
 void FHierarchicalLODBuilder::GetMeshesPackagesToSave(ULevel* InLevel, TSet<UPackage*>& InHLODPackagesToSave, const FString& PreviousLevelName /*= ""*/)
 {
+	// Do not process HLOD packages when dealing with streamed levels.
+	if (!ShouldBuildHLODForLevel(InLevel->GetWorld(), InLevel))
+	{
+		return;
+	}
+
 	const TArray<FHierarchicalSimplification>& BuildLODLevelSettings = InLevel->GetWorldSettings()->GetHierarchicalLODSetup();
 	UMaterialInterface* BaseMaterial = InLevel->GetWorldSettings()->GetHierarchicalLODBaseMaterial();
 	TArray<TArray<ALODActor*>> LODLevelActors;

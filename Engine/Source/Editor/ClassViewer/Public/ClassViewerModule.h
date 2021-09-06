@@ -192,4 +192,14 @@ public:
 	virtual TSharedRef<IClassViewerFilter> CreateClassFilter(const FClassViewerInitializationOptions& InitOptions);
 
 	virtual TSharedRef<FClassViewerFilterFuncs> CreateFilterFuncs();
+
+	/** Registers a global filter that affects all class viewer instances (gets combined any local filter)*/
+	virtual void RegisterGlobalClassViewerFilter(const TSharedRef<IClassViewerFilter>& Filter);
+
+	/** Returns the global filter that affects all class viewer instances */
+	virtual const TSharedPtr<IClassViewerFilter>& GetGlobalClassViewerFilter();
+
+private:
+
+	TSharedPtr<IClassViewerFilter> GlobalClassViewerFilter;
 };

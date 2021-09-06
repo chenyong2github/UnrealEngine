@@ -7,6 +7,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "Net/UnrealNetwork.h"
 #include "Engine/Engine.h"
+#include "Engine/DemoNetDriver.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogChildActorComponent, Warning, All);
 
@@ -257,7 +258,7 @@ void UChildActorComponent::PostEditUndo()
 	{
 		if (Component)
 		{
-			if (Component->IsPendingKill() && Component->GetOwner() == ChildActor)
+			if (!IsValid(Component) && Component->GetOwner() == ChildActor)
 			{
 				Component = ChildActor->GetRootComponent();
 			}
@@ -615,6 +616,12 @@ void UChildActorComponent::CreateChildActor()
 		UWorld* World = GetWorld();
 		if(World != nullptr)
 		{
+			// If we're in a replay scrub and this is a startup actor and the class exists, assume the reference will be restored later
+			if (World->IsPlayingReplay() && World->GetDemoNetDriver()->IsRestoringStartupActors() && MyOwner && MyOwner->IsNetStartupActor() && ChildActorClass)
+			{
+				return;
+			}
+
 			// Before we spawn let's try and prevent cyclic disaster
 			bool bSpawn = true;
 			AActor* Actor = MyOwner;

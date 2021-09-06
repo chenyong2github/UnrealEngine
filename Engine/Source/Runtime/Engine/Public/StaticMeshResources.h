@@ -794,7 +794,7 @@ public:
 					}
 				}
 				// Recreate dirty render state, if needed, only for components not using the static mesh we currently have released resources for.
-				else if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && !It->IsPendingKill())
+				else if (It->IsRenderStateDirty() && It->IsRegistered() && !It->IsTemplate() && IsValid(*It))
 				{
 					It->DoDeferredRenderUpdates_Concurrent();
 				}

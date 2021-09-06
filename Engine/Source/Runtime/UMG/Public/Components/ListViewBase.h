@@ -539,6 +539,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category = ListViewBase)
 	const TArray<UUserWidget*>& GetDisplayedEntryWidgets() const;
 
+	/** Get the scroll offset of this view (in items) */
+	UFUNCTION(BlueprintCallable, Category = ListViewBase)
+	float GetScrollOffset() const;
+
 	/**
 	 * Full regeneration of all entries in the list. Note that the entry UWidget instances will not be destroyed, but they will be released and re-generated.
 	 * In other words, entry widgets will not receive Destruct/Construct events. They will receive OnEntryReleased and IUserObjectListEntry implementations will receive OnListItemObjectSet.
@@ -681,6 +685,10 @@ protected:
 	/** True to enable lerped animation when scrolling through the list */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Scrolling)
 	bool bEnableScrollAnimation = false;
+
+	/** True to allow right click drag scrolling. */
+	UPROPERTY(EditAnywhere, Category = Scrolling)
+	bool bEnableRightClickScrolling = true;
 
 	UPROPERTY(EditAnywhere, Category = Scrolling)
 	bool bEnableFixedLineOffset = false;

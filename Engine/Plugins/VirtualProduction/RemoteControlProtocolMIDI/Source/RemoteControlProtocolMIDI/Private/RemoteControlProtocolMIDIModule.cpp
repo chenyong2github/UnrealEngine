@@ -70,7 +70,7 @@ void FRemoteControlProtocolMIDIModule::HandleMIDIDevicesUpdated(FMIDIDeviceColle
 	for(TObjectIterator<URemoteControlPreset> PresetIter; PresetIter; ++PresetIter)
 	{
 		URemoteControlPreset* Preset = *PresetIter;
-		if(Preset != nullptr && !Preset->IsPendingKill())
+		if(Preset != nullptr && IsValidChecked(Preset))
 		{
 			if(!ensure(IsValid(Preset)))
 			{

@@ -197,7 +197,7 @@ void UBrainComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 {
 	const static UEnum* PriorityEnum = StaticEnum<EAIRequestPriority::Type>();
 
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}

@@ -139,7 +139,7 @@ void FScene::GatherImportanceVolumes()
 	for (TObjectIterator<ALightmassImportanceVolume> It; It; ++It)
 	{
 		ALightmassImportanceVolume* LMIVolume = *It;
-		if (GPULightmass->World->ContainsActor(LMIVolume) && !LMIVolume->IsPendingKill())
+		if (GPULightmass->World->ContainsActor(LMIVolume) && IsValid(LMIVolume))
 		{
 			CombinedImportanceVolume += LMIVolume->GetComponentsBoundingBox(true);
 			ImportanceVolumes.Add(LMIVolume->GetComponentsBoundingBox(true));
@@ -189,7 +189,7 @@ void FScene::GatherImportanceVolumes()
 		ImportanceVolumes.Add(ReasonableSceneBounds);
 	}
 
-	float TargetDetailCellSize = GPULightmass->World->GetWorldSettings()->LightmassSettings.VolumetricLightmapDetailCellSize;
+	float TargetDetailCellSize = Settings->VolumetricLightmapDetailCellSize;
 
 	ENQUEUE_RENDER_COMMAND(UpdateVLMRendererVolume)([&RenderState = RenderState, CombinedImportanceVolume, ImportanceVolumes, TargetDetailCellSize](FRHICommandList&) mutable {
 		RenderState.VolumetricLightmapRenderer->CombinedImportanceVolume = CombinedImportanceVolume;
@@ -2876,7 +2876,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 
 		}
 
-		GCompressLightmaps = World->GetWorldSettings()->LightmassSettings.bCompressLightmaps;
+		GCompressLightmaps = Settings->bCompressLightmaps;
 
 		FLightMap2D::EncodeTextures(World, LightingScenario, true, true);
 		FShadowMap2D::EncodeTextures(World, LightingScenario, true, true);

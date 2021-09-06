@@ -2052,7 +2052,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 							{
 								FAssetData& CurAssetData = SkeletalMeshAssetData[AssetId];
 								const USkeletalMesh* ExtraSkeletalMesh = Cast<USkeletalMesh>(CurAssetData.GetAsset());
-								if (SkeletalMesh != ExtraSkeletalMesh && ExtraSkeletalMesh && ExtraSkeletalMesh->IsPendingKill() == false)
+								if (SkeletalMesh != ExtraSkeletalMesh && IsValid(ExtraSkeletalMesh))
 								{
 									// merge still can fail, then print message box
 									if (Skeleton->MergeAllBonesToBoneTree(ExtraSkeletalMesh) == false)

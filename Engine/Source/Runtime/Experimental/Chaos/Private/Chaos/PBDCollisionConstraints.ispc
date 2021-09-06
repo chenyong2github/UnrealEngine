@@ -22,53 +22,6 @@ struct TArrayND
 	uniform float * uniform MArray;
 };
 
-/**
- * Calculates the cross product of two vectors (XYZ components). W is set to 0.
- *
- * @param Vec1	1st vector
- * @param Vec2	2nd vector
- * @return		cross(Vec1.xyz, Vec2.xyz). W is set to 0.
- */
-inline static FVector4 VectorCross(const uniform FVector4& Vec1, const FVector4& Vec2)
-{
-	const uniform FVector4 A_YZXW = SetVector4(Vec1.V[1], Vec1.V[2], Vec1.V[0], Vec1.V[3]);
-	const FVector4 B_ZXYW = SetVector4(Vec2.V[2], Vec2.V[0], Vec2.V[1], Vec2.V[3]);
-	const uniform FVector4 A_ZXYW = SetVector4(Vec1.V[2], Vec1.V[0], Vec1.V[1], Vec1.V[3]);
-	const FVector4 B_YZXW = SetVector4(Vec2.V[1], Vec2.V[2], Vec2.V[0], Vec2.V[3]);
-	return (B_ZXYW * A_YZXW) - (B_YZXW * A_ZXYW);
-}
-
-/**
- * Rotate a vector using a unit Quaternion.
- *
- * @param Quat Unit Quaternion to use for rotation.
- * @param VectorW0 Vector to rotate. W component must be zero.
- * @return Vector after rotation by Quat.
- */
-inline static FVector4 VectorQuaternionRotateVector(const uniform FVector4& Quat, const FVector4& VectorW0)
-{
-	// Q * V * Q.Inverse
-	//const VectorRegister InverseRotation = VectorQuaternionInverse(Quat);
-	//const VectorRegister Temp = VectorQuaternionMultiply2(Quat, VectorW0);
-	//const VectorRegister Rotated = VectorQuaternionMultiply2(Temp, InverseRotation);
-
-	// Equivalence of above can be shown to be:
-	// http://people.csail.mit.edu/bkph/articles/Quaternions.pdf
-	// V' = V + 2w(Q x V) + (2Q x (Q x V))
-	// refactor:
-	// V' = V + w(2(Q x V)) + (Q x (2(Q x V)))
-	// T = 2(Q x V);
-	// V' = V + w*(T) + (Q x T)
-
-	const FVector4 QW = SetVector4(Quat.V[3], Quat.V[3], Quat.V[3], Quat.V[3]);
-	FVector4 T = VectorCross(Quat, VectorW0);
-	T = T + T;
-	const FVector4 VTemp0 = (QW * T) + VectorW0;
-	const FVector4 VTemp1 = VectorCross(Quat, T);
-	const FVector4 Rotated = VTemp0 + VTemp1;
-	return Rotated;
-}
-
 inline static FVector TransformPositionNoScale(const uniform FTransform &T, const FVector& V)
 {
 	FVector4 InputVectorW0 = SetVector4(V.V[0], V.V[1], V.V[2], 0.0f);

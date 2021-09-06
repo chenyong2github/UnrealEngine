@@ -61,7 +61,7 @@ UParticleSystemComponent* FPSCPool::Acquire(UWorld* World, UParticleSystem* Temp
 	{
 		RetElem = FreeElements.Pop(false);
 		check(RetElem.PSC->Template == Template);
-		check(!RetElem.PSC->IsPendingKill());
+		check(IsValid(RetElem.PSC));
 
 		//Reset visibility in case the component was reclaimed by the pool while invisible.
 		RetElem.PSC->SetVisibility(true);
@@ -299,7 +299,7 @@ void FWorldPSCPool::ReclaimWorldParticleSystem(UParticleSystemComponent* PSC)
 	check(IsInGameThread());
 	
 	//If this component has been already destroyed we don't add it back to the pool. Just warn so users can fixup.
-	if (PSC->IsPendingKill())
+	if (!IsValid(PSC))
 	{
 		UE_LOG(LogParticles, Log, TEXT("Pooled PSC has been destroyed! Possibly via a DestroyComponent() call. You should not destroy components set to auto destroy manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool if pooling is enabled. | PSC: %p |\t System: %s"), PSC, *PSC->Template->GetFullName());
 		return;

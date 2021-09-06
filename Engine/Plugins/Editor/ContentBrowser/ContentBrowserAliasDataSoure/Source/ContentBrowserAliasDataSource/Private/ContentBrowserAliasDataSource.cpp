@@ -523,6 +523,8 @@ void UContentBrowserAliasDataSource::ReconcileAliasesFromMetaData(const FAssetDa
 
 void UContentBrowserAliasDataSource::ReconcileAliasesForAsset(const FAssetData& Asset, const TArray<FName>& NewAliases)
 {
+	if (ensure(Asset.IsValid()))
+	{
 	const TArray<FName>* ExistingAliasesPtr = AliasesForObjectPath.Find(Asset.ObjectPath);
 	if (ExistingAliasesPtr)
 	{
@@ -558,6 +560,7 @@ void UContentBrowserAliasDataSource::ReconcileAliasesForAsset(const FAssetData& 
 	{
 		AddAliases(Asset, NewAliases);
 	}
+}
 }
 
 void UContentBrowserAliasDataSource::OnAssetUpdated(const FAssetData& InAssetData)

@@ -1565,6 +1565,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetCastInsetShadow(UPARAM(DisplayName="CastInsetShadow") bool bInCastInsetShadow);
 
+	/** Changes the value of bCastContactShadow. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetCastContactShadow(UPARAM(DisplayName = "CastContactShadow") bool bInCastContactShadow);
+
 	/** Changes the value of LightAttachmentsAsGroup. */
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void SetLightAttachmentsAsGroup(UPARAM(DisplayName="LightAttachmentsAsGroup") bool bInLightAttachmentsAsGroup);

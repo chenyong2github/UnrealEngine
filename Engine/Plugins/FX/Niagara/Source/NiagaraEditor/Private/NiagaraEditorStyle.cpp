@@ -66,6 +66,8 @@ namespace NiagaraEditorStyleImpl {
 void InitStats(TSharedRef< FSlateStyleSet > Style)
 {
 	const FTextBlockStyle CategoryText = FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DetailsView.CategoryTextStyle");
+	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
+	const FSlateColor SelectionColor_Pressed = FEditorStyle::GetSlateColor("SelectionColor_Pressed");
 
 	Style->Set("NiagaraEditor.StatsText", CategoryText);
 }
@@ -433,6 +435,9 @@ void InitPlatformSet(TSharedRef< FSlateStyleSet > Style)
 		.SetColorAndOpacity(FLinearColor(0.72f, 0.72f, 0.72f))
 		.SetHighlightColor(FLinearColor(1, 1, 1)));
 
+	// Separator in the action menus
+	Style->Set( "MenuSeparator", new BOX_CORE_BRUSH( "Common/Separator", 1/4.0f, FLinearColor(1,1,1,0.2f) ) );
+	
 	const FString SmallRoundedButtonStart(TEXT("Common/SmallRoundedButtonLeft"));
 	const FString SmallRoundedButtonMiddle(TEXT("Common/SmallRoundedButtonCentre"));
 	const FString SmallRoundedButtonEnd(TEXT("Common/SmallRoundedButtonRight"));

@@ -160,6 +160,7 @@ public:
 	/**
 	 * Checks the PendingKill flag to see if it is dead but memory still valid
 	 */
+	UE_DEPRECATED(5.0, "IsPendingKill() should no longer be used. Use IsValid(Object) instead which also checks against null.")
 	FORCEINLINE bool IsPendingKill() const
 	{
 		return GUObjectArray.IndexToObject(InternalIndex)->IsPendingKill();
@@ -920,7 +921,7 @@ public:
 #define SCOPE_CYCLE_UOBJECT(Name, Object) \
 	FScopeCycleCounterUObject ObjCycleCount_##Name(Object);
 #elif USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION && USE_LIGHTWEIGHT_UOBJECT_STATS_FOR_HITCH_DETECTION
-extern CORE_API bool GHitchDetected;
+extern CORE_API TSAN_ATOMIC(bool) GHitchDetected;
 
 class FScopeCycleCounterUObject
 {

@@ -25,6 +25,8 @@ public:
 	TSharedPtr<FUICommandInfo> AddBodies;
 	TSharedPtr<FUICommandInfo> ApplyPhysicalMaterial;
 	TSharedPtr<FUICommandInfo> Snap;
+	TSharedPtr<FUICommandInfo> CopyBodies;
+	TSharedPtr<FUICommandInfo> PasteBodies;
 	TSharedPtr<FUICommandInfo> CopyProperties;
 	TSharedPtr<FUICommandInfo> PasteProperties;
 	TSharedPtr<FUICommandInfo> RepeatLastSimulation;

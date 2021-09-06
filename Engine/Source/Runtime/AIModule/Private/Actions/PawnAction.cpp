@@ -145,7 +145,7 @@ void UPawnAction::SetAbortState(EPawnActionAbortState::Type NewAbortState)
 
 void UPawnAction::SendEvent(EPawnActionEventType::Type Event)
 {
-	if (OwnerComponent && OwnerComponent->IsPendingKill() == false)
+	if (IsValid(OwnerComponent))
 	{
 		// this will get communicated to parent action if needed, latently 
 		OwnerComponent->OnEvent(*this, Event);

@@ -34,7 +34,7 @@ void UK2Node_BitmaskLiteral::ValidateBitflagsEnumType()
 	{
 		// Reset enum type reference if it no longer has the proper meta data.
 		const FString BitflagsMetaDataKey = FBlueprintMetadata::MD_Bitflags.ToString();
-		if (BitflagsEnum->IsPendingKill() || !BitflagsEnum->HasMetaData(*BitflagsMetaDataKey))
+		if (!IsValid(BitflagsEnum) || !BitflagsEnum->HasMetaData(*BitflagsMetaDataKey))
 		{
 			// Note: The input pin's default value is intentionally not reset here. Losing an associated enum type means the node will now expose the max
 			// number of bitflags, so this will ensure that we preserve the previous default value when the enum type representing the bitflags is removed.

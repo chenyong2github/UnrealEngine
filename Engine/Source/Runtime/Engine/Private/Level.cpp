@@ -667,7 +667,7 @@ bool ULevel::IsNetActor(const AActor* Actor)
 void ULevel::AddLoadedActor(AActor* Actor)
 {
 	check(Actor->GetLevel() == this);
-	check(!Actor->IsPendingKill());
+	check(IsValidChecked(Actor));
 
 	int32 ActorIndex;
 	if (!Actors.Find(Actor, ActorIndex))
@@ -693,7 +693,7 @@ void ULevel::RemoveLoadedActor(AActor* Actor)
 {
 	check(Actor);
 	check(Actor->GetLevel() == this);
-	check(!Actor->IsPendingKill());
+	check(IsValidChecked(Actor));
 
 	Actor->UnregisterAllComponents();
 	Actor->RegisterAllActorTickFunctions(false, true);	
@@ -737,7 +737,7 @@ void ULevel::SortActorList()
 	// Add non-net actors to the NewActors immediately, cache off the net actors to Append after
 	for (AActor* Actor : Actors)
 	{
-		if (Actor != nullptr && Actor != WorldSettings && !Actor->IsPendingKill())
+		if (IsValid(Actor) && Actor != WorldSettings)
 		{
 			if (IsNetActor(Actor))
 			{
@@ -1282,11 +1282,16 @@ void ULevel::IncrementalUpdateComponents(int32 NumComponentsToUpdate, bool bReru
 bool ULevel::IncrementalRegisterComponents(bool bPreRegisterComponents, int32 NumComponentsToUpdate, FRegisterComponentContext* Context)
 {
 	// Find next valid actor to process components registration
+	if (OwningWorld)
+	{
+		OwningWorld->SetAllowDeferredPhysicsStateCreation(true);
+	}
+
 	while (CurrentActorIndexForIncrementalUpdate < Actors.Num())
 	{
 		AActor* Actor = Actors[CurrentActorIndexForIncrementalUpdate];
 		bool bAllComponentsRegistered = true;
-		if (Actor && !Actor->IsPendingKill())
+		if (IsValid(Actor))
 		{
 #if PERF_TRACK_DETAILED_ASYNC_STATS
 			FScopeCycleCounterUObject ContextScope(Actor);
@@ -1337,7 +1342,7 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 		AActor* Actor = Actors[CurrentActorIndexForIncrementalUpdate];
 		CurrentActorIndexForIncrementalUpdate++;
 
-		if (Actor == nullptr || Actor->IsPendingKill() || Actor->IsChildActor())
+		if (Actor == nullptr || !IsValidChecked(Actor) || Actor->IsChildActor())
 		{
 			continue;
 		}
@@ -1363,6 +1368,11 @@ bool ULevel::IncrementalRunConstructionScripts(bool bProcessAllActors)
 		{
 			break;
 		}
+	}
+
+	if (OwningWorld)
+	{
+		OwningWorld->SetAllowDeferredPhysicsStateCreation(false);
 	}
 
 	if (CurrentActorIndexForIncrementalUpdate >= Actors.Num())
@@ -1583,7 +1593,7 @@ void ULevel::CreateModelComponents()
 		for(TObjectIterator<ULightComponent> LightIt;LightIt;++LightIt)
 		{
 			ULightComponent* const Light = *LightIt;
-			const bool bLightIsInWorld = Light->GetOwner() && OwningWorld->ContainsActor(Light->GetOwner()) && !Light->GetOwner()->IsPendingKill();
+			const bool bLightIsInWorld = IsValid(Light->GetOwner()) && OwningWorld->ContainsActor(Light->GetOwner());
 			if (bLightIsInWorld && (Light->HasStaticLighting() || Light->HasStaticShadowing()))
 			{
 				// Make sure the light GUIDs and volumes are up-to-date.
@@ -2347,7 +2357,7 @@ void ULevel::RouteActorInitialize()
 				Actor->InitializeComponents();
 
 				Actor->PostInitializeComponents(); // should set Actor->bActorInitialized = true
-				if (!Actor->IsActorInitialized() && !Actor->IsPendingKill())
+				if (!Actor->IsActorInitialized() && IsValidChecked(Actor))
 				{
 					UE_LOG(LogActor, Fatal, TEXT("%s failed to route PostInitializeComponents.  Please call Super::PostInitializeComponents() in your <className>::PostInitializeComponents() function. "), *Actor->GetFullName() );
 				}
@@ -2420,8 +2430,7 @@ bool ULevel::HasAnyActorsOfType(UClass *SearchType)
 		AActor *Actor = Actors[Idx];
 		// if valid, not pending kill, and
 		// of the correct type
-		if (Actor != NULL &&
-			!Actor->IsPendingKill() &&
+		if (IsValid(Actor) &&
 			Actor->IsA(SearchType))
 		{
 			return true;
@@ -3040,7 +3049,6 @@ void ULevel::SetPartitionSubLevel(ULevel* SubLevel)
 }
 
 #endif // #if WITH_EDITORONLY_DATA
-
 #if WITH_EDITOR
 void ULevel::RepairLevelScript()
 {

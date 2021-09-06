@@ -23,6 +23,7 @@ namespace DatasmithSketchUp
 	{
 	public:
 		TSharedPtr<IDatasmithMeshElement> DatasmithMesh;
+		TMap<FEntityIDType, int32> SlotIdForMaterialID;
 		bool bIsUsingInheritedMaterial; // Whether mesh has faces without material assigned(so override/inherited material will apply)
 	};
 }

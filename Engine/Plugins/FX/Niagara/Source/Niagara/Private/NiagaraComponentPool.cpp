@@ -91,7 +91,7 @@ UNiagaraComponent* FNCPool::Acquire(UWorld* World, UNiagaraSystem* Template, ENC
 	while (FreeElements.Num() && !bForceNew)//Loop until we pop a valid free element or we're empty.
 	{
 		RetElem = FreeElements.Pop(false);
-		if (RetElem.Component == nullptr || RetElem.Component->IsPendingKill())
+		if (!RetElem.Component || !IsValidChecked(RetElem.Component))
 		{			
 			// Possible someone still has a reference to our NC and destroyed it while it was sat in the pool. Or possibly a teardown edgecase path that is GCing components from the pool be
 			UE_LOG(LogNiagara, Warning, TEXT("Pooled NC has been destroyed or is pending kill! Possibly via a DestroyComponent() call. You should not destroy pooled components manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool. | NC: %p |\t System: %s"), RetElem.Component, *Template->GetFullName());
@@ -444,7 +444,7 @@ void UNiagaraComponentPool::ReclaimWorldParticleSystem(UNiagaraComponent* Compon
 	FNiagaraCrashReporterScope CRScope(Asset);
 	
 	//If this component has been already destroyed we don't add it back to the pool. Just warn so users can fix it.
-	if (Component->IsPendingKill())
+	if (!IsValid(Component))
 	{
 		UE_LOG(LogNiagara, Log, TEXT("Pooled NC has been destroyed! Possibly via a DestroyComponent() call. You should not destroy components set to auto destroy manually. \nJust deactivate them and allow them to destroy themselves or be reclaimed by the pool if pooling is enabled. | NC: %p |\t System: %s"), Component, Asset ? *Asset->GetFullName() : TEXT("(nullptr)"));
 		return;

@@ -17,7 +17,7 @@ DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Total RayTracing Pipeline State Coun
 
 /**
  * PSO_COOKONLY_DATA
- * - Is a transitory data area that should only be used during the cook and stablepc.csv file generation processes.
+ * - Is a transitory data area that should only be used during the cook and stable pipeline cache file generation processes.
  * - If def'ing it out in GAME builds helps to reduce confusion as to where the actual data resides
  * - Should not be serialized or used in comparsion operations (e.g. UsageMask: PSO need to be able to compare equal with different Masks during cook).
  */

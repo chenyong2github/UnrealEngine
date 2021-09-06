@@ -2542,7 +2542,9 @@ void FOpenXRHMD::LocateViews(FPipelinedFrameState& PipelineState, bool ResizeVie
 	}
 	else
 	{
-		ensure(PipelineState.Views.Num() == ViewCount);
+		// PipelineState.Views.Num() can be greater than ViewCount if there is an IOpenXRExtensionPlugin
+		// which appends more views with the GetViewLocations callback.
+		ensure(PipelineState.Views.Num() >= (int32)ViewCount);
 	}
 	
 	XR_ENSURE(xrLocateViews(Session, &ViewInfo, &PipelineState.ViewState, PipelineState.Views.Num(), &ViewCount, PipelineState.Views.GetData()));

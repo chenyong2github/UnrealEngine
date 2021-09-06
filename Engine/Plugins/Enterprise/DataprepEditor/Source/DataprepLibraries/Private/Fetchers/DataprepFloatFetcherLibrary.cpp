@@ -14,7 +14,7 @@
  *****************************************************************************/
 float UDataprepFloatBoundingVolumeFetcher::Fetch_Implementation(const UObject* Object, bool& bOutFetchSucceded) const
 {
-	if ( Object && !Object->IsPendingKill() )
+	if ( IsValid(Object) )
 	{
 		TOptional<float> Volume;
 		if ( const AActor* Actor = Cast<const AActor>( Object ) )

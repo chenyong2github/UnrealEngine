@@ -34,7 +34,11 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "ClothingSimulationInteractor.h"
+#include "UnrealExporter.h"
+#include "Exporters/Exporter.h"
+#include "Factories.h"
 #include "HAL/PlatformApplicationMisc.h"
+
 
 #define LOCTEXT_NAMESPACE "PhysicsAssetEditorShared"
 
@@ -1417,7 +1421,204 @@ void FPhysicsAssetEditorSharedData::AutoNamePrimitive(int32 BodyIndex, EAggColli
 	}
 }
 
-void FPhysicsAssetEditorSharedData::CopyBody()
+void FPhysicsAssetEditorSharedData::CopySelectedBodiesAndConstraintsToClipboard(int32& OutNumCopiedBodies, int32& OutNumCopiedConstraints)
+{
+	if (PhysicsAsset)
+	{
+		// Clear the mark state for saving.
+		UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
+
+		FStringOutputDevice Archive;
+		const FExportObjectInnerContext Context;
+
+		// export bodies first 
+		{
+			OutNumCopiedBodies = 0;
+			TSet<int32> ExportedBodyIndices;
+
+			// Export each of the selected nodes
+			for (const FSelection& SelectedBody : SelectedBodies)
+			{
+				// selected bodies contain the primitives, so abody can be stored multiple time for each of its primitive
+				// we need to make sure we process it only once
+				if (!ExportedBodyIndices.Contains(SelectedBody.Index))
+				{
+					ExportedBodyIndices.Add(SelectedBody.Index);
+
+					if (USkeletalBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[SelectedBody.Index])
+					{						
+						UExporter::ExportToOutputDevice(&Context, BodySetup, NULL, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false);
+						++OutNumCopiedBodies;
+					}
+				}
+			}
+		}
+
+		// export constraint next 
+		{
+			OutNumCopiedConstraints = 0;
+			TSet<int32> ExportedConstraintIndices;
+
+			// Export each of the selected nodes
+			for (const FSelection& SelectedConstraint : SelectedConstraints)
+			{
+				// selected bodies contain the primitives, so abody can be stored multiple time for each of its primitive
+				// we need to make sure we process it only once
+				if (!ExportedConstraintIndices.Contains(SelectedConstraint.Index))
+				{
+					ExportedConstraintIndices.Add(SelectedConstraint.Index);
+
+					if (UPhysicsConstraintTemplate* ConstraintSetup = PhysicsAsset->ConstraintSetup[SelectedConstraint.Index])
+					{
+						UExporter::ExportToOutputDevice(&Context, ConstraintSetup, NULL, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false);
+						++OutNumCopiedConstraints;
+					}
+				}
+			}
+		}
+
+		// save to clipboard as text 
+		FString ExportedText = Archive;
+		FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+	}
+}
+
+class FSkeletalBodyAndConstraintSetupObjectTextFactory : public FCustomizableTextObjectFactory
+{
+public:
+	FSkeletalBodyAndConstraintSetupObjectTextFactory()
+		: FCustomizableTextObjectFactory(GWarn)
+	{
+	}
+
+	// FCustomizableTextObjectFactory implementation
+	virtual bool CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const override
+	{
+		return (InObjectClass->IsChildOf<USkeletalBodySetup>() || InObjectClass->IsChildOf<UPhysicsConstraintTemplate>());
+	}
+
+	virtual void ProcessConstructedObject(UObject* NewObject) override
+	{
+		check(NewObject);
+		if (NewObject->IsA<USkeletalBodySetup>())
+		{
+			NewBodySetups.Add(Cast<USkeletalBodySetup>(NewObject));
+		}
+		else if (NewObject->IsA<UPhysicsConstraintTemplate>())
+		{
+			NewConstraintTemplates.Add(Cast<UPhysicsConstraintTemplate>(NewObject));
+		}
+	}
+
+public:
+	TArray<USkeletalBodySetup*> NewBodySetups;
+	TArray<UPhysicsConstraintTemplate*> NewConstraintTemplates;
+};
+
+void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32& OutNumPastedBodies, int32& OutNumPastedConstraints)
+{
+	if (PhysicsAsset)
+	{
+		FString TextToImport;
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+		if (!TextToImport.IsEmpty())
+		{
+			UPackage* TempPackage = NewObject<UPackage>(nullptr, TEXT("/Engine/Editor/PhysicsAssetEditor/Transient"), RF_Transient);
+			TempPackage->AddToRoot();
+{
+				// Turn the text buffer into objects
+				FSkeletalBodyAndConstraintSetupObjectTextFactory  Factory;
+				Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
+
+				// transaction block 
+				{
+					const FScopedTransaction Transaction(NSLOCTEXT("PhysicsAssetEditor", "PasteBodiesAndConstraintsFromClipboard", "Paste Bodies And Constraints From Clipboard"));
+
+					// let's first process the bodies
+					OutNumPastedBodies = 0;
+					for (USkeletalBodySetup* PastedBodySetup : Factory.NewBodySetups)
+					{
+						// doe sthis bone exist in the target physics asset?
+						int32 BodyIndex = PhysicsAsset->FindBodyIndex(PastedBodySetup->BoneName);
+						if (BodyIndex == INDEX_NONE)
+						{
+							// none found, create a brand new one 
+							const FPhysAssetCreateParams& NewBodyData = GetDefault<UPhysicsAssetGenerationSettings>()->CreateParams;
+							BodyIndex = FPhysicsAssetUtils::CreateNewBody(PhysicsAsset, PastedBodySetup->BoneName, NewBodyData);
+						}
+
+						if (PhysicsAsset->SkeletalBodySetups.IsValidIndex(BodyIndex))
+						{
+							if (UBodySetup* TargetBodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex])
+							{
+								check(TargetBodySetup->BoneName == PastedBodySetup->BoneName);
+								TargetBodySetup->Modify();
+								TargetBodySetup->CopyBodyPropertiesFrom(PastedBodySetup);
+								++OutNumPastedBodies;
+							}
+						}
+					}
+
+					// now let's process the constraints
+					OutNumPastedConstraints = 0;
+					for (const UPhysicsConstraintTemplate* PastedConstraintTemplate : Factory.NewConstraintTemplates)
+					{
+						FName ConstraintUniqueName = PastedConstraintTemplate->DefaultInstance.JointName;
+
+						// search for a matching constraint by bone names
+						const int32 ConstraintIndexByBones = PhysicsAsset->FindConstraintIndex(PastedConstraintTemplate->DefaultInstance.ConstraintBone1, PastedConstraintTemplate->DefaultInstance.ConstraintBone2);
+						const int32 ConstraintIndexByJointName = PhysicsAsset->FindConstraintIndex(ConstraintUniqueName);
+
+						// If the indices are not matching we need to generate a new unique name for the constraint
+						if (ConstraintIndexByBones != ConstraintIndexByJointName)
+						{
+							ConstraintUniqueName = *MakeUniqueNewConstraintName();
+						}
+
+						int32 ConstraintIndex = ConstraintIndexByBones;
+						if (ConstraintIndex == INDEX_NONE)
+						{
+							// none found, create a brand new one 
+							ConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, ConstraintUniqueName);
+							check(ConstraintIndex != INDEX_NONE);
+						}
+
+						if (PhysicsAsset->ConstraintSetup.IsValidIndex(ConstraintIndex))
+						{
+							if (UPhysicsConstraintTemplate* TargetConstraintTemplate = PhysicsAsset->ConstraintSetup[ConstraintIndex])
+							{
+								TargetConstraintTemplate->Modify();
+
+								// keep the existing instance as we want to keep some of its data 
+								FConstraintInstance ExistingInstance = TargetConstraintTemplate->DefaultInstance;
+
+								TargetConstraintTemplate->DefaultInstance.CopyConstraintParamsFrom(&PastedConstraintTemplate->DefaultInstance);
+
+								TargetConstraintTemplate->DefaultInstance.JointName = ConstraintUniqueName;
+								TargetConstraintTemplate->DefaultInstance.ConstraintIndex = ConstraintIndex;
+	#if WITH_PHYSX
+								TargetConstraintTemplate->DefaultInstance.ConstraintHandle = ExistingInstance.ConstraintHandle;
+	#endif	//WITH_PHYSX
+								TargetConstraintTemplate->UpdateProfileInstance();
+								++OutNumPastedConstraints;
+							}
+						}
+					}
+				}
+			}
+			// Remove the temp package from the root now that it has served its purpose
+			TempPackage->RemoveFromRoot();
+
+			RefreshPhysicsAssetChange(PhysicsAsset);
+			ClearSelectedBody();	//paste can change the primitives on our selected bodies. There's probably a way to properly update this, but for now just deselect
+			ClearSelectedConstraints();	//paste can change the primitives on our selected bodies. There's probably a way to properly update this, but for now just deselect
+			BroadcastPreviewChanged();
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::CopyBodyProperties()
 {
 	check(SelectedBodies.Num() == 1);
 	CopyToClipboard(SharedDataConstants::BodyType, PhysicsAsset->SkeletalBodySetups[GetSelectedBody()->Index]);
@@ -1773,6 +1974,19 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 	RefreshPhysicsAssetChange(PhysicsAsset);
 }
 
+FString FPhysicsAssetEditorSharedData::MakeUniqueNewConstraintName()
+{
+	// Make a new unique name for this constraint
+	int32 Index = 0;
+	FString BaseConstraintName(TEXT("UserConstraint"));
+	FString ConstraintName = BaseConstraintName;
+	while (PhysicsAsset->FindConstraintIndex(*ConstraintName) != INDEX_NONE)
+	{
+		ConstraintName = FString::Printf(TEXT("%s_%d"), *BaseConstraintName, Index++);
+	}
+	return ConstraintName;
+}
+
 void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, const TArray<int32>& ChildBodyIndices)
 {
 	// check we have valid bodies
@@ -1785,13 +1999,7 @@ void FPhysicsAssetEditorSharedData::MakeNewConstraints(int32 ParentBodyIndex, co
 		check(ChildBodyIndex < PhysicsAsset->SkeletalBodySetups.Num());
 
 		// Make a new unique name for this constraint
-		int32 Index = 0;
-		FString BaseConstraintName(TEXT("UserConstraint"));
-		FString ConstraintName = BaseConstraintName;
-		while (PhysicsAsset->FindConstraintIndex(*ConstraintName) != INDEX_NONE)
-		{
-			ConstraintName = FString::Printf(TEXT("%s_%d"), *BaseConstraintName, Index++);
-		}
+		FString ConstraintName = MakeUniqueNewConstraintName();
 
 		// Create new constraint with a name not related to a bone, so it wont get auto managed in code that creates new bodies
 		const int32 NewConstraintIndex = FPhysicsAssetUtils::CreateNewConstraint(PhysicsAsset, *ConstraintName);
@@ -1874,7 +2082,7 @@ void FPhysicsAssetEditorSharedData::SnapConstraintToBone(FConstraintInstance& Co
 	ConstraintInstance.SetRefFrame(EConstraintFrame::Frame1, FTransform::Identity);
 }
 
-void FPhysicsAssetEditorSharedData::CopyConstraint()
+void FPhysicsAssetEditorSharedData::CopyConstraintProperties()
 {
 	check(SelectedConstraints.Num() == 1);
 	CopyToClipboard(SharedDataConstants::ConstraintType, PhysicsAsset->ConstraintSetup[GetSelectedConstraint()->Index]);
@@ -2367,6 +2575,13 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 	}
 	else
 	{
+		// keep the EditorSkelComp animation asset if any set 
+		UAnimationAsset* PreviewAnimationAsset = nullptr;
+		if (EditorSkelComp->PreviewInstance)
+		{
+			PreviewAnimationAsset = EditorSkelComp->PreviewInstance->CurrentAsset;
+		}
+
 		// Disable the PreviewInstance
 		//EditorSkelComp->AnimScriptInstance = nullptr;
 		//if(EditorSkelComp->GetAnimationMode() != EAnimationMode::AnimationSingleNode)
@@ -2390,6 +2605,12 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Force an update of the skeletal mesh to get it back to ref pose
 		EditorSkelComp->RefreshBoneTransforms();
 		
+		// restore the EditorSkelComp animation asset 
+		if (PreviewAnimationAsset)
+		{
+			EditorSkelComp->EnablePreview(true, PreviewAnimationAsset);
+		}
+
 		BroadcastPreviewChanged();
 	}
 

@@ -205,7 +205,7 @@ void FOnlineVoiceOculus::ProcessRemoteVoicePackets()
 
 			QueuedData.LastSeen = CurrentTime;
 
-			if (QueuedData.AudioComponent == nullptr || QueuedData.AudioComponent->IsPendingKill())
+			if (!IsValid(QueuedData.AudioComponent))
 			{
 				QueuedData.AudioComponent = CreateVoiceAudioComponent(OCULUS_VOICE_SAMPLE_RATE, OCULUS_NUM_VOICE_CHANNELS);
 				if (QueuedData.AudioComponent)
@@ -361,7 +361,7 @@ void FOnlineVoiceOculus::OnAudioFinished(UAudioComponent* AC)
 	for (FRemoteTalkerDataMap::TIterator It(RemoteTalkerBuffers); It; ++It)
 	{
 		FRemoteTalkerDataOculus& RemoteData = It.Value();
-		if (RemoteData.AudioComponent->IsPendingKill() || AC == RemoteData.AudioComponent)
+		if (!IsValid(RemoteData.AudioComponent) || AC == RemoteData.AudioComponent)
 		{
 			UE_LOG_ONLINE_VOICE(Log, TEXT("Removing VOIP AudioComponent for Id: %s"), *It.Key()->ToDebugString());
 			RemoteData.AudioComponent->RemoveFromRoot(); // Let the GC clean this up

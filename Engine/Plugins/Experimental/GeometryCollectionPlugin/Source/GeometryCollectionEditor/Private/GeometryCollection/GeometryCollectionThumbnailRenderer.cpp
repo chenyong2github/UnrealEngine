@@ -16,7 +16,7 @@ UGeometryCollectionThumbnailRenderer::UGeometryCollectionThumbnailRenderer(const
 void UGeometryCollectionThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint32 Width, uint32 Height, FRenderTarget* RenderTarget, FCanvas* Canvas, bool bAdditionalViewFamily)
 {
 	UGeometryCollection* GeometryCollection = Cast<UGeometryCollection>(Object);
-	if (GeometryCollection != nullptr && !GeometryCollection->IsPendingKill())
+	if (IsValid(GeometryCollection))
 	{
 		if (ThumbnailScene == nullptr)
 		{

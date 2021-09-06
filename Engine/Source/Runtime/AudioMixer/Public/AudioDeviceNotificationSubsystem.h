@@ -66,9 +66,9 @@ public:
 	//~ Begin IAudioMixerDeviceChangedListener Interface
 	virtual void OnDefaultCaptureDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
 	virtual void OnDefaultRenderDeviceChanged(const Audio::EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) override;
-	virtual void OnDeviceAdded(const FString& DeviceId) override;
-	virtual void OnDeviceRemoved(const FString& DeviceId) override;
-	virtual void OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState) override;
+	virtual void OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice) override;
+	virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) override;
+	virtual void OnDeviceStateChanged(const FString& DeviceId, const Audio::EAudioDeviceState InState, bool bIsRenderDevice) override;
 	//~ End IAudioMixerDeviceChangedListener Interface
 
 	virtual void OnDeviceSwitched(const FString& DeviceId);

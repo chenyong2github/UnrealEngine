@@ -1549,7 +1549,7 @@ bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, 
 
 	for (const UAttributeSet* Set : GetSpawnedAttributes())
 	{
-		if (Set && !Set->IsPendingKill())
+		if (IsValid(Set))
 		{
 			WroteSomething |= Channel->ReplicateSubobject(const_cast<UAttributeSet*>(Set), *Bunch, *RepFlags);
 		}
@@ -1557,7 +1557,7 @@ bool UAbilitySystemComponent::ReplicateSubobjects(class UActorChannel *Channel, 
 
 	for (UGameplayAbility* Ability : AllReplicatedInstancedAbilities)
 	{
-		if (Ability && !Ability->IsPendingKill())
+		if (IsValid(Ability))
 		{
 			WroteSomething |= Channel->ReplicateSubobject(Ability, *Bunch, *RepFlags);
 		}

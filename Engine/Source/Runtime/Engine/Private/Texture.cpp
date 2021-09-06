@@ -1916,6 +1916,41 @@ int64 UTexture::GetBuildRequiredMemory() const
 
 #endif // #if WITH_EDITOR
 
+static FName ConditionalGetPrefixedFormat(FName TextureFormatName, const ITargetPlatform* TargetPlatform)
+{
+#if WITH_EDITOR
+	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
+	FString FormatPrefix;
+	bool bHasPrefix = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix, GEngineIni);
+
+	FString TextureCompressionFormat;
+	bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni) && TextureCompressionFormat != TEXT("");
+
+	bool bEnableInEditor = false;
+	TargetPlatform->GetConfigSystem()->GetBool(TEXT("AlternateTextureCompression"), TEXT("bEnableInEditor"), bEnableInEditor, GEngineIni);
+
+	// Disable in the Editor by default but never in cooked builds
+	bEnableInEditor = !TargetPlatform->HasEditorOnlyData() || bEnableInEditor;
+
+	if (bHasPrefix && bHasFormat && bEnableInEditor)
+	{
+		ITextureFormat* TextureFormat = FModuleManager::LoadModuleChecked<ITextureFormatModule>(*TextureCompressionFormat).GetTextureFormat();
+
+		TArray<FName> SupportedFormats;
+		TextureFormat->GetSupportedFormats(SupportedFormats);
+
+		FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
+
+		if (SupportedFormats.Contains(NewFormatName))
+		{
+			return NewFormatName;
+		}
+	}
+#endif
+
+	return TextureFormatName;
+}
+
 FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const UTexture* Texture, int32 LayerIndex, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize )
 {
 	FName TextureFormatName = NAME_None;
@@ -2111,41 +2146,9 @@ FName GetDefaultTextureFormatName( const ITargetPlatform* TargetPlatform, const 
 		}
 	}
 
-	// Prepend a texture format to allow a module to override the compression (Ex: this allows you to replace TextureFormatDXT with a different compressor)
-	FString FormatPrefix;
-	bool bHasPrefix = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureFormatPrefix"), FormatPrefix, GEngineIni);
-	bHasPrefix = bHasPrefix && ! FormatPrefix.IsEmpty();
-
-	if ( bHasPrefix )
-	{
-		FString TextureCompressionFormat;
-		bool bHasFormat = TargetPlatform->GetConfigSystem()->GetString(TEXT("AlternateTextureCompression"), TEXT("TextureCompressionFormat"), TextureCompressionFormat, GEngineIni);
-		bHasFormat = bHasFormat && ! TextureCompressionFormat.IsEmpty();
-	
-		if ( bHasFormat )
-		{
-			ITextureFormatModule * TextureFormatModule = FModuleManager::LoadModulePtr<ITextureFormatModule>(*TextureCompressionFormat);
-
-			if ( TextureFormatModule )
-			{
-				ITextureFormat* TextureFormat = TextureFormatModule->GetTextureFormat();
-
-				TArray<FName> SupportedFormats;
-				TextureFormat->GetSupportedFormats(SupportedFormats);
-
-				FName NewFormatName(FormatPrefix + TextureFormatName.ToString());
-
-				if (SupportedFormats.Contains(NewFormatName))
-				{
-					TextureFormatName = NewFormatName;
-				}
-			}
-		}
-	}
-
 #endif //WITH_EDITOR
 
-	return TextureFormatName;
+	return ConditionalGetPrefixedFormat(TextureFormatName, TargetPlatform);
 }
 
 void GetDefaultTextureFormatNamePerLayer(TArray<FName>& OutFormatNames, const class ITargetPlatform* TargetPlatform, const class UTexture* Texture, bool bSupportDX11TextureFormats, bool bSupportCompressedVolumeTexture, int32 BlockSize)
@@ -2197,6 +2200,13 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 	{
 		OutFormats.Add(NameBC6H);
 		OutFormats.Add(NameBC7);
+	}
+
+	// go over the original base formats only, and possibly add on to the end of the array if there is a prefix needed
+	int NumBaseFormats = OutFormats.Num();
+	for (int Index = 0; Index < NumBaseFormats; Index++)
+	{
+		OutFormats.AddUnique(ConditionalGetPrefixedFormat(OutFormats[Index], TargetPlatform));
 	}
 #endif
 }

@@ -181,6 +181,11 @@ struct TSQVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 		return &QueryFilterDataConcrete;
 	}
 
+	virtual const void* GetSimData() const override
+	{
+		return nullptr;
+	}
+
 private:
 
 	enum class ESQType
@@ -455,6 +460,11 @@ struct TBPVisitor : public Chaos::ISpatialVisitor<TPayload, Chaos::FReal>
 	virtual const void* GetQueryData() const override
 	{
 		return &QueryFilterDataConcrete;
+	}
+
+	virtual const void* GetSimData() const override
+	{
+		return nullptr;
 	}
 
 private:

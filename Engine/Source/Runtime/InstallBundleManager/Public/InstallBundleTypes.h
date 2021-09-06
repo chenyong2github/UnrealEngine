@@ -325,3 +325,12 @@ enum class EInstallBundleSourceBundleSkipReason : uint32
 	NotValid = (1 << 1), // Bundle can't be used with this build
 };
 ENUM_CLASS_FLAGS(EInstallBundleSourceBundleSkipReason);
+
+struct FInstallBundleCacheStats
+{
+	FName CacheName;
+	uint64 MaxSize = 0;
+	uint64 UsedSize = 0;
+	uint64 ReservedSize = 0;
+	uint64 FreeSize = 0;
+};

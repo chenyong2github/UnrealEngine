@@ -376,15 +376,7 @@ bool FStaticMeshLODResources::IsLODCookedOut(const ITargetPlatform* TargetPlatfo
 	}
 	check(TargetPlatform);
 
-	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
-	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-
-	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
-	const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
-
-	// If LOD streaming is supported, LODs below MinLOD are stored to optional paks and thus never cooked out
-	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	return (!bMeshStreamingEnabled && !bNaniteCoareMeshStreamingEnabled) || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || StaticMesh->NeverStream || !LODGroupSettings.IsLODStreamingSupported();
+	return !StaticMesh->GetEnableLODStreaming(TargetPlatform);
 #else
 	return false;
 #endif
@@ -400,16 +392,7 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	}
 	check(TargetPlatform);
 
-	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
-	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-
-	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
-	const bool bNaniteCoareMeshStreamingEnabled = !VarNaniteCoarseMeshStreaming || VarNaniteCoarseMeshStreaming->GetInt() != 0;
-
-	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
-	bool bSupportMeshLODStreamig = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming);
-	bool bIsLODStreamingSupported = LODGroupSettings.IsLODStreamingSupported();
-	if ((!bMeshStreamingEnabled && !bNaniteCoareMeshStreamingEnabled) || !bSupportMeshLODStreamig || StaticMesh->NeverStream || !bIsLODStreamingSupported)
+	if (!StaticMesh->GetEnableLODStreaming(TargetPlatform))
 	{
 		return true;
 	}
@@ -427,6 +410,7 @@ bool FStaticMeshLODResources::IsLODInlined(const ITargetPlatform* TargetPlatform
 	}
 	else
 	{
+		const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(StaticMesh->LODGroup);
 		MaxNumStreamedLODs = LODGroupSettings.GetDefaultMaxNumStreamedLODs();
 	}
 	
@@ -2278,6 +2262,36 @@ FMeshReductionSettings UStaticMesh::GetReductionSettings(int32 LODIndex) const
 	return SMLODGroup.GetSettings(SrcModel.ReductionSettings, LODIndex);
 }
 
+bool UStaticMesh::GetEnableLODStreaming(const ITargetPlatform* TargetPlatform) const
+{
+	if (NeverStream)
+	{
+		return false;
+	}
+
+	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
+	const bool bMeshStreamingDisabled = VarMeshStreaming && VarMeshStreaming->GetInt() == 0;
+
+	static auto* VarNaniteCoarseMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Nanite.CoarseMeshStreaming"));
+	const bool bNaniteCoareMeshStreamingDisabled = VarNaniteCoarseMeshStreaming && VarNaniteCoarseMeshStreaming->GetInt() == 0;
+
+	if (bMeshStreamingDisabled && bNaniteCoareMeshStreamingDisabled)
+	{
+		return false;
+
+	}
+
+	check(TargetPlatform);
+	// Check whether the target platforms supports LOD streaming. 
+	// Even if it does, disable streaming if it has editor only data since most tools don't support mesh streaming.
+	if (!TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || TargetPlatform->HasEditorOnlyData())
+	{
+		return false;
+	}
+
+	const FStaticMeshLODGroup& LODGroupSettings = TargetPlatform->GetStaticMeshLODSettings().GetLODGroup(LODGroup);
+	return LODGroupSettings.IsLODStreamingSupported();
+}
 
 void UStaticMesh::PostDuplicate(bool bDuplicateForPIE)
 {
@@ -2485,7 +2499,7 @@ static FString BuildStaticMeshDerivedDataKeySuffix(const ITargetPlatform* Target
 	}
 
 	// Mesh LOD streaming settings that need to trigger recache when changed
-	const bool bAllowLODStreaming = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) && LODGroup.IsLODStreamingSupported();
+	const bool bAllowLODStreaming = Mesh->GetEnableLODStreaming(TargetPlatform);
 	KeySuffix += bAllowLODStreaming ? TEXT("LS1") : TEXT("LS0");
 	KeySuffix += TEXT("MNS");
 	if (bAllowLODStreaming)
@@ -5472,39 +5486,30 @@ void UStaticMesh::ExecutePostLoadInternal(FStaticMeshPostLoadContext& Context)
 			// iterate over all platform and platform group entry: ex: XBOXONE = 2, CONSOLE=1, MOBILE = 3
 			if (PerQualityLevelData.PerQuality.Num() == 0)
 			{
-				for (const TPair<FName, int32>& Pair : PerPlatformData.PerPlatform)
+				TMap<FName, int32> SortedPerPlatforms = PerPlatformData.PerPlatform;
+				SortedPerPlatforms.KeySort([&](const FName& A, const FName& B) { return (PlatformGroupNameArray.Contains(A) > PlatformGroupNameArray.Contains(B)); });
+
+				for (const TPair<FName, int32>& Pair : SortedPerPlatforms)
 				{
 					bool bIsPlatformGroup = PlatformGroupNameArray.Contains(Pair.Key);
 
 					FSupportedQualityLevelArray QualityLevels;
 					FString PlatformEntry = Pair.Key.ToString();
 
-					if (bIsPlatformGroup)
-					{
-						QualityLevels = PerQualityLevelData.GetPlatformGroupQualityLevels(*PlatformEntry);
-					}
-					else
-					{
-						QualityLevels = PerQualityLevelData.GetSupportedQualityLevels(*PlatformEntry);
-					}
+					QualityLevels = QualityLevelProperty::PerPlatformOverrideMapping(PlatformEntry);
 
 					// we now have a range of quality levels supported on that platform or from that group
+					// note: 
+					// -platform group overrides will be applied first
+					// -platform override sharing the same quality level will take the smallest MinLOD value between them
+					// -ex: if XboxOne and PS4 maps to high and XboxOne MinLOD = 2 and PS4 MINLOD = 1, MINLOD 1 will be selected
 					for (int32& QLKey : QualityLevels)
 					{
 						int32* Value = PerQualityLevelData.PerQuality.Find(QLKey);
 						if (Value != nullptr)
 						{
-							//low/medium takes highest minLOD index
-							if (QLKey <= (int32)QualityLevelProperty::EQualityLevels::Medium)
-							{
-								*Value = FMath::Max(Pair.Value, *Value);
-							}
-							//high/epic/cinematic takes lowest minLOD index
-							else
-							{
 								*Value = FMath::Min(Pair.Value, *Value);
 							}
-						}
 						else
 						{
 							PerQualityLevelData.PerQuality.Add(QLKey, Pair.Value);

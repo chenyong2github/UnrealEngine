@@ -138,7 +138,7 @@ UActorComponent* UInheritableComponentHandler::CreateOverridenComponentTemplate(
 
 	// HACK: NewObject can return a pre-existing object which will not have been initialized to the archetype.  When we remove the old handlers, we mark them pending
 	//       kill so we can identify that situation here (see UE-13987/UE-13990)
-	if (NewComponentTemplate->IsPendingKill())
+	if (!::IsValid(NewComponentTemplate))
 	{
 		NewComponentTemplate->ClearPendingKill();
 		UEngine::FCopyPropertiesForUnrelatedObjectsParams CopyParams;

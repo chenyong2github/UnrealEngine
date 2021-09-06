@@ -17,18 +17,17 @@
 #include "AssetFolderContextMenu.h"
 #include "AssetFileContextMenu.h"
 #include "Settings/ContentBrowserSettings.h"
+#include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowserAssetDataSource"
 
 namespace ContentBrowserAssetData
 {
 
-bool IsTopLevelFolder(const FName InFolderPath)
+bool IsTopLevelFolder(const FStringView InFolderPath)
 {
-	FNameBuilder FolderPathStr(InFolderPath);
-
 	int32 SlashCount = 0;
-	for (const TCHAR PathChar : FStringView(FolderPathStr))
+	for (const TCHAR PathChar : InFolderPath)
 	{
 		if (PathChar == TEXT('/'))
 		{
@@ -40,6 +39,11 @@ bool IsTopLevelFolder(const FName InFolderPath)
 	}
 
 	return SlashCount == 1;
+}
+
+bool IsTopLevelFolder(const FName InFolderPath)
+{
+	return IsTopLevelFolder(FNameBuilder(InFolderPath));
 }
 
 FContentBrowserItemData CreateAssetFolderItem(UContentBrowserDataSource* InOwnerDataSource, const FName InVirtualPath, const FName InFolderPath)
@@ -65,9 +69,35 @@ FContentBrowserItemData CreateAssetFolderItem(UContentBrowserDataSource* InOwner
 			FolderDisplayNameOverride = LOCTEXT("EngineFolderDisplayName", "Engine Content");
 		}
 	}
-	else if (IsTopLevelFolder(InFolderPath))
+	else
 	{
-		FolderDisplayNameOverride = FText::Format(LOCTEXT("ContentFolderDisplayNameFmt", "{0} Content"), FText::AsCultureInvariant(FolderItemName));
+		FNameBuilder FolderPathBuilder(InFolderPath);
+		if (IsTopLevelFolder(FStringView(FolderPathBuilder)))
+		{
+			FString NameToUse = FolderItemName;
+			if (GetDefault<UContentBrowserSettings>()->bDisplayFriendlyNameForPluginFolders)
+			{
+				FStringView PluginName(FolderPathBuilder);
+				PluginName.RightChopInline(1);
+
+				if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+				{
+					if (Plugin->GetFriendlyName().Len() > 0)
+					{
+						NameToUse = Plugin->GetFriendlyName();
+					}
+				}
+			}
+
+			if (GetDefault<UContentBrowserSettings>()->bDisplayContentFolderSuffix)
+			{
+				FolderDisplayNameOverride = FText::Format(LOCTEXT("ContentFolderDisplayNameFmt", "{0} Content"), FText::AsCultureInvariant(NameToUse));
+			}
+			else
+			{
+				FolderDisplayNameOverride = FText::AsCultureInvariant(NameToUse);
+			}
+		}
 	}
 
 	return FContentBrowserItemData(InOwnerDataSource, EContentBrowserItemFlags::Type_Folder | EContentBrowserItemFlags::Category_Asset, InVirtualPath, *FolderItemName, MoveTemp(FolderDisplayNameOverride), MakeShared<FContentBrowserAssetFolderItemDataPayload>(InFolderPath));

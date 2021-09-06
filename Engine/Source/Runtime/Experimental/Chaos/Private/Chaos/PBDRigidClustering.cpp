@@ -2128,7 +2128,9 @@ namespace Chaos
 		// remove internal parents that have no children. 
 		if (ClusteredParticle->InternalCluster())
 		{
+			FUniqueIdx UniqueIdx = ClusteredParticle->UniqueIdx();
 			MEvolution.DestroyParticle(ClusteredParticle);
+			MEvolution.ReleaseUniqueIdx(UniqueIdx);
 		}
 
 		if (Parameters.bReturnInternalOnly && ParentParticle && !ParentParticle->InternalCluster())

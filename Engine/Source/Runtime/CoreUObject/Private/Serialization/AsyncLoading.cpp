@@ -5394,7 +5394,7 @@ void FAsyncPackage::GetLoadedAssets(TArray<FWeakObjectPtr>& AssetList)
 {
 	for (UObject* Obj : PackageObjLoaded)
 	{
-		if (Obj && !Obj->IsPendingKill() && Obj->IsAsset())
+		if (IsValid(Obj) && Obj->IsAsset())
 		{
 			AssetList.AddUnique(Obj);
 		}

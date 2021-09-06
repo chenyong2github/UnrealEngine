@@ -354,9 +354,9 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 	{
 		static bool IsValid(UK2Node* Node)
 		{
-			return Node
+			return ::IsValid(Node)
 				&& (NULL != Cast<UEdGraph>(Node->GetOuter()))
-				&& !Node->HasAnyFlags(RF_Transient) && !Node->IsPendingKill();
+				&& !Node->HasAnyFlags(RF_Transient);
 		}
 	};
 

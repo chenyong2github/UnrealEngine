@@ -26,6 +26,10 @@ void FMoviePlayerProxy::BlockingTick()
 
 void FMoviePlayerProxy::BlockingFinished()
 {
+}
+
+void FMoviePlayerProxy::BlockingForceFinished()
+{
 	if (Server != nullptr)
 	{
 		Server->BlockingFinished();

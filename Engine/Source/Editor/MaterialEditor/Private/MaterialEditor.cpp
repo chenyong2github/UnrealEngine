@@ -1582,7 +1582,13 @@ void FMaterialEditor::OnFinishedChangingParametersFromOverview(const FPropertyCh
 		RefreshExpressionPreviews(true);
 		RefreshPreviewViewport();
 		TArray<TWeakObjectPtr<UObject>> SelectedObjects = MaterialDetailsView->GetSelectedObjects();
+
+		// Don't set directly on color structs since the color picker will do that for us
+		FStructProperty* StructProperty = CastField<FStructProperty>(PropertyChangedEvent.Property);
+		if (!StructProperty || StructProperty->Struct->GetFName() != "LinearColor")
+		{
 		MaterialDetailsView->SetObjects(SelectedObjects, true);
+		}
 		Material->MarkPackageDirty();
 		SetMaterialDirty();
 	}
@@ -5680,7 +5686,7 @@ void FMaterialEditor::RedoGraphAction()
 	{
 		// @TODO Find a more coherent check for this, rather than rely on sage knowledge that the schema won't exist.
 		// If our previous transaction created the current graph, it won't have a schema after undo.
-		if (FocusedGraphEd->GetCurrentGraph()->IsPendingKill())
+		if (!IsValidChecked(FocusedGraphEd->GetCurrentGraph()))
 		{
 			CloseDocumentTab(FocusedGraphEd->GetCurrentGraph());
 			DocumentManager->CleanInvalidTabs();

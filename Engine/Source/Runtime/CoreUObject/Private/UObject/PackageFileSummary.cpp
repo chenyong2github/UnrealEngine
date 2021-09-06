@@ -402,6 +402,6 @@ void FPackageFileSummary::SetCustomVersionContainer(const FCustomVersionContaine
 
 void FPackageFileSummary::SetPackageFlags(uint32 InPackageFlags)
 {
-	// Package summary flags should be set to false for all transient flags
-	PackageFlags = InPackageFlags & ~(PKG_TransientFlags);
+	// Package summary flags should be set to false for all transient and memory-only flags
+	PackageFlags = InPackageFlags & ~(PKG_TransientFlags | PKG_InMemoryOnly);
 }

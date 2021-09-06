@@ -1071,7 +1071,7 @@ void UWorldPartition::OnActorDescRegistered(const FWorldPartitionActorDesc& Acto
 void UWorldPartition::OnActorDescUnregistered(const FWorldPartitionActorDesc& ActorDesc) 
 {
 	AActor* Actor = ActorDesc.GetActor();
-	if (!Actor->IsPendingKill())
+	if (IsValidChecked(Actor))
 	{
 		Actor->GetLevel()->RemoveLoadedActor(Actor);
 		ApplyActorTransform(Actor, InstanceTransform.Inverse());

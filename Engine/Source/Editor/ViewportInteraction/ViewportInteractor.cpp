@@ -699,7 +699,7 @@ FHitResult UViewportInteractor::GetHitResultFromLaserPointer( TArray<AActor*>* O
 				for( TActorIterator<AVolume> It( WorldInteraction->GetWorld(), AVolume::StaticClass() ); It; ++It )
 				{
 					AActor* Actor = *It;
-					if( !Actor->IsPendingKill() )
+					if( IsValid(Actor) )
 					{
 						VolumeActors.Add( Actor );
 					}

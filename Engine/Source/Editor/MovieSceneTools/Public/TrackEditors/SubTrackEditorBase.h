@@ -77,6 +77,11 @@ public:
     /** Slips the section, returns the new slip time */
     FFrameNumber SlipSection(FFrameNumber SlipTime);
 
+    /** Starts a new dilate operation */
+    void BeginDilateSection();
+    /** Dilates the section */
+    void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor);
+
 private:
     /** The section object this utility class is editing */
     UMovieSceneSubSection& SectionObject;
@@ -86,6 +91,9 @@ private:
 
     /** Cached start time valid only during resize */
     FFrameNumber InitialStartTimeDuringResize;
+
+	/** Cached time scale valid only during dilate */
+	float PreviousTimeScale;
 };
 
 class MOVIESCENETOOLS_API FSubTrackEditorUtil
@@ -129,6 +137,8 @@ public:
     virtual void ResizeSection(ESequencerSectionResizeMode ResizeMode, FFrameNumber ResizeTime) override;
     virtual void BeginSlipSection() override;
     virtual void SlipSection(FFrameNumber SlipTime) override;
+	virtual void BeginDilateSection() override;
+	virtual void DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor) override;
 
 protected:
 	static const float TrackHeight;
@@ -255,5 +265,19 @@ void TSubSectionMixin<ParentSectionClass>::SlipSection(FFrameNumber SlipTime)
 {
     SlipTime = EditorUtil.SlipSection(SlipTime);
     ParentSectionClass::SlipSection(SlipTime);
+}
+
+template<typename ParentSectionClass>
+void TSubSectionMixin<ParentSectionClass>::BeginDilateSection()
+{
+    EditorUtil.BeginDilateSection();
+    ParentSectionClass::BeginDilateSection();
+}
+
+template<typename ParentSectionClass>
+void TSubSectionMixin<ParentSectionClass>::DilateSection(const TRange<FFrameNumber>& NewRange, float DilationFactor)
+{
+    EditorUtil.DilateSection(NewRange, DilationFactor);
+    ParentSectionClass::DilateSection(NewRange, DilationFactor);
 }
 

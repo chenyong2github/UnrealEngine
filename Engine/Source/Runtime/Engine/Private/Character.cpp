@@ -114,7 +114,7 @@ void ACharacter::PostInitializeComponents()
 
 	Super::PostInitializeComponents();
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		if (Mesh)
 		{
@@ -261,24 +261,26 @@ bool ACharacter::CanJump() const
 
 bool ACharacter::CanJumpInternal_Implementation() const
 {
-	// Ensure the character isn't currently crouched.
-	bool bCanJump = !bIsCrouched;
+	return !bIsCrouched && JumpIsAllowedInternal();
+}
 
+bool ACharacter::JumpIsAllowedInternal() const
+{
 	// Ensure that the CharacterMovement state is valid
-	bCanJump &= CharacterMovement->CanAttemptJump();
+	bool bJumpIsAllowed = CharacterMovement->CanAttemptJump();
 
-	if (bCanJump)
+	if (bJumpIsAllowed)
 	{
 		// Ensure JumpHoldTime and JumpCount are valid.
 		if (!bWasJumping || GetJumpMaxHoldTime() <= 0.0f)
 		{
 			if (JumpCurrentCount == 0 && CharacterMovement->IsFalling())
 			{
-				bCanJump = JumpCurrentCount + 1 < JumpMaxCount;
+				bJumpIsAllowed = JumpCurrentCount + 1 < JumpMaxCount;
 			}
 			else
 			{
-				bCanJump = JumpCurrentCount < JumpMaxCount;
+				bJumpIsAllowed = JumpCurrentCount < JumpMaxCount;
 			}
 		}
 		else
@@ -287,12 +289,12 @@ bool ACharacter::CanJumpInternal_Implementation() const
 			// A) The jump limit hasn't been met OR
 			// B) The jump limit has been met AND we were already jumping
 			const bool bJumpKeyHeld = (bPressedJump && JumpKeyHoldTime < GetJumpMaxHoldTime());
-			bCanJump = bJumpKeyHeld &&
+			bJumpIsAllowed = bJumpKeyHeld &&
 						((JumpCurrentCount < JumpMaxCount) || (bWasJumping && JumpCurrentCount == JumpMaxCount));
 		}
 	}
 
-	return bCanJump;
+	return bJumpIsAllowed;
 }
 
 void ACharacter::ResetJumpState()

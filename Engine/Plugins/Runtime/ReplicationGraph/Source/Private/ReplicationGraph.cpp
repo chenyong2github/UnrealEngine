@@ -149,6 +149,10 @@ CSV_DEFINE_CATEGORY(ReplicationGraphChannelsOpened, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphNumReps, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphVisibleLevels, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphForcedUpdates, WITH_SERVER_CODE);
+CSV_DEFINE_CATEGORY(ReplicationGraphCleanMS, WITH_SERVER_CODE);
+CSV_DEFINE_CATEGORY(ReplicationGraphCleanNumReps, WITH_SERVER_CODE);
+
+CSV_DEFINE_CATEGORY(ReplicationGraph, WITH_SERVER_CODE);
 
 static TAutoConsoleVariable<FString> CVarRepGraphConditionalBreakpointActorName(TEXT("Net.RepGraph.ConditionalBreakpointActorName"), TEXT(""), 
 	TEXT("Helper CVar for debugging. Set this string to conditionally log/breakpoint various points in the repgraph pipeline. Useful for bugs like 'why is this actor channel closing'"), ECVF_Default );
@@ -579,7 +583,7 @@ void UReplicationGraph::InitializeForWorld(UWorld* World)
 		for (FActorIterator Iter(World); Iter; ++Iter)
 		{
 			AActor* Actor = *Iter;
-			if (Actor != nullptr && !Actor->IsPendingKill() && ULevel::IsNetActor(Actor))
+			if (IsValid(Actor) && ULevel::IsNetActor(Actor))
 			{
 				AddNetworkActor(Actor);
 			}
@@ -725,13 +729,11 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 
 	GlobalInfo.LastFlushNetDormancyFrame = ReplicationGraphFrame;
 
-
 	if (bWasDormInitial)
 	{
 		AddNetworkActor(Actor);
 	}
-	else
-	{
+
 		GlobalInfo.Events.DormancyFlush.Broadcast(Actor, GlobalInfo);
 
 		// Stinks to have to iterate through like this, especially when net driver is doing a similar thing.
@@ -742,6 +744,10 @@ void UReplicationGraph::FlushNetDormancy(AActor* Actor, bool bWasDormInitial)
 			{
 				Info->bDormantOnConnection = false;
 			}
+		// Actor is no longer going to be dormant so we're going to remove it from the prev dormant actor list
+		if (!GlobalInfo.bWantsToBeDormant)
+		{
+			ConnectionManager->PrevDormantActorList.RemoveFast(Actor);
 		}
 	}
 }
@@ -1770,8 +1776,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 		UE_LOG(LogReplicationGraph, Display, TEXT("UReplicationGraph::ReplicateSingleActor: %s. NetConnection: %s"), *Actor->GetName(), *NetConnection->Describe());
 	}
 
-	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d) (TearOff:%d)! Actor = %s, Channel = %s"),
-					Actor->IsActorBeingDestroyed(), Actor->IsPendingKill(), Actor->IsUnreachable(), Actor->GetTearOff(),
+	if (!ensureMsgf(IsActorValidForReplication(Actor), TEXT("Actor not valid for replication (BeingDestroyed:%d) (IsValid:%d) (Unreachable:%d) (TearOff:%d)! Actor = %s, Channel = %s"),
+					Actor->IsActorBeingDestroyed(), IsValid(Actor), Actor->IsUnreachable(), Actor->GetTearOff(),
 					*Actor->GetFullName(), *DescribeSafe(ActorInfo.Channel)))
 	{
 		return 0;
@@ -1909,9 +1915,9 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 				continue;
 			}
 
-			if (!ensureMsgf(IsActorValidForReplication(DependentActor), TEXT("DependentActor %s (Owner: %s) not valid for replication (BeingDestroyed:%d) (PendingKill:%d) (Unreachable:%d) (TearOff:%d)! Channel = %s"),
+			if (!ensureMsgf(IsActorValidForReplication(DependentActor), TEXT("DependentActor %s (Owner: %s) not valid for replication (BeingDestroyed:%d) (IsValid:%d) (Unreachable:%d) (TearOff:%d)! Channel = %s"),
 							*DependentActor->GetFullName(), *Actor->GetFullName(),
-							DependentActor->IsActorBeingDestroyed(), DependentActor->IsPendingKill(), DependentActor->IsUnreachable(), DependentActor->GetTearOff(),
+							DependentActor->IsActorBeingDestroyed(), IsValid(DependentActor), DependentActor->IsUnreachable(), DependentActor->GetTearOff(),
 							*DescribeSafe(DependentActorConnectionInfo.Channel)))
 			{
 				continue;
@@ -2330,6 +2336,21 @@ void UReplicationGraph::SetActorDestructionInfoToIgnoreDistanceCulling(AActor* D
 	{
 		(*DestructionInfoPtr)->bIgnoreDistanceCulling = true;
 	}
+}
+
+void UReplicationGraph::PostServerReplicateStats(const FFrameReplicationStats& Stats)
+{
+#if CSV_PROFILER
+	if (FCsvProfiler* Profiler = FCsvProfiler::Get())
+	{
+		if (Profiler->IsCapturing())
+		{
+			Profiler->RecordCustomStat("ReplicatedActors", CSV_CATEGORY_INDEX(ReplicationGraph), Stats.NumReplicatedActors, ECsvCustomStatOp::Set);
+			Profiler->RecordCustomStat("CleanActors", CSV_CATEGORY_INDEX(ReplicationGraph), Stats.NumReplicatedCleanActors, ECsvCustomStatOp::Set);
+			Profiler->RecordCustomStat("FastPathActors", CSV_CATEGORY_INDEX(ReplicationGraph), Stats.NumReplicatedFastPathActors, ECsvCustomStatOp::Set);
+		}
+	}
+#endif
 }
 
 // --------------------------------------------------------------------------------------------------------------------------------------------
@@ -2848,7 +2869,7 @@ void UReplicationGraphNode::CleanChildNodes(UReplicationGraphNode::NodeOrdering 
 {
 	auto RemoveFunc = [](UReplicationGraphNode* GridChildNode)
 	{
-		return (GridChildNode == nullptr) || GridChildNode->IsPendingKill();
+		return !IsValid(GridChildNode);
 	};
 
 	if (NodeOrder == NodeOrdering::IgnoreOrdering)
@@ -4635,6 +4656,11 @@ void UReplicationGraphNode_GridSpatialization2D::AddActorInternal_Static(const F
 		return;
 	}
 
+	if (CVar_RepGraph_Verify)
+	{
+		ensureMsgf(PendingStaticSpatializedActors.Contains(ActorInfo.Actor) == false, TEXT("UReplicationGraphNode_GridSpatialization2D::AddActorInternal_Static was called on %s when it was already in the PendingStaticSpatializedActors list!"), *Actor->GetPathName());
+	}
+
 	AddActorInternal_Static_Implementation(ActorInfo, ActorRepInfo, bDormancyDriven);
 }
 
@@ -4759,6 +4785,7 @@ void UReplicationGraphNode_GridSpatialization2D::NotifyResetAllNetworkActors()
 {
 	StaticSpatializedActors.Reset();
 	DynamicSpatializedActors.Reset();
+	PendingStaticSpatializedActors.Reset();
 	Super::NotifyResetAllNetworkActors();
 }
 
@@ -5493,6 +5520,8 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 
 				if (FConnectionReplicationActorInfo* ActorInfo = Params.ConnectionManager.ActorInfoMap.Find(Actor))
 				{
+					if (ensureMsgf(ActorInfo->bDormantOnConnection, TEXT("UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection: Doing dormant actor operations on non-dormant actor (%s) in PrevDormantActorList iteration"), *Actor->GetName()))
+					{
 					ActorInfo->bDormantOnConnection = false;
 					// Ideally, no actor info outside this list should be set to true, so we don't have to worry about resetting them.
 					// However we could consider iterating through the actor map to reset all of them.
@@ -5513,6 +5542,7 @@ void UReplicationGraphNode_GridSpatialization2D::GatherActorListsForConnection(c
 							}
 						}
 					}
+				}
 				}
 
 				Params.ConnectionManager.PrevDormantActorList.RemoveAtSwap(i);

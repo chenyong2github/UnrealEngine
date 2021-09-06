@@ -62,7 +62,7 @@ void AAIController::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
-	if (bWantsPlayerState && !IsPendingKill() && (GetNetMode() != NM_Client))
+	if (bWantsPlayerState && IsValid(this) && (GetNetMode() != NM_Client))
 	{
 		InitPlayerState();
 	}
@@ -93,7 +93,7 @@ void AAIController::PostRegisterAllComponents()
 
 	// cache PerceptionComponent if not already set
 	// note that it's possible for an AI to not have a perception component at all
-	if (PerceptionComponent == NULL || PerceptionComponent->IsPendingKill() == true)
+	if (!IsValid(PerceptionComponent))
 	{
 		PerceptionComponent = FindComponentByClass<UAIPerceptionComponent>();
 	}
@@ -466,7 +466,7 @@ void AAIController::UpdateControlRotation(float DeltaTime, bool bUpdatePawn)
 void AAIController::OnPossess(APawn* InPawn)
 {
 	// don't even try possessing pending-kill pawns
-	if (InPawn != nullptr && InPawn->IsPendingKill())
+	if (InPawn != nullptr && !IsValid(InPawn))
 	{
 		return;
 	}

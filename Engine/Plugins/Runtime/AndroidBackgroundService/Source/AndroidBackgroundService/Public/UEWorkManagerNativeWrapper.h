@@ -129,6 +129,32 @@ public:
 	static void CancelBackgroundWork(FString UniqueWorkName);
 	
 	static FJavaClassInfo JavaInfo;
+
+	//Possible results for work
+	enum class EAndroidBackgroundWorkResult
+	{
+		Success,
+		Failure,
+		Retry,
+		NotSet
+	};
+
+	//Wrapper for setting the work result on the underlying java worker through JNI
+	static void SetWorkResultOnWorker(jobject Worker, EAndroidBackgroundWorkResult Result);
+
+	//Wrapper for getting the work result on the underlying java worker through JNI
+	static EAndroidBackgroundWorkResult GetWorkResultOnWorker(jobject Worker);
+};
+
+//call backs so that we can bubble up UEWorker callbacks to UE systems
+class FAndroidBackgroundServicesDelegates
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundServices_OnWorkerStart, FString /*WorkID*/, jobject /*UEWorker*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FAndroidBackgroundServices_OnWorkerStop, FString /*WorkID*/, jobject /*UEWorker*/);
+
+	static FAndroidBackgroundServices_OnWorkerStart AndroidBackgroundServices_OnWorkerStart;
+	static FAndroidBackgroundServices_OnWorkerStop AndroidBackgroundServices_OnWorkerStop;
 };
 
 #endif //USE_ANDROID_JNI

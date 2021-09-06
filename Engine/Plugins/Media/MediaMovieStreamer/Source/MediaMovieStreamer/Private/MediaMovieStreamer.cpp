@@ -7,6 +7,7 @@
 #include "MediaMovieStreamerModule.h"
 #include "MediaMovieTimeSource.h"
 #include "MediaPlayer.h"
+#include "MediaSoundComponent.h"
 #include "MediaSource.h"
 #include "MediaTexture.h"
 
@@ -17,6 +18,7 @@ DEFINE_LOG_CATEGORY(LogMediaMovieStreamer);
 
 FMediaMovieStreamer::FMediaMovieStreamer()
 	: bIsPlaying(false)
+	, bIsMediaControlledExternally(false)
 {
 	MovieViewport = MakeShareable(new FMovieViewport());
 }
@@ -24,6 +26,11 @@ FMediaMovieStreamer::FMediaMovieStreamer()
 FMediaMovieStreamer::~FMediaMovieStreamer()
 {
 	Cleanup();
+}
+
+void FMediaMovieStreamer::SetIsMediaControlledExternally(bool bInIsMediaControlledExternally)
+{
+	bIsMediaControlledExternally = bInIsMediaControlledExternally;
 }
 
 void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
@@ -36,6 +43,18 @@ void FMediaMovieStreamer::SetMediaPlayer(UMediaPlayer* InMediaPlayer)
 	}
 
 	MediaPlayer = InMediaPlayer;
+}
+
+void FMediaMovieStreamer::SetMediaSoundComponent(UMediaSoundComponent* InMediaSoundComponent)
+{
+	// Tell MovieAssets about this so it does not get garbage collected.
+	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
+	if (MovieAssets != nullptr)
+	{
+		MovieAssets->SetMediaSoundComponent(InMediaSoundComponent);
+	}
+
+	MediaSoundComponent = InMediaSoundComponent;
 }
 
 void FMediaMovieStreamer::SetMediaSource(UMediaSource* InMediaSource)
@@ -64,13 +83,20 @@ void FMediaMovieStreamer::SetMediaTexture(UMediaTexture* InMediaTexture)
 
 void FMediaMovieStreamer::OnMediaEnd()
 {
+	// Do we control the media?
+	if (bIsMediaControlledExternally == false)
+	{
 	bIsPlaying = false;
+}
 }
 
 bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<EMoviePlaybackType> InPlaybackType)
 {
 	MovieViewport->SetTexture(nullptr);
 	
+	// Do we control the media?
+	if (bIsMediaControlledExternally == false)
+	{
 	// Play source.
 	if ((MediaPlayer.IsValid()) && (MediaSource.IsValid()))
 	{
@@ -78,6 +104,7 @@ bool FMediaMovieStreamer::Init(const TArray<FString>& InMoviePaths, TEnumAsByte<
 		MediaPlayer->OpenSource(MediaSource.Get());
 
 		Texture = MakeShareable(new FSlateTexture2DRHIRef(nullptr, 0, 0));
+	}
 	}
 	
 	// Set time source as the normal one does not update when the game thread is blocked.
@@ -99,6 +126,9 @@ bool FMediaMovieStreamer::Tick(float DeltaTime)
 {
 	check(IsInRenderingThread());
 
+	// Do we control the media?
+	if (bIsMediaControlledExternally == false)
+	{
 	// Get media texture.
 	if (MediaTexture != nullptr)
 	{
@@ -130,6 +160,7 @@ bool FMediaMovieStreamer::Tick(float DeltaTime)
 			}
 		}
 	}
+	}
 
 	return !bIsPlaying;
 }
@@ -156,15 +187,20 @@ bool FMediaMovieStreamer::IsLastMovieInPlaylist()
 
 void FMediaMovieStreamer::Cleanup()
 {
+	// Do we control the media?
+	if (bIsMediaControlledExternally == false && !IsEngineExitRequested())
+	{
 	// Remove our hold on the assets.
 	UMediaMovieAssets* MovieAssets = FMediaMovieStreamerModule::GetMovieAssets();
 	if (MovieAssets != nullptr)
 	{
 		MovieAssets->SetMediaPlayer(nullptr, nullptr);
+			MovieAssets->SetMediaSoundComponent(nullptr);
 		MovieAssets->SetMediaSource(nullptr);
 	}
 
 	MediaPlayer.Reset();
+		MediaSoundComponent.Reset();
 	MediaSource.Reset();
 
 	MovieViewport->SetTexture(NULL);
@@ -181,6 +217,7 @@ void FMediaMovieStreamer::Cleanup()
 		BeginReleaseResource(CurrentTexture);
 		FlushRenderingCommands();
 		Texture.Reset();
+	}
 	}
 
 	// Restore previous time source.

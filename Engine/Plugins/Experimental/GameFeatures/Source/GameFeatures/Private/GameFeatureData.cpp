@@ -181,7 +181,7 @@ void UGameFeatureData::ReloadConfigs(FConfigFile& PluginConfig) const
 				GetObjectsOfClass(ObjClass, FoundObjects, true, RF_NoFlags);
 				for (UObject* CurFoundObj : FoundObjects)
 				{
-					if (CurFoundObj && !CurFoundObj->IsPendingKill())
+					if (IsValid(CurFoundObj))
 					{
 						CurFoundObj->ReloadConfig();
 					}

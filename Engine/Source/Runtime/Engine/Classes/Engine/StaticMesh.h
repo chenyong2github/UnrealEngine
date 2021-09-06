@@ -1826,6 +1826,9 @@ public:
 	/* Get a copy of the reduction settings for a specified LOD index. */
 	ENGINE_API struct FMeshReductionSettings GetReductionSettings(int32 LODIndex) const;
 
+	/** Get whether this mesh should use LOD streaming for the given platform. */
+	bool GetEnableLODStreaming(const class ITargetPlatform* TargetPlatform) const;
+
 private:
 	/**
 	 * Converts legacy LODDistance in the source models to Display Factor

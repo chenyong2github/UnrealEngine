@@ -140,11 +140,8 @@ void FBoolProperty::Serialize( FArchive& Ar )
 	if( Ar.IsLoading())
 	{
 		Ar << NativeBool;
-		//if (!IsPendingKill())
-		{
 			SetBoolSize( BoolSize, !!NativeBool );
 		}
-	}
 	else
 	{
 		NativeBool = Ar.IsSaving() ? (IsNativeBool() ? 1 : 0) : 0;

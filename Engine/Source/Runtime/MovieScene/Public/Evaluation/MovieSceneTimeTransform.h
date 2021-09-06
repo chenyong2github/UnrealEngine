@@ -212,7 +212,7 @@ inline FString LexToString(const FMovieSceneTimeTransform& InTransform)
 		else
 		{
 			return *FString::Printf(TEXT("[ %+i+%.3f x%.3f ]"), 
-			InTransform.Offset.FrameNumber.Value, InTransform.Offset.GetSubFrame(), InTransform.TimeScale);
-}
+					InTransform.Offset.FrameNumber.Value, InTransform.Offset.GetSubFrame(), InTransform.TimeScale);
+		}
 	}
 }

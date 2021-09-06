@@ -51,7 +51,7 @@ TAutoConsoleVariable<int32> CVarLLMTrackPeaks(TEXT("LLM.TrackPeaks"), 0, TEXT("T
 
 TAutoConsoleVariable<int32> CVarLLMWriteInterval(
 	TEXT("LLM.LLMWriteInterval"),
-	5,
+	1,
 	TEXT("The number of seconds between each line in the LLM csv (zero to write every frame)")
 );
 

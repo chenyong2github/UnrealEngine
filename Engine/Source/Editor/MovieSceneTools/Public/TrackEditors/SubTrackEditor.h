@@ -90,14 +90,5 @@ private:
 	FKeyPropertyResult AddKeyInternal(FFrameNumber KeyTime, UMovieSceneSequence* InMovieSceneSequence, UMovieSceneTrack* InTrack, int32 RowIndex);
 
 	/** Callback for AnimatablePropertyChanged in HandleAssetAdded. */
-	FKeyPropertyResult HandleSequenceAdded(FFrameNumber KeyTime, UMovieSceneSequence* Sequence, int32 RowIndex);
-
-	/** Check if we can record a new sequence (deny it if one is already primed) */
-	bool CanRecordNewSequence() const;
-
-	/** Handle recording new sequence into a sub track */
-	void HandleRecordNewSequence(AActor* InActorToRecord, UMovieSceneTrack* InTrack);
-
-	/** Actually handles the adding of the section */
-	FKeyPropertyResult HandleRecordNewSequenceInternal(FFrameNumber KeyTime, AActor* InActorToRecord, UMovieSceneTrack* InTrack);
+	FKeyPropertyResult HandleSequenceAdded(FFrameNumber KeyTime, UMovieSceneSequence* Sequence, UMovieSceneTrack* Track, int32 RowIndex);
 };

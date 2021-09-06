@@ -320,6 +320,7 @@ struct FLegacyCookedPackage
 	FString FileName;
 	uint64 UAssetSize = 0;
 	uint64 UExpSize = 0;
+	uint64 TotalBulkDataSize = 0;
 	uint64 DiskLayoutOrder = -1;
 	FPackageStorePackage* OptimizedPackage = nullptr;
 	TSet<FShaderInfo*> Shaders;
@@ -665,6 +666,57 @@ FChunkIdCsv ChunkIdCsv;
 
 #endif
 
+
+
+class FClusterStatsCsv
+{
+public:
+
+	~FClusterStatsCsv()
+	{
+		if (OutputArchive)
+		{
+			OutputArchive->Flush();
+		}
+	}
+
+	void CreateOutputFile(const FString& Path)
+	{
+		OutputArchive.Reset(IFileManager::Get().CreateFileWriter(*Path));
+		if (OutputArchive)
+		{
+			OutputArchive->Logf(TEXT("PackageName,ClusterUExpBytes,BytesToRead,ClustersToRead,ClusterOwner,OrderFile,OrderIndex"));
+		}
+	}
+
+	void AddPackage(FName PackageName, int64 ClusterUExpBytes, int64 DepUExpBytes, uint32 NumTouchedClusters, FName ClusterOwner, const FFileOrderMap* BlameOrderMap, uint64 LocalOrder)
+	{
+		if (!OutputArchive.IsValid())
+		{
+			return;
+		}
+		OutputArchive->Logf(TEXT("%s,%lld,%lld,%u,%s,%s,%llu"),
+			*PackageName.ToString(),
+			ClusterUExpBytes,
+			DepUExpBytes,
+			NumTouchedClusters,
+			*ClusterOwner.ToString(),
+			BlameOrderMap ? *BlameOrderMap->Name : TEXT("None"),
+			LocalOrder
+		);
+	}
+
+	void Close()
+	{
+		OutputArchive.Reset();
+	}
+
+private:
+	TUniquePtr<FArchive> OutputArchive;
+};
+FClusterStatsCsv ClusterStatsCsv;
+
+
 // If bClusterByOrderFilePriority is false
 //		Order packages by the order of OrderMaps with their associated priority 
 //		e.g. Order map 1 with priority 0 (A, B, C) 
@@ -690,9 +742,11 @@ static void AssignPackagesDiskOrder(
 	{
 		TArray<FLegacyCookedPackage*> Packages;
 		int32 OrderFileIndex; // Index in OrderMaps of the FFileOrderMap which contained Packages.Last()
+		int32 ClusterSequence;
 
-		FCluster(int32 InOrderFileIndex)
+		FCluster(int32 InOrderFileIndex, int32 InClusterSequence)
 			: OrderFileIndex(InOrderFileIndex)
+			, ClusterSequence(InClusterSequence)
 		{
 		}
 	};
@@ -727,6 +781,7 @@ static void AssignPackagesDiskOrder(
 	// Create a fallback order map to avoid null checks later
 	// Lowest priority, last index
 	FFileOrderMap FallbackOrderMap(MIN_int32, MAX_int32);
+	FallbackOrderMap.Name = TEXT("Fallback");
 
 	TArray<FPackageAndOrder> SortedPackages;
 	SortedPackages.Reserve(Packages.Num());
@@ -756,6 +811,8 @@ static void AssignPackagesDiskOrder(
 	}
 	const FFileOrderMap* LastBlameOrderMap = nullptr;
 	int32 LastAssignedCount = 0;
+	int64 LastAssignedUExpSize = 0, AssignedUExpSize = 0;
+	int64 LastAssignedBulkSize = 0, AssignedBulkSize = 0;
 
 	if (bClusterByOrderFilePriority)
 	{
@@ -792,6 +849,8 @@ static void AssignPackagesDiskOrder(
 		});
 	}
 
+	int32 ClusterSequence = 0;
+	TMap<FLegacyCookedPackage*, FCluster*> PackageToCluster;
 	for (FPackageAndOrder& Entry : SortedPackages)
 	{
 		checkSlow(Entry.OrderMap); // Without this, Entry.OrderMap != LastBlameOrderMap convinces static analysis that Entry.OrderMap may be null
@@ -799,17 +858,24 @@ static void AssignPackagesDiskOrder(
 		{
 			if( LastBlameOrderMap != nullptr )
 			{
-				UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s"), AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name);
+				UE_LOG(LogIoStore, Display, TEXT("Ordered %d/%d packages using order file %s. %.2fMB UExp data. %.2fmb bulk data."), 
+				AssignedPackages.Num() - LastAssignedCount, Packages.Num(), *LastBlameOrderMap->Name,
+				(AssignedUExpSize - LastAssignedUExpSize) / 1024.0 / 1024.0,
+				(AssignedBulkSize - LastAssignedBulkSize) / 1024.0 / 1024.0
+				 );
 			}
 			LastAssignedCount = AssignedPackages.Num();
+			LastAssignedUExpSize= AssignedUExpSize;
+			LastAssignedBulkSize = AssignedBulkSize;
 			LastBlameOrderMap = Entry.OrderMap;
 		}
 		if (!AssignedPackages.Contains(Entry.Package))
 		{
-			FCluster* Cluster = new FCluster(Entry.OrderMap->Index);
+			FCluster* Cluster = new FCluster(Entry.OrderMap->Index, ClusterSequence++);
 			Clusters.Add(Cluster);
 			ProcessStack.Push(Entry.Package);
 
+			int64 ClusterBytes = 0;
 			while (ProcessStack.Num())
 			{
 				FLegacyCookedPackage* PackageToProcess = ProcessStack.Pop(false);
@@ -817,6 +883,11 @@ static void AssignPackagesDiskOrder(
 				{
 					AssignedPackages.Add(PackageToProcess);
 					Cluster->Packages.Add(PackageToProcess);
+					PackageToCluster.Add(PackageToProcess, Cluster);
+					ClusterBytes += PackageToProcess->UExpSize;
+					AssignedUExpSize += PackageToProcess->UExpSize;
+					AssignedBulkSize += PackageToProcess->TotalBulkDataSize;
+					
 					TArray<FPackageId> AllReferencedPackageIds;
 					AllReferencedPackageIds.Append(PackageToProcess->OptimizedPackage->GetImportedPackageIds());
 					for (const FPackageId& ReferencedPackageId : AllReferencedPackageIds)
@@ -828,6 +899,53 @@ static void AssignPackagesDiskOrder(
 						}
 					}
 				}
+			}
+
+			for (FLegacyCookedPackage* Package : Cluster->Packages)
+			{
+				int64 BytesToRead = 0;
+				TSet<FCluster*> ClustersToRead;
+
+				TSet<FLegacyCookedPackage*> VisitedDeps;
+				TArray<FLegacyCookedPackage*> DepQueue;
+				DepQueue.Push(Package);
+				while (DepQueue.Num() > 0)
+				{
+					FLegacyCookedPackage* Cursor = DepQueue.Pop();
+					if( VisitedDeps.Contains(Cursor) == false)
+					{
+						VisitedDeps.Add(Cursor);
+						BytesToRead += Cursor->UExpSize;
+						if (FCluster* ReadCluster = PackageToCluster.FindRef(Cursor))
+						{
+							ClustersToRead.Add(ReadCluster);
+						}
+						
+						for (const FPackageId& ImportedPackageId : Cursor->OptimizedPackage->GetImportedPackageIds())
+						{
+							FLegacyCookedPackage* FindReferencedPackage = PackageIdMap.FindRef(ImportedPackageId);
+							if (FindReferencedPackage)
+							{
+								DepQueue.Push(FindReferencedPackage);
+							}
+		}
+	}
+				}
+
+				TArray<FCluster*> OrderedClustersToRead = ClustersToRead.Array();
+				Algo::SortBy(OrderedClustersToRead, [](FCluster* C) { return C->ClusterSequence; }, TLess<int32>());
+
+				int32 NumClustersToRead = 1; // Could replace with "min seeks"
+				for (int32 i = 1; i < OrderedClustersToRead.Num(); ++i)
+				{
+					if (OrderedClustersToRead[i]->ClusterSequence != OrderedClustersToRead[i - 1]->ClusterSequence + 1)
+					{
+						++NumClustersToRead;
+					}
+				}
+
+				FName ClusterOwner = Entry.Package->PackageName;
+				ClusterStatsCsv.AddPackage(Package->PackageName, Package == Entry.Package ? ClusterBytes : 0, BytesToRead, NumClustersToRead, ClusterOwner, Entry.OrderMap, Entry.LocalOrder);
 			}
 		}
 	}
@@ -858,6 +976,7 @@ static void AssignPackagesDiskOrder(
 		delete Cluster;
 	}
 	
+	ClusterStatsCsv.Close();
 	if (AssignedPackages.Num() != Packages.Num())
 	{
 		UE_LOG(LogIoStore, Warning, TEXT(" %d/%d packages not assigned order"), Packages.Num()-AssignedPackages.Num(), Packages.Num());
@@ -1458,6 +1577,15 @@ void InitializeContainerTargetsAndPackages(
 			{
 				OutTargetFile.ChunkType = EContainerChunkType::PackageData;
 			}
+		}
+
+		switch (OutTargetFile.ChunkType)
+		{
+		case EContainerChunkType::OptionalBulkData:
+		case EContainerChunkType::MemoryMappedBulkData:
+		case EContainerChunkType::BulkData:
+			OutTargetFile.Package->TotalBulkDataSize += CookedFileStatData->FileSize;
+			break;
 		}
 
 		switch (OutTargetFile.ChunkType)
@@ -2327,6 +2455,11 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Creating disk layout..."));
+	FString ClusterCSVPath;
+	if (FParse::Value(FCommandLine::Get(), TEXT("ClusterCSV="), ClusterCSVPath))
+	{
+		ClusterStatsCsv.CreateOutputFile(ClusterCSVPath);
+	}
 	CreateDiskLayout(ContainerTargets, Packages, Arguments.OrderMaps, PackageIdMap, Arguments.bClusterByOrderFilePriority);
 
 	for (FContainerTargetSpec* ContainerTarget : ContainerTargets)

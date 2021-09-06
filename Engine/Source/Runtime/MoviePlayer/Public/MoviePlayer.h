@@ -261,6 +261,9 @@ public:
 	virtual void ForceCompletion() {};
 	virtual void Suspend() {};
 	virtual void Resume() {};
+
+	/** Call this to have the MoviePlayer play in blocking sections and not loadmap. */
+	virtual void SetIsPlayOnBlockingEnabled(bool bIsEnabled) {}
 };
 
 /** Creates the movie player */

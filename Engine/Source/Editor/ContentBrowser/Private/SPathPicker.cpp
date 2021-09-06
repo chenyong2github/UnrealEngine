@@ -103,10 +103,13 @@ TSharedPtr<SWidget> SPathPicker::GetItemContextMenu(TArrayView<const FContentBro
 
 TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString> & SelectedPaths, FContentBrowserMenuExtender_SelectedPaths InMenuExtender, FOnCreateNewFolder InOnCreateNewFolder)
 {
+	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
+
 	TSharedPtr<FExtender> Extender;
 	if (InMenuExtender.IsBound())
 	{
-		Extender = InMenuExtender.Execute(SelectedPaths);
+		// Code using extenders here currently expects internal paths
+		Extender = InMenuExtender.Execute(ContentBrowserData->TryConvertVirtualPathsToInternal(SelectedPaths));
 	}
 
 	const bool bInShouldCloseWindowAfterSelection = true;
@@ -114,8 +117,7 @@ TSharedPtr<SWidget> SPathPicker::GetFolderContextMenu(const TArray<FString> & Se
 	FMenuBuilder MenuBuilder(bInShouldCloseWindowAfterSelection, nullptr, Extender, bCloseSelfOnly);
 
 	// We can only create folders when we have a single path selected
-	UContentBrowserDataSubsystem* ContentBrowserData = IContentBrowserDataModule::Get().GetSubsystem();
-	const bool bCanCreateNewFolder = SelectedPaths.Num() == 1 && ContentBrowserData->CanCreateFolder(ContentBrowserData->ConvertInternalPathToVirtual(*SelectedPaths[0]), nullptr);
+	const bool bCanCreateNewFolder = SelectedPaths.Num() == 1 && ContentBrowserData->CanCreateFolder(*SelectedPaths[0], nullptr);
 
 	FText NewFolderToolTip;
 	if(SelectedPaths.Num() == 1)

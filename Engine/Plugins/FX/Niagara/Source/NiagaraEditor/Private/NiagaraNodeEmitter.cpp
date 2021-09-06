@@ -28,8 +28,8 @@ void UNiagaraNodeEmitter::PostInitProperties()
 {
 	Super::PostInitProperties();
 	PinPendingRename = nullptr;
-	CachedGraph = nullptr;
-	CachedScriptSource = nullptr;
+	CachedGraphWeakPtr = nullptr;
+	CachedScriptSourceWeakPtr = nullptr;
 }
 
 UNiagaraSystem* UNiagaraNodeEmitter::GetOwnerSystem() const
@@ -212,7 +212,7 @@ UNiagaraScriptSource* UNiagaraNodeEmitter::GetScriptSource() const
 		return Source;
 	}
 
-	return Cast<UNiagaraScriptSource>(CachedScriptSource);
+	return Cast<UNiagaraScriptSource>(CachedScriptSourceWeakPtr.Get());
 }
 
 UNiagaraGraph* UNiagaraNodeEmitter::GetCalledGraph() const
@@ -240,7 +240,7 @@ UNiagaraGraph* UNiagaraNodeEmitter::GetCalledGraph() const
 		}
 	}
 
-	if (CachedGraph != nullptr)
+	if (UNiagaraGraph* CachedGraph = CachedGraphWeakPtr.Get())
 	{
 		return CachedGraph;
 	}
@@ -283,8 +283,8 @@ void UNiagaraNodeEmitter::SyncEnabledState()
 void UNiagaraNodeEmitter::SetCachedVariablesForCompilation(const FName& InUniqueName, UNiagaraGraph* InGraph, UNiagaraScriptSourceBase* InSource)
 {
 	CachedUniqueName = InUniqueName;
-	CachedGraph = InGraph;
-	CachedScriptSource = InSource;
+	CachedGraphWeakPtr = InGraph;
+	CachedScriptSourceWeakPtr = InSource;
 }
 
 

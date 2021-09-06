@@ -904,6 +904,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 					ForwardScreenSpaceShadowMask.Target,
 					true, true, false);
 			}
+		}
 
 			AddCopyToResolveTargetPass(GraphBuilder, ForwardScreenSpaceShadowMask.Target, ForwardScreenSpaceShadowMask.Resolve, FResolveParams());
 			OutForwardScreenSpaceShadowMask = ForwardScreenSpaceShadowMask.Resolve;
@@ -914,6 +915,5 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 			}
 		}
 	}
-}
 
 #undef CHANGE_LIGHTINDEXTYPE_SIZE

@@ -265,7 +265,9 @@ namespace Gauntlet
 			// FortniteGame, FortniteClient, FortniteServer
 			// Or EngineTest-WIn64-Shipping, FortniteClient-Win64-Shipping etc
 			// So we need to search for the project name minus 'Game', with the form, build-type, and platform all optional :(
-			string RegExMatch = string.Format(@"{0}(Game|Client|Server|)(?:-(.+?)-(Debug|Test|Shipping))?", ShortName);
+			// FortniteClient and EngineTest should match
+			// FortniteCustomName should not match.
+			string RegExMatch = string.Format(@"(({0}(Game|Client|Server))|{1})(?:-(.+?)-(Debug|Test|Shipping))?", ShortName, InProjectName);
 
 			// Format should be something like
 			// FortniteClient
@@ -275,9 +277,9 @@ namespace Gauntlet
 
 			if (NameMatch.Success)
 			{
-				string ModuleType = NameMatch.Groups[1].ToString().ToLower();
-				string PlatformName = NameMatch.Groups[2].ToString();
-				string ConfigType = NameMatch.Groups[3].ToString();
+				string ModuleType = NameMatch.Groups[3].ToString().ToLower();
+				string PlatformName = NameMatch.Groups[4].ToString();
+				string ConfigType = NameMatch.Groups[5].ToString();
 
 				if (ModuleType.Length == 0 || ModuleType == "game")
 				{

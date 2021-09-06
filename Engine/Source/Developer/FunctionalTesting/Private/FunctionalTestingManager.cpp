@@ -42,7 +42,7 @@ namespace FFunctionalTesting
 ////----------------------------------------------------------------------//
 //void FFuncTestingTickHelper::Tick(float DeltaTime)
 //{
-//	if (Manager->IsPendingKill() == false)
+//	if (IsValid(Manager))
 //	{
 //		Manager->TickMe(DeltaTime);
 //	}

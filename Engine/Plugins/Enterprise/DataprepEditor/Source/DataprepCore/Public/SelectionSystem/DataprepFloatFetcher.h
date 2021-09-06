@@ -13,7 +13,7 @@
 /**
  * The float fetcher is a specialized type of fetcher for the float
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, Meta = (DisplayName = "Float"))
 class DATAPREPCORE_API UDataprepFloatFetcher : public UDataprepFetcher
 {
 	GENERATED_BODY()

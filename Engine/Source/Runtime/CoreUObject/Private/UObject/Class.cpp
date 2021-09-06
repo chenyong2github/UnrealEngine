@@ -4822,6 +4822,7 @@ void UClass::SerializeSparseClassData(FStructuredArchive::FSlot Slot)
 {
 	if (!SparseClassDataStruct)
 	{
+		Slot.EnterRecord();
 		return;
 	}
 

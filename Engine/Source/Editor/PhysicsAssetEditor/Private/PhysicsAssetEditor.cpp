@@ -3,6 +3,7 @@
 #include "PhysicsAssetEditor.h"
 #include "Framework/MultiBox/MultiBox.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Notifications/NotificationManager.h"
 #include "EngineGlobals.h"
 #include "Engine/SkeletalMesh.h"
 #include "Animation/AnimationAsset.h"
@@ -698,6 +699,17 @@ void FPhysicsAssetEditor::BindCommands()
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanPasteProperties));
 
 	ToolkitCommands->MapAction(
+		Commands.CopyBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnCopyBodies),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanCopyBodies),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsCopyBodies));
+
+	ToolkitCommands->MapAction(
+		Commands.PasteBodies,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnPasteBodies),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanPasteBodies));
+
+	ToolkitCommands->MapAction(
 		Commands.RepeatLastSimulation,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnRepeatLastSimulation),
 		FCanExecuteAction(),
@@ -1321,6 +1333,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 			EUserInterfaceActionType::Button
 		);
 
+		InMenuBuilder.AddMenuEntry(Commands.CopyBodies);
+		InMenuBuilder.AddMenuEntry(Commands.PasteBodies);
 		InMenuBuilder.AddMenuEntry( Commands.CopyProperties );
 		InMenuBuilder.AddMenuEntry( Commands.PasteProperties );
 		InMenuBuilder.AddMenuEntry( Commands.DeleteBody );
@@ -1397,6 +1411,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetConstraint(FMenuBuilder& InMenuBuilder)
 			FNewMenuDelegate::CreateStatic( &FLocal::FillAxesAndLimitsMenu ) );	
 		InMenuBuilder.AddSubMenu( LOCTEXT("ConvertMenu", "Convert"), LOCTEXT("ConvertMenu_ToolTip", "Convert constraint to various presets"),
 			FNewMenuDelegate::CreateStatic( &FLocal::FillConvertMenu ) );
+		InMenuBuilder.AddMenuEntry(Commands.CopyProperties);
+		InMenuBuilder.AddMenuEntry(Commands.PasteProperties);
 		InMenuBuilder.AddMenuEntry(Commands.CopyProperties);
 		InMenuBuilder.AddMenuEntry(Commands.PasteProperties);
 		InMenuBuilder.AddMenuEntry(Commands.DeleteConstraint);
@@ -2013,15 +2029,70 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 	RefreshHierachyTree();
 }
 
+void FPhysicsAssetEditor::ShowNotificationMessage(const FText& Message, const SNotificationItem::ECompletionState CompletionState)
+{
+	FNotificationInfo Info(Message);
+	Info.ExpireDuration = 5.0f;
+	Info.bUseLargeFont = false;
+	Info.bUseThrobber = false;
+	Info.bUseSuccessFailIcons = false;
+	TSharedPtr<SNotificationItem> Notification = FSlateNotificationManager::Get().AddNotification(Info);
+	if (Notification.IsValid())
+	{
+		Notification->SetCompletionState(CompletionState);
+	}
+}
+
+void FPhysicsAssetEditor::OnCopyBodies()
+{
+	int32 NumCopiedBodies;
+	int32 NumCopiedConstraints;
+	SharedData->CopySelectedBodiesAndConstraintsToClipboard(NumCopiedBodies, NumCopiedConstraints);
+
+	const FText MessageFormat = LOCTEXT("CopiedBodiesAndConstraintsToClipboard", "{0} bodies ans {1} constraints copied to clipboard");
+	ShowNotificationMessage(FText::Format(MessageFormat, NumCopiedBodies, NumCopiedConstraints), SNotificationItem::CS_Success);
+}
+
+bool FPhysicsAssetEditor::IsCopyBodies() const
+{
+	// todo : implement by checking the clipboard ? 
+	return true;
+}
+
+bool FPhysicsAssetEditor::CanCopyBodies() const
+{
+	if (IsSelectedEditMode())
+	{
+		return (SharedData->SelectedBodies.Num() > 0);
+	}
+	return false;
+}
+
+void FPhysicsAssetEditor::OnPasteBodies()
+{
+	int32 NumPastedBodies;
+	int32 NumPastedConstraints;
+	SharedData->PasteBodiesAndConstraintsFromClipboard(NumPastedBodies, NumPastedConstraints);
+
+	const FText MessageFormat = LOCTEXT("PastedBodiesAndConstraintsToClipboard", "{0} bodies ans {1} constraints pasted from clipboard");
+	ShowNotificationMessage(FText::Format(MessageFormat, NumPastedBodies, NumPastedConstraints), SNotificationItem::CS_Success);
+}
+
+bool FPhysicsAssetEditor::CanPasteBodies() const
+{
+	// would be nice to be able to check the clipboard?
+	return true; 
+}
+
 void FPhysicsAssetEditor::OnCopyProperties()
 {
 	if(SharedData->SelectedBodies.Num() == 1)
 	{
-		SharedData->CopyBody();
+		SharedData->CopyBodyProperties();
 	}
 	else if(SharedData->SelectedConstraints.Num() == 1)
 	{
-		SharedData->CopyConstraint();
+		SharedData->CopyConstraintProperties();
 	}
 	
 	RefreshPreviewViewport();

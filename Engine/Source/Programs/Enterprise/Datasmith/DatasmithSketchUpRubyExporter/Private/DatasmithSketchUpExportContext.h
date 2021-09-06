@@ -6,7 +6,7 @@
 
 #include "DatasmithSketchUpCamera.h"
 
-// Datasmith SDK.
+#include "Misc/SecureHash.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "Templates/SharedPointer.h"
@@ -22,6 +22,13 @@ class IDatasmithMeshElement;
 class IDatasmithMetaDataElement;
 class IDatasmithScene;
 class IDatasmithTextureElement;
+
+
+inline uint32 GetTypeHash(const FMD5Hash& Hash)
+{
+	uint32* HashAsInt32 = (uint32*)Hash.GetBytes();
+	return HashAsInt32[0] ^ HashAsInt32[1] ^ HashAsInt32[2] ^ HashAsInt32[3];
+}
 
 namespace DatasmithSketchUp
 {
@@ -100,13 +107,10 @@ namespace DatasmithSketchUp
 
 		TSharedPtr<FTexture> FindOrAdd(SUTextureRef);
 
-		FTexture* AddTexture(SUTextureRef TextureRef, FString MaterialName);
+		FTexture* AddTexture(SUTextureRef TextureRef, FString MaterialName, bool bColorized=false);
 
 		// This texture is used in a colorized material so image will be saved in material-specific filename
 		FTexture* AddColorizedTexture(SUTextureRef TextureRef, FString MaterialName); 
-
-		// Creates single Image File for each separate Texture that uses the same saved image file
-		void AddImageFileForTexture(TSharedPtr<FTexture> Texture); 
 
 		void Update();
 
@@ -114,12 +118,18 @@ namespace DatasmithSketchUp
 		void RegisterMaterial(FMaterial*);
 		void UnregisterMaterial(FMaterial*);
 
+		// Create image for SketchUp texture or reuse image with same content hash
+		// Multiple SU materials might have identical texture used 
+		void AcquireImage(FTexture& Texture); 
+		void ReleaseImage(FTexture& Texture);
 
 	private:
 		FExportContext& Context;
 
 		TMap<FTextureIDType, TSharedPtr<FTexture>> TexturesMap;
 		TMap<FString, TSharedPtr<FTextureImageFile>> TextureNameToImageFile; // texture handlers representing same texture
+
+		TMap<FMD5Hash,  TSharedPtr<FTextureImageFile>> Images; // set of images using the same name in SketchUp materials
 	};
 
 	class FEntitiesObjectCollection
@@ -166,6 +176,8 @@ namespace DatasmithSketchUp
 		void PopulateFromModel(
 			SUModelRef InSModelRef // model containing SketchUp material definitions
 		);
+		void UpdateTextureUsage();
+		void Update();
 
 		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
 		void CreateMaterial(FMaterialIDType MaterialID);
@@ -173,8 +185,10 @@ namespace DatasmithSketchUp
 		bool InvalidateMaterial(FMaterialIDType MateriadId);
 		bool RemoveMaterial(FEntityIDType EntityId);
 
+		bool InvalidateDefaultMaterial();
 
-		TSharedPtr<DatasmithSketchUp::FMaterial>* Find(FMaterialIDType MaterialID)
+
+		TSharedPtr<FMaterial>* Find(FMaterialIDType MaterialID)
 		{
 			return MaterialDefinitionMap.Find(MaterialID);
 		}
@@ -186,6 +200,8 @@ namespace DatasmithSketchUp
 		FMaterialOccurrence* RegisterGeometry(FMaterialIDType MaterialID, DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry);
 
 		void UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry * EntitiesGeometry);
+
+		const TCHAR* GetDefaultMaterialName();
 
 	private:
 		FExportContext& Context;

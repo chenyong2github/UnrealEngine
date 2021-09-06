@@ -101,7 +101,7 @@ UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Ou
 					}
 					Result = static_cast<UObject*>(FindObjectWithOuter(SuperClassArchetype, Class, Name));
 					// We can have invalid archetypes halfway through the hierarchy, keep looking if it's pending kill or transient
-					if (Result && !Result->IsPendingKill() && !Result->HasAnyFlags(RF_Transient))
+					if (IsValid(Result) && !Result->HasAnyFlags(RF_Transient))
 					{
 						break;
 					}

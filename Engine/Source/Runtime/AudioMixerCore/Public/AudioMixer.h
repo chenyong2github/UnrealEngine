@@ -181,6 +181,16 @@ namespace Audio
 		/** Called by FWindowsMMNotificationClient to toggle logging for audio device changes: */
 		AUDIOMIXERCORE_API static bool ShouldLogDeviceSwaps();
 
+		/** Called by AudioMixer to see if we should do a multithreaded device swap */
+		AUDIOMIXERCORE_API static bool ShouldUseThreadedDeviceSwap();
+
+		/** Called by AudioMixer to see if it should reycle the threads: */
+		AUDIOMIXERCORE_API static bool ShouldRecycleThreads();
+
+		/** Called by AudioMixer if it should use Cache for DeviceInfo Enumeration */
+		AUDIOMIXERCORE_API static bool ShouldUseDeviceInfoCache();
+
+
 	protected:
 
 		IAudioMixer() 
@@ -190,6 +200,17 @@ namespace Audio
 		bool bIsMainAudioMixer;
 	};
 
+	// Interface for Caching Device Info.
+	class AUDIOMIXERCORE_API IAudioPlatformDeviceInfoCache
+	{
+	public:
+		// Pure Interface. 
+		virtual ~IAudioPlatformDeviceInfoCache() = default;
+
+		virtual TOptional<FAudioPlatformDeviceInfo> FindActiveOutputDevice(FName InDeviceID) const = 0;
+		virtual TArray<FAudioPlatformDeviceInfo> GetAllActiveOutputDevices() const = 0;
+		virtual TOptional<FAudioPlatformDeviceInfo> FindDefaultOutputDevice() const = 0;
+	};
 
 	/** Defines parameters needed for opening a new audio stream to device. */
 	struct FAudioMixerOpenStreamParams
@@ -271,6 +292,8 @@ namespace Audio
 		Console,
 		Multimedia,
 		Communications,
+
+		COUNT,
 	};
 
 	enum class EAudioDeviceState
@@ -279,6 +302,8 @@ namespace Audio
 		Disabled,
 		NotPresent,
 		Unplugged,
+
+		COUNT,
 	};
 
 	/** Struct used to store render time analysis data. */
@@ -349,13 +374,34 @@ namespace Audio
 	class AUDIOMIXERCORE_API IAudioMixerDeviceChangedListener
 	{
 	public:
+		struct FFormatChangedData
+		{
+			int32 NumChannels = 0;
+			int32 SampleRate = 0;
+			uint32 ChannelConfig = 0;
+		};
+
+		enum class EDisconnectReason
+		{
+			DeviceRemoval,
+			ServerShutdown,
+			FormatChanged,
+			SessionLogoff,
+			SessionDisconnected,
+			ExclusiveModeOverride
+		};
+
 		virtual void RegisterDeviceChangedListener() {}
 		virtual void UnregisterDeviceChangedListener() {}
 		virtual void OnDefaultCaptureDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) {}
 		virtual void OnDefaultRenderDeviceChanged(const EAudioDeviceRole InAudioDeviceRole, const FString& DeviceId) {}
-		virtual void OnDeviceAdded(const FString& DeviceId) {}
-		virtual void OnDeviceRemoved(const FString& DeviceId) {}
-		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState) {}
+		virtual void OnDeviceAdded(const FString& DeviceId, bool bIsRenderDevice) {}
+		virtual void OnDeviceRemoved(const FString& DeviceId, bool bIsRenderDevice) {}
+		virtual void OnDeviceStateChanged(const FString& DeviceId, const EAudioDeviceState InState, bool bIsRenderDevice) {}
+		virtual void OnFormatChanged(const FString& InDeviceId, const FFormatChangedData& InFormat) {}
+		virtual void OnSpeakerConfigChanged(const FString& InDeviceId, uint32 InSpeakerBitmask) {}		
+		virtual void OnSessionDisconnect(EDisconnectReason InReason) {}
+		
 		virtual FString GetDeviceId() const { return FString(); }
 	};
 
@@ -476,6 +522,9 @@ namespace Audio
         
 		// Function called at the beginning of every call of UpdateHardware on the audio thread.
 		virtual void OnHardwareUpdate() {}
+
+		// Get the DeviceInfo Cache if one exists.
+		virtual IAudioPlatformDeviceInfoCache* GetDeviceInfoCache() const { return nullptr;  }
 
 	public: // Public Functions
 		//~ Begin FRunnable
@@ -601,6 +650,9 @@ namespace Audio
 		/** When called, terminates the null device. */
 		void StopRunningNullDevice();
 
+		/** Called by platform specific logic to pre-create or create the null renderer thread  */
+		void CreateNullDeviceThread(const TFunction<void()> InCallback, float InBufferDuration, bool bShouldPauseOnStart);
+
 	protected:
 
 		/** The audio device stream info. */
@@ -614,7 +666,8 @@ namespace Audio
 		bool bWarnedBufferUnderrun;
 
 		/** The audio render thread. */
-		FRunnableThread* AudioRenderThread;
+		//FRunnableThread* AudioRenderThread;
+		TUniquePtr<FRunnableThread> AudioRenderThread;
 
 		/** The render thread sync event. */
 		FEvent* AudioRenderEvent;

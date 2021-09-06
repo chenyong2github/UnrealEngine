@@ -117,6 +117,50 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
+	void SingleParticleProxyNoUniqueIndexLeaks()
+	{
+		// this test make sure that we are not leaking uniqueIdx when creating and destroying particle in one frame (without PT running)
+
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
+
+		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
+
+		// Make a solver
+		auto* Solver = Module->CreateSolver(nullptr);
+
+		// Make a particle
+		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
+		auto& Particle = Proxy->GetGameThreadAPI();
+		Particle.SetGeometry(Sphere);
+		Particle.SetX(FVec3(0, 0, 0));
+		Particle.SetGravityEnabled(false);
+
+		// first register the object
+		Solver->RegisterObject(Proxy);
+
+		// keep track of the actual unique Idx
+		FUniqueIdx FirstIdx = Particle.UniqueIdx();
+
+		// unregister the objkect in the same GT frame 
+		Solver->UnregisterObject(Proxy);
+
+		// run PT to make sure the callbacks are running and updating the internal pending lists 
+		Solver->AdvanceAndDispatch_External(100.0f);
+		Solver->UpdateGameThreadStructures();
+
+		// unique idx should be scheduled for cleanup
+		EXPECT_TRUE(Solver->GetEvolution()->IsUniqueIndexPendingRelease(FirstIdx));
+
+		// run PT again so that the cleanup is done
+		Solver->AdvanceAndDispatch_External(100.0f);
+		Solver->UpdateGameThreadStructures();
+
+		// Unique idx should be gone from the pending lists
+		EXPECT_FALSE(Solver->GetEvolution()->IsUniqueIndexPendingRelease(FirstIdx));
+
+		Module->DestroySolver(Solver);
+	}
+
 	void JointProxySolverInitTest()
 	{
 		// Test that when we create a joint constraint, that the proxy is not added to solver proxy array by game thread.
@@ -178,6 +222,7 @@ namespace ChaosTest {
 	{
 		ChaosTest::SingleParticleProxySingleThreadTest();
 		ChaosTest::SingleParticleProxyWakeEventPropagationTest();
+		ChaosTest::SingleParticleProxyNoUniqueIndexLeaks();
 		ChaosTest::JointProxySolverInitTest();
 	}
 }

@@ -77,7 +77,7 @@ void AGroupActor::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		GetWorld()->ActiveGroupActors.RemoveSwap(this);
 	}

@@ -55,6 +55,10 @@ public:
 	uint32 bHasDynamicChoices : 1;
 #endif
 
+	//This setting is designed for requirements that only matter when option is generated
+	UPROPERTY(EditDefaultsOnly, Category = "UI")
+	bool bIgnoreRequrementsWhileAdvancingCoversations = false;
+
 public:
 	UFUNCTION(BlueprintNativeEvent)
 	bool GetNodeBodyColor(FLinearColor& BodyColor) const;

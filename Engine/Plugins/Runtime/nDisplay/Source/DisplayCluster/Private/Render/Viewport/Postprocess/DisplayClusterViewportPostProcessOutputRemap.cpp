@@ -21,7 +21,7 @@
 #include "Engine/RendererSettings.h"
 #include "Engine/StaticMesh.h"
 #include "Misc/Paths.h"
-#
+
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterViewportPostProcessOutputRemap
@@ -34,8 +34,6 @@ FDisplayClusterViewportPostProcessOutputRemap::FDisplayClusterViewportPostProces
 
 FDisplayClusterViewportPostProcessOutputRemap::~FDisplayClusterViewportPostProcessOutputRemap()
 {
-	check(IsInRenderingThread());
-
 	delete (&OutputRemapMesh);
 }
 

@@ -49,7 +49,7 @@ UObject* FPackageItem::GetPackageObject() const
 			// Still choose non pending kill objects over pending kill objects.
 			if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 			{
-				if (!FoundObject || (FoundObject->IsPendingKill() && !Obj->IsPendingKill()))
+				if (!FoundObject || (!IsValidChecked(FoundObject) && IsValidChecked(Obj)))
 				{
 					FoundObject = Obj;
 				}
@@ -71,7 +71,7 @@ bool FPackageItem::HasMultipleAssets() const
 		{
 			// Filter pending kill objects here because we don't want the case where a package contains
 			// an actor and a deleted actor to be reported as multiple assets.
-			if (Obj->IsAsset() && !Obj->IsPendingKill() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
+			if (Obj->IsAsset() && IsValidChecked(Obj) && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 			{
 				if(FirstObj == nullptr)
 				{
@@ -112,7 +112,7 @@ bool FPackageItem::GetTypeNameAndColor(FText& OutName, FColor& OutColor) const
 			}
 			else
 			{
-				OutColor = ObjectPtr->IsPendingKill() ? FColor::Red : AssetTypeActions->GetTypeColor();
+				OutColor = !IsValidChecked(ObjectPtr) ? FColor::Red : AssetTypeActions->GetTypeColor();
 
 				OutName = AssetTypeActions->GetDisplayNameFromAssetData(FAssetData(ObjectPtr));
 				if (OutName.IsEmpty())

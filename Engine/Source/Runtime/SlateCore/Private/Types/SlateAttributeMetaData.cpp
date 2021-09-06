@@ -446,6 +446,18 @@ void FSlateAttributeMetaData::UpdateChildrenOnlyVisibilityAttributes(SWidget& Ow
 }
 
 
+void FSlateAttributeMetaData::ApplyDelayedInvalidation(SWidget& OwningWidget)
+{
+	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
+	{
+		if (AttributeMetaData->CachedInvalidationReason != EInvalidateWidgetReason::None)
+		{
+			OwningWidget.Invalidate(AttributeMetaData->CachedInvalidationReason);
+		}
+	}
+}
+
+
 void FSlateAttributeMetaData::UpdateAttributesImpl(SWidget& OwningWidget, EInvalidationPermission InvalidationStyle, int32 StartIndex, int32 IndexNum)
 {
 	bool bInvalidateIfNeeded = (InvalidationStyle == EInvalidationPermission::AllowInvalidation) || (InvalidationStyle == EInvalidationPermission::AllowInvalidationIfConstructed && OwningWidget.IsConstructed());

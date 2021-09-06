@@ -106,7 +106,6 @@ void SPropertyEditorStruct::Construct(const FArguments& InArgs, const TSharedPtr
 	}
 	else
 	{
-		check(InArgs._MetaStruct);
 		check(InArgs._SelectedStruct.IsSet());
 		check(InArgs._OnSetStruct.IsBound());
 

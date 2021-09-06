@@ -821,10 +821,7 @@ bool FSkeletalMeshLODRenderData::IsLODCookedOut(const ITargetPlatform* TargetPla
 	}
 	check(TargetPlatform);
 
-	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
-	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-	
-	return !bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !SkeletalMesh->GetSupportsLODStreaming(TargetPlatform);
+	return !SkeletalMesh->GetEnableLODStreaming(TargetPlatform);
 #else
 	return false;
 #endif
@@ -840,10 +837,7 @@ bool FSkeletalMeshLODRenderData::IsLODInlined(const ITargetPlatform* TargetPlatf
 	}
 	check(TargetPlatform);
 
-	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
-	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-	
-	if (!bMeshStreamingEnabled || !TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) || !SkeletalMesh->GetSupportsLODStreaming(TargetPlatform))
+	if (!SkeletalMesh->GetEnableLODStreaming(TargetPlatform))
 	{
 		return true;
 	}

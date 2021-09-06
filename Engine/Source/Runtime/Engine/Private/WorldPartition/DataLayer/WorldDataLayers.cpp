@@ -226,7 +226,7 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World)
 	if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
 	{
 		WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
-		if (WorldDataLayers->IsPendingKill())
+		if (!IsValidChecked(WorldDataLayers))
 		{
 			// Handle the case where the actor already exists, but it's pending kill
 			WorldDataLayers->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_NonTransactional | REN_ForceNoResetLoaders);

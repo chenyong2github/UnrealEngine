@@ -94,6 +94,14 @@ static FAutoConsoleVariableRef CVarLatentActionDurationLoggingThreshold(
 	ECVF_Default
 );
 
+static float GLatentActionMinDurationToLog = 0.0001f;
+static FAutoConsoleVariableRef CVarLatentActionMinDurationToLog(
+	TEXT("LatentActionMinDurationToLog"),
+	GLatentActionMinDurationToLog,
+	TEXT("Min duration in seconds relevant to log when we exceed LatentActionDurationLoggingThreshold."),
+	ECVF_Default
+);
+
 struct FLatentActionStat
 {
 	FLatentActionStat(FName InObjectName, FName InClassName, double InDuration)
@@ -246,12 +254,18 @@ void FLatentActionManager::ProcessLatentActions(UObject* InObject, float DeltaTi
 	const double Duration = EndTime - StartTime;
 	if (GLatentActionDurationLoggingThreshold > 0.0 && Duration >= GLatentActionDurationLoggingThreshold)
 	{
+
+		UE_LOG(LogScript, Warning, TEXT("%s took longer than %f ms when updating %d latent actions!  Dumping all actions that took longer than %f ms."), ANSI_TO_TCHAR(__FUNCTION__), GLatentActionDurationLoggingThreshold * 1000.0, GLatentActionStats.Num(), GLatentActionMinDurationToLog * 1000.0);
+
 		GLatentActionStats.Sort([](const auto& Lhs, const auto& Rhs) { return Lhs.Duration > Rhs.Duration; });
 
 		for (int32 i = 0; i < GLatentActionStats.Num(); ++i)
 		{
+			if (GLatentActionStats[i].Duration > GLatentActionMinDurationToLog)
+			{
 			UE_LOG(LogScript, Warning, TEXT("Class = %s, Object = %s, Duration = %f ms"), *GLatentActionStats[i].ClassName.ToString(), *GLatentActionStats[i].ObjectName.ToString(), GLatentActionStats[i].Duration * 1000.0);
 		}
+	}
 	}
 #endif // LATENT_ACTION_PROFILING_ENABLED
 }

@@ -29,7 +29,6 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	GridSpacing = TOptional<float>();
 	bSnapCurveValueToInterval = true;
 	bShowSelectedNodesOnly = false;
-	bRewindOnRecord = true;
 	ZoomPosition = ESequencerZoomPosition::SZP_CurrentTime;
 	bAutoScrollEnabled = false;
 	bLinkCurveEditorTimeRange = false;
@@ -359,20 +358,6 @@ void USequencerSettings::SetShowSelectedNodesOnly(bool Visible)
 		SaveConfig();
 
 		OnShowSelectedNodesOnlyChangedEvent.Broadcast();
-	}
-}
-
-bool USequencerSettings::ShouldRewindOnRecord() const
-{
-	return bRewindOnRecord;
-}
-
-void USequencerSettings::SetRewindOnRecord(bool bInRewindOnRecord)
-{
-	if (bInRewindOnRecord != bRewindOnRecord)
-	{
-		bRewindOnRecord = bInRewindOnRecord;
-		SaveConfig();
 	}
 }
 

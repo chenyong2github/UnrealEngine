@@ -398,7 +398,12 @@ void FAnimTrace::OutputAnimTickRecord(const FAnimationBaseContext& InContext, co
 
 		TRACE_OBJECT(InTickRecord.SourceAsset);
 
-		float PlaybackTime = *InTickRecord.TimeAccumulator;
+		float PlaybackTime = 0.0f;
+		if (InTickRecord.TimeAccumulator)
+		{
+			PlaybackTime = *InTickRecord.TimeAccumulator;
+		}
+		
 		if(InTickRecord.SourceAsset->IsA<UAnimMontage>())
 		{
 			PlaybackTime = InTickRecord.Montage.CurrentPosition;

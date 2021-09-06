@@ -33,7 +33,7 @@
 		<insertValue value="28"/>
 		<insertNewline/>
 	</minimumSDKAPI>
-	
+
 	<!-- optional additions to proguard -->
 	<proguardAdditions>
 		<insert>
@@ -41,15 +41,15 @@
 
 			# Android Background Services Classes with native calls ...
 			
-			-keep class com.epicgames.ue4.workmanager.UEWorker {
+			-keep class com.epicgames.unreal.workmanager.UEWorker {
 			public *;
 			}
 
-			-keep class com.epicgames.ue4.workmanager.UEWorkManagerJavaInterface {
+			-keep class com.epicgames.unreal.workmanager.UEWorkManagerJavaInterface {
 			public *;
 			}
 
-			-keep class com.epicgames.ue4.workmanager.UEWorkManagerJavaInterface$FWorkRequestParametersJavaInterface {
+			-keep class com.epicgames.unreal.workmanager.UEWorkManagerJavaInterface$FWorkRequestParametersJavaInterface {
 			public *;
 			}
 

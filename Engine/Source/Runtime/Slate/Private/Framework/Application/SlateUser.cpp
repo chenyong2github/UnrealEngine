@@ -3,6 +3,7 @@
 #include "Framework/Application/SlateUser.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Application/NavigationConfig.h"
+#include "Misc/App.h"
 #include "Widgets/SWindow.h"
 #include "Widgets/SWeakWidget.h"
 
@@ -690,7 +691,7 @@ void FSlateUser::QueryCursor()
 	bQueryCursorRequested = false;
 
 	// The slate loading widget thread is not allowed to execute this code (it's unsafe to read the hittest grid in another thread)
-	if (bCanDrawCursor && Cursor && IsInGameThread())
+	if (bCanDrawCursor && Cursor && IsInGameThread() && FApp::CanEverRender())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SlateQueryCursor);
 

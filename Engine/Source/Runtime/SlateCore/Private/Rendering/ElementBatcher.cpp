@@ -967,14 +967,14 @@ namespace SlateElementBatcher
 		if (InFontMaterial && GSlateCheckUObjectRenderResources)
 		{
 			bool bIsValidLowLevel = InFontMaterial->IsValidLowLevelFast(false);
-			if (!bIsValidLowLevel || InFontMaterial->IsPendingKill() || InFontMaterial->GetClass()->GetFName() == MaterialInterfaceClassName)
+			if (!bIsValidLowLevel || !IsValid(InFontMaterial) || InFontMaterial->GetClass()->GetFName() == MaterialInterfaceClassName)
 			{
 				UE_LOG(LogSlate, Error, TEXT("We are rendering a string with an invalid font. The string is: '%s'")
 					, InDrawElementPayload.GetText());
 				// We expect to log more info in the SlateMaterialResource.
 				//In case we crash before that, we also log some info here.
 				UE_LOG(LogSlate, Error, TEXT("Material is not valid. PendingKill:'%d'. ValidLowLevelFast:'%d'. InvalidClass:'%d'")
-					, (bIsValidLowLevel ? InFontMaterial->IsPendingKill() : false)
+					, (bIsValidLowLevel ? !IsValid(InFontMaterial) : false)
 					, bIsValidLowLevel
 					, (bIsValidLowLevel ? InFontMaterial->GetClass()->GetFName() == MaterialInterfaceClassName : false));
 			}

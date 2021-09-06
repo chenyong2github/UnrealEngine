@@ -13,11 +13,11 @@ namespace SlateMaterialResource
 		if (GSlateCheckUObjectRenderResources)
 		{
 			bool bIsValidLowLevel = InMaterialResource.IsValidLowLevelFast(false);
-			if (!bIsValidLowLevel || InMaterialResource.IsPendingKill() || InMaterialResource.GetClass() == UMaterialInterface::StaticClass())
+			if (!bIsValidLowLevel || !IsValid(&InMaterialResource) || InMaterialResource.GetClass() == UMaterialInterface::StaticClass())
 			{
 				UE_LOG(LogSlate, Error, TEXT("Material '%s' is not valid. PendingKill:'%d'. ValidLowLevelFast:'%d'. InvalidClass:'%d'")
 					, *InDebugName.ToString()
-					, (bIsValidLowLevel ? InMaterialResource.IsPendingKill() : false)
+					, (bIsValidLowLevel ? !IsValid(&InMaterialResource) : false)
 					, bIsValidLowLevel
 					, (bIsValidLowLevel ? InMaterialResource.GetClass() == UMaterialInterface::StaticClass() : false));
 

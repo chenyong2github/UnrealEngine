@@ -1144,7 +1144,7 @@ bool FPhysScene_Chaos::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSk
 #endif
 
 	// If null, or pending kill, do nothing
-	if (InSkelComp != nullptr && !InSkelComp->IsPendingKill())
+	if (IsValid(InSkelComp))
 	{
 		// If we are already flagged, just need to update info
 		if (InSkelComp->DeferredKinematicUpdateIndex != INDEX_NONE)
@@ -1322,7 +1322,7 @@ void FPhysScene_Chaos::ProcessDeferredCreatePhysicsState()
 	// TODO explore parallelization of other physics initialization, not trivial and likely to break stuff.
 	for (UPrimitiveComponent* PrimitiveComponent : DeferredCreatePhysicsStateComponents)
 	{
-		const bool bPendingKill = PrimitiveComponent->GetOwner() && PrimitiveComponent->GetOwner()->IsPendingKill();
+		const bool bPendingKill = PrimitiveComponent->GetOwner() && !IsValid(PrimitiveComponent->GetOwner());
 		if (!bPendingKill && PrimitiveComponent->ShouldCreatePhysicsState() && PrimitiveComponent->IsPhysicsStateCreated() == false)
 		{
 			PrimitiveComponent->OnCreatePhysicsState();
@@ -1532,8 +1532,7 @@ float FPhysScene_Chaos::OnStartFrame(float InDeltaTime)
 		UseDeltaTime = 0.0f;
 	}
 #endif
-
-	ProcessDeferredCreatePhysicsState();
+	ensure(DeferredCreatePhysicsStateComponents.Num() == 0);
 
 	// CVar determines if this happens before or after phys replication.
 	if (GEnableKinematicDeferralStartPhysicsCondition == 0)
@@ -1705,7 +1704,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPhysicsSolverBase* Solver)
 				ComponentTransform.OwningComp->MoveComponent(ComponentTransform.NewTranslation, ComponentTransform.NewRotation, false, NULL, MOVECOMP_SkipPhysicsMove);
 			}
 
-			if (OwnerPtr != NULL && !OwnerPtr->IsPendingKill())
+			if (IsValid(OwnerPtr))
 			{
 				OwnerPtr->CheckStillInWorld();
 			}

@@ -93,7 +93,7 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 			if (AActor* Actor = ActorDescIt->GetActor())
 			{
 				// Don't include deleted, unsaved actors
-				if (Actor->IsPendingKill())
+				if (!IsValidChecked(Actor))
 				{
 					continue;
 				}
@@ -121,7 +121,7 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 			{
 				if (Actor && 
 					Actor->IsPackageExternal() && 
-					!Actor->IsPendingKill() && 
+					IsValidChecked(Actor) && 
 					!Container->GetActorDesc(Actor->GetActorGuid()) && // Actor not on disk yet so not found in container
 					Actor->IsMainPackageActor())
 				{

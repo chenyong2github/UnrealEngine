@@ -419,7 +419,7 @@ void FAdaptiveVirtualTexture::QueuePackedAllocationRequests(uint32 const* InRequ
 
 			if (Request.bIsAllocated != 0)
 			{
-				// Already allocated so mark as used. Do this bfore we process any requests to ensure we don't free before allocating.
+				// Already allocated so mark as used. Do this before we process any requests to ensure we don't free before allocating.
 				const uint32 AllocationIndex = Request.AllocationOrGridIndex;
 				const uint32 MaxVTLevel = AllocationSlots[AllocationIndex].AllocatedVT->GetMaxLevel();
 

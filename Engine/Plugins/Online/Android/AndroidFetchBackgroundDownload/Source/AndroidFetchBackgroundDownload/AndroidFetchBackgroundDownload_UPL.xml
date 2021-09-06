@@ -30,11 +30,11 @@
 			
 			# Android Background HTTP Classes with native calls ...
 			
-			-keep class com.epicgames.ue4.download.UEDownloadWorker {
+			-keep class com.epicgames.unreal.download.UEDownloadWorker {
 			public *;
 			}
 
-			-keep class com.epicgames.ue4.download.datastructs.DownloadDescription {
+			-keep class com.epicgames.unreal.download.datastructs.DownloadDescription {
 			public *;
 			}
 			

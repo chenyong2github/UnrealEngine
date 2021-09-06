@@ -474,7 +474,7 @@ void UBehaviorTreeComponent::HandleMessage(const FAIMessage& Message)
 
 void UBehaviorTreeComponent::OnTaskFinished(const UBTTaskNode* TaskNode, EBTNodeResult::Type TaskResult)
 {
-	if (TaskNode == NULL || InstanceStack.Num() == 0 || IsPendingKill())
+	if (TaskNode == NULL || InstanceStack.Num() == 0 || !IsValid(this))
 	{
 		return;
 	}
@@ -1421,7 +1421,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 	FScopedCsvStatExclusive _ScopedCsvStatExclusive_BehaviorTreeTick(CSVTickStatName);
 #endif
 
-	check(this != nullptr && this->IsPendingKill() == false);
+	check(IsValid(this));
 	float NextNeededDeltaTime = FLT_MAX;
 
 	checkf(PendingBranchesToDeactivate.Num() == 0, TEXT("Pending branches should always be flushed immediately with the new system"))
@@ -2780,7 +2780,7 @@ void UBehaviorTreeComponent::SetDynamicSubtree(FGameplayTag InjectTag, UBehavior
 #if ENABLE_VISUAL_LOG
 void UBehaviorTreeComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 {
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}

@@ -44,7 +44,7 @@ void UPawnNoiseEmitterComponent::MakeNoise(AActor* NoiseMaker, float Loudness, c
 	}
 
 	// only emit sounds from pawns with controllers
-	if (!PawnOwner || PawnOwner->IsPendingKill() || !PawnOwner->Controller)
+	if (!PawnOwner || !IsValidChecked(PawnOwner) || !PawnOwner->Controller)
 	{
 		return;
 	}

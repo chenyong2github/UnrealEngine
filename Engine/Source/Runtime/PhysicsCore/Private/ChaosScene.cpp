@@ -179,7 +179,7 @@ void FChaosScene::Flush()
 	CopySolverAccelerationStructure();
 }
 
-void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor)
+void FChaosScene::RemoveActorFromAccelerationStructure(FPhysicsActorHandle Actor)
 {
 #if WITH_CHAOS
 	using namespace Chaos;

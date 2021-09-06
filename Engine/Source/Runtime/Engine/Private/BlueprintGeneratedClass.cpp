@@ -249,6 +249,23 @@ void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& O
 
 	OutTags.Add(FAssetRegistryTag(FBlueprintTags::ParentClassPath, ParentClassName, FAssetRegistryTag::TT_Alphabetical));
 	OutTags.Add(FAssetRegistryTag(FBlueprintTags::NativeParentClassPath, NativeParentClassName, FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag(FBlueprintTags::ClassFlags, FString::FromInt((uint32)GetClassFlags()), FAssetRegistryTag::TT_Hidden));
+
+#if WITH_EDITORONLY_DATA
+	// Get editor-only tags; on a cooked BPGC, those tags are deserialized into CookedEditorTags, otherwise generate them for the BP
+	const FEditorTags* EditorTagsToAdd = &CookedEditorTags;
+	FEditorTags EditorTags;
+	if (CookedEditorTags.Num() == 0)
+	{
+		GetEditorTags(EditorTags);
+		EditorTagsToAdd = &EditorTags;
+}
+
+	for (const auto& EditorTag : *EditorTagsToAdd)
+	{
+		OutTags.Add(FAssetRegistryTag(EditorTag.Key, EditorTag.Value, FAssetRegistryTag::TT_Hidden));
+	}
+#endif //#if WITH_EDITORONLY_DATA
 }
 
 FPrimaryAssetId UBlueprintGeneratedClass::GetPrimaryAssetId() const
@@ -1165,10 +1182,9 @@ UActorComponent* UBlueprintGeneratedClass::FindComponentTemplateByName(const FNa
 
 void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTimelineTemplate* TimelineTemplate)
 {
-	if (!Actor
+	if (!IsValid(Actor)
 		|| !TimelineTemplate
-		|| Actor->IsTemplate()
-		|| Actor->IsPendingKill())
+		|| Actor->IsTemplate())
 	{
 		return;
 	}
@@ -1286,7 +1302,7 @@ void UBlueprintGeneratedClass::CreateTimelineComponent(AActor* Actor, const UTim
 void UBlueprintGeneratedClass::CreateComponentsForActor(const UClass* ThisClass, AActor* Actor)
 {
 	check(ThisClass && Actor);
-	if (Actor->IsTemplate() || Actor->IsPendingKill())
+	if (Actor->IsTemplate() || !IsValid(Actor))
 	{
 		return;
 	}
@@ -1871,6 +1887,22 @@ void UBlueprintGeneratedClass::Serialize(FArchive& Ar)
 
 	Super::Serialize(Ar);
 
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
+	if ((Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::BPGCCookedEditorTags) &&
+		Ar.IsFilterEditorOnly())
+	{
+#if !WITH_EDITORONLY_DATA
+		FEditorTags CookedEditorTags; // Unused at runtime
+#else
+		CookedEditorTags.Reset();
+		if (Ar.IsSaving())
+		{
+			GetEditorTags(CookedEditorTags);
+		}
+#endif
+		Ar << CookedEditorTags;
+	}
+
 	if (Ar.IsLoading() && 0 == (Ar.GetPortFlags() & PPF_Duplicate))
 	{
 		CreatePersistentUberGraphFrame(ClassDefaultObject, true);
@@ -2117,3 +2149,37 @@ FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) con
 #endif // WITH_EDITORONLY_DATA
 	return PropertyGuid;
 }
+#if WITH_EDITORONLY_DATA
+void UBlueprintGeneratedClass::GetEditorTags(FEditorTags& Tags) const
+{
+	if (UBlueprint* BP = Cast<UBlueprint>(ClassGeneratedBy))
+	{
+		auto AddEditorTag = [BP, &Tags](FName TagName, FName PropertyName, const uint8* PropertyValueOverride = nullptr)
+		{
+			const FProperty* Property = FindFieldChecked<FProperty>(UBlueprint::StaticClass(), PropertyName);
+			const uint8* PropertyAddr = PropertyValueOverride ? PropertyValueOverride : Property->ContainerPtrToValuePtr<uint8>(BP);
+			FString PropertyValueAsText;
+			Property->ExportTextItem(PropertyValueAsText, PropertyAddr, PropertyAddr, nullptr, PPF_None);
+			if (!PropertyValueAsText.IsEmpty())
+			{
+				Tags.Add(TagName, MoveTemp(PropertyValueAsText));
+			}
+		};
+
+		AddEditorTag(FBlueprintTags::BlueprintType, GET_MEMBER_NAME_CHECKED(UBlueprint, BlueprintType));
+
+		{
+			// Clear the FBPInterfaceDescription Graphs because they are irrelevant to the BPGC
+			TArray<FBPInterfaceDescription> GraphlessImplementedInterfaces;
+			GraphlessImplementedInterfaces.Reserve(BP->ImplementedInterfaces.Num());
+			for (const FBPInterfaceDescription& ImplementedInterface : BP->ImplementedInterfaces)
+			{
+				FBPInterfaceDescription& GraphlessImplementedInterface = GraphlessImplementedInterfaces.Emplace_GetRef(ImplementedInterface);
+				GraphlessImplementedInterface.Graphs.Empty();
+			}
+
+			AddEditorTag(FBlueprintTags::ImplementedInterfaces, GET_MEMBER_NAME_CHECKED(UBlueprint, ImplementedInterfaces), (const uint8*)&GraphlessImplementedInterfaces);
+		}
+	}
+}
+#endif //if WITH_EDITORONLY_DATA

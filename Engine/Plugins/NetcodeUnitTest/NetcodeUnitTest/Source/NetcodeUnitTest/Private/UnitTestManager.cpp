@@ -1305,7 +1305,7 @@ void UUnitTestManager::Tick(float DeltaTime)
 
 		for (auto CurUnitTest : ActiveUnitTestsCopy)
 		{
-			if (!CurUnitTest->IsPendingKill())
+			if (IsValid(CurUnitTest))
 			{
 				if (CurUnitTest->IsTickable())
 				{

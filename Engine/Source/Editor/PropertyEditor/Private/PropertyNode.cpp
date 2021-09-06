@@ -703,7 +703,7 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueString(FString& OutString
 		// Check for bogus data
 		if (PropertyPtr != nullptr && GetParentNode() != nullptr)
 		{
-			FPropertyTextUtilities::PropertyToTextHelper(OutString, this, PropertyPtr, ValueAddress, PortFlags);
+			FPropertyTextUtilities::PropertyToTextHelper(OutString, this, PropertyPtr, ValueAddress, nullptr, PortFlags);
 
 			UEnum* Enum = nullptr;
 			int64 EnumValue = 0;
@@ -764,7 +764,7 @@ FPropertyAccess::Result FPropertyNode::GetPropertyValueText(FText& OutText, cons
 			else
 			{
 				FString ExportedTextString;
-				FPropertyTextUtilities::PropertyToTextHelper(ExportedTextString, this, PropertyPtr, ValueAddress, PPF_PropertyWindow);
+				FPropertyTextUtilities::PropertyToTextHelper(ExportedTextString, this, PropertyPtr, ValueAddress, nullptr, PPF_PropertyWindow);
 
 				UEnum* Enum = nullptr;
 				int64 EnumValue = 0;

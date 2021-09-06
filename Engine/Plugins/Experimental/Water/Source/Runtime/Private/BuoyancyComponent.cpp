@@ -167,7 +167,7 @@ void UBuoyancyComponent::Update(float DeltaTime)
 		bool bSetSmoothedTime = false;
 		for (UWaterBodyComponent* WaterBody : GetCurrentWaterBodyComponents())
 		{
-			if (WaterBody->HasWaves())
+			if (WaterBody && WaterBody->HasWaves())
 			{
 				BuoyancyInputState->SmoothedWorldTimeSeconds = WaterBody->GetWaveReferenceTime();
 				bSetSmoothedTime = true;

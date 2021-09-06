@@ -278,6 +278,7 @@ namespace DatasmithRhino
 				bOverrideMaterial = OtherActorInfo.bOverrideMaterial;
 				RelativeLayerIndices = OtherActorInfo.RelativeLayerIndices;
 				LayerIndices = OtherActorInfo.LayerIndices;
+				VisibilityLayer = OtherActorInfo.VisibilityLayer;
 
 				MaterialIndex = OtherActorInfo.MaterialIndex;
 				bOverrideMaterial = OtherActorInfo.bOverrideMaterial;

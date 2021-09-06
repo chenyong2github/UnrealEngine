@@ -446,9 +446,9 @@ TSharedRef<SWidget> SNiagaraStackModuleItem::RaiseActionMenuClicked()
 	{
 		UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(&ModuleItem->GetModuleNode());
 		if (AssignmentNode != nullptr)
-				{
+		{
 			return AssignmentNode->CreateAddParameterMenu(AddButton);
-	}
+		}
 	}
 	return SNullWidget::NullWidget;
 }

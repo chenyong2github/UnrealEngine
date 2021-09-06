@@ -98,7 +98,7 @@ void FObjectPropertyNode::PurgeKilledObjects()
 	{
 		TWeakObjectPtr<UObject> Object = Objects[Index];
 
-		if ( !Object.IsValid() || Object->IsPendingKill() )
+		if ( !Object.IsValid() )
 		{
 			Objects.RemoveAt(Index, 1);
 		}

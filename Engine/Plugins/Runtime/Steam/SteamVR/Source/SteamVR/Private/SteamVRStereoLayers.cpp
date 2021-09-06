@@ -77,7 +77,7 @@ void MarkLayerTextureForUpdate(FSteamVRLayer& Layer)
 }
 
 //=============================================================================
-void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool bIsValid) const
+void FSteamVRHMD::UpdateLayer(struct FSteamVRLayer& Layer, uint32 LayerId, bool bIsValid)
 {
 	if (bIsValid && Layer.OverlayHandle == vr::k_ulOverlayHandleInvalid)
 	{

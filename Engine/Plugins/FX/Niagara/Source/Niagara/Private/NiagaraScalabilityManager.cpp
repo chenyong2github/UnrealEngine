@@ -189,7 +189,7 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 		return false;
 	}
 	//Belt and braces GC safety. If someone calls MarkPendingKill() directly and we get here before we clear these out in the post GC callback.
-	else if (Component->IsPendingKill())
+	else if (!IsValid(Component))
 	{
 		Unregister(Component);
 		return false;

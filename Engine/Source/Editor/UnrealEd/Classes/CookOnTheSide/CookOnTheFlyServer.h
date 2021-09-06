@@ -715,7 +715,7 @@ private:
 	void SaveShaderLibrary(const ITargetPlatform* TargetPlatform, FString const& Name);
 
 	/**
-	* Calls the ShaderPipelineCacheToolsCommandlet to build a upipelinecache file from the .stablepc.csv file, if any
+	* Calls the ShaderPipelineCacheToolsCommandlet to build a upipelinecache file from the stable pipeline cache (.spc, in the past textual .stablepc.csv) file, if any
 	*/
 	void CreatePipelineCache(const ITargetPlatform* TargetPlatform, const FString& LibraryName);
 

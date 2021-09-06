@@ -198,10 +198,10 @@ public:
 	FConversationNodeParameterPair() { }
 	FConversationNodeParameterPair(const FString& InName, const FString& InValue) : Name(InName), Value(InValue) { }
 
-	UPROPERTY(BlueprintReadWrite, Category=Conversation)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Conversation)
 	FString Name;
 
-	UPROPERTY(BlueprintReadWrite, Category=Conversation)
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Conversation)
 	FString Value;
 };
 
@@ -430,6 +430,10 @@ public:
 
 	UPROPERTY(BlueprintReadWrite, Category=Conversation)
 	FText Text;
+
+	// Additional metadata for this message (e.g. Emotion: "Angry"/"Happy")
+	UPROPERTY(BlueprintReadWrite, Category = Conversation)
+	TArray<FConversationNodeParameterPair> MetadataParameters;
 
 	FString ToString() const { return Text.ToString(); }
 };

@@ -130,7 +130,7 @@ struct FMacPlatformProperties
 
 	static FORCEINLINE bool SupportsMeshLODStreaming()
 	{
-		return !IsServerOnly() && !HasEditorOnlyData();
+		return !IsServerOnly();
 	}
 
 	static FORCEINLINE bool SupportsVirtualTextureStreaming()

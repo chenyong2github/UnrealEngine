@@ -31,12 +31,8 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditUndo() override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
-private:
-	virtual void CookAdditionalFilesOverride(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform,
-		TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile);
-public:
 #endif // WITH_EDITOR
-	//~ End UObject interface
+	//~ End UObject Interface
 
 #if WITH_EDITORONLY_DATA
 	ENGINE_API void CacheSubFaces();
@@ -51,9 +47,18 @@ public:
 	virtual EFontLoadingPolicy GetLoadingPolicy() const override;
 	virtual EFontLayoutMethod GetLayoutMethod() const override;
 	virtual FFontFaceDataConstRef GetFontFaceData() const override;
-	virtual FString GetCookedFilename() const override;
 	//~ End IFontFaceInterface interface
 
+private:
+	FString GetCookedFilename() const;
+	//~ Begin UObject Interface
+#if WITH_EDITOR
+	virtual void CookAdditionalFilesOverride(const TCHAR* PackageFilename, const ITargetPlatform* TargetPlatform,
+		TFunctionRef<void(const TCHAR* Filename, void* Data, int64 Size)> WriteAdditionalFile);
+#endif // WITH_EDITOR
+	//~ End UObject Interface
+
+public:
 	/** The filename of the font face we were created from. This may not always exist on disk, as we may have previously loaded and cached the font data inside this asset. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=FontFace)
 	FString SourceFilename;

@@ -168,10 +168,11 @@ struct TNetworkPredictionBuffer
 	{
 	}
 
-	TNetworkPredictionBuffer<ElementType, SingleElement>& operator=(const TNetworkPredictionBuffer<ElementType, SingleElement>&& Other)
+	TNetworkPredictionBuffer<ElementType, SingleElement>& operator=(TNetworkPredictionBuffer<ElementType, SingleElement>&& Other)
 	{
 		IndexMask = Other.IndexMask;
 		Elements = MoveTemp(Other.Elements);
+		return *this;
 	}
 	
 	ElementType& operator[](int32 Index)

@@ -9,7 +9,10 @@
 #if defined(EOS_PLATFORM_BASE_FILE_NAME)
 #include EOS_PLATFORM_BASE_FILE_NAME
 #endif
+#include "eos_init.h"
 #include "eos_types.h"
+
+DECLARE_MULTICAST_DELEGATE_OneParam(FEOSSDKManagerOnPreInitializeSDK, EOS_InitializeOptions& Options);
 
 class IEOSPlatformHandle
 {
@@ -53,6 +56,8 @@ public:
 
 	virtual FString GetProductName() const = 0;
 	virtual FString GetProductVersion() const = 0;
+
+	FEOSSDKManagerOnPreInitializeSDK OnPreInitializeSDK;
 };
 
 #endif // WITH_EOS_SDK

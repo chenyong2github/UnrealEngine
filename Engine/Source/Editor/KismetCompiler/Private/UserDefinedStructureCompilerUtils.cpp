@@ -100,7 +100,7 @@ struct FUserDefinedStructureCompilerInner
 					{
 						check(OwnerStruct != DuplicatedStruct);
 						const bool bValidStruct = (OwnerStruct->GetOutermost() != GetTransientPackage())
-							&& !OwnerStruct->IsPendingKill()
+							&& IsValid(OwnerStruct)
 							&& (EUserDefinedStructureStatus::UDSS_Duplicate != OwnerStruct->Status.GetValue());
 
 						if (bValidStruct)

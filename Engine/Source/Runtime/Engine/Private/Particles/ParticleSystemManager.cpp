@@ -597,7 +597,7 @@ void FParticleSystemWorldManager::ProcessTickList(float DeltaTime, ELevelTick Ti
 				// FORT-319316 - Tracking down why we sometimes have a PSC with no world in the manager?
 				if (!PSC->GetWorld())
 				{
-					UE_LOG(LogParticles, Warning, TEXT("PSC(%s) has no world but is inside PSC Manager. Template(%s) PendingKill(%d) IsTickManaged(%d) ManagerHandle(%d) PendingAdd(%d) PendingRemove(%d)"), *GetFullNameSafe(PSC), *GetFullNameSafe(PSC->Template), PSC->IsPendingKill(), PSC->IsTickManaged(), PSC->GetManagerHandle(), PSC->IsPendingManagerAdd(), PSC->IsPendingManagerRemove());
+					UE_LOG(LogParticles, Warning, TEXT("PSC(%s) has no world but is inside PSC Manager. Template(%s) IsValid(%d) IsTickManaged(%d) ManagerHandle(%d) PendingAdd(%d) PendingRemove(%d)"), *GetFullNameSafe(PSC), *GetFullNameSafe(PSC->Template), IsValid(PSC), PSC->IsTickManaged(), PSC->GetManagerHandle(), PSC->IsPendingManagerAdd(), PSC->IsPendingManagerRemove());
 					PSC->SetPendingManagerAdd(false);
 					PSC->SetPendingManagerRemove(true);
 					TickData.bPendingUnregister = true;

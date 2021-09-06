@@ -38,6 +38,9 @@ namespace QualityLevelProperty
 
 	ENGINE_API FName QualityLevelToFName(int32 QL);
 	ENGINE_API int32 FNameToQualityLevel(FName QL);
+#if WITH_EDITOR
+	ENGINE_API FSupportedQualityLevelArray PerPlatformOverrideMapping(FString& InPlatformName);
+#endif
 };
 
 template<typename _StructType, typename _ValueType, EName _BasePropertyName>
@@ -74,7 +77,6 @@ struct ENGINE_API FPerQualityLevelProperty
 
 #if WITH_EDITOR
 	FSupportedQualityLevelArray GetSupportedQualityLevels(const TCHAR* InPlatformName = nullptr) const;
-	FSupportedQualityLevelArray GetPlatformGroupQualityLevels(const TCHAR* InGroupName) const;
 	void StripQualtiyLevelForCooking(const TCHAR* InPlatformName = nullptr);
 	bool IsQualityLevelValid(int32 QualityLevel) const;
 #endif

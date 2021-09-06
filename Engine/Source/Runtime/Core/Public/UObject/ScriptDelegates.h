@@ -238,7 +238,7 @@ public:
 		// not able to execute, resulting in much harder-to-detect code errors.  Users should always make
 		// sure IsBound() returns true before calling ProcessDelegate()!
 		UObjectTemplate* ObjectPtr = static_cast< UObjectTemplate* >( Object.Get() );	// Down-cast
-		checkSlow( !ObjectPtr->IsPendingKill() );
+		checkSlow( IsValid(ObjectPtr) );
 
 		// Object *must* implement the specified function
 		UFunction* Function = ObjectPtr->FindFunctionChecked( FunctionName );

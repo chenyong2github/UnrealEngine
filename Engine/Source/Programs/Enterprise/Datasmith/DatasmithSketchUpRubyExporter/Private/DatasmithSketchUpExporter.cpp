@@ -388,6 +388,20 @@ public:
 			return true;
 		}
 
+		{
+			// Modified Entity could be a ComponentDefinition
+			// This event is called when ComponentDefinition properties(like name) is modified
+			// Also this is fired on special occasions - Stamp operation while modifying
+			// Faces of a component/group it's performed on doesn't sent Face modification event but sends this 
+			// So we take this opportunity  to invalidate Definition geometry too
+			DatasmithSketchUp::FDefinition* Definition = Context.GetDefinition(EntityId);
+			if (Definition)
+			{
+				Definition->InvalidateDefinitionGeometry();
+				return true;
+			}
+		}
+
 		if (Context.Materials.InvalidateMaterial(EntityId))
 		{
 			return true;
@@ -407,8 +421,7 @@ public:
 		}
 
 		DefinitionPtr->InvalidateDefinitionGeometry();
-
-		return false;
+		return true;
 	}
 
 
@@ -483,7 +496,7 @@ public:
 		}
 		default:
 		{
-			// todo: not expected
+			return false;
 		}
 		}
 		return true;
@@ -503,7 +516,10 @@ public:
 		return true;
 	}
 
-
+	bool OnStyleModified()
+	{
+		return Context.Materials.InvalidateDefaultMaterial();
+	}
 };
 
 ///////////////////////////////////////////////////////////////////////////
@@ -680,9 +696,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added(VALUE self, VALUE ruby
 	}
 	// Done converting args
 
-	Ptr->OnEntityAdded(ParentEntity, Entity);
-
-	return Qtrue;
+	return Ptr->OnEntityAdded(ParentEntity, Entity) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ruby_entity)
@@ -700,9 +714,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_layer_modified(VALUE self, VALUE ru
 	}
 	// Done converting args
 
-	Ptr->OnLayerModified(Entity);
+	;
 
-	return Qtrue;
+	return Ptr->OnLayerModified(Entity) ? Qtrue : Qfalse;
 }
 
 #endif
@@ -717,9 +731,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified_by_id(VALUE self, V
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId));
+	;
 
-	return Qtrue;
+	return Ptr->OnEntityModified(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id(VALUE self, VALUE ruby_entity_id)
@@ -732,9 +746,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_geometry_modified_by_id(VALUE self,
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnGeometryModified(DatasmithSketchUp::FEntityIDType(EntityId));
-
-	return Qtrue;
+	return Ptr->OnGeometryModified(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id(VALUE self, VALUE ruby_parent_entity_id, VALUE ruby_entity_id)
@@ -750,9 +762,9 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_added_by_id(VALUE self, VALU
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnEntityAdded(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
+	;
 
-	return Qtrue;
+	return Ptr->OnEntityAdded(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VALUE ruby_entity_id)
@@ -765,9 +777,7 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_material_added_by_id(VALUE self, VA
 	int32 EntityId = FIX2LONG(ruby_entity_id);
 	// Done converting args
 
-	Ptr->OnMaterialAdded(DatasmithSketchUp::FEntityIDType(EntityId));
-
-	return Qtrue;
+	return Ptr->OnMaterialAdded(DatasmithSketchUp::FEntityIDType(EntityId)) ? Qtrue : Qfalse;
 }
 
 
@@ -785,6 +795,18 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ru
 	// Done converting args
 	
 	Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(ParentEntityId), DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_on_style_changed(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+	// Done converting args
+
+	Ptr->OnStyleModified();
 
 	return Qtrue;
 }
@@ -869,6 +891,8 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_material_added_by_id", ToRuby(DatasmithSketchUpDirectLinkExporter_on_material_added_by_id), 1);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 2);
+
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_style_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_style_changed), 0);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);

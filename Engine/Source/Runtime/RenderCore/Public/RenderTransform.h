@@ -18,6 +18,14 @@ public:
 	{
 	}
 
+	FORCEINLINE FRenderTransform(const FVector3f& InXAxis, const FVector3f& InYAxis, const FVector3f& InZAxis, const FVector3f& InOrigin)
+	{
+		TransformRows[0] = InXAxis;
+		TransformRows[1] = InYAxis;
+		TransformRows[2] = InZAxis;
+		Origin = InOrigin;
+	}
+
 	FORCEINLINE FRenderTransform(const FMatrix44f& M)
 	{
 		TransformRows[0]	= FVector3f(M.M[0][0], M.M[0][1], M.M[0][2]);

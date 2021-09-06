@@ -25,6 +25,8 @@
 #include "ComponentReregisterContext.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/PhysicsObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 #include "UObject/UE5PrivateFrostyStreamObjectVersion.h"
 
 #include "GPUSkinPublicDefs.h"
@@ -954,17 +956,21 @@ void UClothingAssetCommon::PostLoad()
 	PropagateSharedConfigs(bMigrateSharedConfigToConfig);
 
 	// Cache tethers and reference bone index should already have been calculated
+	const int32 FortniteReleaseBranchCustomObjectVersion = GetLinkerCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
 	const int32 FrostyMainBranchObjectVersion = GetLinkerCustomVersion(FUE5PrivateFrostyStreamObjectVersion::GUID);
 	if (FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothRemoveKinematicTethers)
 	{
 		ClothingCachedDataFlags |= EClothingCachedDataFlagsCommon::Tethers;
+	}
 
-		if (FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothAddTethersToCachedData)
+	if (FortniteReleaseBranchCustomObjectVersion < FFortniteReleaseBranchCustomObjectVersion::ChaosClothAddTethersToCachedData &&
+		FrostyMainBranchObjectVersion < FUE5PrivateFrostyStreamObjectVersion::ChaosClothAddTethersToCachedData)
 		{
+		ClothingCachedDataFlags |= EClothingCachedDataFlagsCommon::Tethers;
+
 			// ReferenceBoneIndex is only required when rebinding the cloth.
 			CalculateReferenceBoneIndex();
 		}
-	}
 
 	// After fixing the content, we are ready to call functions that rely on it
 	if (ClothingCachedDataFlags != EClothingCachedDataFlagsCommon::None)

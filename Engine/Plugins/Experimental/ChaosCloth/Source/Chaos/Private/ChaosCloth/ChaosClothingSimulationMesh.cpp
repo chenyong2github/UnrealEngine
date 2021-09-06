@@ -8,6 +8,14 @@
 #include "Containers/ArrayView.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Async/ParallelFor.h"
+#if INTEL_ISPC
+#include "ChaosClothingSimulationMesh.ispc.generated.h"
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_SkinPhysicsMesh_ISPC_Enabled = bChaos_SkinPhysicsMesh_ISPC_Enable;
+FAutoConsoleVariableRef CVarChaosSkinPhysicsMeshISPCEnabled(TEXT("p.Chaos.SkinPhysicsMesh.ISPC"), bChaos_SkinPhysicsMesh_ISPC_Enabled, TEXT("Whether to use ISPC optimizations on skinned physics meshes"));
+#endif
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhysicsMesh, STATGROUP_ChaosCloth);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Mesh"), STAT_ChaosClothWrapDeformMesh, STATGROUP_ChaosCloth);
@@ -256,6 +264,23 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	const int32* const RESTRICT BoneMap = Asset->UsedBoneIndices.GetData();
 	const FMatrix44f* const RESTRICT BoneMatrices = Context->RefToLocals.GetData();
 		
+	if (bChaos_SkinPhysicsMesh_ISPC_Enabled)
+	{
+#if INTEL_ISPC
+		ispc::SkinPhysicsMesh(
+			(ispc::FVector*)OutPositions,
+			(ispc::FVector*)OutNormals,
+			(ispc::FVector*)PhysicalMeshData.Vertices.GetData(),
+			(ispc::FVector*)PhysicalMeshData.Normals.GetData(),
+			(ispc::FClothVertBoneData*)PhysicalMeshData.BoneData.GetData(),
+			BoneMap,
+			(ispc::FMatrix*)BoneMatrices,
+			(ispc::FTransform&)ComponentToLocalSpace,
+			NumPoints);
+#endif
+	}
+	else
+	{
 	static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
 
 	ParallelFor(NumPoints, [&PhysicalMeshData, &ComponentToLocalSpace, BoneMap, BoneMatrices, &OutPositions, &OutNormals](uint32 VertIndex)
@@ -292,6 +317,7 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 		OutNormal = ComponentToLocalSpace.TransformVector(OutNormal);
 		OutNormal.Normalize();
 	}, NumPoints > MinParallelVertices ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
+}
 }
 
 void FClothingSimulationMesh::Update(

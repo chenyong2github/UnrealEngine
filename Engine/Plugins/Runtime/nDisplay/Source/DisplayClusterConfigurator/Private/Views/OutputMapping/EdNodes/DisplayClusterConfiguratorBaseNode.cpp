@@ -398,7 +398,7 @@ void UDisplayClusterConfiguratorBaseNode::UpdateChildNodes()
 	// so remove any dead or dying children nodes.
 	Children.RemoveAll([](UDisplayClusterConfiguratorBaseNode* Child)
 	{
-		return !Child || Child->IsPendingKill();
+		return !IsValid(Child);
 	});
 
 	for (UDisplayClusterConfiguratorBaseNode* ChildNode : Children)
@@ -452,7 +452,7 @@ void UDisplayClusterConfiguratorBaseNode::UpdateObject()
 
 bool UDisplayClusterConfiguratorBaseNode::IsObjectValid() const
 {
-	return !IsPendingKill() && ObjectToEdit.IsValid();
+	return IsValidChecked(this) && ObjectToEdit.IsValid();
 }
 
 void UDisplayClusterConfiguratorBaseNode::OnNodeAligned(bool bUpdateChildren)

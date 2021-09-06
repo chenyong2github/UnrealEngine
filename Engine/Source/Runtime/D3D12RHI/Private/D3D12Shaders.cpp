@@ -95,7 +95,6 @@ FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(TArrayView<const uin
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
@@ -128,7 +127,6 @@ FMeshShaderRHIRef FD3D12DynamicRHI::RHICreateMeshShader(TArrayView<const uint8> 
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
@@ -160,7 +158,6 @@ FAmplificationShaderRHIRef FD3D12DynamicRHI::RHICreateAmplificationShader(TArray
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
@@ -193,7 +190,6 @@ FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(TArrayView<const uint8
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
@@ -226,7 +222,6 @@ FGeometryShaderRHIRef FD3D12DynamicRHI::RHICreateGeometryShader(TArrayView<const
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;
@@ -259,7 +254,6 @@ FComputeShaderRHIRef FD3D12DynamicRHI::RHICreateComputeShader(TArrayView<const u
 	FMemoryReaderView Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
-	const uint8* CodePtr = Code.GetData() + Offset;
 	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 	bool bFoundCodeFeatures;
 	FShaderCodeFeatures CodeFeatures;

@@ -1851,7 +1851,7 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 #endif // TOTAL_OVERHEAD_SCRIPT_STATS
 
 	// Reject.
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}
@@ -2889,12 +2889,12 @@ void UObject::ProcessContextOpcode( FFrame& Stack, RESULT_DECL, bool bCanFailSil
 
 		if (!bCanFailSilently)
 		{
-			if (NewContext && NewContext->IsPendingKill())
+			if (NewContext && !IsValid(NewContext))
 			{
 				FBlueprintExceptionInfo ExceptionInfo(
 					EBlueprintExceptionType::AccessViolation, 
 					FText::Format(
-						LOCTEXT("AccessPendingKill", "Attempted to access {0} via property {1}, but {0} is pending kill"),
+						LOCTEXT("AccessPendingKill", "Attempted to access {0} via property {1}, but {0} is not valid (pending kill or garbage)"),
 						FText::FromString( GetNameSafe(NewContext) ), 
 						FText::FromString( GetNameSafe(Stack.MostRecentProperty) )
 					)

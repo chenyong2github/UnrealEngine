@@ -655,6 +655,7 @@ void FSocialUserList::HandlePartyJoined(USocialParty& Party)
 	{
 		if (PartyMember)
 		{
+			PartyMember->OnLeftParty().AddSP(this, &FSocialUserList::HandlePartyMemberLeft, PartyMember, true);
 			MarkPartyMemberAsDirty(*PartyMember);
 		}
 	}
@@ -689,6 +690,7 @@ void FSocialUserList::HandlePartyMemberLeft(EMemberExitedReason Reason, UPartyMe
 {
 	if (ensure(Member))
 	{
+		Member->OnLeftParty().RemoveAll(this);
 		MarkPartyMemberAsDirty(*Member);
 
 		if (bUpdateNow)
@@ -716,8 +718,7 @@ void FSocialUserList::MarkPartyMemberAsDirty(UPartyMember& PartyMember)
 	// will have their own set of relationships (e.g. muted, blocked) to each of the other players.
 	if (OwnerToolkit.IsValid())
 	{
-		USocialUser* const PartyMemberSocialUser = FindOwnersRelationshipTo(PartyMember);
-		if (ensure(PartyMemberSocialUser))
+		if (USocialUser* const PartyMemberSocialUser = FindOwnersRelationshipTo(PartyMember))
 		{
 			MarkUserAsDirty(*PartyMemberSocialUser);
 		}

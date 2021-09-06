@@ -43,22 +43,11 @@ extern "C" CORE_API void PrintScriptCallstack();
  **/
 struct CORE_API FDebug
 {
-	/**
-	 * Contextual information for a point of failure.
-	 */
-	struct FFailureInfo
-	{
-		const ANSICHAR* Expr;
-		const ANSICHAR* File;
-		int32 Line;
-		void* ProgramCounter;
-	};
-
 	/** Logs final assert message and exits the program. */
 	static void VARARGS AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, const TCHAR* Format = TEXT(""), ...);
 
 	/** Triggers a fatal error, using the error formatted to GErrorHist via a previous call to FMsg*/
-	static void ProcessFatalError(const FFailureInfo& Info);
+	static void ProcessFatalError(void* ProgramCounter);
 
 	// returns true if an assert has occurred
 	static bool HasAsserted();
@@ -76,17 +65,18 @@ struct CORE_API FDebug
 	static void DumpStackTraceToLog(const TCHAR* Heading, const ELogVerbosity::Type LogVerbosity);
 
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
+public:
+	static void VARARGS CheckVerifyFailedImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format, ...);
 private:
-	static void VARARGS CheckVerifyFailedImpl(const FFailureInfo& Info, const TCHAR* Format, ...);
-	static void VARARGS LogAssertFailedMessageImpl(const FFailureInfo& Info, const TCHAR* Fmt, ...);
-	static void LogAssertFailedMessageImplV(const FFailureInfo& Info, const TCHAR* Fmt, va_list Args);
+	static void VARARGS LogAssertFailedMessageImpl(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, ...);
+	static void LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Fmt, va_list Args);
 
 public:
-	/**
-	 * Called when a 'check/verify' assertion fails.
-	 */
-	template <typename FmtType, typename... Types>
-	static void UE_DEBUG_SECTION CheckVerifyFailed(const FFailureInfo& Info, const FmtType& Format, Types... Args);
+//	/**
+//	 * Called when a 'check/verify' assertion fails.
+//	 */
+//	template <typename FmtType, typename... Types>
+//	static void UE_DEBUG_SECTION CheckVerifyFailed(const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const FmtType& Format, Types... Args);
 	
 	/**
 	 * Called when an 'ensure' assertion fails; gathers stack data and generates and error report.
@@ -99,10 +89,10 @@ public:
 	 * 
 	 * Don't change the name of this function, it's used to detect ensures by the crash reporter.
 	 */
-	static void EnsureFailed( const FFailureInfo& Info, const TCHAR* Msg );
+	static void EnsureFailed( const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Msg );
 
 private:
-	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const FFailureInfo& Info, const TCHAR* FormattedMsg, ...);
+	static bool VARARGS OptionallyLogFormattedEnsureMessageReturningFalseImpl(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* FormattedMsg, ...);
 
 public:
 	/**
@@ -121,12 +111,12 @@ public:
 
 	/** Failed assertion handler.  Warning: May be called at library startup time. */
 	template <typename FmtType, typename... Types>
-	static FORCEINLINE typename TEnableIf<TIsArrayOrRefOfType<FmtType, TCHAR>::Value, bool>::Type OptionallyLogFormattedEnsureMessageReturningFalse(bool bLog, const FFailureInfo& Info, const FmtType& FormattedMsg, Types... Args)
+	static FORCEINLINE typename TEnableIf<TIsArrayOrRefOfType<FmtType, TCHAR>::Value, bool>::Type OptionallyLogFormattedEnsureMessageReturningFalse(bool bLog, const ANSICHAR* Expr, const ANSICHAR* File, int32 Line, void* ProgramCounter, const FmtType& FormattedMsg, Types... Args)
 	{
 		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to ensureMsgf");
 
-		return OptionallyLogFormattedEnsureMessageReturningFalseImpl(bLog, Info, FormattedMsg, Args...);
+		return OptionallyLogFormattedEnsureMessageReturningFalseImpl(bLog, Expr, File, Line, ProgramCounter, FormattedMsg, Args...);
 	}
 
 #endif // DO_CHECK || DO_GUARD_SLOW
@@ -154,18 +144,21 @@ public:
 // "verify" expressions are always evaluated, but only cause an error if enabled.
 //
 
-#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
-	template <typename FmtType, typename... Types>
-	void FORCENOINLINE UE_DEBUG_SECTION FDebug::CheckVerifyFailed(
-		const FFailureInfo& Info,
-		const FmtType& Format,
-		Types... Args)
-	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
-		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to CheckVerifyFailed()");
-		return CheckVerifyFailedImpl(Info, Format, Args...);
-	}
-#endif
+//#if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
+//	template <typename FmtType, typename... Types>
+//	void FORCENOINLINE UE_DEBUG_SECTION FDebug::CheckVerifyFailed(
+//		const ANSICHAR* Expr,
+//		const ANSICHAR* File,
+//		int32 Line,
+//		void* ProgramCounter,
+//		const FmtType& Format,
+//		Types... Args)
+//	{
+//		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+//		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to CheckVerifyFailed()");
+//		return CheckVerifyFailedImpl(Expr, File, Line, ProgramCounter, Format, Args...);
+//	}
+//#endif
 
 // MSVC (v19.00.24215.1 at time of writing) ignores no-inline attributes on
 // lambdas. This can be worked around by calling the lambda from inside this
@@ -206,8 +199,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 				{ \
 					static void FORCENOINLINE UE_DEBUG_SECTION ExecCheckImplInternal() \
 					{ \
-						FDebug::FFailureInfo CheckFailureInfo = { #expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS() }; \
-						FDebug::CheckVerifyFailed(CheckFailureInfo, TEXT("")); \
+						FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), TEXT("")); \
 					} \
 				}; \
 				Impl::ExecCheckImplInternal(); \
@@ -233,8 +225,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 			{ \
 				DispatchCheckVerify([&] () UE_DEBUG_SECTION \
 				{ \
-					FDebug::FFailureInfo CheckFailureInfo = { #expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS() }; \
-					FDebug::CheckVerifyFailed(CheckFailureInfo, format, ##__VA_ARGS__); \
+					FDebug::CheckVerifyFailedImpl(#expr, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), format, ##__VA_ARGS__); \
 				}); \
 				PLATFORM_BREAK(); \
 				CA_ASSUME(false); \
@@ -339,8 +330,7 @@ RetType FORCENOINLINE UE_DEBUG_SECTION DispatchCheckVerify(InnerType&& Inner, Ar
 			if ((!bExecuted || Always) && FPlatformMisc::IsEnsureAllowed()) \
 			{ \
 				bExecuted = true; \
-				FDebug::FFailureInfo EnsureFailureInfo = { #InExpression, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS() }; \
-				FDebug::OptionallyLogFormattedEnsureMessageReturningFalse(true, EnsureFailureInfo, ##__VA_ARGS__); \
+				FDebug::OptionallyLogFormattedEnsureMessageReturningFalse(true, #InExpression, __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS(), ##__VA_ARGS__); \
 				if (!FPlatformMisc::IsDebuggerPresent()) \
 				{ \
 					FPlatformMisc::PromptForRemoteDebugging(true); \
@@ -407,17 +397,17 @@ namespace UEAsserts_Private
 ----------------------------------------------------------------------------*/
 
 /** low level fatal error handler. */
-CORE_API void VARARGS LowLevelFatalErrorHandler(const FDebug::FFailureInfo& Info, const TCHAR* Format=TEXT(""), ... );
+CORE_API void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, void* ProgramCounter, const TCHAR* Format=TEXT(""), ... );
 
 #define LowLevelFatalError(Format, ...) \
 	{ \
 		static_assert(TIsArrayOrRefOfType<decltype(Format), TCHAR>::Value, "Formatting string must be a TCHAR array."); \
 		DispatchCheckVerify([&] () FORCENOINLINE UE_DEBUG_SECTION \
 		{ \
-			FDebug::FFailureInfo LlfeInfo = { "LowLevelFatalError", __FILE__, __LINE__, PLATFORM_RETURN_ADDRESS() }; \
-			LowLevelFatalErrorHandler(LlfeInfo, Format, ##__VA_ARGS__); \
+			void* ProgramCounter = PLATFORM_RETURN_ADDRESS(); \
+			LowLevelFatalErrorHandler(__FILE__, __LINE__, ProgramCounter, Format, ##__VA_ARGS__); \
 			_DebugBreakAndPromptForRemote(); \
-			FDebug::ProcessFatalError(LlfeInfo); \
+			FDebug::ProcessFatalError(ProgramCounter); \
 		}); \
 	}
 

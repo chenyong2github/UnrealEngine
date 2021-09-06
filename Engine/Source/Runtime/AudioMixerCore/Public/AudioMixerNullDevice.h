@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
 #include "HAL/RunnableThread.h"
+#include <atomic>
+
+class FEvent;
 
 namespace Audio
 {
@@ -21,20 +24,27 @@ namespace Audio
 		 * Constructing the FMixerNullCallback immediately begins calling
 		 * InCallback every BufferDuration seconds.
 		 */
-		FMixerNullCallback(float BufferDuration, TFunction<void()> InCallback, EThreadPriority ThreadPriority = TPri_TimeCritical);
+		FMixerNullCallback(float BufferDuration, TFunction<void()> InCallback, EThreadPriority ThreadPriority = TPri_TimeCritical, bool bStartedPaused = false);
 
 		/**
 		 * The destructor waits on Callback to be completed before stopping the thread.
 		 */
-		~FMixerNullCallback();
+		virtual ~FMixerNullCallback() = default;
 
 		// FRunnable override:
 		virtual uint32 Run() override;
+		virtual void Stop() override;
+
+		// Resume a paused null renderer. 
+		void Resume(const TFunction<void()>& InCallback, float InBufferDuration);
+
+		// Pause the thread, making it sleep until woken, not consuming cycles or buffers.
+		void Pause();
 
 	private:
 
 		// Default constructor intentionally suppressed:
-		FMixerNullCallback();
+		FMixerNullCallback() = delete;
 
 		// Callback used.
 		TFunction<void()> Callback;
@@ -42,11 +52,12 @@ namespace Audio
 		// Used to determine amount of time we should wait between callbacks.
 		float CallbackTime;
 
-		// Flagged on destructor.
-		uint8 bShouldShutdown:1;
-
+		// Flagged on Stop
+		std::atomic<bool> bShouldShutdown;
+		std::atomic<bool> bShouldRecyle;
+		FEvent* SleepEvent = nullptr;
+		FEvent* WakeupEvent = nullptr;	
 		TUniquePtr<FRunnableThread> CallbackThread;
-		
 	};
 }
 

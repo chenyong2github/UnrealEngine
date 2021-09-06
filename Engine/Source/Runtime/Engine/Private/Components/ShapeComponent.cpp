@@ -122,7 +122,7 @@ void UShapeComponent::SetShapeToNewGeom<FKSphylElem>(const FPhysicsShapeHandle& 
 template <typename ShapeElemType>
 void UShapeComponent::CreateShapeBodySetupIfNeeded()
 {
-	if (ShapeBodySetup == nullptr || ShapeBodySetup->IsPendingKill())
+	if (!IsValid(ShapeBodySetup))
 	{
 		ShapeBodySetup = NewObject<UBodySetup>(this, NAME_None, RF_Transient);
 		if (GUObjectArray.IsDisregardForGC(this))

@@ -12,14 +12,18 @@ TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 	UTexture* InTexture,
 	const FLinearColor& InTint,
 	ESlateBrushTileType::Type InTiling,
-	ESlateBrushImageType::Type InImageType)
+	ESlateBrushImageType::Type InImageType,
+	ESlateBrushDrawType::Type InDrawType,
+	const FMargin& InMargin)
 {
 	FSlateBrush Brush;
 	Brush.SetResourceObject(InTexture);
 	Brush.ImageSize = FVector2D(InTexture->GetSurfaceWidth(), InTexture->GetSurfaceHeight());
 	Brush.TintColor = InTint;
+	Brush.Margin = InMargin;
 	Brush.Tiling = InTiling;
 	Brush.ImageType = InImageType;
+	Brush.DrawAs = InDrawType;
 
 	return MakeShareable(new FDeferredCleanupSlateBrush(Brush), [](FDeferredCleanupSlateBrush* ObjectToDelete) { BeginCleanup(ObjectToDelete); });
 }
@@ -29,14 +33,18 @@ TSharedRef<FDeferredCleanupSlateBrush> FDeferredCleanupSlateBrush::CreateBrush(
 	const FVector2D& InImageSize,
 	const FLinearColor& InTint,
 	ESlateBrushTileType::Type InTiling,
-	ESlateBrushImageType::Type InImageType)
+	ESlateBrushImageType::Type InImageType,
+	ESlateBrushDrawType::Type InDrawType,
+	const FMargin& InMargin)
 {
 	FSlateBrush Brush;
 	Brush.SetResourceObject(InResource);
 	Brush.ImageSize = InImageSize;
 	Brush.TintColor = InTint;
+	Brush.Margin = InMargin;
 	Brush.Tiling = InTiling;
 	Brush.ImageType = InImageType;
+	Brush.DrawAs = InDrawType;
 
 	return MakeShareable(new FDeferredCleanupSlateBrush(Brush), [](FDeferredCleanupSlateBrush* ObjectToDelete) { BeginCleanup(ObjectToDelete); });
 }

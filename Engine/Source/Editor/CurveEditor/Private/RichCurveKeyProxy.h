@@ -65,7 +65,10 @@ private:
 					if (PreviousTime != NewTime)
 					{
 						RichCurve.SetKeyTime(KeyHandle, NewTime);
+			
 					}
+
+					Owner->PostEditChangeProperty(PropertyChangedEvent);
 
 					Model->OnCurveModified().Broadcast();
 				}

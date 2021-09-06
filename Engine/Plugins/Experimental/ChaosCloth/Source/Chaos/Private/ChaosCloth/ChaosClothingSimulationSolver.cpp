@@ -6,6 +6,9 @@
 #include "ChaosCloth/ChaosClothingSimulation.h"
 #include "ChaosCloth/ChaosClothPrivate.h"
 #include "Chaos/PBDEvolution.h"
+#if INTEL_ISPC
+#include "ChaosClothingSimulationSolver.ispc.generated.h"
+#endif
 
 #if !UE_BUILD_SHIPPING
 #include "FramePro/FramePro.h"
@@ -43,6 +46,13 @@ FAutoConsoleVariableRef CVarChaosClothSolverParallelClothPostUpdate(TEXT("p.Chao
 FAutoConsoleVariableRef CVarChaosClothSolverDebugHitchLength(TEXT("p.ChaosCloth.Solver.DebugHitchLength"), ChaosClothSolverDebugHitchLength, TEXT("Hitch length in ms. Create artificial hitches to debug simulation jitter. 0 to disable"));
 FAutoConsoleVariableRef CVarChaosClothSolverDebugHitchInterval(TEXT("p.ChaosCloth.Solver.DebugHitchInterval"), ChaosClothSolverDebugHitchInterval, TEXT("Hitch interval in frames. Create artificial hitches to debug simulation jitter. 0 to disable"));
 FAutoConsoleVariableRef CVarChaosClothSolverDisableCollision(TEXT("p.ChaosCloth.Solver.DisableCollision"), bChaosClothSolverDisableCollision, TEXT("Disable all collision particles. Needs reset of the simulation (p.ChaosCloth.Reset)."));
+#endif
+
+#if INTEL_ISPC && !UE_BUILD_SHIPPING
+bool bChaos_PreSimulationTransforms_ISPC_Enabled = true;
+FAutoConsoleVariableRef CVarChaosPreSimulationTransformsISPCEnabled(TEXT("p.Chaos.PreSimulationTransforms.ISPC"), bChaos_PreSimulationTransforms_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in ApplySimulationTransforms"));
+bool bChaos_CalculateBounds_ISPC_Enabled = bChaos_CalculateBounds_ISPC_Enable;  // Disabled by default
+FAutoConsoleVariableRef CVarChaosCalculateBoundsISPCEnabled(TEXT("p.Chaos.CalculateBounds.ISPC"), bChaos_CalculateBounds_ISPC_Enabled, TEXT("Whether to use ISPC optimizations in CalculateBounds"));
 #endif
 
 FAutoConsoleVariableRef CVarChaosClothSolverUseImprovedTimeStepSmoothing(TEXT("p.ChaosCloth.Solver.UseImprovedTimeStepSmoothing"), bChaosClothSolverUseImprovedTimeStepSmoothing, TEXT("Use the time step smoothing on input forces only rather than on the entire cloth solver, in order to avoid miscalculating velocities."));
@@ -733,6 +743,23 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 
 			const int32 RangeSize = Range - Offset;
 
+			if (bChaos_PreSimulationTransforms_ISPC_Enabled)
+			{
+#if INTEL_ISPC
+				ispc::ApplyPreSimulationTransforms(
+					(ispc::FVector*)Particles.GetP().GetData(),
+					(ispc::FVector*)Particles.GetV().GetData(),
+					(ispc::FVector*)Particles.XArray().GetData(),
+					(ispc::FVector*)OldAnimationPositions.GetData(),
+					ParticleGroupIds.GetData(),
+					(ispc::FTransform*)PreSimulationTransforms.GetData(),
+					(ispc::FVector&)DeltaLocalSpaceLocation,
+					Offset,
+					Range);
+#endif
+			}
+			else
+			{
 			PhysicsParallelFor(RangeSize,
 				[this, &ParticleGroupIds, &DeltaLocalSpaceLocation, &Particles, Offset](int32 i)
 				{
@@ -746,6 +773,7 @@ void FClothingSimulationSolver::ApplyPreSimulationTransforms()
 					// Update anim initial state (target updated by skinning)
 					OldAnimationPositions[Index] = GroupSpaceTransform.TransformPositionNoScale(OldAnimationPositions[Index]) - DeltaLocalSpaceLocation;
 				}, RangeSize < ChaosClothSolverMinParallelBatchSize);
+			}
 		}, /*bForceSingleThreaded =*/ !bChaosClothSolverParallelClothPreUpdate);
 
 #if FRAMEPRO_ENABLED
@@ -918,21 +946,63 @@ FBoxSphereBounds FClothingSimulationSolver::CalculateBounds() const
 		// Calculate bounding box
 		FAABB3 BoundingBox = FAABB3::EmptyAABB();
 
+		if (bChaos_CalculateBounds_ISPC_Enabled)
+		{
+#if INTEL_ISPC
+			ParticlesActiveView.RangeFor(
+				[&BoundingBox](FPBDParticles& Particles, int32 Offset, int32 Range)
+				{
+					FVec3 NewMin = BoundingBox.Min();
+					FVec3 NewMax = BoundingBox.Max();
+
+					ispc::CalculateBounds(
+						(ispc::FVector&)NewMin,
+						(ispc::FVector&)NewMax,
+						(const ispc::FVector*)Particles.XArray().GetData(),
+						Offset,
+						Range);
+
+					TAABB<float, 3> NewAABB(NewMin, NewMax);
+					BoundingBox = NewAABB;
+				});
+#endif
+		}
+		else
+		{
 		ParticlesActiveView.SequentialFor(
 			[&BoundingBox](FPBDParticles& Particles, int32 Index)
 			{
 				BoundingBox.GrowToInclude(Particles.X(Index));
 			});
+		}
 
 		// Calculate (squared) radius
 		const FVec3 Center = BoundingBox.Center();
 		FReal SquaredRadius = 0.f;
 
+		if (bChaos_CalculateBounds_ISPC_Enabled)
+		{
+#if INTEL_ISPC
+			ParticlesActiveView.RangeFor(
+				[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Offset, int32 Range)
+				{
+					ispc::CalculateSquaredRadius(
+						SquaredRadius,
+						(const ispc::FVector&)Center,
+						(const ispc::FVector*)Particles.XArray().GetData(),
+						Offset,
+						Range);
+				});
+#endif
+		}
+		else
+		{
 		ParticlesActiveView.SequentialFor(
 			[&SquaredRadius, &Center](FPBDParticles& Particles, int32 Index)
 			{
 				SquaredRadius = FMath::Max(SquaredRadius, (Particles.X(Index) - Center).SizeSquared());
 			});
+		}
 
 		// Update bounds with this cloth
 		return FBoxSphereBounds(LocalSpaceLocation + BoundingBox.Center(), BoundingBox.Extents() * 0.5f, FMath::Sqrt(SquaredRadius));

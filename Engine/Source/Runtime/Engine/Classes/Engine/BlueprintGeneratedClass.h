@@ -10,6 +10,7 @@
 #include "UObject/Class.h"
 #include "UObject/UnrealType.h"
 #include "EdGraph/EdGraphPin.h"
+#include "Containers/SortedMap.h"
 
 // WARNING: This should always be the last include in any file that needs it (except .generated.h)
 #include "UObject/UndefineUPropertyMacros.h"
@@ -873,6 +874,15 @@ private:
 	TIndirectArray<FCustomPropertyListNode> CustomPropertyListForPostConstruction;
 	/** In some cases UObject::ConditionalPostLoad() code calls PostLoadDefaultObject() on a class that's still being serialized. */
 	FCriticalSection SerializeAndPostLoadCritical;
+
+	using FEditorTags = TSortedMap<FName, FString, FDefaultAllocator, FNameFastLess>;
+
+#if WITH_EDITORONLY_DATA
+	void GetEditorTags(FEditorTags& Tags) const;
+
+	/** Editor-only asset registry tags on cooked BPGC */
+	FEditorTags CookedEditorTags;
+#endif // WITH_EDITORONLY_DATA
 };
 
 #include "UObject/DefineUPropertyMacros.h"

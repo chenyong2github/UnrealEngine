@@ -3,6 +3,7 @@
 
 #include "Chaos/ChaosArchive.h"
 #include "Chaos/Transform.h"
+#include "UObject/FortniteReleaseBranchCustomObjectVersion.h"
 
 namespace Chaos
 {
@@ -36,13 +37,37 @@ namespace Chaos
 		EKinematicTargetMode GetMode() const { return Mode; }
 
 		/** Get the target transform (asserts if not in Position mode) */
-		const TRigidTransform<T, d>& GetTarget() const { check(Mode == EKinematicTargetMode::Position); return Target; }
+		TRigidTransform<T, d> GetTarget() const { check(Mode == EKinematicTargetMode::Position); return {Position, Rotation}; }
+
+		/** Get the target position (asserts if not in Position mode) */
+		TVector<T, d> GetTargetPosition() const { check(Mode == EKinematicTargetMode::Position); return Position; }
+
+		/** Get the target rotation (asserts if not in Position mode) */
+		TRotation<T, d> GetTargetRotation() const { check(Mode == EKinematicTargetMode::Position); return Rotation; }
 
 		/** Clear the kinematic target */
-		void Clear() { Target = TRigidTransform<T, d>(); Mode = EKinematicTargetMode::None; }
+		void Clear()
+		{
+			Position = TVector<T, d>();
+			Rotation = TRotation<T, d>();
+			Mode = EKinematicTargetMode::None;
+		}
 
 		/** Use transform target mode and set the transform target */
-		void SetTargetMode(const TRigidTransform<T, d>& InTarget) { Target = InTarget; Mode = EKinematicTargetMode::Position; }
+		void SetTargetMode(const TVector<T, d>& X, const TRotation<T, d>& R)
+		{
+			Position = X;
+			Rotation = R;
+			Mode = EKinematicTargetMode::Position;
+		}
+
+		/** Use transform target mode and set the transform target */
+		void SetTargetMode(const TRigidTransform<T, d>& InTarget)
+		{
+			Position = InTarget.GetLocation();
+			Rotation = InTarget.GetRotation();
+			Mode = EKinematicTargetMode::Position;
+		}
 
 		/** Use velocity target mode */
 		void SetVelocityMode() { Mode = EKinematicTargetMode::Velocity; }
@@ -52,7 +77,21 @@ namespace Chaos
 
 		friend FChaosArchive& operator<<(FChaosArchive& Ar, TKinematicTarget<T, d>& KinematicTarget)
 		{
-			Ar << KinematicTarget.Target << KinematicTarget.Mode;
+			Ar.UsingCustomVersion(FFortniteReleaseBranchCustomObjectVersion::GUID);
+
+			if (Ar.CustomVer(FFortniteReleaseBranchCustomObjectVersion::GUID) >= FFortniteReleaseBranchCustomObjectVersion::ChaosKinematicTargetRemoveScale)
+			{
+				Ar << KinematicTarget.Position << KinematicTarget.Rotation << KinematicTarget.Mode;
+			}
+			else
+			{
+				FRigidTransform3 Transform;
+				Ar << Transform << KinematicTarget.Mode;
+
+				KinematicTarget.Position = Transform.GetLocation();
+				KinematicTarget.Rotation = Transform.GetRotation();			
+			}
+
 			return Ar;
 		}
 
@@ -60,9 +99,8 @@ namespace Chaos
 		{
 			return (
 				Mode == other.Mode &&
-				Target.GetTranslation() == other.Target.GetTranslation() &&
-				Target.GetRotation() == other.Target.GetRotation() &&
-				Target.GetScale3D() == other.Target.GetScale3D()
+				Position == other.Position &&
+				Rotation == other.Rotation
 				);
 		}
 
@@ -80,12 +118,14 @@ namespace Chaos
 		template <typename TOther>
 		void CopyFrom(const TOther& Other)
 		{
-			Target = Other.KinematicTarget().Target;
+			Position = Other.KinematicTarget().Position;
+			Rotation = Other.KinematicTarget().Rotation;
 			Mode = Other.KinematicTarget().Mode;
 		}
 
 	private:
-		TRigidTransform<T, d> Target;
+		TVector<T, d> Position;
+		TRotation<T, d> Rotation;
 		EKinematicTargetMode Mode;
 	};
 }

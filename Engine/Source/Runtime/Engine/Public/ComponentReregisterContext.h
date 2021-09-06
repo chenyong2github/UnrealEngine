@@ -54,7 +54,7 @@ protected:
 	{
 		check(InComponent);
 		
-		if( !InComponent->IsPendingKill() )
+		if( IsValid(InComponent) )
 		{
 			// Set scene pointer back
 			check(InWorld != NULL); // If Component is set, World should be too (see logic in constructor)

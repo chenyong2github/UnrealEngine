@@ -169,8 +169,8 @@ bool UNiagaraNodeWithDynamicPins::CanMovePin(const UEdGraphPin* Pin, int32 Direc
 		{
 			return false;
 		}
-}
-
+	}	
+	
 	return true;
 }
 

@@ -9,6 +9,7 @@
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Interfaces/IPluginManager.h"
+#include "MoviePlayerProxy.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/ObjectSaveContext.h"
 #include "UObject/UObjectHash.h"
@@ -1511,9 +1512,18 @@ TSharedPtr<FStreamableHandle> UAssetManager::ChangeBundleStateForPrimaryAssets(c
 	TArray<TSharedPtr<FStreamableHandle> > NewHandles, ExistingHandles;
 	TArray<FPrimaryAssetId> NewAssets;
 	TSharedPtr<FStreamableHandle> ReturnHandle;
-
+	int32 MoviePlayerNumAssets = 0;
 	for (const FPrimaryAssetId& PrimaryAssetId : AssetsToChange)
 	{
+		MoviePlayerNumAssets++;
+		// Call the blocking tick every 500 assets.
+		if (MoviePlayerNumAssets >= 500)
+		{
+			MoviePlayerNumAssets = 0;
+			//UE_LOG(LogTemp, Warning, TEXT("pooo %d"), MoviePlayerNumAssets);
+			FMoviePlayerProxy::BlockingTick();
+		}
+
 		FPrimaryAssetData* NameData = GetNameData(PrimaryAssetId);
 
 		if (NameData)
@@ -1751,26 +1761,27 @@ bool UAssetManager::GetPrimaryAssetLoadSet(TSet<FSoftObjectPath>& OutAssetLoadSe
 TSharedPtr<FStreamableHandle> UAssetManager::PreloadPrimaryAssets(const TArray<FPrimaryAssetId>& AssetsToLoad, const TArray<FName>& LoadBundles, bool bLoadRecursive, FStreamableDelegate DelegateToCall, TAsyncLoadPriority Priority)
 {
 	TSet<FSoftObjectPath> PathsToLoad;
-	FString DebugName;
+	TStringBuilder<256> DebugName;
 	TSharedPtr<FStreamableHandle> ReturnHandle;
 
 	for (const FPrimaryAssetId& PrimaryAssetId : AssetsToLoad)
 	{
 		if (GetPrimaryAssetLoadSet(PathsToLoad, PrimaryAssetId, LoadBundles, bLoadRecursive))
 		{
-			if (DebugName.IsEmpty())
+			if (DebugName.Len() == 0)
 			{
-				DebugName += TEXT("Preloading ");
+				DebugName << FStreamableHandle::HandleDebugName_Preloading;
+				DebugName << TEXT(" ");
 			}
 			else
 			{
-				DebugName += TEXT(", ");
+				DebugName << TEXT(", ");
 			}
-			DebugName += PrimaryAssetId.ToString();
+			DebugName << PrimaryAssetId.ToString();
 		}
 	}
 
-	ReturnHandle = LoadAssetList(PathsToLoad.Array(), MoveTemp(DelegateToCall), Priority, DebugName);
+	ReturnHandle = LoadAssetList(PathsToLoad.Array(), MoveTemp(DelegateToCall), Priority, FString(*DebugName));
 
 	if (!ensureMsgf(ReturnHandle.IsValid(), TEXT("Requested preload of Primary Asset with no referenced assets! DebugName:%s"), *DebugName))
 	{

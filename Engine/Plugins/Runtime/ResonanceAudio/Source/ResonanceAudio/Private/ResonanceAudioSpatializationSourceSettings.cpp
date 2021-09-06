@@ -89,7 +89,7 @@ void UResonanceAudioSpatializationSourceSettings::PostEditChangeProperty(FProper
 			for (TObjectIterator<UAudioComponent> Itr; Itr; ++Itr)
 			{
 				UAudioComponent* AudioComponent = *Itr;
-				if (!AudioComponent->IsPendingKill() && DoesAudioComponentReferenceThis(AudioComponent))
+				if (IsValid(AudioComponent) && DoesAudioComponentReferenceThis(AudioComponent))
 				{
 					AActor* CurrentActor = AudioComponent->GetOwner();
 					if (CurrentActor != nullptr)

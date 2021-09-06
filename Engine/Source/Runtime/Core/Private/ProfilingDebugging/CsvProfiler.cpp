@@ -541,6 +541,56 @@ static FAutoConsoleCommand HandleCSVProfileCmd(
 	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleCSVProfileCommand)
 );
 
+static void HandleCSVCategoryCommand(const TArray<FString>& Args, UWorld* World, FOutputDevice& OutputDevice)
+{
+	if ((Args.Num() >= 1) && (Args.Num() <= 2))
+	{
+		const FCsvProfiler* CsvProfiler = FCsvProfiler::Get();
+		const FString& Category = Args[0];
+		const int32 CategoryIndex = CsvProfiler->GetCategoryIndex(Category);
+		if (CategoryIndex < 0)
+		{
+			OutputDevice.Logf(ELogVerbosity::Error, TEXT("CsvProfiler: category '%s' does not exist."), *Category);
+			return;
+		}
+
+		bool bEnabled = true;
+		bool bIsOperationValid = true;
+		if (Args.Num() == 2)
+		{
+			const FString& Operation = Args[1];
+			if (Operation.Compare(TEXT("disable"), ESearchCase::IgnoreCase) == 0)
+			{
+				bEnabled = false;
+			}
+			else if (Operation.Compare(TEXT("enable"), ESearchCase::IgnoreCase) != 0)
+			{
+				bIsOperationValid  = false;
+			}
+		}
+		else
+		{
+			// Toggle by default
+			bEnabled = !CsvProfiler->IsCategoryEnabled(CategoryIndex);
+		}
+		if (bIsOperationValid)
+		{
+			CsvProfiler->EnableCategoryByIndex(CategoryIndex, bEnabled);
+			OutputDevice.Logf(ELogVerbosity::Log, TEXT("CsvProfiler: category '%s' is now %s."), *Category, bEnabled ? TEXT("enabled") : TEXT("disabled"));
+			return;
+		}
+	}
+	
+	// We fall into here if there was a usage error
+	OutputDevice.Logf(ELogVerbosity::Error, TEXT("CsvProfiler: Usage: csvcategory <category> [enable/disable] (toggles if second parameter is omitted)"));
+}
+
+static FAutoConsoleCommandWithWorldArgsAndOutputDevice HandleCSVCategoryCmd(
+	TEXT("CsvCategory"),
+	TEXT("Changes whether a CSV category is included in captures."),
+	FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateStatic(&HandleCSVCategoryCommand)
+);
+
 //-----------------------------------------------------------------------------
 //	TSingleProducerSingleConsumerList : fast lock-free single producer/single 
 //  consumer list implementation. 
@@ -2312,6 +2362,9 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 		LastProcessedTimestamp = ThreadMarkers.Last().GetTimestamp();
 	}
 
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_TimingMarkers);
+
 	// Process timing markers
 	FCsvTimingMarker InsertedMarker;
 	bool bAllowExclusiveMarkerInsertion = true;
@@ -2426,7 +2479,10 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 			}
 		}
 	}
+	}
 
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_CustomStats);
 	// Process the custom stats
 	for (int i = 0; i < CustomStats.Num(); i++)
 	{
@@ -2454,6 +2510,10 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 			}
 		}
 	}
+	}
+
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FCsvProfilerThreadData_Events);
 
 	// Process Events
 	for (int i = 0; i < Events.Num(); i++)
@@ -2470,6 +2530,7 @@ void FCsvProfilerThreadDataProcessor::Process(FCsvProcessThreadDataStats& OutSta
 			Writer->PushEvent(ProcessedEvent);
 		}
 	}
+}
 }
 
 
@@ -3430,6 +3491,12 @@ void FCsvProfiler::EnableCategoryByIndex(uint32 CategoryIndex, bool bEnable) con
 {
 	check(CategoryIndex < CSV_MAX_CATEGORY_COUNT);
 	GCsvCategoriesEnabled[CategoryIndex] = bEnable;
+}
+
+bool FCsvProfiler::IsCategoryEnabled(uint32 CategoryIndex) const
+{
+	check(CategoryIndex < CSV_MAX_CATEGORY_COUNT);
+	return GCsvCategoriesEnabled[CategoryIndex];
 }
 
 bool FCsvProfiler::IsCapturing_Renderthread()

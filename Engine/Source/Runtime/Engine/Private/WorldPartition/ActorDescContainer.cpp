@@ -171,7 +171,7 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object, FObjectPreSaveContext
 		{
 			if (ShouldHandleActorEvent(Actor))
 			{
-				check(!Actor->IsPendingKill());
+				check(IsValidChecked(Actor));
 				if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = GetActorDescriptor(Actor->GetActorGuid()))
 				{
 					// Pin the actor handle on the actor to prevent unloading it when unhashing

@@ -107,26 +107,23 @@ public:
 
 	bool TryRemoveFileFromCategory(const FString& Filename)
 	{
-		if (FileSizes.Contains(Filename))
-		{
 			// TODO: Add critical section if scan is moved to async
-			int64 FileSize = FileSizes[Filename];
-			if (FileSizes.Remove(Filename) > 0)
+
+		int64 FileSize;
+		if (FileSizes.RemoveAndCopyValue(Filename, FileSize))
 			{
 				UsedQuota -= FileSize;
 				UE_LOG(LogPlatformFileManagedStorage, Log, TEXT("File %s is removed from category %s"), *Filename, *CategoryName);
 
 				return true;
 			}
-		}
 
 		return false;
 	}
 
 	bool UpdateFileSize(const FString& Filename, const int64 FileSize, bool bFailIfUsedQuotaExceedsLimit = false)
 	{
-		int64* FileSizePtr= FileSizes.Find(Filename);
-		if (FileSizePtr)
+		if (int64* FileSizePtr = FileSizes.Find(Filename))
 		{
 			int64 OldFileSize = *FileSizePtr;
 			int64 NewUsedQuota = UsedQuota - OldFileSize + FileSize;
@@ -153,7 +150,7 @@ public:
 	{
 		int64 TotalSize = 0LL;
 
-		for (auto& FileSizePair : FileSizes)
+		for (const TPair<FString, int64>& FileSizePair : FileSizes)
 		{
 			TotalSize += FileSizePair.Value;
 		}
@@ -164,8 +161,8 @@ public:
 	struct CategoryStat
 	{
 	public:
-		CategoryStat(const FString& InCategoryName, int64 InUsedSize, int64 InTotalSize) :
-			CategoryName(InCategoryName),
+		CategoryStat(FString InCategoryName, int64 InUsedSize, int64 InTotalSize) :
+			CategoryName(MoveTemp(InCategoryName)),
 			UsedSize(InUsedSize),
 			TotalSize(InTotalSize)
 		{
@@ -188,7 +185,6 @@ private:
 	int64 UsedQuota;
 	int64 StorageQuota;
 	int64 OptionalStorageQuota;
-	bool Required; // is this category marked as required
 
 	// List of all directories managed by this category
 	TArray<FString> Directories;
@@ -235,19 +231,18 @@ public:
 		}
 
 		// Load categories from config files
-		ParseConfig();
+		verify(ParseConfig());
 
 		// TODO: Serialize
 
-		// TODO: Make scan asynchronous
 		ScanPersistentStorage();
 
 		bInitialized = true;
 	}
 
-	bool AddFileToManager(const FString& Filename, const int64 FileSize)
+	bool AddFileToManager(FString Filename, const int64 FileSize)
 	{
-		FString NormalizedPath(Filename);
+		FString NormalizedPath(MoveTemp(Filename));
 		FPaths::NormalizeFilename(NormalizedPath);
 
 		FRWScopeLock WriteLock(CategoryLock, SLT_Write);
@@ -257,19 +252,19 @@ public:
 			return true;
 		}
 
-		for (auto& Category : Categories)
+		for (const TPair<FString, FPersistentStorageCategorySharedPtr>& CategoryPair : Categories)
 		{
-			if (Category.Value->TryAddFileToCategory(NormalizedPath, FileSize))
+			if (CategoryPair.Value->TryAddFileToCategory(NormalizedPath, FileSize))
 			{
-				FileCategoryMap.FindOrAdd(NormalizedPath) = Category.Key;
+				FileCategoryMap.FindOrAdd(NormalizedPath) = CategoryPair.Key;
 				return true;
 			}
 		}
 
 		// Add to default category
-		if (DefaultCategoryName.Len() && Categories.Contains(DefaultCategoryName))
+		if (FPersistentStorageCategorySharedPtr* ppCategory = Categories.Find(DefaultCategoryName))
 		{
-			if (Categories[DefaultCategoryName]->TryAddFileToCategory(NormalizedPath, FileSize, true))
+			if ((*ppCategory)->TryAddFileToCategory(NormalizedPath, FileSize, true))
 			{
 				FileCategoryMap.FindOrAdd(NormalizedPath) = DefaultCategoryName;
 				return true;
@@ -279,10 +274,12 @@ public:
 		return false;
 	}
 
-	bool RemoveFileFromManager(const FString& Filename)
+	bool RemoveFileFromManager(FString Filename)
 	{
-		FString NormalizedPath(Filename);
+		FString NormalizedPath(MoveTemp(Filename));
 		FPaths::NormalizeFilename(NormalizedPath);
+
+		// JMarcus TODO: this is thread safe, but opens and close the lock for no benefit
 
 		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
 		if (CategorySharedPtr.IsValid())
@@ -305,9 +302,11 @@ public:
 		return bRemoveSuccess && bAddSuccess;
 	}
 
-	bool UpdateFileSize(const FString& Filename, const int64 FileSize, bool bFailIfExceedsQuotaLimit = false)
+	bool UpdateFileSize(FString Filename, const int64 FileSize, bool bFailIfExceedsQuotaLimit = false)
 	{
-		FString NormalizedPath(Filename);
+		// JMarcus TODO: this isn't threadsafe
+
+		FString NormalizedPath(MoveTemp(Filename));
 		FPaths::NormalizeFilename(NormalizedPath);
 
 		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
@@ -324,9 +323,9 @@ public:
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
 
 		int64 TotalUsedSize = 0LL;
-		for (auto& Category : Categories)
+		for (const TPair<FString, FPersistentStorageCategorySharedPtr>& CategoryPair : Categories)
 		{
-			TotalUsedSize += Category.Value->GetUsedSize();
+			TotalUsedSize += CategoryPair.Value->GetUsedSize();
 		}
 
 		return TotalUsedSize;
@@ -341,25 +340,43 @@ public:
 	/// <param name="Quota">total storage allocated to the related category</param>
 	/// <param name="OptionalQuota">subset of the storage which is optional i.e. will always be smaller then total Quota</param>
 	/// <returns>returns if function succeeds</returns>
-	bool GetPersistentStorageUsage(const FString& Path, int64& UsedSpace, int64 &RemainingSpace, int64& Quota, int64* OptionalQuota = nullptr)
+	bool GetPersistentStorageUsage(FString Path, int64& UsedSpace, int64 &RemainingSpace, int64& Quota, int64* OptionalQuota = nullptr)
 	{
-		FString NormalizedPath(Path);
+		FString NormalizedPath(MoveTemp(Path));
 		FPaths::NormalizeFilename(NormalizedPath);
 
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
-		for (auto& Category : Categories)
+		for (const TPair<FString, FPersistentStorageCategorySharedPtr>& CategoryPair : Categories)
 		{
-			if (Category.Value->IsInCategory(NormalizedPath))
+			if (CategoryPair.Value->IsInCategory(NormalizedPath))
 			{
-				UsedSpace = Category.Value->GetUsedSize();
-				RemainingSpace = Category.Value->GetAvailableSize();
-				Quota = Category.Value->GetCategoryQuota();
+				UsedSpace = CategoryPair.Value->GetUsedSize();
+				RemainingSpace = CategoryPair.Value->GetAvailableSize();
+				Quota = CategoryPair.Value->GetCategoryQuota();
 				if (OptionalQuota != nullptr)
 				{
-					*OptionalQuota = Category.Value->GetCategoryOptionalQuota();
+					*OptionalQuota = CategoryPair.Value->GetCategoryOptionalQuota();
 				}
 				return true;
 			}
+		}
+		return false;
+	}
+
+	bool GetPersistentStorageUsageByCategory(const FString& InCategory, int64& UsedSpace, int64& RemainingSpace, int64& Quota, int64* OptionalQuota = nullptr)
+	{
+		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
+
+		if (FPersistentStorageCategorySharedPtr Category = Categories.FindRef(InCategory))
+		{
+			UsedSpace = Category->GetUsedSize();
+			RemainingSpace = Category->GetAvailableSize();
+			Quota = Category->GetCategoryQuota();
+			if (OptionalQuota != nullptr)
+			{
+				*OptionalQuota = Category->GetCategoryOptionalQuota();
+			}
+			return true;
 		}
 		return false;
 	}
@@ -373,11 +390,12 @@ public:
 	bool GetPersistentStorageSize(int64& UsedSpace, int64& RequiredSpace, int64& OptionalSpace) const
 	{
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
-		for (auto& Category : Categories)
+
+		for (const TPair<FString, FPersistentStorageCategorySharedPtr>& CategoryPair : Categories)
 		{
-			UsedSpace += Category.Value->GetUsedSize();
-			RequiredSpace += Category.Value->GetCategoryQuota();
-			OptionalSpace += Category.Value->GetCategoryOptionalQuota();
+			UsedSpace += CategoryPair.Value->GetUsedSize();
+			RequiredSpace += CategoryPair.Value->GetCategoryQuota();
+			OptionalSpace += CategoryPair.Value->GetCategoryOptionalQuota();
 		}
 		return true;
 	}
@@ -387,9 +405,11 @@ public:
 		return bInitialized;
 	}
 
-	bool IsCategoryForFileFull(const FString& Filename) const
+	bool IsCategoryForFileFull(FString Filename) const
 	{
-		FString NormalizedPath(Filename);
+		// JMarcus TODO: This isn't threadsafe
+
+		FString NormalizedPath(MoveTemp(Filename));
 		FPaths::NormalizeFilename(NormalizedPath);
 
 		FPersistentStorageCategorySharedPtr CategorySharedPtr = FindCategoryForFile(NormalizedPath);
@@ -403,6 +423,14 @@ public:
 
 	void ScanDirectory(const FString& Directory)
 	{
+		// JMarcus TODO: I don't see how this can be safely async for file adds.
+		// Fortunately, we only use if for adds during startup and CopyDirectoryTree()
+		// The startup scan could be done under a global lock to fix this and CopyDirectoryTree can be implemented with out it.
+		// 
+		// Async scan for removing files seems like it should always be safe but I don't think we need it.
+		// DeleteDirectory() shouldn't need it because the directory is required to be empty
+		// DeleteDirectoryRecursively() can be implemented to just call individual ops from the directory visitor
+
 		AsyncTask(ENamedThreads::AnyBackgroundThreadNormalTask, [Directory, this]()
 		{
 			// TODO: Add critical section here so that only one scan can run at a time to mitigate impact on IO?
@@ -424,7 +452,7 @@ public:
 			{
 				FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
 
-				for (auto& FilePair : FileCategoryMap)
+				for (TPair<FString, FString>& FilePair : FileCategoryMap)
 				{
 					if (FPaths::IsUnderDirectory(FilePair.Key, Directory) &&
 						!IFileManager::Get().FileExists(*FilePair.Key))
@@ -433,6 +461,8 @@ public:
 					}
 				}
 			}
+
+			// JMarcus TODO: There is a possible race here as we let go of the lock before actually removing the file
 
 			for (const FString& FileToRemove : FilesToRemove)
 			{
@@ -452,7 +482,7 @@ public:
 
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
 
-		for (const auto& CategoryPair : Categories)
+		for (const TPair<FString, FPersistentStorageCategorySharedPtr>& CategoryPair : Categories)
 		{
 			CategoryStats.Add(CategoryPair.Key, FPersistentStorageCategory::CategoryStat(CategoryPair.Key, CategoryPair.Value->GetUsedSize(), CategoryPair.Value->GetCategoryQuota()));
 		}
@@ -466,7 +496,7 @@ private:
 	// Name of the default category.  Files that don't match the directories of any categories will be added to default category as a fallback.
 	FString DefaultCategoryName;
 
-	// Map from category name to catogory struct
+	// Map from category name to category struct
 	TMap<FString, FPersistentStorageCategorySharedPtr> Categories;
 
 	// Map from file name to category name.
@@ -514,6 +544,12 @@ private:
 					FParse::Value(*TrimmedCategory, PropertyQuotaMB, QuotaInMB) &&
 					FParse::Value(*TrimmedCategory, PropertyDirectories, DirectoryNames, false))
 				{
+					if (CategoryName.Len() == 0)
+					{
+						UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Found empty category in [PersistentStorageManager]:Categories"));
+						continue;
+					}
+
 					int64 OptionalQuotaMB;
 					if ( FParse::Value(*TrimmedCategory, PropertyOptionalQuotaMB, OptionalQuotaMB) == false )
 					{
@@ -532,7 +568,6 @@ private:
 						DirectoryNames.LeftChopInline(1, false);
 					}
 
-
 					TArray<FString> Directories;
 					DirectoryNames.ParseIntoArray(Directories, TEXT(","));
 					TMap<FString, FString> CustomDirectoryReplace;
@@ -542,7 +577,7 @@ private:
 					for(FString& DirectoryName : Directories)
 					{
 						bool bUsedCustomDirectory = false;
-						for (const auto& DirectoryMapping : CustomDirectoryReplace)
+						for (const TPair<FString, FString>& DirectoryMapping : CustomDirectoryReplace)
 						{
 							if (DirectoryName.ReplaceInline(*DirectoryMapping.Key, *DirectoryMapping.Value) > 0)
 							{
@@ -564,8 +599,6 @@ private:
 						QuotaInMB = QuotaInMBOverride;
 					}
 
-
-
 					int64 Quota = (QuotaInMB >= 0) ? QuotaInMB * 1024 * 1024 : -1;	// Quota being negative means infinite quota
 					int64 OptionalQuota = (OptionalQuotaMB >= 0) ? OptionalQuotaMB * 1024 * 1024 : 0;
 					Categories.Add(CategoryName, MakeShared<FPersistentStorageCategory, ESPMode::ThreadSafe>(CategoryName, Quota, OptionalQuota, Directories));
@@ -585,22 +618,17 @@ private:
 		return false;
 	}
 
-	FPersistentStorageCategorySharedPtr FindCategoryForFile(const FString& Filename)
+	FPersistentStorageCategorySharedPtr FindCategoryForFile(const FString& Filename) const
 	{
 		FRWScopeLock ReadLock(CategoryLock, SLT_ReadOnly);
 
 		const FString* CategoryNamePtr = FileCategoryMap.Find(Filename);
 		if (CategoryNamePtr != nullptr)
 		{
-			return FPersistentStorageCategorySharedPtr(*Categories.Find(*CategoryNamePtr));
+			return Categories.FindChecked(*CategoryNamePtr);
 		}
 
-		return nullptr;
-	}
-
-	const FPersistentStorageCategorySharedPtr FindCategoryForFile(const FString& Filename) const
-	{
-		return const_cast<FPersistentStorageManager&>(*this).FindCategoryForFile(Filename);
+		return FPersistentStorageCategorySharedPtr();
 	}
 };
 
@@ -608,15 +636,13 @@ private:
 class CORE_API FManagedStorageFileHandle : public IFileHandle
 {
 public:
-	FManagedStorageFileHandle(IFileHandle* InFileHandle, const FString& InFilename, bool InIsWriteHandle) :
+	FManagedStorageFileHandle(IFileHandle* InFileHandle, FString InFilename, bool InIsWriteHandle) :
 		FileHandle(InFileHandle),
 		FileSize(InFileHandle->Size()),
+		Filename(MoveTemp(InFilename)),
 		bWriteHandle(InIsWriteHandle)
 	{
-		FString NormalizedPath(InFilename);
-		FPaths::NormalizeFilename(NormalizedPath);
-
-		Filename = NormalizedPath;
+		FPaths::NormalizeFilename(Filename);
 	}
 
 	virtual ~FManagedStorageFileHandle()
@@ -658,6 +684,8 @@ public:
 				return false;
 			}
 
+			// JMarcus TODO: this needs to handle the case of a failed write and roll back the size
+
 			bool bSuccess = FileHandle->Write(Source, BytesToWrite);
 			FileSize += BytesToWrite;
 
@@ -688,11 +716,18 @@ public:
 
 	virtual bool Truncate(int64 NewSize) override
 	{
-		if (FPersistentStorageManager::Get().IsCategoryForFileFull(Filename))
+		if (!bWriteHandle)
+		{
+			return false;
+		}
+
+		if (NewSize > FileSize && FPersistentStorageManager::Get().IsCategoryForFileFull(Filename))
 		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to truncate file %s.  The category of the file has reach quota limit in peristent storage."), *Filename);
 			return false;
 		}
+
+		// JMarcus TODO: This should update file size first if growing, after if shrinking
 
 		if (FileHandle->Truncate(NewSize))
 		{
@@ -798,6 +833,9 @@ public:
 
 	virtual bool MoveFile(const TCHAR* To, const TCHAR* From) override
 	{
+		// JMarcus TODO:  Should be accounting for move before doing it
+		// Needs to be an add / remove instead of a single MoveFileInManager() call
+
 		if (FPersistentStorageManager::Get().IsCategoryForFileFull(To))
 		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to move file to %s.  The target category of the destination has reach quota limit in peristent storage."), To);
@@ -935,6 +973,8 @@ public:
 
 	virtual bool CopyFile(const TCHAR* To, const TCHAR* From, EPlatformFileRead ReadFlags = EPlatformFileRead::None, EPlatformFileWrite WriteFlags = EPlatformFileWrite::None) override
 	{
+		// JMarcus TODO: A race is occurring here.  We should account for the copy before doing it.
+
 		if (FPersistentStorageManager::Get().IsCategoryForFileFull(To))
 		{
 			UE_LOG(LogPlatformFileManagedStorage, Error, TEXT("Failed to copy file to %s.  The category of the destination has reach quota limit in peristent storage."), To);
@@ -958,6 +998,12 @@ public:
 
 	virtual bool CopyDirectoryTree(const TCHAR* DestinationDirectory, const TCHAR* Source, bool bOverwriteAllExisting) override
 	{
+		// JMarcus TODO: A race is occurring here.  Since ScanDirectory() is Async, we aren't accounting for our file sizes before the copy.
+		// This should scan the source tree for sizes before the copy while blocking only the current thread.
+		// Sizes should be added to the corresponding destination directory.
+		// After sizes are accounted for, then the copy should take place.  If the copy fails, we'd need to roll back.
+		// Alternatively, its probably better to re-implement CopyDirectoryTree() and handle this for individual files in the directory visitor
+
 		bool bSuccess = LowerLevel->CopyDirectoryTree(DestinationDirectory, Source, bOverwriteAllExisting);
 
 		// Need to rescan the new directory

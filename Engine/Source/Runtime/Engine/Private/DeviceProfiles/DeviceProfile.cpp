@@ -154,7 +154,7 @@ void UDeviceProfile::PostEditChangeProperty( FPropertyChangedEvent& PropertyChan
 			{
 				UDeviceProfile* ParentProfile = *DeviceProfileIt;
 
-				if( !ParentProfile->IsPendingKill() )
+				if( IsValid(ParentProfile) )
 				{
 					int32 ProfileGeneration = 1;
 					do

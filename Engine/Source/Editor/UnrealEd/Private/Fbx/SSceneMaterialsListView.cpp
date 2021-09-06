@@ -412,7 +412,7 @@ void SFbxSceneMaterialsListView::AssignMaterialAssetData(const FAssetData& Asset
 	UObject *ContentObject = AssetData.GetAsset();
 	if (ContentObject != nullptr)
 	{
-		if (!ContentObject->HasAnyFlags(RF_Transient) && !ContentObject->IsPendingKill())
+		if (!ContentObject->HasAnyFlags(RF_Transient) && IsValid(ContentObject))
 		{
 			for (FbxMaterialInfoPtr ItemPtr : SelectedFbxMaterialInfos)
 			{
@@ -448,7 +448,7 @@ void SFbxSceneMaterialsListView::AssignMaterialToExisting()
 			UObject *ContentObject = AssetData[0].GetAsset();
 			if (ContentObject != nullptr)
 			{
-				if (!ContentObject->HasAnyFlags(RF_Transient) && !ContentObject->IsPendingKill())
+				if (!ContentObject->HasAnyFlags(RF_Transient) && IsValid(ContentObject))
 				{
 					//Override the MeshInfo with the new asset path
 					ItemPtr->SetOverridePath(true);

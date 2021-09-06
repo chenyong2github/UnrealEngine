@@ -20,6 +20,7 @@ public class Launch : ModuleRules
 				"Engine",
 				"InputCore",
 				"MoviePlayer",
+				"MoviePlayerProxy",
 				"Networking",
 				"PakFile",
 				"Projects",

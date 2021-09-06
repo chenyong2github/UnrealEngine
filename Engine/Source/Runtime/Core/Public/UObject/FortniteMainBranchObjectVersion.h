@@ -179,6 +179,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Water plugin is now component-based rather than actor based
 		WaterBodyComponentRefactor,
 
+		// Cooked BPGC storing editor-only asset tags
+		BPGCCookedEditorTags,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

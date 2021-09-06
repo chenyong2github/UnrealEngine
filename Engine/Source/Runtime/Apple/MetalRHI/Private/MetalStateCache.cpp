@@ -507,6 +507,11 @@ bool FMetalStateCache::SetRenderPassInfo(FRHIRenderPassInfo const& InRenderTarge
 	
 				// if this is the back buffer, make sure we have a usable drawable
 				ConditionalUpdateBackBuffer(Surface);
+				FMetalSurface* ResolveSurface = GetMetalSurfaceFromRHITexture(RenderTargetView.ResolveTarget);
+				if (ResolveSurface)
+				{
+					ConditionalUpdateBackBuffer(*ResolveSurface);
+				}
 	
 				BoundTargets |= 1 << RenderTargetIndex;
             

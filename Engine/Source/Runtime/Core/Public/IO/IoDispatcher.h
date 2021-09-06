@@ -725,6 +725,8 @@ public:
 		return static_cast<EIoChunkType>(Id[11]);
 	}
 
+	friend class FIoStoreReaderImpl;
+	
 private:
 	static inline FIoChunkId CreateEmptyId()
 	{
@@ -1201,9 +1203,18 @@ struct FIoStoreTocChunkInfo
 	uint64 Size;
 	uint64 CompressedSize;
 	int32 PartitionIndex;
+	EIoChunkType ChunkType;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
 	bool bIsCompressed;
+};
+
+struct FIoStoreTocCompressedBlockInfo
+{
+	uint64 Offset;
+	uint32 CompressedSize;
+	uint32 UncompressedSize;
+	uint8 CompressionMethodIndex;
 };
 
 struct FIoStoreCompressedBlockInfo
@@ -1258,6 +1269,9 @@ public:
 
 	CORE_API void GetFilenamesByBlockIndex(const TArray<int32>& InBlockIndexList, TArray<FString>& OutFileList) const;
 	CORE_API void GetFilenames(TArray<FString>& OutFileList) const;
+
+	CORE_API uint64 GetCompressionBlockSize() const;
+	CORE_API void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const;
 
 private:
 	FIoStoreReaderImpl* Impl;

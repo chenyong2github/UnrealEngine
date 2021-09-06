@@ -228,11 +228,7 @@ FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, U
 	KeySuffix += SkelMesh->GetHasVertexColors() ? "1" : "0";
 	KeySuffix += SkelMesh->GetVertexColorGuid().ToString(EGuidFormats::Digits);
 
-	static auto* VarMeshStreaming = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MeshStreaming"));
-	const bool bMeshStreamingEnabled = !VarMeshStreaming || VarMeshStreaming->GetInt() != 0;
-	const bool bSupportLODStreaming = SkelMesh->GetSupportsLODStreaming(TargetPlatform);
-	
-	if (bMeshStreamingEnabled && TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MeshLODStreaming) && bSupportLODStreaming)
+	if (SkelMesh->GetEnableLODStreaming(TargetPlatform))
 	{
 		const int32 MaxNumStreamedLODs = SkelMesh->GetMaxNumStreamedLODs(TargetPlatform);
 		const int32 MaxNumOptionalLODs = SkelMesh->GetMaxNumOptionalLODs(TargetPlatform);

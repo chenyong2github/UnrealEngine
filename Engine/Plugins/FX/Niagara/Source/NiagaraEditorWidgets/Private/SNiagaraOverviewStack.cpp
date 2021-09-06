@@ -850,7 +850,22 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 		// Debug draw 
 		UNiagaraStackModuleItem* StackModuleItem = Cast<UNiagaraStackModuleItem>(StackItem);
 			
-		if (StackModuleItem && StackModuleItem->GetModuleNode().ContainsDebugSwitch())
+		if (StackModuleItem)
+		{
+			if(StackModuleItem->IsScratchModule())
+			{
+				ContentBox->AddSlot()
+					.VAlign(VAlign_Center)
+					.AutoWidth()
+					.Padding(3, 0, 0, 0)
+					[					
+						SNew(SImage)
+						.ToolTipText(LOCTEXT("ScratchPadOverviewTooltip", "This module is a scratch pad script."))
+						.Image(FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Scratch"))
+					];
+			}
+			
+			if(StackModuleItem->GetModuleNode().ContainsDebugSwitch())
 		{
 			ContentBox->AddSlot()
 				.VAlign(VAlign_Center)
@@ -868,6 +883,7 @@ TSharedRef<ITableRow> SNiagaraOverviewStack::OnGenerateRowForEntry(UNiagaraStack
 						.Image(this, &SNiagaraOverviewStack::GetDebugIconBrush, StackItem)
 					]
 				];
+		}
 		}
 
 

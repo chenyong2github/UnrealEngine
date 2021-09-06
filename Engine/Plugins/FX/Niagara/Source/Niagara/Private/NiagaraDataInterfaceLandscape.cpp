@@ -148,8 +148,8 @@ private:
 
 	std::atomic<int32> ShaderPhysicsDataUserCount{ 0 };
 
-	EResourceState CurrentState;
-	EResourceState NextState;
+	EResourceState CurrentState = EResourceState::Uninitialized;
+	EResourceState NextState = EResourceState::Uninitialized;
 };
 
 using FNDI_Landscape_SharedResourceHandle = FNDI_SharedResourceHandle<FNDI_Landscape_SharedResource, FNDI_SharedResourceUsage>;
@@ -182,8 +182,8 @@ struct FNDILandscapeData_GameThread
 // Landscape data used on the render thread
 struct FNDILandscapeData_RenderThread
 {
-	const IAllocatedVirtualTexture* HeightVirtualTexture = nullptr;
-	const IAllocatedVirtualTexture* NormalVirtualTexture = nullptr;
+	TWeakObjectPtr<const URuntimeVirtualTexture> HeightVirtualTexture;
+	TWeakObjectPtr<const URuntimeVirtualTexture> NormalVirtualTexture;
 	const FLandscapeTextureResource* TextureResources = nullptr;
 	FVector4 HeightVirtualTextureWorldToUvParameters[4];
 	FVector4 NormalVirtualTextureWorldToUvParameters[3];
@@ -192,8 +192,6 @@ struct FNDILandscapeData_RenderThread
 	FVector4 CachedHeightTextureUvScaleBias = FVector4(ForceInitToZero);
 	FVector2D CachedHeightTextureGridSize = FVector2D(1.0f, 1.0f);
 	ERuntimeVirtualTextureMaterialType NormalVirtualTextureMode = ERuntimeVirtualTextureMaterialType::Count;
-	FVirtualTextureProducerHandle HeightVirtualTextureProducerHandle;
-	FVirtualTextureProducerHandle NormalVirtualTextureProducerHandle;
 };
 
 class FNDI_Landscape_GeneratedData : public FNDI_GeneratedData
@@ -214,55 +212,10 @@ private:
 
 struct FNiagaraDataInterfaceProxyLandscape : public FNiagaraDataInterfaceProxy
 {
-	static void OnHeightVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton)
-	{
-		FNiagaraDataInterfaceProxyLandscape* Proxy = reinterpret_cast<FNiagaraDataInterfaceProxyLandscape*>(Baton);
-
-		for (auto& ProxyDataIt : Proxy->SystemInstancesToProxyData_RT)
-		{
-			if (ProxyDataIt.Value.HeightVirtualTextureProducerHandle == InHandle)
-			{
-				ProxyDataIt.Value.HeightVirtualTexture = nullptr;
-			}
-		}
-	}
-
-	static void OnNormalVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton)
-	{
-		FNiagaraDataInterfaceProxyLandscape* Proxy = reinterpret_cast<FNiagaraDataInterfaceProxyLandscape*>(Baton);
-
-		for (auto& ProxyDataIt : Proxy->SystemInstancesToProxyData_RT)
-		{
-			if (ProxyDataIt.Value.NormalVirtualTextureProducerHandle == InHandle)
-			{
-				ProxyDataIt.Value.NormalVirtualTexture = nullptr;
-			}
-		}
-	}
-
-	virtual ~FNiagaraDataInterfaceProxyLandscape()
-	{
-		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
-	}
-
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override
 	{
 		const FNDILandscapeData_RenderThread& SourceData = *reinterpret_cast<const FNDILandscapeData_RenderThread*>(PerInstanceData);
-
-		FNDILandscapeData_RenderThread& RT_Data = SystemInstancesToProxyData_RT.FindChecked(Instance);
-		RT_Data = SourceData;
-
-		if (SourceData.HeightVirtualTexture && !CallbacksRegistered.Contains(SourceData.HeightVirtualTextureProducerHandle.PackedValue))
-		{
-			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(SourceData.HeightVirtualTextureProducerHandle, &OnHeightVirtualTextureDestroyedCB, this);
-			CallbacksRegistered.Add(SourceData.HeightVirtualTextureProducerHandle.PackedValue);
-	}
-
-		if (SourceData.NormalVirtualTexture && !CallbacksRegistered.Contains(SourceData.NormalVirtualTextureProducerHandle.PackedValue))
-		{
-			GetRendererModule().AddVirtualTextureProducerDestroyedCallback(SourceData.NormalVirtualTextureProducerHandle, &OnNormalVirtualTextureDestroyedCB, this);
-			CallbacksRegistered.Add(SourceData.NormalVirtualTextureProducerHandle.PackedValue);
-		}
+		*SystemInstancesToProxyData_RT.Find(Instance) = SourceData;
 	}
 
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
@@ -271,7 +224,6 @@ struct FNiagaraDataInterfaceProxyLandscape : public FNiagaraDataInterfaceProxy
 	}
 
 	TMap<FNiagaraSystemInstanceID, FNDILandscapeData_RenderThread> SystemInstancesToProxyData_RT;
-	TSet<uint32> CallbacksRegistered;
 };
 
 FLandscapeTextureResource::FLandscapeTextureResource(const FIntPoint& InCellCount)
@@ -355,7 +307,7 @@ bool FNDI_Landscape_SharedResource::CanBeDestroyed() const
 	if (ReadyForRemoval && LandscapeTextures && LandscapeTextures->IsInitialized())
 	{
 		UE_LOG(LogNiagara, Error, TEXT("FNDI_Landscape_SharedResource::CanBeDestroyed returning true, but the LandscpaeTextures is still initialized! Source[%s] MinRegion[%d,%d] MaxRegion[%d,%d]"),
-		*GetNameSafe(ResourceKey.Source.Get()), ResourceKey.MinCaptureRegion.X, ResourceKey.MinCaptureRegion.Y, ResourceKey.MaxCaptureRegion.X, ResourceKey.MaxCaptureRegion.Y);
+			*GetNameSafe(ResourceKey.Source.Get()), ResourceKey.MinCaptureRegion.X, ResourceKey.MinCaptureRegion.Y, ResourceKey.MaxCaptureRegion.X, ResourceKey.MaxCaptureRegion.Y);
 	}
 
 	return ReadyForRemoval;
@@ -441,77 +393,77 @@ void FNDI_Landscape_SharedResource::UnregisterUser(const FNDI_SharedResourceUsag
 
 void FNDI_Landscape_SharedResource::Initialize()
 {
-		if (const ULandscapeInfo* LandscapeInfo = ResourceKey.Source->GetLandscapeInfo())
-		{
-			const int32 ComponentQuadCount = ResourceKey.Source->ComponentSizeQuads;
-			const FIntPoint RegionSpan = ResourceKey.MaxCaptureRegion - ResourceKey.MinCaptureRegion + FIntPoint(1, 1);
-			const FIntPoint CaptureQuadSpan = RegionSpan * ComponentQuadCount;
-			const FIntPoint CaptureVertexSpan = CaptureQuadSpan + FIntPoint(1, 1);
-			const int32 SampleCount = CaptureVertexSpan.X * CaptureVertexSpan.Y;
+	if (const ULandscapeInfo* LandscapeInfo = ResourceKey.Source->GetLandscapeInfo())
+	{
+		const int32 ComponentQuadCount = ResourceKey.Source->ComponentSizeQuads;
+		const FIntPoint RegionSpan = ResourceKey.MaxCaptureRegion - ResourceKey.MinCaptureRegion + FIntPoint(1, 1);
+		const FIntPoint CaptureQuadSpan = RegionSpan * ComponentQuadCount;
+		const FIntPoint CaptureVertexSpan = CaptureQuadSpan + FIntPoint(1, 1);
+		const int32 SampleCount = CaptureVertexSpan.X * CaptureVertexSpan.Y;
 
 		LandscapeTextures = MakeUnique<FLandscapeTextureResource>(CaptureVertexSpan);
 
 		TArray<float>* HeightValues = ResourceKey.IncludesCachedHeight ? &LandscapeTextures->EditHeightValues(SampleCount) : nullptr;
 		TArray<uint8>* PhysMatValues = ResourceKey.IncludesCachedPhysMat ? &LandscapeTextures->EditPhysMatValues(SampleCount) : nullptr;
 
-			const FIntPoint RegionVertexBase = ResourceKey.MinCaptureRegion * ComponentQuadCount;
+		const FIntPoint RegionVertexBase = ResourceKey.MinCaptureRegion * ComponentQuadCount;
 
-			for (const FIntPoint& Region : ResourceKey.CapturedRegions)
+		for (const FIntPoint& Region : ResourceKey.CapturedRegions)
+		{
+			auto FoundCollisionComponent = LandscapeInfo->XYtoCollisionComponentMap.Find(Region);
+			check(FoundCollisionComponent);
+
+			if (FoundCollisionComponent)
 			{
-				auto FoundCollisionComponent = LandscapeInfo->XYtoCollisionComponentMap.Find(Region);
-				check(FoundCollisionComponent);
-
-				if (FoundCollisionComponent)
+				if (const ULandscapeHeightfieldCollisionComponent* CollisionComponent = *FoundCollisionComponent)
 				{
-					if (const ULandscapeHeightfieldCollisionComponent* CollisionComponent = *FoundCollisionComponent)
-					{
 					if (HeightValues)
-						{
-							const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentQuadCount;
+					{
+						const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentQuadCount;
 						CollisionComponent->FillHeightTile(*HeightValues, SectionBase.X + SectionBase.Y * CaptureVertexSpan.X, CaptureVertexSpan.X);
-						}
+					}
 
 					if (PhysMatValues)
-						{
-							const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentQuadCount;
+					{
+						const FIntPoint SectionBase = (Region - ResourceKey.MinCaptureRegion) * ComponentQuadCount;
 						CollisionComponent->FillMaterialIndexTile(*PhysMatValues, SectionBase.X + SectionBase.Y * CaptureVertexSpan.X, CaptureVertexSpan.X);
 
-							// remap the material index to the list we have on the DI
-							TArray<uint8> PhysMatRemap;
-							for (const UPhysicalMaterial* ComponentMaterial : CollisionComponent->CookedPhysicalMaterials)
-							{
-								PhysMatRemap.Emplace(ResourceKey.PhysicalMaterials.IndexOfByKey(ComponentMaterial));
-							}
+						// remap the material index to the list we have on the DI
+						TArray<uint8> PhysMatRemap;
+						for (const UPhysicalMaterial* ComponentMaterial : CollisionComponent->CookedPhysicalMaterials)
+						{
+							PhysMatRemap.Emplace(ResourceKey.PhysicalMaterials.IndexOfByKey(ComponentMaterial));
+						}
 
-							for (int32 Y = 0; Y < ComponentQuadCount; ++Y)
+						for (int32 Y = 0; Y < ComponentQuadCount; ++Y)
+						{
+							for (int32 X = 0; X < ComponentQuadCount; ++X)
 							{
-								for (int32 X = 0; X < ComponentQuadCount; ++X)
-								{
-									const int32 WriteIndex = SectionBase.X + X + (SectionBase.Y + Y) * CaptureVertexSpan.X;
+								const int32 WriteIndex = SectionBase.X + X + (SectionBase.Y + Y) * CaptureVertexSpan.X;
 								uint8& PhysMatIndex = (*PhysMatValues)[WriteIndex];
-									PhysMatIndex = PhysMatRemap.IsValidIndex(PhysMatIndex) ? PhysMatRemap[PhysMatIndex] : INDEX_NONE;
-								}
+								PhysMatIndex = PhysMatRemap.IsValidIndex(PhysMatIndex) ? PhysMatRemap[PhysMatIndex] : INDEX_NONE;
 							}
 						}
 					}
 				}
 			}
+		}
 
-			// number of cells that are represented in our heights array
-			CellCount = CaptureVertexSpan;
+		// number of cells that are represented in our heights array
+		CellCount = CaptureVertexSpan;
 
-			// mapping to get the UV from 'cell space' which is relative to the entire terrain (not just the captured regions)
-			FVector2D UvScale(1.0f / CaptureVertexSpan.X, 1.0f / CaptureVertexSpan.Y);
+		// mapping to get the UV from 'cell space' which is relative to the entire terrain (not just the captured regions)
+		FVector2D UvScale(1.0f / CaptureVertexSpan.X, 1.0f / CaptureVertexSpan.Y);
 
-			UvScaleBias = FVector4(
-				UvScale.X,
-				UvScale.Y,
-				(0.5f - RegionVertexBase.X) * UvScale.X,
-				(0.5f - RegionVertexBase.Y) * UvScale.Y);
+		UvScaleBias = FVector4(
+			UvScale.X,
+			UvScale.Y,
+			(0.5f - RegionVertexBase.X) * UvScale.X,
+			(0.5f - RegionVertexBase.Y) * UvScale.Y);
 
-			ActorToWorldTransform = ResourceKey.Source->GetTransform().ToMatrixWithScale();
-			WorldToActorTransform = ActorToWorldTransform.Inverse();
-			TextureWorldGridSize = FVector2D(ResourceKey.Source->GetTransform().GetScale3D());
+		ActorToWorldTransform = ResourceKey.Source->GetTransform().ToMatrixWithScale();
+		WorldToActorTransform = ActorToWorldTransform.Inverse();
+		TextureWorldGridSize = FVector2D(ResourceKey.Source->GetTransform().GetScale3D());
 
 		BeginInitResource(LandscapeTextures.Get());
 	}
@@ -520,20 +472,20 @@ void FNDI_Landscape_SharedResource::Initialize()
 void FNDI_Landscape_SharedResource::Release()
 {
 	if (FLandscapeTextureResource* Resource = LandscapeTextures.Release())
-			{
+	{
 		ENQUEUE_RENDER_COMMAND(BeginDestroyCommand)([RT_Resource = Resource](FRHICommandListImmediate& RHICmdList)
-				{
+		{
 			RT_Resource->ReleaseResource();
 
 			// On some RHIs textures will push data on the RHI thread
 			// Therefore we are not 'released' until the RHI thread has processed all commands
 			RHICmdList.EnqueueLambda([RT_Resource](FRHICommandListImmediate& RHICmdList)
-					{
+				{
 					delete RT_Resource;
 				});
-					});
-				}
-			}
+		});
+	}
+}
 
 void FNDI_Landscape_SharedResource::UpdateState(bool& LandscapeReleased)
 {
@@ -544,7 +496,7 @@ void FNDI_Landscape_SharedResource::UpdateState(bool& LandscapeReleased)
 	if (RequestedState == CurrentState)
 	{
 		return;
-		}
+	}
 
 	if (RequestedState == EResourceState::Initialized)
 	{
@@ -554,7 +506,7 @@ void FNDI_Landscape_SharedResource::UpdateState(bool& LandscapeReleased)
 	{
 		Release();
 		LandscapeReleased = true;
-}
+	}
 
 	CurrentState = RequestedState;
 }
@@ -566,12 +518,12 @@ FNDI_Landscape_GeneratedData::~FNDI_Landscape_GeneratedData()
 	for (TSharedPtr<FNDI_Landscape_SharedResource> Landscape : LandscapeData)
 	{
 		Landscape->Release();
-			}
+	}
 }
 
 void FNDI_Landscape_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaSeconds)
 {
-		FRWScopeLock WriteLock(LandscapeDataGuard, SLT_Write);
+	FRWScopeLock WriteLock(LandscapeDataGuard, SLT_Write);
 
 	{ // handle any changes to the generated data
 		TArray<int32, TInlineAllocator<32>> LandscapeToRemove;
@@ -600,7 +552,7 @@ void FNDI_Landscape_GeneratedData::Tick(ETickingGroup TickGroup, float DeltaSeco
 			LandscapeData.RemoveAtSwap(LandscapeIt);
 
 			if (!Landscape->CanBeDestroyed())
-		{
+			{
 				ReleasedLandscapeData.Add(Landscape);
 			}
 		}
@@ -622,6 +574,8 @@ FNDI_GeneratedData::TypeHash FNDI_Landscape_GeneratedData::GetTypeHash()
 
 FNDI_Landscape_SharedResourceHandle FNDI_Landscape_GeneratedData::GetLandscapeData(const UNiagaraDataInterfaceLandscape& LandscapeDI, const FNiagaraSystemInstance& SystemInstance, const FNDILandscapeData_GameThread& InstanceData, FNDI_SharedResourceUsage Usage, bool bNeedsDataImmediately)
 {
+	check(IsInGameThread());
+
 	const ALandscape* Landscape = InstanceData.Landscape.Get();
 	const ULandscapeInfo* LandscapeInfo = Landscape ? Landscape->GetLandscapeInfo() : nullptr;
 
@@ -719,6 +673,7 @@ FNDI_Landscape_SharedResourceHandle FNDI_Landscape_GeneratedData::GetLandscapeDa
 	}
 
 	// We need to add
+	// Note we do not need to check for other threads adding here as it's only every done on the GameThread
 	FRWScopeLock WriteLock(LandscapeDataGuard, SLT_Write);
 	return FNDI_Landscape_SharedResourceHandle(
 		Usage,
@@ -864,12 +819,11 @@ void UNiagaraDataInterfaceLandscape::ProvidePerInstanceDataForRenderThread(void*
 	{
 		if (const URuntimeVirtualTexture* VirtualTexture = SourceData.Landscape->RuntimeVirtualTextures[SourceData.HeightVirtualTextureIndex])
 		{
-			TargetData->HeightVirtualTexture = VirtualTexture->GetAllocatedVirtualTexture();
+			TargetData->HeightVirtualTexture = VirtualTexture;
 			TargetData->HeightVirtualTextureWorldToUvParameters[0] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0);
 			TargetData->HeightVirtualTextureWorldToUvParameters[1] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1);
 			TargetData->HeightVirtualTextureWorldToUvParameters[2] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2);
 			TargetData->HeightVirtualTextureWorldToUvParameters[3] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldHeightUnpack);
-			TargetData->HeightVirtualTextureProducerHandle = VirtualTexture->GetProducerHandle();
 		}
 	}
 
@@ -877,12 +831,11 @@ void UNiagaraDataInterfaceLandscape::ProvidePerInstanceDataForRenderThread(void*
 	{
 		if (const URuntimeVirtualTexture* VirtualTexture = SourceData.Landscape->RuntimeVirtualTextures[SourceData.NormalVirtualTextureIndex])
 		{
-			TargetData->NormalVirtualTexture = VirtualTexture->GetAllocatedVirtualTexture();
+			TargetData->NormalVirtualTexture = VirtualTexture;
 			TargetData->NormalVirtualTextureWorldToUvParameters[0] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform0);
 			TargetData->NormalVirtualTextureWorldToUvParameters[1] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform1);
 			TargetData->NormalVirtualTextureWorldToUvParameters[2] = VirtualTexture->GetUniformParameter(ERuntimeVirtualTextureShaderUniform_WorldToUVTransform2);
 			TargetData->NormalVirtualTextureMode = SourceData.NormalVirtualTextureMode;
-			TargetData->NormalVirtualTextureProducerHandle = VirtualTexture->GetProducerHandle();
 		}
 	}
 }
@@ -1179,7 +1132,9 @@ public:
 
 	bool SetHeightVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
 	{
-		const IAllocatedVirtualTexture* HeightAllocatedTexture = ProxyData.HeightVirtualTexture;
+		const IAllocatedVirtualTexture* HeightAllocatedTexture = ProxyData.HeightVirtualTexture.IsValid()
+			? ProxyData.HeightVirtualTexture->GetAllocatedVirtualTexture()
+			: nullptr;
 
 		if (!HeightAllocatedTexture)
 		{
@@ -1251,7 +1206,9 @@ public:
 
 	bool SetNormalVirtualTextureParameters(FRHICommandList& RHICmdList, FRHIComputeShader* ComputeShaderRHI, const FNDILandscapeData_RenderThread& ProxyData) const
 	{
-		const IAllocatedVirtualTexture* NormalAllocatedTexture = ProxyData.NormalVirtualTexture;
+		const IAllocatedVirtualTexture* NormalAllocatedTexture = ProxyData.NormalVirtualTexture.IsValid()
+			? ProxyData.NormalVirtualTexture->GetAllocatedVirtualTexture()
+			: nullptr;
 
 		if (!NormalAllocatedTexture)
 		{

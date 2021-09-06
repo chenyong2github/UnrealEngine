@@ -41,6 +41,79 @@ struct UniquePtr
 	SerializedPtr *Data;
 };
 
+struct TArray
+{
+	uint8 *Data;
+	uint32 ArrayNum;
+	uint32 ArrayMax;
+};
+
+struct TPairU8
+{
+	uint16 Key;
+	uint8 Value;
+};
+
+struct TPairS32
+{
+	int32 Key;
+	int32 Value;
+};
+
+struct PlanesS
+{
+	unsigned int8 FirstHalfEdgeIndex;
+	unsigned int8 NumHalfEdges;
+};
+
+struct PlanesM
+{
+	int16 FirstHalfEdgeIndex;
+	int16 NumHalfEdges;
+};
+
+struct PlanesL
+{
+	int32 FirstHalfEdgeIndex;
+	int32 NumHalfEdges;
+};
+
+struct HalfEdgesS
+{
+	unsigned int8 PlaneIndex;
+	unsigned int8 VertexIndex;
+	unsigned int8 TwinHalfEdgeIndex;
+};
+
+struct HalfEdgesM
+{
+	int16 PlaneIndex;
+	int16 VertexIndex;
+	int16 TwinHalfEdgeIndex;
+};
+
+struct HalfEdgesL
+{
+	int32 PlaneIndex;
+	int32 VertexIndex;
+	int32 TwinHalfEdgeIndex;
+};
+
+struct VerticesS
+{
+	unsigned int8 FirstHalfEdgeIndex;
+};
+
+struct VerticesM
+{
+	int16 FirstHalfEdgeIndex;
+};
+
+struct VerticesL
+{
+	int32 FirstHalfEdgeIndex;
+};
+
 struct Segment
 {
 	FVector Point;
@@ -57,6 +130,31 @@ struct PlaneConcrete
 struct Plane
 {
 	PlaneConcrete MPlaneConcrete;
+};
+
+struct FConvexStructureDataImp
+{
+	TArray Planes;
+	TArray HalfEdges;
+	TArray Vertices;
+	TArray Edges;
+};
+
+struct FConvexStructureData
+{
+	FConvexStructureDataImp *Data;
+	int8 IndexType;
+};
+
+struct ConvexShape
+{
+	TArray Planes;
+	TArray Vertices;
+	FVector LocalBoundingBoxMin;
+	FVector LocalBoundingBoxMax;
+	FConvexStructureData StructureData;
+	float Volume;
+	FVector CenterOfMass;
 };
 
 static inline float SafeNormalize(FVector &Direction)
@@ -84,6 +182,28 @@ static inline void PhiWithNormalSphere(const uniform uint8 *uniform TypedObjectP
 	const uniform FVector Center = *((const uniform FVector *uniform)&TypedObjectPtr[0]);
 	Normal = PhiWithNormalInput - Center;
 	Phi = SafeNormalize(Normal) - Radius;
+}
+
+static inline void PhiWithNormalPlane(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi)
+{
+	const uniform Plane P = *((const uniform Plane *uniform)&TypedObjectPtr[0]);
+	Normal = P.MPlaneConcrete.MNormal;
+	Phi = VectorDot(PhiWithNormalInput - P.MPlaneConcrete.MX, P.MPlaneConcrete.MNormal);
+}
+
+static inline void PhiWithNormalPlane(const uniform Plane *varying InPlane, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi)
+{
+	const varying FVector MNormal = VectorGather(&InPlane->MPlaneConcrete.MNormal);
+	const varying FVector MX = VectorGather(&InPlane->MPlaneConcrete.MX);
+
+	Normal = MNormal;
+	Phi = VectorDot(PhiWithNormalInput - MX, MNormal);
+}
+
+static inline float SignedDistancePlane(const uniform Plane *uniform InPlane, const FVector &x)
+{
+	const uniform Plane P = *InPlane;
+	return VectorDot(x - P.MPlaneConcrete.MX, P.MPlaneConcrete.MNormal);
 }
 
 static inline void PhiWithNormalCapsule(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform float Radius)
@@ -241,6 +361,189 @@ static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, con
 	}
 }
 
+static inline FVector FindClosestPointOnLineSegment(const FVector& P0, const FVector& P1, const FVector& P)
+{
+	const FVector P10 = P1 - P0;
+	const FVector PP0 = P - P0;
+	const float Proj = VectorDot(P10, PP0);
+	const float Denom2 = VectorSizeSquared(P10);
+	const float NormalProj = Proj / Denom2;
+	const FVector P2 = P0 + NormalProj * P10;
+	return VectorSelect(Proj < 0.0f || Denom2 < KINDA_SMALL_NUMBER, P0, VectorSelect(NormalProj > 1.0f, P1, P2));
+}
+
+static inline FVector FindClosestPointOnTriangle(const FVector& ClosestPointOnPlane, const FVector& P0, const FVector& P1, const FVector& P2, const FVector& P)
+{
+	// ComputeBarycentricInPlane
+	const FVector P10 = P1 - P0;
+	const FVector P20 = P2 - P0;
+	const FVector PP0 = P - P0;
+	const float Size10 = VectorSizeSquared(P10);
+	const float Size20 = VectorSizeSquared(P20);
+	const float ProjSides = VectorDot(P10, P20);
+	const float ProjP1 = VectorDot(PP0, P10);
+	const float ProjP2 = VectorDot(PP0, P20);
+	const float Denom = Size10 * Size20 - ProjSides * ProjSides;
+	const float BaryX = (Size20 * ProjP1 - ProjSides * ProjP2) / Denom;
+	const float BaryY = (Size10 * ProjP2 - ProjSides * ProjP1) / Denom;
+
+	const bool bClosestPoint = (BaryX >= -KINDA_SMALL_NUMBER && BaryX <= 1 + KINDA_SMALL_NUMBER && BaryY >= -KINDA_SMALL_NUMBER && BaryY <= 1 + KINDA_SMALL_NUMBER && (BaryX + BaryY) <= (1 + KINDA_SMALL_NUMBER));
+
+	const FVector P10Closest = FindClosestPointOnLineSegment(P0, P1, P);
+	const FVector P20Closest = FindClosestPointOnLineSegment(P0, P2, P);
+	const FVector P21Closest = FindClosestPointOnLineSegment(P1, P2, P);
+
+	const float P10Dist2 = VectorSizeSquared(P - P10Closest);
+	const float P20Dist2 = VectorSizeSquared(P - P20Closest);
+	const float P21Dist2 = VectorSizeSquared(P - P21Closest);
+
+	return VectorSelect(bClosestPoint, ClosestPointOnPlane, VectorSelect(P10Dist2 < P20Dist2, VectorSelect(P10Dist2 < P21Dist2, P10Closest, P21Closest), VectorSelect(P20Dist2 < P21Dist2, P20Closest, P21Closest)));
+}
+
+static inline int32 NumPlaneVertices(const uniform FConvexStructureData *uniform StructureData, const varying int32 PlaneIndex)
+{
+	const uniform int8 IndexType = StructureData->IndexType;
+
+	if(IndexType == 1) // EIndexType::Small
+	{
+		const uniform PlanesS *uniform Planes = (const uniform PlanesS *uniform)StructureData->Data->Planes.Data;
+
+		#pragma ignore warning(perf)
+		return (int32)Planes[PlaneIndex].NumHalfEdges;
+	}
+	else if(IndexType == 2) // EIndexType::Medium
+	{
+		const uniform PlanesM *uniform Planes = (const uniform PlanesM *uniform)StructureData->Data->Planes.Data;
+
+		#pragma ignore warning(perf)
+		return (int32)Planes[PlaneIndex].NumHalfEdges;
+	}
+	else if(IndexType == 3) // EIndexType::Large
+	{
+		const uniform PlanesL *uniform Planes = (const uniform PlanesL *uniform)StructureData->Data->Planes.Data;
+
+		#pragma ignore warning(perf)
+		return Planes[PlaneIndex].NumHalfEdges;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+static inline int32 GetPlaneVertex(const uniform FConvexStructureData *uniform StructureData, const varying int32 PlaneIndex, const uniform int32 PlaneEdgeIndex)
+{
+	const uniform int8 IndexType = StructureData->IndexType;
+
+	if(IndexType == 1) // EIndexType::Small
+	{
+		const uniform PlanesS *uniform Planes = (const uniform PlanesS *uniform)StructureData->Data->Planes.Data;
+		const uniform HalfEdgesS *uniform HalfEdges = (const uniform HalfEdgesS *uniform)StructureData->Data->HalfEdges.Data;
+
+		#pragma ignore warning(perf)
+		const int32 HalfEdgeIndex = (int32)Planes[PlaneIndex].FirstHalfEdgeIndex + PlaneEdgeIndex;
+
+		#pragma ignore warning(perf)
+		return (int32)HalfEdges[HalfEdgeIndex].VertexIndex;
+	}
+	else if(IndexType == 2) // EIndexType::Medium
+	{
+		const uniform PlanesM *uniform Planes = (const uniform PlanesM *uniform)StructureData->Data->Planes.Data;
+		const uniform HalfEdgesM *uniform HalfEdges = (const uniform HalfEdgesM *uniform)StructureData->Data->HalfEdges.Data;
+
+		#pragma ignore warning(perf)
+		const int32 HalfEdgeIndex = (int32)Planes[PlaneIndex].FirstHalfEdgeIndex + PlaneEdgeIndex;
+
+		#pragma ignore warning(perf)
+		return (int32)HalfEdges[HalfEdgeIndex].VertexIndex;
+	}
+	else if(IndexType == 3) // EIndexType::Large
+	{
+		const uniform PlanesL *uniform Planes = (const uniform PlanesL *uniform)StructureData->Data->Planes.Data;
+		const uniform HalfEdgesL *uniform HalfEdges = (const uniform HalfEdgesL *uniform)StructureData->Data->HalfEdges.Data;
+
+		#pragma ignore warning(perf)
+		const int32 HalfEdgeIndex = Planes[PlaneIndex].FirstHalfEdgeIndex + PlaneEdgeIndex;
+
+		#pragma ignore warning(perf)
+		return HalfEdges[HalfEdgeIndex].VertexIndex;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+static inline void PhiWithNormalConvex(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform int SizeofFImplicitObject)
+{
+	const uniform ConvexShape *uniform Object = (const uniform ConvexShape *uniform)TypedObjectPtr;
+	const uniform Plane *uniform Planes = (const uniform Plane *uniform)&Object->Planes.Data[0];
+	const uniform int32 NumPlanes = Object->Planes.ArrayNum;
+	if (NumPlanes == 0)
+	{
+		Phi = FLT_MAX;
+		return;
+	}
+
+	float MaxPhi = -FLT_MAX;
+	int32 MaxPlane = 0;
+
+	for (uniform int32 Idx = 0; Idx < NumPlanes; ++Idx)
+	{
+		const float InnerPhi = SignedDistancePlane(&Planes[Idx], PhiWithNormalInput);
+		if (InnerPhi > MaxPhi)
+		{
+			MaxPhi = InnerPhi;
+			MaxPlane = Idx;
+		}
+	}
+
+	PhiWithNormalPlane(&Planes[MaxPlane], PhiWithNormalInput, Normal, Phi);
+	if (Phi <= 0)
+	{
+		return;
+	}
+
+	// If x is outside the convex mesh, we should find for the nearest point to triangles on the plane
+	const int32 PlaneVerticesNum = NumPlaneVertices(&Object->StructureData, MaxPlane);
+	const FVector XOnPlane = PhiWithNormalInput - Phi * Normal;
+
+	if(PlaneVerticesNum > 2 && IsVectorEqual(XOnPlane, PhiWithNormalInput))
+	{
+		return;
+	}
+
+	float ClosestDistance = FLT_MAX;
+	FVector ClosestPoint = ZeroVector;
+	for (uniform int32 Index = 0; Index < PlaneVerticesNum - 2; Index++)
+	{
+		const uniform FVector *uniform Vertices = (const uniform FVector *uniform)Object->Vertices.Data;
+		const uniform FVector *varying APtr = &Vertices[GetPlaneVertex(&Object->StructureData, MaxPlane, 0)];
+		const uniform FVector *varying BPtr = &Vertices[GetPlaneVertex(&Object->StructureData, MaxPlane, Index + 1)];
+		const uniform FVector *varying CPtr = &Vertices[GetPlaneVertex(&Object->StructureData, MaxPlane, Index + 2)];
+
+		const FVector A = VectorGather(APtr);
+		const FVector B = VectorGather(BPtr);
+		const FVector C = VectorGather(CPtr);
+
+		const FVector Point = FindClosestPointOnTriangle(XOnPlane, A, B, C, PhiWithNormalInput);
+
+		const float Distance = VectorSize(Point - XOnPlane);
+		if (Distance < ClosestDistance)
+		{
+			ClosestDistance = Distance;
+			ClosestPoint = Point;
+		}
+	}
+
+	const FVector Difference = PhiWithNormalInput - ClosestPoint;
+	Phi = VectorSize(Difference);
+	if (Phi > SMALL_NUMBER)
+	{
+		Normal = (Difference) / Phi;
+	}
+}
+
 extern "C" unmasked void GetPhiWithNormal(const uniform uint8 *uniform CollisionParticles, const uniform float *uniform V, uniform float *uniform Normal, uniform float *uniform Phi, const uniform int i, const uniform int ProgramCount, const uniform int Mask);
 
 export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
@@ -338,6 +641,11 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 			case TaperedCapsule:
 				{
 					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					break;
+				}
+			case Convex:
+				{
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
 					break;
 				}
 			default:
@@ -487,6 +795,11 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
 					break;
 				}
+			case Convex:
+				{
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
+					break;
+				}
 			default:
 				{
 					uniform int IMMask;
@@ -615,6 +928,11 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 			case TaperedCapsule:
 				{
 					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
+					break;
+				}
+			case Convex:
+				{
+					PhiWithNormalConvex(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject);
 					break;
 				}
 			default:

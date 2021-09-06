@@ -610,7 +610,7 @@ public:
 
 private:
 	/** Disable rigid body animation nodes and play original animation without simulation */
-	UPROPERTY(EditAnywhere, Category=Clothing)
+	UPROPERTY(EditAnywhere, Category = Physics)
 	uint8 bDisableRigidBodyAnimNode:1;
 
 	/** Disable animation curves for this component. If this is set true, no curves will be processed */

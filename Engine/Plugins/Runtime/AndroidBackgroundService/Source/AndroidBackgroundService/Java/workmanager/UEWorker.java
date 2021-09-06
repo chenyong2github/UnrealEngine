@@ -48,7 +48,7 @@ public class UEWorker extends Worker
 			//Want to honor the UE4 result even if we hit an exception after it finished since it represents expected behavior
             if (!bReceivedResult)
             {
-                CachedResult = Result.failure();
+                SetWorkResult_Failure();
             }
 
 			//Always print stack trace for exception
@@ -57,6 +57,10 @@ public class UEWorker extends Worker
 		finally
 		{
 			Log.debug("doWork ending for Worker:" + GetWorkID() + " with CachedResult:" + CachedResult);
+
+			//bubble up to UE that our Worker is finished working
+			CallNativeOnWorkerStop(GetWorkID());
+
 			//Should be set by either the exception or through a callback to this object from the UE native code
 			return CachedResult;
 		}
@@ -100,12 +104,14 @@ public class UEWorker extends Worker
 	public void OnWorkerStart(String WorkID)
 	{
 		Log.verbose("OnWorkerStart for WorkID: " + WorkID);
+		CallNativeOnWorkerStart(WorkID);
 	}
 	
 	//Called if the Android system is shutting down our Worker to give us a chance to clean up and set failure/retry results if needed.
 	public void OnWorkerStopped(String WorkID)
 	{
 		Log.verbose("OnWorkerStopped for WorkID: " + WorkID);
+		CallNativeOnWorkerStop(WorkID);
 	}
 
 	//Grabs our WorkID from the InputData supplied to our Worker
@@ -128,6 +134,11 @@ public class UEWorker extends Worker
 		return ReturnedString;
 	}
 
+	public boolean DidReceiveResult()
+	{
+		return bReceivedResult;
+	}
+
 	public boolean DidWorkEndInSuccess()
 	{
 		//If we haven't received a result yet, just always return false
@@ -147,7 +158,7 @@ public class UEWorker extends Worker
 			return false;
 		}
 		
-		return (CachedResult == Result.retry());
+		return (CachedResult == Result.failure());
 	}
 	
 	public boolean DidWorkEndInRetry()
@@ -215,6 +226,22 @@ public class UEWorker extends Worker
         CachedResult = Result.failure();
         bReceivedResult = true;
     }
+
+	//overridable code to call the respective native OnWorkerStart for this worker
+	public void CallNativeOnWorkerStart(String WorkID)
+	{
+		nativeAndroidBackgroundServicesOnWorkerStart(WorkID);
+	}
+
+	//overridable code to call the respective native OnWorkerStop for this worker
+	public void CallNativeOnWorkerStop(String WorkID)
+	{
+		nativeAndroidBackgroundServicesOnWorkerStop(WorkID);
+	}
+
+	//Native functions used to bubble up to native UE code
+	public native void nativeAndroidBackgroundServicesOnWorkerStart(String WorkID);
+	public native void nativeAndroidBackgroundServicesOnWorkerStop(String WorkID);
 
 	//by default if we don't get an answer we should retry as something weird happened that prevented us from
     //doing anything significant in our native call

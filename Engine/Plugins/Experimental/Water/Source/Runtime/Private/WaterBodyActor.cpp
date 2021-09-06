@@ -81,7 +81,7 @@ void AWaterBody::PreRegisterAllComponents()
 
 	SetRootComponent(WaterBodyComponent);
 	SplineComp->AttachToComponent(WaterBodyComponent, FAttachmentTransformRules::KeepRelativeTransform);
-	}
+}
 
 void AWaterBody::NotifyActorBeginOverlap(AActor* OtherActor)
 {
@@ -112,16 +112,16 @@ void AWaterBody::PreInitializeComponents()
 
 #if WITH_EDITOR
 void AWaterBody::PostEditMove(bool bFinished)
-	{
+{
 	Super::PostEditMove(bFinished);
 
 	if (bFinished)
-{
+	{
 		WaterBodyComponent->UpdateWaterHeight();
-			}
+	}
 
 	WaterBodyComponent->OnWaterBodyChanged(bFinished);
-			}
+}
 
 void AWaterBody::PreEditChange(FProperty* PropertyThatWillChange)
 {
@@ -129,9 +129,9 @@ void AWaterBody::PreEditChange(FProperty* PropertyThatWillChange)
 
 	const FName PropertyName = PropertyThatWillChange ? PropertyThatWillChange->GetFName() : NAME_None;
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AWaterBody, WaterWaves))
-{
+	{
 		WaterBodyComponent->RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */false);
-}
+	}
 }
 
 void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -141,11 +141,11 @@ void AWaterBody::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, WaterBodyType))
 	{
 		UWaterBodyComponent* OldComponent = WaterBodyComponent;
-	InitializeBody();
+		InitializeBody();
 		UEditorEngine::CopyPropertiesForUnrelatedObjects(OldComponent, WaterBodyComponent);
-}
+	}
 	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(AWaterBody, WaterWaves))
-{
+	{
 		WaterBodyComponent->RegisterOnUpdateWavesData(WaterWaves, /* bRegister = */true);
 
 		WaterBodyComponent->RequestGPUWaveDataUpdate();
@@ -166,7 +166,22 @@ void AWaterBody::UpdateActorIcon()
 		IWaterModuleInterface& WaterModule = FModuleManager::GetModuleChecked<IWaterModuleInterface>("Water");
 		if (const IWaterEditorServices* WaterEditorServices = WaterModule.GetWaterEditorServices())
 		{
-			if (WaterBodyComponent == nullptr || WaterBodyComponent->CheckWaterBodyStatus() != EWaterBodyStatus::Valid)
+			bool bHasError = false;
+			if (WaterBodyComponent)
+			{
+				TArray<TSharedRef<FTokenizedMessage>> StatusMessages = WaterBodyComponent->CheckWaterBodyStatus();
+				for (const TSharedRef<FTokenizedMessage>& StatusMessage : StatusMessages)
+				{
+					// Message severities are ordered from most severe to least severe.
+					if (StatusMessage->GetSeverity() <= EMessageSeverity::Error)
+					{
+						bHasError = true;
+						break;
+					}
+				}
+			}
+
+			if (bHasError)
 			{
 				IconTexture = WaterEditorServices->GetErrorSprite();
 			}
@@ -198,7 +213,7 @@ void AWaterBody::PostDuplicate(bool bDuplicateForPIE)
 #endif
 
 void AWaterBody::SetWaterWaves(UWaterWavesBase* InWaterWaves)
-	{
+{
 	SetWaterWavesInternal(InWaterWaves);
 }
 
@@ -221,7 +236,7 @@ void AWaterBody::SetWaterWavesInternal(UWaterWavesBase* InWaterWaves)
 		// Waves data can affect the navigation: 
 		WaterBodyComponent->OnWaterBodyChanged(/*bShapeOrPositionChanged = */true);
 	}
-	}
+}
 
 static FName GetWaterBodyComponentName(EWaterBodyType Type)
 {
@@ -238,11 +253,11 @@ static FName GetWaterBodyComponentName(EWaterBodyType Type)
 	default:
 		checkf(false, TEXT("Invalid Water Body Type"));
 		return FName(TEXT("WaterBodyUnknownComponent"));
-				}
-			}
+	}
+}
 
 void AWaterBody::InitializeBody()
-			{
+{
 	const UWaterRuntimeSettings* WaterSettings = GetDefault<UWaterRuntimeSettings>();
 	check(WaterSettings != nullptr);
 
@@ -251,9 +266,9 @@ void AWaterBody::InitializeBody()
 
 	// If we are a template or this actor has a different type than its CDO we need to create the component from the settings
 	if (IsTemplate() || GetClass()->GetDefaultObject<AWaterBody>()->GetWaterBodyType() != GetWaterBodyType())
-{
-		switch (GetWaterBodyType())
 	{
+		switch (GetWaterBodyType())
+		{
 		case EWaterBodyType::River:
 			WaterBodyComponentClass = WaterSettings->GetWaterBodyRiverComponentClass().Get();
 			break;
@@ -265,16 +280,16 @@ void AWaterBody::InitializeBody()
 			break;
 		case EWaterBodyType::Transition:
 			WaterBodyComponentClass = WaterSettings->GetWaterBodyCustomComponentClass().Get();
-		break;
+			break;
 		default:
 			checkf(false, TEXT("Invalid Water Body Type"));
-		break;
-	}
+			break;
+		}
 
 		checkf(WaterBodyComponentClass, TEXT("Ensure there is a proper class for this water type: %s"), *UEnum::GetValueAsString(GetWaterBodyType()));
-}
-		else
-		{
+	}
+	else
+	{
 		//check(WaterBodyComponent == nullptr || WaterBodyComponent->GetWaterBodyType() == GetWaterBodyType())
 
 		AWaterBody* DefaultActor = GetClass()->GetDefaultObject<AWaterBody>();
@@ -291,16 +306,16 @@ void AWaterBody::InitializeBody()
 	// The WaterBodyComponent field is sometimes not set (or set incorrectly) by the time we call InitializeBody so attempt to retrieve 
 	// the component pointer directly from the list of components
 	if (WaterBodyComponent == nullptr || WaterBodyComponent->GetOwner() != this || WaterBodyComponent->GetWaterBodyType() != GetWaterBodyType())
-{
+	{
 		WaterBodyComponent = Cast<UWaterBodyComponent>(FindComponentByClass(WaterBodyComponentClass));
-		}
+	}
 
 	if (!WaterBodyComponent)
-{
+	{
 		const EObjectFlags Flags = GetMaskedFlags(RF_PropagateToSubObjects) | RF_DefaultSubObject;
 		WaterBodyComponent = NewObject<UWaterBodyComponent>(this, WaterBodyComponentClass, GetWaterBodyComponentName(GetWaterBodyType()), Flags, Template);
 		WaterBodyComponent->SetMobility(EComponentMobility::Static);
-			}
+	}
 
 	checkf(WaterBodyComponent, TEXT("Failed to create a water body component for a water body actor (%s)!"), *GetName());
 
@@ -310,39 +325,22 @@ void AWaterBody::InitializeBody()
 	TInlineComponentArray<UWaterBodyComponent*> WaterBodyComponents;
 	GetComponents(WaterBodyComponents);
 	for (UWaterBodyComponent* Component : WaterBodyComponents)
-{
-		if (Component && Component->GetWaterBodyType() != GetWaterBodyType())
 	{
+		if (Component && Component->GetWaterBodyType() != GetWaterBodyType())
+		{
 			Component->DestroyComponent();
 		}
-		}
-		}
-
-void AWaterBody::PostInitProperties()
-{
-	Super::PostInitProperties();
-
-	InitializeBody();
+	}
 }
 
-void AWaterBody::Serialize(FArchive& Ar)
+void AWaterBody::DeprecateData()
 {
-	Super::Serialize(Ar);
+	// Note: this function will be called multiple times so its important that the deprecated data
 
-	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
-
-	if (Ar.IsLoading())
-	{
-		InitializeBody();
-}
-}
-
-void AWaterBody::PostLoad()
-{
-	Super::PostLoad();
-
-	InitializeBody();
-
+	// Deprecation of actor data must happen during serialize so that CDOs are updated correctly for delta-serialization.
+	// Without this, WaterBodyComponents will serialize based on an incorrect archetype and all "default" properties will be reset
+	// to their native defaults. The deprecation is still also required in ::PostLoad because non-cdo components will lose the 
+	// data during their Serialize which occurs after this.
 #if WITH_EDITORONLY_DATA
 	if (SplineComp)
 	{
@@ -360,13 +358,6 @@ void AWaterBody::PostLoad()
 					WaterSplineMetadata->RiverWidth = OldSplineMetadata->RiverWidth;
 				}
 			}
-		}
-
-		// Keep metadata in sync
-		if (WaterSplineMetadata)
-		{
-			const int32 NumPoints = SplineComp->GetNumberOfSplinePoints();
-			WaterSplineMetadata->Fixup(NumPoints, SplineComp);
 		}
 	}
 
@@ -502,15 +493,12 @@ void AWaterBody::PostLoad()
 			WaterWaves->Rename(nullptr, this, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
 		}
 	}
-
+	
 	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
 	{
 		check(WaterBodyComponent && WaterBodyComponent->GetWaterBodyType() == GetWaterBodyType());
 		check(SplineComp);
 
-		WaterBodyComponent->SetRelativeTransform(SplineComp->GetRelativeTransform());
-		SplineComp->ResetRelativeTransform();
-		
 		WaterBodyComponent->Mobility = SplineComp->Mobility;
 		WaterBodyComponent->PhysicalMaterial = PhysicalMaterial_DEPRECATED;
 		WaterBodyComponent->TargetWaveMaskDepth = TargetWaveMaskDepth_DEPRECATED;
@@ -521,7 +509,7 @@ void AWaterBody::PostLoad()
 		WaterBodyComponent->SetWaterMaterial(WaterMaterial_DEPRECATED);
 		WaterBodyComponent->SetUnderwaterPostProcessMaterial(UnderwaterPostProcessMaterial_DEPRECATED);
 		WaterBodyComponent->WaterHeightmapSettings = WaterHeightmapSettings_DEPRECATED;
-		WaterBodyComponent->LayerWeightmapSettings = MoveTemp(LayerWeightmapSettings_DEPRECATED);
+		WaterBodyComponent->LayerWeightmapSettings = LayerWeightmapSettings_DEPRECATED;
 		WaterBodyComponent->bAffectsLandscape = bAffectsLandscape_DEPRECATED;
 		WaterBodyComponent->bGenerateCollisions = bGenerateCollisions_DEPRECATED;
 		WaterBodyComponent->bOverrideWaterMesh = bOverrideWaterMesh_DEPRECATED;
@@ -530,11 +518,61 @@ void AWaterBody::PostLoad()
 		WaterBodyComponent->CollisionProfileName = CollisionProfileName_DEPRECATED;
 		WaterBodyComponent->WaterMID = WaterMID_DEPRECATED;
 		WaterBodyComponent->UnderwaterPostProcessMID = UnderwaterPostProcessMID_DEPRECATED;
-		WaterBodyComponent->Islands = MoveTemp(Islands_DEPRECATED);
-		WaterBodyComponent->ExclusionVolumes = MoveTemp(ExclusionVolumes_DEPRECATED);
+		WaterBodyComponent->Islands = Islands_DEPRECATED;
+		WaterBodyComponent->ExclusionVolumes = ExclusionVolumes_DEPRECATED;
 		WaterBodyComponent->bCanAffectNavigation = bCanAffectNavigation_DEPRECATED;
 		WaterBodyComponent->WaterNavAreaClass = WaterNavAreaClass_DEPRECATED;
 		WaterBodyComponent->ShapeDilation = ShapeDilation_DEPRECATED;
+	}
+#endif // WITH_EDITORONLY_DATA
+}
+
+void AWaterBody::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	InitializeBody();
+}
+
+void AWaterBody::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FWaterCustomVersion::GUID);
+
+	if (Ar.IsLoading())
+	{
+		InitializeBody();
+
+#if WITH_EDITORONLY_DATA
+		DeprecateData();
+#endif // WITH_EDITORONLY_DATA
+	}
+}
+
+void AWaterBody::PostLoad()
+{
+	Super::PostLoad();
+
+	InitializeBody();
+
+#if WITH_EDITORONLY_DATA
+	if (SplineComp)
+	{
+		// Keep metadata in sync
+		if (WaterSplineMetadata)
+		{
+			const int32 NumPoints = SplineComp->GetNumberOfSplinePoints();
+			WaterSplineMetadata->Fixup(NumPoints, SplineComp);
+		}
+	}
+	
+	DeprecateData();
+	
+	if (GetLinkerCustomVersion(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::WaterBodyComponentRefactor)
+	{
+		WaterBodyComponent->SetRelativeTransform(SplineComp->GetRelativeTransform());
+		SplineComp->ResetRelativeTransform();
 	}
 #endif
 }
@@ -549,29 +587,29 @@ void AWaterBody::PostRegisterAllComponents()
 		WaterBodyComponent->UpdateMaterialInstances();
 
 #if WITH_EDITOR
-	// Make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
+		// Make sure existing collision components are marked as net-addressable (their names should already be deterministic) :
 		TArray<UPrimitiveComponent*> LocalCollisionComponents = WaterBodyComponent->GetCollisionComponents();
-	for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
-	{
-		if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
+		for (auto It = LocalCollisionComponents.CreateIterator(); It; ++It)
 		{
-			CollisionComponent->SetNetAddressable();
+			if (UActorComponent* CollisionComponent = Cast<UActorComponent>(*It))
+			{
+				CollisionComponent->SetNetAddressable();
+			}
 		}
-	}
 #endif // WITH_EDITOR
 
-	// We must check for WaterBodyIndex to see if we have already been registered because PostRegisterAllComponents can be called multiple times in a row (e.g. if the actor is a child 
-	//  actor of another BP, the parent BP instance will register first, with all its child components, which will trigger registration of the child water body actor, and then 
-	//  the water body actor will also get registered independently as a "standard" actor) :
-	FWaterBodyManager* Manager = UWaterSubsystem::GetWaterBodyManager(GetWorld());
+		// We must check for WaterBodyIndex to see if we have already been registered because PostRegisterAllComponents can be called multiple times in a row (e.g. if the actor is a child 
+		//  actor of another BP, the parent BP instance will register first, with all its child components, which will trigger registration of the child water body actor, and then 
+		//  the water body actor will also get registered independently as a "standard" actor) :
+		FWaterBodyManager* Manager = UWaterSubsystem::GetWaterBodyManager(GetWorld());
 		if (Manager && !IsTemplate() && (WaterBodyComponent->WaterBodyIndex == INDEX_NONE))
-	{
+		{
 			WaterBodyComponent->WaterBodyIndex = Manager->AddWaterBodyComponent(WaterBodyComponent);
 			WaterBodyIndex = WaterBodyComponent->WaterBodyIndex;
-	}
-	
-	// At this point, the water mesh actor should be ready and we can setup the MID accordingly : 
-	// Needs to be done at the end so that all data needed by the MIDs (e.g. WaterBodyIndex) is up to date :
+		}
+
+		// At this point, the water mesh actor should be ready and we can setup the MID accordingly : 
+		// Needs to be done at the end so that all data needed by the MIDs (e.g. WaterBodyIndex) is up to date :
 		WaterBodyComponent->UpdateMaterialInstances();
 	}
 }
@@ -579,16 +617,16 @@ void AWaterBody::PostRegisterAllComponents()
 void AWaterBody::UnregisterAllComponents(bool bForReregister)
 {
 	if (WaterBodyComponent)
-{
-		// We must check for WaterBodyIndex because UnregisterAllComponents can be called multiple times in a row by PostEditChangeProperty, etc.
-	FWaterBodyManager* Manager = UWaterSubsystem::GetWaterBodyManager(GetWorld());
-		if (Manager && !IsTemplate() && (WaterBodyComponent->WaterBodyIndex != INDEX_NONE))
 	{
+		// We must check for WaterBodyIndex because UnregisterAllComponents can be called multiple times in a row by PostEditChangeProperty, etc.
+		FWaterBodyManager* Manager = UWaterSubsystem::GetWaterBodyManager(GetWorld());
+		if (Manager && !IsTemplate() && (WaterBodyComponent->WaterBodyIndex != INDEX_NONE))
+		{
 			Manager->RemoveWaterBodyComponent(WaterBodyComponent);
-	}
+		}
 		WaterBodyComponent->WaterBodyIndex = INDEX_NONE;
-	WaterBodyIndex = INDEX_NONE;
-}
+		WaterBodyIndex = INDEX_NONE;
+	}
 
 	Super::UnregisterAllComponents(bForReregister);
 }

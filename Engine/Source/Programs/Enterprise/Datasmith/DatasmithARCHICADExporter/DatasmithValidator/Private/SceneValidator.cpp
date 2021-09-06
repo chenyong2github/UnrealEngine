@@ -1,9 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SceneValidator.h"
-#include "DatasmithUtils.h"
 
-BEGIN_NAMESPACE_UE_AC
+#include "DatasmithUtils.h"
+#include "DatasmithMeshUObject.h"
+#include "Serialization/MemoryReader.h"
+#include "HAL/FileManager.h"
+#include "Misc/Paths.h"
+#include "DatasmithAnimationElements.h"
+#include "DatasmithVariantElements.h"
+#include "Modules/ModuleInterface.h"
+
+DATASMITHVALIDATOR_API DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithValidator, Log, All);
+
+DEFINE_LOG_CATEGORY(LogDatasmithValidator)
+
+class FDatasmithValidatorModule : public IModuleInterface
+{
+};
+
+//IMPLEMENT_MODULE(FDatasmithValidatorModule, DatasmithValidator);
+
+namespace Validator {
 
 FSceneValidator::FSceneValidator(const TSharedRef< IDatasmithScene >& InScene)
 	: Scene(InScene)
@@ -208,29 +226,31 @@ void FSceneValidator::AddElements(const IDatasmithElement& InElement, FMapNameTo
 
 void FSceneValidator::AddMessageImpl(TInfoLevel Level, const FString& Message)
 {
-	UE_AC_Assert(Level >= kBug && Level < kInfoLevelMax);
+	check(Level >= kBug && Level < kInfoLevelMax);
 	++MessagesCounts[Level];
 	Messages.Add(FMessage(Level, Message));
 }
 
-const utf8_t* FSceneValidator::LevelName(TInfoLevel Level)
+const TCHAR* FSceneValidator::LevelName(TInfoLevel Level)
 {
-	return Level == kBug	   ? "Bug"
-		   : Level == kError   ? "Error"
-		   : Level == kWarning ? "Warning"
-		   : Level == kVerbose ? "Verbose"
-							   : "???????";
+	return Level == kBug	   ? TEXT("Bug")
+		   : Level == kError   ? TEXT("Error")
+		   : Level == kWarning ? TEXT("Warning")
+		   : Level == kVerbose ? TEXT("Verbose")
+							   : TEXT("???????");
 }
 
-void FSceneValidator::PrintReports(TInfoLevel InLevel)
+FString FSceneValidator::GetReports(TInfoLevel InLevel)
 {
+    FString ReportString;
+
 	// Reports counts for each level
 	const TInfoLevel Levels[] = {TInfoLevel::kBug, TInfoLevel::kError, TInfoLevel::kWarning, TInfoLevel::kVerbose};
 	for (const auto Level : Levels)
 	{
 		if (Level <= InLevel && MessagesCounts[Level] != 0)
 		{
-			UE_AC_TraceF("%d %ss collected\n", MessagesCounts[Level], LevelName(Level));
+            ReportString += FString::Printf(TEXT("%d %ss collected\n"), MessagesCounts[Level], LevelName(Level));
 		}
 	}
 
@@ -239,9 +259,152 @@ void FSceneValidator::PrintReports(TInfoLevel InLevel)
 	{
 		if (Message.Level <= InLevel)
 		{
-			UE_AC_TraceF("%-7s:%s\n", LevelName(Message.Level), TCHAR_TO_UTF8(*Message.Message));
+            ReportString += FString::Printf(TEXT("%-7s:%s\n"), LevelName(Message.Level), *Message.Message);
 		}
 	}
+    return ReportString;
+}
+
+void FSceneValidator::CheckTexturesFiles()
+{
+    const IDatasmithScene& MyScene = *Scene;
+
+    FString RessourcePath(MyScene.GetResourcePath());
+    if (!RessourcePath.IsEmpty())
+    {
+        if (!IFileManager::Get().DirectoryExists(*RessourcePath))
+        {
+            AddMessage(kBug, TEXT("ResourcePath \"%s\" doesn't exist"), *RessourcePath);
+        }
+    }
+
+    int32 Count = Scene->GetTexturesCount();
+    for (int32 Index = 0; Index < Count; ++Index)
+    {
+        const TSharedPtr< IDatasmithTextureElement >& Texture = MyScene.GetTexture(Index);
+        if (Texture.IsValid())
+        {
+            bool Reported = false;
+            FString TextureFile = Texture->GetFile();
+            if (FPaths::IsRelative(TextureFile))
+            {
+                if (!RessourcePath.IsEmpty())
+                {
+                    TextureFile = FPaths::ConvertRelativePathToFull(RessourcePath, TextureFile);
+                }
+                else
+                {
+                    AddMessage(kBug, TEXT("Texture Name=\"%s\", Label=\"%s\", Path=\"%s\" - Relative path whitout reference path"), Texture->GetName(), Texture->GetLabel(), *TextureFile);
+                    Reported = true;
+                }
+            }
+            if (!Reported && !FPaths::FileExists(TextureFile))
+            {
+                AddMessage(kBug, TEXT("Texture Name=\"%s\", Label=\"%s\", Path=\"%s\" - File not found"), *TextureFile);
+            }
+        }
+    }
+}
+
+TArray< UDatasmithMesh* > GetDatasmithMeshFromMeshElement( const TSharedRef< IDatasmithMeshElement > MeshElement )
+{
+    TArray< UDatasmithMesh* > Result;
+    
+    TUniquePtr<FArchive> Archive( IFileManager::Get().CreateFileReader(MeshElement->GetFile()) );
+    if ( !Archive.IsValid() )
+    {
+        return Result;
+    }
+    
+    int32 NumMeshes = 0;
+    *Archive << NumMeshes;
+    
+    // Currently we only have 1 mesh per file. If there's a second mesh, it will be a CollisionMesh
+    while (NumMeshes-- > 0)
+    {
+        TArray< uint8 > Bytes;
+        *Archive << Bytes;
+        
+        UDatasmithMesh* DatasmithMesh = NewObject< UDatasmithMesh >();
+        
+        FMemoryReader MemoryReader( Bytes, true );
+        MemoryReader.ArIgnoreClassRef = false;
+        MemoryReader.ArIgnoreArchetypeRef = false;
+        MemoryReader.SetWantBinaryPropertySerialization(true);
+        DatasmithMesh->Serialize( MemoryReader );
+        
+        Result.Emplace( DatasmithMesh );
+    }
+    
+    return Result;
+}
+
+void FSceneValidator::CheckMeshFiles()
+{
+    const IDatasmithScene& MyScene = *Scene;
+    int32 Count = MyScene.GetMeshesCount();
+    for (int32 IndexMeshElement = 0; IndexMeshElement < Count; ++IndexMeshElement)
+    {
+        const TSharedPtr< IDatasmithMeshElement >& Mesh = MyScene.GetMesh(IndexMeshElement);
+        if (Mesh.IsValid())
+        {
+            TArray< UDatasmithMesh* > DatasmithMeshArray = GetDatasmithMeshFromMeshElement(Mesh.ToSharedRef());
+            int32 NumMesh = DatasmithMeshArray.Num();
+            if (NumMesh != 0)
+            {
+                for (int32 IndexMesh = 0; IndexMesh < NumMesh; ++IndexMesh)
+                {
+                    const auto& DatasmithMeshSourceModel = DatasmithMeshArray[IndexMesh]->SourceModels;
+                    int32 NumSourceModel = DatasmithMeshSourceModel.Num();
+                    for (int32 IndexSourceModel = 0; IndexSourceModel < NumSourceModel; ++IndexSourceModel)
+                    {
+                        FRawMesh    RawMesh;
+                        // const_cast because LoadRawMesh isn't const
+                        const_cast<FDatasmithMeshSourceModel&>(DatasmithMeshSourceModel[IndexSourceModel]).RawMeshBulkData.LoadRawMesh(RawMesh);
+                        if (RawMesh.IsValid())
+                        {
+                            TArray<bool>    MaterialUsed = {};
+                            int32 IndiceMax = 0;
+                            for (int32 Indice : RawMesh.FaceMaterialIndices)
+                            {
+                                if (Indice >= IndiceMax)
+                                {
+                                    MaterialUsed.AddZeroed(Indice +1 - IndiceMax);
+                                    IndiceMax = Indice + 1;
+                                }
+                                MaterialUsed[Indice] = true;
+                            }
+                            int32 Index = 0;
+                            for (Index = 0; Index < IndiceMax && MaterialUsed[Index]; ++Index)
+                            {
+                                if (!MaterialUsed[Index])
+                                {
+                                    AddMessage(kWarning, TEXT("Raw mesh [%d][%d] unused material %d Name=\"%s\" Label=\"%s\" File=\"%s\""), IndexMesh, IndexSourceModel, Index, Mesh->GetName(), Mesh->GetLabel(), Mesh->GetFile());
+                                    break;
+                                }
+                            }
+                            if (RawMesh.MaterialIndexToImportIndex.Num() != 0 && RawMesh.MaterialIndexToImportIndex.Num() != IndiceMax)
+                            {
+                                AddMessage(kError, TEXT("Raw mesh [%d][%d] invalid material invariant Name=\"%s\" Label=\"%s\" File=\"%s\""), IndexMesh, IndexSourceModel, Mesh->GetName(), Mesh->GetLabel(), Mesh->GetFile());
+                            }
+                            if (Mesh->GetMaterialSlotCount() != IndiceMax)
+                            {
+                                AddMessage(kWarning, TEXT("Raw mesh [%d][%d] MaterialSlotCount != #Materials Name=\"%s\" Label=\"%s\" File=\"%s\""), IndexMesh, IndexSourceModel, Mesh->GetName(), Mesh->GetLabel(), Mesh->GetFile());
+                            }
+                        }
+                        else
+                        {
+                            AddMessage(kError, TEXT("Raw mesh [%d][%d] is invalid Name=\"%s\" Label=\"%s\" File=\"%s\""), IndexMesh, IndexSourceModel, Mesh->GetName(), Mesh->GetLabel(), Mesh->GetFile());
+                        }
+                    }
+                }
+            }
+            else
+            {
+                AddMessage(kWarning, TEXT("Mesh file is empty Name=\"%s\" Label=\"%s\" File=\"%s\""), Mesh->GetName(), Mesh->GetLabel(), Mesh->GetFile());
+            }
+        }
+    }
 }
 
 void FSceneValidator::CheckElementsName()
@@ -542,4 +705,9 @@ void FSceneValidator::CheckActorsDependances(const IDatasmithActorElement& InAct
 	}
 }
 
-END_NAMESPACE_UE_AC
+TSharedRef< ISceneValidator > ISceneValidator::CreateForScene(const TSharedRef< IDatasmithScene >& InScene)
+{
+    return MakeShared<FSceneValidator>(InScene);
+}
+
+} // namespace Validator

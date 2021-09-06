@@ -345,6 +345,51 @@ void AOnlineBeaconClient::NotifyControlMessage(UNetConnection* Connection, uint8
 				}
 				break;
 			}
+		case NMT_Challenge:
+		{
+			// Challenged by server.
+			if (FNetControlMessage<NMT_Challenge>::Receive(Bunch, Connection->Challenge))
+			{
+				// build a URL
+				FURL URL(nullptr, TEXT(""), TRAVEL_Absolute);
+				FString URLString;
+
+				// Append authentication token to URL options
+				IOnlineIdentityPtr IdentityPtr = Online::GetIdentityInterface(GetWorld());
+				if (IdentityPtr.IsValid())
+				{
+					TSharedPtr<FUserOnlineAccount> UserAcct = IdentityPtr->GetUserAccount(*Connection->PlayerId);
+					if (UserAcct.IsValid())
+					{
+						URL.AddOption(*FString::Printf(TEXT("AuthTicket=%s"), *UserAcct->GetAccessToken()));
+					}
+				}
+				URLString = URL.ToString();
+
+				// compute the player's online platform name
+				FName OnlinePlatformName = NAME_None;
+				if (const FWorldContext* const WorldContext = GEngine->GetWorldContextFromWorld(GetWorld()))
+				{
+					if (WorldContext->OwningGameInstance)
+					{
+						OnlinePlatformName = WorldContext->OwningGameInstance->GetOnlinePlatformName();
+					}
+				}
+				FString OnlinePlatformNameString = OnlinePlatformName.ToString();
+
+				// send NMT_Login
+				Connection->ClientResponse = TEXT("0");
+				FNetControlMessage<NMT_Login>::Send(Connection, Connection->ClientResponse, URLString, Connection->PlayerId, OnlinePlatformNameString);
+				NetDriver->ServerConnection->FlushNet();
+			}
+			else
+			{
+				// Force close the session
+				UE_LOG(LogBeacon, Warning, TEXT("%s: Unable to parse challenge request message."), *Connection->GetName());
+				OnFailure();
+			}
+			break;
+		}
 		case NMT_BeaconWelcome:
 			{
 				Connection->ClientResponse = TEXT("0");

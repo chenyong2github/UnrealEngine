@@ -209,7 +209,6 @@ public class UnrealEd : ModuleRules
 				"AnimationBlueprintLibrary",
 				"MaterialBaking",
 				"CookOnTheFly",
-				"BazelExecutor",
 			}
 		);
 
@@ -280,6 +279,7 @@ public class UnrealEd : ModuleRules
 					"ProjectTargetPlatformEditor",
 					"PListEditor",
 					"TraceInsights",
+					"BazelExecutor",
 				}
 			);
 		}

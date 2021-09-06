@@ -635,6 +635,8 @@ namespace UnrealBuildTool
 			{
 				// Result += " -fvisibility-ms-compat -fvisibility-inlines-hidden"; // This hides all symbols by default but exports all type info (vtable/rtti) for a non-monolithic setup
 				Result += " -fvisibility=hidden -fvisibility-inlines-hidden"; // Symbols default to hidden.
+				//TODO: add when Android's clang will support this
+				//Resul += " -fvisibility-inlines-hidden-static-local-var";
 			}
 
 			if (CompileEnvironment.DeprecationWarningLevel == WarningLevel.Error)
@@ -820,6 +822,9 @@ namespace UnrealBuildTool
 				}
 			}
 
+			Result += " -fforce-emit-vtables";      // Helps with devirtualization
+			//Result += " -fstrict-vtable-pointers";	// Assumes that vtable pointer will never change, i.e. object of a different type would not be constracted in place of another object. Helps with devirtualization
+
 			return Result;
 		}
 
@@ -929,6 +934,15 @@ namespace UnrealBuildTool
 				Result += ToolchainLinkParamsArm64;
 				Result += " -march=armv8-a";
 				bAllowLdGold = false;       // NDK issue 70838247
+			}
+
+			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
+			{
+				Result += " -Wl,--icf=all"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
+				if (!bUseLLD)
+				{
+					Result += " -Wl,--icf-iterations=3";
+				}
 			}
 
 			if (bUseLLD)

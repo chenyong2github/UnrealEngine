@@ -447,13 +447,13 @@ AGameplayCueNotify_Actor* UGameplayCueManager::GetInstancedCueActor(AActor* Targ
 					}
 
 					// Normal check: if cue was destroyed or is pending kill, then don't use it.
-					if (SpawnedCue && SpawnedCue->IsPendingKill() == false)
+					if (IsValid(SpawnedCue))
 					{
 						break;
 					}
 					
 					// outside of replays, this should not happen. GC Notifies should not be actually destroyed.
-					checkf(World->IsPlayingReplay(), TEXT("Spawned Cue is pending kill or null: %s."), *GetNameSafe(SpawnedCue));
+					checkf(World->IsPlayingReplay(), TEXT("Spawned Cue is pending kill, garbage or null: %s."), *GetNameSafe(SpawnedCue));
 
 					if (PreallocatedList->Num() <= 0)
 					{
@@ -529,9 +529,9 @@ void UGameplayCueManager::NotifyGameplayCueActorFinished(AGameplayCueNotify_Acto
 		AGameplayCueNotify_Actor* CDO = Actor->GetClass()->GetDefaultObject<AGameplayCueNotify_Actor>();
 		if (CDO && Actor->Recycle())
 		{
-			if (Actor->IsPendingKill())
+			if (!IsValid(Actor))
 			{
-				ensureMsgf(GetWorld()->IsPlayingReplay(), TEXT("GameplayCueNotify %s is pending kill in ::NotifyGameplayCueActorFinished (and not in network demo)"), *GetNameSafe(Actor));
+				ensureMsgf(GetWorld()->IsPlayingReplay(), TEXT("GameplayCueNotify %s is pending kill or garbage in ::NotifyGameplayCueActorFinished (and not in network demo)"), *GetNameSafe(Actor));
 				return;
 			}
 			Actor->bInRecycleQueue = true;
@@ -1584,7 +1584,7 @@ void UGameplayCueManager::UpdatePreallocation(UWorld* World)
 		AGameplayCueNotify_Actor* PrespawnedInstance = Cast<AGameplayCueNotify_Actor>(World->SpawnActor(CDO->GetClass()));
 		if (ensureMsgf(PrespawnedInstance, TEXT("Failed to prespawn GC notify for: %s"), *GetNameSafe(CDO)))
 		{
-			ensureMsgf(PrespawnedInstance->IsPendingKill() == false, TEXT("Newly spawned GC is PendingKILL: %s"), *GetNameSafe(CDO));
+			ensureMsgf(IsValid(PrespawnedInstance) == false, TEXT("Newly spawned GC is PendingKILL: %s"), *GetNameSafe(CDO));
 
 			if (LogGameplayCueActorSpawning)
 			{

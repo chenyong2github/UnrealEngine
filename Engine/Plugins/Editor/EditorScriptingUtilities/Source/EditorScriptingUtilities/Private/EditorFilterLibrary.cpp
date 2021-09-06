@@ -24,7 +24,7 @@ namespace InternalEditorFilterLibrary
 		{
 			for (T* Itt : TargetArray)
 			{
-				if (Itt && !Itt->IsPendingKill() && !Op(Itt))
+				if (IsValid(Itt) && !Op(Itt))
 				{
 					Result.Add(Itt);
 				}
@@ -34,7 +34,7 @@ namespace InternalEditorFilterLibrary
 		{
 			for (T* Itt : TargetArray)
 			{
-				if (Itt && !Itt->IsPendingKill() && Op(Itt))
+				if (IsValid(Itt) && Op(Itt))
 				{
 					Result.Add(Itt);
 				}

@@ -235,7 +235,7 @@ void FUIActionBinding::CleanRegistrations()
 	int32 NumRemoved = 0;
 	for (auto Iter = AllRegistrationsByHandle.CreateIterator(); Iter; ++Iter)
 	{
-		if (!Iter->Value->BoundWidget.IsValid() || !ensure(Iter->Value->OnExecuteAction.IsBound()))
+		if (!Iter->Value->BoundWidget.IsValid() || !ensureMsgf(Iter->Value->OnExecuteAction.IsBound(), TEXT("Unbound Action: %s"), *Iter->Value->ActionName.ToString()))
 		{
 			if (Iter->Value->OwningCollection.IsValid())
 			{

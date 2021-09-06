@@ -34,14 +34,110 @@ namespace PerfSummaries
 		public Colour(Colour colourIn) { r = colourIn.r; g = colourIn.g; b = colourIn.b; alpha = colourIn.alpha; }
 		public Colour(float rIn, float gIn, float bIn, float aIn = 1.0f) { r = rIn; g = gIn; b = bIn; alpha = aIn; }
 
+		public static float Lerp(float A, float B,  float T)
+		{
+			return A * (1.0f - T) + B * T;
+		}
+
 		public static Colour Lerp(Colour Colour0, Colour Colour1, float t)
 		{
 			return new Colour(
-				Colour0.r * (1.0f - t) + Colour1.r * t,
-				Colour0.g * (1.0f - t) + Colour1.g * t,
-				Colour0.b * (1.0f - t) + Colour1.b * t,
-				Colour0.alpha * (1.0f - t) + Colour1.alpha * t);
+				Lerp(Colour0.r, Colour1.r, t),
+				Lerp(Colour0.g, Colour1.g, t),
+				Lerp(Colour0.b, Colour1.b, t),
+				Lerp(Colour0.alpha, Colour1.alpha, t));
+		}
 
+		public Colour LinearRGBToHSV()
+		{
+			float RGBMin = Math.Min(Math.Min(r, g), b);
+			float RGBMax = Math.Max(Math.Max(r, g), b);
+			float RGBRange = RGBMax - RGBMin;
+
+			float Hue = (RGBMax == RGBMin ? 0.0f :
+						 RGBMax == r    ? ((((g - b) / RGBRange) * 60.0f) + 360.0f % 360.0f) :
+						 RGBMax == g    ? (((b - r) / RGBRange) * 60.0f) + 120.0f :
+						 RGBMax == b    ? (((r - g) / RGBRange) * 60.0f) + 240.0f :
+						   0.0f);
+			
+			float Saturation = (RGBMax == 0.0f ? 0.0f : RGBRange / RGBMax);
+			float Value = RGBMax;
+
+			// In the new color, R = H, G = S, B = V, A = A
+			return new Colour(Hue, Saturation, Value, alpha);
+		}
+
+		/** Converts an HSV color to a linear space RGB color */
+		public Colour HSVToLinearRGB()
+		{
+			// In this color, R = H, G = S, B = V
+			float Hue = r;
+			float Saturation = g;
+			float Value = b;
+
+			float HDiv60 = Hue / 60.0f;
+			float HDiv60_Floor = (float)Math.Floor(HDiv60);
+			float HDiv60_Fraction = HDiv60 - HDiv60_Floor;
+
+			float[] RGBValues = {
+				Value,
+				Value * (1.0f - Saturation),
+				Value * (1.0f - (HDiv60_Fraction * Saturation)),
+				Value * (1.0f - ((1.0f - HDiv60_Fraction) * Saturation)),
+			};
+
+			uint[,] RGBSwizzle = {
+				{0, 3, 1},
+				{2, 0, 1},
+				{1, 0, 3},
+				{1, 2, 0},
+				{3, 1, 0},
+				{0, 1, 2},
+			};
+			uint SwizzleIndex = ((uint)HDiv60_Floor) % 6;
+
+			return new Colour(RGBValues[RGBSwizzle[SwizzleIndex, 0]],
+								RGBValues[RGBSwizzle[SwizzleIndex, 1]],
+								RGBValues[RGBSwizzle[SwizzleIndex, 2]],
+								alpha);
+		}
+
+		public static Colour LerpUsingHSV(Colour From, Colour To, float T)
+		{
+			Colour FromHSV = From.LinearRGBToHSV();
+			Colour ToHSV = To.LinearRGBToHSV();
+
+			float FromHue = FromHSV.r;
+			float ToHue = ToHSV.r;
+
+			// Take the shortest path to the new hue
+			if(Math.Abs(FromHue - ToHue) > 180.0f)
+			{
+				if(ToHue > FromHue)
+				{
+					FromHue += 360.0f;
+				}
+				else
+				{
+					ToHue += 360.0f;
+				}
+			}
+
+			float NewHue = Lerp(FromHue, ToHue, T);
+
+			NewHue = NewHue % 360.0f;
+			if( NewHue < 0.0f )
+			{
+				NewHue += 360.0f;
+			}
+
+			float NewSaturation = Lerp(FromHSV.g, ToHSV.g, T);
+			float NewValue = Lerp(FromHSV.b, ToHSV.b, T);
+			Colour Interpolated = new Colour(NewHue, NewSaturation, NewValue).HSVToLinearRGB();
+
+			float NewAlpha = Lerp(From.alpha, To.alpha, T);
+			Interpolated.alpha = NewAlpha;
+			return Interpolated;
 		}
 
 		public string ToHTMLString()

@@ -13,6 +13,9 @@ FNavigationOctree::FNavigationOctree(const FVector& Origin, float Radius)
 	, DefaultGeometryGatheringMode(ENavDataGatheringMode::Instant)
 	, bGatherGeometry(false)
 	, NodesMemory(0)
+#if !UE_BUILD_SHIPPING	
+	, GatheringNavModifiersTimeLimitWarning(-1.0f)
+#endif // !UE_BUILD_SHIPPING	
 {
 	INC_DWORD_STAT_BY( STAT_NavigationMemory, sizeof(*this) );
 }
@@ -62,11 +65,31 @@ void FNavigationOctree::DemandLazyDataGathering(FNavigationRelevantData& Element
 	if (ElementData.IsPendingLazyModifiersGathering())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_LazyModifiersExport);
+
+#if !UE_BUILD_SHIPPING
+		const bool bCanOutputDurationWarning = GatheringNavModifiersTimeLimitWarning >= 0.0f;
+		const double StartTime = bCanOutputDurationWarning ? FPlatformTime::Seconds() : 0.0f;
+#endif //!UE_BUILD_SHIPPING
+
 		INavRelevantInterface* NavElement = Cast<INavRelevantInterface>(ElementOb);
 		check(NavElement);
 		NavElement->GetNavigationData(ElementData);
 		ElementData.bPendingLazyModifiersGathering = false;
 		bShrink = true;
+
+#if !UE_BUILD_SHIPPING
+		// If GatheringNavModifiersWarningLimitTime is positive, it will print a Warning if the time taken to call GetNavigationData is more than GatheringNavModifiersWarningLimitTime			
+		if (bCanOutputDurationWarning)
+		{
+			const double DeltaTime = FPlatformTime::Seconds() - StartTime;
+			if (DeltaTime > GatheringNavModifiersTimeLimitWarning)
+			{
+				const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(ElementOb);
+				const AActor* ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
+				UE_LOG(LogNavigation, Warning, TEXT("The time (%f sec) for gathering navigation data on an INavRelevantInterface navigation element exceeded the time limit (%f sec) | NavElement = %s | Potential Component = %s | Potential Component's Owner = %s | Level = %s"), DeltaTime, GatheringNavModifiersTimeLimitWarning, *GetNameSafe(ElementOb), *GetNameSafe(ObjectAsComponent), *GetNameSafe(ComponentOwner), ElementOb ? *GetNameSafe(ElementOb->GetOutermost()) : TEXT("Invalid element"));
+			}
+		}
+#endif //!UE_BUILD_SHIPPING
 	}
 
 	if (bShrink)
@@ -90,6 +113,13 @@ void FNavigationOctree::DemandChildLazyDataGathering(FNavigationRelevantData& El
 		ElementData.ValidateAndShrink();
 	}
 }
+
+#if !UE_BUILD_SHIPPING	
+void FNavigationOctree::SetGatheringNavModifiersTimeLimitWarning(const float Threshold)
+{
+	GatheringNavModifiersTimeLimitWarning = Threshold;
+}
+#endif // !UE_BUILD_SHIPPING	
 
 bool FNavigationOctree::IsLazyGathering(const INavRelevantInterface& ChildNavInterface) const
 {
@@ -139,7 +169,26 @@ void FNavigationOctree::AddNode(UObject* ElementOb, INavRelevantInterface* NavEl
 		SCOPE_CYCLE_COUNTER(STAT_Navigation_GatheringNavigationModifiersSync);
 		if (bDoInstantGathering)
 		{
+#if !UE_BUILD_SHIPPING
+			const bool bCanOutputDurationWarning = GatheringNavModifiersTimeLimitWarning >= 0.0f;
+			const double StartTime = bCanOutputDurationWarning ? FPlatformTime::Seconds() : 0.0f;
+#endif //!UE_BUILD_SHIPPING
+
 			NavElement->GetNavigationData(*Element.Data);
+
+#if !UE_BUILD_SHIPPING
+			// If GatheringNavModifiersWarningLimitTime is positive, it will print a Warning if the time taken to call GetNavigationData is more than GatheringNavModifiersWarningLimitTime			
+			if (bCanOutputDurationWarning)
+			{
+				const double DeltaTime = FPlatformTime::Seconds() - StartTime;
+				if (DeltaTime > GatheringNavModifiersTimeLimitWarning)
+				{
+					const UActorComponent* ObjectAsComponent = Cast<UActorComponent>(ElementOb);
+					const AActor* ComponentOwner = ObjectAsComponent ? ObjectAsComponent->GetOwner() : nullptr;
+					UE_LOG(LogNavigation, Warning, TEXT("The time (%f sec) for gathering navigation data on an INavRelevantInterface navigation element exceeded the time limit (%f sec) | NavElement = %s | Potential Component = %s | Potential Component's Owner = %s | Level = %s"), DeltaTime, GatheringNavModifiersTimeLimitWarning, *GetNameSafe(ElementOb), *GetNameSafe(ObjectAsComponent), *GetNameSafe(ComponentOwner), ElementOb ? *GetNameSafe(ElementOb->GetOutermost()) : TEXT("Invalid element"));
+				}
+			}
+#endif //!UE_BUILD_SHIPPING
 		}
 		else
 		{

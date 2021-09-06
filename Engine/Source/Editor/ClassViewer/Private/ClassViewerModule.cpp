@@ -106,4 +106,14 @@ TSharedRef<FClassViewerFilterFuncs> FClassViewerModule::CreateFilterFuncs()
 	return TSharedRef<FClassViewerFilterFuncs>(new FClassViewerFilterFuncs());
 }
 
+void FClassViewerModule::RegisterGlobalClassViewerFilter(const TSharedRef<IClassViewerFilter>& Filter)
+{
+	GlobalClassViewerFilter = Filter;
+}
+
+const TSharedPtr<IClassViewerFilter>& FClassViewerModule::GetGlobalClassViewerFilter()
+{
+	return GlobalClassViewerFilter;
+}
+
 #undef LOCTEXT_NAMESPACE

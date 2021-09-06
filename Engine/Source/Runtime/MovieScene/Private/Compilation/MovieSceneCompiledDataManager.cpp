@@ -157,7 +157,19 @@ struct FGatherParameters
 		SubParams.SequenceID                = InSubSequenceID;
 		SubParams.LocalClampRange           = SubData.RootToSequenceTransform.TransformRangeUnwarped(SubParams.RootClampRange);
 
+		if (WarpIndex != FMovieSceneTimeWarping::InvalidWarpCount)
+		{
 		SubParams.RootToSequenceWarpCounter.AddWarpingLevel(WarpIndex);
+		}
+		else
+		{
+			const int32 NumWarpCounts = SubParams.RootToSequenceWarpCounter.NumWarpCounts();
+			const int32 NumNestedTransforms = SubParams.RootToSequenceTransform.NestedTransforms.Num();
+			if (NumNestedTransforms > NumWarpCounts)
+			{
+				SubParams.RootToSequenceWarpCounter.AddNonWarpingLevel();
+			}
+		}
 
 		return SubParams;
 	}
@@ -1616,6 +1628,7 @@ void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack
 						}
 						RootPath->PopGenerations(1);
 					}
+
 					CurRootRangeStart = CurRootRange.GetUpperBoundValue();
 					CurRootRange = TRange<FFrameNumber>(CurRootRangeStart.FloorToFrame(), (CurRootRangeStart + RootLoopLength).FloorToFrame());
 					if (CurRootRange.GetUpperBoundValue() > RootSectionEndTime)

@@ -54,6 +54,14 @@ public:
 	UPROPERTY(config)
 	bool bOrganizeFolders = true;
 
+	/** Whether to append 'Content' text to displayed folder names */
+	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)
+	bool bDisplayContentFolderSuffix = true;
+
+	/** Whether display friendly name as plugin folder names */
+	UPROPERTY(EditAnywhere, config, Category = ContentBrowser)
+	bool bDisplayFriendlyNameForPluginFolders = true;
+
 	/** The number of objects to keep in the Content Browser Recently Opened filter */
 	UPROPERTY(EditAnywhere, config, Category = ContentBrowser, meta = (DisplayName = "Number of Assets to Keep in the Recently Opened Filter", ClampMin = "1", ClampMax = "30"))
 	int32 NumObjectsInRecentList;

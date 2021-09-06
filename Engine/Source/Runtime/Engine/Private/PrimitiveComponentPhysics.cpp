@@ -108,7 +108,7 @@ void UPrimitiveComponent::SetConstraintMode(EDOFMode::Type ConstraintMode)
 {
 	FBodyInstance * RootBI = GetBodyInstance(NAME_None, false);
 
-	if (RootBI == NULL || IsPendingKill())
+	if (RootBI == NULL || !IsValid(this))
 	{
 		return;
 	}
@@ -552,13 +552,13 @@ void UPrimitiveComponent::SyncComponentToRBPhysics()
 	AActor* Owner = GetOwner();
 	if(Owner != NULL)
 	{
-		if (Owner->IsPendingKill() || !Owner->CheckStillInWorld())
+		if (!IsValid(Owner) || !Owner->CheckStillInWorld())
 		{
 			return;
 		}
 	}
 
-	if (IsPendingKill() || !IsSimulatingPhysics() || !RigidBodyIsAwake())
+	if (!IsValid(this) || !IsSimulatingPhysics() || !RigidBodyIsAwake())
 	{
 		return;
 	}

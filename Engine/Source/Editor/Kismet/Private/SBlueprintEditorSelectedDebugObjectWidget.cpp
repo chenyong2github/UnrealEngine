@@ -335,7 +335,7 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectInstances(boo
 				UObject* ObjOuter = TestObject;
 				do
 				{
-					bPendingKill = ObjOuter->IsPendingKill();
+					bPendingKill = !IsValid(ObjOuter);
 					ObjOuter = ObjOuter->GetOuter();
 				} while (!bPendingKill && ObjOuter != nullptr);
 
@@ -390,7 +390,7 @@ void SBlueprintEditorSelectedDebugObjectWidget::GenerateDebugObjectInstances(boo
 					continue;
 				}
 
-				const bool bPassesFlags = !TestObject->HasAnyFlags(RF_ClassDefaultObject) && !TestObject->IsPendingKill();
+				const bool bPassesFlags = !TestObject->HasAnyFlags(RF_ClassDefaultObject) && IsValid(TestObject);
 				const bool bGeneratedByAnyBlueprint = TestObject->GetClass()->ClassGeneratedBy != nullptr;
 				const bool bGeneratedByThisBlueprint = bGeneratedByAnyBlueprint && GetBlueprintObj()->GeneratedClass && TestObject->IsA(GetBlueprintObj()->GeneratedClass);
 

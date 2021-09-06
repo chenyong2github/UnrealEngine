@@ -71,6 +71,7 @@ public class Engine : ModuleRules
 				"NetCore",
 				"ApplicationCore",
 				"Json",
+				"JsonUtilities",
 				"SlateCore",
 				"Slate",
 				"InputCore",

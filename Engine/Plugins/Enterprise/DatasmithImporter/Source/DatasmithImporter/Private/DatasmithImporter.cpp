@@ -1837,12 +1837,18 @@ void FDatasmithImporter::FinalizeImport(FDatasmithImportContext& ImportContext, 
 					}
 				}
 
+				TArray<UMaterialFunctionInterface*> FinalizableFunctions;
 				for (const FMaterialFunctionInfo& MaterialFunctionInfo : SourceMaterial->GetCachedExpressionData().FunctionInfos)
 				{
 					if (MaterialFunctionInfo.Function && MaterialFunctionInfo.Function->GetOutermost() == SourceMaterial->GetOutermost())
 					{
-						FinalizeMaterial(MaterialFunctionInfo.Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap, &MaterialUpdateContext);
+						FinalizableFunctions.Add(MaterialFunctionInfo.Function);
 					}
+					}
+
+				for (UMaterialFunctionInterface* Function : FinalizableFunctions)
+				{
+					FinalizeMaterial(Function, *DestinationPackagePath, *TransientFolderPath, *RootFolderPath, nullptr, &ReferencesToRemap, &MaterialUpdateContext);
 				}
 			}
 

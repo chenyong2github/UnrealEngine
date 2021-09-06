@@ -10,6 +10,7 @@
 
 class FMediaMovieStreamer;
 class UMediaPlayer;
+class UMediaSoundComponent;
 class UMediaSource;
 class UMediaTexture;
 
@@ -35,6 +36,12 @@ public:
 	 */
 	void SetMediaPlayer(UMediaPlayer* InMediaPlayer, FMediaMovieStreamer* InMovieStreamer);
 
+	/**
+	 * Sets what media sound component we are using.
+	 *
+	 * @param InMediaSoundComponent Media sound component to use.
+	 */
+	void SetMediaSoundComponent(UMediaSoundComponent* InMediaSoundComponent);
 
 	/**
 	 * Sets what media source we are using.
@@ -60,6 +67,10 @@ private:
 	/** Holds the player we are using. */
 	UPROPERTY()
 	UMediaPlayer* MediaPlayer;
+
+	/** Holds the media sound component we are using. */
+	UPROPERTY()
+	UMediaSoundComponent* MediaSoundComponent;
 
 	/** Holds the media source we are using. */
 	UPROPERTY()

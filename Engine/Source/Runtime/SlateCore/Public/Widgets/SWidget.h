@@ -1770,6 +1770,9 @@ private:
 	/** Are bound Slate Attributes will be updated once per frame. */
 	uint8 bEnabledAttributesUpdate : 1;
 
+	/** At least one SlateAttributes was updated but the invalidation was delayed. */
+	uint8 bHasPendingAttributesInvalidation : 1;
+
 	/** The SNew or SAssignedNew construction is completed. */
 	uint8 bIsDeclarativeSyntaxConstructionCompleted : 1;
 

@@ -454,7 +454,7 @@ UDisplayClusterConfigurationHostDisplayData* FDisplayClusterConfiguratorClusterU
 	TArray<FString> PendingKillHostData;
 	for (TPair<FString, UDisplayClusterConfigurationHostDisplayData*>& HostPair : Cluster->HostDisplayData)
 	{
-		if (!HostPair.Value || HostPair.Value->IsPendingKill())
+		if (!IsValid(HostPair.Value))
 		{
 			PendingKillHostData.Add(HostPair.Key);
 		}

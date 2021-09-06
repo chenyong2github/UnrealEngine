@@ -41,9 +41,12 @@
 #if PLATFORM_WINDOWS
 #include <mmdeviceapi.h>
 #include <FunctionDiscoveryKeys_devpkey.h>
+#include <AudioClient.h>
 #endif
 
 #include "Misc/CoreDelegates.h"
+#include "ProfilingDebugging/ScopedTimers.h"
+#include "Async/Async.h"
 
 #define XAUDIO2_LOG_RESULT(FunctionName, Result) \
 	{ \
@@ -73,6 +76,8 @@
 
 static FString GetErrorString(HRESULT Result)
 {
+#define CASE_AND_STRING(RESULT) case HRESULT(RESULT): return TEXT(#RESULT)
+
 	switch (Result)
 	{
 		case HRESULT(XAUDIO2_E_INVALID_CALL):			return TEXT("XAUDIO2_E_INVALID_CALL");
@@ -86,6 +91,50 @@ static FString GetErrorString(HRESULT Result)
 		case HRESULT(E_POINTER):						return TEXT("E_POINTER");
 		case HRESULT(E_INVALIDARG):						return TEXT("E_INVALIDARG");
 		case HRESULT(E_OUTOFMEMORY):					return TEXT("E_OUTOFMEMORY");
+
+		// AudioClient.h
+		CASE_AND_STRING(AUDCLNT_E_NOT_INITIALIZED				 );
+		CASE_AND_STRING(AUDCLNT_E_ALREADY_INITIALIZED			 );
+		CASE_AND_STRING(AUDCLNT_E_WRONG_ENDPOINT_TYPE			 );
+		CASE_AND_STRING(AUDCLNT_E_DEVICE_INVALIDATED			 );
+		CASE_AND_STRING(AUDCLNT_E_NOT_STOPPED					 );
+		CASE_AND_STRING(AUDCLNT_E_BUFFER_TOO_LARGE				 );
+		CASE_AND_STRING(AUDCLNT_E_OUT_OF_ORDER					 );
+		CASE_AND_STRING(AUDCLNT_E_UNSUPPORTED_FORMAT			 );
+		CASE_AND_STRING(AUDCLNT_E_INVALID_SIZE					 );
+		CASE_AND_STRING(AUDCLNT_E_DEVICE_IN_USE					 );
+		CASE_AND_STRING(AUDCLNT_E_BUFFER_OPERATION_PENDING		 );
+		CASE_AND_STRING(AUDCLNT_E_THREAD_NOT_REGISTERED			 );
+		CASE_AND_STRING(AUDCLNT_E_EXCLUSIVE_MODE_NOT_ALLOWED	 );
+		CASE_AND_STRING(AUDCLNT_E_ENDPOINT_CREATE_FAILED		 );
+		CASE_AND_STRING(AUDCLNT_E_SERVICE_NOT_RUNNING			 );
+		CASE_AND_STRING(AUDCLNT_E_EVENTHANDLE_NOT_EXPECTED		 );
+		CASE_AND_STRING(AUDCLNT_E_EXCLUSIVE_MODE_ONLY			 );
+		CASE_AND_STRING(AUDCLNT_E_BUFDURATION_PERIOD_NOT_EQUAL	 );
+		CASE_AND_STRING(AUDCLNT_E_EVENTHANDLE_NOT_SET			 );
+		CASE_AND_STRING(AUDCLNT_E_INCORRECT_BUFFER_SIZE			 );
+		CASE_AND_STRING(AUDCLNT_E_BUFFER_SIZE_ERROR				 );
+		CASE_AND_STRING(AUDCLNT_E_CPUUSAGE_EXCEEDED				 );
+		CASE_AND_STRING(AUDCLNT_E_BUFFER_ERROR					 );
+		CASE_AND_STRING(AUDCLNT_E_BUFFER_SIZE_NOT_ALIGNED		 );
+		CASE_AND_STRING(AUDCLNT_E_INVALID_DEVICE_PERIOD			 );
+		CASE_AND_STRING(AUDCLNT_E_INVALID_STREAM_FLAG			 );
+		CASE_AND_STRING(AUDCLNT_E_ENDPOINT_OFFLOAD_NOT_CAPABLE	 );
+		CASE_AND_STRING(AUDCLNT_E_OUT_OF_OFFLOAD_RESOURCES		 );
+		CASE_AND_STRING(AUDCLNT_E_OFFLOAD_MODE_ONLY				 );
+		CASE_AND_STRING(AUDCLNT_E_NONOFFLOAD_MODE_ONLY			 );
+		CASE_AND_STRING(AUDCLNT_E_RESOURCES_INVALIDATED			 );
+		CASE_AND_STRING(AUDCLNT_E_RAW_MODE_UNSUPPORTED			 );
+		CASE_AND_STRING(AUDCLNT_E_ENGINE_PERIODICITY_LOCKED		 );
+		CASE_AND_STRING(AUDCLNT_E_ENGINE_FORMAT_LOCKED			 );
+		CASE_AND_STRING(AUDCLNT_E_HEADTRACKING_ENABLED			 );
+		CASE_AND_STRING(AUDCLNT_E_HEADTRACKING_UNSUPPORTED		 );
+		CASE_AND_STRING(AUDCLNT_S_BUFFER_EMPTY					 );
+		CASE_AND_STRING(AUDCLNT_S_THREAD_ALREADY_REGISTERED		 );
+		CASE_AND_STRING(AUDCLNT_S_POSITION_STALLED				 );
+
+		#undef CASE_AND_STRING
+
 	#endif
 		case HRESULT(0xe000020b):						return TEXT("ERROR_NO_SUCH_DEVINST");
 
@@ -164,6 +213,8 @@ namespace Audio
 
 	void FXAudio2VoiceCallback::OnBufferEnd(void* BufferContext)
 	{
+		SCOPED_NAMED_EVENT(FXAudio2VoiceCallback_OnBufferEnd, FColor::Blue);
+		
 		check(BufferContext);
 		IAudioMixerPlatformInterface* MixerPlatform = (IAudioMixerPlatformInterface*)BufferContext;
 		MixerPlatform->ReadNextBuffer();
@@ -215,6 +266,298 @@ namespace Audio
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		FPlatformMisc::CoUninitialize();
 #endif // #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	}
+
+#if PLATFORM_WINDOWS
+	// Dirty extern for now.
+	extern void RegisterForSessionEvents(const FString& InDeviceId);
+#endif //PLATFORM_WINDOWS
+
+	bool FMixerPlatformXAudio2::CheckThreadedDeviceSwap()
+	{
+		bool bDidStopGeneratingAudio = false;
+#if PLATFORM_WINDOWS
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap, FColor::Blue);
+	
+		if (bMoveAudioStreamToNewAudioDevice || ActiveDeviceSwap.IsValid())
+		{
+			// Start a job?
+			if (!ActiveDeviceSwap.IsValid())
+			{
+				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap_StartAsyncSwap, FColor::Blue);
+
+				// Toggle move to audio stream now we're spawning a new job.
+				bMoveAudioStreamToNewAudioDevice = false;
+
+				// Look up device. Blank name looks up current default.
+				FName NewDeviceName = *NewAudioDeviceId;
+				FAudioPlatformDeviceInfo NewDevice;
+				bool bSwitchingToValidDevice = false;
+				check(GetDeviceInfoCache());
+				if (TOptional<FAudioPlatformDeviceInfo> DeviceInfo = GetDeviceInfoCache()->FindActiveOutputDevice(NewDeviceName))
+				{
+					if (DeviceInfo->NumChannels <= XAUDIO2_MAX_AUDIO_CHANNELS &&
+						DeviceInfo->SampleRate >= XAUDIO2_MIN_SAMPLE_RATE &&
+						DeviceInfo->SampleRate <= XAUDIO2_MAX_SAMPLE_RATE)
+					{
+						bSwitchingToValidDevice = true;
+						NewDevice = *DeviceInfo;
+					}
+					else
+					{
+						UE_LOG(LogAudioMixer, Error, TEXT("Ignoring attempt to switch to device with unsupported params: Channels=%u, SampleRate=%u, Id=%s, Name=%s"),
+							(uint32)DeviceInfo->NumChannels, (uint32)DeviceInfo->SampleRate, *DeviceInfo->DeviceId, *DeviceInfo->Name);
+
+						NewDevice.Reset();
+					}
+				}
+				else
+				{
+					// Failed to find any device/default or otherwise. Reset our current device and do a switch to a null device.
+					NewDevice.Reset();
+				}
+			
+				// Build Delete/Create Async lambda
+				auto AsyncDeleteCreate = [
+					System = XAudio2System,
+						SourceVoice = OutputAudioStreamSourceVoice,
+						MasterVoice = OutputAudioStreamMasteringVoice,
+						NewDevice,
+						&Callbacks = OutputVoiceCallback,
+						RenderingSampleRate = OpenStreamParams.SampleRate,
+						bSwitchingToValidDevice ]() mutable->FXAudio2AsyncCreateResult
+					{
+						SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate, FColor::Blue);
+
+						// New thread might not have COM setup.
+						FPlatformMisc::CoInitialize();
+
+						{
+							// Stop old engine running.
+							if (System)
+							{
+								SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_StopEngine, FColor::Blue);
+								System->StopEngine();
+							}
+
+							// Kill source voice.
+							if (SourceVoice)
+							{
+								{
+									SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_FlushSourceBuffers, FColor::Blue);
+									HRESULT Result = SourceVoice->FlushSourceBuffers();
+									if (FAILED(Result))
+									{
+										XAUDIO2_LOG_RESULT("SourceVoice->FlushSourceBuffers", Result);
+									}
+								}
+								SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_DestroySourceVoice, FColor::Blue);
+								SourceVoice->DestroyVoice();
+								SourceVoice = nullptr;
+							}
+
+							// Now destroy the mastering voice
+							if (MasterVoice)
+							{
+								SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_DestroyMasterVoice, FColor::Blue);
+								MasterVoice->DestroyVoice();
+								MasterVoice = nullptr;
+							}
+
+							// Destroy System
+							{
+								SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_DestroySystem, FColor::Blue);
+								SAFE_RELEASE(System);
+							}
+						}
+
+						FXAudio2AsyncCreateResult Results;
+
+						// Don't attempt to create a new setup if there's no devices available.
+						if (!bSwitchingToValidDevice)
+						{
+							return {};
+						}
+
+						// Create System.
+						{
+							SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_CreateSystem, FColor::Blue);
+							HRESULT Result = XAudio2Create(&Results.XAudio2System, 0, GetXAudio2ProcessorsToUse());
+							if (FAILED(Result))
+							{
+								XAUDIO2_LOG_RESULT("XAudio2Create", Result);
+								return {};// FAIL.
+							}
+						}
+
+						// Create Master
+						{
+							check(NewDevice.NumChannels <= XAUDIO2_MAX_AUDIO_CHANNELS);
+							check(NewDevice.SampleRate >= XAUDIO2_MIN_SAMPLE_RATE);
+							check(NewDevice.SampleRate <= XAUDIO2_MAX_SAMPLE_RATE);					
+
+							SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_CreateMasterVoice, FColor::Blue);
+							HRESULT Result = Results.XAudio2System->CreateMasteringVoice(
+								&Results.OutputAudioStreamMasteringVoice,
+								(uint32)NewDevice.NumChannels,
+								(uint32)NewDevice.SampleRate,
+								0,
+								*NewDevice.DeviceId,
+								nullptr,
+								AudioCategory_GameEffects
+							);
+							if (FAILED(Result))
+							{
+								UE_LOG(LogAudioMixer, Error, TEXT("XAudio2System->CreateMasteringVoice() -> 0x%X: %s (line: %d) with Args (NumChannels=%u, SampleRate=%u, DeviceID=%s Name=%s)"),
+									Result, *GetErrorString(Result), __LINE__, (uint32)NewDevice.NumChannels, (uint32)NewDevice.SampleRate, *NewDevice.DeviceId, *NewDevice.Name);
+								SAFE_RELEASE(Results.XAudio2System);
+								return {}; // FAIL.
+							}
+						}
+
+						// Create Source Voice.
+						{
+							SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_CreateSourceVoice, FColor::Blue);
+
+							// Setup the format of the output source voice
+							WAVEFORMATEX Format = { 0 };
+							Format.nChannels = NewDevice.NumChannels;
+							Format.nSamplesPerSec = RenderingSampleRate;		// NOTE: We use the Rendering sample rate here.
+							Format.wFormatTag = WAVE_FORMAT_IEEE_FLOAT;
+							Format.nAvgBytesPerSec = Format.nSamplesPerSec * sizeof(float) * Format.nChannels;
+							Format.nBlockAlign = sizeof(float) * Format.nChannels;
+							Format.wBitsPerSample = sizeof(float) * 8;
+						
+							// Create the output source voice
+							HRESULT Result = Results.XAudio2System->CreateSourceVoice(
+								&Results.OutputAudioStreamSourceVoice,
+								&Format,
+								XAUDIO2_VOICE_NOPITCH,
+								XAUDIO2_DEFAULT_FREQ_RATIO,
+								&Callbacks,
+								nullptr,
+								nullptr
+							);
+
+							if (FAILED(Result))
+							{
+								XAUDIO2_LOG_RESULT("XAudio2System->CreateSourceVoice", Result);
+								Results.OutputAudioStreamMasteringVoice->DestroyVoice();
+								Results.OutputAudioStreamMasteringVoice = nullptr;
+								SAFE_RELEASE(Results.XAudio2System);
+								return {};
+							}
+						}
+
+						// Listen session for changes to this device.
+						RegisterForSessionEvents(NewDevice.DeviceId);
+
+						FPlatformMisc::CoUninitialize();
+
+						// Success.
+						Results.DeviceInfo = NewDevice;
+						return Results;
+					};
+
+					// NULL our system / master / source voices. (as they are about to be torn down async).
+					{
+						SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_StopSource, FColor::Blue);
+
+						// Ask source voice to stop. 
+						if (OutputAudioStreamSourceVoice)
+						{
+							HRESULT Hr = OutputAudioStreamSourceVoice->Stop();
+							if (FAILED(Hr))
+							{
+								XAUDIO2_LOG_RESULT("OutputAudioStreamSourceVoice->Stop()", Hr);
+							}
+						}
+
+						// Lock CS so any callback mid swap earlies out
+						FScopeLock Lock(&AudioDeviceSwapCriticalSection);
+						bIsInDeviceSwap = true;
+						XAudio2System = nullptr;
+						OutputAudioStreamMasteringVoice = nullptr;
+						OutputAudioStreamSourceVoice = nullptr;
+					}
+
+					// Start a new device swap.
+					{
+						SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_AsyncDeleteCreate_Async, FColor::Blue);
+						ActiveDeviceSwap = Async(EAsyncExecution::TaskGraph, MoveTemp(AsyncDeleteCreate));
+					}
+
+					if (!bIsUsingNullDevice)
+					{
+						StartRunningNullDevice();
+					}
+
+					// Return FALSE, as null can run with whatever the same config we were using before.
+					return false;
+			}
+			else // Running...
+			{
+				if (ActiveDeviceSwap.IsReady())  // Finished?
+				{
+					SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap_FinishedJobSwitchOver, FColor::Blue);
+
+					XAudio2System = ActiveDeviceSwap.Get().XAudio2System;
+					OutputAudioStreamMasteringVoice = ActiveDeviceSwap.Get().OutputAudioStreamMasteringVoice;
+					OutputAudioStreamSourceVoice = ActiveDeviceSwap.Get().OutputAudioStreamSourceVoice;
+
+					// Success?
+					if (XAudio2System && OutputAudioStreamSourceVoice && OutputAudioStreamMasteringVoice)
+					{
+						HRESULT Result;
+						{
+							SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap_StartEngine, FColor::Blue);
+							Result = XAudio2System->StartEngine();
+						}
+						if (SUCCEEDED(Result))
+						{
+							if (bIsUsingNullDevice)
+							{
+								StopRunningNullDevice();
+							}
+
+							StopGeneratingAudio();
+							bDidStopGeneratingAudio = true;
+
+							// Copy our new Device Info into our active one.
+							AudioStreamInfo.DeviceInfo = ActiveDeviceSwap.Get().DeviceInfo;
+
+							// Display our new XAudio2 Mastering voice details.
+							UE_LOG(LogAudioMixer, Display, TEXT("Successful Swap new Device is (NumChannels=%u, SampleRate=%u, DeviceID=%s, Name=%s)"),
+								(uint32)AudioStreamInfo.DeviceInfo.NumChannels, (uint32)AudioStreamInfo.DeviceInfo.SampleRate, *AudioStreamInfo.DeviceInfo.DeviceId, *AudioStreamInfo.DeviceInfo.Name);
+
+							// Reinitialize the output circular buffer to match the buffer math of the new audio device.
+							const int32 NumOutputSamples = AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels;
+							if (ensure(NumOutputSamples > 0))
+							{
+								OutputBuffer.Init(AudioStreamInfo.AudioMixer, NumOutputSamples, NumOutputBuffers, AudioStreamInfo.DeviceInfo.Format);
+							}
+						}
+						else
+						{
+							XAUDIO2_LOG_RESULT("StartEngine", Result);
+						}
+					}
+					else // We either failed to init or deliberately switched to null device.
+					{
+						// Null renderer doesn't/shouldn't care about the format, so leave the format as it was before.
+					}
+
+					{
+						SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckThreadedDeviceSwap_EndSwap, FColor::Blue);
+						bIsInDeviceSwap = false;
+						ActiveDeviceSwap.Reset();
+					}
+				}
+			}
+		}
+#endif //PLATFORM_WINDOWS
+
+		return bDidStopGeneratingAudio;
 	}
 
 	bool FMixerPlatformXAudio2::AllowDeviceSwap()
@@ -392,6 +735,13 @@ namespace Audio
 		LoadVorbisLibraries();
 #endif // WITH_ENGINE
 
+		if(IAudioMixer::ShouldRecycleThreads())
+		{
+			// Pre-create the null render device thread on XAudio2, so we can simple wake it up when we need it.
+			// Give it nothing to do, with a slow tick as the default, but ask it to wait for a signal to wake up.
+			CreateNullDeviceThread([] {}, 1.0f, true);
+		}
+
 		bIsInitialized = true;
 
 		return true;
@@ -452,6 +802,15 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::GetNumOutputDevices(uint32& OutNumOutputDevices)
 	{
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_GetNumOutputDevices, FColor::Blue);
+
+		// Use Cache if we have it.
+		if (IAudioPlatformDeviceInfoCache* Cache = GetDeviceInfoCache())
+		{
+			OutNumOutputDevices = Cache->GetAllActiveOutputDevices().Num();
+			return true;
+		}
+
 		OutNumOutputDevices = 0;
 
 		if (!bIsInitialized)
@@ -499,6 +858,8 @@ namespace Audio
 #if PLATFORM_WINDOWS
 	static bool GetMMDeviceInfo(IMMDevice* MMDevice, FAudioPlatformDeviceInfo& OutInfo)
 	{
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_GetMMDeviceInfo, FColor::Blue);
+		
 		check(MMDevice);
 
 		OutInfo.Reset();
@@ -534,11 +895,19 @@ namespace Audio
 
 		// Get the format of the property
 		WaveFormatEx = (WAVEFORMATEX *)DeviceFormat.blob.pBlobData;
-		if (!ensure(WaveFormatEx))
+		if (!WaveFormatEx)
+		{
+			// Some devices don't provide the Device format, so try the OEMFormat as well.
+			Result = PropertyStore->GetValue(PKEY_AudioEngine_OEMFormat, &DeviceFormat);
+			XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
+
+			WaveFormatEx = (WAVEFORMATEX*)DeviceFormat.blob.pBlobData;
+			if (!ensure(DeviceFormat.blob.pBlobData))
 		{
 			// Force an error if we failed to get a WaveFormat back from the data blob.
 			Result = E_FAIL;
 			XAUDIO2_GOTO_CLEANUP_ON_FAIL(Result);
+		}
 		}
 		
 		OutInfo.DeviceId = FString(DeviceId);
@@ -635,13 +1004,6 @@ namespace Audio
 			}
 		}
 
-		for (int32 i = 0; i < OutInfo.NumChannels; ++i)
-		{
-			if (i < OutInfo.OutputChannelArray.Num())
-			{
-				UE_LOG(LogAudioMixer, Display, TEXT("%d: %s"), i, EAudioMixerChannel::ToString(OutInfo.OutputChannelArray[i]));
-			}
-		}
 	Cleanup:
 		PropVariantClear(&FriendlyName);
 		PropVariantClear(&DeviceFormat);
@@ -653,6 +1015,31 @@ namespace Audio
 
 	bool FMixerPlatformXAudio2::GetOutputDeviceInfo(const uint32 InDeviceIndex, FAudioPlatformDeviceInfo& OutInfo)
 	{
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_GetOutputDeviceInfo, FColor::Blue);
+				
+		// Use Cache if we have it. (index is a bad way to find the device, but we do it here).
+		if (IAudioPlatformDeviceInfoCache* Cache = GetDeviceInfoCache())
+		{
+			if (InDeviceIndex == AUDIO_MIXER_DEFAULT_DEVICE_INDEX)
+			{
+				if (TOptional<FAudioPlatformDeviceInfo> Defaults = Cache->FindDefaultOutputDevice())
+				{
+					OutInfo = *Defaults;
+					return true;
+				}
+			}
+			else
+			{
+				TArray<FAudioPlatformDeviceInfo> ActiveDevices = Cache->GetAllActiveOutputDevices();
+				if (ActiveDevices.IsValidIndex(InDeviceIndex))
+				{
+					OutInfo = ActiveDevices[InDeviceIndex];
+					return true;
+				}
+			}
+			return false;
+		}
+		
 		if (!bIsInitialized)
 		{
 			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was not initialized."), Error);
@@ -1106,8 +1493,10 @@ namespace Audio
 			return false;
 		}
 
-		check(XAudio2System);
+		if (XAudio2System)
+		{
 		XAudio2System->StopEngine();
+		}
 
 		if (OutputAudioStreamSourceVoice)
 		{
@@ -1166,8 +1555,6 @@ namespace Audio
 
 		UE_LOG(LogAudioMixer, Log, TEXT("FMixerPlatformXAudio2::StopAudioStream() called"));
 
-		check(XAudio2System);
-
 		if (AudioStreamInfo.StreamState != EAudioOutputStreamState::Stopped && AudioStreamInfo.StreamState != EAudioOutputStreamState::Closed)
 		{
 			if (AudioStreamInfo.StreamState == EAudioOutputStreamState::Running)
@@ -1192,8 +1579,16 @@ namespace Audio
 	bool FMixerPlatformXAudio2::CheckAudioDeviceChange()
 	{
 #if PLATFORM_WINDOWS && XAUDIO_SUPPORTS_DEVICE_DETAILS
-		FScopeLock Lock(&AudioDeviceSwapCriticalSection);
 
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_CheckAudioDeviceChange, FColor::Blue);
+
+		// Use threaded version? (It also requires the info cache).
+		if (IAudioMixer::ShouldUseThreadedDeviceSwap() && IAudioMixer::ShouldUseDeviceInfoCache())
+		{
+			return CheckThreadedDeviceSwap();
+		}
+
+		FScopeLock Lock(&AudioDeviceSwapCriticalSection);
 		if (bMoveAudioStreamToNewAudioDevice)
 		{
 			bMoveAudioStreamToNewAudioDevice = false;
@@ -1213,7 +1608,9 @@ namespace Audio
 
 		if (AudioDeviceSwapCriticalSection.TryLock())
 		{
-			UE_LOG(LogAudioMixer, Display, TEXT("Swapping audio render device to new device: %s."), *DeviceID);
+			UE_LOG(LogAudioMixer, Display, TEXT("Attempt to swap audio render device to new device: %s."),
+				!DeviceID.IsEmpty() ? *DeviceID : TEXT("[System Default]")
+			);
 
 			NewAudioDeviceId = DeviceID;
 			bMoveAudioStreamToNewAudioDevice = true;
@@ -1229,7 +1626,10 @@ namespace Audio
 	bool FMixerPlatformXAudio2::MoveAudioStreamToNewAudioDevice(const FString& InNewDeviceId)
 	{
 		bool bDidStopGeneratingAudio = false;
+
 #if PLATFORM_WINDOWS && XAUDIO_SUPPORTS_DEVICE_DETAILS
+
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice, FColor::Blue);
 
 		uint32 NumDevices = 0;
 		// XAudio2 for HoloLens doesn't have GetDeviceCount, use local wrapper instead
@@ -1251,7 +1651,8 @@ namespace Audio
 			return bDidStopGeneratingAudio;
 		}
 
-		UE_LOG(LogAudioMixer, Log, TEXT("Resetting audio stream to device id %s"), *InNewDeviceId);
+		UE_LOG(LogAudioMixer, Log, TEXT("Resetting audio stream to device id '%s'"), 
+			!InNewDeviceId.IsEmpty() ? *InNewDeviceId : TEXT("[System Default]") );
 
 		// Device swaps require reinitialization of output buffers to handle
 		// different channel formats. Stop generating audio to protect against
@@ -1271,6 +1672,8 @@ namespace Audio
 			{
 				return bDidStopGeneratingAudio;
 			}
+
+			SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_DestroyVoices, FColor::Blue);
 
 			// If an XAudio2 callback is in flight,
 			// we have to wait for it here.
@@ -1358,6 +1761,9 @@ namespace Audio
 				OutputAudioStreamMasteringVoice = nullptr;
 			}
 #else
+			{
+				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_CreateMaster, FColor::Blue);
+
 			// open up on the default device
 			Result = XAudio2System->CreateMasteringVoice(
 				&OutputAudioStreamMasteringVoice,
@@ -1374,6 +1780,10 @@ namespace Audio
 				// Will default to null device when calling `ResumePlaybackOnNewDevice()`
 				OutputAudioStreamMasteringVoice = nullptr;
 			}
+				UE_CLOG(SUCCEEDED(Result), LogAudioMixer, Display, TEXT("XAudio2 CreateMasterVoice Channels=%u SampleRate=%u DeviceId=%s Name=%s"),
+					AudioStreamInfo.DeviceInfo.NumChannels, AudioStreamInfo.DeviceInfo.SampleRate, *AudioStreamInfo.DeviceInfo.DeviceId, *AudioStreamInfo.DeviceInfo.Name
+				);
+			}
 #endif
 
 			// Setup the format of the output source voice
@@ -1385,6 +1795,9 @@ namespace Audio
 			Format.nBlockAlign = sizeof(float) * Format.nChannels;
 			Format.wBitsPerSample = sizeof(float) * 8;
 
+			{				
+				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_CreateSource, FColor::Blue);
+
 			// Create the output source voice
 			Result = XAudio2System->CreateSourceVoice(&OutputAudioStreamSourceVoice, &Format, XAUDIO2_VOICE_NOPITCH, 2.0f, &OutputVoiceCallback);
 			if (FAILED(Result))
@@ -1394,11 +1807,13 @@ namespace Audio
 				// Will default to null device when calling `ResumePlaybackOnNewDevice()`
 				OutputAudioStreamSourceVoice = nullptr;
 			}
+			}
 
 			// Reinitialize the output circular buffer to match the buffer math of the new audio device.
 			const int32 NumOutputSamples = AudioStreamInfo.NumOutputFrames * AudioStreamInfo.DeviceInfo.NumChannels;
 			if (ensure(NumOutputSamples > 0))
 			{
+				SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_MoveAudioStreamToNewAudioDevice_OutBufferInit, FColor::Blue);
 				OutputBuffer.Init(AudioStreamInfo.AudioMixer, NumOutputSamples, NumOutputBuffers, AudioStreamInfo.DeviceInfo.Format);
 			}
 		}
@@ -1420,6 +1835,8 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::ResumePlaybackOnNewDevice()
 	{
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_ResumePlaybackOnNewDevice, FColor::Blue);
+		
 		int32 NumSamplesPopped = 0;
 		TArrayView<const uint8> PoppedAudio = OutputBuffer.PopBufferData(NumSamplesPopped);
 		SubmitBuffer(PoppedAudio.GetData());
@@ -1446,6 +1863,8 @@ namespace Audio
 
 	void FMixerPlatformXAudio2::SubmitBuffer(const uint8* Buffer)
 	{
+		SCOPED_NAMED_EVENT(FMixerPlatformXAudio2_SubmitBuffer, FColor::Blue);
+
 		if (OutputAudioStreamSourceVoice)
 		{
 			// Create a new xaudio2 buffer submission
@@ -1636,14 +2055,30 @@ namespace Audio
 		XMA2_INFO_CALL(FXMAAudioInfo::Tick());
 #endif //WITH_XMA2
 
-		if (bIsUsingNullDevice)
+	}
+
+	Audio::IAudioPlatformDeviceInfoCache* FMixerPlatformXAudio2::GetDeviceInfoCache() const
 		{
-			float CurrentTime = FPlatformTime::Seconds();
-			if (CurrentTime - TimeSinceNullDeviceWasLastChecked > 1.0f)
+		if (IAudioMixer::ShouldUseDeviceInfoCache())
 			{
-				bMoveAudioStreamToNewAudioDevice = true;
-				TimeSinceNullDeviceWasLastChecked = CurrentTime;
+			return DeviceInfoCache.Get();
 			}
+		// Disabled.
+		return nullptr;
+	}
+
+	void FMixerPlatformXAudio2::OnSessionDisconnect(IAudioMixerDeviceChangedListener::EDisconnectReason InReason)
+	{
+		// Device has disconnected from current session.
+		if (InReason == IAudioMixerDeviceChangedListener::EDisconnectReason::FormatChanged)
+		{
+			// OnFormatChanged, retry again same device.
+			RequestDeviceSwap(GetDeviceId());
+		}
+		else
+		{
+			// Device removed entirely, so attempt to switch to default.
+			RequestDeviceSwap(TEXT(""));
 		}
 	}
 

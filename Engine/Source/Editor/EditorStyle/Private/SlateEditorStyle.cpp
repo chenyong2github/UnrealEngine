@@ -7959,7 +7959,7 @@ void FSlateEditorStyle::FStyle::SetupAutomationStyles()
 			}
 		}
 
-		for (auto& Item : PlatformInfo::GetPreviewPlatformMenuItems())
+		for (const FPreviewPlatformMenuItem& Item : FDataDrivenPlatformInfoRegistry::GetAllPreviewPlatformMenuItems())
 		{
 			if(!Item.ActiveIconPath.IsEmpty())
 			{

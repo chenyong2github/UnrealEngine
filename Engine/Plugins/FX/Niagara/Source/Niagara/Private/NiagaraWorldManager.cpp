@@ -375,7 +375,7 @@ UNiagaraCullProxyComponent* FNiagaraWorldManager::GetCullProxy(UNiagaraComponent
 			CullProxy->SetAsset(System);
 			CullProxy->SetAllowScalability(false);
 
-			CullProxy->bAutoActivate = false;
+			CullProxy->bAutoActivate = true;
 			CullProxy->SetAutoDestroy(false);
 			CullProxy->bAllowAnyoneToDestroyMe = true;
 			CullProxy->RegisterComponentWithWorld(World);
@@ -440,7 +440,7 @@ void FNiagaraWorldManager::CleanupParameterCollections()
 	ParameterCollections.Empty();
 }
 
-TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System)
+FNiagaraSystemSimulationRef FNiagaraWorldManager::GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
@@ -451,13 +451,13 @@ TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> FNiagaraWorldManager::
 		ActualTickGroup = DemotedTickGroup == ActualTickGroup ? 0 : DemotedTickGroup;
 	}
 
-	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* SimPtr = SystemSimulations[ActualTickGroup].Find(System);
+	FNiagaraSystemSimulationRef* SimPtr = SystemSimulations[ActualTickGroup].Find(System);
 	if (SimPtr != nullptr)
 	{
 		return *SimPtr;
 	}
 	
-	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> Sim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
+	FNiagaraSystemSimulationRef Sim = MakeShared<FNiagaraSystemSimulation, ESPMode::ThreadSafe>();
 	SystemSimulations[ActualTickGroup].Add(System, Sim);
 	Sim->Init(System, World, false, TickGroup);
 
@@ -472,7 +472,7 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 {
 	for ( int TG=0; TG < NiagaraNumTickGroups; ++TG )
 	{
-		TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>* Simulation = SystemSimulations[TG].Find(System);
+		FNiagaraSystemSimulationRef* Simulation = SystemSimulations[TG].Find(System);
 		if (Simulation != nullptr)
 		{
 			SimulationsWithPostActorWork.Remove(*Simulation);
@@ -525,7 +525,7 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 
 	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 	{
-		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
+		for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SimPair : SystemSimulations[TG])
 		{
 #if WITH_EDITOR
 			SimPair.Key->OnSystemPostEditChange().RemoveAll(this);
@@ -560,7 +560,7 @@ void FNiagaraWorldManager::PreGarbageCollect()
 		// The reason for this is that our async ticks could be referencing GC objects, i.e. skel meshes, etc, and we don't want them to become unreachable while we are potentially using them
 		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 		{
-			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
+			for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SimPair : SystemSimulations[TG])
 			{
 				SimPair.Value->WaitForInstancesTickComplete();
 			}
@@ -719,39 +719,47 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	// - Instances that were spawned and we need to ensure the async tick is complete
 	if (SimulationsWithPostActorWork.Num() > 0)
 	{
+		// Ensure completion of all systems
 		for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i )
 		{
-			if (!SimulationsWithPostActorWork[i]->IsValid())
+			FNiagaraSystemSimulationRef& Simulation = SimulationsWithPostActorWork[i];
+			if ( Simulation->IsValid() )
 			{
-				SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
-				--i;
-			}
-			else
-			{
-				SimulationsWithPostActorWork[i]->WaitForInstancesTickComplete();
+				Simulation->WaitForInstancesTickComplete();
 			}
 		}
 
+		// Update tick groups
 		for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
-			if (!SimulationsWithPostActorWork[i]->IsValid())
+			FNiagaraSystemSimulationRef& Simulation = SimulationsWithPostActorWork[i];
+			if (Simulation->IsValid())
 			{
-				SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
-				--i;
-			}
-			else
-			{
-				SimulationsWithPostActorWork[i]->UpdateTickGroups_GameThread();
+				Simulation->UpdateTickGroups_GameThread();
 			}
 		}
 
-		for (const auto& Simulation : SimulationsWithPostActorWork)
-		{
+		// Execute spawning
+		TArray<FNiagaraSystemSimulationRef> LocalSimulationsWithPostActorWork;
+		Swap(SimulationsWithPostActorWork, LocalSimulationsWithPostActorWork);
+		for (FNiagaraSystemSimulationRef& Simulation : LocalSimulationsWithPostActorWork)
+			{
 			if (Simulation->IsValid())
 			{
 				Simulation->Spawn_GameThread(DeltaSeconds, true);
 			}
 		}
+
+		// Wait for any spawning that may be required to complete in PostActorTick
+		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+		{
+			FNiagaraSystemSimulationRef& Simulation = SimulationsWithPostActorWork[i];
+			if (Simulation->IsValid())
+			{
+				Simulation->WaitForInstancesTickComplete();
+			}
+		}
+		SimulationsWithPostActorWork.Reset();
 	}
 
 	// Clear cached player view location list, it should never be used outside of the world tick
@@ -858,7 +866,7 @@ void FNiagaraWorldManager::MarkSimulationForPostActorWork(FNiagaraSystemSimulati
 {
 	check(SystemSimulation != nullptr);
 	check(!SystemSimulation->GetIsSolo());
-	if ( !SimulationsWithPostActorWork.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }) )
+	if ( !SimulationsWithPostActorWork.ContainsByPredicate([&](const FNiagaraSystemSimulationRef& Existing) { return &Existing.Get() == SystemSimulation; }) )
 	{
 		SimulationsWithPostActorWork.Add(SystemSimulation->AsShared());
 	}
@@ -868,7 +876,7 @@ void FNiagaraWorldManager::MarkSimulationsForEndOfFrameWait(FNiagaraSystemSimula
 {
 	check(SystemSimulation);
 	check(!SystemSimulation->GetIsSolo());
-	if (!SimulationsWithEndOfFrameWait.ContainsByPredicate([&](const TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>& Existing) { return &Existing.Get() == SystemSimulation; }))
+	if (!SimulationsWithEndOfFrameWait.ContainsByPredicate([&](const FNiagaraSystemSimulationRef& Existing) { return &Existing.Get() == SystemSimulation; }))
 	{
 		SimulationsWithEndOfFrameWait.Add(SystemSimulation->AsShared());
 	}
@@ -1001,7 +1009,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 	ActiveNiagaraTickGroup = ActualTickGroup;
 
 	TArray<UNiagaraSystem*, TInlineAllocator<4>> DeadSystems;
-	for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[ActualTickGroup])
+	for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SystemSim : SystemSimulations[ActualTickGroup])
 	{
 		FNiagaraSystemSimulation*  Sim = &SystemSim.Value.Get();
 
@@ -1055,7 +1063,7 @@ void FNiagaraWorldManager::DumpDetails(FOutputDevice& Ar)
 
 		Ar.Logf(TEXT("TickingGroup %s"), *TickingGroupEnum->GetNameStringByIndex(TG + NiagaraFirstTickGroup));
 
-		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
+		for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SystemSim : SystemSimulations[TG])
 		{
 			FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
 			if ( !Sim->IsValid() )

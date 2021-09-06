@@ -754,7 +754,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 #if SUPPORTS_PHYSICS_COOKING
 	UE_LOG(LogMrMesh, Log, TEXT("SendBrickData_Internal() processing brick %llu with %i triangles"), Args.BrickId, Args.Indices.Num() / 3);
 	
-	if (!IsPendingKill() && !bNeverCreateCollisionMesh)
+	if (IsValid(this) && !bNeverCreateCollisionMesh)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateCollision);
 		// Physics update

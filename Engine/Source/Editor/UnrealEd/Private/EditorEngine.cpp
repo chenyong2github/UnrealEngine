@@ -3803,7 +3803,7 @@ void UEditorEngine::BuildReflectionCaptures(UWorld* World)
 			if (CaptureComponent->GetOwner()
 				&& World->ContainsActor(CaptureComponent->GetOwner()) 
 				&& !CaptureComponent->GetOwner()->bHiddenEdLevel
-				&& !CaptureComponent->IsPendingKill()
+				&& IsValidChecked(CaptureComponent)
 				&& !ResourcesToKeep.Contains(CaptureComponent->MapBuildDataId))
 			{
 				// Queue an update
@@ -5748,7 +5748,7 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 		for( int32 ActorIdx = 0; ActorIdx < ActorsToConvert.Num(); ++ActorIdx )
 		{
 			AActor* ActorToConvert = ActorsToConvert[ActorIdx];
-			if (!ActorToConvert->IsPendingKill() && ActorToConvert->GetClass()->IsChildOf(ABrush::StaticClass()) && ConvertToClass == AStaticMeshActor::StaticClass())
+			if (IsValidChecked(ActorToConvert) && ActorToConvert->GetClass()->IsChildOf(ABrush::StaticClass()) && ConvertToClass == AStaticMeshActor::StaticClass())
 			{
 				SelectActor(ActorToConvert, true, true);
 				BrushList.Add(Cast<ABrush>(ActorToConvert));
@@ -5779,9 +5779,9 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 			AActor* ActorToConvert = ActorsToConvert[ ActorIdx ];
 
 
-			if (ActorToConvert->IsPendingKill())
+			if (!IsValidChecked(ActorToConvert))
 			{
-				UE_LOG(LogEditor, Error, TEXT("Actor '%s' is marked pending kill and cannot be converted"), *ActorToConvert->GetFullName());
+				UE_LOG(LogEditor, Error, TEXT("Actor '%s' is invalid and cannot be converted"), *ActorToConvert->GetFullName());
 				continue;
 			}
 
@@ -5831,7 +5831,7 @@ void UEditorEngine::DoConvertActors( const TArray<AActor*>& ActorsToConvert, UCl
 					ConvertActorsFromClass(ClassToReplace, ConvertToClass);
 				}
 
-				if (ActorToConvert->IsPendingKill())
+				if (!IsValidChecked(ActorToConvert))
 				{
 					// Converted by one of the above
 					check (1 == GetSelectedActorCount());

@@ -21,7 +21,7 @@ void FNetworkObjectList::AddInitialObjects(UWorld* const World, UNetDriver* NetD
 	for (FActorIterator Iter(World); Iter; ++Iter)
 	{
 		AActor* Actor = *Iter;
-		if (Actor != nullptr && !Actor->IsPendingKill() && ULevel::IsNetActor(Actor) && !UNetDriver::IsDormInitialStartupActor(Actor))
+		if (IsValid(Actor) && ULevel::IsNetActor(Actor) && !UNetDriver::IsDormInitialStartupActor(Actor))
 		{
 			FindOrAdd(Actor, NetDriver);
 		}
@@ -57,7 +57,7 @@ TSharedPtr<FNetworkObjectInfo>* FNetworkObjectList::FindOrAdd(AActor* const Acto
 
 TSharedPtr<FNetworkObjectInfo>* FNetworkObjectList::FindOrAdd(AActor* const Actor, UNetDriver* NetDriver, bool* OutWasAdded)
 {
-	if (Actor == nullptr || Actor->IsPendingKill() ||
+	if (!IsValid(Actor) ||
 
 		// This implies the actor was added either added sometime during UWorld::DestroyActor,
 		// or was potentially previously destroyed (and its Index points to a diferent, non-PendingKill object).

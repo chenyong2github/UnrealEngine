@@ -15,6 +15,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "MetalBackend.h"
 #include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
 #include "FileUtilities/ZipArchiveWriter.h"
 #include "MetalDerivedData.h"
 

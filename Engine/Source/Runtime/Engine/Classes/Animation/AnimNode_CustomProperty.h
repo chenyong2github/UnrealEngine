@@ -37,7 +37,7 @@ public:
 	template<class T>
 	T* GetTargetInstance() const
 	{
-		if (TargetInstance && !TargetInstance->IsPendingKill())
+		if (IsValid(TargetInstance))
 		{
 			return Cast<T>(TargetInstance);
 		}

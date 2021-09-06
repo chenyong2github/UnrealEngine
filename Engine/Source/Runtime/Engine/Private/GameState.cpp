@@ -10,6 +10,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "Net/UnrealNetwork.h"
 #include "Misc/CoreDelegates.h"
+#include "MoviePlayerProxy.h"
 
 AGameState::AGameState(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -59,6 +60,7 @@ void AGameState::HandleMatchIsWaitingToStart()
 {
 	if (GetLocalRole() != ROLE_Authority)
 	{
+		FMoviePlayerProxyBlock MoviePlayerBlock;
 		// Server handles this in AGameMode::HandleMatchIsWaitingToStart
 		GetWorldSettings()->NotifyBeginPlay();
 	}

@@ -510,6 +510,11 @@ FMD5Hash FDatasmithTextureElementImpl::CalculateElementHash(bool bForce)
 		return ElementHash;
 	}
 	FMD5 MD5;
+	// Update FileHash if it has not already been done
+	if (!FileHash.Get(Store).IsValid() && GetFile() != nullptr && FCString::Strlen(GetFile()) > 0)
+	{
+		FileHash.Edit(Store) = FMD5Hash::HashFile(GetFile());
+	}
 	const FMD5Hash& FileHashValue = FileHash.Get(Store);
 	MD5.Update(FileHashValue.GetBytes(), FileHashValue.GetSize());
 	MD5.Update(reinterpret_cast<uint8*>(&RGBCurve), sizeof(RGBCurve));
@@ -517,6 +522,12 @@ FMD5Hash FDatasmithTextureElementImpl::CalculateElementHash(bool bForce)
 	MD5.Update(reinterpret_cast<uint8*>(&TextureFilter), sizeof(TextureFilter));
 	MD5.Update(reinterpret_cast<uint8*>(&TextureAddressX), sizeof(TextureAddressX));
 	MD5.Update(reinterpret_cast<uint8*>(&TextureAddressY), sizeof(TextureAddressY));
+
+	if (DataSize > 0 && Data != nullptr)
+	{
+		MD5.Update(Data, DataSize);
+	}
+
 	ElementHash.Set(MD5);
 	return ElementHash;
 }

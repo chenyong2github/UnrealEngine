@@ -19,6 +19,11 @@ namespace Chaos
 		Solver->RegisterObject(KinematicEndPoint);
 	}
 
+	FSingleParticlePhysicsProxy* FJointConstraint::GetKinematicEndPoint() const
+	{
+		return KinematicEndPoint;
+	}
+
 	const FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() const { return JointSettings.ConnectorTransforms; }
 	void FJointConstraint::SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms)
 	{

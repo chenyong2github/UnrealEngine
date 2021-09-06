@@ -288,7 +288,7 @@ void UAIPerceptionSystem::UpdateListener(UAIPerceptionComponent& Listener)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AI_PerceptionSys);
 
-	if (Listener.IsPendingKill())
+	if (!IsValid(&Listener))
 	{
 		UnregisterListener(Listener);
 		return;

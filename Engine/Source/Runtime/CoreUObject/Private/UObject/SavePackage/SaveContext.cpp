@@ -28,7 +28,7 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 			&& !Obj->HasAnyFlags(RF_ClassDefaultObject))
 		{
 			// only warn if the base object is fine but the outer is invalid. If an object is itself unsaveable, the old behavior is to ignore it
-			if (!InObject->IsPendingKill() 
+			if (IsValidChecked(InObject) 
 				&& InObject->GetOutermost() == GetPackage()
 				&& Obj != InObject)
 			{
@@ -41,7 +41,7 @@ bool FSaveContext::IsUnsaveable(UObject* InObject) const
 		}
 
 		// pending kill object are unsaveable
-		if (Obj->IsPendingKill())
+		if (!IsValidChecked(Obj))
 		{
 			return true;
 		}

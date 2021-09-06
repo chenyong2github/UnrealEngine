@@ -29,9 +29,10 @@ FSkelMeshUpdateContext::FSkelMeshUpdateContext(const USkeletalMesh* InMesh, EThr
 	check(InMesh);
 	checkSlow(InCurrentThread != FSkeletalMeshUpdate::TT_Render || IsInRenderingThread());
 	RenderData = Mesh->GetResourceForRendering();
+	AssetLODBias = Mesh->GetStreamableResourceState().AssetLODBias;
 	if (RenderData)
 	{
-		LODResourcesView = TArrayView<FSkeletalMeshLODRenderData*>(RenderData->LODRenderData.GetData() + InMesh->GetStreamableResourceState().AssetLODBias, InMesh->GetStreamableResourceState().MaxNumLODs);
+		LODResourcesView = TArrayView<FSkeletalMeshLODRenderData*>(RenderData->LODRenderData.GetData() + AssetLODBias, Mesh->GetStreamableResourceState().MaxNumLODs);
 	}
 }
 
@@ -462,7 +463,7 @@ void FSkeletalMeshStreamIn_IO::SetIORequest(const FContext& Context)
 #if USE_BULKDATA_STREAMING_TOKEN
 		FPackagePath PackagePath;
 		EPackageSegment PackageSegment;
-		verify(Mesh->GetMipDataPackagePath(PendingFirstLODIdx, PackagePath, PackageSegment));
+		verify(Mesh->GetMipDataPackagePath(ResourceState.AssetLODBias + PendingFirstLODIdx, PackagePath, PackageSegment));
 #endif	
 
 		SetAsyncFileCallback(Context);
@@ -537,9 +538,9 @@ void FSkeletalMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 		{
 			FSkeletalMeshLODRenderData& LODResource = *Context.LODResourcesView[LODIndex];
 			const bool bForceKeepCPUResources = FSkeletalMeshLODRenderData::ShouldForceKeepCPUResources();
-			const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Mesh, LODIndex, bForceKeepCPUResources);
+			const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Mesh, LODIndex + Context.AssetLODBias, bForceKeepCPUResources);
 			constexpr uint8 DummyStripFlags = 0;
-			LODResource.SerializeStreamedData(Ar, const_cast<USkeletalMesh*>(Mesh), LODIndex, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			LODResource.SerializeStreamedData(Ar, const_cast<USkeletalMesh*>(Mesh), LODIndex + Context.AssetLODBias, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
 		}
 
 		FMemory::Free(Data.GetData()); // Free the memory we took ownership of via IORequest->GetReadResults()

@@ -424,11 +424,11 @@ namespace UE
 					}
 					else
 					{
-						checkf(false, "Failed TAttributeContainer::FindChecked")
+						checkf(false, TEXT("Failed TAttributeContainer::FindChecked"));
 					}
 				}
 
-				checkf(false, "Failed TAttributeContainer::FindChecked")
+				checkf(false, TEXT("Failed TAttributeContainer::FindChecked"));
 				return AttributeType();
 			}
 
@@ -460,7 +460,7 @@ namespace UE
 					}
 				}
 
-				checkf(false, "Failed TAttributeContainer::FindChecked")
+				checkf(false, TEXT("Failed TAttributeContainer::FindChecked"));
 				return AttributeType();
 			}
 

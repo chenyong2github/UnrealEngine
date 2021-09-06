@@ -276,6 +276,9 @@
 
 		<!-- CsvTools binaries which are manually updated in P4 -->
 		Engine/Binaries/DotNET/CsvTools/...
+
+		<!-- Binaries required to make Bink2 videos -->
+		Engine/Binaries/ThirdParty/Bink/...
 	</Property>
 
 	<Property Name="CopyEditorExceptionsWin64" Value="$(CopyEditorExceptions)">

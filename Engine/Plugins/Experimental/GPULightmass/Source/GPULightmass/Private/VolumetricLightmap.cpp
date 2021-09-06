@@ -477,18 +477,9 @@ void FVolumetricLightmapRenderer::VoxelizeScene()
 
 int32 FVolumetricLightmapRenderer::GetGISamplesMultiplier()
 {
-	if (Scene->Settings->GISamples < 1024)
-	{
-		return 4;
+	return Scene->Settings->VolumetricLightmapQualityMultiplier;
 	}
 
-	if (Scene->Settings->GISamples < 4096)
-	{
-		return 2;
-	}
-
-	return 1;
-}
 void FVolumetricLightmapRenderer::BackgroundTick()
 {
 	if (NumTotalBricks == 0)

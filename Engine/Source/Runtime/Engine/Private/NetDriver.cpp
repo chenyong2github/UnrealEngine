@@ -74,6 +74,7 @@
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
 #endif
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -1795,6 +1796,8 @@ void UNetDriver::Shutdown()
 		AnalyticsAggregator->SendAnalytics();
 		AnalyticsAggregator.Reset();
 	}
+
+	UpdateCrashContext();
 }
 
 bool UNetDriver::IsServer() const
@@ -1917,7 +1920,7 @@ void UNetDriver::TickDispatch( float DeltaTime )
 				{
 					CurConn->CleanUp();
 				}
-				else if (!CurConn->IsPendingKill())
+				else if (IsValid(CurConn))
 				{
 					CurConn->PreTickDispatch();
 				}
@@ -1949,7 +1952,7 @@ void UNetDriver::TickDispatch( float DeltaTime )
 			}
 		}
 	}
-	else if (!ServerConnection->IsPendingKill())
+	else if (IsValid(ServerConnection))
 	{
 		ServerConnection->PreTickDispatch();
 	}
@@ -1964,7 +1967,7 @@ void UNetDriver::PostTickDispatch()
 	// Flush out of order packet caches for connections that did not receive the missing packets during TickDispatch
 	if (ServerConnection != nullptr)
 	{
-		if (!ServerConnection->IsPendingKill())
+		if (IsValid(ServerConnection))
 		{
 			ServerConnection->PostTickDispatch();
 		}
@@ -1973,7 +1976,7 @@ void UNetDriver::PostTickDispatch()
 	TArray<UNetConnection*> ClientConnCopy = ClientConnections;
 	for (UNetConnection* CurConn : ClientConnCopy)
 	{
-		if (!CurConn->IsPendingKill())
+		if (IsValid(CurConn))
 		{
 			CurConn->PostTickDispatch();
 		}
@@ -5247,7 +5250,7 @@ UChannel* UNetDriver::GetOrCreateChannelByName(const FName& ChName)
 		if (RetVal)
 		{
 			check(RetVal->GetClass() == ChannelDefinitionMap[ChName].ChannelClass);
-			check(!RetVal->IsPendingKill());
+			check(IsValid(RetVal));
 			RetVal->bPooled = false;
 		}
 	}
@@ -5267,8 +5270,7 @@ UChannel* UNetDriver::InternalCreateChannelByName(const FName& ChName)
 
 void UNetDriver::ReleaseToChannelPool(UChannel* Channel)
 {
-	check(Channel);
-	check(!Channel->IsPendingKill());
+	check(IsValid(Channel));
 	if (Channel->ChName == NAME_Actor && CVarActorChannelPool.GetValueOnAnyThread() != 0)
 	{
 		ActorChannelPool.Push(Channel);
@@ -5529,6 +5531,27 @@ void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
 	{
 		bHasReplayConnection = true;
 	}
+
+	UpdateCrashContext();
+}
+
+void UNetDriver::UpdateCrashContext()
+{
+	if (NetDriverName == NAME_GameNetDriver)
+	{
+		int32 NumClients = 0;
+
+		for (const UNetConnection* Connection : ClientConnections)
+		{
+			if (Connection && !Connection->IsReplay())
+			{
+				++NumClients;
+			}
+		}
+
+		static FString Attrib_NumClients = TEXT("NumClients");
+		FGenericCrashContext::SetEngineData(Attrib_NumClients, LexToString(NumClients));
+	}
 }
 
 void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info)
@@ -5596,6 +5619,41 @@ void UNetDriver::InitDestroyedStartupActors()
 	}
 }
 
+void UNetDriver::NotifyActorClientDormancyChanged(AActor* Actor, ENetDormancy OldDormancyState)
+{
+	if (IsServer())
+	{
+		AddNetworkActor(Actor);
+		NotifyActorDormancyChange(Actor, OldDormancyState);
+	}
+}
+
+void UNetDriver::ClientSetActorDormant(AActor* Actor)
+{
+	const bool bIsServer = IsServer();
+
+	if (Actor && !bIsServer)
+	{
+		ENetDormancy OldDormancy = Actor->NetDormancy;
+
+		Actor->NetDormancy = DORM_DormantAll;
+
+		if (World)
+		{
+			if (FWorldContext* const Context = GEngine->GetWorldContextFromWorld(World))
+			{
+				for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)
+				{
+					if (Driver.NetDriver != nullptr && Driver.NetDriver != this && Driver.NetDriver->ShouldReplicateActor(Actor))
+					{
+						Driver.NetDriver->NotifyActorClientDormancyChanged(Actor, OldDormancy);
+					}
+				}
+			}
+		}
+	}
+}
+
 void UNetDriver::NotifyActorFullyDormantForConnection(AActor* Actor, UNetConnection* Connection)
 {
 	GetNetworkObjectList().MarkDormant(Actor, Connection, IsServer() ? ClientConnections.Num() : 1, this);
@@ -5649,6 +5707,8 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 			break;
 		}
 	}
+
+	UpdateCrashContext();
 }
 
 void UNetDriver::SetWorld(class UWorld* InWorld)

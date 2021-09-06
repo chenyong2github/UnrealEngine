@@ -1458,6 +1458,8 @@ CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphChannelsOpened);
 CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphNumReps);
 CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphVisibleLevels);
 CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphForcedUpdates);
+CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphCleanMS);
+CSV_DECLARE_CATEGORY_EXTERN(ReplicationGraphCleanNumReps);
 
 #ifndef REPGRAPH_CSV_TRACKER
 #define REPGRAPH_CSV_TRACKER (CSV_PROFILER && WITH_SERVER_CODE)
@@ -1616,6 +1618,12 @@ struct FReplicationGraphCSVTracker
 			TrackedData->BitsAccumulated += Bits;
 			TrackedData->CPUTimeAccumulated += Time;
 			TrackedData->NumReplications++;
+
+			if (Bits == 0)
+			{
+				TrackedData->CleanCPUTimeAccumulated += Time;
+				TrackedData->CleanNumReplications++;
+			}
 		}
 #endif	
 	}
@@ -1781,20 +1789,24 @@ private:
 #endif
 		}
 
-		double CPUTimeAccumulated = 0.f;
+		double CPUTimeAccumulated = 0.0;
+		double CleanCPUTimeAccumulated = 0.0;
 		int64 BitsAccumulated = 0;
 		int32 ChannelsOpened = 0;
 		int32 NumReplications = 0;
+		int32 CleanNumReplications = 0;
 		int32 ForcedUpdates = 0;
 
 		FName StatName;
 
 		void Reset()
 		{
-			CPUTimeAccumulated = 0.f;
+			CPUTimeAccumulated = 0.0;
+			CleanCPUTimeAccumulated = 0.0;
 			BitsAccumulated = 0;
 			ChannelsOpened = 0;
 			NumReplications = 0;
+			CleanNumReplications = 0;
 			ForcedUpdates = 0;
 		}
 	};
@@ -1829,6 +1841,9 @@ private:
 		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphChannelsOpened), static_cast<float>(Data.ChannelsOpened), ECsvCustomStatOp::Set);
 		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphNumReps), static_cast<float>(Data.NumReplications), ECsvCustomStatOp::Set);
 		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphForcedUpdates), static_cast<float>(Data.ForcedUpdates), ECsvCustomStatOp::Set);
+		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphCleanMS), static_cast<float>(Data.CleanCPUTimeAccumulated) * 1000.f, ECsvCustomStatOp::Set);
+		Profiler->RecordCustomStat(Data.StatName, CSV_CATEGORY_INDEX(ReplicationGraphCleanNumReps), static_cast<float>(Data.CleanNumReplications), ECsvCustomStatOp::Set);
+
 		Data.Reset();
 	}
 #endif

@@ -117,7 +117,7 @@ void ABuoyancyManager::Update(FPhysScene* PhysScene, float DeltaTime)
 			BuoyancyComponentsActive.Empty(BuoyancyComponents.Num());
 			for (UBuoyancyComponent* BuoyancyComp : BuoyancyComponents)
 			{
-				if (BuoyancyComp->IsActive())
+				if (BuoyancyComp && BuoyancyComp->IsActive())
 				{
 					BuoyancyComponentsActive.Add(BuoyancyComp);
 				}

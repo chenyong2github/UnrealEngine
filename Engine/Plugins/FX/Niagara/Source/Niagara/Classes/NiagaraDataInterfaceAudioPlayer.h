@@ -46,7 +46,7 @@ struct FAudioPlayerInterface_InstanceData
 #if WITH_EDITORONLY_DATA
 	bool bOnlyActiveDuringGameplay = false;
 #endif
-
+	
 	// we track if at least one particle played a sound to prevent problems where sounds keep on playing when scalability culls an emitter (which the DI does not notice otherwise)
 	bool bHadPersistentAudioUpdateThisTick = false;
 };
@@ -110,6 +110,7 @@ public:
 
 	virtual bool HasPreSimulateTick() const override { return true; }
 	virtual bool HasPostSimulateTick() const override { return true; }
+	virtual bool PostSimulateCanOverlapFrames() const { return false; }
 	//UNiagaraDataInterface Interface
 
 	virtual void PlayOneShotAudio(FVectorVMExternalFunctionContext& Context);

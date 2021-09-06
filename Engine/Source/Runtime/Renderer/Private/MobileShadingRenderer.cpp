@@ -1580,8 +1580,7 @@ void FMobileSceneRenderer::UpdateDirectionalLightUniformBuffers(FRDGBuilder& Gra
 void FMobileSceneRenderer::UpdateSkyReflectionUniformBuffer()
 {
 	FSkyLightSceneProxy* SkyLight = nullptr;
-	if (Scene->ReflectionSceneData.RegisteredReflectionCapturePositionAndRadius.Num() == 0
-		&& Scene->SkyLight
+	if (Scene->SkyLight
 		&& Scene->SkyLight->ProcessedTexture
 		&& Scene->SkyLight->ProcessedTexture->TextureRHI
 		// Don't use skylight reflection if it is a static sky light for keeping coherence with PC.

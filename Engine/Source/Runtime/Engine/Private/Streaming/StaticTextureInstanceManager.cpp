@@ -62,7 +62,7 @@ bool FStaticRenderAssetInstanceManager::CanManage(const UPrimitiveComponent* Com
 	// Also, the manager allows to add unregistered components until the first shared view is required.
 	if (!AsyncView && Component && Component->Mobility == EComponentMobility::Static)
 	{
-		// Primitive->IsPendingKill() || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed)
+		// !IsValid(Primitive) || Primitive->HasAnyFlags(RF_BeginDestroyed|RF_FinishDestroyed)
 		const AActor* Owner = Component->GetOwner();
 		return Owner && Owner->IsRootComponentStatic();
 	}

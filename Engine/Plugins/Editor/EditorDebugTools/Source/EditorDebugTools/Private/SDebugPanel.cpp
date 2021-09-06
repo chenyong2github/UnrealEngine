@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SDebugPanel.h"
-#include "ISlateReflectorModule.h"
 #include "Widgets/Testing/SStarshipSuite.h"
 #include "Widgets/Testing/STestSuite.h"
 #include "Widgets/SBoxPanel.h"
@@ -9,6 +8,10 @@
 #include "Styling/CoreStyle.h"
 #include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
+
+#if !UE_BUILD_SHIPPING
+#include "ISlateReflectorModule.h"
+#endif
 
 void SDebugPanel::Construct(const FArguments& InArgs)
 {

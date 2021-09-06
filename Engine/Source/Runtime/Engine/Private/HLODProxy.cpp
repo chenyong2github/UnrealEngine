@@ -665,7 +665,7 @@ void UHLODProxy::PostLoad()
 
 void UHLODProxy::DestroyObject(UObject* InObject)
 {
-	if (!InObject->IsPendingKill())
+	if (IsValid(InObject))
 	{
 		InObject->MarkPackageDirty();
 

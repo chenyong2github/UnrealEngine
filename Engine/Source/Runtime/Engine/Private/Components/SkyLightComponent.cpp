@@ -46,7 +46,7 @@ void OnUpdateSkylights(UWorld* InWorld)
 	for (TObjectIterator<USkyLightComponent> It; It; ++It)
 	{
 		USkyLightComponent* SkylightComponent = *It;
-		if (InWorld->ContainsActor(SkylightComponent->GetOwner()) && !SkylightComponent->IsPendingKill())
+		if (InWorld->ContainsActor(SkylightComponent->GetOwner()) && IsValid(SkylightComponent))
 		{			
 			SkylightComponent->SetCaptureIsDirty();			
 		}
@@ -141,7 +141,7 @@ void UWorld::UpdateAllSkyCaptures()
 	{
 		USkyLightComponent* CaptureComponent = *It;
 
-		if (ContainsActor(CaptureComponent->GetOwner()) && !CaptureComponent->IsPendingKill())
+		if (ContainsActor(CaptureComponent->GetOwner()) && IsValid(CaptureComponent))
 		{
 			// Purge cached derived data and force an update
 			CaptureComponent->SetCaptureIsDirty();
@@ -598,12 +598,12 @@ void USkyLightComponent::CheckForErrors()
 				USkyLightComponent* Component = *ComponentIt;
 
 				if (Component != this 
-					&& !Component->IsPendingKill()
+					&& IsValid(Component)
 					&& Component->GetVisibleFlag()
 					&& Component->bAffectsWorld
 					&& Component->GetOwner() 
 					&& ThisWorld->ContainsActor(Component->GetOwner())
-					&& !Component->GetOwner()->IsPendingKill())
+					&& IsValid(Component->GetOwner()))
 				{
 					bMultipleFound = true;
 					break;
@@ -860,7 +860,7 @@ void USkyLightComponent::UpdateSkyCaptureContents(UWorld* WorldToUpdate)
 			for (TObjectIterator<USkyLightComponent> It; It; ++It)
 			{
 				USkyLightComponent* SkylightComponent = *It;
-				if (WorldToUpdate->ContainsActor(SkylightComponent->GetOwner()) && !SkylightComponent->IsPendingKill())
+				if (WorldToUpdate->ContainsActor(SkylightComponent->GetOwner()) && IsValid(SkylightComponent))
 				{			
 					SkylightComponent->SetCaptureIsDirty();			
 				}

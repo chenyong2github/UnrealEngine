@@ -31,7 +31,7 @@ AAROriginActor* AAROriginActor::GetOriginActor()
 		AAROriginActor* FoundActor = nullptr;
 		for (TActorIterator<AAROriginActor> Iter(GameWorld); Iter; ++Iter)
 		{
-			if (!(*Iter)->IsPendingKill())
+			if (IsValid(*Iter))
 			{
 				FoundActor = *Iter;
 				break;

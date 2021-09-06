@@ -43,7 +43,7 @@ void UAnimationTransitionSchema::GetGraphDisplayInformation(const UEdGraph& Grap
 
 	// If we don't have a node we can get it from our blueprint, unless the graph has been deleted
 	// in which case the outer chain will have been broken.
-	if (TransNode == NULL && !Graph.IsPendingKill())
+	if (TransNode == NULL && IsValid(&Graph))
 	{
 		//@TODO: Transition graphs should be created with the transition node as their outer as well!
 		if(UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(&Graph)))

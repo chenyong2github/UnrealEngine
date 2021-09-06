@@ -31,7 +31,9 @@
 DEFINE_LOG_CATEGORY_STATIC(LogTargetPlatformManager, Log, All);
 
 // AutoSDKs needs the extra DDPI info
+#ifndef AUTOSDKS_ENABLED
 #define AUTOSDKS_ENABLED DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
+#endif
 
 
 static const size_t MaxPlatformCount = 64;		// In the unlikely event that someone bumps this please note that there's
@@ -118,7 +120,7 @@ public:
 			for (auto Pair: FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
 			{
 				if (Pair.Value.AutoSDKPath.Len() > 0)
-				{
+			{
 					SetupAndValidateAutoSDK(Pair.Value.AutoSDKPath);
 				}
 			}
@@ -160,6 +162,8 @@ public:
 		//GetTargetPlatforms(); redudant with next call
 		GetActiveTargetPlatforms();
 
+		bForceCacheUpdate = false;
+
 		// If we've had an error due to an invalid target platform, don't do additional work
 		if (!bHasInitErrors)
 		{
@@ -168,7 +172,6 @@ public:
 			GetShaderFormats();
 		}
 
-		bForceCacheUpdate = false;
 		OnTargetPlatformsInvalidated.Broadcast();
 	}
 
@@ -396,40 +399,184 @@ public:
 		return Result;
 	}
 
-	virtual const TArray<const IAudioFormat*>& GetAudioFormats() override
+	template<typename FormatType, typename FormatModuleType, typename HelperType>
+	const TArray<const FormatType*>& GetFormatsWithHints()
 	{
 		static bool bInitialized = false;
-		static TArray<const IAudioFormat*> Results;
+		static TArray<const FormatType*> Results;
 
 		if (!bInitialized || bForceCacheUpdate)
 		{
 			bInitialized = true;
 			Results.Empty(Results.Num());
 
-			TArray<FName> Modules;
+			// the functions for dealing with hints are only defined with Engine				
+#if WITH_ENGINE 
+			TArray<FName> SupportedFormatsByHints;
+			TSet<FName> RequiredFormats;
+			// gather the hinted formats, and the needed formats for all the active targetplatforms
+			TArray<ITargetPlatform*> TargetPlatforms = GetTargetPlatforms();
+			for (ITargetPlatform* Platform : TargetPlatforms)
+			{
+				TArray<FName> FormatHints;
+				HelperType::GetHintedModules(Platform, FormatHints);
+				for (FName HintedModuleName : FormatHints)
+				{
+					FormatModuleType* Module = FModuleManager::Get().LoadModulePtr<FormatModuleType>(HintedModuleName);
+					if (Module != nullptr)
+					{
+						FormatType* Format = HelperType::GetFormatFromModule(Module);
+						if (!Results.Contains(Format))
+						{
+							// remember the module
+							Results.Add(Format);
+							// remember its formats
+							Format->GetSupportedFormats(SupportedFormatsByHints);
+						}
+					}
+				}
 
-			FModuleManager::Get().FindModules(TEXT("*AudioFormat*"), Modules);
+				// remember the formats the TP needs
+				TArray<FName> PlatformRequiredFormats;
+				HelperType::GetRequiredFormats(Platform, PlatformRequiredFormats);
+				RequiredFormats.Append(PlatformRequiredFormats);
+			}
+
+			// make sure every required format was found above
+			bool bFoundAllFormats = true;
+			for (FName Format : RequiredFormats)
+			{
+				if (!SupportedFormatsByHints.Contains(Format))
+				{
+					UE_LOG(LogTargetPlatformManager, Log, TEXT("Unable to find %s format %s from hinted modules, loading all potential format modules to find it"), HelperType::GetFormatDesc(), *Format.ToString());
+					bFoundAllFormats = false;
+					break;
+				}
+			}
+
+			// if we found all the formats from the hints, we are done, and Results is filled out
+			if (bFoundAllFormats)
+			{
+				return Results;
+			}
+#endif
+
+			// if the hints weren't enough to find everything, then load all modules		
+			TArray<FName> Modules;
+			FModuleManager::Get().FindModules(HelperType::GetAllModuleWildcard(), Modules);
 
 			if (!Modules.Num())
 			{
-				UE_LOG(LogTargetPlatformManager, Error, TEXT("No target audio formats found!"));
+				UE_LOG(LogTargetPlatformManager, Error, TEXT("No target %s formats found!"), HelperType::GetFormatDesc());
 			}
 
 			for (int32 Index = 0; Index < Modules.Num(); Index++)
 			{
-				IAudioFormatModule* Module = FModuleManager::LoadModulePtr<IAudioFormatModule>(Modules[Index]);
+				FormatModuleType* Module = FModuleManager::LoadModulePtr<FormatModuleType>(Modules[Index]);
 				if (Module)
 				{
-					IAudioFormat* Format = Module->GetAudioFormat();
+
+					FormatType* Format = HelperType::GetFormatFromModule(Module);
+					UE_LOG(LogTargetPlatformManager, Log, TEXT("Loaded format module %s"), *Modules[Index].ToString());
 					if (Format != nullptr)
 					{
-						Results.Add(Format);
+						TArray<FName> Formats;
+						Format->GetSupportedFormats(Formats);
+						for (FName Name : Formats)
+						{
+							UE_LOG(LogTargetPlatformManager, Log, TEXT("  %s"), *Name.ToString());
+						}
+
+						Results.AddUnique(Format);
 					}
 				}
 			}
 		}
 
 		return Results;
+	}
+
+	struct FAudioHintHelper
+	{
+		static IAudioFormat* GetFormatFromModule(IAudioFormatModule* Module)
+		{
+			return Module->GetAudioFormat();
+		}
+		static const TCHAR* GetAllModuleWildcard()
+		{
+			return TEXT("*AudioFormat*");
+		}
+		static const TCHAR* GetFormatDesc()
+		{
+			return TEXT("audio");
+		}
+#if WITH_ENGINE 
+		static void GetHintedModules(ITargetPlatform* Platform, TArray<FName>& Hints)
+		{
+			Platform->GetWaveFormatModuleHints(Hints);
+		}
+		static void GetRequiredFormats(ITargetPlatform* Platform, TArray<FName>& RequiredFormats)
+		{
+			Platform->GetAllWaveFormats(RequiredFormats);
+		}
+#endif
+	};
+
+	struct FShaderHintHelper
+	{
+		static IShaderFormat* GetFormatFromModule(IShaderFormatModule* Module)
+		{
+			return Module->GetShaderFormat();
+		}
+		static const TCHAR* GetAllModuleWildcard()
+		{
+			return SHADERFORMAT_MODULE_WILDCARD;
+		}
+		static const TCHAR* GetFormatDesc()
+		{
+			return TEXT("shader");
+		}
+#if WITH_ENGINE 
+		static void GetHintedModules(ITargetPlatform* Platform, TArray<FName>& Hints)
+		{
+			Platform->GetShaderFormatModuleHints(Hints);
+		}
+		static void GetRequiredFormats(ITargetPlatform* Platform, TArray<FName>& RequiredFormats)
+		{
+			Platform->GetAllTargetedShaderFormats(RequiredFormats);
+		}
+#endif
+	};
+
+	struct FTextureHintHelper
+	{
+		static ITextureFormat* GetFormatFromModule(ITextureFormatModule* Module)
+		{
+			return Module->GetTextureFormat();
+		}
+		static const TCHAR* GetAllModuleWildcard()
+		{
+			return TEXT("*TextureFormat*");
+		}
+		static const TCHAR* GetFormatDesc()
+		{
+			return TEXT("texture");
+		}
+#if WITH_ENGINE 
+		static void GetHintedModules(ITargetPlatform* Platform, TArray<FName>& Hints)
+		{
+			Platform->GetTextureFormatModuleHints(Hints);
+		}
+		static void GetRequiredFormats(ITargetPlatform* Platform, TArray<FName>& RequiredFormats)
+		{
+			Platform->GetAllTextureFormats(RequiredFormats);
+		}
+#endif
+	};
+
+	virtual const TArray<const IAudioFormat*>& GetAudioFormats() override
+	{
+		return GetFormatsWithHints<IAudioFormat, IAudioFormatModule, FAudioHintHelper>();
 	}
 
 	virtual const IAudioFormat* FindAudioFormat(FName Name) override
@@ -456,6 +603,7 @@ public:
 
 	virtual const TArray<const ITextureFormat*>& GetTextureFormats() override
 	{
+//		return GetFormatsWithHints<ITextureFormat, ITextureFormatModule, FTextureHintHelper>();
 		return TextureFormatManager->GetTextureFormats();
 	}
 
@@ -466,38 +614,14 @@ public:
 
 	virtual const TArray<const IShaderFormat*>& GetShaderFormats() override
 	{
-		static bool bInitialized = false;
-		static TArray<const IShaderFormat*> Results;
+		//if (!AllowShaderCompiling())
+		//{
+		//	static TArray<const IShaderFormat*> Empty;
+		//	return Empty;
+		//}
 
-		if (!bInitialized || bForceCacheUpdate)
-		{
-			bInitialized = true;
-			Results.Empty(Results.Num());
-
-			TArray<FName> Modules;
-
-			FModuleManager::Get().FindModules(SHADERFORMAT_MODULE_WILDCARD, Modules);
-
-			if (!Modules.Num())
-			{
-				UE_LOG(LogTargetPlatformManager, Error, TEXT("No target shader formats found!"));
+		return GetFormatsWithHints<IShaderFormat, IShaderFormatModule, FShaderHintHelper>();
 			}
-
-			for (int32 Index = 0; Index < Modules.Num(); Index++)
-			{
-				IShaderFormatModule* Module = FModuleManager::LoadModulePtr<IShaderFormatModule>(Modules[Index]);
-				if (Module)
-				{
-					IShaderFormat* Format = Module->GetShaderFormat();
-					if (Format != nullptr)
-					{
-						Results.Add(Format);
-					}
-				}
-			}
-		}
-		return Results;
-	}
 
 	virtual const IShaderFormat* FindShaderFormat(FName Name) override
 	{
@@ -626,19 +750,17 @@ protected:
 		return false;
 	}
 
-	bool InitializeSinglePlatform(FName PlatformName, const FDataDrivenPlatformInfo& Info)
+	bool InitializeSinglePlatform(FName PlatformName, const FString& AutoSDKPath)
 	{
-		// disabled?
-		if (Info.bEnabledForUse == false)
-		{
-			return false;
-		}
-
-		// there are two ways targetplatform modules are setup: a single DLL per TargetPlatform, or a DLL for the platform
-		// that returns multiple TargetPlatforms. we try single first, then full platform
-		FName PlatformModuleName = *(PlatformName.ToString() + TEXT("TargetPlatform"));
+		// try the incoming name as a module name, or as a platform name
+		FName PlatformModuleName = PlatformName;
 
 		ITargetPlatformModule* Module = nullptr;
+
+		if (!FModuleManager::Get().ModuleExists(*PlatformModuleName.ToString()))
+		{
+			PlatformModuleName = *(PlatformName.ToString() + TEXT("TargetPlatform"));
+		}
 
 		if (FModuleManager::Get().ModuleExists(*PlatformModuleName.ToString()))
 		{
@@ -651,7 +773,7 @@ protected:
 			// would like to move this check to GetActiveTargetPlatforms, but too many things cache this result
 			// this setup will become faster after TTP 341897 is complete.
 		RETRY_SETUPANDVALIDATE:
-			if (SetupAndValidateAutoSDK(Info.AutoSDKPath))
+			if (AutoSDKPath == TEXT("") || SetupAndValidateAutoSDK(AutoSDKPath))
 			{
 				TArray<ITargetPlatform*> TargetPlatforms = Module->GetTargetPlatforms();
 				for (ITargetPlatform* Platform : TargetPlatforms)
@@ -726,8 +848,19 @@ protected:
 			}
 #endif
 
-			InitializeSinglePlatform(PlatformName, Info);
+			if (Info.bEnabledForUse)
+			{
+				InitializeSinglePlatform(PlatformName, Info.AutoSDKPath);
+			}
 		}
+
+		TArray<FString> CustomTargetPlatformModules;
+		GConfig->GetArray(TEXT("CustomTargetPlatforms"), TEXT("ModuleName"), CustomTargetPlatformModules, GEditorIni);
+		for (const FString& ModuleName : CustomTargetPlatformModules)
+		{
+			InitializeSinglePlatform(*ModuleName, TEXT(""));
+		}
+
 
 		if (!Platforms.Num())
 		{
@@ -1068,6 +1201,7 @@ protected:
 	{
 		const FDataDrivenPlatformInfo& Info = FDataDrivenPlatformInfoRegistry::GetPlatformInfo(PlatformName);
 
+#if AUTOSDKS_ENABLED
 		FString AutoSDKPath = Info.AutoSDKPath;
 		FName AutoSDKName(*AutoSDKPath);
 		if (AutoSDKName != NAME_None)
@@ -1075,6 +1209,7 @@ protected:
 			// make sure we can re-do the AutoSDK setup
 			PlatformsSetup.Remove(AutoSDKName);
 		}
+#endif
 
 		// note: this assumes, along with other Turnkey code, that there is a TargetPlatform named with the IniPlatformName
 		ITargetPlatform* TargetPlatform = FindTargetPlatform(PlatformName);
@@ -1084,15 +1219,20 @@ protected:
 		if (TargetPlatform == nullptr)
 		{
 			// create the TP(s) that weren't around before due to a bad SDK
-			bTPInitialized = InitializeSinglePlatform(PlatformName, Info);
+			if (Info.bEnabledForUse)
+			{
+				bTPInitialized = InitializeSinglePlatform(PlatformName, Info.AutoSDKPath);
+		}
 		}
 		else
 		{
+#if AUTOSDKS_ENABLED
 			if (AutoSDKName != NAME_None)
 			{
 				// setup AutoSDK, and then re-initialize the TP
 				SetupAndValidateAutoSDK(AutoSDKPath);
 			}
+#endif
 
 			bTPInitialized = TargetPlatform->InitializeHostPlatform();
 		}

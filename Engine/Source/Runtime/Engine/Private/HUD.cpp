@@ -441,7 +441,7 @@ void AHUD::ShowDebugInfo(float& YL, float& YPos)
 			DisplayDebugManager.DrawString(FString::Printf(TEXT("Showing Debug for %s, Press [PageUp] and [PageDown] to cycle between targets."), *GetNameSafe(ShowDebugTargetActor)));
 		}
 
-		if (ShowDebugTargetActor && !ShowDebugTargetActor->IsPendingKill())
+		if (IsValid(ShowDebugTargetActor))
 		{
 			// Draw box around Actor being debugged.
 #if ENABLE_DRAW_DEBUG
@@ -521,7 +521,7 @@ AActor* AHUD::GetCurrentDebugTargetActor()
 void AHUD::AddActorToDebugList(AActor* InActor, TArray<AActor*>& InOutList, UWorld* InWorld)
 {
 	// Only consider actors that are visible, not destroyed and in the same world.
-	if (InActor && !InActor->IsPendingKill() && (InActor->GetWorld() == InWorld) && InActor->WasRecentlyRendered())
+	if (IsValid(InActor) && (InActor->GetWorld() == InWorld) && InActor->WasRecentlyRendered())
 	{
 		InOutList.AddUnique(InActor);
 	}

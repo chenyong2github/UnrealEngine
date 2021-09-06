@@ -13,7 +13,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "BaseSequencerAnimTool.h"
-#include "EditPivotTool.generated.h"
+#include "SequencerAnimEditPivotTool.generated.h"
 
 class USingleClickInputBehavior;
 class UClickDragInputBehavior;

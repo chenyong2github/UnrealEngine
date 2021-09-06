@@ -2531,7 +2531,7 @@ bool UEngine::SetCustomTimeStep(UEngineCustomTimeStep* InCustomTimeStep)
 		}
 
 		bIsCurrentCustomTimeStepInitialized = false;
-		CustomTimeStep = InCustomTimeStep && !InCustomTimeStep->IsPendingKill() ? InCustomTimeStep : nullptr;
+		CustomTimeStep = IsValid(InCustomTimeStep) ? InCustomTimeStep : nullptr;
 
 		if (CustomTimeStep)
 			{
@@ -2565,7 +2565,7 @@ bool UEngine::SetTimecodeProvider(UTimecodeProvider* InTimecodeProvider)
 		}
 
 		bIsCurrentTimecodeProviderInitialized = false;
-		TimecodeProvider = InTimecodeProvider && !InTimecodeProvider->IsPendingKill() ? InTimecodeProvider : nullptr;
+		TimecodeProvider = IsValid(InTimecodeProvider) ? InTimecodeProvider : nullptr;
 
 		if (TimecodeProvider)
 			{
@@ -6839,7 +6839,7 @@ bool UEngine::HandleSkeletalMeshReportCommand(const TCHAR* Cmd, FOutputDevice& A
 	auto GetResourceSizeKB = [&](const FRHIResource* Resource) -> uint32
 	{
 		int32 SizeInKB = 0;
-#if RHI_WANT_RESOURCE_INFO
+#if RHI_ENABLE_RESOURCE_INFO
 		FRHIResourceInfo ResourceInfo;
 		if (Resource && Resource->GetResourceInfo(ResourceInfo))
 		{
@@ -11269,7 +11269,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		DebugClasses.Reserve(DebugProperties.Num());
 		for (int32 i = 0; i < DebugProperties.Num(); i++)
 		{
-			if (DebugProperties[i].Obj != NULL && !DebugProperties[i].Obj->IsPendingKill())
+			if (IsValid(DebugProperties[i].Obj))
 			{
 				UClass* Cls = Cast<UClass>(DebugProperties[i].Obj);
 				if (Cls != NULL)
@@ -11325,7 +11325,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 					// getall
 					for (UObject* RelevantObject : RelevantObjects)
 					{
-						if ( RelevantObject->IsA(Cls) && !RelevantObject->IsPendingKill() &&
+						if ( RelevantObject->IsA(Cls) && IsValidChecked(RelevantObject) &&
 							(DebugProperties[i].WithinClass == NULL || (RelevantObject->GetOuter() != NULL && RelevantObject->GetOuter()->GetClass()->IsChildOf(DebugProperties[i].WithinClass))) )
 						{
 							DrawProperty(CanvasObject, RelevantObject, DebugProperties[i], Prop, X, Y);
@@ -13281,7 +13281,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 	NETWORK_PROFILER(GNetworkProfiler.TrackSessionChange(true,URL));
 	MALLOC_PROFILER( FMallocProfiler::SnapshotMemoryLoadMapStart( URL.Map ) );
-	FMoviePlayerProxy::BlockingStarted();
+	FMoviePlayerProxyBlock MoviePlayerBlock;
 	Error = TEXT("");
 
 	FLoadTimeTracker::Get().ResetRawLoadTimes();
@@ -13308,7 +13308,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			if (!bCalled)
 			{
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(nullptr);
-				FMoviePlayerProxy::BlockingFinished();
 			}
 		}
 
@@ -13318,7 +13317,6 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 			{
 				bCalled = true;
 				FCoreUObjectDelegates::PostLoadMapWithWorld.Broadcast(World);
-				FMoviePlayerProxy::BlockingFinished();
 			}
 		}
 
@@ -13478,6 +13476,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		WorldContext.SetCurrentWorld(nullptr);
 	}
 
+	FMoviePlayerProxy::BlockingTick();
 	// trim memory to clear up allocations from the previous level (also flushes rendering)
 	if (GDelayTrimMemoryDuringMapLoadMode == 0)
 	{
@@ -13819,8 +13818,11 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	}
 	WorldContext.World()->BeginPlay();
 
+	FMoviePlayerProxy::BlockingTick();
 	// send a callback message
 	PostLoadMapCaller.Broadcast(WorldContext.World());
+	MoviePlayerBlock.Finish();
+	FMoviePlayerProxy::BlockingForceFinished();
 
 	WorldContext.World()->bWorldWasLoadedThisTick = true;
 

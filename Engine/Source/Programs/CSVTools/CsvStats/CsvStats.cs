@@ -320,6 +320,19 @@ namespace CSVStats
             return countOverBudget;
         }
 
+        public int GetCountOfFramesAtOrOverBudget(float budget, bool IgnoreFirstFrame = true, bool IgnoreLastFrame = true)
+        {
+            int countOverBudget = 0;
+            for (int i = IgnoreFirstFrame ? 1 : 0; i < samples.Count - (IgnoreLastFrame ? 1 : 0); i++)
+            {
+                if (samples[i] >= budget)
+                {
+                    countOverBudget++;
+                }
+            }
+            return countOverBudget;
+        }
+
 
         public int GetCountOfFramesInRangeOverBudget(float budget, int startindex, int endindex)
         {

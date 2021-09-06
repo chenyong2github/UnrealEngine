@@ -109,7 +109,7 @@ bool UAbilityTask::CallOrAddReplicatedDelegate(EAbilityGenericReplicatedEvent::T
 
 void UAbilityTask::SetWaitingOnRemotePlayerData()
 {
-	if (Ability && IsPendingKill() == false && AbilitySystemComponent)
+	if (IsValid(Ability) && AbilitySystemComponent)
 	{
 		WaitStateBitMask |= (uint8)EAbilityTaskWaitState::WaitingOnUser;
 		Ability->NotifyAbilityTaskWaitingOnPlayerData(this);
@@ -128,7 +128,7 @@ bool UAbilityTask::IsWaitingOnRemotePlayerdata() const
 
 void UAbilityTask::SetWaitingOnAvatar()
 {
-	if (Ability && IsPendingKill() == false && AbilitySystemComponent)
+	if (IsValid(Ability) && AbilitySystemComponent)
 	{
 		WaitStateBitMask |= (uint8)EAbilityTaskWaitState::WaitingOnAvatar;
 		Ability->NotifyAbilityTaskWaitingOnAvatar(this);

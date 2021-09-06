@@ -29,31 +29,20 @@ namespace SolidworksDatasmith.SwObjects
 		public Dictionary<string, SwAssemblyDoc> Assemblies { get; set; } = new Dictionary<string, SwAssemblyDoc>();
 
 		// material mapper keeps track of which materials are being used by which entity
-		private Materials.MaterialMapper _materialMapper = new Materials.MaterialMapper();
-		public Materials.MaterialMapper MaterialMapper { get { return _materialMapper; } }
+		public Materials.MaterialMapper MaterialMapper { get; private set; } = new Materials.MaterialMapper();
+
 		private uint FaceCounter = 1;
 		public uint NewFaceID { get { return FaceCounter++; } }
-		private Dictionary<int, SwMaterial> _swMatID2Mat = new Dictionary<int, SwMaterial>();
-		public Dictionary<int, SwMaterial> SwMatID2Mat { get { return _swMatID2Mat; } }
+
+		public Dictionary<int, SwMaterial> SwMatID2Mat { get; } = new Dictionary<int, SwMaterial>();
 
 		private Processor _processor = null;
 		public Processor Processor { get { return _processor; } }
 
-		private bool _directLinkOn = false;
-		public bool DirectLinkOn
-		{
-			get { return _directLinkOn; }
-			set
-			{
-				if (value != _directLinkOn)
-				{
-					_directLinkOn = value;
-					var cmd = new LiveConnectCommand();
-					cmd.Active = _directLinkOn;
-					Processor.AddCommand(cmd);
-				}
-			}
-		}
+		public bool bDirectLinkAutoSync { get; set; } = false;
+		public bool bDirectLinkRequestedManualSync { get; set; } = false;
+
+		public bool bIsDirty { get; set; } = false;
 
 		// Used with global (unlinked) display states.
 		// Tracks which materials are assigned to components for a specific display state.
@@ -69,22 +58,6 @@ namespace SolidworksDatasmith.SwObjects
 
 		// accessory used during export
 		public HashSet<int> AddedMaterials = new HashSet<int>();
-
-		private int MaterialIDOffset = 0; // we offset material IDs on a per-document basis, to avoid material ID conflicts
-		private Dictionary<string, int> MaterialIDOffsets = new Dictionary<string, int>();
-
-		private int GetMaterialOffset(ModelDoc2 doc)
-		{
-			string path = doc.GetPathName();
-			int offset = 0;
-			if (!MaterialIDOffsets.TryGetValue(path, out offset))
-			{
-				MaterialIDOffsets.Add(path, MaterialIDOffset);
-				offset = MaterialIDOffset;
-				MaterialIDOffset += 1000;
-			}
-			return offset;
-		}
 
 		public void AddDocument(PartDoc doc)
 		{
@@ -133,10 +106,10 @@ namespace SolidworksDatasmith.SwObjects
 			_processor.AddCommand(cmd);
 		}
 
-		public string GetBodyPath(IBody2 body, IModelDoc2 doc)
+		static public string GetBodyPath(IBody2 body, IModelDoc2 doc)
 		{
 			string path = "";
-			if (body != null && _doc != null)
+			if (body != null && doc != null)
 			{
 				var title = doc.GetPathName();
 				var name = body.Name;
@@ -145,10 +118,10 @@ namespace SolidworksDatasmith.SwObjects
 			return path;
 		}
 
-		public string GetFeaturePath(IFeature feature, IModelDoc2 doc)
+		static public string GetFeaturePath(IFeature feature, IModelDoc2 doc)
 		{
 			string path = "";
-			if (feature != null && _doc != null)
+			if (feature != null && doc != null)
 			{
 				var title = doc.GetPathName();
 				string name = feature.Name;
@@ -157,17 +130,17 @@ namespace SolidworksDatasmith.SwObjects
 			return path;
 		}
 
-		public void ResetFaceID(IFace2 face)
+		static public void ResetFaceID(IFace2 face)
 		{
 			face.SetFaceId(0);
 		}
 
-		public void SetFaceID(IFace2 face, uint id)
+		static public void SetFaceID(IFace2 face, uint id)
 		{
 			face.SetFaceId(unchecked((int)id));
 		}
 
-		public uint GetFaceID(IFace2 face)
+		static public uint GetFaceID(IFace2 face)
 		{
 			uint id = unchecked((uint)face.GetFaceId());
 			return id;
@@ -178,8 +151,6 @@ namespace SolidworksDatasmith.SwObjects
 		{
 			if (doc == null)
 				doc = Doc;
-
-			int IDoffset = GetMaterialOffset(doc);
 
 			IModelDocExtension ext = doc.Extension;
 
@@ -196,10 +167,12 @@ namespace SolidworksDatasmith.SwObjects
 					{
 						SwSingleton.FireProgressEvent("Extracting Material " + Path.GetFileNameWithoutExtension(mm.FileName));
 
-						SwMaterial mat = _materialMapper.AddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.AddMaterial(mm, ext);
 
-						if (!_swMatID2Mat.ContainsKey(mat.ID))
-							_swMatID2Mat.Add(mat.ID, mat);
+						if (!SwMatID2Mat.ContainsKey(mat.ID))
+						{
+							SwMatID2Mat.Add(mat.ID, mat);
+						}
 						else
 						{
 							// todo: decide what should happen
@@ -217,21 +190,21 @@ namespace SolidworksDatasmith.SwObjects
 							{
 								IModelDoc2 partModel = part as IModelDoc2;
 								var path = partModel.GetPathName();
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_PART, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_PART, path, mat);
 								continue;
 							}
 
 							if (user is IBody2 body)
 							{
 								string path = GetBodyPath(body, doc);
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_BODY, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_BODY, path, mat);
 								continue;
 							}
 
 							if (user is IFeature feat)
 							{
 								var path = GetFeaturePath(feat, doc);
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FEATURE, path, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FEATURE, path, mat);
 								continue;
 							}
 
@@ -243,13 +216,13 @@ namespace SolidworksDatasmith.SwObjects
 									SetFaceID(face, NewFaceID);
 									id = GetFaceID(face);
 								}
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FACE, id, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_FACE, id, mat);
 								continue;
 							}
 
 							if (user is IComponent2 component)
 							{
-								_materialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_COMPONENT, component.Name, mat);
+								MaterialMapper.SetMaterialUser(Materials.MaterialMapper.EntityType.MU_COMPONENT, component.Name, mat);
 
 								var cmcmd = new ComponentMaterialCommand() { Material = mat, ComponentName = component.Name };
 								_processor.AddCommand(cmcmd);
@@ -266,8 +239,6 @@ namespace SolidworksDatasmith.SwObjects
 		// assigning a material to the component name. Note that only difference from the default configuration is stored.
 		public void CollectMaterialsForConfiguration(ModelDoc2 doc, string[] displayStates, Dictionary<string, SwMaterial> materialMapping)
 		{
-			int IDoffset = GetMaterialOffset(doc);
-
 			IModelDocExtension ext = doc.Extension;
 
 			int numMaterials = ext.GetRenderMaterialsCount2((int)swDisplayStateOpts_e.swSpecifyDisplayState, displayStates);
@@ -282,7 +253,7 @@ namespace SolidworksDatasmith.SwObjects
 					int numUsers = mm.GetEntitiesCount();
 					if (numUsers > 0)
 					{
-						SwMaterial mat = _materialMapper.FindOrAddMaterial(mm, ext, IDoffset);
+						SwMaterial mat = MaterialMapper.FindOrAddMaterial(mm, ext);
 
 						object[] users = mm.GetEntities();
 						foreach (var user in users)
@@ -400,7 +371,11 @@ namespace SolidworksDatasmith.SwObjects
 				componentTransform = component.Transform2;
 
 			var cmd = new LightweightComponentCommand();
-			cmd.Name = componentName;
+
+			string[] NameComponents = componentName.Split('/');
+			Debug.Assert(NameComponents.Length > 0);
+
+			cmd.Name = NameComponents.Last();
 			cmd.ParentName = parentComponentName;
 			if (componentTransform != null)
 				cmd.Transform = MathUtil.ConvertFromSolidworksTransform(componentTransform);
@@ -444,8 +419,14 @@ namespace SolidworksDatasmith.SwObjects
 					componentTransform = component.Transform2;
 
 				var cmd = new ComponentCommand();
-				cmd.Name = componentName;
+
+				string[] NameComponents = componentName.Split('/');
+				Debug.Assert(NameComponents.Length > 0);
+
+				cmd.Name = NameComponents.Last();
+
 				cmd.ParentName = parentComponentName;
+
 				if (componentTransform != null)
 					cmd.Transform = MathUtil.ConvertFromSolidworksTransform(componentTransform);
 				if (part != null)
@@ -846,18 +827,18 @@ namespace SolidworksDatasmith.SwObjects
 			}
 			else
 			{
-			// swThisDisplayState provides the most correct default material information.
-			int displayStateOption = (int)swDisplayStateOpts_e.swThisDisplayState;
-			int numMaterials = component.GetRenderMaterialsCount2(displayStateOption, null);
-			if (numMaterials > 0)
-			{
-				object[] swMaterials = component.GetRenderMaterials2(displayStateOption, null);
-				// Materials here are ones which assigned to parts, ordered by hierarchy.
-				// Get the last one in the list as the prioritized override.
-				RenderMaterial partMaterial = swMaterials[swMaterials.Length - 1] as RenderMaterial;
-				SwMaterial swMaterial = _materialMapper.FindOrAddMaterial(partMaterial, Doc.Extension, GetMaterialOffset(Doc));
-				newNode.CommonConfig.SetMaterial(swMaterial);
-			}
+				// swThisDisplayState provides the most correct default material information.
+				int displayStateOption = (int)swDisplayStateOpts_e.swThisDisplayState;
+				int numMaterials = component.GetRenderMaterialsCount2(displayStateOption, null);
+				if (numMaterials > 0)
+				{
+					object[] swMaterials = component.GetRenderMaterials2(displayStateOption, null);
+					// Materials here are ones which assigned to parts, ordered by hierarchy.
+					// Get the last one in the list as the prioritized override.
+					RenderMaterial partMaterial = swMaterials[swMaterials.Length - 1] as RenderMaterial;
+					SwMaterial swMaterial = MaterialMapper.FindOrAddMaterial(partMaterial, Doc.Extension);
+					newNode.CommonConfig.SetMaterial(swMaterial);
+				}
 			}
 
 			// Process children components
@@ -989,7 +970,7 @@ namespace SolidworksDatasmith.SwObjects
 						int NumUsers = RenderMat.GetEntitiesCount();
 						if (NumUsers > 0)
 						{
-							SwMaterial SwMat = _materialMapper.FindOrAddMaterial(RenderMat, Ext, 0);
+							SwMaterial SwMat = MaterialMapper.FindOrAddMaterial(RenderMat, Ext);
 
 							object[] Users = RenderMat.GetEntities();
 							foreach (var User in Users)
@@ -1103,11 +1084,15 @@ namespace SolidworksDatasmith.SwObjects
 		public void DirectLinkUpdate()
 		{
 			foreach (var pp in Parts)
+			{
 				pp.Value.Load(true);
+			}
+
 			CollectMaterials();
 			EvaluateScene(true);
 			var cmd = new LiveUpdateCommand();
 			Processor.AddCommand(cmd);
+			bIsDirty = false;
 		}
 
 		private void ExportCurrentViewOnly()
@@ -1217,14 +1202,14 @@ namespace SolidworksDatasmith.SwObjects
 		{
 			try
 			{
-			MetadataCommand mc = new MetadataCommand(metadatatype);
-			if (mc != null)
-			{
-				mc.MetadataOwnerName = docname;
-				SwMetaDataManager.AddDocumentMetadataToCommand(modeldoc2, mc);
-				Processor.AddCommand(mc);
+				MetadataCommand mc = new MetadataCommand(metadatatype);
+				if (mc != null)
+				{
+					mc.MetadataOwnerName = docname;
+					SwMetaDataManager.AddDocumentMetadataToCommand(modeldoc2, mc);
+					Processor.AddCommand(mc);
+				}
 			}
-		}
 			catch(Exception){ }
 		}
 

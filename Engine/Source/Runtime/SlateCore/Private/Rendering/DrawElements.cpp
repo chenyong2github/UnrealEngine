@@ -378,11 +378,11 @@ namespace SlateDrawElement
 		if (InMaterialResource && GSlateCheckUObjectRenderResources)
 		{
 			bool bIsValidLowLevel = InMaterialResource->IsValidLowLevelFast(false);
-			if (!bIsValidLowLevel || InMaterialResource->IsPendingKill() || InMaterialResource->GetClass()->GetFName() == MaterialInterfaceClassName)
+			if (!bIsValidLowLevel || !IsValid(InMaterialResource) || InMaterialResource->GetClass()->GetFName() == MaterialInterfaceClassName)
 			{
 				UE_LOG(LogSlate, Error, TEXT("Material '%s' is not valid. PendingKill:'%d'. ValidLowLevelFast:'%d'. InvalidClass:'%d'")
 					, MaterialMessage
-					, (bIsValidLowLevel ? InMaterialResource->IsPendingKill() : false)
+					, (bIsValidLowLevel ? !IsValid(InMaterialResource) : false)
 					, bIsValidLowLevel
 					, (bIsValidLowLevel ? InMaterialResource->GetClass()->GetFName() == MaterialInterfaceClassName : false));
 

@@ -69,7 +69,7 @@ void UDisplayClusterSceneComponentSync::EndPlay(const EEndPlayReason::Type EndPl
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool UDisplayClusterSceneComponentSync::IsActive() const
 {
-	return !this->IsPendingKill();
+	return IsValid(this);
 }
 
 

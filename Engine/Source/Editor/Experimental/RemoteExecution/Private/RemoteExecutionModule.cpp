@@ -7,7 +7,7 @@
 #include "Messages.h"
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FRemoteExecutionModule, EditorConfig);
+IMPLEMENT_MODULE(FRemoteExecutionModule, RemoteExecution);
 
 #define LOCTEXT_NAMESPACE "RemoteExecutionModule"
 

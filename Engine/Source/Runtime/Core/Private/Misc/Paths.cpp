@@ -190,7 +190,12 @@ FString FPaths::EngineConfigDir()
 
 FString FPaths::EngineEditorSettingsDir()
 {
+#if IS_MONOLITHIC
+	// monolithic editors don't want/need to share settings with the non-monolithic editors
+	return FPaths::GeneratedConfigDir();
+#else
 	return FPaths::GameAgnosticSavedDir() + TEXT("Config/");
+#endif
 }
 
 FString FPaths::EngineIntermediateDir()
@@ -312,7 +317,12 @@ FString FPaths::ProjectUserDir()
 
 	if (ShouldSaveToUserDir())
 	{
+		// if defined, this will override both saveddirsuffix and enginesaveddirsuffix
+#ifdef UE_SAVED_DIR_OVERRIDE
+		return FPaths::Combine(FPlatformProcess::UserSettingsDir(), TEXT(PREPROCESSOR_TO_STRING(UE_SAVED_DIR_OVERRIDE))) + TEXT("/");
+#else
 		return FPaths::Combine(FPlatformProcess::UserSettingsDir(), FApp::GetProjectName()) + TEXT("/");
+#endif
 	}
 	else
 	{

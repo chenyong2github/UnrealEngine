@@ -24,6 +24,8 @@ PipelineStateCache.cpp: Pipeline state cache implementation.
 
 #define PIPELINESTATECACHE_VERIFYTHREADSAFE (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
 
+CSV_DECLARE_CATEGORY_EXTERN(PSO);
+
 static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 {
 	return GetTypeHash(Input.VertexDeclarationRHI)
@@ -45,6 +47,13 @@ static inline uint32 GetTypeHash(const FGraphicsPipelineStateInitializer& Initia
 	return (GetTypeHash(Initializer.BoundShaderState) | (Initializer.NumSamples << 28)) ^ ((uint32)Initializer.PrimitiveType << 24) ^ GetTypeHash(Initializer.BlendState)
 		^ Initializer.RenderTargetsEnabled ^ GetTypeHash(Initializer.RasterizerState) ^ GetTypeHash(Initializer.DepthStencilState);
 }
+
+constexpr int32 PSO_MISS_FRAME_HISTORY_SIZE = 3;
+static TAtomic<uint32> GraphicsPipelineCacheMisses;
+static TArray<uint32> GraphicsPipelineCacheMissesHistory;
+static TAtomic<uint32> ComputePipelineCacheMisses;
+static TArray<uint32> ComputePipelineCacheMissesHistory;
+static bool	ReportFrameHitchThisFrame;
 
 static TAutoConsoleVariable<int32> GCVarAsyncPipelineCompile(
 	TEXT("r.AsyncPipelineCompile"),
@@ -80,7 +89,7 @@ static FAutoConsoleCommand DumpPipelineCmd(
 
 void SetComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
 {
-	RHICmdList.SetComputePipelineState(PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeShader), ComputeShader);
+	RHICmdList.SetComputePipelineState(PipelineStateCache::GetAndOrCreateComputePipelineState(RHICmdList, ComputeShader, false), ComputeShader);
 }
 
 extern RHI_API FRHIComputePipelineState* ExecuteSetComputePipelineState(FComputePipelineState* ComputePipelineState);
@@ -1029,6 +1038,11 @@ public:
 	}
 };
 
+void PipelineStateCache::ReportFrameHitchToCSV()
+{
+	ReportFrameHitchThisFrame = true;
+}
+
 /**
 * Called at the end of each frame during the RHI . Evicts all items left in the backfill cached based on time
 */
@@ -1039,6 +1053,43 @@ void PipelineStateCache::FlushResources()
 	GGraphicsPipelineCache.ConsolidateThreadedCaches();
 	GGraphicsPipelineCache.ProcessDelayedCleanup();
 
+	{
+		int32 NumMissesThisFrame = GraphicsPipelineCacheMisses.Load(EMemoryOrder::Relaxed);
+		int32 NumMissesLastFrame = GraphicsPipelineCacheMissesHistory.Num() >= 2 ? GraphicsPipelineCacheMissesHistory[1] : 0;
+		CSV_CUSTOM_STAT(PSO, PSOMisses, NumMissesThisFrame, ECsvCustomStatOp::Set);
+
+		// Put a negative number in the CSV to report that there was no hitch this frame for the PSO hitch stat.
+		if (!ReportFrameHitchThisFrame)
+		{
+			NumMissesThisFrame = -1;
+			NumMissesLastFrame = -1;
+		}
+		CSV_CUSTOM_STAT(PSO, PSOMissesOnHitch, NumMissesThisFrame, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(PSO, PSOPrevFrameMissesOnHitch, NumMissesLastFrame, ECsvCustomStatOp::Set);
+	}
+
+	{
+		int32 NumMissesThisFrame = ComputePipelineCacheMisses.Load(EMemoryOrder::Relaxed);
+		int32 NumMissesLastFrame = ComputePipelineCacheMissesHistory.Num() >= 2 ? ComputePipelineCacheMissesHistory[1] : 0;
+		CSV_CUSTOM_STAT(PSO, PSOComputeMisses, NumMissesThisFrame, ECsvCustomStatOp::Set);
+
+		// Put a negative number in the CSV to report that there was no hitch this frame for the PSO hitch stat.
+		if (!ReportFrameHitchThisFrame)
+		{
+			NumMissesThisFrame = -1;
+			NumMissesLastFrame = -1;
+		}
+		CSV_CUSTOM_STAT(PSO, PSOComputeMissesOnHitch, NumMissesThisFrame, ECsvCustomStatOp::Set);
+		CSV_CUSTOM_STAT(PSO, PSOComputePrevFrameMissesOnHitch, NumMissesLastFrame, ECsvCustomStatOp::Set);
+	}
+	ReportFrameHitchThisFrame = false;
+
+	GraphicsPipelineCacheMissesHistory.Insert(GraphicsPipelineCacheMisses, 0);
+	GraphicsPipelineCacheMissesHistory.SetNum(PSO_MISS_FRAME_HISTORY_SIZE);
+	ComputePipelineCacheMissesHistory.Insert(ComputePipelineCacheMisses, 0);
+	ComputePipelineCacheMissesHistory.SetNum(PSO_MISS_FRAME_HISTORY_SIZE);
+	GraphicsPipelineCacheMisses = 0;
+	ComputePipelineCacheMisses = 0;
 
 	static double LastEvictionTime = FPlatformTime::Seconds();
 	double CurrentTime = FPlatformTime::Seconds();
@@ -1095,7 +1146,7 @@ uint64 PipelineStateCache::RetrieveGraphicsPipelineStateSortKey(FGraphicsPipelin
 	return GraphicsPipelineState != nullptr ? GraphicsPipelineState->SortKey : 0;
 }
 
-FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader)
+FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* ComputeShader, bool bFromFileCache)
 {	
 	bool DoAsyncCompile = IsAsyncCompilationAllowed(RHICmdList);
 
@@ -1112,6 +1163,11 @@ FComputePipelineState* PipelineStateCache::GetAndOrCreateComputePipelineState(FR
 		// create new graphics state
 		OutCachedState = new FComputePipelineState(ComputeShader);
 		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(ComputeShader));
+
+		if (!bFromFileCache)
+		{
+			++ComputePipelineCacheMisses;
+		}
 
 		// create a compilation task, or just do it now...
 		if (DoAsyncCompile)
@@ -1506,6 +1562,11 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 		// create new graphics state
 		OutCachedState = new FGraphicsPipelineState();
 		OutCachedState->Stats = FPipelineFileCache::RegisterPSOStats(GetTypeHash(*Initializer));
+
+		if (!Initializer->bFromPSOFileCache)
+		{
+			GraphicsPipelineCacheMisses++;
+		}
 
 		// create a compilation task, or just do it now...
 		if (DoAsyncCompile)

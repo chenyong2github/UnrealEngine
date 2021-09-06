@@ -202,7 +202,7 @@ void AVREditorFloatingUI::TickManually(float DeltaTime)
 
 void AVREditorFloatingUI::Destroyed()
 {
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		CleanupWidgetReferences();
 	}

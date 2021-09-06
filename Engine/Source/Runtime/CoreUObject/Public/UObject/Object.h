@@ -1587,6 +1587,8 @@ private:
 	}
 };
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 /**
 * Test validity of object
 *
@@ -1596,6 +1598,45 @@ private:
 FORCEINLINE bool IsValid(const UObject *Test)
 {
 	return Test && !Test->IsPendingKill();
+}
+
+/**
+* Test validity of object similar to IsValid(Test) however the null pointer test is skipped
+*
+* @param	Test			The object to test
+* @return	Return true if the object is usable: not pending kill
+*/
+FORCEINLINE bool IsValidChecked(const UObject* Test)
+{
+	check(Test);
+	return !Test->IsPendingKill();
+}
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+/**
+* Returns a pointer to a valid object if the Test object passes IsValid() tests, otherwise null
+*
+* @param	Test			The object to test
+* @return	Pointer to a valid object if the Test object passes IsValid() tests, otherwise null
+*/
+template <typename T>
+T* GetValid(T* Test)
+{
+	static_assert(std::is_base_of<UObject, T>::value, "GetValid can only work with UObject-derived classes");
+	return IsValid(Test) ? Test : nullptr;
+}
+
+/**
+* Returns a pointer to a valid object if the Test object passes IsValid() tests, otherwise null
+*
+* @param	Test			The object to test
+* @return	Pointer to a valid object if the Test object passes IsValid() tests, otherwise null
+*/
+template <typename T>
+const T* GetValid(const T* Test)
+{
+	static_assert(std::is_base_of<UObject, T>::value, "GetValid can only work with UObject-derived classes");
+	return IsValid(Test) ? Test : nullptr;
 }
 
 #if WITH_EDITOR

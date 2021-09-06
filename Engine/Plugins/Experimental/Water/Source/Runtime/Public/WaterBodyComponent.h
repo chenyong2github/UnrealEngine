@@ -23,6 +23,7 @@ class AWaterBodyIsland;
 class AWaterBodyExclusionVolume;
 class ALandscapeProxy;
 class UMaterialInstanceDynamic;
+class FTokenizedMessage;
 
 // ----------------------------------------------------------------------------------
 
@@ -68,7 +69,8 @@ enum class EWaterBodyStatus : uint8
 {
 	Valid,
 	MissingWaterMesh,
-	MissingLandscape
+	MissingLandscape,
+	InvalidWaveData,
 };
 
 // ----------------------------------------------------------------------------------
@@ -277,6 +279,10 @@ public:
 
 	virtual ALandscapeProxy* FindLandscape() const;
 
+	/** Returns what can be considered the single base Z of the water surface.
+	Doesn't really make sense for non-flat water bodies like EWaterBodyType::Transition or EWaterBodyType::River but can still be useful when using FixedZ for post-process, for example. */
+	virtual float GetConstantSurfaceZ() const;
+
 	virtual void Reset() {}
 protected:
 
@@ -299,10 +305,6 @@ protected:
 	virtual void UpdateWaterBody(bool bWithExclusionVolumes);
 
 	virtual void OnUpdateBody(bool bWithExclusionVolumes) {}
-
-	/** Returns what can be considered the single base Z of the water surface.
-		Doesn't really make sense for non-flat water bodies like EWaterBodyType::Transition or EWaterBodyType::River but can still be useful when using FixedZ for post-process, for example. */
-	virtual float GetConstantSurfaceZ() const;
 
 	/** Returns what can be considered the single water depth of the water surface.
 	Only really make sense for EWaterBodyType::Transition water bodies for which we don't really have a way to evaluate depth. */
@@ -328,7 +330,7 @@ protected:
 	/** Validates this component's data */
 	virtual void CheckForErrors() override;
 
-	EWaterBodyStatus CheckWaterBodyStatus() const;
+	virtual TArray<TSharedRef<FTokenizedMessage>> CheckWaterBodyStatus() const;
 #endif // WITH_EDITOR
 
 	EWaterBodyQueryFlags CheckAndAjustQueryFlags(EWaterBodyQueryFlags InQueryFlags) const;
@@ -345,6 +347,7 @@ protected:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
+	virtual bool MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit = NULL, EMoveComponentFlags MoveFlags = MOVECOMP_NoFlags, ETeleportType Teleport = ETeleportType::None) override;
 
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
@@ -414,6 +417,10 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Rendering)
 	float ShapeDilation = 4096.0f;
+
+	/** The distance above the surface of the water where collision checks should still occur. Useful if the post process effect is not activating under really high waves. */ 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Collision)
+	float CollisionHeightOffset = 0.f;
 
 	/** If enabled, landscape will be deformed based on this water body placed on top of it and landscape height will be considered when determining water depth at runtime */
 	UPROPERTY(Category = Terrain, EditAnywhere, BlueprintReadWrite)

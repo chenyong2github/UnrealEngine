@@ -13,7 +13,7 @@
 /**
  * The integer fetcher is a specialized type of fetcher for the integer
  */
-UCLASS(Abstract, Blueprintable)
+UCLASS(Abstract, Blueprintable, Meta = (DisplayName = "Integer"))
 class DATAPREPCORE_API UDataprepIntegerFetcher : public UDataprepFetcher
 {
 	GENERATED_BODY()

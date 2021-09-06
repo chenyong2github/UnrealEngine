@@ -25,6 +25,17 @@ enum class EQosDatacenterResult : uint8
 	Incomplete
 };
 
+inline const TCHAR* LexToString(EQosDatacenterResult Result)
+{
+	switch (Result)
+	{
+		case EQosDatacenterResult::Invalid: return TEXT("Invalid");
+		case EQosDatacenterResult::Success: return TEXT("Success");
+		case EQosDatacenterResult::Incomplete: return TEXT("Incomplete");
+		default: return TEXT("Unknown");
+	}
+}
+
 /** Enum for possible QoS return codes */
 UENUM()
 enum class EQosCompletionResult : uint8
@@ -38,6 +49,18 @@ enum class EQosCompletionResult : uint8
 	/** QoS operation was canceled */
 	Canceled
 };
+
+inline const TCHAR* LexToString(EQosCompletionResult Result)
+{
+	switch (Result)
+	{
+		case EQosCompletionResult::Invalid: return TEXT("Invalid");
+		case EQosCompletionResult::Success: return TEXT("Success");
+		case EQosCompletionResult::Failure: return TEXT("Failure");
+		case EQosCompletionResult::Canceled: return TEXT("Canceled");
+		default: return TEXT("Unknown");
+	}
+}
 
 /**
  * Individual ping server details

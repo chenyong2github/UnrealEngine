@@ -1123,14 +1123,25 @@ void FSkeletalMeshEditor::OnCreateClothingAssetMenuItemClicked(FSkeletalMeshClot
 
 	if(Mesh)
 	{
+		Mesh->Modify();
+
 		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(Mesh);
+
+		if (Params.bRemoveFromMesh)  // Remove section prior to importing, otherwise the UsedBoneIndices won't be reflecting the loss of the section in the sub LOD
+		{
+			// Force the rebuilding of the render data at the end of this scope to update the used bone array
+		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(Mesh);
+
+			// User doesn't want the section anymore as a renderable, get rid of it
+			Mesh->RemoveMeshSection(Params.LodIndex, Params.SourceSection);
+		}
+
+		// Update the skeletal mesh at the end of the scope, this time with the new clothing changes
 		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(Mesh);
 
 		// Handle the creation through the clothing asset factory
 		FClothingSystemEditorInterfaceModule& ClothingEditorModule = FModuleManager::LoadModuleChecked<FClothingSystemEditorInterfaceModule>("ClothingSystemEditorInterface");
 		UClothingAssetFactoryBase* AssetFactory = ClothingEditorModule.GetClothingAssetFactory();
-
-		Mesh->Modify();
 
 		// See if we're importing a LOD or new asset
 		if(Params.TargetAsset.IsValid())

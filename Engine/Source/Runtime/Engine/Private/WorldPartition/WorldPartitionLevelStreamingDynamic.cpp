@@ -141,7 +141,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 	const FName DesiredPackageName = GetWorldAssetPackageFName();
 	UPackage* LevelPackage = (UPackage*)StaticFindObjectFast(UPackage::StaticClass(), nullptr, DesiredPackageName, 0, 0, RF_NoFlags, EInternalObjectFlags::PendingKill);
 	UWorld* FoundWorld = LevelPackage ? UWorld::FindWorldInPackage(LevelPackage) : nullptr;
-	check(!FoundWorld || !FoundWorld->IsPendingKill());
+	check(!FoundWorld || IsValidChecked(FoundWorld));
 	check(!FoundWorld || FoundWorld->PersistentLevel);
 	if (FoundWorld && FoundWorld->PersistentLevel != RuntimeLevel)
 	{
@@ -158,7 +158,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 		UWorld* CellWorld = UWorld::FindWorldInPackage(CellLevelPackage);
 		check(CellWorld);
 		check(CellWorld == FoundWorld);
-		check(!CellWorld->IsPendingKill());
+		check(IsValidChecked(CellWorld));
 		check(CellWorld->PersistentLevel == RuntimeLevel);
 		check(CellWorld->PersistentLevel != LoadedLevel);
 

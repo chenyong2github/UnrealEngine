@@ -347,6 +347,11 @@ namespace UnrealBuildTool
 		public List<string> BuildPlugins = new List<string>();
 
 		/// <summary>
+		/// If this is true, then the BuildPlugins list will be used to populate RuntimeDependencies, rather than EnablePlugins
+		/// </summary>
+		public bool bRuntimeDependenciesComeFromBuildPlugins = false;
+
+		/// <summary>
 		/// A list of additional plugins which need to be included in this target. This allows referencing non-optional plugin modules
 		/// which cannot be disabled, and allows building against specific modules in program targets which do not fit the categories
 		/// in ModuleHostType.
@@ -2065,6 +2070,11 @@ namespace UnrealBuildTool
 		public IEnumerable<string> BuildPlugins
 		{
 			get { return Inner.BuildPlugins; }
+		}
+
+		public bool bRuntimeDependenciesComeFromBuildPlugins
+		{
+			get { return Inner.bRuntimeDependenciesComeFromBuildPlugins; }
 		}
 
 		public string PakSigningKeysFile

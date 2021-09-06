@@ -56,6 +56,8 @@ public:
 
 	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
 
+	void RequestCheckpoint();
+
 private:
 	void TrackSendForProfiler(const void* Data, int32 NumBytes);
 

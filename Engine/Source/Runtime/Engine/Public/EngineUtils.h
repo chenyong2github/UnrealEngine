@@ -400,7 +400,7 @@ protected:
 	 */
 	FORCEINLINE bool IsActorSuitable(AActor* Actor) const
 	{
-		if (EnumHasAnyFlags(Flags, EActorIteratorFlags::SkipPendingKill) && Actor->IsPendingKill())
+		if (EnumHasAnyFlags(Flags, EActorIteratorFlags::SkipPendingKill) && !IsValid(Actor))
 		{
 			return false;
 		}

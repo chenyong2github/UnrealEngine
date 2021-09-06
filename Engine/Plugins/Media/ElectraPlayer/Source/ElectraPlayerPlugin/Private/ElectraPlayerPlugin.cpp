@@ -475,6 +475,7 @@ bool FElectraPlayerPlugin::Open(const FString& Url, const IMediaOptions* Options
 	CallbackPointerLock.Lock();
 	OptionInterface = Options;
 	CallbackPointerLock.Unlock();
+	UE_LOG(LogElectraPlayerPlugin, Log, TEXT("[%p] IMediaPlayer::Open: Options@%p"), this, Options);
 
 	IElectraPlayerInterface::FPlaystartOptions LocalPlaystartOptions;
 

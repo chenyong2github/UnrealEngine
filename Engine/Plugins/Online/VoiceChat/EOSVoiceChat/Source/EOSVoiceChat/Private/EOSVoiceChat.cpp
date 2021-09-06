@@ -1118,13 +1118,14 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 			{
 				if (!SingleUserVoiceChatUser)
 				{
-					CreateUser();
+					UsersCreatedByConsoleCommand.Add(CreateUser());
 					EOS_EXEC_LOG(TEXT("EOS CREATEUSER success"));
 					return true;
 				}
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS CREATEUSER failed, single user set."));
+					return true;
 				}
 			}
 			else if (FParse::Command(&Cmd, TEXT("CREATESINGLEUSER")))
@@ -1143,6 +1144,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS CREATESINGLEUSER failed, VoiceChatUsers not empty."));
+					return true;
 				}
 			}
 			else
@@ -1152,17 +1154,30 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				{
 					if (UserIndex < VoiceChatUsers.Num())
 					{
-						const FEOSVoiceChatUserRef& User = VoiceChatUsers[UserIndex];
+						const FEOSVoiceChatUserRef& UserRef = VoiceChatUsers[UserIndex];
 						if (FParse::Command(&Cmd, TEXT("RELEASEUSER")))
 						{
+							IVoiceChatUser* User = &UserRef.Get();
+							if (UsersCreatedByConsoleCommand.RemoveSwap(User))
+							{
 							EOS_EXEC_LOG(TEXT("EOS RELEASEUSER releasing UserIndex=%d..."), UserIndex);
-							ReleaseUser(&User.Get());
+								ReleaseUser(User);
+							}
+							else
+							{
+								EOS_EXEC_LOG(TEXT("EOS RELEASEUSER UserIndex=%d not created by CREATEUSER call."), UserIndex);
+							}
 							return true;
 						}
 						else
 						{
-							return User->Exec(InWorld, Cmd, Ar);
+							return UserRef->Exec(InWorld, Cmd, Ar);
 						}
+					}
+					else
+					{
+						EOS_EXEC_LOG(TEXT("EOS RELEASEUSER UserIndex=%d not found, VoiceChatUsers.Num=%d"), UserIndex, VoiceChatUsers.Num());
+						return true;
 					}
 				}
 				else if (SingleUserVoiceChatUser)
@@ -1172,6 +1187,7 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 				else
 				{
 					EOS_EXEC_LOG(TEXT("EOS User index not specified, and no single user created. Either CREATEUSER and specify UserIndex=n in subsequent commands, or CREATESINGLEUSER (no UserIndex=n necessary in subsequent commands)"));
+					return true;
 				}
 			}
 #endif // !UE_BUILD_SHIPPING

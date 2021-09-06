@@ -111,7 +111,7 @@ public:
 	Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>* GetSpacialAcceleration();
 
 	void AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InHandles,const bool bImmediate=true);
-	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle& Actor);
+	void RemoveActorFromAccelerationStructure(FPhysicsActorHandle Actor);
 #if WITH_CHAOS
 	void RemoveActorFromAccelerationStructureImp(Chaos::FGeometryParticle* Particle);
 #endif

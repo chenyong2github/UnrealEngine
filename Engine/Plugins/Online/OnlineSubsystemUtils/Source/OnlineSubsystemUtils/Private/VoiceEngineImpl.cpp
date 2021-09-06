@@ -585,11 +585,11 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 
 	bool bAudioComponentCreated = false;
 	// Generate a streaming wave audio component for voice playback
-	if (QueuedData.VoipSynthComponent == nullptr || QueuedData.VoipSynthComponent->IsPendingKill())
+	if (!IsValid(QueuedData.VoipSynthComponent))
 	{
 		CreateSerializeHelper();
 		
-		if (QueuedData.VoipSynthComponent && QueuedData.VoipSynthComponent->IsPendingKill())
+		if (IsValid(QueuedData.VoipSynthComponent))
 		{
 			QueuedData.VoipSynthComponent->Stop();
 			QueuedData.VoipSynthComponent->ClosePacketStream();

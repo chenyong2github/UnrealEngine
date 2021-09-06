@@ -190,6 +190,33 @@ void UConversationParticipantComponent::SendClientUpdatedChoices(const FConversa
 #endif
 }
 
+void UConversationParticipantComponent::SendClientRefreshedTaskChoiceData(const FConversationNodeHandle& Handle, const FConversationContext& Context)
+{
+#if WITH_SERVER_CODE
+	if (GetOwner()->GetRemoteRole() == ROLE_AutonomousProxy)
+	{
+		const TArray<FClientConversationOptionEntry> CurrentOptions = Context.GetActiveConversation()->GetCurrentUserConversationChoices();
+		
+		for (const FClientConversationOptionEntry& CurrentOption : CurrentOptions)
+		{
+			if (CurrentOption.ChoiceReference.NodeReference == Handle)
+			{
+				for (FClientConversationOptionEntry& LastOption : LastMessage.Options)
+				{
+					if (LastOption.ChoiceReference.NodeReference == Handle && 
+						LastOption.ExtraData != CurrentOption.ExtraData)
+					{
+						LastOption.ExtraData = CurrentOption.ExtraData;
+						ClientUpdateConversationTaskChoiceData(Handle, LastOption);
+						break;
+					}
+				}
+			}
+		}
+	}
+#endif
+}
+
 void UConversationParticipantComponent::ClientUpdateConversation_Implementation(const FClientConversationMessagePayload& Message)
 {
 	++MessageIndex;
@@ -204,6 +231,21 @@ void UConversationParticipantComponent::ClientUpdateConversation_Implementation(
 		bIsFirstConversationUpdateBroadcasted = true;
 	}
 	ConversationUpdated.Broadcast(LastMessage);
+}
+
+void UConversationParticipantComponent::ClientUpdateConversationTaskChoiceData_Implementation(FConversationNodeHandle Handle, const FClientConversationOptionEntry& OptionEntry)
+{
+	UE_LOG(LogCommonConversationRuntime, Log, TEXT("ClientUpdateConversationTaskChoiceData :%s"), *Handle.ToString());
+
+	for (FClientConversationOptionEntry& ExistingOption : LastMessage.Options)
+	{
+		if (ExistingOption.ChoiceReference.NodeReference == Handle)
+		{
+			ExistingOption.ExtraData = OptionEntry.ExtraData;
+			ConversationTaskChoiceDataUpdated.Broadcast(Handle, OptionEntry);
+			break;
+		}
+	}
 }
 
 void UConversationParticipantComponent::ClientStartConversation_Implementation(const FGameplayTag AsParticipant)
@@ -309,4 +351,21 @@ void UConversationParticipantComponent::ServerAbortAllConversations()
 	}
 }
 
+#endif
+#if WITH_SERVER_CODE
+void UConversationParticipantComponent::ServerForAllConversationsRefreshTaskChoiceData(const FConversationNodeHandle& Handle, UConversationInstance* IgnoreConversation /*= nullptr*/)
+{
+	if (GetOwner()->GetLocalRole() == ROLE_Authority)
+	{
+		for (UConversationInstance* Conversation : Auth_Conversations)
+		{
+			if (Conversation == IgnoreConversation)
+			{
+				continue;
+			}
+
+			Conversation->ServerRefreshTaskChoiceData(Handle);
+		}
+	}
+}
 #endif

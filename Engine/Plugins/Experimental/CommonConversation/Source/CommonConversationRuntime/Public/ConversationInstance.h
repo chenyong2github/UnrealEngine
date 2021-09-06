@@ -51,6 +51,8 @@ public:
 
 	void ServerRefreshConversationChoices();
 
+	void ServerRefreshTaskChoiceData(const FConversationNodeHandle& Handle);
+
 	/**
      * This is memory that will last for the duration of the conversation instance.  Don't store
      * anything here you want to be long lived.

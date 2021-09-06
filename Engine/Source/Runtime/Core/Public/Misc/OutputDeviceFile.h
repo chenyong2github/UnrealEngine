@@ -9,6 +9,7 @@
 #include "HAL/Runnable.h"
 #include "Serialization/Archive.h"
 #include "Misc/ScopeLock.h"
+#include "Misc/SingleThreadRunnable.h"
 #include "Containers/Array.h"
 
 
@@ -16,11 +17,10 @@
 #define BACKUP_LOG_FILENAME_POSTFIX TEXT("-backup-")
 
 /**
-* Thread heartbeat check class.
-* Used by crash handling code to check for hangs.
+* Provides a thread-safe serialization interface with a background thread doing the actual writes.
 * [] tags identify which thread owns a variable or function
 */
-class CORE_API FAsyncWriter : public FRunnable, public FArchive
+class CORE_API FAsyncWriter : public FRunnable, public FSingleThreadRunnable, public FArchive
 {
 	enum EConstants
 	{
@@ -46,6 +46,8 @@ class CORE_API FAsyncWriter : public FRunnable, public FArchive
 	FThreadSafeCounter SerializeRequestCounter;
 	/** [CLIENT/WRITER THREAD] Tells the writer thread, the client requested flush. */
 	FThreadSafeCounter WantsArchiveFlush;
+	/** Sync object for buffer flushes in forkable mode, when forking hasn't occurred yet. */
+	FCriticalSection RunCritical;
 
 	/** [WRITER THREAD] Last time the archive was flushed. used in threaded situations to flush the underlying archive at a certain maximum rate. */
 	double LastArchiveFlushTime;
@@ -61,7 +63,13 @@ class CORE_API FAsyncWriter : public FRunnable, public FArchive
 
 public:
 
-	FAsyncWriter(FArchive& InAr);
+	enum class EThreadNameOption : uint8
+	{
+		FileName,   // Appends the filename in the threadname: FAsyncWriter_FileName
+		Sequential, // Uses a global sequential number to append to the threadname: FAsyncWriter_1
+	};
+
+	FAsyncWriter(FArchive& InAr, FAsyncWriter::EThreadNameOption NameOption=FAsyncWriter::EThreadNameOption::FileName);
 
 	virtual ~FAsyncWriter();
 
@@ -75,7 +83,15 @@ public:
 	virtual bool Init();
 	virtual uint32 Run();
 	virtual void Stop();
+	virtual FSingleThreadRunnable* GetSingleThreadInterface() override { return this; }
 	//~ End FRunnable Interface
+
+protected:
+	//~ Begin FSingleThreadRunnable Interface.
+	/** [CLIENT THREAD] A substitute for Run() for when threading is disabled. */
+	virtual void Tick() override;
+	//~ End FSingleThreadRunnable Interface
+
 };
 
 enum class EByteOrderMark : int8

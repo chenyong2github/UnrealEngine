@@ -332,9 +332,8 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 
 			auto TestRemoveWidget = [&](TSharedPtr<SVerticalBox>& Widget, const TCHAR* Message) -> bool
 				{
-					FSlateInvalidationWidgetList::InvalidationWidgetType& InvalidationWidget = List[Widget->GetProxyHandle().GetWidgetIndex()];
 					FChildOrderInvalidationCallback_Count Callback;
-					const bool bIsProxyValid = List.ProcessChildOrderInvalidation(InvalidationWidget, Callback);
+					const bool bIsProxyValid = List.ProcessChildOrderInvalidation(Widget->GetProxyHandle().GetWidgetIndex(), Callback);
 					AddErrorIfFalse(bIsProxyValid, FString::Printf(TEXT("The proxy should be valid for '%s'."), Message));
 					AddErrorIfFalse(List.VerifyWidgetsIndex(), FString::Printf(TEXT("The widget list integrity has failed for '%s'."), Message));
 					AddErrorIfFalse(List.VerifySortOrder(), FString::Printf(TEXT("The widget list sort order has failed for '%s'."), Message));
@@ -558,7 +557,7 @@ bool FSlateInvalidationWidgetListTest::RunTest(const FString& Parameters)
 			// Remove G
 			{
 				WidgetF->RemoveSlot(WidgetF->GetAllChildren()->GetChildAt(0));
-				bool bIsValid = List.ProcessChildOrderInvalidation(List[WidgetIndexF], CallbackG);
+				bool bIsValid = List.ProcessChildOrderInvalidation(WidgetIndexF, CallbackG);
 				AddErrorIfFalse(bIsValid, TEXT("The F widget should still be valid"));
 			}
 		}

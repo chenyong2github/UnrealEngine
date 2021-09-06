@@ -546,7 +546,7 @@ bool UWorldPartitionConvertCommandlet::DetachDependantLevelPackages(ULevel* Leve
 
 	for (AActor* Actor: Level->Actors)
 	{
-		if (Actor && !Actor->IsPendingKill() && Actor->IsA<ALODActor>())
+		if (Actor && IsValidChecked(Actor) && Actor->IsA<ALODActor>())
 		{
 			Level->GetWorld()->DestroyActor(Actor);
 		}
@@ -972,7 +972,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		TSet<ULandscapeInfo*> LandscapeInfos;
 		for (AActor* Actor: Actors)
 		{
-			if (Actor && !Actor->IsPendingKill())
+			if (Actor && IsValidChecked(Actor))
 			{
 				check(Actor->GetLevel() == Level);
 
@@ -1131,7 +1131,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 				for(AActor* Actor: SubLevel->Actors)
 				{
-					if(Actor && !Actor->IsPendingKill())
+					if(IsValid(Actor))
 					{
 						TSet<AActor*> ActorReferences;
 						ActorReferences.Append(ActorsReferencesUtils::GetActorReferences(Actor));
@@ -1150,7 +1150,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 				for(AActor* Actor: SubLevel->Actors)
 				{
-					if(Actor && !Actor->IsPendingKill())
+					if(IsValid(Actor))
 					{
 						if (!LevelScriptActorReferences.Find(Actor))
 						{
@@ -1230,7 +1230,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		for(AActor* Actor: ActorsToConvert)
 		{
-			if(Actor && !Actor->IsPendingKill())
+			if(Actor && IsValidChecked(Actor))
 			{
 				check(Actor->GetOuter() == SubLevel);
 				check(!ShouldDeleteActor(Actor, false));
@@ -1332,7 +1332,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	// Move child actors at the end of the list
 	for (AActor* Actor: MainLevel->Actors)
 	{
-		if (Actor && !Actor->IsPendingKill())
+		if (Actor && IsValidChecked(Actor))
 		{
 			check(Actor->GetLevel() == MainLevel);
 			check(Actor->GetActorGuid().IsValid());
@@ -1359,7 +1359,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		
 		for(AActor* Actor: ActorList)
 		{
-			if (!Actor || Actor->IsPendingKill() || !Actor->SupportsExternalPackaging())
+			if (!Actor || !IsValidChecked(Actor) || !Actor->SupportsExternalPackaging())
 			{
 				continue;
 			}
@@ -1391,7 +1391,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		for (AActor* Actor : ActorList)
 		{
-			if (!Actor || Actor->IsPendingKill())
+			if (!IsValid(Actor))
 			{
 				continue;
 			}

@@ -810,7 +810,7 @@ void WatchViewer::UpdateInstancedWatchDisplay()
 			}
 
 			// Don't show info if this instance is pending kill
-			if (BlueprintInstance->IsPendingKill())
+			if (!IsValid(BlueprintInstance))
 			{
 				continue;
 			}

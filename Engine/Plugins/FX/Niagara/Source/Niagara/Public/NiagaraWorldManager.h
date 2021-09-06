@@ -53,6 +53,8 @@ struct TStructOpsTypeTraits<FNiagaraWorldManagerTickFunction> : public TStructOp
 	};
 };
 
+using FNiagaraSystemSimulationRef = TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>;
+
 /**
 * Manager class for any data relating to a particular world.
 */
@@ -82,7 +84,7 @@ public:
 	
 	UNiagaraParameterCollectionInstance* GetParameterCollection(UNiagaraParameterCollection* Collection);
 	void CleanupParameterCollections();
-	TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System);
+	FNiagaraSystemSimulationRef GetSystemSimulation(ETickingGroup TickGroup, UNiagaraSystem* System);
 	void DestroySystemSimulation(UNiagaraSystem* System);
 	void DestroySystemInstance(FNiagaraSystemInstancePtr& InPtr);	
 
@@ -248,11 +250,11 @@ private:
 
 	TMap<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> ParameterCollections;
 
-	TMap<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SystemSimulations[NiagaraNumTickGroups];
+	TMap<UNiagaraSystem*, FNiagaraSystemSimulationRef> SystemSimulations[NiagaraNumTickGroups];
 
-	TArray<TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SimulationsWithPostActorWork;
+	TArray<FNiagaraSystemSimulationRef> SimulationsWithPostActorWork;
 
-	TArray<TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>> SimulationsWithEndOfFrameWait;
+	TArray<FNiagaraSystemSimulationRef> SimulationsWithEndOfFrameWait;
 
 	int32 CachedEffectsQuality;
 
@@ -292,7 +294,7 @@ void FNiagaraWorldManager::ForAllSystemSimulations(TAction Func)
 {
 	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 	{
-		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
+		for (TPair<UNiagaraSystem*, FNiagaraSystemSimulationRef>& SimPair : SystemSimulations[TG])
 		{
 			Func(SimPair.Value.Get());
 		}

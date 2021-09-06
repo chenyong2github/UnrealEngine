@@ -584,7 +584,7 @@ void ULandscapeComponent::PreFeatureLevelChange(ERHIFeatureLevel::Type PendingFe
 
 void ULandscapeComponent::PostEditUndo()
 {
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		if (!GetLandscapeProxy()->HasLayersContent())
 		{
@@ -594,7 +594,7 @@ void ULandscapeComponent::PostEditUndo()
 
 	Super::PostEditUndo();
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		EditToolRenderData.UpdateSelectionMaterial(EditToolRenderData.SelectedType, this);
 		if (!GetLandscapeProxy()->HasLayersContent())
@@ -2184,7 +2184,7 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 	const TArray<ALandscapeProxy*>& LandscapeProxies = ALandscapeProxy::GetLandscapeProxies();
 	for(ALandscapeProxy* LandscapeProxy : LandscapeProxies)
 	{
-		if (LandscapeProxy->IsPendingKill())
+		if (!IsValid(LandscapeProxy))
 		{
 			continue;
 		}
@@ -2203,7 +2203,7 @@ bool ULandscapeInfo::AreAllComponentsRegistered() const
 		
 	for (TScriptInterface<ILandscapeSplineInterface> SplineOwner : SplineActors)
 	{
-		if (!SplineOwner.GetObject() || SplineOwner.GetObject()->IsPendingKill())
+		if (!SplineOwner.GetObject() || !IsValidChecked(SplineOwner.GetObject()))
 		{
 			continue;
 		}
@@ -5064,7 +5064,7 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 			continue;
 		}
 
-		check(!RegisteredProxy->IsPendingKill());
+		check(IsValidChecked(RegisteredProxy));
 		UndeletedProxyCount++;
 	}
 
@@ -5085,7 +5085,7 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 		else
 		{
 			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-			check(Proxies.Contains(LandscapeProxy) == !LandscapeProxy->IsPendingKill());
+			check(Proxies.Contains(LandscapeProxy) == IsValidChecked(LandscapeProxy));
 		}
 	}
 
@@ -5095,7 +5095,7 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 		// Only check for ALandscapeSplineActor type because ALandscapeProxy also implement the ILandscapeSplineInterface for non WP worlds
 		if(ALandscapeSplineActor* SplineActor = Cast<ALandscapeSplineActor>(SplineOwner.GetObject()))
 		{ 
-			check(!SplineActor->IsPendingKill());
+			check(IsValidChecked(SplineActor));
 			UndeletedSplineCount++;
 		}
 	}
@@ -5113,7 +5113,7 @@ bool ULandscapeInfo::CanDeleteLandscape(FText& OutReason) const
 		else
 		{
 			// If Actor is loaded it should be Registered and not pending kill (already accounted for) or pending kill (deleted)
-			check(SplineActors.Contains(SplineActor) == !SplineActor->IsPendingKill());
+			check(SplineActors.Contains(SplineActor) == IsValidChecked(SplineActor));
 		}
 	}
 

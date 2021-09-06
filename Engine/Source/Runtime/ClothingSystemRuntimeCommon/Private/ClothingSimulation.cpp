@@ -212,7 +212,7 @@ void FClothingSimulationCommon::FillContext(USkeletalMeshComponent* InComponent,
 	Context->Fill(InComponent, InDeltaTime, MaxPhysicsDelta, bIsInitialization);
 
 	// Checking the component here to track rare issue leading to invalid contexts
-	if (InComponent->IsPendingKill())
+	if (!IsValid(InComponent))
 	{
 		const AActor* const CompOwner = InComponent->GetOwner();
 		UE_LOG(LogSkeletalMesh, Warning, 

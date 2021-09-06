@@ -118,7 +118,7 @@ FAutoConsoleCommandWithWorldAndArgs DumpNiagaraComponentsCommand(
 			for (TObjectIterator<UNiagaraComponent> It; It; ++It)
 			{
 				UNiagaraComponent* Component = *It;
-				if ( Component->IsPendingKill() )
+				if ( !IsValid(Component) )
 				{
 					continue;
 				}
@@ -1042,7 +1042,8 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 
 	DestroyCullProxy();
-	UNiagaraScript::AsyncOptimizeAllScriptsForComponent(this);
+
+	Asset->AsyncOptimizeAllScripts();
 
 	// We can't call 'Super::Activate(bReset);' as this will enable the component tick
 	if (bReset || ShouldActivate() == true)
@@ -1445,8 +1446,13 @@ void UNiagaraComponent::DestroyInstance()
 
 	if (SystemInstanceController)
 	{
+		SystemInstanceController->Deactivate(true);
+
+		if (SystemInstanceController)
+		{
 		SystemInstanceController->Release();
 		SystemInstanceController = nullptr;
+	}
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -1457,7 +1463,7 @@ void UNiagaraComponent::DestroyInstance()
 
 void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 {
-	check(!IsPendingKill());
+	check(IsValid(this));
 	SetUserParametersToDefaultValues();
 
 	//Need to reset the component's visibility in case it's returned to the pool while marked invisible.
@@ -1750,11 +1756,15 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			{
 				//Render the cull proxy at this location instead.
 				NewProxyDynamicData.bUseCullProxy = true;
+
 				//Some renderers may need this transform on the GT so override here.
 				FNiagaraSystemInstanceControllerPtr CullProxyController = CullProxy->GetSystemInstanceController();
+				if ( ensureMsgf(CullProxyController.IsValid(), TEXT("CullProxy is missing the system instance controller for System '%s' Component '%s'"), *GetNameSafe(Asset), *GetFullNameSafe(this)) )
+				{
 				CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(SystemInstanceController->GetSystemInstance_Unsafe()->GetWorldTransform());
 				CullProxyController->GenerateSetDynamicDataCommands(SetDataCommands, *RenderData, *NiagaraProxy);
 				CullProxyController->GetSystemInstance_Unsafe()->SetWorldTransform(FTransform::Identity);
+			}
 			}
 			else
 			{
@@ -3193,13 +3203,25 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset, bool bResetExistingOve
 	}
 #endif
 
-	if (Asset && IsRegistered())
+	if ( Asset )
 	{
+		// Apply system overrides to the component
+		CastShadow = Asset->bOverrideCastShadow ? Asset->bCastShadow : CastShadow;
+		bReceivesDecals = Asset->bOverrideReceivesDecals ? Asset->bReceivesDecals : bReceivesDecals;
+
+		bRenderCustomDepth = Asset->bOverrideRenderCustomDepth ? Asset->bRenderCustomDepth : bRenderCustomDepth;
+		CustomDepthStencilWriteMask = Asset->bOverrideCustomDepthStencilValue ? Asset->CustomDepthStencilWriteMask : CustomDepthStencilWriteMask;
+		CustomDepthStencilValue = Asset->bOverrideCustomDepthStencilWriteMask ? Asset->CustomDepthStencilValue : CustomDepthStencilValue;
+
+		// Activate
+		if ( IsRegistered() )
+		{
 		if (bAutoActivate || bWasActive)
 		{
 			Activate();
 		}
 	}
+}
 }
 
 void UNiagaraComponent::SetForceSolo(bool bInForceSolo) 

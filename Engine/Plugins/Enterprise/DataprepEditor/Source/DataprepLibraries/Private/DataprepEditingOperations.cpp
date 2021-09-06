@@ -120,7 +120,7 @@ void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprep
 
 	for (UObject* Object : InContext.Objects)
 	{
-		if ( !ensure(Object) || Object->IsPendingKill() )
+		if ( !ensure(Object) || !IsValid(Object) )
 		{
 			continue;
 		}
@@ -155,7 +155,7 @@ void UDataprepDeleteObjectsOperation::OnExecution_Implementation(const FDataprep
 				{
 					// skip component with invalid or condemned owner
 					AActor* Owner = ChildComponent->GetOwner();
-					if ( Owner == nullptr || Owner == Actor || Owner->IsPendingKill() || InContext.Objects.Contains(Owner) /* Slow!!! */)
+					if ( Owner == Actor || !IsValid(Owner) || InContext.Objects.Contains(Owner) /* Slow!!! */)
 					{
 						continue;
 					}
@@ -491,7 +491,7 @@ void UDataprepDeleteUnusedAssetsOperation::OnExecution_Implementation(const FDat
 
 	for (UObject* Object : InContext.Objects)
 	{
-		if ( !ensure(Object) || Object->IsPendingKill() )
+		if ( !ensure(Object) || !IsValid(Object) )
 		{
 			continue;
 		}
@@ -559,7 +559,7 @@ void UDataprepCompactSceneGraphOperation::OnExecution_Implementation(const FData
 	TMap<AActor*, bool> VisibilityMap;
 	for (UObject* Object : InContext.Objects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValid(Object))
 		{
 			continue;
 		}
@@ -598,7 +598,7 @@ void UDataprepSpawnActorsAtLocation::OnExecution_Implementation(const FDataprepC
 
 	for (UObject* Object : InContext.Objects)
 	{
-		if (!ensure(Object) || Object->IsPendingKill())
+		if (!ensure(Object) || !IsValid(Object))
 		{
 			continue;
 		}
@@ -968,8 +968,7 @@ namespace DatasmithEditingOperationsUtils
 		{
 			for(AActor* Actor : Level->Actors)
 			{
-				const bool bIsValidRootActor = Actor &&
-					!Actor->IsPendingKill() &&
+				const bool bIsValidRootActor = IsValid(Actor) &&
 					Actor->IsEditable() &&
 					!Actor->IsTemplate() &&
 					!FActorEditorUtils::IsABuilderBrush(Actor) &&

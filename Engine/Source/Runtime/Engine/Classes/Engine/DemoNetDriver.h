@@ -336,6 +336,8 @@ public:
 	bool IsRecordingMapChanges() const { return ReplayHelper.bRecordMapChanges; }
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	void RequestCheckpoint();
+
 private:
 	struct FDemoActorPriority
 	{
@@ -347,6 +349,7 @@ private:
 	bool bIsFastForwardingForCheckpoint;
 	bool bWasStartStreamingSuccessful;
 	bool bIsFinalizingFastForward;
+	bool bIsRestoringStartupActors;
 
 	TArray<FNetworkGUID> NonQueuedGUIDsForScrubbing;
 
@@ -432,6 +435,7 @@ public:
 	virtual bool ShouldForwardFunction(AActor* Actor, UFunction* Function, void* Parms) const override;
 	virtual void NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor) override;
 	virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) override;
+	virtual void NotifyActorClientDormancyChanged(AActor* Actor, ENetDormancy OldDormancyState) override;
 
 	virtual void ProcessLocalServerPackets() override {}
 	virtual void ProcessLocalClientPackets() override {}
@@ -635,6 +639,7 @@ public:
 
 	bool IsFastForwarding() const { return bIsFastForwarding; }
 	bool IsFinalizingFastForward() const { return bIsFinalizingFastForward; }
+	bool IsRestoringStartupActors() const { return bIsRestoringStartupActors; }
 
 	FReplayExternalDataArray* GetExternalDataArrayForObject(UObject* Object);
 

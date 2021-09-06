@@ -71,8 +71,7 @@ namespace DataprepCoreUtilsPrivate
 			{
 				for ( AActor* Actor : Level->Actors )
 				{
-					const bool bIsValidActor = Actor
-						&& !Actor->IsPendingKill()
+					const bool bIsValidActor = IsValid(Actor)
 						&& Actor->IsEditable()
 						&& !Actor->IsTemplate()
 						&& !FActorEditorUtils::IsABuilderBrush( Actor )
@@ -217,7 +216,7 @@ void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> InObjects)
 
 bool FDataprepCoreUtils::IsAsset(UObject* Object)
 {
-	const bool bHasValidObjectFlags = Object && !Object->HasAnyFlags(RF_ClassDefaultObject) && Object->HasAnyFlags(RF_Public) && !Object->IsPendingKill();
+	const bool bHasValidObjectFlags = IsValid(Object) && !Object->HasAnyFlags(RF_ClassDefaultObject) && Object->HasAnyFlags(RF_Public);
 
 	if(!bHasValidObjectFlags)
 	{
@@ -339,7 +338,7 @@ bool FDataprepCoreUtils::ExecuteDataprep(UDataprepAssetInterface* DataprepAssetI
 			FDataprepCoreUtils::GetActorsFromWorld( TransientWorld.Get(), TransientActors );
 			for ( AActor* Actor : TransientActors )
 			{
-				if ( Actor && !Actor->IsPendingKill() )
+				if ( IsValid(Actor) )
 				{
 					TransientWorld->EditorDestroyActor( Actor, true );
 

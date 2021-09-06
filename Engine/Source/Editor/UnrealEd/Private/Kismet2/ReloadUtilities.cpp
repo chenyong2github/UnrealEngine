@@ -624,7 +624,7 @@ void FReloadClassReinstancer::UpdateDefaultProperties()
 		for (FThreadSafeObjectIterator It(NewClass); It; ++It)
 		{
 			UObject* ObjectPtr = *It;
-			if (ObjectPtr->IsPendingKill() || ObjectPtr->GetOutermost() == TransientPackage)
+			if (!IsValidChecked(ObjectPtr) || ObjectPtr->GetOutermost() == TransientPackage)
 			{
 				continue;
 			}
@@ -696,7 +696,9 @@ FReload::FReload(EActiveReloadType InType, const TCHAR* InPrefix, const TArray<U
 	, Ar(InAr)
 	, bCollectPackages(false)
 {
+#if WITH_RELOAD
 	BeginReload(Type, *this);
+#endif
 }
 
 FReload::FReload(EActiveReloadType InType, const TCHAR* InPrefix, FOutputDevice& InAr)
@@ -705,12 +707,16 @@ FReload::FReload(EActiveReloadType InType, const TCHAR* InPrefix, FOutputDevice&
 	, Ar(InAr)
 	, bCollectPackages(true)
 {
+#if WITH_RELOAD
 	BeginReload(Type, *this);
+#endif
 }
 
 FReload::~FReload()
 {
+#if WITH_RELOAD
 	EndReload();
+#endif
 
 	TStringBuilder<256> Builder;
 	if (PackageStats.HasValues() || ClassStats.HasValues() || StructStats.HasValues() || EnumStats.HasValues() || NumFunctionsRemapped != 0 || NumScriptStructsRemapped != 0)
@@ -1173,7 +1179,7 @@ void FReload::ReplaceReferencesToReconstructedCDOs()
 	{
 		UObject* CurObject = *ObjIter;
 
-		if (CurObject->IsPendingKill())
+		if (!IsValidChecked(CurObject))
 		{
 			continue;
 		}

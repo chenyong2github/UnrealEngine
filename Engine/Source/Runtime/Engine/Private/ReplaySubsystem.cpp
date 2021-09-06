@@ -439,3 +439,18 @@ void UReplaySubsystem::SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSa
 		return Connection->SetCheckpointSaveMaxMSPerFrame(InCheckpointSaveMaxMSPerFrame);
 	}
 }
+
+void UReplaySubsystem::RequestCheckpoint()
+{
+	UWorld* CurrentWorld = GetWorld();
+
+	if (CurrentWorld != nullptr && CurrentWorld->GetDemoNetDriver() != nullptr)
+	{
+		return CurrentWorld->GetDemoNetDriver()->RequestCheckpoint();
+	}
+
+	if (UReplayNetConnection* Connection = ReplayConnection.Get())
+	{
+		return Connection->RequestCheckpoint();
+	}
+}

@@ -538,8 +538,11 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 				TArray<FPhysicsActorHandle> Actors;
 				Actors.Add(PhysHandle);
 
+				FPhysicsCommand::ExecuteWrite(PhysScene, [&]()
+				{
 				bool bImmediateAccelStructureInsertion = true;
 				PhysScene->AddActorsToScene_AssumesLocked(Actors, bImmediateAccelStructureInsertion);
+				});
 
 				PhysScene->AddToComponentMaps(this, PhysHandle);
 				if (BodyInstance.bNotifyRigidBodyCollision)
@@ -693,9 +696,9 @@ void ULandscapeHeightfieldCollisionComponent::CreateCollisionObject()
 					//TODO: Figure out why we are getting into a state like this (PhysicalMaterial == nullptr) in the first place. Potentially a loading issue
 					if (PhysicalMaterial)
 					{
-					//todo: total hack until we get landscape fully converted to chaos
-					HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
-				}
+						//todo: total hack until we get landscape fully converted to chaos
+						HeightfieldRef->UsedChaosMaterials.Add(PhysicalMaterial->GetPhysicsMaterial());
+					}
 				}
 
 				// Release cooked collison data
@@ -1678,7 +1681,10 @@ struct FMeshCollisionInitHelper
 		TArray<FPhysicsActorHandle> Actors;
 		Actors.Add(ActorHandle);
 
+		FPhysicsCommand::ExecuteWrite(PhysScene, [&]()
+		{
 		PhysScene->AddActorsToScene_AssumesLocked(Actors, true);
+		});
 		PhysScene->AddToComponentMaps(Component, ActorHandle);
 
 		if(TargetInstance->bNotifyRigidBodyCollision)
@@ -2451,7 +2457,7 @@ void ULandscapeHeightfieldCollisionComponent::PostLoad()
 
 #if WITH_EDITOR
 	// PostLoad of the landscape can decide to recreate collision, in which case this components checks are irrelevant
-	if (!HasAnyFlags(RF_ClassDefaultObject) && !IsPendingKill())
+	if (!HasAnyFlags(RF_ClassDefaultObject) && IsValid(this))
 	{
 		bShouldSaveCookedDataToDDC[0] = true;
 		bShouldSaveCookedDataToDDC[1] = true;
@@ -2585,7 +2591,16 @@ void ULandscapeInfo::UpdateAddCollision(FIntPoint LandscapeKey)
 		ULandscapeComponent* Comp = XYtoComponentMap.FindRef(NeighborsKeys[i]);
 		if (Comp)
 		{
-			NeighborCollisions[i] = Comp->CollisionComponent.Get();
+			ULandscapeHeightfieldCollisionComponent* NeighborCollision = Comp->CollisionComponent.Get();
+			// Skip cooked because CollisionHeightData not saved during cook
+			if (NeighborCollision && !NeighborCollision->GetOutermost()->bIsCookedForEditor)
+			{
+				NeighborCollisions[i] = NeighborCollision;
+			}
+			else
+			{
+				NeighborCollisions[i] = NULL;
+			}
 		}
 		else
 		{

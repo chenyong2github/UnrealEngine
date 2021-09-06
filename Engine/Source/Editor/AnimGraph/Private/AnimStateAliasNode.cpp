@@ -131,7 +131,7 @@ UAnimStateNodeBase* UAnimStateAliasNode::GetAliasedState() const
 
 	if (UAnimStateNodeBase* AliasedState = AliasedStateNodes.CreateConstIterator()->Get())
 	{
-		if (!AliasedState->IsPendingKill())
+		if (IsValidChecked(AliasedState))
 		{
 			if (const UEdGraph* Graph = GetGraph())
 			{
@@ -161,7 +161,7 @@ void UAnimStateAliasNode::RebuildAliasedStateNodeReferences()
 			UAnimStateNodeBase* AliasedState = StateNodeIt->Get();
 
 			// Keep only nodes that are still in the graph
-			if (AliasedState && !AliasedState->IsPendingKill() && StateNodesSet.Contains(AliasedState))
+			if (IsValid(AliasedState) && StateNodesSet.Contains(AliasedState))
 			{
 				NewAliasedStateNodes.Add(*StateNodeIt);
 			}

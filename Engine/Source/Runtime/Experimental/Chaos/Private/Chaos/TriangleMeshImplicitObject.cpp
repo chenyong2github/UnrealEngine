@@ -100,6 +100,11 @@ struct FTriangleMeshRaycastVisitor
 		return nullptr;
 	}
 
+	const void* GetSimData() const
+	{
+		return nullptr;
+	}
+
 	template <ERaycastType SQType>
 	bool Visit(int32 TriIdx, FQueryFastData& CurData)
 	{
@@ -674,6 +679,7 @@ struct FTriangleMeshSweepVisitor
 	}
 
 	const void* GetQueryData() const { return nullptr; }
+	const void* GetSimData() const { return nullptr; }
 
 	bool VisitOverlap(const TSpatialVisitorData<int32>& VisitData)
 	{

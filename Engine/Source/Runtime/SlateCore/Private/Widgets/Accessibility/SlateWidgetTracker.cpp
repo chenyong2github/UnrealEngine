@@ -2,16 +2,15 @@
 
 #include "Widgets/Accessibility/SlateWidgetTracker.h"
 #include "Types/ISlateMetaData.h"
+#include "HAL/IConsoleManager.h"
 #include "Widgets/SWidget.h"
 #include "Misc/MemStack.h"
 
-bool GIsSlateWidgetTrackerEnabled = false;
-FAutoConsoleVariableRef CVarEnableSlateWidgetTracker(
+static TAutoConsoleVariable<int32> CVarEnableSlateWidgetTracker(
 	TEXT("Slate.EnableSlateWidgetTracker"),
-	GIsSlateWidgetTrackerEnabled,
+	0,
 	TEXT("Whether or not we enable the tracking of widgets via the Slate Widget Tracker."),
-	ECVF_Default
-);
+	ECVF_Default);
 
 FSlateWidgetTracker& FSlateWidgetTracker::Get()
 {
@@ -21,8 +20,8 @@ FSlateWidgetTracker& FSlateWidgetTracker::Get()
 
 bool FSlateWidgetTracker::IsEnabled() const
 {
-	return GIsSlateWidgetTrackerEnabled;
-		}
+	return CVarEnableSlateWidgetTracker->GetInt() == 1;
+}
 
 void FSlateWidgetTracker::AddTrackedWidget(const SWidget* WidgetToTrack, const TArray<FName>& Tags)
 {
@@ -31,9 +30,9 @@ void FSlateWidgetTracker::AddTrackedWidget(const SWidget* WidgetToTrack, const T
 		for (const FName& Tag : Tags)
 		{
 			AddTrackedWidget(WidgetToTrack, Tag);
-			}
 		}
 	}
+}
 
 void FSlateWidgetTracker::AddTrackedWidget(const SWidget* WidgetToTrack, FName Tag)
 {
@@ -57,16 +56,16 @@ void FSlateWidgetTracker::RemoveTrackedWidget(const SWidget* WidgetToStopTrackin
 		for (const FName& Tag : AllTags)
 		{
 			if (TArray<const SWidget*>* TrackedWidgetsOfTag = TrackedWidgets.Find(Tag))
-{
+			{
 				TrackedWidgetsOfTag->Remove(WidgetToStopTracking);
 
 				if (TrackedWidgetsOfTag->Num() == 0)
-{
+				{
 					TrackedWidgets.Remove(Tag);
-}
+				}
 
 				if (FTrackedWidgetsChangedEvent* TrackedWidgetsChangedEvent = TrackedWidgetsChangedEvents.Find(Tag))
-{
+				{
 					TrackedWidgetsChangedEvent->Broadcast(WidgetToStopTracking, Tag, ETrackedSlateWidgetOperations::RemovedTrackedWidget);
 				}
 			}

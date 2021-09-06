@@ -376,6 +376,8 @@ private:
 	TUniquePtr<FReload> Reload;
 };
 
+IMPLEMENT_MODULE(FHotReloadModule, HotReload);
+
 namespace HotReloadDefs
 {
 	const static FString CompilationInfoConfigSection("ModuleFileTracking");
@@ -389,8 +391,6 @@ namespace HotReloadDefs
 	// Add one minute epsilon to timestamp comparision
 	const static FTimespan TimeStampEpsilon(0, 1, 0);
 }
-
-IMPLEMENT_MODULE(FHotReloadModule, HotReload);
 
 namespace UEHotReload_Private
 {
@@ -1045,7 +1045,9 @@ void FHotReloadModule::RegisterForReinstancing(UClass* OldClass, UClass* NewClas
 	if (TempReload == nullptr)
 	{
 		Reload.Reset(new FReload(EActiveReloadType::Reinstancing, TEXT(""), *GLog));
+#if WITH_RELOAD
 		BeginReload(Reload->GetType(), *Reload);
+#endif
 		TempReload = Reload.Get();
 	}
 

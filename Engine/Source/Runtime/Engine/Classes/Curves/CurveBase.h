@@ -35,6 +35,21 @@ class ENGINE_API UCurveBase
 	 */
 	TArray<FString> CreateCurveFromCSVString(const FString& InString);
 
+	/** 
+	 * Imports the curve data from a JSON string.
+	 *
+	 * @param InString The input string to parse.
+	 * @param OutProblems Set of problems encountered while processing input
+	 */
+	virtual void ImportFromJSONString(const FString& InString, TArray<FString>& OutProblems);
+	
+	/**
+	 * Exports the curve as a JSON string
+	 *
+	 * @return The curve data as a JSON string
+	 */
+	FString ExportAsJSONString() const;
+	
 	/** Reset all curve data */
 	void ResetCurve();
 

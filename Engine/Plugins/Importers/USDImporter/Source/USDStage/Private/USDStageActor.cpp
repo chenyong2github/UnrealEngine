@@ -222,7 +222,7 @@ struct FUsdStageActorImpl
 		AUsdStageActor::StaticClass()->GetDefaultObject()->GetArchetypeInstances( Instances );
 		for ( UObject* Instance : Instances )
 		{
-			if ( Instance == DiscardingActor || !Instance || Instance->IsPendingKill() || Instance->IsTemplate() )
+			if ( Instance == DiscardingActor || !Instance || !IsValidChecked(Instance) || Instance->IsTemplate() )
 			{
 				continue;
 			}
@@ -697,7 +697,7 @@ AUsdStageActor::AUsdStageActor()
 						 !RootLayer.FilePath.IsEmpty() )
 					{
 						// Other user deleted us
-						if ( this->IsPendingKill() )
+						if ( !IsValid(this) )
 						{
 							Reset();
 						}
@@ -1707,7 +1707,7 @@ void AUsdStageActor::PostTransacted(const FTransactionObjectEvent& TransactionEv
 	if ( TransactionEvent.HasPendingKillChange() )
 	{
 		// Fires when being deleted in editor, redo delete
-		if ( IsPendingKill() )
+		if ( !IsValidChecked(this) )
 		{
 			CloseUsdStage();
 		}

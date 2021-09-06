@@ -1287,7 +1287,7 @@ void AMatineeActor::EnableRadioFilter()
 
 UInterpGroupInst* AMatineeActor::FindGroupInst(const AActor* Actor) const
 {
-	if(!Actor || Actor->IsPendingKill() )
+	if(IsValid(Actor))
 	{
 		return NULL;
 	}
@@ -1520,10 +1520,8 @@ void AMatineeActor::SaveActorVisibility( AActor* Actor )
 {
 	check( GIsEditor );
 
-	if( Actor != NULL )
+	if( IsValid(Actor) )
 	{
-		if ( !Actor->IsPendingKill() )
-		{
 			const uint8* SavedVisibility = SavedActorVisibilities.Find( Actor );
 			if ( !SavedVisibility )
 			{
@@ -1533,7 +1531,6 @@ void AMatineeActor::SaveActorVisibility( AActor* Actor )
 			}
 		}
 	}
-}
 
 void AMatineeActor::ConditionallySaveActorState( UInterpGroupInst* InGroupInst, AActor* Actor )
 {
@@ -2550,7 +2547,7 @@ UInterpGroupInst::UInterpGroupInst(const FObjectInitializer& ObjectInitializer)
 
 AActor* UInterpGroupInst::GetGroupActor() const
 {
-	if(!GroupActor || GroupActor->IsPendingKill())
+	if(!IsValid(GroupActor))
 	{
 		return NULL;
 	}
@@ -2609,7 +2606,7 @@ void UInterpGroupInst::InitGroupInst(UInterpGroup* InGroup, AActor* InGroupActor
 
 	// If we have an anim control track, do startup for that.
 	bool bHasAnimTrack = Group->HasAnimControlTrack();
-	if (bHasAnimTrack && GroupActor != NULL && !GroupActor->IsPendingKill())
+	if (bHasAnimTrack && IsValid(GroupActor))
 	{
 		IMatineeAnimInterface* IMAI = Cast<IMatineeAnimInterface>(GroupActor);
 		if (IMAI)
@@ -2647,7 +2644,7 @@ void UInterpGroupInst::TermGroupInst(bool bDeleteTrackInst)
 
 	// If we have an anim control track, do startup for that.
 	bool bHasAnimTrack = Group->HasAnimControlTrack();
-	if (GroupActor != NULL && !GroupActor->IsPendingKill())
+	if (IsValid(GroupActor))
 	{
 		IMatineeAnimInterface * IMAI = Cast<IMatineeAnimInterface>(GroupActor);
 		if (IMAI)
@@ -6703,7 +6700,7 @@ void UInterpTrackDirector::UpdateTrack(float NewPosition, UInterpTrackInst* TrIn
 			else if (DirInst->OldViewTarget != NULL)
 			{
 				//UE_LOG(LogMatinee, Log, TEXT("UInterpTrackDirector::UpdateTrack SetViewTarget DirInst->OldViewTarget Time:%f Name: %s"), PC->GetWorld()->GetTimeSeconds(), *DirInst->OldViewTarget->GetFName());
-				if (!DirInst->OldViewTarget->IsPendingKill())
+				if (IsValid(DirInst->OldViewTarget))
 				{
 					FViewTargetTransitionParams TransitionParams;
 					TransitionParams.BlendTime = CutTransitionTime;
@@ -6860,7 +6857,7 @@ void UInterpTrackInstDirector::TermTrackInst(UInterpTrack* Track)
 	if (PC != NULL)
 	{
 		AMatineeActor* MatineeActor = CastChecked<AMatineeActor>( GrInst->GetOuter() );
-		if (OldViewTarget != NULL && !OldViewTarget->IsPendingKill())
+		if (::IsValid(OldViewTarget))
 		{
 			// if we haven't already, restore original view target.
 			AActor* ViewTarget = PC->GetViewTarget();
@@ -6923,7 +6920,7 @@ void UInterpTrackFade::UpdateTrack(float NewPosition, UInterpTrackInst* TrInst, 
 
 		// Actor for a Director group should be a PlayerController.
 		APlayerController* PC = Cast<APlayerController>(GrInst->GetGroupActor());
-		if(PC && PC->PlayerCameraManager && !PC->PlayerCameraManager->IsPendingKill())
+		if(PC && IsValid(PC->PlayerCameraManager))
 		{
 			PC->PlayerCameraManager->SetManualCameraFade(GetFadeAmountAtTime(NewPosition), FadeColor, bFadeAudio);
 		}
@@ -6952,7 +6949,7 @@ void UInterpTrackInstFade::TermTrackInst(UInterpTrack* Track)
 	{
 		UInterpGroupInst* const GrInst = CastChecked<UInterpGroupInst>(GetOuter());
 		APlayerController* const PC = Cast<APlayerController>(GrInst->GroupActor);
-		if(PC && PC->PlayerCameraManager && !PC->PlayerCameraManager->IsPendingKill())
+		if(PC && IsValid(PC->PlayerCameraManager))
 		{
 			PC->PlayerCameraManager->StopCameraFade();
 
@@ -8338,7 +8335,7 @@ static void GetMaterialRefsForTrackInst(
 	check(TrackInst);
 
 	AActor* Actor = TrackInst->GetGroupActor();
-	if (Actor && !Actor->IsPendingKill())
+	if (IsValid(Actor))
 	{
 		if (Actor->IsA(AMaterialInstanceActor::StaticClass()))
 		{
@@ -9003,7 +9000,7 @@ void UInterpTrackColorScale::UpdateTrack(float NewPosition, UInterpTrackInst* Tr
 
 	// Actor for a Director group should be a PlayerController.
 	APlayerController* PC = Cast<APlayerController>(GrInst->GetGroupActor());
-	if(PC && PC->PlayerCameraManager && !PC->PlayerCameraManager->IsPendingKill())
+	if(PC && IsValid(PC->PlayerCameraManager))
 	{
 		PC->PlayerCameraManager->bEnableColorScaling = true;
 		PC->PlayerCameraManager->ColorScale = GetColorScaleAtTime(NewPosition);
@@ -9039,7 +9036,7 @@ void UInterpTrackInstColorScale::TermTrackInst(UInterpTrack* Track)
 {
 	UInterpGroupInst* GrInst = CastChecked<UInterpGroupInst>( GetOuter() );
 	APlayerController* PC = Cast<APlayerController>(GrInst->GroupActor);
-	if(PC && PC->PlayerCameraManager && !PC->PlayerCameraManager->IsPendingKill())
+	if(PC && IsValid(PC->PlayerCameraManager))
 	{
 		PC->PlayerCameraManager->bEnableColorScaling = false;
 		PC->PlayerCameraManager->ColorScale = FVector(1.f,1.f,1.f);

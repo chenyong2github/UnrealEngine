@@ -157,6 +157,11 @@ public class DeploymentContext //: ProjectParams
 	public DirectoryReference ProjectRoot;
 
 	/// <summary>
+	/// The directory that contains the DLC being processed (or null for non-DLC)
+	/// </summary>
+	public DirectoryReference DLCRoot;
+
+	/// <summary>
 	///  raw name used for platform subdirectories Win32
 	/// </summary>
 	public string PlatformDir;
@@ -367,7 +372,7 @@ public class DeploymentContext //: ProjectParams
 		bool IsClientInsteadOfNoEditor,
         bool InForceChunkManifests,
 		bool InSeparateDebugStageDirectory,
-		bool bIsDLC
+		DirectoryReference InDLCRoot
 		)
 	{
 		bStageCrashReporter = InStageCrashReporter;
@@ -383,6 +388,7 @@ public class DeploymentContext //: ProjectParams
 		ShortProjectName = ProjectUtils.GetShortProjectName(RawProjectPath);
 		Stage = InStage;
 		Archive = InArchive;
+		DLCRoot = InDLCRoot;
 
         if (CookSourcePlatform != null && InCooked)
         {
@@ -595,7 +601,7 @@ public class DeploymentContext //: ProjectParams
 		{
 			PlatformUsesChunkManifests = true;
 		}
-		else if (bIsDLC)
+		else if (DLCRoot != null)
 		{
 			PlatformUsesChunkManifests = false;
 		}
@@ -710,6 +716,10 @@ public class DeploymentContext //: ProjectParams
         {
 			OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(LocalRoot));
         }
+        else if (DLCRoot != null && InputFile.IsUnderDirectory(DLCRoot))
+		{
+			OutputFile = new StagedFileReference(InputFile.MakeRelativeTo(DLCRoot));
+		}
         else
         {
 			throw new AutomationException("Can't deploy {0} because it doesn't start with {1} or {2}", InputFile, ProjectRoot, LocalRoot);

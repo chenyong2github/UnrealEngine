@@ -139,6 +139,13 @@ namespace DemoNetDriverRecordingPrivate
 		WarningTimeInterval,
 		TEXT("When > 0, we will wait this many seconds between logging warnings for demo recording exceeding time budgets.")
 	);	
+
+	static bool RecordUnicastRPCs = false;
+	static FAutoConsoleVariableRef CVarRecordUnicastRPCs(
+		TEXT("demo.RecordUnicastRPCs"),
+		RecordUnicastRPCs,
+		TEXT("When true, also record unicast client rpcs on actors that share a net driver name with the demo driver.")
+	);
 }
 
 struct FDemoBudgetLogHelper
@@ -738,6 +745,7 @@ bool UDemoNetDriver::InitBase(bool bInitAsClient, FNetworkNotify* InNotify, cons
 		ResetElapsedTime();
 		bIsFastForwarding				= false;
 		bIsFastForwardingForCheckpoint	= false;
+		bIsRestoringStartupActors		= false;
 		bWasStartStreamingSuccessful	= true;
 		SavedReplicatedWorldTimeSeconds	= 0.0f;
 		SavedSecondsToSkip				= 0.0f;
@@ -807,6 +815,7 @@ void UDemoNetDriver::ResetDemoState()
 
 	bIsFastForwarding = false;
 	bIsFastForwardingForCheckpoint = false;
+	bIsRestoringStartupActors = false;
 	bWasStartStreamingSuccessful = false;
 	bIsWaitingForHeaderDownload = false;
 	bIsWaitingForStream = false;
@@ -1327,7 +1336,9 @@ void UDemoNetDriver::ProcessRemoteFunction(AActor* Actor, UFunction* Function, v
 	{
 		if (IsRecording())
 		{
-			if ((Function->FunctionFlags & FUNC_NetMulticast))
+			const bool bRecordRPC = DemoNetDriverRecordingPrivate::RecordUnicastRPCs ? ShouldReplicateFunction(Actor, Function) : EnumHasAnyFlags(Function->FunctionFlags, FUNC_NetMulticast);
+
+			if (bRecordRPC)
 			{
 				// Handle role swapping if this is a client-recorded replay.
 				FScopedActorRoleSwap RoleSwap(Actor);
@@ -1769,7 +1780,7 @@ void UDemoNetDriver::TickDemoRecordFrame(float DeltaSeconds)
 				{
 					AActor* Actor = ActorInfo->Actor;
 
-					if (Actor->IsPendingKill())
+					if (!IsValid(Actor))
 					{
 						ActorsToRemove.Add(Actor);
 						continue;
@@ -3060,6 +3071,8 @@ FReplayExternalDataArray* UDemoNetDriver::GetExternalDataArrayForObject(UObject*
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void UDemoNetDriver::RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level /* = nullptr */)
 {
+	TGuardValue<bool> RestoringStartupActors(bIsRestoringStartupActors, true);
+
 	for (auto It = RollbackNetStartupActors.CreateIterator(); It; ++It)
 	{
 		if (ReplayHelper.DeletedNetStartupActors.Contains(It.Key()))
@@ -3605,8 +3618,6 @@ bool UDemoNetDriver::FastForwardLevels(const FGotoResult& GotoResult)
 
 				ProcessFastForwardPackets(MakeArrayView<FPlaybackPacket>(&ReadPacketsHelper.Packets[DeltaCheckpointPacketIntervals[i].Min], DeltaCheckpointPacketIntervals[i].Size() + 1), LevelIndices);
 			}
-
-			DemoConnection->GetOpenChannelMap().Empty();
 		}
 		else
 		{
@@ -4290,11 +4301,6 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			PlaybackPackets.Empty();
 			ReplayHelper.PlaybackFrames.Empty();
-
-			if (DemoConnection)
-			{
-				DemoConnection->GetOpenChannelMap().Empty();
-			}
 		}
 		else
 		{
@@ -4774,6 +4780,16 @@ void UDemoNetConnection::NotifyActorNetGUID(UActorChannel* Channel)
 	}
 }
 
+void UDemoNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
+{
+	const UDemoNetDriver* const NetDriver = GetDriver();
+
+	if (Channel && NetDriver && NetDriver->HasDeltaCheckpoints())
+	{
+		GetOpenChannelMap().Remove(Channel->ActorNetGUID);
+	}
+}
+
 bool UDemoNetDriver::IsLevelInitializedForActor(const AActor* InActor, const UNetConnection* InConnection) const
 {
 	return (GetDemoFrameNum() > 2 || Super::IsLevelInitializedForActor(InActor, InConnection));
@@ -4991,6 +5007,18 @@ void UDemoNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Acto
 	}
 }
 
+void UDemoNetDriver::NotifyActorClientDormancyChanged(AActor* Actor, ENetDormancy OldDormancyState)
+{
+	if (IsRecording() && (Actor->NetDormancy <= DORM_Awake))
+	{
+		AddNetworkActor(Actor);
+		FlushActorDormancy(Actor);
+
+		GetNetworkObjectList().MarkActive(Actor, ClientConnections[0], this);
+		GetNetworkObjectList().ClearRecentlyDormantConnection(Actor, ClientConnections[0], this);
+	}
+}
+
 void UDemoNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
 {
 	// channels can be cleaned up during the checkpoint record (dormancy), make sure to skip those
@@ -5179,8 +5207,8 @@ bool UDemoNetDriver::ShouldReplicateFunction(AActor* Actor, UFunction* Function)
 	bool bShouldRecordMulticast = (Function && Function->FunctionFlags & FUNC_NetMulticast) && IsRecording();
 	if (bShouldRecordMulticast)
 	{
-		FString FuncPathName = GetPathNameSafe(Function);
-		int32 Idx = MulticastRecordOptions.IndexOfByPredicate([FuncPathName](const FMulticastRecordOptions& Options) { return (Options.FuncPathName == FuncPathName); });
+		const FString FuncPathName = GetPathNameSafe(Function);
+		const int32 Idx = MulticastRecordOptions.IndexOfByPredicate([FuncPathName](const FMulticastRecordOptions& Options) { return (Options.FuncPathName == FuncPathName); });
 		if (Idx != INDEX_NONE)
 		{
 			if (World && World->IsRecordingClientReplay())
@@ -5403,4 +5431,11 @@ bool UDemoNetDriver::ShouldForwardFunction(AActor* Actor, UFunction* Function, v
 {
 	// currently no need to forward replay playback RPCs on to other drivers
 	return false;
+}
+void UDemoNetDriver::RequestCheckpoint()
+{
+	if (IsRecording())
+	{
+		ReplayHelper.RequestCheckpoint();
+	}
 }

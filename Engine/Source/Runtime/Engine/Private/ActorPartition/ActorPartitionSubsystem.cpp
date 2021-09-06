@@ -212,8 +212,8 @@ public:
 					return false;
 				}
 
-				// Skip PendingKill actors because they will be renamed out of the way later
-				if (!DescActor->IsPendingKill())
+				// Skip invalid actors because they will be renamed out of the way later
+				if (IsValidChecked(DescActor))
 				{
 					FoundActor = CastChecked<APartitionActor>(DescActor);
 					return false;
@@ -266,7 +266,7 @@ public:
 			if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *SpawnParams.Name.ToString()))
 			{
 				AActor* ExistingActor = CastChecked<AActor>(ExistingObject);
-				check(ExistingActor->IsPendingKill());
+				check(!IsValidChecked(ExistingActor));
 				ExistingActor->Modify();
 				// Don't go through AActor::Rename here because we aren't changing outers (the actor's level) and we also don't want to reset loaders
 				// if the actor is using an external package. We really just want to rename that actor out of the way so we can spawn the new one in

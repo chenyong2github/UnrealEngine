@@ -6049,9 +6049,6 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 			}
 		}
 
-		double EndTime = FPlatformTime::Seconds();
-		double ElapsedTime = EndTime - StartTime;
-
 		check(RequestId != INDEX_NONE || !IsAsyncLoading());
 	}
 }
@@ -6069,18 +6066,13 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGa
 	// Flushing async loading while loading is suspend will result in infinite stall
 	UE_CLOG(bSuspendRequested, LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended"));
 
-	if (TimeLimit <= 0.0f)
-	{
-		// Set to one hour if no time limit
-		TimeLimit = 60 * 60;
-	}
-
+	bool bUseTimeLimit = TimeLimit > 0.0f;
 	double TimeLoadingPackage = 0.0f;
 
-	while (IsAsyncLoadingPackages() && TimeLimit > 0 && !CompletionPredicate())
+	while (IsAsyncLoadingPackages() && (!bUseTimeLimit || TimeLimit > 0.0f) && !CompletionPredicate())
 	{
 		double TickStartTime = FPlatformTime::Seconds();
-		if (ProcessLoadingFromGameThread(ThreadState, true, true, TimeLimit) == EAsyncPackageState::Complete)
+		if (ProcessLoadingFromGameThread(ThreadState, bUseTimeLimit, bUseTimeLimit, TimeLimit) == EAsyncPackageState::Complete)
 		{
 			return EAsyncPackageState::Complete;
 		}

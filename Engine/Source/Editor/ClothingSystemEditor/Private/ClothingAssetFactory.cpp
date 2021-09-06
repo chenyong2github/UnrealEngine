@@ -247,13 +247,13 @@ UClothingAssetBase* UClothingAssetFactory::CreateFromSkeletalMesh(USkeletalMesh*
 	NewAsset->AddNewLod();
 	FClothLODDataCommon& LodData = NewAsset->LodData.Last();
 
-	if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, NewAsset, LodData))
+	if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, NewAsset, LodData, Params.LodIndex))  // Use the same LOD index as both source and destination index
 	{
 		FScopedSkeletalMeshPostEditChange ScopedSkeletalMeshPostEditChange(TargetMesh);
 		if(Params.bRemoveFromMesh)
 		{
 			// User doesn't want the section anymore as a renderable, get rid of it
-			TargetMesh->RemoveMeshSection(Params.LodIndex, Params.SourceSection);
+			TargetMesh->RemoveMeshSection(Params.LodIndex, Params.SourceSection);  // Note: this is now taken care of ahead of the call to this function in order to get the correct used bone array, left here to not break the API behavior
 		}
 
 		// Set asset guid
@@ -359,14 +359,8 @@ UClothingAssetBase* UClothingAssetFactory::ImportLodToClothing(USkeletalMesh* Ta
 				RemapSource = &ConcreteTarget->LodData[Params.TargetLod - 1];
 			}
 
-			if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, ConcreteTarget, NewLod, RemapSource))
+			if(ImportToLodInternal(TargetMesh, Params.LodIndex, Params.SourceSection, ConcreteTarget, NewLod, Params.TargetLod, RemapSource))
 			{
-				if(Params.bRemoveFromMesh)
-				{
-					// User doesn't want the section anymore as a renderable, get rid of it
-					TargetMesh->RemoveMeshSection(Params.LodIndex, Params.SourceSection);
-				}
-
 				// Rebuild the final bone map
 				ConcreteTarget->RefreshBoneMapping(TargetMesh);
 
@@ -1127,6 +1121,7 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	int32 SourceSectionIndex, 
 	UClothingAssetCommon* DestAsset, 
 	FClothLODDataCommon& DestLod, 
+	int32 DestLodIndex, 
 	const FClothLODDataCommon* InParameterRemapSource)
 {
 	if(!SourceMesh || !SourceMesh->GetImportedModel())
@@ -1230,6 +1225,8 @@ bool UClothingAssetFactory::ImportToLodInternal(
 	FClothPhysicalMeshData& PhysMesh = DestLod.PhysicalMeshData;
 	PhysMesh.Reset(NumUniqueVerts, NumIndices);
 
+	const FSkeletalMeshLODModel& DestLodModel = SkeletalResource->LODModels[DestLodIndex];
+
 	for(int32 VertexIndex = 0; VertexIndex < NumUniqueVerts; ++VertexIndex)
 	{
 		const FSoftSkinVertex& SourceVert = SourceSection.SoftVertices[OriginalIndexes[VertexIndex]];
@@ -1241,7 +1238,14 @@ bool UClothingAssetFactory::ImportToLodInternal(
 		FClothVertBoneData& BoneData = PhysMesh.BoneData[VertexIndex];
 		for(int32 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 		{
-			const uint16 SourceIndex = SourceSection.BoneMap[SourceVert.InfluenceBones[InfluenceIndex]];
+			uint16 SourceIndex = SourceSection.BoneMap[SourceVert.InfluenceBones[InfluenceIndex]];
+
+			// If the current bone is not active in the destination LOD, then remap to the first ancestor bone that is
+			while (!DestLodModel.ActiveBoneIndices.Contains(SourceIndex))
+			{
+				SourceIndex = SourceMesh->GetRefSkeleton().GetParentIndex(SourceIndex);
+			}
+
 			if(SourceIndex != INDEX_NONE)
 			{
 				FName BoneName = SourceMesh->GetRefSkeleton().GetBoneName(SourceIndex);

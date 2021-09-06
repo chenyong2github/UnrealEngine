@@ -1272,7 +1272,14 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 	FNiagaraSystemSimulationTickContext Context(this, SystemInstances, MainDataSet, DeltaSeconds, SpawnNum, MyCompletionGraphEvent.IsValid());
 	if ( Context.IsRunningAsync() )
 	{
-		auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationTickConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
+		FGraphEventArray Prereqs;
+		auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+		if (ScriptTask.IsValid())
+		{
+			Prereqs.Add(ScriptTask);
+		}
+		
+		auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationTickConcurrentTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
 		ConcurrentTickGraphEvent = ConcurrentTickTask->GetCompletionEvent();
 		for (FNiagaraSystemInstance* Instance : Context.Instances)
 		{
@@ -1285,11 +1292,23 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		}
 		else
 		{
+			if ( System->AllDIsPostSimulateCanOverlapFrames() )
+			{
 			WorldManager->MarkSimulationsForEndOfFrameWait(this);
+		}
+			else
+			{
+				WorldManager->MarkSimulationForPostActorWork(this);
+			}
 		}
 	}
 	else
 	{
+		auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+		if (ScriptTask.IsValid())
+		{
+			ScriptTask->Wait(ENamedThreads::GameThread);
+		}
 		Tick_Concurrent(Context);
 	}
 }
@@ -1433,12 +1452,18 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 			InitParameterDataSetBindings(SpawningInstances[0]);
 		}
 
-		// Can we spawn async?
-		const bool bCanRunAsync = !bIsSolo && (!bPostActorTick || !GNiagaraSystemSimulationTickTaskShouldWait);
-		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), bCanRunAsync);
+		// Execute spawning we only force solo onto the GameThread
+		FNiagaraSystemSimulationTickContext Context(this, SpawningInstances, SpawningDataSet, DeltaSeconds, SpawningInstances.Num(), !bIsSolo);
 		if ( Context.IsRunningAsync() )
 		{
-			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(nullptr, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
+			FGraphEventArray Prereqs;
+			auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+			if (ScriptTask.IsValid())
+			{
+				Prereqs.Add(ScriptTask);
+			}
+
+			auto ConcurrentTickTask = TGraphTask<FNiagaraSystemSimulationSpawnConcurrentTask>::CreateTask(&Prereqs, ENamedThreads::GameThread).ConstructAndHold(Context, AllWorkCompleteGraphEvent);
 			ConcurrentTickGraphEvent = ConcurrentTickTask->GetCompletionEvent();
 			for (FNiagaraSystemInstance* Instance : Context.Instances)
 			{
@@ -1446,11 +1471,24 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 			}
 			ConcurrentTickTask->Unlock();
 
-			// Note we always mark for EOF wait as the execution could be ongoing beyond PostActorTick
+			// Some simulations require us to complete inside PostActorTick and can not overlap to EOF updates / next frame, ensure we wait for them in the right location
+			if ( System->AllDIsPostSimulateCanOverlapFrames() && !GNiagaraSystemSimulationTickTaskShouldWait)
+			{
+				WorldManager->MarkSimulationForPostActorWork(this);
+			}
+			else
+			{
 			WorldManager->MarkSimulationsForEndOfFrameWait(this);
+		}
 		}
 		else
 		{
+			auto ScriptTask = System->GetScriptOptimizationCompletionEvent();
+			if (ScriptTask.IsValid())
+			{
+				ScriptTask->Wait(ENamedThreads::GameThread);
+			}
+
 			Spawn_Concurrent(Context);
 		}
 	}

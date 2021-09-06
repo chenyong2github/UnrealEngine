@@ -493,7 +493,7 @@ void UDockableWindowDragOperation::ExecuteDrag( UViewportInteractor* Interactor,
 	UVREditorInteractor* VREditorInteractor = Cast<UVREditorInteractor>( Interactor );
 	AVREditorDockableWindow* DockableWindow = Cast<AVREditorDockableWindow>( Interactable );
 
-	if (DockableWindow && DockableWindow->IsPendingKill())
+	if (DockableWindow && !IsValid(DockableWindow))
 	{
 		return;
 	}

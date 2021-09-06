@@ -426,7 +426,7 @@ bool FCameraCutTrackEditor::IsCameraPickable(const AActor* const PickableActor)
 	if (PickableActor->IsListedInSceneOutliner() &&
 		!FActorEditorUtils::IsABuilderBrush(PickableActor) &&
 		!PickableActor->IsA( AWorldSettings::StaticClass() ) &&
-		!PickableActor->IsPendingKill())
+		IsValid(PickableActor))
 	{	
 		UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromActor(PickableActor);
 		if (CameraComponent)	

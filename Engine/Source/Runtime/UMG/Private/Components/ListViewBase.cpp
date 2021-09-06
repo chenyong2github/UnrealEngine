@@ -93,6 +93,16 @@ const TArray<UUserWidget*>& UListViewBase::GetDisplayedEntryWidgets() const
 	return EntryWidgetPool.GetActiveWidgets(); 
 }
 
+float UListViewBase::GetScrollOffset() const
+{
+	if (MyTableViewBase.IsValid())
+	{
+		return MyTableViewBase->GetScrollOffset();
+	}
+
+	return 0.0f;
+}
+
 TSharedRef<SWidget> UListViewBase::RebuildWidget()
 {
 	FText ErrorText;
@@ -124,6 +134,7 @@ TSharedRef<SWidget> UListViewBase::RebuildWidget()
 
 	MyTableViewBase = RebuildListWidget();
 	MyTableViewBase->SetIsScrollAnimationEnabled(bEnableScrollAnimation);
+	MyTableViewBase->SetIsRightClickScrollingEnabled(bEnableRightClickScrolling);
 	MyTableViewBase->SetFixedLineScrollOffset(bEnableFixedLineOffset ? TOptional<double>(FixedLineScrollOffset) : TOptional<double>());
 	MyTableViewBase->SetWheelScrollMultiplier(GetGlobalScrollAmount() * WheelScrollMultiplier);
 
@@ -146,6 +157,7 @@ void UListViewBase::SynchronizeProperties()
 	if (MyTableViewBase)
 	{
 		MyTableViewBase->SetIsScrollAnimationEnabled(bEnableScrollAnimation);
+		MyTableViewBase->SetIsRightClickScrollingEnabled(bEnableRightClickScrolling);
 		MyTableViewBase->SetFixedLineScrollOffset(bEnableFixedLineOffset ? TOptional<double>(FixedLineScrollOffset) : TOptional<double>());
 		MyTableViewBase->SetWheelScrollMultiplier(GetGlobalScrollAmount() * WheelScrollMultiplier);
 	}

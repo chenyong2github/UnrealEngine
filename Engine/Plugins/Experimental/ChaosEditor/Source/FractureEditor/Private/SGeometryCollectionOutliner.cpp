@@ -226,7 +226,7 @@ void SGeometryCollectionOutliner::SetComponents(const TArray<UGeometryCollection
 
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
-		if (Component->GetRestCollection() && !Component->GetRestCollection()->IsPendingKill())
+		if (Component->GetRestCollection() && IsValidChecked(Component->GetRestCollection()))
 		{
 			RootNodes.Add(MakeShared<FGeometryCollectionTreeItemComponent>(Component, TreeView));
 			TArray<int32> SelectedBones = Component->GetSelectedBones();
@@ -580,7 +580,7 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 	int32 InitialDynamicState = INDEX_NONE;
 
 	const UGeometryCollection* RestCollection = ParentComponentItem->GetComponent()->GetRestCollection();
-	if (RestCollection && !RestCollection->IsPendingKill())
+	if (RestCollection && IsValidChecked(RestCollection))
 	{
 		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
 		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;

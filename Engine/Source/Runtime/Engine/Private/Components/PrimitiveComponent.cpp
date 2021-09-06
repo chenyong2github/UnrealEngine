@@ -1618,6 +1618,15 @@ void UPrimitiveComponent::SetCastInsetShadow(bool bInCastInsetShadow)
 	}
 }
 
+void UPrimitiveComponent::SetCastContactShadow(bool bInCastContactShadow)
+{
+	if (bInCastContactShadow != bCastContactShadow)
+	{
+		bCastContactShadow = bInCastContactShadow;
+		MarkRenderStateDirty();
+	}
+}
+
 void UPrimitiveComponent::SetLightAttachmentsAsGroup(bool bInLightAttachmentsAsGroup)
 {
 	if(bInLightAttachmentsAsGroup != bLightAttachmentsAsGroup)
@@ -2263,7 +2272,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 #endif
 
 	// static things can move before they are registered (e.g. immediately after streaming), but not after.
-	if (IsPendingKill() || CheckStaticMobilityAndWarn(PrimitiveComponentStatics::MobilityWarnText))
+	if (!IsValid(this) || CheckStaticMobilityAndWarn(PrimitiveComponentStatics::MobilityWarnText))
 	{
 		if (OutHit)
 		{
@@ -2332,7 +2341,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 			{
 				if (Actor)
 				{
-					ensureMsgf(IsRegistered(), TEXT("%s MovedComponent %s not registered during sweep (PendingKill %d)"), *Actor->GetName(), *GetName(), Actor->IsPendingKill());
+					ensureMsgf(IsRegistered(), TEXT("%s MovedComponent %s not registered during sweep (IsValid %d)"), *Actor->GetName(), *GetName(), IsValid(Actor));
 				}
 				else
 				{ //-V523
@@ -2538,7 +2547,7 @@ bool UPrimitiveComponent::MoveComponentImpl( const FVector& Delta, const FQuat& 
 
 	// Handle blocking hit notifications. Avoid if pending kill (which could happen after overlaps).
 	const bool bAllowHitDispatch = !BlockingHit.bStartPenetrating || !(MoveFlags & MOVECOMP_DisableBlockingOverlapDispatch);
-	if (BlockingHit.bBlockingHit && bAllowHitDispatch && !IsPendingKill())
+	if (BlockingHit.bBlockingHit && bAllowHitDispatch && IsValid(this))
 	{
 		check(bFilledHitResult);
 		if (IsDeferringMovementUpdates())
@@ -2596,7 +2605,7 @@ void UPrimitiveComponent::DispatchBlockingHit(AActor& Owner, FHitResult const& B
 		Owner.DispatchBlockingHit(this, BlockingHitComponent, true, BlockingHit);
 
 		// Dispatch above could kill the component, so we need to check that.
-		if (!BlockingHitComponent->IsPendingKill())
+		if (IsValid(BlockingHitComponent))
 		{
 			// BlockingHit.GetActor() could be marked for deletion in DispatchBlockingHit(), which would make the weak pointer return NULL.
 			if (AActor* const BlockingHitActor = BlockingHit.HitObjectHandle.GetManagingActor())
@@ -2838,7 +2847,7 @@ extern bool IsActorValidToNotify(AActor* Actor);
 // @fixme, duplicated, make an inline member?
 bool IsPrimCompValidAndAlive(UPrimitiveComponent* PrimComp)
 {
-	return (PrimComp != NULL) && !PrimComp->IsPendingKill();
+	return IsValid(PrimComp);
 }
 
 bool AreActorsOverlapping(const AActor& A, const AActor& B)
@@ -2861,7 +2870,7 @@ void UPrimitiveComponent::BeginComponentOverlap(const FOverlapInfo& OtherOverlap
 	SCOPE_CYCLE_COUNTER(STAT_BeginComponentOverlap);
 
 	// If pending kill, we should not generate any new overlaps
-	if (IsPendingKill())
+	if (!IsValid(this))
 	{
 		return;
 	}
@@ -2889,12 +2898,12 @@ void UPrimitiveComponent::BeginComponentOverlap(const FOverlapInfo& OtherOverlap
 			if (bDoNotifies && ((World && World->HasBegunPlay()) || bLevelStreamingOverlap))
 			{
 				// first execute component delegates
-				if (!IsPendingKill())
+				if (IsValid(this))
 				{
 					OnComponentBeginOverlap.Broadcast(this, OtherActor, OtherComp, OtherOverlap.GetBodyIndex(), OtherOverlap.bFromSweep, OtherOverlap.OverlapInfo);
 				}
 
-				if (!OtherComp->IsPendingKill())
+				if (IsValid(OtherComp))
 				{
 					// Reverse normals for other component. When it's a sweep, we are the one that moved.
 					OtherComp->OnComponentBeginOverlap.Broadcast(OtherComp, MyActor, this, INDEX_NONE, OtherOverlap.bFromSweep, OtherOverlap.bFromSweep ? FHitResult::GetReversedHit(OtherOverlap.OverlapInfo) : OtherOverlap.OverlapInfo);
@@ -3267,7 +3276,7 @@ TArray<AActor*> UPrimitiveComponent::CopyArrayOfMoveIgnoreActors()
 	for (int32 Index = MoveIgnoreActors.Num() - 1; Index >=0; --Index)
 	{
 		const AActor* const MoveIgnoreActor = MoveIgnoreActors[Index];
-		if (MoveIgnoreActor == nullptr || MoveIgnoreActor->IsPendingKill())
+		if (!IsValid(MoveIgnoreActor))
 		{
 			MoveIgnoreActors.RemoveAtSwap(Index,1,false);
 		}
@@ -3304,7 +3313,7 @@ TArray<UPrimitiveComponent*> UPrimitiveComponent::CopyArrayOfMoveIgnoreComponent
 	for (int32 Index = MoveIgnoreComponents.Num() - 1; Index >= 0; --Index)
 	{
 		const UPrimitiveComponent* const MoveIgnoreComponent = MoveIgnoreComponents[Index];
-		if (MoveIgnoreComponent == nullptr || MoveIgnoreComponent->IsPendingKill())
+		if (!IsValid(MoveIgnoreComponent))
 		{
 			MoveIgnoreComponents.RemoveAtSwap(Index, 1, false);
 		}
@@ -3353,7 +3362,7 @@ bool UPrimitiveComponent::UpdateOverlapsImpl(const TOverlapArrayView* NewPending
 			TInlineOverlapPointerArray NewOverlappingComponentPtrs;
 
 			// If pending kill, we should not generate any new overlaps. Also not if overlaps were just disabled during BeginComponentOverlap.
-			if (!IsPendingKill() && GetGenerateOverlapEvents())
+			if (IsValid(this) && GetGenerateOverlapEvents())
 			{
 				// Might be able to avoid testing for new overlaps at the end location.
 				if (OverlapsAtEndLocation != nullptr && bAllowCachedOverlapsCVar && PrevTransform.Equals(GetComponentTransform()))
@@ -3613,7 +3622,7 @@ void UPrimitiveComponent::UpdateBounds()
 
 void UPrimitiveComponent::UpdatePhysicsVolume( bool bTriggerNotifiers )
 {
-	if (GetShouldUpdatePhysicsVolume() && !IsPendingKill())
+	if (GetShouldUpdatePhysicsVolume() && IsValid(this))
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdatePhysicsVolume);
 		if (UWorld* MyWorld = GetWorld())
@@ -3676,7 +3685,7 @@ void UPrimitiveComponent::DispatchMouseOverEvents(UPrimitiveComponent* CurrentCo
 			{
 				bBroadcastActorBegin = (NewOwner != CurrentOwner);
 
-				if (!CurrentComponent->IsPendingKill())
+				if (IsValid(CurrentComponent))
 				{
 					CurrentComponent->OnEndCursorOver.Broadcast(CurrentComponent);
 				}
@@ -3701,7 +3710,7 @@ void UPrimitiveComponent::DispatchMouseOverEvents(UPrimitiveComponent* CurrentCo
 					NewOwner->OnBeginCursorOver.Broadcast(NewOwner);
 				}
 			}
-			if (!NewComponent->IsPendingKill())
+			if (IsValid(NewComponent))
 			{
 				NewComponent->OnBeginCursorOver.Broadcast(NewComponent);
 			}
@@ -3711,7 +3720,7 @@ void UPrimitiveComponent::DispatchMouseOverEvents(UPrimitiveComponent* CurrentCo
 	{
 		AActor* CurrentOwner = CurrentComponent->GetOwner();
 
-		if (!CurrentComponent->IsPendingKill())
+		if (IsValid(CurrentComponent))
 		{
 			CurrentComponent->OnEndCursorOver.Broadcast(CurrentComponent);
 		}
@@ -3747,7 +3756,7 @@ void UPrimitiveComponent::DispatchTouchOverEvents(ETouchIndex::Type FingerIndex,
 			{
 				bBroadcastActorBegin = (NewOwner != CurrentOwner);
 
-				if (!CurrentComponent->IsPendingKill())
+				if (IsValid(CurrentComponent))
 				{
 					CurrentComponent->OnInputTouchLeave.Broadcast(FingerIndex, CurrentComponent);
 				}
@@ -3772,7 +3781,7 @@ void UPrimitiveComponent::DispatchTouchOverEvents(ETouchIndex::Type FingerIndex,
 					NewOwner->OnInputTouchEnter.Broadcast(FingerIndex, NewOwner);
 				}
 			}
-			if (!NewComponent->IsPendingKill())
+			if (IsValid(NewComponent))
 			{
 				NewComponent->OnInputTouchEnter.Broadcast(FingerIndex, NewComponent);
 			}
@@ -3782,7 +3791,7 @@ void UPrimitiveComponent::DispatchTouchOverEvents(ETouchIndex::Type FingerIndex,
 	{
 		AActor* CurrentOwner = CurrentComponent->GetOwner();
 
-		if (!CurrentComponent->IsPendingKill())
+		if (IsValid(CurrentComponent))
 		{
 			CurrentComponent->OnInputTouchLeave.Broadcast(FingerIndex, CurrentComponent);
 		}
@@ -3809,7 +3818,7 @@ void UPrimitiveComponent::DispatchOnClicked(FKey ButtonPressed)
 		}
 	}
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		OnClicked.Broadcast(this, ButtonPressed);
 	}
@@ -3826,7 +3835,7 @@ void UPrimitiveComponent::DispatchOnReleased(FKey ButtonReleased)
 		}
 	}
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		OnReleased.Broadcast(this, ButtonReleased);
 	}
@@ -3843,7 +3852,7 @@ void UPrimitiveComponent::DispatchOnInputTouchBegin(const ETouchIndex::Type Fing
 		}
 	}
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		OnInputTouchBegin.Broadcast(FingerIndex, this);
 	}
@@ -3860,7 +3869,7 @@ void UPrimitiveComponent::DispatchOnInputTouchEnd(const ETouchIndex::Type Finger
 		}
 	}
 
-	if (!IsPendingKill())
+	if (IsValid(this))
 	{
 		OnInputTouchEnd.Broadcast(FingerIndex, this);
 	}

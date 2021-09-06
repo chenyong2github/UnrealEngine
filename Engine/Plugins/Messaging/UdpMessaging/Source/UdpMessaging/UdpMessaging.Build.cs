@@ -10,6 +10,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"Core",
+					"Networking",
 				});
 
 			PrivateDependencyModuleNames.AddRange(
@@ -18,7 +19,6 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"Cbor",
 					"Messaging",
-					"Networking",
 					"Serialization",
 					"TraceLog",
 					"Sockets",

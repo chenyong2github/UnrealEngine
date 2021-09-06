@@ -30,9 +30,9 @@ void FGameplayDebuggerCategory_BehaviorTree::CollectData(APlayerController* Owne
 {
 	APawn* MyPawn = Cast<APawn>(DebugActor);
 	AAIController* MyController = MyPawn ? Cast<AAIController>(MyPawn->Controller) : nullptr;
-	UBrainComponent* BrainComp = MyController ? MyController->GetBrainComponent() : nullptr;
+	UBrainComponent* BrainComp = GetValid(MyController ? MyController->GetBrainComponent() : nullptr);
 	
-	if (BrainComp && !BrainComp->IsPendingKill())
+	if (BrainComp)
 	{
 		DataPack.CompName = BrainComp->GetName();
 		DataPack.TreeDesc = BrainComp->GetDebugInfoString();

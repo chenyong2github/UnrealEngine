@@ -722,9 +722,9 @@ AActor* UWorld::SpawnActor( UClass* Class, FTransform const* UserTransformPtr, c
 		ExternalPackage->MarkPackageDirty();
 	}
 
-	if (Actor->IsPendingKill() && !SpawnParameters.bNoFail)
+	if (!IsValid(Actor) && !SpawnParameters.bNoFail)
 	{
-		UE_LOG(LogSpawn, Log, TEXT("SpawnActor failed because the spawned actor %s IsPendingKill"), *Actor->GetPathName());
+		UE_LOG(LogSpawn, Log, TEXT("SpawnActor failed because the spawned actor %s is invalid"), *Actor->GetPathName());
 		return NULL;
 	}
 

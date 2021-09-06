@@ -772,27 +772,37 @@ bool UWaterBodyComponent::CanEditChange(const FProperty* InProperty) const
 
 void UWaterBodyComponent::OnPostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent, bool& bShapeOrPositionChanged, bool& bWeightmapSettingsChanged)
 {
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, LayerWeightmapSettings))
 	{
 		bWeightmapSettingsChanged = true;
 	}
-	else if ((PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterMaterial)) ||
-			(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, UnderwaterPostProcessMaterial)))
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, WaterMaterial)) ||
+			(PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, UnderwaterPostProcessMaterial)))
 	{
 		UpdateMaterialInstances();
 	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, TargetWaveMaskDepth))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, TargetWaveMaskDepth))
 	{
 		RequestGPUWaveDataUpdate();
 	}
-	else if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, MaxWaveHeightOffset))
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UWaterBodyComponent, MaxWaveHeightOffset))
 	{
 		bShapeOrPositionChanged = true;
 	}
+	if (PropertyChangedEvent.MemberProperty && PropertyChangedEvent.MemberProperty->GetFName() == FName(TEXT("RelativeScale3D")) &&
+		PropertyName == FName(TEXT("Z")))
+	{
+		// Prevent scaling on the Z axis
+		FVector Scale = GetRelativeScale3D();
+		Scale.Z = 1.f;
+		SetRelativeScale3D(Scale);
+}
 }
 
-EWaterBodyStatus UWaterBodyComponent::CheckWaterBodyStatus() const
+TArray<TSharedRef<FTokenizedMessage>> UWaterBodyComponent::CheckWaterBodyStatus() const
 {
+	TArray<TSharedRef<FTokenizedMessage>> Result;
 	if (!IsTemplate())
 	{
 		if (const UWorld* World = GetWorld())
@@ -801,40 +811,35 @@ EWaterBodyStatus UWaterBodyComponent::CheckWaterBodyStatus() const
 			{
 				if (AffectsWaterMesh() && (WaterSubsystem->GetWaterMeshActor() == nullptr))
 				{
-					return EWaterBodyStatus::MissingWaterMesh;
+					Result.Add(FTokenizedMessage::Create(
+						EMessageSeverity::Error,
+						FText::Format(
+							LOCTEXT("MapCheck_Message_MissingWaterMesh", "Water body {0} requires a WaterMeshActor to be rendered. Please add one to the map. "),
+							FText::FromString(GetWaterBodyActor()->GetActorLabel()))));
 				}
 			}
 
 			if (AffectsLandscape() && FindLandscape() == nullptr)
 			{
-				return EWaterBodyStatus::MissingLandscape;
+				Result.Add(FTokenizedMessage::Create(
+					EMessageSeverity::Error,
+					FText::Format(
+						LOCTEXT("MapCheck_Message_MissingLandscape", "Water body {0} requires a Landscape to be rendered. Please add one to the map. "),
+						FText::FromString(GetWaterBodyActor()->GetActorLabel()))));
 			}
 		}
 	}
-
-	return EWaterBodyStatus::Valid;
+	return Result;
 }
 
 void UWaterBodyComponent::CheckForErrors()
 {
 	Super::CheckForErrors();
 
-	switch (CheckWaterBodyStatus())
+	TArray<TSharedRef<FTokenizedMessage>> StatusMessages = CheckWaterBodyStatus();
+	for (const TSharedRef<FTokenizedMessage>& StatusMessage : StatusMessages)
 	{
-	case EWaterBodyStatus::MissingWaterMesh:
-		FMessageLog("MapCheck").Error()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingWaterMesh", "This water body requires a WaterMeshActor to be rendered. Please add one to the map. ")))
-			->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingWaterMesh")));
-		break;
-	case EWaterBodyStatus::MissingLandscape:
-		FMessageLog("MapCheck").Error()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT("MapCheck_Message_MissingLandscape", "This water body requires a Landscape to be rendered. Please add one to the map. ")))
-			->AddToken(FMapErrorToken::Create(TEXT("WaterBodyMissingLandscape")));
-		break;
-	case EWaterBodyStatus::Valid:
-	default: break;
+		FMessageLog("MapCheck").AddMessage(StatusMessage);
 	}
 }
 
@@ -1122,6 +1127,21 @@ void UWaterBodyComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 #endif // WITH_EDITOR
 
 	Super::OnComponentDestroyed(bDestroyingHierarchy);
+}
+
+bool UWaterBodyComponent::MoveComponentImpl(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* Hit, EMoveComponentFlags MoveFlags, ETeleportType Teleport)
+{
+	// Prevent Z-Scale
+	FVector Scale = GetRelativeScale3D();
+	Scale.Z = 1.f;
+	SetRelativeScale3D(Scale);
+
+	// Restrict rotation to the Z-axis only
+	FQuat CorrectedRotation = NewRotation;
+	CorrectedRotation.X = 0.f;
+	CorrectedRotation.Y = 0.f;
+
+	return Super::MoveComponentImpl(Delta, CorrectedRotation, bSweep, Hit, MoveFlags, Teleport);
 }
 
 void UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID)

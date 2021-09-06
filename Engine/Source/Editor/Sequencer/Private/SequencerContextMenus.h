@@ -52,12 +52,6 @@ private:
 
 	bool CanSetSectionToKey() const;
 
-	void TogglePrimeForRecording() const;
-
-	bool IsPrimedForRecording() const;
-
-	bool CanPrimeForRecording() const;
-
 	void AutoSizeSection();
 
 	void ReduceKeys();

@@ -23,17 +23,17 @@ extern CORE_API UE::Tasks::FPipe GAudioPipe;
 extern CORE_API std::atomic<bool> GIsAudioThreadRunning;
 extern CORE_API std::atomic<bool> GIsAudioThreadSuspended;
 
-int32 GCVarSuspendAudioThread = 0;
-TAutoConsoleVariable<int32> CVarSuspendAudioThread(TEXT("AudioThread.SuspendAudioThread"), GCVarSuspendAudioThread, TEXT("0=Resume, 1=Suspend"), ECVF_Cheat);
+static int32 GCVarSuspendAudioThread = 0;
+FAutoConsoleVariableRef CVarSuspendAudioThread(TEXT("AudioThread.SuspendAudioThread"), GCVarSuspendAudioThread, TEXT("0=Resume, 1=Suspend"), ECVF_Cheat);
 
-int32 GCVarAboveNormalAudioThreadPri = 0;
-TAutoConsoleVariable<int32> CVarAboveNormalAudioThreadPri(TEXT("AudioThread.AboveNormalPriority"), GCVarAboveNormalAudioThreadPri, TEXT("0=Normal, 1=AboveNormal"), ECVF_Default);
+static int32 GCVarAboveNormalAudioThreadPri = 0;
+FAutoConsoleVariableRef CVarAboveNormalAudioThreadPri(TEXT("AudioThread.AboveNormalPriority"), GCVarAboveNormalAudioThreadPri, TEXT("0=Normal, 1=AboveNormal"), ECVF_Default);
 
-int32 GCVarEnableAudioCommandLogging = 0;
-TAutoConsoleVariable<int32> CVarEnableAudioCommandLogging(TEXT("AudioThread.EnableAudioCommandLogging"), GCVarEnableAudioCommandLogging, TEXT("0=Disbaled, 1=Enabled"), ECVF_Default);
+static int32 GCVarEnableAudioCommandLogging = 0;
+FAutoConsoleVariableRef CVarEnableAudioCommandLogging(TEXT("AudioThread.EnableAudioCommandLogging"), GCVarEnableAudioCommandLogging, TEXT("0=Disbaled, 1=Enabled"), ECVF_Default);
 
 static int32 GCVarEnableBatchProcessing = 1;
-TAutoConsoleVariable<int32> CVarEnableBatchProcessing(
+FAutoConsoleVariableRef CVarEnableBatchProcessing(
 	TEXT("AudioThread.EnableBatchProcessing"),
 	GCVarEnableBatchProcessing,
 	TEXT("Enables batch processing audio thread commands.\n")
@@ -48,7 +48,7 @@ static FAutoConsoleVariableRef CVarBatchAudioAsyncBatchSize(
 );
 
 static int32 GAudioCommandFenceWaitTimeMs = 35;
-TAutoConsoleVariable<int32> CVarAudioCommandFenceWaitTimeMs(
+FAutoConsoleVariableRef  CVarAudioCommandFenceWaitTimeMs(
 	TEXT("AudioCommand.FenceWaitTimeMs"),
 	GAudioCommandFenceWaitTimeMs, 
 	TEXT("Sets number of ms for fence wait"), 
@@ -59,7 +59,7 @@ struct FAudioThreadInteractor
 	static void UseAudioThreadCVarSinkFunction()
 	{
 		static bool bLastSuspendAudioThread = false;
-		const bool bSuspendAudioThread = (CVarSuspendAudioThread.GetValueOnGameThread() != 0);
+		const bool bSuspendAudioThread = GCVarSuspendAudioThread != 0;
 
 		if (bLastSuspendAudioThread != bSuspendAudioThread)
 		{
@@ -205,7 +205,8 @@ void FAudioThread::SuspendAudioThread()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(SuspendAudioThread);
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!GIsAudioThreadSuspended || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
+	check(!GIsAudioThreadSuspended.Load() || GCVarSuspendAudioThread != 0);
+
 	if (IsAudioThreadRunning())
 	{
 		// Make GC wait on the audio thread finishing processing
@@ -224,7 +225,7 @@ void FAudioThread::ResumeAudioThread()
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	if (GIsAudioThreadSuspended && CVarSuspendAudioThread.GetValueOnGameThread() == 0)
+	if(GIsAudioThreadSuspended.Load() && GCVarSuspendAudioThread == 0)
 	{
 		GIsAudioThreadSuspended = false;
 		FPlatformMisc::MemoryBarrier();
@@ -270,6 +271,7 @@ void FAudioThread::Exit()
 uint32 FAudioThread::Run()
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
+	SCOPED_NAMED_EVENT(FAudioThread_Run, FColor::Blue);
 
 	FMemory::SetupTLSCachesOnCurrentThread();
 	FPlatformProcess::SetupAudioThread();
@@ -679,7 +681,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		GAudioThread = 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			FRunnableThread::Create(AudioThreadRunnable, *FName(NAME_AudioThread).GetPlainNameString(), 0, (CVarAboveNormalAudioThreadPri.GetValueOnGameThread() == 0) ? TPri_BelowNormal : TPri_AboveNormal, FPlatformAffinity::GetAudioThreadMask());
+			FRunnableThread::Create(AudioThreadRunnable, *FName(NAME_AudioThread).GetPlainNameString(), 0, (GCVarAboveNormalAudioThreadPri == 0) ? TPri_BelowNormal : TPri_AboveNormal, FPlatformAffinity::GetAudioThreadMask());
 
 		// Wait for audio thread to have taskgraph bound before we dispatch any tasks for it.
 		((FAudioThread*)AudioThreadRunnable)->TaskGraphBoundSyncEvent->Wait();
@@ -691,7 +693,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		ThreadCount++;
 
-		if (CVarSuspendAudioThread.GetValueOnGameThread() != 0)
+		if (GCVarSuspendAudioThread != 0)
 		{
 			SuspendAudioThread();
 		}
@@ -701,7 +703,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void FAudioThread::StopAudioThread()
 {
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!GIsAudioThreadSuspended || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
+	check(!GIsAudioThreadSuspended.Load() || GCVarSuspendAudioThread != 0);
 
 	if (!IsAudioThreadRunning())
 	{

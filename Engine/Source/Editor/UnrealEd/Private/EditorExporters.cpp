@@ -585,7 +585,7 @@ void ULevelExporterT3D::ExportComponentExtra(const FExportObjectInnerContext* Co
 			for (TActorIterator<AInstancedFoliageActor> It(ActorComponent->GetWorld()); It; ++It)
 			{
 				AInstancedFoliageActor* IFA = *It;
-				if (!IFA->IsPendingKill())
+				if (IsValid(IFA))
 				{
 					auto FoliageInstanceMap = IFA->GetInstancesForComponent(ActorComponent);
 					for (const auto& MapEntry : FoliageInstanceMap)

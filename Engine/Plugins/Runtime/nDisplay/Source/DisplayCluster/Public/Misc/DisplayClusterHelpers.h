@@ -427,7 +427,7 @@ namespace DisplayClusterHelpers
 			for (TActorIterator<AActor> It(World, T::StaticClass()); It; ++It)
 			{
 				T* Actor = Cast<T>(*It);
-				if (Actor && !Actor->IsPendingKill())
+				if (IsValid(Actor))
 				{
 					Out.Add(Actor);
 				}

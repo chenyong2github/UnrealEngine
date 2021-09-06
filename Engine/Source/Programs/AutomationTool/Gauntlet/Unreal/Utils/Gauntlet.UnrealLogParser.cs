@@ -439,9 +439,10 @@ namespace Gauntlet
 				// with both ShaderCompiler and ShaderManager
 				Entries = LogEntries.Where(E =>
 				{
+					string LogEntryCategory = E.Category.ToString();
 					foreach (string Cat in InCategories)
 					{
-						if (InCategories.Contains(Cat, StringComparer.OrdinalIgnoreCase))
+						if (LogEntryCategory.IndexOf(Cat, StringComparison.OrdinalIgnoreCase) >= 0)
 						{
 							return true;
 						}

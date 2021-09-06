@@ -11,6 +11,7 @@
 #include "AudioCompressionSettingsUtils.h"
 #include "Async/Async.h"
 #include "Sound/SoundEffectPreset.h"
+#include "Algo/Transform.h"
 #include "AudioDeviceManager.h"
 
 // This is our global recording task:
@@ -25,9 +26,9 @@ FAudioOutputDeviceInfo::FAudioOutputDeviceInfo(const Audio::FAudioPlatformDevice
 	, bIsSystemDefault(InDeviceInfo.bIsSystemDefault)
 	, bIsCurrentDevice(false)
 {
-	for (int32 i = 0; i < NumChannels; ++i)
+	for (EAudioMixerChannel::Type i : InDeviceInfo.OutputChannelArray)
 	{
-		OutputChannelArray.Add(EAudioMixerChannelType(InDeviceInfo.OutputChannelArray[i]));
+		OutputChannelArray.Emplace(EAudioMixerChannelType(i));
 	}
 
 }
@@ -706,11 +707,15 @@ void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* 
 	Audio::FMixerDevice* AudioMixerDevice = FAudioDeviceManager::GetAudioMixerDeviceFromWorldContext(WorldContextObject);
 	if (AudioMixerDevice)
 	{
-		Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform();
-
-		//Retrieve information on available devices
-		if (MixerPlatform)
+		if (Audio::IAudioMixerPlatformInterface* MixerPlatform = AudioMixerDevice->GetAudioMixerPlatform())
 		{
+			if (Audio::IAudioPlatformDeviceInfoCache* DeviceInfoCache = MixerPlatform->GetDeviceInfoCache())
+		{
+				TArray<Audio::FAudioPlatformDeviceInfo> AllDevices = DeviceInfoCache->GetAllActiveOutputDevices();
+				Algo::Transform(AllDevices, OutputDeviceInfos, [](auto& i) -> FAudioOutputDeviceInfo { return { i }; });
+			}
+			else 
+			{
 			uint32 NumOutputDevices = 0;
 			MixerPlatform->GetNumOutputDevices(NumOutputDevices);
 			OutputDeviceInfos.Reserve(NumOutputDevices);
@@ -727,6 +732,7 @@ void UAudioMixerBlueprintLibrary::GetAvailableAudioOutputDevices(const UObject* 
 				OutputDeviceInfos.Emplace(MoveTemp(NewInfo));
 			}
 		}
+	}
 	}
 
 	//Send data through delegate on game thread

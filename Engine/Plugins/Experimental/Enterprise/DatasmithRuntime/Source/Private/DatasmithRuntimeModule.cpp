@@ -9,6 +9,7 @@
 #include "MaterialSelectors/DatasmithRuntimeMaterialSelector.h"
 
 #include "DatasmithTranslatorModule.h"
+#include "DatasmithGLTFTranslatorModule.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 
 #if WITH_EDITOR
@@ -25,6 +26,7 @@ public:
 	{
 		// Verify DatasmithTranslatorModule has been loaded
 		check(IDatasmithTranslatorModule::IsAvailable());
+		ensure(IDatasmithGLTFTranslatorModule::IsAvailable());
 
 #if WITH_EDITOR
 		// If don't have any active references to our materials they won't be packaged into monolithic builds, and we wouldn't

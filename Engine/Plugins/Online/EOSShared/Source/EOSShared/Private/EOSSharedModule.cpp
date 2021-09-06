@@ -3,6 +3,7 @@
 #include "EOSSharedModule.h"
 
 #include "Features/IModularFeatures.h"
+#include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 
@@ -19,6 +20,17 @@ void FEOSSharedModule::StartupModule()
 	check(SDKManager);
 
 	IModularFeatures::Get().RegisterModularFeature(TEXT("EOSSDKManager"), SDKManager.Get());
+
+	// Load from a configurable array of modules at this point, so things that need to bind to the SDK Manager init hooks can do so.
+	TArray<FString> ModulesToLoad;
+	GConfig->GetArray(TEXT("EOSShared"), TEXT("ModulesToLoad"), ModulesToLoad, GEngineIni);
+	for (const FString& ModuleToLoad : ModulesToLoad)
+	{
+		if (FModuleManager::Get().ModuleExists(*ModuleToLoad))
+		{
+			FModuleManager::Get().LoadModule(*ModuleToLoad);
+		}
+	}
 #endif // WITH_EOS_SDK
 }
 

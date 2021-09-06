@@ -1220,13 +1220,13 @@ void UWidgetComponent::UpdateWidgetOnScreen()
 {
 	if ((GetUserWidgetObject() || GetSlateWidget().IsValid()) && Space == EWidgetSpace::Screen)
 	{
-			UWorld* ThisWorld = GetWorld();
-			if (ThisWorld && ThisWorld->IsGameWorld())
-			{
-				ULocalPlayer* TargetPlayer = GetOwnerPlayer();
+		UWorld* ThisWorld = GetWorld();
+		if (ThisWorld && ThisWorld->IsGameWorld())
+		{
+			ULocalPlayer* TargetPlayer = GetOwnerPlayer();
 			APlayerController* PlayerController = TargetPlayer ? ToRawPtr(TargetPlayer->PlayerController) : nullptr;
-				if (TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
-				{
+			if (TargetPlayer && PlayerController && IsVisible() && !(GetOwner()->IsHidden()))
+			{
 				if (!bAddedToScreen)
 				{
 					AddWidgetToScreen(TargetPlayer);
@@ -1323,6 +1323,7 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 
 	const float DrawScale = 1.0f;
 
+	bool bHasValidSize = true;
 	if ( bDrawAtDesiredSize )
 	{
 		SlateWindow->SlatePrepass(DrawScale);
@@ -1333,6 +1334,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 		CurrentDrawSize = DesiredSize.IntPoint();
 
 		WidgetRenderer->SetIsPrepassNeeded(false);
+
+		if (DesiredSize.X <= 0 || DesiredSize.Y <= 0)
+		{
+			bHasValidSize = false;
+		}
 	}
 	else
 	{
@@ -1341,8 +1347,15 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 
 	if ( CurrentDrawSize != PreviousDrawSize )
 	{
+		if (bHasValidSize)
+		{
 		UpdateBodySetup(true);
 		RecreatePhysicsState();
+	}
+		else
+		{
+			DestroyPhysicsState();
+		}
 	}
 
 	UpdateRenderTarget(CurrentDrawSize);
@@ -1678,7 +1691,7 @@ void UWidgetComponent::SetSlateWidget(const TSharedPtr<SWidget>& InSlateWidget)
 void UWidgetComponent::UpdateWidget()
 {
 	// Don't do any work if Slate is not initialized
-	if (FSlateApplication::IsInitialized() && !IsPendingKill())
+	if (FSlateApplication::IsInitialized() && IsValid(this))
 	{
 		if (Space == EWidgetSpace::World)
 		{

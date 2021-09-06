@@ -929,8 +929,8 @@ void FPersistentUniformBuffers::Initialize()
 		MobileDirectionalLightUniformBuffers[Index] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(MobileDirectionalLightShaderParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	}
 
-	FMobileReflectionCaptureShaderParameters MobileSkyReflectionShaderParameters;
-	MobileSkyReflectionUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(MobileSkyReflectionShaderParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
+	const FMobileReflectionCaptureShaderParameters* DefaultMobileSkyReflectionParameters = (const FMobileReflectionCaptureShaderParameters*)GDefaultMobileReflectionCaptureUniformBuffer.GetContents();
+	MobileSkyReflectionUniformBuffer = TUniformBufferRef<FMobileReflectionCaptureShaderParameters>::CreateUniformBufferImmediate(*DefaultMobileSkyReflectionParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 }
 
 TSet<IPersistentViewUniformBufferExtension*> PersistentViewUniformBufferExtensions;
@@ -2251,9 +2251,7 @@ void FScene::ReleaseReflectionCubemap(UReflectionCaptureComponent* CaptureCompon
 const FReflectionCaptureProxy* FScene::FindClosestReflectionCapture(FVector Position) const
 {
 	checkSlow(IsInParallelRenderingThread());
-	int32 ClosestCaptureIndex = INDEX_NONE;
 	float ClosestDistanceSquared = FLT_MAX;
-
 	int32 ClosestInfluencingCaptureIndex = INDEX_NONE;
 
 	// Linear search through the scene's reflection captures
@@ -2274,21 +2272,9 @@ const FReflectionCaptureProxy* FScene::FindClosestReflectionCapture(FVector Posi
 				ClosestInfluencingCaptureIndex = CaptureIndex;
 			}
 		}
-		// If no influencing ReflectionCapture has been found, record the closest ReflectionCapture.
-		else if (ClosestInfluencingCaptureIndex == INDEX_NONE && DistanceSquared < ClosestDistanceSquared)
-		{
-			ClosestDistanceSquared = DistanceSquared;
-			ClosestCaptureIndex = CaptureIndex;
-		}
 	}
 
-	// Choose the closest influencing ReflectionCapture if any exists.
-	if (ClosestInfluencingCaptureIndex != INDEX_NONE)
-	{
-		ClosestCaptureIndex = ClosestInfluencingCaptureIndex;
-	}
-
-	return ClosestCaptureIndex != INDEX_NONE ? ReflectionSceneData.RegisteredReflectionCaptures[ClosestCaptureIndex] : NULL;
+	return ClosestInfluencingCaptureIndex != INDEX_NONE ? ReflectionSceneData.RegisteredReflectionCaptures[ClosestInfluencingCaptureIndex] : NULL;
 }
 
 const FPlanarReflectionSceneProxy* FScene::FindClosestPlanarReflection(const FBoxSphereBounds& Bounds) const

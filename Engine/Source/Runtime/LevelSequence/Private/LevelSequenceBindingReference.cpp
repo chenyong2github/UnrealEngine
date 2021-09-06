@@ -261,7 +261,7 @@ void FLevelSequenceBindingReferences::RemoveInvalidObjects(const FGuid& ObjectId
 	{
 		UObject* ResolvedObject = ReferenceArray->References[ReferenceIndex].Resolve(InContext, NAME_None);
 
-		if (!ResolvedObject || ResolvedObject->IsPendingKill())
+		if (!IsValid(ResolvedObject))
 		{
 			ReferenceArray->References.RemoveAt(ReferenceIndex);
 		}

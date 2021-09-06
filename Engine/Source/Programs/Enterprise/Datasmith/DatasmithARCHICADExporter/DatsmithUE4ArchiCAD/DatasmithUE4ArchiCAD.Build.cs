@@ -26,6 +26,8 @@ namespace UnrealBuildTool.Rules
 					"UdpMessaging",
 					"MessagingCommon",
 					"Messaging",
+                    
+                    "DatasmithValidator",
 				}
 			);
 		}

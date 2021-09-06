@@ -51,6 +51,8 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_INT(FixedLocalFrameOffset, -1, "np2.FixedLocalFrameOffset", "When > 0, use hardcoded frame offset on client from head");	
 	NP_DEVCVAR_INT(FixedLocalFrameOffsetTolerance, 3, "np2.FixedLocalFrameOffsetTolerance", "Tolerance when using np2.FixedLocalFrameOffset");
 
+	NP_DEVCVAR_INT(ForceInputFault, 0, "np2.ForceInputFault", "Force input fault correction");
+
 	// NOTE: These have temporarily been switched to regular CVar style variables, because the NP_DECVAR_* macros
 	// can only make ECVF_Cheat variables, which cannot be hotfixed with DefaultEngine.ini. Instead they use
 	// ConsoleVariables.ini, which isn't loaded in shipping.
@@ -250,7 +252,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 				if (Proxy->GetHandle_LowLevel() == nullptr)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("No valid LowLEvel handle yet..."));
+					UE_LOG(LogNetworkPhysics, Warning, TEXT("No valid LowLevel handle yet."));
 					continue;
 				}
 
@@ -380,12 +382,15 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 				// TODO: This nullcheck is to avoid null access crash in Editor Tests.
 				// Should re-evaluate whether/why this is occurring in the first place.
-				if (CorrectionState.Proxy)
+				if (ensure(CorrectionState.Proxy))
 				{
 				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
 				{
 					UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
 				
+						npEnsure(CorrectionState.Physics.Location.ContainsNaN() == false);
+						npEnsure(CorrectionState.Physics.LinearVelocity.ContainsNaN() == false);
+						npEnsure(CorrectionState.Physics.AngularVelocity.ContainsNaN() == false);
 					PT->SetX(CorrectionState.Physics.Location, false);
 					PT->SetV(CorrectionState.Physics.LinearVelocity, false);
 					PT->SetR(CorrectionState.Physics.Rotation, false);
@@ -657,9 +662,12 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 			const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
 			if (ensure(NumFramesCVar))
 			{
-				NumFrames = NumFramesCVar->GetInt();
+				// 1 frame is required to enable rewind capture. 
+				NumFrames = FMath::Max<int32>(1, NumFramesCVar->GetInt());
 			}
 
+			if (ensure(NumFrames > 0))
+			{
 			Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
 			RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
 			RewindCallback->RewindData = Solver->GetRewindData();
@@ -667,6 +675,7 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 			RewindCallback->World = World;
 			RewindCallback->NetworkPhysicsManager = this;
 		}
+	}
 	}
 #endif
 }
@@ -740,7 +749,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 					const int32 FrameOffset = LatestAckdClientFrame - LatestAckdServerFrame;
 					if (FrameOffset != LocalOffset)
 					{
-						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("LocalOFfset Changed: %d -> %d"), LocalOffset, FrameOffset);
+						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("LocalOFfset Changed: %d -> %d [C:%d. S:%d]"), LocalOffset, FrameOffset, LatestAckdClientFrame, LatestAckdServerFrame);
 						LocalOffset = FrameOffset;
 					}
 				}
@@ -1009,7 +1018,7 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	}
 
 	// ----------------------------------------------------------------------
-	//	Call into Subsystems. This is where they will marshall input to the PT
+	//	Call into Subsystems. This is where they will marshal input to the PT
 	// ----------------------------------------------------------------------
 
 	bool bOutSentClientInput = false;
@@ -1067,6 +1076,9 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 	UWorld* World = GetWorld();
 	constexpr int32 MaxBufferedCmds = 16;
 
+	const bool bForceFault = UE_NETWORK_PHYSICS::ForceInputFault > 0;
+	UE_NETWORK_PHYSICS::ForceInputFault = 0;
+
 	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		if (APlayerController* PC = Iterator->Get())
@@ -1076,7 +1088,7 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 
 			auto UpdateLastProcessedInputFrame = [&]()
 			{
-				const int32 NumBufferedInputCmds = InputBuffer.HeadFrame() - FrameInfo.LastProcessedInputFrame;
+				const int32 NumBufferedInputCmds = bForceFault ? 0 : (InputBuffer.HeadFrame() - FrameInfo.LastProcessedInputFrame);
 
 				// Check Overflow
 				if (NumBufferedInputCmds > MaxBufferedCmds)

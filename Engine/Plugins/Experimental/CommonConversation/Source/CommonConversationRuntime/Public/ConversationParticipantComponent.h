@@ -35,9 +35,13 @@ public:
 	DECLARE_EVENT_OneParam(UConversationParticipantComponent, FConversationUpdatedEvent, const FClientConversationMessagePayload& /*Message*/);
 	FConversationUpdatedEvent ConversationUpdated;
 
+	DECLARE_EVENT_TwoParams(UConversationParticipantComponent, FConversationTaskChoiceDataUpdatedEvent, const FConversationNodeHandle& /*Handle*/, const FClientConversationOptionEntry& /*OptionEntry*/);
+	FConversationTaskChoiceDataUpdatedEvent ConversationTaskChoiceDataUpdated;
+
 public:
 	void SendClientConversationMessage(const FConversationContext& Context, const FClientConversationMessagePayload& Payload);
 	void SendClientUpdatedChoices(const FConversationContext& Context);
+	void SendClientRefreshedTaskChoiceData(const FConversationNodeHandle& Handle, const FConversationContext& Context);
 
 	UFUNCTION(BlueprintCallable, Category=Conversation)
 	void RequestServerAdvanceConversation(const FAdvanceConversationRequest& InChoicePicked);
@@ -47,6 +51,7 @@ public:
 	void ServerNotifyConversationEnded(UConversationInstance* Conversation);
 	void ServerNotifyExecuteTaskAndSideEffects(const FConversationNodeHandle& Handle);
 	void ServerForAllConversationsRefreshChoices(UConversationInstance* IgnoreConversation = nullptr);
+	void ServerForAllConversationsRefreshTaskChoiceData(const FConversationNodeHandle& Handle, UConversationInstance* IgnoreConversation /*= nullptr*/);
 
 	/** Check if this actor is in a good state to start a conversation */
 	virtual bool ServerIsReadyToConverse() const { return true; }
@@ -89,6 +94,9 @@ protected:
 
 	UFUNCTION(Client, Reliable)
 	void ClientUpdateConversation(const FClientConversationMessagePayload& Message);
+
+	UFUNCTION(Client, Reliable)
+	void ClientUpdateConversationTaskChoiceData(FConversationNodeHandle Handle, const FClientConversationOptionEntry& OptionEntry);
 
 	UFUNCTION(Client, Reliable)
 	void ClientUpdateConversations(int32 InConversationsActive);

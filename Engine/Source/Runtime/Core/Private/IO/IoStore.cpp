@@ -1959,6 +1959,32 @@ public:
 		return BlockIndex >= FirstBlockIndex && BlockIndex <= LastBlockIndex;
 	}
 
+	uint64 GetCompressionBlockSize() const
+	{
+		return Toc.GetTocResource().Header.CompressionBlockSize;
+	}
+	
+	void EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback)
+	{
+		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+
+		for (int32 BlockIndex = 0; BlockIndex < TocResource.CompressionBlocks.Num(); ++BlockIndex)
+		{
+			const FIoStoreTocCompressedBlockEntry& Entry = TocResource.CompressionBlocks[BlockIndex];
+			FIoStoreTocCompressedBlockInfo Info
+			{
+				Entry.GetOffset(),
+				Entry.GetCompressedSize(),
+				Entry.GetUncompressedSize(),
+				Entry.GetCompressionMethodIndex()
+			};
+			if (!Callback(Info))
+			{
+				break;
+			}
+		}
+	}
+
 private:
 	FIoStoreTocChunkInfo GetTocChunkInfo(const int32 TocEntryIndex) const
 	{
@@ -1970,6 +1996,7 @@ private:
 
 		FIoStoreTocChunkInfo ChunkInfo;
 		ChunkInfo.Id = TocResource.ChunkIds[TocEntryIndex];
+		ChunkInfo.ChunkType = static_cast<EIoChunkType>(ChunkInfo.Id.Id[11]);
 		ChunkInfo.Hash = Meta.ChunkHash;
 		ChunkInfo.bIsCompressed = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
 		ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
@@ -2073,6 +2100,16 @@ FIoStoreAsyncReadRequest FIoStoreReader::ReadAsync(const FIoChunkId& Chunk, cons
 const FIoDirectoryIndexReader& FIoStoreReader::GetDirectoryIndexReader() const
 {
 	return Impl->GetDirectoryIndexReader();
+}
+
+uint64 FIoStoreReader::GetCompressionBlockSize() const
+{
+	return Impl->GetCompressionBlockSize();
+}
+
+void FIoStoreReader::EnumerateCompressedBlocks(TFunction<bool(const FIoStoreTocCompressedBlockInfo&)>&& Callback) const
+{
+	Impl->EnumerateCompressedBlocks(MoveTemp(Callback));
 }
 
 FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOptions ReadOptions, FIoStoreTocResource& OutTocResource)

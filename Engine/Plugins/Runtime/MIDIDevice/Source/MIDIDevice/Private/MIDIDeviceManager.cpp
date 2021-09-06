@@ -44,7 +44,7 @@ void UMIDIDeviceManager::ShutdownMIDIDeviceManager()
 		for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
 		{
 			UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
-			if(MIDIDeviceController != nullptr && MIDIDeviceController->IsPendingKill())
+			if(MIDIDeviceController != nullptr && !IsValidChecked(MIDIDeviceController))
 			{
 				MIDIDeviceController->ShutdownDevice();
 			}
@@ -63,7 +63,7 @@ void UMIDIDeviceManager::ProcessMIDIEvents()
 		for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
 		{
 			UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
-			if(MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
+			if(MIDIDeviceController != nullptr && IsValidChecked(MIDIDeviceController))
 			{
 				MIDIDeviceController->ProcessIncomingMIDIEvents();
 			}
@@ -85,7 +85,7 @@ void UMIDIDeviceManager::ReinitializeDeviceManager()
 	for(TObjectIterator<UMIDIDeviceControllerBase> ControllerIter; ControllerIter; ++ControllerIter)
 	{
 		UMIDIDeviceControllerBase* MIDIDeviceController = *ControllerIter;
-		if(MIDIDeviceController != nullptr && !MIDIDeviceController->IsPendingKill())
+		if(MIDIDeviceController != nullptr && IsValidChecked(MIDIDeviceController))
 		{
 			FString ExistingDeviceName = MIDIDeviceController->GetDeviceName();
 

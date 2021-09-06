@@ -54,7 +54,10 @@ static int GetNumSpeakers()
 	return 2; // default case... unknown just assume 2 speakers stereo setup.
 }
 
+DECLARE_LOG_CATEGORY_EXTERN(LogBink, Log, All);
+
 #ifndef LOCTEXT_NAMESPACE
 #define LOCTEXT_NAMESPACE "BinkMediaPlayerModule"
 #endif
+
 

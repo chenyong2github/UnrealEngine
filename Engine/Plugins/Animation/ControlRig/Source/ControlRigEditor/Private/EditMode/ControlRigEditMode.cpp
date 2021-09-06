@@ -43,6 +43,7 @@
 #include "ControlRigComponent.h"
 #include "EngineUtils.h"
 #include "ControlRig/Private/Units/Execution/RigUnit_BeginExecution.h"
+
 //#include "IPersonaPreviewScene.h"
 //#include "Animation/DebugSkelMeshComponent.h"
 //#include "Persona/Private/AnimationEditorViewportClient.h"
@@ -1644,6 +1645,7 @@ void FControlRigEditMode::SetRigElementSelection(ERigElementType Type, const TAr
 	if (!bSelecting)
 	{
 		TGuardValue<bool> ReentrantGuard(bSelecting, true);
+
 		for (const FName& ElementName : InRigElementNames)
 		{
 			SetRigElementSelectionInternal(Type, ElementName, bSelected);

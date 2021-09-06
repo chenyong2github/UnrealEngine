@@ -18,10 +18,10 @@ UAbilitySystemComponent* UAbilitySystemBlueprintLibrary::GetAbilitySystemCompone
 
 void UAbilitySystemBlueprintLibrary::SendGameplayEventToActor(AActor* Actor, FGameplayTag EventTag, FGameplayEventData Payload)
 {
-	if (Actor && !Actor->IsPendingKill())
+	if (::IsValid(Actor))
 	{
 		UAbilitySystemComponent* AbilitySystemComponent = GetAbilitySystemComponent(Actor);
-		if (AbilitySystemComponent != nullptr && !AbilitySystemComponent->IsPendingKill())
+		if (AbilitySystemComponent != nullptr && IsValidChecked(AbilitySystemComponent))
 		{
 			FScopedPredictionWindow NewScopedWindow(AbilitySystemComponent, true);
 			AbilitySystemComponent->HandleGameplayEvent(EventTag, &Payload);

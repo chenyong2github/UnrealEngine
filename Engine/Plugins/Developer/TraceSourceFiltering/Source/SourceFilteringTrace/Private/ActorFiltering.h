@@ -45,7 +45,7 @@ public:
 		while (++CurrentIndex < EndIndex)
 		{
 			CurrentActor = Actors[CurrentIndex];
-			if (CurrentActor && !CurrentActor->IsPendingKill())
+			if (IsValid(CurrentActor))
 			{
 				break;
 			}

@@ -46,7 +46,7 @@ struct FFadeTrackToken
 		if( World && ( World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE ) )
 		{
 			APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController();
-			if( PlayerController != nullptr && PlayerController->PlayerCameraManager && !PlayerController->PlayerCameraManager->IsPendingKill() )
+			if( PlayerController != nullptr && IsValid(PlayerController->PlayerCameraManager) )
 			{
 				PlayerController->PlayerCameraManager->SetManualCameraFade( FadeValue, FadeColor, bFadeAudio );
 			}
@@ -89,7 +89,7 @@ struct FFadePreAnimatedGlobalTokenProducer : IMovieScenePreAnimatedGlobalTokenPr
 		if (World && (World->WorldType == EWorldType::Game || World->WorldType == EWorldType::PIE))
 		{
 			APlayerController* PlayerController = World->GetGameInstance()->GetFirstLocalPlayerController();
-			if (PlayerController != nullptr && PlayerController->PlayerCameraManager && !PlayerController->PlayerCameraManager->IsPendingKill())
+			if (PlayerController != nullptr && IsValid(PlayerController->PlayerCameraManager))
 			{
 				FadeAmount = PlayerController->PlayerCameraManager->FadeAmount;
 				FadeColor = PlayerController->PlayerCameraManager->FadeColor;

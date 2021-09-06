@@ -2978,7 +2978,7 @@ void ULandscapeInfo::RecreateLandscapeInfo(UWorld* InWorld, bool bMapCheck)
 		if (Proxy->GetLevel() &&
 			Proxy->GetLevel()->bIsVisible &&
 			!Proxy->HasAnyFlags(RF_BeginDestroyed) &&
-			!Proxy->IsPendingKill() &&
+			IsValid(Proxy) &&
 			!Proxy->IsPendingKillPending())
 		{
 			ValidLandscapesMap.FindOrAdd(Proxy->GetLandscapeGuid()).Add(Proxy);

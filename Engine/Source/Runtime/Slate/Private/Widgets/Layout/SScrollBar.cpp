@@ -95,6 +95,7 @@ void SScrollBar::SetState( float InOffsetFraction, float InThumbSizeFraction )
 		// Note that the maximum offset depends on how many items fit per screen
 		// It is 1.0f-InThumbSizeFraction.
 		Track->SetSizes(InOffsetFraction, InThumbSizeFraction);
+		GetVisibilityAttribute().UpdateValue();
 
 		LastInteractionTime = FSlateApplication::Get().GetCurrentTime();
 	}

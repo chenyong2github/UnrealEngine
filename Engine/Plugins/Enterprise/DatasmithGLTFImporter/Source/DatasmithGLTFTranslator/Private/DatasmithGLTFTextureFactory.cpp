@@ -122,6 +122,7 @@ GLTF::ITextureElement* FDatasmithGLTFTextureFactory::CreateTexture(const GLTF::F
 	else
 	{
 		Texture->SetFile(*GltfTexture.Source.FilePath);
+		Texture->SetFileHash(FMD5Hash::HashFile(*GltfTexture.Source.FilePath));
 	}
 
 	CurrentScene->AddTexture(Texture);

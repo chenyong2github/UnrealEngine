@@ -364,6 +364,7 @@ uint32 UWorld::CleanupWorldGlobalTag = 0;
 
 UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 : UObject(ObjectInitializer)
+, bAllowDeferredPhysicsStateCreation(false)
 , FeatureLevel(GMaxRHIFeatureLevel)
 , bIsBuilt(false)
 , bShouldTick(true)
@@ -380,6 +381,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 ,	FlushLevelStreamingType(EFlushLevelStreamingType::None)
 ,	NextTravelType(TRAVEL_Relative)
 ,	CleanupWorldTag(0)
+
 {
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
@@ -2559,8 +2561,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 	SCOPE_CYCLE_COUNTER(STAT_AddToWorldTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AddToWorld);
 
-	check(Level);
-	check(!Level->IsPendingKill());
+	check(IsValid(Level));
 	check(!Level->IsUnreachable());
 
 	FScopeCycleCounterUObject ContextScope(Level);
@@ -2899,8 +2900,7 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RemoveFromWorld);
 
 	FScopeCycleCounterUObject Context(Level);
-	check(Level);
-	check(!Level->IsPendingKill());
+	check(IsValid(Level));
 	check(!Level->IsUnreachable());
 
 	Level->bIsDisassociatingLevel = true;
@@ -4200,6 +4200,23 @@ bool UWorld::HandleDemoSpeedCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld*
 	return true;
 }
 
+bool UWorld::HandleDemoCheckpointCommand(const TCHAR* Cmd, FOutputDevice& Ar, UWorld* InWorld)
+{
+	const UGameInstance* GameInst = GetGameInstance();
+	UReplaySubsystem* ReplaySubsystem = GameInst ? GameInst->GetSubsystem<UReplaySubsystem>() : nullptr;
+
+	if (ReplaySubsystem)
+	{
+		ReplaySubsystem->RequestCheckpoint();
+	}
+	else
+	{
+		Ar.Log(TEXT("Unable to get the replay subsystem."));
+	}
+
+	return true;
+}
+
 bool UWorld::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -4245,6 +4262,10 @@ bool UWorld::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	else if (FParse::Command(&Cmd, TEXT("DEMOSPEED")))
 	{
 		return HandleDemoSpeedCommand(Cmd, Ar, InWorld);
+	}
+	else if (FParse::Command(&Cmd, TEXT("DEMOCHECKPOINT")))
+	{
+		return HandleDemoCheckpointCommand(Cmd, Ar, InWorld);
 	}
 	else if(FPhysicsInterface::ExecPhysCommands( Cmd, &Ar, InWorld ) )
 	{
@@ -5187,6 +5208,16 @@ void UWorld::RemovePhysicsVolume(APhysicsVolume* Volume)
 	NonDefaultPhysicsVolumeList.RemoveSwap(Volume);
 	// Also remove null entries that may accumulate as items become invalidated
 	NonDefaultPhysicsVolumeList.RemoveSwap(nullptr);
+}
+
+void UWorld::SetAllowDeferredPhysicsStateCreation(bool bAllow)
+{
+	bAllowDeferredPhysicsStateCreation = bAllow;
+}
+
+bool UWorld::GetAllowDeferredPhysicsStateCreation() const
+{
+	return bAllowDeferredPhysicsStateCreation;
 }
 
 ALevelScriptActor* UWorld::GetLevelScriptActor( ULevel* OwnerLevel ) const

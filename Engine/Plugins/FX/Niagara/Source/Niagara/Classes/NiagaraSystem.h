@@ -553,11 +553,64 @@ public:
 	/** If true, forcefully disables all debug switches */
 	UPROPERTY(meta = (SkipSystemResetOnChange = "true"))
 	uint32 bDisableAllDebugSwitches : 1;
+
 	/** Subscriptions to definitions of parameters. */
 	UPROPERTY()
 	TArray<FParameterDefinitionsSubscription> ParameterDefinitionsSubscriptions;
-
 #endif
+
+	//////////////////////////////////////////////////////////////////////////
+	// Various optional overrides for component properties when spawning a system
+	UPROPERTY(EditAnywhere, Category="Rendering", meta=(InlineEditConditionToggle="bCastShadow"))
+	uint8 bOverrideCastShadow : 1;
+
+	UPROPERTY(EditAnywhere, Category="Rendering", meta=(InlineEditConditionToggle="bReceivesDecals"))
+	uint8 bOverrideReceivesDecals : 1;
+
+	UPROPERTY(EditAnywhere, Category="Rendering", meta=(InlineEditConditionToggle="bRenderCustomDepth"))
+	uint8 bOverrideRenderCustomDepth : 1;
+
+	UPROPERTY(EditAnywhere, Category="Rendering", meta=(InlineEditConditionToggle="CustomDepthStencilValue"))
+	uint8 bOverrideCustomDepthStencilValue : 1;
+
+	UPROPERTY(EditAnywhere, Category="Rendering", meta=(InlineEditConditionToggle="CustomDepthStencilWriteMask"))
+	uint8 bOverrideCustomDepthStencilWriteMask : 1;
+
+	/**
+	When enabled this is the default value set on the component.
+	Controls whether the primitive component should cast a shadow or not.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rendering", meta=(DisplayName="Default Cast Shadows", EditCondition="bOverrideCastShadow"))
+	uint8 bCastShadow : 1;
+
+	/**
+	When enabled this is the default value set on the component.
+	Whether the primitive receives decals.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rendering", meta=(DisplayName="Default Receives Decals", EditCondition="bOverrideReceivesDecals"))
+	uint8 bReceivesDecals : 1;
+
+	/**
+	When enabled this is the default value set on the component.
+	This primitive has bRenderCustomDepth enabled.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Rendering", meta=(DisplayName="Default Render CustomDepth Pass", EditCondition="bOverrideRenderCustomDepth"))
+	uint8 bRenderCustomDepth : 1;
+
+	/**
+	When enabled this is the default value set on the component.
+	Mask used for stencil buffer writes.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category="Rendering", meta=(DisplayName="Default CustomDepthStencil Write Mask", editcondition="bOverrideCustomDepthStencilValue"))
+	ERendererStencilMask CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+
+	/**
+	When enabled this is the default value set on the component.
+	Optionally write this 0-255 value to the stencil buffer in CustomDepth pass (Requires project setting or r.CustomDepth == 3)
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, AdvancedDisplay, Category="Rendering", meta=(DisplayName="Default CustomDepthStencil Value", editcondition="bOverrideCustomDepthStencilWriteMask", UIMin = "0", UIMax = "255"))
+	int32 CustomDepthStencilValue = 0;
+	//////////////////////////////////////////////////////////////////////////
 
 	/** Computes emitter priorities based on the dependency information. */
 	bool ComputeEmitterPriority(int32 EmitterIdx, TArray<int32, TInlineAllocator<32>>& EmitterPriorities, const TBitArray<TInlineAllocator<32>>& EmitterDependencyGraph);
@@ -612,6 +665,7 @@ public:
 
 	bool HasSystemScriptDIsWithPerInstanceData() const;
 	FORCEINLINE bool HasDIsWithPostSimulateTick()const{ return bHasDIsWithPostSimulateTick; }
+	FORCEINLINE bool AllDIsPostSimulateCanOverlapFrames() const { return bAllDIsPostSimulateCanOverlapFrames; }
 	FORCEINLINE bool HasAnyGPUEmitters()const{ return bHasAnyGPUEmitters; }
 	FORCEINLINE bool NeedsGPUContextInitForDataInterfaces() const { return bNeedsGPUContextInitForDataInterfaces; }
 
@@ -829,11 +883,32 @@ protected:
 
 	uint32 bIsValidCached : 1;
 	uint32 bIsReadyToRunCached : 1;
+	uint32 bNeedsAsyncOptimize : 1;
 
 	TOptional<float> MaxDeltaTime;
 	FNiagaraDataSetAccessor<ENiagaraExecutionState> SystemExecutionStateAccessor;
 	TArray<FNiagaraDataSetAccessor<ENiagaraExecutionState>> EmitterExecutionStateAccessors;
 	TArray<TArray<FNiagaraDataSetAccessor<FNiagaraSpawnInfo>>> EmitterSpawnInfoAccessors;
+
+	FGraphEventRef ScriptOptimizationCompletionEvent;
+
+public:
+	void AsyncOptimizeAllScripts();
+
+	FGraphEventRef GetScriptOptimizationCompletionEvent()
+	{
+		if (ScriptOptimizationCompletionEvent.IsValid())
+		{
+			if ( !ScriptOptimizationCompletionEvent->IsComplete() )
+			{
+				return ScriptOptimizationCompletionEvent;
+			}
+			ScriptOptimizationCompletionEvent = nullptr;
+		}
+		return nullptr;
+	}
+
+protected:
 
 	void GenerateStatID()const;
 #if STATS
@@ -852,6 +927,7 @@ protected:
 	mutable FString CrashReporterTag;
 
 	uint32 bHasDIsWithPostSimulateTick : 1;
+	uint32 bAllDIsPostSimulateCanOverlapFrames : 1;
 	uint32 bHasAnyGPUEmitters : 1;
 	uint32 bNeedsSortedSignificanceCull : 1;
 

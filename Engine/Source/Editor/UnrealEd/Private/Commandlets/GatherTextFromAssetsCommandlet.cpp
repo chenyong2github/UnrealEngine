@@ -328,6 +328,12 @@ void UGatherTextFromAssetsCommandlet::PurgeGarbage(const bool bPurgeReferencedPa
 	CollectGarbage(RF_NoFlags);
 	ObjectsToKeepAlive.Reset();
 
+	// Fully process the shader compilation results when performing a full purge, as it's the only way to reclaim that memory
+	if (bPurgeReferencedPackages && GShaderCompilingManager)
+	{
+		GShaderCompilingManager->ProcessAsyncResults(false, false);
+	}
+
 	if (!bPurgeReferencedPackages)
 	{
 		// Sort the remaining packages to gather so that currently loaded packages are processed first, followed by those with the most dependencies
@@ -782,7 +788,7 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 	TArray<FName> PackagesWithStaleGatherCache;
 	TArray<FGatherableTextData> GatherableTextDataArray;
 	while (PackagesPendingGather.Num() > 0)
-		{
+	{
 		const FPackagePendingGather PackagePendingGather = PackagesPendingGather.Pop(/*bAllowShrinking*/false);
 		const FNameBuilder PackageNameStr(PackagePendingGather.PackageName);
 
@@ -790,19 +796,19 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 		const float PercentageComplete = (((float)CurrentPackageNum / (float)PackageCount) * 100.0f);
 		UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("[%6.2f%%] Loading package: '%s'..."), PercentageComplete, *PackageNameStr);
 
-			UPackage* Package = nullptr;
-			{
+		UPackage* Package = nullptr;
+		{
 			FLoadPackageLogOutputRedirector::FScopedCapture ScopedCapture(&LogOutputRedirector, *PackageNameStr);
-				Package = LoadPackage(nullptr, *PackageNameStr, LOAD_NoWarn | LOAD_Quiet);
-			}
+			Package = LoadPackage(nullptr, *PackageNameStr, LOAD_NoWarn | LOAD_Quiet);
+		}
 
-			if (!Package)
-			{
+		if (!Package)
+		{
 			UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to load package: '%s'."), *PackageNameStr);
 			++NumPackagesFailed;
-				continue;
-			}
-			
+			continue;
+		}
+
 		// Tick background tasks
 		if (GShaderCompilingManager)
 		{
@@ -813,70 +819,70 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 			GDistanceFieldAsyncQueue->ProcessAsyncTasks();
 		}
 
-			// Because packages may not have been resaved after this flagging was implemented, we may have added packages to load that weren't flagged - potential false positives.
-			// The loading process should have reflagged said packages so that only true positives will have this flag.
-			if (Package->RequiresLocalizationGather())
-			{
+		// Because packages may not have been resaved after this flagging was implemented, we may have added packages to load that weren't flagged - potential false positives.
+		// The loading process should have reflagged said packages so that only true positives will have this flag.
+		if (Package->RequiresLocalizationGather())
+		{
 			UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("[%6.2f%%] Gathering package: '%s'..."), PercentageComplete, *PackageNameStr);
 
-				// Gathers from the given package
-				EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
-				FPropertyLocalizationDataGatherer(GatherableTextDataArray, Package, GatherableTextResultFlags);
+			// Gathers from the given package
+			EPropertyLocalizationGathererResultFlags GatherableTextResultFlags = EPropertyLocalizationGathererResultFlags::Empty;
+			FPropertyLocalizationDataGatherer(GatherableTextDataArray, Package, GatherableTextResultFlags);
 
-				bool bSavePackage = false;
+			bool bSavePackage = false;
 
-				// Optionally check to see whether the clean gather we did is in-sync with the gather cache and deal with it accordingly
-				if ((bReportStaleGatherCache || bFixStaleGatherCache) && PackagePendingGather.PackageLocCacheState == EPackageLocCacheState::Cached)
+			// Optionally check to see whether the clean gather we did is in-sync with the gather cache and deal with it accordingly
+			if ((bReportStaleGatherCache || bFixStaleGatherCache) && PackagePendingGather.PackageLocCacheState == EPackageLocCacheState::Cached)
+			{
+				// Look for any structurally significant changes (missing, added, or changed texts) in the cache
+				// Ignore insignificant things (like source changes caused by assets moving or being renamed)
+				if (EnumHasAnyFlags(GatherableTextResultFlags, EPropertyLocalizationGathererResultFlags::HasTextWithInvalidPackageLocalizationID) 
+					|| !IsGatherableTextDataIdentical(GatherableTextDataArray, PackagePendingGather.GatherableTextDataArray))
 				{
-					// Look for any structurally significant changes (missing, added, or changed texts) in the cache
-					// Ignore insignificant things (like source changes caused by assets moving or being renamed)
-					if (EnumHasAnyFlags(GatherableTextResultFlags, EPropertyLocalizationGathererResultFlags::HasTextWithInvalidPackageLocalizationID) 
-						|| !IsGatherableTextDataIdentical(GatherableTextDataArray, PackagePendingGather.GatherableTextDataArray))
-					{
-						PackagesWithStaleGatherCache.Add(PackagePendingGather.PackageName);
+					PackagesWithStaleGatherCache.Add(PackagePendingGather.PackageName);
 						
-						if (bFixStaleGatherCache)
-						{
-							bSavePackage = true;
-						}
-					}
-				}
-
-				// Optionally save the package if it is missing a gather cache
-				if (bFixMissingGatherCache && PackagePendingGather.PackageLocCacheState == EPackageLocCacheState::Uncached_TooOld)
-				{
-					bSavePackage = true;
-				}
-
-				// Re-save the package to attempt to fix it?
-				if (bSavePackage)
-				{
-				UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Resaving package: '%s'..."), *PackageNameStr);
-
-					bool bSavedPackage = false;
+					if (bFixStaleGatherCache)
 					{
-						FLoadPackageLogOutputRedirector::FScopedCapture ScopedCapture(&LogOutputRedirector, PackageNameStr);
-						bSavedPackage = FLocalizedAssetSCCUtil::SavePackageWithSCC(SourceControlInfo, Package, PackagePendingGather.PackageFilename);
-					}
-
-					if (!bSavedPackage)
-					{
-					UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to resave package: '%s'."), *PackageNameStr);
+						bSavePackage = true;
 					}
 				}
-
-				// This package may have already been cached in cases where we're reporting or fixing assets with a stale gather cache
-				// This check prevents it being gathered a second time
-				if (PackagePendingGather.PackageLocCacheState != EPackageLocCacheState::Cached)
-				{
-					ProcessGatherableTextDataArray(GatherableTextDataArray);
-				}
-
-				GatherableTextDataArray.Reset();
 			}
 
-		if (HasExceededMemoryLimit(/*bLog*/true))
+			// Optionally save the package if it is missing a gather cache
+			if (bFixMissingGatherCache && PackagePendingGather.PackageLocCacheState == EPackageLocCacheState::Uncached_TooOld)
 			{
+				bSavePackage = true;
+			}
+
+			// Re-save the package to attempt to fix it?
+			if (bSavePackage)
+			{
+				UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Resaving package: '%s'..."), *PackageNameStr);
+
+				bool bSavedPackage = false;
+				{
+					FLoadPackageLogOutputRedirector::FScopedCapture ScopedCapture(&LogOutputRedirector, PackageNameStr);
+					bSavedPackage = FLocalizedAssetSCCUtil::SavePackageWithSCC(SourceControlInfo, Package, PackagePendingGather.PackageFilename);
+				}
+
+				if (!bSavedPackage)
+				{
+					UE_LOG(LogGatherTextFromAssetsCommandlet, Warning, TEXT("Failed to resave package: '%s'."), *PackageNameStr);
+				}
+			}
+
+			// This package may have already been cached in cases where we're reporting or fixing assets with a stale gather cache
+			// This check prevents it being gathered a second time
+			if (PackagePendingGather.PackageLocCacheState != EPackageLocCacheState::Cached)
+			{
+				ProcessGatherableTextDataArray(GatherableTextDataArray);
+			}
+
+			GatherableTextDataArray.Reset();
+		}
+
+		if (HasExceededMemoryLimit(/*bLog*/true))
+		{
 			// First try a minimal purge to only remove things that are no longer referenced or needed by other packages pending gather
 			PurgeGarbage(/*bPurgeReferencedPackages*/false);
 
@@ -892,14 +898,18 @@ int32 UGatherTextFromAssetsCommandlet::Main(const FString& Params)
 	}
 	UE_LOG(LogGatherTextFromAssetsCommandlet, Display, TEXT("Loaded %d packages in %.2f seconds. %d failed."), NumPackagesProcessed, FPlatformTime::Seconds() - PackageLoadingStartTime, NumPackagesFailed);
 
+	// Collect garbage after loading all packages
+	// This reclaims as much memory as possible for the rest of the gather pipeline
+	PurgeGarbage(/*bPurgeReferencedPackages*/true);
+	
 	if (GShaderCompilingManager)
 	{
 		GShaderCompilingManager->SkipShaderCompilation(!bWasShaderCompilationEnabled);
 	}
-
+	
 	if (bReportStaleGatherCache)
 	{
-	PackagesWithStaleGatherCache.Sort(FNameLexicalLess());
+		PackagesWithStaleGatherCache.Sort(FNameLexicalLess());
 
 		FString StaleGatherCacheReport;
 		for (const FName& PackageWithStaleGatherCache : PackagesWithStaleGatherCache)

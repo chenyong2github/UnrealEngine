@@ -126,6 +126,8 @@ public:
 	virtual void Suspend() override;
 	virtual void Resume() override;
 
+	virtual void SetIsPlayOnBlockingEnabled(bool bIsEnabled) override;
+
 	float GetViewportDPIScale() const;
 
 	void OnMainWindowClosed(const TSharedRef<SWindow>& Window);
@@ -148,6 +150,12 @@ private:
 	EVisibility GetSlateBackgroundVisibility() const;
 	EVisibility GetViewportVisibility() const;	
 	
+	/** Called via a delegate in the engine when maps start to load */
+	void OnPreLoadMap(const FString& LevelName);
+
+	/** Called via a delegate in the engine when maps finish loading */
+	void OnPostLoadMap(UWorld* LoadedWorld);
+
 	/** Check if the device can render on a parallel thread on the initial loading*/
 	bool CanPlayMovie() const;
 private:
@@ -205,6 +213,9 @@ private:
 
 	/** True if the movie player has been initialized */
 	bool bInitialized;
+
+	/** If true then play movie when blocking starts, if false then play movie on loadmap. */
+	bool bIsPlayOnBlockingEnabled;
 
 	/** Critical section to allow the slate loading thread and the render thread to safely utilize the synchronization mechanism for ticking Slate. */
 	FCriticalSection SyncMechanismCriticalSection;

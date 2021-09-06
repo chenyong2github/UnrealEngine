@@ -1,14 +1,18 @@
 #!/bin/sh
 
+set -e
+
 ConfigPath=`dirname "$0"`
 projectPath=$ConfigPath/..
 
 RelativeEnginePath=$projectPath/../../../../../../../Engine
 EnginePath=`python -c "import os; print(os.path.realpath('$RelativeEnginePath'))"`
 
+echo "UE_SDKS_ROOT = ${UE_SDKS_ROOT}"
+
 if [ -z ${UE_SDKS_ROOT+x} ]; then
     echo "UE_SDKS_ROOT is unset";
-    exit;
+    exit -1;
 fi
 
 if [ ! -f "$ConfigPath/SDKsRoot.xcconfig" ]; then

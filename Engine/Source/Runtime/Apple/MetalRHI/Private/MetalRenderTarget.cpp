@@ -87,6 +87,9 @@ void FMetalRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureR
 			
 			Size.width = FMath::Max<uint32>(1, Source->SizeX >> ResolveParams.MipIndex);
 			Size.height = FMath::Max<uint32>(1, Source->SizeY >> ResolveParams.MipIndex);
+			// clamp to a destination size
+			Size.width = FMath::Min<uint32>(Size.width, Destination->SizeX >> ResolveParams.MipIndex);
+			Size.height = FMath::Min<uint32>(Size.height, Destination->SizeY >> ResolveParams.MipIndex);
 		}
 		
 		const bool bSrcCubemap  = Source->bIsCubemap;

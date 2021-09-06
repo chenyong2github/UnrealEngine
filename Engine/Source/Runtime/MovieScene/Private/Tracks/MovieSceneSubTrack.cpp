@@ -73,31 +73,6 @@ UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceOnRow(UMovieSceneSequence
 	return NewSection;
 }
 
-UMovieSceneSubSection* UMovieSceneSubTrack::AddSequenceToRecord()
-{
-	Modify();
-
-	UMovieScene* MovieScene = CastChecked<UMovieScene>(GetOuter());
-	TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
-
-	int32 MaxRowIndex = -1;
-	for (auto Section : Sections)
-	{
-		MaxRowIndex = FMath::Max(Section->GetRowIndex(), MaxRowIndex);
-	}
-
-	UMovieSceneSubSection* NewSection = CastChecked<UMovieSceneSubSection>(CreateNewSection());
-	{
-		NewSection->SetRowIndex(MaxRowIndex + 1);
-		NewSection->SetAsRecording(true);
-		NewSection->SetRange(PlaybackRange);
-	}
-
-	Sections.Add(NewSection);
-
-	return NewSection;
-}
-
 bool UMovieSceneSubTrack::ContainsSequence(const UMovieSceneSequence& Sequence, bool Recursively, const UMovieSceneSection* SectionToSkip) const
 {
 	UMovieSceneSequence* OuterSequence = GetTypedOuter<UMovieSceneSequence>();

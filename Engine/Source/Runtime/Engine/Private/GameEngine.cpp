@@ -59,6 +59,7 @@
 #include "AssetRegistryModule.h"
 #include "DynamicResolutionProxy.h"
 #include "DynamicResolutionState.h"
+#include "MoviePlayerProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
@@ -1914,6 +1915,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		GameViewport->Tick(DeltaSeconds);
 	}
 
+	FMoviePlayerProxy::BlockingForceFinished();
 	if (FPlatformProperties::SupportsWindowedMode())
 	{
 		// Hide the splashscreen and show the game window

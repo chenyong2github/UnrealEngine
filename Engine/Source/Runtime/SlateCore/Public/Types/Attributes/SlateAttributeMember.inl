@@ -151,7 +151,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute).UpdateNow(*Pin.Get());
+				const_cast<AttributeMemberType&>(Attribute).UpdateNow(const_cast<SWidget&>(*Pin.Get()));
 			}
 		}
 
@@ -163,7 +163,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute)->UpdateNow(*Pin.Get());
+				const_cast<AttributeMemberType&>(Attribute)->UpdateNow(const_cast<SWidget&>(*Pin.Get()));
 				return Attribute.Get();
 			}
 			checkf(false, TEXT("It is an error to call GetValue() on an unset TSlateMemberAttributeRef. Please either check IsValid() or use Get(DefaultValue) instead."));
@@ -177,7 +177,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute)->UpdateNow(*Pin.Get());
+				const_cast<AttributeMemberType&>(Attribute)->UpdateNow(const_cast<SWidget&>(*Pin.Get()));
 				return Attribute.Get();
 			}
 			return DefaultValue;

@@ -10,6 +10,7 @@
 #include "Misc/Paths.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 #include "Editor.h"
+#include "ClassViewerModule.h"
 #include "AssetRegistryModule.h"
 #include "PropertyHandle.h"
 
@@ -505,6 +506,12 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+	bool bPassesGlobalClassFilter = true;
+	if (const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").GetGlobalClassViewerFilter())
+	{
+		bPassesGlobalClassFilter = GlobalClassFilter->IsClassAllowed(InInitOptions, InClass, FilterFunctions);
+	}
+
 	bool bPassesTextFilter = true;
 	if (bCheckTextFilter && (TextFilter->GetFilterType() != ETextFilterExpressionType::Empty))
 	{
@@ -527,7 +534,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	bool bPassesFilter = bPassesAllowedClasses && bPassesPlaceableFilter && bPassesBlueprintBaseFilter
 		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter 
-		&& bPassesCustomFilter && bPassesTextFilter && bPassesAssetReferenceFilter;
+		&& bPassesCustomFilter && bPassesGlobalClassFilter && bPassesTextFilter && bPassesAssetReferenceFilter;
 
 	return bPassesFilter;
 }
@@ -619,6 +626,13 @@ PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	}
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
+
+	bool bPassesGlobalClassFilter = true;
+	if (const TSharedPtr<IClassViewerFilter>& GlobalClassFilter = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").GetGlobalClassViewerFilter())
+	{
+		bPassesGlobalClassFilter = GlobalClassFilter->IsUnloadedClassAllowed(InInitOptions, InUnloadedClassData, FilterFunctions);
+	}
+
 	const bool bPassesTextFilter = PassesTextFilter(*InUnloadedClassData->GetClassName().Get(), TextFilter);
 
 	bool bPassesAssetReferenceFilter = true;
@@ -628,8 +642,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		bPassesAssetReferenceFilter = AssetReferenceFilter->PassesFilter(AssetRegistry.GetAssetByObjectPath(BlueprintPath));
 	}
 
-	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter
-		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesCustomFilter 
+	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter && bPassesDeveloperFilter 
+		&& bPassesInternalFilter && bPassesCustomFilter && bPassesGlobalClassFilter
 		&& (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
 
 	return bPassesFilter;

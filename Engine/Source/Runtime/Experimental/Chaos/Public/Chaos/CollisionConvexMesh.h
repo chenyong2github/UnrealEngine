@@ -858,6 +858,9 @@ namespace Chaos
 
 		static void BuildHorizon(const TArray<FVec3>& InVertices, FHalfEdge* ConflictV, TArray<FHalfEdge*>& HorizonEdges, TArray<FConvexFace*>& FacesToDelete, const Params& InParams)
 		{
+#if DEBUG_HULL_GENERATION
+			UE_LOG(LogChaos, VeryVerbose, TEXT("Generate horizon - START"));
+#endif
 			//We must flood fill from the initial face and mark edges of faces the conflict vertex cannot see
 			//In order to return a CCW ordering we must traverse each face in CCW order from the edge we crossed over
 			//This should already be the ordering in the half edge
@@ -872,24 +875,59 @@ namespace Chaos
 			FacesToDelete.Add(ConflictV->Face);
 			while(Queue.Num())
 			{
+#if DEBUG_HULL_GENERATION
+				FString QueueString(TEXT("\t Queue ("));
+				for (const FHalfEdge* QueuedEdge : Queue)
+				{
+					QueueString += FString::Printf(TEXT(" [%d - %d] "), QueuedEdge->Vertex, QueuedEdge->Next->Vertex);
+				}
+				QueueString += TEXT(")");
+				UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *QueueString);
+#endif 
+
 				FHalfEdge* Edge = Queue.Pop(/*bAllowShrinking=*/false);
 				Processed.Add(Edge->Face);
 				FHalfEdge* Twin = Edge->Twin;
 				FConvexFace* NextFace = Twin->Face;
+
+#if DEBUG_HULL_GENERATION
+				UE_LOG(LogChaos, VeryVerbose, TEXT("\tPop edge [%d - %d] from queue"), Edge->Vertex, Edge->Next->Vertex);
+#endif 
+
 				if(Processed.Contains(NextFace))
 				{
+#if DEBUG_HULL_GENERATION
+					UE_LOG(LogChaos, VeryVerbose, TEXT("\tTwin Face [%d] already processed - skip"), NextFace);
+#endif
 					continue;
 				}
 				const FReal Distance = NextFace->Plane.SignedDistance(V);
 				if(Distance > Epsilon)
 				{
+#if DEBUG_HULL_GENERATION
+					UE_LOG(LogChaos, VeryVerbose, TEXT("\tDistance [%f] > Epsilon [%f] - add to queue"), Distance, Epsilon);
+#endif 
 					Queue.Add(Twin->Prev); //stack pops so reverse order
 					Queue.Add(Twin->Next);
 					FacesToDelete.Add(NextFace);
 				}
 				else
 				{
+#if DEBUG_HULL_GENERATION
+					UE_LOG(LogChaos, VeryVerbose, TEXT("\tAdd [%d - %d] to horizon "), Edge->Vertex, Edge->Next->Vertex);
+#endif 
+					// we need to ensure that the horizon is a continous edge loop
+					// this may get the wrong edge path, but way more roibust than not testing this
+					if (HorizonEdges.Num() == 0 || Edge->Vertex == HorizonEdges[HorizonEdges.Num()-1]->Next->Vertex)
+					{
 					HorizonEdges.Add(Edge);
+				}
+					else
+					{
+#if DEBUG_HULL_GENERATION
+						UE_LOG(LogChaos, VeryVerbose, TEXT("\tNON VALID EDGE LOOP - internal horizon edge detected [%d - %d] - skipping "), Edge->Vertex, Edge->Next->Vertex);
+#endif 
+					}
 				}
 			}
 
@@ -911,7 +949,18 @@ namespace Chaos
 				UE_LOG(LogChaos, VeryVerbose, TEXT("f -3 -2 -1"));
 			}
 #endif
+
+			FString HorizonString(TEXT("> Final Horizon: ("));
+			for (const FHalfEdge* HorizonEdge : HorizonEdges)
+			{
+				HorizonString += FString::Printf(TEXT("%d (%d)"), HorizonEdge->Vertex, HorizonEdge->Next->Vertex);
+			}
+			HorizonString += TEXT(")");
+			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *HorizonString);
+
+			UE_LOG(LogChaos, VeryVerbose, TEXT("Generate horizon - END"));
 #endif
+
 		}
 
 		static void BuildFaces(FMemPool& Pool, const TArray<FVec3>& InVertices, const FHalfEdge* ConflictV, const TArray<FHalfEdge*>& HorizonEdges, const TArray<FConvexFace*> OldFaces, TArray<FConvexFace*>& NewFaces)
@@ -982,16 +1031,6 @@ namespace Chaos
 			TArray<FConvexFace*> FacesToDelete;
 			BuildHorizon(InVertices, ConflictV, HorizonEdges, FacesToDelete, InParams);
 
-#if DEBUG_HULL_GENERATION
-			FString HorizonString(TEXT("\tHorizon: ("));
-			for(const FHalfEdge* HorizonEdge : HorizonEdges)
-			{
-				HorizonString += FString::Printf(TEXT("%d "), HorizonEdge->Vertex);
-			}
-			HorizonString += TEXT(")");
-			UE_LOG(LogChaos, VeryVerbose, TEXT("%s"), *HorizonString);
-#endif
-
 			TArray<FConvexFace*> NewFaces;
 			BuildFaces(Pool, InVertices, ConflictV, HorizonEdges, FacesToDelete, NewFaces);
 
@@ -1037,3 +1076,4 @@ namespace Chaos
 
 	};
 }
+

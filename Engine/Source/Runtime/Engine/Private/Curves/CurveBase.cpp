@@ -1,8 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Curves/CurveBase.h"
+
+#include "JsonObjectConverter.h"
 #include "Serialization/Csv/CsvParser.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Serialization/JsonWriter.h"
 
 
 /* UCurveBase interface
@@ -161,6 +164,48 @@ TArray<FString> UCurveBase::CreateCurveFromCSVString(const FString& InString)
 	return OutProblems;
 }
 
+void UCurveBase::ImportFromJSONString(const FString& InString, TArray<FString>& OutProblems)
+{
+	TSharedPtr<FJsonObject> JsonObject;
+	{
+		const TSharedRef<TJsonReader<TCHAR>> JsonReader = TJsonReaderFactory<TCHAR>::Create(InString);
+		if (!FJsonSerializer::Deserialize(JsonReader, JsonObject) || !JsonObject.IsValid())
+		{
+			OutProblems.Add(FString::Printf(TEXT("Failed to parse the JSON data. Error: %s"), *JsonReader->GetErrorMessage()));
+			return;
+		}
+	}
+
+	const TSharedRef<FJsonObject> BackupJSONObject = MakeShared<FJsonObject>();
+	if (!FJsonObjectConverter::UStructToJsonAttributes(GetClass(), this, BackupJSONObject->Values))
+	{
+		OutProblems.Add(FString::Printf(TEXT("Failed to backup existing data before import.")));
+		return;
+	}
+	
+	if (!FJsonObjectConverter::JsonAttributesToUStruct(JsonObject->Values, GetClass(), this, 0, CPF_Deprecated | CPF_Transient, true))
+	{
+		// Rollback any changes made during import with the backup
+		FJsonObjectConverter::JsonAttributesToUStruct(BackupJSONObject->Values, GetClass(), this, 0, CPF_Deprecated | CPF_Transient, true);
+		
+		OutProblems.Add(FString::Printf(TEXT("Failed to import JSON data. Check logs for details.")));
+		return;
+	}
+
+	Modify(true);
+}
+
+FString UCurveBase::ExportAsJSONString() const
+{
+	FString Result;
+	const TSharedRef<FJsonObject> JSONObject = MakeShared<FJsonObject>();
+	if (FJsonObjectConverter::UStructToJsonAttributes(GetClass(), this, JSONObject->Values, 0, CPF_Deprecated | CPF_Transient))
+	{
+		const TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&Result);
+		FJsonSerializer::Serialize(JSONObject, JsonWriter);
+	}
+	return Result;
+}
 
 /* UObject interface
  *****************************************************************************/

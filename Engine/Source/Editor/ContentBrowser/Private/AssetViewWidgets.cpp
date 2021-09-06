@@ -75,6 +75,31 @@ FReply FAssetViewModeUtils::OnViewModeKeyDown( const TSet< TSharedPtr<FAssetView
 	return FReply::Unhandled();
 }
 
+namespace AssetViewWidgets 
+{
+bool IsTopLevelFolder(const FStringView InFolderPath)
+{
+	int32 SlashCount = 0;
+	for (const TCHAR PathChar : InFolderPath)
+	{
+		if (PathChar == TEXT('/'))
+		{
+			if (++SlashCount > 1)
+			{
+				break;
+			}
+		}
+	}
+
+	return SlashCount == 1;
+}
+
+bool IsTopLevelFolder(const FName InFolderPath)
+{
+	return IsTopLevelFolder(FNameBuilder(InFolderPath));
+}
+
+}
 
 ///////////////////////////////
 // FAssetViewModeUtils
@@ -921,6 +946,25 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 			TSharedRef<SVerticalBox> InfoBox = SNew(SVerticalBox);
 
 			AddToToolTipInfoBox( InfoBox, LOCTEXT("TileViewTooltipPath", "Path"), FolderPath, false );
+
+			const FName InternalPath = AssetItem->GetItem().GetInternalPath();
+			if (!InternalPath.IsNone())
+			{
+				FNameBuilder FolderPathBuilder(InternalPath);
+				if (AssetViewWidgets::IsTopLevelFolder(FStringView(FolderPathBuilder)))
+				{
+					FStringView PluginName(FolderPathBuilder);
+					PluginName.RightChopInline(1);
+
+					if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(PluginName))
+					{
+						if (Plugin->GetDescriptor().Description.Len() > 0)
+						{
+							AddToToolTipInfoBox( InfoBox, LOCTEXT("TileViewTooltipPluginDescription", "Plugin Description"), FText::FromString(Plugin->GetDescriptor().Description), false );
+						}
+					}
+				}
+			}
 
 			return SNew(SBorder)
 				.Padding(6)

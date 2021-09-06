@@ -63,7 +63,7 @@ void UGameplayCueNotify_Static::HandleGameplayCue(AActor* MyTarget, EGameplayCue
 {
 	SCOPE_CYCLE_COUNTER(STAT_HandleGameplayCueNotifyStatic);
 
-	if (MyTarget && !MyTarget->IsPendingKill())
+	if (IsValid(MyTarget))
 	{
 		K2_HandleGameplayCue(MyTarget, EventType, Parameters);
 

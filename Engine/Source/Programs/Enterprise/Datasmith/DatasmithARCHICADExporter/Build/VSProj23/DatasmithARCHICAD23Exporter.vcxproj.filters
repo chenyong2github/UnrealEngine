@@ -107,9 +107,6 @@
     <ClCompile Include="..\..\Private\Utils\Pasteboard.cpp">
       <Filter>Private\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\Private\Utils\SceneValidator.cpp">
-      <Filter>Private\Utils</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\Private\Utils\ShellOpenDocument.cpp">
       <Filter>Private\Utils</Filter>
     </ClCompile>
@@ -242,9 +239,6 @@
       <Filter>Private\Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Private\Utils\ResourcesUtils.h">
-      <Filter>Private\Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\Private\Utils\SceneValidator.h">
       <Filter>Private\Utils</Filter>
     </ClInclude>
     <ClInclude Include="..\..\Private\Utils\ShellOpenDocument.h">

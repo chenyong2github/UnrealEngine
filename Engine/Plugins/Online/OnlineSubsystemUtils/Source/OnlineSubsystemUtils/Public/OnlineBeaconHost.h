@@ -12,6 +12,7 @@ class AOnlineBeaconHostObject;
 class FInBunch;
 class UNetConnection;
 struct FEncryptionKeyResponse;
+struct FOnlineError;
 
 /**
  * Main actor that listens for side channel communication from another Unreal Engine application
@@ -103,15 +104,63 @@ public:
 	 */
 	virtual void RemoveClientActor(AOnlineBeaconClient* ClientActor);
 
+protected:
+	/** Set this to true if you require clients to negotiate auth prior to joining the beacon */
+	UPROPERTY(Config)
+	bool bAuthRequired = false;
+
+	UPROPERTY(Config)
+	uint32 MaxAuthTokenSize = 1024;
+
+	/**
+	 * Start verifying an authentication token for a connection.
+	 * OnAuthenticationVerificationComplete must be called to complete authentication verification.
+	 *
+	 * @param PlayerId net id of player to authenticate.
+	 * @param AuthenticationToken token to use for verification.
+	 */
+	virtual bool StartVerifyAuthentication(const FUniqueNetId& PlayerId, const FString& AuthenticationToken);
+
+	/**
+	 * Event which must be signaled to complete an authentication verification request.
+	 *
+	 * @param PlayerId net id of player to authenticate.
+	 * @param Error result of the operation.
+	 */
+	void OnAuthenticationVerificationComplete(const class FUniqueNetId& PlayerId, const FOnlineError& Error);
+
+protected:
+	FString GetDebugName(UNetConnection* Connection = nullptr);
+
 private:
+	/** Connection states used to check against misbehaving connections. */
+	struct FConnectionState
+	{
+		bool bHasSentHello = false;
+		bool bHasSentChallenge = false;
+		bool bHasSentLogin = false;
+		bool bHasSentWelcome = false;
+		bool bHasSetNetspeed = false;
+		bool bHasAuthenticated = false;
+		bool bHasJoined = false;
+		bool bHasCompletedAck = false;
+	};
+	TMap<UNetConnection*,FConnectionState> ConnectionState;
 
 	/** List of all client beacon actors with active connections */
 	UPROPERTY()
 	TArray<TObjectPtr<AOnlineBeaconClient>> ClientActors;
 
 	/** Sends the welcome control message to the client. Used as a delegate if encryption is being negotiated. */
-	void SendWelcomeControlMessage(UNetConnection* Connection);
-	void SendWelcomeControlMessage(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection);
+	void OnHelloSequenceComplete(UNetConnection* Connection);
+	void OnEncryptionResponse(const FEncryptionKeyResponse& Response, TWeakObjectPtr<UNetConnection> WeakConnection);
+	void OnConnectionClosed(UNetConnection* Connection);
+
+	bool HandleControlMessage(UNetConnection* Connection, uint8 MessageType, FInBunch& Bunch);
+	void SendFailurePacket(UNetConnection* Connection, const FText& ErrorMsg);
+	void CloseHandshakeConnection(UNetConnection* Connection);
+
+	bool GetConnectionDataForUniqueNetId(const FUniqueNetId& UniqueNetId, UNetConnection*& OutConnection, FConnectionState*& OutConnectionState);
 
 	/** Delegate to route a connection attempt to the appropriate beacon host, by type */
 	DECLARE_DELEGATE_RetVal_OneParam(AOnlineBeaconClient*, FOnBeaconSpawned, UNetConnection*);

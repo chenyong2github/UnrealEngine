@@ -1646,8 +1646,7 @@ void FAnimNode_RigidBody::ExpireWorldObjects()
 		const int32 ExpireTickCount = RBAN_WorldObjectExpiry;
 		bool bIsInvalid =
 			((ComponentsInSimTick - WorldObject.LastSeenTick) > ExpireTickCount)	// Haven't seen this object for a while
-			|| (WorldComp == nullptr)
-			|| (WorldComp->IsPendingKill())
+			|| !IsValid(WorldComp)
 			|| (WorldComp->GetBodyInstance() == nullptr)
 			|| (!WorldComp->GetBodyInstance()->IsValidBodyInstance());
 

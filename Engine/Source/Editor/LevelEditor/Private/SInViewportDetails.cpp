@@ -423,7 +423,7 @@ void SInViewportDetails::OnEditorSelectionChanged(UObject* Object)
 		AActor* Actor = static_cast<AActor*>(*It);
 		checkSlow(Actor->IsA(AActor::StaticClass()));
 
-		if (!Actor->IsPendingKill())
+		if (IsValidChecked(Actor))
 		{
 			SelectedActors.Add(Actor);
 		}

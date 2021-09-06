@@ -41,7 +41,6 @@ class FTaskCalledFromEventLoop
   private:
 	static GSErrCode DoTasks(GSHandle ParamHandle);
 	static GSErrCode DoTasksCallBack(GSHandle ParamHandle, GSPtr OutResultData, bool bSilentMode);
-	static void		 DeleteParamHandle(GSHandle ParamHandle);
 };
 
 // Template class for function

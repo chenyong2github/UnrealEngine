@@ -164,7 +164,7 @@ void AMatineeActor::PostNetReceive()
 			{
 				AActor* Actor = ControlledActors[ActorIndex];
 				UInterpGroupInst * GrInst = FindGroupInst(Actor);
-				if (Actor != NULL && !Actor->IsPendingKill() && GrInst != NULL) 
+				if (IsValid(Actor) && GrInst != NULL) 
 				{
 					// fire an event if we're really playing (and not just starting it up to do a position update)
 					if (bIsPlaying)

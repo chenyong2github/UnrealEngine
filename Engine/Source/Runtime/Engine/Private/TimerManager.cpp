@@ -48,6 +48,18 @@ static FAutoConsoleVariableRef CVarMaxExpiredTimersToLog(
 	MaxExpiredTimersToLog,
 	TEXT("Maximum number of TimerData exceeding the threshold to log in a single frame."));
 
+#ifndef UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD
+#define UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD !UE_BUILD_SHIPPING
+#endif
+
+#if UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD
+static int32 DumpAllTimerLogsThreshold = -1;
+static FAutoConsoleVariableRef CVarDumpAllTimerLogsThreshold(
+	TEXT("TimerManager.DumpAllTimerLogsThreshold"),
+	DumpAllTimerLogsThreshold,
+	TEXT("Threshold (in count of active timers) at which to dump info about all active timers to logs. -1 means this is disabled. NOTE: This will only be dumped once per process launch."));
+#endif // #if UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD
+
 
 #if UE_ENABLE_TRACKING_TIMER_SOURCES
 static int32 GBuildTimerSourceList = 0;
@@ -809,6 +821,38 @@ void FTimerManager::Tick(float DeltaTime)
 
 	UWorld* const OwningWorld = OwningGameInstance ? OwningGameInstance->GetWorld() : nullptr;
 	UWorld* const LevelCollectionWorld = OwningWorld;
+
+#if UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD
+	// Dump timer info to logs if we have way too many timers active.
+	UE_SUPPRESS(LogEngine, Warning,
+	{
+		if (DumpAllTimerLogsThreshold > 0 && ActiveTimerHeap.Num() > DumpAllTimerLogsThreshold)
+		{
+			static bool bAlreadyLogged = false;
+			if(!bAlreadyLogged)
+			{
+				bAlreadyLogged = true;
+			
+				UE_LOG(LogEngine, Warning, TEXT("Number of active Timers (%d) has exceeded DumpAllTimerLogsThreshold (%d)!  Dumping all timer info to log:"), ActiveTimerHeap.Num(), DumpAllTimerLogsThreshold);
+
+				TArray<const FTimerData*> ValidActiveTimers;
+				ValidActiveTimers.Reserve(ActiveTimerHeap.Num());
+				for (FTimerHandle Handle : ActiveTimerHeap)
+				{
+					if (const FTimerData* Data = FindTimer(Handle))
+					{
+						ValidActiveTimers.Add(Data);
+					}
+				}
+
+				for (const FTimerData* Data : ValidActiveTimers)
+				{
+					DescribeFTimerDataSafely(*GLog, *Data);
+				}
+			}
+		}
+	});
+#endif // #if UE_ENABLE_DUMPALLTIMERLOGSTHRESHOLD
 
 	while (ActiveTimerHeap.Num() > 0)
 	{
