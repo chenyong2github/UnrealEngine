@@ -34,7 +34,11 @@ struct CONTROLRIG_API FRigUnit_RandomFloat : public FRigUnit_MathBase
 	UPROPERTY(meta = (Input))
 	float Maximum;
 
-	/** The duration at which the number won't change. Use 0 for a different number every time. */
+	/**
+	 * The duration at which the number won't change.
+	 * Use 0 for a different number every time.
+	 * A negative number (for ex: -1) results in an infinite duration.
+	 */
 	UPROPERTY(meta = (Input))
 	float Duration;
 
@@ -84,7 +88,12 @@ struct CONTROLRIG_API FRigUnit_RandomVector: public FRigUnit_MathBase
 	UPROPERTY(meta = (Input))
 	float Maximum;
 
-	/** The duration at which the number won't change. Use 0 for a different number every time. */
+	
+	/**
+	 * The duration at which the number won't change.
+	 * Use 0 for a different number every time.
+	 * A negative number (for ex: -1) results in an infinite duration.
+	 */
 	UPROPERTY(meta = (Input))
 	float Duration;
 
