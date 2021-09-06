@@ -51,12 +51,28 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.PushOut.MinStiffness"), Chaos_Manifold_PushOut_MinStiffness, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.PushOut.MaxStiffness"), Chaos_Manifold_PushOut_MaxStiffness, TEXT(""));
 
+		FReal Chaos_ConstraintStiffness_Modifier = 5.0;
+		FAutoConsoleVariableRef CVarChaos_ConstraintStiffness_Modifier(TEXT("p.Chaos.Collision.ConstraintStiffnessModifier"), Chaos_ConstraintStiffness_Modifier, TEXT(""));
+
 		FRealSingle Chaos_Manifold_Apply_ImpulseTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_Apply_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.Apply.ImpulseTolerance"), Chaos_Manifold_Apply_ImpulseTolerance, TEXT(""));
 
 		float Chaos_Manifold_PushOut_PositionTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionTolerance"), Chaos_Manifold_PushOut_PositionTolerance, TEXT(""));
 
+		inline FReal GetConstraintStiffness(const FReal InStiffness, const FContactIterationParameters& IterationParameters)
+		{
+			FReal Stiffness = FMath::Clamp(InStiffness, (FReal)0.0, (FReal)1.0);
+			if (Stiffness < 1.0)
+			{
+				FReal Factor = Chaos_ConstraintStiffness_Modifier * (FReal)(IterationParameters.NumIterations * IterationParameters.NumPairIterations);
+				if (Factor)
+				{
+					return Stiffness / Factor;
+				}
+			}
+			return (FReal)1;			
+		}
 
 		inline FReal GetApplyStiffness(int32 It, int32 NumIts)
 		{
@@ -584,7 +600,8 @@ namespace Chaos
 
 			Constraint.AccumulatedImpulse = FVec3(0);
 
-			const FReal Stiffness = GetApplyStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
+			const FReal ConstraintStiffness = GetConstraintStiffness(Constraint.GetStiffness(), IterationParameters);
+			const FReal Stiffness = ConstraintStiffness*GetApplyStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
 
 			// Iterate over the manifold and accumulate velocity corrections - we will apply them after the loop
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
@@ -713,8 +730,9 @@ namespace Chaos
 			}
 
 			// Gradually increase position correction through iterations (optional based on cvars)
-			const FReal Stiffness = GetPushOutStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
-
+			const FReal ConstraintStiffness = GetConstraintStiffness(Constraint.GetStiffness(), IterationParameters);
+			const FReal Stiffness = ConstraintStiffness*GetPushOutStiffness(IterationParameters.Iteration, IterationParameters.NumIterations);
+			
 			FVec3 P0 = FParticleUtilities::GetCoMWorldPosition(Particle0);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);

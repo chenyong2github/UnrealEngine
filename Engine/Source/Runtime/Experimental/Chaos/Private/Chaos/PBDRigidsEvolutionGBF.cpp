@@ -22,8 +22,6 @@
 #include "Misc/Paths.h"
 #include "HAL/FileManager.h"
 
-//PRAGMA_DISABLE_OPTIMIZATION
-
 namespace Chaos
 {
 #if !UE_BUILD_SHIPPING
@@ -69,6 +67,11 @@ FAutoConsoleVariableRef CVarChaosSolverJointPriority(TEXT("p.Chaos.Solver.Joint.
 int32 ChaosSolverSuspensionPriority = 0;
 FAutoConsoleVariableRef CVarChaosSolverSuspensionPriority(TEXT("p.Chaos.Solver.Suspension.Priority"), ChaosSolverSuspensionPriority, TEXT("Set constraint priority. Larger values are evaluated later [def:0]"));
 
+bool DoTransferJointConstraintCollisions = true;
+FAutoConsoleVariableRef CVarDoTransferJointConstraintCollisions(TEXT("p.Chaos.Solver.Joint.TransferCollisions"), DoTransferJointConstraintCollisions, TEXT("Allows joints to apply collisions to the parent from the child when the Joints TransferCollisionScale is not 0 [def:true]"));
+
+
+
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::AdvanceOneTimeStep"), STAT_Evolution_AdvanceOneTimeStep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UnclusterUnions"), STAT_Evolution_UnclusterUnions, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::Integrate"), STAT_Evolution_Integrate, STATGROUP_Chaos);
@@ -81,6 +84,7 @@ DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyConstraints"), STAT_Evolut
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateVelocities"), STAT_Evolution_UpdateVelocites, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ApplyPushOut"), STAT_Evolution_ApplyPushOut, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::DetectCollisions"), STAT_Evolution_DetectCollisions, STATGROUP_Chaos);
+DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::TransferJointCollisions"), STAT_Evolution_TransferJointCollisions, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::PostDetectCollisionsCallback"), STAT_Evolution_PostDetectCollisionsCallback, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::UpdateConstraintPositionBasedState"), STAT_Evolution_UpdateConstraintPositionBasedState, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FPBDRigidsEvolutionGBF::ComputeIntermediateSpatialAcceleration"), STAT_Evolution_ComputeIntermediateSpatialAcceleration, STATGROUP_Chaos);
@@ -229,6 +233,12 @@ void FPBDRigidsEvolutionGBF::AdvanceOneTimeStepImpl(const FReal Dt,const FSubSte
 		CollisionDetector.DetectCollisionsWithStats(Dt, StatData, GetCurrentStepResimCache());
 
 		CHAOS_COLLISION_STAT(StatData.Print());
+	}
+
+	{
+		SCOPE_CYCLE_COUNTER(STAT_Evolution_TransferJointCollisions);
+
+		TransferJointConstraintCollisions();
 	}
 
 	if (PostDetectCollisionsCallback != nullptr)
@@ -519,6 +529,97 @@ void FPBDRigidsEvolutionGBF::SetCurrentStepResimCache(IResimCacheBase* InCurrent
 {
 	CurrentStepResimCacheImp = static_cast<FEvolutionResimCache*>(InCurrentStepResimCache);
 }
+
+
+void FPBDRigidsEvolutionGBF::TransferJointConstraintCollisions()
+{
+	//
+	// Append transfer constraints. 
+	//
+	using FRigidHandle = TPBDRigidParticleHandleImp<FReal, 3, true>;
+	if (DoTransferJointConstraintCollisions)
+	{
+		TMap<TGeometryParticleHandle<FReal, 3>*, TArray<FPBDCollisionConstraintHandle*> >& CollisionMap = CollisionConstraints.GetParticleCollisionsMap();
+		for (auto& CollisionPair : CollisionMap)
+		{
+			if (FRigidHandle* ChildParticle = CollisionPair.Key->CastToRigidParticle())
+			{
+				for (FConstraintHandle* Constraint : ChildParticle->ParticleConstraints())
+				{
+					if (FPBDJointConstraintHandle* JointConstraint = Constraint->As<FPBDJointConstraintHandle>())
+					{
+						if (!FMath::IsNearlyZero(JointConstraint->GetSettings().ContactTransferScale))
+						{
+							if (FRigidHandle* ParentParticle = JointConstraint->GetConstrainedParticles()[1]->CastToRigidParticle()) // Parent
+							{
+								for (auto& CollisionHandel : CollisionPair.Value)
+								{
+									if (FPBDCollisionConstraintHandle* ContactHandle = CollisionHandel->As<FPBDCollisionConstraintHandle>())
+									{
+										if (ContactHandle->GetType() == FCollisionConstraintBase::FType::SinglePoint)
+										{
+											FRigidBodyPointContactConstraint CurrConstraint = ContactHandle->GetPointContact();
+											FTransform ParentTransform(ParentParticle->R(), ParentParticle->X()), ChildTransform(ChildParticle->R(), ChildParticle->X()),
+												ChildToParentTransform = ChildTransform.GetRelativeTransform(ParentTransform);
+
+											FRigidBodyPointContactConstraint TransferedConstraint;
+											if (ContactHandle->GetConstrainedParticles()[0] == ChildParticle)
+											{
+												TransferedConstraint = FRigidBodyPointContactConstraint(
+													ParentParticle,
+													CurrConstraint.GetManifold().Implicit[0],
+													CurrConstraint.GetManifold().Simplicial[0],
+													ChildToParentTransform.GetRelativeTransform(CurrConstraint.ImplicitTransform[0]),
+													CurrConstraint.Particle[1],
+													CurrConstraint.GetManifold().Implicit[1],
+													CurrConstraint.GetManifold().Simplicial[1],
+													CurrConstraint.ImplicitTransform[1],
+													CurrConstraint.GetCullDistance(),
+													CurrConstraint.GetManifold().ShapesType,
+													CurrConstraint.GetUseManifold()
+												);
+											}
+											else
+											{
+												TransferedConstraint = FRigidBodyPointContactConstraint(
+													CurrConstraint.Particle[0],
+													CurrConstraint.GetManifold().Implicit[0],
+													CurrConstraint.GetManifold().Simplicial[0],
+													CurrConstraint.ImplicitTransform[0],
+													ParentParticle,
+													CurrConstraint.GetManifold().Implicit[1],
+													CurrConstraint.GetManifold().Simplicial[1],
+													ChildToParentTransform.GetRelativeTransform(CurrConstraint.ImplicitTransform[1]),
+													CurrConstraint.GetCullDistance(),
+													CurrConstraint.GetManifold().ShapesType,
+													CurrConstraint.GetUseManifold()
+												);
+											}
+											TArray<FManifoldPoint> TransferManifolds;
+											for (FManifoldPoint& Manifold : CurrConstraint.GetManifoldPoints())
+											{
+												TransferManifolds.Add(Manifold);
+											}
+											TransferedConstraint.SetManifoldPoints(TransferManifolds);
+											for (FManifoldPoint& Manifold : CurrConstraint.GetManifoldPoints())
+											{
+												TransferedConstraint.UpdateManifoldPointFromContact(Manifold);
+											}
+											TransferedConstraint.SetStiffness(JointConstraint->GetSettings().ContactTransferScale);
+											CollisionConstraints.AddConstraint(TransferedConstraint);
+
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 
 }
 
