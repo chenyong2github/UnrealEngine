@@ -117,6 +117,8 @@ private:
 	FString OriginalParsedShader;
 
 	TMap<FString, FParsedShaderParameter> ParsedParameters;
+
+	bool bMovedLoosedParametersToRootConstantBuffer = false;
 };
 
 /** Adds a note to CompilerOutput.Error about where the shader parameter structure is on C++ side. */
