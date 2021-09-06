@@ -2,46 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "IPropertyUtilities.h"
-#include "DetailTreeNode.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Views/STableRow.h"
 #include "DetailCategoryBuilderImpl.h"
-#include "SDetailTableRowBase.h"
+#include "DetailTreeNode.h"
+#include "IDetailsView.h"
+#include "IPropertyUtilities.h"
 #include "PropertyCustomizationHelpers.h"
-
-class SDetailCategoryTableRow : public SDetailTableRowBase
-{
-public:
-	SLATE_BEGIN_ARGS( SDetailCategoryTableRow )
-		: _InnerCategory( false )
-		, _ShowBorder( true )
-	{}
-		SLATE_ARGUMENT( FText, DisplayName )
-		SLATE_ARGUMENT( bool, InnerCategory )
-		SLATE_ARGUMENT( TSharedPtr<SWidget>, HeaderContent )
-		SLATE_ARGUMENT( bool, ShowBorder )
-	SLATE_END_ARGS()
-
-	void Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView );
-
-private:
-	EVisibility IsSeparatorVisible() const;
-	const FSlateBrush* GetBackgroundImage() const;
-	FSlateColor GetInnerBackgroundColor() const;
-	FSlateColor GetOuterBackgroundColor() const;
-
-	virtual FReply OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
-	virtual FReply OnMouseButtonDoubleClick( const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent ) override;
-
-private:
-	bool bIsInnerCategory;
-	bool bShowBorder;
-};
+#include "PropertyHandle.h"
+#include "UObject/NameTypes.h"
 
 class FDetailCategoryGroupNode : public FDetailTreeNode, public TSharedFromThis<FDetailCategoryGroupNode>
 {

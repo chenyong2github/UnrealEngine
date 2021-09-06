@@ -1,16 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DetailItemNode.h"
+#include "CategoryPropertyNode.h"
 #include "DetailCategoryGroupNode.h"
 #include "DetailGroup.h"
 #include "DetailPropertyRow.h"
-#include "SConstrainedBox.h"
-#include "SDetailSingleItemRow.h"
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"
+#include "SConstrainedBox.h"
 #include "PropertyCustomizationHelpers.h"
 #include "PropertyEditorWhitelist.h"
-#include "CategoryPropertyNode.h"
+#include "SDetailCategoryTableRow.h"
+#include "SDetailSingleItemRow.h"
 
 FDetailItemNode::FDetailItemNode(const FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailCategoryImpl> InParentCategory, TAttribute<bool> InIsParentEnabled, TSharedPtr<IDetailGroup> InParentGroup)
 	: Customization( InCustomization )
