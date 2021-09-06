@@ -28,10 +28,4 @@ UAnalysisProperties* MakeAnalysisProperties(UObject* Outer, const FString& Funct
  */
 TArray<FString> GetAnalysisFunctions();
 
-/**
- * Simple helper that avoids the need to check pointer validity when determining if a sample should be locked 
- * after analysis
- */
-bool GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties);
-
 };

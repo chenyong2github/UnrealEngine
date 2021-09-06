@@ -59,10 +59,6 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 		FSlateApplication::Get().DismissAllMenus();
 		bool bChangedOne = false;
 
-		bool bLockX = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]);
-		bool bLockY = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]);
-		bool bLockZ = BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]);
-		
 		const int32 NumSamples = BlendSpace->SampleData.Num();
 		for (int32 SampleIndex = 0 ; SampleIndex != NumSamples ; ++SampleIndex)
 		{
@@ -78,11 +74,6 @@ FReply FBlendSpaceDetails::HandleAnalyzeSamples()
 				if (NewValue == BlendSpace->SampleData[SampleIndex].SampleValue)
 				{
 					bChangedOne = true;
-					BlendSpace->LockSample(
-						SampleIndex,
-						bAnalyzed[0] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
-						bAnalyzed[1] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
-						bAnalyzed[2] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
 				}
 			}
 		}
@@ -500,28 +491,6 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 					}
 				}), BlendSpace, SampleIndex, false);
 
-
-				// Locked
-				{
-					TSharedPtr<IPropertyHandle> LockPositionProperty = BlendSampleProperty->GetChildHandle(
-						GET_MEMBER_NAME_CHECKED(FBlendSample, bLockX));
-					IDetailPropertyRow& LockPositionPropertyRow = Group.AddPropertyRow(
-						LockPositionProperty.ToSharedRef());
-					LockPositionPropertyRow.DisplayName(FText::Format(
-						LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
-						FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName)));
-				}
-				if (!b1DBlendSpace)
-				{
-					TSharedPtr<IPropertyHandle> LockPositionProperty = BlendSampleProperty->GetChildHandle(
-						GET_MEMBER_NAME_CHECKED(FBlendSample, bLockY));
-					IDetailPropertyRow& LockPositionPropertyRow = Group.AddPropertyRow(
-						LockPositionProperty.ToSharedRef());
-					LockPositionPropertyRow.DisplayName(FText::Format(
-						LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
-						FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName)));
-				}
-				
 				if(BlendSpace->IsAsset())
 				{
 					FDetailWidgetRow& AnimationRow = Group.AddWidgetRow();

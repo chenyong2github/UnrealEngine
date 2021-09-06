@@ -25,7 +25,6 @@ void UCachedAnalysisProperties::CopyFrom(const UCachedAnalysisProperties& Other)
 	CharacterUpAxis = Other.CharacterUpAxis;
 	StartTimeFraction = Other.StartTimeFraction;
 	EndTimeFraction = Other.EndTimeFraction;
-	bLockAfterAnalysis = Other.bLockAfterAnalysis;
 }
 
 //======================================================================================================================
@@ -92,7 +91,6 @@ void ULinearAnalysisProperties::InitializeFromCache(TObjectPtr<UCachedAnalysisPr
 		SpaceBoneSocket = CachePtr->SpaceBoneSocket;
 		StartTimeFraction = CachePtr->StartTimeFraction;
 		EndTimeFraction = CachePtr->EndTimeFraction;
-		bLockAfterAnalysis = CachePtr->bLockAfterAnalysis;
 	}
 }
 
@@ -111,7 +109,6 @@ void ULinearAnalysisProperties::MakeCache(TObjectPtr<UCachedAnalysisProperties>&
 	CachePtr->SpaceBoneSocket = SpaceBoneSocket;
 	CachePtr->StartTimeFraction = StartTimeFraction;
 	CachePtr->EndTimeFraction = EndTimeFraction;
-	CachePtr->bLockAfterAnalysis = bLockAfterAnalysis;
 }
 
 //======================================================================================================================
@@ -130,7 +127,6 @@ void UEulerAnalysisProperties::InitializeFromCache(TObjectPtr<UCachedAnalysisPro
 		CharacterUpAxis = CachePtr->CharacterUpAxis;
 		StartTimeFraction = CachePtr->StartTimeFraction;
 		EndTimeFraction = CachePtr->EndTimeFraction;
-		bLockAfterAnalysis = CachePtr->bLockAfterAnalysis;
 	}
 }
 
@@ -153,7 +149,6 @@ void UEulerAnalysisProperties::MakeCache(TObjectPtr<UCachedAnalysisProperties>& 
 	CachePtr->CharacterUpAxis = CharacterUpAxis;
 	CachePtr->StartTimeFraction = StartTimeFraction;
 	CachePtr->EndTimeFraction = EndTimeFraction;
-	CachePtr->bLockAfterAnalysis = bLockAfterAnalysis;
 }
 
 //======================================================================================================================
@@ -355,12 +350,6 @@ TArray<FString> BlendSpaceAnalysis::GetAnalysisFunctions()
 		}
 	}
 	return FunctionNames;
-}
-
-//======================================================================================================================
-bool BlendSpaceAnalysis::GetLockAfterAnalysis(const TObjectPtr<UAnalysisProperties>& AnalysisProperties)
-{
-	return AnalysisProperties ? AnalysisProperties->bLockAfterAnalysis : false;
 }
 
 #undef LOCTEXT_NAMESPACE

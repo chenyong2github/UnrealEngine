@@ -1229,16 +1229,6 @@ void UBlendSpace::ExpandRangeForSample(const FVector& SampleValue)
 	}
 }
 
-void UBlendSpace::LockSample(int32 SampleIndex, bool bLockX, bool bLockY, bool bLockZ)
-{
-	if (SampleData.IsValidIndex(SampleIndex))
-	{
-		SampleData[SampleIndex].bLockX = bLockX; 
-		SampleData[SampleIndex].bLockY = bLockY; 
-		SampleData[SampleIndex].bLockZ = bLockZ; 
-	}
-}
-
 int32 UBlendSpace::AddSample(const FVector& SampleValue)
 {
 	// We should only be adding samples without a source animation if we are not a standalone asset

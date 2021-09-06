@@ -177,24 +177,6 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 		}, GridWidget->OnSampleMoved, (BlendSpaceBase != nullptr) ? BlendSpaceBase : BlendSpace,
 		GridWidget->GetSelectedSampleIndex(), false);
 
-	// Locked
-	const bool b1DBlendSpace = BlendSpace->IsA<UBlendSpace1D>();
-	{
-		IDetailPropertyRow& LockPositionXPropertyRow = CategoryBuilder.AddProperty(DetailBuilder.GetProperty(
-            GET_MEMBER_NAME_CHECKED(FBlendSample, bLockX), FBlendSample::StaticStruct()));
-		LockPositionXPropertyRow.DisplayName(FText::Format(
-            LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
-            FText::FromString(BlendSpace->GetBlendParameter(0).DisplayName)));
-	}
-	if (!b1DBlendSpace)
-	{
-		IDetailPropertyRow& LockPositionYPropertyRow = CategoryBuilder.AddProperty(DetailBuilder.GetProperty(
-			GET_MEMBER_NAME_CHECKED(FBlendSample, bLockY), FBlendSample::StaticStruct()));
-		LockPositionYPropertyRow.DisplayName(FText::Format(
-			LOCTEXT("BlendSpaceSampleLockLabel", "{0} {1}"), FText::FromString(TEXT("Lock ")),
-			FText::FromString(BlendSpace->GetBlendParameter(1).DisplayName)));
-	}
-
 	// Animation and rate
 	if(BlendspaceToUse->IsAsset())
 	{
@@ -262,6 +244,7 @@ void FBlendSampleDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBui
 				return OrigValue != NewValue;
 			});
 
+		const bool b1DBlendSpace = BlendSpace->IsA<UBlendSpace1D>();
 
 		if (bShowAnalysis)
 		{

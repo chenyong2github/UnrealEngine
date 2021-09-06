@@ -94,7 +94,6 @@ public:
 	EAnalysisLinearAxis     CharacterUpAxis = EAnalysisLinearAxis::PlusZ;
 	float                   StartTimeFraction = 0.0f;
 	float                   EndTimeFraction = 1.0f;
-	bool                    bLockAfterAnalysis = false;
 };
 
 UCLASS()

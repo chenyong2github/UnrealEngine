@@ -191,12 +191,6 @@ int32 SBlendSpaceEditor::OnSampleAdded(UAnimSequence* Animation, const FVector& 
 
 	if (NewSampleIndex >= 0)
 	{
-		BlendSpace->LockSample(
-			NewSampleIndex,
-			bAnalyzed[0] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[0]) : false,
-			bAnalyzed[1] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[1]) : false,
-			bAnalyzed[2] ? BlendSpaceAnalysis::GetLockAfterAnalysis(BlendSpace->AnalysisProperties[2]) : false);
-
 		ResampleData();
 		BlendSpace->ValidateSampleData();
 
@@ -219,11 +213,7 @@ void SBlendSpaceEditor::OnSampleDuplicated(const int32 SampleIndex, const FVecto
 	BlendSpace->Modify();
 
 	const FBlendSample& OrigSample = BlendSpace->GetBlendSample(SampleIndex);
-	int32 NewSampleIndex = OnSampleAdded(OrigSample.Animation, NewValue, bRunAnalysis);
-	if (NewSampleIndex >= 0)
-	{
-		BlendSpace->LockSample(NewSampleIndex, OrigSample.bLockX, OrigSample.bLockY, OrigSample.bLockZ);
-	}
+	OnSampleAdded(OrigSample.Animation, NewValue, bRunAnalysis);
 }
 
 void SBlendSpaceEditor::OnSampleReplaced(int32 InSampleIndex, UAnimSequence* Animation)

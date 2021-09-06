@@ -37,10 +37,6 @@ public:
 	/** Analysis function for this axis */
 	UPROPERTY()
 	FString Function = TEXT("None");
-
-	/** If set then the sample values will be locked after analysis, preventing them from being moved by accident */
-	UPROPERTY(EditAnywhere, Category = AnalysisProperties)
-	bool bLockAfterAnalysis = false;
 };
 
 /** Interpolation data types. */
@@ -167,40 +163,28 @@ struct FBlendSample
 	UPROPERTY(transient)
 	uint8 bIsValid : 1;
 
-	UPROPERTY(EditAnywhere, Category=BlendSample)
-	uint8 bLockX : 1;
-
-	UPROPERTY(EditAnywhere, Category=BlendSample)
-	uint8 bLockY : 1;
-
-	UPROPERTY(EditAnywhere, Category=BlendSample)
-	uint8 bLockZ : 1;
-
 	// Cache the samples marker data counter so that we can track if it changes and revalidate the blendspace
 	int32 CachedMarkerDataUpdateCounter;
 
 #endif // WITH_EDITORONLY_DATA
 
 	FBlendSample()
-        : Animation(nullptr)
-        , SampleValue(0.f)
-        , RateScale(1.0f)
+		: Animation(nullptr)
+		, SampleValue(0.f)
+		, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-        , bIsValid(false)
-		, bLockX(false)
-		, bLockY(false)
-		, bLockZ(false)
+		, bIsValid(false)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
 {		
 }
 	
 	FBlendSample(class UAnimSequence* InAnim, FVector InValue, bool bInIsSnapped, bool bInIsValid) 
-        : Animation(InAnim)
-        , SampleValue(InValue)
-        , RateScale(1.0f)
+		: Animation(InAnim)
+		, SampleValue(InValue)
+		, RateScale(1.0f)
 #if WITH_EDITORONLY_DATA
-        , bIsValid(bInIsValid)
+		, bIsValid(bInIsValid)
 		, CachedMarkerDataUpdateCounter(INDEX_NONE)
 #endif // WITH_EDITORONLY_DATA
 	{		 
@@ -568,9 +552,6 @@ public:
 	/** Add samples */
 	ENGINE_API int32 AddSample(const FVector& SampleValue);
 	ENGINE_API int32 AddSample(UAnimSequence* AnimationSequence, const FVector& SampleValue);
-
-	/** if requested, locks the position of the sample (e.g. after analysis) */
-	ENGINE_API void LockSample(int32 SampleIndex, bool bLockX, bool bLockY, bool bLockZ);
 
 	ENGINE_API void ExpandRangeForSample(const FVector& SampleValue);
 	

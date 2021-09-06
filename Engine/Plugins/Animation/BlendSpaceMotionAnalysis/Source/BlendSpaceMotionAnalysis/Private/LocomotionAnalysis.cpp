@@ -28,7 +28,6 @@ void ULocomotionAnalysisProperties::InitializeFromCache(TObjectPtr<UCachedAnalys
 		SecondaryBoneSocket = CachedMotionAnalysisPropertiesPtr->BoneSocket2;
 		CharacterFacingAxis = CachedMotionAnalysisPropertiesPtr->CharacterFacingAxis;
 		CharacterUpAxis = CachedMotionAnalysisPropertiesPtr->CharacterUpAxis;
-		bLockAfterAnalysis = CachedMotionAnalysisPropertiesPtr->bLockAfterAnalysis;
 	}
 }
 
@@ -51,7 +50,6 @@ void ULocomotionAnalysisProperties::MakeCache(TObjectPtr<UCachedAnalysisProperti
 	CachedMotionAnalysisPropertiesPtr->BoneSocket2 = SecondaryBoneSocket;
 	CachedMotionAnalysisPropertiesPtr->CharacterFacingAxis = CharacterFacingAxis;
 	CachedMotionAnalysisPropertiesPtr->CharacterUpAxis = CharacterUpAxis;
-	CachedMotionAnalysisPropertiesPtr->bLockAfterAnalysis = bLockAfterAnalysis;
 }
 
 //======================================================================================================================
