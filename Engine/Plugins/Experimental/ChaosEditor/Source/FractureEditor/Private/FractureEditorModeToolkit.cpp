@@ -1356,11 +1356,17 @@ void FFractureEditorModeToolkit::UpdateVolumes(FGeometryCollectionPtr GeometryCo
 	}
 }
 
-bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
+bool GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {
-	if (TransformToGeometryIndex[TransformIndex] > -1)
+	if (Collection->IsRigid(TransformIndex))
 	{
 		OutGeoCenter = Transforms[TransformIndex].TransformPosition(BoundingBox[TransformToGeometryIndex[TransformIndex]].GetCenter());
+
+		return true;
+	}
+	else if (Collection->SimulationType[TransformIndex] == FGeometryCollection::ESimulationTypes::FST_None) // ie this is embedded geometry
+	{
+		OutGeoCenter = Transforms[Collection->Parent[TransformIndex]].TransformPosition(BoundingBox[TransformToGeometryIndex[Collection->Parent[TransformIndex]]].GetCenter());
 
 		return true;
 	}
@@ -1371,7 +1377,7 @@ bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, con
 		for(int32 ChildIndex : Children[TransformIndex])
 		{
 
-			if (GetValidGeoCenter(TransformToGeometryIndex, Transforms, Children, BoundingBox, ChildIndex, OutGeoCenter))
+			if (GetValidGeoCenter(Collection, TransformToGeometryIndex, Transforms, Children, BoundingBox, ChildIndex, OutGeoCenter))
 			{
 				if (ValidVectors == 0)
 				{
@@ -1467,7 +1473,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 		{
 			ExplodedVectors[Idx] = FVector::ZeroVector;
 			FVector GeoCenter;
-			if (GetValidGeoCenter(TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
+			if (GetValidGeoCenter(GeometryCollection->GetGeometryCollection().Get(), TransformToGeometryIndex, Transforms, Children, BoundingBox, Idx, GeoCenter))
 			{
 				TransformedCenters[Idx] = GeoCenter;
 				if ((ViewFractureLevel < 0) || Levels[Idx] == ViewFractureLevel)
@@ -1498,6 +1504,8 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 			}
 		}
 	}
+
+	GeometryCollectionComponent->RefreshEmbeddedGeometry();
 }
 
 void FFractureEditorModeToolkit::RegenerateOutliner()
@@ -1515,8 +1523,6 @@ void FFractureEditorModeToolkit::OnOutlinerBoneSelectionChanged(UGeometryCollect
 	const UGeometryCollection* RestCollection = RootComponent->GetRestCollection();
 	if (RestCollection && !RestCollection->IsPendingKill())
 	{
-		FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), RootComponent);
-
 		if (SelectedBones.Num())
 		{
 
@@ -1547,8 +1553,6 @@ void FFractureEditorModeToolkit::OnHistogramBoneSelectionChanged(UGeometryCollec
 	const UGeometryCollection* RestCollection = RootComponent->GetRestCollection();
 	if (RestCollection && !RestCollection->IsPendingKill())
 	{
-		FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), RootComponent);
-
 		if (SelectedBones.Num())
 		{
 

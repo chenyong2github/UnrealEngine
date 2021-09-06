@@ -844,10 +844,19 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 	{
 		HideArray = &RestCollection->GetGeometryCollection()->GetAttribute<bool>("Hide", FGeometryCollection::TransformGroup);
 	}
-	
+
+#if WITH_EDITOR	
+	EmbeddedInstanceIndex.Init(INDEX_NONE, RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
+#endif
+
 	const int32 ExemplarCount = EmbeddedGeometryComponents.Num();
 	for (int32 ExemplarIndex = 0; ExemplarIndex < ExemplarCount; ++ExemplarIndex)
 	{		
+#if WITH_EDITOR
+		EmbeddedBoneMaps[ExemplarIndex].Empty(TransformCount);
+		EmbeddedBoneMaps[ExemplarIndex].Reserve(TransformCount); // Allocate for worst case
+#endif
+		
 		TArray<FTransform> InstanceTransforms;
 		InstanceTransforms.Reserve(TransformCount); // Allocate for worst case
 
@@ -859,6 +868,10 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 				if (!HideArray || !(*HideArray)[Idx])
 				{ 
 					InstanceTransforms.Add(FTransform(GlobalMatrices[Idx]));
+#if WITH_EDITOR
+					int32 InstanceIndex = EmbeddedBoneMaps[ExemplarIndex].Add(Idx);
+					EmbeddedInstanceIndex[Idx] = InstanceIndex;
+#endif
 				}
 			}
 		}
@@ -889,6 +902,30 @@ void UGeometryCollectionComponent::RefreshEmbeddedGeometry()
 		}
 	}
 }
+
+#if WITH_EDITOR
+void UGeometryCollectionComponent::SetEmbeddedGeometrySelectable(bool bSelectableIn)
+{
+	for (TObjectPtr<UInstancedStaticMeshComponent> EmbeddedGeometryComponent : EmbeddedGeometryComponents)
+	{
+		EmbeddedGeometryComponent->bSelectable = bSelectable;
+		EmbeddedGeometryComponent->bHasPerInstanceHitProxies = bSelectable;
+	}
+}
+
+int32 UGeometryCollectionComponent::EmbeddedIndexToTransformIndex(const UInstancedStaticMeshComponent* ISMComponent, int32 InstanceIndex) const
+{
+	for (int32 ISMIdx = 0; ISMIdx < EmbeddedGeometryComponents.Num(); ++ISMIdx)
+	{
+		if (EmbeddedGeometryComponents[ISMIdx].Get() == ISMComponent)
+		{
+			return (EmbeddedBoneMaps[ISMIdx][InstanceIndex]);
+		}
+	}
+
+	return INDEX_NONE;
+}
+#endif
 
 void UGeometryCollectionComponent::SetRestState(TArray<FTransform>&& InRestTransforms)
 {	
@@ -2218,6 +2255,7 @@ void FScopedColorEdit::SetSelectedBones(const TArray<int32>& SelectedBonesIn)
 {
 	bUpdated = true;
 	Component->SelectedBones = SelectedBonesIn;
+	Component->SelectEmbeddedGeometry();
 }
 
 void FScopedColorEdit::AppendSelectedBones(const TArray<int32>& SelectedBonesIn)
@@ -2848,6 +2886,26 @@ UMaterialInterface* UGeometryCollectionComponent::GetMaterial(int32 MaterialInde
 	}
 }
 
+#if WITH_EDITOR
+void UGeometryCollectionComponent::SelectEmbeddedGeometry()
+{
+	// First reset the selections
+	for (TObjectPtr<UInstancedStaticMeshComponent> EmbeddedGeometryComponent : EmbeddedGeometryComponents)
+	{
+		EmbeddedGeometryComponent->ClearInstanceSelection();
+	}
+	
+	const TManagedArray<int32>& ExemplarIndex = GetExemplarIndexArray();
+	for (int32 SelectedBone : SelectedBones)
+	{
+		if (ExemplarIndex[SelectedBone] > INDEX_NONE)
+		{
+			EmbeddedGeometryComponents[ExemplarIndex[SelectedBone]]->SelectInstance(true, EmbeddedInstanceIndex[SelectedBone], 1);
+		}
+	}
+}
+#endif
+
 // #temp HACK for demo, When fracture happens (physics state changes to dynamic) then switch the visible render meshes in a blueprint/actor from static meshes to geometry collections
 void UGeometryCollectionComponent::SwitchRenderModels(const AActor* Actor)
 {
@@ -2985,6 +3043,11 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 				}
 			}
 		}
+
+#if WITH_EDITOR
+		EmbeddedBoneMaps.SetNum(RestCollection->EmbeddedGeometryExemplar.Num());
+		EmbeddedInstanceIndex.Init(INDEX_NONE,RestCollection->GetGeometryCollection()->NumElements(FGeometryCollection::TransformGroup));
+#endif
 
 		CalculateGlobalMatrices();
 		RefreshEmbeddedGeometry();

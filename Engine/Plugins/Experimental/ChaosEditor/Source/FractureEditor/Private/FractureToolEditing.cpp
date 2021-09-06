@@ -38,6 +38,8 @@ void UFractureToolDeleteBranch::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 {
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteBranch", "Prune"));
+
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();

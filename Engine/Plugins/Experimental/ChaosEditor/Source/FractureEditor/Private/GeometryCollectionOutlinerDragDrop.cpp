@@ -94,6 +94,8 @@ bool FGeometryCollectionBoneDragDrop::ReparentBones(const FGeometryCollection* O
 	bool bValid = ValidateDrop(OtherGeometryCollection, OtherBone, HoverText);
 	if (bValid)
 	{
+		FScopedTransaction Transaction(LOCTEXT("ReparentBones", "Reparent Bones"));
+		
 		// If we parent a rigid to another rigid, we convert the child rigid to embedded.
 		if (GeometryCollection->IsRigid(OtherBone))
 		{

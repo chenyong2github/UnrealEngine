@@ -36,6 +36,8 @@ void UFractureToolFlattenAll::Execute(TWeakPtr<FFractureEditorModeToolkit> InToo
 {
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("FlattenAll", "Flatten All"));
+
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
@@ -91,6 +93,8 @@ void UFractureToolCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolki
 	
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("Cluster", "Cluster"));
+		
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		int32 CurrentLevelView = Toolkit->GetLevelViewValue();
@@ -161,6 +165,8 @@ void UFractureToolUncluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTool
 {
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("Uncluster", "Uncluster"));
+		
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
@@ -210,6 +216,8 @@ void UFractureToolMoveUp::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 {
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("MovelUp", "Level Up"));
+		
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
@@ -253,6 +261,8 @@ void UFractureToolClusterMerge::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 {
 	if (InToolkit.IsValid())
 	{
+		FScopedTransaction Transaction(LOCTEXT("ClusterMerge", "Cluster Merge"));
+		
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
 		TArray<FFractureToolContext> Contexts = GetFractureToolContexts();
