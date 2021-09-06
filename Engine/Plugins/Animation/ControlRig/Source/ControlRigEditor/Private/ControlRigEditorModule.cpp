@@ -45,6 +45,7 @@
 #include "ControlRigGizmoLibraryActions.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Graph/ControlRigGraph.h"
+#include "EdGraph/EdGraph.h"
 #include "Graph/NodeSpawners/ControlRigUnitNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigVariableNodeSpawner.h"
 #include "Graph/NodeSpawners/ControlRigRerouteNodeSpawner.h"
@@ -83,6 +84,7 @@
 #include "ControlRigThumbnailRenderer.h"
 #include "RigVMModel/RigVMController.h"
 #include "RigVMModel/Nodes/RigVMLibraryNode.h"
+#include "RigVMModel/RigVMVariableDescription.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRig/Private/Units/Simulation/RigUnit_AlphaInterp.h"
 #include "ControlRig/Private/Units/Debug/RigUnit_VisualDebug.h"
@@ -1252,6 +1254,21 @@ void FControlRigEditorModule::GetInstanceActions(UControlRigBlueprint* CRB, FBlu
 				UBlueprintNodeSpawner* NodeSpawner = UControlRigFunctionRefNodeSpawner::CreateFromFunction(Function);
 				check(NodeSpawner != nullptr);
 				ActionRegistrar.AddBlueprintAction(GeneratedClass, NodeSpawner);
+			}
+
+			static const FString CategoryDelimiter(TEXT("|"));
+			FText NodeCategory = LOCTEXT("LocalVariables", "Local Variables");
+			for (URigVMLibraryNode* Function : Functions)
+			{
+				for (const FRigVMGraphVariableDescription& LocalVariable : Function->GetContainedGraph()->GetLocalVariables())
+				{
+					FText MenuDesc = FText::FromName(LocalVariable.Name);
+					FText ToolTip = FText::FromString(FString::Printf(TEXT("Get the value of variable %s"), *LocalVariable.Name.ToString()));
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, UControlRigVariableNodeSpawner::CreateFromLocalVariable(CRB, Function->GetContainedGraph(), LocalVariable, true, MenuDesc, NodeCategory, ToolTip));
+
+					ToolTip = FText::FromString(FString::Printf(TEXT("Set the value of variable %s"), *LocalVariable.Name.ToString()));
+					ActionRegistrar.AddBlueprintAction(GeneratedClass, UControlRigVariableNodeSpawner::CreateFromLocalVariable(CRB, Function->GetContainedGraph(), LocalVariable, false, MenuDesc, NodeCategory, ToolTip));
+				}
 			}
 		}
 	}

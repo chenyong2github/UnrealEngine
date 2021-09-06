@@ -13,6 +13,7 @@
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
 #include "RigVMCore/RigVMExternalVariable.h"
+#include "RigVMModel/RigVMVariableDescription.h"
 #include "ControlRigVariableNodeSpawner.generated.h"
 
 class UControlRigGraphNode;
@@ -32,6 +33,7 @@ public:
 	 * @return A newly allocated instance of this class.
 	 */
 	static UControlRigVariableNodeSpawner* CreateFromExternalVariable(UControlRigBlueprint* InBlueprint, const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static UControlRigVariableNodeSpawner* CreateFromLocalVariable(UControlRigBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -45,8 +47,10 @@ private:
 
 	/** The pin type we will spawn */
 	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
+	TWeakObjectPtr<URigVMGraph> GraphOwner;
 	FRigVMExternalVariable ExternalVariable;
 	bool bIsGetter;
+	bool bIsLocalVariable;	
 
 	friend class UEngineTestControlRig;
 };
