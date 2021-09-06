@@ -43,6 +43,16 @@ UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromExtern
 	return NodeSpawner;
 }
 
+UControlRigVariableNodeSpawner* UControlRigVariableNodeSpawner::CreateFromLocalVariable(
+	UControlRigBlueprint* InBlueprint, URigVMGraph* InGraphOwner, const FRigVMGraphVariableDescription& InLocalVariable,
+	bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip)
+{
+	UControlRigVariableNodeSpawner* Spawner = CreateFromExternalVariable(InBlueprint, InLocalVariable.ToExternalVariable(), bInIsGetter, InMenuDesc, InCategory, InTooltip);
+	Spawner->bIsLocalVariable = true;
+	Spawner->GraphOwner = InGraphOwner;
+	return Spawner;
+}
+
 void UControlRigVariableNodeSpawner::Prime()
 {
 	// we expect that you don't need a node template to construct menu entries
@@ -56,6 +66,26 @@ bool UControlRigVariableNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 		if (!Filter.Context.Blueprints.Contains(Blueprint.Get()))
 		{
 			return true;
+		}
+
+		if (bIsLocalVariable)
+		{
+			bool bIsFiltered = true;
+			if (Filter.Context.Graphs.Num() == 1 && GraphOwner.IsValid())
+			{
+				if (UControlRigGraph* Graph = Cast<UControlRigGraph>(Filter.Context.Graphs[0]))
+				{
+					if (GraphOwner.Get() == Graph->GetModel())
+					{
+						bIsFiltered = false;
+					}
+				}
+			}
+
+			if (bIsFiltered)
+			{
+				return true;
+			}
 		}
 	}
 	return Super::IsTemplateNodeFilteredOut(Filter);
