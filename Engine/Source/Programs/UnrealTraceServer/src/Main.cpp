@@ -483,7 +483,11 @@ static int MainFork(int ArgC, char** ArgV)
 
 		const auto* InstanceInfo = MmapScope.As<const FInstanceInfo>();
 		InstanceInfo->WaitForReady();
+#if TS_USING(TS_BUILD_DEBUG)
+		if (false)
+#else
 		if (!InstanceInfo->IsOlder())
+#endif
 		{
 			TS_LOG("Existing instance is the same age or newer");
 			return Result_Ok;
@@ -531,6 +535,14 @@ static int MainFork(int ArgC, char** ArgV)
 		DestPath /= Buffer;
 	}
 	TS_LOG("Run path '%ls'", DestPath.c_str());
+
+#if TS_USING(TS_BUILD_DEBUG)
+	// Debug builds will always do the copy.
+	{
+		std::error_code ErrorCode;
+		std::filesystem::remove(DestPath, ErrorCode);
+	}
+#endif
 
 	// Copy the binary out to a location where it doesn't matter if the file
 	// gets locked by the OS.
