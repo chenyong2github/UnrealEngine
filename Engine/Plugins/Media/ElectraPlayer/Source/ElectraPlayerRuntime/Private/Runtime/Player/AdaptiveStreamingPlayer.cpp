@@ -1502,6 +1502,8 @@ void FAdaptiveStreamingPlayer::HandlePlayStateChanges()
  */
 void FAdaptiveStreamingPlayer::HandleMetadataChanges()
 {
+	FScopeLock Lock(&PeriodCriticalSection);
+
 	// The timeline can change dynamically. Refresh it on occasion.
 	if (Manifest.IsValid() && ManifestType == EMediaFormatType::DASH)
 	{
@@ -3011,6 +3013,8 @@ void FAdaptiveStreamingPlayer::AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPe
 	TSharedPtrTS<ITimelineMediaAsset> Period = InUpcomingPeriod->GetMediaAsset();
 	if (Period.IsValid())
 	{
+		FScopeLock Lock(&PeriodCriticalSection);
+
 		FString PeriodID = Period->GetUniqueIdentifier();
 		// Only add if it is not already in the list.
 		if (!UpcomingPeriods.ContainsByPredicate([PeriodID](const FPeriodInformation& e){ return e.ID.Equals(PeriodID); }))
@@ -3396,8 +3400,10 @@ void FAdaptiveStreamingPlayer::InternalStop(bool bHoldCurrentFrame)
 	CurrentPlayPeriodVideo.Reset();
 	CurrentPlayPeriodAudio.Reset();
 	CurrentPlayPeriodText.Reset();
+	PeriodCriticalSection.Lock();
 	ActivePeriods.Empty();
 	UpcomingPeriods.Empty();
+	PeriodCriticalSection.Unlock();
 
 	PlaybackRate = 0.0;
 	CurrentState = EPlayerState::eState_Paused;
