@@ -278,7 +278,7 @@ struct ENGINE_API FEdGraphPinReference
 private:
 	/** The node that owns the pin referred to by this struct. Updated at Set and Save time. */
 	UPROPERTY()
-	TSoftObjectPtr<UEdGraphNode> OwningNode;
+	TWeakObjectPtr<UEdGraphNode> OwningNode;
 
 	/** The pin's unique ID. Updated at Set and Save time. */
 	UPROPERTY()

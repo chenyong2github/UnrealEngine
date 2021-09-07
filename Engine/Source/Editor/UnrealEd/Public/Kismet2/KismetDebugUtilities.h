@@ -12,6 +12,7 @@ static_assert(DO_BLUEPRINT_GUARD, "KismetDebugUtilities assumes BP exception tra
 
 class UBlueprint;
 struct FBlueprintBreakpoint;
+struct FBlueprintWatchedPin;
 template<typename ElementType> class TSimpleRingBuffer;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogBlueprintDebug, Log, All);
@@ -296,23 +297,23 @@ public:
 	static bool BlueprintHasPinWatches(const UBlueprint* Blueprint);
 
 	/**
-	* Performs a task on every breakpoint in the provided blueprint
-	* @param Blueprint The owning blueprint of the breakpoints to iterate
+	* Performs a task on every watched pin in the provided blueprint
+	* @param Blueprint The owning blueprint of the watched pins to iterate
 	* @param Task function to be called on every element
 	*/
 	static void ForeachPinWatch(const UBlueprint* Blueprint, TFunctionRef<void(UEdGraphPin*)> Task);
 
 	/**
-	* Removes any breakpoint that matches the provided predicate
-	* @param Blueprint The owning blueprint of the breakpoints to iterate
-	* @param Predicate function that returns true if a breakpoint should be removed
+	* Removes any watched pin that matches the provided predicate
+	* @param Blueprint The owning blueprint of the watched pins to iterate
+	* @param Predicate function that returns true if a watched pin should be removed
 	*/
 	static bool RemovePinWatchesByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const UEdGraphPin*)> Predicate);
 
 	/**
-	* Returns the first breakpoint that matches the provided predicate or nullptr if nothing matched
-	* @param Blueprint The owning blueprint of the breakpoints to iterate
-	* @param Predicate function that returns true for the found breakpoint
+	* Returns the first watched pin that matches the provided predicate or nullptr if nothing matched
+	* @param Blueprint The owning blueprint of the watched pins to iterate
+	* @param Predicate function that returns true for the found watched pin
 	*/
 	static UEdGraphPin* FindPinWatchByPredicate(const UBlueprint* Blueprint, const TFunctionRef<bool(const UEdGraphPin*)> Predicate);
 
@@ -374,9 +375,9 @@ protected:
 	*	returns null if there are no breakpoints associated with this blueprint */
 	static TArray<FBlueprintBreakpoint>* GetBreakpoints(const UBlueprint* Blueprint);
 
-	/**	Retrieve the Array of breakpoints associated with a blueprint.
-	*	returns null if there are no breakpoints associated with this blueprint */
-	static TArray<FEdGraphPinReference>* GetWatchedPins(const UBlueprint* Blueprint);
+	/**	Retrieve the Array of watched pins associated with a blueprint.
+	*	returns null if there are no watched pins associated with this blueprint */
+	static TArray<FBlueprintWatchedPin>* GetWatchedPins(const UBlueprint* Blueprint);
 	
 	/** Save any modifications made to breakpoints */
 	static void SaveBlueprintEditorSettings();
