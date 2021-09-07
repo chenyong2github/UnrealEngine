@@ -175,11 +175,12 @@ bool FSkeletalMeshBuilder::Build(const FSkeletalMeshBuildParameters& SkeletalMes
 						continue;
 					}
 					TArray<FMorphTargetDelta>& MorphDeltasArray = BaseLODMorphTargetData.FindOrAdd(MorphTarget->GetFullName());
-					const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[LODIndex];
 					//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
-					for (const FMorphTargetDelta& MorphDelta : BaseMorphModel.Vertices)
+					int32 NumDeltas = 0;
+					const FMorphTargetDelta* BaseDeltaArray = MorphTarget->GetMorphTargetDelta(LODIndex, NumDeltas);
+					for (int32 DeltaIndex = 0; DeltaIndex < NumDeltas; DeltaIndex++)
 					{
-						MorphDeltasArray.Add(MorphDelta);
+						MorphDeltasArray.Add(BaseDeltaArray[DeltaIndex]);
 					}
 				}
 				//Copy the original SkeletalMesh LODModel

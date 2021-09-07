@@ -5873,7 +5873,7 @@ void FMeshUtilities::CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) c
 					continue;
 				}
 				TArray<FMorphTargetDelta>& MorphDeltasArray = LODMorphTargetData.FindOrAdd(MorphTarget->GetName());
-				const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[LodIndex];
+				const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[LodIndex];
 				//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
 				for (const FMorphTargetDelta& MorphDelta : BaseMorphModel.Vertices)
 				{

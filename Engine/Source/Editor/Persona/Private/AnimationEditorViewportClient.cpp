@@ -740,7 +740,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			{
 				continue;
 			}
-			for (const FMorphTargetLODModel& MorphTargetLODModel : MorphTarget->MorphLODModels)
+			for (const FMorphTargetLODModel& MorphTargetLODModel : MorphTarget->GetMorphLODModels())
 			{
 				for (int32 SectionIndex : MorphTargetLODModel.SectionIndices)
 				{
