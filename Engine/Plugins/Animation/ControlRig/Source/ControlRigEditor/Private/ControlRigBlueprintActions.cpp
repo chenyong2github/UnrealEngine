@@ -143,8 +143,6 @@ UControlRigBlueprint* FControlRigBlueprintActions::CreateNewControlRigAsset(cons
 
 UControlRigBlueprint* FControlRigBlueprintActions::CreateControlRigFromSkeletalMeshOrSkeleton(UObject* InSelectedObject)
 {
-	FScopedTransaction Transaction(LOCTEXT("CreateControlRigFromSkeletalMesh", "Create Control Rig"));
-
 	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(InSelectedObject);
 	USkeleton* Skeleton = Cast<USkeleton>(InSelectedObject);
 	const FReferenceSkeleton* RefSkeleton = nullptr;
