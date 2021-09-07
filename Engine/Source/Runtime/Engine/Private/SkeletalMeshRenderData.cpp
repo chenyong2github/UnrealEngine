@@ -481,12 +481,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				{
 					FName MorphTargetName = Owner->GetMorphTargets()[MorphTargetIndex]->GetFName();
 					Ar << MorphTargetName;
-					int32 MorphLODModelNumber = Owner->GetMorphTargets()[MorphTargetIndex]->MorphLODModels.Num();
-					Ar << MorphLODModelNumber;
-					for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
-					{
-						Ar << Owner->GetMorphTargets()[MorphTargetIndex]->MorphLODModels[MorphIndex];
-					}
+					Owner->GetMorphTargets()[MorphTargetIndex]->SerializeMemoryArchive(Ar);
 				}
 				//No need to serialize the morph target mapping since we will rebuild the mapping when loading a ddc
 

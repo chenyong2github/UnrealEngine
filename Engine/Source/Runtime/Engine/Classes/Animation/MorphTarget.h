@@ -8,7 +8,7 @@
 #include "PackedNormal.h"
 #include "UObject/EditorObjectVersion.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
-
+#include "Serialization/MemoryArchive.h"
 #include "MorphTarget.generated.h"
 
 class USkeletalMesh;
@@ -66,7 +66,7 @@ struct FMorphTargetLODModel
 	bool bGeneratedByEngine;
 
 	/** Get Resource Size */
-	void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
+	ENGINE_API void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) const;
 
 	FMorphTargetLODModel()
 		: NumVertices(0)
@@ -141,31 +141,44 @@ public:
 	TObjectPtr<class USkeletalMesh> BaseSkelMesh;
 
 	/** morph mesh vertex data for each LOD */
+	virtual const TArray<FMorphTargetLODModel>& GetMorphLODModels() const { return MorphLODModels; }
+
+	/** morph mesh vertex data for each LOD */
+	virtual TArray<FMorphTargetLODModel>& GetMorphLODModels() { return MorphLODModels; }
+
+protected:
+	/** morph mesh vertex data for each LOD */
 	TArray<FMorphTargetLODModel>	MorphLODModels;
 
 public:
 
 	/** Get Morphtarget Delta array for the given input Index */
-	ENGINE_API FMorphTargetDelta* GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas);
-	ENGINE_API bool HasDataForLOD(int32 LODIndex);
+	ENGINE_API const FMorphTargetDelta* GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas) const;
+	ENGINE_API virtual bool HasDataForLOD(int32 LODIndex) const;
+	/** return true if this morphtarget contains data for section within LOD */
+	ENGINE_API virtual bool HasDataForSection(int32 LODIndex, int32 SectionIndex) const;
 	/** return true if this morphtarget contains valid vertices */
-	ENGINE_API bool HasValidData() const;
+	ENGINE_API virtual bool HasValidData() const;
+	ENGINE_API virtual void EmptyMorphLODModels();
 
 	/** Discard CPU Buffers after render resources have been created. */
 	ENGINE_API void DiscardVertexData();
 
 #if WITH_EDITOR
 	/** Populates the given morph target LOD model with the provided deltas */
-	ENGINE_API void PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<struct FSkelMeshSection>& Sections, const bool bCompareNormal = false, const bool bGeneratedByReductionSetting = false, const float PositionThreshold = THRESH_POINTS_ARE_NEAR);
+	ENGINE_API virtual void PopulateDeltas(const TArray<FMorphTargetDelta>& Deltas, const int32 LODIndex, const TArray<struct FSkelMeshSection>& Sections, const bool bCompareNormal = false, const bool bGeneratedByReductionSetting = false, const float PositionThreshold = THRESH_POINTS_ARE_NEAR);
 	/** Remove empty LODModels */
-	ENGINE_API void RemoveEmptyMorphTargets();
+	ENGINE_API virtual void RemoveEmptyMorphTargets();
 #endif // WITH_EDITOR
 
 public:
 
 	//~ UObject interface
 
-	virtual void Serialize(FArchive& Ar) override;
-	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual void PostLoad() override;
+	ENGINE_API virtual void Serialize(FArchive& Ar) override;
+	ENGINE_API virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	ENGINE_API virtual void PostLoad() override;
+
+	/** UObject does not support serialization via FMemoryArchive, so manually handle separately */
+	ENGINE_API virtual void SerializeMemoryArchive(FMemoryArchive& Ar);
 };

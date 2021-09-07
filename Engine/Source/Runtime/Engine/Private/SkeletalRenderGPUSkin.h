@@ -25,7 +25,7 @@ class FGPUSkinCache;
 * Stores the updated matrices needed to skin the verts.
 * Created by the game thread and sent to the rendering thread as an update 
 */
-class FDynamicSkelMeshObjectDataGPUSkin
+class ENGINE_API FDynamicSkelMeshObjectDataGPUSkin
 {
 	/**
 	* Constructor, these are recycled, so you never use a constructor
@@ -363,7 +363,7 @@ public:
 /**
  * Render data for a GPU skinned mesh
  */
-class FSkeletalMeshObjectGPUSkin : public FSkeletalMeshObject
+class ENGINE_API FSkeletalMeshObjectGPUSkin : public FSkeletalMeshObject
 {
 public:
 	/** @param	InSkeletalMeshComponent - skeletal mesh primitive we want to render */
@@ -469,7 +469,7 @@ public:
 
 	virtual void RefreshClothingTransforms(const FMatrix& InNewLocalToWorld, uint32 FrameNumber) override;
 	virtual void UpdateSkinWeightBuffer(USkinnedMeshComponent* InMeshComponent) override;
-private:
+protected:
 
 	/**
 	 * Vertex factories and their matrix arrays
@@ -660,6 +660,8 @@ private:
 
 	void ProcessUpdatedDynamicData(EGPUSkinCacheEntryMode Mode, FGPUSkinCache* GPUSkinCache, FRHICommandListImmediate& RHICmdList, uint32 FrameNumberToPrepare, uint32 RevisionNumber, bool bMorphNeedsUpdate, int32 LODIndex);
 
+	virtual void UpdateMorphVertexBuffer(FRHICommandListImmediate& RHICmdList, EGPUSkinCacheEntryMode Mode, FSkeletalMeshObjectLOD& LOD, const FSkeletalMeshLODRenderData& LODData);
+
 	void WaitForRHIThreadFenceForDynamicData();
 
 	/** Render data for each LOD */
@@ -682,6 +684,13 @@ private:
 
 	/** last updated bone transform revision number */
 	uint32 LastBoneTransformRevisionNumber;
+
+	/** true to indicate that a subclass is handling the update of the morph vertex buffer and that it should always be called */
+	bool bAlwaysUpdateMorphVertexBuffer;
+
+private:
+	FSkeletalMeshObjectGPUSkin(const FSkeletalMeshObjectGPUSkin&);
+	FSkeletalMeshObjectGPUSkin& operator=(const FSkeletalMeshObjectGPUSkin&);
 };
 
 

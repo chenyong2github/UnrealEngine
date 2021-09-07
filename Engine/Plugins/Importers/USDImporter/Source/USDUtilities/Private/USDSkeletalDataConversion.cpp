@@ -967,7 +967,7 @@ namespace UnrealToUsdImpl
 	}
 
 	// Converts UE morph target deltas from DeltaArray into offsets, pointIndices and normalOffsets attributes of BlendShape
-	bool ConvertMorphTargetDeltas( FMorphTargetDelta* DeltaArray, int32 NumDeltas, pxr::UsdSkelBlendShape& BlendShape, pxr::UsdTimeCode TimeCode )
+	bool ConvertMorphTargetDeltas( const FMorphTargetDelta* DeltaArray, int32 NumDeltas, pxr::UsdSkelBlendShape& BlendShape, pxr::UsdTimeCode TimeCode )
 	{
 		if ( !DeltaArray || NumDeltas == 0 || !BlendShape )
 		{
@@ -2504,7 +2504,7 @@ bool UnrealToUsd::ConvertSkeletalMesh( const USkeletalMesh* SkeletalMesh, pxr::U
 			}
 
 			int32 NumDeltas = 0;
-			FMorphTargetDelta* DeltaArray = MorphTarget->GetMorphTargetDelta( LODIndex, NumDeltas );
+			const FMorphTargetDelta* DeltaArray = MorphTarget->GetMorphTargetDelta( LODIndex, NumDeltas );
 			if ( !DeltaArray || NumDeltas == 0 )
 			{
 				continue;

@@ -36,6 +36,25 @@ void UMorphTarget::Serialize( FArchive& Ar )
 	}
 }
 
+void UMorphTarget::SerializeMemoryArchive(FMemoryArchive& Ar)
+{
+	int32 MorphLODModelNumber = 0;
+	if (Ar.IsLoading())
+	{
+		Ar << MorphLODModelNumber;
+		MorphLODModels.AddDefaulted(MorphLODModelNumber);
+	}
+	else
+	{
+		MorphLODModelNumber = MorphLODModels.Num();
+		Ar << MorphLODModelNumber;
+	}
+
+	for (int32 MorphIndex = 0; MorphIndex < MorphLODModelNumber; ++MorphIndex)
+	{
+		Ar << MorphLODModels[MorphIndex];
+	}
+}
 
 void UMorphTarget::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
 {

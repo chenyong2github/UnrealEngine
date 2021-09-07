@@ -321,6 +321,8 @@ namespace FAnimUpdateRateManager
 
 USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, MeshObjectFactory(nullptr)
+	, MeshObjectFactoryUserData(nullptr)
 	, AnimUpdateRateParams(nullptr)
 {
 	bAutoActivate = true;
@@ -395,7 +397,7 @@ void USkinnedMeshComponent::UpdateMorphMaterialUsageOnProxy()
 				{
 					continue;
 				}
-				for (const FMorphTargetLODModel& MorphTargetLODModel : MorphTarget->MorphLODModels)
+				for (const FMorphTargetLODModel& MorphTargetLODModel : MorphTarget->GetMorphLODModels())
 				{
 					for (int32 SectionIndex : MorphTargetLODModel.SectionIndices)
 					{
@@ -552,29 +554,37 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 #endif
 	
 			// Also check if skeletal mesh has too many bones/chunk for GPU skinning.
-			if (bRenderStatic)
+			if (MeshObjectFactory)
 			{
-				// GPU skin vertex buffer + LocalVertexFactory
-				MeshObject = ::new FSkeletalMeshObjectStatic(this, SkelMeshRenderData, SceneFeatureLevel); 
+				MeshObject = MeshObjectFactory(MeshObjectFactoryUserData, this, SkelMeshRenderData, SceneFeatureLevel);
 			}
-			else if(ShouldCPUSkin())
+			if (!MeshObject)
 			{
-				MeshObject = ::new FSkeletalMeshObjectCPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
-			}
-			// don't silently enable CPU skinning for unsupported meshes, just do not render them, so their absence can be noticed and fixed
-			else if (!SkelMeshRenderData->RequiresCPUSkinning(SceneFeatureLevel, MinLODIndex)) 
-			{
-				MeshObject = ::new FSkeletalMeshObjectGPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
-			}
-			else
-			{
-				int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
-				int32 MaxSupportedGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
-				int32 NumBoneInfluences = SkelMeshRenderData->GetNumBoneInfluences(MinLODIndex);
-				FString FeatureLevelName; GetFeatureLevelName(SceneFeatureLevel, FeatureLevelName);
+				// Also check if skeletal mesh has too many bones/chunk for GPU skinning.
+				if (bRenderStatic)
+				{
+					// GPU skin vertex buffer + LocalVertexFactory
+					MeshObject = ::new FSkeletalMeshObjectStatic(this, SkelMeshRenderData, SceneFeatureLevel);
+				}
+				else if (ShouldCPUSkin())
+				{
+					MeshObject = ::new FSkeletalMeshObjectCPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
+				}
+				// don't silently enable CPU skinning for unsupported meshes, just do not render them, so their absence can be noticed and fixed
+				else if (!SkelMeshRenderData->RequiresCPUSkinning(SceneFeatureLevel, MinLODIndex))
+				{
+					MeshObject = ::new FSkeletalMeshObjectGPUSkin(this, SkelMeshRenderData, SceneFeatureLevel);
+				}
+				else
+				{
+					int32 MaxBonesPerChunk = SkelMeshRenderData->GetMaxBonesPerSection(MinLODIndex);
+					int32 MaxSupportedGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
+					int32 NumBoneInfluences = SkelMeshRenderData->GetNumBoneInfluences(MinLODIndex);
+					FString FeatureLevelName; GetFeatureLevelName(SceneFeatureLevel, FeatureLevelName);
 
-				UE_LOG(LogSkinnedMeshComp, Warning, TEXT("SkeletalMesh %s, is not supported for current feature level (%s) and will not be rendered. MinLOD %d, NumBones %d (supported %d), NumBoneInfluences: %d"), 
-					*GetNameSafe(SkeletalMesh), *FeatureLevelName, MinLODIndex, MaxBonesPerChunk, MaxSupportedGPUSkinBones, NumBoneInfluences);
+					UE_LOG(LogSkinnedMeshComp, Warning, TEXT("SkeletalMesh %s, is not supported for current feature level (%s) and will not be rendered. MinLOD %d, NumBones %d (supported %d), NumBoneInfluences: %d"),
+						*GetNameSafe(SkeletalMesh), *FeatureLevelName, MinLODIndex, MaxBonesPerChunk, MaxSupportedGPUSkinBones, NumBoneInfluences);
+				}
 			}
 
 			//Allow the editor a chance to manipulate it before its added to the scene

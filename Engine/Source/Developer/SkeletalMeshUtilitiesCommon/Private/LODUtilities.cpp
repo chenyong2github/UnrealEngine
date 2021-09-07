@@ -418,7 +418,7 @@ void FLODUtilities::RemoveLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 D
 		{
 			if (MorphTarget->HasDataForLOD(DesiredLOD))
 			{
-				MorphTarget->MorphLODModels.RemoveAt(DesiredLOD);
+				MorphTarget->GetMorphLODModels().RemoveAt(DesiredLOD);
 			}
 		}
 
@@ -872,7 +872,7 @@ void CreateLODMorphTarget(USkeletalMesh* SkeletalMesh, FReductionBaseSkeletalMes
 		TArray<FMorphTargetDelta> NewMorphTargetDeltas;
 		TSet<uint32> CreatedTargetIndex;
 		TMap<FVector3f, TArray<uint32>> MorphTargetPerPosition;
-		const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[SourceLOD];
+		const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[SourceLOD];
 		//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
 		const TArray<FMorphTargetDelta>& Vertices = bUseBaseMorphDelta ? *BaseMorphDeltas : BaseMorphModel.Vertices;
 		for (uint32 MorphDeltaIndex = 0; MorphDeltaIndex < (uint32)(Vertices.Num()); ++MorphDeltaIndex)
@@ -985,10 +985,10 @@ void FLODUtilities::ClearGeneratedMorphTarget(USkeletalMesh* SkeletalMesh, int32
 
 		//if (MorphTarget->MorphLODModels[TargetLOD].bGeneratedByEngine)
 		{
-			MorphTarget->MorphLODModels[TargetLOD].Reset();
+			MorphTarget->GetMorphLODModels()[TargetLOD].Reset();
 
 			// if this is the last one, we can remove empty ones
-			if (TargetLOD == MorphTarget->MorphLODModels.Num() - 1)
+			if (TargetLOD == MorphTarget->GetMorphLODModels().Num() - 1)
 			{
 				MorphTarget->RemoveEmptyMorphTargets();
 			}
@@ -1149,7 +1149,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 		}
 
 		TMap<uint32, uint32>& BaseIndexToMorphTargetDelta = PerMorphTargetBaseIndexToMorphTargetDelta.FindOrAdd(MorphTarget);
-		const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[SourceLOD];
+		const FMorphTargetLODModel& BaseMorphModel = MorphTarget->GetMorphLODModels()[SourceLOD];
 		const TArray<FMorphTargetDelta>& Vertices = bUseTempMorphDelta ? *TempMorphDeltas : BaseMorphModel.Vertices;
 		for (uint32 MorphDeltaIndex = 0; MorphDeltaIndex < (uint32)(Vertices.Num()); ++MorphDeltaIndex)
 		{
@@ -1261,11 +1261,12 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 						continue;
 					}
 					TArray<FMorphTargetDelta>& MorphDeltasArray = BaseLODMorphTargetData.FindOrAdd(MorphTarget->GetFullName());
-					const FMorphTargetLODModel& BaseMorphModel = MorphTarget->MorphLODModels[DesiredLOD];
 					//Iterate each original morph target source index to fill the NewMorphTargetDeltas array with the TargetMatchData.
-					for (const FMorphTargetDelta& MorphDelta : BaseMorphModel.Vertices)
+					int32 NumDeltas = 0;
+					const FMorphTargetDelta* BaseDeltaArray = MorphTarget->GetMorphTargetDelta(DesiredLOD, NumDeltas);
+					for (int32 DeltaIndex = 0; DeltaIndex < NumDeltas; DeltaIndex++)
 					{
-						MorphDeltasArray.Add(MorphDelta);
+						MorphDeltasArray.Add(BaseDeltaArray[DeltaIndex]);
 					}
 				}
 				

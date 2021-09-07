@@ -20,11 +20,12 @@ struct FCompareMorphTargetDeltas
 	}
 };
 
-FMorphTargetDelta* UMorphTarget::GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas)
+const FMorphTargetDelta* UMorphTarget::GetMorphTargetDelta(int32 LODIndex, int32& OutNumDeltas) const
 {
 	if(LODIndex < MorphLODModels.Num())
 	{
-		FMorphTargetLODModel& MorphModel = MorphLODModels[LODIndex];
+		// Calling GetMorphLODModels to potentially get from subclasses
+		const FMorphTargetLODModel& MorphModel = GetMorphLODModels()[LODIndex];
 		OutNumDeltas = MorphModel.Vertices.Num();
 		return MorphModel.Vertices.GetData();
 	}
@@ -33,7 +34,7 @@ FMorphTargetDelta* UMorphTarget::GetMorphTargetDelta(int32 LODIndex, int32& OutN
 	return NULL;
 }
 
-bool UMorphTarget::HasDataForLOD(int32 LODIndex) 
+bool UMorphTarget::HasDataForLOD(int32 LODIndex) const
 {
 	// If we have an entry for this LOD, and it has verts
 #if WITH_EDITOR
@@ -55,6 +56,16 @@ bool UMorphTarget::HasValidData() const
 	}
 
 	return false;
+}
+
+bool UMorphTarget::HasDataForSection(int32 LODIndex, int32 SectionIndex) const
+{
+	return HasDataForLOD(LODIndex) && MorphLODModels[LODIndex].SectionIndices.Contains(SectionIndex);
+}
+
+void UMorphTarget::EmptyMorphLODModels()
+{
+	MorphLODModels.Empty();
 }
 
 void UMorphTarget::DiscardVertexData()

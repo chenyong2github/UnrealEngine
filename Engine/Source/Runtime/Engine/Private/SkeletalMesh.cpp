@@ -2001,14 +2001,14 @@ void FFinishBuildInternalData::ApplyMorphTargetsEditorData(USkeletalMesh* Skelet
 		{
 			ToDeleteMorphTargets.Remove(MorphTarget);
 		}
-		MorphTarget->MorphLODModels.Empty();
+		MorphTarget->EmptyMorphLODModels();
 		SkeletalMesh->GetMorphTargets().Add(MorphTarget);
 		const TArray<FMorphTargetLODModel>& MorphTargetLODModels = TargetNameAndMorphLODModels.Value;
 		int32 MorphLODModelNumber = MorphTargetLODModels.Num();
-		MorphTarget->MorphLODModels.AddDefaulted(MorphLODModelNumber);
+		MorphTarget->GetMorphLODModels().AddDefaulted(MorphLODModelNumber);
 		for (int32 MorphDataIndex = 0; MorphDataIndex < MorphLODModelNumber; ++MorphDataIndex)
 		{
-			MorphTarget->MorphLODModels[MorphDataIndex] = MorphTargetLODModels[MorphDataIndex];
+			MorphTarget->GetMorphLODModels()[MorphDataIndex] = MorphTargetLODModels[MorphDataIndex];
 		}
 	}
 	//Rebuild the mapping and rehook the curve data
@@ -2017,7 +2017,7 @@ void FFinishBuildInternalData::ApplyMorphTargetsEditorData(USkeletalMesh* Skelet
 	for (UMorphTarget* ToDeleteMorphTarget : ToDeleteMorphTargets)
 	{
 		ToDeleteMorphTarget->BaseSkelMesh = nullptr;
-		ToDeleteMorphTarget->MorphLODModels.Empty();
+		ToDeleteMorphTarget->EmptyMorphLODModels();
 
 		//Move the unused asset in the transient package and mark it pending kill
 		ToDeleteMorphTarget->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);

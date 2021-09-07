@@ -565,7 +565,7 @@ struct FMorphTargetInfo
 	/** Index of next delta to try applying. This prevents us looking at every delta for every vertex. */
 	int32						NextDeltaIndex;
 	/** Array of deltas to apply to mesh, sorted based on the index of the base mesh vert that they affect. */
-	FMorphTargetDelta*			Deltas;
+	const FMorphTargetDelta*	Deltas;
 	/** How many deltas are in array */
 	int32						NumDeltas;
 };
@@ -1147,10 +1147,11 @@ static void CalculateMorphTargetWeights(FFinalSkinVertex* DestVertex, FSkeletalM
 
 	for (const UMorphTarget* Morphtarget : InMorphTargetOfInterest)
 	{
-		const FMorphTargetLODModel& MTLOD = Morphtarget->MorphLODModels[LODIndex];
-		for (int32 MorphVertexIndex = 0; MorphVertexIndex < MTLOD.Vertices.Num(); ++MorphVertexIndex)
+		int32 NumDeltas;
+		const FMorphTargetDelta* MTLODVertices = Morphtarget->GetMorphTargetDelta(LODIndex, NumDeltas);
+		for (int32 MorphVertexIndex = 0; MorphVertexIndex < NumDeltas; ++MorphVertexIndex)
 		{
-			FFinalSkinVertex* SetVert = DestVertex + MTLOD.Vertices[MorphVertexIndex].SourceIdx;
+			FFinalSkinVertex* SetVert = DestVertex + MTLODVertices[MorphVertexIndex].SourceIdx;
 			SetVert->U = 1.0f;
 			SetVert->V = 1.0f;
 		}
