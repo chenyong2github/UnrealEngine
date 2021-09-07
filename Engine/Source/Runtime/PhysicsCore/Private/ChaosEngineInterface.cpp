@@ -1158,7 +1158,7 @@ FTransform FChaosEngineInterface::GetGlobalPose(const FPhysicsConstraintHandle& 
 	{
 		if (Chaos::FJointConstraint* Constraint = static_cast<Chaos::FJointConstraint*>(InConstraintRef.Constraint))
 		{
-			Chaos::FConstraintBase::FProxyBasePair BasePairs = Constraint->GetParticleProxies();
+			Chaos::FProxyBasePair BasePairs = Constraint->GetParticleProxies();
 			const Chaos::FJointConstraint::FTransformPair& M = Constraint->GetJointTransforms();
 
 			if (InFrame == EConstraintFrame::Frame1)

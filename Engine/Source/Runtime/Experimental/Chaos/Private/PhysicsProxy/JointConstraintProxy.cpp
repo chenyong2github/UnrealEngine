@@ -20,12 +20,11 @@ namespace Chaos
 
 FJointConstraintPhysicsProxy::FJointConstraintPhysicsProxy(FJointConstraint* InConstraint, FPBDJointConstraintHandle* InHandle, UObject* InOwner)
 	: Base(EPhysicsProxyType::JointConstraintType, InOwner)
-	, Constraint(InConstraint) // This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
-	, Handle(InHandle)
+	, Constraint_GT(InConstraint) // This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
+	, Constraint_PT(InHandle)
 {
-	check(Constraint!=nullptr);
-	Constraint->SetProxy(this);
-	JointSettingsBuffer = Constraint->GetJointSettings();
+	check(Constraint_GT !=nullptr);
+	Constraint_GT->SetProxy(this);
 }
 
 FGeometryParticleHandle*
@@ -45,109 +44,101 @@ FJointConstraintPhysicsProxy::GetParticleHandleFromProxy(IPhysicsProxyBase* Prox
 void FJointConstraintPhysicsProxy::BufferPhysicsResults(FDirtyJointConstraintData& Buffer)
 {
 	Buffer.SetProxy(*this);
-	if (Constraint != nullptr && Constraint->IsValid() )
+	if (Constraint_PT != nullptr && (Constraint_PT->IsValid() || Constraint_PT->IsConstraintBreaking() || Constraint_PT->IsDriveTargetChanged()))
 	{
-		if (Handle != nullptr && (Handle->IsValid() || Handle->IsConstraintBreaking() || Handle->IsDriveTargetChanged()))
-		{
-			Buffer.OutputData.bIsBreaking = Handle->IsConstraintBreaking();
-			Buffer.OutputData.bIsBroken = !Handle->IsConstraintEnabled();
-			Buffer.OutputData.bDriveTargetChanged = Handle->IsDriveTargetChanged();
-			Buffer.OutputData.Force = Handle->GetLinearImpulse();
-			Buffer.OutputData.Torque = Handle->GetAngularImpulse();
+		Buffer.OutputData.bIsBreaking = Constraint_PT->IsConstraintBreaking();
+		Buffer.OutputData.bIsBroken = !Constraint_PT->IsConstraintEnabled();
+		Buffer.OutputData.bDriveTargetChanged = Constraint_PT->IsDriveTargetChanged();
+		Buffer.OutputData.Force = Constraint_PT->GetLinearImpulse();
+		Buffer.OutputData.Torque = Constraint_PT->GetAngularImpulse();
 
-			Handle->ClearConstraintBreaking(); // it's a single frame event, so reset
-			Handle->ClearDriveTargetChanged(); // it's a single frame event, so reset
-		}
+		Constraint_PT->ClearConstraintBreaking(); // it's a single frame event, so reset
+		Constraint_PT->ClearDriveTargetChanged(); // it's a single frame event, so reset
 	}
 }
 
 /**/
 bool FJointConstraintPhysicsProxy::PullFromPhysicsState(const FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
 {
-	if (Constraint != nullptr && Constraint->IsValid())
+	if (Constraint_GT != nullptr && Constraint_GT->IsValid())
 	{
-		if (Handle != nullptr && (Handle->IsValid() || Buffer.OutputData.bIsBreaking || Buffer.OutputData.bDriveTargetChanged))
+		if (Buffer.OutputData.bIsBreaking || Buffer.OutputData.bDriveTargetChanged)
 		{
-			Constraint->GetOutputData().bIsBreaking = Buffer.OutputData.bIsBreaking;
-			Constraint->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
-			Constraint->GetOutputData().bDriveTargetChanged = Buffer.OutputData.bDriveTargetChanged;
-			Constraint->GetOutputData().Force = Buffer.OutputData.Force;
-			Constraint->GetOutputData().Torque = Buffer.OutputData.Torque;
+			Constraint_GT->GetOutputData().bIsBreaking = Buffer.OutputData.bIsBreaking;
+			Constraint_GT->GetOutputData().bIsBroken = Buffer.OutputData.bIsBroken;
+			Constraint_GT->GetOutputData().bDriveTargetChanged = Buffer.OutputData.bDriveTargetChanged;
+			Constraint_GT->GetOutputData().Force = Buffer.OutputData.Force;
+			Constraint_GT->GetOutputData().Torque = Buffer.OutputData.Torque;
 		}
 	}
 
 	return true;
 }
 
-void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver)
+void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData)
 {
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
-	if (Handles.Size() && IsValid())
+	if (Handles.Size())
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
-		if (Constraint != nullptr)
+		if(const FProxyBasePair* BasePairs = RemoteData.FindJointParticleProxies(Manager, DataIdx))
 		{
-			FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
-
-			FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);
-			FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy(BasePairs[1]);
+			FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy((*BasePairs)[0]);
+			FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy((*BasePairs)[1]);
 			if (Handle0 && Handle1)
 			{
-				Handle = JointConstraints.AddConstraint({ Handle0,Handle1 }, Constraint->GetJointTransforms());
-				Handle->SetSettings(JointSettingsBuffer);
+				if (const FPBDJointSettings* JointSettings = RemoteData.FindJointSettings(Manager, DataIdx))
+				{
+					Constraint_PT = JointConstraints.AddConstraint({ Handle0,Handle1 }, JointSettings->ConnectorTransforms);
 
-				Handle0->AddConstraintHandle(Handle);
-				Handle1->AddConstraintHandle(Handle);
+					Handle0->AddConstraintHandle(Constraint_PT);
+					Handle1->AddConstraintHandle(Constraint_PT);
+				}
 			}
-
 		}
 	}
 }
 
 void FJointConstraintPhysicsProxy::DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver)
 {
-	if (Handle && Handle->IsValid())
+	if (Constraint_PT && Constraint_PT->IsValid())
 	{
 		auto& JointConstraints = InSolver->GetJointConstraints();
-		JointConstraints.RemoveConstraint(Handle->GetConstraintIndex());
+		JointConstraints.RemoveConstraint(Constraint_PT->GetConstraintIndex());
 
 	}
+}
 
-	if (Constraint != nullptr)
+void FJointConstraintPhysicsProxy::DestroyOnGameThread()
+{
+	delete Constraint_GT;
+	Constraint_GT = nullptr;
+}
+
+
+void FJointConstraintPhysicsProxy::PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData)
+{
+	if (Constraint_GT && Constraint_GT->IsValid())
 	{
-		delete Constraint;
-		Constraint = nullptr;
+		Constraint_GT->SyncRemoteData(Manager, DataIdx, RemoteData);
 	}
 }
 
 
-void FJointConstraintPhysicsProxy::PushStateOnGameThread(FPBDRigidsSolver* InSolver)
+void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData)
 {
-	if (Constraint && Constraint->IsValid())
+	if (Constraint_PT && Constraint_PT->IsValid())
 	{
-		if (Constraint->IsDirty())
+		if (const FPBDJointSettings* Data = RemoteData.FindJointSettings(Manager, DataIdx))
 		{
-			JointSettingsBuffer = Constraint->GetJointSettings();
-			DirtyFlagsBuffer = Constraint->GetDirtyFlags();
-			Constraint->ClearDirtyFlags();
-		}
-	}
-}
-
-
-void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver)
-{
-	if (Handle && Handle->IsValid())
-	{
-		if (DirtyFlagsBuffer.IsDirty())
-		{
-			const FPBDJointSettings& CurrentConstraintSettings = Handle->GetSettings();
+			const FPBDJointSettings& JointSettingsBuffer = *Data;
+			const FPBDJointSettings& CurrentConstraintSettings = Constraint_PT->GetSettings();
 
 			if (CurrentConstraintSettings.bCollisionEnabled != JointSettingsBuffer.bCollisionEnabled)
 			{
-				FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
-				FGeometryParticleHandle* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);
-				FGeometryParticleHandle* Handle1 = GetParticleHandleFromProxy(BasePairs[1]);
+				const TVector<FGeometryParticleHandle*, 2>& BasePairs = Constraint_PT->GetConstrainedParticles();
+				FGeometryParticleHandle * Handle0 = BasePairs[0];
+				FGeometryParticleHandle* Handle1 = BasePairs[1];
 
 				// Three pieces of state to update on the physics thread. 
 				// .. Mask on the particle array
@@ -209,8 +200,7 @@ void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(FPBDRigidsSolver* In
 				}
 			}
 
-			Handle->SetSettings(JointSettingsBuffer);
-			DirtyFlagsBuffer.Clear();
+			Constraint_PT->SetSettings(JointSettingsBuffer);
 		}
 	}
 }

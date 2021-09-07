@@ -27,8 +27,6 @@ class FJointConstraintPhysicsProxy : public IPhysicsProxyBase
 public:
 	FJointConstraintPhysicsProxy() = delete;
 	FJointConstraintPhysicsProxy(FJointConstraint* InConstraint, FPBDJointConstraintHandle* InHandle, UObject* InOwner = nullptr);
-		
-	bool IsValid() { return Constraint && Constraint->IsValid(); }
 
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
@@ -39,29 +37,29 @@ public:
 	//  Lifespan Management
 	//
 
-	void CHAOS_API InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver);
+	void CHAOS_API InitializeOnPhysicsThread(FPBDRigidsSolver* InSolver, FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
-	// Merge to perform a remote sync
-	void CHAOS_API PushStateOnGameThread(FPBDRigidsSolver* InSolver);
+	void CHAOS_API PushStateOnGameThread(FDirtyPropertiesManager& Manager, int32 DataIdx, FDirtyChaosProperties& RemoteData);
 
-	void CHAOS_API PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver);
-	// Merge to perform a remote sync - END
+	void CHAOS_API PushStateOnPhysicsThread(FPBDRigidsSolver* InSolver, const FDirtyPropertiesManager& Manager, int32 DataIdx, const FDirtyChaosProperties& RemoteData);
 
 	void CHAOS_API DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver);
+
+	void CHAOS_API DestroyOnGameThread();
 
 	//
 	// Member Access
 	//
 
-	FPBDJointConstraintHandle* GetHandle() { return Handle; }
-	const FPBDJointConstraintHandle* GetHandle() const { return Handle; }
+	FPBDJointConstraintHandle* GetHandle() { return Constraint_PT; }
+	const FPBDJointConstraintHandle* GetHandle() const { return Constraint_PT; }
 
-	virtual void* GetHandleUnsafe() const override { return Handle; }
+	virtual void* GetHandleUnsafe() const override { return Constraint_PT; }
 
-	void SetHandle(FPBDJointConstraintHandle* InHandle)	{ Handle = InHandle; }
+	void SetHandle(FPBDJointConstraintHandle* InHandle)	{ Constraint_PT = InHandle; }
 
-	FJointConstraint* GetConstraint(){ return Constraint; }
-	const FJointConstraint* GetConstraint() const { return Constraint; }
+	FJointConstraint* GetConstraint(){ return Constraint_GT; }
+	const FJointConstraint* GetConstraint() const { return Constraint_GT; }
 
 	//
 	// Threading API
@@ -72,18 +70,10 @@ public:
 
 	/**/
 	bool CHAOS_API PullFromPhysicsState(const FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
-
-	/**/
-	bool IsDirty() { return Constraint->IsDirty(); }
 	
 private:
-
-	// Input Buffer
-	FPBDJointSettings JointSettingsBuffer;
-	FJointConstraintDirtyFlags DirtyFlagsBuffer;
-
-	FJointConstraint* Constraint; 	// This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
-	FPBDJointConstraintHandle* Handle;
+	FJointConstraint* Constraint_GT;
+	FPBDJointConstraintHandle* Constraint_PT;
 	bool bInitialized = false;
 };
 

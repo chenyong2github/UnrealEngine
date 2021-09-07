@@ -603,7 +603,8 @@ namespace Chaos
 		GTConstraint->ReleaseKinematicEndPoint(this);
 
 		FParticlesType* InParticles = &GetParticles();
-
+		JointProxy->DestroyOnGameThread();	//destroy the game thread portion of the proxy
+		
 		// Finish registration on the physics thread...
 		EnqueueCommandImmediate([InParticles, JointProxy, this]()
 			{
@@ -829,28 +830,22 @@ namespace Chaos
 		Manager->PrepareBuckets(DirtyProxiesData->GetDirtyProxyBucketInfo());
 		Manager->SetNumShapes(DirtyProxiesData->NumDirtyShapes());
 		FShapeDirtyData* ShapeDirtyData = DirtyProxiesData->GetShapesDirtyData();
-		auto ProcessProxyGT =[ShapeDirtyData, Manager, DirtyProxiesData](auto Proxy, int32 ParticleDataIdx, FDirtyProxy& DirtyProxy)
-		{
-			auto Particle = Proxy->GetParticle_LowLevel();
-			Particle->SyncRemoteData(*Manager,ParticleDataIdx,DirtyProxy.PropertyData,DirtyProxy.ShapeDataIndices,ShapeDirtyData);
-			Proxy->ClearAccumulatedData();
-			Proxy->ResetDirtyIdx();
-		};
 
-
-		//todo: if we allocate remote data ahead of time we could go wide
-		DirtyProxiesData->ParallelForEachProxy([&ProcessProxyGT, this, DynamicsWeight](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ParallelForEachProxy([this, DynamicsWeight, Manager, ShapeDirtyData](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch(Dirty.Proxy->GetType())
 			{
 			case EPhysicsProxyType::SingleParticleProxy:
 			{
 				auto Proxy = static_cast<FSingleParticlePhysicsProxy*>(Dirty.Proxy);
-				if(auto Rigid = Proxy->GetParticle_LowLevel()->CastToRigidParticle())
+				auto Particle = Proxy->GetParticle_LowLevel();
+				if(auto Rigid = Particle->CastToRigidParticle())
 				{
 					Rigid->ApplyDynamicsWeight(DynamicsWeight);
 				}
-				ProcessProxyGT(Proxy,DataIdx,Dirty);
+				Particle->SyncRemoteData(*Manager, DataIdx, Dirty.PropertyData, Dirty.ShapeDataIndices, ShapeDirtyData);
+				Proxy->ClearAccumulatedData();
+				Proxy->ResetDirtyIdx();
 				break;
 			}
 			case EPhysicsProxyType::GeometryCollectionType:
@@ -862,7 +857,8 @@ namespace Chaos
 			case EPhysicsProxyType::JointConstraintType:
 			{
 				auto Proxy = static_cast<FJointConstraintPhysicsProxy*>(Dirty.Proxy);
-				Proxy->PushStateOnGameThread(this);
+				Proxy->PushStateOnGameThread(*Manager, DataIdx, Dirty.PropertyData);
+				Proxy->ResetDirtyIdx();
 				break;
 			}
 			case EPhysicsProxyType::SuspensionConstraintType:
@@ -1026,7 +1022,7 @@ namespace Chaos
 		});
 
 		//need to create new constraint handles
-		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT](int32 DataIdx, FDirtyProxy& Dirty)
+		DirtyProxiesData->ForEachProxy([this, &ProcessProxyPT, Manager](int32 DataIdx, FDirtyProxy& Dirty)
 		{
 			switch (Dirty.Proxy->GetType())
 			{
@@ -1037,10 +1033,10 @@ namespace Chaos
 				if (bIsNew)
 				{
 					JointConstraintPhysicsProxies_Internal.Add(JointProxy);
-					JointProxy->InitializeOnPhysicsThread(this);
+					JointProxy->InitializeOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 					JointProxy->SetInitialized();
 				}
-				JointProxy->PushStateOnPhysicsThread(this);
+				JointProxy->PushStateOnPhysicsThread(this, *Manager, DataIdx, Dirty.PropertyData);
 				Dirty.Proxy->ResetDirtyIdx();
 				break;
 			}
