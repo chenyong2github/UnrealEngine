@@ -48,7 +48,7 @@ void FSuspensionConstraintPhysicsProxy::InitializeOnPhysicsThread(Chaos::FPBDRig
 		auto& SuspensionConstraints = InSolver->GetSuspensionConstraints();
 		if (Constraint != nullptr)
 		{
-			Chaos::FConstraintBase::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
+			Chaos::FProxyBasePair& BasePairs = Constraint->GetParticleProxies();
 
 			
 			Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* Handle0 = GetParticleHandleFromProxy(BasePairs[0]);

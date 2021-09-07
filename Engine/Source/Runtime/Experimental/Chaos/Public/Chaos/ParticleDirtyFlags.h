@@ -184,6 +184,8 @@ private:
 
 };
 
+typedef TVector<IPhysicsProxyBase*, 2> FProxyBasePair;
+
 inline FChaosArchive& operator<<(FChaosArchive& Ar, FParticleDynamics& Data)
 {
 	Data.Serialize(Ar);
