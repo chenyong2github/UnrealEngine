@@ -1113,6 +1113,10 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		.SetPressedPadding(PressedButtonMargins);
 
 
+	const FButtonStyle PrimaryButtonLabelAndIcon = FButtonStyle(PrimaryButton)
+		.SetNormalPadding(FMargin(4.f, 1.f, 4.f, 1.f))
+		.SetPressedPadding(FMargin(4.f, 2.0f, 4.f, 0.0f));
+
 	const FButtonStyle Button = FButtonStyle()
 		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::Input, InputFocusThickness))
 		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::Input, InputFocusThickness))
@@ -1124,19 +1128,6 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 		.SetDisabledForeground(FStyleColors::Foreground)
 		.SetNormalPadding(ButtonMargins)
 		.SetPressedPadding(PressedButtonMargins);
-
-	// @todo Recolor - Get rid of this, it is a copy of button
-	const FButtonStyle SecondaryButton = FButtonStyle()
-		.SetNormal(FSlateRoundedBoxBrush(FStyleColors::Secondary, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetHovered(FSlateRoundedBoxBrush(FStyleColors::Hover, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetPressed(FSlateRoundedBoxBrush(FStyleColors::Header, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetDisabled(FSlateRoundedBoxBrush(FStyleColors::Dropdown, 4.0f, FStyleColors::InputOutline, InputFocusThickness))
-		.SetNormalForeground(FStyleColors::ForegroundHover)
-		.SetHoveredForeground(FStyleColors::ForegroundHover)
-		.SetPressedForeground(FStyleColors::ForegroundHover)
-		.SetDisabledForeground(FStyleColors::Foreground)
-		.SetNormalPadding(FMargin(8.f, 4.5f, 8.f, 3.5f))
-		.SetPressedPadding(FMargin(8.f, 5.f, 6.f, 3.f));
 
 
 	const FButtonStyle SimpleButton = FButtonStyle()
@@ -1162,16 +1153,15 @@ void FStarshipCoreStyle::SetupButtonStyles(TSharedRef<FStyle>& Style)
 
 		const FTextBlockStyle& NormalText = Style->GetWidgetStyle<FTextBlockStyle>("NormalText");
 
-		Style->Set("ButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold));
+		Style->Set("ButtonText", NormalText);
 
 		Style->Set("PrimaryButton", PrimaryButton);
+		Style->Set("PrimaryButtonLabelAndIcon", PrimaryButtonLabelAndIcon);
 		Style->Set("Button", Button);
 		Style->Set("SimpleButton", SimpleButtonIconOnly);
 		Style->Set("SimpleButtonLabelAndIcon", SimpleButtonLabelAndIcon);
-		Style->Set("SecondaryButton", SecondaryButton);
 
-		//@todo Recolor - This is reundant with button text now.
-		Style->Set("DialogButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold));
+		Style->Set("PrimaryButtonText", FTextBlockStyle(NormalText).SetFont(FStyleFonts::Get().NormalBold));
 
 		FSlateFontInfo AddFont = FStyleFonts::Get().SmallBold;
 		AddFont.LetterSpacing = 200;
