@@ -94,6 +94,7 @@ void UBlueprintEditorSettings::OnAssetRemoved(UObject* Object)
 	if(UBlueprint* Blueprint = Cast<UBlueprint>(Object))
 	{
 		FKismetDebugUtilities::ClearBreakpoints(Blueprint);
+		FKismetDebugUtilities::ClearPinWatches(Blueprint);
 	}
 }
 

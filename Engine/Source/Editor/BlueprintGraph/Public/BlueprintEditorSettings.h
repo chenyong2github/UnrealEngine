@@ -7,6 +7,7 @@
 #include "UObject/Object.h"
 #include "Engine/Blueprint.h"
 #include "Kismet2/Breakpoint.h"
+#include "Kismet2/WatchedPin.h"
 #include "Engine/DeveloperSettings.h"
 #include "Kismet2/KismetDebugUtilities.h"
 #include "BlueprintEditorSettings.generated.h"
@@ -32,7 +33,7 @@ struct BLUEPRINTGRAPH_API FPerBlueprintSettings
 	TArray<FBlueprintBreakpoint> Breakpoints;
 
 	UPROPERTY()
-	TArray<FEdGraphPinReference> WatchedPins;
+	TArray<FBlueprintWatchedPin> WatchedPins;
 
 	bool operator==(const FPerBlueprintSettings& Other) const
 	{

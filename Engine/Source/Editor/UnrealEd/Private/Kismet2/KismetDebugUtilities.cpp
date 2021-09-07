@@ -24,6 +24,7 @@
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "UnrealEdGlobals.h"
 #include "Kismet2/Breakpoint.h"
+#include "Kismet2/WatchedPin.h"
 #include "ActorEditorUtils.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node.h"
@@ -802,7 +803,7 @@ TArray<FBlueprintBreakpoint>* FKismetDebugUtilities::GetBreakpoints(const UBluep
 		&Settings->Breakpoints;
 }
 
-TArray<FEdGraphPinReference>* FKismetDebugUtilities::GetWatchedPins(const UBlueprint* Blueprint)
+TArray<FBlueprintWatchedPin>* FKismetDebugUtilities::GetWatchedPins(const UBlueprint* Blueprint)
 {
 	FPerBlueprintSettings* Settings = GetPerBlueprintSettings(Blueprint);
 
@@ -1308,9 +1309,9 @@ bool FKismetDebugUtilities::CanWatchPin(const UBlueprint* Blueprint, const UEdGr
 
 bool FKismetDebugUtilities::IsPinBeingWatched(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	if(TArray<FEdGraphPinReference>* WatchedPins = GetWatchedPins(Blueprint))
+	if(TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
 	{
-		return WatchedPins->Contains(const_cast<UEdGraphPin*>(Pin));
+		return WatchedPins->Contains(Pin);
 	}
 	return false;
 }
@@ -1332,13 +1333,8 @@ void FKismetDebugUtilities::AddPinWatch(const UBlueprint* Blueprint, const UEdGr
 	check(Settings);
 	FPerBlueprintSettings &BlueprintSettings = Settings->PerBlueprintSettings.FindOrAdd(Blueprint->GetPathName());
 
-	// ensure that this node doesn't already contain a breakpoint
-	checkSlow(!BlueprintSettings.WatchedPins.ContainsByPredicate(
-		[Pin](const FEdGraphPinReference& Other)
-		{
-			return Other == Pin;
-		}
-	));
+	// ensure that this pin isn't already being watched
+	checkSlow(!IsPinBeingWatched(Blueprint, Pin));
 	
 	BlueprintSettings.WatchedPins.Add(Pin);
 	SaveBlueprintEditorSettings();
@@ -1348,14 +1344,7 @@ void FKismetDebugUtilities::AddPinWatch(const UBlueprint* Blueprint, const UEdGr
 
 void FKismetDebugUtilities::TogglePinWatch(const UBlueprint* Blueprint, const UEdGraphPin* Pin)
 {
-	int32 ExistingWatchIndex = INDEX_NONE;
-	
-	if(TArray<FEdGraphPinReference>* WatchedPins = GetWatchedPins(Blueprint))
-	{
-		ExistingWatchIndex = WatchedPins->Find(const_cast<UEdGraphPin*>(Pin));
-	}
-
-	if (ExistingWatchIndex != INDEX_NONE)
+	if (IsPinBeingWatched(Blueprint, Pin))
 	{
 		RemovePinWatch(Blueprint, Pin);
 	}
@@ -1388,11 +1377,11 @@ bool FKismetDebugUtilities::BlueprintHasPinWatches(const UBlueprint* Blueprint)
 
 void FKismetDebugUtilities::ForeachPinWatch(const UBlueprint* Blueprint, TFunctionRef<void(UEdGraphPin*)> Task)
 {
-	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	if(TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
 	{
-		for(FEdGraphPinReference& PinRef : *Pins)
+		for(FBlueprintWatchedPin& WatchedPin : *WatchedPins)
 		{
-			if(UEdGraphPin* Pin = PinRef.Get())
+			if (UEdGraphPin* Pin = WatchedPin.Get())
 			{
 				Task(Pin);
 			}
@@ -1403,17 +1392,17 @@ void FKismetDebugUtilities::ForeachPinWatch(const UBlueprint* Blueprint, TFuncti
 bool FKismetDebugUtilities::RemovePinWatchesByPredicate(const UBlueprint* Blueprint,
 	const TFunctionRef<bool(const UEdGraphPin*)> Predicate)
 {
-	auto ModifiedPedicate = [Predicate](FEdGraphPinReference& PinRef)
+	auto ModifiedPedicate = [Predicate](FBlueprintWatchedPin& WatchedPin)
 	{
-		UEdGraphPin* Pin = PinRef.Get();
+		const UEdGraphPin* Pin = WatchedPin.Get();
 		return Pin && Predicate(Pin);
 	};
 	
-	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	if(TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
 	{
-		if(Pins->RemoveAllSwap(ModifiedPedicate, false))
+		if(WatchedPins->RemoveAllSwap(ModifiedPedicate, false))
 		{
-			if(Pins->IsEmpty())
+			if(WatchedPins->IsEmpty())
 			{
 				// keeps the ini file clean by removing empty arrays
 				ClearPinWatches(Blueprint);
@@ -1429,11 +1418,11 @@ bool FKismetDebugUtilities::RemovePinWatchesByPredicate(const UBlueprint* Bluepr
 UEdGraphPin* FKismetDebugUtilities::FindPinWatchByPredicate(const UBlueprint* Blueprint,
 	const TFunctionRef<bool(const UEdGraphPin*)> Predicate)
 {
-	if(TArray<FEdGraphPinReference>* Pins = GetWatchedPins(Blueprint))
+	if(TArray<FBlueprintWatchedPin>* WatchedPins = GetWatchedPins(Blueprint))
 	{
-		for(FEdGraphPinReference& PinRef : *Pins)
+		for(FBlueprintWatchedPin& WatchedPin : *WatchedPins)
 		{
-			UEdGraphPin* Pin = PinRef.Get();
+			UEdGraphPin* Pin = WatchedPin.Get();
 			if(Pin && Predicate(Pin))
 			{
 				return Pin;
