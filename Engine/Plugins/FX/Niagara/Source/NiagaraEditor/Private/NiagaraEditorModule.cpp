@@ -13,6 +13,7 @@
 #include "AssetRegistryModule.h"
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "Stats/Stats.h"
+#include "Subsystems/ImportSubsystem.h"
 
 #include "AssetTypeActions/AssetTypeActions_NiagaraSystem.h"
 #include "AssetTypeActions/AssetTypeActions_NiagaraEmitter.h"
@@ -116,6 +117,7 @@
 #include "NiagaraCommon.h"
 #include "NiagaraScriptHighlight.h"
 #include "NiagaraComponentRendererProperties.h"
+#include "NiagaraMeshRendererProperties.h"
 
 #include "HAL/IConsoleManager.h"
 #include "NiagaraHlslTranslator.h"
@@ -1233,6 +1235,23 @@ void FNiagaraEditorModule::OnPostEngineInit()
 		// Preload all parameter definitions assets so that they will be postloaded before postload calls to scripts/emitters/systems that rely on them.
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FNiagaraEditorModule::PreloadAllParameterDefinitions);
+
+		// Handle a re-import for mesh renderers
+		if (UImportSubsystem* ImportSubsystem = GEditor->GetEditorSubsystem<UImportSubsystem>())
+		{
+			ImportSubsystem->OnAssetReimport.AddLambda(
+				[](UObject* ObjectReimported)
+				{
+					for (TObjectIterator<UNiagaraMeshRendererProperties> MeshRendererIt; MeshRendererIt; ++MeshRendererIt)
+					{
+						if (UNiagaraMeshRendererProperties* MeshRenderer = *MeshRendererIt)
+						{
+							MeshRenderer->OnAssetReimported(ObjectReimported);
+						}
+					}
+				}
+			);
+		}
 	}
 	else
 	{

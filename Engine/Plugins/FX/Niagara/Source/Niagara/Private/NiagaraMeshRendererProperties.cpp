@@ -197,13 +197,6 @@ void UNiagaraMeshRendererProperties::PostInitProperties()
 			return;
 		}
 		InitBindings();
-
-#if WITH_EDITOR
-		if (GEditor)
-		{
-			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddUObject(this, &UNiagaraMeshRendererProperties::OnAssetReimported);
-		}
-#endif
 	}
 }
 
@@ -623,11 +616,6 @@ void UNiagaraMeshRendererProperties::BeginDestroy()
 				MeshProperties.Mesh->GetOnMeshChanged().RemoveAll(this);
 				MeshProperties.Mesh->OnPostMeshBuild().RemoveAll(this);
 			}
-		}
-
-		if ( GEditor )
-		{
-			GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.RemoveAll(this);
 		}
 	}
 #endif
