@@ -160,14 +160,6 @@ struct FGenerateStaticMeshLODProcess_UVSettings
 
 	UPROPERTY(EditAnywhere, Category = "PatchBuilder", meta = (DisplayName = "UV - PatchBuilder", UIMin = "0.0", UIMax = "90.0", ClampMin = "0.0", ClampMax = "180.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
 	FGenerateStaticMeshLODProcess_UVSettings_PatchBuilder PatchBuilder;
-
-	///** Number of smoothing steps to apply in the ExpMap UV Generation method (Smoothing slightly increases distortion but produces more stable results) */
-	//UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "25", ClampMin = "0", ClampMax = "1000", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
-	//int SmoothingSteps = 5;
-
-	///** Smoothing parameter, larger values result in faster smoothing in each step */
-	//UPROPERTY(EditAnywhere, Category = "PatchBuilder", AdvancedDisplay, meta = (UIMin = "0", UIMax = "1.0", ClampMin = "0", ClampMax = "1.0", EditConditionHides, EditCondition = "UVMethod == EGenerateStaticMeshLODProcess_AutoUVMethod::PatchBuilder"))
-	//float SmoothingAlpha = 0.25f;
 };
 
 
@@ -293,7 +285,26 @@ class UGenerateStaticMeshLODProcess : public UObject
 	GENERATED_BODY()
 public:
 
+	/**
+	 * Initialize the Process, this will:
+	 *  - read the Source Mesh, either LOD0 or the HiRes LOD if available
+	 *  - Extract all Materials and Textures from the Source Asset and determine what needs to be baked
+	 *  - Read all the Source Texture Images that need to be baked
+	 *  - call InitializeGenerator() to set up the compute graph
+	 */
 	bool Initialize(UStaticMesh* SourceMesh, FProgressCancel* Progress = nullptr);
+
+
+	/** @return the source UStaticMesh passed to Initialize() */
+	UStaticMesh* GetSourceStaticMesh() const { return SourceStaticMesh; }
+	/** @return the converted source MeshDescription as a FDynamicMesh3, valid after Initialize() finishes */
+	const FDynamicMesh3& GetSourceMesh() const { return SourceMesh; }
+
+
+
+	//
+	// Settings Objects for various stages of the Generator Process
+	//
 
 	const FGenerateStaticMeshLODProcess_PreprocessSettings& GetCurrentPreprocessSettings() const { return CurrentSettings_Preprocess; }
 	void UpdatePreprocessSettings(const FGenerateStaticMeshLODProcess_PreprocessSettings& NewSettings);
@@ -314,44 +325,106 @@ public:
 	void UpdateCollisionSettings(const FGenerateStaticMeshLODProcess_CollisionSettings& NewSettings);
 
 
+	//
+	// Material Queries and Constraints
+	//
 
-	UStaticMesh* GetSourceStaticMesh() const { return SourceStaticMesh; }
-	const FDynamicMesh3& GetSourceMesh() const { return SourceMesh; }
+	/** @return the set of Materials that were identified on the Source Asset */
+	TArray<UMaterialInterface*> GetSourceBakeMaterials() const;
+
+	enum class EMaterialBakingConstraint
+	{
+		NoConstraint = 0,
+		UseExistingMaterial = 1
+	};
+
+	/** Configure the constraint on the specified Source Material */
+	void UpdateSourceBakeMaterialConstraint(UMaterialInterface* Material, EMaterialBakingConstraint Constraint);
+
+
+	//
+	// Texture Queries and Constraints
+	//
+
+	/** @return the set of Textures that were identified as being parameters to the Source Materials, that are identified as potentially needing to be baked to the Derived Asset UVs */
+	TArray<UTexture2D*> GetSourceBakeTextures() const;
+
+
+	enum class ETextureBakingConstraint
+	{
+		NoConstraint = 0,
+		UseExistingTexture = 1
+	};
+
+	/** Configure the constraint on the specified Source Texture */
+	void UpdateSourceBakeTextureConstraint(UTexture2D* Texture, ETextureBakingConstraint Constraint);
+
+
+	//
+	// Output Path / Naming / etc Configuration
+	//
+
+	/**
+	 * Configure the output Name and Suffix for the Mesh Asset. The various strings below will be
+	 * computed based on this input
+	 */
+	void UpdateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix);
+
 
 	const FString& GetSourceAssetPath() const { return SourceAssetPath; }
 	const FString& GetSourceAssetFolder() const { return SourceAssetFolder; }
 	const FString& GetSourceAssetName() const { return SourceAssetName; }
-
 	static FString GetDefaultDerivedAssetSuffix() { return TEXT("_AutoLOD"); }
 	const FString& GetDerivedAssetName() const { return DerivedAssetName; }
 
-	void CalculateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix);
+
+	/**
+	 * Given the above configuration, run the Generator to compute the derived Meshes and Textures
+	 */
 
 	bool ComputeDerivedSourceData(FProgressCancel* Progress);
+
+	/** The Generated Mesh */
 	const FDynamicMesh3& GetDerivedLOD0Mesh() const { return DerivedLODMesh; }
+	/** Tangents for the Generated Mesh */
 	const UE::Geometry::FMeshTangentsd& GetDerivedLOD0MeshTangents() const { return DerivedLODMeshTangents; }
+	/** Collision geometry for the Generated Mesh */
 	const UE::Geometry::FSimpleShapeSet3d& GetDerivedCollision() const { return DerivedCollision; }
-
-	/**
-	 * Creates new Asset
-	 */
-	virtual bool WriteDerivedAssetData();
-
-
-	/**
-	 * Updates existing SM Asset
-	 */
-	virtual void UpdateSourceAsset(bool bSetNewHDSourceAsset = false);
-
-
 
 	struct FPreviewMaterials
 	{
 		TArray<UMaterialInterface*> Materials;
 		TArray<UTexture2D*> Textures;
 	};
+	/** Set of Materials and Textures to be applied to the Generated Mesh */
 	void GetDerivedMaterialsPreview(FPreviewMaterials& MaterialSetOut);
 
+
+	//
+	// Final Output Options
+	//
+
+	/**
+	 * Creates new UStaticMesh Asset, Material Instances, and Textures
+	 */
+	virtual bool WriteDerivedAssetData();
+
+
+	/**
+	 * Update the input UStaticMesh Asset (ie the asset passed to Initialize)
+	 * @param bSetNewHDSourceAsset If true, the original source mesh copied to the UStaticMesh's HiRes SourceModel slot
+	 */
+	virtual void UpdateSourceAsset(bool bSetNewHDSourceAsset = false);
+
+
+
+public:
+	/**
+	 * This FCriticalSection is used to co-ordinate evaluation of the internal compute graph
+	 * by external classes. Generally while doing things like changing settings, reading output, etc,
+	 * the internal compute graph cannot be executing. Often this needs to be locked across multiple
+	 * function calls, so it is exposed publicly.  (TODO: clean this up...)
+	 */
 	FCriticalSection GraphEvalCriticalSection;
 
 protected:
@@ -380,7 +453,8 @@ protected:
 		bool bIsNormalMap = false;
 		bool bIsDefaultTexture = false;
 		bool bShouldBakeTexture = false;
-		bool bIsUsedInMultiTextureBaking = false;
+		bool bIsUsedInMultiTextureBaking = false; 
+		ETextureBakingConstraint Constraint = ETextureBakingConstraint::NoConstraint;
 	};
 
 	int SelectTextureToBake(const TArray<FTextureInfo>& TextureInfos) const;
@@ -396,6 +470,8 @@ protected:
 		bool bIsReusable = false;						// if true, Material doesn't need any texture baking and can be re-used by LOD0
 		bool bIsPreviouslyGeneratedMaterial = false;	// if true, this Material was previously generated by AutoLOD and should be discarded. 
 														// Currently inferred from material being in LOD0 but not HiRes Source
+
+		EMaterialBakingConstraint Constraint = EMaterialBakingConstraint::NoConstraint;
 	};
 
 	// list of initial Source Materials, length equivalent to StaticMesh.StaticMaterials

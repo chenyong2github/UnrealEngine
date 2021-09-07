@@ -48,6 +48,9 @@
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/StaticMeshBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "ModelingToolTargetUtil.h"
+
+#include "Tools/LODGenerationSettingsAsset.h"
 
 static_assert(WITH_EDITOR, "Tool being compiled without editor");
 #include "Misc/ScopedSlowTask.h"
@@ -76,6 +79,8 @@ namespace GenerateStaticMeshLODAssetLocals
 		FGenerateStaticMeshLODProcess_TextureSettings GeneratorSettings_Texture;
 		FGenerateStaticMeshLODProcess_UVSettings GeneratorSettings_UV;
 		FGenerateStaticMeshLODProcess_CollisionSettings GeneratorSettings_Collision;
+		TArray<TPair<UMaterialInterface*, UGenerateStaticMeshLODProcess::EMaterialBakingConstraint>> MaterialConstraints;
+		TArray<TPair<UTexture2D*, UGenerateStaticMeshLODProcess::ETextureBakingConstraint>> TextureConstraints;
 		
 		// Outputs
 		// Inherited: 	TUniquePtr<FDynamicMesh3> ResultMesh;
@@ -103,6 +108,14 @@ namespace GenerateStaticMeshLODAssetLocals
 				GenerateProcess->UpdateTextureSettings(GeneratorSettings_Texture);
 				GenerateProcess->UpdateUVSettings(GeneratorSettings_UV);
 				GenerateProcess->UpdateCollisionSettings(GeneratorSettings_Collision);
+				for (TPair<UMaterialInterface*, UGenerateStaticMeshLODProcess::EMaterialBakingConstraint> MatConstraint : MaterialConstraints)
+				{
+					GenerateProcess->UpdateSourceBakeMaterialConstraint(MatConstraint.Key, MatConstraint.Value);
+				}
+				for (TPair<UTexture2D*, UGenerateStaticMeshLODProcess::ETextureBakingConstraint> TexConstraint : TextureConstraints)
+				{
+					GenerateProcess->UpdateSourceBakeTextureConstraint(TexConstraint.Key, TexConstraint.Value);
+				}
 
 				if (Progress && Progress->Cancelled())
 				{
@@ -156,6 +169,20 @@ namespace GenerateStaticMeshLODAssetLocals
 			Op->GeneratorSettings_UV = AutoLODTool->BasicProperties->UVGeneration;
 			Op->GeneratorSettings_Collision.CollisionGroupLayerName = AutoLODTool->BasicProperties->CollisionGroupLayerName;
 			Op->GeneratorSettings_Collision = AutoLODTool->BasicProperties->SimpleCollision;
+
+			Op->MaterialConstraints.Reset();
+			for (const FGenerateStaticMeshLOD_MaterialConfig& MatConfig : AutoLODTool->TextureProperties->Materials)
+			{
+				Op->MaterialConstraints.Add( TPair<UMaterialInterface*, UGenerateStaticMeshLODProcess::EMaterialBakingConstraint>( 
+					MatConfig.Material, static_cast<UGenerateStaticMeshLODProcess::EMaterialBakingConstraint>(MatConfig.Constraint) ) );
+			}
+			Op->TextureConstraints.Reset();
+			for (const FGenerateStaticMeshLOD_TextureConfig& TexConfig : AutoLODTool->TextureProperties->Textures)
+			{
+				Op->TextureConstraints.Add( TPair<UTexture2D*, UGenerateStaticMeshLODProcess::ETextureBakingConstraint>( 
+					TexConfig.Texture, static_cast<UGenerateStaticMeshLODProcess::ETextureBakingConstraint>(TexConfig.Constraint) ) );
+			}
+
 			Op->SetResultTransform(ResultTransform);
 			return Op;
 		}
@@ -201,6 +228,15 @@ UInteractiveTool* UGenerateStaticMeshLODAssetToolBuilder::BuildTool(const FToolB
 
 
 
+void UGenerateStaticMeshLODAssetToolPresetProperties::PostAction(EGenerateLODAssetToolPresetAction Action)
+{
+	if (ParentTool.IsValid())
+	{
+		ParentTool->RequestPresetAction(Action);
+	}
+}
+
+
 /*
  * Tool
  */
@@ -225,12 +261,21 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	GenerateProcess = NewObject<UGenerateStaticMeshLODProcess>(this);
 
-	IPrimitiveComponentBackedTarget* SourceComponent = TargetComponentInterface(0);
-	UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(SourceComponent->GetOwnerComponent());
+	UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(UE::ToolTarget::GetTargetComponent(Targets[0]));
 	UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 
+	FComponentMaterialSet ComponentMaterials = UE::ToolTarget::GetMaterialSet(Targets[0], false);
+	FComponentMaterialSet AssetMaterials = UE::ToolTarget::GetMaterialSet(Targets[0], true);
+	if (ComponentMaterials != AssetMaterials)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("GenerateStaticMeshLODAssetTool_DifferentMaterials", "Selected Component and StaticMesh Asset have different Material Sets. Asset Materials will be used."),
+			EToolMessageLevel::UserWarning);
+	}
+	
+
 	FProgressCancel Progress;
-	FScopedSlowTask SlowTask(2, LOCTEXT("UGenerateStaticMeshLODAssetTool_Setup", "Initializing tool ..."));
+	FScopedSlowTask SlowTask(2, LOCTEXT("UGenerateStaticMeshLODAssetTool_Setup", "Initializing AutoLOD Generator ..."));
 	SlowTask.MakeDialog();
 
 	if (StaticMesh)
@@ -259,6 +304,12 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	OutputProperties->GeneratedSuffix = TEXT("_AutoLOD");
 	OutputProperties->RestoreProperties(this);
 
+	PresetProperties = NewObject<UGenerateStaticMeshLODAssetToolPresetProperties>(this);
+	PresetProperties->RestoreProperties(this);
+	PresetProperties->Initialize(this);
+	AddToolPropertySource(PresetProperties);
+	PresetProperties->WatchProperty(PresetProperties->Preset, [this](TWeakObjectPtr<UStaticMeshLODGenerationSettings>) { OnPresetSelectionChanged(); });
+
 	SlowTask.EnterProgressFrame(1);
 	BasicProperties = NewObject<UGenerateStaticMeshLODAssetToolProperties>(this);
 	AddToolPropertySource(BasicProperties);
@@ -278,11 +329,25 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	BasicProperties->WatchProperty(BasicProperties->CollisionGroupLayerName, [this](FName) { OnSettingsModified(); });
 	BasicProperties->InitializeGroupLayers(&(GenerateProcess->GetSourceMesh()));
 
-	FBoxSphereBounds Bounds = StaticMeshComponent->Bounds;
-	FTransform PreviewTransform = SourceComponent->GetWorldTransform();
-	PreviewTransform.AddToTranslation(FVector(0, 2.5f*Bounds.BoxExtent.Y, 0));
+	TextureProperties = NewObject<UGenerateStaticMeshLODAssetToolTextureProperties>(this);
+	AddToolPropertySource(TextureProperties);
+	for (UTexture2D* BakeTexture : GenerateProcess->GetSourceBakeTextures())
+	{
+		TextureProperties->Textures.Add( FGenerateStaticMeshLOD_TextureConfig{ BakeTexture, EGenerateStaticMeshLOD_BakeConstraint::NoConstraint } );
+	}
+	TextureProperties->WatchProperty(TextureProperties->Textures, [this](TArray<FGenerateStaticMeshLOD_TextureConfig> NewValues) { OnSettingsModified(); });
+	for (UMaterialInterface* BakeMaterial : GenerateProcess->GetSourceBakeMaterials())
+	{
+		TextureProperties->Materials.Add( FGenerateStaticMeshLOD_MaterialConfig{ BakeMaterial, EGenerateStaticMeshLOD_BakeConstraint::NoConstraint } );
+	}
+	TextureProperties->WatchProperty(TextureProperties->Materials, [this](TArray<FGenerateStaticMeshLOD_MaterialConfig> NewValues) { OnSettingsModified(); });
 
-	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, (UE::Geometry::FTransform3d)PreviewTransform);
+
+	FBoxSphereBounds Bounds = StaticMeshComponent->Bounds;
+	UE::Geometry::FTransform3d PreviewTransform = UE::ToolTarget::GetLocalToWorldTransform(Targets[0]);
+	PreviewTransform.SetTranslation(PreviewTransform.GetTranslation() + 2.5 * (double)Bounds.BoxExtent.Y * FVector3d::UnitY());
+
+	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, PreviewTransform);
 	PreviewWithBackgroundCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	PreviewWithBackgroundCompute->Setup(this->TargetWorld, this->OpFactory.Get());
 	PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshComponentTangentsMode::ExternallyProvided);
@@ -321,7 +386,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 			PreviewTextures = PreviewMaterialSet.Textures;
 			PreviewMaterials = PreviewMaterialSet.Materials;
 			PreviewWithBackgroundCompute->PreviewMesh->SetMaterials(PreviewMaterials);
-			BasicProperties->PreviewTextures = PreviewTextures;
+			TextureProperties->PreviewTextures = PreviewTextures;
 		}
 
 		GenerateProcess->GraphEvalCriticalSection.Unlock();
@@ -340,7 +405,10 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	CollisionVizSettings->WatchProperty(CollisionVizSettings->bShowHidden, [this](bool bNewValue) { bCollisionVisualizationDirty = true; });
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
-	CollisionPreview->CreateInWorld(TargetWorld, PreviewTransform);
+	CollisionPreview->CreateInWorld(TargetWorld, (FTransform)PreviewTransform);
+
+	// read Preset if we started Tool with one already selected
+	OnPresetSelectionChanged();		
 
 	// Pop up notifications for any warnings
 	for ( const FProgressCancel::FMessageInfo& Warning : Progress.Warnings )
@@ -358,11 +426,14 @@ void UGenerateStaticMeshLODAssetTool::OnSettingsModified()
 	PreviewWithBackgroundCompute->InvalidateResult();
 }
 
+
+
 void UGenerateStaticMeshLODAssetTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	OutputProperties->SaveProperties(this);
 	BasicProperties->SaveProperties(this);
 	CollisionVizSettings->SaveProperties(this);
+	PresetProperties->SaveProperties(this);
 
 	CollisionPreview->Disconnect();
 	CollisionPreview = nullptr;
@@ -423,7 +494,7 @@ void UGenerateStaticMeshLODAssetTool::UpdateCollisionVisualization()
 void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
+	GenerateProcess->UpdateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 	GenerateProcess->WriteDerivedAssetData();
@@ -435,7 +506,7 @@ void UGenerateStaticMeshLODAssetTool::CreateNewAsset()
 void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 {
 	check(PreviewWithBackgroundCompute->HaveValidResult());
-	GenerateProcess->CalculateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
+	GenerateProcess->UpdateDerivedPathName(OutputProperties->NewAssetName, OutputProperties->GeneratedSuffix);
 
 	check(GenerateProcess->GraphEvalCriticalSection.TryLock());		// No ops should be running
 
@@ -449,6 +520,56 @@ void UGenerateStaticMeshLODAssetTool::UpdateExistingAsset()
 }
 
 
+
+
+void UGenerateStaticMeshLODAssetTool::RequestPresetAction(EGenerateLODAssetToolPresetAction ActionType)
+{
+	UStaticMeshLODGenerationSettings* CurrentPreset = PresetProperties->Preset.Get();
+	if (CurrentPreset == nullptr)
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("GenerateStaticMeshLODAssetTool_NoPresetSelected", "No Preset Asset is currently set in the Preset Settings"), EToolMessageLevel::UserError);
+	}
+
+	if (ActionType == EGenerateLODAssetToolPresetAction::ReadFromPreset)
+	{
+		OnPresetSelectionChanged();
+	}
+	else if (ActionType == EGenerateLODAssetToolPresetAction::WriteToPreset)
+	{
+		GetToolManager()->BeginUndoTransaction(LOCTEXT("WriteToPresetAction", "Write Preset"));
+
+		CurrentPreset->SetFlags(RF_Transactional);
+		CurrentPreset->Modify();
+
+		CurrentPreset->Preprocessing = BasicProperties->Preprocessing;
+		CurrentPreset->MeshGeneration = BasicProperties->MeshGeneration;
+		CurrentPreset->Simplification = BasicProperties->Simplification;
+		CurrentPreset->TextureBaking = BasicProperties->TextureBaking;
+		CurrentPreset->UVGeneration = BasicProperties->UVGeneration;
+		CurrentPreset->SimpleCollision = BasicProperties->SimpleCollision;
+
+		CurrentPreset->PostEditChange();
+
+		GetToolManager()->EndUndoTransaction();
+	}
+}
+
+
+void UGenerateStaticMeshLODAssetTool::OnPresetSelectionChanged()
+{
+	UStaticMeshLODGenerationSettings* ApplyPreset = PresetProperties->Preset.Get();
+	if (ApplyPreset)
+	{
+		BasicProperties->Preprocessing = ApplyPreset->Preprocessing;
+		BasicProperties->MeshGeneration = ApplyPreset->MeshGeneration;
+		BasicProperties->Simplification = ApplyPreset->Simplification;
+		BasicProperties->TextureBaking = ApplyPreset->TextureBaking;
+		BasicProperties->UVGeneration = ApplyPreset->UVGeneration;
+		BasicProperties->SimpleCollision = ApplyPreset->SimpleCollision;
+		OnSettingsModified();
+	}
+}
 
 
 

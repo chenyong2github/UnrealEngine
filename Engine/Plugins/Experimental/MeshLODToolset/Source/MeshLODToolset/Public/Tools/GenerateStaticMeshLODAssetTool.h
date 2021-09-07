@@ -20,6 +20,7 @@ struct FMeshDescription;
 class UDynamicMeshComponent;
 class UMeshOpPreviewWithBackgroundCompute;
 class UGenerateStaticMeshLODAssetTool;
+class UStaticMeshLODGenerationSettings;
 namespace GenerateStaticMeshLODAssetLocals
 {
 	class FGenerateStaticMeshLODAssetOperatorFactory;
@@ -28,8 +29,8 @@ namespace GenerateStaticMeshLODAssetLocals
 UENUM()
 enum class EGenerateLODAssetOutputMode : uint8
 {
-	UpdateExistingAsset = 0,
-	CreateNewAsset = 1
+	CreateNewAsset = 0,
+	UpdateExistingAsset = 1
 };
 
 
@@ -57,21 +58,63 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolOutputProperties : publi
 	GENERATED_BODY()
 public:
 	/** Whether to modify the static mesh in place or create a new one. */
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
-	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::UpdateExistingAsset;
+	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty))
+	EGenerateLODAssetOutputMode OutputMode = EGenerateLODAssetOutputMode::CreateNewAsset;
 
 	/** Base name for newly-generated asset */
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty, EditCondition = "OutputMode == EGenerateLODAssetOutputMode::CreateNewAsset"))
+	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty, EditConditionHides, EditCondition = "OutputMode == EGenerateLODAssetOutputMode::CreateNewAsset"))
 	FString NewAssetName;
 
-	/** Suffix to append to newly-generated assets */
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (TransientToolProperty))
-	FString GeneratedSuffix;
-
-	/** If this is checked and the asset doesn't already have a HiRes source, the input mesh will be stored as the HiRes source */
-	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
+	/** If the Asset doesn't already have a HiRes source, store the input mesh as the HiRes source */
+	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (EditConditionHides, EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
 	bool bSaveInputAsHiResSource = true;
+
+	/** Suffix to append to newly-generated Asset (Meshes, Textures, Materials, etc) */
+	UPROPERTY(EditAnywhere, Category = "Output Options", meta = (TransientToolProperty))
+	FString GeneratedSuffix;
 };
+
+
+
+
+UENUM()
+enum class EGenerateLODAssetToolPresetAction : uint8
+{
+	ReadFromPreset,
+	WriteToPreset
+};
+
+
+UCLASS()
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolPresetProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	TWeakObjectPtr<UGenerateStaticMeshLODAssetTool> ParentTool;
+	void Initialize(UGenerateStaticMeshLODAssetTool* ParentToolIn) { ParentTool = ParentToolIn; }
+	virtual void PostAction(EGenerateLODAssetToolPresetAction Action);
+
+public:
+	/** Preset Asset represents a set of Saved Settings for this Tool */
+	UPROPERTY(EditAnywhere, Category = Preset, meta = (DisplayName = "Settings Preset"))
+	TWeakObjectPtr<UStaticMeshLODGenerationSettings> Preset;
+
+	/** Save the current Tool settings to the Preset Asset */
+	UFUNCTION(CallInEditor, Category = Preset, meta = (DisplayPriority = 0))
+	void ReadFromPreset()
+	{
+		PostAction(EGenerateLODAssetToolPresetAction::ReadFromPreset);
+	}
+
+	/** Read the current Tool settings from the Preset Asset */
+	UFUNCTION(CallInEditor, Category = Preset, meta = (DisplayPriority = 1))
+	void WriteToPreset()
+	{
+		PostAction(EGenerateLODAssetToolPresetAction::WriteToPreset);
+	}
+};
+
 
 
 /**
@@ -83,22 +126,22 @@ class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolProperties : public UInt
 	GENERATED_BODY()
 
 public:
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration")
 	FGenerateStaticMeshLODProcess_PreprocessSettings Preprocessing;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration", meta = (ExpandByDefault))
 	FGenerateStaticMeshLODProcessSettings MeshGeneration;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration", meta = (ExpandByDefault))
 	FGenerateStaticMeshLODProcess_SimplifySettings Simplification;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration", meta = (ExpandByDefault))
 	FGenerateStaticMeshLODProcess_TextureSettings TextureBaking;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration")
 	FGenerateStaticMeshLODProcess_UVSettings UVGeneration;
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, Category = "Generator Configuration")
 	FGenerateStaticMeshLODProcess_CollisionSettings SimpleCollision;
 
 
@@ -139,14 +182,67 @@ public:
 		}
 	}
 
-	// ------------
-
-	UPROPERTY(VisibleAnywhere, Category = Previews)
-	TArray<UTexture2D*> PreviewTextures;
-
 };
 
 
+UENUM()
+enum class EGenerateStaticMeshLOD_BakeConstraint
+{
+	NoConstraint = 0,
+	DoNotBake = 1
+};
+
+USTRUCT()
+struct MESHLODTOOLSET_API FGenerateStaticMeshLOD_TextureConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = Texture)
+	UTexture2D* Texture = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Texture)
+	EGenerateStaticMeshLOD_BakeConstraint Constraint = EGenerateStaticMeshLOD_BakeConstraint::NoConstraint;
+
+	bool operator==(const FGenerateStaticMeshLOD_TextureConfig& Other) const
+	{
+		return Texture == Other.Texture && Constraint == Other.Constraint;
+	}
+};
+
+
+USTRUCT()
+struct MESHLODTOOLSET_API FGenerateStaticMeshLOD_MaterialConfig
+{
+	GENERATED_BODY()
+
+	UPROPERTY(VisibleAnywhere, Category = Material)
+	UMaterialInterface* Material = nullptr;
+
+	UPROPERTY(EditAnywhere, Category = Texture)
+	EGenerateStaticMeshLOD_BakeConstraint Constraint = EGenerateStaticMeshLOD_BakeConstraint::NoConstraint;
+
+	bool operator==(const FGenerateStaticMeshLOD_MaterialConfig& Other) const
+	{
+		return Material == Other.Material && Constraint == Other.Constraint;
+	}
+};
+
+
+
+UCLASS()
+class MESHLODTOOLSET_API UGenerateStaticMeshLODAssetToolTextureProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	UPROPERTY(EditAnywhere, Category = "Source Materials Configuration", meta = (TransientToolProperty))
+	TArray<FGenerateStaticMeshLOD_MaterialConfig> Materials;
+
+	UPROPERTY(EditAnywhere, Category = "Source Textures Configuration", meta = (TransientToolProperty))
+	TArray<FGenerateStaticMeshLOD_TextureConfig> Textures;
+
+	UPROPERTY(VisibleAnywhere, Category = "Baked Texture Previews")
+	TArray<UTexture2D*> PreviewTextures;
+};
 
 
 
@@ -171,18 +267,33 @@ public:
 	virtual bool HasAccept() const override { return true; }
 	virtual bool CanAccept() const override;
 
+	virtual void RequestPresetAction(EGenerateLODAssetToolPresetAction ActionType);
+
+protected:
+
+	UPROPERTY()
+	TObjectPtr<UGenerateStaticMeshLODAssetToolOutputProperties> OutputProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGenerateStaticMeshLODAssetToolProperties> BasicProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGenerateStaticMeshLODAssetToolPresetProperties> PresetProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UGenerateStaticMeshLODAssetToolTextureProperties> TextureProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UCollisionGeometryVisualizationProperties> CollisionVizSettings = nullptr;
+
+
+
 protected:
 
 	friend class GenerateStaticMeshLODAssetLocals::FGenerateStaticMeshLODAssetOperatorFactory;
 
 	UPROPERTY()
-	UGenerateStaticMeshLODAssetToolOutputProperties* OutputProperties;
-
-	UPROPERTY()
-	UGenerateStaticMeshLODAssetToolProperties* BasicProperties;
-
-	UPROPERTY()
-	UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute = nullptr;
+	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> PreviewWithBackgroundCompute = nullptr;
 
 	UPROPERTY()
 	TArray<UTexture2D*> PreviewTextures;
@@ -194,22 +305,19 @@ protected:
 protected:
 
 	UPROPERTY()
-	UCollisionGeometryVisualizationProperties* CollisionVizSettings = nullptr;
+	TObjectPtr<UPhysicsObjectToolPropertySet> ObjectData = nullptr;
 
 	UPROPERTY()
-	UPhysicsObjectToolPropertySet* ObjectData = nullptr;
+	TObjectPtr<UMaterialInterface> LineMaterial = nullptr;
 
 	UPROPERTY()
-	UMaterialInterface* LineMaterial = nullptr;
-
-	UPROPERTY()
-	UPreviewGeometry* CollisionPreview;
+	TObjectPtr<UPreviewGeometry> CollisionPreview;
 
 protected:
 	UWorld* TargetWorld;
 
 	UPROPERTY()
-	UGenerateStaticMeshLODProcess* GenerateProcess;
+	TObjectPtr<UGenerateStaticMeshLODProcess> GenerateProcess;
 
 	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> OpFactory;
 
@@ -222,6 +330,7 @@ protected:
 	void CreateNewAsset();
 	void UpdateExistingAsset();
 
+	void OnPresetSelectionChanged();
 
 
 };

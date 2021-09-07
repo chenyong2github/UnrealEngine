@@ -380,6 +380,8 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 	//});
 
 	// single-thread path
+	TArray<UTexture2D*> UniqueTextures;
+	TArray<TImageBuilder<FVector4f>*> UniqueTextureImages;
 	for (FReadTextureJob job : ReadJobs)
 	{
 		// only read textures that are from materials we are going to possibly bake
@@ -389,20 +391,58 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 			FTextureInfo& TexInfo = SourceMaterials[job.MatIndex].SourceTextures[job.TexIndex];
 			UE::AssetUtils::ReadTexture(TexInfo.Texture, TexInfo.Image);
 			TexInfo.Dimensions = TexInfo.Image.GetDimensions();
+
+			UniqueTextures.AddUnique(TexInfo.Texture);
+			UniqueTextureImages.Add(&TexInfo.Image);
+		}
+	}
+
+	//ReadTextures.Wait();
+
+
+	// Now that we have read textures, detect solid-color textures. We do not
+	// have to bake these. These are often used for (eg) default textures, etc.
+	TArray<bool> bIsSolidColor;
+	bIsSolidColor.Init(false, UniqueTextures.Num());
+	ParallelFor(UniqueTextures.Num(), [&](int32 ti)
+	{
+		bIsSolidColor[ti] = UniqueTextureImages[ti]->IsConstantValue();
+	});
+	for (FSourceMaterialInfo& SourceMaterial : SourceMaterials)
+	{
+		if (SourceMaterial.bHasTexturesToBake)
+		{
+			int StillToBakeCount = 0;
+			for (FTextureInfo& TexInfo : SourceMaterial.SourceTextures)
+			{
+				int32 Index = UniqueTextures.IndexOfByKey(TexInfo.Texture);
+				if (Index != INDEX_NONE && bIsSolidColor[Index])
+				{
+					TexInfo.bShouldBakeTexture = false;
+				}
+				else
+				{
+					StillToBakeCount++;
+				}
+			}
+			if (StillToBakeCount == 0)
+			{
+				// If Material don't have any remaining textures to bake, and it doesn't have a normal map, then we do not have to bake it
+				SourceMaterial.bHasTexturesToBake = false;
+				SourceMaterial.bIsReusable = (SourceMaterial.bHasNormalMap == false);
+			}
 		}
 	}
 
 
 	ConvertMesh.Wait();
-	//ReadTextures.Wait();
-
 
 	FString FullPathWithExtension = UEditorAssetLibrary::GetPathNameForLoadedAsset(SourceStaticMesh);
 	SourceAssetPath = FPaths::GetBaseFilename(FullPathWithExtension, false);
 	SourceAssetFolder = FPaths::GetPath(SourceAssetPath);
 	SourceAssetName = FPaths::GetBaseFilename(FullPathWithExtension, true);
 
-	CalculateDerivedPathName(SourceAssetName, GetDefaultDerivedAssetSuffix());
+	UpdateDerivedPathName(SourceAssetName, GetDefaultDerivedAssetSuffix());
 
 	InitializeGenerator();
 
@@ -410,7 +450,7 @@ bool UGenerateStaticMeshLODProcess::Initialize(UStaticMesh* StaticMeshIn, FProgr
 }
 
 
-void UGenerateStaticMeshLODProcess::CalculateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix)
+void UGenerateStaticMeshLODProcess::UpdateDerivedPathName(const FString& NewAssetBaseName, const FString& NewAssetSuffix)
 {
 	DerivedAssetNameNoSuffix = FPaths::MakeValidFileName(NewAssetBaseName);
 	if (DerivedAssetNameNoSuffix.Len() == 0)
@@ -759,6 +799,72 @@ void UGenerateStaticMeshLODProcess::UpdateCollisionSettings(const FGenerateStati
 
 
 
+TArray<UMaterialInterface*> UGenerateStaticMeshLODProcess::GetSourceBakeMaterials() const
+{
+	TArray<UMaterialInterface*> UniqueMaterials;
+	for (const FSourceMaterialInfo& MatInfo : SourceMaterials)
+	{
+		if (MatInfo.bHasTexturesToBake)
+		{
+			UniqueMaterials.AddUnique(MatInfo.SourceMaterial.MaterialInterface);
+		}
+	}
+	return UniqueMaterials;
+}
+
+void UGenerateStaticMeshLODProcess::UpdateSourceBakeMaterialConstraint(UMaterialInterface* Material, EMaterialBakingConstraint Constraint)
+{
+	for (FSourceMaterialInfo& MatInfo : SourceMaterials)
+	{
+		if (MatInfo.SourceMaterial.MaterialInterface == Material)
+		{
+			MatInfo.Constraint = Constraint;
+		}
+	}
+}
+
+
+TArray<UTexture2D*> UGenerateStaticMeshLODProcess::GetSourceBakeTextures() const
+{
+	TArray<UTexture2D*> UniqueTextures;
+	for (const FSourceMaterialInfo& MatInfo : SourceMaterials)
+	{
+		if (MatInfo.bHasTexturesToBake)
+		{
+			for (const FTextureInfo& TexInfo : MatInfo.SourceTextures)
+			{
+				if (TexInfo.bShouldBakeTexture)
+				{
+					UniqueTextures.AddUnique(TexInfo.Texture);
+				}
+			}
+		}
+	}
+	return UniqueTextures;
+}
+
+
+void UGenerateStaticMeshLODProcess::UpdateSourceBakeTextureConstraint(UTexture2D* Texture, ETextureBakingConstraint Constraint)
+{
+	for (FSourceMaterialInfo& MatInfo : SourceMaterials)
+	{
+		if (MatInfo.bHasTexturesToBake)
+		{
+			for (FTextureInfo& TexInfo : MatInfo.SourceTextures)
+			{
+				if (TexInfo.Texture == Texture)
+				{
+					TexInfo.Constraint = Constraint;
+				}
+			}
+		}
+	}
+}
+
+
+
+
+
 bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Progress)
 {
 	DerivedTextureImages.Reset();
@@ -783,7 +889,10 @@ bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Pr
 	for (int32 mi = 0; mi < NumMaterials; ++mi)
 	{
 		DerivedMaterials[mi].SourceMaterialIndex = mi;
-		DerivedMaterials[mi].bUseSourceMaterialDirectly = (SourceMaterials[mi].bIsReusable || SourceMaterials[mi].bIsPreviouslyGeneratedMaterial);
+		DerivedMaterials[mi].bUseSourceMaterialDirectly = 
+			SourceMaterials[mi].bIsReusable 
+			|| SourceMaterials[mi].bIsPreviouslyGeneratedMaterial
+			|| (SourceMaterials[mi].Constraint == EMaterialBakingConstraint::UseExistingMaterial);
 		
 		if (DerivedMaterials[mi].bUseSourceMaterialDirectly)
 		{
@@ -826,6 +935,7 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 	// force garbage collection of outstanding preview materials
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 
+	bool bAnyMaterialUsedGeneratedNormalMap = false;
 
 	// create derived textures
 	int32 NumMaterials = SourceMaterials.Num();
@@ -834,9 +944,16 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 	for (int32 mi = 0; mi < NumMaterials; ++mi)
 	{
 		const FSourceMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
-		if (SourceMaterialInfo.bIsReusable || SourceMaterialInfo.bIsPreviouslyGeneratedMaterial)
+		if (SourceMaterialInfo.bIsReusable 
+			|| SourceMaterialInfo.bIsPreviouslyGeneratedMaterial
+			|| SourceMaterialInfo.Constraint == EMaterialBakingConstraint::UseExistingMaterial )
 		{
 			continue;
+		}
+
+		if (SourceMaterialInfo.bHasNormalMap)
+		{
+			bAnyMaterialUsedGeneratedNormalMap = true;
 		}
 
 		const FDerivedMaterialInfo& DerivedMaterialInfo = DerivedMaterials[mi];
@@ -854,7 +971,8 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 
 			bool bConvertToSRGB = SourceTex.Texture->SRGB;
 			const FTextureInfo& DerivedTex = DerivedMaterialInfo.DerivedTextures[ti];
-			if (DerivedTex.bShouldBakeTexture)
+			if (DerivedTex.bShouldBakeTexture
+				&& SourceTex.Constraint != ETextureBakingConstraint::UseExistingTexture )
 			{
 				FTexture2DBuilder TextureBuilder;
 				TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, DerivedTex.Dimensions);
@@ -872,12 +990,16 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 	}
 
 	// create derived normal map texture
-	FTexture2DBuilder NormapMapBuilder;
-	NormapMapBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, DerivedNormalMapImage.Image.GetDimensions());
-	NormapMapBuilder.Copy(DerivedNormalMapImage.Image, false);
-	NormapMapBuilder.Commit(false);
-	UTexture2D* PreviewNormalMapTex = NormapMapBuilder.GetTexture2D();
-	MaterialSetOut.Textures.Add(PreviewNormalMapTex);
+	UTexture2D* PreviewNormalMapTex = nullptr;
+	if (bAnyMaterialUsedGeneratedNormalMap)
+	{
+		FTexture2DBuilder NormapMapBuilder;
+		NormapMapBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, DerivedNormalMapImage.Image.GetDimensions());
+		NormapMapBuilder.Copy(DerivedNormalMapImage.Image, false);
+		NormapMapBuilder.Commit(false);
+		PreviewNormalMapTex = NormapMapBuilder.GetTexture2D();
+		MaterialSetOut.Textures.Add(PreviewNormalMapTex);
+	}
 
 	// create multi-texture bake result
 	if (CurrentSettings_Texture.bCombineTextures)
@@ -901,7 +1023,9 @@ void UGenerateStaticMeshLODProcess::GetDerivedMaterialsPreview(FPreviewMaterials
 		const FSourceMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
 		UMaterialInterface* MaterialInterface = SourceMaterialInfo.SourceMaterial.MaterialInterface;
 
-		if (SourceMaterialInfo.bIsReusable || SourceMaterialInfo.bIsPreviouslyGeneratedMaterial)
+		if (SourceMaterialInfo.bIsReusable 
+			|| SourceMaterialInfo.bIsPreviouslyGeneratedMaterial
+			|| SourceMaterialInfo.Constraint == EMaterialBakingConstraint::UseExistingMaterial )
 		{
 			MaterialSetOut.Materials.Add(MaterialInterface);
 		}
@@ -933,15 +1057,22 @@ void UGenerateStaticMeshLODProcess::UpdateMaterialTextureParameters(
 	const TMap<UTexture2D*, UTexture2D*>& PreviewTextures, 
 	UTexture2D* PreviewNormalMap)
 {
+	ensure((SourceMaterialInfo.bHasNormalMap == false) || (PreviewNormalMap != nullptr));
+
 	Material->Modify();
 	int32 NumTextures = SourceMaterialInfo.SourceTextures.Num();
 	for (int32 ti = 0; ti < NumTextures; ++ti)
 	{
 		const FTextureInfo& SourceTex = SourceMaterialInfo.SourceTextures[ti];
 
-		if (SourceTex.bIsNormalMap)
+		if (SourceTex.Constraint == ETextureBakingConstraint::UseExistingTexture)
 		{
-			if (ensure(PreviewNormalMap))
+			FMaterialParameterInfo ParamInfo(SourceTex.ParameterName);
+			Material->SetTextureParameterValueByInfo(ParamInfo, SourceTex.Texture);
+		}
+		else if (SourceTex.bIsNormalMap)
+		{
+			if (PreviewNormalMap)
 			{
 				FMaterialParameterInfo ParamInfo(SourceTex.ParameterName);
 				Material->SetTextureParameterValueByInfo(ParamInfo, PreviewNormalMap);
@@ -1051,13 +1182,39 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 	// for a filename that already exists
 	TMap<UTexture2D*, UTexture2D*> WrittenSourceToDerived;
 
-	// write derived textures
+	// figure out which textures we might write have actually been referenced by a
+	// Material we are going to write. We do not want to write unreferenced textures.
+	bool bAnyMaterialUsedGeneratedNormalMap = false;
+	bool bAnyMaterialUsedMultiTexture = false;
 	int32 NumMaterials = SourceMaterials.Num();
+	for (int32 mi = 0; mi < NumMaterials; ++mi)
+	{
+		const FSourceMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
+		if (SourceMaterialInfo.bIsReusable
+			|| SourceMaterialInfo.bIsPreviouslyGeneratedMaterial
+			|| SourceMaterialInfo.Constraint == EMaterialBakingConstraint::UseExistingMaterial)
+		{
+			continue;
+		}
+		if (SourceMaterialInfo.bHasNormalMap)
+		{
+			bAnyMaterialUsedGeneratedNormalMap = true;
+		}
+		if (CurrentSettings_Texture.bCombineTextures && MultiTextureParameterName.Contains(mi))
+		{
+			bAnyMaterialUsedMultiTexture = true;
+		}
+	}
+
+
+	// write derived textures
 	check(DerivedMaterials.Num() == NumMaterials);
 	for (int32 mi = 0; mi < NumMaterials; ++mi)
 	{
 		const FSourceMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
-		if (SourceMaterialInfo.bIsReusable || SourceMaterialInfo.bIsPreviouslyGeneratedMaterial)
+		if (SourceMaterialInfo.bIsReusable 
+			|| SourceMaterialInfo.bIsPreviouslyGeneratedMaterial
+			|| SourceMaterialInfo.Constraint == EMaterialBakingConstraint::UseExistingMaterial )
 		{
 			continue;
 		}
@@ -1080,7 +1237,8 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 
 			bool bConvertToSRGB = SourceTex.Texture->SRGB;
 
-			if (DerivedTex.bShouldBakeTexture == false)
+			if (DerivedTex.bShouldBakeTexture == false ||
+				DerivedTex.Constraint == ETextureBakingConstraint::UseExistingTexture)
 			{
 				continue;
 			}
@@ -1110,6 +1268,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 
 
 	// write derived normal map
+	if (bAnyMaterialUsedGeneratedNormalMap) 
 	{
 		FTexture2DBuilder NormapMapBuilder;
 		NormapMapBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, DerivedNormalMapImage.Image.GetDimensions());
@@ -1129,7 +1288,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedTextures(bool bCreatingNewStatic
 
 
 	// write multi-texture bake result
-	if (CurrentSettings_Texture.bCombineTextures)
+	if (CurrentSettings_Texture.bCombineTextures && bAnyMaterialUsedMultiTexture)
 	{
 		bool bConvertToSRGB = true;
 		
@@ -1228,7 +1387,9 @@ void UGenerateStaticMeshLODProcess::WriteDerivedMaterials(bool bCreatingNewStati
 	for (int32 mi = 0; mi < NumMaterials; ++mi)
 	{
 		const FSourceMaterialInfo& SourceMaterialInfo = SourceMaterials[mi];
-		if (SourceMaterialInfo.bIsReusable || SourceMaterialInfo.bIsPreviouslyGeneratedMaterial)
+		if (SourceMaterialInfo.bIsReusable 
+			|| SourceMaterialInfo.bIsPreviouslyGeneratedMaterial
+			|| SourceMaterialInfo.Constraint == EMaterialBakingConstraint::UseExistingMaterial )
 		{
 			continue;
 		}
@@ -1323,7 +1484,13 @@ void UGenerateStaticMeshLODProcess::UpdateMaterialTextureParameters(UMaterialIns
 	{
 		FTextureInfo& DerivedTex = DerivedMaterialInfo.DerivedTextures[ti];
 
-		if (DerivedTex.bIsNormalMap)
+		if (DerivedTex.Constraint == ETextureBakingConstraint::UseExistingTexture)
+		{
+			UTexture2D* SourceTexture = SourceMaterials[DerivedMaterialInfo.SourceMaterialIndex].SourceTextures[ti].Texture;
+			FMaterialParameterInfo ParamInfo(DerivedTex.ParameterName);
+			Material->SetTextureParameterValueEditorOnly(ParamInfo, SourceTexture);
+		}
+		else if (DerivedTex.bIsNormalMap)
 		{
 			if (ensure(DerivedNormalMapTex))
 			{
@@ -1383,7 +1550,7 @@ void UGenerateStaticMeshLODProcess::WriteDerivedStaticMeshAsset()
 	{
 		if (!SourceMaterials[mi].bIsPreviouslyGeneratedMaterial)	// Skip previously generated
 		{
-			if (SourceMaterials[mi].bIsReusable)
+			if (SourceMaterials[mi].bIsReusable || SourceMaterials[mi].Constraint == EMaterialBakingConstraint::UseExistingMaterial )
 			{
 				NewMaterials.Add(SourceMaterials[mi].SourceMaterial);
 			}
@@ -1477,9 +1644,10 @@ void UGenerateStaticMeshLODProcess::UpdateSourceStaticMeshAsset(bool bSetNewHDSo
 		{
 			DerivedMatSlotIndexMap[mi] = -2;		// these materials do not appear in DerivedMesh or SourceMesh and should be skipped/discarded (todo: and deleted?)
 		}
-		else  if (SourceMaterials[mi].bIsReusable)	// if we can re-use existing material we just rewrite to existing material slot index
+		else  if (SourceMaterials[mi].bIsReusable
+				  || SourceMaterials[mi].Constraint == EMaterialBakingConstraint::UseExistingMaterial)	
 		{
-			DerivedMatSlotIndexMap[mi] = mi;
+			DerivedMatSlotIndexMap[mi] = mi;		// if we can re-use existing material we just rewrite to existing material slot index
 		}
 		else
 		{

@@ -125,13 +125,13 @@ class MESHMODELINGTOOLSEXP_API UCollisionGeometryVisualizationProperties : publi
 	GENERATED_BODY()
 public:
 
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	UPROPERTY(EditAnywhere, Category = "Collision Visualization")
 	float LineThickness = 3.0f;
 
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	UPROPERTY(EditAnywhere, Category = "Collision Visualization")
 	bool bShowHidden = false;
 
-	UPROPERTY(EditAnywhere, Category = Visualization)
+	UPROPERTY(EditAnywhere, Category = "Collision Visualization")
 	FColor Color = FColor::Red;
 };
 
