@@ -889,7 +889,7 @@ namespace Electra
 					// If we cannot switch to another stream we need to retry this one.
 					if (!bCanSwitchToAlternateStreams)
 					{
-						return ESegmentAction::Retry;
+						return Stats.bParseFailure ? ESegmentAction::Fail : ESegmentAction::Retry;
 					}
 
 					// Is this an init segment?
