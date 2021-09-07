@@ -2003,38 +2003,60 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 
 					
 					FToolMenuSection& DebugSection = Menu->AddSection("EdGraphSchemaDebug", LOCTEXT("DebugHeader", "Debug"));
-					URigVMNode* Node = RigNode->GetModelNode();
-					if (Node->HasBreakpoint())
+					bool bNoneHasBreakpoint = true;
+					TArray<URigVMNode*> SelectedNodes;
+					for (FName SelectedNodeName : SelectedNodeNames)
 					{
-						
+						if (URigVMNode* ModelNode = Model->FindNodeByName(SelectedNodeName))
+						{
+							SelectedNodes.Add(ModelNode);
+							if (ModelNode->HasBreakpoint())
+							{
+								bNoneHasBreakpoint = false;
+							}
+						}
+					}
+					
+					if (bNoneHasBreakpoint)
+					{
+						DebugSection.AddMenuEntry(
+						"Add Breakpoint",
+						LOCTEXT("AddBreakpoint", "Add Breakpoint"),
+						LOCTEXT("AddBreakpoint_Tooltip", "Adds a breakpoint to the graph at this node"),
+						FSlateIcon(),
+						FUIAction(FExecuteAction::CreateLambda([Controller, SelectedNodes, RigBlueprint]()
+						{
+							for (URigVMNode* SelectedNode : SelectedNodes)
+							{
+								if (RigBlueprint->AddBreakpoint(SelectedNode))
+								{
+									SelectedNode->SetHasBreakpoint(true);
+								}
+							}
+						})));
+					}
+					else
+					{						
 						DebugSection.AddMenuEntry(
                         "Remove Breakpoint",
                         LOCTEXT("RemoveBreakpoint", "Remove Breakpoint"),
                         LOCTEXT("RemoveBreakpoint_Tooltip", "Removes a breakpoint to the graph at this node"),
                         FSlateIcon(),
-                        FUIAction(FExecuteAction::CreateLambda([Controller, Node, RigBlueprint]()
+                        FUIAction(FExecuteAction::CreateLambda([Controller, SelectedNodes, RigBlueprint]()
                         {
-                            if (RigBlueprint->RemoveBreakpoint(Node))
-                            {
-                                Node->SetHasBreakpoint(false);
-                            }
+                        	for (URigVMNode* SelectedNode : SelectedNodes)
+                        	{
+                        		if (SelectedNode->HasBreakpoint())
+                        		{
+                        			if (RigBlueprint->RemoveBreakpoint(SelectedNode))
+                        			{
+										SelectedNode->SetHasBreakpoint(false);
+									}
+                        		}
+							}                            
                         })));
 					}
-					else
-					{
-						DebugSection.AddMenuEntry(
-                        "Add Breakpoint",
-                        LOCTEXT("AddBreakpoint", "Add Breakpoint"),
-                        LOCTEXT("AddBreakpoint_Tooltip", "Adds a breakpoint to the graph at this node"),
-                        FSlateIcon(),
-                        FUIAction(FExecuteAction::CreateLambda([Controller, Node, RigBlueprint]()
-                        {
-                            if (RigBlueprint->AddBreakpoint(Node))
-                            {
-                                Node->SetHasBreakpoint(true);
-                            }
-                        })));
-					}
+					
 					
 
 					FToolMenuSection& OrganizationSection = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));

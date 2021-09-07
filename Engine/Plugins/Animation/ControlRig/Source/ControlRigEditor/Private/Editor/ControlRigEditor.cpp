@@ -245,11 +245,7 @@ FControlRigEditor::~FControlRigEditor()
 #if WITH_EDITOR
 		RigBlueprint->SetDebugMode(false);
 		RigBlueprint->ClearBreakpoints();
-		if (HaltedAtNode)
-		{
-			HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
-			HaltedAtNode = nullptr;
-		}
+		SetHaltedNode(nullptr);
 #endif
 	}
 
@@ -981,12 +977,8 @@ void FControlRigEditor::SetExecutionMode(const EControlRigExecutionModeType InEx
 		ControlRig->bIsInDebugMode = InExecutionMode == EControlRigExecutionModeType_Debug;
 	}
 
-	if (HaltedAtNode)
-	{
-		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
-		HaltedAtNode = nullptr;
-	}
-
+	SetHaltedNode(nullptr);
+	
 	RefreshDetailView();
 }
 
@@ -2921,18 +2913,8 @@ void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionI
 		
 	if (URigVMNode* InNode = Cast<URigVMNode>(InNodeObject))
 	{
-		if (HaltedAtNode != nullptr)
-		{
-			HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
-		}
-		HaltedAtNode = InNode;
-
-		if (InNode == nullptr)
-		{
-			return;
-		}	
-		InNode->SetExecutionIsHaltedAtThisNode(true);
-	
+		SetHaltedNode(InNode);
+		
 		if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
 		{
 			if (Blueprint->GetAllModels().Contains(InNode->GetGraph()))
@@ -2951,8 +2933,21 @@ void FControlRigEditor::HandleControlRigExecutionHalted(const int32 InstructionI
 	{
 		if (InEntryName == ControlRig->GetEventQueue().Last())
 		{
-			HaltedAtNode = nullptr;
+			SetHaltedNode(nullptr);
 		}
+	}
+}
+
+void FControlRigEditor::SetHaltedNode(URigVMNode* Node)
+{
+	if (HaltedAtNode)
+	{
+		HaltedAtNode->SetExecutionIsHaltedAtThisNode(false);
+	}
+	HaltedAtNode = Node;
+	if (HaltedAtNode)
+	{
+		HaltedAtNode->SetExecutionIsHaltedAtThisNode(true);
 	}
 }
 
