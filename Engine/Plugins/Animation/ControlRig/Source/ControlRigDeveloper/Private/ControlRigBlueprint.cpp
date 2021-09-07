@@ -344,6 +344,8 @@ void UControlRigBlueprint::PostLoad()
 {
 	Super::PostLoad();
 
+	IncrementVMRecompileBracket();
+
 	TArray<UControlRigBlueprint*> ReferencedBlueprints = GetReferencedControlRigBlueprints();
 
 	// PostLoad all referenced BPs so that their function graphs are fully loaded 
@@ -503,7 +505,9 @@ void UControlRigBlueprint::PostLoad()
 
 	CompileLog.Messages.Reset();
 	CompileLog.NumErrors = CompileLog.NumWarnings = 0;
+
 	
+	DecrementVMRecompileBracket();
 	RecompileVM();
 	RequestControlRigInit();
 
