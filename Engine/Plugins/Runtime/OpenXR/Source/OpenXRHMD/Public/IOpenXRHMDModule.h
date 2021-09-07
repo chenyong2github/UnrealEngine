@@ -10,7 +10,7 @@
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 
  * within this plugin.
  */
-class OPENXRHMD_API IOpenXRHMDPlugin : public IHeadMountedDisplayModule
+class OPENXRHMD_API IOpenXRHMDModule : public IHeadMountedDisplayModule
 {
 
 public:
@@ -21,9 +21,9 @@ public:
 	 *
 	 * @return Returns singleton instance, loading the module on demand if needed
 	 */
-	static inline IOpenXRHMDPlugin& Get()
+	static inline IOpenXRHMDModule& Get()
 	{
-		return FModuleManager::LoadModuleChecked< IOpenXRHMDPlugin >( "OpenXRHMD" );
+		return FModuleManager::LoadModuleChecked< IOpenXRHMDModule >( "OpenXRHMD" );
 	}
 
 	/**

@@ -101,7 +101,7 @@ void FOculusOpenXRHMD::OnEvent(XrSession InSession, const XrEventDataBaseHeader*
 	return;
 }
 
-const void* FOculusOpenXRHMD::OnCreateInstance(class IOpenXRHMDPlugin* InPlugin, const void* InNext)
+const void* FOculusOpenXRHMD::OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext)
 {
 	//UE_LOG(LogOculusOpenXRPlugin, Log, TEXT("Oculus OpenXR OnCreateInstance"));
 	return InNext;

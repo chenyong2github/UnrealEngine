@@ -266,7 +266,7 @@ public:
 	* Remember to assign InNext to the next pointer of your struct or otherwise you may break the next chain.
 	*/
 
-	virtual const void* OnCreateInstance(class IOpenXRHMDPlugin* InPlugin, const void* InNext)
+	virtual const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext)
 	{
 		return InNext;
 	}

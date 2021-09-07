@@ -45,7 +45,7 @@ public:
 	virtual bool GetSpectatorScreenController(FHeadMountedDisplayBase* InHMDBase, TUniquePtr<FDefaultSpectatorScreenController>& OutSpectatorScreenController) override;
 	virtual void AddActions(XrInstance Instance, TFunction<XrAction(XrActionType InActionType, const FName& InName, const TArray<XrPath>& InSubactionPaths)> AddAction) override;
 	virtual void OnEvent(XrSession InSession, const XrEventDataBaseHeader* InHeader) override;
-	virtual const void* OnCreateInstance(class IOpenXRHMDPlugin* InPlugin, const void* InNext) override;
+	virtual const void* OnCreateInstance(class IOpenXRHMDModule* InModule, const void* InNext) override;
 	virtual const void* OnGetSystem(XrInstance InInstance, const void* InNext) override;
 	virtual const void* OnCreateSession(XrInstance InInstance, XrSystemId InSystem, const void* InNext) override;
 	virtual const void* OnBeginSession(XrSession InSession, const void* InNext) override;
