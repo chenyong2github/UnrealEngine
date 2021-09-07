@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/TextureLODSettings.h"
+#include "DeviceProfiles/DeviceProfileMatching.h"
 #include "DeviceProfile.generated.h"
 
 struct FPropertyChangedEvent;
@@ -89,6 +90,10 @@ private:
 	/** Delegate object fired when there has been any changes to the console variables */
 	FOnCVarsUpdated CVarsUpdatedDelegate;
 
+	// An array of conditions to test against and fragment names to select.
+	UPROPERTY(EditAnywhere, config, Category = "DeviceProfile Matching Rules")
+	TArray<FDPMatchingRulestruct> MatchingRules;
+
 public:
 	/* ValidateProfile()
 	* Validate the Profile after changes by loading it's config (.ini)
@@ -108,7 +113,9 @@ public:
 	bool ModifyCVarValue(const FString& CVarName, const FString& CVarValue, bool bAddIfNonExistant = false);
 	FString GetCVarValue(const FString& CVarName) const;
 
-	/** Lazily generate a consolidated list of CVars, recursing up the device profile hierarchy */
+	/** Lazily generate a consolidated list of CVars, recursing up the device profile hierarchy 
+	 *  This will not include any cvars from the device's selected fragments.
+	*/
 	const TMap<FString, FString>& GetConsolidatedCVars() const;
 
 	/** 

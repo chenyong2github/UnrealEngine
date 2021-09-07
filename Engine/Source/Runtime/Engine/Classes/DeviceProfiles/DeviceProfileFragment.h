@@ -15,5 +15,6 @@ class ENGINE_API UDeviceProfileFragment : public UObject
 {
 	GENERATED_UCLASS_BODY()
 public:
+	UPROPERTY()
 	TArray<FString> CVars;
 };
