@@ -5,6 +5,7 @@
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimBlueprint.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
+#include "Animation/AnimSequence.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAnimationPoseScripting, Verbose, All);
 
@@ -507,7 +508,29 @@ void UAnimPoseExtensions::GetAnimPoseAtTime(const UAnimSequenceBase* AnimationSe
 			FAnimExtractContext Context(Time, EvaluationOptions.bExtractRootMotion);
 
 			AnimationSequenceBase->GetAnimationPose(PoseData, Context);
-			Pose.SetPose(CompactPose);
+
+			if (AnimationSequenceBase->IsValidAdditive())
+			{
+				const UAnimSequence* AnimSequence = Cast<const UAnimSequence>(AnimationSequenceBase);
+				FCompactPose BasePose;
+				BasePose.SetBoneContainer(&RequiredBones);
+
+				FBlendedCurve BaseCurve;
+				BaseCurve.InitFrom(RequiredBones);
+				UE::Anim::FStackAttributeContainer BaseAttributes;
+				
+				FAnimationPoseData BasePoseData(BasePose, BaseCurve, BaseAttributes);
+				AnimSequence->GetAdditiveBasePose(BasePoseData, Context);
+
+				FAnimationRuntime::AccumulateAdditivePose(BasePoseData, PoseData, 1.f, AnimSequence->GetAdditiveAnimType());
+				BasePose.NormalizeRotations();
+				
+				Pose.SetPose(BasePose);
+			}
+			else
+			{
+				Pose.SetPose(CompactPose);
+			}
 		}
 		else
 		{

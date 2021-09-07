@@ -5,7 +5,6 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "Animation/BlendSpace.h"
 #include "Animation/AnimSequence.h"
-#include "Animation/AnimData/AnimDataModel.h"
 #include "Animation/BoneSocketReference.h"
 
 #define LOCTEXT_NAMESPACE "BlendSpaceAnalysis"
@@ -48,8 +47,6 @@ bool BlendSpaceAnalysis::GetBoneInfo(const UAnimSequence&     Animation,
 									 FTransform&              BoneOffset, 
 									 FName&                   BoneName)
 {
-	const UAnimDataModel* AnimDataModel = Animation.GetDataModel();
-
 	if (BoneSocket.bUseSocket)
 	{
 		const USkeleton* Skeleton = Animation.GetSkeleton();
