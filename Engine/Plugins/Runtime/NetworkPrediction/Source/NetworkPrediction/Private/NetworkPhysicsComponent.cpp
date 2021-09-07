@@ -16,6 +16,7 @@
 #include "TimerManager.h"
 #include "NetworkPredictionDebug.h"
 #include "NetworkPredictionCVars.h"
+#include "Components/PrimitiveComponent.h"
 
 UNetworkPhysicsComponent::UNetworkPhysicsComponent()
 {
