@@ -4019,9 +4019,11 @@ void FControlRigEditor::HandlePreviewMeshChanged(USkeletalMesh* InOldSkeletalMes
 			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
 			{
 				DebuggedControlRig->GetHierarchy()->Notify(ERigHierarchyNotification::HierarchyReset, nullptr);
-				DebuggedControlRig->RequestSetup();
+				DebuggedControlRig->Initialize(true);
 			}
 		}
+
+		Compile();
 	}
 }
 
