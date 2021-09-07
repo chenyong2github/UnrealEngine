@@ -3,62 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundOperatorSettings.h"
 #include <type_traits>
-
-
-/** Macro to make declaring a metasound parameter simple.  */
-// Declares a metasound parameter type by
-// - Adding typedefs for commonly used template types.
-// - Defining parameter type traits.
-#define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, ModuleApi, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
-	template<> \
-	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
-	{ \
-		static ModuleApi const TCHAR* TypeName; \
-		static ModuleApi const FText& GetTypeDisplayText(); \
-		static ModuleApi const FMetasoundDataTypeId TypeId; \
-		\
-		private: \
-		\
-		static const DataType* const TypePtr; \
-	}; \
-	/*TODO remove typedefs */ \
-	typedef ::Metasound::TDataReferenceTypeInfo<DataType> DataTypeInfoTypeName; \
-	\
-	typedef ::Metasound::TDataReadReference<DataType> DataReadReferenceTypeName; \
-	typedef ::Metasound::TDataWriteReference<DataType> DataWriteReferenceTypeName;\
-	template<> \
-	struct ::Metasound::TDataReferenceTypeInfo<TArray<DataType>> \
-	{ \
-		static ModuleApi const TCHAR* TypeName; \
-		static ModuleApi const FText& GetTypeDisplayText(); \
-		static ModuleApi const FMetasoundDataTypeId TypeId; \
-		\
-		private: \
-		\
-		static const TArray<DataType>* const TypePtr; \
-	};
-
-// This only needs to be called if you don't plan on calling REGISTER_METASOUND_DATATYPE.
-#define DEFINE_METASOUND_DATA_TYPE(DataType, DataTypeName) \
-	const TCHAR* ::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName); \
-	const FText& ::Metasound::TDataReferenceTypeInfo<DataType>::GetTypeDisplayText() \
-	{ \
-		static const FText DisplayText = NSLOCTEXT("MetaSoundCore_DataReference", DataTypeName, DataTypeName); \
-		return DisplayText; \
-	} \
-	const DataType* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr = nullptr; \
-	const void* const ::Metasound::TDataReferenceTypeInfo<DataType>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<DataType>::TypePtr); \
-	/* Array definition */ \
-	const TCHAR* ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeName = TEXT(DataTypeName ":Array"); \
-	const FText& ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::GetTypeDisplayText() \
-	{ \
-		static const FText DisplayText = NSLOCTEXT("MetaSoundCore_DataReference", DataTypeName "_Array", DataTypeName ":Array"); \
-		return DisplayText; \
-	} \
-	const TArray<DataType>* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr = nullptr; \
-	const void* const ::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypeId = static_cast<const FMetasoundDataTypeId>(&::Metasound::TDataReferenceTypeInfo<TArray<DataType>>::TypePtr);
 
 namespace Audio
 {
@@ -362,56 +307,57 @@ namespace Metasound
 		{
 		}
 
-		public:
-			typedef TDataReference<DataType> FDataReference;
+	public:
+		typedef TDataReference<DataType> FDataReference;
 
-			// This should be used to construct a new DataType object and return this TDataReadReference as a wrapper around it.
-			template <typename... ArgTypes>
-			static TDataReadReference<DataType> CreateNew(ArgTypes&&... Args)
-			{
-				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "DataType constructor does not support provided types.");
-				return TDataReadReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
-			}
+		// This should be used to construct a new DataType object and return this TDataReadReference as a wrapper around it.
+		template <typename... ArgTypes>
+		static TDataReadReference<DataType> CreateNew(ArgTypes&&... Args)
+		{
+			static_assert(std::is_constructible<DataType, ArgTypes...>::value, "DataType constructor does not support provided types.");
+			return TDataReadReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
+		}
 
-			TDataReadReference(const TDataReadReference& Other) = default;
+		TDataReadReference(const TDataReadReference& Other) = default;
 
-			/** Construct a readable parameter ref from a writable parameter ref. */
-			explicit TDataReadReference(const TDataWriteReference<DataType>& WritableRef)
-			:	FDataReference(WritableRef)
-			{
-			}
+		/** Construct a readable parameter ref from a writable parameter ref. */
+		explicit TDataReadReference(const TDataWriteReference<DataType>& WritableRef)
+		:	FDataReference(WritableRef)
+		{
+		}
 
-			/** Assign a readable parameter ref from a writable parameter ref. */
-			TDataReadReference<DataType>& operator=(const TDataWriteReference<DataType>& Other)
-			{
-				TDataReference<DataType>::ObjectReference = Other.ObjectReference;
-				return *this;
-			}
+		/** Assign a readable parameter ref from a writable parameter ref. */
+		TDataReadReference<DataType>& operator=(const TDataWriteReference<DataType>& Other)
+		{
+			TDataReference<DataType>::ObjectReference = Other.ObjectReference;
+			return *this;
+		}
 
-			/** Enable copy operator */
-			TDataReadReference<DataType>& operator=(const TDataReadReference<DataType>& Other) = default;
+		/** Enable copy operator */
+		TDataReadReference<DataType>& operator=(const TDataReadReference<DataType>& Other) = default;
 
-			/** Enable move operator */
-			TDataReadReference<DataType>& operator=(TDataReadReference<DataType>&& Other) = default;
+		/** Enable move operator */
+		TDataReadReference<DataType>& operator=(TDataReadReference<DataType>&& Other) = default;
 
-			/** Const access to the underlying parameter object. */
-			FORCEINLINE const DataType& operator*() const
-			{
-				return *TDataReference<DataType>::ObjectReference;
-			}
+		/** Const access to the underlying parameter object. */
+		FORCEINLINE const DataType& operator*() const
+		{
+			return *TDataReference<DataType>::ObjectReference;
+		}
 
-			/** Const access to the underlying parameter object. */
-			FORCEINLINE const DataType* operator->() const
-			{
-				return TDataReference<DataType>::ObjectReference.operator->();
-			}
+		/** Const access to the underlying parameter object. */
+		FORCEINLINE const DataType* operator->() const
+		{
+			return TDataReference<DataType>::ObjectReference.operator->();
+		}
 
-			/** Create a clone of this parameter reference. */
-			virtual TUniquePtr<IDataReference> Clone() const override
-			{
-				typedef TDataReadReference<DataType> FDataReadReference;
+		/** Create a clone of this parameter reference. */
+		virtual TUniquePtr<IDataReference> Clone() const override
+		{
+			typedef TDataReadReference<DataType> FDataReadReference;
 
-				return MakeUnique< FDataReadReference >(*this);
-			}
+			return MakeUnique< FDataReadReference >(*this);
+		}
 	};
 }
+

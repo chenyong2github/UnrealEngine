@@ -1121,8 +1121,14 @@ namespace Metasound
 		{
 			using namespace Frontend;
 
+			FEdGraphPinType PinType;
+			FName DataTypeName = InInputHandle->GetDataType();
+
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			const FEdGraphPinType PinType = EditorModule.FindDataType(InInputHandle->GetDataType()).PinType;
+			if (EditorModule.IsRegisteredDataType(DataTypeName))
+			{
+				PinType = EditorModule.FindDataType(DataTypeName).PinType;
+			}
 
 			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Input, PinType, FName(*InInputHandle->GetName()));
 			if (ensure(NewPin))
@@ -1136,8 +1142,14 @@ namespace Metasound
 
 		UEdGraphPin* FGraphBuilder::AddPinToNode(UMetasoundEditorGraphNode& InEditorNode, Frontend::FConstOutputHandle InOutputHandle)
 		{
+			FEdGraphPinType PinType;
+			FName DataTypeName = InOutputHandle->GetDataType();
+
 			IMetasoundEditorModule& EditorModule = FModuleManager::GetModuleChecked<IMetasoundEditorModule>("MetaSoundEditor");
-			FEdGraphPinType	PinType = EditorModule.FindDataType(InOutputHandle->GetDataType()).PinType;
+			if (EditorModule.IsRegisteredDataType(DataTypeName))
+			{
+				PinType = EditorModule.FindDataType(DataTypeName).PinType;
+			}
 
 			UEdGraphPin* NewPin = InEditorNode.CreatePin(EGPD_Output, PinType, FName(*InOutputHandle->GetName()));
 			if (ensure(NewPin))

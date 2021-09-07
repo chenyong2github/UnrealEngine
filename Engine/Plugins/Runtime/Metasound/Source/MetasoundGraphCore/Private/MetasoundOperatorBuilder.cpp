@@ -336,8 +336,22 @@ namespace Metasound
 
 			const FDataReferenceCollection& FromDataReferenceCollection = InDataReferenceMap[Edge->From.Node].Outputs;
 
-			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
+			bool bSuccess = false;
+
+			if (FromDataReferenceCollection.ContainsDataWriteReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
 			{
+				// Contains data write reference
+				bSuccess = OutCollection.AddDataWriteReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
+			}
+			else if (FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
+			{
+				// Contains data read reference
+				bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
+			}
+
+			if (!bSuccess)
+			{
+				// Does not contain any reference
 				// This is likely a node programming error where the edges reported by the INode interface
 				// did not match the readable parameter refs created by the operators outputs. Or, the edge description is invalid.
 
@@ -346,15 +360,6 @@ namespace Metasound
 
 				BuildStatus |= FBuildStatus::NonFatalError;
 				continue;
-			}
-
-
-			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
-
-			if (!bSuccess)
-			{
-				AddBuildError<FMissingOutputDataReferenceError>(InContext.Errors, Edge->From);
-				BuildStatus |= FBuildStatus::NonFatalError;
 			}
 		}
 

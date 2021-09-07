@@ -110,9 +110,10 @@ namespace Metasound
 				bool FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) override;
 
 				// Create a new instance of a C++ implemented node from the registry.
-				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultNodeConstructorParams&&) const override;
-				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultLiteralNodeConstructorParams&&) const override;
 				virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const override;
+				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultLiteralNodeConstructorParams&&) const override;
+				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultNamedVertexNodeConstructorParams&&) const override;
+				virtual TUniquePtr<INode> CreateNode(const FNodeRegistryKey& InKey, FDefaultNamedVertexWithLiteralNodeConstructorParams&&) const override;
 
 				// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
 				// Returns an empty array if none are available.
@@ -177,15 +178,14 @@ namespace Metasound
 			}
 
 
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, FDefaultNodeConstructorParams&& InParams) const
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const
 			{
 				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
 
 				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
 				{
-					return Entry->CreateNode(MoveTemp(InParams));
+					return Entry->CreateNode(InInitData);
 				}
-
 				return nullptr;
 			}
 
@@ -201,13 +201,25 @@ namespace Metasound
 				return nullptr;
 			}
 
-			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData& InInitData) const
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, FDefaultNamedVertexNodeConstructorParams&& InParams) const
 			{
 				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
 
 				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
 				{
-					return Entry->CreateNode(InInitData);
+					return Entry->CreateNode(MoveTemp(InParams));
+				}
+
+				return nullptr;
+			}
+
+			TUniquePtr<Metasound::INode> FRegistryContainerImpl::CreateNode(const FNodeRegistryKey& InKey, FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const
+			{
+				const INodeRegistryEntry* Entry = FindNodeEntry(InKey);
+
+				if (ensureAlwaysMsgf(nullptr != Entry, TEXT("Could not find node [RegistryKey:%s]"), *InKey))
+				{
+					return Entry->CreateNode(MoveTemp(InParams));
 				}
 
 				return nullptr;
@@ -341,7 +353,7 @@ namespace Metasound
 			bool FRegistryContainerImpl::FindVariableNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey)
 			{
 				FMetasoundFrontendClass Class;
-				if (IDataTypeRegistry::Get().GetFrontendVariableClass(InDataTypeName, Class))
+				if (IDataTypeRegistry::Get().GetFrontendLiteralClass(InDataTypeName, Class))
 				{
 					OutKey = NodeRegistryKey::CreateKey(Class.Metadata);
 					return true;

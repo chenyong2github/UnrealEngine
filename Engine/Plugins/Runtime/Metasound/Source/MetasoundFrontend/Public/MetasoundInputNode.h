@@ -83,7 +83,7 @@ namespace Metasound
 			{
 				if (TExecutableDataType<DataType>::bIsExecutable)
 				{
-					return &TInputOperator<FTrigger>::ExecuteFunction;
+					return &TInputOperator<DataType>::ExecuteFunction;
 				}
 				return nullptr;
 			}
