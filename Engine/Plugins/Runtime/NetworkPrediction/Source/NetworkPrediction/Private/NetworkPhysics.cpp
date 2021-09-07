@@ -51,6 +51,8 @@ namespace UE_NETWORK_PHYSICS
 	NP_DEVCVAR_INT(FixedLocalFrameOffset, -1, "np2.FixedLocalFrameOffset", "When > 0, use hardcoded frame offset on client from head");	
 	NP_DEVCVAR_INT(FixedLocalFrameOffsetTolerance, 3, "np2.FixedLocalFrameOffsetTolerance", "Tolerance when using np2.FixedLocalFrameOffset");
 
+	NP_DEVCVAR_INT(ForceInputFault, 0, "np2.ForceInputFault", "Force input fault correction");
+
 	// NOTE: These have temporarily been switched to regular CVar style variables, because the NP_DECVAR_* macros
 	// can only make ECVF_Cheat variables, which cannot be hotfixed with DefaultEngine.ini. Instead they use
 	// ConsoleVariables.ini, which isn't loaded in shipping.
@@ -173,7 +175,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		const float Error = FQuat::ErrorAutoNormalize(A, B);
 		const bool b = D == 0 ? A != B : Error > D;
 
-		//UE_LOG(LogTemp, Warning, TEXT("Error: %f"), Error);
+		if (b)
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("%s Error: %f"), Str, Error);
+		}
 
 		UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && b && Str, LogNetworkPhysics, Log, TEXT("%s correction. Server: %s. Local: %s. Delta: %f"), Str, *A.ToString(), *B.ToString(), FQuat::ErrorAutoNormalize(A, B));
 		return b;
@@ -250,7 +255,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 				if (Proxy->GetHandle_LowLevel() == nullptr)
 				{
-					UE_LOG(LogTemp, Warning, TEXT("No valid LowLEvel handle yet..."));
+					UE_LOG(LogNetworkPhysics, Warning, TEXT("No valid LowLevel handle yet."));
 					continue;
 				}
 
@@ -276,7 +281,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					}
 				}
 #endif
-				
+
 				//UE_LOG(LogTemp, Warning, TEXT("0x%X P.ObjectState(): %d. R: %s [%s]"), (int64)Proxy,  P.ObjectState(), *P.R().ToString(), *Obj.Physics.Rotation.ToString());
 				//UE_LOG(LogTemp, Warning, TEXT("			R: %s [%s]"), *FRotator(P.R()).ToString(), *FRotator(Obj.Physics.Rotation).ToString());
 
@@ -380,28 +385,32 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 
 				// TODO: This nullcheck is to avoid null access crash in Editor Tests.
 				// Should re-evaluate whether/why this is occurring in the first place.
-				if (CorrectionState.Proxy)
+				if (ensure(CorrectionState.Proxy))
 				{
-				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
-				{
-					UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
-				
-					PT->SetX(CorrectionState.Physics.Location, false);
-					PT->SetV(CorrectionState.Physics.LinearVelocity, false);
-					PT->SetR(CorrectionState.Physics.Rotation, false);
-					PT->SetW(CorrectionState.Physics.AngularVelocity, false);
+					if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
+					{
+						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
+
+						npEnsure(CorrectionState.Physics.Location.ContainsNaN() == false);
+						npEnsure(CorrectionState.Physics.LinearVelocity.ContainsNaN() == false);
+						npEnsure(CorrectionState.Physics.AngularVelocity.ContainsNaN() == false);
 					
+						PT->SetX(CorrectionState.Physics.Location, false);
+						PT->SetV(CorrectionState.Physics.LinearVelocity, false);
+						PT->SetR(CorrectionState.Physics.Rotation, false);
+						PT->SetW(CorrectionState.Physics.AngularVelocity, false);
+
 						//Solver->GetParticles().MarkTransientDirtyParticle(PT->GetProxy()->GetHandle_LowLevel());
 
-					//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
-					{
-						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
+						//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
+						{
+							ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
 							UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && PT->ObjectState() != CorrectionState.Physics.ObjectState, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
-						PT->SetObjectState(CorrectionState.Physics.ObjectState);
+							PT->SetObjectState(CorrectionState.Physics.ObjectState);
+						}
 					}
 				}
 			}
-		}
 		}
 
 		// Marhsall data back to GT based on what was requested for networking
@@ -657,15 +666,19 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 			const IConsoleVariable* NumFramesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("p.RewindCaptureNumFrames"));
 			if (ensure(NumFramesCVar))
 			{
-				NumFrames = NumFramesCVar->GetInt();
+				// 1 frame is required to enable rewind capture. 
+				NumFrames = FMath::Max<int32>(1, NumFramesCVar->GetInt());
 			}
 
-			Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
-			RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
-			RewindCallback->RewindData = Solver->GetRewindData();
-			RewindCallback->Solver = Solver;
-			RewindCallback->World = World;
-			RewindCallback->NetworkPhysicsManager = this;
+			if (ensure(NumFrames > 0))
+			{
+				Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
+				RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
+				RewindCallback->RewindData = Solver->GetRewindData();
+				RewindCallback->Solver = Solver;
+				RewindCallback->World = World;
+				RewindCallback->NetworkPhysicsManager = this;
+			}
 		}
 	}
 #endif
@@ -732,7 +745,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 				if (UE_NETWORK_PHYSICS::TimeDilationEnabled > 0)
 				{
-				PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
+					PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
 				}
 
 				if (LatestAckdClientFrame != INDEX_NONE)
@@ -740,7 +753,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 					const int32 FrameOffset = LatestAckdClientFrame - LatestAckdServerFrame;
 					if (FrameOffset != LocalOffset)
 					{
-						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("LocalOFfset Changed: %d -> %d"), LocalOffset, FrameOffset);
+						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("LocalOFfset Changed: %d -> %d [C:%d. S:%d]"), LocalOffset, FrameOffset, LatestAckdClientFrame, LatestAckdServerFrame);
 						LocalOffset = FrameOffset;
 					}
 				}
@@ -832,9 +845,9 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 							if (PhysicsState->OwningActor)
 							{
-							PhysicsState->OwningActor->GetReplicatedMovement_Mutable().bRepPhysics = false;
-							PhysicsState->OwningActor->SetReplicateMovement(false);
-						}
+								PhysicsState->OwningActor->GetReplicatedMovement_Mutable().bRepPhysics = false;
+								PhysicsState->OwningActor->SetReplicateMovement(false);
+							}
 						}
 						else
 						{
@@ -1009,7 +1022,7 @@ void UNetworkPhysicsManager::ProcessInputs_External(int32 PhysicsStep, const TAr
 	}
 
 	// ----------------------------------------------------------------------
-	//	Call into Subsystems. This is where they will marshall input to the PT
+	//	Call into Subsystems. This is where they will marshal input to the PT
 	// ----------------------------------------------------------------------
 
 	bool bOutSentClientInput = false;
@@ -1067,6 +1080,9 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 	UWorld* World = GetWorld();
 	constexpr int32 MaxBufferedCmds = 16;
 
+	const bool bForceFault = UE_NETWORK_PHYSICS::ForceInputFault > 0;
+	UE_NETWORK_PHYSICS::ForceInputFault = 0;
+
 	for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
 	{
 		if (APlayerController* PC = Iterator->Get())
@@ -1076,7 +1092,7 @@ void UNetworkPhysicsManager::ProcessClientInputBuffers_External(int32 PhysicsSte
 
 			auto UpdateLastProcessedInputFrame = [&]()
 			{
-				const int32 NumBufferedInputCmds = InputBuffer.HeadFrame() - FrameInfo.LastProcessedInputFrame;
+				const int32 NumBufferedInputCmds = bForceFault ? 0 : (InputBuffer.HeadFrame() - FrameInfo.LastProcessedInputFrame);
 
 				// Check Overflow
 				if (NumBufferedInputCmds > MaxBufferedCmds)
@@ -1248,7 +1264,7 @@ void UNetworkPhysicsManager::TickDrawDebug()
 				{
 					(*Func)(P);
 				}
-			}
+			}			
 		}
 	}
 

@@ -13,12 +13,14 @@
 #include "Misc/Parse.h"
 #include "String/ParseTokens.h"
 #include "NetworkPredictionModelDefRegistry.h"
+#include "Async/NetworkPredictionAsyncModelDefRegistry.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
 #include "ISettingsModule.h"
 #include "NetworkPredictionSettings.h"
 #endif
+
 
 #define LOCTEXT_NAMESPACE "FNetworkPredictionModule"
 
@@ -137,6 +139,7 @@ void FNetworkPredictionModule::FinalizeNetworkPredictionTypes()
 {
 	FGlobalCueTypeTable::Get().FinalizeCueTypes();
 	FNetworkPredictionModelDefRegistry::Get().FinalizeTypes();
+	UE_NP::FNetworkPredictionAsyncModelDefRegistry::Get().FinalizeTypes();
 }
 
 IMPLEMENT_MODULE( FNetworkPredictionModule, NetworkPrediction )

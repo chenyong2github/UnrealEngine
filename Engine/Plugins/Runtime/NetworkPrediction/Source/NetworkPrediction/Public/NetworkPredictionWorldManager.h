@@ -474,6 +474,11 @@ void UNetworkPredictionWorldManager::BindServerNetRecv_Independent(FNetworkPredi
 	ServerRecvData.TraceID = ID.GetTraceID();
 	ServerRecvData.InstanceIdx = DataStore->Instances.GetIndex(ID);
 	ServerRecvData.FramesIdx = DataStore->Frames.GetIndex(ID);
+	ServerRecvData.PendingFrame = 0;
+	ServerRecvData.TotalSimTimeMS = 0;
+	ServerRecvData.UnspentTimeMS = 0.f;
+	ServerRecvData.LastConsumedFrame = INDEX_NONE;
+	ServerRecvData.LastRecvFrame = INDEX_NONE;
 
 	RepProxy->NetSerializeFunc = [DataStore, ServerRecvIdx](const FNetSerializeParams& P)
 	{

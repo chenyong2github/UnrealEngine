@@ -1,7 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
+#include "CoreTypes.h"
 #include "NetworkPredictionCheck.h"
+#include "UObject/NameTypes.h"
+#include "Async/NetworkPredictionAsyncDefines.h"
 
 // Sets index to value, resizing bit array if necessary and setting new bits to false
 template<typename BitArrayType>
@@ -36,4 +40,21 @@ template<typename BitArrayType>
 void NpClearBitArray(BitArrayType& BitArray)
 {
 	BitArray.SetRange(0, BitArray.Num(), false);
+}
+
+template<typename ArrayType>
+void NpResizeForIndex(ArrayType& Array, int32 Index)
+{
+	if (Array.IsValidIndex(Index) == false)
+	{
+		Array.SetNum(Index + UE_NP::FrameStorageGrowth);
+	}
+}
+
+class AActor;
+class FSingleParticlePhysicsProxy;
+
+namespace UE_NP
+{
+	NETWORKPREDICTION_API FSingleParticlePhysicsProxy* FindBestPhysicsProxy(AActor* Owning, FName NamedComponent = NAME_None);
 }

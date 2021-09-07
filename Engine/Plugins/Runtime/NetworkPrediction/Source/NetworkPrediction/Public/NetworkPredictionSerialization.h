@@ -200,6 +200,14 @@ public:
 
 		const int32 EndFrame = FNetworkPredictionSerialization::ReadCompressedFrame(Ar, ServerRecvData.LastRecvFrame); // 1. StartFrame
 		const int32 StartFrame = EndFrame - NumSendPerUpdate;
+
+		// Reset consumed frame if we detect a gap.
+		// Note this could discard unprocessed commands we previously received (but didn't process) but handling this case doesn't seem necessary or practical
+		if (ServerRecvData.LastConsumedFrame+1 < StartFrame)
+		{
+			ServerRecvData.LastConsumedFrame = StartFrame-1;
+			ServerRecvData.LastRecvFrame = StartFrame-1;
+		}
 		
 		int32 ExpectedTimeMS = ServerRecvData.TotalSimTimeMS; // SimTime we expect to process next command at
 		for (int32 Frame=ServerRecvData.LastConsumedFrame+1; Frame >= 0 && Frame <= ServerRecvData.LastRecvFrame; ++Frame)
