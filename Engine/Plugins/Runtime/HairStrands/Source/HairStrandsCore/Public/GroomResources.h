@@ -605,6 +605,7 @@ struct FHairCardsDeformedResource : public FHairCommonResource
 
 	/* Strand hair deformed position buffer (previous and current) */
 	FRDGExternalBuffer DeformedPositionBuffer[2];
+	FRDGExternalBuffer DeformedNormalBuffer;
 
 	/* Reference to the hair strands render data */
 	const FHairCardsBulkData& BulkData;
