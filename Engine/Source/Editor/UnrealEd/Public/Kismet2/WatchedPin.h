@@ -3,9 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "EdGraph/EdGraphPin.h"
 #include "WatchedPin.generated.h"
 
-class UEdGraphPin;
+class UEdGraphNode;
 
 /** Contains information about a watched pin in a Blueprint graph for local settings data.
  */
