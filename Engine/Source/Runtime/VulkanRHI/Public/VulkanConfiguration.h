@@ -255,6 +255,14 @@
 	#endif
 #endif
 
+#ifndef VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR
+#ifdef VK_EXT_texture_compression_astc_hdr
+#define VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR			1
+#else
+#define VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR			0
+#endif
+#endif
+
 #ifndef VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
 	#ifdef VK_EXT_fragment_density_map
 		#define VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP			1

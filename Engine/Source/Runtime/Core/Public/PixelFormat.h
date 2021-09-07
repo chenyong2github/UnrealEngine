@@ -85,7 +85,13 @@ enum EPixelFormat
 	PF_ETC2_RG11_EAC		=70,
 	PF_R8		            =71,
 	PF_B5G5R5A1_UNORM       =72,
-	PF_MAX					=73,
+	PF_ASTC_4x4_HDR         =73,	
+	PF_ASTC_6x6_HDR         =74,	
+	PF_ASTC_8x8_HDR         =75,	
+	PF_ASTC_10x10_HDR       =76,	
+	PF_ASTC_12x12_HDR       =77,
+	
+	PF_MAX					=78,
 };
 #define FOREACH_ENUM_EPIXELFORMAT(op) \
 	op(PF_Unknown) \
@@ -160,7 +166,12 @@ enum EPixelFormat
 	op(PF_ETC2_R11_EAC) \
 	op(PF_ETC2_RG11_EAC) \
 	op(PF_R8) \
-	op(PF_B5G5R5A1_UNORM)
+	op(PF_B5G5R5A1_UNORM) \
+	op(PF_ASTC_4x4_HDR) \
+	op(PF_ASTC_6x6_HDR) \
+	op(PF_ASTC_8x8_HDR) \
+	op(PF_ASTC_10x10_HDR) \
+	op(PF_ASTC_12x12_HDR)
 // Defines which channel is valid for each pixel format
 enum class EPixelFormatChannelFlags : uint8
 {

@@ -841,6 +841,12 @@ void FOptionalVulkanDeviceExtensions::Setup(const TArray<const ANSICHAR*>& Devic
 	HasMemoryBudget = 0;
 #endif
 
+#if VULKAN_SUPPORTS_TEXTURE_COMPRESSION_ASTC_HDR
+	HasEXTTextureCompressionASTCHDR = HasExtension(DeviceExtensions, VK_EXT_TEXTURE_COMPRESSION_ASTC_HDR_EXTENSION_NAME);
+#else
+	HasEXTTextureCompressionASTCHDR = 0;
+#endif
+
 #if VULKAN_SUPPORTS_ASTC_DECODE_MODE
 	HasEXTASTCDecodeMode = HasExtension(DeviceExtensions, VK_EXT_ASTC_DECODE_MODE_EXTENSION_NAME);
 #else
