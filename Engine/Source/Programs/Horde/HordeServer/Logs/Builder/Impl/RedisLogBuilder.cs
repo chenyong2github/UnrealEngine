@@ -18,6 +18,8 @@ using OpenTracing.Util;
 
 namespace HordeServer.Logs.Builder
 {
+	using Condition = StackExchange.Redis.Condition;
+
 	/// <summary>
 	/// Redis-based cache for log file chunks
 	/// </summary>
