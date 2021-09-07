@@ -3633,6 +3633,7 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 	const int32 NumSceneInstances = Initializer.Instances.Num();
 
 	int32 NumDxrInstances = 0;
+	int32 NumInactiveDxrInstances = 0;
 	int32 NumCopyCommands = 0;
 	NumTotalSegments = 0;
 
@@ -3682,12 +3683,13 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 	Instances.SetNumUninitialized(NumDxrInstances);
 
 	const EParallelForFlags ParallelForFlags = EParallelForFlags::None; // set ForceSingleThread for testing
-	ParallelFor(NumSceneInstances, [this, &Initializer](int32 InstanceIndex)
+	ParallelFor(NumSceneInstances, [this, &Initializer, &NumInactiveDxrInstances](int32 InstanceIndex)
 	{
 		const FRayTracingGeometryInstance& Instance = Initializer.Instances[InstanceIndex];
 		FD3D12RayTracingGeometry* Geometry = PerInstanceGeometries[InstanceIndex];
 
 		D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
+		check(InstanceDesc.AccelerationStructure == 0);
 
 		InstanceDesc.InstanceMask = Instance.Mask;
 		InstanceDesc.InstanceContributionToHitGroupIndex = SegmentPrefixSum[InstanceIndex] * ShaderSlotsPerGeometrySegment;
@@ -3704,12 +3706,29 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 		const bool bCpuInstance = !bGpuInstance;
 
 		uint32 DescIndex = BaseInstancePrefixSum[InstanceIndex];
+
+		int32 NumInactiveDxrInstancesThisSceneInstance = 0;
+
 		for (uint32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 		{
 			InstanceDesc.InstanceID = bUseUniqueUserData ? Instance.UserData[TransformIndex] : Instance.DefaultUserData;
 
 			if (LIKELY(bCpuInstance))
 			{
+				// Set flag for deactivated instances
+				if (!Instance.ActivationMask.IsEmpty())
+				{
+					if ((Instance.ActivationMask[TransformIndex / 32] & (1 << (TransformIndex % 32))) == 0)
+					{
+						InstanceDesc.AccelerationStructure = 0xFFFFFFFFFFFFFFFF;
+						NumInactiveDxrInstancesThisSceneInstance++;
+					}
+					else
+					{
+						InstanceDesc.AccelerationStructure = 0;
+					}
+				}
+
 				// DXR uses a 3x4 transform matrix in row major layout
 
 				const FMatrix& Transform = Instance.Transforms[TransformIndex];
@@ -3733,6 +3752,11 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 			Instances[DescIndex] = InstanceDesc;
 			++DescIndex;
 		}
+
+	#if STATS
+		FPlatformAtomics::InterlockedAdd(&NumInactiveDxrInstances, NumInactiveDxrInstancesThisSceneInstance);
+	#endif
+
 	}, ParallelForFlags);
 
 	ERayTracingAccelerationStructureFlags BuildFlags = ERayTracingAccelerationStructureFlags::FastTrace; // #yuriy_todo: pass this in
@@ -3748,6 +3772,8 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 
 	// Get maximum buffer sizes for all GPUs in the system
 	SizeInfo = RHICalcRayTracingSceneSize(BuildInputs.NumDescs, BuildFlags);
+
+	SET_DWORD_STAT(STAT_RayTracingInstances, NumDxrInstances - NumInactiveDxrInstances);
 };
 
 FD3D12RayTracingScene::~FD3D12RayTracingScene()
@@ -3865,7 +3891,16 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 				const int32 NumTransforms = PerInstanceNumTransforms[InstanceIndex];
 				for (int32 TransformIndex = 0; TransformIndex < NumTransforms; ++TransformIndex)
 				{
-					Instances[DxrInstanceIndex].AccelerationStructure = BlasAddress;
+					// If this instance has been deactivated, set BLAS address to 0
+					if (Instances[DxrInstanceIndex].AccelerationStructure == 0xFFFFFFFFFFFFFFFF)
+					{
+						Instances[DxrInstanceIndex].AccelerationStructure = 0;
+					}
+					else
+					{
+						Instances[DxrInstanceIndex].AccelerationStructure = BlasAddress;
+					}
+
 					DxrInstanceIndex++;
 				}
 

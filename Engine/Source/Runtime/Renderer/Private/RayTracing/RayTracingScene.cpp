@@ -34,7 +34,6 @@ FGraphEventRef FRayTracingScene::BeginCreate(FRDGBuilder& GraphBuilder)
 
 		NumNativeInstances += InstanceDesc.NumTransforms;
 	}
-	SET_DWORD_STAT(STAT_RayTracingInstances, NumNativeInstances);
 
 	// Round up number of instances to some multiple to avoid pathological growth reallocations.
 	static constexpr uint32 AllocationGranularity = 8 * 1024;

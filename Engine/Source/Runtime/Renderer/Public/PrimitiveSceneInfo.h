@@ -401,6 +401,8 @@ public:
 	FRayTracingGeometryInstance CachedRayTracingInstance;
 	TArray<FMatrix> CachedRayTracingInstanceLocalTransforms;
 	TArray<FMatrix> CachedRayTracingInstanceWorldTransforms;
+	TArray<FBoxSphereBounds> CachedRayTracingInstanceWorldBounds;
+	int32 SmallestRayTracingInstanceWorldBoundsIndex;
 #endif
 
 	/** Initialization constructor. */

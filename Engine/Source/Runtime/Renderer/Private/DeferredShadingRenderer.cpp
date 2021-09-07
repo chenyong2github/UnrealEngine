@@ -68,6 +68,7 @@
 #include "Engine/SubsurfaceProfile.h"
 #include "SceneCaptureRendering.h"
 #include "NaniteSceneProxy.h"
+#include "RayTracing/RayTracingInstanceCulling.h"
 
 extern int32 GNaniteShowStats;
 
@@ -177,28 +178,6 @@ static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUp
 	5000.0f,
 	TEXT("Dynamic geometries within this distance will have their LastRenderTime updated, so that visibility based ticking (like skeletal mesh) can work when the component is not directly visible in the view (but reflected)."));
 
-static TAutoConsoleVariable<int32> CVarRayTracingCulling(
-	TEXT("r.RayTracing.Culling"),
-	0,
-	TEXT("Enable culling in ray tracing for objects that are behind the camera\n")
-	TEXT(" 0: Culling disabled (default)\n")
-	TEXT(" 1: Culling by distance and solid angle enabled. Only cull objects behind camera.\n")
-	TEXT(" 2: Culling by distance and solid angle enabled. Cull objects in front and behind camera.\n")
-	TEXT(" 3: Culling by distance OR solid angle enabled. Cull objects in front and behind camera."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<float> CVarRayTracingCullingRadius(
-	TEXT("r.RayTracing.Culling.Radius"),
-	10000.0f,
-	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 10000 (100m))"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
-	TEXT("r.RayTracing.Culling.Angle"),
-	1.0f, 
-	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarRayTracingAutoInstance(
 	TEXT("r.RayTracing.AutoInstance"),
 	1,
@@ -254,19 +233,6 @@ namespace Nanite
 	extern bool IsStatFilterActive(const FString& FilterName);
 	extern void ListStatFilters(FSceneRenderer* SceneRenderer);
 }
-
-#if RHI_RAYTRACING
-
-int32 GetRayTracingCulling()
-{
-	return CVarRayTracingCulling.GetValueOnRenderThread();
-}
-
-float GetRayTracingCullingRadius()
-{
-	return CVarRayTracingCullingRadius.GetValueOnRenderThread();
-}
-#endif // RHI_RAYTRACING
 
 DECLARE_CYCLE_STAT(TEXT("InitViews Intentional Stall"), STAT_InitViews_Intentional_Stall, STATGROUP_InitViews);
 
@@ -557,6 +523,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		&DynamicVertexBufferForInitViews,
 		&DynamicReadBufferForInitViews);
 
+	View.RayTracingCullingParameters.Init(View);
+
 	FRayTracingMaterialGatheringContext MaterialGatheringContext
 	{
 		Scene,
@@ -609,16 +577,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
 		int32 BroadIndex = 0;
-		const int32 CullInRayTracing = GetRayTracingCulling();
-		const float CullingRadius = GetRayTracingCullingRadius();
-		const float FarFieldCullingRadius = Lumen::GetFarFieldMaxTraceDistance();
-		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
-		const float AngleThresholdRatio = FMath::Tan(FMath::Min(89.99f, CullAngleThreshold) * PI / 180.0f);
-		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
-		const FVector ViewDirection = View.GetViewDirection();
-		const bool bCullAllObjects = CullInRayTracing == 2 || CullInRayTracing == 3;
-		const bool bCullByRadiusOrDistance = CullInRayTracing == 3;
-		const bool bIsRayTracingFarField = Lumen::UseFarField();
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
 		{
@@ -644,48 +602,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 			// Skip far field if not enabled
 			const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::FarField);
-			if (!bIsRayTracingFarField && bIsFarFieldPrimitive)
+			if (!View.RayTracingCullingParameters.bIsRayTracingFarField && bIsFarFieldPrimitive)
 			{
 				continue;
 			}
 
-			if (CullInRayTracing > 0)
+			if (RayTracing::ShouldCullBounds(View.RayTracingCullingParameters, Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds, bIsFarFieldPrimitive))
 			{
-				const FBoxSphereBounds ObjectBounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
-				const float ObjectRadius = ObjectBounds.SphereRadius;
-				const FVector ObjectCenter = ObjectBounds.Origin + 0.5*ObjectBounds.BoxExtent;
-				const FVector CameraToObjectCenter = FVector(ObjectCenter - ViewOrigin);
-
-				const bool bConsiderCulling = bCullAllObjects || FVector::DotProduct(ViewDirection, CameraToObjectCenter) < -ObjectRadius;
-
-				if (bConsiderCulling)
-				{
-					const float CameraToObjectCenterLength = CameraToObjectCenter.Size();
-					
-					if (bIsFarFieldPrimitive)
-					{
-						if (CameraToObjectCenterLength > (FarFieldCullingRadius + ObjectRadius))
-						{
-							continue;
-						}
-					}
-					else
-					{
-						const bool bIsFarEnoughToCull = CameraToObjectCenterLength > (CullingRadius + ObjectRadius);
-
-						// Cull by solid angle: check the radius of bounding sphere against angle threshold
-						const bool bAngleIsSmallEnoughToCull = ObjectRadius / CameraToObjectCenterLength < AngleThresholdRatio;
-
-						if (bCullByRadiusOrDistance && (bIsFarEnoughToCull || bAngleIsSmallEnoughToCull))
-						{
-							continue;
-						}
-						else if (bIsFarEnoughToCull && bAngleIsSmallEnoughToCull)
-						{
-							continue;
-						}
-					}
-				}
+				continue;
 			}
 
 			if (!View.State)
@@ -868,8 +792,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 			TStatId(), nullptr, ENamedThreads::AnyThread));
 		}
 	}
-
-	//
 
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_DynamicElements);
@@ -1206,6 +1128,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 		InstanceBatches.Reserve(RelevantPrimitives.Num());
 
+		TArray<FRayTracingCullPrimitiveInstancesClosure> CullInstancesClosures;
+		if (View.RayTracingCullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance())
+		{
+			CullInstancesClosures.Reserve(RelevantPrimitives.Num());
+			View.RayTracingPerInstanceCullingTaskList.Reserve(RelevantPrimitives.Num() / 256 + 1);
+		}
+
 		// scan relevant primitives computing hash data to look for duplicate instances
 		for (const FRelevantPrimitive& RelevantPrimitive : RelevantPrimitives)
 		{
@@ -1233,6 +1162,39 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 
 				checkf(SceneInfo->CachedRayTracingInstance.GeometryRHI, TEXT("Ray tracing instance must have a valid geometry."));
 				RayTracingScene.Instances.Add(SceneInfo->CachedRayTracingInstance);
+
+				if (View.RayTracingCullingParameters.CullInRayTracing > 0 && GetRayTracingCullingPerInstance() && SceneInfo->CachedRayTracingInstance.NumTransforms > 1)
+				{
+					FRayTracingGeometryInstance& NewInstance = RayTracingScene.Instances.Last();
+
+					const bool bIsFarFieldPrimitive = EnumHasAnyFlags(Flags, ERayTracingPrimitiveFlags::FarField);
+
+					TArrayView<uint32> InstanceActivationMask = RayTracingScene.Allocate<uint32>(FMath::DivideAndRoundUp(NewInstance.NumTransforms, 32u));
+
+					NewInstance.ActivationMask = InstanceActivationMask;
+
+					FRayTracingCullPrimitiveInstancesClosure Closure;
+					Closure.Scene = Scene;
+					Closure.SceneInfo = SceneInfo;
+					Closure.PrimitiveIndex = PrimitiveIndex;
+					Closure.bIsFarFieldPrimitive = bIsFarFieldPrimitive;
+					Closure.CullingParameters = &View.RayTracingCullingParameters;
+					Closure.OutInstanceActivationMask = InstanceActivationMask;
+
+					CullInstancesClosures.Add(MoveTemp(Closure));
+
+					if (CullInstancesClosures.Num() >= 256)
+					{
+						View.RayTracingPerInstanceCullingTaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([CullInstancesClosures = MoveTemp(CullInstancesClosures)]()
+						{
+							for (auto& Closure : CullInstancesClosures)
+							{
+								Closure();
+							}
+						}, TStatId(), nullptr, ENamedThreads::AnyThread));
+					}
+				}
+
 				AddDebugRayTracingInstanceFlags(RayTracingScene.Instances.Last().Flags);
 			}
 			else
@@ -1319,6 +1281,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRHICo
 				}
 			}
 		}
+
+		View.RayTracingPerInstanceCullingTaskList.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([CullInstancesClosures = MoveTemp(CullInstancesClosures)]()
+		{
+			for (auto& Closure : CullInstancesClosures)
+			{
+				Closure();
+			}
+		}, TStatId(), nullptr, ENamedThreads::AnyThread));
 	}
 
 	// Inform the coarse mesh streaming manager about all the used streamable render assets in the scene
@@ -1504,6 +1474,9 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 		// Force update all the collected geometries (use stack allocator?)
 		GRayTracingGeometryManager.ForceBuildIfPending(GraphBuilder.RHICmdList, RayTracingScene.GeometriesToBuild);
 	}
+
+	FTaskGraphInterface::Get().WaitUntilTasksComplete(ReferenceView.RayTracingPerInstanceCullingTaskList, ENamedThreads::GetRenderThread_Local());
+	ReferenceView.RayTracingPerInstanceCullingTaskList.Empty();
 
 	RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
 
