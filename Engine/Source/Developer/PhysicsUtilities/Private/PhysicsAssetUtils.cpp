@@ -537,7 +537,7 @@ bool CreateCollisionFromBoneInternal(UBodySetup* bs, USkeletalMesh* skelMesh, in
 	}
 	else if (Params.GeomType == EFG_SingleConvexHull || Params.GeomType == EFG_MultiConvexHull)
 	{
-		TArray<FVector> Verts;
+		TArray<FVector3f> Verts;
 		TArray<uint32> Indices;
 		TriangleCache.GetVerticesAndIndicesForBone(BoneIndex, Verts, Indices);
 

@@ -33,7 +33,7 @@ public:
 	explicit FSkinnedBoneTriangleCache(USkeletalMesh& InSkeletalMesh, const FPhysAssetCreateParams& Params);
 
 	void BuildCache();
-	void GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector>& OutVertexPositions, TArray<uint32>& OutIndices) const;
+	void GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices) const;
 
 private:
 	typedef int32 FBoneIndex;
@@ -70,7 +70,7 @@ private:
 	/** Here, each triangle index is added to its appropriate sets. */
 	void AddTriangleIndexToOwnerBoneSets(const FTriangleIndex TriangleIndex);
 
-	FVector VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const;
+	FVector3f VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const;
 
 	// Inputs
 	USkeletalMesh& SkeletalMesh;
