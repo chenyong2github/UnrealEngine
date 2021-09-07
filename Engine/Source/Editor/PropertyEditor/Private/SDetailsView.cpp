@@ -23,6 +23,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Input/SSegmentedControl.h"
 
 #define LOCTEXT_NAMESPACE "SDetailsView"
 
@@ -229,7 +230,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		[
 			// Create the search box
 			SAssignNew(SearchBox, SSearchBox)
-			.HintText(LOCTEXT("SearchDetailsHint", "Search Details"))
+			.HintText(LOCTEXT("SearchDetailsHint", "Search"))
 			.OnTextChanged(this, &SDetailsView::OnFilterTextChanged)
 			.OnTextCommitted(this, &SDetailsView::OnFilterTextCommitted)
 			.AddMetaData<FTagMetaData>(TEXT("Details.Search"))
@@ -305,19 +306,27 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			];
 	}
 
-	FilterRow = SNew(SVerticalBox)
+	TSharedRef<SVerticalBox> FilterRowVBox = SNew(SVerticalBox)
 		.Visibility( this, &SDetailsView::GetFilterBoxVisibility )
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		[
 			FilterRowHBox
-		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SImage)
-			.Image(FAppStyle::Get().GetBrush("DetailsView.AdvancedDropdownBorder.Open"))
 		];
+
+	if (DetailsViewArgs.bShowSectionSelector)
+	{
+		FilterRowVBox->AddSlot()
+			.Padding(30, 2, 30, 7)
+			.AutoHeight()
+			[
+				SAssignNew(SectionSelectorBox, SBox)
+			];
+
+		RebuildSectionSelector();
+	}
+
+	FilterRow = FilterRowVBox;
 
 	if( !DetailsViewArgs.bCustomFilterAreaLocation )
 	{
@@ -356,6 +365,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("AllItemsFiltered", "All results have been filtered. Try changing your active filters above."))
+			.AutoWrapText(true)
 			.Visibility_Lambda([this]() { return ((this->GetFilterBoxVisibility() == EVisibility::Visible) && !this->CurrentFilter.IsEmptyFilter() && RootTreeNodes.Num() == 0) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		]
 		+ SOverlay::Slot()
@@ -723,6 +733,8 @@ void SDetailsView::SetObjectArrayPrivate(const TArray<UObject*>& InObjects)
 	}
 
 	OnObjectArrayChanged.ExecuteIfBound(Title, InObjects);
+
+	RebuildSectionSelector();
 
 	double ElapsedTime = FPlatformTime::Seconds() - StartTime;
 }
@@ -1154,6 +1166,140 @@ void SDetailsView::SetCustomBuilderFavorite(FStringView Path, bool IsFavorite)
 			}
 		}
 	}
+}
+
+void SDetailsView::RebuildSectionSelector()
+{
+	if (!SectionSelectorBox.IsValid())
+	{
+		return;
+	}
+
+	const TSet<FName> Sections = GetAllSectionNames();
+	if (Sections.IsEmpty())
+	{
+		// we've selected something that has no sections - rather than show just "All", reset and hide the box
+		SectionSelectorBox->SetContent(SNullWidget::NullWidget);
+		SectionSelectorBox->SetVisibility(EVisibility::Collapsed);
+		return;
+	}
+
+	int SegmentsPerLine = 5;
+
+	const int NumSections = Sections.Num() + 1; // implicit "All"
+	const int NumLines = (NumSections / SegmentsPerLine) + 1;
+	if (NumLines > 1)
+	{
+		// the segmented control fills MaxSegmentsPerLine segments at a go, this attempts to normalize that
+		// eg. 6 will get divided into 3 + 3 instead of 5 + 1, 12 into 4 + 4 + 4 instead of 5 + 5 + 2
+
+		SegmentsPerLine = (NumSections / NumLines) + (NumSections % NumLines == 0 ? 0 : 1);
+	}
+
+	TSharedRef<SSegmentedControl<FName>> SectionSelectorWidget = SNew(SSegmentedControl<FName>)
+		.TextStyle(FAppStyle::Get(), "SmallText")
+		.MaxSegmentsPerLine(SegmentsPerLine)
+		.OnValueChanged(this, &SDetailsView::OnSectionSelectionChanged)
+		.Value(this, &SDetailsView::GetSelectedSection);
+
+
+	for (const FName& SectionName : Sections)
+	{
+		FText SectionDisplayName = GetSectionDisplayName(SectionName);
+
+		SectionSelectorWidget->AddSlot(SectionName, false)
+			.Text(SectionDisplayName);
+	}
+
+	SectionSelectorWidget->AddSlot(FName("All"), false)
+		.Text(NSLOCTEXT("UObjectSection", "All", "All"));
+
+	SectionSelectorWidget->RebuildChildren();
+
+	SectionSelectorBox->SetContent(SectionSelectorWidget);
+	SectionSelectorBox->SetVisibility(EVisibility::Visible);
+}
+
+void SDetailsView::OnSectionSelectionChanged(FName NewSelection)
+{
+	CurrentFilter.VisibleSections.Reset();
+
+	if (NewSelection != "All")
+	{
+		CurrentFilter.VisibleSections.Add(NewSelection);
+	}
+
+	UpdateFilteredDetails();
+}
+
+FName SDetailsView::GetSelectedSection() const
+{
+	FName CurrentSection("All");
+	for (FName Section : CurrentFilter.VisibleSections)
+	{
+		CurrentSection = Section;
+		break;
+	}
+
+	return CurrentSection;
+}
+
+TSet<FName> SDetailsView::GetAllSectionNames() const 
+{
+	static const FName PropertyEditor("PropertyEditor");
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+
+	TSet<FName> SectionNames;
+
+	// for every category, check every base struct and find the associated section
+	// if one exists, add it to the set of valid section names
+	for (const TSharedRef<FDetailTreeNode>& RootNode : RootTreeNodes)
+	{
+		if (RootNode->GetNodeType() == EDetailNodeType::Category)
+		{
+			FName CategoryName = RootNode->GetNodeName();
+
+			for (const TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+			{
+				const UStruct* RootBaseStruct = RootPropertyNode->GetBaseStructure();
+
+				FName SectionName = PropertyModule.FindSectionForCategory(RootBaseStruct, CategoryName);
+				if (!SectionName.IsNone())
+				{
+					SectionNames.Add(SectionName);
+				}
+			}
+		}
+	}
+
+
+	return MoveTemp(SectionNames);
+}
+
+FText SDetailsView::GetSectionDisplayName(FName SectionName) const
+{
+	static const FTextKey SectionLocalizationNamespace = TEXT("UObjectSection");
+	static const FName SectionMetaDataKey = TEXT("Section");
+
+	FText SectionDisplayName;
+
+	const FString SectionString = SectionName.ToString();
+	if (FText::FindText(SectionLocalizationNamespace, SectionString, /*OUT*/SectionDisplayName, &SectionString))
+	{
+		// Category names in English are typically gathered in their non-pretty form (eg "UserInterface" rather than "User Interface"), so skip 
+		// applying the localized variant if the text matches the raw category name, as in this case the pretty printer will do a better job
+		if (SectionString.Equals(SectionDisplayName.ToString(), ESearchCase::CaseSensitive))
+		{
+			SectionDisplayName = FText();
+		}
+	}
+
+	if (SectionDisplayName.IsEmpty())
+	{
+		SectionDisplayName = FText::AsCultureInvariant(FName::NameToDisplayString(SectionString, false));
+	}
+
+	return SectionDisplayName;
 }
 
 #undef LOCTEXT_NAMESPACE

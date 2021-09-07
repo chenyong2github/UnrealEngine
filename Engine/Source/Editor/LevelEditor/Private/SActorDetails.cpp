@@ -1,43 +1,44 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SActorDetails.h"
-#include "Widgets/SBoxPanel.h"
+
 #include "Components/ActorComponent.h"
 #include "Components/SceneComponent.h"
-#include "GameFramework/Actor.h"
-#include "Engine/Blueprint.h"
-#include "Editor.h"
-#include "HAL/FileManager.h"
-#include "Modules/ModuleManager.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/SRichTextBlock.h"
-#include "Widgets/Layout/SBox.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "EditorStyleSet.h"
-#include "Editor/UnrealEdEngine.h"
-#include "Engine/BlueprintGeneratedClass.h"
-#include "Kismet2/ComponentEditorUtils.h"
-#include "Engine/Selection.h"
-#include "UnrealEdGlobals.h"
-#include "LevelEditor.h"
-#include "Kismet2/KismetEditorUtilities.h"
-#include "PropertyEditorModule.h"
-#include "IDetailsView.h"
-#include "LevelEditorGenericDetails.h"
-#include "ScopedTransaction.h"
-#include "SourceCodeNavigation.h"
-#include "Widgets/Docking/SDockTab.h"
 #include "DetailsViewObjectFilter.h"
-#include "IDetailRootObjectCustomization.h"
+#include "Editor.h"
+#include "Editor/UnrealEdEngine.h"
+#include "EditorStyleSet.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Framework/EngineElementsLibrary.h"
+#include "Engine/Blueprint.h"
+#include "Engine/BlueprintGeneratedClass.h"
+#include "Engine/Selection.h"
+#include "GameFramework/Actor.h"
+#include "HAL/FileManager.h"
+#include "IDetailRootObjectCustomization.h"
+#include "IDetailsView.h"
+#include "Kismet2/ComponentEditorUtils.h"
+#include "Kismet2/KismetEditorUtilities.h"
+#include "LevelEditor.h"
+#include "LevelEditorGenericDetails.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
 #include "SSubobjectEditor.h"
+#include "SSubobjectEditorModule.h"
 #include "SSubobjectInstanceEditor.h"
+#include "ScopedTransaction.h"
+#include "SourceCodeNavigation.h"
 #include "SubobjectData.h"
 #include "SubobjectDataSubsystem.h"
-#include "SSubobjectEditorModule.h"
+#include "UnrealEdGlobals.h"
+#include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/Text/SRichTextBlock.h"
 
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
 {
@@ -100,7 +101,6 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 	LevelEditor.OnComponentsEdited().AddRaw(this, &SActorDetails::OnComponentsEditedInWorld);
 
-	FPropertyEditorModule& PropPlugin = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	FDetailsViewArgs DetailsViewArgs;
 	DetailsViewArgs.bUpdatesFromSelection = true;
 	DetailsViewArgs.bLockable = true;
@@ -113,6 +113,9 @@ void SActorDetails::Construct(const FArguments& InArgs, UTypedElementSelectionSe
 	DetailsViewArgs.DefaultsOnlyVisibility = EEditDefaultsOnlyNodeVisibility::Hide;
 	DetailsViewArgs.HostCommandList = InCommandList;
 	DetailsViewArgs.HostTabManager = InTabManager;
+	DetailsViewArgs.bShowSectionSelector = true;
+
+	FPropertyEditorModule& PropPlugin = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	DetailsView = PropPlugin.CreateDetailView(DetailsViewArgs);
 
 	auto IsPropertyVisible = [](const FPropertyAndParent& PropertyAndParent)

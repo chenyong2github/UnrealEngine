@@ -2,36 +2,35 @@
 
 
 #include "PropertyEditorModule.h"
-#include "UObject/UnrealType.h"
-#include "Widgets/Layout/SBorder.h"
-#include "Modules/ModuleManager.h"
-#include "Framework/Application/SlateApplication.h"
+#include "AssetToolsModule.h"
+#include "IAssetTools.h"
+#include "IDetailsView.h"
+#include "IPropertyChangeListener.h"
+#include "IPropertyTable.h"
+#include "IPropertyTableCellPresenter.h"
+#include "IPropertyTableWidgetHandle.h"
+#include "PropertyChangeListener.h"
+#include "PropertyEditorToolkit.h"
+#include "PropertyRowGenerator.h"
+#include "SDetailsView.h"
+#include "SPropertyTreeViewImpl.h"
+#include "SSingleProperty.h"
+#include "SStructureDetailsView.h"
+
 #include "Engine/UserDefinedEnum.h"
 #include "Engine/UserDefinedStruct.h"
-#include "Presentation/PropertyEditor/PropertyEditor.h"
-#include "SSingleProperty.h"
-#include "IDetailsView.h"
-#include "SDetailsView.h"
-#include "IPropertyTableWidgetHandle.h"
-#include "IPropertyTable.h"
-#include "UserInterface/PropertyTable/SPropertyTable.h"
-#include "UserInterface/PropertyTable/PropertyTableWidgetHandle.h"
-#include "IAssetTools.h"
-#include "AssetToolsModule.h"
-#include "SPropertyTreeViewImpl.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "IPropertyChangeListener.h"
-#include "PropertyChangeListener.h"
-#include "Toolkits/AssetEditorToolkit.h"
-#include "PropertyEditorToolkit.h"
-
+#include "Modules/ModuleManager.h"
+#include "Presentation/PropertyEditor/PropertyEditor.h"
 #include "Presentation/PropertyTable/PropertyTable.h"
-#include "IPropertyTableCellPresenter.h"
+#include "Toolkits/AssetEditorToolkit.h"
+#include "UObject/UnrealType.h"
+#include "UserInterface/PropertyTable/PropertyTableWidgetHandle.h"
+#include "UserInterface/PropertyTable/SPropertyTable.h"
 #include "UserInterface/PropertyTable/TextPropertyTableCellPresenter.h"
-
-#include "SStructureDetailsView.h"
 #include "Widgets/Colors/SColorPicker.h"
-#include "PropertyRowGenerator.h"
+#include "Widgets/Layout/SBorder.h"
 
 
 IMPLEMENT_MODULE( FPropertyEditorModule, PropertyEditor );
@@ -514,7 +513,156 @@ void FPropertyEditorModule::UnregisterCustomPropertyTypeLayout( FName PropertyTy
 	}
 }
 
+void FPropertyEditorModule::RegisterSectionMapping(FName ClassName, FName SectionName, FName CategoryName)
+{
+	if (!ClassName.IsValid() || ClassName.IsNone())
+	{
+		return;
+	}
 
+	checkf(!CategoryName.ToString().Contains(TEXT("|")), TEXT("Cannnot register a section mapping for a subcategory. Class: '%s', Section: '%s', Category: '%s'"), *ClassName.ToString(), *SectionName.ToString(), *CategoryName.ToString());
+
+	FClassSectionMapping& SectionMapping = ClassSectionMappings.FindOrAdd(ClassName);
+
+	const FName* ExistingSection = SectionMapping.CategoryToSectionMap.Find(CategoryName);
+	if (ExistingSection != nullptr)
+	{
+		checkf(!ExistingSection, TEXT("This category has already been mapped to a section for this class. Class: '%s', Category: '%s', Existing Section: '%s', New Section: '%s'"), *ClassName.ToString(), *CategoryName.ToString(), *ExistingSection->ToString(), *SectionName.ToString());
+	}
+
+	SectionMapping.CategoryToSectionMap.Add(CategoryName, SectionName);
+}
+
+FName FPropertyEditorModule::FindSectionForCategory(const UStruct* Struct, FName CategoryName) const
+{
+	if (Struct == nullptr)
+	{
+		return NAME_None;
+	}
+
+	TSet<const UStruct*> SearchedStructs;
+	return FindSectionForCategoryHelper(Struct, CategoryName, SearchedStructs);
+}
+
+FName FPropertyEditorModule::FindSectionForCategoryHelper(const UStruct* Struct, FName CategoryName, TSet<const UStruct*>& SearchedStructs) const
+{
+	if (Struct == nullptr)
+	{
+		return NAME_None;
+	}
+
+	bool bAlreadySearched = false;
+	SearchedStructs.Add(Struct, &bAlreadySearched);
+
+	if (bAlreadySearched)
+	{
+		return NAME_None;
+	}
+
+	const UStruct* CurrentStruct = Struct;
+	while (CurrentStruct != nullptr)
+	{
+		// check this class' sections
+		const FClassSectionMapping* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
+		if (SectionMapping != nullptr)
+		{
+			const FName* SectionName = SectionMapping->CategoryToSectionMap.Find(CategoryName);
+			if (SectionName != nullptr)
+			{
+				return *SectionName;
+			}
+		}
+
+		// check all struct properties' sections
+		for (TFieldIterator<FStructProperty> It(CurrentStruct); It; ++It)
+		{
+			const FStructProperty* Property = *It;
+			const FName SectionName = FindSectionForCategoryHelper(Property->Struct, CategoryName, SearchedStructs);
+			if (!SectionName.IsNone())
+			{
+				return SectionName;
+			}
+		}
+
+		// check all object properties' sections
+		for (TFieldIterator<FObjectPropertyBase> It(CurrentStruct); It; ++It)
+		{
+			const FObjectPropertyBase* Property = *It;
+			if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+			{
+				const FName SectionName = FindSectionForCategoryHelper(Property->PropertyClass, CategoryName, SearchedStructs);
+				if (!SectionName.IsNone())
+				{
+					return SectionName;
+				}
+			}
+		}
+
+		CurrentStruct = CurrentStruct->GetSuperStruct();
+	}
+
+	return NAME_None;
+}
+
+void FPropertyEditorModule::GetAllSections(const UStruct* Struct, TSet<FName>& OutSectionNames) const
+{
+	if (Struct == nullptr)
+	{
+		return;
+	}
+
+	TSet<const UStruct*> ProcessedStructs;
+	GetAllSectionsHelper(Struct, ProcessedStructs, OutSectionNames);
+}
+
+void FPropertyEditorModule::GetAllSectionsHelper(const UStruct* Struct, TSet<const UStruct*>& ProcessedStructs, TSet<FName>& OutSectionNames) const
+{
+	if (Struct == nullptr)
+	{
+		return;
+	}
+
+	bool bAlreadyProcessed = false;
+	ProcessedStructs.Add(Struct, &bAlreadyProcessed);
+
+	if (bAlreadyProcessed)
+	{
+		return;
+	}
+
+	const UStruct* CurrentStruct = Struct;
+	while (CurrentStruct != nullptr)
+	{
+		// add all sections defined for this class
+		const FClassSectionMapping* SectionMapping = ClassSectionMappings.Find(Struct->GetFName());
+		if (SectionMapping != nullptr)
+		{
+			for (const TPair<FName, FName>& Pair : SectionMapping->CategoryToSectionMap)
+			{
+				OutSectionNames.Add(Pair.Value);
+			}
+		}
+
+		// check all struct properties and add their sections
+		for (TFieldIterator<FStructProperty> It(CurrentStruct); It; ++It)
+		{
+			const FStructProperty* Property = *It;
+			GetAllSectionsHelper(Property->Struct, ProcessedStructs, OutSectionNames);
+		}
+
+		// check all object properties and add their sections
+		for (TFieldIterator<FObjectPropertyBase> It(CurrentStruct); It; ++It)
+		{
+			const FObjectPropertyBase* Property = *It;
+			if (Property->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
+			{
+				GetAllSectionsHelper(Property->PropertyClass, ProcessedStructs, OutSectionNames);
+			}
+		}
+
+		CurrentStruct = CurrentStruct->GetSuperStruct();
+	}
+}
 
 bool FPropertyEditorModule::HasUnlockedDetailViews() const
 {

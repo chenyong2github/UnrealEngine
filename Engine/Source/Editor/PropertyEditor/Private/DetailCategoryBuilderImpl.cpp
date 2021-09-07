@@ -989,6 +989,22 @@ void FDetailCategoryImpl::FilterNode(const FDetailFilter& InFilter)
 		return;
 	}
 
+	if (!InFilter.VisibleSections.IsEmpty())
+	{
+		const UStruct* BaseStruct = GetParentBaseStructure();
+		if (BaseStruct != nullptr)
+		{
+			static FName PropertyEditor("PropertyEditor");
+			const FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
+
+			FName SectionName = PropertyModule.FindSectionForCategory(BaseStruct, CategoryName);
+			if (SectionName.IsNone() || !InFilter.VisibleSections.Contains(SectionName))
+			{
+				return;
+			}
+		}
+	}
+
 	if (InlinePropertyNode.IsValid())
 	{
 		bHasVisibleDetails = true;

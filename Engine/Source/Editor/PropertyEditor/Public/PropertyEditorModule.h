@@ -2,13 +2,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SWidget.h"
-#include "Widgets/SWindow.h"
+#include "IDetailsView.h"
+#include "IPropertyTypeCustomization.h"
+#include "PropertyEditorDelegates.h"
+
 #include "Modules/ModuleInterface.h"
 #include "UObject/StructOnScope.h"
-#include "IDetailsView.h"
-#include "PropertyEditorDelegates.h"
-#include "IPropertyTypeCustomization.h"
+#include "Widgets/SWidget.h"
+#include "Widgets/SWindow.h"
 
 class FAssetEditorToolkit;
 class FNotifyHook;
@@ -184,12 +185,27 @@ public:
 	virtual void RegisterCustomPropertyTypeLayout( FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate, TSharedPtr<IPropertyTypeIdentifier> Identifier = nullptr);
 
 	/**
-	 * Unregisters a custom detail layout for a properrty type
+	 * Unregisters a custom detail layout for a property type
 	 *
 	 * @param PropertyTypeName 	The name of the property type that was registered
 	 * @param Identifier 		An identifier to use to differentiate between two customizations on the same type
 	 */
 	virtual void UnregisterCustomPropertyTypeLayout( FName PropertyTypeName, TSharedPtr<IPropertyTypeIdentifier> InIdentifier = nullptr);
+
+	/**
+	 * Register a section mapping for a class.
+	 * 
+	 * @param ClassName		The class to add a section mapping for.
+	 * @param SectionName	The section to add a category to.
+	 * @param CategoryName	The category to add.
+	 */
+	virtual void RegisterSectionMapping(FName ClassName, FName SectionName, FName CategoryName);
+
+	/** Find the section that the given category in the given struct should be a part of. */
+	virtual FName FindSectionForCategory(const UStruct* Struct, FName CategoryName) const;
+
+	/** Get all registered sections for the given struct (including the default section). */
+	virtual void GetAllSections(const UStruct* Struct, TSet<FName>& OutSectionNames) const;
 
 	/**
 	 * Customization modules should call this when that module has been unloaded, loaded, etc...
@@ -299,6 +315,10 @@ private:
 	virtual TSharedRef<SPropertyTreeViewImpl> CreatePropertyView( UObject* InObject, bool bAllowFavorites, bool bIsLockable, bool bHiddenPropertyVisibility, bool bAllowSearch, bool ShowTopLevelNodes, FNotifyHook* InNotifyHook, float InNameColumnWidth, FOnPropertySelectionChanged OnPropertySelectionChanged, FOnPropertyClicked OnPropertyMiddleClicked, FConstructExternalColumnHeaders ConstructExternalColumnHeaders, FConstructExternalColumnCell ConstructExternalColumnCell );
 
 	TSharedPtr<FAssetThumbnailPool> GetThumbnailPool();
+
+	void GetAllSectionsHelper(const UStruct* Struct, TSet<const UStruct*>& ProcessedStructs, TSet<FName>& OutSectionNames) const;
+	FName FindSectionForCategoryHelper(const UStruct* Struct, FName CategoryName, TSet<const UStruct*>& SearchedStructs) const;
+
 private:
 	/** All created detail views */
 	TArray< TWeakPtr<class SDetailsView> > AllDetailViews;
@@ -308,6 +328,16 @@ private:
 	FCustomDetailLayoutNameMap ClassNameToDetailLayoutNameMap;
 	/** A mapping of property names to property type layout delegates, called when querying for custom property layouts */
 	FCustomPropertyTypeLayoutMap GlobalPropertyTypeToLayoutMap;
+
+	/** A mapping of categories to section names for a given class. */
+	struct FClassSectionMapping
+	{
+		/** A mapping of category to the section that it should be added to. */
+		TMap<FName, FName> CategoryToSectionMap;
+	};
+
+	/** A mapping of class names to section mappings. */
+	TMap<FName, FClassSectionMapping> ClassSectionMappings;
 	/** Event to be called when a property editor is opened */
 	FPropertyEditorOpenedEvent PropertyEditorOpened;
 	/** Mapping of registered floating UStructs to their struct proxy so they show correctly in the details panel */

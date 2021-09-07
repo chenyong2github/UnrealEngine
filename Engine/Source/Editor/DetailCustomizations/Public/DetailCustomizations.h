@@ -32,6 +32,7 @@ public:
 private:
 	void RegisterPropertyTypeCustomizations();
 	void RegisterObjectCustomizations();
+	void RegisterSectionMappings();
 
 	/**
 	 * Registers a custom class
