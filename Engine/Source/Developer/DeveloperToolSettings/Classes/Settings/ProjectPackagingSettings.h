@@ -358,6 +358,18 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Minimum percentage of a block of data which should be saved when performing compression, otherwise data remains uncompressed"))
 	int32 PackageCompressionMinPercentSaved;
 
+	/**
+	 * Specifies if DDC should be used to store and retrieve compressed data when creating IoStore containers.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging, AdvancedDisplay, meta = (DisplayName = "Enable DDC for IoStore compression"))
+	bool bPackageCompressionEnableDDC;
+
+	/**
+	 * Specifies the minimum (uncompressed) size for storing a compressed IoStore chunk in DDC.
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Packaging)
+	int32 PackageCompressionMinSizeToConsiderDDC;
+
 	/** 
 	 * Version name for HTTP Chunk Install Data.
 	 */

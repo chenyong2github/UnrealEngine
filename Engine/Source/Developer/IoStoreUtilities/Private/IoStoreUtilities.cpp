@@ -58,6 +58,7 @@
 #include "ZenStoreHttpClient.h"
 #include "IPlatformFilePak.h"
 #include "ZenStoreWriter.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 
@@ -67,6 +68,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogIoStore, Log, All);
 
 #define IOSTORE_CPU_SCOPE(NAME) TRACE_CPUPROFILER_EVENT_SCOPE(IoStore##NAME);
 #define IOSTORE_CPU_SCOPE_DATA(NAME, DATA) TRACE_CPUPROFILER_EVENT_SCOPE(IoStore##NAME);
+
+TRACE_DECLARE_MEMORY_COUNTER(IoStoreUsedFileBufferMemory, TEXT("IoStore/UsedFileBufferMemory"));
 
 #define OUTPUT_CHUNKID_DIRECTORY 0
 
@@ -616,7 +619,7 @@ struct FContainerTargetSpec
 	FName Name;
 	FGuid EncryptionKeyGuid;
 	FString OutputPath;
-	FIoStoreWriter* IoStoreWriter;
+	TSharedPtr<IIoStoreWriter> IoStoreWriter;
 	TArray<FContainerTargetFile> TargetFiles;
 	TArray<TUniquePtr<FIoStoreReader>> PatchSourceReaders;
 	EIoContainerFlags ContainerFlags = EIoContainerFlags::None;
@@ -2225,6 +2228,7 @@ private:
 		}
 
 		UsedBufferMemory.AddExchange(SourceBufferSize);
+		TRACE_COUNTER_ADD(IoStoreUsedFileBufferMemory, SourceBufferSize);
 		QueueEntry->WriteRequest->LoadSourceBufferAsync();
 	}
 
@@ -2243,6 +2247,7 @@ private:
 	{
 		uint64 OldValue = UsedBufferMemory.SubExchange(Count);
 		check(OldValue >= Count);
+		TRACE_COUNTER_SUBTRACT(IoStoreUsedFileBufferMemory, Count);
 		MemoryAvailableEvent->Trigger();
 	}
 
@@ -2318,41 +2323,27 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 	}
 
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
-	TArray<FIoStoreWriter*> IoStoreWriters;
-	FIoStoreWriter* GlobalIoStoreWriter = nullptr;
+	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
+	check(IoStatus.IsOk());
+	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
+	TSharedPtr<IIoStoreWriter> GlobalIoStoreWriter;
 	{
 		IOSTORE_CPU_SCOPE(InitializeIoStoreWriters);
 		if (!Arguments.IsDLC())
 		{
-			GlobalIoStoreWriter = new FIoStoreWriter(*Arguments.GlobalContainerPath);
+			FIoContainerSettings GlobalContainerSettings;
+			if (Arguments.bSign)
+			{
+				GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
+				GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
+			}
+			GlobalIoStoreWriter = IoStoreWriterContext->CreateContainer(*Arguments.GlobalContainerPath, GlobalContainerSettings);
 			IoStoreWriters.Add(GlobalIoStoreWriter);
 		}
 		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
 		{
 			check(ContainerTarget->ContainerId.IsValid());
 			if (!ContainerTarget->OutputPath.IsEmpty())
-			{
-				ContainerTarget->IoStoreWriter = new FIoStoreWriter(*ContainerTarget->OutputPath);
-				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
-			}
-		}
-		FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
-		check(IoStatus.IsOk());
-
-		FIoContainerSettings GlobalContainerSettings;
-		if (Arguments.bSign)
-		{
-			GlobalContainerSettings.SigningKey = Arguments.KeyChain.SigningKey;
-			GlobalContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
-		}
-		if (GlobalIoStoreWriter)
-		{
-			IoStatus = GlobalIoStoreWriter->Initialize(*IoStoreWriterContext, GlobalContainerSettings);
-		}
-		check(IoStatus.IsOk());
-		for (FContainerTargetSpec* ContainerTarget : ContainerTargets)
-		{
-			if (ContainerTarget->IoStoreWriter)
 			{
 				FIoContainerSettings ContainerSettings;
 				ContainerSettings.ContainerId = ContainerTarget->ContainerId;
@@ -2373,9 +2364,9 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 					ContainerSettings.ContainerFlags |= EIoContainerFlags::Signed;
 				}
 				ContainerSettings.bGenerateDiffPatch = ContainerTarget->bGenerateDiffPatch;
-				IoStatus = ContainerTarget->IoStoreWriter->Initialize(*IoStoreWriterContext, ContainerSettings);
-				check(IoStatus.IsOk());
+				ContainerTarget->IoStoreWriter = IoStoreWriterContext->CreateContainer(*ContainerTarget->OutputPath, ContainerSettings);
 				ContainerTarget->IoStoreWriter->EnableDiskLayoutOrdering(ContainerTarget->PatchSourceReaders);
+				IoStoreWriters.Add(ContainerTarget->IoStoreWriter);
 			}
 		}
 	}
@@ -2538,23 +2529,51 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 
 	UE_LOG(LogIoStore, Display, TEXT("Serializing container(s)..."));
 
+	TFuture<void> FlushTask = Async(EAsyncExecution::Thread, [&IoStoreWriterContext]()
+	{
+		IoStoreWriterContext->Flush();
+	});
+
+	while (!FlushTask.IsReady())
+	{
+		FlushTask.WaitFor(FTimespan::FromSeconds(2.0));
+		FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
+		TStringBuilder<1024> ProgressStringBuilder;
+		if (Progress.SerializedChunksCount >= Progress.TotalChunksCount)
+		{
+			ProgressStringBuilder.Appendf(TEXT("Writing tocs..."));
+		}
+		else if (Progress.SerializedChunksCount)
+		{
+			ProgressStringBuilder.Appendf(TEXT("Writing chunks (%llu/%llu)..."), Progress.SerializedChunksCount, Progress.TotalChunksCount);
+			if (Progress.CompressedChunksCount)
+			{
+				ProgressStringBuilder.Appendf(TEXT(" [%llu compressed]"), Progress.CompressedChunksCount);
+			}
+			if (Progress.ScheduledCompressionTasksCount)
+			{
+				ProgressStringBuilder.Appendf(TEXT(" [%llu compression tasks scheduled]"), Progress.ScheduledCompressionTasksCount);
+			}
+			UE_LOG(LogIoStore, Display, TEXT("%s"), *ProgressStringBuilder);
+		}
+		else
+		{
+			UE_LOG(LogIoStore, Display, TEXT("Hashing chunks (%llu/%llu)..."), Progress.HashedChunksCount, Progress.TotalChunksCount);
+		}
+	}
+	if (GeneralIoWriterSettings.bCompressionEnableDDC)
+	{
+		FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
+		uint64 TotalDDCAttempts = Progress.CompressionDDCHitCount + Progress.CompressionDDCMissCount;
+		double DDCHitRate = double(Progress.CompressionDDCHitCount) / TotalDDCAttempts * 100.0;
+		UE_LOG(LogIoStore, Display, TEXT("Compression DDC hits: %llu/%llu (%.2f%%)"), Progress.CompressionDDCHitCount, TotalDDCAttempts, DDCHitRate);
+	}
+
 	TArray<FIoStoreWriterResult> IoStoreWriterResults;
 	IoStoreWriterResults.Reserve(IoStoreWriters.Num());
-	for (FIoStoreWriter* IoStoreWriter : IoStoreWriters)
+	for (TSharedPtr<IIoStoreWriter> IoStoreWriter : IoStoreWriters)
 	{
-		TFuture<FIoStoreWriterResult> FlushTask = Async(EAsyncExecution::Thread, [IoStoreWriter]()
-		{
-			return IoStoreWriter->Flush().ConsumeValueOrDie();
-		});
-
-		while (!FlushTask.IsReady())
-		{
-			FlushTask.WaitFor(FTimespan::FromSeconds(2.0));
-			FIoStoreWriterContext::FProgress Progress = IoStoreWriterContext->GetProgress();
-			UE_LOG(LogIoStore, Display, TEXT("Hashed, Compressed, Serialized: %lld, %lld, %lld / %lld"), Progress.HashedChunksCount, Progress.CompressedChunksCount, Progress.SerializedChunksCount, Progress.TotalChunksCount);
-		}
-		IoStoreWriterResults.Emplace(FlushTask.Get());
-		delete IoStoreWriter;
+		IoStoreWriterResults.Emplace(IoStoreWriter->GetResult().ConsumeValueOrDie());
 	}
 	IoStoreWriters.Empty();
 
@@ -2628,7 +2647,7 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 	TUniquePtr<FIoStoreWriterContext> IoStoreWriterContext(new FIoStoreWriterContext());
 	FIoStatus IoStatus = IoStoreWriterContext->Initialize(GeneralIoWriterSettings);
 	check(IoStatus.IsOk());
-	TArray<FIoStoreWriterResult> Results;
+	TArray<TSharedPtr<IIoStoreWriter>> IoStoreWriters;
 	for (const FContainerSourceSpec& Container : Arguments.Containers)
 	{
 		TArray<TUniquePtr<FIoStoreReader>> SourceReaders = CreatePatchSourceReaders(Container.PatchSourceContainerFiles, Arguments);
@@ -2639,8 +2658,6 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 			return -1;
 		}
 
-		FIoStoreWriter IoStoreWriter(*Container.OutputPath);
-		
 		EIoContainerFlags TargetContainerFlags = TargetReader->GetContainerFlags();
 
 		FIoContainerSettings ContainerSettings;
@@ -2669,9 +2686,8 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 			ContainerSettings.EncryptionKey = Key->Key;
 		}
 
-		IoStatus = IoStoreWriter.Initialize(*IoStoreWriterContext, ContainerSettings);
-		check(IoStatus.IsOk());
-
+		TSharedPtr<IIoStoreWriter> IoStoreWriter = IoStoreWriterContext->CreateContainer(*Container.OutputPath, ContainerSettings);
+		IoStoreWriters.Add(IoStoreWriter);
 		TMap<FIoChunkId, FIoChunkHash> SourceHashByChunkId;
 		for (const TUniquePtr<FIoStoreReader>& SourceReader : SourceReaders)
 		{
@@ -2717,13 +2733,17 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 				}
 				WriteOptions.bIsMemoryMapped = ChunkInfo.bIsMemoryMapped;
 				WriteOptions.bForceUncompressed = ChunkInfo.bForceUncompressed; 
-				IoStoreWriter.Append(ChunkInfo.Id, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
+				IoStoreWriter->Append(ChunkInfo.Id, ChunkBuffer.ConsumeValueOrDie(), WriteOptions);
 			}
 			return true;
 		});
+	}
 
-
-		Results.Emplace(IoStoreWriter.Flush().ConsumeValueOrDie());
+	IoStoreWriterContext->Flush();
+	TArray<FIoStoreWriterResult> Results;
+	for (TSharedPtr<IIoStoreWriter> IoStoreWriter : IoStoreWriters)
+	{
+		Results.Emplace(IoStoreWriter->GetResult().ConsumeValueOrDie());
 	}
 
 	LogWriterResults(Results);

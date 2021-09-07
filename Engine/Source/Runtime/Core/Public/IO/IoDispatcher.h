@@ -23,14 +23,12 @@
 class FIoRequest;
 class FIoDispatcher;
 class FIoStoreReader;
-class FIoStoreWriter;
 class FIoStoreEnvironment;
 
 class FIoRequestImpl;
 class FIoBatchImpl;
 class FIoDispatcherImpl;
 class FIoStoreWriterContextImpl;
-class FIoStoreWriterImpl;
 class FIoStoreReaderImpl;
 class IMappedFileHandle;
 class IMappedFileRegion;
@@ -1068,10 +1066,12 @@ struct FIoStoreWriterSettings
 	uint64 CompressionBlockAlignment = 0;
 	int32 CompressionMinBytesSaved = 0;
 	int32 CompressionMinPercentSaved = 0;
+	int32 CompressionMinSizeToConsiderDDC = 0;
 	uint64 MemoryMappingAlignment = 0;
 	uint64 MaxPartitionSize = 0;
 	bool bEnableCsvOutput = false;
 	bool bEnableFileRegions = false;
+	bool bCompressionEnableDDC = false;
 
 	CORE_API void InitializePlatformSpecificSettings(const ITargetPlatform* TargetPlatform);
 };
@@ -1151,17 +1151,20 @@ public:
 		uint64 HashedChunksCount = 0;
 		uint64 CompressedChunksCount = 0;
 		uint64 SerializedChunksCount = 0;
+		uint64 ScheduledCompressionTasksCount = 0;
+		uint64 CompressionDDCHitCount = 0;
+		uint64 CompressionDDCMissCount = 0;
 	};
 
 	CORE_API FIoStoreWriterContext();
 	CORE_API ~FIoStoreWriterContext();
 
 	UE_NODISCARD CORE_API FIoStatus Initialize(const FIoStoreWriterSettings& InWriterSettings);
+	CORE_API TSharedPtr<class IIoStoreWriter> CreateContainer(const TCHAR* InContainerPath, const FIoContainerSettings& InContainerSettings);
+	CORE_API void Flush();
 	CORE_API FProgress GetProgress() const;
 
 private:
-	friend class FIoStoreWriter;
-	
 	FIoStoreWriterContextImpl* Impl;
 };
 
@@ -1176,23 +1179,15 @@ public:
 	virtual void FreeSourceBuffer() = 0;
 };
 
-class FIoStoreWriter
+class IIoStoreWriter
 {
 public:
-	CORE_API 			FIoStoreWriter(const TCHAR* ContainerPath);
-	CORE_API virtual	~FIoStoreWriter();
+	CORE_API virtual ~IIoStoreWriter() = default;
 
-	FIoStoreWriter(const FIoStoreWriter&) = delete;
-	FIoStoreWriter& operator=(const FIoStoreWriter&) = delete;
-
-	UE_NODISCARD CORE_API FIoStatus	Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings);
-	CORE_API void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>());
-	CORE_API void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64);
-	CORE_API void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions);
-	UE_NODISCARD CORE_API TIoStatusOr<FIoStoreWriterResult> Flush();
-
-private:
-	FIoStoreWriterImpl*		Impl;
+	CORE_API virtual void EnableDiskLayoutOrdering(const TArray<TUniquePtr<FIoStoreReader>>& PatchSourceReaders = TArray<TUniquePtr<FIoStoreReader>>()) = 0;
+	CORE_API virtual void Append(const FIoChunkId& ChunkId, FIoBuffer Chunk, const FIoWriteOptions& WriteOptions, uint64 OrderHint = MAX_uint64) = 0;
+	CORE_API virtual void Append(const FIoChunkId& ChunkId, IIoStoreWriteRequest* Request, const FIoWriteOptions& WriteOptions) = 0;
+	CORE_API virtual TIoStatusOr<FIoStoreWriterResult> GetResult() = 0;
 };
 
 struct FIoStoreTocChunkInfo
