@@ -3,9 +3,11 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Compression/CompressedBuffer.h"
 #include "Containers/Array.h"
 #include "IO/IoHash.h"
-#include "Memory/SharedBuffer.h"
+#include "Memory/MemoryFwd.h"
+#include "Misc/TVariant.h"
 #include "Serialization/CompactBinary.h"
 
 class FArchive;
@@ -15,13 +17,7 @@ template <typename FuncType> class TFunctionRef;
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /**
- * An attachment is either binary or object and is identified by its hash.
- *
- * An object attachment is also a valid binary attachment and may be accessed as binary.
- *
- * Attachments are serialized as one or two compact binary fields with no name. A Binary field is
- * written first with its content. The content hash is omitted when the content size is zero, and
- * is otherwise written as a BinaryAttachment or ObjectAttachment depending on the type.
+ * An attachment is either null, raw binary, compressed binary, or an object and is identified by its uncompressed hash.
  */
 class FCbAttachment
 {
@@ -30,57 +26,110 @@ public:
 	FCbAttachment() = default;
 
 	/** Construct an object attachment. Value is cloned if not owned. */
-	inline explicit FCbAttachment(FCbObject Value)
-		: FCbAttachment(MoveTemp(Value), nullptr)
+	inline explicit FCbAttachment(const FCbObject& InValue)
+		: FCbAttachment(InValue, nullptr)
 	{
 	}
 
 	/** Construct an object attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FCbObject Value, const FIoHash& Hash)
-		: FCbAttachment(MoveTemp(Value), &Hash)
+	inline explicit FCbAttachment(const FCbObject& InValue, const FIoHash& Hash)
+		: FCbAttachment(InValue, &Hash)
 	{
 	}
 
-	/** Construct a binary attachment. Value is cloned if not owned. */
-	inline explicit FCbAttachment(FSharedBuffer Value)
-		: FCbAttachment(MoveTemp(Value), nullptr)
+	/** Construct a raw binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(const FSharedBuffer& InValue)
+		: FCbAttachment(FCompositeBuffer(InValue))
 	{
 	}
 
-	/** Construct a binary attachment. Value is cloned if not owned. Hash must match Value. */
-	inline explicit FCbAttachment(FSharedBuffer Value, const FIoHash& Hash)
-		: FCbAttachment(MoveTemp(Value), &Hash)
+	/** Construct a raw binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(const FCompositeBuffer& InValue)
+		: Value(TInPlaceType<FBinaryValue>(), InValue)
 	{
+		if (Value.Get<FBinaryValue>().Buffer.IsNull())
+		{
+			Value.Emplace<TYPE_OF_NULLPTR>();
+		}
+	}
+
+	/** Construct a raw binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(FCompositeBuffer&& InValue)
+		: Value(TInPlaceType<FBinaryValue>(), InValue)
+	{
+		if (Value.Get<FBinaryValue>().Buffer.IsNull())
+		{
+			Value.Emplace<TYPE_OF_NULLPTR>();
+		}
+	}
+
+	/** Construct a raw binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(FCompositeBuffer&& InValue, const FIoHash& InHash)
+		: Value(TInPlaceType<FBinaryValue>(), InValue, InHash)
+	{
+		if (Value.Get<FBinaryValue>().Buffer.IsNull())
+		{
+			Value.Emplace<TYPE_OF_NULLPTR>();
+		}
+	}
+
+	/** Construct a compressed binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(const FCompressedBuffer& InValue)
+		: Value(TInPlaceType<FCompressedBuffer>(), InValue)
+	{
+		if (Value.Get<FCompressedBuffer>().IsNull())
+		{
+			Value.Emplace<TYPE_OF_NULLPTR>();
+		}
+	}
+
+	/** Construct a compressed binary attachment. Value is cloned if not owned. */
+	inline explicit FCbAttachment(FCompressedBuffer&& InValue)
+		: Value(TInPlaceType<FCompressedBuffer>(), InValue)
+	{
+		if (Value.Get<FCompressedBuffer>().IsNull())
+		{
+			Value.Emplace<TYPE_OF_NULLPTR>();
+		}
 	}
 
 	/** Reset this to a null attachment. */
 	inline void Reset() { *this = FCbAttachment(); }
 
-	/** Whether the attachment has a value. */
+	/** Access the attachment as an object. Defaults to an empty object on error. */
+	inline FCbObject AsObject() const;
+
+	/** Access the attachment as raw binary in a single contiguous buffer. Defaults to a null buffer on error. */
+	inline FSharedBuffer AsBinary() const;
+
+	/** Access the attachment as raw binary. Defaults to a null buffer on error. */
+	inline const FCompositeBuffer& AsCompositeBinary() const;
+
+	/** Access the attachment as compressed binary. Defaults to a null buffer on error. */
+	inline const FCompressedBuffer& AsCompressedBinary() const;
+
+	/** Whether the attachment has a non-null value. */
 	inline explicit operator bool() const { return !IsNull(); }
 
-	/** Whether the attachment has a value. */
-	inline bool IsNull() const { return !Buffer; }
-
-	/** Access the attachment as binary. Defaults to a null buffer if the attachment is null. */
-	inline FSharedBuffer AsBinary() const { return Buffer; }
-
-	/** Access the attachment as an object. Defaults to an empty object on error. */
-	inline FCbObject AsObject() const { return Object ? FCbObject(FCbFieldView(Object).AsObjectView(), Buffer) : FCbObject(); }
-
-	/** Returns whether the attachment is binary or an object. */
-	inline bool IsBinary() const { return !Buffer.IsNull(); }
+	/** Whether the attachment has a null value. */
+	inline bool IsNull() const { return Value.IsType<TYPE_OF_NULLPTR>(); }
 
 	/** Returns whether the attachment is an object. */
-	inline bool IsObject() const { return Object.IsObject(); }
+	inline bool IsObject() const { return Value.IsType<FObjectValue>(); }
+
+	/** Returns whether the attachment is raw binary. */
+	inline bool IsBinary() const { return Value.IsType<FBinaryValue>(); }
+
+	/** Returns whether the attachment is compressed binary. */
+	inline bool IsCompressedBinary() const { return Value.IsType<FCompressedBuffer>(); }
 
 	/** Returns the hash of the attachment value. */
-	inline const FIoHash& GetHash() const { return Hash; }
+	CORE_API FIoHash GetHash() const;
 
 	/** Compares attachments by their hash. Any discrepancy in type must be handled externally. */
-	inline bool operator==(const FCbAttachment& Attachment) const { return Hash == Attachment.Hash; }
-	inline bool operator!=(const FCbAttachment& Attachment) const { return Hash != Attachment.Hash; }
-	inline bool operator<(const FCbAttachment& Attachment) const { return Hash < Attachment.Hash; }
+	inline bool operator==(const FCbAttachment& Attachment) const { return GetHash() == Attachment.GetHash(); }
+	inline bool operator!=(const FCbAttachment& Attachment) const { return GetHash() != Attachment.GetHash(); }
+	inline bool operator<(const FCbAttachment& Attachment) const { return GetHash() < Attachment.GetHash(); }
 
 	/**
 	 * Load the attachment from compact binary as written by Save.
@@ -109,15 +158,63 @@ public:
 	CORE_API void Save(FArchive& Ar) const;
 
 private:
-	CORE_API FCbAttachment(FCbObject Value, const FIoHash* Hash);
-	CORE_API FCbAttachment(FSharedBuffer Value, const FIoHash* Hash);
+	CORE_API FCbAttachment(const FCbObject& Value, const FIoHash* Hash);
 
-	/** An owned buffer containing the binary or object data. */
-	FSharedBuffer Buffer;
-	/** A field that is valid only for object attachments. */
-	FCbFieldView Object;
-	/** A hash of the attachment value. */
-	FIoHash Hash;
+	struct FObjectValue
+	{
+		FCbObject Object;
+		FIoHash Hash;
+
+		FObjectValue(const FCbObject& InObject, const FIoHash& InHash)
+			: Object(InObject)
+			, Hash(InHash)
+		{
+		}
+
+		FObjectValue(FCbObject&& InObject, const FIoHash& InHash)
+			: Object(MoveTemp(InObject))
+			, Hash(InHash)
+		{
+		}
+	};
+
+	struct FBinaryValue
+	{
+		FCompositeBuffer Buffer;
+		FIoHash Hash;
+
+		FBinaryValue(const FCompositeBuffer& InBuffer)
+			: Buffer(InBuffer.MakeOwned())
+			, Hash(FIoHash::HashBuffer(InBuffer))
+		{
+		}
+
+		FBinaryValue(const FCompositeBuffer& InBuffer, const FIoHash& InHash)
+			: Buffer(InBuffer.MakeOwned())
+			, Hash(InHash)
+		{
+		}
+
+		FBinaryValue(FCompositeBuffer&& InBuffer)
+			: Buffer(MoveTemp(InBuffer))
+			, Hash(FIoHash::HashBuffer(Buffer))
+		{
+		}
+
+		FBinaryValue(FCompositeBuffer&& InBuffer, const FIoHash& InHash)
+			: Buffer(MoveTemp(InBuffer))
+			, Hash(InHash)
+		{
+		}
+
+		FBinaryValue(FSharedBuffer&& InBuffer, const FIoHash& InHash)
+			: Buffer(MoveTemp(InBuffer))
+			, Hash(InHash)
+		{
+		}
+	};
+
+	TVariant<TYPE_OF_NULLPTR, FObjectValue, FBinaryValue, FCompressedBuffer> Value;
 };
 
 /** Hashes attachments by their hash. Any discrepancy in type must be handled externally. */
@@ -349,3 +446,39 @@ private:
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+const FCompositeBuffer& FCbAttachment::AsCompositeBinary() const
+{
+	if (const FBinaryValue* BinaryValue = Value.TryGet<FBinaryValue>())
+	{
+		return BinaryValue->Buffer;
+	}
+	return FCompositeBuffer::Null;
+}
+
+FSharedBuffer FCbAttachment::AsBinary() const
+{
+	if (const FBinaryValue* BinaryValue = Value.TryGet<FBinaryValue>())
+	{
+		return BinaryValue->Buffer.Flatten();
+	}
+	return FSharedBuffer();
+}
+
+const FCompressedBuffer& FCbAttachment::AsCompressedBinary() const
+{
+	if (const FCompressedBuffer* CompressedBuffer = Value.TryGet<FCompressedBuffer>())
+	{
+		return *CompressedBuffer;
+	}
+	return FCompressedBuffer::Null;
+}
+
+FCbObject FCbAttachment::AsObject() const
+{
+	if (const FObjectValue* ObjectValue = Value.TryGet<FObjectValue>())
+	{
+		return ObjectValue->Object;
+	}
+	return FCbObject();
+}

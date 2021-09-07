@@ -22,6 +22,7 @@
 #include "Serialization/BufferArchive.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/LargeMemoryWriter.h"
+#include "ZenSerialization.h"
 #include "ZenServerHttp.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogZenStore, Log, All);
@@ -338,7 +339,7 @@ TFuture<TIoStatusOr<uint64>> FZenStoreHttpClient::AppendOp(FCbPackage OpEntry)
 
 					if (!IsSerialized)
 					{
-						Attachment.Save(Writer);
+						UE::Zen::SaveCbAttachment(Attachment, Writer);
 					}
 				}
 				else
@@ -516,7 +517,7 @@ FZenStoreHttpClient::EndBuildPass(FCbPackage OpEntry)
 	check(bAllowEdit);
 
 	FLargeMemoryWriter SerializedPackage;
-	OpEntry.Save(SerializedPackage);
+	UE::Zen::SaveCbPackage(OpEntry, SerializedPackage);
 
 	UE_LOG(LogZenStore, Verbose, TEXT("Package size: %lld"), SerializedPackage.TotalSize());
 

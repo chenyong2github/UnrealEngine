@@ -15,6 +15,7 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "ZenBackendUtils.h"
+#include "ZenSerialization.h"
 #include "ZenServerHttp.h"
 
 TRACE_DECLARE_INT_COUNTER(ZenDDC_Exist,			TEXT("ZenDDC Exist"));
@@ -722,7 +723,7 @@ bool FZenDerivedDataBackend::PutCacheRecord(const FCacheRecord& Record, FStringV
 	const FCacheKey& Key = Record.GetKey();
 	FCbPackage Package = Record.Save();
 	FCbWriter PackageWriter;
-	Package.Save(PackageWriter);
+	UE::Zen::SaveCbPackage(Package, PackageWriter);
 	FUniqueBuffer Buffer = FUniqueBuffer::Alloc(PackageWriter.GetSaveSize());
 	PackageWriter.Save(Buffer);
 	TStringBuilder<256> Uri;

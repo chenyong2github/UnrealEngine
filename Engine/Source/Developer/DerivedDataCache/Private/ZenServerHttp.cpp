@@ -6,6 +6,7 @@
 
 #include "DerivedDataBackendInterface.h"	// For logger definition
 #include "ZenBackendUtils.h"
+#include "ZenSerialization.h"
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 #	include "Windows/WindowsHWrapper.h"
@@ -176,7 +177,7 @@ namespace UE::Zen {
 			else
 			{
 				FLargeMemoryReader PackageLoader(PackageBytes.GetData(), PackageBytes.Num());
-				bResponseFormatValid = OutPackage.TryLoad(PackageLoader);
+				bResponseFormatValid = UE::Zen::TryLoadCbPackage(OutPackage, PackageLoader);
 			}
 		}
 		return LocalResult;
