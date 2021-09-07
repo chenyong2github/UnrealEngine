@@ -159,6 +159,21 @@ namespace mtlpp
         ASTC_10x10_LDR        MTLPP_AVAILABLE(11_0, 8_0)   = 216,
         ASTC_12x10_LDR        MTLPP_AVAILABLE(11_0, 8_0)   = 217,
         ASTC_12x12_LDR        MTLPP_AVAILABLE(11_0, 8_0)   = 218,
+		
+		ASTC_4x4_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 219,
+        ASTC_5x4_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 220,
+        ASTC_5x5_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 221,
+        ASTC_6x5_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 222,
+        ASTC_6x6_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 223,
+        ASTC_8x5_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 225,
+        ASTC_8x6_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 226,
+        ASTC_8x8_HDR          MTLPP_AVAILABLE(11_0, 13_0)   = 227,
+        ASTC_10x5_HDR         MTLPP_AVAILABLE(11_0, 13_0)   = 228,
+        ASTC_10x6_HDR         MTLPP_AVAILABLE(11_0, 13_0)   = 229,
+        ASTC_10x8_HDR         MTLPP_AVAILABLE(11_0, 13_0)   = 230,
+        ASTC_10x10_HDR        MTLPP_AVAILABLE(11_0, 13_0)   = 231,
+        ASTC_12x10_HDR        MTLPP_AVAILABLE(11_0, 13_0)   = 232,
+        ASTC_12x12_HDR        MTLPP_AVAILABLE(11_0, 13_0)   = 233,
 
         GBGR422                                            = 240,
 

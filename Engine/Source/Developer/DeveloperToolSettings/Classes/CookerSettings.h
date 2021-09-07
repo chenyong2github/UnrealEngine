@@ -45,6 +45,17 @@ enum class EBlueprintComponentDataCookingMethod
 	EnabledBlueprintsOnly,
 };
 
+UENUM()
+enum class ETextureFormatASTCCompressor
+{
+	/** ThirdParty/Intel/ISPCTexComp */
+	IntelISPC,
+
+	/** /ThirdParty/ARM */
+	Arm,
+
+	Max UMETA(Hidden),
+};
 /**
  * Various cooker settings.
  */
@@ -136,6 +147,20 @@ public:
 	/** Quality of 0 means smallest (12x12 block size), 4 means best (4x4 block size) */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Textures, meta = (DisplayName = "ASTC Compression Quality vs Size (0-4, 0 is smallest)"))
 	int32 DefaultASTCQualityBySize;
+
+	/** Allows opening cooked assets in the editor */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Textures, meta = (
+		ConsoleVariable = "cook.ASTCTextureCompressor", DisplayName = "ASTC Texture Compressor",
+		ToolTip = "which compressor to use for ASTC textures",
+		ConfigRestartRequired = true))
+	ETextureFormatASTCCompressor DefaultASTCCompressor;
+
+	/** Allows opening cooked assets in the editor */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Textures, meta = (
+		ConsoleVariable = "cook.AllowASTCHDRProfile", DisplayName = "ASTC HDR Profile",
+		ToolTip = "whether to allow ASTC HDR profile using Arm encoder, the hdr format is only supported on some devices, e.g. Apple A13, Mali-G72, Adreno (TM) 660",
+		ConfigRestartRequired = true, EditCondition = "DefaultASTCCompressor == ETextureFormatASTCCompressor::Arm"))
+	uint32 bAllowASTCHDRProfile : 1;
 
 	/** Allows opening cooked assets in the editor */
 	UPROPERTY(EditAnywhere, config, Category = Editor, meta = (

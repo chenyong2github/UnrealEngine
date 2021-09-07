@@ -25,15 +25,16 @@ public class TextureFormatASTC : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Win32/astcenc.exe");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Win64/astcenc-sse2.exe");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Mac/astcenc");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Mac/astcenc-sse2");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Mac/astcenc-neon");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{
-			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Linux32/astcenc");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/ARM/Linux64/astcenc-sse2");
 		}
 	}
 }

@@ -2458,7 +2458,7 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_ASTC_8x8,           TEXT("ASTC_8x8"),              8,          8,          1,          16,         4,              0),
 	FPixelFormatInfo(PF_ASTC_10x10,         TEXT("ASTC_10x10"),            10,         10,         1,          16,         4,              0),
 	FPixelFormatInfo(PF_ASTC_12x12,         TEXT("ASTC_12x12"),            12,         12,         1,          16,         4,              0),
-
+	
 	FPixelFormatInfo(PF_BC6H,               TEXT("BC6H"),                  4,          4,          1,          16,         3,              1),
 	FPixelFormatInfo(PF_BC7,                TEXT("BC7"),                   4,          4,          1,          16,         4,              1),
 	FPixelFormatInfo(PF_R8_UINT,            TEXT("R8_UINT"),               1,          1,          1,          1,          1,              1),
@@ -2484,6 +2484,12 @@ FPixelFormatInfo    GPixelFormats[PF_MAX] =
 	FPixelFormatInfo(PF_R8,                 TEXT("R8"),                    1,          1,          1,          1,          1,              1),
     FPixelFormatInfo(PF_B5G5R5A1_UNORM,     TEXT("B5G5R5A1_UNORM"),        1,          1,          1,          2,          4,              0),
 
+	// ASTC HDR support
+	FPixelFormatInfo(PF_ASTC_4x4_HDR,           TEXT("ASTC_4x4_HDR"),      4,          4,          1,          16,         4,              0),
+	FPixelFormatInfo(PF_ASTC_6x6_HDR,           TEXT("ASTC_6x6_HDR"),      6,          6,          1,          16,         4,              0),
+	FPixelFormatInfo(PF_ASTC_8x8_HDR,           TEXT("ASTC_8x8_HDR"),      8,          8,          1,          16,         4,              0),
+	FPixelFormatInfo(PF_ASTC_10x10_HDR,         TEXT("ASTC_10x10_HDR"),    10,         10,         1,          16,         4,              0),
+	FPixelFormatInfo(PF_ASTC_12x12_HDR,         TEXT("ASTC_12x12_HDR"),    12,         12,         1,          16,         4,              0),
 };
 
 static struct FValidatePixelFormats

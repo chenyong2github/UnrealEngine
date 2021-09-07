@@ -807,6 +807,38 @@ void FVulkanDevice::SetupFormats()
 		}
 	}
 
+	if(GetOptionalExtensions().HasEXTASTCDecodeMode)
+	{
+		MapFormatSupport(PF_ASTC_4x4_HDR, VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT);
+		if (GPixelFormats[PF_ASTC_4x4_HDR].Supported)
+		{
+			SetComponentMapping(PF_ASTC_4x4_HDR, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
+		}
+
+		MapFormatSupport(PF_ASTC_6x6_HDR, VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT);
+		if (GPixelFormats[PF_ASTC_6x6_HDR].Supported)
+		{
+			SetComponentMapping(PF_ASTC_6x6_HDR, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
+		}
+
+		MapFormatSupport(PF_ASTC_8x8_HDR, VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT);
+		if (GPixelFormats[PF_ASTC_8x8_HDR].Supported)
+		{
+			SetComponentMapping(PF_ASTC_8x8_HDR, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
+		}
+
+		MapFormatSupport(PF_ASTC_10x10_HDR, VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT);
+		if (GPixelFormats[PF_ASTC_10x10_HDR].Supported)
+		{
+			SetComponentMapping(PF_ASTC_10x10_HDR, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
+		}
+
+		MapFormatSupport(PF_ASTC_12x12_HDR, VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT);
+		if (GPixelFormats[PF_ASTC_12x12_HDR].Supported)
+		{
+			SetComponentMapping(PF_ASTC_12x12_HDR, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
+		}
+	}
 	// Verify available Vertex Formats
 	static_assert(VET_None == 0, "Change loop below to skip VET_None");
 	for (int32 Index = (int32)VET_None + 1; Index < VET_MAX; ++Index)

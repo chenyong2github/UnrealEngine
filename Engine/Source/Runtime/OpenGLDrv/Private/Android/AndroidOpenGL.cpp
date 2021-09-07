@@ -822,10 +822,11 @@ void FAndroidOpenGL::ProcessExtensions(const FString& ExtensionsString)
 	if (bSupportsASTC && CVarDisableASTC->GetValueOnAnyThread())
 	{
 		bSupportsASTC = false;
+		bSupportsASTCHDR = false;
 		FAndroidGPUInfo::Get().RemoveTargetPlatform(TEXT("Android_ASTC"));
 		UE_LOG(LogRHI, Log, TEXT("ASTC was disabled via r.OpenGL.DisableASTCSupport"));
 	}
-
+	
 	// Check for external image support for different ES versions
 	ImageExternalType = EImageExternalType::None;
 

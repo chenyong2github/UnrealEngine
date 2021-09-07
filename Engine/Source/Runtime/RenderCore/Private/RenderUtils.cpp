@@ -938,6 +938,11 @@ EPixelFormatChannelFlags GetPixelFormatValidChannels(EPixelFormat InPixelFormat)
 		EPixelFormatChannelFlags::RG,		// PF_ETC2_RG11_EAC
 		EPixelFormatChannelFlags::R,		// PF_R8
 		EPixelFormatChannelFlags::RGBA,		// PF_B5G5R5A1_UNORM
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_4x4_HDR
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_6x6_HDR
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_8x8_HDR
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_10x10_HDR
+		EPixelFormatChannelFlags::RGB,		// PF_ASTC_12x12_HDR
 	};
 	static_assert(UE_ARRAY_COUNT(PixelFormatToChannelFlags) == (uint8)PF_MAX, "Missing pixel format");
 	return (InPixelFormat < PF_MAX) ? PixelFormatToChannelFlags[(uint8)InPixelFormat] : EPixelFormatChannelFlags::None;

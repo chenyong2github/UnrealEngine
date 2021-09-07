@@ -1062,7 +1062,7 @@ template<typename TInType>
 void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData, uint32& OutByteCount)
 {
 	// If a new format is added insure that it is either supported here, or at least flagged as not supported
-	static_assert(PF_MAX == 73);
+	static_assert(PF_MAX == 78);
 
 	switch (InFormat)
 	{
@@ -1141,6 +1141,11 @@ void InitializeData(const TInType& InData, EPixelFormat InFormat, uint8* OutData
 		case PF_ASTC_8x8:
 		case PF_ASTC_10x10:
 		case PF_ASTC_12x12:
+		case PF_ASTC_4x4_HDR:
+		case PF_ASTC_6x6_HDR:
+		case PF_ASTC_8x8_HDR:
+		case PF_ASTC_10x10_HDR:
+		case PF_ASTC_12x12_HDR:
 		case PF_BC6H:
 		case PF_BC7:
 		case PF_XGXR8:

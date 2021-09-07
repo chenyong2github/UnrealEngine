@@ -114,6 +114,7 @@ public:
 	static FORCEINLINE bool SupportsBGRA8888()							{ return true; }
 	static FORCEINLINE bool SupportsDXT()								{ return true; }
 	static FORCEINLINE bool SupportsASTC()								{ return bSupportsASTC; }
+	static FORCEINLINE bool SupportsASTCHDR()							{ return bSupportsASTCHDR; }
 	static FORCEINLINE bool SupportsETC2()								{ return false; }
 	static FORCEINLINE bool SupportsFramebufferSRGBEnable()				{ return true; }
 	static FORCEINLINE bool SupportsFastBufferData()					{ return true; }
@@ -383,6 +384,9 @@ protected:
 
 	/** GL_KHR_texture_compression_astc_ldr */
 	static bool bSupportsASTC;
+
+	/** GL_KHR_texture_compression_astc_hdr */
+	static bool bSupportsASTCHDR;
 
 	/** GL_ARB_copy_image */
 	static bool bSupportsCopyImage;
