@@ -5239,11 +5239,11 @@ FPakFile::FPakFile(const TCHAR* Filename, bool bIsSigned)
 	, UnderlyingCacheTrimDisabled(false)
 	, bIsMounted(false)
 {
-	FArchive* Reader = GetSharedReader(NULL);
+	FSharedPakReader Reader = GetSharedReader(NULL);
 	if (Reader)
 	{
 		Timestamp = IFileManager::Get().GetTimeStamp(Filename);
-		Initialize(Reader);
+		Initialize(Reader.GetArchive());
 	}
 }
 #endif
