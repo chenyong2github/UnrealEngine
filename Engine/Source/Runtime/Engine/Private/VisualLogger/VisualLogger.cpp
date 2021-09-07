@@ -72,13 +72,33 @@ bool FVisualLogger::CheckVisualLogInputInternal(const UObject* Object, const FNa
 		return false;
 	}
 
-	*CurrentEntry = VisualLogger.GetEntryToWrite(Object, (*World)->TimeSeconds);
+	*CurrentEntry = VisualLogger.GetEntryToWrite(Object, VisualLogger.GetTimeStampForObject(Object));
 	if (*CurrentEntry == nullptr)
 	{
 		return false;
 	}
 
 	return true;
+}
+
+float FVisualLogger::GetTimeStampForObject(const UObject* Object) const
+{
+	if (GetTimeStampFunc)
+	{
+		return GetTimeStampFunc(Object);
+	}
+
+	if (const UWorld* World = GEngine->GetWorldFromContextObject(Object, EGetWorldErrorMode::ReturnNull))
+	{
+		return World->TimeSeconds;
+	}
+
+	return 0.0f;
+}
+
+void FVisualLogger::SetGetTimeStampFunc(const TFunction<float(const UObject*)> Function)
+{
+	GetTimeStampFunc = Function;
 }
 
 void FVisualLogger::AddWhitelistedClass(UClass& InClass)
