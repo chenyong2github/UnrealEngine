@@ -355,6 +355,37 @@ struct FD3D11TransitionData
 /** Forward declare the context for the AMD AGS utility library. */
 struct AGSContext;
 
+struct FD3D11Adapter
+{
+	/** Null if not supported or FindAdapter() wasn't called. */
+	TRefCountPtr<IDXGIAdapter> DXGIAdapter;
+
+	DXGI_ADAPTER_DESC DXGIAdapterDesc;
+
+	/** The maximum D3D11 feature level supported. 0 if not supported or FindAdapter() wasn't called */
+	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel;
+
+	// constructors
+	FD3D11Adapter() 
+	{
+	}
+
+	FD3D11Adapter(TRefCountPtr<IDXGIAdapter> InDXGIAdapter, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel)
+		: DXGIAdapter(InDXGIAdapter)
+		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
+	{
+		if (DXGIAdapter.IsValid())
+		{
+			VERIFYD3D11RESULT(DXGIAdapter->GetDesc(&DXGIAdapterDesc));
+		}
+	}
+
+	bool IsValid() const
+	{
+		return DXGIAdapter.IsValid();
+	}
+};
+
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 /** The interface which is implemented by the dynamically bound RHI. */
@@ -366,7 +397,7 @@ public:
 	friend class FWindowsMixedRealityViewport;
 
 	/** Initialization constructor. */
-	FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel,int32 InChosenAdapter, const DXGI_ADAPTER_DESC& ChosenDescription);
+	FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel, const FD3D11Adapter& InAdapter);
 
 	/** Destructor */
 	virtual ~FD3D11DynamicRHI();
@@ -934,10 +965,8 @@ public:
 
 protected:
 	FD3DGPUProfiler GPUProfilingData;
-	// >= 0, was computed before, unless hardware was changed during engine init it should be the same
-	int32 ChosenAdapter;
-	// we don't use AdapterDesc.Description as there is a bug with Optimus where it can report the wrong name
-	DXGI_ADAPTER_DESC ChosenDescription;
+
+	FD3D11Adapter Adapter;
 
 	// If this is false, disable any IHV optimization/libs
 	bool bAllowVendorDevice;
@@ -1061,26 +1090,6 @@ protected:
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-struct FD3D11Adapter
-{
-	/** -1 if not supported or FindAdpater() wasn't called. Ideally we would store a pointer to IDXGIAdapter but it's unlikely the adpaters change during engine init. */
-	int32 AdapterIndex;
-	/** The maximum D3D11 feature level supported. 0 if not supported or FindAdpater() wasn't called */
-	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel;
-
-	// constructor
-	FD3D11Adapter(int32 InAdapterIndex = -1, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0)
-		: AdapterIndex(InAdapterIndex)
-		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
-	{
-	}
-
-	bool IsValid() const
-	{
-		return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0;
-	}
-};
-
 /** Implements the D3D11RHI module as a dynamic RHI providing module. */
 class FD3D11DynamicRHIModule : public IDynamicRHIModule
 {
@@ -1095,8 +1104,6 @@ public:
 
 private:
 	FD3D11Adapter ChosenAdapter;
-	// we don't use GetDesc().Description as there is a bug with Optimus where it can report the wrong name
-	DXGI_ADAPTER_DESC ChosenDescription;
 
 	// set MaxSupportedFeatureLevel and ChosenAdapter
 	void FindAdapter();
