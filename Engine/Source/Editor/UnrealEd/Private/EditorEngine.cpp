@@ -7472,7 +7472,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
 
-	UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+	UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 
 	UStaticMesh::OnLodStrippingQualityLevelChanged(nullptr);
 
@@ -7481,7 +7481,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	{
 		if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
 		{
-			UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+			UDeviceProfileManager::Get().SetPreviewDeviceProfile(DP);
 		}
 	}
 
@@ -7510,17 +7510,17 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 		{
 			if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
 			{
-				UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+				UDeviceProfileManager::Get().SetPreviewDeviceProfile(DP);
 			}
 		}
 		else
 		{
-			UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+			UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 		}
 	}
 	else
 	{
-		UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+		UDeviceProfileManager::Get().RestorePreviewDeviceProfile();
 	}
 
 	PreviewPlatformChanged.Broadcast();

@@ -9,6 +9,8 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "DeviceProfileMatching.h"
+#include "CoreGlobals.h"
 #include "DeviceProfileManager.generated.h"
 
 class UDeviceProfile;
@@ -33,7 +35,7 @@ public:
 	 * Startup and select the active device profile
 	 * Then Init the CVars from this profile and it's Device profile parent tree.
 	 */
-	static void InitializeCVarsForActiveDeviceProfile(bool bPushSettings=false);
+	static void InitializeCVarsForActiveDeviceProfile();
 
 	/**
 	 * Reapplies the device profile. Useful when configs have changed (i.e. hotfix)
@@ -77,13 +79,26 @@ public:
 	/**
 	* Overrides the device profile. The original profile can be restored with RestoreDefaultDeviceProfile
 	*/
-	void SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile, bool bIsDeviceProfilePreview = false);
+	void SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile);
 
 	/**
 	* Restore the device profile to the default for this device
 	*/
 	void RestoreDefaultDeviceProfile();
 
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	/**
+	* Applies the requested device profile's cvars onto the currently active DP.
+	* It does not change the actual DP. 
+	* Use RestorePreviewDeviceProfile to revert.
+	*/
+	void SetPreviewDeviceProfile(UDeviceProfile* DeviceProfile);
+
+	/**
+	* Revert the preview state.
+	*/
+	void RestorePreviewDeviceProfile();
+#endif
 
 	/**
 	 * Load the device profiles from the config file.
@@ -157,6 +172,19 @@ public:
 	static void ExpandDeviceProfileCVars(UDeviceProfile* DeviceProfile);
 #endif
 
+	/**
+	* Enable/Disable a tagged fragment of the active device profile.
+	* This unsets the entire cvar DP state, then re-sets the new DP+fragment state.
+	*/
+	void ChangeTaggedFragmentState(FName FragmentTag, bool bNewState);
+
+	/**
+	* Return the selected fragment property from the currently active device profile.
+	* null if the tag is not found.
+	*/
+	const FSelectedFragmentProperties* GetActiveDeviceProfileFragmentByTag(FName& FragmentTag) const;
+
+
 private:
 	/**
 	 * Set the active device profile - set via the device profile blueprint.
@@ -170,14 +198,9 @@ private:
 	*/
 	void HandleDeviceProfileOverrideChange();
 
-	/** Handle restoing CVars set in HandleDeviceProfileOverrideChange */
-	void HandleDeviceProfileOverridePop();
-
-
 	enum class EDeviceProfileMode : uint8
 	{
 		DPM_SetCVars,
-		DPM_PushCVars,
 		DPM_CacheValues,
 	};
 
@@ -187,6 +210,14 @@ private:
 	 */
 	static void ProcessDeviceProfileIniSettings(const FString& DeviceProfileName, EDeviceProfileMode Mode);
 
+
+	/** Read and process all of the fragment matching rules. Returns an array containing the names of fragments selected. */
+	static TArray<FSelectedFragmentProperties> FindMatchingFragments(const FString& ParentDP, class FConfigCacheIni* PreviewConfigSystem);
+
+	/** Get the current platform's the selector module. Can return null */
+	static class IDeviceProfileSelectorModule* GetDeviceProfileSelectorModule();
+	/** Get another platform's selector module. Can return null */
+	static class IDeviceProfileSelectorModule* GetPreviewDeviceProfileSelectorModule(class FConfigCacheIni* PreviewConfigSystem);
 public:
 
 	static class UDeviceProfileManager* DeviceProfileManagerSingleton;
@@ -218,12 +249,20 @@ private:
 	// Holds the device profile .ini location
 	static FString DeviceProfileFileName;
 
-	// values of CVars set in HandleDeviceProfileOverrideChange, to be popped later
-	TMap<FString, FString> PushedSettings;
+	// Original values of all the CVars modified by the DP.
+	// Used to undo the DP before applying new state.
+	static TMap<FString, FString> PushedSettings;
 
+#if ALLOW_OTHER_PLATFORM_CONFIG
+	// Original values of the CVars modified by SetPreviewDeviceProfile.
+	TMap<FString, FString> PreviewPushedSettings;
+#endif
 	// Holds the device profile that has been overridden, null no override active.
 	UDeviceProfile* BaseDeviceProfile = nullptr;
 
 	// Stores any scalability group settings set by the active device profile.
 	static TMap<FString, FString> DeviceProfileScalabilityCVars;
+	
+	// The list of fragments that have been selected by the active profile.
+	static TArray<FSelectedFragmentProperties> PlatformFragmentsSelected;
 };
