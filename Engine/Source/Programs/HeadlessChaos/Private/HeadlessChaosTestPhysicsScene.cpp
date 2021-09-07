@@ -1372,7 +1372,7 @@ namespace ChaosTest {
 		Params.InitialTM = FTransform::Identity;
 		Params.Scene = &Scene;
 
-		TGeometryParticle<FReal, 3>* StaticCube = nullptr;
+		FPhysicsActorHandle StaticCube = nullptr;
 
 		FChaosEngineInterface::CreateActor(Params, StaticCube);
 		ASSERT_NE(StaticCube, nullptr);
@@ -1388,10 +1388,13 @@ namespace ChaosTest {
 		Geoms.Emplace(MakeUnique<TBox<FReal, 3>>(-HalfBoxExtent, HalfBoxExtent));
 		Geoms.Emplace(MakeUnique<TBox<FReal, 3>>(-HalfBoxExtent, HalfBoxExtent));
 
-		TUniquePtr<FImplicitObjectUnion> GeomUnion = MakeUnique<FImplicitObjectUnion>(MoveTemp(Geoms));
-		StaticCube->SetGeometry(MoveTemp(GeomUnion));
+		auto& Particle = StaticCube->GetGameThreadAPI();
+		{
+			TUniquePtr<FImplicitObjectUnion> GeomUnion = MakeUnique<FImplicitObjectUnion>(MoveTemp(Geoms));
+			Particle.SetGeometry(MoveTemp(GeomUnion));
+		}
 
-		TArray<TGeometryParticle<FReal, 3>*> Particles{ StaticCube };
+		TArray<FPhysicsActorHandle> Particles{ StaticCube };
 		Scene.AddActorsToScene_AssumesLocked(Particles);
 
 		FChaosSQAccelerator SQ{ *Scene.GetSpacialAcceleration() };
