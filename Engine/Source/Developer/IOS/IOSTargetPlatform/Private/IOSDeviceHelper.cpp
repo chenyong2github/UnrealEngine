@@ -49,6 +49,10 @@ DEFINE_LOG_CATEGORY_STATIC(LogIOSDeviceHelper, Log, All);
         UE_LOG(LogIOSDeviceHelper, Error, TEXT("The current platform is unsupported by Libimobile library."));
 #endif
         ToReturn += ExeName;
+#if PLATFORM_WINDOWS
+		ToReturn += TEXT(".exe");
+#endif
+
         return ToReturn;
     }
 
