@@ -681,7 +681,6 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 			}
 		}
 	}
-	}
 #endif
 }
 
