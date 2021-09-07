@@ -1122,6 +1122,23 @@ struct FRayTracingLightData
 	FBufferRHIRef									LightCullVolume;
 	FShaderResourceViewRHIRef						LightCullVolumeSRV;
 };
+
+struct FRayTracingCullingParameters
+{
+	int32 CullInRayTracing;
+	float CullingRadius;
+	float FarFieldCullingRadius;
+	float CullAngleThreshold;
+	float AngleThresholdRatio;
+	FVector ViewOrigin;
+	FVector ViewDirection;
+	bool bCullAllObjects;
+	bool bCullByRadiusOrDistance;
+	bool bIsRayTracingFarField;
+
+	void Init(FViewInfo& View);
+};
+
 #endif
 
 /** A FSceneView with additional state used by the scene renderer. */
@@ -1266,6 +1283,9 @@ public:
 	TUniquePtr<FRayTracingMeshResourceCollector> RayTracingMeshResourceCollector;
 	FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
+
+	FRayTracingCullingParameters RayTracingCullingParameters;
+	FGraphEventArray RayTracingPerInstanceCullingTaskList;
 
 	FGraphEventArray AddRayTracingMeshBatchTaskList;
 	TArray<FRayTracingMeshCommandOneFrameArray*, SceneRenderingAllocator> VisibleRayTracingMeshCommandsPerTask;

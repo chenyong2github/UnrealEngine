@@ -117,6 +117,9 @@ struct FRayTracingGeometryInstance
 	uint32 DefaultUserData = 0;
 	TArrayView<const uint32> UserData;
 
+	// Each geometry copy can have one bit to make it individually deactivated (removed from TLAS while maintaining hit group indexing). Useful for culling.
+	TArrayView<const uint32> ActivationMask;
+
 	// Mask that will be tested against one provided to TraceRay() in shader code.
 	// If binary AND of instance mask with ray mask is zero, then the instance is considered not intersected / invisible.
 	uint8 Mask = 0xFF;
