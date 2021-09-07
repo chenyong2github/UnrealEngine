@@ -513,6 +513,11 @@ namespace HordeServer.Compute.Impl
 		/// <returns>The property value, or an empty string if it does not eixst</returns>
 		static Scalar GetAgentProperty(IAgent Agent, string Name)
 		{
+			if (Name.Equals("Name", StringComparison.OrdinalIgnoreCase))
+			{
+				return Agent.Id.ToString();
+			}
+
 			HashSet<string>? Properties = Agent.Capabilities.PrimaryDevice.Properties;
 			if (Properties != null)
 			{
