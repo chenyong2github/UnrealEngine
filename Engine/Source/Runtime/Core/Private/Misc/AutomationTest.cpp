@@ -722,8 +722,9 @@ bool FAutomationTestFramework::ShouldTestContent(const FString& Path) const
 		return true;
 	}
 
-	FString DevelopersPath = FPaths::GameDevelopersDir().LeftChop(1);
-	return bDeveloperDirectoryIncluded || !Path.StartsWith(DevelopersPath);
+	const FString RelativePath = FPaths::ConvertRelativePathToFull(Path);
+	const FString DevelopersPath = FPaths::ConvertRelativePathToFull(FPaths::GameDevelopersDir());
+	return bDeveloperDirectoryIncluded || !RelativePath.StartsWith(DevelopersPath);
 }
 
 void FAutomationTestFramework::SetDeveloperDirectoryIncluded(const bool bInDeveloperDirectoryIncluded)
