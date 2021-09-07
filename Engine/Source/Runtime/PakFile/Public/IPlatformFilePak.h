@@ -966,11 +966,7 @@ public:
 	 *
 	 * @return Pointer to pak file archive used to read data from pak.
 	 */
-#if IS_PROGRAM
-	FSharedPakReader GetSharedReader();
-#else
 	FSharedPakReader GetSharedReader(IPlatformFile* LowerLevel);
-#endif
 
 	// Return a shared pak reader. Should only be called from the FSharedPakReader's destructor.
 	void ReturnSharedReader(FArchive* SharedReader);
