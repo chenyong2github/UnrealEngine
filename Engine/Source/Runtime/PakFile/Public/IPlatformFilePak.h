@@ -16,6 +16,7 @@
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "Serialization/MemoryImage.h"
 #include "Templates/RefCounting.h"
+#include "Containers/Ticker.h"
 
 class FChunkCacheWorker;
 class IAsyncReadFileHandle;
@@ -625,6 +626,35 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FPakEntryLocation& PakEntryLocati
 	return Ar;
 }
 
+// Wrapper for a pointer to a shared pak reader archive that has been temporarily acquired. 
+class PAKFILE_API FSharedPakReader final 
+{
+	friend class FPakFile;
+
+	FArchive* Archive = nullptr;
+	FPakFile* PakFile = nullptr; // Pak file to return ownership to on destruction
+
+	FSharedPakReader(FArchive* InArchive, FPakFile* InPakFile);
+
+public:
+	~FSharedPakReader();
+
+	FSharedPakReader(const FSharedPakReader& Other) = delete;
+	FSharedPakReader& operator=(const FSharedPakReader& Other) = delete;
+	FSharedPakReader(FSharedPakReader&& Other);
+	FSharedPakReader& operator=(FSharedPakReader&& Other);
+
+	explicit operator bool() const { return Archive != nullptr; }
+	bool operator==(nullptr_t) { return Archive == nullptr; }
+	bool operator!=(nullptr_t) { return Archive != nullptr; }
+	FArchive* operator->() { return Archive; }
+
+	
+	// USE WITH CARE, the FSharedPakReader must live longer than this reference to prevent the archive being used by another thread. Do not call on a temporary return value!
+	FArchive& GetArchive() { return *Archive; } 
+
+};
+
 /** Pak directory type mapping a filename to an FPakEntryLocation. */
 typedef TMap<FString, FPakEntryLocation> FPakDirectory;
 
@@ -685,6 +715,12 @@ public:
 	/** Recreates the pak reader for each thread */
 	bool RecreatePakReaders(IPlatformFile* LowerLevel);
 
+	struct FArchiveAndLastAccessTime 
+	{
+		TUniquePtr<FArchive> Archive;
+		double LastAccessTime;
+	};
+
 private:
 	friend class FPakPlatformFile;
 
@@ -693,9 +729,9 @@ private:
 	FName PakFilenameName;
 	/** Archive to serialize the pak file from. */
 	TUniquePtr<class FChunkCacheWorker> Decryptor;
-	/** Map of readers assigned to threads. */
-	TMap<uint32, TUniquePtr<FArchive>> ReaderMap;
-	/** Critical section for accessing ReaderMap. */
+	/** List of readers and when they were last used. */
+	TArray<FArchiveAndLastAccessTime> Readers;
+	/** Critical section for accessing Readers. */
 	FCriticalSection CriticalSection;
 	/** Pak file info (trailer). */
 	FPakInfo Info;
@@ -927,7 +963,17 @@ public:
 	 *
 	 * @return Pointer to pak file archive used to read data from pak.
 	 */
-	FArchive* GetSharedReader(IPlatformFile* LowerLevel);
+#if IS_PROGRAM
+	FSharedPakReader GetSharedReader();
+#else
+	FSharedPakReader GetSharedReader(IPlatformFile* LowerLevel);
+#endif
+
+	// Return a shared pak reader. Should only be called from the FSharedPakReader's destructor.
+	void ReturnSharedReader(FArchive* SharedReader);
+
+	// Delete all readers that haven't been used in MaxAgeSeconds.
+	void ReleaseOldReaders(double MaxAgeSeconds);
 
 	/**
 	 * Finds an entry in the pak file matching the given filename.
@@ -1357,7 +1403,7 @@ public:
 		}
 		else
 		{
-			FArchive* Reader = GetSharedReader(nullptr);
+			TUniquePtr<FArchive> Reader {CreatePakReader(*GetFilename())};
 			Reader->Seek(PakEntry.Offset);
 			FPakEntry SerializedEntry;
 			SerializedEntry.Serialize(*Reader, GetInfo().Version);
@@ -1555,12 +1601,12 @@ private:
 	/**
 	 * Initializes the pak file.
 	 */
-	void Initialize(FArchive* Reader, bool bLoadIndex = true);
+	void Initialize(FArchive& Reader, bool bLoadIndex = true);
 
 	/**
 	 * Loads and initializes pak file index.
 	 */
-	void LoadIndex(FArchive* Reader);
+	void LoadIndex(FArchive& Reader);
 
 	/**
 	  * Returns the FPakEntry pointed to by the given FPakEntryLocation, forwards to the static GetPakEntry with data from *this
@@ -1622,13 +1668,13 @@ private:
 	static void DecodePakEntry(const uint8* SourcePtr, FPakEntry& OutEntry, const FPakInfo& InInfo);
 
 	/* Internal index loading function that returns false if index loading fails due to an intermittent IO error. Allows LoadIndex to retry or throw a fatal as required */
-	bool LoadIndexInternal(FArchive* Reader);
+	bool LoadIndexInternal(FArchive& Reader);
 
 	/* Legacy index loading function for PakFiles saved before FPakInfo::PakFile_Version_PathHashIndex */
-	bool LoadLegacyIndex(FArchive* Reader);
+	bool LoadLegacyIndex(FArchive& Reader);
 
 	/* Helper function for LoadIndexInternal; each array of Index bytes read from the file needs to be independently decrypted and checked for corruption */
-	bool DecryptAndValidateIndex(FArchive* Reader, TArray<uint8>& IndexData, FSHAHash& InExpectedHash, FSHAHash& OutActualHash);
+	bool DecryptAndValidateIndex(FArchive& Reader, TArray<uint8>& IndexData, FSHAHash& InExpectedHash, FSHAHash& OutActualHash);
 
 	/* Manually add a file to a pak file */
 	void AddSpecialFile(const FPakEntry& Entry, const FString& Filename);
@@ -1728,7 +1774,7 @@ public:
 /**
  * Typedef for a function that returns an archive to use for accessing an underlying pak file
  */
-typedef TFunction<FArchive*()> TAcquirePakReaderFunction;
+typedef TFunction<FSharedPakReader()> TAcquirePakReaderFunction;
 
 template< typename EncryptionPolicy = FPakNoEncryption >
 class PAKFILE_API FPakReaderPolicy
@@ -1762,7 +1808,7 @@ public:
 		const constexpr int64 Alignment = (int64)EncryptionPolicy::Alignment;
 		const constexpr int64 AlignmentMask = ~(Alignment - 1);
 		uint8 TempBuffer[Alignment];
-		FArchive* PakReader = AcquirePakReader();
+		FSharedPakReader PakReader = AcquirePakReader();
 		if (EncryptionPolicy::AlignReadRequest(DesiredPosition) != DesiredPosition)
 		{
 			int64 Start = DesiredPosition & AlignmentMask;
@@ -1802,9 +1848,7 @@ public:
  */
 template< typename ReaderPolicy = FPakReaderPolicy<> >
 class PAKFILE_API FPakFileHandle : public IFileHandle
-{	
-	/** True if PakReader is shared and should not be deleted by this handle. */
-	const bool bSharedReader;
+{
 	/** Current read position. */
 	int64 ReadPos;
 	/** Class that controls reading from pak file */
@@ -1815,8 +1859,8 @@ class PAKFILE_API FPakFileHandle : public IFileHandle
 public:
 
 	UE_DEPRECATED(4.27, "Use constructor that takes a TRefCountPtr<FPakFile> instead")
-	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReaderFunction, bool bIsSharedReader)
-		: FPakFileHandle(TRefCountPtr<const FPakFile>(&InPakFile), InPakEntry, InAcquirePakReaderFunction, bIsSharedReader)
+	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReaderFunction)
+		: FPakFileHandle(TRefCountPtr<const FPakFile>(&InPakFile), InPakEntry, InAcquirePakReaderFunction)
 	{
 	}
 
@@ -1827,9 +1871,8 @@ public:
 	 * @param InPakEntry Entry in the pak file.
 	 * @param InAcquirePakReaderFunction Function that returns the archive to use for serialization. The result of this should not be cached, but reacquired on each serialization operation
 	 */
-	FPakFileHandle(const TRefCountPtr<const FPakFile>& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReaderFunction, bool bIsSharedReader)
-		: bSharedReader(bIsSharedReader)
-		, ReadPos(0)
+	FPakFileHandle(const TRefCountPtr<const FPakFile>& InPakFile, const FPakEntry& InPakEntry, TAcquirePakReaderFunction& InAcquirePakReaderFunction)
+		: ReadPos(0)
 		, Reader(*InPakFile, InPakEntry, InAcquirePakReaderFunction)
 		, PakFile(InPakFile)
 	{
@@ -1837,8 +1880,8 @@ public:
 	}
 
 	UE_DEPRECATED(4.27, "Use constructor that takes a TRefCountPtr<FPakFile> instead")
-	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader, bool bIsSharedReader)
-		: FPakFileHandle(TRefCountPtr<const FPakFile>(&InPakFile), InPakEntry, InPakReader, bIsSharedReader)
+	FPakFileHandle(const FPakFile& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader)
+		: FPakFileHandle(TRefCountPtr<const FPakFile>(&InPakFile), InPakEntry, InPakReader)
 	{
 	}
 
@@ -1849,10 +1892,9 @@ public:
 	 * @param InPakEntry Entry in the pak file.
 	 * @param InPakFile Pak file.
 	 */
-	FPakFileHandle(const TRefCountPtr<const FPakFile>& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader, bool bIsSharedReader)
-		: bSharedReader(bIsSharedReader)
-		, ReadPos(0)
-		, Reader(*InPakFile, InPakEntry, [InPakReader]() { return InPakReader; })
+	FPakFileHandle(const TRefCountPtr<const FPakFile>& InPakFile, const FPakEntry& InPakEntry, FArchive* InPakReader)
+		: ReadPos(0)
+		, Reader(*InPakFile, InPakEntry, InPakReader)
 		, PakFile(InPakFile)
 	{
 		INC_DWORD_STAT(STAT_PakFile_NumOpenHandles);
@@ -1863,11 +1905,6 @@ public:
 	 */
 	virtual ~FPakFileHandle()
 	{
-		if (!bSharedReader)
-		{
-			delete Reader.AcquirePakReader();
-		}
-
 		DEC_DWORD_STAT(STAT_PakFile_NumOpenHandles);
 	}
 
@@ -1897,9 +1934,9 @@ public:
 		if (!Reader.PakEntry.Verified)
 		{
 			FPakEntry FileHeader;
-			FArchive* PakReader = Reader.AcquirePakReader();
+			FSharedPakReader PakReader = Reader.AcquirePakReader();
 			PakReader->Seek(Reader.PakEntry.Offset);
-			FileHeader.Serialize(*PakReader, Reader.PakFile.GetInfo().Version);
+			FileHeader.Serialize(PakReader.GetArchive(), Reader.PakFile.GetInfo().Version);
 			if (FPakEntry::VerifyPakEntriesMatch(Reader.PakEntry, FileHeader))
 			{
 				Reader.PakEntry.Verified = true;
@@ -1992,6 +2029,8 @@ class PAKFILE_API FPakPlatformFile : public IPlatformFile
 	/** The filename for the gameusersettings ini file, used for excluding ini files, but not gameusersettings */
 	FString GameUserSettingsIniFilename;
 	TSharedPtr<IIoDispatcherFileBackend> IoDispatcherFileBackend;
+
+	FTSTicker::FDelegateHandle RetireReadersHandle;
 
 	/**
 	 * Gets mounted pak files
@@ -3051,6 +3090,8 @@ public:
 
 	/** Returns the RelativePathFromMount Filename for every Filename found in the Iostore Container that relates to the provided block indexes */
 	static void GetFilenamesFromIostoreByBlockIndex(const FString& InContainerName, const TArray<int32>& InBlockIndex, TArray<FString>& OutFileList);
+
+	void ReleaseOldReaders();
 
 	// BEGIN Console commands
 #if !UE_BUILD_SHIPPING
