@@ -86,27 +86,28 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 		AInstancedFoliageActor* IFA = *It;
 		IFA->Modify();
 		TUniqueObj<FFoliageInfo> OldInfo;
-		IFA->RemoveFoliageInfoAndCopyValue(OldType, OldInfo);
+		if (IFA->RemoveFoliageInfoAndCopyValue(OldType, OldInfo))
+		{
+			// Old component needs to go
+			if (OldInfo->IsInitialized())
+			{
+				OldInfo->Uninitialize();
+			}
 
-		// Old component needs to go
-		if (OldInfo->IsInitialized())
-		{
-			OldInfo->Uninitialize();
-		}
-
-		// Append instances if new foliage type is already exists in this actor
-		// Otherwise just replace key entry for instances
-		FFoliageInfo* NewInfo = IFA->FindInfo(NewType);
-		if (NewInfo)
-		{
-			NewInfo->Instances.Append(OldInfo->Instances);
-			NewInfo->ReallocateClusters(NewType);
-		}
-		else
-		{
-			// Make sure if type changes we have proper implementation
-			TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->AddFoliageInfo(NewType, MoveTemp(OldInfo));
-			NewFoliageInfo->ReallocateClusters(NewType);
+			// Append instances if new foliage type is already exists in this actor
+			// Otherwise just replace key entry for instances
+			FFoliageInfo* NewInfo = IFA->FindInfo(NewType);
+			if (NewInfo)
+			{
+				NewInfo->Instances.Append(OldInfo->Instances);
+				NewInfo->ReallocateClusters(NewType);
+			}
+			else
+			{
+				// Make sure if type changes we have proper implementation
+				TUniqueObj<FFoliageInfo>& NewFoliageInfo = IFA->AddFoliageInfo(NewType, MoveTemp(OldInfo));
+				NewFoliageInfo->ReallocateClusters(NewType);
+			}
 		}
 	}
 }

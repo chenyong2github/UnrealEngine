@@ -8,6 +8,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "FoliageType.h"
 #include "FoliageType_Actor.h"
+#include "FoliageType_InstancedStaticMesh.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "FoliageInstancedStaticMeshComponent.h"
@@ -3426,24 +3427,29 @@ UFoliageType* FEdModeFoliage::AddFoliageAsset(UObject* InAsset)
 	UStaticMesh* StaticMesh = Cast<UStaticMesh>(InAsset);
 	if (StaticMesh)
 	{
+		AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetDefault(GetWorld());
+		FoliageType = IFA->GetLocalFoliageTypeForSource(StaticMesh);
+		if (!FoliageType)
 		{
-			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "FoliageMode_AddTypeTransaction", "Add Foliage Type"));
-			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetDefault(GetWorld());
-			FoliageType = IFA->GetLocalFoliageTypeForSource(StaticMesh);
-			if (!FoliageType)
 			{
-				IFA->AddMesh(StaticMesh, &FoliageType);
+				const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "FoliageMode_AddTypeTransaction", "Add Foliage Type"));
+				UFoliageType_InstancedStaticMesh *InstancedMeshFoliageType = NewObject<UFoliageType_InstancedStaticMesh>(IFA, NAME_None, RF_Transactional);
+				InstancedMeshFoliageType->SetStaticMesh(StaticMesh);
+				FoliageType = InstancedMeshFoliageType;
 			}
-		}
 
-		// If there is multiple levels for this world, save the foliage directly as an asset, so user will be able to paint over all levels by default
-		if (GetWorld()->GetStreamingLevels().Num() > 0)
-		{
-			UFoliageType* TypeSaved = SaveFoliageTypeObject(FoliageType);
-
-			if (TypeSaved != nullptr)
+			if (GetWorld()->GetWorldPartition()
+				|| GetWorld()->GetStreamingLevels().Num() > 0)
 			{
-				FoliageType = TypeSaved;
+				// If the world is partitioned or the world has sublevels,
+				// require the user to save the new foliage as an asset.
+				// The user will then be able to paint over all cells/sub-level.
+				FoliageType = SaveFoliageTypeObject(FoliageType);
+			}
+
+			if (FoliageType != nullptr)
+			{
+				IFA->AddMesh(FoliageType);
 			}
 		}
 	}
