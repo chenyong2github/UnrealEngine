@@ -600,6 +600,9 @@ private:
 	/** Tracks the last time that this thread checked if the workers were still active. */
 	double LastCheckForWorkersTime;
 
+	/** Whether to read/write files for SCW in parallel (can help situations when this takes too long for a number of reasons) */
+	bool bParallelizeIO = false;
+
 public:
 	/** Initialization constructor. */
 	FShaderCompileThreadRunnable(class FShaderCompilingManager* InManager);
@@ -609,9 +612,13 @@ private:
 
 	/** 
 	 * Grabs tasks from Manager->CompileQueue in a thread safe way and puts them into QueuedJobs of available workers. 
-	 * Also writes completed jobs to Manager->ShaderMapJobs.
 	 */
 	int32 PullTasksFromQueue();
+
+	/**
+	 * Writes completed jobs to Manager->ShaderMapJobs.
+	 */
+	void PushCompletedJobsToManager();
 
 	/** Used when compiling through workers, writes out the worker inputs for any new tasks in WorkerInfos.QueuedJobs. */
 	void WriteNewTasks();
@@ -631,7 +638,7 @@ private:
 
 namespace FShaderCompileUtilities
 {
-	bool DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& TransferFile, bool bUseRelativePaths = false);
+	bool DoWriteTasks(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& TransferFile, bool bUseRelativePaths = false, bool bCompressTaskFile = false);
 	void DoReadTaskResults(const TArray<FShaderCommonCompileJobPtr>& QueuedJobs, FArchive& OutputFile);
 
 	/** Execute the specified (single or pipeline) shader compile job. */
@@ -742,6 +749,12 @@ public:
 	ENGINE_API void WriteStats(class FOutputDevice* Ar = nullptr);
 	ENGINE_API void WriteStatSummary();
 
+	enum class EExecutionType
+	{
+		Local,
+		Distributed
+	};
+
 	/** Informs statistics about a time a local ShaderCompileWorker spent idle. */
 	void RegisterLocalWorkerIdleTime(double IdleTime);
 
@@ -753,6 +766,9 @@ public:
 
 	/** Marks the job as finished for the stats purpose. Job will be modified to include the current timestamp. */
 	void RegisterFinishedJob(FShaderCommonCompileJob& InOutJob);
+
+	/** Informs statistics about a new job batch, so we can tally up batches. */
+	void RegisterJobBatch(int32 NumJobs, EExecutionType ExecType);
 
 private:
 	FCriticalSection CompileStatsLock;
@@ -773,17 +789,35 @@ private:
 	/** Amount of time a job had to spent in pending queue (i.e. waiting to be assigned to a worker). */
 	double AccumulatedPendingTime = 0;
 
+	/** Max amount of time any single job was pending (waiting to be assigned to a worker). */
+	double MaxPendingTime = 0;
+
 	/** Total number jobs completed. */
 	double JobsCompleted = 0;
 
 	/** Amount of time job spent being processed by the worker. */
 	double AccumulatedJobExecutionTime = 0;
 
-	/** Amount of time job spent being processed by the worker. */
+	/** Max amount of time any single job spent being processed by the worker. */
+	double MaxJobExecutionTime = 0;
+
+	/** Amount of time job spent being processed overall. */
 	double AccumulatedJobLifeTime = 0;
 
-	/** Accumulates the job pending times without overlaps */
-	TArray<TInterval<double>> JobPendingTimeIntervals;
+	/** Max amount of time any single job spent being processed overall. */
+	double MaxJobLifeTime = 0;
+
+	/** Number of local job batches seen. */
+	int64 LocalJobBatchesSeen = 0;
+
+	/** Total jobs in local job batches. */
+	int64 TotalJobsReportedInLocalJobBatches = 0;
+
+	/** Number of distributed job batches seen. */
+	int64 DistributedJobBatchesSeen = 0;
+
+	/** Total jobs in local job batches. */
+	int64 TotalJobsReportedInDistributedJobBatches = 0;
 
 	/** Accumulates the job lifetimes without overlaps */
 	TArray<TInterval<double>> JobLifeTimeIntervals;
@@ -966,6 +1000,15 @@ public:
 	bool IsCompiling() const
 	{
 		return GetNumOutstandingJobs() > 0 || HasShaderJobs() || GetNumPendingJobs() > 0 || NumExternalJobs > 0;
+	}
+
+	/**
+	 * Returns whether normal throttling settings should be ignored because shader compilation is at the moment the only action blocking the critical path.
+	 * An example of such situation is startup compilation of global shaders and default materials, but there may be more cases like that.
+	 */
+	bool IgnoreAllThrottling() const
+	{
+		return !bIsEngineLoopInitialized;
 	}
 
 	/**

@@ -12,6 +12,7 @@
 #include "Modules/ModuleManager.h"
 #include "Serialization/MemoryWriter.h"
 #include "Modules/ModuleManager.h"
+#include "ShaderCompiler.h"
 
 // Comma separated list of executable file names which should be intercepted by XGE.
 // Update this list if adding new tasks.
@@ -384,7 +385,7 @@ void FXGEControllerModule::WriteOutThreadProc()
 		// and set the working directory of xgConsole.exe to the engine binaries folder below.
 		FString XGConsoleArgs = FString::Printf(TEXT("/VIRTUALIZEDIRECTX /allowremote=\"%s\" %s /allowintercept=\"%s\" /title=\"Unreal Engine XGE Tasks\" /monitordirs=\"%s\" /command=\"%s -xgecontroller %s\""),
 			XGE_INTERCEPT_EXE_NAMES,
-			XGEController::AvoidUsingLocalMachine() ? TEXT("/avoidlocal=ON") : TEXT(""),
+			(XGEController::AvoidUsingLocalMachine() && !GShaderCompilingManager->IgnoreAllThrottling()) ? TEXT("/avoidlocal=ON") : TEXT(""),
 			XGE_CONTROL_WORKER_NAME,
 			*WorkingDirectory,
 			XGE_CONTROL_WORKER_FILENAME,

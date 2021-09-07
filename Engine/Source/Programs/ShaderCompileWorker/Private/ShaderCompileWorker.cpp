@@ -13,6 +13,7 @@
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "RHIShaderFormatDefinitions.inl"
 #include "ShaderCompilerCommon.h"
+#include "Serialization/MemoryReader.h"
 
 #define DEBUG_USING_CONSOLE	0
 
@@ -346,13 +347,44 @@ private:
 
 	void ProcessInputFromArchive(FArchive* InputFilePtr, TArray<FJobResult>& OutSingleJobResults, TArray<FPipelineJobResult>& OutPipelineJobResults)
 	{
-		FArchive& InputFile = *InputFilePtr;
 		int32 InputVersion;
-		InputFile << InputVersion;
+		*InputFilePtr << InputVersion;
 		if (ShaderCompileWorkerInputVersion != InputVersion)
 		{
 			ExitWithoutCrash(ESCWErrorCode::BadInputVersion, FString::Printf(TEXT("Exiting due to ShaderCompilerWorker expecting input version %d, got %d instead! Did you forget to build ShaderCompilerWorker?"), ShaderCompileWorkerInputVersion, InputVersion));
 		}
+
+		FString CompressionFormatString;
+		*InputFilePtr << CompressionFormatString;
+		FName CompressionFormat(*CompressionFormatString);
+
+		bool bWasCompressed = (CompressionFormat != NAME_None);
+
+		TArray<uint8> UncompressedData;
+		if (bWasCompressed)
+		{
+			int32 UncompressedDataSize = 0;
+			*InputFilePtr << UncompressedDataSize;
+
+			if (UncompressedDataSize == 0)
+			{
+				ExitWithoutCrash(ESCWErrorCode::BadInputFile, TEXT("Exiting due to bad input file to ShaderCompilerWorker (uncompressed size is 0)! Did you forget to build ShaderCompilerWorker?"));
+				// unreachable
+				return;
+			}
+
+			UncompressedData.SetNumUninitialized(UncompressedDataSize);
+			TArray<uint8> CompressedData;
+			*InputFilePtr << CompressedData;
+			if (!FCompression::UncompressMemory(CompressionFormat, UncompressedData.GetData(), UncompressedDataSize, CompressedData.GetData(), CompressedData.Num()))
+			{
+				ExitWithoutCrash(ESCWErrorCode::BadInputFile, FString::Printf(TEXT("Exiting due to bad input file to ShaderCompilerWorker (cannot uncompress with the format %s)! Did you forget to build ShaderCompilerWorker?"), *CompressionFormatString));
+				// unreachable
+				return;
+			}
+		}
+		FMemoryReader InputMemory(UncompressedData);
+		FArchive& InputFile = bWasCompressed ? InputMemory : *InputFilePtr;
 
 		TMap<FString, uint32> ReceivedFormatVersionMap;
 		InputFile << ReceivedFormatVersionMap;
