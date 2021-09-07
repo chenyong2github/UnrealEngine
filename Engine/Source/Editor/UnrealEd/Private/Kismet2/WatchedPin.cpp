@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Kismet2/WatchedPin.h"
-#include "EdGraph/EdGraphPin.h"
+#include "EdGraph/EdGraphNode.h"
 
 FBlueprintWatchedPin::FBlueprintWatchedPin()
 {
