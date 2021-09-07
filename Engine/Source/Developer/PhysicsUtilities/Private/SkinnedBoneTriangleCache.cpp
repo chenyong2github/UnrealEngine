@@ -24,7 +24,7 @@ void FSkinnedBoneTriangleCache::BuildCache()
 	BuildOwnedTrianglesSetForEachBone();
 }
 
-void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector>& OutVertexPositions, TArray<uint32>& OutIndices) const
+void FSkinnedBoneTriangleCache::GetVerticesAndIndicesForBone(const int32 BoneIndex, TArray<FVector3f>& OutVertexPositions, TArray<uint32>& OutIndices) const
 {
 	OutVertexPositions.Empty();
 	OutIndices.Empty();
@@ -155,9 +155,9 @@ void FSkinnedBoneTriangleCache::AddTriangleIndexToOwnerBoneSets(const FTriangleI
 	}
 }
 
-FVector FSkinnedBoneTriangleCache::VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const
+FVector3f FSkinnedBoneTriangleCache::VertexPosition(const FSkinnedVertexIndex VertIndex, const FMatrix& ComponentToBoneMatrix) const
 {
-	const FVector Position = VertexBuffer.VertexPosition(VertIndex);
+	const FVector3f& Position = VertexBuffer.VertexPosition(VertIndex);
 	return ComponentToBoneMatrix.TransformPosition(Position);
 }
 

@@ -2050,11 +2050,12 @@ void FStaticMeshEditor::DoDecomp(uint32 InHullCount, int32 InMaxHullVerts, uint3
 
 		// Make vertex buffer
 		int32 NumVerts = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
-		TArray<FVector> Verts;
+		TArray<FVector3f> Verts;
+		Verts.SetNumUninitialized(NumVerts);
 		for(int32 i=0; i<NumVerts; i++)
 		{
-			FVector Vert = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
-			Verts.Add(Vert);
+			const FVector3f& Vert = LODModel.VertexBuffers.PositionVertexBuffer.VertexPosition(i);
+			Verts[i] = Vert;
 		}
 
 		// Grab all indices
@@ -2103,7 +2104,7 @@ void FStaticMeshEditor::DoDecomp(uint32 InHullCount, int32 InMaxHullVerts, uint3
 			}
 			// Begin the convex decomposition process asynchronously
 			DecomposeMeshToHullsAsync = CreateIDecomposeMeshToHullAsync();
-			DecomposeMeshToHullsAsync->DecomposeMeshToHullsAsyncBegin(bs, Verts, CollidingIndices, InHullCount, InMaxHullVerts, InHullPrecision);
+			DecomposeMeshToHullsAsync->DecomposeMeshToHullsAsyncBegin(bs, MoveTemp(Verts), MoveTemp(CollidingIndices), InHullCount, InMaxHullVerts, InHullPrecision);
 #else
 			DecomposeMeshToHulls(bs, Verts, CollidingIndices, InHullCount, InMaxHullVerts, InHullPrecision);
 #endif

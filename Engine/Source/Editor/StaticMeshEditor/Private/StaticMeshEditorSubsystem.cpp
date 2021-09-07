@@ -69,7 +69,7 @@ namespace InternalEditorMeshLibrary
 
 		// Make vertex buffer
 		int32 NumVerts = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetNumVertices();
-		TArray<FVector> Verts;
+		TArray<FVector3f> Verts;
 		Verts.Reserve(NumVerts);
 		for (int32 i = 0; i < NumVerts; i++)
 		{
