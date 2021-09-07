@@ -218,7 +218,7 @@ void UControlRig::InitializeFromCDO()
 		DrawContainer = CDO->DrawContainer;
 
 		// copy vm settings
-		VMRuntimeSettings = CDO->VMRuntimeSettings; 
+		VMRuntimeSettings = CDO->VMRuntimeSettings;
 	}
 }
 
@@ -535,6 +535,25 @@ void UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 			{
 				VM->AddExternalVariable(ExternalVariable);
 			}
+			
+#if WITH_EDITOR
+			// setup the hierarchy's controller log function
+			if(URigHierarchyController* HierarchyController = GetHierarchy()->GetController(true))
+			{
+				HierarchyController->LogFunction = [this](EMessageSeverity::Type InSeverity, const FString& Message)
+				{
+					const FRigVMExecuteContext& Context = GetVM()->GetContext();
+					if(ControlRigLog)
+					{
+						ControlRigLog->Report(InSeverity, Context.FunctionName, Context.InstructionIndex, Message);
+					}
+					else
+					{
+						LogOnce(InSeverity, Context.InstructionIndex, Message);
+					}
+				};
+			}
+#endif
 		}
 #if WITH_EDITOR
 		// default to always clear data after each execution
