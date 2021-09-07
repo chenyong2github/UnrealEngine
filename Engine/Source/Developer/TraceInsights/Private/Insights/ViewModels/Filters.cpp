@@ -12,6 +12,9 @@
 namespace Insights
 {
 
+INSIGHTS_IMPLEMENT_RTTI(FFilter)
+INSIGHTS_IMPLEMENT_RTTI(FFilterWithSuggestions)
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 TSharedPtr<FFilterService> FFilterService::Instance;

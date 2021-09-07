@@ -463,6 +463,10 @@ protected:
 	void ClearFilters();
 
 	TSharedRef<SDockTab> SpawnQuickFindTab(const FSpawnTabArgs& Args);
+	void PopulateTrackSuggestionList(const FString& Text, TArray<FString>& OutSuggestions);
+
+	typedef TFunctionRef<void(TSharedPtr<FBaseTimingTrack>& Track)> EnumerateFilteredTracksCallback;
+	void EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator, EnumerateFilteredTracksCallback Callback);
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */

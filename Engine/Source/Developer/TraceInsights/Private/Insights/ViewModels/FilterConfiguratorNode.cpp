@@ -131,7 +131,7 @@ void FFilterConfiguratorNode::SetSelectedFilter(TSharedPtr<struct FFilter> InSel
 		SetSelectedFilterOperator(SelectedFilter->GetSupportedOperators()->GetData()[0]);
 
 		AvailableFilterOperators->Empty();
-		Insights::FFilter::SupportedOperatorsArrayPtr AvailableOperators = InSelectedFilter->SupportedOperators;
+		Insights::SupportedOperatorsArrayPtr AvailableOperators = InSelectedFilter->SupportedOperators;
 		for (auto& FilterOperator : *AvailableOperators)
 		{
 			AvailableFilterOperators->Add(FilterOperator);
@@ -238,6 +238,12 @@ bool FFilterConfiguratorNode::ApplyFilters(const FFilterContext& Context) const
 	}
 	else
 	{
+		if (!Context.HasFilterData(SelectedFilter->Key))
+		{
+			// If data is not set for this filter we consider it passed the test.
+			return true;
+		}
+
 		switch (SelectedFilter->DataType)
 		{
 		case EFilterDataType::Double:

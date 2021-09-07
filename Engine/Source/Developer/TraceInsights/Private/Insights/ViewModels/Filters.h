@@ -7,6 +7,8 @@
 #include "CoreMinimal.h"
 #include "Misc/TVariant.h"
 
+#include "Insights/Common/SimpleRtti.h"
+
 #define LOCTEXT_NAMESPACE "Filters"
 
 class FSpawnTabArgs;
@@ -108,10 +110,13 @@ public:
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
+
 struct FFilter
 {
-	typedef TSharedPtr<const TArray<TSharedPtr<IFilterOperator>>> SupportedOperatorsArrayPtr;
+	INSIGHTS_DECLARE_RTTI_BASE(FFilter)
 
+public:
 	FFilter(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
 		: Key(InKey)
 		, Name(InName)
@@ -119,6 +124,7 @@ struct FFilter
 		, DataType(InDataType)
 		, SupportedOperators(InSupportedOperators)
 	{}
+	virtual ~FFilter() {}
 
 	SupportedOperatorsArrayPtr GetSupportedOperators() { return SupportedOperators;	}
 
@@ -128,6 +134,24 @@ struct FFilter
 	EFilterDataType DataType;
 	TSharedPtr<IFilterValueConvertor> Convertor;
 	SupportedOperatorsArrayPtr SupportedOperators;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+struct FFilterWithSuggestions : FFilter
+{
+	typedef TFunction<void(const FString& /*Text*/, TArray<FString>& OutSuggestions)> GetSuggestionsCallback;
+
+	INSIGHTS_DECLARE_RTTI(FFilterWithSuggestions, FFilter)
+
+public:
+	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
+		: FFilter(InKey, InName, InDesc, InDataType, InSupportedOperators)
+	{ }
+
+	virtual ~FFilterWithSuggestions() {}
+
+	GetSuggestionsCallback Callback;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -233,6 +257,11 @@ public:
 
 		check(Data->IsType<T>());
 		OutData = Data->Get<T>();
+	}
+
+	bool HasFilterData(int32 Key) const
+	{
+		return DataMap.Contains(Key);
 	}
 
 private:

@@ -106,7 +106,8 @@ enum class EFilterField : int32
 	StartTime = 0,
 	EndTime = 1,
 	Duration = 2,
-	EventType = 3
+	EventType = 3,
+	TrackName = 4
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
