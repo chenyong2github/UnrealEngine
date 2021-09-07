@@ -11,6 +11,7 @@
 #include "CineCameraComponent.h"
 #include "DistortionRenderingUtils.h"
 #include "Editor.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GameFramework/Actor.h"
 #include "Input/Events.h"
 #include "Internationalization/Text.h"
@@ -190,6 +191,8 @@ namespace CameraNodalOffsetAlgoPoints
 
 void UCameraNodalOffsetAlgoPoints::Initialize(UNodalOffsetTool* InNodalOffsetTool)
 {
+	GEditor->OnObjectsReplaced().AddUObject(this, &UCameraNodalOffsetAlgoPoints::OnObjectsReplaced);
+
 	NodalOffsetTool = InNodalOffsetTool;
 
 	// Guess which calibrator to use by searching for actors with CalibrationPointComponents.
@@ -198,6 +201,8 @@ void UCameraNodalOffsetAlgoPoints::Initialize(UNodalOffsetTool* InNodalOffsetToo
 
 void UCameraNodalOffsetAlgoPoints::Shutdown()
 {
+	GEditor->OnObjectsReplaced().RemoveAll(this);
+
 	NodalOffsetTool.Reset();
 }
 
@@ -300,6 +305,19 @@ void UCameraNodalOffsetAlgoPoints::Tick(float DeltaTime)
 				else
 				{
 					LastCameraData.CalibratorParentUniqueId = INDEX_NONE;
+				}
+
+				LastCameraData.CalibratorComponentPoses.Empty();
+
+				for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibrationComponentPtr : ActiveCalibratorComponents)
+				{
+					if (const UCalibrationPointComponent* const CalibrationComponent = CalibrationComponentPtr.Get())
+					{
+						if (USceneComponent* AttachComponent = CalibrationComponent->GetAttachParent())
+						{
+							LastCameraData.CalibratorComponentPoses.Add(AttachComponent->GetUniqueID(), AttachComponent->GetComponentTransform());
+						}
+					}
 				}
 			}
 			else
@@ -460,7 +478,13 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildUI()
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
 		[ FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("Calibrator", "Calibrator"), BuildCalibrationDevicePickerWidget()) ]
-		
+
+		+ SVerticalBox::Slot() // Calibrator component picker
+		.VAlign(EVerticalAlignment::VAlign_Top)
+		.AutoHeight()
+		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
+		[FCameraCalibrationWidgetHelpers::BuildLabelWidgetPair(LOCTEXT("CalibratorComponents", "Calibrator Component(s)"), BuildCalibrationComponentPickerWidget())]
+
 		+SVerticalBox::Slot() // Calibrator point names
 		.AutoHeight()
 		.MaxHeight(FCameraCalibrationWidgetHelpers::DefaultRowHeight)
@@ -1035,8 +1059,8 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWi
 				return false;
 			}
 
-			TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
-			Actor->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
+			TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
+			Actor->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
 
 			return (CalibrationPoints.Num() > 0);
 		})
@@ -1044,6 +1068,83 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationDevicePickerWi
 		{
 			return FAssetData(GetCalibrator(), true);
 		});
+}
+
+TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationComponentMenu()
+{
+	// Generate menu
+	FMenuBuilder MenuBuilder(true, nullptr);
+	MenuBuilder.BeginSection("CalibrationComponents", LOCTEXT("CalibrationComponents", "Calibration Point Components"));
+	{
+		TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPointComponents;
+		Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPointComponents);
+
+		for (UCalibrationPointComponent* CalibratorComponent : CalibrationPointComponents)
+		{
+			if (USceneComponent* AttachComponent = CalibratorComponent->GetAttachParent())
+			{
+				MenuBuilder.AddMenuEntry(
+					FText::Format(LOCTEXT("ComponentLabel", "{0}"), FText::FromString(AttachComponent->GetName())),
+					FText::Format(LOCTEXT("ComponentTooltip", "{0}"), FText::FromString(AttachComponent->GetName())),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateLambda([this, CalibratorComponent] { OnCalibrationComponentSelected(CalibratorComponent);}),
+						FCanExecuteAction(),
+						FIsActionChecked::CreateLambda([this, CalibratorComponent] { return IsCalibrationComponentSelected(CalibratorComponent); })
+					),
+					NAME_None,
+					EUserInterfaceActionType::ToggleButton
+				);
+			}
+		}
+	}
+	MenuBuilder.EndSection();
+
+	return MenuBuilder.MakeWidget();
+}
+
+TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationComponentPickerWidget()
+{
+	return SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(FMargin(0.0f, 0.0f, 0.0f, 0.0f))
+		[
+			SNew(SComboButton)
+			.OnGetMenuContent_Lambda([=]() { return BuildCalibrationComponentMenu(); })
+			.ContentPadding(FMargin(4.0, 2.0))
+			.ButtonContent()
+			[
+				SNew(STextBlock)
+				.Text_Lambda([this]() {
+					if (ActiveCalibratorComponents.Num() > 1)
+					{
+						return LOCTEXT("MultipleCalibrationComponents", "Multiple Values");
+					}
+					else if (ActiveCalibratorComponents.Num() == 1 && ActiveCalibratorComponents[0].Get() && ActiveCalibratorComponents[0]->GetAttachParent())
+					{
+						return FText::FromString(ActiveCalibratorComponents[0]->GetAttachParent()->GetName());
+					}
+					else
+					{
+						return LOCTEXT("NoCalibrationComponents", "None");
+					}
+				})
+			]
+		]; 
+}
+
+void UCameraNodalOffsetAlgoPoints::OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap)
+{
+	for (TWeakObjectPtr<const UCalibrationPointComponent>& OldComponentPtr : ActiveCalibratorComponents)
+	{
+		constexpr bool bEvenIfPendingKill = true;
+		if (UObject* NewObject = OldToNewInstanceMap.FindRef(OldComponentPtr.Get(bEvenIfPendingKill)))
+		{
+			// Reassign the object
+			OldComponentPtr = Cast<UCalibrationPointComponent>(NewObject);
+		}
+	}
 }
 
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons()
@@ -1113,7 +1214,69 @@ TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationActionButtons(
 				return FReply::Handled();
 			})
 		]
+		+ SVerticalBox::Slot() // Apply To Calibrator Component
+			[
+				SNew(SButton)
+				.Text(LOCTEXT("ApplyToCalibratorComponentParent", "Apply To Calibrator Component"))
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
+				.OnClicked_Lambda([&]() -> FReply
+				{
+					FScopedTransaction Transaction(LOCTEXT("ApplyNodalOffsetToCalibratorComponents", "Applying Nodal Offset to Calibrator Components"));
+					ApplyNodalOffsetToCalibratorComponents();
+					return FReply::Handled();
+				})
+			]
 		;
+}
+
+void UCameraNodalOffsetAlgoPoints::OnCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent)
+{
+	if (IsCalibrationComponentSelected(SelectedComponent))
+	{
+		ActiveCalibratorComponents.Remove(SelectedComponent);
+	}
+	else
+	{
+		ActiveCalibratorComponents.Add(SelectedComponent);
+	}
+
+	CurrentCalibratorPoints.Empty();
+	for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibrationPointPtr : ActiveCalibratorComponents)
+	{
+		if (const UCalibrationPointComponent* const CalibrationPoint = CalibrationPointPtr.Get())
+		{
+			TArray<FString> PointNames;
+
+			CalibrationPoint->GetNamespacedPointNames(PointNames);
+
+			for (FString& PointName : PointNames)
+			{
+				CurrentCalibratorPoints.Add(MakeShared<FCalibratorPointData>(PointName));
+			}
+		}
+	}
+
+	if (!CalibratorPointsComboBox)
+	{
+		return;
+	}
+
+	CalibratorPointsComboBox->RefreshOptions();
+
+	if (CurrentCalibratorPoints.Num())
+	{
+		CalibratorPointsComboBox->SetSelectedItem(CurrentCalibratorPoints[0]);
+	}
+	else
+	{
+		CalibratorPointsComboBox->SetSelectedItem(nullptr);
+	}
+}
+
+bool UCameraNodalOffsetAlgoPoints::IsCalibrationComponentSelected(const UCalibrationPointComponent* const SelectedComponent) const
+{
+	return ActiveCalibratorComponents.Contains(SelectedComponent);
 }
 
 bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibrator()
@@ -1545,6 +1708,159 @@ bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibratorParent()
 	return true;
 }
 
+bool UCameraNodalOffsetAlgoPoints::ApplyNodalOffsetToCalibratorComponents()
+{
+	using namespace CameraNodalOffsetAlgoPoints;
+
+	// Get the desired camera component world pose
+
+	FText ErrorMessage;
+	const FText TitleError = LOCTEXT("CalibrationError", "CalibrationError");
+
+	// Get the calibrator
+
+	if (!Calibrator.IsValid())
+	{
+		ErrorMessage = LOCTEXT("MissingCalibrator", "Missing Calibrator");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+	
+		return false;
+	}
+
+	TArray<uint32> ActiveComponentUniqueIDs;
+	ActiveComponentUniqueIDs.Reserve(ActiveCalibratorComponents.Num());
+
+	for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibratorComponentPtr : ActiveCalibratorComponents)
+	{
+		if (const UCalibrationPointComponent* const CalibratorComponent = CalibratorComponentPtr.Get())
+		{
+			if (USceneComponent* AttachComponent = CalibratorComponent->GetAttachParent())
+			{
+				ActiveComponentUniqueIDs.Add(AttachComponent->GetUniqueID());
+			}
+			else
+			{
+				ErrorMessage = FText::Format(LOCTEXT("CalibratorSceneComponentNotFound", "{0} is not attached to another scene component.\n\nConsider \"Apply To Calibrator\" instead."), FText::FromString(CalibratorComponent->GetName()));
+				FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+				return false;
+			}
+		}
+	}
+
+	// All calibration points should correspond to the same calibrator and same set of calibrator components
+
+	for (const TSharedPtr<FCalibrationRowData>& Row : CalibrationRows)
+	{
+		check(Row.IsValid());
+
+		if (Row->CameraData.CalibratorUniqueId != Calibrator->GetUniqueID())
+		{
+			ErrorMessage = LOCTEXT("WrongCalibrator", "All rows must belong to the same calibrator");
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+			return false;
+		}
+
+		TArray<uint32> CalibratorComponentUniqueIDs;
+		Row->CameraData.CalibratorComponentPoses.GetKeys(CalibratorComponentUniqueIDs);
+		CalibratorComponentUniqueIDs.Sort();
+		ActiveComponentUniqueIDs.Sort();
+
+ 		if (CalibratorComponentUniqueIDs != ActiveComponentUniqueIDs)
+ 		{
+ 			ErrorMessage = LOCTEXT("CalibratorComponentsChanged", "The set of active calibrator components changed during the calibration");
+ 			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+ 
+ 			return false;
+ 		}
+	}
+
+	// Verify that calibrator did not move much for all the samples
+	if (CalibratorMovedInAnyRow(CalibrationRows))
+	{
+		ErrorMessage = LOCTEXT("CalibratorMoved", "The calibrator moved during the calibration");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+		return false;
+	}
+
+	// Group Rows by camera poses.
+	TArray<TSharedPtr<TArray<TSharedPtr<FCalibrationRowData>>>> SamePoseRowGroups;
+	GroupRowsByCameraPose(SamePoseRowGroups, CalibrationRows);
+
+	if (!SamePoseRowGroups.Num())
+	{
+		ErrorMessage = LOCTEXT("NotEnoughRows", "Not enough calibration rows. Please add more samples and try again.");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+		return false;
+	}
+
+	TArray<FSinglePoseResult> SinglePoseResults;
+	SinglePoseResults.Reserve(SamePoseRowGroups.Num());
+
+	// Solve each group independently
+	for (const auto& SamePoseRowGroup : SamePoseRowGroups)
+	{
+		FSinglePoseResult SinglePoseResult;
+
+		const bool bSucceeded = CalcCalibratorPoseForSingleCamPose(*SamePoseRowGroup, SinglePoseResult.Transform, ErrorMessage);
+
+		if (!bSucceeded)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+			return false;
+		}
+
+		SinglePoseResult.NumSamples = SamePoseRowGroup->Num();
+		SinglePoseResults.Add(SinglePoseResult);
+	}
+
+	if (!SinglePoseResults.Num())
+	{
+		ErrorMessage = LOCTEXT("NoSinglePoseResults",
+			"There were no valid single pose results. See Output Log for additional details.");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+		return false;
+	}
+
+	FTransform DesiredCalibratorPose;
+
+	if (!AverageSinglePoseResults(SinglePoseResults, DesiredCalibratorPose))
+	{
+		ErrorMessage = LOCTEXT("CouldNotAverageSinglePoseResults",
+			"There was an error when averaging the single pose results");
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorMessage, &TitleError);
+
+		return false;
+	}
+
+	const TSharedPtr<FCalibrationRowData>& LastRow = CalibrationRows[CalibrationRows.Num() - 1];
+	check(LastRow.IsValid());
+
+	// Apply the desired transform to each of the calibrator components
+	for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibratorComponentPtr : ActiveCalibratorComponents)
+	{
+		if (const UCalibrationPointComponent* const CalibratorComponent = CalibratorComponentPtr.Get())
+		{
+			if (USceneComponent* AttachComponent = CalibratorComponent->GetAttachParent())
+			{
+				AttachComponent->Modify();
+				AttachComponent->SetWorldTransform(LastRow->CameraData.CalibratorComponentPoses[AttachComponent->GetUniqueID()] * LastRow->CameraData.CalibratorPose.Inverse() * DesiredCalibratorPose);
+			}
+		}
+	}
+
+	// Since the offset was applied, there is no further use for the current samples.
+	ClearCalibrationRows();
+
+	return true;
+}
+
 TSharedRef<SWidget> UCameraNodalOffsetAlgoPoints::BuildCalibrationPointsComboBox()
 {
 	CalibratorPointsComboBox = SNew(SComboBox<TSharedPtr<FCalibratorPointData>>)
@@ -1679,16 +1995,16 @@ bool UCameraNodalOffsetAlgoPoints::CalibratorPointCacheFromName(const FString& N
 		return false;
 	}
 
-	TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
-	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
-
-	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
+	for (const TWeakObjectPtr<const UCalibrationPointComponent>& CalibrationPointPtr : ActiveCalibratorComponents)
 	{
-		if (CalibrationPoint->GetWorldLocation(Name, CalibratorPointCache.Location))
+		if (const UCalibrationPointComponent* const CalibrationPoint = CalibrationPointPtr.Get())
 		{
-			CalibratorPointCache.bIsValid = true;
-			CalibratorPointCache.Name = Name;
-			return true;
+			if (CalibrationPoint->GetWorldLocation(Name, CalibratorPointCache.Location))
+			{
+				CalibratorPointCache.bIsValid = true;
+				CalibratorPointCache.Name = Name;
+				return true;
+			}
 		}
 	}
 
@@ -1708,8 +2024,10 @@ void UCameraNodalOffsetAlgoPoints::SetCalibrator(AActor* InCalibrator)
 		return;
 	}
 
-	TArray<UCalibrationPointComponent*, TInlineAllocator<4>> CalibrationPoints;
-	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<4>>(CalibrationPoints);
+	TArray<UCalibrationPointComponent*, TInlineAllocator<NumInlineAllocations>> CalibrationPoints;
+	Calibrator->GetComponents<UCalibrationPointComponent, TInlineAllocator<NumInlineAllocations>>(CalibrationPoints);
+
+	ActiveCalibratorComponents.Empty();
 
 	for (const UCalibrationPointComponent* CalibrationPoint : CalibrationPoints)
 	{
@@ -1720,6 +2038,12 @@ void UCameraNodalOffsetAlgoPoints::SetCalibrator(AActor* InCalibrator)
 		for (FString& PointName : PointNames)
 		{
 			CurrentCalibratorPoints.Add(MakeShared<FCalibratorPointData>(PointName));
+		}
+
+		// Only add calibration point components that have an attached scene component
+		if (CalibrationPoint->GetAttachParent())
+		{
+			ActiveCalibratorComponents.Add(CalibrationPoint);
 		}
 	}
 
