@@ -23,7 +23,15 @@ static FAutoConsoleVariableRef CVarCommandListBatchingMode(
 	GCommandListBatchingMode,
 	TEXT("Changes how command lists are batched and submitted to the GPU."),
 	ECVF_RenderThreadSafe
-	);
+);
+
+int32 MaxCommandsPerCommandList = 10;
+static FAutoConsoleVariableRef CVarMaxCommandsPerCommandList(
+	TEXT("D3D12.MaxCommandsPerCommandList"),
+	MaxCommandsPerCommandList,
+	TEXT("Flush command list to GPU after certain amount of enqueued commands (draw, dispatch, copy, ...) (default value 10000)"),
+	ECVF_RenderThreadSafe
+);
 
 // We don't yet have a way to auto-detect that the Radeon Developer Panel is running
 // with profiling enabled, so for now, we have to manually toggle this console var.
@@ -317,12 +325,15 @@ void FD3D12CommandContext::OpenCommandList()
 	// Mark state as dirty so next time ApplyState is called, it will set all state on this new command list
 	StateCache.DirtyStateForNewCommandList();
 
+	bIsDoingQuery = false;
+
 	numDraws = 0;
 	numDispatches = 0;
 	numClears = 0;
 	numBarriers = 0;
 	numPendingBarriers = 0;
 	numCopies = 0;
+	numInitialResourceCopies = 0;
 	otherWorkCounter = 0;
 }
 
@@ -335,6 +346,9 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 {
 	// We should only be flushing the default context
 	check(IsDefaultContext());
+
+	// We should be in a query anymore
+	check(!bIsDoingQuery);
 
 	bool bHasProfileGPUAction = false;
 #if WITH_PROFILEGPU || D3D12_SUBMISSION_GAP_RECORDER
@@ -406,6 +420,18 @@ FD3D12CommandListHandle FD3D12CommandContext::FlushCommands(bool WaitForCompleti
 	}
 
 	return CommandListHandle;
+}
+
+void FD3D12CommandContext::ConditionalFlushCommandList()
+{
+	// Flush command list of reached maximum amount of commands which can be done in a single
+	// command list - too many can cause TDRs
+	// (can't flush when query is open!)
+	if (IsDefaultContext() && !bIsDoingQuery && MaxCommandsPerCommandList > 0 && GetTotalWorkCount() > (uint32)MaxCommandsPerCommandList)
+	{
+		//UE_LOG(LogD3D12RHI, Warning, TEXT("Force flushing command list to GPU because too many commands have been enqueued already (%d commands)"), GetTotalWorkCount());
+		FlushCommands();
+	}
 }
 
 void FD3D12CommandContext::Finish(TArray<FD3D12CommandListHandle>& CommandLists)

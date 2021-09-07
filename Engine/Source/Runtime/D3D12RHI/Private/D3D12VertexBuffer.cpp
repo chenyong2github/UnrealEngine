@@ -149,6 +149,8 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 		Context.CommandListHandle.UpdateResidency(pDestResource);
 		Context.CommandListHandle.UpdateResidency(pSourceResource);
 
+		Context.ConditionalFlushCommandList();
+
 		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 
 		Device->RegisterGPUWork(1);
@@ -200,6 +202,8 @@ void FD3D12CommandContext::RHICopyBufferRegion(FRHIVertexBuffer* DestBufferRHI, 
 	CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
 	CommandListHandle.UpdateResidency(pDestResource);
 	CommandListHandle.UpdateResidency(pSourceResource);
+
+	ConditionalFlushCommandList();
 
 	Device->RegisterGPUWork(1);
 }
@@ -332,6 +336,8 @@ void FD3D12CommandContext::RHICopyBufferRegions(const TArrayView<const FCopyBuff
 		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + DstOffset, pSourceResource->GetResource(), SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource() + SrcOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
+
+		ConditionalFlushCommandList();
 
 		Device->RegisterGPUWork(1);
 	}

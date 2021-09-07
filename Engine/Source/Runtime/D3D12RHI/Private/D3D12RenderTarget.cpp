@@ -482,6 +482,8 @@ void FD3D12CommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI,
 		check(SourceTexture3D == DestTexture3D);
 	}
 
+	ConditionalFlushCommandList();
+
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 

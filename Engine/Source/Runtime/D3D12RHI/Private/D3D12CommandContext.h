@@ -119,6 +119,8 @@ public:
 	void ConditionalClearShaderResource(FD3D12ResourceLocation* Resource);
 	void ClearAllShaderResources();
 
+	void ConditionalFlushCommandList();
+
 	FD3D12FastConstantAllocator ConstantsAllocator;
 
 	// Handles to the command list and direct command allocator this context owns (granted by the command list manager/command allocator manager), and a direct pointer to the D3D command list/command allocator.
@@ -188,17 +190,25 @@ public:
 	virtual void FlushTextureCache() {};
 #endif
 
+	bool bIsDoingQuery = false;
+
 	uint32 numDraws;
 	uint32 numDispatches;
 	uint32 numClears;
 	uint32 numBarriers;
 	uint32 numPendingBarriers;
 	uint32 numCopies;
+	uint32 numInitialResourceCopies;
 	uint32 otherWorkCounter;
+
+	uint32 GetTotalWorkCount() const
+	{
+		return numDraws + numDispatches + numClears + numBarriers + numPendingBarriers + numCopies + numInitialResourceCopies + otherWorkCounter;
+	}
 
 	bool HasDoneWork() const
 	{
-		return (numDraws + numDispatches + numClears + numBarriers + numPendingBarriers + numCopies + otherWorkCounter) > 0;
+		return GetTotalWorkCount() > 0;
 	}
 
 	/** Constant buffers for Set*ShaderParameter calls. */

@@ -104,13 +104,14 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 			FD3D12Resource* Destination = CurrentBuffer->ResourceLocation.GetResource();
 			FD3D12Device* Device = Destination->GetParentDevice();
 
-			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
+			FD3D12CommandContext& CommandContext = Device->GetDefaultCommandContext();
+			FD3D12CommandListHandle& hCommandList = CommandContext.CommandListHandle;
 			// Copy from the temporary upload heap to the default resource
 			{
 				// Writable structured buffers are sometimes initialized with initial data which means they sometimes need tracking.
 				FConditionalScopeResourceBarrier ConditionalScopeResourceBarrier(hCommandList, Destination, D3D12_RESOURCE_STATE_COPY_DEST, 0);
 
-				Device->GetDefaultCommandContext().numCopies++;
+				CommandContext.numInitialResourceCopies++;
 				hCommandList.FlushResourceBarriers();
 				hCommandList->CopyBufferRegion(
 					Destination->GetResource(),
@@ -120,6 +121,8 @@ struct FD3D12RHICommandInitializeBuffer final : public FRHICommand<FD3D12RHIComm
 
 				hCommandList.UpdateResidency(Destination);
 				hCommandList.UpdateResidency(SrcResourceLoc.GetResource());
+
+				CommandContext.ConditionalFlushCommandList();
 			}
 		}
 	}

@@ -211,7 +211,7 @@ struct FD3D12RHICommandInitializeTexture final : public FRHICommand<FD3D12RHICom
 			FD3D12Resource* Resource = CurrentTexture.GetResource();
 
 			FD3D12CommandListHandle& hCommandList = Device->GetDefaultCommandContext().CommandListHandle;
-			hCommandList.GetCurrentOwningContext()->numCopies += NumSubresources;
+			hCommandList.GetCurrentOwningContext()->numInitialResourceCopies += NumSubresources;
 
 			// resource should be in copy dest already, because it's created like that, so no transition required here
 			
@@ -1480,6 +1480,8 @@ void FD3D12DynamicRHI::RHICopySharedMips(FRHITexture2D* DestTexture2DRHI, FRHITe
 			}
 		}
 
+		Device->GetDefaultCommandContext().ConditionalFlushCommandList();
+
 		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 	}
 }
@@ -1581,6 +1583,8 @@ static void DoAsyncReallocateTexture2D(FD3D12Texture2D* Texture2D, FD3D12Texture
 
 			hCommandList.UpdateResidency(NewTexture2D->GetResource());
 			hCommandList.UpdateResidency(Texture2D->GetResource());
+
+			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 
 			DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 		}
@@ -1830,6 +1834,8 @@ void FD3D12TextureBase::UpdateTexture(const D3D12_TEXTURE_COPY_LOCATION& DestCop
 		nullptr);
 
 	hCommandList.UpdateResidency(GetResource());
+	
+	DefaultContext.ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_CONTEXT(DefaultContext);
 }
@@ -2305,7 +2311,6 @@ public:
 					nullptr);
 
 				NativeCmdList.UpdateResidency(TextureLink.GetResource());
-
 				DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 #if USE_PIX
 				if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
@@ -2314,6 +2319,8 @@ public:
 				}
 #endif
 			}
+
+			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 		}
 	}
 
@@ -2540,6 +2547,7 @@ public:
 
 			NativeCmdList.UpdateResidency(TextureLink.GetResource());
 
+			Device->GetDefaultCommandContext().ConditionalFlushCommandList();
 			DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 #if USE_PIX
 			if (FD3D12DynamicRHI::GetD3DRHI()->IsPixEventEnabled())
@@ -3221,6 +3229,8 @@ void FD3D12CommandContext::RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITex
 
 	CommandListHandle.UpdateResidency(SourceTexture->GetResource());
 	CommandListHandle.UpdateResidency(DestTexture->GetResource());
+	
+	ConditionalFlushCommandList();
 
 	// Save the command list handle. This lets us check when this command list is complete. Note: This must be saved before we execute the command list
 	DestTexture->SetReadBackListHandle(CommandListHandle);

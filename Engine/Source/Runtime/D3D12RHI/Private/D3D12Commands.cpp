@@ -42,9 +42,6 @@ DECLARE_ISBOUNDSHADER(HullShader)
 DECLARE_ISBOUNDSHADER(DomainShader)
 DECLARE_ISBOUNDSHADER(ComputeShader)
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-bool GIsDoingQuery = false;
-#endif
 
 #if DO_CHECK
 #define VALIDATE_BOUND_SHADER(s) ValidateBoundShader(StateCache, s)
@@ -125,6 +122,8 @@ void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, ui
 
 	numDispatches++;
 	CommandListHandle->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	
+	ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -166,6 +165,8 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 		0
 		);
 	CommandListHandle.UpdateResidency(Location.GetResource());
+	
+	ConditionalFlushCommandList();
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
@@ -499,6 +500,8 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
+
+		ConditionalFlushCommandList();
 	}
 }
 
@@ -1220,9 +1223,7 @@ void FD3D12CommandContext::RHIBeginRenderQuery(FRHIRenderQuery* QueryRHI)
 
 	GetParentDevice()->GetOcclusionQueryHeap()->BeginQuery(*this, Query);
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-	GIsDoingQuery = true;
-#endif
+	bIsDoingQuery = true;
 }
 
 void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
@@ -1253,9 +1254,7 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 	// Query data isn't ready until it has been resolved.
 	ensure(Query->bResultIsCached == false && Query->bResolved == false);
 
-#if EXECUTE_DEBUG_COMMAND_LISTS
-	GIsDoingQuery = false;
-#endif
+	bIsDoingQuery = false;
 }
 
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
@@ -1583,6 +1582,8 @@ void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPr
 	StateCache.ApplyState<D3D12PT_Graphics>();
 	CommandListHandle->DrawInstanced(VertexCount, NumInstances, BaseVertexIndex, 0);
 
+	ConditionalFlushCommandList();
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
@@ -1622,6 +1623,8 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBu
 		);
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -1672,6 +1675,8 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRH
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
 
+	ConditionalFlushCommandList();
+
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
 #endif
@@ -1710,6 +1715,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferR
 	StateCache.ApplyState<D3D12PT_Graphics>();
 
 	CommandListHandle->DrawIndexedInstanced(IndexCount, NumInstances, StartIndex, BaseVertexIndex, FirstInstance);
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -1756,6 +1763,8 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* Inde
 		);
 
 	CommandListHandle.UpdateResidency(Location.GetResource());
+
+	ConditionalFlushCommandList();
 
 #if UE_BUILD_DEBUG	
 	OwningRHI.DrawCount++;
@@ -1913,6 +1922,8 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool* bClearColorArray, int32 NumClea
 			CommandListHandle->ClearDepthStencilView(DepthStencilView->GetView(), (D3D12_CLEAR_FLAGS)ClearFlags, Depth, Stencil, ClearRectCount, pClearRects);
 			CommandListHandle.UpdateResidency(DepthStencilView->GetResource());
 		}
+
+		ConditionalFlushCommandList();
 	}
 
 	if (IsDefaultContext())
