@@ -246,6 +246,7 @@ protected:
 	void HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* InVM);
 	void HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandleControlRigExecutionHalted(const int32 InstructionIndex, UObject* InNode, const FName& InEntryName);
+	void SetHaltedNode(URigVMNode* Node);
 
 	// FBaseToolKit overrides
 	void CreateEditorModeManager() override;
