@@ -532,6 +532,12 @@ public:
 
 	/** internal check for each usage of visual logger */
 	static bool CheckVisualLogInputInternal(const UObject* Object, const FName& CategoryName, ELogVerbosity::Type Verbosity, UWorld **World, FVisualLogEntry **CurrentEntry);
+	
+	/** Returns time stamp for object */
+	float GetTimeStampForObject(const UObject* Object) const;
+
+	/** Sets function to call to get a timestamp instead of the default implementation (i.e. world time) */
+	void SetGetTimeStampFunc(TFunction<float(const UObject*)> Function);
 
 	typedef TMap<UObject*, TArray<TWeakObjectPtr<const UObject> > > FOwnerToChildrenRedirectionMap;
 	static FOwnerToChildrenRedirectionMap& GetRedirectionMap(const UObject* InObject);
@@ -604,6 +610,8 @@ protected:
 	FVisualLogFilenameGetterDelegate LogFileNameGetter;
 	/** Handle for timer used to serialize all waiting logs */
 	FTimerHandle VisualLoggerCleanupTimerHandle;
+	/** function to call when getting the time stamp */
+	TFunction<float(const UObject*)> GetTimeStampFunc;
 
 	// if set we are recording and collecting all vlog data
 	static int32 bIsRecording;
