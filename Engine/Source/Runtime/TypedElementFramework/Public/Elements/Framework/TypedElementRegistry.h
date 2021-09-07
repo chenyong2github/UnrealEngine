@@ -448,15 +448,17 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementId.GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementId.GetTypeId());
 
-			UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
-			const FTypedElementInternalData& TypedElementInternalData = RegisteredElementType->GetDataForElement(InElementId.GetElementId());
-			if constexpr (std::is_void<BaseInterfaceType>::value)
-			{ 
-				OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
-			}
-			else
+			if (UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName()))
 			{
-				OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+				const FTypedElementInternalData& TypedElementInternalData = RegisteredElementType->GetDataForElement(InElementId.GetElementId());
+				if constexpr (std::is_void<BaseInterfaceType>::value)
+				{ 
+					OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
+				}
+				else
+				{
+					OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+				}
 			}
 		}
 	}
@@ -471,15 +473,17 @@ private:
 			FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InElementHandle.GetId().GetTypeId());
 			checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InElementHandle.GetId().GetTypeId());
 
-			UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName());
-			const FTypedElementInternalData& TypedElementInternalData = *InElementHandle.Private_GetInternalData();
-			if constexpr (std::is_void<BaseInterfaceType>::value)
+			if (UObject* InterfaceObject = RegisteredElementType->Interfaces.FindRef(InBaseInterfaceType->GetFName()))
 			{
-				OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
-			}
-			else
-			{
-				OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+				const FTypedElementInternalData& TypedElementInternalData = *InElementHandle.Private_GetInternalData();
+				if constexpr (std::is_void<BaseInterfaceType>::value)
+				{
+					OutElement.Private_InitializeAddRef(TypedElementInternalData, InterfaceObject->GetInterfaceAddress(InBaseInterfaceType));
+				}
+				else
+				{
+					OutElement.Private_InitializeAddRef(TypedElementInternalData, Cast<BaseInterfaceType>(InterfaceObject));
+				}
 			}
 		}
 	}

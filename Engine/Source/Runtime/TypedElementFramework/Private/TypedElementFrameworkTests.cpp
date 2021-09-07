@@ -188,6 +188,13 @@ bool FTypedElementRegistrySmokeTest::RunTest(const FString& Parameters)
 		return true;
 	});
 
+	// Test some elements with an interface they don't have
+	ElementList->ForEachElement<ITestTypedElementInterfaceC>([&TestInterfaceCHandle](const TTypedElement<ITestTypedElementInterfaceC>& InElementHandle)
+	{
+		TestInterfaceCHandle(InElementHandle);
+		return true;
+	});
+
 	ElementList.Reset();
 
 	Registry->DestroyElement(TypedElement1);
