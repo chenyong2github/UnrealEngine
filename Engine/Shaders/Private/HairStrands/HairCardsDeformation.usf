@@ -16,6 +16,9 @@ Buffer<uint>   CardsInterpolationBuffer;
 
 RWBuffer<float4> CardsDeformedPositionBuffer; 
 
+Buffer<float4> CardsRestTangentBuffer;
+RWBuffer<float4> CardsDeformedTangentBuffer;
+
 // Guides == Strands going through the middle of the card geometry
 Buffer<float4>  TriangleRestPosition0Buffer;
 Buffer<float4>  TriangleRestPosition1Buffer;
@@ -55,7 +58,24 @@ float3 ComputeDynamicGeometryOffset(
 
 	return (LocalDeformedGuidePoint - LocalRestGuidePoint) * GuideVertexWeight;
 }
+
+void TransformTangent(
+	uint InVertexId, 
+	uint InOffset,
+	FHairMeshTriangle InRestTriangle,
+	FHairMeshTriangle InDeformedTriangle)
+{
+	float4 Rest		= CardsRestTangentBuffer[InVertexId * 2 + InOffset];
+	float3 Local	= VectorToTriangle(Rest.xyz, InRestTriangle);
+	float3 Deformed = VectorToWorld(Local, InDeformedTriangle);
+	CardsDeformedTangentBuffer[InVertexId * 2 + InOffset] = float4(Deformed, Rest.w);
+}
 #endif
+
+void CopyTangent(uint InVertexId, uint InOffset)
+{
+	CardsDeformedTangentBuffer[InVertexId * 2 + InOffset] = CardsRestTangentBuffer[InVertexId * 2 + InOffset];
+}
 
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
@@ -114,6 +134,9 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float3 OutPosition = RestPosition.xyz + DeformationOffset;
 	CardsDeformedPositionBuffer[VertexId] = float4(OutPosition, RestPosition.w);
 
+	CopyTangent(VertexId, 0);
+	CopyTangent(VertexId, 1);
+
 #elif PERMUTATION_DYNAMIC_GEOMETRY == 1
 	// Compute the deformation offset in triangle local space
 
@@ -140,5 +163,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 
 	CardsDeformedPositionBuffer[VertexId] = float4(ControlPoint, RestControlPoint.w);
 
+	// Transform tangent
+	TransformTangent(VertexId, 0, RestTriangle, DeformedTriangle);
+	TransformTangent(VertexId, 1, RestTriangle, DeformedTriangle);
 #endif
 }
