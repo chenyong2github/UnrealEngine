@@ -32,6 +32,8 @@ public:
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 
+	virtual void ActorSelectionChangeNotify() override;
+
 	virtual bool ShouldDrawWidget() const override;
 	virtual bool ProcessEditDelete() override;
 	virtual bool ProcessEditCut() override;
@@ -64,6 +66,7 @@ protected:
 
 	FDelegateHandle MeshCreatedEventHandle;
 	FDelegateHandle TextureCreatedEventHandle;
+	FDelegateHandle SelectionModifiedEventHandle;
 
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
 

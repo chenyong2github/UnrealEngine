@@ -291,9 +291,9 @@ void UUVProjectionTool::InitializeMesh()
 
 	// initialize triangle ROI if one exists
 	TriangleROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();
-	if (HasInputSelection())
+	if (USingleSelectionMeshEditingTool::HasInputSelection())
 	{
-		GetStoredSelectionAsTriangles(GetInputSelection(), *InputMesh, *TriangleROI);
+		UE::Geometry::GetStoredSelectionAsTriangles(GetInputSelection(), *InputMesh, *TriangleROI);
 		TriangleROISet.Append(*TriangleROI);
 	}
 	VertexROI = MakeShared<TArray<int32>, ESPMode::ThreadSafe>();

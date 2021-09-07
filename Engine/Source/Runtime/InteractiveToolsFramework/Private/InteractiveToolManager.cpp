@@ -256,21 +256,6 @@ void UInteractiveToolManager::DeactivateToolInternal(EToolSide Side, EToolShutdo
 
 		ActiveLeftTool->Shutdown(ShutdownType);
 
-		// Every tool invocation that doesn't do anything with the tool selection should result in it being
-		// cleared, but cancelled tools don't count.
-		if (ShutdownType != EToolShutdownType::Cancel && !bActiveToolMadeSelectionStoreRequest)
-		{
-			if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
-			{
-				// Note that it would be better if the tool cleared the selection store in its Shutdown()
-				// and bundled it with any undo transaction it issued. We can't do that here, so this ends
-				// up being a non-undoable clear. Not ideal, but acceptible.
-				IToolsContextTransactionsAPI::FToolSelectionStoreParams Params;
-				Params.ToolManager = this;
-				TransactionsAPI->RequestToolSelectionStore(nullptr, Params);
-			}
-		}
-
 		InputRouter->DeregisterSource(ActiveLeftTool);
 
 		UInteractiveTool* DoneTool = ActiveLeftTool;
@@ -449,17 +434,6 @@ bool UInteractiveToolManager::RequestSelectionChange(const FSelectedOjectsChange
 	return TransactionsAPI->RequestSelectionChange(SelectionChange);
 }
 
-bool UInteractiveToolManager::RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection)
-{
-	bActiveToolMadeSelectionStoreRequest = true;
-
-	// We don't actually use this information right now, because the tool selection object is global. But
-	// if we change selections to be tool manager specific later, this will make it easier.
-	IToolsContextTransactionsAPI::FToolSelectionStoreParams Params;
-	Params.ToolManager = this;
-
-	return TransactionsAPI->RequestToolSelectionStore(StorableSelection, Params);
-}
 
 
 

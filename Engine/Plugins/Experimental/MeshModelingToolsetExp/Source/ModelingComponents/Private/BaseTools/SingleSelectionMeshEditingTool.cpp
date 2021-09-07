@@ -7,6 +7,7 @@
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "ToolTargetManager.h"
+#include "Selection/StoredMeshSelectionUtil.h"
 
 /*
  * ToolBuilder
@@ -41,9 +42,13 @@ void USingleSelectionMeshEditingToolBuilder::InitializeNewTool(USingleSelectionM
 	NewTool->SetTarget(Target);
 	NewTool->SetWorld(SceneState.World);
 
-	if (WantsInputSelectionIfAvailable() && SceneState.StoredToolSelection != nullptr)
+	if (WantsInputSelectionIfAvailable())
 	{
-		NewTool->SetInputSelection(SceneState.StoredToolSelection);
+		const UPersistentMeshSelection* InputSelection = UE::Geometry::GetCurrentToolInputSelection(SceneState, Target);
+		if (InputSelection != nullptr)
+		{
+			NewTool->SetInputSelection(InputSelection);
+		}
 	}
 }
 

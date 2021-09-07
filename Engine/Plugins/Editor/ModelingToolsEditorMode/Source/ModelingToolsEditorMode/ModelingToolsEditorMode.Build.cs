@@ -49,6 +49,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"StatusBar",
 				"EditorStyle",
                 "Projects",
+				"TypedElementRuntime",
 				"MeshDescription",
 				"StaticMeshDescription",
                 "InteractiveToolsFramework",

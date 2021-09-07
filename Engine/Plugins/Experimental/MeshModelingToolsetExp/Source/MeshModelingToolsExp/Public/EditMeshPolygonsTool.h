@@ -11,7 +11,7 @@
 #include "InteractiveToolBuilder.h"
 #include "InteractiveToolQueryInterfaces.h" // IInteractiveToolNestedAcceptCancelAPI
 #include "Operations/GroupTopologyDeformer.h"
-#include "SingleSelectionTool.h"
+#include "BaseTools/SingleSelectionMeshEditingTool.h"
 
 #include "GeometryBase.h"
 
@@ -21,7 +21,7 @@ PREDECLARE_GEOMETRY(class FGroupTopology);
 PREDECLARE_GEOMETRY(struct FGroupTopologySelection);
 
 class UDragAlignmentMechanic;
-class UGroupTopologyStorableSelection;
+class UPersistentMeshSelection;
 class UMeshOpPreviewWithBackgroundCompute; 
 class FMeshVertexChangeBuilder;
 class UPolyEditInsertEdgeActivity;
@@ -39,17 +39,16 @@ class UTransformProxy;
  * ToolBuilder
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
 	bool bTriangleMode = false;
 
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
 
-protected:
-	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
+	virtual bool WantsInputSelectionIfAvailable() const { return true; }
 };
 
 
@@ -134,7 +133,7 @@ class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsActionModeToolBuilder : public U
 public:
 	EEditMeshPolygonsToolActions StartupAction = EEditMeshPolygonsToolActions::Extrude;
 
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -155,7 +154,7 @@ class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsSelectionModeToolBuilder : publi
 public:
 	EEditMeshPolygonsToolSelectionMode SelectionMode = EEditMeshPolygonsToolSelectionMode::Faces;
 
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual void InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const override;
 };
 
 
@@ -376,7 +375,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsTool : public USingleSelectionTool, 
+class MESHMODELINGTOOLSEXP_API UEditMeshPolygonsTool : public USingleSelectionMeshEditingTool,
 	public IToolActivityHost, 
 	public IMeshVertexCommandChangeTarget,
 	public IInteractiveToolNestedAcceptCancelAPI
@@ -389,15 +388,6 @@ public:
 
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 	void EnableTriangleMode();
-
-	/**
-	 * This should be set before tool Setup() is called to allow the tool to load
-	 * the passed-in selection.
-	 */
-	void SetStoredToolSelection(const UGroupTopologyStorableSelection *StoredToolSelectionIn) 
-	{ 
-		StoredToolSelection = StoredToolSelectionIn; 
-	}
 
 	virtual void SetWorld(UWorld* World) { this->TargetWorld = World; }
 
@@ -497,9 +487,6 @@ protected:
 	TObjectPtr<UDragAlignmentMechanic> DragAlignmentMechanic = nullptr;
 
 	UPROPERTY()
-	TObjectPtr<const UGroupTopologyStorableSelection> StoredToolSelection = nullptr;
-
-	UPROPERTY()
 	TObjectPtr<UTransformGizmo> TransformGizmo = nullptr;
 
 	UPROPERTY()
@@ -507,7 +494,7 @@ protected:
 
 	FText DefaultMessage;
 
-	bool IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection);
+	bool IsToolInputSelectionUsable(const UPersistentMeshSelection* InputSelection);
 	bool bSelectionStateDirty = false;
 	void OnSelectionModifiedEvent();
 
