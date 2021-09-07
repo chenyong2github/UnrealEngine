@@ -143,11 +143,8 @@ static FAutoConsoleVariableRef CVarNiagaraGrid3DOverrideFormat(
 );
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
-struct FNiagaraDataInterfaceParametersCS_Grid3DCollection : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid3DCollection, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
+
+void FNiagaraDataInterfaceParametersCS_Grid3DCollection::Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
 	{
 		NumAttributesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumAttributesName + ParameterInfo.DataInterfaceHLSLSymbol));
 		NumNamedAttributesParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRWBase::NumNamedAttributesName + ParameterInfo.DataInterfaceHLSLSymbol));
@@ -194,8 +191,7 @@ public:
 			}
 		}
 	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+void FNiagaraDataInterfaceParametersCS_Grid3DCollection::Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
 
@@ -204,7 +200,15 @@ public:
 		FNiagaraDataInterfaceProxyGrid3DCollectionProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(Context.DataInterface);
 
 		FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
-		check(ProxyData);
+		FGrid3DCollectionRWInstanceData_RenderThread* OriginalProxyData = ProxyData;
+
+		check(ProxyData);		
+		if (ProxyData->OtherProxy != nullptr)
+		{			
+			FNiagaraDataInterfaceProxyGrid3DCollectionProxy* OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(ProxyData->OtherProxy);
+			ProxyData = OtherGrid3DProxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
+			check(ProxyData);
+		}
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumCellsParam, ProxyData->NumCells);	
 		SetShaderValue(RHICmdList, ComputeShaderRHI, NumTilesParam, ProxyData->NumTiles);
@@ -214,10 +218,10 @@ public:
 		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitClampMinParam, HalfPixelOffset);
 		SetShaderValue(RHICmdList, ComputeShaderRHI, UnitClampMaxParam, FVector3f::OneVector - HalfPixelOffset);
 
-		if (ProxyData->AttributeIndices.Num() == 0 && AttributeNames.Num() > 0)
+		if (OriginalProxyData->AttributeIndices.Num() == 0 && AttributeNames.Num() > 0)
 		{
 			int NumAttrIndices = Align(AttributeNames.Num(), 4);
-			ProxyData->AttributeIndices.SetNumZeroed(NumAttrIndices);
+			OriginalProxyData->AttributeIndices.SetNumZeroed(NumAttrIndices);
 
 			// TODO handle mismatched types!
 			for (int32 i = 0; i < AttributeNames.Num(); i++)
@@ -228,11 +232,11 @@ public:
 				check(ProxyData->Offsets.Num() == ProxyData->Vars.Num());
 				if (ProxyData->Offsets.IsValidIndex(FoundIdx) && AttributeChannelCount[i] == ProxyData->VarComponents[FoundIdx])
 				{
-					ProxyData->AttributeIndices[i] = ProxyData->Offsets[FoundIdx];
+					OriginalProxyData->AttributeIndices[i] = ProxyData->Offsets[FoundIdx];
 				}
 				else
 				{
-					ProxyData->AttributeIndices[i] = -1; // We may need to protect against this in the hlsl as this might underflow an array lookup if used incorrectly.
+					OriginalProxyData->AttributeIndices[i] = -1; // We may need to protect against this in the hlsl as this might underflow an array lookup if used incorrectly.
 				}
 			}
 		}
@@ -246,7 +250,7 @@ public:
 
 		SetShaderValue(RHICmdList, ComputeShaderRHI, WorldBBoxSizeParam, (FVector3f)ProxyData->WorldBBoxSize);
 
-		SetShaderValueArray(RHICmdList, ComputeShaderRHI, AttributeIndicesParam, ProxyData->AttributeIndices.GetData(), ProxyData->AttributeIndices.Num());
+		SetShaderValueArray(RHICmdList, ComputeShaderRHI, AttributeIndicesParam, OriginalProxyData->AttributeIndices.GetData(), OriginalProxyData->AttributeIndices.Num());
 		
 		SetSRVParameter(RHICmdList, ComputeShaderRHI, PerAttributeDataParam, ProxyData->PerAttributeData.SRV);
 
@@ -281,8 +285,7 @@ public:
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputGridParam.GetUAVIndex(), OutputGridUAV);
 		}
 	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
+void FNiagaraDataInterfaceParametersCS_Grid3DCollection::Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		if (OutputGridParam.IsBound())
 		{
@@ -290,28 +293,6 @@ public:
 			OutputGridParam.UnsetUAV(RHICmdList, ComputeShaderRHI);
 		}
 	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, NumAttributesParam);
-	LAYOUT_FIELD(FShaderParameter, NumNamedAttributesParam);
-	LAYOUT_FIELD(FShaderParameter, UnitToUVParam);
-	LAYOUT_FIELD(FShaderParameter, NumCellsParam);
-	LAYOUT_FIELD(FShaderParameter, NumTilesParam);
-	LAYOUT_FIELD(FShaderParameter, OneOverNumTilesParam);
-	LAYOUT_FIELD(FShaderParameter, UnitClampMinParam);
-	LAYOUT_FIELD(FShaderParameter, UnitClampMaxParam);
-	LAYOUT_FIELD(FShaderParameter, CellSizeParam);
-	LAYOUT_FIELD(FShaderParameter, WorldBBoxSizeParam);
-
-	LAYOUT_FIELD(FShaderResourceParameter, GridParam);
-	LAYOUT_FIELD(FRWShaderParameter, OutputGridParam);
-	LAYOUT_FIELD(FShaderParameter, AttributeIndicesParam);
-	LAYOUT_FIELD(FShaderResourceParameter, PerAttributeDataParam);
-
-	LAYOUT_FIELD(FShaderResourceParameter, SamplerParam);
-	LAYOUT_FIELD(TMemoryImageArray<FName>, AttributeNames);
-	LAYOUT_FIELD(TMemoryImageArray<uint32>, AttributeChannelCount);
-};
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_Grid3DCollection);
 
@@ -1059,11 +1040,21 @@ void UNiagaraDataInterfaceGrid3DCollection::GetNumCells(FVectorVMExternalFunctio
 	FNDIOutputParam<int32> NumCellsY(Context);
 	FNDIOutputParam<int32> NumCellsZ(Context);
 
+	int32 TmpNumCellsX = InstData->NumCells.X;
+	int32 TmpNumCellsY = InstData->NumCells.Y;
+	int32 TmpNumCellsZ = InstData->NumCells.Z;
+	if (InstData->OtherInstanceData != nullptr)
+	{
+		TmpNumCellsX = InstData->OtherInstanceData->NumCells.X;
+		TmpNumCellsY = InstData->OtherInstanceData->NumCells.Y;
+		TmpNumCellsZ = InstData->OtherInstanceData->NumCells.Z;
+	}
+
 	for (int32 InstanceIdx = 0; InstanceIdx < Context.GetNumInstances(); ++InstanceIdx)
 	{
-		NumCellsX.SetAndAdvance(InstData->NumCells.X);
-		NumCellsY.SetAndAdvance(InstData->NumCells.Y);
-		NumCellsZ.SetAndAdvance(InstData->NumCells.Z);
+		NumCellsX.SetAndAdvance(TmpNumCellsX);
+		NumCellsY.SetAndAdvance(TmpNumCellsY);
+		NumCellsZ.SetAndAdvance(TmpNumCellsZ);
 	}
 }
 
@@ -2820,7 +2811,17 @@ FIntVector FNiagaraDataInterfaceProxyGrid3DCollectionProxy::GetElementCount(FNia
 {
 	if ( const FGrid3DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(SystemInstanceID) )
 	{
-		return ProxyData->NumCells;
+		// support a grid reader acting as an iteration source
+		if (ProxyData->OtherProxy != nullptr)
+		{
+			FNiagaraDataInterfaceProxyGrid3DCollectionProxy *OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(ProxyData->OtherProxy);
+			const FGrid3DCollectionRWInstanceData_RenderThread* OtherProxyData = OtherGrid3DProxy->SystemInstancesToProxyData_RT.Find(SystemInstanceID);
+			return OtherProxyData->NumCells;
+		}
+		else
+		{
+			return ProxyData->NumCells;
+		}
 	}
 	return FIntVector::ZeroValue;
 }
