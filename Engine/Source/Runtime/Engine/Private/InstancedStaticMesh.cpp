@@ -1636,7 +1636,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		{
 			//#dxr_todo: so far we use the parent static mesh path to get material data
 			FMeshBatch MeshBatch;
-			FStaticMeshSceneProxy::GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
+			GetMeshElement(LOD, 0, SectionIdx, 0, false, false, MeshBatch);
 
 			RayTracingInstanceTemplate.Materials.Add(MeshBatch);
 		}
