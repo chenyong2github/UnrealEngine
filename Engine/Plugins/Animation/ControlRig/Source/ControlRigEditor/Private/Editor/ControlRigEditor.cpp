@@ -844,6 +844,8 @@ void FControlRigEditor::SetEventQueue(EControlRigEditorEventQueue InEventQueue)
 
 	LastEventQueue = GetEventQueue();
 
+	SetHaltedNode(nullptr);
+
 	if (ControlRig)
 	{
 		TArray<FName> EventNames;
@@ -5924,11 +5926,7 @@ void FControlRigEditor::HandleBreakpointActionRequested(const ERigVMBreakpointAc
 
 bool FControlRigEditor::IsHaltedAtBreakpoint() const
 {
-	if (ControlRig && ControlRig->GetVM())
-	{
-		return ControlRig->GetVM()->GetHaltedAtBreakpoint() != nullptr;
-	}
-	return false;
+	return HaltedAtNode != nullptr;
 }
 
 void FControlRigEditor::UpdateCapsules()
