@@ -2,6 +2,7 @@
 
 #include "Serialization/CompactBinaryValidation.h"
 
+#include "Compression/CompressedBuffer.h"
 #include "IO/IoHash.h"
 #include "Misc/ByteSwap.h"
 #include "Serialization/CompactBinary.h"
@@ -409,66 +410,122 @@ static FCbFieldView ValidateCbPackageField(FMemoryView& View, ECbValidateMode Mo
 
 static FIoHash ValidateCbPackageAttachment(FCbFieldView& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	const FMemoryView ValueView = Value.AsBinaryView();
-	if (Value.HasError() && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+	if (const FCbObjectView ObjectView = Value.AsObjectView(); !Value.HasError())
+	{
+		return FCbObject().GetHash();
+	}
+	else if (const FIoHash ObjectAttachmentHash = Value.AsObjectAttachment(); !Value.HasError())
+	{
+		if (FCbFieldView ObjectField = ValidateCbPackageField(View, Mode, Error))
+		{
+			const FCbObjectView InnerObjectView = ObjectField.AsObjectView();
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package) && ObjectField.HasError())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageFormat);
+			}
+			else if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash) && (ObjectAttachmentHash != InnerObjectView.GetHash()))
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+			return ObjectAttachmentHash;
+		}
+	}
+	else if (const FIoHash BinaryAttachmentHash = Value.AsBinaryAttachment(); !Value.HasError())
+	{
+		if (FCbFieldView BinaryField = ValidateCbPackageField(View, Mode, Error))
+		{
+			const FMemoryView BinaryView = BinaryField.AsBinaryView();
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package) && BinaryField.HasError())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageFormat);
+			}
+			else
+			{
+				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package) && BinaryView.IsEmpty())
+				{
+					AddError(Error, ECbValidateError::NullPackageAttachment);
+				}
+				if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash) && (BinaryAttachmentHash != FIoHash::HashBuffer(BinaryView)))
+				{
+					AddError(Error, ECbValidateError::InvalidPackageHash);
+				}
+			}
+			return BinaryAttachmentHash;
+		}
+	}
+	else if (const FMemoryView BinaryView = Value.AsBinaryView(); !Value.HasError())
+	{
+		if (BinaryView.GetSize() > 0)
+		{
+			FCompressedBuffer Buffer = FCompressedBuffer::FromCompressed(FSharedBuffer::MakeView(BinaryView));
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package) && Buffer.IsNull())
+			{
+				AddError(Error, ECbValidateError::NullPackageAttachment);
+			}
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash) && (Buffer.GetRawHash() != FIoHash::HashBuffer(Buffer.DecompressToComposite())))
+			{
+				AddError(Error, ECbValidateError::InvalidPackageHash);
+			}
+			return Buffer.GetRawHash();
+		}
+		else
+		{
+			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+			{
+				AddError(Error, ECbValidateError::NullPackageAttachment);
+			}
+			return FIoHash::HashBuffer(FMemoryView());
+		}
+	}
+	else
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			AddError(Error, ECbValidateError::InvalidPackageFormat);
 		}
 	}
-	else if (ValueView.GetSize())
-	{
-		if (FCbFieldView HashField = ValidateCbPackageField(View, Mode, Error))
-		{
-			const FIoHash Hash = HashField.AsAttachment();
-			if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
-			{
-				if (HashField.HasError())
-				{
-					AddError(Error, ECbValidateError::InvalidPackageFormat);
-				}
-				else if (Hash != FIoHash::HashBuffer(ValueView))
-				{
-					AddError(Error, ECbValidateError::InvalidPackageHash);
-				}
-			}
-			return Hash;
-		}
-	}
+
 	return FIoHash();
 }
 
 static FIoHash ValidateCbPackageObject(FCbFieldView& Value, FMemoryView& View, ECbValidateMode Mode, ECbValidateError& Error)
 {
-	FCbObjectView Object = Value.AsObjectView();
-	if (Value.HasError())
+	if (FIoHash RootObjectHash = Value.AsHash(); !Value.HasError() && !Value.IsAttachment())
+	{
+		FCbFieldView RootObjectField = ValidateCbPackageField(View, Mode, Error);
+
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			if (RootObjectField.HasError())
+			{
+				AddError(Error, ECbValidateError::InvalidPackageFormat);
+			}
+		}
+
+		const FCbObjectView RootObjectView = RootObjectField.AsObjectView();
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+		{
+			if (!RootObjectView)
+			{
+				AddError(Error, ECbValidateError::NullPackageObject);
+			}
+		}
+
+		if (EnumHasAnyFlags(Mode, ECbValidateMode::PackageHash) && (RootObjectHash != RootObjectView.GetHash()))
+		{
+			AddError(Error, ECbValidateError::InvalidPackageHash);
+		}
+
+		return RootObjectHash;
+	}
+	else
 	{
 		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 		{
 			AddError(Error, ECbValidateError::InvalidPackageFormat);
 		}
 	}
-	else if (FCbFieldView HashField = ValidateCbPackageField(View, Mode, Error))
-	{
-		const FIoHash Hash = HashField.AsAttachment();
-		if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
-		{
-			if (!Object)
-			{
-				AddError(Error, ECbValidateError::NullPackageObject);
-			}
-			if (HashField.HasError())
-			{
-				AddError(Error, ECbValidateError::InvalidPackageFormat);
-			}
-			else if (Hash != Value.GetHash())
-			{
-				AddError(Error, ECbValidateError::InvalidPackageHash);
-			}
-		}
-		return Hash;
-	}
+
 	return FIoHash();
 }
 
@@ -525,24 +582,20 @@ ECbValidateError ValidateCompactBinaryPackage(FMemoryView View, ECbValidateMode 
 		uint32 ObjectCount = 0;
 		while (FCbFieldView Value = ValidateCbPackageField(View, Mode, Error))
 		{
-			if (Value.IsBinary())
-			{
-				const FIoHash Hash = ValidateCbPackageAttachment(Value, View, Mode, Error);
-				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
-				{
-					Attachments.Add(Hash);
-					if (Value.AsBinaryView().IsEmpty())
-					{
-						AddError(Error, ECbValidateError::NullPackageAttachment);
-					}
-				}
-			}
-			else if (Value.IsObject())
+			if (Value.IsHash() && !Value.IsAttachment())
 			{
 				ValidateCbPackageObject(Value, View, Mode, Error);
 				if (++ObjectCount > 1 && EnumHasAnyFlags(Mode, ECbValidateMode::Package))
 				{
 					AddError(Error, ECbValidateError::MultiplePackageObjects);
+				}
+			}
+			else if (Value.IsBinary() || Value.IsAttachment() || Value.IsObject())
+			{
+				const FIoHash Hash = ValidateCbPackageAttachment(Value, View, Mode, Error);
+				if (EnumHasAnyFlags(Mode, ECbValidateMode::Package))
+				{
+					Attachments.Add(Hash);
 				}
 			}
 			else if (Value.IsNull())

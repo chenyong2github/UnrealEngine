@@ -52,12 +52,17 @@ enum class ECbValidateMode : uint32
 	Padding                 = 1 << 3,
 
 	/**
-	 * Validate that a package or attachment has the expected fields and matches its saved hashes.
+	 * Validate that a package or attachment has the expected fields.
 	 */
 	Package                 = 1 << 4,
 
+	/**
+	 * Validate that a package or attachment matches its saved hashes.
+	 */
+	PackageHash             = 1 << 5,
+
 	/** Perform all validation described above. */
-	All                     = Default | Names | Format | Padding | Package,
+	All                     = Default | Names | Format | Padding | Package | PackageHash,
 };
 
 ENUM_CLASS_FLAGS(ECbValidateMode);
