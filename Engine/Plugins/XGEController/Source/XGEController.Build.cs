@@ -9,9 +9,13 @@ public class XGEController : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"Core"
+			"Core",
+
+			// all these below are only to get access to GShaderCompilingManager
+			"Slate",
+			"RHI",
+			"RenderCore",
+			"Engine",
 		});
-		
-		PrivateIncludePathModuleNames.Add("Engine");
 	}
 }

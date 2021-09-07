@@ -16,7 +16,7 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 15;
+const int32 ShaderCompileWorkerInputVersion = 16;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 const int32 ShaderCompileWorkerOutputVersion = 7;
 // this is for the protocol, not the data.
@@ -482,6 +482,7 @@ enum class ESCWErrorCode
 	NoTargetShaderFormatsFound,
 	CantCompileForSpecificFormat,
 	CrashInsidePlatformCompiler,
+	BadInputFile
 };
 
 
