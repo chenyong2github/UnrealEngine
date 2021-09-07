@@ -163,7 +163,7 @@ UWorldPartitionHLODsBuilder::UWorldPartitionHLODsBuilder(const FObjectInitialize
 	BuildOptions = FParse::Param(FCommandLine::Get(), TEXT("SetupHLODs")) ? EHLODBuildStep::HLOD_Setup : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("BuildHLODs")) ? EHLODBuildStep::HLOD_Build : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DeleteHLODs")) ? EHLODBuildStep::HLOD_Delete : EHLODBuildStep::None;
-	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("SubmitHLODs")) ? EHLODBuildStep::HLOD_Submit : EHLODBuildStep::None;
+	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("FinalizeHLODs")) ? EHLODBuildStep::HLOD_Finalize : EHLODBuildStep::None;
 	BuildOptions |= FParse::Param(FCommandLine::Get(), TEXT("DumpStats")) ? EHLODBuildStep::HLOD_Stats : EHLODBuildStep::None;
 
 	// Default behavior without any option is to setup + build
@@ -251,9 +251,9 @@ bool UWorldPartitionHLODsBuilder::ValidateParams() const
 		}
 	}
 
-	if (ShouldRunStep(EHLODBuildStep::HLOD_Submit) && !ISourceControlModule::Get().GetProvider().IsEnabled())
+	if (ShouldRunStep(EHLODBuildStep::HLOD_Finalize) && bSubmit && !ISourceControlModule::Get().GetProvider().IsEnabled())
 	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Submit step requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
+		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Submit requires that a valid source control provider is enabled, exiting..."), *BuildManifest);
 		return false;
 	}
 
@@ -270,7 +270,7 @@ bool UWorldPartitionHLODsBuilder::PreWorldInitialization(FPackageSourceControlHe
 	bool bRet = true;
 
 	// When running a distributed build, retrieve relevant build products from the previous steps
-	if (IsDistributedBuild() && (ShouldRunStep(EHLODBuildStep::HLOD_Build) || ShouldRunStep(EHLODBuildStep::HLOD_Submit)))
+	if (IsDistributedBuild() && (ShouldRunStep(EHLODBuildStep::HLOD_Build) || ShouldRunStep(EHLODBuildStep::HLOD_Finalize)))
 	{
 		FString WorkingDirFolder = ShouldRunStep(EHLODBuildStep::HLOD_Build) ? GetHLODBuilderFolderName(BuilderIdx) : GetToSubmitFolderName();
 		bRet = CopyFilesFromWorkingDir(WorkingDirFolder);
@@ -303,7 +303,7 @@ bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FBox& Bounds,
 		bRet = DeleteHLODActors();
 	}
 
-	if (bRet && ShouldRunStep(EHLODBuildStep::HLOD_Submit))
+	if (bRet && ShouldRunStep(EHLODBuildStep::HLOD_Finalize) && bSubmit)
 	{
 		bRet = SubmitHLODActors();
 	}
@@ -316,9 +316,6 @@ bool UWorldPartitionHLODsBuilder::RunInternal(UWorld* World, const FBox& Bounds,
 	WorldPartition = nullptr;
 	delete SourceControlHelper;
 
-	// TODO: DDC shutdown crash workaround - Wait for any DDC writes to complete
-	GetDerivedDataCacheRef().WaitForQuiescence(true);
-	
 	return bRet;
 }
 
