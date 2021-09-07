@@ -166,6 +166,17 @@ export class Dashboard {
 
     }
 
+    get darktheme(): boolean {
+
+        return this.preferences.get(DashboardPreference.Darktheme) === 'true';
+
+    }
+
+    setDarkTheme(value: boolean | undefined) {
+        this.setPreference(DashboardPreference.Darktheme, value ? "true" : "false");
+        this.setUpdated();
+    }
+
     setDisplayUTC(value: boolean | undefined) {
         this.setPreference(DashboardPreference.DisplayUTC, value ? "true" : "false");
     }

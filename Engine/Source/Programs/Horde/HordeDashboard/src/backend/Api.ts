@@ -2677,6 +2677,7 @@ export type UserClaim = {
 }
 
 export enum DashboardPreference {
+	Darktheme = "Darktheme",
 	DisplayUTC = "DisplayUTC",
 	DisplayClock = "DisplayClock",
 	ColorSuccess = "ColorSuccess",
