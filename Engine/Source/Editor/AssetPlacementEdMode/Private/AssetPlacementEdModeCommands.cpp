@@ -22,7 +22,7 @@ void FAssetPlacementEdModeCommands::RegisterCommands()
 	ToolCommands.Add(LassoSelect);
 	UI_COMMAND(Place, "Paint", "Paint mutliple assets from the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Place);
-	UI_COMMAND(PlaceSingle, "Stamp", "Stamp a random asset from the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
+	UI_COMMAND(PlaceSingle, "Single", "Place a single, random asset from the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(PlaceSingle);
 	UI_COMMAND(Erase, "Erase", "Paint to erase assets matching the active palette.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ToolCommands.Add(Erase);
