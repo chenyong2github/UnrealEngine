@@ -25,7 +25,7 @@ static FAutoConsoleVariableRef CVarCommandListBatchingMode(
 	ECVF_RenderThreadSafe
 );
 
-int32 MaxCommandsPerCommandList = 10;
+int32 MaxCommandsPerCommandList = 10000;
 static FAutoConsoleVariableRef CVarMaxCommandsPerCommandList(
 	TEXT("D3D12.MaxCommandsPerCommandList"),
 	MaxCommandsPerCommandList,
@@ -429,7 +429,7 @@ void FD3D12CommandContext::ConditionalFlushCommandList()
 	// (can't flush when query is open!)
 	if (IsDefaultContext() && !bIsDoingQuery && MaxCommandsPerCommandList > 0 && GetTotalWorkCount() > (uint32)MaxCommandsPerCommandList)
 	{
-		//UE_LOG(LogD3D12RHI, Warning, TEXT("Force flushing command list to GPU because too many commands have been enqueued already (%d commands)"), GetTotalWorkCount());
+		UE_LOG(LogD3D12RHI, Warning, TEXT("Force flushing command list to GPU because too many commands have been enqueued already (%d commands)"), GetTotalWorkCount());
 		FlushCommands();
 	}
 }
