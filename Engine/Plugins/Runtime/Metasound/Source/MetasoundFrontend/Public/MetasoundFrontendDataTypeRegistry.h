@@ -13,10 +13,6 @@ namespace Metasound
 {
 	namespace Frontend
 	{
-		using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
-		using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-		using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-
 		/** FDataTypeRegsitryInfo contains runtime inspectable behavior of a registered
 		 * MetaSound data type.
 		 */
@@ -123,14 +119,26 @@ namespace Metasound
 			 */
 			virtual TSharedPtr<const IEnumDataTypeInterface> GetEnumInterface() const = 0;
 
-			/** Return an FMetasoundFrontenClass representing an input node of the data type. */
+			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendInputClass() const = 0;
 
-			/** Return an FMetasoundFrontenClass representing a variable node of the data type. */
-			virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const = 0;
+			/** Return an FMetasoundFrontendClass representing a variable node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendLiteralClass() const = 0;
 
-			/** Return an FMetasoundFrontenClass representing an output node of the data type. */
+			/** Return an FMetasoundFrontendClass representing an output node of the data type. */
 			virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendInitVariableClass() const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an set variable node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendSetVariableClass() const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an get variable node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendGetVariableClass() const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an get delayed variable node of the data type. */
+			virtual const FMetasoundFrontendClass& GetFrontendGetDelayedVariableClass() const = 0;
 
 			/** Create an input node */
 			virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&&) const = 0;
@@ -139,10 +147,25 @@ namespace Metasound
 			virtual TUniquePtr<INode> CreateOutputNode(FOutputNodeConstructorParams&&) const = 0;
 			
 			/** Create a variable node */
-			virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&&) const = 0;
+			virtual TUniquePtr<INode> CreateLiteralNode(FLiteralNodeConstructorParams&&) const = 0;
 
-			/** Create a receive node */
+			/** Create a receive node for this data type. */
 			virtual TUniquePtr<INode> CreateReceiveNode(const FNodeInitData&) const = 0;
+
+			/** Create a init variable node for this data type. 
+			 *
+			 *  @param InInitParams - Contains a literal used to create the variable.
+			 */
+			virtual TUniquePtr<INode> CreateInitVariableNode(FInitVariableNodeConstructorParams&& InInitParams) const = 0;
+
+			/** Create a set variable node for this data type. */
+			virtual TUniquePtr<INode> CreateSetVariableNode(const FNodeInitData&) const = 0;
+
+			/** Create a get variable node for this data type. */
+			virtual TUniquePtr<INode> CreateGetVariableNode(const FNodeInitData&) const = 0;
+
+			/** Create a get delayed variable node for this data type. */
+			virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FNodeInitData&) const = 0;
 
 			/** Create a proxy from a UObject. If this data type does not support
 			 * UObject proxies, return a nullptr. */
@@ -195,20 +218,36 @@ namespace Metasound
 
 			virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const = 0;
 
-			/** Return an FMetasoundFrontenClass representing an input node of the data type. */
+			/** Return an FMetasoundFrontendClass representing an input node of the data type. */
 			virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
-			/** Return an FMetasoundFrontenClass representing a variable node of the data type. */
-			virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+			/** Return an FMetasoundFrontendClass representing a variable node of the data type. */
+			virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
-			/** Return an FMetasoundFrontenClass representing an output node of the data type. */
+			/** Return an FMetasoundFrontendClass representing an output node of the data type. */
 			virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
 
-			// Create a new instance of a C++ implemented node 
+			/** Return an FMetasoundFrontendClass representing an init variable node of the data type. */
+			virtual bool GetFrontendInitVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an set variable node of the data type. */
+			virtual bool GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an get variable node of the data type. */
+			virtual bool GetFrontendGetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
+			/** Return an FMetasoundFrontendClass representing an get delayed variable node of the data type. */
+			virtual bool GetFrontendGetDelayedVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const = 0;
+
+			// Create a new instance of a C++ implemented node from the registry.
 			virtual TUniquePtr<INode> CreateInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const = 0;
-			virtual TUniquePtr<INode> CreateVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateLiteralNode(const FName& InLiteralType, FLiteralNodeConstructorParams&& InParams) const = 0;
 			virtual TUniquePtr<INode> CreateOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const = 0;
-			virtual TUniquePtr<INode> CreateReceiveNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateReceiveNode(const FName& InDataType, const FNodeInitData&) const = 0;
+			virtual TUniquePtr<INode> CreateInitVariableNode(const FName& InDataType, FInitVariableNodeConstructorParams&& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateSetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateGetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
+			virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FName& InDataType, const FNodeInitData& InParams) const = 0;
 		};
 	}
 }

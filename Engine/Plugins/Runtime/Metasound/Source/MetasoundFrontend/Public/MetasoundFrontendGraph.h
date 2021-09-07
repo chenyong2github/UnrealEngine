@@ -115,20 +115,20 @@ namespace Metasound
 		static TUniquePtr<FFrontendGraph> CreateGraph(const FMetasoundFrontendGraphClass& InGraphClass, const TArray<FMetasoundFrontendGraphClass>& InSubgraphs, const TArray<FMetasoundFrontendClass>& InDependencies);
 
 	private:
-		struct FDefaultVariableData
+		struct FDefaultLiteralData
 		{
 			FGuid DestinationNodeID;
 			FGuid DestinationVertexID;
 			FVertexKey DestinationVertexKey;
 			FName TypeName;
-			FVariableNodeConstructorParams InitParams;
+			FLiteralNodeConstructorParams InitParams;
 		};
 
 		// Map of Input VertexID to variable data required to construct and connect default variable
 		using FNodeIDVertexID = TTuple<FGuid, FGuid>;
 		using FDependencyByIDMap = TMap<FGuid, const FMetasoundFrontendClass*>;
 		using FSharedNodeByIDMap = TMap<FGuid, TSharedPtr<const INode>>;
-		using FDefaultInputByIDMap = TMap<FNodeIDVertexID, FDefaultVariableData>;
+		using FDefaultInputByIDMap = TMap<FNodeIDVertexID, FDefaultLiteralData>;
 
 		// Context used throughout entire graph build process
 		// (for both a root and nested subgraphs)
@@ -148,7 +148,7 @@ namespace Metasound
 			FDefaultInputByIDMap DefaultInputs;
 		};
 
-		static TArray<FDefaultVariableData> GetInputDefaultVariableData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData);
+		static TArray<FDefaultLiteralData> GetInputDefaultLiteralData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData);
 
 		static bool SortSubgraphDependencies(TArray<const FMetasoundFrontendGraphClass*>& Subgraphs);
 
@@ -165,6 +165,6 @@ namespace Metasound
 		// TODO: add errors here. Most will be a "PromptIfMissing"...
 		static void AddNodesToGraph(FBuildGraphContext& InGraphContext);
 		static void AddEdgesToGraph(FBuildGraphContext& InGraphContext);
-		static void AddDefaultInputVariables(FBuildGraphContext& InGraphContext);
+		static void AddDefaultInputLiterals(FBuildGraphContext& InGraphContext);
 	};
 }

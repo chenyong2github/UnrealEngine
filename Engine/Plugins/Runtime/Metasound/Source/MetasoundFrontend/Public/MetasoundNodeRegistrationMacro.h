@@ -57,20 +57,26 @@ namespace Metasound
 				return ClassInfo;
 			}
 
-			virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
+			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
 			{
-				return nullptr;
+				return MakeUnique<FNodeType>(InParams);
 			}
-		
+
 			virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
 			{
 				return nullptr;
 			}
 
-			virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+			virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&& InParams) const override
 			{
-				return MakeUnique<FNodeType>(InParams);
+				return nullptr;
 			}
+		
+			virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
+			{
+				return nullptr;
+			}
+
 
 			virtual const FMetasoundFrontendClass& GetFrontendClass() const override
 			{

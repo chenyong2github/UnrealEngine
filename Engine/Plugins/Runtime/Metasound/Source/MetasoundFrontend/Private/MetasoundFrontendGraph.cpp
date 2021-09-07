@@ -10,6 +10,7 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundGraph.h"
+#include "MetasoundLiteralNode.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeInterface.h"
 
@@ -222,8 +223,8 @@ namespace Metasound
 
 			{
 				const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
-				TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
-				for (FDefaultVariableData& Data : DefaultVariableData)
+				TArray<FDefaultLiteralData> DefaultLiteralData = GetInputDefaultLiteralData(InNode, InitData);
+				for (FDefaultLiteralData& Data : DefaultLiteralData)
 				{
 					InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
 				}
@@ -241,8 +242,8 @@ namespace Metasound
 
 		const FNodeInitData InitData = FrontendGraphPrivate::CreateNodeInitData(InNode);
 		{
-			TArray<FDefaultVariableData> DefaultVariableData = GetInputDefaultVariableData(InNode, InitData);
-			for (FDefaultVariableData& Data : DefaultVariableData)
+			TArray<FDefaultLiteralData> DefaultLiteralData = GetInputDefaultLiteralData(InNode, InitData);
+			for (FDefaultLiteralData& Data : DefaultLiteralData)
 			{
 				InGraphContext.DefaultInputs.Emplace(FNodeIDVertexID { InNode.ID, Data.DestinationVertexID }, MoveTemp(Data));
 			}
@@ -524,7 +525,7 @@ namespace Metasound
 		}
 	}
 
-	void FFrontendGraphBuilder::AddDefaultInputVariables(FBuildGraphContext& InGraphContext)
+	void FFrontendGraphBuilder::AddDefaultInputLiterals(FBuildGraphContext& InGraphContext)
 	{
 		using namespace Metasound::Frontend;
 
@@ -532,29 +533,29 @@ namespace Metasound
 
 		for (FDefaultInputByIDMap::ElementType& Pair : InGraphContext.DefaultInputs)
 		{
-			FDefaultVariableData& VariableData = Pair.Value;
-			const FGuid VariableNodeID = FGuid::NewGuid();
+			FDefaultLiteralData& LiteralData = Pair.Value;
+			const FGuid LiteralNodeID = FGuid::NewGuid();
 
 			// 1. Construct and add the default variable to the graph
 			{
-				TUniquePtr<const INode> DefaultVariable = IDataTypeRegistry::Get().CreateVariableNode(VariableData.TypeName, MoveTemp(VariableData.InitParams));
-				InGraphContext.Graph->AddNode(VariableNodeID, TSharedPtr<const INode>(DefaultVariable.Release()));
+				TUniquePtr<const INode> DefaultLiteral = IDataTypeRegistry::Get().CreateLiteralNode(LiteralData.TypeName, MoveTemp(LiteralData.InitParams));
+				InGraphContext.Graph->AddNode(LiteralNodeID, TSharedPtr<const INode>(DefaultLiteral.Release()));
 			}
 
 			// 2. Connect the default variable to the expected input
-			const INode* FromNode = InGraphContext.Graph->FindNode(VariableNodeID);
+			const INode* FromNode = InGraphContext.Graph->FindNode(LiteralNodeID);
 			if (!ensure(FromNode))
 			{
 				continue;
 			}
-			const FVertexKey& FromVertexKey = VariableData.InitParams.VertexName;
+			const FVertexKey& FromVertexKey = LiteralNodeNames::GetOutputDataName();
 
-			const INode* ToNode = InGraphContext.Graph->FindNode(VariableData.DestinationNodeID);
+			const INode* ToNode = InGraphContext.Graph->FindNode(LiteralData.DestinationNodeID);
 			if (!ensure(ToNode))
 			{
 				continue;
 			}
-			const FVertexKey& ToVertexKey = VariableData.DestinationVertexKey;
+			const FVertexKey& ToVertexKey = LiteralData.DestinationVertexKey;
 
 			bool bSuccess = InGraphContext.Graph->AddDataEdge(*FromNode, FromVertexKey, *ToNode, ToVertexKey);
 			if (!bSuccess)
@@ -567,14 +568,14 @@ namespace Metasound
 		InGraphContext.DefaultInputs.Reset();
 	}
 
-	TArray<FFrontendGraphBuilder::FDefaultVariableData> FFrontendGraphBuilder::GetInputDefaultVariableData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData)
+	TArray<FFrontendGraphBuilder::FDefaultLiteralData> FFrontendGraphBuilder::GetInputDefaultLiteralData(const FMetasoundFrontendNode& InNode, const FNodeInitData& InInitData)
 	{
-		TArray<FDefaultVariableData> DefaultVariableData;
+		TArray<FDefaultLiteralData> DefaultLiteralData;
 
 		TArray<FMetasoundFrontendVertex> InputVertices = InNode.Interface.Inputs;
 		for (const FMetasoundFrontendVertexLiteral& Literal : InNode.InputLiterals)
 		{
-			FVariableNodeConstructorParams InitParams;
+			FLiteralNodeConstructorParams InitParams;
 			FName TypeName;
 
 			FGuid VertexID = Literal.VertexID;
@@ -583,10 +584,9 @@ namespace Metasound
 			{
 				if (Vertex.VertexID == VertexID)
 				{
-					InitParams.InitParam = Literal.Value.ToLiteral(Vertex.TypeName);
+					InitParams.Literal = Literal.Value.ToLiteral(Vertex.TypeName);
 					InitParams.InstanceID = FGuid::NewGuid();
 					InitParams.NodeName = InInitData.InstanceName + Vertex.Name + InitParams.InstanceID.ToString();
-					InitParams.VertexName = InitParams.NodeName;
 					TypeName = Vertex.TypeName;
 
 					DestinationVertexKey = Vertex.Name;
@@ -600,7 +600,7 @@ namespace Metasound
 			const bool bRemoved = InputVertices.RemoveAllSwap(RemoveAndBuildParams, false /* bAllowShrinking */) > 0;
 			if (ensure(bRemoved))
 			{
-				DefaultVariableData.Emplace(FDefaultVariableData
+				DefaultLiteralData.Emplace(FDefaultLiteralData
 				{
 					InNode.ID,
 					VertexID,
@@ -611,7 +611,7 @@ namespace Metasound
 			}
 		}
 
-		return DefaultVariableData;
+		return DefaultLiteralData;
 	}
 
 	/** Check that all dependencies are C++ class dependencies. */
@@ -719,7 +719,7 @@ namespace Metasound
 		// a datatype or node is not registered.
 		AddNodesToGraph(BuildGraphContext);
 		AddEdgesToGraph(BuildGraphContext);
-		AddDefaultInputVariables(BuildGraphContext);
+		AddDefaultInputLiterals(BuildGraphContext);
 
 		check(BuildGraphContext.Graph->OwnsAllReferencedNodes());
 		return MoveTemp(BuildGraphContext.Graph);

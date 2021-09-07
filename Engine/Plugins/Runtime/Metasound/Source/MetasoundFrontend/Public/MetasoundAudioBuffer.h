@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "DSP/BufferVectorOperations.h"
 #include "MetasoundGraphCoreModule.h"
-#include "MetasoundDataReference.h"
+#include "MetasoundDataReferenceMacro.h"
 #include "MetasoundLog.h"
 
 /** Define which determines whether to check that the size of the audio buffer has not changed since initialization */

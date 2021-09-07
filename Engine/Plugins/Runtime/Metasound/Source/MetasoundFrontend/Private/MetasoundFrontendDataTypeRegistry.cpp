@@ -107,8 +107,65 @@ namespace Metasound
 				}
 			}
 
+			// Base class for INodeRegistryEntrys that come from an IDataTypeRegistryEntry
+			class FDataTypeNodeRegistryEntry : public INodeRegistryEntry
+			{
+			public:
+				FDataTypeNodeRegistryEntry() = default;
+
+				virtual ~FDataTypeNodeRegistryEntry() = default;
+
+				virtual const FNodeClassInfo& GetClassInfo() const override
+				{
+					return ClassInfo;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&&) const override
+				{
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
+				{
+					return nullptr;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
+				{
+					return FrontendClass;
+				}
+
+				virtual bool IsNative() const override
+				{
+					return true;
+				}
+
+			protected:
+
+				void SetFrontendClass(const FMetasoundFrontendClass& InClass)
+				{
+					FrontendClass = InClass;
+					ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
+				}
+
+			private:
+				
+				FNodeClassInfo ClassInfo;
+				FMetasoundFrontendClass FrontendClass;
+			};
+
 			// Node registry entry for input nodes created from a data type registry entry.
-			class FInputNodeRegistryEntry : public INodeRegistryEntry
+			class FInputNodeRegistryEntry : public FDataTypeNodeRegistryEntry
 			{
 			public:
 				FInputNodeRegistryEntry() = delete;
@@ -118,40 +175,19 @@ namespace Metasound
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						FrontendClass = DataTypeEntry->GetFrontendInputClass();
-						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
+						SetFrontendClass(DataTypeEntry->GetFrontendInputClass());
 					}
 				}
 
 				virtual ~FInputNodeRegistryEntry() = default;
 
-				virtual const FNodeClassInfo& GetClassInfo() const override
-				{
-					return ClassInfo;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&&) const override
-				{
-					return nullptr;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&& InParams) const override
 				{
 					if (DataTypeEntry.IsValid())
 					{
 						return DataTypeEntry->CreateInputNode(MoveTemp(InParams));
 					}
 					return nullptr;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
-				{
-					return nullptr;
-				}
-
-				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
-				{
-					return FrontendClass;
 				}
 
 				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
@@ -163,20 +199,13 @@ namespace Metasound
 					return MakeUnique<FInputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
 				}
 
-				virtual bool IsNative() const override
-				{
-					return true;
-				}
-
 			private:
 				
 				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
-				FNodeClassInfo ClassInfo;
-				FMetasoundFrontendClass FrontendClass;
 			};
 
 			// Node registry entry for output nodes created from a data type registry entry.
-			class FOutputNodeRegistryEntry : public INodeRegistryEntry
+			class FOutputNodeRegistryEntry : public FDataTypeNodeRegistryEntry
 			{
 			public:
 				FOutputNodeRegistryEntry() = delete;
@@ -186,40 +215,19 @@ namespace Metasound
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						FrontendClass = DataTypeEntry->GetFrontendOutputClass();
-						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
+						SetFrontendClass(DataTypeEntry->GetFrontendOutputClass());
 					}
 				}
 
 				virtual ~FOutputNodeRegistryEntry() = default;
 
-				virtual const FNodeClassInfo& GetClassInfo() const override
-				{
-					return ClassInfo;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
+				virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&& InParams) const override
 				{
 					if (DataTypeEntry.IsValid())
 					{
 						return DataTypeEntry->CreateOutputNode(MoveTemp(InParams));
 					}
 					return nullptr;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
-				{
-					return nullptr;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
-				{
-					return nullptr;
-				}
-
-				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
-				{
-					return FrontendClass;
 				}
 
 				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
@@ -231,84 +239,210 @@ namespace Metasound
 					return MakeUnique<FOutputNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
 				}
 
-				virtual bool IsNative() const override
-				{
-					return true;
-				}
-
 			private:
 				
 				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
-				FNodeClassInfo ClassInfo;
-				FMetasoundFrontendClass FrontendClass;
 			};
 
-			// Node registry entry for variable nodes created from a data type registry entry.
-			class FVariableNodeRegistryEntry : public INodeRegistryEntry
+			// Node registry entry for literal nodes created from a data type registry entry.
+			class FLiteralNodeRegistryEntry : public FDataTypeNodeRegistryEntry
 			{
 			public:
-				FVariableNodeRegistryEntry() = delete;
+				FLiteralNodeRegistryEntry() = delete;
 
-				FVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				FLiteralNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
 				: DataTypeEntry(MoveTemp(InDataTypeEntry))
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						FrontendClass = DataTypeEntry->GetFrontendVariableClass();
-						ClassInfo = FNodeClassInfo(FrontendClass.Metadata);
+						SetFrontendClass(DataTypeEntry->GetFrontendLiteralClass());
 					}
 				}
 
-				virtual ~FVariableNodeRegistryEntry() = default;
-
-				virtual const FNodeClassInfo& GetClassInfo() const override
-				{
-					return ClassInfo;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&& InParams) const override
-				{
-					return nullptr;
-				}
+				virtual ~FLiteralNodeRegistryEntry() = default;
 
 				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						return DataTypeEntry->CreateVariableNode(MoveTemp(InParams));
+						return DataTypeEntry->CreateLiteralNode(MoveTemp(InParams));
 					}
 					return nullptr;
-				}
-
-				virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
-				{
-					return nullptr;
-				}
-
-				virtual const FMetasoundFrontendClass& GetFrontendClass() const override
-				{
-					return FrontendClass;
 				}
 
 				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
 				{
 					if (DataTypeEntry.IsValid())
 					{
-						return MakeUnique<FVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+						return MakeUnique<FLiteralNodeRegistryEntry>(DataTypeEntry->Clone());
 					}
-					return MakeUnique<FVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
-				}
-
-				virtual bool IsNative() const override
-				{
-					return true;
+					return MakeUnique<FLiteralNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
 				}
 
 			private:
 				
 				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
-				FNodeClassInfo ClassInfo;
-				FMetasoundFrontendClass FrontendClass;
+			};
+
+
+			// Node registry entry for init variable nodes created from a data type registry entry.
+			class FInitVariableNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FInitVariableNodeRegistryEntry() = delete;
+
+				FInitVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						SetFrontendClass(DataTypeEntry->GetFrontendInitVariableClass());
+					}
+				}
+
+				virtual ~FInitVariableNodeRegistryEntry() = default;
+
+				virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateInitVariableNode(MoveTemp(InParams));
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FInitVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FInitVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+			};
+
+			// Node registry entry for set variable nodes created from a data type registry entry.
+			class FSetVariableNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FSetVariableNodeRegistryEntry() = delete;
+
+				FSetVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						SetFrontendClass(DataTypeEntry->GetFrontendSetVariableClass());
+					}
+				}
+
+				virtual ~FSetVariableNodeRegistryEntry() = default;
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateSetVariableNode(InParams);
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FSetVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FSetVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+			};
+
+			// Node registry entry for get variable nodes created from a data type registry entry.
+			class FGetVariableNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FGetVariableNodeRegistryEntry() = delete;
+
+				FGetVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						SetFrontendClass(DataTypeEntry->GetFrontendGetVariableClass());
+					}
+				}
+
+				virtual ~FGetVariableNodeRegistryEntry() = default;
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateGetVariableNode(InParams);
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FGetVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FGetVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
+			};
+
+			// Node registry entry for get delayed variable nodes created from a data type registry entry.
+			class FGetDelayedVariableNodeRegistryEntry : public FDataTypeNodeRegistryEntry
+			{
+			public:
+				FGetDelayedVariableNodeRegistryEntry() = delete;
+
+				FGetDelayedVariableNodeRegistryEntry(TUniquePtr<IDataTypeRegistryEntry>&& InDataTypeEntry)
+				: DataTypeEntry(MoveTemp(InDataTypeEntry))
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						SetFrontendClass(DataTypeEntry->GetFrontendGetDelayedVariableClass());
+					}
+				}
+
+				virtual ~FGetDelayedVariableNodeRegistryEntry() = default;
+
+				virtual TUniquePtr<INode> CreateNode(const FNodeInitData& InParams) const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return DataTypeEntry->CreateGetDelayedVariableNode(InParams);
+					}
+					return nullptr;
+				}
+
+				virtual TUniquePtr<INodeRegistryEntry> Clone() const override
+				{
+					if (DataTypeEntry.IsValid())
+					{
+						return MakeUnique<FGetDelayedVariableNodeRegistryEntry>(DataTypeEntry->Clone());
+					}
+					return MakeUnique<FGetDelayedVariableNodeRegistryEntry>(TUniquePtr<IDataTypeRegistryEntry>());
+				}
+
+			private:
+				
+				TUniquePtr<IDataTypeRegistryEntry> DataTypeEntry;
 			};
 
 			class FDataTypeRegistry : public IDataTypeRegistry
@@ -350,16 +484,22 @@ namespace Metasound
 				virtual TSharedPtr<IDataChannel, ESPMode::ThreadSafe> CreateDataChannel(const FName& InDataType, const FOperatorSettings& InOperatorSettings) const override;
 
 				virtual bool GetFrontendInputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
-
-				virtual bool GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
-
+				virtual bool GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 				virtual bool GetFrontendOutputClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendInitVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendGetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
+				virtual bool GetFrontendGetDelayedVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const override;
 
 				// Create a new instance of a C++ implemented node from the registry.
 				virtual TUniquePtr<INode> CreateInputNode(const FName& InInputType, FInputNodeConstructorParams&& InParams) const override;
-				virtual TUniquePtr<INode> CreateVariableNode(const FName& InVariableType, FVariableNodeConstructorParams&& InParams) const override;
+				virtual TUniquePtr<INode> CreateLiteralNode(const FName& InLiteralType, FLiteralNodeConstructorParams&& InParams) const override;
 				virtual TUniquePtr<INode> CreateOutputNode(const FName& InOutputType, FOutputNodeConstructorParams&& InParams) const override;
-				virtual TUniquePtr<INode> CreateReceiveNode(const FName& InDataType, const FNodeInitData& InParams) const override;
+				virtual TUniquePtr<INode> CreateReceiveNode(const FName& InOutputType, const FNodeInitData& InParams) const override;
+				virtual TUniquePtr<INode> CreateInitVariableNode(const FName& InDataType, FInitVariableNodeConstructorParams&&) const override;
+				virtual TUniquePtr<INode> CreateSetVariableNode(const FName& InDataType, const FNodeInitData&) const override;
+				virtual TUniquePtr<INode> CreateGetVariableNode(const FName& InDataType, const FNodeInitData&) const override;
+				virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FName& InDataType, const FNodeInitData&) const override;
 
 			private:
 
@@ -391,7 +531,11 @@ namespace Metasound
 					{
 						NodeRegistry->RegisterNode(MakeUnique<FInputNodeRegistryEntry>(InEntry->Clone()));
 						NodeRegistry->RegisterNode(MakeUnique<FOutputNodeRegistryEntry>(InEntry->Clone()));
-						NodeRegistry->RegisterNode(MakeUnique<FVariableNodeRegistryEntry>(InEntry->Clone()));
+						NodeRegistry->RegisterNode(MakeUnique<FLiteralNodeRegistryEntry>(InEntry->Clone()));
+						//NodeRegistry->RegisterNode(MakeUnique<FInitVariableNodeRegistryEntry>(InEntry->Clone()));
+						//NodeRegistry->RegisterNode(MakeUnique<FSetVariableNodeRegistryEntry>(InEntry->Clone()));
+						//NodeRegistry->RegisterNode(MakeUnique<FGetVariableNodeRegistryEntry>(InEntry->Clone()));
+						//NodeRegistry->RegisterNode(MakeUnique<FGetDelayedVariableNodeRegistryEntry>(InEntry->Clone()));
 					}
 
 					const FDataTypeRegistryInfo& RegistryInfo = InEntry->GetDataTypeInfo();
@@ -564,7 +708,19 @@ namespace Metasound
 
 			FLiteral FDataTypeRegistry::CreateDefaultLiteral(const FName& InDataType) const
 			{
-				return FLiteral::GetDefaultForType(GetDesiredLiteralType(InDataType));
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					const FDataTypeRegistryInfo& Info = Entry->GetDataTypeInfo();
+					if (Info.bIsEnum)
+					{
+						if (TSharedPtr<const IEnumDataTypeInterface> EnumInterface = Entry->GetEnumInterface())
+						{
+							return FLiteral(EnumInterface->GetDefaultValue());
+						}
+					}
+					return FLiteral::GetDefaultForType(Info.PreferredLiteralType);
+				}
+				return FLiteral::CreateInvalid();
 			}
 
 			bool FDataTypeRegistry::IsUObjectProxyFactory(UObject* InObject) const
@@ -630,11 +786,11 @@ namespace Metasound
 				return false;
 			}
 
-			bool FDataTypeRegistry::GetFrontendVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			bool FDataTypeRegistry::GetFrontendLiteralClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					OutClass = Entry->GetFrontendVariableClass();
+					OutClass = Entry->GetFrontendLiteralClass();
 					return true;
 				}
 				return false;
@@ -650,6 +806,49 @@ namespace Metasound
 				return false;
 			}
 
+			bool FDataTypeRegistry::GetFrontendInitVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendInitVariableClass();
+					return true;
+				}
+				return false;
+			}
+
+			bool FDataTypeRegistry::GetFrontendSetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendSetVariableClass();
+					return true;
+				}
+				return false;
+			}
+
+			bool FDataTypeRegistry::GetFrontendGetVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendGetVariableClass();
+					return true;
+				}
+				return false;
+			}
+
+			bool FDataTypeRegistry::GetFrontendGetDelayedVariableClass(const FName& InDataType, FMetasoundFrontendClass& OutClass) const
+
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					OutClass = Entry->GetFrontendGetDelayedVariableClass();
+					return true;
+				}
+				return false;
+			}
+
 			TUniquePtr<INode> FDataTypeRegistry::CreateInputNode(const FName& InDataType, FInputNodeConstructorParams&& InParams) const
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
@@ -659,11 +858,11 @@ namespace Metasound
 				return nullptr;
 			}
 
-			TUniquePtr<INode> FDataTypeRegistry::CreateVariableNode(const FName& InDataType, FVariableNodeConstructorParams&& InParams) const
+			TUniquePtr<INode> FDataTypeRegistry::CreateLiteralNode(const FName& InDataType, FLiteralNodeConstructorParams&& InParams) const 
 			{
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
-					return Entry->CreateVariableNode(MoveTemp(InParams));
+					return Entry->CreateLiteralNode(MoveTemp(InParams));
 				}
 				return nullptr;
 			}
@@ -682,6 +881,42 @@ namespace Metasound
 				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
 				{
 					return Entry->CreateReceiveNode(InParams);
+				}
+				return nullptr;
+			}
+
+			TUniquePtr<INode> FDataTypeRegistry::CreateInitVariableNode(const FName& InDataType, FInitVariableNodeConstructorParams&& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateInitVariableNode(MoveTemp(InParams));
+				}
+				return nullptr;
+			}
+
+			TUniquePtr<INode> FDataTypeRegistry::CreateSetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateSetVariableNode(InParams);
+				}
+				return nullptr;
+			}
+
+			TUniquePtr<INode> FDataTypeRegistry::CreateGetVariableNode(const FName& InDataType, const FNodeInitData& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateGetVariableNode(InParams);
+				}
+				return nullptr;
+			}
+
+			TUniquePtr<INode> FDataTypeRegistry::CreateGetDelayedVariableNode(const FName& InDataType, const FNodeInitData& InParams) const
+			{
+				if (const IDataTypeRegistryEntry* Entry = FindDataTypeEntry(InDataType))
+				{
+					return Entry->CreateGetDelayedVariableNode(InParams);
 				}
 				return nullptr;
 			}

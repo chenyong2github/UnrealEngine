@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "MetasoundDataReference.h"
+#include "MetasoundDataReferenceMacro.h"
 #include "MetasoundOperatorSettings.h"
 
 namespace Metasound

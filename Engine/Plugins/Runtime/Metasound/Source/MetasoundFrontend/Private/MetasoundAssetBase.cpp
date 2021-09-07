@@ -135,9 +135,9 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(FMetaSoundAssetRegistrationO
 			return ClassInfo;
 		}
 
-		virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&&) const override
+		virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
 		{
-			return nullptr;
+			return FFrontendGraphBuilder().CreateGraph(Document);
 		}
 
 		virtual TUniquePtr<INode> CreateNode(FDefaultLiteralNodeConstructorParams&&) const override
@@ -145,10 +145,16 @@ void FMetasoundAssetBase::RegisterGraphWithFrontend(FMetaSoundAssetRegistrationO
 			return nullptr;
 		}
 
-		virtual TUniquePtr<INode> CreateNode(const FNodeInitData&) const override
+		virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&&) const override
 		{
-			return FFrontendGraphBuilder().CreateGraph(Document);
+			return nullptr;
 		}
+
+		virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&&) const override
+		{
+			return nullptr;
+		}
+
 
 		virtual const FMetasoundFrontendClass& GetFrontendClass() const override
 		{

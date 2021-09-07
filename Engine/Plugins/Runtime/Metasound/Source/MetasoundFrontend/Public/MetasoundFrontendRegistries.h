@@ -16,7 +16,7 @@
 namespace Metasound
 {
 	// Base implementation for NodeConstructorCallbacks
-	struct FDefaultNodeConstructorParams
+	struct FDefaultNamedVertexNodeConstructorParams
 	{
 		// the instance name and name of the specific connection that should be used.
 		FString NodeName;
@@ -24,7 +24,7 @@ namespace Metasound
 		FString VertexName;
 	};
 
-	struct FDefaultLiteralNodeConstructorParams
+	struct FDefaultNamedVertexWithLiteralNodeConstructorParams
 	{
 		// the instance name and name of the specific connection that should be used.
 		FString NodeName;
@@ -33,9 +33,17 @@ namespace Metasound
 		FLiteral InitParam = FLiteral::CreateInvalid();
 	};
 
-	using FOutputNodeConstructorParams = FDefaultNodeConstructorParams;
-	using FVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
-	using FInputNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
+	struct FDefaultLiteralNodeConstructorParams
+	{
+		FString NodeName;
+		FGuid InstanceID;
+		FLiteral Literal = FLiteral::CreateInvalid();
+	};
+
+	using FInputNodeConstructorParams = FDefaultNamedVertexWithLiteralNodeConstructorParams;
+	using FOutputNodeConstructorParams = FDefaultNamedVertexNodeConstructorParams;
+	using FLiteralNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
+	using FInitVariableNodeConstructorParams = FDefaultLiteralNodeConstructorParams;
 
 	using FIterateMetasoundFrontendClassFunction = TFunctionRef<void(const FMetasoundFrontendClass&)>;
 
@@ -112,12 +120,19 @@ namespace Metasound
 			 */
 			virtual const FNodeClassInfo& GetClassInfo() const = 0;
 
-			/** Create a node given FDefaultNodeConstructorParams.
+			/** Create a node given FDefaultNamedVertexNodeConstructorParams.
 			 *
-			 * If a node can be created with FDefaultNodeConstructorParams, this function
+			 * If a node can be created with FDefaultNamedVertexNodeConstructorParams, this function
 			 * should return a valid node pointer.
 			 */
-			virtual TUniquePtr<INode> CreateNode(FDefaultNodeConstructorParams&&) const = 0;
+			virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexNodeConstructorParams&&) const = 0;
+
+			/** Create a node given FDefaultNamedVertexWithLiteralNodeConstructorParams.
+			 *
+			 * If a node can be created with FDefaultNamedVertexWithLiteralNodeConstructorParams, this function
+			 * should return a valid node pointer.
+			 */
+			virtual TUniquePtr<INode> CreateNode(FDefaultNamedVertexWithLiteralNodeConstructorParams&&) const = 0;
 
 			/** Create a node given FDefaultLiteralNodeConstructorParams.
 			 *
@@ -326,9 +341,10 @@ public:
 	virtual bool FindOutputNodeRegistryKeyForDataType(const FName& InDataTypeName, FNodeRegistryKey& OutKey) = 0;
 
 
-	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultNodeConstructorParams&&) const = 0;
-	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultLiteralNodeConstructorParams&&) const = 0;
 	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, const Metasound::FNodeInitData&) const = 0;
+	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultLiteralNodeConstructorParams&&) const = 0;
+	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultNamedVertexNodeConstructorParams&&) const = 0;
+	virtual TUniquePtr<Metasound::INode> CreateNode(const FNodeRegistryKey& InKey, Metasound::FDefaultNamedVertexWithLiteralNodeConstructorParams&&) const = 0;
 
 	virtual bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo) = 0;
 

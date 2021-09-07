@@ -11,20 +11,20 @@
 #include "MetasoundConverterNodeRegistrationMacro.h"
 #include "MetasoundDataFactory.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundDataReferenceMacro.h"
 #include "MetasoundEnum.h"
+#include "MetasoundFrontendDataTypeRegistry.h"
 #include "MetasoundFrontendRegistries.h"
 #include "MetasoundInputNode.h"
 #include "MetasoundLiteral.h"
+#include "MetasoundLiteralNode.h"
 #include "MetasoundLog.h"
 #include "MetasoundNodeRegistrationMacro.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundOutputNode.h"
-#include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
-#include "MetasoundRouter.h"
 #include "MetasoundSendNode.h"
 #include "MetasoundTransmissionRegistration.h"
-#include "MetasoundVariableNode.h"
+#include "MetasoundVariableNodes.h"
 
 #include <type_traits>
 
@@ -356,8 +356,20 @@ namespace Metasound
 					TOutputNode<TDataType> OutputPrototype(TEXT(""), FGuid(), TEXT(""));
 					OutputClass = Metasound::Frontend::GenerateClassDescription(OutputPrototype.GetMetadata(), EMetasoundFrontendClassType::Output);
 
-					TGetVariableNode<TDataType> VariablePrototype(TEXT(""), FGuid(), TEXT(""), FLiteral());
-					VariableClass = Metasound::Frontend::GenerateClassDescription(VariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+					TLiteralNode<TDataType> LiteralPrototype(TEXT(""), FGuid(), FLiteral());
+					LiteralClass = Metasound::Frontend::GenerateClassDescription(LiteralPrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+
+					TInitVariableNode<TDataType> InitVariablePrototype(TEXT(""), FGuid(), FLiteral());
+					InitVariableClass = Metasound::Frontend::GenerateClassDescription(InitVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::Variable);
+
+					TSetVariableNode<TDataType> SetVariablePrototype(TEXT(""), FGuid());
+					SetVariableClass = Metasound::Frontend::GenerateClassDescription(SetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::External);
+
+					TGetVariableNode<TDataType> GetVariablePrototype(TEXT(""), FGuid());
+					GetVariableClass = Metasound::Frontend::GenerateClassDescription(GetVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::External);
+
+					TGetDelayedVariableNode<TDataType> GetDelayedVariablePrototype(TEXT(""), FGuid());
+					GetDelayedVariableClass = Metasound::Frontend::GenerateClassDescription(GetDelayedVariablePrototype.GetMetadata(), EMetasoundFrontendClassType::External);
 				}
 				virtual ~FDataTypeRegistryEntry() {}
 
@@ -376,14 +388,34 @@ namespace Metasound
 					return InputClass;
 				}
 
-				virtual const FMetasoundFrontendClass& GetFrontendVariableClass() const override
+				virtual const FMetasoundFrontendClass& GetFrontendLiteralClass() const override
 				{
-					return VariableClass;
+					return LiteralClass;
 				}
 
 				virtual const FMetasoundFrontendClass& GetFrontendOutputClass() const override
 				{
 					return OutputClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendInitVariableClass() const override
+				{
+					return InitVariableClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendSetVariableClass() const override
+				{
+					return SetVariableClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendGetVariableClass() const override
+				{
+					return GetVariableClass;
+				}
+
+				virtual const FMetasoundFrontendClass& GetFrontendGetDelayedVariableClass() const 
+				{
+					return GetDelayedVariableClass;
 				}
 
 				virtual TUniquePtr<INode> CreateInputNode(FInputNodeConstructorParams&& InParams) const override
@@ -396,14 +428,34 @@ namespace Metasound
 					return MakeUnique<TOutputNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName);
 				}
 
-				virtual TUniquePtr<INode> CreateVariableNode(FVariableNodeConstructorParams&& InParams) const override
+				virtual TUniquePtr<INode> CreateLiteralNode(FLiteralNodeConstructorParams&& InParams) const override
 				{
-					return MakeUnique<TGetVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, InParams.VertexName, MoveTemp(InParams.InitParam));
+					return MakeUnique<TLiteralNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
 				}
 
 				virtual TUniquePtr<INode> CreateReceiveNode(const FNodeInitData& InParams) const override
 				{
 					return MakeUnique<TReceiveNode<TDataType>>(InParams);
+				}
+
+				virtual TUniquePtr<INode> CreateInitVariableNode(FInitVariableNodeConstructorParams&& InParams) const override
+				{
+					return MakeUnique<TInitVariableNode<TDataType>>(InParams.NodeName, InParams.InstanceID, MoveTemp(InParams.Literal));
+				}
+
+				virtual TUniquePtr<INode> CreateSetVariableNode(const FNodeInitData& InParams) const override
+				{
+					return MakeUnique<TSetVariableNode<TDataType>>(InParams);
+				}
+
+				virtual TUniquePtr<INode> CreateGetVariableNode(const FNodeInitData& InParams) const override
+				{
+					return MakeUnique<TGetVariableNode<TDataType>>(InParams);
+				}
+
+				virtual TUniquePtr<INode> CreateGetDelayedVariableNode(const FNodeInitData& InParams) const override
+				{
+					return MakeUnique<TGetDelayedVariableNode<TDataType>>(InParams);
 				}
 
 				virtual Audio::IProxyDataPtr CreateProxy(UObject* InObject) const override
@@ -442,7 +494,11 @@ namespace Metasound
 				Frontend::FDataTypeRegistryInfo Info;
 				FMetasoundFrontendClass InputClass;
 				FMetasoundFrontendClass OutputClass;
-				FMetasoundFrontendClass VariableClass;
+				FMetasoundFrontendClass LiteralClass;
+				FMetasoundFrontendClass InitVariableClass;
+				FMetasoundFrontendClass SetVariableClass;
+				FMetasoundFrontendClass GetVariableClass;
+				FMetasoundFrontendClass GetDelayedVariableClass;
 				TSharedPtr<Frontend::IEnumDataTypeInterface> EnumInterface;
 			};
 
