@@ -31,6 +31,7 @@
 #include "SkeletalMesh.generated.h"
 
 class UAnimInstance;
+class UAnimSequence;
 class UAssetUserData;
 class UBodySetup;
 class UMorphTarget;
@@ -229,11 +230,11 @@ struct FSkeletalMeshLODInfo
 
 	/** Pose which should be used to reskin vertex influences for which the bones will be removed in this LOD level, uses ref-pose by default */
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	class UAnimSequence* BakePose;
+	UAnimSequence* BakePose;
 
 	/** This is used when you are sharing the LOD settings, but you'd like to override the BasePose. This precedes prior to BakePose*/
 	UPROPERTY(EditAnywhere, Category = ReductionSettings)
-	class UAnimSequence* BakePoseOverride;
+	UAnimSequence* BakePoseOverride;
 
 	/** The filename of the file tha was used to import this LOD if it was not auto generated. */
 	UPROPERTY(VisibleAnywhere, Category= SkeletalMeshLODInfo, AdvancedDisplay)
