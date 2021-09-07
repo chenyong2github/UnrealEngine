@@ -348,6 +348,8 @@ FText SSuggestionTextBox::HandleSuggestionListWidgetHighlightText( ) const
 
 void SSuggestionTextBox::HandleTextBoxTextChanged( const FText& InText )
 {
+	OnTextChanged.ExecuteIfBound(InText);
+
 	if (!IgnoreUIUpdate)
 	{
 		const FString& InputTextStr = TextBox->GetText().ToString();
@@ -372,8 +374,6 @@ void SSuggestionTextBox::HandleTextBoxTextChanged( const FText& InText )
 			ClearSuggestions();
 		}
 	}
-
-	OnTextChanged.ExecuteIfBound(InText);
 }
 
 
