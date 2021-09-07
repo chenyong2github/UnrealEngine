@@ -626,6 +626,9 @@ FORCEINLINE FArchive& operator<<(FArchive& Ar, FPakEntryLocation& PakEntryLocati
 	return Ar;
 }
 
+
+class FPakFile;
+
 // Wrapper for a pointer to a shared pak reader archive that has been temporarily acquired. 
 class PAKFILE_API FSharedPakReader final 
 {

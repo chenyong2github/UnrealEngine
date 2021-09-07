@@ -5296,7 +5296,7 @@ FPakFile::FPakFile(FArchive* Archive)
 	, UnderlyingCacheTrimDisabled(false)
 	, bIsMounted(false)
 {
-	Initialize(Archive);
+	Initialize(*Archive);
 }
 #endif
 
