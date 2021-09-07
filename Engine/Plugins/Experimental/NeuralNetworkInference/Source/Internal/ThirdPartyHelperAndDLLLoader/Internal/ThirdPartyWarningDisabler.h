@@ -14,13 +14,14 @@ Many third party headers require some care when importing. NNI third party inclu
 	NNI_THIRD_PARTY_INCLUDES_END
 */
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_NNI_MICROSOFT
 #define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START \
 	__pragma(warning(disable: 4191)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4471)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4495)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4497)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4530)) /* For ONNX Runtime */ \
+	__pragma(warning(disable: 4800)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4815)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4834)) /* For ONNX Runtime */ \
 	__pragma(warning(disable: 4946)) /* For ONNX Runtime */ \
@@ -39,6 +40,6 @@ Many third party headers require some care when importing. NNI third party inclu
 #else
 // If support added for other platforms, this definition may require updating
 #define NNI_THIRD_PARTY_INCLUDES_START THIRD_PARTY_INCLUDES_START UE_PUSH_MACRO("check") UE_PUSH_MACRO("TEXT")
-#endif //PLATFORM_WINDOWS
+#endif //PLATFORM_NNI_MICROSOFT
 
 #define NNI_THIRD_PARTY_INCLUDES_END THIRD_PARTY_INCLUDES_END UE_POP_MACRO("check") UE_POP_MACRO("TEXT")

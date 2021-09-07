@@ -20,7 +20,7 @@ NNI_THIRD_PARTY_INCLUDES_START
 
 #include "core/platform/env.h"
 
-#if defined (PLATFORM_WIN64) 
+#if defined (PLATFORM_NNI_MICROSOFT) 
 
 #undef TEXT
 #include <Windows.h>
@@ -79,7 +79,7 @@ namespace onnxruntime {
 
 namespace {
 
-#ifndef PLATFORM_WIN64
+#ifndef PLATFORM_NNI_MICROSOFT
 
 	class UnmapFileParam {
 	public:
@@ -283,7 +283,7 @@ class UnrealEngineEnv : public Env {
   }
 
   int GetNumCpuCores() const override {
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
     SYSTEM_LOGICAL_PROCESSOR_INFORMATION buffer[256];
     DWORD returnLength = sizeof(buffer);
     if (GetLogicalProcessorInformation(buffer, &returnLength) == FALSE) {
@@ -321,7 +321,7 @@ class UnrealEngineEnv : public Env {
   }
 
   std::vector<size_t> GetThreadAffinityMasks() const override {
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
     auto generate_vector_of_n = [](int n) {
       std::vector<size_t> ret(n);
       std::iota(ret.begin(), ret.end(), 0);
@@ -366,7 +366,7 @@ class UnrealEngineEnv : public Env {
   }
 
   Status GetFileLength(_In_z_ const ORTCHAR_T* file_path, size_t& length) const override {
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
 #if WINVER >= _WIN32_WINNT_WIN8
     wil::unique_hfile file_handle{
         CreateFile2(file_path, FILE_READ_ATTRIBUTES, FILE_SHARE_READ, OPEN_EXISTING, NULL)};
@@ -407,7 +407,7 @@ class UnrealEngineEnv : public Env {
 		return ORT_MAKE_STATUS(ONNXRUNTIME, INVALID_ARGUMENT, "Invalid fd was supplied: ", fd);
 	}
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
    
     struct _stat buf;
     int rc = _fstat(fd, &buf);
@@ -444,7 +444,7 @@ class UnrealEngineEnv : public Env {
     ORT_RETURN_IF_NOT(offset >= 0, "offset < 0");
     ORT_RETURN_IF_NOT(length <= buffer.size(), "length > buffer.size()");
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
 
 #if WINVER >= _WIN32_WINNT_WIN8 
     wil::unique_hfile file_handle{
@@ -536,7 +536,7 @@ class UnrealEngineEnv : public Env {
   }
 
 
-#if defined(PLATFORM_WIN64) || defined(__PROSPERO__)
+#if defined(PLATFORM_NNI_MICROSOFT) || defined(__PROSPERO__)
 
 	Status MapFileIntoMemory(_In_z_ const ORTCHAR_T*, FileOffsetType, size_t, MappedMemoryPtr&) const override {
     	return ORT_MAKE_STATUS(ONNXRUNTIME, NOT_IMPLEMENTED, "MapFileIntoMemory is not implemented on Windows or PS5.");
@@ -589,7 +589,7 @@ class UnrealEngineEnv : public Env {
 
 
 
-#ifndef PLATFORM_WIN64
+#ifndef PLATFORM_NNI_MICROSOFT
   static common::Status ReportSystemError(const char* operation_name, const std::string& path) {
 	auto e = errno;
     char buf[1024];
@@ -644,7 +644,7 @@ class UnrealEngineEnv : public Env {
  
   common::Status FileOpenRd(const std::string& path, /*out*/ int& fd) const override {
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
     _sopen_s(&fd, path.c_str(), _O_RDONLY | _O_SEQUENTIAL | _O_BINARY, _SH_DENYWR, _S_IREAD | _S_IWRITE);
 #else
 	 fd = open(path.c_str(), O_RDONLY);
@@ -658,7 +658,7 @@ class UnrealEngineEnv : public Env {
 
   common::Status FileOpenWr(const std::string& path, /*out*/ int& fd) const override {
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
     _sopen_s(&fd, path.c_str(), _O_CREAT | _O_TRUNC | _O_SEQUENTIAL | _O_BINARY | _O_WRONLY, _SH_DENYWR,
              _S_IREAD | _S_IWRITE);
 #else
@@ -671,7 +671,7 @@ class UnrealEngineEnv : public Env {
     return Status::OK();
   }
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
 
   bool FolderExists(const std::wstring& path) const override {
 
@@ -711,7 +711,7 @@ class UnrealEngineEnv : public Env {
 
   common::Status FileClose(int fd) const override {
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
     int ret = _close(fd);
 #else
 	int ret = close(fd);
@@ -727,7 +727,7 @@ class UnrealEngineEnv : public Env {
       const PathString& path,
       PathString& canonical_path) const override {
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
 
     // adapted from MSVC STL std::filesystem::canonical() implementation
     // https://github.com/microsoft/STL/blob/ed3cbf36416a385828e7a5987ca52cb42882d84b/stl/inc/filesystem#L2986
@@ -810,7 +810,7 @@ class UnrealEngineEnv : public Env {
 #endif
   }
 
-#if defined (PLATFORM_WIN64)
+#if defined (PLATFORM_NNI_MICROSOFT)
   // Return the path of the executable/shared library for the current running code. This is to make it
   // possible to load other shared libraries installed next to our core runtime code.
   std::string GetRuntimePath() const override {

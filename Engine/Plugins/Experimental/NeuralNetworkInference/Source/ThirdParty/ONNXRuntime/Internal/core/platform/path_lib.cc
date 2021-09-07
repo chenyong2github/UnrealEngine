@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 #endif
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(PLATFORM_SCARLET)
 namespace onnxruntime {
 
 namespace {
@@ -126,13 +126,26 @@ using MallocdStringPtr = std::unique_ptr<char, Freer<char> >;
 
 }  // namespace
 
+
+#if defined(PLATFORM_SCARLET)
+std::wstring s2ws(const std::string& s)
+{
+	int len = 0;
+	int slength = (int)s.length() + 1;
+	len = MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, 0, 0);
+	wchar_t* buf = new wchar_t[len];
+	MultiByteToWideChar(CP_ACP, 0, s.c_str(), slength, buf, len);
+	std::wstring r(buf);
+	delete[] buf;
+	return r;
+}
+#endif
+
+
 common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
                                       std::basic_string<ORTCHAR_T>& output) {
-#ifndef __PROSPERO__
-	MallocdStringPtr s{ strdup(input.c_str()) };
-	output = dirname(s.get());
-	return Status::OK();
-#else
+
+#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET)
 	/*
 	auto GetDirName = [](const std::basic_string<ORTCHAR_T>& path)
 	{
@@ -146,7 +159,19 @@ common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
 
 	FString IntputFString = FString(input.c_str());
 	FString DirPath = FPaths::GetPath(IntputFString);
+
+#ifndef PLATFORM_SCARLET
 	output = std::string(TCHAR_TO_UTF8(*DirPath));
+#else
+	std::string output_8bits = std::string(TCHAR_TO_UTF8(*DirPath));
+	output = s2ws(output_8bits);
+#endif
+	return Status::OK();
+
+#else
+
+	MallocdStringPtr s{ strdup(input.c_str()) };
+	output = dirname(s.get());
 	return Status::OK();
 
 #endif
@@ -154,13 +179,7 @@ common::Status GetDirNameFromFilePath(const std::basic_string<ORTCHAR_T>& input,
 
 std::string GetLastComponent(const std::string& input) {
 
-#ifndef __PROSPERO__
-
-	MallocdStringPtr s{ strdup(input.c_str()) };
-	std::string ret = basename(s.get());
-	return ret;
-
-#else
+#if defined(__PROSPERO__) || defined(PLATFORM_SCARLET)
 	/*
 	auto GetBasename = [](const std::string& path)
 	{
@@ -176,6 +195,12 @@ std::string GetLastComponent(const std::string& input) {
 	FString BaseName = FPaths::GetCleanFilename(IntputFString);
 	std::string RetVal = std::string(TCHAR_TO_UTF8(*BaseName));
 	return RetVal;
+
+#else
+
+	MallocdStringPtr s{ strdup(input.c_str()) };
+	std::string ret = basename(s.get());
+	return ret;
 
 #endif
 }

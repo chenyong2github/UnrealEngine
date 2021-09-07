@@ -31,7 +31,7 @@ limitations under the License.
 #include "core/framework/arena.h"
 #include "core/framework/arena_extend_strategy.h"
 
-#if defined(PLATFORM_WIN64)
+#if defined(PLATFORM_NNI_MICROSOFT)
 #include <intrin.h>
 #endif
 namespace onnxruntime {
@@ -390,7 +390,7 @@ class BFCArena : public IArenaAllocator {
   int Log2FloorNonZero(uint64_t n) {
 #if defined(__GNUC__)
     return 63 ^ __builtin_clzll(n);
-#elif defined(PLATFORM_WINDOWS)
+#elif defined(PLATFORM_NNI_MICROSOFT)
     unsigned long index;
 #if defined(_WIN64)
     _BitScanReverse64(&index, n);
