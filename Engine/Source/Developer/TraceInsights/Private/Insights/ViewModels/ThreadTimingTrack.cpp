@@ -881,7 +881,7 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 
 					// Note: Enumerating events for filtering should not use downsampling.
 					Params.Resolution = 0.0;
-					Params.SetupCallback = [&FilteredEvents, &FilterContexts](uint32 NumTasks)
+					Params.SetupCallback = [&FilteredEvents, &FilterContexts, this](uint32 NumTasks)
 					{
 						FilteredEvents.AddDefaulted(NumTasks);
 						FilterContexts.AddDefaulted(NumTasks);
@@ -891,6 +891,7 @@ void FThreadTimingTrack::BuildFilteredDrawState(ITimingEventsTrackDrawStateBuild
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::EndTime), 0.0f);
 							Context.AddFilterData<double>(static_cast<int32>(EFilterField::Duration), 0.0f);
 							Context.AddFilterData<int64>(static_cast<int32>(EFilterField::EventType), 0);
+							Context.AddFilterData<FString>(static_cast<int32>(EFilterField::TrackName), this->GetName());
 						}
 					};
 					Params.Callback = [this, &Builder, TimerReader, &FilteredEvents, &FilterContexts](double StartTime, double EndTime, uint32 Depth, const TraceServices::FTimingProfilerEvent& Event, uint32 TaskIndex)

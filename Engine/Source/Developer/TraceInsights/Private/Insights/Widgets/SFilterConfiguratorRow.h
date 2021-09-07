@@ -62,9 +62,15 @@ private:
 
 	FText GetTextBoxValue() const;
 	void OnTextBoxValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
+
 	FText GetTextBoxTooltipText() const;
 	FText GetTextBoxHintText() const;
 	bool TextBox_OnVerifyTextChanged(const FText& InText, FText& OutErrorMessage);
+
+	void SuggestionTextBox_GetSuggestions(const FString& Text, TArray<FString>& Suggestions);
+	void SuggestionTextBox_OnValueChanged(const FText& InNewText);
+	FText SuggestionTextBox_GetValue() const;
+	void SuggestionTextBox_OnValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit);
 
 private:
 	FFilterConfiguratorNodePtr FilterConfiguratorNodePtr;
@@ -74,6 +80,8 @@ private:
 	TSharedPtr<SComboBox<TSharedPtr<class IFilterOperator>>> FilterOperatorComboBox;
 
 	TSharedPtr<SComboBox<TSharedPtr<struct FFilterGroupOperator>>> FilterGroupOperatorComboBox;
+
+	FString SuggestionTextBoxValue;
 };
 
 } // namnespace Insights

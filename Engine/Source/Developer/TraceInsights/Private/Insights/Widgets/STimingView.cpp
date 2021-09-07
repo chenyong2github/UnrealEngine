@@ -4504,6 +4504,20 @@ void STimingView::QuickFind_Execute()
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::Duration), LOCTEXT("Duration", "Duration"), LOCTEXT("Duration", "Duration"), EFilterDataType::Double, FFilterService::Get()->GetDoubleOperators()));
 		AvailableFilters->Add(MakeShared<FFilter>(static_cast<int32>(EFilterField::EventType), LOCTEXT("Type", "Type"), LOCTEXT("Type", "Type"), EFilterDataType::Int64, FFilterService::Get()->GetIntegerOperators()));
 
+		TSharedPtr<TArray<TSharedPtr<IFilterOperator>>>  TrackNameFilterOperators = MakeShared<TArray<TSharedPtr<IFilterOperator>>>();
+		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Eq, TEXT("Is"), [](const FString& lhs, const FString& rhs) { return lhs.Equals(rhs); })));
+		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Contains"), [](const FString& lhs, const FString& rhs) { return lhs.Contains(rhs); })));
+		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Is Not"), [](const FString& lhs, const FString& rhs) { return !lhs.Equals(rhs); })));
+		TrackNameFilterOperators->Add(StaticCastSharedRef<IFilterOperator>(MakeShared<FFilterOperator<FString>>(EFilterOperator::Contains, TEXT("Does Not Contain"), [](const FString& lhs, const FString& rhs) { return !lhs.Contains(rhs); })));
+
+		TSharedPtr<FFilterWithSuggestions> TrackFilter = MakeShared<FFilterWithSuggestions>(static_cast<int32>(EFilterField::TrackName), LOCTEXT("Track", "Track"), LOCTEXT("Track", "Track"), EFilterDataType::String, TrackNameFilterOperators);
+		TrackFilter->Callback = [this](const FString& Text, TArray<FString>& OutSuggestions)
+		{
+			this->PopulateTrackSuggestionList(Text, OutSuggestions);
+		};
+
+		AvailableFilters->Add(TrackFilter);
+
 		QuickFindVm = MakeShared<FQuickFind>(FilterConfigurator);
 		QuickFindVm->GetOnFindNextEvent().AddSP(this, &STimingView::FindNextEvent);
 		QuickFindVm->GetOnFindPreviousEvent().AddSP(this, &STimingView::FindPrevEvent);
@@ -4631,16 +4645,16 @@ void STimingView::FindNextEvent()
 	FTimingEventSearchParameters Params(StartTime, std::numeric_limits<double>::max(), ETimingEventSearchFlags::StopAtFirstMatch, EventFilter);
 	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
 
-	for (auto& Entry : AllTracks)
+	EnumerateFilteredTracks(QuickFindVm->GetFilterConfigurator(), [&Params, &BestMatchEvent](TSharedPtr<FBaseTimingTrack>& Track)
 	{
-		if (!Entry.Value->IsVisible())
+		if (!Track->IsVisible())
 		{
-			continue;
+			return;
 		}
 
 		Params.EndTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::max();
 
-		TSharedPtr<const ITimingEvent> FoundEvent = Entry.Value->SearchEvent(Params);
+		TSharedPtr<const ITimingEvent> FoundEvent = Track->SearchEvent(Params);
 		if (FoundEvent.IsValid())
 		{
 			if (BestMatchEvent.IsValid())
@@ -4649,7 +4663,7 @@ void STimingView::FindNextEvent()
 			}
 			BestMatchEvent = FoundEvent;
 		}
-	}
+	});
 
 	if (BestMatchEvent)
 	{
@@ -4674,16 +4688,16 @@ void STimingView::FindPrevEvent()
 	Params.FilterExecutor = QuickFindVm->GetFilterConfigurator();
 	Params.SearchDirection = FTimingEventSearchParameters::ESearchDirection::Backward;
 
-	for (auto& Entry : AllTracks)
+	EnumerateFilteredTracks(QuickFindVm->GetFilterConfigurator(), [&Params, &BestMatchEvent](TSharedPtr<FBaseTimingTrack>& Track)
 	{
-		if (!Entry.Value->IsVisible())
+		if (!Track->IsVisible())
 		{
-			continue;
+			return;
 		}
 
 		Params.StartTime = BestMatchEvent.IsValid() ? BestMatchEvent->GetStartTime() : std::numeric_limits<double>::lowest();
 
-		TSharedPtr<const ITimingEvent> FoundEvent = Entry.Value->SearchEvent(Params);
+		TSharedPtr<const ITimingEvent> FoundEvent = Track->SearchEvent(Params);
 		if (FoundEvent.IsValid())
 		{
 			if (!BestMatchEvent.IsValid() || BestMatchEvent->GetStartTime() < FoundEvent->GetStartTime())
@@ -4691,7 +4705,7 @@ void STimingView::FindPrevEvent()
 				BestMatchEvent = FoundEvent;
 			}
 		}
-	}
+	});
 
 	if (BestMatchEvent)
 	{
@@ -4718,6 +4732,35 @@ void STimingView::ClearFilters()
 	for (auto& Entry : AllTracks)
 	{
 		Entry.Value->SetFilterConfigurator(nullptr);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::PopulateTrackSuggestionList(const FString& Text, TArray<FString>& OutSuggestions)
+{
+	for (auto& Entry : AllTracks)
+	{
+		if (Entry.Value->GetName().Contains(Text))
+		{
+			OutSuggestions.Add(Entry.Value->GetName());
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::EnumerateFilteredTracks(TSharedPtr<Insights::FFilterConfigurator> FilterConfigurator, EnumerateFilteredTracksCallback Callback)
+{
+	Insights::FFilterContext FilterContext;
+	FilterContext.AddFilterData(static_cast<int32>(EFilterField::TrackName), FString());
+	for (auto& Entry : AllTracks)
+	{
+		FilterContext.SetFilterData(static_cast<int32>(EFilterField::TrackName), Entry.Value->GetName());
+		if (FilterConfigurator->ApplyFilters(FilterContext))
+		{
+			Callback(Entry.Value);
+		}
 	}
 }
 

@@ -9,6 +9,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Input/SSuggestionTextBox.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STreeView.h"
@@ -95,13 +96,37 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				]
 			];
 
-		GeneratedWidget->AddSlot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			.FillWidth(1.0)
-			.Padding(2.0f)
-			[
+		if (FilterConfiguratorNodePtr->GetSelectedFilter()->Is<FFilterWithSuggestions>())
+		{
+			SuggestionTextBoxValue = FilterConfiguratorNodePtr->GetTextBoxValue();
+
+			GeneratedWidget->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0)
+				.Padding(2.0f)
+				[
+					SNew(SSuggestionTextBox)
+					.MinDesiredWidth(50.0f)
+					.ForegroundColor(FLinearColor::White)
+					.OnTextCommitted(this, &SFilterConfiguratorRow::SuggestionTextBox_OnValueCommitted)
+					.OnTextChanged(this, &SFilterConfiguratorRow::SuggestionTextBox_OnValueChanged)
+					.Text(this, &SFilterConfiguratorRow::SuggestionTextBox_GetValue)
+					.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
+					.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
+					.OnShowingSuggestions(FOnShowingSuggestions::CreateSP(this, &SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions))
+				];
+		}
+		else
+		{
+			GeneratedWidget->AddSlot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				.FillWidth(1.0)
+				.Padding(2.0f)
+				[
 				SNew(SEditableTextBox)
 				.MinDesiredWidth(50.0f)
 				.OnTextCommitted(this, &SFilterConfiguratorRow::OnTextBoxValueCommitted)
@@ -109,7 +134,8 @@ TSharedRef<SWidget> SFilterConfiguratorRow::GenerateWidgetForColumn(const FName&
 				.ToolTipText(this, &SFilterConfiguratorRow::GetTextBoxTooltipText)
 				.HintText(this, &SFilterConfiguratorRow::GetTextBoxHintText)
 				.OnVerifyTextChanged(this, &SFilterConfiguratorRow::TextBox_OnVerifyTextChanged)
-			];
+				];
+		}
 			
 		GeneratedWidget->AddSlot()
 			.VAlign(VAlign_Center)
@@ -278,6 +304,11 @@ const TArray<TSharedPtr<struct FFilter>>* SFilterConfiguratorRow::GetAvailableFi
 void SFilterConfiguratorRow::AvailableFilters_OnSelectionChanged(TSharedPtr<FFilter> InFilter, ESelectInfo::Type SelectInfo)
 {
 	FilterConfiguratorNodePtr->SetSelectedFilter(InFilter);
+
+	TSharedPtr<STreeView<FFilterConfiguratorNodePtr>> OwnerTable = StaticCastSharedPtr<STreeView<FFilterConfiguratorNodePtr>>(OwnerTablePtr.Pin());
+	ensure(OwnerTable.IsValid());
+	ClearCellCache();
+	GenerateColumns(OwnerTable->GetHeaderRow().ToSharedRef());
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -447,6 +478,41 @@ bool SFilterConfiguratorRow::TextBox_OnVerifyTextChanged(const FText& InText, FT
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfiguratorRow::SuggestionTextBox_GetSuggestions(const FString& Text, TArray<FString>& Suggestions)
+{
+	TSharedPtr<FFilter> Filter = FilterConfiguratorNodePtr->GetSelectedFilter();
+	
+	if (Filter->Is<FFilterWithSuggestions>())
+	{
+		TSharedPtr<FFilterWithSuggestions> FilterWithSuggestions = StaticCastSharedPtr<FFilterWithSuggestions>(Filter);
+		FilterWithSuggestions->Callback(Text, Suggestions);
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfiguratorRow::SuggestionTextBox_OnValueChanged(const FText& InNewText)
+{
+	SuggestionTextBoxValue = InNewText.ToString();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+FText SFilterConfiguratorRow::SuggestionTextBox_GetValue() const
+{
+	return FText::FromString(SuggestionTextBoxValue);
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFilterConfiguratorRow::SuggestionTextBox_OnValueCommitted(const FText& InNewText, ETextCommit::Type InTextCommit)
+{
+	FilterConfiguratorNodePtr->SetTextBoxValue(InNewText.ToString());
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 
 } // namespace Insights
 
