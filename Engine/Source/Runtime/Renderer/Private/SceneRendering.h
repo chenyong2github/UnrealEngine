@@ -1982,6 +1982,13 @@ public:
 	/** Gets a readable light name for use with a draw event. */
 	static void GetLightNameForDrawEvent(const FLightSceneProxy* LightProxy, FString& LightNameWithLevel);
 
+	/** Get the ParallelExecuteFlags depending on FeatureLevel*/
+	static ERDGBuilderFlags GetRDGParalelExecuteFlags(ERHIFeatureLevel::Type FeatureLevel)
+	{
+		return  FeatureLevel == ERHIFeatureLevel::ES3_1
+			? ERDGBuilderFlags::None
+			: ERDGBuilderFlags::AllowParallelExecute;
+	}
 protected:
 
 	/** Size of the family. */
