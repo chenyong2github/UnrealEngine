@@ -136,18 +136,20 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 		ValueOut.BaseSample.TriangleIndex = TriangleIndex;
 		ValueOut.BaseSample.SurfacePoint = SurfacePoint;
 		ValueOut.BaseSample.BaryCoords = BaryCoords;
+		ValueOut.DetailMesh = nullptr;
 		ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
 		ValueOut.BaseNormal = SurfaceNormal;
 
 		const FVector3d RayDir = SurfaceNormal;
 		if (UseStrategy == ECorrespondenceStrategy::Identity)
 		{
+			ValueOut.DetailMesh = Mesh;
 			ValueOut.DetailTriID = TriangleIndex;
 			ValueOut.DetailBaryCoords = BaryCoords;
 		}
 		else if (UseStrategy == ECorrespondenceStrategy::NearestPoint)
 		{
-			GetDetailMeshTrianglePoint_Nearest(*Baker->DetailMesh, *Baker->DetailSpatial, SurfacePoint,
+			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Nearest(Baker->DetailSampler, SurfacePoint,
 			                                   ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
 		}
 		else // Fall back to raycast strategy
@@ -155,16 +157,15 @@ void FMeshVertexBaker::BakeImpl(void* Data)
 			const double SampleThickness = Baker->GetThickness(); // could modulate w/ a map here...
 
 			// Find detail mesh triangle point
-			GetDetailMeshTrianglePoint_Raycast(*Baker->DetailMesh, *Baker->DetailSpatial, SurfacePoint, RayDir,
-			                                   ValueOut.DetailTriID, ValueOut.DetailBaryCoords,
-			                                   SampleThickness,
+			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Raycast(Baker->DetailSampler, SurfacePoint, RayDir,
+			                                   ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness,
 			                                   (UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
 	};
 
 	// Perform bake
-	const int32 TileWidth = 256;
-	const int32 TileHeight = 1;
+	constexpr int32 TileWidth = 256;
+	constexpr int32 TileHeight = 1;
 	const FImageTiling Tiles(Baker->Dimensions, TileWidth, TileHeight);
 	const int32 NumTiles = Tiles.Num();
 	const int NumBakers = Baker->Bakers.Num();

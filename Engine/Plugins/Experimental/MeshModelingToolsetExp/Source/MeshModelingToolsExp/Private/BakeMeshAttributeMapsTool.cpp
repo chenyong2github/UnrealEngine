@@ -13,7 +13,6 @@
 #include "Sampling/MeshCurvatureMapEvaluator.h"
 #include "Sampling/MeshPropertyMapEvaluator.h"
 #include "Sampling/MeshResampleImageEvaluator.h"
-#include "Util/IndexUtil.h"
 
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -81,7 +80,7 @@ const FToolTargetTypeRequirements& UBakeMeshAttributeMapsToolBuilder::GetTargetR
 
 bool UBakeMeshAttributeMapsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	int32 NumTargets = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
+	const int32 NumTargets = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements());
 	return (NumTargets == 1 || NumTargets == 2);
 }
 
@@ -135,7 +134,6 @@ public:
 	int32 DetailMeshNormalUVLayer = 0;
 
 	// Texture2DImage & MultiTexture settings
-	const FDynamicMeshUVOverlay* UVOverlay = nullptr;
 	ImagePtr TextureImage;
 	TMap<int32, ImagePtr> MaterialToTextureImageMap;
 
@@ -147,15 +145,14 @@ public:
 			return Progress && Progress->Cancelled();
 		};
 		Baker->SetTargetMesh(BaseMesh);
-		Baker->SetDetailMesh(DetailMesh.Get(), DetailSpatial.Get());
 		Baker->SetDimensions(BakeCacheSettings.Dimensions);
 		Baker->SetUVLayer(BakeCacheSettings.UVLayer);
 		Baker->SetThickness(BakeCacheSettings.Thickness);
 		Baker->SetMultisampling(BakeCacheSettings.Multisampling);
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
-		Baker->SetDetailMeshTangents(DetailMeshTangents);
-		Baker->SetDetailMeshNormalMap(DetailMeshNormalMap);
-		Baker->SetDetailMeshNormalUVLayer(DetailMeshNormalUVLayer);
+		
+		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get(), DetailMeshTangents.Get());
+		Baker->SetDetailSampler(&DetailSampler);
 
 		for (const EBakeMapType MapType : ALL_BAKE_MAP_TYPES)
 		{
@@ -164,6 +161,7 @@ public:
 			case EBakeMapType::TangentSpaceNormalMap:
 			{
 				TSharedPtr<FMeshNormalMapEvaluator, ESPMode::ThreadSafe> NormalEval = MakeShared<FMeshNormalMapEvaluator, ESPMode::ThreadSafe>();
+				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
 				Baker->AddBaker(NormalEval);
 				break;
 			}
@@ -223,6 +221,7 @@ public:
 			{
 				TSharedPtr<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe> PropertyBaker = MakeShared<FMeshPropertyMapEvaluator, ESPMode::ThreadSafe>();
 				PropertyBaker->Property = EMeshPropertyMapType::Normal;
+				DetailSampler.SetNormalMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(DetailMeshNormalMap.Get(), DetailMeshNormalUVLayer));
 				Baker->AddBaker(PropertyBaker);
 				break;
 			}
@@ -257,17 +256,14 @@ public:
 			case EBakeMapType::Texture2DImage:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> ResampleBaker = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
-				ResampleBaker->DetailUVOverlay = UVOverlay;
-				ResampleBaker->SampleFunction = [this](FVector2d UVCoord) {
-					return TextureImage->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
-				};
+				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
 				Baker->AddBaker(ResampleBaker);
 				break;
 			}
 			case EBakeMapType::MultiTexture:
 			{
 				TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureBaker = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
-				TextureBaker->DetailUVOverlay = UVOverlay;
+				TextureBaker->DetailUVLayer = TextureSettings.UVLayer;
 				TextureBaker->MultiTextures = MaterialToTextureImageMap;
 				Baker->AddBaker(TextureBaker);
 				break;
@@ -521,14 +517,12 @@ TUniquePtr<UE::Geometry::TGenericDataOperator<FMeshMapBaker>> UBakeMeshAttribute
 	{
 		Op->TextureSettings = CachedTexture2DImageSettings;
 		Op->TextureImage = CachedTextureImage;
-		Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
 	}
 
 	if ((bool)(CachedBakeCacheSettings.BakeMapTypes & EBakeMapType::MultiTexture))
 	{
 		Op->TextureSettings = CachedTexture2DImageSettings;
 		Op->MaterialToTextureImageMap = CachedMultiTextures;
-		Op->UVOverlay = DetailMesh->Attributes()->GetUVLayer(CachedTexture2DImageSettings.UVLayer);
 	}
 
 	return Op;

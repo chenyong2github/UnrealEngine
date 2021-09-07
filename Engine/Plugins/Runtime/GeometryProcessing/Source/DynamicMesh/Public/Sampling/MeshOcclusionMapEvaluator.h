@@ -5,13 +5,14 @@
 #include "Sampling/MeshMapEvaluator.h"
 #include "Templates/Tuple.h"
 #include "Misc/EnumClassFlags.h"
-#include "Math/RandomStream.h"
 #include "DynamicMesh/MeshTangents.h"
 
 namespace UE
 {
 namespace Geometry
 {
+
+class IMeshBakerDetailSampler;	
 
 enum class EMeshOcclusionMapType : uint8
 {
@@ -72,9 +73,7 @@ public:
 
 protected:
 	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
-	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
-	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
+	const IMeshBakerDetailSampler* DetailSampler = nullptr;
 	const TMeshTangents<double>* BaseMeshTangents = nullptr;
 	double BiasDotThreshold = 0.25;
 	TArray<FVector3d> RayDirections;

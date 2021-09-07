@@ -3,13 +3,15 @@
 #pragma once
 
 #include "Sampling/MeshMapEvaluator.h"
-#include "DynamicMesh/MeshTangents.h"
+#include "Sampling/MeshBakerCommon.h"
 #include "Image/ImageBuilder.h"
 
 namespace UE
 {
 namespace Geometry
 {
+
+class IMeshBakerDetailSampler;	
 
 enum class EMeshPropertyMapType
 {
@@ -45,29 +47,27 @@ public:
 
 protected:
 	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
-	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
-	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
-	const FDynamicMeshColorOverlay* DetailColorOverlay = nullptr;
-	const TMeshTangents<double>* DetailMeshTangents = nullptr;
-	const TImageBuilder<FVector4f>* DetailMeshNormalMap = nullptr;
+	const IMeshBakerDetailSampler* DetailSampler = nullptr;
+	using FDetailNormalTexture = IMeshBakerDetailSampler::FBakeDetailTexture;
+	using FDetailNormalTextureMap = TMap<const void*, FDetailNormalTexture>;
+	FDetailNormalTextureMap DetailNormalTextures;
 	FAxisAlignedBox3d Bounds;
 	FVector3f DefaultValue = FVector3f::Zero();
 
 private:
-	FVector3f NormalToColor(const FVector3d Normal)
+	static FVector3f NormalToColor(const FVector3d Normal) 
 	{
 		return (FVector3f)((Normal + FVector3d::One()) * 0.5);
 	}
 
-	FVector3f UVToColor(const FVector2d UV)
+	static FVector3f UVToColor(const FVector2f UV)
 	{
-		double X = FMathd::Clamp(UV.X, 0.0, 1.0);
-		double Y = FMathd::Clamp(UV.Y, 0.0, 1.0);
-		return (FVector3f)FVector3d(X, Y, 0);
+		const float X = FMathf::Clamp(UV.X, 0.0, 1.0);
+		const float Y = FMathf::Clamp(UV.Y, 0.0, 1.0);
+		return FVector3f(X, Y, 0);
 	}
 
-	FVector3f PositionToColor(const FVector3d Position, const FAxisAlignedBox3d SafeBounds)
+	static FVector3f PositionToColor(const FVector3d Position, const FAxisAlignedBox3d SafeBounds)
 	{
 		double X = (Position.X - SafeBounds.Min.X) / SafeBounds.Width();
 		double Y = (Position.Y - SafeBounds.Min.Y) / SafeBounds.Height();
@@ -76,9 +76,7 @@ private:
 	}
 
 	template <bool bUseDetailNormalMap>
-	FVector3f SampleFunction(const FCorrespondenceSample& Sample);
-
-	FVector4f SampleNormalMapFunction(const FVector2d& UVCoord) const;
+	FVector3f SampleFunction(const FCorrespondenceSample& SampleData) const;
 };
 
 } // end namespace UE::Geometry

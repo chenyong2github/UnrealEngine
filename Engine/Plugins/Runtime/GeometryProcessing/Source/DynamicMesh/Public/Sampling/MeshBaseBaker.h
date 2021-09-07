@@ -6,12 +6,14 @@
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 #include "DynamicMesh/DynamicMeshAABBTree3.h"
 #include "DynamicMesh/MeshTangents.h"
-#include "Image/ImageBuilder.h"
+#include "Sampling/MeshBakerCommon.h"
+
 
 namespace UE
 {
 namespace Geometry
 {
+
 
 class FMeshBaseBaker
 {
@@ -36,22 +38,9 @@ public:
 	};
 
 	// Setters
-	void SetDetailMesh(const FDynamicMesh3* Mesh, const FDynamicMeshAABBTree3* Spatial)
+	void SetDetailSampler(IMeshBakerDetailSampler* Sampler)
 	{
-		DetailMesh = Mesh;
-		DetailSpatial = Spatial;
-	}
-	void SetDetailMeshTangents(const TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe>& Tangents)
-	{
-		DetailMeshTangents = Tangents;
-	}
-	void SetDetailMeshNormalMap(const TSharedPtr<TImageBuilder<FVector4f>, ESPMode::ThreadSafe>& NormalMap)
-	{
-		DetailMeshNormalMap = NormalMap;
-	}
-	void SetDetailMeshNormalUVLayer(int32 Layer)
-	{
-		DetailMeshNormalUVLayer = Layer;
+		DetailSampler = Sampler;
 	}
 	void SetTargetMesh(const FDynamicMesh3* Mesh)
 	{
@@ -95,40 +84,9 @@ public:
 	}
 
 	// DetailMesh Getters
-	const FDynamicMesh3* GetDetailMesh() const
+	const IMeshBakerDetailSampler* GetDetailSampler() const
 	{
-		return DetailMesh;
-	}
-	const FDynamicMeshAABBTree3* GetDetailMeshSpatial() const
-	{
-		return DetailSpatial;
-	}
-	const FDynamicMeshNormalOverlay* GetDetailMeshNormals() const
-	{
-		check(DetailMesh && DetailMesh->HasAttributes());
-		return DetailMesh->Attributes()->PrimaryNormals();
-	}
-	const FDynamicMeshUVOverlay* GetDetailMeshUVs(int32 UVLayerIn=0) const
-	{
-		check(DetailMesh && DetailMesh->HasAttributes());
-		return DetailMesh->Attributes()->GetUVLayer(UVLayerIn);
-	}
-	const FDynamicMeshColorOverlay* GetDetailMeshColors() const
-	{
-		check(DetailMesh && DetailMesh->HasAttributes());
-		return DetailMesh->Attributes()->PrimaryColors();
-	}
-	const FMeshTangentsd* GetDetailMeshTangents() const
-	{
-		return DetailMeshTangents.Get();
-	}
-	const TImageBuilder<FVector4f>* GetDetailMeshNormalMap() const
-	{
-		return DetailMeshNormalMap.Get();
-	}
-	int32 GetDetailMeshNormalUVLayer() const
-	{
-		return DetailMeshNormalUVLayer;
+		return DetailSampler;
 	}
 
 	// Other Getters
@@ -149,8 +107,6 @@ protected:
 	const FDynamicMesh3* DetailMesh = nullptr;
 	const FDynamicMeshAABBTree3* DetailSpatial = nullptr;
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> DetailMeshTangents;
-	TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> DetailMeshNormalMap;
-	int32 DetailMeshNormalUVLayer = 0;
 	
 	const FDynamicMesh3* TargetMesh = nullptr;
 	TSharedPtr<FMeshTangentsd, ESPMode::ThreadSafe> TargetMeshTangents;
@@ -158,9 +114,11 @@ protected:
 	int32 UVLayer = 0;
 	double Thickness = 3.0;
 	ECorrespondenceStrategy CorrespondenceStrategy = ECorrespondenceStrategy::RaycastStandard;
-};
-	
 
+	IMeshBakerDetailSampler* DetailSampler = nullptr;
+};
+
+	
 } // end namespace UE::Geometry
 } // end namespace UE
 	

@@ -49,10 +49,11 @@ public:
 	struct FCorrespondenceSample
 	{
 		FMeshUVSampleInfo BaseSample;
-		FVector3d BaseNormal;
+		FVector3d BaseNormal = FVector3d::Zero();
 
-		int32 DetailTriID;
-		FVector3d DetailBaryCoords;
+		const void* DetailMesh = nullptr;
+		int32 DetailTriID = IndexConstants::InvalidID;
+		FVector3d DetailBaryCoords = FVector3d::Zero();
 	};
 
 	/**

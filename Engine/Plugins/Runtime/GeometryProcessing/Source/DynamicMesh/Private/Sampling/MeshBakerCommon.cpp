@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sampling/MeshBakerCommon.h"
+#include "Sampling/MeshBaseBaker.h"
+#include "MeshQueries.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
+
 
 /**
  * Find point on Detail mesh that corresponds to point on Base mesh.
@@ -15,11 +18,10 @@ using namespace UE::Geometry;
  *
  * If all of those fail, if bFailToNearestPoint is true we fall back to nearest-point,
  *
- * If all the above fail, return false
+ * If all the above fail, return nullptr
  */
-bool UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
-	const FDynamicMesh3& DetailMesh,
-	const FDynamicMeshAABBTree3& DetailSpatial,
+const void* UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
+	const IMeshBakerDetailSampler* DetailSampler,
 	const FVector3d& BasePoint,
 	const FVector3d& BaseNormal,
 	int32& DetailTriangleOut,
@@ -31,48 +33,44 @@ bool UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
 	// TODO: should we check normals here? inverse normal should probably not be considered valid
 
 	// shoot rays forwards and backwards
-	FRay3d InwardRay = FRay3d(BasePoint + Thickness * BaseNormal, -BaseNormal);
-	FRay3d ForwardRay(BasePoint, BaseNormal);
-	FRay3d BackwardRay(BasePoint, -BaseNormal);
+	const FRay3d InwardRay(BasePoint + Thickness * BaseNormal, -BaseNormal);
+	const FRay3d ForwardRay(BasePoint, BaseNormal);
+	const FRay3d BackwardRay(BasePoint, -BaseNormal);
 	int32 ForwardHitTID = IndexConstants::InvalidID, InwardHitTID = IndexConstants::InvalidID, BackwardHitTID = IndexConstants::InvalidID;
 	double ForwardHitDist, InwardHitDist, BackwardHitDist;
 
 	IMeshSpatial::FQueryOptions Options;
 	Options.MaxDistance = Thickness;
-	bool bHitInward = DetailSpatial.FindNearestHitTriangle(InwardRay, InwardHitDist, InwardHitTID, Options);
-	bool bHitForward = DetailSpatial.FindNearestHitTriangle(ForwardRay, ForwardHitDist, ForwardHitTID, Options);
-	bool bHitBackward = DetailSpatial.FindNearestHitTriangle(BackwardRay, BackwardHitDist, BackwardHitTID, Options);
 
-	FRay3d HitRay;
 	int32 HitTID = IndexConstants::InvalidID;
-	double HitDist = TNumericLimits<double>::Max();
+	FVector3d HitBaryCoords;
 
-	if (bHitInward)
+	// Inward hit test
+	const void* HitMesh = nullptr;
+	if (const void* InwardMesh = DetailSampler->FindNearestHitTriangle(InwardRay, InwardHitDist, InwardHitTID, HitBaryCoords, Options))
 	{
-		HitRay = InwardRay;
+		HitMesh = InwardMesh;
 		HitTID = InwardHitTID;
-		HitDist = InwardHitDist;
 	}
-	else if (bHitForward)
+	// Forward hit test
+	else if (const void* ForwardMesh = DetailSampler->FindNearestHitTriangle(ForwardRay, ForwardHitDist, ForwardHitTID, HitBaryCoords, Options))
 	{
-		HitRay = ForwardRay;
+		HitMesh = ForwardMesh;
 		HitTID = ForwardHitTID;
-		HitDist = ForwardHitDist;
 	}
-	else if (bHitBackward)
+	// Backward hit test
+	else if (const void* BackwardMesh = DetailSampler->FindNearestHitTriangle(BackwardRay, BackwardHitDist, BackwardHitTID, HitBaryCoords, Options))
 	{
-		HitRay = BackwardRay;
+		HitMesh = BackwardMesh;
 		HitTID = BackwardHitTID;
-		HitDist = BackwardHitDist;
 	}
 
 	// if we got a valid ray hit, use it
-	if (DetailMesh.IsTriangle(HitTID))
+	if (HitMesh && DetailSampler->IsTriangle(HitMesh, HitTID))
 	{
 		DetailTriangleOut = HitTID;
-		FIntrRay3Triangle3d IntrQuery = TMeshQueries<FDynamicMesh3>::TriangleIntersection(DetailMesh, HitTID, HitRay);
-		DetailTriBaryCoords = IntrQuery.TriangleBaryCoords;
-		return true;
+		DetailTriBaryCoords = HitBaryCoords;
+		return HitMesh;
 	}
 	else
 	{
@@ -80,48 +78,47 @@ bool UE::Geometry::GetDetailMeshTrianglePoint_Raycast(
 		IMeshSpatial::FQueryOptions OnSurfQueryOptions;
 		OnSurfQueryOptions.MaxDistance = Thickness;
 		double NearDistSqr = 0;
-		int32 NearestTriID = -1;
+		int32 NearestTriID = IndexConstants::InvalidID;
+		const void* NearestMesh = nullptr;
 		// if we are using absolute nearest point as a fallback, then ignore max distance
 		if (bFailToNearestPoint)
 		{
-			NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
+			NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords);
 		}
 		else
 		{
-			NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr, OnSurfQueryOptions);
+			NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords, OnSurfQueryOptions);
 		}
-		if (DetailMesh.IsTriangle(NearestTriID))
+		if (NearestMesh && DetailSampler->IsTriangle(NearestMesh, NearestTriID))
 		{
 			DetailTriangleOut = NearestTriID;
-			FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-			DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-			return true;
+			return NearestMesh;
 		}
 	}
 
-	return false;
+	return nullptr;
 }
+
 
 /**
  * Find point on Detail mesh that corresponds to point on Base mesh using minimum distance
  */
-bool UE::Geometry::GetDetailMeshTrianglePoint_Nearest(
-	const FDynamicMesh3& DetailMesh,
-	const FDynamicMeshAABBTree3& DetailSpatial,
+const void* UE::Geometry::GetDetailMeshTrianglePoint_Nearest(
+	const IMeshBakerDetailSampler* DetailSampler,
 	const FVector3d& BasePoint,
 	int32& DetailTriangleOut,
 	FVector3d& DetailTriBaryCoords)
 {
 	double NearDistSqr = 0;
-	int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
-	if (DetailMesh.IsTriangle(NearestTriID))
+	int32 NearestTriID = IndexConstants::InvalidID;
+	const void* NearestMesh = DetailSampler->FindNearestTriangle(BasePoint, NearDistSqr, NearestTriID, DetailTriBaryCoords);
+	if (NearestMesh && DetailSampler->IsTriangle(NearestMesh, NearestTriID))
 	{
 		DetailTriangleOut = NearestTriID;
-		FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-		DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-		return true;
+		return NearestMesh;
 	}
 
-	return false;
+	return nullptr;
 }
+
 

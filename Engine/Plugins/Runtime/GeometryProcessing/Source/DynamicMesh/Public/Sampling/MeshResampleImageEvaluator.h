@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Sampling/MeshMapEvaluator.h"
+#include "Sampling/MeshBaseBaker.h"
 #include "Image/ImageBuilder.h"
 
 namespace UE
@@ -10,15 +11,14 @@ namespace UE
 namespace Geometry
 {
 
+class IMeshBakerDetailSampler;	
+
 /**
  * A mesh evaluator for sampling 2D texture data. 
  */
 class DYNAMICMESH_API FMeshResampleImageEvaluator : public FMeshMapEvaluator
 {
 public:
-	TFunction<FVector4f(FVector2d)> SampleFunction = [](FVector2d Position) { return FVector4f::Zero(); };
-	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
-
 	FVector4f DefaultColor = FVector4f(0, 0, 0, 1);
 
 public:
@@ -36,12 +36,14 @@ public:
 
 protected:
 	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
+	const IMeshBakerDetailSampler* DetailSampler = nullptr;
 
 private:
-	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample);
+	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample) const;
 };
 
+
+// TODO: Add support for multiple color maps per mesh in IMeshBakerDetailSampler for proper MultiTexture support.	
 /**
  * A mesh evaluator for sampling multiple 2D textures by material ID
  */
@@ -49,6 +51,7 @@ class DYNAMICMESH_API FMeshMultiResampleImageEvaluator : public FMeshResampleIma
 {
 public:
 	TMap<int32, TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe>> MultiTextures;
+	int DetailUVLayer = 0;
 
 public:
 	// Begin FMeshMapEvaluator interface
@@ -59,12 +62,8 @@ public:
 
 	static void EvaluateSampleMulti(float*& Out, const FCorrespondenceSample& Sample, void* EvalData);
 
-protected:
-	const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = nullptr;
-	bool bValidDetailMesh = false;
-
 private:
-	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample);
+	FVector4f ImageSampleFunction(const FCorrespondenceSample& Sample) const;
 };
 
 } // end namespace UE::Geometry

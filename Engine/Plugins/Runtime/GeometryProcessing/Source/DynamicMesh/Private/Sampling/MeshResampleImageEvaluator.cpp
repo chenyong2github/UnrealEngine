@@ -20,13 +20,13 @@ void FMeshResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluation
 	Context.DataLayout = { EComponents::Float4 };
 
 	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
+	DetailSampler = Baker.GetDetailSampler();
 }
 
 void FMeshResampleImageEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
-	FMeshResampleImageEvaluator* Eval = static_cast<FMeshResampleImageEvaluator*>(EvalData);
-	FVector4f SampleResult = Eval->ImageSampleFunction(Sample);
+	const FMeshResampleImageEvaluator* Eval = static_cast<FMeshResampleImageEvaluator*>(EvalData);
+	const FVector4f SampleResult = Eval->ImageSampleFunction(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
 
@@ -41,17 +41,17 @@ void FMeshResampleImageEvaluator::EvaluateColor(const int DataIdx, float*& In, F
 	In += 4;
 }
 
-FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& SampleData)
+FVector4f FMeshResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& SampleData) const
 {
-	FVector4f Color = DefaultColor;
-	int32 DetailTriID = SampleData.DetailTriID;
-	if (DetailMesh->IsTriangle(SampleData.DetailTriID) && DetailUVOverlay)
-	{
-		FVector2d DetailUV;
-		DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-		Color = SampleFunction(DetailUV);
-	}
-	return Color;
+	const void* DetailMesh = SampleData.DetailMesh;
+	const int32 DetailTriID = SampleData.DetailTriID;
+	const TImageBuilder<FVector4f>* TextureImage;
+	int DetailUVLayer;
+	Tie(TextureImage, DetailUVLayer) = DetailSampler->GetColorMap(DetailMesh);
+
+	FVector2f DetailUV;
+	DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, SampleData.DetailBaryCoords, DetailUVLayer, DetailUV);
+	return TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
 }
 
 //
@@ -68,38 +68,29 @@ void FMeshMultiResampleImageEvaluator::Setup(const FMeshBaseBaker& Baker, FEvalu
 	Context.DataLayout = { EComponents::Float4 };
 
 	// Cache data from baker
-	DetailMesh = Baker.GetDetailMesh();
-	DetailMaterialIDAttrib = ensure(DetailMesh) ? DetailMesh->Attributes()->GetMaterialID() : nullptr;
-	bValidDetailMesh = ensure(DetailMaterialIDAttrib) && ensure(DetailUVOverlay);
+	DetailSampler = Baker.GetDetailSampler();
 }
 
 void FMeshMultiResampleImageEvaluator::EvaluateSampleMulti(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
-	FMeshMultiResampleImageEvaluator* Eval = static_cast<FMeshMultiResampleImageEvaluator*>(EvalData);
-	FVector4f SampleResult = Eval->ImageSampleFunction(Sample);
+	const FMeshMultiResampleImageEvaluator* Eval = static_cast<FMeshMultiResampleImageEvaluator*>(EvalData);
+	const FVector4f SampleResult = Eval->ImageSampleFunction(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
 
-FVector4f FMeshMultiResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& Sample)
+FVector4f FMeshMultiResampleImageEvaluator::ImageSampleFunction(const FCorrespondenceSample& Sample) const
 {
 	FVector4f Color(0.0f, 0.0f, 0.0f, 1.0f);
-	if (!bValidDetailMesh)
+	const void* DetailMesh = Sample.DetailMesh;
+	const int32 DetailTriID = Sample.DetailTriID;
+	const int32 MaterialID = DetailSampler->GetMaterialID(DetailMesh, DetailTriID);
+	// TODO: Decompose the Map into a sparse array lookup.
+	const TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> TextureImage = MultiTextures.FindRef(MaterialID);
+	if (TextureImage)
 	{
-		return Color;
-	}
-
-	int32 DetailTriID = Sample.DetailTriID;
-	if (DetailMesh->IsTriangle(DetailTriID))
-	{
-		// TODO: Decompose the Map into a sparse array lookup.
-		int32 MaterialID = DetailMaterialIDAttrib->GetValue(DetailTriID);
-		TSharedPtr<UE::Geometry::TImageBuilder<FVector4f>, ESPMode::ThreadSafe> TextureImage = MultiTextures.FindRef(MaterialID);
-		if (TextureImage)
-		{
-			FVector2d DetailUV;
-			DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &Sample.DetailBaryCoords.X, &DetailUV.X);
-			Color = TextureImage->BilinearSampleUV<float>(DetailUV, FVector4f(0, 0, 0, 1));
-		}
+		FVector2f DetailUV;
+		DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, Sample.DetailBaryCoords, DetailUVLayer, DetailUV);
+		Color = TextureImage->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
 	}
 	return Color;
 }
