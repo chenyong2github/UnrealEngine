@@ -15,7 +15,9 @@ public class GeoReferencing : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core"
+				"Core",
+				"Engine",
+				"GeometricObjects"
 			}
 		);
 
