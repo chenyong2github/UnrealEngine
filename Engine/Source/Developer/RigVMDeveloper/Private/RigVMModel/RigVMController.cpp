@@ -4142,6 +4142,11 @@ URigVMFunctionReferenceNode* URigVMController::PromoteCollapseNodeToFunctionRefe
 			TArray<FName> NodeNames;
 			for (const URigVMNode* Node : InCollapseNode->GetContainedNodes())
 			{
+				if (Node->IsInjected())
+				{
+					continue;
+				}
+				
 				NodeNames.Add(Node->GetFName());
 			}
 			TextContent = ExportNodesToText(NodeNames);
