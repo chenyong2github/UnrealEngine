@@ -605,6 +605,11 @@ private:
 	 */
 	bool bSuspendNotifications;
 
+	/**
+	 * This function can be used to override the controller's logging mechanism
+	 */
+	TFunction<void(EMessageSeverity::Type,const FString&)> LogFunction = nullptr;
+
 	friend class UControlRig;
 	friend class URigHierarchy;
 };

@@ -1879,7 +1879,7 @@ bool URigHierarchyController::AddParent(FRigBaseElement* InChild, FRigBaseElemen
 
 	if(Hierarchy->IsParentedTo(InParent, InChild))
 	{
-		ReportAndNotifyErrorf(TEXT("Cannot parent '%s' to '%s' - would cause a cycle."), *InChild->Key.ToString(), *InParent->Key.ToString());
+		ReportErrorf(TEXT("Cannot parent '%s' to '%s' - would cause a cycle."), *InChild->Key.ToString(), *InParent->Key.ToString());
 		return false;
 	}
 
@@ -2516,6 +2516,12 @@ void URigHierarchyController::ReportWarning(const FString& InMessage) const
 		return;
 	}
 
+	if(LogFunction)
+	{
+		LogFunction(EMessageSeverity::Warning, InMessage);
+		return;
+	}
+
 	FString Message = InMessage;
 	if (Hierarchy)
 	{
@@ -2532,6 +2538,12 @@ void URigHierarchyController::ReportError(const FString& InMessage) const
 {
 	if(!bReportWarningsAndErrors)
 	{
+		return;
+	}
+
+	if(LogFunction)
+	{
+		LogFunction(EMessageSeverity::Error, InMessage);
 		return;
 	}
 
