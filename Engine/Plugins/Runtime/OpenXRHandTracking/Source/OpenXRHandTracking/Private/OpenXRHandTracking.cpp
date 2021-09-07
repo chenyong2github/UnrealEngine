@@ -17,7 +17,7 @@
 //#include "DrawDebugHelpers.h"
 #include "ILiveLinkClient.h"
 #include "HeadMountedDisplayFunctionLibrary.h"
-#include "IOpenXRHMDPlugin.h"
+#include "IOpenXRHMDModule.h"
 
 #define LOCTEXT_NAMESPACE "OpenXRHandTracking"
 
@@ -155,7 +155,7 @@ FOpenXRHandTracking::FOpenXRHandTracking(const TSharedRef<FGenericApplicationMes
 
 	// We're implicitly requiring that the OpenXRPlugin has been loaded and
 	// initialized at this point.
-	if (!IOpenXRHMDPlugin::Get().IsAvailable())
+	if (!IOpenXRHMDModule::Get().IsAvailable())
 	{
 		UE_LOG(LogOpenXRHandTracking, Error, TEXT("Error - OpenXRHMDPlugin isn't available"));
 	}

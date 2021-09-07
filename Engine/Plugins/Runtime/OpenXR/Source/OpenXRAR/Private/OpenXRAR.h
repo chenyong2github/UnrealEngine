@@ -3,7 +3,7 @@
 #pragma once
 
 #include "IOpenXRARTrackedGeometryHolder.h"
-#include "IOpenXRHMDPlugin.h"
+#include "IOpenXRHMDModule.h"
 #include "ARSystemSupportBase.h"
 #include "ARTraceResult.h"
 #include "ARPin.h"
