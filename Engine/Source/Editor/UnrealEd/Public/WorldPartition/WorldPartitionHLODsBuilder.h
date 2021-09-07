@@ -61,11 +61,11 @@ private:
 enum class EHLODBuildStep : uint8
 {
 	None		= 0,
-	HLOD_Setup	= 1 << 0,
-	HLOD_Build	= 1 << 1,
-	HLOD_Submit = 1 << 2,
-	HLOD_Delete = 1 << 3,
-	HLOD_Stats	= 1 << 4
+	HLOD_Setup	= 1 << 0,		// Create/delete HLOD actors to populate the world.
+	HLOD_Build	= 1 << 1,		// Create components/merged meshes/etc - can run on multiple machines if this step is distributed.
+	HLOD_Finalize = 1 << 2,		// When performing a distributed build, this step will gather the result generated from the different machines and, optionnaly, will submit it to source control.
+	HLOD_Delete = 1 << 3,		// Delete all HLOD actors from the given world.
+	HLOD_Stats	= 1 << 4		// Print stats on all the HLOD actors.
 };
 ENUM_CLASS_FLAGS(EHLODBuildStep);
 

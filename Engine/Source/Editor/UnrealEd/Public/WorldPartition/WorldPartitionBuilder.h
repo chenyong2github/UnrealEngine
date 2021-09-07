@@ -36,4 +36,6 @@ protected:
 	TSet<FName> DataLayerLabels;
 	bool bLoadNonDynamicDataLayers = true;
 	bool bLoadInitiallyActiveDataLayers = true;
+
+	bool bSubmit = true;
 };

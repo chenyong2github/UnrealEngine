@@ -2481,32 +2481,49 @@ namespace AutomationTool
 		/// Updates a changelist with the given fields
 		/// </summary>
 		/// <param name="CL"></param>
-		/// <param name="NewOwner"></param>
+		/// <param name="NewClient"></param>
 		/// <param name="NewDescription"></param>
 		/// <param name="SpewIsVerbose"></param>
-		public void UpdateChange(int CL, string NewOwner, string NewDescription, bool SpewIsVerbose = false)
+		public void UpdateChange(int CL, string NewClient, string NewDescription, bool SpewIsVerbose = false)
+		{
+			UpdateChange(CL, null, NewClient, NewDescription, SpewIsVerbose);
+		}
+
+		/// <summary>
+		/// Updates a changelist with the given fields
+		/// </summary>
+		/// <param name="CL"></param>
+		/// <param name="NewUser"></param>
+		/// <param name="NewClient"></param>
+		/// <param name="NewDescription"></param>
+		/// <param name="SpewIsVerbose"></param>
+		public void UpdateChange(int CL, string NewUser, string NewClient, string NewDescription, bool SpewIsVerbose = false)
 		{
 			string CmdOutput;
-			if(!LogP4Output(out CmdOutput, "", String.Format("change -o {0}", CL), SpewIsVerbose: SpewIsVerbose))
+			if (!LogP4Output(out CmdOutput, "", String.Format("change -o {0}", CL), SpewIsVerbose: SpewIsVerbose))
 			{
 				throw new P4Exception("Couldn't describe changelist {0}", CL);
 			}
 
 			P4Spec Spec = P4Spec.FromString(CmdOutput);
-			if(NewOwner != null)
+			if (NewUser != null)
 			{
-				Spec.SetField("Client", NewOwner);
+				Spec.SetField("User", NewUser);
 			}
-			if(NewDescription != null)
+			if (NewClient != null)
+			{
+				Spec.SetField("Client", NewClient);
+			}			
+			if (NewDescription != null)
 			{
 				Spec.SetField("Description", NewDescription);
 			}
 
-			if(!LogP4Output(out CmdOutput, "", "change -i", Input: Spec.ToString(), SpewIsVerbose: SpewIsVerbose))
+			if (!LogP4Output(out CmdOutput, "", "change -i", Input: Spec.ToString(), SpewIsVerbose: SpewIsVerbose))
 			{
 				throw new P4Exception("Failed to update spec for changelist {0}", CL);
 			}
-			if(!CmdOutput.TrimEnd().EndsWith(String.Format("Change {0} updated.", CL)))
+			if (!CmdOutput.TrimEnd().EndsWith(String.Format("Change {0} updated.", CL)))
 			{
 				throw new P4Exception("Unexpected output from p4 change -i: {0}", CmdOutput);
 			}

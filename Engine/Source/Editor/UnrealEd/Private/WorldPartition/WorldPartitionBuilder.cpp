@@ -21,7 +21,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilder, Log, All);
 
 UWorldPartitionBuilder::UWorldPartitionBuilder(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-{}
+{
+	bSubmit = FParse::Param(FCommandLine::Get(), TEXT("Submit"));
+}
 
 bool UWorldPartitionBuilder::RunBuilder(TSubclassOf<UWorldPartitionBuilder> BuilderClass, UWorld* World)
 {
