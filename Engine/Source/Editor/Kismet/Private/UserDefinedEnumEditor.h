@@ -59,6 +59,15 @@ public:
 
 protected:
 	TSharedRef<SDockTab> SpawnEnumeratorsTab(const FSpawnTabArgs& Args);
+
+private:
+	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
+
+	/** Handles new enum element request */
+	FReply OnAddNewEnumerator();
+
+private:
+	TWeakObjectPtr<UUserDefinedEnum> TargetEnum;
 };
 
 /** Details customization for functions and graphs selected in the MyBlueprint panel */
@@ -89,9 +98,6 @@ public:
 	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 
 private:
-	/** Handles new enum element request */
-	FReply OnAddNewEnumerator();
-
 	/** Handles the optional bitmask flags attribute */
 	ECheckBoxState OnGetBitmaskFlagsAttributeState() const;
 	void OnBitmaskFlagsAttributeStateChanged(ECheckBoxState InNewState);
