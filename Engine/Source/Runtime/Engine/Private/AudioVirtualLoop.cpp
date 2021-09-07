@@ -79,6 +79,11 @@ bool FAudioVirtualLoop::Virtualize(const FActiveSound& InActiveSound, FAudioDevi
 		return false;
 	}
 
+	if (InAudioDevice.CanHaveMultipleActiveSounds(InActiveSound.GetAudioComponentID()))
+	{
+		return false;
+	}
+
 	if (bDoRangeCheck && IsInAudibleRange(InActiveSound, &InAudioDevice))
 	{
 		return false;
