@@ -10,17 +10,25 @@ using namespace UE::Geometry;
 void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
-	DetailNormalOverlay = Baker.GetDetailMeshNormals();
-	checkSlow(DetailNormalOverlay);
-	const int32 DetailUVLayer = Baker.GetDetailMeshNormalUVLayer();
-	DetailUVOverlay = Baker.GetDetailMeshUVs(DetailUVLayer);
-	checkSlow(DetailUVOverlay);
+	DetailSampler = Baker.GetDetailSampler();
+	auto GetNormalMaps = [this](const void* Mesh)
+	{
+		const FDetailNormalTexture NormalMap = DetailSampler->GetNormalMap(Mesh);
+		DetailNormalTextures.Add(Mesh, NormalMap);
+	};
+	DetailSampler->ProcessMeshes(GetNormalMaps);
+	bool bHasDetailNormalMap = false;
+	for (const auto& Map : DetailNormalTextures)
+	{
+		const TImageBuilder<FVector4f>* NormalMap;
+		int NormalUVLayer;
+		Tie(NormalMap, NormalUVLayer) = Map.Value;
+		bHasDetailNormalMap = bHasDetailNormalMap || NormalMap != nullptr;
+	}
+	
 	BaseMeshTangents = Baker.GetTargetMeshTangents();
-	DetailMeshTangents = Baker.GetDetailMeshTangents();
-	DetailMeshNormalMap = Baker.GetDetailMeshNormalMap();
 
-	Context.Evaluate = DetailMeshNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
+	Context.Evaluate = bHasDetailNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
 	Context.EvalData = this;
@@ -31,14 +39,14 @@ void FMeshNormalMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCont
 template <bool bUseDetailNormalMap>
 void FMeshNormalMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
-	FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
+	const FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
 	const FVector3f SampleResult = Eval->SampleFunction<bUseDetailNormalMap>(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
 
 void FMeshNormalMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 {
-	FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
+	const FMeshNormalMapEvaluator* Eval = static_cast<FMeshNormalMapEvaluator*>(EvalData);
 	WriteToBuffer(Out, Eval->DefaultNormal);
 }
 
@@ -55,32 +63,48 @@ template <bool bUseDetailNormalMap>
 FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData) const
 {
 	FVector3f Result = FVector3f::UnitZ();
+	const void* DetailMesh = SampleData.DetailMesh;
 	const int32 DetailTriID = SampleData.DetailTriID;
-	if (DetailMesh->IsTriangle(DetailTriID))
-	{
-		// get tangents on base mesh
-		FVector3d BaseTangentX, BaseTangentY;
-		BaseMeshTangents->GetInterpolatedTriangleTangent(
-			SampleData.BaseSample.TriangleIndex,
-			SampleData.BaseSample.BaryCoords,
-			BaseTangentX, BaseTangentY);
 
-		// sample normal on detail mesh
-		FVector3d DetailNormal;
-		DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
-		Normalize(DetailNormal);
-		
-		if constexpr (bUseDetailNormalMap)
+	// get tangents on base mesh
+	FVector3d BaseTangentX, BaseTangentY;
+	BaseMeshTangents->GetInterpolatedTriangleTangent(
+		SampleData.BaseSample.TriangleIndex,
+		SampleData.BaseSample.BaryCoords,
+		BaseTangentX, BaseTangentY);
+
+	// sample normal on detail mesh
+	FVector3f DetailNormal;
+	DetailSampler->TriBaryInterpolateNormal(
+		DetailMesh,
+		DetailTriID,
+		SampleData.DetailBaryCoords,
+		DetailNormal);
+	Normalize(DetailNormal);
+	
+	if constexpr (bUseDetailNormalMap)
+	{
+		const TImageBuilder<FVector4f>* DetailNormalMap;
+		int DetailNormalUVLayer;
+		Tie(DetailNormalMap, DetailNormalUVLayer) = DetailNormalTextures[DetailMesh];
+
+		if (DetailNormalMap)
 		{
 			FVector3d DetailTangentX, DetailTangentY;
-			DetailMeshTangents->GetInterpolatedTriangleTangent(
+			DetailSampler->TriBaryInterpolateTangents(
+				DetailMesh,
 				SampleData.DetailTriID,
 				SampleData.DetailBaryCoords,
 				DetailTangentX, DetailTangentY);
-			
-			FVector2d DetailUV;
-        	DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-			const FVector4f DetailNormalColor4 = SampleNormalMapFunction(DetailUV);
+		
+			FVector2f DetailUV;
+			DetailSampler->TriBaryInterpolateUV(
+				DetailMesh,
+				DetailTriID,
+				SampleData.DetailBaryCoords,
+				DetailNormalUVLayer,
+				DetailUV);
+			const FVector4f DetailNormalColor4 = DetailNormalMap->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
 
 			// Map color space [0,1] to normal space [-1,1]
 			const FVector3f DetailNormalColor(DetailNormalColor4.X, DetailNormalColor4.Y, DetailNormalColor4.Z);
@@ -91,20 +115,15 @@ FVector3f FMeshNormalMapEvaluator::SampleFunction(const FCorrespondenceSample& S
 			Normalize(DetailNormalObjectSpace);
 			DetailNormal = DetailNormalObjectSpace;
 		}
-
-		// compute normal in tangent space
-		const double dx = DetailNormal.Dot(BaseTangentX);
-		const double dy = DetailNormal.Dot(BaseTangentY);
-		const double dz = DetailNormal.Dot(SampleData.BaseNormal);
-
-		Result = FVector3f((float)dx, (float)dy, (float)dz);
 	}
-	return Result;
+
+	// compute normal in tangent space
+	const double dx = DetailNormal.Dot(BaseTangentX);
+	const double dy = DetailNormal.Dot(BaseTangentY);
+	const double dz = DetailNormal.Dot(SampleData.BaseNormal);
+
+	return FVector3f((float)dx, (float)dy, (float)dz);
 }
 
-FVector4f FMeshNormalMapEvaluator::SampleNormalMapFunction(const FVector2d& UVCoord) const
-{
-	return DetailMeshNormalMap->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
-}
 
 

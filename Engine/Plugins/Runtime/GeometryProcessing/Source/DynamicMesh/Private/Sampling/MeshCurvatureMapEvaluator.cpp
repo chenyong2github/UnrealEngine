@@ -3,19 +3,22 @@
 #include "Sampling/MeshCurvatureMapEvaluator.h"
 #include "Sampling/MeshMapBaker.h"
 #include "MeshCurvature.h"
-#include "MeshWeights.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
-void FMeshCurvatureMapEvaluator::CacheDetailCurvatures(const FDynamicMesh3* DetailMeshIn)
+void FMeshCurvatureMapEvaluator::CacheDetailCurvatures()
 {
+	// TODO: Generalize this evaluator for N meshes.
 	if (!Curvatures)
 	{
 		Curvatures = MakeShared<FMeshVertexCurvatureCache>();
-		Curvatures->BuildAll(*DetailMeshIn);
+		auto GetCurvature = [this](const void* Mesh)
+		{
+			DetailSampler->GetCurvature(Mesh, *Curvatures);
+		};
+		DetailSampler->ProcessMeshes(GetCurvature);
 	}
-	check(Curvatures->Num() == DetailMeshIn->MaxVertexID());
 }
 
 void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
@@ -28,8 +31,8 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 	Context.DataLayout = { EComponents::Float1 };
 
 	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
-	CacheDetailCurvatures(DetailMesh);
+	DetailSampler = Baker.GetDetailSampler();
+	CacheDetailCurvatures();
 
 	MinPreClamp = -TNumericLimits<double>::Max();
 	MaxPreClamp = TNumericLimits<double>::Max();
@@ -74,7 +77,7 @@ void FMeshCurvatureMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 
 void FMeshCurvatureMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
-	FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
+	const FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
 	const float Curvature = (float) Eval->SampleFunction(Sample);
 	WriteToBuffer(Out, Curvature);
 }
@@ -86,7 +89,7 @@ void FMeshCurvatureMapEvaluator::EvaluateDefault(float*& Out, void* EvalData)
 
 void FMeshCurvatureMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData)
 {
-	FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
+	const FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
 	const float Curvature = In[0];
 	const float Sign = FMathf::Sign(Curvature);
 	const float T = Eval->ClampRange.GetT(FMathf::Abs(Curvature));
@@ -96,25 +99,21 @@ void FMeshCurvatureMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FV
 	In += 1;
 }
 
-double FMeshCurvatureMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)
+double FMeshCurvatureMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData) const
 {
-	int32 DetailTriID = SampleData.DetailTriID;
-	if (DetailMesh->IsTriangle(DetailTriID))
-	{
-		FIndex3i DetailTri = DetailMesh->GetTriangle(DetailTriID);
-		double CurvatureA = GetCurvature(DetailTri.A);
-		double CurvatureB = GetCurvature(DetailTri.B);
-		double CurvatureC = GetCurvature(DetailTri.C);
-		double InterpCurvature = SampleData.DetailBaryCoords.X * CurvatureA
-			+ SampleData.DetailBaryCoords.Y * CurvatureB
-			+ SampleData.DetailBaryCoords.Z * CurvatureC;
-
-		return InterpCurvature;
-	}
-	return 0.0;
+	const void* DetailMesh = SampleData.DetailMesh;
+	const int32 DetailTriID = SampleData.DetailTriID;
+	const FIndex3i DetailTri = DetailSampler->GetTriangle(DetailMesh, DetailTriID);
+	const double CurvatureA = GetCurvature(DetailTri.A);
+	const double CurvatureB = GetCurvature(DetailTri.B);
+	const double CurvatureC = GetCurvature(DetailTri.C);
+	const double InterpCurvature = SampleData.DetailBaryCoords.X * CurvatureA
+		+ SampleData.DetailBaryCoords.Y * CurvatureB
+		+ SampleData.DetailBaryCoords.Z * CurvatureC;
+	return InterpCurvature;
 }
 
-double FMeshCurvatureMapEvaluator::GetCurvature(int32 vid)
+double FMeshCurvatureMapEvaluator::GetCurvature(const int32 vid) const
 {
 	const FMeshVertexCurvatureCache& Cache = *Curvatures;
 	switch (UseCurvatureType)
@@ -131,7 +130,7 @@ double FMeshCurvatureMapEvaluator::GetCurvature(int32 vid)
 	}
 }
 
-void FMeshCurvatureMapEvaluator::GetColorMapRange(FVector3f& NegativeColorOut, FVector3f& ZeroColorOut, FVector3f& PositiveColorOut)
+void FMeshCurvatureMapEvaluator::GetColorMapRange(FVector3f& NegativeColorOut, FVector3f& ZeroColorOut, FVector3f& PositiveColorOut) const
 {
 	switch (UseColorMode)
 	{

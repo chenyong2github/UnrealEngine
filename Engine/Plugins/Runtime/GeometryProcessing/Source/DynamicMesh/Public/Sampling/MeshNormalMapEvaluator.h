@@ -2,9 +2,11 @@
 
 #pragma once
 
+#include "Templates/Tuple.h"
+#include "Containers/Map.h"
 #include "Sampling/MeshMapEvaluator.h"
+#include "Sampling/MeshBakerCommon.h"
 #include "DynamicMesh/MeshTangents.h"
-#include "Image/ImageBuilder.h"
 
 namespace UE
 {
@@ -32,11 +34,10 @@ public:
 
 protected:
 	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
-	const FDynamicMeshNormalOverlay* DetailNormalOverlay = nullptr;
-	const FDynamicMeshUVOverlay* DetailUVOverlay = nullptr;
-	const TMeshTangents<double>* DetailMeshTangents = nullptr;
-	const TImageBuilder<FVector4f>* DetailMeshNormalMap = nullptr;
+	const IMeshBakerDetailSampler* DetailSampler = nullptr;
+	using FDetailNormalTexture = IMeshBakerDetailSampler::FBakeDetailTexture;
+	using FDetailNormalTextureMap = TMap<const void*, FDetailNormalTexture>;
+	FDetailNormalTextureMap DetailNormalTextures;
 	const TMeshTangents<double>* BaseMeshTangents = nullptr;
 
 	FVector3f DefaultNormal = FVector3f::UnitZ();
@@ -44,8 +45,6 @@ protected:
 private:
 	template <bool bUseDetailNormalMap>
 	FVector3f SampleFunction(const FCorrespondenceSample& SampleData) const;
-
-	FVector4f SampleNormalMapFunction(const FVector2d& UVCoord) const;
 };
 
 } // end namespace UE::Geometry

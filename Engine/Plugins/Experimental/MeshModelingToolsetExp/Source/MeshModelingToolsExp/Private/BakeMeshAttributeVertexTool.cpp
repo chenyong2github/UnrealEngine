@@ -97,10 +97,12 @@ public:
 			return Progress && Progress->Cancelled();
 		};
 		Baker->SetTargetMesh(BaseMesh);
-		Baker->SetDetailMesh(DetailMesh.Get(), DetailSpatial.Get());
 		Baker->SetTargetMeshTangents(BaseMeshTangents);
 		Baker->SetThickness(BakeSettings.Thickness);
 		Baker->BakeMode = BakeSettings.VertexMode == EBakeVertexMode::Color ? FMeshVertexBaker::EBakeMode::Color : FMeshVertexBaker::EBakeMode::Channel;
+		
+		FMeshBakerDynamicMeshSampler DetailSampler(DetailMesh.Get(), DetailSpatial.Get());
+		Baker->SetDetailSampler(&DetailSampler);
 
 		auto InitOcclusionEvaluator = [this] (FMeshOcclusionMapEvaluator* OcclusionEval, const EMeshOcclusionMapType OcclusionType)
 		{
@@ -224,17 +226,14 @@ public:
 			case EBakeVertexTypeColor::Texture2DImage:
 			{
 				TSharedPtr<FMeshResampleImageEvaluator, ESPMode::ThreadSafe> TextureBaker = MakeShared<FMeshResampleImageEvaluator, ESPMode::ThreadSafe>();
-				TextureBaker->DetailUVOverlay = UVOverlay;
-				TextureBaker->SampleFunction = [this](FVector2d UVCoord) {
-					return TextureImage->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
-				};
+				DetailSampler.SetColorMap(DetailMesh.Get(), IMeshBakerDetailSampler::FBakeDetailTexture(TextureImage.Get(), TextureSettings.UVLayer));
 				Baker->ColorEvaluator = TextureBaker;
 				break;
 			}
 			case EBakeVertexTypeColor::MultiTexture:
 			{
 				TSharedPtr<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe> TextureBaker = MakeShared<FMeshMultiResampleImageEvaluator, ESPMode::ThreadSafe>();
-				TextureBaker->DetailUVOverlay = UVOverlay;
+				TextureBaker->DetailUVLayer = TextureSettings.UVLayer;
 				TextureBaker->MultiTextures = MaterialToTextureImageMap;
 				Baker->ColorEvaluator = TextureBaker;
 				break;

@@ -10,15 +10,22 @@ using namespace UE::Geometry;
 void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationContext& Context)
 {
 	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
-	DetailNormalOverlay = Baker.GetDetailMeshNormals();
-	check(DetailNormalOverlay);
-	DetailUVOverlay = Baker.GetDetailMeshUVs();
-	DetailColorOverlay = Baker.GetDetailMeshColors();
-	DetailMeshTangents = Baker.GetDetailMeshTangents();
-	DetailMeshNormalMap = Baker.GetDetailMeshNormalMap();
+	DetailSampler = Baker.GetDetailSampler();
+	auto GetNormalMaps = [this](const void* Mesh)
+	{
+		const FDetailNormalTexture NormalMap = DetailSampler->GetNormalMap(Mesh);
+		DetailNormalTextures.Add(Mesh, NormalMap);
+	};
+	DetailSampler->ProcessMeshes(GetNormalMaps);
+	bool bHasDetailNormalMap = false;
+	for (const auto& Map : DetailNormalTextures)
+	{
+		const TImageBuilder<FVector4f>* NormalMap;
+		int NormalUVLayer;
+		Tie(NormalMap, NormalUVLayer) = Map.Value;
+		bHasDetailNormalMap = bHasDetailNormalMap || NormalMap != nullptr;
+	}
 
-	const bool bHasDetailNormalMap = DetailMeshNormalMap != nullptr;
 	Context.Evaluate = bHasDetailNormalMap ? &EvaluateSample<true> : &EvaluateSample<false>;
 	Context.EvaluateDefault = &EvaluateDefault;
 	Context.EvaluateColor = &EvaluateColor;
@@ -26,14 +33,13 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 	Context.AccumulateMode = EAccumulateMode::Add;
 	Context.DataLayout = { EComponents::Float3 };
 
-	Bounds = DetailMesh->GetBounds();
+	Bounds = DetailSampler->GetBounds();
 	for (int32 j = 0; j < 3; ++j)
 	{
 		if (Bounds.Diagonal()[j] < FMathf::ZeroTolerance)
 		{
 			Bounds.Min[j] = Bounds.Center()[j] - FMathf::ZeroTolerance;
 			Bounds.Max[j] = Bounds.Center()[j] + FMathf::ZeroTolerance;
-
 		}
 	}
 
@@ -48,13 +54,9 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 		break;
 	case EMeshPropertyMapType::Normal:
 		DefaultValue = NormalToColor(FVector3d::UnitZ());
-		if (bHasDetailNormalMap)
-		{
-			DetailUVOverlay = Baker.GetDetailMeshUVs(Baker.GetDetailMeshNormalUVLayer());
-		}
 		break;
 	case EMeshPropertyMapType::UVPosition:
-		DefaultValue = UVToColor(FVector2d::Zero());
+		DefaultValue = UVToColor(FVector2f::Zero());
 		break;
 	case EMeshPropertyMapType::MaterialID:
 		DefaultValue = FVector3f(LinearColors::LightPink3f());
@@ -68,7 +70,7 @@ void FMeshPropertyMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationCo
 template <bool bUseDetailNormalMap>
 void FMeshPropertyMapEvaluator::EvaluateSample(float*& Out, const FCorrespondenceSample& Sample, void* EvalData)
 {
-	FMeshPropertyMapEvaluator* Eval = static_cast<FMeshPropertyMapEvaluator*>(EvalData);
+	const FMeshPropertyMapEvaluator* Eval = static_cast<FMeshPropertyMapEvaluator*>(EvalData);
 	const FVector3f SampleResult = Eval->SampleFunction<bUseDetailNormalMap>(Sample);
 	WriteToBuffer(Out, SampleResult);
 }
@@ -86,45 +88,52 @@ void FMeshPropertyMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FVe
 }
 
 template <bool bUseDetailNormalMap>
-FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData)
+FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData) const
 {
+	const void* DetailMesh = SampleData.DetailMesh;
+	const FVector3d& DetailBaryCoords = SampleData.DetailBaryCoords;
 	FVector3f Color = DefaultValue;
-	int32 DetailTriID = SampleData.DetailTriID;
-	if (DetailMesh->IsTriangle(DetailTriID))
-	{
-		switch (this->Property)
-		{
-		case EMeshPropertyMapType::Position:
-		{
-			FVector3d Position = DetailMesh->GetTriBaryPoint(DetailTriID, SampleData.DetailBaryCoords[0], SampleData.DetailBaryCoords[1], SampleData.DetailBaryCoords[2]);
-			Color = PositionToColor(Position, Bounds);
-		}
-		break;
-		case EMeshPropertyMapType::FacetNormal:
-		{
-			FVector3d FacetNormal = DetailMesh->GetTriNormal(DetailTriID);
-			Color = NormalToColor(FacetNormal);
-		}
-		break;
-		case EMeshPropertyMapType::Normal:
-		{
-			if (DetailNormalOverlay->IsSetTriangle(DetailTriID))
-			{
-				FVector3d DetailNormal;
-				DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailNormal.X);
-				Normalize(DetailNormal);
+	const int32 DetailTriID = SampleData.DetailTriID;
 
-				if constexpr (bUseDetailNormalMap)
+	switch (this->Property)
+	{
+	case EMeshPropertyMapType::Position:
+	{
+		const FVector3d Position = DetailSampler->TriBaryInterpolatePoint(DetailMesh, DetailTriID, DetailBaryCoords);
+		Color = PositionToColor(Position, Bounds);
+	}
+	break;
+	case EMeshPropertyMapType::FacetNormal:
+	{
+		const FVector3d FacetNormal = DetailSampler->GetTriNormal(DetailMesh, DetailTriID);
+		Color = NormalToColor(FacetNormal);
+	}
+	break;
+	case EMeshPropertyMapType::Normal:
+	{
+		FVector3f DetailNormal;
+		if (DetailSampler->TriBaryInterpolateNormal(DetailMesh, DetailTriID, DetailBaryCoords, DetailNormal))
+		{
+			Normalize(DetailNormal);
+
+			if constexpr (bUseDetailNormalMap)
+			{
+				const TImageBuilder<FVector4f>* DetailNormalMap;
+				int DetailNormalUVLayer;
+				Tie(DetailNormalMap, DetailNormalUVLayer) = DetailNormalTextures[DetailMesh];
+
+				if (DetailNormalMap)
 				{
 					FVector3d DetailTangentX, DetailTangentY;
-					DetailMeshTangents->GetInterpolatedTriangleTangent(
+					DetailSampler->TriBaryInterpolateTangents(
+						DetailMesh,
 						SampleData.DetailTriID,
 						SampleData.DetailBaryCoords,
 						DetailTangentX, DetailTangentY);
-			
-					FVector2d DetailUV;
-					DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-					const FVector4f DetailNormalColor4 = SampleNormalMapFunction(DetailUV);
+	
+					FVector2f DetailUV;
+					DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, DetailBaryCoords, DetailNormalUVLayer, DetailUV);
+					const FVector4f DetailNormalColor4 = DetailNormalMap->BilinearSampleUV<float>(FVector2d(DetailUV), FVector4f(0, 0, 0, 1));
 
 					// Map color space [0,1] to normal space [-1,1]
 					const FVector3f DetailNormalColor(DetailNormalColor4.X, DetailNormalColor4.Y, DetailNormalColor4.Z);
@@ -135,49 +144,38 @@ FVector3f FMeshPropertyMapEvaluator::SampleFunction(const FCorrespondenceSample&
 					Normalize(DetailNormalObjectSpace);
 					DetailNormal = DetailNormalObjectSpace;
 				}
-				
-				Color = NormalToColor(DetailNormal);
 			}
-		}
-		break;
-		case EMeshPropertyMapType::UVPosition:
-		{
-			if (DetailUVOverlay && DetailUVOverlay->IsSetTriangle(DetailTriID))
-			{
-				FVector2d DetailUV;
-				DetailUVOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailUV.X);
-				Color = UVToColor(DetailUV);
-			}
-		}
-		break;
-		case EMeshPropertyMapType::MaterialID:
-		{
-			if (DetailMesh->Attributes() && DetailMesh->Attributes()->HasMaterialID())
-			{
-				const FDynamicMeshMaterialAttribute* DetailMaterialIDAttrib = DetailMesh->Attributes()->GetMaterialID();
-				const int32 MatID = DetailMaterialIDAttrib->GetValue(DetailTriID);
-				Color = LinearColors::SelectColor<FVector3f>(MatID);
-			}
-		}
-		break;
-		case EMeshPropertyMapType::VertexColor:
-		{
-			if (DetailColorOverlay && DetailColorOverlay->IsSetTriangle(DetailTriID))
-			{
-				FVector4d DetailColor;
-				DetailColorOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailColor.X);
-				Color = FVector3f(DetailColor.X, DetailColor.Y, DetailColor.Z);
-			}
-		}
-		break;
+
+			Color = NormalToColor(DetailNormal);
 		}
 	}
+	break;
+	case EMeshPropertyMapType::UVPosition:
+	{
+		FVector2f DetailUV;
+		if (DetailSampler->TriBaryInterpolateUV(DetailMesh, DetailTriID, DetailBaryCoords, 0, DetailUV))
+		{
+			Color = UVToColor(DetailUV);
+		}
+	}
+	break;
+	case EMeshPropertyMapType::MaterialID:
+	{
+		const int32 MatID = DetailSampler->GetMaterialID(DetailMesh, DetailTriID);
+		Color = LinearColors::SelectColor<FVector3f>(MatID);
+	}
+	break;
+	case EMeshPropertyMapType::VertexColor:
+	{
+		FVector4f DetailColor;
+		if (DetailSampler->TriBaryInterpolateColor(DetailMesh, DetailTriID, DetailBaryCoords, DetailColor))
+		{
+			Color = FVector3f(DetailColor.X, DetailColor.Y, DetailColor.Z);
+		}
+	}
+	break;
+	}
 	return Color;
-}
-
-FVector4f FMeshPropertyMapEvaluator::SampleNormalMapFunction(const FVector2d& UVCoord) const
-{
-	return DetailMeshNormalMap->BilinearSampleUV<float>(UVCoord, FVector4f(0, 0, 0, 1));
 }
 
 

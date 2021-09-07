@@ -150,7 +150,7 @@ void FMeshMapBaker::Bake()
 	}
 
 	// This sampler finds the correspondence between target surface and detail surface.
-	DetailMeshSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FMeshMapEvaluator::FCorrespondenceSample(),
+	DetailCorrespondenceSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FMeshMapEvaluator::FCorrespondenceSample(),
 		[Mesh, NormalOverlay, UseStrategy, this](const FMeshUVSampleInfo& SampleInfo, FMeshMapEvaluator::FCorrespondenceSample& ValueOut)
 	{
 		NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords.X, &ValueOut.BaseNormal.X);
@@ -158,24 +158,28 @@ void FMeshMapBaker::Bake()
 		FVector3d RayDir = ValueOut.BaseNormal;
 
 		ValueOut.BaseSample = SampleInfo;
+		ValueOut.DetailMesh = nullptr;
 		ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
 
-		if (UseStrategy == ECorrespondenceStrategy::Identity)
+		if (UseStrategy == ECorrespondenceStrategy::Identity && DetailSampler->SupportsIdentityCorrespondence())
 		{
+			ValueOut.DetailMesh = Mesh;
 			ValueOut.DetailTriID = SampleInfo.TriangleIndex;
 			ValueOut.DetailBaryCoords = SampleInfo.BaryCoords;
 		}
-		else if (UseStrategy == ECorrespondenceStrategy::NearestPoint)
+		else if (UseStrategy == ECorrespondenceStrategy::NearestPoint && DetailSampler->SupportsNearestPointCorrespondence())
 		{
-			bool bFoundTri = GetDetailMeshTrianglePoint_Nearest(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint,
+			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Nearest(DetailSampler, SampleInfo.SurfacePoint,
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
 		}
 		else	// Fall back to raycast strategy
 		{
-			double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
+			checkSlow(DetailSampler->SupportsRaycastCorrespondence());
+			
+			const double SampleThickness = this->GetThickness();		// could modulate w/ a map here...
 
 			// Find detail mesh triangle point
-			bool bFoundTri = GetDetailMeshTrianglePoint_Raycast(*DetailMesh, *DetailSpatial, SampleInfo.SurfacePoint, RayDir,
+			ValueOut.DetailMesh = GetDetailMeshTrianglePoint_Raycast(DetailSampler, SampleInfo.SurfacePoint, RayDir,
 				ValueOut.DetailTriID, ValueOut.DetailBaryCoords, SampleThickness,
 				(UseStrategy == ECorrespondenceStrategy::RaycastStandardThenNearest));
 		}
@@ -318,8 +322,11 @@ void FMeshMapBaker::Bake()
 						const int32 UVTriangleID = OccupancyMap.TexelQueryTriangle[LinearIdx];
 
 						FMeshMapEvaluator::FCorrespondenceSample Sample;
-						DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, Sample);
-						BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords);
+						DetailCorrespondenceSampler.SampleUV(UVTriangleID, UVPosition, Sample);
+						if (DetailSampler->IsTriangle(Sample.DetailMesh, Sample.DetailTriID))
+						{
+							BakeSample(*TileBuffer, Sample, UVPosition, ImageCoords);
+						}
 					}
 				}
 			}

@@ -9,6 +9,7 @@ namespace UE
 namespace Geometry
 {
 
+class IMeshBakerDetailSampler;
 class FMeshVertexCurvatureCache;
 
 /**
@@ -66,11 +67,11 @@ public:
 	static void EvaluateColor(const int DataIdx, float*& In, FVector4f& Out, void* EvalData);
 
 	/** Populate Curvatures member if valid data has not been provided */
-	void CacheDetailCurvatures(const FDynamicMesh3* DetailMesh);
+	void CacheDetailCurvatures();
 
 protected:
 	// Cached data
-	const FDynamicMesh3* DetailMesh = nullptr;
+	const IMeshBakerDetailSampler* DetailSampler = nullptr;
 	double MinPreClamp = -TNumericLimits<double>::Max();
 	double MaxPreClamp = TNumericLimits<double>::Max();
 	FInterval1d ClampRange;
@@ -79,11 +80,11 @@ protected:
 	FVector3f PositiveColor;
 
 protected:
-	double GetCurvature(int32 vid);
-	void GetColorMapRange(FVector3f& NegativeColor, FVector3f& ZeroColor, FVector3f& PositiveColor);
+	double GetCurvature(int32 vid) const;
+	void GetColorMapRange(FVector3f& NegativeColorOut, FVector3f& ZeroColorOut, FVector3f& PositiveColorOut) const;
 
 private:
-	double SampleFunction(const FCorrespondenceSample& Sample);
+	double SampleFunction(const FCorrespondenceSample& SampleData) const;
 };
 
 } // end namespace UE::Geometry

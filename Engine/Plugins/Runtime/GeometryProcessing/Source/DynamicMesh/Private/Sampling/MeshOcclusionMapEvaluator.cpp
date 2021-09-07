@@ -3,6 +3,7 @@
 #include "Sampling/MeshOcclusionMapEvaluator.h"
 #include "Sampling/MeshMapBaker.h"
 #include "Sampling/SphericalFibonacci.h"
+#include "Math/RandomStream.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
@@ -75,10 +76,7 @@ void FMeshOcclusionMapEvaluator::Setup(const FMeshBaseBaker& Baker, FEvaluationC
 	}
 
 	// Cache data from the baker
-	DetailMesh = Baker.GetDetailMesh();
-	DetailSpatial = Baker.GetDetailMeshSpatial();
-	DetailNormalOverlay = Baker.GetDetailMeshNormals();
-	check(DetailNormalOverlay);
+	DetailSampler = Baker.GetDetailSampler();
 
 	if (WANT_BENT_NORMAL(OcclusionType) && NormalSpace == ESpace::Tangent)
 	{
@@ -192,16 +190,11 @@ void FMeshOcclusionMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FV
 template <EMeshOcclusionMapType ComputeType, FMeshOcclusionMapEvaluator::ESpace ComputeSpace>
 FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFunction(const FCorrespondenceSample& SampleData, const FVector3d& DefaultNormal)
 {
-	int32 DetailTriID = SampleData.DetailTriID;
-	if (!DetailMesh->IsTriangle(DetailTriID))
-	{
-		return FOcclusionTuple(0.0, DefaultNormal);
-	}
+	const void* DetailMesh = SampleData.DetailMesh;
+	const int32 DetailTriID = SampleData.DetailTriID;
 
-	FIndex3i DetailTri = DetailMesh->GetTriangle(DetailTriID);
-	//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
-	FVector3d DetailTriNormal;
-	DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords.X, &DetailTriNormal.X);
+	FVector3f DetailTriNormal;
+	DetailSampler->TriBaryInterpolateNormal(DetailMesh, DetailTriID, SampleData.DetailBaryCoords, DetailTriNormal);
 	Normalize(DetailTriNormal);
 
 	FVector3d BaseTangentX, BaseTangentY;
@@ -214,15 +207,15 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 			BaseTangentX, BaseTangentY);
 	}
 
-	FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
-	FVector3d DetailPos = DetailMesh->GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);
+	const FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
+	FVector3d DetailPos = DetailSampler->TriBaryInterpolatePoint(DetailMesh, DetailTriID, DetailBaryCoords);
 	DetailPos += 10.0f * FMathf::ZeroTolerance * DetailTriNormal;
-	FFrame3d SurfaceFrame(DetailPos, DetailTriNormal);
+	FFrame3d SurfaceFrame(DetailPos, FVector3d(DetailTriNormal));
 
 	// TODO: Consider pregenerating random rotations.
 	FRandomStream RotationGen;
 	RotationGen.GenerateNewSeed();
-	double RotationAngle = RotationGen.GetFraction() * FMathd::TwoPi;
+	const double RotationAngle = RotationGen.GetFraction() * FMathd::TwoPi;
 	SurfaceFrame.Rotate(FQuaterniond(SurfaceFrame.Z(), RotationAngle, false));
 
 	IMeshSpatial::FQueryOptions QueryOptions;
@@ -236,14 +229,14 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 		FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
 		ensure(OcclusionRay.Direction.Dot(DetailTriNormal) > 0);
 
-		bool bHit = DetailSpatial->TestAnyHitTriangle(OcclusionRay, QueryOptions);
+		const bool bHit = DetailSampler->TestAnyHitTriangle(OcclusionRay, QueryOptions);
 
 		if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType))
 		{
 			// Have weight of point fall off as it becomes more coplanar with face. 
 			// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
 			double PointWeight = 1.0;
-			double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
+			const double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
 			if (BiasDot < BiasDotThreshold)
 			{
 				PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot / BiasDotThreshold, 0.0, 1.0));
