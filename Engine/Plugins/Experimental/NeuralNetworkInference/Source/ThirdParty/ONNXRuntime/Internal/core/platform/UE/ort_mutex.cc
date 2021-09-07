@@ -1,4 +1,4 @@
-#ifndef PLATFORM_WIN64 
+#ifndef PLATFORM_NNI_MICROSOFT 
 
 // Copyright (c) Microsoft Corporation. All rights reserved.
 // Licensed under the MIT License.
@@ -44,4 +44,4 @@ void OrtCondVar::wait(std::unique_lock<OrtMutex>& lk) {
 
 }  // namespace onnxruntime
 
-#endif // PLATFORM_WIN64
+#endif // PLATFORM_NNI_MICROSOFT

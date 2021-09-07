@@ -33,6 +33,7 @@ public class ThirdPartyHelperAndDLLLoader : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
 			PublicDefinitions.Add("PLATFORM_WIN64");
+			PublicDefinitions.Add("PLATFORM_NNI_MICROSOFT");
 		}
 	}
 }
