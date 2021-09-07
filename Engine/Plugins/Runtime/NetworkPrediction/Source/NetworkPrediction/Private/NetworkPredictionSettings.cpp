@@ -217,35 +217,46 @@ namespace UE_NETWORK_PREDICTION
 		}
 
 		// One time init:
+		TWeakObjectPtr<UWorld> WeakWorld(InWorld);
+		bool bRegisteredInput  = false;
+		auto BindInput = [&bRegisteredInput, WeakWorld]()
+		{
+			if (UWorld* World = WeakWorld.Get())
+			{
+				if (ULocalPlayer* LocalPlayer = World->GetFirstLocalPlayerFromController())
+				{
+					//LocalPlayer->Exec(InWorld, *FString::Printf(TEXT("setbind %d \"np2.DevMenu %d\n"), i, i), *GLog);
+
+					LocalPlayer->Exec(World, TEXT("setbind one \"np2.DevMenu 1\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind two \"np2.DevMenu 2\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind three \"np2.DevMenu 3\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind four \"np2.DevMenu 4\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind five \"np2.DevMenu 5\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind six \"np2.DevMenu 6\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind seven \"np2.DevMenu 7\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind eight \"np2.DevMenu 8\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind nine \"np2.DevMenu 9\""), *GLog);
+					LocalPlayer->Exec(World, TEXT("setbind zero \"np2.DevMenu 0\""), *GLog);
+					bRegisteredInput = true;
+				}
+			}
+		};
+
+		if (!bRegisteredInput)
+		{
+			BindInput();
+		}
+
 		static FDelegateHandle Handle;
 		if (Handle.IsValid())
 		{
 			return;
-		}	
+		}
 
 		Handle = AHUD::OnHUDPostRender.AddLambda([](AHUD* HUD, UCanvas* Canvas)
 		{
 			DrawDevHUD(WorldHandlesMap, HUD, Canvas);
 		});
-
-		//for (int32 i=0; i <= 9; ++i)
-		{
-			if (ULocalPlayer* LocalPlayer = InWorld->GetFirstLocalPlayerFromController())
-			{
-				//LocalPlayer->Exec(InWorld, *FString::Printf(TEXT("setbind %d \"np2.DevMenu %d\n"), i, i), *GLog);
-
-				LocalPlayer->Exec(InWorld, TEXT("setbind one \"np2.DevMenu 1\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind two \"np2.DevMenu 2\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind three \"np2.DevMenu 3\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind four \"np2.DevMenu 4\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind five \"np2.DevMenu 5\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind six \"np2.DevMenu 6\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind seven \"np2.DevMenu 7\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind eight \"np2.DevMenu 8\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind nine \"np2.DevMenu 9\""), *GLog);
-				LocalPlayer->Exec(InWorld, TEXT("setbind zero \"np2.DevMenu 0\""), *GLog);
-			}
-		}
 	}
 }
 

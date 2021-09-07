@@ -175,7 +175,10 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 		const float Error = FQuat::ErrorAutoNormalize(A, B);
 		const bool b = D == 0 ? A != B : Error > D;
 
-		//UE_LOG(LogTemp, Warning, TEXT("Error: %f"), Error);
+		if (b)
+		{
+			//UE_LOG(LogTemp, Warning, TEXT("%s Error: %f"), Str, Error);
+		}
 
 		UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && b && Str, LogNetworkPhysics, Log, TEXT("%s correction. Server: %s. Local: %s. Delta: %f"), Str, *A.ToString(), *B.ToString(), FQuat::ErrorAutoNormalize(A, B));
 		return b;
@@ -278,7 +281,7 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 					}
 				}
 #endif
-				
+
 				//UE_LOG(LogTemp, Warning, TEXT("0x%X P.ObjectState(): %d. R: %s [%s]"), (int64)Proxy,  P.ObjectState(), *P.R().ToString(), *Obj.Physics.Rotation.ToString());
 				//UE_LOG(LogTemp, Warning, TEXT("			R: %s [%s]"), *FRotator(P.R()).ToString(), *FRotator(Obj.Physics.Rotation).ToString());
 
@@ -384,29 +387,30 @@ struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 				// Should re-evaluate whether/why this is occurring in the first place.
 				if (ensure(CorrectionState.Proxy))
 				{
-				if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
-				{
-					UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
-				
+					if (auto* PT = CorrectionState.Proxy->GetPhysicsThreadAPI())
+					{
+						UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0, LogNetworkPhysics, Log, TEXT("Applying Correction from frame %d (actual step: %d). Location: %s"), CorrectionState.Frame, PhysicsStep, *FVector(CorrectionState.Physics.Location).ToString());
+
 						npEnsure(CorrectionState.Physics.Location.ContainsNaN() == false);
 						npEnsure(CorrectionState.Physics.LinearVelocity.ContainsNaN() == false);
 						npEnsure(CorrectionState.Physics.AngularVelocity.ContainsNaN() == false);
-					PT->SetX(CorrectionState.Physics.Location, false);
-					PT->SetV(CorrectionState.Physics.LinearVelocity, false);
-					PT->SetR(CorrectionState.Physics.Rotation, false);
-					PT->SetW(CorrectionState.Physics.AngularVelocity, false);
 					
+						PT->SetX(CorrectionState.Physics.Location, false);
+						PT->SetV(CorrectionState.Physics.LinearVelocity, false);
+						PT->SetR(CorrectionState.Physics.Rotation, false);
+						PT->SetW(CorrectionState.Physics.AngularVelocity, false);
+
 						//Solver->GetParticles().MarkTransientDirtyParticle(PT->GetProxy()->GetHandle_LowLevel());
 
-					//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
-					{
-						ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
+						//if (PT->ObjectState() != CorrectionState.Physics.ObjectState)
+						{
+							ensure(CorrectionState.Physics.ObjectState != Chaos::EObjectStateType::Uninitialized);
 							UE_CLOG(UE_NETWORK_PHYSICS::LogCorrections > 0 && PT->ObjectState() != CorrectionState.Physics.ObjectState, LogNetworkPhysics, Log, TEXT("Applying Correction State %d"), CorrectionState.Physics.ObjectState);
-						PT->SetObjectState(CorrectionState.Physics.ObjectState);
+							PT->SetObjectState(CorrectionState.Physics.ObjectState);
+						}
 					}
 				}
 			}
-		}
 		}
 
 		// Marhsall data back to GT based on what was requested for networking
@@ -668,12 +672,13 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 
 			if (ensure(NumFrames > 0))
 			{
-			Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
-			RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
-			RewindCallback->RewindData = Solver->GetRewindData();
-			RewindCallback->Solver = Solver;
-			RewindCallback->World = World;
-			RewindCallback->NetworkPhysicsManager = this;
+				Solver->EnableRewindCapture(NumFrames, true, MakeUnique<FNetworkPhysicsRewindCallback>());
+				RewindCallback = static_cast<FNetworkPhysicsRewindCallback*>(Solver->GetRewindCallback());
+				RewindCallback->RewindData = Solver->GetRewindData();
+				RewindCallback->Solver = Solver;
+				RewindCallback->World = World;
+				RewindCallback->NetworkPhysicsManager = this;
+			}
 		}
 	}
 	}
@@ -741,7 +746,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 				if (UE_NETWORK_PHYSICS::TimeDilationEnabled > 0)
 				{
-				PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
+					PhysScene->SetNetworkDeltaTimeScale(RealTimeDilation);
 				}
 
 				if (LatestAckdClientFrame != INDEX_NONE)
@@ -841,9 +846,9 @@ void UNetworkPhysicsManager::PostNetRecv()
 
 							if (PhysicsState->OwningActor)
 							{
-							PhysicsState->OwningActor->GetReplicatedMovement_Mutable().bRepPhysics = false;
-							PhysicsState->OwningActor->SetReplicateMovement(false);
-						}
+								PhysicsState->OwningActor->GetReplicatedMovement_Mutable().bRepPhysics = false;
+								PhysicsState->OwningActor->SetReplicateMovement(false);
+							}
 						}
 						else
 						{
@@ -1260,7 +1265,7 @@ void UNetworkPhysicsManager::TickDrawDebug()
 				{
 					(*Func)(P);
 				}
-			}
+			}			
 		}
 	}
 

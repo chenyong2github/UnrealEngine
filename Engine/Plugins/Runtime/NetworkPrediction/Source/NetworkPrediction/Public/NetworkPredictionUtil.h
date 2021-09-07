@@ -41,6 +41,7 @@ void NpClearBitArray(BitArrayType& BitArray)
 {
 	BitArray.SetRange(0, BitArray.Num(), false);
 }
+
 template<typename ArrayType>
 void NpResizeForIndex(ArrayType& Array, int32 Index)
 {
