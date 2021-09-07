@@ -218,6 +218,27 @@ public:
 	}
 
 	/**
+	 * @return true if all pixels have the same value
+	 */
+	bool IsConstantValue() const
+	{
+		int64 Num = Dimensions.Num();
+		if (Num >= 1)
+		{
+			PixelType InitialValue = Image[0];
+			for (int64 k = 1; k < Num; ++k)
+			{
+				if (Image[k] != InitialValue)
+				{
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+
+
+	/**
 	 * Very basic downsampling technqiue that just averages NxN pixel blocks. Multi-threaded.
 	 * @param SubSteps each NxN pixel block of this size is averaged into 1 pixel in the output image
 	 * @param Zero value to use with template PixelType must be provided, pixel values will be added to this value
