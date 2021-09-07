@@ -3951,13 +3951,15 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 		SCOPE_CYCLE_COUNTER(STAT_TotalSceneRenderingTime);
 
 		{
+			const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
+
 			FRDGBuilder GraphBuilder(
 				RHICmdList,
 				RDG_EVENT_NAME("SceneRenderer_%s(ViewFamily=%s)",
 					ViewFamily.EngineShowFlags.HitProxies ? TEXT("RenderHitProxies") : TEXT("Render"),
 					ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")
 				),
-				ERDGBuilderFlags::AllowParallelExecute
+				FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel)
 			);
 
 			if (ViewFamily.EngineShowFlags.HitProxies)

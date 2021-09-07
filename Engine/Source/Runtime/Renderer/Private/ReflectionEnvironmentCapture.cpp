@@ -718,12 +718,12 @@ void CaptureSceneToScratchCubemap(FRHICommandListImmediate& RHICmdList, FSceneRe
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-	const auto FeatureLevel = SceneRenderer->FeatureLevel;
+	const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
 	
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, CubeMapCapture);
 
-		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"), ERDGBuilderFlags::AllowParallelExecute);
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"), FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel));
 
 		// Render the scene normally for one face of the cubemap
 		SceneRenderer->Render(GraphBuilder);

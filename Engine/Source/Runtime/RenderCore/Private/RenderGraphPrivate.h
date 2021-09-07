@@ -202,8 +202,7 @@ FORCEINLINE bool IsParallelExecuteEnabled()
 		&& !GRHICommandList.Bypass()
 		&& !IsImmediateMode()
 		&& !GRDGDebug
-		&& !GRDGTransitionLog
-		&& !IsMobilePlatform(GMaxRHIShaderPlatform);
+		&& !GRDGTransitionLog;
 }
 
 template <typename ResourceRegistryType, typename FunctionType>
