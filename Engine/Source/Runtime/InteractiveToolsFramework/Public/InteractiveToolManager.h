@@ -225,19 +225,6 @@ public:
 	 */
 	virtual bool RequestSelectionChange(const FSelectedOjectsChangeList& SelectionChange);
 
-	/**
-	 * Store an arbitrary tool selection object that will be loaded for the next tool to be invoked.
-	 * If that tool doesn't support the selection object and does not get cancelled, the stored
-	 * selection will be discarded. Passing in a nullptr will clear the stored selection.
-	 *
-	 * Ideally, a tool would make this call in any Shutdown() non-cancel invocation, even if to
-	 * keep the currently stored tool selection. If a tool doesn't, the tool manager will discard
-	 * the last stored tool selection to avoid keeping stale ones across tool invocations, but this
-	 * will be a non-undoable clear because the tool manager can't put the action into whatever
-	 * transaction the tool issues in its Shutdown().
-	 */
-	virtual bool RequestToolSelectionStore(const UInteractiveToolStorableSelection* StorableSelection);
-
 	//
 	// State control  (@todo: have the Context call these? not safe for anyone to call)
 	//

@@ -4,10 +4,10 @@
 
 #include "SingleSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "InteractiveToolStorableSelection.h"
 #include "SingleSelectionMeshEditingTool.generated.h"
 
 class USingleSelectionMeshEditingTool;
+class UPersistentMeshSelection;
 
 /**
  * USingleSelectionMeshEditingToolBuilder is a base tool builder for single
@@ -51,6 +51,8 @@ class MODELINGCOMPONENTS_API USingleSelectionMeshEditingTool : public USingleSel
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 
+	virtual UWorld* GetTargetWorld() { return TargetWorld; }
+
 protected:
 	UWorld* TargetWorld = nullptr;
 
@@ -64,9 +66,9 @@ public:
 	 * to allow the Tool to configure it's behavior based on the Selection (which may or may-not exist).
 	 * If the Tool requires a Selection, this needs to be handled at the Builder level.
 	 */
-	virtual void SetInputSelection(const UInteractiveToolStorableSelection* StoredToolSelectionIn)
+	virtual void SetInputSelection(const UPersistentMeshSelection* SelectionIn)
 	{
-		InputSelection = StoredToolSelectionIn;
+		InputSelection = SelectionIn;
 	}
 
 	/** @return true if an InputSelection is available */
@@ -76,7 +78,7 @@ public:
 	}
 
 	/** @return the input Selection, or nullptr if one was not configured */
-	virtual const UInteractiveToolStorableSelection* GetInputSelection() const
+	virtual const UPersistentMeshSelection* GetInputSelection() const
 	{
 		return InputSelection;
 	}
@@ -84,9 +86,9 @@ public:
 protected:
 
 	/**
-	 * (optional) Stored Selection provided on Tool Input. This should never be modified after the Tool's Setup() is called
+	 * (optional) Mesh Selection provided on Tool Input. This should never be modified after the Tool's Setup() is called
 	 */
 	UPROPERTY()
-	TObjectPtr<const UInteractiveToolStorableSelection> InputSelection = nullptr;
+	TObjectPtr<const UPersistentMeshSelection> InputSelection = nullptr;
 
 };

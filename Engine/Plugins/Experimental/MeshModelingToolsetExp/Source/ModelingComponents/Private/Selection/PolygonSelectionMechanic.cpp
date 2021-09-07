@@ -7,7 +7,7 @@
 #include "BaseBehaviors/SingleClickBehavior.h"
 #include "InteractiveToolManager.h"
 #include "Util/ColorConstants.h"
-#include "Selection/GroupTopologyStorableSelection.h"
+#include "Selection/PersistentMeshSelection.h"
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
@@ -83,21 +83,14 @@ void UPolygonSelectionMechanic::Shutdown()
 	}
 }
 
-void UPolygonSelectionMechanic::GetStorableSelection(UGroupTopologyStorableSelection& StorableSelectionOut, const FCompactMaps* CompactMapsToApply) const
+void UPolygonSelectionMechanic::GetSelection(UPersistentMeshSelection& SelectionOut, const FCompactMaps* CompactMapsToApply) const
 {
-	if (CompactMapsToApply)
-	{
-		StorableSelectionOut.SetSelection(*Topology, PersistentSelection, *CompactMapsToApply);
-	}
-	else
-	{
-		StorableSelectionOut.SetSelection(*Topology, PersistentSelection);
-	}
+	SelectionOut.SetSelection(*Topology, PersistentSelection, CompactMapsToApply);
 }
 
-void UPolygonSelectionMechanic::LoadStorableSelection(const UGroupTopologyStorableSelection& StorableSelectionIn)
+void UPolygonSelectionMechanic::LoadSelection(const UPersistentMeshSelection& SelectionIn)
 {
-	StorableSelectionIn.ExtractIntoSelectionObject(*Topology, PersistentSelection);
+	SelectionIn.ExtractIntoSelectionObject(*Topology, PersistentSelection);
 }
 
 void UPolygonSelectionMechanic::Initialize(

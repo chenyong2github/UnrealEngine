@@ -25,7 +25,8 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "ModelingToolTargetUtil.h" // UE::ToolTarget:: functions
 #include "Operations/SimpleHoleFiller.h"
-#include "Selection/GroupTopologyStorableSelection.h"
+#include "Selection/PersistentMeshSelection.h"
+#include "Selection/StoredMeshSelectionUtil.h"
 #include "Selection/PolygonSelectionMechanic.h"
 #include "Selections/MeshConnectedComponents.h"
 #include "TargetInterfaces/MaterialProvider.h"
@@ -65,67 +66,46 @@ namespace EditMeshPolygonsToolLocals
  * ToolBuilder
  */
 
-const FToolTargetTypeRequirements& UEditMeshPolygonsToolBuilder::GetTargetRequirements() const
-{
-	static FToolTargetTypeRequirements TypeRequirements({
-		UMaterialProvider::StaticClass(),
 
-		// TODO: In reality we don't actually need a mesh description- we need anything that we
-		// can get a dynamic mesh out of. Unfortunately we have not yet settled on an interface that
-		// provides this- DynamicMeshProvider (which currently gives a dynamic mesh shared ptr) is 
-		// likely to be changed or replaced with something that gives a UDynamicMesh instead. For now
-		// we ask for a mesh description as a hack, since all the targets we currently use are able to
-		// provide both it and a dynamic mesh.
-		UMeshDescriptionCommitter::StaticClass(),
-		UMeshDescriptionProvider::StaticClass(),
-		
-		UPrimitiveComponentBackedTarget::StaticClass()
-		});
-	return TypeRequirements;
+USingleSelectionMeshEditingTool* UEditMeshPolygonsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
+{
+	return NewObject<UEditMeshPolygonsTool>(SceneState.ToolManager);
 }
 
-bool UEditMeshPolygonsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+void UEditMeshPolygonsToolBuilder::InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const
 {
-	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
-}
-
-UInteractiveTool* UEditMeshPolygonsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UEditMeshPolygonsTool* EditPolygonsTool = NewObject<UEditMeshPolygonsTool>(SceneState.ToolManager);
+	USingleSelectionMeshEditingToolBuilder::InitializeNewTool(Tool, SceneState);
+	UEditMeshPolygonsTool* EditPolygonsTool = CastChecked<UEditMeshPolygonsTool>(Tool);
 	if (bTriangleMode)
 	{
 		EditPolygonsTool->EnableTriangleMode();
 	}
-	EditPolygonsTool->SetWorld(SceneState.World);
-	EditPolygonsTool->SetTarget(SceneState.TargetManager->BuildFirstSelectedTargetable(SceneState, GetTargetRequirements()));
-
-	// This passes in nullptr if the stored selection is not the right type. The tool
-	// will figure out whether the selection is still relevant.
-	EditPolygonsTool->SetStoredToolSelection(Cast<UGroupTopologyStorableSelection>(SceneState.StoredToolSelection));
-
-	return EditPolygonsTool;
 }
 
 
-UInteractiveTool* UEditMeshPolygonsActionModeToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+
+void UEditMeshPolygonsActionModeToolBuilder::InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const
 {
-	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(UEditMeshPolygonsToolBuilder::BuildTool(SceneState));
+	UEditMeshPolygonsToolBuilder::InitializeNewTool(Tool, SceneState);
+	UEditMeshPolygonsTool* EditPolygonsTool = CastChecked<UEditMeshPolygonsTool>(Tool);
+
 	EEditMeshPolygonsToolActions UseAction = StartupAction;
-	Tool->PostSetupFunction = [UseAction](UEditMeshPolygonsTool* PolyTool)
+	EditPolygonsTool->PostSetupFunction = [UseAction](UEditMeshPolygonsTool* PolyTool)
 	{
 		PolyTool->SetToSelectionModeInterface();
 		PolyTool->RequestAction(UseAction);
 	};
-
-	return Tool;
 }
 
 
-UInteractiveTool* UEditMeshPolygonsSelectionModeToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+
+void UEditMeshPolygonsSelectionModeToolBuilder::InitializeNewTool(USingleSelectionMeshEditingTool* Tool, const FToolBuilderState& SceneState) const
 {
-	UEditMeshPolygonsTool* Tool = Cast<UEditMeshPolygonsTool>(UEditMeshPolygonsToolBuilder::BuildTool(SceneState));
+	UEditMeshPolygonsToolBuilder::InitializeNewTool(Tool, SceneState);
+	UEditMeshPolygonsTool* EditPolygonsTool = CastChecked<UEditMeshPolygonsTool>(Tool);
+
 	EEditMeshPolygonsToolSelectionMode UseMode = SelectionMode;
-	Tool->PostSetupFunction = [UseMode](UEditMeshPolygonsTool* PolyTool)
+	EditPolygonsTool->PostSetupFunction = [UseMode](UEditMeshPolygonsTool* PolyTool)
 	{
 		PolyTool->SetToSelectionModeInterface();
 
@@ -159,9 +139,8 @@ UInteractiveTool* UEditMeshPolygonsSelectionModeToolBuilder::BuildTool(const FTo
 			break;
 		}
 	};
-
-	return Tool;
 }
+
 
 void UEditMeshPolygonsTool::SetToSelectionModeInterface()
 {
@@ -322,9 +301,9 @@ void UEditMeshPolygonsTool::Setup()
 
 	// Have to load selection after initializing the selection mechanic since we need to have
 	// the topology built.
-	if (IsStoredToolSelectionUsable(StoredToolSelection))
+	if (HasInputSelection() && IsToolInputSelectionUsable(GetInputSelection()))
 	{
-		SelectionMechanic->LoadStorableSelection(*StoredToolSelection);
+		SelectionMechanic->LoadSelection(*GetInputSelection());
 	}
 
 	bSelectionStateDirty = SelectionMechanic->HasSelection();
@@ -429,7 +408,7 @@ void UEditMeshPolygonsTool::Setup()
 	}
 }
 
-bool UEditMeshPolygonsTool::IsStoredToolSelectionUsable(const UGroupTopologyStorableSelection* StoredSelection)
+bool UEditMeshPolygonsTool::IsToolInputSelectionUsable(const UPersistentMeshSelection* InputSelectionIn)
 {
 	// TODO: We currently don't support persistent selection on volume brushes because
 	// a conversion back to a brush involves a simplification step that may make the 
@@ -438,12 +417,12 @@ bool UEditMeshPolygonsTool::IsStoredToolSelectionUsable(const UGroupTopologyStor
 	// identifying info) will change.
 	return !Cast<UBrushComponent>(UE::ToolTarget::GetTargetComponent(Target))
 
-		&& StoredSelection
-		&& StoredSelection->IdentifyingInfo.TopologyType == (bTriangleMode ? 
-			UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
-			: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology)
-		&& StoredSelection->IdentifyingInfo.ComponentTarget == UE::ToolTarget::GetTargetComponent(Target)
-		&& !StoredSelection->IsEmpty();
+		&& InputSelectionIn
+		&& InputSelectionIn->GetSelectionType() == (bTriangleMode ?
+			FGenericMeshSelection::ETopologyType::FTriangleGroupTopology
+			: FGenericMeshSelection::ETopologyType::FGroupTopology)
+		&& InputSelectionIn->GetTargetComponent() == UE::ToolTarget::GetTargetComponent(Target)
+		&& !InputSelectionIn->IsEmpty();
 }
 
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
@@ -475,7 +454,7 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
-			UGroupTopologyStorableSelection* NewStoredToolSelection = nullptr;
+			UPersistentMeshSelection* OutputSelection = nullptr;
 			FCompactMaps CompactMaps;
 
 			// Prep if we have a selection to store. We don't support storing selections for volumes
@@ -483,11 +462,13 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 			if (!SelectionMechanic->GetActiveSelection().IsEmpty()
 				&& !Cast<UBrushComponent>(UE::ToolTarget::GetTargetComponent(Target)))
 			{
-				NewStoredToolSelection = NewObject<UGroupTopologyStorableSelection>();
-				NewStoredToolSelection->IdentifyingInfo.ComponentTarget = UE::ToolTarget::GetTargetComponent(Target);
-				NewStoredToolSelection->IdentifyingInfo.TopologyType = (bTriangleMode ?
-					UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
-					: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology);
+				OutputSelection = NewObject<UPersistentMeshSelection>();
+				FGenericMeshSelection NewSelection;
+				NewSelection.SourceComponent = UE::ToolTarget::GetTargetComponent(Target);
+				NewSelection.TopologyType = (bTriangleMode ?
+					FGenericMeshSelection::ETopologyType::FTriangleGroupTopology
+					: FGenericMeshSelection::ETopologyType::FGroupTopology);
+				OutputSelection->SetSelection(NewSelection);
 			}
 
 			bool bModifiedTopology = (ModifiedTopologyCounter > 0);
@@ -496,33 +477,21 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 			if (bModifiedTopology)
 			{
 				// Store the compact maps if we have a selection that we need to update
-				CurrentMesh->CompactInPlace(NewStoredToolSelection ? &CompactMaps : nullptr);
+				CurrentMesh->CompactInPlace(OutputSelection ? &CompactMaps : nullptr);
 			}
 
 			// Finish prepping the stored selection
-			if (NewStoredToolSelection)
+			if (OutputSelection)
 			{
-				SelectionMechanic->GetStorableSelection(*NewStoredToolSelection, bModifiedTopology ? &CompactMaps : nullptr);
+				SelectionMechanic->GetSelection(*OutputSelection, bModifiedTopology ? &CompactMaps : nullptr);
 			}
 
 			// Bake CurrentMesh back to target inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
 			UE::ToolTarget::CommitDynamicMeshUpdate(Target, *CurrentMesh, bModifiedTopology);
 
-			// The stored selection change should go into this transaction as well.
-			// If we're keeping the same selection, we still need to store it back, though we could do it outside
-			// the transaction if we wanted to (but no real reason to). We do want to keep the same UObject if
-			// the selection is the same though, since it's probably getting kept alive by the undo stack anyway.
-			if (StoredToolSelection && NewStoredToolSelection && *StoredToolSelection == *NewStoredToolSelection)
-			{
-				GetToolManager()->RequestToolSelectionStore(StoredToolSelection);
-			}
-			else
-			{
-				// If NewStoredToolSelection is empty, this will clear the stored selection
-				GetToolManager()->RequestToolSelectionStore(NewStoredToolSelection);
-			}
-			
+			UE::Geometry::SetToolOutputSelection(this, OutputSelection);
+		
 			GetToolManager()->EndUndoTransaction();
 		}
 
@@ -553,7 +522,6 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 	SelectionMechanic = nullptr;
 	DragAlignmentMechanic = nullptr;
-	StoredToolSelection = nullptr;
 
 	TransformGizmo = nullptr;
 	TransformProxy = nullptr;

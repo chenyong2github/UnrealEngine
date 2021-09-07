@@ -2,7 +2,6 @@
 
 #include "ModelingToolsEditorMode.h"
 #include "InteractiveTool.h"
-#include "InteractiveToolsSelectionStoreSubsystem.h"
 #include "ModelingToolsEditorModeToolkit.h"
 #include "Toolkits/ToolkitManager.h"
 #include "ToolTargetManager.h"
@@ -17,6 +16,8 @@
 #include "EditorViewportClient.h"
 #include "EngineAnalytics.h"
 #include "BaseGizmos/TransformGizmoUtil.h"
+#include "Selection/PersistentMeshSelectionManager.h"
+#include "Selection/StoredMeshSelectionUtil.h"
 
 #include "Features/IModularFeatures.h"
 #include "ModelingModeToolExtensions.h"
@@ -158,12 +159,8 @@ bool UModelingToolsEditorMode::ProcessEditDelete()
 		return true;
 	}
 
-	// If we didn't skip deletion, then we're probably deleting something, so it seems fair to clear
-	// the selection.
-	if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
-	{
-		ToolSelectionStore->ClearStoredSelection();
-	}
+	// clear any active selection
+	UE::Geometry::ClearActiveToolSelection(GetToolManager());
 
 	return false;
 }
@@ -179,15 +176,18 @@ bool UModelingToolsEditorMode::ProcessEditCut()
 		return true;
 	}
 
-	// If we're doing a cut, we should clear the tool selection.
-	if (UInteractiveToolsSelectionStoreSubsystem* ToolSelectionStore = GEngine->GetEngineSubsystem<UInteractiveToolsSelectionStoreSubsystem>())
-	{
-		ToolSelectionStore->ClearStoredSelection();
-	}
+	// clear any active selection
+	UE::Geometry::ClearActiveToolSelection(GetToolManager());
 
 	return false;
 }
 
+
+void UModelingToolsEditorMode::ActorSelectionChangeNotify()
+{
+	// would like to clear selection here, but this is called multiple times, including after a transaction when
+	// we cannot identify that the selection should not be cleared
+}
 
 
 bool UModelingToolsEditorMode::CanAutoSave() const
@@ -315,6 +315,8 @@ void UModelingToolsEditorMode::Enter()
 
 	// register gizmo helper
 	UE::TransformGizmoUtil::RegisterTransformGizmoContextObject(ToolsContext.Get());
+	// register selection manager
+	UE::Geometry::RegisterPersistentMeshSelectionManager(ToolsContext.Get());
 
 	// disable HitProxy rendering, it is not used in Modeling Mode and adds overhead to Render() calls
 	ToolsContext.Get()->SetEnableRenderingDuringHitProxyPass(false);
@@ -693,10 +695,33 @@ void UModelingToolsEditorMode::Enter()
 		ModelingToolkit->InitializeAfterModeSetup();
 	}
 
+	// Need to know about selection changes to clear mesh selections, however we do not want to clear the
+	// mesh selection after a selection change due to transactions, as this may clear a selection we just restored.
+	// Unfortunately most routes to find out about selection changes don't allow for this. Currently this
+	// OnPreChange event is the only one that appears to provide the desired behavior, however it is likely
+	// that this is not going to be reliable...
+	SelectionModifiedEventHandle = GetModeManager()->GetSelectedActors()->GetElementSelectionSet()->OnPreChange().AddLambda( [&](const UTypedElementSelectionSet*) 
+	{ 
+		if (GIsTransacting == 0)
+		{
+			UE::Geometry::ClearActiveToolSelection(GetToolManager());
+		}
+	});
 }
 
 void UModelingToolsEditorMode::Exit()
 {
+	// clear any active selection
+	UE::Geometry::ClearActiveToolSelection(GetToolManager());
+	// deregister selection manager
+	UE::Geometry::DeregisterPersistentMeshSelectionManager(ToolsContext.Get());
+
+	// stop listening to selection changes. On Editor Shutdown, some of these values become null, which will result in an ensure/crash
+	if (UObjectInitialized() && GetModeManager() && GetModeManager()->GetSelectedActors() && GetModeManager()->GetSelectedActors()->GetElementSelectionSet() )
+	{
+		GetModeManager()->GetSelectedActors()->GetElementSelectionSet()->OnPreChange().Remove(SelectionModifiedEventHandle);
+	}
+
 	//
 	// Engine Analytics
 	//
@@ -775,7 +800,10 @@ void UModelingToolsEditorMode::BindCommands()
 
 	CommandList->MapAction(
 		ToolManagerCommands.AcceptActiveTool,
-		FExecuteAction::CreateLambda([this]() { ToolsContext->EndTool(EToolShutdownType::Accept); }),
+		FExecuteAction::CreateLambda([this]() { 
+			UE::Geometry::ClearActiveToolSelection(GetToolManager());
+			ToolsContext->EndTool(EToolShutdownType::Accept); 
+		}),
 		FCanExecuteAction::CreateLambda([this]() { return ToolsContext->CanAcceptActiveTool(); }),
 		FGetActionCheckState(),
 		FIsActionButtonVisible::CreateLambda([this]() {return ToolsContext->ActiveToolHasAccept(); }),
@@ -839,6 +867,9 @@ void UModelingToolsEditorMode::AcceptActiveToolActionOrTool()
 			}
 		}
 	}
+
+	// clear existing selection
+	UE::Geometry::ClearActiveToolSelection(GetToolManager());
 
 	const EToolShutdownType ShutdownType = ToolsContext->CanAcceptActiveTool() ? EToolShutdownType::Accept : EToolShutdownType::Completed;
 	ToolsContext->EndTool(ShutdownType);
