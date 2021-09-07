@@ -3,26 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/Attribute.h"
-#include "Layout/Visibility.h"
-#include "PropertyPath.h"
-#include "Input/Reply.h"
 #include "AssetThumbnail.h"
-#include "IPropertyUtilities.h"
-#include "DetailTreeNode.h"
-#include "Widgets/Views/STableViewBase.h"
-#include "Widgets/Views/STableRow.h"
-#include "PropertyNode.h"
-#include "Widgets/SWindow.h"
-#include "PropertyEditorModule.h"
-#include "Framework/Commands/UICommandList.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Views/STreeView.h"
 #include "IDetailsView.h"
 #include "IDetailsViewPrivate.h"
-#include "PropertyRowGenerator.h"
-#include "PropertyCustomizationHelpers.h"
+#include "IPropertyUtilities.h"
+#include "DetailFilter.h"
+#include "DetailTreeNode.h"
 #include "DetailsViewConfig.h"
+#include "PropertyCustomizationHelpers.h"
+#include "PropertyEditorModule.h"
+#include "PropertyNode.h"
+#include "PropertyPath.h"
+#include "PropertyRowGenerator.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Misc/Attribute.h"
+#include "Widgets/SWindow.h"
+#include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Views/STableViewBase.h"
+#include "Widgets/Views/STableRow.h"
+#include "Widgets/Views/STreeView.h"
 
 class FDetailCategoryImpl;
 class FDetailLayoutBuilderImpl;
@@ -36,49 +37,6 @@ class SSearchBox;
 struct FDetailsViewObjectRoot;
 
 typedef STreeView< TSharedRef<class FDetailTreeNode> > SDetailTree;
-
-/** Represents a filter which controls the visibility of items in the details view */
-struct FDetailFilter
-{
-	FDetailFilter() :
-		bShowOnlyModified(false)
-		, bShowAllAdvanced(false)
-		, bShowAllChildrenIfCategoryMatches(true)
-		, bShowOnlyKeyable(false)
-		, bShowOnlyAnimated(false)
-		, bShowFavoritesCategory(false)
-		, bShowOnlyWhitelisted(false)
-	{}
-
-	bool IsEmptyFilter() const 
-	{ 
-		return FilterStrings.Num() == 0 
-			&& bShowAllAdvanced == false 
-			&& bShowOnlyWhitelisted == false 
-			&& bShowAllChildrenIfCategoryMatches == false 
-			&& bShowOnlyKeyable == false 
-			&& bShowOnlyAnimated == false;
-	}
-
-	/** Any user search terms that items must match */
-	TArray<FString> FilterStrings;
-	/** If we should only show modified properties */
-	bool bShowOnlyModified;
-	/** If we should show all advanced properties */
-	bool bShowAllAdvanced;
-	/** If we should show all the children if their category name matches the search */
-	bool bShowAllChildrenIfCategoryMatches;
-	/** If we should only show keyable properties */
-	bool bShowOnlyKeyable;
-	/** If we should only show animated properties */
-	bool bShowOnlyAnimated;
-	/** If we should show the favorites category. */
-	bool bShowFavoritesCategory;
-	/** If we should only show whitelisted properties */
-	bool bShowOnlyWhitelisted;
-	/** The set of whitelisted properties to show. */
-	TSet<FPropertyPath> WhitelistedProperties;
-};
 
 class SDetailsViewBase : public IDetailsViewPrivate
 {
@@ -375,7 +333,7 @@ protected:
 	/** The current detail layout based on objects in this details panel.  There is one layout for each top level object node.*/
 	FDetailLayoutList DetailLayouts;
 	/** Row for searching and view options */
-	TSharedPtr<SWidget>  FilterRow;
+	TSharedPtr<SWidget> FilterRow;
 	/** Search box */
 	TSharedPtr<SSearchBox> SearchBox;
 	/** Customization instances that need to be destroyed when safe to do so */

@@ -3,14 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Layout/Visibility.h"
-#include "Input/Reply.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "PropertyNode.h"
-#include "IDetailsView.h"
 #include "AssetSelection.h"
-#include "Widgets/Layout/SScrollBar.h"
+#include "IDetailsView.h"
+#include "PropertyNode.h"
 #include "SDetailsViewBase.h"
+
+#include "Input/Reply.h"
+#include "Layout/Visibility.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Layout/SScrollBar.h"
 
 class AActor;
 class IDetailRootObjectCustomization;
@@ -34,7 +35,6 @@ public:
 
 	/** Move the scrolling offset (by item), but do not refresh the tree*/
 	void MoveScrollOffset(int32 DeltaOffset) override;
-
 
 	/**
 	 * Constructs the property view widgets                   
@@ -173,6 +173,21 @@ private:
 	/** Called after an undo or redo operation occurs in the editor. */
 	void OnPostUndoRedo();
 
+	/** Get all section names for the objects currently selected in the view. */
+	TSet<FName> GetAllSectionNames() const;
+
+	/** Get a display name for the given section. */
+	FText GetSectionDisplayName(FName SectionName) const;
+	
+	/** Rebuild the section selector widget after a selection has been changed. */
+	void RebuildSectionSelector();
+
+	/** Refilter the details view after the user has selected a new section. */
+	void OnSectionSelectionChanged(FName NewSelection);
+
+	/** Get the currently selected section. */
+	FName GetSelectedSection() const;
+
 private:
 	/** The filter for objects viewed by this details panel */
 	TSharedPtr<FDetailsViewObjectFilter> ObjectFilter;
@@ -201,4 +216,6 @@ private:
 	bool bViewingClassDefaultObject;
 	/** Delegate handle for unregistering from the PostUndoRedo event. */
 	FDelegateHandle PostUndoRedoDelegateHandle;
+	/** The section selector widget to show if DetailsViewArgs.bShowSectionSelector is true. */
+	TSharedPtr<SBox> SectionSelectorBox;
 };
