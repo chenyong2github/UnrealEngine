@@ -1033,6 +1033,11 @@ void SControlRigProfilingView::ToggleItemExpansion(const TSharedPtr<FStatsTreeEl
 
 void SControlRigProfilingView::OnSearchTextCommitted(const FText& InNewText, ETextCommit::Type InCommitType)
 {
+	if(InCommitType == ETextCommit::OnCleared)
+	{
+		return;
+	}
+
 	SearchText = InNewText.ToString();
 	TreeView->RebuildList();
 	//TreeView->RequestTreeRefresh();

@@ -855,6 +855,11 @@ FText FControlRigGraphDetails::GetNodeCategory() const
 
 void FControlRigGraphDetails::SetNodeCategory(const FText& InNewText, ETextCommit::Type InCommitType)
 {
+	if(InCommitType == ETextCommit::OnCleared)
+	{
+		return;
+	}
+
 	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
 		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
@@ -890,6 +895,11 @@ FText FControlRigGraphDetails::GetNodeKeywords() const
 
 void FControlRigGraphDetails::SetNodeKeywords(const FText& InNewText, ETextCommit::Type InCommitType)
 {
+	if(InCommitType == ETextCommit::OnCleared)
+	{
+		return;
+	}
+
 	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
 		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
@@ -925,6 +935,11 @@ FText FControlRigGraphDetails::GetNodeDescription() const
 
 void FControlRigGraphDetails::SetNodeDescription(const FText& InNewText, ETextCommit::Type InCommitType)
 {
+	if(InCommitType == ETextCommit::OnCleared)
+	{
+		return;
+	}
+
 	if (GraphPtr.IsValid() && ControlRigBlueprintPtr.IsValid())
 	{
 		UControlRigBlueprint* Blueprint = ControlRigBlueprintPtr.Get();
