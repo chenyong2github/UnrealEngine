@@ -6,13 +6,13 @@
 #include "ControlRigDefines.h" 
 #include "RigUnit_Item.generated.h"
 
-USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
+USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Items"))
 struct CONTROLRIG_API FRigUnit_ItemBase : public FRigUnit
 {
 	GENERATED_BODY()
 };
 
-USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Collections"))
+USTRUCT(meta = (Abstract, NodeColor = "0.7 0.05 0.5", Category = "Items"))
 struct CONTROLRIG_API FRigUnit_ItemBaseMutable : public FRigUnitMutable
 {
 	GENERATED_BODY()

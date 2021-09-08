@@ -83,7 +83,7 @@ struct CONTROLRIG_API FRigUnit_SlideChain: public FRigUnit_HighlevelBaseMutable
 /**
  * Slides an existing chain along itself with control over extrapolation.
  */
-USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit"))
+USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -102,6 +102,47 @@ struct CONTROLRIG_API FRigUnit_SlideChainPerItem: public FRigUnit_HighlevelBaseM
 	 */
 	UPROPERTY(meta = (Input))
 	FRigElementKeyCollection Items;
+
+	/** 
+	 * The amount of sliding. This unit is multiple of the chain length.
+	 */
+	UPROPERTY(meta = (Input))
+	float SlideAmount;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bPropagateToChildren;
+
+	UPROPERTY(transient)
+	FRigUnit_SlideChain_WorkData WorkData;
+};
+
+/**
+ * Slides an existing chain along itself with control over extrapolation.
+ */
+USTRUCT(meta=(DisplayName="Slide Chain", Category="Hierarchy", Keywords="Fit,Refit"))
+struct CONTROLRIG_API FRigUnit_SlideChainItemArray: public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SlideChainItemArray()
+	{
+		SlideAmount = 0.f;
+		bPropagateToChildren = true;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The items to slide
+	 */
+	UPROPERTY(meta = (Input))
+	TArray<FRigElementKey> Items;
 
 	/** 
 	 * The amount of sliding. This unit is multiple of the chain length.

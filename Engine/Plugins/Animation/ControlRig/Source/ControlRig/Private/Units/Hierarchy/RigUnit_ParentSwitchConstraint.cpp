@@ -5,6 +5,11 @@
 
 FRigUnit_ParentSwitchConstraint_Execute()
 {
+	FRigUnit_ParentSwitchConstraintArray::StaticExecute(RigVMExecuteContext, Subject, ParentIndex, Parents.Keys, InitialGlobalTransform, Weight, Transform, Switched, CachedSubject, CachedParent, RelativeOffset, ExecuteContext, Context);	
+}
+
+FRigUnit_ParentSwitchConstraintArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	Switched = false;

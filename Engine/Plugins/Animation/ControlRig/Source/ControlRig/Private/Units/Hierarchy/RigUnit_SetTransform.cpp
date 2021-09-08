@@ -161,6 +161,11 @@ FRigUnit_SetScale_Execute()
 
 FRigUnit_SetTransformArray_Execute()
 {
+	FRigUnit_SetTransformItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Space, bInitial, Transforms, Weight, bPropagateToChildren, CachedIndex, ExecuteContext, Context);
+}
+
+FRigUnit_SetTransformItemArray_Execute()
+{
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	if(CachedIndex.Num() != Items.Num())

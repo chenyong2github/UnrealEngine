@@ -37,6 +37,11 @@ FRigUnit_FABRIK_Execute()
 
 FRigUnit_FABRIKPerItem_Execute()
 {
+	FRigUnit_FABRIKItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, EffectorTransform, Precision, Weight, bPropagateToChildren, MaxIterations, WorkData, ExecuteContext, Context);
+}
+
+FRigUnit_FABRIKItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)

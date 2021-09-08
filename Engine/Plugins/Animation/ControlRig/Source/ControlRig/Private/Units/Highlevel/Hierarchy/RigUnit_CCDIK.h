@@ -175,7 +175,7 @@ struct CONTROLRIG_API FRigUnit_CCDIK : public FRigUnit_HighlevelBaseMutable
  * the Cyclic Coordinate Descent Inverse Kinematics algorithm.
  * For now this node supports single effector chains only.
  */
-USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK", Deprecated = "5.0"))
 struct CONTROLRIG_API FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -199,6 +199,90 @@ struct CONTROLRIG_API FRigUnit_CCDIKPerItem : public FRigUnit_HighlevelBaseMutab
 	 */
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	FRigElementKeyCollection Items;
+
+	/**
+	 * The transform of the effector in global space
+	 */
+	UPROPERTY(meta = (Input))
+	FTransform EffectorTransform;
+
+	/**
+	 * The precision to use for the fabrik solver
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	float Precision;
+
+	/**
+	 * The weight of the solver - how much the IK should be applied.
+	 */
+	UPROPERTY(meta = (Input))
+	float Weight;
+
+	/**
+	 * The maximum number of iterations. Values between 4 and 16 are common.
+	 */
+	UPROPERTY(meta = (Input))
+	int32 MaxIterations;
+
+	/**
+	 * If set to true the direction of the solvers is flipped.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bStartFromTail;
+
+	/**
+	 * The general rotation limit to be applied to bones
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	float BaseRotationLimit;
+
+	/**
+	 * Defines the limits of rotation per bone.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	TArray<FRigUnit_CCDIK_RotationLimitPerItem> RotationLimits;
+
+	/**
+	 * If set to true all of the global transforms of the children
+	 * of this bone will be recalculated based on their local transforms.
+	 * Note: This is computationally more expensive than turning it off.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	bool bPropagateToChildren;
+
+	UPROPERTY()
+	FRigUnit_CCDIK_WorkData WorkData;
+};
+
+/**
+ * The CCID solver can solve N-Bone chains using 
+ * the Cyclic Coordinate Descent Inverse Kinematics algorithm.
+ * For now this node supports single effector chains only.
+ */
+USTRUCT(meta=(DisplayName="CCDIK", Category="Hierarchy", Keywords="N-Bone,IK"))
+struct CONTROLRIG_API FRigUnit_CCDIKItemArray : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	FRigUnit_CCDIKItemArray()
+	{
+		EffectorTransform = FTransform::Identity;
+		Precision = 1.f;
+		Weight = 1.f;
+		MaxIterations = 10;
+		bStartFromTail = true;
+		bPropagateToChildren = true;
+		BaseRotationLimit = 30.f;
+	}
+
+	/**
+	 * The chain to use
+	 */
+	UPROPERTY(meta = (Input, ExpandByDefault))
+	TArray<FRigElementKey> Items;
 
 	/**
 	 * The transform of the effector in global space

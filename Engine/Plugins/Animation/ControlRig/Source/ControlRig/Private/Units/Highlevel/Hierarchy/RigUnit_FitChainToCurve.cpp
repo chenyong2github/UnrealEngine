@@ -45,6 +45,29 @@ FRigUnit_FitChainToCurve_Execute()
 
 FRigUnit_FitChainToCurvePerItem_Execute()
 {
+	FRigUnit_FitChainToCurveItemArray::StaticExecute(
+		RigVMExecuteContext,
+		Items.Keys,
+		Bezier,
+		Alignment,
+		Minimum,
+		Maximum,
+		SamplingPrecision,
+		PrimaryAxis,
+		SecondaryAxis,
+		PoleVectorPosition,
+		Rotations,
+		RotationEaseType,
+		Weight,
+		bPropagateToChildren,
+		DebugSettings,
+		WorkData,
+		ExecuteContext,
+		Context);
+}
+
+FRigUnit_FitChainToCurveItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;

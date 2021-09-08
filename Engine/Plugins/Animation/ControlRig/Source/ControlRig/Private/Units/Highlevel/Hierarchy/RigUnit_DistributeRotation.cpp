@@ -58,6 +58,11 @@ FRigUnit_DistributeRotation_Execute()
 
 FRigUnit_DistributeRotationForCollection_Execute()
 {
+	FRigUnit_DistributeRotationForItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Rotations, RotationEaseType, Weight, WorkData, ExecuteContext, Context);
+}
+
+FRigUnit_DistributeRotationForItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)

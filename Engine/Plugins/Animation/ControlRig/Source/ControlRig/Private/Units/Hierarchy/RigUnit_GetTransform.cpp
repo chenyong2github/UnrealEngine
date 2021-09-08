@@ -82,6 +82,11 @@ FRigUnit_GetTransform_Execute()
 
 FRigUnit_GetTransformArray_Execute()
 {
+	FRigUnit_GetTransformItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Space, bInitial, Transforms, CachedIndex, Context);
+}
+
+FRigUnit_GetTransformItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	if(CachedIndex.Num() != Items.Num())

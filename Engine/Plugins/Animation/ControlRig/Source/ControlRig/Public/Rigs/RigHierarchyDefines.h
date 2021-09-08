@@ -1298,6 +1298,21 @@ public:
 		return GetTypeHash(Key.Name) * 10 + (uint32)Key.Type;
 	}
 
+	friend FORCEINLINE uint32 GetTypeHash(const TArrayView<const FRigElementKey>& Keys)
+	{
+		uint32 Hash = (uint32)(Keys.Num() * 17 + 3);
+		for (const FRigElementKey& Key : Keys)
+		{
+			Hash += GetTypeHash(Key);
+		}
+		return Hash;
+	}
+
+	friend FORCEINLINE uint32 GetTypeHash(const TArray<FRigElementKey>& Keys)
+	{
+		return GetTypeHash(TArrayView<const FRigElementKey>(Keys.GetData(), Keys.Num()));
+	}
+
 	FORCEINLINE bool operator ==(const FRigElementKey& Other) const
 	{
 		return Name == Other.Name && Type == Other.Type;
@@ -1465,12 +1480,7 @@ struct CONTROLRIG_API FRigElementKeyCollection
 
 	friend FORCEINLINE uint32 GetTypeHash(const FRigElementKeyCollection& Collection)
 	{
-		uint32 Hash = (uint32)(Collection.Num() * 17 + 3);
-		for (const FRigElementKey& Key : Collection)
-		{
-			Hash += GetTypeHash(Key);
-		}
-		return Hash;
+		return GetTypeHash(Collection.GetKeys());
 	}
 
 	// creates a collection containing all of the children of a given 
@@ -1517,9 +1527,7 @@ struct CONTROLRIG_API FRigElementKeyCollection
 	// filters a collection by name
 	FRigElementKeyCollection FilterByName(const FName& InPartialName) const;
 
-protected:
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Collection, meta = (AllowPrivateAccess = "true"))
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Collection)
 	TArray<FRigElementKey> Keys;
 };
 

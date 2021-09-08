@@ -225,6 +225,29 @@ FRigUnit_GetLengthControlRigSpline_Execute()
 
 FRigUnit_FitChainToSplineCurve_Execute()
 {
+	FRigUnit_FitChainToSplineCurveItemArray::StaticExecute(
+		RigVMExecuteContext,
+		Items.Keys,
+		Spline,
+		Alignment,
+		Minimum,
+		Maximum,
+		SamplingPrecision,
+		PrimaryAxis,
+		SecondaryAxis,
+		PoleVectorPosition,
+		Rotations,
+		RotationEaseType,
+		Weight,
+		bPropagateToChildren,
+		DebugSettings,
+		WorkData,
+		ExecuteContext,
+		Context);
+}
+
+FRigUnit_FitChainToSplineCurveItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
@@ -631,6 +654,11 @@ FRigUnit_FitChainToSplineCurve_Execute()
 }
 
 FRigUnit_FitSplineCurveToChain_Execute()
+{
+	FRigUnit_FitSplineCurveToChainItemArray::StaticExecute(RigVMExecuteContext, Items.Keys, Spline, ExecuteContext, Context);
+}
+
+FRigUnit_FitSplineCurveToChainItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 

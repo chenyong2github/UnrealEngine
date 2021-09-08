@@ -36,6 +36,11 @@ FRigUnit_HierarchyGetParent_Execute()
 
 FRigUnit_HierarchyGetParents_Execute()
 {
+	FRigUnit_HierarchyGetParentsItemArray::StaticExecute(RigVMExecuteContext, Child, bIncludeChild, bReverse, Parents.Keys, CachedChild, CachedParents, Context);
+}
+
+FRigUnit_HierarchyGetParentsItemArray_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	if (Context.State == EControlRigState::Init)
@@ -70,7 +75,7 @@ FRigUnit_HierarchyGetParents_Execute()
 		}
 	}
 
-	Parents = CachedParents;
+	Parents = CachedParents.Keys;
 }
 
 FRigUnit_HierarchyGetChildren_Execute()
@@ -107,6 +112,11 @@ FRigUnit_HierarchyGetChildren_Execute()
 }
 
 FRigUnit_HierarchyGetSiblings_Execute()
+{
+	FRigUnit_HierarchyGetSiblingsItemArray::StaticExecute(RigVMExecuteContext, Item, bIncludeItem, Siblings.Keys, CachedItem, CachedSiblings, Context);
+}
+
+FRigUnit_HierarchyGetSiblingsItemArray_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
@@ -146,15 +156,25 @@ FRigUnit_HierarchyGetSiblings_Execute()
 		}
 	}
 
-	Siblings = CachedSiblings;
+	Siblings = CachedSiblings.Keys;
 }
 
 FRigUnit_HierarchyGetPose_Execute()
+{
+	FRigUnit_HierarchyGetPoseItemArray::StaticExecute(RigVMExecuteContext, Initial, ElementType, ItemsToGet.Keys, Pose, Context);
+}
+
+FRigUnit_HierarchyGetPoseItemArray_Execute()
 {
 	Pose = Context.Hierarchy->GetPose(Initial, ElementType, ItemsToGet);
 }
 
 FRigUnit_HierarchySetPose_Execute()
+{
+	FRigUnit_HierarchySetPoseItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Space, ItemsToSet.Keys, Weight, ExecuteContext, Context);
+}
+
+FRigUnit_HierarchySetPoseItemArray_Execute()
 {
 	ExecuteContext.Hierarchy->SetPose(
 		Pose,
@@ -171,6 +191,11 @@ FRigUnit_PoseIsEmpty_Execute()
 }
 
 FRigUnit_PoseGetItems_Execute()
+{
+	FRigUnit_PoseGetItemsItemArray::StaticExecute(RigVMExecuteContext, Pose, ElementType, Items.Keys, Context);
+}
+
+FRigUnit_PoseGetItemsItemArray_Execute()
 {
 	Items.Reset();
 

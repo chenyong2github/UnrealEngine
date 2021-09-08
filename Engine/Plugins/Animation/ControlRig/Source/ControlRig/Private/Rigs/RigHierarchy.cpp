@@ -1795,6 +1795,12 @@ FRigPose URigHierarchy::GetPose(
 	const FRigElementKeyCollection& InItems 
 ) const
 {
+	return GetPose(bInitial, InElementType, TArrayView<const FRigElementKey>(InItems.Keys.GetData(), InItems.Num()));
+}
+
+FRigPose URigHierarchy::GetPose(bool bInitial, ERigElementType InElementType,
+	const TArrayView<const FRigElementKey>& InItems) const
+{
 	FRigPose Pose;
 	Pose.HierarchyTopologyVersion = GetTopologyVersion();
 	Pose.PoseHash = Pose.HierarchyTopologyVersion;
@@ -1847,6 +1853,12 @@ void URigHierarchy::SetPose(
 	const FRigElementKeyCollection& InItems,
 	float InWeight
 )
+{
+	SetPose(InPose, InTransformType, InElementType, TArrayView<const FRigElementKey>(InItems.Keys.GetData(), InItems.Num()), InWeight);
+}
+
+void URigHierarchy::SetPose(const FRigPose& InPose, ERigTransformType::Type InTransformType,
+	ERigElementType InElementType, const TArrayView<const FRigElementKey>& InItems, float InWeight)
 {
 	const float U = FMath::Clamp(InWeight, 0.f, 1.f);
 	if(U < SMALL_NUMBER)
