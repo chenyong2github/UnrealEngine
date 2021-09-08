@@ -146,6 +146,11 @@ public:
 	/** Returns content folder under which all assets are stored after execution of all producers */
 	FString GetTransientContentFolder();
 
+	UWorld* GetWorld()
+	{
+		return PreviewWorld;
+	}
+
 private:
 	void BindCommands();
 	void OnSaveScene();
