@@ -210,7 +210,11 @@ void FApplySnapshotDataArchiveV2::PushSerializedProperty(FProperty* InProperty, 
 
 UObject* FApplySnapshotDataArchiveV2::ResolveObjectDependency(int32 ObjectIndex) const
 {
+#if USE_STABLE_LOCALIZATION_KEYS
 	return SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(GetSharedData(), ObjectIndex, GetLocalizationNamespace(), SelectionMapForResolvingSubobjects);
+#else
+	return SnapshotUtil::Object::ResolveObjectDependencyForEditorWorld(GetSharedData(), ObjectIndex, "", SelectionMapForResolvingSubobjects);
+#endif
 }
 
 FApplySnapshotDataArchiveV2::FApplySnapshotDataArchiveV2(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, UObject* InOriginalObject, const FPropertySelectionMap& InSelectionMapForResolvingSubobjects, TOptional<const FPropertySelection*> InSelectionSet)

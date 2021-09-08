@@ -19,9 +19,11 @@
 #if USE_STABLE_LOCALIZATION_KEYS
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #endif
+#if WITH_EDITOR
 #include "LevelEditor.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
+#endif
 #include "RestorationEvents/ApplySnapshotToActorScope.h"
 #include "RestorationEvents/RecreateComponentScope.h"
 #include "RestorationEvents/RemoveComponentScope.h"
