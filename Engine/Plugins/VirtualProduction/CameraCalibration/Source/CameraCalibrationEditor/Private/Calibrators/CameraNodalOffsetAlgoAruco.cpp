@@ -225,7 +225,7 @@ bool UCameraNodalOffsetAlgoAruco::PopulatePoints(FText& OutErrorMessage)
 
 	check((Size.X > 0) && (Size.Y > 0));
 
-	if (MarkerCorners.size() < 1)
+	if (MarkerCorners.empty())
 	{
 		OutErrorMessage = LOCTEXT("NoMarkerCornersFound", "No Aruco markers were detected in the media image, "
 			"or they did not match the aruco dictionary of any of the selected calibrator components."
