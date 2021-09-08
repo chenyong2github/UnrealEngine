@@ -35,10 +35,22 @@ public:
 	// Please use ctor that takes parameters 
 	FScreenReaderAnnouncementInfo() = default;
 	FScreenReaderAnnouncementInfo(bool bInShouldQueue, bool bInInterruptable, EScreenReaderAnnouncementPriority InPriority);
-	bool ShouldQueue() const { return bShouldQueue; }
-	bool IsInterruptable() const { return bInterruptable; }
-	EScreenReaderAnnouncementPriority GetPriority() const { return Priority; }
-	double GetTimestamp() const { return Timestamp; }
+	bool ShouldQueue() const 
+	{ 
+		return bShouldQueue; 
+	}
+	bool IsInterruptable() const 
+	{ 
+		return bInterruptable; 
+	}
+	EScreenReaderAnnouncementPriority GetPriority() const 
+	{ 
+		return Priority; 
+	}
+	double GetTimestamp() const 
+	{ 
+		return Timestamp; 
+	}
 	/** Returns a string that represents all of the data reflected in this struct. */
 	FString ToString() const;
 
@@ -76,11 +88,14 @@ public:
 	}
 
 private:
-	/** True if the associazted announcement should be queued if it cannot be spoken immediately or is interrupted. Else false.*/
+	/** True if the associated announcement should be queued if it cannot be spoken immediately or is interrupted. Else false.*/
+	UPROPERTY(BlueprintReadWrite, Category="ScreenReaderAnnouncementInfo", meta = (AllowPrivateAccess = "true"))
 	bool bShouldQueue = false;
 	/** True if the associazted announcement can be intrrupted by another announcement. Else false. */
+	UPROPERTY(BlueprintReadWrite, Category="ScreenReaderAnnouncementInfo", meta = (AllowPrivateAccess = "true"))
 	bool bInterruptable= true;
 	/** The priority level of the associated announcement. */
+	UPROPERTY(BlueprintReadWrite, Category="ScreenReaderAnnouncementInfo", meta = (AllowPrivateAccess = "true"))
 	EScreenReaderAnnouncementPriority Priority = EScreenReaderAnnouncementPriority::Medium;
 	// @TODOAccessibility: Update timestamp to be recorded when announcements are requested, not when they are constructed. 
 	/** The timestamp for when the associated announcement was created. */
@@ -161,11 +176,11 @@ public:
 	{
 		return InInterruptionPolicy.CanBeInterruptedBy(Interruptee, Interrupter);
 	}
-private:
+public:
 	/** A localized string that represents the message to be spoken to a end user */
+	UPROPERTY(BlueprintReadWrite, Category="ScreenReaderAnnouncement")
 	FString AnnouncementString;
-	/** The announcement info assocated with the announcement which controls how the announcement behaves when a user requests this announcement to be spoken to an end user */
+	/** The announcement info associated with the announcement which controls how the announcement behaves when a user requests this announcement to be spoken to an end user */
+	UPROPERTY(BlueprintReadWrite, Category="ScreenReaderAnnouncement")
 	FScreenReaderAnnouncementInfo AnnouncementInfo;
 };
-
-

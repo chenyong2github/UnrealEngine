@@ -70,3 +70,47 @@ FScreenReaderReply FScreenReaderUser::RequestSpeakWidget(const TSharedRef<IAcces
 	}
 	return FScreenReaderReply::Unhandled();
 }
+
+float FScreenReaderUser::GetSpeechVolume() const
+{
+	return AnnouncementChannel->GetSpeechVolume();
+}
+
+FScreenReaderReply FScreenReaderUser::SetSpeechVolume(float InVolume)
+{
+	return AnnouncementChannel->SetSpeechVolume(InVolume);
+}
+
+float FScreenReaderUser::GetSpeechRate() const
+{
+	return AnnouncementChannel->GetSpeechRate();
+}
+
+FScreenReaderReply FScreenReaderUser::SetSpeechRate(float InRate)
+{
+	return AnnouncementChannel->SetSpeechRate(InRate);
+}
+
+FScreenReaderReply FScreenReaderUser::MuteSpeech()
+{
+	if (IsActive())
+	{
+
+	}
+	return FScreenReaderReply::Unhandled();
+}
+
+FScreenReaderReply FScreenReaderUser::UnmuteSpeech()
+{
+	if (IsActive())
+	{
+		return AnnouncementChannel->UnmuteSpeech();
+	}
+
+	return FScreenReaderReply::Unhandled();
+}
+
+bool FScreenReaderUser::IsSpeechMuted() const
+{
+	return AnnouncementChannel->IsSpeechMuted();
+}

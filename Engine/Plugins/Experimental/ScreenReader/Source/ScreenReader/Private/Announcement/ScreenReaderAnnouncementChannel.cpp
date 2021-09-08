@@ -98,6 +98,47 @@ FScreenReaderReply FScreenReaderAnnouncementChannel::RequestSpeakWidget(const TS
 	return RequestSpeak(FScreenReaderAnnouncement(WidgetAnnouncement, FScreenReaderAnnouncementInfo::DefaultWidgetAnnouncement()));
 }
 
+float FScreenReaderAnnouncementChannel::GetSpeechVolume() const
+{
+	return TextToSpeech->GetVolume();
+}
+
+FScreenReaderReply FScreenReaderAnnouncementChannel::SetSpeechVolume(float InVolume)
+{
+	// FTextToSpeech API already takes care of range check and clamping of values 
+	TextToSpeech->SetVolume(InVolume);
+	return FScreenReaderReply::Handled();
+}
+
+float FScreenReaderAnnouncementChannel::GetSpeechRate() const
+{
+	return TextToSpeech->GetRate();
+}
+
+FScreenReaderReply FScreenReaderAnnouncementChannel::SetSpeechRate(float InRate)
+{
+	// The FTextToSpeech API already handles range checks and clamping for values  
+	TextToSpeech->SetRate(InRate);
+	return FScreenReaderReply::Handled();
+}
+
+FScreenReaderReply FScreenReaderAnnouncementChannel::MuteSpeech()
+{
+	TextToSpeech->Mute();
+	return FScreenReaderReply::Handled();
+}
+
+FScreenReaderReply FScreenReaderAnnouncementChannel::UnmuteSpeech()
+{
+	TextToSpeech->Unmute();
+	return FScreenReaderReply::Handled();
+}
+
+bool FScreenReaderAnnouncementChannel::IsSpeechMuted() const
+{
+	return TextToSpeech->IsMuted();
+}
+
 void FScreenReaderAnnouncementChannel::OnTextToSpeechFinishSpeaking()
 {
 	// reset the current announcement to null. This is necessary for the RequestSpeak() algorithm 

@@ -32,12 +32,12 @@ void FSlateScreenReader::HandleSlateFocusChanging(const FFocusEvent& InFocusEven
 	if (IsActive() && InNewFocusWidget && InNewFocusWidget->IsAccessible())
 	{
 		int32 UserId = static_cast<int32>(InFocusEvent.GetUser());
-		if (TSharedPtr<FScreenReaderUser> User = GetUserChecked(UserId))
+		if (TSharedPtr<FScreenReaderUser> User = GetUser(UserId))
 		{
 			TSharedPtr<IAccessibleWidget> AccessibleWidget = FSlateAccessibleWidgetCache::GetAccessibleWidgetChecked(InNewFocusWidget);
 			if (AccessibleWidget)
 			{
-				User->SetAccessibleFocus(AccessibleWidget.ToSharedRef());
+				User->SetAccessibleFocusWidget(AccessibleWidget.ToSharedRef());
 				User->RequestSpeakWidget(AccessibleWidget.ToSharedRef());
 			}
 		}

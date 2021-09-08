@@ -51,11 +51,11 @@ bool FScreenReaderBase::RegisterUser(int32 InUserId)
 {
 	if (UsersMap.Contains(InUserId))
 	{
-		UE_LOG(LogScreenReader, Verbose, TEXT("Failed to register screen reader user with Id %i. Another user with the same Id has already been registered."), InUserId);
+		UE_LOG(LogScreenReader, Verbose, TEXT("Failed to register screen reader user with Id %d. Another user with the same Id has already been registered."), InUserId);
 		return false;
 	}
 	UsersMap.Add(InUserId, MakeShared<FScreenReaderUser>(InUserId));
-	UE_LOG(LogScreenReader, Verbose, TEXT("Registered screen reader user %i."), InUserId);
+	UE_LOG(LogScreenReader, Verbose, TEXT("Registered screen reader user %d."), InUserId);
 	return true;
 }
 
@@ -63,12 +63,12 @@ bool FScreenReaderBase::UnregisterUser(int32 InUserId)
 {
 	if (!UsersMap.Contains(InUserId))
 	{
-		UE_LOG(LogScreenReader, Verbose, TEXT("Failed to unregister with Id %i. No user with %i Id is registered."), InUserId);
+		UE_LOG(LogScreenReader, Verbose, TEXT("Failed to unregister with Id %d. No user with %d Id is registered."), InUserId, InUserId);
 		return false;
 	}
 	UsersMap[InUserId]->Deactivate();
 	UsersMap.Remove(InUserId);
-	UE_LOG(LogScreenReader, Verbose, TEXT("Unregistered screen reader user %i."), InUserId);
+	UE_LOG(LogScreenReader, Verbose, TEXT("Unregistered screen reader user %d."), InUserId);
 	return true;
 }
 
@@ -86,12 +86,13 @@ void FScreenReaderBase::UnregisterAllUsers()
 	UsersMap.Empty();
 }
 
-TSharedRef<FScreenReaderUser> FScreenReaderBase::GetUser(int32 InUserId) const
+TSharedRef<FScreenReaderUser> FScreenReaderBase::GetUserChecked(int32 InUserId) const
 {
+	checkf(IsUserRegistered(InUserId), TEXT("User Id %d is not registered. Did you forget to register the user with RegisterUser()?"), InUserId);
 	return UsersMap[InUserId];
 }
-
-TSharedPtr<FScreenReaderUser> FScreenReaderBase::GetUserChecked(int32 InUserId) const
+	
+TSharedPtr<FScreenReaderUser> FScreenReaderBase::GetUser(int32 InUserId) const
 {
 	if (IsUserRegistered(InUserId))
 	{

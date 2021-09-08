@@ -62,31 +62,67 @@ public:
 	* @return FScreenReaderReply::Handled() if the widget's information is successfully spoken. Else returns FScreenReaderReply::Unhandled();
 	*/
 	FScreenReaderReply RequestSpeakWidget(const TSharedRef<IAccessibleWidget>& InWidget);
+	/** Returns the speech volume for text to speech. Value will be between 0.0f and 1.0f. */
+	float GetSpeechVolume() const;
+	/**
+	* Sets the speech volume for text to speech to speak at. The passed in value will be clamped between 0.0f and 1.0f.
+	* @return FScreenReaderReply::Handled() if the volume is successfully set. Else FScreenReader::Unhandled() is returned.
+	*/
+	FScreenReaderReply SetSpeechVolume(float InVolume);
+	/** Returns the speech rate text to speech is speaking at for this user. Value will be between 0.0f and 1.0f. */
+	float GetSpeechRate() const;
+	/**
+	* Sets the speech rate text to speech will speak at for this user. Passed in value is clamped between 0.0f and 1.0f.
+	* @return FScreenReaderReply::Handled() if the speech rate is successfully set. Else, FScreenReaderReply::Unhandled() is returned.
+	*/
+	FScreenReaderReply SetSpeechRate(float InRate);
+	/**
+	* Mutes the text to speech for this user so requests to speak strings will be inaudible.
+	* @return FScreenReaderReply::Handled() if the text to speech is successfully muted. Else, FScreenReaderReply::Unhandled() is returned.
+	*/
+	FScreenReaderReply MuteSpeech();
+	/**
+	* Unmutes the text to speech for this user so that requests to speak strings will be audible again.
+	* @return FScreenReaderReply::Handled() if the text to speech si successfully unmuted. Else, FScreenReaderReply::Unhandled() is returned.
+	*/
+	FScreenReaderReply UnmuteSpeech();
+	/** Returns true if the text to speech for this user is muted. Else returns false. */
+	bool IsSpeechMuted() const;
 
 	/**
-	* Activates the screen reader and allow users to use its services such as requesting announcements to be spoken via text to speech.
-	* When screen reader users are firstr registered with a screen reader, they are inactive by default. Users must explicitly activate the screen reader user.
+	* Activates the screen reader user and fulfill requests for accessibility services such as text to speech that clients can make.
+	* When screen reader users are firstr registered with a screen reader, they are deactivated by default. Users must explicitly activate the screen reader user.
 	*/
 	void Activate();
 	/** 
 	* Deactivates the screen reader and disables all announcement and text to speech services
 	* making them do nothing.
 	*/
-
 	void Deactivate();
 	/** Returns true if the screen reader user is active. Else returns false.*/
-	bool IsActive() const { return bActive; }
-
-	/** Retursn the user Id associated with this screen reader user. */
-	int32 GetUserId() const { return UserId; }
+	bool IsActive() const 
+	{ 
+		return bActive; 
+	}
+	/** Returns the user Id associated with this screen reader user. */
+	int32 GetUserId() const 
+	{ 
+		return UserId; 
+	}
 	/** Returns the accessible widget the screen reader user is currently focused on. */
-	TSharedPtr<IAccessibleWidget> GetAccessibleFocus() const { return AccessibleFocus.Pin(); }
-	/** Sets the accessible the screenr eader user is currently focused on */
-	void SetAccessibleFocus(const TSharedRef<IAccessibleWidget>& InAccessibleFocus) { AccessibleFocus = InAccessibleFocus; }
+	TSharedPtr<IAccessibleWidget> GetAccessibleFocusWidget() const 
+	{ 
+		return AccessibleFocusWidget.Pin();
+	}
+	/** Sets the accessible widget the screen reader user is currently focused on */
+	void SetAccessibleFocusWidget(const TSharedRef<IAccessibleWidget>& InAccessibleFocusWidget) 
+	{ 
+		AccessibleFocusWidget = InAccessibleFocusWidget;
+	}
 private:
 	int32 UserId;
 	/** Responsible for handling all incoming announcement requests and speaking them via text to speech if possible */
 	TUniquePtr<FScreenReaderAnnouncementChannel> AnnouncementChannel;
-	TWeakPtr<IAccessibleWidget> AccessibleFocus;
+	TWeakPtr<IAccessibleWidget> AccessibleFocusWidget;
 	bool bActive;
 };
