@@ -42,6 +42,7 @@ void ULevelSnapshotsEditorProjectSettings::PostInitProperties()
 	FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
 }
 
+#if WITH_EDITOR
 void ULevelSnapshotsEditorProjectSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(ULevelSnapshotsEditorProjectSettings, FloatComparisonPrecision)
@@ -49,6 +50,7 @@ void ULevelSnapshotsEditorProjectSettings::PostEditChangeProperty(FPropertyChang
 	{
 		FPropertyInfoHelpers::UpdateDecimalComparisionPrecision(FloatComparisonPrecision, DoubleComparisonPrecision);
 	}
-	
+
 	UObject::PostEditChangeProperty(PropertyChangedEvent);
 }
+#endif
