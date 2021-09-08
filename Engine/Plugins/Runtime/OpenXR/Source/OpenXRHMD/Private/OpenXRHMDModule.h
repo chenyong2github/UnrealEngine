@@ -11,16 +11,8 @@
 class FOpenXRHMDModule : public IOpenXRHMDModule
 {
 public:
-	FOpenXRHMDModule()
-		: LoaderHandle(nullptr)
-		, Instance(XR_NULL_HANDLE)
-		, System(XR_NULL_SYSTEM_ID)
-		, RenderBridge(nullptr)
-	{ }
-
-	~FOpenXRHMDModule()
-	{
-	}
+	FOpenXRHMDModule();
+	~FOpenXRHMDModule();
 
 	/** IHeadMountedDisplayModule implementation */
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
