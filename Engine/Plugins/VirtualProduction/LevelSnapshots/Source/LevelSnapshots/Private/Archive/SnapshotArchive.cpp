@@ -151,7 +151,11 @@ void FSnapshotArchive::Serialize(void* Data, int64 Length)
 
 UObject* FSnapshotArchive::ResolveObjectDependency(int32 ObjectIndex) const
 {
+#if USE_STABLE_LOCALIZATION_KEYS
 	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, GetLocalizationNamespace());
+#else
+	return SnapshotUtil::Object::ResolveObjectDependencyForSnapshotWorld(SharedData, ObjectIndex, "");
+#endif
 }
 
 FSnapshotArchive::FSnapshotArchive(FObjectSnapshotData& InObjectData, FWorldSnapshotData& InSharedData, bool bIsLoading, UObject* InSerializedObject)
