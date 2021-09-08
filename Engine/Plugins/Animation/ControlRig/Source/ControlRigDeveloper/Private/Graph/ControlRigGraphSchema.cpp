@@ -454,7 +454,6 @@ bool UControlRigGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin*
 	}
 
 	UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
-	MutableThis->LastPinForCompatibleCheck = nullptr;
 
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
@@ -1745,5 +1744,29 @@ FVector2D UControlRigGraphSchema::GetNodePositionAtStartOfInteraction(UEdGraphNo
 	return FVector2D::ZeroVector;
 }
 
+void UControlRigGraphSchema::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph,
+	UObject* InSubject)
+{
+	switch(InNotifType)
+	{
+		case ERigVMGraphNotifType::NodeAdded:
+		case ERigVMGraphNotifType::NodeRemoved:
+		case ERigVMGraphNotifType::PinAdded:
+		case ERigVMGraphNotifType::PinRemoved:
+		case ERigVMGraphNotifType::PinRenamed:
+		case ERigVMGraphNotifType::PinArraySizeChanged:
+		case ERigVMGraphNotifType::PinTypeChanged:
+		case ERigVMGraphNotifType::LinkAdded:
+		case ERigVMGraphNotifType::LinkRemoved:
+		{
+			LastPinForCompatibleCheck = nullptr;
+			break;
+		}
+		default:
+		{
+			break;
+		}
+	}
+}
 
 #undef LOCTEXT_NAMESPACE
