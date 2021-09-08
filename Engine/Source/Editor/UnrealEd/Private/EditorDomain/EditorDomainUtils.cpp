@@ -7,6 +7,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Array.h"
+#include "DerivedDataBuildDefinition.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheKey.h"
 #include "DerivedDataCacheRecord.h"
@@ -21,15 +22,14 @@
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/PackageWriter.h"
+#include "TargetDomain/TargetDomainUtils.h"
 #include "UObject/CoreRedirects.h"
 #include "UObject/ObjectVersion.h"
 #include "UObject/Package.h"
 #include "UObject/SavePackage.h"
 #include "UObject/UObjectHash.h"
 
-namespace UE
-{
-namespace EditorDomain
+namespace UE::EditorDomain
 {
 
 FClassDigestMap GClassDigests;
@@ -850,6 +850,18 @@ bool TrySavePackage(UPackage* Package)
 	FRequestOwner Owner(EPriority::Normal);
 	Cache.Put({RecordBuilder.Build()}, Package->GetName(), ECachePolicy::Default, Owner);
 	Owner.KeepAlive();
+
+	// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
+	TArray<UE::DerivedData::FBuildDefinition> BuildDefinitions;
+	FCbObject BuildDefinitionList = UE::TargetDomain::BuildDefinitionListToObject(BuildDefinitions);
+	FCbObject TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, nullptr, nullptr);
+	if (TargetDomainDependencies)
+	{
+		TArray<IPackageWriter::FCommitAttachmentInfo, TInlineAllocator<2>> Attachments;
+		Attachments.Add({ "Dependencies", TargetDomainDependencies });
+		Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
+		UE::TargetDomain::CommitEditorDomainCookAttachments(Package->GetFName(), Attachments);
+	}
 	return true;
 }
 
@@ -988,7 +1000,4 @@ void PutBulkDataPayloadId(FName PackageName, const FGuid& BulkDataId, FSharedBuf
 	Owner.KeepAlive();
 }
 
-
-
-}
 }

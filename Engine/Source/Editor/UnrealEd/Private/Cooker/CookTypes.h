@@ -4,14 +4,18 @@
 
 #include "Containers/Map.h"
 #include "Containers/Set.h"
+#include "Containers/UnrealString.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h" // ECookTickFlags
+#include "DerivedDataRequestOwner.h"
 #include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
 #include "Serialization/PackageWriter.h"
 #include "Templates/Function.h"
+#include "UObject/NameTypes.h"
 #include "UObject/SavePackage.h"
 
-class FString;
+class ITargetPlatform;
+namespace UE::DerivedData { class FBuildDefinition; }
 
 #define COOK_CHECKSLOW_PACKAGEDATA 1
 #define DEBUG_COOKONTHEFLY 0
@@ -182,6 +186,29 @@ namespace UE::Cook
 	void InitializeTls();
 	bool IsSchedulerThread();
 	void SetIsSchedulerThread(bool bValue);
+
+
+	/** Placeholder to handle executing BuildDefintions for requested but not-yet-loaded packages. */
+	class FBuildDefinitions
+	{
+	public:
+		FBuildDefinitions();
+		~FBuildDefinitions();
+
+		void AddBuildDefinitionList(FName PackageName, const ITargetPlatform* TargetPlatform,
+			TConstArrayView<UE::DerivedData::FBuildDefinition> BuildDefinitionList);
+		bool TryRemovePendingBuilds(FName PackageName);
+		void Wait();
+		void Cancel();
+
+	private:
+		bool bTestPendingBuilds = false;
+		struct FPendingBuildData
+		{
+			bool bTryRemoved = false;
+		};
+		TMap<FName, FPendingBuildData> PendingBuilds;
+	};
 }
 
 //////////////////////////////////////////////////////////////////////////

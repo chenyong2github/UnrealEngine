@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/RingBuffer.h"
 #include "Cooker/CookTypes.h"
+#include "TargetDomain/TargetDomainUtils.h"
 #include "UObject/NameTypes.h"
 
 class IAssetRegistry;
@@ -95,7 +96,7 @@ private:
 	void FetchDependencies(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	void StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	bool TryTakeOwnership(FPackageData& PackageData, bool bUrgent, FCompletionCallback&& CompletionCallback);
-	void VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bAlreadyCooked);
+	void VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bOutAlreadyCooked);
 	bool IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData);
 	static bool IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData,
 		const FPackageNameCache& InPackageNameCache, FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
@@ -111,7 +112,7 @@ private:
 	TArray<FFileNameRequest> InRequests;
 	TArray<FPackageData*> Requests;
 	TArray<FPackageData*> RequestsToDemote;
-	TArray<FName> RuntimeScratch;
+	UE::TargetDomain::FCookAttachments OplogDataScratch;
 	TArray<const ITargetPlatform*> Platforms;
 	TArray<ICookedPackageWriter*> PackageWriters;
 	FPackageDataSet OwnedPackageDatas;
@@ -120,6 +121,7 @@ private:
 	IAssetRegistry& AssetRegistry;
 	const FPackageNameCache& PackageNameCache;
 	FPackageTracker& PackageTracker;
+	FBuildDefinitions& BuildDefinitions;
 	int32 NextRequest = 0;
 	bool bAllowHardDependencies = true;
 	bool bAllowSoftDependencies = true;
@@ -130,6 +132,7 @@ private:
 	bool bDependenciesComplete = false;
 	bool bStartAsyncComplete = false;
 	bool bFullBuild = false;
+	bool bPreQueueBuildDefinitions = true;
 
 
 	/** Data used during the reentrant dependencies and topological sort operation of FRequestCluster. */

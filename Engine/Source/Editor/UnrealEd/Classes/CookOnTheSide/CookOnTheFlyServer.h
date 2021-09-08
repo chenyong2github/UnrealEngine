@@ -111,6 +111,7 @@ ENUM_CLASS_FLAGS(ECookTickFlags);
 
 namespace UE::Cook
 {
+	class FBuildDefinitions;
 	class FExternalRequests;
 	class FRequestCluster;
 	class FSaveCookedPackageContext;
@@ -1104,6 +1105,7 @@ private:
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
 	TUniquePtr<UE::Cook::FPackageDatas> PackageDatas;
 	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
+	TUniquePtr<UE::Cook::FBuildDefinitions> BuildDefinitions;
 
 	TArray<UE::Cook::FCookSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */

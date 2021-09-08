@@ -21,6 +21,7 @@
 #include "Misc/ScopeLock.h"
 #include "Serialization/Archive.h"
 #include "Serialization/CompactBinary.h"
+#include "TargetDomain/TargetDomainUtils.h"
 #include "Templates/RefCounting.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/PackageResourceManagerFile.h"
@@ -49,6 +50,7 @@ public:
 				UE_LOG(LogEditorDomain, Error, TEXT("Editor.ini:[CookSettings]:EditorDomainEnabled is deprecated, use Editor.ini:[EditorDomain]:EditorDomainEnabled instead."));
 			}
 			UE::EditorDomain::UtilsInitialize();
+			UE::TargetDomain::UtilsInitialize(bEditorDomainEnabled);
 			if (bEditorDomainEnabled)
 			{
 				// Set values for config settings EditorDomain depends on

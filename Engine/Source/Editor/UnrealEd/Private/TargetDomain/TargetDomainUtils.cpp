@@ -2,20 +2,70 @@
 
 #include "TargetDomain/TargetDomainUtils.h"
 
+#include "Algo/BinarySearch.h"
+#include "Algo/IsSorted.h"
+#include "Algo/Sort.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
 #include "Cooker/PackageBuildDependencyTracker.h"
+#include "DerivedDataBuildDefinition.h"
+#include "DerivedDataBuildKey.h"
+#include "EditorDomain/EditorDomain.h"
 #include "EditorDomain/EditorDomainUtils.h"
+#include "HAL/PlatformFile.h"
+#include "HAL/PlatformFileManager.h"
+#include "IO/IoDispatcher.h"
 #include "IO/IoHash.h"
+#include "Misc/App.h"
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/PackageWriter.h"
+#include "ZenStoreHttpClient.h"
 
 namespace UE::TargetDomain
 {
+
+/**
+ * Reads / writes an oplog for EditorDomain BuildDefinitionLists.
+ * TODO: Reduce duplication between this class and FZenStoreWriter
+ */
+class FEditorDomainOplog
+{
+public:
+	FEditorDomainOplog();
+
+	bool IsValid() const;
+	void CommitPackage(FName PackageName, TArrayView<IPackageWriter::FCommitAttachmentInfo> Attachments);
+	FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey);
+
+private:
+	struct FOplogEntry
+	{
+		struct FAttachment
+		{
+			const UTF8CHAR* Key;
+			FIoHash Hash;
+		};
+
+		TArray<FAttachment> Attachments;
+	};
+
+	void InitializeRead();
+	static void StaticInit();
+	static bool IsReservedOplogKey(FUtf8StringView Key);
+
+	UE::FZenStoreHttpClient HttpClient;
+	FCriticalSection Lock;
+	TMap<FName, FOplogEntry> Entries;
+	bool bConnectSuccessful = false;
+	bool bInitializedRead = false;
+
+	static TArray<const UTF8CHAR*> ReservedOplogKeys;
+};
+TUniquePtr<FEditorDomainOplog> GEditorDomainOplog;
 
 bool TryCreateKey(FName PackageName, TArrayView<FName> SortedBuildDependencies, FIoHash* OutHash, FString* OutErrorMessage)
 {
@@ -179,41 +229,81 @@ FCbObject CollectDependenciesObject(UPackage* Package, const ITargetPlatform* Ta
 	return Writer.Save().AsObject();
 }
 
-
-bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName PackageName, const ITargetPlatform* TargetPlatform,
-	FIoHash* OutHash, TArray<FName>* OutBuildDependencies, TArray<FName>* OutRuntimeOnlyDependencies, FString* OutErrorMessage)
+FCbObject BuildDefinitionListToObject(TConstArrayView<UE::DerivedData::FBuildDefinition> BuildDefinitionList)
 {
-	FCbObject DependenciesObj = PackageWriter->GetOplogAttachment(PackageName, "Dependencies");
-	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
-	if (StoredKey.IsZero())
+	using namespace UE::DerivedData;
+
+	if (BuildDefinitionList.IsEmpty())
+	{
+		return FCbObject();
+	}
+
+	TArray<const FBuildDefinition*> Sorted;
+	Sorted.Reserve(BuildDefinitionList.Num());
+	for (const FBuildDefinition& BuildDefinition : BuildDefinitionList)
+	{
+		Sorted.Add(&BuildDefinition);
+	}
+	Sorted.Sort([](const FBuildDefinition& A, const FBuildDefinition& B)
+		{
+			return A.GetKey().Hash < B.GetKey().Hash;
+		});
+
+	FCbWriter Writer;
+	Writer.BeginObject();
+	Writer.BeginArray("BuildDefinitions");
+	for (const FBuildDefinition* BuildDefinition : Sorted)
+	{
+		BuildDefinition->Save(Writer);
+	}
+	Writer.EndArray();
+	return Writer.Save().AsObject();
+}
+
+bool TryFetchCookAttachments(ICookedPackageWriter* PackageWriter, FName PackageName, const ITargetPlatform* TargetPlatform,
+	FCookAttachments& OutOplogData, FString* OutErrorMessage)
+{
+	OutOplogData.Reset();
+
+	const ANSICHAR* DependenciesKey = "Dependencies";
+	FCbObject DependenciesObj;
+	if (TargetPlatform)
+	{
+		check(PackageWriter);
+		DependenciesObj = PackageWriter->GetOplogAttachment(PackageName, DependenciesKey);
+	}
+	else
+	{
+		if (!GEditorDomainOplog)
 		{
 			if (OutErrorMessage)
 			{
-			*OutErrorMessage = TEXT("Dependencies not in oplog.");
+				*OutErrorMessage = TEXT("EditorDomain oplog is not available.");
 			}
 			return false;
 		}
-
-	TArray<FName> BuildDependencies;
-	if (OutBuildDependencies)
-	{
-		OutBuildDependencies->Reset();
+		DependenciesObj = GEditorDomainOplog->GetOplogAttachment(PackageName, DependenciesKey);
 	}
-	else
+	FIoHash StoredKey = DependenciesObj["targetdomainkey"].AsHash();
+	if (StoredKey.IsZero())
+	{
+		if (OutErrorMessage)
 		{
-		OutBuildDependencies = &BuildDependencies;
+			*OutErrorMessage = TEXT("Dependencies not in oplog.");
+		}
+		return false;
 	}
 
 	for (FCbFieldView DepObj : DependenciesObj["builddependencies"])
 	{
 		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
 		{
-			OutBuildDependencies->Add(FName(*DependencyName));
+			OutOplogData.BuildDependencies.Add(FName(*DependencyName));
 		}
 	}
 
 	FIoHash CurrentKey;
-	if (!TryCreateKey(PackageName, *OutBuildDependencies, &CurrentKey, OutErrorMessage))
+	if (!TryCreateKey(PackageName, OutOplogData.BuildDependencies, &CurrentKey, OutErrorMessage))
 	{
 		return false;
 	}
@@ -227,15 +317,36 @@ bool TryFetchKeyAndDependencies(ICookedPackageWriter* PackageWriter, FName Packa
 		return false;
 	}
 
-	if (OutRuntimeOnlyDependencies)
-	{
 	for (FCbFieldView DepObj : DependenciesObj["runtimeonlydependencies"])
 	{
 		if (FString DependencyName(DepObj.AsString()); !DependencyName.IsEmpty())
 		{
-				OutRuntimeOnlyDependencies->Add(FName(*DependencyName));
+			OutOplogData.RuntimeOnlyDependencies.Add(FName(*DependencyName));
 		}
 	}
+
+	const ANSICHAR* BuildDefinitionListKey = "BuildDefinitionList";
+	FCbObject BuildDefinitionListObj;
+	if (TargetPlatform)
+	{
+		BuildDefinitionListObj = PackageWriter->GetOplogAttachment(PackageName, BuildDefinitionListKey);
+	}
+	else
+	{
+		BuildDefinitionListObj = GEditorDomainOplog->GetOplogAttachment(PackageName, BuildDefinitionListKey);
+	}
+
+	for (FCbField BuildDefinitionObj : BuildDefinitionListObj)
+	{
+		UE::DerivedData::FOptionalBuildDefinition BuildDefinition =
+			UE::DerivedData::FBuildDefinition::Load(TEXT("TargetDomainBuildDefinitionList"),
+				BuildDefinitionObj.AsObject());
+		if (!BuildDefinition)
+		{
+			OutOplogData.BuildDefinitionList.Reset();
+			break;
+		}
+		OutOplogData.BuildDefinitionList.Add(MoveTemp(BuildDefinition).Get());
 	}
 
 	return true;
@@ -274,5 +385,256 @@ bool IsIterativeEnabled(FName PackageName)
 	return true;
 }
 
-} // namespace UE::TargetDomain
+TArray<const UTF8CHAR*> FEditorDomainOplog::ReservedOplogKeys;
 
+FEditorDomainOplog::FEditorDomainOplog()
+	: HttpClient(TEXT("localhost"), 1337)
+{
+	StaticInit();
+
+	FString ProjectId = FApp::GetProjectName();
+	FString OplogId = TEXT("EditorDomain");
+
+	FString RootDir = FPaths::RootDir();
+	FString EngineDir = FPaths::EngineDir();
+	FPaths::NormalizeDirectoryName(EngineDir);
+	FString ProjectDir = FPaths::ProjectDir();
+	FPaths::NormalizeDirectoryName(ProjectDir);
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	FString AbsServerRoot = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*RootDir);
+	FString AbsEngineDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*EngineDir);
+	FString AbsProjectDir = PlatformFile.ConvertToAbsolutePathForExternalAppForRead(*ProjectDir);
+
+	HttpClient.Initialize(ProjectId,
+		OplogId,
+		AbsServerRoot,
+		AbsEngineDir,
+		AbsProjectDir);
+	if (HttpClient.IsConnected())
+	{
+		HttpClient.EstablishWritableOpLog(ProjectId, OplogId, false /* bFullBuild */);
+	}
+}
+
+void FEditorDomainOplog::InitializeRead()
+{
+	if (bInitializedRead)
+	{
+		return;
+	}
+	UE_LOG(LogEditorDomain, Display, TEXT("Fetching EditorDomain oplog..."));
+
+	TFuture<FIoStatus> FutureOplogStatus = HttpClient.GetOplog().Next([this](TIoStatusOr<FCbObject> OplogStatus)
+		{
+			if (!OplogStatus.IsOk())
+			{
+				return OplogStatus.Status();
+			}
+
+			FCbObject Oplog = OplogStatus.ConsumeValueOrDie();
+
+			for (FCbField& EntryObject : Oplog["entries"])
+			{
+				FUtf8StringView PackageName = EntryObject["key"].AsString();
+				if (PackageName.IsEmpty())
+				{
+					continue;
+				}
+				FName PackageFName(PackageName);
+				FOplogEntry& Entry = Entries.FindOrAdd(PackageFName);
+				Entry.Attachments.Empty();
+
+				for (FCbFieldView Field : EntryObject)
+				{
+					FUtf8StringView FieldName = Field.GetName();
+					if (IsReservedOplogKey(FieldName))
+					{
+						continue;
+					}
+					if (Field.IsHash())
+					{
+						const UTF8CHAR* AttachmentId = UE::FZenStoreHttpClient::FindOrAddAttachmentId(FieldName);
+						Entry.Attachments.Add({ AttachmentId, Field.AsHash() });
+					}
+				}
+				Entry.Attachments.Shrink();
+				check(Algo::IsSorted(Entry.Attachments, [](const FOplogEntry::FAttachment& A, const FOplogEntry::FAttachment& B)
+					{
+						return FUtf8StringView(A.Key).Compare(FUtf8StringView(B.Key), ESearchCase::IgnoreCase) < 0;
+					}));
+			}
+
+			return FIoStatus::Ok;
+		});
+	FutureOplogStatus.Get();
+	bInitializedRead = true;
+}
+
+void FEditorDomainOplog::StaticInit()
+{
+	if (ReservedOplogKeys.Num() > 0)
+	{
+		return;
+	}
+
+	ReservedOplogKeys.Append({ UTF8TEXT("key") });
+	Algo::Sort(ReservedOplogKeys, [](const UTF8CHAR* A, const UTF8CHAR* B)
+		{
+			return FUtf8StringView(A).Compare(FUtf8StringView(B), ESearchCase::IgnoreCase) < 0;
+		});;
+}
+
+bool FEditorDomainOplog::IsReservedOplogKey(FUtf8StringView Key)
+{
+	int32 Index = Algo::LowerBound(ReservedOplogKeys, Key,
+		[](const UTF8CHAR* Existing, FUtf8StringView Key)
+		{
+			return FUtf8StringView(Existing).Compare(Key, ESearchCase::IgnoreCase) < 0;
+		});
+	return Index != ReservedOplogKeys.Num() &&
+		FUtf8StringView(ReservedOplogKeys[Index]).Equals(Key, ESearchCase::IgnoreCase);
+}
+
+bool FEditorDomainOplog::IsValid() const
+{
+	return HttpClient.IsConnected();
+}
+
+void FEditorDomainOplog::CommitPackage(FName PackageName, TArrayView<IPackageWriter::FCommitAttachmentInfo> Attachments)
+{
+	FScopeLock ScopeLock(&Lock);
+
+	FCbPackage Pkg;
+
+	TArray<FCbAttachment, TInlineAllocator<2>> CbAttachments;
+	int32 NumAttachments = Attachments.Num();
+	FOplogEntry& Entry = Entries.FindOrAdd(PackageName);
+	Entry.Attachments.Empty(NumAttachments);
+	if (NumAttachments)
+	{
+		TArray<const IPackageWriter::FCommitAttachmentInfo*, TInlineAllocator<2>> SortedAttachments;
+		SortedAttachments.Reserve(NumAttachments);
+		for (const IPackageWriter::FCommitAttachmentInfo& AttachmentInfo : Attachments)
+		{
+			SortedAttachments.Add(&AttachmentInfo);
+		}
+		SortedAttachments.Sort([](const IPackageWriter::FCommitAttachmentInfo& A, const IPackageWriter::FCommitAttachmentInfo& B)
+			{
+				return A.Key.Compare(B.Key, ESearchCase::IgnoreCase) < 0;
+			});
+		CbAttachments.Reserve(NumAttachments);
+		for (const IPackageWriter::FCommitAttachmentInfo* AttachmentInfo : SortedAttachments)
+		{
+			const FCbAttachment& CbAttachment = CbAttachments.Emplace_GetRef(AttachmentInfo->Value);
+			check(!IsReservedOplogKey(AttachmentInfo->Key));
+			Pkg.AddAttachment(CbAttachment);
+			Entry.Attachments.Add(FOplogEntry::FAttachment{
+				UE::FZenStoreHttpClient::FindOrAddAttachmentId(AttachmentInfo->Key), CbAttachment.GetHash() });
+		}
+	}
+
+	FCbWriter PackageObj;
+	FString PackageNameKey = PackageName.ToString();
+	PackageNameKey.ToLowerInline();
+	PackageObj.BeginObject();
+	PackageObj << "key" << PackageNameKey;
+	for (int32 Index = 0; Index < NumAttachments; ++Index)
+	{
+		FCbAttachment& CbAttachment = CbAttachments[Index];
+		FOplogEntry::FAttachment& EntryAttachment = Entry.Attachments[Index];
+		PackageObj << EntryAttachment.Key << CbAttachment;
+	}
+	PackageObj.EndObject();
+
+	FCbObject Obj = PackageObj.Save().AsObject();
+	Pkg.SetObject(Obj);
+	HttpClient.AppendOp(Pkg);
+}
+
+// Note that this is destructive - we yank out the buffer memory from the 
+// IoBuffer into the FSharedBuffer
+FSharedBuffer IoBufferToSharedBuffer(FIoBuffer& InBuffer)
+{
+	InBuffer.EnsureOwned();
+	const uint64 DataSize = InBuffer.DataSize();
+	uint8* DataPtr = InBuffer.Release().ValueOrDie();
+	return FSharedBuffer{ FSharedBuffer::TakeOwnership(DataPtr, DataSize, FMemory::Free) };
+};
+
+FCbObject FEditorDomainOplog::GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey)
+{
+	FScopeLock ScopeLock(&Lock);
+	InitializeRead();
+
+	FOplogEntry* Entry = Entries.Find(PackageName);
+	if (!Entry)
+	{
+		return FCbObject();
+	}
+
+	const UTF8CHAR* AttachmentId = UE::FZenStoreHttpClient::FindAttachmentId(AttachmentKey);
+	if (!AttachmentId)
+	{
+		return FCbObject();
+	}
+	FUtf8StringView AttachmentIdView(AttachmentId);
+
+	int32 AttachmentIndex = Algo::LowerBound(Entry->Attachments, AttachmentIdView,
+		[](const FOplogEntry::FAttachment& Existing, FUtf8StringView AttachmentIdView)
+		{
+			return FUtf8StringView(Existing.Key).Compare(AttachmentIdView, ESearchCase::IgnoreCase) < 0;
+		});
+	if (AttachmentIndex == Entry->Attachments.Num())
+	{
+		return FCbObject();
+	}
+	const FOplogEntry::FAttachment& Existing = Entry->Attachments[AttachmentIndex];
+	if (!FUtf8StringView(Existing.Key).Equals(AttachmentIdView, ESearchCase::IgnoreCase))
+	{
+		return FCbObject();
+	}
+	TIoStatusOr<FIoBuffer> BufferResult = HttpClient.ReadOpLogAttachment(WriteToString<48>(Existing.Hash));
+	if (!BufferResult.IsOk())
+	{
+		return FCbObject();
+	}
+	FIoBuffer Buffer = BufferResult.ValueOrDie();
+	if (Buffer.DataSize() == 0)
+	{
+		return FCbObject();
+	}
+
+	FSharedBuffer SharedBuffer = IoBufferToSharedBuffer(Buffer);
+	return FCbObject(SharedBuffer);
+}
+
+void CommitEditorDomainCookAttachments(FName PackageName, TArrayView<IPackageWriter::FCommitAttachmentInfo> Attachments)
+{
+	if (!GEditorDomainOplog)
+	{
+		return;
+	}
+	GEditorDomainOplog->CommitPackage(PackageName, Attachments);
+}
+
+void UtilsInitialize(bool bEditorDomainEnabled)
+{
+	if (bEditorDomainEnabled)
+	{
+		bool bCookAttachmentsEnabled = true;
+		GConfig->GetBool(TEXT("EditorDomain"), TEXT("CookAttachmentsEnabled"), bCookAttachmentsEnabled, GEditorIni);
+		if (bCookAttachmentsEnabled)
+		{
+			GEditorDomainOplog = MakeUnique<FEditorDomainOplog>();
+			if (!GEditorDomainOplog->IsValid())
+			{
+				UE_LOG(LogEditorDomain, Warning, TEXT("Failed to connect to ZenServer; EditorDomain oplog is unavailable."));
+				GEditorDomainOplog.Reset();
+			}
+		}
+	}
+}
+
+
+} // namespace UE::TargetDomain
