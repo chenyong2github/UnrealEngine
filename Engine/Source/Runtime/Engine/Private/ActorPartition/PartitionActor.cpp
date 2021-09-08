@@ -42,6 +42,11 @@ bool APartitionActor::IsUserManaged() const
 
 	return true;
 }
+
+bool APartitionActor::ShouldIncludeGridSizeInName(UWorld* InWorld) const
+{
+	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForPartitionedActors;
+}
 #endif
 
 #undef LOCTEXT_NAMESPACE

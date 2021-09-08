@@ -710,6 +710,11 @@ UWorldPartition* UWorldPartition::CreateWorldPartition(AWorldSettings* WorldSett
 
 	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(WorldSettings);
 	WorldSettings->SetWorldPartition(WorldPartition);
+	
+	// New maps should include GridSize in name
+	WorldSettings->bIncludeGridSizeInNameForFoliageActors = true;
+	WorldSettings->bIncludeGridSizeInNameForPartitionedActors = true;
+
 	WorldSettings->MarkPackageDirty();
 
 	WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
