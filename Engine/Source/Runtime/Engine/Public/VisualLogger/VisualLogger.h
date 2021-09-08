@@ -608,8 +608,7 @@ protected:
 	float StartRecordingToFileTime;
 	/** Delegate to set project specific file name for vlogs */
 	FVisualLogFilenameGetterDelegate LogFileNameGetter;
-	/** Handle for timer used to serialize all waiting logs */
-	FTimerHandle VisualLoggerCleanupTimerHandle;
+
 	/** function to call when getting the time stamp */
 	TFunction<float(const UObject*)> GetTimeStampFunc;
 
