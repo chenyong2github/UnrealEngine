@@ -3147,10 +3147,10 @@ void UControlRigBlueprint::CreateMemberVariablesOnLoad()
 
 FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNameValidator> InNameValidator, const FString& InBaseName)
 {
-	FString KismetName = InBaseName;
-	if (InNameValidator->IsValid(KismetName) == EValidatorResult::ContainsInvalidCharacters)
+	FString BaseName = InBaseName;
+	if (InNameValidator->IsValid(BaseName) == EValidatorResult::ContainsInvalidCharacters)
 	{
-		for (TCHAR& TestChar : KismetName)
+		for (TCHAR& TestChar : BaseName)
 		{
 			for (TCHAR BadChar : UE_BLUEPRINT_INVALID_NAME_CHARACTERS)
 			{
@@ -3163,10 +3163,12 @@ FName UControlRigBlueprint::FindCRMemberVariableUniqueName(TSharedPtr<FKismetNam
 		}
 	}
 
+	FString KismetName = BaseName;
+
 	int32 Suffix = 0;
 	while (InNameValidator->IsValid(KismetName) != EValidatorResult::Ok)
 	{
-		KismetName = FString::Printf(TEXT("%s_%d"), *InBaseName, Suffix);
+		KismetName = FString::Printf(TEXT("%s_%d"), *BaseName, Suffix);
 		Suffix++;
 	}
 
