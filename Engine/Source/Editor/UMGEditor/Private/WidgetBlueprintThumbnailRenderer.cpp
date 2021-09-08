@@ -21,7 +21,6 @@ public:
 	struct FInstance
 	{
 		TWeakObjectPtr<UClass> WidgetClass;
-		TWeakObjectPtr<UTextureRenderTarget2D> RenderTarget2D;
 		TWeakObjectPtr<UUserWidget> Widget;
 	};
 
@@ -127,6 +126,11 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 		return;
 	}
 
+	if (!RenderTarget)
+	{
+		return;
+	}
+
 	UWidgetBlueprint* WidgetBlueprintToRender = Cast<UWidgetBlueprint>(Object);
 	const bool bIsBlueprintValid = IsValid(WidgetBlueprintToRender)
 		&& IsValid(WidgetBlueprintToRender->GeneratedClass)
@@ -142,11 +146,10 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 
 	// Create a plain gray background for the thumbnail
 	const int32 SizeOfUV = 1;
-	FLinearColor GrayBackgroundColor(FVector4(.03f, .03f, .03f, 1.f));
-	Canvas->DrawTile(
-		0.0f, 0.0f, Width, Height,
-		0.0f, 0.0f, SizeOfUV, SizeOfUV,
-		GrayBackgroundColor);
+	FLinearColor GrayBackgroundColor(FVector4(.03f, .03f, .03f, 1.0f));
+	FCanvasTileItem TileItem(FVector2D(X, Y),  GWhiteTexture, FVector2D(Width, Height), FVector2D(0, 0), FVector2D(SizeOfUV, SizeOfUV), GrayBackgroundColor);
+	TileItem.BlendMode = SE_BLEND_AlphaBlend;
+	TileItem.Draw(Canvas);
 
 	// check if an image is used instead of auto generating the thumbnail
 	if (WidgetBlueprintToRender->ThumbnailImage)
@@ -167,8 +170,8 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 	}
 	else
 	{
+		Canvas->Flush_GameThread();
 		UUserWidget* WidgetInstance = nullptr;
-		UTextureRenderTarget2D* RenderTarget2D = nullptr;
 
 		{
 			UClass* ClassToGenerate = WidgetBlueprintToRender->GeneratedClass;
@@ -183,44 +186,23 @@ void UWidgetBlueprintThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, 
 
 				WidgetInstance = ThumbnailInstance.Widget.Get();
 			}
-
-			RenderTarget2D = ThumbnailInstance.RenderTarget2D.Get();
-			if (!RenderTarget2D)
-			{
-				ThumbnailInstance.RenderTarget2D = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
-				ThumbnailInstance.RenderTarget2D->Filter = TF_Bilinear;
-				ThumbnailInstance.RenderTarget2D->ClearColor = FLinearColor::Transparent;
-				ThumbnailInstance.RenderTarget2D->SRGB = true;
-				ThumbnailInstance.RenderTarget2D->TargetGamma = 1;
-
-				RenderTarget2D = ThumbnailInstance.RenderTarget2D.Get();
-			}
 		}
 
 		FVector2D ThumbnailSize(Width, Height);
 		TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset;
-
 		if (WidgetBlueprintToRender->ThumbnailSizeMode == EThumbnailPreviewSizeMode::Custom)
 		{
-			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, RenderTarget2D, ThumbnailSize, WidgetBlueprintToRender->ThumbnailCustomSize, WidgetBlueprintToRender->ThumbnailSizeMode);
+			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, Canvas->GetRenderTarget(), ThumbnailSize, WidgetBlueprintToRender->ThumbnailCustomSize, WidgetBlueprintToRender->ThumbnailSizeMode);
 		}
 		else
 		{
-			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, RenderTarget2D, ThumbnailSize, TOptional<FVector2D>(), WidgetBlueprintToRender->ThumbnailSizeMode);
+			ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(WidgetInstance, Canvas->GetRenderTarget(), ThumbnailSize, TOptional<FVector2D>(), WidgetBlueprintToRender->ThumbnailSizeMode);
 
 		}
 		if (!ScaleAndOffset.IsSet())
 		{
 			return;
 		}
-		FVector2D Offset = ScaleAndOffset.GetValue().Offset;
-		FVector2D ScaledSize = ScaleAndOffset.GetValue().ScaledSize;
-
-		// Draw the SWidget on canvas
-		FCanvasTileItem CanvasTile(FVector2D(X + Offset.X, Y + Offset.Y), RenderTarget2D->GetResource(), ScaledSize, FLinearColor::White);
-		CanvasTile.BlendMode = SE_BLEND_Translucent;
-		FlushRenderingCommands();
-		CanvasTile.Draw(Canvas);
 	}
 #endif
 }

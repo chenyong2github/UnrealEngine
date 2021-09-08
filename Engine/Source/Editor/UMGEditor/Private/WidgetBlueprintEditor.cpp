@@ -312,12 +312,7 @@ void FWidgetBlueprintEditor::CaptureThumbnail()
 	}
 
 	UTextureRenderTarget2D* RenderTarget2D = NewObject<UTextureRenderTarget2D>();
-	RenderTarget2D->Filter = TF_Bilinear;
-	RenderTarget2D->ClearColor = FLinearColor::Transparent;
-	RenderTarget2D->SRGB = true;
-	RenderTarget2D->TargetGamma = 1;
-
-	TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(PreviewWidget, RenderTarget2D, FVector2D(256.f, 256.f), TOptional<FVector2D>());
+	TOptional<FWidgetBlueprintEditorUtils::FWidgetThumbnailProperties> ScaleAndOffset = FWidgetBlueprintEditorUtils::DrawSWidgetInRenderTargetForThumbnail(PreviewWidget, RenderTarget2D, FVector2D(256.f, 256.f), TOptional<FVector2D>(), EThumbnailPreviewSizeMode::MatchDesignerMode);
 
 	if (!ScaleAndOffset.IsSet())
 	{
