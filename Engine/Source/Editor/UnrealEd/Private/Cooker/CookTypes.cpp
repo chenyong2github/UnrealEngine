@@ -2,8 +2,10 @@
 
 #include "CookTypes.h"
 
+#include "Cooker/CookPackageData.h"
 #include "HAL/PlatformTime.h"
 #include "Math/NumericLimits.h"
+#include "Misc/CommandLine.h"
 
 namespace UE::Cook
 {
@@ -95,4 +97,59 @@ FCookSavePackageContext::~FCookSavePackageContext()
 		delete PackageWriter;
 	}
 }
+
+FBuildDefinitions::FBuildDefinitions()
+{
+	bTestPendingBuilds = FParse::Param(FCommandLine::Get(), TEXT("CookTestPendingBuilds"));
+}
+
+FBuildDefinitions::~FBuildDefinitions()
+{
+	Cancel();
+}
+
+void FBuildDefinitions::AddBuildDefinitionList(FName PackageName, const ITargetPlatform* TargetPlatform, TConstArrayView<UE::DerivedData::FBuildDefinition> BuildDefinitionList)
+{
+	using namespace UE::DerivedData;
+
+	// TODO_BuildDefinitionList: Trigger the builds
+	if (!bTestPendingBuilds)
+	{
+		return;
+	}
+
+	FPendingBuildData& BuildData = PendingBuilds.FindOrAdd(PackageName);
+	BuildData.bTryRemoved = false; // overwrite any previous value
+}
+
+bool FBuildDefinitions::TryRemovePendingBuilds(FName PackageName)
+{
+	FPendingBuildData* BuildData = PendingBuilds.Find(PackageName);
+	if (BuildData)
+	{
+		if (!bTestPendingBuilds || BuildData->bTryRemoved)
+		{
+			PendingBuilds.Remove(PackageName);
+			return true;
+		}
+		else
+		{
+			BuildData->bTryRemoved = true;
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void FBuildDefinitions::Wait()
+{
+	PendingBuilds.Empty();
+}
+
+void FBuildDefinitions::Cancel()
+{
+	PendingBuilds.Empty();
+}
+
 }

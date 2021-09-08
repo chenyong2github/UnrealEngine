@@ -2634,8 +2634,17 @@ bool UCookOnTheFlyServer::BeginPrepareSave(UE::Cook::FPackageData& PackageData, 
 	// while BeginPrepareSave is active.
 	// Currently this does not cause significant cost since saving new platforms with some platforms already saved is a rare operation.
 
-	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
 	int32& CookedPlatformDataNextIndex = PackageData.GetCookedPlatformDataNextIndex();
+	if (CookedPlatformDataNextIndex == 0)
+	{
+		if (!BuildDefinitions->TryRemovePendingBuilds(PackageData.GetPackageName()))
+		{
+			// Builds are in progress; wait for them to complete
+			return false;
+		}
+	}
+
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter = PackageData.GetCachedObjectsInOuter();
 	FWeakObjectPtr* CachedObjectsInOuterData = CachedObjectsInOuter.GetData();
 	TArray<const ITargetPlatform*, TInlineAllocator<ExpectedMaxNumPlatforms>> TargetPlatforms;
 	PackageData.GetRequestedPlatforms(TargetPlatforms);
@@ -4480,9 +4489,14 @@ void FSaveCookedPackageContext::FinishPlatform()
 		FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
 		check(AssetPackageData);
 
+		// TODO_BuildDefinitionList: Calculate and store BuildDefinitionList on the PackageData, or collect it here from some other source.
+		TArray<UE::DerivedData::FBuildDefinition> BuildDefinitions;
+		FCbObject BuildDefinitionList = UE::TargetDomain::BuildDefinitionListToObject(BuildDefinitions);
 		FCbObject TargetDomainDependencies;
+		{
 			UE_SCOPED_HIERARCHICAL_COOKTIMER(TargetDomainDependencies);
 			TargetDomainDependencies = UE::TargetDomain::CollectDependenciesObject(Package, TargetPlatform, nullptr /* ErrorMessage */);
+		}
 
 		ICookedPackageWriter::FCommitPackageInfo Info;
 		Info.bSucceeded = bSuccessful;
@@ -4491,6 +4505,7 @@ void FSaveCookedPackageContext::FinishPlatform()
 		Info.PackageGuid = AssetPackageData->PackageGuid;
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Info.Attachments.Add({ "Dependencies", TargetDomainDependencies });
+		Info.Attachments.Add({ "BuildDefinitionList", BuildDefinitionList });
 
 		PackageWriter->CommitPackage(Info);
 	}
@@ -4614,6 +4629,8 @@ void FSaveCookedPackageContext::FinishPackage()
 void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInitializationFlags InCookFlags, const FString &InOutputDirectoryOverride )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UCookOnTheFlyServer::Initialize);
+
+	BuildDefinitions.Reset(new UE::Cook::FBuildDefinitions());
 	UE::Cook::InitializeTls();
 	UE::Cook::FPlatformManager::InitializeTls();
 
@@ -6842,6 +6859,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	}
 
 	UPackage::WaitForAsyncFileWrites();
+	BuildDefinitions->Wait();
 	
 	GetDerivedDataCacheRef().WaitForQuiescence(true);
 	

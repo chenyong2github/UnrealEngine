@@ -18,7 +18,6 @@
 #include "EditorDomain/EditorDomainUtils.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/StringBuilder.h"
-#include "TargetDomain/TargetDomainUtils.h"
 
 namespace UE::Cook
 {
@@ -29,6 +28,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& COTFS, TArray<const ITarge
 	, AssetRegistry(*IAssetRegistry::Get())
 	, PackageNameCache(COTFS.GetPackageNameCache())
 	, PackageTracker(*COTFS.PackageTracker)
+	, BuildDefinitions(*COTFS.BuildDefinitions)
 {
 }
 
@@ -38,6 +38,7 @@ FRequestCluster::FRequestCluster(UCookOnTheFlyServer& COTFS, TConstArrayView<con
 	, AssetRegistry(*IAssetRegistry::Get())
 	, PackageNameCache(COTFS.GetPackageNameCache())
 	, PackageTracker(*COTFS.PackageTracker)
+	, BuildDefinitions(*COTFS.BuildDefinitions)
 {
 }
 
@@ -196,6 +197,8 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
 		FPaths::MakeStandardFilename(DLCPath);
 	}
+	GConfig->GetBool(TEXT("CookSettings"), TEXT("PreQueueBuildDefinitions"), bPreQueueBuildDefinitions, GEditorIni);
+
 
 	PackageWriters.Reserve(Platforms.Num());
 	bFullBuild = false;
@@ -376,7 +379,7 @@ void FRequestCluster::FetchDependencies(const FCookerTimer& CookerTimer, bool& b
 		for (FPackageData* PackageData : Requests)
 		{
 			bool bAlreadyCooked;
-			VisitPackageData(PackageData, nullptr /* Dependencies */, bAlreadyCooked);
+			VisitPackageData(PackageData, nullptr /* OutDependencies */, bAlreadyCooked);
 		}
 		bDependenciesComplete = true;
 		return;
@@ -639,13 +642,12 @@ FRequestCluster::EVisitStatus& FRequestCluster::AddVertex(FName PackageName, FPa
 		}
 	}
 	FStackData* StackData = nullptr;
+	bool bAlreadyCooked;
 	if (bExploreDependencies)
 	{
 		bOutPushedStack = true;
 		StackData = &PushStack(PackageName);
 	}
-
-	bool bAlreadyCooked;
 	VisitPackageData(PackageData, StackData ? &StackData->Dependencies : nullptr, bAlreadyCooked);
 
 	if (bCookable && !bAlreadyCooked)
@@ -687,14 +689,11 @@ void FRequestCluster::PopStack()
 	--StackNum;
 };
 
-void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bAlreadyCooked)
+void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>* OutDependencies, bool& bOutAlreadyCooked)
 {
 	if (OutDependencies)
 	{
-		TArray<FName>& BuildDependencies(*OutDependencies);
-		TArray<FName>& RuntimeDependencies(this->RuntimeScratch);
-		BuildDependencies.Reset();
-		RuntimeDependencies.Reset();
+		OutDependencies->Reset();
 		FName PackageName = PackageData->GetPackageName();
 
 		// TODO EditorOnly References: We only fetch Game dependencies, because the cooker explicitly loads all of
@@ -709,48 +708,64 @@ void FRequestCluster::VisitPackageData(FPackageData* PackageData, TArray<FName>*
 		{
 			DependencyQuery |= UE::AssetRegistry::EDependencyQuery::Hard;
 		}
-		AssetRegistry.GetDependencies(PackageName, BuildDependencies,
+		AssetRegistry.GetDependencies(PackageName, *OutDependencies,
 			UE::AssetRegistry::EDependencyCategory::Package, DependencyQuery);
-		if (bHybridIterativeEnabled && !bFullBuild)
+		bool bIncrementIterativeCounter = false;
+		bool bFoundBuildDefinitions = false;
+		for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)
 		{
-			bool bExists = false;
-			for (int32 PlatIndex = 0; PlatIndex < Platforms.Num(); ++PlatIndex)
+			const ITargetPlatform* TargetPlatform = Platforms[PlatIndex];
+			ICookedPackageWriter* PackageWriter = PackageWriters[PlatIndex];
+			OplogDataScratch.Reset();
+
+			if (!bFullBuild && bHybridIterativeEnabled)
 			{
-				const ITargetPlatform* TargetPlatform = Platforms[PlatIndex];
-				ICookedPackageWriter* PackageWriter = PackageWriters[PlatIndex];
-				if (!PackageWriter)
+				if (UE::TargetDomain::TryFetchCookAttachments(PackageWriter, PackageName,
+					TargetPlatform, OplogDataScratch, nullptr /* OutErrorMessage */))
 				{
-					continue;
+					if (UE::TargetDomain::IsIterativeEnabled(PackageName))
+					{
+						bIncrementIterativeCounter = true;
+						PackageData->SetPlatformCooked(TargetPlatform, true);
+					}
+					OutDependencies->Append(OplogDataScratch.BuildDependencies);
+					if (bAllowSoftDependencies)
+					{
+						OutDependencies->Append(OplogDataScratch.RuntimeOnlyDependencies);
+					}
+
+					if (bPreQueueBuildDefinitions)
+					{
+						bFoundBuildDefinitions = true;
+						BuildDefinitions.AddBuildDefinitionList(PackageName, TargetPlatform,
+							OplogDataScratch.BuildDefinitionList);
+					}
 				}
-				bool bExistsInTargetDomain = UE::TargetDomain::TryFetchKeyAndDependencies(PackageWriter, PackageName,
-					TargetPlatform, nullptr /* OutHash */, &BuildDependencies, &RuntimeDependencies,
-					nullptr /* OutErrorMessage */);
-				if (bExistsInTargetDomain && UE::TargetDomain::IsIterativeEnabled(PackageName))
-				{
-					bExists = true;
-					PackageData->SetPlatformCooked(TargetPlatform, true);
-				}
-			}
-			if (bExists)
-			{
-				COOK_STAT(++DetailedCookStats::NumPackagesIterativelySkipped);
 			}
 		}
-		if (bAllowSoftDependencies)
+		if (bPreQueueBuildDefinitions && !bFoundBuildDefinitions)
 		{
-			BuildDependencies.Append(RuntimeDependencies);
+			OplogDataScratch.Reset();
+			if (UE::TargetDomain::TryFetchCookAttachments(nullptr, PackageName, nullptr, OplogDataScratch, nullptr))
+			{
+				BuildDefinitions.AddBuildDefinitionList(PackageName, nullptr, OplogDataScratch.BuildDefinitionList);
+			}
+		}
+		if (bIncrementIterativeCounter)
+		{
+			COOK_STAT(++DetailedCookStats::NumPackagesIterativelySkipped);
 		}
 
 		// Sort the list of BuildDependencies to check for uniqueness and make them deterministic
-		Algo::Sort(BuildDependencies, FNameLexicalLess());
-		BuildDependencies.SetNum(Algo::Unique(BuildDependencies));
+		Algo::Sort(*OutDependencies, FNameLexicalLess());
+		OutDependencies->SetNum(Algo::Unique(*OutDependencies));
 	}
 
 	for (const ITargetPlatform* TargetPlatform : Platforms)
 	{
 		PackageData->FindOrAddPlatformData(TargetPlatform).bExplored = true;
 	}
-	bAlreadyCooked = PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */);
+	bOutAlreadyCooked = PackageData->AreAllRequestedPlatformsCooked(true /* bAllowFailedCooks */);
 }
 
 bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName, FPackageData*& PackageData)
