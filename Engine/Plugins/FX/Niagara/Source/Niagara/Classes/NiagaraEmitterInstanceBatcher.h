@@ -310,4 +310,7 @@ private:
 	/** Pool of free GPU ray traced collision groups. */
 	TArray<int32> FreeGPURayTracedCollisionGroups;
 	int32 NumGPURayTracedCollisionGroups = 0;
+
+	// Cached information to build a dummy view info if neccessary
+	FIntRect CachedViewRect;
 };
