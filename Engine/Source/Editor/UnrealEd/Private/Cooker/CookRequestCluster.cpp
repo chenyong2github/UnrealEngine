@@ -782,6 +782,12 @@ bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName,
 		}
 	}
 
+	if (InPackageTracker.NeverCookPackageList.Contains(InOutFileName))
+	{
+		UE_LOG(LogCook, Verbose, TEXT("Package %s is referenced but is in the never cook package list, discarding request"), *NameBuffer);
+		return false;
+	}
+
 	if (bInErrorOnEngineContentUse && !InDLCPath.IsEmpty())
 	{
 		InOutFileName.ToString(NameBuffer);
@@ -797,12 +803,6 @@ bool FRequestCluster::IsRequestCookable(FName PackageName, FName& InOutFileName,
 			}
 			return false;
 		}
-	}
-
-	if (InPackageTracker.NeverCookPackageList.Contains(InOutFileName))
-	{
-		UE_LOG(LogCook, Verbose, TEXT("Package %s is referenced but is in the never cook package list, discarding request"), *NameBuffer);
-		return false;
 	}
 
 	return true;
