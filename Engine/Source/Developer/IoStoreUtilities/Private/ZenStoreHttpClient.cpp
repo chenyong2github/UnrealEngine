@@ -2,16 +2,12 @@
 
 #include "ZenStoreHttpClient.h"
 
-#if PLATFORM_WINDOWS
+#include "Algo/BinarySearch.h"
+#include "Algo/IsSorted.h"
+#include "Algo/Sort.h"
+#include "Misc/ScopeRWLock.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/WindowsHWrapper.h"
-#include "Windows/AllowWindowsPlatformTypes.h"
-#endif
-#include "curl/curl.h"
-#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-#include "Windows/HideWindowsPlatformTypes.h"
-#endif
+#if PLATFORM_WINDOWS
 
 #include "Async/Async.h"
 #include "HAL/PlatformFileManager.h"
@@ -73,6 +69,7 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 		if (Res == Zen::FZenHttpRequest::Result::Success && Request->GetResponseCode() == 200)
 		{
 			UE_LOG(LogZenStore, Display, TEXT("Zen project '%s' already exists"), *FString(InProjectId));
+			bConnectionSucceeded = true;
 		}
 		else
 		{
@@ -91,16 +88,19 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 			if (Res != Zen::FZenHttpRequest::Result::Success)
 			{
 				UE_LOG(LogZenStore, Error, TEXT("Zen project '%s' creation FAILED"), *FString(InProjectId));
+				bConnectionSucceeded = false;
 
 				// TODO: how to recover / handle this?
 			}
 			else if (Request->GetResponseCode() == 201)
 			{
 				UE_LOG(LogZenStore, Display, TEXT("Zen project '%s' created"), *FString(InProjectId));
+				bConnectionSucceeded = true;
 			}
 			else
 			{
 				UE_LOG(LogZenStore, Warning, TEXT("Zen project '%s' creation returned success but not HTTP 201"), *FString(InProjectId));
+				bConnectionSucceeded = true;
 			}
 		}
 	}
@@ -115,6 +115,8 @@ FZenStoreHttpClient::Initialize(FStringView InProjectId,
 
 void FZenStoreHttpClient::EstablishWritableOpLog(FStringView InProjectId, FStringView InOplogId, bool bFullBuild)
 {
+	check(IsConnected());
+
 	UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
 
 	if (bFullBuild)
@@ -191,10 +193,16 @@ void FZenStoreHttpClient::InitializeReadOnly(FStringView InProjectId, FStringVie
 		if (Res != Zen::FZenHttpRequest::Result::Success || Request->GetResponseCode() != 200)
 		{
 			UE_LOG(LogZenStore, Fatal, TEXT("Zen project '%s' not found"), *FString(InProjectId));
+			bConnectionSucceeded = false;
+		}
+		else
+		{
+			bConnectionSucceeded = true;
 		}
 	}
 
 	// Establish oplog
+	check(IsConnected());
 
 	{
 		UE::Zen::FZenScopedRequestPtr Request(RequestPool.Get());
@@ -618,3 +626,82 @@ TFuture<TIoStatusOr<FCbObject>> FZenStoreHttpClient::GetFiles()
 }
 
 #endif // PLATFORM_WINDOWS
+
+namespace UE
+{
+
+bool FZenStoreHttpClient::IsConnected() const
+{
+	return bConnectionSucceeded;
+}
+
+namespace Zen::Private
+{
+
+TArray<TUniquePtr<UTF8CHAR[]>> AttachmentIds;
+FRWLock AttachmentIdsLock;
+
+}
+
+const UTF8CHAR* FZenStoreHttpClient::FindOrAddAttachmentId(FUtf8StringView AttachmentText)
+{
+	FRWScopeLock AttachmentIdScopeLock(Zen::Private::AttachmentIdsLock, SLT_ReadOnly);
+	bool bReadOnly = true;
+
+	for (;;)
+	{
+		int32 Index = Algo::LowerBound(Zen::Private::AttachmentIds, AttachmentText,
+			[](const TUniquePtr<UTF8CHAR[]>& Existing, FUtf8StringView AttachmentText)
+			{
+				return FUtf8StringView(Existing.Get()).Compare(AttachmentText, ESearchCase::IgnoreCase) < 0;
+			});
+		UTF8CHAR* Existing = nullptr;
+		if (Index != Zen::Private::AttachmentIds.Num())
+		{
+			Existing = Zen::Private::AttachmentIds[Index].Get();
+		}
+ 		if (Existing == nullptr || !FUtf8StringView(Existing).Equals(AttachmentText, ESearchCase::IgnoreCase))
+		{
+			if (bReadOnly)
+			{
+				AttachmentIdScopeLock.ReleaseReadOnlyLockAndAcquireWriteLock_USE_WITH_CAUTION();
+				bReadOnly = false;
+				continue;
+			}
+
+			auto StrDupNew = [](const UTF8CHAR* Data, int32 Len)
+			{
+				UTF8CHAR* Dup = new UTF8CHAR[Len + 1];
+				FMemory::Memcpy(Dup, Data, Len * sizeof(UTF8CHAR));
+				Dup[Len] = UTF8CHAR('\0');
+				return Dup;
+			};
+			Existing = StrDupNew(AttachmentText.GetData(), AttachmentText.Len());
+			Zen::Private::AttachmentIds.Insert(TUniquePtr<UTF8CHAR[]>(Existing), Index);
+		}
+		return Existing;
+	}
+}
+
+const UTF8CHAR* FZenStoreHttpClient::FindAttachmentId(FUtf8StringView AttachmentText)
+{
+	FReadScopeLock AttachmentIdScopeLock(Zen::Private::AttachmentIdsLock);
+
+	int32 Index = Algo::LowerBound(Zen::Private::AttachmentIds, AttachmentText,
+		[](const TUniquePtr<UTF8CHAR[]>& Existing, FUtf8StringView AttachmentText)
+		{
+			return FUtf8StringView(Existing.Get()).Compare(AttachmentText, ESearchCase::IgnoreCase) < 0;
+		});
+	if (Index == Zen::Private::AttachmentIds.Num())
+	{
+		return nullptr;
+	}
+	const UTF8CHAR* Existing = Zen::Private::AttachmentIds[Index].Get();
+	if (!FUtf8StringView(Existing).Equals(AttachmentText, ESearchCase::IgnoreCase))
+	{
+		return nullptr;
+	}
+	return Existing;
+}
+
+}

@@ -3,9 +3,14 @@
 #pragma once
 
 #include "Async/Future.h"
+#include "Containers/Array.h"
+#include "Containers/StringView.h"
+#include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "IO/IoDispatcher.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinaryPackage.h"
+#include "Templates/UniquePtr.h"
 
 class FCbPackage;
 class FCbObject;
@@ -18,7 +23,7 @@ namespace UE {
 /**
  * HTTP protocol implementation of Zen Store client interface
  */
-class FZenStoreHttpClient
+class IOSTOREUTILITIES_API FZenStoreHttpClient
 {
 public:
 	FZenStoreHttpClient(const FStringView InHostName, uint16 InPort);
@@ -33,6 +38,8 @@ public:
 
 	void InitializeReadOnly(FStringView InProjectId, FStringView InOplogId);
 
+	bool IsConnected() const;
+
 	void StartBuildPass();
 	TIoStatusOr<uint64> EndBuildPass(FCbPackage OpEntry);
 
@@ -44,6 +51,9 @@ public:
 
 	TFuture<TIoStatusOr<FCbObject>> GetOplog();
 	TFuture<TIoStatusOr<FCbObject>> GetFiles();
+
+	static const UTF8CHAR* FindOrAddAttachmentId(FUtf8StringView AttachmentText);
+	static const UTF8CHAR* FindAttachmentId(FUtf8StringView AttachmentText);
 
 private:
 	TIoStatusOr<FIoBuffer> ReadOpLogUri(FStringBuilderBase& ChunkUri, uint64 Offset, uint64 Size);
@@ -58,6 +68,7 @@ private:
 	uint64 StandaloneThresholdBytes = 1 * 1024 * 1024;
 	bool bAllowRead = false;
 	bool bAllowEdit = false;
+	bool bConnectionSucceeded = false;
 };
 
 }

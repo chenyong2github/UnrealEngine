@@ -5,6 +5,9 @@
 #include "ZenFileSystemManifest.h"
 #include "PackageStoreOptimizer.h"
 
+#include "Algo/BinarySearch.h"
+#include "Algo/IsSorted.h"
+#include "Algo/Sort.h"
 #include "Async/Async.h"
 #include "Serialization/CompactBinaryPackage.h"
 #include "Serialization/CompactBinaryWriter.h"
@@ -224,6 +227,22 @@ private:
 	FHttpRequest* FirstFreeHttpRequest = nullptr;
 };
 
+TArray<const UTF8CHAR*> FZenStoreWriter::ReservedOplogKeys;
+
+void FZenStoreWriter::StaticInit()
+{
+	if (ReservedOplogKeys.Num() > 0)
+	{
+		return;
+	}
+
+	ReservedOplogKeys.Append({ UTF8TEXT("files"), UTF8TEXT("key"), UTF8TEXT("package"), UTF8TEXT("packagestoreentry") });
+	Algo::Sort(ReservedOplogKeys, [](const UTF8CHAR* A, const UTF8CHAR* B)
+		{
+			return FUtf8StringView(A).Compare(FUtf8StringView(B), ESearchCase::IgnoreCase) < 0;
+		});;
+}
+
 FZenStoreWriter::FZenStoreWriter(
 	const FString& InOutputPath, 
 	const FString& InMetadataDirectoryPath, 
@@ -236,6 +255,8 @@ FZenStoreWriter::FZenStoreWriter(
 	, CookMode(ICookedPackageWriter::FCookInfo::CookByTheBookMode)
 	, bInitialized(false)
 {
+	StaticInit();
+
 	FString HostName = TEXT("localhost");
 	uint16 Port = 1337;
 	FString ProjectId = FApp::GetProjectName();
@@ -258,7 +279,7 @@ FZenStoreWriter::FZenStoreWriter(
 							OplogId, 
 							AbsServerRoot, 
 							AbsEngineDir, 
-							AbsProjectDir );
+							AbsProjectDir);
 
 	PackageStoreOptimizer->Initialize(InTargetPlatform);
 
@@ -421,6 +442,8 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 
 	if (!bInitialized)
 	{
+		UE_CLOG(!HttpClient->IsConnected(), LogZenStoreWriter, Fatal, TEXT("Failed to connect to ZenServer"));
+
 		FString ProjectId = FApp::GetProjectName();
 		FString OplogId = TargetPlatform.PlatformName();
 		HttpClient->EstablishWritableOpLog(ProjectId, OplogId, Info.bFullBuild);
@@ -453,12 +476,35 @@ void FZenStoreWriter::BeginCook(const FCookInfo& Info)
 								const int64	PkgDiskSize = PackageObj["disksize"].AsUInt64();
 								FPackageStoreEntryResource Entry = FPackageStoreEntryResource::FromCbObject(OplogObj["packagestoreentry"].AsObject());
 								const FName PackageName = Entry.PackageName;
-								FIoHash DependenciesHash = OplogObj["dependencies"].AsHash();
+
 								const int32 Index = PackageStoreEntries.Num();
 
 								PackageStoreEntries.Add(MoveTemp(Entry));
-								CookedPackagesInfo.Add(FCookedPackageInfo{ PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize, DependenciesHash });
+								FOplogCookInfo& CookInfo = CookedPackagesInfo.Add_GetRef(
+									FOplogCookInfo{
+										FCookedPackageInfo {PackageName, IoHashToMD5(PkgHash), PkgGuid, PkgDiskSize }
+									});
 								PackageNameToIndex.Add(PackageName, Index);
+
+								for (FCbFieldView Field : OplogObj)
+								{
+									FUtf8StringView FieldName = Field.GetName();
+									if (IsReservedOplogKey(FieldName))
+									{
+										continue;
+									}
+									if (Field.IsHash())
+									{
+										const UTF8CHAR* AttachmentId = UE::FZenStoreHttpClient::FindOrAddAttachmentId(FieldName);
+										CookInfo.Attachments.Add({ AttachmentId, Field.AsHash() });
+									}
+								}
+								CookInfo.Attachments.Shrink();
+								check(Algo::IsSorted(CookInfo.Attachments,
+									[](const FOplogCookInfo::FAttachment& A, const FOplogCookInfo::FAttachment& B)
+									{
+										return FUtf8StringView(A.Key).Compare(FUtf8StringView(B.Key), ESearchCase::IgnoreCase) < 0;
+									}));
 							}
 						}
 					}
@@ -584,6 +630,17 @@ void FZenStoreWriter::BeginPackage(const FBeginPackageInfo& Info)
 	PackageStoreManifest.BeginPackage(Info.PackageName);
 }
 
+bool FZenStoreWriter::IsReservedOplogKey(FUtf8StringView Key)
+{
+	int32 Index = Algo::LowerBound(ReservedOplogKeys, Key,
+		[](const UTF8CHAR* Existing, FUtf8StringView Key)
+		{
+			return FUtf8StringView(Existing).Compare(Key, ESearchCase::IgnoreCase) < 0;
+		});
+	return Index != ReservedOplogKeys.Num() &&
+		FUtf8StringView(ReservedOplogKeys[Index]).Equals(Key, ESearchCase::IgnoreCase);
+}
+
 void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FZenStoreWriter::CommitPackage);
@@ -615,18 +672,36 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 			FCbAttachment PkgDataAttachment(IoBufferToSharedBuffer(PkgData.Payload));
 			Pkg.AddAttachment(PkgDataAttachment);
 
-			TOptional<FCbAttachment> DependenciesAttachment;
-			FIoHash DependenciesHash;
-			if (Info.TargetDomainDependencies)
-			{
-				DependenciesAttachment.Emplace(Info.TargetDomainDependencies);
-				Pkg.AddAttachment(*DependenciesAttachment);
-				DependenciesHash = DependenciesAttachment->GetHash();
-			}
-
 			CommitEventArgs.EntryIndex = PackageStoreEntries.Num();
 			PackageStoreEntries.Add(PkgData.PackageStoreEntry);
-			CookedPackagesInfo.Add(FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize, DependenciesHash });
+			FOplogCookInfo& CookInfo = CookedPackagesInfo.Add_GetRef(FOplogCookInfo{
+				FCookedPackageInfo { Info.PackageName, IoHashToMD5(PkgDataAttachment.GetHash()), Info.PackageGuid, PkgDiskSize } });
+			int32 NumAttachments = Info.Attachments.Num();
+			TArray<FCbAttachment, TInlineAllocator<2>> CbAttachments;
+			if (NumAttachments)
+			{
+				TArray<const FCommitAttachmentInfo*, TInlineAllocator<2>> SortedAttachments;
+				SortedAttachments.Reserve(NumAttachments);
+				for (const FCommitAttachmentInfo& AttachmentInfo : Info.Attachments)
+				{
+					SortedAttachments.Add(&AttachmentInfo);
+				}
+				SortedAttachments.Sort([](const FCommitAttachmentInfo& A, const FCommitAttachmentInfo& B)
+					{
+						return A.Key.Compare(B.Key, ESearchCase::IgnoreCase) < 0;
+					});
+				CbAttachments.Reserve(NumAttachments);
+				CookInfo.Attachments.Reserve(NumAttachments);
+				for (const FCommitAttachmentInfo* AttachmentInfo : SortedAttachments)
+				{
+					check(!IsReservedOplogKey(AttachmentInfo->Key));
+					const FCbAttachment& CbAttachment = CbAttachments.Emplace_GetRef(AttachmentInfo->Value);
+					Pkg.AddAttachment(CbAttachment);
+					CookInfo.Attachments.Add(FOplogCookInfo::FAttachment{
+						UE::FZenStoreHttpClient::FindOrAddAttachmentId(AttachmentInfo->Key), CbAttachment.GetHash() });
+				}
+			}
+
 			PackageNameToIndex.Add(Info.PackageName, CookedPackagesInfo.Num()-1);
 
 			FCbWriter PackageObj;
@@ -689,9 +764,11 @@ void FZenStoreWriter::CommitPackage(const FCommitPackageInfo& Info)
 				PackageObj.EndArray();
 			}
 
-			if (DependenciesAttachment)
+			for (int32 Index = 0; Index < NumAttachments; ++Index)
 			{
-				PackageObj << "dependencies" << *DependenciesAttachment;
+				FCbAttachment& CbAttachment = CbAttachments[Index];
+				FOplogCookInfo::FAttachment& CookInfoAttachment = CookInfo.Attachments[Index];
+				PackageObj << CookInfoAttachment.Key << CbAttachment;
 			}
 
 			PackageObj.EndObject();
@@ -734,10 +811,14 @@ void FZenStoreWriter::Flush()
 
 void FZenStoreWriter::GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) 
 {
-	OutCookedPackages.Append(CookedPackagesInfo);
+	OutCookedPackages.Reserve(OutCookedPackages.Num() + CookedPackagesInfo.Num());
+	for (FOplogCookInfo& CookedPackageInfo : CookedPackagesInfo)
+	{
+		OutCookedPackages.Add(CookedPackageInfo.CookInfo);
+	}
 }
 
-FCbObject FZenStoreWriter::GetTargetDomainDependencies(FName PackageName)
+FCbObject FZenStoreWriter::GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey)
 {
 	const int32* Idx = PackageNameToIndex.Find(PackageName);
 	if (!Idx)
@@ -745,8 +826,29 @@ FCbObject FZenStoreWriter::GetTargetDomainDependencies(FName PackageName)
 		return FCbObject();
 	}
 
-	const ICookedPackageWriter::FCookedPackageInfo& Info = CookedPackagesInfo[*Idx];
-	TIoStatusOr<FIoBuffer> BufferResult = HttpClient->ReadOpLogAttachment(WriteToString<48>(Info.TargetDomainDependencies));
+	const UTF8CHAR* AttachmentId = UE::FZenStoreHttpClient::FindAttachmentId(AttachmentKey);
+	if (!AttachmentId)
+	{
+		return FCbObject();
+	}
+	FUtf8StringView AttachmentIdView(AttachmentId);
+
+	const FOplogCookInfo& CookInfo = CookedPackagesInfo[*Idx];
+	int32 AttachmentIndex = Algo::LowerBound(CookInfo.Attachments, AttachmentIdView,
+		[](const FOplogCookInfo::FAttachment& Existing, FUtf8StringView AttachmentIdView)
+		{
+			return FUtf8StringView(Existing.Key).Compare(AttachmentIdView, ESearchCase::IgnoreCase) < 0;
+		});
+	if (AttachmentIndex == CookInfo.Attachments.Num())
+	{
+		return FCbObject();
+	}
+	const FOplogCookInfo::FAttachment& Existing = CookInfo.Attachments[AttachmentIndex];
+	if (!FUtf8StringView(Existing.Key).Equals(AttachmentIdView, ESearchCase::IgnoreCase))
+	{
+		return FCbObject();
+	}
+	TIoStatusOr<FIoBuffer> BufferResult = HttpClient->ReadOpLogAttachment(WriteToString<48>(Existing.Hash));
 	if (!BufferResult.IsOk())
 	{
 		return FCbObject();
@@ -780,7 +882,7 @@ void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesT
 	const int32 NumPackagesToKeep = PackageIndicesToKeep.Num();
 	
 	TArray<FPackageStoreEntryResource> PreviousPackageStoreEntries = MoveTemp(PackageStoreEntries);
-	TArray<FCookedPackageInfo> PreviousCookedPackageInfo = MoveTemp(CookedPackagesInfo);
+	TArray<FOplogCookInfo> PreviousCookedPackageInfo = MoveTemp(CookedPackagesInfo);
 	PackageNameToIndex.Empty();
 
 	if (NumPackagesToKeep > 0)
@@ -792,7 +894,7 @@ void FZenStoreWriter::RemoveCookedPackages(TArrayView<const FName> PackageNamesT
 		int32 EntryIndex = 0;
 		for (int32 Idx : PackageIndicesToKeep)
 		{
-			const FName PackageName = PreviousCookedPackageInfo[Idx].PackageName;
+			const FName PackageName = PreviousCookedPackageInfo[Idx].CookInfo.PackageName;
 
 			PackageStoreEntries.Add(MoveTemp(PreviousPackageStoreEntries[Idx]));
 			CookedPackagesInfo.Add(MoveTemp(PreviousCookedPackageInfo[Idx]));

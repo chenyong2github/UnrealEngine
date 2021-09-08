@@ -42,7 +42,7 @@ public:
 	void EndCook() override;
 	void Flush() override;
 	void GetCookedPackages(TArray<FCookedPackageInfo>& OutCookedPackages) override;
-	FCbObject GetTargetDomainDependencies(FName PackageName) override;
+	FCbObject GetOplogAttachment(FName PackageName, FUtf8StringView AttachmentKey) override;
 	void RemoveCookedPackages(TArrayView<const FName> PackageNamesToRemove) override;
 	void RemoveCookedPackages() override;
 	FAssetRegistryState* ReleasePreviousAssetRegistry() override;
