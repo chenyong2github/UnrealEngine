@@ -31,9 +31,11 @@ class SDirectLinkStreamManager : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam( FOnCacheDirectoryChanged, const FString& /** NewDirectory */ );
+	DECLARE_DELEGATE_RetVal( FString, FOnCacheDirectoryReset );
 
 	SLATE_BEGIN_ARGS(SDirectLinkStreamManager) {}
 		SLATE_EVENT( FOnCacheDirectoryChanged, OnCacheDirectoryChanged )
+		SLATE_EVENT( FOnCacheDirectoryReset, OnCacheDirectoryReset )
 		SLATE_ARGUMENT( FString, DefaultCacheDirectory )
 	SLATE_END_ARGS()
 
@@ -59,6 +61,7 @@ private:
 	FText GetCacheDirectory() const;
 
 	FReply OnChangeCacheDirectoryClicked();
+	FReply OnResetCacheDirectoryClicked();
 
 	EVisibility GetNoConnectionHintVisibility() const;
 
@@ -97,6 +100,7 @@ private:
 	FString DirectLinkCacheDirectory;
 
 	FOnCacheDirectoryChanged OnCacheDirectoryChanged;
+	FOnCacheDirectoryReset OnCacheDirectoryReset;
 
 	TSharedPtr<class SButton> ShowAdavancedSettingButton;
 	TSharedPtr<class SImage> ShowAdavancedSettingImage;

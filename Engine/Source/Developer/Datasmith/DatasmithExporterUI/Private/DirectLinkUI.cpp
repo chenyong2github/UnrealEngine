@@ -32,9 +32,9 @@ namespace DirectLinkUIUtils
 		return FPaths::Combine( FPaths::GeneratedConfigDir(), TEXT("DirectLinkExporter") ).Append( TEXT(".ini") );;
 	}
 
-	FString GetConfigCacheDirectorySectionAndValue()
+	FString GetConfigCacheDirectorySectionAndValue( bool bInDefaultCacheDir )
 	{
-		return TEXT("DLCacheFolder");
+		return bInDefaultCacheDir ? TEXT("DLDefaultCacheFolder") : TEXT("DLCacheFolder");
 	}
 
 	EHorizontalAlignment GetWindowTitleAlignement()
@@ -61,12 +61,19 @@ namespace DirectLinkUIUtils
 FDirectLinkUI::FDirectLinkUI()
 {
 	FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
-	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue();
+	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( false );
+	FString DirectLinkDefaultCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( true );
 
 	FScopeLock Lock( &CriticalSectionCacheDirectory );
+	if ( !GConfig->GetString( *DirectLinkDefaultCacheSectionAndValue, *DirectLinkDefaultCacheSectionAndValue, DefaultDirectLinkCacheDirectory, ConfigPath ) )
+	{
+		DefaultDirectLinkCacheDirectory = FPaths::Combine( FPlatformProcess::UserTempDir(), TEXT("DLExporter") );
+		SaveCacheDirectory( DefaultDirectLinkCacheDirectory, true );
+	}
 	if ( !GConfig->GetString( *DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, DirectLinkCacheDirectory, ConfigPath ) )
 	{
-		DirectLinkCacheDirectory = FPaths::Combine( FPlatformProcess::UserTempDir(), TEXT("DLExporter") );
+		DirectLinkCacheDirectory = DefaultDirectLinkCacheDirectory;
+		SaveCacheDirectory( DirectLinkCacheDirectory, false );
 	}
 }
 
@@ -121,6 +128,7 @@ void FDirectLinkUI::OpenDirectLinkStreamWindow()
 							.DefaultCacheDirectory( DirectLinkCacheDirectory )
 							// The slate application should always be close before this module.
 							.OnCacheDirectoryChanged_Raw( this, &FDirectLinkUI::OnCacheDirectoryChanged )
+							.OnCacheDirectoryReset_Raw( this, &FDirectLinkUI::OnCacheDirectoryReset )
 						]
 					]
 				);
@@ -159,11 +167,29 @@ void FDirectLinkUI::OnCacheDirectoryChanged(const FString& InNewCacheDirectory)
 		DirectLinkCacheDirectory = InNewCacheDirectory;
 	}
 
+	SaveCacheDirectory( InNewCacheDirectory, false );
+
+}
+
+FString FDirectLinkUI::OnCacheDirectoryReset()
+{
+	{
+		FScopeLock ReadLock( &CriticalSectionCacheDirectory );
+		DirectLinkCacheDirectory = DefaultDirectLinkCacheDirectory;
+	}
+
+	SaveCacheDirectory( DefaultDirectLinkCacheDirectory, false );
+
+	return DefaultDirectLinkCacheDirectory;
+}
+
+void FDirectLinkUI::SaveCacheDirectory( const FString& InCacheDir, bool bInDefaultCacheDir )
+{
 	FString ConfigPath = DirectLinkUIUtils::GetConfigPath();
-	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue();
+	FString DirectLinkCacheSectionAndValue = DirectLinkUIUtils::GetConfigCacheDirectorySectionAndValue( bInDefaultCacheDir );
 
 	// Save to config file
-	GConfig->SetString( *DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, *InNewCacheDirectory, ConfigPath );
+	GConfig->SetString( *DirectLinkCacheSectionAndValue, *DirectLinkCacheSectionAndValue, *InCacheDir, ConfigPath );
 }
 
 #undef LOCTEXT_NAMESPACE
