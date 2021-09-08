@@ -1294,8 +1294,8 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 		{
 			if ( System->AllDIsPostSimulateCanOverlapFrames() )
 			{
-			WorldManager->MarkSimulationsForEndOfFrameWait(this);
-		}
+				WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			}
 			else
 			{
 				WorldManager->MarkSimulationForPostActorWork(this);
@@ -1478,8 +1478,8 @@ void FNiagaraSystemSimulation::Spawn_GameThread(float DeltaSeconds, bool bPostAc
 			}
 			else
 			{
-			WorldManager->MarkSimulationsForEndOfFrameWait(this);
-		}
+				WorldManager->MarkSimulationsForEndOfFrameWait(this);
+			}
 		}
 		else
 		{
