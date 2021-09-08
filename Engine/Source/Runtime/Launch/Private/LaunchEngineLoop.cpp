@@ -4704,7 +4704,7 @@ bool FEngineLoop::ShouldUseIdleMode() const
 	if (FApp::IsGame()
 		&& FPlatformProperties::SupportsWindowedMode()
 		&& CVarIdleWhenNotForeground->GetValueOnGameThread()
-		&& !FPlatformApplicationMisc::IsThisApplicationForeground())
+		&& !FApp::HasFocus())
 	{
 		bIdleMode = true;
 	}

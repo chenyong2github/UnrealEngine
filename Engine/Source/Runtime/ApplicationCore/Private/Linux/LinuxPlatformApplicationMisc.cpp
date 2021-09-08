@@ -251,6 +251,7 @@ uint32 FLinuxPlatformApplicationMisc::WindowStyle()
 void FLinuxPlatformApplicationMisc::PreInit()
 {
 	MessageBoxExtCallback = MessageBoxExtImpl;
+	FApp::SetHasFocusFunction(&FLinuxPlatformApplicationMisc::IsThisApplicationForeground);
 }
 
 void FLinuxPlatformApplicationMisc::Init()
@@ -441,7 +442,7 @@ void FLinuxPlatformApplicationMisc::PumpMessages( bool bFromMainLoop )
 			}
 		}
 
-		bool bHasFocus = FApp::UseVRFocus() ? FApp::HasVRFocus() : FLinuxPlatformApplicationMisc::IsThisApplicationForeground();
+		bool bHasFocus = FApp::HasFocus();
 
 		// if its our window, allow sound, otherwise apply multiplier
 		FApp::SetVolumeMultiplier( bHasFocus ? 1.0f : FApp::GetUnfocusedVolumeMultiplier() );

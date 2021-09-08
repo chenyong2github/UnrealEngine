@@ -730,6 +730,19 @@ public:
 		return bHasVRFocus;
 	}
 	
+	/**
+	 * Sets HasFocus, which is a function that indicates that the application window has focus.
+	 *
+	 * @param  InHasFocusFunction	address of a function that can query the focus state, typically &FPlatformApplicationMisc::IsThisApplicationForeground
+	 */
+	static void SetHasFocusFunction(bool (*InHasFocusFunction)());
+
+	/**
+	 * Gets Focus, Indicates that the application should continue to render
+	 * Audio and Video as if it had window focus, even though it may not.
+	 */
+	static bool HasFocus();
+
 	/* If the random seed started with a constant or on time, can be affected by -FIXEDSEED or -BENCHMARK */
 	static bool bUseFixedSeed;
 
@@ -805,6 +818,9 @@ private:
 
 	/** Holds a flag indicating if app has focus in side the VR headset */
 	static bool bHasVRFocus;
+
+	/** Holds a function address that can indicate if application has focus */
+	static bool (*HasFocusFunction)();
 };
 
 
