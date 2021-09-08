@@ -112,6 +112,7 @@ private:
 	FReply OnCallstackViewClicked(bool bIsInverted);
 
 	FText GetSymbolResolutionStatus() const;
+	FText GetSymbolResolutionTooltip() const;
 	FText GetQueryInfo() const;
 	FText GetQueryInfoTooltip() const;
 
