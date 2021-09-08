@@ -250,6 +250,11 @@ public:
 				ActorNameBuilder += TEXT("_");
 			}
 
+			if (InActorPartitionId.GetClass()->GetDefaultObject<APartitionActor>()->ShouldIncludeGridSizeInName(World))
+			{
+				ActorNameBuilder += FString::Printf(TEXT("%d_"), InGridSize);
+			}
+
 			ActorNameBuilder += FString::Printf(TEXT("%d_%d_%d"), InCellCoord.X, InCellCoord.Y, InCellCoord.Z);
 
 			if (InActorPartitionId.GetDataLayerEditorContextHash() != FDataLayerEditorContext::EmptyHash)

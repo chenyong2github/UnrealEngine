@@ -522,6 +522,21 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Broadphase)
 	uint8 bOverrideDefaultBroadphaseSettings:1;
 
+#if WITH_EDITORONLY_DATA
+	/** 
+	 * Whether Foliage actors of this world contain their grid size in their name. This should only be changed by UWorldPartitionFoliageBuilder or when creating new worlds so that older worlds are unaffected
+	 * and is used by the UActorPartitionSubsystem to find existing foliage actors by name.
+	 */
+	UPROPERTY()
+	uint8 bIncludeGridSizeInNameForFoliageActors : 1;
+
+	/**
+	 * Whether partitioned actors of this world contain their grid size in their name. This should only be changed when creating new worlds so that older worlds are unaffected
+	 * and is used by the UActorPartitionSubsystem to find existing foliage actors by name.
+	 */
+	UPROPERTY()
+	uint8 bIncludeGridSizeInNameForPartitionedActors : 1;
+#endif
 protected:
 	/** Holds parameters for NavigationSystem's creation. Set to Null will result
 	 *	in NavigationSystem instance not being created for this world. Note that
@@ -537,6 +552,7 @@ protected:
 	TObjectPtr<UWorldPartition> WorldPartition;
 
 public:
+#if WITH_EDITORONLY_DATA
 	/** Size of the grid for instanced foliage actors*/
 	UPROPERTY(EditAnywhere, Category = Foliage)
 	uint32 InstancedFoliageGridSize;
@@ -544,6 +560,7 @@ public:
 	/** Default size of the grid for placed elements from the editor */
 	UPROPERTY(EditAnywhere, Category=Editor)
 	uint32 DefaultPlacementGridSize;
+#endif
 
 	/** scale of 1uu to 1m in real world measurements, for HMD and other physically tracked devices (e.g. 1uu = 1cm would be 100.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)

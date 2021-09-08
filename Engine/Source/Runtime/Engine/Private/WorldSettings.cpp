@@ -89,8 +89,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	KillZ = -HALF_WORLD_MAX1;
 	KillZDamageType = ConstructorStatics.DmgType_Environmental_Object.Object;
 
+#if WITH_EDITORONLY_DATA
 	InstancedFoliageGridSize = DefaultPlacementGridSize = 25600;
-
+	bIncludeGridSizeInNameForFoliageActors = false;
+	bIncludeGridSizeInNameForPartitionedActors = false;
+#endif
 	WorldToMeters = 100.f;
 
 	DefaultPhysicsVolumeClass = ADefaultPhysicsVolume::StaticClass();

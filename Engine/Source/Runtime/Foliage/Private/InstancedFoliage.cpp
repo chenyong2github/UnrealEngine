@@ -4947,6 +4947,11 @@ uint32 AInstancedFoliageActor::GetDefaultGridSize(UWorld* InWorld) const
 	return InWorld->GetWorldSettings()->InstancedFoliageGridSize;
 }
 
+bool AInstancedFoliageActor::ShouldIncludeGridSizeInName(UWorld* InWorld) const
+{
+	return InWorld->GetWorldSettings()->bIncludeGridSizeInNameForFoliageActors;
+}
+
 void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
 {
 #if WITH_EDITORONLY_DATA
