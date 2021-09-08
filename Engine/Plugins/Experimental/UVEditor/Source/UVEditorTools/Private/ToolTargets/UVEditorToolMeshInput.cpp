@@ -56,7 +56,7 @@ namespace UVEditorToolMeshInputLocals
 
 		if (ChangedConnectivityTids)
 		{
-			for (int32 Tid : *ChangedConnectivityTids                                         )
+			for (int32 Tid : *ChangedConnectivityTids)
 			{
 				MeshOut.SetTriangle(Tid, MeshIn.GetTriangle(Tid));
 			}
@@ -453,5 +453,9 @@ void UUVEditorToolMeshInput::UpdateFromCanonicalUnwrapUsingMeshChange(const FDyn
 	VertexToTriangleOneRing(UnwrapCanonical.Get(), ChangedVids, RenderUpdateTidsSet);
 	TArray<int32> RenderUpdateTids = RenderUpdateTidsSet.Array();
 
-	UpdateAllFromUnwrapCanonical(&ChangedVids, &ChangedTids, &RenderUpdateTids);
+	// Todo: Determine a better solution for supporting explicit changed Tids and Vids
+	// 	     from MeshChanges. This current approach only works well if the topology is not
+	// 	     changing between updates.
+	//UpdateAllFromUnwrapCanonical(&ChangedVids, & ChangedTids, & RenderUpdateTids);
+	UpdateAllFromUnwrapCanonical(nullptr, nullptr, nullptr);
 }

@@ -8,6 +8,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "FaceGroupUtil.h"
 #include "ParameterizationOps/ParameterizeMeshOp.h"
+#include "Properties/ParameterizeMeshProperties.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;

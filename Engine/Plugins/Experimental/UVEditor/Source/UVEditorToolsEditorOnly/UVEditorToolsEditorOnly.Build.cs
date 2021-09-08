@@ -2,9 +2,9 @@
 
 using UnrealBuildTool;
 
-public class UVEditor : ModuleRules
+public class UVEditorToolsEditorOnly : ModuleRules
 {
-	public UVEditor(ReadOnlyTargetRules Target) : base(Target)
+	public UVEditorToolsEditorOnly(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 		
@@ -27,10 +27,7 @@ public class UVEditor : ModuleRules
 			{
 				"Core",
 				
-				"UnrealEd",
-				"InputCore",
 				"InteractiveToolsFramework",
-				"MeshModelingToolsExp",
 				
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -40,26 +37,21 @@ public class UVEditor : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				// NOTE: UVEditorTools is a separate module so that it doesn't rely on the editor.
+				// So, do not add editor dependencies here.
+				
 				"CoreUObject",
 				"Engine",
 				"Slate",
 				"SlateCore",
-				
-				"AdvancedPreviewScene",
-				"ContentBrowser",
-				"GeometryCore",
+					
+				"MeshModelingToolsExp",
 				"DynamicMesh",
-				"EditorFramework", // FEditorModeInfo
-				"EditorInteractiveToolsFramework",
-				"EditorStyle",
-				"EditorSubsystem",
-				"LevelEditor",
-				"ModelingComponentsEditorOnly", // Static/skeletal mesh tool targets
+				"GeometryCore",
 				"ModelingComponents",
-				"ToolMenus",
+				"ModelingOperators",
+				"ModelingOperatorsEditorOnly",
 				"UVEditorTools",
-				"UVEditorToolsEditorOnly",
-				"ToolWidgets",				
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

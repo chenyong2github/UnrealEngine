@@ -3,30 +3,41 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "BaseTools/SingleSelectionMeshEditingTool.h"
+
+#include "InteractiveTool.h"
+#include "InteractiveToolBuilder.h"
+
 #include "DynamicMesh/DynamicMesh3.h"
 #include "MeshOpPreviewHelpers.h"
 #include "Properties/MeshMaterialProperties.h"
 #include "Properties/MeshUVChannelProperties.h"
-#include "Drawing/UVLayoutPreview.h"
 
-#include "ParameterizeMeshTool.generated.h"
+#include "UVEditorParameterizeMeshTool.generated.h"
 
 // predeclarations
 class UDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class UUVEditorToolMeshInput;
 class UParameterizeMeshToolProperties;
 class UParameterizeMeshToolUVAtlasProperties;
 class UParameterizeMeshToolXAtlasProperties;
 class UParameterizeMeshToolPatchBuilderProperties;
 
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
+class UVEDITORTOOLSEDITORONLY_API UUVEditorParameterizeMeshToolBuilder : public UInteractiveToolBuilder
 {
 	GENERATED_BODY()
 public:
-	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
+	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+	// This is a pointer so that it can be updated under the builder without
+	// having to set it in the mode after initializing targets.
+	const TArray<TObjectPtr<UUVEditorToolMeshInput>>* Targets = nullptr;
+
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -35,15 +46,23 @@ public:
  * and then packs the resulting charts
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshTool : public USingleSelectionMeshEditingTool, public UE::Geometry::IDynamicMeshOperatorFactory
+class UVEDITORTOOLSEDITORONLY_API UUVEditorParameterizeMeshTool : public UInteractiveTool
 {
 	GENERATED_BODY()
 
 public:
+	/**
+     * The tool will operate on the meshes given here.
+     */
+	virtual void SetTargets(const TArray<TObjectPtr<UUVEditorToolMeshInput>>& TargetsIn)
+	{
+		Targets = TargetsIn;
+	}
+
+
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
-	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
 
 	virtual bool HasCancel() const override { return true; }
@@ -52,12 +71,9 @@ public:
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
-	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
-
 protected:
 	UPROPERTY()
-	TObjectPtr<UMeshUVChannelProperties> UVChannelProperties = nullptr;
+	TArray<TObjectPtr<UUVEditorToolMeshInput>> Targets;
 
 	UPROPERTY()
 	TObjectPtr<UParameterizeMeshToolProperties> Settings = nullptr;
@@ -71,24 +87,9 @@ protected:
 	UPROPERTY()
 	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
 
-
 	UPROPERTY()
 	TObjectPtr<UExistingMeshMaterialProperties> MaterialSettings = nullptr;
 
-	UPROPERTY()
-	bool bCreateUVLayoutViewOnSetup = true;
-
-	UPROPERTY()
-	TObjectPtr<UUVLayoutPreview> UVLayoutView = nullptr;
-
-protected:
-	UPROPERTY()
-	TObjectPtr<UMeshOpPreviewWithBackgroundCompute> Preview = nullptr;
-
-protected:
-	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-
 	void OnMethodTypeChanged();
-
-	void OnPreviewMeshUpdated();
 };
+

@@ -24,6 +24,12 @@
 			"Name": "UVEditorTools",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UVEditorToolsEditorOnly",
+			"Type": "Editor",
+			"LoadingPhase": "Default",
+            "WhitelistPlatforms": [ "Win64" ]
 		}
 	],
 	"Plugins": [

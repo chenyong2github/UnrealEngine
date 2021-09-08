@@ -20,6 +20,7 @@
 #include "ToolTargets/UVEditorToolMeshInput.h"
 #include "UVEditorCommands.h"
 #include "UVEditorLayoutTool.h"
+#include "UVEditorParameterizeMeshTool.h"
 #include "UVSelectTool.h"
 #include "UVEditorModeToolkit.h"
 #include "UVEditorSubsystem.h"
@@ -96,6 +97,10 @@ void UUVEditorMode::RegisterTools()
 	UUVEditorLayoutToolBuilder* UVEditorLayoutToolBuilder = NewObject<UUVEditorLayoutToolBuilder>();
 	UVEditorLayoutToolBuilder->Targets = &ToolInputObjects;
 	RegisterTool(CommandInfos.BeginLayoutTool, TEXT("UVLayoutTool"), UVEditorLayoutToolBuilder);
+
+	UUVEditorParameterizeMeshToolBuilder* UVEditorParameterizeMeshToolBuilder = NewObject<UUVEditorParameterizeMeshToolBuilder>();
+	UVEditorParameterizeMeshToolBuilder->Targets = &ToolInputObjects;
+	RegisterTool(CommandInfos.BeginParameterizeMeshTool, TEXT("UVParameterizeMeshTool"), UVEditorParameterizeMeshToolBuilder);
 }
 
 void UUVEditorMode::CreateToolkit()
@@ -372,6 +377,12 @@ void UUVEditorMode::ModeTick(float DeltaTime)
 	if (BackgroundVisualization)
 	{
 		BackgroundVisualization->OnTick(DeltaTime);
+	}
+
+	for (int i = 0; i < ToolInputObjects.Num(); ++i)
+	{
+		ToolInputObjects[i]->AppliedPreview->Tick(DeltaTime);
+		ToolInputObjects[i]->UnwrapPreview->Tick(DeltaTime);
 	}
 }
 

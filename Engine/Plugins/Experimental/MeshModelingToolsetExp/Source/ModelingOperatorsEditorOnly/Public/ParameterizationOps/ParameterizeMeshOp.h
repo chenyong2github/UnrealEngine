@@ -7,6 +7,12 @@
 #include "ModelingOperators.h"
 #include "DynamicMesh/DynamicMeshAttributeSet.h"
 
+#include "ParameterizeMeshOp.generated.h"
+
+class UParameterizeMeshToolProperties;
+class UParameterizeMeshToolUVAtlasProperties;
+class UParameterizeMeshToolXAtlasProperties;
+class UParameterizeMeshToolPatchBuilderProperties;
 
 namespace UE
 {
@@ -109,3 +115,32 @@ protected:
 
 } // end namespace UE::Geometry
 } // end namespace UE
+
+/**
+ * Can be hooked up to a UMeshOpPreviewWithBackgroundCompute to perform UV parameterization operations.
+ */
+UCLASS()
+class MODELINGOPERATORSEDITORONLY_API UParameterizeMeshOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
+{
+	GENERATED_BODY()
+
+public:
+	// IDynamicMeshOperatorFactory API
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
+
+	UPROPERTY()
+	TObjectPtr<UParameterizeMeshToolProperties> Settings = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UParameterizeMeshToolUVAtlasProperties> UVAtlasProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UParameterizeMeshToolXAtlasProperties> XAtlasProperties = nullptr;
+
+	UPROPERTY()
+	TObjectPtr<UParameterizeMeshToolPatchBuilderProperties> PatchBuilderProperties = nullptr;
+
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TUniqueFunction<int32()> GetSelectedUVChannel = []() { return 0; };
+	FTransform TargetTransform;
+};
