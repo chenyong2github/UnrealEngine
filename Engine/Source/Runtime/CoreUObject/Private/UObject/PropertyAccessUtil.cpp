@@ -29,7 +29,7 @@ int64 GetPropertyEnumValue(const FProperty* InProp, const void* InPropValue)
 	}
 	if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(InProp))
 	{
-		EnumProp->GetUnderlyingProperty()->GetSignedIntPropertyValue(InPropValue);
+		return EnumProp->GetUnderlyingProperty()->GetSignedIntPropertyValue(InPropValue);
 	}
 	return INDEX_NONE;
 }
