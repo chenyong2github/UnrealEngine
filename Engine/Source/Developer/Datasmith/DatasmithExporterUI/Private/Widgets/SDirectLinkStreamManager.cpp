@@ -202,6 +202,7 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 
 	DirectLinkCacheDirectory = InArgs._DefaultCacheDirectory;
 	OnCacheDirectoryChanged = InArgs._OnCacheDirectoryChanged;
+	OnCacheDirectoryReset = InArgs._OnCacheDirectoryReset;
 
 	TSharedRef<SHeaderRow> HeaderRow = SNew( SHeaderRow )
 		// Source
@@ -291,6 +292,24 @@ void SDirectLinkStreamManager::Construct(const FArguments& InArgs, const TShared
 					.IsReadOnly( true )
 					.Text( this, &SDirectLinkStreamManager::GetCacheDirectory )
 					.ToolTipText( this, &SDirectLinkStreamManager::GetCacheDirectory )
+				]
+			]
+			+ SHorizontalBox::Slot()
+			.Padding( 2.f )
+			.AutoWidth()
+			.HAlign( HAlign_Right )
+			[
+				SNew( SButton )
+				.OnClicked( this, &SDirectLinkStreamManager::OnResetCacheDirectoryClicked )
+				.ToolTipText( LOCTEXT("ResetCacheDirectory_Tooltip", "Reset cache directory") )
+				[
+					SNew( SVerticalBox )
+					+ SVerticalBox::Slot()
+					.VAlign( VAlign_Center )
+					[
+						SNew( STextBlock )
+						.Text( LOCTEXT("ResetCacheDirectory_Label", "Reset") )
+					]
 				]
 			]
 			+ SHorizontalBox::Slot()
@@ -506,6 +525,16 @@ void SDirectLinkStreamManager::SortStreamList()
 FText SDirectLinkStreamManager::GetCacheDirectory() const
 {
 	return FText::FromString( DirectLinkCacheDirectory );
+}
+
+FReply SDirectLinkStreamManager::OnResetCacheDirectoryClicked()
+{
+	if( OnCacheDirectoryReset.IsBound() )
+	{
+		DirectLinkCacheDirectory = OnCacheDirectoryReset.Execute();
+	}
+
+	return FReply::Handled();
 }
 
 FReply SDirectLinkStreamManager::OnChangeCacheDirectoryClicked()

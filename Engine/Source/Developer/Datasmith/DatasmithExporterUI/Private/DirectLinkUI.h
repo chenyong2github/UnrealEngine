@@ -21,12 +21,16 @@ public:
 
 private: 
 	void OnCacheDirectoryChanged(const FString& InNewCacheDirectory);
+	FString OnCacheDirectoryReset();
+
+	void SaveCacheDirectory( const FString& InCacheDir, bool bInDefaultCacheDir );
 
 	// To accessed from the game thread only
 	TWeakPtr<SWindow> DirectLinkWindow;
 	
 	FCriticalSection CriticalSectionCacheDirectory;
 	FString DirectLinkCacheDirectory;
+	FString DefaultDirectLinkCacheDirectory;
 
 	// Used to protect the caller to GetDirectLinkCacheDirectory from a pontential race condition
 	FString LastReturnedCacheDirectory;
