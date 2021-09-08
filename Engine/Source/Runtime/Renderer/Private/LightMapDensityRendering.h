@@ -39,7 +39,7 @@ public:
 
 	typename LightMapPolicyType::ElementDataType LightMapPolicyElementData;
 
-	FVector BuiltLightingAndSelectedFlags;
+	FVector3f BuiltLightingAndSelectedFlags;
 	FVector2D LightMapResolutionScale; 
 	bool bTextureMapped;
 };
