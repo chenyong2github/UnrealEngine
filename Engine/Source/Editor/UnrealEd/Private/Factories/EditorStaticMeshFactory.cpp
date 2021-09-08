@@ -79,6 +79,7 @@ TArray<FTypedElementHandle> UEditorStaticMeshFactory::PlaceAsset(const FAssetPla
 			FISMClientHandle ClientHandle = PlacedElementsActor->RegisterClient(ItemGuidToUse);
 			TSortedMap<int32, TArray<FTransform>> InstanceMap;
 			InstanceMap.Emplace(PlacedElementsActor->RegisterISMComponentDescriptor(ComponentDescriptor), TArray({ FTransform() }));
+			ModifiedPartitionActors.Add(PlacedElementsActor);
 
 			TArray<FSMInstanceId> PlacedInstances = PlacedElementsActor->AddISMInstance(ClientHandle, InPlacementInfo.FinalizedTransform, InstanceMap);
 			for (const FSMInstanceId PlacedInstanceID : PlacedInstances)
@@ -135,4 +136,17 @@ FAssetData UEditorStaticMeshFactory::GetAssetDataFromElementHandle(const FTypedE
 bool UEditorStaticMeshFactory::ShouldPlaceInstancedStaticMeshes(const FPlacementOptions& InPlacementOptions) const
 {
 	return !InPlacementOptions.bIsCreatingPreviewElements && InPlacementOptions.InstancedPlacementGridGuid.IsValid();
+}
+
+void UEditorStaticMeshFactory::EndPlacement(TArrayView<const FTypedElementHandle> InPlacedElements, const FPlacementOptions& InPlacementOptions)
+{
+	for (TWeakObjectPtr<AISMPartitionActor> ISMPartitionActor : ModifiedPartitionActors)
+	{
+		if (ISMPartitionActor.IsValid())
+		{
+			ISMPartitionActor->UpdateHISMTrees(true, false);
+		}
+	}
+
+	ModifiedPartitionActors.Empty();
 }
