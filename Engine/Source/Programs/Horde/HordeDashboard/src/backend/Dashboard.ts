@@ -168,12 +168,26 @@ export class Dashboard {
 
     get darktheme(): boolean {
 
+        if (this.preferences.get(DashboardPreference.Darktheme) === undefined) {
+            // avoid intial flash when loading into site before backend is initialized
+            let dark = localStorage?.getItem("horde_darktheme") === "true";
+            return dark;
+        }
+
         return this.preferences.get(DashboardPreference.Darktheme) === 'true';
 
     }
 
     setDarkTheme(value: boolean | undefined) {
+
         this.setPreference(DashboardPreference.Darktheme, value ? "true" : "false");
+
+        if (value) {
+            localStorage?.setItem("horde_darktheme", "true");
+        } else {
+            localStorage?.removeItem("horde_darktheme");
+        }
+
         this.setUpdated();
     }
 
