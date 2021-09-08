@@ -1030,6 +1030,14 @@ public:
 		return GetNumOutstandingJobs() + NumExternalJobs;
 	}
 
+	/**
+	 * Returns the (current) number of local workers.
+	 */
+	int32 GetNumLocalWorkers() const
+	{
+		return bCompilingDuringGame ? NumShaderCompilingThreadsDuringGame : NumShaderCompilingThreads;
+	}
+
 	void SetExternalJobs(int32 NumJobs)
 	{
 		NumExternalJobs = NumJobs;
