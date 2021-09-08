@@ -58,7 +58,10 @@ namespace HordeServer.Storage.Collections
 				byte[]? Data = await Tasks[Idx];
 
 				GetBlobResponse Blob = new GetBlobResponse();
-				Blob.Data = ByteString.CopyFrom(Data);
+				if (Data != null)
+				{
+					Blob.Data = ByteString.CopyFrom(Data);
+				}
 				Blob.Exists = Data != null;
 				Response.Blobs.Add(Blob);
 			}
