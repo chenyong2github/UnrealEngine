@@ -50,8 +50,10 @@ namespace
             if (ensureAlwaysMsgf(WorldActor, TEXT("A path that was previously associated with an actor no longer refers to an actor. Something is wrong.")))
             {
             	TOptional<AActor*> DeserializedSnapshotActor = Snapshot->GetDeserializedActor(OriginalActorPath);
-            	if (!ensureAlwaysMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
+            	if (!ensureMsgf(DeserializedSnapshotActor.Get(nullptr), TEXT("Failed to get TMap value for key %s. Is the snapshot corrupted?"), *OriginalActorPath.ToString()))
             	{
+            		// Engine issue. Take snapshot. Rename actor. Update references. Value is updated correctly in TMap but look ups no longer work.
+            		UE_LOG(LogLevelSnapshots, Error, TEXT("Failed to lookup actor %s OriginalActorPath. The snapshot is corrupted."));
             		return;
             	}
                     
