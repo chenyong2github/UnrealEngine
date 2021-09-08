@@ -103,7 +103,11 @@ public:
 
 protected:
 
-	bool InMultiSelectMode() const { return bShiftToggle; }
+	// All four combinations of shift/ctrl down are assigned a behaviour
+	bool ShouldAddToSelection() const { return !bCtrlToggle && bShiftToggle; }
+	bool ShouldRemoveFromSelection() const { return bCtrlToggle && !bShiftToggle; }
+	bool ShouldToggleFromSelection() const { return bCtrlToggle && bShiftToggle; }
+	bool ShouldRestartSelection() const { return !bCtrlToggle && !bShiftToggle; }
 
 	UPROPERTY()
 	TObjectPtr<APreviewGeometryActor> PreviewGeometryActor = nullptr;
@@ -125,7 +129,9 @@ protected:
 	FColor PointColor = FColor::Yellow;
 
 	bool bShiftToggle = false;
+	bool bCtrlToggle = false;
 	static const int32 ShiftModifierID = 1;
+	static const int32 CtrlModifierID = 2;
 
 	float LineThickness = 3;
 	float PointThickness = 6;
