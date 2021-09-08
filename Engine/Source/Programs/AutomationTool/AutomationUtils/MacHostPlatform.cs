@@ -156,7 +156,7 @@ namespace AutomationTool
 			List<string> UnsupportedModules = new List<string>()
 			{
 				"GauntletExtras", "Anvil", "WinAnvil", "XboxCommonAnvil", "XboxOneAnvil", "MPX",
-				"FortniteGame",
+				"FortniteGame", "PS4"
 			};
 			foreach (string UnsupportedModule in UnsupportedModules)
 			{

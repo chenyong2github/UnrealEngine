@@ -139,6 +139,10 @@ namespace AutomationTool
 			{
 				return false;
 			}
+			if (ModuleName.StartsWith("PS4", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
 			return true;
 		}
 
