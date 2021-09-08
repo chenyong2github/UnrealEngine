@@ -6,6 +6,7 @@
 #include "Util/IndexUtil.h"
 #include "Algo/Reverse.h"
 #include "Containers/BitArray.h"
+#include "Containers/Queue.h"
 #include "MathUtil.h"
 #include "Async/ParallelFor.h"
 
