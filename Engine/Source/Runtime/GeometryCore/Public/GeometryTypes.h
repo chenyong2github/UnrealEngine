@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Containers/Map.h"
+#include "Misc/AssertionMacros.h"
+
 namespace UE
 {
 namespace Geometry
