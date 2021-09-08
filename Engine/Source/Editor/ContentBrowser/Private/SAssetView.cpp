@@ -58,6 +58,7 @@
 #include "ContentBrowserDataSubsystem.h"
 #include "ContentBrowserDataLegacyBridge.h"
 #include "ContentBrowserDataDragDropOp.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 #define MAX_THUMBNAIL_SIZE 4096
@@ -440,8 +441,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
+				SNew(SPrimaryButton)
 				.Text(LOCTEXT("EndThumbnailEditModeButton", "Done Editing"))
 				.OnClicked(this, &SAssetView::EndThumbnailEditModeClicked)
 			]

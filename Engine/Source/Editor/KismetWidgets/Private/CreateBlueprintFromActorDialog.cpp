@@ -33,6 +33,7 @@
 #include "IContentBrowserSingleton.h"
 #include "PackageTools.h"
 #include "DetailLayoutBuilder.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "CreateBlueprintFromActorDialog"
 
@@ -480,24 +481,17 @@ void SSCreateBlueprintPicker::Construct(const FArguments& InArgs)
 					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
 					+SUniformGridPanel::Slot(0,0)
 					[
-						SNew(SButton)
+						SNew(SPrimaryButton)
 						.Text(NSLOCTEXT("SClassPickerDialog", "ClassPickerSelectButton", "Select"))
-						.HAlign(HAlign_Center)
 						.Visibility( this, &SSCreateBlueprintPicker::GetSelectButtonVisibility )
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SSCreateBlueprintPicker::OnClassPickerConfirmed)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
 					]
 					+SUniformGridPanel::Slot(1,0)
 					[
 						SNew(SButton)
 						.Text(NSLOCTEXT("SClassPickerDialog", "ClassPickerCancelButton", "Cancel"))
-						.HAlign(HAlign_Center)
-						.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
 						.OnClicked(this, &SSCreateBlueprintPicker::OnClassPickerCanceled)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-						.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
+
 					]
 				]
 			]

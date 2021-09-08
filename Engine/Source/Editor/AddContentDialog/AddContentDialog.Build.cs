@@ -29,8 +29,8 @@ public class AddContentDialog : ModuleRules
 				"EditorFramework",
 				"UnrealEd",
 				"CoreUObject",				
-				"WidgetCarousel",				
-			
+				"WidgetCarousel",
+				"ToolWidgets",
 			}
 		);
 

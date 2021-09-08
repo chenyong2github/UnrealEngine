@@ -35,6 +35,7 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "SPrimaryButton.h"
 
 /* LevelSequenceEditorHelpers
  *****************************************************************************/
@@ -122,9 +123,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			.HAlign(HAlign_Right)
 			.Padding(5.f)
 			[
-				SNew(SButton)
-                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
-                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >("DialogButtonText"))
+				SNew(SPrimaryButton)
 				.Text(LOCTEXT("CreateMasterSequence", "Create Master Sequence"))
 				.OnClicked(this, &SMasterSequenceSettings::OnCreateMasterSequence)
 			]

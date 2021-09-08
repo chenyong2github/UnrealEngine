@@ -38,7 +38,8 @@ public class LevelSequenceEditor : ModuleRules
 				"SceneOutliner",
                 "UnrealEd",
                 "VREditor",
-				"TimeManagement"
+				"TimeManagement",
+				"ToolWidgets",
 			}
 		);
 

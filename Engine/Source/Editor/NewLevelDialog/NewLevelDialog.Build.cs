@@ -19,6 +19,7 @@ public class NewLevelDialog : ModuleRules
                 "EditorStyle",
 				"EditorFramework",
 				"UnrealEd",
+				"ToolWidgets",
 			}
 		);
 	}

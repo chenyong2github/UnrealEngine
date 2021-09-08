@@ -20,6 +20,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "ModelingToolsManagerActions.h"
 #include "BaseTools/MeshSurfacePointTool.h"
+#include "SPrimaryButton.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogOptimusToolsSkelMeshEditorModeToolkit, Log, All);
@@ -147,12 +148,9 @@ void FOptimusToolsSkelMeshEditorModeToolkit::Init(
 			.AutoWidth()
 			.Padding(FMargin(0.0, 0.f, 2.f, 0.f))
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+				SNew(SPrimaryButton)
 				.Text(LOCTEXT("OverlayAccept", "Accept"))
 				.ToolTipText(LOCTEXT("OverlayAcceptTooltip", "Accept/Commit the results of the active Tool [Enter]"))
-				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept); return FReply::Handled(); })
 				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanAcceptActiveTool(); })
 				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->ActiveToolHasAccept() ? EVisibility::Visible : EVisibility::Collapsed; })
@@ -163,7 +161,6 @@ void FOptimusToolsSkelMeshEditorModeToolkit::Init(
 			.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
 			[
 				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "Button")
 				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 				.Text(LOCTEXT("OverlayCancel", "Cancel"))
 				.ToolTipText(LOCTEXT("OverlayCancelTooltip", "Cancel the active Tool [Esc]"))
@@ -177,12 +174,9 @@ void FOptimusToolsSkelMeshEditorModeToolkit::Init(
 			.AutoWidth()
 			.Padding(FMargin(2.0, 0.f, 0.f, 0.f))
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+				SNew(SPrimaryButton)
 				.Text(LOCTEXT("OverlayComplete", "Complete"))
 				.ToolTipText(LOCTEXT("OverlayCompleteTooltip", "Exit the active Tool [Enter]"))
-				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]() { GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Completed); return FReply::Handled(); })
 				.IsEnabled_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool(); })
 				.Visibility_Lambda([this]() { return GetScriptableEditorMode()->GetInteractiveToolsContext()->CanCompleteActiveTool() ? EVisibility::Visible : EVisibility::Collapsed; })

@@ -13,6 +13,7 @@
 #include "Editor.h"
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "DlgPickAssetPath"
 
@@ -93,20 +94,14 @@ void SDlgPickAssetPath::Construct(const FArguments& InArgs)
 
 				+SUniformGridPanel::Slot(0,0)
 				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-					.TextStyle(FAppStyle::Get(), "DialogButtonText")
-					.Text(LOCTEXT("SAVE", "Save"))
-					.HAlign(HAlign_Center)
-					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
+					SNew(SPrimaryButton)
+					.Text(LOCTEXT("Save", "Save"))
 					.OnClicked(this, &SDlgPickAssetPath::OnButtonClick, EAppReturnType::Ok)
 				]
 				+SUniformGridPanel::Slot(1,0)
 				[
 					SNew(SButton)
-					.TextStyle(FAppStyle::Get(), "DialogButtonText")
 					.Text(LOCTEXT("Cancel", "Cancel"))
-					.HAlign(HAlign_Center)
 					.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
 					.OnClicked(this, &SDlgPickAssetPath::OnButtonClick, EAppReturnType::Cancel)
 				]

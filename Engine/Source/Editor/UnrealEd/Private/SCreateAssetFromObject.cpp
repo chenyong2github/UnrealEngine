@@ -18,6 +18,7 @@
 #include "AssetToolsModule.h"
 #include "AssetRegistryModule.h"
 #include "PackageTools.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "SCreateAssetFromActor"
 
@@ -113,28 +114,18 @@ void SCreateAssetFromObject::Construct(const FArguments& InArgs, TSharedPtr<SWin
 		[
 			SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
-			.Padding(0, 2, 6, 0)
+			.Padding(0, 2, 6, 5)
 			.AutoWidth()
 			[
-				SNew(SButton)
-				.VAlign(VAlign_Bottom)
-				.ContentPadding(FMargin(8, 2, 8, 2))
+				SNew(SPrimaryButton)
 				.OnClicked(this, &SCreateAssetFromObject::OnCreateAssetFromActorClicked)
-				.IsEnabled(this, &SCreateAssetFromObject::IsCreateAssetFromActorEnabled)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
 				.Text(CreateButtonText)
 			]
 			+ SHorizontalBox::Slot()
-			.Padding(0, 2, 0, 0)
+			.Padding(0, 2, 0, 5)
 			.AutoWidth()
 			[
 				SNew(SButton)
-				.VAlign(VAlign_Bottom)
-				.ContentPadding(FMargin(8, 2, 8, 2))
-				.OnClicked(this, &SCreateAssetFromObject::OnCancelCreateAssetFromActor)
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Default")
-				.TextStyle(FEditorStyle::Get(), "FlatButton.DefaultTextStyle")
 				.Text(LOCTEXT("CancelButtonText", "Cancel"))
 			]
 		]

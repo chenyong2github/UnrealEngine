@@ -11,6 +11,7 @@
 #include "EngineAnalytics.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IAnalyticsProvider.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
 
@@ -25,11 +26,7 @@ void SGetDisableIDEWidget::Construct(const FArguments& InArgs)
 TSharedRef<SWidget> SGetDisableIDEWidget::CreateGetDisableIDEWidget()
 {
 	return
-		SNew(SButton)
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
-		.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-		.TextStyle(FAppStyle::Get(), "DialogButtonText")
+		SNew(SPrimaryButton)
 		.Text(FText::Format(LOCTEXT("IDEDisableButton", "Disable {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
 		.OnClicked(this, &SGetDisableIDEWidget::OnDisableIDEClicked);
 }
@@ -59,22 +56,14 @@ TSharedRef<SWidget> SGetSuggestedIDEWidget::CreateGetSuggestedIDEWidget()
 	{
 		// If the installer for this platform's IDE can be downloaded and launched directly, show a button
 		return			
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			SNew(SPrimaryButton)
 			.Text(FText::Format(LOCTEXT("IDEInstallButtonText", "Install {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
 			.OnClicked(this, &SGetSuggestedIDEWidget::OnInstallIDEClicked);
 	}
 	else
 	{
 		return	
-			SNew(SButton)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			SNew(SPrimaryButton)
 			.Text(FText::Format(LOCTEXT("IDEDownloadLinkText", "Download {0}"), FSourceCodeNavigation::GetSuggestedSourceCodeIDE()))
 			.OnClicked(this, &SGetSuggestedIDEWidget::OnDownloadIDEClicked, FSourceCodeNavigation::GetSuggestedSourceCodeIDEDownloadURL());
 	}

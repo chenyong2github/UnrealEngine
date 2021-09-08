@@ -330,7 +330,7 @@ void SPackagesDialog::AddButton(TSharedPtr<FPackageButton> Button)
 	[
 		SNew(SButton) 
 			.ButtonStyle(&FAppStyle::Get(), (Button->GetType() == DRT_Save || Button->GetType() == DRT_CheckOut) ? "PrimaryButton" : "Button")
-			.TextStyle(&FAppStyle::Get(), "DialogButtonText")
+			.TextStyle(&FAppStyle::Get(), (Button->GetType() == DRT_Save || Button->GetType() == DRT_CheckOut) ? "PrimaryButtonText" : "ButtonText")
 			.Text(Button->GetName())
 			.ToolTipText(Button->GetToolTip())
 			.IsEnabled(Button.Get(), &FPackageButton::IsEnabled)

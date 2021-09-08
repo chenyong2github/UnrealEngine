@@ -9,9 +9,13 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Images/SThrobber.h"
-
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "SPrimaryButton.h"
 #include "Logging/MessageLog.h"
 #include "MessageLogModule.h"
+#include "Modules/ModuleManager.h"
+
 
 #define LOCTEXT_NAMESPACE "DerivedDataEditor"
 
@@ -142,10 +146,7 @@ void SDerivedDataCacheSettingsDialog::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						.Padding(FMargin(5.0f, 0.0f))
 						[
-							SNew(SButton)
-							.VAlign(VAlign_Center)
-							.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-  							.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+							SNew(SPrimaryButton)
 							.Text(LOCTEXT("AcceptSettings", "Accept Settings"))
 							.OnClicked( this, &SDerivedDataCacheSettingsDialog::OnAcceptSettings )
 							.IsEnabled( this, &SDerivedDataCacheSettingsDialog::IsAcceptSettingsEnabled )

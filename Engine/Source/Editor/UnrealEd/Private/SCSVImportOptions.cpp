@@ -13,6 +13,7 @@
 #include "PropertyEditorModule.h"
 #include "ObjectEditorUtils.h"
 #include "DataTableEditorUtils.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "CSVImportFactory"
 
@@ -164,9 +165,8 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				.Padding(2)
 				[
-					SNew(SButton)
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("Import", "Apply"))
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
 					.OnClicked( this, &SCSVImportOptions::OnImport )
 					.IsEnabled( this, &SCSVImportOptions::CanImport )
 				]

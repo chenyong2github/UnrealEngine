@@ -21,6 +21,7 @@ public class TurnkeyIO : ModuleRules
 				"Slate",
 				"SlateCore",
 				"Json",
+				"ToolWidgets",
 				}
 			);
 

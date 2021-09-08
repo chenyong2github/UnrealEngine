@@ -59,7 +59,8 @@ public class Kismet : ModuleRules
                 "WorkspaceMenuStructure",
 				"ToolMenus",
 				"SubobjectEditor",
-				"SubobjectDataInterface"
+				"SubobjectDataInterface",
+				"ToolWidgets",
             }
 			);
 

@@ -39,6 +39,7 @@
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSource.h"
 #include "ContentBrowserDataSubsystem.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -305,9 +306,7 @@ void SAssetDialog::Construct(const FArguments& InArgs, const FSharedAssetDialogC
 		.VAlign(VAlign_Bottom)
 		.Padding(4.f, 0.f) 
 		[
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
+			SNew(SPrimaryButton)
 			.Text(ConfirmButtonText)
 			.IsEnabled(this, &SAssetDialog::IsConfirmButtonEnabled)
 			.OnClicked(this, &SAssetDialog::OnConfirmClicked)

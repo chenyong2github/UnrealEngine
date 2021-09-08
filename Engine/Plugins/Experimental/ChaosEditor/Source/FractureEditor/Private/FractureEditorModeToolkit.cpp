@@ -65,6 +65,7 @@
 
 #include "FractureSettings.h"
 #include "Toolkits/AssetEditorModeUILayer.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "FFractureEditorModeToolkit"
 
@@ -266,14 +267,10 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 					.Padding(4.0)
 					.AutoWidth()
 					[
-						SNew( SButton )
-						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-						.TextStyle( FAppStyle::Get(), "ButtonText" )
-						.HAlign(HAlign_Center)
-						.ContentPadding(FMargin(10.f, Padding))
+						SNew(SPrimaryButton)
 						.OnClicked(this, &FFractureEditorModeToolkit::OnModalClicked)
 						.IsEnabled( this, &FFractureEditorModeToolkit::CanExecuteModal)
-						.Text_Lambda( [this] () -> FText { return ActiveTool ? ActiveTool->GetApplyText().ToUpper() :  LOCTEXT("FractureApplyButton", "APPLY"); })
+						.Text_Lambda( [this] () -> FText { return ActiveTool ? ActiveTool->GetApplyText() :  LOCTEXT("FractureApplyButton", "Apply"); })
 						.Visibility_Lambda( [this] () -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Collapsed : EVisibility::Visible; })
 					]
 
@@ -282,12 +279,8 @@ void FFractureEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolki
 					.AutoWidth()
 					[
 						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "Button")
-						.TextStyle( FAppStyle::Get(), "ButtonText" )
-						.HAlign(HAlign_Center)
-						.ContentPadding(FMargin(10.f, Padding))
 						.OnClicked_Lambda( [this] () -> FReply { SetActiveTool(0); return FReply::Handled(); } )
-						.Text(FText(LOCTEXT("FractureCancelButton", "CANCEL")))
+						.Text(FText(LOCTEXT("FractureCancelButton", "Cancel")))
 						.Visibility_Lambda( [this] () -> EVisibility { return (GetActiveTool() == nullptr) ? EVisibility::Collapsed : EVisibility::Visible; })
 					]
 				]

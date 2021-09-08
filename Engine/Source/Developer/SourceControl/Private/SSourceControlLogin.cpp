@@ -15,6 +15,7 @@
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "SPrimaryButton.h"
 #endif
 
 #include "SSourceControlPicker.h"
@@ -139,10 +140,7 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 						.AutoWidth()
 						.Padding(FMargin(5.0f, 0.0f))
 						[
-							SNew(SButton)
-							.VAlign(VAlign_Center)
-							.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-  							.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+							SNew(SPrimaryButton)
 							.Text(LOCTEXT("AcceptSettings", "Accept Settings"))
 							.OnClicked( this, &SSourceControlLogin::OnAcceptSettings )
 							.IsEnabled( this, &SSourceControlLogin::IsAcceptSettingsEnabled )
@@ -152,8 +150,6 @@ void SSourceControlLogin::Construct(const FArguments& InArgs)
 						.Padding(FMargin(5.0f, 0.0f))
 						[
 							SNew(SButton)
-							.VAlign(VAlign_Center)
-  							.TextStyle( FAppStyle::Get(), "DialogButtonText" )
 							.Text(LOCTEXT("RunWithoutSourceControl", "Disable Source Control"))
 							.OnClicked( this, &SSourceControlLogin::OnDisableSourceControl )
 							.IsEnabled( this, &SSourceControlLogin::AreControlsEnabled )

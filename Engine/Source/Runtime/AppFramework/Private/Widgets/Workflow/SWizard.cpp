@@ -115,15 +115,13 @@ void SWizard::Construct( const FArguments& InArgs )
 						SNew(SHorizontalBox)
 
 						+ SHorizontalBox::Slot()
-						.Padding(2.0f, 0.0f)
+						.Padding(0.0f, 0.0f)
 						.AutoWidth()
 						.VAlign(VAlign_Center)
 						[
 							SNew(SImage)
 							.Image(FCoreStyle::Get().GetBrush("Wizard.BackIcon"))
-							.ColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f))
 						]
-
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
 						.VAlign(VAlign_Center)
@@ -167,7 +165,6 @@ void SWizard::Construct( const FArguments& InArgs )
 						[
 							SNew(SImage)
 							.Image(FCoreStyle::Get().GetBrush("Wizard.NextIcon"))
-							.ColorAndOpacity(FLinearColor(0.05f, 0.05f, 0.05f))
 						]
 					]
 				]

@@ -30,19 +30,20 @@ public class MergeActors : ModuleRules
 		);
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[] {
-				"Core",
-				"CoreUObject",
-				"Engine",
+            new string[] {
+                "Core",
+                "CoreUObject",
+                "Engine",
                 "InputCore",
-				"MaterialUtilities",
-				"Slate",
-				"SlateCore",
+                "MaterialUtilities",
+                "Slate",
+                "SlateCore",
                 "EditorStyle",
-				"EditorFramework",
-				"UnrealEd"
+                "EditorFramework",
+                "UnrealEd",
+				"ToolWidgets"
             }
-		);
+        );
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {

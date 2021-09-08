@@ -10,6 +10,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Dom/JsonObject.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "TurnkeySlateIO"
 
@@ -71,11 +72,7 @@ void STurnkeyReadInputModal::Construct( const FArguments& InArgs )
 				.Padding(5,5)
 				.AutoWidth()
 				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("OK", "OK"))
 					.OnClicked_Lambda( [=]()
 					{ 
@@ -153,11 +150,7 @@ void STurnkeyReadInputIntModal::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				.Padding(5,5)
 				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("OK", "OK"))
 					.IsEnabled_Lambda( [=]() { return Value > 0; } )
 					.OnClicked_Lambda( [=]()

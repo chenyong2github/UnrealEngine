@@ -21,6 +21,7 @@
 #include "EditorStyleSet.h"
 #include "UnrealEdMisc.h"
 #include "IDocumentation.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "AboutScreen"
 
@@ -143,11 +144,7 @@ void SAboutScreen::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				.VAlign(VAlign_Bottom)
 				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-					.TextStyle( FAppStyle::Get(), "DialogButtonText" )
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("Close", "Close"))
 					.OnClicked(this, &SAboutScreen::OnClose)
 				]

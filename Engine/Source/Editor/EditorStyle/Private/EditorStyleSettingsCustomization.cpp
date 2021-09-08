@@ -15,6 +15,7 @@
 #if ALLOW_THEMES
 #include "IDesktopPlatform.h"
 #include "DesktopPlatformModule.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "ThemeEditor"
 
@@ -128,9 +129,8 @@ public:
 					.VAlign(VAlign_Bottom)
 					.Padding(4, 3)
 					[
-						SNew(SButton)
+						SNew(SPrimaryButton)
 						.Text(LOCTEXT("SaveThemeButton", "Save"))
-						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
 						.OnClicked(this, &SThemeEditor::OnSaveClicked)
 					]
 					+ SHorizontalBox::Slot()

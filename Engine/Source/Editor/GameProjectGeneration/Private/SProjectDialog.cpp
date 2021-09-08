@@ -40,6 +40,7 @@
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "SProjectDialog.h"
 #include "LauncherPlatformModule.h"
+#include "SPrimaryButton.h"
 
 
 #define LOCTEXT_NAMESPACE "GameProjectGeneration"
@@ -523,12 +524,8 @@ TSharedRef<SWidget> SProjectDialog::MakeNewProjectDialogButtons()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SButton)
+			SNew(SPrimaryButton)
 			.Visibility(this, &SProjectDialog::GetCreateButtonVisibility)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("CreateNewProject", "Create"))
 			.IsEnabled(this, &SProjectDialog::CanCreateProject)
 			.OnClicked_Lambda([this](){CreateAndOpenProject(); return FReply::Handled(); })
@@ -541,8 +538,6 @@ TSharedRef<SWidget> SProjectDialog::MakeNewProjectDialogButtons()
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			//.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("CancelNewProjectCreation", "Cancel"))
 			.OnClicked(this, &SProjectDialog::OnCancel)
 		];
@@ -584,7 +579,6 @@ TSharedRef<SWidget> SProjectDialog::MakeOpenProjectDialogButtons()
 				.VAlign(VAlign_Center)
 				[
 					SNew(STextBlock)
-					.TextStyle(FAppStyle::Get(), "DialogButtonText")
 					.Text(LOCTEXT("OpenMarketplace", "Marketplace..."))
 				]
 			]
@@ -597,8 +591,6 @@ TSharedRef<SWidget> SProjectDialog::MakeOpenProjectDialogButtons()
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			//.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("BrowseForProjects", "Browse..."))
 			.OnClicked(ProjectBrowserRef, &SProjectBrowser::OnBrowseToProject)
 		]
@@ -607,12 +599,8 @@ TSharedRef<SWidget> SProjectDialog::MakeOpenProjectDialogButtons()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SButton)
+			SNew(SPrimaryButton)
 			.Visibility(this, &SProjectDialog::GetCreateButtonVisibility)
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("OpenProject", "Open"))
 			.IsEnabled(ProjectBrowserRef, &SProjectBrowser::HasSelectedProjectFile)
 			.OnClicked(ProjectBrowserRef, &SProjectBrowser::OnOpenProject)
@@ -625,8 +613,6 @@ TSharedRef<SWidget> SProjectDialog::MakeOpenProjectDialogButtons()
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
-			//.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
-			.TextStyle(FAppStyle::Get(), "DialogButtonText")
 			.Text(LOCTEXT("CancelNewProjectCreation", "Cancel"))
 			.OnClicked(this, &SProjectDialog::OnCancel)
 		];

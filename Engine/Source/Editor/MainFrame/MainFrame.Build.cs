@@ -44,7 +44,8 @@ public class MainFrame : ModuleRules
 				"ToolMenus",
 				"LauncherServices",
 				"InterchangeCore",
-				"InterchangeEngine"
+				"InterchangeEngine",
+				"ToolWidgets",
 			}
 		);
 
