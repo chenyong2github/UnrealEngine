@@ -143,7 +143,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			Transform.NormalizeRotation();
 			Transform.SetScale3D(FVector::OneVector);
 
-			SetControlValue(ControlName, FRigControlValue::Make(Transform), bNotify, Context, bSetupUndo);
+			SetControlValue(ControlName, FRigControlValue::Make(FEulerTransform(Transform)), bNotify, Context, bSetupUndo);
 
 		}, true);
 
