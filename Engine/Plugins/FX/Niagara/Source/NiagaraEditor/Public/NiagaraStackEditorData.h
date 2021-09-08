@@ -145,6 +145,7 @@ public:
 private:
 	TMap<FString, bool> StackEntryKeyToRenamePendingMap;
 
+	UPROPERTY()
 	TMap<FString, bool> StackEntryKeyToExpandedMap;
 
 	TMap<FString, bool> StackEntryKeyToPreSearchExpandedMap;
