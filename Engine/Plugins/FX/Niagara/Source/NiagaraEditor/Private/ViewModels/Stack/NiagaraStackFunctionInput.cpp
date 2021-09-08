@@ -1296,8 +1296,7 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 
 	for (FAssetData& CollectionAsset : CollectionAssets)
 	{
-		UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset());
-		if (Collection)
+		if ( UNiagaraParameterCollection* Collection = Cast<UNiagaraParameterCollection>(CollectionAsset.GetAsset()) )
 		{
 			for (const FNiagaraVariable& CollectionParam : Collection->GetParameters())
 			{
@@ -1306,6 +1305,10 @@ void UNiagaraStackFunctionInput::GetAvailableParameterHandles(TArray<FNiagaraPar
 					AvailableParameterHandles.AddUnique(FNiagaraParameterHandle(CollectionParam.GetName()));
 				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Failed to load NiagaraParameterCollection '%s'"), *CollectionAsset.ObjectPath.ToString());
 		}
 	}
 }
