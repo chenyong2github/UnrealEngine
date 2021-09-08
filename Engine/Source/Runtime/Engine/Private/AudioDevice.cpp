@@ -5149,11 +5149,17 @@ void FAudioDevice::ProcessingPendingActiveSoundStops(bool bForceDelete)
 			if (bDeleteActiveSound)
 			{
 				NotifyPendingDelete(*ActiveSound);
+
+				// Remove from the list of pending sounds to stop
+				PendingSoundsToStop.Remove(ActiveSound);
+	
 				delete ActiveSound;
 			}
-		
-			// Remove from the list of pending sounds to stop
-			PendingSoundsToStop.Remove(ActiveSound);
+			else
+			{
+				// Remove from the list of pending sounds to stop
+				PendingSoundsToStop.Remove(ActiveSound);
+			}	
 		}
 	}
 }
