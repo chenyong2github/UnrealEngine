@@ -1357,12 +1357,26 @@ bool FRigVMBreakLinkAction::Redo(URigVMController* InController)
 	return FRigVMBaseAction::Redo(InController);
 }
 
-FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath)
+FRigVMChangePinTypeAction::FRigVMChangePinTypeAction()
+: PinPath()
+, OldCPPType()
+, OldCPPTypeObjectPath(NAME_None)
+, NewCPPType()
+, NewCPPTypeObjectPath(NAME_None)
+, bSetupOrphanPins(true)
+, bBreakLinks(true)
+, bRemoveSubPins(true)
+{}
+
+FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins)
 : PinPath(InPin->GetPinPath())
 , OldCPPType(InPin->GetCPPType())
 , OldCPPTypeObjectPath(NAME_None)
 , NewCPPType(InCppType)
 , NewCPPTypeObjectPath(InCppTypeObjectPath)
+, bSetupOrphanPins(InSetupOrphanPins)
+, bBreakLinks(InBreakLinks)
+, bRemoveSubPins(InRemoveSubPins)
 {
 	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
 	{
@@ -1376,12 +1390,12 @@ bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	return InController->ChangePinType(PinPath, OldCPPType, OldCPPTypeObjectPath, false);
+	return InController->ChangePinType(PinPath, OldCPPType, OldCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
 }
 
 bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 {
-	if(!InController->ChangePinType(PinPath, NewCPPType, NewCPPTypeObjectPath, false))
+	if(!InController->ChangePinType(PinPath, NewCPPType, NewCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
 	{
 		return false;
 	}

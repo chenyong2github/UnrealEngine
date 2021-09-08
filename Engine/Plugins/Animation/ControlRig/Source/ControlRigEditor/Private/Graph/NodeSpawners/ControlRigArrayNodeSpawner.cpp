@@ -7,6 +7,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMArrayNode.h"
@@ -140,8 +141,8 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 		NewNode->Pins.Add(InputValuePin);
 		NewNode->Pins.Add(OutputValuePin);
 
-		InputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
-		OutputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
+		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
+		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
 		InputValuePin->Direction = EGPD_Input;
 		OutputValuePin->Direction = EGPD_Output;
 		NewNode->SetFlags(RF_Transactional);
@@ -158,8 +159,8 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
-	FString CPPType = "int32";
-	FString CPPTypeObjectPath;
+	FString CPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName();
+	FString CPPTypeObjectPath = FRigVMUnknownType::StaticStruct()->GetPathName();
 
 	if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 	{
@@ -174,7 +175,11 @@ UEdGraphNode* UControlRigArrayNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindin
 				}
 				if (ModelPin->GetCPPTypeObject())
 				{
-					CPPTypeObjectPath = ModelPin->GetCPPTypeObject()->GetPathName();
+					CPPTypeObjectPath = *ModelPin->GetCPPTypeObject()->GetPathName();
+				}
+				else
+				{
+					CPPTypeObjectPath = FString();
 				}
 			}
 		}
@@ -234,7 +239,7 @@ bool UControlRigArrayNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilt
 		{
 			if (Filter.Context.Pins.Num() == 0)
 			{
-				return true;
+				return false;
 			}
 
 			FString PinPath = Filter.Context.Pins[0]->GetName();

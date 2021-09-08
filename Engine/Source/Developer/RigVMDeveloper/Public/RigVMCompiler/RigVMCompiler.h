@@ -174,6 +174,8 @@ private:
 
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
 
+	bool ValidateNode(URigVMNode* InNode);
+	
 	void ReportInfo(const FString& InMessage);
 	void ReportWarning(const FString& InMessage);
 	void ReportError(const FString& InMessage);

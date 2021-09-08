@@ -92,8 +92,8 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 		NewNode->Pins.Add(InputValuePin);
 		NewNode->Pins.Add(OutputValuePin);
 
-		InputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
-		OutputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
+		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
+		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
 		InputValuePin->Direction = EGPD_Input;
 		OutputValuePin->Direction = EGPD_Output;
 		NewNode->SetFlags(RF_Transactional);

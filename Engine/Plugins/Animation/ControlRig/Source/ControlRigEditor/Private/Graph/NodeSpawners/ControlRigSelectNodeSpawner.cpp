@@ -7,6 +7,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintUtils.h"
 
@@ -68,8 +69,8 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 		NewNode->Pins.Add(InputValuePin);
 		NewNode->Pins.Add(OutputValuePin);
 
-		InputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
-		OutputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
+		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
+		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
 		InputValuePin->Direction = EGPD_Input;
 		OutputValuePin->Direction = EGPD_Output;
 		NewNode->SetFlags(RF_Transactional);
@@ -86,8 +87,9 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
-	FString CPPType = "int32";
-	FName CPPTypeObjectPath = NAME_None;
+	FString CPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName();
+	FName CPPTypeObjectPath = *FRigVMUnknownType::StaticStruct()->GetPathName();
+	FString LastOutputPinPath;
 
 	if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 	{
@@ -95,10 +97,19 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 		{
 			if (URigVMPin* ModelPin = RigBlueprint->GetModel(ParentGraph)->FindPin(LastPin->GetName()))
 			{
+				if(LastPin->Direction == EGPD_Output)
+				{
+					LastOutputPinPath = ModelPin->GetPinPath();
+				}
+				
 				CPPType = ModelPin->GetCPPType();
 				if (ModelPin->GetCPPTypeObject())
 				{
 					CPPTypeObjectPath = *ModelPin->GetCPPTypeObject()->GetPathName();
+				}
+				else
+				{
+					CPPTypeObjectPath = NAME_None;
 				}
 			}
 		}
@@ -128,6 +139,13 @@ UEdGraphNode* UControlRigSelectNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindi
 
 		if (NewNode && bUndo)
 		{
+			if(!LastOutputPinPath.IsEmpty())
+			{
+				if(const URigVMPin* FirstChoicePin = ModelNode->FindPin(TEXT("Values.0")))
+				{
+					Controller->AddLink(LastOutputPinPath, FirstChoicePin->GetPinPath(), true, true);
+				}
+			}
 			Controller->ClearNodeSelection(true);
 			Controller->SelectNode(ModelNode, true, true);
 		}
@@ -157,7 +175,7 @@ bool UControlRigSelectNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFil
 		{
 			if (Filter.Context.Pins.Num() == 0)
 			{
-				return true;
+				return false;
 			}
 
 			FString PinPath = Filter.Context.Pins[0]->GetName();

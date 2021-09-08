@@ -7,6 +7,7 @@
 #include "Graph/ControlRigGraphSchema.h"
 #include "BlueprintNodeTemplateCache.h"
 #include "RigVMModel/RigVMController.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "ControlRigBlueprint.h"
 #include "ControlRigBlueprintUtils.h"
 #include "RigVMModel/Nodes/RigVMIfNode.h"
@@ -67,8 +68,8 @@ UEdGraphNode* UControlRigIfNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSe
 		NewNode->Pins.Add(InputValuePin);
 		NewNode->Pins.Add(OutputValuePin);
 
-		InputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
-		OutputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
+		InputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
+		OutputValuePin->PinType.PinCategory = TEXT("ANY_TYPE");
 		InputValuePin->Direction = EGPD_Input;
 		OutputValuePin->Direction = EGPD_Output;
 		NewNode->SetFlags(RF_Transactional);
@@ -85,8 +86,8 @@ UEdGraphNode* UControlRigIfNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSe
 	UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(ParentGraph));
 	check(RigBlueprint);
 
-	FString CPPType = "int32";
-	FName CPPTypeObjectPath = NAME_None;
+	FString CPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName();
+	FName CPPTypeObjectPath = *FRigVMUnknownType::StaticStruct()->GetPathName();
 
 	if (UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>((UEdGraphSchema*)ParentGraph->GetSchema()))
 	{
@@ -98,6 +99,10 @@ UEdGraphNode* UControlRigIfNodeSpawner::Invoke(UEdGraph* ParentGraph, FBindingSe
 				if (ModelPin->GetCPPTypeObject())
 				{
 					CPPTypeObjectPath = *ModelPin->GetCPPTypeObject()->GetPathName();
+				}
+				else
+				{
+					CPPTypeObjectPath = NAME_None;
 				}
 			}
 		}
@@ -156,7 +161,7 @@ bool UControlRigIfNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter 
 		{
 			if (Filter.Context.Pins.Num() == 0)
 			{
-				return true;
+				return false;
 			}
 
 			FString PinPath = Filter.Context.Pins[0]->GetName();

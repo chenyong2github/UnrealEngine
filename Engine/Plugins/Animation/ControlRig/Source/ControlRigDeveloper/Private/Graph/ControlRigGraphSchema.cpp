@@ -25,6 +25,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/RigVMVariableDescription.h"
+#include "RigVMCore/RigVMUnknownType.h"
 #include "Kismet2/Kismet2NameValidators.h"
 
 #if WITH_EDITOR
@@ -629,7 +630,12 @@ FLinearColor UControlRigGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinT
 			{
 				return FLinearColor::White;
 			}
-			
+
+			if (Struct->IsChildOf(FRigVMUnknownType::StaticStruct()))
+			{
+				return FLinearColor(FVector3f::OneVector * 0.25f);
+			}
+
 			if (Struct == FRigElementKey::StaticStruct() || Struct == FRigElementKeyCollection::StaticStruct())
 			{
 				return FLinearColor(0.0, 0.6588, 0.9490);
@@ -672,7 +678,7 @@ void UControlRigGraphSchema::InsertAdditionalActions(TArray<UBlueprint*> InBluep
 		{
 			if(URigVMPin* ModelPin = RigNode->GetModelPinFromPinPath(EdGraphPins[0]->GetName()))
 			{
-				if(!ModelPin->IsExecuteContext())
+				if(!ModelPin->IsExecuteContext() && !ModelPin->IsUnknownType())
 				{
 					if(!ModelPin->GetNode()->IsA<URigVMVariableNode>())
 					{
@@ -1361,19 +1367,55 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 	}
 
 	// for reroute nodes - always allow it
-	if (PinA->PinType.PinCategory == TEXT("POLYMORPH"))
+	if (PinA->PinType.PinCategory == TEXT("ANY_TYPE"))
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinB;
 		MutableThis->bLastPinWasInput = PinB->Direction == EGPD_Input;
 		return true;
 	}
-	if (PinB->PinType.PinCategory == TEXT("POLYMORPH"))
+	if (PinB->PinType.PinCategory == TEXT("ANY_TYPE"))
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinA;
 		MutableThis->bLastPinWasInput = PinA->Direction == EGPD_Input;
 		return true;
+	}
+
+	// if we are looking at a polymorphic node
+	if((PinA->PinType.ContainerType == PinB->PinType.ContainerType) ||
+		(PinA->PinType.PinSubCategoryObject != PinB->PinType.PinSubCategoryObject))
+	{
+		if(PinA->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinA->PinType.PinSubCategoryObject == FRigVMUnknownType::StaticStruct())
+		{
+			bool bIsExecuteContext = false;
+			if(const UScriptStruct* ExecuteContextScriptStruct = Cast<UScriptStruct>(PinB->PinType.PinSubCategoryObject))
+			{
+				bIsExecuteContext = ExecuteContextScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+			}
+			if(!bIsExecuteContext)
+			{
+				UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
+				MutableThis->LastPinForCompatibleCheck = PinB;
+				MutableThis->bLastPinWasInput = PinB->Direction == EGPD_Input;
+				return true;
+			}
+		}
+ 		else if(PinB->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinB->PinType.PinSubCategoryObject == FRigVMUnknownType::StaticStruct())
+		{
+			bool bIsExecuteContext = false;
+ 			if(const UScriptStruct* ExecuteContextScriptStruct = Cast<UScriptStruct>(PinA->PinType.PinSubCategoryObject))
+ 			{
+ 				bIsExecuteContext = ExecuteContextScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+ 			}
+ 			if(!bIsExecuteContext)
+ 			{
+ 				UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
+ 				MutableThis->LastPinForCompatibleCheck = PinA;
+ 				MutableThis->bLastPinWasInput = PinA->Direction == EGPD_Input;
+ 				return true;
+ 			}
+		}
 	}
 
 	// if large world coordinate support is enabled we should allow connections
