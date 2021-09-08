@@ -129,7 +129,7 @@ void FLightmapDensityMeshProcessor::Process(
 
 	{		
 		// BuiltLightingAndSelectedFlags informs the shader is lighting is built or not for this primitive
-		ShaderElementData.BuiltLightingAndSelectedFlags = FVector(0.0f, 0.0f, 0.0f);
+		ShaderElementData.BuiltLightingAndSelectedFlags = FVector3f(0.0f, 0.0f, 0.0f);
 		// LightMapResolutionScale is the physical resolution of the lightmap texture
 		ShaderElementData.LightMapResolutionScale = FVector2D(1.0f, 1.0f);
 
