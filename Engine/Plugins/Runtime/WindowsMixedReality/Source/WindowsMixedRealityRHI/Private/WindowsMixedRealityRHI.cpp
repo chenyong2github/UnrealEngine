@@ -50,7 +50,7 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 
 #endif
 
-	ComPtr<IDXGIAdapter> TempAdapter;
+	TRefCountPtr<IDXGIAdapter> TempAdapter;
 
 	VERIFYD3D11RESULT(CreateDXGIFactory1(__uuidof(IDXGIFactory1), &DXGIFactory1));
 
@@ -62,7 +62,7 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 	};
 
 
-	for (uint32 AdapterIndex = 0; DXGIFactory1->EnumAdapters(AdapterIndex, &TempAdapter) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
+	for (uint32 AdapterIndex = 0; DXGIFactory1->EnumAdapters(AdapterIndex, TempAdapter.GetInitReference()) != DXGI_ERROR_NOT_FOUND; ++AdapterIndex)
 	{
 		if (!TempAdapter)
 		{
@@ -89,7 +89,7 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 #endif //UE_BUILD_DEBUG
 
 		if (FAILED(D3D11CreateDevice(
-			TempAdapter.Get(),
+			TempAdapter,
 			D3D_DRIVER_TYPE_UNKNOWN,
 			NULL,
 			DeviceCreationFlags,
@@ -104,8 +104,8 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 			continue; 
 		}
 
-		ChosenAdapter.AdapterIndex = AdapterIndex;
-		ChosenAdapter.MaxSupportedFeatureLevel = OutFeatureLevel;
+		ChosenAdapter = FD3D11Adapter(TempAdapter, OutFeatureLevel);
+
 		ChosenDescription = AdapterDesc;
 		break;
 	}
@@ -154,7 +154,7 @@ FDynamicRHI* FWindowsMixedRealityRHIModule::CreateRHI(ERHIFeatureLevel::Type Req
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
-	FWindowsMixedRealityDynamicRHI * RHI = new FWindowsMixedRealityDynamicRHI(DXGIFactory1.Get(), ChosenAdapter.MaxSupportedFeatureLevel, ChosenAdapter.AdapterIndex, ChosenDescription);
+	FWindowsMixedRealityDynamicRHI * RHI = new FWindowsMixedRealityDynamicRHI(DXGIFactory1.Get(), ChosenAdapter.MaxSupportedFeatureLevel, ChosenAdapter);
 	GD3D11RHI = RHI;
 
 #if PLATFORM_HOLOLENS
@@ -165,8 +165,8 @@ FDynamicRHI* FWindowsMixedRealityRHIModule::CreateRHI(ERHIFeatureLevel::Type Req
 }
 
 
-FWindowsMixedRealityDynamicRHI::FWindowsMixedRealityDynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LEVEL InFeatureLevel, int32 InChosenAdapter, const DXGI_ADAPTER_DESC& InChosenDescription) 
-	: FD3D11DynamicRHI(InDXGIFactory1, InFeatureLevel, InChosenAdapter, InChosenDescription)
+FWindowsMixedRealityDynamicRHI::FWindowsMixedRealityDynamicRHI(IDXGIFactory1* InDXGIFactory1, D3D_FEATURE_LEVEL InFeatureLevel, const FD3D11Adapter& InAdapter)
+	: FD3D11DynamicRHI(InDXGIFactory1, InFeatureLevel, InAdapter)
 {}
 
 

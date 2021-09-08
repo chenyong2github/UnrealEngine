@@ -49,14 +49,14 @@ struct FD3D12AdapterDesc
 		: AdapterIndex(-1)
 		, MaxSupportedFeatureLevel((D3D_FEATURE_LEVEL)0)
 		, NumDeviceNodes(0)
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		, GpuPreference(DXGI_GPU_PREFERENCE_UNSPECIFIED)
 #endif
 	{
 	}
 
 	FD3D12AdapterDesc(DXGI_ADAPTER_DESC& DescIn, int32 InAdapterIndex, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel, uint32 NumNodes
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		, DXGI_GPU_PREFERENCE InGpuPreference
 #endif
 	)
@@ -64,7 +64,7 @@ struct FD3D12AdapterDesc
 		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
 		, Desc(DescIn)
 		, NumDeviceNodes(NumNodes)
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 		, GpuPreference(InGpuPreference)
 #endif
 	{
@@ -72,7 +72,7 @@ struct FD3D12AdapterDesc
 
 	bool IsValid() const { return MaxSupportedFeatureLevel != (D3D_FEATURE_LEVEL)0 && AdapterIndex >= 0; }
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	static HRESULT EnumAdapters(int32 AdapterIndex, DXGI_GPU_PREFERENCE GpuPreference, IDXGIFactory* DxgiFactory, IDXGIFactory6* DxgiFactory6, IDXGIAdapter** TempAdapter)
 	{
 		if (!DxgiFactory6 || GpuPreference == DXGI_GPU_PREFERENCE_UNSPECIFIED)
@@ -100,7 +100,7 @@ struct FD3D12AdapterDesc
 
 	uint32 NumDeviceNodes;
 
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	DXGI_GPU_PREFERENCE GpuPreference;
 #endif
 };
@@ -218,7 +218,7 @@ public:
 	void CreateDXGIFactory(bool bWithDebug);
 	FORCEINLINE IDXGIFactory* GetDXGIFactory() const { return DxgiFactory; }
 	FORCEINLINE IDXGIFactory2* GetDXGIFactory2() const { return DxgiFactory2; }
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	FORCEINLINE IDXGIFactory6* GetDXGIFactory6() const { return DxgiFactory6; }
 #endif
 
@@ -426,7 +426,7 @@ protected:
 
 	TRefCountPtr<IDXGIFactory> DxgiFactory;
 	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
-#if PLATFORM_WINDOWS
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	TRefCountPtr<IDXGIFactory6> DxgiFactory6;
 #endif
 
