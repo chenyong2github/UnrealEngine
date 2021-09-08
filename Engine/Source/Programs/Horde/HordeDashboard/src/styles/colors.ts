@@ -20,7 +20,7 @@ export enum StatusColor {
 
 export const defaultStatusColors = new Map<StatusColor, string>([
     [StatusColor.Success, "#52C705"],
-    [StatusColor.Warnings, "#EDC74A"],
+    [StatusColor.Warnings, dashboard.darktheme ? theme.palette.yellow : "#EDC74A"],
     [StatusColor.Failure, "#DE4522"],
     [StatusColor.Running, theme.palette.blueLight],
     [StatusColor.Waiting, "#A19F9D"],
