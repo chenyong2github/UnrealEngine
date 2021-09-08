@@ -44,7 +44,7 @@ private:
 
 	void OnCpuScopeEnter(const FOnEventContext& Context);
 	void OnCpuScopeLeave(const FOnEventContext& Context);
-	void DefineScope(uint32 SpecId, const TCHAR* ScopeName);
+	uint32 DefineTimer(uint32 SpecId, const TCHAR* ScopeName, bool bMergeByName = true); // returns the TimerId
 	FThreadState& GetThreadState(uint32 ThreadId);
 	uint64 ProcessBuffer(const FEventTime& EventTime, uint32 ThreadId, const uint8* BufferPtr, uint32 BufferSize);
 
