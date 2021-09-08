@@ -9,7 +9,7 @@ PathTracingThinGlass.ush: Microfacet BSDF for thin glass
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 #include "PathTracingGlossy.ush"
-
+#include "PathTracingEnergyConservation.ush"
 
 struct SlabWeights
 {
@@ -87,13 +87,17 @@ FMaterialEval RoughThinGlass_EvalMaterial(
 
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 
+	// GGX reflected energy is split between reflection and refraction equally
+	// so just use the overall GGX energy loss for energy compensation (as in the solid glass case)
+	const float OutWeight = GGXResult.x / GGXEnergyLookup(Payload.Roughness, NoV).x;
+
 	if (IsTransmission)
 	{
-		return CreateMaterialEval(GGXResult.x / (1.0 - ProbR) * Result.Transmitted, GGXResult.y * (1.0 - ProbR));
+		return CreateMaterialEval(OutWeight / (1.0 - ProbR) * Result.Transmitted, GGXResult.y * (1.0 - ProbR));
 	}
 	else
 	{
-		return CreateMaterialEval(GGXResult.x / ProbR * Result.Reflected, GGXResult.y * ProbR);
+		return CreateMaterialEval(OutWeight / ProbR * Result.Reflected, GGXResult.y * ProbR);
 	}
 }
 
@@ -139,7 +143,10 @@ FMaterialSample RoughThinGlass_SampleMaterial(
 	const float ProbR = LobeSelectionProb(Result.Reflected, Result.Transmitted);
 
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-	float3 OutWeight = GGXResult.x;
+
+	// GGX reflected energy is split between reflection and refraction equally
+	// so just use the overall GGX energy loss for energy compensation (as in the solid glass case)
+	float3 OutWeight = GGXResult.x / GGXEnergyLookup(Payload.Roughness, NoV).x;
 	float OutPdf = GGXResult.y;
 
 	// decide between reflection/transmission

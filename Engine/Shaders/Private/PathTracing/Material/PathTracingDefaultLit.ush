@@ -8,17 +8,7 @@
 
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
-
-float CalcLobeSelectionPdf(float3 V, FPathTracingPayload Payload)
-{
-	// TODO: This could be improved if we had a directional albedo tabulation, but this formulation will at least prevent
-	// under-sampling when one lobe is black (like with metals)
-
-	float3 Diff = Payload.DiffuseColor;
-	float3 Spec = Payload.SpecularColor;
-
-	return LobeSelectionProb(Diff, Spec);
-}
+#include "PathTracingEnergyConservation.ush"
 
 FMaterialEval DefaultLit_EvalMaterial(
 	float3 IncomingDirection,
@@ -40,19 +30,22 @@ FMaterialEval DefaultLit_EvalMaterial(
 	const float3 L = mul(Basis, L_World);
 	const float3 H = normalize(V + L);
 
+	const float NoV = saturate(V.z);
 	const float NoL = saturate(L.z);
 	const float VoH = saturate(dot(V, H));
 
+	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
+
 	// Probability of picking diffuse lobe vs. specular lobe
-	const float LobeSelectionPdf = CalcLobeSelectionPdf(V_World, Payload);
+	const float LobeSelectionPdf = LobeSelectionProb(Payload.DiffuseColor * (1 - Spec.E), Spec.E);
 
 	// Diffuse Lobe
-	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, (1 - Spec.E) * Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
-	const float3 SpecWeight = F * GGXResult.x;
+	const float3 SpecWeight = F * GGXResult.x * Spec.W;
 	const float SpecPdf = GGXResult.y;
 
 	AddLobeWithMIS(Result.Weight, Result.Pdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
@@ -69,13 +62,17 @@ FMaterialSample DefaultLit_SampleMaterial(
 	float3 N = Payload.WorldNormal;
 	float3 V = -RayDirection;
 	
-	float LobeSelectionPdf = CalcLobeSelectionPdf(V, Payload);
-
 	float2 Alpha;
 	float3x3 Basis = GetGGXBasis(Payload.Roughness, Payload.Anisotropy, Payload.WorldNormal, Payload.WorldTangent, Alpha);
 
 	V = mul(Basis, V);
-	
+
+	const float NoV = saturate(V.z);
+	const FBxDFEnergyTerms Spec = ComputeGGXSpecEnergyTerms(Payload.Roughness, NoV, Payload.SpecularColor);
+
+	// Probability of picking diffuse lobe vs. specular lobe
+	const float LobeSelectionPdf = LobeSelectionProb(Payload.DiffuseColor * (1 - Spec.E), Spec.E);
+
 	// Randomly choose to sample diffuse or specular
 	float3 L = 0, H = 0;
 	float OutRoughness = 0;
@@ -117,12 +114,12 @@ FMaterialSample DefaultLit_SampleMaterial(
 	float OutPdf = 0;
 
 	// Diffuse Lobe
-	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(OutWeight, OutPdf, (1 - Spec.E) * Payload.DiffuseColor, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
 	const float3 F = F_Schlick(Payload.SpecularColor, VoH);
-	const float3 SpecWeight = F * GGXResult.x;
+	const float3 SpecWeight = F * GGXResult.x * Spec.W;
 	const float SpecPdf = GGXResult.y;
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1.0 - LobeSelectionPdf);
 

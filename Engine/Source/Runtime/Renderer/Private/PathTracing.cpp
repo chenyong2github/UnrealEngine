@@ -86,7 +86,8 @@ TAutoConsoleVariable<int32> CVarPathTracingVisibleLights(
 	0,
 	TEXT("Should light sources be visible to camera rays? (default = 0 (off))\n")
 	TEXT("0: Hide lights from camera rays (default)\n")
-	TEXT("1: Make lights visible to camera\n"),
+	TEXT("1: Make all lights visible to camera\n")
+	TEXT("2: Make skydome only visible to camera\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -266,6 +267,26 @@ struct FPathTracingConfig
 	}
 };
 
+struct FPathTracingState {
+	FPathTracingConfig LastConfig;
+	// Textures holding onto the accumulated frame data
+	TRefCountPtr<IPooledRenderTarget> RadianceRT;
+	TRefCountPtr<IPooledRenderTarget> AlbedoRT;
+	TRefCountPtr<IPooledRenderTarget> NormalRT;
+	TRefCountPtr<IPooledRenderTarget> RadianceDenoisedRT;
+
+	TRefCountPtr<IPooledRenderTarget> GGXSpecEnergyTable;
+	TRefCountPtr<IPooledRenderTarget> GGXGlassEnergyTable;
+	TRefCountPtr<IPooledRenderTarget> ClothEnergyTable;
+
+	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
+	uint32 SampleIndex = 0;
+
+	// Path tracer frame index, not reset on invalidation unlike SampleIndex to avoid
+	// the "screen door" effect and reduce temporal aliasing
+	uint32_t FrameIndex = 0;
+};
+
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static void PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData)
 {
@@ -429,6 +450,44 @@ class FPathTracingBuildLightGridCS : public FGlobalShader
 IMPLEMENT_SHADER_TYPE(, FPathTracingBuildLightGridCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildLightGrid.usf"), TEXT("PathTracingBuildLightGridCS"), SF_Compute);
 
 
+class FPathTracingBuildEnergyTableCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingBuildEnergyTableCS)
+	SHADER_USE_PARAMETER_STRUCT(FPathTracingBuildEnergyTableCS, FGlobalShader)
+
+	enum class EEnergyTableType {
+		GGXSpecular = 0,
+		GGXGlass    = 1,
+		Cloth       = 2,
+		MAX
+	};
+
+	class FEnergyTableDim : SHADER_PERMUTATION_ENUM_CLASS("BUILD_ENERGY_TABLE", EEnergyTableType);
+
+	using FPermutationDomain = TShaderPermutationDomain<FEnergyTableDim>;
+
+		
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutputTexture2D)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D, OutputTexture3D)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_SHADER_TYPE(, FPathTracingBuildEnergyTableCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildEnergyTable.usf"), TEXT("PathTracingBuildEnergyTableCS") , SF_Compute);
+
 class FPathTracingRG : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
@@ -489,6 +548,12 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
 		// Used by multi-GPU rendering
 		SHADER_PARAMETER(FIntVector, TileOffset)
+
+		// GGX Energy conservation
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float2>, GGXSpecEnergyTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture3D<float2>, GGXGlassEnergyTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float2>, ClothEnergyTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, EnergySampler)
 
 		// extra parameters required for path compacting kernel
 		SHADER_PARAMETER(int, Bounce)
@@ -963,10 +1028,11 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.IESTextureSlice = -1;
 		DestLight.BoundMin = FVector(-Inf, -Inf, -Inf);
 		DestLight.BoundMax = FVector( Inf,  Inf,  Inf);
-		if (Scene->SkyLight->bRealTimeCaptureEnabled)
+		if (Scene->SkyLight->bRealTimeCaptureEnabled || CVarPathTracingVisibleLights.GetValueOnRenderThread() == 2)
 		{
 			// When using the realtime capture system, always make the skylight visible
 			// because this is our only way of "seeing" the atmo/clouds at the moment
+			// Also allow seeing just the sky via a cvar for debugging purposes
 			PassParameters->SceneVisibleLightCount = 1;
 		}
 	}
@@ -1196,8 +1262,9 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracer.LightsBuffer"), sizeof(FPathTracingLight), NumCopyLights, Lights, DataSize, ERDGInitialDataFlags::NoCopy)));
 	}
 
-	if (CVarPathTracingVisibleLights.GetValueOnRenderThread() != 0)
+	if (CVarPathTracingVisibleLights.GetValueOnRenderThread() == 1)
 	{
+		// make all lights in the scene visible
 		PassParameters->SceneVisibleLightCount = PassParameters->SceneLightCount;
 	}
 
@@ -1259,24 +1326,25 @@ void FDeferredShadingSceneRenderer::PreparePathTracing(const FSceneViewFamily& V
 
 void FSceneViewState::PathTracingInvalidate()
 {
-	PathTracingRadianceRT.SafeRelease();
-	PathTracingAlbedoRT.SafeRelease();
-	PathTracingNormalRT.SafeRelease();
-	PathTracingRadianceDenoisedRT.SafeRelease();
-	PathTracingSampleIndex = 0;
+	FPathTracingState* State = PathTracingState.Get();
+	if (State)
+	{
+		State->RadianceRT.SafeRelease();
+		State->AlbedoRT.SafeRelease();
+		State->NormalRT.SafeRelease();
+		State->RadianceDenoisedRT.SafeRelease();
+		State->SampleIndex = 0;
+	}
 }
 
 uint32 FSceneViewState::GetPathTracingSampleIndex() const {
-	return PathTracingSampleIndex;
+	const FPathTracingState* State = PathTracingState.Get();
+	return State ? State->SampleIndex : 0;
 }
 
 uint32 FSceneViewState::GetPathTracingSampleCount() const {
-	FPathTracingConfig* LastConfig = PathTracingLastConfig.Get();
-	if (LastConfig)
-	{
-		return LastConfig->PathTracingData.MaxSamples;
-	}
-	return 0;
+	const FPathTracingState* State = PathTracingState.Get();
+	return State ? State->LastConfig.PathTracingData.MaxSamples : 0;
 }
 
 
@@ -1342,13 +1410,15 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	Config.PathTracingData.MaxSamples = MaxSPP;
 
 	bool FirstTime = false;
-	if (!View.ViewState->PathTracingLastConfig.IsValid())
+	if (!View.ViewState->PathTracingState.IsValid())
 	{
-		View.ViewState->PathTracingLastConfig = MakePimpl<FPathTracingConfig>();
+		View.ViewState->PathTracingState = MakePimpl<FPathTracingState>();
 		FirstTime = true; // we just initialized the option state for this view -- don't bother comparing in this case
 	}
+	check(View.ViewState->PathTracingState.IsValid());
+	FPathTracingState* PathTracingState = View.ViewState->PathTracingState.Get();
 
-	if (FirstTime || Config.UseMISCompensation != View.ViewState->PathTracingLastConfig->UseMISCompensation)
+	if (FirstTime || Config.UseMISCompensation != PathTracingState->LastConfig.UseMISCompensation)
 	{
 		// if the mode changes we need to rebuild the importance table
 		Scene->PathTracingSkylightTexture.SafeRelease();
@@ -1357,10 +1427,10 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 
 	// If the scene has changed in some way (camera move, object movement, etc ...)
 	// we must invalidate the ViewState to start over from scratch
-	if (FirstTime || Config.IsDifferent(*View.ViewState->PathTracingLastConfig))
+	if (FirstTime || Config.IsDifferent(PathTracingState->LastConfig))
 	{
 		// remember the options we used for next time
-		*View.ViewState->PathTracingLastConfig = Config;
+		PathTracingState->LastConfig = Config;
 		View.ViewState->PathTracingInvalidate();
 	}
 
@@ -1368,26 +1438,102 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (Config.LockedSamplingPattern)
 	{
 		// Count samples from 0 for deterministic results
-		Config.PathTracingData.TemporalSeed = View.ViewState->PathTracingSampleIndex;
+		Config.PathTracingData.TemporalSeed = PathTracingState->SampleIndex;
 	}
 	else
 	{
 		// Count samples from an ever-increasing counter to avoid screen-door effect
-		Config.PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndex;
+		Config.PathTracingData.TemporalSeed = PathTracingState->FrameIndex;
 	}
-	Config.PathTracingData.Iteration = View.ViewState->PathTracingSampleIndex;
+	Config.PathTracingData.Iteration = PathTracingState->SampleIndex;
 	Config.PathTracingData.BlendFactor = 1.0f / (Config.PathTracingData.Iteration + 1);
+
+	// Prepare energy conservation tables
+	FRDGTexture* GGXSpecEnergyTexture = nullptr;
+	FRDGTexture* GGXGlassEnergyTexture = nullptr;
+	FRDGTexture* ClothEnergyTexture = nullptr;
+	if (PathTracingState->GGXSpecEnergyTable)
+	{
+		GGXSpecEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->GGXSpecEnergyTable, TEXT("PathTracer.GGXSpecEnergy"));
+		GGXGlassEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->GGXGlassEnergyTable, TEXT("PathTracer.GGXGlassEnergy"));
+		ClothEnergyTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->ClothEnergyTable, TEXT("PathTracer.ClothEnergy"));
+	}
+	else
+	{
+		// first time through, bake the data we need
+		const int Size = PATHTRACER_ENERGY_TABLE_RESOLUTION;
+		GGXSpecEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(
+			FIntPoint(Size, Size),
+			PF_G32R32F,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXSpecEnergy"), ERDGTextureFlags::MultiFrame);
+		GGXGlassEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create3D(
+			FIntVector(Size, Size, Size),
+			PF_G32R32F,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXGlassEnergy"), ERDGTextureFlags::MultiFrame);
+		ClothEnergyTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(
+			FIntPoint(Size, Size),
+			PF_G32R32F,
+			FClearValueBinding::None,
+			TexCreate_ShaderResource | TexCreate_UAV), TEXT("PathTracer.GGXSpecEnergy"), ERDGTextureFlags::MultiFrame);
+
+		{
+			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::GGXSpecular);
+			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
+			PassParameters->OutputTexture2D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GGXSpecEnergyTexture, 0));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildGGXSpecTable"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+		}
+		{
+			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::GGXGlass);
+			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
+			PassParameters->OutputTexture3D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GGXGlassEnergyTexture, 0));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildGGXGlassTable"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(FIntVector(Size, Size, Size), FIntVector(FComputeShaderUtils::kGolden2DGroupSize, FComputeShaderUtils::kGolden2DGroupSize, 1)));
+		}
+		{
+			FPathTracingBuildEnergyTableCS::FPermutationDomain PermutationVector;
+			PermutationVector.Set<FPathTracingBuildEnergyTableCS::FEnergyTableDim>(FPathTracingBuildEnergyTableCS::EEnergyTableType::Cloth);
+			TShaderMapRef<FPathTracingBuildEnergyTableCS> ComputeShader(View.ShaderMap, PermutationVector);
+			FPathTracingBuildEnergyTableCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingBuildEnergyTableCS::FParameters>();
+			PassParameters->OutputTexture2D = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ClothEnergyTexture, 0));
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildClothTable"),
+				ComputeShader,
+				PassParameters,
+				FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+		}
+
+		GraphBuilder.QueueTextureExtraction(GGXSpecEnergyTexture , &PathTracingState->GGXSpecEnergyTable );
+		GraphBuilder.QueueTextureExtraction(GGXGlassEnergyTexture, &PathTracingState->GGXGlassEnergyTable);
+		GraphBuilder.QueueTextureExtraction(ClothEnergyTexture   , &PathTracingState->ClothEnergyTable);
+	}
+	
 
 	// Prepare radiance buffer (will be shared with display pass)
 	FRDGTexture* RadianceTexture = nullptr;
 	FRDGTexture* AlbedoTexture = nullptr;
 	FRDGTexture* NormalTexture = nullptr;
-	if (View.ViewState->PathTracingRadianceRT)
+	if (PathTracingState->RadianceRT)
 	{
 		// we already have a valid radiance texture, re-use it
-		RadianceTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingRadianceRT, TEXT("PathTracer.Radiance"));
-		AlbedoTexture   = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingAlbedoRT, TEXT("PathTracer.Albedo"));
-		NormalTexture   = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingNormalRT, TEXT("PathTracer.Normal"));
+		RadianceTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->RadianceRT, TEXT("PathTracer.Radiance"));
+		AlbedoTexture   = GraphBuilder.RegisterExternalTexture(PathTracingState->AlbedoRT, TEXT("PathTracer.Albedo"));
+		NormalTexture   = GraphBuilder.RegisterExternalTexture(PathTracingState->NormalRT, TEXT("PathTracer.Normal"));
 	}
 	else
 	{
@@ -1470,6 +1616,12 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			PassParameters->TileOffset.X = 0;
 			PassParameters->TileOffset.Y = 0;
 
+			// energy compensation tabulated data
+			PassParameters->GGXSpecEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(GGXSpecEnergyTexture));
+			PassParameters->GGXGlassEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(GGXGlassEnergyTexture));
+			PassParameters->ClothEnergyTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ClothEnergyTexture));
+			PassParameters->EnergySampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
 			if (bUseCompaction)
 			{
 				PassParameters->Bounce = Bounce;
@@ -1483,8 +1635,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			ClearUnusedGraphResources(RayGenShader, PassParameters);
 			GraphBuilder.AddPass(
 				bUseCompaction
-					? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d Bounce=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce)
-					: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP, PassParameters->SceneLightCount),
+					? RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d Bounce=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount, Bounce)
+					: RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d NumLights=%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, PathTracingState->SampleIndex, MaxSPP, PassParameters->SceneLightCount),
 				PassParameters,
 				ERDGPassFlags::Compute,
 				[PassParameters, RayGenShader, DispatchSizeX, DispatchSizeY, &View](FRHIRayTracingCommandList& RHICmdList)
@@ -1503,13 +1655,13 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 			});
 		}
 		// After we are done, make sure we remember our texture for next time so that we can accumulate samples across frames
-		GraphBuilder.QueueTextureExtraction(RadianceTexture, &View.ViewState->PathTracingRadianceRT);
-		GraphBuilder.QueueTextureExtraction(AlbedoTexture  , &View.ViewState->PathTracingAlbedoRT  );
-		GraphBuilder.QueueTextureExtraction(NormalTexture  , &View.ViewState->PathTracingNormalRT  );
+		GraphBuilder.QueueTextureExtraction(RadianceTexture, &PathTracingState->RadianceRT);
+		GraphBuilder.QueueTextureExtraction(AlbedoTexture  , &PathTracingState->AlbedoRT  );
+		GraphBuilder.QueueTextureExtraction(NormalTexture  , &PathTracingState->NormalRT  );
 
 		// Bump counters for next frame
-		++View.ViewState->PathTracingSampleIndex;
-		++View.ViewState->PathTracingFrameIndex;
+		++PathTracingState->SampleIndex;
+		++PathTracingState->FrameIndex;
 	}
 
 	FRDGTexture* DenoisedRadianceTexture = nullptr;
@@ -1527,13 +1679,13 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		if (!bNeedsMoreRays)
 		{
 			// we aren't currently rendering, run the denoiser if we just turned it on
-			NeedsDenoise |= DenoiserMode != View.ViewState->PathTracingLastConfig->DenoiserMode;
+			NeedsDenoise |= DenoiserMode != PathTracingState->LastConfig.DenoiserMode;
 		}
 
-		if (View.ViewState->PathTracingRadianceDenoisedRT)
+		if (PathTracingState->RadianceDenoisedRT)
 		{
 			// we already have a texture for this
-			DenoisedRadianceTexture = GraphBuilder.RegisterExternalTexture(View.ViewState->PathTracingRadianceDenoisedRT, TEXT("PathTracer.DenoisedRadiance"));
+			DenoisedRadianceTexture = GraphBuilder.RegisterExternalTexture(PathTracingState->RadianceDenoisedRT, TEXT("PathTracer.DenoisedRadiance"));
 		}
 
 		if (NeedsDenoise)
@@ -1565,10 +1717,10 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 				}
 			);
 
-			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &View.ViewState->PathTracingRadianceDenoisedRT);
+			GraphBuilder.QueueTextureExtraction(DenoisedRadianceTexture, &PathTracingState->RadianceDenoisedRT);
 		}
 	}
-	View.ViewState->PathTracingLastConfig->DenoiserMode = DenoiserMode;
+	PathTracingState->LastConfig.DenoiserMode = DenoiserMode;
 
 	// now add a pixel shader pass to display our Radiance buffer
 
