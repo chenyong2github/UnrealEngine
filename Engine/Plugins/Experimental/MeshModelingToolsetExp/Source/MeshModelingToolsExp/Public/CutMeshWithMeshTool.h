@@ -23,6 +23,10 @@ class MESHMODELINGTOOLSEXP_API UCutMeshWithMeshToolProperties : public UInteract
 {
 	GENERATED_BODY()
 public:
+	/** Automatically attempt to fill any holes left by Booleans (e.g. due to numerical errors) */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "1"))
+	float WindingThreshold = 0.5;
+
 	/** Show boundary edges created by the Boolean operations (often due to numerical error) */
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowNewBoundaryEdges = true;

@@ -165,6 +165,7 @@ public:
 
 	bool bAttemptToFixHoles = true;
 	bool bCollapseExtraEdges = true;
+	double WindingThreshold = 0.5;
 
 	virtual void CalculateResult(FProgressCancel* Progress)
 	{
@@ -172,6 +173,7 @@ public:
 		SubtractOp->CSGOperation = ECSGOperation::DifferenceAB;
 		SubtractOp->bAttemptFixHoles = bAttemptToFixHoles;
 		SubtractOp->bTryCollapseExtraEdges = bCollapseExtraEdges;
+		SubtractOp->WindingThreshold = WindingThreshold;
 		SubtractOp->Meshes.Add(TargetMesh);
 		SubtractOp->Transforms.Add(TargetMeshTransform);
 		SubtractOp->Meshes.Add(CuttingMesh);
@@ -181,6 +183,7 @@ public:
 		IntersectOp->CSGOperation = ECSGOperation::Intersect;
 		IntersectOp->bAttemptFixHoles = bAttemptToFixHoles;
 		IntersectOp->bTryCollapseExtraEdges = bCollapseExtraEdges;
+		IntersectOp->WindingThreshold = WindingThreshold;
 		IntersectOp->Meshes.Add(TargetMesh);
 		IntersectOp->Transforms.Add(TargetMeshTransform);
 		IntersectOp->Meshes.Add(CuttingMesh);
@@ -283,6 +286,7 @@ TUniquePtr<FDynamicMeshOperator> UCutMeshWithMeshTool::MakeNewOperator()
 
 	CuttingOp->bAttemptToFixHoles = CutProperties->bAttemptFixHoles;
 	CuttingOp->bCollapseExtraEdges = CutProperties->bCollapseExtraEdges;
+	CuttingOp->WindingThreshold = CutProperties->WindingThreshold;
 
 	return CuttingOp;
 }

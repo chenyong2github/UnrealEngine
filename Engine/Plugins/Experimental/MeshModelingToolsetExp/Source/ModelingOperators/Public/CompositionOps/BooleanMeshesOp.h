@@ -64,6 +64,7 @@ public:
 	TArray<TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe>> Meshes;
 	TArray<FTransform> Transforms; // 1:1 with Meshes
 	bool bAttemptFixHoles = false;
+	double WindingThreshold = 0.5;
 
 	/** If true, try to do edge-collapses along cut edges to remove unnecessary edges inserted by cut */
 	bool bTryCollapseExtraEdges = false;
