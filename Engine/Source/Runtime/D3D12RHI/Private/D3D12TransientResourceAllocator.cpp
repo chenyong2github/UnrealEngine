@@ -54,7 +54,7 @@ FD3D12TransientHeap::FD3D12TransientHeap(const FRHITransientHeapInitializer& Ini
 	D3D12_HEAP_DESC Desc = {};
 	Desc.SizeInBytes = Initializer.Size;
 	Desc.Properties = HeapProperties;
-	Desc.Alignment = 0;
+	Desc.Alignment = Initializer.Alignment;
 	Desc.Flags = HeapFlags;
 
 	if (Adapter->IsHeapNotZeroedSupported())

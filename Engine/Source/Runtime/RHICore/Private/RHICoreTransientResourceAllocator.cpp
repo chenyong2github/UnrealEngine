@@ -96,7 +96,7 @@ FRHITransientResourceSystem::~FRHITransientResourceSystem()
 	ReleaseHeaps();
 }
 
-FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags)
+FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocationSize, uint32 FirstAllocationAlignment, ERHITransientHeapFlags FirstAllocationHeapFlags)
 {
 	{
 		FScopeLock Lock(&HeapCriticalSection);
@@ -105,7 +105,7 @@ FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocati
 		{
 			FRHITransientHeap* Heap = Heaps[HeapIndex];
 
-			if (Heap->IsAllocationSupported(FirstAllocationSize, FirstAllocationHeapFlags))
+			if (Heap->IsAllocationSupported(FirstAllocationSize, FirstAllocationAlignment, FirstAllocationHeapFlags))
 			{
 				Heaps.RemoveAt(HeapIndex);
 				return Heap;
@@ -115,7 +115,7 @@ FRHITransientHeap* FRHITransientResourceSystem::AcquireHeap(uint64 FirstAllocati
 
 	FRHITransientHeapInitializer HeapInitializer;
 	HeapInitializer.Size = GetHeapSize(FirstAllocationSize);
-	HeapInitializer.Alignment = GetHeapAlignment();
+	HeapInitializer.Alignment = GetHeapAlignment(FirstAllocationAlignment);
 	HeapInitializer.Flags = (Initializer.bSupportsAllHeapFlags ? ERHITransientHeapFlags::AllowAll : FirstAllocationHeapFlags);
 	HeapInitializer.TextureCacheSize = Initializer.TextureCacheSize;
 	HeapInitializer.BufferCacheSize = Initializer.BufferCacheSize;
@@ -657,7 +657,7 @@ FRHITransientHeapAllocation FRHITransientResourceAllocator::Allocate(FMemoryStat
 		const uint32 HeapIndex = Heaps.Num();
 
 		FRHITransientHeapState State = {};
-		State.Heap = ParentSystem.AcquireHeap(Size, ResourceHeapFlags);
+		State.Heap = ParentSystem.AcquireHeap(Size, Alignment, ResourceHeapFlags);
 		Heaps.Emplace(State);
 
 		FRHITransientHeapAllocator& HeapAllocator = HeapAllocators.Emplace_GetRef(State.Heap->GetInitializer(), HeapIndex, State.Heap->GetBaseGPUVirtualAddress());

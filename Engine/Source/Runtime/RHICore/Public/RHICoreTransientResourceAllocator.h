@@ -216,9 +216,9 @@ public:
 
 	FORCEINLINE uint64 GetLastUsedGarbageCollectCycle() const { return LastUsedGarbageCollectCycle; }
 
-	FORCEINLINE bool IsAllocationSupported(uint64 Size, ERHITransientHeapFlags InFlags) const
+	FORCEINLINE bool IsAllocationSupported(uint64 Size, uint32 Alignment, ERHITransientHeapFlags InFlags) const
 	{
-		return Size <= Initializer.Size && EnumHasAnyFlags(Initializer.Flags, InFlags);
+		return Size <= Initializer.Size && Alignment <= Initializer.Alignment && EnumHasAnyFlags(Initializer.Flags, InFlags);
 	}
 
 protected:
@@ -322,7 +322,7 @@ public:
 
 	FORCEINLINE uint64 GetMinimumHeapSize() const { return Initializer.MinimumHeapSize; }
 	FORCEINLINE uint64 GetMaximumHeapSize() const { return Initializer.MaximumHeapSize; }
-	FORCEINLINE uint32 GetHeapAlignment() const { return Initializer.HeapAlignment; }
+	FORCEINLINE uint32 GetHeapAlignment(uint32 FirstAllocationAlignment) const { return FMath::Max(Initializer.HeapAlignment, FirstAllocationAlignment); }
 	FORCEINLINE uint32 GetHeapCount() const { return Heaps.Num(); }
 
 	FORCEINLINE FRHITransientHeap* GetHeap(uint32 Index) { return Heaps[Index]; }
@@ -339,7 +339,7 @@ protected:
 
 private:
 	// Called by the transient allocator to acquire a heap from the cache.
-	FRHITransientHeap* AcquireHeap(uint64 FirstAllocationSize, ERHITransientHeapFlags FirstAllocationHeapFlags);
+	FRHITransientHeap* AcquireHeap(uint64 FirstAllocationSize, uint32 FirstAllocationAlignment, ERHITransientHeapFlags FirstAllocationHeapFlags);
 
 	// Called by the transient allocator to forfeit all acquired heaps back to the cache.
 	void ForfeitHeaps(TConstArrayView<FRHITransientHeapState> Heaps);
