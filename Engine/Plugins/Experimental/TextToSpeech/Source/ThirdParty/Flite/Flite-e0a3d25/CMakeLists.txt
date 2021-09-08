@@ -26,6 +26,9 @@ set(FLITE_COMPILE_PDB_NAME  "libFlite")
 # we don't need the networking functionality of Flite so we'll disable sockets
 add_definitions(-DCST_NO_SOCKETS)
 
+#We want to use Unreal's memory allocation instead of regular malloc so we define this macro# to override the malloc functions found in cst_alloc.c 
+add_definitions(-DCST_USER_MALLOC)
+
 # we prevent cmake from apending lib to the satart of static libraries to ensure naming parity across platforms
 set(CMAKE_STATIC_LIBRARY_PREFIX "")
 
