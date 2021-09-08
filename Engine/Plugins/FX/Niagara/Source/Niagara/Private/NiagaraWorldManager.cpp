@@ -720,7 +720,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 	if (SimulationsWithPostActorWork.Num() > 0)
 	{
 		// Ensure completion of all systems
-		for ( auto& Simulation : SimulationsWithPostActorWork )
+		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
 			FNiagaraSystemSimulationRef& Simulation = SimulationsWithPostActorWork[i];
 			if ( Simulation->IsValid() )
@@ -730,7 +730,7 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		}
 
 		// Update tick groups
-		for (auto& Simulation : SimulationsWithPostActorWork)
+		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
 			FNiagaraSystemSimulationRef& Simulation = SimulationsWithPostActorWork[i];
 			if (Simulation->IsValid())
