@@ -418,7 +418,7 @@ namespace AVEncoder
 	{
 		Flush();
 
-		bShouldEncoderThreadRun = false;
+		
 		FramesPending->Trigger();
 		EncoderThread->Join();
 
@@ -447,8 +447,37 @@ namespace AVEncoder
 		{
 			FramesPending->Wait();
 
-			while(bShouldEncoderThreadRun && PendingEncodes.Dequeue(Buffer))
+			while (bShouldEncoderThreadRun && PendingEncodes.Dequeue(Buffer))
 			{
+				// we have kicked off a flush of the encoder clear all the buffers
+				if (Buffer->PicParams.encodePicFlags == NV_ENC_PIC_FLAG_EOS)
+				{
+					FInputOutput* EOSBuffer = Buffer;
+					DestroyBuffer(EOSBuffer);
+
+					while (IdleBuffers.Dequeue(Buffer))
+					{
+						FInputOutput* OldBuffer = Buffer;
+						DestroyBuffer(OldBuffer);
+					}
+
+					// We are exiting so clear all live buffers
+					while (LiveBuffers.Dequeue(Buffer))
+					{
+						FInputOutput* LiveBuffer = Buffer;
+						if (LiveBuffer->SourceFrame)
+						{
+							LiveBuffer->SourceFrame->Release();
+							LiveBuffer->SourceFrame = nullptr;
+						}
+						DestroyBuffer(LiveBuffer);
+					}
+
+					bShouldEncoderThreadRun = false;
+					return;
+				}
+
+
 				MaybeReconfigure();
 
 				// check if we have not reconfigued the buffer size
@@ -513,23 +542,7 @@ namespace AVEncoder
 							UnlockOutputBuffer(*Buffer);
 						}
 
-						// we have kicked off a flush of the encoder clear all the buffers
-						if(Buffer->PicParams.encodePicFlags == NV_ENC_PIC_FLAG_EOS)
-						{
-							FInputOutput* EOSBuffer = Buffer;
-							DestroyBuffer(EOSBuffer);
-							delete EOSBuffer;
 
-							while(IdleBuffers.Dequeue(Buffer))
-							{
-								FInputOutput* OldBuffer = Buffer;
-								DestroyBuffer(OldBuffer);
-								delete OldBuffer;
-							}
-
-							// early out
-							return;
-						}
 
 						// We have consumed the encoded buffer we can now return it to the pool
 						if(Buffer->SourceFrame)
@@ -706,8 +719,6 @@ namespace AVEncoder
 
 		delete InBuffer;
 	}
-
-	// TODO (M84FIX)
 
 	void FVideoEncoderNVENC_H264::FNVENCLayer::CreateResourceDIRECTX(FInputOutput& InBuffer, NV_ENC_REGISTER_RESOURCE& RegisterParam, FIntPoint TextureSize)
 	{
