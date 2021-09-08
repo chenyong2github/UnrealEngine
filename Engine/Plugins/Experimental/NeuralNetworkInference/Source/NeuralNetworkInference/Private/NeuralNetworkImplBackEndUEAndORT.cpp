@@ -206,6 +206,18 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 		{
 			// Read model from ModelReadFromFileInBytesVector
 			InOutImplBackEndUEAndORT->Session = MakeUnique<Ort::Session>(*InOutImplBackEndUEAndORT->Environment, InModelReadFromFileInBytes.GetData(), InModelReadFromFileInBytes.Num(), *InOutImplBackEndUEAndORT->SessionOptions);
+
+
+#ifdef PLATFORM_WIN64
+			// Check if resource allocator is properly initialized
+			if (InOutImplBackEndUEAndORT->DmlGPUAllocator.IsValid())
+			{
+				if (!InOutImplBackEndUEAndORT->DmlGPUAllocator->IsValid())
+				{
+					UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::Load() DirectML GPU resource allocator has failed to initialize"));
+				}
+			}
+#endif
 		}
 		// Else
 		else
@@ -231,6 +243,17 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::Load(TSharedPtr<FImplBackEndUEAndORT>
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::Load(): Platform or Operating System not suported yet for UEAndORT BackEnd. Set BackEnd to ENeuralBackEnd::Auto (recommended) or ENeuralBackEnd::UEOnly for this platform."));
 	return false;
 #endif //WITH_UE_AND_ORT_SUPPORT
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
+{
+#ifdef PLATFORM_WIN64
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	
+	DmlGPUAllocator.Reset(nullptr);
+
+#endif
+#endif
 }
 
 void UNeuralNetwork::FImplBackEndUEAndORT::Run(const ENeuralNetworkSynchronousMode InSynchronousMode, const ENeuralDeviceType InInputDeviceType, const ENeuralDeviceType InOutputDeviceType)
@@ -372,7 +395,16 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::ConfigureMembers(const ENeuralDeviceT
 
 		// ORT GPU (Direct ML)
 		SessionOptions->SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_ALL); // ORT_ENABLE_ALL, ORT_ENABLE_EXTENDED, ORT_ENABLE_BASIC, ORT_DISABLE_ALL
-		if (OrtSessionOptionsAppendExecutionProviderEx_DML(*SessionOptions, DmlDevice, NativeCmdQ))
+
+		DmlGPUAllocator = MakeUnique<Ort::DMLGPUResourceAllocator>();
+
+		// Set DirectML execution provider options
+		DmlProviderOptions.Reset(new OrtDMLProviderOptions());
+		DmlProviderOptions->dml_device = DmlDevice;
+		DmlProviderOptions->cmd_queue = NativeCmdQ;
+		DmlProviderOptions->resource_allocator = DmlGPUAllocator->GetAllocatorAddressOf();
+
+		if (OrtSessionOptionsAppendExecutionProviderWithOptions_DML(*SessionOptions, DmlProviderOptions.Get()))
 		{
 			UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::ConfigureMembers(): Some error occurred when using OrtSessionOptionsAppendExecutionProviderEx_DML()."));
 			return false;
