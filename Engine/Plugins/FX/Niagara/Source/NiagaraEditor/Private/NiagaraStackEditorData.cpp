@@ -21,9 +21,17 @@ bool UNiagaraStackEditorData::GetStackEntryIsExpanded(const FString& StackEntryK
 
 void UNiagaraStackEditorData::SetStackEntryIsExpanded(const FString& StackEntryKey, bool bIsExpanded)
 {
+	bool bBroadcast = false;
 	if (ensureMsgf(StackEntryKey.IsEmpty() == false, TEXT("Can not set the expanded state with an empty key")))
 	{
+		// we assume elements are expanded by default, so collapsing (bIsExpanded = false) will cause a broadcast
+		bBroadcast = GetStackEntryIsExpanded(StackEntryKey, true) != bIsExpanded;
 		StackEntryKeyToExpandedMap.FindOrAdd(StackEntryKey) = bIsExpanded;
+	}
+
+	if (bBroadcast)
+	{
+		OnPersistentDataChanged().Broadcast();
 	}
 }
 
