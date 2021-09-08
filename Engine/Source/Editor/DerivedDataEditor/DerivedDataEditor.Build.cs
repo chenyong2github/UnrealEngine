@@ -26,6 +26,7 @@ public class DerivedDataEditor : ModuleRules
 				"EditorSubsystem",
 				"WorkspaceMenuStructure",
 				"MessageLog",
+				"ToolWidgets",
 			});
 
 		DynamicallyLoadedModuleNames.AddRange(

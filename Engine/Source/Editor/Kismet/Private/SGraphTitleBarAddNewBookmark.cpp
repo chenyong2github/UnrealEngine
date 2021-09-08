@@ -12,6 +12,7 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/Images/SImage.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "SGraphTitleBarAddNewBookmark"
 
@@ -79,7 +80,6 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("RemoveButtonLabel", "Remove"))
-					.ButtonStyle(FEditorStyle::Get(), "SecondaryButton")
 					.Visibility_Lambda([this]() -> EVisibility
 					{
 						return CurrentViewBookmarkId.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
@@ -107,10 +107,8 @@ void SGraphTitleBarAddNewBookmark::Construct(const FArguments& InArgs)
 					]
 					+ SUniformGridPanel::Slot(1, 0)
 					[
-						SNew(SButton)
-						.HAlign(HAlign_Center)
+						SNew(SPrimaryButton)
 						.Text(this, &SGraphTitleBarAddNewBookmark::GetAddButtonLabel)
-						.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
 						.OnClicked(this, &SGraphTitleBarAddNewBookmark::OnAddButtonClicked)
 						.IsEnabled(this, &SGraphTitleBarAddNewBookmark::IsAddButtonEnabled)
 					]

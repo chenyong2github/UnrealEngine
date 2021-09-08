@@ -18,6 +18,7 @@
 #include "LevelEditor.h"
 #include "IDocumentation.h"
 #include "Styling/ToolBarStyle.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "SMergeActorsToolbar"
 
@@ -94,9 +95,7 @@ void SMergeActorsToolbar::Construct(const FArguments& InArgs)
 				.HAlign(HAlign_Right)
 				.Padding(4, 4, 10, 4)
 				[
-					SNew(SButton)
-					.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
-					.TextStyle(FEditorStyle::Get(), "DialogButtonText")
+					SNew(SPrimaryButton)
 					.Text(LOCTEXT("MergeActors", "Merge Actors"))
 					.OnClicked(this, &SMergeActorsToolbar::OnMergeActorsClicked)
 					.IsEnabled_Lambda([this]() -> bool { return this->RegisteredTools[CurrentlySelectedTool]->CanMergeFromWidget(); })

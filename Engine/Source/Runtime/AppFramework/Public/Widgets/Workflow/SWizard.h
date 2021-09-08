@@ -166,8 +166,8 @@ public:
 public:
 
 	SLATE_BEGIN_ARGS(SWizard)
-		: _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SecondaryButton"))
-		, _CancelButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("SecondaryButton"))
+		: _ButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
+		, _CancelButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Button"))
 		, _FinishButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("PrimaryButton"))
 		, _ButtonTextStyle(&FAppStyle::Get().GetWidgetStyle<FTextBlockStyle>("DialogButtonText"))
 		, _CanFinish(true)

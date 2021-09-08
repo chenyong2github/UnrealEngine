@@ -16,6 +16,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "WidgetCarousel/Public/WidgetCarouselStyle.h"
 #include "WidgetCarousel/Public/SWidgetCarouselWithNavigation.h"
+#include "SPrimaryButton.h"
 
 
 #define LOCTEXT_NAMESPACE "AddContentDialog"
@@ -218,9 +219,7 @@ void SAddContentWidget::Construct(const FArguments& InArgs)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Right)
 			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
-				.TextStyle(FAppStyle::Get(), "DialogButtonText")
+				SNew(SPrimaryButton)
 				.OnClicked(this, &SAddContentWidget::AddButtonClicked)
 				.Text(LOCTEXT("AddToProjectButton", "Add to Project"))
 			]

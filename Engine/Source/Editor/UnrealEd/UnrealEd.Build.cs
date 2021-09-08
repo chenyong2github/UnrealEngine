@@ -119,6 +119,7 @@ public class UnrealEd : ModuleRules
 				"SubobjectDataInterface",
 				"SubobjectEditor",
 				"PhysicsUtilities",
+				"ToolWidgets",
 			}
 		);
 

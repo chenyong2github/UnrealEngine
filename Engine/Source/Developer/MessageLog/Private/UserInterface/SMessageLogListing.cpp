@@ -102,7 +102,7 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				.HAlign(HAlign_Left)
 				[
 					SNew(SComboButton)
-					.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
+					.ButtonStyle(FAppStyle::Get(), "Button")
 					.ForegroundColor(FStyleColors::White)
 					.OnGetMenuContent(this, &SMessageLogListing::OnGetFilterMenuContent)
 					.ButtonContent()
@@ -121,7 +121,7 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				SNew(SComboButton)
 				.IsEnabled(this, &SMessageLogListing::IsPageWidgetEnabled)
 				.Visibility(this, &SMessageLogListing::GetPageWidgetVisibility)
-				.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
+				.ButtonStyle(FAppStyle::Get(), "Button")
 				.ForegroundColor(FStyleColors::White)
 				.OnGetMenuContent(this, &SMessageLogListing::OnGetPageMenuContent)
 				.ButtonColorAndOpacity(FStyleColors::White)
@@ -141,7 +141,6 @@ void SMessageLogListing::Construct( const FArguments& InArgs, const TSharedRef< 
 				.OnClicked(this, &SMessageLogListing::OnClear)
 				.IsEnabled(this, &SMessageLogListing::IsClearWidgetEnabled)
 				.Visibility(this, &SMessageLogListing::GetClearWidgetVisibility)
-				.ButtonStyle(FAppStyle::Get(), "SecondaryButton")
 				.ForegroundColor(FStyleColors::White)
 				.ContentPadding(FMargin(6.5, 2))
 				[

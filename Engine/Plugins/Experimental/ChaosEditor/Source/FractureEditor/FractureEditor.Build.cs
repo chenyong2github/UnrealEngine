@@ -56,7 +56,7 @@ public class FractureEditor : ModuleRules
 				"StaticMeshDescription",
 				"PlanarCut",
 				"Chaos",
-
+				"ToolWidgets",
 
 				// ... add private dependencies that you statically link with here ...	
 			}

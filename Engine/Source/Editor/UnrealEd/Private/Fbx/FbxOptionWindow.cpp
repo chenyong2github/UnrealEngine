@@ -12,6 +12,7 @@
 #include "PropertyEditorModule.h"
 #include "IDetailsView.h"
 #include "Framework/Application/SlateApplication.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "FBXOption"
 
@@ -81,9 +82,7 @@ void SFbxOptionWindow::Construct(const FArguments& InArgs)
 				.SlotPadding(2)
 				+ SUniformGridPanel::Slot(1, 0)
 				[
-					SAssignNew(ImportAllButton, SButton)
-					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-					.HAlign(HAlign_Center)
+					SAssignNew(ImportAllButton, SPrimaryButton)
 					.Text(LOCTEXT("FbxOptionWindow_ImportAll", "Import All"))
 					.ToolTipText(LOCTEXT("FbxOptionWindow_ImportAll_ToolTip", "Import all files with these same settings"))
 					.IsEnabled(this, &SFbxOptionWindow::CanImport)

@@ -15,8 +15,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/STextBlock.h"
-
 #include "EdModeInteractiveToolsContext.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "FUVEditorModeToolkit"
 
@@ -252,12 +252,9 @@ void FUVEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost,
 			.AutoWidth()
 			.Padding(FMargin(0.0, 0.f, 2.f, 0.f))
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-				.TextStyle( FAppStyle::Get(), "DialogButtonText" )
+				SNew(SPrimaryButton)
 				.Text(LOCTEXT("OverlayAccept", "Accept"))
 				.ToolTipText(LOCTEXT("OverlayAcceptTooltip", "Accept/Commit the results of the active Tool [Enter]"))
-				.HAlign(HAlign_Center)
 				.OnClicked_Lambda([this]() { 
 					GetScriptableEditorMode()->GetInteractiveToolsContext()->EndTool(EToolShutdownType::Accept);
 					Cast<UUVEditorMode>(GetScriptableEditorMode())->ActivateDefaultTool();

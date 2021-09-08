@@ -58,7 +58,7 @@ public class UVEditor : ModuleRules
 				"ModelingComponents",
 				"ToolMenus",
 				"UVEditorTools",
-				
+				"ToolWidgets",				
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);

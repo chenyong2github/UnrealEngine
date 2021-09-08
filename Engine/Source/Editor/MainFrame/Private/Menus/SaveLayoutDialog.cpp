@@ -14,6 +14,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "SaveLayoutDialog"
 
@@ -279,9 +280,8 @@ void SSaveLayoutDialog::Construct(const FArguments& InArgs, const TSharedRef<FSa
 					.VAlign(VAlign_Bottom)
 					.Padding(4, 3)
 					[
-						SNew(SButton)
+						SNew(SPrimaryButton)
 						.Text(LOCTEXT("SaveLayoutDialogSaveButton", "Save"))
-						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
 						.IsEnabled(this, &SSaveLayoutDialog::IsConfirmButtonEnabled)
 						.OnClicked(this, &SSaveLayoutDialog::OnConfirmClicked)
 					]

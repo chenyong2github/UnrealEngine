@@ -21,7 +21,8 @@ public class KismetWidgets : ModuleRules
 				"UnrealEd",
 				"BlueprintGraph",
 				"ContentBrowserData",
-				"ClassViewer"
+				"ClassViewer",
+				"ToolWidgets",
 			}
 		);
 

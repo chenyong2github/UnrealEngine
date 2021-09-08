@@ -25,6 +25,7 @@
 #include "WorldPartition/IWorldPartitionEditorModule.h"
 #include "Internationalization/BreakIterator.h"
 #include "Brushes/SlateImageBrush.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "NewLevelDialog"
 
@@ -233,11 +234,7 @@ public:
 					.VAlign(VAlign_Center)
 					.AutoWidth()
 					[
-						SAssignNew(CreateButton, SButton)
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-						.TextStyle(FAppStyle::Get(), "DialogButtonText")
+						SAssignNew(CreateButton, SPrimaryButton)
 						.Text(LOCTEXT("Create", "Create"))
 						.IsEnabled(this, &SNewLevelDialog::CanCreateLevel)
 						.OnClicked(this, &SNewLevelDialog::OnCreateClicked)

@@ -27,6 +27,7 @@
 #include "EditorClassUtils.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Styling/SlateIconFinder.h"
+#include "SPrimaryButton.h"
 
 #define LOCTEXT_NAMESPACE "SClassPicker"
 
@@ -175,19 +176,14 @@ void SClassPickerDialog::Construct(const FArguments& InArgs)
 					.SlotPadding(FEditorStyle::GetMargin("StandardDialog.SlotPadding"))
 					+SUniformGridPanel::Slot(0,0)
 					[
-						SNew(SButton)
-						.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
-						.TextStyle(FAppStyle::Get(), "DialogButtonText")
+						SNew(SPrimaryButton)
 						.Text(NSLOCTEXT("SClassPickerDialog", "ClassPickerSelectButton", "Select"))
-						.HAlign(HAlign_Center)
 						.Visibility( this, &SClassPickerDialog::GetSelectButtonVisibility )
 						.OnClicked(this, &SClassPickerDialog::OnClassPickerConfirmed)
-						.ButtonStyle(FEditorStyle::Get(), "PrimaryButton")
 					]
 					+SUniformGridPanel::Slot(1,0)
 					[
 						SNew(SButton)
-						.TextStyle(FAppStyle::Get(), "DialogButtonText")
 						.Text(NSLOCTEXT("SClassPickerDialog", "ClassPickerCancelButton", "Cancel"))
 						.HAlign(HAlign_Center)
 						.OnClicked(this, &SClassPickerDialog::OnClassPickerCanceled)
