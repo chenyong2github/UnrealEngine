@@ -6816,6 +6816,8 @@ void ReloadGlobalShaders()
 	{
 		BeginUpdateResourceRHI(*It);
 	}
+
+	PropagateGlobalShadersToAllPrimitives();
 }
 
 static FAutoConsoleCommand CCmdReloadGlobalShaders = FAutoConsoleCommand(
